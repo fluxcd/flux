@@ -19,7 +19,7 @@ type Repository interface {
 // struct because I think we can safely assume the data here is pretty
 // universal across different registries and repositories.
 type Image struct {
-	Name      string // "weaveworks/helloworld"
-	Tag       string // "master-59f0001"
-	CreatedAt time.Time
+	Name      string    // "weaveworks/helloworld"
+	Tag       string    // "master-59f0001"
+	CreatedAt time.Time // Always UTC
 }
