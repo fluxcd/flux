@@ -1,10 +1,22 @@
-hash: 3f6b40020d7ca2fd83360ad0be845f42f3cf29d470bcd9b3a6b3318495744d91
-updated: 2016-07-07T16:33:13.346623395+02:00
+hash: 85b7066d249291ff1328ec907e1b5eab8a1b49ed73f8a92f0e878f8501a8b49f
+updated: 2016-07-07T17:45:30.040991597+02:00
 imports:
+- name: github.com/go-kit/kit
+  version: 4c2dfa997aeb443211e58f2c5a837c13b9a9a43f
+  subpackages:
+  - log
+- name: github.com/go-logfmt/logfmt
+  version: d4327190ff838312623b09bfeb50d7c93c8d9c1d
+- name: github.com/go-stack/stack
+  version: 100eb0c0a9c5b306ca2fb4f165df21d80ada4b82
 - name: github.com/inconshreveable/mousetrap
-  version: 76626ae9c91c4f2a10f34cad8ce83ea42c93bb75
+  version: fb104eebd8a60e84908b33826ad4b435eac95e9e
+- name: github.com/kr/logfmt
+  version: b84e30acd515aadc4b783ad4ff83aff3299bdfe0
+- name: github.com/Sirupsen/logrus
+  version: ""
 - name: github.com/spf13/cobra
-  version: 6a8bd97bdb1fc0d08a83459940498ea49d3e8c93
+  version: fb104eebd8a60e84908b33826ad4b435eac95e9e
 - name: github.com/spf13/pflag
-  version: 367864438f1b1a3c7db4da06a2f55b144e6784e0
+  version: fb104eebd8a60e84908b33826ad4b435eac95e9e
 testImports: []
