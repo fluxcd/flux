@@ -33,6 +33,17 @@ Binaries are installed to $GOPATH/bin.
 $ go test ./...
 ```
 
+### Dependency management
+
+We use [Glide](https://github.com/Masterinds/glide) to vendor our dependencies.
+If you add or remove dependencies, use the following command to update the vendor folder and manifest files.
+
+```
+$ glide update --strip-vcs --strip-vendor
+```
+
+Commit these changes separately from your actual code changes.
+
 ### Contribution
 
 Flux follows a typical PR workflow.
