@@ -2,6 +2,17 @@
 
 Flux, reimagined.
 
+## Installing
+
+If you have a working Go toolchain, you can install the most recent version of the binaries via
+
+```
+$ go get github.com/weaveworks/fluxy/cmd/fluxd
+$ go get github.com/weaveworks/fluxy/cmd/fluxctl
+```
+
+Otherwise, see [the releases page](https://github.com/weaveworks/fluxy/releases) for downloads.
+
 ## Developing
 
 ### Build
