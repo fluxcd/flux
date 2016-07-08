@@ -24,4 +24,4 @@ _testmain.go
 *.prof
 
 # Specific to this project
-docker/.*.done
+build/
