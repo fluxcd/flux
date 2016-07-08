@@ -1,0 +1,4 @@
+FROM scratch
+ENTRYPOINT ["/home/flux/fluxd"]
+EXPOSE 3030
+COPY ./fluxd /home/flux/
