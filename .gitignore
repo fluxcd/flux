@@ -26,3 +26,6 @@ _testmain.go
 # Specific to this project
 vendor/
 build/
+testdata/helloworld-linux-amd64
+testdata/.helloworld
+
