@@ -11,11 +11,13 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/weaveworks/fluxy/platform/kubernetes"
+	"github.com/weaveworks/fluxy/registry"
 )
 
 // Server implements the fluxd API as consumed by the fluxctl client.
 type Server struct {
 	Platform *kubernetes.Cluster // TODO(pb): replace with platform.Platform when we have that
+	Registry *registry.Client
 }
 
 // ListenAndServe mirrors http.Server and should be invoked in func main.
@@ -31,6 +33,7 @@ func (s *Server) installRoutes(r *mux.Router) {
 	v0 := r.PathPrefix("/v0").Subrouter()
 	v0.Methods("GET").Path("/services").HandlerFunc(s.services)
 	v0.Methods("POST").Path("/release").HandlerFunc(s.release)
+	v0.Methods("GET").Path("/images/{repository:.*}").HandlerFunc(s.listImages)
 }
 
 func (s *Server) status(w http.ResponseWriter, r *http.Request) {
@@ -108,6 +111,28 @@ func (s *Server) release(w http.ResponseWriter, r *http.Request) {
 		code = http.StatusInternalServerError
 	}
 	s.respond(w, code, resp)
+}
+
+func (s *Server) listImages(w http.ResponseWriter, r *http.Request) {
+	repositoryName := mux.Vars(r)["repository"]
+	repository, err := s.Registry.GetRepository(repositoryName)
+	if err != nil {
+		switch err := err.(type) {
+		case registry.Error:
+			if err.Code == http.StatusNotFound {
+				s.respond(w, http.StatusNotFound,
+					errorBody(fmt.Sprintf("Did not find repository: %s", repositoryName)))
+			} else {
+				s.respond(w, http.StatusInternalServerError,
+					errorBody(fmt.Sprintf("Unable to get repository: %v", err)))
+			}
+		default:
+			s.respond(w, http.StatusInternalServerError,
+				errorBody(fmt.Sprintf("Unable to get repository: %v", err)))
+		}
+		return
+	}
+	s.respond(w, http.StatusOK, repository)
 }
 
 func (s *Server) respond(w http.ResponseWriter, code int, x interface{}) {
