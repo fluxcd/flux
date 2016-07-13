@@ -53,6 +53,7 @@ func main() {
 	serviceReleaseCmd.Flags().DurationVarP(&serviceReleaseOpts.UpdatePeriod, "update-period", "p", 5*time.Second, "delay between starting and stopping instances in the rolling update")
 
 	rootCmd.AddCommand(serviceCmd)
+	rootCmd.AddCommand(imagesCommand(rootOpts))
 	serviceCmd.AddCommand(serviceListCmd)
 	serviceCmd.AddCommand(serviceReleaseCmd)
 

@@ -111,6 +111,19 @@ type Image struct {
 	CreatedAt time.Time // Always UTC
 }
 
+type Images []Image
+
+func (is Images) Len() int      { return len(is) }
+func (is Images) Swap(i, j int) { is[i], is[j] = is[j], is[i] }
+
+type ImagesByCreatedDesc struct {
+	Images
+}
+
+func (is ImagesByCreatedDesc) Less(i, j int) bool {
+	return is.Images[i].CreatedAt.After(is.Images[j].CreatedAt)
+}
+
 func NoCredentials() Credentials {
 	return make(map[string]dockerregistry.Authenticator)
 }
