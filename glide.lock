@@ -1,22 +1,26 @@
 hash: 85b7066d249291ff1328ec907e1b5eab8a1b49ed73f8a92f0e878f8501a8b49f
-updated: 2016-07-07T17:45:30.040991597+02:00
+updated: 2016-07-13T11:26:05.256423755+02:00
 imports:
 - name: github.com/go-kit/kit
-  version: 4c2dfa997aeb443211e58f2c5a837c13b9a9a43f
+  version: 1c5eda624c0266a464594db0acd64d741c7a5722
   subpackages:
   - log
 - name: github.com/go-logfmt/logfmt
   version: d4327190ff838312623b09bfeb50d7c93c8d9c1d
 - name: github.com/go-stack/stack
   version: 100eb0c0a9c5b306ca2fb4f165df21d80ada4b82
+- name: github.com/gorilla/context
+  version: aed02d124ae4a0e94fea4541c8effd05bf0c8296
+- name: github.com/gorilla/mux
+  version: 9fa818a44c2bf1396a17f9d5a3c0f6dd39d2ff8e
 - name: github.com/inconshreveable/mousetrap
-  version: fb104eebd8a60e84908b33826ad4b435eac95e9e
+  version: 76626ae9c91c4f2a10f34cad8ce83ea42c93bb75
 - name: github.com/kr/logfmt
   version: b84e30acd515aadc4b783ad4ff83aff3299bdfe0
 - name: github.com/Sirupsen/logrus
-  version: ""
+  version: 4b6ea7319e214d98c938f12692336f7ca9348d6b
 - name: github.com/spf13/cobra
-  version: fb104eebd8a60e84908b33826ad4b435eac95e9e
+  version: a272c3cbd5ff80a5bf5c5603df50183f9f3f7324
 - name: github.com/spf13/pflag
-  version: fb104eebd8a60e84908b33826ad4b435eac95e9e
+  version: 367864438f1b1a3c7db4da06a2f55b144e6784e0
 testImports: []
