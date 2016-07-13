@@ -9,31 +9,27 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// These are the (unfortunately global) flags.
-var (
-	OptionURL       string
-	OptionNamespace string
-)
-
 func main() {
+	rootOpts := &rootOpts{}
 	rootCmd := &cobra.Command{
 		Use:          "fluxctl",
 		Short:        "fluxctl is a commandline client for the fluxd daemon.",
 		SilenceUsage: true,
 	}
-	rootCmd.Flags().StringVarP(&OptionURL, "url", "u", "http://localhost:3030/v0/", "Base URL of the fluxd API server")
+	rootCmd.PersistentFlags().StringVarP(&rootOpts.URL, "url", "u", "http://localhost:3030/v0/", "base URL of the fluxd API server")
 
 	serviceCmd := &cobra.Command{
 		Use:   "service <list, ...> [options]",
 		Short: "Manipulate platform services.",
 	}
 
+	serviceListOpts := &serviceListOpts{rootOpts: rootOpts}
 	serviceListCmd := &cobra.Command{
 		Use:   "list",
 		Short: "List services currently running on the platform.",
-		RunE:  serviceList,
+		RunE:  serviceListOpts.RunE,
 	}
-	serviceListCmd.Flags().StringVarP(&OptionNamespace, "namespace", "n", "default", "Namespace to introspect")
+	serviceListCmd.Flags().StringVarP(&serviceListOpts.Namespace, "namespace", "n", "default", "namespace to introspect")
 
 	rootCmd.AddCommand(serviceCmd)
 	serviceCmd.AddCommand(serviceListCmd)
@@ -43,11 +39,20 @@ func main() {
 	}
 }
 
-func serviceList(cmd *cobra.Command, args []string) error {
+type rootOpts struct {
+	URL string
+}
+
+type serviceListOpts struct {
+	*rootOpts
+	Namespace string
+}
+
+func (opts *serviceListOpts) RunE(*cobra.Command, []string) error {
 	req, err := http.NewRequest("GET", fmt.Sprintf(
 		"%s/services?namespace=%s",
-		OptionURL,
-		OptionNamespace,
+		opts.URL,
+		opts.Namespace,
 	), nil)
 	if err != nil {
 		return err
