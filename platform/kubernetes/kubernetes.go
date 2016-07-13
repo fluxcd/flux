@@ -120,12 +120,13 @@ func (c *Cluster) Release(namespace, serviceName string, newReplicationControlle
 	cmd.Stderr = ioutil.Discard
 	logger.Log("cmd", strings.Join(cmd.Args, " "))
 
+	begin := time.Now()
 	err = cmd.Run()
 	result := "success"
 	if err != nil {
 		result = err.Error()
 	}
-	logger.Log("result", result)
+	logger.Log("result", result, "took", time.Since(begin).String())
 
 	return err
 }
@@ -175,12 +176,10 @@ func (c *Cluster) replicationControllerFor(namespace, serviceName string) (api.R
 			}
 			return true
 		}()
-		logger.Log("RC", rc.Name, "match", match)
 		if match {
 			matches = append(matches, rc)
 		}
 	}
-	logger.Log("matches", len(matches))
 
 	// Our naïve, simplifying assumption: every service is satisfied by
 	// precisely 1 replication controller.
