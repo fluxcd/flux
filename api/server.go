@@ -7,20 +7,21 @@ import (
 	"github.com/gorilla/mux"
 )
 
-type APIServer struct {
-}
+// Server implements the fluxd API as consumed by the fluxctl client.
+type Server struct{}
 
-func (srv *APIServer) ListenAndServe(addr string) error {
+// ListenAndServe mirrors http.Server and should be invoked in func main.
+func (s *Server) ListenAndServe(addr string) error {
 	r := mux.NewRouter()
-	srv.installRoutes(r)
+	s.installRoutes(r)
 	return http.ListenAndServe(addr, r)
 }
 
-func (srv *APIServer) installRoutes(r *mux.Router) {
-	r.HandleFunc("/", srv.status)
+func (s *Server) installRoutes(r *mux.Router) {
+	r.HandleFunc("/", s.status)
 }
 
-func (srv *APIServer) status(w http.ResponseWriter, r *http.Request) {
+func (s *Server) status(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	json.NewEncoder(w).Encode(map[string]string{"status": "OK"})
 }
