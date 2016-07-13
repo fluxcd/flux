@@ -154,8 +154,9 @@ func (c *Cluster) replicationControllerFor(namespace, serviceName string) (api.R
 	selector := service.Spec.Selector
 
 	// Now, find a replication controller which produces pods that match that
-	// selector. We have to match all of the criteria in the service selector,
-	// but we don't need a perfect match of all criteria.
+	// selector. We have to match all of the criteria in the selector, but we
+	// don't need a perfect match of all of the replication controller's pod
+	// properties.
 	list, err := c.client.ReplicationControllers(namespace).List(api.ListOptions{})
 	if err != nil {
 		return api.ReplicationController{}, err
