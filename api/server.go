@@ -25,8 +25,9 @@ func (s *Server) ListenAndServe(addr string) error {
 }
 
 func (s *Server) installRoutes(r *mux.Router) {
-	r.HandleFunc("/", s.status)
-	v0 := r.PathPrefix("/v0")
+	r.StrictSlash(false)
+	r.Methods("GET").Path("/").HandlerFunc(s.status)
+	v0 := r.PathPrefix("/v0").Subrouter()
 	v0.Methods("GET").Path("/services").HandlerFunc(s.services)
 	v0.Methods("POST").Path("/release").HandlerFunc(s.release)
 }
@@ -97,7 +98,7 @@ func (s *Server) release(w http.ResponseWriter, r *http.Request) {
 	code, resp := http.StatusOK, map[string]interface{}{
 		"namespace":    namespace,
 		"serviceName":  serviceName,
-		"updatePeriod": updatePeriod,
+		"updatePeriod": updatePeriod.String(),
 		"success":      true,
 	}
 	if err = s.Platform.Release(namespace, serviceName, body, updatePeriod); err != nil {
