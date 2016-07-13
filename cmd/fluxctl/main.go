@@ -23,26 +23,26 @@ func main() {
 	}
 	rootCmd.PersistentFlags().StringVarP(&rootOpts.URL, "url", "u", "http://localhost:3030/v0", "base URL of the fluxd API server")
 
+	serviceOpts := &serviceOpts{rootOpts: rootOpts}
 	serviceCmd := &cobra.Command{
 		Use:   "service <list, ...> [options]",
 		Short: "Manipulate platform services.",
 	}
+	serviceCmd.PersistentFlags().StringVarP(&serviceOpts.Namespace, "namespace", "n", "default", "namespace to introspect")
 
-	serviceListOpts := &serviceListOpts{rootOpts: rootOpts}
+	serviceListOpts := &serviceListOpts{serviceOpts: serviceOpts}
 	serviceListCmd := &cobra.Command{
 		Use:   "list",
 		Short: "List services currently running on the platform.",
 		RunE:  serviceListOpts.RunE,
 	}
-	serviceListCmd.Flags().StringVarP(&serviceListOpts.Namespace, "namespace", "n", "default", "namespace to introspect")
 
-	serviceReleaseOpts := &serviceReleaseOpts{rootOpts: rootOpts}
+	serviceReleaseOpts := &serviceReleaseOpts{serviceOpts: serviceOpts}
 	serviceReleaseCmd := &cobra.Command{
 		Use:   "release",
 		Short: "Release a new version of a service.",
 		RunE:  serviceReleaseOpts.RunE,
 	}
-	serviceReleaseCmd.Flags().StringVarP(&serviceReleaseOpts.Namespace, "namespace", "n", "default", "namespace to introspect")
 	serviceReleaseCmd.Flags().StringVarP(&serviceReleaseOpts.Service, "service", "s", "", "service to update")
 	serviceReleaseCmd.Flags().StringVarP(&serviceReleaseOpts.File, "file", "f", "-", "file containing new ReplicationController definition, or - to read from stdin")
 	serviceReleaseCmd.Flags().DurationVarP(&serviceReleaseOpts.UpdatePeriod, "update-period", "p", 5*time.Second, "delay between starting and stopping instances in the rolling update")
@@ -60,9 +60,13 @@ type rootOpts struct {
 	URL string
 }
 
-type serviceListOpts struct {
+type serviceOpts struct {
 	*rootOpts
 	Namespace string
+}
+
+type serviceListOpts struct {
+	*serviceOpts
 }
 
 func (opts *serviceListOpts) RunE(*cobra.Command, []string) error {
@@ -86,8 +90,7 @@ func (opts *serviceListOpts) RunE(*cobra.Command, []string) error {
 }
 
 type serviceReleaseOpts struct {
-	*rootOpts
-	Namespace    string
+	*serviceOpts
 	Service      string
 	File         string
 	UpdatePeriod time.Duration
@@ -128,7 +131,6 @@ func (opts *serviceReleaseOpts) RunE(*cobra.Command, []string) error {
 		return err
 	}
 
-	fmt.Fprintf(os.Stderr, "%s\n", req.URL.String())
 	fmt.Fprintf(os.Stdout, "Starting release of %s with an update period of %s... ", opts.Service, opts.UpdatePeriod.String())
 	begin := time.Now()
 	resp, err := http.DefaultClient.Do(req)
