@@ -24,4 +24,5 @@ _testmain.go
 *.prof
 
 # Specific to this project
+vendor/
 build/
