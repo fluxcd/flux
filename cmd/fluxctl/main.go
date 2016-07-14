@@ -17,7 +17,6 @@ func main() {
 
 	rootCmd.AddCommand(imagesCmd)
 	rootCmd.AddCommand(serviceCmd)
-	rootCmd.AddCommand(imagesCommand(rootOpts))
 	serviceCmd.AddCommand(serviceListCmd)
 	serviceCmd.AddCommand(serviceReleaseCmd)
 
