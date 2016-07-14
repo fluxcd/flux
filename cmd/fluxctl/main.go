@@ -1,14 +1,9 @@
 package main
 
 import (
-	"bytes"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"io/ioutil"
-	"net/http"
-	"net/url"
 	"os"
 	"strings"
 	"text/tabwriter"
@@ -16,15 +11,16 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/weaveworks/fluxy/platform"
+	"github.com/weaveworks/fluxy"
 )
 
 func main() {
 	rootOpts := &rootOpts{}
 	rootCmd := &cobra.Command{
-		Use:          "fluxctl",
-		Short:        "fluxctl is a commandline client for the fluxd daemon.",
-		SilenceUsage: true,
+		Use:               "fluxctl",
+		Short:             "fluxctl is a commandline client for the fluxd daemon.",
+		SilenceUsage:      true,
+		PersistentPreRunE: rootOpts.PreRunE,
 	}
 	rootCmd.PersistentFlags().StringVarP(&rootOpts.URL, "url", "u", "http://localhost:3030/v0", "base URL of the fluxd API server")
 
@@ -63,7 +59,14 @@ func main() {
 }
 
 type rootOpts struct {
-	URL string
+	URL   string
+	Fluxd flux.Service
+}
+
+func (opts *rootOpts) PreRunE(*cobra.Command, []string) error {
+	var err error
+	opts.Fluxd, err = flux.NewClient(opts.URL)
+	return err
 }
 
 type serviceOpts struct {
@@ -76,31 +79,9 @@ type serviceListOpts struct {
 }
 
 func (opts *serviceListOpts) RunE(*cobra.Command, []string) error {
-	req, err := http.NewRequest("GET", fmt.Sprintf(
-		"%s/services?namespace=%s",
-		opts.URL,
-		url.QueryEscape(opts.Namespace),
-	), nil)
+	services, err := opts.Fluxd.Services(opts.Namespace)
 	if err != nil {
 		return err
-	}
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		fmt.Fprintf(os.Stderr, "Error: %s\n", resp.Status)
-		io.Copy(os.Stderr, resp.Body)
-		return nil
-	}
-
-	var services []platform.Service
-	if err := json.NewDecoder(resp.Body).Decode(&services); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		return nil
 	}
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 2, 2, ' ', 0)
@@ -147,33 +128,13 @@ func (opts *serviceReleaseOpts) RunE(*cobra.Command, []string) error {
 		}
 	}
 
-	req, err := http.NewRequest("POST", fmt.Sprintf(
-		"%s/release?namespace=%s&service=%s&updatePeriod=%s",
-		opts.URL,
-		url.QueryEscape(opts.Namespace),
-		url.QueryEscape(opts.Service),
-		url.QueryEscape(opts.UpdatePeriod.String()),
-	), bytes.NewReader(buf))
-	if err != nil {
-		return err
-	}
-
-	fmt.Fprintf(os.Stdout, "Starting release of %s with an update period of %s... ", opts.Service, opts.UpdatePeriod.String())
 	begin := time.Now()
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return err
+	fmt.Fprintf(os.Stdout, "Starting release of %s with an update period of %s... ", opts.Service, opts.UpdatePeriod.String())
+	if err = opts.Fluxd.Release(opts.Namespace, opts.Service, buf, opts.UpdatePeriod); err != nil {
+		fmt.Fprintf(os.Stdout, "error! %v\n", err)
+	} else {
+		fmt.Fprintf(os.Stdout, "success\n")
 	}
-	defer resp.Body.Close()
-
-	took := time.Since(begin).String()
-	switch resp.StatusCode {
-	case http.StatusOK:
-		fmt.Fprintf(os.Stdout, "success! (%s)\n", took)
-	default:
-		fmt.Fprintf(os.Stdout, "failed! %s (%s)\n", resp.Status, took)
-		io.Copy(os.Stdout, resp.Body)
-	}
-
+	fmt.Fprintf(os.Stdout, "took %s\n", time.Since(begin))
 	return nil
 }

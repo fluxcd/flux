@@ -1,10 +1,14 @@
 package flux
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/go-kit/kit/log"
@@ -28,14 +32,14 @@ func MakeHTTPHandler(ctx context.Context, e Endpoints, logger log.Logger) http.H
 		httptransport.ServerErrorEncoder(encodeError),
 	}
 
-	r.Methods("GET").Path("/services/").Handler(httptransport.NewServer(
+	r.Methods("GET").Path("/services").Handler(httptransport.NewServer(
 		ctx,
 		e.ServicesEndpoint,
 		decodeServicesRequest,
 		encodeServicesResponse,
 		options...,
 	))
-	r.Methods("POST").Path("/release/").Handler(httptransport.NewServer(
+	r.Methods("POST").Path("/release").Handler(httptransport.NewServer(
 		ctx,
 		e.ReleaseEndpoint,
 		decodeReleaseRequest,
@@ -63,6 +67,22 @@ func encodeError(_ context.Context, err error, w http.ResponseWriter) {
 		"status_code": code,
 		"status_text": http.StatusText(code),
 	})
+}
+
+func decodeError(r io.Reader) error {
+	var m map[string]interface{}
+	if err := json.NewDecoder(r).Decode(&m); err != nil {
+		return fmt.Errorf("received error, but encountered additional error when trying to parse it: %v", err)
+	}
+	err, ok := m["error"]
+	if !ok {
+		return errors.New("received error, but it was in an unexpected form, so is unknown")
+	}
+	errStr, ok := err.(string)
+	if !ok {
+		return errors.New("received error, but it was in an unexpected type, so is unknown")
+	}
+	return errors.New(errStr)
 }
 
 func codeFrom(err error) int {
@@ -113,6 +133,56 @@ func decodeReleaseRequest(_ context.Context, r *http.Request) (request interface
 		NewDef:       newDef,
 		UpdatePeriod: updatePeriod,
 	}, nil
+}
+
+func decodeServicesResponse(_ context.Context, resp *http.Response) (interface{}, error) {
+	var response servicesResponse
+	var err error
+	switch resp.StatusCode {
+	case http.StatusOK:
+		err = json.NewDecoder(resp.Body).Decode(&response.Services)
+	default:
+		response.Err = decodeError(resp.Body)
+	}
+	return response, err
+}
+
+func decodeReleaseResponse(_ context.Context, resp *http.Response) (interface{}, error) {
+	var response releaseResponse
+	switch resp.StatusCode {
+	case http.StatusOK:
+		// nothing to do
+	default:
+		response.Err = decodeError(resp.Body)
+	}
+	return response, nil
+}
+
+func encodeServicesRequest(ctx context.Context, req *http.Request, request interface{}) error {
+	r := request.(servicesRequest)
+	values := url.Values{}
+	values.Set("namespace", r.Namespace)
+
+	req.Method = "GET"
+	req.URL.Path = "/v0/services"
+	req.URL.RawQuery = values.Encode()
+
+	return nil
+}
+
+func encodeReleaseRequest(ctx context.Context, req *http.Request, request interface{}) error {
+	r := request.(releaseRequest)
+	values := url.Values{}
+	values.Set("namespace", r.Namespace)
+	values.Set("service", r.Service)
+	values.Set("updatePeriod", r.UpdatePeriod.String())
+
+	req.Method = "POST"
+	req.URL.Path = "/v0/release"
+	req.URL.RawQuery = values.Encode()
+	req.Body = ioutil.NopCloser(bytes.NewReader(r.NewDef))
+
+	return nil
 }
 
 func encodeServicesResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
