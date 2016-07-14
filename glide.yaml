@@ -3,3 +3,7 @@ import:
 - package: github.com/spf13/cobra
 - package: github.com/Sirupsen/logrus
   version: ^0.10.0
+- package: k8s.io/kubernetes
+  version: v1.4.0-alpha.1
+  subpackages:
+  - pkg/api
