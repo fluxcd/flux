@@ -7,12 +7,14 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/weaveworks/fluxy/platform"
+	"github.com/weaveworks/fluxy/registry"
 )
 
 // Endpoints collects all of the individual endpoints (one-to-one with methods)
 // that comprise a Flux service. It's meant to be used as a helper struct,
 // to collect all endpoints into a single parameter.
 type Endpoints struct {
+	ImagesEndpoint   endpoint.Endpoint
 	ServicesEndpoint endpoint.Endpoint
 	ReleaseEndpoint  endpoint.Endpoint
 }
@@ -21,8 +23,19 @@ type Endpoints struct {
 // corresponding method on the provided service. Useful in a server i.e. fluxd.
 func MakeServerEndpoints(s Service) Endpoints {
 	return Endpoints{
+		ImagesEndpoint:   MakeImagesEndpoint(s),
 		ServicesEndpoint: MakeServicesEndpoint(s),
 		ReleaseEndpoint:  MakeReleaseEndpoint(s),
+	}
+}
+
+// MakeImagesEndpoint returns an endpoint via the passed service.
+// Primarily useful in a server.
+func MakeImagesEndpoint(s Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+		req := request.(imagesRequest)
+		images, err := s.Images(req.Repository)
+		return imagesResponse{Images: images, Err: err}, nil
 	}
 }
 
@@ -44,6 +57,15 @@ func MakeReleaseEndpoint(s Service) endpoint.Endpoint {
 		err := s.Release(req.Namespace, req.Service, req.NewDef, req.UpdatePeriod)
 		return releaseResponse{Err: err}, nil
 	}
+}
+
+type imagesRequest struct {
+	Repository string
+}
+
+type imagesResponse struct {
+	Images []registry.Image
+	Err    error
 }
 
 type servicesRequest struct {

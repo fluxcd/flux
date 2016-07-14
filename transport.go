@@ -18,6 +18,10 @@ import (
 )
 
 var (
+	// ErrRepositoryRequired indicates a request could not be served because the
+	// repository parameter was required but not specified.
+	ErrRepositoryRequired = errors.New("repository parameter is required")
+
 	// ErrServiceRequired indicates a request could not be served because the
 	// service parameter was required but not specified.
 	ErrServiceRequired = errors.New("service parameter is required")
@@ -32,6 +36,13 @@ func MakeHTTPHandler(ctx context.Context, e Endpoints, logger log.Logger) http.H
 		httptransport.ServerErrorEncoder(encodeError),
 	}
 
+	r.Methods("GET").Path("/images").Handler(httptransport.NewServer(
+		ctx,
+		e.ImagesEndpoint,
+		decodeImagesRequest,
+		encodeImagesResponse,
+		options...,
+	))
 	r.Methods("GET").Path("/services").Handler(httptransport.NewServer(
 		ctx,
 		e.ServicesEndpoint,
@@ -76,11 +87,11 @@ func decodeError(r io.Reader) error {
 	}
 	err, ok := m["error"]
 	if !ok {
-		return errors.New("received error, but it was in an unexpected form, so is unknown")
+		return errors.New("received error, but it was an unexpected form, so is unknown")
 	}
 	errStr, ok := err.(string)
 	if !ok {
-		return errors.New("received error, but it was in an unexpected type, so is unknown")
+		return errors.New("received error, but it was an unexpected type, so is unknown")
 	}
 	return errors.New(errStr)
 }
@@ -89,11 +100,21 @@ func codeFrom(err error) int {
 	switch err {
 	case nil:
 		panic("codeFrom called with nil error")
-	case ErrServiceRequired:
+	case ErrRepositoryRequired, ErrServiceRequired:
 		return http.StatusBadRequest
 	default:
 		return http.StatusInternalServerError
 	}
+}
+
+func decodeImagesRequest(_ context.Context, r *http.Request) (request interface{}, err error) {
+	repository := r.FormValue("repository")
+	if repository == "" {
+		return nil, ErrRepositoryRequired
+	}
+	return imagesRequest{
+		Repository: repository,
+	}, nil
 }
 
 func decodeServicesRequest(_ context.Context, r *http.Request) (request interface{}, err error) {
@@ -135,6 +156,18 @@ func decodeReleaseRequest(_ context.Context, r *http.Request) (request interface
 	}, nil
 }
 
+func decodeImagesResponse(_ context.Context, resp *http.Response) (interface{}, error) {
+	var response imagesResponse
+	var err error
+	switch resp.StatusCode {
+	case http.StatusOK:
+		err = json.NewDecoder(resp.Body).Decode(&response.Images)
+	default:
+		response.Err = decodeError(resp.Body)
+	}
+	return response, err
+}
+
 func decodeServicesResponse(_ context.Context, resp *http.Response) (interface{}, error) {
 	var response servicesResponse
 	var err error
@@ -156,6 +189,18 @@ func decodeReleaseResponse(_ context.Context, resp *http.Response) (interface{},
 		response.Err = decodeError(resp.Body)
 	}
 	return response, nil
+}
+
+func encodeImagesRequest(ctx context.Context, req *http.Request, request interface{}) error {
+	r := request.(imagesRequest)
+	values := url.Values{}
+	values.Set("repository", r.Repository)
+
+	req.Method = "GET"
+	req.URL.Path = "/v0/images"
+	req.URL.RawQuery = values.Encode()
+
+	return nil
 }
 
 func encodeServicesRequest(ctx context.Context, req *http.Request, request interface{}) error {
@@ -182,6 +227,16 @@ func encodeReleaseRequest(ctx context.Context, req *http.Request, request interf
 	req.URL.RawQuery = values.Encode()
 	req.Body = ioutil.NopCloser(bytes.NewReader(r.NewDef))
 
+	return nil
+}
+
+func encodeImagesResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
+	resp := response.(imagesResponse)
+	if resp.Err != nil {
+		encodeError(ctx, resp.Err, w)
+		return nil
+	}
+	encodeJSON(ctx, resp.Images, w)
 	return nil
 }
 

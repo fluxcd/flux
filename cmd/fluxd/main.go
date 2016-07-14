@@ -14,6 +14,7 @@ import (
 
 	"github.com/weaveworks/fluxy"
 	"github.com/weaveworks/fluxy/platform/kubernetes"
+	"github.com/weaveworks/fluxy/registry"
 )
 
 func main() {
@@ -26,8 +27,8 @@ func main() {
 		pflag.PrintDefaults()
 	}
 	var (
-		listenAddr = pflag.StringP("listen", "l", ":3030", "Listen address for Flux API clients")
-		// credsPath = pflag.StringP("credentials", "", "", "Path to a credentials file à la Docker, e.g. mounted as a secret")
+		listenAddr              = pflag.StringP("listen", "l", ":3030", "Listen address for Flux API clients")
+		registryCredentials     = pflag.StringP("registry-credentials", "", "", "Path to image registry credentials file, in the format of ~/.docker/config.json")
 		kubernetesEnabled       = pflag.BoolP("kubernetes", "", false, "Enable Kubernetes platform")
 		kubernetesHost          = pflag.StringP("kubernetes-host", "", "", "Kubernetes host, e.g. http://10.11.12.13:8080")
 		kubernetesUsername      = pflag.StringP("kubernetes-username", "", "", "Kubernetes HTTP basic auth username")
@@ -46,12 +47,31 @@ func main() {
 		logger = log.NewContext(logger).With("caller", log.DefaultCaller)
 	}
 
-	// TODO: registry component goes here
+	var reg *registry.Client
+	{
+		logger := log.NewContext(logger).With("component", "registry")
+		creds := registry.NoCredentials()
+		if *registryCredentials != "" {
+			logger.Log("credentials", *registryCredentials)
+			c, err := registry.CredentialsFromFile(*registryCredentials)
+			if err != nil {
+				logger.Log("err", err)
+				os.Exit(1)
+			}
+			creds = c
+		} else {
+			logger.Log("credentials", "none")
+		}
+		reg = &registry.Client{
+			Credentials: creds,
+			Logger:      logger,
+		}
+	}
 
 	// Platform component.
 	var k8s *kubernetes.Cluster
 	if *kubernetesEnabled {
-		logger := log.NewContext(logger).With("platform", "Kubernetes")
+		logger := log.NewContext(logger).With("component", "Kubernetes")
 		logger.Log("host", kubernetesHost)
 
 		var err error
@@ -80,7 +100,8 @@ func main() {
 	// Service (business logic) domain.
 	var service flux.Service
 	{
-		service = flux.NewService(k8s)
+		service = flux.NewService(reg, k8s)
+		service = flux.LoggingMiddleware(logger)(service)
 	}
 
 	// Endpoint domain.

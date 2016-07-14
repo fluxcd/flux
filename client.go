@@ -6,8 +6,10 @@ import (
 	"time"
 
 	httptransport "github.com/go-kit/kit/transport/http"
-	"github.com/weaveworks/fluxy/platform"
 	"golang.org/x/net/context"
+
+	"github.com/weaveworks/fluxy/platform"
+	"github.com/weaveworks/fluxy/registry"
 )
 
 // NewClient takes an instance string and produces a service that invokes that
@@ -31,6 +33,7 @@ func NewClient(instance string) (Service, error) {
 	return serviceWrapper{
 		ctx: context.Background(),
 		endpoints: Endpoints{
+			ImagesEndpoint:   httptransport.NewClient("GET", tgt, encodeImagesRequest, decodeImagesResponse, options...).Endpoint(),
 			ServicesEndpoint: httptransport.NewClient("GET", tgt, encodeServicesRequest, decodeServicesResponse, options...).Endpoint(),
 			ReleaseEndpoint:  httptransport.NewClient("POST", tgt, encodeReleaseRequest, decodeReleaseResponse, options...).Endpoint(),
 		},
@@ -41,6 +44,16 @@ func NewClient(instance string) (Service, error) {
 type serviceWrapper struct {
 	ctx       context.Context
 	endpoints Endpoints
+}
+
+func (w serviceWrapper) Images(repository string) ([]registry.Image, error) {
+	request := imagesRequest{Repository: repository}
+	response, err := w.endpoints.ImagesEndpoint(w.ctx, request)
+	if err != nil {
+		return nil, err
+	}
+	resp := response.(imagesResponse)
+	return resp.Images, resp.Err
 }
 
 func (w serviceWrapper) Services(namespace string) ([]platform.Service, error) {

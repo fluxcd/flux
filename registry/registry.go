@@ -9,27 +9,30 @@ import (
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
+	"sort"
 	"strings"
 	"time"
 
+	dockerregistry "github.com/CenturyLinkLabs/docker-reg-client/registry"
 	"github.com/go-kit/kit/log"
 	"golang.org/x/net/publicsuffix"
-
-	dockerregistry "github.com/CenturyLinkLabs/docker-reg-client/registry"
 )
 
-const DockerHubHost = "index.docker.io"
-const DockerHubLibrary = "library"
+const (
+	dockerHubHost    = "index.docker.io"
+	dockerHubLibrary = "library"
+)
 
+// Credentials to a (Docker) registry.
 type Credentials map[string]dockerregistry.Authenticator
 
+// Client is a handle to a registry.
 type Client struct {
 	Credentials Credentials
 	Logger      log.Logger
-
-	*dockerregistry.Client
 }
 
+// Error wraps a registry error.
 type Error struct {
 	*dockerregistry.RegistryError
 }
@@ -38,16 +41,24 @@ func mkError(registryError error) error {
 	return Error{registryError.(*dockerregistry.RegistryError)}
 }
 
-func (c *Client) GetRepository(imageName string) (*Repository, error) {
+// GetRepository yields a repository matching the given name, if any exists.
+// Repository may be of various forms, in which case omitted elements take
+// assumed defaults.
+//
+//   helloworld             -> index.docker.io/library/helloworld
+//   foo/helloworld         -> index.docker.io/foo/helloworld
+//   quay.io/foo/helloworld -> quay.io/foo/helloworld
+//
+func (c *Client) GetRepository(repository string) (*Repository, error) {
 	var host, org, image string
-	parts := strings.Split(imageName, "/")
+	parts := strings.Split(repository, "/")
 	switch len(parts) {
 	case 1:
-		host = DockerHubHost
-		org = DockerHubLibrary
+		host = dockerHubHost
+		org = dockerHubLibrary
 		image = parts[0]
 	case 2:
-		host = DockerHubHost
+		host = dockerHubHost
 		org = parts[0]
 		image = parts[1]
 	case 3:
@@ -62,36 +73,73 @@ func (c *Client) GetRepository(imageName string) (*Repository, error) {
 	// quay.io wants us to use cookies for authorisation; the registry
 	// client uses http.DefaultClient, so happily we can splat a
 	// cookie jar into the default client and it'll work.
-	jar, err := cookiejar.New(&cookiejar.Options{publicsuffix.List})
+	jar, err := cookiejar.New(&cookiejar.Options{PublicSuffixList: publicsuffix.List})
 	if err != nil {
 		return nil, err
 	}
 	http.DefaultClient.Jar = jar
-	c.Client = dockerregistry.NewClient()
+	client := dockerregistry.NewClient()
 
-	if host != DockerHubHost {
+	if host != dockerHubHost {
 		baseURL, err := url.Parse(fmt.Sprintf("https://%s/v1/", host))
 		if err != nil {
 			return nil, err
 		}
-		c.BaseURL = baseURL
+		client.BaseURL = baseURL
 	}
 
 	auth0 := c.Credentials.For(host)
 	// NB index.docker.io needs this because it's an "index registry";
 	// quay.io needs this because this is where it sets the session
 	// cookie it wants for authorisation later.
-	auth, err := c.Hub.GetReadTokenWithAuth(hostlessImageName, auth0)
+	auth, err := client.Hub.GetReadTokenWithAuth(hostlessImageName, auth0)
 	if err != nil {
 		return nil, mkError(err)
 	}
 
-	tags, err := c.Repository.ListTags(hostlessImageName, auth)
+	tags, err := client.Repository.ListTags(hostlessImageName, auth)
 	if err != nil {
 		return nil, mkError(err)
 	}
 
-	return c.tagsToRepository(imageName, tags, auth), nil
+	return c.tagsToRepository(client, repository, tags, auth), nil
+}
+
+func (c *Client) lookupImage(client *dockerregistry.Client, imageName, tag, ID string, auth dockerregistry.Authenticator) Image {
+	var createdAt time.Time
+	meta, err := client.Image.GetMetadata(ID, auth)
+	if err != nil {
+		c.Logger.Log("registry-metadata-err", err)
+	} else {
+		createdAt = meta.Created
+	}
+	return Image{
+		Name:      imageName,
+		Tag:       tag,
+		CreatedAt: createdAt,
+	}
+}
+
+func (c *Client) tagsToRepository(client *dockerregistry.Client, imageName string, tags map[string]string, auth dockerregistry.Authenticator) *Repository {
+	fetched := make(chan Image, len(tags))
+
+	for tag, imageID := range tags {
+		go func(t, id string) {
+			fetched <- c.lookupImage(client, imageName, t, id, auth)
+		}(tag, imageID)
+	}
+
+	images := make([]Image, cap(fetched))
+	for i := 0; i < cap(fetched); i++ {
+		images[i] = <-fetched
+	}
+
+	sort.Sort(byCreatedDesc{images})
+
+	return &Repository{
+		Name:   imageName,
+		Images: images,
+	}
 }
 
 // Repository is a collection of images with the same name
@@ -111,23 +159,13 @@ type Image struct {
 	CreatedAt time.Time // Always UTC
 }
 
-type Images []Image
-
-func (is Images) Len() int      { return len(is) }
-func (is Images) Swap(i, j int) { is[i], is[j] = is[j], is[i] }
-
-type ImagesByCreatedDesc struct {
-	Images
-}
-
-func (is ImagesByCreatedDesc) Less(i, j int) bool {
-	return is.Images[i].CreatedAt.After(is.Images[j].CreatedAt)
-}
-
+// NoCredentials returns a usable but empty credentials object.
 func NoCredentials() Credentials {
 	return make(map[string]dockerregistry.Authenticator)
 }
 
+// CredentialsFromFile returns a credentials object parsed from the given
+// filepath.
 func CredentialsFromFile(path string) (Credentials, error) {
 	bytes, err := ioutil.ReadFile(path)
 	if err != nil {
@@ -153,6 +191,7 @@ func CredentialsFromFile(path string) (Credentials, error) {
 	return creds, nil
 }
 
+// For yields an authenticator for a specific host.
 func (cs Credentials) For(host string) dockerregistry.Authenticator {
 	if auth, found := cs[host]; found {
 		return auth
@@ -163,6 +202,7 @@ func (cs Credentials) For(host string) dockerregistry.Authenticator {
 	return dockerregistry.NilAuth{}
 }
 
+// Hosts returns all of the hosts available in these credentials.
 func (cs Credentials) Hosts() []string {
 	hosts := []string{}
 	for host := range cs {
@@ -182,37 +222,13 @@ type dockerConfig struct {
 	Auths map[string]auth `json:"auths"`
 }
 
-func (c *Client) lookupImage(imageName, tag, ID string, auth dockerregistry.Authenticator) Image {
-	var createdAt time.Time
-	meta, err := c.Image.GetMetadata(ID, auth)
-	if err != nil {
-		c.Logger.Log("registry-metadata-err", err)
-	} else {
-		createdAt = meta.Created
-	}
-	return Image{
-		Name:      imageName,
-		Tag:       tag,
-		CreatedAt: createdAt,
-	}
-}
+type images []Image
 
-func (c *Client) tagsToRepository(imageName string, tags map[string]string, auth dockerregistry.Authenticator) *Repository {
-	fetched := make(chan Image, len(tags))
+func (is images) Len() int      { return len(is) }
+func (is images) Swap(i, j int) { is[i], is[j] = is[j], is[i] }
 
-	for tag, imageID := range tags {
-		go func(t, id string) {
-			fetched <- c.lookupImage(imageName, t, id, auth)
-		}(tag, imageID)
-	}
+type byCreatedDesc struct{ images }
 
-	images := make([]Image, cap(fetched))
-	for i := 0; i < cap(fetched); i++ {
-		images[i] = <-fetched
-	}
-
-	return &Repository{
-		Name:   imageName,
-		Images: images,
-	}
+func (is byCreatedDesc) Less(i, j int) bool {
+	return is.images[i].CreatedAt.After(is.images[j].CreatedAt)
 }
