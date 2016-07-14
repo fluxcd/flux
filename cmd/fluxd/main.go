@@ -10,6 +10,7 @@ import (
 
 	"github.com/weaveworks/fluxy/api"
 	"github.com/weaveworks/fluxy/platform/kubernetes"
+	"github.com/weaveworks/fluxy/registry"
 )
 
 func main() {
@@ -30,6 +31,8 @@ func main() {
 		kubernetesClientCert    = pflag.StringP("kubernetes-client-certificate", "", "", "Path to Kubernetes client certification file for TLS")
 		kubernetesClientKey     = pflag.StringP("kubernetes-client-key", "", "", "Path to Kubernetes client key file for TLS")
 		kubernetesCertAuthority = pflag.StringP("kubernetes-certificate-authority", "", "", "Path to Kubernetes cert file for certificate authority")
+
+		credsPath = pflag.String("registry-credentials", "", "Path to image registry credentials file, in the format of ~/.docker/config.json")
 	)
 	pflag.Parse()
 
@@ -68,7 +71,24 @@ func main() {
 		}
 	}
 
-	s := &api.Server{Platform: k8s}
+	creds := registry.NoCredentials()
+	if *credsPath != "" {
+		logger.Log("creds-file", *credsPath)
+		c, err := registry.CredentialsFromFile(*credsPath)
+		if err != nil {
+			logger.Log("credentials", err)
+			os.Exit(1)
+		}
+		creds = c
+	}
+
+	s := &api.Server{
+		Platform: k8s,
+		Registry: &registry.Client{
+			Credentials: creds,
+			Logger:      log.NewContext(logger).With("component", "registry"),
+		},
+	}
 	logger.Log("listening", *listenAddr)
 	logger.Log("err", s.ListenAndServe(*listenAddr))
 }

@@ -1,4 +1,5 @@
 FROM scratch
 ENTRYPOINT ["/home/flux/fluxd"]
 EXPOSE 3030
+COPY ./ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 COPY ./fluxd /home/flux/
