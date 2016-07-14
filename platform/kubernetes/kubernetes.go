@@ -17,6 +17,8 @@ import (
 	"k8s.io/kubernetes/pkg/api"
 	"k8s.io/kubernetes/pkg/client/restclient"
 	k8sclient "k8s.io/kubernetes/pkg/client/unversioned"
+
+	"github.com/weaveworks/fluxy/platform"
 )
 
 // These errors are returned by cluster methods.
@@ -24,7 +26,9 @@ var (
 	ErrEmptySelector                          = errors.New("empty selector")
 	ErrNoMatchingService                      = errors.New("no matching service")
 	ErrNoMatchingReplicationController        = errors.New("no matching replication controllers")
+	ErrServiceHasNoSelector                   = errors.New("service has no selector")
 	ErrMultipleMatchingReplicationControllers = errors.New("multiple matching replication controllers")
+	ErrNoMatchingImages                       = errors.New("no matching images")
 )
 
 // Cluster is a handle to a Kubernetes API server.
@@ -66,7 +70,15 @@ func NewCluster(config *restclient.Config, logger log.Logger) (*Cluster, error) 
 // receive a release. Releases operate on replication controllers, not services.
 // For now, we make a simplifying assumption that there is a one-to-one mapping
 // between services and replication controllers.
-func (c *Cluster) Services(namespace string) ([]api.Service, error) {
+func (c *Cluster) Services(namespace string) ([]platform.Service, error) {
+	apiServices, err := c.services(namespace)
+	if err != nil {
+		return nil, err
+	}
+	return c.makePlatformServices(apiServices), nil
+}
+
+func (c *Cluster) services(namespace string) ([]api.Service, error) {
 	list, err := c.client.Services(namespace).List(api.ListOptions{})
 	if err != nil {
 		return nil, err
@@ -131,13 +143,20 @@ func (c *Cluster) Release(namespace, serviceName string, newReplicationControlle
 	return err
 }
 
-func (c *Cluster) replicationControllerFor(namespace, serviceName string) (api.ReplicationController, error) {
+func (c *Cluster) replicationControllerFor(namespace, serviceName string) (res api.ReplicationController, err error) {
 	logger := log.NewContext(c.logger).With("method", "replicationControllerFor", "namespace", namespace, "serviceName", serviceName)
 	logger.Log()
+	defer func() {
+		if err != nil {
+			logger.Log("err", err.Error())
+		} else {
+			logger.Log("rc", res.Name)
+		}
+	}()
 
 	// First, get the service spec selector, which determines the pods that the
 	// service will load balance over.
-	services, err := c.Services(namespace)
+	services, err := c.services(namespace)
 	if err != nil {
 		return api.ReplicationController{}, err
 	}
@@ -153,6 +172,9 @@ func (c *Cluster) replicationControllerFor(namespace, serviceName string) (api.R
 		return api.ReplicationController{}, ErrNoMatchingService
 	}
 	selector := service.Spec.Selector
+	if len(selector) <= 0 {
+		return api.ReplicationController{}, ErrServiceHasNoSelector
+	}
 
 	// Now, find a replication controller which produces pods that match that
 	// selector. We have to match all of the criteria in the selector, but we
@@ -190,5 +212,71 @@ func (c *Cluster) replicationControllerFor(namespace, serviceName string) (api.R
 		return matches[0], nil
 	default:
 		return api.ReplicationController{}, ErrMultipleMatchingReplicationControllers
+	}
+}
+
+func (c *Cluster) imagesFor(namespace, serviceName string) ([]string, error) {
+	rc, err := c.replicationControllerFor(namespace, serviceName)
+	if err != nil {
+		return nil, err
+	}
+	var images []string
+	for _, container := range rc.Spec.Template.Spec.Containers {
+		images = append(images, container.Image)
+	}
+	if len(images) <= 0 {
+		return nil, ErrNoMatchingImages
+	}
+	return images, nil
+}
+
+func (c *Cluster) makePlatformServices(apiServices []api.Service) []platform.Service {
+	platformServices := make([]platform.Service, len(apiServices))
+	for i, s := range apiServices {
+		platformServices[i] = c.makePlatformService(s)
+	}
+	return platformServices
+}
+
+func (c *Cluster) makePlatformService(s api.Service) platform.Service {
+	// To get the image, we need to walk from service to RC to spec.
+	// That path encodes a lot of opinions about deployment strategy.
+	// Which we're OK with, for the time being.
+	var image string
+	switch images, err := c.imagesFor(s.Namespace, s.Name); err {
+	case nil:
+		image = strings.Join(images, ", ") // >1 image would break some light assumptions, but it's OK
+	case ErrServiceHasNoSelector:
+		image = "(no selector, no RC)"
+	case ErrNoMatchingReplicationController:
+		image = "(no RC)"
+	case ErrMultipleMatchingReplicationControllers:
+		image = "(multiple RCs)" // e.g. during a release
+	case ErrNoMatchingImages:
+		image = "(none)"
+	}
+
+	ports := make([]platform.Port, len(s.Spec.Ports))
+	for i, port := range s.Spec.Ports {
+		ports[i] = platform.Port{
+			External: fmt.Sprint(port.Port),
+			Internal: port.TargetPort.String(),
+			Protocol: string(port.Protocol),
+		}
+	}
+
+	metadata := map[string]string{
+		"created_at":       s.CreationTimestamp.String(),
+		"resource_version": s.ResourceVersion,
+		"uid":              string(s.UID),
+		"type":             string(s.Spec.Type),
+	}
+
+	return platform.Service{
+		Name:     s.Name,
+		Image:    image,
+		IP:       s.Spec.ClusterIP,
+		Ports:    ports,
+		Metadata: metadata,
 	}
 }

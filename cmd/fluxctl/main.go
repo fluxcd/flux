@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -9,9 +10,13 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
+	"text/tabwriter"
 	"time"
 
 	"github.com/spf13/cobra"
+
+	"github.com/weaveworks/fluxy/platform"
 )
 
 func main() {
@@ -85,7 +90,28 @@ func (opts *serviceListOpts) RunE(*cobra.Command, []string) error {
 	}
 	defer resp.Body.Close()
 
-	io.Copy(os.Stdout, resp.Body)
+	if resp.StatusCode != http.StatusOK {
+		fmt.Fprintf(os.Stderr, "Error: %s\n", resp.Status)
+		io.Copy(os.Stderr, resp.Body)
+		return nil
+	}
+
+	var services []platform.Service
+	if err := json.NewDecoder(resp.Body).Decode(&services); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		return nil
+	}
+
+	w := tabwriter.NewWriter(os.Stdout, 0, 2, 2, ' ', 0)
+	fmt.Fprintf(w, "SERVICE\tIP\tPORTS\tIMAGE\n")
+	for _, s := range services {
+		var ports []string
+		for _, p := range s.Ports {
+			ports = append(ports, fmt.Sprintf("%s/%s→%s", p.External, p.Protocol, p.Internal))
+		}
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", s.Name, s.IP, strings.Join(ports, ", "), s.Image)
+	}
+	w.Flush()
 	return nil
 }
 
