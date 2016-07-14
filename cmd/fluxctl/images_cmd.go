@@ -38,8 +38,8 @@ func (opts *imagesOpts) RunE(cmd *cobra.Command, args []string) error {
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf(`expected response "%d OK" from API server; got "%d %s"`,
-			http.StatusOK, resp.StatusCode, resp.Status)
+		return fmt.Errorf(`expected response "%d OK" from API server; got "%s"`,
+			http.StatusOK, resp.Status)
 	}
 
 	var repository registry.Repository
