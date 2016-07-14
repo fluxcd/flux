@@ -21,9 +21,8 @@ var (
 
 // MakeHTTPHandler mounts all of the service endpoints into an http.Handler.
 // Useful in a server i.e. fluxd.
-func MakeHTTPHandler(ctx context.Context, s Service, logger log.Logger) http.Handler {
+func MakeHTTPHandler(ctx context.Context, e Endpoints, logger log.Logger) http.Handler {
 	r := mux.NewRouter().PathPrefix("/v0").Subrouter()
-	e := MakeServerEndpoints(s)
 	options := []httptransport.ServerOption{
 		httptransport.ServerErrorLogger(logger),
 		httptransport.ServerErrorEncoder(encodeError),
