@@ -20,7 +20,7 @@ import (
 var (
 	// ErrRepositoryRequired indicates a request could not be served because the
 	// repository parameter was required but not specified.
-	ErrRepositoryRequired = errors.New("repository parameter is required")
+	ErrRepositoryRequired = errors.New("repository (as part of the URL path) is required")
 
 	// ErrServiceRequired indicates a request could not be served because the
 	// service parameter was required but not specified.
@@ -36,7 +36,7 @@ func MakeHTTPHandler(ctx context.Context, e Endpoints, logger log.Logger) http.H
 		httptransport.ServerErrorEncoder(encodeError),
 	}
 
-	r.Methods("GET").Path("/images").Handler(httptransport.NewServer(
+	r.Methods("GET").Path("/images/{repository:.*}").Handler(httptransport.NewServer(
 		ctx,
 		e.ImagesEndpoint,
 		decodeImagesRequest,
@@ -108,7 +108,7 @@ func codeFrom(err error) int {
 }
 
 func decodeImagesRequest(_ context.Context, r *http.Request) (request interface{}, err error) {
-	repository := r.FormValue("repository")
+	repository := mux.Vars(r)["repository"]
 	if repository == "" {
 		return nil, ErrRepositoryRequired
 	}
@@ -193,12 +193,9 @@ func decodeReleaseResponse(_ context.Context, resp *http.Response) (interface{},
 
 func encodeImagesRequest(ctx context.Context, req *http.Request, request interface{}) error {
 	r := request.(imagesRequest)
-	values := url.Values{}
-	values.Set("repository", r.Repository)
 
 	req.Method = "GET"
-	req.URL.Path = "/v0/images"
-	req.URL.RawQuery = values.Encode()
+	req.URL.Path = "/v0/images/" + r.Repository
 
 	return nil
 }
