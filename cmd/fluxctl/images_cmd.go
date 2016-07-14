@@ -17,8 +17,11 @@ type imagesOpts struct {
 	*rootOpts
 }
 
-func imagesCommand(rootOpts *rootOpts) *cobra.Command {
-	opts := &imagesOpts{rootOpts: rootOpts}
+func imagesCommand(parent *rootOpts) *imagesOpts {
+	return &imagesOpts{rootOpts: parent}
+}
+
+func (opts *imagesOpts) Command() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "images <repository>",
 		Short: "list images available for an image repository",
