@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+
 	"github.com/weaveworks/fluxy/platform/kubernetes"
 )
 
