@@ -11,11 +11,14 @@ then
 fi
 
 gometalinter \
-	--exclude='error return value not checked.*(Close|Log|Print).*\(errcheck\)$' \
+	--vendor \
+	--exclude='error return value not checked.*(Close|Log|Print|Encode).*\(errcheck\)$' \
 	--exclude='.*_test\.go:.*error return value not checked.*\(errcheck\)$' \
 	--exclude='duplicate of.*_test.go.*\(dupl\)$' \
 	--disable=aligncheck \
 	--disable=gotype \
+	--disable=dupl \
 	--cyclo-over=20 \
 	--tests \
-	--deadline=10s
+	--deadline=60s \
+	$*

@@ -1,0 +1,24 @@
+machine:
+  environment:
+    PATH: "/usr/local/go/bin:${HOME}/bin:${PATH}"
+    GOROOT: ""
+    GOPATH: "${HOME}"
+    GO15VENDOREXPERIMENT: "1"
+
+checkout:
+  post:
+    - mkdir -p ${GOPATH}/src/github.com/weaveworks
+    - mv ${HOME}/fluxy ${GOPATH}/src/github.com/weaveworks
+    - ln -s ${GOPATH}/src/github.com/weaveworks/fluxy ${HOME}/fluxy # Circle needs this to be here, apparently
+    - cd ${GOPATH}/src/github.com/weaveworks/fluxy
+
+dependencies:
+  override: 
+    - go get github.com/Masterminds/glide
+    - glide install
+
+test:
+  override:
+    - go build -v $(glide novendor)
+    - go test -v -race $(glide novendor)
+
