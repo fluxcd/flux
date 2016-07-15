@@ -145,7 +145,6 @@ func (c *Cluster) Release(namespace, serviceName string, newReplicationControlle
 
 func (c *Cluster) replicationControllerFor(namespace, serviceName string) (res api.ReplicationController, err error) {
 	logger := log.NewContext(c.logger).With("method", "replicationControllerFor", "namespace", namespace, "serviceName", serviceName)
-	logger.Log()
 	defer func() {
 		if err != nil {
 			logger.Log("err", err.Error())
@@ -215,11 +214,21 @@ func (c *Cluster) replicationControllerFor(namespace, serviceName string) (res a
 	}
 }
 
-func (c *Cluster) imagesFor(namespace, serviceName string) ([]string, error) {
+func (c *Cluster) imagesFor(namespace, serviceName string) (res []string, err error) {
+	logger := log.NewContext(c.logger).With("method", "imagesFor", "namespace", namespace, "serviceName", serviceName)
+	defer func() {
+		if err != nil {
+			logger.Log("err", err.Error())
+		} else {
+			logger.Log("images", strings.Join(res, ", "))
+		}
+	}()
+
 	rc, err := c.replicationControllerFor(namespace, serviceName)
 	if err != nil {
 		return nil, err
 	}
+
 	var images []string
 	for _, container := range rc.Spec.Template.Spec.Containers {
 		images = append(images, container.Image)
