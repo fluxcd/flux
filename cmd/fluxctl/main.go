@@ -3,11 +3,11 @@ package main
 import "os"
 
 func main() {
-	root := rootCommand()
-	service := serviceCommand(root)
-	images := imagesCommand(root)
-	serviceList := serviceListCommand(service)
-	serviceRelease := serviceReleaseCommand(service)
+	root := newRoot()
+	service := newService(root)
+	images := newImages(root)
+	serviceList := newServiceList(service)
+	serviceRelease := newServiceRelease(service)
 
 	rootCmd := root.Command()
 	imagesCmd := images.Command()

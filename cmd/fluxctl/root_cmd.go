@@ -11,7 +11,7 @@ type rootOpts struct {
 	Fluxd flux.Service
 }
 
-func rootCommand() *rootOpts {
+func newRoot() *rootOpts {
 	return &rootOpts{}
 }
 

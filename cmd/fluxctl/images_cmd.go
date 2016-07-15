@@ -12,7 +12,7 @@ type imagesOpts struct {
 	*rootOpts
 }
 
-func imagesCommand(parent *rootOpts) *imagesOpts {
+func newImages(parent *rootOpts) *imagesOpts {
 	return &imagesOpts{rootOpts: parent}
 }
 

@@ -17,7 +17,7 @@ type serviceReleaseOpts struct {
 	UpdatePeriod time.Duration
 }
 
-func serviceReleaseCommand(parent *serviceOpts) *serviceReleaseOpts {
+func newServiceRelease(parent *serviceOpts) *serviceReleaseOpts {
 	return &serviceReleaseOpts{serviceOpts: parent}
 }
 

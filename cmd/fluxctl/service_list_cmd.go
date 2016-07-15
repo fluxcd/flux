@@ -13,7 +13,7 @@ type serviceListOpts struct {
 	*serviceOpts
 }
 
-func serviceListCommand(parent *serviceOpts) *serviceListOpts {
+func newServiceList(parent *serviceOpts) *serviceListOpts {
 	return &serviceListOpts{serviceOpts: parent}
 }
 

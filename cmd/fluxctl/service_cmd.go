@@ -9,7 +9,7 @@ type serviceOpts struct {
 	Namespace string
 }
 
-func serviceCommand(parent *rootOpts) *serviceOpts {
+func newService(parent *rootOpts) *serviceOpts {
 	return &serviceOpts{rootOpts: parent}
 }
 

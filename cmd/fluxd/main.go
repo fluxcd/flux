@@ -47,6 +47,7 @@ func main() {
 		logger = log.NewContext(logger).With("caller", log.DefaultCaller)
 	}
 
+	// Registry component.
 	var reg *registry.Client
 	{
 		logger := log.NewContext(logger).With("component", "registry")
