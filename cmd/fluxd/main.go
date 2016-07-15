@@ -71,30 +71,34 @@ func main() {
 
 	// Platform component.
 	var k8s *kubernetes.Cluster
-	if *kubernetesEnabled {
-		logger := log.NewContext(logger).With("component", "Kubernetes")
-		logger.Log("host", kubernetesHost)
+	{
+		logger := log.NewContext(logger).With("component", "platform")
+		if *kubernetesEnabled {
+			logger.Log("kind", "Kubernetes", "host", kubernetesHost)
 
-		var err error
-		k8s, err = kubernetes.NewCluster(&restclient.Config{
-			Host:     *kubernetesHost,
-			Username: *kubernetesUsername,
-			Password: *kubernetesPassword,
-			TLSClientConfig: restclient.TLSClientConfig{
-				CertFile: *kubernetesClientCert,
-				KeyFile:  *kubernetesClientKey,
-				CAFile:   *kubernetesCertAuthority,
-			},
-		}, logger)
-		if err != nil {
-			logger.Log("err", err)
-			os.Exit(1)
-		}
+			var err error
+			k8s, err = kubernetes.NewCluster(&restclient.Config{
+				Host:     *kubernetesHost,
+				Username: *kubernetesUsername,
+				Password: *kubernetesPassword,
+				TLSClientConfig: restclient.TLSClientConfig{
+					CertFile: *kubernetesClientCert,
+					KeyFile:  *kubernetesClientKey,
+					CAFile:   *kubernetesCertAuthority,
+				},
+			}, logger)
+			if err != nil {
+				logger.Log("err", err)
+				os.Exit(1)
+			}
 
-		if services, err := k8s.Services("default"); err != nil {
-			logger.Log("services", err)
+			if services, err := k8s.Services("default"); err != nil {
+				logger.Log("services", err)
+			} else {
+				logger.Log("services", len(services))
+			}
 		} else {
-			logger.Log("services", len(services))
+			logger.Log("kind", "none")
 		}
 	}
 
