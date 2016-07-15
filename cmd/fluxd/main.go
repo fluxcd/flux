@@ -2,18 +2,23 @@ package main
 
 import (
 	"fmt"
+	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/go-kit/kit/log"
 	"github.com/spf13/pflag"
+	"golang.org/x/net/context"
 	"k8s.io/kubernetes/pkg/client/restclient"
 
-	"github.com/weaveworks/fluxy/api"
+	"github.com/weaveworks/fluxy"
 	"github.com/weaveworks/fluxy/platform/kubernetes"
 	"github.com/weaveworks/fluxy/registry"
 )
 
 func main() {
+	// Flag domain.
 	pflag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "DESCRIPTION\n")
 		fmt.Fprintf(os.Stderr, "  fluxd is a deployment daemon.\n")
@@ -22,8 +27,8 @@ func main() {
 		pflag.PrintDefaults()
 	}
 	var (
-		listenAddr = pflag.StringP("listen", "l", ":3030", "Listen address for Flux API clients")
-		// credsPath = pflag.StringP("credentials", "", "", "Path to a credentials file à la Docker, e.g. mounted as a secret")
+		listenAddr              = pflag.StringP("listen", "l", ":3030", "Listen address for Flux API clients")
+		registryCredentials     = pflag.StringP("registry-credentials", "", "", "Path to image registry credentials file, in the format of ~/.docker/config.json")
 		kubernetesEnabled       = pflag.BoolP("kubernetes", "", false, "Enable Kubernetes platform")
 		kubernetesHost          = pflag.StringP("kubernetes-host", "", "", "Kubernetes host, e.g. http://10.11.12.13:8080")
 		kubernetesUsername      = pflag.StringP("kubernetes-username", "", "", "Kubernetes HTTP basic auth username")
@@ -31,11 +36,10 @@ func main() {
 		kubernetesClientCert    = pflag.StringP("kubernetes-client-certificate", "", "", "Path to Kubernetes client certification file for TLS")
 		kubernetesClientKey     = pflag.StringP("kubernetes-client-key", "", "", "Path to Kubernetes client key file for TLS")
 		kubernetesCertAuthority = pflag.StringP("kubernetes-certificate-authority", "", "", "Path to Kubernetes cert file for certificate authority")
-
-		credsPath = pflag.String("registry-credentials", "", "Path to image registry credentials file, in the format of ~/.docker/config.json")
 	)
 	pflag.Parse()
 
+	// Logger domain.
 	var logger log.Logger
 	{
 		logger = log.NewLogfmtLogger(os.Stderr)
@@ -43,9 +47,32 @@ func main() {
 		logger = log.NewContext(logger).With("caller", log.DefaultCaller)
 	}
 
+	// Registry component.
+	var reg *registry.Client
+	{
+		logger := log.NewContext(logger).With("component", "registry")
+		creds := registry.NoCredentials()
+		if *registryCredentials != "" {
+			logger.Log("credentials", *registryCredentials)
+			c, err := registry.CredentialsFromFile(*registryCredentials)
+			if err != nil {
+				logger.Log("err", err)
+				os.Exit(1)
+			}
+			creds = c
+		} else {
+			logger.Log("credentials", "none")
+		}
+		reg = &registry.Client{
+			Credentials: creds,
+			Logger:      logger,
+		}
+	}
+
+	// Platform component.
 	var k8s *kubernetes.Cluster
 	if *kubernetesEnabled {
-		logger := log.NewContext(logger).With("platform", "Kubernetes")
+		logger := log.NewContext(logger).With("component", "Kubernetes")
 		logger.Log("host", kubernetesHost)
 
 		var err error
@@ -71,24 +98,36 @@ func main() {
 		}
 	}
 
-	creds := registry.NoCredentials()
-	if *credsPath != "" {
-		logger.Log("creds-file", *credsPath)
-		c, err := registry.CredentialsFromFile(*credsPath)
-		if err != nil {
-			logger.Log("credentials", err)
-			os.Exit(1)
-		}
-		creds = c
+	// Service (business logic) domain.
+	var service flux.Service
+	{
+		service = flux.NewService(reg, k8s)
+		service = flux.LoggingMiddleware(logger)(service)
 	}
 
-	s := &api.Server{
-		Platform: k8s,
-		Registry: &registry.Client{
-			Credentials: creds,
-			Logger:      log.NewContext(logger).With("component", "registry"),
-		},
+	// Endpoint domain.
+	var endpoints flux.Endpoints
+	{
+		endpoints = flux.MakeServerEndpoints(service)
 	}
-	logger.Log("listening", *listenAddr)
-	logger.Log("err", s.ListenAndServe(*listenAddr))
+
+	// Mechanical stuff.
+	errc := make(chan error)
+	go func() {
+		c := make(chan os.Signal)
+		signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
+		errc <- fmt.Errorf("%s", <-c)
+	}()
+
+	// Transport domain.
+	ctx := context.Background()
+	go func() {
+		logger := log.NewContext(logger).With("transport", "HTTP")
+		logger.Log("addr", *listenAddr)
+		h := flux.MakeHTTPHandler(ctx, endpoints, logger)
+		errc <- http.ListenAndServe(*listenAddr, h)
+	}()
+
+	// Go!
+	logger.Log("exit", <-errc)
 }
