@@ -50,6 +50,13 @@ func MakeHTTPHandler(ctx context.Context, e Endpoints, logger log.Logger) http.H
 		encodeServicesResponse,
 		options...,
 	))
+	r.Methods("GET").Path("/service/{service}/images").Handler(httptransport.NewServer(
+		ctx,
+		e.ServiceImagesEndpoint,
+		decodeServiceImagesRequest,
+		encodeServiceImagesResponse,
+		options...,
+	))
 	r.Methods("POST").Path("/release").Handler(httptransport.NewServer(
 		ctx,
 		e.ReleaseEndpoint,
@@ -117,10 +124,22 @@ func decodeImagesRequest(_ context.Context, r *http.Request) (request interface{
 	}, nil
 }
 
+func decodeServiceImagesRequest(_ context.Context, r *http.Request) (request interface{}, err error) {
+	namespace := r.FormValue("namespace")
+	if namespace == "" {
+		namespace = DefaultNamespace
+	}
+	service := mux.Vars(r)["service"]
+	return serviceImagesRequest{
+		Namespace: namespace,
+		Service:   service,
+	}, nil
+}
+
 func decodeServicesRequest(_ context.Context, r *http.Request) (request interface{}, err error) {
 	namespace := r.FormValue("namespace")
 	if namespace == "" {
-		namespace = "default"
+		namespace = DefaultNamespace
 	}
 	return servicesRequest{
 		Namespace: namespace,
@@ -168,6 +187,18 @@ func decodeImagesResponse(_ context.Context, resp *http.Response) (interface{}, 
 	return response, err
 }
 
+func decodeServiceImagesResponse(_ context.Context, resp *http.Response) (interface{}, error) {
+	var response serviceImagesResponse
+	var err error
+	switch resp.StatusCode {
+	case http.StatusOK:
+		err = json.NewDecoder(resp.Body).Decode(&response.ContainerImages)
+	default:
+		response.Err = decodeError(resp.Body)
+	}
+	return response, err
+}
+
 func decodeServicesResponse(_ context.Context, resp *http.Response) (interface{}, error) {
 	var response servicesResponse
 	var err error
@@ -196,6 +227,18 @@ func encodeImagesRequest(ctx context.Context, req *http.Request, request interfa
 
 	req.Method = "GET"
 	req.URL.Path = "/v0/images/" + r.Repository
+
+	return nil
+}
+
+func encodeServiceImagesRequest(ctx context.Context, req *http.Request, request interface{}) error {
+	r := request.(serviceImagesRequest)
+	values := url.Values{}
+	values.Set("namespace", r.Namespace)
+
+	req.Method = "GET"
+	req.URL.Path = fmt.Sprintf("/v0/service/%s/images", r.Service)
+	req.URL.RawQuery = values.Encode()
 
 	return nil
 }
@@ -234,6 +277,16 @@ func encodeImagesResponse(ctx context.Context, w http.ResponseWriter, response i
 		return nil
 	}
 	encodeJSON(ctx, resp.Images, w)
+	return nil
+}
+
+func encodeServiceImagesResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
+	resp := response.(serviceImagesResponse)
+	if resp.Err != nil {
+		encodeError(ctx, resp.Err, w)
+		return nil
+	}
+	encodeJSON(ctx, resp.ContainerImages, w)
 	return nil
 }
 

@@ -214,13 +214,17 @@ func (c *Cluster) replicationControllerFor(namespace, serviceName string) (res a
 	}
 }
 
-func (c *Cluster) imagesFor(namespace, serviceName string) (res []string, err error) {
-	logger := log.NewContext(c.logger).With("method", "imagesFor", "namespace", namespace, "serviceName", serviceName)
+// ContainersFor returns a list of container names with the image
+// specified to run in that container, for a particular service. This
+// is useful to see which images a particular service is presently
+// running, to judge whether a release is needed.
+func (c *Cluster) ContainersFor(namespace, serviceName string) (res []platform.Container, err error) {
+	logger := log.NewContext(c.logger).With("method", "ImagesFor", "namespace", namespace, "serviceName", serviceName)
 	defer func() {
 		if err != nil {
 			logger.Log("err", err.Error())
 		} else {
-			logger.Log("images", strings.Join(res, ", "))
+			logger.Log("containers", fmt.Sprintf("%+v", res))
 		}
 	}()
 
@@ -229,12 +233,27 @@ func (c *Cluster) imagesFor(namespace, serviceName string) (res []string, err er
 		return nil, err
 	}
 
-	var images []string
+	var containers []platform.Container
 	for _, container := range rc.Spec.Template.Spec.Containers {
-		images = append(images, container.Image)
+		containers = append(containers, platform.Container{
+			Image: container.Image,
+			Name:  container.Name,
+		})
 	}
-	if len(images) <= 0 {
+	if len(containers) <= 0 {
 		return nil, ErrNoMatchingImages
+	}
+	return containers, nil
+}
+
+func (c *Cluster) imagesFor(namespace, imageName string) ([]string, error) {
+	containers, err := c.ContainersFor(namespace, imageName)
+	if err != nil {
+		return nil, err
+	}
+	images := make([]string, len(containers))
+	for i := 0; i < len(containers); i++ {
+		images[i] = containers[i].Image
 	}
 	return images, nil
 }
