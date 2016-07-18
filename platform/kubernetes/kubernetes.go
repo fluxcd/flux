@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"os"
 	"os/exec"
 	"strings"
 	"time"
@@ -42,15 +43,21 @@ type Cluster struct {
 
 // NewCluster returns a usable cluster. Host should be of the form
 // "http://hostname:8080".
-func NewCluster(config *restclient.Config, logger log.Logger) (*Cluster, error) {
+func NewCluster(config *restclient.Config, kubectl string, logger log.Logger) (*Cluster, error) {
 	client, err := k8sclient.New(config)
 	if err != nil {
 		return nil, err
 	}
 
-	kubectl, err := exec.LookPath("kubectl")
-	if err != nil {
-		return nil, err
+	if kubectl == "" {
+		kubectl, err = exec.LookPath("kubectl")
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		if _, err := os.Stat(kubectl); err != nil {
+			return nil, err
+		}
 	}
 	logger.Log("kubectl", kubectl)
 

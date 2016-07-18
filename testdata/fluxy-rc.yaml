@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
       - name: fluxy
-        image: weaveworks/fluxy:latest
+        image: weaveworks/fluxy
         imagePullPolicy: Never # must build manually
         ports:
         - containerPort: 3030

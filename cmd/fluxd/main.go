@@ -19,25 +19,29 @@ import (
 
 func main() {
 	// Flag domain.
-	pflag.Usage = func() {
+	fs := pflag.NewFlagSet("default", pflag.ExitOnError)
+	fs.Usage = func() {
 		fmt.Fprintf(os.Stderr, "DESCRIPTION\n")
 		fmt.Fprintf(os.Stderr, "  fluxd is a deployment daemon.\n")
 		fmt.Fprintf(os.Stderr, "\n")
 		fmt.Fprintf(os.Stderr, "FLAGS\n")
-		pflag.PrintDefaults()
+		fs.PrintDefaults()
 	}
+	// This mirrors how kubectl extracts information from the environment.
 	var (
-		listenAddr              = pflag.StringP("listen", "l", ":3030", "Listen address for Flux API clients")
-		registryCredentials     = pflag.StringP("registry-credentials", "", "", "Path to image registry credentials file, in the format of ~/.docker/config.json")
-		kubernetesEnabled       = pflag.BoolP("kubernetes", "", false, "Enable Kubernetes platform")
-		kubernetesHost          = pflag.StringP("kubernetes-host", "", "", "Kubernetes host, e.g. http://10.11.12.13:8080")
-		kubernetesUsername      = pflag.StringP("kubernetes-username", "", "", "Kubernetes HTTP basic auth username")
-		kubernetesPassword      = pflag.StringP("kubernetes-password", "", "", "Kubernetes HTTP basic auth password")
-		kubernetesClientCert    = pflag.StringP("kubernetes-client-certificate", "", "", "Path to Kubernetes client certification file for TLS")
-		kubernetesClientKey     = pflag.StringP("kubernetes-client-key", "", "", "Path to Kubernetes client key file for TLS")
-		kubernetesCertAuthority = pflag.StringP("kubernetes-certificate-authority", "", "", "Path to Kubernetes cert file for certificate authority")
+		listenAddr              = fs.StringP("listen", "l", ":3030", "Listen address for Flux API clients")
+		registryCredentials     = fs.StringP("registry-credentials", "", "", "Path to image registry credentials file, in the format of ~/.docker/config.json")
+		kubernetesEnabled       = fs.BoolP("kubernetes", "", false, "Enable Kubernetes platform")
+		kubernetesKubectl       = fs.StringP("kubernetes-kubectl", "", "", "Optional, explicit path to kubectl tool")
+		kubernetesHost          = fs.StringP("kubernetes-host", "", "", "Kubernetes host, e.g. http://10.11.12.13:8080")
+		kubernetesUsername      = fs.StringP("kubernetes-username", "", "", "Kubernetes HTTP basic auth username")
+		kubernetesPassword      = fs.StringP("kubernetes-password", "", "", "Kubernetes HTTP basic auth password")
+		kubernetesClientCert    = fs.StringP("kubernetes-client-certificate", "", "", "Path to Kubernetes client certification file for TLS")
+		kubernetesClientKey     = fs.StringP("kubernetes-client-key", "", "", "Path to Kubernetes client key file for TLS")
+		kubernetesCertAuthority = fs.StringP("kubernetes-certificate-authority", "", "", "Path to Kubernetes cert file for certificate authority")
+		kubernetesBearerToken   = fs.StringP("kubernetes-bearer-token", "", "", "Kubernetes Bearer token")
 	)
-	pflag.Parse()
+	fs.Parse(os.Args)
 
 	// Logger domain.
 	var logger log.Logger
@@ -78,15 +82,16 @@ func main() {
 
 			var err error
 			k8s, err = kubernetes.NewCluster(&restclient.Config{
-				Host:     *kubernetesHost,
-				Username: *kubernetesUsername,
-				Password: *kubernetesPassword,
+				Host:        *kubernetesHost,
+				Username:    *kubernetesUsername,
+				Password:    *kubernetesPassword,
+				BearerToken: *kubernetesBearerToken,
 				TLSClientConfig: restclient.TLSClientConfig{
 					CertFile: *kubernetesClientCert,
 					KeyFile:  *kubernetesClientKey,
 					CAFile:   *kubernetesCertAuthority,
 				},
-			}, logger)
+			}, *kubernetesKubectl, logger)
 			if err != nil {
 				logger.Log("err", err)
 				os.Exit(1)
