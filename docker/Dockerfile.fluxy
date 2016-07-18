@@ -3,4 +3,3 @@ ADD https://storage.googleapis.com/kubernetes-release/release/v1.2.4/bin/linux/a
 RUN chmod +x /home/flux/kubectl
 COPY ./ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 COPY ./fluxd /home/flux/
-COPY ./entrypoint.sh /home/flux/
