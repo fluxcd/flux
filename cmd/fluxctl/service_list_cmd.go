@@ -24,7 +24,11 @@ func (opts *serviceListOpts) Command() *cobra.Command {
 	return cmd
 }
 
-func (opts *serviceListOpts) RunE(*cobra.Command, []string) error {
+func (opts *serviceListOpts) RunE(_ *cobra.Command, args []string) error {
+	if len(args) != 0 {
+		return errorWantedNoArgs
+	}
+
 	services, err := opts.Fluxd.Services(opts.Namespace)
 	if err != nil {
 		return err

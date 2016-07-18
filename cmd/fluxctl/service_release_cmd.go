@@ -33,7 +33,10 @@ func (opts *serviceReleaseOpts) Command() *cobra.Command {
 	return cmd
 }
 
-func (opts *serviceReleaseOpts) RunE(*cobra.Command, []string) error {
+func (opts *serviceReleaseOpts) RunE(_ *cobra.Command, args []string) error {
+	if len(args) != 0 {
+		return errorWantedNoArgs
+	}
 	if opts.Service == "" {
 		return errors.New("-s, --service is required")
 	}
