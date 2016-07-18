@@ -2,8 +2,6 @@ package main
 
 import (
 	"fmt"
-	"os"
-	"text/tabwriter"
 
 	"github.com/spf13/cobra"
 )
@@ -40,7 +38,7 @@ func (opts *serviceImagesOpts) RunE(_ *cobra.Command, args []string) error {
 		return err
 	}
 
-	out := tabwriter.NewWriter(os.Stdout, 4, 4, 2, ' ', 0)
+	out := newTabwriter()
 	fmt.Fprintln(out, "CONTAINER\tRUNNING\tIMAGE\tCREATED")
 	for _, container := range containers {
 		containerName := container.Container.Name
