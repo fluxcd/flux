@@ -9,7 +9,7 @@ clean:
 	go clean
 	rm -rf ./build
 
-build/.fluxy.done: docker/Dockerfile.fluxy build/fluxd ./cmd/fluxd/*.crt ./cmd/fluxd/entrypoint.bash
+build/.fluxy.done: docker/Dockerfile.fluxy build/fluxd ./cmd/fluxd/*.crt ./cmd/fluxd/entrypoint.sh
 	mkdir -p ./build/docker
 	cp $^ ./build/docker/
 	${DOCKER} build -t weaveworks/fluxy -f build/docker/Dockerfile.fluxy ./build/docker

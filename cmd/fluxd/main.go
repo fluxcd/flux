@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"os/signal"
@@ -29,17 +30,17 @@ func main() {
 	}
 	// This mirrors how kubectl extracts information from the environment.
 	var (
-		listenAddr              = fs.StringP("listen", "l", ":3030", "Listen address for Flux API clients")
-		registryCredentials     = fs.StringP("registry-credentials", "", "", "Path to image registry credentials file, in the format of ~/.docker/config.json")
-		kubernetesEnabled       = fs.BoolP("kubernetes", "", false, "Enable Kubernetes platform")
-		kubernetesKubectl       = fs.StringP("kubernetes-kubectl", "", "", "Optional, explicit path to kubectl tool")
-		kubernetesHost          = fs.StringP("kubernetes-host", "", "", "Kubernetes host, e.g. http://10.11.12.13:8080")
-		kubernetesUsername      = fs.StringP("kubernetes-username", "", "", "Kubernetes HTTP basic auth username")
-		kubernetesPassword      = fs.StringP("kubernetes-password", "", "", "Kubernetes HTTP basic auth password")
-		kubernetesClientCert    = fs.StringP("kubernetes-client-certificate", "", "", "Path to Kubernetes client certification file for TLS")
-		kubernetesClientKey     = fs.StringP("kubernetes-client-key", "", "", "Path to Kubernetes client key file for TLS")
-		kubernetesCertAuthority = fs.StringP("kubernetes-certificate-authority", "", "", "Path to Kubernetes cert file for certificate authority")
-		kubernetesBearerToken   = fs.StringP("kubernetes-bearer-token", "", "", "Kubernetes Bearer token")
+		listenAddr                = fs.StringP("listen", "l", ":3030", "Listen address for Flux API clients")
+		registryCredentials       = fs.StringP("registry-credentials", "", "", "Path to image registry credentials file, in the format of ~/.docker/config.json")
+		kubernetesEnabled         = fs.BoolP("kubernetes", "", false, "Enable Kubernetes platform")
+		kubernetesKubectl         = fs.StringP("kubernetes-kubectl", "", "", "Optional, explicit path to kubectl tool")
+		kubernetesHost            = fs.StringP("kubernetes-host", "", "", "Kubernetes host, e.g. http://10.11.12.13:8080")
+		kubernetesUsername        = fs.StringP("kubernetes-username", "", "", "Kubernetes HTTP basic auth username")
+		kubernetesPassword        = fs.StringP("kubernetes-password", "", "", "Kubernetes HTTP basic auth password")
+		kubernetesClientCert      = fs.StringP("kubernetes-client-certificate", "", "", "Path to Kubernetes client certification file for TLS")
+		kubernetesClientKey       = fs.StringP("kubernetes-client-key", "", "", "Path to Kubernetes client key file for TLS")
+		kubernetesCertAuthority   = fs.StringP("kubernetes-certificate-authority", "", "", "Path to Kubernetes cert file for certificate authority")
+		kubernetesBearerTokenFile = fs.StringP("kubernetes-bearer-token-file", "", "", "Path to file containing Kubernetes Bearer Token file")
 	)
 	fs.Parse(os.Args)
 
@@ -50,6 +51,11 @@ func main() {
 		logger = log.NewContext(logger).With("ts", log.DefaultTimestampUTC)
 		logger = log.NewContext(logger).With("caller", log.DefaultCaller)
 	}
+
+	// Debug.
+	fs.Visit(func(f *pflag.Flag) {
+		logger.Log(f.Name, f.Value)
+	})
 
 	// Registry component.
 	var reg *registry.Client
@@ -80,12 +86,22 @@ func main() {
 		if *kubernetesEnabled {
 			logger.Log("kind", "Kubernetes", "host", kubernetesHost)
 
+			var bearerToken string
+			if *kubernetesBearerTokenFile != "" {
+				buf, err := ioutil.ReadFile(*kubernetesBearerTokenFile)
+				if err != nil {
+					logger.Log("err", err)
+					os.Exit(1)
+				}
+				bearerToken = string(buf)
+			}
+
 			var err error
 			k8s, err = kubernetes.NewCluster(&restclient.Config{
 				Host:        *kubernetesHost,
 				Username:    *kubernetesUsername,
 				Password:    *kubernetesPassword,
-				BearerToken: *kubernetesBearerToken,
+				BearerToken: bearerToken,
 				TLSClientConfig: restclient.TLSClientConfig{
 					CertFile: *kubernetesClientCert,
 					KeyFile:  *kubernetesClientKey,

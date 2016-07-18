@@ -1,8 +1,6 @@
-FROM ubuntu:latest
-EXPOSE 3030
+FROM alpine:3.3
 ADD https://storage.googleapis.com/kubernetes-release/release/v1.2.4/bin/linux/amd64/kubectl /home/flux/
 RUN chmod +x /home/flux/kubectl
 COPY ./ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 COPY ./fluxd /home/flux/
-COPY ./entrypoint.bash /home/flux/
-ENTRYPOINT ["/home/flux/entrypoint.bash"]
+COPY ./entrypoint.sh /home/flux/

@@ -1,0 +1,24 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: fluxy
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        name: fluxy
+    spec:
+      containers:
+      - name: fluxy
+        image: weaveworks/fluxy
+        imagePullPolicy: Never # must build manually
+        ports:
+        - containerPort: 3030
+        args:
+        - /home/flux/fluxd
+        - --kubernetes
+        - --kubernetes-kubectl=/home/flux/kubectl
+        - --kubernetes-host=https://kubernetes
+        - --kubernetes-certificate-authority=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+        - --kubernetes-bearer-token-file=/var/run/secrets/kubernetes.io/serviceaccount/token
