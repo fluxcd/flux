@@ -2,8 +2,6 @@ package main
 
 import (
 	"fmt"
-	"os"
-	"text/tabwriter"
 
 	"github.com/spf13/cobra"
 )
@@ -35,7 +33,7 @@ func (opts *imagesOpts) RunE(_ *cobra.Command, args []string) error {
 		return err
 	}
 
-	out := tabwriter.NewWriter(os.Stdout, 4, 4, 2, ' ', 0)
+	out := newTabwriter()
 	fmt.Fprintln(out, "IMAGE\tCREATED")
 	for _, image := range images {
 		fmt.Fprintf(out, "%s:%s\t%s\n", image.Name, image.Tag, image.CreatedAt)

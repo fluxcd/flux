@@ -25,3 +25,11 @@ type Port struct {
 	Internal string // what it maps to on the backends
 	Protocol string // e.g. TCP, HTTP
 }
+
+// A Container represents a container specification in a pod. The Name
+// identifies it within the pod, and the Image says which image it's
+// configured to run.
+type Container struct {
+	Name  string
+	Image string
+}

@@ -40,6 +40,20 @@ func (mw loggingMiddleware) Images(repository string) (res []registry.Image, err
 	return mw.next.Images(repository)
 }
 
+func (mw loggingMiddleware) ServiceImages(namespace, service string) (res []ContainerImages, err error) {
+	defer func(begin time.Time) {
+		mw.logger.Log(
+			"method", "ServiceImages",
+			"namespace", namespace,
+			"service", service,
+			"containers", len(res),
+			"err", err,
+			"took", time.Since(begin),
+		)
+	}(time.Now())
+	return mw.next.ServiceImages(namespace, service)
+}
+
 func (mw loggingMiddleware) Services(namespace string) (res []platform.Service, err error) {
 	defer func(begin time.Time) {
 		mw.logger.Log(

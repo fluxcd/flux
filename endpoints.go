@@ -14,18 +14,20 @@ import (
 // that comprise a Flux service. It's meant to be used as a helper struct,
 // to collect all endpoints into a single parameter.
 type Endpoints struct {
-	ImagesEndpoint   endpoint.Endpoint
-	ServicesEndpoint endpoint.Endpoint
-	ReleaseEndpoint  endpoint.Endpoint
+	ImagesEndpoint        endpoint.Endpoint
+	ServiceImagesEndpoint endpoint.Endpoint
+	ServicesEndpoint      endpoint.Endpoint
+	ReleaseEndpoint       endpoint.Endpoint
 }
 
 // MakeServerEndpoints returns an Endpoints struct where each endpoint invokes the
 // corresponding method on the provided service. Useful in a server i.e. fluxd.
 func MakeServerEndpoints(s Service) Endpoints {
 	return Endpoints{
-		ImagesEndpoint:   MakeImagesEndpoint(s),
-		ServicesEndpoint: MakeServicesEndpoint(s),
-		ReleaseEndpoint:  MakeReleaseEndpoint(s),
+		ImagesEndpoint:        MakeImagesEndpoint(s),
+		ServiceImagesEndpoint: MakeServiceImagesEndpoint(s),
+		ServicesEndpoint:      MakeServicesEndpoint(s),
+		ReleaseEndpoint:       MakeReleaseEndpoint(s),
 	}
 }
 
@@ -36,6 +38,14 @@ func MakeImagesEndpoint(s Service) endpoint.Endpoint {
 		req := request.(imagesRequest)
 		images, err := s.Images(req.Repository)
 		return imagesResponse{Images: images, Err: err}, nil
+	}
+}
+
+func MakeServiceImagesEndpoint(s Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+		req := request.(serviceImagesRequest)
+		containers, err := s.ServiceImages(req.Namespace, req.Service)
+		return serviceImagesResponse{ContainerImages: containers, Err: err}, nil
 	}
 }
 
@@ -66,6 +76,16 @@ type imagesRequest struct {
 type imagesResponse struct {
 	Images []registry.Image
 	Err    error
+}
+
+type serviceImagesRequest struct {
+	Namespace string
+	Service   string
+}
+
+type serviceImagesResponse struct {
+	ContainerImages []ContainerImages
+	Err             error
 }
 
 type servicesRequest struct {

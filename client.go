@@ -33,9 +33,10 @@ func NewClient(instance string) (Service, error) {
 	return serviceWrapper{
 		ctx: context.Background(),
 		endpoints: Endpoints{
-			ImagesEndpoint:   httptransport.NewClient("GET", tgt, encodeImagesRequest, decodeImagesResponse, options...).Endpoint(),
-			ServicesEndpoint: httptransport.NewClient("GET", tgt, encodeServicesRequest, decodeServicesResponse, options...).Endpoint(),
-			ReleaseEndpoint:  httptransport.NewClient("POST", tgt, encodeReleaseRequest, decodeReleaseResponse, options...).Endpoint(),
+			ImagesEndpoint:        httptransport.NewClient("GET", tgt, encodeImagesRequest, decodeImagesResponse, options...).Endpoint(),
+			ServiceImagesEndpoint: httptransport.NewClient("GET", tgt, encodeServiceImagesRequest, decodeServiceImagesResponse, options...).Endpoint(),
+			ServicesEndpoint:      httptransport.NewClient("GET", tgt, encodeServicesRequest, decodeServicesResponse, options...).Endpoint(),
+			ReleaseEndpoint:       httptransport.NewClient("POST", tgt, encodeReleaseRequest, decodeReleaseResponse, options...).Endpoint(),
 		},
 	}, nil
 }
@@ -54,6 +55,16 @@ func (w serviceWrapper) Images(repository string) ([]registry.Image, error) {
 	}
 	resp := response.(imagesResponse)
 	return resp.Images, resp.Err
+}
+
+func (w serviceWrapper) ServiceImages(namespace, service string) ([]ContainerImages, error) {
+	request := serviceImagesRequest{Namespace: namespace, Service: service}
+	response, err := w.endpoints.ServiceImagesEndpoint(w.ctx, request)
+	if err != nil {
+		return nil, err
+	}
+	resp := response.(serviceImagesResponse)
+	return resp.ContainerImages, resp.Err
 }
 
 func (w serviceWrapper) Services(namespace string) ([]platform.Service, error) {

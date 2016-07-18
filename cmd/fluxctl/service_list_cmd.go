@@ -2,9 +2,7 @@ package main
 
 import (
 	"fmt"
-	"os"
 	"strings"
-	"text/tabwriter"
 
 	"github.com/spf13/cobra"
 )
@@ -32,7 +30,7 @@ func (opts *serviceListOpts) RunE(*cobra.Command, []string) error {
 		return err
 	}
 
-	w := tabwriter.NewWriter(os.Stdout, 0, 2, 2, ' ', 0)
+	w := newTabwriter()
 	fmt.Fprintf(w, "SERVICE\tIP\tPORTS\tIMAGE\n")
 	for _, s := range services {
 		var ports []string
