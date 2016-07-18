@@ -21,12 +21,10 @@ func main() {
 	repoCmd := repo.Command()
 	repoImagesCmd := repoImages.Command()
 
-	rootCmd.AddCommand(serviceCmd)
-	rootCmd.AddCommand(repoCmd)
-	serviceCmd.AddCommand(serviceListCmd)
-	serviceCmd.AddCommand(serviceImagesCmd)
-	serviceCmd.AddCommand(serviceReleaseCmd)
+	serviceCmd.AddCommand(serviceListCmd, serviceReleaseCmd, serviceImagesCmd)
 	repoCmd.AddCommand(repoImagesCmd)
+
+	rootCmd.AddCommand(serviceCmd, repoCmd)
 
 	if cmd, err := rootCmd.ExecuteC(); err != nil {
 		switch err.(type) {
