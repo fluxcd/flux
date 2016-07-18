@@ -1,6 +1,8 @@
 .DEFAULT: all
 .PHONY: all clean
 
+DOCKER?=docker
+
 all: build/.fluxy.done
 
 clean:
@@ -10,7 +12,7 @@ clean:
 build/.fluxy.done: docker/Dockerfile.fluxy build/fluxd ./cmd/fluxd/*.crt
 	mkdir -p ./build/docker
 	cp $^ ./build/docker/
-	docker build -t weaveworks/fluxy -f build/docker/Dockerfile.fluxy ./build/docker
+	${DOCKER} build -t weaveworks/fluxy -f build/docker/Dockerfile.fluxy ./build/docker
 	touch $@
 
 build/fluxd:
