@@ -10,8 +10,7 @@ import (
 
 type serviceImagesOpts struct {
 	*serviceOpts
-	service   string
-	namespace string
+	service string
 }
 
 func newServiceImages(parent *serviceOpts) *serviceImagesOpts {
@@ -25,7 +24,6 @@ func (opts *serviceImagesOpts) Command() *cobra.Command {
 		RunE:  opts.RunE,
 	}
 	cmd.Flags().StringVarP(&opts.service, "service", "s", "", "Service for which to show images")
-	cmd.Flags().StringVarP(&opts.namespace, "namespace", "n", "default", "Namespace in which the service runs.")
 	return cmd
 }
 
@@ -37,7 +35,7 @@ func (opts *serviceImagesOpts) RunE(_ *cobra.Command, args []string) error {
 		return fmt.Errorf("--service flag required")
 	}
 
-	containers, err := opts.Fluxd.ServiceImages(opts.namespace, opts.service)
+	containers, err := opts.Fluxd.ServiceImages(opts.Namespace, opts.service)
 	if err != nil {
 		return err
 	}
