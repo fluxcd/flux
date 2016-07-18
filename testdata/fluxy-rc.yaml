@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: ReplicationController
+metadata:
+  name: fluxy
+spec:
+  replicas: 1
+  selector:
+    name: fluxy
+    version: latest
+  template:
+    metadata:
+      labels:
+        name: fluxy
+        version: latest
+    spec:
+      containers:
+      - name: fluxy
+        image: weaveworks/fluxy:latest
+        imagePullPolicy: Never # must build manually
+        ports:
+        - containerPort: 3030
