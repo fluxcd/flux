@@ -27,7 +27,7 @@ func (opts *serviceReleaseOpts) Command() *cobra.Command {
 		Short: "Release a new version of a service.",
 		RunE:  opts.RunE,
 	}
-	cmd.Flags().StringVarP(&opts.Service, "service", "s", "", "service to update")
+	cmd.Flags().StringVarP(&opts.Service, "service", "s", "", "service to update (required)")
 	cmd.Flags().StringVarP(&opts.File, "file", "f", "-", "file containing new ReplicationController definition, or - to read from stdin")
 	cmd.Flags().DurationVarP(&opts.UpdatePeriod, "update-period", "p", 5*time.Second, "delay between starting and stopping instances in the rolling update")
 	return cmd
@@ -38,14 +38,14 @@ func (opts *serviceReleaseOpts) RunE(_ *cobra.Command, args []string) error {
 		return errorWantedNoArgs
 	}
 	if opts.Service == "" {
-		return errors.New("-s, --service is required")
+		return newUsageError(errors.New("-s, --service is required"))
 	}
 
 	var buf []byte
 	var err error
 	switch opts.File {
 	case "":
-		return errors.New("-f, --file is required")
+		return newUsageError(errors.New("-f, --file is required"))
 
 	case "-":
 		buf, err = ioutil.ReadAll(os.Stdin)

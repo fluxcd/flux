@@ -2,8 +2,6 @@ package main
 
 import (
 	"fmt"
-	"os"
-	"text/tabwriter"
 
 	"github.com/spf13/cobra"
 )
@@ -30,7 +28,7 @@ func (opts *repoImagesOpts) RunE(_ *cobra.Command, args []string) error {
 		return errorWantedNoArgs
 	}
 	if opts.repository == "" {
-		return fmt.Errorf("expected flag --repository, giving the repository for which to list images")
+		return newUsageError(fmt.Errorf("flag --repository is required"))
 	}
 
 	images, err := opts.Fluxd.Images(opts.repository)
@@ -38,7 +36,7 @@ func (opts *repoImagesOpts) RunE(_ *cobra.Command, args []string) error {
 		return err
 	}
 
-	out := newTabWriter()
+	out := newTabwriter()
 	fmt.Fprintln(out, "IMAGE\tCREATED")
 	for _, image := range images {
 		fmt.Fprintf(out, "%s:%s\t%s\n", image.Name, image.Tag, image.CreatedAt)

@@ -18,6 +18,6 @@ func (opts *repoOpts) Command() *cobra.Command {
 		Use:   "repo",
 		Short: "Subcommands dealing with image repositories, e.g., quay.io/weaveworks/helloworld",
 	}
-	cmd.PersistentFlags().StringVar(&opts.repository, "repo", "", "The repository in question, e.g., quay.io/weaveworks/helloworld")
+	cmd.PersistentFlags().StringVar(&opts.repository, "repo", "", "The repository in question, e.g., quay.io/weaveworks/helloworld (required)")
 	return cmd
 }

@@ -28,7 +28,12 @@ func main() {
 	serviceCmd.AddCommand(serviceReleaseCmd)
 	repoCmd.AddCommand(repoImagesCmd)
 
-	if err := rootCmd.Execute(); err != nil {
+	if cmd, err := rootCmd.ExecuteC(); err != nil {
+		switch err.(type) {
+		case *usageError:
+			cmd.Println("")
+			cmd.Println(cmd.UsageString())
+		}
 		os.Exit(1)
 	}
 }
