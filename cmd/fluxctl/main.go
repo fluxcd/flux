@@ -4,8 +4,8 @@ import "os"
 
 func main() {
 	root := newRoot()
-	service := newService(root)
 	images := newImages(root)
+	service := newService(root)
 	serviceList := newServiceList(service)
 	serviceImages := newServiceImages(service)
 	serviceRelease := newServiceRelease(service)
