@@ -18,7 +18,7 @@ func newRoot() *rootOpts {
 func (opts *rootOpts) Command() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:               "fluxctl",
-		Short:             "fluxctl is a commandline client for the fluxd daemon.",
+		Short:             "fluxctl helps you deploy your code.",
 		SilenceUsage:      true,
 		PersistentPreRunE: opts.PersistentPreRunE,
 	}

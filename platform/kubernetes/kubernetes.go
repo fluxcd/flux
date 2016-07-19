@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"strings"
@@ -85,7 +84,10 @@ func (c *Cluster) Services(namespace string) ([]platform.Service, error) {
 	return c.makePlatformServices(apiServices), nil
 }
 
-func (c *Cluster) services(namespace string) ([]api.Service, error) {
+func (c *Cluster) services(namespace string) (res []api.Service, err error) {
+	defer func() {
+		c.logger.Log("method", "services", "namespace", namespace, "count", len(res), "err", err)
+	}()
 	list, err := c.client.Services(namespace).List(api.ListOptions{})
 	if err != nil {
 		return nil, err
@@ -122,11 +124,16 @@ func (c *Cluster) Release(namespace, serviceName string, newReplicationControlle
 	if c.config.TLSClientConfig.CertFile != "" {
 		args = append(args, fmt.Sprintf("--client-certificate=%s", c.config.TLSClientConfig.CertFile))
 	}
+	if c.config.TLSClientConfig.CAFile != "" {
+		args = append(args, fmt.Sprintf("--certificate-authority=%s", c.config.TLSClientConfig.CAFile))
+	}
 	if c.config.TLSClientConfig.KeyFile != "" {
-		args = append(args, fmt.Sprintf("--client-key=%s", c.config.KeyFile))
+		args = append(args, fmt.Sprintf("--client-key=%s", c.config.TLSClientConfig.KeyFile))
+	}
+	if c.config.BearerToken != "" {
+		args = append(args, fmt.Sprintf("--token=%s", c.config.BearerToken))
 	}
 	args = append(args, []string{
-		"--validate=false", // for some reason, this is required with our defs
 		"rolling-update",
 		rc.Name,
 		fmt.Sprintf("--update-period=%s", updatePeriod),
@@ -135,8 +142,8 @@ func (c *Cluster) Release(namespace, serviceName string, newReplicationControlle
 
 	cmd := exec.Command(c.kubectl, args...)
 	cmd.Stdin = bytes.NewReader(newReplicationControllerDefinition)
-	cmd.Stdout = ioutil.Discard
-	cmd.Stderr = ioutil.Discard
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
 	logger.Log("cmd", strings.Join(cmd.Args, " "))
 
 	begin := time.Now()
