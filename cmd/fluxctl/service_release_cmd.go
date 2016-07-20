@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -12,9 +11,9 @@ import (
 
 type serviceReleaseOpts struct {
 	*serviceOpts
-	Service      string
-	File         string
-	UpdatePeriod time.Duration
+	service      string
+	file         string
+	updatePeriod time.Duration
 }
 
 func newServiceRelease(parent *serviceOpts) *serviceReleaseOpts {
@@ -27,22 +26,25 @@ func (opts *serviceReleaseOpts) Command() *cobra.Command {
 		Short: "Release a new version of a service.",
 		RunE:  opts.RunE,
 	}
-	cmd.Flags().StringVarP(&opts.Service, "service", "s", "", "service to update")
-	cmd.Flags().StringVarP(&opts.File, "file", "f", "-", "file containing new ReplicationController definition, or - to read from stdin")
-	cmd.Flags().DurationVarP(&opts.UpdatePeriod, "update-period", "p", 5*time.Second, "delay between starting and stopping instances in the rolling update")
+	cmd.Flags().StringVarP(&opts.service, "service", "s", "", "service to update (required)")
+	cmd.Flags().StringVarP(&opts.file, "file", "f", "-", "file containing new ReplicationController definition, or - to read from stdin (required)")
+	cmd.Flags().DurationVarP(&opts.updatePeriod, "update-period", "p", 5*time.Second, "delay between starting and stopping instances in the rolling update")
 	return cmd
 }
 
-func (opts *serviceReleaseOpts) RunE(*cobra.Command, []string) error {
-	if opts.Service == "" {
-		return errors.New("-s, --service is required")
+func (opts *serviceReleaseOpts) RunE(_ *cobra.Command, args []string) error {
+	if len(args) != 0 {
+		return errorWantedNoArgs
+	}
+	if opts.service == "" {
+		return newUsageError("-s, --service is required")
 	}
 
 	var buf []byte
 	var err error
-	switch opts.File {
+	switch opts.file {
 	case "":
-		return errors.New("-f, --file is required")
+		return newUsageError("-f, --file is required")
 
 	case "-":
 		buf, err = ioutil.ReadAll(os.Stdin)
@@ -51,15 +53,15 @@ func (opts *serviceReleaseOpts) RunE(*cobra.Command, []string) error {
 		}
 
 	default:
-		buf, err = ioutil.ReadFile(opts.File)
+		buf, err = ioutil.ReadFile(opts.file)
 		if err != nil {
 			return err
 		}
 	}
 
 	begin := time.Now()
-	fmt.Fprintf(os.Stdout, "Starting release of %s with an update period of %s... ", opts.Service, opts.UpdatePeriod.String())
-	if err = opts.Fluxd.Release(opts.Namespace, opts.Service, buf, opts.UpdatePeriod); err != nil {
+	fmt.Fprintf(os.Stdout, "Starting release of %s with an update period of %s... ", opts.service, opts.updatePeriod.String())
+	if err = opts.Fluxd.Release(opts.namespace, opts.service, buf, opts.updatePeriod); err != nil {
 		fmt.Fprintf(os.Stdout, "error! %v\n", err)
 	} else {
 		fmt.Fprintf(os.Stdout, "success\n")

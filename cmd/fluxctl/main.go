@@ -4,26 +4,34 @@ import "os"
 
 func main() {
 	root := newRoot()
-	images := newImages(root)
+
 	service := newService(root)
 	serviceList := newServiceList(service)
 	serviceImages := newServiceImages(service)
 	serviceRelease := newServiceRelease(service)
+	repo := newRepo(root)
+	repoImages := newRepoImages(repo)
 
 	rootCmd := root.Command()
-	imagesCmd := images.Command()
+
 	serviceCmd := service.Command()
 	serviceListCmd := serviceList.Command()
 	serviceImagesCmd := serviceImages.Command()
 	serviceReleaseCmd := serviceRelease.Command()
+	repoCmd := repo.Command()
+	repoImagesCmd := repoImages.Command()
 
-	rootCmd.AddCommand(imagesCmd)
-	rootCmd.AddCommand(serviceCmd)
-	serviceCmd.AddCommand(serviceListCmd)
-	serviceCmd.AddCommand(serviceImagesCmd)
-	serviceCmd.AddCommand(serviceReleaseCmd)
+	serviceCmd.AddCommand(serviceListCmd, serviceReleaseCmd, serviceImagesCmd)
+	repoCmd.AddCommand(repoImagesCmd)
 
-	if err := rootCmd.Execute(); err != nil {
+	rootCmd.AddCommand(serviceCmd, repoCmd)
+
+	if cmd, err := rootCmd.ExecuteC(); err != nil {
+		switch err.(type) {
+		case usageError:
+			cmd.Println("")
+			cmd.Println(cmd.UsageString())
+		}
 		os.Exit(1)
 	}
 }

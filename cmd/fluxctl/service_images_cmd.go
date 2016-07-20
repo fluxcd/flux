@@ -27,13 +27,13 @@ func (opts *serviceImagesOpts) Command() *cobra.Command {
 
 func (opts *serviceImagesOpts) RunE(_ *cobra.Command, args []string) error {
 	if len(args) != 0 {
-		return fmt.Errorf("expected no arguments")
+		return errorWantedNoArgs
 	}
 	if opts.service == "" {
-		return fmt.Errorf("--service flag required")
+		return newUsageError("--service flag required")
 	}
 
-	containers, err := opts.Fluxd.ServiceImages(opts.Namespace, opts.service)
+	containers, err := opts.Fluxd.ServiceImages(opts.namespace, opts.service)
 	if err != nil {
 		return err
 	}
