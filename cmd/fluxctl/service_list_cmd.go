@@ -29,7 +29,7 @@ func (opts *serviceListOpts) RunE(_ *cobra.Command, args []string) error {
 		return errorWantedNoArgs
 	}
 
-	services, err := opts.Fluxd.Services(opts.Namespace)
+	services, err := opts.Fluxd.Services(opts.namespace)
 	if err != nil {
 		return err
 	}

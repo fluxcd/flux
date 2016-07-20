@@ -28,7 +28,7 @@ func main() {
 
 	if cmd, err := rootCmd.ExecuteC(); err != nil {
 		switch err.(type) {
-		case *usageError:
+		case usageError:
 			cmd.Println("")
 			cmd.Println(cmd.UsageString())
 		}

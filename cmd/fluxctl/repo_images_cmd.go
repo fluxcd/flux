@@ -28,7 +28,7 @@ func (opts *repoImagesOpts) RunE(_ *cobra.Command, args []string) error {
 		return errorWantedNoArgs
 	}
 	if opts.repository == "" {
-		return newUsageError(fmt.Errorf("flag --repository is required"))
+		return newUsageError("flag --repo is required")
 	}
 
 	images, err := opts.Fluxd.Images(opts.repository)

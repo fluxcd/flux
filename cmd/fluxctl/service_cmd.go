@@ -6,7 +6,7 @@ import (
 
 type serviceOpts struct {
 	*rootOpts
-	Namespace string
+	namespace string
 }
 
 func newService(parent *rootOpts) *serviceOpts {
@@ -18,6 +18,6 @@ func (opts *serviceOpts) Command() *cobra.Command {
 		Use:   "service <list, ...> [options]",
 		Short: "Manipulate platform services.",
 	}
-	cmd.PersistentFlags().StringVarP(&opts.Namespace, "namespace", "n", "default", "namespace to introspect")
+	cmd.PersistentFlags().StringVarP(&opts.namespace, "namespace", "n", "default", "namespace to introspect")
 	return cmd
 }

@@ -1,21 +1,17 @@
 package main
 
 import (
-	"fmt"
+	"errors"
 )
 
 type usageError struct {
 	error
 }
 
-func (err *usageError) Error() string {
-	return err.error.Error()
-}
-
-func newUsageError(err error) *usageError {
-	return &usageError{error: err}
+func newUsageError(msg string) usageError {
+	return usageError{error: errors.New(msg)}
 }
 
 var (
-	errorWantedNoArgs = newUsageError(fmt.Errorf("expected no (non-flag) arguments"))
+	errorWantedNoArgs = newUsageError("expected no (non-flag) arguments")
 )
