@@ -39,17 +39,21 @@ func (opts *serviceImagesOpts) RunE(_ *cobra.Command, args []string) error {
 	}
 
 	out := newTabwriter()
-	fmt.Fprintln(out, "CONTAINER\tRUNNING\tIMAGE\tCREATED")
+	fmt.Fprintln(out, "CONTAINER\tIMAGE\tCREATED")
 	for _, container := range containers {
 		containerName := container.Container.Name
+		imageName, imageTag := imageParts(container.Container.Image)
+		fmt.Fprintf(out, "%s\t%s\t\n", containerName, imageName)
+		foundRunning := false
 		for _, image := range container.Images {
-			running := ""
-			imageName := fmt.Sprintf("%s:%s", image.Name, image.Tag)
-			if imageName == container.Container.Image {
-				running = "--->"
+			running := "|  "
+			if image.Tag == imageTag {
+				running = "+->"
+				foundRunning = true
+			} else if foundRunning {
+				running = "   "
 			}
-			fmt.Fprintf(out, "%s\t%s\t%s\t%s\n", containerName, running, imageName, image.CreatedAt)
-			containerName = "..."
+			fmt.Fprintf(out, "\t%s %s\t%s\n", running, image.Tag, image.CreatedAt)
 		}
 	}
 	out.Flush()
