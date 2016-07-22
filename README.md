@@ -35,7 +35,7 @@ $ go test ./...
 
 ### Dependency management
 
-We use [Glide](https://github.com/Masterinds/glide) to manage vendored dependencies.
+We use [Glide](https://github.com/Masterminds/glide) to manage vendored dependencies.
 Note that **we do not check in the vendor folder**.
 If you add or remove dependencies, use the following command to update the glide.yaml and glide.lock files, 
  and to populate your local vendor folder.
