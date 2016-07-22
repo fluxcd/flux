@@ -64,6 +64,13 @@ func MakeHTTPHandler(ctx context.Context, e Endpoints, logger log.Logger) http.H
 		encodeReleaseResponse,
 		options...,
 	))
+	r.Methods("GET").Path("/releases").Handler(httptransport.NewServer(
+		ctx,
+		e.ReleasesStatusEndpoint,
+		decodeReleasesStatusRequest,
+		encodeReleasesStatusResponse,
+		options...,
+	))
 
 	return r
 }
@@ -113,6 +120,8 @@ func codeFrom(err error) int {
 		return http.StatusInternalServerError
 	}
 }
+
+// DECODE REQUEST
 
 func decodeImagesRequest(_ context.Context, r *http.Request) (request interface{}, err error) {
 	repository := mux.Vars(r)["repository"]
@@ -175,6 +184,18 @@ func decodeReleaseRequest(_ context.Context, r *http.Request) (request interface
 	}, nil
 }
 
+func decodeReleasesStatusRequest(_ context.Context, r *http.Request) (request interface{}, err error) {
+	namespace := r.FormValue("namespace")
+	if namespace == "" {
+		namespace = DefaultNamespace
+	}
+	return releasesStatusRequest{
+		Namespace: namespace,
+	}, nil
+}
+
+// DECODE RESPONSE
+
 func decodeImagesResponse(_ context.Context, resp *http.Response) (interface{}, error) {
 	var response imagesResponse
 	var err error
@@ -221,6 +242,20 @@ func decodeReleaseResponse(_ context.Context, resp *http.Response) (interface{},
 	}
 	return response, nil
 }
+
+func decodeReleasesStatusResponse(_ context.Context, resp *http.Response) (interface{}, error) {
+	var response releasesStatusResponse
+	var err error
+	switch resp.StatusCode {
+	case http.StatusOK:
+		err = json.NewDecoder(resp.Body).Decode(&response.Status)
+	default:
+		response.Err = decodeError(resp.Body)
+	}
+	return response, err
+}
+
+// ENCODE REQUEST
 
 func encodeImagesRequest(ctx context.Context, req *http.Request, request interface{}) error {
 	r := request.(imagesRequest)
@@ -270,6 +305,20 @@ func encodeReleaseRequest(ctx context.Context, req *http.Request, request interf
 	return nil
 }
 
+func encodeReleasesStatusRequest(ctx context.Context, req *http.Request, request interface{}) error {
+	r := request.(releasesStatusRequest)
+	values := url.Values{}
+	values.Set("namespace", r.Namespace)
+
+	req.Method = "GET"
+	req.URL.Path = "/v0/releases"
+	req.URL.RawQuery = values.Encode()
+
+	return nil
+}
+
+// ENCODE RESPONSE
+
 func encodeImagesResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
 	resp := response.(imagesResponse)
 	if resp.Err != nil {
@@ -307,5 +356,15 @@ func encodeReleaseResponse(ctx context.Context, w http.ResponseWriter, response 
 		return nil
 	}
 	encodeJSON(ctx, map[string]interface{}{"success": true}, w)
+	return nil
+}
+
+func encodeReleasesStatusResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
+	resp := response.(releasesStatusResponse)
+	if resp.Err != nil {
+		encodeError(ctx, resp.Err, w)
+		return nil
+	}
+	encodeJSON(ctx, resp.Status, w)
 	return nil
 }

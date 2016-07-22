@@ -14,20 +14,22 @@ import (
 // that comprise a Flux service. It's meant to be used as a helper struct,
 // to collect all endpoints into a single parameter.
 type Endpoints struct {
-	ImagesEndpoint        endpoint.Endpoint
-	ServiceImagesEndpoint endpoint.Endpoint
-	ServicesEndpoint      endpoint.Endpoint
-	ReleaseEndpoint       endpoint.Endpoint
+	ImagesEndpoint         endpoint.Endpoint
+	ServiceImagesEndpoint  endpoint.Endpoint
+	ServicesEndpoint       endpoint.Endpoint
+	ReleaseEndpoint        endpoint.Endpoint
+	ReleasesStatusEndpoint endpoint.Endpoint
 }
 
 // MakeServerEndpoints returns an Endpoints struct where each endpoint invokes the
 // corresponding method on the provided service. Useful in a server i.e. fluxd.
 func MakeServerEndpoints(s Service) Endpoints {
 	return Endpoints{
-		ImagesEndpoint:        MakeImagesEndpoint(s),
-		ServiceImagesEndpoint: MakeServiceImagesEndpoint(s),
-		ServicesEndpoint:      MakeServicesEndpoint(s),
-		ReleaseEndpoint:       MakeReleaseEndpoint(s),
+		ImagesEndpoint:         MakeImagesEndpoint(s),
+		ServiceImagesEndpoint:  MakeServiceImagesEndpoint(s),
+		ServicesEndpoint:       MakeServicesEndpoint(s),
+		ReleaseEndpoint:        MakeReleaseEndpoint(s),
+		ReleasesStatusEndpoint: MakeReleasesStatusEndpoint(s),
 	}
 }
 
@@ -69,6 +71,14 @@ func MakeReleaseEndpoint(s Service) endpoint.Endpoint {
 	}
 }
 
+func MakeReleasesStatusEndpoint(s Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+		req := request.(releasesStatusRequest)
+		statuses, err := s.ReleasesStatus(req.Namespace)
+		return releasesStatusResponse{Status: statuses, Err: err}, nil
+	}
+}
+
 type imagesRequest struct {
 	Repository string
 }
@@ -106,4 +116,13 @@ type releaseRequest struct {
 
 type releaseResponse struct {
 	Err error
+}
+
+type releasesStatusRequest struct {
+	Namespace string
+}
+
+type releasesStatusResponse struct {
+	Status []ReleaseStatus
+	Err    error
 }
