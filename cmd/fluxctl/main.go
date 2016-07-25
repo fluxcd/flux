@@ -9,6 +9,7 @@ func main() {
 	serviceList := newServiceList(service)
 	serviceImages := newServiceImages(service)
 	serviceRelease := newServiceRelease(service)
+	serviceStatus := newServiceStatus(service)
 
 	repo := newRepo(root)
 	repoImages := newRepoImages(repo)
@@ -22,6 +23,7 @@ func main() {
 	serviceListCmd := serviceList.Command()
 	serviceImagesCmd := serviceImages.Command()
 	serviceReleaseCmd := serviceRelease.Command()
+	serviceStatusCmd := serviceStatus.Command()
 
 	repoCmd := repo.Command()
 	repoImagesCmd := repoImages.Command()
@@ -29,7 +31,7 @@ func main() {
 	configCmd := config.Command()
 	configUpdateCmd := configUpdate.Command()
 
-	serviceCmd.AddCommand(serviceListCmd, serviceReleaseCmd, serviceImagesCmd)
+	serviceCmd.AddCommand(serviceListCmd, serviceReleaseCmd, serviceImagesCmd, serviceStatusCmd)
 	repoCmd.AddCommand(repoImagesCmd)
 	configCmd.AddCommand(configUpdateCmd)
 

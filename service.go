@@ -8,6 +8,7 @@ import (
 	"github.com/weaveworks/fluxy/platform"
 	"github.com/weaveworks/fluxy/platform/kubernetes"
 	"github.com/weaveworks/fluxy/registry"
+	"github.com/weaveworks/fluxy/state"
 )
 
 const DefaultNamespace = "default"
@@ -32,6 +33,10 @@ type Service interface {
 	// replication controller. A rolling-update is performed with the provided
 	// updatePeriod. This call blocks until it's complete.
 	Release(namespace, service string, newDef []byte, updatePeriod time.Duration) error
+
+	// ReleasesStatus returns a list of (service, release status),
+	// showing the last reported release state of each service
+	ReleasesStatus(namespace string) ([]ReleaseStatus, error)
 }
 
 var (
@@ -45,17 +50,24 @@ func NewService(reg *registry.Client, k8s *kubernetes.Cluster) Service {
 	return &service{
 		registry: reg,
 		platform: k8s,
+		state:    state.New(),
 	}
 }
 
 type service struct {
 	registry *registry.Client
 	platform *kubernetes.Cluster // TODO(pb): replace with platform.Platform when we have that
+	state    state.State
 }
 
 type ContainerImages struct {
 	Container platform.Container
 	Images    []registry.Image
+}
+
+type ReleaseStatus struct {
+	Service platform.Service
+	Status  string
 }
 
 func (s *service) Images(repository string) ([]registry.Image, error) {
@@ -90,9 +102,29 @@ func (s *service) Services(namespace string) ([]platform.Service, error) {
 	return s.platform.Services(namespace)
 }
 
+func (s *service) ReleasesStatus(namespace string) ([]ReleaseStatus, error) {
+	if s.platform == nil {
+		return nil, ErrNoPlatformConfigured
+	}
+	services, err := s.platform.Services(namespace)
+	if err != nil {
+		return nil, err
+	}
+	releases := make([]ReleaseStatus, 0)
+	for _, service := range services {
+		release := ReleaseStatus{
+			Service: service,
+			Status:  s.state.ReleaseStateFor(namespace, service.Name).Last(),
+		}
+		releases = append(releases, release)
+	}
+	return releases, nil
+}
+
 func (s *service) Release(namespace, service string, newDef []byte, updatePeriod time.Duration) error {
 	if s.platform == nil {
 		return ErrNoPlatformConfigured
 	}
-	return s.platform.Release(namespace, service, newDef, updatePeriod)
+	releaseState := s.state.ReleaseStateFor(namespace, service)
+	return s.platform.Release(namespace, service, newDef, updatePeriod, releaseState)
 }

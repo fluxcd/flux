@@ -19,6 +19,7 @@ import (
 	k8sclient "k8s.io/kubernetes/pkg/client/unversioned"
 
 	"github.com/weaveworks/fluxy/platform"
+	"github.com/weaveworks/fluxy/state"
 )
 
 // These errors are returned by cluster methods.
@@ -101,7 +102,15 @@ func (c *Cluster) services(namespace string) (res []api.Service, err error) {
 // controllers; this can be improved. Release blocks until the rolling update is
 // complete; this can be improved. Release invokes `kubectl rolling-update` in a
 // seperate process, and assumes kubectl is in the PATH; this can be improved.
-func (c *Cluster) Release(namespace, serviceName string, newReplicationControllerDefinition []byte, updatePeriod time.Duration) error {
+func (c *Cluster) Release(namespace, serviceName string, newReplicationControllerDefinition []byte, updatePeriod time.Duration, state state.ReleaseState) (reterr error) {
+	defer func() {
+		if reterr != nil {
+			state.Update("Error: " + reterr.Error())
+		} else {
+			state.Update("Upgraded successfully")
+		}
+	}()
+
 	logger := log.NewContext(c.logger).With("method", "Release", "namespace", namespace, "service", serviceName)
 	logger.Log()
 
@@ -110,6 +119,7 @@ func (c *Cluster) Release(namespace, serviceName string, newReplicationControlle
 		return err
 	}
 	logger.Log("RC", rc.Name)
+	state.Update("Preparing rolling upgrade of RC: " + rc.Name)
 
 	var args []string
 	if c.config.Host != "" {
@@ -140,6 +150,7 @@ func (c *Cluster) Release(namespace, serviceName string, newReplicationControlle
 		"-f", "-", // take definition from stdin
 	}...)
 
+	state.Update("Executing rolling-upgrade of RC: " + rc.Name)
 	cmd := exec.Command(c.kubectl, args...)
 	cmd.Stdin = bytes.NewReader(newReplicationControllerDefinition)
 	cmd.Stdout = os.Stdout

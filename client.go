@@ -33,10 +33,11 @@ func NewClient(instance string) (Service, error) {
 	return serviceWrapper{
 		ctx: context.Background(),
 		endpoints: Endpoints{
-			ImagesEndpoint:        httptransport.NewClient("GET", tgt, encodeImagesRequest, decodeImagesResponse, options...).Endpoint(),
-			ServiceImagesEndpoint: httptransport.NewClient("GET", tgt, encodeServiceImagesRequest, decodeServiceImagesResponse, options...).Endpoint(),
-			ServicesEndpoint:      httptransport.NewClient("GET", tgt, encodeServicesRequest, decodeServicesResponse, options...).Endpoint(),
-			ReleaseEndpoint:       httptransport.NewClient("POST", tgt, encodeReleaseRequest, decodeReleaseResponse, options...).Endpoint(),
+			ImagesEndpoint:         httptransport.NewClient("GET", tgt, encodeImagesRequest, decodeImagesResponse, options...).Endpoint(),
+			ServiceImagesEndpoint:  httptransport.NewClient("GET", tgt, encodeServiceImagesRequest, decodeServiceImagesResponse, options...).Endpoint(),
+			ServicesEndpoint:       httptransport.NewClient("GET", tgt, encodeServicesRequest, decodeServicesResponse, options...).Endpoint(),
+			ReleaseEndpoint:        httptransport.NewClient("POST", tgt, encodeReleaseRequest, decodeReleaseResponse, options...).Endpoint(),
+			ReleasesStatusEndpoint: httptransport.NewClient("GET", tgt, encodeReleasesStatusRequest, decodeReleasesStatusResponse, options...).Endpoint(),
 		},
 	}, nil
 }
@@ -90,4 +91,14 @@ func (w serviceWrapper) Release(namespace, service string, newDef []byte, update
 	}
 	resp := response.(releaseResponse)
 	return resp.Err
+}
+
+func (w serviceWrapper) ReleasesStatus(namespace string) ([]ReleaseStatus, error) {
+	request := releasesStatusRequest{Namespace: namespace}
+	response, err := w.endpoints.ReleasesStatusEndpoint(w.ctx, request)
+	if err != nil {
+		return nil, err
+	}
+	resp := response.(releasesStatusResponse)
+	return resp.Status, resp.Err
 }

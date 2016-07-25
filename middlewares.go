@@ -81,3 +81,16 @@ func (mw loggingMiddleware) Release(namespace, service string, newDef []byte, up
 	}(time.Now())
 	return mw.next.Release(namespace, service, newDef, updatePeriod)
 }
+
+func (mw loggingMiddleware) ReleasesStatus(namespace string) (res []ReleaseStatus, err error) {
+	defer func(begin time.Time) {
+		mw.logger.Log(
+			"method", "Services",
+			"namespace", namespace,
+			"statuses", len(res),
+			"err", err,
+			"took", time.Since(begin),
+		)
+	}(time.Now())
+	return mw.next.ReleasesStatus(namespace)
+}
