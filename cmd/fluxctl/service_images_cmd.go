@@ -17,9 +17,10 @@ func newServiceImages(parent *serviceOpts) *serviceImagesOpts {
 
 func (opts *serviceImagesOpts) Command() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "images",
-		Short: "List the images available to run for a service.",
-		RunE:  opts.RunE,
+		Use:     "images",
+		Short:   "List the images available to run for a service.",
+		Example: makeExample("fluxctl service images --service=helloworld"),
+		RunE:    opts.RunE,
 	}
 	cmd.Flags().StringVarP(&opts.service, "service", "s", "", "Service for which to show images")
 	return cmd

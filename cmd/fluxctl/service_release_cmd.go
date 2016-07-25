@@ -24,7 +24,11 @@ func (opts *serviceReleaseOpts) Command() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "release",
 		Short: "Release a new version of a service.",
-		RunE:  opts.RunE,
+		Example: makeExample(
+			"fluxctl service release --service=helloworld --file=helloworld-rc.yaml",
+			"cat foo-rc.yaml | fluxctl service release -s foo",
+		),
+		RunE: opts.RunE,
 	}
 	cmd.Flags().StringVarP(&opts.service, "service", "s", "", "service to update (required)")
 	cmd.Flags().StringVarP(&opts.file, "file", "f", "-", "file containing new ReplicationController definition, or - to read from stdin (required)")
