@@ -22,7 +22,7 @@ fluxctl helps you deploy your code.
 
 Workflow:
   fluxctl service list                                                                 # Which services are running?
-  fluxctl service images -s helloworld                                                 # Which images are available?
+  fluxctl service show -s helloworld                                                   # Which images are running/available?
   fluxctl config update -f rc.yaml -i quay.io/weaveworks/helloworld:de9f3b2 -o rc.yaml # Update file to use new image.
   fluxctl service release -s helloworld -f rc.yaml                                     # Release new version.
 `)

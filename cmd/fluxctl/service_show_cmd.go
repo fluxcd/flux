@@ -6,27 +6,27 @@ import (
 	"github.com/spf13/cobra"
 )
 
-type serviceImagesOpts struct {
+type serviceShowOpts struct {
 	*serviceOpts
 	service string
 }
 
-func newServiceImages(parent *serviceOpts) *serviceImagesOpts {
-	return &serviceImagesOpts{serviceOpts: parent}
+func newServiceShow(parent *serviceOpts) *serviceShowOpts {
+	return &serviceShowOpts{serviceOpts: parent}
 }
 
-func (opts *serviceImagesOpts) Command() *cobra.Command {
+func (opts *serviceShowOpts) Command() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "images",
-		Short:   "List the images available to run for a service.",
-		Example: makeExample("fluxctl service images --service=helloworld"),
+		Use:     "show",
+		Short:   "Show the release status of a service.",
+		Example: makeExample("fluxctl service show --service=helloworld"),
 		RunE:    opts.RunE,
 	}
-	cmd.Flags().StringVarP(&opts.service, "service", "s", "", "Service for which to show images")
+	cmd.Flags().StringVarP(&opts.service, "service", "s", "", "Service for which to show the release status")
 	return cmd
 }
 
-func (opts *serviceImagesOpts) RunE(_ *cobra.Command, args []string) error {
+func (opts *serviceShowOpts) RunE(_ *cobra.Command, args []string) error {
 	if len(args) != 0 {
 		return errorWantedNoArgs
 	}
