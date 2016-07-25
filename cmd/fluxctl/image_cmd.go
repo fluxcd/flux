@@ -19,5 +19,8 @@ func (opts *imageOpts) Command() *cobra.Command {
 		Short: "Subcommands dealing with image repositories, e.g., quay.io/weaveworks/helloworld",
 	}
 	cmd.PersistentFlags().StringVarP(&opts.repository, "repo", "r", "", "The repository in question, e.g., quay.io/weaveworks/helloworld (required)")
+
+	cmd.AddCommand(newImageList(opts).Command())
+
 	return cmd
 }

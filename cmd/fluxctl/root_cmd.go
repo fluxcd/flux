@@ -35,6 +35,13 @@ func (opts *rootOpts) Command() *cobra.Command {
 		PersistentPreRunE: opts.PersistentPreRunE,
 	}
 	cmd.PersistentFlags().StringVarP(&opts.URL, "url", "u", "http://localhost:3030/v0", "base URL of the fluxd API server")
+
+	cmd.AddCommand(
+		newService(opts).Command(),
+		newImage(opts).Command(),
+		newConfig(opts).Command(),
+	)
+
 	return cmd
 }
 

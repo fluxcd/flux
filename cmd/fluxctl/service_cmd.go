@@ -19,5 +19,12 @@ func (opts *serviceOpts) Command() *cobra.Command {
 		Short: "Manipulate platform services.",
 	}
 	cmd.PersistentFlags().StringVarP(&opts.namespace, "namespace", "n", "default", "namespace to introspect")
+
+	cmd.AddCommand(
+		newServiceList(opts).Command(),
+		newServiceShow(opts).Command(),
+		newServiceRelease(opts).Command(),
+	)
+
 	return cmd
 }
