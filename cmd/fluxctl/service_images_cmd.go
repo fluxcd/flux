@@ -48,7 +48,7 @@ func (opts *serviceImagesOpts) RunE(_ *cobra.Command, args []string) error {
 		for _, image := range container.Images {
 			running := "|  "
 			if image.Tag == imageTag {
-				running = "+->"
+				running = "'->"
 				foundRunning = true
 			} else if foundRunning {
 				running = "   "
