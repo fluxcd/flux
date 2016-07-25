@@ -1,6 +1,8 @@
 package main
 
 import (
+	"strings"
+
 	"github.com/spf13/cobra"
 
 	"github.com/weaveworks/fluxy"
@@ -15,10 +17,20 @@ func newRoot() *rootOpts {
 	return &rootOpts{}
 }
 
+var rootLongHelp = strings.TrimSpace(`
+fluxctl helps you deploy your code.
+
+Workflow:
+  fluxctl service list                             # Which services are running?
+  fluxctl service images -s helloworld             # Which images are available?
+  fluxctl config update --TODO                     # Update local files, use new image.
+  fluxctl service release -s helloworld -f rc.yaml # Release new version.
+`)
+
 func (opts *rootOpts) Command() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:               "fluxctl",
-		Short:             "fluxctl helps you deploy your code.",
+		Long:              rootLongHelp,
 		SilenceUsage:      true,
 		PersistentPreRunE: opts.PersistentPreRunE,
 	}
