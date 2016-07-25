@@ -17,9 +17,10 @@ func newServiceList(parent *serviceOpts) *serviceListOpts {
 
 func (opts *serviceListOpts) Command() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List services currently running on the platform.",
-		RunE:  opts.RunE,
+		Use:     "list",
+		Short:   "List services currently running on the platform.",
+		Example: makeExample("fluxctl service list --namespace=default"),
+		RunE:    opts.RunE,
 	}
 	return cmd
 }

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"strings"
@@ -23,4 +24,12 @@ func imageParts(image string) (string, string) {
 
 func imageFromParts(name, tag string) string {
 	return fmt.Sprintf("%s:%s", name, tag)
+}
+
+func makeExample(examples ...string) string {
+	var buf bytes.Buffer
+	for _, ex := range examples {
+		fmt.Fprintf(&buf, "  "+ex+"\n")
+	}
+	return strings.TrimSuffix(buf.String(), "\n")
 }

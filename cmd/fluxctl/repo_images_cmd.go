@@ -18,7 +18,11 @@ func (opts *repoImagesOpts) Command() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "images",
 		Short: "List images available in an image repository.",
-		RunE:  opts.RunE,
+		Example: makeExample(
+			"fluxctl repo images --repo=alpine",
+			"fluxctl repo images -r quay.io/weaveworks/helloworld",
+		),
+		RunE: opts.RunE,
 	}
 	return cmd
 }

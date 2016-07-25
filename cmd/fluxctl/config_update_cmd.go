@@ -27,11 +27,15 @@ func (opts *configUpdateOpts) Command() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "update",
 		Short: "update a config file with a new image",
-		RunE:  opts.RunE,
+		Example: makeExample(
+			"fluxctl config update --file=rc.yaml --image=quay.io/weaveworks/helloworld:de9f3b2 --output=rc.yaml",
+			"cat rc.yaml | fluxctl config update -v -i quay.io/weaveworks/helloworld:de9f3b2 > rc.yaml",
+		),
+		RunE: opts.RunE,
 	}
 	cmd.Flags().StringVarP(&opts.file, "file", "f", "-", `the file to read (or "-" to read from stdin)`)
 	cmd.Flags().StringVarP(&opts.output, "output", "o", "", "the file to write (stdout if not supplied)")
-	cmd.Flags().StringVar(&opts.image, "image", "", "the new image")
+	cmd.Flags().StringVarP(&opts.image, "image", "i", "", "the new image")
 	cmd.Flags().BoolVarP(&opts.showTrace, "verbose", "v", false, "output a trace to stderr")
 	return cmd
 }
