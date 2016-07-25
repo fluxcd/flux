@@ -21,10 +21,10 @@ var rootLongHelp = strings.TrimSpace(`
 fluxctl helps you deploy your code.
 
 Workflow:
-  fluxctl service list                             # Which services are running?
-  fluxctl service images -s helloworld             # Which images are available?
-  fluxctl config update --TODO                     # Update local files, use new image.
-  fluxctl service release -s helloworld -f rc.yaml # Release new version.
+  fluxctl service list                                                                 # Which services are running?
+  fluxctl service images -s helloworld                                                 # Which images are available?
+  fluxctl config update -f rc.yaml -i quay.io/weaveworks/helloworld:de9f3b2 -o rc.yaml # Update file to use new image.
+  fluxctl service release -s helloworld -f rc.yaml                                     # Release new version.
 `)
 
 func (opts *rootOpts) Command() *cobra.Command {
