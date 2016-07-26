@@ -27,17 +27,21 @@ helloworld  quay.io/weaveworks/helloworld
             '-> master-a000001             2016-07-12 17:16:17.770847438 +0000 UTC
 
 $ # Update my resource file to use a new image.
-$ fluxctl config update --file helloworld-rc.yaml --image=quay.io/weaveworks/helloworld:master-9a16ff945b9e --output=helloworld-rc.yaml
+$ fluxctl config update --file helloworld-rc.yaml \
+    --image=quay.io/weaveworks/helloworld:master-9a16ff945b9e \
+    --output=helloworld-rc.yaml
 
 $ # Release a new version of the helloworld service.
 $ fluxctl service release --service=helloworld --file=helloworld-rc.yaml
 Starting release of helloworld with an update period of 5s... success
 Took 37.74884288s
+
+$ # Commit and push the updated helloworld-rc.yaml!
 ```
 
 ### Interactive
 
-Note: not yet implemented.
+(Note: not yet implemented.)
 
 ```
 $ # I'd like to release the latest version of helloworld.
@@ -78,9 +82,17 @@ Be sure to commit and push your changes!
 
 ### Automated
 
-```
-$ # TBD
-```
+fluxd continuously polls the platform for services with a FluxDeploy label attached.
+For each, it regularly polls the corresponding image repository to find new images.
+Whenever it finds a new image, it automates a release as follows.
+(Note: not yet implemented.)
+
+1. Ensure the service is "at rest", and nobody else is deploying.
+1. Check out the config repo, containing the resource definition files.
+1. Find the relevant file, and update it with the new image name.
+   - Optional: sanity check that the file represents the current platform state.
+1. Perform a release.
+1. Commit and push the updated resource definition file.
 
 ## Installing
 
