@@ -6,28 +6,28 @@ import (
 	"github.com/spf13/cobra"
 )
 
-type repoImagesOpts struct {
-	*repoOpts
+type imageListOpts struct {
+	*imageOpts
 }
 
-func newRepoImages(parent *repoOpts) *repoImagesOpts {
-	return &repoImagesOpts{repoOpts: parent}
+func newImageList(parent *imageOpts) *imageListOpts {
+	return &imageListOpts{imageOpts: parent}
 }
 
-func (opts *repoImagesOpts) Command() *cobra.Command {
+func (opts *imageListOpts) Command() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "images",
+		Use:   "list",
 		Short: "List images available in an image repository.",
 		Example: makeExample(
-			"fluxctl repo images --repo=alpine",
-			"fluxctl repo images -r quay.io/weaveworks/helloworld",
+			"fluxctl image list --repo=alpine",
+			"fluxctl image list -r quay.io/weaveworks/helloworld",
 		),
 		RunE: opts.RunE,
 	}
 	return cmd
 }
 
-func (opts *repoImagesOpts) RunE(_ *cobra.Command, args []string) error {
+func (opts *imageListOpts) RunE(_ *cobra.Command, args []string) error {
 	if len(args) != 0 {
 		return errorWantedNoArgs
 	}

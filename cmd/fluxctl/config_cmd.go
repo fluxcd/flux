@@ -17,5 +17,8 @@ func (opts *configOpts) Command() *cobra.Command {
 		Use:   "config",
 		Short: "Manipulate configuration files",
 	}
+
+	cmd.AddCommand(newConfigUpdate(opts).Command())
+
 	return cmd
 }
