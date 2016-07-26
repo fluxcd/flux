@@ -7,7 +7,7 @@ include docker/kubectl.version
 LIBS:= . $(shell find platform -type d) $(shell find registry -type d)
 LIB_SRC:=$(foreach lib,$(LIBS),$(wildcard $(lib)/*.go))
 
-all: build/.fluxy.done
+all: build/.fluxy.done ${GOPATH}/bin/fluxctl
 
 clean:
 	go clean
@@ -28,3 +28,6 @@ build/kubectl: build/kubectl-$(KUBECTL_VERSION) docker/kubectl.version
 
 build/kubectl-$(KUBECTL_VERSION):
 	curl -L -o $@ "https://storage.googleapis.com/kubernetes-release/release/$(KUBECTL_VERSION)/bin/linux/amd64/kubectl"
+
+${GOPATH}/bin/fluxctl: $(LIB_SRC) ./cmd/fluxctl/*.go
+	go install ./cmd/fluxctl
