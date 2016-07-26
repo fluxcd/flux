@@ -32,15 +32,6 @@ type Client struct {
 	Logger      log.Logger
 }
 
-// Error wraps a registry error.
-type Error struct {
-	*dockerregistry.RegistryError
-}
-
-func mkError(registryError error) error {
-	return Error{registryError.(*dockerregistry.RegistryError)}
-}
-
 // GetRepository yields a repository matching the given name, if any exists.
 // Repository may be of various forms, in which case omitted elements take
 // assumed defaults.
@@ -94,12 +85,12 @@ func (c *Client) GetRepository(repository string) (*Repository, error) {
 	// cookie it wants for authorisation later.
 	auth, err := client.Hub.GetReadTokenWithAuth(hostlessImageName, auth0)
 	if err != nil {
-		return nil, mkError(err)
+		return nil, err
 	}
 
 	tags, err := client.Repository.ListTags(hostlessImageName, auth)
 	if err != nil {
-		return nil, mkError(err)
+		return nil, err
 	}
 
 	return c.tagsToRepository(client, repository, tags, auth), nil
