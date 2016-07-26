@@ -82,7 +82,7 @@ Be sure to commit and push your changes!
 
 ### Automated
 
-fluxd continuously polls the platform for services with a FluxDeploy label attached.
+fluxd continuously polls the platform for services that have been configured to be continuously deployed.
 For each, it regularly polls the corresponding image repository to find new images.
 Whenever it finds a new image, it automates a release as follows.
 (Note: not yet implemented.)
