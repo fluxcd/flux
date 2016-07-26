@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/go-kit/kit/log"
+	"github.com/weaveworks/fluxy/history"
 	"github.com/weaveworks/fluxy/platform"
 	"github.com/weaveworks/fluxy/registry"
 )
@@ -65,6 +66,20 @@ func (mw loggingMiddleware) Services(namespace string) (res []platform.Service, 
 		)
 	}(time.Now())
 	return mw.next.Services(namespace)
+}
+
+func (mw loggingMiddleware) History(namespace, service string) (hs map[string]history.History, err error) {
+	defer func(begin time.Time) {
+		mw.logger.Log(
+			"method", "History",
+			"namespace", namespace,
+			"service", service,
+			"histories", len(hs),
+			"err", err,
+			"took", time.Since(begin),
+		)
+	}(time.Now())
+	return mw.next.History(namespace, service)
 }
 
 func (mw loggingMiddleware) Release(namespace, service string, newDef []byte, updatePeriod time.Duration) (err error) {

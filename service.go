@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/weaveworks/fluxy/history"
 	"github.com/weaveworks/fluxy/platform"
 	"github.com/weaveworks/fluxy/platform/kubernetes"
 	"github.com/weaveworks/fluxy/registry"
@@ -27,6 +28,9 @@ type Service interface {
 	// Services returns the currently active services on the platform.
 	Services(namespace string) ([]platform.Service, error)
 
+	// History returns the release history of one or all services
+	History(namespace, service string) (map[string]history.History, error)
+
 	// Release migrates a service from its current image to a new image, derived
 	// from the newDef definition. Right now, that needs to be the body of a
 	// replication controller. A rolling-update is performed with the provided
@@ -41,16 +45,18 @@ var (
 )
 
 // NewService returns a service connected to the provided Kubernetes platform.
-func NewService(reg *registry.Client, k8s *kubernetes.Cluster) Service {
+func NewService(reg *registry.Client, k8s *kubernetes.Cluster, history history.DB) Service {
 	return &service{
 		registry: reg,
 		platform: k8s,
+		history:  history,
 	}
 }
 
 type service struct {
 	registry *registry.Client
 	platform *kubernetes.Cluster // TODO(pb): replace with platform.Platform when we have that
+	history  history.DB
 }
 
 type ContainerImages struct {
@@ -90,9 +96,32 @@ func (s *service) Services(namespace string) ([]platform.Service, error) {
 	return s.platform.Services(namespace)
 }
 
-func (s *service) Release(namespace, service string, newDef []byte, updatePeriod time.Duration) error {
+func (s *service) History(namespace, service string) (map[string]history.History, error) {
+	if service == "" {
+		return s.history.AllEvents(namespace)
+	}
+
+	h, err := s.history.EventsForService(namespace, service)
+	if err != nil {
+		return nil, err
+	}
+	return map[string]history.History{
+		h.Service: h,
+	}, nil
+}
+
+func (s *service) Release(namespace, service string, newDef []byte, updatePeriod time.Duration) (err error) {
 	if s.platform == nil {
 		return ErrNoPlatformConfigured
 	}
+	s.history.ChangeState(namespace, service, history.StateInProgress)
+	defer func() {
+		if err != nil {
+			s.history.LogEvent(namespace, service, "Release failed: "+err.Error())
+		} else {
+			s.history.LogEvent(namespace, service, "Release succeeded")
+		}
+		s.history.ChangeState(namespace, service, history.StateRest)
+	}()
 	return s.platform.Release(namespace, service, newDef, updatePeriod)
 }
