@@ -9,7 +9,7 @@ type namespacedService struct {
 	namespace, service string
 }
 
-func NewDB() DB {
+func NewInMemDB() DB {
 	return &db{
 		histories: make(map[namespacedService]*History),
 	}

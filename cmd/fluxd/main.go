@@ -122,7 +122,7 @@ func main() {
 	// Service (business logic) domain.
 	var service flux.Service
 	{
-		service = flux.NewService(reg, k8s, history.NewDB())
+		service = flux.NewService(reg, k8s, history.NewInMemDB())
 		service = flux.LoggingMiddleware(logger)(service)
 	}
 
