@@ -1,11 +1,17 @@
 package main
 
 import (
+	"fmt"
+	"os"
 	"strings"
 
 	"github.com/spf13/cobra"
 
 	"github.com/weaveworks/fluxy"
+)
+
+const (
+	EnvVariableURL = "FLUX_URL"
 )
 
 type rootOpts struct {
@@ -34,7 +40,8 @@ func (opts *rootOpts) Command() *cobra.Command {
 		SilenceUsage:      true,
 		PersistentPreRunE: opts.PersistentPreRunE,
 	}
-	cmd.PersistentFlags().StringVarP(&opts.URL, "url", "u", "http://localhost:3030/v0", "base URL of the fluxd API server")
+	cmd.PersistentFlags().StringVarP(&opts.URL, "url", "u", "http://localhost:3030/v0",
+		fmt.Sprintf("base URL of the fluxd API server; you can also set the environment variable %s", EnvVariableURL))
 
 	cmd.AddCommand(
 		newService(opts).Command(),
@@ -45,8 +52,14 @@ func (opts *rootOpts) Command() *cobra.Command {
 	return cmd
 }
 
-func (opts *rootOpts) PersistentPreRunE(*cobra.Command, []string) error {
+func (opts *rootOpts) PersistentPreRunE(cmd *cobra.Command, _ []string) error {
 	var err error
-	opts.Fluxd, err = flux.NewClient(opts.URL)
+
+	url := os.Getenv(EnvVariableURL)
+	if cmd.Flags().Changed("url") || url == "" {
+		url = opts.URL
+	}
+
+	opts.Fluxd, err = flux.NewClient(url)
 	return err
 }
