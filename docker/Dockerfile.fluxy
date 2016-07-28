@@ -1,4 +1,5 @@
 FROM scratch
+WORKDIR /home/flux
 ADD ./kubectl /home/flux/
 COPY ./ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 COPY ./fluxd /home/flux/

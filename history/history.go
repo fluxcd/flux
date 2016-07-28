@@ -38,8 +38,7 @@ type DB interface {
 	EventsForService(namespace, service string) (History, error)
 
 	// LogEvent records a message in the history of a service
-	LogEvent(namespace, service, msg string)
-
+	LogEvent(namespace, service, msg string) error
 	// ChangeState changes the current state of a service
-	ChangeState(namespace, service string, newState ServiceState)
+	ChangeState(namespace, service string, newState ServiceState) error
 }

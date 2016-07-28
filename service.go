@@ -2,7 +2,10 @@ package flux
 
 import (
 	"errors"
+	"fmt"
 	"time"
+
+	"github.com/go-kit/kit/log"
 
 	"github.com/weaveworks/fluxy/automator"
 	"github.com/weaveworks/fluxy/history"
@@ -79,12 +82,13 @@ var (
 )
 
 // NewService returns a service connected to the provided Kubernetes platform.
-func NewService(reg *registry.Client, k8s *kubernetes.Cluster, auto *automator.Automator, history history.DB) Service {
+func NewService(reg *registry.Client, k8s *kubernetes.Cluster, auto *automator.Automator, history history.DB, logger log.Logger) Service {
 	return &service{
 		registry:  reg,
 		platform:  k8s,
 		automator: auto,
 		history:   history,
+		logger:    logger,
 	}
 }
 
@@ -93,6 +97,7 @@ type service struct {
 	platform  *kubernetes.Cluster // TODO(pb): replace with platform.Platform when we have that
 	automator *automator.Automator
 	history   history.DB
+	logger    log.Logger
 }
 
 // ContainerImages describes a combination of a platform container spec, and the
@@ -154,20 +159,30 @@ func (s *service) History(namespace, service string) (map[string]history.History
 	}, nil
 }
 
-func (s *service) Release(namespace, service string, newDef []byte, updatePeriod time.Duration) (err error) {
+func (s *service) Release(namespace, service string, newDef []byte, updatePeriod time.Duration) error {
 	if s.platform == nil {
 		return ErrNoPlatformConfigured
 	}
-	s.history.ChangeState(namespace, service, history.StateInProgress)
-	defer func() {
-		if err != nil {
-			s.history.LogEvent(namespace, service, "Release failed: "+err.Error())
-		} else {
-			s.history.LogEvent(namespace, service, "Release succeeded")
-		}
-		s.history.ChangeState(namespace, service, history.StateRest)
-	}()
-	return s.platform.Release(namespace, service, newDef, updatePeriod)
+	err := s.history.ChangeState(namespace, service, history.StateInProgress)
+	if err != nil {
+		return err
+	}
+
+	err = s.platform.Release(namespace, service, newDef, updatePeriod)
+	var event string
+	if err != nil {
+		event = "Release failed: " + err.Error()
+	} else {
+		event = "Release succeeded"
+	}
+	if e := s.history.LogEvent(namespace, service, event); e != nil {
+		s.logger.Log("method", "Release", "error", e)
+	}
+
+	if e := s.history.ChangeState(namespace, service, history.StateRest); e != nil {
+		return fmt.Errorf("release completed but unable to change service state: %s", e)
+	}
+	return err // that from the release itself
 }
 
 func (s *service) Automate(namespace, service string) error {

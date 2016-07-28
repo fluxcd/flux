@@ -42,6 +42,8 @@ func main() {
 		kubernetesClientKey       = fs.String("kubernetes-client-key", "", "Path to Kubernetes client key file for TLS")
 		kubernetesCertAuthority   = fs.String("kubernetes-certificate-authority", "", "Path to Kubernetes cert file for certificate authority")
 		kubernetesBearerTokenFile = fs.String("kubernetes-bearer-token-file", "", "Path to file containing Kubernetes Bearer Token file")
+		databaseDriver            = fs.String("database-driver", "", `Database driver name, e.g., "postgres"; if either this or --database-source are missing, an in-memory DB will be used`)
+		databaseSource            = fs.String("database-source", "", `Database source name; specific to the database driver (--database-driver) used. If either of this or --database-driver are missing, an in-mem DB will be used`)
 	)
 	fs.Parse(os.Args)
 
@@ -121,7 +123,17 @@ func main() {
 	// History component.
 	var his history.DB
 	{
-		his = history.NewInMemDB()
+		if *databaseSource == "" || *databaseDriver == "" {
+			his = history.NewInMemDB()
+		} else {
+			var err error
+			his, err = history.NewSQL(*databaseDriver, *databaseSource,
+				log.NewContext(logger).With("component", "history"))
+			if err != nil {
+				logger.Log("err", err)
+				os.Exit(1)
+			}
+		}
 	}
 
 	// Automator component.
@@ -133,7 +145,7 @@ func main() {
 	// Service (business logic) domain.
 	var service flux.Service
 	{
-		service = flux.NewService(reg, k8s, auto, his)
+		service = flux.NewService(reg, k8s, auto, his, logger)
 		service = flux.LoggingMiddleware(logger)(service)
 	}
 

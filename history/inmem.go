@@ -67,19 +67,19 @@ func (db *db) EventsForService(namespace, service string) (History, error) {
 	return History{}, ErrNoHistory
 }
 
-func (db *db) LogEvent(namespace, service, msg string) {
+func (db *db) LogEvent(namespace, service, msg string) error {
 	db.mtx.Lock()
 	defer db.mtx.Unlock()
-
 	history := db.ensureHistory(namespace, service)
 	history.add(msg)
+	return nil
 }
 
-func (db *db) ChangeState(namespace, service string, newState ServiceState) {
+func (db *db) ChangeState(namespace, service string, newState ServiceState) error {
 	db.mtx.Lock()
 	defer db.mtx.Unlock()
-
 	history := db.ensureHistory(namespace, service)
 	history.State = newState
 	history.add(fmt.Sprintf("Stated changed to %q", newState))
+	return nil
 }

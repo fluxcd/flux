@@ -53,6 +53,105 @@
 			"notests": true
 		},
 		{
+			"importpath": "github.com/cznic/b",
+			"repository": "https://github.com/cznic/b",
+			"vcs": "git",
+			"revision": "bcff30a622dbdcb425aba904792de1df606dab7c",
+			"branch": "master",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/cznic/fileutil",
+			"repository": "https://github.com/cznic/fileutil",
+			"vcs": "git",
+			"revision": "1c9c88fbf552b3737c7b97e1f243860359687976",
+			"branch": "master",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/cznic/internal/buffer",
+			"repository": "https://github.com/cznic/internal",
+			"vcs": "git",
+			"revision": "cb5e603034ec7a65db75088a63a39f47b0cc422a",
+			"branch": "master",
+			"path": "/buffer",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/cznic/internal/file",
+			"repository": "https://github.com/cznic/internal",
+			"vcs": "git",
+			"revision": "cb5e603034ec7a65db75088a63a39f47b0cc422a",
+			"branch": "master",
+			"path": "file",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/cznic/internal/slice",
+			"repository": "https://github.com/cznic/internal",
+			"vcs": "git",
+			"revision": "cb5e603034ec7a65db75088a63a39f47b0cc422a",
+			"branch": "master",
+			"path": "slice",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/cznic/lldb",
+			"repository": "https://github.com/cznic/lldb",
+			"vcs": "git",
+			"revision": "9440a7484d40d79302f6bd49a3d9c018037b0722",
+			"branch": "master",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/cznic/mathutil",
+			"repository": "https://github.com/cznic/mathutil",
+			"vcs": "git",
+			"revision": "78ad7f262603437f0ecfebc835d80094f89c8f54",
+			"branch": "master",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/cznic/ql",
+			"repository": "https://github.com/cznic/ql",
+			"vcs": "git",
+			"revision": "c81467d34c630800dd4ba81033e234a8159ff2e3",
+			"branch": "master",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/cznic/sortutil",
+			"repository": "https://github.com/cznic/sortutil",
+			"vcs": "git",
+			"revision": "4c7342852e65c2088c981288f2c5610d10b9f7f4",
+			"branch": "master",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/cznic/strutil",
+			"repository": "https://github.com/cznic/strutil",
+			"vcs": "git",
+			"revision": "1eb03e3cc9d345307a45ec82bd3016cde4bd4464",
+			"branch": "master",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/cznic/zappy",
+			"repository": "https://github.com/cznic/zappy",
+			"vcs": "git",
+			"revision": "2533cb5b45cc6c07421468ce262899ddc9d53fb7",
+			"branch": "master",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/edsrzf/mmap-go",
+			"repository": "https://github.com/edsrzf/mmap-go",
+			"vcs": "git",
+			"revision": "935e0e8a636ca4ba70b713f3e38a19e1b77739e8",
+			"branch": "master",
+			"notests": true
+		},
+		{
 			"importpath": "github.com/fsnotify/fsnotify",
 			"repository": "https://github.com/fsnotify/fsnotify",
 			"vcs": "git",
@@ -184,6 +283,14 @@
 			"revision": "53be0d36a84c2a886ca057d34b6aa4468df9ccb4",
 			"branch": "master",
 			"path": "/llrb",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/remyoudompheng/bigfft",
+			"repository": "https://github.com/remyoudompheng/bigfft",
+			"vcs": "git",
+			"revision": "a8e77ddfb93284b9d58881f597c820a2875af336",
+			"branch": "master",
 			"notests": true
 		},
 		{
