@@ -57,6 +57,13 @@ func MakeHTTPHandler(ctx context.Context, e Endpoints, logger log.Logger) http.H
 		encodeServiceImagesResponse,
 		options...,
 	))
+	r.Methods("GET").Path("/history/{service:.*}").Handler(httptransport.NewServer(
+		ctx,
+		e.HistoryEndpoint,
+		decodeHistoryRequest,
+		encodeHistoryResponse,
+		options...,
+	))
 	r.Methods("POST").Path("/release").Handler(httptransport.NewServer(
 		ctx,
 		e.ReleaseEndpoint,
@@ -146,6 +153,18 @@ func decodeServicesRequest(_ context.Context, r *http.Request) (request interfac
 	}, nil
 }
 
+func decodeHistoryRequest(_ context.Context, r *http.Request) (request interface{}, err error) {
+	namespace := r.FormValue("namespace")
+	if namespace == "" {
+		namespace = DefaultNamespace
+	}
+	service := mux.Vars(r)["service"]
+	return historyRequest{
+		Namespace: namespace,
+		Service:   service,
+	}, nil
+}
+
 func decodeReleaseRequest(_ context.Context, r *http.Request) (request interface{}, err error) {
 	namespace := r.FormValue("namespace")
 	if namespace == "" {
@@ -211,6 +230,18 @@ func decodeServicesResponse(_ context.Context, resp *http.Response) (interface{}
 	return response, err
 }
 
+func decodeHistoryResponse(_ context.Context, resp *http.Response) (interface{}, error) {
+	var response historyResponse
+	var err error
+	switch resp.StatusCode {
+	case http.StatusOK:
+		err = json.NewDecoder(resp.Body).Decode(&response.History)
+	default:
+		response.Err = decodeError(resp.Body)
+	}
+	return response, err
+}
+
 func decodeReleaseResponse(_ context.Context, resp *http.Response) (interface{}, error) {
 	var response releaseResponse
 	switch resp.StatusCode {
@@ -250,6 +281,18 @@ func encodeServicesRequest(ctx context.Context, req *http.Request, request inter
 
 	req.Method = "GET"
 	req.URL.Path = "/v0/services"
+	req.URL.RawQuery = values.Encode()
+
+	return nil
+}
+
+func encodeHistoryRequest(ctx context.Context, req *http.Request, request interface{}) error {
+	r := request.(historyRequest)
+	values := url.Values{}
+	values.Set("namespace", r.Namespace)
+
+	req.Method = "GET"
+	req.URL.Path = fmt.Sprintf("/v0/history/%s", r.Service)
 	req.URL.RawQuery = values.Encode()
 
 	return nil
@@ -297,6 +340,16 @@ func encodeServicesResponse(ctx context.Context, w http.ResponseWriter, response
 		return nil
 	}
 	encodeJSON(ctx, resp.Services, w)
+	return nil
+}
+
+func encodeHistoryResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
+	resp := response.(historyResponse)
+	if resp.Err != nil {
+		encodeError(ctx, resp.Err, w)
+		return nil
+	}
+	encodeJSON(ctx, resp.History, w)
 	return nil
 }
 

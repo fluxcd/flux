@@ -2,8 +2,11 @@ package main
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/spf13/cobra"
+
+	"github.com/weaveworks/fluxy/history"
 )
 
 type serviceShowOpts struct {
@@ -39,7 +42,21 @@ func (opts *serviceShowOpts) RunE(_ *cobra.Command, args []string) error {
 		return err
 	}
 
+	histories, err := opts.Fluxd.History(opts.namespace, opts.service)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("Service:", opts.service)
+	state := history.StateUnknown
+	if h, found := histories[opts.service]; found {
+		state = h.State
+	}
+	fmt.Println("State:", state)
+	fmt.Println("")
+
 	out := newTabwriter()
+
 	fmt.Fprintln(out, "CONTAINER\tIMAGE\tCREATED")
 	for _, container := range containers {
 		containerName := container.Container.Name
@@ -54,7 +71,7 @@ func (opts *serviceShowOpts) RunE(_ *cobra.Command, args []string) error {
 			} else if foundRunning {
 				running = "   "
 			}
-			fmt.Fprintf(out, "\t%s %s\t%s\n", running, image.Tag, image.CreatedAt)
+			fmt.Fprintf(out, "\t%s %s\t%s\n", running, image.Tag, image.CreatedAt.Format(time.RFC822))
 		}
 	}
 	out.Flush()

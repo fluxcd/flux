@@ -6,6 +6,7 @@ import (
 	"github.com/go-kit/kit/endpoint"
 	"golang.org/x/net/context"
 
+	"github.com/weaveworks/fluxy/history"
 	"github.com/weaveworks/fluxy/platform"
 	"github.com/weaveworks/fluxy/registry"
 )
@@ -17,6 +18,7 @@ type Endpoints struct {
 	ImagesEndpoint        endpoint.Endpoint
 	ServiceImagesEndpoint endpoint.Endpoint
 	ServicesEndpoint      endpoint.Endpoint
+	HistoryEndpoint       endpoint.Endpoint
 	ReleaseEndpoint       endpoint.Endpoint
 }
 
@@ -27,6 +29,7 @@ func MakeServerEndpoints(s Service) Endpoints {
 		ImagesEndpoint:        MakeImagesEndpoint(s),
 		ServiceImagesEndpoint: MakeServiceImagesEndpoint(s),
 		ServicesEndpoint:      MakeServicesEndpoint(s),
+		HistoryEndpoint:       MakeHistoryEndpoint(s),
 		ReleaseEndpoint:       MakeReleaseEndpoint(s),
 	}
 }
@@ -56,6 +59,14 @@ func MakeServicesEndpoint(s Service) endpoint.Endpoint {
 		req := request.(servicesRequest)
 		services, err := s.Services(req.Namespace)
 		return servicesResponse{Services: services, Err: err}, nil
+	}
+}
+
+func MakeHistoryEndpoint(s Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+		req := request.(historyRequest)
+		h, err := s.History(req.Namespace, req.Service)
+		return historyResponse{History: h, Err: err}, nil
 	}
 }
 
@@ -95,6 +106,15 @@ type servicesRequest struct {
 type servicesResponse struct {
 	Services []platform.Service
 	Err      error
+}
+
+type historyRequest struct {
+	Namespace, Service string
+}
+
+type historyResponse struct {
+	History map[string]history.History
+	Err     error
 }
 
 type releaseRequest struct {

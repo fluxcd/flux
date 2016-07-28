@@ -5,6 +5,8 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+
+	"github.com/weaveworks/fluxy/history"
 )
 
 type serviceListOpts struct {
@@ -34,15 +36,23 @@ func (opts *serviceListOpts) RunE(_ *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+	histories, err := opts.Fluxd.History(opts.namespace, "")
+	if err != nil {
+		return err
+	}
 
 	w := newTabwriter()
-	fmt.Fprintf(w, "SERVICE\tIP\tPORTS\tIMAGE\n")
+	fmt.Fprintf(w, "SERVICE\tIP\tPORTS\tIMAGE\tSTATUS\n")
 	for _, s := range services {
 		var ports []string
 		for _, p := range s.Ports {
 			ports = append(ports, fmt.Sprintf("%s/%s→%s", p.External, p.Protocol, p.Internal))
 		}
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", s.Name, s.IP, strings.Join(ports, ", "), s.Image)
+		state := history.StateUnknown
+		if status, found := histories[s.Name]; found {
+			state = status.State
+		}
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", s.Name, s.IP, strings.Join(ports, ", "), s.Image, state)
 	}
 	w.Flush()
 	return nil

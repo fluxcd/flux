@@ -8,6 +8,7 @@ import (
 	httptransport "github.com/go-kit/kit/transport/http"
 	"golang.org/x/net/context"
 
+	"github.com/weaveworks/fluxy/history"
 	"github.com/weaveworks/fluxy/platform"
 	"github.com/weaveworks/fluxy/registry"
 )
@@ -36,6 +37,7 @@ func NewClient(instance string) (Service, error) {
 			ImagesEndpoint:        httptransport.NewClient("GET", tgt, encodeImagesRequest, decodeImagesResponse, options...).Endpoint(),
 			ServiceImagesEndpoint: httptransport.NewClient("GET", tgt, encodeServiceImagesRequest, decodeServiceImagesResponse, options...).Endpoint(),
 			ServicesEndpoint:      httptransport.NewClient("GET", tgt, encodeServicesRequest, decodeServicesResponse, options...).Endpoint(),
+			HistoryEndpoint:       httptransport.NewClient("GET", tgt, encodeHistoryRequest, decodeHistoryResponse, options...).Endpoint(),
 			ReleaseEndpoint:       httptransport.NewClient("POST", tgt, encodeReleaseRequest, decodeReleaseResponse, options...).Endpoint(),
 		},
 	}, nil
@@ -75,6 +77,16 @@ func (w serviceWrapper) Services(namespace string) ([]platform.Service, error) {
 	}
 	resp := response.(servicesResponse)
 	return resp.Services, resp.Err
+}
+
+func (w serviceWrapper) History(namespace, service string) (map[string]history.History, error) {
+	request := historyRequest{namespace, service}
+	response, err := w.endpoints.HistoryEndpoint(w.ctx, request)
+	if err != nil {
+		return nil, err
+	}
+	resp := response.(historyResponse)
+	return resp.History, resp.Err
 }
 
 func (w serviceWrapper) Release(namespace, service string, newDef []byte, updatePeriod time.Duration) error {

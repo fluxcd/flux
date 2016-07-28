@@ -24,6 +24,7 @@ func (opts *serviceOpts) Command() *cobra.Command {
 		newServiceList(opts).Command(),
 		newServiceShow(opts).Command(),
 		newServiceRelease(opts).Command(),
+		newServiceHistory(opts).Command(),
 	)
 
 	return cmd

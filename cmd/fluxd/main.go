@@ -14,6 +14,7 @@ import (
 	"k8s.io/kubernetes/pkg/client/restclient"
 
 	"github.com/weaveworks/fluxy"
+	"github.com/weaveworks/fluxy/history"
 	"github.com/weaveworks/fluxy/platform/kubernetes"
 	"github.com/weaveworks/fluxy/registry"
 )
@@ -121,7 +122,7 @@ func main() {
 	// Service (business logic) domain.
 	var service flux.Service
 	{
-		service = flux.NewService(reg, k8s)
+		service = flux.NewService(reg, k8s, history.NewInMemDB())
 		service = flux.LoggingMiddleware(logger)(service)
 	}
 
