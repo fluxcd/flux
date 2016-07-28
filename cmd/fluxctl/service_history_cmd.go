@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"sort"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -47,7 +48,7 @@ func (opts *serviceHistoryOpts) RunE(_ *cobra.Command, args []string) error {
 		fmt.Fprintln(out, "TIME\tMESSAGE")
 		if history, found := histories[opts.service]; found {
 			for _, event := range history.Events {
-				fmt.Fprintf(out, "%s\t%s\n", event.Stamp, event.Msg)
+				fmt.Fprintf(out, "%s\t%s\n", event.Stamp.Format(time.RFC822), event.Msg)
 			}
 		}
 	} else {
@@ -60,7 +61,7 @@ func (opts *serviceHistoryOpts) RunE(_ *cobra.Command, args []string) error {
 		sort.Sort(serviceEventLog(events))
 		fmt.Fprintln(out, "TIME\tSERVICE\tMESSAGE")
 		for _, e := range events {
-			fmt.Fprintf(out, "%s\t%s\t%s\n", e.Stamp, e.service, e.Msg)
+			fmt.Fprintf(out, "%s\t%s\t%s\n", e.Stamp.Format(time.RFC822), e.service, e.Msg)
 		}
 	}
 

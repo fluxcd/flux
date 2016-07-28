@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -46,12 +47,12 @@ func (opts *serviceShowOpts) RunE(_ *cobra.Command, args []string) error {
 		return err
 	}
 
-	fmt.Println("Service: ", opts.service)
+	fmt.Println("Service:", opts.service)
 	state := history.StateUnknown
 	if h, found := histories[opts.service]; found {
 		state = h.State
 	}
-	fmt.Println("State: ", state)
+	fmt.Println("State:", state)
 	fmt.Println("")
 
 	out := newTabwriter()
@@ -70,7 +71,7 @@ func (opts *serviceShowOpts) RunE(_ *cobra.Command, args []string) error {
 			} else if foundRunning {
 				running = "   "
 			}
-			fmt.Fprintf(out, "\t%s %s\t%s\n", running, image.Tag, image.CreatedAt)
+			fmt.Fprintf(out, "\t%s %s\t%s\n", running, image.Tag, image.CreatedAt.Format(time.RFC822))
 		}
 	}
 	out.Flush()
