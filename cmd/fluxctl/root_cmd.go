@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 
 	"github.com/weaveworks/fluxy"
 )
@@ -55,11 +56,17 @@ func (opts *rootOpts) Command() *cobra.Command {
 func (opts *rootOpts) PersistentPreRunE(cmd *cobra.Command, _ []string) error {
 	var err error
 
-	url := os.Getenv(EnvVariableURL)
-	if cmd.Flags().Changed("url") || url == "" {
-		url = opts.URL
-	}
-
-	opts.Fluxd, err = flux.NewClient(url)
+	opts.URL = getFromEnvIfNotSet(cmd.Flags(), "url", EnvVariableURL, opts.URL)
+	opts.Fluxd, err = flux.NewClient(opts.URL)
 	return err
+}
+
+func getFromEnvIfNotSet(flags *pflag.FlagSet, flagName, envName, value string) string {
+	if flags.Changed(flagName) {
+		return value
+	}
+	if env := os.Getenv(envName); env != "" {
+		return env
+	}
+	return value // not changed, so presumably the default
 }
