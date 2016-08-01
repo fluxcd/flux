@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/weaveworks/fluxy/history"
+	"github.com/weaveworks/fluxy/registry"
 )
 
 type serviceShowOpts struct {
@@ -60,7 +61,7 @@ func (opts *serviceShowOpts) RunE(_ *cobra.Command, args []string) error {
 	fmt.Fprintln(out, "CONTAINER\tIMAGE\tCREATED")
 	for _, container := range containers {
 		containerName := container.Container.Name
-		imageName, imageTag := imageParts(container.Container.Image)
+		_, imageName, imageTag := registry.ImageParts(container.Container.Image)
 		fmt.Fprintf(out, "%s\t%s\t\n", containerName, imageName)
 		foundRunning := false
 		for _, image := range container.Images {

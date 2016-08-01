@@ -2,7 +2,6 @@ package flux
 
 import (
 	"errors"
-	"strings"
 	"time"
 
 	"github.com/weaveworks/fluxy/history"
@@ -79,8 +78,8 @@ func (s *service) ServiceImages(namespace, service string) ([]ContainerImages, e
 	}
 	result := make([]ContainerImages, 0)
 	for _, container := range containers {
-		imageParts := strings.SplitN(container.Image, ":", 2)
-		repository, err := s.registry.GetRepository(imageParts[0])
+		_, imageName, _ := registry.ImageParts(container.Image)
+		repository, err := s.registry.GetRepository(imageName)
 		if err != nil {
 			return nil, err
 		}

@@ -9,6 +9,8 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+
+	"github.com/weaveworks/fluxy/registry"
 )
 
 type configUpdateOpts struct {
@@ -131,7 +133,7 @@ func (opts *configUpdateOpts) RunE(_ *cobra.Command, args []string) error {
 //         - containerPort: 80
 // ```
 func tryUpdateRC(rc, newImage string, trace io.Writer, out io.Writer) error {
-	newImageName, newTag := imageParts(newImage)
+	_, newImageName, newTag := registry.ImageParts(newImage)
 
 	nameRE := multilineRE(
 		`metadata:\s*`,
@@ -158,7 +160,7 @@ func tryUpdateRC(rc, newImage string, trace io.Writer, out io.Writer) error {
 	oldImage := matches[2]
 	fmt.Fprintf(trace, "Found container %q using image %q in fragment:\n\n%s\n\n", containerName, oldImage, matches[0])
 
-	oldImageName, oldTag := imageParts(oldImage)
+	_, oldImageName, oldTag := registry.ImageParts(oldImage)
 
 	if oldImageName != newImageName {
 		return fmt.Errorf(`expected existing image name and new image name to match, but %q != %q`, oldImageName, newImageName)
