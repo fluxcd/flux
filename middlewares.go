@@ -96,3 +96,29 @@ func (mw loggingMiddleware) Release(namespace, service string, newDef []byte, up
 	}(time.Now())
 	return mw.next.Release(namespace, service, newDef, updatePeriod)
 }
+
+func (mw loggingMiddleware) Automate(namespace, service string) (err error) {
+	defer func(begin time.Time) {
+		mw.logger.Log(
+			"method", "Automate",
+			"namespace", namespace,
+			"service", service,
+			"err", err,
+			"took", time.Since(begin),
+		)
+	}(time.Now())
+	return mw.next.Automate(namespace, service)
+}
+
+func (mw loggingMiddleware) Deautomate(namespace, service string) (err error) {
+	defer func(begin time.Time) {
+		mw.logger.Log(
+			"method", "Deautomate",
+			"namespace", namespace,
+			"service", service,
+			"err", err,
+			"took", time.Since(begin),
+		)
+	}(time.Now())
+	return mw.next.Deautomate(namespace, service)
+}

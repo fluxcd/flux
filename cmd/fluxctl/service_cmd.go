@@ -25,6 +25,8 @@ func (opts *serviceOpts) Command() *cobra.Command {
 		newServiceShow(opts).Command(),
 		newServiceRelease(opts).Command(),
 		newServiceHistory(opts).Command(),
+		//newServiceAutomate(opts).Command(),   // TODO(pb): temporarily disabled
+		//newServiceDeautomate(opts).Command(), // TODO(pb): temporarily disabled
 	)
 
 	return cmd

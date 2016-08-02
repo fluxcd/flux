@@ -14,6 +14,7 @@ import (
 	"k8s.io/kubernetes/pkg/client/restclient"
 
 	"github.com/weaveworks/fluxy"
+	"github.com/weaveworks/fluxy/automator"
 	"github.com/weaveworks/fluxy/history"
 	"github.com/weaveworks/fluxy/platform/kubernetes"
 	"github.com/weaveworks/fluxy/registry"
@@ -33,7 +34,6 @@ func main() {
 	var (
 		listenAddr                = fs.StringP("listen", "l", ":3030", "Listen address for Flux API clients")
 		registryCredentials       = fs.String("registry-credentials", "", "Path to image registry credentials file, in the format of ~/.docker/config.json")
-		kubernetesEnabled         = fs.Bool("kubernetes", false, "Enable Kubernetes platform")
 		kubernetesKubectl         = fs.String("kubernetes-kubectl", "", "Optional, explicit path to kubectl tool")
 		kubernetesHost            = fs.String("kubernetes-host", "", "Kubernetes host, e.g. http://10.11.12.13:8080")
 		kubernetesUsername        = fs.String("kubernetes-username", "", "Kubernetes HTTP basic auth username")
@@ -78,51 +78,62 @@ func main() {
 	// Platform component.
 	var k8s *kubernetes.Cluster
 	{
+		// When adding a new platform, don't just bash it in. Create a Platform
+		// or Cluster interface in package platform, and have kubernetes.Cluster
+		// and your new platform implement that interface.
 		logger := log.NewContext(logger).With("component", "platform")
-		if *kubernetesEnabled {
-			logger.Log("kind", "Kubernetes", "host", kubernetesHost)
+		logger.Log("host", kubernetesHost)
 
-			var bearerToken string
-			if *kubernetesBearerTokenFile != "" {
-				buf, err := ioutil.ReadFile(*kubernetesBearerTokenFile)
-				if err != nil {
-					logger.Log("err", err)
-					os.Exit(1)
-				}
-				bearerToken = string(buf)
-			}
-
-			var err error
-			k8s, err = kubernetes.NewCluster(&restclient.Config{
-				Host:        *kubernetesHost,
-				Username:    *kubernetesUsername,
-				Password:    *kubernetesPassword,
-				BearerToken: bearerToken,
-				TLSClientConfig: restclient.TLSClientConfig{
-					CertFile: *kubernetesClientCert,
-					KeyFile:  *kubernetesClientKey,
-					CAFile:   *kubernetesCertAuthority,
-				},
-			}, *kubernetesKubectl, logger)
+		var bearerToken string
+		if *kubernetesBearerTokenFile != "" {
+			buf, err := ioutil.ReadFile(*kubernetesBearerTokenFile)
 			if err != nil {
 				logger.Log("err", err)
 				os.Exit(1)
 			}
-
-			if services, err := k8s.Services("default"); err != nil {
-				logger.Log("services", err)
-			} else {
-				logger.Log("services", len(services))
-			}
-		} else {
-			logger.Log("kind", "none")
+			bearerToken = string(buf)
 		}
+
+		var err error
+		k8s, err = kubernetes.NewCluster(&restclient.Config{
+			Host:        *kubernetesHost,
+			Username:    *kubernetesUsername,
+			Password:    *kubernetesPassword,
+			BearerToken: bearerToken,
+			TLSClientConfig: restclient.TLSClientConfig{
+				CertFile: *kubernetesClientCert,
+				KeyFile:  *kubernetesClientKey,
+				CAFile:   *kubernetesCertAuthority,
+			},
+		}, *kubernetesKubectl, logger)
+		if err != nil {
+			logger.Log("err", err)
+			os.Exit(1)
+		}
+
+		if services, err := k8s.Services("default"); err != nil {
+			logger.Log("services", err)
+		} else {
+			logger.Log("services", len(services))
+		}
+	}
+
+	// History component.
+	var his history.DB
+	{
+		his = history.NewInMemDB()
+	}
+
+	// Automator component.
+	var auto *automator.Automator
+	{
+		auto = automator.New(k8s, reg, his)
 	}
 
 	// Service (business logic) domain.
 	var service flux.Service
 	{
-		service = flux.NewService(reg, k8s, history.NewInMemDB())
+		service = flux.NewService(reg, k8s, auto, his)
 		service = flux.LoggingMiddleware(logger)(service)
 	}
 

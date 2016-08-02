@@ -39,6 +39,8 @@ func NewClient(instance string) (Service, error) {
 			ServicesEndpoint:      httptransport.NewClient("GET", tgt, encodeServicesRequest, decodeServicesResponse, options...).Endpoint(),
 			HistoryEndpoint:       httptransport.NewClient("GET", tgt, encodeHistoryRequest, decodeHistoryResponse, options...).Endpoint(),
 			ReleaseEndpoint:       httptransport.NewClient("POST", tgt, encodeReleaseRequest, decodeReleaseResponse, options...).Endpoint(),
+			AutomateEndpoint:      httptransport.NewClient("POST", tgt, encodeAutomateRequest, decodeAutomateResponse, options...).Endpoint(),
+			DeautomateEndpoint:    httptransport.NewClient("POST", tgt, encodeDeautomateRequest, decodeDeautomateResponse, options...).Endpoint(),
 		},
 	}, nil
 }
@@ -102,4 +104,22 @@ func (w serviceWrapper) Release(namespace, service string, newDef []byte, update
 	}
 	resp := response.(releaseResponse)
 	return resp.Err
+}
+
+func (w serviceWrapper) Automate(namespace, service string) error {
+	request := automateRequest{
+		Namespace: namespace,
+		Service:   service,
+	}
+	_, err := w.endpoints.AutomateEndpoint(w.ctx, request)
+	return err
+}
+
+func (w serviceWrapper) Deautomate(namespace, service string) error {
+	request := deautomateRequest{
+		Namespace: namespace,
+		Service:   service,
+	}
+	_, err := w.endpoints.DeautomateEndpoint(w.ctx, request)
+	return err
 }
