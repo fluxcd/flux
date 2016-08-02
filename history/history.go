@@ -18,27 +18,17 @@ var (
 )
 
 type Event struct {
-	Stamp time.Time
-	Msg   string
-}
-
-type History struct {
-	Service string
-	State   ServiceState
-	Events  []Event
+	Service, Msg string
+	Stamp        time.Time
 }
 
 type DB interface {
 	// AllEvents returns a history for every service in the given
 	// namespace
-	AllEvents(namespace string) (map[string]History, error)
-
+	AllEvents(namespace string) ([]Event, error)
 	// EventsForService returns the history for a particular
 	// (namespaced) service
-	EventsForService(namespace, service string) (History, error)
-
+	EventsForService(namespace, service string) ([]Event, error)
 	// LogEvent records a message in the history of a service
 	LogEvent(namespace, service, msg string) error
-	// ChangeState changes the current state of a service
-	ChangeState(namespace, service string, newState ServiceState) error
 }

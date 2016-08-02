@@ -2,12 +2,9 @@ package main
 
 import (
 	"fmt"
-	"sort"
 	"time"
 
 	"github.com/spf13/cobra"
-
-	"github.com/weaveworks/fluxy/history"
 )
 
 type serviceHistoryOpts struct {
@@ -37,7 +34,7 @@ func (opts *serviceHistoryOpts) RunE(_ *cobra.Command, args []string) error {
 	if len(args) > 0 {
 		return errorWantedNoArgs
 	}
-	histories, err := opts.Fluxd.History(opts.namespace, opts.service)
+	events, err := opts.Fluxd.History(opts.namespace, opts.service)
 	if err != nil {
 		return err
 	}
@@ -46,37 +43,16 @@ func (opts *serviceHistoryOpts) RunE(_ *cobra.Command, args []string) error {
 
 	if opts.service != "" {
 		fmt.Fprintln(out, "TIME\tMESSAGE")
-		if history, found := histories[opts.service]; found {
-			for _, event := range history.Events {
-				fmt.Fprintf(out, "%s\t%s\n", event.Stamp.Format(time.RFC822), event.Msg)
-			}
+		for _, event := range events {
+			fmt.Fprintf(out, "%s\t%s\n", event.Stamp.Format(time.RFC822), event.Msg)
 		}
 	} else {
-		events := make([]serviceEvent, 0, 0)
-		for _, h := range histories {
-			for _, e := range h.Events {
-				events = append(events, serviceEvent{e, h.Service})
-			}
-		}
-		sort.Sort(serviceEventLog(events))
 		fmt.Fprintln(out, "TIME\tSERVICE\tMESSAGE")
 		for _, e := range events {
-			fmt.Fprintf(out, "%s\t%s\t%s\n", e.Stamp.Format(time.RFC822), e.service, e.Msg)
+			fmt.Fprintf(out, "%s\t%s\t%s\n", e.Stamp.Format(time.RFC822), e.Service, e.Msg)
 		}
 	}
 
 	out.Flush()
 	return nil
 }
-
-type serviceEvent struct {
-	history.Event
-	service string
-}
-
-type serviceEventLog []serviceEvent
-
-// The natural sort order is descending order of timestamp.
-func (e serviceEventLog) Len() int           { return len(e) }
-func (e serviceEventLog) Less(i, j int) bool { return e[i].Stamp.After(e[j].Stamp) }
-func (e serviceEventLog) Swap(i, j int)      { e[i], e[j] = e[j], e[i] }

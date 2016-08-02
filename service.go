@@ -2,7 +2,6 @@ package flux
 
 import (
 	"errors"
-	"fmt"
 	"time"
 
 	"github.com/go-kit/kit/log"
@@ -33,7 +32,7 @@ type Service interface {
 	Services(namespace string) ([]platform.Service, error)
 
 	// History returns the release history of one or all services
-	History(namespace, service string) (map[string]history.History, error)
+	History(namespace, service string) ([]history.Event, error)
 
 	// Release migrates a service from its current image to a new image, derived
 	// from the newDef definition. Right now, that needs to be the body of a
@@ -138,37 +137,19 @@ func (s *service) Services(namespace string) ([]platform.Service, error) {
 	return s.platform.Services(namespace)
 }
 
-func (s *service) History(namespace, service string) (map[string]history.History, error) {
+func (s *service) History(namespace, service string) ([]history.Event, error) {
 	if service == "" {
 		return s.history.AllEvents(namespace)
 	}
-
-	h, err := s.history.EventsForService(namespace, service)
-	if err == history.ErrNoHistory {
-		// TODO(pb): not super happy with this
-		h = history.History{
-			Service: service,
-			State:   history.StateUnknown,
-		}
-	} else if err != nil {
-		return nil, err
-	}
-
-	return map[string]history.History{
-		h.Service: h,
-	}, nil
+	return s.history.EventsForService(namespace, service)
 }
 
 func (s *service) Release(namespace, service string, newDef []byte, updatePeriod time.Duration) error {
 	if s.platform == nil {
 		return ErrNoPlatformConfigured
 	}
-	err := s.history.ChangeState(namespace, service, history.StateInProgress)
-	if err != nil {
-		return err
-	}
 
-	err = s.platform.Release(namespace, service, newDef, updatePeriod)
+	err := s.platform.Release(namespace, service, newDef, updatePeriod)
 	var event string
 	if err != nil {
 		event = "Release failed: " + err.Error()
@@ -179,9 +160,6 @@ func (s *service) Release(namespace, service string, newDef []byte, updatePeriod
 		s.logger.Log("method", "Release", "error", e)
 	}
 
-	if e := s.history.ChangeState(namespace, service, history.StateRest); e != nil {
-		return fmt.Errorf("release completed but unable to change service state: %s", e)
-	}
 	return err // that from the release itself
 }
 
