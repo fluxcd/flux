@@ -4,12 +4,14 @@ import (
 	"errors"
 	"time"
 
+	"github.com/weaveworks/fluxy/automator"
 	"github.com/weaveworks/fluxy/history"
 	"github.com/weaveworks/fluxy/platform"
 	"github.com/weaveworks/fluxy/platform/kubernetes"
 	"github.com/weaveworks/fluxy/registry"
 )
 
+// DefaultNamespace is used when no namespace is provided to service methods.
 const DefaultNamespace = "default"
 
 // Service is the flux.Service, i.e. what is implemented by fluxd.
@@ -35,6 +37,14 @@ type Service interface {
 	// replication controller. A rolling-update is performed with the provided
 	// updatePeriod. This call blocks until it's complete.
 	Release(namespace, service string, newDef []byte, updatePeriod time.Duration) error
+
+	// Automate turns on automatic releases for the given service.
+	// Read the history for the service to check status.
+	Automate(namespace, service string) error
+
+	// Deautomate turns off automatic releases for the given service.
+	// Read the history for the service to check status.
+	Deautomate(namespace, service string) error
 }
 
 var (
@@ -44,20 +54,24 @@ var (
 )
 
 // NewService returns a service connected to the provided Kubernetes platform.
-func NewService(reg *registry.Client, k8s *kubernetes.Cluster, history history.DB) Service {
+func NewService(reg *registry.Client, k8s *kubernetes.Cluster, auto *automator.Automator, history history.DB) Service {
 	return &service{
-		registry: reg,
-		platform: k8s,
-		history:  history,
+		registry:  reg,
+		platform:  k8s,
+		automator: auto,
+		history:   history,
 	}
 }
 
 type service struct {
-	registry *registry.Client
-	platform *kubernetes.Cluster // TODO(pb): replace with platform.Platform when we have that
-	history  history.DB
+	registry  *registry.Client
+	platform  *kubernetes.Cluster // TODO(pb): replace with platform.Platform when we have that
+	automator *automator.Automator
+	history   history.DB
 }
 
+// ContainerImages describes a combination of a platform container spec, and the
+// available images in the corresponding registry.
 type ContainerImages struct {
 	Container platform.Container
 	Images    []registry.Image
@@ -76,7 +90,7 @@ func (s *service) ServiceImages(namespace, service string) ([]ContainerImages, e
 	if err != nil {
 		return nil, err
 	}
-	result := make([]ContainerImages, 0)
+	var result []ContainerImages
 	for _, container := range containers {
 		repository, err := s.registry.GetRepository(registry.ParseImage(container.Image).Repository())
 		if err != nil {
@@ -100,9 +114,16 @@ func (s *service) History(namespace, service string) (map[string]history.History
 	}
 
 	h, err := s.history.EventsForService(namespace, service)
-	if err != nil {
+	if err == history.ErrNoHistory {
+		// TODO(pb): not super happy with this
+		h = history.History{
+			Service: service,
+			State:   history.StateUnknown,
+		}
+	} else if err != nil {
 		return nil, err
 	}
+
 	return map[string]history.History{
 		h.Service: h,
 	}, nil
@@ -122,4 +143,14 @@ func (s *service) Release(namespace, service string, newDef []byte, updatePeriod
 		s.history.ChangeState(namespace, service, history.StateRest)
 	}()
 	return s.platform.Release(namespace, service, newDef, updatePeriod)
+}
+
+func (s *service) Automate(namespace, service string) error {
+	s.automator.Enable(namespace, service)
+	return nil
+}
+
+func (s *service) Deautomate(namespace, service string) error {
+	s.automator.Disable(namespace, service)
+	return nil
 }

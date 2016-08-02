@@ -71,6 +71,20 @@ func MakeHTTPHandler(ctx context.Context, e Endpoints, logger log.Logger) http.H
 		encodeReleaseResponse,
 		options...,
 	))
+	r.Methods("POST").Path("/automate").Handler(httptransport.NewServer(
+		ctx,
+		e.AutomateEndpoint,
+		decodeAutomateRequest,
+		encodeAutomateResponse,
+		options...,
+	))
+	r.Methods("POST").Path("/deautomate").Handler(httptransport.NewServer(
+		ctx,
+		e.DeautomateEndpoint,
+		decodeDeautomateRequest,
+		encodeDeautomateResponse,
+		options...,
+	))
 
 	return r
 }
@@ -194,6 +208,36 @@ func decodeReleaseRequest(_ context.Context, r *http.Request) (request interface
 	}, nil
 }
 
+func decodeAutomateRequest(_ context.Context, r *http.Request) (request interface{}, err error) {
+	namespace := r.FormValue("namespace")
+	if namespace == "" {
+		namespace = "default"
+	}
+	service := r.FormValue("service")
+	if service == "" {
+		return nil, ErrServiceRequired
+	}
+	return automateRequest{
+		Namespace: namespace,
+		Service:   service,
+	}, nil
+}
+
+func decodeDeautomateRequest(_ context.Context, r *http.Request) (request interface{}, err error) {
+	namespace := r.FormValue("namespace")
+	if namespace == "" {
+		namespace = "default"
+	}
+	service := r.FormValue("service")
+	if service == "" {
+		return nil, ErrServiceRequired
+	}
+	return deautomateRequest{
+		Namespace: namespace,
+		Service:   service,
+	}, nil
+}
+
 func decodeImagesResponse(_ context.Context, resp *http.Response) (interface{}, error) {
 	var response imagesResponse
 	var err error
@@ -244,6 +288,28 @@ func decodeHistoryResponse(_ context.Context, resp *http.Response) (interface{},
 
 func decodeReleaseResponse(_ context.Context, resp *http.Response) (interface{}, error) {
 	var response releaseResponse
+	switch resp.StatusCode {
+	case http.StatusOK:
+		// nothing to do
+	default:
+		response.Err = decodeError(resp.Body)
+	}
+	return response, nil
+}
+
+func decodeAutomateResponse(_ context.Context, resp *http.Response) (interface{}, error) {
+	var response automateResponse
+	switch resp.StatusCode {
+	case http.StatusOK:
+		// nothing to do
+	default:
+		response.Err = decodeError(resp.Body)
+	}
+	return response, nil
+}
+
+func decodeDeautomateResponse(_ context.Context, resp *http.Response) (interface{}, error) {
+	var response deautomateResponse
 	switch resp.StatusCode {
 	case http.StatusOK:
 		// nothing to do
@@ -313,6 +379,32 @@ func encodeReleaseRequest(ctx context.Context, req *http.Request, request interf
 	return nil
 }
 
+func encodeAutomateRequest(ctx context.Context, req *http.Request, request interface{}) error {
+	r := request.(automateRequest)
+	values := url.Values{}
+	values.Set("namespace", r.Namespace)
+	values.Set("service", r.Service)
+
+	req.Method = "POST"
+	req.URL.Path = "/v0/automate"
+	req.URL.RawQuery = values.Encode()
+
+	return nil
+}
+
+func encodeDeautomateRequest(ctx context.Context, req *http.Request, request interface{}) error {
+	r := request.(deautomateRequest)
+	values := url.Values{}
+	values.Set("namespace", r.Namespace)
+	values.Set("service", r.Service)
+
+	req.Method = "POST"
+	req.URL.Path = "/v0/deautomate"
+	req.URL.RawQuery = values.Encode()
+
+	return nil
+}
+
 func encodeImagesResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
 	resp := response.(imagesResponse)
 	if resp.Err != nil {
@@ -355,6 +447,26 @@ func encodeHistoryResponse(ctx context.Context, w http.ResponseWriter, response 
 
 func encodeReleaseResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
 	resp := response.(releaseResponse)
+	if resp.Err != nil {
+		encodeError(ctx, resp.Err, w)
+		return nil
+	}
+	encodeJSON(ctx, map[string]interface{}{"success": true}, w)
+	return nil
+}
+
+func encodeAutomateResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
+	resp := response.(automateResponse)
+	if resp.Err != nil {
+		encodeError(ctx, resp.Err, w)
+		return nil
+	}
+	encodeJSON(ctx, map[string]interface{}{"success": true}, w)
+	return nil
+}
+
+func encodeDeautomateResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
+	resp := response.(deautomateResponse)
 	if resp.Err != nil {
 		encodeError(ctx, resp.Err, w)
 		return nil

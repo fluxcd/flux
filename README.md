@@ -10,14 +10,18 @@ All workflows start with the assumption that I've got a helloworld service runni
 
 ### Explicit
 
+Which services are running on my platform?
+
 ```
-$ # Which services are running on my platform?
 $ fluxctl service list
 SERVICE     IP         PORTS        IMAGE
 helloworld  10.0.0.99  80/TCP→80    quay.io/weaveworks/helloworld:master-a000001
 kubernetes  10.0.0.1   443/TCP→443  (no selector, no RC)
+```
 
-$ # Which images are available for the helloworld service?
+Which images are available for the helloworld service?
+
+```
 $ fluxctl service images --service=helloworld
 CONTAINER   IMAGE                          CREATED
 helloworld  quay.io/weaveworks/helloworld
@@ -25,19 +29,25 @@ helloworld  quay.io/weaveworks/helloworld
             |   master-b31c617a0fe3        2016-07-20 13:19:29.801863476 +0000 UTC
             |   master-a000002             2016-07-12 17:17:34.599751439 +0000 UTC
             '-> master-a000001             2016-07-12 17:16:17.770847438 +0000 UTC
+```
 
-$ # Update my resource file to use a new image.
+Update my resource file to use a new image.
+
+```
 $ fluxctl config update --file helloworld-rc.yaml \
     --image=quay.io/weaveworks/helloworld:master-9a16ff945b9e \
     --output=helloworld-rc.yaml
+```
 
-$ # Release a new version of the helloworld service.
+Release a new version of the helloworld service.
+
+```
 $ fluxctl service release --service=helloworld --file=helloworld-rc.yaml
 Starting release of helloworld with an update period of 5s... success
 Took 37.74884288s
-
-$ # Commit and push the updated helloworld-rc.yaml!
 ```
+
+Don't forget to commit and push the updated helloworld-rc.yaml!
 
 ### Interactive
 
@@ -82,10 +92,11 @@ Be sure to commit and push your changes!
 
 ### Automated
 
+(Note: not yet implemented.)
+
 fluxd continuously polls the platform for services that have been configured to be continuously deployed.
 For each, it regularly polls the corresponding image repository to find new images.
 Whenever it finds a new image, it automates a release as follows.
-(Note: not yet implemented.)
 
 1. Ensure the service is "at rest", and nobody else is deploying.
 1. Check out the config repo, containing the resource definition files.

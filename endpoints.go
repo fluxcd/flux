@@ -20,6 +20,8 @@ type Endpoints struct {
 	ServicesEndpoint      endpoint.Endpoint
 	HistoryEndpoint       endpoint.Endpoint
 	ReleaseEndpoint       endpoint.Endpoint
+	AutomateEndpoint      endpoint.Endpoint
+	DeautomateEndpoint    endpoint.Endpoint
 }
 
 // MakeServerEndpoints returns an Endpoints struct where each endpoint invokes the
@@ -31,6 +33,8 @@ func MakeServerEndpoints(s Service) Endpoints {
 		ServicesEndpoint:      MakeServicesEndpoint(s),
 		HistoryEndpoint:       MakeHistoryEndpoint(s),
 		ReleaseEndpoint:       MakeReleaseEndpoint(s),
+		AutomateEndpoint:      MakeAutomateEndpoint(s),
+		DeautomateEndpoint:    MakeDeautomateEndpoint(s),
 	}
 }
 
@@ -44,6 +48,8 @@ func MakeImagesEndpoint(s Service) endpoint.Endpoint {
 	}
 }
 
+// MakeServiceImagesEndpoint returns an endpoint via the passed service.
+// Primarily useful in a server.
 func MakeServiceImagesEndpoint(s Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(serviceImagesRequest)
@@ -62,6 +68,8 @@ func MakeServicesEndpoint(s Service) endpoint.Endpoint {
 	}
 }
 
+// MakeHistoryEndpoint returns an endpoint via the passed service.
+// Primarily useful in a server.
 func MakeHistoryEndpoint(s Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(historyRequest)
@@ -77,6 +85,26 @@ func MakeReleaseEndpoint(s Service) endpoint.Endpoint {
 		req := request.(releaseRequest)
 		err := s.Release(req.Namespace, req.Service, req.NewDef, req.UpdatePeriod)
 		return releaseResponse{Err: err}, nil
+	}
+}
+
+// MakeAutomateEndpoint returns an endpoint via the passed service.
+// Primarily useful in a server.
+func MakeAutomateEndpoint(s Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+		req := request.(automateRequest)
+		err := s.Automate(req.Namespace, req.Service)
+		return automateResponse{Err: err}, nil
+	}
+}
+
+// MakeDeautomateEndpoint returns an endpoint via the passed service.
+// Primarily useful in a server.
+func MakeDeautomateEndpoint(s Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+		req := request.(deautomateRequest)
+		err := s.Deautomate(req.Namespace, req.Service)
+		return deautomateResponse{Err: err}, nil
 	}
 }
 
@@ -125,5 +153,23 @@ type releaseRequest struct {
 }
 
 type releaseResponse struct {
+	Err error
+}
+
+type automateRequest struct {
+	Namespace string
+	Service   string
+}
+
+type automateResponse struct {
+	Err error
+}
+
+type deautomateRequest struct {
+	Namespace string
+	Service   string
+}
+
+type deautomateResponse struct {
 	Err error
 }
