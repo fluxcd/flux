@@ -61,12 +61,12 @@ func (opts *serviceShowOpts) RunE(_ *cobra.Command, args []string) error {
 	fmt.Fprintln(out, "CONTAINER\tIMAGE\tCREATED")
 	for _, container := range containers {
 		containerName := container.Container.Name
-		_, imageName, imageTag := registry.ImageParts(container.Container.Image)
-		fmt.Fprintf(out, "%s\t%s\t\n", containerName, imageName)
+		runningImage := registry.ParseImage(container.Container.Image)
+		fmt.Fprintf(out, "%s\t%s\t\n", containerName, runningImage.Repository())
 		foundRunning := false
 		for _, image := range container.Images {
 			running := "|  "
-			if image.Tag == imageTag {
+			if image.Tag == runningImage.Tag {
 				running = "'->"
 				foundRunning = true
 			} else if foundRunning {

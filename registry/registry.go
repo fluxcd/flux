@@ -96,27 +96,24 @@ func (c *Client) GetRepository(repository string) (*Repository, error) {
 	return c.tagsToRepository(client, repository, tags, auth), nil
 }
 
-func (c *Client) lookupImage(client *dockerregistry.Client, imageName, tag, ID string, auth dockerregistry.Authenticator) Image {
-	var createdAt time.Time
+func (c *Client) lookupImage(client *dockerregistry.Client, repoName, tag, ID string, auth dockerregistry.Authenticator) Image {
+	img := ParseImage(repoName)
+	img.Tag = tag
 	meta, err := client.Image.GetMetadata(ID, auth)
 	if err != nil {
 		c.Logger.Log("registry-metadata-err", err)
 	} else {
-		createdAt = meta.Created
+		img.CreatedAt = meta.Created
 	}
-	return Image{
-		Name:      imageName,
-		Tag:       tag,
-		CreatedAt: createdAt,
-	}
+	return img
 }
 
-func (c *Client) tagsToRepository(client *dockerregistry.Client, imageName string, tags map[string]string, auth dockerregistry.Authenticator) *Repository {
+func (c *Client) tagsToRepository(client *dockerregistry.Client, repoName string, tags map[string]string, auth dockerregistry.Authenticator) *Repository {
 	fetched := make(chan Image, len(tags))
 
 	for tag, imageID := range tags {
 		go func(t, id string) {
-			fetched <- c.lookupImage(client, imageName, t, id, auth)
+			fetched <- c.lookupImage(client, repoName, t, id, auth)
 		}(tag, imageID)
 	}
 
@@ -128,16 +125,16 @@ func (c *Client) tagsToRepository(client *dockerregistry.Client, imageName strin
 	sort.Sort(byCreatedDesc{images})
 
 	return &Repository{
-		Name:   imageName,
+		Name:   repoName,
 		Images: images,
 	}
 }
 
-// Repository is a collection of images with the same name
-// (e.g,. "weaveworks/helloworld") but not the same tag (e.g.,
-// "weaveworks/helloworld:v0.1").
+// Repository is a collection of images with the same registry and name
+// (e.g,. "quay.io:5000/weaveworks/helloworld") but not the same tag (e.g.,
+// "quay.io:5000/weaveworks/helloworld:v0.1").
 type Repository struct {
-	Name   string // "weaveworks/helloworld"
+	Name   string // "quay.io:5000/weaveworks/helloworld"
 	Images []Image
 }
 
@@ -145,9 +142,45 @@ type Repository struct {
 // struct because I think we can safely assume the data here is pretty
 // universal across different registries and repositories.
 type Image struct {
+	Registry  string    // "quay.io:5000"
 	Name      string    // "weaveworks/helloworld"
 	Tag       string    // "master-59f0001"
 	CreatedAt time.Time // Always UTC
+}
+
+// ParseImage splits the image string apart, returning an Image with as much
+// info as we can gather.
+func ParseImage(image string) (i Image) {
+	parts := strings.SplitN(image, "/", 3)
+	if len(parts) == 3 {
+		i.Registry = parts[0]
+		image = fmt.Sprintf("%s/%s", parts[1], parts[2])
+	}
+	parts = strings.SplitN(image, ":", 2)
+	if len(parts) == 2 {
+		i.Tag = parts[1]
+	}
+	i.Name = parts[0]
+	return i
+}
+
+// String prints as much of an image as we have in the typical docker format. e.g. registry/name:tag
+func (i Image) String() string {
+	s := i.Repository()
+	if i.Tag != "" {
+		s = s + ":" + i.Tag
+	}
+	return s
+}
+
+// Repository returns a string with as much info as we have to rebuild the
+// image repository (i.e. registry/name)
+func (i Image) Repository() string {
+	repo := i.Name
+	if i.Registry != "" {
+		repo = i.Registry + "/" + repo
+	}
+	return repo
 }
 
 // NoCredentials returns a usable but empty credentials object.
