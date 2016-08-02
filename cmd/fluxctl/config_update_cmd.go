@@ -178,7 +178,7 @@ func tryUpdateRC(rc, newImageStr string, trace io.Writer, out io.Writer) error {
 	fmt.Fprintln(trace, "Replacing ...")
 	fmt.Fprintf(trace, "Replication controller name: %q -> %q\n", oldRCName, newRCName)
 	fmt.Fprintf(trace, "Version in container %q and selector: %q -> %q\n", containerName, oldImage.Tag, newImage.Tag)
-	fmt.Fprintf(trace, "Image for container %q: %v -> %v\n", containerName, oldImage.Repository(), newImage.Repository())
+	fmt.Fprintf(trace, "Image for container %q: %q -> %q\n", containerName, oldImage, newImage)
 	fmt.Fprintln(trace, "")
 
 	// The name we want is that under metadata:, which will be indented once
@@ -194,13 +194,11 @@ func tryUpdateRC(rc, newImageStr string, trace io.Writer, out io.Writer) error {
 	replaceLabels := fmt.Sprintf("$1\n$2\n$3%q$4", newImage.Tag)
 	withNewLabels := replaceLabelsRE.ReplaceAllString(withNewRCName, replaceLabels)
 
-	//fmt.Println(withNewLabels)
-
 	replaceImageRE := multilineRE(
 		`(      - name:\s*`+containerName+`)`,
 		`(        image:\s*).*`,
 	)
-	replaceImage := fmt.Sprintf("$1\n$2%v$3", newImage.Repository())
+	replaceImage := fmt.Sprintf("$1\n$2%q$3", newImage.String())
 	withNewImage := replaceImageRE.ReplaceAllString(withNewLabels, replaceImage)
 
 	fmt.Fprint(out, withNewImage)
