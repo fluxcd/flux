@@ -2,6 +2,7 @@ package history
 
 import (
 	"fmt"
+	"sync"
 	"time"
 )
 
@@ -16,6 +17,7 @@ func NewInMemDB() DB {
 }
 
 type db struct {
+	mtx       sync.Mutex
 	histories map[namespacedService]*History
 }
 
@@ -38,12 +40,16 @@ func (db *db) ensureHistory(namespace, service string) *History {
 	if h, found := db.histories[ns]; found {
 		return h
 	}
+
 	h := newHistory(service)
 	db.histories[ns] = h
 	return h
 }
 
 func (db *db) AllEvents(namespace string) (map[string]History, error) {
+	db.mtx.Lock()
+	defer db.mtx.Unlock()
+
 	hs := map[string]History{}
 	for _, h := range db.histories {
 		hs[h.Service] = *h
@@ -52,18 +58,27 @@ func (db *db) AllEvents(namespace string) (map[string]History, error) {
 }
 
 func (db *db) EventsForService(namespace, service string) (History, error) {
+	db.mtx.Lock()
+	defer db.mtx.Unlock()
+
 	if h, found := db.histories[namespacedService{namespace, service}]; found {
 		return *h, nil
 	}
-	return History{}, ErrorNoHistory
+	return History{}, ErrNoHistory
 }
 
 func (db *db) LogEvent(namespace, service, msg string) {
+	db.mtx.Lock()
+	defer db.mtx.Unlock()
+
 	history := db.ensureHistory(namespace, service)
 	history.add(msg)
 }
 
 func (db *db) ChangeState(namespace, service string, newState ServiceState) {
+	db.mtx.Lock()
+	defer db.mtx.Unlock()
+
 	history := db.ensureHistory(namespace, service)
 	history.State = newState
 	history.add(fmt.Sprintf("Stated changed to %q", newState))
