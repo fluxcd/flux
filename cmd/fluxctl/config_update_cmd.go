@@ -132,8 +132,8 @@ func (opts *configUpdateOpts) RunE(_ *cobra.Command, args []string) error {
 //         ports:
 //         - containerPort: 80
 // ```
-func tryUpdateRC(rc, newImage string, trace io.Writer, out io.Writer) error {
-	_, newImageName, newTag := registry.ImageParts(newImage)
+func tryUpdateRC(rc, newImageStr string, trace io.Writer, out io.Writer) error {
+	newImage := registry.ParseImage(newImageStr)
 
 	nameRE := multilineRE(
 		`metadata:\s*`,
@@ -149,7 +149,7 @@ func tryUpdateRC(rc, newImage string, trace io.Writer, out io.Writer) error {
 	imageRE := multilineRE(
 		`      containers:.*`,
 		`(?:      .*\n)*      - name:\s*"?([\w-]+)"?(?:\s.*)?`,
-		`        image:\s*"?(`+newImageName+`:[\w-]+)"?(\s.*)?`,
+		`        image:\s*"?(`+newImage.Repository()+`:[\w-]+)"?(\s.*)?`,
 	)
 
 	matches = imageRE.FindStringSubmatch(rc)
@@ -157,13 +157,11 @@ func tryUpdateRC(rc, newImage string, trace io.Writer, out io.Writer) error {
 		return fmt.Errorf("Could not find image name")
 	}
 	containerName := matches[1]
-	oldImage := matches[2]
-	fmt.Fprintf(trace, "Found container %q using image %q in fragment:\n\n%s\n\n", containerName, oldImage, matches[0])
+	oldImage := registry.ParseImage(matches[2])
+	fmt.Fprintf(trace, "Found container %q using image %v in fragment:\n\n%s\n\n", containerName, oldImage, matches[0])
 
-	_, oldImageName, oldTag := registry.ImageParts(oldImage)
-
-	if oldImageName != newImageName {
-		return fmt.Errorf(`expected existing image name and new image name to match, but %q != %q`, oldImageName, newImageName)
+	if oldImage.Repository() != newImage.Repository() {
+		return fmt.Errorf(`expected existing image name and new image name to match, but %q != %q`, oldImage.Repository(), newImage.Repository())
 	}
 
 	// Now to replace bits. Specifically,
@@ -172,14 +170,14 @@ func tryUpdateRC(rc, newImage string, trace io.Writer, out io.Writer) error {
 	// * the version label (in two places)
 
 	newRCName := oldRCName
-	if strings.HasSuffix(oldRCName, oldTag) {
-		newRCName = oldRCName[:len(oldRCName)-len(oldTag)] + newTag
+	if strings.HasSuffix(oldRCName, oldImage.Tag) {
+		newRCName = oldRCName[:len(oldRCName)-len(oldImage.Tag)] + newImage.Tag
 	}
 
 	fmt.Fprintln(trace, "")
 	fmt.Fprintln(trace, "Replacing ...")
 	fmt.Fprintf(trace, "Replication controller name: %q -> %q\n", oldRCName, newRCName)
-	fmt.Fprintf(trace, "Version in container %q and selector: %q -> %q\n", containerName, oldTag, newTag)
+	fmt.Fprintf(trace, "Version in container %q and selector: %q -> %q\n", containerName, oldImage.Tag, newImage.Tag)
 	fmt.Fprintf(trace, "Image for container %q: %q -> %q\n", containerName, oldImage, newImage)
 	fmt.Fprintln(trace, "")
 
@@ -193,16 +191,14 @@ func tryUpdateRC(rc, newImage string, trace io.Writer, out io.Writer) error {
 		`((?:  ){2,4}name:.*)`,
 		`((?:  ){2,4}version:\s*)(?:"?[-\w]+"?)(\s.*)`,
 	)
-	replaceLabels := fmt.Sprintf("$1\n$2\n$3%q$4", newTag)
+	replaceLabels := fmt.Sprintf("$1\n$2\n$3%q$4", newImage.Tag)
 	withNewLabels := replaceLabelsRE.ReplaceAllString(withNewRCName, replaceLabels)
-
-	//fmt.Println(withNewLabels)
 
 	replaceImageRE := multilineRE(
 		`(      - name:\s*`+containerName+`)`,
 		`(        image:\s*).*`,
 	)
-	replaceImage := fmt.Sprintf("$1\n$2%q$3", newImage)
+	replaceImage := fmt.Sprintf("$1\n$2%q$3", newImage.String())
 	withNewImage := replaceImageRE.ReplaceAllString(withNewLabels, replaceImage)
 
 	fmt.Fprint(out, withNewImage)

@@ -78,8 +78,7 @@ func (s *service) ServiceImages(namespace, service string) ([]ContainerImages, e
 	}
 	result := make([]ContainerImages, 0)
 	for _, container := range containers {
-		_, imageName, _ := registry.ImageParts(container.Image)
-		repository, err := s.registry.GetRepository(imageName)
+		repository, err := s.registry.GetRepository(registry.ParseImage(container.Image).Repository())
 		if err != nil {
 			return nil, err
 		}
