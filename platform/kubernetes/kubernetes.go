@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"net/http"
 	"os"
 	"os/exec"
 	"strings"
@@ -15,6 +16,7 @@ import (
 
 	"github.com/go-kit/kit/log"
 	"k8s.io/kubernetes/pkg/api"
+	k8serrors "k8s.io/kubernetes/pkg/api/errors"
 	"k8s.io/kubernetes/pkg/client/restclient"
 	k8sclient "k8s.io/kubernetes/pkg/client/unversioned"
 
@@ -68,6 +70,18 @@ func NewCluster(config *restclient.Config, kubectl string, logger log.Logger) (*
 	}, nil
 }
 
+// Service returns the platform.Service representation of the named service.
+func (c *Cluster) Service(namespace, service string) (platform.Service, error) {
+	apiService, err := c.service(namespace, service)
+	if err != nil {
+		if statusErr, ok := err.(*k8serrors.StatusError); ok && statusErr.ErrStatus.Code == http.StatusNotFound { // le sigh
+			return platform.Service{}, ErrNoMatchingService
+		}
+		return platform.Service{}, err
+	}
+	return c.makePlatformService(apiService), nil
+}
+
 // Services returns the set of services currently active on the platform in the
 // given namespace. Maybe it makes sense to move the namespace to the
 // constructor? Depends on how it will be used. For now it is here.
@@ -82,6 +96,17 @@ func (c *Cluster) Services(namespace string) ([]platform.Service, error) {
 		return nil, err
 	}
 	return c.makePlatformServices(apiServices), nil
+}
+
+func (c *Cluster) service(namespace, service string) (res api.Service, err error) {
+	defer func() {
+		c.logger.Log("method", "service", "namespace", namespace, "service", service, "err", err)
+	}()
+	apiService, err := c.client.Services(namespace).Get(service)
+	if err != nil {
+		return api.Service{}, err
+	}
+	return *apiService, nil
 }
 
 func (c *Cluster) services(namespace string) (res []api.Service, err error) {
