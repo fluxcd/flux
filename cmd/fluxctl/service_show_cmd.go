@@ -58,7 +58,7 @@ func (opts *serviceShowOpts) RunE(_ *cobra.Command, args []string) error {
 		containerName := container.Container.Name
 		runningImage := registry.ParseImage(container.Container.Image)
 		fmt.Fprintf(out, "%s\t%s\t\n", containerName, runningImage.Repository())
-		foundRunning := false
+		foundRunning := runningImage.Tag == ""
 		for _, image := range container.Images {
 			running := "|  "
 			if image.Tag == runningImage.Tag {
