@@ -68,6 +68,19 @@ func (mw loggingMiddleware) Services(namespace string) (res []platform.Service, 
 	return mw.next.Services(namespace)
 }
 
+func (mw loggingMiddleware) Service(namespace, service string) (res platform.Service, err error) {
+	defer func(begin time.Time) {
+		mw.logger.Log(
+			"method", "Service",
+			"namespace", namespace,
+			"service", service,
+			"err", err,
+			"took", time.Since(begin),
+		)
+	}(time.Now())
+	return mw.next.Service(namespace, service)
+}
+
 func (mw loggingMiddleware) History(namespace, service string) (hs map[string]history.History, err error) {
 	defer func(begin time.Time) {
 		mw.logger.Log(

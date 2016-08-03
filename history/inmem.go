@@ -1,7 +1,6 @@
 package history
 
 import (
-	"fmt"
 	"sync"
 	"time"
 )
@@ -24,7 +23,6 @@ type db struct {
 func newHistory(service string) *History {
 	return &History{
 		Service: service,
-		State:   StateRest,
 		Events:  []Event{},
 	}
 }
@@ -64,7 +62,9 @@ func (db *db) EventsForService(namespace, service string) (History, error) {
 	if h, found := db.histories[namespacedService{namespace, service}]; found {
 		return *h, nil
 	}
-	return History{}, ErrNoHistory
+	return History{
+		Service: service,
+	}, nil
 }
 
 func (db *db) LogEvent(namespace, service, msg string) {
@@ -73,13 +73,4 @@ func (db *db) LogEvent(namespace, service, msg string) {
 
 	history := db.ensureHistory(namespace, service)
 	history.add(msg)
-}
-
-func (db *db) ChangeState(namespace, service string, newState ServiceState) {
-	db.mtx.Lock()
-	defer db.mtx.Unlock()
-
-	history := db.ensureHistory(namespace, service)
-	history.State = newState
-	history.add(fmt.Sprintf("Stated changed to %q", newState))
 }

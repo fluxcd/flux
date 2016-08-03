@@ -305,20 +305,30 @@ func (c *Cluster) makePlatformServices(apiServices []api.Service) []platform.Ser
 	return platformServices
 }
 
+// TODO(paul): This needs to handle multiple running images.
 func (c *Cluster) makePlatformService(s api.Service) platform.Service {
 	// To get the image, we need to walk from service to RC to spec.
 	// That path encodes a lot of opinions about deployment strategy.
 	// Which we're OK with, for the time being.
-	var image string
+	var (
+		image string
+		state = platform.ServiceState{
+			State: platform.StateUnknown,
+		}
+	)
 	switch images, err := c.imagesFor(s.Namespace, s.Name); err {
 	case nil:
 		image = strings.Join(images, ", ") // >1 image would break some light assumptions, but it's OK
+		state.State = platform.StateRest
+		state.Running = image
 	case ErrServiceHasNoSelector:
 		image = "(no selector, no RC)"
 	case ErrNoMatchingReplicationController:
 		image = "(no RC)"
 	case ErrMultipleMatchingReplicationControllers:
 		image = "(multiple RCs)" // e.g. during a release
+		state.State = platform.StateInProgress
+		// TODO(paul): determine which rc is the running, and which is the candidate.
 	case ErrNoMatchingImages:
 		image = "(none)"
 	}
@@ -341,7 +351,8 @@ func (c *Cluster) makePlatformService(s api.Service) platform.Service {
 
 	return platform.Service{
 		Name:     s.Name,
-		Image:    image,
+		State:    state,
+		Image:    image, // TODO: There could be multiple here, handle that as an array
 		IP:       s.Spec.ClusterIP,
 		Ports:    ports,
 		Metadata: metadata,

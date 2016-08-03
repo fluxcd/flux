@@ -18,6 +18,7 @@ type Endpoints struct {
 	ImagesEndpoint        endpoint.Endpoint
 	ServiceImagesEndpoint endpoint.Endpoint
 	ServicesEndpoint      endpoint.Endpoint
+	ServiceEndpoint       endpoint.Endpoint
 	HistoryEndpoint       endpoint.Endpoint
 	ReleaseEndpoint       endpoint.Endpoint
 	AutomateEndpoint      endpoint.Endpoint
@@ -31,6 +32,7 @@ func MakeServerEndpoints(s Service) Endpoints {
 		ImagesEndpoint:        MakeImagesEndpoint(s),
 		ServiceImagesEndpoint: MakeServiceImagesEndpoint(s),
 		ServicesEndpoint:      MakeServicesEndpoint(s),
+		ServiceEndpoint:       MakeServiceEndpoint(s),
 		HistoryEndpoint:       MakeHistoryEndpoint(s),
 		ReleaseEndpoint:       MakeReleaseEndpoint(s),
 		AutomateEndpoint:      MakeAutomateEndpoint(s),
@@ -65,6 +67,16 @@ func MakeServicesEndpoint(s Service) endpoint.Endpoint {
 		req := request.(servicesRequest)
 		services, err := s.Services(req.Namespace)
 		return servicesResponse{Services: services, Err: err}, nil
+	}
+}
+
+// MakeServiceEndpoint returns an endpoint via the passed service.
+// Primarily useful in a server.
+func MakeServiceEndpoint(s Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+		req := request.(serviceRequest)
+		service, err := s.Service(req.Namespace, req.Service)
+		return serviceResponse{Service: service, Err: err}, nil
 	}
 }
 
@@ -134,6 +146,16 @@ type servicesRequest struct {
 type servicesResponse struct {
 	Services []platform.Service
 	Err      error
+}
+
+type serviceRequest struct {
+	Namespace string
+	Service   string
+}
+
+type serviceResponse struct {
+	Service platform.Service
+	Err     error
 }
 
 type historyRequest struct {

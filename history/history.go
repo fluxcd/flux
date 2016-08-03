@@ -1,21 +1,6 @@
 package history
 
-import (
-	"errors"
-	"time"
-)
-
-type ServiceState string
-
-const (
-	StateUnknown    ServiceState = "Unknown"
-	StateRest                    = "At rest"
-	StateInProgress              = "Release in progress"
-)
-
-var (
-	ErrNoHistory = errors.New("no history for service")
-)
+import "time"
 
 type Event struct {
 	Stamp time.Time
@@ -24,7 +9,6 @@ type Event struct {
 
 type History struct {
 	Service string
-	State   ServiceState
 	Events  []Event
 }
 
@@ -39,7 +23,4 @@ type DB interface {
 
 	// LogEvent records a message in the history of a service
 	LogEvent(namespace, service, msg string)
-
-	// ChangeState changes the current state of a service
-	ChangeState(namespace, service string, newState ServiceState)
 }

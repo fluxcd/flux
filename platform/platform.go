@@ -10,11 +10,24 @@ package platform
 // service.
 type Service struct {
 	Name     string
+	State    ServiceState
 	Image    string // currently running, e.g. "quay.io/weaveworks/helloworld:master-a000001"
 	IP       string
 	Ports    []Port
 	Metadata map[string]string // a grab bag of goodies, likely platform-specific
 }
+
+type ServiceState struct {
+	State     string
+	Running   string
+	Candidate string
+}
+
+const (
+	StateUnknown    = "Unknown"
+	StateRest       = "At rest"
+	StateInProgress = "Release in progress"
+)
 
 // Port describes the mapping of a port on a service IP to the corresponding
 // port on load-balanced instances, including the protocol supported on that
