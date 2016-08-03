@@ -37,6 +37,7 @@ func NewClient(instance string) (Service, error) {
 			ImagesEndpoint:        httptransport.NewClient("GET", tgt, encodeImagesRequest, decodeImagesResponse, options...).Endpoint(),
 			ServiceImagesEndpoint: httptransport.NewClient("GET", tgt, encodeServiceImagesRequest, decodeServiceImagesResponse, options...).Endpoint(),
 			ServicesEndpoint:      httptransport.NewClient("GET", tgt, encodeServicesRequest, decodeServicesResponse, options...).Endpoint(),
+			ServiceEndpoint:       httptransport.NewClient("GET", tgt, encodeServiceRequest, decodeServiceResponse, options...).Endpoint(),
 			HistoryEndpoint:       httptransport.NewClient("GET", tgt, encodeHistoryRequest, decodeHistoryResponse, options...).Endpoint(),
 			ReleaseEndpoint:       httptransport.NewClient("POST", tgt, encodeReleaseRequest, decodeReleaseResponse, options...).Endpoint(),
 			AutomateEndpoint:      httptransport.NewClient("POST", tgt, encodeAutomateRequest, decodeAutomateResponse, options...).Endpoint(),
@@ -79,6 +80,16 @@ func (w serviceWrapper) Services(namespace string) ([]platform.Service, error) {
 	}
 	resp := response.(servicesResponse)
 	return resp.Services, resp.Err
+}
+
+func (w serviceWrapper) Service(namespace, service string) (platform.Service, error) {
+	request := serviceRequest{Namespace: namespace, Service: service}
+	response, err := w.endpoints.ServiceEndpoint(w.ctx, request)
+	if err != nil {
+		return platform.Service{}, err
+	}
+	resp := response.(serviceResponse)
+	return resp.Service, resp.Err
 }
 
 func (w serviceWrapper) History(namespace, service string) (map[string]history.History, error) {

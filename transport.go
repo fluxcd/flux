@@ -50,6 +50,13 @@ func MakeHTTPHandler(ctx context.Context, e Endpoints, logger log.Logger) http.H
 		encodeServicesResponse,
 		options...,
 	))
+	r.Methods("GET").Path("/services/{service}").Handler(httptransport.NewServer(
+		ctx,
+		e.ServiceEndpoint,
+		decodeServiceRequest,
+		encodeServiceResponse,
+		options...,
+	))
 	r.Methods("GET").Path("/service/{service}/images").Handler(httptransport.NewServer(
 		ctx,
 		e.ServiceImagesEndpoint,
@@ -109,8 +116,10 @@ func encodeError(_ context.Context, err error, w http.ResponseWriter) {
 }
 
 func decodeError(r io.Reader) error {
+	b, _ := ioutil.ReadAll(r)
+	fmt.Println("[DEBUG] RECEIVED JSON: %q\n", string(b))
 	var m map[string]interface{}
-	if err := json.NewDecoder(r).Decode(&m); err != nil {
+	if err := json.NewDecoder(bytes.NewReader(b)).Decode(&m); err != nil {
 		return fmt.Errorf("received error, but encountered additional error when trying to parse it: %v", err)
 	}
 	err, ok := m["error"]
@@ -164,6 +173,18 @@ func decodeServicesRequest(_ context.Context, r *http.Request) (request interfac
 	}
 	return servicesRequest{
 		Namespace: namespace,
+	}, nil
+}
+
+func decodeServiceRequest(_ context.Context, r *http.Request) (request interface{}, err error) {
+	namespace := r.FormValue("namespace")
+	if namespace == "" {
+		namespace = DefaultNamespace
+	}
+	service := mux.Vars(r)["service"]
+	return serviceRequest{
+		Namespace: namespace,
+		Service:   service,
 	}, nil
 }
 
@@ -274,6 +295,18 @@ func decodeServicesResponse(_ context.Context, resp *http.Response) (interface{}
 	return response, err
 }
 
+func decodeServiceResponse(_ context.Context, resp *http.Response) (interface{}, error) {
+	var response serviceResponse
+	var err error
+	switch resp.StatusCode {
+	case http.StatusOK:
+		err = json.NewDecoder(resp.Body).Decode(&response.Service)
+	default:
+		response.Err = decodeError(resp.Body)
+	}
+	return response, err
+}
+
 func decodeHistoryResponse(_ context.Context, resp *http.Response) (interface{}, error) {
 	var response historyResponse
 	var err error
@@ -347,6 +380,18 @@ func encodeServicesRequest(ctx context.Context, req *http.Request, request inter
 
 	req.Method = "GET"
 	req.URL.Path = "/v0/services"
+	req.URL.RawQuery = values.Encode()
+
+	return nil
+}
+
+func encodeServiceRequest(ctx context.Context, req *http.Request, request interface{}) error {
+	r := request.(serviceRequest)
+	values := url.Values{}
+	values.Set("namespace", r.Namespace)
+
+	req.Method = "GET"
+	req.URL.Path = fmt.Sprintf("/v0/services/%s", r.Service)
 	req.URL.RawQuery = values.Encode()
 
 	return nil
@@ -432,6 +477,16 @@ func encodeServicesResponse(ctx context.Context, w http.ResponseWriter, response
 		return nil
 	}
 	encodeJSON(ctx, resp.Services, w)
+	return nil
+}
+
+func encodeServiceResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
+	resp := response.(serviceResponse)
+	if resp.Err != nil {
+		encodeError(ctx, resp.Err, w)
+		return nil
+	}
+	encodeJSON(ctx, resp.Service, w)
 	return nil
 }
 

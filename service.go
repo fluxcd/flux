@@ -29,6 +29,9 @@ type Service interface {
 	// Services returns the currently active services on the platform.
 	Services(namespace string) ([]platform.Service, error)
 
+	// Service returns the current state and info for a single service
+	Service(namespace, service string) (platform.Service, error)
+
 	// History returns the release history of one or all services
 	History(namespace, service string) (map[string]history.History, error)
 
@@ -126,6 +129,13 @@ func (s *service) ServiceImages(namespace, service string) ([]ContainerImages, e
 	return result, nil
 }
 
+func (s *service) Service(namespace, service string) (platform.Service, error) {
+	if s.platform == nil {
+		return platform.Service{}, ErrNoPlatformConfigured
+	}
+	return s.platform.Service(namespace, service)
+}
+
 func (s *service) Services(namespace string) ([]platform.Service, error) {
 	if s.platform == nil {
 		return nil, ErrNoPlatformConfigured
@@ -139,13 +149,7 @@ func (s *service) History(namespace, service string) (map[string]history.History
 	}
 
 	h, err := s.history.EventsForService(namespace, service)
-	if err == history.ErrNoHistory {
-		// TODO(pb): not super happy with this
-		h = history.History{
-			Service: service,
-			State:   history.StateUnknown,
-		}
-	} else if err != nil {
+	if err != nil {
 		return nil, err
 	}
 
@@ -158,14 +162,12 @@ func (s *service) Release(namespace, service string, newDef []byte, updatePeriod
 	if s.platform == nil {
 		return ErrNoPlatformConfigured
 	}
-	s.history.ChangeState(namespace, service, history.StateInProgress)
 	defer func() {
 		if err != nil {
 			s.history.LogEvent(namespace, service, "Release failed: "+err.Error())
 		} else {
 			s.history.LogEvent(namespace, service, "Release succeeded")
 		}
-		s.history.ChangeState(namespace, service, history.StateRest)
 	}()
 	return s.platform.Release(namespace, service, newDef, updatePeriod)
 }
