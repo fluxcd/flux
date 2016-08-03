@@ -47,6 +47,31 @@ type Service interface {
 	Deautomate(namespace, service string) error
 }
 
+// How to add a method in 5 (or 12) easy steps.
+//
+// 1. Add the method in this file, service.go.
+//    a. Add the method to the interface, above. (Always return an error.)
+//    b. Add the method and implementation to the service struct, below.
+//
+// 2. Update endpoints.go.
+//    a. Add an endpoint to the Endpoints struct.
+//    b. Populate it in the MakeServerEndpoints constructor.
+//    c. This requires defining an individual MakeFooEndpoint constructor.
+//    d. That in turn requires defining fooRequest and fooResponse structs.
+//
+// 3. Update transport.go.
+//    a. Wire up the endpoint in MakeHTTPHandler.
+//    b. That requires defining decodeFooRequest and encodeFooResponse funcs.
+//
+// 4. Update client.go.
+//    a. Add a httptransport.NewClient call to the NewClient constructor.
+//    b. That requires defining encodeFooRequest and decodeFooResponse funcs,
+//       which actually live back in transport.go.
+//    c. Add the relevant method to the serviceWrapper struct.
+//
+// 5. Update middlewares.go.
+//    a. Add the relevant method to each middleware defined there.
+
 var (
 	// ErrNoPlatformConfigured indicates a service was constructed without a
 	// reference to a runtime platform. A programmer or configuration error.
