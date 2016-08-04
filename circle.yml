@@ -13,9 +13,15 @@ checkout:
     - cd ${GOPATH}/src/github.com/weaveworks/fluxy
 
 dependencies:
+  cache_directories:
+    - "~/fluxy/vendor/k8s.io"
+    - "~/fluxy/vendor/github.com"
+    - "~/fluxy/vendor/gopkg.in"
+    - "~/fluxy/vendor/golang.org"
   override: 
     - go get github.com/Masterminds/glide
-    - glide install
+    - go get github.com/FiloSottile/gvt
+    - gvt restore
 
 test:
   override:
