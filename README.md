@@ -107,14 +107,8 @@ Whenever it finds a new image, it automates a release as follows.
 
 ## Installing
 
-If you have a working Go toolchain, you can install the most recent version of the binaries via
-
-```
-$ go get github.com/weaveworks/fluxy/cmd/fluxd
-$ go get github.com/weaveworks/fluxy/cmd/fluxctl
-```
-
-Otherwise, see [the releases page](https://github.com/weaveworks/fluxy/releases) for downloads.
+For the minute you will have to build or use the container image
+`quay.io/weaveworks/fluxy`.
 
 ## Developing
 
@@ -124,11 +118,12 @@ Ensure the repository is checked out into $GOPATH/src/github.com/weaveworks/flux
 Then, from the root,
 
 ```
-$ go install ./...
+$ gvt restore
+# .. time passes ..
+$ make
 ```
 
-Flux vendors all of its dependencies, so that should be sufficient.
-Binaries are installed to $GOPATH/bin.
+This makes Docker images, and installs binaries to $GOPATH/bin.
 
 ### Test
 
@@ -138,14 +133,25 @@ $ go test ./...
 
 ### Dependency management
 
-We use [Glide](https://github.com/Masterminds/glide) to manage vendored dependencies.
+We use [gvt](https://github.com/FiloSottile/gvt) to manage vendored dependencies.
 Note that **we do not check in the vendor folder**.
-If you add or remove dependencies, use the following command to update the glide.yaml and glide.lock files,
- and to populate your local vendor folder.
+
+To get all the dependencies put in the `vendor/` folder, use
 
 ```
-$ glide update
+$ go get -u github.com/FiloSottile/gvt # install gvt if you don't have it
+$ gvt restore
 ```
+
+To add dependencies, use 
+
+```
+$ gvt fetch <dependency>
+```
+
+`gvt` does not *discover* dependencies for you, but it will add them
+recursively; so, it should be sufficient to just add packages you
+import.
 
 ### Contribution
 
@@ -161,4 +167,3 @@ All contributions should be made as PRs that satisfy the guidelines below.
 
 In addition, several mechanical checks are enforced.
 See [the lint script](/lint) for details.
-
