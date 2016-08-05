@@ -17,7 +17,6 @@ spec:
         - containerPort: 3030
         args:
         - /home/flux/fluxd
-        - --kubernetes
         - --kubernetes-kubectl=/home/flux/kubectl
         - --kubernetes-host=https://kubernetes
         - --kubernetes-certificate-authority=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
