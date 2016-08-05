@@ -66,7 +66,7 @@ func configUpdate(file string, newImage string) error {
 	if err != nil {
 		return err
 	}
-	newdef, err := kubernetes.UpdateReplicationController(def, newImage, ioutil.Discard)
+	newdef, err := kubernetes.UpdatePodController(def, newImage, ioutil.Discard)
 	if err != nil {
 		return err
 	}

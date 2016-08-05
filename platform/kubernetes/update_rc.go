@@ -10,7 +10,7 @@ import (
 	"github.com/weaveworks/fluxy/registry"
 )
 
-// UpdateReplicationController takes the body of a ReplicationController
+// UpdatePodController takes the body of a ReplicationController or Deployment
 // resource definition (specified in YAML) and the name of the new image that
 // should be put in the definition (in the format "repo.org/group/name:tag"). It
 // returns a new resource definition body where all references to the old image
@@ -18,7 +18,7 @@ import (
 //
 // This function has many additional requirements that are likely in flux. Read
 // the source to learn about them.
-func UpdateReplicationController(def []byte, newImageName string, trace io.Writer) ([]byte, error) {
+func UpdatePodController(def []byte, newImageName string, trace io.Writer) ([]byte, error) {
 	var buf bytes.Buffer
 	err := tryUpdateRC(string(def), newImageName, trace, &buf)
 	return buf.Bytes(), err
@@ -74,10 +74,10 @@ func tryUpdateRC(rc, newImageStr string, trace io.Writer, out io.Writer) error {
 	)
 	matches := nameRE.FindStringSubmatch(rc)
 	if matches == nil || len(matches) < 2 {
-		return fmt.Errorf("Could not find replication controller name")
+		return fmt.Errorf("Could not find resource name")
 	}
 	oldRCName := matches[1]
-	fmt.Fprintf(trace, "Found replication controller name %q in fragment:\n\n%s\n\n", oldRCName, matches[0])
+	fmt.Fprintf(trace, "Found resource name %q in fragment:\n\n%s\n\n", oldRCName, matches[0])
 
 	imageRE := multilineRE(
 		`      containers:.*`,
@@ -109,8 +109,8 @@ func tryUpdateRC(rc, newImageStr string, trace io.Writer, out io.Writer) error {
 
 	fmt.Fprintln(trace, "")
 	fmt.Fprintln(trace, "Replacing ...")
-	fmt.Fprintf(trace, "Replication controller name: %q -> %q\n", oldRCName, newRCName)
-	fmt.Fprintf(trace, "Version in container %q and selector: %q -> %q\n", containerName, oldImage.Tag, newImage.Tag)
+	fmt.Fprintf(trace, "Resource name: %q -> %q\n", oldRCName, newRCName)
+	fmt.Fprintf(trace, "Version in container %q (and selector if present): %q -> %q\n", containerName, oldImage.Tag, newImage.Tag)
 	fmt.Fprintf(trace, "Image for container %q: %q -> %q\n", containerName, oldImage, newImage)
 	fmt.Fprintln(trace, "")
 

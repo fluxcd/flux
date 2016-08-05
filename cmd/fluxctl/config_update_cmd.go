@@ -76,7 +76,7 @@ func (opts *configUpdateOpts) RunE(_ *cobra.Command, args []string) error {
 		}
 		defer func() { f.Close(); os.Remove(f.Name()) }()
 
-		newbuf, err := kubernetes.UpdateReplicationController(buf, opts.image, trace)
+		newbuf, err := kubernetes.UpdatePodController(buf, opts.image, trace)
 		if err != nil {
 			return err
 		}
@@ -86,7 +86,7 @@ func (opts *configUpdateOpts) RunE(_ *cobra.Command, args []string) error {
 		return os.Rename(f.Name(), opts.output)
 	}
 
-	newbuf, err := kubernetes.UpdateReplicationController(buf, opts.image, trace)
+	newbuf, err := kubernetes.UpdatePodController(buf, opts.image, trace)
 	if err != nil {
 		return err
 	}
