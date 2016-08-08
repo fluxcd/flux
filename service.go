@@ -149,6 +149,12 @@ func (s *service) Release(namespace, service string, newDef []byte, updatePeriod
 		return ErrNoPlatformConfigured
 	}
 
+	// This is a stand-in for better information we may get from the
+	// platform, e.g., by looking at the old and new definitions
+	if e := s.history.LogEvent(namespace, service, "Attempting release"); e != nil {
+		s.logger.Log("method", "Release", "error", e)
+	}
+
 	err := s.platform.Release(namespace, service, newDef, updatePeriod)
 	var event string
 	if err != nil {

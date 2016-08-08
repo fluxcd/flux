@@ -2,13 +2,13 @@ package history
 
 import (
 	"database/sql"
+	"os"
 
 	"github.com/go-kit/kit/log"
 )
 
 // A history DB that uses a SQL database
-
-type sqlDB struct {
+type sqlHistoryDB struct {
 	driver *sql.DB
 	logger log.Logger
 }
@@ -18,23 +18,19 @@ func NewSQL(driver, datasource string, logger log.Logger) (DB, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := ensureTables(db, logger); err != nil {
-		return nil, err
-	}
-	return &sqlDB{driver: db, logger: logger}, nil
+	historyDB := &sqlHistoryDB{driver: db, logger: logger}
+	return historyDB, historyDB.ensureTables()
 }
 
-func (db *sqlDB) AllEvents(namespace string) ([]Event, error) {
-	eventRows, err := db.driver.Query(`SELECT service, message, stamp
-                                FROM history
-                                WHERE namespace = $1
-                                ORDER BY service, stamp DESC`, namespace)
+func (db *sqlHistoryDB) queryEvents(query string, params ...interface{}) ([]Event, error) {
+	eventRows, err := db.driver.Query(query, params...)
 
 	if err != nil {
 		return nil, err
 	}
+	defer eventRows.Close()
 
-	events := make([]Event, 0)
+	events := []Event{}
 	for eventRows.Next() {
 		var event Event
 		eventRows.Scan(&event.Service, &event.Msg, &event.Stamp)
@@ -47,50 +43,51 @@ func (db *sqlDB) AllEvents(namespace string) ([]Event, error) {
 	return events, nil
 }
 
-func (db *sqlDB) EventsForService(namespace, service string) ([]Event, error) {
-	eventRows, err := db.driver.Query(`SELECT message, stamp
-                                FROM history
-                                WHERE namespace = $1 AND service = $2
-                                ORDER BY stamp DESC`, namespace, service)
-	if err != nil {
-		return nil, err
-	}
-
-	events := make([]Event, 0)
-	for eventRows.Next() {
-		event := Event{}
-		eventRows.Scan(&event.Msg, &event.Stamp)
-		events = append(events, event)
-	}
-	if eventRows.Err() != nil {
-		return nil, eventRows.Err()
-	}
-	return events, nil
+func (db *sqlHistoryDB) AllEvents(namespace string) ([]Event, error) {
+	return db.queryEvents(`SELECT service, message, stamp
+                           FROM history
+                           WHERE namespace = $1
+                           ORDER BY service, stamp DESC`, namespace)
 }
 
-func (db *sqlDB) LogEvent(namespace, service, msg string) error {
+func (db *sqlHistoryDB) EventsForService(namespace, service string) ([]Event, error) {
+	return db.queryEvents(`SELECT service, message, stamp
+                           FROM history
+                           WHERE namespace = $1 AND service = $2
+                           ORDER BY stamp DESC`, namespace, service)
+}
+
+func (db *sqlHistoryDB) LogEvent(namespace, service, msg string) error {
 	tx, err := db.driver.Begin()
 	if err != nil {
 		return err
-	} else {
-		_, err = tx.Exec(`INSERT INTO history
+	}
+
+	_, err = tx.Exec(`INSERT INTO history
                        (namespace, service, message, stamp)
                        VALUES ($1, $2, $3, now())`, namespace, service, msg)
-	}
 	if err == nil {
 		err = tx.Commit()
 	}
 	return err
 }
 
-func ensureTables(db *sql.DB, logger log.Logger) (err error) {
-	logger = log.NewContext(logger).With("method", "ensureTables")
+func (db *sqlHistoryDB) ensureTables() (err error) {
+	logger := log.NewContext(db.logger).With("method", "ensureTables")
 	defer logger.Log("err", err)
 
-	tx, err := db.Begin()
+	// ql requires a temp directory, but will apparently not create it
+	// if it doesn't exist; and that can be the case when run inside a
+	// container.
+	os.Mkdir(os.TempDir(), 0777)
+
+	tx, err := db.driver.Begin()
 	if err != nil {
 		return err
 	}
+	// cznic/ql has its own idea of types; this will need to be
+	// adapted for other DB drivers.
+	// http://godoc.org/github.com/cznic/ql#hdr-Types
 	_, err = tx.Exec(`CREATE TABLE IF NOT EXISTS history
              (namespace string NOT NULL,
               service   string NOT NULL,
