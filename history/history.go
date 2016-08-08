@@ -1,7 +1,6 @@
 package history
 
 import (
-	"errors"
 	"time"
 )
 
@@ -11,10 +10,6 @@ const (
 	StateUnknown    ServiceState = "Unknown"
 	StateRest                    = "At rest"
 	StateInProgress              = "Release in progress"
-)
-
-var (
-	ErrNoHistory = errors.New("no history for service")
 )
 
 type Event struct {
