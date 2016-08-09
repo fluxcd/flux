@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"path"
 	"time"
 
 	"github.com/go-kit/kit/log"
@@ -323,7 +324,7 @@ func encodeImagesRequest(ctx context.Context, req *http.Request, request interfa
 	r := request.(imagesRequest)
 
 	req.Method = "GET"
-	req.URL.Path = "/v0/images/" + r.Repository
+	req.URL.Path = path.Join(req.URL.Path, "/v0/images/"+r.Repository)
 
 	return nil
 }
@@ -334,7 +335,7 @@ func encodeServiceImagesRequest(ctx context.Context, req *http.Request, request 
 	values.Set("namespace", r.Namespace)
 
 	req.Method = "GET"
-	req.URL.Path = fmt.Sprintf("/v0/service/%s/images", r.Service)
+	req.URL.Path = path.Join(req.URL.Path, fmt.Sprintf("/v0/service/%s/images", r.Service))
 	req.URL.RawQuery = values.Encode()
 
 	return nil
@@ -346,7 +347,7 @@ func encodeServicesRequest(ctx context.Context, req *http.Request, request inter
 	values.Set("namespace", r.Namespace)
 
 	req.Method = "GET"
-	req.URL.Path = "/v0/services"
+	req.URL.Path = path.Join(req.URL.Path, "/v0/services")
 	req.URL.RawQuery = values.Encode()
 
 	return nil
@@ -358,7 +359,8 @@ func encodeHistoryRequest(ctx context.Context, req *http.Request, request interf
 	values.Set("namespace", r.Namespace)
 
 	req.Method = "GET"
-	req.URL.Path = fmt.Sprintf("/v0/history/%s", r.Service)
+	// NB be careful here: Join will strip a trailing slash
+	req.URL.Path = fmt.Sprintf(path.Join(req.URL.Path, "/v0/history/%s"), r.Service)
 	req.URL.RawQuery = values.Encode()
 
 	return nil
@@ -372,7 +374,7 @@ func encodeReleaseRequest(ctx context.Context, req *http.Request, request interf
 	values.Set("updatePeriod", r.UpdatePeriod.String())
 
 	req.Method = "POST"
-	req.URL.Path = "/v0/release"
+	req.URL.Path = path.Join(req.URL.Path, "/v0/release")
 	req.URL.RawQuery = values.Encode()
 	req.Body = ioutil.NopCloser(bytes.NewReader(r.NewDef))
 
@@ -386,7 +388,7 @@ func encodeAutomateRequest(ctx context.Context, req *http.Request, request inter
 	values.Set("service", r.Service)
 
 	req.Method = "POST"
-	req.URL.Path = "/v0/automate"
+	req.URL.Path = path.Join(req.URL.Path, "/v0/automate")
 	req.URL.RawQuery = values.Encode()
 
 	return nil
@@ -399,7 +401,7 @@ func encodeDeautomateRequest(ctx context.Context, req *http.Request, request int
 	values.Set("service", r.Service)
 
 	req.Method = "POST"
-	req.URL.Path = "/v0/deautomate"
+	req.URL.Path = path.Join(req.URL.Path, "/v0/deautomate")
 	req.URL.RawQuery = values.Encode()
 
 	return nil
