@@ -28,4 +28,4 @@ vendor/
 build/
 testdata/helloworld-linux-amd64
 testdata/.helloworld
-
+docker/fluxy-dumbconf.priv
