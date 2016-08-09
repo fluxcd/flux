@@ -23,7 +23,6 @@ func NewClient(instance string) (Service, error) {
 	if err != nil {
 		return nil, err
 	}
-	tgt.Path = ""
 
 	options := []httptransport.ClientOption{}
 
