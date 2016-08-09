@@ -23,3 +23,6 @@ spec:
         - --kubernetes-bearer-token-file=/var/run/secrets/kubernetes.io/serviceaccount/token
         - --database-driver=ql
         - --database-source=file://history.db
+        - --automation-repo-url=git@github.com:peterbourgon/dumbconf
+        - --automation-repo-key=fluxy-dumbconf.priv
+        - --automation-repo-path="/"
