@@ -2,10 +2,7 @@ package history
 
 import (
 	"io/ioutil"
-	"os"
 	"testing"
-
-	"github.com/go-kit/kit/log"
 )
 
 func mkDBFile() string {
@@ -23,8 +20,7 @@ func bailIfErr(t *testing.T, err error) {
 }
 
 func TestHistoryLog(t *testing.T) {
-	logger := log.NewLogfmtLogger(os.Stderr)
-	db, err := NewSQL("ql", "file://"+mkDBFile(), logger)
+	db, err := NewSQL("ql", "file://"+mkDBFile())
 	if err != nil {
 		t.Fatal(err)
 	}

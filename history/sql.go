@@ -3,22 +3,19 @@ package history
 import (
 	"database/sql"
 	"os"
-
-	"github.com/go-kit/kit/log"
 )
 
 // A history DB that uses a SQL database
 type sqlHistoryDB struct {
 	driver *sql.DB
-	logger log.Logger
 }
 
-func NewSQL(driver, datasource string, logger log.Logger) (DB, error) {
+func NewSQL(driver, datasource string) (DB, error) {
 	db, err := sql.Open(driver, datasource)
 	if err != nil {
 		return nil, err
 	}
-	historyDB := &sqlHistoryDB{driver: db, logger: logger}
+	historyDB := &sqlHistoryDB{driver: db}
 	return historyDB, historyDB.ensureTables()
 }
 
@@ -73,9 +70,6 @@ func (db *sqlHistoryDB) LogEvent(namespace, service, msg string) error {
 }
 
 func (db *sqlHistoryDB) ensureTables() (err error) {
-	logger := log.NewContext(db.logger).With("method", "ensureTables")
-	defer logger.Log("err", err)
-
 	// ql requires a temp directory, but will apparently not create it
 	// if it doesn't exist; and that can be the case when run inside a
 	// container.

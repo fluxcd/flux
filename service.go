@@ -4,8 +4,6 @@ import (
 	"errors"
 	"time"
 
-	"github.com/go-kit/kit/log"
-
 	"github.com/weaveworks/fluxy/automator"
 	"github.com/weaveworks/fluxy/history"
 	"github.com/weaveworks/fluxy/platform"
@@ -81,13 +79,12 @@ var (
 )
 
 // NewService returns a service connected to the provided Kubernetes platform.
-func NewService(reg *registry.Client, k8s *kubernetes.Cluster, auto *automator.Automator, history history.DB, logger log.Logger) Service {
+func NewService(reg *registry.Client, k8s *kubernetes.Cluster, auto *automator.Automator, history history.DB) Service {
 	return &service{
 		registry:  reg,
 		platform:  k8s,
 		automator: auto,
 		history:   history,
-		logger:    logger,
 	}
 }
 
@@ -96,7 +93,6 @@ type service struct {
 	platform  *kubernetes.Cluster // TODO(pb): replace with platform.Platform when we have that
 	automator *automator.Automator
 	history   history.DB
-	logger    log.Logger
 }
 
 // ContainerImages describes a combination of a platform container spec, and the
@@ -150,10 +146,10 @@ func (s *service) Release(namespace, service string, newDef []byte, updatePeriod
 	}
 
 	// This is a stand-in for better information we may get from the
-	// platform, e.g., by looking at the old and new definitions
-	if e := s.history.LogEvent(namespace, service, "Attempting release"); e != nil {
-		s.logger.Log("method", "Release", "error", e)
-	}
+	// platform, e.g., by looking at the old and new definitions.
+	// Note that these are "best effort" -- errors are ignored, rather
+	// than affecting the release.
+	s.history.LogEvent(namespace, service, "Attempting release")
 
 	err := s.platform.Release(namespace, service, newDef, updatePeriod)
 	var event string
@@ -162,9 +158,7 @@ func (s *service) Release(namespace, service string, newDef []byte, updatePeriod
 	} else {
 		event = "Release succeeded"
 	}
-	if e := s.history.LogEvent(namespace, service, event); e != nil {
-		s.logger.Log("method", "Release", "error", e)
-	}
+	s.history.LogEvent(namespace, service, event) // NB best effort
 
 	return err // that from the release itself
 }

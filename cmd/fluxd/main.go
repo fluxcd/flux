@@ -124,10 +124,9 @@ func main() {
 	var his history.DB
 	{
 		var err error
-		his, err = history.NewSQL(*databaseDriver, *databaseSource,
-			log.NewContext(logger).With("component", "history"))
+		his, err = history.NewSQL(*databaseDriver, *databaseSource)
 		if err != nil {
-			logger.Log("err", err)
+			logger.Log("component", "history", "err", err)
 			os.Exit(1)
 		}
 	}
@@ -141,7 +140,7 @@ func main() {
 	// Service (business logic) domain.
 	var service flux.Service
 	{
-		service = flux.NewService(reg, k8s, auto, his, logger)
+		service = flux.NewService(reg, k8s, auto, his)
 		service = flux.LoggingMiddleware(logger)(service)
 	}
 
