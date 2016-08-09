@@ -10,7 +10,7 @@ package platform
 // service.
 type Service struct {
 	Name     string
-	Image    string // currently running, e.g. "quay.io/weaveworks/helloworld:master-a000001"
+	Image    string // currently running, or "(multiple RCs)"
 	IP       string
 	Ports    []Port
 	Metadata map[string]string // a grab bag of goodies, likely platform-specific
