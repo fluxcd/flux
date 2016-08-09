@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/go-kit/kit/log"
 	"github.com/spf13/pflag"
@@ -42,6 +43,10 @@ func main() {
 		kubernetesClientKey       = fs.String("kubernetes-client-key", "", "Path to Kubernetes client key file for TLS")
 		kubernetesCertAuthority   = fs.String("kubernetes-certificate-authority", "", "Path to Kubernetes cert file for certificate authority")
 		kubernetesBearerTokenFile = fs.String("kubernetes-bearer-token-file", "", "Path to file containing Kubernetes Bearer Token file")
+		automationRepoURL         = fs.String("automation-repo-url", "", "Automation config repo URL, e.g. https://github.com/myorg/conf.git")
+		automationRepoKey         = fs.String("automation-repo-key", "", "SSH key file with commit rights to config repo")
+		automationRepoPath        = fs.String("automation-repo-path", "", "Path within automation config repo to look for resource definition files")
+		automationUpdatePeriod    = fs.Duration("automation-update-period", 5*time.Second, "Automation rolling update period")
 	)
 	fs.Parse(os.Args)
 
@@ -127,7 +132,20 @@ func main() {
 	// Automator component.
 	var auto *automator.Automator
 	{
-		auto = automator.New(k8s, reg, his)
+		var err error
+		auto, err = automator.New(automator.Config{
+			Platform:       k8s,
+			Registry:       reg,
+			History:        his,
+			ConfigRepoURL:  *automationRepoURL,
+			ConfigRepoKey:  *automationRepoKey,
+			ConfigRepoPath: *automationRepoPath,
+			UpdatePeriod:   *automationUpdatePeriod,
+		})
+		if err != nil {
+			logger.Log("err", err)
+			os.Exit(1)
+		}
 	}
 
 	// Service (business logic) domain.

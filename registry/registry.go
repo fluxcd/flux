@@ -254,5 +254,8 @@ func (is images) Swap(i, j int) { is[i], is[j] = is[j], is[i] }
 type byCreatedDesc struct{ images }
 
 func (is byCreatedDesc) Less(i, j int) bool {
+	if is.images[i].CreatedAt.Equal(is.images[j].CreatedAt) {
+		return is.images[i].String() < is.images[j].String()
+	}
 	return is.images[i].CreatedAt.After(is.images[j].CreatedAt)
 }

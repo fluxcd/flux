@@ -21,3 +21,6 @@ spec:
         - --kubernetes-host=https://kubernetes
         - --kubernetes-certificate-authority=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
         - --kubernetes-bearer-token-file=/var/run/secrets/kubernetes.io/serviceaccount/token
+        - --automation-repo-url=git@github.com:peterbourgon/dumbconf
+        - --automation-repo-key=fluxy-dumbconf.priv
+        - --automation-repo-path="/"
