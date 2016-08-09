@@ -2,7 +2,11 @@ package automator
 
 import (
 	"fmt"
+	"io/ioutil"
+	"os"
 	"time"
+
+	"path/filepath"
 
 	"github.com/weaveworks/fluxy/history"
 	"github.com/weaveworks/fluxy/platform/kubernetes"
@@ -19,10 +23,12 @@ const (
 	stateWaiting          = "Waiting"
 )
 
-type serviceLogger func(msg string)
+type serviceLogFunc func(format string, args ...interface{})
 
-func makeServiceLogger(his history.DB, namespace, serviceName string) serviceLogger {
-	return func(msg string) { his.LogEvent(namespace, serviceName, "Automation: "+msg) }
+func makeServiceLogFunc(his history.DB, namespace, serviceName string) serviceLogFunc {
+	return func(format string, args ...interface{}) {
+		his.LogEvent(namespace, serviceName, fmt.Sprintf("Automation: "+format, args...))
+	}
 }
 
 var (
@@ -36,26 +42,24 @@ type svc struct {
 	namespace   string
 	serviceName string
 	st          state
-	k8s         *kubernetes.Cluster
-	reg         *registry.Client
-	log         serviceLogger
+	logf        serviceLogFunc
 	waitc       <-chan time.Time // optionally set before moving to Waiting
 	candidate   *registry.Image  // set before moving to Releasing
 	deletec     chan struct{}    // close to move to Deleting
 	onDelete    func()
+	cfg         Config
 }
 
-func newSvc(namespace, serviceName string, k8s *kubernetes.Cluster, reg *registry.Client, log serviceLogger, onDelete func()) *svc {
+func newSvc(namespace, serviceName string, logf serviceLogFunc, onDelete func(), cfg Config) *svc {
 	s := &svc{
 		namespace:   namespace,
 		serviceName: serviceName,
 		st:          stateRefreshing,
-		k8s:         k8s,
-		reg:         reg,
-		log:         log,
+		logf:        logf,
 		waitc:       nil,
 		deletec:     make(chan struct{}),
 		onDelete:    onDelete,
+		cfg:         cfg,
 	}
 	go s.loop()
 	return s
@@ -63,8 +67,8 @@ func newSvc(namespace, serviceName string, k8s *kubernetes.Cluster, reg *registr
 
 // See doc.go for an illustration of the service state machine.
 func (s *svc) loop() {
-	s.log("service activated")
-	defer s.log("service deactivated")
+	s.logf("service activated")
+	defer s.logf("service deactivated")
 
 	for {
 		switch s.st {
@@ -76,7 +80,7 @@ func (s *svc) loop() {
 			s.st = s.refreshing()
 
 		case stateReleasing:
-			s.st = s.releasing()
+			s.st = s.releasing(s.cfg)
 
 		case stateWaiting:
 			s.st = s.waiting()
@@ -85,12 +89,12 @@ func (s *svc) loop() {
 }
 
 func (s *svc) signalDelete() {
-	s.log("entering Deleting state")
+	s.logf("entering Deleting state")
 	close(s.deletec)
 }
 
 func (s *svc) refreshing() state {
-	s.log("entering Refreshing state")
+	s.logf("entering Refreshing state")
 
 	select {
 	case <-s.deletec:
@@ -99,81 +103,120 @@ func (s *svc) refreshing() state {
 	}
 
 	// Get the service from the platform.
-	service, err := s.k8s.Service(s.namespace, s.serviceName)
+	service, err := s.cfg.Platform.Service(s.namespace, s.serviceName)
 	switch err {
 	case nil:
 		break
 	case kubernetes.ErrNoMatchingService:
-		s.log("service doesn't exist; deleting")
+		s.logf("service doesn't exist; deleting")
 		return stateDeleting
 	default:
-		s.log(fmt.Sprintf("refresh failed when fetching platform service: %v", err))
+		s.logf("refresh failed when fetching platform service: %v", err)
 		return stateWaiting
 	}
-	s.log(fmt.Sprintf("%s is running %s", service.Name, service.Image))
+	s.logf("%s is running %s", service.Name, service.Image)
+
+	if i := registry.ParseImage(service.Image); i.Tag == "" {
+		// TODO(pb): service.Image is meant to be a human-readable string, and
+		// can be something like "(multiple RCs)". This is a little hack to
+		// detect that without doing string comparisons. If you want to fix
+		// this, please fix it by making ParseImage return an error, or by
+		// making service.Image stricter and signaling the multiple RC condition
+		// through some other piece of metadata.
+		s.logf("%s is not a valid image (no tag); aborting", service.Image)
+		return stateWaiting
+	}
 
 	// Get available images based on the current image.
 	img := registry.ParseImage(service.Image)
-	repo, err := s.reg.GetRepository(img.Repository())
+	repo, err := s.cfg.Registry.GetRepository(img.Repository())
 	if err != nil {
-		s.log(fmt.Sprintf("refresh failed when fetching image repository: %v", err))
+		s.logf("refresh failed when fetching image repository: %v", err)
 		return stateWaiting
 	}
 	if len(repo.Images) == 0 {
-		s.log("refresh failed when checking image repository: no images found")
+		s.logf("refresh failed when checking image repository: no images found")
 		return stateWaiting
 	}
 
 	// If we're already running the latest image, we're good.
 	if repo.Images[0].String() == service.Image {
-		s.log("refresh successful, already running latest image")
+		s.logf("refresh successful, already running latest image")
 		return stateWaiting
 	}
 
 	// Otherwise, we need to be running the latest image.
 	s.candidate = &(repo.Images[0])
-	s.log(fmt.Sprintf("%s should be running %s", service.Name, s.candidate))
+	s.logf("%s should be running %s", service.Name, s.candidate)
 	return stateReleasing
 }
 
-func (s *svc) releasing() state {
-	s.log("entering Releasing state")
+func (s *svc) releasing(cfg Config) state {
+	s.logf("entering Releasing state")
 
+	// Validate candidate image.
 	if s.candidate == nil {
 		panic("no candidate available in releasing state; programmer error!")
 	}
 	defer func() { s.candidate = nil }()
+	s.logf("releasing %s", s.candidate)
 
-	s.log(fmt.Sprintf("releasing %s", s.candidate))
-
-	// Check out latest version of config repo
-	s.log("TODO: checking out latest version of config repo") // TODO(pb)
-
-	// Find the relevant RC
-	s.log("TODO: identifying relevant resource definitions") // TODO(pb)
-
-	// Mutate it to the right version
-	s.log("TODO: mutating relevant resource definitions to the new image") // TODO(pb)
-
-	var err error // = s.k8s.Release(s.namespace, s.serviceName, rc, s.updatePeriod) // TODO(pb)
+	// Check out latest version of config repo.
+	s.logf("fetching config repo")
+	configPath, err := gitClone(cfg.ConfigRepoKey, cfg.ConfigRepoURL)
 	if err != nil {
-		s.log(fmt.Sprintf("release failed: %v", err))
+		s.logf("clone of config repo failed: %v", err)
+		return stateWaiting
+	}
+	defer os.RemoveAll(configPath)
+
+	// Find the relevant resource definition file.
+	file, err := findFileFor(configPath, cfg.ConfigRepoPath, s.candidate.Repository())
+	if err != nil {
+		s.logf("couldn't find a resource definition file: %v", err)
 		return stateWaiting
 	}
 
-	// Write the mutated file to disk
-	s.log("TODO: writing mutated resource definitions to disk") // TODO(pb)
+	// Special case: will this actually result in an update?
+	if fileContains(file, s.candidate.String()) {
+		s.logf("%s already set to %s; no release necessary", filepath.Base(file), s.candidate.String())
+		return stateWaiting
+	}
 
-	// Commit and push the config repo
-	s.log("TODO: committing and pushing config repo") // TODO(pb)
-	time.Sleep(5 * time.Second)
+	// Mutate the file so it points to the right image.
+	// TODO(pb): should validate file contents are what we expect.
+	if err := configUpdate(file, s.candidate.String()); err != nil {
+		s.logf("config update failed: %v", err)
+		return stateWaiting
+	}
 
-	s.log("TODO: service release succeeded")
+	// Make the release.
+	buf, err := ioutil.ReadFile(file)
+	if err != nil {
+		s.logf("couldn't read the resource definition file: %v", err)
+		return stateWaiting
+	}
+	s.logf("starting release...")
+	err = s.cfg.Platform.Release(s.namespace, s.serviceName, buf, cfg.UpdatePeriod)
+	if err != nil {
+		s.logf("release failed: %v", err)
+		return stateWaiting
+	}
+	s.logf("release complete")
+
+	// Commit and push the mutated file.
+	if err := gitCommitAndPush(cfg.ConfigRepoKey, configPath, "Automated deployment of "+s.candidate.String()); err != nil {
+		s.logf("commit and push failed: %v", err)
+		return stateWaiting
+	}
+	s.logf("committed and pushed the resource definition file %s", file)
+
+	s.logf("service release succeeded")
 	return stateWaiting
 }
 
 func (s *svc) waiting() state {
-	s.log("entering Waiting state")
+	s.logf("entering Waiting state")
 
 	if s.waitc == nil {
 		s.waitc = time.After(waitingTimeDefault)
