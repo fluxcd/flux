@@ -42,6 +42,8 @@ func main() {
 		kubernetesClientKey       = fs.String("kubernetes-client-key", "", "Path to Kubernetes client key file for TLS")
 		kubernetesCertAuthority   = fs.String("kubernetes-certificate-authority", "", "Path to Kubernetes cert file for certificate authority")
 		kubernetesBearerTokenFile = fs.String("kubernetes-bearer-token-file", "", "Path to file containing Kubernetes Bearer Token file")
+		databaseDriver            = fs.String("database-driver", "ql-mem", `Database driver name, e.g., "postgres"; the default is an in-memory DB`)
+		databaseSource            = fs.String("database-source", "history.db", `Database source name; specific to the database driver (--database-driver) used. The default is an arbitrary, in-memory DB name`)
 	)
 	fs.Parse(os.Args)
 
@@ -121,7 +123,12 @@ func main() {
 	// History component.
 	var his history.DB
 	{
-		his = history.NewInMemDB()
+		var err error
+		his, err = history.NewSQL(*databaseDriver, *databaseSource)
+		if err != nil {
+			logger.Log("component", "history", "err", err)
+			os.Exit(1)
+		}
 	}
 
 	// Automator component.

@@ -30,7 +30,7 @@ type Service interface {
 	Services(namespace string) ([]platform.Service, error)
 
 	// History returns the release history of one or all services
-	History(namespace, service string) (map[string]history.History, error)
+	History(namespace, service string) ([]history.Event, error)
 
 	// Release migrates a service from its current image to a new image, derived
 	// from the newDef definition. Right now, that needs to be the body of a
@@ -133,41 +133,34 @@ func (s *service) Services(namespace string) ([]platform.Service, error) {
 	return s.platform.Services(namespace)
 }
 
-func (s *service) History(namespace, service string) (map[string]history.History, error) {
+func (s *service) History(namespace, service string) ([]history.Event, error) {
 	if service == "" {
 		return s.history.AllEvents(namespace)
 	}
-
-	h, err := s.history.EventsForService(namespace, service)
-	if err == history.ErrNoHistory {
-		// TODO(pb): not super happy with this
-		h = history.History{
-			Service: service,
-			State:   history.StateUnknown,
-		}
-	} else if err != nil {
-		return nil, err
-	}
-
-	return map[string]history.History{
-		h.Service: h,
-	}, nil
+	return s.history.EventsForService(namespace, service)
 }
 
-func (s *service) Release(namespace, service string, newDef []byte, updatePeriod time.Duration) (err error) {
+func (s *service) Release(namespace, service string, newDef []byte, updatePeriod time.Duration) error {
 	if s.platform == nil {
 		return ErrNoPlatformConfigured
 	}
-	s.history.ChangeState(namespace, service, history.StateInProgress)
-	defer func() {
-		if err != nil {
-			s.history.LogEvent(namespace, service, "Release failed: "+err.Error())
-		} else {
-			s.history.LogEvent(namespace, service, "Release succeeded")
-		}
-		s.history.ChangeState(namespace, service, history.StateRest)
-	}()
-	return s.platform.Release(namespace, service, newDef, updatePeriod)
+
+	// This is a stand-in for better information we may get from the
+	// platform, e.g., by looking at the old and new definitions.
+	// Note that these are "best effort" -- errors are ignored, rather
+	// than affecting the release.
+	s.history.LogEvent(namespace, service, "Attempting release")
+
+	err := s.platform.Release(namespace, service, newDef, updatePeriod)
+	var event string
+	if err != nil {
+		event = "Release failed: " + err.Error()
+	} else {
+		event = "Release succeeded"
+	}
+	s.history.LogEvent(namespace, service, event) // NB best effort
+
+	return err // that from the release itself
 }
 
 func (s *service) Automate(namespace, service string) error {

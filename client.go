@@ -80,7 +80,7 @@ func (w serviceWrapper) Services(namespace string) ([]platform.Service, error) {
 	return resp.Services, resp.Err
 }
 
-func (w serviceWrapper) History(namespace, service string) (map[string]history.History, error) {
+func (w serviceWrapper) History(namespace, service string) ([]history.Event, error) {
 	request := historyRequest{namespace, service}
 	response, err := w.endpoints.HistoryEndpoint(w.ctx, request)
 	if err != nil {

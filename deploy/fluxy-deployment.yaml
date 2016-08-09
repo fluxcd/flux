@@ -21,3 +21,5 @@ spec:
         - --kubernetes-host=https://kubernetes
         - --kubernetes-certificate-authority=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
         - --kubernetes-bearer-token-file=/var/run/secrets/kubernetes.io/serviceaccount/token
+        - --database-driver=ql
+        - --database-source=file://history.db

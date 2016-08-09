@@ -14,6 +14,7 @@ type Service struct {
 	IP       string
 	Ports    []Port
 	Metadata map[string]string // a grab bag of goodies, likely platform-specific
+	Status   string            // A status summary for display
 }
 
 // Port describes the mapping of a port on a service IP to the corresponding

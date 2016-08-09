@@ -141,7 +141,7 @@ type historyRequest struct {
 }
 
 type historyResponse struct {
-	History map[string]history.History
+	History []history.Event
 	Err     error
 }
 
