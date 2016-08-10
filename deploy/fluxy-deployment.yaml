@@ -12,7 +12,7 @@ spec:
       volumes:
       - name: key
         secret:
-        - secretName: fluxy-repo-key
+          secretName: fluxy-repo-key
       containers:
       - name: fluxy
         image: weaveworks/fluxy
