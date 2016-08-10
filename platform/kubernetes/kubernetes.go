@@ -30,8 +30,8 @@ var (
 	ErrEmptySelector        = errors.New("empty selector")
 	ErrWrongResourceKind    = errors.New("new definition does not match existing resource")
 	ErrNoMatchingService    = errors.New("no matching service")
-	ErrNoMatchingPods       = errors.New("no matching replication controllers or deployments")
 	ErrServiceHasNoSelector = errors.New("service has no selector")
+	ErrNoMatching           = errors.New("no matching replication controllers or deployments")
 	ErrMultipleMatching     = errors.New("multiple matching replication controllers or deployments")
 	ErrNoMatchingImages     = errors.New("no matching images")
 )
@@ -142,16 +142,15 @@ func definitionObj(bytes []byte) (*apiObject, error) {
 	return &obj, yaml.Unmarshal(bytes, &obj)
 }
 
-// Release performs a update of the service, from whatever it is
-// currently, to what is described by the new resource, which can be a
-// replication controller or deployment.
+// Release performs a update of the service, from whatever it is currently, to
+// what is described by the new resource, which can be a replication controller
+// or deployment.
 //
 // Release assumes there is a one-to-one mapping between services and
-// replication controllers or deployments; this can be
-// improved. Release blocks until the rolling update is complete; this
-// can be improved. Release invokes `kubectl rolling-update` or
-// `kubectl apply` in a seperate process, and assumes kubectl is in
-// the PATH; this can be improved.
+// replication controllers or deployments; this can be improved. Release blocks
+// until the rolling update is complete; this can be improved. Release invokes
+// `kubectl rolling-update` or `kubectl apply` in a seperate process, and
+// assumes kubectl is in the PATH; this can be improved.
 func (c *Cluster) Release(namespace, serviceName string, newDefinition []byte, updatePeriod time.Duration) error {
 	logger := log.NewContext(c.logger).With("method", "Release", "namespace", namespace, "service", serviceName)
 	logger.Log()
@@ -168,18 +167,18 @@ func (c *Cluster) Release(namespace, serviceName string, newDefinition []byte, u
 
 	var release releaseProc
 	ns := namespacedService{namespace, serviceName}
-	if pc.Deploy != nil {
+	if pc.Deployment != nil {
 		if obj.Kind != "Deployment" {
 			return ErrWrongResourceKind
 		}
-		release = releaseDeployment{ns, c, pc.Deploy}
-	} else if pc.RC != nil {
+		release = releaseDeployment{ns, c, pc.Deployment}
+	} else if pc.ReplicationController != nil {
 		if obj.Kind != "ReplicationController" {
 			return ErrWrongResourceKind
 		}
-		release = releaseReplicationController{ns, c, pc.RC, updatePeriod}
+		release = releaseReplicationController{ns, c, pc.ReplicationController, updatePeriod}
 	} else {
-		return ErrNoMatchingPods
+		return ErrNoMatching
 	}
 	return release.do(newDefinition, logger)
 }
@@ -300,24 +299,24 @@ func (c releaseDeployment) do(newDefinition []byte, logger log.Logger) error {
 
 // Either a replication controller, a deployment, or neither (both nils).
 type podController struct {
-	RC     *api.ReplicationController
-	Deploy *apiext.Deployment
+	ReplicationController *api.ReplicationController
+	Deployment            *apiext.Deployment
 }
 
 func (p podController) name() string {
-	if p.Deploy != nil {
-		return p.Deploy.Name
-	} else if p.RC != nil {
-		return p.RC.Name
+	if p.Deployment != nil {
+		return p.Deployment.Name
+	} else if p.ReplicationController != nil {
+		return p.ReplicationController.Name
 	}
 	return ""
 }
 
 func (p podController) templateContainers() []api.Container {
-	if p.Deploy != nil {
-		return p.Deploy.Spec.Template.Spec.Containers
-	} else if p.RC != nil {
-		return p.RC.Spec.Template.Spec.Containers
+	if p.Deployment != nil {
+		return p.Deployment.Spec.Template.Spec.Containers
+	} else if p.ReplicationController != nil {
+		return p.ReplicationController.Spec.Template.Spec.Containers
 	}
 	return nil
 }
@@ -328,7 +327,7 @@ func (c *Cluster) podControllerFor(namespace, serviceName string) (res podContro
 		if err != nil {
 			logger.Log("err", err.Error())
 		} else {
-			logger.Log("rc", res.name())
+			logger.Log("result", res.name())
 		}
 	}()
 
@@ -357,21 +356,20 @@ func (c *Cluster) podControllerFor(namespace, serviceName string) (res podContro
 		return res, ErrServiceHasNoSelector
 	}
 
-	// Now, try to find a deployment or replication controller that
-	// matches the selector given in the service. The simplifying
-	// assumption for the time being is that there's just one of these
-	// -- we return an error otherwise.
+	// Now, try to find a deployment or replication controller that matches the
+	// selector given in the service. The simplifying assumption for the time
+	// being is that there's just one of these -- we return an error otherwise.
 
 	// Find a replication controller which produces pods that match that
 	// selector. We have to match all of the criteria in the selector, but we
 	// don't need a perfect match of all of the replication controller's pod
 	// properties.
-	list, err := c.client.ReplicationControllers(namespace).List(api.ListOptions{})
+	rclist, err := c.client.ReplicationControllers(namespace).List(api.ListOptions{})
 	if err != nil {
 		return res, err
 	}
 	var rcs []api.ReplicationController
-	for _, rc := range list.Items {
+	for _, rc := range rclist.Items {
 		match := func() bool {
 			// For each key=value pair in the service spec, check if the RC
 			// annotates its pods in the same way. If any rule fails, the RC is
@@ -392,22 +390,23 @@ func (c *Cluster) podControllerFor(namespace, serviceName string) (res podContro
 	case 0:
 		break // we can hope to find a deployment
 	case 1:
-		res.RC = &rcs[0]
+		res.ReplicationController = &rcs[0]
 	default:
 		return res, ErrMultipleMatching
 	}
 
+	// Now do the same work for deployments.
 	deplist, err := c.client.Deployments(namespace).List(api.ListOptions{})
 	if err != nil {
 		return res, err
 	}
-
-	deps := []apiext.Deployment{}
+	var deps []apiext.Deployment
 	for _, d := range deplist.Items {
 		match := func() bool {
-			// For each key=value pair in the service spec, check if the RC
-			// annotates its pods in the same way. If any rule fails, the RC is
-			// not a match. If all rules pass, the RC is a match.
+			// For each key=value pair in the service spec, check if the
+			// deployment annotates its pods in the same way. If any rule fails,
+			// the deployment is not a match. If all rules pass, the deployment
+			// is a match.
 			for k, v := range selector {
 				labels := d.Spec.Template.Labels
 				if labels[k] != v {
@@ -424,13 +423,16 @@ func (c *Cluster) podControllerFor(namespace, serviceName string) (res podContro
 	case 0:
 		break
 	case 1:
-		res.Deploy = &deps[0]
+		res.Deployment = &deps[0]
 	default:
 		return res, ErrMultipleMatching
 	}
 
-	if res.RC != nil && res.Deploy != nil {
+	if res.ReplicationController != nil && res.Deployment != nil {
 		return res, ErrMultipleMatching
+	}
+	if res.ReplicationController == nil && res.Deployment == nil {
+		return res, ErrNoMatching
 	}
 	return res, nil
 }
@@ -497,7 +499,7 @@ func (c *Cluster) makePlatformService(s api.Service) platform.Service {
 		image = strings.Join(images, ", ") // >1 image would break some light assumptions, but it's OK
 	case ErrServiceHasNoSelector:
 		image = "(no selector, no RC)"
-	case ErrNoMatchingPods:
+	case ErrNoMatching:
 		image = "(no RC or Deployment)"
 	case ErrMultipleMatching:
 		image = "(multiple RCs/Deployments)" // e.g. during a release
