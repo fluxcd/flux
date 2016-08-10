@@ -1,12 +1,6 @@
 package automator
 
-import (
-	"sync"
-
-	"github.com/weaveworks/fluxy/history"
-	"github.com/weaveworks/fluxy/platform/kubernetes"
-	"github.com/weaveworks/fluxy/registry"
-)
+import "sync"
 
 const (
 	automationEnabled  = "Automation enabled."
@@ -15,23 +9,20 @@ const (
 
 // Automator orchestrates continuous deployment for specific services.
 type Automator struct {
-	k8s *kubernetes.Cluster
-	reg *registry.Client
-	his history.DB
-
+	cfg    Config
 	mtx    sync.RWMutex
 	active map[namespacedService]*svc
 }
 
-// New creates a new automator, sitting on top of the platform and registry.
-func New(k8s *kubernetes.Cluster, reg *registry.Client, his history.DB) *Automator {
-	return &Automator{
-		k8s: k8s,
-		reg: reg,
-		his: his,
-
-		active: map[namespacedService]*svc{},
+// New creates a new automator.
+func New(cfg Config) (*Automator, error) {
+	if err := cfg.Validate(); err != nil {
+		return nil, err
 	}
+	return &Automator{
+		cfg:    cfg,
+		active: map[namespacedService]*svc{},
+	}, nil
 }
 
 // Enable turns on automated (continuous) deployment for the named service. This
@@ -47,11 +38,11 @@ func (a *Automator) Enable(namespace, serviceName string) {
 	}
 
 	onDelete := func() { a.deleteCallback(namespace, serviceName) }
-	svcLogger := makeServiceLogger(a.his, namespace, serviceName)
-	s := newSvc(namespace, serviceName, a.k8s, a.reg, svcLogger, onDelete)
+	svcLogFunc := makeServiceLogFunc(a.cfg.History, namespace, serviceName)
+	s := newSvc(namespace, serviceName, svcLogFunc, onDelete, a.cfg)
 	a.active[ns] = s
 
-	a.his.LogEvent(namespace, serviceName, automationEnabled)
+	a.cfg.History.LogEvent(namespace, serviceName, automationEnabled)
 }
 
 // Disable turns off automated (continuous) deployment for the named service.
@@ -71,7 +62,7 @@ func (a *Automator) Disable(namespace, serviceName string) {
 	// to make sure svc termination follows a single code path.
 	s.signalDelete()
 
-	a.his.LogEvent(namespace, serviceName, automationDisabled)
+	a.cfg.History.LogEvent(namespace, serviceName, automationDisabled)
 }
 
 // deleteCallback is invoked by a svc when it shuts down. A svc may terminate

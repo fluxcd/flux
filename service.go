@@ -164,11 +164,17 @@ func (s *service) Release(namespace, service string, newDef []byte, updatePeriod
 }
 
 func (s *service) Automate(namespace, service string) error {
+	if s.automator == nil {
+		return errors.New("automation not configured")
+	}
 	s.automator.Enable(namespace, service)
 	return nil
 }
 
 func (s *service) Deautomate(namespace, service string) error {
+	if s.automator == nil {
+		return errors.New("automation not configured")
+	}
 	s.automator.Disable(namespace, service)
 	return nil
 }

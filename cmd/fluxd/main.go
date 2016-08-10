@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/go-kit/kit/log"
 	"github.com/spf13/pflag"
@@ -44,6 +45,10 @@ func main() {
 		kubernetesBearerTokenFile = fs.String("kubernetes-bearer-token-file", "", "Path to file containing Kubernetes Bearer Token file")
 		databaseDriver            = fs.String("database-driver", "ql-mem", `Database driver name, e.g., "postgres"; the default is an in-memory DB`)
 		databaseSource            = fs.String("database-source", "history.db", `Database source name; specific to the database driver (--database-driver) used. The default is an arbitrary, in-memory DB name`)
+		automationRepoURL         = fs.String("automation-repo-url", "", "Automation config repo URL, e.g. https://github.com/myorg/conf.git")
+		automationRepoKey         = fs.String("automation-repo-key", "", "SSH key file with commit rights to config repo")
+		automationRepoPath        = fs.String("automation-repo-path", "", "Path within automation config repo to look for resource definition files")
+		automationUpdatePeriod    = fs.Duration("automation-update-period", 5*time.Second, "Automation rolling update period")
 	)
 	fs.Parse(os.Args)
 
@@ -134,7 +139,22 @@ func main() {
 	// Automator component.
 	var auto *automator.Automator
 	{
-		auto = automator.New(k8s, reg, his)
+		var err error
+		auto, err = automator.New(automator.Config{
+			Platform:       k8s,
+			Registry:       reg,
+			History:        his,
+			ConfigRepoURL:  *automationRepoURL,
+			ConfigRepoKey:  *automationRepoKey,
+			ConfigRepoPath: *automationRepoPath,
+			UpdatePeriod:   *automationUpdatePeriod,
+		})
+		if err == nil {
+			logger.Log("automator", "enabled", "repo", *automationRepoURL)
+		} else {
+			// Service can handle a nil automator pointer.
+			logger.Log("automator", "disabled", "reason", err)
+		}
 	}
 
 	// Service (business logic) domain.

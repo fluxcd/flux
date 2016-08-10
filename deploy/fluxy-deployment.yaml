@@ -9,12 +9,20 @@ spec:
       labels:
         name: fluxy
     spec:
+      volumes:
+      - name: key
+        secret:
+          secretName: fluxy-repo-key
       containers:
       - name: fluxy
         image: weaveworks/fluxy
         imagePullPolicy: Never # must build manually
         ports:
         - containerPort: 3030
+        volumeMounts:
+        - name: key
+          mountPath: /var/run/secrets/fluxy/key
+          readOnly: true
         args:
         - /home/flux/fluxd
         - --kubernetes-kubectl=/home/flux/kubectl
@@ -23,3 +31,6 @@ spec:
         - --kubernetes-bearer-token-file=/var/run/secrets/kubernetes.io/serviceaccount/token
         - --database-driver=ql
         - --database-source=file://history.db
+        - --automation-repo-url=git@github.com:peterbourgon/dumbconf
+        - --automation-repo-key=/var/run/secrets/fluxy/key/id-rsa
+        - --automation-repo-path="/"

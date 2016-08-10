@@ -110,8 +110,12 @@ func (w serviceWrapper) Automate(namespace, service string) error {
 		Namespace: namespace,
 		Service:   service,
 	}
-	_, err := w.endpoints.AutomateEndpoint(w.ctx, request)
-	return err
+	response, err := w.endpoints.AutomateEndpoint(w.ctx, request)
+	if err != nil {
+		return err
+	}
+	resp := response.(automateResponse)
+	return resp.Err
 }
 
 func (w serviceWrapper) Deautomate(namespace, service string) error {
@@ -119,6 +123,10 @@ func (w serviceWrapper) Deautomate(namespace, service string) error {
 		Namespace: namespace,
 		Service:   service,
 	}
-	_, err := w.endpoints.DeautomateEndpoint(w.ctx, request)
-	return err
+	response, err := w.endpoints.DeautomateEndpoint(w.ctx, request)
+	if err != nil {
+		return err
+	}
+	resp := response.(deautomateResponse)
+	return resp.Err
 }
