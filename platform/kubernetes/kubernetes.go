@@ -30,8 +30,8 @@ var (
 	ErrEmptySelector        = errors.New("empty selector")
 	ErrWrongResourceKind    = errors.New("new definition does not match existing resource")
 	ErrNoMatchingService    = errors.New("no matching service")
-	ErrNoMatchingPods       = errors.New("no matching replication controllers or deployments")
 	ErrServiceHasNoSelector = errors.New("service has no selector")
+	ErrNoMatching           = errors.New("no matching replication controllers or deployments")
 	ErrMultipleMatching     = errors.New("multiple matching replication controllers or deployments")
 	ErrNoMatchingImages     = errors.New("no matching images")
 )
@@ -179,7 +179,7 @@ func (c *Cluster) Release(namespace, serviceName string, newDefinition []byte, u
 		}
 		release = releaseReplicationController{ns, c, pc.RC, updatePeriod}
 	} else {
-		return ErrNoMatchingPods
+		return ErrNoMatching
 	}
 	return release.do(newDefinition, logger)
 }
@@ -432,6 +432,9 @@ func (c *Cluster) podControllerFor(namespace, serviceName string) (res podContro
 	if res.RC != nil && res.Deploy != nil {
 		return res, ErrMultipleMatching
 	}
+	if res.ReplicationController == nil && res.Deployment == nil {
+		return res, ErrNoMatching
+	}
 	return res, nil
 }
 
@@ -497,7 +500,7 @@ func (c *Cluster) makePlatformService(s api.Service) platform.Service {
 		image = strings.Join(images, ", ") // >1 image would break some light assumptions, but it's OK
 	case ErrServiceHasNoSelector:
 		image = "(no selector, no RC)"
-	case ErrNoMatchingPods:
+	case ErrNoMatching:
 		image = "(no RC or Deployment)"
 	case ErrMultipleMatching:
 		image = "(multiple RCs/Deployments)" // e.g. during a release
