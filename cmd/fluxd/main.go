@@ -149,9 +149,11 @@ func main() {
 			ConfigRepoPath: *automationRepoPath,
 			UpdatePeriod:   *automationUpdatePeriod,
 		})
-		if err != nil {
-			logger.Log("err", err)
-			os.Exit(1)
+		if err == nil {
+			logger.Log("automator", "enabled", "repo", *automationRepoURL)
+		} else {
+			// Service can handle a nil automator pointer.
+			logger.Log("automator", "disabled", "reason", err)
 		}
 	}
 

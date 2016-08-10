@@ -2,6 +2,7 @@ package automator
 
 import (
 	"errors"
+	"os"
 	"strings"
 	"time"
 
@@ -58,6 +59,9 @@ func (cfg Config) Validate() error {
 	}
 	if len(cfg.ConfigRepoKey) == 0 {
 		errs = append(errs, "config repo key not specified")
+	}
+	if _, err := os.Stat(cfg.ConfigRepoKey); err != nil {
+		errs = append(errs, err.Error())
 	}
 	if cfg.ConfigRepoPath == "" {
 		errs = append(errs, "config repo path not specified")
