@@ -20,19 +20,20 @@ import (
 // the source to learn about them.
 func UpdatePodController(def []byte, newImageName string, trace io.Writer) ([]byte, error) {
 	var buf bytes.Buffer
-	err := tryUpdateRC(string(def), newImageName, trace, &buf)
+	err := tryUpdate(string(def), newImageName, trace, &buf)
 	return buf.Bytes(), err
 }
 
-// Attempt to update an RC config. This makes several assumptions
-// that are justified only with the phrase "because that's how we do
-// it", including:
-//  * the file is a replication controller
+// Attempt to update an RC or Deployment config. This makes several assumptions
+// that are justified only with the phrase "because that's how we do it",
+// including:
+//
+//  * the file is a replication controller or deployment
 //  * the update is from one tag of an image to another tag of the
-//  same image; e.g., "weaveworks/helloworld:a00001" to
-//  "weaveworks/helloworld:a00002"
+//    same image; e.g., "weaveworks/helloworld:a00001" to
+//    "weaveworks/helloworld:a00002"
 //  * the container spec to update is the (first) one that uses the
-//  same image name (e.g., weaveworks/helloworld)
+//    same image name (e.g., weaveworks/helloworld)
 //  * the name of the controller is updated to reflect the new tag
 //  * there's a label which must be updated in both the pod spec and the selector
 //  * the file uses canonical YAML syntax, that is, one line per item
@@ -65,19 +66,19 @@ func UpdatePodController(def []byte, newImageName string, trace io.Writer) ([]by
 //         ports:
 //         - containerPort: 80
 // ```
-func tryUpdateRC(rc, newImageStr string, trace io.Writer, out io.Writer) error {
+func tryUpdate(def, newImageStr string, trace io.Writer, out io.Writer) error {
 	newImage := registry.ParseImage(newImageStr)
 
 	nameRE := multilineRE(
 		`metadata:\s*`,
 		`  name:\s*"?([\w-]+)"?\s*`,
 	)
-	matches := nameRE.FindStringSubmatch(rc)
+	matches := nameRE.FindStringSubmatch(def)
 	if matches == nil || len(matches) < 2 {
 		return fmt.Errorf("Could not find resource name")
 	}
-	oldRCName := matches[1]
-	fmt.Fprintf(trace, "Found resource name %q in fragment:\n\n%s\n\n", oldRCName, matches[0])
+	oldDefName := matches[1]
+	fmt.Fprintf(trace, "Found resource name %q in fragment:\n\n%s\n\n", oldDefName, matches[0])
 
 	imageRE := multilineRE(
 		`      containers:.*`,
@@ -85,7 +86,7 @@ func tryUpdateRC(rc, newImageStr string, trace io.Writer, out io.Writer) error {
 		`        image:\s*"?(`+newImage.Repository()+`:[\w-]+)"?(\s.*)?`,
 	)
 
-	matches = imageRE.FindStringSubmatch(rc)
+	matches = imageRE.FindStringSubmatch(def)
 	if matches == nil || len(matches) < 3 {
 		return fmt.Errorf("Could not find image name")
 	}
@@ -102,21 +103,21 @@ func tryUpdateRC(rc, newImageStr string, trace io.Writer, out io.Writer) error {
 	// * the image for the container
 	// * the version label (in two places)
 
-	newRCName := oldRCName
-	if strings.HasSuffix(oldRCName, oldImage.Tag) {
-		newRCName = oldRCName[:len(oldRCName)-len(oldImage.Tag)] + newImage.Tag
+	newDefName := oldDefName
+	if strings.HasSuffix(oldDefName, oldImage.Tag) {
+		newDefName = oldDefName[:len(oldDefName)-len(oldImage.Tag)] + newImage.Tag
 	}
 
 	fmt.Fprintln(trace, "")
 	fmt.Fprintln(trace, "Replacing ...")
-	fmt.Fprintf(trace, "Resource name: %q -> %q\n", oldRCName, newRCName)
+	fmt.Fprintf(trace, "Resource name: %q -> %q\n", oldDefName, newDefName)
 	fmt.Fprintf(trace, "Version in container %q (and selector if present): %q -> %q\n", containerName, oldImage.Tag, newImage.Tag)
 	fmt.Fprintf(trace, "Image for container %q: %q -> %q\n", containerName, oldImage, newImage)
 	fmt.Fprintln(trace, "")
 
 	// The name we want is that under metadata:, which will be indented once
 	replaceRCNameRE := regexp.MustCompile(`(?m:^(  name:\s*)(?:"?[\w-]+"?)(\s.*)$)`)
-	withNewRCName := replaceRCNameRE.ReplaceAllString(rc, fmt.Sprintf(`$1%q$2`, newRCName))
+	witNewDefName := replaceRCNameRE.ReplaceAllString(def, fmt.Sprintf(`$1%q$2`, newDefName))
 
 	// Replacing labels: these are in two places, the container template and the selector
 	replaceLabelsRE := multilineRE(
@@ -125,7 +126,7 @@ func tryUpdateRC(rc, newImageStr string, trace io.Writer, out io.Writer) error {
 		`((?:  ){2,4}version:\s*)(?:"?[-\w]+"?)(\s.*)`,
 	)
 	replaceLabels := fmt.Sprintf("$1\n$2\n$3%q$4", newImage.Tag)
-	withNewLabels := replaceLabelsRE.ReplaceAllString(withNewRCName, replaceLabels)
+	withNewLabels := replaceLabelsRE.ReplaceAllString(witNewDefName, replaceLabels)
 
 	replaceImageRE := multilineRE(
 		`(      - name:\s*`+containerName+`)`,
