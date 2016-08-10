@@ -142,16 +142,15 @@ func definitionObj(bytes []byte) (*apiObject, error) {
 	return &obj, yaml.Unmarshal(bytes, &obj)
 }
 
-// Release performs a update of the service, from whatever it is
-// currently, to what is described by the new resource, which can be a
-// replication controller or deployment.
+// Release performs a update of the service, from whatever it is currently, to
+// what is described by the new resource, which can be a replication controller
+// or deployment.
 //
 // Release assumes there is a one-to-one mapping between services and
-// replication controllers or deployments; this can be
-// improved. Release blocks until the rolling update is complete; this
-// can be improved. Release invokes `kubectl rolling-update` or
-// `kubectl apply` in a seperate process, and assumes kubectl is in
-// the PATH; this can be improved.
+// replication controllers or deployments; this can be improved. Release blocks
+// until the rolling update is complete; this can be improved. Release invokes
+// `kubectl rolling-update` or `kubectl apply` in a seperate process, and
+// assumes kubectl is in the PATH; this can be improved.
 func (c *Cluster) Release(namespace, serviceName string, newDefinition []byte, updatePeriod time.Duration) error {
 	logger := log.NewContext(c.logger).With("method", "Release", "namespace", namespace, "service", serviceName)
 	logger.Log()
@@ -328,7 +327,7 @@ func (c *Cluster) podControllerFor(namespace, serviceName string) (res podContro
 		if err != nil {
 			logger.Log("err", err.Error())
 		} else {
-			logger.Log("rc", res.name())
+			logger.Log("result", res.name())
 		}
 	}()
 
@@ -357,21 +356,20 @@ func (c *Cluster) podControllerFor(namespace, serviceName string) (res podContro
 		return res, ErrServiceHasNoSelector
 	}
 
-	// Now, try to find a deployment or replication controller that
-	// matches the selector given in the service. The simplifying
-	// assumption for the time being is that there's just one of these
-	// -- we return an error otherwise.
+	// Now, try to find a deployment or replication controller that matches the
+	// selector given in the service. The simplifying assumption for the time
+	// being is that there's just one of these -- we return an error otherwise.
 
 	// Find a replication controller which produces pods that match that
 	// selector. We have to match all of the criteria in the selector, but we
 	// don't need a perfect match of all of the replication controller's pod
 	// properties.
-	list, err := c.client.ReplicationControllers(namespace).List(api.ListOptions{})
+	rclist, err := c.client.ReplicationControllers(namespace).List(api.ListOptions{})
 	if err != nil {
 		return res, err
 	}
 	var rcs []api.ReplicationController
-	for _, rc := range list.Items {
+	for _, rc := range rclist.Items {
 		match := func() bool {
 			// For each key=value pair in the service spec, check if the RC
 			// annotates its pods in the same way. If any rule fails, the RC is
@@ -397,17 +395,18 @@ func (c *Cluster) podControllerFor(namespace, serviceName string) (res podContro
 		return res, ErrMultipleMatching
 	}
 
+	// Now do the same work for deployments.
 	deplist, err := c.client.Deployments(namespace).List(api.ListOptions{})
 	if err != nil {
 		return res, err
 	}
-
-	deps := []apiext.Deployment{}
+	var deps []apiext.Deployment
 	for _, d := range deplist.Items {
 		match := func() bool {
-			// For each key=value pair in the service spec, check if the RC
-			// annotates its pods in the same way. If any rule fails, the RC is
-			// not a match. If all rules pass, the RC is a match.
+			// For each key=value pair in the service spec, check if the
+			// deployment annotates its pods in the same way. If any rule fails,
+			// the deployment is not a match. If all rules pass, the deployment
+			// is a match.
 			for k, v := range selector {
 				labels := d.Spec.Template.Labels
 				if labels[k] != v {
