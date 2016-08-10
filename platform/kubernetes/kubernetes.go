@@ -168,16 +168,16 @@ func (c *Cluster) Release(namespace, serviceName string, newDefinition []byte, u
 
 	var release releaseProc
 	ns := namespacedService{namespace, serviceName}
-	if pc.Deploy != nil {
+	if pc.Deployment != nil {
 		if obj.Kind != "Deployment" {
 			return ErrWrongResourceKind
 		}
-		release = releaseDeployment{ns, c, pc.Deploy}
-	} else if pc.RC != nil {
+		release = releaseDeployment{ns, c, pc.Deployment}
+	} else if pc.ReplicationController != nil {
 		if obj.Kind != "ReplicationController" {
 			return ErrWrongResourceKind
 		}
-		release = releaseReplicationController{ns, c, pc.RC, updatePeriod}
+		release = releaseReplicationController{ns, c, pc.ReplicationController, updatePeriod}
 	} else {
 		return ErrNoMatching
 	}
@@ -300,24 +300,24 @@ func (c releaseDeployment) do(newDefinition []byte, logger log.Logger) error {
 
 // Either a replication controller, a deployment, or neither (both nils).
 type podController struct {
-	RC     *api.ReplicationController
-	Deploy *apiext.Deployment
+	ReplicationController *api.ReplicationController
+	Deployment            *apiext.Deployment
 }
 
 func (p podController) name() string {
-	if p.Deploy != nil {
-		return p.Deploy.Name
-	} else if p.RC != nil {
-		return p.RC.Name
+	if p.Deployment != nil {
+		return p.Deployment.Name
+	} else if p.ReplicationController != nil {
+		return p.ReplicationController.Name
 	}
 	return ""
 }
 
 func (p podController) templateContainers() []api.Container {
-	if p.Deploy != nil {
-		return p.Deploy.Spec.Template.Spec.Containers
-	} else if p.RC != nil {
-		return p.RC.Spec.Template.Spec.Containers
+	if p.Deployment != nil {
+		return p.Deployment.Spec.Template.Spec.Containers
+	} else if p.ReplicationController != nil {
+		return p.ReplicationController.Spec.Template.Spec.Containers
 	}
 	return nil
 }
@@ -392,7 +392,7 @@ func (c *Cluster) podControllerFor(namespace, serviceName string) (res podContro
 	case 0:
 		break // we can hope to find a deployment
 	case 1:
-		res.RC = &rcs[0]
+		res.ReplicationController = &rcs[0]
 	default:
 		return res, ErrMultipleMatching
 	}
@@ -424,12 +424,12 @@ func (c *Cluster) podControllerFor(namespace, serviceName string) (res podContro
 	case 0:
 		break
 	case 1:
-		res.Deploy = &deps[0]
+		res.Deployment = &deps[0]
 	default:
 		return res, ErrMultipleMatching
 	}
 
-	if res.RC != nil && res.Deploy != nil {
+	if res.ReplicationController != nil && res.Deployment != nil {
 		return res, ErrMultipleMatching
 	}
 	if res.ReplicationController == nil && res.Deployment == nil {
