@@ -1,0 +1,18 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: helloworld
+spec:
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        name: helloworld
+    spec:
+      containers:
+      - name: helloworld
+        image: quay.io/weaveworks/helloworld:master-a000001
+        args:
+        - -msg=Ahoy
+        ports:
+        - containerPort: 80
