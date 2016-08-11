@@ -3,5 +3,4 @@ WORKDIR /home/flux
 RUN apk add --no-cache git
 ADD ./kubectl /home/flux/
 COPY ./ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
-COPY ./fluxy-dumbconf.priv /home/flux/
 COPY ./fluxd /home/flux/

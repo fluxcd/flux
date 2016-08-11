@@ -19,7 +19,7 @@ clean:
 	go clean
 	rm -rf ./build
 
-build/.fluxy.done: docker/Dockerfile.fluxy build/fluxd ./cmd/fluxd/*.crt build/kubectl docker/fluxy-dumbconf.priv
+build/.fluxy.done: docker/Dockerfile.fluxy build/fluxd ./cmd/fluxd/*.crt build/kubectl
 	mkdir -p ./build/docker
 	cp $^ ./build/docker/
 	${DOCKER} build -t weaveworks/fluxy -f build/docker/Dockerfile.fluxy ./build/docker
