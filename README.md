@@ -118,7 +118,7 @@ Ensure the repository is checked out into $GOPATH/src/github.com/weaveworks/flux
 Then, from the root,
 
 ```
-$ gvt restore
+$ make deps
 # .. time passes ..
 $ make
 ```
@@ -128,7 +128,7 @@ This makes Docker images, and installs binaries to $GOPATH/bin.
 ### Test
 
 ```
-$ go test ./...
+$ make test
 ```
 
 ### Dependency management
@@ -139,8 +139,7 @@ Note that **we do not check in the vendor folder**.
 To get all the dependencies put in the `vendor/` folder, use
 
 ```
-$ go get -u github.com/FiloSottile/gvt # install gvt if you don't have it
-$ gvt restore
+$ make deps
 ```
 
 To add dependencies, use 
