@@ -19,12 +19,10 @@ dependencies:
     - "~/fluxy/vendor/gopkg.in"
     - "~/fluxy/vendor/golang.org"
   override: 
-    - go get github.com/Masterminds/glide
-    - go get github.com/FiloSottile/gvt
-    - gvt restore
+    - make deps
 
 test:
   override:
-    - go build -v $(glide novendor)
-    - go test -v -race $(glide novendor)
+    - make
+    - make test
 
