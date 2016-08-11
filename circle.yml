@@ -4,13 +4,16 @@ machine:
     GOROOT: ""
     GOPATH: "${HOME}"
     GO15VENDOREXPERIMENT: "1"
+    REPO_PATH: ${GOPATH}/src/github.com/weaveworks/fluxy
 
 checkout:
   post:
+    - pwd
     - mkdir -p ${GOPATH}/src/github.com/weaveworks
-    - mv ${HOME}/fluxy ${GOPATH}/src/github.com/weaveworks
-    - ln -s ${GOPATH}/src/github.com/weaveworks/fluxy ${HOME}/fluxy # Circle needs this to be here, apparently
-    - cd ${GOPATH}/src/github.com/weaveworks/fluxy
+    # - mv ${HOME}/fluxy ${GOPATH}/src/github.com/weaveworks
+    - ln -s ${HOME}/fluxy ${GOPATH}/src/github.com/weaveworks/fluxy
+    #- ln -s ${REPO_PATH} ${HOME}/fluxy # Circle needs this to be here, apparently
+    - cd ${REPO_PATH}
 
 dependencies:
   cache_directories:
@@ -19,12 +22,12 @@ dependencies:
     - "~/fluxy/vendor/gopkg.in"
     - "~/fluxy/vendor/golang.org"
   override: 
-    - go get github.com/Masterminds/glide
-    - go get github.com/FiloSottile/gvt
-    - gvt restore
+    - pwd
+    - make -C ${REPO_PATH} deps
 
 test:
   override:
-    - go build -v $(glide novendor)
-    - go test -v -race $(glide novendor)
+    - pwd
+    - make -C ${REPO_PATH}
+    - make -C ${REPO_PATH} test
 
