@@ -83,7 +83,7 @@ func MakeHistoryEndpoint(s Service) endpoint.Endpoint {
 func MakeReleaseEndpoint(s Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
 		req := request.(releaseRequest)
-		err := s.Release(req.Namespace, req.Service, req.NewDef, req.UpdatePeriod)
+		err := s.Release(req.Namespace, req.Service, req.Image, req.NewDef, req.UpdatePeriod)
 		return releaseResponse{Err: err}, nil
 	}
 }
@@ -148,6 +148,7 @@ type historyResponse struct {
 type releaseRequest struct {
 	Namespace    string
 	Service      string
+	Image        string
 	NewDef       []byte
 	UpdatePeriod time.Duration
 }

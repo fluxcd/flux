@@ -16,6 +16,7 @@ import (
 
 	"github.com/weaveworks/fluxy"
 	"github.com/weaveworks/fluxy/automator"
+	"github.com/weaveworks/fluxy/git"
 	"github.com/weaveworks/fluxy/history"
 	"github.com/weaveworks/fluxy/platform/kubernetes"
 	"github.com/weaveworks/fluxy/registry"
@@ -45,9 +46,9 @@ func main() {
 		kubernetesBearerTokenFile = fs.String("kubernetes-bearer-token-file", "", "Path to file containing Kubernetes Bearer Token file")
 		databaseDriver            = fs.String("database-driver", "ql-mem", `Database driver name, e.g., "postgres"; the default is an in-memory DB`)
 		databaseSource            = fs.String("database-source", "history.db", `Database source name; specific to the database driver (--database-driver) used. The default is an arbitrary, in-memory DB name`)
-		automationRepoURL         = fs.String("automation-repo-url", "", "Automation config repo URL, e.g. https://github.com/myorg/conf.git")
-		automationRepoKey         = fs.String("automation-repo-key", "", "SSH key file with commit rights to config repo")
-		automationRepoPath        = fs.String("automation-repo-path", "", "Path within automation config repo to look for resource definition files")
+		repoURL                   = fs.String("repo-url", "", "Config repo URL, e.g. https://github.com/myorg/conf.git (required)")
+		repoKey                   = fs.String("repo-key", "", "SSH key file with commit rights to config repo")
+		repoPath                  = fs.String("repo-path", "", "Path within config repo to look for resource definition files")
 		automationUpdatePeriod    = fs.Duration("automation-update-period", 5*time.Second, "Automation rolling update period")
 	)
 	fs.Parse(os.Args)
@@ -136,21 +137,26 @@ func main() {
 		}
 	}
 
+	// Repo we're tracking.
+	var repo = git.Repo{
+		URL:  *repoURL,
+		Key:  *repoKey,
+		Path: *repoPath,
+	}
+
 	// Automator component.
 	var auto *automator.Automator
 	{
 		var err error
 		auto, err = automator.New(automator.Config{
-			Platform:       k8s,
-			Registry:       reg,
-			History:        his,
-			ConfigRepoURL:  *automationRepoURL,
-			ConfigRepoKey:  *automationRepoKey,
-			ConfigRepoPath: *automationRepoPath,
-			UpdatePeriod:   *automationUpdatePeriod,
+			Platform:     k8s,
+			Registry:     reg,
+			History:      his,
+			UpdatePeriod: *automationUpdatePeriod,
+			Repo:         repo,
 		})
 		if err == nil {
-			logger.Log("automator", "enabled", "repo", *automationRepoURL)
+			logger.Log("automator", "enabled", "repo", repo.URL)
 		} else {
 			// Service can handle a nil automator pointer.
 			logger.Log("automator", "disabled", "reason", err)
@@ -160,7 +166,7 @@ func main() {
 	// Service (business logic) domain.
 	var service flux.Service
 	{
-		service = flux.NewService(reg, k8s, auto, his)
+		service = flux.NewService(reg, k8s, auto, his, repo)
 		service = flux.LoggingMiddleware(logger)(service)
 	}
 

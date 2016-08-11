@@ -2,9 +2,11 @@ package flux
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/weaveworks/fluxy/automator"
+	"github.com/weaveworks/fluxy/git"
 	"github.com/weaveworks/fluxy/history"
 	"github.com/weaveworks/fluxy/platform"
 	"github.com/weaveworks/fluxy/platform/kubernetes"
@@ -35,8 +37,9 @@ type Service interface {
 	// Release migrates a service from its current image to a new image, derived
 	// from the newDef definition. Right now, that needs to be the body of a
 	// replication controller. A rolling-update is performed with the provided
-	// updatePeriod. This call blocks until it's complete.
-	Release(namespace, service string, newDef []byte, updatePeriod time.Duration) error
+	// updatePeriod. This call blocks until it's complete. Either image, or
+	// newDef should be set, but not both.
+	Release(namespace, service, image string, newDef []byte, updatePeriod time.Duration) error
 
 	// Automate turns on automatic releases for the given service.
 	// Read the history for the service to check status.
@@ -76,15 +79,24 @@ var (
 	// ErrNoPlatformConfigured indicates a service was constructed without a
 	// reference to a runtime platform. A programmer or configuration error.
 	ErrNoPlatformConfigured = errors.New("no platform configured")
+
+	// ErrNoRepoURLConfigured indicates a service was constructed without a
+	// reference to a repo. A programmer or configuration error.
+	ErrNoRepoURLConfigured = errors.New("no config repo URL configured")
+
+	// ErrCannotManuallyReleaseAnAutomatedService indicates a user tried to do a
+	// manual release on a service which has automation enabled. A user error.
+	ErrCannotManuallyReleaseAnAutomatedService = errors.New("cannot manually deploy an automated service")
 )
 
 // NewService returns a service connected to the provided Kubernetes platform.
-func NewService(reg *registry.Client, k8s *kubernetes.Cluster, auto *automator.Automator, history history.DB) Service {
+func NewService(reg *registry.Client, k8s *kubernetes.Cluster, auto *automator.Automator, history history.DB, repo git.Repo) Service {
 	return &service{
 		registry:  reg,
 		platform:  k8s,
 		automator: auto,
 		history:   history,
+		repo:      repo,
 	}
 }
 
@@ -93,6 +105,7 @@ type service struct {
 	platform  *kubernetes.Cluster // TODO(pb): replace with platform.Platform when we have that
 	automator *automator.Automator
 	history   history.DB
+	repo      git.Repo
 }
 
 // ContainerImages describes a combination of a platform container spec, and the
@@ -140,9 +153,33 @@ func (s *service) History(namespace, service string) ([]history.Event, error) {
 	return s.history.EventsForService(namespace, service)
 }
 
-func (s *service) Release(namespace, service string, newDef []byte, updatePeriod time.Duration) error {
+func (s *service) Release(namespace, service, image string, newDef []byte, updatePeriod time.Duration) error {
+	switch {
+	case image != "":
+		if s.repo.URL == "" {
+			return ErrNoRepoURLConfigured
+		}
+
+		logf := func(format string, args ...interface{}) {
+			s.history.LogEvent(namespace, service, fmt.Sprintf(format, args...))
+		}
+		return s.manualRelease(namespace, service, updatePeriod, func() error {
+			return s.repo.Release(logf, s.platform, namespace, service, registry.ParseImage(image), updatePeriod)
+		})
+	default:
+		return s.manualRelease(namespace, service, updatePeriod, func() error {
+			return s.platform.Release(namespace, service, newDef, updatePeriod)
+		})
+	}
+}
+
+func (s *service) manualRelease(namespace, service string, updatePeriod time.Duration, performRelease func() error) error {
 	if s.platform == nil {
 		return ErrNoPlatformConfigured
+	}
+
+	if s.automator.IsAutomated(namespace, service) {
+		return ErrCannotManuallyReleaseAnAutomatedService
 	}
 
 	// This is a stand-in for better information we may get from the
@@ -151,7 +188,7 @@ func (s *service) Release(namespace, service string, newDef []byte, updatePeriod
 	// than affecting the release.
 	s.history.LogEvent(namespace, service, "Attempting release")
 
-	err := s.platform.Release(namespace, service, newDef, updatePeriod)
+	err := performRelease()
 	var event string
 	if err != nil {
 		event = "Release failed: " + err.Error()
