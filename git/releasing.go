@@ -111,11 +111,18 @@ func clone(repoKey, repoURL string) (path string, err error) {
 
 func findFileFor(basePath, repoPath, imageStr string) (res string, err error) {
 	filepath.Walk(filepath.Join(basePath, repoPath), func(tgt string, info os.FileInfo, err error) error {
-		if !info.IsDir() && fileContains(tgt, imageStr) {
-			res = tgt
-			return errors.New("found; stopping")
+		if info.IsDir() {
+			return nil
 		}
-		return nil
+		ext := filepath.Ext(tgt)
+		if ext != ".yaml" && ext != ".yml" {
+			return nil
+		}
+		if !fileContains(tgt, imageStr) {
+			return nil
+		}
+		res = tgt
+		return errors.New("found; stopping")
 	})
 	if res == "" {
 		return "", errors.New("no matching file found")
