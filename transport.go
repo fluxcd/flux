@@ -189,6 +189,7 @@ func decodeReleaseRequest(_ context.Context, r *http.Request) (request interface
 	if service == "" {
 		return nil, ErrServiceRequired
 	}
+	image := r.FormValue("image")
 	newDef, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		return nil, err
@@ -204,6 +205,7 @@ func decodeReleaseRequest(_ context.Context, r *http.Request) (request interface
 	return releaseRequest{
 		Namespace:    namespace,
 		Service:      service,
+		Image:        image,
 		NewDef:       newDef,
 		UpdatePeriod: updatePeriod,
 	}, nil
@@ -371,6 +373,7 @@ func encodeReleaseRequest(ctx context.Context, req *http.Request, request interf
 	values := url.Values{}
 	values.Set("namespace", r.Namespace)
 	values.Set("service", r.Service)
+	values.Set("image", r.Image)
 	values.Set("updatePeriod", r.UpdatePeriod.String())
 
 	req.Method = "POST"

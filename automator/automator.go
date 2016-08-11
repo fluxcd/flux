@@ -65,6 +65,17 @@ func (a *Automator) Disable(namespace, serviceName string) {
 	a.cfg.History.LogEvent(namespace, serviceName, automationDisabled)
 }
 
+// IsAutomated checks if a given service has automation enabled.
+func (a *Automator) IsAutomated(namespace, serviceName string) bool {
+	if a == nil {
+		return false
+	}
+	a.mtx.RLock()
+	_, ok := a.active[namespacedService{namespace, serviceName}]
+	a.mtx.RUnlock()
+	return ok
+}
+
 // deleteCallback is invoked by a svc when it shuts down. A svc may terminate
 // itself, and so needs this as a form of accounting.
 func (a *Automator) deleteCallback(namespace, serviceName string) {

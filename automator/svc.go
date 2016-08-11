@@ -2,11 +2,7 @@ package automator
 
 import (
 	"fmt"
-	"io/ioutil"
-	"os"
 	"time"
-
-	"path/filepath"
 
 	"github.com/weaveworks/fluxy/history"
 	"github.com/weaveworks/fluxy/platform/kubernetes"
@@ -161,57 +157,16 @@ func (s *svc) releasing(cfg Config) state {
 	defer func() { s.candidate = nil }()
 	s.logf("releasing %s", s.candidate)
 
-	// Check out latest version of config repo.
-	s.logf("fetching config repo")
-	configPath, err := gitClone(cfg.ConfigRepoKey, cfg.ConfigRepoURL)
-	if err != nil {
-		s.logf("clone of config repo failed: %v", err)
-		return stateWaiting
+	if err := s.cfg.Repo.Release(
+		s.logf,
+		s.cfg.Platform,
+		s.namespace,
+		s.serviceName,
+		*s.candidate,
+		s.cfg.UpdatePeriod,
+	); err != nil {
+		s.logf("%v", err)
 	}
-	defer os.RemoveAll(configPath)
-
-	// Find the relevant resource definition file.
-	file, err := findFileFor(configPath, cfg.ConfigRepoPath, s.candidate.Repository())
-	if err != nil {
-		s.logf("couldn't find a resource definition file: %v", err)
-		return stateWaiting
-	}
-
-	// Special case: will this actually result in an update?
-	if fileContains(file, s.candidate.String()) {
-		s.logf("%s already set to %s; no release necessary", filepath.Base(file), s.candidate.String())
-		return stateWaiting
-	}
-
-	// Mutate the file so it points to the right image.
-	// TODO(pb): should validate file contents are what we expect.
-	if err := configUpdate(file, s.candidate.String()); err != nil {
-		s.logf("config update failed: %v", err)
-		return stateWaiting
-	}
-
-	// Make the release.
-	buf, err := ioutil.ReadFile(file)
-	if err != nil {
-		s.logf("couldn't read the resource definition file: %v", err)
-		return stateWaiting
-	}
-	s.logf("starting release...")
-	err = s.cfg.Platform.Release(s.namespace, s.serviceName, buf, cfg.UpdatePeriod)
-	if err != nil {
-		s.logf("release failed: %v", err)
-		return stateWaiting
-	}
-	s.logf("release complete")
-
-	// Commit and push the mutated file.
-	if err := gitCommitAndPush(cfg.ConfigRepoKey, configPath, "Automated deployment of "+s.candidate.String()); err != nil {
-		s.logf("commit and push failed: %v", err)
-		return stateWaiting
-	}
-	s.logf("committed and pushed the resource definition file %s", file)
-
-	s.logf("service release succeeded")
 	return stateWaiting
 }
 
