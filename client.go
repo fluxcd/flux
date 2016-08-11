@@ -90,26 +90,12 @@ func (w serviceWrapper) History(namespace, service string) ([]history.Event, err
 	return resp.History, resp.Err
 }
 
-func (w serviceWrapper) ReleaseFile(namespace, service string, newDef []byte, updatePeriod time.Duration) error {
-	request := releaseRequest{
-		Namespace:    namespace,
-		Service:      service,
-		NewDef:       newDef,
-		UpdatePeriod: updatePeriod,
-	}
-	response, err := w.endpoints.ReleaseEndpoint(w.ctx, request)
-	if err != nil {
-		return err
-	}
-	resp := response.(releaseResponse)
-	return resp.Err
-}
-
-func (w serviceWrapper) ReleaseImage(namespace, service, image string, updatePeriod time.Duration) error {
+func (w serviceWrapper) Release(namespace, service, image string, newDef []byte, updatePeriod time.Duration) error {
 	request := releaseRequest{
 		Namespace:    namespace,
 		Service:      service,
 		Image:        image,
+		NewDef:       newDef,
 		UpdatePeriod: updatePeriod,
 	}
 	response, err := w.endpoints.ReleaseEndpoint(w.ctx, request)

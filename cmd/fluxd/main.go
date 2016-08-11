@@ -46,9 +46,9 @@ func main() {
 		kubernetesBearerTokenFile = fs.String("kubernetes-bearer-token-file", "", "Path to file containing Kubernetes Bearer Token file")
 		databaseDriver            = fs.String("database-driver", "ql-mem", `Database driver name, e.g., "postgres"; the default is an in-memory DB`)
 		databaseSource            = fs.String("database-source", "history.db", `Database source name; specific to the database driver (--database-driver) used. The default is an arbitrary, in-memory DB name`)
-		repoURL                   = fs.String("repo-url", "", "Automation config repo URL, e.g. https://github.com/myorg/conf.git (required)")
+		repoURL                   = fs.String("repo-url", "", "Config repo URL, e.g. https://github.com/myorg/conf.git (required)")
 		repoKey                   = fs.String("repo-key", "", "SSH key file with commit rights to config repo")
-		repoPath                  = fs.String("repo-path", "", "Path within automation config repo to look for resource definition files")
+		repoPath                  = fs.String("repo-path", "", "Path within config repo to look for resource definition files")
 		automationUpdatePeriod    = fs.Duration("automation-update-period", 5*time.Second, "Automation rolling update period")
 	)
 	fs.Parse(os.Args)
@@ -138,18 +138,10 @@ func main() {
 	}
 
 	// Repo we're tracking.
-	var repo git.Repo
-	{
-		repo = git.Repo{
-			URL:  *repoURL,
-			Key:  *repoKey,
-			Path: *repoPath,
-		}
-
-		if repo.URL == "" {
-			logger.Log("err", "--repo-url is required")
-			os.Exit(1)
-		}
+	var repo = git.Repo{
+		URL:  *repoURL,
+		Key:  *repoKey,
+		Path: *repoPath,
 	}
 
 	// Automator component.

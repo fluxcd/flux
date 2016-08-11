@@ -47,19 +47,17 @@ func (opts *serviceReleaseOpts) RunE(_ *cobra.Command, args []string) error {
 		return newUsageError("-s, --service is required")
 	}
 
-	var exec func() error
-	var err error
-	switch {
-	case opts.image != "" && opts.file != "":
+	if opts.image != "" && opts.file != "" {
 		return newUsageError("cannot have both an -i, --image and -f, --file")
+	}
 
-	case opts.image != "":
-		exec = func() error {
-			return opts.Fluxd.ReleaseImage(opts.namespace, opts.service, opts.image, opts.updatePeriod)
-		}
+	if opts.image == "" && opts.file == "" {
+		return newUsageError("one of -i, --image, or -f, --file, are required")
+	}
 
-	case opts.file != "":
-		var buf []byte
+	var buf []byte
+	var err error
+	if opts.file != "" {
 		if opts.file == "-" {
 			buf, err = ioutil.ReadAll(os.Stdin)
 			if err != nil {
@@ -71,18 +69,11 @@ func (opts *serviceReleaseOpts) RunE(_ *cobra.Command, args []string) error {
 				return err
 			}
 		}
-		exec = func() error {
-			return opts.Fluxd.ReleaseFile(opts.namespace, opts.service, buf, opts.updatePeriod)
-		}
-
-	default:
-		return newUsageError("one of -i, --image, or -f, --file, are required")
-
 	}
 
 	begin := time.Now()
 	fmt.Fprintf(os.Stdout, "Starting release of %s with an update period of %s... ", opts.service, opts.updatePeriod.String())
-	if err = exec(); err != nil {
+	if err := opts.Fluxd.Release(opts.namespace, opts.service, opts.image, buf, opts.updatePeriod); err != nil {
 		fmt.Fprintf(os.Stdout, "error! %v\n", err)
 	} else {
 		fmt.Fprintf(os.Stdout, "success\n")

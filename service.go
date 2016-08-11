@@ -37,14 +37,9 @@ type Service interface {
 	// Release migrates a service from its current image to a new image, derived
 	// from the newDef definition. Right now, that needs to be the body of a
 	// replication controller. A rolling-update is performed with the provided
-	// updatePeriod. This call blocks until it's complete.
-	ReleaseFile(namespace, service string, newDef []byte, updatePeriod time.Duration) error
-
-	// ReleaseImage migrates a service from its current image to a new image, it
-	// modifies the git repository, and pushes it if necessary. A rolling-update
-	// is performed with the provided updatePeriod. This call blocks until it's
-	// complete.
-	ReleaseImage(namespace, service, image string, updatePeriod time.Duration) error
+	// updatePeriod. This call blocks until it's complete. Either image, or
+	// newDef should be set, but not both.
+	Release(namespace, service, image string, newDef []byte, updatePeriod time.Duration) error
 
 	// Automate turns on automatic releases for the given service.
 	// Read the history for the service to check status.
@@ -84,6 +79,10 @@ var (
 	// ErrNoPlatformConfigured indicates a service was constructed without a
 	// reference to a runtime platform. A programmer or configuration error.
 	ErrNoPlatformConfigured = errors.New("no platform configured")
+
+	// ErrNoRepoURLConfigured indicates a service was constructed without a
+	// reference to a repo. A programmer or configuration error.
+	ErrNoRepoURLConfigured = errors.New("no config repo URL configured")
 
 	// ErrCannotManuallyReleaseAnAutomatedService indicates a user tried to do a
 	// manual release on a service which has automation enabled. A user error.
@@ -154,22 +153,27 @@ func (s *service) History(namespace, service string) ([]history.Event, error) {
 	return s.history.EventsForService(namespace, service)
 }
 
-func (s *service) ReleaseFile(namespace, service string, newDef []byte, updatePeriod time.Duration) error {
-	return s.manualRelease(namespace, service, updatePeriod, func() error {
-		return s.platform.Release(namespace, service, newDef, updatePeriod)
-	})
-}
+func (s *service) Release(namespace, service, image string, newDef []byte, updatePeriod time.Duration) error {
+	switch {
+	case image != "":
+		if s.repo.URL == "" {
+			return ErrNoRepoURLConfigured
+		}
 
-func (s *service) ReleaseImage(namespace, service, image string, updatePeriod time.Duration) error {
-	logf := func(format string, args ...interface{}) {
-		s.history.LogEvent(namespace, service, fmt.Sprintf(format, args...))
+		logf := func(format string, args ...interface{}) {
+			s.history.LogEvent(namespace, service, fmt.Sprintf(format, args...))
+		}
+		return s.manualRelease(namespace, service, updatePeriod, func() error {
+			return s.repo.Release(logf, s.platform, namespace, service, registry.ParseImage(image), updatePeriod)
+		})
+	default:
+		return s.manualRelease(namespace, service, updatePeriod, func() error {
+			return s.platform.Release(namespace, service, newDef, updatePeriod)
+		})
 	}
-	return s.manualRelease(namespace, service, updatePeriod, func() error {
-		return s.repo.Release(logf, s.platform, namespace, service, registry.ParseImage(image), updatePeriod)
-	})
 }
 
-func (s *service) manualRelease(namespace, service string, updatePeriod time.Duration, f func() error) error {
+func (s *service) manualRelease(namespace, service string, updatePeriod time.Duration, performRelease func() error) error {
 	if s.platform == nil {
 		return ErrNoPlatformConfigured
 	}
@@ -184,7 +188,7 @@ func (s *service) manualRelease(namespace, service string, updatePeriod time.Dur
 	// than affecting the release.
 	s.history.LogEvent(namespace, service, "Attempting release")
 
-	err := f()
+	err := performRelease()
 	var event string
 	if err != nil {
 		event = "Release failed: " + err.Error()
