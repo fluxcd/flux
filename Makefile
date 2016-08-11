@@ -1,5 +1,5 @@
 .DEFAULT: all
-.PHONY: all clean
+.PHONY: all deps test clean
 
 DOCKER?=docker
 include docker/kubectl.version
@@ -14,6 +14,13 @@ FLUXD_DEPS:=$(call godeps,./cmd/fluxd)
 FLUXCTL_DEPS:=$(call godeps,./cmd/fluxctl)
 
 all: build/.fluxy.done $(GOPATH)/bin/fluxctl $(GOPATH)/bin/fluxd
+
+deps:
+	go get -u github.com/FiloSottile/gvt
+	gvt restore
+
+test:
+	go test -race ./...
 
 clean:
 	go clean
