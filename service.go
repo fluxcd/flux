@@ -41,6 +41,11 @@ type Service interface {
 	// newDef should be set, but not both.
 	Release(namespace, service, image string, newDef []byte, updatePeriod time.Duration) error
 
+	// ReleaseAll migrate all services using the given image to a new image. A
+	// rolling-update is performed with the provided updatePeriod. This call
+	// blocks until it's complete. Automated services are skipped.
+	ReleaseAll(namespace, image string, updatePeriod time.Duration) error
+
 	// Automate turns on automatic releases for the given service.
 	// Read the history for the service to check status.
 	Automate(namespace, service string) error
@@ -153,7 +158,7 @@ func (s *service) History(namespace, service string) ([]history.Event, error) {
 	return s.history.EventsForService(namespace, service)
 }
 
-func (s *service) Release(namespace, service, image string, newDef []byte, updatePeriod time.Duration) error {
+func (s *service) Release(namespace, serviceName, image string, newDef []byte, updatePeriod time.Duration) error {
 	switch {
 	case image != "":
 		if s.repo.URL == "" {
@@ -161,16 +166,43 @@ func (s *service) Release(namespace, service, image string, newDef []byte, updat
 		}
 
 		logf := func(format string, args ...interface{}) {
-			s.history.LogEvent(namespace, service, fmt.Sprintf(format, args...))
+			s.history.LogEvent(namespace, serviceName, fmt.Sprintf(format, args...))
 		}
-		return s.manualRelease(namespace, service, updatePeriod, func() error {
-			return s.repo.Release(logf, s.platform, namespace, service, registry.ParseImage(image), updatePeriod)
+		return s.manualRelease(namespace, serviceName, updatePeriod, func() error {
+			return s.repo.Release(logf, s.platform, namespace, []string{serviceName}, registry.ParseImage(image), updatePeriod)
 		})
 	default:
-		return s.manualRelease(namespace, service, updatePeriod, func() error {
-			return s.platform.Release(namespace, service, newDef, updatePeriod)
+		return s.manualRelease(namespace, serviceName, updatePeriod, func() error {
+			return s.platform.Release(namespace, serviceName, newDef, updatePeriod)
 		})
 	}
+}
+
+func (s *service) ReleaseAll(namespace, image string, updatePeriod time.Duration) error {
+	if s.repo.URL == "" {
+		return ErrNoRepoURLConfigured
+	}
+
+	services, err := s.Services(namespace)
+	if err != nil {
+		return err
+	}
+	var serviceNames []string
+	for _, service := range services {
+		if s.auto.IsAutomated(service.Name) {
+			// TODO: log that this was skipped
+			continue
+		}
+		serviceNames = append(serviceNames, service.Name)
+	}
+
+	logf := func(namespace, service, format string, args ...interface{}) {
+		s.history.LogEvent(namespace, service, fmt.Sprintf(format, args...))
+	}
+	// TODO: return the list of updated, and skipped services
+	return s.manualRelease(namespace, service, updatePeriod, func() error {
+		return s.repo.Release(logf, s.platform, namespace, serviceNames, registry.ParseImage(image), updatePeriod)
+	})
 }
 
 func (s *service) manualRelease(namespace, service string, updatePeriod time.Duration, performRelease func() error) error {

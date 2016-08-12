@@ -157,6 +157,16 @@ type releaseResponse struct {
 	Err error
 }
 
+type releaseAllRequest struct {
+	Namespace    string
+	Image        string
+	UpdatePeriod time.Duration
+}
+
+type releaseAllResponse struct {
+	Err error
+}
+
 type automateRequest struct {
 	Namespace string
 	Service   string

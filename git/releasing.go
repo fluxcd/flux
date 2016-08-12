@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"gopkg.in/yaml.v2"
+
 	"github.com/weaveworks/fluxy/platform/kubernetes"
 	"github.com/weaveworks/fluxy/registry"
 )
@@ -17,15 +19,17 @@ import (
 // Release clones, updates the config, deploys the release, commits, and pushes
 // the result.
 func (r Repo) Release(
-	logf func(format string, args ...interface{}),
+	logf func(namespace, service, format string, args ...interface{}),
 	platform *kubernetes.Cluster,
 	namespace string,
-	service string,
+	serviceNames []string,
 	candidate registry.Image,
 	updatePeriod time.Duration,
 ) error {
 	// Check out latest version of config repo.
-	logf("fetching config repo")
+	for _, s := range serviceNames {
+		logf(namespace, s, "fetching config repo")
+	}
 	configPath, err := clone(r.Key, r.URL)
 	if err != nil {
 		return fmt.Errorf("clone of config repo failed: %v", err)
@@ -33,20 +37,32 @@ func (r Repo) Release(
 	defer os.RemoveAll(configPath)
 
 	// Find the relevant resource definition file.
-	file, err := findFileFor(configPath, r.Path, candidate.Repository())
+	// TODO: need to make sure these belong to the specified service.
+	files, err := findFilesFor(configPath, r.Path, candidate.Repository())
 	if err != nil {
 		return fmt.Errorf("couldn't find a resource definition file: %v", err)
 	}
 
-	// Special case: will this actually result in an update?
-	if fileContains(file, candidate.String()) {
-		return fmt.Errorf("%s already set to %s; no release necessary", filepath.Base(file), candidate.String())
+	updatedFiles := map[string]string{}
+	for _, file := range files {
+		// TODO: This should actually check all containers, as there may be
+		// multiple versions of the same image in use.
+		// Special case: will this actually result in an update?
+		if fileContains(file, candidate.String()) {
+			continue
+		}
+
+		// Mutate the file so it points to the right image.
+		// TODO(pb): should validate file contents are what we expect.
+		if err := configUpdate(file, candidate.String()); err != nil {
+			return fmt.Errorf("config update failed: %v", err)
+		}
+
+		updatedFiles[file] = serviceNameFromFile(file)
 	}
 
-	// Mutate the file so it points to the right image.
-	// TODO(pb): should validate file contents are what we expect.
-	if err := configUpdate(file, candidate.String()); err != nil {
-		return fmt.Errorf("config update failed: %v", err)
+	if len(updatedFiles) == 0 {
+		return fmt.Errorf("%s already set; no release necessary", candidate.String())
 	}
 
 	// Commit the mutated file.
@@ -54,25 +70,30 @@ func (r Repo) Release(
 		return fmt.Errorf("commit failed: %v", err)
 	}
 
-	// Make the release.
-	buf, err := ioutil.ReadFile(file)
-	if err != nil {
-		return fmt.Errorf("couldn't read the resource definition file: %v", err)
+	// Release each changed service
+	// TODO: This should be each service, not each file, as they may not be 1-1
+	for file, serviceName := range updatedFiles {
+		buf, err := ioutil.ReadFile(file)
+		if err != nil {
+			return fmt.Errorf("couldn't read the resource definition file %s: %v", file, err)
+		}
+		logf(namespace, serviceName, "starting release...")
+		err = platform.Release(namespace, serviceName, buf, updatePeriod)
+		if err != nil {
+			return fmt.Errorf("release failed: %v", err)
+		}
+		logf(namespace, serviceName, "release complete")
 	}
-	logf("starting release...")
-	err = platform.Release(namespace, service, buf, updatePeriod)
-	if err != nil {
-		return fmt.Errorf("release failed: %v", err)
-	}
-	logf("release complete")
 
 	// Push the new commit.
 	if err := push(r.Key, configPath); err != nil {
 		return fmt.Errorf("push failed: %v", err)
 	}
-	logf("committed and pushed the resource definition file %s", file)
+	for file, serviceName := range updatedFiles {
+		logf(namespace, serviceName, "committed and pushed the resource definition file %s", file)
+		logf(namespace, serviceName, "service release succeeded")
+	}
 
-	logf("service release succeeded")
 	return nil
 }
 
@@ -109,7 +130,7 @@ func clone(repoKey, repoURL string) (path string, err error) {
 	return dst, nil
 }
 
-func findFileFor(basePath, repoPath, imageStr string) (res string, err error) {
+func findFilesFor(basePath, repoPath, imageStr string) (res []string, err error) {
 	filepath.Walk(filepath.Join(basePath, repoPath), func(tgt string, info os.FileInfo, err error) error {
 		if info.IsDir() {
 			return nil
@@ -121,11 +142,11 @@ func findFileFor(basePath, repoPath, imageStr string) (res string, err error) {
 		if !fileContains(tgt, imageStr) {
 			return nil
 		}
-		res = tgt
-		return errors.New("found; stopping")
+		res = append(res, tgt)
+		return nil
 	})
-	if res == "" {
-		return "", errors.New("no matching file found")
+	if len(res) == 0 {
+		return nil, errors.New("no matching file found")
 	}
 	return res, nil
 }
@@ -139,6 +160,29 @@ func fileContains(filename string, s string) bool {
 		return true
 	}
 	return false
+}
+
+func serviceNameFromFile(filename string) (string, error) {
+	ioutil.ReadFile(filename)
+	yaml.Parse()
+	filepath.Walk(filepath.Join(basePath, repoPath), func(tgt string, info os.FileInfo, err error) error {
+		if info.IsDir() {
+			return nil
+		}
+		ext := filepath.Ext(tgt)
+		if ext != ".yaml" && ext != ".yml" {
+			return nil
+		}
+		if !fileContains(tgt, imageStr) {
+			return nil
+		}
+		res = append(res, tgt)
+		return nil
+	})
+	if len(res) == 0 {
+		return nil, errors.New("no matching file found")
+	}
+	return res, nil
 }
 
 func configUpdate(file string, newImage string) error {

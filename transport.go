@@ -72,6 +72,13 @@ func MakeHTTPHandler(ctx context.Context, e Endpoints, logger log.Logger) http.H
 		encodeReleaseResponse,
 		options...,
 	))
+	r.Methods("POST").Path("/release_all").Handler(httptransport.NewServer(
+		ctx,
+		e.ReleaseAllEndpoint,
+		decodeReleaseAllRequest,
+		encodeReleaseAllResponse,
+		options...,
+	))
 	r.Methods("POST").Path("/automate").Handler(httptransport.NewServer(
 		ctx,
 		e.AutomateEndpoint,
@@ -211,6 +218,27 @@ func decodeReleaseRequest(_ context.Context, r *http.Request) (request interface
 	}, nil
 }
 
+func decodeReleaseAllRequest(_ context.Context, r *http.Request) (request interface{}, err error) {
+	namespace := r.FormValue("namespace")
+	if namespace == "" {
+		namespace = "default"
+	}
+	image := r.FormValue("image")
+	updatePeriodStr := r.FormValue("updatePeriod")
+	if updatePeriodStr == "" {
+		updatePeriodStr = "5s"
+	}
+	updatePeriod, err := time.ParseDuration(updatePeriodStr)
+	if err != nil {
+		return nil, err
+	}
+	return releaseAllRequest{
+		Namespace:    namespace,
+		Image:        image,
+		UpdatePeriod: updatePeriod,
+	}, nil
+}
+
 func decodeAutomateRequest(_ context.Context, r *http.Request) (request interface{}, err error) {
 	namespace := r.FormValue("namespace")
 	if namespace == "" {
@@ -291,6 +319,17 @@ func decodeHistoryResponse(_ context.Context, resp *http.Response) (interface{},
 
 func decodeReleaseResponse(_ context.Context, resp *http.Response) (interface{}, error) {
 	var response releaseResponse
+	switch resp.StatusCode {
+	case http.StatusOK:
+		// nothing to do
+	default:
+		response.Err = decodeError(resp.Body)
+	}
+	return response, nil
+}
+
+func decodeReleaseAllResponse(_ context.Context, resp *http.Response) (interface{}, error) {
+	var response releaseAllResponse
 	switch resp.StatusCode {
 	case http.StatusOK:
 		// nothing to do
@@ -384,6 +423,21 @@ func encodeReleaseRequest(ctx context.Context, req *http.Request, request interf
 	return nil
 }
 
+func encodeReleaseAllRequest(ctx context.Context, req *http.Request, request interface{}) error {
+	r := request.(releaseAllRequest)
+	values := url.Values{}
+	values.Set("namespace", r.Namespace)
+	values.Set("image", r.Image)
+	values.Set("updatePeriod", r.UpdatePeriod.String())
+
+	req.Method = "POST"
+	req.URL.Path = path.Join(req.URL.Path, "/v0/release/all")
+	req.URL.RawQuery = values.Encode()
+	req.Body = ioutil.NopCloser(bytes.NewReader(r.NewDef))
+
+	return nil
+}
+
 func encodeAutomateRequest(ctx context.Context, req *http.Request, request interface{}) error {
 	r := request.(automateRequest)
 	values := url.Values{}
@@ -452,6 +506,16 @@ func encodeHistoryResponse(ctx context.Context, w http.ResponseWriter, response 
 
 func encodeReleaseResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
 	resp := response.(releaseResponse)
+	if resp.Err != nil {
+		encodeError(ctx, resp.Err, w)
+		return nil
+	}
+	encodeJSON(ctx, map[string]interface{}{"success": true}, w)
+	return nil
+}
+
+func encodeReleaseAllResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
+	resp := response.(releaseAllResponse)
 	if resp.Err != nil {
 		encodeError(ctx, resp.Err, w)
 		return nil
