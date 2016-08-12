@@ -5,13 +5,9 @@
 package kubernetes
 
 import (
-	"bytes"
-	"fmt"
 	"net/http"
 	"os"
 	"os/exec"
-	"strings"
-	"time"
 
 	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
@@ -30,13 +26,34 @@ type extendedClient struct {
 	*k8sclient.ExtensionsClient
 }
 
+type namespacedService struct {
+	namespace string
+	service   string
+}
+
+type apiObject struct {
+	bytes    []byte
+	Version  string `yaml:"apiVersion"`
+	Kind     string `yaml:"kind"`
+	Metadata struct {
+		Name      string `yaml:"name"`
+		Namespace string `yaml:"namespace"`
+	} `yaml:"metadata"`
+}
+
+type releasePlan interface {
+	do(*Cluster, log.Logger) error
+	summary() string
+}
+
 // Cluster is a handle to a Kubernetes API server.
 // (Typically, this code is deployed into the same cluster.)
 type Cluster struct {
-	config  *restclient.Config
-	client  extendedClient
-	kubectl string
-	logger  log.Logger
+	config   *restclient.Config
+	client   extendedClient
+	kubectl  string
+	releases map[namespacedService]releasePlan
+	logger   log.Logger
 }
 
 // NewCluster returns a usable cluster. Host should be of the form
@@ -64,10 +81,11 @@ func NewCluster(config *restclient.Config, kubectl string, logger log.Logger) (*
 	logger.Log("kubectl", kubectl)
 
 	return &Cluster{
-		config:  config,
-		client:  extendedClient{client, extclient},
-		kubectl: kubectl,
-		logger:  logger,
+		config:   config,
+		client:   extendedClient{client, extclient},
+		kubectl:  kubectl,
+		releases: make(map[namespacedService]releasePlan),
+		logger:   logger,
 	}, nil
 }
 
@@ -128,13 +146,8 @@ func (c *Cluster) services(namespace string) (res []api.Service, err error) {
 	return list.Items, nil
 }
 
-type apiObject struct {
-	Version string `yaml:"apiVersion"`
-	Kind    string `yaml:"kind"`
-}
-
 func definitionObj(bytes []byte) (*apiObject, error) {
-	var obj apiObject
+	obj := apiObject{bytes: bytes}
 	return &obj, yaml.Unmarshal(bytes, &obj)
 }
 
@@ -148,7 +161,7 @@ func definitionObj(bytes []byte) (*apiObject, error) {
 // `kubectl rolling-update` or `kubectl apply` in a seperate process, and
 // assumes kubectl is in the PATH; this can be improved.
 func (c *Cluster) Release(namespace, serviceName string, newDefinition []byte) error {
-	obj, err := definitionObj(newDefinition)
+	newDef, err := definitionObj(newDefinition)
 	if err != nil {
 		return errors.Wrap(err, "reading definition")
 	}
@@ -158,140 +171,20 @@ func (c *Cluster) Release(namespace, serviceName string, newDefinition []byte) e
 		return err
 	}
 
-	var release releaseProc
-	ns := namespacedService{namespace, serviceName}
-	if pc.Deployment != nil {
-		if obj.Kind != "Deployment" {
-			return platform.ErrWrongResourceKind
-		}
-		release = releaseDeployment{ns, c, pc.Deployment}
-	} else if pc.ReplicationController != nil {
-		if obj.Kind != "ReplicationController" {
-			return platform.ErrWrongResourceKind
-		}
-		release = releaseReplicationController{ns, c, pc.ReplicationController}
-	} else {
-		return platform.ErrNoMatching
+	plan, err := pc.createPlan(newDef)
+	if err != nil {
+		return err
 	}
 
-	logger := log.NewContext(c.logger).With("namespace", namespace, "service", serviceName)
-	if err := release.do(newDefinition, logger); err != nil {
+	ns := namespacedService{namespace, serviceName}
+	c.releases[ns] = plan
+	defer delete(c.releases, ns)
+
+	logger := log.NewContext(c.logger).With("method", "Release", "namespace", namespace, "service", serviceName)
+	if err = plan.do(c, logger); err != nil {
 		return errors.Wrap(err, "releasing "+namespace+"/"+serviceName)
 	}
 	return nil
-}
-
-type namespacedService struct {
-	namespace string
-	service   string
-}
-
-type releaseProc interface {
-	do(newDefinition []byte, logger log.Logger) error
-}
-
-type releaseReplicationController struct {
-	namespacedService
-	cluster *Cluster
-	rc      *api.ReplicationController
-}
-
-func (c releaseReplicationController) do(newDefinition []byte, logger log.Logger) error {
-	var args []string
-	if c.cluster.config.Host != "" {
-		args = append(args, fmt.Sprintf("--server=%s", c.cluster.config.Host))
-	}
-	if c.cluster.config.Username != "" {
-		args = append(args, fmt.Sprintf("--username=%s", c.cluster.config.Username))
-	}
-	if c.cluster.config.Password != "" {
-		args = append(args, fmt.Sprintf("--password=%s", c.cluster.config.Password))
-	}
-	if c.cluster.config.TLSClientConfig.CertFile != "" {
-		args = append(args, fmt.Sprintf("--client-certificate=%s", c.cluster.config.TLSClientConfig.CertFile))
-	}
-	if c.cluster.config.TLSClientConfig.CAFile != "" {
-		args = append(args, fmt.Sprintf("--certificate-authority=%s", c.cluster.config.TLSClientConfig.CAFile))
-	}
-	if c.cluster.config.TLSClientConfig.KeyFile != "" {
-		args = append(args, fmt.Sprintf("--client-key=%s", c.cluster.config.TLSClientConfig.KeyFile))
-	}
-	if c.cluster.config.BearerToken != "" {
-		args = append(args, fmt.Sprintf("--token=%s", c.cluster.config.BearerToken))
-	}
-	args = append(args, []string{
-		"rolling-update",
-		c.rc.Name,
-		"--update-period", "3s",
-		"-f", "-", // take definition from stdin
-	}...)
-
-	cmd := exec.Command(c.cluster.kubectl, args...)
-	cmd.Stdin = bytes.NewReader(newDefinition)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	logger.Log("cmd", strings.Join(cmd.Args, " "))
-
-	begin := time.Now()
-	err := cmd.Run()
-	result := "success"
-	if err != nil {
-		result = err.Error()
-	}
-	logger.Log("result", result, "took", time.Since(begin).String())
-
-	return err
-}
-
-type releaseDeployment struct {
-	namespacedService
-	cluster *Cluster
-	d       *apiext.Deployment
-}
-
-func (c releaseDeployment) do(newDefinition []byte, logger log.Logger) error {
-	var args []string
-	if c.cluster.config.Host != "" {
-		args = append(args, fmt.Sprintf("--server=%s", c.cluster.config.Host))
-	}
-	if c.cluster.config.Username != "" {
-		args = append(args, fmt.Sprintf("--username=%s", c.cluster.config.Username))
-	}
-	if c.cluster.config.Password != "" {
-		args = append(args, fmt.Sprintf("--password=%s", c.cluster.config.Password))
-	}
-	if c.cluster.config.TLSClientConfig.CertFile != "" {
-		args = append(args, fmt.Sprintf("--client-certificate=%s", c.cluster.config.TLSClientConfig.CertFile))
-	}
-	if c.cluster.config.TLSClientConfig.CAFile != "" {
-		args = append(args, fmt.Sprintf("--certificate-authority=%s", c.cluster.config.TLSClientConfig.CAFile))
-	}
-	if c.cluster.config.TLSClientConfig.KeyFile != "" {
-		args = append(args, fmt.Sprintf("--client-key=%s", c.cluster.config.TLSClientConfig.KeyFile))
-	}
-	if c.cluster.config.BearerToken != "" {
-		args = append(args, fmt.Sprintf("--token=%s", c.cluster.config.BearerToken))
-	}
-	args = append(args, []string{
-		"apply",
-		"-f", "-", // take definition from stdin
-	}...)
-
-	cmd := exec.Command(c.cluster.kubectl, args...)
-	cmd.Stdin = bytes.NewReader(newDefinition)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	logger.Log("cmd", strings.Join(cmd.Args, " "))
-
-	begin := time.Now()
-	err := cmd.Run()
-	result := "success"
-	if err != nil {
-		result = err.Error()
-	}
-	logger.Log("result", result, "took", time.Since(begin).String())
-
-	return err
 }
 
 // Either a replication controller, a deployment, or neither (both nils).
@@ -305,6 +198,15 @@ func (p podController) name() string {
 		return p.Deployment.Name
 	} else if p.ReplicationController != nil {
 		return p.ReplicationController.Name
+	}
+	return ""
+}
+
+func (p podController) kind() string {
+	if p.Deployment != nil {
+		return "Deployment"
+	} else if p.ReplicationController != nil {
+		return "ReplicationController"
 	}
 	return ""
 }
@@ -451,9 +353,15 @@ func (c *Cluster) makePlatformService(s api.Service) platform.Service {
 		"type":             string(s.Spec.Type),
 	}
 
+	var status string
+	if release, found := c.releases[namespacedService{s.Namespace, s.Name}]; found {
+		status = release.summary()
+	}
+
 	return platform.Service{
 		Name:     s.Name,
 		IP:       s.Spec.ClusterIP,
 		Metadata: metadata,
+		Status:   status,
 	}
 }
