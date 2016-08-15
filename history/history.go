@@ -26,4 +26,6 @@ type DB interface {
 	EventsForService(namespace, service string) ([]Event, error)
 	// LogEvent records a message in the history of a service
 	LogEvent(namespace, service, msg string) error
+	// Close the database
+	Close() error
 }
