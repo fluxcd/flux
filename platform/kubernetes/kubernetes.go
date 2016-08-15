@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"sync"
 
 	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
@@ -49,11 +50,12 @@ type releasePlan interface {
 // Cluster is a handle to a Kubernetes API server.
 // (Typically, this code is deployed into the same cluster.)
 type Cluster struct {
-	config   *restclient.Config
-	client   extendedClient
-	kubectl  string
-	releases map[namespacedService]releasePlan
-	logger   log.Logger
+	config     *restclient.Config
+	client     extendedClient
+	kubectl    string
+	releasesMx sync.RWMutex
+	releases   map[namespacedService]releasePlan
+	logger     log.Logger
 }
 
 // NewCluster returns a usable cluster. Host should be of the form
@@ -177,14 +179,32 @@ func (c *Cluster) Release(namespace, serviceName string, newDefinition []byte) e
 	}
 
 	ns := namespacedService{namespace, serviceName}
-	c.releases[ns] = plan
-	defer delete(c.releases, ns)
+	c.setRelease(ns, plan)
+	defer c.removeRelease(ns)
 
 	logger := log.NewContext(c.logger).With("method", "Release", "namespace", namespace, "service", serviceName)
 	if err = plan.do(c, logger); err != nil {
 		return errors.Wrap(err, "releasing "+namespace+"/"+serviceName)
 	}
 	return nil
+}
+
+func (c *Cluster) setRelease(ns namespacedService, plan releasePlan) {
+	c.releasesMx.Lock()
+	defer c.releasesMx.Unlock()
+	c.releases[ns] = plan
+}
+
+func (c *Cluster) getRelease(ns namespacedService) releasePlan {
+	c.releasesMx.RLock()
+	defer c.releasesMx.RUnlock()
+	return c.releases[ns]
+}
+
+func (c *Cluster) removeRelease(ns namespacedService) {
+	c.releasesMx.Lock()
+	defer c.releasesMx.Unlock()
+	delete(c.releases, ns)
 }
 
 // Either a replication controller, a deployment, or neither (both nils).
@@ -354,7 +374,7 @@ func (c *Cluster) makePlatformService(s api.Service) platform.Service {
 	}
 
 	var status string
-	if release, found := c.releases[namespacedService{s.Namespace, s.Name}]; found {
+	if release := c.getRelease(namespacedService{s.Namespace, s.Name}); release != nil {
 		status = release.summary()
 	}
 
