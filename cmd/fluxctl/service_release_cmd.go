@@ -28,6 +28,7 @@ func (opts *serviceReleaseOpts) Command() *cobra.Command {
 		Example: makeExample(
 			"fluxctl service release --service=helloworld --image=library/hello:1234",
 			"fluxctl service release --service=helloworld --file=helloworld-rc.yaml",
+			"fluxctl service release --all --image=library/hello:1234",
 			"cat foo-rc.yaml | fluxctl service release -s foo -f -",
 		),
 		RunE: opts.RunE,
@@ -43,16 +44,36 @@ func (opts *serviceReleaseOpts) RunE(_ *cobra.Command, args []string) error {
 	if len(args) != 0 {
 		return errorWantedNoArgs
 	}
-	if opts.service == "" {
-		return newUsageError("-s, --service is required")
+
+	if !opts.all && opts.service == "" {
+		return newUsageError("one of -a, --all, or -s, --service, are required")
 	}
 
 	if opts.image != "" && opts.file != "" {
-		return newUsageError("cannot have both an -i, --image and -f, --file")
+		return newUsageError("cannot have both -i, --image and -f, --file")
 	}
 
 	if opts.image == "" && opts.file == "" {
 		return newUsageError("one of -i, --image, or -f, --file, are required")
+	}
+
+	if opts.all {
+		if opts.service != "" {
+			return newUsageError("cannot have both -a, --all and -s, --service")
+		}
+		if opts.file != "" {
+			return newUsageError("cannot have both -a, --all and -f, --file")
+		}
+
+		begin := time.Now()
+		fmt.Fprintf(os.Stdout, "Starting release of all services with an update period of %s... \n", opts.updatePeriod.String())
+		if err := opts.Fluxd.ReleaseAll(opts.namespace, opts.image, opts.updatePeriod); err != nil {
+			fmt.Fprintf(os.Stdout, "error!\n%v\n", err)
+		} else {
+			fmt.Fprintf(os.Stdout, "success\n")
+		}
+		fmt.Fprintf(os.Stdout, "took %s\n", time.Since(begin))
+		return nil
 	}
 
 	var buf []byte
@@ -74,7 +95,7 @@ func (opts *serviceReleaseOpts) RunE(_ *cobra.Command, args []string) error {
 	begin := time.Now()
 	fmt.Fprintf(os.Stdout, "Starting release of %s with an update period of %s... ", opts.service, opts.updatePeriod.String())
 	if err := opts.Fluxd.Release(opts.namespace, opts.service, opts.image, buf, opts.updatePeriod); err != nil {
-		fmt.Fprintf(os.Stdout, "error! %v\n", err)
+		fmt.Fprintf(os.Stdout, "error!\n%v\n", err)
 	} else {
 		fmt.Fprintf(os.Stdout, "success\n")
 	}

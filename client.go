@@ -38,6 +38,7 @@ func NewClient(instance string) (Service, error) {
 			ServicesEndpoint:      httptransport.NewClient("GET", tgt, encodeServicesRequest, decodeServicesResponse, options...).Endpoint(),
 			HistoryEndpoint:       httptransport.NewClient("GET", tgt, encodeHistoryRequest, decodeHistoryResponse, options...).Endpoint(),
 			ReleaseEndpoint:       httptransport.NewClient("POST", tgt, encodeReleaseRequest, decodeReleaseResponse, options...).Endpoint(),
+			ReleaseAllEndpoint:    httptransport.NewClient("POST", tgt, encodeReleaseAllRequest, decodeReleaseAllResponse, options...).Endpoint(),
 			AutomateEndpoint:      httptransport.NewClient("POST", tgt, encodeAutomateRequest, decodeAutomateResponse, options...).Endpoint(),
 			DeautomateEndpoint:    httptransport.NewClient("POST", tgt, encodeDeautomateRequest, decodeDeautomateResponse, options...).Endpoint(),
 		},
@@ -103,6 +104,20 @@ func (w serviceWrapper) Release(namespace, service, image string, newDef []byte,
 		return err
 	}
 	resp := response.(releaseResponse)
+	return resp.Err
+}
+
+func (w serviceWrapper) ReleaseAll(namespace, image string, updatePeriod time.Duration) error {
+	request := releaseAllRequest{
+		Namespace:    namespace,
+		Image:        image,
+		UpdatePeriod: updatePeriod,
+	}
+	response, err := w.endpoints.ReleaseAllEndpoint(w.ctx, request)
+	if err != nil {
+		return err
+	}
+	resp := response.(releaseAllResponse)
 	return resp.Err
 }
 
