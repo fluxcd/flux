@@ -163,7 +163,6 @@ func (s *svc) releasing(cfg Config) state {
 		s.namespace,
 		s.serviceName,
 		*s.candidate,
-		s.cfg.UpdatePeriod,
 	); err != nil {
 		s.logf("%v", err)
 	}

@@ -4,7 +4,6 @@ import (
 	"errors"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/weaveworks/fluxy/git"
 	"github.com/weaveworks/fluxy/history"
@@ -28,9 +27,6 @@ type Config struct {
 	// A reference to the audit history component.
 	History history.DB
 
-	// The platform update period, for rolling updates.
-	UpdatePeriod time.Duration
-
 	// Repo is the git repo we are managing.
 	Repo git.Repo
 }
@@ -46,9 +42,6 @@ func (cfg Config) Validate() error {
 	}
 	if cfg.History == nil {
 		errs = append(errs, "history not specified")
-	}
-	if cfg.UpdatePeriod == 0 {
-		errs = append(errs, "update period not specified")
 	}
 	if cfg.Repo.URL == "" {
 		errs = append(errs, "config repo URL not specified")

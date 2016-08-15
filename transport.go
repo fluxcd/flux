@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"net/url"
 	"path"
-	"time"
 
 	"github.com/go-kit/kit/log"
 	httptransport "github.com/go-kit/kit/transport/http"
@@ -194,20 +193,11 @@ func decodeReleaseRequest(_ context.Context, r *http.Request) (request interface
 	if err != nil {
 		return nil, err
 	}
-	updatePeriodStr := r.FormValue("updatePeriod")
-	if updatePeriodStr == "" {
-		updatePeriodStr = "5s"
-	}
-	updatePeriod, err := time.ParseDuration(updatePeriodStr)
-	if err != nil {
-		return nil, err
-	}
 	return releaseRequest{
-		Namespace:    namespace,
-		Service:      service,
-		Image:        image,
-		NewDef:       newDef,
-		UpdatePeriod: updatePeriod,
+		Namespace: namespace,
+		Service:   service,
+		Image:     image,
+		NewDef:    newDef,
 	}, nil
 }
 
@@ -374,7 +364,6 @@ func encodeReleaseRequest(ctx context.Context, req *http.Request, request interf
 	values.Set("namespace", r.Namespace)
 	values.Set("service", r.Service)
 	values.Set("image", r.Image)
-	values.Set("updatePeriod", r.UpdatePeriod.String())
 
 	req.Method = "POST"
 	req.URL.Path = path.Join(req.URL.Path, "/v0/release")

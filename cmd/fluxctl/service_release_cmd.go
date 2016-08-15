@@ -11,10 +11,9 @@ import (
 
 type serviceReleaseOpts struct {
 	*serviceOpts
-	service      string
-	file         string
-	image        string
-	updatePeriod time.Duration
+	service string
+	file    string
+	image   string
 }
 
 func newServiceRelease(parent *serviceOpts) *serviceReleaseOpts {
@@ -35,7 +34,6 @@ func (opts *serviceReleaseOpts) Command() *cobra.Command {
 	cmd.Flags().StringVarP(&opts.service, "service", "s", "", "service to update (required)")
 	cmd.Flags().StringVarP(&opts.file, "file", "f", "", "file containing new ReplicationController definition, or - to read from stdin")
 	cmd.Flags().StringVarP(&opts.image, "image", "i", "", "update the service to a specific image")
-	cmd.Flags().DurationVarP(&opts.updatePeriod, "update-period", "p", 5*time.Second, "delay between starting and stopping instances in the rolling update")
 	return cmd
 }
 
@@ -72,8 +70,8 @@ func (opts *serviceReleaseOpts) RunE(_ *cobra.Command, args []string) error {
 	}
 
 	begin := time.Now()
-	fmt.Fprintf(os.Stdout, "Starting release of %s with an update period of %s... ", opts.service, opts.updatePeriod.String())
-	if err := opts.Fluxd.Release(opts.namespace, opts.service, opts.image, buf, opts.updatePeriod); err != nil {
+	fmt.Fprintf(os.Stdout, "Starting release of %s ...", opts.service)
+	if err := opts.Fluxd.Release(opts.namespace, opts.service, opts.image, buf); err != nil {
 		fmt.Fprintf(os.Stdout, "error! %v\n", err)
 	} else {
 		fmt.Fprintf(os.Stdout, "success\n")
