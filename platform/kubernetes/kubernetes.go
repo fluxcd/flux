@@ -224,6 +224,7 @@ func (c releaseReplicationController) do(newDefinition []byte, logger log.Logger
 	args = append(args, []string{
 		"rolling-update",
 		c.rc.Name,
+		"--update-period", "3s",
 		"-f", "-", // take definition from stdin
 	}...)
 
