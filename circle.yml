@@ -1,4 +1,6 @@
 machine:
+  services:
+    - docker
   environment:
     PATH: "/usr/local/go/bin:${HOME}/bin:${PATH}"
     GOROOT: ""
@@ -27,4 +29,18 @@ test:
   override:
     - go build -v $(glide novendor)
     - go test -v -race $(glide novendor)
+  post:
+    - |
+        cd ${GOPATH}/src/github.com/weaveworks/fluxy
+        make all
 
+deployment:
+  push:
+    branch: master
+    commands:
+      - docker login -e '.' -u "$DOCKER_REGISTRY_USER" -p "$DOCKER_REGISTRY_PASSWORD" quay.io
+      - |
+          IMAGE_TAG="quay.io/weaveworks/fluxy:$(./docker/image-tag)"
+          echo Pushing $IMAGE_TAG
+          docker tag weaveworks/fluxy "$IMAGE_TAG"
+          docker push "$IMAGE_TAG"
