@@ -3,7 +3,6 @@ package flux
 import (
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/weaveworks/fluxy/automator"
 	"github.com/weaveworks/fluxy/git"
@@ -39,7 +38,7 @@ type Service interface {
 	// replication controller. A rolling-update is performed with the provided
 	// updatePeriod. This call blocks until it's complete. Either image, or
 	// newDef should be set, but not both.
-	Release(namespace, service, image string, newDef []byte, updatePeriod time.Duration) error
+	Release(namespace, service, image string, newDef []byte) error
 
 	// Automate turns on automatic releases for the given service.
 	// Read the history for the service to check status.
@@ -153,7 +152,7 @@ func (s *service) History(namespace, service string) ([]history.Event, error) {
 	return s.history.EventsForService(namespace, service)
 }
 
-func (s *service) Release(namespace, service, image string, newDef []byte, updatePeriod time.Duration) error {
+func (s *service) Release(namespace, service, image string, newDef []byte) error {
 	switch {
 	case image != "":
 		if s.repo.URL == "" {
@@ -163,17 +162,17 @@ func (s *service) Release(namespace, service, image string, newDef []byte, updat
 		logf := func(format string, args ...interface{}) {
 			s.history.LogEvent(namespace, service, fmt.Sprintf(format, args...))
 		}
-		return s.manualRelease(namespace, service, updatePeriod, func() error {
-			return s.repo.Release(logf, s.platform, namespace, service, registry.ParseImage(image), updatePeriod)
+		return s.manualRelease(namespace, service, func() error {
+			return s.repo.Release(logf, s.platform, namespace, service, registry.ParseImage(image))
 		})
 	default:
-		return s.manualRelease(namespace, service, updatePeriod, func() error {
-			return s.platform.Release(namespace, service, newDef, updatePeriod)
+		return s.manualRelease(namespace, service, func() error {
+			return s.platform.Release(namespace, service, newDef)
 		})
 	}
 }
 
-func (s *service) manualRelease(namespace, service string, updatePeriod time.Duration, performRelease func() error) error {
+func (s *service) manualRelease(namespace, service string, performRelease func() error) error {
 	if s.platform == nil {
 		return ErrNoPlatformConfigured
 	}

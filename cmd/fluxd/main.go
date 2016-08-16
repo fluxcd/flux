@@ -10,7 +10,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"syscall"
-	"time"
 
 	"github.com/go-kit/kit/log"
 	"github.com/spf13/pflag"
@@ -53,7 +52,6 @@ func main() {
 		repoURL                   = fs.String("repo-url", "", "Config repo URL, e.g. https://github.com/myorg/conf.git (required)")
 		repoKey                   = fs.String("repo-key", "", "SSH key file with commit rights to config repo")
 		repoPath                  = fs.String("repo-path", "", "Path within config repo to look for resource definition files")
-		automationUpdatePeriod    = fs.Duration("automation-update-period", 5*time.Second, "Automation rolling update period")
 	)
 	fs.Parse(os.Args)
 
@@ -160,11 +158,10 @@ func main() {
 	{
 		var err error
 		auto, err = automator.New(automator.Config{
-			Platform:     k8s,
-			Registry:     reg,
-			History:      his,
-			UpdatePeriod: *automationUpdatePeriod,
-			Repo:         repo,
+			Platform: k8s,
+			Registry: reg,
+			History:  his,
+			Repo:     repo,
 		})
 		if err == nil {
 			logger.Log("automator", "enabled", "repo", repo.URL)

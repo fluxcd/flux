@@ -8,7 +8,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/weaveworks/fluxy/platform/kubernetes"
 	"github.com/weaveworks/fluxy/registry"
@@ -22,7 +21,6 @@ func (r Repo) Release(
 	namespace string,
 	service string,
 	candidate registry.Image,
-	updatePeriod time.Duration,
 ) error {
 	// Check out latest version of config repo.
 	logf("fetching config repo")
@@ -60,7 +58,7 @@ func (r Repo) Release(
 		return fmt.Errorf("couldn't read the resource definition file: %v", err)
 	}
 	logf("starting release...")
-	err = platform.Release(namespace, service, buf, updatePeriod)
+	err = platform.Release(namespace, service, buf)
 	if err != nil {
 		return fmt.Errorf("release failed: %v", err)
 	}

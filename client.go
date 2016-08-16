@@ -3,7 +3,6 @@ package flux
 import (
 	"net/url"
 	"strings"
-	"time"
 
 	httptransport "github.com/go-kit/kit/transport/http"
 	"golang.org/x/net/context"
@@ -90,13 +89,12 @@ func (w serviceWrapper) History(namespace, service string) ([]history.Event, err
 	return resp.History, resp.Err
 }
 
-func (w serviceWrapper) Release(namespace, service, image string, newDef []byte, updatePeriod time.Duration) error {
+func (w serviceWrapper) Release(namespace, service, image string, newDef []byte) error {
 	request := releaseRequest{
-		Namespace:    namespace,
-		Service:      service,
-		Image:        image,
-		NewDef:       newDef,
-		UpdatePeriod: updatePeriod,
+		Namespace: namespace,
+		Service:   service,
+		Image:     image,
+		NewDef:    newDef,
 	}
 	response, err := w.endpoints.ReleaseEndpoint(w.ctx, request)
 	if err != nil {

@@ -151,7 +151,7 @@ func definitionObj(bytes []byte) (*apiObject, error) {
 // until the rolling update is complete; this can be improved. Release invokes
 // `kubectl rolling-update` or `kubectl apply` in a seperate process, and
 // assumes kubectl is in the PATH; this can be improved.
-func (c *Cluster) Release(namespace, serviceName string, newDefinition []byte, updatePeriod time.Duration) error {
+func (c *Cluster) Release(namespace, serviceName string, newDefinition []byte) error {
 	logger := log.NewContext(c.logger).With("method", "Release", "namespace", namespace, "service", serviceName)
 	logger.Log()
 
@@ -176,7 +176,7 @@ func (c *Cluster) Release(namespace, serviceName string, newDefinition []byte, u
 		if obj.Kind != "ReplicationController" {
 			return ErrWrongResourceKind
 		}
-		release = releaseReplicationController{ns, c, pc.ReplicationController, updatePeriod}
+		release = releaseReplicationController{ns, c, pc.ReplicationController}
 	} else {
 		return ErrNoMatching
 	}
@@ -194,9 +194,8 @@ type releaseProc interface {
 
 type releaseReplicationController struct {
 	namespacedService
-	cluster      *Cluster
-	rc           *api.ReplicationController
-	updatePeriod time.Duration
+	cluster *Cluster
+	rc      *api.ReplicationController
 }
 
 func (c releaseReplicationController) do(newDefinition []byte, logger log.Logger) error {
@@ -225,7 +224,7 @@ func (c releaseReplicationController) do(newDefinition []byte, logger log.Logger
 	args = append(args, []string{
 		"rolling-update",
 		c.rc.Name,
-		fmt.Sprintf("--update-period=%s", c.updatePeriod),
+		"--update-period", "3s",
 		"-f", "-", // take definition from stdin
 	}...)
 
