@@ -6,6 +6,9 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"os/user"
+	"path/filepath"
+	"regexp"
 	"syscall"
 	"time"
 
@@ -36,6 +39,7 @@ func main() {
 	var (
 		listenAddr                = fs.StringP("listen", "l", ":3030", "Listen address for Flux API clients")
 		registryCredentials       = fs.String("registry-credentials", "", "Path to image registry credentials file, in the format of ~/.docker/config.json")
+		kubernetesMinikube        = fs.Bool("kubernetes-minikube", false, "Parse Kubernetes access information from standard minikube files")
 		kubernetesKubectl         = fs.String("kubernetes-kubectl", "", "Optional, explicit path to kubectl tool")
 		kubernetesHost            = fs.String("kubernetes-host", "", "Kubernetes host, e.g. http://10.11.12.13:8080")
 		kubernetesUsername        = fs.String("kubernetes-username", "", "Kubernetes HTTP basic auth username")
@@ -86,6 +90,13 @@ func main() {
 	// Platform component.
 	var k8s *kubernetes.Cluster
 	{
+		if *kubernetesMinikube {
+			*kubernetesHost = parseMinikubeHost()
+			*kubernetesClientCert = filepath.Join(homeDir(), ".minikube", "apiserver.crt")
+			*kubernetesClientKey = filepath.Join(homeDir(), ".minikube", "apiserver.key")
+			*kubernetesCertAuthority = filepath.Join(homeDir(), ".minikube", "ca.crt")
+		}
+
 		// When adding a new platform, don't just bash it in. Create a Platform
 		// or Cluster interface in package platform, and have kubernetes.Cluster
 		// and your new platform implement that interface.
@@ -195,4 +206,24 @@ func main() {
 
 	// Go!
 	logger.Log("exit", <-errc)
+}
+
+func parseMinikubeHost() string {
+	buf, err := ioutil.ReadFile(filepath.Join(homeDir(), ".kube", "config"))
+	if err != nil {
+		return "minikube-host-unavailable"
+	}
+	matches := regexp.MustCompile(`server: (https://192\.168\.64\.[0-9]+:[0-9]+)`).FindSubmatch(buf)
+	if len(matches) < 2 {
+		return "minikube-host-unavailable"
+	}
+	return string(matches[1])
+}
+
+func homeDir() string {
+	u, err := user.Current()
+	if err != nil {
+		return ""
+	}
+	return u.HomeDir
 }
