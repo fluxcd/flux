@@ -20,7 +20,7 @@ func TestEndToEnd(t *testing.T) {
 	_, err = c.ListImages(ServiceSpec("namespace/service"))
 	t.Logf("ListImages: %v", err)
 
-	err = c.Release(ServiceSpec("namespace/service"), ImageSpec("image"))
+	_, err = c.Release(ServiceSpec("namespace/service"), ImageSpec("image"), ReleaseKindPlan)
 	t.Logf("Release: %v", err)
 
 	err = c.Automate(ServiceID("namespace/service"))

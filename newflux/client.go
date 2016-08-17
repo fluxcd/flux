@@ -28,8 +28,8 @@ func (c *client) ListImages(s ServiceSpec) ([]ImageDescription, error) {
 	return invokeListImages(c.client, c.router, c.endpoint, s)
 }
 
-func (c *client) Release(s ServiceSpec, i ImageSpec) error {
-	return invokeRelease(c.client, c.router, c.endpoint, s, i)
+func (c *client) Release(s ServiceSpec, i ImageSpec, k ReleaseKind) ([]ReleaseAction, error) {
+	return invokeRelease(c.client, c.router, c.endpoint, s, i, k)
 }
 
 func (c *client) Automate(id ServiceID) error {

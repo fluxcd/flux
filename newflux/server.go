@@ -16,8 +16,8 @@ func (s *server) ListImages(ServiceSpec) ([]ImageDescription, error) {
 	return nil, errors.New("ListImages not implemented by server")
 }
 
-func (s *server) Release(ServiceSpec, ImageSpec) error {
-	return errors.New("Release not implemented by server")
+func (s *server) Release(ServiceSpec, ImageSpec, ReleaseKind) ([]ReleaseAction, error) {
+	return nil, errors.New("Release not implemented by server")
 }
 
 func (s *server) Automate(ServiceID) error {
