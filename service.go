@@ -60,6 +60,14 @@ func ParseServiceID(s string) (ServiceID, error) {
 	return ServiceID(s), nil
 }
 
+func (id ServiceID) Components() (namespace, service string) {
+	toks := strings.SplitN(string(id), "/", 2)
+	if len(toks) != 2 {
+		panic("invalid service spec")
+	}
+	return toks[0], toks[1]
+}
+
 type ImageID string // "quay.io/weaveworks/helloworld:v1"
 
 func ParseImageID(s string) ImageID {
