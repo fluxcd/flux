@@ -5,20 +5,25 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/weaveworks/fluxy/automator"
+	"github.com/weaveworks/fluxy/history"
 	"github.com/weaveworks/fluxy/platform"
 	"github.com/weaveworks/fluxy/platform/kubernetes"
 	"github.com/weaveworks/fluxy/registry"
 )
 
 type server struct {
-	platform *kubernetes.Cluster
-	registry *registry.Client
+	platform  *kubernetes.Cluster
+	registry  *registry.Client
+	automator *automator.Automator
+	history   history.DB
 }
 
-func NewServer(platform *kubernetes.Cluster, registry *registry.Client) Service {
+func NewServer(platform *kubernetes.Cluster, registry *registry.Client, automator *automator.Automator) Service {
 	return &server{
-		platform: platform,
-		registry: registry,
+		platform:  platform,
+		registry:  registry,
+		automator: automator,
 	}
 }
 
@@ -106,7 +111,7 @@ func (s *server) ListImages(spec ServiceSpec) ([]ImageDescription, error) {
 	} else {
 		id, err := ParseServiceID(string(spec))
 		if err != nil {
-			return nil, errors.Wrap(err, "invalid service spec")
+			return nil, errors.Wrapf(err, "invalid service spec %s", spec)
 		}
 
 		namespace, service := id.Components()
@@ -146,18 +151,57 @@ func (s *server) ListImages(spec ServiceSpec) ([]ImageDescription, error) {
 	return res, nil
 }
 
-func (s *server) Release(ServiceSpec, ImageSpec, ReleaseKind) ([]ReleaseAction, error) {
+func (s *server) Release(serviceSpec ServiceSpec, imageSpec ImageSpec, kind ReleaseKind) ([]ReleaseAction, error) {
 	return nil, errors.New("Release not implemented by server")
 }
 
-func (s *server) Automate(ServiceID) error {
-	return errors.New("Automate not implemented by server")
+func (s *server) Automate(id ServiceID) error {
+	namespace, service := id.Components()
+	s.automator.Enable(namespace, service)
+	return nil
 }
 
-func (s *server) Deautomate(ServiceID) error {
-	return errors.New("Deautomate not implemented by server")
+func (s *server) Deautomate(id ServiceID) error {
+	namespace, service := id.Components()
+	s.automator.Disable(namespace, service)
+	return nil
 }
 
-func (s *server) History(ServiceSpec) ([]HistoryEntry, error) {
-	return nil, errors.New("History not implemented by server")
+func (s *server) History(spec ServiceSpec) ([]HistoryEntry, error) {
+	var events []history.Event
+	if spec == ServiceSpecAll {
+		for _, namespace := range []string{
+			"default", // TODO(pb)
+		} {
+			ev, err := s.history.AllEvents(namespace)
+			if err != nil {
+				return nil, errors.Wrapf(err, "fetching all history events for namespace %s", namespace)
+			}
+			events = append(events, ev...)
+		}
+	} else {
+		id, err := ParseServiceID(string(spec))
+		if err != nil {
+			return nil, errors.Wrapf(err, "invalid service spec %s", spec)
+		}
+
+		namespace, service := id.Components()
+		ev, err := s.history.EventsForService(namespace, service)
+		if err != nil {
+			return nil, errors.Wrapf(err, "fetching history events for %s", id)
+		}
+
+		events = append(events, ev...)
+	}
+
+	res := make([]HistoryEntry, len(events))
+	for i, event := range events {
+		res[i] = HistoryEntry{
+			Stamp: event.Stamp,
+			Type:  "default",
+			Data:  fmt.Sprintf("%s: %s", event.Service, event.Msg),
+		}
+	}
+
+	return res, nil
 }
