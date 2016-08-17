@@ -2,18 +2,21 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"time"
 
 	"github.com/spf13/cobra"
+
+	"github.com/weaveworks/fluxy"
 )
 
 type serviceReleaseOpts struct {
 	*serviceOpts
-	service string
-	file    string
-	image   string
+	service     string
+	allServices bool
+	image       string
+	allImages   bool
+	dryRun      bool
 }
 
 func newServiceRelease(parent *serviceOpts) *serviceReleaseOpts {
@@ -26,13 +29,15 @@ func (opts *serviceReleaseOpts) Command() *cobra.Command {
 		Short: "Release a new version of a service.",
 		Example: makeExample(
 			"fluxctl release --service=helloworld --image=library/hello:1234",
-			"fluxctl release --service=helloworld --file=helloworld-rc.yaml",
+			"fluxctl release --all --image=library/hello:1234",
 		),
 		RunE: opts.RunE,
 	}
-	cmd.Flags().StringVarP(&opts.service, "service", "s", "", "service to update (required)")
-	cmd.Flags().StringVarP(&opts.file, "file", "f", "", "file containing new ReplicationController definition, or - to read from stdin")
-	cmd.Flags().StringVarP(&opts.image, "image", "i", "", "update the service to a specific image")
+	cmd.Flags().StringVarP(&opts.service, "service", "s", "", "service to update")
+	cmd.Flags().BoolVar(&opts.allServices, "all", false, "release all services")
+	cmd.Flags().StringVarP(&opts.image, "update-image", "i", "", "update a specific image")
+	cmd.Flags().BoolVar(&opts.allImages, "update-all-images", false, "update all images to latest versions")
+	cmd.Flags().BoolVar(&opts.dryRun, "dry-run", false, "do not release anything; just report back what would have been done")
 	return cmd
 }
 
@@ -44,37 +49,42 @@ func (opts *serviceReleaseOpts) RunE(_ *cobra.Command, args []string) error {
 		return newUsageError("-s, --service is required")
 	}
 
-	if opts.image != "" && opts.file != "" {
-		return newUsageError("cannot have both an -i, --image and -f, --file")
+	if opts.image != "" && opts.allImages {
+		return mutuallyExclusive("-i, --update-image", "--update-all-images")
+	} else if opts.image == "" && !opts.allImages {
+		return exactlyOne("-i, --update-image", "--update-all-images")
 	}
 
-	if opts.image == "" && opts.file == "" {
-		return newUsageError("one of -i, --image, or -f, --file, are required")
+	if opts.service != "" && opts.allServices {
+		return mutuallyExclusive("-s, --service", "--all")
+	} else if opts.service == "" && !opts.allServices {
+		return exactlyOne("-s, --service", "--all")
 	}
 
-	var buf []byte
-	var err error
-	if opts.file != "" {
-		if opts.file == "-" {
-			buf, err = ioutil.ReadAll(os.Stdin)
-			if err != nil {
-				return err
-			}
-		} else {
-			buf, err = ioutil.ReadFile(opts.file)
-			if err != nil {
-				return err
-			}
-		}
+	service, err := parseServiceOption(opts.service) // will be "" iff opts.allServices
+	if err != nil {
+		return err
+	}
+
+	image, err := parseImageOption(opts.image) // will be "" iff opts.allImages
+	if err != nil {
+		return err
+	}
+
+	var kind flux.ReleaseKind = flux.ReleaseKindExecute
+	if opts.dryRun {
+		kind = flux.ReleaseKindPlan
 	}
 
 	begin := time.Now()
-	fmt.Fprintf(os.Stdout, "Starting release of %s ...", opts.service)
-	if err := opts.Fluxd.Release(opts.namespace, opts.service, opts.image, buf); err != nil {
-		fmt.Fprintf(os.Stdout, "error! %v\n", err)
-	} else {
-		fmt.Fprintf(os.Stdout, "success\n")
+	actions, err := opts.Fluxd.Release(service, image, kind)
+	if err != nil {
+		return err
 	}
-	fmt.Fprintf(os.Stdout, "took %s\n", time.Since(begin))
+
+	fmt.Fprintf(os.Stdout, "%#v\n", actions)
+	if !opts.dryRun {
+		fmt.Fprintf(os.Stdout, "took %s\n", time.Since(begin))
+	}
 	return nil
 }

@@ -20,11 +20,11 @@ func NewClient(c *http.Client, router *mux.Router, endpoint string) Service {
 	}
 }
 
-func (c *client) ListServices() ([]ServiceDescription, error) {
+func (c *client) ListServices() ([]ServiceStatus, error) {
 	return invokeListServices(c.client, c.router, c.endpoint)
 }
 
-func (c *client) ListImages(s ServiceSpec) ([]ImageDescription, error) {
+func (c *client) ListImages(s ServiceSpec) ([]ImageStatus, error) {
 	return invokeListImages(c.client, c.router, c.endpoint, s)
 }
 

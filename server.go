@@ -83,13 +83,13 @@ func (s *server) allImagesFor(serviceIDs []ServiceID) (map[ServiceID][]platform.
 	return containerMap, nil
 }
 
-func (s *server) ListServices() ([]ServiceDescription, error) {
+func (s *server) ListServices() ([]ServiceStatus, error) {
 	serviceIDs, err := s.allServices()
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching all services on the platform")
 	}
 
-	var res []ServiceDescription
+	var res []ServiceStatus
 	for _, serviceID := range serviceIDs {
 		namespace, service := serviceID.Components()
 
@@ -128,16 +128,26 @@ func (s *server) ListServices() ([]ServiceDescription, error) {
 			})
 		}
 
-		res = append(res, ServiceDescription{
+		// FIXME: since we get service IDs above, we have to get the
+		// service; but this is repeating work, since to get the
+		// service IDs we got a list of all the services ...
+		platformSvc, err := s.platform.Service(namespace, service)
+		if err != nil {
+			return nil, errors.Wrapf(err, "getting platform service %s", serviceID)
+		}
+
+		res = append(res, ServiceStatus{
 			ID:         serviceID,
 			Containers: c,
+			Status:     platformSvc.Status,
+			Automated:  s.automator.IsAutomated(namespace, service),
 		})
 	}
 
 	return res, nil
 }
 
-func (s *server) ListImages(spec ServiceSpec) ([]ImageDescription, error) {
+func (s *server) ListImages(spec ServiceSpec) ([]ImageStatus, error) {
 	serviceIDs, err := func() ([]ServiceID, error) {
 		if spec == ServiceSpecAll {
 			return s.allServices()
@@ -149,26 +159,47 @@ func (s *server) ListImages(spec ServiceSpec) ([]ImageDescription, error) {
 		return nil, errors.Wrapf(err, "fetching service ID(s)")
 	}
 
-	var res []ImageDescription
+	var res []ImageStatus
 	for _, serviceID := range serviceIDs {
 		namespace, service := serviceID.Components()
 		containers, err := s.platform.ContainersFor(namespace, service)
 		if err != nil {
 			return nil, errors.Wrapf(err, "fetching containers for %s", serviceID)
 		}
+
+		var c []Container
 		for _, container := range containers {
 			imageID := ParseImageID(container.Image)
 			imageRepo, err := s.registry.GetRepository(imageID.Repository())
 			if err != nil {
 				return nil, errors.Wrapf(err, "fetching image repo for %s", imageID)
 			}
+
+			var (
+				current   ImageDescription
+				available []ImageDescription
+			)
 			for _, image := range imageRepo.Images {
-				res = append(res, ImageDescription{
+				description := ImageDescription{
 					ID:        ParseImageID(image.String()),
 					CreatedAt: image.CreatedAt,
-				})
+				}
+				available = append(available, description)
+				if image.String() == container.Image {
+					current = description
+				}
 			}
+			c = append(c, Container{
+				Name:      container.Name,
+				Current:   current,
+				Available: available,
+			})
 		}
+
+		res = append(res, ImageStatus{
+			ID:         serviceID,
+			Containers: c,
+		})
 	}
 
 	return res, nil

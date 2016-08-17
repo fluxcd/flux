@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"net/http"
 	"os"
 	"strings"
 
@@ -22,7 +23,6 @@ type rootOpts struct {
 
 type serviceOpts struct {
 	*rootOpts
-	namespace string
 }
 
 func newService(parent *rootOpts) *serviceOpts {
@@ -54,7 +54,6 @@ func (opts *rootOpts) Command() *cobra.Command {
 		fmt.Sprintf("base URL of the fluxd API server; you can also set the environment variable %s", EnvVariableURL))
 
 	svcopts := newService(opts)
-	cmd.PersistentFlags().StringVarP(&svcopts.namespace, "namespace", "n", "default", "namespace of service(s) to operate on")
 
 	cmd.AddCommand(
 		newServiceShow(svcopts).Command(),
@@ -72,7 +71,7 @@ func (opts *rootOpts) PersistentPreRunE(cmd *cobra.Command, _ []string) error {
 	var err error
 
 	opts.URL = getFromEnvIfNotSet(cmd.Flags(), "url", EnvVariableURL, opts.URL)
-	opts.Fluxd, err = flux.NewClient(opts.URL)
+	opts.Fluxd = flux.NewClient(http.DefaultClient, flux.NewRouter(), opts.URL)
 	return err
 }
 

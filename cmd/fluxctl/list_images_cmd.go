@@ -6,6 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/weaveworks/fluxy"
 	"github.com/weaveworks/fluxy/registry"
 )
 
@@ -33,34 +34,50 @@ func (opts *serviceShowOpts) RunE(_ *cobra.Command, args []string) error {
 	if len(args) != 0 {
 		return errorWantedNoArgs
 	}
-	if opts.service == "" {
-		return newUsageError("--service flag required")
+
+	service, err := parseServiceOption(opts.service)
+	if err != nil {
+		return err
 	}
 
-	containers, err := opts.Fluxd.ServiceImages(opts.namespace, opts.service)
+	services, err := opts.Fluxd.ListImages(service)
 	if err != nil {
 		return err
 	}
 
 	out := newTabwriter()
 
-	fmt.Fprintln(out, "CONTAINER\tIMAGE\tCREATED")
-	for _, container := range containers {
-		containerName := container.Container.Name
-		runningImage := registry.ParseImage(container.Container.Image)
-		fmt.Fprintf(out, "%s\t%s\t\n", containerName, runningImage.Repository())
-		foundRunning := false
-		for _, image := range container.Images {
-			running := "|  "
-			if image.Tag == runningImage.Tag {
-				running = "'->"
-				foundRunning = true
-			} else if foundRunning {
-				running = "   "
+	fmt.Fprintln(out, "SERVICE\tCONTAINER\tIMAGE\tCREATED")
+	for _, service := range services {
+		if len(service.Containers) == 0 {
+			fmt.Fprintln(out, service.ID)
+			continue
+		}
+
+		sname := service.ID
+		for _, container := range service.Containers {
+			containerName := container.Name
+			runningImage := parseImageID(container.Current.ID)
+			fmt.Fprintf(out, "%s\t%s\t%s\t\n", sname, containerName, runningImage.Repository())
+			foundRunning := false
+			for _, available := range container.Available {
+				running := "|  "
+				if container.Current.ID == available.ID {
+					running = "'->"
+					foundRunning = true
+				} else if foundRunning {
+					running = "   "
+				}
+				image := parseImageID(available.ID)
+				fmt.Fprintf(out, "\t\t%s %s\t%s\n", running, image.Tag, image.CreatedAt.Format(time.RFC822))
 			}
-			fmt.Fprintf(out, "\t%s %s\t%s\n", running, image.Tag, image.CreatedAt.Format(time.RFC822))
+			sname = ""
 		}
 	}
 	out.Flush()
 	return nil
+}
+
+func parseImageID(id flux.ImageID) registry.Image {
+	return registry.ParseImage(string(id))
 }
