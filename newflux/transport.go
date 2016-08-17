@@ -2,12 +2,14 @@ package flux
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"net/url"
+	"strings"
 
 	"github.com/gorilla/mux"
+	"github.com/pkg/errors"
 )
 
 func NewRouter() *mux.Router {
@@ -17,7 +19,7 @@ func NewRouter() *mux.Router {
 	r.NewRoute().Name("Release").Methods("POST").Path("/v0/release").Queries("service", "{service}", "image", "{image}")
 	r.NewRoute().Name("Automate").Methods("POST").Path("/v0/automate").Queries("service", "{service}")
 	r.NewRoute().Name("Deautomate").Methods("POST").Path("/v0/deautomate").Queries("service", "{service}")
-	r.NewRoute().Name("History").Methods("GET").Path("/v0/history")
+	r.NewRoute().Name("History").Methods("GET").Path("/v0/history").Queries("service", "{service}")
 	return r
 }
 
@@ -31,94 +33,192 @@ func NewHandler(s Service, r *mux.Router) http.Handler {
 	return r
 }
 
-// Arrange the handleFoo and invokeFoo functions next to each other, so changes
-// in one can easily be accommodated in the other.
+// The idea here is to place the handleFoo and invokeFoo functions next to each
+// other, so changes in one can easily be accommodated in the other.
 
 func handleListServices(s Service) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNotImplemented)
-		fmt.Fprintf(w, "not implemented\n")
+		d, err := s.ListServices()
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintf(w, err.Error())
+			return
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		json.NewEncoder(w).Encode(d)
 	})
 }
 
 func invokeListServices(client *http.Client, router *mux.Router, endpoint string) ([]ServiceDescription, error) {
-	baseURL, err := url.Parse(endpoint)
+	u, err := makeURL(endpoint, router, "ListServices")
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "constructing URL")
 	}
-	pathURL, err := router.Get("ListServices").URLPath()
+
+	req, err := http.NewRequest("GET", u.String(), nil)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "constructing request %s", u)
 	}
-	baseURL.Path = pathURL.Path
-	req, err := http.NewRequest("GET", baseURL.String(), nil)
+
+	resp, err := executeRequest(client, req)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "executing HTTP request")
 	}
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, err
-	}
+
 	var res []ServiceDescription
 	if err := json.NewDecoder(resp.Body).Decode(res); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "decoding response from server")
 	}
 	return res, nil
 }
 
 func handleListImages(s Service) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNotImplemented)
-		fmt.Fprintf(w, "not implemented\n")
+		service := mux.Vars(r)["service"]
+		spec, err := ParseServiceSpec(service)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			fmt.Fprintf(w, errors.Wrapf(err, "parsing service spec %q", service).Error())
+			return
+		}
+		d, err := s.ListImages(spec)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintf(w, err.Error())
+			return
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		json.NewEncoder(w).Encode(d)
 	})
 }
 
-func invokeListImages(client *http.Client, router *mux.Router, endpoint string) ([]ImageDescription, error) {
-	return nil, errors.New("not implemented")
+func invokeListImages(client *http.Client, router *mux.Router, endpoint string, s ServiceSpec) ([]ImageDescription, error) {
+	u, err := makeURL(endpoint, router, "ListImages", "service", string(s))
+	if err != nil {
+		return nil, errors.Wrap(err, "constructing URL")
+	}
+
+	req, err := http.NewRequest("GET", u.String(), nil)
+	if err != nil {
+		return nil, errors.Wrapf(err, "constructing request %s", u)
+	}
+
+	resp, err := executeRequest(client, req)
+	if err != nil {
+		return nil, errors.Wrap(err, "executing HTTP request")
+	}
+
+	var res []ImageDescription
+	if err := json.NewDecoder(resp.Body).Decode(res); err != nil {
+		return nil, errors.Wrap(err, "decoding response from server")
+	}
+	return res, nil
 }
 
 func handleRelease(s Service) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotImplemented)
-		fmt.Fprintf(w, "not implemented\n")
+		fmt.Fprintf(w, "Release not implemented by HTTP handler")
 	})
 }
 
-func invokeRelease(client *http.Client, router *mux.Router, endpoint string) error {
-	return errors.New("not implemented")
+func invokeRelease(client *http.Client, router *mux.Router, endpoint string, s ServiceSpec, i ImageSpec) error {
+	u, err := makeURL(endpoint, router, "Release", "service", string(s), "image", string(i))
+	if err != nil {
+		return errors.Wrap(err, "constructing URL")
+	}
+
+	req, err := http.NewRequest("POST", u.String(), nil)
+	if err != nil {
+		return errors.Wrapf(err, "constructing request %s", u)
+	}
+
+	if _, err = executeRequest(client, req); err != nil {
+		return errors.Wrap(err, "executing HTTP request")
+	}
+
+	return nil
 }
 
 func handleAutomate(s Service) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotImplemented)
-		fmt.Fprintf(w, "not implemented\n")
+		fmt.Fprintf(w, "Automate not implemented by HTTP handler")
 	})
 }
 
-func invokeAutomate(client *http.Client, router *mux.Router, endpoint string) error {
-	return errors.New("not implemented")
+func invokeAutomate(client *http.Client, router *mux.Router, endpoint string, s ServiceID) error {
+	u, err := makeURL(endpoint, router, "Automate", "service", string(s))
+	if err != nil {
+		return errors.Wrap(err, "constructing URL")
+	}
+
+	req, err := http.NewRequest("POST", u.String(), nil)
+	if err != nil {
+		return errors.Wrapf(err, "constructing request %s", u)
+	}
+
+	if _, err = executeRequest(client, req); err != nil {
+		return errors.Wrap(err, "executing HTTP request")
+	}
+
+	return nil
 }
 
 func handleDeautomate(s Service) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotImplemented)
-		fmt.Fprintf(w, "not implemented\n")
+		fmt.Fprintf(w, "Deautomate not implemented by HTTP handler")
 	})
 }
 
-func invokeDeautomate(client *http.Client, router *mux.Router, endpoint string) error {
-	return errors.New("not implemented")
+func invokeDeautomate(client *http.Client, router *mux.Router, endpoint string, id ServiceID) error {
+	u, err := makeURL(endpoint, router, "Deautomate", "service", string(id))
+	if err != nil {
+		return errors.Wrap(err, "constructing URL")
+	}
+
+	req, err := http.NewRequest("POST", u.String(), nil)
+	if err != nil {
+		return errors.Wrapf(err, "constructing request %s", u)
+	}
+
+	if _, err = executeRequest(client, req); err != nil {
+		return errors.Wrap(err, "executing HTTP request")
+	}
+
+	return nil
 }
 
 func handleHistory(s Service) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotImplemented)
-		fmt.Fprintf(w, "not implemented\n")
+		fmt.Fprintf(w, "History not implemented by HTTP handler")
 	})
 }
 
-func invokeHistory(client *http.Client, router *mux.Router, endpoint string) ([]HistoryEntry, error) {
-	return nil, errors.New("not implemented")
+func invokeHistory(client *http.Client, router *mux.Router, endpoint string, s ServiceSpec) ([]HistoryEntry, error) {
+	u, err := makeURL(endpoint, router, "History", "service", string(s))
+	if err != nil {
+		return nil, errors.Wrap(err, "constructing URL")
+	}
+
+	req, err := http.NewRequest("GET", u.String(), nil)
+	if err != nil {
+		return nil, errors.Wrapf(err, "constructing request %s", u)
+	}
+
+	resp, err := executeRequest(client, req)
+	if err != nil {
+		return nil, errors.Wrap(err, "executing HTTP request")
+	}
+
+	var res []HistoryEntry
+	if err := json.NewDecoder(resp.Body).Decode(res); err != nil {
+		return nil, errors.Wrap(err, "decoding response from server")
+	}
+
+	return res, nil
 }
 
 func mustGetPathTemplate(route *mux.Route) string {
@@ -129,10 +229,40 @@ func mustGetPathTemplate(route *mux.Route) string {
 	return t
 }
 
-func mustURL(route *mux.Route) *url.URL {
-	u, err := route.URL()
-	if err != nil {
-		panic(err)
+func makeURL(endpoint string, router *mux.Router, routeName string, urlParams ...string) (*url.URL, error) {
+	if len(urlParams)%2 != 0 {
+		panic("urlParams must be even!")
 	}
-	return u
+
+	endpointURL, err := url.Parse(endpoint)
+	if err != nil {
+		return nil, errors.Wrapf(err, "parsing endpoint %s", endpoint)
+	}
+
+	routeURL, err := router.Get(routeName).URL()
+	if err != nil {
+		return nil, errors.Wrapf(err, "retrieving route path %s", routeName)
+	}
+
+	v := url.Values{}
+	for i := 0; i < len(urlParams); i += 2 {
+		v.Set(urlParams[i], urlParams[i+1])
+	}
+
+	endpointURL.Path = routeURL.Path
+	endpointURL.RawQuery = v.Encode()
+	return endpointURL, nil
+}
+
+func executeRequest(client *http.Client, req *http.Request) (*http.Response, error) {
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, errors.Wrap(err, "executing HTTP request")
+	}
+	if resp.StatusCode != http.StatusOK {
+		buf, _ := ioutil.ReadAll(resp.Body)
+		err = fmt.Errorf("%s (%s)", resp.Status, strings.TrimSpace(string(buf)))
+		return nil, errors.Wrap(err, "reading HTTP response")
+	}
+	return resp, nil
 }

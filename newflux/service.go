@@ -1,10 +1,11 @@
 package flux
 
 import (
-	"errors"
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/pkg/errors"
 )
 
 type Service interface {
@@ -13,7 +14,7 @@ type Service interface {
 	Release(ServiceSpec, ImageSpec) error
 	Automate(ServiceID) error
 	Deautomate(ServiceID) error
-	History(ServiceID) ([]HistoryEntry, error)
+	History(ServiceSpec) ([]HistoryEntry, error)
 }
 
 const (
@@ -76,7 +77,7 @@ func ParseServiceSpec(s string) (ServiceSpec, error) {
 	}
 	id, err := ParseServiceID(s)
 	if err != nil {
-		return "", err
+		return "", errors.Wrap(err, "invalid service spec")
 	}
 	return ServiceSpec(id), nil
 }
