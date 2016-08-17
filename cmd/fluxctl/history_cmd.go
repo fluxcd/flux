@@ -34,23 +34,22 @@ func (opts *serviceHistoryOpts) RunE(_ *cobra.Command, args []string) error {
 	if len(args) > 0 {
 		return errorWantedNoArgs
 	}
-	events, err := opts.Fluxd.History(opts.namespace, opts.service)
+
+	service, err := parseServiceOption(opts.service)
+	if err != nil {
+		return err
+	}
+
+	events, err := opts.Fluxd.History(service)
 	if err != nil {
 		return err
 	}
 
 	out := newTabwriter()
 
-	if opts.service != "" {
-		fmt.Fprintln(out, "TIME\tMESSAGE")
-		for _, event := range events {
-			fmt.Fprintf(out, "%s\t%s\n", event.Stamp.Format(time.RFC822), event.Msg)
-		}
-	} else {
-		fmt.Fprintln(out, "TIME\tSERVICE\tMESSAGE")
-		for _, e := range events {
-			fmt.Fprintf(out, "%s\t%s\t%s\n", e.Stamp.Format(time.RFC822), e.Service, e.Msg)
-		}
+	fmt.Fprintln(out, "TIME\tTYPE\tMESSAGE")
+	for _, event := range events {
+		fmt.Fprintf(out, "%s\t%s\n", event.Stamp.Format(time.RFC822), event.Type, event.Data)
 	}
 
 	out.Flush()

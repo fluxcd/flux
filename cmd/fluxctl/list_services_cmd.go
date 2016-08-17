@@ -2,9 +2,10 @@ package main
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/spf13/cobra"
+
+	"github.com/weaveworks/fluxy"
 )
 
 type serviceListOpts struct {
@@ -30,20 +31,34 @@ func (opts *serviceListOpts) RunE(_ *cobra.Command, args []string) error {
 		return errorWantedNoArgs
 	}
 
-	services, err := opts.Fluxd.Services(opts.namespace)
+	services, err := opts.Fluxd.ListServices()
 	if err != nil {
 		return err
 	}
 
 	w := newTabwriter()
-	fmt.Fprintf(w, "SERVICE\tIP\tPORTS\tIMAGE\tSTATUS\n")
+	fmt.Fprintf(w, "SERVICE\tCONTAINER\tIMAGE\tRELEASE\n")
 	for _, s := range services {
-		var ports []string
-		for _, p := range s.Ports {
-			ports = append(ports, fmt.Sprintf("%s/%s→%s", p.External, p.Protocol, p.Internal))
+		c := s.Containers[0]
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", s.ID, c.Name, maybeUpToDate(c.Current, c.Available), s.Status, maybeAutomated(s))
+		for _, c := range s.Containers[1:] {
+			fmt.Fprintf(w, "\t%s\t%s\n", c.Name, maybeUpToDate(c.Current, c.Available))
 		}
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", s.Name, s.IP, strings.Join(ports, ", "), s.Image, s.Status)
 	}
 	w.Flush()
 	return nil
+}
+
+func maybeUpToDate(current flux.ImageDescription, available []flux.ImageDescription) string {
+	if len(available) > 0 && current.ID == available[0].ID {
+		return "* " + string(current.ID)
+	}
+	return string(current.ID)
+}
+
+func maybeAutomated(s flux.ServiceStatus) string {
+	if s.Automated {
+		return "automated"
+	}
+	return ""
 }
