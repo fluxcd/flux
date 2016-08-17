@@ -20,12 +20,12 @@ func newServiceShow(parent *serviceOpts) *serviceShowOpts {
 
 func (opts *serviceShowOpts) Command() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "show",
-		Short:   "Show the release status of a service.",
-		Example: makeExample("fluxctl service show --service=helloworld"),
+		Use:     "list-images",
+		Short:   "Show the deployed and available images for a service.",
+		Example: makeExample("fluxctl list-images --service=helloworld"),
 		RunE:    opts.RunE,
 	}
-	cmd.Flags().StringVarP(&opts.service, "service", "s", "", "Service for which to show the release status")
+	cmd.Flags().StringVarP(&opts.service, "service", "s", "", "Show images for this service")
 	return cmd
 }
 
@@ -41,9 +41,6 @@ func (opts *serviceShowOpts) RunE(_ *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-
-	fmt.Println("Service:", opts.service)
-	fmt.Println("")
 
 	out := newTabwriter()
 
