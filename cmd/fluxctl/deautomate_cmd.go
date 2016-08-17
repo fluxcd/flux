@@ -16,7 +16,7 @@ func (opts *serviceDeautomateOpts) Command() *cobra.Command {
 		Use:   "deautomate",
 		Short: "Turn off automatic deployment for a service.",
 		Example: makeExample(
-			"fluxctl service deautomate --service=helloworld",
+			"fluxctl deautomate --service=helloworld",
 		),
 		RunE: opts.RunE,
 	}

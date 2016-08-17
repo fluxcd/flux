@@ -16,7 +16,7 @@ func (opts *serviceAutomateOpts) Command() *cobra.Command {
 		Use:   "automate",
 		Short: "Turn on automatic deployment for a service.",
 		Example: makeExample(
-			"fluxctl service automate --service=helloworld",
+			"fluxctl automate --service=helloworld",
 		),
 		RunE: opts.RunE,
 	}
