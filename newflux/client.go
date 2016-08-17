@@ -25,21 +25,21 @@ func (c *client) ListServices() ([]ServiceDescription, error) {
 }
 
 func (c *client) ListImages(s ServiceSpec) ([]ImageDescription, error) {
-	return invokeListImages(c.client, c.router, c.endpoint)
+	return invokeListImages(c.client, c.router, c.endpoint, s)
 }
 
 func (c *client) Release(s ServiceSpec, i ImageSpec) error {
-	return invokeRelease(c.client, c.router, c.endpoint)
+	return invokeRelease(c.client, c.router, c.endpoint, s, i)
 }
 
 func (c *client) Automate(id ServiceID) error {
-	return invokeAutomate(c.client, c.router, c.endpoint)
+	return invokeAutomate(c.client, c.router, c.endpoint, id)
 }
 
 func (c *client) Deautomate(id ServiceID) error {
-	return invokeDeautomate(c.client, c.router, c.endpoint)
+	return invokeDeautomate(c.client, c.router, c.endpoint, id)
 }
 
-func (c *client) History(id ServiceID) ([]HistoryEntry, error) {
-	return invokeHistory(c.client, c.router, c.endpoint)
+func (c *client) History(s ServiceSpec) ([]HistoryEntry, error) {
+	return invokeHistory(c.client, c.router, c.endpoint, s)
 }
