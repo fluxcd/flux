@@ -7,39 +7,39 @@ Work with your code, from laptop to prod.
 I want to update a specific image in a specific service, and deploy it.
 
 ```
-fluxctl release --service=S --image=I
+fluxctl release --service=S --update-image=I
 ```
 
 I want to deploy specific service/image pairs from some other source of truth, e.g. a dev environment to a prod environment.
 
 ```
 # Some script wrapping this command:
-fluxctl release --service=S --image=I
+fluxctl release --service=S --update-image=I
 ```
 
 I want to deploy the latest images for a given service.
 
 ```
-fluxctl release --service=S --image=latest
+fluxctl release --service=S --update-all-images
 ```
 
-I want to release a specific image to all services that are using that image, except some that I have manually excluded.
+I want to release a specific image to all services that are using that image, except some services that I have manually excluded somehow.
 
 ```
-fluxctl release --service=all --image=I
+fluxctl release --all --update-image=I
 ```
 
-I want to deploy the latest images for all services on the platform, except some that I have manually excluded.
+I want to deploy the latest images for all services on the platform, except some services that I have manually excluded somehow.
 
 ```
-fluxctl release --service=all --image=latest
+fluxctl release --all --update-all-images
 ```
 
 I want to deploy a service with no change of image, just taking the latest resource definition file.
 This may be known as a config change deployment.
 
 ```
-fluxctl release --service=S --no-image
+fluxctl release --service=S
 ```
 
 I want to automatically deploy the latest images for a set of opt-in services.
