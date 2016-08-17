@@ -294,6 +294,14 @@
 			"notests": true
 		},
 		{
+			"importpath": "github.com/pkg/errors",
+			"repository": "https://github.com/pkg/errors",
+			"vcs": "git",
+			"revision": "a22138067af1c4942683050411a841ade67fe1eb",
+			"branch": "master",
+			"notests": true
+		},
+		{
 			"importpath": "github.com/remyoudompheng/bigfft",
 			"repository": "https://github.com/remyoudompheng/bigfft",
 			"vcs": "git",
