@@ -1,470 +1,343 @@
 package flux
 
 import (
-	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
-	"path"
+	"strings"
 
-	"github.com/go-kit/kit/log"
-	httptransport "github.com/go-kit/kit/transport/http"
 	"github.com/gorilla/mux"
-	"golang.org/x/net/context"
+	"github.com/pkg/errors"
 )
 
-var (
-	// ErrRepositoryRequired indicates a request could not be served because the
-	// repository parameter was required but not specified.
-	ErrRepositoryRequired = errors.New("repository (as part of the URL path) is required")
-
-	// ErrServiceRequired indicates a request could not be served because the
-	// service parameter was required but not specified.
-	ErrServiceRequired = errors.New("service parameter is required")
-)
-
-// MakeHTTPHandler mounts all of the service endpoints into an http.Handler.
-// Useful in a server i.e. fluxd.
-func MakeHTTPHandler(ctx context.Context, e Endpoints, logger log.Logger) http.Handler {
-	r := mux.NewRouter().PathPrefix("/v0").Subrouter()
-	options := []httptransport.ServerOption{
-		httptransport.ServerErrorLogger(logger),
-		httptransport.ServerErrorEncoder(encodeError),
-	}
-
-	r.Methods("GET").Path("/images/{repository:.*}").Handler(httptransport.NewServer(
-		ctx,
-		e.ImagesEndpoint,
-		decodeImagesRequest,
-		encodeImagesResponse,
-		options...,
-	))
-	r.Methods("GET").Path("/services").Handler(httptransport.NewServer(
-		ctx,
-		e.ServicesEndpoint,
-		decodeServicesRequest,
-		encodeServicesResponse,
-		options...,
-	))
-	r.Methods("GET").Path("/service/{service}/images").Handler(httptransport.NewServer(
-		ctx,
-		e.ServiceImagesEndpoint,
-		decodeServiceImagesRequest,
-		encodeServiceImagesResponse,
-		options...,
-	))
-	r.Methods("GET").Path("/history/{service:.*}").Handler(httptransport.NewServer(
-		ctx,
-		e.HistoryEndpoint,
-		decodeHistoryRequest,
-		encodeHistoryResponse,
-		options...,
-	))
-	r.Methods("POST").Path("/release").Handler(httptransport.NewServer(
-		ctx,
-		e.ReleaseEndpoint,
-		decodeReleaseRequest,
-		encodeReleaseResponse,
-		options...,
-	))
-	r.Methods("POST").Path("/automate").Handler(httptransport.NewServer(
-		ctx,
-		e.AutomateEndpoint,
-		decodeAutomateRequest,
-		encodeAutomateResponse,
-		options...,
-	))
-	r.Methods("POST").Path("/deautomate").Handler(httptransport.NewServer(
-		ctx,
-		e.DeautomateEndpoint,
-		decodeDeautomateRequest,
-		encodeDeautomateResponse,
-		options...,
-	))
-
+func NewRouter() *mux.Router {
+	r := mux.NewRouter()
+	r.NewRoute().Name("ListServices").Methods("GET").Path("/v0/services")
+	r.NewRoute().Name("ListImages").Methods("GET").Path("/v0/images").Queries("service", "{service}")
+	r.NewRoute().Name("Release").Methods("POST").Path("/v0/release").Queries("service", "{service}", "image", "{image}", "kind", "{kind}")
+	r.NewRoute().Name("Automate").Methods("POST").Path("/v0/automate").Queries("service", "{service}")
+	r.NewRoute().Name("Deautomate").Methods("POST").Path("/v0/deautomate").Queries("service", "{service}")
+	r.NewRoute().Name("History").Methods("GET").Path("/v0/history").Queries("service", "{service}")
 	return r
 }
 
-func encodeJSON(_ context.Context, response interface{}, w http.ResponseWriter) {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	json.NewEncoder(w).Encode(response)
+func NewHandler(s Service, r *mux.Router) http.Handler {
+	r.Get("ListServices").Handler(handleListServices(s))
+	r.Get("ListImages").Handler(handleListImages(s))
+	r.Get("Release").Handler(handleRelease(s))
+	r.Get("Automate").Handler(handleAutomate(s))
+	r.Get("Deautomate").Handler(handleDeautomate(s))
+	r.Get("History").Handler(handleHistory(s))
+	return r
 }
 
-func encodeError(_ context.Context, err error, w http.ResponseWriter) {
-	if err == nil {
-		panic("encodeError called with nil error")
-	}
-	code := codeFrom(err)
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(code)
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"error":       err.Error(),
-		"status_code": code,
-		"status_text": http.StatusText(code),
+// The idea here is to place the handleFoo and invokeFoo functions next to each
+// other, so changes in one can easily be accommodated in the other.
+
+func handleListServices(s Service) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		d, err := s.ListServices()
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintf(w, err.Error())
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		json.NewEncoder(w).Encode(d)
 	})
 }
 
-func decodeError(r io.Reader) error {
-	var m map[string]interface{}
-	if err := json.NewDecoder(r).Decode(&m); err != nil {
-		return fmt.Errorf("received error, but encountered additional error when trying to parse it: %v", err)
-	}
-	err, ok := m["error"]
-	if !ok {
-		return errors.New("received error, but it was an unexpected form, so is unknown")
-	}
-	errStr, ok := err.(string)
-	if !ok {
-		return errors.New("received error, but it was an unexpected type, so is unknown")
-	}
-	return errors.New(errStr)
-}
-
-func codeFrom(err error) int {
-	switch err {
-	case nil:
-		panic("codeFrom called with nil error")
-	case ErrRepositoryRequired, ErrServiceRequired:
-		return http.StatusBadRequest
-	default:
-		return http.StatusInternalServerError
-	}
-}
-
-func decodeImagesRequest(_ context.Context, r *http.Request) (request interface{}, err error) {
-	repository := mux.Vars(r)["repository"]
-	if repository == "" {
-		return nil, ErrRepositoryRequired
-	}
-	return imagesRequest{
-		Repository: repository,
-	}, nil
-}
-
-func decodeServiceImagesRequest(_ context.Context, r *http.Request) (request interface{}, err error) {
-	namespace := r.FormValue("namespace")
-	if namespace == "" {
-		namespace = DefaultNamespace
-	}
-	service := mux.Vars(r)["service"]
-	return serviceImagesRequest{
-		Namespace: namespace,
-		Service:   service,
-	}, nil
-}
-
-func decodeServicesRequest(_ context.Context, r *http.Request) (request interface{}, err error) {
-	namespace := r.FormValue("namespace")
-	if namespace == "" {
-		namespace = DefaultNamespace
-	}
-	return servicesRequest{
-		Namespace: namespace,
-	}, nil
-}
-
-func decodeHistoryRequest(_ context.Context, r *http.Request) (request interface{}, err error) {
-	namespace := r.FormValue("namespace")
-	if namespace == "" {
-		namespace = DefaultNamespace
-	}
-	service := mux.Vars(r)["service"]
-	return historyRequest{
-		Namespace: namespace,
-		Service:   service,
-	}, nil
-}
-
-func decodeReleaseRequest(_ context.Context, r *http.Request) (request interface{}, err error) {
-	namespace := r.FormValue("namespace")
-	if namespace == "" {
-		namespace = "default"
-	}
-	service := r.FormValue("service")
-	if service == "" {
-		return nil, ErrServiceRequired
-	}
-	image := r.FormValue("image")
-	newDef, err := ioutil.ReadAll(r.Body)
+func invokeListServices(client *http.Client, router *mux.Router, endpoint string) ([]ServiceDescription, error) {
+	u, err := makeURL(endpoint, router, "ListServices")
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "constructing URL")
 	}
-	return releaseRequest{
-		Namespace: namespace,
-		Service:   service,
-		Image:     image,
-		NewDef:    newDef,
-	}, nil
+
+	req, err := http.NewRequest("GET", u.String(), nil)
+	if err != nil {
+		return nil, errors.Wrapf(err, "constructing request %s", u)
+	}
+
+	resp, err := executeRequest(client, req)
+	if err != nil {
+		return nil, errors.Wrap(err, "executing HTTP request")
+	}
+
+	var res []ServiceDescription
+	if err := json.NewDecoder(resp.Body).Decode(res); err != nil {
+		return nil, errors.Wrap(err, "decoding response from server")
+	}
+	return res, nil
 }
 
-func decodeAutomateRequest(_ context.Context, r *http.Request) (request interface{}, err error) {
-	namespace := r.FormValue("namespace")
-	if namespace == "" {
-		namespace = "default"
-	}
-	service := r.FormValue("service")
-	if service == "" {
-		return nil, ErrServiceRequired
-	}
-	return automateRequest{
-		Namespace: namespace,
-		Service:   service,
-	}, nil
+func handleListImages(s Service) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		service := mux.Vars(r)["service"]
+		spec, err := ParseServiceSpec(service)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			fmt.Fprintf(w, errors.Wrapf(err, "parsing service spec %q", service).Error())
+			return
+		}
+		d, err := s.ListImages(spec)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintf(w, err.Error())
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		json.NewEncoder(w).Encode(d)
+	})
 }
 
-func decodeDeautomateRequest(_ context.Context, r *http.Request) (request interface{}, err error) {
-	namespace := r.FormValue("namespace")
-	if namespace == "" {
-		namespace = "default"
+func invokeListImages(client *http.Client, router *mux.Router, endpoint string, s ServiceSpec) ([]ImageDescription, error) {
+	u, err := makeURL(endpoint, router, "ListImages", "service", string(s))
+	if err != nil {
+		return nil, errors.Wrap(err, "constructing URL")
 	}
-	service := r.FormValue("service")
-	if service == "" {
-		return nil, ErrServiceRequired
+
+	req, err := http.NewRequest("GET", u.String(), nil)
+	if err != nil {
+		return nil, errors.Wrapf(err, "constructing request %s", u)
 	}
-	return deautomateRequest{
-		Namespace: namespace,
-		Service:   service,
-	}, nil
+
+	resp, err := executeRequest(client, req)
+	if err != nil {
+		return nil, errors.Wrap(err, "executing HTTP request")
+	}
+
+	var res []ImageDescription
+	if err := json.NewDecoder(resp.Body).Decode(res); err != nil {
+		return nil, errors.Wrap(err, "decoding response from server")
+	}
+	return res, nil
 }
 
-func decodeImagesResponse(_ context.Context, resp *http.Response) (interface{}, error) {
-	var response imagesResponse
-	var err error
-	switch resp.StatusCode {
-	case http.StatusOK:
-		err = json.NewDecoder(resp.Body).Decode(&response.Images)
-	default:
-		response.Err = decodeError(resp.Body)
-	}
-	return response, err
+func handleRelease(s Service) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var (
+			vars    = mux.Vars(r)
+			service = vars["service"]
+			image   = vars["image"]
+			kind    = vars["kind"]
+		)
+		serviceSpec, err := ParseServiceSpec(service)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			fmt.Fprintf(w, errors.Wrapf(err, "parsing service spec %q", service).Error())
+			return
+		}
+		imageSpec := ParseImageSpec(image)
+		releaseKind, err := ParseReleaseKind(kind)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			fmt.Fprintf(w, errors.Wrapf(err, "parsing release kind %q", kind).Error())
+			return
+		}
+
+		a, err := s.Release(serviceSpec, imageSpec, releaseKind)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintf(w, err.Error())
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		json.NewEncoder(w).Encode(a)
+	})
 }
 
-func decodeServiceImagesResponse(_ context.Context, resp *http.Response) (interface{}, error) {
-	var response serviceImagesResponse
-	var err error
-	switch resp.StatusCode {
-	case http.StatusOK:
-		err = json.NewDecoder(resp.Body).Decode(&response.ContainerImages)
-	default:
-		response.Err = decodeError(resp.Body)
+func invokeRelease(client *http.Client, router *mux.Router, endpoint string, s ServiceSpec, i ImageSpec, k ReleaseKind) ([]ReleaseAction, error) {
+	u, err := makeURL(endpoint, router, "Release", "service", string(s), "image", string(i), "kind", string(k))
+	if err != nil {
+		return nil, errors.Wrap(err, "constructing URL")
 	}
-	return response, err
+
+	req, err := http.NewRequest("POST", u.String(), nil)
+	if err != nil {
+		return nil, errors.Wrapf(err, "constructing request %s", u)
+	}
+
+	resp, err := executeRequest(client, req)
+	if err != nil {
+		return nil, errors.Wrap(err, "executing HTTP request")
+	}
+
+	var res []ReleaseAction
+	if err := json.NewDecoder(resp.Body).Decode(res); err != nil {
+		return nil, errors.Wrap(err, "decoding response from server")
+	}
+	return res, nil
 }
 
-func decodeServicesResponse(_ context.Context, resp *http.Response) (interface{}, error) {
-	var response servicesResponse
-	var err error
-	switch resp.StatusCode {
-	case http.StatusOK:
-		err = json.NewDecoder(resp.Body).Decode(&response.Services)
-	default:
-		response.Err = decodeError(resp.Body)
-	}
-	return response, err
+func handleAutomate(s Service) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		service := mux.Vars(r)["service"]
+		id, err := ParseServiceID(service)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			fmt.Fprintf(w, errors.Wrapf(err, "parsing service ID %q", id).Error())
+			return
+		}
+
+		if err = s.Automate(id); err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintf(w, err.Error())
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+	})
 }
 
-func decodeHistoryResponse(_ context.Context, resp *http.Response) (interface{}, error) {
-	var response historyResponse
-	var err error
-	switch resp.StatusCode {
-	case http.StatusOK:
-		err = json.NewDecoder(resp.Body).Decode(&response.History)
-	default:
-		response.Err = decodeError(resp.Body)
+func invokeAutomate(client *http.Client, router *mux.Router, endpoint string, s ServiceID) error {
+	u, err := makeURL(endpoint, router, "Automate", "service", string(s))
+	if err != nil {
+		return errors.Wrap(err, "constructing URL")
 	}
-	return response, err
-}
 
-func decodeReleaseResponse(_ context.Context, resp *http.Response) (interface{}, error) {
-	var response releaseResponse
-	switch resp.StatusCode {
-	case http.StatusOK:
-		// nothing to do
-	default:
-		response.Err = decodeError(resp.Body)
+	req, err := http.NewRequest("POST", u.String(), nil)
+	if err != nil {
+		return errors.Wrapf(err, "constructing request %s", u)
 	}
-	return response, nil
-}
 
-func decodeAutomateResponse(_ context.Context, resp *http.Response) (interface{}, error) {
-	var response automateResponse
-	switch resp.StatusCode {
-	case http.StatusOK:
-		// nothing to do
-	default:
-		response.Err = decodeError(resp.Body)
+	if _, err = executeRequest(client, req); err != nil {
+		return errors.Wrap(err, "executing HTTP request")
 	}
-	return response, nil
-}
-
-func decodeDeautomateResponse(_ context.Context, resp *http.Response) (interface{}, error) {
-	var response deautomateResponse
-	switch resp.StatusCode {
-	case http.StatusOK:
-		// nothing to do
-	default:
-		response.Err = decodeError(resp.Body)
-	}
-	return response, nil
-}
-
-func encodeImagesRequest(ctx context.Context, req *http.Request, request interface{}) error {
-	r := request.(imagesRequest)
-
-	req.Method = "GET"
-	req.URL.Path = path.Join(req.URL.Path, "/v0/images/"+r.Repository)
 
 	return nil
 }
 
-func encodeServiceImagesRequest(ctx context.Context, req *http.Request, request interface{}) error {
-	r := request.(serviceImagesRequest)
-	values := url.Values{}
-	values.Set("namespace", r.Namespace)
+func handleDeautomate(s Service) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		service := mux.Vars(r)["service"]
+		id, err := ParseServiceID(service)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			fmt.Fprintf(w, errors.Wrapf(err, "parsing service ID %q", id).Error())
+			return
+		}
 
-	req.Method = "GET"
-	req.URL.Path = path.Join(req.URL.Path, fmt.Sprintf("/v0/service/%s/images", r.Service))
-	req.URL.RawQuery = values.Encode()
+		if err = s.Deautomate(id); err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintf(w, err.Error())
+			return
+		}
 
-	return nil
+		w.WriteHeader(http.StatusOK)
+	})
 }
 
-func encodeServicesRequest(ctx context.Context, req *http.Request, request interface{}) error {
-	r := request.(servicesRequest)
-	values := url.Values{}
-	values.Set("namespace", r.Namespace)
-
-	req.Method = "GET"
-	req.URL.Path = path.Join(req.URL.Path, "/v0/services")
-	req.URL.RawQuery = values.Encode()
-
-	return nil
-}
-
-func encodeHistoryRequest(ctx context.Context, req *http.Request, request interface{}) error {
-	r := request.(historyRequest)
-	values := url.Values{}
-	values.Set("namespace", r.Namespace)
-
-	req.Method = "GET"
-	// NB be careful here: Join will strip a trailing slash
-	req.URL.Path = fmt.Sprintf(path.Join(req.URL.Path, "/v0/history/%s"), r.Service)
-	req.URL.RawQuery = values.Encode()
-
-	return nil
-}
-
-func encodeReleaseRequest(ctx context.Context, req *http.Request, request interface{}) error {
-	r := request.(releaseRequest)
-	values := url.Values{}
-	values.Set("namespace", r.Namespace)
-	values.Set("service", r.Service)
-	values.Set("image", r.Image)
-
-	req.Method = "POST"
-	req.URL.Path = path.Join(req.URL.Path, "/v0/release")
-	req.URL.RawQuery = values.Encode()
-	req.Body = ioutil.NopCloser(bytes.NewReader(r.NewDef))
-
-	return nil
-}
-
-func encodeAutomateRequest(ctx context.Context, req *http.Request, request interface{}) error {
-	r := request.(automateRequest)
-	values := url.Values{}
-	values.Set("namespace", r.Namespace)
-	values.Set("service", r.Service)
-
-	req.Method = "POST"
-	req.URL.Path = path.Join(req.URL.Path, "/v0/automate")
-	req.URL.RawQuery = values.Encode()
-
-	return nil
-}
-
-func encodeDeautomateRequest(ctx context.Context, req *http.Request, request interface{}) error {
-	r := request.(deautomateRequest)
-	values := url.Values{}
-	values.Set("namespace", r.Namespace)
-	values.Set("service", r.Service)
-
-	req.Method = "POST"
-	req.URL.Path = path.Join(req.URL.Path, "/v0/deautomate")
-	req.URL.RawQuery = values.Encode()
-
-	return nil
-}
-
-func encodeImagesResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
-	resp := response.(imagesResponse)
-	if resp.Err != nil {
-		encodeError(ctx, resp.Err, w)
-		return nil
+func invokeDeautomate(client *http.Client, router *mux.Router, endpoint string, id ServiceID) error {
+	u, err := makeURL(endpoint, router, "Deautomate", "service", string(id))
+	if err != nil {
+		return errors.Wrap(err, "constructing URL")
 	}
-	encodeJSON(ctx, resp.Images, w)
+
+	req, err := http.NewRequest("POST", u.String(), nil)
+	if err != nil {
+		return errors.Wrapf(err, "constructing request %s", u)
+	}
+
+	if _, err = executeRequest(client, req); err != nil {
+		return errors.Wrap(err, "executing HTTP request")
+	}
+
 	return nil
 }
 
-func encodeServiceImagesResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
-	resp := response.(serviceImagesResponse)
-	if resp.Err != nil {
-		encodeError(ctx, resp.Err, w)
-		return nil
-	}
-	encodeJSON(ctx, resp.ContainerImages, w)
-	return nil
+func handleHistory(s Service) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		service := mux.Vars(r)["service"]
+		spec, err := ParseServiceSpec(service)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			fmt.Fprintf(w, errors.Wrapf(err, "parsing service spec %q", spec).Error())
+			return
+		}
+
+		h, err := s.History(spec)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintf(w, err.Error())
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		json.NewEncoder(w).Encode(h)
+	})
 }
 
-func encodeServicesResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
-	resp := response.(servicesResponse)
-	if resp.Err != nil {
-		encodeError(ctx, resp.Err, w)
-		return nil
+func invokeHistory(client *http.Client, router *mux.Router, endpoint string, s ServiceSpec) ([]HistoryEntry, error) {
+	u, err := makeURL(endpoint, router, "History", "service", string(s))
+	if err != nil {
+		return nil, errors.Wrap(err, "constructing URL")
 	}
-	encodeJSON(ctx, resp.Services, w)
-	return nil
+
+	req, err := http.NewRequest("GET", u.String(), nil)
+	if err != nil {
+		return nil, errors.Wrapf(err, "constructing request %s", u)
+	}
+
+	resp, err := executeRequest(client, req)
+	if err != nil {
+		return nil, errors.Wrap(err, "executing HTTP request")
+	}
+
+	var res []HistoryEntry
+	if err := json.NewDecoder(resp.Body).Decode(res); err != nil {
+		return nil, errors.Wrap(err, "decoding response from server")
+	}
+
+	return res, nil
 }
 
-func encodeHistoryResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
-	resp := response.(historyResponse)
-	if resp.Err != nil {
-		encodeError(ctx, resp.Err, w)
-		return nil
+func mustGetPathTemplate(route *mux.Route) string {
+	t, err := route.GetPathTemplate()
+	if err != nil {
+		panic(err)
 	}
-	encodeJSON(ctx, resp.History, w)
-	return nil
+	return t
 }
 
-func encodeReleaseResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
-	resp := response.(releaseResponse)
-	if resp.Err != nil {
-		encodeError(ctx, resp.Err, w)
-		return nil
+func makeURL(endpoint string, router *mux.Router, routeName string, urlParams ...string) (*url.URL, error) {
+	if len(urlParams)%2 != 0 {
+		panic("urlParams must be even!")
 	}
-	encodeJSON(ctx, map[string]interface{}{"success": true}, w)
-	return nil
+
+	endpointURL, err := url.Parse(endpoint)
+	if err != nil {
+		return nil, errors.Wrapf(err, "parsing endpoint %s", endpoint)
+	}
+
+	routeURL, err := router.Get(routeName).URL()
+	if err != nil {
+		return nil, errors.Wrapf(err, "retrieving route path %s", routeName)
+	}
+
+	v := url.Values{}
+	for i := 0; i < len(urlParams); i += 2 {
+		v.Set(urlParams[i], urlParams[i+1])
+	}
+
+	endpointURL.Path = routeURL.Path
+	endpointURL.RawQuery = v.Encode()
+	return endpointURL, nil
 }
 
-func encodeAutomateResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
-	resp := response.(automateResponse)
-	if resp.Err != nil {
-		encodeError(ctx, resp.Err, w)
-		return nil
+func executeRequest(client *http.Client, req *http.Request) (*http.Response, error) {
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, errors.Wrap(err, "executing HTTP request")
 	}
-	encodeJSON(ctx, map[string]interface{}{"success": true}, w)
-	return nil
-}
-
-func encodeDeautomateResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
-	resp := response.(deautomateResponse)
-	if resp.Err != nil {
-		encodeError(ctx, resp.Err, w)
-		return nil
+	if resp.StatusCode != http.StatusOK {
+		buf, _ := ioutil.ReadAll(resp.Body)
+		err = fmt.Errorf("%s (%s)", resp.Status, strings.TrimSpace(string(buf)))
+		return nil, errors.Wrap(err, "reading HTTP response")
 	}
-	encodeJSON(ctx, map[string]interface{}{"success": true}, w)
-	return nil
+	return resp, nil
 }
