@@ -1,6 +1,10 @@
 package main
 
-import "github.com/spf13/cobra"
+import (
+	"github.com/spf13/cobra"
+
+	"github.com/weaveworks/fluxy"
+)
 
 type serviceDeautomateOpts struct {
 	*serviceOpts
@@ -31,5 +35,11 @@ func (opts *serviceDeautomateOpts) RunE(_ *cobra.Command, args []string) error {
 	if opts.service == "" {
 		return newUsageError("-s, --service is required")
 	}
-	return opts.Fluxd.Deautomate(opts.namespace, opts.service)
+
+	serviceID, err := flux.ParseServiceID(opts.service)
+	if err != nil {
+		return err
+	}
+
+	return opts.Fluxd.Deautomate(serviceID)
 }

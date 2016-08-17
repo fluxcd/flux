@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"path"
 	"strings"
 
 	"github.com/gorilla/mux"
@@ -50,7 +51,7 @@ func handleListServices(s Service) http.Handler {
 	})
 }
 
-func invokeListServices(client *http.Client, router *mux.Router, endpoint string) ([]ServiceDescription, error) {
+func invokeListServices(client *http.Client, router *mux.Router, endpoint string) ([]ServiceStatus, error) {
 	u, err := makeURL(endpoint, router, "ListServices")
 	if err != nil {
 		return nil, errors.Wrap(err, "constructing URL")
@@ -66,8 +67,8 @@ func invokeListServices(client *http.Client, router *mux.Router, endpoint string
 		return nil, errors.Wrap(err, "executing HTTP request")
 	}
 
-	var res []ServiceDescription
-	if err := json.NewDecoder(resp.Body).Decode(res); err != nil {
+	var res []ServiceStatus
+	if err := json.NewDecoder(resp.Body).Decode(&res); err != nil {
 		return nil, errors.Wrap(err, "decoding response from server")
 	}
 	return res, nil
@@ -94,7 +95,7 @@ func handleListImages(s Service) http.Handler {
 	})
 }
 
-func invokeListImages(client *http.Client, router *mux.Router, endpoint string, s ServiceSpec) ([]ImageDescription, error) {
+func invokeListImages(client *http.Client, router *mux.Router, endpoint string, s ServiceSpec) ([]ImageStatus, error) {
 	u, err := makeURL(endpoint, router, "ListImages", "service", string(s))
 	if err != nil {
 		return nil, errors.Wrap(err, "constructing URL")
@@ -110,8 +111,8 @@ func invokeListImages(client *http.Client, router *mux.Router, endpoint string, 
 		return nil, errors.Wrap(err, "executing HTTP request")
 	}
 
-	var res []ImageDescription
-	if err := json.NewDecoder(resp.Body).Decode(res); err != nil {
+	var res []ImageStatus
+	if err := json.NewDecoder(resp.Body).Decode(&res); err != nil {
 		return nil, errors.Wrap(err, "decoding response from server")
 	}
 	return res, nil
@@ -168,7 +169,7 @@ func invokeRelease(client *http.Client, router *mux.Router, endpoint string, s S
 	}
 
 	var res []ReleaseAction
-	if err := json.NewDecoder(resp.Body).Decode(res); err != nil {
+	if err := json.NewDecoder(resp.Body).Decode(&res); err != nil {
 		return nil, errors.Wrap(err, "decoding response from server")
 	}
 	return res, nil
@@ -289,7 +290,7 @@ func invokeHistory(client *http.Client, router *mux.Router, endpoint string, s S
 	}
 
 	var res []HistoryEntry
-	if err := json.NewDecoder(resp.Body).Decode(res); err != nil {
+	if err := json.NewDecoder(resp.Body).Decode(&res); err != nil {
 		return nil, errors.Wrap(err, "decoding response from server")
 	}
 
@@ -324,7 +325,7 @@ func makeURL(endpoint string, router *mux.Router, routeName string, urlParams ..
 		v.Set(urlParams[i], urlParams[i+1])
 	}
 
-	endpointURL.Path = routeURL.Path
+	endpointURL.Path = path.Join(endpointURL.Path, routeURL.Path)
 	endpointURL.RawQuery = v.Encode()
 	return endpointURL, nil
 }

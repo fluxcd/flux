@@ -9,8 +9,8 @@ import (
 )
 
 type Service interface {
-	ListServices() ([]ServiceDescription, error)
-	ListImages(ServiceSpec) ([]ImageDescription, error)
+	ListServices() ([]ServiceStatus, error)
+	ListImages(ServiceSpec) ([]ImageStatus, error)
 	Release(ServiceSpec, ImageSpec, ReleaseKind) ([]ReleaseAction, error)
 	Automate(ServiceID) error
 	Deautomate(ServiceID) error
@@ -122,9 +122,16 @@ func ParseImageSpec(s string) ImageSpec {
 	return ImageSpec(ParseImageID(s))
 }
 
-type ServiceDescription struct {
+type ImageStatus struct {
 	ID         ServiceID
 	Containers []Container
+}
+
+type ServiceStatus struct {
+	ID         ServiceID
+	Containers []Container
+	Status     string
+	Automated  bool
 }
 
 type Container struct {
