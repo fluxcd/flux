@@ -11,7 +11,7 @@ import (
 type Service interface {
 	ListServices() ([]ServiceDescription, error)
 	ListImages(ServiceSpec) ([]ImageDescription, error)
-	Release(ServiceSpec, ImageSpec) error
+	Release(ServiceSpec, ImageSpec, ReleaseKind) ([]ReleaseAction, error)
 	Automate(ServiceID) error
 	Deautomate(ServiceID) error
 	History(ServiceSpec) ([]HistoryEntry, error)
@@ -23,9 +23,32 @@ const (
 )
 
 var (
-	ErrInvalidServiceID = errors.New("invalid service ID")
-	ErrInvalidImageID   = errors.New("invalid image ID")
+	ErrInvalidServiceID   = errors.New("invalid service ID")
+	ErrInvalidImageID     = errors.New("invalid image ID")
+	ErrInvalidReleaseKind = errors.New("invalid release kind")
 )
+
+type ReleaseKind string
+
+const (
+	ReleaseKindPlan    ReleaseKind = "plan"
+	ReleaseKindExecute             = "execute"
+)
+
+func ParseReleaseKind(s string) (ReleaseKind, error) {
+	switch s {
+	case string(ReleaseKindPlan):
+		return ReleaseKindPlan, nil
+	case string(ReleaseKindExecute):
+		return ReleaseKindExecute, nil
+	default:
+		return "", ErrInvalidReleaseKind
+	}
+}
+
+type ReleaseAction struct {
+	Description string // change me eventually!
+}
 
 type ServiceID string // "default/helloworld"
 
