@@ -2,6 +2,7 @@ package flux
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/pkg/errors"
 
@@ -19,11 +20,12 @@ type server struct {
 	history   history.DB
 }
 
-func NewServer(platform *kubernetes.Cluster, registry *registry.Client, automator *automator.Automator) Service {
+func NewServer(platform *kubernetes.Cluster, registry *registry.Client, automator *automator.Automator, history history.DB) Service {
 	return &server{
 		platform:  platform,
 		registry:  registry,
 		automator: automator,
+		history:   history,
 	}
 }
 
@@ -99,7 +101,7 @@ func (s *server) ListImages(spec ServiceSpec) ([]ImageDescription, error) {
 	m := map[string][]platform.Service{}
 	if spec == ServiceSpecAll {
 		for _, namespace := range []string{
-			"default", // TODO(pb): s.platform.Namespaces()
+			"default", // TODO(pb)
 		} {
 			services, err := s.platform.Services(namespace)
 			if err != nil {
@@ -152,16 +154,44 @@ func (s *server) ListImages(spec ServiceSpec) ([]ImageDescription, error) {
 }
 
 func (s *server) Release(serviceSpec ServiceSpec, imageSpec ImageSpec, kind ReleaseKind) ([]ReleaseAction, error) {
-	return nil, errors.New("Release not implemented by server")
+	switch {
+	case serviceSpec == ServiceSpecAll && imageSpec == ImageSpecLatest:
+		return s.releaseAllToLatest(kind)
+
+	case serviceSpec == ServiceSpecAll:
+		imageID := ParseImageID(string(imageSpec))
+		return s.releaseAllForImage(imageID, kind)
+
+	case imageSpec == ImageSpecLatest:
+		serviceID, err := ParseServiceID(string(serviceSpec))
+		if err != nil {
+			return nil, errors.Wrapf(err, "parsing service ID from spec %s", serviceSpec)
+		}
+		return s.releaseOneToLatest(serviceID, kind)
+
+	default:
+		serviceID, err := ParseServiceID(string(serviceSpec))
+		if err != nil {
+			return nil, errors.Wrapf(err, "parsing service ID from spec %s", serviceSpec)
+		}
+		imageID := ParseImageID(string(imageSpec))
+		return s.releaseOne(serviceID, imageID, kind)
+	}
 }
 
 func (s *server) Automate(id ServiceID) error {
+	if s.automator == nil {
+		return errors.New("no automator configured")
+	}
 	namespace, service := id.Components()
 	s.automator.Enable(namespace, service)
 	return nil
 }
 
 func (s *server) Deautomate(id ServiceID) error {
+	if s.automator == nil {
+		return errors.New("no automator configured")
+	}
 	namespace, service := id.Components()
 	s.automator.Disable(namespace, service)
 	return nil
@@ -198,10 +228,72 @@ func (s *server) History(spec ServiceSpec) ([]HistoryEntry, error) {
 	for i, event := range events {
 		res[i] = HistoryEntry{
 			Stamp: event.Stamp,
-			Type:  "default",
+			Type:  "v0",
 			Data:  fmt.Sprintf("%s: %s", event.Service, event.Msg),
 		}
 	}
 
 	return res, nil
+}
+
+// The general idea for the releaseX functions:
+// - Walk the platform and collect things to do;
+// - If ReleaseKindExecute, do them sequentially; and then
+// - Return the things we did (or didn't) do.
+
+func (s *server) releaseAllToLatest(kind ReleaseKind) ([]ReleaseAction, error) {
+	res := []ReleaseAction{ReleaseAction{
+		Description: "I'm going to release all services to their latest images. Here we go.",
+	}}
+	for _, namespace := range []string{
+		"default", // TODO(pb)
+	} {
+		services, err := s.platform.Services(namespace)
+		if err != nil {
+			return nil, errors.Wrapf(err, "fetching platform services for namespace %q", namespace)
+		}
+
+		for _, service := range services {
+			imageRepo, err := s.registry.GetRepository(ParseImageID(service.Image).Repository())
+			if err != nil {
+				return nil, errors.Wrapf(err, "fetching image repo for %s", service.Image)
+			}
+			if len(imageRepo.Images) <= 0 {
+				continue
+			}
+
+			if service.Image != imageRepo.Images[0].String() {
+				res = append(res, ReleaseAction{
+					Description: fmt.Sprintf("Release service %s from current image %s to latest image %s.", service.Name, service.Image, imageRepo.Images[0]),
+				})
+			}
+		}
+	}
+
+	if kind == ReleaseKindExecute {
+		if err := execute(res); err != nil {
+			return res, err
+		}
+	}
+
+	return res, nil
+}
+
+func (s *server) releaseAllForImage(id ImageID, kind ReleaseKind) ([]ReleaseAction, error) {
+	return nil, errors.New("releaseAllForImage not implemented in server")
+}
+
+func (s *server) releaseOneToLatest(id ServiceID, kind ReleaseKind) ([]ReleaseAction, error) {
+	return nil, errors.New("releaseOneToLatest not implemented in server")
+}
+
+func (s *server) releaseOne(serviceID ServiceID, imageID ImageID, kind ReleaseKind) ([]ReleaseAction, error) {
+	return nil, errors.New("releaseOne not implemented in server")
+}
+
+func execute(actions []ReleaseAction) error {
+	for _, action := range actions {
+		fmt.Fprintf(os.Stdout, "Executing: %s\n", action.Description) // TODO(pb)
+	}
+	return nil
 }
