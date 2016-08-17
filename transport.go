@@ -14,12 +14,12 @@ import (
 
 func NewRouter() *mux.Router {
 	r := mux.NewRouter()
-	r.NewRoute().Name("ListServices").Methods("GET").Path("/v0/services")
-	r.NewRoute().Name("ListImages").Methods("GET").Path("/v0/images").Queries("service", "{service}")
-	r.NewRoute().Name("Release").Methods("POST").Path("/v0/release").Queries("service", "{service}", "image", "{image}", "kind", "{kind}")
-	r.NewRoute().Name("Automate").Methods("POST").Path("/v0/automate").Queries("service", "{service}")
-	r.NewRoute().Name("Deautomate").Methods("POST").Path("/v0/deautomate").Queries("service", "{service}")
-	r.NewRoute().Name("History").Methods("GET").Path("/v0/history").Queries("service", "{service}")
+	r.NewRoute().Name("ListServices").Methods("GET").Path("/v1/services")
+	r.NewRoute().Name("ListImages").Methods("GET").Path("/v1/images").Queries("service", "{service}")
+	r.NewRoute().Name("Release").Methods("POST").Path("/v1/release").Queries("service", "{service}", "image", "{image}", "kind", "{kind}")
+	r.NewRoute().Name("Automate").Methods("POST").Path("/v1/automate").Queries("service", "{service}")
+	r.NewRoute().Name("Deautomate").Methods("POST").Path("/v1/deautomate").Queries("service", "{service}")
+	r.NewRoute().Name("History").Methods("GET").Path("/v1/history").Queries("service", "{service}")
 	return r
 }
 
