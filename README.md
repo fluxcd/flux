@@ -23,13 +23,13 @@ I want to deploy the latest images for a given service.
 fluxctl release --service=S --image=latest
 ```
 
-I want to deploy all services that are using a specific image.
+I want to release a specific image to all services that are using that image, except some that I have manually excluded.
 
 ```
 fluxctl release --service=all --image=I
 ```
 
-I want to deploy the latest images for all non-blacklisted services on the platform.
+I want to deploy the latest images for all services on the platform, except some that I have manually excluded.
 
 ```
 fluxctl release --service=all --image=latest
