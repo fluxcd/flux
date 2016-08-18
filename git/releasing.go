@@ -24,11 +24,27 @@ func (r Repo) Release(
 ) error {
 	// Check out latest version of config repo.
 	logf("fetching config repo")
-	configPath, err := clone(r.Key, r.URL)
+
+	working, err := ioutil.TempDir(os.TempDir(), "fluxy-gitclone")
+	if err != nil {
+		return err
+	}
+	defer func(d string) {
+		os.RemoveAll(d)
+	}(working)
+
+	// If the private key is from a mounted k8s secret, it will have
+	// the wrong permissions; copy it to the working dir and give it
+	// the right permissions
+	keyPath, err := copyKey(working, r.Key)
+	if err != nil {
+		return err
+	}
+
+	configPath, err := clone(working, keyPath, r.URL)
 	if err != nil {
 		return fmt.Errorf("clone of config repo failed: %v", err)
 	}
-	defer os.RemoveAll(configPath)
 
 	// Find the relevant resource definition file.
 	file, err := findFileFor(configPath, r.Path, candidate.Repository())
@@ -65,7 +81,7 @@ func (r Repo) Release(
 	logf("release complete")
 
 	// Push the new commit.
-	if err := push(r.Key, configPath); err != nil {
+	if err := push(keyPath, configPath); err != nil {
 		return fmt.Errorf("push failed: %v", err)
 	}
 	logf("committed and pushed the resource definition file %s", file)
@@ -93,18 +109,17 @@ func env(repoKey string) []string {
 	return []string{fmt.Sprintf("%s -i %q", base, repoKey)}
 }
 
-func clone(repoKey, repoURL string) (path string, err error) {
-	dst, err := ioutil.TempDir(os.TempDir(), "fluxy-gitclone")
+func clone(working, repoKey, repoURL string) (path string, err error) {
 	if err != nil {
 		return "", err
 	}
+	repoPath := filepath.Join(working, "repo")
 
-	if err := cmd("", repoKey, "clone", repoURL, dst).Run(); err != nil {
-		os.RemoveAll(dst)
+	if err := cmd("", repoKey, "clone", repoURL, repoPath).Run(); err != nil {
 		return "", fmt.Errorf("git clone: %v", err)
 	}
 
-	return dst, nil
+	return repoPath, nil
 }
 
 func findFileFor(basePath, repoPath, imageStr string) (res string, err error) {
@@ -178,4 +193,13 @@ func push(repoKey, workingDir string) error {
 		}
 	}
 	return nil
+}
+
+func copyKey(working, key string) (string, error) {
+	keyPath := filepath.Join(working, "id-rsa")
+	f, err := ioutil.ReadFile(key)
+	if err == nil {
+		err = ioutil.WriteFile(keyPath, f, 0400)
+	}
+	return keyPath, err
 }
