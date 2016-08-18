@@ -9,6 +9,7 @@ import (
 
 	"github.com/weaveworks/fluxy/automator"
 	"github.com/weaveworks/fluxy/history"
+	"github.com/weaveworks/fluxy/platform"
 	"github.com/weaveworks/fluxy/platform/kubernetes"
 	"github.com/weaveworks/fluxy/registry"
 )
@@ -64,6 +65,22 @@ func (s *server) allServices() ([]ServiceID, error) {
 	}
 
 	return res, nil
+}
+
+func (s *server) allImagesFor(serviceIDs []ServiceID) (map[ServiceID][]platform.Container, error) {
+	containerMap := map[ServiceID][]platform.Container{}
+	for _, serviceID := range serviceIDs {
+		namespace, service := serviceID.Components()
+		containers, err := s.platform.ContainersFor(namespace, service)
+		if err != nil {
+			return nil, errors.Wrapf(err, "fetching containers for %s", serviceID)
+		}
+		if len(containers) <= 0 {
+			continue
+		}
+		containerMap[serviceID] = containers
+	}
+	return containerMap, nil
 }
 
 func (s *server) ListServices() ([]ServiceDescription, error) {
@@ -254,34 +271,26 @@ func (s *server) releaseAllToLatest(kind ReleaseKind) ([]ReleaseAction, error) {
 		Description: "I'm going to release all services to their latest images. Here we go.",
 	}}
 
-	// Each service is running multiple images.
-	// Each image may need to be upgraded.
-	// This type tracks current -> latest version.
-	type imageRelease struct {
-		current ImageID
-		target  ImageID
-	}
-	m := map[ServiceID][]imageRelease{}
-
 	// Walk all services on the platform.
 	serviceIDs, err := s.allServices()
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching all platform services")
 	}
 
-	for _, serviceID := range serviceIDs {
-		// Fetch all of the images that this service is running.
-		namespace, service := serviceID.Components()
-		containers, err := s.platform.ContainersFor(namespace, service)
-		if err != nil {
-			return nil, errors.Wrapf(err, "fetching containers for %s", serviceID)
-		}
-		if len(containers) <= 0 {
-			continue
-		}
+	// Fetch all of the images that each service is running.
+	containerMap, err := s.allImagesFor(serviceIDs)
+	if err != nil {
+		return nil, errors.Wrap(err, "fetching images for services")
+	}
 
-		// Fetch the latest version of each image.
-		// If there is a discrepancy, we will need a release!
+	// Each service is running multiple images.
+	// Each image may need to be upgraded, and trigger a release.
+	type imageRelease struct {
+		current ImageID
+		target  ImageID
+	}
+	releaseMap := map[ServiceID][]imageRelease{}
+	for serviceID, containers := range containerMap {
 		for _, container := range containers {
 			currentImageID := ParseImageID(container.Image)
 			imageRepo, err := s.registry.GetRepository(currentImageID.Repository())
@@ -290,13 +299,13 @@ func (s *server) releaseAllToLatest(kind ReleaseKind) ([]ReleaseAction, error) {
 			}
 			latestImageID := ParseImageID(imageRepo.Images[0].String())
 			if currentImageID != latestImageID {
-				m[serviceID] = append(m[serviceID], imageRelease{current: currentImageID, target: latestImageID})
+				releaseMap[serviceID] = append(releaseMap[serviceID], imageRelease{current: currentImageID, target: latestImageID})
 			}
 		}
 	}
 
 	// If no services need updates, we're done.
-	if len(m) <= 0 {
+	if len(releaseMap) <= 0 {
 		res = append(res, ReleaseAction{
 			Description: "All services running latest images. Nothing to do.",
 		})
@@ -311,7 +320,7 @@ func (s *server) releaseAllToLatest(kind ReleaseKind) ([]ReleaseAction, error) {
 	})
 
 	// We will first make all of the file changes, commit, and push.
-	for service, imageReleases := range m {
+	for service, imageReleases := range releaseMap {
 		var changes []string
 		for _, imageRelease := range imageReleases {
 			changes = append(changes, fmt.Sprintf("%s -> %s", imageRelease.current, imageRelease.target))
@@ -325,7 +334,7 @@ func (s *server) releaseAllToLatest(kind ReleaseKind) ([]ReleaseAction, error) {
 	})
 
 	// Then, we will make all of the releases serially.
-	for service := range m {
+	for service := range releaseMap {
 		res = append(res, ReleaseAction{
 			Description: fmt.Sprintf("Release the service %s.", service),
 		})
@@ -340,19 +349,10 @@ func (s *server) releaseAllToLatest(kind ReleaseKind) ([]ReleaseAction, error) {
 	return res, nil
 }
 
-func (s *server) releaseAllForImage(id ImageID, kind ReleaseKind) ([]ReleaseAction, error) {
+func (s *server) releaseAllForImage(target ImageID, kind ReleaseKind) ([]ReleaseAction, error) {
 	res := []ReleaseAction{ReleaseAction{
-		Description: fmt.Sprintf("I'm going to release image %s to all services that would use it. Here we go.", id),
+		Description: fmt.Sprintf("I'm going to release image %s to all services that would use it. Here we go.", target),
 	}}
-
-	// Each service is running multiple images.
-	// Each image may need to be upgraded.
-	// This type tracks current -> latest version.
-	type imageRelease struct {
-		current ImageID
-		target  ImageID
-	}
-	m := map[ServiceID][]imageRelease{}
 
 	// Walk all services on the platform.
 	serviceIDs, err := s.allServices()
@@ -360,32 +360,37 @@ func (s *server) releaseAllForImage(id ImageID, kind ReleaseKind) ([]ReleaseActi
 		return nil, errors.Wrap(err, "fetching all platform services")
 	}
 
-	for _, serviceID := range serviceIDs {
-		// Walk through all images for this service.
-		namespace, service := serviceID.Components()
-		containers, err := s.platform.ContainersFor(namespace, service)
-		if err != nil {
-			return nil, errors.Wrapf(err, "fetching containers for %s", serviceID)
-		}
+	// Fetch all of the images that each service is running.
+	containerMap, err := s.allImagesFor(serviceIDs)
+	if err != nil {
+		return nil, errors.Wrap(err, "fetching images for services")
+	}
 
+	// Each service is running multiple images.
+	// Each image may need to be modified, and trigger a release.
+	type imageRelease struct {
+		current ImageID
+		target  ImageID
+	}
+	releaseMap := map[ServiceID][]imageRelease{}
+	for serviceID, containers := range containerMap {
 		for _, container := range containers {
-			// Same repo but different concrete version -> needs a release!
 			candidate := ParseImageID(container.Image)
-			if candidate.Repository() == id.Repository() && candidate != id {
-				m[serviceID] = append(m[serviceID], imageRelease{current: candidate, target: id})
+			if candidate.Repository() == target.Repository() && candidate != target {
+				releaseMap[serviceID] = append(releaseMap[serviceID], imageRelease{current: candidate, target: target})
 			}
 		}
 	}
 
 	// If no services need updates, we're done.
-	if len(m) <= 0 {
+	if len(releaseMap) <= 0 {
 		res = append(res, ReleaseAction{
-			Description: fmt.Sprintf("All matching services are already running image %s. Nothing to do.", id),
+			Description: fmt.Sprintf("All matching services are already running image %s. Nothing to do.", target),
 		})
 		return res, nil
 	}
 
-	// (This is a straight copy/paste from the above.)
+	// (From here, this is a straight copy/paste from the above.)
 
 	// We have identified at least 1 release that needs to occur. Releasing
 	// means cloning the repo, changing the resource file(s), committing and
@@ -395,7 +400,7 @@ func (s *server) releaseAllForImage(id ImageID, kind ReleaseKind) ([]ReleaseActi
 	})
 
 	// We will first make all of the file changes, commit, and push.
-	for service, imageReleases := range m {
+	for service, imageReleases := range releaseMap {
 		var changes []string
 		for _, imageRelease := range imageReleases {
 			changes = append(changes, fmt.Sprintf("%s -> %s", imageRelease.current, imageRelease.target))
@@ -409,7 +414,7 @@ func (s *server) releaseAllForImage(id ImageID, kind ReleaseKind) ([]ReleaseActi
 	})
 
 	// Then, we will make all of the releases serially.
-	for service := range m {
+	for service := range releaseMap {
 		res = append(res, ReleaseAction{
 			Description: fmt.Sprintf("Release the service %s.", service),
 		})
