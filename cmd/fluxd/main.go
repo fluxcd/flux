@@ -13,7 +13,6 @@ import (
 
 	"github.com/go-kit/kit/log"
 	"github.com/spf13/pflag"
-	"golang.org/x/net/context"
 	"k8s.io/kubernetes/pkg/client/restclient"
 
 	"github.com/weaveworks/fluxy"
@@ -55,7 +54,7 @@ func main() {
 	)
 	fs.Parse(os.Args)
 
-	// Logger domain.
+	// Logger component.
 	var logger log.Logger
 	{
 		logger = log.NewLogfmtLogger(os.Stderr)
@@ -146,13 +145,6 @@ func main() {
 		}
 	}
 
-	// Repo we're tracking.
-	var repo = git.Repo{
-		URL:  *repoURL,
-		Key:  *repoKey,
-		Path: *repoPath,
-	}
-
 	// Automator component.
 	var auto *automator.Automator
 	{
@@ -161,30 +153,24 @@ func main() {
 			Platform: k8s,
 			Registry: reg,
 			History:  his,
-			Repo:     repo,
+			Repo: git.Repo{
+				URL:  *repoURL,
+				Key:  *repoKey,
+				Path: *repoPath,
+			},
 		})
 		if err == nil {
-			logger.Log("automator", "enabled", "repo", repo.URL)
+			logger.Log("automator", "enabled", "repo", *repoURL)
 		} else {
 			// Service can handle a nil automator pointer.
 			logger.Log("automator", "disabled", "reason", err)
 		}
 	}
 
-	// Service (business logic) domain.
-	var service flux.Service
-	{
-		service = flux.NewService(reg, k8s, auto, his, repo)
-		service = flux.LoggingMiddleware(logger)(service)
-	}
+	// Server component.
+	server := flux.NewServer(k8s, reg, auto, his)
 
-	// Endpoint domain.
-	var endpoints flux.Endpoints
-	{
-		endpoints = flux.MakeServerEndpoints(service)
-	}
-
-	// Mechanical stuff.
+	// Mechanical components.
 	errc := make(chan error)
 	go func() {
 		c := make(chan os.Signal)
@@ -192,12 +178,10 @@ func main() {
 		errc <- fmt.Errorf("%s", <-c)
 	}()
 
-	// Transport domain.
-	ctx := context.Background()
+	// HTTP transport component.
 	go func() {
-		logger := log.NewContext(logger).With("transport", "HTTP")
 		logger.Log("addr", *listenAddr)
-		h := flux.MakeHTTPHandler(ctx, endpoints, logger)
+		h := flux.NewHandler(server, flux.NewRouter())
 		errc <- http.ListenAndServe(*listenAddr, h)
 	}()
 
