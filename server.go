@@ -36,53 +36,6 @@ func NewServer(platform *kubernetes.Cluster, registry *registry.Client, automato
 // same reason: let's not add abstraction until it's merged, or nearly so, and
 // it's clear where the abstraction should exist.
 
-func (s *server) allNamespaces() ([]string, error) {
-	return []string{"default"}, nil // TODO(pb): s.platform.Namespaces()
-}
-
-func (s *server) allServices() ([]ServiceID, error) {
-	namespaces, err := s.allNamespaces()
-	if err != nil {
-		return nil, errors.Wrap(err, "fetching platform namespaces")
-	}
-
-	var res []ServiceID
-	for _, namespace := range namespaces {
-		services, err := s.platform.Services(namespace)
-		if err != nil {
-			return nil, errors.Wrapf(err, "fetching platform services for namespace %q", namespace)
-		}
-
-		for _, service := range services {
-			idStr := fmt.Sprintf("%s/%s", namespace, service.Name)
-			id, err := ParseServiceID(idStr)
-			if err != nil {
-				return nil, errors.Wrapf(err, "parsing service ID %q", idStr)
-			}
-
-			res = append(res, id)
-		}
-	}
-
-	return res, nil
-}
-
-func (s *server) allImagesFor(serviceIDs []ServiceID) (map[ServiceID][]platform.Container, error) {
-	containerMap := map[ServiceID][]platform.Container{}
-	for _, serviceID := range serviceIDs {
-		namespace, service := serviceID.Components()
-		containers, err := s.platform.ContainersFor(namespace, service)
-		if err != nil {
-			return nil, errors.Wrapf(err, "fetching containers for %s", serviceID)
-		}
-		if len(containers) <= 0 {
-			continue
-		}
-		containerMap[serviceID] = containers
-	}
-	return containerMap, nil
-}
-
 func (s *server) ListServices() ([]ServiceStatus, error) {
 	serviceIDs, err := s.allServices()
 	if err != nil {
@@ -294,8 +247,11 @@ func (s *server) History(spec ServiceSpec) ([]HistoryEntry, error) {
 
 // The general idea for the releaseX functions:
 // - Walk the platform and collect things to do;
-// - If ReleaseKindExecute, do them sequentially; and then
+// - If ReleaseKindExecute, execute those things; and then
 // - Return the things we did (or didn't) do.
+//
+// Every ReleaseAction will need to be extended with a function
+// that does the thing that's described.
 
 func (s *server) releaseAllToLatest(kind ReleaseKind) ([]ReleaseAction, error) {
 	res := []ReleaseAction{ReleaseAction{
@@ -461,7 +417,81 @@ func (s *server) releaseAllForImage(target ImageID, kind ReleaseKind) ([]Release
 }
 
 func (s *server) releaseOneToLatest(id ServiceID, kind ReleaseKind) ([]ReleaseAction, error) {
-	return nil, errors.New("releaseOneToLatest not implemented in server")
+	res := []ReleaseAction{ReleaseAction{
+		Description: fmt.Sprintf("I'm going to release the latest images(s) for service %s. Here we go.", id),
+	}}
+
+	// Fetch the images for the service.
+	namespace, service := id.Components()
+	containers, err := s.platform.ContainersFor(namespace, service)
+	if err != nil {
+		return nil, errors.Wrapf(err, "fetching images for service %s", id)
+	}
+
+	// Each service is running multiple images.
+	// Each image may need to be modified, and trigger a release.
+	type imageRelease struct {
+		current ImageID
+		target  ImageID
+	}
+	var releases []imageRelease
+	for _, container := range containers {
+		imageID := ParseImageID(container.Image)
+		imageRepo, err := s.registry.GetRepository(imageID.Repository())
+		if err != nil {
+			return nil, errors.Wrapf(err, "fetching repository for %s", imageID)
+		}
+		if len(imageRepo.Images) <= 0 {
+			continue // strange
+		}
+
+		latestID := ParseImageID(imageRepo.Images[0].String())
+		if imageID != latestID {
+			releases = append(releases, imageRelease{current: imageID, target: latestID})
+		}
+	}
+
+	// If the service doesn't need an update, we're done.
+	if len(releases) <= 0 {
+		res = append(res, ReleaseAction{
+			Description: "The service is already running the latest version of all its images. Nothing to do.",
+		})
+		return res, nil
+	}
+
+	// (From here, this is *almost* a straight copy/paste from above.)
+
+	// We need to make 1 release. Releasing means cloning the repo, changing the
+	// resource file(s), committing and pushing, and then making the release(s)
+	// to the platform.
+	res = append(res, ReleaseAction{
+		Description: "Clone the config repo.",
+	})
+
+	// We will first make the changes to the file, commit, and push.
+	var changes []string
+	for _, release := range releases {
+		changes = append(changes, fmt.Sprintf("%s -> %s", release.current, release.target))
+	}
+	res = append(res, ReleaseAction{
+		Description: fmt.Sprintf("Make %d change(s) to the resource file for %s: %s", len(changes), service, strings.Join(changes, ", ")),
+	})
+	res = append(res, ReleaseAction{
+		Description: "Commit and push the config repo.",
+	})
+
+	// Then, we will make the release.
+	res = append(res, ReleaseAction{
+		Description: fmt.Sprintf("Release the service %s.", id),
+	})
+
+	if kind == ReleaseKindExecute {
+		if err := execute(res); err != nil {
+			return res, err
+		}
+	}
+
+	return res, nil
 }
 
 func (s *server) releaseOne(serviceID ServiceID, imageID ImageID, kind ReleaseKind) ([]ReleaseAction, error) {
@@ -473,4 +503,53 @@ func execute(actions []ReleaseAction) error {
 		fmt.Fprintf(os.Stdout, "Executing: %s\n", action.Description) // TODO(pb)
 	}
 	return nil
+}
+
+// Release helpers.
+
+func (s *server) allNamespaces() ([]string, error) {
+	return []string{"default"}, nil // TODO(pb): s.platform.Namespaces()
+}
+
+func (s *server) allServices() ([]ServiceID, error) {
+	namespaces, err := s.allNamespaces()
+	if err != nil {
+		return nil, errors.Wrap(err, "fetching platform namespaces")
+	}
+
+	var res []ServiceID
+	for _, namespace := range namespaces {
+		services, err := s.platform.Services(namespace)
+		if err != nil {
+			return nil, errors.Wrapf(err, "fetching platform services for namespace %q", namespace)
+		}
+
+		for _, service := range services {
+			idStr := fmt.Sprintf("%s/%s", namespace, service.Name)
+			id, err := ParseServiceID(idStr)
+			if err != nil {
+				return nil, errors.Wrapf(err, "parsing service ID %q", idStr)
+			}
+
+			res = append(res, id)
+		}
+	}
+
+	return res, nil
+}
+
+func (s *server) allImagesFor(serviceIDs []ServiceID) (map[ServiceID][]platform.Container, error) {
+	containerMap := map[ServiceID][]platform.Container{}
+	for _, serviceID := range serviceIDs {
+		namespace, service := serviceID.Components()
+		containers, err := s.platform.ContainersFor(namespace, service)
+		if err != nil {
+			return nil, errors.Wrapf(err, "fetching containers for %s", serviceID)
+		}
+		if len(containers) <= 0 {
+			continue
+		}
+		containerMap[serviceID] = containers
+	}
+	return containerMap, nil
 }
