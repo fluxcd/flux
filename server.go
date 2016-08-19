@@ -618,7 +618,7 @@ func (s *server) releaseOne(serviceID ServiceID, target ImageID, kind ReleaseKin
 	})
 
 	if kind == ReleaseKindExecute {
-		if err := execute(res); err != nil {
+		if err := s.execute(res); err != nil {
 			return res, err
 		}
 	}
