@@ -2,12 +2,15 @@ package flux
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"strings"
 
+	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
 
 	"github.com/weaveworks/fluxy/automator"
+	"github.com/weaveworks/fluxy/git"
 	"github.com/weaveworks/fluxy/history"
 	"github.com/weaveworks/fluxy/platform"
 	"github.com/weaveworks/fluxy/platform/kubernetes"
@@ -19,14 +22,18 @@ type server struct {
 	registry  *registry.Client
 	automator *automator.Automator
 	history   history.DB
+	repo      git.Repo
+	logger    log.Logger
 }
 
-func NewServer(platform *kubernetes.Cluster, registry *registry.Client, automator *automator.Automator, history history.DB) Service {
+func NewServer(platform *kubernetes.Cluster, registry *registry.Client, automator *automator.Automator, history history.DB, repo git.Repo, logger log.Logger) Service {
 	return &server{
 		platform:  platform,
 		registry:  registry,
 		automator: automator,
 		history:   history,
+		repo:      repo,
+		logger:    logger,
 	}
 }
 
@@ -294,7 +301,7 @@ func (s *server) releaseAllToLatest(kind ReleaseKind) ([]ReleaseAction, error) {
 	// If no services need updates, we're done.
 	if len(releaseMap) <= 0 {
 		res = append(res, ReleaseAction{
-			Description: "All services running latest images. Nothing to do.",
+			Description: "All services are running the latest images. Nothing to do.",
 		})
 		return res, nil
 	}
@@ -304,6 +311,15 @@ func (s *server) releaseAllToLatest(kind ReleaseKind) ([]ReleaseAction, error) {
 	// pushing, and then making the release(s) to the platform.
 	res = append(res, ReleaseAction{
 		Description: "Clone the config repo.",
+		Do: func(rc *ReleaseContext) error {
+			path, err := s.repo.Clone()
+			if err != nil {
+				return errors.Wrap(err, "clone the config repo")
+			}
+
+			rc.RepoPath = path
+			return nil
+		},
 	})
 
 	// We will first make all of the file changes, commit, and push.
@@ -314,21 +330,66 @@ func (s *server) releaseAllToLatest(kind ReleaseKind) ([]ReleaseAction, error) {
 		}
 		res = append(res, ReleaseAction{
 			Description: fmt.Sprintf("Make %d change(s) to the resource file for %s: %s", len(changes), service, strings.Join(changes, ", ")),
+			Do: func(rc *ReleaseContext) error {
+				if fi, err := os.Stat(rc.RepoPath); err != nil || !fi.IsDir() {
+					return fmt.Errorf("the repo path (%s) is not valid", rc.RepoPath)
+				}
+
+				file, err := fileFor(rc.RepoPath, service)
+				if err != nil {
+					return errors.Wrapf(err, "finding resource definition file for %s", service)
+				}
+
+				def, err := ioutil.ReadFile(file)
+				if err != nil {
+					return err
+				}
+
+				for _, release := range imageReleases {
+					// TODO(pb) this is insufficient; UpdatePodController needs
+					// to take the old AND new image name.. !
+					//
+					// Note: keep overwriting the same def, to handle multiple
+					// images in a single file.
+					def, err = kubernetes.UpdatePodController(def, string(release.target), ioutil.Discard)
+					if err != nil {
+						return errors.Wrapf(err, "updating pod controller for %s", release.target)
+					}
+				}
+
+				rc.PodControllers[service] = def
+				return nil
+			},
 		})
 	}
 	res = append(res, ReleaseAction{
 		Description: "Commit and push the config repo.",
+		Do: func(rc *ReleaseContext) error {
+			if fi, err := os.Stat(rc.RepoPath); err != nil || !fi.IsDir() {
+				return fmt.Errorf("the repo path (%s) is not valid", rc.RepoPath)
+			}
+
+			return s.repo.CommitAndPush(rc.RepoPath, "Fluxy release")
+		},
 	})
 
 	// Then, we will make all of the releases serially.
 	for service := range releaseMap {
 		res = append(res, ReleaseAction{
 			Description: fmt.Sprintf("Release the service %s.", service),
+			Do: func(rc *ReleaseContext) error {
+				def, ok := rc.PodControllers[service]
+				if !ok {
+					return errors.New("didn't find pod controller definition for " + string(service))
+				}
+				namespace, serviceName := service.Components()
+				return s.platform.Release(namespace, serviceName, def)
+			},
 		})
 	}
 
 	if kind == ReleaseKindExecute {
-		if err := execute(res); err != nil {
+		if err := s.execute(res); err != nil {
 			return res, err
 		}
 	}
@@ -408,7 +469,7 @@ func (s *server) releaseAllForImage(target ImageID, kind ReleaseKind) ([]Release
 	}
 
 	if kind == ReleaseKindExecute {
-		if err := execute(res); err != nil {
+		if err := s.execute(res); err != nil {
 			return res, err
 		}
 	}
@@ -486,7 +547,7 @@ func (s *server) releaseOneToLatest(id ServiceID, kind ReleaseKind) ([]ReleaseAc
 	})
 
 	if kind == ReleaseKindExecute {
-		if err := execute(res); err != nil {
+		if err := s.execute(res); err != nil {
 			return res, err
 		}
 	}
@@ -565,10 +626,22 @@ func (s *server) releaseOne(serviceID ServiceID, target ImageID, kind ReleaseKin
 	return res, nil
 }
 
-func execute(actions []ReleaseAction) error {
+func (s *server) execute(actions []ReleaseAction) error {
+	rc := newReleaseContext()
+	defer rc.Clean()
+
 	for _, action := range actions {
-		fmt.Fprintf(os.Stdout, "Executing: %s\n", action.Description) // TODO(pb)
+		s.logger.Log("description", action.Description)
+		if action.Do == nil {
+			continue
+		}
+
+		if err := action.Do(rc); err != nil {
+			s.logger.Log("err", err)
+			return err
+		}
 	}
+
 	return nil
 }
 

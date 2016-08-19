@@ -13,3 +13,14 @@ type Repo struct {
 	// The path within the config repo where files are stored.
 	Path string
 }
+
+func (r Repo) Clone() (path string, err error) {
+	return clone(r.Key, r.URL)
+}
+
+func (r Repo) CommitAndPush(path, commitMessage string) error {
+	if err := commit(path, commitMessage); err != nil {
+		return err
+	}
+	return push(r.Key, path)
+}
