@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"strings"
 
 	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
@@ -252,26 +251,21 @@ func (s *server) History(spec ServiceSpec) ([]HistoryEntry, error) {
 	return res, nil
 }
 
-// The general idea for the releaseX functions:
+// Specific releaseX functions. The general idea:
 // - Walk the platform and collect things to do;
 // - If ReleaseKindExecute, execute those things; and then
 // - Return the things we did (or didn't) do.
-//
-// Every ReleaseAction will need to be extended with a function
-// that does the thing that's described.
 
 func (s *server) releaseAllToLatest(kind ReleaseKind) ([]ReleaseAction, error) {
-	res := []ReleaseAction{ReleaseAction{
-		Description: "I'm going to release all services to their latest images. Here we go.",
-	}}
+	res := []ReleaseAction{
+		s.releaseActionNop("I'm going to release all services to their latest images. Here we go."),
+	}
 
-	// Walk all services on the platform.
 	serviceIDs, err := s.allServices()
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching all platform services")
 	}
 
-	// Fetch all of the images that each service is running.
 	containerMap, err := s.allImagesFor(serviceIDs)
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching images for services")
@@ -279,11 +273,8 @@ func (s *server) releaseAllToLatest(kind ReleaseKind) ([]ReleaseAction, error) {
 
 	// Each service is running multiple images.
 	// Each image may need to be upgraded, and trigger a release.
-	type imageRelease struct {
-		current ImageID
-		target  ImageID
-	}
-	releaseMap := map[ServiceID][]imageRelease{}
+
+	regradeMap := map[ServiceID][]containerRegrade{}
 	for serviceID, containers := range containerMap {
 		for _, container := range containers {
 			currentImageID := ParseImageID(container.Image)
@@ -293,99 +284,30 @@ func (s *server) releaseAllToLatest(kind ReleaseKind) ([]ReleaseAction, error) {
 			}
 			latestImageID := ParseImageID(imageRepo.Images[0].String())
 			if currentImageID != latestImageID {
-				releaseMap[serviceID] = append(releaseMap[serviceID], imageRelease{current: currentImageID, target: latestImageID})
+				regradeMap[serviceID] = append(regradeMap[serviceID], containerRegrade{
+					container: container.Name,
+					current:   currentImageID,
+					target:    latestImageID,
+				})
 			}
 		}
 	}
-
-	// If no services need updates, we're done.
-	if len(releaseMap) <= 0 {
-		res = append(res, ReleaseAction{
-			Description: "All services are running the latest images. Nothing to do.",
-		})
+	if len(regradeMap) <= 0 {
+		res = append(res, s.releaseActionNop("All services are running the latest images. Nothing to do."))
 		return res, nil
 	}
 
 	// We have identified at least 1 release that needs to occur. Releasing
 	// means cloning the repo, changing the resource file(s), committing and
 	// pushing, and then making the release(s) to the platform.
-	res = append(res, ReleaseAction{
-		Description: "Clone the config repo.",
-		Do: func(rc *ReleaseContext) error {
-			path, err := s.repo.Clone()
-			if err != nil {
-				return errors.Wrap(err, "clone the config repo")
-			}
 
-			rc.RepoPath = path
-			return nil
-		},
-	})
-
-	// We will first make all of the file changes, commit, and push.
-	for service, imageReleases := range releaseMap {
-		var changes []string
-		for _, imageRelease := range imageReleases {
-			changes = append(changes, fmt.Sprintf("%s -> %s", imageRelease.current, imageRelease.target))
-		}
-		res = append(res, ReleaseAction{
-			Description: fmt.Sprintf("Make %d change(s) to the resource file for %s: %s", len(changes), service, strings.Join(changes, ", ")),
-			Do: func(rc *ReleaseContext) error {
-				if fi, err := os.Stat(rc.RepoPath); err != nil || !fi.IsDir() {
-					return fmt.Errorf("the repo path (%s) is not valid", rc.RepoPath)
-				}
-
-				file, err := fileFor(rc.RepoPath, service)
-				if err != nil {
-					return errors.Wrapf(err, "finding resource definition file for %s", service)
-				}
-
-				def, err := ioutil.ReadFile(file)
-				if err != nil {
-					return err
-				}
-
-				for _, release := range imageReleases {
-					// TODO(pb) this is insufficient; UpdatePodController needs
-					// to take the old AND new image name.. !
-					//
-					// Note: keep overwriting the same def, to handle multiple
-					// images in a single file.
-					def, err = kubernetes.UpdatePodController(def, string(release.target), ioutil.Discard)
-					if err != nil {
-						return errors.Wrapf(err, "updating pod controller for %s", release.target)
-					}
-				}
-
-				rc.PodControllers[service] = def
-				return nil
-			},
-		})
+	res = append(res, s.releaseActionClone())
+	for service, regrades := range regradeMap {
+		res = append(res, s.releaseActionUpdatePodController(service, regrades))
 	}
-	res = append(res, ReleaseAction{
-		Description: "Commit and push the config repo.",
-		Do: func(rc *ReleaseContext) error {
-			if fi, err := os.Stat(rc.RepoPath); err != nil || !fi.IsDir() {
-				return fmt.Errorf("the repo path (%s) is not valid", rc.RepoPath)
-			}
-
-			return s.repo.CommitAndPush(rc.RepoPath, "Fluxy release")
-		},
-	})
-
-	// Then, we will make all of the releases serially.
-	for service := range releaseMap {
-		res = append(res, ReleaseAction{
-			Description: fmt.Sprintf("Release the service %s.", service),
-			Do: func(rc *ReleaseContext) error {
-				def, ok := rc.PodControllers[service]
-				if !ok {
-					return errors.New("didn't find pod controller definition for " + string(service))
-				}
-				namespace, serviceName := service.Components()
-				return s.platform.Release(namespace, serviceName, def)
-			},
-		})
+	res = append(res, s.releaseActionCommitAndPush())
+	for service := range regradeMap {
+		res = append(res, s.releaseActionReleaseService(service))
 	}
 
 	if kind == ReleaseKindExecute {
@@ -398,17 +320,15 @@ func (s *server) releaseAllToLatest(kind ReleaseKind) ([]ReleaseAction, error) {
 }
 
 func (s *server) releaseAllForImage(target ImageID, kind ReleaseKind) ([]ReleaseAction, error) {
-	res := []ReleaseAction{ReleaseAction{
-		Description: fmt.Sprintf("I'm going to release image %s to all services that would use it. Here we go.", target),
-	}}
+	res := []ReleaseAction{
+		s.releaseActionNop(fmt.Sprintf("I'm going to release image %s to all services that would use it. Here we go.", target)),
+	}
 
-	// Walk all services on the platform.
 	serviceIDs, err := s.allServices()
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching all platform services")
 	}
 
-	// Fetch all of the images that each service is running.
 	containerMap, err := s.allImagesFor(serviceIDs)
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching images for services")
@@ -416,56 +336,36 @@ func (s *server) releaseAllForImage(target ImageID, kind ReleaseKind) ([]Release
 
 	// Each service is running multiple images.
 	// Each image may need to be modified, and trigger a release.
-	type imageRelease struct {
-		current ImageID
-		target  ImageID
-	}
-	releaseMap := map[ServiceID][]imageRelease{}
+
+	regradeMap := map[ServiceID][]containerRegrade{}
 	for serviceID, containers := range containerMap {
 		for _, container := range containers {
 			candidate := ParseImageID(container.Image)
 			if candidate.Repository() == target.Repository() && candidate != target {
-				releaseMap[serviceID] = append(releaseMap[serviceID], imageRelease{current: candidate, target: target})
+				regradeMap[serviceID] = append(regradeMap[serviceID], containerRegrade{
+					container: container.Name,
+					current:   candidate,
+					target:    target,
+				})
 			}
 		}
 	}
-
-	// If no services need updates, we're done.
-	if len(releaseMap) <= 0 {
-		res = append(res, ReleaseAction{
-			Description: fmt.Sprintf("All matching services are already running image %s. Nothing to do.", target),
-		})
+	if len(regradeMap) <= 0 {
+		res = append(res, s.releaseActionNop(fmt.Sprintf("All matching services are already running image %s. Nothing to do.", target)))
 		return res, nil
 	}
-
-	// (From here, this is a straight copy/paste from the above.)
 
 	// We have identified at least 1 release that needs to occur. Releasing
 	// means cloning the repo, changing the resource file(s), committing and
 	// pushing, and then making the release(s) to the platform.
-	res = append(res, ReleaseAction{
-		Description: "Clone the config repo.",
-	})
 
-	// We will first make all of the file changes, commit, and push.
-	for service, imageReleases := range releaseMap {
-		var changes []string
-		for _, imageRelease := range imageReleases {
-			changes = append(changes, fmt.Sprintf("%s -> %s", imageRelease.current, imageRelease.target))
-		}
-		res = append(res, ReleaseAction{
-			Description: fmt.Sprintf("Make %d change(s) to the resource file for %s: %s", len(changes), service, strings.Join(changes, ", ")),
-		})
+	res = append(res, s.releaseActionClone())
+	for service, imageReleases := range regradeMap {
+		res = append(res, s.releaseActionUpdatePodController(service, imageReleases))
 	}
-	res = append(res, ReleaseAction{
-		Description: "Commit and push the config repo.",
-	})
-
-	// Then, we will make all of the releases serially.
-	for service := range releaseMap {
-		res = append(res, ReleaseAction{
-			Description: fmt.Sprintf("Release the service %s.", service),
-		})
+	res = append(res, s.releaseActionCommitAndPush())
+	for service := range regradeMap {
+		res = append(res, s.releaseActionReleaseService(service))
 	}
 
 	if kind == ReleaseKindExecute {
@@ -478,11 +378,10 @@ func (s *server) releaseAllForImage(target ImageID, kind ReleaseKind) ([]Release
 }
 
 func (s *server) releaseOneToLatest(id ServiceID, kind ReleaseKind) ([]ReleaseAction, error) {
-	res := []ReleaseAction{ReleaseAction{
-		Description: fmt.Sprintf("I'm going to release the latest images(s) for service %s. Here we go.", id),
-	}}
+	res := []ReleaseAction{
+		s.releaseActionNop(fmt.Sprintf("I'm going to release the latest images(s) for service %s. Here we go.", id)),
+	}
 
-	// Fetch the images for the service.
 	namespace, service := id.Components()
 	containers, err := s.platform.ContainersFor(namespace, service)
 	if err != nil {
@@ -491,11 +390,8 @@ func (s *server) releaseOneToLatest(id ServiceID, kind ReleaseKind) ([]ReleaseAc
 
 	// Each service is running multiple images.
 	// Each image may need to be modified, and trigger a release.
-	type imageRelease struct {
-		current ImageID
-		target  ImageID
-	}
-	var releases []imageRelease
+
+	var regrades []containerRegrade
 	for _, container := range containers {
 		imageID := ParseImageID(container.Image)
 		imageRepo, err := s.registry.GetRepository(imageID.Repository())
@@ -508,43 +404,26 @@ func (s *server) releaseOneToLatest(id ServiceID, kind ReleaseKind) ([]ReleaseAc
 
 		latestID := ParseImageID(imageRepo.Images[0].String())
 		if imageID != latestID {
-			releases = append(releases, imageRelease{current: imageID, target: latestID})
+			regrades = append(regrades, containerRegrade{
+				container: container.Name,
+				current:   imageID,
+				target:    latestID,
+			})
 		}
 	}
-
-	// If the service doesn't need an update, we're done.
-	if len(releases) <= 0 {
-		res = append(res, ReleaseAction{
-			Description: "The service is already running the latest version of all its images. Nothing to do.",
-		})
+	if len(regrades) <= 0 {
+		res = append(res, s.releaseActionNop("The service is already running the latest version of all its images. Nothing to do."))
 		return res, nil
 	}
-
-	// (From here, this is *almost* a straight copy/paste from above.)
 
 	// We need to make 1 release. Releasing means cloning the repo, changing the
 	// resource file(s), committing and pushing, and then making the release(s)
 	// to the platform.
-	res = append(res, ReleaseAction{
-		Description: "Clone the config repo.",
-	})
 
-	// We will first make the changes to the file, commit, and push.
-	var changes []string
-	for _, release := range releases {
-		changes = append(changes, fmt.Sprintf("%s -> %s", release.current, release.target))
-	}
-	res = append(res, ReleaseAction{
-		Description: fmt.Sprintf("Make %d change(s) to the resource file for %s: %s", len(changes), service, strings.Join(changes, ", ")),
-	})
-	res = append(res, ReleaseAction{
-		Description: "Commit and push the config repo.",
-	})
-
-	// Then, we will make the release.
-	res = append(res, ReleaseAction{
-		Description: fmt.Sprintf("Release the service %s.", id),
-	})
+	res = append(res, s.releaseActionClone())
+	res = append(res, s.releaseActionUpdatePodController(id, regrades))
+	res = append(res, s.releaseActionCommitAndPush())
+	res = append(res, s.releaseActionReleaseService(id))
 
 	if kind == ReleaseKindExecute {
 		if err := s.execute(res); err != nil {
@@ -556,9 +435,9 @@ func (s *server) releaseOneToLatest(id ServiceID, kind ReleaseKind) ([]ReleaseAc
 }
 
 func (s *server) releaseOne(serviceID ServiceID, target ImageID, kind ReleaseKind) ([]ReleaseAction, error) {
-	res := []ReleaseAction{ReleaseAction{
-		Description: fmt.Sprintf("I'm going to release image %s to service %s.", target, serviceID),
-	}}
+	res := []ReleaseAction{
+		s.releaseActionNop(fmt.Sprintf("I'm going to release image %s to service %s.", target, serviceID)),
+	}
 
 	namespace, service := serviceID.Components()
 	containers, err := s.platform.ContainersFor(namespace, service)
@@ -568,13 +447,8 @@ func (s *server) releaseOne(serviceID ServiceID, target ImageID, kind ReleaseKin
 
 	// Each service is running multiple images.
 	// Each image may need to be modified, and trigger a release.
-	type containerRegrade struct {
-		container string
-		current   ImageID
-		target    ImageID
-	}
-	regrades := []containerRegrade{}
 
+	var regrades []containerRegrade
 	for _, container := range containers {
 		candidate := ParseImageID(container.Image)
 		if candidate.Repository() == target.Repository() && candidate != target {
@@ -585,37 +459,19 @@ func (s *server) releaseOne(serviceID ServiceID, target ImageID, kind ReleaseKin
 			})
 		}
 	}
-
-	// If no services need updates, we're done.
 	if len(regrades) <= 0 {
-		res = append(res, ReleaseAction{
-			Description: fmt.Sprintf("All matching containers are already running image %s. Nothing to do.", target),
-		})
+		res = append(res, s.releaseActionNop(fmt.Sprintf("All matching containers are already running image %s. Nothing to do.", target)))
 		return res, nil
 	}
 
 	// We have identified at least 1 regrade that needs to occur. Releasing
 	// means cloning the repo, changing the resource file(s), committing and
 	// pushing, and then making the release(s) to the platform.
-	res = append(res, ReleaseAction{
-		Description: "Clone the config repo.",
-	})
 
-	var changes []string
-	for _, regrade := range regrades {
-		changes = append(changes, fmt.Sprintf("%s: %s -> %s", regrade.container, regrade.current, regrade.target))
-	}
-	res = append(res, ReleaseAction{
-		Description: fmt.Sprintf("Make %d change(s) to the resource file for %s: %s", len(changes), service, strings.Join(changes, ", ")),
-	})
-
-	res = append(res, ReleaseAction{
-		Description: "Commit and push the config repo.",
-	})
-
-	res = append(res, ReleaseAction{
-		Description: fmt.Sprintf("Release the service %s.", service),
-	})
+	res = append(res, s.releaseActionClone())
+	res = append(res, s.releaseActionUpdatePodController(serviceID, regrades))
+	res = append(res, s.releaseActionCommitAndPush())
+	res = append(res, s.releaseActionReleaseService(serviceID))
 
 	if kind == ReleaseKindExecute {
 		if err := s.execute(res); err != nil {
@@ -646,6 +502,12 @@ func (s *server) execute(actions []ReleaseAction) error {
 }
 
 // Release helpers.
+
+type containerRegrade struct {
+	container string
+	current   ImageID
+	target    ImageID
+}
 
 func (s *server) allNamespaces() ([]string, error) {
 	return []string{"default"}, nil // TODO(pb): s.platform.Namespaces()
@@ -692,4 +554,86 @@ func (s *server) allImagesFor(serviceIDs []ServiceID) (map[ServiceID][]platform.
 		containerMap[serviceID] = containers
 	}
 	return containerMap, nil
+}
+
+// ReleaseAction Do funcs
+
+func (s *server) releaseActionNop(desc string) ReleaseAction {
+	return ReleaseAction{Description: desc}
+}
+
+func (s *server) releaseActionClone() ReleaseAction {
+	return ReleaseAction{
+		Description: "Clone the config repo.",
+		Do: func(rc *ReleaseContext) error {
+			path, err := s.repo.Clone()
+			if err != nil {
+				return errors.Wrap(err, "clone the config repo")
+			}
+			rc.RepoPath = path
+			return nil
+		},
+	}
+}
+
+func (s *server) releaseActionUpdatePodController(service ServiceID, regrades []containerRegrade) ReleaseAction {
+	return ReleaseAction{
+		Description: fmt.Sprintf("Update %d images(s) in the resource definition file for %s.", len(regrades), service),
+		Do: func(rc *ReleaseContext) error {
+			if fi, err := os.Stat(rc.RepoPath); err != nil || !fi.IsDir() {
+				return fmt.Errorf("the repo path (%s) is not valid", rc.RepoPath)
+			}
+
+			file, err := fileFor(rc.RepoPath, service)
+			if err != nil {
+				return errors.Wrapf(err, "finding resource definition file for %s", service)
+			}
+
+			def, err := ioutil.ReadFile(file)
+			if err != nil {
+				return err
+			}
+
+			for _, regrade := range regrades {
+				// TODO(pb) this is insufficient; UpdatePodController needs
+				// to take the old AND new image name.. !
+				//
+				// Note: keep overwriting the same def, to handle multiple
+				// images in a single file.
+				def, err = kubernetes.UpdatePodController(def, string(regrade.target), ioutil.Discard)
+				if err != nil {
+					return errors.Wrapf(err, "updating pod controller for %s", regrade.target)
+				}
+			}
+
+			rc.PodControllers[service] = def
+			return nil
+		},
+	}
+}
+
+func (s *server) releaseActionCommitAndPush() ReleaseAction {
+	return ReleaseAction{
+		Description: "Commit and push the config repo.",
+		Do: func(rc *ReleaseContext) error {
+			if fi, err := os.Stat(rc.RepoPath); err != nil || !fi.IsDir() {
+				return fmt.Errorf("the repo path (%s) is not valid", rc.RepoPath)
+			}
+			return s.repo.CommitAndPush(rc.RepoPath, "Fluxy release")
+		},
+	}
+}
+
+func (s *server) releaseActionReleaseService(service ServiceID) ReleaseAction {
+	return ReleaseAction{
+		Description: fmt.Sprintf("Release the service %s.", service),
+		Do: func(rc *ReleaseContext) error {
+			def, ok := rc.PodControllers[service]
+			if !ok {
+				return errors.New("didn't find pod controller definition for " + string(service))
+			}
+			namespace, serviceName := service.Components()
+			return s.platform.Release(namespace, serviceName, def)
+		},
+	}
 }
