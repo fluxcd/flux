@@ -494,8 +494,75 @@ func (s *server) releaseOneToLatest(id ServiceID, kind ReleaseKind) ([]ReleaseAc
 	return res, nil
 }
 
-func (s *server) releaseOne(serviceID ServiceID, imageID ImageID, kind ReleaseKind) ([]ReleaseAction, error) {
-	return nil, errors.New("releaseOne not implemented in server")
+func (s *server) releaseOne(serviceID ServiceID, target ImageID, kind ReleaseKind) ([]ReleaseAction, error) {
+	res := []ReleaseAction{ReleaseAction{
+		Description: fmt.Sprintf("I'm going to release image %s to service %s.", target, serviceID),
+	}}
+
+	namespace, service := serviceID.Components()
+	containers, err := s.platform.ContainersFor(namespace, service)
+	if err != nil {
+		return nil, errors.Wrapf(err, "fetching images for service %s", serviceID)
+	}
+
+	// Each service is running multiple images.
+	// Each image may need to be modified, and trigger a release.
+	type containerRegrade struct {
+		container string
+		current   ImageID
+		target    ImageID
+	}
+	regrades := []containerRegrade{}
+
+	for _, container := range containers {
+		candidate := ParseImageID(container.Image)
+		if candidate.Repository() == target.Repository() && candidate != target {
+			regrades = append(regrades, containerRegrade{
+				container: container.Name,
+				current:   candidate,
+				target:    target,
+			})
+		}
+	}
+
+	// If no services need updates, we're done.
+	if len(regrades) <= 0 {
+		res = append(res, ReleaseAction{
+			Description: fmt.Sprintf("All matching containers are already running image %s. Nothing to do.", target),
+		})
+		return res, nil
+	}
+
+	// We have identified at least 1 regrade that needs to occur. Releasing
+	// means cloning the repo, changing the resource file(s), committing and
+	// pushing, and then making the release(s) to the platform.
+	res = append(res, ReleaseAction{
+		Description: "Clone the config repo.",
+	})
+
+	var changes []string
+	for _, regrade := range regrades {
+		changes = append(changes, fmt.Sprintf("%s: %s -> %s", regrade.container, regrade.current, regrade.target))
+	}
+	res = append(res, ReleaseAction{
+		Description: fmt.Sprintf("Make %d change(s) to the resource file for %s: %s", len(changes), service, strings.Join(changes, ", ")),
+	})
+
+	res = append(res, ReleaseAction{
+		Description: "Commit and push the config repo.",
+	})
+
+	res = append(res, ReleaseAction{
+		Description: fmt.Sprintf("Release the service %s.", service),
+	})
+
+	if kind == ReleaseKindExecute {
+		if err := execute(res); err != nil {
+			return res, err
+		}
+	}
+
+	return res, nil
 }
 
 func execute(actions []ReleaseAction) error {
