@@ -47,7 +47,11 @@ func handleListServices(s Service) http.Handler {
 		}
 
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		json.NewEncoder(w).Encode(d)
+		if err := json.NewEncoder(w).Encode(d); err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintf(w, err.Error())
+			return
+		}
 	})
 }
 
@@ -91,7 +95,11 @@ func handleListImages(s Service) http.Handler {
 		}
 
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		json.NewEncoder(w).Encode(d)
+		if err := json.NewEncoder(w).Encode(d); err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintf(w, err.Error())
+			return
+		}
 	})
 }
 
@@ -148,7 +156,11 @@ func handleRelease(s Service) http.Handler {
 		}
 
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		json.NewEncoder(w).Encode(a)
+		if err := json.NewEncoder(w).Encode(a); err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintf(w, err.Error())
+			return
+		}
 	})
 }
 
@@ -269,7 +281,11 @@ func handleHistory(s Service) http.Handler {
 		}
 
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		json.NewEncoder(w).Encode(h)
+		if err := json.NewEncoder(w).Encode(h); err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintf(w, err.Error())
+			return
+		}
 	})
 }
 

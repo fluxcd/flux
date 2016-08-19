@@ -2,6 +2,7 @@ package flux
 
 import (
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -47,7 +48,26 @@ func ParseReleaseKind(s string) (ReleaseKind, error) {
 }
 
 type ReleaseAction struct {
-	Description string // change me eventually!
+	Description string                      `json:"description"`
+	Do          func(*ReleaseContext) error `json:"-"`
+}
+
+type ReleaseContext struct {
+	RepoPath       string
+	RepoKey        string
+	PodControllers map[ServiceID][]byte
+}
+
+func newReleaseContext() *ReleaseContext {
+	return &ReleaseContext{
+		PodControllers: map[ServiceID][]byte{},
+	}
+}
+
+func (rc *ReleaseContext) Clean() {
+	if rc.RepoPath != "" {
+		os.RemoveAll(rc.RepoPath)
+	}
 }
 
 type ServiceID string // "default/helloworld"

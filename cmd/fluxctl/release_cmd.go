@@ -82,7 +82,9 @@ func (opts *serviceReleaseOpts) RunE(_ *cobra.Command, args []string) error {
 		return err
 	}
 
-	fmt.Fprintf(os.Stdout, "%#v\n", actions)
+	for i, action := range actions {
+		fmt.Fprintf(os.Stdout, "%d) %s\n", i+1, action.Description)
+	}
 	if !opts.dryRun {
 		fmt.Fprintf(os.Stdout, "took %s\n", time.Since(begin))
 	}

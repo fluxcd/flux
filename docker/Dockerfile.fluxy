@@ -3,4 +3,5 @@ WORKDIR /home/flux
 RUN apk add --no-cache git openssh
 ADD ./kubectl /home/flux/
 COPY ./ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+COPY ./kubeservice /home/flux/
 COPY ./fluxd /home/flux/
