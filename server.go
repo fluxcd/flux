@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"strings"
 
 	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
@@ -584,12 +585,18 @@ func (s *server) releaseActionUpdatePodController(service ServiceID, regrades []
 				return fmt.Errorf("the repo path (%s) is not valid", rc.RepoPath)
 			}
 
-			file, err := fileFor(rc.RepoPath, service)
+			files, err := filesFor(rc.RepoPath, service)
 			if err != nil {
 				return errors.Wrapf(err, "finding resource definition file for %s", service)
 			}
+			if len(files) <= 0 {
+				return fmt.Errorf("no resource definition file found for %s", service)
+			}
+			if len(files) > 1 {
+				return fmt.Errorf("multiple resource definition files found for %s: %s", service, strings.Join(files, ", "))
+			}
 
-			def, err := ioutil.ReadFile(file)
+			def, err := ioutil.ReadFile(files[0])
 			if err != nil {
 				return err
 			}
