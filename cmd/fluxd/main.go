@@ -168,7 +168,12 @@ func main() {
 	}
 
 	// Server component.
-	server := flux.NewServer(k8s, reg, auto, his)
+	repo := git.Repo{
+		URL:  *repoURL,
+		Key:  *repoKey,
+		Path: *repoPath,
+	}
+	server := flux.NewServer(k8s, reg, auto, his, repo, logger)
 
 	// Mechanical components.
 	errc := make(chan error)
