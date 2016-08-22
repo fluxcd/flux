@@ -1,4 +1,4 @@
-package flux
+package kubernetes
 
 import (
 	"bytes"
@@ -10,7 +10,10 @@ import (
 	"strings"
 )
 
-func filesFor(path string, id ServiceID) (filenames []string, err error) {
+// FilesFor returns the resource definition files in path (or any subdirectory)
+// that are responsible for driving the given namespace/service. It presumes
+// kubeservice is available in the PWD or PATH.
+func FilesFor(path, namespace, service string) (filenames []string, err error) {
 	bin, err := func() (string, error) {
 		if _, err := os.Stat("./kubeservice"); err == nil {
 			return "./kubeservice", nil
@@ -36,6 +39,7 @@ func filesFor(path string, id ServiceID) (filenames []string, err error) {
 		return nil
 	})
 
+	tgt := fmt.Sprintf("%s/%s", namespace, service)
 	var winners []string
 	for _, file := range candidates {
 		var stdout, stderr bytes.Buffer
@@ -47,13 +51,13 @@ func filesFor(path string, id ServiceID) (filenames []string, err error) {
 			continue
 		}
 		out := strings.TrimSpace(stdout.String())
-		if out == string(id) { // kubeservice output is "namespace/service", same as ServiceID
+		if out == tgt { // kubeservice output is "namespace/service", same as ServiceID
 			winners = append(winners, file)
 		}
 	}
 
 	if len(winners) <= 0 {
-		return nil, fmt.Errorf("no file found for service %s", id)
+		return nil, fmt.Errorf("no file found for namespace %s service %s", namespace, service)
 	}
 	return winners, nil
 }

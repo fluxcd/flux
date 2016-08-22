@@ -581,7 +581,8 @@ func (s *server) releaseActionUpdatePodController(service ServiceID, regrades []
 				return fmt.Errorf("the repo path (%s) is not valid", rc.RepoPath)
 			}
 
-			files, err := filesFor(rc.RepoPath, service)
+			namespace, serviceName := service.Components()
+			files, err := kubernetes.FilesFor(rc.RepoPath, namespace, serviceName)
 			if err != nil {
 				return errors.Wrapf(err, "finding resource definition file for %s", service)
 			}
