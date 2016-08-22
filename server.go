@@ -56,38 +56,38 @@ func (s *server) ListServices() (res []ServiceStatus, err error) {
 		namespace, service := serviceID.Components()
 
 		// TODO(pb): containers should be returned as part of Services
+		var c []Container
 		containers, err := s.platform.ContainersFor(namespace, service)
 		if err != nil {
-			return nil, errors.Wrapf(err, "fetching containers for %s", serviceID)
-		}
-
-		var c []Container
-		for _, container := range containers {
-			imageID := ParseImageID(container.Image)
-			imageRepo, err := s.registry.GetRepository(imageID.Repository())
-			if err != nil {
-				return nil, errors.Wrapf(err, "fetching image repo for %s", imageID)
-			}
-
-			var (
-				current   ImageDescription
-				available []ImageDescription
-			)
-			for _, image := range imageRepo.Images {
-				description := ImageDescription{
-					ID:        ParseImageID(image.String()),
-					CreatedAt: image.CreatedAt,
+			s.logger.Log("err", errors.Wrapf(err, "fetching containers for %s", serviceID))
+		} else {
+			for _, container := range containers {
+				imageID := ParseImageID(container.Image)
+				imageRepo, err := s.registry.GetRepository(imageID.Repository())
+				if err != nil {
+					return nil, errors.Wrapf(err, "fetching image repo for %s", imageID)
 				}
-				available = append(available, description)
-				if image.String() == container.Image {
-					current = description
+
+				var (
+					current   ImageDescription
+					available []ImageDescription
+				)
+				for _, image := range imageRepo.Images {
+					description := ImageDescription{
+						ID:        ParseImageID(image.String()),
+						CreatedAt: image.CreatedAt,
+					}
+					available = append(available, description)
+					if image.String() == container.Image {
+						current = description
+					}
 				}
+				c = append(c, Container{
+					Name:      container.Name,
+					Current:   current,
+					Available: available,
+				})
 			}
-			c = append(c, Container{
-				Name:      container.Name,
-				Current:   current,
-				Available: available,
-			})
 		}
 
 		// FIXME: since we get service IDs above, we have to get the
@@ -126,38 +126,39 @@ func (s *server) ListImages(spec ServiceSpec) (res []ImageStatus, err error) {
 
 	for _, serviceID := range serviceIDs {
 		namespace, service := serviceID.Components()
-		containers, err := s.platform.ContainersFor(namespace, service)
-		if err != nil {
-			return nil, errors.Wrapf(err, "fetching containers for %s", serviceID)
-		}
 
 		var c []Container
-		for _, container := range containers {
-			imageID := ParseImageID(container.Image)
-			imageRepo, err := s.registry.GetRepository(imageID.Repository())
-			if err != nil {
-				return nil, errors.Wrapf(err, "fetching image repo for %s", imageID)
-			}
+		containers, err := s.platform.ContainersFor(namespace, service)
+		if err != nil {
+			s.logger.Log("err", errors.Wrapf(err, "fetching containers for %s", serviceID))
+		} else {
+			for _, container := range containers {
+				imageID := ParseImageID(container.Image)
+				imageRepo, err := s.registry.GetRepository(imageID.Repository())
+				if err != nil {
+					return nil, errors.Wrapf(err, "fetching image repo for %s", imageID)
+				}
 
-			var (
-				current   ImageDescription
-				available []ImageDescription
-			)
-			for _, image := range imageRepo.Images {
-				description := ImageDescription{
-					ID:        ParseImageID(image.String()),
-					CreatedAt: image.CreatedAt,
+				var (
+					current   ImageDescription
+					available []ImageDescription
+				)
+				for _, image := range imageRepo.Images {
+					description := ImageDescription{
+						ID:        ParseImageID(image.String()),
+						CreatedAt: image.CreatedAt,
+					}
+					available = append(available, description)
+					if image.String() == container.Image {
+						current = description
+					}
 				}
-				available = append(available, description)
-				if image.String() == container.Image {
-					current = description
-				}
+				c = append(c, Container{
+					Name:      container.Name,
+					Current:   current,
+					Available: available,
+				})
 			}
-			c = append(c, Container{
-				Name:      container.Name,
-				Current:   current,
-				Available: available,
-			})
 		}
 
 		res = append(res, ImageStatus{
