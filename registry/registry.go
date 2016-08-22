@@ -90,6 +90,14 @@ func (c *Client) GetRepository(repository string) (*Repository, error) {
 
 	tags, err := client.Repository.ListTags(hostlessImageName, auth)
 	if err != nil {
+		if regerr, ok := err.(dockerregistry.RegistryError); ok {
+			if regerr.Code == 404 {
+				c.Logger.Log("registry-err", regerr)
+				return &Repository{
+					Name: repository,
+				}, nil
+			}
+		}
 		return nil, err
 	}
 
