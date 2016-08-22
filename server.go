@@ -9,7 +9,6 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
 
-	"github.com/weaveworks/fluxy/automator"
 	"github.com/weaveworks/fluxy/git"
 	"github.com/weaveworks/fluxy/history"
 	"github.com/weaveworks/fluxy/platform"
@@ -17,16 +16,22 @@ import (
 	"github.com/weaveworks/fluxy/registry"
 )
 
+type Automator interface {
+	Automate(namespace, service string) error
+	Deautomate(namespace, service string) error
+	IsAutomated(namespace, service string) bool
+}
+
 type server struct {
 	platform  *kubernetes.Cluster
 	registry  *registry.Client
-	automator *automator.Automator
+	automator Automator
 	history   history.DB
 	repo      git.Repo
 	logger    log.Logger
 }
 
-func NewServer(platform *kubernetes.Cluster, registry *registry.Client, automator *automator.Automator, history history.DB, repo git.Repo, logger log.Logger) Service {
+func NewServer(platform *kubernetes.Cluster, registry *registry.Client, automator Automator, history history.DB, repo git.Repo, logger log.Logger) Service {
 	return &server{
 		platform:  platform,
 		registry:  registry,
@@ -206,7 +211,7 @@ func (s *server) Automate(id ServiceID) error {
 		return errors.New("no automator configured")
 	}
 	namespace, service := id.Components()
-	s.automator.Enable(namespace, service)
+	s.automator.Automate(namespace, service)
 	return nil
 }
 
@@ -215,7 +220,7 @@ func (s *server) Deautomate(id ServiceID) error {
 		return errors.New("no automator configured")
 	}
 	namespace, service := id.Components()
-	s.automator.Disable(namespace, service)
+	s.automator.Deautomate(namespace, service)
 	return nil
 }
 

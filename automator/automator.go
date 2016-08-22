@@ -25,16 +25,16 @@ func New(cfg Config) (*Automator, error) {
 	}, nil
 }
 
-// Enable turns on automated (continuous) deployment for the named service. This
-// call always succeeds; if the named service cannot be automated for some
+// Automate turns on automated (continuous) deployment for the named service.
+// This call always succeeds; if the named service cannot be automated for some
 // reason, that will be detected and happen autonomously.
-func (a *Automator) Enable(namespace, serviceName string) {
+func (a *Automator) Automate(namespace, serviceName string) error {
 	a.mtx.Lock()
 	defer a.mtx.Unlock()
 
 	ns := namespacedService{namespace, serviceName}
 	if _, ok := a.active[ns]; ok {
-		return
+		return nil
 	}
 
 	onDelete := func() { a.deleteCallback(namespace, serviceName) }
@@ -43,19 +43,20 @@ func (a *Automator) Enable(namespace, serviceName string) {
 	a.active[ns] = s
 
 	a.cfg.History.LogEvent(namespace, serviceName, automationEnabled)
+	return nil
 }
 
-// Disable turns off automated (continuous) deployment for the named service.
+// Deautomate turns off automated (continuous) deployment for the named service.
 // This is more of a signal; it may take some time for the service to be
-// properly disabled.
-func (a *Automator) Disable(namespace, serviceName string) {
+// properly deautomated.
+func (a *Automator) Deautomate(namespace, serviceName string) error {
 	a.mtx.Lock()
 	defer a.mtx.Unlock()
 
 	ns := namespacedService{namespace, serviceName}
 	s, ok := a.active[ns]
 	if !ok {
-		return
+		return nil
 	}
 
 	// We signal delete rather than actually deleting anything here,
@@ -63,6 +64,7 @@ func (a *Automator) Disable(namespace, serviceName string) {
 	s.signalDelete()
 
 	a.cfg.History.LogEvent(namespace, serviceName, automationDisabled)
+	return nil
 }
 
 // IsAutomated checks if a given service has automation enabled.
