@@ -37,12 +37,16 @@ func (opts *serviceListOpts) RunE(_ *cobra.Command, args []string) error {
 	}
 
 	w := newTabwriter()
-	fmt.Fprintf(w, "SERVICE\tCONTAINER\tIMAGE\tRELEASE\n")
+	fmt.Fprintf(w, "SERVICE\tCONTAINER\tIMAGE\tRELEASE\tAUTOMATION\n")
 	for _, s := range services {
-		c := s.Containers[0]
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", s.ID, c.Name, maybeUpToDate(c.Current, c.Available), s.Status, maybeAutomated(s))
-		for _, c := range s.Containers[1:] {
-			fmt.Fprintf(w, "\t%s\t%s\n", c.Name, maybeUpToDate(c.Current, c.Available))
+		if len(s.Containers) > 0 {
+			c := s.Containers[0]
+			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", s.ID, c.Name, maybeUpToDate(c.Current, c.Available), s.Status, maybeAutomated(s))
+			for _, c := range s.Containers[1:] {
+				fmt.Fprintf(w, "\t%s\t%s\t\t\n", c.Name, maybeUpToDate(c.Current, c.Available))
+			}
+		} else {
+			fmt.Fprintf(w, "%s\t\t\t\t\n", s.ID)
 		}
 	}
 	w.Flush()
