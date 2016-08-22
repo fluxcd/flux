@@ -50,7 +50,7 @@ func (opts *serviceShowOpts) RunE(_ *cobra.Command, args []string) error {
 	fmt.Fprintln(out, "SERVICE\tCONTAINER\tIMAGE\tCREATED")
 	for _, service := range services {
 		if len(service.Containers) == 0 {
-			fmt.Fprintln(out, service.ID)
+			fmt.Fprintf(out, "%s\t\t\t\n", service.ID)
 			continue
 		}
 
