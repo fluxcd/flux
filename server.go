@@ -598,10 +598,13 @@ func (s *server) releaseActionUpdatePodController(service ServiceID, regrades []
 			}
 
 			for _, regrade := range regrades {
-				// TODO(pb) this is insufficient; UpdatePodController needs
-				// to take the old AND new image name.. !
+				// Note 1: UpdatePodController parses the target (new) image
+				// name, extracts the repository, and only mutates the line(s)
+				// in the definition that match it. So for the time being we
+				// ignore the current image. UpdatePodController could be
+				// updated, if necessary.
 				//
-				// Note: keep overwriting the same def, to handle multiple
+				// Note 2: we keep overwriting the same def, to handle multiple
 				// images in a single file.
 				def, err = kubernetes.UpdatePodController(def, string(regrade.target), ioutil.Discard)
 				if err != nil {
