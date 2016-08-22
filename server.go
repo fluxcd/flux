@@ -212,7 +212,7 @@ func (s *server) Deautomate(id ServiceID) error {
 func (s *server) History(spec ServiceSpec) ([]HistoryEntry, error) {
 	var events []history.Event
 	if spec == ServiceSpecAll {
-		namespaces, err := s.allNamespaces()
+		namespaces, err := s.platform.Namespaces()
 		if err != nil {
 			return nil, errors.Wrap(err, "fetching platform namespaces")
 		}
@@ -510,12 +510,8 @@ type containerRegrade struct {
 	target    ImageID
 }
 
-func (s *server) allNamespaces() ([]string, error) {
-	return []string{"default"}, nil // TODO(pb): s.platform.Namespaces()
-}
-
 func (s *server) allServices() ([]ServiceID, error) {
-	namespaces, err := s.allNamespaces()
+	namespaces, err := s.platform.Namespaces()
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching platform namespaces")
 	}
