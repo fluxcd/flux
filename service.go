@@ -58,7 +58,7 @@ type ReleaseContext struct {
 	PodControllers map[ServiceID][]byte
 }
 
-func newReleaseContext() *ReleaseContext {
+func NewReleaseContext() *ReleaseContext {
 	return &ReleaseContext{
 		PodControllers: map[ServiceID][]byte{},
 	}
@@ -78,6 +78,10 @@ func ParseServiceID(s string) (ServiceID, error) {
 		return "", ErrInvalidServiceID
 	}
 	return ServiceID(s), nil
+}
+
+func MakeServiceID(namespace, service string) ServiceID {
+	return ServiceID(namespace + "/" + service)
 }
 
 func (id ServiceID) Components() (namespace, service string) {

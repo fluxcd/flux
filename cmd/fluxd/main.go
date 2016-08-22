@@ -21,6 +21,7 @@ import (
 	"github.com/weaveworks/fluxy/history"
 	"github.com/weaveworks/fluxy/platform/kubernetes"
 	"github.com/weaveworks/fluxy/registry"
+	"github.com/weaveworks/fluxy/release"
 )
 
 func main() {
@@ -145,19 +146,23 @@ func main() {
 		}
 	}
 
+	var rel flux.Releaser
+	{
+		repo := git.Repo{
+			URL:  *repoURL,
+			Key:  *repoKey,
+			Path: *repoPath,
+		}
+		rel = release.New(k8s, reg, logger, repo)
+	}
+
 	// Automator component.
 	var auto *automator.Automator
 	{
 		var err error
 		auto, err = automator.New(automator.Config{
-			Platform: k8s,
-			Registry: reg,
+			Releaser: rel,
 			History:  his,
-			Repo: git.Repo{
-				URL:  *repoURL,
-				Key:  *repoKey,
-				Path: *repoPath,
-			},
 		})
 		if err == nil {
 			logger.Log("automator", "enabled", "repo", *repoURL)
@@ -167,13 +172,7 @@ func main() {
 		}
 	}
 
-	// Server component.
-	repo := git.Repo{
-		URL:  *repoURL,
-		Key:  *repoKey,
-		Path: *repoPath,
-	}
-	server := flux.NewServer(k8s, reg, auto, his, repo, logger)
+	server := flux.NewServer(k8s, reg, rel, auto, his, logger)
 
 	// Mechanical components.
 	errc := make(chan error)
