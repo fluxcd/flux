@@ -43,13 +43,15 @@ func NewServer(platform *kubernetes.Cluster, registry *registry.Client, automato
 // same reason: let's not add abstraction until it's merged, or nearly so, and
 // it's clear where the abstraction should exist.
 
-func (s *server) ListServices() ([]ServiceStatus, error) {
+func (s *server) ListServices() (res []ServiceStatus, err error) {
+	s.logger.Log("method", "ListServices")
+	defer func() { s.logger.Log("method", "ListServices", "res", len(res), "err", err) }()
+
 	serviceIDs, err := s.allServices()
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching all services on the platform")
 	}
 
-	var res []ServiceStatus
 	for _, serviceID := range serviceIDs {
 		namespace, service := serviceID.Components()
 
@@ -107,7 +109,10 @@ func (s *server) ListServices() ([]ServiceStatus, error) {
 	return res, nil
 }
 
-func (s *server) ListImages(spec ServiceSpec) ([]ImageStatus, error) {
+func (s *server) ListImages(spec ServiceSpec) (res []ImageStatus, err error) {
+	s.logger.Log("method", "ListImages", "spec", spec)
+	defer func() { s.logger.Log("method", "ListImages", "spec", spec, "res", len(res), "err", err) }()
+
 	serviceIDs, err := func() ([]ServiceID, error) {
 		if spec == ServiceSpecAll {
 			return s.allServices()
@@ -119,7 +124,6 @@ func (s *server) ListImages(spec ServiceSpec) ([]ImageStatus, error) {
 		return nil, errors.Wrapf(err, "fetching service ID(s)")
 	}
 
-	var res []ImageStatus
 	for _, serviceID := range serviceIDs {
 		namespace, service := serviceID.Components()
 		containers, err := s.platform.ContainersFor(namespace, service)
@@ -165,7 +169,12 @@ func (s *server) ListImages(spec ServiceSpec) ([]ImageStatus, error) {
 	return res, nil
 }
 
-func (s *server) Release(serviceSpec ServiceSpec, imageSpec ImageSpec, kind ReleaseKind) ([]ReleaseAction, error) {
+func (s *server) Release(serviceSpec ServiceSpec, imageSpec ImageSpec, kind ReleaseKind) (res []ReleaseAction, err error) {
+	s.logger.Log("method", "Release", "serviceSpec", serviceSpec, "imageSpec", imageSpec, "kind", kind)
+	defer func() {
+		s.logger.Log("method", "Release", "serviceSpec", serviceSpec, "imageSpec", imageSpec, "kind", kind, "res", len(res), "err", err)
+	}()
+
 	switch {
 	case serviceSpec == ServiceSpecAll && imageSpec == ImageSpecLatest:
 		return s.releaseAllToLatest(kind)
@@ -257,10 +266,11 @@ func (s *server) History(spec ServiceSpec) ([]HistoryEntry, error) {
 // - If ReleaseKindExecute, execute those things; and then
 // - Return the things we did (or didn't) do.
 
-func (s *server) releaseAllToLatest(kind ReleaseKind) ([]ReleaseAction, error) {
-	res := []ReleaseAction{
-		s.releaseActionNop("I'm going to release all services to their latest images. Here we go."),
-	}
+func (s *server) releaseAllToLatest(kind ReleaseKind) (res []ReleaseAction, err error) {
+	s.logger.Log("method", "releaseAllToLatest", "kind", kind)
+	defer func() { s.logger.Log("method", "releaseAllToLatest", "kind", kind, "res", len(res), "err", err) }()
+
+	res = append(res, s.releaseActionNop("I'm going to release all services to their latest images. Here we go."))
 
 	serviceIDs, err := s.allServices()
 	if err != nil {
@@ -320,10 +330,11 @@ func (s *server) releaseAllToLatest(kind ReleaseKind) ([]ReleaseAction, error) {
 	return res, nil
 }
 
-func (s *server) releaseAllForImage(target ImageID, kind ReleaseKind) ([]ReleaseAction, error) {
-	res := []ReleaseAction{
-		s.releaseActionNop(fmt.Sprintf("I'm going to release image %s to all services that would use it. Here we go.", target)),
-	}
+func (s *server) releaseAllForImage(target ImageID, kind ReleaseKind) (res []ReleaseAction, err error) {
+	s.logger.Log("method", "releaseAllForImage", "kind", kind)
+	defer func() { s.logger.Log("method", "releaseAllForImage", "kind", kind, "res", len(res), "err", err) }()
+
+	res = append(res, s.releaseActionNop(fmt.Sprintf("I'm going to release image %s to all services that would use it. Here we go.", target)))
 
 	serviceIDs, err := s.allServices()
 	if err != nil {
@@ -378,10 +389,11 @@ func (s *server) releaseAllForImage(target ImageID, kind ReleaseKind) ([]Release
 	return res, nil
 }
 
-func (s *server) releaseOneToLatest(id ServiceID, kind ReleaseKind) ([]ReleaseAction, error) {
-	res := []ReleaseAction{
-		s.releaseActionNop(fmt.Sprintf("I'm going to release the latest images(s) for service %s. Here we go.", id)),
-	}
+func (s *server) releaseOneToLatest(id ServiceID, kind ReleaseKind) (res []ReleaseAction, err error) {
+	s.logger.Log("method", "releaseOneToLatest", "kind", kind)
+	defer func() { s.logger.Log("method", "releaseOneToLatest", "kind", kind, "res", len(res), "err", err) }()
+
+	res = append(res, s.releaseActionNop(fmt.Sprintf("I'm going to release the latest images(s) for service %s. Here we go.", id)))
 
 	namespace, service := id.Components()
 	containers, err := s.platform.ContainersFor(namespace, service)
@@ -435,10 +447,11 @@ func (s *server) releaseOneToLatest(id ServiceID, kind ReleaseKind) ([]ReleaseAc
 	return res, nil
 }
 
-func (s *server) releaseOne(serviceID ServiceID, target ImageID, kind ReleaseKind) ([]ReleaseAction, error) {
-	res := []ReleaseAction{
-		s.releaseActionNop(fmt.Sprintf("I'm going to release image %s to service %s.", target, serviceID)),
-	}
+func (s *server) releaseOne(serviceID ServiceID, target ImageID, kind ReleaseKind) (res []ReleaseAction, err error) {
+	s.logger.Log("method", "releaseOneToLatest", "kind", kind)
+	defer func() { s.logger.Log("method", "releaseOneToLatest", "kind", kind, "res", len(res), "err", err) }()
+
+	res = append(res, s.releaseActionNop(fmt.Sprintf("I'm going to release image %s to service %s.", target, serviceID)))
 
 	namespace, service := serviceID.Components()
 	containers, err := s.platform.ContainersFor(namespace, service)
@@ -563,19 +576,26 @@ func (s *server) releaseActionClone() ReleaseAction {
 	return ReleaseAction{
 		Description: "Clone the config repo.",
 		Do: func(rc *ReleaseContext) error {
-			path, err := s.repo.Clone()
+			path, keyFile, err := s.repo.Clone()
 			if err != nil {
 				return errors.Wrap(err, "clone the config repo")
 			}
 			rc.RepoPath = path
+			rc.RepoKey = keyFile
 			return nil
 		},
 	}
 }
 
 func (s *server) releaseActionUpdatePodController(service ServiceID, regrades []containerRegrade) ReleaseAction {
+	var actions []string
+	for _, regrade := range regrades {
+		actions = append(actions, fmt.Sprintf("%s (%s -> %s)", regrade.container, regrade.current, regrade.target))
+	}
+	actionList := strings.Join(actions, ", ")
+
 	return ReleaseAction{
-		Description: fmt.Sprintf("Update %d images(s) in the resource definition file for %s.", len(regrades), service),
+		Description: fmt.Sprintf("Update %d images(s) in the resource definition file for %s: %s.", len(regrades), service, actionList),
 		Do: func(rc *ReleaseContext) error {
 			if fi, err := os.Stat(rc.RepoPath); err != nil || !fi.IsDir() {
 				return fmt.Errorf("the repo path (%s) is not valid", rc.RepoPath)
@@ -583,6 +603,7 @@ func (s *server) releaseActionUpdatePodController(service ServiceID, regrades []
 
 			namespace, serviceName := service.Components()
 			files, err := kubernetes.FilesFor(rc.RepoPath, namespace, serviceName)
+			s.logger.Log("DEBUG", "###", "after", "FilesFor", "files", strings.Join(files, ", "), "err", err)
 			if err != nil {
 				return errors.Wrapf(err, "finding resource definition file for %s", service)
 			}
@@ -594,6 +615,10 @@ func (s *server) releaseActionUpdatePodController(service ServiceID, regrades []
 			}
 
 			def, err := ioutil.ReadFile(files[0])
+			if err != nil {
+				return err
+			}
+			fi, err := os.Stat(files[0])
 			if err != nil {
 				return err
 			}
@@ -613,6 +638,12 @@ func (s *server) releaseActionUpdatePodController(service ServiceID, regrades []
 				}
 			}
 
+			// Write the file back, so commit/push works.
+			if err := ioutil.WriteFile(files[0], def, fi.Mode()); err != nil {
+				return err
+			}
+
+			// Put the def in the map, so release works.
 			rc.PodControllers[service] = def
 			return nil
 		},
@@ -626,7 +657,10 @@ func (s *server) releaseActionCommitAndPush() ReleaseAction {
 			if fi, err := os.Stat(rc.RepoPath); err != nil || !fi.IsDir() {
 				return fmt.Errorf("the repo path (%s) is not valid", rc.RepoPath)
 			}
-			return s.repo.CommitAndPush(rc.RepoPath, "Fluxy release")
+			if _, err := os.Stat(rc.RepoKey); err != nil {
+				return fmt.Errorf("the repo key (%s) is not valid: %v", rc.RepoKey, err)
+			}
+			return s.repo.CommitAndPush(rc.RepoPath, rc.RepoKey, "Fluxy release")
 		},
 	}
 }

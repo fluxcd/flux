@@ -48,12 +48,13 @@ func ParseReleaseKind(s string) (ReleaseKind, error) {
 }
 
 type ReleaseAction struct {
-	Description string
-	Do          func(*ReleaseContext) error
+	Description string                      `json:"description"`
+	Do          func(*ReleaseContext) error `json:"-"`
 }
 
 type ReleaseContext struct {
 	RepoPath       string
+	RepoKey        string
 	PodControllers map[ServiceID][]byte
 }
 

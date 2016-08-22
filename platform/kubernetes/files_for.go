@@ -15,11 +15,16 @@ import (
 // kubeservice is available in the PWD or PATH.
 func FilesFor(path, namespace, service string) (filenames []string, err error) {
 	bin, err := func() (string, error) {
-		if _, err := os.Stat("./kubeservice"); err == nil {
-			return "./kubeservice", nil
+		cwd, err := os.Getwd()
+		if err != nil {
+			return "", err
 		}
-		if bin, err := exec.LookPath("kubeservice"); err == nil {
-			return bin, nil
+		localBin := filepath.Join(cwd, "kubeservice")
+		if _, err := os.Stat(localBin); err == nil {
+			return localBin, nil
+		}
+		if pathBin, err := exec.LookPath("kubeservice"); err == nil {
+			return pathBin, nil
 		}
 		return "", errors.New("kubeservice not found")
 	}()
@@ -46,10 +51,17 @@ func FilesFor(path, namespace, service string) (filenames []string, err error) {
 		cmd.Dir = filepath.Dir(file)
 		cmd.Stdout = &stdout
 		cmd.Stderr = &stderr
+		fmt.Fprintf(os.Stderr, "Running: %#+v\n", cmd)
+		fmt.Fprintf(os.Stderr, "Dir: %s\n", cmd.Dir)
+		fmt.Fprintf(os.Stderr, "Args: %v\n", cmd.Args)
 		if err := cmd.Run(); err != nil {
+			fmt.Fprintf(os.Stderr, stdout.String()+"\n")
+			fmt.Fprintf(os.Stderr, stderr.String()+"\n")
+			fmt.Fprintf(os.Stderr, "kubeservice FAILED: %v\n", err)
 			continue
 		}
 		out := strings.TrimSpace(stdout.String())
+		fmt.Fprintf(os.Stderr, "kubeservice SUCCESS: %s -> %s\n", file, out)
 		if out == tgt { // kubeservice output is "namespace/service", same as ServiceID
 			winners = append(winners, file)
 		}

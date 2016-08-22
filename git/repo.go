@@ -19,17 +19,24 @@ type Repo struct {
 	Path string
 }
 
-func (r Repo) Clone() (path string, err error) {
+func (r Repo) Clone() (path string, keyFile string, err error) {
 	workingDir, err := ioutil.TempDir(os.TempDir(), "fluxy-gitclone")
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
-	return clone(workingDir, r.Key, r.URL)
+
+	keyFile, err = copyKey(workingDir, r.Key)
+	if err != nil {
+		return "", "", err
+	}
+
+	repoDir, err := clone(workingDir, keyFile, r.URL)
+	return repoDir, keyFile, err
 }
 
-func (r Repo) CommitAndPush(path, commitMessage string) error {
+func (r Repo) CommitAndPush(path, keyFile, commitMessage string) error {
 	if err := commit(path, commitMessage); err != nil {
 		return err
 	}
-	return push(r.Key, path)
+	return push(keyFile, path)
 }
