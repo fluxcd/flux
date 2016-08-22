@@ -10,15 +10,6 @@
 			"notests": true
 		},
 		{
-			"importpath": "github.com/CenturyLinkLabs/docker-reg-client/registry",
-			"repository": "https://github.com/CenturyLinkLabs/docker-reg-client",
-			"vcs": "git",
-			"revision": "1f659e57f245f93fb2ca413f7df4483bdcf83fb4",
-			"branch": "master",
-			"path": "/registry",
-			"notests": true
-		},
-		{
 			"importpath": "github.com/Sirupsen/logrus",
 			"repository": "https://github.com/Sirupsen/logrus",
 			"vcs": "git",
@@ -144,6 +135,14 @@
 			"notests": true
 		},
 		{
+			"importpath": "github.com/docker/distribution",
+			"repository": "https://github.com/docker/distribution",
+			"vcs": "git",
+			"revision": "fd4dd8dd16c2c90e274f8e8ded1ccabb9e8f8c15",
+			"branch": "master",
+			"notests": true
+		},
+		{
 			"importpath": "github.com/edsrzf/mmap-go",
 			"repository": "https://github.com/edsrzf/mmap-go",
 			"vcs": "git",
@@ -241,6 +240,14 @@
 			"repository": "https://github.com/hashicorp/hcl",
 			"vcs": "git",
 			"revision": "d8c773c4cba11b11539e3d45f93daeaa5dcf1fa1",
+			"branch": "master",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/heroku/docker-registry-client",
+			"repository": "https://github.com/heroku/docker-registry-client",
+			"vcs": "git",
+			"revision": "97450e9c3ae5d9fa1b31ba877efb06cd28339320",
 			"branch": "master",
 			"notests": true
 		},
