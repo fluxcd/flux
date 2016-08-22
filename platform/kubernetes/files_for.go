@@ -18,8 +18,7 @@ func FilesFor(path, namespace, service string) (filenames []string, err error) {
 		if _, err := os.Stat("./kubeservice"); err == nil {
 			return "./kubeservice", nil
 		}
-		bin, err := exec.LookPath("kubeservice")
-		if err == nil {
+		if bin, err := exec.LookPath("kubeservice"); err == nil {
 			return bin, nil
 		}
 		return "", errors.New("kubeservice not found")
