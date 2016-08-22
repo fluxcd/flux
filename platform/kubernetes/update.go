@@ -2,6 +2,7 @@ package kubernetes
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"regexp"
@@ -20,8 +21,24 @@ import (
 // the source to learn about them.
 func UpdatePodController(def []byte, newImageName string, trace io.Writer) ([]byte, error) {
 	var buf bytes.Buffer
-	err := tryUpdate(string(def), newImageName, trace, &buf)
-	return buf.Bytes(), err
+	anyUpdated := false
+
+	resources := bytes.Split(def, []byte("\n---\n")) // NB does not catch top of file
+	for i, resource := range resources {
+		updated, err := tryUpdate(string(resource), newImageName, trace, &buf)
+		if err != nil {
+			return nil, err
+		}
+		if i < len(resources)-1 {
+			fmt.Fprintln(&buf, "\n---")
+		}
+		anyUpdated = anyUpdated || updated
+	}
+
+	if !anyUpdated {
+		return nil, errors.New("No resources updated")
+	}
+	return buf.Bytes(), nil
 }
 
 // Attempt to update an RC or Deployment config. This makes several assumptions
@@ -66,7 +83,15 @@ func UpdatePodController(def []byte, newImageName string, trace io.Writer) ([]by
 //         ports:
 //         - containerPort: 80
 // ```
-func tryUpdate(def, newImageStr string, trace io.Writer, out io.Writer) error {
+func tryUpdate(def, newImageStr string, trace io.Writer, out io.Writer) (updated bool, err error) {
+	// if we exit early without writing an updated version, write the origin version
+	defer func() {
+		if !updated && err == nil {
+			fmt.Fprintln(trace, "Not updating; writing origin resource")
+			out.Write([]byte(def))
+		}
+	}()
+
 	newImage := registry.ParseImage(newImageStr)
 
 	nameRE := multilineRE(
@@ -75,7 +100,7 @@ func tryUpdate(def, newImageStr string, trace io.Writer, out io.Writer) error {
 	)
 	matches := nameRE.FindStringSubmatch(def)
 	if matches == nil || len(matches) < 2 {
-		return fmt.Errorf("Could not find resource name")
+		return false, fmt.Errorf("Could not find resource name")
 	}
 	oldDefName := matches[1]
 	fmt.Fprintf(trace, "Found resource name %q in fragment:\n\n%s\n\n", oldDefName, matches[0])
@@ -88,14 +113,16 @@ func tryUpdate(def, newImageStr string, trace io.Writer, out io.Writer) error {
 
 	matches = imageRE.FindStringSubmatch(def)
 	if matches == nil || len(matches) < 3 {
-		return fmt.Errorf("Could not find image name")
+		fmt.Fprintln(trace, "Cound not find image name in resource")
+		return false, nil
 	}
+
 	containerName := matches[1]
 	oldImage := registry.ParseImage(matches[2])
 	fmt.Fprintf(trace, "Found container %q using image %v in fragment:\n\n%s\n\n", containerName, oldImage, matches[0])
 
 	if oldImage.Repository() != newImage.Repository() {
-		return fmt.Errorf(`expected existing image name and new image name to match, but %q != %q`, oldImage.Repository(), newImage.Repository())
+		return false, fmt.Errorf(`expected existing image name and new image name to match, but %q != %q`, oldImage.Repository(), newImage.Repository())
 	}
 
 	// Now to replace bits. Specifically,
@@ -136,7 +163,7 @@ func tryUpdate(def, newImageStr string, trace io.Writer, out io.Writer) error {
 	withNewImage := replaceImageRE.ReplaceAllString(withNewLabels, replaceImage)
 
 	fmt.Fprint(out, withNewImage)
-	return nil
+	return true, nil
 }
 
 func multilineRE(lines ...string) *regexp.Regexp {
