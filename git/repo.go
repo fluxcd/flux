@@ -1,5 +1,10 @@
 package git
 
+import (
+	"io/ioutil"
+	"os"
+)
+
 // Repo represents a remote git repo
 type Repo struct {
 	// The URL to the config repo that holds the resource definition files. For
@@ -15,7 +20,11 @@ type Repo struct {
 }
 
 func (r Repo) Clone() (path string, err error) {
-	return clone(r.Key, r.URL)
+	workingDir, err := ioutil.TempDir(os.TempDir(), "fluxy-gitclone")
+	if err != nil {
+		return "", err
+	}
+	return clone(workingDir, r.Key, r.URL)
 }
 
 func (r Repo) CommitAndPush(path, commitMessage string) error {
