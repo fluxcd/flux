@@ -5,9 +5,6 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-
-	"github.com/weaveworks/fluxy"
-	"github.com/weaveworks/fluxy/registry"
 )
 
 type serviceShowOpts struct {
@@ -57,8 +54,8 @@ func (opts *serviceShowOpts) RunE(_ *cobra.Command, args []string) error {
 		sname := service.ID
 		for _, container := range service.Containers {
 			containerName := container.Name
-			runningImage := parseImageID(container.Current.ID)
-			fmt.Fprintf(out, "%s\t%s\t%s\t\n", sname, containerName, runningImage.Repository())
+			reg, repo, _ := container.Current.ID.Components()
+			fmt.Fprintf(out, "%s\t%s\t%s/%s\t\n", sname, containerName, reg, repo)
 			foundRunning := false
 			for _, available := range container.Available {
 				running := "|  "
@@ -68,16 +65,12 @@ func (opts *serviceShowOpts) RunE(_ *cobra.Command, args []string) error {
 				} else if foundRunning {
 					running = "   "
 				}
-				image := parseImageID(available.ID)
-				fmt.Fprintf(out, "\t\t%s %s\t%s\n", running, image.Tag, image.CreatedAt.Format(time.RFC822))
+				_, _, tag := available.ID.Components()
+				fmt.Fprintf(out, "\t\t%s %s\t%s\n", running, tag, available.CreatedAt.Format(time.RFC822))
 			}
 			sname = ""
 		}
 	}
 	out.Flush()
 	return nil
-}
-
-func parseImageID(id flux.ImageID) registry.Image {
-	return registry.ParseImage(string(id))
 }
