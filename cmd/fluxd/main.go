@@ -13,7 +13,6 @@ import (
 
 	"github.com/go-kit/kit/log"
 	"github.com/spf13/pflag"
-	"golang.org/x/net/context"
 	"k8s.io/kubernetes/pkg/client/restclient"
 
 	"github.com/weaveworks/fluxy"
@@ -22,6 +21,7 @@ import (
 	"github.com/weaveworks/fluxy/history"
 	"github.com/weaveworks/fluxy/platform/kubernetes"
 	"github.com/weaveworks/fluxy/registry"
+	"github.com/weaveworks/fluxy/release"
 )
 
 func main() {
@@ -55,7 +55,7 @@ func main() {
 	)
 	fs.Parse(os.Args)
 
-	// Logger domain.
+	// Logger component.
 	var logger log.Logger
 	{
 		logger = log.NewLogfmtLogger(os.Stderr)
@@ -146,11 +146,14 @@ func main() {
 		}
 	}
 
-	// Repo we're tracking.
-	var repo = git.Repo{
-		URL:  *repoURL,
-		Key:  *repoKey,
-		Path: *repoPath,
+	var rel flux.Releaser
+	{
+		repo := git.Repo{
+			URL:  *repoURL,
+			Key:  *repoKey,
+			Path: *repoPath,
+		}
+		rel = release.New(k8s, reg, logger, repo)
 	}
 
 	// Automator component.
@@ -158,33 +161,20 @@ func main() {
 	{
 		var err error
 		auto, err = automator.New(automator.Config{
-			Platform: k8s,
-			Registry: reg,
+			Releaser: rel,
 			History:  his,
-			Repo:     repo,
 		})
 		if err == nil {
-			logger.Log("automator", "enabled", "repo", repo.URL)
+			logger.Log("automator", "enabled", "repo", *repoURL)
 		} else {
 			// Service can handle a nil automator pointer.
 			logger.Log("automator", "disabled", "reason", err)
 		}
 	}
 
-	// Service (business logic) domain.
-	var service flux.Service
-	{
-		service = flux.NewService(reg, k8s, auto, his, repo)
-		service = flux.LoggingMiddleware(logger)(service)
-	}
+	server := flux.NewServer(k8s, reg, rel, auto, his, logger)
 
-	// Endpoint domain.
-	var endpoints flux.Endpoints
-	{
-		endpoints = flux.MakeServerEndpoints(service)
-	}
-
-	// Mechanical stuff.
+	// Mechanical components.
 	errc := make(chan error)
 	go func() {
 		c := make(chan os.Signal)
@@ -192,12 +182,10 @@ func main() {
 		errc <- fmt.Errorf("%s", <-c)
 	}()
 
-	// Transport domain.
-	ctx := context.Background()
+	// HTTP transport component.
 	go func() {
-		logger := log.NewContext(logger).With("transport", "HTTP")
 		logger.Log("addr", *listenAddr)
-		h := flux.MakeHTTPHandler(ctx, endpoints, logger)
+		h := flux.NewHandler(server, flux.NewRouter())
 		errc <- http.ListenAndServe(*listenAddr, h)
 	}()
 

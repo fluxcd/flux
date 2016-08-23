@@ -82,6 +82,19 @@ func NewCluster(config *restclient.Config, kubectl string, logger log.Logger) (*
 	}, nil
 }
 
+// Namespaces returns the set of available namespaces on the platform.
+func (c *Cluster) Namespaces() ([]string, error) {
+	list, err := c.client.Namespaces().List(api.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+	res := make([]string, len(list.Items))
+	for i := range list.Items {
+		res[i] = list.Items[i].Name
+	}
+	return res, nil
+}
+
 // Service returns the platform.Service representation of the named service.
 func (c *Cluster) Service(namespace, service string) (platform.Service, error) {
 	apiService, err := c.service(namespace, service)

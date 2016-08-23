@@ -109,16 +109,11 @@ func env(repoKey string) []string {
 	return []string{fmt.Sprintf("%s -i %q", base, repoKey)}
 }
 
-func clone(working, repoKey, repoURL string) (path string, err error) {
-	if err != nil {
-		return "", err
-	}
-	repoPath := filepath.Join(working, "repo")
-
+func clone(workingDir, repoKey, repoURL string) (path string, err error) {
+	repoPath := filepath.Join(workingDir, "repo")
 	if err := cmd("", repoKey, "clone", repoURL, repoPath).Run(); err != nil {
 		return "", fmt.Errorf("git clone: %v", err)
 	}
-
 	return repoPath, nil
 }
 
