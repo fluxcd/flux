@@ -20,3 +20,10 @@ spec:
         - -msg=Ahoy
         ports:
         - containerPort: 80
+      - name: sidecar
+        image: quay.io/weaveworks/sidecar:master-a000001
+        args:
+        - -addr=:8080
+        ports:
+        - containerPort: 8080
+
