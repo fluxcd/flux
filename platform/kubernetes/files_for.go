@@ -51,9 +51,8 @@ func FilesFor(path, namespace, service string) (filenames []string, err error) {
 		cmd.Dir = filepath.Dir(file)
 		cmd.Stdout = &stdout
 		cmd.Stderr = &stderr
-		fmt.Fprintf(os.Stderr, "Running: %#+v\n", cmd)
-		fmt.Fprintf(os.Stderr, "Dir: %s\n", cmd.Dir)
 		fmt.Fprintf(os.Stderr, "Args: %v\n", cmd.Args)
+		fmt.Fprintf(os.Stderr, "Dir: %s\n", cmd.Dir)
 		if err := cmd.Run(); err != nil {
 			fmt.Fprintf(os.Stderr, stdout.String()+"\n")
 			fmt.Fprintf(os.Stderr, stderr.String()+"\n")
