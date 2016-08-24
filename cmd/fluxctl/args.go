@@ -10,10 +10,3 @@ func parseServiceOption(s string) (flux.ServiceSpec, error) {
 	}
 	return flux.ParseServiceSpec(s)
 }
-
-func parseImageOption(i string) (flux.ImageSpec, error) {
-	if i == "" {
-		return flux.ImageSpecLatest, nil
-	}
-	return flux.ParseImageSpec(i), nil
-}
