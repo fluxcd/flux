@@ -2,6 +2,7 @@ package flux
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
@@ -212,25 +213,28 @@ func (s *server) containersFor(id ServiceID) (res []Container, err error) {
 		return nil, errors.Wrapf(err, "fetching containers for %s", id)
 	}
 
+	var errs compositeError
 	for _, container := range containers {
 		imageID := ParseImageID(container.Image)
+
+		// We may not be able to get image info from the repository,
+		// but it's still worthwhile returning what we know.
+		current := ImageDescription{ID: imageID}
+		var available []ImageDescription
+
 		imageRepo, err := s.helper.Registry.GetRepository(imageID.Repository())
 		if err != nil {
-			return nil, errors.Wrapf(err, "fetching image repo for %s", imageID)
-		}
-
-		var (
-			current   ImageDescription
-			available []ImageDescription
-		)
-		for _, image := range imageRepo.Images {
-			description := ImageDescription{
-				ID:        ParseImageID(image.String()),
-				CreatedAt: image.CreatedAt,
-			}
-			available = append(available, description)
-			if image.String() == container.Image {
-				current = description
+			errs = append(errs, errors.Wrapf(err, "fetching image repo for %s", imageID))
+		} else {
+			for _, image := range imageRepo.Images {
+				description := ImageDescription{
+					ID:        ParseImageID(image.String()),
+					CreatedAt: image.CreatedAt,
+				}
+				available = append(available, description)
+				if image.String() == container.Image {
+					current = description
+				}
 			}
 		}
 		res = append(res, Container{
@@ -239,5 +243,21 @@ func (s *server) containersFor(id ServiceID) (res []Container, err error) {
 			Available: available,
 		})
 	}
-	return res, nil
+
+	if len(errs) > 0 {
+		err = errors.Wrap(errs, "one or more errors fetching image repos")
+	}
+	return res, err
+}
+
+// ---
+
+type compositeError []error
+
+func (errs compositeError) Error() string {
+	msgs := make([]string, len(errs))
+	for i, err := range errs {
+		msgs[i] = err.Error()
+	}
+	return strings.Join(msgs, "; ")
 }

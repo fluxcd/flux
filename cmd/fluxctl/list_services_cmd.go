@@ -56,8 +56,10 @@ func (opts *serviceListOpts) RunE(_ *cobra.Command, args []string) error {
 func maybeUpToDate(current flux.ImageDescription, available []flux.ImageDescription) string {
 	if len(available) > 0 && current.ID == available[0].ID {
 		return "* " + string(current.ID)
+	} else if available == nil {
+		return "? " + string(current.ID)
 	}
-	return string(current.ID)
+	return "  " + string(current.ID)
 }
 
 func maybeAutomated(s flux.ServiceStatus) string {
