@@ -16,6 +16,7 @@ type serviceReleaseOpts struct {
 	allServices bool
 	image       string
 	allImages   bool
+	noUpdate    bool
 	dryRun      bool
 }
 
@@ -37,6 +38,7 @@ func (opts *serviceReleaseOpts) Command() *cobra.Command {
 	cmd.Flags().BoolVar(&opts.allServices, "all", false, "release all services")
 	cmd.Flags().StringVarP(&opts.image, "update-image", "i", "", "update a specific image")
 	cmd.Flags().BoolVar(&opts.allImages, "update-all-images", false, "update all images to latest versions")
+	cmd.Flags().BoolVar(&opts.noUpdate, "no-update", false, "don't update images; just deploy the service(s) as configured in the git repo")
 	cmd.Flags().BoolVar(&opts.dryRun, "dry-run", false, "do not release anything; just report back what would have been done")
 	return cmd
 }
@@ -45,20 +47,14 @@ func (opts *serviceReleaseOpts) RunE(_ *cobra.Command, args []string) error {
 	if len(args) != 0 {
 		return errorWantedNoArgs
 	}
-	if opts.service == "" {
-		return newUsageError("-s, --service is required")
+
+	if err := checkExactlyOne("--update-image=<image>, --update-all-images, or --no-update",
+		opts.image != "", opts.allImages, opts.noUpdate); err != nil {
+		return err
 	}
 
-	if opts.image != "" && opts.allImages {
-		return mutuallyExclusive("-i, --update-image", "--update-all-images")
-	} else if opts.image == "" && !opts.allImages {
-		return exactlyOne("-i, --update-image", "--update-all-images")
-	}
-
-	if opts.service != "" && opts.allServices {
-		return mutuallyExclusive("-s, --service", "--all")
-	} else if opts.service == "" && !opts.allServices {
-		return exactlyOne("-s, --service", "--all")
+	if err := checkExactlyOne("--service=<serviceID>, or --all", opts.service != "", opts.allServices); err != nil {
+		return err
 	}
 
 	service, err := parseServiceOption(opts.service) // will be "" iff opts.allServices
@@ -66,9 +62,14 @@ func (opts *serviceReleaseOpts) RunE(_ *cobra.Command, args []string) error {
 		return err
 	}
 
-	image, err := parseImageOption(opts.image) // will be "" iff opts.allImages
-	if err != nil {
-		return err
+	var image flux.ImageSpec
+	switch {
+	case opts.image != "":
+		image = flux.ParseImageSpec(opts.image)
+	case opts.allImages:
+		image = flux.ImageSpecLatest
+	case opts.noUpdate:
+		image = flux.ImageSpecNone
 	}
 
 	var kind flux.ReleaseKind = flux.ReleaseKindExecute

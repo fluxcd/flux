@@ -20,7 +20,8 @@ type Service interface {
 
 const (
 	ServiceSpecAll  = ServiceSpec("<all>")
-	ImageSpecLatest = ImageSpec("<latest>")
+	ImageSpecLatest = ImageSpec("<all latest>")
+	ImageSpecNone   = ImageSpec("<no updates>")
 )
 
 var (
@@ -137,7 +138,10 @@ func ParseServiceSpec(s string) (ServiceSpec, error) {
 	return ServiceSpec(id), nil
 }
 
-type ImageSpec string // ImageID or "<latest>"
+// ImageSpec is an ImageID, or "<all latest>" (update all containers
+// to the latest available), or "<no updates>" (do not update any
+// images)
+type ImageSpec string
 
 func ParseImageSpec(s string) ImageSpec {
 	if s == string(ImageSpecLatest) {

@@ -42,6 +42,9 @@ func (s *releaser) Release(serviceSpec flux.ServiceSpec, imageSpec flux.ImageSpe
 	case serviceSpec == flux.ServiceSpecAll && imageSpec == flux.ImageSpecLatest:
 		return s.releaseAllToLatest(kind)
 
+	case serviceSpec == flux.ServiceSpecAll && imageSpec == flux.ImageSpecNone:
+		return s.releaseAllWithoutUpdate(kind)
+
 	case serviceSpec == flux.ServiceSpecAll:
 		imageID := flux.ParseImageID(string(imageSpec))
 		return s.releaseAllForImage(imageID, kind)
@@ -52,6 +55,13 @@ func (s *releaser) Release(serviceSpec flux.ServiceSpec, imageSpec flux.ImageSpe
 			return nil, errors.Wrapf(err, "parsing service ID from spec %s", serviceSpec)
 		}
 		return s.releaseOneToLatest(serviceID, kind)
+
+	case imageSpec == flux.ImageSpecNone:
+		serviceID, err := flux.ParseServiceID(string(serviceSpec))
+		if err != nil {
+			return nil, errors.Wrapf(err, "parsing service ID from spec %s", serviceSpec)
+		}
+		return s.releaseOneWithoutUpdate(serviceID, kind)
 
 	default:
 		serviceID, err := flux.ParseServiceID(string(serviceSpec))
@@ -250,8 +260,8 @@ func (s *releaser) releaseOneToLatest(id flux.ServiceID, kind flux.ReleaseKind) 
 }
 
 func (s *releaser) releaseOne(serviceID flux.ServiceID, target flux.ImageID, kind flux.ReleaseKind) (res []flux.ReleaseAction, err error) {
-	s.helper.Log("method", "releaseOneToLatest", "kind", kind)
-	defer func() { s.helper.Log("method", "releaseOneToLatest", "kind", kind, "res", len(res), "err", err) }()
+	s.helper.Log("method", "releaseOne", "kind", kind)
+	defer func() { s.helper.Log("method", "releaseOne", "kind", kind, "res", len(res), "err", err) }()
 
 	res = append(res, s.releaseActionNop(fmt.Sprintf("I'm going to release image %s to service %s.", target, serviceID)))
 
@@ -298,6 +308,47 @@ func (s *releaser) releaseOne(serviceID flux.ServiceID, target flux.ImageID, kin
 	return res, nil
 }
 
+// Release whatever is in the cloned configuration, without changing anything
+func (s *releaser) releaseOneWithoutUpdate(serviceID flux.ServiceID, kind flux.ReleaseKind) (res []flux.ReleaseAction, err error) {
+	s.helper.Log("method", "releaseOneWithoutUpdate", "kind", kind)
+	defer func() { s.helper.Log("method", "releaseOneWithoutUpdate", "kind", kind, "res", len(res), "err", err) }()
+
+	actions := []flux.ReleaseAction{
+		s.releaseActionNop(fmt.Sprintf("I'm going to release service %s using the config from the git repo, without updating it", serviceID)),
+		s.releaseActionClone(),
+		s.releaseActionFindPodController(serviceID),
+		s.releaseActionReleaseService(serviceID),
+	}
+	if kind == flux.ReleaseKindExecute {
+		return actions, s.execute(actions)
+	}
+	return actions, nil
+}
+
+// Release whatever is in the cloned configuration, without changing anything
+func (s *releaser) releaseAllWithoutUpdate(kind flux.ReleaseKind) (res []flux.ReleaseAction, err error) {
+	serviceIDs, err := s.helper.AllServices()
+	if err != nil {
+		return nil, errors.Wrap(err, "fetching all platform services")
+	}
+
+	actions := []flux.ReleaseAction{
+		s.releaseActionNop("I'm going to release all services using the config from the git repo, without updating it"),
+		s.releaseActionClone(),
+	}
+
+	for _, service := range serviceIDs {
+		actions = append(actions,
+			s.releaseActionFindPodController(service),
+			s.releaseActionReleaseService(service))
+	}
+
+	if kind == flux.ReleaseKindExecute {
+		return actions, s.execute(actions)
+	}
+	return actions, nil
+}
+
 func (s *releaser) execute(actions []flux.ReleaseAction) error {
 	rc := flux.NewReleaseContext()
 	defer rc.Clean()
@@ -341,6 +392,37 @@ func (s *releaser) releaseActionClone() flux.ReleaseAction {
 			}
 			rc.RepoPath = path
 			rc.RepoKey = keyFile
+			return nil
+		},
+	}
+}
+
+func (s *releaser) releaseActionFindPodController(service flux.ServiceID) flux.ReleaseAction {
+	return flux.ReleaseAction{
+		Description: fmt.Sprintf("Load the resource definition file for service %s", service),
+		Do: func(rc *flux.ReleaseContext) error {
+			if fi, err := os.Stat(rc.RepoPath); err != nil || !fi.IsDir() {
+				return fmt.Errorf("the repo path (%s) is not valid", rc.RepoPath)
+			}
+
+			namespace, serviceName := service.Components()
+			files, err := kubernetes.FilesFor(rc.RepoPath, namespace, serviceName)
+
+			if err != nil {
+				return errors.Wrapf(err, "finding resource definition file for %s", service)
+			}
+			if len(files) <= 0 {
+				return fmt.Errorf("no resource definition file found for %s", service)
+			}
+			if len(files) > 1 {
+				return fmt.Errorf("multiple resource definition files found for %s: %s", service, strings.Join(files, ", "))
+			}
+
+			def, err := ioutil.ReadFile(files[0]) // TODO(mb) not multi-doc safe
+			if err != nil {
+				return err
+			}
+			rc.PodControllers[service] = def
 			return nil
 		},
 	}
