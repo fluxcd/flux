@@ -10,21 +10,9 @@ package platform
 // service.
 type Service struct {
 	Name     string
-	Image    string // currently running, or "(multiple RCs)"
 	IP       string
-	Ports    []Port
 	Metadata map[string]string // a grab bag of goodies, likely platform-specific
 	Status   string            // A status summary for display
-}
-
-// Port describes the mapping of a port on a service IP to the corresponding
-// port on load-balanced instances, including the protocol supported on that
-// port. Ports are strings because Kubernetes defines its internal port
-// (TargetPort) as something called an IntOrString.
-type Port struct {
-	External string // what is exposed to the world
-	Internal string // what it maps to on the backends
-	Protocol string // e.g. TCP, HTTP
 }
 
 // A Container represents a container specification in a pod. The Name
