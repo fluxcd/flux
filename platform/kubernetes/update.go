@@ -82,8 +82,8 @@ func tryUpdate(def, newImageStr string, trace io.Writer, out io.Writer) error {
 
 	imageRE := multilineRE(
 		`      containers:.*`,
-		`(?:      .*\n)*      - name:\s*"?([\w-]+)"?(?:\s.*)?`,
-		`        image:\s*"?(`+newImage.Repository()+`:[\w-]+)"?(\s.*)?`,
+		`(?:      .*\n)*(?:  ){3,4}- name:\s*"?([\w-]+)"?(?:\s.*)?`,
+		`(?:  ){4,5}image:\s*"?(`+newImage.Repository()+`:[\w-]+)"?(\s.*)?`,
 	)
 
 	matches = imageRE.FindStringSubmatch(def)
@@ -129,8 +129,8 @@ func tryUpdate(def, newImageStr string, trace io.Writer, out io.Writer) error {
 	withNewLabels := replaceLabelsRE.ReplaceAllString(withNewDefName, replaceLabels)
 
 	replaceImageRE := multilineRE(
-		`(      - name:\s*`+containerName+`)`,
-		`(        image:\s*).*`,
+		`((?:  ){3,4}- name:\s*`+containerName+`)`,
+		`((?:  ){4,5}image:\s*).*`,
 	)
 	replaceImage := fmt.Sprintf("$1\n$2%q$3", newImage.String())
 	withNewImage := replaceImageRE.ReplaceAllString(withNewLabels, replaceImage)

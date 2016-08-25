@@ -345,22 +345,9 @@ func (c *Cluster) podControllerFor(namespace, serviceName string) (res podContro
 
 	res = podController{}
 
-	// First, get the service spec selector, which determines the pods that the
-	// service will load balance over.
-	services, err := c.services(namespace)
+	service, err := c.service(namespace, serviceName)
 	if err != nil {
 		return res, err
-	}
-	service, ok := func() (api.Service, bool) {
-		for _, service := range services {
-			if service.Name == serviceName { // assume names are unique
-				return service, true
-			}
-		}
-		return api.Service{}, false
-	}()
-	if !ok {
-		return res, ErrNoMatchingService
 	}
 
 	selector := service.Spec.Selector
@@ -454,7 +441,7 @@ func (c *Cluster) podControllerFor(namespace, serviceName string) (res podContro
 // is useful to see which images a particular service is presently
 // running, to judge whether a release is needed.
 func (c *Cluster) ContainersFor(namespace, serviceName string) (res []platform.Container, err error) {
-	logger := log.NewContext(c.logger).With("method", "ImagesFor", "namespace", namespace, "serviceName", serviceName)
+	logger := log.NewContext(c.logger).With("method", "ContainersFor", "namespace", namespace, "serviceName", serviceName)
 	defer func() {
 		if err != nil {
 			logger.Log("err", err.Error())
@@ -481,18 +468,6 @@ func (c *Cluster) ContainersFor(namespace, serviceName string) (res []platform.C
 	return containers, nil
 }
 
-func (c *Cluster) imagesFor(namespace, imageName string) ([]string, error) {
-	containers, err := c.ContainersFor(namespace, imageName)
-	if err != nil {
-		return nil, err
-	}
-	images := make([]string, len(containers))
-	for i := 0; i < len(containers); i++ {
-		images[i] = containers[i].Image
-	}
-	return images, nil
-}
-
 func (c *Cluster) makePlatformServices(apiServices []api.Service) []platform.Service {
 	platformServices := make([]platform.Service, len(apiServices))
 	for i, s := range apiServices {
@@ -505,29 +480,6 @@ func (c *Cluster) makePlatformService(s api.Service) platform.Service {
 	// To get the image, we need to walk from service to RC to spec.
 	// That path encodes a lot of opinions about deployment strategy.
 	// Which we're OK with, for the time being.
-	var image string
-	switch images, err := c.imagesFor(s.Namespace, s.Name); err {
-	case nil:
-		image = strings.Join(images, ", ") // >1 image would break some light assumptions, but it's OK
-	case ErrServiceHasNoSelector:
-		image = "(no selector, no RC)"
-	case ErrNoMatching:
-		image = "(no RC or Deployment)"
-	case ErrMultipleMatching:
-		image = "(multiple RCs/Deployments)" // e.g. during a release
-	case ErrNoMatchingImages:
-		image = "(none)"
-	}
-
-	ports := make([]platform.Port, len(s.Spec.Ports))
-	for i, port := range s.Spec.Ports {
-		ports[i] = platform.Port{
-			External: fmt.Sprint(port.Port),
-			Internal: port.TargetPort.String(),
-			Protocol: string(port.Protocol),
-		}
-	}
-
 	metadata := map[string]string{
 		"created_at":       s.CreationTimestamp.String(),
 		"resource_version": s.ResourceVersion,
@@ -537,9 +489,7 @@ func (c *Cluster) makePlatformService(s api.Service) platform.Service {
 
 	return platform.Service{
 		Name:     s.Name,
-		Image:    image,
 		IP:       s.Spec.ClusterIP,
-		Ports:    ports,
 		Metadata: metadata,
 	}
 }

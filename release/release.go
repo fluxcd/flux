@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/go-kit/kit/log"
@@ -355,13 +356,13 @@ func (s *releaser) releaseActionUpdatePodController(service flux.ServiceID, regr
 	return flux.ReleaseAction{
 		Description: fmt.Sprintf("Update %d images(s) in the resource definition file for %s: %s.", len(regrades), service, actionList),
 		Do: func(rc *flux.ReleaseContext) error {
-			if fi, err := os.Stat(rc.RepoPath); err != nil || !fi.IsDir() {
-				return fmt.Errorf("the repo path (%s) is not valid", rc.RepoPath)
+			resourcePath := filepath.Join(rc.RepoPath, s.repo.Path)
+			if fi, err := os.Stat(resourcePath); err != nil || !fi.IsDir() {
+				return fmt.Errorf("the resource path (%s) is not valid", resourcePath)
 			}
 
 			namespace, serviceName := service.Components()
-			files, err := kubernetes.FilesFor(rc.RepoPath, namespace, serviceName)
-			s.helper.Log("DEBUG", "###", "after", "FilesFor", "files", strings.Join(files, ", "), "err", err)
+			files, err := kubernetes.FilesFor(resourcePath, namespace, serviceName)
 			if err != nil {
 				return errors.Wrapf(err, "finding resource definition file for %s", service)
 			}
