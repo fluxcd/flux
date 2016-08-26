@@ -21,7 +21,7 @@ func (opts *serviceHistoryOpts) Command() *cobra.Command {
 		Use:   "history",
 		Short: "Show the history of a service or all services",
 		Example: makeExample(
-			"fluxctl history --service=helloworld",
+			"fluxctl history --service=default/foo",
 			"fluxctl history",
 		),
 		RunE: opts.RunE,

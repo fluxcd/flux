@@ -20,7 +20,7 @@ func (opts *serviceListOpts) Command() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list-services",
 		Short:   "List services currently running on the platform.",
-		Example: makeExample("fluxctl list-services --namespace=default"),
+		Example: makeExample("fluxctl list-services"),
 		RunE:    opts.RunE,
 	}
 	return cmd

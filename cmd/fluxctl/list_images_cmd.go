@@ -20,7 +20,7 @@ func (opts *serviceShowOpts) Command() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list-images",
 		Short:   "Show the deployed and available images for a service.",
-		Example: makeExample("fluxctl list-images --service=helloworld"),
+		Example: makeExample("fluxctl list-images --service=default/foo"),
 		RunE:    opts.RunE,
 	}
 	cmd.Flags().StringVarP(&opts.service, "service", "s", "", "Show images for this service")
