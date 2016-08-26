@@ -49,7 +49,7 @@ func (opts *serviceHistoryOpts) RunE(_ *cobra.Command, args []string) error {
 
 	fmt.Fprintln(out, "TIME\tTYPE\tMESSAGE")
 	for _, event := range events {
-		fmt.Fprintf(out, "%s\t%s\n", event.Stamp.Format(time.RFC822), event.Type, event.Data)
+		fmt.Fprintf(out, "%s\t%s\t%s\n", event.Stamp.Format(time.RFC822), event.Type, event.Data)
 	}
 
 	out.Flush()
