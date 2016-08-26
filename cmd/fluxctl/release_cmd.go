@@ -29,12 +29,12 @@ func (opts *serviceReleaseOpts) Command() *cobra.Command {
 		Use:   "release",
 		Short: "Release a new version of a service.",
 		Example: makeExample(
-			"fluxctl release --service=helloworld --image=library/hello:1234",
-			"fluxctl release --all --image=library/hello:1234",
+			"fluxctl release --service=default/foo --image=library/hello:v2",
+			"fluxctl release --all --image=library/hello:v2",
 		),
 		RunE: opts.RunE,
 	}
-	cmd.Flags().StringVarP(&opts.service, "service", "s", "", "service to update")
+	cmd.Flags().StringVarP(&opts.service, "service", "s", "", "service to release")
 	cmd.Flags().BoolVar(&opts.allServices, "all", false, "release all services")
 	cmd.Flags().StringVarP(&opts.image, "update-image", "i", "", "update a specific image")
 	cmd.Flags().BoolVar(&opts.allImages, "update-all-images", false, "update all images to latest versions")
@@ -53,7 +53,7 @@ func (opts *serviceReleaseOpts) RunE(_ *cobra.Command, args []string) error {
 		return err
 	}
 
-	if err := checkExactlyOne("--service=<serviceID>, or --all", opts.service != "", opts.allServices); err != nil {
+	if err := checkExactlyOne("--service=<service>, or --all", opts.service != "", opts.allServices); err != nil {
 		return err
 	}
 
