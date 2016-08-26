@@ -128,7 +128,7 @@ func (s *releaser) releaseAllToLatest(kind flux.ReleaseKind) (res []flux.Release
 	for service, regrades := range regradeMap {
 		res = append(res, s.releaseActionUpdatePodController(service, regrades))
 	}
-	res = append(res, s.releaseActionCommitAndPush())
+	res = append(res, s.releaseActionCommitAndPush("Release latest images to all services"))
 	for service := range regradeMap {
 		res = append(res, s.releaseActionReleaseService(service))
 	}
@@ -187,7 +187,7 @@ func (s *releaser) releaseAllForImage(target flux.ImageID, kind flux.ReleaseKind
 	for service, imageReleases := range regradeMap {
 		res = append(res, s.releaseActionUpdatePodController(service, imageReleases))
 	}
-	res = append(res, s.releaseActionCommitAndPush())
+	res = append(res, s.releaseActionCommitAndPush(fmt.Sprintf("Release %s to all services", target)))
 	for service := range regradeMap {
 		res = append(res, s.releaseActionReleaseService(service))
 	}
@@ -247,7 +247,7 @@ func (s *releaser) releaseOneToLatest(id flux.ServiceID, kind flux.ReleaseKind) 
 
 	res = append(res, s.releaseActionClone())
 	res = append(res, s.releaseActionUpdatePodController(id, regrades))
-	res = append(res, s.releaseActionCommitAndPush())
+	res = append(res, s.releaseActionCommitAndPush(fmt.Sprintf("Release latest images to %s", id)))
 	res = append(res, s.releaseActionReleaseService(id))
 
 	if kind == flux.ReleaseKindExecute {
@@ -296,7 +296,7 @@ func (s *releaser) releaseOne(serviceID flux.ServiceID, target flux.ImageID, kin
 
 	res = append(res, s.releaseActionClone())
 	res = append(res, s.releaseActionUpdatePodController(serviceID, regrades))
-	res = append(res, s.releaseActionCommitAndPush())
+	res = append(res, s.releaseActionCommitAndPush(fmt.Sprintf("Release %s to %s", target, serviceID)))
 	res = append(res, s.releaseActionReleaseService(serviceID))
 
 	if kind == flux.ReleaseKindExecute {
@@ -491,7 +491,7 @@ func (s *releaser) releaseActionUpdatePodController(service flux.ServiceID, regr
 	}
 }
 
-func (s *releaser) releaseActionCommitAndPush() flux.ReleaseAction {
+func (s *releaser) releaseActionCommitAndPush(msg string) flux.ReleaseAction {
 	return flux.ReleaseAction{
 		Description: "Commit and push the config repo.",
 		Do: func(rc *flux.ReleaseContext) error {
@@ -501,7 +501,7 @@ func (s *releaser) releaseActionCommitAndPush() flux.ReleaseAction {
 			if _, err := os.Stat(rc.RepoKey); err != nil {
 				return fmt.Errorf("the repo key (%s) is not valid: %v", rc.RepoKey, err)
 			}
-			return s.repo.CommitAndPush(rc.RepoPath, rc.RepoKey, "Fluxy release")
+			return s.repo.CommitAndPush(rc.RepoPath, rc.RepoKey, msg)
 		},
 	}
 }
