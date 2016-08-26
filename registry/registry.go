@@ -73,7 +73,7 @@ func (c *Client) GetRepository(repository string) (*Repository, error) {
 	if err != nil {
 		return nil, err
 	}
-	auth := c.Credentials.For(host)
+	auth := c.Credentials.credsFor(host)
 
 	transport := dockerregistry.WrapTransport(http.DefaultTransport, host, auth.username, auth.password)
 	client := &dockerregistry.Registry{
@@ -93,10 +93,6 @@ func (c *Client) GetRepository(repository string) (*Repository, error) {
 	return c.tagsToRepository(client, repository, tags), nil
 }
 
-type v1image struct {
-	Created time.Time `json:"created"`
-}
-
 func (c *Client) lookupImage(client *dockerregistry.Registry, repoName, tag string) Image {
 	img := ParseImage(repoName)
 	img.Tag = tag
@@ -110,9 +106,14 @@ func (c *Client) lookupImage(client *dockerregistry.Registry, repoName, tag stri
 	// strings; these appear most-recent (i.e., topmost layer) first,
 	// so happily we can just decode the first entry to get a created
 	// time.
+	type v1image struct {
+		Created time.Time `json:"created"`
+	}
 	var topmost v1image
-	json.Unmarshal([]byte(meta.History[0].V1Compatibility), &topmost)
-	img.CreatedAt = topmost.Created
+	if err := json.Unmarshal([]byte(meta.History[0].V1Compatibility), &topmost); err == nil {
+		img.CreatedAt = topmost.Created
+	}
+
 	return img
 }
 
@@ -195,7 +196,7 @@ func (i Image) Repository() string {
 
 // NoCredentials returns a usable but empty credentials object.
 func NoCredentials() Credentials {
-	return make(map[string]creds)
+	return Credentials{}
 }
 
 // CredentialsFromFile returns a credentials object parsed from the given
@@ -205,12 +206,20 @@ func CredentialsFromFile(path string) (Credentials, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	type dockerConfig struct {
+		Auths map[string]struct {
+			Auth  string `json:"auth"`
+			Email string `json:"email"`
+		} `json:"auths"`
+	}
+
 	var config dockerConfig
 	if err = json.Unmarshal(bytes, &config); err != nil {
 		return nil, err
 	}
 
-	credentials := make(map[string]creds)
+	credentials := Credentials{}
 	for host, entry := range config.Auths {
 		decodedAuth, err := base64.StdEncoding.DecodeString(entry.Auth)
 		if err != nil {
@@ -226,12 +235,12 @@ func CredentialsFromFile(path string) (Credentials, error) {
 }
 
 // For yields an authenticator for a specific host.
-func (cs Credentials) For(host string) creds {
-	if auth, found := cs[host]; found {
-		return auth
+func (cs Credentials) credsFor(host string) creds {
+	if cred, found := cs[host]; found {
+		return cred
 	}
-	if auth, found := cs[fmt.Sprintf("https://%s/v1/", host)]; found {
-		return auth
+	if cred, found := cs[fmt.Sprintf("https://%s/v1/", host)]; found {
+		return cred
 	}
 	return creds{}
 }
@@ -246,15 +255,6 @@ func (cs Credentials) Hosts() []string {
 }
 
 // -----
-
-type auth struct {
-	Auth  string `json:"auth"`
-	Email string `json:"email"`
-}
-
-type dockerConfig struct {
-	Auths map[string]auth `json:"auths"`
-}
 
 type images []Image
 
