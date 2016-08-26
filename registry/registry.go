@@ -27,7 +27,9 @@ type creds struct {
 }
 
 // Credentials to a (Docker) registry.
-type Credentials map[string]creds
+type Credentials struct {
+	m map[string]creds
+}
 
 // Client is a handle to a registry.
 type Client struct {
@@ -196,7 +198,9 @@ func (i Image) Repository() string {
 
 // NoCredentials returns a usable but empty credentials object.
 func NoCredentials() Credentials {
-	return Credentials{}
+	return Credentials{
+		m: map[string]creds{},
+	}
 }
 
 // CredentialsFromFile returns a credentials object parsed from the given
@@ -204,7 +208,7 @@ func NoCredentials() Credentials {
 func CredentialsFromFile(path string) (Credentials, error) {
 	bytes, err := ioutil.ReadFile(path)
 	if err != nil {
-		return nil, err
+		return Credentials{}, err
 	}
 
 	type dockerConfig struct {
@@ -216,17 +220,19 @@ func CredentialsFromFile(path string) (Credentials, error) {
 
 	var config dockerConfig
 	if err = json.Unmarshal(bytes, &config); err != nil {
-		return nil, err
+		return Credentials{}, err
 	}
 
-	credentials := Credentials{}
+	credentials := Credentials{
+		m: map[string]creds{},
+	}
 	for host, entry := range config.Auths {
 		decodedAuth, err := base64.StdEncoding.DecodeString(entry.Auth)
 		if err != nil {
-			return nil, err
+			return Credentials{}, err
 		}
 		authParts := strings.SplitN(string(decodedAuth), ":", 2)
-		credentials[host] = creds{
+		credentials.m[host] = creds{
 			username: authParts[0],
 			password: authParts[1],
 		}
@@ -236,10 +242,10 @@ func CredentialsFromFile(path string) (Credentials, error) {
 
 // For yields an authenticator for a specific host.
 func (cs Credentials) credsFor(host string) creds {
-	if cred, found := cs[host]; found {
+	if cred, found := cs.m[host]; found {
 		return cred
 	}
-	if cred, found := cs[fmt.Sprintf("https://%s/v1/", host)]; found {
+	if cred, found := cs.m[fmt.Sprintf("https://%s/v1/", host)]; found {
 		return cred
 	}
 	return creds{}
@@ -248,7 +254,7 @@ func (cs Credentials) credsFor(host string) creds {
 // Hosts returns all of the hosts available in these credentials.
 func (cs Credentials) Hosts() []string {
 	hosts := []string{}
-	for host := range cs {
+	for host := range cs.m {
 		hosts = append(hosts, host)
 	}
 	return hosts
