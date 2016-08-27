@@ -116,23 +116,23 @@ func tryUpdate(def, newImageStr string, trace io.Writer, out io.Writer) error {
 	fmt.Fprintln(trace, "")
 
 	// The name we want is that under metadata:, which will be indented once
-	replaceRCNameRE := regexp.MustCompile(`(?m:^(  name:\s*)(?:"?[\w-]+"?)(\s.*)$)`)
-	withNewDefName := replaceRCNameRE.ReplaceAllString(def, fmt.Sprintf(`$1%q$2`, newDefName))
+	replaceRCNameRE := regexp.MustCompile(`(?m:^(  name:\s*) (?:"?[\w-]+"?)(\s.*)$)`)
+	withNewDefName := replaceRCNameRE.ReplaceAllString(def, fmt.Sprintf(`$1 %s$2`, newDefName))
 
 	// Replacing labels: these are in two places, the container template and the selector
 	replaceLabelsRE := multilineRE(
 		`((?:  selector|      labels):.*)`,
 		`((?:  ){2,4}name:.*)`,
-		`((?:  ){2,4}version:\s*)(?:"?[-\w]+"?)(\s.*)`,
+		`((?:  ){2,4}version:\s*) (?:"?[-\w]+"?)(\s.*)`,
 	)
-	replaceLabels := fmt.Sprintf("$1\n$2\n$3%q$4", newImage.Tag)
+	replaceLabels := fmt.Sprintf("$1\n$2\n$3 %s$4", newImage.Tag)
 	withNewLabels := replaceLabelsRE.ReplaceAllString(withNewDefName, replaceLabels)
 
 	replaceImageRE := multilineRE(
 		`((?:  ){3,4}- name:\s*`+containerName+`)`,
-		`((?:  ){4,5}image:\s*).*`,
+		`((?:  ){4,5}image:\s*) .*`,
 	)
-	replaceImage := fmt.Sprintf("$1\n$2%q$3", newImage.String())
+	replaceImage := fmt.Sprintf("$1\n$2 %s$3", newImage.String())
 	withNewImage := replaceImageRE.ReplaceAllString(withNewLabels, replaceImage)
 
 	fmt.Fprint(out, withNewImage)
