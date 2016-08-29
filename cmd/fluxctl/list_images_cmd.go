@@ -55,7 +55,10 @@ func (opts *serviceShowOpts) RunE(_ *cobra.Command, args []string) error {
 		for _, container := range service.Containers {
 			containerName := container.Name
 			reg, repo, _ := container.Current.ID.Components()
-			fmt.Fprintf(out, "%s\t%s\t%s/%s\t\n", sname, containerName, reg, repo)
+			if reg != "" {
+				reg += "/"
+			}
+			fmt.Fprintf(out, "%s\t%s\t%s%s\t\n", sname, containerName, reg, repo)
 			foundRunning := false
 			for _, available := range container.Available {
 				running := "|  "
