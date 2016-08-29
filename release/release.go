@@ -106,13 +106,15 @@ func (s *releaser) releaseAllToLatest(kind flux.ReleaseKind) (res []flux.Release
 				return nil, errors.Wrapf(err, "fetching image repo for %s", currentImageID)
 			}
 			latestImageID := flux.ParseImageID(imageRepo.Images[0].String())
-			if currentImageID != latestImageID {
-				regradeMap[serviceID] = append(regradeMap[serviceID], containerRegrade{
-					container: container.Name,
-					current:   currentImageID,
-					target:    latestImageID,
-				})
+			if currentImageID == latestImageID {
+				res = append(res, s.releaseActionNop(fmt.Sprintf("Service image %s is already the latest one; skipping.", currentImageID)))
+				continue
 			}
+			regradeMap[serviceID] = append(regradeMap[serviceID], containerRegrade{
+				container: container.Name,
+				current:   currentImageID,
+				target:    latestImageID,
+			})
 		}
 	}
 	if len(regradeMap) <= 0 {
@@ -165,13 +167,19 @@ func (s *releaser) releaseAllForImage(target flux.ImageID, kind flux.ReleaseKind
 	for serviceID, containers := range containerMap {
 		for _, container := range containers {
 			candidate := flux.ParseImageID(container.Image)
-			if candidate.Repository() == target.Repository() && candidate != target {
-				regradeMap[serviceID] = append(regradeMap[serviceID], containerRegrade{
-					container: container.Name,
-					current:   candidate,
-					target:    target,
-				})
+			if candidate.Repository() != target.Repository() {
+				res = append(res, s.releaseActionNop(fmt.Sprintf("Service image %s isn't from the target image repository; skipping.", candidate)))
+				continue
 			}
+			if candidate == target {
+				res = append(res, s.releaseActionNop(fmt.Sprintf("Service image %s matches the target image exactly; skipping.", candidate)))
+				continue
+			}
+			regradeMap[serviceID] = append(regradeMap[serviceID], containerRegrade{
+				container: container.Name,
+				current:   candidate,
+				target:    target,
+			})
 		}
 	}
 	if len(regradeMap) <= 0 {
@@ -224,17 +232,19 @@ func (s *releaser) releaseOneToLatest(id flux.ServiceID, kind flux.ReleaseKind) 
 			return nil, errors.Wrapf(err, "fetching repository for %s", imageID)
 		}
 		if len(imageRepo.Images) <= 0 {
-			continue // strange
+			res = append(res, s.releaseActionNop(fmt.Sprintf("The service image %s had no images available in its repository; very strange!", imageID)))
+			continue
 		}
 
 		latestID := flux.ParseImageID(imageRepo.Images[0].String())
-		if imageID != latestID {
-			regrades = append(regrades, containerRegrade{
-				container: container.Name,
-				current:   imageID,
-				target:    latestID,
-			})
+		if imageID == latestID {
+			res = append(res, s.releaseActionNop(fmt.Sprintf("The service image %s is already at latest; skipping.", imageID)))
 		}
+		regrades = append(regrades, containerRegrade{
+			container: container.Name,
+			current:   imageID,
+			target:    latestID,
+		})
 	}
 	if len(regrades) <= 0 {
 		res = append(res, s.releaseActionNop("The service is already running the latest version of all its images. Nothing to do."))
@@ -277,13 +287,19 @@ func (s *releaser) releaseOne(serviceID flux.ServiceID, target flux.ImageID, kin
 	var regrades []containerRegrade
 	for _, container := range containers {
 		candidate := flux.ParseImageID(container.Image)
-		if candidate.Repository() == target.Repository() && candidate != target {
-			regrades = append(regrades, containerRegrade{
-				container: container.Name,
-				current:   candidate,
-				target:    target,
-			})
+		if candidate.Repository() != target.Repository() {
+			res = append(res, s.releaseActionNop(fmt.Sprintf("Service image %s isn't from the target image repository; skipping.", candidate)))
+			continue
 		}
+		if candidate == target {
+			res = append(res, s.releaseActionNop(fmt.Sprintf("Service image %s matches the target image exactly; skipping.", candidate)))
+			continue
+		}
+		regrades = append(regrades, containerRegrade{
+			container: container.Name,
+			current:   candidate,
+			target:    target,
+		})
 	}
 	if len(regrades) <= 0 {
 		res = append(res, s.releaseActionNop(fmt.Sprintf("All matching containers are already running image %s. Nothing to do.", target)))
