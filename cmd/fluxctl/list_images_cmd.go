@@ -10,6 +10,7 @@ import (
 type serviceShowOpts struct {
 	*serviceOpts
 	service string
+	limit   int
 }
 
 func newServiceShow(parent *serviceOpts) *serviceShowOpts {
@@ -24,6 +25,7 @@ func (opts *serviceShowOpts) Command() *cobra.Command {
 		RunE:    opts.RunE,
 	}
 	cmd.Flags().StringVarP(&opts.service, "service", "s", "", "Show images for this service")
+	cmd.Flags().IntVarP(&opts.limit, "limit", "n", 10, "Number of images to show (0 for all)")
 	return cmd
 }
 
@@ -51,14 +53,15 @@ func (opts *serviceShowOpts) RunE(_ *cobra.Command, args []string) error {
 			continue
 		}
 
-		sname := service.ID
+		serviceName := service.ID
+		var lineCount int
 		for _, container := range service.Containers {
 			containerName := container.Name
 			reg, repo, _ := container.Current.ID.Components()
 			if reg != "" {
 				reg += "/"
 			}
-			fmt.Fprintf(out, "%s\t%s\t%s%s\t\n", sname, containerName, reg, repo)
+			fmt.Fprintf(out, "%s\t%s\t%s%s\t\n", serviceName, containerName, reg, repo)
 			foundRunning := false
 			for _, available := range container.Available {
 				running := "|  "
@@ -68,10 +71,24 @@ func (opts *serviceShowOpts) RunE(_ *cobra.Command, args []string) error {
 				} else if foundRunning {
 					running = "   "
 				}
+
 				_, _, tag := available.ID.Components()
-				fmt.Fprintf(out, "\t\t%s %s\t%s\n", running, tag, available.CreatedAt.Format(time.RFC822))
+
+				lineCount++
+				var printElipsis, printLine bool
+				if opts.limit <= 0 || lineCount <= opts.limit {
+					printElipsis, printLine = false, true
+				} else if container.Current.ID == available.ID {
+					printElipsis, printLine = lineCount > (opts.limit+1), true
+				}
+				if printElipsis {
+					fmt.Fprintf(out, "\t\t%s\t\n", ":")
+				}
+				if printLine {
+					fmt.Fprintf(out, "\t\t%s %s\t%s\n", running, tag, available.CreatedAt.Format(time.RFC822))
+				}
 			}
-			sname = ""
+			serviceName = ""
 		}
 	}
 	out.Flush()
