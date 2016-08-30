@@ -4,6 +4,7 @@ package registry
 import (
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -147,6 +148,19 @@ func (c *Client) tagsToRepository(client *dockerregistry.Registry, repoName stri
 type Repository struct {
 	Name   string // "quay.io:5000/weaveworks/helloworld"
 	Images []Image
+}
+
+// LatestImage returns the latest releasable image from the repository.
+// A releasable image is one that is not tagged "latest".
+// Images must be kept in newest-first order.
+func (r Repository) LatestImage() (Image, error) {
+	for _, image := range r.Images {
+		if strings.EqualFold(image.Tag, "latest") {
+			continue
+		}
+		return image, nil
+	}
+	return Image{}, errors.New("no valid images in repository")
 }
 
 // Image represents a specific container image available in a repository. It's a
