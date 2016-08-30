@@ -168,7 +168,6 @@ func (s *releaser) releaseAllForImage(target flux.ImageID, kind flux.ReleaseKind
 		for _, container := range containers {
 			candidate := flux.ParseImageID(container.Image)
 			if candidate.Repository() != target.Repository() {
-				res = append(res, s.releaseActionNop(fmt.Sprintf("Service image %s isn't from the target image repository; skipping.", candidate)))
 				continue
 			}
 			if candidate == target {
