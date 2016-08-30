@@ -14,6 +14,7 @@ func testUpdate(t *testing.T, caseIn, updatedImage, caseOut string) {
 		t.Error(err)
 	}
 	if string(out.Bytes()) != caseOut {
+		fmt.Fprintf(os.Stderr, "--- TRACE ---\n"+trace.String()+"\n---\n")
 		t.Errorf("Did not get expected result, instead got\n\n%s", string(out.Bytes()))
 	}
 }
@@ -22,11 +23,14 @@ func TestUpdates(t *testing.T) {
 	for _, c := range [][]string{
 		{case1, case1image, case1out},
 		{case2, case2image, case2out},
+		{case2out, case2reverseImage, case2},
 	} {
 		testUpdate(t, c[0], c[1], c[2])
 	}
 }
 
+// Unusual but still valid indentation between containers: and the
+// next line
 const case1 = `---
 apiVersion: extensions/v1beta1
 kind: Deployment
@@ -107,6 +111,7 @@ spec:
                 path: pr-assigner.json
 `
 
+// Version looks like a number
 const case2 = `---
 apiVersion: extensions/v1beta1
 kind: Deployment
@@ -147,7 +152,7 @@ spec:
         - --repo-path=testdata
 `
 
-const case2image = `weaveworks/fluxy:master-a000002`
+const case2image = `weaveworks/fluxy:1234567`
 
 const case2out = `---
 apiVersion: extensions/v1beta1
@@ -160,7 +165,7 @@ spec:
     metadata:
       labels:
         name: fluxy
-        version: master-a000002
+        version: "1234567"
     spec:
       volumes:
       - name: key
@@ -168,7 +173,7 @@ spec:
           secretName: fluxy-repo-key
       containers:
       - name: fluxy
-        image: weaveworks/fluxy:master-a000002
+        image: weaveworks/fluxy:1234567
         imagePullPolicy: Never # must build manually
         ports:
         - containerPort: 3030
@@ -188,3 +193,5 @@ spec:
         - --repo-key=/var/run/secrets/fluxy/key/id-rsa
         - --repo-path=testdata
 `
+
+const case2reverseImage = `weaveworks/fluxy:master-a000001`
