@@ -287,11 +287,11 @@ func (s *releaser) releaseOne(serviceID flux.ServiceID, target flux.ImageID, kin
 	for _, container := range containers {
 		candidate := flux.ParseImageID(container.Image)
 		if candidate.Repository() != target.Repository() {
-			res = append(res, s.releaseActionNop(fmt.Sprintf("Service image %s isn't from the target image repository; skipping.", candidate)))
+			res = append(res, s.releaseActionNop(fmt.Sprintf("Image %s is different than %s; skipping.", candidate, target)))
 			continue
 		}
 		if candidate == target {
-			res = append(res, s.releaseActionNop(fmt.Sprintf("Service image %s matches the target image exactly; skipping.", candidate)))
+			res = append(res, s.releaseActionNop(fmt.Sprintf("Image %s is already released; skipping.", candidate)))
 			continue
 		}
 		regrades = append(regrades, containerRegrade{
@@ -301,7 +301,7 @@ func (s *releaser) releaseOne(serviceID flux.ServiceID, target flux.ImageID, kin
 		})
 	}
 	if len(regrades) <= 0 {
-		res = append(res, s.releaseActionNop(fmt.Sprintf("All matching containers are already running image %s. Nothing to do.", target)))
+		res = append(res, s.releaseActionNop(fmt.Sprintf("Service %s doesn't need a regrade to %s.", serviceID, target)))
 		return res, nil
 	}
 
