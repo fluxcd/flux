@@ -49,7 +49,7 @@ func main() {
 		kubernetesBearerTokenFile = fs.String("kubernetes-bearer-token-file", "", "Path to file containing Kubernetes Bearer Token file")
 		databaseDriver            = fs.String("database-driver", "ql-mem", `Database driver name, e.g., "postgres"; the default is an in-memory DB`)
 		databaseSource            = fs.String("database-source", "history.db", `Database source name; specific to the database driver (--database-driver) used. The default is an arbitrary, in-memory DB name`)
-		repoURL                   = fs.String("repo-url", "", "Config repo URL, e.g. https://github.com/myorg/conf.git (required)")
+		repoURL                   = fs.String("repo-url", "", "Config repo URL, e.g. git@github.com:myorg/conf (required)")
 		repoKey                   = fs.String("repo-key", "", "SSH key file with commit rights to config repo")
 		repoPath                  = fs.String("repo-path", "", "Path within config repo to look for resource definition files")
 	)
