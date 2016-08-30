@@ -37,10 +37,10 @@ var rootLongHelp = strings.TrimSpace(`
 fluxctl helps you deploy your code.
 
 Workflow:
-  fluxctl list-services                                 # Which services are running?
-  fluxctl list-images --service=default/foo             # Which images are running/available?
-  fluxctl release --service=default/foo --image=bar:v2  # Release new version.
-  fluxctl history --service=default/foo                 # Review what happened
+  fluxctl list-services                                        # Which services are running?
+  fluxctl list-images --service=default/foo                    # Which images are running/available?
+  fluxctl release --service=default/foo --update-image=bar:v2  # Release new version.
+  fluxctl history --service=default/foo                        # Review what happened
 `)
 
 func (opts *rootOpts) Command() *cobra.Command {
