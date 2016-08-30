@@ -75,13 +75,13 @@ func (opts *serviceShowOpts) RunE(_ *cobra.Command, args []string) error {
 				_, _, tag := available.ID.Components()
 
 				lineCount++
-				var printElipsis, printLine bool
+				var printEllipsis, printLine bool
 				if opts.limit <= 0 || lineCount <= opts.limit {
-					printElipsis, printLine = false, true
+					printEllipsis, printLine = false, true
 				} else if container.Current.ID == available.ID {
-					printElipsis, printLine = lineCount > (opts.limit+1), true
+					printEllipsis, printLine = lineCount > (opts.limit+1), true
 				}
-				if printElipsis {
+				if printEllipsis {
 					fmt.Fprintf(out, "\t\t%s\t\n", ":")
 				}
 				if printLine {
