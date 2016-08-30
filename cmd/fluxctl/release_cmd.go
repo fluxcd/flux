@@ -29,8 +29,10 @@ func (opts *serviceReleaseOpts) Command() *cobra.Command {
 		Use:   "release",
 		Short: "Release a new version of a service.",
 		Example: makeExample(
-			"fluxctl release --service=default/foo --image=library/hello:v2",
-			"fluxctl release --all --image=library/hello:v2",
+			"fluxctl release --service=default/foo --update-image=library/hello:v2",
+			"fluxctl release --all --update-image=library/hello:v2",
+			"fluxctl release --service=default/foo --update-all-images",
+			"fluxctl release --service=default/foo --no-update",
 		),
 		RunE: opts.RunE,
 	}
