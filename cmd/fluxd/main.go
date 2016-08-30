@@ -6,14 +6,12 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"os/user"
-	"path/filepath"
-	"regexp"
 	"syscall"
 
 	"github.com/go-kit/kit/log"
 	"github.com/spf13/pflag"
 	"k8s.io/kubernetes/pkg/client/restclient"
+	"k8s.io/kubernetes/pkg/client/unversioned/clientcmd"
 
 	"github.com/weaveworks/fluxy"
 	"github.com/weaveworks/fluxy/automator"
@@ -88,41 +86,53 @@ func main() {
 	// Platform component.
 	var k8s *kubernetes.Cluster
 	{
+		var restClientConfig *restclient.Config
+
 		if *kubernetesMinikube {
-			*kubernetesHost = parseMinikubeHost()
-			*kubernetesClientCert = filepath.Join(homeDir(), ".minikube", "apiserver.crt")
-			*kubernetesClientKey = filepath.Join(homeDir(), ".minikube", "apiserver.key")
-			*kubernetesCertAuthority = filepath.Join(homeDir(), ".minikube", "ca.crt")
+			loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
+			configOverrides := &clientcmd.ConfigOverrides{}
+
+			// TODO: handle the filename for kubeconfig here, as well.
+			kubeConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(loadingRules, configOverrides)
+			var err error
+			restClientConfig, err = kubeConfig.ClientConfig()
+			if err != nil {
+				logger.Log("err", err)
+				os.Exit(1)
+			}
+		}
+
+		if restClientConfig == nil {
+			var bearerToken string
+			if *kubernetesBearerTokenFile != "" {
+				buf, err := ioutil.ReadFile(*kubernetesBearerTokenFile)
+				if err != nil {
+					logger.Log("err", err)
+					os.Exit(1)
+				}
+				bearerToken = string(buf)
+			}
+			restClientConfig = &restclient.Config{
+				Host:        *kubernetesHost,
+				Username:    *kubernetesUsername,
+				Password:    *kubernetesPassword,
+				BearerToken: bearerToken,
+				TLSClientConfig: restclient.TLSClientConfig{
+					CertFile: *kubernetesClientCert,
+					KeyFile:  *kubernetesClientKey,
+					CAFile:   *kubernetesCertAuthority,
+				},
+			}
 		}
 
 		// When adding a new platform, don't just bash it in. Create a Platform
 		// or Cluster interface in package platform, and have kubernetes.Cluster
 		// and your new platform implement that interface.
 		logger := log.NewContext(logger).With("component", "platform")
-		logger.Log("host", kubernetesHost)
-
-		var bearerToken string
-		if *kubernetesBearerTokenFile != "" {
-			buf, err := ioutil.ReadFile(*kubernetesBearerTokenFile)
-			if err != nil {
-				logger.Log("err", err)
-				os.Exit(1)
-			}
-			bearerToken = string(buf)
-		}
+		logger.Log("host", restClientConfig.Host)
 
 		var err error
-		k8s, err = kubernetes.NewCluster(&restclient.Config{
-			Host:        *kubernetesHost,
-			Username:    *kubernetesUsername,
-			Password:    *kubernetesPassword,
-			BearerToken: bearerToken,
-			TLSClientConfig: restclient.TLSClientConfig{
-				CertFile: *kubernetesClientCert,
-				KeyFile:  *kubernetesClientKey,
-				CAFile:   *kubernetesCertAuthority,
-			},
-		}, *kubernetesKubectl, logger)
+		k8s, err = kubernetes.NewCluster(restClientConfig, *kubernetesKubectl, logger)
 		if err != nil {
 			logger.Log("err", err)
 			os.Exit(1)
@@ -191,24 +201,4 @@ func main() {
 
 	// Go!
 	logger.Log("exit", <-errc)
-}
-
-func parseMinikubeHost() string {
-	buf, err := ioutil.ReadFile(filepath.Join(homeDir(), ".kube", "config"))
-	if err != nil {
-		return "minikube-host-unavailable"
-	}
-	matches := regexp.MustCompile(`server: (https://192\.168\.64\.[0-9]+:[0-9]+)`).FindSubmatch(buf)
-	if len(matches) < 2 {
-		return "minikube-host-unavailable"
-	}
-	return string(matches[1])
-}
-
-func homeDir() string {
-	u, err := user.Current()
-	if err != nil {
-		return ""
-	}
-	return u.HomeDir
 }
