@@ -105,7 +105,11 @@ func (s *releaser) releaseAllToLatest(kind flux.ReleaseKind) (res []flux.Release
 			if err != nil {
 				return nil, errors.Wrapf(err, "fetching image repo for %s", currentImageID)
 			}
-			latestImageID := flux.ParseImageID(imageRepo.Images[0].String())
+			latestImage, err := imageRepo.LatestImage()
+			if err != nil {
+				return nil, errors.Wrapf(err, "getting latest image from %s", imageRepo.Name)
+			}
+			latestImageID := flux.ParseImageID(latestImage.String())
 			if currentImageID == latestImageID {
 				res = append(res, s.releaseActionNop(fmt.Sprintf("Service image %s is already the latest one; skipping.", currentImageID)))
 				continue
@@ -235,7 +239,11 @@ func (s *releaser) releaseOneToLatest(id flux.ServiceID, kind flux.ReleaseKind) 
 			continue
 		}
 
-		latestID := flux.ParseImageID(imageRepo.Images[0].String())
+		latestImage, err := imageRepo.LatestImage()
+		if err != nil {
+			return nil, errors.Wrapf(err, "getting latest image from %s", imageRepo.Name)
+		}
+		latestID := flux.ParseImageID(latestImage.String())
 		if imageID == latestID {
 			res = append(res, s.releaseActionNop(fmt.Sprintf("The service image %s is already at latest; skipping.", imageID)))
 		}
