@@ -15,7 +15,7 @@ import (
 
 func NewRouter() *mux.Router {
 	r := mux.NewRouter()
-	r.NewRoute().Name("ListServices").Methods("GET").Path("/v1/services")
+	r.NewRoute().Name("ListServices").Methods("GET").Path("/v1/services").Queries("namespace", "{namespace}") // optional namespace!
 	r.NewRoute().Name("ListImages").Methods("GET").Path("/v1/images").Queries("service", "{service}")
 	r.NewRoute().Name("Release").Methods("POST").Path("/v1/release").Queries("service", "{service}", "image", "{image}", "kind", "{kind}")
 	r.NewRoute().Name("Automate").Methods("POST").Path("/v1/automate").Queries("service", "{service}")
@@ -39,7 +39,8 @@ func NewHandler(s Service, r *mux.Router) http.Handler {
 
 func handleListServices(s Service) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		d, err := s.ListServices()
+		namespace := mux.Vars(r)["namespace"]
+		res, err := s.ListServices(namespace)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			fmt.Fprintf(w, err.Error())
@@ -47,7 +48,7 @@ func handleListServices(s Service) http.Handler {
 		}
 
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		if err := json.NewEncoder(w).Encode(d); err != nil {
+		if err := json.NewEncoder(w).Encode(res); err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			fmt.Fprintf(w, err.Error())
 			return
@@ -55,8 +56,8 @@ func handleListServices(s Service) http.Handler {
 	})
 }
 
-func invokeListServices(client *http.Client, router *mux.Router, endpoint string) ([]ServiceStatus, error) {
-	u, err := makeURL(endpoint, router, "ListServices")
+func invokeListServices(client *http.Client, router *mux.Router, endpoint string, namespace string) ([]ServiceStatus, error) {
+	u, err := makeURL(endpoint, router, "ListServices", "namespace", namespace)
 	if err != nil {
 		return nil, errors.Wrap(err, "constructing URL")
 	}

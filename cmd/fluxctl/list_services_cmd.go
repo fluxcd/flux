@@ -10,6 +10,7 @@ import (
 
 type serviceListOpts struct {
 	*serviceOpts
+	namespace string
 }
 
 func newServiceList(parent *serviceOpts) *serviceListOpts {
@@ -23,6 +24,7 @@ func (opts *serviceListOpts) Command() *cobra.Command {
 		Example: makeExample("fluxctl list-services"),
 		RunE:    opts.RunE,
 	}
+	cmd.Flags().StringVarP(&opts.namespace, "namespace", "n", "", "Namespace to query, blank for all namespaces")
 	return cmd
 }
 
@@ -31,7 +33,7 @@ func (opts *serviceListOpts) RunE(_ *cobra.Command, args []string) error {
 		return errorWantedNoArgs
 	}
 
-	services, err := opts.Fluxd.ListServices()
+	services, err := opts.Fluxd.ListServices(opts.namespace)
 	if err != nil {
 		return err
 	}

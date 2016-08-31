@@ -50,13 +50,20 @@ func NewServer(platform *kubernetes.Cluster, registry *registry.Client, releaser
 // same reason: let's not add abstraction until it's merged, or nearly so, and
 // it's clear where the abstraction should exist.
 
-func (s *server) ListServices() (res []ServiceStatus, err error) {
-	s.helper.Log("method", "ListServices")
-	defer func() { s.helper.Log("method", "ListServices", "res", len(res), "err", err) }()
+func (s *server) ListServices(namespace string) (res []ServiceStatus, err error) {
+	s.helper.Log("method", "ListServices", "namespace", namespace)
+	defer func() {
+		s.helper.Log("method", "ListNamespaceServices", "namespace", namespace, "res", len(res), "err", err)
+	}()
 
-	serviceIDs, err := s.helper.AllServices()
+	var serviceIDs []ServiceID
+	if namespace == "" {
+		serviceIDs, err = s.helper.AllServices()
+	} else {
+		serviceIDs, err = s.helper.NamespaceServices(namespace)
+	}
 	if err != nil {
-		return nil, errors.Wrap(err, "fetching all services on the platform")
+		return nil, errors.Wrapf(err, "fetching services for namespace %s on the platform", namespace)
 	}
 
 	var (
@@ -97,7 +104,6 @@ func (s *server) ListServices() (res []ServiceStatus, err error) {
 			res = append(res, status)
 		}
 	}
-
 	return res, nil
 }
 
