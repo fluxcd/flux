@@ -23,15 +23,25 @@ func (s *Helper) AllServices() ([]ServiceID, error) {
 
 	var res []ServiceID
 	for _, namespace := range namespaces {
-		services, err := s.Platform.Services(namespace)
+		ids, err := s.NamespaceServices(namespace)
 		if err != nil {
-			return nil, errors.Wrapf(err, "fetching platform services for namespace %q", namespace)
+			return nil, err
 		}
+		res = append(res, ids...)
+	}
 
-		for _, service := range services {
-			id := MakeServiceID(namespace, service.Name)
-			res = append(res, id)
-		}
+	return res, nil
+}
+
+func (s *Helper) NamespaceServices(namespace string) ([]ServiceID, error) {
+	services, err := s.Platform.Services(namespace)
+	if err != nil {
+		return nil, errors.Wrapf(err, "fetching platform services for namespace %q", namespace)
+	}
+
+	res := make([]ServiceID, len(services))
+	for i, service := range services {
+		res[i] = MakeServiceID(namespace, service.Name)
 	}
 
 	return res, nil

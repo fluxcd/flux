@@ -10,7 +10,7 @@ import (
 )
 
 type Service interface {
-	ListServices() ([]ServiceStatus, error)
+	ListServices(namespace string) ([]ServiceStatus, error)
 	ListImages(ServiceSpec) ([]ImageStatus, error)
 	Release(ServiceSpec, ImageSpec, ReleaseKind) ([]ReleaseAction, error)
 	Automate(ServiceID) error
