@@ -65,8 +65,9 @@ func (c *Client) GetRepository(repository string) (*Repository, error) {
 	default:
 		return nil, fmt.Errorf(`expected image name as either "<host>/<org>/<image>", "<org>/<image>", or "<image>"`)
 	}
-	host = "https://" + host
+
 	hostlessImageName := fmt.Sprintf("%s/%s", org, image)
+	httphost := "https://" + host
 
 	// quay.io wants us to use cookies for authorisation, so we have
 	// to construct one (the default client has none). This means a
@@ -78,9 +79,12 @@ func (c *Client) GetRepository(repository string) (*Repository, error) {
 	}
 	auth := c.Credentials.credsFor(host)
 
-	transport := dockerregistry.WrapTransport(http.DefaultTransport, host, auth.username, auth.password)
+	// Use the wrapper to fix headers for quay.io, and remember bearer tokens
+	var transport http.RoundTripper = &wwwAuthenticateFixer{transport: http.DefaultTransport}
+	// Now the auth-handling wrappers that come with the library
+	transport = dockerregistry.WrapTransport(transport, httphost, auth.username, auth.password)
 	client := &dockerregistry.Registry{
-		URL: host,
+		URL: httphost,
 		Client: &http.Client{
 			Transport: transport,
 			Jar:       jar,
@@ -288,4 +292,26 @@ func (is byCreatedDesc) Less(i, j int) bool {
 		return is.images[i].String() < is.images[j].String()
 	}
 	return is.images[i].CreatedAt.After(is.images[j].CreatedAt)
+}
+
+// Log requests as they go through, and responses as they come back.
+// transport = logTransport{
+// 	transport: transport,
+// 	log: func(format string, args ...interface{}) {
+// 		c.Logger.Log("registry-client-log", fmt.Sprintf(format, args...))
+// 	},
+// }
+type logTransport struct {
+	log       func(string, ...interface{})
+	transport http.RoundTripper
+}
+
+func (t logTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	t.log("Request %s %#v", req.URL, req)
+	res, err := t.transport.RoundTrip(req)
+	t.log("Response %#v", res)
+	if err != nil {
+		t.log("Error %s", err)
+	}
+	return res, err
 }
