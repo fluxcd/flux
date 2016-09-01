@@ -465,9 +465,6 @@ func (c *Cluster) makePlatformServices(apiServices []api.Service) []platform.Ser
 }
 
 func (c *Cluster) makePlatformService(s api.Service) platform.Service {
-	// To get the image, we need to walk from service to RC to spec.
-	// That path encodes a lot of opinions about deployment strategy.
-	// Which we're OK with, for the time being.
 	metadata := map[string]string{
 		"created_at":       s.CreationTimestamp.String(),
 		"resource_version": s.ResourceVersion,

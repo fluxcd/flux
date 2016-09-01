@@ -92,7 +92,7 @@ func (s *releaser) releaseAllToLatest(kind flux.ReleaseKind) (res []flux.Release
 		return nil, errors.Wrap(err, "fetching all platform services")
 	}
 
-	containerMap, err := s.helper.AllImagesFor(serviceIDs)
+	containerMap, err := s.helper.AllReleasableImagesFor(serviceIDs)
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching images for services")
 	}
@@ -162,7 +162,7 @@ func (s *releaser) releaseAllForImage(target flux.ImageID, kind flux.ReleaseKind
 		return nil, errors.Wrap(err, "fetching all platform services")
 	}
 
-	containerMap, err := s.helper.AllImagesFor(serviceIDs)
+	containerMap, err := s.helper.AllReleasableImagesFor(serviceIDs)
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching images for services")
 	}
