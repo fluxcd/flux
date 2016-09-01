@@ -12,23 +12,26 @@ import (
 
 	"github.com/weaveworks/fluxy"
 	"github.com/weaveworks/fluxy/git"
+	"github.com/weaveworks/fluxy/history"
 	"github.com/weaveworks/fluxy/platform/kubernetes"
 	"github.com/weaveworks/fluxy/registry"
 )
 
 type releaser struct {
-	helper flux.Helper
-	repo   git.Repo
+	helper  flux.Helper
+	repo    git.Repo
+	history history.DB
 }
 
-func New(platform *kubernetes.Cluster, registry *registry.Client, logger log.Logger, repo git.Repo) *releaser {
+func New(platform *kubernetes.Cluster, registry *registry.Client, logger log.Logger, repo git.Repo, history history.DB) *releaser {
 	return &releaser{
 		helper: flux.Helper{
 			Platform: platform,
 			Registry: registry,
 			Logger:   logger,
 		},
-		repo: repo,
+		repo:    repo,
+		history: history,
 	}
 }
 
@@ -136,7 +139,7 @@ func (s *releaser) releaseAllToLatest(kind flux.ReleaseKind) (res []flux.Release
 	}
 	res = append(res, s.releaseActionCommitAndPush("Release latest images to all services"))
 	for service := range regradeMap {
-		res = append(res, s.releaseActionReleaseService(service))
+		res = append(res, s.releaseActionReleaseService(service, "latest images (to all services)"))
 	}
 
 	if kind == flux.ReleaseKindExecute {
@@ -200,7 +203,7 @@ func (s *releaser) releaseAllForImage(target flux.ImageID, kind flux.ReleaseKind
 	}
 	res = append(res, s.releaseActionCommitAndPush(fmt.Sprintf("Release %s to all services", target)))
 	for service := range regradeMap {
-		res = append(res, s.releaseActionReleaseService(service))
+		res = append(res, s.releaseActionReleaseService(service, string(target)+" (to all services)"))
 	}
 
 	if kind == flux.ReleaseKindExecute {
@@ -265,7 +268,7 @@ func (s *releaser) releaseOneToLatest(id flux.ServiceID, kind flux.ReleaseKind) 
 	res = append(res, s.releaseActionClone())
 	res = append(res, s.releaseActionUpdatePodController(id, regrades))
 	res = append(res, s.releaseActionCommitAndPush(fmt.Sprintf("Release latest images to %s", id)))
-	res = append(res, s.releaseActionReleaseService(id))
+	res = append(res, s.releaseActionReleaseService(id, "latest images"))
 
 	if kind == flux.ReleaseKindExecute {
 		if err := s.execute(res); err != nil {
@@ -320,7 +323,7 @@ func (s *releaser) releaseOne(serviceID flux.ServiceID, target flux.ImageID, kin
 	res = append(res, s.releaseActionClone())
 	res = append(res, s.releaseActionUpdatePodController(serviceID, regrades))
 	res = append(res, s.releaseActionCommitAndPush(fmt.Sprintf("Release %s to %s", target, serviceID)))
-	res = append(res, s.releaseActionReleaseService(serviceID))
+	res = append(res, s.releaseActionReleaseService(serviceID, string(target)))
 
 	if kind == flux.ReleaseKindExecute {
 		if err := s.execute(res); err != nil {
@@ -340,7 +343,7 @@ func (s *releaser) releaseOneWithoutUpdate(serviceID flux.ServiceID, kind flux.R
 		s.releaseActionNop(fmt.Sprintf("I'm going to release service %s using the config from the git repo, without updating it", serviceID)),
 		s.releaseActionClone(),
 		s.releaseActionFindPodController(serviceID),
-		s.releaseActionReleaseService(serviceID),
+		s.releaseActionReleaseService(serviceID, "without update"),
 	}
 	if kind == flux.ReleaseKindExecute {
 		return actions, s.execute(actions)
@@ -363,7 +366,7 @@ func (s *releaser) releaseAllWithoutUpdate(kind flux.ReleaseKind) (res []flux.Re
 	for _, service := range serviceIDs {
 		actions = append(actions,
 			s.releaseActionFindPodController(service),
-			s.releaseActionReleaseService(service))
+			s.releaseActionReleaseService(service, "without update (all services)"))
 	}
 
 	if kind == flux.ReleaseKindExecute {
@@ -529,15 +532,23 @@ func (s *releaser) releaseActionCommitAndPush(msg string) flux.ReleaseAction {
 	}
 }
 
-func (s *releaser) releaseActionReleaseService(service flux.ServiceID) flux.ReleaseAction {
+func (s *releaser) releaseActionReleaseService(service flux.ServiceID, cause string) flux.ReleaseAction {
 	return flux.ReleaseAction{
 		Description: fmt.Sprintf("Release the service %s.", service),
-		Do: func(rc *flux.ReleaseContext) error {
+		Do: func(rc *flux.ReleaseContext) (err error) {
 			def, ok := rc.PodControllers[service]
 			if !ok {
 				return errors.New("didn't find pod controller definition for " + string(service))
 			}
 			namespace, serviceName := service.Components()
+			s.history.LogEvent(namespace, serviceName, "Release: "+cause)
+			defer func() {
+				msg := "Release succeeded"
+				if err != nil {
+					msg = "Release failed: " + err.Error()
+				}
+				s.history.LogEvent(namespace, serviceName, msg)
+			}()
 			return s.helper.Platform.Release(namespace, serviceName, def)
 		},
 	}

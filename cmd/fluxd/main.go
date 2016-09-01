@@ -163,7 +163,7 @@ func main() {
 			Key:  *repoKey,
 			Path: *repoPath,
 		}
-		rel = release.New(k8s, reg, logger, repo)
+		rel = release.New(k8s, reg, logger, repo, his)
 	}
 
 	// Automator component.
