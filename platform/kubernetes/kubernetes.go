@@ -6,7 +6,6 @@ package kubernetes
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -23,17 +22,6 @@ import (
 	k8sclient "k8s.io/kubernetes/pkg/client/unversioned"
 
 	"github.com/weaveworks/fluxy/platform"
-)
-
-// These errors are returned by cluster methods.
-var (
-	ErrEmptySelector        = errors.New("empty selector")
-	ErrWrongResourceKind    = errors.New("new definition does not match existing resource")
-	ErrNoMatchingService    = errors.New("no matching service")
-	ErrServiceHasNoSelector = errors.New("service has no selector")
-	ErrNoMatching           = errors.New("no matching replication controllers or deployments")
-	ErrMultipleMatching     = errors.New("multiple matching replication controllers or deployments")
-	ErrNoMatchingImages     = errors.New("no matching images")
 )
 
 type extendedClient struct {
@@ -86,7 +74,7 @@ func NewCluster(config *restclient.Config, kubectl string, logger log.Logger) (*
 func (c *Cluster) Namespaces() ([]string, error) {
 	list, err := c.client.Namespaces().List(api.ListOptions{})
 	if err != nil {
-		return nil, err
+		return nil, platform.WrapError(err, "fetching namespaces")
 	}
 	res := make([]string, len(list.Items))
 	for i := range list.Items {
@@ -100,9 +88,9 @@ func (c *Cluster) Service(namespace, service string) (platform.Service, error) {
 	apiService, err := c.service(namespace, service)
 	if err != nil {
 		if statusErr, ok := err.(*k8serrors.StatusError); ok && statusErr.ErrStatus.Code == http.StatusNotFound { // le sigh
-			return platform.Service{}, ErrNoMatchingService
+			return platform.Service{}, platform.ErrNoMatchingService
 		}
-		return platform.Service{}, err
+		return platform.Service{}, platform.WrapError(err, "fetching service "+namespace+"/"+service)
 	}
 	return c.makePlatformService(apiService), nil
 }
@@ -118,7 +106,7 @@ func (c *Cluster) Service(namespace, service string) (platform.Service, error) {
 func (c *Cluster) Services(namespace string) ([]platform.Service, error) {
 	apiServices, err := c.services(namespace)
 	if err != nil {
-		return nil, err
+		return nil, platform.WrapError(err, "fetching services for namespace "+namespace)
 	}
 	return c.makePlatformServices(apiServices), nil
 }
@@ -170,30 +158,30 @@ func (c *Cluster) Release(namespace, serviceName string, newDefinition []byte) e
 
 	obj, err := definitionObj(newDefinition)
 	if err != nil {
-		return err
+		return platform.WrapError(err, "reading definition")
 	}
 
-	pc, err := c.podControllerFor(namespace, serviceName)
-	if err != nil {
-		return err
+	pc, perr := c.podControllerFor(namespace, serviceName)
+	if perr != nil {
+		return perr
 	}
 
 	var release releaseProc
 	ns := namespacedService{namespace, serviceName}
 	if pc.Deployment != nil {
 		if obj.Kind != "Deployment" {
-			return ErrWrongResourceKind
+			return platform.ErrWrongResourceKind
 		}
 		release = releaseDeployment{ns, c, pc.Deployment}
 	} else if pc.ReplicationController != nil {
 		if obj.Kind != "ReplicationController" {
-			return ErrWrongResourceKind
+			return platform.ErrWrongResourceKind
 		}
 		release = releaseReplicationController{ns, c, pc.ReplicationController}
 	} else {
-		return ErrNoMatching
+		return platform.ErrNoMatching
 	}
-	return release.do(newDefinition, logger)
+	return platform.WrapError(release.do(newDefinition, logger), "releasing "+namespace+"/"+serviceName)
 }
 
 type namespacedService struct {
@@ -333,11 +321,11 @@ func (p podController) templateContainers() []api.Container {
 	return nil
 }
 
-func (c *Cluster) podControllerFor(namespace, serviceName string) (res podController, err error) {
+func (c *Cluster) podControllerFor(namespace, serviceName string) (res podController, reserr error) {
 	logger := log.NewContext(c.logger).With("method", "podControllerFor", "namespace", namespace, "serviceName", serviceName)
 	defer func() {
-		if err != nil {
-			logger.Log("err", err.Error())
+		if reserr != nil {
+			logger.Log("err", reserr.Error())
 		} else {
 			logger.Log("result", res.name())
 		}
@@ -347,12 +335,12 @@ func (c *Cluster) podControllerFor(namespace, serviceName string) (res podContro
 
 	service, err := c.service(namespace, serviceName)
 	if err != nil {
-		return res, err
+		return res, platform.WrapError(err, "fetching service "+namespace+"/"+serviceName)
 	}
 
 	selector := service.Spec.Selector
 	if len(selector) <= 0 {
-		return res, ErrServiceHasNoSelector
+		return res, platform.ErrServiceHasNoSelector
 	}
 
 	// Now, try to find a deployment or replication controller that matches the
@@ -365,7 +353,7 @@ func (c *Cluster) podControllerFor(namespace, serviceName string) (res podContro
 	// properties.
 	rclist, err := c.client.ReplicationControllers(namespace).List(api.ListOptions{})
 	if err != nil {
-		return res, err
+		return res, platform.WrapError(err, "fetching replication controllers for ns "+namespace)
 	}
 	var rcs []api.ReplicationController
 	for _, rc := range rclist.Items {
@@ -391,13 +379,13 @@ func (c *Cluster) podControllerFor(namespace, serviceName string) (res podContro
 	case 1:
 		res.ReplicationController = &rcs[0]
 	default:
-		return res, ErrMultipleMatching
+		return res, platform.ErrMultipleMatching
 	}
 
 	// Now do the same work for deployments.
 	deplist, err := c.client.Deployments(namespace).List(api.ListOptions{})
 	if err != nil {
-		return res, err
+		return res, platform.WrapError(err, "fetching deployments for ns "+namespace)
 	}
 	var deps []apiext.Deployment
 	for _, d := range deplist.Items {
@@ -424,14 +412,14 @@ func (c *Cluster) podControllerFor(namespace, serviceName string) (res podContro
 	case 1:
 		res.Deployment = &deps[0]
 	default:
-		return res, ErrMultipleMatching
+		return res, platform.ErrMultipleMatching
 	}
 
 	if res.ReplicationController != nil && res.Deployment != nil {
-		return res, ErrMultipleMatching
+		return res, platform.ErrMultipleMatching
 	}
 	if res.ReplicationController == nil && res.Deployment == nil {
-		return res, ErrNoMatching
+		return res, platform.ErrNoMatching
 	}
 	return res, nil
 }
@@ -463,7 +451,7 @@ func (c *Cluster) ContainersFor(namespace, serviceName string) (res []platform.C
 		})
 	}
 	if len(containers) <= 0 {
-		return nil, ErrNoMatchingImages
+		return nil, platform.ErrNoMatchingImages
 	}
 	return containers, nil
 }

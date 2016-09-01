@@ -3,6 +3,10 @@
 // package is mostly empty.
 package platform
 
+import (
+	"github.com/pkg/errors"
+)
+
 // Service describes a platform service, generally a floating IP with one or
 // more exposed ports that map to a load-balanced pool of instances. Eventually
 // this type will generalize to something of a lowest-common-denominator for
@@ -21,4 +25,30 @@ type Service struct {
 type Container struct {
 	Name  string
 	Image string
+}
+
+// These errors all represent logical problems with platform
+// configuration, and may be recoverable; e.g., it might be fine if a
+// service does not have a matching RC/deployment.
+type Error struct{ error }
+
+var (
+	ErrEmptySelector        = &Error{errors.New("empty selector")}
+	ErrWrongResourceKind    = &Error{errors.New("new definition does not match existing resource")}
+	ErrNoMatchingService    = &Error{errors.New("no matching service")}
+	ErrServiceHasNoSelector = &Error{errors.New("service has no selector")}
+	ErrNoMatching           = &Error{errors.New("no matching replication controllers or deployments")}
+	ErrMultipleMatching     = &Error{errors.New("multiple matching replication controllers or deployments")}
+	ErrNoMatchingImages     = &Error{errors.New("no matching images")}
+)
+
+// Construct a platform error that wraps an error from the platform
+// itself; these are not supposed to be recoverable.  Special case: if
+// given `nil`, will return nil, for convenience when returning
+// error|nil.
+func WrapError(err error, msg string) error {
+	if err == nil {
+		return nil
+	}
+	return &Error{errors.Wrap(err, msg)}
 }
