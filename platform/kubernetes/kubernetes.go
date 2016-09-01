@@ -161,9 +161,9 @@ func (c *Cluster) Release(namespace, serviceName string, newDefinition []byte) e
 		return platform.WrapError(err, "reading definition")
 	}
 
-	pc, perr := c.podControllerFor(namespace, serviceName)
-	if perr != nil {
-		return perr
+	pc, err := c.podControllerFor(namespace, serviceName)
+	if err != nil {
+		return err
 	}
 
 	var release releaseProc
@@ -321,11 +321,11 @@ func (p podController) templateContainers() []api.Container {
 	return nil
 }
 
-func (c *Cluster) podControllerFor(namespace, serviceName string) (res podController, reserr error) {
+func (c *Cluster) podControllerFor(namespace, serviceName string) (res podController, err error) {
 	logger := log.NewContext(c.logger).With("method", "podControllerFor", "namespace", namespace, "serviceName", serviceName)
 	defer func() {
-		if reserr != nil {
-			logger.Log("err", reserr.Error())
+		if err != nil {
+			logger.Log("err", err.Error())
 		} else {
 			logger.Log("result", res.name())
 		}

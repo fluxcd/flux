@@ -23,6 +23,9 @@ type releaser struct {
 	history history.DB
 }
 
+func justError(err error) (string, error)      { return "", err }
+func justResult(result string) (string, error) { return result, nil }
+
 func New(platform *kubernetes.Cluster, registry *registry.Client, logger log.Logger, repo git.Repo, history history.DB) *releaser {
 	return &releaser{
 		helper: flux.Helper{
@@ -85,7 +88,7 @@ func (s *releaser) releaseAllToLatest(kind flux.ReleaseKind) (res []flux.Release
 	s.helper.Log("method", "releaseAllToLatest", "kind", kind)
 	defer func() { s.helper.Log("method", "releaseAllToLatest", "kind", kind, "res", len(res), "err", err) }()
 
-	res = append(res, s.releaseActionNop("I'm going to release all services to their latest images. Here we go."))
+	res = append(res, s.releaseActionNop("I'm going to release all services to their latest images.", "Here we go!"))
 
 	serviceIDs, err := s.helper.AllServices()
 	if err != nil {
@@ -114,7 +117,7 @@ func (s *releaser) releaseAllToLatest(kind flux.ReleaseKind) (res []flux.Release
 			}
 			latestImageID := flux.ParseImageID(latestImage.String())
 			if currentImageID == latestImageID {
-				res = append(res, s.releaseActionNop(fmt.Sprintf("Service image %s is already the latest one; skipping.", currentImageID)))
+				res = append(res, s.releaseActionNop(fmt.Sprintf("Service image %s is already the latest one; skipping.", currentImageID), ""))
 				continue
 			}
 			regradeMap[serviceID] = append(regradeMap[serviceID], containerRegrade{
@@ -125,7 +128,7 @@ func (s *releaser) releaseAllToLatest(kind flux.ReleaseKind) (res []flux.Release
 		}
 	}
 	if len(regradeMap) <= 0 {
-		res = append(res, s.releaseActionNop("All services are running the latest images. Nothing to do."))
+		res = append(res, s.releaseActionNop("All services are running the latest images.", "Nothing to do"))
 		return res, nil
 	}
 
@@ -155,7 +158,7 @@ func (s *releaser) releaseAllForImage(target flux.ImageID, kind flux.ReleaseKind
 	s.helper.Log("method", "releaseAllForImage", "kind", kind)
 	defer func() { s.helper.Log("method", "releaseAllForImage", "kind", kind, "res", len(res), "err", err) }()
 
-	res = append(res, s.releaseActionNop(fmt.Sprintf("I'm going to release image %s to all services that would use it. Here we go.", target)))
+	res = append(res, s.releaseActionNop(fmt.Sprintf("I'm going to release image %s to all services that would use it.", target), "Here we go!"))
 
 	serviceIDs, err := s.helper.AllServices()
 	if err != nil {
@@ -178,7 +181,7 @@ func (s *releaser) releaseAllForImage(target flux.ImageID, kind flux.ReleaseKind
 				continue
 			}
 			if candidate == target {
-				res = append(res, s.releaseActionNop(fmt.Sprintf("Service image %s matches the target image exactly; skipping.", candidate)))
+				res = append(res, s.releaseActionNop(fmt.Sprintf("Service image %s matches the target image exactly.", candidate), "skipping"))
 				continue
 			}
 			regradeMap[serviceID] = append(regradeMap[serviceID], containerRegrade{
@@ -189,7 +192,7 @@ func (s *releaser) releaseAllForImage(target flux.ImageID, kind flux.ReleaseKind
 		}
 	}
 	if len(regradeMap) <= 0 {
-		res = append(res, s.releaseActionNop(fmt.Sprintf("All matching services are already running image %s. Nothing to do.", target)))
+		res = append(res, s.releaseActionNop(fmt.Sprintf("All matching services are already running image %s.", target), "nothing to do"))
 		return res, nil
 	}
 
@@ -219,7 +222,7 @@ func (s *releaser) releaseOneToLatest(id flux.ServiceID, kind flux.ReleaseKind) 
 	s.helper.Log("method", "releaseOneToLatest", "kind", kind)
 	defer func() { s.helper.Log("method", "releaseOneToLatest", "kind", kind, "res", len(res), "err", err) }()
 
-	res = append(res, s.releaseActionNop(fmt.Sprintf("I'm going to release the latest images(s) for service %s. Here we go.", id)))
+	res = append(res, s.releaseActionNop(fmt.Sprintf("I'm going to release the latest images(s) for service %s.", id), "Here we go!"))
 
 	namespace, service := id.Components()
 	containers, err := s.helper.Platform.ContainersFor(namespace, service)
@@ -238,7 +241,7 @@ func (s *releaser) releaseOneToLatest(id flux.ServiceID, kind flux.ReleaseKind) 
 			return nil, errors.Wrapf(err, "fetching repository for %s", imageID)
 		}
 		if len(imageRepo.Images) <= 0 {
-			res = append(res, s.releaseActionNop(fmt.Sprintf("The service image %s had no images available in its repository; very strange!", imageID)))
+			res = append(res, s.releaseActionNop(fmt.Sprintf("The service image %s had no images available in its repository; very strange!", imageID), "Uh-oh."))
 			continue
 		}
 
@@ -248,7 +251,7 @@ func (s *releaser) releaseOneToLatest(id flux.ServiceID, kind flux.ReleaseKind) 
 		}
 		latestID := flux.ParseImageID(latestImage.String())
 		if imageID == latestID {
-			res = append(res, s.releaseActionNop(fmt.Sprintf("The service image %s is already at latest; skipping.", imageID)))
+			res = append(res, s.releaseActionNop(fmt.Sprintf("The service image %s is already at latest; skipping.", imageID), ""))
 		}
 		regrades = append(regrades, containerRegrade{
 			container: container.Name,
@@ -257,7 +260,7 @@ func (s *releaser) releaseOneToLatest(id flux.ServiceID, kind flux.ReleaseKind) 
 		})
 	}
 	if len(regrades) <= 0 {
-		res = append(res, s.releaseActionNop("The service is already running the latest version of all its images. Nothing to do."))
+		res = append(res, s.releaseActionNop("The service is already running the latest version of all its images.", "nothing to do"))
 		return res, nil
 	}
 
@@ -283,7 +286,7 @@ func (s *releaser) releaseOne(serviceID flux.ServiceID, target flux.ImageID, kin
 	s.helper.Log("method", "releaseOne", "kind", kind)
 	defer func() { s.helper.Log("method", "releaseOne", "kind", kind, "res", len(res), "err", err) }()
 
-	res = append(res, s.releaseActionNop(fmt.Sprintf("I'm going to release image %s to service %s.", target, serviceID)))
+	res = append(res, s.releaseActionNop(fmt.Sprintf("I'm going to release image %s to service %s.", target, serviceID), "Here we go!"))
 
 	namespace, service := serviceID.Components()
 	containers, err := s.helper.Platform.ContainersFor(namespace, service)
@@ -298,11 +301,11 @@ func (s *releaser) releaseOne(serviceID flux.ServiceID, target flux.ImageID, kin
 	for _, container := range containers {
 		candidate := flux.ParseImageID(container.Image)
 		if candidate.Repository() != target.Repository() {
-			res = append(res, s.releaseActionNop(fmt.Sprintf("Image %s is different than %s; skipping.", candidate, target)))
+			res = append(res, s.releaseActionNop(fmt.Sprintf("Image %s is different than %s.", candidate, target), "ignoring"))
 			continue
 		}
 		if candidate == target {
-			res = append(res, s.releaseActionNop(fmt.Sprintf("Image %s is already released; skipping.", candidate)))
+			res = append(res, s.releaseActionNop(fmt.Sprintf("Image %s is already released.", candidate), "skipping"))
 			continue
 		}
 		regrades = append(regrades, containerRegrade{
@@ -312,7 +315,7 @@ func (s *releaser) releaseOne(serviceID flux.ServiceID, target flux.ImageID, kin
 		})
 	}
 	if len(regrades) <= 0 {
-		res = append(res, s.releaseActionNop(fmt.Sprintf("Service %s doesn't need a regrade to %s.", serviceID, target)))
+		res = append(res, s.releaseActionNop(fmt.Sprintf("Service %s doesn't need a regrade to %s.", serviceID, target), "nothing to do"))
 		return res, nil
 	}
 
@@ -340,7 +343,7 @@ func (s *releaser) releaseOneWithoutUpdate(serviceID flux.ServiceID, kind flux.R
 	defer func() { s.helper.Log("method", "releaseOneWithoutUpdate", "kind", kind, "res", len(res), "err", err) }()
 
 	actions := []flux.ReleaseAction{
-		s.releaseActionNop(fmt.Sprintf("I'm going to release service %s using the config from the git repo, without updating it", serviceID)),
+		s.releaseActionNop(fmt.Sprintf("I'm going to release service %s using the config from the git repo, without updating it", serviceID), "Here we go!"),
 		s.releaseActionClone(),
 		s.releaseActionFindPodController(serviceID),
 		s.releaseActionReleaseService(serviceID, "without update"),
@@ -359,7 +362,7 @@ func (s *releaser) releaseAllWithoutUpdate(kind flux.ReleaseKind) (res []flux.Re
 	}
 
 	actions := []flux.ReleaseAction{
-		s.releaseActionNop("I'm going to release all services using the config from the git repo, without updating it"),
+		s.releaseActionNop("I'm going to release all services using the config from the git repo, without updating it", "Here we go!"),
 		s.releaseActionClone(),
 	}
 
@@ -379,15 +382,18 @@ func (s *releaser) execute(actions []flux.ReleaseAction) error {
 	rc := flux.NewReleaseContext()
 	defer rc.Clean()
 
-	for _, action := range actions {
+	for i, action := range actions {
 		s.helper.Log("description", action.Description)
 		if action.Do == nil {
 			continue
 		}
 
-		if err := action.Do(rc); err != nil {
+		if result, err := action.Do(rc); err != nil {
 			s.helper.Log("err", err)
+			actions[i].Result = "Failed: " + err.Error()
 			return err
+		} else {
+			actions[i].Result = result
 		}
 	}
 
@@ -404,21 +410,26 @@ type containerRegrade struct {
 
 // ReleaseAction Do funcs
 
-func (s *releaser) releaseActionNop(desc string) flux.ReleaseAction {
-	return flux.ReleaseAction{Description: desc}
+func (s *releaser) releaseActionNop(desc, execMsg string) flux.ReleaseAction {
+	return flux.ReleaseAction{
+		Description: desc,
+		Do: func(_ *flux.ReleaseContext) (string, error) {
+			return justResult(execMsg)
+		},
+	}
 }
 
 func (s *releaser) releaseActionClone() flux.ReleaseAction {
 	return flux.ReleaseAction{
 		Description: "Clone the config repo.",
-		Do: func(rc *flux.ReleaseContext) error {
+		Do: func(rc *flux.ReleaseContext) (string, error) {
 			path, keyFile, err := s.repo.Clone()
 			if err != nil {
-				return errors.Wrap(err, "clone the config repo")
+				return justError(errors.Wrap(err, "clone the config repo"))
 			}
 			rc.RepoPath = path
 			rc.RepoKey = keyFile
-			return nil
+			return justResult("ok")
 		},
 	}
 }
@@ -426,30 +437,30 @@ func (s *releaser) releaseActionClone() flux.ReleaseAction {
 func (s *releaser) releaseActionFindPodController(service flux.ServiceID) flux.ReleaseAction {
 	return flux.ReleaseAction{
 		Description: fmt.Sprintf("Load the resource definition file for service %s", service),
-		Do: func(rc *flux.ReleaseContext) error {
+		Do: func(rc *flux.ReleaseContext) (string, error) {
 			if fi, err := os.Stat(rc.RepoPath); err != nil || !fi.IsDir() {
-				return fmt.Errorf("the repo path (%s) is not valid", rc.RepoPath)
+				return justError(fmt.Errorf("the repo path (%s) is not valid", rc.RepoPath))
 			}
 
 			namespace, serviceName := service.Components()
 			files, err := kubernetes.FilesFor(rc.RepoPath, namespace, serviceName)
 
 			if err != nil {
-				return errors.Wrapf(err, "finding resource definition file for %s", service)
+				return justError(errors.Wrapf(err, "finding resource definition file for %s", service))
 			}
-			if len(files) <= 0 {
-				return fmt.Errorf("no resource definition file found for %s", service)
+			if len(files) <= 0 { // fine; we'll just skip it
+				return justResult(fmt.Sprintf("no resource definition file found for %s; skipping", service))
 			}
 			if len(files) > 1 {
-				return fmt.Errorf("multiple resource definition files found for %s: %s", service, strings.Join(files, ", "))
+				return justError(fmt.Errorf("multiple resource definition files found for %s: %s", service, strings.Join(files, ", ")))
 			}
 
 			def, err := ioutil.ReadFile(files[0]) // TODO(mb) not multi-doc safe
 			if err != nil {
-				return err
+				return justError(err)
 			}
 			rc.PodControllers[service] = def
-			return nil
+			return justResult("ok")
 		},
 	}
 }
@@ -463,31 +474,31 @@ func (s *releaser) releaseActionUpdatePodController(service flux.ServiceID, regr
 
 	return flux.ReleaseAction{
 		Description: fmt.Sprintf("Update %d images(s) in the resource definition file for %s: %s.", len(regrades), service, actionList),
-		Do: func(rc *flux.ReleaseContext) error {
+		Do: func(rc *flux.ReleaseContext) (string, error) {
 			resourcePath := filepath.Join(rc.RepoPath, s.repo.Path)
 			if fi, err := os.Stat(resourcePath); err != nil || !fi.IsDir() {
-				return fmt.Errorf("the resource path (%s) is not valid", resourcePath)
+				return justError(fmt.Errorf("the resource path (%s) is not valid", resourcePath))
 			}
 
 			namespace, serviceName := service.Components()
 			files, err := kubernetes.FilesFor(resourcePath, namespace, serviceName)
 			if err != nil {
-				return errors.Wrapf(err, "finding resource definition file for %s", service)
+				return justError(errors.Wrapf(err, "finding resource definition file for %s", service))
 			}
 			if len(files) <= 0 {
-				return fmt.Errorf("no resource definition file found for %s", service)
+				return justResult(fmt.Sprintf("no resource definition file found for %s; skipping", service))
 			}
 			if len(files) > 1 {
-				return fmt.Errorf("multiple resource definition files found for %s: %s", service, strings.Join(files, ", "))
+				return justError(fmt.Errorf("multiple resource definition files found for %s: %s", service, strings.Join(files, ", ")))
 			}
 
 			def, err := ioutil.ReadFile(files[0])
 			if err != nil {
-				return err
+				return justError(err)
 			}
 			fi, err := os.Stat(files[0])
 			if err != nil {
-				return err
+				return justError(err)
 			}
 
 			for _, regrade := range regrades {
@@ -501,18 +512,18 @@ func (s *releaser) releaseActionUpdatePodController(service flux.ServiceID, regr
 				// images in a single file.
 				def, err = kubernetes.UpdatePodController(def, string(regrade.target), ioutil.Discard)
 				if err != nil {
-					return errors.Wrapf(err, "updating pod controller for %s", regrade.target)
+					return justError(errors.Wrapf(err, "updating pod controller for %s", regrade.target))
 				}
 			}
 
 			// Write the file back, so commit/push works.
 			if err := ioutil.WriteFile(files[0], def, fi.Mode()); err != nil {
-				return err
+				return justError(err)
 			}
 
 			// Put the def in the map, so release works.
 			rc.PodControllers[service] = def
-			return nil
+			return justResult("ok")
 		},
 	}
 }
@@ -520,14 +531,18 @@ func (s *releaser) releaseActionUpdatePodController(service flux.ServiceID, regr
 func (s *releaser) releaseActionCommitAndPush(msg string) flux.ReleaseAction {
 	return flux.ReleaseAction{
 		Description: "Commit and push the config repo.",
-		Do: func(rc *flux.ReleaseContext) error {
+		Do: func(rc *flux.ReleaseContext) (string, error) {
 			if fi, err := os.Stat(rc.RepoPath); err != nil || !fi.IsDir() {
-				return fmt.Errorf("the repo path (%s) is not valid", rc.RepoPath)
+				return justError(fmt.Errorf("the repo path (%s) is not valid", rc.RepoPath))
 			}
 			if _, err := os.Stat(rc.RepoKey); err != nil {
-				return fmt.Errorf("the repo key (%s) is not valid: %v", rc.RepoKey, err)
+				return justError(fmt.Errorf("the repo key (%s) is not valid: %v", rc.RepoKey, err))
 			}
-			return s.repo.CommitAndPush(rc.RepoPath, rc.RepoKey, msg)
+			result, err := s.repo.CommitAndPush(rc.RepoPath, rc.RepoKey, msg)
+			if err == nil && result == "" {
+				return justResult("Pushed commit: " + msg)
+			}
+			return result, err
 		},
 	}
 }
@@ -535,10 +550,10 @@ func (s *releaser) releaseActionCommitAndPush(msg string) flux.ReleaseAction {
 func (s *releaser) releaseActionReleaseService(service flux.ServiceID, cause string) flux.ReleaseAction {
 	return flux.ReleaseAction{
 		Description: fmt.Sprintf("Release the service %s.", service),
-		Do: func(rc *flux.ReleaseContext) (err error) {
+		Do: func(rc *flux.ReleaseContext) (_ string, err error) {
 			def, ok := rc.PodControllers[service]
 			if !ok {
-				return errors.New("didn't find pod controller definition for " + string(service))
+				return justResult(fmt.Sprintf("no definition for %s; ignoring", string(service)))
 			}
 			namespace, serviceName := service.Components()
 			s.history.LogEvent(namespace, serviceName, "Release: "+cause)
@@ -549,7 +564,7 @@ func (s *releaser) releaseActionReleaseService(service flux.ServiceID, cause str
 				}
 				s.history.LogEvent(namespace, serviceName, msg)
 			}()
-			return s.helper.Platform.Release(namespace, serviceName, def)
+			return justError(s.helper.Platform.Release(namespace, serviceName, def))
 		},
 	}
 }
