@@ -102,37 +102,45 @@ func tryUpdate(def, newImageStr string, trace io.Writer, out io.Writer) error {
 	// * the name, with a re-tagged name
 	// * the image for the container
 	// * the version label (in two places)
+	//
+	// Some values (most likely the version) will be interpreted as a
+	// number if unquoted; while, on the other hand, it is apparently
+	// not OK to quote things that don't look like numbers. So: we
+	// extract values *without* quotes, and add them if necessary.
 
 	newDefName := oldDefName
 	if strings.HasSuffix(oldDefName, oldImage.Tag) {
 		newDefName = oldDefName[:len(oldDefName)-len(oldImage.Tag)] + newImage.Tag
 	}
 
+	newDefName = maybeQuote(newDefName)
+	newTag := maybeQuote(newImage.Tag)
+
 	fmt.Fprintln(trace, "")
 	fmt.Fprintln(trace, "Replacing ...")
-	fmt.Fprintf(trace, "Resource name: %q -> %q\n", oldDefName, newDefName)
-	fmt.Fprintf(trace, "Version in container %q (and selector if present): %q -> %q\n", containerName, oldImage.Tag, newImage.Tag)
-	fmt.Fprintf(trace, "Image for container %q: %q -> %q\n", containerName, oldImage, newImage)
+	fmt.Fprintf(trace, "Resource name: %s -> %s\n", oldDefName, newDefName)
+	fmt.Fprintf(trace, "Version in templates (and selector if present): %s -> %s\n", oldImage.Tag, newTag)
+	fmt.Fprintf(trace, "Image in templates: %s -> %s\n", oldImage, newImage)
 	fmt.Fprintln(trace, "")
 
-	// The name we want is that under metadata:, which will be indented once
-	replaceRCNameRE := regexp.MustCompile(`(?m:^(  name:\s*)(?:"?[\w-]+"?)(\s.*)$)`)
-	withNewDefName := replaceRCNameRE.ReplaceAllString(def, fmt.Sprintf(`$1%q$2`, newDefName))
+	// The name we want is that under `metadata:`, which will be indented once
+	replaceRCNameRE := regexp.MustCompile(`(?m:^(  name:\s*) (?:"?[\w-]+"?)(\s.*)$)`)
+	withNewDefName := replaceRCNameRE.ReplaceAllString(def, fmt.Sprintf(`$1 %s$2`, newDefName))
 
 	// Replacing labels: these are in two places, the container template and the selector
 	replaceLabelsRE := multilineRE(
 		`((?:  selector|      labels):.*)`,
 		`((?:  ){2,4}name:.*)`,
-		`((?:  ){2,4}version:\s*)(?:"?[-\w]+"?)(\s.*)`,
+		`((?:  ){2,4}version:\s*) (?:"?[-\w]+"?)(\s.*)`,
 	)
-	replaceLabels := fmt.Sprintf("$1\n$2\n$3%q$4", newImage.Tag)
+	replaceLabels := fmt.Sprintf("$1\n$2\n$3 %s$4", newTag)
 	withNewLabels := replaceLabelsRE.ReplaceAllString(withNewDefName, replaceLabels)
 
 	replaceImageRE := multilineRE(
 		`((?:  ){3,4}- name:\s*`+containerName+`)`,
-		`((?:  ){4,5}image:\s*).*`,
+		`((?:  ){4,5}image:\s*) .*`,
 	)
-	replaceImage := fmt.Sprintf("$1\n$2%q$3", newImage.String())
+	replaceImage := fmt.Sprintf("$1\n$2 %s$3", newImage.String())
 	withNewImage := replaceImageRE.ReplaceAllString(withNewLabels, replaceImage)
 
 	fmt.Fprint(out, withNewImage)
@@ -141,4 +149,18 @@ func tryUpdate(def, newImageStr string, trace io.Writer, out io.Writer) error {
 
 func multilineRE(lines ...string) *regexp.Regexp {
 	return regexp.MustCompile(`(?m:^` + strings.Join(lines, "\n") + `$)`)
+}
+
+var looksLikeNumber *regexp.Regexp = regexp.MustCompile("^(" + strings.Join([]string{
+	`(-?[1-9](\.[0-9]*[1-9])?(e[-+][1-9][0-9]*)?)`,
+	`(-?(0|[1-9][0-9]*))`,
+	`(0|(\.inf)|(-\.inf)|(\.nan))`},
+	"|") + ")$")
+
+func maybeQuote(scalar string) string {
+	fmt.Printf("Looks like number: %s = %v\n", scalar, looksLikeNumber.MatchString(scalar))
+	if looksLikeNumber.MatchString(scalar) {
+		return `"` + scalar + `"`
+	}
+	return scalar
 }
