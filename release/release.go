@@ -88,7 +88,7 @@ func (s *releaser) releaseAllToLatest(kind flux.ReleaseKind) (res []flux.Release
 	s.helper.Log("method", "releaseAllToLatest", "kind", kind)
 	defer func() { s.helper.Log("method", "releaseAllToLatest", "kind", kind, "res", len(res), "err", err) }()
 
-	res = append(res, s.releaseActionNop("I'm going to release all services to their latest images.", "Here we go!"))
+	res = append(res, s.releaseActionNop("I'm going to release all services to their latest images."))
 
 	serviceIDs, err := s.helper.AllServices()
 	if err != nil {
@@ -117,7 +117,7 @@ func (s *releaser) releaseAllToLatest(kind flux.ReleaseKind) (res []flux.Release
 			}
 			latestImageID := flux.ParseImageID(latestImage.String())
 			if currentImageID == latestImageID {
-				res = append(res, s.releaseActionNop(fmt.Sprintf("Service image %s is already the latest one; skipping.", currentImageID), ""))
+				res = append(res, s.releaseActionNop(fmt.Sprintf("Service image %s is already the latest one; skipping.", currentImageID)))
 				continue
 			}
 			regradeMap[serviceID] = append(regradeMap[serviceID], containerRegrade{
@@ -128,7 +128,7 @@ func (s *releaser) releaseAllToLatest(kind flux.ReleaseKind) (res []flux.Release
 		}
 	}
 	if len(regradeMap) <= 0 {
-		res = append(res, s.releaseActionNop("All services are running the latest images.", "Nothing to do"))
+		res = append(res, s.releaseActionNop("All services are running the latest images. Nothing to do."))
 		return res, nil
 	}
 
@@ -158,7 +158,7 @@ func (s *releaser) releaseAllForImage(target flux.ImageID, kind flux.ReleaseKind
 	s.helper.Log("method", "releaseAllForImage", "kind", kind)
 	defer func() { s.helper.Log("method", "releaseAllForImage", "kind", kind, "res", len(res), "err", err) }()
 
-	res = append(res, s.releaseActionNop(fmt.Sprintf("I'm going to release image %s to all services that would use it.", target), "Here we go!"))
+	res = append(res, s.releaseActionNop(fmt.Sprintf("I'm going to release image %s to all services that would use it.", target)))
 
 	serviceIDs, err := s.helper.AllServices()
 	if err != nil {
@@ -181,7 +181,7 @@ func (s *releaser) releaseAllForImage(target flux.ImageID, kind flux.ReleaseKind
 				continue
 			}
 			if candidate == target {
-				res = append(res, s.releaseActionNop(fmt.Sprintf("Service image %s matches the target image exactly.", candidate), "skipping"))
+				res = append(res, s.releaseActionNop(fmt.Sprintf("Service image %s matches the target image exactly. Skipping.", candidate)))
 				continue
 			}
 			regradeMap[serviceID] = append(regradeMap[serviceID], containerRegrade{
@@ -192,7 +192,7 @@ func (s *releaser) releaseAllForImage(target flux.ImageID, kind flux.ReleaseKind
 		}
 	}
 	if len(regradeMap) <= 0 {
-		res = append(res, s.releaseActionNop(fmt.Sprintf("All matching services are already running image %s.", target), "nothing to do"))
+		res = append(res, s.releaseActionNop(fmt.Sprintf("All matching services are already running image %s. Nothing to do.", target)))
 		return res, nil
 	}
 
@@ -222,7 +222,7 @@ func (s *releaser) releaseOneToLatest(id flux.ServiceID, kind flux.ReleaseKind) 
 	s.helper.Log("method", "releaseOneToLatest", "kind", kind)
 	defer func() { s.helper.Log("method", "releaseOneToLatest", "kind", kind, "res", len(res), "err", err) }()
 
-	res = append(res, s.releaseActionNop(fmt.Sprintf("I'm going to release the latest images(s) for service %s.", id), "Here we go!"))
+	res = append(res, s.releaseActionNop(fmt.Sprintf("I'm going to release the latest images(s) for service %s.", id)))
 
 	namespace, service := id.Components()
 	containers, err := s.helper.Platform.ContainersFor(namespace, service)
@@ -241,7 +241,7 @@ func (s *releaser) releaseOneToLatest(id flux.ServiceID, kind flux.ReleaseKind) 
 			return nil, errors.Wrapf(err, "fetching repository for %s", imageID)
 		}
 		if len(imageRepo.Images) <= 0 {
-			res = append(res, s.releaseActionNop(fmt.Sprintf("The service image %s had no images available in its repository; very strange!", imageID), "Uh-oh."))
+			res = append(res, s.releaseActionNop(fmt.Sprintf("The service image %s had no images available in its repository; very strange!", imageID)))
 			continue
 		}
 
@@ -251,7 +251,7 @@ func (s *releaser) releaseOneToLatest(id flux.ServiceID, kind flux.ReleaseKind) 
 		}
 		latestID := flux.ParseImageID(latestImage.String())
 		if imageID == latestID {
-			res = append(res, s.releaseActionNop(fmt.Sprintf("The service image %s is already at latest; skipping.", imageID), ""))
+			res = append(res, s.releaseActionNop(fmt.Sprintf("The service image %s is already at latest; skipping.", imageID)))
 		}
 		regrades = append(regrades, containerRegrade{
 			container: container.Name,
@@ -260,7 +260,7 @@ func (s *releaser) releaseOneToLatest(id flux.ServiceID, kind flux.ReleaseKind) 
 		})
 	}
 	if len(regrades) <= 0 {
-		res = append(res, s.releaseActionNop("The service is already running the latest version of all its images.", "nothing to do"))
+		res = append(res, s.releaseActionNop("The service is already running the latest version of all its images. Nothing to do."))
 		return res, nil
 	}
 
@@ -286,7 +286,7 @@ func (s *releaser) releaseOne(serviceID flux.ServiceID, target flux.ImageID, kin
 	s.helper.Log("method", "releaseOne", "kind", kind)
 	defer func() { s.helper.Log("method", "releaseOne", "kind", kind, "res", len(res), "err", err) }()
 
-	res = append(res, s.releaseActionNop(fmt.Sprintf("I'm going to release image %s to service %s.", target, serviceID), "Here we go!"))
+	res = append(res, s.releaseActionNop(fmt.Sprintf("I'm going to release image %s to service %s.", target, serviceID)))
 
 	namespace, service := serviceID.Components()
 	containers, err := s.helper.Platform.ContainersFor(namespace, service)
@@ -301,11 +301,11 @@ func (s *releaser) releaseOne(serviceID flux.ServiceID, target flux.ImageID, kin
 	for _, container := range containers {
 		candidate := flux.ParseImageID(container.Image)
 		if candidate.Repository() != target.Repository() {
-			res = append(res, s.releaseActionNop(fmt.Sprintf("Image %s is different than %s.", candidate, target), "ignoring"))
+			res = append(res, s.releaseActionNop(fmt.Sprintf("Image %s is different than %s. Ignoring.", candidate, target)))
 			continue
 		}
 		if candidate == target {
-			res = append(res, s.releaseActionNop(fmt.Sprintf("Image %s is already released.", candidate), "skipping"))
+			res = append(res, s.releaseActionNop(fmt.Sprintf("Image %s is already released. Skipping.", candidate)))
 			continue
 		}
 		regrades = append(regrades, containerRegrade{
@@ -315,7 +315,7 @@ func (s *releaser) releaseOne(serviceID flux.ServiceID, target flux.ImageID, kin
 		})
 	}
 	if len(regrades) <= 0 {
-		res = append(res, s.releaseActionNop(fmt.Sprintf("Service %s doesn't need a regrade to %s.", serviceID, target), "nothing to do"))
+		res = append(res, s.releaseActionNop(fmt.Sprintf("Service %s doesn't need a regrade to %s. Nothing to do.", serviceID, target)))
 		return res, nil
 	}
 
@@ -343,7 +343,7 @@ func (s *releaser) releaseOneWithoutUpdate(serviceID flux.ServiceID, kind flux.R
 	defer func() { s.helper.Log("method", "releaseOneWithoutUpdate", "kind", kind, "res", len(res), "err", err) }()
 
 	actions := []flux.ReleaseAction{
-		s.releaseActionNop(fmt.Sprintf("I'm going to release service %s using the config from the git repo, without updating it", serviceID), "Here we go!"),
+		s.releaseActionNop(fmt.Sprintf("I'm going to release service %s using the config from the git repo, without updating it", serviceID)),
 		s.releaseActionClone(),
 		s.releaseActionFindPodController(serviceID),
 		s.releaseActionReleaseService(serviceID, "without update"),
@@ -362,7 +362,7 @@ func (s *releaser) releaseAllWithoutUpdate(kind flux.ReleaseKind) (res []flux.Re
 	}
 
 	actions := []flux.ReleaseAction{
-		s.releaseActionNop("I'm going to release all services using the config from the git repo, without updating it", "Here we go!"),
+		s.releaseActionNop("I'm going to release all services using the config from the git repo, without updating it."),
 		s.releaseActionClone(),
 	}
 
@@ -410,11 +410,11 @@ type containerRegrade struct {
 
 // ReleaseAction Do funcs
 
-func (s *releaser) releaseActionNop(desc, execMsg string) flux.ReleaseAction {
+func (s *releaser) releaseActionNop(desc string) flux.ReleaseAction {
 	return flux.ReleaseAction{
 		Description: desc,
 		Do: func(_ *flux.ReleaseContext) (string, error) {
-			return justResult(execMsg)
+			return justResult("")
 		},
 	}
 }
