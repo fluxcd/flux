@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/go-kit/kit/log"
+	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 	"k8s.io/kubernetes/pkg/api"
 	k8serrors "k8s.io/kubernetes/pkg/api/errors"
@@ -74,7 +75,7 @@ func NewCluster(config *restclient.Config, kubectl string, logger log.Logger) (*
 func (c *Cluster) Namespaces() ([]string, error) {
 	list, err := c.client.Namespaces().List(api.ListOptions{})
 	if err != nil {
-		return nil, platform.WrapError(err, "fetching namespaces")
+		return nil, errors.Wrap(err, "fetching namespaces")
 	}
 	res := make([]string, len(list.Items))
 	for i := range list.Items {
@@ -90,7 +91,7 @@ func (c *Cluster) Service(namespace, service string) (platform.Service, error) {
 		if statusErr, ok := err.(*k8serrors.StatusError); ok && statusErr.ErrStatus.Code == http.StatusNotFound { // le sigh
 			return platform.Service{}, platform.ErrNoMatchingService
 		}
-		return platform.Service{}, platform.WrapError(err, "fetching service "+namespace+"/"+service)
+		return platform.Service{}, errors.Wrap(err, "fetching service "+namespace+"/"+service)
 	}
 	return c.makePlatformService(apiService), nil
 }
@@ -106,7 +107,7 @@ func (c *Cluster) Service(namespace, service string) (platform.Service, error) {
 func (c *Cluster) Services(namespace string) ([]platform.Service, error) {
 	apiServices, err := c.services(namespace)
 	if err != nil {
-		return nil, platform.WrapError(err, "fetching services for namespace "+namespace)
+		return nil, errors.Wrap(err, "fetching services for namespace "+namespace)
 	}
 	return c.makePlatformServices(apiServices), nil
 }
@@ -158,7 +159,7 @@ func (c *Cluster) Release(namespace, serviceName string, newDefinition []byte) e
 
 	obj, err := definitionObj(newDefinition)
 	if err != nil {
-		return platform.WrapError(err, "reading definition")
+		return errors.Wrap(err, "reading definition")
 	}
 
 	pc, err := c.podControllerFor(namespace, serviceName)
@@ -181,7 +182,11 @@ func (c *Cluster) Release(namespace, serviceName string, newDefinition []byte) e
 	} else {
 		return platform.ErrNoMatching
 	}
-	return platform.WrapError(release.do(newDefinition, logger), "releasing "+namespace+"/"+serviceName)
+
+	if err := release.do(newDefinition, logger); err != nil {
+		return errors.Wrap(err, "releasing "+namespace+"/"+serviceName)
+	}
+	return nil
 }
 
 type namespacedService struct {
@@ -335,7 +340,7 @@ func (c *Cluster) podControllerFor(namespace, serviceName string) (res podContro
 
 	service, err := c.service(namespace, serviceName)
 	if err != nil {
-		return res, platform.WrapError(err, "fetching service "+namespace+"/"+serviceName)
+		return res, errors.Wrap(err, "fetching service "+namespace+"/"+serviceName)
 	}
 
 	selector := service.Spec.Selector
@@ -353,7 +358,7 @@ func (c *Cluster) podControllerFor(namespace, serviceName string) (res podContro
 	// properties.
 	rclist, err := c.client.ReplicationControllers(namespace).List(api.ListOptions{})
 	if err != nil {
-		return res, platform.WrapError(err, "fetching replication controllers for ns "+namespace)
+		return res, errors.Wrap(err, "fetching replication controllers for ns "+namespace)
 	}
 	var rcs []api.ReplicationController
 	for _, rc := range rclist.Items {
@@ -385,7 +390,7 @@ func (c *Cluster) podControllerFor(namespace, serviceName string) (res podContro
 	// Now do the same work for deployments.
 	deplist, err := c.client.Deployments(namespace).List(api.ListOptions{})
 	if err != nil {
-		return res, platform.WrapError(err, "fetching deployments for ns "+namespace)
+		return res, errors.Wrap(err, "fetching deployments for ns "+namespace)
 	}
 	var deps []apiext.Deployment
 	for _, d := range deplist.Items {
