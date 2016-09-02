@@ -29,11 +29,12 @@ build/fluxd: $(FLUXD_DEPS)
 build/fluxd: cmd/fluxd/*.go
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o $@ cmd/fluxd/main.go
 
-build/kubectl: build/kubectl-$(KUBECTL_VERSION) docker/kubectl.version
-	cp build/kubectl-$(KUBECTL_VERSION) $@
+build/kubectl: cache/kubectl-$(KUBECTL_VERSION) docker/kubectl.version
+	cp cache/kubectl-$(KUBECTL_VERSION) $@
 	chmod a+x $@
 
-build/kubectl-$(KUBECTL_VERSION):
+cache/kubectl-$(KUBECTL_VERSION):
+	mkdir -p cache
 	curl -L -o $@ "https://storage.googleapis.com/kubernetes-release/release/$(KUBECTL_VERSION)/bin/linux/amd64/kubectl"
 
 ${GOPATH}/bin/fluxctl: $(FLUXCTL_DEPS)

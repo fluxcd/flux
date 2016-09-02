@@ -26,6 +26,7 @@ _testmain.go
 # Specific to this project
 vendor/
 build/
+cache/
 testdata/helloworld/helloworld-linux-amd64
 testdata/helloworld/.helloworld
 testdata/sidecar/sidecar-linux-amd64
