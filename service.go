@@ -49,8 +49,9 @@ func ParseReleaseKind(s string) (ReleaseKind, error) {
 }
 
 type ReleaseAction struct {
-	Description string                      `json:"description"`
-	Do          func(*ReleaseContext) error `json:"-"`
+	Description string                                `json:"description"`
+	Do          func(*ReleaseContext) (string, error) `json:"-"`
+	Result      string                                `json:"result"`
 }
 
 type ReleaseContext struct {

@@ -3,6 +3,10 @@
 // package is mostly empty.
 package platform
 
+import (
+	"github.com/pkg/errors"
+)
+
 // Service describes a platform service, generally a floating IP with one or
 // more exposed ports that map to a load-balanced pool of instances. Eventually
 // this type will generalize to something of a lowest-common-denominator for
@@ -22,3 +26,16 @@ type Container struct {
 	Name  string
 	Image string
 }
+
+// These errors all represent logical problems with platform
+// configuration, and may be recoverable; e.g., it might be fine if a
+// service does not have a matching RC/deployment.
+var (
+	ErrEmptySelector        = errors.New("empty selector")
+	ErrWrongResourceKind    = errors.New("new definition does not match existing resource")
+	ErrNoMatchingService    = errors.New("no matching service")
+	ErrServiceHasNoSelector = errors.New("service has no selector")
+	ErrNoMatching           = errors.New("no matching replication controllers or deployments")
+	ErrMultipleMatching     = errors.New("multiple matching replication controllers or deployments")
+	ErrNoMatchingImages     = errors.New("no matching images")
+)

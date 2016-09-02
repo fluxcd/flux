@@ -81,13 +81,18 @@ func (opts *serviceReleaseOpts) RunE(_ *cobra.Command, args []string) error {
 
 	begin := time.Now()
 	actions, err := opts.Fluxd.Release(service, image, kind)
+
+	for i, action := range actions {
+		fmt.Fprintf(os.Stdout, "%d)\t%s\n", i+1, action.Description)
+		if action.Result != "" {
+			fmt.Fprintln(os.Stdout, "...\t "+action.Result)
+		}
+	}
+
 	if err != nil {
 		return err
 	}
 
-	for i, action := range actions {
-		fmt.Fprintf(os.Stdout, "%d) %s\n", i+1, action.Description)
-	}
 	if !opts.dryRun {
 		fmt.Fprintf(os.Stdout, "took %s\n", time.Since(begin))
 	}

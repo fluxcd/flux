@@ -47,13 +47,22 @@ func (s *Helper) NamespaceServices(namespace string) ([]ServiceID, error) {
 	return res, nil
 }
 
-func (s *Helper) AllImagesFor(serviceIDs []ServiceID) (map[ServiceID][]platform.Container, error) {
+// AllReleasableImagesFor returns a map of service IDs to the
+// containers with images that may be regraded. It leaves out any
+// services that cannot have containers associated with them, e.g.,
+// because there is no matching deployment.
+func (s *Helper) AllReleasableImagesFor(serviceIDs []ServiceID) (map[ServiceID][]platform.Container, error) {
 	containerMap := map[ServiceID][]platform.Container{}
 	for _, serviceID := range serviceIDs {
 		namespace, service := serviceID.Components()
 		containers, err := s.Platform.ContainersFor(namespace, service)
 		if err != nil {
-			return nil, errors.Wrapf(err, "fetching containers for %s", serviceID)
+			switch err {
+			case platform.ErrEmptySelector, platform.ErrServiceHasNoSelector, platform.ErrNoMatching, platform.ErrMultipleMatching, platform.ErrNoMatchingImages:
+				continue
+			default:
+				return nil, errors.Wrapf(err, "fetching containers for %s", serviceID)
+			}
 		}
 		if len(containers) <= 0 {
 			continue

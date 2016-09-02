@@ -66,8 +66,5 @@ func FilesFor(path, namespace, service string) (filenames []string, err error) {
 		}
 	}
 
-	if len(winners) <= 0 {
-		return nil, fmt.Errorf("no file found for namespace %s service %s", namespace, service)
-	}
 	return winners, nil
 }

@@ -36,6 +36,13 @@ func clone(workingDir, repoKey, repoURL string) (path string, err error) {
 	return repoPath, nil
 }
 
+// check for changes
+func check(workingDir, subdir string) bool {
+	diff := cmd(workingDir, "", "diff", "--quiet", "--", subdir)
+	// `--quiet` means "exit with 1 if there are changes"
+	return diff.Run() != nil
+}
+
 func commit(workingDir, commitMessage string) error {
 	for _, c := range [][]string{
 		{"-c", "user.name=Weave Flux", "-c", "user.email=support@weave.works", "commit", "--no-verify", "-a", "-m", commitMessage},

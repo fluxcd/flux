@@ -34,9 +34,12 @@ func (r Repo) Clone() (path string, keyFile string, err error) {
 	return repoDir, keyFile, err
 }
 
-func (r Repo) CommitAndPush(path, keyFile, commitMessage string) error {
-	if err := commit(path, commitMessage); err != nil {
-		return err
+func (r Repo) CommitAndPush(path, keyFile, commitMessage string) (string, error) {
+	if !check(path, r.Path) {
+		return "no changes made to files", nil
 	}
-	return push(keyFile, path)
+	if err := commit(path, commitMessage); err != nil {
+		return "", err
+	}
+	return "", push(keyFile, path)
 }

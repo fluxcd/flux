@@ -53,7 +53,7 @@ func NewServer(platform *kubernetes.Cluster, registry *registry.Client, releaser
 func (s *server) ListServices(namespace string) (res []ServiceStatus, err error) {
 	s.helper.Log("method", "ListServices", "namespace", namespace)
 	defer func() {
-		s.helper.Log("method", "ListNamespaceServices", "namespace", namespace, "res", len(res), "err", err)
+		s.helper.Log("method", "ListServices", "namespace", namespace, "res", len(res), "err", err)
 	}()
 
 	var serviceIDs []ServiceID
@@ -212,7 +212,7 @@ func (s *server) Release(service ServiceSpec, image ImageSpec, kind ReleaseKind)
 	return s.releaser.Release(service, image, kind)
 }
 
-func (s *server) containersFor(id ServiceID) (res []Container, err error) {
+func (s *server) containersFor(id ServiceID) (res []Container, _ error) {
 	namespace, service := id.Components()
 	containers, err := s.helper.Platform.ContainersFor(namespace, service)
 	if err != nil {
@@ -251,9 +251,9 @@ func (s *server) containersFor(id ServiceID) (res []Container, err error) {
 	}
 
 	if len(errs) > 0 {
-		err = errors.Wrap(errs, "one or more errors fetching image repos")
+		return res, errors.Wrap(errs, "one or more errors fetching image repos")
 	}
-	return res, err
+	return res, nil
 }
 
 // ---
