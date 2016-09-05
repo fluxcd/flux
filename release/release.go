@@ -252,6 +252,7 @@ func (s *releaser) releaseOneToLatest(id flux.ServiceID, kind flux.ReleaseKind) 
 		latestID := flux.ParseImageID(latestImage.String())
 		if imageID == latestID {
 			res = append(res, s.releaseActionNop(fmt.Sprintf("The service image %s is already at latest; skipping.", imageID)))
+			continue
 		}
 		regrades = append(regrades, containerRegrade{
 			container: container.Name,
