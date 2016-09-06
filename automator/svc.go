@@ -19,7 +19,7 @@ const (
 
 type serviceLogFunc func(format string, args ...interface{})
 
-func makeServiceLogFunc(his history.DB, namespace, serviceName string) serviceLogFunc {
+func makeServiceLogFunc(his history.EventWriter, namespace, serviceName string) serviceLogFunc {
 	return func(format string, args ...interface{}) {
 		his.LogEvent(namespace, serviceName, "Automation: "+fmt.Sprintf(format, args...))
 	}
