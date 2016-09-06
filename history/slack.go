@@ -41,8 +41,8 @@ func (s *Slack) LogEvent(namespace, service, msg string) error {
 
 	buf := &bytes.Buffer{}
 	if err := json.NewEncoder(buf).Encode(map[string]string{
-		"Username": s.username,
-		"Text":     text,
+		"username": s.username,
+		"text":     text,
 	}); err != nil {
 		return errors.Wrap(err, "encoding Slack POST request")
 	}

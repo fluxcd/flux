@@ -562,21 +562,23 @@ func (r *Releaser) releaseActionCommitAndPush(msg string) flux.ReleaseAction {
 func (r *Releaser) releaseActionReleaseService(service flux.ServiceID, cause string) flux.ReleaseAction {
 	return flux.ReleaseAction{
 		Description: fmt.Sprintf("Release the service %s.", service),
-		Do: func(rc *flux.ReleaseContext) (_ string, err error) {
+		Do: func(rc *flux.ReleaseContext) (string, error) {
 			def, ok := rc.PodControllers[service]
 			if !ok {
 				return fmt.Sprintf("no definition for %s; ignoring", string(service)), nil
 			}
+
 			namespace, serviceName := service.Components()
-			r.history.LogEvent(namespace, serviceName, "Release: "+cause)
-			defer func() {
-				msg := "Release succeeded"
-				if err != nil {
-					msg = "Release failed: " + err.Error()
-				}
-				r.history.LogEvent(namespace, serviceName, msg)
-			}()
-			return "", r.helper.Platform.Release(namespace, serviceName, def)
+			r.history.LogEvent(namespace, serviceName, "Starting release "+cause)
+
+			err := r.helper.Platform.Release(namespace, serviceName, def)
+			if err == nil {
+				r.history.LogEvent(namespace, serviceName, "Release "+cause+": done")
+			} else {
+				r.history.LogEvent(namespace, serviceName, "Release "+cause+": failed: "+err.Error())
+			}
+
+			return "", err
 		},
 	}
 }
