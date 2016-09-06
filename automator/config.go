@@ -11,7 +11,7 @@ import (
 // Config collects the parameters to the automator. All fields are mandatory.
 type Config struct {
 	Releaser flux.Releaser
-	History  history.DB
+	History  history.EventWriter
 }
 
 // Validate returns an error if the config is underspecified.

@@ -1,6 +1,7 @@
 package history
 
 import (
+	"io"
 	"time"
 )
 
@@ -17,15 +18,21 @@ type Event struct {
 	Stamp        time.Time
 }
 
-type DB interface {
-	// AllEvents returns a history for every service in the given
-	// namespace
-	AllEvents(namespace string) ([]Event, error)
-	// EventsForService returns the history for a particular
-	// (namespaced) service
-	EventsForService(namespace, service string) ([]Event, error)
-	// LogEvent records a message in the history of a service
+type EventWriter interface {
+	// LogEvent records a message in the history of a service.
 	LogEvent(namespace, service, msg string) error
-	// Close the database
-	Close() error
+}
+
+type EventReader interface {
+	// AllEvents returns a history for every service in the given namespace.
+	AllEvents(namespace string) ([]Event, error)
+
+	// EventsForService returns the history for a particular service.
+	EventsForService(namespace, service string) ([]Event, error)
+}
+
+type DB interface {
+	EventWriter
+	EventReader
+	io.Closer
 }

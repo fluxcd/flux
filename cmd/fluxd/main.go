@@ -50,6 +50,8 @@ func main() {
 		repoURL                   = fs.String("repo-url", "", "Config repo URL, e.g. git@github.com:myorg/conf (required)")
 		repoKey                   = fs.String("repo-key", "", "SSH key file with commit rights to config repo")
 		repoPath                  = fs.String("repo-path", "", "Path within config repo to look for resource definition files")
+		slackWebhookURL           = fs.String("slack-webhook-url", "", "Slack webhook URL for release notifications (optional)")
+		slackUsername             = fs.String("slack-username", "fluxy-deploy", "Slack username for release notifications")
 	)
 	fs.Parse(os.Args)
 
@@ -146,13 +148,27 @@ func main() {
 	}
 
 	// History component.
-	var his history.DB
+	var eventWriter history.EventWriter
+	var eventReader history.EventReader
 	{
-		var err error
-		his, err = history.NewSQL(*databaseDriver, *databaseSource)
+		db, err := history.NewSQL(*databaseDriver, *databaseSource)
 		if err != nil {
 			logger.Log("component", "history", "err", err)
 			os.Exit(1)
+		}
+
+		eventWriter, eventReader = db, db
+
+		if *slackWebhookURL != "" {
+			eventWriter = history.TeeWriter(eventWriter, history.NewSlackEventWriter(
+				http.DefaultClient,
+				*slackWebhookURL,
+				*slackUsername,
+				`Release`, // only catch the final message
+			))
+			logger.Log("Slack", "enabled", "username", *slackUsername)
+		} else {
+			logger.Log("Slack", "disabled")
 		}
 	}
 
@@ -163,7 +179,7 @@ func main() {
 			Key:  *repoKey,
 			Path: *repoPath,
 		}
-		rel = release.New(k8s, reg, logger, repo, his)
+		rel = release.New(k8s, reg, logger, repo, eventWriter)
 	}
 
 	// Automator component.
@@ -172,7 +188,7 @@ func main() {
 		var err error
 		auto, err = automator.New(automator.Config{
 			Releaser: rel,
-			History:  his,
+			History:  eventWriter,
 		})
 		if err == nil {
 			logger.Log("automator", "enabled", "repo", *repoURL)
@@ -182,7 +198,7 @@ func main() {
 		}
 	}
 
-	server := flux.NewServer(k8s, reg, rel, auto, his, logger)
+	server := flux.NewServer(k8s, reg, rel, auto, eventReader, logger)
 
 	// Mechanical components.
 	errc := make(chan error)

@@ -16,7 +16,7 @@ type server struct {
 	helper      Helper
 	releaser    Releaser
 	automator   Automator
-	history     history.DB
+	history     history.EventReader
 	maxPlatform chan struct{} // semaphore for concurrent calls to the platform
 }
 
@@ -30,7 +30,7 @@ type Releaser interface {
 	Release(ServiceSpec, ImageSpec, ReleaseKind) ([]ReleaseAction, error)
 }
 
-func NewServer(platform *kubernetes.Cluster, registry *registry.Client, releaser Releaser, automator Automator, history history.DB, logger log.Logger) Service {
+func NewServer(platform *kubernetes.Cluster, registry *registry.Client, releaser Releaser, automator Automator, history history.EventReader, logger log.Logger) Service {
 	return &server{
 		helper: Helper{
 			Platform: platform,
