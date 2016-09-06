@@ -20,7 +20,7 @@ import (
 type Releaser struct {
 	helper  flux.Helper
 	repo    git.Repo
-	history history.DB
+	history history.EventWriter
 }
 
 func New(
@@ -28,7 +28,7 @@ func New(
 	registry *registry.Client,
 	logger log.Logger,
 	repo git.Repo,
-	history history.DB,
+	history history.EventWriter,
 ) *Releaser {
 	return &Releaser{
 		helper: flux.Helper{
