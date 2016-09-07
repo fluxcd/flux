@@ -3,17 +3,15 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
 	"github.com/weaveworks/fluxy"
-)
-
-const (
-	EnvVariableURL = "FLUX_URL"
 )
 
 type rootOpts struct {
@@ -43,6 +41,8 @@ Workflow:
   fluxctl history --service=default/foo                        # Review what happened
 `)
 
+const envVariableURL = "FLUX_URL"
+
 func (opts *rootOpts) Command() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:               "fluxctl",
@@ -51,7 +51,8 @@ func (opts *rootOpts) Command() *cobra.Command {
 		PersistentPreRunE: opts.PersistentPreRunE,
 	}
 	cmd.PersistentFlags().StringVarP(&opts.URL, "url", "u", "http://localhost:3030",
-		fmt.Sprintf("base URL of the fluxd API server; you can also set the environment variable %s", EnvVariableURL))
+		fmt.Sprintf("base URL of the fluxd API server; you can also set the environment variable %s", envVariableURL),
+	)
 
 	svcopts := newService(opts)
 
@@ -68,11 +69,12 @@ func (opts *rootOpts) Command() *cobra.Command {
 }
 
 func (opts *rootOpts) PersistentPreRunE(cmd *cobra.Command, _ []string) error {
-	var err error
-
-	opts.URL = getFromEnvIfNotSet(cmd.Flags(), "url", EnvVariableURL, opts.URL)
+	opts.URL = getFromEnvIfNotSet(cmd.Flags(), "url", envVariableURL, opts.URL)
+	if _, err := url.Parse(opts.URL); err != nil {
+		return errors.Wrapf(err, "parsing URL")
+	}
 	opts.Fluxd = flux.NewClient(http.DefaultClient, flux.NewRouter(), opts.URL)
-	return err
+	return nil
 }
 
 func getFromEnvIfNotSet(flags *pflag.FlagSet, flagName, envName, value string) string {
