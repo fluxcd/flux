@@ -1,6 +1,6 @@
 FROM alpine:3.3
 WORKDIR /home/flux
-RUN apk add --no-cache git openssh python py-yaml
+RUN apk add --no-cache git>=2.3.0 openssh python py-yaml
 ADD ./kubectl /home/flux/
 COPY ./ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 COPY ./kubeservice /home/flux/
