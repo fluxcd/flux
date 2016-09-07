@@ -18,10 +18,13 @@ import (
 )
 
 type Releaser struct {
-	helper  flux.Helper
-	repo    git.Repo
-	history history.EventWriter
+	helper    flux.Helper
+	repo      git.Repo
+	history   history.EventWriter
+	semaphore chan struct{}
 }
+
+const maxSimultaneousReleases = 1
 
 func New(
 	platform *kubernetes.Cluster,
@@ -36,8 +39,9 @@ func New(
 			Registry: registry,
 			Logger:   logger,
 		},
-		repo:    repo,
-		history: history,
+		repo:      repo,
+		history:   history,
+		semaphore: make(chan struct{}, maxSimultaneousReleases),
 	}
 }
 
@@ -45,6 +49,14 @@ func (r *Releaser) Release(serviceSpec flux.ServiceSpec, imageSpec flux.ImageSpe
 	logger := log.NewContext(r.helper.Logger).With("method", "Release", "serviceSpec", serviceSpec, "imageSpec", imageSpec, "kind", kind)
 	logger.Log()
 	defer func() { logger.Log("res", len(res), "err", err) }()
+
+	select {
+	case r.semaphore <- struct{}{}:
+		break // we've acquired the lock
+	default:
+		return nil, errors.New("a release is already in progress; please try again later")
+	}
+	defer func() { <-r.semaphore }()
 
 	switch {
 	case serviceSpec == flux.ServiceSpecAll && imageSpec == flux.ImageSpecLatest:
