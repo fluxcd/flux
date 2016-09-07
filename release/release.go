@@ -381,7 +381,8 @@ func (r *Releaser) releaseAllWithoutUpdate(kind flux.ReleaseKind) (res []flux.Re
 	for _, service := range serviceIDs {
 		actions = append(actions,
 			r.releaseActionFindPodController(service),
-			r.releaseActionReleaseService(service, "without update (all services)"))
+			r.releaseActionReleaseService(service, "without update (all services)"),
+		)
 	}
 
 	if kind == flux.ReleaseKindExecute {
@@ -450,12 +451,13 @@ func (r *Releaser) releaseActionFindPodController(service flux.ServiceID) flux.R
 	return flux.ReleaseAction{
 		Description: fmt.Sprintf("Load the resource definition file for service %s", service),
 		Do: func(rc *flux.ReleaseContext) (string, error) {
-			if fi, err := os.Stat(rc.RepoPath); err != nil || !fi.IsDir() {
-				return "", fmt.Errorf("the repo path (%s) is not valid", rc.RepoPath)
+			resourcePath := filepath.Join(rc.RepoPath, r.repo.Path)
+			if fi, err := os.Stat(resourcePath); err != nil || !fi.IsDir() {
+				return "", fmt.Errorf("the resource path (%s) is not valid", resourcePath)
 			}
 
 			namespace, serviceName := service.Components()
-			files, err := kubernetes.FilesFor(rc.RepoPath, namespace, serviceName)
+			files, err := kubernetes.FilesFor(resourcePath, namespace, serviceName)
 
 			if err != nil {
 				return "", errors.Wrapf(err, "finding resource definition file for %s", service)
