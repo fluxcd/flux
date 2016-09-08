@@ -197,7 +197,7 @@ func (r *Releaser) releaseAllForImage(target flux.ImageID, kind flux.ReleaseKind
 				continue
 			}
 			if candidate == target {
-				res = append(res, r.releaseActionPrintf("Service image %s matches the target image exactly. Skipping.", candidate))
+				res = append(res, r.releaseActionPrintf("Service %s image %s matches the target image exactly. Skipping.", serviceID, candidate))
 				continue
 			}
 			regradeMap[serviceID] = append(regradeMap[serviceID], containerRegrade{
