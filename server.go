@@ -3,8 +3,10 @@ package flux
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/go-kit/kit/log"
+	"github.com/go-kit/kit/metrics"
 	"github.com/pkg/errors"
 
 	"github.com/weaveworks/fluxy/history"
@@ -13,11 +15,12 @@ import (
 )
 
 type server struct {
-	helper      Helper
+	helper      *Helper
 	releaser    Releaser
 	automator   Automator
 	history     history.EventReader
 	maxPlatform chan struct{} // semaphore for concurrent calls to the platform
+	metrics     Metrics
 }
 
 type Automator interface {
@@ -30,17 +33,29 @@ type Releaser interface {
 	Release(ServiceSpec, ImageSpec, ReleaseKind) ([]ReleaseAction, error)
 }
 
-func NewServer(platform *kubernetes.Cluster, registry *registry.Client, releaser Releaser, automator Automator, history history.EventReader, logger log.Logger) Service {
+type Metrics struct {
+	ListServicesDuration metrics.Histogram
+	ListImagesDuration   metrics.Histogram
+	HistoryDuration      metrics.Histogram
+}
+
+func NewServer(
+	platform *kubernetes.Cluster,
+	registry *registry.Client,
+	releaser Releaser,
+	automator Automator,
+	history history.EventReader,
+	logger log.Logger,
+	metrics Metrics,
+	helperDuration metrics.Histogram,
+) Service {
 	return &server{
-		helper: Helper{
-			Platform: platform,
-			Registry: registry,
-			Logger:   logger,
-		},
+		helper:      NewHelper(platform, registry, logger, helperDuration),
 		releaser:    releaser,
 		automator:   automator,
 		history:     history,
 		maxPlatform: make(chan struct{}, 8),
+		metrics:     metrics,
 	}
 }
 
@@ -51,10 +66,12 @@ func NewServer(platform *kubernetes.Cluster, registry *registry.Client, releaser
 // it's clear where the abstraction should exist.
 
 func (s *server) ListServices(namespace string) (res []ServiceStatus, err error) {
-	s.helper.Log("method", "ListServices", "namespace", namespace)
-	defer func() {
-		s.helper.Log("method", "ListServices", "namespace", namespace, "res", len(res), "err", err)
-	}()
+	defer func(begin time.Time) {
+		s.metrics.ListServicesDuration.With(
+			"namespace", namespace,
+			"success", fmt.Sprint(err == nil),
+		).Observe(time.Since(begin).Seconds())
+	}(time.Now())
 
 	var serviceIDs []ServiceID
 	if namespace == "" {
@@ -82,7 +99,7 @@ func (s *server) ListServices(namespace string) (res []ServiceStatus, err error)
 			}
 
 			namespace, service := serviceID.Components()
-			platformSvc, err := s.helper.Platform.Service(namespace, service)
+			platformSvc, err := s.helper.PlatformService(namespace, service)
 			if err != nil {
 				errc <- errors.Wrapf(err, "getting platform service %s", serviceID)
 				return
@@ -108,8 +125,12 @@ func (s *server) ListServices(namespace string) (res []ServiceStatus, err error)
 }
 
 func (s *server) ListImages(spec ServiceSpec) (res []ImageStatus, err error) {
-	s.helper.Log("method", "ListImages", "spec", spec)
-	defer func() { s.helper.Log("method", "ListImages", "spec", spec, "res", len(res), "err", err) }()
+	defer func(begin time.Time) {
+		s.metrics.ListImagesDuration.With(
+			"service_spec", fmt.Sprint(spec),
+			"success", fmt.Sprint(err == nil),
+		).Observe(time.Since(begin).Seconds())
+	}(time.Now())
 
 	serviceIDs, err := func() ([]ServiceID, error) {
 		if spec == ServiceSpecAll {
@@ -155,10 +176,17 @@ func (s *server) ListImages(spec ServiceSpec) (res []ImageStatus, err error) {
 	return res, nil
 }
 
-func (s *server) History(spec ServiceSpec) ([]HistoryEntry, error) {
+func (s *server) History(spec ServiceSpec) (res []HistoryEntry, err error) {
+	defer func(begin time.Time) {
+		s.metrics.HistoryDuration.With(
+			"service_spec", fmt.Sprint(spec),
+			"success", fmt.Sprint(err == nil),
+		).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
 	var events []history.Event
 	if spec == ServiceSpecAll {
-		namespaces, err := s.helper.Platform.Namespaces()
+		namespaces, err := s.helper.PlatformNamespaces()
 		if err != nil {
 			return nil, errors.Wrap(err, "fetching platform namespaces")
 		}
@@ -186,7 +214,7 @@ func (s *server) History(spec ServiceSpec) ([]HistoryEntry, error) {
 		events = append(events, ev...)
 	}
 
-	res := make([]HistoryEntry, len(events))
+	res = make([]HistoryEntry, len(events))
 	for i, event := range events {
 		res[i] = HistoryEntry{
 			Stamp: event.Stamp,
@@ -214,7 +242,7 @@ func (s *server) Release(service ServiceSpec, image ImageSpec, kind ReleaseKind)
 
 func (s *server) containersFor(id ServiceID) (res []Container, _ error) {
 	namespace, service := id.Components()
-	containers, err := s.helper.Platform.ContainersFor(namespace, service)
+	containers, err := s.helper.PlatformContainersFor(namespace, service)
 	if err != nil {
 		return nil, errors.Wrapf(err, "fetching containers for %s", id)
 	}
@@ -228,7 +256,7 @@ func (s *server) containersFor(id ServiceID) (res []Container, _ error) {
 		current := ImageDescription{ID: imageID}
 		var available []ImageDescription
 
-		imageRepo, err := s.helper.Registry.GetRepository(imageID.Repository())
+		imageRepo, err := s.helper.RegistryGetRepository(imageID.Repository())
 		if err != nil {
 			errs = append(errs, errors.Wrapf(err, "fetching image repo for %s", imageID))
 		} else {
@@ -256,13 +284,11 @@ func (s *server) containersFor(id ServiceID) (res []Container, _ error) {
 	return res, nil
 }
 
-// ---
-
 type compositeError []error
 
-func (errs compositeError) Error() string {
-	msgs := make([]string, len(errs))
-	for i, err := range errs {
+func (e compositeError) Error() string {
+	msgs := make([]string, len(e))
+	for i, err := range e {
 		msgs[i] = err.Error()
 	}
 	return strings.Join(msgs, "; ")

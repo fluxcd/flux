@@ -7,8 +7,11 @@ import (
 	"net/http"
 	"net/url"
 	"path"
+	"strconv"
 	"strings"
+	"time"
 
+	"github.com/go-kit/kit/metrics"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 )
@@ -24,13 +27,13 @@ func NewRouter() *mux.Router {
 	return r
 }
 
-func NewHandler(s Service, r *mux.Router) http.Handler {
-	r.Get("ListServices").Handler(handleListServices(s))
-	r.Get("ListImages").Handler(handleListImages(s))
-	r.Get("Release").Handler(handleRelease(s))
-	r.Get("Automate").Handler(handleAutomate(s))
-	r.Get("Deautomate").Handler(handleDeautomate(s))
-	r.Get("History").Handler(handleHistory(s))
+func NewHandler(s Service, r *mux.Router, h metrics.Histogram) http.Handler {
+	r.Get("ListServices").Handler(observe(handleListServices(s), h.With("method", "ListServices")))
+	r.Get("ListImages").Handler(observe(handleListImages(s), h.With("method", "ListImages")))
+	r.Get("Release").Handler(observe(handleRelease(s), h.With("method", "Release")))
+	r.Get("Automate").Handler(observe(handleAutomate(s), h.With("method", "Automate")))
+	r.Get("Deautomate").Handler(observe(handleDeautomate(s), h.With("method", "Deautomate")))
+	r.Get("History").Handler(observe(handleHistory(s), h.With("method", "History")))
 	return r
 }
 
@@ -358,4 +361,26 @@ func executeRequest(client *http.Client, req *http.Request) (*http.Response, err
 		return nil, errors.Wrap(err, "reading HTTP response")
 	}
 	return resp, nil
+}
+
+func observe(next http.Handler, h metrics.Histogram) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		begin := time.Now()
+		cw := &codeWriter{w, http.StatusOK}
+		next.ServeHTTP(cw, r)
+		h.With("status_code", strconv.Itoa(cw.code)).Observe(time.Since(begin).Seconds())
+	})
+}
+
+// codeWriter intercepts the HTTP status code. WriteHeader may not be called in
+// case of success, so either prepopulate code with http.StatusOK, or check for
+// zero on the read side.
+type codeWriter struct {
+	http.ResponseWriter
+	code int
+}
+
+func (w *codeWriter) WriteHeader(code int) {
+	w.code = code
+	w.ResponseWriter.WriteHeader(code)
 }
