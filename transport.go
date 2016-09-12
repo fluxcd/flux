@@ -1,6 +1,7 @@
 package flux
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -11,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/metrics"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
@@ -27,13 +29,22 @@ func NewRouter() *mux.Router {
 	return r
 }
 
-func NewHandler(s Service, r *mux.Router, h metrics.Histogram) http.Handler {
-	r.Get("ListServices").Handler(observe(handleListServices(s), h.With("method", "ListServices")))
-	r.Get("ListImages").Handler(observe(handleListImages(s), h.With("method", "ListImages")))
-	r.Get("Release").Handler(observe(handleRelease(s), h.With("method", "Release")))
-	r.Get("Automate").Handler(observe(handleAutomate(s), h.With("method", "Automate")))
-	r.Get("Deautomate").Handler(observe(handleDeautomate(s), h.With("method", "Deautomate")))
-	r.Get("History").Handler(observe(handleHistory(s), h.With("method", "History")))
+func NewHandler(s Service, r *mux.Router, logger log.Logger, h metrics.Histogram) http.Handler {
+	for method, handlerFunc := range map[string]func(Service) http.Handler{
+		"ListServices": handleListServices,
+		"ListImages":   handleListImages,
+		"Release":      handleRelease,
+		"Automate":     handleAutomate,
+		"Deautomate":   handleDeautomate,
+		"History":      handleHistory,
+	} {
+		var handler http.Handler
+		handler = handlerFunc(s)
+		handler = logging(handler, log.NewContext(logger).With("method", method))
+		handler = observing(handler, h.With("method", method))
+
+		r.Get(method).Handler(handler)
+	}
 	return r
 }
 
@@ -363,7 +374,27 @@ func executeRequest(client *http.Client, req *http.Request) (*http.Response, err
 	return resp, nil
 }
 
-func observe(next http.Handler, h metrics.Histogram) http.Handler {
+func logging(next http.Handler, logger log.Logger) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		begin := time.Now()
+		cw := &codeWriter{w, http.StatusOK}
+		tw := &teeWriter{cw, bytes.Buffer{}}
+
+		next.ServeHTTP(tw, r)
+
+		requestLogger := log.NewContext(logger).With(
+			"url", mustUnescape(r.URL.String()),
+			"took", time.Since(begin).String(),
+			"status_code", cw.code,
+		)
+		if cw.code != http.StatusOK {
+			requestLogger = requestLogger.With("error", strings.TrimSpace(tw.buf.String()))
+		}
+		requestLogger.Log()
+	})
+}
+
+func observing(next http.Handler, h metrics.Histogram) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		begin := time.Now()
 		cw := &codeWriter{w, http.StatusOK}
@@ -383,4 +414,22 @@ type codeWriter struct {
 func (w *codeWriter) WriteHeader(code int) {
 	w.code = code
 	w.ResponseWriter.WriteHeader(code)
+}
+
+// teeWriter intercepts and stores the HTTP response.
+type teeWriter struct {
+	http.ResponseWriter
+	buf bytes.Buffer
+}
+
+func (w *teeWriter) Write(p []byte) (int, error) {
+	w.buf.Write(p) // best-effort
+	return w.ResponseWriter.Write(p)
+}
+
+func mustUnescape(s string) string {
+	if unescaped, err := url.QueryUnescape(s); err == nil {
+		return unescaped
+	}
+	return s
 }
