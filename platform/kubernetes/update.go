@@ -158,7 +158,6 @@ var looksLikeNumber *regexp.Regexp = regexp.MustCompile("^(" + strings.Join([]st
 	"|") + ")$")
 
 func maybeQuote(scalar string) string {
-	fmt.Printf("Looks like number: %s = %v\n", scalar, looksLikeNumber.MatchString(scalar))
 	if looksLikeNumber.MatchString(scalar) {
 		return `"` + scalar + `"`
 	}
