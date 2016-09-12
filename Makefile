@@ -1,5 +1,5 @@
 .DEFAULT: all
-.PHONY: all clean
+.PHONY: all clean realclean
 
 DOCKER?=docker
 include docker/kubectl.version
@@ -18,6 +18,9 @@ all: build/.fluxy.done $(GOPATH)/bin/fluxctl $(GOPATH)/bin/fluxd
 clean:
 	go clean
 	rm -rf ./build
+
+realclean: clean
+	rm -rf ./cache
 
 build/.fluxy.done: docker/Dockerfile.fluxy build/fluxd ./cmd/fluxd/*.crt ./cmd/fluxd/kubeservice build/kubectl
 	mkdir -p ./build/docker
