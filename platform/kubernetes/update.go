@@ -45,7 +45,8 @@ func UpdatePodController(def []byte, newImageName string, trace io.Writer) ([]by
 // apiVersion: v1
 // kind: ReplicationController # not presently checked
 // metadata:                         # )
-//   name: helloworld-master-a000001 # ) this structure, and naming scheme, are assumed
+//   ...                             # ) any number of equally-indented lines
+//   name: helloworld-master-a000001 # ) can precede the name
 // spec:
 //   replicas: 2
 //   selector:                 # )
@@ -71,7 +72,7 @@ func tryUpdate(def, newImageStr string, trace io.Writer, out io.Writer) error {
 
 	nameRE := multilineRE(
 		`metadata:\s*`,
-		`  name:\s*"?([\w-]+)"?\s*`,
+		`(?:  .*\n)*  name:\s*"?([\w-]+)"?\s*`,
 	)
 	matches := nameRE.FindStringSubmatch(def)
 	if matches == nil || len(matches) < 2 {
