@@ -7,13 +7,15 @@ import (
 	"testing"
 )
 
-func testUpdate(t *testing.T, caseIn, updatedImage, caseOut string) {
+func testUpdate(t *testing.T, name, caseIn, updatedImage, caseOut string) {
 	var trace, out bytes.Buffer
 	if err := tryUpdate(caseIn, updatedImage, &trace, &out); err != nil {
+		fmt.Fprintln(os.Stderr, "Failed:", name)
 		fmt.Fprintf(os.Stderr, "--- TRACE ---\n"+trace.String()+"\n---\n")
 		t.Fatal(err)
 	}
 	if string(out.Bytes()) != caseOut {
+		fmt.Fprintln(os.Stderr, "Failed:", name)
 		fmt.Fprintf(os.Stderr, "--- TRACE ---\n"+trace.String()+"\n---\n")
 		t.Fatalf("Did not get expected result, instead got\n\n%s", string(out.Bytes()))
 	}
@@ -21,12 +23,12 @@ func testUpdate(t *testing.T, caseIn, updatedImage, caseOut string) {
 
 func TestUpdates(t *testing.T) {
 	for _, c := range [][]string{
-		{case1, case1image, case1out},
-		{case2, case2image, case2out},
-		{case2out, case2reverseImage, case2},
-		{case3, case3image, case3out},
+		{"common case", case1, case1image, case1out},
+		{"new version like number", case2, case2image, case2out},
+		{"old version like number", case2out, case2reverseImage, case2},
+		{"name label out of order", case3, case3image, case3out},
 	} {
-		testUpdate(t, c[0], c[1], c[2])
+		testUpdate(t, c[0], c[1], c[2], c[3])
 	}
 }
 
