@@ -7,25 +7,28 @@ import (
 	"testing"
 )
 
-func testUpdate(t *testing.T, caseIn, updatedImage, caseOut string) {
+func testUpdate(t *testing.T, name, caseIn, updatedImage, caseOut string) {
 	var trace, out bytes.Buffer
 	if err := tryUpdate(caseIn, updatedImage, &trace, &out); err != nil {
+		fmt.Fprintln(os.Stderr, "Failed:", name)
 		fmt.Fprintf(os.Stderr, "--- TRACE ---\n"+trace.String()+"\n---\n")
-		t.Error(err)
+		t.Fatal(err)
 	}
 	if string(out.Bytes()) != caseOut {
+		fmt.Fprintln(os.Stderr, "Failed:", name)
 		fmt.Fprintf(os.Stderr, "--- TRACE ---\n"+trace.String()+"\n---\n")
-		t.Errorf("Did not get expected result, instead got\n\n%s", string(out.Bytes()))
+		t.Fatalf("Did not get expected result, instead got\n\n%s", string(out.Bytes()))
 	}
 }
 
 func TestUpdates(t *testing.T) {
 	for _, c := range [][]string{
-		{case1, case1image, case1out},
-		{case2, case2image, case2out},
-		{case2out, case2reverseImage, case2},
+		{"common case", case1, case1image, case1out},
+		{"new version like number", case2, case2image, case2out},
+		{"old version like number", case2out, case2reverseImage, case2},
+		{"name label out of order", case3, case3image, case3out},
 	} {
-		testUpdate(t, c[0], c[1], c[2])
+		testUpdate(t, c[0], c[1], c[2], c[3])
 	}
 }
 
@@ -195,3 +198,61 @@ spec:
 `
 
 const case2reverseImage = `weaveworks/fluxy:master-a000001`
+
+const case3 = `---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  namespace: monitoring
+  name: grafana
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        name: grafana
+    spec:
+      imagePullSecrets:
+      - name: quay-secret
+      containers:
+      - name: grafana
+        image: quay.io/weaveworks/grafana:master-ac5658a
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 80
+      - name: gfdatasource
+        image: quay.io/weaveworks/gfdatasource:master-e50ecf2
+        imagePullPolicy: IfNotPresent
+        args:
+        - http://prometheus.monitoring.svc.cluster.local/admin/prometheus
+`
+
+const case3image = `quay.io/weaveworks/grafana:master-37aaf67`
+
+const case3out = `---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  namespace: monitoring
+  name: grafana
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        name: grafana
+    spec:
+      imagePullSecrets:
+      - name: quay-secret
+      containers:
+      - name: grafana
+        image: quay.io/weaveworks/grafana:master-37aaf67
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 80
+      - name: gfdatasource
+        image: quay.io/weaveworks/gfdatasource:master-e50ecf2
+        imagePullPolicy: IfNotPresent
+        args:
+        - http://prometheus.monitoring.svc.cluster.local/admin/prometheus
+`
