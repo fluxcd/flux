@@ -18,10 +18,43 @@
 			"notests": true
 		},
 		{
+			"importpath": "github.com/VividCortex/gohistogram",
+			"repository": "https://github.com/VividCortex/gohistogram",
+			"vcs": "git",
+			"revision": "51564d9861991fb0ad0f531c99ef602d0f9866e6",
+			"branch": "master",
+			"notests": true
+		},
+		{
 			"importpath": "github.com/armon/consul-api",
 			"repository": "https://github.com/armon/consul-api",
 			"vcs": "git",
 			"revision": "dcfedd50ed5334f96adee43fc88518a4f095e15c",
+			"branch": "master",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/beorn7/perks/quantile",
+			"repository": "https://github.com/beorn7/perks",
+			"vcs": "git",
+			"revision": "4c0e84591b9aa9e6dcfdf3e020114cd81f89d5f9",
+			"branch": "master",
+			"path": "/quantile",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/circonus-labs/circonus-gometrics",
+			"repository": "https://github.com/circonus-labs/circonus-gometrics",
+			"vcs": "git",
+			"revision": "dee2600b79d017675f2a0e9ff1cb8984e4f21d35",
+			"branch": "master",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/circonus-labs/circonusllhist",
+			"repository": "https://github.com/circonus-labs/circonusllhist",
+			"vcs": "git",
+			"revision": "d724266ae5270ae8b87a5d2e8081f04e307c3c18",
 			"branch": "master",
 			"notests": true
 		},
@@ -177,12 +210,30 @@
 			"notests": true
 		},
 		{
+			"importpath": "github.com/go-kit/kit/metrics",
+			"repository": "https://github.com/go-kit/kit",
+			"vcs": "git",
+			"revision": "00e2b89d8ad42af22b20fdb9adfbbfa0d5f34660",
+			"branch": "master",
+			"path": "/metrics",
+			"notests": true
+		},
+		{
 			"importpath": "github.com/go-kit/kit/transport/http",
 			"repository": "https://github.com/go-kit/kit",
 			"vcs": "git",
 			"revision": "803166ff08662870111f3420944200203a06629e",
 			"branch": "master",
 			"path": "/transport/http",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/go-kit/kit/util/conn",
+			"repository": "https://github.com/go-kit/kit",
+			"vcs": "git",
+			"revision": "00e2b89d8ad42af22b20fdb9adfbbfa0d5f34660",
+			"branch": "master",
+			"path": "util/conn",
 			"notests": true
 		},
 		{
@@ -236,6 +287,22 @@
 			"notests": true
 		},
 		{
+			"importpath": "github.com/hashicorp/go-cleanhttp",
+			"repository": "https://github.com/hashicorp/go-cleanhttp",
+			"vcs": "git",
+			"revision": "ad28ea4487f05916463e2423a55166280e8254b5",
+			"branch": "master",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/hashicorp/go-retryablehttp",
+			"repository": "https://github.com/hashicorp/go-retryablehttp",
+			"vcs": "git",
+			"revision": "f4ed9b0fa01a2ac614afe7c897ed2e3d8208f3e8",
+			"branch": "master",
+			"notests": true
+		},
+		{
 			"importpath": "github.com/hashicorp/hcl",
 			"repository": "https://github.com/hashicorp/hcl",
 			"vcs": "git",
@@ -257,6 +324,33 @@
 			"vcs": "git",
 			"revision": "76626ae9c91c4f2a10f34cad8ce83ea42c93bb75",
 			"branch": "master",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/influxdata/influxdb/client/v2",
+			"repository": "https://github.com/influxdata/influxdb",
+			"vcs": "git",
+			"revision": "0521c2a03ed24aa7cddcbd666f2e0f895c9109fe",
+			"branch": "master",
+			"path": "/client/v2",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/influxdata/influxdb/models",
+			"repository": "https://github.com/influxdata/influxdb",
+			"vcs": "git",
+			"revision": "0521c2a03ed24aa7cddcbd666f2e0f895c9109fe",
+			"branch": "master",
+			"path": "models",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/influxdata/influxdb/pkg/escape",
+			"repository": "https://github.com/influxdata/influxdb",
+			"vcs": "git",
+			"revision": "0521c2a03ed24aa7cddcbd666f2e0f895c9109fe",
+			"branch": "master",
+			"path": "pkg/escape",
 			"notests": true
 		},
 		{
@@ -284,6 +378,15 @@
 			"notests": true
 		},
 		{
+			"importpath": "github.com/matttproud/golang_protobuf_extensions/pbutil",
+			"repository": "https://github.com/matttproud/golang_protobuf_extensions",
+			"vcs": "git",
+			"revision": "c12348ce28de40eed0136aa2b644d0ee0650e56c",
+			"branch": "master",
+			"path": "/pbutil",
+			"notests": true
+		},
+		{
 			"importpath": "github.com/mitchellh/mapstructure",
 			"repository": "https://github.com/mitchellh/mapstructure",
 			"vcs": "git",
@@ -305,6 +408,59 @@
 			"repository": "https://github.com/pkg/errors",
 			"vcs": "git",
 			"revision": "a22138067af1c4942683050411a841ade67fe1eb",
+			"branch": "master",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/prometheus/client_golang/prometheus",
+			"repository": "https://github.com/prometheus/client_golang",
+			"vcs": "git",
+			"revision": "ea6e1db4cb8127eeb0b6954f7320363e5451820f",
+			"branch": "master",
+			"path": "/prometheus",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/prometheus/client_model/go",
+			"repository": "https://github.com/prometheus/client_model",
+			"vcs": "git",
+			"revision": "fa8ad6fec33561be4280a8f0514318c79d7f6cb6",
+			"branch": "master",
+			"path": "/go",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/prometheus/common/expfmt",
+			"repository": "https://github.com/prometheus/common",
+			"vcs": "git",
+			"revision": "c8ea52003c2f56d8cdf260b12741200de4080c70",
+			"branch": "master",
+			"path": "expfmt",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/prometheus/common/internal/bitbucket.org/ww/goautoneg",
+			"repository": "https://github.com/prometheus/common",
+			"vcs": "git",
+			"revision": "c8ea52003c2f56d8cdf260b12741200de4080c70",
+			"branch": "master",
+			"path": "internal/bitbucket.org/ww/goautoneg",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/prometheus/common/model",
+			"repository": "https://github.com/prometheus/common",
+			"vcs": "git",
+			"revision": "c8ea52003c2f56d8cdf260b12741200de4080c70",
+			"branch": "master",
+			"path": "/model",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/prometheus/procfs",
+			"repository": "https://github.com/prometheus/procfs",
+			"vcs": "git",
+			"revision": "abf152e5f3e97f2fafac028d2cc06c1feb87ffa5",
 			"branch": "master",
 			"notests": true
 		},

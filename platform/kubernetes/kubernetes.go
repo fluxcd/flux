@@ -113,9 +113,6 @@ func (c *Cluster) Services(namespace string) ([]platform.Service, error) {
 }
 
 func (c *Cluster) service(namespace, service string) (res api.Service, err error) {
-	defer func() {
-		c.logger.Log("method", "service", "namespace", namespace, "service", service, "err", err)
-	}()
 	apiService, err := c.client.Services(namespace).Get(service)
 	if err != nil {
 		return api.Service{}, err
@@ -124,9 +121,6 @@ func (c *Cluster) service(namespace, service string) (res api.Service, err error
 }
 
 func (c *Cluster) services(namespace string) (res []api.Service, err error) {
-	defer func() {
-		c.logger.Log("method", "services", "namespace", namespace, "count", len(res), "err", err)
-	}()
 	list, err := c.client.Services(namespace).List(api.ListOptions{})
 	if err != nil {
 		return nil, err
@@ -154,9 +148,6 @@ func definitionObj(bytes []byte) (*apiObject, error) {
 // `kubectl rolling-update` or `kubectl apply` in a seperate process, and
 // assumes kubectl is in the PATH; this can be improved.
 func (c *Cluster) Release(namespace, serviceName string, newDefinition []byte) error {
-	logger := log.NewContext(c.logger).With("method", "Release", "namespace", namespace, "service", serviceName)
-	logger.Log()
-
 	obj, err := definitionObj(newDefinition)
 	if err != nil {
 		return errors.Wrap(err, "reading definition")
@@ -183,6 +174,7 @@ func (c *Cluster) Release(namespace, serviceName string, newDefinition []byte) e
 		return platform.ErrNoMatching
 	}
 
+	logger := log.NewContext(c.logger).With("namespace", namespace, "service", serviceName)
 	if err := release.do(newDefinition, logger); err != nil {
 		return errors.Wrap(err, "releasing "+namespace+"/"+serviceName)
 	}
@@ -327,15 +319,6 @@ func (p podController) templateContainers() []api.Container {
 }
 
 func (c *Cluster) podControllerFor(namespace, serviceName string) (res podController, err error) {
-	logger := log.NewContext(c.logger).With("method", "podControllerFor", "namespace", namespace, "serviceName", serviceName)
-	defer func() {
-		if err != nil {
-			logger.Log("err", err.Error())
-		} else {
-			logger.Log("result", res.name())
-		}
-	}()
-
 	res = podController{}
 
 	service, err := c.service(namespace, serviceName)
@@ -434,15 +417,6 @@ func (c *Cluster) podControllerFor(namespace, serviceName string) (res podContro
 // is useful to see which images a particular service is presently
 // running, to judge whether a release is needed.
 func (c *Cluster) ContainersFor(namespace, serviceName string) (res []platform.Container, err error) {
-	logger := log.NewContext(c.logger).With("method", "ContainersFor", "namespace", namespace, "serviceName", serviceName)
-	defer func() {
-		if err != nil {
-			logger.Log("err", err.Error())
-		} else {
-			logger.Log("containers", fmt.Sprintf("%+v", res))
-		}
-	}()
-
 	pc, err := c.podControllerFor(namespace, serviceName)
 	if err != nil {
 		return nil, err

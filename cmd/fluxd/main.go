@@ -9,6 +9,10 @@ import (
 	"syscall"
 
 	"github.com/go-kit/kit/log"
+	"github.com/go-kit/kit/metrics"
+	"github.com/go-kit/kit/metrics/prometheus"
+	stdprometheus "github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/pflag"
 	"k8s.io/kubernetes/pkg/client/restclient"
 	"k8s.io/kubernetes/pkg/client/unversioned/clientcmd"
@@ -61,6 +65,64 @@ func main() {
 		logger = log.NewLogfmtLogger(os.Stderr)
 		logger = log.NewContext(logger).With("ts", log.DefaultTimestampUTC)
 		logger = log.NewContext(logger).With("caller", log.DefaultCaller)
+	}
+
+	// Instrumentation
+	var (
+		httpDuration   metrics.Histogram
+		serverMetrics  flux.Metrics
+		releaseMetrics release.Metrics
+		helperDuration metrics.Histogram
+	)
+	{
+		httpDuration = prometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
+			Namespace: "fluxy",
+			Subsystem: "fluxd",
+			Name:      "http_request_duration_seconds",
+			Help:      "HTTP request duration in seconds.",
+		}, []string{"method", "status_code"})
+		serverMetrics.ListServicesDuration = prometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
+			Namespace: "fluxy",
+			Subsystem: "fluxd",
+			Name:      "list_services_duration_seconds",
+			Help:      "ListServices method duration in seconds.",
+		}, []string{"namespace", "success"})
+		serverMetrics.ListImagesDuration = prometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
+			Namespace: "fluxy",
+			Subsystem: "fluxd",
+			Name:      "list_images_duration_seconds",
+			Help:      "ListImages method duration in seconds.",
+		}, []string{"service_spec", "success"})
+		serverMetrics.HistoryDuration = prometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
+			Namespace: "fluxy",
+			Subsystem: "fluxd",
+			Name:      "history_duration_seconds",
+			Help:      "History method duration in seconds.",
+		}, []string{"service_spec", "success"})
+		releaseMetrics.ReleaseDuration = prometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
+			Namespace: "fluxy",
+			Subsystem: "fluxd",
+			Name:      "release_duration_seconds",
+			Help:      "Release method duration in seconds.",
+		}, []string{"release_type", "release_kind", "success"})
+		releaseMetrics.ActionDuration = prometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
+			Namespace: "fluxy",
+			Subsystem: "fluxd",
+			Name:      "release_action_duration_seconds",
+			Help:      "Duration in seconds of each sub-action invoked as part of a non-dry-run release.",
+		}, []string{"action", "success"})
+		releaseMetrics.StageDuration = prometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
+			Namespace: "fluxy",
+			Subsystem: "fluxd",
+			Name:      "release_stage_duration_seconds",
+			Help:      "Duration in seconds of each stage of a release, including dry-runs.",
+		}, []string{"method", "stage"})
+		helperDuration = prometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
+			Namespace: "fluxy",
+			Subsystem: "fluxd",
+			Name:      "release_helper_duration_seconds",
+			Help:      "Duration in seconds of a variety of release helper methods.",
+		}, []string{"method", "success"})
 	}
 
 	// Registry component.
@@ -172,6 +234,7 @@ func main() {
 		}
 	}
 
+	// Repo and releaser.
 	var rel flux.Releaser
 	{
 		repo := git.Repo{
@@ -179,7 +242,7 @@ func main() {
 			Key:  *repoKey,
 			Path: *repoPath,
 		}
-		rel = release.New(k8s, reg, logger, repo, eventWriter)
+		rel = release.New(k8s, reg, logger, repo, eventWriter, releaseMetrics, helperDuration)
 	}
 
 	// Automator component.
@@ -198,7 +261,8 @@ func main() {
 		}
 	}
 
-	server := flux.NewServer(k8s, reg, rel, auto, eventReader, logger)
+	// The server.
+	server := flux.NewServer(k8s, reg, rel, auto, eventReader, logger, serverMetrics, helperDuration)
 
 	// Mechanical components.
 	errc := make(chan error)
@@ -211,8 +275,10 @@ func main() {
 	// HTTP transport component.
 	go func() {
 		logger.Log("addr", *listenAddr)
-		h := flux.NewHandler(server, flux.NewRouter())
-		errc <- http.ListenAndServe(*listenAddr, h)
+		mux := http.NewServeMux()
+		mux.Handle("/metrics", promhttp.Handler())
+		mux.Handle("/", flux.NewHandler(server, flux.NewRouter(), logger, httpDuration))
+		errc <- http.ListenAndServe(*listenAddr, mux)
 	}()
 
 	// Go!
