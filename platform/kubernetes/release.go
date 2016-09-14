@@ -15,24 +15,23 @@ import (
 	"github.com/weaveworks/fluxy/platform"
 )
 
-func (c podController) createPlan(newDefinition *apiObject) (releasePlan, error) {
+func (c podController) createRegrade(newDefinition *apiObject) (*regrade, error) {
 	k := c.kind()
 	if newDefinition.Kind != k {
 		return nil, fmt.Errorf(`Expected new definition of kind %q, to match old definition; got %q`, k, newDefinition.Kind)
 	}
 
+	var result regrade
 	if c.Deployment != nil {
-		return &releaseDeployment{c.Deployment, newDefinition}, nil
+		result.exec = deploymentExec(c.Deployment, newDefinition)
+		result.summary = "Applying deployment"
 	} else if c.ReplicationController != nil {
-		return &releaseReplicationController{c.ReplicationController, newDefinition}, nil
+		result.exec = rollingUpgradeExec(c.ReplicationController, newDefinition)
+		result.summary = "Rolling upgrade"
 	} else {
 		return nil, platform.ErrNoMatching
 	}
-}
-
-type releaseReplicationController struct {
-	rc            *api.ReplicationController
-	newDefinition *apiObject
+	return &result, nil
 }
 
 func (c *Cluster) connectArgs() []string {
@@ -83,45 +82,36 @@ func (c *Cluster) doReleaseCommand(logger log.Logger, newDefinition *apiObject, 
 	return err
 }
 
-func (r *releaseReplicationController) do(c *Cluster, logger log.Logger) error {
-	return c.doReleaseCommand(
-		logger,
-		r.newDefinition,
-		"rolling-update",
-		"--update-period", "3s",
-		r.rc.Name,
-		"-f", "-", // take definition from stdin
-	)
-}
-
-func (r *releaseReplicationController) summary() string {
-	return "Rolling upgrade in progress"
-}
-
-type releaseDeployment struct {
-	deployment    *apiext.Deployment
-	newDefinition *apiObject
-}
-
-func (r *releaseDeployment) do(c *Cluster, logger log.Logger) error {
-	err := c.doReleaseCommand(
-		logger,
-		r.newDefinition,
-		"apply",
-		"-f", "-", // take definition from stdin
-	)
-
-	if err == nil {
-		cmd := c.kubectlCommand(
-			"rollout", "status",
-			"deployment", r.newDefinition.Metadata.Name,
+func rollingUpgradeExec(def *api.ReplicationController, newDef *apiObject) regradeExecFunc {
+	return func(c *Cluster, logger log.Logger) error {
+		return c.doReleaseCommand(
+			logger,
+			newDef,
+			"rolling-update",
+			"--update-period", "3s",
+			def.Name,
+			"-f", "-", // take definition from stdin
 		)
-		logger.Log("cmd", strings.Join(cmd.Args, " "))
-		err = cmd.Run()
 	}
-	return err
 }
 
-func (r *releaseDeployment) summary() string {
-	return "Deployment rollout in progress"
+func deploymentExec(def *apiext.Deployment, newDef *apiObject) regradeExecFunc {
+	return func(c *Cluster, logger log.Logger) error {
+		err := c.doReleaseCommand(
+			logger,
+			newDef,
+			"apply",
+			"-f", "-", // take definition from stdin
+		)
+
+		if err == nil {
+			cmd := c.kubectlCommand(
+				"rollout", "status",
+				"deployment", newDef.Metadata.Name,
+			)
+			logger.Log("cmd", strings.Join(cmd.Args, " "))
+			err = cmd.Run()
+		}
+		return err
+	}
 }

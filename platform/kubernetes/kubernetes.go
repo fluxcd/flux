@@ -42,20 +42,21 @@ type apiObject struct {
 	} `yaml:"metadata"`
 }
 
-type releasePlan interface {
-	do(*Cluster, log.Logger) error
-	summary() string
+type regradeExecFunc func(*Cluster, log.Logger) error
+
+type regrade struct {
+	exec    regradeExecFunc
+	summary string
 }
 
 // Cluster is a handle to a Kubernetes API server.
 // (Typically, this code is deployed into the same cluster.)
 type Cluster struct {
-	config     *restclient.Config
-	client     extendedClient
-	kubectl    string
-	releasesMx sync.RWMutex
-	releases   map[namespacedService]releasePlan
-	logger     log.Logger
+	config  *restclient.Config
+	client  extendedClient
+	kubectl string
+	status  *statusMap
+	logger  log.Logger
 }
 
 // NewCluster returns a usable cluster. Host should be of the form
@@ -83,11 +84,11 @@ func NewCluster(config *restclient.Config, kubectl string, logger log.Logger) (*
 	logger.Log("kubectl", kubectl)
 
 	return &Cluster{
-		config:   config,
-		client:   extendedClient{client, extclient},
-		kubectl:  kubectl,
-		releases: make(map[namespacedService]releasePlan),
-		logger:   logger,
+		config:  config,
+		client:  extendedClient{client, extclient},
+		kubectl: kubectl,
+		status:  newStatusMap(),
+		logger:  logger,
 	}, nil
 }
 
@@ -173,38 +174,52 @@ func (c *Cluster) Release(namespace, serviceName string, newDefinition []byte) e
 		return err
 	}
 
-	plan, err := pc.createPlan(newDef)
+	plan, err := pc.createRegrade(newDef)
 	if err != nil {
 		return err
 	}
 
 	ns := namespacedService{namespace, serviceName}
-	c.setRelease(ns, plan)
-	defer c.removeRelease(ns)
+	c.status.startRegrade(ns, plan)
+	defer c.status.endRegrade(ns)
 
 	logger := log.NewContext(c.logger).With("method", "Release", "namespace", namespace, "service", serviceName)
-	if err = plan.do(c, logger); err != nil {
+	if err = plan.exec(c, logger); err != nil {
 		return errors.Wrap(err, "releasing "+namespace+"/"+serviceName)
 	}
 	return nil
 }
 
-func (c *Cluster) setRelease(ns namespacedService, plan releasePlan) {
-	c.releasesMx.Lock()
-	defer c.releasesMx.Unlock()
-	c.releases[ns] = plan
+type statusMap struct {
+	inProgress map[namespacedService]*regrade
+	mx         sync.RWMutex
 }
 
-func (c *Cluster) getRelease(ns namespacedService) releasePlan {
-	c.releasesMx.RLock()
-	defer c.releasesMx.RUnlock()
-	return c.releases[ns]
+func newStatusMap() *statusMap {
+	return &statusMap{
+		inProgress: make(map[namespacedService]*regrade),
+	}
 }
 
-func (c *Cluster) removeRelease(ns namespacedService) {
-	c.releasesMx.Lock()
-	defer c.releasesMx.Unlock()
-	delete(c.releases, ns)
+func (m *statusMap) startRegrade(ns namespacedService, r *regrade) {
+	m.mx.Lock()
+	defer m.mx.Unlock()
+	m.inProgress[ns] = r
+}
+
+func (m *statusMap) getRegradeProgress(ns namespacedService) (string, bool) {
+	m.mx.RLock()
+	defer m.mx.RUnlock()
+	if r, found := m.inProgress[ns]; found {
+		return r.summary, true
+	}
+	return "", false
+}
+
+func (m *statusMap) endRegrade(ns namespacedService) {
+	m.mx.Lock()
+	defer m.mx.Unlock()
+	delete(m.inProgress, ns)
 }
 
 // Either a replication controller, a deployment, or neither (both nils).
@@ -228,7 +243,7 @@ func (p podController) kind() string {
 	} else if p.ReplicationController != nil {
 		return "ReplicationController"
 	}
-	return ""
+	return "unknown"
 }
 
 func (p podController) templateContainers() []api.Container {
@@ -374,8 +389,8 @@ func (c *Cluster) makePlatformService(s api.Service) platform.Service {
 	}
 
 	var status string
-	if release := c.getRelease(namespacedService{s.Namespace, s.Name}); release != nil {
-		status = release.summary()
+	if summary, found := c.status.getRegradeProgress(namespacedService{s.Namespace, s.Name}); found {
+		status = summary
 	}
 
 	return platform.Service{
