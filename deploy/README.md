@@ -60,8 +60,8 @@ Github repo. Adapt these lines:
 ```
 
 The last, `--repo-path`, refers to the directory _within_ the
-repository containing the configuration files (the seeting above is
-correct if you have forked the fluxy repo as above).
+repository containing the configuration files (the setting above is
+correct if you have forked the fluxy repo as described so far).
 
 You can create the deployment now:
 
