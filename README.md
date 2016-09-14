@@ -69,7 +69,7 @@ fluxctl history [--service=S]
 ## Installing
 
 For the minute you will have to build or use the container image
-`quay.io/weaveworks/fluxy`.
+`quay.io/weaveworks/fluxy`. The directory [`deploy/`](https://github.com/weaveworks/fluxy/tree/master/deploy) has example Kubernetes configuration and instructions for using it.
 
 ## Developing
 
