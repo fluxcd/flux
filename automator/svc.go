@@ -19,7 +19,8 @@ const (
 
 type serviceLogFunc func(format string, args ...interface{})
 
-func makeServiceLogFunc(his history.EventWriter, namespace, serviceName string) serviceLogFunc {
+func makeServiceLogFunc(his history.EventWriter, service flux.ServiceID) serviceLogFunc {
+	namespace, serviceName := service.Components()
 	return func(format string, args ...interface{}) {
 		his.LogEvent(namespace, serviceName, "Automation: "+fmt.Sprintf(format, args...))
 	}
@@ -42,8 +43,7 @@ type svc struct {
 	cfg      Config
 }
 
-func newSvc(namespace, serviceName string, logf serviceLogFunc, onDelete func(), cfg Config) *svc {
-	id := flux.MakeServiceID(namespace, serviceName)
+func newSvc(id flux.ServiceID, logf serviceLogFunc, onDelete func(), cfg Config) *svc {
 	s := &svc{
 		service:  id,
 		st:       stateWaiting,
