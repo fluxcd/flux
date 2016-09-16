@@ -92,7 +92,7 @@ func (s *server) ListServices(namespace string) (res []ServiceStatus, err error)
 			s.maxPlatform <- struct{}{}
 			defer func() { <-s.maxPlatform }()
 
-			c, err := s.containersFor(serviceID)
+			c, err := s.containersFor(serviceID, false)
 			if err != nil {
 				errc <- errors.Wrapf(err, "fetching containers for %s", serviceID)
 				return
@@ -152,7 +152,7 @@ func (s *server) ListImages(spec ServiceSpec) (res []ImageStatus, err error) {
 			s.maxPlatform <- struct{}{}
 			defer func() { <-s.maxPlatform }()
 
-			c, err := s.containersFor(serviceID)
+			c, err := s.containersFor(serviceID, true)
 			if err != nil {
 				errc <- errors.Wrapf(err, "fetching containers for %s", serviceID)
 				return
@@ -240,7 +240,7 @@ func (s *server) Release(service ServiceSpec, image ImageSpec, kind ReleaseKind)
 	return s.releaser.Release(service, image, kind)
 }
 
-func (s *server) containersFor(id ServiceID) (res []Container, _ error) {
+func (s *server) containersFor(id ServiceID, includeAvailable bool) (res []Container, _ error) {
 	namespace, service := id.Components()
 	containers, err := s.helper.PlatformContainersFor(namespace, service)
 	if err != nil {
@@ -256,18 +256,20 @@ func (s *server) containersFor(id ServiceID) (res []Container, _ error) {
 		current := ImageDescription{ID: imageID}
 		var available []ImageDescription
 
-		imageRepo, err := s.helper.RegistryGetRepository(imageID.Repository())
-		if err != nil {
-			errs = append(errs, errors.Wrapf(err, "fetching image repo for %s", imageID))
-		} else {
-			for _, image := range imageRepo.Images {
-				description := ImageDescription{
-					ID:        ParseImageID(image.String()),
-					CreatedAt: image.CreatedAt,
-				}
-				available = append(available, description)
-				if image.String() == container.Image {
-					current = description
+		if includeAvailable {
+			imageRepo, err := s.helper.RegistryGetRepository(imageID.Repository())
+			if err != nil {
+				errs = append(errs, errors.Wrapf(err, "fetching image repo for %s", imageID))
+			} else {
+				for _, image := range imageRepo.Images {
+					description := ImageDescription{
+						ID:        ParseImageID(image.String()),
+						CreatedAt: image.CreatedAt,
+					}
+					available = append(available, description)
+					if image.String() == container.Image {
+						current = description
+					}
 				}
 			}
 		}

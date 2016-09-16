@@ -43,9 +43,9 @@ func (opts *serviceListOpts) RunE(_ *cobra.Command, args []string) error {
 	for _, s := range services {
 		if len(s.Containers) > 0 {
 			c := s.Containers[0]
-			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", s.ID, c.Name, maybeUpToDate(c.Current, c.Available), s.Status, maybeAutomated(s))
+			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", s.ID, c.Name, c.Current.ID, s.Status, maybeAutomated(s))
 			for _, c := range s.Containers[1:] {
-				fmt.Fprintf(w, "\t%s\t%s\t\t\n", c.Name, maybeUpToDate(c.Current, c.Available))
+				fmt.Fprintf(w, "\t%s\t%s\t\t\n", c.Name, c.Current.ID)
 			}
 		} else {
 			fmt.Fprintf(w, "%s\t\t\t\t\n", s.ID)
@@ -53,15 +53,6 @@ func (opts *serviceListOpts) RunE(_ *cobra.Command, args []string) error {
 	}
 	w.Flush()
 	return nil
-}
-
-func maybeUpToDate(current flux.ImageDescription, available []flux.ImageDescription) string {
-	if len(available) > 0 && current.ID == available[0].ID {
-		return "* " + string(current.ID)
-	} else if available == nil {
-		return "? " + string(current.ID)
-	}
-	return "  " + string(current.ID)
 }
 
 func maybeAutomated(s flux.ServiceStatus) string {
