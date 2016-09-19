@@ -1,3 +1,4 @@
+// Package automator implements automation behavior.
 package automator
 
 import (

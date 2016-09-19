@@ -14,6 +14,11 @@ type JobStore interface {
 	JobPopper
 }
 
+type JobReadWriter interface {
+	JobReader
+	JobWriter
+}
+
 // JobReader is used by clients to query the status of their submitted job.
 type JobReader interface {
 	GetJob(ID) (Job, error)
