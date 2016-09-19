@@ -14,14 +14,14 @@ type JobStore interface {
 	JobPopper
 }
 
-// JobWriter is used by clients to submit a release job.
-type JobWriter interface {
-	PutJob(JobSpec) (ID, error)
-}
-
 // JobReader is used by clients to query the status of their submitted job.
 type JobReader interface {
 	GetJob(ID) (Job, error)
+}
+
+// JobWriter is used by clients to submit a release job.
+type JobWriter interface {
+	PutJob(JobSpec) (ID, error)
 }
 
 // JobPopper is used by workers.

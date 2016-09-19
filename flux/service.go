@@ -3,6 +3,7 @@ package flux
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/pkg/errors"
 )
@@ -135,3 +136,33 @@ func ParseReleaseKind(s string) (ReleaseKind, error) {
 		return "", ErrInvalidReleaseKind
 	}
 }
+
+// ImageStatus is returned by ListImages.
+type ImageStatus struct {
+	ID         ServiceID
+	Containers []Container
+}
+
+// ServiceStatus is returned by ListServices.
+type ServiceStatus struct {
+	ID         ServiceID
+	Containers []Container
+	Status     string
+	Automated  bool
+}
+
+// Container is part of ServiceStatus and ImageStatus.
+type Container struct {
+	Name      string
+	Current   ImageDescription
+	Available []ImageDescription
+}
+
+// ImageDescription is part of Container.
+type ImageDescription struct {
+	ID        ImageID
+	CreatedAt time.Time
+}
+
+// TODO(pb): remove me
+type ReleaseAction struct{}
