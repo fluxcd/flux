@@ -19,6 +19,18 @@ type Server struct {
 	metrics Metrics
 }
 
+func NewServer(
+	cluster *kubernetes.Cluster,
+	logger log.Logger,
+	metrics Metrics,
+) *Server {
+	return &Server{
+		cluster: cluster,
+		logger:  logger,
+		metrics: metrics,
+	}
+}
+
 // Metrics are recorded by service methods.
 type Metrics struct {
 	ListServicesDuration metrics.Histogram // namespace, success
@@ -37,6 +49,8 @@ func (s *Server) ListServices(namespace string) (res []flux.ServiceStatus, err e
 	return nil, errors.New("not implemented")
 }
 
+// TODO(pb): this may need to return something smaller than ImageStatus
+// as we don't want to perform any interaction with the image repo.
 func (s *Server) ListImages(service flux.ServiceSpec) (res []flux.ImageStatus, err error) {
 	defer func(begin time.Time) {
 		s.metrics.ListImagesDuration.With(

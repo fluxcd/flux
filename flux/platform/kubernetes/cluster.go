@@ -2,13 +2,63 @@ package kubernetes
 
 import (
 	"errors"
+	"os"
+	"os/exec"
+
+	"github.com/go-kit/kit/log"
+	"k8s.io/kubernetes/pkg/client/restclient"
+	k8sclient "k8s.io/kubernetes/pkg/client/unversioned"
 
 	"github.com/weaveworks/fluxy/flux"
 	"github.com/weaveworks/fluxy/flux/platform"
 )
 
-// Cluster collects actions that may be performed against a Kubernetes cluster.
-type Cluster struct{}
+// Cluster is a handle to a Kubernetes API server.
+// (Typically, this code is deployed into the same cluster.)
+// It collects behaviors that may be performed against Kubernetes.
+type Cluster struct {
+	config  *restclient.Config
+	client  extendedClient
+	kubectl string
+	logger  log.Logger
+}
+
+type extendedClient struct {
+	*k8sclient.Client
+	*k8sclient.ExtensionsClient
+}
+
+// NewCluster returns a usable cluster. kubectl should be the path of a working
+// kubectl binary.
+func NewCluster(config *restclient.Config, kubectl string, logger log.Logger) (*Cluster, error) {
+	client, err := k8sclient.New(config)
+	if err != nil {
+		return nil, err
+	}
+	extclient, err := k8sclient.NewExtensions(config)
+	if err != nil {
+		return nil, err
+	}
+
+	if kubectl == "" {
+		kubectl, err = exec.LookPath("kubectl")
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		if _, err := os.Stat(kubectl); err != nil {
+			return nil, err
+		}
+	}
+	logger.Log("kubectl", kubectl)
+
+	return &Cluster{
+		config:  config,
+		client:  extendedClient{client, extclient},
+		kubectl: kubectl,
+		logger:  logger,
+	}, nil
+}
 
 // Namespaces returns the active namespaces on the cluster.
 func (c *Cluster) Namespaces() ([]string, error) {
