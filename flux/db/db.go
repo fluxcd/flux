@@ -4,15 +4,11 @@ import (
 	"errors"
 
 	"github.com/weaveworks/fluxy/flux"
-	"github.com/weaveworks/fluxy/flux/history"
 	"github.com/weaveworks/fluxy/flux/release"
 )
 
-// DB provides implementations for several utility interfaces thru a shared
-// database, currently Postgres.
-type DB struct {
-	//
-}
+// DB will eventually get split to individual DBs.
+type DB struct{}
 
 // Demux satisfies the orgmap.Demuxer interface.
 func (db *DB) Demux(orgID string) (ref string, err error) {
@@ -47,14 +43,4 @@ func (db *DB) NextJob() (release.Job, error) {
 // UpdateJob implements release.JobPopper.
 func (db *DB) UpdateJob(j release.Job) error {
 	return errors.New("not implemented")
-}
-
-// WriteEvent implements history.EventWriter.
-func (db *DB) WriteEvent(e history.Event) error {
-	return errors.New("not implemented")
-}
-
-// ReadEvents implements history.EventReader.
-func (db *DB) ReadEvents(spec flux.ServiceSpec, n int) ([]history.Event, error) {
-	return nil, errors.New("not implemented")
 }

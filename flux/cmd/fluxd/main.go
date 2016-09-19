@@ -26,14 +26,15 @@ func main() {
 	fs := pflag.NewFlagSet("default", pflag.ExitOnError)
 	fs.Usage = func() {
 		fmt.Fprintf(os.Stderr, "DESCRIPTION\n")
-		fmt.Fprintf(os.Stderr, "  fluxd is a deployment daemon.\n")
+		fmt.Fprintf(os.Stderr, "  fluxd is part of the flux change management tool.\n")
+		fmt.Fprintf(os.Stderr, "  It is designed to be deployed into your cluster.\n")
 		fmt.Fprintf(os.Stderr, "\n")
 		fmt.Fprintf(os.Stderr, "FLAGS\n")
 		fs.PrintDefaults()
 	}
 	// This mirrors how kubectl extracts information from the environment.
 	var (
-		listenAddr                = fs.StringP("listen", "l", ":3030", "Listen address for Flux API clients")
+		listenAddr                = fs.StringP("listen", "l", ":3031", "Listen address for fluxsvc clients")
 		kubernetesMinikube        = fs.Bool("kubernetes-minikube", false, "Parse Kubernetes access information from standard minikube files")
 		kubernetesKubectl         = fs.String("kubernetes-kubectl", "", "Optional, explicit path to kubectl tool")
 		kubernetesHost            = fs.String("kubernetes-host", "", "Kubernetes host, e.g. http://10.11.12.13:8080")

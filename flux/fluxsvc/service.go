@@ -2,7 +2,7 @@ package fluxsvc
 
 import (
 	"github.com/weaveworks/fluxy/flux"
-	"github.com/weaveworks/fluxy/history"
+	"github.com/weaveworks/fluxy/flux/history"
 )
 
 // Service captures the behaviors expected of the fluxsvc, which is what fluxctl
@@ -38,5 +38,5 @@ type Automator interface {
 
 // HistoryReader reads history entries from a store parameterized by orgID.
 type HistoryReader interface {
-	ReadHistory(orgID string, s flux.ServiceSpec, n int) ([]history.Event, error)
+	History(orgID string, s flux.ServiceSpec, n int) ([]history.Event, error)
 }

@@ -8,23 +8,43 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/metrics"
 
-	"github.com/weaveworks/fluxy/automator"
 	"github.com/weaveworks/fluxy/flux"
-	"github.com/weaveworks/fluxy/flux/fluxd"
+	"github.com/weaveworks/fluxy/flux/automator"
+	"github.com/weaveworks/fluxy/flux/history"
+	"github.com/weaveworks/fluxy/flux/orgmap"
+	"github.com/weaveworks/fluxy/flux/registry"
 	"github.com/weaveworks/fluxy/flux/release"
-	"github.com/weaveworks/fluxy/history"
-	"github.com/weaveworks/fluxy/registry"
 )
 
 // Server implements the fluxsvc service.
 type Server struct {
-	fluxd       fluxd.Service         // ListServices, ListImages
+	mapper      orgmap.Mapper         // ListServices, ListImages (via fluxd)
 	imageRepo   *registry.Repository  // ListImages
 	automator   automator.Automator   // Automate, Deautomate
 	releaser    release.JobReadWriter // Release
 	eventReader history.EventReader   // History
 	logger      log.Logger
 	metrics     Metrics
+}
+
+func NewServer(
+	mapper orgmap.Mapper,
+	imageRepo *registry.Repository,
+	automator automator.Automator,
+	releaser release.JobReadWriter,
+	eventReader history.EventReader,
+	logger log.Logger,
+	metrics Metrics,
+) *Server {
+	return &Server{
+		mapper:      mapper,
+		imageRepo:   imageRepo,
+		automator:   automator,
+		releaser:    releaser,
+		eventReader: eventReader,
+		logger:      logger,
+		metrics:     metrics,
+	}
 }
 
 // Metrics are recorded by service methods.

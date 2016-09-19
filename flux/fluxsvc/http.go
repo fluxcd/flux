@@ -296,7 +296,7 @@ func handleHistory(h HistoryReader) http.Handler {
 			return
 		}
 
-		h, err := h.ReadHistory(orgID, spec, int(n))
+		h, err := h.History(orgID, spec, int(n))
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			fmt.Fprintf(w, err.Error())
