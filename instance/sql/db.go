@@ -57,12 +57,37 @@ func New(driver, datasource string) (*db, error) {
 	return db, db.ensureTables()
 }
 
-func (db *db) Set(inst flux.InstanceID, conf instance.InstanceConfig) error {
-	bytes, err := json.Marshal(conf)
+func (db *db) Update(inst flux.InstanceID, update instance.UpdateFunc) error {
+	tx, err := db.conn.Begin()
 	if err != nil {
 		return err
 	}
-	tx, err := db.conn.Begin()
+
+	var (
+		currentConfig instance.InstanceConfig
+		confString    string
+	)
+	switch tx.QueryRow(`SELECT config FROM config WHERE instance = $1`, string(inst)).Scan(&confString) {
+	case sql.ErrNoRows:
+		currentConfig = instance.MakeConfig()
+	case nil:
+		if err = json.Unmarshal([]byte(confString), &currentConfig); err != nil {
+			return err
+		}
+	default:
+		return err
+	}
+
+	newConfig, err := update(currentConfig)
+	if err != nil {
+		err2 := tx.Rollback()
+		if err2 != nil {
+			return errors.Wrapf(err, "transaction rollback failed: %s", err2)
+		}
+		return err
+	}
+
+	newConfigBytes, err := json.Marshal(newConfig)
 	if err != nil {
 		return err
 	}
@@ -70,7 +95,7 @@ func (db *db) Set(inst flux.InstanceID, conf instance.InstanceConfig) error {
 	_, err = tx.Exec(`DELETE FROM config WHERE instance = $1`, string(inst))
 	if err == nil {
 		_, err = tx.Exec(`INSERT INTO config (instance, config, stamp) VALUES
-                       ($1, $2, now())`, string(inst), string(bytes))
+                       ($1, $2, now())`, string(inst), string(newConfigBytes))
 	}
 	if err == nil {
 		err = tx.Commit()

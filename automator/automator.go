@@ -39,19 +39,17 @@ func New(cfg Config) (*Automator, error) {
 func (a *Automator) recordAutomation(service flux.ServiceID, automation bool) error {
 	a.mtx.Lock()
 	defer a.mtx.Unlock()
-	instanceConfig, err := a.cfg.InstanceDB.Get(HardwiredInstance)
-	if err != nil {
-		return err
-	}
-	if serviceConf, found := instanceConfig.Services[service]; found {
-		serviceConf.Automated = automation
-		instanceConfig.Services[service] = serviceConf
-	} else {
-		instanceConfig.Services[service] = instance.ServiceConfig{
-			Automated: true,
+	if err := a.cfg.InstanceDB.Update(HardwiredInstance, func(conf instance.InstanceConfig) (instance.InstanceConfig, error) {
+		if serviceConf, found := conf.Services[service]; found {
+			serviceConf.Automated = automation
+			conf.Services[service] = serviceConf
+		} else {
+			conf.Services[service] = instance.ServiceConfig{
+				Automated: true,
+			}
 		}
-	}
-	if err = a.cfg.InstanceDB.Set(HardwiredInstance, instanceConfig); err != nil {
+		return conf, nil
+	}); err != nil {
 		return err
 	}
 	return nil
