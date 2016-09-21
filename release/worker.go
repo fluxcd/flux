@@ -6,7 +6,8 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/metrics"
 	"github.com/pkg/errors"
-	flux "github.com/weaveworks/fluxy"
+
+	"github.com/weaveworks/fluxy"
 	"github.com/weaveworks/fluxy/git"
 	"github.com/weaveworks/fluxy/history"
 	"github.com/weaveworks/fluxy/platform/kubernetes"
@@ -15,7 +16,7 @@ import (
 
 // Worker grabs release jobs from the job store and executes them.
 type Worker struct {
-	popper   JobPopper
+	popper   flux.ReleaseJobPopper
 	releaser *releaser
 	logger   log.Logger
 }
@@ -23,7 +24,7 @@ type Worker struct {
 // NewWorker returns a usable worker pulling jobs from the JobPopper.
 // Run Work in its own goroutine to start execution.
 func NewWorker(
-	popper JobPopper,
+	popper flux.ReleaseJobPopper,
 	platform *kubernetes.Cluster,
 	registry *registry.Client,
 	repo git.Repo,
@@ -45,7 +46,7 @@ func NewWorker(
 func (w *Worker) Work(tick <-chan time.Time) {
 	for range tick {
 		j, err := w.popper.NextJob()
-		if err == ErrNoJobAvailable {
+		if err == flux.ErrNoReleaseJobAvailable {
 			continue // normal
 		}
 		if err != nil {
@@ -70,6 +71,7 @@ func (w *Worker) Work(tick <-chan time.Time) {
 			j.Success = true
 			j.Status = "Complete."
 			j.Log = actions2log(res)
+			j.TemporaryReleaseActions = res
 		}
 		if err := w.popper.UpdateJob(j); err != nil {
 			w.logger.Log("err", errors.Wrapf(err, "updating release job %s", j.ID))

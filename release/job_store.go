@@ -1,15 +1,13 @@
 package release
 
 import (
-	"errors"
-	"fmt"
-	"math/rand"
 	"sync"
 	"time"
 
 	"github.com/weaveworks/fluxy"
 )
 
+/*
 // JobStore collects behaviors necessary for interacting with jobs.
 type JobStore interface {
 	JobReadWriter
@@ -51,15 +49,16 @@ func init() {
 
 // Job collects a job spec, an ID, and details about the progress.
 type Job struct {
-	Spec      JobSpec   `json:"spec"`
-	ID        ID        `json:"id"`
-	Submitted time.Time `json:"submitted"`
-	Claimed   time.Time `json:"claimed,omitempty"`
-	Started   time.Time `json:"started,omitempty"`
-	Status    string    `json:"status"`
-	Log       []string  `json:"log,omitempty"`
-	Finished  time.Time `json:"finished,omitempty"`
-	Success   bool      `json:"success"` // only makes sense after Finished
+	Spec                    JobSpec         `json:"spec"`
+	ID                      ID              `json:"id"`
+	Submitted               time.Time       `json:"submitted"`
+	Claimed                 time.Time       `json:"claimed,omitempty"`
+	Started                 time.Time       `json:"started,omitempty"`
+	Status                  string          `json:"status"`
+	Log                     []string        `json:"log,omitempty"`
+	TemporaryReleaseActions []flux.ReleaseAction `json:"-"` // TODO(pb): REMOVE!
+	Finished                time.Time       `json:"finished,omitempty"`
+	Success                 bool            `json:"success"` // only makes sense after Finished
 }
 
 // JobSpec is the things that a user requests when making a release.
@@ -68,42 +67,43 @@ type JobSpec struct {
 	ImageSpec   flux.ImageSpec
 	Kind        flux.ReleaseKind
 }
+*/
 
 // InmemStore is an in-memory job store.
 type InmemStore struct {
 	mtx  sync.RWMutex
-	jobs map[ID]Job
+	jobs map[flux.ReleaseID]flux.ReleaseJob
 }
 
 // NewInmemStore returns a usable in-mem job store.
 func NewInmemStore() *InmemStore {
 	return &InmemStore{
-		jobs: map[ID]Job{},
+		jobs: map[flux.ReleaseID]flux.ReleaseJob{},
 	}
 }
 
 // GetJob implements JobStore.
-func (s *InmemStore) GetJob(id ID) (Job, error) {
+func (s *InmemStore) GetJob(id flux.ReleaseID) (flux.ReleaseJob, error) {
 	s.mtx.RLock()
 	defer s.mtx.RUnlock()
 	j, ok := s.jobs[id]
 	if !ok {
-		return Job{}, ErrNoSuchJob
+		return flux.ReleaseJob{}, flux.ErrNoSuchReleaseJob
 	}
 	return j, nil
 }
 
 // PutJob implements JobStore.
-func (s *InmemStore) PutJob(spec JobSpec) (ID, error) {
+func (s *InmemStore) PutJob(spec flux.ReleaseJobSpec) (flux.ReleaseID, error) {
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
 
-	id := newID()
-	for _, exists := s.jobs[id]; exists; id = newID() {
+	id := flux.NewReleaseID()
+	for _, exists := s.jobs[id]; exists; id = flux.NewReleaseID() {
 		// in case of ID collision
 	}
 
-	s.jobs[id] = Job{
+	s.jobs[id] = flux.ReleaseJob{
 		Spec:      spec,
 		ID:        id,
 		Submitted: time.Now(),
@@ -114,12 +114,12 @@ func (s *InmemStore) PutJob(spec JobSpec) (ID, error) {
 
 // NextJob implements JobStore.
 // It returns immediately. If no job is available, ErrNoJobAvailable is returned.
-func (s *InmemStore) NextJob() (Job, error) {
+func (s *InmemStore) NextJob() (flux.ReleaseJob, error) {
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
 
 	var (
-		candidate Job
+		candidate flux.ReleaseJob
 		earliest  = time.Now()
 	)
 	for _, j := range s.jobs {
@@ -129,7 +129,7 @@ func (s *InmemStore) NextJob() (Job, error) {
 	}
 
 	if candidate.ID == "" {
-		return Job{}, ErrNoJobAvailable
+		return flux.ReleaseJob{}, flux.ErrNoReleaseJobAvailable
 	}
 
 	candidate.Claimed = time.Now()
@@ -138,7 +138,7 @@ func (s *InmemStore) NextJob() (Job, error) {
 }
 
 // UpdateJob implements JobStore.
-func (s *InmemStore) UpdateJob(j Job) error {
+func (s *InmemStore) UpdateJob(j flux.ReleaseJob) error {
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
 	s.jobs[j.ID] = j

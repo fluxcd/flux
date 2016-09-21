@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/metrics"
@@ -234,15 +235,23 @@ func main() {
 		}
 	}
 
-	// Repo and releaser.
-	var rel flux.Releaser
+	// Release job store.
+	var rjs flux.ReleaseJobStore
+	{
+		rjs = release.NewInmemStore()
+	}
+
+	// Release worker.
 	{
 		repo := git.Repo{
 			URL:  *repoURL,
 			Key:  *repoKey,
 			Path: *repoPath,
 		}
-		rel = release.New(k8s, reg, logger, repo, eventWriter, releaseMetrics, helperDuration)
+		worker := release.NewWorker(rjs, k8s, reg, repo, eventWriter, releaseMetrics, helperDuration, logger)
+		ticker := time.NewTicker(5 * time.Second)
+		defer ticker.Stop()
+		go worker.Work(ticker.C)
 	}
 
 	// Automator component.
@@ -250,7 +259,7 @@ func main() {
 	{
 		var err error
 		auto, err = automator.New(automator.Config{
-			Releaser: rel,
+			Releaser: rjs,
 			History:  eventWriter,
 		})
 		if err == nil {
@@ -262,7 +271,7 @@ func main() {
 	}
 
 	// The server.
-	server := flux.NewServer(k8s, reg, rel, auto, eventReader, logger, serverMetrics, helperDuration)
+	server := flux.NewServer(k8s, reg, rjs, auto, eventReader, logger, serverMetrics, helperDuration)
 
 	// Mechanical components.
 	errc := make(chan error)
