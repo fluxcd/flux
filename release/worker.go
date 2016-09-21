@@ -16,7 +16,7 @@ import (
 
 // Worker grabs release jobs from the job store and executes them.
 type Worker struct {
-	popper   flux.ReleaseJobPopper
+	jobs     flux.ReleaseJobPopUpdater
 	releaser *releaser
 	logger   log.Logger
 }
@@ -24,7 +24,7 @@ type Worker struct {
 // NewWorker returns a usable worker pulling jobs from the JobPopper.
 // Run Work in its own goroutine to start execution.
 func NewWorker(
-	popper flux.ReleaseJobPopper,
+	jobs flux.ReleaseJobPopUpdater,
 	platform *kubernetes.Cluster,
 	registry *registry.Client,
 	repo git.Repo,
@@ -34,7 +34,7 @@ func NewWorker(
 	logger log.Logger,
 ) *Worker {
 	return &Worker{
-		popper:   popper,
+		jobs:     jobs,
 		releaser: newReleaser(platform, registry, logger, repo, history, metrics, helperDuration),
 		logger:   logger,
 	}
@@ -45,7 +45,7 @@ func NewWorker(
 // Stop the ticker to stop the worker.
 func (w *Worker) Work(tick <-chan time.Time) {
 	for range tick {
-		j, err := w.popper.NextJob()
+		job, err := w.jobs.NextJob()
 		if err == flux.ErrNoReleaseJobAvailable {
 			continue // normal
 		}
@@ -54,35 +54,25 @@ func (w *Worker) Work(tick <-chan time.Time) {
 			continue
 		}
 
-		j.Started = time.Now()
-		j.Status = "Executing..."
-		if err := w.popper.UpdateJob(j); err != nil {
-			w.logger.Log("err", errors.Wrapf(err, "updating release job %s", j.ID))
+		job.Started = time.Now()
+		job.Status = "Executing..."
+		if err := w.jobs.UpdateJob(job); err != nil {
+			w.logger.Log("err", errors.Wrapf(err, "updating release job %s", job.ID))
 		}
 
 		// TODO(pb): update Release to take a Job and continuously Update it
 		// instead of returning release actions.
-		res, err := w.releaser.Release(j.Spec.ServiceSpec, j.Spec.ImageSpec, j.Spec.Kind)
-		j.Finished = time.Now()
+		err = w.releaser.Release(&job, w.jobs)
+		job.Finished = time.Now()
 		if err != nil {
-			j.Success = false
-			j.Status = err.Error()
+			job.Success = false
+			job.Status = "Failed: " + err.Error()
 		} else {
-			j.Success = true
-			j.Status = "Complete."
-			j.Log = actions2log(res)
-			j.TemporaryReleaseActions = res
+			job.Success = true
+			job.Status = "Complete."
 		}
-		if err := w.popper.UpdateJob(j); err != nil {
-			w.logger.Log("err", errors.Wrapf(err, "updating release job %s", j.ID))
+		if err := w.jobs.UpdateJob(job); err != nil {
+			w.logger.Log("err", errors.Wrapf(err, "updating release job %s", job.ID))
 		}
 	}
-}
-
-func actions2log(res []flux.ReleaseAction) []string {
-	a := make([]string, len(res))
-	for i := range res {
-		a[i] = res[i].Description
-	}
-	return a
 }

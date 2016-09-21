@@ -124,12 +124,8 @@ func (opts *serviceReleaseOpts) RunE(_ *cobra.Command, args []string) error {
 	} else {
 		fmt.Fprintf(os.Stdout, "Here's what happened:\n")
 	}
-
-	for i, action := range job.TemporaryReleaseActions {
-		fmt.Fprintf(os.Stdout, " %d) %s\n", i+1, action.Description)
-		if action.Result != "" {
-			fmt.Fprintf(os.Stdout, "\t%s\n", action.Result)
-		}
+	for i, msg := range job.Log {
+		fmt.Fprintf(os.Stdout, " %d) %s\n", i+1, msg)
 	}
 
 	if !opts.dryRun {

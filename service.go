@@ -187,16 +187,24 @@ type HistoryEntry struct {
 
 type ReleaseJobStore interface {
 	ReleaseJobReadWriter
-	ReleaseJobPopper
+	ReleaseJobPopUpdater
 }
 
 type ReleaseJobReadWriter interface {
-	GetJob(ReleaseID) (ReleaseJob, error)
 	PutJob(ReleaseJobSpec) (ReleaseID, error)
+	GetJob(ReleaseID) (ReleaseJob, error)
+}
+
+type ReleaseJobPopUpdater interface {
+	ReleaseJobPopper
+	ReleaseJobUpdater
 }
 
 type ReleaseJobPopper interface {
 	NextJob() (ReleaseJob, error)
+}
+
+type ReleaseJobUpdater interface {
 	UpdateJob(ReleaseJob) error
 }
 
@@ -218,20 +226,19 @@ func init() {
 }
 
 type ReleaseJob struct {
-	Spec                    ReleaseJobSpec  `json:"spec"`
-	ID                      ReleaseID       `json:"id"`
-	Submitted               time.Time       `json:"submitted"`
-	Claimed                 time.Time       `json:"claimed,omitempty"`
-	Started                 time.Time       `json:"started,omitempty"`
-	Status                  string          `json:"status"`
-	Log                     []string        `json:"log,omitempty"`
-	TemporaryReleaseActions []ReleaseAction `json:"temporary_release_actions"` // TODO(pb): REMOVE!
-	Finished                time.Time       `json:"finished,omitempty"`
-	Success                 bool            `json:"success"` // only makes sense after Finished
+	Spec      ReleaseJobSpec `json:"spec"`
+	ID        ReleaseID      `json:"id"`
+	Submitted time.Time      `json:"submitted"`
+	Claimed   time.Time      `json:"claimed,omitempty"`
+	Started   time.Time      `json:"started,omitempty"`
+	Status    string         `json:"status"`
+	Log       []string       `json:"log,omitempty"`
+	Finished  time.Time      `json:"finished,omitempty"`
+	Success   bool           `json:"success"` // only makes sense after Finished
 }
 
-func (j ReleaseJob) IsFinished() bool {
-	return !j.Finished.IsZero()
+func (job *ReleaseJob) IsFinished() bool {
+	return !job.Finished.IsZero()
 }
 
 type ReleaseJobSpec struct {
