@@ -200,7 +200,7 @@ func (r *releaser) releaseAllToLatest(kind flux.ReleaseKind, updateJob func(stri
 	}
 	res = append(res, r.releaseActionCommitAndPush("Release latest images to all services"))
 	for service := range regradeMap {
-		res = append(res, r.releaseActionReleaseService(service, "latest images (to all services)"))
+		res = append(res, r.releaseActionRegradeService(service, "latest images (to all services)"))
 	}
 
 	return nil
@@ -279,7 +279,7 @@ func (r *releaser) releaseAllForImage(target flux.ImageID, kind flux.ReleaseKind
 	}
 	res = append(res, r.releaseActionCommitAndPush(fmt.Sprintf("Release %s to all services", target)))
 	for service := range regradeMap {
-		res = append(res, r.releaseActionReleaseService(service, string(target)+" (to all services)"))
+		res = append(res, r.releaseActionRegradeService(service, string(target)+" (to all services)"))
 	}
 
 	return nil
@@ -357,7 +357,7 @@ func (r *releaser) releaseOneToLatest(id flux.ServiceID, kind flux.ReleaseKind, 
 	res = append(res, r.releaseActionClone())
 	res = append(res, r.releaseActionUpdatePodController(id, regrades))
 	res = append(res, r.releaseActionCommitAndPush(fmt.Sprintf("Release latest images to %s", id)))
-	res = append(res, r.releaseActionReleaseService(id, "latest images"))
+	res = append(res, r.releaseActionRegradeService(id, "latest images"))
 
 	return nil
 }
@@ -424,7 +424,7 @@ func (r *releaser) releaseOne(serviceID flux.ServiceID, target flux.ImageID, kin
 	res = append(res, r.releaseActionClone())
 	res = append(res, r.releaseActionUpdatePodController(serviceID, regrades))
 	res = append(res, r.releaseActionCommitAndPush(fmt.Sprintf("Release %s to %s", target, serviceID)))
-	res = append(res, r.releaseActionReleaseService(serviceID, string(target)))
+	res = append(res, r.releaseActionRegradeService(serviceID, string(target)))
 
 	return nil
 }
@@ -449,7 +449,7 @@ func (r *releaser) releaseOneWithoutUpdate(serviceID flux.ServiceID, kind flux.R
 	res = append(res, r.releaseActionPrintf("I'm going to release service %s using the config from the git repo, without updating it", serviceID))
 	res = append(res, r.releaseActionClone())
 	res = append(res, r.releaseActionFindPodController(serviceID))
-	res = append(res, r.releaseActionReleaseService(serviceID, "without update"))
+	res = append(res, r.releaseActionRegradeService(serviceID, "without update"))
 
 	return nil
 }
@@ -483,7 +483,7 @@ func (r *releaser) releaseAllWithoutUpdate(kind flux.ReleaseKind, updateJob func
 	res = append(res, r.releaseActionClone())
 	for _, service := range serviceIDs {
 		res = append(res, r.releaseActionFindPodController(service))
-		res = append(res, r.releaseActionReleaseService(service, "without update (all services)"))
+		res = append(res, r.releaseActionRegradeService(service, "without update (all services)"))
 	}
 
 	return nil
@@ -701,13 +701,13 @@ func (r *releaser) releaseActionCommitAndPush(msg string) flux.ReleaseAction {
 	}
 }
 
-func (r *releaser) releaseActionReleaseService(service flux.ServiceID, cause string) flux.ReleaseAction {
+func (r *releaser) releaseActionRegradeService(service flux.ServiceID, cause string) flux.ReleaseAction {
 	return flux.ReleaseAction{
-		Description: fmt.Sprintf("Release the service %s.", service),
+		Description: fmt.Sprintf("Regrade the service %s.", service),
 		Do: func(rc *flux.ReleaseContext) (res string, err error) {
 			defer func(begin time.Time) {
 				r.metrics.ActionDuration.With(
-					"action", "release_service",
+					"action", "regrade_service",
 					"success", fmt.Sprint(err == nil),
 				).Observe(time.Since(begin).Seconds())
 			}(time.Now())
@@ -718,13 +718,13 @@ func (r *releaser) releaseActionReleaseService(service flux.ServiceID, cause str
 			}
 
 			namespace, serviceName := service.Components()
-			r.history.LogEvent(namespace, serviceName, "Starting release "+cause)
+			r.history.LogEvent(namespace, serviceName, "Starting regrade "+cause)
 
-			err = r.helper.PlatformRelease(namespace, serviceName, def)
+			err = r.helper.PlatformRegrade(namespace, serviceName, def)
 			if err == nil {
-				r.history.LogEvent(namespace, serviceName, "Release "+cause+": done")
+				r.history.LogEvent(namespace, serviceName, "Regrade "+cause+": done")
 			} else {
-				r.history.LogEvent(namespace, serviceName, "Release "+cause+": failed: "+err.Error())
+				r.history.LogEvent(namespace, serviceName, "Regrade "+cause+": failed: "+err.Error())
 			}
 
 			return "", err

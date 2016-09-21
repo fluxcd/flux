@@ -154,16 +154,17 @@ func definitionObj(bytes []byte) (*apiObject, error) {
 	return &obj, yaml.Unmarshal(bytes, &obj)
 }
 
-// Release performs a update of the service, from whatever it is currently, to
+// Regrade performs an update of the service, from whatever it is currently, to
 // what is described by the new resource, which can be a replication controller
 // or deployment.
 //
-// Release assumes there is a one-to-one mapping between services and
-// replication controllers or deployments; this can be improved. Release blocks
-// until the rolling update is complete; this can be improved. Release invokes
-// `kubectl rolling-update` or `kubectl apply` in a seperate process, and
-// assumes kubectl is in the PATH; this can be improved.
-func (c *Cluster) Release(namespace, serviceName string, newDefinition []byte) error {
+// Regrade assumes there is a one-to-one mapping between services and
+// replication controllers or deployments; this can be
+// improved. Regrade blocks until a rolling update is complete; this
+// can be improved. Regrade invokes `kubectl rolling-update` or
+// `kubectl apply` in a seperate process, and assumes kubectl is in
+// the PATH; this can be improved.
+func (c *Cluster) Regrade(namespace, serviceName string, newDefinition []byte) error {
 	newDef, err := definitionObj(newDefinition)
 	if err != nil {
 		return errors.Wrap(err, "reading definition")
@@ -174,7 +175,7 @@ func (c *Cluster) Release(namespace, serviceName string, newDefinition []byte) e
 		return err
 	}
 
-	plan, err := pc.createRegrade(newDef)
+	plan, err := pc.newRegrade(newDef)
 	if err != nil {
 		return err
 	}

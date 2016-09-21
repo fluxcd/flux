@@ -155,15 +155,15 @@ func (h *Helper) RegistryGetRepository(repository string) (res *registry.Reposit
 	return h.registry.GetRepository(repository)
 }
 
-func (h *Helper) PlatformRelease(namespace, serviceName string, newDefinition []byte) (err error) {
+func (h *Helper) PlatformRegrade(namespace, serviceName string, newDefinition []byte) (err error) {
 	defer func(begin time.Time) {
 		h.duration.With(
-			"method", "PlatformRelease",
+			"method", "PlatformRegrade",
 			"success", fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
-	return h.platform.Release(namespace, serviceName, newDefinition)
+	return h.platform.Regrade(namespace, serviceName, newDefinition)
 }
 
 func (h *Helper) Log(args ...interface{}) {

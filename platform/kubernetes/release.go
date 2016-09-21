@@ -15,7 +15,7 @@ import (
 	"github.com/weaveworks/fluxy/platform"
 )
 
-func (c podController) createRegrade(newDefinition *apiObject) (*regrade, error) {
+func (c podController) newRegrade(newDefinition *apiObject) (*regrade, error) {
 	k := c.kind()
 	if newDefinition.Kind != k {
 		return nil, fmt.Errorf(`Expected new definition of kind %q, to match old definition; got %q`, k, newDefinition.Kind)
