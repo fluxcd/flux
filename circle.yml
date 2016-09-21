@@ -6,9 +6,14 @@ machine:
     GOROOT: ""
     GOPATH: "${HOME}"
     GO15VENDOREXPERIMENT: "1"
+    GODIST: "go1.7.1.linux-amd64.tar.gz"
 
 checkout:
   post:
+    - mkdir -p download
+    - test -e download/$GODIST || curl -o download/$GODIST https://storage.googleapis.com/golang/$GODIST
+    - sudo rm -rf /usr/local/go
+    - sudo tar -C /usr/local -xzf download/$GODIST
     - mkdir -p ${GOPATH}/src/github.com/weaveworks
     - mv ${HOME}/fluxy ${GOPATH}/src/github.com/weaveworks
     - ln -s ${GOPATH}/src/github.com/weaveworks/fluxy ${HOME}/fluxy # Circle needs this to be here, apparently
@@ -20,6 +25,7 @@ dependencies:
     - "~/fluxy/vendor/github.com"
     - "~/fluxy/vendor/gopkg.in"
     - "~/fluxy/vendor/golang.org"
+    - "~/download"
   override: 
     - go get github.com/Masterminds/glide
     - go get github.com/FiloSottile/gvt

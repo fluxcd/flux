@@ -2,6 +2,7 @@ package flux
 
 import (
 	"fmt"
+	"math/rand"
 	"os"
 	"strings"
 	"time"
@@ -12,7 +13,8 @@ import (
 type Service interface {
 	ListServices(namespace string) ([]ServiceStatus, error)
 	ListImages(ServiceSpec) ([]ImageStatus, error)
-	Release(ServiceSpec, ImageSpec, ReleaseKind) ([]ReleaseAction, error)
+	PostRelease(ReleaseJobSpec) (ReleaseID, error)
+	GetRelease(ReleaseID) (ReleaseJob, error)
 	Automate(ServiceID) error
 	Deautomate(ServiceID) error
 	History(ServiceSpec) ([]HistoryEntry, error)
@@ -179,4 +181,69 @@ type HistoryEntry struct {
 	Stamp time.Time
 	Type  string
 	Data  string
+}
+
+// ---
+
+type ReleaseJobStore interface {
+	ReleaseJobReadPusher
+	ReleaseJobWritePopper
+	GC() error
+}
+
+type ReleaseJobReadPusher interface {
+	GetJob(ReleaseID) (ReleaseJob, error)
+	PutJob(ReleaseJobSpec) (ReleaseID, error)
+}
+
+type ReleaseJobWritePopper interface {
+	ReleaseJobUpdater
+	ReleaseJobPopper
+}
+
+type ReleaseJobUpdater interface {
+	UpdateJob(ReleaseJob) error
+}
+
+type ReleaseJobPopper interface {
+	NextJob() (ReleaseJob, error)
+}
+
+var (
+	ErrNoSuchReleaseJob      = errors.New("no such release job found")
+	ErrNoReleaseJobAvailable = errors.New("no release job available")
+)
+
+type ReleaseID string
+
+func NewReleaseID() ReleaseID {
+	b := make([]byte, 16)
+	rand.Read(b)
+	return ReleaseID(fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:]))
+}
+
+func init() {
+	rand.Seed(time.Now().UnixNano())
+}
+
+type ReleaseJob struct {
+	Spec      ReleaseJobSpec `json:"spec"`
+	ID        ReleaseID      `json:"id"`
+	Submitted time.Time      `json:"submitted"`
+	Claimed   time.Time      `json:"claimed,omitempty"`
+	Started   time.Time      `json:"started,omitempty"`
+	Status    string         `json:"status"`
+	Log       []string       `json:"log,omitempty"`
+	Finished  time.Time      `json:"finished,omitempty"`
+	Success   bool           `json:"success"` // only makes sense after Finished
+}
+
+func (job *ReleaseJob) IsFinished() bool {
+	return !job.Finished.IsZero()
+}
+
+type ReleaseJobSpec struct {
+	ServiceSpec ServiceSpec
+	ImageSpec   ImageSpec
+	Kind        ReleaseKind
 }

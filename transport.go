@@ -22,7 +22,8 @@ func NewRouter() *mux.Router {
 	r := mux.NewRouter()
 	r.NewRoute().Name("ListServices").Methods("GET").Path("/v1/services").Queries("namespace", "{namespace}") // optional namespace!
 	r.NewRoute().Name("ListImages").Methods("GET").Path("/v1/images").Queries("service", "{service}")
-	r.NewRoute().Name("Release").Methods("POST").Path("/v1/release").Queries("service", "{service}", "image", "{image}", "kind", "{kind}")
+	r.NewRoute().Name("PostRelease").Methods("POST").Path("/v1/release").Queries("service", "{service}", "image", "{image}", "kind", "{kind}")
+	r.NewRoute().Name("GetRelease").Methods("GET").Path("/v1/release").Queries("id", "{id}")
 	r.NewRoute().Name("Automate").Methods("POST").Path("/v1/automate").Queries("service", "{service}")
 	r.NewRoute().Name("Deautomate").Methods("POST").Path("/v1/deautomate").Queries("service", "{service}")
 	r.NewRoute().Name("History").Methods("GET").Path("/v1/history").Queries("service", "{service}")
@@ -33,7 +34,8 @@ func NewHandler(s Service, r *mux.Router, logger log.Logger, h metrics.Histogram
 	for method, handlerFunc := range map[string]func(Service) http.Handler{
 		"ListServices": handleListServices,
 		"ListImages":   handleListImages,
-		"Release":      handleRelease,
+		"PostRelease":  handlePostRelease,
+		"GetRelease":   handleGetRelease,
 		"Automate":     handleAutomate,
 		"Deautomate":   handleDeautomate,
 		"History":      handleHistory,
@@ -141,7 +143,12 @@ func invokeListImages(client *http.Client, router *mux.Router, endpoint string, 
 	return res, nil
 }
 
-func handleRelease(s Service) http.Handler {
+type postReleaseResponse struct {
+	Status    string    `json:"status"`
+	ReleaseID ReleaseID `json:"release_id"`
+}
+
+func handlePostRelease(s Service) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var (
 			vars    = mux.Vars(r)
@@ -163,7 +170,11 @@ func handleRelease(s Service) http.Handler {
 			return
 		}
 
-		a, err := s.Release(serviceSpec, imageSpec, releaseKind)
+		id, err := s.PostRelease(ReleaseJobSpec{
+			ServiceSpec: serviceSpec,
+			ImageSpec:   imageSpec,
+			Kind:        releaseKind,
+		})
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			fmt.Fprintf(w, err.Error())
@@ -171,7 +182,10 @@ func handleRelease(s Service) http.Handler {
 		}
 
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		if err := json.NewEncoder(w).Encode(a); err != nil {
+		if err := json.NewEncoder(w).Encode(postReleaseResponse{
+			Status:    "Submitted.",
+			ReleaseID: id,
+		}); err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			fmt.Fprintf(w, err.Error())
 			return
@@ -179,25 +193,67 @@ func handleRelease(s Service) http.Handler {
 	})
 }
 
-func invokeRelease(client *http.Client, router *mux.Router, endpoint string, s ServiceSpec, i ImageSpec, k ReleaseKind) ([]ReleaseAction, error) {
-	u, err := makeURL(endpoint, router, "Release", "service", string(s), "image", string(i), "kind", string(k))
+func invokePostRelease(client *http.Client, router *mux.Router, endpoint string, s ReleaseJobSpec) (ReleaseID, error) {
+	u, err := makeURL(endpoint, router, "PostRelease", "service", string(s.ServiceSpec), "image", string(s.ImageSpec), "kind", string(s.Kind))
 	if err != nil {
-		return nil, errors.Wrap(err, "constructing URL")
+		return "", errors.Wrap(err, "constructing URL")
 	}
 
 	req, err := http.NewRequest("POST", u.String(), nil)
 	if err != nil {
-		return nil, errors.Wrapf(err, "constructing request %s", u)
+		return "", errors.Wrapf(err, "constructing request %s", u)
 	}
 
 	resp, err := executeRequest(client, req)
 	if err != nil {
-		return nil, errors.Wrap(err, "executing HTTP request")
+		return "", errors.Wrap(err, "executing HTTP request")
 	}
 
-	var res []ReleaseAction
+	var res postReleaseResponse
 	if err := json.NewDecoder(resp.Body).Decode(&res); err != nil {
-		return nil, errors.Wrap(err, "decoding response from server")
+		return "", errors.Wrap(err, "decoding response from server")
+	}
+	return res.ReleaseID, nil
+}
+
+func handleGetRelease(s Service) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		id := mux.Vars(r)["id"]
+		job, err := s.GetRelease(ReleaseID(id))
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintf(w, err.Error())
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		if err := json.NewEncoder(w).Encode(job); err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintf(w, err.Error())
+			return
+		}
+	})
+}
+
+func invokeGetRelease(client *http.Client, router *mux.Router, endpoint string, id ReleaseID) (ReleaseJob, error) {
+	u, err := makeURL(endpoint, router, "GetRelease", "id", string(id))
+	if err != nil {
+		return ReleaseJob{}, errors.Wrap(err, "constructing URL")
+	}
+
+	req, err := http.NewRequest("GET", u.String(), nil)
+	if err != nil {
+		return ReleaseJob{}, errors.Wrapf(err, "constructing request %s", u)
+	}
+
+	resp, err := executeRequest(client, req)
+	if err != nil {
+		return ReleaseJob{}, errors.Wrap(err, "executing HTTP request")
+	}
+
+	var res ReleaseJob
+	if err := json.NewDecoder(resp.Body).Decode(&res); err != nil {
+		return ReleaseJob{}, errors.Wrap(err, "decoding response from server")
 	}
 	return res, nil
 }

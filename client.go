@@ -28,8 +28,12 @@ func (c *client) ListImages(s ServiceSpec) ([]ImageStatus, error) {
 	return invokeListImages(c.client, c.router, c.endpoint, s)
 }
 
-func (c *client) Release(s ServiceSpec, i ImageSpec, k ReleaseKind) ([]ReleaseAction, error) {
-	return invokeRelease(c.client, c.router, c.endpoint, s, i, k)
+func (c *client) PostRelease(s ReleaseJobSpec) (ReleaseID, error) {
+	return invokePostRelease(c.client, c.router, c.endpoint, s)
+}
+
+func (c *client) GetRelease(id ReleaseID) (ReleaseJob, error) {
+	return invokeGetRelease(c.client, c.router, c.endpoint, id)
 }
 
 func (c *client) Automate(id ServiceID) error {

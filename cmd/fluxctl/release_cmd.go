@@ -80,17 +80,52 @@ func (opts *serviceReleaseOpts) RunE(_ *cobra.Command, args []string) error {
 	}
 
 	begin := time.Now()
-	actions, err := opts.Fluxd.Release(service, image, kind)
+	printf := func(format string, args ...interface{}) {
+		args = append([]interface{}{(int(time.Since(begin).Seconds()))}, args...)
+		fmt.Fprintf(os.Stdout, "t=%d "+format+"\n", args...)
+	}
 
-	for i, action := range actions {
-		fmt.Fprintf(os.Stdout, "%d)\t%s\n", i+1, action.Description)
-		if action.Result != "" {
-			fmt.Fprintln(os.Stdout, "...\t "+action.Result)
+	if opts.dryRun {
+		printf("Submitting dry-run release job...")
+	} else {
+		printf("Submitting release job...")
+	}
+
+	id, err := opts.Fluxd.PostRelease(flux.ReleaseJobSpec{
+		ServiceSpec: service,
+		ImageSpec:   image,
+		Kind:        kind,
+	})
+	if err != nil {
+		return err
+	}
+	printf("Release job submitted, ID %s", id)
+
+	var job flux.ReleaseJob
+	for range time.Tick(time.Second) {
+		job, err = opts.Fluxd.GetRelease(id)
+		if err != nil {
+			printf("Release errored!")
+			return err
+		}
+		if job.Status != "" {
+			printf(job.Status)
+		} else {
+			printf("Waiting for job to be claimed...")
+		}
+		if job.IsFinished() {
+			fmt.Println()
+			break
 		}
 	}
 
-	if err != nil {
-		return err
+	if opts.dryRun {
+		fmt.Fprintf(os.Stdout, "Here's the plan:\n")
+	} else {
+		fmt.Fprintf(os.Stdout, "Here's what happened:\n")
+	}
+	for i, msg := range job.Log {
+		fmt.Fprintf(os.Stdout, " %d) %s\n", i+1, msg)
 	}
 
 	if !opts.dryRun {

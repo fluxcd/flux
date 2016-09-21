@@ -16,7 +16,7 @@ import (
 
 type server struct {
 	helper      *Helper
-	releaser    Releaser
+	releaser    ReleaseJobReadPusher
 	automator   Automator
 	history     history.EventReader
 	maxPlatform chan struct{} // semaphore for concurrent calls to the platform
@@ -29,10 +29,6 @@ type Automator interface {
 	IsAutomated(namespace, service string) bool
 }
 
-type Releaser interface {
-	Release(ServiceSpec, ImageSpec, ReleaseKind) ([]ReleaseAction, error)
-}
-
 type Metrics struct {
 	ListServicesDuration metrics.Histogram
 	ListImagesDuration   metrics.Histogram
@@ -42,7 +38,7 @@ type Metrics struct {
 func NewServer(
 	platform *kubernetes.Cluster,
 	registry *registry.Client,
-	releaser Releaser,
+	releaser ReleaseJobReadPusher,
 	automator Automator,
 	history history.EventReader,
 	logger log.Logger,
@@ -236,8 +232,12 @@ func (s *server) Deautomate(service ServiceID) error {
 	return s.automator.Deautomate(ns, svc)
 }
 
-func (s *server) Release(service ServiceSpec, image ImageSpec, kind ReleaseKind) ([]ReleaseAction, error) {
-	return s.releaser.Release(service, image, kind)
+func (s *server) PostRelease(spec ReleaseJobSpec) (ReleaseID, error) {
+	return s.releaser.PutJob(spec)
+}
+
+func (s *server) GetRelease(id ReleaseID) (ReleaseJob, error) {
+	return s.releaser.GetJob(id)
 }
 
 func (s *server) containersFor(id ServiceID, includeAvailable bool) (res []Container, _ error) {

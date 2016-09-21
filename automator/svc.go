@@ -85,14 +85,26 @@ func (s *svc) signalDelete() {
 func (s *svc) releasing(cfg Config) state {
 	s.logf("entering Releasing state")
 
-	if _, err := s.cfg.Releaser.Release(
-		flux.ServiceSpec(s.service),
-		flux.ImageSpecLatest,
-		flux.ReleaseKindExecute,
-	); err != nil {
+	id, err := s.cfg.Releaser.PutJob(flux.ReleaseJobSpec{
+		ServiceSpec: flux.ServiceSpec(s.service),
+		ImageSpec:   flux.ImageSpecLatest,
+		Kind:        flux.ReleaseKindExecute,
+	})
+	if err != nil {
 		s.logf("%v", err)
+		return stateWaiting
 	}
-	return stateWaiting
+	for range time.Tick(time.Second) {
+		j, err := s.cfg.Releaser.GetJob(id)
+		if err != nil {
+			s.logf("%v", err)
+			return stateWaiting
+		}
+		if j.IsFinished() {
+			return stateWaiting
+		}
+	}
+	panic("unreachable")
 }
 
 func (s *svc) waiting() state {
