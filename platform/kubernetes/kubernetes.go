@@ -211,7 +211,7 @@ func (m *statusMap) startRegrade(ns namespacedService, r *regrade) {
 func (m *statusMap) getRegradeProgress(ns namespacedService) (string, bool) {
 	m.mx.RLock()
 	defer m.mx.RUnlock()
-	if r, found := m.inProgress[ns]; found {
+	if r, ok := m.inProgress[ns]; ok {
 		return r.summary, true
 	}
 	return "", false
@@ -390,7 +390,7 @@ func (c *Cluster) makePlatformService(s api.Service) platform.Service {
 	}
 
 	var status string
-	if summary, found := c.status.getRegradeProgress(namespacedService{s.Namespace, s.Name}); found {
+	if summary, ok := c.status.getRegradeProgress(namespacedService{s.Namespace, s.Name}); ok {
 		status = summary
 	}
 
