@@ -1,9 +1,11 @@
-package history
+package sql
 
 import (
 	"database/sql"
 	"errors"
 	"os"
+
+	"github.com/weaveworks/fluxy/history"
 )
 
 var (
@@ -28,17 +30,17 @@ var (
 )
 
 // A history DB that uses a SQL database
-type sqlHistoryDB struct {
+type DB struct {
 	driver *sql.DB
 	schema string
 }
 
-func NewSQL(driver, datasource string) (DB, error) {
+func NewSQL(driver, datasource string) (*DB, error) {
 	db, err := sql.Open(driver, datasource)
 	if err != nil {
 		return nil, err
 	}
-	historyDB := &sqlHistoryDB{
+	historyDB := &DB{
 		driver: db,
 		schema: schemaByDriver[driver],
 	}
@@ -48,7 +50,7 @@ func NewSQL(driver, datasource string) (DB, error) {
 	return historyDB, historyDB.ensureTables()
 }
 
-func (db *sqlHistoryDB) queryEvents(query string, params ...interface{}) ([]Event, error) {
+func (db *DB) queryEvents(query string, params ...interface{}) ([]history.Event, error) {
 	eventRows, err := db.driver.Query(query, params...)
 
 	if err != nil {
@@ -56,9 +58,9 @@ func (db *sqlHistoryDB) queryEvents(query string, params ...interface{}) ([]Even
 	}
 	defer eventRows.Close()
 
-	events := []Event{}
+	events := []history.Event{}
 	for eventRows.Next() {
-		var event Event
+		var event history.Event
 		eventRows.Scan(&event.Service, &event.Msg, &event.Stamp)
 		events = append(events, event)
 	}
@@ -69,21 +71,21 @@ func (db *sqlHistoryDB) queryEvents(query string, params ...interface{}) ([]Even
 	return events, nil
 }
 
-func (db *sqlHistoryDB) AllEvents(namespace string) ([]Event, error) {
+func (db *DB) AllEvents(namespace string) ([]history.Event, error) {
 	return db.queryEvents(`SELECT service, message, stamp
                            FROM history
                            WHERE namespace = $1
                            ORDER BY service, stamp DESC`, namespace)
 }
 
-func (db *sqlHistoryDB) EventsForService(namespace, service string) ([]Event, error) {
+func (db *DB) EventsForService(namespace, service string) ([]history.Event, error) {
 	return db.queryEvents(`SELECT service, message, stamp
                            FROM history
                            WHERE namespace = $1 AND service = $2
                            ORDER BY stamp DESC`, namespace, service)
 }
 
-func (db *sqlHistoryDB) LogEvent(namespace, service, msg string) error {
+func (db *DB) LogEvent(namespace, service, msg string) error {
 	tx, err := db.driver.Begin()
 	if err != nil {
 		return err
@@ -98,7 +100,7 @@ func (db *sqlHistoryDB) LogEvent(namespace, service, msg string) error {
 	return err
 }
 
-func (db *sqlHistoryDB) ensureTables() (err error) {
+func (db *DB) ensureTables() (err error) {
 	// ql requires a temp directory, but will apparently not create it
 	// if it doesn't exist; and that can be the case when run inside a
 	// container.
@@ -122,6 +124,6 @@ func (db *sqlHistoryDB) ensureTables() (err error) {
 	return nil
 }
 
-func (db *sqlHistoryDB) Close() error {
+func (db *DB) Close() error {
 	return db.driver.Close()
 }

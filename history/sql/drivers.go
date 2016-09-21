@@ -1,4 +1,4 @@
-package history
+package sql
 
 import (
 	_ "github.com/cznic/ql/driver"

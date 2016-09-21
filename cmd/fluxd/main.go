@@ -22,6 +22,7 @@ import (
 	"github.com/weaveworks/fluxy/automator"
 	"github.com/weaveworks/fluxy/git"
 	"github.com/weaveworks/fluxy/history"
+	historysql "github.com/weaveworks/fluxy/history/sql"
 	"github.com/weaveworks/fluxy/platform/kubernetes"
 	"github.com/weaveworks/fluxy/registry"
 	"github.com/weaveworks/fluxy/release"
@@ -214,7 +215,7 @@ func main() {
 	var eventWriter history.EventWriter
 	var eventReader history.EventReader
 	{
-		db, err := history.NewSQL(*databaseDriver, *databaseSource)
+		db, err := historysql.NewSQL(*databaseDriver, *databaseSource)
 		if err != nil {
 			logger.Log("component", "history", "err", err)
 			os.Exit(1)
