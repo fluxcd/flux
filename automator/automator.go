@@ -39,7 +39,7 @@ func New(cfg Config) (*Automator, error) {
 func (a *Automator) recordAutomation(service flux.ServiceID, automation bool) error {
 	a.mtx.Lock()
 	defer a.mtx.Unlock()
-	if err := a.cfg.InstanceDB.Update(HardwiredInstance, func(conf instance.InstanceConfig) (instance.InstanceConfig, error) {
+	if err := a.cfg.InstanceDB.Update(HardwiredInstance, func(conf instance.Config) (instance.Config, error) {
 		if serviceConf, found := conf.Services[service]; found {
 			serviceConf.Automated = automation
 			conf.Services[service] = serviceConf

@@ -64,7 +64,7 @@ func (db *db) Update(inst flux.InstanceID, update instance.UpdateFunc) error {
 	}
 
 	var (
-		currentConfig instance.InstanceConfig
+		currentConfig instance.Config
 		confString    string
 	)
 	switch tx.QueryRow(`SELECT config FROM config WHERE instance = $1`, string(inst)).Scan(&confString) {
@@ -103,13 +103,13 @@ func (db *db) Update(inst flux.InstanceID, update instance.UpdateFunc) error {
 	return err
 }
 
-func (db *db) Get(inst flux.InstanceID) (instance.InstanceConfig, error) {
+func (db *db) Get(inst flux.InstanceID) (instance.Config, error) {
 	var c string
 	err := db.conn.QueryRow(`SELECT config FROM config WHERE instance = $1`, string(inst)).Scan(&c)
 	if err != nil {
-		return instance.InstanceConfig{}, err
+		return instance.Config{}, err
 	}
-	var conf instance.InstanceConfig
+	var conf instance.Config
 	return conf, json.Unmarshal([]byte(c), &conf)
 }
 

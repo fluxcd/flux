@@ -15,33 +15,36 @@ func TestNew(t *testing.T) {
 	}
 }
 
-func TestSetGet(t *testing.T) {
-	instance := flux.InstanceID("floaty-womble-abc123")
+func TestUpdateOK(t *testing.T) {
+	inst := flux.InstanceID("floaty-womble-abc123")
 	service := flux.MakeServiceID("namespace", "service")
 
 	db, err := New("ql-mem", "config")
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	services := map[flux.ServiceID]instance.ServiceConfig{}
 	services[service] = instance.ServiceConfig{
-		Automation: true,
+		Automated: true,
 	}
-	c := instance.InstanceConfig{
+	c := instance.Config{
 		Services: services,
 	}
-	err = db.Set(instance, c)
+	err = db.Update(inst, func(_ instance.Config) (instance.Config, error) {
+		return c, nil
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	c1, err := db.Get(instance)
+	c1, err := db.Get(inst)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if _, found := c1.Services[service]; !found {
 		t.Fatalf("did not find instance config after setting")
 	}
-	if !c1.Services[service].Automation {
+	if !c1.Services[service].Automated {
 		t.Fatalf("expected service config %#v, got %#v", c.Services[service], c1.Services[service])
 	}
 }
