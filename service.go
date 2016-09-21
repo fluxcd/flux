@@ -13,7 +13,8 @@ import (
 type Service interface {
 	ListServices(namespace string) ([]ServiceStatus, error)
 	ListImages(ServiceSpec) ([]ImageStatus, error)
-	Release(ServiceSpec, ImageSpec, ReleaseKind) ([]ReleaseAction, error)
+	PostRelease(ReleaseJobSpec) (ReleaseID, error)
+	GetRelease(ReleaseID) (ReleaseJob, error)
 	Automate(ServiceID) error
 	Deautomate(ServiceID) error
 	History(ServiceSpec) ([]HistoryEntry, error)
@@ -224,7 +225,7 @@ type ReleaseJob struct {
 	Started                 time.Time       `json:"started,omitempty"`
 	Status                  string          `json:"status"`
 	Log                     []string        `json:"log,omitempty"`
-	TemporaryReleaseActions []ReleaseAction `json:"-"` // TODO(pb): REMOVE!
+	TemporaryReleaseActions []ReleaseAction `json:"temporary_release_actions"` // TODO(pb): REMOVE!
 	Finished                time.Time       `json:"finished,omitempty"`
 	Success                 bool            `json:"success"` // only makes sense after Finished
 }

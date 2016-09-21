@@ -232,25 +232,12 @@ func (s *server) Deautomate(service ServiceID) error {
 	return s.automator.Deautomate(ns, svc)
 }
 
-func (s *server) Release(service ServiceSpec, image ImageSpec, kind ReleaseKind) ([]ReleaseAction, error) {
-	id, err := s.releaser.PutJob(ReleaseJobSpec{
-		ServiceSpec: service,
-		ImageSpec:   image,
-		Kind:        kind,
-	})
-	if err != nil {
-		return nil, err
-	}
-	for range time.Tick(time.Second) {
-		job, err := s.releaser.GetJob(id)
-		if err != nil {
-			return nil, err
-		}
-		if job.IsFinished() {
-			return job.TemporaryReleaseActions, nil
-		}
-	}
-	panic("unreachable")
+func (s *server) PostRelease(spec ReleaseJobSpec) (ReleaseID, error) {
+	return s.releaser.PutJob(spec)
+}
+
+func (s *server) GetRelease(id ReleaseID) (ReleaseJob, error) {
+	return s.releaser.GetJob(id)
 }
 
 func (s *server) containersFor(id ServiceID, includeAvailable bool) (res []Container, _ error) {
