@@ -16,7 +16,7 @@ import (
 
 // Worker grabs release jobs from the job store and executes them.
 type Worker struct {
-	jobs     flux.ReleaseJobPopUpdater
+	jobs     flux.ReleaseJobWritePopper
 	releaser *releaser
 	logger   log.Logger
 }
@@ -24,7 +24,7 @@ type Worker struct {
 // NewWorker returns a usable worker pulling jobs from the JobPopper.
 // Run Work in its own goroutine to start execution.
 func NewWorker(
-	jobs flux.ReleaseJobPopUpdater,
+	jobs flux.ReleaseJobWritePopper,
 	platform *kubernetes.Cluster,
 	registry *registry.Client,
 	repo git.Repo,

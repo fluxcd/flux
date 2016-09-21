@@ -16,7 +16,7 @@ import (
 
 type server struct {
 	helper      *Helper
-	releaser    ReleaseJobReadWriter
+	releaser    ReleaseJobReadPusher
 	automator   Automator
 	history     history.EventReader
 	maxPlatform chan struct{} // semaphore for concurrent calls to the platform
@@ -38,7 +38,7 @@ type Metrics struct {
 func NewServer(
 	platform *kubernetes.Cluster,
 	registry *registry.Client,
-	releaser ReleaseJobReadWriter,
+	releaser ReleaseJobReadPusher,
 	automator Automator,
 	history history.EventReader,
 	logger log.Logger,

@@ -10,7 +10,7 @@ import (
 
 // Config collects the parameters to the automator. All fields are mandatory.
 type Config struct {
-	Releaser flux.ReleaseJobReadWriter
+	Releaser flux.ReleaseJobReadPusher
 	History  history.EventWriter
 }
 

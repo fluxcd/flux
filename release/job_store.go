@@ -88,9 +88,9 @@ func (s *InmemStore) UpdateJob(job flux.ReleaseJob) error {
 func (s *InmemStore) GC() error {
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
-	oldest := time.Now().Add(-s.oldest)
+	cutoff := time.Now().Add(-s.oldest)
 	for id, job := range s.jobs {
-		if job.IsFinished() && job.Finished.Before(oldest) {
+		if job.IsFinished() && job.Finished.Before(cutoff) {
 			delete(s.jobs, id)
 		}
 	}

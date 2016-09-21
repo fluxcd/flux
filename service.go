@@ -186,27 +186,27 @@ type HistoryEntry struct {
 // ---
 
 type ReleaseJobStore interface {
-	ReleaseJobReadWriter
-	ReleaseJobPopUpdater
+	ReleaseJobReadPusher
+	ReleaseJobWritePopper
 	GC() error
 }
 
-type ReleaseJobReadWriter interface {
-	PutJob(ReleaseJobSpec) (ReleaseID, error)
+type ReleaseJobReadPusher interface {
 	GetJob(ReleaseID) (ReleaseJob, error)
+	PutJob(ReleaseJobSpec) (ReleaseID, error)
 }
 
-type ReleaseJobPopUpdater interface {
-	ReleaseJobPopper
+type ReleaseJobWritePopper interface {
 	ReleaseJobUpdater
-}
-
-type ReleaseJobPopper interface {
-	NextJob() (ReleaseJob, error)
+	ReleaseJobPopper
 }
 
 type ReleaseJobUpdater interface {
 	UpdateJob(ReleaseJob) error
+}
+
+type ReleaseJobPopper interface {
+	NextJob() (ReleaseJob, error)
 }
 
 var (
