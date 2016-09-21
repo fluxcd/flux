@@ -188,6 +188,7 @@ type HistoryEntry struct {
 type ReleaseJobStore interface {
 	ReleaseJobReadWriter
 	ReleaseJobPopUpdater
+	GC() error
 }
 
 type ReleaseJobReadWriter interface {

@@ -9,14 +9,16 @@ import (
 
 // InmemStore is an in-memory job store.
 type InmemStore struct {
-	mtx  sync.RWMutex
-	jobs map[flux.ReleaseID]flux.ReleaseJob
+	mtx    sync.RWMutex
+	jobs   map[flux.ReleaseID]flux.ReleaseJob
+	oldest time.Duration
 }
 
 // NewInmemStore returns a usable in-mem job store.
-func NewInmemStore() *InmemStore {
+func NewInmemStore(oldest time.Duration) *InmemStore {
 	return &InmemStore{
-		jobs: map[flux.ReleaseID]flux.ReleaseJob{},
+		jobs:   map[flux.ReleaseID]flux.ReleaseJob{},
+		oldest: oldest,
 	}
 }
 
@@ -24,11 +26,11 @@ func NewInmemStore() *InmemStore {
 func (s *InmemStore) GetJob(id flux.ReleaseID) (flux.ReleaseJob, error) {
 	s.mtx.RLock()
 	defer s.mtx.RUnlock()
-	j, ok := s.jobs[id]
+	job, ok := s.jobs[id]
 	if !ok {
 		return flux.ReleaseJob{}, flux.ErrNoSuchReleaseJob
 	}
-	return j, nil
+	return job, nil
 }
 
 // PutJob implements JobStore.
@@ -60,9 +62,9 @@ func (s *InmemStore) NextJob() (flux.ReleaseJob, error) {
 		candidate flux.ReleaseJob
 		earliest  = time.Now()
 	)
-	for _, j := range s.jobs {
-		if j.Claimed.IsZero() && j.Submitted.Before(earliest) {
-			candidate = j
+	for _, job := range s.jobs {
+		if job.Claimed.IsZero() && job.Submitted.Before(earliest) {
+			candidate = job
 		}
 	}
 
@@ -76,9 +78,21 @@ func (s *InmemStore) NextJob() (flux.ReleaseJob, error) {
 }
 
 // UpdateJob implements JobStore.
-func (s *InmemStore) UpdateJob(j flux.ReleaseJob) error {
+func (s *InmemStore) UpdateJob(job flux.ReleaseJob) error {
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
-	s.jobs[j.ID] = j
+	s.jobs[job.ID] = job
+	return nil
+}
+
+func (s *InmemStore) GC() error {
+	s.mtx.Lock()
+	defer s.mtx.Unlock()
+	oldest := time.Now().Add(-s.oldest)
+	for id, job := range s.jobs {
+		if job.IsFinished() && job.Finished.Before(oldest) {
+			delete(s.jobs, id)
+		}
+	}
 	return nil
 }

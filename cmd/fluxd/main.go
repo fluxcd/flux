@@ -238,20 +238,26 @@ func main() {
 	// Release job store.
 	var rjs flux.ReleaseJobStore
 	{
-		rjs = release.NewInmemStore()
+		rjs = release.NewInmemStore(time.Hour)
 	}
 
-	// Release worker.
+	// Release workers.
 	{
 		repo := git.Repo{
 			URL:  *repoURL,
 			Key:  *repoKey,
 			Path: *repoPath,
 		}
+
 		worker := release.NewWorker(rjs, k8s, reg, repo, eventWriter, releaseMetrics, helperDuration, logger)
-		ticker := time.NewTicker(5 * time.Second)
-		defer ticker.Stop()
-		go worker.Work(ticker.C)
+		releaseTicker := time.NewTicker(time.Second)
+		defer releaseTicker.Stop()
+		go worker.Work(releaseTicker.C)
+
+		cleaner := release.NewCleaner(rjs, logger)
+		cleanTicker := time.NewTicker(15 * time.Second)
+		defer cleanTicker.Stop()
+		go cleaner.Clean(cleanTicker.C)
 	}
 
 	// Automator component.
