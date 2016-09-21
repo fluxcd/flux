@@ -19,7 +19,7 @@ import (
 	"github.com/weaveworks/fluxy/registry"
 )
 
-type Releaser struct {
+type releaser struct {
 	helper    *flux.Helper
 	repo      git.Repo
 	history   history.EventWriter
@@ -35,7 +35,7 @@ type Metrics struct {
 	StageDuration   metrics.Histogram
 }
 
-func New(
+func newReleaser(
 	platform *kubernetes.Cluster,
 	registry *registry.Client,
 	logger log.Logger,
@@ -43,8 +43,8 @@ func New(
 	history history.EventWriter,
 	metrics Metrics,
 	helperDuration metrics.Histogram,
-) *Releaser {
-	return &Releaser{
+) *releaser {
+	return &releaser{
 		helper:    flux.NewHelper(platform, registry, logger, helperDuration),
 		repo:      repo,
 		history:   history,
@@ -53,7 +53,7 @@ func New(
 	}
 }
 
-func (r *Releaser) Release(serviceSpec flux.ServiceSpec, imageSpec flux.ImageSpec, kind flux.ReleaseKind) (res []flux.ReleaseAction, err error) {
+func (r *releaser) Release(serviceSpec flux.ServiceSpec, imageSpec flux.ImageSpec, kind flux.ReleaseKind) (res []flux.ReleaseAction, err error) {
 	releaseType := "unknown"
 	defer func(begin time.Time) {
 		r.metrics.ReleaseDuration.With(
@@ -117,7 +117,7 @@ func (r *Releaser) Release(serviceSpec flux.ServiceSpec, imageSpec flux.ImageSpe
 // - If ReleaseKindExecute, execute those things; and then
 // - Return the things we did (or didn't) do.
 
-func (r *Releaser) releaseAllToLatest(kind flux.ReleaseKind) (res []flux.ReleaseAction, err error) {
+func (r *releaser) releaseAllToLatest(kind flux.ReleaseKind) (res []flux.ReleaseAction, err error) {
 	res = append(res, r.releaseActionPrintf("I'm going to release all services to their latest images."))
 
 	var (
@@ -201,7 +201,7 @@ func (r *Releaser) releaseAllToLatest(kind flux.ReleaseKind) (res []flux.Release
 	return res, nil
 }
 
-func (r *Releaser) releaseAllForImage(target flux.ImageID, kind flux.ReleaseKind) (res []flux.ReleaseAction, err error) {
+func (r *releaser) releaseAllForImage(target flux.ImageID, kind flux.ReleaseKind) (res []flux.ReleaseAction, err error) {
 	res = append(res, r.releaseActionPrintf("I'm going to release image %s to all services that would use it.", target))
 
 	var (
@@ -279,7 +279,7 @@ func (r *Releaser) releaseAllForImage(target flux.ImageID, kind flux.ReleaseKind
 	return res, nil
 }
 
-func (r *Releaser) releaseOneToLatest(id flux.ServiceID, kind flux.ReleaseKind) (res []flux.ReleaseAction, err error) {
+func (r *releaser) releaseOneToLatest(id flux.ServiceID, kind flux.ReleaseKind) (res []flux.ReleaseAction, err error) {
 	res = append(res, r.releaseActionPrintf("I'm going to release the latest images(s) for service %s.", id))
 
 	var (
@@ -355,7 +355,7 @@ func (r *Releaser) releaseOneToLatest(id flux.ServiceID, kind flux.ReleaseKind) 
 	return res, nil
 }
 
-func (r *Releaser) releaseOne(serviceID flux.ServiceID, target flux.ImageID, kind flux.ReleaseKind) (res []flux.ReleaseAction, err error) {
+func (r *releaser) releaseOne(serviceID flux.ServiceID, target flux.ImageID, kind flux.ReleaseKind) (res []flux.ReleaseAction, err error) {
 	res = append(res, r.releaseActionPrintf("I'm going to release image %s to service %s.", target, serviceID))
 
 	var (
@@ -422,7 +422,7 @@ func (r *Releaser) releaseOne(serviceID flux.ServiceID, target flux.ImageID, kin
 }
 
 // Release whatever is in the cloned configuration, without changing anything
-func (r *Releaser) releaseOneWithoutUpdate(serviceID flux.ServiceID, kind flux.ReleaseKind) (res []flux.ReleaseAction, err error) {
+func (r *releaser) releaseOneWithoutUpdate(serviceID flux.ServiceID, kind flux.ReleaseKind) (res []flux.ReleaseAction, err error) {
 	var (
 		base  = r.metrics.StageDuration.With("method", "release_one_without_update")
 		stage *metrics.Timer
@@ -444,7 +444,7 @@ func (r *Releaser) releaseOneWithoutUpdate(serviceID flux.ServiceID, kind flux.R
 }
 
 // Release whatever is in the cloned configuration, without changing anything
-func (r *Releaser) releaseAllWithoutUpdate(kind flux.ReleaseKind) (res []flux.ReleaseAction, err error) {
+func (r *releaser) releaseAllWithoutUpdate(kind flux.ReleaseKind) (res []flux.ReleaseAction, err error) {
 	var (
 		base  = r.metrics.StageDuration.With("method", "release_all_without_update")
 		stage *metrics.Timer
@@ -479,7 +479,7 @@ func (r *Releaser) releaseAllWithoutUpdate(kind flux.ReleaseKind) (res []flux.Re
 	return actions, nil
 }
 
-func (r *Releaser) execute(actions []flux.ReleaseAction) error {
+func (r *releaser) execute(actions []flux.ReleaseAction) error {
 	rc := flux.NewReleaseContext()
 	defer rc.Clean()
 
@@ -510,7 +510,7 @@ type containerRegrade struct {
 
 // ReleaseAction Do funcs
 
-func (r *Releaser) releaseActionPrintf(format string, args ...interface{}) flux.ReleaseAction {
+func (r *releaser) releaseActionPrintf(format string, args ...interface{}) flux.ReleaseAction {
 	return flux.ReleaseAction{
 		Description: fmt.Sprintf(format, args...),
 		Do: func(_ *flux.ReleaseContext) (res string, err error) {
@@ -526,7 +526,7 @@ func (r *Releaser) releaseActionPrintf(format string, args ...interface{}) flux.
 	}
 }
 
-func (r *Releaser) releaseActionClone() flux.ReleaseAction {
+func (r *releaser) releaseActionClone() flux.ReleaseAction {
 	return flux.ReleaseAction{
 		Description: "Clone the config repo.",
 		Do: func(rc *flux.ReleaseContext) (res string, err error) {
@@ -548,7 +548,7 @@ func (r *Releaser) releaseActionClone() flux.ReleaseAction {
 	}
 }
 
-func (r *Releaser) releaseActionFindPodController(service flux.ServiceID) flux.ReleaseAction {
+func (r *releaser) releaseActionFindPodController(service flux.ServiceID) flux.ReleaseAction {
 	return flux.ReleaseAction{
 		Description: fmt.Sprintf("Load the resource definition file for service %s", service),
 		Do: func(rc *flux.ReleaseContext) (res string, err error) {
@@ -587,7 +587,7 @@ func (r *Releaser) releaseActionFindPodController(service flux.ServiceID) flux.R
 	}
 }
 
-func (r *Releaser) releaseActionUpdatePodController(service flux.ServiceID, regrades []containerRegrade) flux.ReleaseAction {
+func (r *releaser) releaseActionUpdatePodController(service flux.ServiceID, regrades []containerRegrade) flux.ReleaseAction {
 	var actions []string
 	for _, regrade := range regrades {
 		actions = append(actions, fmt.Sprintf("%s (%s -> %s)", regrade.container, regrade.current, regrade.target))
@@ -657,7 +657,7 @@ func (r *Releaser) releaseActionUpdatePodController(service flux.ServiceID, regr
 	}
 }
 
-func (r *Releaser) releaseActionCommitAndPush(msg string) flux.ReleaseAction {
+func (r *releaser) releaseActionCommitAndPush(msg string) flux.ReleaseAction {
 	return flux.ReleaseAction{
 		Description: "Commit and push the config repo.",
 		Do: func(rc *flux.ReleaseContext) (res string, err error) {
@@ -683,7 +683,7 @@ func (r *Releaser) releaseActionCommitAndPush(msg string) flux.ReleaseAction {
 	}
 }
 
-func (r *Releaser) releaseActionReleaseService(service flux.ServiceID, cause string) flux.ReleaseAction {
+func (r *releaser) releaseActionReleaseService(service flux.ServiceID, cause string) flux.ReleaseAction {
 	return flux.ReleaseAction{
 		Description: fmt.Sprintf("Release the service %s.", service),
 		Do: func(rc *flux.ReleaseContext) (res string, err error) {
