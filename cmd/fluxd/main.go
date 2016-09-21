@@ -291,6 +291,8 @@ func main() {
 		}
 	}
 
+	go auto.Start()
+
 	// The server.
 	server := flux.NewServer(k8s, reg, rjs, auto, eventReader, logger, serverMetrics, helperDuration)
 
