@@ -23,6 +23,8 @@ import (
 	"github.com/weaveworks/fluxy/git"
 	"github.com/weaveworks/fluxy/history"
 	historysql "github.com/weaveworks/fluxy/history/sql"
+	"github.com/weaveworks/fluxy/instance"
+	instancedb "github.com/weaveworks/fluxy/instance/sql"
 	"github.com/weaveworks/fluxy/platform/kubernetes"
 	"github.com/weaveworks/fluxy/registry"
 	"github.com/weaveworks/fluxy/release"
@@ -261,13 +263,25 @@ func main() {
 		go cleaner.Clean(cleanTicker.C)
 	}
 
+	// Configuration, i.e., whether services are automated or not.
+	var instanceDB instance.DB
+	{
+		db, err := instancedb.New(*databaseDriver, *databaseSource)
+		if err != nil {
+			logger.Log("component", "config", "err", err)
+			os.Exit(1)
+		}
+		instanceDB = db
+	}
+
 	// Automator component.
 	var auto *automator.Automator
 	{
 		var err error
 		auto, err = automator.New(automator.Config{
-			Releaser: rjs,
-			History:  eventWriter,
+			Releaser:   rjs,
+			History:    eventWriter,
+			InstanceDB: instanceDB,
 		})
 		if err == nil {
 			logger.Log("automator", "enabled", "repo", *repoURL)
@@ -276,6 +290,8 @@ func main() {
 			logger.Log("automator", "disabled", "reason", err)
 		}
 	}
+
+	go auto.Start(log.NewContext(logger).With("component", "automator"))
 
 	// The server.
 	server := flux.NewServer(k8s, reg, rjs, auto, eventReader, logger, serverMetrics, helperDuration)

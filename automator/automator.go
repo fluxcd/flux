@@ -1,17 +1,26 @@
 package automator
 
-import "sync"
+import (
+	"time"
+
+	"github.com/go-kit/kit/log"
+
+	"github.com/weaveworks/fluxy"
+	"github.com/weaveworks/fluxy/instance"
+)
 
 const (
 	automationEnabled  = "Automation enabled."
 	automationDisabled = "Automation disabled."
+
+	hardwiredInstance = "DEFAULT"
+
+	automationCycle = 15 * time.Second
 )
 
 // Automator orchestrates continuous deployment for specific services.
 type Automator struct {
-	cfg    Config
-	mtx    sync.RWMutex
-	active map[namespacedService]*svc
+	cfg Config
 }
 
 // New creates a new automator.
@@ -20,51 +29,59 @@ func New(cfg Config) (*Automator, error) {
 		return nil, err
 	}
 	return &Automator{
-		cfg:    cfg,
-		active: map[namespacedService]*svc{},
+		cfg: cfg,
 	}, nil
 }
 
-// Automate turns on automated (continuous) deployment for the named service.
-// This call always succeeds; if the named service cannot be automated for some
-// reason, that will be detected and happen autonomously.
-func (a *Automator) Automate(namespace, serviceName string) error {
-	a.mtx.Lock()
-	defer a.mtx.Unlock()
-
-	ns := namespacedService{namespace, serviceName}
-	if _, ok := a.active[ns]; ok {
-		return nil
+func (a *Automator) Start(errorLogger log.Logger) {
+	tick := time.Tick(automationCycle)
+	for range tick {
+		inst, err := a.cfg.InstanceDB.Get(hardwiredInstance)
+		if err != nil {
+			errorLogger.Log("err", err)
+			continue
+		}
+		for service, conf := range inst.Services {
+			if conf.Automated {
+				a.cfg.Releaser.PutJob(flux.ReleaseJobSpec{
+					ServiceSpec: flux.ServiceSpec(service),
+					ImageSpec:   flux.ImageSpecLatest,
+					Kind:        flux.ReleaseKindExecute,
+				})
+			}
+		}
 	}
+}
 
-	onDelete := func() { a.deleteCallback(namespace, serviceName) }
-	svcLogFunc := makeServiceLogFunc(a.cfg.History, namespace, serviceName)
-	s := newSvc(namespace, serviceName, svcLogFunc, onDelete, a.cfg)
-	a.active[ns] = s
-
-	a.cfg.History.LogEvent(namespace, serviceName, automationEnabled)
+func (a *Automator) recordAutomation(service flux.ServiceID, automation bool) error {
+	if err := a.cfg.InstanceDB.Update(hardwiredInstance, func(conf instance.Config) (instance.Config, error) {
+		if serviceConf, found := conf.Services[service]; found {
+			serviceConf.Automated = automation
+			conf.Services[service] = serviceConf
+		} else {
+			conf.Services[service] = instance.ServiceConfig{
+				Automated: true,
+			}
+		}
+		return conf, nil
+	}); err != nil {
+		return err
+	}
 	return nil
+}
+
+// Automate turns on automated (continuous) deployment for the named service.
+func (a *Automator) Automate(namespace, serviceName string) error {
+	a.cfg.History.LogEvent(namespace, serviceName, automationEnabled)
+	return a.recordAutomation(flux.MakeServiceID(namespace, serviceName), true)
 }
 
 // Deautomate turns off automated (continuous) deployment for the named service.
 // This is more of a signal; it may take some time for the service to be
 // properly deautomated.
 func (a *Automator) Deautomate(namespace, serviceName string) error {
-	a.mtx.Lock()
-	defer a.mtx.Unlock()
-
-	ns := namespacedService{namespace, serviceName}
-	s, ok := a.active[ns]
-	if !ok {
-		return nil
-	}
-
-	// We signal delete rather than actually deleting anything here,
-	// to make sure svc termination follows a single code path.
-	s.signalDelete()
-
 	a.cfg.History.LogEvent(namespace, serviceName, automationDisabled)
-	return nil
+	return a.recordAutomation(flux.MakeServiceID(namespace, serviceName), false)
 }
 
 // IsAutomated checks if a given service has automation enabled.
@@ -72,22 +89,14 @@ func (a *Automator) IsAutomated(namespace, serviceName string) bool {
 	if a == nil {
 		return false
 	}
-	a.mtx.RLock()
-	_, ok := a.active[namespacedService{namespace, serviceName}]
-	a.mtx.RUnlock()
-	return ok
-}
+	inst, err := a.cfg.InstanceDB.Get(hardwiredInstance)
+	if err != nil {
+		return false
+	}
 
-// deleteCallback is invoked by a svc when it shuts down. A svc may terminate
-// itself, and so needs this as a form of accounting.
-func (a *Automator) deleteCallback(namespace, serviceName string) {
-	a.mtx.Lock()
-	defer a.mtx.Unlock()
-	ns := namespacedService{namespace, serviceName}
-	delete(a.active, ns)
-}
-
-type namespacedService struct {
-	namespace string
-	service   string
+	conf, ok := inst.Services[flux.MakeServiceID(namespace, serviceName)]
+	if !ok {
+		return false
+	}
+	return conf.Automated
 }
