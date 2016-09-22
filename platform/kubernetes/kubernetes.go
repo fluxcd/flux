@@ -5,13 +5,10 @@
 package kubernetes
 
 import (
-	"bytes"
-	"fmt"
 	"net/http"
 	"os"
 	"os/exec"
-	"strings"
-	"time"
+	"sync"
 
 	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
@@ -30,12 +27,35 @@ type extendedClient struct {
 	*k8sclient.ExtensionsClient
 }
 
+type namespacedService struct {
+	namespace string
+	service   string
+}
+
+type apiObject struct {
+	bytes    []byte
+	Version  string `yaml:"apiVersion"`
+	Kind     string `yaml:"kind"`
+	Metadata struct {
+		Name      string `yaml:"name"`
+		Namespace string `yaml:"namespace"`
+	} `yaml:"metadata"`
+}
+
+type regradeExecFunc func(*Cluster, log.Logger) error
+
+type regrade struct {
+	exec    regradeExecFunc
+	summary string
+}
+
 // Cluster is a handle to a Kubernetes API server.
 // (Typically, this code is deployed into the same cluster.)
 type Cluster struct {
 	config  *restclient.Config
 	client  extendedClient
 	kubectl string
+	status  *statusMap
 	logger  log.Logger
 }
 
@@ -67,6 +87,7 @@ func NewCluster(config *restclient.Config, kubectl string, logger log.Logger) (*
 		config:  config,
 		client:  extendedClient{client, extclient},
 		kubectl: kubectl,
+		status:  newStatusMap(),
 		logger:  logger,
 	}, nil
 }
@@ -128,27 +149,23 @@ func (c *Cluster) services(namespace string) (res []api.Service, err error) {
 	return list.Items, nil
 }
 
-type apiObject struct {
-	Version string `yaml:"apiVersion"`
-	Kind    string `yaml:"kind"`
-}
-
 func definitionObj(bytes []byte) (*apiObject, error) {
-	var obj apiObject
+	obj := apiObject{bytes: bytes}
 	return &obj, yaml.Unmarshal(bytes, &obj)
 }
 
-// Release performs a update of the service, from whatever it is currently, to
+// Regrade performs an update of the service, from whatever it is currently, to
 // what is described by the new resource, which can be a replication controller
 // or deployment.
 //
-// Release assumes there is a one-to-one mapping between services and
-// replication controllers or deployments; this can be improved. Release blocks
-// until the rolling update is complete; this can be improved. Release invokes
-// `kubectl rolling-update` or `kubectl apply` in a seperate process, and
-// assumes kubectl is in the PATH; this can be improved.
-func (c *Cluster) Release(namespace, serviceName string, newDefinition []byte) error {
-	obj, err := definitionObj(newDefinition)
+// Regrade assumes there is a one-to-one mapping between services and
+// replication controllers or deployments; this can be
+// improved. Regrade blocks until a rolling update is complete; this
+// can be improved. Regrade invokes `kubectl rolling-update` or
+// `kubectl apply` in a seperate process, and assumes kubectl is in
+// the PATH; this can be improved.
+func (c *Cluster) Regrade(namespace, serviceName string, newDefinition []byte) error {
+	newDef, err := definitionObj(newDefinition)
 	if err != nil {
 		return errors.Wrap(err, "reading definition")
 	}
@@ -158,140 +175,52 @@ func (c *Cluster) Release(namespace, serviceName string, newDefinition []byte) e
 		return err
 	}
 
-	var release releaseProc
-	ns := namespacedService{namespace, serviceName}
-	if pc.Deployment != nil {
-		if obj.Kind != "Deployment" {
-			return platform.ErrWrongResourceKind
-		}
-		release = releaseDeployment{ns, c, pc.Deployment}
-	} else if pc.ReplicationController != nil {
-		if obj.Kind != "ReplicationController" {
-			return platform.ErrWrongResourceKind
-		}
-		release = releaseReplicationController{ns, c, pc.ReplicationController}
-	} else {
-		return platform.ErrNoMatching
+	plan, err := pc.newRegrade(newDef)
+	if err != nil {
+		return err
 	}
 
-	logger := log.NewContext(c.logger).With("namespace", namespace, "service", serviceName)
-	if err := release.do(newDefinition, logger); err != nil {
+	ns := namespacedService{namespace, serviceName}
+	c.status.startRegrade(ns, plan)
+	defer c.status.endRegrade(ns)
+
+	logger := log.NewContext(c.logger).With("method", "Release", "namespace", namespace, "service", serviceName)
+	if err = plan.exec(c, logger); err != nil {
 		return errors.Wrap(err, "releasing "+namespace+"/"+serviceName)
 	}
 	return nil
 }
 
-type namespacedService struct {
-	namespace string
-	service   string
+type statusMap struct {
+	inProgress map[namespacedService]*regrade
+	mx         sync.RWMutex
 }
 
-type releaseProc interface {
-	do(newDefinition []byte, logger log.Logger) error
+func newStatusMap() *statusMap {
+	return &statusMap{
+		inProgress: make(map[namespacedService]*regrade),
+	}
 }
 
-type releaseReplicationController struct {
-	namespacedService
-	cluster *Cluster
-	rc      *api.ReplicationController
+func (m *statusMap) startRegrade(ns namespacedService, r *regrade) {
+	m.mx.Lock()
+	defer m.mx.Unlock()
+	m.inProgress[ns] = r
 }
 
-func (c releaseReplicationController) do(newDefinition []byte, logger log.Logger) error {
-	var args []string
-	if c.cluster.config.Host != "" {
-		args = append(args, fmt.Sprintf("--server=%s", c.cluster.config.Host))
+func (m *statusMap) getRegradeProgress(ns namespacedService) (string, bool) {
+	m.mx.RLock()
+	defer m.mx.RUnlock()
+	if r, ok := m.inProgress[ns]; ok {
+		return r.summary, true
 	}
-	if c.cluster.config.Username != "" {
-		args = append(args, fmt.Sprintf("--username=%s", c.cluster.config.Username))
-	}
-	if c.cluster.config.Password != "" {
-		args = append(args, fmt.Sprintf("--password=%s", c.cluster.config.Password))
-	}
-	if c.cluster.config.TLSClientConfig.CertFile != "" {
-		args = append(args, fmt.Sprintf("--client-certificate=%s", c.cluster.config.TLSClientConfig.CertFile))
-	}
-	if c.cluster.config.TLSClientConfig.CAFile != "" {
-		args = append(args, fmt.Sprintf("--certificate-authority=%s", c.cluster.config.TLSClientConfig.CAFile))
-	}
-	if c.cluster.config.TLSClientConfig.KeyFile != "" {
-		args = append(args, fmt.Sprintf("--client-key=%s", c.cluster.config.TLSClientConfig.KeyFile))
-	}
-	if c.cluster.config.BearerToken != "" {
-		args = append(args, fmt.Sprintf("--token=%s", c.cluster.config.BearerToken))
-	}
-	args = append(args, []string{
-		"rolling-update",
-		c.rc.Name,
-		"--update-period", "3s",
-		"-f", "-", // take definition from stdin
-	}...)
-
-	cmd := exec.Command(c.cluster.kubectl, args...)
-	cmd.Stdin = bytes.NewReader(newDefinition)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	logger.Log("cmd", strings.Join(cmd.Args, " "))
-
-	begin := time.Now()
-	err := cmd.Run()
-	result := "success"
-	if err != nil {
-		result = err.Error()
-	}
-	logger.Log("result", result, "took", time.Since(begin).String())
-
-	return err
+	return "", false
 }
 
-type releaseDeployment struct {
-	namespacedService
-	cluster *Cluster
-	d       *apiext.Deployment
-}
-
-func (c releaseDeployment) do(newDefinition []byte, logger log.Logger) error {
-	var args []string
-	if c.cluster.config.Host != "" {
-		args = append(args, fmt.Sprintf("--server=%s", c.cluster.config.Host))
-	}
-	if c.cluster.config.Username != "" {
-		args = append(args, fmt.Sprintf("--username=%s", c.cluster.config.Username))
-	}
-	if c.cluster.config.Password != "" {
-		args = append(args, fmt.Sprintf("--password=%s", c.cluster.config.Password))
-	}
-	if c.cluster.config.TLSClientConfig.CertFile != "" {
-		args = append(args, fmt.Sprintf("--client-certificate=%s", c.cluster.config.TLSClientConfig.CertFile))
-	}
-	if c.cluster.config.TLSClientConfig.CAFile != "" {
-		args = append(args, fmt.Sprintf("--certificate-authority=%s", c.cluster.config.TLSClientConfig.CAFile))
-	}
-	if c.cluster.config.TLSClientConfig.KeyFile != "" {
-		args = append(args, fmt.Sprintf("--client-key=%s", c.cluster.config.TLSClientConfig.KeyFile))
-	}
-	if c.cluster.config.BearerToken != "" {
-		args = append(args, fmt.Sprintf("--token=%s", c.cluster.config.BearerToken))
-	}
-	args = append(args, []string{
-		"apply",
-		"-f", "-", // take definition from stdin
-	}...)
-
-	cmd := exec.Command(c.cluster.kubectl, args...)
-	cmd.Stdin = bytes.NewReader(newDefinition)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	logger.Log("cmd", strings.Join(cmd.Args, " "))
-
-	begin := time.Now()
-	err := cmd.Run()
-	result := "success"
-	if err != nil {
-		result = err.Error()
-	}
-	logger.Log("result", result, "took", time.Since(begin).String())
-
-	return err
+func (m *statusMap) endRegrade(ns namespacedService) {
+	m.mx.Lock()
+	defer m.mx.Unlock()
+	delete(m.inProgress, ns)
 }
 
 // Either a replication controller, a deployment, or neither (both nils).
@@ -307,6 +236,15 @@ func (p podController) name() string {
 		return p.ReplicationController.Name
 	}
 	return ""
+}
+
+func (p podController) kind() string {
+	if p.Deployment != nil {
+		return "Deployment"
+	} else if p.ReplicationController != nil {
+		return "ReplicationController"
+	}
+	return "unknown"
 }
 
 func (p podController) templateContainers() []api.Container {
@@ -451,9 +389,15 @@ func (c *Cluster) makePlatformService(s api.Service) platform.Service {
 		"type":             string(s.Spec.Type),
 	}
 
+	var status string
+	if summary, ok := c.status.getRegradeProgress(namespacedService{s.Namespace, s.Name}); ok {
+		status = summary
+	}
+
 	return platform.Service{
 		Name:     s.Name,
 		IP:       s.Spec.ClusterIP,
 		Metadata: metadata,
+		Status:   status,
 	}
 }
