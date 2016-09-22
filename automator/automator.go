@@ -3,6 +3,8 @@ package automator
 import (
 	"time"
 
+	"github.com/go-kit/kit/log"
+
 	"github.com/weaveworks/fluxy"
 	"github.com/weaveworks/fluxy/instance"
 )
@@ -11,9 +13,9 @@ const (
 	automationEnabled  = "Automation enabled."
 	automationDisabled = "Automation disabled."
 
-	HardwiredInstance = "DEFAULT"
+	hardwiredInstance = "DEFAULT"
 
-	automationCycle = 15
+	automationCycle = 15 * time.Second
 )
 
 // Automator orchestrates continuous deployment for specific services.
@@ -31,11 +33,12 @@ func New(cfg Config) (*Automator, error) {
 	}, nil
 }
 
-func (a *Automator) Start() {
-	tick := time.Tick(automationCycle * time.Second)
+func (a *Automator) Start(errorLogger log.Logger) {
+	tick := time.Tick(automationCycle)
 	for range tick {
-		inst, err := a.cfg.InstanceDB.Get(HardwiredInstance)
+		inst, err := a.cfg.InstanceDB.Get(hardwiredInstance)
 		if err != nil {
+			errorLogger.Log("err", err)
 			continue
 		}
 		for service, conf := range inst.Services {
@@ -51,7 +54,7 @@ func (a *Automator) Start() {
 }
 
 func (a *Automator) recordAutomation(service flux.ServiceID, automation bool) error {
-	if err := a.cfg.InstanceDB.Update(HardwiredInstance, func(conf instance.Config) (instance.Config, error) {
+	if err := a.cfg.InstanceDB.Update(hardwiredInstance, func(conf instance.Config) (instance.Config, error) {
 		if serviceConf, found := conf.Services[service]; found {
 			serviceConf.Automated = automation
 			conf.Services[service] = serviceConf
@@ -86,7 +89,7 @@ func (a *Automator) IsAutomated(namespace, serviceName string) bool {
 	if a == nil {
 		return false
 	}
-	inst, err := a.cfg.InstanceDB.Get(HardwiredInstance)
+	inst, err := a.cfg.InstanceDB.Get(hardwiredInstance)
 	if err != nil {
 		return false
 	}

@@ -291,7 +291,7 @@ func main() {
 		}
 	}
 
-	go auto.Start()
+	go auto.Start(log.NewContext(logger).With("component", "automator"))
 
 	// The server.
 	server := flux.NewServer(k8s, reg, rjs, auto, eventReader, logger, serverMetrics, helperDuration)

@@ -37,17 +37,17 @@ var (
 	}
 )
 
-type db struct {
+type DB struct {
 	conn   *sql.DB
 	schema string
 }
 
-func New(driver, datasource string) (*db, error) {
+func New(driver, datasource string) (*DB, error) {
 	conn, err := sql.Open(driver, datasource)
 	if err != nil {
 		return nil, err
 	}
-	db := &db{
+	db := &DB{
 		conn:   conn,
 		schema: schemaByDriver[driver],
 	}
@@ -57,7 +57,7 @@ func New(driver, datasource string) (*db, error) {
 	return db, db.ensureTables()
 }
 
-func (db *db) Update(inst flux.InstanceID, update instance.UpdateFunc) error {
+func (db *DB) Update(inst flux.InstanceID, update instance.UpdateFunc) error {
 	tx, err := db.conn.Begin()
 	if err != nil {
 		return err
@@ -103,7 +103,7 @@ func (db *db) Update(inst flux.InstanceID, update instance.UpdateFunc) error {
 	return err
 }
 
-func (db *db) Get(inst flux.InstanceID) (instance.Config, error) {
+func (db *DB) Get(inst flux.InstanceID) (instance.Config, error) {
 	var c string
 	err := db.conn.QueryRow(`SELECT config FROM config WHERE instance = $1`, string(inst)).Scan(&c)
 	if err != nil {
@@ -115,7 +115,7 @@ func (db *db) Get(inst flux.InstanceID) (instance.Config, error) {
 
 // ---
 
-func (db *db) ensureTables() error {
+func (db *DB) ensureTables() error {
 	// ql driver needs this to work correctly in a container
 	os.MkdirAll(os.TempDir(), 0777)
 	tx, err := db.conn.Begin()
