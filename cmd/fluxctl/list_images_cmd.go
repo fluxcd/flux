@@ -2,9 +2,12 @@ package main
 
 import (
 	"fmt"
+	"sort"
 	"time"
 
 	"github.com/spf13/cobra"
+
+	"github.com/weaveworks/fluxy"
 )
 
 type serviceShowOpts struct {
@@ -43,6 +46,8 @@ func (opts *serviceShowOpts) RunE(_ *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+
+	sort.Sort(imageStatusByName(services))
 
 	out := newTabwriter()
 
@@ -93,4 +98,18 @@ func (opts *serviceShowOpts) RunE(_ *cobra.Command, args []string) error {
 	}
 	out.Flush()
 	return nil
+}
+
+type imageStatusByName []flux.ImageStatus
+
+func (s imageStatusByName) Len() int {
+	return len(s)
+}
+
+func (s imageStatusByName) Less(a, b int) bool {
+	return s[a].ID < s[b].ID
+}
+
+func (s imageStatusByName) Swap(a, b int) {
+	s[a], s[b] = s[b], s[a]
 }
