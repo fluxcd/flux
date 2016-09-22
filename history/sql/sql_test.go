@@ -1,9 +1,11 @@
-package history
+package sql
 
 import (
 	"flag"
 	"io/ioutil"
 	"testing"
+
+    "github.com/weaveworks/fluxy/history"
 )
 
 var (
@@ -25,7 +27,7 @@ func bailIfErr(t *testing.T, err error) {
 	}
 }
 
-func newSQL(t *testing.T) DB {
+func newSQL(t *testing.T) history.DB {
 	if *databaseDriver == "ql" && *databaseSource == "" {
 		*databaseSource = "file://" + mkDBFile(t)
 	}
