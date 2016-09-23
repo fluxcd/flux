@@ -200,9 +200,11 @@ func (r *releaser) releaseAllToLatest(kind flux.ReleaseKind, updateJob func(stri
 		res = append(res, r.releaseActionUpdatePodController(service, regrades))
 	}
 	res = append(res, r.releaseActionCommitAndPush("Release latest images to all services"))
+	var services []flux.ServiceID
 	for service := range regradeMap {
-		res = append(res, r.releaseActionRegradeService(service, "latest images (to all services)"))
+		services = append(services, service)
 	}
+	res = append(res, r.releaseActionRegradeServices(services, "latest images (to all services)"))
 
 	return nil
 }
@@ -279,9 +281,11 @@ func (r *releaser) releaseAllForImage(target flux.ImageID, kind flux.ReleaseKind
 		res = append(res, r.releaseActionUpdatePodController(service, imageReleases))
 	}
 	res = append(res, r.releaseActionCommitAndPush(fmt.Sprintf("Release %s to all services", target)))
+	var services []flux.ServiceID
 	for service := range regradeMap {
-		res = append(res, r.releaseActionRegradeService(service, string(target)+" (to all services)"))
+		services = append(services, service)
 	}
+	res = append(res, r.releaseActionRegradeServices(services, string(target)+" (to all services)"))
 
 	return nil
 }
@@ -358,7 +362,7 @@ func (r *releaser) releaseOneToLatest(id flux.ServiceID, kind flux.ReleaseKind, 
 	res = append(res, r.releaseActionClone())
 	res = append(res, r.releaseActionUpdatePodController(id, regrades))
 	res = append(res, r.releaseActionCommitAndPush(fmt.Sprintf("Release latest images to %s", id)))
-	res = append(res, r.releaseActionRegradeService(id, "latest images"))
+	res = append(res, r.releaseActionRegradeServices([]flux.ServiceID{id}, "latest images"))
 
 	return nil
 }
@@ -425,7 +429,7 @@ func (r *releaser) releaseOne(serviceID flux.ServiceID, target flux.ImageID, kin
 	res = append(res, r.releaseActionClone())
 	res = append(res, r.releaseActionUpdatePodController(serviceID, regrades))
 	res = append(res, r.releaseActionCommitAndPush(fmt.Sprintf("Release %s to %s", target, serviceID)))
-	res = append(res, r.releaseActionRegradeService(serviceID, string(target)))
+	res = append(res, r.releaseActionRegradeServices([]flux.ServiceID{serviceID}, string(target)))
 
 	return nil
 }
@@ -450,7 +454,7 @@ func (r *releaser) releaseOneWithoutUpdate(serviceID flux.ServiceID, kind flux.R
 	res = append(res, r.releaseActionPrintf("I'm going to release service %s using the config from the git repo, without updating it", serviceID))
 	res = append(res, r.releaseActionClone())
 	res = append(res, r.releaseActionFindPodController(serviceID))
-	res = append(res, r.releaseActionRegradeService(serviceID, "without update"))
+	res = append(res, r.releaseActionRegradeServices([]flux.ServiceID{serviceID}, "without update"))
 
 	return nil
 }
@@ -484,8 +488,8 @@ func (r *releaser) releaseAllWithoutUpdate(kind flux.ReleaseKind, updateJob func
 	res = append(res, r.releaseActionClone())
 	for _, service := range serviceIDs {
 		res = append(res, r.releaseActionFindPodController(service))
-		res = append(res, r.releaseActionRegradeService(service, "without update (all services)"))
 	}
+	res = append(res, r.releaseActionRegradeServices(serviceIDs, "without update (all services)"))
 
 	return nil
 }
@@ -702,41 +706,69 @@ func (r *releaser) releaseActionCommitAndPush(msg string) flux.ReleaseAction {
 	}
 }
 
-func (r *releaser) releaseActionRegradeService(service flux.ServiceID, cause string) flux.ReleaseAction {
+func service2string(a []flux.ServiceID) []string {
+	s := make([]string, len(a))
+	for i := range a {
+		s[i] = string(a[i])
+	}
+	return s
+}
+
+func (r *releaser) releaseActionRegradeServices(services []flux.ServiceID, cause string) flux.ReleaseAction {
 	return flux.ReleaseAction{
-		Description: fmt.Sprintf("Regrade the service %s.", service),
+		Description: fmt.Sprintf("Regrade %d service(s): %s.", len(services), strings.Join(service2string(services), ", ")),
 		Do: func(rc *flux.ReleaseContext) (res string, err error) {
 			defer func(begin time.Time) {
 				r.metrics.ActionDuration.With(
-					"action", "regrade_service",
+					"action", "regrade_services",
 					"success", fmt.Sprint(err == nil),
 				).Observe(time.Since(begin).Seconds())
 			}(time.Now())
 
-			def, ok := rc.PodControllers[service]
-			if !ok {
-				return fmt.Sprintf("no definition for %s; ignoring", string(service)), nil
-			}
+			// We'll collect results for each service regrade.
+			results := map[flux.ServiceID]error{}
 
-			namespace, serviceName := service.Components()
-			r.history.LogEvent(namespace, serviceName, "Starting regrade "+cause)
+			// Collect specs for each service regrade.
+			var specs []platform.RegradeSpec
+			for _, service := range services {
+				def, ok := rc.PodControllers[service]
+				if !ok {
+					results[service] = errors.New("no pod controller in release context; skipping regrade")
+					continue
+				}
 
-			err = r.helper.PlatformRegrade([]platform.RegradeSpec{
-				platform.RegradeSpec{
+				namespace, serviceName := service.Components()
+				r.history.LogEvent(namespace, serviceName, "Starting regrade "+cause)
+				specs = append(specs, platform.RegradeSpec{
 					NamespacedService: platform.NamespacedService{
 						Namespace: namespace,
 						Service:   serviceName,
 					},
 					NewDefinition: def,
-				},
-			})
-			if err == nil {
-				r.history.LogEvent(namespace, serviceName, "Regrade "+cause+": done")
-			} else {
-				r.history.LogEvent(namespace, serviceName, "Regrade "+cause+": failed: "+err.Error())
+				})
 			}
 
-			return "", err
+			// Execute the regrades as a single transaction.
+			// Splat any errors into our results map.
+			transactionErr := r.helper.PlatformRegrade(specs)
+			if transactionErr != nil {
+				for ns, regradeErr := range transactionErr.(platform.RegradeError) {
+					id, _ := flux.ParseServiceID(fmt.Sprintf("%s/%s", ns.Namespace, ns.Service))
+					results[id] = regradeErr
+				}
+			}
+
+			// Report individual service regrade results.
+			for _, service := range services {
+				namespace, serviceName := service.Components()
+				if err := results[service]; err == nil { // no entry = nil error
+					r.history.LogEvent(namespace, serviceName, "Regrade "+cause+": done")
+				} else {
+					r.history.LogEvent(namespace, serviceName, "Regrade "+cause+": failed: "+err.Error())
+				}
+			}
+
+			return "", transactionErr
 		},
 	}
 }
