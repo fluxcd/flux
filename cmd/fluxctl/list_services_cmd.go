@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"sort"
 
 	"github.com/spf13/cobra"
 
@@ -38,6 +39,8 @@ func (opts *serviceListOpts) RunE(_ *cobra.Command, args []string) error {
 		return err
 	}
 
+	sort.Sort(serviceStatusByName(services))
+
 	w := newTabwriter()
 	fmt.Fprintf(w, "SERVICE\tCONTAINER\tIMAGE\tRELEASE\tAUTOMATION\n")
 	for _, s := range services {
@@ -60,4 +63,18 @@ func maybeAutomated(s flux.ServiceStatus) string {
 		return "automated"
 	}
 	return ""
+}
+
+type serviceStatusByName []flux.ServiceStatus
+
+func (s serviceStatusByName) Len() int {
+	return len(s)
+}
+
+func (s serviceStatusByName) Less(a, b int) bool {
+	return s[a].ID < s[b].ID
+}
+
+func (s serviceStatusByName) Swap(a, b int) {
+	s[a], s[b] = s[b], s[a]
 }
