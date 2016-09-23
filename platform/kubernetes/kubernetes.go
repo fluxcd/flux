@@ -56,6 +56,7 @@ type Cluster struct {
 	client  extendedClient
 	kubectl string
 	status  *statusMap
+	actionc chan func()
 	logger  log.Logger
 }
 
@@ -83,38 +84,80 @@ func NewCluster(config *restclient.Config, kubectl string, logger log.Logger) (*
 	}
 	logger.Log("kubectl", kubectl)
 
-	return &Cluster{
+	c := &Cluster{
 		config:  config,
 		client:  extendedClient{client, extclient},
 		kubectl: kubectl,
 		status:  newStatusMap(),
+		actionc: make(chan func()),
 		logger:  logger,
-	}, nil
+	}
+	go c.loop()
+	return c, nil
+}
+
+// Stop terminates the goroutine that serializes and executes requests against
+// the cluster. A stopped cluster cannot be restarted.
+func (c *Cluster) Stop() {
+	close(c.actionc)
+}
+
+func (c *Cluster) loop() {
+	for f := range c.actionc {
+		f()
+	}
 }
 
 // Namespaces returns the set of available namespaces on the platform.
 func (c *Cluster) Namespaces() ([]string, error) {
-	list, err := c.client.Namespaces().List(api.ListOptions{})
-	if err != nil {
-		return nil, errors.Wrap(err, "fetching namespaces")
+	var (
+		resc = make(chan []string)
+		errc = make(chan error)
+	)
+	c.actionc <- func() {
+		list, err := c.client.Namespaces().List(api.ListOptions{})
+		if err != nil {
+			errc <- errors.Wrap(err, "fetching namespaces")
+			return
+		}
+		res := make([]string, len(list.Items))
+		for i := range list.Items {
+			res[i] = list.Items[i].Name
+		}
+		resc <- res
 	}
-	res := make([]string, len(list.Items))
-	for i := range list.Items {
-		res[i] = list.Items[i].Name
+	select {
+	case res := <-resc:
+		return res, nil
+	case err := <-errc:
+		return nil, err
 	}
-	return res, nil
 }
 
 // Service returns the platform.Service representation of the named service.
 func (c *Cluster) Service(namespace, service string) (platform.Service, error) {
-	apiService, err := c.service(namespace, service)
-	if err != nil {
-		if statusErr, ok := err.(*k8serrors.StatusError); ok && statusErr.ErrStatus.Code == http.StatusNotFound { // le sigh
-			return platform.Service{}, platform.ErrNoMatchingService
+	var (
+		resc = make(chan platform.Service)
+		errc = make(chan error)
+	)
+	c.actionc <- func() {
+		apiService, err := c.service(namespace, service)
+		if err != nil {
+			if statusErr, ok := err.(*k8serrors.StatusError); ok && statusErr.ErrStatus.Code == http.StatusNotFound { // le sigh
+				errc <- platform.ErrNoMatchingService
+				return
+			}
+			errc <- errors.Wrap(err, "fetching service "+namespace+"/"+service)
+			return
 		}
-		return platform.Service{}, errors.Wrap(err, "fetching service "+namespace+"/"+service)
+		resc <- c.makePlatformService(apiService)
 	}
-	return c.makePlatformService(apiService), nil
+	select {
+	case res := <-resc:
+		return res, nil
+	case err := <-errc:
+		return platform.Service{}, err
+	}
 }
 
 // Services returns the set of services currently active on the platform in the
@@ -126,11 +169,24 @@ func (c *Cluster) Service(namespace, service string) (platform.Service, error) {
 // For now, we make a simplifying assumption that there is a one-to-one mapping
 // between services and replication controllers.
 func (c *Cluster) Services(namespace string) ([]platform.Service, error) {
-	apiServices, err := c.services(namespace)
-	if err != nil {
-		return nil, errors.Wrap(err, "fetching services for namespace "+namespace)
+	var (
+		resc = make(chan []platform.Service)
+		errc = make(chan error)
+	)
+	c.actionc <- func() {
+		apiServices, err := c.services(namespace)
+		if err != nil {
+			errc <- errors.Wrap(err, "fetching services for namespace "+namespace)
+			return
+		}
+		resc <- c.makePlatformServices(apiServices)
 	}
-	return c.makePlatformServices(apiServices), nil
+	select {
+	case res := <-resc:
+		return res, nil
+	case err := <-errc:
+		return nil, err
+	}
 }
 
 func (c *Cluster) service(namespace, service string) (res api.Service, err error) {
@@ -165,30 +221,38 @@ func definitionObj(bytes []byte) (*apiObject, error) {
 // `kubectl apply` in a seperate process, and assumes kubectl is in
 // the PATH; this can be improved.
 func (c *Cluster) Regrade(namespace, serviceName string, newDefinition []byte) error {
-	newDef, err := definitionObj(newDefinition)
-	if err != nil {
-		return errors.Wrap(err, "reading definition")
-	}
+	errc := make(chan error)
+	c.actionc <- func() {
+		newDef, err := definitionObj(newDefinition)
+		if err != nil {
+			errc <- errors.Wrap(err, "reading definition")
+			return
+		}
 
-	pc, err := c.podControllerFor(namespace, serviceName)
-	if err != nil {
-		return err
-	}
+		pc, err := c.podControllerFor(namespace, serviceName)
+		if err != nil {
+			errc <- err
+			return
+		}
 
-	plan, err := pc.newRegrade(newDef)
-	if err != nil {
-		return err
-	}
+		plan, err := pc.newRegrade(newDef)
+		if err != nil {
+			errc <- err
+			return
+		}
 
-	ns := namespacedService{namespace, serviceName}
-	c.status.startRegrade(ns, plan)
-	defer c.status.endRegrade(ns)
+		ns := namespacedService{namespace, serviceName}
+		c.status.startRegrade(ns, plan)
+		defer c.status.endRegrade(ns)
 
-	logger := log.NewContext(c.logger).With("method", "Release", "namespace", namespace, "service", serviceName)
-	if err = plan.exec(c, logger); err != nil {
-		return errors.Wrap(err, "releasing "+namespace+"/"+serviceName)
+		logger := log.NewContext(c.logger).With("method", "Release", "namespace", namespace, "service", serviceName)
+		if err = plan.exec(c, logger); err != nil {
+			errc <- errors.Wrap(err, "releasing "+namespace+"/"+serviceName)
+			return
+		}
+		errc <- nil
 	}
-	return nil
+	return <-errc
 }
 
 type statusMap struct {
@@ -354,23 +418,37 @@ func (c *Cluster) podControllerFor(namespace, serviceName string) (res podContro
 // specified to run in that container, for a particular service. This
 // is useful to see which images a particular service is presently
 // running, to judge whether a release is needed.
-func (c *Cluster) ContainersFor(namespace, serviceName string) (res []platform.Container, err error) {
-	pc, err := c.podControllerFor(namespace, serviceName)
-	if err != nil {
+func (c *Cluster) ContainersFor(namespace, serviceName string) ([]platform.Container, error) {
+	var (
+		resc = make(chan []platform.Container)
+		errc = make(chan error)
+	)
+	c.actionc <- func() {
+		pc, err := c.podControllerFor(namespace, serviceName)
+		if err != nil {
+			errc <- err
+			return
+		}
+
+		var containers []platform.Container
+		for _, container := range pc.templateContainers() {
+			containers = append(containers, platform.Container{
+				Image: container.Image,
+				Name:  container.Name,
+			})
+		}
+		if len(containers) <= 0 {
+			errc <- platform.ErrNoMatchingImages
+			return
+		}
+		resc <- containers
+	}
+	select {
+	case res := <-resc:
+		return res, nil
+	case err := <-errc:
 		return nil, err
 	}
-
-	var containers []platform.Container
-	for _, container := range pc.templateContainers() {
-		containers = append(containers, platform.Container{
-			Image: container.Image,
-			Name:  container.Name,
-		})
-	}
-	if len(containers) <= 0 {
-		return nil, platform.ErrNoMatchingImages
-	}
-	return containers, nil
 }
 
 func (c *Cluster) makePlatformServices(apiServices []api.Service) []platform.Service {
