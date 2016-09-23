@@ -170,10 +170,22 @@ func handlePostRelease(s Service) http.Handler {
 			return
 		}
 
+		var excludes []ServiceID
+		for _, ex := range r.URL.Query()["excludes"] {
+			s, err := ParseServiceID(ex)
+			if err != nil {
+				w.WriteHeader(http.StatusBadRequest)
+				fmt.Fprintf(w, errors.Wrapf(err, "parsing excluded service %q", ex).Error())
+				return
+			}
+			excludes = append(excludes, s)
+		}
+
 		id, err := s.PostRelease(ReleaseJobSpec{
 			ServiceSpec: serviceSpec,
 			ImageSpec:   imageSpec,
 			Kind:        releaseKind,
+			Excludes:    excludes,
 		})
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
@@ -194,7 +206,12 @@ func handlePostRelease(s Service) http.Handler {
 }
 
 func invokePostRelease(client *http.Client, router *mux.Router, endpoint string, s ReleaseJobSpec) (ReleaseID, error) {
-	u, err := makeURL(endpoint, router, "PostRelease", "service", string(s.ServiceSpec), "image", string(s.ImageSpec), "kind", string(s.Kind))
+	args := []string{"service", string(s.ServiceSpec), "image", string(s.ImageSpec), "kind", string(s.Kind)}
+	for _, ex := range s.Excludes {
+		args = append(args, "exclude", string(ex))
+	}
+
+	u, err := makeURL(endpoint, router, "PostRelease", args...)
 	if err != nil {
 		return "", errors.Wrap(err, "constructing URL")
 	}

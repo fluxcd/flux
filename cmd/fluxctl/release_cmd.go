@@ -18,6 +18,7 @@ type serviceReleaseOpts struct {
 	allImages   bool
 	noUpdate    bool
 	dryRun      bool
+	exclude     []string
 }
 
 func newServiceRelease(parent *serviceOpts) *serviceReleaseOpts {
@@ -41,6 +42,7 @@ func (opts *serviceReleaseOpts) Command() *cobra.Command {
 	cmd.Flags().StringVarP(&opts.image, "update-image", "i", "", "update a specific image")
 	cmd.Flags().BoolVar(&opts.allImages, "update-all-images", false, "update all images to latest versions")
 	cmd.Flags().BoolVar(&opts.noUpdate, "no-update", false, "don't update images; just deploy the service(s) as configured in the git repo")
+	cmd.Flags().StringSliceVar(&opts.exclude, "exclude", []string{}, "exclude a service")
 	cmd.Flags().BoolVar(&opts.dryRun, "dry-run", false, "do not release anything; just report back what would have been done")
 	return cmd
 }
@@ -79,6 +81,15 @@ func (opts *serviceReleaseOpts) RunE(_ *cobra.Command, args []string) error {
 		kind = flux.ReleaseKindPlan
 	}
 
+	var excludes []flux.ServiceID
+	for _, exclude := range opts.exclude {
+		s, err := flux.ParseServiceID(exclude)
+		if err != nil {
+			return err
+		}
+		excludes = append(excludes, s)
+	}
+
 	begin := time.Now()
 	printf := func(format string, args ...interface{}) {
 		args = append([]interface{}{(int(time.Since(begin).Seconds()))}, args...)
@@ -95,6 +106,7 @@ func (opts *serviceReleaseOpts) RunE(_ *cobra.Command, args []string) error {
 		ServiceSpec: service,
 		ImageSpec:   image,
 		Kind:        kind,
+		Excludes:    excludes,
 	})
 	if err != nil {
 		return err

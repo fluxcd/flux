@@ -248,4 +248,5 @@ type ReleaseJobSpec struct {
 	ServiceSpec ServiceSpec
 	ImageSpec   ImageSpec
 	Kind        ReleaseKind
+	Excludes    []ServiceID
 }
