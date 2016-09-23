@@ -27,11 +27,6 @@ type extendedClient struct {
 	*k8sclient.ExtensionsClient
 }
 
-type namespacedService struct {
-	namespace string
-	service   string
-}
-
 type apiObject struct {
 	bytes    []byte
 	Version  string `yaml:"apiVersion"`
@@ -210,44 +205,50 @@ func definitionObj(bytes []byte) (*apiObject, error) {
 	return &obj, yaml.Unmarshal(bytes, &obj)
 }
 
-// Regrade performs an update of the service, from whatever it is currently, to
-// what is described by the new resource, which can be a replication controller
-// or deployment.
+// Regrade performs service regrades as specified by the RegradeSpecs. If all
+// regrades succeed, Regrade returns a nil error. If any regrade fails, Regrade
+// returns an error of type RegradeError, which can be inspected for more
+// detailed information.
 //
 // Regrade assumes there is a one-to-one mapping between services and
-// replication controllers or deployments; this can be
-// improved. Regrade blocks until a rolling update is complete; this
-// can be improved. Regrade invokes `kubectl rolling-update` or
-// `kubectl apply` in a seperate process, and assumes kubectl is in
-// the PATH; this can be improved.
-func (c *Cluster) Regrade(namespace, serviceName string, newDefinition []byte) error {
+// replication controllers or deployments; this can be improved. Regrade blocks
+// until an update is complete; this can be improved. Regrade invokes `kubectl
+// rolling-update` or `kubectl apply` in a seperate process, and assumes kubectl
+// is in the PATH; this can be improved.
+func (c *Cluster) Regrade(specs []platform.RegradeSpec) error {
 	errc := make(chan error)
 	c.actionc <- func() {
-		newDef, err := definitionObj(newDefinition)
-		if err != nil {
-			errc <- errors.Wrap(err, "reading definition")
-			return
+		regradeErr := platform.RegradeError{}
+		for _, spec := range specs {
+			newDef, err := definitionObj(spec.NewDefinition)
+			if err != nil {
+				regradeErr[spec.NamespacedService] = errors.Wrap(err, "reading definition")
+				continue
+			}
+
+			pc, err := c.podControllerFor(spec.Namespace, spec.Service)
+			if err != nil {
+				regradeErr[spec.NamespacedService] = errors.Wrap(err, "getting pod controller")
+				continue
+			}
+
+			plan, err := pc.newRegrade(newDef)
+			if err != nil {
+				regradeErr[spec.NamespacedService] = errors.Wrap(err, "creating regrade")
+				continue
+			}
+
+			c.status.startRegrade(spec.NamespacedService, plan)
+			defer c.status.endRegrade(spec.NamespacedService)
+
+			logger := log.NewContext(c.logger).With("method", "Release", "namespace", spec.Namespace, "service", spec.Service)
+			if err = plan.exec(c, logger); err != nil {
+				regradeErr[spec.NamespacedService] = errors.Wrapf(err, "releasing %s/%s", spec.Namespace, spec.Service)
+				continue
+			}
 		}
-
-		pc, err := c.podControllerFor(namespace, serviceName)
-		if err != nil {
-			errc <- err
-			return
-		}
-
-		plan, err := pc.newRegrade(newDef)
-		if err != nil {
-			errc <- err
-			return
-		}
-
-		ns := namespacedService{namespace, serviceName}
-		c.status.startRegrade(ns, plan)
-		defer c.status.endRegrade(ns)
-
-		logger := log.NewContext(c.logger).With("method", "Release", "namespace", namespace, "service", serviceName)
-		if err = plan.exec(c, logger); err != nil {
-			errc <- errors.Wrap(err, "releasing "+namespace+"/"+serviceName)
+		if len(regradeErr) > 0 {
+			errc <- regradeErr
 			return
 		}
 		errc <- nil
@@ -256,23 +257,23 @@ func (c *Cluster) Regrade(namespace, serviceName string, newDefinition []byte) e
 }
 
 type statusMap struct {
-	inProgress map[namespacedService]*regrade
+	inProgress map[platform.NamespacedService]*regrade
 	mx         sync.RWMutex
 }
 
 func newStatusMap() *statusMap {
 	return &statusMap{
-		inProgress: make(map[namespacedService]*regrade),
+		inProgress: make(map[platform.NamespacedService]*regrade),
 	}
 }
 
-func (m *statusMap) startRegrade(ns namespacedService, r *regrade) {
+func (m *statusMap) startRegrade(ns platform.NamespacedService, r *regrade) {
 	m.mx.Lock()
 	defer m.mx.Unlock()
 	m.inProgress[ns] = r
 }
 
-func (m *statusMap) getRegradeProgress(ns namespacedService) (string, bool) {
+func (m *statusMap) getRegradeProgress(ns platform.NamespacedService) (string, bool) {
 	m.mx.RLock()
 	defer m.mx.RUnlock()
 	if r, ok := m.inProgress[ns]; ok {
@@ -281,7 +282,7 @@ func (m *statusMap) getRegradeProgress(ns namespacedService) (string, bool) {
 	return "", false
 }
 
-func (m *statusMap) endRegrade(ns namespacedService) {
+func (m *statusMap) endRegrade(ns platform.NamespacedService) {
 	m.mx.Lock()
 	defer m.mx.Unlock()
 	delete(m.inProgress, ns)
@@ -468,7 +469,7 @@ func (c *Cluster) makePlatformService(s api.Service) platform.Service {
 	}
 
 	var status string
-	if summary, ok := c.status.getRegradeProgress(namespacedService{s.Namespace, s.Name}); ok {
+	if summary, ok := c.status.getRegradeProgress(platform.NamespacedService{s.Namespace, s.Name}); ok {
 		status = summary
 	}
 

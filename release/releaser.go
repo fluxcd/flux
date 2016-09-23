@@ -15,6 +15,7 @@ import (
 	"github.com/weaveworks/fluxy"
 	"github.com/weaveworks/fluxy/git"
 	"github.com/weaveworks/fluxy/history"
+	"github.com/weaveworks/fluxy/platform"
 	"github.com/weaveworks/fluxy/platform/kubernetes"
 	"github.com/weaveworks/fluxy/registry"
 )
@@ -720,7 +721,15 @@ func (r *releaser) releaseActionRegradeService(service flux.ServiceID, cause str
 			namespace, serviceName := service.Components()
 			r.history.LogEvent(namespace, serviceName, "Starting regrade "+cause)
 
-			err = r.helper.PlatformRegrade(namespace, serviceName, def)
+			err = r.helper.PlatformRegrade([]platform.RegradeSpec{
+				platform.RegradeSpec{
+					NamespacedService: platform.NamespacedService{
+						Namespace: namespace,
+						Service:   serviceName,
+					},
+					NewDefinition: def,
+				},
+			})
 			if err == nil {
 				r.history.LogEvent(namespace, serviceName, "Regrade "+cause+": done")
 			} else {
