@@ -108,6 +108,7 @@ func deploymentExec(def *apiext.Deployment, newDef *apiObject) regradeExecFunc {
 			cmd := c.kubectlCommand(
 				"rollout", "status",
 				"deployment", newDef.Metadata.Name,
+				"--namespace", newDef.Metadata.Namespace,
 			)
 			logger.Log("cmd", strings.Join(cmd.Args, " "))
 			err = cmd.Run()
