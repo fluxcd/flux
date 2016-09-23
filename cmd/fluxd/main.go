@@ -230,7 +230,7 @@ func main() {
 				http.DefaultClient,
 				*slackWebhookURL,
 				*slackUsername,
-				`Release`, // only catch the final message
+				`Regrade`, // only catch the final message
 			))
 			logger.Log("Slack", "enabled", "username", *slackUsername)
 		} else {
