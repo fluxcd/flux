@@ -106,7 +106,12 @@ func (db *DB) Update(inst flux.InstanceID, update instance.UpdateFunc) error {
 func (db *DB) Get(inst flux.InstanceID) (instance.Config, error) {
 	var c string
 	err := db.conn.QueryRow(`SELECT config FROM config WHERE instance = $1`, string(inst)).Scan(&c)
-	if err != nil {
+	switch err {
+	case nil:
+		break
+	case sql.ErrNoRows:
+		return instance.MakeConfig(), nil
+	default:
 		return instance.Config{}, err
 	}
 	var conf instance.Config
