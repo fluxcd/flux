@@ -1,6 +1,7 @@
 package release
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/go-kit/kit/log"
@@ -60,13 +61,13 @@ func (w *Worker) Work(tick <-chan time.Time) {
 			w.logger.Log("err", errors.Wrapf(err, "updating release job %s", job.ID))
 		}
 
-		// TODO(pb): update Release to take a Job and continuously Update it
-		// instead of returning release actions.
 		err = w.releaser.Release(&job, w.jobs)
 		job.Finished = time.Now()
 		if err != nil {
 			job.Success = false
-			job.Status = "Failed: " + err.Error()
+			status := fmt.Sprintf("Failed: %v", err)
+			job.Status = status
+			job.Log = append(job.Log, status)
 		} else {
 			job.Success = true
 			job.Status = "Complete."
