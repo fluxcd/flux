@@ -119,7 +119,9 @@ func (opts *serviceReleaseOpts) RunE(_ *cobra.Command, args []string) error {
 		}
 	}
 
-	if opts.dryRun {
+	if !job.Success {
+		fmt.Fprintf(os.Stdout, "Here's as far as we got:\n")
+	} else if opts.dryRun {
 		fmt.Fprintf(os.Stdout, "Here's the plan:\n")
 	} else {
 		fmt.Fprintf(os.Stdout, "Here's what happened:\n")
