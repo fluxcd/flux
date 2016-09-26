@@ -27,11 +27,6 @@ type extendedClient struct {
 	*k8sclient.ExtensionsClient
 }
 
-type namespacedService struct {
-	namespace string
-	service   string
-}
-
 type apiObject struct {
 	bytes    []byte
 	Version  string `yaml:"apiVersion"`
@@ -56,6 +51,7 @@ type Cluster struct {
 	client  extendedClient
 	kubectl string
 	status  *statusMap
+	actionc chan func()
 	logger  log.Logger
 }
 
@@ -83,13 +79,28 @@ func NewCluster(config *restclient.Config, kubectl string, logger log.Logger) (*
 	}
 	logger.Log("kubectl", kubectl)
 
-	return &Cluster{
+	c := &Cluster{
 		config:  config,
 		client:  extendedClient{client, extclient},
 		kubectl: kubectl,
 		status:  newStatusMap(),
+		actionc: make(chan func()),
 		logger:  logger,
-	}, nil
+	}
+	go c.loop()
+	return c, nil
+}
+
+// Stop terminates the goroutine that serializes and executes requests against
+// the cluster. A stopped cluster cannot be restarted.
+func (c *Cluster) Stop() {
+	close(c.actionc)
+}
+
+func (c *Cluster) loop() {
+	for f := range c.actionc {
+		f()
+	}
 }
 
 // Namespaces returns the set of available namespaces on the platform.
@@ -154,61 +165,75 @@ func definitionObj(bytes []byte) (*apiObject, error) {
 	return &obj, yaml.Unmarshal(bytes, &obj)
 }
 
-// Regrade performs an update of the service, from whatever it is currently, to
-// what is described by the new resource, which can be a replication controller
-// or deployment.
+// Regrade performs service regrades as specified by the RegradeSpecs. If all
+// regrades succeed, Regrade returns a nil error. If any regrade fails, Regrade
+// returns an error of type RegradeError, which can be inspected for more
+// detailed information. Regrades are serialized per cluster.
 //
 // Regrade assumes there is a one-to-one mapping between services and
-// replication controllers or deployments; this can be
-// improved. Regrade blocks until a rolling update is complete; this
-// can be improved. Regrade invokes `kubectl rolling-update` or
-// `kubectl apply` in a seperate process, and assumes kubectl is in
-// the PATH; this can be improved.
-func (c *Cluster) Regrade(namespace, serviceName string, newDefinition []byte) error {
-	newDef, err := definitionObj(newDefinition)
-	if err != nil {
-		return errors.Wrap(err, "reading definition")
-	}
+// replication controllers or deployments; this can be improved. Regrade blocks
+// until an update is complete; this can be improved. Regrade invokes `kubectl
+// rolling-update` or `kubectl apply` in a seperate process, and assumes kubectl
+// is in the PATH; this can be improved.
+func (c *Cluster) Regrade(specs []platform.RegradeSpec) error {
+	errc := make(chan error)
+	c.actionc <- func() {
+		regradeErr := platform.RegradeError{}
+		for _, spec := range specs {
+			newDef, err := definitionObj(spec.NewDefinition)
+			if err != nil {
+				regradeErr[spec.NamespacedService] = errors.Wrap(err, "reading definition")
+				continue
+			}
 
-	pc, err := c.podControllerFor(namespace, serviceName)
-	if err != nil {
-		return err
-	}
+			pc, err := c.podControllerFor(spec.Namespace, spec.Service)
+			if err != nil {
+				regradeErr[spec.NamespacedService] = errors.Wrap(err, "getting pod controller")
+				continue
+			}
 
-	plan, err := pc.newRegrade(newDef)
-	if err != nil {
-		return err
-	}
+			plan, err := pc.newRegrade(newDef)
+			if err != nil {
+				regradeErr[spec.NamespacedService] = errors.Wrap(err, "creating regrade")
+				continue
+			}
 
-	ns := namespacedService{namespace, serviceName}
-	c.status.startRegrade(ns, plan)
-	defer c.status.endRegrade(ns)
+			c.status.startRegrade(spec.NamespacedService, plan)
+			defer c.status.endRegrade(spec.NamespacedService)
 
-	logger := log.NewContext(c.logger).With("method", "Release", "namespace", namespace, "service", serviceName)
-	if err = plan.exec(c, logger); err != nil {
-		return errors.Wrap(err, "releasing "+namespace+"/"+serviceName)
+			logger := log.NewContext(c.logger).With("method", "Release", "namespace", spec.Namespace, "service", spec.Service)
+			if err = plan.exec(c, logger); err != nil {
+				regradeErr[spec.NamespacedService] = errors.Wrapf(err, "releasing %s/%s", spec.Namespace, spec.Service)
+				continue
+			}
+		}
+		if len(regradeErr) > 0 {
+			errc <- regradeErr
+			return
+		}
+		errc <- nil
 	}
-	return nil
+	return <-errc
 }
 
 type statusMap struct {
-	inProgress map[namespacedService]*regrade
+	inProgress map[platform.NamespacedService]*regrade
 	mx         sync.RWMutex
 }
 
 func newStatusMap() *statusMap {
 	return &statusMap{
-		inProgress: make(map[namespacedService]*regrade),
+		inProgress: make(map[platform.NamespacedService]*regrade),
 	}
 }
 
-func (m *statusMap) startRegrade(ns namespacedService, r *regrade) {
+func (m *statusMap) startRegrade(ns platform.NamespacedService, r *regrade) {
 	m.mx.Lock()
 	defer m.mx.Unlock()
 	m.inProgress[ns] = r
 }
 
-func (m *statusMap) getRegradeProgress(ns namespacedService) (string, bool) {
+func (m *statusMap) getRegradeProgress(ns platform.NamespacedService) (string, bool) {
 	m.mx.RLock()
 	defer m.mx.RUnlock()
 	if r, ok := m.inProgress[ns]; ok {
@@ -217,7 +242,7 @@ func (m *statusMap) getRegradeProgress(ns namespacedService) (string, bool) {
 	return "", false
 }
 
-func (m *statusMap) endRegrade(ns namespacedService) {
+func (m *statusMap) endRegrade(ns platform.NamespacedService) {
 	m.mx.Lock()
 	defer m.mx.Unlock()
 	delete(m.inProgress, ns)
@@ -354,7 +379,7 @@ func (c *Cluster) podControllerFor(namespace, serviceName string) (res podContro
 // specified to run in that container, for a particular service. This
 // is useful to see which images a particular service is presently
 // running, to judge whether a release is needed.
-func (c *Cluster) ContainersFor(namespace, serviceName string) (res []platform.Container, err error) {
+func (c *Cluster) ContainersFor(namespace, serviceName string) ([]platform.Container, error) {
 	pc, err := c.podControllerFor(namespace, serviceName)
 	if err != nil {
 		return nil, err
@@ -390,7 +415,7 @@ func (c *Cluster) makePlatformService(s api.Service) platform.Service {
 	}
 
 	var status string
-	if summary, ok := c.status.getRegradeProgress(namespacedService{s.Namespace, s.Name}); ok {
+	if summary, ok := c.status.getRegradeProgress(platform.NamespacedService{s.Namespace, s.Name}); ok {
 		status = summary
 	}
 

@@ -4,6 +4,9 @@
 package platform
 
 import (
+	"fmt"
+	"strings"
+
 	"github.com/pkg/errors"
 )
 
@@ -39,3 +42,24 @@ var (
 	ErrMultipleMatching     = errors.New("multiple matching replication controllers or deployments")
 	ErrNoMatchingImages     = errors.New("no matching images")
 )
+
+// RegradeSpec is provided to platform.Regrade method/s.
+type RegradeSpec struct {
+	NamespacedService
+	NewDefinition []byte // of the pod controller e.g. deployment
+}
+
+type NamespacedService struct {
+	Namespace string
+	Service   string
+}
+
+type RegradeError map[NamespacedService]error
+
+func (e RegradeError) Error() string {
+	var errs []string
+	for spec, err := range e {
+		errs = append(errs, fmt.Sprintf("%s/%s: %v", spec.Namespace, spec.Service, err))
+	}
+	return strings.Join(errs, "; ")
+}
