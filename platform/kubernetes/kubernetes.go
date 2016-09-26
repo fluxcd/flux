@@ -105,54 +105,27 @@ func (c *Cluster) loop() {
 
 // Namespaces returns the set of available namespaces on the platform.
 func (c *Cluster) Namespaces() ([]string, error) {
-	var (
-		resc = make(chan []string)
-		errc = make(chan error)
-	)
-	c.actionc <- func() {
-		list, err := c.client.Namespaces().List(api.ListOptions{})
-		if err != nil {
-			errc <- errors.Wrap(err, "fetching namespaces")
-			return
-		}
-		res := make([]string, len(list.Items))
-		for i := range list.Items {
-			res[i] = list.Items[i].Name
-		}
-		resc <- res
+	list, err := c.client.Namespaces().List(api.ListOptions{})
+	if err != nil {
+		return nil, errors.Wrap(err, "fetching namespaces")
 	}
-	select {
-	case res := <-resc:
-		return res, nil
-	case err := <-errc:
-		return nil, err
+	res := make([]string, len(list.Items))
+	for i := range list.Items {
+		res[i] = list.Items[i].Name
 	}
+	return res, nil
 }
 
 // Service returns the platform.Service representation of the named service.
 func (c *Cluster) Service(namespace, service string) (platform.Service, error) {
-	var (
-		resc = make(chan platform.Service)
-		errc = make(chan error)
-	)
-	c.actionc <- func() {
-		apiService, err := c.service(namespace, service)
-		if err != nil {
-			if statusErr, ok := err.(*k8serrors.StatusError); ok && statusErr.ErrStatus.Code == http.StatusNotFound { // le sigh
-				errc <- platform.ErrNoMatchingService
-				return
-			}
-			errc <- errors.Wrap(err, "fetching service "+namespace+"/"+service)
-			return
+	apiService, err := c.service(namespace, service)
+	if err != nil {
+		if statusErr, ok := err.(*k8serrors.StatusError); ok && statusErr.ErrStatus.Code == http.StatusNotFound { // le sigh
+			return platform.Service{}, platform.ErrNoMatchingService
 		}
-		resc <- c.makePlatformService(apiService)
+		return platform.Service{}, errors.Wrap(err, "fetching service "+namespace+"/"+service)
 	}
-	select {
-	case res := <-resc:
-		return res, nil
-	case err := <-errc:
-		return platform.Service{}, err
-	}
+	return c.makePlatformService(apiService), nil
 }
 
 // Services returns the set of services currently active on the platform in the
@@ -164,24 +137,11 @@ func (c *Cluster) Service(namespace, service string) (platform.Service, error) {
 // For now, we make a simplifying assumption that there is a one-to-one mapping
 // between services and replication controllers.
 func (c *Cluster) Services(namespace string) ([]platform.Service, error) {
-	var (
-		resc = make(chan []platform.Service)
-		errc = make(chan error)
-	)
-	c.actionc <- func() {
-		apiServices, err := c.services(namespace)
-		if err != nil {
-			errc <- errors.Wrap(err, "fetching services for namespace "+namespace)
-			return
-		}
-		resc <- c.makePlatformServices(apiServices)
+	apiServices, err := c.services(namespace)
+	if err != nil {
+		return nil, errors.Wrap(err, "fetching services for namespace "+namespace)
 	}
-	select {
-	case res := <-resc:
-		return res, nil
-	case err := <-errc:
-		return nil, err
-	}
+	return c.makePlatformServices(apiServices), nil
 }
 
 func (c *Cluster) service(namespace, service string) (res api.Service, err error) {
@@ -208,7 +168,7 @@ func definitionObj(bytes []byte) (*apiObject, error) {
 // Regrade performs service regrades as specified by the RegradeSpecs. If all
 // regrades succeed, Regrade returns a nil error. If any regrade fails, Regrade
 // returns an error of type RegradeError, which can be inspected for more
-// detailed information.
+// detailed information. Regrades are serialized per cluster.
 //
 // Regrade assumes there is a one-to-one mapping between services and
 // replication controllers or deployments; this can be improved. Regrade blocks
@@ -420,36 +380,22 @@ func (c *Cluster) podControllerFor(namespace, serviceName string) (res podContro
 // is useful to see which images a particular service is presently
 // running, to judge whether a release is needed.
 func (c *Cluster) ContainersFor(namespace, serviceName string) ([]platform.Container, error) {
-	var (
-		resc = make(chan []platform.Container)
-		errc = make(chan error)
-	)
-	c.actionc <- func() {
-		pc, err := c.podControllerFor(namespace, serviceName)
-		if err != nil {
-			errc <- err
-			return
-		}
-
-		var containers []platform.Container
-		for _, container := range pc.templateContainers() {
-			containers = append(containers, platform.Container{
-				Image: container.Image,
-				Name:  container.Name,
-			})
-		}
-		if len(containers) <= 0 {
-			errc <- platform.ErrNoMatchingImages
-			return
-		}
-		resc <- containers
-	}
-	select {
-	case res := <-resc:
-		return res, nil
-	case err := <-errc:
+	pc, err := c.podControllerFor(namespace, serviceName)
+	if err != nil {
 		return nil, err
 	}
+
+	var containers []platform.Container
+	for _, container := range pc.templateContainers() {
+		containers = append(containers, platform.Container{
+			Image: container.Image,
+			Name:  container.Name,
+		})
+	}
+	if len(containers) <= 0 {
+		return nil, platform.ErrNoMatchingImages
+	}
+	return containers, nil
 }
 
 func (c *Cluster) makePlatformServices(apiServices []api.Service) []platform.Service {
