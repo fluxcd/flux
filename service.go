@@ -12,15 +12,15 @@ import (
 )
 
 type Service interface {
-	ListServices(namespace string) ([]ServiceStatus, error)
-	ListImages(ServiceSpec) ([]ImageStatus, error)
-	PostRelease(ReleaseJobSpec) (ReleaseID, error)
-	GetRelease(ReleaseID) (ReleaseJob, error)
-	Automate(ServiceID) error
-	Deautomate(ServiceID) error
-	Lock(ServiceID) error
-	Unlock(ServiceID) error
-	History(ServiceSpec) ([]HistoryEntry, error)
+	ListServices(inst InstanceID, namespace string) ([]ServiceStatus, error)
+	ListImages(InstanceID, ServiceSpec) ([]ImageStatus, error)
+	PostRelease(InstanceID, ReleaseJobSpec) (ReleaseID, error)
+	GetRelease(InstanceID, ReleaseID) (ReleaseJob, error)
+	Automate(InstanceID, ServiceID) error
+	Deautomate(InstanceID, ServiceID) error
+	Lock(InstanceID, ServiceID) error
+	Unlock(InstanceID, ServiceID) error
+	History(InstanceID, ServiceSpec) ([]HistoryEntry, error)
 }
 
 const (
@@ -38,7 +38,13 @@ var (
 	ErrInvalidReleaseKind = errors.New("invalid release kind")
 )
 
+type Token string
+
 type InstanceID string
+
+const InstanceIDHeaderKey = "X-Scope-OrgID"
+
+const DefaultInstanceID = "<default-instance-id>"
 
 type ReleaseKind string
 

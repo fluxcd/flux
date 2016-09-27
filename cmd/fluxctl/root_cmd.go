@@ -17,8 +17,13 @@ import (
 
 type rootOpts struct {
 	URL   string
+	Token string
 	Fluxd flux.Service
 }
+
+// fluxctl never sends an instance ID directly; it's always blank, and
+// optionally gets populated by an intermediating authfe from the token.
+const noInstanceID = flux.InstanceID("")
 
 type serviceOpts struct {
 	*rootOpts
@@ -54,6 +59,9 @@ func (opts *rootOpts) Command() *cobra.Command {
 	cmd.PersistentFlags().StringVarP(&opts.URL, "url", "u", "http://localhost:3030",
 		fmt.Sprintf("base URL of the fluxd API server; you can also set the environment variable %s", envVariableURL),
 	)
+	cmd.PersistentFlags().StringVarP(&opts.Token, "token", "t", "",
+		"Weave Cloud token",
+	)
 
 	svcopts := newService(opts)
 
@@ -76,7 +84,7 @@ func (opts *rootOpts) PersistentPreRunE(cmd *cobra.Command, _ []string) error {
 	if _, err := url.Parse(opts.URL); err != nil {
 		return errors.Wrapf(err, "parsing URL")
 	}
-	opts.Fluxd = transport.NewClient(http.DefaultClient, transport.NewRouter(), opts.URL)
+	opts.Fluxd = transport.NewClient(http.DefaultClient, transport.NewRouter(), opts.URL, flux.Token(opts.Token))
 	return nil
 }
 
