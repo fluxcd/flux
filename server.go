@@ -182,18 +182,9 @@ func (s *server) History(spec ServiceSpec) (res []HistoryEntry, err error) {
 
 	var events []history.Event
 	if spec == ServiceSpecAll {
-		namespaces, err := s.helper.PlatformNamespaces()
+		events, err = s.history.AllEvents()
 		if err != nil {
-			return nil, errors.Wrap(err, "fetching platform namespaces")
-		}
-
-		for _, namespace := range namespaces {
-			ev, err := s.history.AllEvents(namespace)
-			if err != nil {
-				return nil, errors.Wrapf(err, "fetching all history events for namespace %s", namespace)
-			}
-
-			events = append(events, ev...)
+			return nil, errors.Wrap(err, "fetching all history events")
 		}
 	} else {
 		id, err := ParseServiceID(string(spec))
@@ -202,12 +193,10 @@ func (s *server) History(spec ServiceSpec) (res []HistoryEntry, err error) {
 		}
 
 		namespace, service := id.Components()
-		ev, err := s.history.EventsForService(namespace, service)
+		events, err = s.history.EventsForService(namespace, service)
 		if err != nil {
 			return nil, errors.Wrapf(err, "fetching history events for %s", id)
 		}
-
-		events = append(events, ev...)
 	}
 
 	res = make([]HistoryEntry, len(events))

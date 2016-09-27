@@ -4,8 +4,9 @@ import (
 	"flag"
 	"io/ioutil"
 	"testing"
+	"time"
 
-    "github.com/weaveworks/fluxy/history"
+	"github.com/weaveworks/fluxy/history"
 )
 
 var (
@@ -43,8 +44,8 @@ func TestHistoryLog(t *testing.T) {
 	defer db.Close()
 
 	bailIfErr(t, db.LogEvent("namespace", "service", "event 1"))
-	bailIfErr(t, db.LogEvent("namespace", "service", "event 2"))
 	bailIfErr(t, db.LogEvent("namespace", "other", "event 3"))
+	bailIfErr(t, db.LogEvent("namespace", "service", "event 2"))
 
 	es, err := db.EventsForService("namespace", "service")
 	if err != nil {
@@ -53,12 +54,24 @@ func TestHistoryLog(t *testing.T) {
 	if len(es) != 2 {
 		t.Fatalf("Expected 2 events, got %d\n", len(es))
 	}
+	checkInDescOrder(t, es)
 
-	es, err = db.AllEvents("namespace")
+	es, err = db.AllEvents()
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(es) != 3 {
 		t.Fatalf("Expected 3 events, got %#v\n", es)
+	}
+	checkInDescOrder(t, es)
+}
+
+func checkInDescOrder(t *testing.T, events []history.Event) {
+	var last time.Time = time.Now()
+	for _, event := range events {
+		if event.Stamp.After(last) {
+			t.Fatalf("Events out of order: %+v > %s", event, last)
+		}
+		last = event.Stamp
 	}
 }
