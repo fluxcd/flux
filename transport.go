@@ -171,7 +171,7 @@ func handlePostRelease(s Service) http.Handler {
 		}
 
 		var excludes []ServiceID
-		for _, ex := range r.URL.Query()["excludes"] {
+		for _, ex := range r.URL.Query()["exclude"] {
 			s, err := ParseServiceID(ex)
 			if err != nil {
 				w.WriteHeader(http.StatusBadRequest)
