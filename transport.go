@@ -426,7 +426,7 @@ func makeURL(endpoint string, router *mux.Router, routeName string, urlParams ..
 
 	v := url.Values{}
 	for i := 0; i < len(urlParams); i += 2 {
-		v.Set(urlParams[i], urlParams[i+1])
+		v.Add(urlParams[i], urlParams[i+1])
 	}
 
 	endpointURL.Path = path.Join(endpointURL.Path, routeURL.Path)
