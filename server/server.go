@@ -37,7 +37,7 @@ type Metrics struct {
 	HistoryDuration      metrics.Histogram
 }
 
-func NewServer(
+func New(
 	platform *kubernetes.Cluster,
 	registry *registry.Client,
 	releaser flux.ReleaseJobReadPusher,
@@ -48,7 +48,7 @@ func NewServer(
 	helperDuration metrics.Histogram,
 ) flux.Service {
 	return &server{
-		helper:      helper.NewHelper(platform, registry, logger, helperDuration),
+		helper:      helper.New(platform, registry, logger, helperDuration),
 		releaser:    releaser,
 		automator:   automator,
 		history:     history,

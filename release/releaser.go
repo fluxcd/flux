@@ -71,7 +71,7 @@ func newReleaser(
 	helperDuration metrics.Histogram,
 ) *releaser {
 	return &releaser{
-		helper:    helper.NewHelper(platform, registry, logger, helperDuration),
+		helper:    helper.New(platform, registry, logger, helperDuration),
 		repo:      repo,
 		history:   history,
 		metrics:   metrics,

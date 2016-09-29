@@ -21,7 +21,7 @@ type Helper struct {
 	duration metrics.Histogram
 }
 
-func NewHelper(
+func New(
 	platform *kubernetes.Cluster,
 	registry *registry.Client,
 	logger log.Logger,

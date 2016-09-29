@@ -296,7 +296,7 @@ func main() {
 	go auto.Start(log.NewContext(logger).With("component", "automator"))
 
 	// The server.
-	server := server.NewServer(k8s, reg, rjs, auto, eventReader, logger, serverMetrics, helperDuration)
+	server := server.New(k8s, reg, rjs, auto, eventReader, logger, serverMetrics, helperDuration)
 
 	// Mechanical components.
 	errc := make(chan error)
