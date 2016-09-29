@@ -12,6 +12,7 @@ import (
 	"github.com/spf13/pflag"
 
 	"github.com/weaveworks/fluxy"
+	transport "github.com/weaveworks/fluxy/http"
 )
 
 type rootOpts struct {
@@ -73,7 +74,7 @@ func (opts *rootOpts) PersistentPreRunE(cmd *cobra.Command, _ []string) error {
 	if _, err := url.Parse(opts.URL); err != nil {
 		return errors.Wrapf(err, "parsing URL")
 	}
-	opts.Fluxd = flux.NewClient(http.DefaultClient, flux.NewRouter(), opts.URL)
+	opts.Fluxd = transport.NewClient(http.DefaultClient, transport.NewRouter(), opts.URL)
 	return nil
 }
 

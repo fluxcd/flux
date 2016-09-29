@@ -1,4 +1,4 @@
-package flux
+package http
 
 import (
 	"bytes"
@@ -16,6 +16,8 @@ import (
 	"github.com/go-kit/kit/metrics"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
+
+	"github.com/weaveworks/fluxy"
 )
 
 func NewRouter() *mux.Router {
@@ -30,8 +32,8 @@ func NewRouter() *mux.Router {
 	return r
 }
 
-func NewHandler(s Service, r *mux.Router, logger log.Logger, h metrics.Histogram) http.Handler {
-	for method, handlerFunc := range map[string]func(Service) http.Handler{
+func NewHandler(s flux.Service, r *mux.Router, logger log.Logger, h metrics.Histogram) http.Handler {
+	for method, handlerFunc := range map[string]func(flux.Service) http.Handler{
 		"ListServices": handleListServices,
 		"ListImages":   handleListImages,
 		"PostRelease":  handlePostRelease,
@@ -53,7 +55,7 @@ func NewHandler(s Service, r *mux.Router, logger log.Logger, h metrics.Histogram
 // The idea here is to place the handleFoo and invokeFoo functions next to each
 // other, so changes in one can easily be accommodated in the other.
 
-func handleListServices(s Service) http.Handler {
+func handleListServices(s flux.Service) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		namespace := mux.Vars(r)["namespace"]
 		res, err := s.ListServices(namespace)
@@ -72,7 +74,7 @@ func handleListServices(s Service) http.Handler {
 	})
 }
 
-func invokeListServices(client *http.Client, router *mux.Router, endpoint string, namespace string) ([]ServiceStatus, error) {
+func invokeListServices(client *http.Client, router *mux.Router, endpoint string, namespace string) ([]flux.ServiceStatus, error) {
 	u, err := makeURL(endpoint, router, "ListServices", "namespace", namespace)
 	if err != nil {
 		return nil, errors.Wrap(err, "constructing URL")
@@ -88,17 +90,17 @@ func invokeListServices(client *http.Client, router *mux.Router, endpoint string
 		return nil, errors.Wrap(err, "executing HTTP request")
 	}
 
-	var res []ServiceStatus
+	var res []flux.ServiceStatus
 	if err := json.NewDecoder(resp.Body).Decode(&res); err != nil {
 		return nil, errors.Wrap(err, "decoding response from server")
 	}
 	return res, nil
 }
 
-func handleListImages(s Service) http.Handler {
+func handleListImages(s flux.Service) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		service := mux.Vars(r)["service"]
-		spec, err := ParseServiceSpec(service)
+		spec, err := flux.ParseServiceSpec(service)
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			fmt.Fprintf(w, errors.Wrapf(err, "parsing service spec %q", service).Error())
@@ -120,7 +122,7 @@ func handleListImages(s Service) http.Handler {
 	})
 }
 
-func invokeListImages(client *http.Client, router *mux.Router, endpoint string, s ServiceSpec) ([]ImageStatus, error) {
+func invokeListImages(client *http.Client, router *mux.Router, endpoint string, s flux.ServiceSpec) ([]flux.ImageStatus, error) {
 	u, err := makeURL(endpoint, router, "ListImages", "service", string(s))
 	if err != nil {
 		return nil, errors.Wrap(err, "constructing URL")
@@ -136,7 +138,7 @@ func invokeListImages(client *http.Client, router *mux.Router, endpoint string, 
 		return nil, errors.Wrap(err, "executing HTTP request")
 	}
 
-	var res []ImageStatus
+	var res []flux.ImageStatus
 	if err := json.NewDecoder(resp.Body).Decode(&res); err != nil {
 		return nil, errors.Wrap(err, "decoding response from server")
 	}
@@ -144,11 +146,11 @@ func invokeListImages(client *http.Client, router *mux.Router, endpoint string, 
 }
 
 type postReleaseResponse struct {
-	Status    string    `json:"status"`
-	ReleaseID ReleaseID `json:"release_id"`
+	Status    string         `json:"status"`
+	ReleaseID flux.ReleaseID `json:"release_id"`
 }
 
-func handlePostRelease(s Service) http.Handler {
+func handlePostRelease(s flux.Service) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var (
 			vars    = mux.Vars(r)
@@ -156,23 +158,23 @@ func handlePostRelease(s Service) http.Handler {
 			image   = vars["image"]
 			kind    = vars["kind"]
 		)
-		serviceSpec, err := ParseServiceSpec(service)
+		serviceSpec, err := flux.ParseServiceSpec(service)
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			fmt.Fprintf(w, errors.Wrapf(err, "parsing service spec %q", service).Error())
 			return
 		}
-		imageSpec := ParseImageSpec(image)
-		releaseKind, err := ParseReleaseKind(kind)
+		imageSpec := flux.ParseImageSpec(image)
+		releaseKind, err := flux.ParseReleaseKind(kind)
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			fmt.Fprintf(w, errors.Wrapf(err, "parsing release kind %q", kind).Error())
 			return
 		}
 
-		var excludes []ServiceID
+		var excludes []flux.ServiceID
 		for _, ex := range r.URL.Query()["exclude"] {
-			s, err := ParseServiceID(ex)
+			s, err := flux.ParseServiceID(ex)
 			if err != nil {
 				w.WriteHeader(http.StatusBadRequest)
 				fmt.Fprintf(w, errors.Wrapf(err, "parsing excluded service %q", ex).Error())
@@ -181,7 +183,7 @@ func handlePostRelease(s Service) http.Handler {
 			excludes = append(excludes, s)
 		}
 
-		id, err := s.PostRelease(ReleaseJobSpec{
+		id, err := s.PostRelease(flux.ReleaseJobSpec{
 			ServiceSpec: serviceSpec,
 			ImageSpec:   imageSpec,
 			Kind:        releaseKind,
@@ -205,7 +207,7 @@ func handlePostRelease(s Service) http.Handler {
 	})
 }
 
-func invokePostRelease(client *http.Client, router *mux.Router, endpoint string, s ReleaseJobSpec) (ReleaseID, error) {
+func invokePostRelease(client *http.Client, router *mux.Router, endpoint string, s flux.ReleaseJobSpec) (flux.ReleaseID, error) {
 	args := []string{"service", string(s.ServiceSpec), "image", string(s.ImageSpec), "kind", string(s.Kind)}
 	for _, ex := range s.Excludes {
 		args = append(args, "exclude", string(ex))
@@ -233,10 +235,10 @@ func invokePostRelease(client *http.Client, router *mux.Router, endpoint string,
 	return res.ReleaseID, nil
 }
 
-func handleGetRelease(s Service) http.Handler {
+func handleGetRelease(s flux.Service) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		id := mux.Vars(r)["id"]
-		job, err := s.GetRelease(ReleaseID(id))
+		job, err := s.GetRelease(flux.ReleaseID(id))
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			fmt.Fprintf(w, err.Error())
@@ -252,33 +254,33 @@ func handleGetRelease(s Service) http.Handler {
 	})
 }
 
-func invokeGetRelease(client *http.Client, router *mux.Router, endpoint string, id ReleaseID) (ReleaseJob, error) {
+func invokeGetRelease(client *http.Client, router *mux.Router, endpoint string, id flux.ReleaseID) (flux.ReleaseJob, error) {
 	u, err := makeURL(endpoint, router, "GetRelease", "id", string(id))
 	if err != nil {
-		return ReleaseJob{}, errors.Wrap(err, "constructing URL")
+		return flux.ReleaseJob{}, errors.Wrap(err, "constructing URL")
 	}
 
 	req, err := http.NewRequest("GET", u.String(), nil)
 	if err != nil {
-		return ReleaseJob{}, errors.Wrapf(err, "constructing request %s", u)
+		return flux.ReleaseJob{}, errors.Wrapf(err, "constructing request %s", u)
 	}
 
 	resp, err := executeRequest(client, req)
 	if err != nil {
-		return ReleaseJob{}, errors.Wrap(err, "executing HTTP request")
+		return flux.ReleaseJob{}, errors.Wrap(err, "executing HTTP request")
 	}
 
-	var res ReleaseJob
+	var res flux.ReleaseJob
 	if err := json.NewDecoder(resp.Body).Decode(&res); err != nil {
-		return ReleaseJob{}, errors.Wrap(err, "decoding response from server")
+		return flux.ReleaseJob{}, errors.Wrap(err, "decoding response from server")
 	}
 	return res, nil
 }
 
-func handleAutomate(s Service) http.Handler {
+func handleAutomate(s flux.Service) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		service := mux.Vars(r)["service"]
-		id, err := ParseServiceID(service)
+		id, err := flux.ParseServiceID(service)
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			fmt.Fprintf(w, errors.Wrapf(err, "parsing service ID %q", id).Error())
@@ -295,7 +297,7 @@ func handleAutomate(s Service) http.Handler {
 	})
 }
 
-func invokeAutomate(client *http.Client, router *mux.Router, endpoint string, s ServiceID) error {
+func invokeAutomate(client *http.Client, router *mux.Router, endpoint string, s flux.ServiceID) error {
 	u, err := makeURL(endpoint, router, "Automate", "service", string(s))
 	if err != nil {
 		return errors.Wrap(err, "constructing URL")
@@ -313,10 +315,10 @@ func invokeAutomate(client *http.Client, router *mux.Router, endpoint string, s 
 	return nil
 }
 
-func handleDeautomate(s Service) http.Handler {
+func handleDeautomate(s flux.Service) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		service := mux.Vars(r)["service"]
-		id, err := ParseServiceID(service)
+		id, err := flux.ParseServiceID(service)
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			fmt.Fprintf(w, errors.Wrapf(err, "parsing service ID %q", id).Error())
@@ -333,7 +335,7 @@ func handleDeautomate(s Service) http.Handler {
 	})
 }
 
-func invokeDeautomate(client *http.Client, router *mux.Router, endpoint string, id ServiceID) error {
+func invokeDeautomate(client *http.Client, router *mux.Router, endpoint string, id flux.ServiceID) error {
 	u, err := makeURL(endpoint, router, "Deautomate", "service", string(id))
 	if err != nil {
 		return errors.Wrap(err, "constructing URL")
@@ -351,10 +353,10 @@ func invokeDeautomate(client *http.Client, router *mux.Router, endpoint string, 
 	return nil
 }
 
-func handleHistory(s Service) http.Handler {
+func handleHistory(s flux.Service) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		service := mux.Vars(r)["service"]
-		spec, err := ParseServiceSpec(service)
+		spec, err := flux.ParseServiceSpec(service)
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			fmt.Fprintf(w, errors.Wrapf(err, "parsing service spec %q", spec).Error())
@@ -377,7 +379,7 @@ func handleHistory(s Service) http.Handler {
 	})
 }
 
-func invokeHistory(client *http.Client, router *mux.Router, endpoint string, s ServiceSpec) ([]HistoryEntry, error) {
+func invokeHistory(client *http.Client, router *mux.Router, endpoint string, s flux.ServiceSpec) ([]flux.HistoryEntry, error) {
 	u, err := makeURL(endpoint, router, "History", "service", string(s))
 	if err != nil {
 		return nil, errors.Wrap(err, "constructing URL")
@@ -393,7 +395,7 @@ func invokeHistory(client *http.Client, router *mux.Router, endpoint string, s S
 		return nil, errors.Wrap(err, "executing HTTP request")
 	}
 
-	var res []HistoryEntry
+	var res []flux.HistoryEntry
 	if err := json.NewDecoder(resp.Body).Decode(&res); err != nil {
 		return nil, errors.Wrap(err, "decoding response from server")
 	}

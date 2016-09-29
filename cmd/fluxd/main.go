@@ -23,11 +23,13 @@ import (
 	"github.com/weaveworks/fluxy/git"
 	"github.com/weaveworks/fluxy/history"
 	historysql "github.com/weaveworks/fluxy/history/sql"
+	transport "github.com/weaveworks/fluxy/http"
 	"github.com/weaveworks/fluxy/instance"
 	instancedb "github.com/weaveworks/fluxy/instance/sql"
 	"github.com/weaveworks/fluxy/platform/kubernetes"
 	"github.com/weaveworks/fluxy/registry"
 	"github.com/weaveworks/fluxy/release"
+	"github.com/weaveworks/fluxy/server"
 )
 
 func main() {
@@ -74,7 +76,7 @@ func main() {
 	// Instrumentation
 	var (
 		httpDuration   metrics.Histogram
-		serverMetrics  flux.Metrics
+		serverMetrics  server.Metrics
 		releaseMetrics release.Metrics
 		helperDuration metrics.Histogram
 	)
@@ -294,7 +296,7 @@ func main() {
 	go auto.Start(log.NewContext(logger).With("component", "automator"))
 
 	// The server.
-	server := flux.NewServer(k8s, reg, rjs, auto, eventReader, logger, serverMetrics, helperDuration)
+	server := server.NewServer(k8s, reg, rjs, auto, eventReader, logger, serverMetrics, helperDuration)
 
 	// Mechanical components.
 	errc := make(chan error)
@@ -309,7 +311,7 @@ func main() {
 		logger.Log("addr", *listenAddr)
 		mux := http.NewServeMux()
 		mux.Handle("/metrics", promhttp.Handler())
-		mux.Handle("/", flux.NewHandler(server, flux.NewRouter(), logger, httpDuration))
+		mux.Handle("/", transport.NewHandler(server, transport.NewRouter(), logger, httpDuration))
 		errc <- http.ListenAndServe(*listenAddr, mux)
 	}()
 
