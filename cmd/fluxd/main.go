@@ -234,7 +234,7 @@ func main() {
 			os.Exit(1)
 		}
 
-		if services, err := k8s.Services("default"); err != nil {
+		if services, err := k8s.AllServices("", nil); err != nil {
 			logger.Log("services", err)
 		} else {
 			logger.Log("services", len(services))

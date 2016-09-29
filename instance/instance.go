@@ -2,6 +2,7 @@ package instance
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/go-kit/kit/log"
@@ -58,125 +59,69 @@ func (h *Instance) ConfigRepo() git.Repo {
 	return h.gitrepo
 }
 
-func (h *Instance) AllServices() (res []flux.ServiceID, err error) {
-	defer func(begin time.Time) {
-		h.duration.With(
-			"method", "AllServices",
-			"success", fmt.Sprint(err == nil),
-		).Observe(time.Since(begin).Seconds())
-	}(time.Now())
+type ImageMap map[string][]flux.ImageDescription
 
-	namespaces, err := h.platform.Namespaces()
-	if err != nil {
-		return nil, errors.Wrap(err, "fetching platform namespaces")
-	}
-
-	for _, namespace := range namespaces {
-		ids, err := h.NamespaceServices(namespace)
-		if err != nil {
-			return nil, err
-		}
-		res = append(res, ids...)
-	}
-
-	return res, nil
-}
-
-func (h *Instance) NamespaceServices(namespace string) (res []flux.ServiceID, err error) {
-	defer func(begin time.Time) {
-		h.duration.With(
-			"method", "NamespaceServices",
-			"success", fmt.Sprint(err == nil),
-		).Observe(time.Since(begin).Seconds())
-	}(time.Now())
-
-	services, err := h.platform.Services(namespace)
-	if err != nil {
-		return nil, errors.Wrapf(err, "fetching platform services for namespace %q", namespace)
-	}
-
-	res = make([]flux.ServiceID, len(services))
-	for i, service := range services {
-		res[i] = flux.MakeServiceID(namespace, service.Name)
-	}
-
-	return res, nil
-}
-
-// AllReleasableImagesFor returns a map of service IDs to the
-// containers with images that may be regraded. It leaves out any
-// services that cannot have containers associated with them, e.g.,
-// because there is no matching deployment.
-func (h *Instance) AllReleasableImagesFor(serviceIDs []flux.ServiceID) (res map[flux.ServiceID][]platform.Container, err error) {
-	defer func(begin time.Time) {
-		h.duration.With(
-			"method", "AllReleasableImagesFor",
-			"success", fmt.Sprint(err == nil),
-		).Observe(time.Since(begin).Seconds())
-	}(time.Now())
-
-	res = map[flux.ServiceID][]platform.Container{}
-	for _, serviceID := range serviceIDs {
-		namespace, service := serviceID.Components()
-		containers, err := h.platform.ContainersFor(namespace, service)
-		if err != nil {
-			switch err {
-			case platform.ErrEmptySelector, platform.ErrServiceHasNoSelector, platform.ErrNoMatching, platform.ErrMultipleMatching, platform.ErrNoMatchingImages:
-				continue
-			default:
-				return nil, errors.Wrapf(err, "fetching containers for %s", serviceID)
-			}
-		}
-		if len(containers) <= 0 {
+// LatestImage returns the latest releasable image for a repository.
+// A releasable image is one that is not tagged "latest". (Assumes the
+// available images are in descending order of latestness.)
+func (m ImageMap) LatestImage(repo string) (flux.ImageDescription, error) {
+	for _, image := range m[repo] {
+		_, _, tag := image.ID.Components()
+		if strings.EqualFold(tag, "latest") {
 			continue
 		}
-		res[serviceID] = containers
+		return image, nil
 	}
-	return res, nil
+	return flux.ImageDescription{}, errors.New("no valid images available")
 }
 
-func (h *Instance) PlatformService(namespace, service string) (res platform.Service, err error) {
-	defer func(begin time.Time) {
-		h.duration.With(
-			"method", "PlatformService",
-			"success", fmt.Sprint(err == nil),
-		).Observe(time.Since(begin).Seconds())
-	}(time.Now())
-
-	return h.platform.Service(namespace, service)
+// Get the services in `namespace` along with their containers (if
+// there are any) from the platform; if namespace is blank, just get
+// all the services, in any namespace.
+func (h *Instance) GetAllServices(maybeNamespace string) ([]platform.Service, error) {
+	return h.GetAllServicesExcept(maybeNamespace, flux.ServiceIDSet{})
 }
 
-func (h *Instance) PlatformNamespaces() (res []string, err error) {
-	defer func(begin time.Time) {
-		h.duration.With(
-			"method", "PlatformNamespaces",
-			"success", fmt.Sprint(err == nil),
-		).Observe(time.Since(begin).Seconds())
-	}(time.Now())
-
-	return h.platform.Namespaces()
+// Get all services except those with an ID in the set given
+func (h *Instance) GetAllServicesExcept(maybeNamespace string, ignored flux.ServiceIDSet) (res []platform.Service, err error) {
+	return h.platform.AllServices(maybeNamespace, ignored)
 }
 
-func (h *Instance) PlatformContainersFor(namespace, service string) (res []platform.Container, err error) {
-	defer func(begin time.Time) {
-		h.duration.With(
-			"method", "PlatformContainersFor",
-			"success", fmt.Sprint(err == nil),
-		).Observe(time.Since(begin).Seconds())
-	}(time.Now())
-
-	return h.platform.ContainersFor(namespace, service)
+// Get the services mentioned, along with their containers.
+func (h *Instance) GetServices(ids []flux.ServiceID) ([]platform.Service, error) {
+	return h.platform.SomeServices(ids)
 }
 
-func (h *Instance) RegistryGetRepository(repository string) (res *registry.Repository, err error) {
-	defer func(begin time.Time) {
-		h.duration.With(
-			"method", "RegistryGetRepository",
-			"success", fmt.Sprint(err == nil),
-		).Observe(time.Since(begin).Seconds())
-	}(time.Now())
+// Get the images available for the services given. An image may be
+// mentioned more than once in the services, but will only be fetched
+// once.
+func (h *Instance) CollectAvailableImages(services []platform.Service) (ImageMap, error) {
+	images := ImageMap{}
+	for _, service := range services {
+		for _, container := range service.ContainersOrNil() {
+			repo := flux.ParseImageID(container.Image).Repository()
+			images[repo] = nil
+		}
+	}
+	for repo := range images {
+		imageRepo, err := h.registry.GetRepository(repo)
+		if err != nil {
+			return nil, errors.Wrapf(err, "fetching image metadata for %s", repo)
+		}
+		images[repo] = repo2descs(imageRepo)
+	}
+	return images, nil
+}
 
-	return h.registry.GetRepository(repository)
+func repo2descs(repo *registry.Repository) []flux.ImageDescription {
+	descs := make([]flux.ImageDescription, len(repo.Images))
+	for i, image := range repo.Images {
+		descs[i] = flux.ImageDescription{
+			ID:        flux.MakeImageID(image.Registry, image.Name, image.Tag),
+			CreatedAt: image.CreatedAt,
+		}
+	}
+	return descs
 }
 
 func (h *Instance) PlatformRegrade(specs []platform.RegradeSpec) (err error) {

@@ -183,19 +183,6 @@ type Repository struct {
 	Images []Image
 }
 
-// LatestImage returns the latest releasable image from the repository.
-// A releasable image is one that is not tagged "latest".
-// Images must be kept in newest-first order.
-func (r Repository) LatestImage() (Image, error) {
-	for _, image := range r.Images {
-		if strings.EqualFold(image.Tag, "latest") {
-			continue
-		}
-		return image, nil
-	}
-	return Image{}, errors.New("no valid images in repository")
-}
-
 // Image represents a specific container image available in a repository. It's a
 // struct because I think we can safely assume the data here is pretty
 // universal across different registries and repositories.
@@ -343,4 +330,19 @@ func (t logTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 		t.log("Error %s", err)
 	}
 	return res, err
+}
+
+// ==== TO REMOVE
+
+// LatestImage returns the latest releasable image from the repository.
+// A releasable image is one that is not tagged "latest".
+// Images must be kept in newest-first order.
+func (r Repository) LatestImage() (Image, error) {
+	for _, image := range r.Images {
+		if strings.EqualFold(image.Tag, "latest") {
+			continue
+		}
+		return image, nil
+	}
+	return Image{}, errors.New("no valid images in repository")
 }

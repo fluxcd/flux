@@ -2,7 +2,6 @@ package server
 
 import (
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/go-kit/kit/log"
@@ -12,6 +11,7 @@ import (
 	"github.com/weaveworks/fluxy"
 	"github.com/weaveworks/fluxy/history"
 	"github.com/weaveworks/fluxy/instance"
+	"github.com/weaveworks/fluxy/platform"
 )
 
 const (
@@ -68,14 +68,9 @@ func (s *server) ListServices(inst flux.InstanceID, namespace string) (res []flu
 		return nil, errors.Wrapf(err, "getting instance")
 	}
 
-	var serviceIDs []flux.ServiceID
-	if namespace == "" {
-		serviceIDs, err = helper.AllServices()
-	} else {
-		serviceIDs, err = helper.NamespaceServices(namespace)
-	}
+	services, err := helper.GetAllServices(namespace)
 	if err != nil {
-		return nil, errors.Wrapf(err, "fetching services for namespace %s on the platform", namespace)
+		return nil, errors.Wrap(err, "getting services from platform")
 	}
 
 	config, err := helper.GetConfig()
@@ -83,46 +78,32 @@ func (s *server) ListServices(inst flux.InstanceID, namespace string) (res []flu
 		return nil, errors.Wrapf(err, "getting config for %s", inst)
 	}
 
-	var (
-		statusc = make(chan flux.ServiceStatus)
-		errc    = make(chan error)
-	)
-	for _, serviceID := range serviceIDs {
-		go func(serviceID flux.ServiceID) {
-			s.maxPlatform <- struct{}{}
-			defer func() { <-s.maxPlatform }()
-
-			c, err := containersFor(helper, serviceID, false)
-			if err != nil {
-				errc <- errors.Wrapf(err, "fetching containers for %s", serviceID)
-				return
-			}
-
-			namespace, service := serviceID.Components()
-			platformSvc, err := helper.PlatformService(namespace, service)
-			if err != nil {
-				errc <- errors.Wrapf(err, "getting platform service %s", serviceID)
-				return
-			}
-
-			statusc <- flux.ServiceStatus{
-				ID:         serviceID,
-				Containers: c,
-				Status:     platformSvc.Status,
-				Automated:  config.Services[serviceID].Automated,
-				Locked:     config.Services[serviceID].Locked,
-			}
-		}(serviceID)
-	}
-	for i := 0; i < len(serviceIDs); i++ {
-		select {
-		case err := <-errc:
-			helper.Log("err", err)
-		case status := <-statusc:
-			res = append(res, status)
+	for _, service := range services {
+		if _, err := service.ContainersOrError(); err != nil {
+			helper.Log("service", service.ID, "err", err)
 		}
+		res = append(res, flux.ServiceStatus{
+			ID:         service.ID,
+			Containers: containers2containers(service.ContainersOrNil()),
+			Status:     service.Status,
+			Automated:  config.Services[service.ID].Automated,
+			Locked:     config.Services[service.ID].Locked,
+		})
 	}
 	return res, nil
+}
+
+func containers2containers(cs []platform.Container) []flux.Container {
+	res := make([]flux.Container, len(cs))
+	for i, c := range cs {
+		res[i] = flux.Container{
+			Name: c.Name,
+			Current: flux.ImageDescription{
+				ID: flux.ParseImageID(c.Image),
+			},
+		}
+	}
+	return res
 }
 
 func (s *server) ListImages(inst flux.InstanceID, spec flux.ServiceSpec) (res []flux.ImageStatus, err error) {
@@ -138,48 +119,47 @@ func (s *server) ListImages(inst flux.InstanceID, spec flux.ServiceSpec) (res []
 		return nil, errors.Wrapf(err, "getting instance")
 	}
 
-	serviceIDs, err := func() ([]flux.ServiceID, error) {
-		if spec == flux.ServiceSpecAll {
-			return helper.AllServices()
+	var services []platform.Service
+	if spec == flux.ServiceSpecAll {
+		services, err = helper.GetAllServices("")
+	} else {
+		id, err := spec.AsID()
+		if err != nil {
+			return nil, errors.Wrap(err, "treating service spec as ID")
 		}
-		id, err := flux.ParseServiceID(string(spec))
-		return []flux.ServiceID{id}, err
-	}()
+		services, err = helper.GetServices([]flux.ServiceID{id})
+	}
+
+	images, err := helper.CollectAvailableImages(services)
 	if err != nil {
-		return nil, errors.Wrapf(err, "fetching service ID(s)")
+		return nil, errors.Wrap(err, "getting images for services")
 	}
 
-	var (
-		statusc = make(chan flux.ImageStatus)
-		errc    = make(chan error)
-	)
-	for _, serviceID := range serviceIDs {
-		go func(serviceID flux.ServiceID) {
-			s.maxPlatform <- struct{}{}
-			defer func() { <-s.maxPlatform }()
-
-			c, err := containersFor(helper, serviceID, true)
-			if err != nil {
-				errc <- errors.Wrapf(err, "fetching containers for %s", serviceID)
-				return
-			}
-
-			statusc <- flux.ImageStatus{
-				ID:         serviceID,
-				Containers: c,
-			}
-		}(serviceID)
-	}
-	for i := 0; i < len(serviceIDs); i++ {
-		select {
-		case err := <-errc:
-			helper.Log("err", err)
-		case status := <-statusc:
-			res = append(res, status)
-		}
+	for _, service := range services {
+		containers := containersWithAvailable(service, images)
+		res = append(res, flux.ImageStatus{
+			ID:         service.ID,
+			Containers: containers,
+		})
 	}
 
 	return res, nil
+}
+
+func containersWithAvailable(service platform.Service, images instance.ImageMap) (res []flux.Container) {
+	for _, c := range service.ContainersOrNil() {
+		id := flux.ParseImageID(c.Image)
+		repo := id.Repository()
+		available := images[repo]
+		res = append(res, flux.Container{
+			Name: c.Name,
+			Current: flux.ImageDescription{
+				ID: id,
+			},
+			Available: available,
+		})
+	}
+	return res
 }
 
 func (s *server) History(inst flux.InstanceID, spec flux.ServiceSpec) (res []flux.HistoryEntry, err error) {
@@ -306,60 +286,4 @@ func (s *server) PostRelease(inst flux.InstanceID, spec flux.ReleaseJobSpec) (fl
 
 func (s *server) GetRelease(inst flux.InstanceID, id flux.ReleaseID) (flux.ReleaseJob, error) {
 	return s.releaser.GetJob(inst, id)
-}
-
-func containersFor(helper *instance.Instance, id flux.ServiceID, includeAvailable bool) (res []flux.Container, _ error) {
-	namespace, service := id.Components()
-	containers, err := helper.PlatformContainersFor(namespace, service)
-	if err != nil {
-		return nil, errors.Wrapf(err, "fetching containers for %s", id)
-	}
-
-	var errs compositeError
-	for _, container := range containers {
-		imageID := flux.ParseImageID(container.Image)
-
-		// We may not be able to get image info from the repository,
-		// but it's still worthwhile returning what we know.
-		current := flux.ImageDescription{ID: imageID}
-		var available []flux.ImageDescription
-
-		if includeAvailable {
-			imageRepo, err := helper.RegistryGetRepository(imageID.Repository())
-			if err != nil {
-				errs = append(errs, errors.Wrapf(err, "fetching image repo for %s", imageID))
-			} else {
-				for _, image := range imageRepo.Images {
-					description := flux.ImageDescription{
-						ID:        flux.ParseImageID(image.String()),
-						CreatedAt: image.CreatedAt,
-					}
-					available = append(available, description)
-					if image.String() == container.Image {
-						current = description
-					}
-				}
-			}
-		}
-		res = append(res, flux.Container{
-			Name:      container.Name,
-			Current:   current,
-			Available: available,
-		})
-	}
-
-	if len(errs) > 0 {
-		return res, errors.Wrap(errs, "one or more errors fetching image repos")
-	}
-	return res, nil
-}
-
-type compositeError []error
-
-func (e compositeError) Error() string {
-	msgs := make([]string, len(e))
-	for i, err := range e {
-		msgs[i] = err.Error()
-	}
-	return strings.Join(msgs, "; ")
 }
