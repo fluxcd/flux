@@ -24,10 +24,12 @@ type EventWriter interface {
 }
 
 type EventReader interface {
-	// AllEvents returns a history for every service in the given namespace.
-	AllEvents(namespace string) ([]Event, error)
+	// AllEvents returns a history for every service. Events must be
+	// returned in descending timestamp order.
+	AllEvents() ([]Event, error)
 
-	// EventsForService returns the history for a particular service.
+	// EventsForService returns the history for a particular
+	// service. Events must be returned in descending timestamp order.
 	EventsForService(namespace, service string) ([]Event, error)
 }
 

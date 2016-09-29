@@ -71,11 +71,10 @@ func (db *DB) queryEvents(query string, params ...interface{}) ([]history.Event,
 	return events, nil
 }
 
-func (db *DB) AllEvents(namespace string) ([]history.Event, error) {
+func (db *DB) AllEvents() ([]history.Event, error) {
 	return db.queryEvents(`SELECT service, message, stamp
                            FROM history
-                           WHERE namespace = $1
-                           ORDER BY service, stamp DESC`, namespace)
+                           ORDER BY stamp DESC`)
 }
 
 func (db *DB) EventsForService(namespace, service string) ([]history.Event, error) {
