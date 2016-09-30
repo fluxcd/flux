@@ -108,20 +108,9 @@ func (h *Instance) CollectAvailableImages(services []platform.Service) (ImageMap
 		if err != nil {
 			return nil, errors.Wrapf(err, "fetching image metadata for %s", repo)
 		}
-		images[repo] = repo2descs(imageRepo)
+		images[repo] = imageRepo
 	}
 	return images, nil
-}
-
-func repo2descs(repo *registry.Repository) []flux.ImageDescription {
-	descs := make([]flux.ImageDescription, len(repo.Images))
-	for i, image := range repo.Images {
-		descs[i] = flux.ImageDescription{
-			ID:        flux.MakeImageID(image.Registry, image.Name, image.Tag),
-			CreatedAt: image.CreatedAt,
-		}
-	}
-	return descs
 }
 
 func (h *Instance) PlatformRegrade(specs []platform.RegradeSpec) (err error) {

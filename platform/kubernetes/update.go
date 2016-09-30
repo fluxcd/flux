@@ -7,7 +7,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/weaveworks/fluxy/registry"
+	"github.com/weaveworks/fluxy"
 )
 
 // UpdatePodController takes the body of a ReplicationController or Deployment
@@ -68,7 +68,7 @@ func UpdatePodController(def []byte, newImageName string, trace io.Writer) ([]by
 //         - containerPort: 80
 // ```
 func tryUpdate(def, newImageStr string, trace io.Writer, out io.Writer) error {
-	newImage := registry.ParseImage(newImageStr)
+	newImage := flux.ParseImageID(newImageStr)
 
 	nameRE := multilineRE(
 		`metadata:\s*`,
@@ -92,7 +92,7 @@ func tryUpdate(def, newImageStr string, trace io.Writer, out io.Writer) error {
 		return fmt.Errorf("Could not find image name")
 	}
 	containerName := matches[1]
-	oldImage := registry.ParseImage(matches[2])
+	oldImage := flux.ParseImageID(matches[2])
 	fmt.Fprintf(trace, "Found container %q using image %v in fragment:\n\n%s\n\n", containerName, oldImage, matches[0])
 
 	if oldImage.Repository() != newImage.Repository() {
@@ -110,17 +110,19 @@ func tryUpdate(def, newImageStr string, trace io.Writer, out io.Writer) error {
 	// extract values *without* quotes, and add them if necessary.
 
 	newDefName := oldDefName
-	if strings.HasSuffix(oldDefName, oldImage.Tag) {
-		newDefName = oldDefName[:len(oldDefName)-len(oldImage.Tag)] + newImage.Tag
+	_, _, oldImageTag := oldImage.Components()
+	_, _, newImageTag := newImage.Components()
+	if strings.HasSuffix(oldDefName, oldImageTag) {
+		newDefName = oldDefName[:len(oldDefName)-len(oldImageTag)] + newImageTag
 	}
 
 	newDefName = maybeQuote(newDefName)
-	newTag := maybeQuote(newImage.Tag)
+	newTag := maybeQuote(newImageTag)
 
 	fmt.Fprintln(trace, "")
 	fmt.Fprintln(trace, "Replacing ...")
 	fmt.Fprintf(trace, "Resource name: %s -> %s\n", oldDefName, newDefName)
-	fmt.Fprintf(trace, "Version in templates (and selector if present): %s -> %s\n", oldImage.Tag, newTag)
+	fmt.Fprintf(trace, "Version in templates (and selector if present): %s -> %s\n", oldImageTag, newTag)
 	fmt.Fprintf(trace, "Image in templates: %s -> %s\n", oldImage, newImage)
 	fmt.Fprintln(trace, "")
 
@@ -141,7 +143,7 @@ func tryUpdate(def, newImageStr string, trace io.Writer, out io.Writer) error {
 		`((?:  ){3,4}- name:\s*`+containerName+`)`,
 		`((?:  ){4,5}image:\s*) .*`,
 	)
-	replaceImage := fmt.Sprintf("$1\n$2 %s$3", newImage.String())
+	replaceImage := fmt.Sprintf("$1\n$2 %s$3", string(newImage))
 	withNewImage := replaceImageRE.ReplaceAllString(withNewLabels, replaceImage)
 
 	fmt.Fprint(out, withNewImage)
