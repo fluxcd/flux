@@ -14,6 +14,7 @@ import (
 
 	"github.com/weaveworks/fluxy"
 	"github.com/weaveworks/fluxy/git"
+	"github.com/weaveworks/fluxy/helper"
 	"github.com/weaveworks/fluxy/history"
 	"github.com/weaveworks/fluxy/platform"
 	"github.com/weaveworks/fluxy/platform/kubernetes"
@@ -21,7 +22,7 @@ import (
 )
 
 type releaser struct {
-	helper    *flux.Helper
+	helper    *helper.Helper
 	repo      git.Repo
 	history   history.EventWriter
 	metrics   Metrics
@@ -70,7 +71,7 @@ func newReleaser(
 	helperDuration metrics.Histogram,
 ) *releaser {
 	return &releaser{
-		helper:    flux.NewHelper(platform, registry, logger, helperDuration),
+		helper:    helper.New(platform, registry, logger, helperDuration),
 		repo:      repo,
 		history:   history,
 		metrics:   metrics,

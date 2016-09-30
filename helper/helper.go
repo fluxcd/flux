@@ -1,4 +1,4 @@
-package flux
+package helper
 
 import (
 	"fmt"
@@ -8,6 +8,7 @@ import (
 	"github.com/go-kit/kit/metrics"
 	"github.com/pkg/errors"
 
+	"github.com/weaveworks/fluxy"
 	"github.com/weaveworks/fluxy/platform"
 	"github.com/weaveworks/fluxy/platform/kubernetes"
 	"github.com/weaveworks/fluxy/registry"
@@ -20,7 +21,7 @@ type Helper struct {
 	duration metrics.Histogram
 }
 
-func NewHelper(
+func New(
 	platform *kubernetes.Cluster,
 	registry *registry.Client,
 	logger log.Logger,
@@ -34,7 +35,7 @@ func NewHelper(
 	}
 }
 
-func (h *Helper) AllServices() (res []ServiceID, err error) {
+func (h *Helper) AllServices() (res []flux.ServiceID, err error) {
 	defer func(begin time.Time) {
 		h.duration.With(
 			"method", "AllServices",
@@ -58,7 +59,7 @@ func (h *Helper) AllServices() (res []ServiceID, err error) {
 	return res, nil
 }
 
-func (h *Helper) NamespaceServices(namespace string) (res []ServiceID, err error) {
+func (h *Helper) NamespaceServices(namespace string) (res []flux.ServiceID, err error) {
 	defer func(begin time.Time) {
 		h.duration.With(
 			"method", "NamespaceServices",
@@ -71,9 +72,9 @@ func (h *Helper) NamespaceServices(namespace string) (res []ServiceID, err error
 		return nil, errors.Wrapf(err, "fetching platform services for namespace %q", namespace)
 	}
 
-	res = make([]ServiceID, len(services))
+	res = make([]flux.ServiceID, len(services))
 	for i, service := range services {
-		res[i] = MakeServiceID(namespace, service.Name)
+		res[i] = flux.MakeServiceID(namespace, service.Name)
 	}
 
 	return res, nil
@@ -83,7 +84,7 @@ func (h *Helper) NamespaceServices(namespace string) (res []ServiceID, err error
 // containers with images that may be regraded. It leaves out any
 // services that cannot have containers associated with them, e.g.,
 // because there is no matching deployment.
-func (h *Helper) AllReleasableImagesFor(serviceIDs []ServiceID) (res map[ServiceID][]platform.Container, err error) {
+func (h *Helper) AllReleasableImagesFor(serviceIDs []flux.ServiceID) (res map[flux.ServiceID][]platform.Container, err error) {
 	defer func(begin time.Time) {
 		h.duration.With(
 			"method", "AllReleasableImagesFor",
@@ -91,7 +92,7 @@ func (h *Helper) AllReleasableImagesFor(serviceIDs []ServiceID) (res map[Service
 		).Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
-	res = map[ServiceID][]platform.Container{}
+	res = map[flux.ServiceID][]platform.Container{}
 	for _, serviceID := range serviceIDs {
 		namespace, service := serviceID.Components()
 		containers, err := h.platform.ContainersFor(namespace, service)

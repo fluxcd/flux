@@ -1,9 +1,11 @@
-package flux
+package http
 
 import (
 	"net/http"
 
 	"github.com/gorilla/mux"
+
+	"github.com/weaveworks/fluxy"
 )
 
 type client struct {
@@ -12,7 +14,7 @@ type client struct {
 	endpoint string
 }
 
-func NewClient(c *http.Client, router *mux.Router, endpoint string) Service {
+func NewClient(c *http.Client, router *mux.Router, endpoint string) flux.Service {
 	return &client{
 		client:   c,
 		router:   router,
@@ -20,30 +22,30 @@ func NewClient(c *http.Client, router *mux.Router, endpoint string) Service {
 	}
 }
 
-func (c *client) ListServices(namespace string) ([]ServiceStatus, error) {
+func (c *client) ListServices(namespace string) ([]flux.ServiceStatus, error) {
 	return invokeListServices(c.client, c.router, c.endpoint, namespace)
 }
 
-func (c *client) ListImages(s ServiceSpec) ([]ImageStatus, error) {
+func (c *client) ListImages(s flux.ServiceSpec) ([]flux.ImageStatus, error) {
 	return invokeListImages(c.client, c.router, c.endpoint, s)
 }
 
-func (c *client) PostRelease(s ReleaseJobSpec) (ReleaseID, error) {
+func (c *client) PostRelease(s flux.ReleaseJobSpec) (flux.ReleaseID, error) {
 	return invokePostRelease(c.client, c.router, c.endpoint, s)
 }
 
-func (c *client) GetRelease(id ReleaseID) (ReleaseJob, error) {
+func (c *client) GetRelease(id flux.ReleaseID) (flux.ReleaseJob, error) {
 	return invokeGetRelease(c.client, c.router, c.endpoint, id)
 }
 
-func (c *client) Automate(id ServiceID) error {
+func (c *client) Automate(id flux.ServiceID) error {
 	return invokeAutomate(c.client, c.router, c.endpoint, id)
 }
 
-func (c *client) Deautomate(id ServiceID) error {
+func (c *client) Deautomate(id flux.ServiceID) error {
 	return invokeDeautomate(c.client, c.router, c.endpoint, id)
 }
 
-func (c *client) History(s ServiceSpec) ([]HistoryEntry, error) {
+func (c *client) History(s flux.ServiceSpec) ([]flux.HistoryEntry, error) {
 	return invokeHistory(c.client, c.router, c.endpoint, s)
 }

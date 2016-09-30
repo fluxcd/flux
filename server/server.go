@@ -1,4 +1,4 @@
-package flux
+package server
 
 import (
 	"fmt"
@@ -9,14 +9,16 @@ import (
 	"github.com/go-kit/kit/metrics"
 	"github.com/pkg/errors"
 
+	"github.com/weaveworks/fluxy"
+	"github.com/weaveworks/fluxy/helper"
 	"github.com/weaveworks/fluxy/history"
 	"github.com/weaveworks/fluxy/platform/kubernetes"
 	"github.com/weaveworks/fluxy/registry"
 )
 
 type server struct {
-	helper      *Helper
-	releaser    ReleaseJobReadPusher
+	helper      *helper.Helper
+	releaser    flux.ReleaseJobReadPusher
 	automator   Automator
 	history     history.EventReader
 	maxPlatform chan struct{} // semaphore for concurrent calls to the platform
@@ -35,18 +37,18 @@ type Metrics struct {
 	HistoryDuration      metrics.Histogram
 }
 
-func NewServer(
+func New(
 	platform *kubernetes.Cluster,
 	registry *registry.Client,
-	releaser ReleaseJobReadPusher,
+	releaser flux.ReleaseJobReadPusher,
 	automator Automator,
 	history history.EventReader,
 	logger log.Logger,
 	metrics Metrics,
 	helperDuration metrics.Histogram,
-) Service {
+) flux.Service {
 	return &server{
-		helper:      NewHelper(platform, registry, logger, helperDuration),
+		helper:      helper.New(platform, registry, logger, helperDuration),
 		releaser:    releaser,
 		automator:   automator,
 		history:     history,
@@ -61,7 +63,7 @@ func NewServer(
 // same reason: let's not add abstraction until it's merged, or nearly so, and
 // it's clear where the abstraction should exist.
 
-func (s *server) ListServices(namespace string) (res []ServiceStatus, err error) {
+func (s *server) ListServices(namespace string) (res []flux.ServiceStatus, err error) {
 	defer func(begin time.Time) {
 		s.metrics.ListServicesDuration.With(
 			"namespace", namespace,
@@ -69,7 +71,7 @@ func (s *server) ListServices(namespace string) (res []ServiceStatus, err error)
 		).Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
-	var serviceIDs []ServiceID
+	var serviceIDs []flux.ServiceID
 	if namespace == "" {
 		serviceIDs, err = s.helper.AllServices()
 	} else {
@@ -80,11 +82,11 @@ func (s *server) ListServices(namespace string) (res []ServiceStatus, err error)
 	}
 
 	var (
-		statusc = make(chan ServiceStatus)
+		statusc = make(chan flux.ServiceStatus)
 		errc    = make(chan error)
 	)
 	for _, serviceID := range serviceIDs {
-		go func(serviceID ServiceID) {
+		go func(serviceID flux.ServiceID) {
 			s.maxPlatform <- struct{}{}
 			defer func() { <-s.maxPlatform }()
 
@@ -101,7 +103,7 @@ func (s *server) ListServices(namespace string) (res []ServiceStatus, err error)
 				return
 			}
 
-			statusc <- ServiceStatus{
+			statusc <- flux.ServiceStatus{
 				ID:         serviceID,
 				Containers: c,
 				Status:     platformSvc.Status,
@@ -120,7 +122,7 @@ func (s *server) ListServices(namespace string) (res []ServiceStatus, err error)
 	return res, nil
 }
 
-func (s *server) ListImages(spec ServiceSpec) (res []ImageStatus, err error) {
+func (s *server) ListImages(spec flux.ServiceSpec) (res []flux.ImageStatus, err error) {
 	defer func(begin time.Time) {
 		s.metrics.ListImagesDuration.With(
 			"service_spec", fmt.Sprint(spec),
@@ -128,23 +130,23 @@ func (s *server) ListImages(spec ServiceSpec) (res []ImageStatus, err error) {
 		).Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
-	serviceIDs, err := func() ([]ServiceID, error) {
-		if spec == ServiceSpecAll {
+	serviceIDs, err := func() ([]flux.ServiceID, error) {
+		if spec == flux.ServiceSpecAll {
 			return s.helper.AllServices()
 		}
-		id, err := ParseServiceID(string(spec))
-		return []ServiceID{id}, err
+		id, err := flux.ParseServiceID(string(spec))
+		return []flux.ServiceID{id}, err
 	}()
 	if err != nil {
 		return nil, errors.Wrapf(err, "fetching service ID(s)")
 	}
 
 	var (
-		statusc = make(chan ImageStatus)
+		statusc = make(chan flux.ImageStatus)
 		errc    = make(chan error)
 	)
 	for _, serviceID := range serviceIDs {
-		go func(serviceID ServiceID) {
+		go func(serviceID flux.ServiceID) {
 			s.maxPlatform <- struct{}{}
 			defer func() { <-s.maxPlatform }()
 
@@ -154,7 +156,7 @@ func (s *server) ListImages(spec ServiceSpec) (res []ImageStatus, err error) {
 				return
 			}
 
-			statusc <- ImageStatus{
+			statusc <- flux.ImageStatus{
 				ID:         serviceID,
 				Containers: c,
 			}
@@ -172,7 +174,7 @@ func (s *server) ListImages(spec ServiceSpec) (res []ImageStatus, err error) {
 	return res, nil
 }
 
-func (s *server) History(spec ServiceSpec) (res []HistoryEntry, err error) {
+func (s *server) History(spec flux.ServiceSpec) (res []flux.HistoryEntry, err error) {
 	defer func(begin time.Time) {
 		s.metrics.HistoryDuration.With(
 			"service_spec", fmt.Sprint(spec),
@@ -181,13 +183,13 @@ func (s *server) History(spec ServiceSpec) (res []HistoryEntry, err error) {
 	}(time.Now())
 
 	var events []history.Event
-	if spec == ServiceSpecAll {
+	if spec == flux.ServiceSpecAll {
 		events, err = s.history.AllEvents()
 		if err != nil {
 			return nil, errors.Wrap(err, "fetching all history events")
 		}
 	} else {
-		id, err := ParseServiceID(string(spec))
+		id, err := flux.ParseServiceID(string(spec))
 		if err != nil {
 			return nil, errors.Wrapf(err, "parsing service ID from spec %s", spec)
 		}
@@ -199,9 +201,9 @@ func (s *server) History(spec ServiceSpec) (res []HistoryEntry, err error) {
 		}
 	}
 
-	res = make([]HistoryEntry, len(events))
+	res = make([]flux.HistoryEntry, len(events))
 	for i, event := range events {
-		res[i] = HistoryEntry{
+		res[i] = flux.HistoryEntry{
 			Stamp: event.Stamp,
 			Type:  "v0",
 			Data:  fmt.Sprintf("%s: %s", event.Service, event.Msg),
@@ -211,25 +213,25 @@ func (s *server) History(spec ServiceSpec) (res []HistoryEntry, err error) {
 	return res, nil
 }
 
-func (s *server) Automate(service ServiceID) error {
+func (s *server) Automate(service flux.ServiceID) error {
 	ns, svc := service.Components()
 	return s.automator.Automate(ns, svc)
 }
 
-func (s *server) Deautomate(service ServiceID) error {
+func (s *server) Deautomate(service flux.ServiceID) error {
 	ns, svc := service.Components()
 	return s.automator.Deautomate(ns, svc)
 }
 
-func (s *server) PostRelease(spec ReleaseJobSpec) (ReleaseID, error) {
+func (s *server) PostRelease(spec flux.ReleaseJobSpec) (flux.ReleaseID, error) {
 	return s.releaser.PutJob(spec)
 }
 
-func (s *server) GetRelease(id ReleaseID) (ReleaseJob, error) {
+func (s *server) GetRelease(id flux.ReleaseID) (flux.ReleaseJob, error) {
 	return s.releaser.GetJob(id)
 }
 
-func (s *server) containersFor(id ServiceID, includeAvailable bool) (res []Container, _ error) {
+func (s *server) containersFor(id flux.ServiceID, includeAvailable bool) (res []flux.Container, _ error) {
 	namespace, service := id.Components()
 	containers, err := s.helper.PlatformContainersFor(namespace, service)
 	if err != nil {
@@ -238,12 +240,12 @@ func (s *server) containersFor(id ServiceID, includeAvailable bool) (res []Conta
 
 	var errs compositeError
 	for _, container := range containers {
-		imageID := ParseImageID(container.Image)
+		imageID := flux.ParseImageID(container.Image)
 
 		// We may not be able to get image info from the repository,
 		// but it's still worthwhile returning what we know.
-		current := ImageDescription{ID: imageID}
-		var available []ImageDescription
+		current := flux.ImageDescription{ID: imageID}
+		var available []flux.ImageDescription
 
 		if includeAvailable {
 			imageRepo, err := s.helper.RegistryGetRepository(imageID.Repository())
@@ -251,8 +253,8 @@ func (s *server) containersFor(id ServiceID, includeAvailable bool) (res []Conta
 				errs = append(errs, errors.Wrapf(err, "fetching image repo for %s", imageID))
 			} else {
 				for _, image := range imageRepo.Images {
-					description := ImageDescription{
-						ID:        ParseImageID(image.String()),
+					description := flux.ImageDescription{
+						ID:        flux.ParseImageID(image.String()),
 						CreatedAt: image.CreatedAt,
 					}
 					available = append(available, description)
@@ -262,7 +264,7 @@ func (s *server) containersFor(id ServiceID, includeAvailable bool) (res []Conta
 				}
 			}
 		}
-		res = append(res, Container{
+		res = append(res, flux.Container{
 			Name:      container.Name,
 			Current:   current,
 			Available: available,
