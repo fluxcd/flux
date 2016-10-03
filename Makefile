@@ -13,7 +13,7 @@ godeps=$(shell go list -f '{{join .Deps "\n"}}' $1 | grep -v /vendor/ | xargs go
 FLUXD_DEPS:=$(call godeps,./cmd/fluxd)
 FLUXCTL_DEPS:=$(call godeps,./cmd/fluxctl)
 
-all: build/.fluxy.done $(GOPATH)/bin/fluxctl $(GOPATH)/bin/fluxd
+all: $(GOPATH)/bin/fluxctl $(GOPATH)/bin/fluxd build/.fluxy.done
 
 clean:
 	go clean
