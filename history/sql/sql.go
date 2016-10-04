@@ -2,37 +2,13 @@ package sql
 
 import (
 	"database/sql"
-	"errors"
-	"os"
 
 	"github.com/weaveworks/fluxy/history"
-)
-
-var (
-	// ErrNoSchemaDefinedForDriver is the error for when you've used a driver
-	// with no schema defined. Programmer error.
-	ErrNoSchemaDefinedForDriver = errors.New("schema not defined for driver")
-
-	qlSchema = `CREATE TABLE IF NOT EXISTS history
-		(namespace string NOT NULL,
-		 service   string NOT NULL,
-		 message   string NOT NULL,
-		 stamp     time NOT NULL)`
-	schemaByDriver = map[string]string{
-		"ql":     qlSchema,
-		"ql-mem": qlSchema,
-		"postgres": `CREATE TABLE IF NOT EXISTS history
-				(namespace text NOT NULL,
-				 service   text NOT NULL,
-				 message   text NOT NULL,
-				 stamp     timestamp with time zone NOT NULL)`,
-	}
 )
 
 // A history DB that uses a SQL database
 type DB struct {
 	driver *sql.DB
-	schema string
 }
 
 func NewSQL(driver, datasource string) (*DB, error) {
@@ -42,12 +18,8 @@ func NewSQL(driver, datasource string) (*DB, error) {
 	}
 	historyDB := &DB{
 		driver: db,
-		schema: schemaByDriver[driver],
 	}
-	if historyDB.schema == "" {
-		return nil, ErrNoSchemaDefinedForDriver
-	}
-	return historyDB, historyDB.ensureTables()
+	return historyDB, historyDB.sanityCheck()
 }
 
 func (db *DB) queryEvents(query string, params ...interface{}) ([]history.Event, error) {
@@ -99,27 +71,7 @@ func (db *DB) LogEvent(namespace, service, msg string) error {
 	return err
 }
 
-func (db *DB) ensureTables() (err error) {
-	// ql requires a temp directory, but will apparently not create it
-	// if it doesn't exist; and that can be the case when run inside a
-	// container.
-	os.Mkdir(os.TempDir(), 0777)
-
-	tx, err := db.driver.Begin()
-	if err != nil {
-		return err
-	}
-	// cznic/ql has its own idea of types; this will need to be
-	// adapted for other DB drivers.
-	// http://godoc.org/github.com/cznic/ql#hdr-Types
-	_, err = tx.Exec(db.schema)
-	if err != nil {
-		return err
-	}
-	err = tx.Commit()
-	if err != nil {
-		return err
-	}
+func (db *DB) sanityCheck() (err error) {
 	return nil
 }
 

@@ -29,8 +29,7 @@ spec:
         - --kubernetes-host=https://kubernetes
         - --kubernetes-certificate-authority=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
         - --kubernetes-bearer-token-file=/var/run/secrets/kubernetes.io/serviceaccount/token
-        - --database-driver=ql
-        - --database-source=file://history.db
+        - --database-source=ql:history.db
         - --repo-url=git@github.com:squaremo/fluxy-testdata
         - --repo-key=/var/run/secrets/fluxy/key/id-rsa
         - --repo-path=testdata

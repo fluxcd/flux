@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"syscall"
@@ -20,6 +21,7 @@ import (
 
 	"github.com/weaveworks/fluxy"
 	"github.com/weaveworks/fluxy/automator"
+	"github.com/weaveworks/fluxy/db"
 	"github.com/weaveworks/fluxy/git"
 	"github.com/weaveworks/fluxy/history"
 	historysql "github.com/weaveworks/fluxy/history/sql"
@@ -55,14 +57,16 @@ func main() {
 		kubernetesClientKey       = fs.String("kubernetes-client-key", "", "Path to Kubernetes client key file for TLS")
 		kubernetesCertAuthority   = fs.String("kubernetes-certificate-authority", "", "Path to Kubernetes cert file for certificate authority")
 		kubernetesBearerTokenFile = fs.String("kubernetes-bearer-token-file", "", "Path to file containing Kubernetes Bearer Token file")
-		databaseDriver            = fs.String("database-driver", "ql-mem", `Database driver name, e.g., "postgres"; the default is an in-memory DB`)
-		databaseSource            = fs.String("database-source", "history.db", `Database source name; specific to the database driver (--database-driver) used. The default is an arbitrary, in-memory DB name`)
+		_                         = fs.String("database-driver", "ql", "Database driver name")
+		databaseSource            = fs.String("database-source", "ql:fluxy.db", `Database source name; includes the DB driver as the scheme. The default is an arbitrary, in-memory DB`)
+		databaseMigrationsDir     = fs.String("database-migrations", "./db/migrations", "Path to database migration scripts, which are in subdirectories named for each driver")
 		repoURL                   = fs.String("repo-url", "", "Config repo URL, e.g. git@github.com:myorg/conf (required)")
 		repoKey                   = fs.String("repo-key", "", "SSH key file with commit rights to config repo")
 		repoPath                  = fs.String("repo-path", "", "Path within config repo to look for resource definition files")
 		slackWebhookURL           = fs.String("slack-webhook-url", "", "Slack webhook URL for release notifications (optional)")
 		slackUsername             = fs.String("slack-username", "fluxy-deploy", "Slack username for release notifications")
 	)
+	fs.MarkDeprecated("database-driver", `the driver is taken from the database source URL instead; e.g., postgres in "postgres://host"`)
 	fs.Parse(os.Args)
 
 	// Logger component.
@@ -71,6 +75,23 @@ func main() {
 		logger = log.NewLogfmtLogger(os.Stderr)
 		logger = log.NewContext(logger).With("ts", log.DefaultTimestampUTC)
 		logger = log.NewContext(logger).With("caller", log.DefaultCaller)
+	}
+
+	// Initialise database; we must fail if we can't do this, because
+	// most things depend on it.
+	var dbDriver string
+	{
+		u, err := url.Parse(*databaseSource)
+		if err == nil {
+			err = db.Migrate(*databaseSource, *databaseMigrationsDir)
+		}
+
+		if err != nil {
+			logger.Log("stage", "db init", "err", err)
+			os.Exit(1)
+		}
+		dbDriver = u.Scheme
+		logger.Log("migrations", "success", "driver", dbDriver)
 	}
 
 	// Instrumentation
@@ -130,6 +151,8 @@ func main() {
 			Help:      "Duration in seconds of a variety of release helper methods.",
 		}, []string{"method", "success"})
 	}
+
+	// Prerequisite for proceeding: migrate any database tables
 
 	// Registry component.
 	var reg *registry.Client
@@ -219,7 +242,7 @@ func main() {
 	var eventWriter history.EventWriter
 	var eventReader history.EventReader
 	{
-		db, err := historysql.NewSQL(*databaseDriver, *databaseSource)
+		db, err := historysql.NewSQL(dbDriver, *databaseSource)
 		if err != nil {
 			logger.Log("component", "history", "err", err)
 			os.Exit(1)
@@ -268,7 +291,7 @@ func main() {
 	// Configuration, i.e., whether services are automated or not.
 	var instanceDB instance.DB
 	{
-		db, err := instancedb.New(*databaseDriver, *databaseSource)
+		db, err := instancedb.New(dbDriver, *databaseSource)
 		if err != nil {
 			logger.Log("component", "config", "err", err)
 			os.Exit(1)

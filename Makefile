@@ -13,6 +13,8 @@ godeps=$(shell go list -f '{{join .Deps "\n"}}' $1 | grep -v /vendor/ | xargs go
 FLUXD_DEPS:=$(call godeps,./cmd/fluxd)
 FLUXCTL_DEPS:=$(call godeps,./cmd/fluxctl)
 
+MIGRATIONS:=$(shell find db/migrations -type f)
+
 all: $(GOPATH)/bin/fluxctl $(GOPATH)/bin/fluxd build/.fluxy.done
 
 clean:
@@ -22,7 +24,10 @@ clean:
 realclean: clean
 	rm -rf ./cache
 
-build/.fluxy.done: docker/Dockerfile.fluxy build/fluxd ./cmd/fluxd/*.crt ./cmd/fluxd/kubeservice build/kubectl
+build/migrations.tar: $(MIGRATIONS)
+	tar cf $@ db/migrations
+
+build/.fluxy.done: docker/Dockerfile.fluxy build/fluxd ./cmd/fluxd/*.crt ./cmd/fluxd/kubeservice build/kubectl build/migrations.tar
 	mkdir -p ./build/docker
 	cp $^ ./build/docker/
 	${DOCKER} build -t weaveworks/fluxy -f build/docker/Dockerfile.fluxy ./build/docker
