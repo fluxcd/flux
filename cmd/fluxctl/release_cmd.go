@@ -2,9 +2,12 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"time"
 
+	"github.com/gosuri/uilive"
+	"github.com/mattn/go-isatty"
 	"github.com/spf13/cobra"
 
 	"github.com/weaveworks/fluxy"
@@ -91,9 +94,17 @@ func (opts *serviceReleaseOpts) RunE(_ *cobra.Command, args []string) error {
 	}
 
 	begin := time.Now()
+
+	var out io.Writer = os.Stdout
+	live := uilive.New()
+	if isatty.IsTerminal(os.Stdout.Fd()) {
+		out = live
+	}
+
 	printf := func(format string, args ...interface{}) {
 		args = append([]interface{}{(int(time.Since(begin).Seconds()))}, args...)
-		fmt.Fprintf(os.Stdout, "t=%d "+format+"\n", args...)
+		fmt.Fprintf(out, "t=%d "+format+"\n", args...)
+		live.Flush()
 	}
 
 	if opts.dryRun {
@@ -126,7 +137,8 @@ func (opts *serviceReleaseOpts) RunE(_ *cobra.Command, args []string) error {
 			printf("Waiting for job to be claimed...")
 		}
 		if job.IsFinished() {
-			fmt.Println()
+			fmt.Fprintln(out, "")
+			live.Flush()
 			break
 		}
 	}
