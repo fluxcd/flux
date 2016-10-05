@@ -2,6 +2,7 @@
 package registry
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -15,7 +16,6 @@ import (
 
 	"github.com/go-kit/kit/log"
 	dockerregistry "github.com/heroku/docker-registry-client/registry"
-	"golang.org/x/net/context"
 	"golang.org/x/net/publicsuffix"
 )
 
@@ -37,6 +37,12 @@ type Credentials struct {
 type Client struct {
 	Credentials Credentials
 	Logger      log.Logger
+}
+
+type roundtripperFunc func(*http.Request) (*http.Response, error)
+
+func (f roundtripperFunc) RoundTrip(r *http.Request) (*http.Response, error) {
+	return f(r)
 }
 
 // GetRepository yields a repository matching the given name, if any exists.
@@ -80,25 +86,32 @@ func (c *Client) GetRepository(repository string) (*Repository, error) {
 	}
 	auth := c.Credentials.credsFor(host)
 
+	// A context we'll use to cancel requests on error
+	ctx, cancel := context.WithCancel(context.Background())
+
 	// Use the wrapper to fix headers for quay.io, and remember bearer tokens
 	var transport http.RoundTripper = &wwwAuthenticateFixer{transport: http.DefaultTransport}
 	// Now the auth-handling wrappers that come with the library
 	transport = dockerregistry.WrapTransport(transport, httphost, auth.username, auth.password)
+
 	client := &dockerregistry.Registry{
 		URL: httphost,
 		Client: &http.Client{
-			Transport: transport,
-			Jar:       jar,
+			Transport: roundtripperFunc(func(r *http.Request) (*http.Response, error) {
+				return transport.RoundTrip(r.WithContext(ctx))
+			}),
+			Jar: jar,
 		},
 		Logf: dockerregistry.Quiet,
 	}
 
 	tags, err := client.Tags(hostlessImageName)
 	if err != nil {
+		cancel()
 		return nil, err
 	}
 
-	return c.tagsToRepository(client, repository, tags)
+	return c.tagsToRepository(cancel, client, repository, tags)
 }
 
 func (c *Client) lookupImage(client *dockerregistry.Registry, repoName, tag string) (Image, error) {
@@ -124,28 +137,24 @@ func (c *Client) lookupImage(client *dockerregistry.Registry, repoName, tag stri
 	return img, err
 }
 
-func (c *Client) tagsToRepository(client *dockerregistry.Registry, repoName string, tags []string) (*Repository, error) {
+func (c *Client) tagsToRepository(cancel func(), client *dockerregistry.Registry, repoName string, tags []string) (*Repository, error) {
+	// one way or another, we'll be finishing all requests
+	defer cancel()
+
 	type result struct {
 		image Image
 		err   error
 	}
 
 	fetched := make(chan result, len(tags))
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 
 	for _, tag := range tags {
 		go func(t string) {
-			select {
-			case <-ctx.Done():
-				return
-			default:
-				img, err := c.lookupImage(client, repoName, t)
-				if err != nil {
-					c.Logger.Log("registry-metadata-err", err)
-				}
-				fetched <- result{img, err}
+			img, err := c.lookupImage(client, repoName, t)
+			if err != nil {
+				c.Logger.Log("registry-metadata-err", err)
 			}
+			fetched <- result{img, err}
 		}(tag)
 	}
 
