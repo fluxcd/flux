@@ -63,16 +63,18 @@ type ImageMap map[string][]flux.ImageDescription
 
 // LatestImage returns the latest releasable image for a repository.
 // A releasable image is one that is not tagged "latest". (Assumes the
-// available images are in descending order of latestness.)
-func (m ImageMap) LatestImage(repo string) (flux.ImageDescription, error) {
+// available images are in descending order of latestness.) If no such
+// image exists, returns nil, and the caller can decide whether that's
+// an error or not.
+func (m ImageMap) LatestImage(repo string) *flux.ImageDescription {
 	for _, image := range m[repo] {
 		_, _, tag := image.ID.Components()
 		if strings.EqualFold(tag, "latest") {
 			continue
 		}
-		return image, nil
+		return &image
 	}
-	return flux.ImageDescription{}, errors.New("no valid images available")
+	return nil
 }
 
 // Get the services in `namespace` along with their containers (if
@@ -111,6 +113,16 @@ func (h *Instance) CollectAvailableImages(services []platform.Service) (ImageMap
 		images[repo] = imageRepo
 	}
 	return images, nil
+}
+
+// Create an image map containing exact images. At present this
+// assumes they exist; but it may in the future be made to verify so.
+func (h *Instance) ExactImages(images []flux.ImageID) (ImageMap, error) {
+	m := ImageMap{}
+	for _, id := range images {
+		m[id.Repository()] = []flux.ImageDescription{flux.ImageDescription{ID: id}}
+	}
+	return m, nil
 }
 
 func (h *Instance) PlatformRegrade(specs []platform.RegradeSpec) (err error) {
