@@ -15,6 +15,7 @@ import (
 
 	"github.com/go-kit/kit/log"
 	dockerregistry "github.com/heroku/docker-registry-client/registry"
+	"golang.org/x/net/context"
 	"golang.org/x/net/publicsuffix"
 )
 
@@ -130,14 +131,21 @@ func (c *Client) tagsToRepository(client *dockerregistry.Registry, repoName stri
 	}
 
 	fetched := make(chan result, len(tags))
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	for _, tag := range tags {
 		go func(t string) {
-			img, err := c.lookupImage(client, repoName, t)
-			if err != nil {
-				c.Logger.Log("registry-metadata-err", err)
+			select {
+			case <-ctx.Done():
+				return
+			default:
+				img, err := c.lookupImage(client, repoName, t)
+				if err != nil {
+					c.Logger.Log("registry-metadata-err", err)
+				}
+				fetched <- result{img, err}
 			}
-			fetched <- result{img, err}
 		}(tag)
 	}
 
