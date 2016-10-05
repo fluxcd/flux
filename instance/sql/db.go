@@ -3,7 +3,6 @@ package sql
 import (
 	"database/sql"
 	"encoding/json"
-	"os"
 
 	_ "github.com/cznic/ql/driver"
 	_ "github.com/lib/pq"
@@ -13,33 +12,8 @@ import (
 	"github.com/weaveworks/fluxy/instance"
 )
 
-var (
-	ErrNoSchemaDefinedForDriver = errors.New("schema not defined for driver")
-
-	qlSchema = `
-      CREATE TABLE IF NOT EXISTS config
-        (instance string NOT NULL,
-         config   string NOT NULL,
-         stamp    time NOT NULL)
-    `
-
-	pgSchema = `
-      CREATE TABLE IF NOT EXISTS config
-        (instance varchar(255) NOT NULL,
-         config   text NOT NULL,
-         stamp    timestamp with time zone NOT NULL)
-    `
-
-	schemaByDriver = map[string]string{
-		"ql":       qlSchema,
-		"ql-mem":   qlSchema,
-		"postgres": pgSchema,
-	}
-)
-
 type DB struct {
-	conn   *sql.DB
-	schema string
+	conn *sql.DB
 }
 
 func New(driver, datasource string) (*DB, error) {
@@ -48,13 +22,9 @@ func New(driver, datasource string) (*DB, error) {
 		return nil, err
 	}
 	db := &DB{
-		conn:   conn,
-		schema: schemaByDriver[driver],
+		conn: conn,
 	}
-	if db.schema == "" {
-		return nil, ErrNoSchemaDefinedForDriver
-	}
-	return db, db.ensureTables()
+	return db, db.sanityCheck()
 }
 
 func (db *DB) Update(inst flux.InstanceID, update instance.UpdateFunc) error {
@@ -120,16 +90,10 @@ func (db *DB) Get(inst flux.InstanceID) (instance.Config, error) {
 
 // ---
 
-func (db *DB) ensureTables() error {
-	// ql driver needs this to work correctly in a container
-	os.MkdirAll(os.TempDir(), 0777)
-	tx, err := db.conn.Begin()
+func (db *DB) sanityCheck() error {
+	_, err := db.conn.Query(`SELECT instance, config, stamp FROM config LIMIT 1`)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed sanity check for config table")
 	}
-	_, err = tx.Exec(db.schema)
-	if err != nil {
-		return err
-	}
-	return tx.Commit()
+	return nil
 }

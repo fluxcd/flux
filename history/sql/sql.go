@@ -3,6 +3,8 @@ package sql
 import (
 	"database/sql"
 
+	"github.com/pkg/errors"
+
 	"github.com/weaveworks/fluxy/history"
 )
 
@@ -72,6 +74,10 @@ func (db *DB) LogEvent(namespace, service, msg string) error {
 }
 
 func (db *DB) sanityCheck() (err error) {
+	_, err = db.driver.Query("SELECT namespace, service, message, stamp FROM history LIMIT 1")
+	if err != nil {
+		return errors.Wrap(err, "sanity checking history table")
+	}
 	return nil
 }
 

@@ -3,15 +3,16 @@ package sql
 import (
 	"flag"
 	"io/ioutil"
+	"net/url"
 	"testing"
 	"time"
 
+	"github.com/weaveworks/fluxy/db"
 	"github.com/weaveworks/fluxy/history"
 )
 
 var (
-	databaseDriver = flag.String("database-driver", "ql", `Database driver name, e.g., "postgres"; the default is an in-memory DB`)
-	databaseSource = flag.String("database-source", "", `Database source name; specific to the database driver (--database-driver) used. The default is an arbitrary, in-memory DB name`)
+	databaseSource = flag.String("database-source", "", `Database source name. The default is a temporary DB using ql`)
 )
 
 func mkDBFile(t *testing.T) string {
@@ -29,10 +30,20 @@ func bailIfErr(t *testing.T, err error) {
 }
 
 func newSQL(t *testing.T) history.DB {
-	if *databaseDriver == "ql" && *databaseSource == "" {
+	if *databaseSource == "" {
 		*databaseSource = "file://" + mkDBFile(t)
 	}
-	db, err := NewSQL(*databaseDriver, *databaseSource)
+
+	u, err := url.Parse(*databaseSource)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err = db.Migrate(*databaseSource, "../../db/migrations"); err != nil {
+		t.Fatal(err)
+	}
+
+	db, err := NewSQL(db.DriverForScheme(u.Scheme), *databaseSource)
 	if err != nil {
 		t.Fatal(err)
 	}
