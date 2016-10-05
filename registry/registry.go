@@ -2,6 +2,7 @@
 package registry
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -36,6 +37,12 @@ type Credentials struct {
 type Client struct {
 	Credentials Credentials
 	Logger      log.Logger
+}
+
+type roundtripperFunc func(*http.Request) (*http.Response, error)
+
+func (f roundtripperFunc) RoundTrip(r *http.Request) (*http.Response, error) {
+	return f(r)
 }
 
 // GetRepository yields a repository matching the given name, if any exists.
@@ -79,34 +86,40 @@ func (c *Client) GetRepository(repository string) (*Repository, error) {
 	}
 	auth := c.Credentials.credsFor(host)
 
+	// A context we'll use to cancel requests on error
+	ctx, cancel := context.WithCancel(context.Background())
+
 	// Use the wrapper to fix headers for quay.io, and remember bearer tokens
 	var transport http.RoundTripper = &wwwAuthenticateFixer{transport: http.DefaultTransport}
 	// Now the auth-handling wrappers that come with the library
 	transport = dockerregistry.WrapTransport(transport, httphost, auth.username, auth.password)
+
 	client := &dockerregistry.Registry{
 		URL: httphost,
 		Client: &http.Client{
-			Transport: transport,
-			Jar:       jar,
+			Transport: roundtripperFunc(func(r *http.Request) (*http.Response, error) {
+				return transport.RoundTrip(r.WithContext(ctx))
+			}),
+			Jar: jar,
 		},
 		Logf: dockerregistry.Quiet,
 	}
 
 	tags, err := client.Tags(hostlessImageName)
 	if err != nil {
+		cancel()
 		return nil, err
 	}
 
-	return c.tagsToRepository(client, repository, tags), nil
+	return c.tagsToRepository(cancel, client, repository, tags)
 }
 
-func (c *Client) lookupImage(client *dockerregistry.Registry, repoName, tag string) Image {
+func (c *Client) lookupImage(client *dockerregistry.Registry, repoName, tag string) (Image, error) {
 	img := ParseImage(repoName)
 	img.Tag = tag
 	meta, err := client.Manifest(img.Name, tag)
 	if err != nil {
-		c.Logger.Log("registry-metadata-err", err)
-		return img
+		return img, err
 	}
 	// the manifest includes some v1-backwards-compatibility data,
 	// oddly called "History", which are layer metadata as JSON
@@ -117,25 +130,41 @@ func (c *Client) lookupImage(client *dockerregistry.Registry, repoName, tag stri
 		Created time.Time `json:"created"`
 	}
 	var topmost v1image
-	if err := json.Unmarshal([]byte(meta.History[0].V1Compatibility), &topmost); err == nil {
+	if err = json.Unmarshal([]byte(meta.History[0].V1Compatibility), &topmost); err == nil {
 		img.CreatedAt = topmost.Created
 	}
 
-	return img
+	return img, err
 }
 
-func (c *Client) tagsToRepository(client *dockerregistry.Registry, repoName string, tags []string) *Repository {
-	fetched := make(chan Image, len(tags))
+func (c *Client) tagsToRepository(cancel func(), client *dockerregistry.Registry, repoName string, tags []string) (*Repository, error) {
+	// one way or another, we'll be finishing all requests
+	defer cancel()
+
+	type result struct {
+		image Image
+		err   error
+	}
+
+	fetched := make(chan result, len(tags))
 
 	for _, tag := range tags {
 		go func(t string) {
-			fetched <- c.lookupImage(client, repoName, t)
+			img, err := c.lookupImage(client, repoName, t)
+			if err != nil {
+				c.Logger.Log("registry-metadata-err", err)
+			}
+			fetched <- result{img, err}
 		}(tag)
 	}
 
 	images := make([]Image, cap(fetched))
 	for i := 0; i < cap(fetched); i++ {
-		images[i] = <-fetched
+		res := <-fetched
+		if res.err != nil {
+			return nil, res.err
+		}
+		images[i] = res.image
 	}
 
 	sort.Sort(byCreatedDesc{images})
@@ -143,7 +172,7 @@ func (c *Client) tagsToRepository(client *dockerregistry.Registry, repoName stri
 	return &Repository{
 		Name:   repoName,
 		Images: images,
-	}
+	}, nil
 }
 
 // Repository is a collection of images with the same registry and name
