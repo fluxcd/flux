@@ -2,28 +2,35 @@ package sql
 
 import (
 	"errors"
+	"io/ioutil"
 	"testing"
 
 	"github.com/weaveworks/fluxy"
+	"github.com/weaveworks/fluxy/db"
 	"github.com/weaveworks/fluxy/instance"
 )
 
-func TestNew(t *testing.T) {
-	_, err := New("ql-mem", "config")
+func newDB(t *testing.T) *DB {
+	f, err := ioutil.TempFile("", "fluxy-testdb")
 	if err != nil {
 		t.Fatal(err)
 	}
+	dbsource := "file://" + f.Name()
+	if err = db.Migrate(dbsource, "../../db/migrations"); err != nil {
+		t.Fatal(err)
+	}
+	db, err := New("ql", dbsource)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return db
 }
 
 func TestUpdateOK(t *testing.T) {
+	db := newDB(t)
+
 	inst := flux.InstanceID("floaty-womble-abc123")
 	service := flux.MakeServiceID("namespace", "service")
-
-	db, err := New("ql-mem", "config")
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	services := map[flux.ServiceID]instance.ServiceConfig{}
 	services[service] = instance.ServiceConfig{
 		Automated: true,
@@ -31,7 +38,7 @@ func TestUpdateOK(t *testing.T) {
 	c := instance.Config{
 		Services: services,
 	}
-	err = db.Update(inst, func(_ instance.Config) (instance.Config, error) {
+	err := db.Update(inst, func(_ instance.Config) (instance.Config, error) {
 		return c, nil
 	})
 	if err != nil {
@@ -53,10 +60,7 @@ func TestUpdateRollback(t *testing.T) {
 	inst := flux.InstanceID("floaty-womble-abc123")
 	service := flux.MakeServiceID("namespace", "service")
 
-	db, err := New("ql-mem", "config")
-	if err != nil {
-		t.Fatal(err)
-	}
+	db := newDB(t)
 
 	services := map[flux.ServiceID]instance.ServiceConfig{}
 	services[service] = instance.ServiceConfig{
@@ -64,6 +68,13 @@ func TestUpdateRollback(t *testing.T) {
 	}
 	c := instance.Config{
 		Services: services,
+	}
+
+	err := db.Update(inst, func(_ instance.Config) (instance.Config, error) {
+		return c, nil
+	})
+	if err != nil {
+		t.Fatal(err)
 	}
 
 	err = db.Update(inst, func(_ instance.Config) (instance.Config, error) {
