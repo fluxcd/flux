@@ -97,16 +97,15 @@ func (c *Client) GetRepository(repository string) (*Repository, error) {
 		return nil, err
 	}
 
-	return c.tagsToRepository(client, repository, tags), nil
+	return c.tagsToRepository(client, repository, tags)
 }
 
-func (c *Client) lookupImage(client *dockerregistry.Registry, repoName, tag string) Image {
+func (c *Client) lookupImage(client *dockerregistry.Registry, repoName, tag string) (Image, error) {
 	img := ParseImage(repoName)
 	img.Tag = tag
 	meta, err := client.Manifest(img.Name, tag)
 	if err != nil {
-		c.Logger.Log("registry-metadata-err", err)
-		return img
+		return img, err
 	}
 	// the manifest includes some v1-backwards-compatibility data,
 	// oddly called "History", which are layer metadata as JSON
@@ -117,25 +116,38 @@ func (c *Client) lookupImage(client *dockerregistry.Registry, repoName, tag stri
 		Created time.Time `json:"created"`
 	}
 	var topmost v1image
-	if err := json.Unmarshal([]byte(meta.History[0].V1Compatibility), &topmost); err == nil {
+	if err = json.Unmarshal([]byte(meta.History[0].V1Compatibility), &topmost); err == nil {
 		img.CreatedAt = topmost.Created
 	}
 
-	return img
+	return img, err
 }
 
-func (c *Client) tagsToRepository(client *dockerregistry.Registry, repoName string, tags []string) *Repository {
-	fetched := make(chan Image, len(tags))
+func (c *Client) tagsToRepository(client *dockerregistry.Registry, repoName string, tags []string) (*Repository, error) {
+	type result struct {
+		image Image
+		err   error
+	}
+
+	fetched := make(chan result, len(tags))
 
 	for _, tag := range tags {
 		go func(t string) {
-			fetched <- c.lookupImage(client, repoName, t)
+			img, err := c.lookupImage(client, repoName, t)
+			if err != nil {
+				c.Logger.Log("registry-metadata-err", err)
+			}
+			fetched <- result{img, err}
 		}(tag)
 	}
 
 	images := make([]Image, cap(fetched))
 	for i := 0; i < cap(fetched); i++ {
-		images[i] = <-fetched
+		res := <-fetched
+		if res.err != nil {
+			return nil, res.err
+		}
+		images[i] = res.image
 	}
 
 	sort.Sort(byCreatedDesc{images})
@@ -143,7 +155,7 @@ func (c *Client) tagsToRepository(client *dockerregistry.Registry, repoName stri
 	return &Repository{
 		Name:   repoName,
 		Images: images,
-	}
+	}, nil
 }
 
 // Repository is a collection of images with the same registry and name
