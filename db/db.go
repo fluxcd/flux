@@ -22,6 +22,23 @@ import (
 	_ "github.com/weaveworks/fluxy/db/ql"
 )
 
+// Most SQL drivers expect the driver name to appear as the scheme in
+// the database source URL; for instance,
+// `postgres://host:2345`. However, cznic/ql uses the schemes "file"
+// and "memory" (or just a bare path), and names its drivers `ql` and
+// `ql-mem`. So we can deal just with URLs, translate these where
+// needed.
+func DriverForScheme(scheme string) string {
+	switch scheme {
+	case "file":
+		return "ql"
+	case "memory":
+		return "ql-mem"
+	default:
+		return scheme
+	}
+}
+
 // Make sure the database at the URL is up to date with respect to
 // migrations, or return an error. The migration scripts are taken
 // from `basedir/{scheme}`, with the scheme coming from the URL.
@@ -30,7 +47,7 @@ func Migrate(dburl, basedir string) error {
 	if err != nil {
 		return errors.Wrap(err, "parsing database URL")
 	}
-	migrationsPath := filepath.Join(basedir, u.Scheme)
+	migrationsPath := filepath.Join(basedir, DriverForScheme(u.Scheme))
 	if _, err := os.Stat(migrationsPath); err != nil {
 		if os.IsNotExist(err) {
 			return errors.Wrapf(err, "migrations dir %s does not exist; driver %s not supported", migrationsPath, u.Scheme)

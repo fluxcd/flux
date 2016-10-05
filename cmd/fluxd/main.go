@@ -57,8 +57,8 @@ func main() {
 		kubernetesClientKey       = fs.String("kubernetes-client-key", "", "Path to Kubernetes client key file for TLS")
 		kubernetesCertAuthority   = fs.String("kubernetes-certificate-authority", "", "Path to Kubernetes cert file for certificate authority")
 		kubernetesBearerTokenFile = fs.String("kubernetes-bearer-token-file", "", "Path to file containing Kubernetes Bearer Token file")
-		_                         = fs.String("database-driver", "ql", "Database driver name")
-		databaseSource            = fs.String("database-source", "ql:fluxy.db", `Database source name; includes the DB driver as the scheme. The default is an arbitrary, in-memory DB`)
+		_                         = fs.String("database-driver", "", "Database driver name")
+		databaseSource            = fs.String("database-source", "file://fluxy.db", `Database source name; includes the DB driver as the scheme. The default is a temporary, file-based DB`)
 		databaseMigrationsDir     = fs.String("database-migrations", "./db/migrations", "Path to database migration scripts, which are in subdirectories named for each driver")
 		repoURL                   = fs.String("repo-url", "", "Config repo URL, e.g. git@github.com:myorg/conf (required)")
 		repoKey                   = fs.String("repo-key", "", "SSH key file with commit rights to config repo")
@@ -90,7 +90,7 @@ func main() {
 			logger.Log("stage", "db init", "err", err)
 			os.Exit(1)
 		}
-		dbDriver = u.Scheme
+		dbDriver = db.DriverForScheme(u.Scheme)
 		logger.Log("migrations", "success", "driver", dbDriver)
 	}
 

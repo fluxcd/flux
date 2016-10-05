@@ -2,33 +2,28 @@ package ql
 
 import (
 	"database/sql"
-	"errors"
-	"net/url"
 
 	"github.com/mattes/migrate/driver"
 	"github.com/mattes/migrate/file"
 	"github.com/mattes/migrate/migrate/direction"
 )
 
+// These are registered under the URL schemes, since that's how they
+// are looked up by the `migrate` module. What we *actually* want is
+// the name that the database/sql driver was registered with, so
+// that's supplied as the field `driver`.
 func init() {
-	driver.RegisterDriver("ql", &Driver{kind: "ql"})
-	driver.RegisterDriver("ql-mem", &Driver{kind: "ql-mem"})
+	driver.RegisterDriver("file", &Driver{driver: "ql"})
+	driver.RegisterDriver("memory", &Driver{driver: "ql-mem"})
 }
 
 type Driver struct {
-	kind string
-	conn *sql.DB
+	driver string
+	conn   *sql.DB
 }
 
-func (d *Driver) Initialize(source string) error {
-	u, err := url.Parse(source)
-	if err != nil {
-		return err
-	}
-	if u.Scheme != d.kind {
-		return errors.New(`expected source URL scheme of "` + d.kind + `", got "` + u.Scheme + `"`)
-	}
-	d.conn, err = sql.Open(u.Scheme, source)
+func (d *Driver) Initialize(source string) (err error) {
+	d.conn, err = sql.Open(d.driver, source)
 	if err != nil {
 		return err
 	}
