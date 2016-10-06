@@ -34,6 +34,7 @@ func TestUpdateOK(t *testing.T) {
 	services := map[flux.ServiceID]instance.ServiceConfig{}
 	services[service] = instance.ServiceConfig{
 		Automated: true,
+		Locked:    true,
 	}
 	c := instance.Config{
 		Services: services,
@@ -54,6 +55,9 @@ func TestUpdateOK(t *testing.T) {
 	if !c1.Services[service].Automated {
 		t.Fatalf("expected service config %#v, got %#v", c.Services[service], c1.Services[service])
 	}
+	if !c1.Services[service].Locked {
+		t.Fatalf("expected service config %#v, got %#v", c.Services[service], c1.Services[service])
+	}
 }
 
 func TestUpdateRollback(t *testing.T) {
@@ -65,6 +69,7 @@ func TestUpdateRollback(t *testing.T) {
 	services := map[flux.ServiceID]instance.ServiceConfig{}
 	services[service] = instance.ServiceConfig{
 		Automated: true,
+		Locked:    true,
 	}
 	c := instance.Config{
 		Services: services,
@@ -91,6 +96,9 @@ func TestUpdateRollback(t *testing.T) {
 		t.Fatalf("did not find instance config after setting")
 	}
 	if !c1.Services[service].Automated {
+		t.Fatalf("expected service config %#v, got %#v", c.Services[service], c1.Services[service])
+	}
+	if !c1.Services[service].Locked {
 		t.Fatalf("expected service config %#v, got %#v", c.Services[service], c1.Services[service])
 	}
 }

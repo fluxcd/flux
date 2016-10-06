@@ -28,6 +28,8 @@ func NewRouter() *mux.Router {
 	r.NewRoute().Name("GetRelease").Methods("GET").Path("/v2/release").Queries("id", "{id}")
 	r.NewRoute().Name("Automate").Methods("POST").Path("/v2/automate").Queries("service", "{service}")
 	r.NewRoute().Name("Deautomate").Methods("POST").Path("/v2/deautomate").Queries("service", "{service}")
+	r.NewRoute().Name("Lock").Methods("POST").Path("/v2/lock").Queries("service", "{service}")
+	r.NewRoute().Name("Unlock").Methods("POST").Path("/v2/unlock").Queries("service", "{service}")
 	r.NewRoute().Name("History").Methods("GET").Path("/v2/history").Queries("service", "{service}")
 	return r
 }
@@ -40,6 +42,8 @@ func NewHandler(s flux.Service, r *mux.Router, logger log.Logger, h metrics.Hist
 		"GetRelease":   handleGetRelease,
 		"Automate":     handleAutomate,
 		"Deautomate":   handleDeautomate,
+		"Lock":         handleLock,
+		"Unlock":       handleUnlock,
 		"History":      handleHistory,
 	} {
 		var handler http.Handler
@@ -337,6 +341,82 @@ func handleDeautomate(s flux.Service) http.Handler {
 
 func invokeDeautomate(client *http.Client, router *mux.Router, endpoint string, id flux.ServiceID) error {
 	u, err := makeURL(endpoint, router, "Deautomate", "service", string(id))
+	if err != nil {
+		return errors.Wrap(err, "constructing URL")
+	}
+
+	req, err := http.NewRequest("POST", u.String(), nil)
+	if err != nil {
+		return errors.Wrapf(err, "constructing request %s", u)
+	}
+
+	if _, err = executeRequest(client, req); err != nil {
+		return errors.Wrap(err, "executing HTTP request")
+	}
+
+	return nil
+}
+
+func handleLock(s flux.Service) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		service := mux.Vars(r)["service"]
+		id, err := flux.ParseServiceID(service)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			fmt.Fprintf(w, errors.Wrapf(err, "parsing service ID %q", id).Error())
+			return
+		}
+
+		if err = s.Lock(id); err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintf(w, err.Error())
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+	})
+}
+
+func invokeLock(client *http.Client, router *mux.Router, endpoint string, id flux.ServiceID) error {
+	u, err := makeURL(endpoint, router, "Lock", "service", string(id))
+	if err != nil {
+		return errors.Wrap(err, "constructing URL")
+	}
+
+	req, err := http.NewRequest("POST", u.String(), nil)
+	if err != nil {
+		return errors.Wrapf(err, "constructing request %s", u)
+	}
+
+	if _, err = executeRequest(client, req); err != nil {
+		return errors.Wrap(err, "executing HTTP request")
+	}
+
+	return nil
+}
+
+func handleUnlock(s flux.Service) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		service := mux.Vars(r)["service"]
+		id, err := flux.ParseServiceID(service)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			fmt.Fprintf(w, errors.Wrapf(err, "parsing service ID %q", id).Error())
+			return
+		}
+
+		if err = s.Unlock(id); err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintf(w, err.Error())
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+	})
+}
+
+func invokeUnlock(client *http.Client, router *mux.Router, endpoint string, id flux.ServiceID) error {
+	u, err := makeURL(endpoint, router, "Unlock", "service", string(id))
 	if err != nil {
 		return errors.Wrap(err, "constructing URL")
 	}

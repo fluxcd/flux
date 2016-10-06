@@ -42,11 +42,11 @@ func (opts *serviceListOpts) RunE(_ *cobra.Command, args []string) error {
 	sort.Sort(serviceStatusByName(services))
 
 	w := newTabwriter()
-	fmt.Fprintf(w, "SERVICE\tCONTAINER\tIMAGE\tRELEASE\tAUTOMATION\n")
+	fmt.Fprintf(w, "SERVICE\tCONTAINER\tIMAGE\tRELEASE\tPOLICY\n")
 	for _, s := range services {
 		if len(s.Containers) > 0 {
 			c := s.Containers[0]
-			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", s.ID, c.Name, c.Current.ID, s.Status, maybeAutomated(s))
+			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", s.ID, c.Name, c.Current.ID, s.Status, s.Policies())
 			for _, c := range s.Containers[1:] {
 				fmt.Fprintf(w, "\t%s\t%s\t\t\n", c.Name, c.Current.ID)
 			}
@@ -56,13 +56,6 @@ func (opts *serviceListOpts) RunE(_ *cobra.Command, args []string) error {
 	}
 	w.Flush()
 	return nil
-}
-
-func maybeAutomated(s flux.ServiceStatus) string {
-	if s.Automated {
-		return "automated"
-	}
-	return ""
 }
 
 type serviceStatusByName []flux.ServiceStatus

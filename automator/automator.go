@@ -98,5 +98,5 @@ func (a *Automator) IsAutomated(namespace, serviceName string) bool {
 	if !ok {
 		return false
 	}
-	return conf.Automated
+	return conf.Policy() == flux.PolicyAutomated
 }
