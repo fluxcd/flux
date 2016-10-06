@@ -39,7 +39,7 @@ func newSQL(t *testing.T) history.DB {
 		t.Fatal(err)
 	}
 
-	if err = db.Migrate(*databaseSource, "../../db/migrations"); err != nil {
+	if _, err = db.Migrate(*databaseSource, "../../db/migrations"); err != nil {
 		t.Fatal(err)
 	}
 

@@ -16,7 +16,7 @@ func newDB(t *testing.T) *DB {
 		t.Fatal(err)
 	}
 	dbsource := "file://" + f.Name()
-	if err = db.Migrate(dbsource, "../../db/migrations"); err != nil {
+	if _, err = db.Migrate(dbsource, "../../db/migrations"); err != nil {
 		t.Fatal(err)
 	}
 	db, err := New("ql", dbsource)
