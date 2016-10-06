@@ -36,9 +36,9 @@ type server struct {
 }
 
 type Automator interface {
-	Automate(namespace, service string) error
-	Deautomate(namespace, service string) error
-	IsAutomated(namespace, service string) bool
+	Automate(instanceID flux.InstanceID, namespace, service string) error
+	Deautomate(instanceID flux.InstanceID, namespace, service string) error
+	IsAutomated(instanceID flux.InstanceID, namespace, service string) bool
 }
 
 type Metrics struct {
@@ -95,7 +95,7 @@ func (s *server) ListServices(inst flux.InstanceID, namespace string) (res []flu
 		return nil, errors.Wrapf(err, "fetching services for namespace %s on the platform", namespace)
 	}
 
-	config, err := s.instanceDB.Get(hardwiredInstance)
+	config, err := s.instanceDB.GetConfig(hardwiredInstance)
 	if err != nil {
 		return nil, errors.Wrapf(err, "getting config for %s", hardwiredInstance)
 	}
@@ -235,12 +235,12 @@ func (s *server) History(inst flux.InstanceID, spec flux.ServiceSpec) (res []flu
 
 func (s *server) Automate(inst flux.InstanceID, service flux.ServiceID) error {
 	ns, svc := service.Components()
-	return s.automator.Automate(ns, svc)
+	return s.automator.Automate(inst, ns, svc)
 }
 
 func (s *server) Deautomate(inst flux.InstanceID, service flux.ServiceID) error {
 	ns, svc := service.Components()
-	return s.automator.Deautomate(ns, svc)
+	return s.automator.Deautomate(inst, ns, svc)
 }
 
 func (s *server) Lock(inst flux.InstanceID, service flux.ServiceID) error {
@@ -256,7 +256,7 @@ func (s *server) Unlock(inst flux.InstanceID, service flux.ServiceID) error {
 }
 
 func (s *server) recordLock(service flux.ServiceID, locked bool) error {
-	if err := s.instanceDB.Update(hardwiredInstance, func(conf instance.Config) (instance.Config, error) {
+	if err := s.instanceDB.UpdateConfig(hardwiredInstance, func(conf instance.Config) (instance.Config, error) {
 		if serviceConf, found := conf.Services[service]; found {
 			serviceConf.Locked = locked
 			conf.Services[service] = serviceConf

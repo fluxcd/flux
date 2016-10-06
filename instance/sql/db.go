@@ -27,7 +27,7 @@ func New(driver, datasource string) (*DB, error) {
 	return db, db.sanityCheck()
 }
 
-func (db *DB) Update(inst flux.InstanceID, update instance.UpdateFunc) error {
+func (db *DB) UpdateConfig(inst flux.InstanceID, update instance.UpdateFunc) error {
 	tx, err := db.conn.Begin()
 	if err != nil {
 		return err
@@ -73,7 +73,7 @@ func (db *DB) Update(inst flux.InstanceID, update instance.UpdateFunc) error {
 	return err
 }
 
-func (db *DB) Get(inst flux.InstanceID) (instance.Config, error) {
+func (db *DB) GetConfig(inst flux.InstanceID) (instance.Config, error) {
 	var c string
 	err := db.conn.QueryRow(`SELECT config FROM config WHERE instance = $1`, string(inst)).Scan(&c)
 	switch err {
@@ -86,6 +86,34 @@ func (db *DB) Get(inst flux.InstanceID) (instance.Config, error) {
 	}
 	var conf instance.Config
 	return conf, json.Unmarshal([]byte(c), &conf)
+}
+
+func (db *DB) All() ([]instance.Instance, error) {
+	rows, err := db.conn.Query(`SELECT instance, config FROM config`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	instances := []instance.Instance{}
+	for rows.Next() {
+		var (
+			id, confStr string
+			conf        instance.Config
+		)
+		err = rows.Scan(&id, &confStr)
+		if err == nil {
+			err = json.Unmarshal([]byte(confStr), &conf)
+		}
+		if err != nil {
+			return nil, err
+		}
+
+		instances = append(instances, instance.Instance{
+			ID:     flux.InstanceID(id),
+			Config: conf,
+		})
+	}
+	return instances, rows.Err()
 }
 
 // ---

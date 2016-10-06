@@ -544,7 +544,7 @@ func (r *releaser) releaseOneWithoutUpdate(serviceID flux.ServiceID, kind flux.R
 
 // Get set of all locked services
 func (r *releaser) lockedServices() (ServiceIDSet, error) {
-	config, err := r.instanceDB.Get(hardwiredInstance)
+	config, err := r.instanceDB.GetConfig(hardwiredInstance)
 	if err != nil {
 		return nil, errors.Wrapf(err, "fetching config for %s", hardwiredInstance)
 	}
