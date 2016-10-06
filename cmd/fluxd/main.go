@@ -271,26 +271,6 @@ func main() {
 		rjs = release.NewInmemStore(time.Hour)
 	}
 
-	// Release workers.
-	{
-		repo := git.Repo{
-			URL:    *repoURL,
-			Branch: *repoBranch,
-			Key:    *repoKey,
-			Path:   *repoPath,
-		}
-
-		worker := release.NewWorker(rjs, k8s, reg, repo, eventWriter, releaseMetrics, helperDuration, logger)
-		releaseTicker := time.NewTicker(time.Second)
-		defer releaseTicker.Stop()
-		go worker.Work(releaseTicker.C)
-
-		cleaner := release.NewCleaner(rjs, logger)
-		cleanTicker := time.NewTicker(15 * time.Second)
-		defer cleanTicker.Stop()
-		go cleaner.Clean(cleanTicker.C)
-	}
-
 	// Configuration, i.e., whether services are automated or not.
 	var instanceDB instance.DB
 	{
@@ -300,6 +280,26 @@ func main() {
 			os.Exit(1)
 		}
 		instanceDB = db
+	}
+
+	// Release workers.
+	{
+		repo := git.Repo{
+			URL:    *repoURL,
+			Branch: *repoBranch,
+			Key:    *repoKey,
+			Path:   *repoPath,
+		}
+
+		worker := release.NewWorker(rjs, k8s, reg, repo, instanceDB, eventWriter, releaseMetrics, helperDuration, logger)
+		releaseTicker := time.NewTicker(time.Second)
+		defer releaseTicker.Stop()
+		go worker.Work(releaseTicker.C)
+
+		cleaner := release.NewCleaner(rjs, logger)
+		cleanTicker := time.NewTicker(15 * time.Second)
+		defer cleanTicker.Stop()
+		go cleaner.Clean(cleanTicker.C)
 	}
 
 	// Automator component.
