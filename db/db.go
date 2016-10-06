@@ -42,24 +42,28 @@ func DriverForScheme(scheme string) string {
 // Make sure the database at the URL is up to date with respect to
 // migrations, or return an error. The migration scripts are taken
 // from `basedir/{scheme}`, with the scheme coming from the URL.
-func Migrate(dburl, basedir string) error {
+func Migrate(dburl, basedir string) (uint64, error) {
 	u, err := url.Parse(dburl)
 	if err != nil {
-		return errors.Wrap(err, "parsing database URL")
+		return 0, errors.Wrap(err, "parsing database URL")
 	}
 	migrationsPath := filepath.Join(basedir, DriverForScheme(u.Scheme))
 	if _, err := os.Stat(migrationsPath); err != nil {
 		if os.IsNotExist(err) {
-			return errors.Wrapf(err, "migrations dir %s does not exist; driver %s not supported", migrationsPath, u.Scheme)
+			return 0, errors.Wrapf(err, "migrations dir %s does not exist; driver %s not supported", migrationsPath, u.Scheme)
 		}
-		return errors.Wrapf(err, "verifying migrations directory %s exists", migrationsPath)
+		return 0, errors.Wrapf(err, "verifying migrations directory %s exists", migrationsPath)
 	}
 
 	errs, _ := migrate.UpSync(dburl, migrationsPath)
 	if len(errs) > 0 {
-		return errors.Wrap(compositeError{errs}, "migrating database")
+		return 0, errors.Wrap(compositeError{errs}, "migrating database")
 	}
-	return nil
+	version, err := migrate.Version(dburl, migrationsPath)
+	if err != nil {
+		return 0, err
+	}
+	return version, nil
 }
 
 type compositeError struct {

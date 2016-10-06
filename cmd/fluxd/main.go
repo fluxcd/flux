@@ -81,9 +81,10 @@ func main() {
 	// most things depend on it.
 	var dbDriver string
 	{
+		var version uint64
 		u, err := url.Parse(*databaseSource)
 		if err == nil {
-			err = db.Migrate(*databaseSource, *databaseMigrationsDir)
+			version, err = db.Migrate(*databaseSource, *databaseMigrationsDir)
 		}
 
 		if err != nil {
@@ -91,7 +92,7 @@ func main() {
 			os.Exit(1)
 		}
 		dbDriver = db.DriverForScheme(u.Scheme)
-		logger.Log("migrations", "success", "driver", dbDriver)
+		logger.Log("migrations", "success", "driver", dbDriver, "db-version", fmt.Sprintf("%d", version))
 	}
 
 	// Instrumentation
