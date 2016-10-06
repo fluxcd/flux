@@ -3,14 +3,8 @@ package history
 import (
 	"io"
 	"time"
-)
 
-type ServiceState string
-
-const (
-	StateUnknown    ServiceState = "Unknown"
-	StateRest                    = "At rest"
-	StateInProgress              = "Release in progress"
+	"github.com/weaveworks/fluxy"
 )
 
 type Event struct {
@@ -34,7 +28,8 @@ type EventReader interface {
 }
 
 type DB interface {
-	EventWriter
-	EventReader
+	LogEvent(inst flux.InstanceID, namespace, service, msg string) error
+	AllEvents(inst flux.InstanceID) ([]Event, error)
+	EventsForService(inst flux.InstanceID, namespace, service string) ([]Event, error)
 	io.Closer
 }
