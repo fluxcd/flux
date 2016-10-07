@@ -27,7 +27,7 @@ func (s *InmemStore) GetJob(inst flux.InstanceID, id flux.ReleaseID) (flux.Relea
 	s.mtx.RLock()
 	defer s.mtx.RUnlock()
 	job, ok := s.jobs[id]
-	if !ok {
+	if !ok && job.Instance == inst {
 		return flux.ReleaseJob{}, flux.ErrNoSuchReleaseJob
 	}
 	return job, nil
@@ -49,7 +49,6 @@ func (s *InmemStore) PutJob(inst flux.InstanceID, spec flux.ReleaseJobSpec) (flu
 		ID:        id,
 		Submitted: time.Now(),
 	}
-
 	return id, nil
 }
 

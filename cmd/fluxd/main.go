@@ -278,16 +278,27 @@ func main() {
 		instanceDB = db
 	}
 
-	// Instancer, for the instancing of operations
-	instancer := standaloneInstancer{
-		instance:     flux.DefaultInstanceID,
-		platform:     k8s,
-		registry:     reg,
-		config:       instanceConfig{flux.DefaultInstanceID, instanceDB},
-		eventReader:  eventReader,
-		eventWriter:  eventWriter,
-		baseLogger:   logger,
-		baseDuration: helperDuration,
+	var instancer instance.Instancer
+	{
+		repo := git.Repo{
+			URL:    *repoURL,
+			Branch: *repoBranch,
+			Key:    *repoKey,
+			Path:   *repoPath,
+		}
+
+		// Instancer, for the instancing of operations
+		instancer = standaloneInstancer{
+			instance:     flux.DefaultInstanceID,
+			platform:     k8s,
+			registry:     reg,
+			config:       instanceConfig{flux.DefaultInstanceID, instanceDB},
+			gitrepo:      repo,
+			eventReader:  eventReader,
+			eventWriter:  eventWriter,
+			baseLogger:   logger,
+			baseDuration: helperDuration,
+		}
 	}
 
 	// Release job store.
@@ -298,14 +309,7 @@ func main() {
 
 	// Release workers.
 	{
-		repo := git.Repo{
-			URL:    *repoURL,
-			Branch: *repoBranch,
-			Key:    *repoKey,
-			Path:   *repoPath,
-		}
-
-		worker := release.NewWorker(rjs, instancer, repo, releaseMetrics, logger)
+		worker := release.NewWorker(rjs, instancer, releaseMetrics, logger)
 		releaseTicker := time.NewTicker(time.Second)
 		defer releaseTicker.Stop()
 		go worker.Work(releaseTicker.C)
@@ -366,6 +370,7 @@ type standaloneInstancer struct {
 	platform     *kubernetes.Cluster
 	registry     *registry.Client
 	config       instance.Configurer
+	gitrepo      git.Repo
 	eventReader  history.EventReader
 	eventWriter  history.EventWriter
 	baseLogger   log.Logger
@@ -380,6 +385,7 @@ func (s standaloneInstancer) Get(inst flux.InstanceID) (*instance.Instance, erro
 		s.platform,
 		s.registry,
 		s.config,
+		s.gitrepo,
 		log.NewContext(s.baseLogger).With("instanceID", s.instance),
 		s.baseDuration,
 		s.eventReader,

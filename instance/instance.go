@@ -9,6 +9,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/weaveworks/fluxy"
+	"github.com/weaveworks/fluxy/git"
 	"github.com/weaveworks/fluxy/history"
 	"github.com/weaveworks/fluxy/platform"
 	"github.com/weaveworks/fluxy/platform/kubernetes"
@@ -24,6 +25,8 @@ type Instance struct {
 	registry *registry.Client
 	config   Configurer
 	duration metrics.Histogram
+	gitrepo  git.Repo
+
 	log.Logger
 	history.EventReader
 	history.EventWriter
@@ -33,6 +36,7 @@ func New(
 	platform *kubernetes.Cluster,
 	registry *registry.Client,
 	config Configurer,
+	gitrepo git.Repo,
 	logger log.Logger,
 	duration metrics.Histogram,
 	events history.EventReader,
@@ -42,11 +46,16 @@ func New(
 		platform:    platform,
 		registry:    registry,
 		config:      config,
+		gitrepo:     gitrepo,
 		duration:    duration,
 		Logger:      logger,
 		EventReader: events,
 		EventWriter: eventlog,
 	}
+}
+
+func (h *Instance) ConfigRepo() git.Repo {
+	return h.gitrepo
 }
 
 func (h *Instance) AllServices() (res []flux.ServiceID, err error) {

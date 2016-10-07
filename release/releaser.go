@@ -12,7 +12,6 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/weaveworks/fluxy"
-	"github.com/weaveworks/fluxy/git"
 	"github.com/weaveworks/fluxy/instance"
 	"github.com/weaveworks/fluxy/platform"
 	"github.com/weaveworks/fluxy/platform/kubernetes"
@@ -20,7 +19,6 @@ import (
 
 type releaser struct {
 	instancer instance.Instancer
-	repo      git.Repo
 	metrics   Metrics
 	semaphore chan struct{}
 }
@@ -59,12 +57,10 @@ func (ids ServiceIDs) Without(set ServiceIDSet) (res ServiceIDs) {
 
 func newReleaser(
 	instancer instance.Instancer,
-	repo git.Repo,
 	metrics Metrics,
 ) *releaser {
 	return &releaser{
 		instancer: instancer,
-		repo:      repo,
 		metrics:   metrics,
 		semaphore: make(chan struct{}, maxSimultaneousReleases),
 	}
@@ -88,6 +84,24 @@ func NewReleaseContext(inst *instance.Instance) *ReleaseContext {
 		Instance:       inst,
 		PodControllers: map[flux.ServiceID][]byte{},
 	}
+}
+
+func (rc *ReleaseContext) CloneConfig() error {
+	path, keyfile, err := rc.Instance.ConfigRepo().Clone()
+	if err != nil {
+		return err
+	}
+	rc.RepoPath = path
+	rc.RepoKey = keyfile
+	return nil
+}
+
+func (rc *ReleaseContext) CommitAndPush(msg string) (string, error) {
+	return rc.Instance.ConfigRepo().CommitAndPush(rc.RepoPath, rc.RepoKey, msg)
+}
+
+func (rc *ReleaseContext) ConfigPath() string {
+	return filepath.Join(rc.RepoPath, rc.Instance.ConfigRepo().Path)
 }
 
 func (rc *ReleaseContext) Clean() {
@@ -679,12 +693,10 @@ func (r *releaser) releaseActionClone() ReleaseAction {
 				).Observe(time.Since(begin).Seconds())
 			}(time.Now())
 
-			path, keyFile, err := r.repo.Clone()
+			err = rc.CloneConfig()
 			if err != nil {
 				return "", errors.Wrap(err, "clone the config repo")
 			}
-			rc.RepoPath = path
-			rc.RepoKey = keyFile
 			return "Clone OK.", nil
 		},
 	}
@@ -701,7 +713,7 @@ func (r *releaser) releaseActionFindPodController(service flux.ServiceID) Releas
 				).Observe(time.Since(begin).Seconds())
 			}(time.Now())
 
-			resourcePath := filepath.Join(rc.RepoPath, r.repo.Path)
+			resourcePath := rc.ConfigPath()
 			if fi, err := os.Stat(resourcePath); err != nil || !fi.IsDir() {
 				return "", fmt.Errorf("the resource path (%s) is not valid", resourcePath)
 			}
@@ -746,7 +758,7 @@ func (r *releaser) releaseActionUpdatePodController(service flux.ServiceID, regr
 				).Observe(time.Since(begin).Seconds())
 			}(time.Now())
 
-			resourcePath := filepath.Join(rc.RepoPath, r.repo.Path)
+			resourcePath := rc.ConfigPath()
 			if fi, err := os.Stat(resourcePath); err != nil || !fi.IsDir() {
 				return "", fmt.Errorf("the resource path (%s) is not valid", resourcePath)
 			}
@@ -816,7 +828,7 @@ func (r *releaser) releaseActionCommitAndPush(msg string) ReleaseAction {
 			if _, err := os.Stat(rc.RepoKey); err != nil {
 				return "", fmt.Errorf("the repo key (%s) is not valid: %v", rc.RepoKey, err)
 			}
-			result, err := r.repo.CommitAndPush(rc.RepoPath, rc.RepoKey, msg)
+			result, err := rc.CommitAndPush(msg)
 			if err == nil && result == "" {
 				return "Pushed commit: " + msg, nil
 			}

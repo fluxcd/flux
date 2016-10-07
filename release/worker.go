@@ -8,7 +8,6 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/weaveworks/fluxy"
-	"github.com/weaveworks/fluxy/git"
 	"github.com/weaveworks/fluxy/instance"
 )
 
@@ -24,13 +23,12 @@ type Worker struct {
 func NewWorker(
 	jobs flux.ReleaseJobWritePopper,
 	instancer instance.Instancer,
-	repo git.Repo,
 	metrics Metrics,
 	logger log.Logger,
 ) *Worker {
 	return &Worker{
 		jobs:     jobs,
-		releaser: newReleaser(instancer, repo, metrics),
+		releaser: newReleaser(instancer, metrics),
 		logger:   logger,
 	}
 }
