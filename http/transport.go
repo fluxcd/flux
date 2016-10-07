@@ -22,15 +22,15 @@ import (
 
 func NewRouter() *mux.Router {
 	r := mux.NewRouter()
-	r.NewRoute().Name("ListServices").Methods("GET").Path("/v2/services").Queries("namespace", "{namespace}") // optional namespace!
-	r.NewRoute().Name("ListImages").Methods("GET").Path("/v2/images").Queries("service", "{service}")
-	r.NewRoute().Name("PostRelease").Methods("POST").Path("/v2/release").Queries("service", "{service}", "image", "{image}", "kind", "{kind}")
-	r.NewRoute().Name("GetRelease").Methods("GET").Path("/v2/release").Queries("id", "{id}")
-	r.NewRoute().Name("Automate").Methods("POST").Path("/v2/automate").Queries("service", "{service}")
-	r.NewRoute().Name("Deautomate").Methods("POST").Path("/v2/deautomate").Queries("service", "{service}")
-	r.NewRoute().Name("Lock").Methods("POST").Path("/v2/lock").Queries("service", "{service}")
-	r.NewRoute().Name("Unlock").Methods("POST").Path("/v2/unlock").Queries("service", "{service}")
-	r.NewRoute().Name("History").Methods("GET").Path("/v2/history").Queries("service", "{service}")
+	r.NewRoute().Name("ListServices").Methods("GET").Path("/v3/services").Queries("namespace", "{namespace}") // optional namespace!
+	r.NewRoute().Name("ListImages").Methods("GET").Path("/v3/images").Queries("service", "{service}")
+	r.NewRoute().Name("PostRelease").Methods("POST").Path("/v3/release").Queries("service", "{service}", "image", "{image}", "kind", "{kind}")
+	r.NewRoute().Name("GetRelease").Methods("GET").Path("/v3/release").Queries("id", "{id}")
+	r.NewRoute().Name("Automate").Methods("POST").Path("/v3/automate").Queries("service", "{service}")
+	r.NewRoute().Name("Deautomate").Methods("POST").Path("/v3/deautomate").Queries("service", "{service}")
+	r.NewRoute().Name("Lock").Methods("POST").Path("/v3/lock").Queries("service", "{service}")
+	r.NewRoute().Name("Unlock").Methods("POST").Path("/v3/unlock").Queries("service", "{service}")
+	r.NewRoute().Name("History").Methods("GET").Path("/v3/history").Queries("service", "{service}")
 	return r
 }
 
@@ -61,8 +61,9 @@ func NewHandler(s flux.Service, r *mux.Router, logger log.Logger, h metrics.Hist
 
 func handleListServices(s flux.Service) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		inst := getInstanceID(r)
 		namespace := mux.Vars(r)["namespace"]
-		res, err := s.ListServices(namespace)
+		res, err := s.ListServices(inst, namespace)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			fmt.Fprintf(w, err.Error())
@@ -78,7 +79,7 @@ func handleListServices(s flux.Service) http.Handler {
 	})
 }
 
-func invokeListServices(client *http.Client, router *mux.Router, endpoint string, namespace string) ([]flux.ServiceStatus, error) {
+func invokeListServices(client *http.Client, t flux.Token, router *mux.Router, endpoint string, namespace string) ([]flux.ServiceStatus, error) {
 	u, err := makeURL(endpoint, router, "ListServices", "namespace", namespace)
 	if err != nil {
 		return nil, errors.Wrap(err, "constructing URL")
@@ -88,6 +89,7 @@ func invokeListServices(client *http.Client, router *mux.Router, endpoint string
 	if err != nil {
 		return nil, errors.Wrapf(err, "constructing request %s", u)
 	}
+	setToken(req, t)
 
 	resp, err := executeRequest(client, req)
 	if err != nil {
@@ -103,6 +105,7 @@ func invokeListServices(client *http.Client, router *mux.Router, endpoint string
 
 func handleListImages(s flux.Service) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		inst := getInstanceID(r)
 		service := mux.Vars(r)["service"]
 		spec, err := flux.ParseServiceSpec(service)
 		if err != nil {
@@ -110,7 +113,7 @@ func handleListImages(s flux.Service) http.Handler {
 			fmt.Fprintf(w, errors.Wrapf(err, "parsing service spec %q", service).Error())
 			return
 		}
-		d, err := s.ListImages(spec)
+		d, err := s.ListImages(inst, spec)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			fmt.Fprintf(w, err.Error())
@@ -126,7 +129,7 @@ func handleListImages(s flux.Service) http.Handler {
 	})
 }
 
-func invokeListImages(client *http.Client, router *mux.Router, endpoint string, s flux.ServiceSpec) ([]flux.ImageStatus, error) {
+func invokeListImages(client *http.Client, t flux.Token, router *mux.Router, endpoint string, s flux.ServiceSpec) ([]flux.ImageStatus, error) {
 	u, err := makeURL(endpoint, router, "ListImages", "service", string(s))
 	if err != nil {
 		return nil, errors.Wrap(err, "constructing URL")
@@ -136,6 +139,7 @@ func invokeListImages(client *http.Client, router *mux.Router, endpoint string, 
 	if err != nil {
 		return nil, errors.Wrapf(err, "constructing request %s", u)
 	}
+	setToken(req, t)
 
 	resp, err := executeRequest(client, req)
 	if err != nil {
@@ -157,6 +161,7 @@ type postReleaseResponse struct {
 func handlePostRelease(s flux.Service) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var (
+			inst    = getInstanceID(r)
 			vars    = mux.Vars(r)
 			service = vars["service"]
 			image   = vars["image"]
@@ -187,7 +192,7 @@ func handlePostRelease(s flux.Service) http.Handler {
 			excludes = append(excludes, s)
 		}
 
-		id, err := s.PostRelease(flux.ReleaseJobSpec{
+		id, err := s.PostRelease(inst, flux.ReleaseJobSpec{
 			ServiceSpec: serviceSpec,
 			ImageSpec:   imageSpec,
 			Kind:        releaseKind,
@@ -211,7 +216,7 @@ func handlePostRelease(s flux.Service) http.Handler {
 	})
 }
 
-func invokePostRelease(client *http.Client, router *mux.Router, endpoint string, s flux.ReleaseJobSpec) (flux.ReleaseID, error) {
+func invokePostRelease(client *http.Client, t flux.Token, router *mux.Router, endpoint string, s flux.ReleaseJobSpec) (flux.ReleaseID, error) {
 	args := []string{"service", string(s.ServiceSpec), "image", string(s.ImageSpec), "kind", string(s.Kind)}
 	for _, ex := range s.Excludes {
 		args = append(args, "exclude", string(ex))
@@ -226,6 +231,7 @@ func invokePostRelease(client *http.Client, router *mux.Router, endpoint string,
 	if err != nil {
 		return "", errors.Wrapf(err, "constructing request %s", u)
 	}
+	setToken(req, t)
 
 	resp, err := executeRequest(client, req)
 	if err != nil {
@@ -241,8 +247,9 @@ func invokePostRelease(client *http.Client, router *mux.Router, endpoint string,
 
 func handleGetRelease(s flux.Service) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		inst := getInstanceID(r)
 		id := mux.Vars(r)["id"]
-		job, err := s.GetRelease(flux.ReleaseID(id))
+		job, err := s.GetRelease(inst, flux.ReleaseID(id))
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			fmt.Fprintf(w, err.Error())
@@ -258,7 +265,7 @@ func handleGetRelease(s flux.Service) http.Handler {
 	})
 }
 
-func invokeGetRelease(client *http.Client, router *mux.Router, endpoint string, id flux.ReleaseID) (flux.ReleaseJob, error) {
+func invokeGetRelease(client *http.Client, t flux.Token, router *mux.Router, endpoint string, id flux.ReleaseID) (flux.ReleaseJob, error) {
 	u, err := makeURL(endpoint, router, "GetRelease", "id", string(id))
 	if err != nil {
 		return flux.ReleaseJob{}, errors.Wrap(err, "constructing URL")
@@ -268,6 +275,7 @@ func invokeGetRelease(client *http.Client, router *mux.Router, endpoint string, 
 	if err != nil {
 		return flux.ReleaseJob{}, errors.Wrapf(err, "constructing request %s", u)
 	}
+	setToken(req, t)
 
 	resp, err := executeRequest(client, req)
 	if err != nil {
@@ -283,6 +291,7 @@ func invokeGetRelease(client *http.Client, router *mux.Router, endpoint string, 
 
 func handleAutomate(s flux.Service) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		inst := getInstanceID(r)
 		service := mux.Vars(r)["service"]
 		id, err := flux.ParseServiceID(service)
 		if err != nil {
@@ -291,7 +300,7 @@ func handleAutomate(s flux.Service) http.Handler {
 			return
 		}
 
-		if err = s.Automate(id); err != nil {
+		if err = s.Automate(inst, id); err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			fmt.Fprintf(w, err.Error())
 			return
@@ -301,7 +310,7 @@ func handleAutomate(s flux.Service) http.Handler {
 	})
 }
 
-func invokeAutomate(client *http.Client, router *mux.Router, endpoint string, s flux.ServiceID) error {
+func invokeAutomate(client *http.Client, t flux.Token, router *mux.Router, endpoint string, s flux.ServiceID) error {
 	u, err := makeURL(endpoint, router, "Automate", "service", string(s))
 	if err != nil {
 		return errors.Wrap(err, "constructing URL")
@@ -311,6 +320,7 @@ func invokeAutomate(client *http.Client, router *mux.Router, endpoint string, s 
 	if err != nil {
 		return errors.Wrapf(err, "constructing request %s", u)
 	}
+	setToken(req, t)
 
 	if _, err = executeRequest(client, req); err != nil {
 		return errors.Wrap(err, "executing HTTP request")
@@ -321,6 +331,7 @@ func invokeAutomate(client *http.Client, router *mux.Router, endpoint string, s 
 
 func handleDeautomate(s flux.Service) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		inst := getInstanceID(r)
 		service := mux.Vars(r)["service"]
 		id, err := flux.ParseServiceID(service)
 		if err != nil {
@@ -329,7 +340,7 @@ func handleDeautomate(s flux.Service) http.Handler {
 			return
 		}
 
-		if err = s.Deautomate(id); err != nil {
+		if err = s.Deautomate(inst, id); err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			fmt.Fprintf(w, err.Error())
 			return
@@ -339,7 +350,7 @@ func handleDeautomate(s flux.Service) http.Handler {
 	})
 }
 
-func invokeDeautomate(client *http.Client, router *mux.Router, endpoint string, id flux.ServiceID) error {
+func invokeDeautomate(client *http.Client, t flux.Token, router *mux.Router, endpoint string, id flux.ServiceID) error {
 	u, err := makeURL(endpoint, router, "Deautomate", "service", string(id))
 	if err != nil {
 		return errors.Wrap(err, "constructing URL")
@@ -349,6 +360,7 @@ func invokeDeautomate(client *http.Client, router *mux.Router, endpoint string, 
 	if err != nil {
 		return errors.Wrapf(err, "constructing request %s", u)
 	}
+	setToken(req, t)
 
 	if _, err = executeRequest(client, req); err != nil {
 		return errors.Wrap(err, "executing HTTP request")
@@ -359,6 +371,7 @@ func invokeDeautomate(client *http.Client, router *mux.Router, endpoint string, 
 
 func handleLock(s flux.Service) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		inst := getInstanceID(r)
 		service := mux.Vars(r)["service"]
 		id, err := flux.ParseServiceID(service)
 		if err != nil {
@@ -367,7 +380,7 @@ func handleLock(s flux.Service) http.Handler {
 			return
 		}
 
-		if err = s.Lock(id); err != nil {
+		if err = s.Lock(inst, id); err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			fmt.Fprintf(w, err.Error())
 			return
@@ -377,7 +390,7 @@ func handleLock(s flux.Service) http.Handler {
 	})
 }
 
-func invokeLock(client *http.Client, router *mux.Router, endpoint string, id flux.ServiceID) error {
+func invokeLock(client *http.Client, t flux.Token, router *mux.Router, endpoint string, id flux.ServiceID) error {
 	u, err := makeURL(endpoint, router, "Lock", "service", string(id))
 	if err != nil {
 		return errors.Wrap(err, "constructing URL")
@@ -387,6 +400,7 @@ func invokeLock(client *http.Client, router *mux.Router, endpoint string, id flu
 	if err != nil {
 		return errors.Wrapf(err, "constructing request %s", u)
 	}
+	setToken(req, t)
 
 	if _, err = executeRequest(client, req); err != nil {
 		return errors.Wrap(err, "executing HTTP request")
@@ -397,6 +411,7 @@ func invokeLock(client *http.Client, router *mux.Router, endpoint string, id flu
 
 func handleUnlock(s flux.Service) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		inst := getInstanceID(r)
 		service := mux.Vars(r)["service"]
 		id, err := flux.ParseServiceID(service)
 		if err != nil {
@@ -405,7 +420,7 @@ func handleUnlock(s flux.Service) http.Handler {
 			return
 		}
 
-		if err = s.Unlock(id); err != nil {
+		if err = s.Unlock(inst, id); err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			fmt.Fprintf(w, err.Error())
 			return
@@ -415,7 +430,7 @@ func handleUnlock(s flux.Service) http.Handler {
 	})
 }
 
-func invokeUnlock(client *http.Client, router *mux.Router, endpoint string, id flux.ServiceID) error {
+func invokeUnlock(client *http.Client, t flux.Token, router *mux.Router, endpoint string, id flux.ServiceID) error {
 	u, err := makeURL(endpoint, router, "Unlock", "service", string(id))
 	if err != nil {
 		return errors.Wrap(err, "constructing URL")
@@ -425,6 +440,7 @@ func invokeUnlock(client *http.Client, router *mux.Router, endpoint string, id f
 	if err != nil {
 		return errors.Wrapf(err, "constructing request %s", u)
 	}
+	setToken(req, t)
 
 	if _, err = executeRequest(client, req); err != nil {
 		return errors.Wrap(err, "executing HTTP request")
@@ -435,6 +451,7 @@ func invokeUnlock(client *http.Client, router *mux.Router, endpoint string, id f
 
 func handleHistory(s flux.Service) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		inst := getInstanceID(r)
 		service := mux.Vars(r)["service"]
 		spec, err := flux.ParseServiceSpec(service)
 		if err != nil {
@@ -443,7 +460,7 @@ func handleHistory(s flux.Service) http.Handler {
 			return
 		}
 
-		h, err := s.History(spec)
+		h, err := s.History(inst, spec)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			fmt.Fprintf(w, err.Error())
@@ -459,7 +476,7 @@ func handleHistory(s flux.Service) http.Handler {
 	})
 }
 
-func invokeHistory(client *http.Client, router *mux.Router, endpoint string, s flux.ServiceSpec) ([]flux.HistoryEntry, error) {
+func invokeHistory(client *http.Client, t flux.Token, router *mux.Router, endpoint string, s flux.ServiceSpec) ([]flux.HistoryEntry, error) {
 	u, err := makeURL(endpoint, router, "History", "service", string(s))
 	if err != nil {
 		return nil, errors.Wrap(err, "constructing URL")
@@ -469,6 +486,7 @@ func invokeHistory(client *http.Client, router *mux.Router, endpoint string, s f
 	if err != nil {
 		return nil, errors.Wrapf(err, "constructing request %s", u)
 	}
+	setToken(req, t)
 
 	resp, err := executeRequest(client, req)
 	if err != nil {
@@ -514,6 +532,20 @@ func makeURL(endpoint string, router *mux.Router, routeName string, urlParams ..
 	endpointURL.Path = path.Join(endpointURL.Path, routeURL.Path)
 	endpointURL.RawQuery = v.Encode()
 	return endpointURL, nil
+}
+
+func setToken(req *http.Request, t flux.Token) {
+	if string(t) != "" {
+		req.Header.Set("Authorization", fmt.Sprintf("Scope-Probe token=%s", t))
+	}
+}
+
+func getInstanceID(req *http.Request) flux.InstanceID {
+	s := req.Header.Get(flux.InstanceIDHeaderKey)
+	if s == "" {
+		return flux.DefaultInstanceID
+	}
+	return flux.InstanceID(s)
 }
 
 func executeRequest(client *http.Client, req *http.Request) (*http.Response, error) {

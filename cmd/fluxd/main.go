@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -250,7 +251,8 @@ func main() {
 			os.Exit(1)
 		}
 
-		eventWriter, eventReader = db, db
+		rw := instanceEventReadWriter{flux.DefaultInstanceID, db}
+		eventWriter, eventReader = rw, rw
 
 		if *slackWebhookURL != "" {
 			eventWriter = history.TeeWriter(eventWriter, history.NewSlackEventWriter(
@@ -265,12 +267,6 @@ func main() {
 		}
 	}
 
-	// Release job store.
-	var rjs flux.ReleaseJobStore
-	{
-		rjs = release.NewInmemStore(time.Hour)
-	}
-
 	// Configuration, i.e., whether services are automated or not.
 	var instanceDB instance.DB
 	{
@@ -282,7 +278,7 @@ func main() {
 		instanceDB = db
 	}
 
-	// Release workers.
+	var instancer instance.Instancer
 	{
 		repo := git.Repo{
 			URL:    *repoURL,
@@ -291,7 +287,29 @@ func main() {
 			Path:   *repoPath,
 		}
 
-		worker := release.NewWorker(rjs, k8s, reg, repo, instanceDB, eventWriter, releaseMetrics, helperDuration, logger)
+		// Instancer, for the instancing of operations
+		instancer = standaloneInstancer{
+			instance:     flux.DefaultInstanceID,
+			platform:     k8s,
+			registry:     reg,
+			config:       instanceConfig{flux.DefaultInstanceID, instanceDB},
+			gitrepo:      repo,
+			eventReader:  eventReader,
+			eventWriter:  eventWriter,
+			baseLogger:   logger,
+			baseDuration: helperDuration,
+		}
+	}
+
+	// Release job store.
+	var rjs flux.ReleaseJobStore
+	{
+		rjs = release.NewInmemStore(time.Hour)
+	}
+
+	// Release workers.
+	{
+		worker := release.NewWorker(rjs, instancer, releaseMetrics, logger)
 		releaseTicker := time.NewTicker(time.Second)
 		defer releaseTicker.Stop()
 		go worker.Work(releaseTicker.C)
@@ -322,7 +340,7 @@ func main() {
 	go auto.Start(log.NewContext(logger).With("component", "automator"))
 
 	// The server.
-	server := server.New(k8s, reg, rjs, auto, eventReader, eventWriter, instanceDB, logger, serverMetrics, helperDuration)
+	server := server.New(instancer, rjs, logger, serverMetrics)
 
 	// Mechanical components.
 	errc := make(chan error)
@@ -343,4 +361,62 @@ func main() {
 
 	// Go!
 	logger.Log("exit", <-errc)
+}
+
+// ---- An instance.Instancer
+
+type standaloneInstancer struct {
+	instance     flux.InstanceID
+	platform     *kubernetes.Cluster
+	registry     *registry.Client
+	config       instance.Configurer
+	gitrepo      git.Repo
+	eventReader  history.EventReader
+	eventWriter  history.EventWriter
+	baseLogger   log.Logger
+	baseDuration metrics.Histogram
+}
+
+func (s standaloneInstancer) Get(inst flux.InstanceID) (*instance.Instance, error) {
+	if inst != s.instance {
+		return nil, errors.New("cannot find instance with ID: " + string(inst))
+	}
+	return instance.New(
+		s.platform,
+		s.registry,
+		s.config,
+		s.gitrepo,
+		log.NewContext(s.baseLogger).With("instanceID", s.instance),
+		s.baseDuration,
+		s.eventReader,
+		s.eventWriter,
+	), nil
+}
+
+type instanceConfig struct {
+	instance flux.InstanceID
+	db       instance.DB
+}
+
+func (c instanceConfig) Get() (instance.Config, error) {
+	return c.db.GetConfig(c.instance)
+}
+
+func (c instanceConfig) Update(update instance.UpdateFunc) error {
+	return c.db.UpdateConfig(c.instance, update)
+}
+
+type instanceEventReadWriter struct {
+	inst flux.InstanceID
+	db   history.DB
+}
+
+func (rw instanceEventReadWriter) LogEvent(namespace, service, msg string) error {
+	return rw.db.LogEvent(rw.inst, namespace, service, msg)
+}
+func (rw instanceEventReadWriter) AllEvents() ([]history.Event, error) {
+	return rw.db.AllEvents(rw.inst)
+}
+func (rw instanceEventReadWriter) EventsForService(namespace, service string) ([]history.Event, error) {
+	return rw.db.EventsForService(rw.inst, namespace, service)
 }

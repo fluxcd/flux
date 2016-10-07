@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/weaveworks/fluxy"
 	"github.com/weaveworks/fluxy/db"
 	"github.com/weaveworks/fluxy/history"
 )
@@ -51,14 +52,15 @@ func newSQL(t *testing.T) history.DB {
 }
 
 func TestHistoryLog(t *testing.T) {
+	instance := flux.InstanceID("instance")
 	db := newSQL(t)
 	defer db.Close()
 
-	bailIfErr(t, db.LogEvent("namespace", "service", "event 1"))
-	bailIfErr(t, db.LogEvent("namespace", "other", "event 3"))
-	bailIfErr(t, db.LogEvent("namespace", "service", "event 2"))
+	bailIfErr(t, db.LogEvent(instance, "namespace", "service", "event 1"))
+	bailIfErr(t, db.LogEvent(instance, "namespace", "other", "event 3"))
+	bailIfErr(t, db.LogEvent(instance, "namespace", "service", "event 2"))
 
-	es, err := db.EventsForService("namespace", "service")
+	es, err := db.EventsForService(instance, "namespace", "service")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -67,7 +69,7 @@ func TestHistoryLog(t *testing.T) {
 	}
 	checkInDescOrder(t, es)
 
-	es, err = db.AllEvents()
+	es, err = db.AllEvents(instance)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -3,7 +3,6 @@ package flux
 import (
 	"fmt"
 	"math/rand"
-	"os"
 	"sort"
 	"strings"
 	"time"
@@ -12,15 +11,15 @@ import (
 )
 
 type Service interface {
-	ListServices(namespace string) ([]ServiceStatus, error)
-	ListImages(ServiceSpec) ([]ImageStatus, error)
-	PostRelease(ReleaseJobSpec) (ReleaseID, error)
-	GetRelease(ReleaseID) (ReleaseJob, error)
-	Automate(ServiceID) error
-	Deautomate(ServiceID) error
-	Lock(ServiceID) error
-	Unlock(ServiceID) error
-	History(ServiceSpec) ([]HistoryEntry, error)
+	ListServices(inst InstanceID, namespace string) ([]ServiceStatus, error)
+	ListImages(InstanceID, ServiceSpec) ([]ImageStatus, error)
+	PostRelease(InstanceID, ReleaseJobSpec) (ReleaseID, error)
+	GetRelease(InstanceID, ReleaseID) (ReleaseJob, error)
+	Automate(InstanceID, ServiceID) error
+	Deautomate(InstanceID, ServiceID) error
+	Lock(InstanceID, ServiceID) error
+	Unlock(InstanceID, ServiceID) error
+	History(InstanceID, ServiceSpec) ([]HistoryEntry, error)
 }
 
 const (
@@ -38,7 +37,13 @@ var (
 	ErrInvalidReleaseKind = errors.New("invalid release kind")
 )
 
+type Token string
+
 type InstanceID string
+
+const InstanceIDHeaderKey = "X-Scope-OrgID"
+
+const DefaultInstanceID = "<default-instance-id>"
 
 type ReleaseKind string
 
@@ -55,30 +60,6 @@ func ParseReleaseKind(s string) (ReleaseKind, error) {
 		return ReleaseKindExecute, nil
 	default:
 		return "", ErrInvalidReleaseKind
-	}
-}
-
-type ReleaseAction struct {
-	Description string                                `json:"description"`
-	Do          func(*ReleaseContext) (string, error) `json:"-"`
-	Result      string                                `json:"result"`
-}
-
-type ReleaseContext struct {
-	RepoPath       string
-	RepoKey        string
-	PodControllers map[ServiceID][]byte
-}
-
-func NewReleaseContext() *ReleaseContext {
-	return &ReleaseContext{
-		PodControllers: map[ServiceID][]byte{},
-	}
-}
-
-func (rc *ReleaseContext) Clean() {
-	if rc.RepoPath != "" {
-		os.RemoveAll(rc.RepoPath)
 	}
 }
 
@@ -229,8 +210,8 @@ type ReleaseJobStore interface {
 }
 
 type ReleaseJobReadPusher interface {
-	GetJob(ReleaseID) (ReleaseJob, error)
-	PutJob(ReleaseJobSpec) (ReleaseID, error)
+	GetJob(InstanceID, ReleaseID) (ReleaseJob, error)
+	PutJob(InstanceID, ReleaseJobSpec) (ReleaseID, error)
 }
 
 type ReleaseJobWritePopper interface {
@@ -264,6 +245,7 @@ func init() {
 }
 
 type ReleaseJob struct {
+	Instance  InstanceID     `json:"instanceID"`
 	Spec      ReleaseJobSpec `json:"spec"`
 	ID        ReleaseID      `json:"id"`
 	Submitted time.Time      `json:"submitted"`

@@ -39,13 +39,13 @@ func TestUpdateOK(t *testing.T) {
 	c := instance.Config{
 		Services: services,
 	}
-	err := db.Update(inst, func(_ instance.Config) (instance.Config, error) {
+	err := db.UpdateConfig(inst, func(_ instance.Config) (instance.Config, error) {
 		return c, nil
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	c1, err := db.Get(inst)
+	c1, err := db.GetConfig(inst)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -75,20 +75,20 @@ func TestUpdateRollback(t *testing.T) {
 		Services: services,
 	}
 
-	err := db.Update(inst, func(_ instance.Config) (instance.Config, error) {
+	err := db.UpdateConfig(inst, func(_ instance.Config) (instance.Config, error) {
 		return c, nil
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	err = db.Update(inst, func(_ instance.Config) (instance.Config, error) {
+	err = db.UpdateConfig(inst, func(_ instance.Config) (instance.Config, error) {
 		return instance.Config{}, errors.New("arbitrary fail")
 	})
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
-	c1, err := db.Get(inst)
+	c1, err := db.GetConfig(inst)
 	if err != nil {
 		t.Fatal(err)
 	}

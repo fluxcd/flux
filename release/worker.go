@@ -5,15 +5,10 @@ import (
 	"time"
 
 	"github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/metrics"
 	"github.com/pkg/errors"
 
 	"github.com/weaveworks/fluxy"
-	"github.com/weaveworks/fluxy/git"
-	"github.com/weaveworks/fluxy/history"
 	"github.com/weaveworks/fluxy/instance"
-	"github.com/weaveworks/fluxy/platform/kubernetes"
-	"github.com/weaveworks/fluxy/registry"
 )
 
 // Worker grabs release jobs from the job store and executes them.
@@ -27,18 +22,13 @@ type Worker struct {
 // Run Work in its own goroutine to start execution.
 func NewWorker(
 	jobs flux.ReleaseJobWritePopper,
-	platform *kubernetes.Cluster,
-	registry *registry.Client,
-	repo git.Repo,
-	instanceDB instance.DB,
-	history history.EventWriter,
+	instancer instance.Instancer,
 	metrics Metrics,
-	helperDuration metrics.Histogram,
 	logger log.Logger,
 ) *Worker {
 	return &Worker{
 		jobs:     jobs,
-		releaser: newReleaser(platform, registry, logger, repo, instanceDB, history, metrics, helperDuration),
+		releaser: newReleaser(instancer, metrics),
 		logger:   logger,
 	}
 }

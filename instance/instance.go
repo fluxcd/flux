@@ -1,4 +1,4 @@
-package helper
+package instance
 
 import (
 	"fmt"
@@ -9,33 +9,56 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/weaveworks/fluxy"
+	"github.com/weaveworks/fluxy/git"
+	"github.com/weaveworks/fluxy/history"
 	"github.com/weaveworks/fluxy/platform"
 	"github.com/weaveworks/fluxy/platform/kubernetes"
 	"github.com/weaveworks/fluxy/registry"
 )
 
-type Helper struct {
+type Instancer interface {
+	Get(inst flux.InstanceID) (*Instance, error)
+}
+
+type Instance struct {
 	platform *kubernetes.Cluster
 	registry *registry.Client
-	logger   log.Logger
+	config   Configurer
 	duration metrics.Histogram
+	gitrepo  git.Repo
+
+	log.Logger
+	history.EventReader
+	history.EventWriter
 }
 
 func New(
 	platform *kubernetes.Cluster,
 	registry *registry.Client,
+	config Configurer,
+	gitrepo git.Repo,
 	logger log.Logger,
 	duration metrics.Histogram,
-) *Helper {
-	return &Helper{
-		platform: platform,
-		registry: registry,
-		logger:   logger,
-		duration: duration,
+	events history.EventReader,
+	eventlog history.EventWriter,
+) *Instance {
+	return &Instance{
+		platform:    platform,
+		registry:    registry,
+		config:      config,
+		gitrepo:     gitrepo,
+		duration:    duration,
+		Logger:      logger,
+		EventReader: events,
+		EventWriter: eventlog,
 	}
 }
 
-func (h *Helper) AllServices() (res []flux.ServiceID, err error) {
+func (h *Instance) ConfigRepo() git.Repo {
+	return h.gitrepo
+}
+
+func (h *Instance) AllServices() (res []flux.ServiceID, err error) {
 	defer func(begin time.Time) {
 		h.duration.With(
 			"method", "AllServices",
@@ -59,7 +82,7 @@ func (h *Helper) AllServices() (res []flux.ServiceID, err error) {
 	return res, nil
 }
 
-func (h *Helper) NamespaceServices(namespace string) (res []flux.ServiceID, err error) {
+func (h *Instance) NamespaceServices(namespace string) (res []flux.ServiceID, err error) {
 	defer func(begin time.Time) {
 		h.duration.With(
 			"method", "NamespaceServices",
@@ -84,7 +107,7 @@ func (h *Helper) NamespaceServices(namespace string) (res []flux.ServiceID, err 
 // containers with images that may be regraded. It leaves out any
 // services that cannot have containers associated with them, e.g.,
 // because there is no matching deployment.
-func (h *Helper) AllReleasableImagesFor(serviceIDs []flux.ServiceID) (res map[flux.ServiceID][]platform.Container, err error) {
+func (h *Instance) AllReleasableImagesFor(serviceIDs []flux.ServiceID) (res map[flux.ServiceID][]platform.Container, err error) {
 	defer func(begin time.Time) {
 		h.duration.With(
 			"method", "AllReleasableImagesFor",
@@ -112,7 +135,7 @@ func (h *Helper) AllReleasableImagesFor(serviceIDs []flux.ServiceID) (res map[fl
 	return res, nil
 }
 
-func (h *Helper) PlatformService(namespace, service string) (res platform.Service, err error) {
+func (h *Instance) PlatformService(namespace, service string) (res platform.Service, err error) {
 	defer func(begin time.Time) {
 		h.duration.With(
 			"method", "PlatformService",
@@ -123,7 +146,7 @@ func (h *Helper) PlatformService(namespace, service string) (res platform.Servic
 	return h.platform.Service(namespace, service)
 }
 
-func (h *Helper) PlatformNamespaces() (res []string, err error) {
+func (h *Instance) PlatformNamespaces() (res []string, err error) {
 	defer func(begin time.Time) {
 		h.duration.With(
 			"method", "PlatformNamespaces",
@@ -134,7 +157,7 @@ func (h *Helper) PlatformNamespaces() (res []string, err error) {
 	return h.platform.Namespaces()
 }
 
-func (h *Helper) PlatformContainersFor(namespace, service string) (res []platform.Container, err error) {
+func (h *Instance) PlatformContainersFor(namespace, service string) (res []platform.Container, err error) {
 	defer func(begin time.Time) {
 		h.duration.With(
 			"method", "PlatformContainersFor",
@@ -145,7 +168,7 @@ func (h *Helper) PlatformContainersFor(namespace, service string) (res []platfor
 	return h.platform.ContainersFor(namespace, service)
 }
 
-func (h *Helper) RegistryGetRepository(repository string) (res *registry.Repository, err error) {
+func (h *Instance) RegistryGetRepository(repository string) (res *registry.Repository, err error) {
 	defer func(begin time.Time) {
 		h.duration.With(
 			"method", "RegistryGetRepository",
@@ -156,7 +179,7 @@ func (h *Helper) RegistryGetRepository(repository string) (res *registry.Reposit
 	return h.registry.GetRepository(repository)
 }
 
-func (h *Helper) PlatformRegrade(specs []platform.RegradeSpec) (err error) {
+func (h *Instance) PlatformRegrade(specs []platform.RegradeSpec) (err error) {
 	defer func(begin time.Time) {
 		h.duration.With(
 			"method", "PlatformRegrade",
@@ -167,6 +190,10 @@ func (h *Helper) PlatformRegrade(specs []platform.RegradeSpec) (err error) {
 	return h.platform.Regrade(specs)
 }
 
-func (h *Helper) Log(args ...interface{}) {
-	h.logger.Log(args...)
+func (h *Instance) GetConfig() (Config, error) {
+	return h.config.Get()
+}
+
+func (h *Instance) UpdateConfig(update UpdateFunc) error {
+	return h.config.Update(update)
 }

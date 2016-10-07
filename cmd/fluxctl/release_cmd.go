@@ -102,7 +102,7 @@ func (opts *serviceReleaseOpts) RunE(_ *cobra.Command, args []string) error {
 		printf("Submitting release job...")
 	}
 
-	id, err := opts.Fluxd.PostRelease(flux.ReleaseJobSpec{
+	id, err := opts.Fluxd.PostRelease(noInstanceID, flux.ReleaseJobSpec{
 		ServiceSpec: service,
 		ImageSpec:   image,
 		Kind:        kind,
@@ -115,7 +115,7 @@ func (opts *serviceReleaseOpts) RunE(_ *cobra.Command, args []string) error {
 
 	var job flux.ReleaseJob
 	for range time.Tick(time.Second) {
-		job, err = opts.Fluxd.GetRelease(id)
+		job, err = opts.Fluxd.GetRelease(noInstanceID, id)
 		if err != nil {
 			printf("Release errored!")
 			return err

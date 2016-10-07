@@ -5,6 +5,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/weaveworks/fluxy"
 	"github.com/weaveworks/fluxy/history"
 )
 
@@ -45,28 +46,29 @@ func (db *DB) queryEvents(query string, params ...interface{}) ([]history.Event,
 	return events, nil
 }
 
-func (db *DB) AllEvents() ([]history.Event, error) {
+func (db *DB) AllEvents(inst flux.InstanceID) ([]history.Event, error) {
 	return db.queryEvents(`SELECT service, message, stamp
                            FROM history
-                           ORDER BY stamp DESC`)
+                           WHERE instance = $1
+                           ORDER BY stamp DESC`, string(inst))
 }
 
-func (db *DB) EventsForService(namespace, service string) ([]history.Event, error) {
+func (db *DB) EventsForService(inst flux.InstanceID, namespace, service string) ([]history.Event, error) {
 	return db.queryEvents(`SELECT service, message, stamp
                            FROM history
-                           WHERE namespace = $1 AND service = $2
-                           ORDER BY stamp DESC`, namespace, service)
+                           WHERE instance = $1 AND namespace = $2 AND service = $3
+                           ORDER BY stamp DESC`, string(inst), namespace, service)
 }
 
-func (db *DB) LogEvent(namespace, service, msg string) error {
+func (db *DB) LogEvent(inst flux.InstanceID, namespace, service, msg string) error {
 	tx, err := db.driver.Begin()
 	if err != nil {
 		return err
 	}
 
 	_, err = tx.Exec(`INSERT INTO history
-                       (namespace, service, message, stamp)
-                       VALUES ($1, $2, $3, now())`, namespace, service, msg)
+                       (instance, namespace, service, message, stamp)
+                       VALUES ($1, $2, $3, $4, now())`, string(inst), namespace, service, msg)
 	if err == nil {
 		err = tx.Commit()
 	}
@@ -74,7 +76,7 @@ func (db *DB) LogEvent(namespace, service, msg string) error {
 }
 
 func (db *DB) sanityCheck() (err error) {
-	_, err = db.driver.Query("SELECT namespace, service, message, stamp FROM history LIMIT 1")
+	_, err = db.driver.Query("SELECT instance, namespace, service, message, stamp FROM history LIMIT 1")
 	if err != nil {
 		return errors.Wrap(err, "sanity checking history table")
 	}
