@@ -15,6 +15,9 @@ import (
 )
 
 const (
+	serviceAutomated   = "Automation enabled."
+	serviceDeautomated = "Automation disabled."
+
 	serviceLocked   = "Service locked."
 	serviceUnlocked = "Service unlocked."
 )
@@ -228,6 +231,8 @@ func (s *server) Automate(instID flux.InstanceID, service flux.ServiceID) error 
 	if err != nil {
 		return err
 	}
+	ns, svc := service.Components()
+	inst.LogEvent(ns, svc, serviceAutomated)
 	return recordAutomated(inst, service, true)
 }
 
@@ -236,6 +241,8 @@ func (s *server) Deautomate(instID flux.InstanceID, service flux.ServiceID) erro
 	if err != nil {
 		return err
 	}
+	ns, svc := service.Components()
+	inst.LogEvent(ns, svc, serviceDeautomated)
 	return recordAutomated(inst, service, false)
 }
 

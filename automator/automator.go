@@ -9,11 +9,6 @@ import (
 )
 
 const (
-	automationEnabled  = "Automation enabled."
-	automationDisabled = "Automation disabled."
-
-	hardwiredInstance = "DEFAULT"
-
 	automationCycle = 60 * time.Second
 )
 
