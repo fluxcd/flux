@@ -11,6 +11,7 @@ import (
 	"github.com/weaveworks/fluxy"
 	"github.com/weaveworks/fluxy/git"
 	"github.com/weaveworks/fluxy/history"
+	"github.com/weaveworks/fluxy/instance"
 	"github.com/weaveworks/fluxy/platform/kubernetes"
 	"github.com/weaveworks/fluxy/registry"
 )
@@ -29,6 +30,7 @@ func NewWorker(
 	platform *kubernetes.Cluster,
 	registry *registry.Client,
 	repo git.Repo,
+	instanceDB instance.DB,
 	history history.EventWriter,
 	metrics Metrics,
 	helperDuration metrics.Histogram,
@@ -36,7 +38,7 @@ func NewWorker(
 ) *Worker {
 	return &Worker{
 		jobs:     jobs,
-		releaser: newReleaser(platform, registry, logger, repo, history, metrics, helperDuration),
+		releaser: newReleaser(platform, registry, logger, repo, instanceDB, history, metrics, helperDuration),
 		logger:   logger,
 	}
 }

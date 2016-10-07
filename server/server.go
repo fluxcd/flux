@@ -12,15 +12,25 @@ import (
 	"github.com/weaveworks/fluxy"
 	"github.com/weaveworks/fluxy/helper"
 	"github.com/weaveworks/fluxy/history"
+	"github.com/weaveworks/fluxy/instance"
 	"github.com/weaveworks/fluxy/platform/kubernetes"
 	"github.com/weaveworks/fluxy/registry"
+)
+
+const (
+	serviceLocked   = "Service locked."
+	serviceUnlocked = "Service unlocked."
+
+	hardwiredInstance = "DEFAULT"
 )
 
 type server struct {
 	helper      *helper.Helper
 	releaser    flux.ReleaseJobReadPusher
 	automator   Automator
-	history     history.EventReader
+	eventReader history.EventReader
+	eventWriter history.EventWriter
+	instanceDB  instance.DB
 	maxPlatform chan struct{} // semaphore for concurrent calls to the platform
 	metrics     Metrics
 }
@@ -42,7 +52,9 @@ func New(
 	registry *registry.Client,
 	releaser flux.ReleaseJobReadPusher,
 	automator Automator,
-	history history.EventReader,
+	eventReader history.EventReader,
+	eventWriter history.EventWriter,
+	instanceDB instance.DB,
 	logger log.Logger,
 	metrics Metrics,
 	helperDuration metrics.Histogram,
@@ -51,7 +63,9 @@ func New(
 		helper:      helper.New(platform, registry, logger, helperDuration),
 		releaser:    releaser,
 		automator:   automator,
-		history:     history,
+		eventReader: eventReader,
+		eventWriter: eventWriter,
+		instanceDB:  instanceDB,
 		maxPlatform: make(chan struct{}, 8),
 		metrics:     metrics,
 	}
@@ -81,6 +95,11 @@ func (s *server) ListServices(namespace string) (res []flux.ServiceStatus, err e
 		return nil, errors.Wrapf(err, "fetching services for namespace %s on the platform", namespace)
 	}
 
+	config, err := s.instanceDB.Get(hardwiredInstance)
+	if err != nil {
+		return nil, errors.Wrapf(err, "getting config for %s", hardwiredInstance)
+	}
+
 	var (
 		statusc = make(chan flux.ServiceStatus)
 		errc    = make(chan error)
@@ -107,7 +126,8 @@ func (s *server) ListServices(namespace string) (res []flux.ServiceStatus, err e
 				ID:         serviceID,
 				Containers: c,
 				Status:     platformSvc.Status,
-				Automated:  s.automator.IsAutomated(namespace, service),
+				Automated:  config.Services[serviceID].Automated,
+				Locked:     config.Services[serviceID].Locked,
 			}
 		}(serviceID)
 	}
@@ -184,7 +204,7 @@ func (s *server) History(spec flux.ServiceSpec) (res []flux.HistoryEntry, err er
 
 	var events []history.Event
 	if spec == flux.ServiceSpecAll {
-		events, err = s.history.AllEvents()
+		events, err = s.eventReader.AllEvents()
 		if err != nil {
 			return nil, errors.Wrap(err, "fetching all history events")
 		}
@@ -195,7 +215,7 @@ func (s *server) History(spec flux.ServiceSpec) (res []flux.HistoryEntry, err er
 		}
 
 		namespace, service := id.Components()
-		events, err = s.history.EventsForService(namespace, service)
+		events, err = s.eventReader.EventsForService(namespace, service)
 		if err != nil {
 			return nil, errors.Wrapf(err, "fetching history events for %s", id)
 		}
@@ -221,6 +241,35 @@ func (s *server) Automate(service flux.ServiceID) error {
 func (s *server) Deautomate(service flux.ServiceID) error {
 	ns, svc := service.Components()
 	return s.automator.Deautomate(ns, svc)
+}
+
+func (s *server) Lock(service flux.ServiceID) error {
+	ns, svc := service.Components()
+	s.eventWriter.LogEvent(ns, svc, serviceLocked)
+	return s.recordLock(service, true)
+}
+
+func (s *server) Unlock(service flux.ServiceID) error {
+	ns, svc := service.Components()
+	s.eventWriter.LogEvent(ns, svc, serviceUnlocked)
+	return s.recordLock(service, false)
+}
+
+func (s *server) recordLock(service flux.ServiceID, locked bool) error {
+	if err := s.instanceDB.Update(hardwiredInstance, func(conf instance.Config) (instance.Config, error) {
+		if serviceConf, found := conf.Services[service]; found {
+			serviceConf.Locked = locked
+			conf.Services[service] = serviceConf
+		} else {
+			conf.Services[service] = instance.ServiceConfig{
+				Locked: true,
+			}
+		}
+		return conf, nil
+	}); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (s *server) PostRelease(spec flux.ReleaseJobSpec) (flux.ReleaseID, error) {

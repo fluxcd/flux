@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
+	"sort"
 	"strings"
 	"time"
 
@@ -17,6 +18,8 @@ type Service interface {
 	GetRelease(ReleaseID) (ReleaseJob, error)
 	Automate(ServiceID) error
 	Deautomate(ServiceID) error
+	Lock(ServiceID) error
+	Unlock(ServiceID) error
 	History(ServiceSpec) ([]HistoryEntry, error)
 }
 
@@ -24,6 +27,9 @@ const (
 	ServiceSpecAll  = ServiceSpec("<all>")
 	ImageSpecLatest = ImageSpec("<all latest>")
 	ImageSpecNone   = ImageSpec("<no updates>")
+	PolicyNone      = Policy("")
+	PolicyLocked    = Policy("locked")
+	PolicyAutomated = Policy("automated")
 )
 
 var (
@@ -160,11 +166,40 @@ type ImageStatus struct {
 	Containers []Container
 }
 
+// Policy is an string, denoting the current deployment policy of a service,
+// e.g. automated, or locked.
+type Policy string
+
+func ParsePolicy(s string) Policy {
+	for _, p := range []Policy{
+		PolicyLocked,
+		PolicyAutomated,
+	} {
+		if s == string(p) {
+			return p
+		}
+	}
+	return PolicyNone
+}
+
 type ServiceStatus struct {
 	ID         ServiceID
 	Containers []Container
 	Status     string
 	Automated  bool
+	Locked     bool
+}
+
+func (s ServiceStatus) Policies() string {
+	var ps []string
+	if s.Automated {
+		ps = append(ps, string(PolicyAutomated))
+	}
+	if s.Locked {
+		ps = append(ps, string(PolicyLocked))
+	}
+	sort.Strings(ps)
+	return strings.Join(ps, ",")
 }
 
 type Container struct {

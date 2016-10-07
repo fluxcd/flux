@@ -16,17 +16,23 @@ import (
 	"github.com/weaveworks/fluxy/git"
 	"github.com/weaveworks/fluxy/helper"
 	"github.com/weaveworks/fluxy/history"
+	"github.com/weaveworks/fluxy/instance"
 	"github.com/weaveworks/fluxy/platform"
 	"github.com/weaveworks/fluxy/platform/kubernetes"
 	"github.com/weaveworks/fluxy/registry"
 )
 
+const (
+	hardwiredInstance = "DEFAULT"
+)
+
 type releaser struct {
-	helper    *helper.Helper
-	repo      git.Repo
-	history   history.EventWriter
-	metrics   Metrics
-	semaphore chan struct{}
+	helper     *helper.Helper
+	repo       git.Repo
+	instanceDB instance.DB
+	history    history.EventWriter
+	metrics    Metrics
+	semaphore  chan struct{}
 }
 
 const maxSimultaneousReleases = 1
@@ -66,16 +72,18 @@ func newReleaser(
 	registry *registry.Client,
 	logger log.Logger,
 	repo git.Repo,
+	instanceDB instance.DB,
 	history history.EventWriter,
 	metrics Metrics,
 	helperDuration metrics.Histogram,
 ) *releaser {
 	return &releaser{
-		helper:    helper.New(platform, registry, logger, helperDuration),
-		repo:      repo,
-		history:   history,
-		metrics:   metrics,
-		semaphore: make(chan struct{}, maxSimultaneousReleases),
+		helper:     helper.New(platform, registry, logger, helperDuration),
+		repo:       repo,
+		instanceDB: instanceDB,
+		history:    history,
+		metrics:    metrics,
+		semaphore:  make(chan struct{}, maxSimultaneousReleases),
 	}
 }
 
@@ -176,7 +184,11 @@ func (r *releaser) releaseAllToLatest(kind flux.ReleaseKind, exclude ServiceIDSe
 	stage.ObserveDuration()
 	stage = metrics.NewTimer(base.With("stage", "all_releasable_images_for"))
 
-	containerMap, err := r.helper.AllReleasableImagesFor(ServiceIDs(serviceIDs).Without(exclude))
+	locked, err := r.lockedServices()
+	if err != nil {
+		return err
+	}
+	containerMap, err := r.helper.AllReleasableImagesFor(ServiceIDs(serviceIDs).Without(exclude).Without(locked))
 	if err != nil {
 		return errors.Wrap(err, "fetching images for services")
 	}
@@ -263,7 +275,11 @@ func (r *releaser) releaseAllForImage(target flux.ImageID, kind flux.ReleaseKind
 	stage.ObserveDuration()
 	stage = metrics.NewTimer(base.With("stage", "all_releasable_images_for"))
 
-	containerMap, err := r.helper.AllReleasableImagesFor(ServiceIDs(serviceIDs).Without(exclude))
+	locked, err := r.lockedServices()
+	if err != nil {
+		return err
+	}
+	containerMap, err := r.helper.AllReleasableImagesFor(ServiceIDs(serviceIDs).Without(exclude).Without(locked))
 	if err != nil {
 		return errors.Wrap(err, "fetching images for services")
 	}
@@ -338,6 +354,14 @@ func (r *releaser) releaseOneToLatest(id flux.ServiceID, kind flux.ReleaseKind, 
 
 	if exclude.Contains(id) {
 		res = append(res, r.releaseActionPrintf("Specified service %s is excluded; ignoring.", id))
+		return nil
+	}
+	locked, err := r.lockedServices()
+	if err != nil {
+		return err
+	}
+	if locked.Contains(id) {
+		res = append(res, r.releaseActionPrintf("Specified service %s is locked; ignoring.", id))
 		return nil
 	}
 
@@ -422,6 +446,14 @@ func (r *releaser) releaseOne(serviceID flux.ServiceID, target flux.ImageID, kin
 		res = append(res, r.releaseActionPrintf("Specified service %s is excluded; ignoring.", serviceID))
 		return nil
 	}
+	locked, err := r.lockedServices()
+	if err != nil {
+		return err
+	}
+	if locked.Contains(serviceID) {
+		res = append(res, r.releaseActionPrintf("Specified service %s is locked; ignoring.", serviceID))
+		return nil
+	}
 
 	namespace, service := serviceID.Components()
 	containers, err := r.helper.PlatformContainersFor(namespace, service)
@@ -493,6 +525,14 @@ func (r *releaser) releaseOneWithoutUpdate(serviceID flux.ServiceID, kind flux.R
 		res = append(res, r.releaseActionPrintf("Specified service %s is excluded; ignoring.", serviceID))
 		return nil
 	}
+	locked, err := r.lockedServices()
+	if err != nil {
+		return err
+	}
+	if locked.Contains(serviceID) {
+		res = append(res, r.releaseActionPrintf("Specified service %s is locked; ignoring.", serviceID))
+		return nil
+	}
 
 	res = append(res, r.releaseActionPrintf("I'm going to release service %s using the config from the git repo, without updating it", serviceID))
 	res = append(res, r.releaseActionClone())
@@ -500,6 +540,21 @@ func (r *releaser) releaseOneWithoutUpdate(serviceID flux.ServiceID, kind flux.R
 	res = append(res, r.releaseActionRegradeServices([]flux.ServiceID{serviceID}, "without update"))
 
 	return nil
+}
+
+// Get set of all locked services
+func (r *releaser) lockedServices() (ServiceIDSet, error) {
+	config, err := r.instanceDB.Get(hardwiredInstance)
+	if err != nil {
+		return nil, errors.Wrapf(err, "fetching config for %s", hardwiredInstance)
+	}
+	locked := ServiceIDSet{}
+	for id, s := range config.Services {
+		if s.Locked {
+			locked.Add([]flux.ServiceID{id})
+		}
+	}
+	return locked, nil
 }
 
 // Release whatever is in the cloned configuration, without changing anything
@@ -524,7 +579,11 @@ func (r *releaser) releaseAllWithoutUpdate(kind flux.ReleaseKind, exclude Servic
 		return errors.Wrap(err, "fetching all platform services")
 	}
 
-	serviceIDs = ServiceIDs(serviceIDs).Without(exclude)
+	locked, err := r.lockedServices()
+	if err != nil {
+		return err
+	}
+	serviceIDs = ServiceIDs(serviceIDs).Without(exclude).Without(locked)
 
 	stage.ObserveDuration()
 	stage = metrics.NewTimer(base.With("stage", "finalize"))

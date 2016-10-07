@@ -46,6 +46,14 @@ func (c *client) Deautomate(id flux.ServiceID) error {
 	return invokeDeautomate(c.client, c.router, c.endpoint, id)
 }
 
+func (c *client) Lock(id flux.ServiceID) error {
+	return invokeLock(c.client, c.router, c.endpoint, id)
+}
+
+func (c *client) Unlock(id flux.ServiceID) error {
+	return invokeUnlock(c.client, c.router, c.endpoint, id)
+}
+
 func (c *client) History(s flux.ServiceSpec) ([]flux.HistoryEntry, error) {
 	return invokeHistory(c.client, c.router, c.endpoint, s)
 }

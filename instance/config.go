@@ -6,6 +6,17 @@ import (
 
 type ServiceConfig struct {
 	Automated bool `json:"automation"`
+	Locked    bool `json:"locked"`
+}
+
+func (c ServiceConfig) Policy() flux.Policy {
+	if c.Locked {
+		return flux.PolicyLocked
+	}
+	if c.Automated {
+		return flux.PolicyAutomated
+	}
+	return flux.PolicyNone
 }
 
 type Config struct {
