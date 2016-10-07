@@ -22,15 +22,8 @@ const (
 type server struct {
 	instancer   instance.Instancer
 	releaser    flux.ReleaseJobReadPusher
-	automator   Automator
 	maxPlatform chan struct{} // semaphore for concurrent calls to the platform
 	metrics     Metrics
-}
-
-type Automator interface {
-	Automate(instanceID flux.InstanceID, namespace, service string) error
-	Deautomate(instanceID flux.InstanceID, namespace, service string) error
-	IsAutomated(instanceID flux.InstanceID, namespace, service string) bool
 }
 
 type Metrics struct {
@@ -42,14 +35,12 @@ type Metrics struct {
 func New(
 	instancer instance.Instancer,
 	releaser flux.ReleaseJobReadPusher,
-	automator Automator,
 	logger log.Logger,
 	metrics Metrics,
 ) flux.Service {
 	return &server{
 		instancer:   instancer,
 		releaser:    releaser,
-		automator:   automator,
 		maxPlatform: make(chan struct{}, 8),
 		metrics:     metrics,
 	}
@@ -232,14 +223,37 @@ func (s *server) History(inst flux.InstanceID, spec flux.ServiceSpec) (res []flu
 	return res, nil
 }
 
-func (s *server) Automate(inst flux.InstanceID, service flux.ServiceID) error {
-	ns, svc := service.Components()
-	return s.automator.Automate(inst, ns, svc)
+func (s *server) Automate(instID flux.InstanceID, service flux.ServiceID) error {
+	inst, err := s.instancer.Get(instID)
+	if err != nil {
+		return err
+	}
+	return recordAutomated(inst, service, true)
 }
 
-func (s *server) Deautomate(inst flux.InstanceID, service flux.ServiceID) error {
-	ns, svc := service.Components()
-	return s.automator.Deautomate(inst, ns, svc)
+func (s *server) Deautomate(instID flux.InstanceID, service flux.ServiceID) error {
+	inst, err := s.instancer.Get(instID)
+	if err != nil {
+		return err
+	}
+	return recordAutomated(inst, service, false)
+}
+
+func recordAutomated(inst *instance.Instance, service flux.ServiceID, automated bool) error {
+	if err := inst.UpdateConfig(func(conf instance.Config) (instance.Config, error) {
+		if serviceConf, found := conf.Services[service]; found {
+			serviceConf.Automated = automated
+			conf.Services[service] = serviceConf
+		} else if automated {
+			conf.Services[service] = instance.ServiceConfig{
+				Automated: true,
+			}
+		}
+		return conf, nil
+	}); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (s *server) Lock(instID flux.InstanceID, service flux.ServiceID) error {
@@ -267,7 +281,7 @@ func recordLock(inst *instance.Instance, service flux.ServiceID, locked bool) er
 		if serviceConf, found := conf.Services[service]; found {
 			serviceConf.Locked = locked
 			conf.Services[service] = serviceConf
-		} else {
+		} else if locked {
 			conf.Services[service] = instance.ServiceConfig{
 				Locked: true,
 			}

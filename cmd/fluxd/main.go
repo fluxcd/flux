@@ -340,7 +340,7 @@ func main() {
 	go auto.Start(log.NewContext(logger).With("component", "automator"))
 
 	// The server.
-	server := server.New(instancer, rjs, auto, logger, serverMetrics)
+	server := server.New(instancer, rjs, logger, serverMetrics)
 
 	// Mechanical components.
 	errc := make(chan error)
