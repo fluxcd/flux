@@ -44,7 +44,7 @@ func (a *Automator) Start(errorLogger log.Logger) {
 		for _, inst := range insts {
 			for service, conf := range inst.Config.Services {
 				if conf.Policy() == flux.PolicyAutomated {
-					a.cfg.Releaser.PutJob(flux.ReleaseJobSpec{
+					a.cfg.Releaser.PutJob(inst.ID, flux.ReleaseJobSpec{
 						ServiceSpec: flux.ServiceSpec(service),
 						ImageSpec:   flux.ImageSpecLatest,
 						Kind:        flux.ReleaseKindExecute,

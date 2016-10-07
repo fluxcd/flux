@@ -23,7 +23,7 @@ type Config struct {
 	Services map[flux.ServiceID]ServiceConfig `json:"services"`
 }
 
-type Instance struct {
+type InstanceConfig struct {
 	ID     flux.InstanceID
 	Config Config
 }
@@ -39,5 +39,10 @@ type UpdateFunc func(config Config) (Config, error)
 type DB interface {
 	UpdateConfig(instance flux.InstanceID, update UpdateFunc) error
 	GetConfig(instance flux.InstanceID) (Config, error)
-	All() ([]Instance, error)
+	All() ([]InstanceConfig, error)
+}
+
+type Configurer interface {
+	Get() (Config, error)
+	Update(UpdateFunc) error
 }

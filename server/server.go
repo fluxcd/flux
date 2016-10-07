@@ -10,27 +10,19 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/weaveworks/fluxy"
-	"github.com/weaveworks/fluxy/helper"
 	"github.com/weaveworks/fluxy/history"
 	"github.com/weaveworks/fluxy/instance"
-	"github.com/weaveworks/fluxy/platform/kubernetes"
-	"github.com/weaveworks/fluxy/registry"
 )
 
 const (
 	serviceLocked   = "Service locked."
 	serviceUnlocked = "Service unlocked."
-
-	hardwiredInstance = "DEFAULT"
 )
 
 type server struct {
-	helper      *helper.Helper
+	instancer   instance.Instancer
 	releaser    flux.ReleaseJobReadPusher
 	automator   Automator
-	eventReader history.EventReader
-	eventWriter history.EventWriter
-	instanceDB  instance.DB
 	maxPlatform chan struct{} // semaphore for concurrent calls to the platform
 	metrics     Metrics
 }
@@ -48,24 +40,16 @@ type Metrics struct {
 }
 
 func New(
-	platform *kubernetes.Cluster,
-	registry *registry.Client,
+	instancer instance.Instancer,
 	releaser flux.ReleaseJobReadPusher,
 	automator Automator,
-	eventReader history.EventReader,
-	eventWriter history.EventWriter,
-	instanceDB instance.DB,
 	logger log.Logger,
 	metrics Metrics,
-	helperDuration metrics.Histogram,
 ) flux.Service {
 	return &server{
-		helper:      helper.New(platform, registry, logger, helperDuration),
+		instancer:   instancer,
 		releaser:    releaser,
 		automator:   automator,
-		eventReader: eventReader,
-		eventWriter: eventWriter,
-		instanceDB:  instanceDB,
 		maxPlatform: make(chan struct{}, 8),
 		metrics:     metrics,
 	}
@@ -85,19 +69,24 @@ func (s *server) ListServices(inst flux.InstanceID, namespace string) (res []flu
 		).Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
+	helper, err := s.instancer.Get(inst)
+	if err != nil {
+		return nil, errors.Wrapf(err, "getting instance")
+	}
+
 	var serviceIDs []flux.ServiceID
 	if namespace == "" {
-		serviceIDs, err = s.helper.AllServices()
+		serviceIDs, err = helper.AllServices()
 	} else {
-		serviceIDs, err = s.helper.NamespaceServices(namespace)
+		serviceIDs, err = helper.NamespaceServices(namespace)
 	}
 	if err != nil {
 		return nil, errors.Wrapf(err, "fetching services for namespace %s on the platform", namespace)
 	}
 
-	config, err := s.instanceDB.GetConfig(hardwiredInstance)
+	config, err := helper.GetConfig()
 	if err != nil {
-		return nil, errors.Wrapf(err, "getting config for %s", hardwiredInstance)
+		return nil, errors.Wrapf(err, "getting config for %s", inst)
 	}
 
 	var (
@@ -109,14 +98,14 @@ func (s *server) ListServices(inst flux.InstanceID, namespace string) (res []flu
 			s.maxPlatform <- struct{}{}
 			defer func() { <-s.maxPlatform }()
 
-			c, err := s.containersFor(serviceID, false)
+			c, err := containersFor(helper, serviceID, false)
 			if err != nil {
 				errc <- errors.Wrapf(err, "fetching containers for %s", serviceID)
 				return
 			}
 
 			namespace, service := serviceID.Components()
-			platformSvc, err := s.helper.PlatformService(namespace, service)
+			platformSvc, err := helper.PlatformService(namespace, service)
 			if err != nil {
 				errc <- errors.Wrapf(err, "getting platform service %s", serviceID)
 				return
@@ -134,7 +123,7 @@ func (s *server) ListServices(inst flux.InstanceID, namespace string) (res []flu
 	for i := 0; i < len(serviceIDs); i++ {
 		select {
 		case err := <-errc:
-			s.helper.Log("err", err)
+			helper.Log("err", err)
 		case status := <-statusc:
 			res = append(res, status)
 		}
@@ -150,9 +139,14 @@ func (s *server) ListImages(inst flux.InstanceID, spec flux.ServiceSpec) (res []
 		).Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
+	helper, err := s.instancer.Get(inst)
+	if err != nil {
+		return nil, errors.Wrapf(err, "getting instance")
+	}
+
 	serviceIDs, err := func() ([]flux.ServiceID, error) {
 		if spec == flux.ServiceSpecAll {
-			return s.helper.AllServices()
+			return helper.AllServices()
 		}
 		id, err := flux.ParseServiceID(string(spec))
 		return []flux.ServiceID{id}, err
@@ -170,7 +164,7 @@ func (s *server) ListImages(inst flux.InstanceID, spec flux.ServiceSpec) (res []
 			s.maxPlatform <- struct{}{}
 			defer func() { <-s.maxPlatform }()
 
-			c, err := s.containersFor(serviceID, true)
+			c, err := containersFor(helper, serviceID, true)
 			if err != nil {
 				errc <- errors.Wrapf(err, "fetching containers for %s", serviceID)
 				return
@@ -185,7 +179,7 @@ func (s *server) ListImages(inst flux.InstanceID, spec flux.ServiceSpec) (res []
 	for i := 0; i < len(serviceIDs); i++ {
 		select {
 		case err := <-errc:
-			s.helper.Log("err", err)
+			helper.Log("err", err)
 		case status := <-statusc:
 			res = append(res, status)
 		}
@@ -202,9 +196,14 @@ func (s *server) History(inst flux.InstanceID, spec flux.ServiceSpec) (res []flu
 		).Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
+	helper, err := s.instancer.Get(inst)
+	if err != nil {
+		return nil, errors.Wrapf(err, "getting instance")
+	}
+
 	var events []history.Event
 	if spec == flux.ServiceSpecAll {
-		events, err = s.eventReader.AllEvents()
+		events, err = helper.AllEvents()
 		if err != nil {
 			return nil, errors.Wrap(err, "fetching all history events")
 		}
@@ -215,7 +214,7 @@ func (s *server) History(inst flux.InstanceID, spec flux.ServiceSpec) (res []flu
 		}
 
 		namespace, service := id.Components()
-		events, err = s.eventReader.EventsForService(namespace, service)
+		events, err = helper.EventsForService(namespace, service)
 		if err != nil {
 			return nil, errors.Wrapf(err, "fetching history events for %s", id)
 		}
@@ -243,20 +242,28 @@ func (s *server) Deautomate(inst flux.InstanceID, service flux.ServiceID) error 
 	return s.automator.Deautomate(inst, ns, svc)
 }
 
-func (s *server) Lock(inst flux.InstanceID, service flux.ServiceID) error {
+func (s *server) Lock(instID flux.InstanceID, service flux.ServiceID) error {
+	inst, err := s.instancer.Get(instID)
+	if err != nil {
+		return err
+	}
 	ns, svc := service.Components()
-	s.eventWriter.LogEvent(ns, svc, serviceLocked)
-	return s.recordLock(service, true)
+	inst.LogEvent(ns, svc, serviceLocked)
+	return recordLock(inst, service, true)
 }
 
-func (s *server) Unlock(inst flux.InstanceID, service flux.ServiceID) error {
+func (s *server) Unlock(instID flux.InstanceID, service flux.ServiceID) error {
+	inst, err := s.instancer.Get(instID)
+	if err != nil {
+		return err
+	}
 	ns, svc := service.Components()
-	s.eventWriter.LogEvent(ns, svc, serviceUnlocked)
-	return s.recordLock(service, false)
+	inst.LogEvent(ns, svc, serviceUnlocked)
+	return recordLock(inst, service, false)
 }
 
-func (s *server) recordLock(service flux.ServiceID, locked bool) error {
-	if err := s.instanceDB.UpdateConfig(hardwiredInstance, func(conf instance.Config) (instance.Config, error) {
+func recordLock(inst *instance.Instance, service flux.ServiceID, locked bool) error {
+	if err := inst.UpdateConfig(func(conf instance.Config) (instance.Config, error) {
 		if serviceConf, found := conf.Services[service]; found {
 			serviceConf.Locked = locked
 			conf.Services[service] = serviceConf
@@ -273,16 +280,16 @@ func (s *server) recordLock(service flux.ServiceID, locked bool) error {
 }
 
 func (s *server) PostRelease(inst flux.InstanceID, spec flux.ReleaseJobSpec) (flux.ReleaseID, error) {
-	return s.releaser.PutJob(spec)
+	return s.releaser.PutJob(inst, spec)
 }
 
 func (s *server) GetRelease(inst flux.InstanceID, id flux.ReleaseID) (flux.ReleaseJob, error) {
-	return s.releaser.GetJob(id)
+	return s.releaser.GetJob(inst, id)
 }
 
-func (s *server) containersFor(id flux.ServiceID, includeAvailable bool) (res []flux.Container, _ error) {
+func containersFor(helper *instance.Instance, id flux.ServiceID, includeAvailable bool) (res []flux.Container, _ error) {
 	namespace, service := id.Components()
-	containers, err := s.helper.PlatformContainersFor(namespace, service)
+	containers, err := helper.PlatformContainersFor(namespace, service)
 	if err != nil {
 		return nil, errors.Wrapf(err, "fetching containers for %s", id)
 	}
@@ -297,7 +304,7 @@ func (s *server) containersFor(id flux.ServiceID, includeAvailable bool) (res []
 		var available []flux.ImageDescription
 
 		if includeAvailable {
-			imageRepo, err := s.helper.RegistryGetRepository(imageID.Repository())
+			imageRepo, err := helper.RegistryGetRepository(imageID.Repository())
 			if err != nil {
 				errs = append(errs, errors.Wrapf(err, "fetching image repo for %s", imageID))
 			} else {

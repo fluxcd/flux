@@ -23,7 +23,7 @@ func NewInmemStore(oldest time.Duration) *InmemStore {
 }
 
 // GetJob implements JobStore.
-func (s *InmemStore) GetJob(id flux.ReleaseID) (flux.ReleaseJob, error) {
+func (s *InmemStore) GetJob(inst flux.InstanceID, id flux.ReleaseID) (flux.ReleaseJob, error) {
 	s.mtx.RLock()
 	defer s.mtx.RUnlock()
 	job, ok := s.jobs[id]
@@ -34,7 +34,7 @@ func (s *InmemStore) GetJob(id flux.ReleaseID) (flux.ReleaseJob, error) {
 }
 
 // PutJob implements JobStore.
-func (s *InmemStore) PutJob(spec flux.ReleaseJobSpec) (flux.ReleaseID, error) {
+func (s *InmemStore) PutJob(inst flux.InstanceID, spec flux.ReleaseJobSpec) (flux.ReleaseID, error) {
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
 
@@ -44,6 +44,7 @@ func (s *InmemStore) PutJob(spec flux.ReleaseJobSpec) (flux.ReleaseID, error) {
 	}
 
 	s.jobs[id] = flux.ReleaseJob{
+		Instance:  inst,
 		Spec:      spec,
 		ID:        id,
 		Submitted: time.Now(),
