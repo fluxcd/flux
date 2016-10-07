@@ -87,6 +87,30 @@ func newReleaser(
 	}
 }
 
+type ReleaseAction struct {
+	Description string                                `json:"description"`
+	Do          func(*ReleaseContext) (string, error) `json:"-"`
+	Result      string                                `json:"result"`
+}
+
+type ReleaseContext struct {
+	RepoPath       string
+	RepoKey        string
+	PodControllers map[flux.ServiceID][]byte
+}
+
+func NewReleaseContext() *ReleaseContext {
+	return &ReleaseContext{
+		PodControllers: map[flux.ServiceID][]byte{},
+	}
+}
+
+func (rc *ReleaseContext) Clean() {
+	if rc.RepoPath != "" {
+		os.RemoveAll(rc.RepoPath)
+	}
+}
+
 func (r *releaser) Release(job *flux.ReleaseJob, updater flux.ReleaseJobUpdater) (err error) {
 	releaseType := "unknown"
 	defer func(begin time.Time) {
@@ -159,7 +183,7 @@ func (r *releaser) Release(job *flux.ReleaseJob, updater flux.ReleaseJobUpdater)
 }
 
 func (r *releaser) releaseAllToLatest(kind flux.ReleaseKind, exclude ServiceIDSet, updateJob func(string, ...interface{})) (err error) {
-	var res []flux.ReleaseAction
+	var res []ReleaseAction
 	defer func() {
 		if err == nil {
 			err = r.execute(res, kind, updateJob)
@@ -250,7 +274,7 @@ func (r *releaser) releaseAllToLatest(kind flux.ReleaseKind, exclude ServiceIDSe
 }
 
 func (r *releaser) releaseAllForImage(target flux.ImageID, kind flux.ReleaseKind, exclude ServiceIDSet, updateJob func(string, ...interface{})) (err error) {
-	var res []flux.ReleaseAction
+	var res []ReleaseAction
 	defer func() {
 		if err == nil {
 			err = r.execute(res, kind, updateJob)
@@ -335,7 +359,7 @@ func (r *releaser) releaseAllForImage(target flux.ImageID, kind flux.ReleaseKind
 }
 
 func (r *releaser) releaseOneToLatest(id flux.ServiceID, kind flux.ReleaseKind, exclude ServiceIDSet, updateJob func(string, ...interface{})) (err error) {
-	var res []flux.ReleaseAction
+	var res []ReleaseAction
 	defer func() {
 		if err == nil {
 			err = r.execute(res, kind, updateJob)
@@ -425,7 +449,7 @@ func (r *releaser) releaseOneToLatest(id flux.ServiceID, kind flux.ReleaseKind, 
 }
 
 func (r *releaser) releaseOne(serviceID flux.ServiceID, target flux.ImageID, kind flux.ReleaseKind, exclude ServiceIDSet, updateJob func(string, ...interface{})) (err error) {
-	var res []flux.ReleaseAction
+	var res []ReleaseAction
 	defer func() {
 		if err == nil {
 			err = r.execute(res, kind, updateJob)
@@ -506,7 +530,7 @@ func (r *releaser) releaseOne(serviceID flux.ServiceID, target flux.ImageID, kin
 
 // Release whatever is in the cloned configuration, without changing anything
 func (r *releaser) releaseOneWithoutUpdate(serviceID flux.ServiceID, kind flux.ReleaseKind, exclude ServiceIDSet, updateJob func(string, ...interface{})) (err error) {
-	var res []flux.ReleaseAction
+	var res []ReleaseAction
 	defer func() {
 		if err == nil {
 			err = r.execute(res, kind, updateJob)
@@ -559,7 +583,7 @@ func (r *releaser) lockedServices() (ServiceIDSet, error) {
 
 // Release whatever is in the cloned configuration, without changing anything
 func (r *releaser) releaseAllWithoutUpdate(kind flux.ReleaseKind, exclude ServiceIDSet, updateJob func(string, ...interface{})) (err error) {
-	var res []flux.ReleaseAction
+	var res []ReleaseAction
 	defer func() {
 		if err == nil {
 			err = r.execute(res, kind, updateJob)
@@ -598,8 +622,8 @@ func (r *releaser) releaseAllWithoutUpdate(kind flux.ReleaseKind, exclude Servic
 	return nil
 }
 
-func (r *releaser) execute(actions []flux.ReleaseAction, kind flux.ReleaseKind, updateJob func(string, ...interface{})) error {
-	rc := flux.NewReleaseContext()
+func (r *releaser) execute(actions []ReleaseAction, kind flux.ReleaseKind, updateJob func(string, ...interface{})) error {
+	rc := NewReleaseContext()
 	defer rc.Clean()
 
 	for i, action := range actions {
@@ -637,10 +661,10 @@ type containerRegrade struct {
 
 // ReleaseAction Do funcs
 
-func (r *releaser) releaseActionPrintf(format string, args ...interface{}) flux.ReleaseAction {
-	return flux.ReleaseAction{
+func (r *releaser) releaseActionPrintf(format string, args ...interface{}) ReleaseAction {
+	return ReleaseAction{
 		Description: fmt.Sprintf(format, args...),
-		Do: func(_ *flux.ReleaseContext) (res string, err error) {
+		Do: func(_ *ReleaseContext) (res string, err error) {
 			defer func(begin time.Time) {
 				r.metrics.ActionDuration.With(
 					"action", "printf",
@@ -653,10 +677,10 @@ func (r *releaser) releaseActionPrintf(format string, args ...interface{}) flux.
 	}
 }
 
-func (r *releaser) releaseActionClone() flux.ReleaseAction {
-	return flux.ReleaseAction{
+func (r *releaser) releaseActionClone() ReleaseAction {
+	return ReleaseAction{
 		Description: "Clone the config repo.",
-		Do: func(rc *flux.ReleaseContext) (res string, err error) {
+		Do: func(rc *ReleaseContext) (res string, err error) {
 			defer func(begin time.Time) {
 				r.metrics.ActionDuration.With(
 					"action", "clone",
@@ -675,10 +699,10 @@ func (r *releaser) releaseActionClone() flux.ReleaseAction {
 	}
 }
 
-func (r *releaser) releaseActionFindPodController(service flux.ServiceID) flux.ReleaseAction {
-	return flux.ReleaseAction{
+func (r *releaser) releaseActionFindPodController(service flux.ServiceID) ReleaseAction {
+	return ReleaseAction{
 		Description: fmt.Sprintf("Load the resource definition file for service %s", service),
-		Do: func(rc *flux.ReleaseContext) (res string, err error) {
+		Do: func(rc *ReleaseContext) (res string, err error) {
 			defer func(begin time.Time) {
 				r.metrics.ActionDuration.With(
 					"action", "find_pod_controller",
@@ -714,16 +738,16 @@ func (r *releaser) releaseActionFindPodController(service flux.ServiceID) flux.R
 	}
 }
 
-func (r *releaser) releaseActionUpdatePodController(service flux.ServiceID, regrades []containerRegrade) flux.ReleaseAction {
+func (r *releaser) releaseActionUpdatePodController(service flux.ServiceID, regrades []containerRegrade) ReleaseAction {
 	var actions []string
 	for _, regrade := range regrades {
 		actions = append(actions, fmt.Sprintf("%s (%s -> %s)", regrade.container, regrade.current, regrade.target))
 	}
 	actionList := strings.Join(actions, ", ")
 
-	return flux.ReleaseAction{
+	return ReleaseAction{
 		Description: fmt.Sprintf("Update %d images(s) in the resource definition file for %s: %s.", len(regrades), service, actionList),
-		Do: func(rc *flux.ReleaseContext) (res string, err error) {
+		Do: func(rc *ReleaseContext) (res string, err error) {
 			defer func(begin time.Time) {
 				r.metrics.ActionDuration.With(
 					"action", "update_pod_controller",
@@ -784,10 +808,10 @@ func (r *releaser) releaseActionUpdatePodController(service flux.ServiceID, regr
 	}
 }
 
-func (r *releaser) releaseActionCommitAndPush(msg string) flux.ReleaseAction {
-	return flux.ReleaseAction{
+func (r *releaser) releaseActionCommitAndPush(msg string) ReleaseAction {
+	return ReleaseAction{
 		Description: "Commit and push the config repo.",
-		Do: func(rc *flux.ReleaseContext) (res string, err error) {
+		Do: func(rc *ReleaseContext) (res string, err error) {
 			defer func(begin time.Time) {
 				r.metrics.ActionDuration.With(
 					"action", "commit_and_push",
@@ -818,10 +842,10 @@ func service2string(a []flux.ServiceID) []string {
 	return s
 }
 
-func (r *releaser) releaseActionRegradeServices(services []flux.ServiceID, cause string) flux.ReleaseAction {
-	return flux.ReleaseAction{
+func (r *releaser) releaseActionRegradeServices(services []flux.ServiceID, cause string) ReleaseAction {
+	return ReleaseAction{
 		Description: fmt.Sprintf("Regrade %d service(s): %s.", len(services), strings.Join(service2string(services), ", ")),
-		Do: func(rc *flux.ReleaseContext) (res string, err error) {
+		Do: func(rc *ReleaseContext) (res string, err error) {
 			defer func(begin time.Time) {
 				r.metrics.ActionDuration.With(
 					"action", "regrade_services",
