@@ -61,6 +61,7 @@ func main() {
 		databaseSource            = fs.String("database-source", "file://fluxy.db", `Database source name; includes the DB driver as the scheme. The default is a temporary, file-based DB`)
 		databaseMigrationsDir     = fs.String("database-migrations", "./db/migrations", "Path to database migration scripts, which are in subdirectories named for each driver")
 		repoURL                   = fs.String("repo-url", "", "Config repo URL, e.g. git@github.com:myorg/conf (required)")
+		repoBranch                = fs.String("repo-branch", "master", "Config repo branch to update")
 		repoKey                   = fs.String("repo-key", "", "SSH key file with commit rights to config repo")
 		repoPath                  = fs.String("repo-path", "", "Path within config repo to look for resource definition files")
 		slackWebhookURL           = fs.String("slack-webhook-url", "", "Slack webhook URL for release notifications (optional)")
@@ -273,9 +274,10 @@ func main() {
 	// Release workers.
 	{
 		repo := git.Repo{
-			URL:  *repoURL,
-			Key:  *repoKey,
-			Path: *repoPath,
+			URL:    *repoURL,
+			Branch: *repoBranch,
+			Key:    *repoKey,
+			Path:   *repoPath,
 		}
 
 		worker := release.NewWorker(rjs, k8s, reg, repo, eventWriter, releaseMetrics, helperDuration, logger)

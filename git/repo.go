@@ -11,6 +11,9 @@ type Repo struct {
 	// example, "https://github.com/myorg/conf.git", "git@foo.com:myorg/conf".
 	URL string
 
+	// The branch of the config repo that holds the resource definition files.
+	Branch string
+
 	// The file containing the private key with permissions to clone and push to
 	// the config repo.
 	Key string
@@ -30,7 +33,7 @@ func (r Repo) Clone() (path string, keyFile string, err error) {
 		return "", "", err
 	}
 
-	repoDir, err := clone(workingDir, keyFile, r.URL)
+	repoDir, err := clone(workingDir, keyFile, r.URL, r.Branch)
 	return repoDir, keyFile, err
 }
 
@@ -41,5 +44,5 @@ func (r Repo) CommitAndPush(path, keyFile, commitMessage string) (string, error)
 	if err := commit(path, commitMessage); err != nil {
 		return "", err
 	}
-	return "", push(keyFile, path)
+	return "", push(keyFile, r.Branch, path)
 }

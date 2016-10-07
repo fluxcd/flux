@@ -10,9 +10,9 @@ import (
 	"github.com/pkg/errors"
 )
 
-func clone(workingDir, repoKey, repoURL string) (path string, err error) {
+func clone(workingDir, repoKey, repoURL, repoBranch string) (path string, err error) {
 	repoPath := filepath.Join(workingDir, "repo")
-	if err := gitCmd("", repoKey, "clone", repoURL, repoPath).Run(); err != nil {
+	if err := gitCmd("", repoKey, "clone", "--branch", repoBranch, repoURL, repoPath).Run(); err != nil {
 		return "", errors.Wrap(err, "git clone")
 	}
 	return repoPath, nil
@@ -30,9 +30,9 @@ func commit(workingDir, commitMessage string) error {
 	return nil
 }
 
-func push(repoKey, workingDir string) error {
-	if err := gitCmd(workingDir, repoKey, "push", "origin", "master").Run(); err != nil {
-		return errors.Wrap(err, "git push origin master")
+func push(repoKey, repoBranch, workingDir string) error {
+	if err := gitCmd(workingDir, repoKey, "push", "origin", repoBranch).Run(); err != nil {
+		return errors.Wrap(err, fmt.Sprintf("git push origin %s", repoBranch))
 	}
 	return nil
 }
