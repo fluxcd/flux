@@ -113,6 +113,7 @@ func (opts *serviceReleaseOpts) RunE(_ *cobra.Command, args []string) error {
 	}
 	printf("Release job submitted, ID %s", id)
 
+	lastStatus := ""
 	var job flux.ReleaseJob
 	for range time.Tick(time.Second) {
 		job, err = opts.Fluxd.GetRelease(noInstanceID, id)
@@ -120,10 +121,9 @@ func (opts *serviceReleaseOpts) RunE(_ *cobra.Command, args []string) error {
 			printf("Release errored!")
 			return err
 		}
-		if job.Status != "" {
+		if job.Status != lastStatus {
+			lastStatus = job.Status
 			printf(job.Status)
-		} else {
-			printf("Waiting for job to be claimed...")
 		}
 		if job.IsFinished() {
 			fmt.Println()
