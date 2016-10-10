@@ -384,14 +384,6 @@ func (r *releaser) releaseOneToLatest(inst *instance.Instance, id flux.ServiceID
 		res = append(res, r.releaseActionPrintf("Specified service %s is excluded; ignoring.", id))
 		return nil
 	}
-	locked, err := lockedServices(inst)
-	if err != nil {
-		return err
-	}
-	if locked.Contains(id) {
-		res = append(res, r.releaseActionPrintf("Specified service %s is locked; ignoring.", id))
-		return nil
-	}
 
 	namespace, service := id.Components()
 	containers, err := inst.PlatformContainersFor(namespace, service)
@@ -474,14 +466,6 @@ func (r *releaser) releaseOne(inst *instance.Instance, serviceID flux.ServiceID,
 		res = append(res, r.releaseActionPrintf("Specified service %s is excluded; ignoring.", serviceID))
 		return nil
 	}
-	locked, err := lockedServices(inst)
-	if err != nil {
-		return err
-	}
-	if locked.Contains(serviceID) {
-		res = append(res, r.releaseActionPrintf("Specified service %s is locked; ignoring.", serviceID))
-		return nil
-	}
 
 	namespace, service := serviceID.Components()
 	containers, err := inst.PlatformContainersFor(namespace, service)
@@ -551,14 +535,6 @@ func (r *releaser) releaseOneWithoutUpdate(inst *instance.Instance, serviceID fl
 
 	if exclude.Contains(serviceID) {
 		res = append(res, r.releaseActionPrintf("Specified service %s is excluded; ignoring.", serviceID))
-		return nil
-	}
-	locked, err := lockedServices(inst)
-	if err != nil {
-		return err
-	}
-	if locked.Contains(serviceID) {
-		res = append(res, r.releaseActionPrintf("Specified service %s is locked; ignoring.", serviceID))
 		return nil
 	}
 
