@@ -31,30 +31,6 @@ type Metrics struct {
 	StageDuration   metrics.Histogram
 }
 
-type ServiceIDSet map[flux.ServiceID]struct{}
-
-func (s ServiceIDSet) Add(ids []flux.ServiceID) {
-	for _, id := range ids {
-		s[id] = struct{}{}
-	}
-}
-
-func (s ServiceIDSet) Contains(id flux.ServiceID) bool {
-	_, ok := s[id]
-	return ok
-}
-
-type ServiceIDs []flux.ServiceID
-
-func (ids ServiceIDs) Without(set ServiceIDSet) (res ServiceIDs) {
-	for _, id := range ids {
-		if !set.Contains(id) {
-			res = append(res, id)
-		}
-	}
-	return res
-}
-
 func newReleaser(
 	instancer instance.Instancer,
 	metrics Metrics,
@@ -110,6 +86,32 @@ func (rc *ReleaseContext) Clean() {
 	}
 }
 
+type serviceQuery func(*instance.Instance) ([]platform.Service, error)
+
+func exactlyTheseServices(include []flux.ServiceID) serviceQuery {
+	return func(h *instance.Instance) ([]platform.Service, error) {
+		return h.GetServices(include)
+	}
+}
+
+func allServicesExcept(exclude flux.ServiceIDSet) serviceQuery {
+	return func(h *instance.Instance) ([]platform.Service, error) {
+		return h.GetAllServicesExcept("", exclude)
+	}
+}
+
+type imageCollect func(*instance.Instance, []platform.Service) (instance.ImageMap, error)
+
+func allLatestImages(h *instance.Instance, services []platform.Service) (instance.ImageMap, error) {
+	return h.CollectAvailableImages(services)
+}
+
+func exactlyTheseImages(images []flux.ImageID) imageCollect {
+	return func(h *instance.Instance, _ []platform.Service) (instance.ImageMap, error) {
+		return h.ExactImages(images)
+	}
+}
+
 func (r *releaser) Release(job *flux.ReleaseJob, updater flux.ReleaseJobUpdater) (err error) {
 	releaseType := "unknown"
 	defer func(begin time.Time) {
@@ -132,8 +134,14 @@ func (r *releaser) Release(job *flux.ReleaseJob, updater flux.ReleaseJobUpdater)
 		updater.UpdateJob(*job)
 	}
 
-	exclude := ServiceIDSet{}
+	exclude := flux.ServiceIDSet{}
 	exclude.Add(job.Spec.Excludes)
+
+	locked, err := lockedServices(inst)
+	if err != nil {
+		return err
+	}
+	exclude.Add(locked)
 
 	select {
 	case r.semaphore <- struct{}{}:
@@ -148,16 +156,16 @@ func (r *releaser) Release(job *flux.ReleaseJob, updater flux.ReleaseJobUpdater)
 	switch {
 	case job.Spec.ServiceSpec == flux.ServiceSpecAll && job.Spec.ImageSpec == flux.ImageSpecLatest:
 		releaseType = "release_all_to_latest"
-		return r.releaseAllToLatest(inst, job.Spec.Kind, exclude, updateJob)
+		return r.releaseImages(inst, job.Spec.Kind, allServicesExcept(exclude), allLatestImages, updateJob)
 
 	case job.Spec.ServiceSpec == flux.ServiceSpecAll && job.Spec.ImageSpec == flux.ImageSpecNone:
 		releaseType = "release_all_without_update"
-		return r.releaseAllWithoutUpdate(inst, job.Spec.Kind, exclude, updateJob)
+		return r.releaseWithoutUpdate(inst, job.Spec.Kind, allServicesExcept(exclude), updateJob)
 
 	case job.Spec.ServiceSpec == flux.ServiceSpecAll:
 		releaseType = "release_all_for_image"
 		imageID := flux.ParseImageID(string(job.Spec.ImageSpec))
-		return r.releaseAllForImage(inst, imageID, job.Spec.Kind, exclude, updateJob)
+		return r.releaseImages(inst, job.Spec.Kind, allServicesExcept(exclude), exactlyTheseImages([]flux.ImageID{imageID}), updateJob)
 
 	case job.Spec.ImageSpec == flux.ImageSpecLatest:
 		releaseType = "release_one_to_latest"
@@ -165,7 +173,8 @@ func (r *releaser) Release(job *flux.ReleaseJob, updater flux.ReleaseJobUpdater)
 		if err != nil {
 			return errors.Wrapf(err, "parsing service ID from spec %s", job.Spec.ServiceSpec)
 		}
-		return r.releaseOneToLatest(inst, serviceID, job.Spec.Kind, exclude, updateJob)
+		services := flux.ServiceIDs([]flux.ServiceID{serviceID}).Without(exclude)
+		return r.releaseImages(inst, job.Spec.Kind, exactlyTheseServices(services), allLatestImages, updateJob)
 
 	case job.Spec.ImageSpec == flux.ImageSpecNone:
 		releaseType = "release_one_without_update"
@@ -173,7 +182,8 @@ func (r *releaser) Release(job *flux.ReleaseJob, updater flux.ReleaseJobUpdater)
 		if err != nil {
 			return errors.Wrapf(err, "parsing service ID from spec %s", job.Spec.ServiceSpec)
 		}
-		return r.releaseOneWithoutUpdate(inst, serviceID, job.Spec.Kind, exclude, updateJob)
+		services := flux.ServiceIDs([]flux.ServiceID{serviceID}).Without(exclude)
+		return r.releaseWithoutUpdate(inst, job.Spec.Kind, exactlyTheseServices(services), updateJob)
 
 	default:
 		releaseType = "release_one"
@@ -181,12 +191,13 @@ func (r *releaser) Release(job *flux.ReleaseJob, updater flux.ReleaseJobUpdater)
 		if err != nil {
 			return errors.Wrapf(err, "parsing service ID from spec %s", job.Spec.ServiceSpec)
 		}
+		services := flux.ServiceIDs([]flux.ServiceID{serviceID}).Without(exclude)
 		imageID := flux.ParseImageID(string(job.Spec.ImageSpec))
-		return r.releaseOne(inst, serviceID, imageID, job.Spec.Kind, exclude, updateJob)
+		return r.releaseImages(inst, job.Spec.Kind, exactlyTheseServices(services), exactlyTheseImages([]flux.ImageID{imageID}), updateJob)
 	}
 }
 
-func (r *releaser) releaseAllToLatest(inst *instance.Instance, kind flux.ReleaseKind, exclude ServiceIDSet, updateJob func(string, ...interface{})) (err error) {
+func (r *releaser) releaseImages(inst *instance.Instance, kind flux.ReleaseKind, getServices serviceQuery, getImages imageCollect, updateJob func(string, ...interface{})) (err error) {
 	var res []ReleaseAction
 	defer func() {
 		if err == nil {
@@ -204,21 +215,9 @@ func (r *releaser) releaseAllToLatest(inst *instance.Instance, kind flux.Release
 	defer func() { stage.ObserveDuration() }()
 	stage = metrics.NewTimer(base.With("stage", "fetch_all_platform_services"))
 
-	serviceIDs, err := inst.AllServices()
+	services, err := getServices(inst)
 	if err != nil {
 		return errors.Wrap(err, "fetching all platform services")
-	}
-
-	stage.ObserveDuration()
-	stage = metrics.NewTimer(base.With("stage", "all_releasable_images_for"))
-
-	locked, err := lockedServices(inst)
-	if err != nil {
-		return err
-	}
-	containerMap, err := inst.AllReleasableImagesFor(ServiceIDs(serviceIDs).Without(exclude).Without(locked))
-	if err != nil {
-		return errors.Wrap(err, "fetching images for services")
 	}
 
 	stage.ObserveDuration()
@@ -226,31 +225,38 @@ func (r *releaser) releaseAllToLatest(inst *instance.Instance, kind flux.Release
 
 	// Each service is running multiple images.
 	// Each image may need to be upgraded, and trigger a release.
+	images, err := getImages(inst, services)
+	if err != nil {
+		return errors.Wrap(err, "collecting available images to calculate regrades")
+	}
 
 	regradeMap := map[flux.ServiceID][]containerRegrade{}
-	for serviceID, containers := range containerMap {
+	for _, service := range services {
+		containers, err := service.ContainersOrError()
+		if err != nil {
+			res = append(res, r.releaseActionPrintf("service %s does not have images associated: %s", service.ID, err))
+			continue
+		}
 		for _, container := range containers {
 			currentImageID := flux.ParseImageID(container.Image)
-			imageRepo, err := inst.RegistryGetRepository(currentImageID.Repository())
-			if err != nil {
-				return errors.Wrapf(err, "fetching image repo for %s", currentImageID)
+			latestImage := images.LatestImage(currentImageID.Repository())
+			if latestImage == nil {
+				continue
 			}
-			latestImage, err := imageRepo.LatestImage()
-			if err != nil {
-				return errors.Wrapf(err, "getting latest image from %s", imageRepo.Name)
-			}
-			latestImageID := flux.ParseImageID(latestImage.String())
-			if currentImageID == latestImageID {
+
+			if currentImageID == latestImage.ID {
 				res = append(res, r.releaseActionPrintf("Service image %s is already the latest one; skipping.", currentImageID))
 				continue
 			}
-			regradeMap[serviceID] = append(regradeMap[serviceID], containerRegrade{
+
+			regradeMap[service.ID] = append(regradeMap[service.ID], containerRegrade{
 				container: container.Name,
 				current:   currentImageID,
-				target:    latestImageID,
+				target:    latestImage.ID,
 			})
 		}
 	}
+
 	if len(regradeMap) <= 0 {
 		res = append(res, r.releaseActionPrintf("All services are running the latest images. Nothing to do."))
 		return nil
@@ -268,326 +274,33 @@ func (r *releaser) releaseAllToLatest(inst *instance.Instance, kind flux.Release
 		res = append(res, r.releaseActionUpdatePodController(service, regrades))
 	}
 	res = append(res, r.releaseActionCommitAndPush("Release latest images to all services"))
-	var services []flux.ServiceID
+	var servicesToRegrade []flux.ServiceID
 	for service := range regradeMap {
-		services = append(services, service)
+		servicesToRegrade = append(servicesToRegrade, service)
 	}
-	res = append(res, r.releaseActionRegradeServices(services, "latest images (to all services)"))
-
-	return nil
-}
-
-func (r *releaser) releaseAllForImage(inst *instance.Instance, target flux.ImageID, kind flux.ReleaseKind, exclude ServiceIDSet, updateJob func(string, ...interface{})) (err error) {
-	var res []ReleaseAction
-	defer func() {
-		if err == nil {
-			err = r.execute(inst, res, kind, updateJob)
-		}
-	}()
-
-	res = append(res, r.releaseActionPrintf("I'm going to release image %s to all services that would use it.", target))
-
-	var (
-		base  = r.metrics.StageDuration.With("method", "release_all_for_image")
-		stage *metrics.Timer
-	)
-
-	defer func() { stage.ObserveDuration() }()
-	stage = metrics.NewTimer(base.With("stage", "fetch_all_platform_services"))
-
-	serviceIDs, err := inst.AllServices()
-	if err != nil {
-		return errors.Wrap(err, "fetching all platform services")
-	}
-
-	stage.ObserveDuration()
-	stage = metrics.NewTimer(base.With("stage", "all_releasable_images_for"))
-
-	locked, err := lockedServices(inst)
-	if err != nil {
-		return err
-	}
-	containerMap, err := inst.AllReleasableImagesFor(ServiceIDs(serviceIDs).Without(exclude).Without(locked))
-	if err != nil {
-		return errors.Wrap(err, "fetching images for services")
-	}
-
-	// Each service is running multiple images.
-	// Each image may need to be modified, and trigger a release.
-
-	stage.ObserveDuration()
-	stage = metrics.NewTimer(base.With("stage", "calculate_regrades"))
-
-	regradeMap := map[flux.ServiceID][]containerRegrade{}
-	for serviceID, containers := range containerMap {
-		for _, container := range containers {
-			candidate := flux.ParseImageID(container.Image)
-			if candidate.Repository() != target.Repository() {
-				continue
-			}
-			if candidate == target {
-				res = append(res, r.releaseActionPrintf("Service %s image %s matches the target image exactly. Skipping.", serviceID, candidate))
-				continue
-			}
-			regradeMap[serviceID] = append(regradeMap[serviceID], containerRegrade{
-				container: container.Name,
-				current:   candidate,
-				target:    target,
-			})
-		}
-	}
-	if len(regradeMap) <= 0 {
-		res = append(res, r.releaseActionPrintf("All matching services are already running image %s. Nothing to do.", target))
-		return nil
-	}
-
-	stage.ObserveDuration()
-	stage = metrics.NewTimer(base.With("stage", "finalize"))
-
-	// We have identified at least 1 release that needs to occur. Releasing
-	// means cloning the repo, changing the resource file(s), committing and
-	// pushing, and then making the release(s) to the platform.
-
-	res = append(res, r.releaseActionClone())
-	for service, imageReleases := range regradeMap {
-		res = append(res, r.releaseActionUpdatePodController(service, imageReleases))
-	}
-	res = append(res, r.releaseActionCommitAndPush(fmt.Sprintf("Release %s to all services", target)))
-	var services []flux.ServiceID
-	for service := range regradeMap {
-		services = append(services, service)
-	}
-	res = append(res, r.releaseActionRegradeServices(services, string(target)+" (to all services)"))
-
-	return nil
-}
-
-func (r *releaser) releaseOneToLatest(inst *instance.Instance, id flux.ServiceID, kind flux.ReleaseKind, exclude ServiceIDSet, updateJob func(string, ...interface{})) (err error) {
-	var res []ReleaseAction
-	defer func() {
-		if err == nil {
-			err = r.execute(inst, res, kind, updateJob)
-		}
-	}()
-
-	res = append(res, r.releaseActionPrintf("I'm going to release the latest images(s) for service %s.", id))
-
-	var (
-		base  = r.metrics.StageDuration.With("method", "release_one_to_latest")
-		stage *metrics.Timer
-	)
-
-	defer func() { stage.ObserveDuration() }()
-	stage = metrics.NewTimer(base.With("stage", "fetch_images_for_service"))
-
-	if exclude.Contains(id) {
-		res = append(res, r.releaseActionPrintf("Specified service %s is excluded; ignoring.", id))
-		return nil
-	}
-	locked, err := lockedServices(inst)
-	if err != nil {
-		return err
-	}
-	if locked.Contains(id) {
-		res = append(res, r.releaseActionPrintf("Specified service %s is locked; ignoring.", id))
-		return nil
-	}
-
-	namespace, service := id.Components()
-	containers, err := inst.PlatformContainersFor(namespace, service)
-	if err != nil {
-		return errors.Wrapf(err, "fetching images for service %s", id)
-	}
-
-	stage.ObserveDuration()
-	stage = metrics.NewTimer(base.With("stage", "calculate_regrades"))
-
-	// Each service is running multiple images.
-	// Each image may need to be modified, and trigger a release.
-
-	var regrades []containerRegrade
-	for _, container := range containers {
-		imageID := flux.ParseImageID(container.Image)
-		imageRepo, err := inst.RegistryGetRepository(imageID.Repository())
-		if err != nil {
-			return errors.Wrapf(err, "fetching repository for %s", imageID)
-		}
-		if len(imageRepo.Images) <= 0 {
-			res = append(res, r.releaseActionPrintf("The service image %s had no images available in its repository; very strange!", imageID))
-			continue
-		}
-
-		latestImage, err := imageRepo.LatestImage()
-		if err != nil {
-			return errors.Wrapf(err, "getting latest image from %s", imageRepo.Name)
-		}
-		latestID := flux.ParseImageID(latestImage.String())
-		if imageID == latestID {
-			res = append(res, r.releaseActionPrintf("The service image %s is already at latest; skipping.", imageID))
-			continue
-		}
-		regrades = append(regrades, containerRegrade{
-			container: container.Name,
-			current:   imageID,
-			target:    latestID,
-		})
-	}
-	if len(regrades) <= 0 {
-		res = append(res, r.releaseActionPrintf("The service is already running the latest version of all its images. Nothing to do."))
-		return nil
-	}
-
-	stage.ObserveDuration()
-	stage = metrics.NewTimer(base.With("stage", "finalize"))
-
-	// We need to make 1 release. Releasing means cloning the repo, changing the
-	// resource file(s), committing and pushing, and then making the release(s)
-	// to the platform.
-
-	res = append(res, r.releaseActionClone())
-	res = append(res, r.releaseActionUpdatePodController(id, regrades))
-	res = append(res, r.releaseActionCommitAndPush(fmt.Sprintf("Release latest images to %s", id)))
-	res = append(res, r.releaseActionRegradeServices([]flux.ServiceID{id}, "latest images"))
-
-	return nil
-}
-
-func (r *releaser) releaseOne(inst *instance.Instance, serviceID flux.ServiceID, target flux.ImageID, kind flux.ReleaseKind, exclude ServiceIDSet, updateJob func(string, ...interface{})) (err error) {
-	var res []ReleaseAction
-	defer func() {
-		if err == nil {
-			err = r.execute(inst, res, kind, updateJob)
-		}
-	}()
-
-	res = append(res, r.releaseActionPrintf("I'm going to release image %s to service %s.", target, serviceID))
-
-	var (
-		base  = r.metrics.StageDuration.With("method", "release_one")
-		stage *metrics.Timer
-	)
-
-	defer func() { stage.ObserveDuration() }()
-	stage = metrics.NewTimer(base.With("stage", "fetch_images_for_service"))
-
-	if exclude.Contains(serviceID) {
-		res = append(res, r.releaseActionPrintf("Specified service %s is excluded; ignoring.", serviceID))
-		return nil
-	}
-	locked, err := lockedServices(inst)
-	if err != nil {
-		return err
-	}
-	if locked.Contains(serviceID) {
-		res = append(res, r.releaseActionPrintf("Specified service %s is locked; ignoring.", serviceID))
-		return nil
-	}
-
-	namespace, service := serviceID.Components()
-	containers, err := inst.PlatformContainersFor(namespace, service)
-	if err != nil {
-		return errors.Wrapf(err, "fetching images for service %s", serviceID)
-	}
-
-	stage.ObserveDuration()
-	stage = metrics.NewTimer(base.With("stage", "calculate_regrades"))
-
-	// Each service is running multiple images.
-	// Each image may need to be modified, and trigger a release.
-
-	var regrades []containerRegrade
-	for _, container := range containers {
-		candidate := flux.ParseImageID(container.Image)
-		if candidate.Repository() != target.Repository() {
-			res = append(res, r.releaseActionPrintf("Image %s is different than %s. Ignoring.", candidate, target))
-			continue
-		}
-		if candidate == target {
-			res = append(res, r.releaseActionPrintf("Image %s is already released. Skipping.", candidate))
-			continue
-		}
-		regrades = append(regrades, containerRegrade{
-			container: container.Name,
-			current:   candidate,
-			target:    target,
-		})
-	}
-	if len(regrades) <= 0 {
-		res = append(res, r.releaseActionPrintf("Service %s doesn't need a regrade to %s. Nothing to do.", serviceID, target))
-		return nil
-	}
-
-	stage.ObserveDuration()
-	stage = metrics.NewTimer(base.With("stage", "finalize"))
-
-	// We have identified at least 1 regrade that needs to occur. Releasing
-	// means cloning the repo, changing the resource file(s), committing and
-	// pushing, and then making the release(s) to the platform.
-
-	res = append(res, r.releaseActionClone())
-	res = append(res, r.releaseActionUpdatePodController(serviceID, regrades))
-	res = append(res, r.releaseActionCommitAndPush(fmt.Sprintf("Release %s to %s", target, serviceID)))
-	res = append(res, r.releaseActionRegradeServices([]flux.ServiceID{serviceID}, string(target)))
-
-	return nil
-}
-
-// Release whatever is in the cloned configuration, without changing anything
-func (r *releaser) releaseOneWithoutUpdate(inst *instance.Instance, serviceID flux.ServiceID, kind flux.ReleaseKind, exclude ServiceIDSet, updateJob func(string, ...interface{})) (err error) {
-	var res []ReleaseAction
-	defer func() {
-		if err == nil {
-			err = r.execute(inst, res, kind, updateJob)
-		}
-	}()
-
-	var (
-		base  = r.metrics.StageDuration.With("method", "release_one_without_update")
-		stage *metrics.Timer
-	)
-
-	defer func() { stage.ObserveDuration() }()
-	stage = metrics.NewTimer(base.With("stage", "finalize"))
-
-	if exclude.Contains(serviceID) {
-		res = append(res, r.releaseActionPrintf("Specified service %s is excluded; ignoring.", serviceID))
-		return nil
-	}
-	locked, err := lockedServices(inst)
-	if err != nil {
-		return err
-	}
-	if locked.Contains(serviceID) {
-		res = append(res, r.releaseActionPrintf("Specified service %s is locked; ignoring.", serviceID))
-		return nil
-	}
-
-	res = append(res, r.releaseActionPrintf("I'm going to release service %s using the config from the git repo, without updating it", serviceID))
-	res = append(res, r.releaseActionClone())
-	res = append(res, r.releaseActionFindPodController(serviceID))
-	res = append(res, r.releaseActionRegradeServices([]flux.ServiceID{serviceID}, "without update"))
+	res = append(res, r.releaseActionRegradeServices(servicesToRegrade, "latest images (to all services)"))
 
 	return nil
 }
 
 // Get set of all locked services
-func lockedServices(inst *instance.Instance) (ServiceIDSet, error) {
+func lockedServices(inst *instance.Instance) ([]flux.ServiceID, error) {
 	config, err := inst.GetConfig()
 	if err != nil {
 		return nil, err
 	}
 
-	locked := ServiceIDSet{}
+	ids := []flux.ServiceID{}
 	for id, s := range config.Services {
 		if s.Locked {
-			locked.Add([]flux.ServiceID{id})
+			ids = append(ids, id)
 		}
 	}
-	return locked, nil
+	return ids, nil
 }
 
 // Release whatever is in the cloned configuration, without changing anything
-func (r *releaser) releaseAllWithoutUpdate(inst *instance.Instance, kind flux.ReleaseKind, exclude ServiceIDSet, updateJob func(string, ...interface{})) (err error) {
+func (r *releaser) releaseWithoutUpdate(inst *instance.Instance, kind flux.ReleaseKind, getServices serviceQuery, updateJob func(string, ...interface{})) (err error) {
 	var res []ReleaseAction
 	defer func() {
 		if err == nil {
@@ -603,26 +316,23 @@ func (r *releaser) releaseAllWithoutUpdate(inst *instance.Instance, kind flux.Re
 	defer func() { stage.ObserveDuration() }()
 	stage = metrics.NewTimer(base.With("stage", "fetch_all_platform_services"))
 
-	serviceIDs, err := inst.AllServices()
+	services, err := getServices(inst)
 	if err != nil {
 		return errors.Wrap(err, "fetching all platform services")
 	}
-
-	locked, err := lockedServices(inst)
-	if err != nil {
-		return err
-	}
-	serviceIDs = ServiceIDs(serviceIDs).Without(exclude).Without(locked)
 
 	stage.ObserveDuration()
 	stage = metrics.NewTimer(base.With("stage", "finalize"))
 
 	res = append(res, r.releaseActionPrintf("I'm going to release all services using the config from the git repo, without updating it."))
 	res = append(res, r.releaseActionClone())
-	for _, service := range serviceIDs {
-		res = append(res, r.releaseActionFindPodController(service))
+
+	ids := []flux.ServiceID{}
+	for _, service := range services {
+		res = append(res, r.releaseActionFindPodController(service.ID))
+		ids = append(ids, service.ID)
 	}
-	res = append(res, r.releaseActionRegradeServices(serviceIDs, "without update (all services)"))
+	res = append(res, r.releaseActionRegradeServices(ids, "without update (all services)"))
 
 	return nil
 }

@@ -8,6 +8,8 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
+
+	"github.com/weaveworks/fluxy"
 )
 
 // Service describes a platform service, generally a floating IP with one or
@@ -16,10 +18,12 @@ import (
 // all supported platforms, but right now it looks a lot like a Kubernetes
 // service.
 type Service struct {
-	Name     string
+	ID       flux.ServiceID
 	IP       string
 	Metadata map[string]string // a grab bag of goodies, likely platform-specific
 	Status   string            // A status summary for display
+
+	Containers ContainersOrExcuse
 }
 
 // A Container represents a container specification in a pod. The Name
@@ -28,6 +32,21 @@ type Service struct {
 type Container struct {
 	Name  string
 	Image string
+}
+
+// Sometimes we care if we can't find the containers for a service,
+// sometimes we just want the information we can get.
+type ContainersOrExcuse struct {
+	Excuse     error
+	Containers []Container
+}
+
+func (s Service) ContainersOrNil() []Container {
+	return s.Containers.Containers
+}
+
+func (s Service) ContainersOrError() ([]Container, error) {
+	return s.Containers.Containers, s.Containers.Excuse
 }
 
 // These errors all represent logical problems with platform

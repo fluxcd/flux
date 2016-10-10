@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -17,6 +16,8 @@ import (
 	"github.com/go-kit/kit/log"
 	dockerregistry "github.com/heroku/docker-registry-client/registry"
 	"golang.org/x/net/publicsuffix"
+
+	"github.com/weaveworks/fluxy"
 )
 
 const (
@@ -53,7 +54,7 @@ func (f roundtripperFunc) RoundTrip(r *http.Request) (*http.Response, error) {
 //   foo/helloworld         -> index.docker.io/foo/helloworld
 //   quay.io/foo/helloworld -> quay.io/foo/helloworld
 //
-func (c *Client) GetRepository(repository string) (*Repository, error) {
+func (c *Client) GetRepository(repository string) ([]flux.ImageDescription, error) {
 	var host, org, image string
 	parts := strings.Split(repository, "/")
 	switch len(parts) {
@@ -114,10 +115,14 @@ func (c *Client) GetRepository(repository string) (*Repository, error) {
 	return c.tagsToRepository(cancel, client, repository, tags)
 }
 
-func (c *Client) lookupImage(client *dockerregistry.Registry, repoName, tag string) (Image, error) {
-	img := ParseImage(repoName)
-	img.Tag = tag
-	meta, err := client.Manifest(img.Name, tag)
+func (c *Client) lookupImage(client *dockerregistry.Registry, repoName, tag string) (flux.ImageDescription, error) {
+	// Minor cheat: this will work whether the registry (e.g.,
+	// quay.io) is part of the repo name given or not.
+	id := flux.MakeImageID("", repoName, tag)
+	img := flux.ImageDescription{ID: id}
+
+	_, name, _ := id.Components()
+	meta, err := client.Manifest(name, tag)
 	if err != nil {
 		return img, err
 	}
@@ -137,12 +142,12 @@ func (c *Client) lookupImage(client *dockerregistry.Registry, repoName, tag stri
 	return img, err
 }
 
-func (c *Client) tagsToRepository(cancel func(), client *dockerregistry.Registry, repoName string, tags []string) (*Repository, error) {
+func (c *Client) tagsToRepository(cancel func(), client *dockerregistry.Registry, repoName string, tags []string) ([]flux.ImageDescription, error) {
 	// one way or another, we'll be finishing all requests
 	defer cancel()
 
 	type result struct {
-		image Image
+		image flux.ImageDescription
 		err   error
 	}
 
@@ -158,7 +163,7 @@ func (c *Client) tagsToRepository(cancel func(), client *dockerregistry.Registry
 		}(tag)
 	}
 
-	images := make([]Image, cap(fetched))
+	images := make([]flux.ImageDescription, cap(fetched))
 	for i := 0; i < cap(fetched); i++ {
 		res := <-fetched
 		if res.err != nil {
@@ -167,78 +172,8 @@ func (c *Client) tagsToRepository(cancel func(), client *dockerregistry.Registry
 		images[i] = res.image
 	}
 
-	sort.Sort(byCreatedDesc{images})
-
-	return &Repository{
-		Name:   repoName,
-		Images: images,
-	}, nil
-}
-
-// Repository is a collection of images with the same registry and name
-// (e.g,. "quay.io:5000/weaveworks/helloworld") but not the same tag (e.g.,
-// "quay.io:5000/weaveworks/helloworld:v0.1").
-type Repository struct {
-	Name   string // "quay.io:5000/weaveworks/helloworld"
-	Images []Image
-}
-
-// LatestImage returns the latest releasable image from the repository.
-// A releasable image is one that is not tagged "latest".
-// Images must be kept in newest-first order.
-func (r Repository) LatestImage() (Image, error) {
-	for _, image := range r.Images {
-		if strings.EqualFold(image.Tag, "latest") {
-			continue
-		}
-		return image, nil
-	}
-	return Image{}, errors.New("no valid images in repository")
-}
-
-// Image represents a specific container image available in a repository. It's a
-// struct because I think we can safely assume the data here is pretty
-// universal across different registries and repositories.
-type Image struct {
-	Registry  string    // "quay.io:5000"
-	Name      string    // "weaveworks/helloworld"
-	Tag       string    // "master-59f0001"
-	CreatedAt time.Time // Always UTC
-}
-
-// ParseImage splits the image string apart, returning an Image with as much
-// info as we can gather.
-func ParseImage(image string) (i Image) {
-	parts := strings.SplitN(image, "/", 3)
-	if len(parts) == 3 {
-		i.Registry = parts[0]
-		image = fmt.Sprintf("%s/%s", parts[1], parts[2])
-	}
-	parts = strings.SplitN(image, ":", 2)
-	if len(parts) == 2 {
-		i.Tag = parts[1]
-	}
-	i.Name = parts[0]
-	return i
-}
-
-// String prints as much of an image as we have in the typical docker format. e.g. registry/name:tag
-func (i Image) String() string {
-	s := i.Repository()
-	if i.Tag != "" {
-		s = s + ":" + i.Tag
-	}
-	return s
-}
-
-// Repository returns a string with as much info as we have to rebuild the
-// image repository (i.e. registry/name)
-func (i Image) Repository() string {
-	repo := i.Name
-	if i.Registry != "" {
-		repo = i.Registry + "/" + repo
-	}
-	return repo
+	sort.Sort(byCreatedDesc(images))
+	return images, nil
 }
 
 // --- Credentials
@@ -309,18 +244,15 @@ func (cs Credentials) Hosts() []string {
 
 // -----
 
-type images []Image
+type byCreatedDesc []flux.ImageDescription
 
-func (is images) Len() int      { return len(is) }
-func (is images) Swap(i, j int) { is[i], is[j] = is[j], is[i] }
-
-type byCreatedDesc struct{ images }
-
+func (is byCreatedDesc) Len() int      { return len(is) }
+func (is byCreatedDesc) Swap(i, j int) { is[i], is[j] = is[j], is[i] }
 func (is byCreatedDesc) Less(i, j int) bool {
-	if is.images[i].CreatedAt.Equal(is.images[j].CreatedAt) {
-		return is.images[i].String() < is.images[j].String()
+	if is[i].CreatedAt.Equal(is[j].CreatedAt) {
+		return is[i].ID < is[j].ID
 	}
-	return is.images[i].CreatedAt.After(is.images[j].CreatedAt)
+	return is[i].CreatedAt.After(is[j].CreatedAt)
 }
 
 // Log requests as they go through, and responses as they come back.

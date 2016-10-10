@@ -5,7 +5,6 @@
 package kubernetes
 
 import (
-	"net/http"
 	"os"
 	"os/exec"
 	"sync"
@@ -14,11 +13,11 @@ import (
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 	"k8s.io/kubernetes/pkg/api"
-	k8serrors "k8s.io/kubernetes/pkg/api/errors"
 	apiext "k8s.io/kubernetes/pkg/apis/extensions"
 	"k8s.io/kubernetes/pkg/client/restclient"
 	k8sclient "k8s.io/kubernetes/pkg/client/unversioned"
 
+	"github.com/weaveworks/fluxy"
 	"github.com/weaveworks/fluxy/platform"
 )
 
@@ -103,66 +102,202 @@ func (c *Cluster) loop() {
 	}
 }
 
-// Namespaces returns the set of available namespaces on the platform.
-func (c *Cluster) Namespaces() ([]string, error) {
-	list, err := c.client.Namespaces().List(api.ListOptions{})
-	if err != nil {
-		return nil, errors.Wrap(err, "fetching namespaces")
+// --- platform API
+
+// SomeServices returns the services named, missing out any that don't
+// exist in the cluster. They do not necessarily have to be returned
+// in the order requested.
+func (c *Cluster) SomeServices(ids []flux.ServiceID) (res []platform.Service, err error) {
+	namespacedServices := map[string][]string{}
+	for _, id := range ids {
+		ns, name := id.Components()
+		namespacedServices[ns] = append(namespacedServices[ns], name)
 	}
-	res := make([]string, len(list.Items))
-	for i := range list.Items {
-		res[i] = list.Items[i].Name
+
+	for ns, names := range namespacedServices {
+		services := c.client.Services(ns)
+		controllers, err := c.podControllersInNamespace(ns)
+		if err != nil {
+			return nil, errors.Wrapf(err, "finding pod controllers for namespace %s/%s", ns)
+		}
+		for _, name := range names {
+			service, err := services.Get(name)
+			if err != nil {
+				return nil, errors.Wrapf(err, "finding service %s among services for namespace %s", name, ns)
+			}
+
+			res = append(res, c.makeService(ns, service, controllers))
+		}
 	}
 	return res, nil
 }
 
-// Service returns the platform.Service representation of the named service.
-func (c *Cluster) Service(namespace, service string) (platform.Service, error) {
-	apiService, err := c.service(namespace, service)
-	if err != nil {
-		if statusErr, ok := err.(*k8serrors.StatusError); ok && statusErr.ErrStatus.Code == http.StatusNotFound { // le sigh
-			return platform.Service{}, platform.ErrNoMatchingService
+// AllServices returns all services matching the criteria; that is, in
+// the namespace (or any namespace if that argument is empty), and not
+// in the `ignore` set given.
+func (c *Cluster) AllServices(namespace string, ignore flux.ServiceIDSet) (res []platform.Service, err error) {
+	namespaces := []string{}
+	if namespace == "" {
+		list, err := c.client.Namespaces().List(api.ListOptions{})
+		if err != nil {
+			return nil, errors.Wrap(err, "getting namespaces")
 		}
-		return platform.Service{}, errors.Wrap(err, "fetching service "+namespace+"/"+service)
+		for _, ns := range list.Items {
+			namespaces = append(namespaces, ns.Name)
+		}
+	} else {
+		namespaces = []string{namespace}
 	}
-	return c.makePlatformService(apiService), nil
+
+	for _, ns := range namespaces {
+		controllers, err := c.podControllersInNamespace(ns)
+		if err != nil {
+			return nil, errors.Wrapf(err, "getting pod controllers for namespace %s", ns)
+		}
+
+		list, err := c.client.Services(ns).List(api.ListOptions{})
+		if err != nil {
+			return nil, errors.Wrapf(err, "getting services for namespace %s", ns)
+		}
+
+		for _, service := range list.Items {
+			if !ignore.Contains(flux.MakeServiceID(ns, service.Name)) {
+				res = append(res, c.makeService(ns, &service, controllers))
+			}
+		}
+	}
+	return res, nil
 }
 
-// Services returns the set of services currently active on the platform in the
-// given namespace. Maybe it makes sense to move the namespace to the
-// constructor? Depends on how it will be used. For now it is here.
-//
-// The user is expected to list services, and then choose the one that will
-// receive a release. Releases operate on replication controllers, not services.
-// For now, we make a simplifying assumption that there is a one-to-one mapping
-// between services and replication controllers.
-func (c *Cluster) Services(namespace string) ([]platform.Service, error) {
-	apiServices, err := c.services(namespace)
+func (c *Cluster) makeService(ns string, service *api.Service, controllers []podController) platform.Service {
+	status, _ := c.status.getRegradeProgress(platform.NamespacedService{ns, service.Name})
+	return platform.Service{
+		ID:         flux.MakeServiceID(ns, service.Name),
+		IP:         service.Spec.ClusterIP,
+		Metadata:   metadataForService(service),
+		Containers: containersOrExcuse(service, controllers),
+		Status:     status,
+	}
+}
+
+func metadataForService(s *api.Service) map[string]string {
+	return map[string]string{
+		"created_at":       s.CreationTimestamp.String(),
+		"resource_version": s.ResourceVersion,
+		"uid":              string(s.UID),
+		"type":             string(s.Spec.Type),
+	}
+}
+
+func (c *Cluster) podControllersInNamespace(namespace string) (res []podController, err error) {
+	deploylist, err := c.client.Deployments(namespace).List(api.ListOptions{})
 	if err != nil {
-		return nil, errors.Wrap(err, "fetching services for namespace "+namespace)
+		return nil, errors.Wrap(err, "collecting deployments")
 	}
-	return c.makePlatformServices(apiServices), nil
-}
+	for i := range deploylist.Items {
+		res = append(res, podController{Deployment: &deploylist.Items[i]})
+	}
 
-func (c *Cluster) service(namespace, service string) (res api.Service, err error) {
-	apiService, err := c.client.Services(namespace).Get(service)
+	rclist, err := c.client.ReplicationControllers(namespace).List(api.ListOptions{})
 	if err != nil {
-		return api.Service{}, err
+		return nil, errors.Wrap(err, "collecting replication controllers")
 	}
-	return *apiService, nil
+	for i := range rclist.Items {
+		res = append(res, podController{ReplicationController: &rclist.Items[i]})
+	}
+
+	return res, nil
 }
 
-func (c *Cluster) services(namespace string) (res []api.Service, err error) {
-	list, err := c.client.Services(namespace).List(api.ListOptions{})
+// Find the pod controller (deployment or replication controller) that matches the service
+func matchController(service *api.Service, controllers []podController) (podController, error) {
+	selector := service.Spec.Selector
+	if len(selector) == 0 {
+		return podController{}, platform.ErrEmptySelector
+	}
+
+	var matching []podController
+	for _, c := range controllers {
+		if c.matchedBy(selector) {
+			matching = append(matching, c)
+		}
+	}
+	switch len(matching) {
+	case 1:
+		return matching[0], nil
+	case 0:
+		return podController{}, platform.ErrNoMatching
+	default:
+		return podController{}, platform.ErrMultipleMatching
+	}
+}
+
+func containersOrExcuse(service *api.Service, controllers []podController) platform.ContainersOrExcuse {
+	pc, err := matchController(service, controllers)
 	if err != nil {
-		return nil, err
+		return platform.ContainersOrExcuse{Excuse: err}
 	}
-	return list.Items, nil
+	return platform.ContainersOrExcuse{Containers: pc.templateContainers()}
 }
 
-func definitionObj(bytes []byte) (*apiObject, error) {
-	obj := apiObject{bytes: bytes}
-	return &obj, yaml.Unmarshal(bytes, &obj)
+// Either a replication controller, a deployment, or neither (both nils).
+type podController struct {
+	ReplicationController *api.ReplicationController
+	Deployment            *apiext.Deployment
+}
+
+func (p podController) name() string {
+	if p.Deployment != nil {
+		return p.Deployment.Name
+	} else if p.ReplicationController != nil {
+		return p.ReplicationController.Name
+	}
+	return ""
+}
+
+func (p podController) kind() string {
+	if p.Deployment != nil {
+		return "Deployment"
+	} else if p.ReplicationController != nil {
+		return "ReplicationController"
+	}
+	return "unknown"
+}
+
+func (p podController) templateContainers() (res []platform.Container) {
+	var apiContainers []api.Container
+	if p.Deployment != nil {
+		apiContainers = p.Deployment.Spec.Template.Spec.Containers
+	} else if p.ReplicationController != nil {
+		apiContainers = p.ReplicationController.Spec.Template.Spec.Containers
+	}
+
+	for _, c := range apiContainers {
+		res = append(res, platform.Container{Name: c.Name, Image: c.Image})
+	}
+	return res
+}
+
+func (p podController) templateLabels() map[string]string {
+	if p.Deployment != nil {
+		return p.Deployment.Spec.Template.Labels
+	} else if p.ReplicationController != nil {
+		return p.ReplicationController.Spec.Template.Labels
+	}
+	return nil
+}
+
+func (p podController) matchedBy(selector map[string]string) bool {
+	// For each key=value pair in the service spec, check if the RC
+	// annotates its pods in the same way. If any rule fails, the RC is
+	// not a match. If all rules pass, the RC is a match.
+	labels := p.templateLabels()
+	for k, v := range selector {
+		if labels[k] != v {
+			return false
+		}
+	}
+	return true
 }
 
 // Regrade performs service regrades as specified by the RegradeSpecs. If all
@@ -178,33 +313,58 @@ func definitionObj(bytes []byte) (*apiObject, error) {
 func (c *Cluster) Regrade(specs []platform.RegradeSpec) error {
 	errc := make(chan error)
 	c.actionc <- func() {
-		regradeErr := platform.RegradeError{}
+		namespacedSpecs := map[string][]platform.RegradeSpec{}
 		for _, spec := range specs {
-			newDef, err := definitionObj(spec.NewDefinition)
+			ns := spec.NamespacedService.Namespace
+			namespacedSpecs[ns] = append(namespacedSpecs[ns], spec)
+		}
+
+		regradeErr := platform.RegradeError{}
+		for namespace, specs := range namespacedSpecs {
+			services := c.client.Services(namespace)
+
+			controllers, err := c.podControllersInNamespace(namespace)
 			if err != nil {
-				regradeErr[spec.NamespacedService] = errors.Wrap(err, "reading definition")
+				err = errors.Wrapf(err, "getting pod controllers for namespace %s", namespace)
+				for _, spec := range specs {
+					regradeErr[spec.NamespacedService] = err
+				}
 				continue
 			}
 
-			pc, err := c.podControllerFor(spec.Namespace, spec.Service)
-			if err != nil {
-				regradeErr[spec.NamespacedService] = errors.Wrap(err, "getting pod controller")
-				continue
-			}
+			for _, spec := range specs {
+				newDef, err := definitionObj(spec.NewDefinition)
+				if err != nil {
+					regradeErr[spec.NamespacedService] = errors.Wrap(err, "reading definition")
+					continue
+				}
 
-			plan, err := pc.newRegrade(newDef)
-			if err != nil {
-				regradeErr[spec.NamespacedService] = errors.Wrap(err, "creating regrade")
-				continue
-			}
+				service, err := services.Get(spec.NamespacedService.Service)
+				if err != nil {
+					regradeErr[spec.NamespacedService] = errors.Wrap(err, "getting service")
+					continue
+				}
 
-			c.status.startRegrade(spec.NamespacedService, plan)
-			defer c.status.endRegrade(spec.NamespacedService)
+				controller, err := matchController(service, controllers)
+				if err != nil {
+					regradeErr[spec.NamespacedService] = errors.Wrap(err, "getting pod controller")
+					continue
+				}
 
-			logger := log.NewContext(c.logger).With("method", "Release", "namespace", spec.Namespace, "service", spec.Service)
-			if err = plan.exec(c, logger); err != nil {
-				regradeErr[spec.NamespacedService] = errors.Wrapf(err, "releasing %s/%s", spec.Namespace, spec.Service)
-				continue
+				plan, err := controller.newRegrade(newDef)
+				if err != nil {
+					regradeErr[spec.NamespacedService] = errors.Wrap(err, "creating regrade")
+					continue
+				}
+
+				c.status.startRegrade(spec.NamespacedService, plan)
+				defer c.status.endRegrade(spec.NamespacedService)
+
+				logger := log.NewContext(c.logger).With("method", "Release", "namespace", spec.Namespace, "service", spec.Service)
+				if err = plan.exec(c, logger); err != nil {
+					regradeErr[spec.NamespacedService] = errors.Wrapf(err, "releasing %s/%s", spec.Namespace, spec.Service)
+					continue
+				}
 			}
 		}
 		if len(regradeErr) > 0 {
@@ -215,6 +375,13 @@ func (c *Cluster) Regrade(specs []platform.RegradeSpec) error {
 	}
 	return <-errc
 }
+
+func definitionObj(bytes []byte) (*apiObject, error) {
+	obj := apiObject{bytes: bytes}
+	return &obj, yaml.Unmarshal(bytes, &obj)
+}
+
+// --- end platform API
 
 type statusMap struct {
 	inProgress map[platform.NamespacedService]*regrade
@@ -246,183 +413,4 @@ func (m *statusMap) endRegrade(ns platform.NamespacedService) {
 	m.mx.Lock()
 	defer m.mx.Unlock()
 	delete(m.inProgress, ns)
-}
-
-// Either a replication controller, a deployment, or neither (both nils).
-type podController struct {
-	ReplicationController *api.ReplicationController
-	Deployment            *apiext.Deployment
-}
-
-func (p podController) name() string {
-	if p.Deployment != nil {
-		return p.Deployment.Name
-	} else if p.ReplicationController != nil {
-		return p.ReplicationController.Name
-	}
-	return ""
-}
-
-func (p podController) kind() string {
-	if p.Deployment != nil {
-		return "Deployment"
-	} else if p.ReplicationController != nil {
-		return "ReplicationController"
-	}
-	return "unknown"
-}
-
-func (p podController) templateContainers() []api.Container {
-	if p.Deployment != nil {
-		return p.Deployment.Spec.Template.Spec.Containers
-	} else if p.ReplicationController != nil {
-		return p.ReplicationController.Spec.Template.Spec.Containers
-	}
-	return nil
-}
-
-func (c *Cluster) podControllerFor(namespace, serviceName string) (res podController, err error) {
-	res = podController{}
-
-	service, err := c.service(namespace, serviceName)
-	if err != nil {
-		return res, errors.Wrap(err, "fetching service "+namespace+"/"+serviceName)
-	}
-
-	selector := service.Spec.Selector
-	if len(selector) <= 0 {
-		return res, platform.ErrServiceHasNoSelector
-	}
-
-	// Now, try to find a deployment or replication controller that matches the
-	// selector given in the service. The simplifying assumption for the time
-	// being is that there's just one of these -- we return an error otherwise.
-
-	// Find a replication controller which produces pods that match that
-	// selector. We have to match all of the criteria in the selector, but we
-	// don't need a perfect match of all of the replication controller's pod
-	// properties.
-	rclist, err := c.client.ReplicationControllers(namespace).List(api.ListOptions{})
-	if err != nil {
-		return res, errors.Wrap(err, "fetching replication controllers for ns "+namespace)
-	}
-	var rcs []api.ReplicationController
-	for _, rc := range rclist.Items {
-		match := func() bool {
-			// For each key=value pair in the service spec, check if the RC
-			// annotates its pods in the same way. If any rule fails, the RC is
-			// not a match. If all rules pass, the RC is a match.
-			for k, v := range selector {
-				labels := rc.Spec.Template.Labels
-				if labels[k] != v {
-					return false
-				}
-			}
-			return true
-		}()
-		if match {
-			rcs = append(rcs, rc)
-		}
-	}
-	switch len(rcs) {
-	case 0:
-		break // we can hope to find a deployment
-	case 1:
-		res.ReplicationController = &rcs[0]
-	default:
-		return res, platform.ErrMultipleMatching
-	}
-
-	// Now do the same work for deployments.
-	deplist, err := c.client.Deployments(namespace).List(api.ListOptions{})
-	if err != nil {
-		return res, errors.Wrap(err, "fetching deployments for ns "+namespace)
-	}
-	var deps []apiext.Deployment
-	for _, d := range deplist.Items {
-		match := func() bool {
-			// For each key=value pair in the service spec, check if the
-			// deployment annotates its pods in the same way. If any rule fails,
-			// the deployment is not a match. If all rules pass, the deployment
-			// is a match.
-			for k, v := range selector {
-				labels := d.Spec.Template.Labels
-				if labels[k] != v {
-					return false
-				}
-			}
-			return true
-		}()
-		if match {
-			deps = append(deps, d)
-		}
-	}
-	switch len(deps) {
-	case 0:
-		break
-	case 1:
-		res.Deployment = &deps[0]
-	default:
-		return res, platform.ErrMultipleMatching
-	}
-
-	if res.ReplicationController != nil && res.Deployment != nil {
-		return res, platform.ErrMultipleMatching
-	}
-	if res.ReplicationController == nil && res.Deployment == nil {
-		return res, platform.ErrNoMatching
-	}
-	return res, nil
-}
-
-// ContainersFor returns a list of container names with the image
-// specified to run in that container, for a particular service. This
-// is useful to see which images a particular service is presently
-// running, to judge whether a release is needed.
-func (c *Cluster) ContainersFor(namespace, serviceName string) ([]platform.Container, error) {
-	pc, err := c.podControllerFor(namespace, serviceName)
-	if err != nil {
-		return nil, err
-	}
-
-	var containers []platform.Container
-	for _, container := range pc.templateContainers() {
-		containers = append(containers, platform.Container{
-			Image: container.Image,
-			Name:  container.Name,
-		})
-	}
-	if len(containers) <= 0 {
-		return nil, platform.ErrNoMatchingImages
-	}
-	return containers, nil
-}
-
-func (c *Cluster) makePlatformServices(apiServices []api.Service) []platform.Service {
-	platformServices := make([]platform.Service, len(apiServices))
-	for i, s := range apiServices {
-		platformServices[i] = c.makePlatformService(s)
-	}
-	return platformServices
-}
-
-func (c *Cluster) makePlatformService(s api.Service) platform.Service {
-	metadata := map[string]string{
-		"created_at":       s.CreationTimestamp.String(),
-		"resource_version": s.ResourceVersion,
-		"uid":              string(s.UID),
-		"type":             string(s.Spec.Type),
-	}
-
-	var status string
-	if summary, ok := c.status.getRegradeProgress(platform.NamespacedService{s.Namespace, s.Name}); ok {
-		status = summary
-	}
-
-	return platform.Service{
-		Name:     s.Name,
-		IP:       s.Spec.ClusterIP,
-		Metadata: metadata,
-		Status:   status,
-	}
 }
