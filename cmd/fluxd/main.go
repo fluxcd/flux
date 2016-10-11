@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -288,16 +287,16 @@ func main() {
 		}
 
 		// Instancer, for the instancing of operations
-		instancer = standaloneInstancer{
-			instance:     flux.DefaultInstanceID,
-			platform:     k8s,
-			registry:     reg,
-			config:       instanceConfig{flux.DefaultInstanceID, instanceDB},
-			gitrepo:      repo,
-			eventReader:  eventReader,
-			eventWriter:  eventWriter,
-			baseLogger:   logger,
-			baseDuration: helperDuration,
+		instancer = instance.StandaloneInstancer{
+			Instance:     flux.DefaultInstanceID,
+			Platform:     k8s,
+			Registry:     reg,
+			Config:       instanceConfig{flux.DefaultInstanceID, instanceDB},
+			GitRepo:      repo,
+			EventReader:  eventReader,
+			EventWriter:  eventWriter,
+			BaseLogger:   logger,
+			BaseDuration: helperDuration,
 		}
 	}
 
@@ -361,36 +360,6 @@ func main() {
 
 	// Go!
 	logger.Log("exit", <-errc)
-}
-
-// ---- An instance.Instancer
-
-type standaloneInstancer struct {
-	instance     flux.InstanceID
-	platform     *kubernetes.Cluster
-	registry     *registry.Client
-	config       instance.Configurer
-	gitrepo      git.Repo
-	eventReader  history.EventReader
-	eventWriter  history.EventWriter
-	baseLogger   log.Logger
-	baseDuration metrics.Histogram
-}
-
-func (s standaloneInstancer) Get(inst flux.InstanceID) (*instance.Instance, error) {
-	if inst != s.instance {
-		return nil, errors.New("cannot find instance with ID: " + string(inst))
-	}
-	return instance.New(
-		s.platform,
-		s.registry,
-		s.config,
-		s.gitrepo,
-		log.NewContext(s.baseLogger).With("instanceID", s.instance),
-		s.baseDuration,
-		s.eventReader,
-		s.eventWriter,
-	), nil
 }
 
 type instanceConfig struct {
