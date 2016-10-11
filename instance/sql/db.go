@@ -88,13 +88,13 @@ func (db *DB) GetConfig(inst flux.InstanceID) (instance.Config, error) {
 	return conf, json.Unmarshal([]byte(c), &conf)
 }
 
-func (db *DB) All() ([]instance.InstanceConfig, error) {
+func (db *DB) All() ([]instance.NamedConfig, error) {
 	rows, err := db.conn.Query(`SELECT instance, config FROM config`)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	instances := []instance.InstanceConfig{}
+	instances := []instance.NamedConfig{}
 	for rows.Next() {
 		var (
 			id, confStr string
@@ -108,7 +108,7 @@ func (db *DB) All() ([]instance.InstanceConfig, error) {
 			return nil, err
 		}
 
-		instances = append(instances, instance.InstanceConfig{
+		instances = append(instances, instance.NamedConfig{
 			ID:     flux.InstanceID(id),
 			Config: conf,
 		})

@@ -21,9 +21,10 @@ func (c ServiceConfig) Policy() flux.Policy {
 
 type Config struct {
 	Services map[flux.ServiceID]ServiceConfig `json:"services"`
+	Settings flux.InstanceConfig              `json:"settings"`
 }
 
-type InstanceConfig struct {
+type NamedConfig struct {
 	ID     flux.InstanceID
 	Config Config
 }
@@ -39,7 +40,7 @@ type UpdateFunc func(config Config) (Config, error)
 type DB interface {
 	UpdateConfig(instance flux.InstanceID, update UpdateFunc) error
 	GetConfig(instance flux.InstanceID) (Config, error)
-	All() ([]InstanceConfig, error)
+	All() ([]NamedConfig, error)
 }
 
 type Configurer interface {

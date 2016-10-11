@@ -31,6 +31,8 @@ func NewRouter() *mux.Router {
 	r.NewRoute().Name("Lock").Methods("POST").Path("/v3/lock").Queries("service", "{service}")
 	r.NewRoute().Name("Unlock").Methods("POST").Path("/v3/unlock").Queries("service", "{service}")
 	r.NewRoute().Name("History").Methods("GET").Path("/v3/history").Queries("service", "{service}")
+	r.NewRoute().Name("GetConfig").Methods("GET").Path("/v4/config").Queries("secrets", "{secrets}")
+	r.NewRoute().Name("SetConfig").Methods("POST").Path("/v4/config").Queries("clear", "{clear}")
 	return r
 }
 
@@ -45,6 +47,8 @@ func NewHandler(s flux.Service, r *mux.Router, logger log.Logger, h metrics.Hist
 		"Lock":         handleLock,
 		"Unlock":       handleUnlock,
 		"History":      handleHistory,
+		"GetConfig":    handleGetConfig,
+		"SetConfig":    handleSetConfig,
 	} {
 		var handler http.Handler
 		handler = handlerFunc(s)
@@ -500,6 +504,113 @@ func invokeHistory(client *http.Client, t flux.Token, router *mux.Router, endpoi
 
 	return res, nil
 }
+
+func handleGetConfig(s flux.Service) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		inst := getInstanceID(r)
+		var secrets bool
+		if _, err := fmt.Sscanf(mux.Vars(r)["secrets"], "%t", &secrets); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			fmt.Fprintf(w, errors.Wrapf(err, "parsing value for 'secrets'").Error())
+			return
+		}
+		config, err := s.GetConfig(inst, secrets)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintf(w, err.Error())
+			return
+		}
+
+		configBytes := bytes.Buffer{}
+		if err = json.NewEncoder(&configBytes).Encode(config); err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintf(w, err.Error())
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		w.Write(configBytes.Bytes())
+		return
+	})
+}
+
+func invokeGetConfig(client *http.Client, t flux.Token, router *mux.Router, endpoint string, secrets bool) (flux.InstanceConfig, error) {
+	u, err := makeURL(endpoint, router, "GetConfig", "secrets", fmt.Sprintf("%t", secrets))
+	if err != nil {
+		return flux.InstanceConfig{}, errors.Wrap(err, "constructing URL")
+	}
+
+	req, err := http.NewRequest("GET", u.String(), nil)
+	if err != nil {
+		return flux.InstanceConfig{}, errors.Wrapf(err, "constructing request %s", u)
+	}
+	setToken(req, t)
+
+	resp, err := executeRequest(client, req)
+	if err != nil {
+		return flux.InstanceConfig{}, errors.Wrap(err, "executing HTTP request")
+	}
+
+	var res flux.InstanceConfig
+	if err := json.NewDecoder(resp.Body).Decode(&res); err != nil {
+		return res, errors.Wrap(err, "decoding response body")
+	}
+	return res, nil
+}
+
+func handleSetConfig(s flux.Service) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		inst := getInstanceID(r)
+		var clear bool
+		if _, err := fmt.Sscanf(mux.Vars(r)["clear"], "%t", &clear); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			fmt.Fprintf(w, errors.Wrapf(err, "parsing value for 'clear'").Error())
+			return
+		}
+
+		var config flux.InstanceConfig
+		if err := json.NewDecoder(r.Body).Decode(&config); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			fmt.Fprintf(w, err.Error())
+			return
+		}
+
+		if err := s.SetConfig(inst, config, clear); err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintf(w, err.Error())
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		return
+
+	})
+}
+
+func invokeSetConfig(client *http.Client, t flux.Token, router *mux.Router, endpoint string, updates flux.InstanceConfig, clear bool) error {
+	u, err := makeURL(endpoint, router, "SetConfig", "clear", fmt.Sprintf("%t", clear))
+	if err != nil {
+		return errors.Wrap(err, "constructing URL")
+	}
+
+	var configBytes bytes.Buffer
+	if err = json.NewEncoder(&configBytes).Encode(updates); err != nil {
+		return errors.Wrap(err, "encoding config updates")
+	}
+
+	req, err := http.NewRequest("POST", u.String(), &configBytes)
+	if err != nil {
+		return errors.Wrapf(err, "constructing request %s", u)
+	}
+
+	if _, err = executeRequest(client, req); err != nil {
+		return errors.Wrap(err, "executing HTTP request")
+	}
+
+	return nil
+}
+
+// --- end handle/invoke
 
 func mustGetPathTemplate(route *mux.Route) string {
 	t, err := route.GetPathTemplate()
