@@ -13,7 +13,6 @@ import (
 	"github.com/weaveworks/fluxy/git"
 	"github.com/weaveworks/fluxy/history"
 	"github.com/weaveworks/fluxy/platform"
-	"github.com/weaveworks/fluxy/platform/kubernetes"
 	"github.com/weaveworks/fluxy/registry"
 )
 
@@ -22,7 +21,7 @@ type Instancer interface {
 }
 
 type Instance struct {
-	platform *kubernetes.Cluster
+	platform platform.Platform
 	registry *registry.Client
 	config   Configurer
 	duration metrics.Histogram
@@ -34,7 +33,7 @@ type Instance struct {
 }
 
 func New(
-	platform *kubernetes.Cluster,
+	platform platform.Platform,
 	registry *registry.Client,
 	config Configurer,
 	gitrepo git.Repo,

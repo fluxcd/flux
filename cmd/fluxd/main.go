@@ -29,6 +29,7 @@ import (
 	transport "github.com/weaveworks/fluxy/http"
 	"github.com/weaveworks/fluxy/instance"
 	instancedb "github.com/weaveworks/fluxy/instance/sql"
+	"github.com/weaveworks/fluxy/platform"
 	"github.com/weaveworks/fluxy/platform/kubernetes"
 	"github.com/weaveworks/fluxy/registry"
 	"github.com/weaveworks/fluxy/release"
@@ -367,7 +368,7 @@ func main() {
 
 type standaloneInstancer struct {
 	instance     flux.InstanceID
-	platform     *kubernetes.Cluster
+	platform     platform.Platform
 	registry     *registry.Client
 	config       instance.Configurer
 	gitrepo      git.Repo

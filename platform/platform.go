@@ -12,6 +12,14 @@ import (
 	"github.com/weaveworks/fluxy"
 )
 
+// Platform is the interface various platforms fulfill, e.g.
+// *kubernetes.Cluster
+type Platform interface {
+	AllServices(maybeNamespace string, ignored flux.ServiceIDSet) ([]Service, error)
+	SomeServices([]flux.ServiceID) ([]Service, error)
+	Regrade([]RegradeSpec) error
+}
+
 // Service describes a platform service, generally a floating IP with one or
 // more exposed ports that map to a load-balanced pool of instances. Eventually
 // this type will generalize to something of a lowest-common-denominator for
