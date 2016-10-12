@@ -46,7 +46,12 @@ deployment:
     commands:
       - docker login -e '.' -u "$DOCKER_REGISTRY_USER" -p "$DOCKER_REGISTRY_PASSWORD" quay.io
       - |
-          IMAGE_TAG="quay.io/weaveworks/fluxy:$(./docker/image-tag)"
+          IMAGE_TAG="quay.io/weaveworks/fluxd:$(./docker/image-tag)"
           echo Pushing $IMAGE_TAG
-          docker tag weaveworks/fluxy "$IMAGE_TAG"
+          docker tag weaveworks/fluxd "$IMAGE_TAG"
+          docker push "$IMAGE_TAG"
+          # Assumes that both images change in lock-step (they share a lot of code, so ..)
+          IMAGE_TAG="quay.io/weaveworks/fluxsvc:$(./docker/image-tag)"
+          echo Pushing $IMAGE_TAG
+          docker tag weaveworks/fluxsvc "$IMAGE_TAG"
           docker push "$IMAGE_TAG"

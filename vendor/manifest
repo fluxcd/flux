@@ -343,6 +343,14 @@
 			"notests": true
 		},
 		{
+			"importpath": "github.com/gorilla/websocket",
+			"repository": "https://github.com/gorilla/websocket",
+			"vcs": "git",
+			"revision": "2d1e4548da234d9cb742cc3628556fef86aafbac",
+			"branch": "master",
+			"notests": true
+		},
+		{
 			"importpath": "github.com/hailocab/go-hostpool",
 			"repository": "https://github.com/hailocab/go-hostpool",
 			"vcs": "git",
@@ -631,6 +639,15 @@
 			"revision": "3487a5545b3d480987dfb0492035299077fab33a",
 			"branch": "master",
 			"path": "/codec",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/weaveworks/scope/common/mtime",
+			"repository": "https://github.com/weaveworks/scope",
+			"vcs": "git",
+			"revision": "405a7059435c4bc7228cb4b18340ba19e6c645de",
+			"branch": "master",
+			"path": "/common/mtime",
 			"notests": true
 		},
 		{
