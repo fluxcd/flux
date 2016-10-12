@@ -305,22 +305,21 @@ func (s *server) GetConfig(instID flux.InstanceID, includeSecrets bool) (flux.In
 	return config, nil
 }
 
-func (s *server) SetConfig(instID flux.InstanceID, updates flux.InstanceConfig, clear bool) error {
+func (s *server) SetConfig(instID flux.InstanceID, updates flux.InstanceConfig, unset bool) error {
 	inst, err := s.instancer.Get(instID)
 	if err != nil {
 		return err
 	}
-	return inst.UpdateConfig(applyConfigUpdates(updates, clear))
+	return inst.UpdateConfig(applyConfigUpdates(updates, unset))
 }
 
 func removeSecrets(config *flux.InstanceConfig) {
-	return // %%% FIXME
+
 }
 
-func applyConfigUpdates(updates flux.InstanceConfig, clear bool) instance.UpdateFunc {
+func applyConfigUpdates(updates flux.InstanceConfig, unset bool) instance.UpdateFunc {
 	return func(config instance.Config) (instance.Config, error) {
-		fmt.Printf("%#v\n", updates)
-		config.Settings = updates // %%% FIXME only apply things that were supplied, or clear
+		config.Settings = updates
 		return config, nil
 	}
 }
