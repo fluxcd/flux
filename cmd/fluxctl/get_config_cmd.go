@@ -28,6 +28,7 @@ func (opts *getConfigOpts) Command() *cobra.Command {
 		),
 		RunE: opts.RunE,
 	}
+	cmd.Flags().BoolVar(&opts.secrets, "secrets", false, "Include secrets in the output (e.g., git key)")
 	cmd.Flags().StringVarP(&opts.output, "output", "o", "yaml", `The format to output ("yaml" or "json")`)
 	return cmd
 }

@@ -323,6 +323,7 @@ type GitConfig struct {
 	URL    string `json:"URL" yaml:"URL"`
 	Path   string `json:"path" yaml:"path"`
 	Branch string `json:"branch" yaml:"branch"`
+	Key    string `json:"key" yaml:"key"`
 }
 
 type SlackConfig struct {
