@@ -303,7 +303,12 @@ func main() {
 	// Release job store.
 	var rjs flux.ReleaseJobStore
 	{
-		rjs = release.NewInmemStore(time.Hour)
+		s, err := release.NewDatabaseStore(dbDriver, *databaseSource, time.Hour)
+		if err != nil {
+			logger.Log("component", "release job store", "err", err)
+			os.Exit(1)
+		}
+		rjs = s
 	}
 
 	// Release workers.
