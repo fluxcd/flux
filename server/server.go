@@ -307,15 +307,12 @@ func (s *server) GetConfig(instID flux.InstanceID, includeSecrets bool) (flux.In
 	return config, nil
 }
 
-func (s *server) SetConfig(instID flux.InstanceID, updates flux.InstanceConfig, unset bool) error {
+func (s *server) SetConfig(instID flux.InstanceID, updates flux.InstanceConfig) error {
 	inst, err := s.instancer.Get(instID)
 	if err != nil {
 		return err
 	}
-	if unset {
-		return errors.New("unset is not yet implemented")
-	}
-	return inst.UpdateConfig(applyConfigUpdates(updates, unset))
+	return inst.UpdateConfig(applyConfigUpdates(updates))
 }
 
 func removeSecrets(config *flux.InstanceConfig) {
@@ -327,7 +324,7 @@ func removeSecrets(config *flux.InstanceConfig) {
 	}
 }
 
-func applyConfigUpdates(updates flux.InstanceConfig, unset bool) instance.UpdateFunc {
+func applyConfigUpdates(updates flux.InstanceConfig) instance.UpdateFunc {
 	return func(config instance.Config) (instance.Config, error) {
 		config.Settings = updates
 		return config, nil
