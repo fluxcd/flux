@@ -22,13 +22,13 @@ func newSetConfig(parent *rootOpts) *setConfigOpts {
 func (opts *setConfigOpts) Command() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "set-config",
-		Short: "supply configuration for an instance",
+		Short: "set configuration values for an instance",
 		Example: makeExample(
-			"fluxctl config --file=./dev.conf",
+			"fluxctl config --file=./dev/flux-conf.yaml",
 		),
 		RunE: opts.RunE,
 	}
-	cmd.Flags().StringVarP(&opts.file, "file", "f", "", "A file to upload as configuration.")
+	cmd.Flags().StringVarP(&opts.file, "file", "f", "", "A file to upload as configuration; this will overwrite all values.")
 	return cmd
 }
 
@@ -38,7 +38,7 @@ func (opts *setConfigOpts) RunE(_ *cobra.Command, args []string) error {
 	}
 
 	if opts.file == "" {
-		return newUsageError("please supply a configuration file with --file")
+		return newUsageError("-f, --file is required")
 	}
 
 	var config flux.InstanceConfig

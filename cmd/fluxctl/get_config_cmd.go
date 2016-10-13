@@ -22,7 +22,7 @@ func newGetConfig(parent *rootOpts) *getConfigOpts {
 func (opts *getConfigOpts) Command() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "get-config",
-		Short: "retrieve configuration for an instance",
+		Short: "display configuration values for an instance",
 		Example: makeExample(
 			"fluxctl config --output=yaml",
 		),
