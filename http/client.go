@@ -6,6 +6,7 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/weaveworks/fluxy"
+	clientAPI "github.com/weaveworks/fluxy/client"
 )
 
 type client struct {
@@ -15,7 +16,7 @@ type client struct {
 	endpoint string
 }
 
-func NewClient(c *http.Client, router *mux.Router, endpoint string, t flux.Token) flux.Service {
+func NewClient(c *http.Client, router *mux.Router, endpoint string, t flux.Token) clientAPI.Client {
 	return &client{
 		client:   c,
 		token:    t,

@@ -51,5 +51,5 @@ func (opts *setConfigOpts) RunE(_ *cobra.Command, args []string) error {
 		return errors.Wrapf(err, "reading config from file")
 	}
 
-	return opts.Fluxd.SetConfig(noInstanceID, config)
+	return opts.FluxSVC.SetConfig(noInstanceID, config)
 }

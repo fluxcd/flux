@@ -52,7 +52,7 @@ func (opts *serviceCheckReleaseOpts) RunE(_ *cobra.Command, args []string) error
 	}
 
 	if opts.noFollow {
-		job, err := opts.Fluxd.GetRelease(noInstanceID, flux.ReleaseID(opts.releaseID))
+		job, err := opts.FluxSVC.GetRelease(noInstanceID, flux.ReleaseID(opts.releaseID))
 		if err != nil {
 			return err
 		}
@@ -82,7 +82,7 @@ func (opts *serviceCheckReleaseOpts) RunE(_ *cobra.Command, args []string) error
 		lastHeartbeatLocal    = time.Now()
 	)
 	for range time.Tick(time.Second) {
-		job, err = opts.Fluxd.GetRelease(noInstanceID, flux.ReleaseID(opts.releaseID))
+		job, err = opts.FluxSVC.GetRelease(noInstanceID, flux.ReleaseID(opts.releaseID))
 		if err != nil {
 			fmt.Fprintf(w, "Status: error querying release.\n") // error will get printed below
 			break

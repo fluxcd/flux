@@ -98,7 +98,7 @@ func (opts *serviceReleaseOpts) RunE(_ *cobra.Command, args []string) error {
 		fmt.Fprintf(os.Stdout, "Submitting release job...\n")
 	}
 
-	id, err := opts.Fluxd.PostRelease(noInstanceID, flux.ReleaseJobSpec{
+	id, err := opts.FluxSVC.PostRelease(noInstanceID, flux.ReleaseJobSpec{
 		ServiceSpec: service,
 		ImageSpec:   image,
 		Kind:        kind,
@@ -109,7 +109,6 @@ func (opts *serviceReleaseOpts) RunE(_ *cobra.Command, args []string) error {
 	}
 
 	fmt.Fprintf(os.Stdout, "Release job submitted, ID %s\n", id)
-
 	if opts.noFollow {
 		fmt.Fprintf(os.Stdout, "To check the status of this release job, run\n")
 		fmt.Fprintf(os.Stdout, "\n")

@@ -12,6 +12,10 @@ import (
 	"github.com/weaveworks/fluxy"
 )
 
+var (
+	ErrPlatformNotAvailable = errors.New("Platform is not available")
+)
+
 // Platform is the interface various platforms fulfill, e.g.
 // *kubernetes.Cluster
 type Platform interface {
@@ -22,9 +26,15 @@ type Platform interface {
 
 // For getting a connection to a platform; this can happen in
 // different ways, e.g., by having direct access to Kubernetes in
-// standalone mode, or by going via an agent, in future mode.
+// standalone mode, or by going via a message bus.
 type Connecter interface {
 	Connect(inst flux.InstanceID) (Platform, error)
+}
+
+// MessageBus handles routing messages to/from the matching platform.
+type MessageBus interface {
+	Connecter
+	Subscribe(inst flux.InstanceID, p Platform) error
 }
 
 // Service describes a platform service, generally a floating IP with one or
@@ -52,7 +62,7 @@ type Container struct {
 // Sometimes we care if we can't find the containers for a service,
 // sometimes we just want the information we can get.
 type ContainersOrExcuse struct {
-	Excuse     error
+	Excuse     string
 	Containers []Container
 }
 
@@ -61,7 +71,11 @@ func (s Service) ContainersOrNil() []Container {
 }
 
 func (s Service) ContainersOrError() ([]Container, error) {
-	return s.Containers.Containers, s.Containers.Excuse
+	var err error
+	if s.Containers.Excuse != "" {
+		err = errors.New(s.Containers.Excuse)
+	}
+	return s.Containers.Containers, err
 }
 
 // These errors all represent logical problems with platform

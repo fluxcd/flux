@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -16,8 +15,6 @@ import (
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/pflag"
-	"k8s.io/kubernetes/pkg/client/restclient"
-	"k8s.io/kubernetes/pkg/client/unversioned/clientcmd"
 
 	"github.com/weaveworks/fluxy"
 	"github.com/weaveworks/fluxy/automator"
@@ -28,7 +25,6 @@ import (
 	"github.com/weaveworks/fluxy/instance"
 	instancedb "github.com/weaveworks/fluxy/instance/sql"
 	"github.com/weaveworks/fluxy/platform"
-	"github.com/weaveworks/fluxy/platform/kubernetes"
 	"github.com/weaveworks/fluxy/release"
 	"github.com/weaveworks/fluxy/server"
 )
@@ -48,16 +44,6 @@ func main() {
 		listenAddr            = fs.StringP("listen", "l", ":3030", "Listen address for Flux API clients")
 		databaseSource        = fs.String("database-source", "file://fluxy.db", `Database source name; includes the DB driver as the scheme. The default is a temporary, file-based DB`)
 		databaseMigrationsDir = fs.String("database-migrations", "./db/migrations", "Path to database migration scripts, which are in subdirectories named for each driver")
-		// temporarily here until the code to connect a fluxd to the service is written
-		kubernetesMinikube        = fs.Bool("kubernetes-minikube", false, "Parse Kubernetes access information from standard minikube files")
-		kubernetesKubectl         = fs.String("kubernetes-kubectl", "", "Optional, explicit path to kubectl tool")
-		kubernetesHost            = fs.String("kubernetes-host", "", "Kubernetes host, e.g. http://10.11.12.13:8080")
-		kubernetesUsername        = fs.String("kubernetes-username", "", "Kubernetes HTTP basic auth username")
-		kubernetesPassword        = fs.String("kubernetes-password", "", "Kubernetes HTTP basic auth password")
-		kubernetesClientCert      = fs.String("kubernetes-client-certificate", "", "Path to Kubernetes client certification file for TLS")
-		kubernetesClientKey       = fs.String("kubernetes-client-key", "", "Path to Kubernetes client key file for TLS")
-		kubernetesCertAuthority   = fs.String("kubernetes-certificate-authority", "", "Path to Kubernetes cert file for certificate authority")
-		kubernetesBearerTokenFile = fs.String("kubernetes-bearer-token-file", "", "Path to file containing Kubernetes Bearer Token file")
 	)
 	fs.Parse(os.Args)
 
@@ -145,71 +131,9 @@ func main() {
 		}, []string{"method", "success"})
 	}
 
-	// Platform component.
-	var connecter platform.Connecter
+	var connecter platform.MessageBus
 	{
-		var restClientConfig *restclient.Config
-
-		if *kubernetesMinikube {
-			loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
-			configOverrides := &clientcmd.ConfigOverrides{}
-
-			// TODO: handle the filename for kubeconfig here, as well.
-			kubeConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(loadingRules, configOverrides)
-			var err error
-			restClientConfig, err = kubeConfig.ClientConfig()
-			if err != nil {
-				logger.Log("err", err)
-				os.Exit(1)
-			}
-		}
-
-		if restClientConfig == nil {
-			var bearerToken string
-			if *kubernetesBearerTokenFile != "" {
-				buf, err := ioutil.ReadFile(*kubernetesBearerTokenFile)
-				if err != nil {
-					logger.Log("err", err)
-					os.Exit(1)
-				}
-				bearerToken = string(buf)
-			}
-			restClientConfig = &restclient.Config{
-				Host:        *kubernetesHost,
-				Username:    *kubernetesUsername,
-				Password:    *kubernetesPassword,
-				BearerToken: bearerToken,
-				TLSClientConfig: restclient.TLSClientConfig{
-					CertFile: *kubernetesClientCert,
-					KeyFile:  *kubernetesClientKey,
-					CAFile:   *kubernetesCertAuthority,
-				},
-			}
-		}
-
-		// When adding a new platform, don't just bash it in. Create a Platform
-		// or Cluster interface in package platform, and have kubernetes.Cluster
-		// and your new platform implement that interface.
-		logger := log.NewContext(logger).With("component", "platform")
-		logger.Log("host", restClientConfig.Host)
-
-		var err error
-		k8s, err := kubernetes.NewCluster(restClientConfig, *kubernetesKubectl, logger)
-		if err != nil {
-			logger.Log("err", err)
-			os.Exit(1)
-		}
-
-		if services, err := k8s.AllServices("", nil); err != nil {
-			logger.Log("services", err)
-		} else {
-			logger.Log("services", len(services))
-		}
-
-		connecter = &platform.StandaloneConnecter{
-			Instance:     flux.DefaultInstanceID,
-			LocalCluster: k8s,
-		}
+		connecter = platform.NewStandaloneMessageBus()
 	}
 
 	var historyDB history.DB
@@ -288,7 +212,7 @@ func main() {
 	go auto.Start(log.NewContext(logger).With("component", "automator"))
 
 	// The server.
-	server := server.New(instancer, rjs, logger, serverMetrics)
+	server := server.New(instancer, connecter, rjs, logger, serverMetrics)
 
 	// Mechanical components.
 	errc := make(chan error)

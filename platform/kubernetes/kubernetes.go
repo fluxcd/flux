@@ -235,7 +235,7 @@ func matchController(service *api.Service, controllers []podController) (podCont
 func containersOrExcuse(service *api.Service, controllers []podController) platform.ContainersOrExcuse {
 	pc, err := matchController(service, controllers)
 	if err != nil {
-		return platform.ContainersOrExcuse{Excuse: err}
+		return platform.ContainersOrExcuse{Excuse: err.Error()}
 	}
 	return platform.ContainersOrExcuse{Containers: pc.templateContainers()}
 }

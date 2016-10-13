@@ -34,7 +34,7 @@ func (opts *serviceListOpts) RunE(_ *cobra.Command, args []string) error {
 		return errorWantedNoArgs
 	}
 
-	services, err := opts.Fluxd.ListServices(noInstanceID, opts.namespace)
+	services, err := opts.FluxSVC.ListServices(noInstanceID, opts.namespace)
 	if err != nil {
 		return err
 	}

@@ -41,5 +41,5 @@ func (opts *serviceAutomateOpts) RunE(_ *cobra.Command, args []string) error {
 		return err
 	}
 
-	return opts.Fluxd.Automate(noInstanceID, serviceID)
+	return opts.FluxSVC.Automate(noInstanceID, serviceID)
 }

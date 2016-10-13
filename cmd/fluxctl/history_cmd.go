@@ -40,7 +40,7 @@ func (opts *serviceHistoryOpts) RunE(_ *cobra.Command, args []string) error {
 		return err
 	}
 
-	events, err := opts.Fluxd.History(noInstanceID, service)
+	events, err := opts.FluxSVC.History(noInstanceID, service)
 	if err != nil {
 		return err
 	}

@@ -50,7 +50,7 @@ func (opts *getConfigOpts) RunE(_ *cobra.Command, args []string) error {
 		return errors.New("unknown output format " + opts.output)
 	}
 
-	config, err := opts.Fluxd.GetConfig(noInstanceID, opts.secrets)
+	config, err := opts.FluxSVC.GetConfig(noInstanceID, opts.secrets)
 	if err != nil {
 		return err
 	}

@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -10,9 +10,9 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/spf13/pflag"
 	"k8s.io/kubernetes/pkg/client/restclient"
-	"k8s.io/kubernetes/pkg/client/unversioned/clientcmd"
 
-	"github.com/weaveworks/fluxy/platform/client"
+	"github.com/weaveworks/fluxy"
+	transport "github.com/weaveworks/fluxy/http"
 	"github.com/weaveworks/fluxy/platform/kubernetes"
 )
 
@@ -28,18 +28,9 @@ func main() {
 	}
 	// This mirrors how kubectl extracts information from the environment.
 	var (
-		fluxsvcAddress            = fs.String("fluxsvc-address", "cloud.weave.works", "Address of the fluxsvc to connect to.")
-		token                     = fs.String("token", "", "Token to use to authenticate with cloud.weave.works")
-		insecure                  = fs.Bool("insecure", false, "Explicitly allow \"insecure\" SSL connections")
-		kubernetesMinikube        = fs.Bool("kubernetes-minikube", false, "Parse Kubernetes access information from standard minikube files")
-		kubernetesKubectl         = fs.String("kubernetes-kubectl", "", "Optional, explicit path to kubectl tool")
-		kubernetesHost            = fs.String("kubernetes-host", "", "Kubernetes host, e.g. http://10.11.12.13:8080")
-		kubernetesUsername        = fs.String("kubernetes-username", "", "Kubernetes HTTP basic auth username")
-		kubernetesPassword        = fs.String("kubernetes-password", "", "Kubernetes HTTP basic auth password")
-		kubernetesClientCert      = fs.String("kubernetes-client-certificate", "", "Path to Kubernetes client certification file for TLS")
-		kubernetesClientKey       = fs.String("kubernetes-client-key", "", "Path to Kubernetes client key file for TLS")
-		kubernetesCertAuthority   = fs.String("kubernetes-certificate-authority", "", "Path to Kubernetes cert file for certificate authority")
-		kubernetesBearerTokenFile = fs.String("kubernetes-bearer-token-file", "", "Path to file containing Kubernetes Bearer Token file")
+		fluxsvcAddress    = fs.String("fluxsvc-address", "cloud.weave.works:3031", "Address of the fluxsvc to connect to.")
+		token             = fs.String("token", "", "Token to use to authenticate with cloud.weave.works")
+		kubernetesKubectl = fs.String("kubernetes-kubectl", "", "Optional, explicit path to kubectl tool")
 	)
 	fs.Parse(os.Args)
 
@@ -54,44 +45,10 @@ func main() {
 	// Platform component.
 	var k8s *kubernetes.Cluster
 	{
-		var restClientConfig *restclient.Config
-
-		if *kubernetesMinikube {
-			loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
-			configOverrides := &clientcmd.ConfigOverrides{}
-
-			// TODO: handle the filename for kubeconfig here, as well.
-			// Or just use a NewInCluster
-			kubeConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(loadingRules, configOverrides)
-			var err error
-			restClientConfig, err = kubeConfig.ClientConfig()
-			if err != nil {
-				logger.Log("err", err)
-				os.Exit(1)
-			}
-		}
-
-		if restClientConfig == nil {
-			var bearerToken string
-			if *kubernetesBearerTokenFile != "" {
-				buf, err := ioutil.ReadFile(*kubernetesBearerTokenFile)
-				if err != nil {
-					logger.Log("err", err)
-					os.Exit(1)
-				}
-				bearerToken = string(buf)
-			}
-			restClientConfig = &restclient.Config{
-				Host:        *kubernetesHost,
-				Username:    *kubernetesUsername,
-				Password:    *kubernetesPassword,
-				BearerToken: bearerToken,
-				TLSClientConfig: restclient.TLSClientConfig{
-					CertFile: *kubernetesClientCert,
-					KeyFile:  *kubernetesClientKey,
-					CAFile:   *kubernetesCertAuthority,
-				},
-			}
+		restClientConfig, err := restclient.InClusterConfig()
+		if err != nil {
+			logger.Log("err", err)
+			os.Exit(1)
 		}
 
 		// When adding a new platform, don't just bash it in. Create a Platform
@@ -100,8 +57,7 @@ func main() {
 		logger := log.NewContext(logger).With("component", "platform")
 		logger.Log("host", restClientConfig.Host)
 
-		var err error
-		k8s, err := kubernetes.NewCluster(restClientConfig, *kubernetesKubectl, logger)
+		k8s, err = kubernetes.NewCluster(restClientConfig, *kubernetesKubectl, logger)
 		if err != nil {
 			logger.Log("err", err)
 			os.Exit(1)
@@ -116,7 +72,7 @@ func main() {
 
 	// Connect to fluxsvc
 	clientLogger := log.NewContext(logger).With("component", "client")
-	client, err := client.New(*fluxsvcAddress, *token, *insecure, k8s, clientLogger)
+	client, err := transport.NewDaemon(http.DefaultClient, flux.Token(*token), transport.NewRouter(), *fluxsvcAddress, k8s, clientLogger)
 	if err != nil {
 		logger.Log("err", err)
 		os.Exit(1)

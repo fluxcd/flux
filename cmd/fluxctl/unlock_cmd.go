@@ -41,5 +41,5 @@ func (opts *serviceUnlockOpts) RunE(_ *cobra.Command, args []string) error {
 		return err
 	}
 
-	return opts.Fluxd.Unlock(noInstanceID, serviceID)
+	return opts.FluxSVC.Unlock(noInstanceID, serviceID)
 }
