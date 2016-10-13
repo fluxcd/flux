@@ -20,6 +20,8 @@ type Service interface {
 	Lock(InstanceID, ServiceID) error
 	Unlock(InstanceID, ServiceID) error
 	History(InstanceID, ServiceSpec) ([]HistoryEntry, error)
+	GetConfig(_ InstanceID, secrets bool) (InstanceConfig, error)
+	SetConfig(InstanceID, InstanceConfig) error
 }
 
 const (

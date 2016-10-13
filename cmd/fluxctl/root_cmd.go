@@ -74,6 +74,8 @@ func (opts *rootOpts) Command() *cobra.Command {
 		newServiceDeautomate(svcopts).Command(),
 		newServiceLock(svcopts).Command(),
 		newServiceUnlock(svcopts).Command(),
+		newGetConfig(opts).Command(),
+		newSetConfig(opts).Command(),
 	)
 
 	return cmd

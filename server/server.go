@@ -20,6 +20,8 @@ const (
 
 	serviceLocked   = "Service locked."
 	serviceUnlocked = "Service unlocked."
+
+	secretReplacement = "******"
 )
 
 type server struct {
@@ -286,4 +288,45 @@ func (s *server) PostRelease(inst flux.InstanceID, spec flux.ReleaseJobSpec) (fl
 
 func (s *server) GetRelease(inst flux.InstanceID, id flux.ReleaseID) (flux.ReleaseJob, error) {
 	return s.releaser.GetJob(inst, id)
+}
+
+func (s *server) GetConfig(instID flux.InstanceID, includeSecrets bool) (flux.InstanceConfig, error) {
+	inst, err := s.instancer.Get(instID)
+	if err != nil {
+		return flux.InstanceConfig{}, err
+	}
+	fullConfig, err := inst.GetConfig()
+	if err != nil {
+		return flux.InstanceConfig{}, nil
+	}
+
+	config := fullConfig.Settings
+	if !includeSecrets {
+		removeSecrets(&config)
+	}
+	return config, nil
+}
+
+func (s *server) SetConfig(instID flux.InstanceID, updates flux.InstanceConfig) error {
+	inst, err := s.instancer.Get(instID)
+	if err != nil {
+		return err
+	}
+	return inst.UpdateConfig(applyConfigUpdates(updates))
+}
+
+func removeSecrets(config *flux.InstanceConfig) {
+	for _, auth := range config.Registry.Auths {
+		auth.Auth = secretReplacement
+	}
+	if config.Git.Key != "" {
+		config.Git.Key = secretReplacement
+	}
+}
+
+func applyConfigUpdates(updates flux.InstanceConfig) instance.UpdateFunc {
+	return func(config instance.Config) (instance.Config, error) {
+		config.Settings = updates
+		return config, nil
+	}
 }
