@@ -3,5 +3,6 @@ CREATE TABLE IF NOT EXISTS release_jobs (
     instance_id  string NOT NULL,
     submitted_at time   NOT NULL,
     claimed_at   time,
+    finished_at  time,
     job          string NOT NULL,
 )
