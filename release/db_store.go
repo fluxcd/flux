@@ -66,9 +66,9 @@ func (s *DatabaseStore) PutJob(inst flux.InstanceID, spec flux.ReleaseJobSpec) (
 	}
 
 	if _, err := tx.Exec(`
-		INSERT INTO release_jobs (release_id, instance_id, submitted_at, finished_at, job)
-		     VALUES ($1, $2, $3, $4, $5)
-	`, string(job.ID), string(job.Instance), job.Submitted, job.Finished, string(jobBytes)); err != nil {
+		INSERT INTO release_jobs (release_id, instance_id, submitted_at, job)
+		     VALUES ($1, $2, $3, $4)
+	`, string(job.ID), string(job.Instance), job.Submitted, string(jobBytes)); err != nil {
 		tx.Rollback()
 		return "", errors.Wrap(err, "enqueueing job")
 	}
@@ -85,7 +85,7 @@ func (s *DatabaseStore) NextJob() (flux.ReleaseJob, error) {
 		return flux.ReleaseJob{}, errors.Wrap(err, "beginning transaction")
 	}
 
-	// Have to SELECT submitted_at to ORDER BY it.
+	// Have to SELECT submitted_at to ORDER BY it in ql.
 	// https://github.com/cznic/ql/issues/138
 	var (
 		id        string
@@ -113,9 +113,9 @@ func (s *DatabaseStore) NextJob() (flux.ReleaseJob, error) {
 
 	if res, err := tx.Exec(`
 		UPDATE release_jobs
-		   SET claimed_at = now()
-		 WHERE release_id = $1
-	`, id); err != nil {
+		   SET claimed_at = $1
+		 WHERE release_id = $2
+	`, time.Now(), id); err != nil {
 		tx.Rollback()
 		return flux.ReleaseJob{}, errors.Wrap(err, "marking job as claimed")
 	} else if n, err := res.RowsAffected(); err != nil {
@@ -155,7 +155,24 @@ func (s *DatabaseStore) UpdateJob(job flux.ReleaseJob) error {
 		return errors.Wrap(err, "after update, checking affected rows")
 	} else if n != 1 {
 		tx.Rollback()
-		return errors.Errorf("wanted to affect 1 row; affected %d", n)
+		return errors.Errorf("updating job wanted to affect 1 row; affected %d", n)
+	}
+
+	if job.IsFinished() {
+		if res, err := tx.Exec(`
+			UPDATE release_jobs
+			   SET finished_at = $1
+			 WHERE release_id = $2
+		`, job.Finished, string(job.ID)); err != nil {
+			tx.Rollback()
+			return errors.Wrap(err, "marking finished in database")
+		} else if n, err := res.RowsAffected(); err != nil {
+			tx.Rollback()
+			return errors.Wrap(err, "after marking finished, checking affected rows")
+		} else if n != 1 {
+			tx.Rollback()
+			return errors.Errorf("marking finish wanted to affect 1 row; affected %d", n)
+		}
 	}
 
 	if err := tx.Commit(); err != nil {
