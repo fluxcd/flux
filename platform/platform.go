@@ -20,6 +20,13 @@ type Platform interface {
 	Regrade([]RegradeSpec) error
 }
 
+// For getting a connection to a platform; this can happen in
+// different ways, e.g., by having direct access to Kubernetes in
+// standalone mode, or by going via an agent, in future mode.
+type Connecter interface {
+	Open(inst flux.InstanceID) (Platform, error)
+}
+
 // Service describes a platform service, generally a floating IP with one or
 // more exposed ports that map to a load-balanced pool of instances. Eventually
 // this type will generalize to something of a lowest-common-denominator for
