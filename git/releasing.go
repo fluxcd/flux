@@ -63,11 +63,8 @@ func check(workingDir, subdir string) bool {
 	return diff.Run() != nil
 }
 
-func copyKey(working, key string) (string, error) {
+func writeKey(working, key string) (string, error) {
 	keyPath := filepath.Join(working, "id-rsa")
-	f, err := ioutil.ReadFile(key)
-	if err == nil {
-		err = ioutil.WriteFile(keyPath, f, 0400)
-	}
+	err := ioutil.WriteFile(keyPath, []byte(key), 0400)
 	return keyPath, err
 }

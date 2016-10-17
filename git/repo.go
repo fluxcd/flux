@@ -22,13 +22,13 @@ type Repo struct {
 	Path string
 }
 
-func (r Repo) Clone() (path string, keyFile string, err error) {
+func (r Repo) Clone() (path string, key string, err error) {
 	workingDir, err := ioutil.TempDir(os.TempDir(), "fluxy-gitclone")
 	if err != nil {
 		return "", "", err
 	}
 
-	keyFile, err = copyKey(workingDir, r.Key)
+	keyFile, err := writeKey(workingDir, r.Key)
 	if err != nil {
 		return "", "", err
 	}
