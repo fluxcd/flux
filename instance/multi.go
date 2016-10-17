@@ -1,6 +1,8 @@
 package instance
 
 import (
+	"net/http"
+
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/metrics"
 	"github.com/pkg/errors"
@@ -45,7 +47,17 @@ func (m *MultitenantInstancer) Get(instanceID flux.InstanceID) (*Instance, error
 	repo := gitRepoFromSettings(c.Settings)
 
 	// Events for this instance
-	events := EventReadWriter{instanceID, m.History}
+	eventRW := EventReadWriter{instanceID, m.History}
+	var eventW history.EventWriter = eventRW
+	if c.Settings.Slack.HookURL != "" {
+		eventW = history.TeeWriter(eventRW, history.NewSlackEventWriter(
+			http.DefaultClient,
+			c.Settings.Slack.HookURL,
+			c.Settings.Slack.Username,
+			`Regrade`, // only catch the final message
+		))
+	}
+
 	// Configuration for this instance
 	config := InstanceConfig{instanceID, m.DB}
 
@@ -56,8 +68,8 @@ func (m *MultitenantInstancer) Get(instanceID flux.InstanceID) (*Instance, error
 		repo,
 		instanceLogger,
 		m.Histogram,
-		events,
-		events,
+		eventRW,
+		eventW,
 	), nil
 }
 
