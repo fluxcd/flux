@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -22,14 +23,13 @@ import (
 	"github.com/weaveworks/fluxy"
 	"github.com/weaveworks/fluxy/automator"
 	"github.com/weaveworks/fluxy/db"
-	"github.com/weaveworks/fluxy/git"
 	"github.com/weaveworks/fluxy/history"
 	historysql "github.com/weaveworks/fluxy/history/sql"
 	transport "github.com/weaveworks/fluxy/http"
 	"github.com/weaveworks/fluxy/instance"
 	instancedb "github.com/weaveworks/fluxy/instance/sql"
+	"github.com/weaveworks/fluxy/platform"
 	"github.com/weaveworks/fluxy/platform/kubernetes"
-	"github.com/weaveworks/fluxy/registry"
 	"github.com/weaveworks/fluxy/release"
 	"github.com/weaveworks/fluxy/server"
 )
@@ -47,7 +47,6 @@ func main() {
 	// This mirrors how kubectl extracts information from the environment.
 	var (
 		listenAddr                = fs.StringP("listen", "l", ":3030", "Listen address for Flux API clients")
-		registryCredentials       = fs.String("registry-credentials", "", "Path to image registry credentials file, in the format of ~/.docker/config.json")
 		kubernetesMinikube        = fs.Bool("kubernetes-minikube", false, "Parse Kubernetes access information from standard minikube files")
 		kubernetesKubectl         = fs.String("kubernetes-kubectl", "", "Optional, explicit path to kubectl tool")
 		kubernetesHost            = fs.String("kubernetes-host", "", "Kubernetes host, e.g. http://10.11.12.13:8080")
@@ -60,14 +59,24 @@ func main() {
 		_                         = fs.String("database-driver", "", "Database driver name")
 		databaseSource            = fs.String("database-source", "file://fluxy.db", `Database source name; includes the DB driver as the scheme. The default is a temporary, file-based DB`)
 		databaseMigrationsDir     = fs.String("database-migrations", "./db/migrations", "Path to database migration scripts, which are in subdirectories named for each driver")
-		repoURL                   = fs.String("repo-url", "", "Config repo URL, e.g. git@github.com:myorg/conf (required)")
-		repoBranch                = fs.String("repo-branch", "master", "Config repo branch to update")
-		repoKey                   = fs.String("repo-key", "", "SSH key file with commit rights to config repo")
-		repoPath                  = fs.String("repo-path", "", "Path within config repo to look for resource definition files")
-		slackWebhookURL           = fs.String("slack-webhook-url", "", "Slack webhook URL for release notifications (optional)")
-		slackUsername             = fs.String("slack-username", "fluxy-deploy", "Slack username for release notifications")
+
+		// per-instance settings that now come from the instance DB
+		_ = fs.String("registry-credentials", "", "Path to image registry credentials file, in the format of ~/.docker/config.json")
+		_ = fs.String("repo-url", "", "Config repo URL, e.g. git@github.com:myorg/conf (required)")
+		_ = fs.String("repo-branch", "master", "Config repo branch to update")
+		_ = fs.String("repo-key", "", "SSH key file with commit rights to config repo")
+		_ = fs.String("repo-path", "", "Path within config repo to look for resource definition files")
+		_ = fs.String("slack-webhook-url", "", "Slack webhook URL for release notifications (optional)")
+		_ = fs.String("slack-username", "fluxy-deploy", "Slack username for release notifications")
 	)
 	fs.MarkDeprecated("database-driver", `the driver is taken from the database source URL instead; e.g., postgres in "postgres://host"`)
+
+	instanceConfigFlags := []string{
+		"registry-credentials", "repo-url", "repo-branch", "repo-key", "repo-path", "slack-webhook-url", "slack-username",
+	}
+	for _, f := range instanceConfigFlags {
+		fs.MarkDeprecated(f, "use `fluxctl config` to supply instance configuration instead")
+	}
 	fs.Parse(os.Args)
 
 	// Logger component.
@@ -154,32 +163,8 @@ func main() {
 		}, []string{"method", "success"})
 	}
 
-	// Prerequisite for proceeding: migrate any database tables
-
-	// Registry component.
-	var reg *registry.Client
-	{
-		logger := log.NewContext(logger).With("component", "registry")
-		creds := registry.NoCredentials()
-		if *registryCredentials != "" {
-			logger.Log("credentials", *registryCredentials)
-			c, err := registry.CredentialsFromFile(*registryCredentials)
-			if err != nil {
-				logger.Log("err", err)
-				os.Exit(1)
-			}
-			creds = c
-		} else {
-			logger.Log("credentials", "none")
-		}
-		reg = &registry.Client{
-			Credentials: creds,
-			Logger:      logger,
-		}
-	}
-
-	// Platform component.
-	var k8s *kubernetes.Cluster
+	// Connecter component.
+	var connecter platform.Connecter
 	{
 		var restClientConfig *restclient.Config
 
@@ -227,7 +212,7 @@ func main() {
 		logger.Log("host", restClientConfig.Host)
 
 		var err error
-		k8s, err = kubernetes.NewCluster(restClientConfig, *kubernetesKubectl, logger)
+		k8s, err := kubernetes.NewCluster(restClientConfig, *kubernetesKubectl, logger)
 		if err != nil {
 			logger.Log("err", err)
 			os.Exit(1)
@@ -238,32 +223,18 @@ func main() {
 		} else {
 			logger.Log("services", len(services))
 		}
+		connecter = &StandaloneConnecter{flux.DefaultInstanceID, k8s}
 	}
 
 	// History component.
-	var eventWriter history.EventWriter
-	var eventReader history.EventReader
+	var historyDB history.DB
 	{
 		db, err := historysql.NewSQL(dbDriver, *databaseSource)
 		if err != nil {
 			logger.Log("component", "history", "err", err)
 			os.Exit(1)
 		}
-
-		rw := instanceEventReadWriter{flux.DefaultInstanceID, db}
-		eventWriter, eventReader = rw, rw
-
-		if *slackWebhookURL != "" {
-			eventWriter = history.TeeWriter(eventWriter, history.NewSlackEventWriter(
-				http.DefaultClient,
-				*slackWebhookURL,
-				*slackUsername,
-				`Regrade`, // only catch the final message
-			))
-			logger.Log("Slack", "enabled", "username", *slackUsername)
-		} else {
-			logger.Log("Slack", "disabled")
-		}
+		historyDB = db
 	}
 
 	// Configuration, i.e., whether services are automated or not.
@@ -279,24 +250,13 @@ func main() {
 
 	var instancer instance.Instancer
 	{
-		repo := git.Repo{
-			URL:    *repoURL,
-			Branch: *repoBranch,
-			Key:    *repoKey,
-			Path:   *repoPath,
-		}
-
 		// Instancer, for the instancing of operations
-		instancer = instance.StandaloneInstancer{
-			Instance:     flux.DefaultInstanceID,
-			Platform:     k8s,
-			Registry:     reg,
-			Config:       instanceConfig{flux.DefaultInstanceID, instanceDB},
-			GitRepo:      repo,
-			EventReader:  eventReader,
-			EventWriter:  eventWriter,
-			BaseLogger:   logger,
-			BaseDuration: helperDuration,
+		instancer = &instance.MultitenantInstancer{
+			DB:        instanceDB,
+			Connecter: connecter,
+			Logger:    logger,
+			Histogram: helperDuration,
+			History:   historyDB,
 		}
 	}
 
@@ -325,11 +285,10 @@ func main() {
 		var err error
 		auto, err = automator.New(automator.Config{
 			Releaser:   rjs,
-			History:    eventWriter,
 			InstanceDB: instanceDB,
 		})
 		if err == nil {
-			logger.Log("automator", "enabled", "repo", *repoURL)
+			logger.Log("automator", "enabled")
 		} else {
 			// Service can handle a nil automator pointer.
 			logger.Log("automator", "disabled", "reason", err)
@@ -362,30 +321,16 @@ func main() {
 	logger.Log("exit", <-errc)
 }
 
-type instanceConfig struct {
-	instance flux.InstanceID
-	db       instance.DB
+// ---
+
+type StandaloneConnecter struct {
+	instanceID flux.InstanceID
+	cluster    platform.Platform
 }
 
-func (c instanceConfig) Get() (instance.Config, error) {
-	return c.db.GetConfig(c.instance)
-}
-
-func (c instanceConfig) Update(update instance.UpdateFunc) error {
-	return c.db.UpdateConfig(c.instance, update)
-}
-
-type instanceEventReadWriter struct {
-	inst flux.InstanceID
-	db   history.DB
-}
-
-func (rw instanceEventReadWriter) LogEvent(namespace, service, msg string) error {
-	return rw.db.LogEvent(rw.inst, namespace, service, msg)
-}
-func (rw instanceEventReadWriter) AllEvents() ([]history.Event, error) {
-	return rw.db.AllEvents(rw.inst)
-}
-func (rw instanceEventReadWriter) EventsForService(namespace, service string) ([]history.Event, error) {
-	return rw.db.EventsForService(rw.inst, namespace, service)
+func (c *StandaloneConnecter) Open(id flux.InstanceID) (platform.Platform, error) {
+	if id == c.instanceID {
+		return c.cluster, nil
+	}
+	return nil, errors.New("standalone connecter cannot connect to instance other than " + string(c.instanceID))
 }

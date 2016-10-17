@@ -5,14 +5,12 @@ import (
 	"strings"
 
 	"github.com/weaveworks/fluxy"
-	"github.com/weaveworks/fluxy/history"
 	"github.com/weaveworks/fluxy/instance"
 )
 
 // Config collects the parameters to the automator. All fields are mandatory.
 type Config struct {
 	Releaser   flux.ReleaseJobReadPusher
-	History    history.EventWriter
 	InstanceDB instance.DB
 }
 
@@ -21,9 +19,6 @@ func (cfg Config) Validate() error {
 	var errs []string
 	if cfg.Releaser == nil {
 		errs = append(errs, "releaser not supplied")
-	}
-	if cfg.History == nil {
-		errs = append(errs, "history DB not supplied")
 	}
 	if cfg.InstanceDB == nil {
 		errs = append(errs, "instance configuration DB not supplied")
