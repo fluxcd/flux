@@ -24,7 +24,7 @@ type Platform interface {
 // different ways, e.g., by having direct access to Kubernetes in
 // standalone mode, or by going via an agent, in future mode.
 type Connecter interface {
-	Open(inst flux.InstanceID) (Platform, error)
+	Connect(inst flux.InstanceID) (Platform, error)
 }
 
 // Service describes a platform service, generally a floating IP with one or

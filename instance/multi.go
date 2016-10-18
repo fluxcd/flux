@@ -29,7 +29,7 @@ func (m *MultitenantInstancer) Get(instanceID flux.InstanceID) (*Instance, error
 	}
 
 	// Platform interface for this instance
-	platform, err := m.Connecter.Open(instanceID)
+	platform, err := m.Connecter.Connect(instanceID)
 	if err != nil {
 		return nil, errors.Wrap(err, "connecting to platform")
 	}

@@ -328,7 +328,7 @@ type StandaloneConnecter struct {
 	cluster    platform.Platform
 }
 
-func (c *StandaloneConnecter) Open(id flux.InstanceID) (platform.Platform, error) {
+func (c *StandaloneConnecter) Connect(id flux.InstanceID) (platform.Platform, error) {
 	if id == c.instanceID {
 		return c.cluster, nil
 	}
