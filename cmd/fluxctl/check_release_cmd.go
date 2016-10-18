@@ -34,7 +34,7 @@ func (opts *serviceCheckReleaseOpts) Command() *cobra.Command {
 		RunE: opts.RunE,
 	}
 	cmd.Flags().StringVarP(&opts.releaseID, "release-id", "r", "", "release ID to check")
-	cmd.Flags().BoolVarP(&opts.follow, "follow", "f", true, "continuously check the release, blocking until it is complete")
+	cmd.Flags().BoolVarP(&opts.follow, "follow", "f", false, "continuously check the release, blocking until it is complete")
 	return cmd
 }
 
