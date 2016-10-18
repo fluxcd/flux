@@ -44,7 +44,7 @@ func (m *MultitenantInstancer) Get(instanceID flux.InstanceID) (*Instance, error
 	}
 	regClient := &registry.Client{
 		Credentials: creds,
-		Logger:      instanceLogger,
+		Logger:      log.NewContext(instanceLogger).With("component", "registry"),
 	}
 
 	repo := gitRepoFromSettings(c.Settings)
@@ -62,7 +62,7 @@ func (m *MultitenantInstancer) Get(instanceID flux.InstanceID) (*Instance, error
 	}
 
 	// Configuration for this instance
-	config := InstanceConfig{instanceID, m.DB}
+	config := configurer{instanceID, m.DB}
 
 	return New(
 		platform,
