@@ -12,7 +12,8 @@ type GitConfig struct {
 }
 
 type SlackConfig struct {
-	HookURL string `json:"hookURL" yaml:"hookURL"`
+	HookURL  string `json:"hookURL" yaml:"hookURL"`
+	Username string `json:"username" yaml:"username"`
 }
 
 type RegistryConfig struct {
