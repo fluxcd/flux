@@ -3,6 +3,8 @@ package release
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
+	"reflect"
 	"strings"
 	"time"
 
@@ -16,6 +18,8 @@ type DatabaseStore struct {
 	conn   *sql.DB
 	oldest time.Duration
 }
+
+var _ flux.ReleaseJobStore = &DatabaseStore{}
 
 // NewDatabaseStore returns a usable DatabaseStore.
 // The DB should have a release_jobs table.
@@ -32,19 +36,25 @@ func NewDatabaseStore(driver, datasource string, oldest time.Duration) (*Databas
 }
 
 func (s *DatabaseStore) GetJob(inst flux.InstanceID, id flux.ReleaseID) (flux.ReleaseJob, error) {
-	var jobStr string
+	var (
+		jobStr      string
+		claimedAt   nullTime
+		heartbeatAt nullTime
+	)
 	if err := s.conn.QueryRow(`
-		SELECT job
+		SELECT job, claimed_at, heartbeat_at
 		  FROM release_jobs
 		 WHERE release_id = $1
 		   AND instance_id = $2
-	`, string(id), string(inst)).Scan(&jobStr); err != nil {
+	`, string(id), string(inst)).Scan(&jobStr, &claimedAt, &heartbeatAt); err != nil {
 		return flux.ReleaseJob{}, errors.Wrap(err, "error getting job")
 	}
 	var job flux.ReleaseJob
 	if err := json.NewDecoder(strings.NewReader(jobStr)).Decode(&job); err != nil {
 		return flux.ReleaseJob{}, errors.Wrap(err, "unmarshaling job")
 	}
+	job.Claimed = time.Time(claimedAt).UTC()
+	job.Heartbeat = time.Time(heartbeatAt).UTC()
 	return job, nil
 }
 
@@ -53,7 +63,7 @@ func (s *DatabaseStore) PutJob(inst flux.InstanceID, spec flux.ReleaseJobSpec) (
 		Instance:  inst,
 		Spec:      spec,
 		ID:        flux.NewReleaseID(),
-		Submitted: time.Now(),
+		Submitted: time.Now().UTC(),
 	}
 	jobBytes, err := json.Marshal(job)
 	if err != nil {
@@ -115,7 +125,7 @@ func (s *DatabaseStore) NextJob() (flux.ReleaseJob, error) {
 		UPDATE release_jobs
 		   SET claimed_at = $1
 		 WHERE release_id = $2
-	`, time.Now(), id); err != nil {
+	`, time.Now().UTC(), id); err != nil {
 		tx.Rollback()
 		return flux.ReleaseJob{}, errors.Wrap(err, "marking job as claimed")
 	} else if n, err := res.RowsAffected(); err != nil {
@@ -153,9 +163,12 @@ func (s *DatabaseStore) UpdateJob(job flux.ReleaseJob) error {
 	} else if n, err := res.RowsAffected(); err != nil {
 		tx.Rollback()
 		return errors.Wrap(err, "after update, checking affected rows")
-	} else if n != 1 {
+	} else if n == 0 {
 		tx.Rollback()
-		return errors.Errorf("updating job wanted to affect 1 row; affected %d", n)
+		return flux.ErrNoSuchReleaseJob
+	} else if n > 1 {
+		tx.Rollback()
+		return errors.Errorf("updating job affected %d rows; wanted 1", n)
 	}
 
 	if job.IsFinished() {
@@ -181,6 +194,36 @@ func (s *DatabaseStore) UpdateJob(job flux.ReleaseJob) error {
 	return nil
 }
 
+func (s *DatabaseStore) Heartbeat(id flux.ReleaseID) error {
+	tx, err := s.conn.Begin()
+	if err != nil {
+		return errors.Wrap(err, "beginning heartbeat transaction")
+	}
+
+	if res, err := tx.Exec(`
+		UPDATE release_jobs
+		   SET heartbeat_at = $1
+		 WHERE release_id = $2
+	`, time.Now().UTC(), string(id)); err != nil {
+		tx.Rollback()
+		return errors.Wrap(err, "heartbeating job in database")
+	} else if n, err := res.RowsAffected(); err != nil {
+		tx.Rollback()
+		return errors.Wrap(err, "after heartbeat, checking affected rows")
+	} else if n == 0 {
+		tx.Rollback()
+		return flux.ErrNoSuchReleaseJob
+	} else if n > 1 {
+		tx.Rollback()
+		return errors.Errorf("heartbeating job affected %d rows; wanted 1", n)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return errors.Wrap(err, "committing heartbeat transaction")
+	}
+	return nil
+}
+
 func (s *DatabaseStore) GC() error {
 	tx, err := s.conn.Begin()
 	if err != nil {
@@ -191,7 +234,7 @@ func (s *DatabaseStore) GC() error {
 		DELETE FROM release_jobs
 		      WHERE finished_at IS NOT NULL
 		        AND submitted_at < $1
-	`, time.Now().Add(-s.oldest)); err != nil {
+	`, time.Now().UTC().Add(-s.oldest)); err != nil {
 		tx.Rollback()
 		return errors.Wrap(err, "deleting old jobs")
 	}
@@ -208,4 +251,17 @@ func (s *DatabaseStore) sanityCheck() error {
 		return errors.Wrap(err, "failed sanity check for release_jobs table")
 	}
 	return nil
+}
+
+type nullTime time.Time
+
+func (t *nullTime) Scan(src interface{}) error {
+	switch x := src.(type) {
+	case nil:
+		return nil
+	case time.Time:
+		*t = nullTime(x)
+		return nil
+	}
+	return fmt.Errorf("unsupported scan of %s to nullTime", reflect.TypeOf(src))
 }

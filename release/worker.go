@@ -47,14 +47,17 @@ func (w *Worker) Work(tick <-chan time.Time) {
 			continue
 		}
 
-		job.Started = time.Now()
+		cancel, done := make(chan struct{}), make(chan struct{})
+		go heartbeat(job.ID, w.jobs, time.Second, cancel, done, w.logger)
+
+		job.Started = time.Now().UTC()
 		job.Status = "Executing..."
 		if err := w.jobs.UpdateJob(job); err != nil {
 			w.logger.Log("err", errors.Wrapf(err, "updating release job %s", job.ID))
 		}
 
 		err = w.releaser.Release(&job, w.jobs)
-		job.Finished = time.Now()
+		job.Finished = time.Now().UTC()
 		if err != nil {
 			job.Success = false
 			status := fmt.Sprintf("Failed: %v", err)
@@ -67,5 +70,28 @@ func (w *Worker) Work(tick <-chan time.Time) {
 		if err := w.jobs.UpdateJob(job); err != nil {
 			w.logger.Log("err", errors.Wrapf(err, "updating release job %s", job.ID))
 		}
+
+		close(cancel)
+		<-done
 	}
+}
+
+func heartbeat(id flux.ReleaseID, h heartbeater, d time.Duration, cancel <-chan struct{}, done chan<- struct{}, logger log.Logger) {
+	t := time.NewTicker(d)
+	defer t.Stop()
+	defer close(done)
+	for {
+		select {
+		case <-t.C:
+			if err := h.Heartbeat(id); err != nil {
+				logger.Log("heartbeat", err)
+			}
+		case <-cancel:
+			return
+		}
+	}
+}
+
+type heartbeater interface {
+	Heartbeat(flux.ReleaseID) error
 }

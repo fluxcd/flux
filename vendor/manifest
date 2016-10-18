@@ -335,6 +335,14 @@
 			"notests": true
 		},
 		{
+			"importpath": "github.com/gosuri/uilive",
+			"repository": "https://github.com/gosuri/uilive",
+			"vcs": "git",
+			"revision": "efb88ccd059957c48f24f9d351d33a0eb00ede41",
+			"branch": "master",
+			"notests": true
+		},
+		{
 			"importpath": "github.com/hailocab/go-hostpool",
 			"repository": "https://github.com/hailocab/go-hostpool",
 			"vcs": "git",

@@ -268,6 +268,7 @@ type ReleaseJobWritePopper interface {
 
 type ReleaseJobUpdater interface {
 	UpdateJob(ReleaseJob) error
+	Heartbeat(ReleaseID) error
 }
 
 type ReleaseJobPopper interface {
@@ -298,6 +299,7 @@ type ReleaseJob struct {
 	Submitted time.Time      `json:"submitted"`
 	Claimed   time.Time      `json:"claimed,omitempty"`
 	Started   time.Time      `json:"started,omitempty"`
+	Heartbeat time.Time      `json:"heartbeat,omitempty"`
 	Status    string         `json:"status"`
 	Log       []string       `json:"log,omitempty"`
 	Finished  time.Time      `json:"finished,omitempty"`

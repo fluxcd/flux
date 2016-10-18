@@ -14,6 +14,8 @@ type InmemStore struct {
 	oldest time.Duration
 }
 
+var _ flux.ReleaseJobStore = &InmemStore{}
+
 // NewInmemStore returns a usable in-mem job store.
 func NewInmemStore(oldest time.Duration) *InmemStore {
 	return &InmemStore{
@@ -47,7 +49,7 @@ func (s *InmemStore) PutJob(inst flux.InstanceID, spec flux.ReleaseJobSpec) (flu
 		Instance:  inst,
 		Spec:      spec,
 		ID:        id,
-		Submitted: time.Now(),
+		Submitted: time.Now().UTC(),
 	}
 	return id, nil
 }
@@ -60,7 +62,7 @@ func (s *InmemStore) NextJob() (flux.ReleaseJob, error) {
 
 	var (
 		candidate flux.ReleaseJob
-		earliest  = time.Now()
+		earliest  = time.Now().UTC()
 	)
 	for _, job := range s.jobs {
 		if job.Claimed.IsZero() && job.Submitted.Before(earliest) {
@@ -72,7 +74,7 @@ func (s *InmemStore) NextJob() (flux.ReleaseJob, error) {
 		return flux.ReleaseJob{}, flux.ErrNoReleaseJobAvailable
 	}
 
-	candidate.Claimed = time.Now()
+	candidate.Claimed = time.Now().UTC()
 	s.jobs[candidate.ID] = candidate
 	return candidate, nil
 }
@@ -85,10 +87,22 @@ func (s *InmemStore) UpdateJob(job flux.ReleaseJob) error {
 	return nil
 }
 
+func (s *InmemStore) Heartbeat(id flux.ReleaseID) error {
+	s.mtx.Lock()
+	defer s.mtx.Unlock()
+	job, ok := s.jobs[id]
+	if !ok {
+		return flux.ErrNoSuchReleaseJob
+	}
+	job.Heartbeat = time.Now().UTC()
+	s.jobs[id] = job
+	return nil
+}
+
 func (s *InmemStore) GC() error {
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
-	cutoff := time.Now().Add(-s.oldest)
+	cutoff := time.Now().UTC().Add(-s.oldest)
 	for id, job := range s.jobs {
 		if job.IsFinished() && job.Finished.Before(cutoff) {
 			delete(s.jobs, id)
