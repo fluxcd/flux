@@ -205,21 +205,35 @@ func CredentialsFromFile(path string) (Credentials, error) {
 		return Credentials{}, err
 	}
 
-	credentials := Credentials{
-		m: map[string]creds{},
-	}
+	m := map[string]creds{}
 	for host, entry := range config.Auths {
 		decodedAuth, err := base64.StdEncoding.DecodeString(entry.Auth)
 		if err != nil {
 			return Credentials{}, err
 		}
 		authParts := strings.SplitN(string(decodedAuth), ":", 2)
-		credentials.m[host] = creds{
+		m[host] = creds{
 			username: authParts[0],
 			password: authParts[1],
 		}
 	}
-	return credentials, nil
+	return Credentials{m: m}, nil
+}
+
+func CredentialsFromConfig(config flux.InstanceConfig) (Credentials, error) {
+	m := map[string]creds{}
+	for host, entry := range config.Registry.Auths {
+		decodedAuth, err := base64.StdEncoding.DecodeString(entry.Auth)
+		if err != nil {
+			return Credentials{}, err
+		}
+		authParts := strings.SplitN(string(decodedAuth), ":", 2)
+		m[host] = creds{
+			username: authParts[0],
+			password: authParts[1],
+		}
+	}
+	return Credentials{m: m}, nil
 }
 
 // For yields an authenticator for a specific host.
