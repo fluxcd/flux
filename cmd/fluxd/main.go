@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -223,7 +222,10 @@ func main() {
 		} else {
 			logger.Log("services", len(services))
 		}
-		connecter = &StandaloneConnecter{flux.DefaultInstanceID, k8s}
+		connecter = &platform.StandaloneConnecter{
+			Instance:     flux.DefaultInstanceID,
+			LocalCluster: k8s,
+		}
 	}
 
 	// History component.
@@ -319,18 +321,4 @@ func main() {
 
 	// Go!
 	logger.Log("exit", <-errc)
-}
-
-// ---
-
-type StandaloneConnecter struct {
-	instanceID flux.InstanceID
-	cluster    platform.Platform
-}
-
-func (c *StandaloneConnecter) Connect(id flux.InstanceID) (platform.Platform, error) {
-	if id == c.instanceID {
-		return c.cluster, nil
-	}
-	return nil, errors.New("standalone connecter cannot connect to instance other than " + string(c.instanceID))
 }
