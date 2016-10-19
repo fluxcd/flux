@@ -46,7 +46,9 @@ func (s *DatabaseStore) GetJob(inst flux.InstanceID, id flux.ReleaseID) (flux.Re
 		  FROM release_jobs
 		 WHERE release_id = $1
 		   AND instance_id = $2
-	`, string(id), string(inst)).Scan(&jobStr, &claimedAt, &heartbeatAt); err != nil {
+	`, string(id), string(inst)).Scan(&jobStr, &claimedAt, &heartbeatAt); err == sql.ErrNoRows {
+		return flux.ReleaseJob{}, flux.ErrNoSuchReleaseJob
+	} else if err != nil {
 		return flux.ReleaseJob{}, errors.Wrap(err, "error getting job")
 	}
 	var job flux.ReleaseJob
