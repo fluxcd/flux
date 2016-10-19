@@ -51,8 +51,8 @@ type ReleaseAction struct {
 
 type ReleaseContext struct {
 	Instance       *instance.Instance
-	RepoPath       string
-	RepoKey        string
+	WorkingDir     string
+	KeyPath        string
 	PodControllers map[flux.ServiceID][]byte
 }
 
@@ -68,22 +68,22 @@ func (rc *ReleaseContext) CloneConfig() error {
 	if err != nil {
 		return err
 	}
-	rc.RepoPath = path
-	rc.RepoKey = keyfile
+	rc.WorkingDir = path
+	rc.KeyPath = keyfile
 	return nil
 }
 
 func (rc *ReleaseContext) CommitAndPush(msg string) (string, error) {
-	return rc.Instance.ConfigRepo().CommitAndPush(rc.RepoPath, rc.RepoKey, msg)
+	return rc.Instance.ConfigRepo().CommitAndPush(rc.WorkingDir, rc.KeyPath, msg)
 }
 
 func (rc *ReleaseContext) ConfigPath() string {
-	return filepath.Join(rc.RepoPath, rc.Instance.ConfigRepo().Path)
+	return filepath.Join(rc.WorkingDir, rc.Instance.ConfigRepo().Path)
 }
 
 func (rc *ReleaseContext) Clean() {
-	if rc.RepoPath != "" {
-		os.RemoveAll(rc.RepoPath)
+	if rc.WorkingDir != "" {
+		os.RemoveAll(rc.WorkingDir)
 	}
 }
 
@@ -533,11 +533,11 @@ func (r *releaser) releaseActionCommitAndPush(msg string) ReleaseAction {
 				).Observe(time.Since(begin).Seconds())
 			}(time.Now())
 
-			if fi, err := os.Stat(rc.RepoPath); err != nil || !fi.IsDir() {
-				return "", fmt.Errorf("the repo path (%s) is not valid", rc.RepoPath)
+			if fi, err := os.Stat(rc.WorkingDir); err != nil || !fi.IsDir() {
+				return "", fmt.Errorf("the repo path (%s) is not valid", rc.WorkingDir)
 			}
-			if _, err := os.Stat(rc.RepoKey); err != nil {
-				return "", fmt.Errorf("the repo key (%s) is not valid: %v", rc.RepoKey, err)
+			if _, err := os.Stat(rc.KeyPath); err != nil {
+				return "", fmt.Errorf("the repo key (%s) is not valid: %v", rc.KeyPath, err)
 			}
 			result, err := rc.CommitAndPush(msg)
 			if err == nil && result == "" {

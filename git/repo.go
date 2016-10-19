@@ -14,8 +14,8 @@ type Repo struct {
 	// The branch of the config repo that holds the resource definition files.
 	Branch string
 
-	// The file containing the private key with permissions to clone and push to
-	// the config repo.
+	// The private key (e.g., the contents of an id_rsa file) with
+	// permissions to clone and push to the config repo.
 	Key string
 
 	// The path within the config repo where files are stored.
