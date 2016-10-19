@@ -19,7 +19,7 @@ const largestHeartbeatDelta = 5 * time.Second
 type serviceCheckReleaseOpts struct {
 	*serviceOpts
 	releaseID string
-	follow    bool
+	noFollow  bool
 	noTty     bool
 }
 
@@ -37,8 +37,8 @@ func (opts *serviceCheckReleaseOpts) Command() *cobra.Command {
 		RunE: opts.RunE,
 	}
 	cmd.Flags().StringVarP(&opts.releaseID, "release-id", "r", "", "release ID to check")
-	cmd.Flags().BoolVarP(&opts.follow, "follow", "f", false, "continuously check the release, blocking until it is complete")
-	cmd.Flags().BoolVar(&opts.noTty, "no-tty", false, "if --follow=true, forces non-TTY status output")
+	cmd.Flags().BoolVar(&opts.noFollow, "no-follow", false, "dump release job as JSON to stdout")
+	cmd.Flags().BoolVar(&opts.noTty, "no-tty", false, "forces simpler, non-TTY status output")
 	return cmd
 }
 
@@ -51,7 +51,7 @@ func (opts *serviceCheckReleaseOpts) RunE(_ *cobra.Command, args []string) error
 		return fmt.Errorf("-r, --release-id is required")
 	}
 
-	if !opts.follow {
+	if opts.noFollow {
 		job, err := opts.Fluxd.GetRelease(noInstanceID, flux.ReleaseID(opts.releaseID))
 		if err != nil {
 			return err

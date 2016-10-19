@@ -18,7 +18,7 @@ type serviceReleaseOpts struct {
 	noUpdate    bool
 	exclude     []string
 	dryRun      bool
-	follow      bool
+	noFollow    bool
 }
 
 func newServiceRelease(parent *serviceOpts) *serviceReleaseOpts {
@@ -44,7 +44,7 @@ func (opts *serviceReleaseOpts) Command() *cobra.Command {
 	cmd.Flags().BoolVar(&opts.noUpdate, "no-update", false, "don't update images; just deploy the service(s) as configured in the git repo")
 	cmd.Flags().StringSliceVar(&opts.exclude, "exclude", []string{}, "exclude a service")
 	cmd.Flags().BoolVar(&opts.dryRun, "dry-run", false, "do not release anything; just report back what would have been done")
-	cmd.Flags().BoolVarP(&opts.follow, "follow", "f", true, "after release, automatically invoke check-release --follow")
+	cmd.Flags().BoolVar(&opts.noFollow, "no-follow", false, "just submit the release job, don't invoke check-release afterwards")
 	return cmd
 }
 
@@ -108,7 +108,7 @@ func (opts *serviceReleaseOpts) RunE(_ *cobra.Command, args []string) error {
 
 	fmt.Fprintf(os.Stdout, "Release job submitted, ID %s\n", id)
 
-	if !opts.follow {
+	if opts.noFollow {
 		fmt.Fprintf(os.Stdout, "To check the status of this release job, run\n")
 		fmt.Fprintf(os.Stdout, "\n")
 		fmt.Fprintf(os.Stdout, "\tfluxctl check-release --release-id=%s\n", id)
@@ -116,10 +116,10 @@ func (opts *serviceReleaseOpts) RunE(_ *cobra.Command, args []string) error {
 		return nil
 	}
 
-	// Oof, this is awkward.
+	// This is a bit funny, but works.
 	return (&serviceCheckReleaseOpts{
 		serviceOpts: opts.serviceOpts,
 		releaseID:   string(id),
-		follow:      true,
+		noFollow:    false,
 	}).RunE(nil, nil)
 }
