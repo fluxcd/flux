@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/gosuri/uilive"
+	"github.com/mattn/go-isatty"
 	"github.com/spf13/cobra"
-	"golang.org/x/crypto/ssh/terminal"
 
 	flux "github.com/weaveworks/fluxy"
 )
@@ -68,7 +68,7 @@ func (opts *serviceCheckReleaseOpts) RunE(_ *cobra.Command, args []string) error
 		w    io.Writer = os.Stdout
 		stop           = func() {}
 	)
-	if !opts.noTty && terminal.IsTerminal(int(os.Stdout.Fd())) {
+	if !opts.noTty && isatty.IsTerminal(os.Stdout.Fd()) {
 		liveWriter := uilive.New()
 		liveWriter.Start()
 		w, stop = liveWriter, liveWriter.Stop

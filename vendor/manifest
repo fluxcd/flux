@@ -679,15 +679,6 @@
 			"notests": true
 		},
 		{
-			"importpath": "golang.org/x/crypto/ssh/terminal",
-			"repository": "https://go.googlesource.com/crypto",
-			"vcs": "git",
-			"revision": "c367d6eeb7c6158125f2f47e049f7eb7e251c09a",
-			"branch": "master",
-			"path": "/ssh/terminal",
-			"notests": true
-		},
-		{
 			"importpath": "golang.org/x/net/context",
 			"repository": "https://go.googlesource.com/net",
 			"vcs": "git",
