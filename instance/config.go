@@ -47,3 +47,16 @@ type Configurer interface {
 	Get() (Config, error)
 	Update(UpdateFunc) error
 }
+
+type configurer struct {
+	instance flux.InstanceID
+	db       DB
+}
+
+func (c configurer) Get() (Config, error) {
+	return c.db.GetConfig(c.instance)
+}
+
+func (c configurer) Update(update UpdateFunc) error {
+	return c.db.UpdateConfig(c.instance, update)
+}

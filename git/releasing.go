@@ -10,9 +10,9 @@ import (
 	"github.com/pkg/errors"
 )
 
-func clone(workingDir, repoKey, repoURL, repoBranch string) (path string, err error) {
+func clone(workingDir, keyPath, repoURL, repoBranch string) (path string, err error) {
 	repoPath := filepath.Join(workingDir, "repo")
-	if err := gitCmd("", repoKey, "clone", "--branch", repoBranch, repoURL, repoPath).Run(); err != nil {
+	if err := gitCmd("", keyPath, "clone", "--branch", repoBranch, repoURL, repoPath).Run(); err != nil {
 		return "", errors.Wrap(err, "git clone")
 	}
 	return repoPath, nil
@@ -30,30 +30,30 @@ func commit(workingDir, commitMessage string) error {
 	return nil
 }
 
-func push(repoKey, repoBranch, workingDir string) error {
-	if err := gitCmd(workingDir, repoKey, "push", "origin", repoBranch).Run(); err != nil {
+func push(keyPath, repoBranch, workingDir string) error {
+	if err := gitCmd(workingDir, keyPath, "push", "origin", repoBranch).Run(); err != nil {
 		return errors.Wrap(err, fmt.Sprintf("git push origin %s", repoBranch))
 	}
 	return nil
 }
 
-func gitCmd(dir, repoKey string, args ...string) *exec.Cmd {
+func gitCmd(dir, keyPath string, args ...string) *exec.Cmd {
 	c := exec.Command("git", args...)
 	if dir != "" {
 		c.Dir = dir
 	}
-	c.Env = env(repoKey)
+	c.Env = env(keyPath)
 	c.Stdout = os.Stdout
 	c.Stderr = os.Stderr
 	return c
 }
 
-func env(repoKey string) []string {
+func env(keyPath string) []string {
 	base := `GIT_SSH_COMMAND=ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no`
-	if repoKey == "" {
+	if keyPath == "" {
 		return []string{base}
 	}
-	return []string{fmt.Sprintf("%s -i %q", base, repoKey), "GIT_TERMINAL_PROMPT=0"}
+	return []string{fmt.Sprintf("%s -i %q", base, keyPath), "GIT_TERMINAL_PROMPT=0"}
 }
 
 // check returns true if there are changes locally.
@@ -63,11 +63,8 @@ func check(workingDir, subdir string) bool {
 	return diff.Run() != nil
 }
 
-func copyKey(working, key string) (string, error) {
-	keyPath := filepath.Join(working, "id-rsa")
-	f, err := ioutil.ReadFile(key)
-	if err == nil {
-		err = ioutil.WriteFile(keyPath, f, 0400)
-	}
+func writeKey(workingDir, keyData string) (string, error) {
+	keyPath := filepath.Join(workingDir, "id-rsa")
+	err := ioutil.WriteFile(keyPath, []byte(keyData), 0400)
 	return keyPath, err
 }
