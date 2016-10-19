@@ -3,11 +3,13 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"time"
 
 	"github.com/gosuri/uilive"
 	"github.com/spf13/cobra"
+	"golang.org/x/crypto/ssh/terminal"
 
 	flux "github.com/weaveworks/fluxy"
 )
@@ -18,6 +20,7 @@ type serviceCheckReleaseOpts struct {
 	*serviceOpts
 	releaseID string
 	follow    bool
+	noTty     bool
 }
 
 func newServiceCheckRelease(parent *serviceOpts) *serviceCheckReleaseOpts {
@@ -35,6 +38,7 @@ func (opts *serviceCheckReleaseOpts) Command() *cobra.Command {
 	}
 	cmd.Flags().StringVarP(&opts.releaseID, "release-id", "r", "", "release ID to check")
 	cmd.Flags().BoolVarP(&opts.follow, "follow", "f", false, "continuously check the release, blocking until it is complete")
+	cmd.Flags().BoolVar(&opts.noTty, "no-tty", false, "if --follow=true, forces non-TTY status output")
 	return cmd
 }
 
@@ -61,12 +65,20 @@ func (opts *serviceCheckReleaseOpts) RunE(_ *cobra.Command, args []string) error
 	}
 
 	var (
-		w   = uilive.New()
-		job flux.ReleaseJob
-		err error
+		w    io.Writer = os.Stdout
+		stop           = func() {}
 	)
-	w.Start()
-	for range time.Tick(250 * time.Millisecond) {
+	if !opts.noTty && terminal.IsTerminal(int(os.Stdout.Fd())) {
+		liveWriter := uilive.New()
+		liveWriter.Start()
+		w, stop = liveWriter, liveWriter.Stop
+	}
+	var (
+		prev string
+		job  flux.ReleaseJob
+		err  error
+	)
+	for range time.Tick(time.Second) {
 		job, err = opts.Fluxd.GetRelease(noInstanceID, flux.ReleaseID(opts.releaseID))
 		if err != nil {
 			fmt.Fprintf(w, "Status: error querying release.\n") // error will get printed below
@@ -79,12 +91,15 @@ func (opts *serviceCheckReleaseOpts) RunE(_ *cobra.Command, args []string) error
 		if delta := time.Since(job.Heartbeat); !job.Heartbeat.IsZero() && delta > largestHeartbeatDelta {
 			status = status + fmt.Sprintf(" (warning: no heartbeat in %s, worker may have crashed)", delta)
 		}
-		fmt.Fprintf(w, "Status: %s\n", status)
+		if status != prev {
+			fmt.Fprintf(w, "Status: %s\n", status)
+		}
+		prev = status
 		if job.IsFinished() {
 			break
 		}
 	}
-	w.Stop()
+	stop()
 
 	if err != nil {
 		return err
