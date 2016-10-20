@@ -10,15 +10,15 @@ spec:
         name: fluxy
     spec:
       containers:
-      - name: fluxy
-        image: weaveworks/fluxy
+      - name: fluxd
+        image: weaveworks/fluxd
         imagePullPolicy: Never # must build manually
-        ports:
-        - containerPort: 3030
         args:
-        - /home/flux/fluxd
-        - --kubernetes-kubectl=/home/flux/kubectl
-        - --kubernetes-host=https://kubernetes
-        - --kubernetes-certificate-authority=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
-        - --kubernetes-bearer-token-file=/var/run/secrets/kubernetes.io/serviceaccount/token
+        - fluxd
+        - --fluxsvc-address=ws://localhost:3030
+      - name: fluxsvc
+        image: weaveworks/fluxsvc
+        imagePullPolicy: Never
+        args:
+        - fluxsvc
         - --database-source=file://fluxy.db
