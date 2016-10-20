@@ -246,7 +246,7 @@ func (r *releaser) releaseImages(method, msg string, inst *instance.Instance, ki
 			}
 
 			if currentImageID == latestImage.ID {
-				res = append(res, r.releaseActionPrintf("Service image %s is already the latest one; skipping.", currentImageID))
+				res = append(res, r.releaseActionPrintf("Service %s image %s is already the latest one; skipping.", service.ID, currentImageID))
 				continue
 			}
 
