@@ -16,6 +16,7 @@ import (
 type DatabaseStore struct {
 	conn   *sql.DB
 	oldest time.Duration
+	now    func(*sql.DB) (time.Time, error)
 }
 
 var _ flux.ReleaseJobStore = &DatabaseStore{}
@@ -30,6 +31,7 @@ func NewDatabaseStore(driver, datasource string, oldest time.Duration) (*Databas
 	s := &DatabaseStore{
 		conn:   conn,
 		oldest: oldest,
+		now:    nowFor(driver),
 	}
 	return s, s.sanityCheck()
 }
@@ -278,16 +280,16 @@ func (s *DatabaseStore) Heartbeat(id flux.ReleaseID) error {
 }
 
 func (s *DatabaseStore) GC() error {
+	// Take current time from the DB. Use the helper function to accommodate
+	// for non-portable time functions/queries across different DBs :(
+	now, err := s.now(s.conn)
+	if err != nil {
+		return errors.Wrap(err, "getting current time")
+	}
+
 	tx, err := s.conn.Begin()
 	if err != nil {
 		return errors.Wrap(err, "beginning GC transaction")
-	}
-
-	// Deal with time skew.
-	var now time.Time
-	if err := tx.QueryRow("SELECT now()").Scan(&now); err != nil {
-		tx.Rollback()
-		return errors.Wrap(err, "getting current time")
 	}
 
 	if _, err := tx.Exec(`
@@ -330,4 +332,17 @@ func (n *nullTime) Scan(value interface{}) error {
 	}
 	n.Time = t
 	return nil
+}
+
+func nowFor(driver string) func(*sql.DB) (time.Time, error) {
+	switch driver {
+	case "ql", "ql-mem":
+		return func(conn *sql.DB) (t time.Time, err error) {
+			return t, conn.QueryRow("SELECT now() FROM __Table LIMIT 1").Scan(&t)
+		}
+	default:
+		return func(conn *sql.DB) (t time.Time, err error) {
+			return t, conn.QueryRow("SELECT now()").Scan(&t)
+		}
+	}
 }
