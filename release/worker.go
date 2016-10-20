@@ -50,7 +50,6 @@ func (w *Worker) Work(tick <-chan time.Time) {
 		cancel, done := make(chan struct{}), make(chan struct{})
 		go heartbeat(job.ID, w.jobs, time.Second, cancel, done, w.logger)
 
-		job.Started = time.Now().UTC()
 		job.Status = "Executing..."
 		if err := w.jobs.UpdateJob(job); err != nil {
 			w.logger.Log("err", errors.Wrapf(err, "updating release job %s", job.ID))

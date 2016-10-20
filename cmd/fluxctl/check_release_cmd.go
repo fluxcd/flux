@@ -74,9 +74,12 @@ func (opts *serviceCheckReleaseOpts) RunE(_ *cobra.Command, args []string) error
 		w, stop = liveWriter, liveWriter.Stop
 	}
 	var (
-		prev string
-		job  flux.ReleaseJob
-		err  error
+		job flux.ReleaseJob
+		err error
+
+		prevStatus            string
+		lastHeartbeatDatabase time.Time
+		lastHeartbeatLocal    time.Time
 	)
 	for range time.Tick(time.Second) {
 		job, err = opts.Fluxd.GetRelease(noInstanceID, flux.ReleaseID(opts.releaseID))
@@ -84,17 +87,32 @@ func (opts *serviceCheckReleaseOpts) RunE(_ *cobra.Command, args []string) error
 			fmt.Fprintf(w, "Status: error querying release.\n") // error will get printed below
 			break
 		}
+
 		status := "Waiting for job to be claimed..."
 		if job.Status != "" {
 			status = job.Status
 		}
-		if delta := time.Since(job.Heartbeat); !job.Heartbeat.IsZero() && delta > largestHeartbeatDelta {
-			status = status + fmt.Sprintf(" (warning: no heartbeat in %s, worker may have crashed)", delta)
+
+		// Checking heartbeat is a bit tricky. We get a timestamp in database
+		// time, which may be radically different to our time. I've chosen to
+		// check liveness by marking local time whenever the heartbeat time
+		// changes. Going long enough without updating that local timestamp
+		// triggers the warning.
+		if !job.Claimed.IsZero() {
+			if job.Heartbeat != lastHeartbeatDatabase {
+				lastHeartbeatDatabase = job.Heartbeat
+				lastHeartbeatLocal = time.Now()
+			}
+			if delta := time.Since(lastHeartbeatLocal); delta > largestHeartbeatDelta {
+				status += fmt.Sprintf(" -- no heartbeat in %s; worker may have crashed", delta)
+			}
 		}
-		if status != prev {
+
+		if status != prevStatus {
 			fmt.Fprintf(w, "Status: %s\n", status)
 		}
-		prev = status
+		prevStatus = status
+
 		if job.IsFinished() {
 			break
 		}
@@ -118,7 +136,7 @@ func (opts *serviceCheckReleaseOpts) RunE(_ *cobra.Command, args []string) error
 	}
 
 	if job.Spec.Kind == flux.ReleaseKindExecute {
-		fmt.Fprintf(os.Stdout, "Took %s\n", time.Since(job.Submitted))
+		fmt.Fprintf(os.Stdout, "Took %s\n", job.Finished.Sub(job.Submitted))
 	}
 	return nil
 }

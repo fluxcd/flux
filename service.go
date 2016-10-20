@@ -298,11 +298,10 @@ type ReleaseJob struct {
 	ID        ReleaseID      `json:"id"`
 	Submitted time.Time      `json:"submitted"`
 	Claimed   time.Time      `json:"claimed,omitempty"`
-	Started   time.Time      `json:"started,omitempty"`
 	Heartbeat time.Time      `json:"heartbeat,omitempty"`
-	Status    string         `json:"status"`
-	Log       []string       `json:"log,omitempty"`
 	Finished  time.Time      `json:"finished,omitempty"`
+	Log       []string       `json:"log,omitempty"`
+	Status    string         `json:"status"`
 	Success   bool           `json:"success"` // only makes sense after Finished
 }
 

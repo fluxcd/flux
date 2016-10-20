@@ -4,13 +4,12 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"reflect"
 	"strings"
 	"time"
 
 	"github.com/pkg/errors"
 
-	"github.com/weaveworks/fluxy"
+	flux "github.com/weaveworks/fluxy"
 )
 
 // DatabaseStore is a job store backed by a sql.DB.
@@ -37,39 +36,63 @@ func NewDatabaseStore(driver, datasource string, oldest time.Duration) (*Databas
 
 func (s *DatabaseStore) GetJob(inst flux.InstanceID, id flux.ReleaseID) (flux.ReleaseJob, error) {
 	var (
-		jobStr      string
+		specStr     string
+		submittedAt time.Time
 		claimedAt   nullTime
 		heartbeatAt nullTime
+		finishedAt  nullTime
+		logStr      string
+		status      string
+		success     sql.NullBool
 	)
 	if err := s.conn.QueryRow(`
-		SELECT job, claimed_at, heartbeat_at
+		SELECT spec, submitted_at, claimed_at, heartbeat_at, finished_at, log, status, success
 		  FROM release_jobs
 		 WHERE release_id = $1
 		   AND instance_id = $2
-	`, string(id), string(inst)).Scan(&jobStr, &claimedAt, &heartbeatAt); err == sql.ErrNoRows {
+	`, string(id), string(inst)).Scan(
+		&specStr, &submittedAt, &claimedAt, &heartbeatAt, &finishedAt, &logStr, &status, &success,
+	); err == sql.ErrNoRows {
 		return flux.ReleaseJob{}, flux.ErrNoSuchReleaseJob
 	} else if err != nil {
 		return flux.ReleaseJob{}, errors.Wrap(err, "error getting job")
 	}
-	var job flux.ReleaseJob
-	if err := json.NewDecoder(strings.NewReader(jobStr)).Decode(&job); err != nil {
-		return flux.ReleaseJob{}, errors.Wrap(err, "unmarshaling job")
+
+	var spec flux.ReleaseJobSpec
+	if err := json.NewDecoder(strings.NewReader(specStr)).Decode(&spec); err != nil {
+		return flux.ReleaseJob{}, errors.Wrap(err, "unmarshaling spec")
 	}
-	job.Claimed = time.Time(claimedAt).UTC()
-	job.Heartbeat = time.Time(heartbeatAt).UTC()
-	return job, nil
+	var log []string
+	if err := json.NewDecoder(strings.NewReader(logStr)).Decode(&log); err != nil {
+		return flux.ReleaseJob{}, errors.Wrap(err, "unmarshaling log")
+	}
+
+	return flux.ReleaseJob{
+		Instance:  inst,
+		Spec:      spec,
+		ID:        id,
+		Submitted: submittedAt,
+		Claimed:   claimedAt.Time,
+		Heartbeat: heartbeatAt.Time,
+		Finished:  finishedAt.Time,
+		Log:       log,
+		Status:    status,
+		Success:   success.Bool,
+	}, nil
 }
 
 func (s *DatabaseStore) PutJob(inst flux.InstanceID, spec flux.ReleaseJobSpec) (flux.ReleaseID, error) {
-	job := flux.ReleaseJob{
-		Instance:  inst,
-		Spec:      spec,
-		ID:        flux.NewReleaseID(),
-		Submitted: time.Now().UTC(),
-	}
-	jobBytes, err := json.Marshal(job)
+	var (
+		releaseID = flux.NewReleaseID()
+		status    = "Submitted job."
+	)
+	specBytes, err := json.Marshal(spec)
 	if err != nil {
-		return flux.ReleaseID(""), errors.Wrap(err, "marshaling job")
+		return flux.ReleaseID(""), errors.Wrap(err, "marshaling spec")
+	}
+	logBytes, err := json.Marshal([]string{status})
+	if err != nil {
+		return flux.ReleaseID(""), errors.Wrap(err, "marshaling log")
 	}
 
 	tx, err := s.conn.Begin()
@@ -78,9 +101,9 @@ func (s *DatabaseStore) PutJob(inst flux.InstanceID, spec flux.ReleaseJobSpec) (
 	}
 
 	if _, err := tx.Exec(`
-		INSERT INTO release_jobs (release_id, instance_id, submitted_at, job)
-		     VALUES ($1, $2, $3, $4)
-	`, string(job.ID), string(job.Instance), job.Submitted, string(jobBytes)); err != nil {
+		INSERT INTO release_jobs (release_id, instance_id, spec, submitted_at, log, status)
+		     VALUES ($1, $2, $3, now(), $4, $5)
+	`, string(releaseID), string(inst), string(specBytes), string(logBytes), status); err != nil {
 		tx.Rollback()
 		return "", errors.Wrap(err, "enqueueing job")
 	}
@@ -88,7 +111,7 @@ func (s *DatabaseStore) PutJob(inst flux.InstanceID, spec flux.ReleaseJobSpec) (
 	if err := tx.Commit(); err != nil {
 		return "", errors.Wrap(err, "committing insert transaction")
 	}
-	return job.ID, nil
+	return releaseID, nil
 }
 
 func (s *DatabaseStore) NextJob() (flux.ReleaseJob, error) {
@@ -97,37 +120,61 @@ func (s *DatabaseStore) NextJob() (flux.ReleaseJob, error) {
 		return flux.ReleaseJob{}, errors.Wrap(err, "beginning transaction")
 	}
 
-	// Have to SELECT submitted_at to ORDER BY it in ql.
-	// https://github.com/cznic/ql/issues/138
 	var (
-		id        string
-		jobStr    string
-		submitted time.Time
+		releaseID   string
+		instanceID  string
+		specStr     string
+		submittedAt time.Time
+		claimedAt   nullTime
+		heartbeatAt nullTime
+		finishedAt  nullTime
+		logStr      string
+		status      string
+		success     sql.NullBool
 	)
 	if err := tx.QueryRow(`
-		   SELECT release_id, job, submitted_at
+		   SELECT release_id, instance_id, spec, submitted_at, claimed_at, heartbeat_at, finished_at, log, status, success
 		     FROM release_jobs
 		    WHERE claimed_at IS NULL
 		 ORDER BY submitted_at DESC
 		    LIMIT 1
-	`).Scan(&id, &jobStr, &submitted); err == sql.ErrNoRows {
+	`).Scan(
+		&releaseID, &instanceID, &specStr, &submittedAt, &claimedAt, &heartbeatAt, &finishedAt, &logStr, &status, &success,
+	); err == sql.ErrNoRows {
 		tx.Commit()
 		return flux.ReleaseJob{}, flux.ErrNoReleaseJobAvailable
 	} else if err != nil {
 		tx.Rollback()
 		return flux.ReleaseJob{}, errors.Wrap(err, "dequeueing next job")
 	}
-	var job flux.ReleaseJob
-	if err := json.NewDecoder(strings.NewReader(jobStr)).Decode(&job); err != nil {
-		tx.Rollback()
-		return flux.ReleaseJob{}, errors.Wrap(err, "unmarshaling job")
+
+	var spec flux.ReleaseJobSpec
+	if err := json.NewDecoder(strings.NewReader(specStr)).Decode(&spec); err != nil {
+		return flux.ReleaseJob{}, errors.Wrap(err, "unmarshaling spec")
+	}
+	var log []string
+	if err := json.NewDecoder(strings.NewReader(logStr)).Decode(&log); err != nil {
+		return flux.ReleaseJob{}, errors.Wrap(err, "unmarshaling log")
+	}
+
+	job := flux.ReleaseJob{
+		Instance:  flux.InstanceID(instanceID),
+		Spec:      spec,
+		ID:        flux.ReleaseID(releaseID),
+		Submitted: submittedAt,
+		Claimed:   claimedAt.Time,
+		Heartbeat: heartbeatAt.Time,
+		Finished:  finishedAt.Time,
+		Log:       log,
+		Status:    status,
+		Success:   success.Bool,
 	}
 
 	if res, err := tx.Exec(`
 		UPDATE release_jobs
-		   SET claimed_at = $1
-		 WHERE release_id = $2
-	`, time.Now().UTC(), id); err != nil {
+		   SET claimed_at = now()
+		 WHERE release_id = $1
+	`, releaseID); err != nil {
 		tx.Rollback()
 		return flux.ReleaseJob{}, errors.Wrap(err, "marking job as claimed")
 	} else if n, err := res.RowsAffected(); err != nil {
@@ -145,9 +192,13 @@ func (s *DatabaseStore) NextJob() (flux.ReleaseJob, error) {
 }
 
 func (s *DatabaseStore) UpdateJob(job flux.ReleaseJob) error {
-	jobBytes, err := json.Marshal(job)
+	specBytes, err := json.Marshal(job.Spec)
 	if err != nil {
-		return errors.Wrap(err, "marshaling job")
+		return errors.Wrap(err, "marshaling spec")
+	}
+	logBytes, err := json.Marshal(job.Log)
+	if err != nil {
+		return errors.Wrap(err, "marshaling log")
 	}
 
 	tx, err := s.conn.Begin()
@@ -157,9 +208,9 @@ func (s *DatabaseStore) UpdateJob(job flux.ReleaseJob) error {
 
 	if res, err := tx.Exec(`
 		UPDATE release_jobs
-		   SET job = $1
-		 WHERE release_id = $2
-	`, string(jobBytes), string(job.ID)); err != nil {
+		   SET spec = $1, log = $2, status = $3
+		 WHERE release_id = $4
+	`, string(specBytes), string(logBytes), job.Status, string(job.ID)); err != nil {
 		tx.Rollback()
 		return errors.Wrap(err, "updating job in database")
 	} else if n, err := res.RowsAffected(); err != nil {
@@ -176,9 +227,9 @@ func (s *DatabaseStore) UpdateJob(job flux.ReleaseJob) error {
 	if job.IsFinished() {
 		if res, err := tx.Exec(`
 			UPDATE release_jobs
-			   SET finished_at = $1
+			   SET finished_at = now(), success = $1
 			 WHERE release_id = $2
-		`, job.Finished, string(job.ID)); err != nil {
+		`, job.Success, string(job.ID)); err != nil {
 			tx.Rollback()
 			return errors.Wrap(err, "marking finished in database")
 		} else if n, err := res.RowsAffected(); err != nil {
@@ -204,9 +255,9 @@ func (s *DatabaseStore) Heartbeat(id flux.ReleaseID) error {
 
 	if res, err := tx.Exec(`
 		UPDATE release_jobs
-		   SET heartbeat_at = $1
-		 WHERE release_id = $2
-	`, time.Now().UTC(), string(id)); err != nil {
+		   SET heartbeat_at = now()
+		 WHERE release_id = $1
+	`, string(id)); err != nil {
 		tx.Rollback()
 		return errors.Wrap(err, "heartbeating job in database")
 	} else if n, err := res.RowsAffected(); err != nil {
@@ -232,11 +283,18 @@ func (s *DatabaseStore) GC() error {
 		return errors.Wrap(err, "beginning GC transaction")
 	}
 
+	// Deal with time skew.
+	var now time.Time
+	if err := tx.QueryRow("SELECT now()").Scan(&now); err != nil {
+		tx.Rollback()
+		return errors.Wrap(err, "getting current time")
+	}
+
 	if _, err := tx.Exec(`
 		DELETE FROM release_jobs
 		      WHERE finished_at IS NOT NULL
 		        AND submitted_at < $1
-	`, time.Now().UTC().Add(-s.oldest)); err != nil {
+	`, now.Add(-s.oldest)); err != nil {
 		tx.Rollback()
 		return errors.Wrap(err, "deleting old jobs")
 	}
@@ -255,15 +313,21 @@ func (s *DatabaseStore) sanityCheck() error {
 	return nil
 }
 
-type nullTime time.Time
+type nullTime struct {
+	Time  time.Time
+	Valid bool // Valid is true if Time is not NULL
+}
 
-func (t *nullTime) Scan(src interface{}) error {
-	switch x := src.(type) {
-	case nil:
-		return nil
-	case time.Time:
-		*t = nullTime(x)
+func (n *nullTime) Scan(value interface{}) error {
+	if value == nil {
+		n.Time, n.Valid = time.Time{}, false
 		return nil
 	}
-	return fmt.Errorf("unsupported scan of %s to nullTime", reflect.TypeOf(src))
+	n.Valid = true
+	t, ok := value.(time.Time)
+	if !ok {
+		return fmt.Errorf("unsupported Scan of %T into nullTime", value)
+	}
+	n.Time = t
+	return nil
 }

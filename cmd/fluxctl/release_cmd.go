@@ -121,5 +121,6 @@ func (opts *serviceReleaseOpts) RunE(_ *cobra.Command, args []string) error {
 		serviceOpts: opts.serviceOpts,
 		releaseID:   string(id),
 		noFollow:    false,
+		noTty:       false,
 	}).RunE(nil, nil)
 }
