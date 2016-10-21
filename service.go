@@ -268,6 +268,7 @@ type ReleaseJobWritePopper interface {
 
 type ReleaseJobUpdater interface {
 	UpdateJob(ReleaseJob) error
+	Heartbeat(ReleaseID) error
 }
 
 type ReleaseJobPopper interface {
@@ -297,15 +298,12 @@ type ReleaseJob struct {
 	ID        ReleaseID      `json:"id"`
 	Submitted time.Time      `json:"submitted"`
 	Claimed   time.Time      `json:"claimed,omitempty"`
-	Started   time.Time      `json:"started,omitempty"`
-	Status    string         `json:"status"`
-	Log       []string       `json:"log,omitempty"`
+	Heartbeat time.Time      `json:"heartbeat,omitempty"`
 	Finished  time.Time      `json:"finished,omitempty"`
-	Success   bool           `json:"success"` // only makes sense after Finished
-}
-
-func (job *ReleaseJob) IsFinished() bool {
-	return !job.Finished.IsZero()
+	Log       []string       `json:"log,omitempty"`
+	Status    string         `json:"status"`
+	Done      bool           `json:"done"`
+	Success   bool           `json:"success"` // only makes sense after done is true
 }
 
 type ReleaseJobSpec struct {

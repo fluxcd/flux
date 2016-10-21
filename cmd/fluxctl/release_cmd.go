@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"time"
 
 	"github.com/spf13/cobra"
 
@@ -17,8 +16,10 @@ type serviceReleaseOpts struct {
 	image       string
 	allImages   bool
 	noUpdate    bool
-	dryRun      bool
 	exclude     []string
+	dryRun      bool
+	noFollow    bool
+	noTty       bool
 }
 
 func newServiceRelease(parent *serviceOpts) *serviceReleaseOpts {
@@ -44,6 +45,8 @@ func (opts *serviceReleaseOpts) Command() *cobra.Command {
 	cmd.Flags().BoolVar(&opts.noUpdate, "no-update", false, "don't update images; just deploy the service(s) as configured in the git repo")
 	cmd.Flags().StringSliceVar(&opts.exclude, "exclude", []string{}, "exclude a service")
 	cmd.Flags().BoolVar(&opts.dryRun, "dry-run", false, "do not release anything; just report back what would have been done")
+	cmd.Flags().BoolVar(&opts.noFollow, "no-follow", false, "just submit the release job, don't invoke check-release afterwards")
+	cmd.Flags().BoolVar(&opts.noTty, "no-tty", false, "if not --no-follow, forces simpler, non-TTY status output")
 	return cmd
 }
 
@@ -52,8 +55,7 @@ func (opts *serviceReleaseOpts) RunE(_ *cobra.Command, args []string) error {
 		return errorWantedNoArgs
 	}
 
-	if err := checkExactlyOne("--update-image=<image>, --update-all-images, or --no-update",
-		opts.image != "", opts.allImages, opts.noUpdate); err != nil {
+	if err := checkExactlyOne("--update-image=<image>, --update-all-images, or --no-update", opts.image != "", opts.allImages, opts.noUpdate); err != nil {
 		return err
 	}
 
@@ -90,16 +92,10 @@ func (opts *serviceReleaseOpts) RunE(_ *cobra.Command, args []string) error {
 		excludes = append(excludes, s)
 	}
 
-	begin := time.Now()
-	printf := func(format string, args ...interface{}) {
-		args = append([]interface{}{(int(time.Since(begin).Seconds()))}, args...)
-		fmt.Fprintf(os.Stdout, "t=%d "+format+"\n", args...)
-	}
-
 	if opts.dryRun {
-		printf("Submitting dry-run release job...")
+		fmt.Fprintf(os.Stdout, "Submitting dry-run release job...\n")
 	} else {
-		printf("Submitting release job...")
+		fmt.Fprintf(os.Stdout, "Submitting release job...\n")
 	}
 
 	id, err := opts.Fluxd.PostRelease(noInstanceID, flux.ReleaseJobSpec{
@@ -111,39 +107,22 @@ func (opts *serviceReleaseOpts) RunE(_ *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	printf("Release job submitted, ID %s", id)
 
-	var job flux.ReleaseJob
-	for range time.Tick(time.Second) {
-		job, err = opts.Fluxd.GetRelease(noInstanceID, id)
-		if err != nil {
-			printf("Release errored!")
-			return err
-		}
-		if job.Status != "" {
-			printf(job.Status)
-		} else {
-			printf("Waiting for job to be claimed...")
-		}
-		if job.IsFinished() {
-			fmt.Println()
-			break
-		}
+	fmt.Fprintf(os.Stdout, "Release job submitted, ID %s\n", id)
+
+	if opts.noFollow {
+		fmt.Fprintf(os.Stdout, "To check the status of this release job, run\n")
+		fmt.Fprintf(os.Stdout, "\n")
+		fmt.Fprintf(os.Stdout, "\tfluxctl check-release --release-id=%s\n", id)
+		fmt.Fprintf(os.Stdout, "\n")
+		return nil
 	}
 
-	if !job.Success {
-		fmt.Fprintf(os.Stdout, "Here's as far as we got:\n")
-	} else if opts.dryRun {
-		fmt.Fprintf(os.Stdout, "Here's the plan:\n")
-	} else {
-		fmt.Fprintf(os.Stdout, "Here's what happened:\n")
-	}
-	for i, msg := range job.Log {
-		fmt.Fprintf(os.Stdout, " %d) %s\n", i+1, msg)
-	}
-
-	if !opts.dryRun {
-		fmt.Fprintf(os.Stdout, "took %s\n", time.Since(begin))
-	}
-	return nil
+	// This is a bit funny, but works.
+	return (&serviceCheckReleaseOpts{
+		serviceOpts: opts.serviceOpts,
+		releaseID:   string(id),
+		noFollow:    false,
+		noTty:       opts.noTty,
+	}).RunE(nil, nil)
 }
