@@ -79,7 +79,7 @@ func (opts *serviceCheckReleaseOpts) RunE(_ *cobra.Command, args []string) error
 
 		prevStatus            string
 		lastHeartbeatDatabase time.Time
-		lastHeartbeatLocal    time.Time
+		lastHeartbeatLocal    = time.Now()
 	)
 	for range time.Tick(time.Second) {
 		job, err = opts.Fluxd.GetRelease(noInstanceID, flux.ReleaseID(opts.releaseID))
