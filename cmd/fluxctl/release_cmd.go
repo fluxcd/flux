@@ -19,6 +19,7 @@ type serviceReleaseOpts struct {
 	exclude     []string
 	dryRun      bool
 	noFollow    bool
+	noTty       bool
 }
 
 func newServiceRelease(parent *serviceOpts) *serviceReleaseOpts {
@@ -45,6 +46,7 @@ func (opts *serviceReleaseOpts) Command() *cobra.Command {
 	cmd.Flags().StringSliceVar(&opts.exclude, "exclude", []string{}, "exclude a service")
 	cmd.Flags().BoolVar(&opts.dryRun, "dry-run", false, "do not release anything; just report back what would have been done")
 	cmd.Flags().BoolVar(&opts.noFollow, "no-follow", false, "just submit the release job, don't invoke check-release afterwards")
+	cmd.Flags().BoolVar(&opts.noTty, "no-tty", false, "if not --no-follow, forces simpler, non-TTY status output")
 	return cmd
 }
 
@@ -121,6 +123,6 @@ func (opts *serviceReleaseOpts) RunE(_ *cobra.Command, args []string) error {
 		serviceOpts: opts.serviceOpts,
 		releaseID:   string(id),
 		noFollow:    false,
-		noTty:       false,
+		noTty:       opts.noTty,
 	}).RunE(nil, nil)
 }
