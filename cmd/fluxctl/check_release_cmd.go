@@ -113,7 +113,7 @@ func (opts *serviceCheckReleaseOpts) RunE(_ *cobra.Command, args []string) error
 		}
 		prevStatus = status
 
-		if job.IsFinished() {
+		if job.Done {
 			break
 		}
 	}

@@ -45,15 +45,16 @@ func (s *DatabaseStore) GetJob(inst flux.InstanceID, id flux.ReleaseID) (flux.Re
 		finishedAt  nullTime
 		logStr      string
 		status      string
+		done        sql.NullBool
 		success     sql.NullBool
 	)
 	if err := s.conn.QueryRow(`
-		SELECT spec, submitted_at, claimed_at, heartbeat_at, finished_at, log, status, success
+		SELECT spec, submitted_at, claimed_at, heartbeat_at, finished_at, log, status, done, success
 		  FROM release_jobs
 		 WHERE release_id = $1
 		   AND instance_id = $2
 	`, string(id), string(inst)).Scan(
-		&specStr, &submittedAt, &claimedAt, &heartbeatAt, &finishedAt, &logStr, &status, &success,
+		&specStr, &submittedAt, &claimedAt, &heartbeatAt, &finishedAt, &logStr, &status, &done, &success,
 	); err == sql.ErrNoRows {
 		return flux.ReleaseJob{}, flux.ErrNoSuchReleaseJob
 	} else if err != nil {
@@ -79,6 +80,7 @@ func (s *DatabaseStore) GetJob(inst flux.InstanceID, id flux.ReleaseID) (flux.Re
 		Finished:  finishedAt.Time,
 		Log:       log,
 		Status:    status,
+		Done:      done.Bool,
 		Success:   success.Bool,
 	}, nil
 }
@@ -132,16 +134,17 @@ func (s *DatabaseStore) NextJob() (flux.ReleaseJob, error) {
 		finishedAt  nullTime
 		logStr      string
 		status      string
+		done        sql.NullBool
 		success     sql.NullBool
 	)
 	if err := tx.QueryRow(`
-		   SELECT release_id, instance_id, spec, submitted_at, claimed_at, heartbeat_at, finished_at, log, status, success
+		   SELECT release_id, instance_id, spec, submitted_at, claimed_at, heartbeat_at, finished_at, log, status, done, success
 		     FROM release_jobs
 		    WHERE claimed_at IS NULL
 		 ORDER BY submitted_at DESC
 		    LIMIT 1
 	`).Scan(
-		&releaseID, &instanceID, &specStr, &submittedAt, &claimedAt, &heartbeatAt, &finishedAt, &logStr, &status, &success,
+		&releaseID, &instanceID, &specStr, &submittedAt, &claimedAt, &heartbeatAt, &finishedAt, &logStr, &status, &done, &success,
 	); err == sql.ErrNoRows {
 		tx.Commit()
 		return flux.ReleaseJob{}, flux.ErrNoReleaseJobAvailable
@@ -169,6 +172,7 @@ func (s *DatabaseStore) NextJob() (flux.ReleaseJob, error) {
 		Finished:  finishedAt.Time,
 		Log:       log,
 		Status:    status,
+		Done:      done.Bool,
 		Success:   success.Bool,
 	}
 
@@ -176,7 +180,8 @@ func (s *DatabaseStore) NextJob() (flux.ReleaseJob, error) {
 		UPDATE release_jobs
 		   SET claimed_at = now()
 		 WHERE release_id = $1
-	`, releaseID); err != nil {
+		   AND instance_id = $2
+	`, releaseID, instanceID); err != nil {
 		tx.Rollback()
 		return flux.ReleaseJob{}, errors.Wrap(err, "marking job as claimed")
 	} else if n, err := res.RowsAffected(); err != nil {
@@ -212,7 +217,8 @@ func (s *DatabaseStore) UpdateJob(job flux.ReleaseJob) error {
 		UPDATE release_jobs
 		   SET spec = $1, log = $2, status = $3
 		 WHERE release_id = $4
-	`, string(specBytes), string(logBytes), job.Status, string(job.ID)); err != nil {
+		   AND instance_id = $5
+	`, string(specBytes), string(logBytes), job.Status, string(job.ID), string(job.Instance)); err != nil {
 		tx.Rollback()
 		return errors.Wrap(err, "updating job in database")
 	} else if n, err := res.RowsAffected(); err != nil {
@@ -226,12 +232,13 @@ func (s *DatabaseStore) UpdateJob(job flux.ReleaseJob) error {
 		return errors.Errorf("updating job affected %d rows; wanted 1", n)
 	}
 
-	if job.IsFinished() {
+	if job.Done {
 		if res, err := tx.Exec(`
 			UPDATE release_jobs
-			   SET finished_at = now(), success = $1
-			 WHERE release_id = $2
-		`, job.Success, string(job.ID)); err != nil {
+			   SET finished_at = now(), done = $1, success = $2
+			 WHERE release_id = $3
+			   AND instance_id = $4
+		`, job.Done, job.Success, string(job.ID), string(job.Instance)); err != nil {
 			tx.Rollback()
 			return errors.Wrap(err, "marking finished in database")
 		} else if n, err := res.RowsAffected(); err != nil {

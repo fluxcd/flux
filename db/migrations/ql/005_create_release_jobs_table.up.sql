@@ -8,5 +8,6 @@ CREATE TABLE IF NOT EXISTS release_jobs (
     finished_at  time,
     log          string NOT NULL,
     status       string NOT NULL,
+    done         bool,
     success      bool,
 )

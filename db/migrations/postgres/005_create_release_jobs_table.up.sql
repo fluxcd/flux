@@ -9,5 +9,6 @@ CREATE TABLE IF NOT EXISTS release_jobs (
     finished_at  timestamp with time zone,
     log          text                      NOT NULL,
     status       text                      NOT NULL,
+    done         boolean,
     success      boolean
 )

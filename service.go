@@ -302,11 +302,8 @@ type ReleaseJob struct {
 	Finished  time.Time      `json:"finished,omitempty"`
 	Log       []string       `json:"log,omitempty"`
 	Status    string         `json:"status"`
-	Success   bool           `json:"success"` // only makes sense after Finished
-}
-
-func (job *ReleaseJob) IsFinished() bool {
-	return !job.Finished.IsZero()
+	Done      bool           `json:"done"`
+	Success   bool           `json:"success"` // only makes sense after done is true
 }
 
 type ReleaseJobSpec struct {

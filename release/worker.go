@@ -7,7 +7,7 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
 
-	"github.com/weaveworks/fluxy"
+	flux "github.com/weaveworks/fluxy"
 	"github.com/weaveworks/fluxy/instance"
 )
 
@@ -56,7 +56,7 @@ func (w *Worker) Work(tick <-chan time.Time) {
 		}
 
 		err = w.releaser.Release(&job, w.jobs)
-		job.Finished = time.Now().UTC()
+		job.Done = true
 		if err != nil {
 			job.Success = false
 			status := fmt.Sprintf("Failed: %v", err)
