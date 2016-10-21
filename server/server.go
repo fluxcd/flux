@@ -28,6 +28,7 @@ type Server struct {
 	instancer   instance.Instancer
 	messageBus  platform.MessageBus
 	releaser    flux.ReleaseJobReadPusher
+	logger      log.Logger
 	maxPlatform chan struct{} // semaphore for concurrent calls to the platform
 	metrics     Metrics
 }
@@ -49,6 +50,7 @@ func New(
 		instancer:   instancer,
 		messageBus:  messageBus,
 		releaser:    releaser,
+		logger:      logger,
 		maxPlatform: make(chan struct{}, 8),
 		metrics:     metrics,
 	}
@@ -349,6 +351,41 @@ func applyConfigUpdates(updates flux.InstanceConfig) instance.UpdateFunc {
 // error when we try to use the client. We rely on that to break us out of
 // the Daemon method.
 func (s *Server) Daemon(instID flux.InstanceID, platform platform.Platform) error {
-	// Register the daemon with our message bus, waiting for it to be closed
-	return s.messageBus.Subscribe(instID, platform)
+	// Register the daemon with our message bus, waiting for it to be
+	// closed NB we cannot in general expect there to be a record for
+	// this instance; it may be connecting before there is
+	// configuration supplied.
+	return s.messageBus.Subscribe(instID, &loggingPlatform{platform, log.NewContext(s.logger).With("instanceID", instID)})
+}
+
+type loggingPlatform struct {
+	platform platform.Platform
+	logger   log.Logger
+}
+
+func (p *loggingPlatform) AllServices(maybeNamespace string, ignored flux.ServiceIDSet) (ss []platform.Service, err error) {
+	defer func() {
+		if err != nil {
+			p.logger.Log("method", "AllServices", "error", err)
+		}
+	}()
+	return p.platform.AllServices(maybeNamespace, ignored)
+}
+
+func (p *loggingPlatform) SomeServices(include []flux.ServiceID) (ss []platform.Service, err error) {
+	defer func() {
+		if err != nil {
+			p.logger.Log("method", "SomeServices", "error", err)
+		}
+	}()
+	return p.platform.SomeServices(include)
+}
+
+func (p *loggingPlatform) Regrade(regrades []platform.RegradeSpec) (err error) {
+	defer func() {
+		if err != nil {
+			p.logger.Log("method", "Regrade", "error", err)
+		}
+	}()
+	return p.platform.Regrade(regrades)
 }
