@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"io"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"testing"
 
@@ -12,7 +13,7 @@ import (
 
 func TestByteStream(t *testing.T) {
 	buf := &bytes.Buffer{}
-	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
+	upgrade := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ws, err := Upgrade(w, r, nil)
 		if err != nil {
 			t.Fatal(err)
@@ -22,19 +23,22 @@ func TestByteStream(t *testing.T) {
 		}
 	})
 
-	go http.ListenAndServe(":15678", nil)
+	srv := httptest.NewServer(upgrade)
+	defer srv.Close()
 
-	url, _ := url.Parse("ws://127.0.0.1:15678/ws")
+	url, _ := url.Parse(srv.URL)
+	url.Scheme = "ws"
+
 	ws, err := Dial(http.DefaultClient, flux.Token(""), url)
 	if err != nil {
 		t.Fatal(err)
 	}
-	ws.Write([]byte("hello"))
+	ws.Write([]byte("hey"))
 	ws.Write([]byte(" there"))
 	ws.Write([]byte(" champ"))
 	ws.Close()
 
-	if buf.String() != "hello there champ" {
+	if buf.String() != "hey there champ" {
 		t.Fatalf("did not collect message as expected, got %s", buf.String())
 	}
 }

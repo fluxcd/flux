@@ -1,6 +1,7 @@
 package rpc
 
 import (
+	"errors"
 	"io"
 	"net/rpc"
 	"net/rpc/jsonrpc"
@@ -48,7 +49,18 @@ func (p *RPCPlatform) SomeServices(ids []flux.ServiceID) ([]platform.Service, er
 
 // Regrade tells the remote platform to apply some regrade specs.
 func (p *RPCPlatform) Regrade(spec []platform.RegradeSpec) error {
-	return p.client.Call("RPCClientPlatform.Regrade", spec, nil)
+	var regradeErrors RegradeResult
+	if err := p.client.Call("RPCClientPlatform.Regrade", spec, &regradeErrors); err != nil {
+		return err
+	}
+	if len(regradeErrors) > 0 {
+		errs := platform.RegradeError{}
+		for s, e := range regradeErrors {
+			errs[s] = errors.New(e)
+		}
+		return errs
+	}
+	return nil
 }
 
 // Close closes the connection to the remote platform, it does *not* cause the

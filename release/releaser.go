@@ -593,9 +593,15 @@ func (r *releaser) releaseActionRegradeServices(services []flux.ServiceID, msg s
 			// Splat any errors into our results map.
 			transactionErr := rc.Instance.PlatformRegrade(specs)
 			if transactionErr != nil {
-				for ns, regradeErr := range transactionErr.(platform.RegradeError) {
-					id, _ := flux.ParseServiceID(fmt.Sprintf("%s/%s", ns.Namespace, ns.Service))
-					results[id] = regradeErr
+				switch err := transactionErr.(type) {
+				case platform.RegradeError:
+					for id, regradeErr := range err {
+						results[id] = regradeErr
+					}
+				default: // assume everything failed, if there was a coverall error
+					for _, service := range services {
+						results[service] = transactionErr
+					}
 				}
 			}
 

@@ -9,6 +9,10 @@ import (
 	"github.com/weaveworks/fluxy/platform"
 )
 
+// net/rpc cannot serialise errors, so we transmit strings and
+// reconstitute them on the other side.
+type RegradeResult map[flux.ServiceID]string
+
 // Client takes a platform and makes it available as an RPC
 type Client struct {
 	server *rpc.Server
@@ -47,6 +51,17 @@ func (p *RPCClientPlatform) SomeServices(ids []flux.ServiceID, resp *[]platform.
 	return err
 }
 
-func (p *RPCClientPlatform) Regrade(spec []platform.RegradeSpec, _ *platform.RegradeError) error {
-	return p.p.Regrade(spec)
+func (p *RPCClientPlatform) Regrade(spec []platform.RegradeSpec, regradeError *RegradeResult) error {
+	result := RegradeResult{}
+	err := p.p.Regrade(spec)
+	if err != nil {
+		switch err := err.(type) {
+		case platform.RegradeError:
+			for s, e := range err {
+				result[s] = e.Error()
+			}
+		}
+	}
+	*regradeError = result
+	return err
 }

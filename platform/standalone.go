@@ -1,6 +1,8 @@
 package platform
 
 import (
+	"errors"
+	"fmt"
 	"sync"
 
 	"github.com/weaveworks/fluxy"
@@ -32,7 +34,7 @@ func (s *StandaloneMessageBus) Subscribe(inst flux.InstanceID, p Platform) error
 	// We're replacing another client
 	if existing, ok := s.connected[inst]; ok {
 		delete(s.connected, inst)
-		existing.handleError((*error)(nil))
+		existing.closeWithError(errors.New("duplicate connection; replacing with newer"))
 	}
 
 	// Add our new client in
@@ -45,6 +47,7 @@ func (s *StandaloneMessageBus) Subscribe(inst flux.InstanceID, p Platform) error
 
 	// Wait to be kicked, or an error to happen
 	err := <-done
+	fmt.Printf("subscription ended: %+v\n", err)
 
 	// Cleanup behind us, in case we're not being kicked.
 	s.Lock()
@@ -61,27 +64,33 @@ type removeablePlatform struct {
 	sync.Mutex
 }
 
-func (p *removeablePlatform) handleError(err *error) {
+func (p *removeablePlatform) maybeError(err error) {
+	if err != nil {
+		p.closeWithError(err)
+	}
+}
+
+func (p *removeablePlatform) closeWithError(err error) {
 	p.Lock()
+	defer p.Unlock()
 	if p.done != nil {
-		p.done <- *err
+		p.done <- err
 		close(p.done)
 		p.done = nil
 	}
-	p.Unlock()
 }
 
 func (p *removeablePlatform) AllServices(maybeNamespace string, ignored flux.ServiceIDSet) (s []Service, err error) {
-	defer p.handleError(&err)
+	defer p.maybeError(err)
 	return p.Platform.AllServices(maybeNamespace, ignored)
 }
 
 func (p *removeablePlatform) SomeServices(ids []flux.ServiceID) (s []Service, err error) {
-	defer p.handleError(&err)
+	defer p.maybeError(err)
 	return p.Platform.SomeServices(ids)
 }
 
 func (p *removeablePlatform) Regrade(spec []RegradeSpec) (err error) {
-	defer p.handleError(&err)
+	defer p.maybeError(err)
 	return p.Platform.Regrade(spec)
 }
