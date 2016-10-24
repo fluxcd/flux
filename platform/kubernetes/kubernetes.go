@@ -170,9 +170,10 @@ func (c *Cluster) AllServices(namespace string, ignore flux.ServiceIDSet) (res [
 }
 
 func (c *Cluster) makeService(ns string, service *api.Service, controllers []podController) platform.Service {
-	status, _ := c.status.getRegradeProgress(platform.NamespacedService{ns, service.Name})
+	id := flux.MakeServiceID(ns, service.Name)
+	status, _ := c.status.getRegradeProgress(id)
 	return platform.Service{
-		ID:         flux.MakeServiceID(ns, service.Name),
+		ID:         id,
 		IP:         service.Spec.ClusterIP,
 		Metadata:   metadataForService(service),
 		Containers: containersOrExcuse(service, controllers),
@@ -315,7 +316,7 @@ func (c *Cluster) Regrade(specs []platform.RegradeSpec) error {
 	c.actionc <- func() {
 		namespacedSpecs := map[string][]platform.RegradeSpec{}
 		for _, spec := range specs {
-			ns := spec.NamespacedService.Namespace
+			ns, _ := spec.ServiceID.Components()
 			namespacedSpecs[ns] = append(namespacedSpecs[ns], spec)
 		}
 
@@ -327,7 +328,7 @@ func (c *Cluster) Regrade(specs []platform.RegradeSpec) error {
 			if err != nil {
 				err = errors.Wrapf(err, "getting pod controllers for namespace %s", namespace)
 				for _, spec := range specs {
-					regradeErr[spec.NamespacedService] = err
+					regradeErr[spec.ServiceID] = err
 				}
 				continue
 			}
@@ -335,34 +336,35 @@ func (c *Cluster) Regrade(specs []platform.RegradeSpec) error {
 			for _, spec := range specs {
 				newDef, err := definitionObj(spec.NewDefinition)
 				if err != nil {
-					regradeErr[spec.NamespacedService] = errors.Wrap(err, "reading definition")
+					regradeErr[spec.ServiceID] = errors.Wrap(err, "reading definition")
 					continue
 				}
 
-				service, err := services.Get(spec.NamespacedService.Service)
+				_, serviceName := spec.ServiceID.Components()
+				service, err := services.Get(serviceName)
 				if err != nil {
-					regradeErr[spec.NamespacedService] = errors.Wrap(err, "getting service")
+					regradeErr[spec.ServiceID] = errors.Wrap(err, "getting service")
 					continue
 				}
 
 				controller, err := matchController(service, controllers)
 				if err != nil {
-					regradeErr[spec.NamespacedService] = errors.Wrap(err, "getting pod controller")
+					regradeErr[spec.ServiceID] = errors.Wrap(err, "getting pod controller")
 					continue
 				}
 
 				plan, err := controller.newRegrade(newDef)
 				if err != nil {
-					regradeErr[spec.NamespacedService] = errors.Wrap(err, "creating regrade")
+					regradeErr[spec.ServiceID] = errors.Wrap(err, "creating regrade")
 					continue
 				}
 
-				c.status.startRegrade(spec.NamespacedService, plan)
-				defer c.status.endRegrade(spec.NamespacedService)
+				c.status.startRegrade(spec.ServiceID, plan)
+				defer c.status.endRegrade(spec.ServiceID)
 
-				logger := log.NewContext(c.logger).With("method", "Release", "namespace", spec.Namespace, "service", spec.Service)
+				logger := log.NewContext(c.logger).With("method", "Release", "namespace", namespace, "service", serviceName)
 				if err = plan.exec(c, logger); err != nil {
-					regradeErr[spec.NamespacedService] = errors.Wrapf(err, "releasing %s/%s", spec.Namespace, spec.Service)
+					regradeErr[spec.ServiceID] = errors.Wrapf(err, "releasing %s", spec.ServiceID)
 					continue
 				}
 			}
@@ -384,33 +386,33 @@ func definitionObj(bytes []byte) (*apiObject, error) {
 // --- end platform API
 
 type statusMap struct {
-	inProgress map[platform.NamespacedService]*regrade
+	inProgress map[flux.ServiceID]*regrade
 	mx         sync.RWMutex
 }
 
 func newStatusMap() *statusMap {
 	return &statusMap{
-		inProgress: make(map[platform.NamespacedService]*regrade),
+		inProgress: make(map[flux.ServiceID]*regrade),
 	}
 }
 
-func (m *statusMap) startRegrade(ns platform.NamespacedService, r *regrade) {
+func (m *statusMap) startRegrade(s flux.ServiceID, r *regrade) {
 	m.mx.Lock()
 	defer m.mx.Unlock()
-	m.inProgress[ns] = r
+	m.inProgress[s] = r
 }
 
-func (m *statusMap) getRegradeProgress(ns platform.NamespacedService) (string, bool) {
+func (m *statusMap) getRegradeProgress(s flux.ServiceID) (string, bool) {
 	m.mx.RLock()
 	defer m.mx.RUnlock()
-	if r, ok := m.inProgress[ns]; ok {
+	if r, ok := m.inProgress[s]; ok {
 		return r.summary, true
 	}
 	return "", false
 }
 
-func (m *statusMap) endRegrade(ns platform.NamespacedService) {
+func (m *statusMap) endRegrade(s flux.ServiceID) {
 	m.mx.Lock()
 	defer m.mx.Unlock()
-	delete(m.inProgress, ns)
+	delete(m.inProgress, s)
 }

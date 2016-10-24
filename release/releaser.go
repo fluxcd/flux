@@ -584,10 +584,7 @@ func (r *releaser) releaseActionRegradeServices(services []flux.ServiceID, msg s
 				namespace, serviceName := service.Components()
 				rc.Instance.LogEvent(namespace, serviceName, "Starting regrade "+cause)
 				specs = append(specs, platform.RegradeSpec{
-					NamespacedService: platform.NamespacedService{
-						Namespace: namespace,
-						Service:   serviceName,
-					},
+					ServiceID:     service,
 					NewDefinition: def,
 				})
 			}

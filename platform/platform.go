@@ -93,21 +93,16 @@ var (
 
 // RegradeSpec is provided to platform.Regrade method/s.
 type RegradeSpec struct {
-	NamespacedService
+	ServiceID     flux.ServiceID
 	NewDefinition []byte // of the pod controller e.g. deployment
 }
 
-type NamespacedService struct {
-	Namespace string
-	Service   string
-}
-
-type RegradeError map[NamespacedService]error
+type RegradeError map[flux.ServiceID]error
 
 func (e RegradeError) Error() string {
 	var errs []string
-	for spec, err := range e {
-		errs = append(errs, fmt.Sprintf("%s/%s: %v", spec.Namespace, spec.Service, err))
+	for id, err := range e {
+		errs = append(errs, fmt.Sprintf("%s: %v", id, err))
 	}
 	return strings.Join(errs, "; ")
 }
