@@ -41,12 +41,18 @@ func (p *RPCClientPlatform) Ping(_ struct{}, _ *struct{}) error {
 
 func (p *RPCClientPlatform) AllServices(req AllServicesRequest, resp *[]platform.Service) error {
 	s, err := p.p.AllServices(req.MaybeNamespace, req.Ignored)
+	if s == nil {
+		s = []platform.Service{}
+	}
 	*resp = s
 	return err
 }
 
 func (p *RPCClientPlatform) SomeServices(ids []flux.ServiceID, resp *[]platform.Service) error {
 	s, err := p.p.SomeServices(ids)
+	if s == nil {
+		s = []platform.Service{}
+	}
 	*resp = s
 	return err
 }
