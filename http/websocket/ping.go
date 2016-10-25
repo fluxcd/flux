@@ -64,6 +64,9 @@ func (p *pingingWebsocket) Read(b []byte) (int, error) {
 	for p.reader == nil {
 		msgType, r, err := p.conn.NextReader()
 		if err != nil {
+			if IsExpectedWSCloseError(err) {
+				return 0, io.EOF
+			}
 			return 0, err
 		}
 		if msgType != websocket.BinaryMessage {
@@ -99,10 +102,13 @@ func (p *pingingWebsocket) Write(b []byte) (int, error) {
 	return n, w.Close()
 }
 
-// Close closes the connection
 func (p *pingingWebsocket) Close() error {
 	p.writeLock.Lock()
 	defer p.writeLock.Unlock()
 	p.pinger.Stop()
+	if err := p.conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, "ok"), time.Now().Add(writeWait)); err != nil {
+		p.conn.Close()
+		return err
+	}
 	return p.conn.Close()
 }

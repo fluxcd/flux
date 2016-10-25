@@ -75,7 +75,7 @@ func (a *Daemon) connect() error {
 	defer func() {
 		a.ws = nil
 		// TODO: handle this error
-		ws.Close()
+		a.logger.Log("connection closing", true, "err", ws.Close())
 	}()
 	a.logger.Log("connected", true)
 
