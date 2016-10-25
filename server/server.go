@@ -350,9 +350,14 @@ func applyConfigUpdates(updates flux.InstanceConfig) instance.UpdateFunc {
 // aside from just trying to connection. Therefore, the server will get an
 // error when we try to use the client. We rely on that to break us out of
 // the Daemon method.
-func (s *Server) Daemon(instID flux.InstanceID, platform platform.Platform) error {
+func (s *Server) Daemon(instID flux.InstanceID, platform platform.Platform) (err error) {
+	defer func() {
+		if err != nil {
+			s.logger.Log("method", "Daemon", "err", err)
+		}
+	}()
 	// Register the daemon with our message bus, waiting for it to be
-	// closed NB we cannot in general expect there to be a record for
+	// closed. NB we cannot in general expect there to be a record for
 	// this instance; it may be connecting before there is
 	// configuration supplied.
 	return s.messageBus.Subscribe(instID, &loggingPlatform{platform, log.NewContext(s.logger).With("instanceID", instID)})
