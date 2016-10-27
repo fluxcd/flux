@@ -22,7 +22,7 @@ func Dial(client *http.Client, token flux.Token, u *url.URL) (Websocket, error) 
 	token.Set(req)
 
 	// Use http client to do the http request
-	conn, _, err := dialer(client).Dial(u.String(), nil)
+	conn, _, err := dialer(client).Dial(u.String(), req.Header)
 	if err != nil {
 		return nil, errors.Wrapf(err, "connecting websocket %s", u)
 	}
