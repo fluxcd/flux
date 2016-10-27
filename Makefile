@@ -27,7 +27,7 @@ realclean: clean
 build/migrations.tar: $(MIGRATIONS)
 	tar cf $@ db/migrations
 
-build/.fluxy.done: docker/Dockerfile.fluxy build/fluxd ./cmd/fluxd/*.crt ./cmd/fluxd/kubeservice build/kubectl build/migrations.tar
+build/.fluxy.done: docker/Dockerfile.fluxy build/fluxd ./cmd/fluxd/kubeservice build/kubectl build/migrations.tar
 	mkdir -p ./build/docker
 	cp $^ ./build/docker/
 	${DOCKER} build -t weaveworks/fluxy -f build/docker/Dockerfile.fluxy ./build/docker
