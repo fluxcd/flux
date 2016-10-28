@@ -25,6 +25,7 @@ import (
 	instancedb "github.com/weaveworks/flux/instance/sql"
 	"github.com/weaveworks/flux/jobs"
 	"github.com/weaveworks/flux/platform"
+	"github.com/weaveworks/flux/platform/rpc/nats"
 	"github.com/weaveworks/flux/release"
 	"github.com/weaveworks/flux/server"
 )
@@ -46,6 +47,7 @@ func main() {
 		listenAddr            = fs.StringP("listen", "l", ":3030", "Listen address for Flux API clients")
 		databaseSource        = fs.String("database-source", "file://fluxy.db", `Database source name; includes the DB driver as the scheme. The default is a temporary, file-based DB`)
 		databaseMigrationsDir = fs.String("database-migrations", "./db/migrations", "Path to database migration scripts, which are in subdirectories named for each driver")
+		natsURL               = fs.String("nats-url", "", `URL on which to connect to NATS, or empty to use the standalone message bus (e.g., "nats://user:pass@nats:4222")`)
 	)
 	fs.Parse(os.Args)
 
@@ -157,7 +159,16 @@ func main() {
 
 	var messageBus platform.MessageBus
 	{
-		messageBus = platform.NewStandaloneMessageBus()
+		if *natsURL != "" {
+			bus, err := nats.NewMessageBus(*natsURL)
+			if err != nil {
+				logger.Log("component", "message bus", "err", err)
+				os.Exit(1)
+			}
+			messageBus = bus
+		} else {
+			messageBus = platform.NewStandaloneMessageBus()
+		}
 	}
 
 	var historyDB history.DB

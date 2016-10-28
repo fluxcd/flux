@@ -1,0 +1,28 @@
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: nats
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        name: nats
+    spec:
+      containers:
+      - name: nats
+        image: library/nats:0.9.4
+        imagePullPolicy: IfNotPresent
+        args:
+        - nats
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nats
+spec:
+  ports:
+    - port: 4222
+  selector:
+    name: nats
