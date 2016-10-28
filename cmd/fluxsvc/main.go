@@ -34,12 +34,12 @@ func main() {
 	fs := pflag.NewFlagSet("default", pflag.ExitOnError)
 	fs.Usage = func() {
 		fmt.Fprintf(os.Stderr, "DESCRIPTION\n")
-		fmt.Fprintf(os.Stderr, "  fluxd is a deployment service.\n")
+		fmt.Fprintf(os.Stderr, "  fluxsvc is a deployment service.\n")
 		fmt.Fprintf(os.Stderr, "\n")
 		fmt.Fprintf(os.Stderr, "FLAGS\n")
 		fs.PrintDefaults()
 	}
-	// This mirrors how kubectl extracts information from the environment.
+
 	var (
 		listenAddr            = fs.StringP("listen", "l", ":3030", "Listen address for Flux API clients")
 		databaseSource        = fs.String("database-source", "file://fluxy.db", `Database source name; includes the DB driver as the scheme. The default is a temporary, file-based DB`)
@@ -131,9 +131,9 @@ func main() {
 		}, []string{"method", "success"})
 	}
 
-	var connecter platform.MessageBus
+	var messageBus platform.MessageBus
 	{
-		connecter = platform.NewStandaloneMessageBus()
+		messageBus = platform.NewStandaloneMessageBus()
 	}
 
 	var historyDB history.DB
@@ -162,7 +162,7 @@ func main() {
 		// Instancer, for the instancing of operations
 		instancer = &instance.MultitenantInstancer{
 			DB:        instanceDB,
-			Connecter: connecter,
+			Connecter: messageBus,
 			Logger:    logger,
 			Histogram: helperDuration,
 			History:   historyDB,
@@ -212,7 +212,7 @@ func main() {
 	go auto.Start(log.NewContext(logger).With("component", "automator"))
 
 	// The server.
-	server := server.New(instancer, connecter, rjs, logger, serverMetrics)
+	server := server.New(instancer, messageBus, rjs, logger, serverMetrics)
 
 	// Mechanical components.
 	errc := make(chan error)

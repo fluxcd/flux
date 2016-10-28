@@ -638,6 +638,9 @@ func handleRegister(s api.FluxService) http.Handler {
 	})
 }
 
+// invokeRegister, which might be expected here, is supplanted by
+// `Daemon.connect()`.
+
 // --- end handle/invoke
 
 func mustGetPathTemplate(route *mux.Route) string {

@@ -47,7 +47,7 @@ func NewDaemon(client *http.Client, t flux.Token, router *mux.Router, endpoint s
 
 func (a *Daemon) loop() {
 	backoff := 5 * time.Second
-	errc := make(chan error)
+	errc := make(chan error, 1)
 	for {
 		go func() {
 			errc <- a.connect()

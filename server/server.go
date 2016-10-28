@@ -337,19 +337,19 @@ func applyConfigUpdates(updates flux.InstanceConfig) instance.UpdateFunc {
 }
 
 // RegisterDaemon handles a daemon connection. It blocks until the
-// daemon has been disconnected.
+// daemon is disconnected.
 //
-// There are two conditions where we need to close and cleanup either the
-// server has initiated a close (due to another client showing up) or the
-// client has disconnected.
+// There are two conditions where we need to close and cleanup: either
+// the server has initiated a close (due to another client showing up,
+// say) or the client has disconnected.
 //
-// If the server has initiated a close (due to another client showing up),
-// we should close the other client's respective blocking goroutine.
+// If the server has initiated a close, we should close the other
+// client's respective blocking goroutine.
 //
-// If the client has disconnected, there is no way to detect this in go,
-// aside from just trying to connection. Therefore, the server will get an
-// error when we try to use the client. We rely on that to break us out of
-// the Daemon method.
+// If the client has disconnected, there is no way to detect this in
+// go, aside from just trying to connection. Therefore, the server
+// will get an error when we try to use the client. We rely on that to
+// break us out of this method.
 func (s *Server) RegisterDaemon(instID flux.InstanceID, platform platform.Platform) (err error) {
 	defer func() {
 		if err != nil {
@@ -357,9 +357,9 @@ func (s *Server) RegisterDaemon(instID flux.InstanceID, platform platform.Platfo
 		}
 	}()
 	// Register the daemon with our message bus, waiting for it to be
-	// closed. NB we cannot in general expect there to be a record for
-	// this instance; it may be connecting before there is
-	// configuration supplied.
+	// closed. NB we cannot in general expect there to be a
+	// configuration record for this instance; it may be connecting
+	// before there is configuration supplied.
 	return s.messageBus.Subscribe(instID, &loggingPlatform{platform, log.NewContext(s.logger).With("instanceID", instID)})
 }
 

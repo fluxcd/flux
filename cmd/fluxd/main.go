@@ -71,13 +71,13 @@ func main() {
 	}
 
 	// Connect to fluxsvc
-	clientLogger := log.NewContext(logger).With("component", "client")
-	client, err := transport.NewDaemon(http.DefaultClient, flux.Token(*token), transport.NewRouter(), *fluxsvcAddress, k8s, clientLogger)
+	daemonLogger := log.NewContext(logger).With("component", "client")
+	daemon, err := transport.NewDaemon(http.DefaultClient, flux.Token(*token), transport.NewRouter(), *fluxsvcAddress, k8s, daemonLogger)
 	if err != nil {
 		logger.Log("err", err)
 		os.Exit(1)
 	}
-	defer client.Close()
+	defer daemon.Close()
 
 	// Mechanical components.
 	errc := make(chan error)
