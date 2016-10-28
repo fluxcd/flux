@@ -623,8 +623,9 @@ func handleRegister(s api.FluxService) http.Handler {
 			return
 		}
 
-		// Set up reverse RPC
-		rpcClient := rpc.Platform(ws)
+		// Set up RPC. The service is a websocket _server_ but an RPC
+		// _client_.
+		rpcClient := rpc.NewClient(ws)
 
 		// Make platform available to clients
 		// This should block until the daemon disconnects

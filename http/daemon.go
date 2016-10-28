@@ -79,12 +79,13 @@ func (a *Daemon) connect() error {
 	}()
 	a.logger.Log("connected", true)
 
-	// Hook up the rpc client
-	client, err := rpc.NewClient(a.platform)
+	// Hook up the rpc server. We are a websocket _client_, but an RPC
+	// _server_.
+	rpcserver, err := rpc.NewServer(a.platform)
 	if err != nil {
 		return errors.Wrap(err, "initializing rpc client")
 	}
-	client.ServeConn(ws)
+	rpcserver.ServeConn(ws)
 	a.logger.Log("disconnected", true)
 	return nil
 }

@@ -1,7 +1,6 @@
 package rpc
 
 import (
-	"errors"
 	"io"
 	"net/rpc"
 	"net/rpc/jsonrpc"
@@ -10,61 +9,67 @@ import (
 	"github.com/weaveworks/fluxy/platform"
 )
 
-// RPCPlatform is the rpc-backed implementation of a platform. For talking to
-// remote daemons.
-type RPCPlatform struct {
-	client *rpc.Client
+// net/rpc cannot serialise errors, so we transmit strings and
+// reconstitute them on the other side.
+type RegradeResult map[flux.ServiceID]string
+
+// Server takes a platform and makes it available over RPC.
+type Server struct {
+	server *rpc.Server
 }
 
-// Platform creates a new rpc-backed implementation of the platform.
-func Platform(conn io.ReadWriteCloser) *RPCPlatform {
-	return &RPCPlatform{jsonrpc.NewClient(conn)}
-}
-
-// Ping, is used to check if the remote platform is available. Might go away,
-// and just rely on an error from the other methods.
-func (p *RPCPlatform) Ping() error {
-	return p.client.Call("RPCClientPlatform.Ping", struct{}{}, nil)
-}
-
-// AllServicesRequest is the request datastructure for AllServices
-type AllServicesRequest struct {
-	MaybeNamespace string
-	Ignored        flux.ServiceIDSet
-}
-
-// AllServices asks the remote platform to list all services.
-func (p *RPCPlatform) AllServices(maybeNamespace string, ignored flux.ServiceIDSet) ([]platform.Service, error) {
-	var s []platform.Service
-	err := p.client.Call("RPCClientPlatform.AllServices", AllServicesRequest{maybeNamespace, ignored}, &s)
-	return s, err
-}
-
-// SomeServices asks the remote platform about some specific set of services.
-func (p *RPCPlatform) SomeServices(ids []flux.ServiceID) ([]platform.Service, error) {
-	var s []platform.Service
-	err := p.client.Call("RPCClientPlatform.SomeServices", ids, &s)
-	return s, err
-}
-
-// Regrade tells the remote platform to apply some regrade specs.
-func (p *RPCPlatform) Regrade(spec []platform.RegradeSpec) error {
-	var regradeErrors RegradeResult
-	if err := p.client.Call("RPCClientPlatform.Regrade", spec, &regradeErrors); err != nil {
-		return err
+// NewServer instantiates a new RPC server, handling requests on the
+// conn by invoking methods on the underlying (assumed local)
+// platform.
+func NewServer(p platform.Platform) (*Server, error) {
+	server := rpc.NewServer()
+	if err := server.Register(&RPCServer{p}); err != nil {
+		return nil, err
 	}
-	if len(regradeErrors) > 0 {
-		errs := platform.RegradeError{}
-		for s, e := range regradeErrors {
-			errs[s] = errors.New(e)
-		}
-		return errs
-	}
+	return &Server{server: server}, nil
+}
+
+func (c *Server) ServeConn(conn io.ReadWriteCloser) {
+	c.server.ServeCodec(jsonrpc.NewServerCodec(conn))
+}
+
+type RPCServer struct {
+	p platform.Platform
+}
+
+func (p *RPCServer) Ping(_ struct{}, _ *struct{}) error {
 	return nil
 }
 
-// Close closes the connection to the remote platform, it does *not* cause the
-// remote platform to shut down.
-func (p *RPCPlatform) Close() error {
-	return p.client.Close()
+func (p *RPCServer) AllServices(req AllServicesRequest, resp *[]platform.Service) error {
+	s, err := p.p.AllServices(req.MaybeNamespace, req.Ignored)
+	if s == nil {
+		s = []platform.Service{}
+	}
+	*resp = s
+	return err
+}
+
+func (p *RPCServer) SomeServices(ids []flux.ServiceID, resp *[]platform.Service) error {
+	s, err := p.p.SomeServices(ids)
+	if s == nil {
+		s = []platform.Service{}
+	}
+	*resp = s
+	return err
+}
+
+func (p *RPCServer) Regrade(spec []platform.RegradeSpec, regradeError *RegradeResult) error {
+	result := RegradeResult{}
+	err := p.p.Regrade(spec)
+	if err != nil {
+		switch err := err.(type) {
+		case platform.RegradeError:
+			for s, e := range err {
+				result[s] = e.Error()
+			}
+		}
+	}
+	*regradeError = result
+	return err
 }
