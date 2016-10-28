@@ -336,8 +336,8 @@ func applyConfigUpdates(updates flux.InstanceConfig) instance.UpdateFunc {
 	}
 }
 
-// Daemon handles a daemon connection. It blocks until the daemon has been
-// disconnected.
+// RegisterDaemon handles a daemon connection. It blocks until the
+// daemon has been disconnected.
 //
 // There are two conditions where we need to close and cleanup either the
 // server has initiated a close (due to another client showing up) or the
@@ -350,7 +350,7 @@ func applyConfigUpdates(updates flux.InstanceConfig) instance.UpdateFunc {
 // aside from just trying to connection. Therefore, the server will get an
 // error when we try to use the client. We rely on that to break us out of
 // the Daemon method.
-func (s *Server) Daemon(instID flux.InstanceID, platform platform.Platform) (err error) {
+func (s *Server) RegisterDaemon(instID flux.InstanceID, platform platform.Platform) (err error) {
 	defer func() {
 		if err != nil {
 			s.logger.Log("method", "Daemon", "err", err)

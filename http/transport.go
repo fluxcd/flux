@@ -20,8 +20,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/weaveworks/fluxy"
-	clientAPI "github.com/weaveworks/fluxy/client"
-	"github.com/weaveworks/fluxy/daemon"
+	"github.com/weaveworks/fluxy/api"
 	"github.com/weaveworks/fluxy/http/websocket"
 	"github.com/weaveworks/fluxy/platform/rpc"
 )
@@ -39,17 +38,12 @@ func NewRouter() *mux.Router {
 	r.NewRoute().Name("History").Methods("GET").Path("/v3/history").Queries("service", "{service}")
 	r.NewRoute().Name("GetConfig").Methods("GET").Path("/v4/config").Queries("secrets", "{secrets}")
 	r.NewRoute().Name("SetConfig").Methods("POST").Path("/v4/config")
-	r.NewRoute().Name("Daemon").Methods("GET").Path("/v4/daemon")
+	r.NewRoute().Name("Register").Methods("GET").Path("/v4/daemon")
 	return r
 }
 
-type server interface {
-	clientAPI.Client
-	daemon.Daemon
-}
-
-func NewHandler(s server, r *mux.Router, logger log.Logger, h metrics.Histogram) http.Handler {
-	for method, handlerFunc := range map[string]func(server) http.Handler{
+func NewHandler(s api.FluxService, r *mux.Router, logger log.Logger, h metrics.Histogram) http.Handler {
+	for method, handlerFunc := range map[string]func(api.FluxService) http.Handler{
 		"ListServices": handleListServices,
 		"ListImages":   handleListImages,
 		"PostRelease":  handlePostRelease,
@@ -61,7 +55,7 @@ func NewHandler(s server, r *mux.Router, logger log.Logger, h metrics.Histogram)
 		"History":      handleHistory,
 		"GetConfig":    handleGetConfig,
 		"SetConfig":    handleSetConfig,
-		"Daemon":       handleDaemon,
+		"Daemon":       handleRegister,
 	} {
 		var handler http.Handler
 		handler = handlerFunc(s)
@@ -76,7 +70,7 @@ func NewHandler(s server, r *mux.Router, logger log.Logger, h metrics.Histogram)
 // The idea here is to place the handleFoo and invokeFoo functions next to each
 // other, so changes in one can easily be accommodated in the other.
 
-func handleListServices(s server) http.Handler {
+func handleListServices(s api.FluxService) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		inst := getInstanceID(r)
 		namespace := mux.Vars(r)["namespace"]
@@ -120,7 +114,7 @@ func invokeListServices(client *http.Client, t flux.Token, router *mux.Router, e
 	return res, nil
 }
 
-func handleListImages(s server) http.Handler {
+func handleListImages(s api.FluxService) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		inst := getInstanceID(r)
 		service := mux.Vars(r)["service"]
@@ -175,7 +169,7 @@ type postReleaseResponse struct {
 	ReleaseID flux.ReleaseID `json:"release_id"`
 }
 
-func handlePostRelease(s server) http.Handler {
+func handlePostRelease(s api.FluxService) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var (
 			inst    = getInstanceID(r)
@@ -262,7 +256,7 @@ func invokePostRelease(client *http.Client, t flux.Token, router *mux.Router, en
 	return res.ReleaseID, nil
 }
 
-func handleGetRelease(s server) http.Handler {
+func handleGetRelease(s api.FluxService) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		inst := getInstanceID(r)
 		id := mux.Vars(r)["id"]
@@ -306,7 +300,7 @@ func invokeGetRelease(client *http.Client, t flux.Token, router *mux.Router, end
 	return res, nil
 }
 
-func handleAutomate(s server) http.Handler {
+func handleAutomate(s api.FluxService) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		inst := getInstanceID(r)
 		service := mux.Vars(r)["service"]
@@ -346,7 +340,7 @@ func invokeAutomate(client *http.Client, t flux.Token, router *mux.Router, endpo
 	return nil
 }
 
-func handleDeautomate(s server) http.Handler {
+func handleDeautomate(s api.FluxService) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		inst := getInstanceID(r)
 		service := mux.Vars(r)["service"]
@@ -386,7 +380,7 @@ func invokeDeautomate(client *http.Client, t flux.Token, router *mux.Router, end
 	return nil
 }
 
-func handleLock(s server) http.Handler {
+func handleLock(s api.FluxService) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		inst := getInstanceID(r)
 		service := mux.Vars(r)["service"]
@@ -426,7 +420,7 @@ func invokeLock(client *http.Client, t flux.Token, router *mux.Router, endpoint 
 	return nil
 }
 
-func handleUnlock(s server) http.Handler {
+func handleUnlock(s api.FluxService) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		inst := getInstanceID(r)
 		service := mux.Vars(r)["service"]
@@ -466,7 +460,7 @@ func invokeUnlock(client *http.Client, t flux.Token, router *mux.Router, endpoin
 	return nil
 }
 
-func handleHistory(s server) http.Handler {
+func handleHistory(s api.FluxService) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		inst := getInstanceID(r)
 		service := mux.Vars(r)["service"]
@@ -518,7 +512,7 @@ func invokeHistory(client *http.Client, t flux.Token, router *mux.Router, endpoi
 	return res, nil
 }
 
-func handleGetConfig(s server) http.Handler {
+func handleGetConfig(s api.FluxService) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		inst := getInstanceID(r)
 		secrets, err := strconv.ParseBool(mux.Vars(r)["secrets"])
@@ -571,7 +565,7 @@ func invokeGetConfig(client *http.Client, t flux.Token, router *mux.Router, endp
 	return res, nil
 }
 
-func handleSetConfig(s server) http.Handler {
+func handleSetConfig(s api.FluxService) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		inst := getInstanceID(r)
 
@@ -617,7 +611,7 @@ func invokeSetConfig(client *http.Client, t flux.Token, router *mux.Router, endp
 	return nil
 }
 
-func handleDaemon(s server) http.Handler {
+func handleRegister(s api.FluxService) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		inst := getInstanceID(r)
 
@@ -635,7 +629,7 @@ func handleDaemon(s server) http.Handler {
 		// Make platform available to clients
 		// This should block until the daemon disconnects
 		// TODO: Handle the error here
-		s.Daemon(inst, rpcClient)
+		s.RegisterDaemon(inst, rpcClient)
 
 		// Clean up
 		// TODO: Handle the error here

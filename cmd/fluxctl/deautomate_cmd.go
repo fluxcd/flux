@@ -41,5 +41,5 @@ func (opts *serviceDeautomateOpts) RunE(_ *cobra.Command, args []string) error {
 		return err
 	}
 
-	return opts.FluxSVC.Deautomate(noInstanceID, serviceID)
+	return opts.API.Deautomate(noInstanceID, serviceID)
 }
