@@ -83,9 +83,13 @@ func TestNATS(t *testing.T) {
 		t.Fatal("expected error but didn't get one")
 	}
 
-	close(errc)
-	if err := <-errc; err != nil {
-		t.Fatal(err)
+	select {
+	case <-errc:
+		if err == nil {
+			t.Fatal("expected error return from subscription but didn't get one")
+		}
+	default:
+		t.Fatal("expected error return from subscription but didn't get one")
 	}
 }
 
