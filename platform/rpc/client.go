@@ -24,7 +24,7 @@ func NewClient(conn io.ReadWriteCloser) *RPCClient {
 // Ping, is used to check if the remote platform is available. Might go away,
 // and just rely on an error from the other methods.
 func (p *RPCClient) Ping() error {
-	return p.client.Call("RPCClientPlatform.Ping", struct{}{}, nil)
+	return p.client.Call("RPCServer.Ping", struct{}{}, nil)
 }
 
 // AllServicesRequest is the request datastructure for AllServices
@@ -36,21 +36,21 @@ type AllServicesRequest struct {
 // AllServices asks the remote platform to list all services.
 func (p *RPCClient) AllServices(maybeNamespace string, ignored flux.ServiceIDSet) ([]platform.Service, error) {
 	var s []platform.Service
-	err := p.client.Call("RPCClientPlatform.AllServices", AllServicesRequest{maybeNamespace, ignored}, &s)
+	err := p.client.Call("RPCServer.AllServices", AllServicesRequest{maybeNamespace, ignored}, &s)
 	return s, err
 }
 
 // SomeServices asks the remote platform about some specific set of services.
 func (p *RPCClient) SomeServices(ids []flux.ServiceID) ([]platform.Service, error) {
 	var s []platform.Service
-	err := p.client.Call("RPCClientPlatform.SomeServices", ids, &s)
+	err := p.client.Call("RPCServer.SomeServices", ids, &s)
 	return s, err
 }
 
 // Regrade tells the remote platform to apply some regrade specs.
 func (p *RPCClient) Regrade(spec []platform.RegradeSpec) error {
 	var regradeErrors RegradeResult
-	if err := p.client.Call("RPCClientPlatform.Regrade", spec, &regradeErrors); err != nil {
+	if err := p.client.Call("RPCServer.Regrade", spec, &regradeErrors); err != nil {
 		return err
 	}
 	if len(regradeErrors) > 0 {
