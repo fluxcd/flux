@@ -603,6 +603,7 @@ func invokeSetConfig(client *http.Client, t flux.Token, router *mux.Router, endp
 	if err != nil {
 		return errors.Wrapf(err, "constructing request %s", u)
 	}
+	t.Set(req)
 
 	if _, err = executeRequest(client, req); err != nil {
 		return errors.Wrap(err, "executing HTTP request")
