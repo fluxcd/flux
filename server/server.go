@@ -24,9 +24,11 @@ const (
 	secretReplacement = "******"
 )
 
-type server struct {
+type Server struct {
 	instancer   instance.Instancer
+	messageBus  platform.MessageBus
 	releaser    flux.ReleaseJobReadPusher
+	logger      log.Logger
 	maxPlatform chan struct{} // semaphore for concurrent calls to the platform
 	metrics     Metrics
 }
@@ -39,13 +41,16 @@ type Metrics struct {
 
 func New(
 	instancer instance.Instancer,
+	messageBus platform.MessageBus,
 	releaser flux.ReleaseJobReadPusher,
 	logger log.Logger,
 	metrics Metrics,
-) flux.Service {
-	return &server{
+) *Server {
+	return &Server{
 		instancer:   instancer,
+		messageBus:  messageBus,
 		releaser:    releaser,
+		logger:      logger,
 		maxPlatform: make(chan struct{}, 8),
 		metrics:     metrics,
 	}
@@ -57,7 +62,7 @@ func New(
 // same reason: let's not add abstraction until it's merged, or nearly so, and
 // it's clear where the abstraction should exist.
 
-func (s *server) ListServices(inst flux.InstanceID, namespace string) (res []flux.ServiceStatus, err error) {
+func (s *Server) ListServices(inst flux.InstanceID, namespace string) (res []flux.ServiceStatus, err error) {
 	defer func(begin time.Time) {
 		s.metrics.ListServicesDuration.With(
 			"namespace", namespace,
@@ -108,7 +113,7 @@ func containers2containers(cs []platform.Container) []flux.Container {
 	return res
 }
 
-func (s *server) ListImages(inst flux.InstanceID, spec flux.ServiceSpec) (res []flux.ImageStatus, err error) {
+func (s *Server) ListImages(inst flux.InstanceID, spec flux.ServiceSpec) (res []flux.ImageStatus, err error) {
 	defer func(begin time.Time) {
 		s.metrics.ListImagesDuration.With(
 			"service_spec", fmt.Sprint(spec),
@@ -164,7 +169,7 @@ func containersWithAvailable(service platform.Service, images instance.ImageMap)
 	return res
 }
 
-func (s *server) History(inst flux.InstanceID, spec flux.ServiceSpec) (res []flux.HistoryEntry, err error) {
+func (s *Server) History(inst flux.InstanceID, spec flux.ServiceSpec) (res []flux.HistoryEntry, err error) {
 	defer func(begin time.Time) {
 		s.metrics.HistoryDuration.With(
 			"service_spec", fmt.Sprint(spec),
@@ -208,7 +213,7 @@ func (s *server) History(inst flux.InstanceID, spec flux.ServiceSpec) (res []flu
 	return res, nil
 }
 
-func (s *server) Automate(instID flux.InstanceID, service flux.ServiceID) error {
+func (s *Server) Automate(instID flux.InstanceID, service flux.ServiceID) error {
 	inst, err := s.instancer.Get(instID)
 	if err != nil {
 		return err
@@ -218,7 +223,7 @@ func (s *server) Automate(instID flux.InstanceID, service flux.ServiceID) error 
 	return recordAutomated(inst, service, true)
 }
 
-func (s *server) Deautomate(instID flux.InstanceID, service flux.ServiceID) error {
+func (s *Server) Deautomate(instID flux.InstanceID, service flux.ServiceID) error {
 	inst, err := s.instancer.Get(instID)
 	if err != nil {
 		return err
@@ -245,7 +250,7 @@ func recordAutomated(inst *instance.Instance, service flux.ServiceID, automated 
 	return nil
 }
 
-func (s *server) Lock(instID flux.InstanceID, service flux.ServiceID) error {
+func (s *Server) Lock(instID flux.InstanceID, service flux.ServiceID) error {
 	inst, err := s.instancer.Get(instID)
 	if err != nil {
 		return err
@@ -255,7 +260,7 @@ func (s *server) Lock(instID flux.InstanceID, service flux.ServiceID) error {
 	return recordLock(inst, service, true)
 }
 
-func (s *server) Unlock(instID flux.InstanceID, service flux.ServiceID) error {
+func (s *Server) Unlock(instID flux.InstanceID, service flux.ServiceID) error {
 	inst, err := s.instancer.Get(instID)
 	if err != nil {
 		return err
@@ -282,15 +287,15 @@ func recordLock(inst *instance.Instance, service flux.ServiceID, locked bool) er
 	return nil
 }
 
-func (s *server) PostRelease(inst flux.InstanceID, spec flux.ReleaseJobSpec) (flux.ReleaseID, error) {
+func (s *Server) PostRelease(inst flux.InstanceID, spec flux.ReleaseJobSpec) (flux.ReleaseID, error) {
 	return s.releaser.PutJob(inst, spec)
 }
 
-func (s *server) GetRelease(inst flux.InstanceID, id flux.ReleaseID) (flux.ReleaseJob, error) {
+func (s *Server) GetRelease(inst flux.InstanceID, id flux.ReleaseID) (flux.ReleaseJob, error) {
 	return s.releaser.GetJob(inst, id)
 }
 
-func (s *server) GetConfig(instID flux.InstanceID, includeSecrets bool) (flux.InstanceConfig, error) {
+func (s *Server) GetConfig(instID flux.InstanceID, includeSecrets bool) (flux.InstanceConfig, error) {
 	inst, err := s.instancer.Get(instID)
 	if err != nil {
 		return flux.InstanceConfig{}, err
@@ -307,7 +312,7 @@ func (s *server) GetConfig(instID flux.InstanceID, includeSecrets bool) (flux.In
 	return config, nil
 }
 
-func (s *server) SetConfig(instID flux.InstanceID, updates flux.InstanceConfig) error {
+func (s *Server) SetConfig(instID flux.InstanceID, updates flux.InstanceConfig) error {
 	inst, err := s.instancer.Get(instID)
 	if err != nil {
 		return err
@@ -329,4 +334,63 @@ func applyConfigUpdates(updates flux.InstanceConfig) instance.UpdateFunc {
 		config.Settings = updates
 		return config, nil
 	}
+}
+
+// RegisterDaemon handles a daemon connection. It blocks until the
+// daemon is disconnected.
+//
+// There are two conditions where we need to close and cleanup: either
+// the server has initiated a close (due to another client showing up,
+// say) or the client has disconnected.
+//
+// If the server has initiated a close, we should close the other
+// client's respective blocking goroutine.
+//
+// If the client has disconnected, there is no way to detect this in
+// go, aside from just trying to connection. Therefore, the server
+// will get an error when we try to use the client. We rely on that to
+// break us out of this method.
+func (s *Server) RegisterDaemon(instID flux.InstanceID, platform platform.Platform) (err error) {
+	defer func() {
+		if err != nil {
+			s.logger.Log("method", "Daemon", "err", err)
+		}
+	}()
+	// Register the daemon with our message bus, waiting for it to be
+	// closed. NB we cannot in general expect there to be a
+	// configuration record for this instance; it may be connecting
+	// before there is configuration supplied.
+	return s.messageBus.Subscribe(instID, &loggingPlatform{platform, log.NewContext(s.logger).With("instanceID", instID)})
+}
+
+type loggingPlatform struct {
+	platform platform.Platform
+	logger   log.Logger
+}
+
+func (p *loggingPlatform) AllServices(maybeNamespace string, ignored flux.ServiceIDSet) (ss []platform.Service, err error) {
+	defer func() {
+		if err != nil {
+			p.logger.Log("method", "AllServices", "error", err)
+		}
+	}()
+	return p.platform.AllServices(maybeNamespace, ignored)
+}
+
+func (p *loggingPlatform) SomeServices(include []flux.ServiceID) (ss []platform.Service, err error) {
+	defer func() {
+		if err != nil {
+			p.logger.Log("method", "SomeServices", "error", err)
+		}
+	}()
+	return p.platform.SomeServices(include)
+}
+
+func (p *loggingPlatform) Regrade(regrades []platform.RegradeSpec) (err error) {
+	defer func() {
+		if err != nil {
+			p.logger.Log("method", "Regrade", "error", err)
+		}
+	}()
+	return p.platform.Regrade(regrades)
 }

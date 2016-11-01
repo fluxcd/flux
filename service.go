@@ -3,26 +3,13 @@ package flux
 import (
 	"fmt"
 	"math/rand"
+	"net/http"
 	"sort"
 	"strings"
 	"time"
 
 	"github.com/pkg/errors"
 )
-
-type Service interface {
-	ListServices(inst InstanceID, namespace string) ([]ServiceStatus, error)
-	ListImages(InstanceID, ServiceSpec) ([]ImageStatus, error)
-	PostRelease(InstanceID, ReleaseJobSpec) (ReleaseID, error)
-	GetRelease(InstanceID, ReleaseID) (ReleaseJob, error)
-	Automate(InstanceID, ServiceID) error
-	Deautomate(InstanceID, ServiceID) error
-	Lock(InstanceID, ServiceID) error
-	Unlock(InstanceID, ServiceID) error
-	History(InstanceID, ServiceSpec) ([]HistoryEntry, error)
-	GetConfig(_ InstanceID, secrets bool) (InstanceConfig, error)
-	SetConfig(InstanceID, InstanceConfig) error
-}
 
 const (
 	ServiceSpecAll  = ServiceSpec("<all>")
@@ -40,6 +27,12 @@ var (
 )
 
 type Token string
+
+func (t Token) Set(req *http.Request) {
+	if string(t) != "" {
+		req.Header.Set("Authorization", fmt.Sprintf("Scope-Probe token=%s", t))
+	}
+}
 
 type InstanceID string
 

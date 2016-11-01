@@ -16,7 +16,7 @@ import (
 // StandaloneInstancer is the instancer for standalone mode
 type StandaloneInstancer struct {
 	Instance     flux.InstanceID
-	Platform     platform.Platform
+	Connecter    platform.Connecter
 	Registry     *registry.Client
 	Config       Configurer
 	GitRepo      git.Repo
@@ -30,8 +30,12 @@ func (s StandaloneInstancer) Get(inst flux.InstanceID) (*Instance, error) {
 	if inst != s.Instance {
 		return nil, errors.New("cannot find instance with ID: " + string(inst))
 	}
+	platform, err := s.Connecter.Connect(inst)
+	if err != nil {
+		return nil, errors.New("cannot get platform for instance")
+	}
 	return New(
-		s.Platform,
+		platform,
 		s.Registry,
 		s.Config,
 		s.GitRepo,

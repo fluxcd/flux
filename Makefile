@@ -11,11 +11,12 @@ include docker/kubectl.version
 godeps=$(shell go list -f '{{join .Deps "\n"}}' $1 | grep -v /vendor/ | xargs go list -f '{{if not .Standard}}{{ $$dep := . }}{{range .GoFiles}}{{$$dep.Dir}}/{{.}} {{end}}{{end}}')
 
 FLUXD_DEPS:=$(call godeps,./cmd/fluxd)
+FLUXSVC_DEPS:=$(call godeps,./cmd/fluxsvc)
 FLUXCTL_DEPS:=$(call godeps,./cmd/fluxctl)
 
 MIGRATIONS:=$(shell find db/migrations -type f)
 
-all: $(GOPATH)/bin/fluxctl $(GOPATH)/bin/fluxd build/.fluxy.done
+all: $(GOPATH)/bin/fluxctl $(GOPATH)/bin/fluxd $(GOPATH)/bin/fluxsvc build/.fluxd.done build/.fluxsvc.done
 
 clean:
 	go clean
@@ -27,15 +28,22 @@ realclean: clean
 build/migrations.tar: $(MIGRATIONS)
 	tar cf $@ db/migrations
 
-build/.fluxy.done: docker/Dockerfile.fluxy build/fluxd ./cmd/fluxd/kubeservice build/kubectl build/migrations.tar
-	mkdir -p ./build/docker
-	cp $^ ./build/docker/
-	${DOCKER} build -t weaveworks/fluxy -f build/docker/Dockerfile.fluxy ./build/docker
+build/.%.done: docker/Dockerfile.%
+	mkdir -p ./build/docker/$*
+	cp $^ ./build/docker/$*/
+	${DOCKER} build -t weaveworks/$* -f build/docker/$*/Dockerfile.$* ./build/docker/$*
 	touch $@
+
+build/.fluxd.done: build/fluxd build/kubectl
+build/.fluxsvc.done: build/fluxsvc cmd/fluxsvc/kubeservice build/migrations.tar
 
 build/fluxd: $(FLUXD_DEPS)
 build/fluxd: cmd/fluxd/*.go
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o $@ cmd/fluxd/main.go
+
+build/fluxsvc: $(FLUXSVC_DEPS)
+build/fluxsvc: cmd/fluxsvc/*.go
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o $@ cmd/fluxsvc/main.go
 
 build/kubectl: cache/kubectl-$(KUBECTL_VERSION) docker/kubectl.version
 	cp cache/kubectl-$(KUBECTL_VERSION) $@
@@ -52,3 +60,7 @@ ${GOPATH}/bin/fluxctl: ./cmd/fluxctl/*.go
 $(GOPATH)/bin/fluxd: $(FLUXD_DEPS)
 $(GOPATH)/bin/fluxd: cmd/fluxd/*.go
 	go install ./cmd/fluxd
+
+$(GOPATH)/bin/fluxsvc: $(FLUXSVC_DEPS)
+$(GOPATH)/bin/fluxsvc: cmd/fluxsvc/*.go
+	go install ./cmd/fluxsvc

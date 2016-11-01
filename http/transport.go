@@ -1,10 +1,12 @@
 package http
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"net/url"
 	"path"
@@ -18,6 +20,9 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/weaveworks/fluxy"
+	"github.com/weaveworks/fluxy/api"
+	"github.com/weaveworks/fluxy/http/websocket"
+	"github.com/weaveworks/fluxy/platform/rpc"
 )
 
 func NewRouter() *mux.Router {
@@ -33,11 +38,12 @@ func NewRouter() *mux.Router {
 	r.NewRoute().Name("History").Methods("GET").Path("/v3/history").Queries("service", "{service}")
 	r.NewRoute().Name("GetConfig").Methods("GET").Path("/v4/config").Queries("secrets", "{secrets}")
 	r.NewRoute().Name("SetConfig").Methods("POST").Path("/v4/config")
+	r.NewRoute().Name("Register").Methods("GET").Path("/v4/daemon")
 	return r
 }
 
-func NewHandler(s flux.Service, r *mux.Router, logger log.Logger, h metrics.Histogram) http.Handler {
-	for method, handlerFunc := range map[string]func(flux.Service) http.Handler{
+func NewHandler(s api.FluxService, r *mux.Router, logger log.Logger, h metrics.Histogram) http.Handler {
+	for method, handlerFunc := range map[string]func(api.FluxService) http.Handler{
 		"ListServices": handleListServices,
 		"ListImages":   handleListImages,
 		"PostRelease":  handlePostRelease,
@@ -49,6 +55,7 @@ func NewHandler(s flux.Service, r *mux.Router, logger log.Logger, h metrics.Hist
 		"History":      handleHistory,
 		"GetConfig":    handleGetConfig,
 		"SetConfig":    handleSetConfig,
+		"Daemon":       handleRegister,
 	} {
 		var handler http.Handler
 		handler = handlerFunc(s)
@@ -63,7 +70,7 @@ func NewHandler(s flux.Service, r *mux.Router, logger log.Logger, h metrics.Hist
 // The idea here is to place the handleFoo and invokeFoo functions next to each
 // other, so changes in one can easily be accommodated in the other.
 
-func handleListServices(s flux.Service) http.Handler {
+func handleListServices(s api.FluxService) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		inst := getInstanceID(r)
 		namespace := mux.Vars(r)["namespace"]
@@ -93,7 +100,7 @@ func invokeListServices(client *http.Client, t flux.Token, router *mux.Router, e
 	if err != nil {
 		return nil, errors.Wrapf(err, "constructing request %s", u)
 	}
-	setToken(req, t)
+	t.Set(req)
 
 	resp, err := executeRequest(client, req)
 	if err != nil {
@@ -107,7 +114,7 @@ func invokeListServices(client *http.Client, t flux.Token, router *mux.Router, e
 	return res, nil
 }
 
-func handleListImages(s flux.Service) http.Handler {
+func handleListImages(s api.FluxService) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		inst := getInstanceID(r)
 		service := mux.Vars(r)["service"]
@@ -143,7 +150,7 @@ func invokeListImages(client *http.Client, t flux.Token, router *mux.Router, end
 	if err != nil {
 		return nil, errors.Wrapf(err, "constructing request %s", u)
 	}
-	setToken(req, t)
+	t.Set(req)
 
 	resp, err := executeRequest(client, req)
 	if err != nil {
@@ -162,7 +169,7 @@ type postReleaseResponse struct {
 	ReleaseID flux.ReleaseID `json:"release_id"`
 }
 
-func handlePostRelease(s flux.Service) http.Handler {
+func handlePostRelease(s api.FluxService) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var (
 			inst    = getInstanceID(r)
@@ -235,7 +242,7 @@ func invokePostRelease(client *http.Client, t flux.Token, router *mux.Router, en
 	if err != nil {
 		return "", errors.Wrapf(err, "constructing request %s", u)
 	}
-	setToken(req, t)
+	t.Set(req)
 
 	resp, err := executeRequest(client, req)
 	if err != nil {
@@ -249,7 +256,7 @@ func invokePostRelease(client *http.Client, t flux.Token, router *mux.Router, en
 	return res.ReleaseID, nil
 }
 
-func handleGetRelease(s flux.Service) http.Handler {
+func handleGetRelease(s api.FluxService) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		inst := getInstanceID(r)
 		id := mux.Vars(r)["id"]
@@ -279,7 +286,7 @@ func invokeGetRelease(client *http.Client, t flux.Token, router *mux.Router, end
 	if err != nil {
 		return flux.ReleaseJob{}, errors.Wrapf(err, "constructing request %s", u)
 	}
-	setToken(req, t)
+	t.Set(req)
 
 	resp, err := executeRequest(client, req)
 	if err != nil {
@@ -293,7 +300,7 @@ func invokeGetRelease(client *http.Client, t flux.Token, router *mux.Router, end
 	return res, nil
 }
 
-func handleAutomate(s flux.Service) http.Handler {
+func handleAutomate(s api.FluxService) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		inst := getInstanceID(r)
 		service := mux.Vars(r)["service"]
@@ -324,7 +331,7 @@ func invokeAutomate(client *http.Client, t flux.Token, router *mux.Router, endpo
 	if err != nil {
 		return errors.Wrapf(err, "constructing request %s", u)
 	}
-	setToken(req, t)
+	t.Set(req)
 
 	if _, err = executeRequest(client, req); err != nil {
 		return errors.Wrap(err, "executing HTTP request")
@@ -333,7 +340,7 @@ func invokeAutomate(client *http.Client, t flux.Token, router *mux.Router, endpo
 	return nil
 }
 
-func handleDeautomate(s flux.Service) http.Handler {
+func handleDeautomate(s api.FluxService) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		inst := getInstanceID(r)
 		service := mux.Vars(r)["service"]
@@ -364,7 +371,7 @@ func invokeDeautomate(client *http.Client, t flux.Token, router *mux.Router, end
 	if err != nil {
 		return errors.Wrapf(err, "constructing request %s", u)
 	}
-	setToken(req, t)
+	t.Set(req)
 
 	if _, err = executeRequest(client, req); err != nil {
 		return errors.Wrap(err, "executing HTTP request")
@@ -373,7 +380,7 @@ func invokeDeautomate(client *http.Client, t flux.Token, router *mux.Router, end
 	return nil
 }
 
-func handleLock(s flux.Service) http.Handler {
+func handleLock(s api.FluxService) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		inst := getInstanceID(r)
 		service := mux.Vars(r)["service"]
@@ -404,7 +411,7 @@ func invokeLock(client *http.Client, t flux.Token, router *mux.Router, endpoint 
 	if err != nil {
 		return errors.Wrapf(err, "constructing request %s", u)
 	}
-	setToken(req, t)
+	t.Set(req)
 
 	if _, err = executeRequest(client, req); err != nil {
 		return errors.Wrap(err, "executing HTTP request")
@@ -413,7 +420,7 @@ func invokeLock(client *http.Client, t flux.Token, router *mux.Router, endpoint 
 	return nil
 }
 
-func handleUnlock(s flux.Service) http.Handler {
+func handleUnlock(s api.FluxService) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		inst := getInstanceID(r)
 		service := mux.Vars(r)["service"]
@@ -444,7 +451,7 @@ func invokeUnlock(client *http.Client, t flux.Token, router *mux.Router, endpoin
 	if err != nil {
 		return errors.Wrapf(err, "constructing request %s", u)
 	}
-	setToken(req, t)
+	t.Set(req)
 
 	if _, err = executeRequest(client, req); err != nil {
 		return errors.Wrap(err, "executing HTTP request")
@@ -453,7 +460,7 @@ func invokeUnlock(client *http.Client, t flux.Token, router *mux.Router, endpoin
 	return nil
 }
 
-func handleHistory(s flux.Service) http.Handler {
+func handleHistory(s api.FluxService) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		inst := getInstanceID(r)
 		service := mux.Vars(r)["service"]
@@ -490,7 +497,7 @@ func invokeHistory(client *http.Client, t flux.Token, router *mux.Router, endpoi
 	if err != nil {
 		return nil, errors.Wrapf(err, "constructing request %s", u)
 	}
-	setToken(req, t)
+	t.Set(req)
 
 	resp, err := executeRequest(client, req)
 	if err != nil {
@@ -505,7 +512,7 @@ func invokeHistory(client *http.Client, t flux.Token, router *mux.Router, endpoi
 	return res, nil
 }
 
-func handleGetConfig(s flux.Service) http.Handler {
+func handleGetConfig(s api.FluxService) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		inst := getInstanceID(r)
 		secrets, err := strconv.ParseBool(mux.Vars(r)["secrets"])
@@ -544,7 +551,7 @@ func invokeGetConfig(client *http.Client, t flux.Token, router *mux.Router, endp
 	if err != nil {
 		return flux.InstanceConfig{}, errors.Wrapf(err, "constructing request %s", u)
 	}
-	setToken(req, t)
+	t.Set(req)
 
 	resp, err := executeRequest(client, req)
 	if err != nil {
@@ -558,7 +565,7 @@ func invokeGetConfig(client *http.Client, t flux.Token, router *mux.Router, endp
 	return res, nil
 }
 
-func handleSetConfig(s flux.Service) http.Handler {
+func handleSetConfig(s api.FluxService) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		inst := getInstanceID(r)
 
@@ -604,6 +611,36 @@ func invokeSetConfig(client *http.Client, t flux.Token, router *mux.Router, endp
 	return nil
 }
 
+func handleRegister(s api.FluxService) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		inst := getInstanceID(r)
+
+		// Upgrade to a websocket
+		ws, err := websocket.Upgrade(w, r, nil)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			fmt.Fprintf(w, err.Error())
+			return
+		}
+
+		// Set up RPC. The service is a websocket _server_ but an RPC
+		// _client_.
+		rpcClient := rpc.NewClient(ws)
+
+		// Make platform available to clients
+		// This should block until the daemon disconnects
+		// TODO: Handle the error here
+		s.RegisterDaemon(inst, rpcClient)
+
+		// Clean up
+		// TODO: Handle the error here
+		rpcClient.Close()
+	})
+}
+
+// invokeRegister, which might be expected here, is supplanted by
+// `Daemon.connect()`.
+
 // --- end handle/invoke
 
 func mustGetPathTemplate(route *mux.Route) string {
@@ -637,12 +674,6 @@ func makeURL(endpoint string, router *mux.Router, routeName string, urlParams ..
 	endpointURL.Path = path.Join(endpointURL.Path, routeURL.Path)
 	endpointURL.RawQuery = v.Encode()
 	return endpointURL, nil
-}
-
-func setToken(req *http.Request, t flux.Token) {
-	if string(t) != "" {
-		req.Header.Set("Authorization", fmt.Sprintf("Scope-Probe token=%s", t))
-	}
 }
 
 func getInstanceID(req *http.Request) flux.InstanceID {
@@ -708,6 +739,14 @@ func (w *codeWriter) WriteHeader(code int) {
 	w.ResponseWriter.WriteHeader(code)
 }
 
+func (w *codeWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	hj, ok := w.ResponseWriter.(http.Hijacker)
+	if !ok {
+		return nil, nil, fmt.Errorf("response does not implement http.Hijacker")
+	}
+	return hj.Hijack()
+}
+
 // teeWriter intercepts and stores the HTTP response.
 type teeWriter struct {
 	http.ResponseWriter
@@ -717,6 +756,14 @@ type teeWriter struct {
 func (w *teeWriter) Write(p []byte) (int, error) {
 	w.buf.Write(p) // best-effort
 	return w.ResponseWriter.Write(p)
+}
+
+func (w *teeWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	hj, ok := w.ResponseWriter.(http.Hijacker)
+	if !ok {
+		return nil, nil, fmt.Errorf("response does not implement http.Hijacker")
+	}
+	return hj.Hijack()
 }
 
 func mustUnescape(s string) string {

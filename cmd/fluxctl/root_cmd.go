@@ -12,13 +12,14 @@ import (
 	"github.com/spf13/pflag"
 
 	"github.com/weaveworks/fluxy"
+	"github.com/weaveworks/fluxy/api"
 	transport "github.com/weaveworks/fluxy/http"
 )
 
 type rootOpts struct {
 	URL   string
 	Token string
-	Fluxd flux.Service
+	API   api.ClientService
 }
 
 // fluxctl never sends an instance ID directly; it's always blank, and
@@ -87,7 +88,7 @@ func (opts *rootOpts) PersistentPreRunE(cmd *cobra.Command, _ []string) error {
 	if _, err := url.Parse(opts.URL); err != nil {
 		return errors.Wrapf(err, "parsing URL")
 	}
-	opts.Fluxd = transport.NewClient(http.DefaultClient, transport.NewRouter(), opts.URL, flux.Token(opts.Token))
+	opts.API = transport.NewClient(http.DefaultClient, transport.NewRouter(), opts.URL, flux.Token(opts.Token))
 	return nil
 }
 
