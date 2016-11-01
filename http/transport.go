@@ -38,24 +38,24 @@ func NewRouter() *mux.Router {
 	r.NewRoute().Name("History").Methods("GET").Path("/v3/history").Queries("service", "{service}")
 	r.NewRoute().Name("GetConfig").Methods("GET").Path("/v4/config").Queries("secrets", "{secrets}")
 	r.NewRoute().Name("SetConfig").Methods("POST").Path("/v4/config")
-	r.NewRoute().Name("Register").Methods("GET").Path("/v4/daemon")
+	r.NewRoute().Name("RegisterDaemon").Methods("GET").Path("/v4/daemon")
 	return r
 }
 
 func NewHandler(s api.FluxService, r *mux.Router, logger log.Logger, h metrics.Histogram) http.Handler {
 	for method, handlerFunc := range map[string]func(api.FluxService) http.Handler{
-		"ListServices": handleListServices,
-		"ListImages":   handleListImages,
-		"PostRelease":  handlePostRelease,
-		"GetRelease":   handleGetRelease,
-		"Automate":     handleAutomate,
-		"Deautomate":   handleDeautomate,
-		"Lock":         handleLock,
-		"Unlock":       handleUnlock,
-		"History":      handleHistory,
-		"GetConfig":    handleGetConfig,
-		"SetConfig":    handleSetConfig,
-		"Daemon":       handleRegister,
+		"ListServices":   handleListServices,
+		"ListImages":     handleListImages,
+		"PostRelease":    handlePostRelease,
+		"GetRelease":     handleGetRelease,
+		"Automate":       handleAutomate,
+		"Deautomate":     handleDeautomate,
+		"Lock":           handleLock,
+		"Unlock":         handleUnlock,
+		"History":        handleHistory,
+		"GetConfig":      handleGetConfig,
+		"SetConfig":      handleSetConfig,
+		"RegisterDaemon": handleRegister,
 	} {
 		var handler http.Handler
 		handler = handlerFunc(s)
