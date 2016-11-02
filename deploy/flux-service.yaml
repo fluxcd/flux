@@ -1,9 +1,9 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: fluxy
+  name: flux
 spec:
   ports:
     - port: 3030
   selector:
-    name: fluxy
+    name: flux

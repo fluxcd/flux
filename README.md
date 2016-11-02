@@ -1,4 +1,4 @@
-# fluxy
+# Flux
 
 Work with your code, from laptop to prod.
 
@@ -60,7 +60,7 @@ I want to find out what images are available for a service.
 fluxctl list-images --service=S
 ```
 
-I want to inspect the history of actions taken with Fluxy, both per-service and overall.
+I want to inspect the history of actions taken with Flux, both per-service and overall.
 
 ```
 fluxctl history [--service=S]
@@ -68,14 +68,14 @@ fluxctl history [--service=S]
 
 ## Installing
 
-For the minute you will have to build or use the container image
-`quay.io/weaveworks/fluxy`. The directory [`deploy/`](https://github.com/weaveworks/fluxy/tree/master/deploy) has example Kubernetes configuration and instructions for using it.
+For the minute you will have to build or use the container images
+`weaveworks/flux{d,svc}`. The directory [`deploy/`](https://github.com/weaveworks/flux/tree/master/deploy) has example Kubernetes configuration and instructions for using it.
 
 ## Developing
 
 ### Build
 
-Ensure the repository is checked out into $GOPATH/src/github.com/weaveworks/fluxy.
+Ensure the repository is checked out into $GOPATH/src/github.com/weaveworks/flux.
 Then, from the root,
 
 ```

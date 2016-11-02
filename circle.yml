@@ -21,10 +21,10 @@ checkout:
 
 dependencies:
   cache_directories:
-    - "~/fluxy/vendor/k8s.io"
-    - "~/fluxy/vendor/github.com"
-    - "~/fluxy/vendor/gopkg.in"
-    - "~/fluxy/vendor/golang.org"
+    - "~/flux/vendor/k8s.io"
+    - "~/flux/vendor/github.com"
+    - "~/flux/vendor/gopkg.in"
+    - "~/flux/vendor/golang.org"
     - "~/download"
   override: 
     - go get github.com/Masterminds/glide

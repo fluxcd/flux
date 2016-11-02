@@ -82,50 +82,50 @@ func main() {
 	)
 	{
 		httpDuration = prometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
-			Namespace: "fluxy",
-			Subsystem: "fluxd",
+			Namespace: "flux",
+			Subsystem: "fluxsvc",
 			Name:      "http_request_duration_seconds",
 			Help:      "HTTP request duration in seconds.",
 		}, []string{"method", "status_code"})
 		serverMetrics.ListServicesDuration = prometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
-			Namespace: "fluxy",
-			Subsystem: "fluxd",
+			Namespace: "flux",
+			Subsystem: "fluxsvc",
 			Name:      "list_services_duration_seconds",
 			Help:      "ListServices method duration in seconds.",
 		}, []string{"namespace", "success"})
 		serverMetrics.ListImagesDuration = prometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
-			Namespace: "fluxy",
-			Subsystem: "fluxd",
+			Namespace: "flux",
+			Subsystem: "fluxsvc",
 			Name:      "list_images_duration_seconds",
 			Help:      "ListImages method duration in seconds.",
 		}, []string{"service_spec", "success"})
 		serverMetrics.HistoryDuration = prometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
-			Namespace: "fluxy",
-			Subsystem: "fluxd",
+			Namespace: "flux",
+			Subsystem: "fluxsvc",
 			Name:      "history_duration_seconds",
 			Help:      "History method duration in seconds.",
 		}, []string{"service_spec", "success"})
 		releaseMetrics.ReleaseDuration = prometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
-			Namespace: "fluxy",
-			Subsystem: "fluxd",
+			Namespace: "flux",
+			Subsystem: "fluxsvc",
 			Name:      "release_duration_seconds",
 			Help:      "Release method duration in seconds.",
 		}, []string{"release_type", "release_kind", "success"})
 		releaseMetrics.ActionDuration = prometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
-			Namespace: "fluxy",
-			Subsystem: "fluxd",
+			Namespace: "flux",
+			Subsystem: "fluxsvc",
 			Name:      "release_action_duration_seconds",
 			Help:      "Duration in seconds of each sub-action invoked as part of a non-dry-run release.",
 		}, []string{"action", "success"})
 		releaseMetrics.StageDuration = prometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
-			Namespace: "fluxy",
-			Subsystem: "fluxd",
+			Namespace: "flux",
+			Subsystem: "fluxsvc",
 			Name:      "release_stage_duration_seconds",
 			Help:      "Duration in seconds of each stage of a release, including dry-runs.",
 		}, []string{"method", "stage"})
 		helperDuration = prometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
-			Namespace: "fluxy",
-			Subsystem: "fluxd",
+			Namespace: "flux",
+			Subsystem: "fluxsvc",
 			Name:      "release_helper_duration_seconds",
 			Help:      "Duration in seconds of a variety of release helper methods.",
 		}, []string{"method", "success"})

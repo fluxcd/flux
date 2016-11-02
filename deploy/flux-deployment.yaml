@@ -1,13 +1,13 @@
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
-  name: fluxy
+  name: flux
 spec:
   replicas: 1
   template:
     metadata:
       labels:
-        name: fluxy
+        name: flux
     spec:
       containers:
       - name: fluxd
