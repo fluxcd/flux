@@ -19,7 +19,7 @@ import (
 	_ "github.com/cznic/ql/driver"
 	_ "github.com/lib/pq"
 	_ "github.com/mattes/migrate/driver/postgres"
-	_ "github.com/weaveworks/fluxy/db/ql"
+	_ "github.com/weaveworks/flux/db/ql"
 )
 
 // Most SQL drivers expect the driver name to appear as the scheme in

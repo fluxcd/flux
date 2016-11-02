@@ -1,8 +1,8 @@
 package api
 
 import (
-	"github.com/weaveworks/fluxy"
-	"github.com/weaveworks/fluxy/platform"
+	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/platform"
 )
 
 type ClientService interface {

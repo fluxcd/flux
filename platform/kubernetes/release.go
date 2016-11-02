@@ -12,7 +12,7 @@ import (
 	"k8s.io/kubernetes/pkg/api"
 	apiext "k8s.io/kubernetes/pkg/apis/extensions"
 
-	"github.com/weaveworks/fluxy/platform"
+	"github.com/weaveworks/flux/platform"
 )
 
 func (c podController) newRegrade(newDefinition *apiObject) (*regrade, error) {

@@ -6,7 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/weaveworks/fluxy"
+	"github.com/weaveworks/flux"
 )
 
 type serviceReleaseOpts struct {

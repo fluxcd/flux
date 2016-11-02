@@ -8,10 +8,10 @@ import (
 	"github.com/go-kit/kit/metrics"
 	"github.com/pkg/errors"
 
-	"github.com/weaveworks/fluxy"
-	"github.com/weaveworks/fluxy/history"
-	"github.com/weaveworks/fluxy/instance"
-	"github.com/weaveworks/fluxy/platform"
+	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/history"
+	"github.com/weaveworks/flux/instance"
+	"github.com/weaveworks/flux/platform"
 )
 
 const (

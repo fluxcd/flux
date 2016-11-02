@@ -5,8 +5,8 @@ import (
 	"net/rpc"
 	"net/rpc/jsonrpc"
 
-	"github.com/weaveworks/fluxy"
-	"github.com/weaveworks/fluxy/platform"
+	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/platform"
 )
 
 // net/rpc cannot serialise errors, so we transmit strings and

@@ -11,9 +11,9 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
-	"github.com/weaveworks/fluxy"
-	"github.com/weaveworks/fluxy/api"
-	transport "github.com/weaveworks/fluxy/http"
+	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/api"
+	transport "github.com/weaveworks/flux/http"
 )
 
 type rootOpts struct {

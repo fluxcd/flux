@@ -3,7 +3,7 @@ package registry
 import (
 	"testing"
 
-	"github.com/weaveworks/fluxy"
+	"github.com/weaveworks/flux"
 )
 
 type image struct {

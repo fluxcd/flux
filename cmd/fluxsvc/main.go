@@ -16,17 +16,17 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/pflag"
 
-	"github.com/weaveworks/fluxy"
-	"github.com/weaveworks/fluxy/automator"
-	"github.com/weaveworks/fluxy/db"
-	"github.com/weaveworks/fluxy/history"
-	historysql "github.com/weaveworks/fluxy/history/sql"
-	transport "github.com/weaveworks/fluxy/http"
-	"github.com/weaveworks/fluxy/instance"
-	instancedb "github.com/weaveworks/fluxy/instance/sql"
-	"github.com/weaveworks/fluxy/platform"
-	"github.com/weaveworks/fluxy/release"
-	"github.com/weaveworks/fluxy/server"
+	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/automator"
+	"github.com/weaveworks/flux/db"
+	"github.com/weaveworks/flux/history"
+	historysql "github.com/weaveworks/flux/history/sql"
+	transport "github.com/weaveworks/flux/http"
+	"github.com/weaveworks/flux/instance"
+	instancedb "github.com/weaveworks/flux/instance/sql"
+	"github.com/weaveworks/flux/platform"
+	"github.com/weaveworks/flux/release"
+	"github.com/weaveworks/flux/server"
 )
 
 func main() {

@@ -5,8 +5,8 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/weaveworks/fluxy"
-	"github.com/weaveworks/fluxy/history"
+	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/history"
 )
 
 // A history DB that uses a SQL database

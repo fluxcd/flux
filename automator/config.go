@@ -4,8 +4,8 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/weaveworks/fluxy"
-	"github.com/weaveworks/fluxy/instance"
+	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/instance"
 )
 
 // Config collects the parameters to the automator. All fields are mandatory.

@@ -17,8 +17,8 @@ import (
 	"k8s.io/kubernetes/pkg/client/restclient"
 	k8sclient "k8s.io/kubernetes/pkg/client/unversioned"
 
-	"github.com/weaveworks/fluxy"
-	"github.com/weaveworks/fluxy/platform"
+	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/platform"
 )
 
 type extendedClient struct {

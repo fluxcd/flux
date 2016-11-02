@@ -4,7 +4,7 @@ import (
 	"io"
 	"time"
 
-	"github.com/weaveworks/fluxy"
+	"github.com/weaveworks/flux"
 )
 
 type Event struct {
