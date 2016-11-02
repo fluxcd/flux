@@ -49,6 +49,7 @@ Workflow:
 `)
 
 const envVariableURL = "FLUX_URL"
+const envVariableToken = "FLUX_SERVICE_TOKEN"
 
 func (opts *rootOpts) Command() *cobra.Command {
 	cmd := &cobra.Command{
@@ -57,12 +58,10 @@ func (opts *rootOpts) Command() *cobra.Command {
 		SilenceUsage:      true,
 		PersistentPreRunE: opts.PersistentPreRunE,
 	}
-	cmd.PersistentFlags().StringVarP(&opts.URL, "url", "u", "http://localhost:3030",
-		fmt.Sprintf("base URL of the fluxd API server; you can also set the environment variable %s", envVariableURL),
-	)
+	cmd.PersistentFlags().StringVarP(&opts.URL, "url", "u", "https://cloud.weave.works/api/flux",
+		fmt.Sprintf("base URL of the flux service; you can also set the environment variable %s", envVariableURL))
 	cmd.PersistentFlags().StringVarP(&opts.Token, "token", "t", "",
-		"Weave Cloud token",
-	)
+		fmt.Sprintf("Weave Cloud service token; you can also set the environment variable %s", envVariableToken))
 
 	svcopts := newService(opts)
 
@@ -88,6 +87,7 @@ func (opts *rootOpts) PersistentPreRunE(cmd *cobra.Command, _ []string) error {
 	if _, err := url.Parse(opts.URL); err != nil {
 		return errors.Wrapf(err, "parsing URL")
 	}
+	opts.Token = getFromEnvIfNotSet(cmd.Flags(), "token", envVariableToken, opts.Token)
 	opts.API = transport.NewClient(http.DefaultClient, transport.NewRouter(), opts.URL, flux.Token(opts.Token))
 	return nil
 }

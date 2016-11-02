@@ -28,8 +28,8 @@ func main() {
 	}
 	// This mirrors how kubectl extracts information from the environment.
 	var (
-		fluxsvcAddress    = fs.String("fluxsvc-address", "cloud.weave.works:3031", "Address of the fluxsvc to connect to.")
-		token             = fs.String("token", "", "Token to use to authenticate with cloud.weave.works")
+		fluxsvcAddress    = fs.String("fluxsvc-address", "wss://cloud.weave.works/api/flux", "Address of the fluxsvc to connect to.")
+		token             = fs.String("token", "", "Token to use to authenticate with flux service")
 		kubernetesKubectl = fs.String("kubernetes-kubectl", "", "Optional, explicit path to kubectl tool")
 	)
 	fs.Parse(os.Args)
