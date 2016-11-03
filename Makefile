@@ -1,5 +1,5 @@
 .DEFAULT: all
-.PHONY: all clean realclean
+.PHONY: all release-bins clean realclean
 
 DOCKER?=docker
 include docker/kubectl.version
@@ -17,6 +17,9 @@ FLUXCTL_DEPS:=$(call godeps,./cmd/fluxctl)
 MIGRATIONS:=$(shell find db/migrations -type f)
 
 all: $(GOPATH)/bin/fluxctl $(GOPATH)/bin/fluxd $(GOPATH)/bin/fluxsvc build/.fluxd.done build/.fluxsvc.done
+
+.PHONY: release-bins
+release-bins: build/fluxctl-linux-amd64 build/fluxctl-darwin-amd64
 
 clean:
 	go clean
@@ -44,6 +47,11 @@ build/fluxd: cmd/fluxd/*.go
 build/fluxsvc: $(FLUXSVC_DEPS)
 build/fluxsvc: cmd/fluxsvc/*.go
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o $@ cmd/fluxsvc/main.go
+
+build/fluxctl-linux-amd64: $(FLUXCTL_DEPS)
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o $@ ./cmd/fluxctl/
+build/fluxctl-darwin-amd64: $(FLUXCTL_DEPS)
+	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -o $@ ./cmd/fluxctl/
 
 build/kubectl: cache/kubectl-$(KUBECTL_VERSION) docker/kubectl.version
 	cp cache/kubectl-$(KUBECTL_VERSION) $@
