@@ -15,16 +15,16 @@ checkout:
     - sudo rm -rf /usr/local/go
     - sudo tar -C /usr/local -xzf download/$GODIST
     - mkdir -p ${GOPATH}/src/github.com/weaveworks
-    - mv ${HOME}/fluxy ${GOPATH}/src/github.com/weaveworks
-    - ln -s ${GOPATH}/src/github.com/weaveworks/fluxy ${HOME}/fluxy # Circle needs this to be here, apparently
-    - cd ${GOPATH}/src/github.com/weaveworks/fluxy
+    - mv ${HOME}/flux ${GOPATH}/src/github.com/weaveworks/
+    - ln -s ${GOPATH}/src/github.com/weaveworks/flux ${HOME}/flux # Circle needs this to be here, apparently
+    - cd ${GOPATH}/src/github.com/weaveworks/flux
 
 dependencies:
   cache_directories:
-    - "~/fluxy/vendor/k8s.io"
-    - "~/fluxy/vendor/github.com"
-    - "~/fluxy/vendor/gopkg.in"
-    - "~/fluxy/vendor/golang.org"
+    - "~/flux/vendor/k8s.io"
+    - "~/flux/vendor/github.com"
+    - "~/flux/vendor/gopkg.in"
+    - "~/flux/vendor/golang.org"
     - "~/download"
   override: 
     - go get github.com/Masterminds/glide
@@ -37,7 +37,7 @@ test:
     - go test -v -race $(glide novendor)
   post:
     - |
-        cd ${GOPATH}/src/github.com/weaveworks/fluxy
+        cd ${GOPATH}/src/github.com/weaveworks/flux
         make all
 
 deployment:

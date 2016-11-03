@@ -23,7 +23,7 @@ type Repo struct {
 }
 
 func (r Repo) Clone() (path string, key string, err error) {
-	workingDir, err := ioutil.TempDir(os.TempDir(), "fluxy-gitclone")
+	workingDir, err := ioutil.TempDir(os.TempDir(), "flux-gitclone")
 	if err != nil {
 		return "", "", err
 	}

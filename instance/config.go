@@ -1,7 +1,7 @@
 package instance
 
 import (
-	"github.com/weaveworks/fluxy"
+	"github.com/weaveworks/flux"
 )
 
 type ServiceConfig struct {

@@ -9,7 +9,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/weaveworks/fluxy"
+	"github.com/weaveworks/flux"
 )
 
 func TestToken(t *testing.T) {

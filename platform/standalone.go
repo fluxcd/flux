@@ -4,7 +4,7 @@ import (
 	"errors"
 	"sync"
 
-	"github.com/weaveworks/fluxy"
+	"github.com/weaveworks/flux"
 )
 
 type StandaloneMessageBus struct {

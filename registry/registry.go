@@ -17,7 +17,7 @@ import (
 	dockerregistry "github.com/heroku/docker-registry-client/registry"
 	"golang.org/x/net/publicsuffix"
 
-	"github.com/weaveworks/fluxy"
+	"github.com/weaveworks/flux"
 )
 
 const (

@@ -7,11 +7,11 @@ import (
 	"github.com/go-kit/kit/metrics"
 	"github.com/pkg/errors"
 
-	"github.com/weaveworks/fluxy"
-	"github.com/weaveworks/fluxy/git"
-	"github.com/weaveworks/fluxy/history"
-	"github.com/weaveworks/fluxy/platform"
-	"github.com/weaveworks/fluxy/registry"
+	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/git"
+	"github.com/weaveworks/flux/history"
+	"github.com/weaveworks/flux/platform"
+	"github.com/weaveworks/flux/registry"
 )
 
 type MultitenantInstancer struct {

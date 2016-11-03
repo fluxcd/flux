@@ -11,9 +11,9 @@ import (
 	"github.com/spf13/pflag"
 	"k8s.io/kubernetes/pkg/client/restclient"
 
-	"github.com/weaveworks/fluxy"
-	transport "github.com/weaveworks/fluxy/http"
-	"github.com/weaveworks/fluxy/platform/kubernetes"
+	"github.com/weaveworks/flux"
+	transport "github.com/weaveworks/flux/http"
+	"github.com/weaveworks/flux/platform/kubernetes"
 )
 
 func main() {

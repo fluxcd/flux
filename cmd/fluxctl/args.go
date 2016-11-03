@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/weaveworks/fluxy"
+	"github.com/weaveworks/flux"
 )
 
 func parseServiceOption(s string) (flux.ServiceSpec, error) {

@@ -9,10 +9,10 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 
-	"github.com/weaveworks/fluxy"
-	"github.com/weaveworks/fluxy/http/websocket"
-	"github.com/weaveworks/fluxy/platform"
-	"github.com/weaveworks/fluxy/platform/rpc"
+	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/http/websocket"
+	"github.com/weaveworks/flux/platform"
+	"github.com/weaveworks/flux/platform/rpc"
 )
 
 // Daemon handles communication from the daemon to the service

@@ -9,7 +9,7 @@ import (
 
 	"github.com/pkg/errors"
 
-	flux "github.com/weaveworks/fluxy"
+	"github.com/weaveworks/flux"
 )
 
 // DatabaseStore is a job store backed by a sql.DB.

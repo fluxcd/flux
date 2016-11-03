@@ -11,7 +11,7 @@ import (
 	"github.com/mattn/go-isatty"
 	"github.com/spf13/cobra"
 
-	flux "github.com/weaveworks/fluxy"
+	flux "github.com/weaveworks/flux"
 )
 
 const largestHeartbeatDelta = 5 * time.Second

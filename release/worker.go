@@ -7,8 +7,8 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
 
-	flux "github.com/weaveworks/fluxy"
-	"github.com/weaveworks/fluxy/instance"
+	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/instance"
 )
 
 // Worker grabs release jobs from the job store and executes them.

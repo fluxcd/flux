@@ -19,10 +19,10 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 
-	"github.com/weaveworks/fluxy"
-	"github.com/weaveworks/fluxy/api"
-	"github.com/weaveworks/fluxy/http/websocket"
-	"github.com/weaveworks/fluxy/platform/rpc"
+	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/api"
+	"github.com/weaveworks/flux/http/websocket"
+	"github.com/weaveworks/flux/platform/rpc"
 )
 
 func NewRouter() *mux.Router {

@@ -5,8 +5,8 @@ import (
 
 	"github.com/gorilla/mux"
 
-	"github.com/weaveworks/fluxy"
-	"github.com/weaveworks/fluxy/api"
+	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/api"
 )
 
 type client struct {

@@ -1,8 +1,8 @@
 package instance
 
 import (
-	"github.com/weaveworks/fluxy"
-	"github.com/weaveworks/fluxy/history"
+	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/history"
 )
 
 type EventReadWriter struct {
