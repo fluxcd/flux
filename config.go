@@ -1,7 +1,10 @@
 package flux
 
 import (
+	"crypto/rsa"
+	"crypto/sha256"
 	"encoding/base64"
+	"golang.org/x/crypto/ssh"
 	"strings"
 )
 
@@ -41,9 +44,7 @@ type InstanceConfig struct {
 }
 
 func (c InstanceConfig) HideSecrets() InstanceConfig {
-	if c.Git.Key != "" {
-		c.Git.Key = secretReplacement
-	}
+	c.Git = c.Git.HideKey()
 	for host, auth := range c.Registry.Auths {
 		c.Registry.Auths[host] = auth.HidePassword()
 	}
@@ -60,4 +61,31 @@ func (a Auth) HidePassword() Auth {
 	}
 	parts := strings.SplitN(string(bytes), ":", 2)
 	return Auth{parts[0] + ":" + secretReplacement}
+}
+
+func (g GitConfig) HideKey() GitConfig {
+	if g.Key == "" {
+		return g
+	}
+	key, err := ssh.ParseRawPrivateKey([]byte(g.Key))
+	if err != nil {
+		g.Key = secretReplacement
+		return g
+	}
+
+	privKey, ok := key.(*rsa.PrivateKey)
+	if !ok {
+		g.Key = secretReplacement
+		return g
+	}
+
+	pubKey, err := ssh.NewPublicKey(&privKey.PublicKey)
+	if err != nil {
+		g.Key = secretReplacement
+		return g
+	}
+
+	hash := sha256.Sum256(pubKey.Marshal())
+	g.Key = "SHA256: " + strings.TrimRight(base64.StdEncoding.EncodeToString(hash[:]), "=") + " (RSA)"
+	return g
 }
