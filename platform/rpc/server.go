@@ -59,17 +59,18 @@ func (p *RPCServer) SomeServices(ids []flux.ServiceID, resp *[]platform.Service)
 	return err
 }
 
-func (p *RPCServer) Regrade(spec []platform.RegradeSpec, regradeError *RegradeResult) error {
+func (p *RPCServer) Regrade(spec []platform.RegradeSpec, regradeResult *RegradeResult) error {
 	result := RegradeResult{}
 	err := p.p.Regrade(spec)
 	if err != nil {
-		switch err := err.(type) {
+		switch regradeErr := err.(type) {
 		case platform.RegradeError:
-			for s, e := range err {
+			for s, e := range regradeErr {
 				result[s] = e.Error()
 			}
+			err = nil
 		}
 	}
-	*regradeError = result
+	*regradeResult = result
 	return err
 }
