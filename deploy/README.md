@@ -16,13 +16,24 @@ Flux updates a Git repository containing your Kubernetes config each
 time a service is released; this will usually require an SSH access
 key.
 
-Here is an example of setting this up for the `helloworld` example in
-the Flux git repository, in the directory `testdata`. You can skip
-forking the example repository if you already have one you're using.
+Here is an example of setting this up for the `helloworld` service in
+the git repository
+[flux-example](https://github.com/weaveworks/flux-example). You can
+skip forking the example repository, and adapt things below, if you
+already have a repo you're using.
 
-Fork the Flux repository on github (you may also wish to rename it,
-e.g., to `flux-testdata`). Now, we're going to add a deploy key so
-Flux can push to that repo. Generate a key in the console:
+Fork the [flux-example](https://github.com/weaveworks/flux-example)
+repository to your own account on github.
+
+You can run the helloworld service by creating the deployment and
+service resources given as files in that repo:
+
+```
+flux-example$ kubectl create -f helloworld-deploy.yaml -f helloworld-svc.yaml
+```
+
+Now, we're going to add a deploy key so Flux can push to the config
+repo. Generate a key in the console:
 
 ```
 ssh-keygen -t rsa -b 4096 -f id-rsa-flux
@@ -70,8 +81,8 @@ Here's an example with values filled in:
 
 ```yaml
 git:
-  URL: git@github.com:squaremo/flux-testdata
-  path: testdata
+  URL: git@github.com:squaremo/flux-example
+  path: 
   branch: master
   key: |
          -----BEGIN RSA PRIVATE KEY-----
@@ -109,5 +120,13 @@ registry:
 Finally, give the config to Flux:
 
 ```sh
-fluxctl set-config --file=flux.conf
+$ fluxctl set-config --file=flux.conf
+```
+
+To test it out, you can try getting a list of images for the
+`helloworld`, and upgrading it:
+
+```sh
+$ fluxctl list-images --service=default/helloworld
+$ fluxctl release --service=default/helloworld --upgrade-all-images
 ```
