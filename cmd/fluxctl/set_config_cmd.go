@@ -24,7 +24,7 @@ func (opts *setConfigOpts) Command() *cobra.Command {
 		Use:   "set-config",
 		Short: "set configuration values for an instance",
 		Example: makeExample(
-			"fluxctl config --file=./dev/flux-conf.yaml",
+			"fluxctl set-config --file=./dev/flux-conf.yaml",
 		),
 		RunE: opts.RunE,
 	}
