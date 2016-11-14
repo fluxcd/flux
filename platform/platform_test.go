@@ -1,0 +1,37 @@
+package platform
+
+import (
+	"errors"
+	"testing"
+
+	"github.com/weaveworks/flux"
+)
+
+func TestPlatformMock(t *testing.T) {
+	var p Platform = &MockPlatform{
+		AllServicesAnswer: []Service{Service{}},
+		SomeServicesArgTest: func([]flux.ServiceID) error {
+			return errors.New("arg fail")
+		},
+		RegradeError: errors.New("fail"),
+	}
+
+	// Just token tests so we're attempting _something_ here
+	ss, err := p.AllServices("", flux.ServiceIDSet{})
+	if err != nil {
+		t.Error(err)
+	}
+	if len(ss) != 1 {
+		t.Errorf("expected answer given in mock, but got %+v", ss)
+	}
+
+	ss, err = p.SomeServices([]flux.ServiceID{})
+	if err == nil {
+		t.Error("expected error from args test, got nil")
+	}
+
+	err = p.Regrade([]RegradeSpec{})
+	if err == nil {
+		t.Error("expected error, got nil")
+	}
+}
