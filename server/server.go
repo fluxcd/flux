@@ -346,7 +346,11 @@ func (s *Server) RegisterDaemon(instID flux.InstanceID, platform platform.Remote
 	// closed. NB we cannot in general expect there to be a
 	// configuration record for this instance; it may be connecting
 	// before there is configuration supplied.
-	return s.messageBus.Subscribe(instID, &loggingPlatform{platform, log.NewContext(s.logger).With("instanceID", instID)})
+	done := make(chan error)
+	s.messageBus.Subscribe(instID, &loggingPlatform{platform, log.NewContext(s.logger).With("instanceID", instID)}, done)
+	err = <-done
+	close(done)
+	return err
 }
 
 func (s *Server) IsDaemonConnected(instID flux.InstanceID) error {

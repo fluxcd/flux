@@ -34,9 +34,10 @@ func (s *StandaloneMessageBus) Connect(inst flux.InstanceID) (Platform, error) {
 }
 
 // Subscribe introduces a Platform to the message bus, so that
-// requests can be routed to it. This will block until the connection
-// is closed, or replaced by another.
-func (s *StandaloneMessageBus) Subscribe(inst flux.InstanceID, p RemotePlatform) error {
+// requests can be routed to it. Once the connection is closed --
+// trying to use it is the only way to tell if it's closed -- the
+// error representing the cause will be sent to the channel supplied.
+func (s *StandaloneMessageBus) Subscribe(inst flux.InstanceID, p RemotePlatform, complete chan<- error) {
 	s.Lock()
 	// We're replacing another client
 	if existing, ok := s.connected[inst]; ok {
@@ -44,7 +45,6 @@ func (s *StandaloneMessageBus) Subscribe(inst flux.InstanceID, p RemotePlatform)
 		existing.closeWithError(errors.New("duplicate connection; replacing with newer"))
 	}
 
-	// Add our new client in
 	done := make(chan error)
 	s.connected[inst] = &removeablePlatform{
 		remote: p,
@@ -52,16 +52,18 @@ func (s *StandaloneMessageBus) Subscribe(inst flux.InstanceID, p RemotePlatform)
 	}
 	s.Unlock()
 
-	// Wait to be kicked, or an error to happen
-	err := <-done
-
-	// Cleanup behind us, in case we're not being kicked.
-	s.Lock()
-	if existing, ok := s.connected[inst]; ok && existing.remote == p {
-		delete(s.connected, inst)
-	}
-	s.Unlock()
-	return err
+	// The only way we detect remote platforms closing are if an RPC
+	// is attempted and it fails. When that happens, clean up behind
+	// us.
+	go func() {
+		err := <-done
+		s.Lock()
+		if existing, ok := s.connected[inst]; ok && existing.remote == p {
+			delete(s.connected, inst)
+		}
+		s.Unlock()
+		complete <- err
+	}()
 }
 
 // Ping returns nil if the specified instance is connected, and
