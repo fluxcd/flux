@@ -336,7 +336,7 @@ func applyConfigUpdates(updates flux.UnsafeInstanceConfig) instance.UpdateFunc {
 // go, aside from just trying to connection. Therefore, the server
 // will get an error when we try to use the client. We rely on that to
 // break us out of this method.
-func (s *Server) RegisterDaemon(instID flux.InstanceID, platform platform.Platform) (err error) {
+func (s *Server) RegisterDaemon(instID flux.InstanceID, platform platform.RemotePlatform) (err error) {
 	defer func() {
 		if err != nil {
 			s.logger.Log("method", "Daemon", "err", err)
@@ -349,8 +349,12 @@ func (s *Server) RegisterDaemon(instID flux.InstanceID, platform platform.Platfo
 	return s.messageBus.Subscribe(instID, &loggingPlatform{platform, log.NewContext(s.logger).With("instanceID", instID)})
 }
 
+func (s *Server) IsDaemonConnected(instID flux.InstanceID) error {
+	return s.messageBus.Ping(instID)
+}
+
 type loggingPlatform struct {
-	platform platform.Platform
+	platform platform.RemotePlatform
 	logger   log.Logger
 }
 
@@ -379,4 +383,13 @@ func (p *loggingPlatform) Regrade(regrades []platform.RegradeSpec) (err error) {
 		}
 	}()
 	return p.platform.Regrade(regrades)
+}
+
+func (p *loggingPlatform) Ping() (err error) {
+	defer func() {
+		if err != nil {
+			p.logger.Log("method", "Ping", "error", err)
+		}
+	}()
+	return p.platform.Ping()
 }

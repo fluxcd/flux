@@ -36,7 +36,7 @@ func (s *StandaloneMessageBus) Connect(inst flux.InstanceID) (Platform, error) {
 // Subscribe introduces a Platform to the message bus, so that
 // requests can be routed to it. This will block until the connection
 // is closed, or replaced by another.
-func (s *StandaloneMessageBus) Subscribe(inst flux.InstanceID, p Platform) error {
+func (s *StandaloneMessageBus) Subscribe(inst flux.InstanceID, p RemotePlatform) error {
 	s.Lock()
 	// We're replacing another client
 	if existing, ok := s.connected[inst]; ok {
@@ -47,8 +47,8 @@ func (s *StandaloneMessageBus) Subscribe(inst flux.InstanceID, p Platform) error
 	// Add our new client in
 	done := make(chan error)
 	s.connected[inst] = &removeablePlatform{
-		Platform: p,
-		done:     done,
+		remote: p,
+		done:   done,
 	}
 	s.Unlock()
 
@@ -57,16 +57,33 @@ func (s *StandaloneMessageBus) Subscribe(inst flux.InstanceID, p Platform) error
 
 	// Cleanup behind us, in case we're not being kicked.
 	s.Lock()
-	if existing, ok := s.connected[inst]; ok && existing == p {
+	if existing, ok := s.connected[inst]; ok && existing.remote == p {
 		delete(s.connected, inst)
 	}
 	s.Unlock()
 	return err
 }
 
+// Ping returns nil if the specified instance is connected, and
+// ErrPlatformNotAvailable if not.
+func (s *StandaloneMessageBus) Ping(inst flux.InstanceID) error {
+	var (
+		p  RemotePlatform
+		ok bool
+	)
+	s.RLock()
+	p, ok = s.connected[inst]
+	s.RUnlock()
+
+	if ok {
+		return p.Ping()
+	}
+	return ErrPlatformNotAvailable
+}
+
 type removeablePlatform struct {
-	Platform
-	done chan error
+	remote RemotePlatform
+	done   chan error
 	sync.Mutex
 }
 
@@ -86,7 +103,7 @@ func (p *removeablePlatform) AllServices(maybeNamespace string, ignored flux.Ser
 			p.closeWithError(err)
 		}
 	}()
-	return p.Platform.AllServices(maybeNamespace, ignored)
+	return p.remote.AllServices(maybeNamespace, ignored)
 }
 
 func (p *removeablePlatform) SomeServices(ids []flux.ServiceID) (s []Service, err error) {
@@ -95,7 +112,7 @@ func (p *removeablePlatform) SomeServices(ids []flux.ServiceID) (s []Service, er
 			p.closeWithError(err)
 		}
 	}()
-	return p.Platform.SomeServices(ids)
+	return p.remote.SomeServices(ids)
 }
 
 func (p *removeablePlatform) Regrade(spec []RegradeSpec) (err error) {
@@ -104,7 +121,16 @@ func (p *removeablePlatform) Regrade(spec []RegradeSpec) (err error) {
 			p.closeWithError(err)
 		}
 	}()
-	return p.Platform.Regrade(spec)
+	return p.remote.Regrade(spec)
+}
+
+func (p *removeablePlatform) Ping() (err error) {
+	defer func() {
+		if err != nil {
+			p.closeWithError(err)
+		}
+	}()
+	return p.remote.Ping()
 }
 
 type disconnectedPlatform struct{}

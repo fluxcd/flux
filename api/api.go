@@ -20,7 +20,8 @@ type ClientService interface {
 }
 
 type DaemonService interface {
-	RegisterDaemon(flux.InstanceID, platform.Platform) error
+	RegisterDaemon(flux.InstanceID, platform.RemotePlatform) error
+	IsDaemonConnected(flux.InstanceID) error
 }
 
 type FluxService interface {

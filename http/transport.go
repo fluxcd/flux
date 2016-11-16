@@ -22,6 +22,7 @@ import (
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/api"
 	"github.com/weaveworks/flux/http/websocket"
+	"github.com/weaveworks/flux/platform"
 	"github.com/weaveworks/flux/platform/rpc"
 )
 
@@ -39,6 +40,7 @@ func NewRouter() *mux.Router {
 	r.NewRoute().Name("GetConfig").Methods("GET").Path("/v4/config")
 	r.NewRoute().Name("SetConfig").Methods("POST").Path("/v4/config")
 	r.NewRoute().Name("RegisterDaemon").Methods("GET").Path("/v4/daemon")
+	r.NewRoute().Name("IsConnected").Methods("HEAD", "GET").Path("/v4/ping")
 	return r
 }
 
@@ -56,6 +58,7 @@ func NewHandler(s api.FluxService, r *mux.Router, logger log.Logger, h metrics.H
 		"GetConfig":      handleGetConfig,
 		"SetConfig":      handleSetConfig,
 		"RegisterDaemon": handleRegister,
+		"IsConnected":    handleIsConnected,
 	} {
 		var handler http.Handler
 		handler = handlerFunc(s)
@@ -635,6 +638,25 @@ func handleRegister(s api.FluxService) http.Handler {
 
 // invokeRegister, which might be expected here, is supplanted by
 // `Daemon.connect()`.
+
+func handleIsConnected(s api.FluxService) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		inst := getInstanceID(r)
+
+		switch s.IsDaemonConnected(inst) {
+		case platform.ErrPlatformNotAvailable:
+			w.WriteHeader(http.StatusNotFound)
+		case nil:
+			w.WriteHeader(http.StatusNoContent)
+		default:
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+		return
+	})
+}
+
+// invokeIsConnected is not implemented, since it is not (at present)
+// used in a command-line client command.
 
 // --- end handle/invoke
 
