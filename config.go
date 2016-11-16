@@ -2,11 +2,11 @@ package flux
 
 import (
 	"crypto/rsa"
-	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
-	"golang.org/x/crypto/ssh"
 	"strings"
+
+	"golang.org/x/crypto/ssh"
 )
 
 const secretReplacement = "******"
@@ -96,7 +96,6 @@ func (g GitConfig) HideKey() GitConfig {
 		return g
 	}
 
-	hash := sha256.Sum256(pubKey.Marshal())
-	g.Key = "SHA256: " + strings.TrimRight(base64.StdEncoding.EncodeToString(hash[:]), "=") + " (RSA)"
+	g.Key = string(ssh.MarshalAuthorizedKey(pubKey))
 	return g
 }
