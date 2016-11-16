@@ -7,12 +7,13 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
+
+	"github.com/weaveworks/flux"
 )
 
 type getConfigOpts struct {
 	*rootOpts
-	secrets bool
-	output  string
+	output string
 }
 
 func newGetConfig(parent *rootOpts) *getConfigOpts {
@@ -28,7 +29,6 @@ func (opts *getConfigOpts) Command() *cobra.Command {
 		),
 		RunE: opts.RunE,
 	}
-	cmd.Flags().BoolVar(&opts.secrets, "secrets", false, "Include secrets in the output (e.g., git key)")
 	cmd.Flags().StringVarP(&opts.output, "output", "o", "yaml", `The format to output ("yaml" or "json")`)
 	return cmd
 }
@@ -50,11 +50,13 @@ func (opts *getConfigOpts) RunE(_ *cobra.Command, args []string) error {
 		return errors.New("unknown output format " + opts.output)
 	}
 
-	config, err := opts.API.GetConfig(noInstanceID, opts.secrets)
+	config, err := opts.API.GetConfig(noInstanceID)
+
 	if err != nil {
 		return err
 	}
-	bytes, err := marshal(config)
+	// Since we always want to output whatever we got, use UnsafeInstanceConfig
+	bytes, err := marshal(flux.UnsafeInstanceConfig(config))
 	if err != nil {
 		return errors.Wrap(err, "marshalling to output format "+opts.output)
 	}

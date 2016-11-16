@@ -76,7 +76,7 @@ func (m *MultitenantInstancer) Get(instanceID flux.InstanceID) (*Instance, error
 	), nil
 }
 
-func gitRepoFromSettings(settings flux.InstanceConfig) git.Repo {
+func gitRepoFromSettings(settings flux.UnsafeInstanceConfig) git.Repo {
 	branch := settings.Git.Branch
 	if branch == "" {
 		branch = "master"

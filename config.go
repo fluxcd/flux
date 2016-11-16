@@ -4,6 +4,7 @@ import (
 	"crypto/rsa"
 	"crypto/sha256"
 	"encoding/base64"
+	"encoding/json"
 	"golang.org/x/crypto/ssh"
 	"strings"
 )
@@ -43,12 +44,22 @@ type InstanceConfig struct {
 	Registry RegistryConfig `json:"registry" yaml:"registry"`
 }
 
-func (c InstanceConfig) HideSecrets() InstanceConfig {
+// As a safeguard, we make the default behaviour to hide secrets when
+// marshalling config.
+
+type SafeInstanceConfig InstanceConfig
+type UnsafeInstanceConfig InstanceConfig
+
+func (c InstanceConfig) MarshalJSON() ([]byte, error) {
+	return json.Marshal(c.HideSecrets())
+}
+
+func (c InstanceConfig) HideSecrets() SafeInstanceConfig {
 	c.Git = c.Git.HideKey()
 	for host, auth := range c.Registry.Auths {
 		c.Registry.Auths[host] = auth.HidePassword()
 	}
-	return c
+	return SafeInstanceConfig(c)
 }
 
 func (a Auth) HidePassword() Auth {

@@ -220,7 +220,7 @@ func CredentialsFromFile(path string) (Credentials, error) {
 	return Credentials{m: m}, nil
 }
 
-func CredentialsFromConfig(config flux.InstanceConfig) (Credentials, error) {
+func CredentialsFromConfig(config flux.UnsafeInstanceConfig) (Credentials, error) {
 	m := map[string]creds{}
 	for host, entry := range config.Registry.Auths {
 		decodedAuth, err := base64.StdEncoding.DecodeString(entry.Auth)

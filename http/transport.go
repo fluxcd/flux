@@ -36,7 +36,7 @@ func NewRouter() *mux.Router {
 	r.NewRoute().Name("Lock").Methods("POST").Path("/v3/lock").Queries("service", "{service}")
 	r.NewRoute().Name("Unlock").Methods("POST").Path("/v3/unlock").Queries("service", "{service}")
 	r.NewRoute().Name("History").Methods("GET").Path("/v3/history").Queries("service", "{service}")
-	r.NewRoute().Name("GetConfig").Methods("GET").Path("/v4/config").Queries("secrets", "{secrets}")
+	r.NewRoute().Name("GetConfig").Methods("GET").Path("/v4/config")
 	r.NewRoute().Name("SetConfig").Methods("POST").Path("/v4/config")
 	r.NewRoute().Name("RegisterDaemon").Methods("GET").Path("/v4/daemon")
 	return r
@@ -515,13 +515,7 @@ func invokeHistory(client *http.Client, t flux.Token, router *mux.Router, endpoi
 func handleGetConfig(s api.FluxService) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		inst := getInstanceID(r)
-		secrets, err := strconv.ParseBool(mux.Vars(r)["secrets"])
-		if err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			fmt.Fprintf(w, errors.Wrapf(err, "parsing value for 'secrets'").Error())
-			return
-		}
-		config, err := s.GetConfig(inst, secrets)
+		config, err := s.GetConfig(inst)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			fmt.Fprintf(w, err.Error())
@@ -541,8 +535,8 @@ func handleGetConfig(s api.FluxService) http.Handler {
 	})
 }
 
-func invokeGetConfig(client *http.Client, t flux.Token, router *mux.Router, endpoint string, secrets bool) (flux.InstanceConfig, error) {
-	u, err := makeURL(endpoint, router, "GetConfig", "secrets", strconv.FormatBool(secrets))
+func invokeGetConfig(client *http.Client, t flux.Token, router *mux.Router, endpoint string) (flux.InstanceConfig, error) {
+	u, err := makeURL(endpoint, router, "GetConfig")
 	if err != nil {
 		return flux.InstanceConfig{}, errors.Wrap(err, "constructing URL")
 	}
@@ -569,7 +563,7 @@ func handleSetConfig(s api.FluxService) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		inst := getInstanceID(r)
 
-		var config flux.InstanceConfig
+		var config flux.UnsafeInstanceConfig
 		if err := json.NewDecoder(r.Body).Decode(&config); err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			fmt.Fprintf(w, err.Error())
@@ -588,7 +582,7 @@ func handleSetConfig(s api.FluxService) http.Handler {
 	})
 }
 
-func invokeSetConfig(client *http.Client, t flux.Token, router *mux.Router, endpoint string, updates flux.InstanceConfig) error {
+func invokeSetConfig(client *http.Client, t flux.Token, router *mux.Router, endpoint string, updates flux.UnsafeInstanceConfig) error {
 	u, err := makeURL(endpoint, router, "SetConfig")
 	if err != nil {
 		return errors.Wrap(err, "constructing URL")
