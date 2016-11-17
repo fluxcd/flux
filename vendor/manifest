@@ -335,18 +335,18 @@
 			"notests": true
 		},
 		{
-			"importpath": "github.com/gosuri/uilive",
-			"repository": "https://github.com/gosuri/uilive",
-			"vcs": "git",
-			"revision": "efb88ccd059957c48f24f9d351d33a0eb00ede41",
-			"branch": "master",
-			"notests": true
-		},
-		{
 			"importpath": "github.com/gorilla/websocket",
 			"repository": "https://github.com/gorilla/websocket",
 			"vcs": "git",
 			"revision": "5df680c89f2a84ad9cb16cf143557a0853cfaabc",
+			"branch": "master",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/gosuri/uilive",
+			"repository": "https://github.com/gosuri/uilive",
+			"vcs": "git",
+			"revision": "efb88ccd059957c48f24f9d351d33a0eb00ede41",
 			"branch": "master",
 			"notests": true
 		},
@@ -687,12 +687,39 @@
 			"notests": true
 		},
 		{
+			"importpath": "golang.org/x/crypto/curve25519",
+			"repository": "https://go.googlesource.com/crypto",
+			"vcs": "git",
+			"revision": "9477e0b78b9ac3d0b03822fd95422e2fe07627cd",
+			"branch": "master",
+			"path": "curve25519",
+			"notests": true
+		},
+		{
+			"importpath": "golang.org/x/crypto/ed25519",
+			"repository": "https://go.googlesource.com/crypto",
+			"vcs": "git",
+			"revision": "9477e0b78b9ac3d0b03822fd95422e2fe07627cd",
+			"branch": "master",
+			"path": "ed25519",
+			"notests": true
+		},
+		{
 			"importpath": "golang.org/x/crypto/openpgp",
 			"repository": "https://go.googlesource.com/crypto",
 			"vcs": "git",
 			"revision": "7a1054f3ac58191481dc500077c6b060f5d6c7e5",
 			"branch": "master",
 			"path": "/openpgp",
+			"notests": true
+		},
+		{
+			"importpath": "golang.org/x/crypto/ssh",
+			"repository": "https://go.googlesource.com/crypto",
+			"vcs": "git",
+			"revision": "9477e0b78b9ac3d0b03822fd95422e2fe07627cd",
+			"branch": "master",
+			"path": "/ssh",
 			"notests": true
 		},
 		{

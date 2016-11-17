@@ -61,10 +61,10 @@ func (c *client) History(_ flux.InstanceID, s flux.ServiceSpec) ([]flux.HistoryE
 	return invokeHistory(c.client, c.token, c.router, c.endpoint, s)
 }
 
-func (c *client) GetConfig(_ flux.InstanceID, secrets bool) (flux.InstanceConfig, error) {
-	return invokeGetConfig(c.client, c.token, c.router, c.endpoint, secrets)
+func (c *client) GetConfig(_ flux.InstanceID) (flux.InstanceConfig, error) {
+	return invokeGetConfig(c.client, c.token, c.router, c.endpoint)
 }
 
-func (c *client) SetConfig(_ flux.InstanceID, config flux.InstanceConfig) error {
+func (c *client) SetConfig(_ flux.InstanceID, config flux.UnsafeInstanceConfig) error {
 	return invokeSetConfig(c.client, c.token, c.router, c.endpoint, config)
 }

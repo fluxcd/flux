@@ -41,7 +41,7 @@ func (opts *setConfigOpts) RunE(_ *cobra.Command, args []string) error {
 		return newUsageError("-f, --file is required")
 	}
 
-	var config flux.InstanceConfig
+	var config flux.UnsafeInstanceConfig
 
 	bytes, err := ioutil.ReadFile(opts.file)
 	if err == nil {
