@@ -84,7 +84,7 @@ func tryUpdate(def, newImageStr string, trace io.Writer, out io.Writer) error {
 	imageRE := multilineRE(
 		`      containers:.*`,
 		`(?:      .*\n)*(?:  ){3,4}- name:\s*"?([\w-]+)"?(?:\s.*)?`,
-		`(?:  ){4,5}image:\s*"?(`+newImage.Repository()+`:[\w-]+)"?(\s.*)?`,
+		`(?:  ){4,5}image:\s*"?(`+newImage.Repository()+`:[._\w-]+)"?(\s.*)?`,
 	)
 
 	matches = imageRE.FindStringSubmatch(def)

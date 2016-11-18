@@ -27,6 +27,7 @@ func TestUpdates(t *testing.T) {
 		{"new version like number", case2, case2image, case2out},
 		{"old version like number", case2out, case2reverseImage, case2},
 		{"name label out of order", case3, case3image, case3out},
+		{"version (tag) with dots", case4, case4image, case4out},
 	} {
 		testUpdate(t, c[0], c[1], c[2], c[3])
 	}
@@ -255,4 +256,68 @@ spec:
         imagePullPolicy: IfNotPresent
         args:
         - http://prometheus.monitoring.svc.cluster.local/admin/prometheus
+`
+
+const case4 = `---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: front-end
+  namespace: sock-shop
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        name: front-end
+    spec:
+      containers:
+      - name: front-end
+        image: weaveworksdemos/front-end:v_0.2.0
+        resources:
+          requests:
+            cpu: 100m
+            memory: 100Mi
+        ports:
+        - containerPort: 8079
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 10001
+          capabilities:
+            drop:
+              - all
+          readOnlyRootFilesystem: true
+`
+
+const case4image = "weaveworksdemos/front-end:7f511af2d21fd601b86b3bed7baa6adfa9c8c669"
+
+const case4out = `---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: front-end
+  namespace: sock-shop
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        name: front-end
+    spec:
+      containers:
+      - name: front-end
+        image: weaveworksdemos/front-end:7f511af2d21fd601b86b3bed7baa6adfa9c8c669
+        resources:
+          requests:
+            cpu: 100m
+            memory: 100Mi
+        ports:
+        - containerPort: 8079
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 10001
+          capabilities:
+            drop:
+              - all
+          readOnlyRootFilesystem: true
 `
