@@ -15,6 +15,8 @@ type MockPlatform struct {
 
 	RegradeArgTest func([]RegradeSpec) error
 	RegradeError   error
+
+	PingError error
 }
 
 func (p *MockPlatform) AllServices(ns string, ss flux.ServiceIDSet) ([]Service, error) {
@@ -42,4 +44,8 @@ func (p *MockPlatform) Regrade(ss []RegradeSpec) error {
 		}
 	}
 	return p.RegradeError
+}
+
+func (p *MockPlatform) Ping() error {
+	return p.PingError
 }

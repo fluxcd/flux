@@ -22,10 +22,6 @@ type Platform interface {
 	AllServices(maybeNamespace string, ignored flux.ServiceIDSet) ([]Service, error)
 	SomeServices([]flux.ServiceID) ([]Service, error)
 	Regrade([]RegradeSpec) error
-}
-
-type RemotePlatform interface {
-	Platform
 	Ping() error
 }
 
@@ -45,7 +41,7 @@ type MessageBus interface {
 	Connecter
 	// Subscribe registers a platform as the daemon for the instance
 	// specified.
-	Subscribe(inst flux.InstanceID, p RemotePlatform, done chan<- error)
+	Subscribe(inst flux.InstanceID, p Platform, done chan<- error)
 	// Ping returns nil if the daemon for the instance given is known
 	// to be connected, or ErrPlatformNotAvailable otherwise. NB this
 	// differs from the semantics of `Connecter.Connect`.

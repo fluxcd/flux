@@ -383,6 +383,11 @@ func definitionObj(bytes []byte) (*apiObject, error) {
 	return &obj, yaml.Unmarshal(bytes, &obj)
 }
 
+func (c *Cluster) Ping() error {
+	_, err := c.client.ServerVersion()
+	return err
+}
+
 // --- end platform API
 
 type statusMap struct {

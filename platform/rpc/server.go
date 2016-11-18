@@ -38,7 +38,7 @@ type RPCServer struct {
 }
 
 func (p *RPCServer) Ping(_ struct{}, _ *struct{}) error {
-	return nil
+	return p.p.Ping()
 }
 
 func (p *RPCServer) AllServices(req AllServicesRequest, resp *[]platform.Service) error {

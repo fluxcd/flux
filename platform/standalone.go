@@ -37,7 +37,7 @@ func (s *StandaloneMessageBus) Connect(inst flux.InstanceID) (Platform, error) {
 // requests can be routed to it. Once the connection is closed --
 // trying to use it is the only way to tell if it's closed -- the
 // error representing the cause will be sent to the channel supplied.
-func (s *StandaloneMessageBus) Subscribe(inst flux.InstanceID, p RemotePlatform, complete chan<- error) {
+func (s *StandaloneMessageBus) Subscribe(inst flux.InstanceID, p Platform, complete chan<- error) {
 	s.Lock()
 	// We're replacing another client
 	if existing, ok := s.connected[inst]; ok {
@@ -70,7 +70,7 @@ func (s *StandaloneMessageBus) Subscribe(inst flux.InstanceID, p RemotePlatform,
 // ErrPlatformNotAvailable if not.
 func (s *StandaloneMessageBus) Ping(inst flux.InstanceID) error {
 	var (
-		p  RemotePlatform
+		p  Platform
 		ok bool
 	)
 	s.RLock()
@@ -84,7 +84,7 @@ func (s *StandaloneMessageBus) Ping(inst flux.InstanceID) error {
 }
 
 type removeablePlatform struct {
-	remote RemotePlatform
+	remote Platform
 	done   chan error
 	sync.Mutex
 }
@@ -146,5 +146,9 @@ func (p disconnectedPlatform) SomeServices([]flux.ServiceID) ([]Service, error) 
 }
 
 func (p disconnectedPlatform) Regrade([]RegradeSpec) error {
+	return ErrPlatformNotAvailable
+}
+
+func (p disconnectedPlatform) Ping() error {
 	return ErrPlatformNotAvailable
 }

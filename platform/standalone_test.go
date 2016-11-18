@@ -8,19 +8,10 @@ import (
 	"github.com/weaveworks/flux"
 )
 
-type mockRemotePlatform struct {
-	*MockPlatform
-	pingError error
-}
-
-func (p *mockRemotePlatform) Ping() error {
-	return p.pingError
-}
-
 func TestStandaloneMessageBus(t *testing.T) {
 	instID := flux.InstanceID("instance")
 	bus := NewStandaloneMessageBus()
-	p := &mockRemotePlatform{}
+	p := &MockPlatform{}
 
 	done := make(chan error)
 	bus.Subscribe(instID, p, done)
@@ -30,7 +21,7 @@ func TestStandaloneMessageBus(t *testing.T) {
 	}
 
 	// subscribing another connection kicks the first one off
-	p2 := &mockRemotePlatform{pingError: errors.New("ping failed")}
+	p2 := &MockPlatform{PingError: errors.New("ping failed")}
 	done2 := make(chan error)
 	bus.Subscribe(instID, p2, done2)
 

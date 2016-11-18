@@ -21,12 +21,6 @@ func NewClient(conn io.ReadWriteCloser) *RPCClient {
 	return &RPCClient{jsonrpc.NewClient(conn)}
 }
 
-// Ping, is used to check if the remote platform is available. Might go away,
-// and just rely on an error from the other methods.
-func (p *RPCClient) Ping() error {
-	return p.client.Call("RPCServer.Ping", struct{}{}, nil)
-}
-
 // AllServicesRequest is the request datastructure for AllServices
 type AllServicesRequest struct {
 	MaybeNamespace string
@@ -61,6 +55,11 @@ func (p *RPCClient) Regrade(spec []platform.RegradeSpec) error {
 		return errs
 	}
 	return nil
+}
+
+// Ping is used to check if the remote platform is available.
+func (p *RPCClient) Ping() error {
+	return p.client.Call("RPCServer.Ping", struct{}{}, nil)
 }
 
 // Close closes the connection to the remote platform, it does *not* cause the
