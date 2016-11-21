@@ -14,14 +14,16 @@ import (
 
 const (
 	timeout      = 5 * time.Second
-	presenceTick = 10 * time.Millisecond
+	presenceTick = 50 * time.Millisecond
 	encoderType  = nats.JSON_ENCODER
 
-	methodPresence     = ".Platform.Presence"
+	methodPing         = ".Platform.Ping"
 	methodAllServices  = ".Platform.AllServices"
 	methodSomeServices = ".Platform.SomeServices"
 	methodRegrade      = ".Platform.Regrade"
 )
+
+type ping struct{}
 
 type NATS struct {
 	url string
@@ -58,11 +60,10 @@ func (n *NATS) AwaitPresence(instID flux.InstanceID, timeout time.Duration) erro
 	attempts := time.NewTicker(presenceTick)
 	defer attempts.Stop()
 
-	var pres Presence
 	for {
 		select {
 		case <-attempts.C:
-			if err := n.snd.Request(string(instID)+methodPresence, Presence{}, &pres, presenceTick); err == nil {
+			if err := n.Ping(instID); err == nil {
 				return nil
 			}
 		case <-timer:
@@ -71,7 +72,10 @@ func (n *NATS) AwaitPresence(instID flux.InstanceID, timeout time.Duration) erro
 	}
 }
 
-type Presence struct{}
+func (n *NATS) Ping(instID flux.InstanceID) error {
+	var response ping
+	return n.snd.Request(string(instID)+methodPing, ping{}, &response, timeout)
+}
 
 type AllServicesResponse struct {
 	Services []platform.Service
@@ -140,6 +144,11 @@ func (r *requester) Regrade(specs []platform.RegradeSpec) error {
 	return maybeError(response.Error)
 }
 
+func (r *requester) Ping() error {
+	var response ping
+	return r.conn.Request(r.instance+methodPing, ping{}, &response, timeout)
+}
+
 // Connect returns a platform.Platform implementation that can be used
 // to talk to a particular instance.
 func (n *NATS) Connect(instID flux.InstanceID) (platform.Platform, error) {
@@ -151,78 +160,75 @@ func (n *NATS) Connect(instID flux.InstanceID) (platform.Platform, error) {
 
 // Subscribe registers a remote platform.Platform implementation as
 // representing a particular instance ID, blocking indefinitely.
-func (n *NATS) Subscribe(instID flux.InstanceID, remote platform.Platform) (closeErr error) {
+func (n *NATS) Subscribe(instID flux.InstanceID, remote platform.Platform, done chan<- error) {
 	encoder := nats.EncoderForType(encoderType)
 
 	requests := make(chan *nats.Msg)
 	sub, err := n.rcv.ChanSubscribe(string(instID)+".Platform.>", requests)
 	if err != nil {
-		return err
+		done <- err
+		return
 	}
 
-	defer func() {
-		if closeErr != nil {
-			sub.Unsubscribe()
-			close(requests)
+	go func() {
+		var err error
+		for request := range requests {
+			switch {
+			case strings.HasSuffix(request.Subject, methodPing):
+				var p ping
+				if err = encoder.Decode(request.Subject, request.Data, &p); err != nil {
+					break
+				}
+				n.snd.Publish(request.Reply, ping{})
+			case strings.HasSuffix(request.Subject, methodAllServices):
+				var (
+					req rpc.AllServicesRequest
+					res []platform.Service
+				)
+				err = encoder.Decode(request.Subject, request.Data, &req)
+				if err == nil {
+					res, err = remote.AllServices(req.MaybeNamespace, req.Ignored)
+				}
+				n.snd.Publish(request.Reply, AllServicesResponse{res, maybeString(err)})
+			case strings.HasSuffix(request.Subject, methodSomeServices):
+				var (
+					req []flux.ServiceID
+					res []platform.Service
+				)
+				err = encoder.Decode(request.Subject, request.Data, &req)
+				if err == nil {
+					res, err = remote.SomeServices(req)
+				}
+				n.snd.Publish(request.Reply, SomeServicesResponse{res, maybeString(err)})
+			case strings.HasSuffix(request.Subject, methodRegrade):
+				var (
+					req []platform.RegradeSpec
+				)
+				err = encoder.Decode(request.Subject, request.Data, &req)
+				if err == nil {
+					err = remote.Regrade(req)
+				}
+				response := RegradeResponse{}
+				switch regradeErr := err.(type) {
+				case platform.RegradeError:
+					result := rpc.RegradeResult{}
+					for s, e := range regradeErr {
+						result[s] = e.Error()
+					}
+					response.Result = result
+				default:
+					response.Error = maybeString(err)
+				}
+				n.snd.Publish(request.Reply, response)
+			default:
+				err = errors.New("unknown message: " + request.Subject)
+			}
+			if err != nil {
+				sub.Unsubscribe()
+				close(requests)
+				done <- err
+				return
+			}
 		}
 	}()
-
-	for request := range requests {
-		var err error
-		switch {
-		case strings.HasSuffix(request.Subject, methodPresence):
-			var p Presence
-			if err = encoder.Decode(request.Subject, request.Data, &p); err != nil {
-				return err
-			}
-			n.snd.Publish(request.Reply, Presence{})
-		case strings.HasSuffix(request.Subject, methodAllServices):
-			var (
-				req rpc.AllServicesRequest
-				res []platform.Service
-			)
-			err = encoder.Decode(request.Subject, request.Data, &req)
-			if err == nil {
-				res, err = remote.AllServices(req.MaybeNamespace, req.Ignored)
-			}
-			n.snd.Publish(request.Reply, AllServicesResponse{res, maybeString(err)})
-		case strings.HasSuffix(request.Subject, methodSomeServices):
-			var (
-				req []flux.ServiceID
-				res []platform.Service
-			)
-			err = encoder.Decode(request.Subject, request.Data, &req)
-			if err == nil {
-				res, err = remote.SomeServices(req)
-			}
-			n.snd.Publish(request.Reply, SomeServicesResponse{res, maybeString(err)})
-		case strings.HasSuffix(request.Subject, methodRegrade):
-			var (
-				req []platform.RegradeSpec
-			)
-			err = encoder.Decode(request.Subject, request.Data, &req)
-			if err == nil {
-				err = remote.Regrade(req)
-			}
-			response := RegradeResponse{}
-			switch regradeErr := err.(type) {
-			case platform.RegradeError:
-				result := rpc.RegradeResult{}
-				for s, e := range regradeErr {
-					result[s] = e.Error()
-				}
-				response.Result = result
-			default:
-				response.Error = maybeString(err)
-			}
-			n.snd.Publish(request.Reply, response)
-		default:
-			err = errors.New("unknown message: " + request.Subject)
-		}
-
-		if err != nil {
-			return err
-		}
-	}
-	return nil
 }

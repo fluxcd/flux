@@ -27,18 +27,16 @@ func TestNATS(t *testing.T) {
 
 	errc := make(chan error)
 	subscribe := func(inst flux.InstanceID, plat platform.Platform) {
-		go func() {
-			errc <- bus.Subscribe(inst, plat)
-		}()
+		bus.Subscribe(inst, plat, errc)
 		if err := bus.AwaitPresence(inst, 5*time.Second); err != nil {
 			t.Fatal("Timed out waiting for instance to subscribe")
 		}
 	}
 
 	instA := flux.InstanceID("steamy-windows-89")
-	mockA := mockPlatform{
-		allServicesResult: []platform.Service{platform.Service{}},
-		regradeError:      platform.RegradeError{flux.ServiceID("foo/bar"): errors.New("foo barred")},
+	mockA := &platform.MockPlatform{
+		AllServicesAnswer: []platform.Service{platform.Service{}},
+		RegradeError:      platform.RegradeError{flux.ServiceID("foo/bar"): errors.New("foo barred")},
 	}
 	subscribe(instA, mockA)
 
@@ -50,8 +48,8 @@ func TestNATS(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(mockA.allServicesResult) != len(ss) {
-		t.Fatalf("Expected %d result, got %d", len(mockA.allServicesResult), len(ss))
+	if len(mockA.AllServicesAnswer) != len(ss) {
+		t.Fatalf("Expected %d result, got %d", len(mockA.AllServicesAnswer), len(ss))
 	}
 
 	err = plat.Regrade([]platform.RegradeSpec{})
@@ -59,9 +57,9 @@ func TestNATS(t *testing.T) {
 		t.Fatalf("expected RegradeError, got %+v", err)
 	}
 
-	mockB := mockPlatform{
-		allServicesError:   errors.New("just didn't feel like it"),
-		someServicesResult: []platform.Service{platform.Service{}, platform.Service{}},
+	mockB := &platform.MockPlatform{
+		AllServicesError:   errors.New("just didn't feel like it"),
+		SomeServicesAnswer: []platform.Service{platform.Service{}, platform.Service{}},
 	}
 	instB := flux.InstanceID("smokey-water-72")
 	subscribe(instB, mockB)
@@ -74,8 +72,8 @@ func TestNATS(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(mockB.someServicesResult) != len(ss) {
-		t.Fatalf("Expected %d result, got %d", len(mockB.someServicesResult), len(ss))
+	if len(mockB.SomeServicesAnswer) != len(ss) {
+		t.Fatalf("Expected %d result, got %d", len(mockB.SomeServicesAnswer), len(ss))
 	}
 
 	ss, err = platB.AllServices("", nil)
@@ -91,24 +89,4 @@ func TestNATS(t *testing.T) {
 	default:
 		t.Fatal("expected error return from subscription but didn't get one")
 	}
-}
-
-type mockPlatform struct {
-	allServicesResult  []platform.Service
-	allServicesError   error
-	someServicesResult []platform.Service
-	someServicesError  error
-	regradeError       error
-}
-
-func (p mockPlatform) AllServices(string, flux.ServiceIDSet) ([]platform.Service, error) {
-	return p.allServicesResult, p.allServicesError
-}
-
-func (p mockPlatform) SomeServices([]flux.ServiceID) ([]platform.Service, error) {
-	return p.someServicesResult, p.someServicesError
-}
-
-func (p mockPlatform) Regrade([]platform.RegradeSpec) error {
-	return p.regradeError
 }
