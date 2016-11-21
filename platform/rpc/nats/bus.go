@@ -23,8 +23,6 @@ const (
 	methodRegrade      = ".Platform.Regrade"
 )
 
-type ping struct{}
-
 type NATS struct {
 	url string
 	// It's convenient to send (or request) on an encoding connection,
@@ -73,8 +71,12 @@ func (n *NATS) AwaitPresence(instID flux.InstanceID, timeout time.Duration) erro
 }
 
 func (n *NATS) Ping(instID flux.InstanceID) error {
-	var response ping
-	return n.snd.Request(string(instID)+methodPing, ping{}, &response, timeout)
+	var response PingResponse
+	err := n.snd.Request(string(instID)+methodPing, ping{}, &response, timeout)
+	if err == nil {
+		err = maybeError(response.Error)
+	}
+	return err
 }
 
 type AllServicesResponse struct {
@@ -90,6 +92,12 @@ type SomeServicesResponse struct {
 type RegradeResponse struct {
 	Result rpc.RegradeResult
 	Error  string
+}
+
+type ping struct{}
+
+type PingResponse struct {
+	Error string
 }
 
 func maybeError(msg string) error {
@@ -145,8 +153,11 @@ func (r *requester) Regrade(specs []platform.RegradeSpec) error {
 }
 
 func (r *requester) Ping() error {
-	var response ping
-	return r.conn.Request(r.instance+methodPing, ping{}, &response, timeout)
+	var response PingResponse
+	if err := r.conn.Request(r.instance+methodPing, ping{}, &response, timeout); err != nil {
+		return err
+	}
+	return maybeError(response.Error)
 }
 
 // Connect returns a platform.Platform implementation that can be used
@@ -176,10 +187,11 @@ func (n *NATS) Subscribe(instID flux.InstanceID, remote platform.Platform, done 
 			switch {
 			case strings.HasSuffix(request.Subject, methodPing):
 				var p ping
-				if err = encoder.Decode(request.Subject, request.Data, &p); err != nil {
-					break
+				err = encoder.Decode(request.Subject, request.Data, &p)
+				if err == nil {
+					err = remote.Ping()
 				}
-				n.snd.Publish(request.Reply, ping{})
+				n.snd.Publish(request.Reply, PingResponse{maybeString(err)})
 			case strings.HasSuffix(request.Subject, methodAllServices):
 				var (
 					req rpc.AllServicesRequest
