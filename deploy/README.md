@@ -4,7 +4,7 @@ There's two ways to deploy Flux: you can use the hosted service at
 Weave Cloud, or you can run the service yourself.
 
 Using Weave Cloud is described in [cloud/](./cloud/README.md); running
-it all yourself is described in [standalone/](README.md).
+it all yourself is described in [standalone/](./standalone/README.md).
 
 Either way, after you have got it running, you'll need to supply some
 information so Flux can update your Kubernetes manifests, push
@@ -29,7 +29,8 @@ You can run the helloworld service by creating the deployment and
 service resources given as files in that repo:
 
 ```
-flux-example$ kubectl create -f helloworld-deploy.yaml -f helloworld-svc.yaml
+$ cd flux-example
+$ kubectl create -f helloworld-deploy.yaml -f helloworld-svc.yaml
 ```
 
 Now, we're going to add a deploy key so Flux can push to the config
@@ -54,7 +55,7 @@ and the key from earlier. The following assumes you have set the
 environment variable `FLUX_SERVICE_TOKEN` if you are using Weave
 Cloud, or `FLUX_URL` if you are using a standalone deployment of Flux;
 add the `--token` or `--url` argument in, if you prefer to supply
-those explicitly.
+those explicitly (see the output of `fluxctl --help` for details).
 
 Get a blank config with
 
@@ -77,7 +78,8 @@ registry:
   auths: {}
 ```
 
-Here's an example with values filled in:
+Here's an example with values filled in, referring to my fork
+(in github.com/squaremo/) of the example repo:
 
 ```yaml
 git:

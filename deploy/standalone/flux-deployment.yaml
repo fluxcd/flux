@@ -16,6 +16,5 @@ spec:
         - --fluxsvc-address=ws://localhost:3030
       - name: fluxsvc
         image: quay.io/weaveworks/fluxsvc:master-6cc08e4
-        imagePullPolicy: Never
         args:
         - --database-source=file://fluxy.db
