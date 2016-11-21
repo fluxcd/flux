@@ -84,8 +84,10 @@ func tryUpdate(def, newImageStr string, trace io.Writer, out io.Writer) error {
 	imageRE := multilineRE(
 		`      containers:.*`,
 		`(?:      .*\n)*(?:  ){3,4}- name:\s*"?([\w-]+)"?(?:\s.*)?`,
-		`(?:  ){4,5}image:\s*"?(`+newImage.Repository()+`:[\w-]+)"?(\s.*)?`,
+		`(?:  ){4,5}image:\s*"?(`+newImage.Repository()+`:[\w][\w.-]{0,127})"?(\s.*)?`,
 	)
+	// tag part of regexp from
+	// https://github.com/docker/distribution/blob/master/reference/regexp.go#L36
 
 	matches = imageRE.FindStringSubmatch(def)
 	if matches == nil || len(matches) < 3 {
