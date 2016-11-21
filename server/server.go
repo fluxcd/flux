@@ -346,7 +346,15 @@ func (s *Server) RegisterDaemon(instID flux.InstanceID, platform platform.Platfo
 	// closed. NB we cannot in general expect there to be a
 	// configuration record for this instance; it may be connecting
 	// before there is configuration supplied.
-	return s.messageBus.Subscribe(instID, &loggingPlatform{platform, log.NewContext(s.logger).With("instanceID", instID)})
+	done := make(chan error)
+	s.messageBus.Subscribe(instID, &loggingPlatform{platform, log.NewContext(s.logger).With("instanceID", instID)}, done)
+	err = <-done
+	close(done)
+	return err
+}
+
+func (s *Server) IsDaemonConnected(instID flux.InstanceID) error {
+	return s.messageBus.Ping(instID)
 }
 
 type loggingPlatform struct {
@@ -379,4 +387,13 @@ func (p *loggingPlatform) Regrade(regrades []platform.RegradeSpec) (err error) {
 		}
 	}()
 	return p.platform.Regrade(regrades)
+}
+
+func (p *loggingPlatform) Ping() (err error) {
+	defer func() {
+		if err != nil {
+			p.logger.Log("method", "Ping", "error", err)
+		}
+	}()
+	return p.platform.Ping()
 }
