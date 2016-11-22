@@ -1,31 +1,40 @@
 # Deploying Flux to Kubernetes
 
-You will need to build or load the weaveworks/flux{d,svc} image into
- the Docker daemon, since the deployment does not attempt to pull the
- images from a registry.  If you're using
- [minikube](https://github.com/kubernetes/minikube) to try things
- locally, for example, you can do
+There's two ways to deploy Flux: you can use the hosted service at
+Weave Cloud, or you can run the service yourself.
 
-```
-eval $(minikube docker-env)
-make clean all
-```
+Using Weave Cloud is described in [cloud/](./cloud/README.md); running
+it all yourself is described in [standalone/](./standalone/README.md).
 
-which will build the image in minikube's Docker daemon, thus making it
-available to Kubernetes.
+Either way, after you have got it running, you'll need to supply some
+information so Flux can update your Kubernetes manifests, push
+notifications through Slack, and so on.
 
-## Creating a key for automation
+## Creating a deploy key
 
 Flux updates a Git repository containing your Kubernetes config each
 time a service is released; this will usually require an SSH access
 key.
 
-Here is an example of setting this up for the `helloworld` example in
-the Flux git repository, in the directory `testdata`.
+Here is an example of setting this up for the `helloworld` service in
+the git repository
+[flux-example](https://github.com/weaveworks/flux-example). You can
+skip forking the example repository, and adapt things below, if you
+already have a repo you're using.
 
-Fork the Flux repository on github (you may also wish to rename it,
-e.g., to `flux-testdata`). Now, we're going to add a deploy key so
-Flux can push to that repo. Generate a key in the console:
+Fork the [flux-example](https://github.com/weaveworks/flux-example)
+repository to your own account on github.
+
+You can run the helloworld service by creating the deployment and
+service resources given as files in that repo:
+
+```
+$ cd flux-example
+$ kubectl create -f helloworld-deploy.yaml -f helloworld-svc.yaml
+```
+
+Now, we're going to add a deploy key so Flux can push to the config
+repo. Generate a key in the console:
 
 ```
 ssh-keygen -t rsa -b 4096 -f id-rsa-flux
@@ -39,45 +48,14 @@ On the Github page for your forked repo, go to the settings and find
 the "Deploy keys" page. Add one, check the write access box, and paste
 in the contents of the `id-rsa-flux.pub` file -- the public key.
 
-## Customising the deployment config
-
-The file `flux-deployment.yaml` contains a Kubernetes deployment
-configuration that runs the latest images of Flux.
-
-You can create the deployment now:
-
-```
-kubectl create -f flux-deployment.yaml
-```
-
-To make the pod accessible to `fluxctl`, you can create a service for
-Flux and use the Kubernetes API proxy to access it:
-
-```
-kubectl create -f flux-service.yaml
-kubectl proxy &
-export FLUX_URL=http://localhost:8001/api/v1/proxy/namespaces/default/services/flux
-```
-
-This will work with the default settings of `fluxctl`, and is
-especially handy with minikube.
-
-At this point you can see if it's all running by doing:
-
-```
-fluxctl list-services
-```
-
-To force Kubernetes to run the latest image after a rebuild, kill the pod:
-
-```
-kubectl get pods | grep flux | awk '{ print $1 }' | xargs kubectl delete pod
-```
-
 ## Uploading a configuration
 
 To begin using Flux, you need to provide at least the git repository
-and the key from earlier.
+and the key from earlier. The following assumes you have set the
+environment variable `FLUX_SERVICE_TOKEN` if you are using Weave
+Cloud, or `FLUX_URL` if you are using a standalone deployment of Flux;
+add the `--token` or `--url` argument in, if you prefer to supply
+those explicitly (see the output of `fluxctl --help` for details).
 
 Get a blank config with
 
@@ -100,12 +78,13 @@ registry:
   auths: {}
 ```
 
-Here's an example with values filled in:
+Here's an example with values filled in, referring to my fork
+(in github.com/squaremo/) of the example repo:
 
 ```yaml
 git:
-  URL: git@github.com:squaremo/flux-testdata
-  path: testdata
+  URL: git@github.com:squaremo/flux-example
+  path: 
   branch: master
   key: |
          -----BEGIN RSA PRIVATE KEY-----
@@ -143,5 +122,13 @@ registry:
 Finally, give the config to Flux:
 
 ```sh
-fluxctl set-config --file=flux.conf
+$ fluxctl set-config --file=flux.conf
+```
+
+To test it out, you can try getting a list of images for the
+`helloworld`, and upgrading it:
+
+```sh
+$ fluxctl list-images --service=default/helloworld
+$ fluxctl release --service=default/helloworld --upgrade-all-images
 ```
