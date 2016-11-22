@@ -74,7 +74,7 @@ func (n *NATS) Ping(instID flux.InstanceID) error {
 	var response PingResponse
 	err := n.snd.Request(string(instID)+methodPing, ping{}, &response, timeout)
 	if err == nil {
-		err = maybeError(response.Error)
+		err = stringAsError(response.Error)
 	}
 	return err
 }
@@ -100,14 +100,17 @@ type PingResponse struct {
 	Error string
 }
 
-func maybeError(msg string) error {
+// `error`s do not in general travel well, so we convert them to
+// strings for transport. This is lossy of course, but it cannot be
+// helped.
+func stringAsError(msg string) error {
 	if msg != "" {
 		return errors.New(msg)
 	}
 	return nil
 }
 
-func maybeString(err error) string {
+func errorAsString(err error) string {
 	if err != nil {
 		return err.Error()
 	}
@@ -126,7 +129,7 @@ func (r *requester) AllServices(ns string, ig flux.ServiceIDSet) ([]platform.Ser
 	if err := r.conn.Request(r.instance+methodAllServices, rpc.AllServicesRequest{ns, ig}, &response, timeout); err != nil {
 		return nil, err
 	}
-	return response.Services, maybeError(response.Error)
+	return response.Services, stringAsError(response.Error)
 }
 
 func (r *requester) SomeServices(incl []flux.ServiceID) ([]platform.Service, error) {
@@ -134,7 +137,7 @@ func (r *requester) SomeServices(incl []flux.ServiceID) ([]platform.Service, err
 	if err := r.conn.Request(r.instance+methodSomeServices, incl, &response, timeout); err != nil {
 		return nil, err
 	}
-	return response.Services, maybeError(response.Error)
+	return response.Services, stringAsError(response.Error)
 }
 
 func (r *requester) Regrade(specs []platform.RegradeSpec) error {
@@ -149,7 +152,7 @@ func (r *requester) Regrade(specs []platform.RegradeSpec) error {
 		}
 		return errs
 	}
-	return maybeError(response.Error)
+	return stringAsError(response.Error)
 }
 
 func (r *requester) Ping() error {
@@ -157,7 +160,7 @@ func (r *requester) Ping() error {
 	if err := r.conn.Request(r.instance+methodPing, ping{}, &response, timeout); err != nil {
 		return err
 	}
-	return maybeError(response.Error)
+	return stringAsError(response.Error)
 }
 
 // Connect returns a platform.Platform implementation that can be used
@@ -170,7 +173,9 @@ func (n *NATS) Connect(instID flux.InstanceID) (platform.Platform, error) {
 }
 
 // Subscribe registers a remote platform.Platform implementation as
-// representing a particular instance ID, blocking indefinitely.
+// the daemon for an instance (identified by instID). Any error when
+// processing requests will result in the platform being deregistered,
+// with the error put on the channel `done`.
 func (n *NATS) Subscribe(instID flux.InstanceID, remote platform.Platform, done chan<- error) {
 	encoder := nats.EncoderForType(encoderType)
 
@@ -191,7 +196,7 @@ func (n *NATS) Subscribe(instID flux.InstanceID, remote platform.Platform, done 
 				if err == nil {
 					err = remote.Ping()
 				}
-				n.snd.Publish(request.Reply, PingResponse{maybeString(err)})
+				n.snd.Publish(request.Reply, PingResponse{errorAsString(err)})
 			case strings.HasSuffix(request.Subject, methodAllServices):
 				var (
 					req rpc.AllServicesRequest
@@ -201,7 +206,7 @@ func (n *NATS) Subscribe(instID flux.InstanceID, remote platform.Platform, done 
 				if err == nil {
 					res, err = remote.AllServices(req.MaybeNamespace, req.Ignored)
 				}
-				n.snd.Publish(request.Reply, AllServicesResponse{res, maybeString(err)})
+				n.snd.Publish(request.Reply, AllServicesResponse{res, errorAsString(err)})
 			case strings.HasSuffix(request.Subject, methodSomeServices):
 				var (
 					req []flux.ServiceID
@@ -211,7 +216,7 @@ func (n *NATS) Subscribe(instID flux.InstanceID, remote platform.Platform, done 
 				if err == nil {
 					res, err = remote.SomeServices(req)
 				}
-				n.snd.Publish(request.Reply, SomeServicesResponse{res, maybeString(err)})
+				n.snd.Publish(request.Reply, SomeServicesResponse{res, errorAsString(err)})
 			case strings.HasSuffix(request.Subject, methodRegrade):
 				var (
 					req []platform.RegradeSpec
@@ -229,7 +234,7 @@ func (n *NATS) Subscribe(instID flux.InstanceID, remote platform.Platform, done 
 					}
 					response.Result = result
 				default:
-					response.Error = maybeString(err)
+					response.Error = errorAsString(err)
 				}
 				n.snd.Publish(request.Reply, response)
 			default:
