@@ -66,6 +66,7 @@ func (opts *rootOpts) Command() *cobra.Command {
 	svcopts := newService(opts)
 
 	cmd.AddCommand(
+		newVersionCommand(),
 		newServiceShow(svcopts).Command(),
 		newServiceList(svcopts).Command(),
 		newServiceRelease(svcopts).Command(),
