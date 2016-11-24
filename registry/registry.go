@@ -112,17 +112,21 @@ func (c *Client) GetRepository(repository string) ([]flux.ImageDescription, erro
 		return nil, err
 	}
 
-	return c.tagsToRepository(cancel, client, repository, tags)
+	// the hostlessImageName is canonicalised, in the sense that it
+	// includes "library" as the org, if unqualified -- e.g.,
+	// `library/nats`. We need that to fetch the tags etc. However, we
+	// want the results to use the *actual* name of the images to be
+	// as supplied, e.g., `nats`.
+	return c.tagsToRepository(cancel, client, hostlessImageName, repository, tags)
 }
 
-func (c *Client) lookupImage(client *dockerregistry.Registry, repoName, tag string) (flux.ImageDescription, error) {
-	// Minor cheat: this will work whether the registry (e.g.,
-	// quay.io) is part of the repo name given or not.
-	id := flux.MakeImageID("", repoName, tag)
+func (c *Client) lookupImage(client *dockerregistry.Registry, lookupName, imageName, tag string) (flux.ImageDescription, error) {
+	// Minor cheat: this will give the correct result even if the
+	// imageName includes a host
+	id := flux.MakeImageID("", imageName, tag)
 	img := flux.ImageDescription{ID: id}
 
-	_, name, _ := id.Components()
-	meta, err := client.Manifest(name, tag)
+	meta, err := client.Manifest(lookupName, tag)
 	if err != nil {
 		return img, err
 	}
@@ -142,7 +146,7 @@ func (c *Client) lookupImage(client *dockerregistry.Registry, repoName, tag stri
 	return img, err
 }
 
-func (c *Client) tagsToRepository(cancel func(), client *dockerregistry.Registry, repoName string, tags []string) ([]flux.ImageDescription, error) {
+func (c *Client) tagsToRepository(cancel func(), client *dockerregistry.Registry, lookupName, imageName string, tags []string) ([]flux.ImageDescription, error) {
 	// one way or another, we'll be finishing all requests
 	defer cancel()
 
@@ -155,7 +159,7 @@ func (c *Client) tagsToRepository(cancel func(), client *dockerregistry.Registry
 
 	for _, tag := range tags {
 		go func(t string) {
-			img, err := c.lookupImage(client, repoName, t)
+			img, err := c.lookupImage(client, lookupName, imageName, t)
 			if err != nil {
 				c.Logger.Log("registry-metadata-err", err)
 			}
