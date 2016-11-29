@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 	"time"
 
@@ -28,6 +29,8 @@ import (
 	"github.com/weaveworks/flux/release"
 	"github.com/weaveworks/flux/server"
 )
+
+const shutdownTimeout = 30 * time.Second
 
 func main() {
 	// Flag domain.
@@ -181,11 +184,25 @@ func main() {
 	}
 
 	// Release workers.
+	waitForWorkers := make(chan struct{})
+	shutdownWorkers := make(chan struct{})
 	{
-		worker := release.NewWorker(rjs, instancer, releaseMetrics, logger)
-		releaseTicker := time.NewTicker(time.Second)
-		defer releaseTicker.Stop()
-		go worker.Work(releaseTicker.C)
+		workers := sync.WaitGroup{}
+
+		// for each worker goroutine
+		{
+			workers.Add(1)
+			worker := release.NewWorker(rjs, instancer, releaseMetrics, logger)
+			go func() {
+				defer workers.Done()
+				worker.Work(shutdownWorkers)
+			}()
+		}
+
+		go func() {
+			workers.Wait()
+			close(waitForWorkers)
+		}()
 
 		cleaner := release.NewCleaner(rjs, logger)
 		cleanTicker := time.NewTicker(15 * time.Second)
@@ -231,6 +248,14 @@ func main() {
 		errc <- http.ListenAndServe(*listenAddr, mux)
 	}()
 
-	// Go!
-	logger.Log("exit", <-errc)
+	logger.Log("exiting", <-errc)
+
+	close(shutdownWorkers)
+	select {
+	case <-waitForWorkers:
+		return
+	case <-time.After(shutdownTimeout):
+		logger.Log("err", "timout waiting for workers to shut down")
+		return
+	}
 }

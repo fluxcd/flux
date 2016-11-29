@@ -11,6 +11,8 @@ import (
 	"github.com/weaveworks/flux/instance"
 )
 
+const backoff = 1 * time.Second
+
 // Worker grabs release jobs from the job store and executes them.
 type Worker struct {
 	jobs     flux.ReleaseJobWritePopper
@@ -36,11 +38,18 @@ func NewWorker(
 // Work takes and executes a job every time the tick chan fires.
 // Create a time.NewTicker() and pass ticker.C as the tick chan.
 // Stop the ticker to stop the worker.
-func (w *Worker) Work(tick <-chan time.Time) {
-	for range tick {
+func (w *Worker) Work(shutdown <-chan struct{}) {
+	for {
+		select {
+		case <-shutdown:
+			return
+		default:
+			break
+		}
+
 		job, err := w.jobs.NextJob()
 		if err == flux.ErrNoReleaseJobAvailable {
-			continue // normal
+			time.Sleep(backoff)
 		}
 		if err != nil {
 			w.logger.Log("err", errors.Wrap(err, "fetch release job")) // abnormal
