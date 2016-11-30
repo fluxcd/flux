@@ -168,8 +168,8 @@ func invokeListImages(client *http.Client, t flux.Token, router *mux.Router, end
 }
 
 type postReleaseResponse struct {
-	Status    string         `json:"status"`
-	ReleaseID flux.ReleaseID `json:"release_id"`
+	Status    string     `json:"status"`
+	ReleaseID flux.JobID `json:"release_id"`
 }
 
 func handlePostRelease(s api.FluxService) http.Handler {
@@ -206,7 +206,7 @@ func handlePostRelease(s api.FluxService) http.Handler {
 			excludes = append(excludes, s)
 		}
 
-		id, err := s.PostRelease(inst, flux.ReleaseJobSpec{
+		id, err := s.PostRelease(inst, flux.ReleaseJobParams{
 			ServiceSpec: serviceSpec,
 			ImageSpec:   imageSpec,
 			Kind:        releaseKind,
@@ -230,7 +230,7 @@ func handlePostRelease(s api.FluxService) http.Handler {
 	})
 }
 
-func invokePostRelease(client *http.Client, t flux.Token, router *mux.Router, endpoint string, s flux.ReleaseJobSpec) (flux.ReleaseID, error) {
+func invokePostRelease(client *http.Client, t flux.Token, router *mux.Router, endpoint string, s flux.ReleaseJobParams) (flux.JobID, error) {
 	args := []string{"service", string(s.ServiceSpec), "image", string(s.ImageSpec), "kind", string(s.Kind)}
 	for _, ex := range s.Excludes {
 		args = append(args, "exclude", string(ex))
@@ -263,7 +263,7 @@ func handleGetRelease(s api.FluxService) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		inst := getInstanceID(r)
 		id := mux.Vars(r)["id"]
-		job, err := s.GetRelease(inst, flux.ReleaseID(id))
+		job, err := s.GetRelease(inst, flux.JobID(id))
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			fmt.Fprintf(w, err.Error())
@@ -279,26 +279,26 @@ func handleGetRelease(s api.FluxService) http.Handler {
 	})
 }
 
-func invokeGetRelease(client *http.Client, t flux.Token, router *mux.Router, endpoint string, id flux.ReleaseID) (flux.ReleaseJob, error) {
+func invokeGetRelease(client *http.Client, t flux.Token, router *mux.Router, endpoint string, id flux.JobID) (flux.Job, error) {
 	u, err := makeURL(endpoint, router, "GetRelease", "id", string(id))
 	if err != nil {
-		return flux.ReleaseJob{}, errors.Wrap(err, "constructing URL")
+		return flux.Job{}, errors.Wrap(err, "constructing URL")
 	}
 
 	req, err := http.NewRequest("GET", u.String(), nil)
 	if err != nil {
-		return flux.ReleaseJob{}, errors.Wrapf(err, "constructing request %s", u)
+		return flux.Job{}, errors.Wrapf(err, "constructing request %s", u)
 	}
 	t.Set(req)
 
 	resp, err := executeRequest(client, req)
 	if err != nil {
-		return flux.ReleaseJob{}, errors.Wrap(err, "executing HTTP request")
+		return flux.Job{}, errors.Wrap(err, "executing HTTP request")
 	}
 
-	var res flux.ReleaseJob
+	var res flux.Job
 	if err := json.NewDecoder(resp.Body).Decode(&res); err != nil {
-		return flux.ReleaseJob{}, errors.Wrap(err, "decoding response from server")
+		return flux.Job{}, errors.Wrap(err, "decoding response from server")
 	}
 	return res, nil
 }

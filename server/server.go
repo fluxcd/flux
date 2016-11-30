@@ -25,7 +25,7 @@ const (
 type Server struct {
 	instancer   instance.Instancer
 	messageBus  platform.MessageBus
-	releaser    flux.ReleaseJobReadPusher
+	releaser    flux.JobReadPusher
 	logger      log.Logger
 	maxPlatform chan struct{} // semaphore for concurrent calls to the platform
 	metrics     Metrics
@@ -40,7 +40,7 @@ type Metrics struct {
 func New(
 	instancer instance.Instancer,
 	messageBus platform.MessageBus,
-	releaser flux.ReleaseJobReadPusher,
+	releaser flux.JobReadPusher,
 	logger log.Logger,
 	metrics Metrics,
 ) *Server {
@@ -285,11 +285,15 @@ func recordLock(inst *instance.Instance, service flux.ServiceID, locked bool) er
 	return nil
 }
 
-func (s *Server) PostRelease(inst flux.InstanceID, spec flux.ReleaseJobSpec) (flux.ReleaseID, error) {
-	return s.releaser.PutJob(inst, spec)
+func (s *Server) PostRelease(inst flux.InstanceID, params flux.ReleaseJobParams) (flux.JobID, error) {
+	return s.releaser.PutJob(inst, flux.Job{
+		Method:   flux.ReleaseJob,
+		Priority: flux.PriorityInteractive,
+		Params:   params,
+	})
 }
 
-func (s *Server) GetRelease(inst flux.InstanceID, id flux.ReleaseID) (flux.ReleaseJob, error) {
+func (s *Server) GetRelease(inst flux.InstanceID, id flux.JobID) (flux.Job, error) {
 	return s.releaser.GetJob(inst, id)
 }
 

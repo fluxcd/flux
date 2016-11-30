@@ -1,4 +1,4 @@
-package release
+package jobs
 
 import (
 	"database/sql"
@@ -19,10 +19,8 @@ type DatabaseStore struct {
 	now    func(*sql.DB) (time.Time, error)
 }
 
-var _ flux.ReleaseJobStore = &DatabaseStore{}
-
 // NewDatabaseStore returns a usable DatabaseStore.
-// The DB should have a release_jobs table.
+// The DB should have a jobs table.
 func NewDatabaseStore(driver, datasource string, oldest time.Duration) (*DatabaseStore, error) {
 	conn, err := sql.Open(driver, datasource)
 	if err != nil {
@@ -36,9 +34,14 @@ func NewDatabaseStore(driver, datasource string, oldest time.Duration) (*Databas
 	return s, s.sanityCheck()
 }
 
-func (s *DatabaseStore) GetJob(inst flux.InstanceID, id flux.ReleaseID) (flux.ReleaseJob, error) {
+func (s *DatabaseStore) GetJob(inst flux.InstanceID, id flux.JobID) (flux.Job, error) {
 	var (
-		specStr     string
+		queue       string
+		method      string
+		paramsBytes []byte
+		scheduledAt time.Time
+		priority    int
+		key         string
 		submittedAt time.Time
 		claimedAt   nullTime
 		heartbeatAt nullTime
@@ -49,54 +52,77 @@ func (s *DatabaseStore) GetJob(inst flux.InstanceID, id flux.ReleaseID) (flux.Re
 		success     sql.NullBool
 	)
 	if err := s.conn.QueryRow(`
-		SELECT spec, submitted_at, claimed_at, heartbeat_at, finished_at, log, status, done, success
-		  FROM release_jobs
-		 WHERE release_id = $1
+		SELECT queue, method, params, scheduledAt, priority, key, submitted_at, claimed_at, heartbeat_at, finished_at, log, status, done, success
+		  FROM jobs
+		 WHERE id = $1
 		   AND instance_id = $2
 	`, string(id), string(inst)).Scan(
-		&specStr, &submittedAt, &claimedAt, &heartbeatAt, &finishedAt, &logStr, &status, &done, &success,
+		&queue, &method, &paramsBytes, &scheduledAt, &priority, &key, &submittedAt,
+		&claimedAt, &heartbeatAt, &finishedAt, &logStr, &status, &done, &success,
 	); err == sql.ErrNoRows {
-		return flux.ReleaseJob{}, flux.ErrNoSuchReleaseJob
+		return flux.Job{}, flux.ErrNoSuchJob
 	} else if err != nil {
-		return flux.ReleaseJob{}, errors.Wrap(err, "error getting job")
+		return flux.Job{}, errors.Wrap(err, "error getting job")
 	}
 
-	var spec flux.ReleaseJobSpec
-	if err := json.NewDecoder(strings.NewReader(specStr)).Decode(&spec); err != nil {
-		return flux.ReleaseJob{}, errors.Wrap(err, "unmarshaling spec")
+	params, err := s.scanParams(method, paramsBytes)
+	if err != nil {
+		return flux.Job{}, errors.Wrap(err, "unmarshaling params")
 	}
+
 	var log []string
 	if err := json.NewDecoder(strings.NewReader(logStr)).Decode(&log); err != nil {
-		return flux.ReleaseJob{}, errors.Wrap(err, "unmarshaling log")
+		return flux.Job{}, errors.Wrap(err, "unmarshaling log")
 	}
 
-	return flux.ReleaseJob{
-		Instance:  inst,
-		Spec:      spec,
-		ID:        id,
-		Submitted: submittedAt,
-		Claimed:   claimedAt.Time,
-		Heartbeat: heartbeatAt.Time,
-		Finished:  finishedAt.Time,
-		Log:       log,
-		Status:    status,
-		Done:      done.Bool,
-		Success:   success.Bool,
+	return flux.Job{
+		Instance:    inst,
+		ID:          id,
+		Queue:       queue,
+		Method:      method,
+		Params:      params,
+		ScheduledAt: scheduledAt,
+		Priority:    priority,
+		Key:         key,
+		Submitted:   submittedAt,
+		Claimed:     claimedAt.Time,
+		Heartbeat:   heartbeatAt.Time,
+		Finished:    finishedAt.Time,
+		Log:         log,
+		Status:      status,
+		Done:        done.Bool,
+		Success:     success.Bool,
 	}, nil
 }
 
-func (s *DatabaseStore) PutJob(inst flux.InstanceID, spec flux.ReleaseJobSpec) (flux.ReleaseID, error) {
+// PutJob schedules a job to run. Users should set the Queue, Method, Params,
+// and ScheduledAt fields of the job. If ScheduledAt is nil, the job will run
+// immediately.
+func (s *DatabaseStore) PutJob(inst flux.InstanceID, job flux.Job) (flux.JobID, error) {
 	var (
-		releaseID = flux.NewReleaseID()
-		status    = "Submitted job."
+		jobID       = flux.NewJobID()
+		status      = "Submitted job."
+		paramsBytes []byte
+		err         error
 	)
-	specBytes, err := json.Marshal(spec)
-	if err != nil {
-		return flux.ReleaseID(""), errors.Wrap(err, "marshaling spec")
+	if job.Queue == "" {
+		job.Queue = flux.DefaultQueue
+	}
+	if job.Params != nil {
+		paramsBytes, err = json.Marshal(job.Params)
+		if err != nil {
+			return flux.JobID(""), errors.Wrap(err, "marshaling params")
+		}
+	}
+	if job.ScheduledAt.IsZero() {
+		job.ScheduledAt, err = s.now(s.conn)
+		if err != nil {
+			return flux.JobID(""), errors.Wrap(err, "getting current time")
+		}
 	}
 	logBytes, err := json.Marshal([]string{status})
 	if err != nil {
-		return flux.ReleaseID(""), errors.Wrap(err, "marshaling log")
+		return flux.JobID(""), errors.Wrap(err, "marshaling log")
 	}
 
 	tx, err := s.conn.Begin()
@@ -105,9 +131,19 @@ func (s *DatabaseStore) PutJob(inst flux.InstanceID, spec flux.ReleaseJobSpec) (
 	}
 
 	if _, err := tx.Exec(`
-		INSERT INTO release_jobs (release_id, instance_id, spec, submitted_at, log, status)
-		     VALUES ($1, $2, $3, now(), $4, $5)
-	`, string(releaseID), string(inst), string(specBytes), string(logBytes), status); err != nil {
+		INSERT INTO jobs (instance_id, id, queue, method, params, scheduled_at, priority, key, submitted_at, log, status)
+		VALUES ($1, $2, $3, $4, $5, $6, $6, $7, now(), $8, $9)`,
+		string(inst),
+		string(jobID),
+		job.Queue,
+		job.Method,
+		string(paramsBytes),
+		job.ScheduledAt,
+		job.Priority,
+		job.Key,
+		string(logBytes),
+		status,
+	); err != nil {
 		tx.Rollback()
 		return "", errors.Wrap(err, "enqueueing job")
 	}
@@ -115,19 +151,26 @@ func (s *DatabaseStore) PutJob(inst flux.InstanceID, spec flux.ReleaseJobSpec) (
 	if err := tx.Commit(); err != nil {
 		return "", errors.Wrap(err, "committing insert transaction")
 	}
-	return releaseID, nil
+	return jobID, nil
 }
 
-func (s *DatabaseStore) NextJob() (flux.ReleaseJob, error) {
+// Take the next job from specified queues. If queues is nil, all queues are
+// used.
+func (s *DatabaseStore) NextJob(queues []string) (flux.Job, error) {
 	tx, err := s.conn.Begin()
 	if err != nil {
-		return flux.ReleaseJob{}, errors.Wrap(err, "beginning transaction")
+		return flux.Job{}, errors.Wrap(err, "beginning transaction")
 	}
 
 	var (
-		releaseID   string
 		instanceID  string
-		specStr     string
+		jobID       string
+		queue       string
+		method      string
+		paramsBytes []byte
+		scheduledAt time.Time
+		priority    int
+		key         string
 		submittedAt time.Time
 		claimedAt   nullTime
 		heartbeatAt nullTime
@@ -138,70 +181,107 @@ func (s *DatabaseStore) NextJob() (flux.ReleaseJob, error) {
 		success     sql.NullBool
 	)
 	if err := tx.QueryRow(`
-		   SELECT release_id, instance_id, spec, submitted_at, claimed_at, heartbeat_at, finished_at, log, status, done, success
-		     FROM release_jobs
+		   SELECT instance_id, id, queue, method, params, scheduled_at, priority, key, submitted_at, claimed_at, heartbeat_at, finished_at, log, status, done, success
+		     FROM jobs
 		    WHERE claimed_at IS NULL
-		 ORDER BY submitted_at DESC
-		    LIMIT 1
-	`).Scan(
-		&releaseID, &instanceID, &specStr, &submittedAt, &claimedAt, &heartbeatAt, &finishedAt, &logStr, &status, &done, &success,
+				  AND scheduled_at <= now()
+					AND finished_at IS NULL
+		 ORDER BY priority DESC, scheduled_at ASC, submitted_at DESC
+		    LIMIT 1`).Scan(
+		&instanceID,
+		&jobID,
+		&queue,
+		&method,
+		&paramsBytes,
+		&scheduledAt,
+		&priority,
+		&key,
+		&submittedAt,
+		&claimedAt,
+		&heartbeatAt,
+		&finishedAt,
+		&logStr,
+		&status,
+		&done,
+		&success,
 	); err == sql.ErrNoRows {
 		tx.Commit()
-		return flux.ReleaseJob{}, flux.ErrNoReleaseJobAvailable
+		return flux.Job{}, flux.ErrNoJobAvailable
 	} else if err != nil {
 		tx.Rollback()
-		return flux.ReleaseJob{}, errors.Wrap(err, "dequeueing next job")
+		return flux.Job{}, errors.Wrap(err, "dequeueing next job")
 	}
 
-	var spec flux.ReleaseJobSpec
-	if err := json.NewDecoder(strings.NewReader(specStr)).Decode(&spec); err != nil {
-		return flux.ReleaseJob{}, errors.Wrap(err, "unmarshaling spec")
+	params, err := s.scanParams(method, paramsBytes)
+	if err != nil {
+		tx.Rollback()
+		return flux.Job{}, errors.Wrap(err, "unmarshaling params")
 	}
+
 	var log []string
 	if err := json.NewDecoder(strings.NewReader(logStr)).Decode(&log); err != nil {
-		return flux.ReleaseJob{}, errors.Wrap(err, "unmarshaling log")
+		return flux.Job{}, errors.Wrap(err, "unmarshaling log")
 	}
 
-	job := flux.ReleaseJob{
-		Instance:  flux.InstanceID(instanceID),
-		Spec:      spec,
-		ID:        flux.ReleaseID(releaseID),
-		Submitted: submittedAt,
-		Claimed:   claimedAt.Time,
-		Heartbeat: heartbeatAt.Time,
-		Finished:  finishedAt.Time,
-		Log:       log,
-		Status:    status,
-		Done:      done.Bool,
-		Success:   success.Bool,
+	job := flux.Job{
+		Instance:    flux.InstanceID(instanceID),
+		ID:          flux.JobID(jobID),
+		Queue:       queue,
+		Method:      method,
+		Params:      params,
+		ScheduledAt: scheduledAt,
+		Priority:    priority,
+		Key:         key,
+		Submitted:   submittedAt,
+		Claimed:     claimedAt.Time,
+		Heartbeat:   heartbeatAt.Time,
+		Finished:    finishedAt.Time,
+		Log:         log,
+		Status:      status,
+		Done:        done.Bool,
+		Success:     success.Bool,
 	}
 
 	if res, err := tx.Exec(`
-		UPDATE release_jobs
+		UPDATE jobs
 		   SET claimed_at = now()
-		 WHERE release_id = $1
+		 WHERE id = $1
 		   AND instance_id = $2
-	`, releaseID, instanceID); err != nil {
+	`, jobID, instanceID); err != nil {
 		tx.Rollback()
-		return flux.ReleaseJob{}, errors.Wrap(err, "marking job as claimed")
+		return flux.Job{}, errors.Wrap(err, "marking job as claimed")
 	} else if n, err := res.RowsAffected(); err != nil {
 		tx.Rollback()
-		return flux.ReleaseJob{}, errors.Wrap(err, "after update, checking affected rows")
+		return flux.Job{}, errors.Wrap(err, "after update, checking affected rows")
 	} else if n != 1 {
 		tx.Rollback()
-		return flux.ReleaseJob{}, errors.Errorf("wanted to affect 1 row; affected %d", n)
+		return flux.Job{}, errors.Errorf("wanted to affect 1 row; affected %d", n)
 	}
 
 	if err := tx.Commit(); err != nil {
-		return flux.ReleaseJob{}, errors.Wrap(err, "committing transaction")
+		return flux.Job{}, errors.Wrap(err, "committing transaction")
 	}
 	return job, nil
 }
 
-func (s *DatabaseStore) UpdateJob(job flux.ReleaseJob) error {
-	specBytes, err := json.Marshal(job.Spec)
+func (s *DatabaseStore) scanParams(method string, params []byte) (interface{}, error) {
+	if params == nil {
+		return nil, nil
+	}
+	switch method {
+	case flux.ReleaseJob:
+		var p flux.ReleaseJobParams
+		err := json.Unmarshal(params, &p)
+		return p, err
+	default:
+		return nil, flux.ErrUnknownJobMethod
+	}
+}
+
+func (s *DatabaseStore) UpdateJob(job flux.Job) error {
+	paramsBytes, err := json.Marshal(job.Params)
 	if err != nil {
-		return errors.Wrap(err, "marshaling spec")
+		return errors.Wrap(err, "marshaling params")
 	}
 	logBytes, err := json.Marshal(job.Log)
 	if err != nil {
@@ -214,11 +294,11 @@ func (s *DatabaseStore) UpdateJob(job flux.ReleaseJob) error {
 	}
 
 	if res, err := tx.Exec(`
-		UPDATE release_jobs
-		   SET spec = $1, log = $2, status = $3
-		 WHERE release_id = $4
+		UPDATE jobs
+		   SET params = $1, log = $2, status = $3
+		 WHERE id = $4
 		   AND instance_id = $5
-	`, string(specBytes), string(logBytes), job.Status, string(job.ID), string(job.Instance)); err != nil {
+	`, string(paramsBytes), string(logBytes), job.Status, string(job.ID), string(job.Instance)); err != nil {
 		tx.Rollback()
 		return errors.Wrap(err, "updating job in database")
 	} else if n, err := res.RowsAffected(); err != nil {
@@ -226,7 +306,7 @@ func (s *DatabaseStore) UpdateJob(job flux.ReleaseJob) error {
 		return errors.Wrap(err, "after update, checking affected rows")
 	} else if n == 0 {
 		tx.Rollback()
-		return flux.ErrNoSuchReleaseJob
+		return flux.ErrNoSuchJob
 	} else if n > 1 {
 		tx.Rollback()
 		return errors.Errorf("updating job affected %d rows; wanted 1", n)
@@ -234,9 +314,9 @@ func (s *DatabaseStore) UpdateJob(job flux.ReleaseJob) error {
 
 	if job.Done {
 		if res, err := tx.Exec(`
-			UPDATE release_jobs
+			UPDATE jobs
 			   SET finished_at = now(), done = $1, success = $2
-			 WHERE release_id = $3
+			 WHERE id = $3
 			   AND instance_id = $4
 		`, job.Done, job.Success, string(job.ID), string(job.Instance)); err != nil {
 			tx.Rollback()
@@ -256,16 +336,16 @@ func (s *DatabaseStore) UpdateJob(job flux.ReleaseJob) error {
 	return nil
 }
 
-func (s *DatabaseStore) Heartbeat(id flux.ReleaseID) error {
+func (s *DatabaseStore) Heartbeat(id flux.JobID) error {
 	tx, err := s.conn.Begin()
 	if err != nil {
 		return errors.Wrap(err, "beginning heartbeat transaction")
 	}
 
 	if res, err := tx.Exec(`
-		UPDATE release_jobs
+		UPDATE jobs
 		   SET heartbeat_at = now()
-		 WHERE release_id = $1
+		 WHERE id = $1
 	`, string(id)); err != nil {
 		tx.Rollback()
 		return errors.Wrap(err, "heartbeating job in database")
@@ -274,7 +354,7 @@ func (s *DatabaseStore) Heartbeat(id flux.ReleaseID) error {
 		return errors.Wrap(err, "after heartbeat, checking affected rows")
 	} else if n == 0 {
 		tx.Rollback()
-		return flux.ErrNoSuchReleaseJob
+		return flux.ErrNoSuchJob
 	} else if n > 1 {
 		tx.Rollback()
 		return errors.Errorf("heartbeating job affected %d rows; wanted 1", n)
@@ -300,7 +380,7 @@ func (s *DatabaseStore) GC() error {
 	}
 
 	if _, err := tx.Exec(`
-		DELETE FROM release_jobs
+		DELETE FROM jobs
 		      WHERE finished_at IS NOT NULL
 		        AND submitted_at < $1
 	`, now.Add(-s.oldest)); err != nil {
@@ -315,9 +395,9 @@ func (s *DatabaseStore) GC() error {
 }
 
 func (s *DatabaseStore) sanityCheck() error {
-	_, err := s.conn.Query(`SELECT release_id FROM release_jobs LIMIT 1`)
+	_, err := s.conn.Query(`SELECT id FROM jobs LIMIT 1`)
 	if err != nil {
-		return errors.Wrap(err, "failed sanity check for release_jobs table")
+		return errors.Wrap(err, "failed sanity check for jobs table")
 	}
 	return nil
 }

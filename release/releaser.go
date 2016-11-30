@@ -20,7 +20,7 @@ import (
 
 const FluxServiceName = "fluxsvc"
 
-type releaser struct {
+type Releaser struct {
 	instancer instance.Instancer
 	metrics   Metrics
 	semaphore chan struct{}
@@ -34,11 +34,11 @@ type Metrics struct {
 	StageDuration   metrics.Histogram
 }
 
-func newReleaser(
+func NewReleaser(
 	instancer instance.Instancer,
 	metrics Metrics,
-) *releaser {
-	return &releaser{
+) *Releaser {
+	return &Releaser{
 		instancer: instancer,
 		metrics:   metrics,
 		semaphore: make(chan struct{}, maxSimultaneousReleases),
@@ -115,12 +115,12 @@ func exactlyTheseImages(images []flux.ImageID) imageCollect {
 	}
 }
 
-func (r *releaser) Release(job *flux.ReleaseJob, updater flux.ReleaseJobUpdater) (err error) {
+func (r *Releaser) Release(job *flux.Job, spec flux.ReleaseJobParams, updater flux.JobUpdater) (err error) {
 	releaseType := "unknown"
 	defer func(begin time.Time) {
 		r.metrics.ReleaseDuration.With(
 			"release_type", releaseType,
-			"release_kind", fmt.Sprint(job.Spec.Kind),
+			"release_kind", fmt.Sprint(spec.Kind),
 			"success", fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
 	}(time.Now())
@@ -138,7 +138,7 @@ func (r *releaser) Release(job *flux.ReleaseJob, updater flux.ReleaseJobUpdater)
 	}
 
 	exclude := flux.ServiceIDSet{}
-	exclude.Add(job.Spec.Excludes)
+	exclude.Add(spec.Excludes)
 
 	locked, err := lockedServices(inst)
 	if err != nil {
@@ -157,50 +157,50 @@ func (r *releaser) Release(job *flux.ReleaseJob, updater flux.ReleaseJobUpdater)
 	updateJob("Calculating release actions.")
 
 	switch {
-	case job.Spec.ServiceSpec == flux.ServiceSpecAll && job.Spec.ImageSpec == flux.ImageSpecLatest:
+	case spec.ServiceSpec == flux.ServiceSpecAll && spec.ImageSpec == flux.ImageSpecLatest:
 		releaseType = "release_all_to_latest"
-		return r.releaseImages(releaseType, "Release latest images to all services", inst, job.Spec.Kind, allServicesExcept(exclude), allLatestImages, updateJob)
+		return r.releaseImages(releaseType, "Release latest images to all services", inst, spec.Kind, allServicesExcept(exclude), allLatestImages, updateJob)
 
-	case job.Spec.ServiceSpec == flux.ServiceSpecAll && job.Spec.ImageSpec == flux.ImageSpecNone:
+	case spec.ServiceSpec == flux.ServiceSpecAll && spec.ImageSpec == flux.ImageSpecNone:
 		releaseType = "release_all_without_update"
-		return r.releaseWithoutUpdate(releaseType, "Apply latest config to all services", inst, job.Spec.Kind, allServicesExcept(exclude), updateJob)
+		return r.releaseWithoutUpdate(releaseType, "Apply latest config to all services", inst, spec.Kind, allServicesExcept(exclude), updateJob)
 
-	case job.Spec.ServiceSpec == flux.ServiceSpecAll:
+	case spec.ServiceSpec == flux.ServiceSpecAll:
 		releaseType = "release_all_for_image"
-		imageID := flux.ParseImageID(string(job.Spec.ImageSpec))
-		return r.releaseImages(releaseType, fmt.Sprintf("Release %s to all services", imageID), inst, job.Spec.Kind, allServicesExcept(exclude), exactlyTheseImages([]flux.ImageID{imageID}), updateJob)
+		imageID := flux.ParseImageID(string(spec.ImageSpec))
+		return r.releaseImages(releaseType, fmt.Sprintf("Release %s to all services", imageID), inst, spec.Kind, allServicesExcept(exclude), exactlyTheseImages([]flux.ImageID{imageID}), updateJob)
 
-	case job.Spec.ImageSpec == flux.ImageSpecLatest:
+	case spec.ImageSpec == flux.ImageSpecLatest:
 		releaseType = "release_one_to_latest"
-		serviceID, err := flux.ParseServiceID(string(job.Spec.ServiceSpec))
+		serviceID, err := flux.ParseServiceID(string(spec.ServiceSpec))
 		if err != nil {
-			return errors.Wrapf(err, "parsing service ID from spec %s", job.Spec.ServiceSpec)
+			return errors.Wrapf(err, "parsing service ID from spec %s", spec.ServiceSpec)
 		}
 		services := flux.ServiceIDs([]flux.ServiceID{serviceID}).Without(exclude)
-		return r.releaseImages(releaseType, fmt.Sprintf("Release latest images to %s", serviceID), inst, job.Spec.Kind, exactlyTheseServices(services), allLatestImages, updateJob)
+		return r.releaseImages(releaseType, fmt.Sprintf("Release latest images to %s", serviceID), inst, spec.Kind, exactlyTheseServices(services), allLatestImages, updateJob)
 
-	case job.Spec.ImageSpec == flux.ImageSpecNone:
+	case spec.ImageSpec == flux.ImageSpecNone:
 		releaseType = "release_one_without_update"
-		serviceID, err := flux.ParseServiceID(string(job.Spec.ServiceSpec))
+		serviceID, err := flux.ParseServiceID(string(spec.ServiceSpec))
 		if err != nil {
-			return errors.Wrapf(err, "parsing service ID from spec %s", job.Spec.ServiceSpec)
+			return errors.Wrapf(err, "parsing service ID from spec %s", spec.ServiceSpec)
 		}
 		services := flux.ServiceIDs([]flux.ServiceID{serviceID}).Without(exclude)
-		return r.releaseWithoutUpdate(releaseType, fmt.Sprintf("Apply latest config to %s", serviceID), inst, job.Spec.Kind, exactlyTheseServices(services), updateJob)
+		return r.releaseWithoutUpdate(releaseType, fmt.Sprintf("Apply latest config to %s", serviceID), inst, spec.Kind, exactlyTheseServices(services), updateJob)
 
 	default:
 		releaseType = "release_one"
-		serviceID, err := flux.ParseServiceID(string(job.Spec.ServiceSpec))
+		serviceID, err := flux.ParseServiceID(string(spec.ServiceSpec))
 		if err != nil {
-			return errors.Wrapf(err, "parsing service ID from spec %s", job.Spec.ServiceSpec)
+			return errors.Wrapf(err, "parsing service ID from spec %s", spec.ServiceSpec)
 		}
 		services := flux.ServiceIDs([]flux.ServiceID{serviceID}).Without(exclude)
-		imageID := flux.ParseImageID(string(job.Spec.ImageSpec))
-		return r.releaseImages(releaseType, fmt.Sprintf("Release %s to %s", imageID, serviceID), inst, job.Spec.Kind, exactlyTheseServices(services), exactlyTheseImages([]flux.ImageID{imageID}), updateJob)
+		imageID := flux.ParseImageID(string(spec.ImageSpec))
+		return r.releaseImages(releaseType, fmt.Sprintf("Release %s to %s", imageID, serviceID), inst, spec.Kind, exactlyTheseServices(services), exactlyTheseImages([]flux.ImageID{imageID}), updateJob)
 	}
 }
 
-func (r *releaser) releaseImages(method, msg string, inst *instance.Instance, kind flux.ReleaseKind, getServices serviceQuery, getImages imageCollect, updateJob func(string, ...interface{})) (err error) {
+func (r *Releaser) releaseImages(method, msg string, inst *instance.Instance, kind flux.ReleaseKind, getServices serviceQuery, getImages imageCollect, updateJob func(string, ...interface{})) (err error) {
 	var res []ReleaseAction
 	defer func() {
 		if err == nil {
@@ -303,7 +303,7 @@ func lockedServices(inst *instance.Instance) ([]flux.ServiceID, error) {
 }
 
 // Release whatever is in the cloned configuration, without changing anything
-func (r *releaser) releaseWithoutUpdate(method, msg string, inst *instance.Instance, kind flux.ReleaseKind, getServices serviceQuery, updateJob func(string, ...interface{})) (err error) {
+func (r *Releaser) releaseWithoutUpdate(method, msg string, inst *instance.Instance, kind flux.ReleaseKind, getServices serviceQuery, updateJob func(string, ...interface{})) (err error) {
 	var res []ReleaseAction
 	defer func() {
 		if err == nil {
@@ -340,7 +340,7 @@ func (r *releaser) releaseWithoutUpdate(method, msg string, inst *instance.Insta
 	return nil
 }
 
-func (r *releaser) execute(inst *instance.Instance, actions []ReleaseAction, kind flux.ReleaseKind, updateJob func(string, ...interface{})) error {
+func (r *Releaser) execute(inst *instance.Instance, actions []ReleaseAction, kind flux.ReleaseKind, updateJob func(string, ...interface{})) error {
 	rc := NewReleaseContext(inst)
 	defer rc.Clean()
 
@@ -379,7 +379,7 @@ type containerRegrade struct {
 
 // ReleaseAction Do funcs
 
-func (r *releaser) releaseActionPrintf(format string, args ...interface{}) ReleaseAction {
+func (r *Releaser) releaseActionPrintf(format string, args ...interface{}) ReleaseAction {
 	return ReleaseAction{
 		Description: fmt.Sprintf(format, args...),
 		Do: func(_ *ReleaseContext) (res string, err error) {
@@ -395,7 +395,7 @@ func (r *releaser) releaseActionPrintf(format string, args ...interface{}) Relea
 	}
 }
 
-func (r *releaser) releaseActionClone() ReleaseAction {
+func (r *Releaser) releaseActionClone() ReleaseAction {
 	return ReleaseAction{
 		Description: "Clone the config repo.",
 		Do: func(rc *ReleaseContext) (res string, err error) {
@@ -415,7 +415,7 @@ func (r *releaser) releaseActionClone() ReleaseAction {
 	}
 }
 
-func (r *releaser) releaseActionFindPodController(service flux.ServiceID) ReleaseAction {
+func (r *Releaser) releaseActionFindPodController(service flux.ServiceID) ReleaseAction {
 	return ReleaseAction{
 		Description: fmt.Sprintf("Load the resource definition file for service %s", service),
 		Do: func(rc *ReleaseContext) (res string, err error) {
@@ -454,7 +454,7 @@ func (r *releaser) releaseActionFindPodController(service flux.ServiceID) Releas
 	}
 }
 
-func (r *releaser) releaseActionUpdatePodController(service flux.ServiceID, regrades []containerRegrade) ReleaseAction {
+func (r *Releaser) releaseActionUpdatePodController(service flux.ServiceID, regrades []containerRegrade) ReleaseAction {
 	var actions []string
 	for _, regrade := range regrades {
 		actions = append(actions, fmt.Sprintf("%s (%s -> %s)", regrade.container, regrade.current, regrade.target))
@@ -524,7 +524,7 @@ func (r *releaser) releaseActionUpdatePodController(service flux.ServiceID, regr
 	}
 }
 
-func (r *releaser) releaseActionCommitAndPush(msg string) ReleaseAction {
+func (r *Releaser) releaseActionCommitAndPush(msg string) ReleaseAction {
 	return ReleaseAction{
 		Description: "Commit and push the config repo.",
 		Do: func(rc *ReleaseContext) (res string, err error) {
@@ -558,7 +558,7 @@ func service2string(a []flux.ServiceID) []string {
 	return s
 }
 
-func (r *releaser) releaseActionRegradeServices(services []flux.ServiceID, msg string) ReleaseAction {
+func (r *Releaser) releaseActionRegradeServices(services []flux.ServiceID, msg string) ReleaseAction {
 	return ReleaseAction{
 		Description: fmt.Sprintf("Regrade %d service(s): %s.", len(services), strings.Join(service2string(services), ", ")),
 		Do: func(rc *ReleaseContext) (res string, err error) {

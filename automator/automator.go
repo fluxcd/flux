@@ -38,10 +38,14 @@ func (a *Automator) Start(errorLogger log.Logger) {
 		for _, inst := range insts {
 			for service, conf := range inst.Config.Services {
 				if conf.Policy() == flux.PolicyAutomated {
-					a.cfg.Releaser.PutJob(inst.ID, flux.ReleaseJobSpec{
-						ServiceSpec: flux.ServiceSpec(service),
-						ImageSpec:   flux.ImageSpecLatest,
-						Kind:        flux.ReleaseKindExecute,
+					a.cfg.Releaser.PutJob(inst.ID, flux.Job{
+						Method:   flux.ReleaseJob,
+						Priority: flux.PriorityBackground,
+						Params: flux.ReleaseJobParams{
+							ServiceSpec: flux.ServiceSpec(service),
+							ImageSpec:   flux.ImageSpecLatest,
+							Kind:        flux.ReleaseKindExecute,
+						},
 					})
 				}
 			}

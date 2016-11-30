@@ -98,7 +98,7 @@ func (opts *serviceReleaseOpts) RunE(_ *cobra.Command, args []string) error {
 		fmt.Fprintf(os.Stdout, "Submitting release job...\n")
 	}
 
-	id, err := opts.API.PostRelease(noInstanceID, flux.ReleaseJobSpec{
+	id, err := opts.API.PostRelease(noInstanceID, flux.ReleaseJobParams{
 		ServiceSpec: service,
 		ImageSpec:   image,
 		Kind:        kind,

@@ -33,11 +33,11 @@ func (c *client) ListImages(_ flux.InstanceID, s flux.ServiceSpec) ([]flux.Image
 	return invokeListImages(c.client, c.token, c.router, c.endpoint, s)
 }
 
-func (c *client) PostRelease(_ flux.InstanceID, s flux.ReleaseJobSpec) (flux.ReleaseID, error) {
+func (c *client) PostRelease(_ flux.InstanceID, s flux.ReleaseJobParams) (flux.JobID, error) {
 	return invokePostRelease(c.client, c.token, c.router, c.endpoint, s)
 }
 
-func (c *client) GetRelease(_ flux.InstanceID, id flux.ReleaseID) (flux.ReleaseJob, error) {
+func (c *client) GetRelease(_ flux.InstanceID, id flux.JobID) (flux.Job, error) {
 	return invokeGetRelease(c.client, c.token, c.router, c.endpoint, id)
 }
 

@@ -1,4 +1,4 @@
-package release
+package jobs
 
 import (
 	"time"
@@ -9,11 +9,11 @@ import (
 )
 
 type Cleaner struct {
-	store  flux.ReleaseJobStore
+	store  flux.JobStore
 	logger log.Logger
 }
 
-func NewCleaner(store flux.ReleaseJobStore, logger log.Logger) *Cleaner {
+func NewCleaner(store flux.JobStore, logger log.Logger) *Cleaner {
 	return &Cleaner{
 		store:  store,
 		logger: logger,

@@ -8,8 +8,8 @@ import (
 type ClientService interface {
 	ListServices(inst flux.InstanceID, namespace string) ([]flux.ServiceStatus, error)
 	ListImages(flux.InstanceID, flux.ServiceSpec) ([]flux.ImageStatus, error)
-	PostRelease(flux.InstanceID, flux.ReleaseJobSpec) (flux.ReleaseID, error)
-	GetRelease(flux.InstanceID, flux.ReleaseID) (flux.ReleaseJob, error)
+	PostRelease(flux.InstanceID, flux.ReleaseJobParams) (flux.JobID, error)
+	GetRelease(flux.InstanceID, flux.JobID) (flux.Job, error)
 	Automate(flux.InstanceID, flux.ServiceID) error
 	Deautomate(flux.InstanceID, flux.ServiceID) error
 	Lock(flux.InstanceID, flux.ServiceID) error

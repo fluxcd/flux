@@ -6,7 +6,6 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
-	"sync"
 	"syscall"
 	"time"
 
@@ -25,6 +24,7 @@ import (
 	transport "github.com/weaveworks/flux/http"
 	"github.com/weaveworks/flux/instance"
 	instancedb "github.com/weaveworks/flux/instance/sql"
+	"github.com/weaveworks/flux/jobs"
 	"github.com/weaveworks/flux/platform"
 	"github.com/weaveworks/flux/release"
 	"github.com/weaveworks/flux/server"
@@ -173,9 +173,9 @@ func main() {
 	}
 
 	// Release job store.
-	var rjs flux.ReleaseJobStore
+	var rjs flux.JobStore
 	{
-		s, err := release.NewDatabaseStore(dbDriver, *databaseSource, time.Hour)
+		s, err := jobs.NewDatabaseStore(dbDriver, *databaseSource, time.Hour)
 		if err != nil {
 			logger.Log("component", "release job store", "err", err)
 			os.Exit(1)
@@ -184,27 +184,16 @@ func main() {
 	}
 
 	// Release workers.
-	waitForWorkers := make(chan struct{})
-	shutdownWorkers := make(chan struct{})
 	{
-		workers := sync.WaitGroup{}
-
-		// for each worker goroutine
-		{
-			workers.Add(1)
-			worker := release.NewWorker(rjs, instancer, releaseMetrics, logger)
-			go func() {
-				defer workers.Done()
-				worker.Work(shutdownWorkers)
-			}()
-		}
-
-		go func() {
-			workers.Wait()
-			close(waitForWorkers)
+		worker := jobs.NewWorker(rjs, instancer, releaseMetrics, logger)
+		defer func() {
+			if err := worker.Stop(shutdownTimeout); err != nil {
+				logger.Log("err", err)
+			}
 		}()
+		worker.Work()
 
-		cleaner := release.NewCleaner(rjs, logger)
+		cleaner := jobs.NewCleaner(rjs, logger)
 		cleanTicker := time.NewTicker(15 * time.Second)
 		defer cleanTicker.Stop()
 		go cleaner.Clean(cleanTicker.C)
@@ -249,13 +238,4 @@ func main() {
 	}()
 
 	logger.Log("exiting", <-errc)
-
-	close(shutdownWorkers)
-	select {
-	case <-waitForWorkers:
-		return
-	case <-time.After(shutdownTimeout):
-		logger.Log("err", "timout waiting for workers to shut down")
-		return
-	}
 }

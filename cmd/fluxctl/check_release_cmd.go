@@ -52,7 +52,7 @@ func (opts *serviceCheckReleaseOpts) RunE(_ *cobra.Command, args []string) error
 	}
 
 	if opts.noFollow {
-		job, err := opts.API.GetRelease(noInstanceID, flux.ReleaseID(opts.releaseID))
+		job, err := opts.API.GetRelease(noInstanceID, flux.JobID(opts.releaseID))
 		if err != nil {
 			return err
 		}
@@ -74,7 +74,7 @@ func (opts *serviceCheckReleaseOpts) RunE(_ *cobra.Command, args []string) error
 		w, stop = liveWriter, liveWriter.Stop
 	}
 	var (
-		job flux.ReleaseJob
+		job flux.Job
 		err error
 
 		prevStatus            string
@@ -82,7 +82,7 @@ func (opts *serviceCheckReleaseOpts) RunE(_ *cobra.Command, args []string) error
 		lastHeartbeatLocal    = time.Now()
 	)
 	for range time.Tick(time.Second) {
-		job, err = opts.API.GetRelease(noInstanceID, flux.ReleaseID(opts.releaseID))
+		job, err = opts.API.GetRelease(noInstanceID, flux.JobID(opts.releaseID))
 		if err != nil {
 			fmt.Fprintf(w, "Status: error querying release.\n") // error will get printed below
 			break
@@ -123,10 +123,12 @@ func (opts *serviceCheckReleaseOpts) RunE(_ *cobra.Command, args []string) error
 		return err
 	}
 
+	spec := job.Params.(flux.ReleaseJobParams)
+
 	fmt.Fprintf(os.Stdout, "\n")
 	if !job.Success {
 		fmt.Fprintf(os.Stdout, "Here's as far as we got:\n")
-	} else if job.Spec.Kind == flux.ReleaseKindPlan {
+	} else if spec.Kind == flux.ReleaseKindPlan {
 		fmt.Fprintf(os.Stdout, "Here's the plan:\n")
 	} else {
 		fmt.Fprintf(os.Stdout, "Here's what happened:\n")
@@ -135,7 +137,7 @@ func (opts *serviceCheckReleaseOpts) RunE(_ *cobra.Command, args []string) error
 		fmt.Fprintf(os.Stdout, " %d) %s\n", i+1, msg)
 	}
 
-	if job.Spec.Kind == flux.ReleaseKindExecute {
+	if spec.Kind == flux.ReleaseKindExecute {
 		fmt.Fprintf(os.Stdout, "Took %s\n", job.Finished.Sub(job.Submitted))
 	}
 	return nil
