@@ -18,6 +18,8 @@ import (
 	"github.com/weaveworks/flux/platform/kubernetes"
 )
 
+const FluxServiceName = "fluxsvc"
+
 type releaser struct {
 	instancer instance.Instancer
 	metrics   Metrics
@@ -574,6 +576,11 @@ func (r *releaser) releaseActionRegradeServices(services []flux.ServiceID, msg s
 
 			// Collect specs for each service regrade.
 			var specs []platform.RegradeSpec
+			// If we're regrading our own image, we want to do that
+			// last, and "asynchronously" (meaning we probably won't
+			// see the reply).
+			var asyncSpecs []platform.RegradeSpec
+
 			for _, service := range services {
 				def, ok := rc.PodControllers[service]
 				if !ok {
@@ -582,11 +589,19 @@ func (r *releaser) releaseActionRegradeServices(services []flux.ServiceID, msg s
 				}
 
 				namespace, serviceName := service.Components()
-				rc.Instance.LogEvent(namespace, serviceName, "Starting regrade "+cause)
-				specs = append(specs, platform.RegradeSpec{
-					ServiceID:     service,
-					NewDefinition: def,
-				})
+				if serviceName == FluxServiceName {
+					rc.Instance.LogEvent(namespace, serviceName, "Starting regrade (no result expected) "+cause)
+					asyncSpecs = append(asyncSpecs, platform.RegradeSpec{
+						ServiceID:     service,
+						NewDefinition: def,
+					})
+				} else {
+					rc.Instance.LogEvent(namespace, serviceName, "Starting regrade "+cause)
+					specs = append(specs, platform.RegradeSpec{
+						ServiceID:     service,
+						NewDefinition: def,
+					})
+				}
 			}
 
 			// Execute the regrades as a single transaction.
@@ -608,11 +623,27 @@ func (r *releaser) releaseActionRegradeServices(services []flux.ServiceID, msg s
 			// Report individual service regrade results.
 			for _, service := range services {
 				namespace, serviceName := service.Components()
+				if serviceName == FluxServiceName {
+					continue
+				}
 				if err := results[service]; err == nil { // no entry = nil error
 					rc.Instance.LogEvent(namespace, serviceName, "Regrade due to "+cause+": done")
 				} else {
 					rc.Instance.LogEvent(namespace, serviceName, "Regrade due to "+cause+": failed: "+err.Error())
 				}
+			}
+
+			// Lastly, services for which we don't expect a result
+			// (i.e., ourselves). This will kick off the regrade in
+			// the daemon, which will cause Kubernetes to restart the
+			// service. In the meantime, however, we will have
+			// finished recording what happened, as part of a graceful
+			// shutdown. So the only thing that goes missing is the
+			// result from this regrade call.
+			if len(asyncSpecs) > 0 {
+				go func() {
+					rc.Instance.PlatformRegrade(asyncSpecs)
+				}()
 			}
 
 			return "", transactionErr
