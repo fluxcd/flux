@@ -19,7 +19,12 @@ MIGRATIONS:=$(shell find db/migrations -type f)
 all: $(GOPATH)/bin/fluxctl $(GOPATH)/bin/fluxd $(GOPATH)/bin/fluxsvc build/.fluxd.done build/.fluxsvc.done
 
 .PHONY: release-bins
-release-bins: build/fluxctl-linux-amd64 build/fluxctl-darwin-amd64
+release-bins:
+	for arch in amd64; do \
+		for os in linux darwin; do \
+			CGO_ENABLED=0 GOOS=$$os GOARCH=$$arch go build -o "build/fluxctl_"$$os"_$$arch" $(LDFLAGS) -ldflags "-X main.version=$(shell ./docker/image-tag)" ./cmd/fluxctl/; \
+		done; \
+	done
 
 clean:
 	go clean
@@ -47,11 +52,6 @@ build/fluxd: cmd/fluxd/*.go
 build/fluxsvc: $(FLUXSVC_DEPS)
 build/fluxsvc: cmd/fluxsvc/*.go
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o $@ cmd/fluxsvc/main.go
-
-build/fluxctl-linux-amd64: $(FLUXCTL_DEPS)
-	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o $@ ./cmd/fluxctl/
-build/fluxctl-darwin-amd64: $(FLUXCTL_DEPS)
-	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -o $@ ./cmd/fluxctl/
 
 build/kubectl: cache/kubectl-$(KUBECTL_VERSION) docker/kubectl.version
 	cp cache/kubectl-$(KUBECTL_VERSION) $@
