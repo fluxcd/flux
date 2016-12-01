@@ -25,6 +25,16 @@ type Platform interface {
 	Ping() error
 }
 
+// Wrap errors in this to indicate that the platform should be
+// considered dead, and disconnected.
+type FatalError struct {
+	Err error
+}
+
+func (err FatalError) Error() string {
+	return err.Err.Error()
+}
+
 // For getting a connection to a platform; this can happen in
 // different ways, e.g., by having direct access to Kubernetes in
 // standalone mode, or by going via a message bus.

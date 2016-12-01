@@ -339,7 +339,7 @@ func applyConfigUpdates(updates flux.UnsafeInstanceConfig) instance.UpdateFunc {
 func (s *Server) RegisterDaemon(instID flux.InstanceID, platform platform.Platform) (err error) {
 	defer func() {
 		if err != nil {
-			s.logger.Log("method", "Daemon", "err", err)
+			s.logger.Log("method", "RegisterDaemon", "err", err)
 		}
 	}()
 	// Register the daemon with our message bus, waiting for it to be
