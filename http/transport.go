@@ -70,6 +70,28 @@ func NewHandler(s api.FluxService, r *mux.Router, logger log.Logger, h metrics.H
 	return r
 }
 
+// When an API call fails, we may want to distinguish among the causes
+// by status code. This type can be used as the base error when we get
+// a non-"HTTP 20x" response, retrievable with errors.Cause(err).
+type APIError struct {
+	StatusCode int
+	Status     string
+	Body       string
+}
+
+func (err *APIError) Error() string {
+	return fmt.Sprintf("%s (%s)", err.Status, err.Body)
+}
+
+// Does this error mean the API service is unavailable?
+func (err *APIError) IsUnavailable() bool {
+	switch err.StatusCode {
+	case 502, 503, 504:
+		return true
+	}
+	return false
+}
+
 // The idea here is to place the handleFoo and invokeFoo functions next to each
 // other, so changes in one can easily be accommodated in the other.
 
@@ -708,7 +730,12 @@ func executeRequest(client *http.Client, req *http.Request) (*http.Response, err
 	}
 	if resp.StatusCode != http.StatusOK {
 		buf, _ := ioutil.ReadAll(resp.Body)
-		err = fmt.Errorf("%s (%s)", resp.Status, strings.TrimSpace(string(buf)))
+		body := strings.TrimSpace(string(buf))
+		err := &APIError{
+			StatusCode: resp.StatusCode,
+			Status:     resp.Status,
+			Body:       body,
+		}
 		return nil, errors.Wrap(err, "reading HTTP response")
 	}
 	return resp, nil

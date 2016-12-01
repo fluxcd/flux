@@ -9,9 +9,11 @@ import (
 
 	"github.com/gosuri/uilive"
 	"github.com/mattn/go-isatty"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
-	flux "github.com/weaveworks/flux"
+	"github.com/weaveworks/flux"
+	transport "github.com/weaveworks/flux/http"
 )
 
 const largestHeartbeatDelta = 5 * time.Second
@@ -80,14 +82,31 @@ func (opts *serviceCheckReleaseOpts) RunE(_ *cobra.Command, args []string) error
 		prevStatus            string
 		lastHeartbeatDatabase time.Time
 		lastHeartbeatLocal    = time.Now()
+		initialRetryBackoff   = 4
+		retryBackoff          = initialRetryBackoff
+		retryNext             = 0
 	)
+
 	for range time.Tick(time.Second) {
+		if retryNext > 0 {
+			fmt.Fprintf(w, "Last status: %s\n", prevStatus)
+			fmt.Fprintf(w, "Service unavailable. Retrying in %d sec.\n", retryNext)
+			retryNext--
+			continue
+		}
+
 		job, err = opts.API.GetRelease(noInstanceID, flux.ReleaseID(opts.releaseID))
 		if err != nil {
+			if err, ok := errors.Cause(err).(*transport.APIError); ok && err.IsUnavailable() {
+				retryNext = retryBackoff
+				retryBackoff *= 2
+				continue
+			}
 			fmt.Fprintf(w, "Status: error querying release.\n") // error will get printed below
 			break
 		}
 
+		retryBackoff = initialRetryBackoff
 		status := "Waiting for job to be claimed..."
 		if job.Status != "" {
 			status = job.Status
