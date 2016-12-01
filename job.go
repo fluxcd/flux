@@ -23,7 +23,7 @@ const (
 
 var (
 	ErrNoSuchJob        = errors.New("no such release job found")
-	ErrNoJobAvailable   = errors.New("no release job available")
+	ErrNoJobAvailable   = errors.New("no job available")
 	ErrUnknownJobMethod = errors.New("unknown job method")
 )
 
