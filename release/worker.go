@@ -50,6 +50,7 @@ func (w *Worker) Work(shutdown <-chan struct{}) {
 		job, err := w.jobs.NextJob()
 		if err == flux.ErrNoReleaseJobAvailable {
 			time.Sleep(backoff)
+			continue
 		}
 		if err != nil {
 			w.logger.Log("err", errors.Wrap(err, "fetch release job")) // abnormal
