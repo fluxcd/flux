@@ -190,7 +190,9 @@ func (s *DatabaseStore) NextJob(queues []string) (flux.Job, error) {
 					WHERE claimed_at IS NULL
 						AND scheduled_at <= $1
 						AND finished_at IS NULL
-			 ORDER BY priority DESC, scheduled_at ASC, submitted_at DESC
+						-- subtraction is to work around for ql, not being able to sort
+						-- multiple columns in different ways.
+			 ORDER BY (-1 * priority), scheduled_at, submitted_at
 					LIMIT 1`, now).Scan(
 			&instanceID,
 			&jobID,

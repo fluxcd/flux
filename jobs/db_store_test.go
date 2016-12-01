@@ -180,30 +180,123 @@ func TestDatabaseStore(t *testing.T) {
 
 func TestDatabaseStoreScheduledJobs(t *testing.T) {
 	instance := flux.InstanceID("instance")
-	db := Setup(t)
-	defer Cleanup(t, db)
+	now := time.Now()
 
-	// Put a scheduled job
-	scheduledJobID, err := db.PutJob(instance, flux.Job{
-		Method:      flux.ReleaseJob,
-		Params:      flux.ReleaseJobParams{},
-		ScheduledAt: time.Now().Add(1 * time.Minute),
-	})
+	for _, example := range []struct {
+		name          string        // name of this test
+		jobs          []flux.Job    // Jobs to put in the queue
+		offset        time.Duration // Amount to travel forward
+		expectedIndex int           // Index of expected job
+	}{
+		{
+			"basics",
+			[]flux.Job{
+				{
+					Method:      flux.ReleaseJob,
+					Params:      flux.ReleaseJobParams{},
+					ScheduledAt: now.Add(1 * time.Minute),
+				},
+			},
+			2 * time.Minute,
+			0,
+		},
+		{
+			"higher priorities",
+			[]flux.Job{
+				{
+					Method:      flux.ReleaseJob,
+					Params:      flux.ReleaseJobParams{},
+					ScheduledAt: now.Add(1 * time.Minute),
+					Priority:    1,
+				},
+				{
+					Method:      flux.ReleaseJob,
+					Params:      flux.ReleaseJobParams{},
+					ScheduledAt: now.Add(1 * time.Minute),
+					Priority:    10,
+				},
+			},
+			2 * time.Minute,
+			1,
+		},
+		{
+			"scheduled first",
+			[]flux.Job{
+				{
+					Method:      flux.ReleaseJob,
+					Params:      flux.ReleaseJobParams{},
+					ScheduledAt: now.Add(1 * time.Minute),
+				},
+				{
+					Method:      flux.ReleaseJob,
+					Params:      flux.ReleaseJobParams{},
+					ScheduledAt: now.Add(5 * time.Second),
+				},
+			},
+			2 * time.Minute,
+			1,
+		},
+		{
+			"submitted first",
+			[]flux.Job{
+				{
+					Method:      flux.ReleaseJob,
+					Params:      flux.ReleaseJobParams{},
+					ScheduledAt: now.Add(1 * time.Minute),
+				},
+				{
+					Method:      flux.ReleaseJob,
+					Params:      flux.ReleaseJobParams{},
+					ScheduledAt: now.Add(1 * time.Minute),
+				},
+			},
+			2 * time.Minute,
+			0,
+		},
+	} {
+		db := Setup(t)
 
-	// Check it isn't available
-	if _, err := db.NextJob(nil); err != flux.ErrNoJobAvailable {
-		t.Fatalf("Expected ErrNoJobAvailable, got %q", err)
-	}
+		// Stub now so we can time-travel
+		db.now = func(_ dbProxy) (time.Time, error) {
+			return now, nil
+		}
 
-	// Advance time so it it available
-	db.now = func(_ dbProxy) (time.Time, error) {
-		return time.Now().Add(2 * time.Minute), nil
-	}
+		// Put some scheduled jobs
+		var ids []flux.JobID
+		for i, job := range example.jobs {
+			id, err := db.PutJob(instance, job)
+			if err != nil {
+				t.Errorf("[%s] putting job onto queue: %v", example.name, err)
+			} else {
+				ids = append(ids, id)
+			}
 
-	// It should be available
-	job, err := db.NextJob(nil)
-	bailIfErr(t, err)
-	if job.ID != scheduledJobID {
-		t.Fatalf("Expected scheduled job, got %q", job.ID)
+			// Advance time so each job has a different submission timestamp
+			db.now = func(_ dbProxy) (time.Time, error) {
+				return now.Add(time.Duration(i) * time.Second), nil
+			}
+		}
+
+		// Check nothing is available
+		if _, err := db.NextJob(nil); err != flux.ErrNoJobAvailable {
+			t.Fatalf("[%s] Expected ErrNoJobAvailable, got %q", example.name, err)
+		}
+
+		// Advance time so it is available
+		db.now = func(_ dbProxy) (time.Time, error) {
+			return now.Add(example.offset), nil
+		}
+
+		// It should be available
+		job, err := db.NextJob(nil)
+		if err != nil {
+			t.Errorf("[%s] getting job from queue: %v", example.name, err)
+			continue
+		}
+		if job.ID != ids[example.expectedIndex] {
+			t.Fatalf("[%s] Expected scheduled job, got %q", example.name, job.ID)
+		}
+
+		Cleanup(t, db)
 	}
 }
