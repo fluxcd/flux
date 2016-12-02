@@ -127,6 +127,18 @@ func (s *DatabaseStore) PutJob(inst flux.InstanceID, job Job) (JobID, error) {
 	}
 
 	err = s.Transaction(func(s *DatabaseStore) error {
+		if job.Key != "" {
+			var count int
+			err := s.conn.QueryRow(`
+			SELECT count(*) FROM jobs WHERE key = $1 AND claimed_at IS NULL
+			`, job.Key).Scan(&count)
+			if err != nil {
+				return errors.Wrap(err, "looking for existing job")
+			}
+			if count > 0 {
+				return ErrJobAlreadyQueued
+			}
+		}
 		now, err := s.now(s.conn)
 		if err != nil {
 			return errors.Wrap(err, "getting current time")
@@ -269,6 +281,10 @@ func (s *DatabaseStore) scanParams(method string, params []byte) (interface{}, e
 	switch method {
 	case ReleaseJob:
 		var p ReleaseJobParams
+		err := json.Unmarshal(params, &p)
+		return p, err
+	case AutomatedServiceJob:
+		var p AutomatedServiceJobParams
 		err := json.Unmarshal(params, &p)
 		return p, err
 	default:

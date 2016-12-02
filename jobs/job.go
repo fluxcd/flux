@@ -21,6 +21,9 @@ const (
 	// ReleaseJob is the method for a release job
 	ReleaseJob = "release"
 
+	// AutomatedServiceJob is the method for a check automated service job
+	AutomatedServiceJob = "automated_service"
+
 	// PriorityBackground is priority for background jobs
 	PriorityBackground = 100
 
@@ -32,6 +35,7 @@ var (
 	ErrNoSuchJob        = errors.New("no such release job found")
 	ErrNoJobAvailable   = errors.New("no job available")
 	ErrUnknownJobMethod = errors.New("unknown job method")
+	ErrJobAlreadyQueued = errors.New("job is already queued")
 )
 
 type JobStore interface {
@@ -161,4 +165,10 @@ type ReleaseJobParams struct {
 	ImageSpec   flux.ImageSpec
 	Kind        flux.ReleaseKind
 	Excludes    []flux.ServiceID
+}
+
+// AutomatedServiceJobParams are the params for a automated_service job
+// job
+type AutomatedServiceJobParams struct {
+	ServiceSpec flux.ServiceSpec
 }
