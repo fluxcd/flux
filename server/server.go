@@ -11,6 +11,7 @@ import (
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/history"
 	"github.com/weaveworks/flux/instance"
+	"github.com/weaveworks/flux/jobs"
 	"github.com/weaveworks/flux/platform"
 )
 
@@ -25,7 +26,7 @@ const (
 type Server struct {
 	instancer   instance.Instancer
 	messageBus  platform.MessageBus
-	releaser    flux.JobReadPusher
+	jobs        jobs.JobStore
 	logger      log.Logger
 	maxPlatform chan struct{} // semaphore for concurrent calls to the platform
 	metrics     Metrics
@@ -40,14 +41,14 @@ type Metrics struct {
 func New(
 	instancer instance.Instancer,
 	messageBus platform.MessageBus,
-	releaser flux.JobReadPusher,
+	jobs jobs.JobStore,
 	logger log.Logger,
 	metrics Metrics,
 ) *Server {
 	return &Server{
 		instancer:   instancer,
 		messageBus:  messageBus,
-		releaser:    releaser,
+		jobs:        jobs,
 		logger:      logger,
 		maxPlatform: make(chan struct{}, 8),
 		metrics:     metrics,
@@ -232,7 +233,7 @@ func (s *Server) Deautomate(instID flux.InstanceID, service flux.ServiceID) erro
 }
 
 func recordAutomated(inst *instance.Instance, service flux.ServiceID, automated bool) error {
-	if err := inst.UpdateConfig(func(conf instance.Config) (instance.Config, error) {
+	return inst.UpdateConfig(func(conf instance.Config) (instance.Config, error) {
 		if serviceConf, found := conf.Services[service]; found {
 			serviceConf.Automated = automated
 			conf.Services[service] = serviceConf
@@ -242,10 +243,7 @@ func recordAutomated(inst *instance.Instance, service flux.ServiceID, automated 
 			}
 		}
 		return conf, nil
-	}); err != nil {
-		return err
-	}
-	return nil
+	})
 }
 
 func (s *Server) Lock(instID flux.InstanceID, service flux.ServiceID) error {
@@ -285,16 +283,16 @@ func recordLock(inst *instance.Instance, service flux.ServiceID, locked bool) er
 	return nil
 }
 
-func (s *Server) PostRelease(inst flux.InstanceID, params flux.ReleaseJobParams) (flux.JobID, error) {
-	return s.releaser.PutJob(inst, flux.Job{
-		Method:   flux.ReleaseJob,
-		Priority: flux.PriorityInteractive,
+func (s *Server) PostRelease(inst flux.InstanceID, params jobs.ReleaseJobParams) (jobs.JobID, error) {
+	return s.jobs.PutJob(inst, jobs.Job{
+		Method:   jobs.ReleaseJob,
+		Priority: jobs.PriorityInteractive,
 		Params:   params,
 	})
 }
 
-func (s *Server) GetRelease(inst flux.InstanceID, id flux.JobID) (flux.Job, error) {
-	return s.releaser.GetJob(inst, id)
+func (s *Server) GetRelease(inst flux.InstanceID, id jobs.JobID) (jobs.Job, error) {
+	return s.jobs.GetJob(inst, id)
 }
 
 func (s *Server) GetConfig(instID flux.InstanceID) (flux.InstanceConfig, error) {

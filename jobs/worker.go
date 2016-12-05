@@ -6,10 +6,6 @@ import (
 
 	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
-
-	"github.com/weaveworks/flux"
-	"github.com/weaveworks/flux/instance"
-	"github.com/weaveworks/flux/release"
 )
 
 const (
@@ -22,12 +18,12 @@ var (
 )
 
 type Handler interface {
-	Handle(*flux.Job, flux.JobWritePopper) error
+	Handle(*Job, JobUpdater) error
 }
 
 // Worker grabs jobs from the job store and executes them.
 type Worker struct {
-	jobs     flux.JobWritePopper
+	jobs     JobWritePopper
 	handlers map[string]Handler
 	logger   log.Logger
 	stopping chan struct{}
@@ -37,20 +33,21 @@ type Worker struct {
 // NewWorker returns a usable worker pulling jobs from the JobPopper.
 // Run Work in its own goroutine to start execution.
 func NewWorker(
-	jobs flux.JobWritePopper,
-	instancer instance.Instancer,
-	metrics release.Metrics,
+	jobs JobWritePopper,
 	logger log.Logger,
 ) *Worker {
 	return &Worker{
-		jobs: jobs,
-		handlers: map[string]Handler{
-			flux.ReleaseJob: newReleaseHandler(instancer, metrics),
-		},
+		jobs:     jobs,
+		handlers: map[string]Handler{},
 		logger:   logger,
 		stopping: make(chan struct{}),
 		done:     make(chan struct{}),
 	}
+}
+
+// Register registers a new handler for a method
+func (w *Worker) Register(jobMethod string, handler Handler) {
+	w.handlers[jobMethod] = handler
 }
 
 // Work polls the job queue for new jobs.
@@ -75,7 +72,7 @@ func (w *Worker) Work() {
 		default:
 		}
 		job, err := w.jobs.NextJob(nil)
-		if err == flux.ErrNoJobAvailable {
+		if err == ErrNoJobAvailable {
 			sleep()
 			continue // normal
 		}
@@ -129,7 +126,7 @@ func (w *Worker) Stop(timeout time.Duration) error {
 	}
 }
 
-func heartbeat(id flux.JobID, h heartbeater, d time.Duration, cancel <-chan struct{}, done chan<- struct{}, logger log.Logger) {
+func heartbeat(id JobID, h heartbeater, d time.Duration, cancel <-chan struct{}, done chan<- struct{}, logger log.Logger) {
 	t := time.NewTicker(d)
 	defer t.Stop()
 	defer close(done)
@@ -146,5 +143,5 @@ func heartbeat(id flux.JobID, h heartbeater, d time.Duration, cancel <-chan stru
 }
 
 type heartbeater interface {
-	Heartbeat(flux.JobID) error
+	Heartbeat(JobID) error
 }

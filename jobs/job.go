@@ -1,10 +1,12 @@
-package flux
+package jobs
 
 import (
 	"errors"
 	"fmt"
 	"math/rand"
 	"time"
+
+	"github.com/weaveworks/flux"
 )
 
 const (
@@ -34,8 +36,8 @@ type JobStore interface {
 }
 
 type JobReadPusher interface {
-	GetJob(InstanceID, JobID) (Job, error)
-	PutJob(InstanceID, Job) (JobID, error)
+	GetJob(flux.InstanceID, JobID) (Job, error)
+	PutJob(flux.InstanceID, Job) (JobID, error)
 }
 
 type JobWritePopper interface {
@@ -66,8 +68,8 @@ func init() {
 
 // Job describes a worker job
 type Job struct {
-	Instance InstanceID `json:"instanceID"`
-	ID       JobID      `json:"id"`
+	Instance flux.InstanceID `json:"instanceID"`
+	ID       JobID           `json:"id"`
 
 	// To be set when scheduling the job
 	Queue       string      `json:"queue"`
@@ -93,8 +95,8 @@ type Job struct {
 
 // ReleaseJobParams are the params for a release job
 type ReleaseJobParams struct {
-	ServiceSpec ServiceSpec
-	ImageSpec   ImageSpec
-	Kind        ReleaseKind
-	Excludes    []ServiceID
+	ServiceSpec flux.ServiceSpec
+	ImageSpec   flux.ImageSpec
+	Kind        flux.ReleaseKind
+	Excludes    []flux.ServiceID
 }

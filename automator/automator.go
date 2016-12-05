@@ -6,6 +6,7 @@ import (
 	"github.com/go-kit/kit/log"
 
 	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/jobs"
 )
 
 const (
@@ -38,10 +39,10 @@ func (a *Automator) Start(errorLogger log.Logger) {
 		for _, inst := range insts {
 			for service, conf := range inst.Config.Services {
 				if conf.Policy() == flux.PolicyAutomated {
-					a.cfg.Releaser.PutJob(inst.ID, flux.Job{
-						Method:   flux.ReleaseJob,
-						Priority: flux.PriorityBackground,
-						Params: flux.ReleaseJobParams{
+					a.cfg.Releaser.PutJob(inst.ID, jobs.Job{
+						Method:   jobs.ReleaseJob,
+						Priority: jobs.PriorityBackground,
+						Params: jobs.ReleaseJobParams{
 							ServiceSpec: flux.ServiceSpec(service),
 							ImageSpec:   flux.ImageSpecLatest,
 							Kind:        flux.ReleaseKindExecute,

@@ -16,7 +16,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/pflag"
 
-	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/automator"
 	"github.com/weaveworks/flux/db"
 	"github.com/weaveworks/flux/history"
@@ -172,31 +171,15 @@ func main() {
 		}
 	}
 
-	// Release job store.
-	var rjs flux.JobStore
+	// Job store.
+	var jobStore jobs.JobStore
 	{
 		s, err := jobs.NewDatabaseStore(dbDriver, *databaseSource, time.Hour)
 		if err != nil {
 			logger.Log("component", "release job store", "err", err)
 			os.Exit(1)
 		}
-		rjs = s
-	}
-
-	// Release workers.
-	{
-		worker := jobs.NewWorker(rjs, instancer, releaseMetrics, logger)
-		defer func() {
-			if err := worker.Stop(shutdownTimeout); err != nil {
-				logger.Log("err", err)
-			}
-		}()
-		worker.Work()
-
-		cleaner := jobs.NewCleaner(rjs, logger)
-		cleanTicker := time.NewTicker(15 * time.Second)
-		defer cleanTicker.Stop()
-		go cleaner.Clean(cleanTicker.C)
+		jobStore = s
 	}
 
 	// Automator component.
@@ -204,7 +187,7 @@ func main() {
 	{
 		var err error
 		auto, err = automator.New(automator.Config{
-			Releaser:   rjs,
+			Releaser:   jobStore,
 			InstanceDB: instanceDB,
 		})
 		if err == nil {
@@ -217,8 +200,27 @@ func main() {
 
 	go auto.Start(log.NewContext(logger).With("component", "automator"))
 
+	// Job workers.
+	{
+		logger := log.NewContext(logger).With("component", "worker")
+		worker := jobs.NewWorker(jobStore, logger)
+		worker.Register(jobs.ReleaseJob, release.NewReleaser(instancer, releaseMetrics))
+
+		defer func() {
+			if err := worker.Stop(shutdownTimeout); err != nil {
+				logger.Log("err", err)
+			}
+		}()
+		go worker.Work()
+
+		cleaner := jobs.NewCleaner(jobStore, logger)
+		cleanTicker := time.NewTicker(15 * time.Second)
+		defer cleanTicker.Stop()
+		go cleaner.Clean(cleanTicker.C)
+	}
+
 	// The server.
-	server := server.New(instancer, messageBus, rjs, logger, serverMetrics)
+	server := server.New(instancer, messageBus, jobStore, logger, serverMetrics)
 
 	// Mechanical components.
 	errc := make(chan error)

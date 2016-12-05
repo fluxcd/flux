@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/jobs"
 )
 
 type serviceReleaseOpts struct {
@@ -98,7 +99,7 @@ func (opts *serviceReleaseOpts) RunE(_ *cobra.Command, args []string) error {
 		fmt.Fprintf(os.Stdout, "Submitting release job...\n")
 	}
 
-	id, err := opts.API.PostRelease(noInstanceID, flux.ReleaseJobParams{
+	id, err := opts.API.PostRelease(noInstanceID, jobs.ReleaseJobParams{
 		ServiceSpec: service,
 		ImageSpec:   image,
 		Kind:        kind,

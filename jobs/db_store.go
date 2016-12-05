@@ -41,7 +41,7 @@ func NewDatabaseStore(driver, datasource string, oldest time.Duration) (*Databas
 	return s, s.sanityCheck()
 }
 
-func (s *DatabaseStore) GetJob(inst flux.InstanceID, id flux.JobID) (flux.Job, error) {
+func (s *DatabaseStore) GetJob(inst flux.InstanceID, id JobID) (Job, error) {
 	var (
 		queue       string
 		method      string
@@ -67,22 +67,22 @@ func (s *DatabaseStore) GetJob(inst flux.InstanceID, id flux.JobID) (flux.Job, e
 		&queue, &method, &paramsBytes, &scheduledAt, &priority, &key, &submittedAt,
 		&claimedAt, &heartbeatAt, &finishedAt, &logStr, &status, &done, &success,
 	); err == sql.ErrNoRows {
-		return flux.Job{}, flux.ErrNoSuchJob
+		return Job{}, ErrNoSuchJob
 	} else if err != nil {
-		return flux.Job{}, errors.Wrap(err, "error getting job")
+		return Job{}, errors.Wrap(err, "error getting job")
 	}
 
 	params, err := s.scanParams(method, paramsBytes)
 	if err != nil {
-		return flux.Job{}, errors.Wrap(err, "unmarshaling params")
+		return Job{}, errors.Wrap(err, "unmarshaling params")
 	}
 
 	var log []string
 	if err := json.NewDecoder(strings.NewReader(logStr)).Decode(&log); err != nil {
-		return flux.Job{}, errors.Wrap(err, "unmarshaling log")
+		return Job{}, errors.Wrap(err, "unmarshaling log")
 	}
 
-	return flux.Job{
+	return Job{
 		Instance:    inst,
 		ID:          id,
 		Queue:       queue,
@@ -105,25 +105,25 @@ func (s *DatabaseStore) GetJob(inst flux.InstanceID, id flux.JobID) (flux.Job, e
 // PutJob schedules a job to run. Users should set the Queue, Method, Params,
 // and ScheduledAt fields of the job. If ScheduledAt is nil, the job will run
 // immediately.
-func (s *DatabaseStore) PutJob(inst flux.InstanceID, job flux.Job) (flux.JobID, error) {
+func (s *DatabaseStore) PutJob(inst flux.InstanceID, job Job) (JobID, error) {
 	var (
-		jobID       = flux.NewJobID()
+		jobID       = NewJobID()
 		status      = "Submitted job."
 		paramsBytes []byte
 		err         error
 	)
 	if job.Queue == "" {
-		job.Queue = flux.DefaultQueue
+		job.Queue = DefaultQueue
 	}
 	if job.Params != nil {
 		paramsBytes, err = json.Marshal(job.Params)
 		if err != nil {
-			return flux.JobID(""), errors.Wrap(err, "marshaling params")
+			return JobID(""), errors.Wrap(err, "marshaling params")
 		}
 	}
 	logBytes, err := json.Marshal([]string{status})
 	if err != nil {
-		return flux.JobID(""), errors.Wrap(err, "marshaling log")
+		return JobID(""), errors.Wrap(err, "marshaling log")
 	}
 
 	err = s.Transaction(func(s *DatabaseStore) error {
@@ -159,8 +159,8 @@ func (s *DatabaseStore) PutJob(inst flux.InstanceID, job flux.Job) (flux.JobID, 
 
 // Take the next job from specified queues. If queues is nil, all queues are
 // used.
-func (s *DatabaseStore) NextJob(queues []string) (flux.Job, error) {
-	var job flux.Job
+func (s *DatabaseStore) NextJob(queues []string) (Job, error) {
+	var job Job
 	err := s.Transaction(func(s *DatabaseStore) error {
 		now, err := s.now(s.conn)
 		if err != nil {
@@ -211,7 +211,7 @@ func (s *DatabaseStore) NextJob(queues []string) (flux.Job, error) {
 			&done,
 			&success,
 		); err == sql.ErrNoRows {
-			return flux.ErrNoJobAvailable
+			return ErrNoJobAvailable
 		} else if err != nil {
 			return errors.Wrap(err, "dequeueing next job")
 		}
@@ -226,9 +226,9 @@ func (s *DatabaseStore) NextJob(queues []string) (flux.Job, error) {
 			return errors.Wrap(err, "unmarshaling log")
 		}
 
-		job = flux.Job{
+		job = Job{
 			Instance:    flux.InstanceID(instanceID),
-			ID:          flux.JobID(jobID),
+			ID:          JobID(jobID),
 			Queue:       queue,
 			Method:      method,
 			Params:      params,
@@ -267,16 +267,16 @@ func (s *DatabaseStore) scanParams(method string, params []byte) (interface{}, e
 		return nil, nil
 	}
 	switch method {
-	case flux.ReleaseJob:
-		var p flux.ReleaseJobParams
+	case ReleaseJob:
+		var p ReleaseJobParams
 		err := json.Unmarshal(params, &p)
 		return p, err
 	default:
-		return nil, flux.ErrUnknownJobMethod
+		return nil, ErrUnknownJobMethod
 	}
 }
 
-func (s *DatabaseStore) UpdateJob(job flux.Job) error {
+func (s *DatabaseStore) UpdateJob(job Job) error {
 	paramsBytes, err := json.Marshal(job.Params)
 	if err != nil {
 		return errors.Wrap(err, "marshaling params")
@@ -297,7 +297,7 @@ func (s *DatabaseStore) UpdateJob(job flux.Job) error {
 		} else if n, err := res.RowsAffected(); err != nil {
 			return errors.Wrap(err, "after update, checking affected rows")
 		} else if n == 0 {
-			return flux.ErrNoSuchJob
+			return ErrNoSuchJob
 		} else if n > 1 {
 			return errors.Errorf("updating job affected %d rows; wanted 1", n)
 		}
@@ -324,7 +324,7 @@ func (s *DatabaseStore) UpdateJob(job flux.Job) error {
 	})
 }
 
-func (s *DatabaseStore) Heartbeat(id flux.JobID) error {
+func (s *DatabaseStore) Heartbeat(id JobID) error {
 	return s.Transaction(func(s *DatabaseStore) error {
 		now, err := s.now(s.conn)
 		if err != nil {
@@ -339,7 +339,7 @@ func (s *DatabaseStore) Heartbeat(id flux.JobID) error {
 		} else if n, err := res.RowsAffected(); err != nil {
 			return errors.Wrap(err, "after heartbeat, checking affected rows")
 		} else if n == 0 {
-			return flux.ErrNoSuchJob
+			return ErrNoSuchJob
 		} else if n > 1 {
 			return errors.Errorf("heartbeating job affected %d rows; wanted 1", n)
 		}

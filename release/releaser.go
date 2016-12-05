@@ -14,6 +14,7 @@ import (
 
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/instance"
+	"github.com/weaveworks/flux/jobs"
 	"github.com/weaveworks/flux/platform"
 	"github.com/weaveworks/flux/platform/kubernetes"
 )
@@ -115,7 +116,8 @@ func exactlyTheseImages(images []flux.ImageID) imageCollect {
 	}
 }
 
-func (r *Releaser) Release(job *flux.Job, spec flux.ReleaseJobParams, updater flux.JobUpdater) (err error) {
+func (r *Releaser) Handle(job *jobs.Job, updater jobs.JobUpdater) (err error) {
+	spec := job.Params.(jobs.ReleaseJobParams)
 	releaseType := "unknown"
 	defer func(begin time.Time) {
 		r.metrics.ReleaseDuration.With(

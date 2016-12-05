@@ -11,7 +11,8 @@ import (
 	"github.com/mattn/go-isatty"
 	"github.com/spf13/cobra"
 
-	flux "github.com/weaveworks/flux"
+	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/jobs"
 )
 
 const largestHeartbeatDelta = 5 * time.Second
@@ -52,7 +53,7 @@ func (opts *serviceCheckReleaseOpts) RunE(_ *cobra.Command, args []string) error
 	}
 
 	if opts.noFollow {
-		job, err := opts.API.GetRelease(noInstanceID, flux.JobID(opts.releaseID))
+		job, err := opts.API.GetRelease(noInstanceID, jobs.JobID(opts.releaseID))
 		if err != nil {
 			return err
 		}
@@ -74,7 +75,7 @@ func (opts *serviceCheckReleaseOpts) RunE(_ *cobra.Command, args []string) error
 		w, stop = liveWriter, liveWriter.Stop
 	}
 	var (
-		job flux.Job
+		job jobs.Job
 		err error
 
 		prevStatus            string
@@ -82,7 +83,7 @@ func (opts *serviceCheckReleaseOpts) RunE(_ *cobra.Command, args []string) error
 		lastHeartbeatLocal    = time.Now()
 	)
 	for range time.Tick(time.Second) {
-		job, err = opts.API.GetRelease(noInstanceID, flux.JobID(opts.releaseID))
+		job, err = opts.API.GetRelease(noInstanceID, jobs.JobID(opts.releaseID))
 		if err != nil {
 			fmt.Fprintf(w, "Status: error querying release.\n") // error will get printed below
 			break
@@ -123,7 +124,7 @@ func (opts *serviceCheckReleaseOpts) RunE(_ *cobra.Command, args []string) error
 		return err
 	}
 
-	spec := job.Params.(flux.ReleaseJobParams)
+	spec := job.Params.(jobs.ReleaseJobParams)
 
 	fmt.Fprintf(os.Stdout, "\n")
 	if !job.Success {

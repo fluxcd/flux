@@ -86,21 +86,21 @@ func TestDatabaseStore(t *testing.T) {
 
 	// Get a job when there are none
 	_, err := db.NextJob(nil)
-	if err != flux.ErrNoJobAvailable {
+	if err != ErrNoJobAvailable {
 		t.Fatalf("Expected ErrNoJobAvailable, got %q", err)
 	}
 
 	// Put some jobs
-	backgroundJobID, err := db.PutJob(instance, flux.Job{
-		Method:   flux.ReleaseJob,
-		Params:   flux.ReleaseJobParams{},
-		Priority: flux.PriorityBackground,
+	backgroundJobID, err := db.PutJob(instance, Job{
+		Method:   ReleaseJob,
+		Params:   ReleaseJobParams{},
+		Priority: PriorityBackground,
 	})
 	bailIfErr(t, err)
-	interactiveJobID, err := db.PutJob(instance, flux.Job{
-		Method:   flux.ReleaseJob,
-		Params:   flux.ReleaseJobParams{},
-		Priority: flux.PriorityInteractive,
+	interactiveJobID, err := db.PutJob(instance, Job{
+		Method:   ReleaseJob,
+		Params:   ReleaseJobParams{},
+		Priority: PriorityInteractive,
 	})
 	bailIfErr(t, err)
 
@@ -112,8 +112,8 @@ func TestDatabaseStore(t *testing.T) {
 		t.Errorf("Got a lower priority job when a higher one was available")
 	}
 	// - It should have a default queue
-	if interactiveJob.Queue != flux.DefaultQueue {
-		t.Errorf("job default queue (%q) was not expected (%q)", interactiveJob.Queue, flux.DefaultQueue)
+	if interactiveJob.Queue != DefaultQueue {
+		t.Errorf("job default queue (%q) was not expected (%q)", interactiveJob.Queue, DefaultQueue)
 	}
 	// - It should have been scheduled in the past
 	if interactiveJob.ScheduledAt.IsZero() || interactiveJob.ScheduledAt.After(time.Now()) {
@@ -173,7 +173,7 @@ func TestDatabaseStore(t *testing.T) {
 	bailIfErr(t, db.GC())
 	// - Finished should be removed
 	_, err = db.GetJob(instance, backgroundJobID)
-	if err != flux.ErrNoSuchJob {
+	if err != ErrNoSuchJob {
 		t.Errorf("expected ErrNoSuchJob, got %q", err)
 	}
 }
@@ -184,16 +184,16 @@ func TestDatabaseStoreScheduledJobs(t *testing.T) {
 
 	for _, example := range []struct {
 		name          string        // name of this test
-		jobs          []flux.Job    // Jobs to put in the queue
+		jobs          []Job         // Jobs to put in the queue
 		offset        time.Duration // Amount to travel forward
 		expectedIndex int           // Index of expected job
 	}{
 		{
 			"basics",
-			[]flux.Job{
+			[]Job{
 				{
-					Method:      flux.ReleaseJob,
-					Params:      flux.ReleaseJobParams{},
+					Method:      ReleaseJob,
+					Params:      ReleaseJobParams{},
 					ScheduledAt: now.Add(1 * time.Minute),
 				},
 			},
@@ -202,16 +202,16 @@ func TestDatabaseStoreScheduledJobs(t *testing.T) {
 		},
 		{
 			"higher priorities",
-			[]flux.Job{
+			[]Job{
 				{
-					Method:      flux.ReleaseJob,
-					Params:      flux.ReleaseJobParams{},
+					Method:      ReleaseJob,
+					Params:      ReleaseJobParams{},
 					ScheduledAt: now.Add(1 * time.Minute),
 					Priority:    1,
 				},
 				{
-					Method:      flux.ReleaseJob,
-					Params:      flux.ReleaseJobParams{},
+					Method:      ReleaseJob,
+					Params:      ReleaseJobParams{},
 					ScheduledAt: now.Add(1 * time.Minute),
 					Priority:    10,
 				},
@@ -221,15 +221,15 @@ func TestDatabaseStoreScheduledJobs(t *testing.T) {
 		},
 		{
 			"scheduled first",
-			[]flux.Job{
+			[]Job{
 				{
-					Method:      flux.ReleaseJob,
-					Params:      flux.ReleaseJobParams{},
+					Method:      ReleaseJob,
+					Params:      ReleaseJobParams{},
 					ScheduledAt: now.Add(1 * time.Minute),
 				},
 				{
-					Method:      flux.ReleaseJob,
-					Params:      flux.ReleaseJobParams{},
+					Method:      ReleaseJob,
+					Params:      ReleaseJobParams{},
 					ScheduledAt: now.Add(5 * time.Second),
 				},
 			},
@@ -238,15 +238,15 @@ func TestDatabaseStoreScheduledJobs(t *testing.T) {
 		},
 		{
 			"submitted first",
-			[]flux.Job{
+			[]Job{
 				{
-					Method:      flux.ReleaseJob,
-					Params:      flux.ReleaseJobParams{},
+					Method:      ReleaseJob,
+					Params:      ReleaseJobParams{},
 					ScheduledAt: now.Add(1 * time.Minute),
 				},
 				{
-					Method:      flux.ReleaseJob,
-					Params:      flux.ReleaseJobParams{},
+					Method:      ReleaseJob,
+					Params:      ReleaseJobParams{},
 					ScheduledAt: now.Add(1 * time.Minute),
 				},
 			},
@@ -262,7 +262,7 @@ func TestDatabaseStoreScheduledJobs(t *testing.T) {
 		}
 
 		// Put some scheduled jobs
-		var ids []flux.JobID
+		var ids []JobID
 		for i, job := range example.jobs {
 			id, err := db.PutJob(instance, job)
 			if err != nil {
@@ -278,7 +278,7 @@ func TestDatabaseStoreScheduledJobs(t *testing.T) {
 		}
 
 		// Check nothing is available
-		if _, err := db.NextJob(nil); err != flux.ErrNoJobAvailable {
+		if _, err := db.NextJob(nil); err != ErrNoJobAvailable {
 			t.Fatalf("[%s] Expected ErrNoJobAvailable, got %q", example.name, err)
 		}
 
