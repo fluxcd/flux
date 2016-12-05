@@ -1,6 +1,7 @@
 package jobs
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math/rand"
@@ -91,6 +92,63 @@ type Job struct {
 	Status    string    `json:"status"`
 	Done      bool      `json:"done"`
 	Success   bool      `json:"success"` // only makes sense after done is true
+}
+
+func (j *Job) UnmarshalJSON(data []byte) error {
+	var wireJob struct {
+		Instance flux.InstanceID `json:"instanceID"`
+		ID       JobID           `json:"id"`
+
+		// To be set when scheduling the job
+		Queue       string          `json:"queue"`
+		Method      string          `json:"method"`
+		Params      json.RawMessage `json:"params"`
+		ScheduledAt time.Time       `json:"scheduled_at"`
+		Priority    int             `json:"priority"`
+
+		// Key is an optional field, and can be used to create jobs iff a pending
+		// job with the same key doesn't exist.
+		Key string `json:"key,omitempty"`
+
+		// To be used by the worker
+		Submitted time.Time `json:"submitted"`
+		Claimed   time.Time `json:"claimed,omitempty"`
+		Heartbeat time.Time `json:"heartbeat,omitempty"`
+		Finished  time.Time `json:"finished,omitempty"`
+		Log       []string  `json:"log,omitempty"`
+		Status    string    `json:"status"`
+		Done      bool      `json:"done"`
+		Success   bool      `json:"success"` // only makes sense after done is true
+	}
+	if err := json.Unmarshal(data, &wireJob); err != nil {
+		return err
+	}
+	*j = Job{
+		Instance:    wireJob.Instance,
+		ID:          wireJob.ID,
+		Queue:       wireJob.Queue,
+		Method:      wireJob.Method,
+		ScheduledAt: wireJob.ScheduledAt,
+		Priority:    wireJob.Priority,
+		Key:         wireJob.Key,
+		Submitted:   wireJob.Submitted,
+		Claimed:     wireJob.Claimed,
+		Heartbeat:   wireJob.Heartbeat,
+		Finished:    wireJob.Finished,
+		Log:         wireJob.Log,
+		Status:      wireJob.Status,
+		Done:        wireJob.Done,
+		Success:     wireJob.Success,
+	}
+	switch j.Method {
+	case ReleaseJob:
+		var p ReleaseJobParams
+		if err := json.Unmarshal(wireJob.Params, &p); err != nil {
+			return err
+		}
+		j.Params = p
+	}
+	return nil
 }
 
 // ReleaseJobParams are the params for a release job
