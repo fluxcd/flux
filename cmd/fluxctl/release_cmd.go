@@ -50,7 +50,7 @@ func (opts *serviceReleaseOpts) Command() *cobra.Command {
 	return cmd
 }
 
-func (opts *serviceReleaseOpts) RunE(_ *cobra.Command, args []string) error {
+func (opts *serviceReleaseOpts) RunE(cmd *cobra.Command, args []string) error {
 	if len(args) != 0 {
 		return errorWantedNoArgs
 	}
@@ -123,5 +123,5 @@ func (opts *serviceReleaseOpts) RunE(_ *cobra.Command, args []string) error {
 		releaseID:   string(id),
 		noFollow:    false,
 		noTty:       opts.noTty,
-	}).RunE(nil, nil)
+	}).RunE(cmd, nil)
 }
