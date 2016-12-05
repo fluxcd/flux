@@ -9,8 +9,7 @@ import (
 )
 
 const (
-	initialBackoff = 1 * time.Second
-	maxBackoff     = 1 * time.Minute
+	pollingPeriod = 1 * time.Second
 )
 
 var (
@@ -53,17 +52,6 @@ func (w *Worker) Register(jobMethod string, handler Handler) {
 // Work polls the job queue for new jobs.
 // Call Stop() to stop the worker.
 func (w *Worker) Work() {
-	backoff := initialBackoff
-	sleep := func() {
-		time.Sleep(backoff)
-		backoff *= 2
-		if backoff > maxBackoff {
-			backoff = maxBackoff
-		}
-	}
-	reset := func() {
-		backoff = initialBackoff
-	}
 	for {
 		select {
 		case <-w.stopping:
@@ -73,15 +61,14 @@ func (w *Worker) Work() {
 		}
 		job, err := w.jobs.NextJob(nil)
 		if err == ErrNoJobAvailable {
-			sleep()
+			time.Sleep(pollingPeriod)
 			continue // normal
 		}
 		if err != nil {
 			w.logger.Log("err", errors.Wrap(err, "fetch job")) // abnormal
-			sleep()
+			time.Sleep(pollingPeriod)
 			continue
 		}
-		reset()
 
 		cancel, done := make(chan struct{}), make(chan struct{})
 		go heartbeat(job.ID, w.jobs, time.Second, cancel, done, w.logger)
