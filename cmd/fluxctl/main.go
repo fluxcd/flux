@@ -1,6 +1,7 @@
 package main
 
 import (
+	"io"
 	"os"
 	"strings"
 
@@ -9,8 +10,10 @@ import (
 	transport "github.com/weaveworks/flux/http"
 )
 
-func main() {
+func run(args []string, stderr io.Writer) int {
 	rootCmd := newRoot().Command()
+	rootCmd.SetArgs(args)
+	rootCmd.SetOutput(stderr)
 	if cmd, err := rootCmd.ExecuteC(); err != nil {
 		err = errors.Cause(err)
 		switch err := err.(type) {
@@ -32,6 +35,11 @@ func main() {
 			cmd.Println("Error: ", err.Error())
 			cmd.Printf("Run '%v --help' for usage.\n", cmd.CommandPath())
 		}
-		os.Exit(1)
+		return 1
 	}
+	return 0
+}
+
+func main() {
+	os.Exit(run(os.Args, os.Stderr))
 }
