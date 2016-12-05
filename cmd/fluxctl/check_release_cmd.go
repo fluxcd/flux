@@ -44,7 +44,7 @@ func (opts *serviceCheckReleaseOpts) Command() *cobra.Command {
 	return cmd
 }
 
-func (opts *serviceCheckReleaseOpts) RunE(_ *cobra.Command, args []string) error {
+func (opts *serviceCheckReleaseOpts) RunE(cmd *cobra.Command, args []string) error {
 	if len(args) != 0 {
 		return errorWantedNoArgs
 	}
@@ -83,6 +83,7 @@ func (opts *serviceCheckReleaseOpts) RunE(_ *cobra.Command, args []string) error
 		lastHeartbeatDatabase time.Time
 		lastHeartbeatLocal    = time.Now()
 		initialRetryBackoff   = 4
+		abandonRetryThreshold = 60
 		retryBackoff          = initialRetryBackoff
 		retryNext             = 0
 	)
@@ -98,6 +99,12 @@ func (opts *serviceCheckReleaseOpts) RunE(_ *cobra.Command, args []string) error
 		job, err = opts.API.GetRelease(noInstanceID, flux.ReleaseID(opts.releaseID))
 		if err != nil {
 			if err, ok := errors.Cause(err).(*transport.APIError); ok && err.IsUnavailable() {
+				if retryBackoff > abandonRetryThreshold {
+					stop()
+					fmt.Fprintln(os.Stdout, "Giving up retrying for now. You can check again later with")
+					fmt.Fprintf(os.Stdout, "    %s -r %s\n", cmd.CommandPath(), opts.releaseID)
+					return errors.New("Abandoned after too many retries.")
+				}
 				retryNext = retryBackoff
 				retryBackoff *= 2
 				continue
