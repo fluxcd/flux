@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/gosuri/uilive"
@@ -17,6 +18,7 @@ import (
 )
 
 const largestHeartbeatDelta = 5 * time.Second
+const retryTimeout = 2 * time.Minute
 
 type serviceCheckReleaseOpts struct {
 	*serviceOpts
@@ -73,7 +75,8 @@ func (opts *serviceCheckReleaseOpts) RunE(cmd *cobra.Command, args []string) err
 	if !opts.noTty && isatty.IsTerminal(os.Stdout.Fd()) {
 		liveWriter := uilive.New()
 		liveWriter.Start()
-		w, stop = liveWriter, liveWriter.Stop
+		var stopOnce sync.Once
+		w, stop = liveWriter, func() { stopOnce.Do(liveWriter.Stop) }
 	}
 	var (
 		job flux.ReleaseJob
@@ -82,38 +85,36 @@ func (opts *serviceCheckReleaseOpts) RunE(cmd *cobra.Command, args []string) err
 		prevStatus            string
 		lastHeartbeatDatabase time.Time
 		lastHeartbeatLocal    = time.Now()
-		initialRetryBackoff   = 4
-		abandonRetryThreshold = 60
-		retryBackoff          = initialRetryBackoff
-		retryNext             = 0
+
+		retryCount    = 0
+		lastSucceeded = time.Now()
 	)
 
 	for range time.Tick(time.Second) {
-		if retryNext > 0 {
-			fmt.Fprintf(w, "Last status: %s\n", prevStatus)
-			fmt.Fprintf(w, "Service unavailable. Retrying in %d sec.\n", retryNext)
-			retryNext--
-			continue
+		if retryCount > 0 {
+			fmt.Fprintf(w, "Last status (%s): %s\n", lastSucceeded.Format(time.Kitchen), prevStatus)
+			fmt.Fprintf(w, "Service unavailable. Retrying (#%d) ...\n", retryCount)
 		}
 
 		job, err = opts.API.GetRelease(noInstanceID, flux.ReleaseID(opts.releaseID))
 		if err != nil {
 			if err, ok := errors.Cause(err).(*transport.APIError); ok && err.IsUnavailable() {
-				if retryBackoff > abandonRetryThreshold {
+				if time.Since(lastSucceeded) > retryTimeout {
 					stop()
-					fmt.Fprintln(os.Stdout, "Giving up retrying for now. You can check again later with")
-					fmt.Fprintf(os.Stdout, "    %s -r %s\n", cmd.CommandPath(), opts.releaseID)
-					return errors.New("Abandoned after too many retries.")
+					fmt.Fprintln(os.Stdout, "Giving up; you can try again with")
+					fmt.Fprintf(os.Stdout, "    fluxctl check-release -r %s\n", opts.releaseID)
+					fmt.Fprintln(os.Stdout)
+					break
 				}
-				retryNext = retryBackoff
-				retryBackoff *= 2
+				retryCount++
 				continue
 			}
 			fmt.Fprintf(w, "Status: error querying release.\n") // error will get printed below
 			break
 		}
 
-		retryBackoff = initialRetryBackoff
+		lastSucceeded = time.Now()
+		retryCount = 0
 		status := "Waiting for job to be claimed..."
 		if job.Status != "" {
 			status = job.Status
