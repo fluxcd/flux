@@ -116,7 +116,9 @@ func TestDatabaseStore(t *testing.T) {
 		t.Errorf("job default queue (%q) was not expected (%q)", interactiveJob.Queue, DefaultQueue)
 	}
 	// - It should have been scheduled in the past
-	if interactiveJob.ScheduledAt.IsZero() || interactiveJob.ScheduledAt.After(time.Now()) {
+	now, err := db.now(db.conn)
+	bailIfErr(t, err)
+	if interactiveJob.ScheduledAt.IsZero() || interactiveJob.ScheduledAt.After(now) {
 		t.Errorf("expected job to be scheduled in the past")
 	}
 	// - It should have a log and status
