@@ -31,6 +31,9 @@ type AllServicesRequest struct {
 func (p *RPCClient) AllServices(maybeNamespace string, ignored flux.ServiceIDSet) ([]platform.Service, error) {
 	var s []platform.Service
 	err := p.client.Call("RPCServer.AllServices", AllServicesRequest{maybeNamespace, ignored}, &s)
+	if _, ok := err.(rpc.ServerError); !ok && err != nil {
+		err = platform.FatalError{err}
+	}
 	return s, err
 }
 
@@ -38,6 +41,9 @@ func (p *RPCClient) AllServices(maybeNamespace string, ignored flux.ServiceIDSet
 func (p *RPCClient) SomeServices(ids []flux.ServiceID) ([]platform.Service, error) {
 	var s []platform.Service
 	err := p.client.Call("RPCServer.SomeServices", ids, &s)
+	if _, ok := err.(rpc.ServerError); !ok && err != nil {
+		err = platform.FatalError{err}
+	}
 	return s, err
 }
 
@@ -45,6 +51,9 @@ func (p *RPCClient) SomeServices(ids []flux.ServiceID) ([]platform.Service, erro
 func (p *RPCClient) Regrade(spec []platform.RegradeSpec) error {
 	var regradeErrors RegradeResult
 	if err := p.client.Call("RPCServer.Regrade", spec, &regradeErrors); err != nil {
+		if _, ok := err.(rpc.ServerError); !ok && err != nil {
+			err = platform.FatalError{err}
+		}
 		return err
 	}
 	if len(regradeErrors) > 0 {
@@ -59,7 +68,11 @@ func (p *RPCClient) Regrade(spec []platform.RegradeSpec) error {
 
 // Ping is used to check if the remote platform is available.
 func (p *RPCClient) Ping() error {
-	return p.client.Call("RPCServer.Ping", struct{}{}, nil)
+	err := p.client.Call("RPCServer.Ping", struct{}{}, nil)
+	if _, ok := err.(rpc.ServerError); !ok && err != nil {
+		return platform.FatalError{err}
+	}
+	return err
 }
 
 // Close closes the connection to the remote platform, it does *not* cause the
