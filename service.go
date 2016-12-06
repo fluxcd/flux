@@ -2,7 +2,6 @@ package flux
 
 import (
 	"fmt"
-	"math/rand"
 	"net/http"
 	"sort"
 	"strings"
@@ -239,10 +238,4 @@ type HistoryEntry struct {
 	Stamp time.Time
 	Type  string
 	Data  string
-}
-
-// ---
-
-func init() {
-	rand.Seed(time.Now().UnixNano())
 }

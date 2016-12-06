@@ -292,7 +292,14 @@ func (s *Server) PostRelease(inst flux.InstanceID, params jobs.ReleaseJobParams)
 }
 
 func (s *Server) GetRelease(inst flux.InstanceID, id jobs.JobID) (jobs.Job, error) {
-	return s.jobs.GetJob(inst, id)
+	j, err := s.jobs.GetJob(inst, id)
+	if err != nil {
+		return jobs.Job{}, err
+	}
+	if j.Method != jobs.ReleaseJob {
+		return jobs.Job{}, fmt.Errorf("job is not a release")
+	}
+	return j, err
 }
 
 func (s *Server) GetConfig(instID flux.InstanceID) (flux.InstanceConfig, error) {

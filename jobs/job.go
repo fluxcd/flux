@@ -10,6 +10,10 @@ import (
 	"github.com/weaveworks/flux"
 )
 
+func init() {
+	rand.Seed(time.Now().UnixNano())
+}
+
 const (
 	// DefaultQueue is the queue to use if none is set.
 	DefaultQueue = "default"
