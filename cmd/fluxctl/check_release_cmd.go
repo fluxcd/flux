@@ -5,17 +5,21 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/gosuri/uilive"
 	"github.com/mattn/go-isatty"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
 	"github.com/weaveworks/flux"
+	transport "github.com/weaveworks/flux/http"
 	"github.com/weaveworks/flux/jobs"
 )
 
 const largestHeartbeatDelta = 5 * time.Second
+const retryTimeout = 2 * time.Minute
 
 type serviceCheckReleaseOpts struct {
 	*serviceOpts
@@ -43,7 +47,7 @@ func (opts *serviceCheckReleaseOpts) Command() *cobra.Command {
 	return cmd
 }
 
-func (opts *serviceCheckReleaseOpts) RunE(_ *cobra.Command, args []string) error {
+func (opts *serviceCheckReleaseOpts) RunE(cmd *cobra.Command, args []string) error {
 	if len(args) != 0 {
 		return errorWantedNoArgs
 	}
@@ -72,7 +76,8 @@ func (opts *serviceCheckReleaseOpts) RunE(_ *cobra.Command, args []string) error
 	if !opts.noTty && isatty.IsTerminal(os.Stdout.Fd()) {
 		liveWriter := uilive.New()
 		liveWriter.Start()
-		w, stop = liveWriter, liveWriter.Stop
+		var stopOnce sync.Once
+		w, stop = liveWriter, func() { stopOnce.Do(liveWriter.Stop) }
 	}
 	var (
 		job jobs.Job
@@ -81,14 +86,36 @@ func (opts *serviceCheckReleaseOpts) RunE(_ *cobra.Command, args []string) error
 		prevStatus            string
 		lastHeartbeatDatabase time.Time
 		lastHeartbeatLocal    = time.Now()
+
+		retryCount    = 0
+		lastSucceeded = time.Now()
 	)
+
 	for range time.Tick(time.Second) {
+		if retryCount > 0 {
+			fmt.Fprintf(w, "Last status (%s): %s\n", lastSucceeded.Format(time.Kitchen), prevStatus)
+			fmt.Fprintf(w, "Service unavailable. Retrying (#%d) ...\n", retryCount)
+		}
+
 		job, err = opts.API.GetRelease(noInstanceID, jobs.JobID(opts.releaseID))
 		if err != nil {
+			if err, ok := errors.Cause(err).(*transport.APIError); ok && err.IsUnavailable() {
+				if time.Since(lastSucceeded) > retryTimeout {
+					stop()
+					fmt.Fprintln(os.Stdout, "Giving up; you can try again with")
+					fmt.Fprintf(os.Stdout, "    fluxctl check-release -r %s\n", opts.releaseID)
+					fmt.Fprintln(os.Stdout)
+					break
+				}
+				retryCount++
+				continue
+			}
 			fmt.Fprintf(w, "Status: error querying release.\n") // error will get printed below
 			break
 		}
 
+		lastSucceeded = time.Now()
+		retryCount = 0
 		status := "Waiting for job to be claimed..."
 		if job.Status != "" {
 			status = job.Status

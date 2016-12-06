@@ -101,7 +101,7 @@ func (p *removeablePlatform) closeWithError(err error) {
 
 func (p *removeablePlatform) AllServices(maybeNamespace string, ignored flux.ServiceIDSet) (s []Service, err error) {
 	defer func() {
-		if err != nil {
+		if _, ok := err.(FatalError); ok {
 			p.closeWithError(err)
 		}
 	}()
@@ -110,7 +110,7 @@ func (p *removeablePlatform) AllServices(maybeNamespace string, ignored flux.Ser
 
 func (p *removeablePlatform) SomeServices(ids []flux.ServiceID) (s []Service, err error) {
 	defer func() {
-		if err != nil {
+		if _, ok := err.(FatalError); ok {
 			p.closeWithError(err)
 		}
 	}()
@@ -119,7 +119,7 @@ func (p *removeablePlatform) SomeServices(ids []flux.ServiceID) (s []Service, er
 
 func (p *removeablePlatform) Regrade(spec []RegradeSpec) (err error) {
 	defer func() {
-		if err != nil {
+		if _, ok := err.(FatalError); ok {
 			p.closeWithError(err)
 		}
 	}()
@@ -128,7 +128,7 @@ func (p *removeablePlatform) Regrade(spec []RegradeSpec) (err error) {
 
 func (p *removeablePlatform) Ping() (err error) {
 	defer func() {
-		if err != nil {
+		if _, ok := err.(FatalError); ok {
 			p.closeWithError(err)
 		}
 	}()
