@@ -92,6 +92,12 @@ func (err *APIError) IsUnavailable() bool {
 	return false
 }
 
+// Is this API call missing? This usually indicates that there is a
+// version mismatch between the client and the service.
+func (err *APIError) IsMissing() bool {
+	return err.StatusCode == http.StatusNotFound
+}
+
 // The idea here is to place the handleFoo and invokeFoo functions next to each
 // other, so changes in one can easily be accommodated in the other.
 
@@ -728,17 +734,18 @@ func executeRequest(client *http.Client, req *http.Request) (*http.Response, err
 	if err != nil {
 		return nil, errors.Wrap(err, "executing HTTP request")
 	}
-	if resp.StatusCode != http.StatusOK {
+	switch resp.StatusCode {
+	case http.StatusOK:
+		return resp, nil
+	default:
 		buf, _ := ioutil.ReadAll(resp.Body)
 		body := strings.TrimSpace(string(buf))
-		err := &APIError{
+		return nil, &APIError{
 			StatusCode: resp.StatusCode,
 			Status:     resp.Status,
 			Body:       body,
 		}
-		return nil, errors.Wrap(err, "reading HTTP response")
 	}
-	return resp, nil
 }
 
 func logging(next http.Handler, logger log.Logger) http.Handler {

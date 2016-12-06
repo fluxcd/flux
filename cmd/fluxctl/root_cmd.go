@@ -56,6 +56,7 @@ func (opts *rootOpts) Command() *cobra.Command {
 		Use:               "fluxctl",
 		Long:              rootLongHelp,
 		SilenceUsage:      true,
+		SilenceErrors:     true,
 		PersistentPreRunE: opts.PersistentPreRunE,
 	}
 	cmd.PersistentFlags().StringVarP(&opts.URL, "url", "u", "https://cloud.weave.works/api/flux",
