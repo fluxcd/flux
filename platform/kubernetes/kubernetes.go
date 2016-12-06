@@ -118,7 +118,7 @@ func (c *Cluster) SomeServices(ids []flux.ServiceID) (res []platform.Service, er
 		services := c.client.Services(ns)
 		controllers, err := c.podControllersInNamespace(ns)
 		if err != nil {
-			return nil, errors.Wrapf(err, "finding pod controllers for namespace %s/%s", ns)
+			return nil, errors.Wrapf(err, "finding pod controllers for namespace %s", ns)
 		}
 		for _, name := range names {
 			service, err := services.Get(name)
