@@ -41,5 +41,5 @@ func run(args []string, stderr io.Writer) int {
 }
 
 func main() {
-	os.Exit(run(os.Args, os.Stderr))
+	os.Exit(run(os.Args[1:], os.Stderr))
 }
