@@ -45,7 +45,7 @@ func TestPing(t *testing.T) {
 
 	// AwaitPresence uses Ping, so we have to install our error after
 	// subscribe succeeds.
-	platA.PingError = errors.New("ping problem")
+	platA.PingError = platform.FatalError{errors.New("ping problem")}
 	if err := platA.Ping(); err == nil {
 		t.Fatalf("expected error from directly calling ping, got nil")
 	}
@@ -70,7 +70,7 @@ func TestPing(t *testing.T) {
 func TestMethods(t *testing.T) {
 	bus := setup(t)
 
-	errc := make(chan error)
+	errc := make(chan error, 1)
 
 	instA := flux.InstanceID("steamy-windows-89")
 	mockA := &platform.MockPlatform{
@@ -120,12 +120,42 @@ func TestMethods(t *testing.T) {
 		t.Fatal("expected error but didn't get one")
 	}
 
+	close(errc)
+	err = <-errc
+	if err != nil {
+		t.Fatalf("expected nil from subscription channel, but got err %v", err)
+	}
+}
+
+func TestFatalErrorDisconnects(t *testing.T) {
+	bus := setup(t)
+
+	errc := make(chan error)
+
+	instA := flux.InstanceID("golden-years-75")
+	mockA := &platform.MockPlatform{
+		SomeServicesError: platform.FatalError{errors.New("Disaster.")},
+	}
+	subscribe(t, bus, errc, instA, mockA)
+
+	plat, err := bus.Connect(instA)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = plat.SomeServices([]flux.ServiceID{})
+	if err == nil {
+		t.Error("expected error, got nil")
+	} else if _, ok := err.(platform.FatalError); !ok {
+		t.Errorf("expected platform.FatalError, got %v", err)
+	}
+
 	select {
-	case err := <-errc:
+	case err = <-errc:
 		if err == nil {
-			t.Fatal("expected error return from subscription but didn't get one")
+			t.Error("expected error from subscription being killed, got nil")
 		}
-	default:
-		t.Fatal("expected error return from subscription but didn't get one")
+	case <-time.After(1 * time.Second):
+		t.Error("timed out waiting for expected error from subscription closing")
 	}
 }

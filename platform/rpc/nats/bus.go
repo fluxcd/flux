@@ -2,6 +2,7 @@ package nats
 
 import (
 	"errors"
+	"net/rpc"
 	"strings"
 	"time"
 
@@ -9,7 +10,7 @@ import (
 
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/platform"
-	"github.com/weaveworks/flux/platform/rpc"
+	fluxrpc "github.com/weaveworks/flux/platform/rpc"
 )
 
 const (
@@ -74,47 +75,61 @@ func (n *NATS) Ping(instID flux.InstanceID) error {
 	var response PingResponse
 	err := n.snd.Request(string(instID)+methodPing, ping{}, &response, timeout)
 	if err == nil {
-		err = stringAsError(response.Error)
+		err = extractError(response.ErrorResponse)
 	}
 	return err
 }
 
+// ErrorResponse is for dropping into responses so they have
+// appropriate fields. The field `Error` carries either an empty
+// string (no error), or the error message to be reconstituted as an
+// error). The field `Fatal` indicates that the error resulted in the
+// connection to the daemon being torn down.
+type ErrorResponse struct {
+	Error string
+	Fatal bool
+}
+
 type AllServicesResponse struct {
 	Services []platform.Service
-	Error    string
+	ErrorResponse
 }
 
 type SomeServicesResponse struct {
 	Services []platform.Service
-	Error    string
+	ErrorResponse
 }
 
 type RegradeResponse struct {
-	Result rpc.RegradeResult
-	Error  string
+	Result fluxrpc.RegradeResult
+	ErrorResponse
 }
 
 type ping struct{}
 
 type PingResponse struct {
-	Error string
+	ErrorResponse
 }
 
-// `error`s do not in general travel well, so we convert them to
-// strings for transport. This is lossy of course, but it cannot be
-// helped.
-func stringAsError(msg string) error {
-	if msg != "" {
-		return errors.New(msg)
+func extractError(resp ErrorResponse) error {
+	if resp.Error != "" {
+		if resp.Fatal {
+			return platform.FatalError{errors.New(resp.Error)}
+		}
+		return rpc.ServerError(resp.Error)
 	}
 	return nil
 }
 
-func errorAsString(err error) string {
-	if err != nil {
-		return err.Error()
+func makeErrorResponse(err error) (resp ErrorResponse) {
+	if err == nil {
+		return resp
 	}
-	return ""
+	if _, ok := err.(platform.FatalError); ok {
+		resp.Fatal = true
+	}
+	resp.Error = err.Error()
+	return resp
 }
 
 // requester just collect the things you need to make a request
@@ -126,10 +141,10 @@ type requester struct {
 
 func (r *requester) AllServices(ns string, ig flux.ServiceIDSet) ([]platform.Service, error) {
 	var response AllServicesResponse
-	if err := r.conn.Request(r.instance+methodAllServices, rpc.AllServicesRequest{ns, ig}, &response, timeout); err != nil {
+	if err := r.conn.Request(r.instance+methodAllServices, fluxrpc.AllServicesRequest{ns, ig}, &response, timeout); err != nil {
 		return nil, err
 	}
-	return response.Services, stringAsError(response.Error)
+	return response.Services, extractError(response.ErrorResponse)
 }
 
 func (r *requester) SomeServices(incl []flux.ServiceID) ([]platform.Service, error) {
@@ -137,7 +152,7 @@ func (r *requester) SomeServices(incl []flux.ServiceID) ([]platform.Service, err
 	if err := r.conn.Request(r.instance+methodSomeServices, incl, &response, timeout); err != nil {
 		return nil, err
 	}
-	return response.Services, stringAsError(response.Error)
+	return response.Services, extractError(response.ErrorResponse)
 }
 
 func (r *requester) Regrade(specs []platform.RegradeSpec) error {
@@ -152,7 +167,7 @@ func (r *requester) Regrade(specs []platform.RegradeSpec) error {
 		}
 		return errs
 	}
-	return stringAsError(response.Error)
+	return extractError(response.ErrorResponse)
 }
 
 func (r *requester) Ping() error {
@@ -160,7 +175,7 @@ func (r *requester) Ping() error {
 	if err := r.conn.Request(r.instance+methodPing, ping{}, &response, timeout); err != nil {
 		return err
 	}
-	return stringAsError(response.Error)
+	return extractError(response.ErrorResponse)
 }
 
 // Connect returns a platform.Platform implementation that can be used
@@ -173,9 +188,10 @@ func (n *NATS) Connect(instID flux.InstanceID) (platform.Platform, error) {
 }
 
 // Subscribe registers a remote platform.Platform implementation as
-// the daemon for an instance (identified by instID). Any error when
-// processing requests will result in the platform being deregistered,
-// with the error put on the channel `done`.
+// the daemon for an instance (identified by instID). Any
+// platform.FatalError returned when processing requests will result
+// in the platform being deregistered, with the error put on the
+// channel `done`.
 func (n *NATS) Subscribe(instID flux.InstanceID, remote platform.Platform, done chan<- error) {
 	encoder := nats.EncoderForType(encoderType)
 
@@ -196,17 +212,17 @@ func (n *NATS) Subscribe(instID flux.InstanceID, remote platform.Platform, done 
 				if err == nil {
 					err = remote.Ping()
 				}
-				n.snd.Publish(request.Reply, PingResponse{errorAsString(err)})
+				n.snd.Publish(request.Reply, PingResponse{makeErrorResponse(err)})
 			case strings.HasSuffix(request.Subject, methodAllServices):
 				var (
-					req rpc.AllServicesRequest
+					req fluxrpc.AllServicesRequest
 					res []platform.Service
 				)
 				err = encoder.Decode(request.Subject, request.Data, &req)
 				if err == nil {
 					res, err = remote.AllServices(req.MaybeNamespace, req.Ignored)
 				}
-				n.snd.Publish(request.Reply, AllServicesResponse{res, errorAsString(err)})
+				n.snd.Publish(request.Reply, AllServicesResponse{res, makeErrorResponse(err)})
 			case strings.HasSuffix(request.Subject, methodSomeServices):
 				var (
 					req []flux.ServiceID
@@ -216,7 +232,7 @@ func (n *NATS) Subscribe(instID flux.InstanceID, remote platform.Platform, done 
 				if err == nil {
 					res, err = remote.SomeServices(req)
 				}
-				n.snd.Publish(request.Reply, SomeServicesResponse{res, errorAsString(err)})
+				n.snd.Publish(request.Reply, SomeServicesResponse{res, makeErrorResponse(err)})
 			case strings.HasSuffix(request.Subject, methodRegrade):
 				var (
 					req []platform.RegradeSpec
@@ -228,19 +244,19 @@ func (n *NATS) Subscribe(instID flux.InstanceID, remote platform.Platform, done 
 				response := RegradeResponse{}
 				switch regradeErr := err.(type) {
 				case platform.RegradeError:
-					result := rpc.RegradeResult{}
+					result := fluxrpc.RegradeResult{}
 					for s, e := range regradeErr {
 						result[s] = e.Error()
 					}
 					response.Result = result
 				default:
-					response.Error = errorAsString(err)
+					response.ErrorResponse = makeErrorResponse(err)
 				}
 				n.snd.Publish(request.Reply, response)
 			default:
 				err = errors.New("unknown message: " + request.Subject)
 			}
-			if err != nil {
+			if _, ok := err.(platform.FatalError); ok && err != nil {
 				sub.Unsubscribe()
 				close(requests)
 				done <- err
