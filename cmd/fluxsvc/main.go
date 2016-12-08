@@ -199,6 +199,8 @@ func main() {
 		}
 	}
 
+	go auto.Start(log.NewContext(logger).With("component", "automator"))
+
 	// Job workers.
 	{
 		logger := log.NewContext(logger).With("component", "worker")

@@ -224,7 +224,9 @@ func (s *Server) Automate(instID flux.InstanceID, service flux.ServiceID) error 
 		return err
 	}
 
+	// Schedule an immediate check, so things feel snappy for the user.
 	_, err = s.jobs.PutJob(instID, jobs.Job{
+		// Key stops us getting two jobs for the same service
 		Key: strings.Join([]string{
 			jobs.AutomatedServiceJob,
 			string(instID),

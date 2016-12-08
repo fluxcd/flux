@@ -1,8 +1,10 @@
 package automator
 
 import (
+	"strings"
 	"time"
 
+	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
 
 	"github.com/weaveworks/flux"
@@ -26,6 +28,36 @@ func New(cfg Config) (*Automator, error) {
 	return &Automator{
 		cfg: cfg,
 	}, nil
+}
+
+func (a *Automator) Start(errorLogger log.Logger) {
+	tick := time.Tick(automationCycle)
+	for range tick {
+		insts, err := a.cfg.InstanceDB.All()
+		if err != nil {
+			errorLogger.Log("err", err)
+			continue
+		}
+		for _, inst := range insts {
+			for service, conf := range inst.Config.Services {
+				if conf.Policy() == flux.PolicyAutomated {
+					a.cfg.Jobs.PutJob(inst.ID, jobs.Job{
+						// Key stops us getting two jobs for the same service
+						Key: strings.Join([]string{
+							jobs.AutomatedServiceJob,
+							string(inst.ID),
+							string(service),
+						}, "|"),
+						Method:   jobs.AutomatedServiceJob,
+						Priority: jobs.PriorityBackground,
+						Params: jobs.AutomatedServiceJobParams{
+							ServiceSpec: flux.ServiceSpec(service),
+						},
+					})
+				}
+			}
+		}
+	}
 }
 
 func (a *Automator) Handle(j *jobs.Job, _ jobs.JobUpdater) error {
