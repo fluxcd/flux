@@ -83,19 +83,20 @@ func (a *Automator) Handle(j *jobs.Job, _ jobs.JobUpdater) error {
 		// Job is not automated, don't reschedule
 		return nil
 	}
+	if s.Locked {
+		return a.reschedule(j)
+	}
 
-	if !s.Locked {
-		if _, err := a.cfg.Jobs.PutJob(j.Instance, jobs.Job{
-			Method:   jobs.ReleaseJob,
-			Priority: jobs.PriorityBackground,
-			Params: jobs.ReleaseJobParams{
-				ServiceSpec: params.ServiceSpec,
-				ImageSpec:   flux.ImageSpecLatest,
-				Kind:        flux.ReleaseKindExecute,
-			},
-		}); err != nil {
-			a.cfg.Logger.Log("err", errors.Wrap(err, "put automated release job")) // abnormal
-		}
+	if _, err := a.cfg.Jobs.PutJob(j.Instance, jobs.Job{
+		Method:   jobs.ReleaseJob,
+		Priority: jobs.PriorityBackground,
+		Params: jobs.ReleaseJobParams{
+			ServiceSpec: params.ServiceSpec,
+			ImageSpec:   flux.ImageSpecLatest,
+			Kind:        flux.ReleaseKindExecute,
+		},
+	}); err != nil {
+		a.cfg.Logger.Log("err", errors.Wrap(err, "put automated release job")) // abnormal
 	}
 
 	return a.reschedule(j)
