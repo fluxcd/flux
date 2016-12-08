@@ -4,13 +4,13 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/instance"
+	"github.com/weaveworks/flux/jobs"
 )
 
 // Config collects the parameters to the automator. All fields are mandatory.
 type Config struct {
-	Releaser   flux.ReleaseJobReadPusher
+	Releaser   jobs.JobReadPusher
 	InstanceDB instance.DB
 }
 

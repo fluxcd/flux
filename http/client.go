@@ -7,6 +7,7 @@ import (
 
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/api"
+	"github.com/weaveworks/flux/jobs"
 )
 
 type client struct {
@@ -33,11 +34,11 @@ func (c *client) ListImages(_ flux.InstanceID, s flux.ServiceSpec) ([]flux.Image
 	return invokeListImages(c.client, c.token, c.router, c.endpoint, s)
 }
 
-func (c *client) PostRelease(_ flux.InstanceID, s flux.ReleaseJobSpec) (flux.ReleaseID, error) {
+func (c *client) PostRelease(_ flux.InstanceID, s jobs.ReleaseJobParams) (jobs.JobID, error) {
 	return invokePostRelease(c.client, c.token, c.router, c.endpoint, s)
 }
 
-func (c *client) GetRelease(_ flux.InstanceID, id flux.ReleaseID) (flux.ReleaseJob, error) {
+func (c *client) GetRelease(_ flux.InstanceID, id jobs.JobID) (jobs.Job, error) {
 	return invokeGetRelease(c.client, c.token, c.router, c.endpoint, id)
 }
 

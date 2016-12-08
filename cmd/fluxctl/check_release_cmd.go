@@ -15,6 +15,7 @@ import (
 
 	"github.com/weaveworks/flux"
 	transport "github.com/weaveworks/flux/http"
+	"github.com/weaveworks/flux/jobs"
 )
 
 const largestHeartbeatDelta = 5 * time.Second
@@ -56,7 +57,7 @@ func (opts *serviceCheckReleaseOpts) RunE(cmd *cobra.Command, args []string) err
 	}
 
 	if opts.noFollow {
-		job, err := opts.API.GetRelease(noInstanceID, flux.ReleaseID(opts.releaseID))
+		job, err := opts.API.GetRelease(noInstanceID, jobs.JobID(opts.releaseID))
 		if err != nil {
 			return err
 		}
@@ -79,7 +80,7 @@ func (opts *serviceCheckReleaseOpts) RunE(cmd *cobra.Command, args []string) err
 		w, stop = liveWriter, func() { stopOnce.Do(liveWriter.Stop) }
 	}
 	var (
-		job flux.ReleaseJob
+		job jobs.Job
 		err error
 
 		prevStatus            string
@@ -96,7 +97,7 @@ func (opts *serviceCheckReleaseOpts) RunE(cmd *cobra.Command, args []string) err
 			fmt.Fprintf(w, "Service unavailable. Retrying (#%d) ...\n", retryCount)
 		}
 
-		job, err = opts.API.GetRelease(noInstanceID, flux.ReleaseID(opts.releaseID))
+		job, err = opts.API.GetRelease(noInstanceID, jobs.JobID(opts.releaseID))
 		if err != nil {
 			if err, ok := errors.Cause(err).(*transport.APIError); ok && err.IsUnavailable() {
 				if time.Since(lastSucceeded) > retryTimeout {
@@ -150,10 +151,12 @@ func (opts *serviceCheckReleaseOpts) RunE(cmd *cobra.Command, args []string) err
 		return err
 	}
 
+	spec := job.Params.(jobs.ReleaseJobParams)
+
 	fmt.Fprintf(os.Stdout, "\n")
 	if !job.Success {
 		fmt.Fprintf(os.Stdout, "Here's as far as we got:\n")
-	} else if job.Spec.Kind == flux.ReleaseKindPlan {
+	} else if spec.Kind == flux.ReleaseKindPlan {
 		fmt.Fprintf(os.Stdout, "Here's the plan:\n")
 	} else {
 		fmt.Fprintf(os.Stdout, "Here's what happened:\n")
@@ -162,7 +165,7 @@ func (opts *serviceCheckReleaseOpts) RunE(cmd *cobra.Command, args []string) err
 		fmt.Fprintf(os.Stdout, " %d) %s\n", i+1, msg)
 	}
 
-	if job.Spec.Kind == flux.ReleaseKindExecute {
+	if spec.Kind == flux.ReleaseKindExecute {
 		fmt.Fprintf(os.Stdout, "Took %s\n", job.Finished.Sub(job.Submitted))
 	}
 	return nil

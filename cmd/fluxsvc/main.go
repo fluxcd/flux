@@ -6,7 +6,6 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
-	"sync"
 	"syscall"
 	"time"
 
@@ -17,7 +16,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/pflag"
 
-	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/automator"
 	"github.com/weaveworks/flux/db"
 	"github.com/weaveworks/flux/history"
@@ -25,6 +23,7 @@ import (
 	transport "github.com/weaveworks/flux/http"
 	"github.com/weaveworks/flux/instance"
 	instancedb "github.com/weaveworks/flux/instance/sql"
+	"github.com/weaveworks/flux/jobs"
 	"github.com/weaveworks/flux/platform"
 	"github.com/weaveworks/flux/release"
 	"github.com/weaveworks/flux/server"
@@ -172,42 +171,15 @@ func main() {
 		}
 	}
 
-	// Release job store.
-	var rjs flux.ReleaseJobStore
+	// Job store.
+	var jobStore jobs.JobStore
 	{
-		s, err := release.NewDatabaseStore(dbDriver, *databaseSource, time.Hour)
+		s, err := jobs.NewDatabaseStore(dbDriver, *databaseSource, time.Hour)
 		if err != nil {
 			logger.Log("component", "release job store", "err", err)
 			os.Exit(1)
 		}
-		rjs = s
-	}
-
-	// Release workers.
-	waitForWorkers := make(chan struct{})
-	shutdownWorkers := make(chan struct{})
-	{
-		workers := sync.WaitGroup{}
-
-		// for each worker goroutine
-		{
-			workers.Add(1)
-			worker := release.NewWorker(rjs, instancer, releaseMetrics, logger)
-			go func() {
-				defer workers.Done()
-				worker.Work(shutdownWorkers)
-			}()
-		}
-
-		go func() {
-			workers.Wait()
-			close(waitForWorkers)
-		}()
-
-		cleaner := release.NewCleaner(rjs, logger)
-		cleanTicker := time.NewTicker(15 * time.Second)
-		defer cleanTicker.Stop()
-		go cleaner.Clean(cleanTicker.C)
+		jobStore = s
 	}
 
 	// Automator component.
@@ -215,7 +187,7 @@ func main() {
 	{
 		var err error
 		auto, err = automator.New(automator.Config{
-			Releaser:   rjs,
+			Releaser:   jobStore,
 			InstanceDB: instanceDB,
 		})
 		if err == nil {
@@ -228,8 +200,27 @@ func main() {
 
 	go auto.Start(log.NewContext(logger).With("component", "automator"))
 
+	// Job workers.
+	{
+		logger := log.NewContext(logger).With("component", "worker")
+		worker := jobs.NewWorker(jobStore, logger)
+		worker.Register(jobs.ReleaseJob, release.NewReleaser(instancer, releaseMetrics))
+
+		defer func() {
+			if err := worker.Stop(shutdownTimeout); err != nil {
+				logger.Log("err", err)
+			}
+		}()
+		go worker.Work()
+
+		cleaner := jobs.NewCleaner(jobStore, logger)
+		cleanTicker := time.NewTicker(15 * time.Second)
+		defer cleanTicker.Stop()
+		go cleaner.Clean(cleanTicker.C)
+	}
+
 	// The server.
-	server := server.New(instancer, messageBus, rjs, logger, serverMetrics)
+	server := server.New(instancer, messageBus, jobStore, logger, serverMetrics)
 
 	// Mechanical components.
 	errc := make(chan error)
@@ -249,13 +240,4 @@ func main() {
 	}()
 
 	logger.Log("exiting", <-errc)
-
-	close(shutdownWorkers)
-	select {
-	case <-waitForWorkers:
-		return
-	case <-time.After(shutdownTimeout):
-		logger.Log("err", "timout waiting for workers to shut down")
-		return
-	}
 }

@@ -1,19 +1,17 @@
-package release
+package jobs
 
 import (
 	"time"
 
 	"github.com/go-kit/kit/log"
-
-	"github.com/weaveworks/flux"
 )
 
 type Cleaner struct {
-	store  flux.ReleaseJobStore
+	store  JobStore
 	logger log.Logger
 }
 
-func NewCleaner(store flux.ReleaseJobStore, logger log.Logger) *Cleaner {
+func NewCleaner(store JobStore, logger log.Logger) *Cleaner {
 	return &Cleaner{
 		store:  store,
 		logger: logger,
