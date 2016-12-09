@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/go-kit/kit/log"
+	"github.com/pkg/errors"
 	"k8s.io/kubernetes/pkg/api"
 	apiext "k8s.io/kubernetes/pkg/apis/extensions"
 
@@ -70,13 +71,16 @@ func (c *Cluster) kubectlCommand(args ...string) *exec.Cmd {
 func (c *Cluster) doReleaseCommand(logger log.Logger, newDefinition *apiObject, args ...string) error {
 	cmd := c.kubectlCommand(args...)
 	cmd.Stdin = bytes.NewReader(newDefinition.bytes)
+	stderr := &bytes.Buffer{}
+	cmd.Stderr = stderr
 	logger.Log("cmd", strings.Join(cmd.Args, " "))
 
 	begin := time.Now()
 	err := cmd.Run()
 	result := "success"
 	if err != nil {
-		result = err.Error()
+		result = stderr.String()
+		err = errors.Wrap(errors.New(result), "running kubectl")
 	}
 	logger.Log("result", result, "took", time.Since(begin).String())
 	return err
