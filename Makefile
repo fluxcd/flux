@@ -16,7 +16,7 @@ FLUXCTL_DEPS:=$(call godeps,./cmd/fluxctl)
 
 MIGRATIONS:=$(shell find db/migrations -type f)
 
-all: $(GOPATH)/bin/fluxctl $(GOPATH)/bin/fluxd $(GOPATH)/bin/fluxsvc build/.fluxd.done build/.fluxsvc.done
+all: $(GOPATH)/bin/fluxctl $(GOPATH)/bin/fluxd $(GOPATH)/bin/fluxsvc build/.fluxd.done build/.fluxsvc.done build/.fluxctl.done
 
 .PHONY: release-bins
 release-bins:
@@ -44,6 +44,7 @@ build/.%.done: docker/Dockerfile.%
 
 build/.fluxd.done: build/fluxd build/kubectl
 build/.fluxsvc.done: build/fluxsvc cmd/fluxsvc/kubeservice build/migrations.tar
+build/.fluxsvc.done: build/fluxctl
 
 build/fluxd: $(FLUXD_DEPS)
 build/fluxd: cmd/fluxd/*.go
@@ -52,6 +53,10 @@ build/fluxd: cmd/fluxd/*.go
 build/fluxsvc: $(FLUXSVC_DEPS)
 build/fluxsvc: cmd/fluxsvc/*.go
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o $@ cmd/fluxsvc/main.go
+
+build/fluxctl: $(FLUXCTL_DEPS)
+build/fluxctl: cmd/fluxctl/*.go
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o $@ cmd/fluxctl/main.go
 
 build/kubectl: cache/kubectl-$(KUBECTL_VERSION) docker/kubectl.version
 	cp cache/kubectl-$(KUBECTL_VERSION) $@
