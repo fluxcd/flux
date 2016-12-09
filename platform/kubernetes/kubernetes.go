@@ -207,6 +207,14 @@ func (c *Cluster) podControllersInNamespace(namespace string) (res []podControll
 		res = append(res, podController{ReplicationController: &rclist.Items[i]})
 	}
 
+	dslist, err := c.client.DaemonSets(namespace).List(api.ListOptions{})
+	if err != nil {
+		return nil, errors.Wrap(err, "collecting daemonsets")
+	}
+	for i := range dslist.Items {
+		res = append(res, podController{DaemonSet: &dslist.Items[i]})
+	}
+
 	return res, nil
 }
 
@@ -241,49 +249,68 @@ func containersOrExcuse(service *api.Service, controllers []podController) platf
 	return platform.ContainersOrExcuse{Containers: pc.templateContainers()}
 }
 
-// Either a replication controller, a deployment, or neither (both nils).
+// The podController struct is a way to wrap the resources we care
+// about such that we can deal with them uniformly elsewhere.
+
+// Either a replication controller, a deployment, a daemonset, or none
+// of (all nils).
 type podController struct {
 	ReplicationController *api.ReplicationController
 	Deployment            *apiext.Deployment
+	DaemonSet             *apiext.DaemonSet
 }
 
 func (p podController) name() string {
-	if p.Deployment != nil {
+	switch {
+	case p.Deployment != nil:
 		return p.Deployment.Name
-	} else if p.ReplicationController != nil {
+	case p.ReplicationController != nil:
 		return p.ReplicationController.Name
+	case p.DaemonSet != nil:
+		return p.DaemonSet.Name
 	}
 	return ""
 }
 
 func (p podController) kind() string {
-	if p.Deployment != nil {
+	switch {
+	case p.Deployment != nil:
 		return "Deployment"
-	} else if p.ReplicationController != nil {
+	case p.ReplicationController != nil:
 		return "ReplicationController"
+	case p.DaemonSet != nil:
+		return "DaemonSet"
 	}
 	return "unknown"
 }
 
-func (p podController) templateContainers() (res []platform.Container) {
-	var apiContainers []api.Container
-	if p.Deployment != nil {
-		apiContainers = p.Deployment.Spec.Template.Spec.Containers
-	} else if p.ReplicationController != nil {
-		apiContainers = p.ReplicationController.Spec.Template.Spec.Containers
+// The structure of these different kinds of resource is terrifically
+// confusing (all permutations of {"Template", "Spec", "Pod"} appear
+// therein); this makes things a bit simpler to get the bits we want.
+func (p podController) templateSpec() *api.PodTemplateSpec {
+	switch {
+	case p.Deployment != nil:
+		return &p.Deployment.Spec.Template
+	case p.ReplicationController != nil:
+		return p.ReplicationController.Spec.Template // NB already a pointer
+	case p.DaemonSet != nil:
+		return &p.DaemonSet.Spec.Template
 	}
+	return nil
+}
 
-	for _, c := range apiContainers {
-		res = append(res, platform.Container{Name: c.Name, Image: c.Image})
+func (p podController) templateContainers() (res []platform.Container) {
+	if template := p.templateSpec(); template != nil {
+		for _, c := range template.Spec.Containers {
+			res = append(res, platform.Container{Name: c.Name, Image: c.Image})
+		}
 	}
 	return res
 }
 
 func (p podController) templateLabels() map[string]string {
-	if p.Deployment != nil {
-		return p.Deployment.Spec.Template.Labels
-	} else if p.ReplicationController != nil {
-		return p.ReplicationController.Spec.Template.Labels
+	if template := p.templateSpec(); template != nil {
+		return template.Labels
 	}
 	return nil
 }
@@ -300,6 +327,8 @@ func (p podController) matchedBy(selector map[string]string) bool {
 	}
 	return true
 }
+
+// --- end podController methods
 
 // Regrade performs service regrades as specified by the RegradeSpecs. If all
 // regrades succeed, Regrade returns a nil error. If any regrade fails, Regrade
