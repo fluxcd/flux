@@ -46,21 +46,14 @@ func FilesFor(path, namespace, service string) (filenames []string, err error) {
 	tgt := fmt.Sprintf("%s/%s", namespace, service)
 	var winners []string
 	for _, file := range candidates {
-		var stdout, stderr bytes.Buffer
+		var stdout bytes.Buffer
 		cmd := exec.Command(bin, "./"+filepath.Base(file)) // due to bug (?) in kubeservice
 		cmd.Dir = filepath.Dir(file)
 		cmd.Stdout = &stdout
-		cmd.Stderr = &stderr
-		fmt.Fprintf(os.Stderr, "Args: %v\n", cmd.Args)
-		fmt.Fprintf(os.Stderr, "Dir: %s\n", cmd.Dir)
 		if err := cmd.Run(); err != nil {
-			fmt.Fprintf(os.Stderr, stdout.String()+"\n")
-			fmt.Fprintf(os.Stderr, stderr.String()+"\n")
-			fmt.Fprintf(os.Stderr, "kubeservice FAILED: %v\n", err)
 			continue
 		}
 		out := strings.TrimSpace(stdout.String())
-		fmt.Fprintf(os.Stderr, "kubeservice SUCCESS: %s -> %s\n", file, out)
 		if out == tgt { // kubeservice output is "namespace/service", same as ServiceID
 			winners = append(winners, file)
 		}
