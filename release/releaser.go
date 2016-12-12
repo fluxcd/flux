@@ -24,10 +24,7 @@ const FluxServiceName = "fluxsvc"
 type Releaser struct {
 	instancer instance.Instancer
 	metrics   Metrics
-	semaphore chan struct{}
 }
-
-const maxSimultaneousReleases = 1
 
 type Metrics struct {
 	ReleaseDuration metrics.Histogram
@@ -42,7 +39,6 @@ func NewReleaser(
 	return &Releaser{
 		instancer: instancer,
 		metrics:   metrics,
-		semaphore: make(chan struct{}, maxSimultaneousReleases),
 	}
 }
 
@@ -147,14 +143,6 @@ func (r *Releaser) Handle(job *jobs.Job, updater jobs.JobUpdater) (err error) {
 		return err
 	}
 	exclude.Add(locked)
-
-	select {
-	case r.semaphore <- struct{}{}:
-		break // we've acquired the lock
-	default:
-		return errors.New("a release is already in progress; please try again later")
-	}
-	defer func() { <-r.semaphore }()
 
 	updateJob("Calculating release actions.")
 
