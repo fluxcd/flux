@@ -47,6 +47,7 @@ type JobStore interface {
 type JobReadPusher interface {
 	GetJob(flux.InstanceID, JobID) (Job, error)
 	PutJob(flux.InstanceID, Job) (JobID, error)
+	PutJobIgnoringDuplicates(flux.InstanceID, Job) (JobID, error)
 }
 
 type JobWritePopper interface {

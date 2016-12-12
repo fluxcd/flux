@@ -102,10 +102,9 @@ func (s *DatabaseStore) GetJob(inst flux.InstanceID, id JobID) (Job, error) {
 	}, nil
 }
 
-// PutJob schedules a job to run. Users should set the Queue, Method, Params,
-// and ScheduledAt fields of the job. If ScheduledAt is nil, the job will run
-// immediately.
-func (s *DatabaseStore) PutJob(inst flux.InstanceID, job Job) (JobID, error) {
+// PutJobIgnoringDuplicates schedules a job to run. Key field and any
+// duplicates are ignored.
+func (s *DatabaseStore) PutJobIgnoringDuplicates(inst flux.InstanceID, job Job) (JobID, error) {
 	var (
 		jobID       = NewJobID()
 		status      = "Submitted job."
@@ -127,18 +126,6 @@ func (s *DatabaseStore) PutJob(inst flux.InstanceID, job Job) (JobID, error) {
 	}
 
 	err = s.Transaction(func(s *DatabaseStore) error {
-		if job.Key != "" {
-			var count int
-			err := s.conn.QueryRow(`
-			SELECT count(*) FROM jobs WHERE key = $1 AND claimed_at IS NULL
-			`, job.Key).Scan(&count)
-			if err != nil {
-				return errors.Wrap(err, "looking for existing job")
-			}
-			if count > 0 {
-				return ErrJobAlreadyQueued
-			}
-		}
 		now, err := s.now(s.conn)
 		if err != nil {
 			return errors.Wrap(err, "getting current time")
@@ -167,6 +154,31 @@ func (s *DatabaseStore) PutJob(inst flux.InstanceID, job Job) (JobID, error) {
 		return "", err
 	}
 	return jobID, nil
+}
+
+// PutJob schedules a job to run. Users should set the Queue, Method, Params,
+// and ScheduledAt fields of the job. If ScheduledAt is nil, the job will run
+// immediately. If job Key is not blank, it will be checked for any other
+// unfinished duplicate jobs.
+func (s *DatabaseStore) PutJob(inst flux.InstanceID, job Job) (JobID, error) {
+	var jobID JobID
+	err := s.Transaction(func(s *DatabaseStore) (err error) {
+		if job.Key != "" {
+			var count int
+			err = s.conn.QueryRow(`
+				SELECT count(*) FROM jobs WHERE key = $1 AND finished_at IS NULL
+			`, job.Key).Scan(&count)
+			if err != nil {
+				return errors.Wrap(err, "looking for existing job")
+			}
+			if count > 0 {
+				return ErrJobAlreadyQueued
+			}
+		}
+		jobID, err = s.PutJobIgnoringDuplicates(inst, job)
+		return err
+	})
+	return jobID, err
 }
 
 // Take the next job from specified queues. If queues is nil, all queues are

@@ -141,9 +141,21 @@ func TestDatabaseStore(t *testing.T) {
 		t.Errorf("expected job to have a log and status")
 	}
 
-	// Put a duplicate (when existing is claimed)
-	// - It should succeed
+	// Put a duplicate (when existing is claimed, but not finished)
+	// - It should fail
 	_, err = db.PutJob(instance, Job{
+		Key:      "2",
+		Method:   ReleaseJob,
+		Params:   ReleaseJobParams{},
+		Priority: 1, // low priority, so it won't interfere with other jobs
+	})
+	if err != ErrJobAlreadyQueued {
+		t.Errorf("Expected duplicate job to return ErrJobAlreadyQueued, got: %q", err)
+	}
+
+	// Put a duplicate (Ignoring duplicates)
+	// - It should succeed
+	_, err = db.PutJobIgnoringDuplicates(instance, Job{
 		Key:      "2",
 		Method:   ReleaseJob,
 		Params:   ReleaseJobParams{},
