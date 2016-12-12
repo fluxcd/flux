@@ -14,9 +14,10 @@ import (
 )
 
 const (
-	timeout      = 5 * time.Second
-	presenceTick = 50 * time.Millisecond
-	encoderType  = nats.JSON_ENCODER
+	timeout        = 5 * time.Second
+	regradeTimeout = 20 * time.Minute
+	presenceTick   = 50 * time.Millisecond
+	encoderType    = nats.JSON_ENCODER
 
 	methodPing         = ".Platform.Ping"
 	methodAllServices  = ".Platform.AllServices"
@@ -155,9 +156,17 @@ func (r *requester) SomeServices(incl []flux.ServiceID) ([]platform.Service, err
 	return response.Services, extractError(response.ErrorResponse)
 }
 
+// Call Regrade on the remote platform. Note that we use a much longer
+// timeout, because for now at least, Regrades can take an arbitrary
+// amount of time, and we don't want to return an error if it's simply
+// taking a while. The downside is that if the platform is actually
+// not present, this won't return at all. This is somewhat mitigated
+// because regrades are done after other RPCs which have the normal
+// timeout, but better would be to split Regrades into RPCs which can
+// each have a short timeout.
 func (r *requester) Regrade(specs []platform.RegradeSpec) error {
 	var response RegradeResponse
-	if err := r.conn.Request(r.instance+methodRegrade, specs, &response, timeout); err != nil {
+	if err := r.conn.Request(r.instance+methodRegrade, specs, &response, regradeTimeout); err != nil {
 		return err
 	}
 	if len(response.Result) > 0 {
