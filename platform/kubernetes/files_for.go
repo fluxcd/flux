@@ -53,9 +53,11 @@ func FilesFor(path, namespace, service string) (filenames []string, err error) {
 		if err := cmd.Run(); err != nil {
 			continue
 		}
-		out := strings.TrimSpace(stdout.String())
-		if out == tgt { // kubeservice output is "namespace/service", same as ServiceID
-			winners = append(winners, file)
+		for _, out := range strings.Split(strings.TrimSpace(stdout.String()), "\n") {
+			if out == tgt { // kubeservice output is "namespace/service", same as ServiceID
+				winners = append(winners, file)
+				break
+			}
 		}
 	}
 
