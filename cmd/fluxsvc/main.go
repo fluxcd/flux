@@ -107,6 +107,7 @@ func main() {
 			Name:      "history_duration_seconds",
 			Help:      "History method duration in seconds.",
 		}, []string{"service_spec", "success"})
+		serverMetrics.PlatformMetrics = platform.NewMetrics()
 		releaseMetrics.ReleaseDuration = prometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
 			Namespace: "flux",
 			Subsystem: "fluxsvc",

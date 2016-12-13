@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/go-kit/kit/log"
+	"github.com/go-kit/kit/metrics"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 
@@ -22,12 +23,17 @@ type Daemon struct {
 	url      *url.URL
 	platform platform.Platform
 	logger   log.Logger
+	metrics  DaemonMetrics
 	quit     chan struct{}
 
 	ws websocket.Websocket
 }
 
-func NewDaemon(client *http.Client, t flux.Token, router *mux.Router, endpoint string, p platform.Platform, logger log.Logger) (*Daemon, error) {
+type DaemonMetrics struct {
+	ConnectionDuration metrics.Gauge
+}
+
+func NewDaemon(client *http.Client, t flux.Token, router *mux.Router, endpoint string, p platform.Platform, logger log.Logger, m DaemonMetrics) (*Daemon, error) {
 	u, err := makeURL(endpoint, router, "RegisterDaemon")
 	if err != nil {
 		return nil, errors.Wrap(err, "constructing URL")
@@ -39,6 +45,7 @@ func NewDaemon(client *http.Client, t flux.Token, router *mux.Router, endpoint s
 		url:      u,
 		platform: p,
 		logger:   logger,
+		metrics:  m,
 		quit:     make(chan struct{}),
 	}
 	go a.loop()
@@ -66,6 +73,7 @@ func (a *Daemon) loop() {
 }
 
 func (a *Daemon) connect() error {
+	a.metrics.ConnectionDuration.Set(0)
 	a.logger.Log("connecting", true)
 	ws, err := websocket.Dial(a.client, a.token, a.url)
 	if err != nil {
@@ -78,6 +86,24 @@ func (a *Daemon) connect() error {
 		a.logger.Log("connection closing", true, "err", ws.Close())
 	}()
 	a.logger.Log("connected", true)
+
+	// Instrument connection lifespan
+	connectedAt := time.Now()
+	disconnected := make(chan struct{})
+	defer close(disconnected)
+	go func() {
+		t := time.NewTicker(1 * time.Second)
+		for {
+			select {
+			case now := <-t.C:
+				a.metrics.ConnectionDuration.Set(now.Sub(connectedAt).Seconds())
+			case <-disconnected:
+				t.Stop()
+				a.metrics.ConnectionDuration.Set(0)
+				return
+			}
+		}
+	}()
 
 	// Hook up the rpc server. We are a websocket _client_, but an RPC
 	// _server_.

@@ -37,6 +37,7 @@ type Metrics struct {
 	ListServicesDuration metrics.Histogram
 	ListImagesDuration   metrics.Histogram
 	HistoryDuration      metrics.Histogram
+	PlatformMetrics      platform.Metrics
 }
 
 func New(
@@ -379,10 +380,17 @@ func (s *Server) RegisterDaemon(instID flux.InstanceID, platform platform.Platfo
 	// configuration record for this instance; it may be connecting
 	// before there is configuration supplied.
 	done := make(chan error)
-	s.messageBus.Subscribe(instID, &loggingPlatform{platform, log.NewContext(s.logger).With("instanceID", instID)}, done)
+	s.messageBus.Subscribe(instID, s.instrumentPlatform(instID, platform), done)
 	err = <-done
 	close(done)
 	return err
+}
+
+func (s *Server) instrumentPlatform(instID flux.InstanceID, p platform.Platform) platform.Platform {
+	return &loggingPlatform{
+		platform.Instrument(p, s.metrics.PlatformMetrics),
+		log.NewContext(s.logger).With("instanceID", instID),
+	}
 }
 
 func (s *Server) IsDaemonConnected(instID flux.InstanceID) error {
