@@ -350,3 +350,74 @@ func TestDatabaseStoreScheduledJobs(t *testing.T) {
 		Cleanup(t, db)
 	}
 }
+
+func TestDatabaseStoreFairScheduling(t *testing.T) {
+	instance1 := flux.InstanceID("instance1")
+	instance2 := flux.InstanceID("instance2")
+	db := Setup(t)
+	defer Cleanup(t, db)
+
+	// Put some jobs for instance 1
+	job1ID, err := db.PutJob(instance1, Job{
+		Method:   ReleaseJob,
+		Params:   ReleaseJobParams{},
+		Priority: PriorityInteractive,
+	})
+	bailIfErr(t, err)
+	job2ID, err := db.PutJob(instance1, Job{
+		Method:   ReleaseJob,
+		Params:   ReleaseJobParams{},
+		Priority: PriorityInteractive,
+	})
+	bailIfErr(t, err)
+
+	// Put a job for instance 2
+	job3ID, err := db.PutJob(instance2, Job{
+		Method:   ReleaseJob,
+		Params:   ReleaseJobParams{},
+		Priority: PriorityInteractive,
+	})
+	bailIfErr(t, err)
+
+	// Take one
+	// - It should be instance1's first job
+	job1, err := db.NextJob(nil)
+	bailIfErr(t, err)
+	if job1.ID != job1ID {
+		t.Errorf("Got a newer job when an older one was available")
+	}
+	// Take another (while instance1 has one in-progress)
+	// - It should be instance2's first job
+	job3, err := db.NextJob(nil)
+	bailIfErr(t, err)
+	if job3.ID != job3ID {
+		t.Errorf("Got an unexpected job id")
+	}
+
+	// Take another (while instance1, and instance2 has one in-progress)
+	// - It should say none are available, because both are in-progress
+	_, err = db.NextJob(nil)
+	if err != ErrNoJobAvailable {
+		t.Fatalf("Expected ErrNoJobAvailable, got %q", err)
+	}
+
+	// Finish instance1's job
+	job1.Done = true
+	job1.Success = true
+	bailIfErr(t, db.UpdateJob(job1))
+	// - Status should be changed
+	job1, err = db.GetJob(instance1, job1ID)
+	bailIfErr(t, err)
+	if !job1.Done || !job1.Success {
+		t.Errorf("expected job to have been marked as done")
+	}
+
+	// Take another
+	// - It should be instance1's next job
+	job2, err := db.NextJob(nil)
+	bailIfErr(t, err)
+	// - It should be the highest priority
+	if job2.ID != job2ID {
+		t.Errorf("Got an unexpected job id")
+	}
+}

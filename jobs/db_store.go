@@ -209,15 +209,34 @@ func (s *DatabaseStore) NextJob(queues []string) (Job, error) {
 			success     sql.NullBool
 		)
 		if err := s.conn.QueryRow(`
-				 SELECT instance_id, id, queue, method, params, scheduled_at, priority, key, submitted_at, claimed_at, heartbeat_at, finished_at, log, status, done, success
-					 FROM jobs
-					WHERE claimed_at IS NULL
-						AND scheduled_at <= $1
-						AND finished_at IS NULL
-						-- subtraction is to work around for ql, not being able to sort
-						-- multiple columns in different ways.
-			 ORDER BY (-1 * priority), scheduled_at, submitted_at
-					LIMIT 1`, now).Scan(
+			SELECT instance_id, id, queue, method, params,
+						 scheduled_at, priority, key, submitted_at,
+						 claimed_at, heartbeat_at, finished_at, log, status,
+						 done, success
+			FROM jobs
+
+			-- Only unclaimed/unfinished jobs are available
+			WHERE claimed_at IS NULL
+			AND finished_at IS NULL
+
+			-- Don't make jobs available until after they are scheduled
+			AND scheduled_at <= $1
+
+			-- Only one job at a time per instance
+			AND instance_id NOT IN (
+				SELECT instance_id
+				FROM jobs
+				WHERE claimed_at IS NOT NULL
+				AND finished_at IS NULL
+				GROUP BY instance_id
+			)
+
+			-- subtraction is to work around for ql, not being able to sort
+			-- multiple columns in different ways.
+			ORDER BY (-1 * priority), scheduled_at, submitted_at
+			LIMIT 1`,
+			now,
+		).Scan(
 			&instanceID,
 			&jobID,
 			&queue,
