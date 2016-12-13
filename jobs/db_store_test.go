@@ -98,11 +98,26 @@ func TestDatabaseStore(t *testing.T) {
 	})
 	bailIfErr(t, err)
 	interactiveJobID, err := db.PutJob(instance, Job{
+		Key:      "2",
 		Method:   ReleaseJob,
 		Params:   ReleaseJobParams{},
 		Priority: PriorityInteractive,
 	})
 	bailIfErr(t, err)
+
+	// Put a duplicate
+	duplicateID, err := db.PutJob(instance, Job{
+		Key:      "2",
+		Method:   ReleaseJob,
+		Params:   ReleaseJobParams{},
+		Priority: PriorityInteractive,
+	})
+	if err != ErrJobAlreadyQueued {
+		t.Errorf("Expected duplicate job to return ErrJobAlreadyQueued, got: %q", err)
+	}
+	if string(duplicateID) != "" {
+		t.Errorf("Expected no id for duplicate job, got: %q", duplicateID)
+	}
 
 	// Take one
 	interactiveJob, err := db.NextJob(nil)
@@ -125,6 +140,28 @@ func TestDatabaseStore(t *testing.T) {
 	if len(interactiveJob.Log) == 0 || interactiveJob.Status == "" {
 		t.Errorf("expected job to have a log and status")
 	}
+
+	// Put a duplicate (when existing is claimed, but not finished)
+	// - It should fail
+	_, err = db.PutJob(instance, Job{
+		Key:      "2",
+		Method:   ReleaseJob,
+		Params:   ReleaseJobParams{},
+		Priority: 1, // low priority, so it won't interfere with other jobs
+	})
+	if err != ErrJobAlreadyQueued {
+		t.Errorf("Expected duplicate job to return ErrJobAlreadyQueued, got: %q", err)
+	}
+
+	// Put a duplicate (Ignoring duplicates)
+	// - It should succeed
+	_, err = db.PutJobIgnoringDuplicates(instance, Job{
+		Key:      "2",
+		Method:   ReleaseJob,
+		Params:   ReleaseJobParams{},
+		Priority: 1, // low priority, so it won't interfere with other jobs
+	})
+	bailIfErr(t, err)
 
 	// Update the job
 	newStatus := "Being used in testing"

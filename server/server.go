@@ -2,6 +2,7 @@ package server
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/go-kit/kit/log"
@@ -219,7 +220,29 @@ func (s *Server) Automate(instID flux.InstanceID, service flux.ServiceID) error 
 	}
 	ns, svc := service.Components()
 	inst.LogEvent(ns, svc, serviceAutomated)
-	return recordAutomated(inst, service, true)
+	if err := recordAutomated(inst, service, true); err != nil {
+		return err
+	}
+
+	// Schedule an immediate check, so things feel snappy for the user.
+	_, err = s.jobs.PutJob(instID, jobs.Job{
+		// Key stops us getting two jobs for the same service
+		Key: strings.Join([]string{
+			jobs.AutomatedServiceJob,
+			string(instID),
+			string(service),
+		}, "|"),
+		Method: jobs.AutomatedServiceJob,
+		Params: jobs.AutomatedServiceJobParams{
+			ServiceSpec: flux.ServiceSpec(service),
+		},
+		Priority: jobs.PriorityBackground,
+	})
+	if err == jobs.ErrJobAlreadyQueued {
+		// Ignore this error, we're already doing it!
+		err = nil
+	}
+	return err
 }
 
 func (s *Server) Deautomate(instID flux.InstanceID, service flux.ServiceID) error {
