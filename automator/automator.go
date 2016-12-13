@@ -31,30 +31,39 @@ func New(cfg Config) (*Automator, error) {
 }
 
 func (a *Automator) Start(errorLogger log.Logger) {
+	a.checkAll(errorLogger)
 	tick := time.Tick(automationCycle)
 	for range tick {
-		insts, err := a.cfg.InstanceDB.All()
-		if err != nil {
-			errorLogger.Log("err", err)
-			continue
-		}
-		for _, inst := range insts {
-			for service, conf := range inst.Config.Services {
-				if conf.Policy() == flux.PolicyAutomated {
-					a.cfg.Jobs.PutJob(inst.ID, jobs.Job{
-						// Key stops us getting two jobs for the same service
-						Key: strings.Join([]string{
-							jobs.AutomatedServiceJob,
-							string(inst.ID),
-							string(service),
-						}, "|"),
-						Method:   jobs.AutomatedServiceJob,
-						Priority: jobs.PriorityBackground,
-						Params: jobs.AutomatedServiceJobParams{
-							ServiceSpec: flux.ServiceSpec(service),
-						},
-					})
-				}
+		a.checkAll(errorLogger)
+	}
+}
+
+func (a *Automator) checkAll(errorLogger log.Logger) {
+	insts, err := a.cfg.InstanceDB.All()
+	if err != nil {
+		errorLogger.Log("err", err)
+		return
+	}
+	for _, inst := range insts {
+		for service, conf := range inst.Config.Services {
+			if conf.Policy() != flux.PolicyAutomated {
+				continue
+			}
+			_, err := a.cfg.Jobs.PutJob(inst.ID, jobs.Job{
+				// Key stops us getting two jobs for the same service
+				Key: strings.Join([]string{
+					jobs.AutomatedServiceJob,
+					string(inst.ID),
+					string(service),
+				}, "|"),
+				Method:   jobs.AutomatedServiceJob,
+				Priority: jobs.PriorityBackground,
+				Params: jobs.AutomatedServiceJobParams{
+					ServiceSpec: flux.ServiceSpec(service),
+				},
+			})
+			if err != nil && err != jobs.ErrJobAlreadyQueued {
+				errorLogger.Log("err", errors.Wrapf(err, "queueing automated service job"))
 			}
 		}
 	}
