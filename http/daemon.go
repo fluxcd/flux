@@ -21,6 +21,7 @@ type Daemon struct {
 	client   *http.Client
 	token    flux.Token
 	url      *url.URL
+	endpoint string
 	platform platform.Platform
 	logger   log.Logger
 	metrics  DaemonMetrics
@@ -43,6 +44,7 @@ func NewDaemon(client *http.Client, t flux.Token, router *mux.Router, endpoint s
 		client:   client,
 		token:    t,
 		url:      u,
+		endpoint: endpoint,
 		platform: p,
 		logger:   logger,
 		metrics:  m,
@@ -73,7 +75,7 @@ func (a *Daemon) loop() {
 }
 
 func (a *Daemon) connect() error {
-	a.metrics.ConnectionDuration.Set(0)
+	a.setConnectionDuration(0)
 	a.logger.Log("connecting", true)
 	ws, err := websocket.Dial(a.client, a.token, a.url)
 	if err != nil {
@@ -96,10 +98,10 @@ func (a *Daemon) connect() error {
 		for {
 			select {
 			case now := <-t.C:
-				a.metrics.ConnectionDuration.Set(now.Sub(connectedAt).Seconds())
+				a.setConnectionDuration(now.Sub(connectedAt).Seconds())
 			case <-disconnected:
 				t.Stop()
-				a.metrics.ConnectionDuration.Set(0)
+				a.setConnectionDuration(0)
 				return
 			}
 		}
@@ -114,6 +116,10 @@ func (a *Daemon) connect() error {
 	rpcserver.ServeConn(ws)
 	a.logger.Log("disconnected", true)
 	return nil
+}
+
+func (a *Daemon) setConnectionDuration(duration float64) {
+	a.metrics.ConnectionDuration.With("target", a.endpoint).Set(duration)
 }
 
 // Close closes the connection to the service
