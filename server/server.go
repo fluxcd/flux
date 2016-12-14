@@ -3,6 +3,7 @@ package server
 import (
 	"fmt"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/go-kit/kit/log"
@@ -31,12 +32,16 @@ type Server struct {
 	logger      log.Logger
 	maxPlatform chan struct{} // semaphore for concurrent calls to the platform
 	metrics     Metrics
+	connected   int32
 }
 
 type Metrics struct {
-	ListServicesDuration metrics.Histogram
-	ListImagesDuration   metrics.Histogram
-	HistoryDuration      metrics.Histogram
+	ListServicesDuration   metrics.Histogram
+	ListImagesDuration     metrics.Histogram
+	HistoryDuration        metrics.Histogram
+	RegisterDaemonDuration metrics.Histogram
+	ConnectedDaemons       metrics.Gauge
+	PlatformMetrics        platform.Metrics
 }
 
 func New(
@@ -46,6 +51,7 @@ func New(
 	logger log.Logger,
 	metrics Metrics,
 ) *Server {
+	metrics.ConnectedDaemons.Set(0)
 	return &Server{
 		instancer:   instancer,
 		messageBus:  messageBus,
@@ -369,20 +375,35 @@ func applyConfigUpdates(updates flux.UnsafeInstanceConfig) instance.UpdateFunc {
 // will get an error when we try to use the client. We rely on that to
 // break us out of this method.
 func (s *Server) RegisterDaemon(instID flux.InstanceID, platform platform.Platform) (err error) {
-	defer func() {
+	defer func(begin time.Time) {
 		if err != nil {
 			s.logger.Log("method", "RegisterDaemon", "err", err)
 		}
-	}()
+
+		s.metrics.RegisterDaemonDuration.With(
+			"instance_id", fmt.Sprint(instID),
+			"success", fmt.Sprint(err == nil),
+		).Observe(time.Since(begin).Seconds())
+		s.metrics.ConnectedDaemons.Set(float64(atomic.AddInt32(&s.connected, -1)))
+	}(time.Now())
+	s.metrics.ConnectedDaemons.Set(float64(atomic.AddInt32(&s.connected, 1)))
+
 	// Register the daemon with our message bus, waiting for it to be
 	// closed. NB we cannot in general expect there to be a
 	// configuration record for this instance; it may be connecting
 	// before there is configuration supplied.
 	done := make(chan error)
-	s.messageBus.Subscribe(instID, &loggingPlatform{platform, log.NewContext(s.logger).With("instanceID", instID)}, done)
+	s.messageBus.Subscribe(instID, s.instrumentPlatform(instID, platform), done)
 	err = <-done
 	close(done)
 	return err
+}
+
+func (s *Server) instrumentPlatform(instID flux.InstanceID, p platform.Platform) platform.Platform {
+	return &loggingPlatform{
+		platform.Instrument(p, s.metrics.PlatformMetrics),
+		log.NewContext(s.logger).With("instanceID", instID),
+	}
 }
 
 func (s *Server) IsDaemonConnected(instID flux.InstanceID) error {

@@ -8,11 +8,15 @@ import (
 	"syscall"
 
 	"github.com/go-kit/kit/log"
+	"github.com/go-kit/kit/metrics/prometheus"
+	stdprometheus "github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/pflag"
 	"k8s.io/kubernetes/pkg/client/restclient"
 
 	"github.com/weaveworks/flux"
 	transport "github.com/weaveworks/flux/http"
+	"github.com/weaveworks/flux/platform"
 	"github.com/weaveworks/flux/platform/kubernetes"
 )
 
@@ -28,6 +32,7 @@ func main() {
 	}
 	// This mirrors how kubectl extracts information from the environment.
 	var (
+		listenAddr        = fs.StringP("listen", "l", ":3031", "Listen address where /metrics will be served")
 		fluxsvcAddress    = fs.String("fluxsvc-address", "wss://cloud.weave.works/api/flux", "Address of the fluxsvc to connect to.")
 		token             = fs.String("token", "", "Token to use to authenticate with flux service")
 		kubernetesKubectl = fs.String("kubernetes-kubectl", "", "Optional, explicit path to kubectl tool")
@@ -43,7 +48,7 @@ func main() {
 	}
 
 	// Platform component.
-	var k8s *kubernetes.Cluster
+	var k8s platform.Platform
 	{
 		restClientConfig, err := restclient.InClusterConfig()
 		if err != nil {
@@ -57,22 +62,46 @@ func main() {
 		logger := log.NewContext(logger).With("component", "platform")
 		logger.Log("host", restClientConfig.Host)
 
-		k8s, err = kubernetes.NewCluster(restClientConfig, *kubernetesKubectl, logger)
+		cluster, err := kubernetes.NewCluster(restClientConfig, *kubernetesKubectl, logger)
 		if err != nil {
 			logger.Log("err", err)
 			os.Exit(1)
 		}
 
-		if services, err := k8s.AllServices("", nil); err != nil {
+		if services, err := cluster.AllServices("", nil); err != nil {
 			logger.Log("services", err)
 		} else {
 			logger.Log("services", len(services))
 		}
+
+		k8s = cluster
+	}
+
+	// Instrumentation
+	var (
+		daemonMetrics transport.DaemonMetrics
+	)
+	{
+		k8s = platform.Instrument(k8s, platform.NewMetrics())
+		daemonMetrics.ConnectionDuration = prometheus.NewGaugeFrom(stdprometheus.GaugeOpts{
+			Namespace: "flux",
+			Subsystem: "fluxd",
+			Name:      "connection_duration_seconds",
+			Help:      "Duration in seconds of the current connection to fluxsvc. Zero means unconnected.",
+		}, []string{"target"})
 	}
 
 	// Connect to fluxsvc
 	daemonLogger := log.NewContext(logger).With("component", "client")
-	daemon, err := transport.NewDaemon(http.DefaultClient, flux.Token(*token), transport.NewRouter(), *fluxsvcAddress, k8s, daemonLogger)
+	daemon, err := transport.NewDaemon(
+		http.DefaultClient,
+		flux.Token(*token),
+		transport.NewRouter(),
+		*fluxsvcAddress,
+		k8s,
+		daemonLogger,
+		daemonMetrics,
+	)
 	if err != nil {
 		logger.Log("err", err)
 		os.Exit(1)
@@ -87,6 +116,14 @@ func main() {
 		errc <- fmt.Errorf("%s", <-c)
 	}()
 
+	// HTTP transport component, for metrics
+	go func() {
+		logger.Log("addr", *listenAddr)
+		mux := http.NewServeMux()
+		mux.Handle("/metrics", promhttp.Handler())
+		errc <- http.ListenAndServe(*listenAddr, mux)
+	}()
+
 	// Go!
-	logger.Log("exit", <-errc)
+	logger.Log("exiting", <-errc)
 }
