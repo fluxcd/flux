@@ -107,6 +107,18 @@ func main() {
 			Name:      "history_duration_seconds",
 			Help:      "History method duration in seconds.",
 		}, []string{"service_spec", "success"})
+		serverMetrics.RegisterDaemonDuration = prometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
+			Namespace: "flux",
+			Subsystem: "fluxsvc",
+			Name:      "register_daemon_duration_seconds",
+			Help:      "RegisterDaemon method duration in seconds.",
+		}, []string{"instance_id", "success"})
+		serverMetrics.ConnectedDaemons = prometheus.NewGaugeFrom(stdprometheus.GaugeOpts{
+			Namespace: "flux",
+			Subsystem: "fluxsvc",
+			Name:      "connected_daemons_count",
+			Help:      "Gauge of the current number of connected daemons",
+		}, []string{})
 		serverMetrics.PlatformMetrics = platform.NewMetrics()
 		releaseMetrics.ReleaseDuration = prometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
 			Namespace: "flux",
