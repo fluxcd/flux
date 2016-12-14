@@ -83,31 +83,31 @@ func main() {
 		helperDuration metrics.Histogram
 	)
 	{
-		httpDuration = prometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
+		httpDuration = prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
 			Namespace: "flux",
 			Subsystem: "fluxsvc",
 			Name:      "http_request_duration_seconds",
 			Help:      "HTTP request duration in seconds.",
 		}, []string{"method", "status_code"})
-		serverMetrics.ListServicesDuration = prometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
+		serverMetrics.ListServicesDuration = prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
 			Namespace: "flux",
 			Subsystem: "fluxsvc",
 			Name:      "list_services_duration_seconds",
 			Help:      "ListServices method duration in seconds.",
 		}, []string{"namespace", "success"})
-		serverMetrics.ListImagesDuration = prometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
+		serverMetrics.ListImagesDuration = prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
 			Namespace: "flux",
 			Subsystem: "fluxsvc",
 			Name:      "list_images_duration_seconds",
 			Help:      "ListImages method duration in seconds.",
 		}, []string{"service_spec", "success"})
-		serverMetrics.HistoryDuration = prometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
+		serverMetrics.HistoryDuration = prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
 			Namespace: "flux",
 			Subsystem: "fluxsvc",
 			Name:      "history_duration_seconds",
 			Help:      "History method duration in seconds.",
 		}, []string{"service_spec", "success"})
-		serverMetrics.RegisterDaemonDuration = prometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
+		serverMetrics.RegisterDaemonDuration = prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
 			Namespace: "flux",
 			Subsystem: "fluxsvc",
 			Name:      "register_daemon_duration_seconds",
@@ -120,25 +120,25 @@ func main() {
 			Help:      "Gauge of the current number of connected daemons",
 		}, []string{})
 		serverMetrics.PlatformMetrics = platform.NewMetrics()
-		releaseMetrics.ReleaseDuration = prometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
+		releaseMetrics.ReleaseDuration = prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
 			Namespace: "flux",
 			Subsystem: "fluxsvc",
 			Name:      "release_duration_seconds",
 			Help:      "Release method duration in seconds.",
 		}, []string{"release_type", "release_kind", "success"})
-		releaseMetrics.ActionDuration = prometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
+		releaseMetrics.ActionDuration = prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
 			Namespace: "flux",
 			Subsystem: "fluxsvc",
 			Name:      "release_action_duration_seconds",
 			Help:      "Duration in seconds of each sub-action invoked as part of a non-dry-run release.",
 		}, []string{"action", "success"})
-		releaseMetrics.StageDuration = prometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
+		releaseMetrics.StageDuration = prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
 			Namespace: "flux",
 			Subsystem: "fluxsvc",
 			Name:      "release_stage_duration_seconds",
 			Help:      "Duration in seconds of each stage of a release, including dry-runs.",
 		}, []string{"method", "stage"})
-		helperDuration = prometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
+		helperDuration = prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
 			Namespace: "flux",
 			Subsystem: "fluxsvc",
 			Name:      "release_helper_duration_seconds",

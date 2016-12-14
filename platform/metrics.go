@@ -20,25 +20,25 @@ type Metrics struct {
 
 func NewMetrics() Metrics {
 	return Metrics{
-		AllServicesDuration: prometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
+		AllServicesDuration: prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
 			Namespace: "flux",
 			Subsystem: "platform",
 			Name:      "all_services_duration_seconds",
 			Help:      "AllServices method duration in seconds.",
 		}, []string{"namespace", "ignored", "success"}),
-		SomeServicesDuration: prometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
+		SomeServicesDuration: prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
 			Namespace: "flux",
 			Subsystem: "platform",
 			Name:      "some_services_duration_seconds",
 			Help:      "SomeServices method duration in seconds.",
 		}, []string{"ids", "success"}),
-		RegradeDuration: prometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
+		RegradeDuration: prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
 			Namespace: "flux",
 			Subsystem: "platform",
 			Name:      "regrade_duration_seconds",
 			Help:      "Regrade method duration in seconds.",
 		}, []string{"specs", "success"}),
-		PingDuration: prometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
+		PingDuration: prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
 			Namespace: "flux",
 			Subsystem: "platform",
 			Name:      "ping_duration_seconds",
