@@ -20,6 +20,7 @@ import (
 )
 
 const FluxServiceName = "fluxsvc"
+const FluxDaemonName = "fluxd"
 
 type Releaser struct {
 	instancer instance.Instancer
@@ -579,13 +580,14 @@ func (r *Releaser) releaseActionRegradeServices(services []flux.ServiceID, msg s
 				}
 
 				namespace, serviceName := service.Components()
-				if serviceName == FluxServiceName {
+				switch serviceName {
+				case FluxServiceName, FluxDaemonName:
 					rc.Instance.LogEvent(namespace, serviceName, "Starting regrade (no result expected) "+cause)
 					asyncSpecs = append(asyncSpecs, platform.RegradeSpec{
 						ServiceID:     service,
 						NewDefinition: def,
 					})
-				} else {
+				default:
 					rc.Instance.LogEvent(namespace, serviceName, "Starting regrade "+cause)
 					specs = append(specs, platform.RegradeSpec{
 						ServiceID:     service,
@@ -613,13 +615,15 @@ func (r *Releaser) releaseActionRegradeServices(services []flux.ServiceID, msg s
 			// Report individual service regrade results.
 			for _, service := range services {
 				namespace, serviceName := service.Components()
-				if serviceName == FluxServiceName {
+				switch serviceName {
+				case FluxServiceName, FluxDaemonName:
 					continue
-				}
-				if err := results[service]; err == nil { // no entry = nil error
-					rc.Instance.LogEvent(namespace, serviceName, "Regrade due to "+cause+": done")
-				} else {
-					rc.Instance.LogEvent(namespace, serviceName, "Regrade due to "+cause+": failed: "+err.Error())
+				default:
+					if err := results[service]; err == nil { // no entry = nil error
+						rc.Instance.LogEvent(namespace, serviceName, "Regrade due to "+cause+": done")
+					} else {
+						rc.Instance.LogEvent(namespace, serviceName, "Regrade due to "+cause+": failed: "+err.Error())
+					}
 				}
 			}
 
