@@ -10,11 +10,13 @@ import (
 type StandaloneMessageBus struct {
 	connected map[flux.InstanceID]*removeablePlatform
 	sync.RWMutex
+	metrics BusMetrics
 }
 
-func NewStandaloneMessageBus() *StandaloneMessageBus {
+func NewStandaloneMessageBus(metrics BusMetrics) *StandaloneMessageBus {
 	return &StandaloneMessageBus{
 		connected: map[flux.InstanceID]*removeablePlatform{},
+		metrics:   metrics,
 	}
 }
 
@@ -42,6 +44,7 @@ func (s *StandaloneMessageBus) Subscribe(inst flux.InstanceID, p Platform, compl
 	// We're replacing another client
 	if existing, ok := s.connected[inst]; ok {
 		delete(s.connected, inst)
+		s.metrics.IncrKicks(inst)
 		existing.closeWithError(errors.New("duplicate connection; replacing with newer"))
 	}
 

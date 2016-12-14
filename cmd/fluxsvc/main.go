@@ -83,6 +83,7 @@ func main() {
 		serverMetrics  server.Metrics
 		releaseMetrics release.Metrics
 		helperDuration metrics.Histogram
+		busMetrics     platform.BusMetrics
 	)
 	{
 		httpDuration = prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
@@ -155,12 +156,13 @@ func main() {
 			Help:      "Duration in seconds of a variety of release helper methods.",
 			Buckets:   stdprometheus.DefBuckets,
 		}, []string{"method", "success"})
+		busMetrics = platform.NewBusMetrics()
 	}
 
 	var messageBus platform.MessageBus
 	{
 		if *natsURL != "" {
-			bus, err := nats.NewMessageBus(*natsURL)
+			bus, err := nats.NewMessageBus(*natsURL, busMetrics)
 			if err != nil {
 				logger.Log("component", "message bus", "err", err)
 				os.Exit(1)
@@ -168,7 +170,7 @@ func main() {
 			logger.Log("component", "message bus", "type", "NATS")
 			messageBus = bus
 		} else {
-			messageBus = platform.NewStandaloneMessageBus()
+			messageBus = platform.NewStandaloneMessageBus(busMetrics)
 			logger.Log("component", "message bus", "type", "standalone")
 		}
 	}

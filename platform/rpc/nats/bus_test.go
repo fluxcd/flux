@@ -15,13 +15,15 @@ import (
 
 var testNATS = flag.String("nats-url", "", "NATS connection URL; use NATS' default if empty")
 
+var metrics = platform.NewBusMetrics()
+
 func setup(t *testing.T) *NATS {
 	flag.Parse()
 	if *testNATS == "" {
 		*testNATS = nats.DefaultURL
 	}
 
-	bus, err := NewMessageBus(*testNATS)
+	bus, err := NewMessageBus(*testNATS, metrics)
 	if err != nil {
 		t.Fatal(err)
 	}
