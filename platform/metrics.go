@@ -25,24 +25,28 @@ func NewMetrics() Metrics {
 			Subsystem: "platform",
 			Name:      "all_services_duration_seconds",
 			Help:      "AllServices method duration in seconds.",
-		}, []string{"namespace", "ignored", "success"}),
+			Buckets:   stdprometheus.DefBuckets,
+		}, []string{"namespace", "success"}),
 		SomeServicesDuration: prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
 			Namespace: "flux",
 			Subsystem: "platform",
 			Name:      "some_services_duration_seconds",
 			Help:      "SomeServices method duration in seconds.",
-		}, []string{"ids", "success"}),
+			Buckets:   stdprometheus.DefBuckets,
+		}, []string{"success"}),
 		RegradeDuration: prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
 			Namespace: "flux",
 			Subsystem: "platform",
 			Name:      "regrade_duration_seconds",
 			Help:      "Regrade method duration in seconds.",
-		}, []string{"specs", "success"}),
+			Buckets:   stdprometheus.DefBuckets,
+		}, []string{"success"}),
 		PingDuration: prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
 			Namespace: "flux",
 			Subsystem: "platform",
 			Name:      "ping_duration_seconds",
 			Help:      "Ping method duration in seconds.",
+			Buckets:   stdprometheus.DefBuckets,
 		}, []string{"success"}),
 	}
 }
@@ -60,7 +64,6 @@ func (i *instrumentedPlatform) AllServices(maybeNamespace string, ignored flux.S
 	defer func(begin time.Time) {
 		i.m.AllServicesDuration.With(
 			"namespace", maybeNamespace,
-			"ignored", fmt.Sprint(len(ignored)),
 			"success", fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
 	}(time.Now())
@@ -70,7 +73,6 @@ func (i *instrumentedPlatform) AllServices(maybeNamespace string, ignored flux.S
 func (i *instrumentedPlatform) SomeServices(ids []flux.ServiceID) (svcs []Service, err error) {
 	defer func(begin time.Time) {
 		i.m.SomeServicesDuration.With(
-			"ids", fmt.Sprint(len(ids)),
 			"success", fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
 	}(time.Now())
@@ -80,7 +82,6 @@ func (i *instrumentedPlatform) SomeServices(ids []flux.ServiceID) (svcs []Servic
 func (i *instrumentedPlatform) Regrade(spec []RegradeSpec) (err error) {
 	defer func(begin time.Time) {
 		i.m.SomeServicesDuration.With(
-			"specs", fmt.Sprint(len(spec)),
 			"success", fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
 	}(time.Now())
