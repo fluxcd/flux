@@ -159,3 +159,30 @@ func TestFatalErrorDisconnects(t *testing.T) {
 		t.Error("timed out waiting for expected error from subscription closing")
 	}
 }
+
+func TestNewConnectionKicks(t *testing.T) {
+	bus := setup(t)
+
+	instA := flux.InstanceID("foo")
+
+	mockA := &platform.MockPlatform{}
+	errA := make(chan error)
+	subscribe(t, bus, errA, instA, mockA)
+
+	mockB := &platform.MockPlatform{}
+	errB := make(chan error)
+	subscribe(t, bus, errB, instA, mockB)
+
+	select {
+	case <-errA:
+		break
+	case <-time.After(1 * time.Second):
+		t.Error("timed out waiting for connection to be kicked")
+	}
+
+	close(errB)
+	err := <-errB
+	if err != nil {
+		t.Errorf("expected no error from second connection, but got %q", err)
+	}
+}

@@ -9,6 +9,7 @@ import (
 	"github.com/nats-io/nats"
 
 	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/guid"
 	"github.com/weaveworks/flux/platform"
 	fluxrpc "github.com/weaveworks/flux/platform/rpc"
 )
@@ -19,6 +20,7 @@ const (
 	presenceTick   = 50 * time.Millisecond
 	encoderType    = nats.JSON_ENCODER
 
+	methodKick         = ".Platform.Kick"
 	methodPing         = ".Platform.Ping"
 	methodAllServices  = ".Platform.AllServices"
 	methodSomeServices = ".Platform.SomeServices"
@@ -211,10 +213,24 @@ func (n *NATS) Subscribe(instID flux.InstanceID, remote platform.Platform, done 
 		return
 	}
 
+	// It's possible that more than one connection for a particular
+	// instance will arrive at the service. To prevent confusion, when
+	// a subscription arrives, it sends a "kick" message with a unique
+	// ID (so it can recognise its own kick message). Any other
+	// subscription for the instance _should_ then exit upon receipt
+	// of the kick.
+	myID := guid.New()
+	n.rcv.Publish(string(instID)+methodKick, []byte(myID))
+
 	go func() {
 		var err error
 		for request := range requests {
 			switch {
+			case strings.HasSuffix(request.Subject, methodKick):
+				id := string(request.Data)
+				if id != myID {
+					err = platform.FatalError{errors.New("Kicked by new subscriber " + id)}
+				}
 			case strings.HasSuffix(request.Subject, methodPing):
 				var p ping
 				err = encoder.Decode(request.Subject, request.Data, &p)
