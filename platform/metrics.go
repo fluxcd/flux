@@ -81,7 +81,7 @@ func (i *instrumentedPlatform) SomeServices(ids []flux.ServiceID) (svcs []Servic
 
 func (i *instrumentedPlatform) Regrade(spec []RegradeSpec) (err error) {
 	defer func(begin time.Time) {
-		i.m.SomeServicesDuration.With(
+		i.m.RegradeDuration.With(
 			"success", fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
 	}(time.Now())
