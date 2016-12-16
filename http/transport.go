@@ -249,7 +249,7 @@ func handlePostRelease(s api.FluxService) http.Handler {
 
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		if err := json.NewEncoder(w).Encode(postReleaseResponse{
-			Status:    "Submitted.",
+			Status:    "Queued.",
 			ReleaseID: id,
 		}); err != nil {
 			w.WriteHeader(http.StatusInternalServerError)

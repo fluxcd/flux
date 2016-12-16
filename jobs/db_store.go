@@ -107,7 +107,7 @@ func (s *DatabaseStore) GetJob(inst flux.InstanceID, id JobID) (Job, error) {
 func (s *DatabaseStore) PutJobIgnoringDuplicates(inst flux.InstanceID, job Job) (JobID, error) {
 	var (
 		jobID       = NewJobID()
-		status      = "Submitted job."
+		status      = "Queued."
 		paramsBytes []byte
 		err         error
 	)
