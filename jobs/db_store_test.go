@@ -81,6 +81,7 @@ func Cleanup(t *testing.T, database *DatabaseStore) {
 
 func TestDatabaseStore(t *testing.T) {
 	instance := flux.InstanceID("instance")
+	instance2 := flux.InstanceID("instance2")
 	db := Setup(t)
 	defer Cleanup(t, db)
 
@@ -91,7 +92,7 @@ func TestDatabaseStore(t *testing.T) {
 	}
 
 	// Put some jobs
-	backgroundJobID, err := db.PutJob(instance, Job{
+	backgroundJobID, err := db.PutJob(instance2, Job{
 		Method:   ReleaseJob,
 		Params:   ReleaseJobParams{},
 		Priority: PriorityBackground,
@@ -153,6 +154,16 @@ func TestDatabaseStore(t *testing.T) {
 		t.Errorf("Expected duplicate job to return ErrJobAlreadyQueued, got: %q", err)
 	}
 
+	// Put a duplicate (For another instance)
+	// - It should succeed
+	_, err = db.PutJob(instance2, Job{
+		Key:      "2",
+		Method:   ReleaseJob,
+		Params:   ReleaseJobParams{},
+		Priority: 1, // low priority, so it won't interfere with other jobs
+	})
+	bailIfErr(t, err)
+
 	// Put a duplicate (Ignoring duplicates)
 	// - It should succeed
 	_, err = db.PutJobIgnoringDuplicates(instance, Job{
@@ -198,7 +209,7 @@ func TestDatabaseStore(t *testing.T) {
 	backgroundJob.Success = true
 	bailIfErr(t, db.UpdateJob(backgroundJob))
 	// - Status should be changed
-	backgroundJob, err = db.GetJob(instance, backgroundJobID)
+	backgroundJob, err = db.GetJob(instance2, backgroundJobID)
 	bailIfErr(t, err)
 	if !backgroundJob.Done || !backgroundJob.Success {
 		t.Errorf("expected job to have been marked as done")

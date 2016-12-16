@@ -166,8 +166,8 @@ func (s *DatabaseStore) PutJob(inst flux.InstanceID, job Job) (JobID, error) {
 		if job.Key != "" {
 			var count int
 			err = s.conn.QueryRow(`
-				SELECT count(*) FROM jobs WHERE key = $1 AND finished_at IS NULL
-			`, job.Key).Scan(&count)
+				SELECT count(1) FROM jobs WHERE instance_id = $1 AND key = $2 AND finished_at IS NULL
+			`, string(inst), job.Key).Scan(&count)
 			if err != nil {
 				return errors.Wrap(err, "looking for existing job")
 			}
