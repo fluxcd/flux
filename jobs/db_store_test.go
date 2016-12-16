@@ -421,3 +421,84 @@ func TestDatabaseStoreFairScheduling(t *testing.T) {
 		t.Errorf("Got an unexpected job id")
 	}
 }
+
+func TestDatabaseStoreExpiresNeverHeartbeatedJobs(t *testing.T) {
+	instance := flux.InstanceID("instance")
+	db := Setup(t)
+	defer Cleanup(t, db)
+
+	// Mock time, so we can mess around with it
+	now := time.Now()
+	db.now = func(_ dbProxy) (time.Time, error) {
+		return now, nil
+	}
+
+	// Put a job
+	jobID, err := db.PutJob(instance, Job{
+		Method:   ReleaseJob,
+		Params:   ReleaseJobParams{},
+		Priority: PriorityInteractive,
+	})
+	bailIfErr(t, err)
+
+	// Take it, so it is claimed
+	_, err = db.NextJob(nil)
+	bailIfErr(t, err)
+
+	// GC should not remove it
+	bailIfErr(t, db.GC())
+	_, err = db.GetJob(instance, jobID)
+	bailIfErr(t, err)
+
+	// GC should remove it after gc time
+	now = now.Add(2 * time.Minute)
+	bailIfErr(t, db.GC())
+	// - should be removed
+	_, err = db.GetJob(instance, jobID)
+	if err != ErrNoSuchJob {
+		t.Errorf("expected ErrNoSuchJob, got %q", err)
+	}
+}
+
+func TestDatabaseStoreExpiresHeartbeatedButCrashedJobs(t *testing.T) {
+	instance := flux.InstanceID("instance")
+	db := Setup(t)
+	defer Cleanup(t, db)
+
+	// Mock time, so we can mess around with it
+	now := time.Now()
+	db.now = func(_ dbProxy) (time.Time, error) {
+		return now, nil
+	}
+
+	// Put a job
+	jobID, err := db.PutJob(instance, Job{
+		Method:   ReleaseJob,
+		Params:   ReleaseJobParams{},
+		Priority: PriorityInteractive,
+	})
+	bailIfErr(t, err)
+
+	// Take it, so it is claimed
+	_, err = db.NextJob(nil)
+	bailIfErr(t, err)
+
+	// Heartbeat the job
+	now = now.Add(1 * time.Minute)
+	bailIfErr(t, db.Heartbeat(jobID))
+
+	// GC should not remove it (heartbeat should keep it alive longer)
+	now = now.Add(30 * time.Second)
+	bailIfErr(t, db.GC())
+	_, err = db.GetJob(instance, jobID)
+	bailIfErr(t, err)
+
+	// GC should remove it after gc time
+	now = now.Add(2 * time.Minute)
+	bailIfErr(t, db.GC())
+	// - should be removed
+	_, err = db.GetJob(instance, jobID)
+	if err != ErrNoSuchJob {
+		t.Errorf("expected ErrNoSuchJob, got %q", err)
+	}
+}

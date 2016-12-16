@@ -405,8 +405,10 @@ func (s *DatabaseStore) GC() error {
 
 		if _, err := s.conn.Exec(`
 			DELETE FROM jobs
-						WHERE finished_at IS NOT NULL
-							AND submitted_at < $1
+						WHERE (finished_at IS NOT NULL AND submitted_at < $1)
+						   OR (claimed_at IS NOT NULL
+							 AND claimed_at < $1
+							 AND (heartbeat_at IS NULL OR heartbeat_at < $1))
 		`, now.Add(-s.oldest)); err != nil {
 			return errors.Wrap(err, "deleting old jobs")
 		}
