@@ -130,5 +130,5 @@ To test it out, you can try getting a list of images for the
 
 ```sh
 $ fluxctl list-images --service=default/helloworld
-$ fluxctl release --service=default/helloworld --upgrade-all-images
+$ fluxctl release --service=default/helloworld --update-all-images
 ```
