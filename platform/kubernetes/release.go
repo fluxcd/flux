@@ -73,7 +73,7 @@ func (c *Cluster) doReleaseCommand(logger log.Logger, newDefinition *apiObject, 
 	cmd.Stdin = bytes.NewReader(newDefinition.bytes)
 	stderr := &bytes.Buffer{}
 	cmd.Stderr = stderr
-	logger.Log("cmd", strings.Join(cmd.Args, " "))
+	logger.Log("cmd", strings.Join(args, " "))
 
 	begin := time.Now()
 	err := cmd.Run()
@@ -114,8 +114,15 @@ func deploymentExec(def *apiext.Deployment, newDef *apiObject) regradeExecFunc {
 				"deployment", newDef.Metadata.Name,
 				"--namespace", newDef.Metadata.Namespace,
 			)
-			logger.Log("cmd", strings.Join(cmd.Args, " "))
 			err = cmd.Run()
+			logger.Log(
+				"cmd",
+				fmt.Sprintf(
+					"rollout status deployment %q --namespace %q",
+					newDef.Metadata.Name,
+					newDef.Metadata.Namespace,
+				),
+			)
 		}
 		return err
 	}
