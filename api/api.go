@@ -7,6 +7,7 @@ import (
 )
 
 type ClientService interface {
+	Status(inst flux.InstanceID) (flux.Status, error)
 	ListServices(inst flux.InstanceID, namespace string) ([]flux.ServiceStatus, error)
 	ListImages(flux.InstanceID, flux.ServiceSpec) ([]flux.ImageStatus, error)
 	PostRelease(flux.InstanceID, jobs.ReleaseJobParams) (jobs.JobID, error)

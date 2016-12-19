@@ -38,6 +38,7 @@ type Server struct {
 }
 
 type Metrics struct {
+	StatusDuration         metrics.Histogram
 	ListServicesDuration   metrics.Histogram
 	ListImagesDuration     metrics.Histogram
 	HistoryDuration        metrics.Histogram
@@ -71,6 +72,30 @@ func New(
 // get something working. There's also a lot of code duplication here for the
 // same reason: let's not add abstraction until it's merged, or nearly so, and
 // it's clear where the abstraction should exist.
+
+func (s *Server) Status(inst flux.InstanceID) (res flux.Status, err error) {
+	defer func(begin time.Time) {
+		s.metrics.StatusDuration.With(
+			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
+		).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+
+	helper, err := s.instancer.Get(inst)
+	if err != nil {
+		return res, errors.Wrapf(err, "getting instance")
+	}
+
+	config, err := helper.GetConfig()
+	if err != nil {
+		return res, errors.Wrapf(err, "getting config for %s", inst)
+	}
+	// TODO: This should really check we have access permissions.
+	res.Git.Configured = config.Settings.Git.URL != "" && config.Settings.Git.Key != ""
+
+	res.Fluxd.Connected = (helper.Ping() == nil)
+
+	return res, nil
+}
 
 func (s *Server) ListServices(inst flux.InstanceID, namespace string) (res []flux.ServiceStatus, err error) {
 	defer func(begin time.Time) {

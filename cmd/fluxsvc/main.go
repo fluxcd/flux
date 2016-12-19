@@ -110,6 +110,13 @@ func main() {
 			Help:      "HTTP request duration in seconds.",
 			Buckets:   stdprometheus.DefBuckets,
 		}, []string{fluxmetrics.LabelMethod, "status_code"})
+		serverMetrics.StatusDuration = prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
+			Namespace: "flux",
+			Subsystem: "fluxsvc",
+			Name:      "status_duration_seconds",
+			Help:      "Status method duration in seconds.",
+			Buckets:   stdprometheus.DefBuckets,
+		}, []string{fluxmetrics.LabelSuccess})
 		serverMetrics.ListServicesDuration = prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
 			Namespace: "flux",
 			Subsystem: "fluxsvc",

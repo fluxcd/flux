@@ -136,6 +136,10 @@ func (h *Instance) PlatformApply(defs []platform.ServiceDefinition) (err error) 
 	return h.platform.Apply(defs)
 }
 
+func (h *Instance) Ping() error {
+	return h.platform.Ping()
+}
+
 func (h *Instance) GetConfig() (Config, error) {
 	return h.config.Get()
 }
