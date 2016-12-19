@@ -81,6 +81,7 @@ func Cleanup(t *testing.T, database *DatabaseStore) {
 
 func TestDatabaseStore(t *testing.T) {
 	instance := flux.InstanceID("instance")
+	instance2 := flux.InstanceID("instance2")
 	db := Setup(t)
 	defer Cleanup(t, db)
 
@@ -91,7 +92,7 @@ func TestDatabaseStore(t *testing.T) {
 	}
 
 	// Put some jobs
-	backgroundJobID, err := db.PutJob(instance, Job{
+	backgroundJobID, err := db.PutJob(instance2, Job{
 		Method:   ReleaseJob,
 		Params:   ReleaseJobParams{},
 		Priority: PriorityBackground,
@@ -153,6 +154,16 @@ func TestDatabaseStore(t *testing.T) {
 		t.Errorf("Expected duplicate job to return ErrJobAlreadyQueued, got: %q", err)
 	}
 
+	// Put a duplicate (For another instance)
+	// - It should succeed
+	_, err = db.PutJob(instance2, Job{
+		Key:      "2",
+		Method:   ReleaseJob,
+		Params:   ReleaseJobParams{},
+		Priority: 1, // low priority, so it won't interfere with other jobs
+	})
+	bailIfErr(t, err)
+
 	// Put a duplicate (Ignoring duplicates)
 	// - It should succeed
 	_, err = db.PutJobIgnoringDuplicates(instance, Job{
@@ -198,7 +209,7 @@ func TestDatabaseStore(t *testing.T) {
 	backgroundJob.Success = true
 	bailIfErr(t, db.UpdateJob(backgroundJob))
 	// - Status should be changed
-	backgroundJob, err = db.GetJob(instance, backgroundJobID)
+	backgroundJob, err = db.GetJob(instance2, backgroundJobID)
 	bailIfErr(t, err)
 	if !backgroundJob.Done || !backgroundJob.Success {
 		t.Errorf("expected job to have been marked as done")
@@ -337,5 +348,157 @@ func TestDatabaseStoreScheduledJobs(t *testing.T) {
 		}
 
 		Cleanup(t, db)
+	}
+}
+
+func TestDatabaseStoreFairScheduling(t *testing.T) {
+	instance1 := flux.InstanceID("instance1")
+	instance2 := flux.InstanceID("instance2")
+	db := Setup(t)
+	defer Cleanup(t, db)
+
+	// Put some jobs for instance 1
+	job1ID, err := db.PutJob(instance1, Job{
+		Method:   ReleaseJob,
+		Params:   ReleaseJobParams{},
+		Priority: PriorityInteractive,
+	})
+	bailIfErr(t, err)
+	job2ID, err := db.PutJob(instance1, Job{
+		Method:   ReleaseJob,
+		Params:   ReleaseJobParams{},
+		Priority: PriorityInteractive,
+	})
+	bailIfErr(t, err)
+
+	// Put a job for instance 2
+	job3ID, err := db.PutJob(instance2, Job{
+		Method:   ReleaseJob,
+		Params:   ReleaseJobParams{},
+		Priority: PriorityInteractive,
+	})
+	bailIfErr(t, err)
+
+	// Take one
+	// - It should be instance1's first job
+	job1, err := db.NextJob(nil)
+	bailIfErr(t, err)
+	if job1.ID != job1ID {
+		t.Errorf("Got a newer job when an older one was available")
+	}
+	// Take another (while instance1 has one in-progress)
+	// - It should be instance2's first job
+	job3, err := db.NextJob(nil)
+	bailIfErr(t, err)
+	if job3.ID != job3ID {
+		t.Errorf("Got an unexpected job id")
+	}
+
+	// Take another (while instance1, and instance2 has one in-progress)
+	// - It should say none are available, because both are in-progress
+	_, err = db.NextJob(nil)
+	if err != ErrNoJobAvailable {
+		t.Fatalf("Expected ErrNoJobAvailable, got %q", err)
+	}
+
+	// Finish instance1's job
+	job1.Done = true
+	job1.Success = true
+	bailIfErr(t, db.UpdateJob(job1))
+	// - Status should be changed
+	job1, err = db.GetJob(instance1, job1ID)
+	bailIfErr(t, err)
+	if !job1.Done || !job1.Success {
+		t.Errorf("expected job to have been marked as done")
+	}
+
+	// Take another
+	// - It should be instance1's next job
+	job2, err := db.NextJob(nil)
+	bailIfErr(t, err)
+	// - It should be the next job for instance1
+	if job2.ID != job2ID {
+		t.Errorf("Got an unexpected job id")
+	}
+}
+
+func TestDatabaseStoreExpiresNeverHeartbeatedJobs(t *testing.T) {
+	instance := flux.InstanceID("instance")
+	db := Setup(t)
+	defer Cleanup(t, db)
+
+	// Mock time, so we can mess around with it
+	now := time.Now()
+	db.now = func(_ dbProxy) (time.Time, error) {
+		return now, nil
+	}
+
+	// Put a job
+	jobID, err := db.PutJob(instance, Job{
+		Method:   ReleaseJob,
+		Params:   ReleaseJobParams{},
+		Priority: PriorityInteractive,
+	})
+	bailIfErr(t, err)
+
+	// Take it, so it is claimed
+	_, err = db.NextJob(nil)
+	bailIfErr(t, err)
+
+	// GC should not remove it
+	bailIfErr(t, db.GC())
+	_, err = db.GetJob(instance, jobID)
+	bailIfErr(t, err)
+
+	// GC should remove it after gc time
+	now = now.Add(2 * time.Minute)
+	bailIfErr(t, db.GC())
+	// - should be removed
+	_, err = db.GetJob(instance, jobID)
+	if err != ErrNoSuchJob {
+		t.Errorf("expected ErrNoSuchJob, got %q", err)
+	}
+}
+
+func TestDatabaseStoreExpiresHeartbeatedButCrashedJobs(t *testing.T) {
+	instance := flux.InstanceID("instance")
+	db := Setup(t)
+	defer Cleanup(t, db)
+
+	// Mock time, so we can mess around with it
+	now := time.Now()
+	db.now = func(_ dbProxy) (time.Time, error) {
+		return now, nil
+	}
+
+	// Put a job
+	jobID, err := db.PutJob(instance, Job{
+		Method:   ReleaseJob,
+		Params:   ReleaseJobParams{},
+		Priority: PriorityInteractive,
+	})
+	bailIfErr(t, err)
+
+	// Take it, so it is claimed
+	_, err = db.NextJob(nil)
+	bailIfErr(t, err)
+
+	// Heartbeat the job
+	now = now.Add(1 * time.Minute)
+	bailIfErr(t, db.Heartbeat(jobID))
+
+	// GC should not remove it (heartbeat should keep it alive longer)
+	now = now.Add(30 * time.Second)
+	bailIfErr(t, db.GC())
+	_, err = db.GetJob(instance, jobID)
+	bailIfErr(t, err)
+
+	// GC should remove it after gc time
+	now = now.Add(2 * time.Minute)
+	bailIfErr(t, db.GC())
+	// - should be removed
+	_, err = db.GetJob(instance, jobID)
+	if err != ErrNoSuchJob {
+		t.Errorf("expected ErrNoSuchJob, got %q", err)
 	}
 }

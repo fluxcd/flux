@@ -107,7 +107,7 @@ func (s *DatabaseStore) GetJob(inst flux.InstanceID, id JobID) (Job, error) {
 func (s *DatabaseStore) PutJobIgnoringDuplicates(inst flux.InstanceID, job Job) (JobID, error) {
 	var (
 		jobID       = NewJobID()
-		status      = "Submitted job."
+		status      = "Queued."
 		paramsBytes []byte
 		err         error
 	)
@@ -166,8 +166,8 @@ func (s *DatabaseStore) PutJob(inst flux.InstanceID, job Job) (JobID, error) {
 		if job.Key != "" {
 			var count int
 			err = s.conn.QueryRow(`
-				SELECT count(*) FROM jobs WHERE key = $1 AND finished_at IS NULL
-			`, job.Key).Scan(&count)
+				SELECT count(1) FROM jobs WHERE instance_id = $1 AND key = $2 AND finished_at IS NULL
+			`, string(inst), job.Key).Scan(&count)
 			if err != nil {
 				return errors.Wrap(err, "looking for existing job")
 			}
@@ -209,15 +209,34 @@ func (s *DatabaseStore) NextJob(queues []string) (Job, error) {
 			success     sql.NullBool
 		)
 		if err := s.conn.QueryRow(`
-				 SELECT instance_id, id, queue, method, params, scheduled_at, priority, key, submitted_at, claimed_at, heartbeat_at, finished_at, log, status, done, success
-					 FROM jobs
-					WHERE claimed_at IS NULL
-						AND scheduled_at <= $1
-						AND finished_at IS NULL
-						-- subtraction is to work around for ql, not being able to sort
-						-- multiple columns in different ways.
-			 ORDER BY (-1 * priority), scheduled_at, submitted_at
-					LIMIT 1`, now).Scan(
+			SELECT instance_id, id, queue, method, params,
+						 scheduled_at, priority, key, submitted_at,
+						 claimed_at, heartbeat_at, finished_at, log, status,
+						 done, success
+			FROM jobs
+
+			-- Only unclaimed/unfinished jobs are available
+			WHERE claimed_at IS NULL
+			AND finished_at IS NULL
+
+			-- Don't make jobs available until after they are scheduled
+			AND scheduled_at <= $1
+
+			-- Only one job at a time per instance
+			AND instance_id NOT IN (
+				SELECT instance_id
+				FROM jobs
+				WHERE claimed_at IS NOT NULL
+				AND finished_at IS NULL
+				GROUP BY instance_id
+			)
+
+			-- subtraction is to work around for ql, not being able to sort
+			-- multiple columns in different ways.
+			ORDER BY (-1 * priority), scheduled_at, submitted_at
+			LIMIT 1`,
+			now,
+		).Scan(
 			&instanceID,
 			&jobID,
 			&queue,
@@ -386,8 +405,10 @@ func (s *DatabaseStore) GC() error {
 
 		if _, err := s.conn.Exec(`
 			DELETE FROM jobs
-						WHERE finished_at IS NOT NULL
-							AND submitted_at < $1
+						WHERE (finished_at IS NOT NULL AND submitted_at < $1)
+						   OR (claimed_at IS NOT NULL
+							 AND claimed_at < $1
+							 AND (heartbeat_at IS NULL OR heartbeat_at < $1))
 		`, now.Add(-s.oldest)); err != nil {
 			return errors.Wrap(err, "deleting old jobs")
 		}
