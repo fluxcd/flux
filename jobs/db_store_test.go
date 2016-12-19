@@ -416,7 +416,7 @@ func TestDatabaseStoreFairScheduling(t *testing.T) {
 	// - It should be instance1's next job
 	job2, err := db.NextJob(nil)
 	bailIfErr(t, err)
-	// - It should be the highest priority
+	// - It should be the next job for instance1
 	if job2.ID != job2ID {
 		t.Errorf("Got an unexpected job id")
 	}
