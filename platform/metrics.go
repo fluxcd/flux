@@ -14,7 +14,7 @@ import (
 type Metrics struct {
 	AllServicesDuration  metrics.Histogram
 	SomeServicesDuration metrics.Histogram
-	RegradeDuration      metrics.Histogram
+	ReleaseDuration      metrics.Histogram
 	PingDuration         metrics.Histogram
 }
 
@@ -34,11 +34,11 @@ func NewMetrics() Metrics {
 			Help:      "SomeServices method duration in seconds.",
 			Buckets:   stdprometheus.DefBuckets,
 		}, []string{"success"}),
-		RegradeDuration: prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
+		ReleaseDuration: prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
 			Namespace: "flux",
 			Subsystem: "platform",
-			Name:      "regrade_duration_seconds",
-			Help:      "Regrade method duration in seconds.",
+			Name:      "release_duration_seconds",
+			Help:      "Release method duration in seconds.",
 			Buckets:   stdprometheus.DefBuckets,
 		}, []string{"success"}),
 		PingDuration: prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
@@ -79,13 +79,13 @@ func (i *instrumentedPlatform) SomeServices(ids []flux.ServiceID) (svcs []Servic
 	return i.p.SomeServices(ids)
 }
 
-func (i *instrumentedPlatform) Regrade(spec []RegradeSpec) (err error) {
+func (i *instrumentedPlatform) Release(spec []ReleaseSpec) (err error) {
 	defer func(begin time.Time) {
-		i.m.RegradeDuration.With(
+		i.m.ReleaseDuration.With(
 			"success", fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
 	}(time.Now())
-	return i.p.Regrade(spec)
+	return i.p.Release(spec)
 }
 
 func (i *instrumentedPlatform) Ping() (err error) {
