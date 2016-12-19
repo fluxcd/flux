@@ -13,7 +13,7 @@ func TestPlatformMock(t *testing.T) {
 		SomeServicesArgTest: func([]flux.ServiceID) error {
 			return errors.New("arg fail")
 		},
-		RegradeError: errors.New("fail"),
+		ReleaseError: errors.New("fail"),
 	}
 
 	// Just token tests so we're attempting _something_ here
@@ -30,7 +30,7 @@ func TestPlatformMock(t *testing.T) {
 		t.Error("expected error from args test, got nil")
 	}
 
-	err = p.Regrade([]RegradeSpec{})
+	err = p.Release([]ReleaseSpec{})
 	if err == nil {
 		t.Error("expected error, got nil")
 	}

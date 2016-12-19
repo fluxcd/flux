@@ -16,13 +16,13 @@ import (
 	"github.com/weaveworks/flux/platform"
 )
 
-func (c podController) newRegrade(newDefinition *apiObject) (*regrade, error) {
+func (c podController) newRelease(newDefinition *apiObject) (*release, error) {
 	k := c.kind()
 	if newDefinition.Kind != k {
 		return nil, fmt.Errorf(`Expected new definition of kind %q, to match old definition; got %q`, k, newDefinition.Kind)
 	}
 
-	var result regrade
+	var result release
 	if c.Deployment != nil {
 		result.exec = deploymentExec(c.Deployment, newDefinition)
 		result.summary = "Applying deployment"
@@ -86,7 +86,7 @@ func (c *Cluster) doReleaseCommand(logger log.Logger, newDefinition *apiObject, 
 	return err
 }
 
-func rollingUpgradeExec(def *api.ReplicationController, newDef *apiObject) regradeExecFunc {
+func rollingUpgradeExec(def *api.ReplicationController, newDef *apiObject) releaseExecFunc {
 	return func(c *Cluster, logger log.Logger) error {
 		return c.doReleaseCommand(
 			logger,
@@ -99,7 +99,7 @@ func rollingUpgradeExec(def *api.ReplicationController, newDef *apiObject) regra
 	}
 }
 
-func deploymentExec(def *apiext.Deployment, newDef *apiObject) regradeExecFunc {
+func deploymentExec(def *apiext.Deployment, newDef *apiObject) releaseExecFunc {
 	return func(c *Cluster, logger log.Logger) error {
 		err := c.doReleaseCommand(
 			logger,

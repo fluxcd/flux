@@ -36,10 +36,10 @@ type apiObject struct {
 	} `yaml:"metadata"`
 }
 
-type regradeExecFunc func(*Cluster, log.Logger) error
+type releaseExecFunc func(*Cluster, log.Logger) error
 
-type regrade struct {
-	exec    regradeExecFunc
+type release struct {
+	exec    releaseExecFunc
 	summary string
 }
 
@@ -171,7 +171,7 @@ func (c *Cluster) AllServices(namespace string, ignore flux.ServiceIDSet) (res [
 
 func (c *Cluster) makeService(ns string, service *api.Service, controllers []podController) platform.Service {
 	id := flux.MakeServiceID(ns, service.Name)
-	status, _ := c.status.getRegradeProgress(id)
+	status, _ := c.status.getReleaseProgress(id)
 	return platform.Service{
 		ID:         id,
 		IP:         service.Spec.ClusterIP,
@@ -301,26 +301,26 @@ func (p podController) matchedBy(selector map[string]string) bool {
 	return true
 }
 
-// Regrade performs service regrades as specified by the RegradeSpecs. If all
-// regrades succeed, Regrade returns a nil error. If any regrade fails, Regrade
-// returns an error of type RegradeError, which can be inspected for more
-// detailed information. Regrades are serialized per cluster.
+// Release performs service releases as specified by the ReleaseSpecs. If all
+// releases succeed, Release returns a nil error. If any release fails, Release
+// returns an error of type ReleaseError, which can be inspected for more
+// detailed information. Releases are serialized per cluster.
 //
-// Regrade assumes there is a one-to-one mapping between services and
-// replication controllers or deployments; this can be improved. Regrade blocks
-// until an update is complete; this can be improved. Regrade invokes `kubectl
+// Release assumes there is a one-to-one mapping between services and
+// replication controllers or deployments; this can be improved. Release blocks
+// until an update is complete; this can be improved. Release invokes `kubectl
 // rolling-update` or `kubectl apply` in a seperate process, and assumes kubectl
 // is in the PATH; this can be improved.
-func (c *Cluster) Regrade(specs []platform.RegradeSpec) error {
+func (c *Cluster) Release(specs []platform.ReleaseSpec) error {
 	errc := make(chan error)
 	c.actionc <- func() {
-		namespacedSpecs := map[string][]platform.RegradeSpec{}
+		namespacedSpecs := map[string][]platform.ReleaseSpec{}
 		for _, spec := range specs {
 			ns, _ := spec.ServiceID.Components()
 			namespacedSpecs[ns] = append(namespacedSpecs[ns], spec)
 		}
 
-		regradeErr := platform.RegradeError{}
+		releaseErr := platform.ReleaseError{}
 		for namespace, specs := range namespacedSpecs {
 			services := c.client.Services(namespace)
 
@@ -328,7 +328,7 @@ func (c *Cluster) Regrade(specs []platform.RegradeSpec) error {
 			if err != nil {
 				err = errors.Wrapf(err, "getting pod controllers for namespace %s", namespace)
 				for _, spec := range specs {
-					regradeErr[spec.ServiceID] = err
+					releaseErr[spec.ServiceID] = err
 				}
 				continue
 			}
@@ -336,41 +336,41 @@ func (c *Cluster) Regrade(specs []platform.RegradeSpec) error {
 			for _, spec := range specs {
 				newDef, err := definitionObj(spec.NewDefinition)
 				if err != nil {
-					regradeErr[spec.ServiceID] = errors.Wrap(err, "reading definition")
+					releaseErr[spec.ServiceID] = errors.Wrap(err, "reading definition")
 					continue
 				}
 
 				_, serviceName := spec.ServiceID.Components()
 				service, err := services.Get(serviceName)
 				if err != nil {
-					regradeErr[spec.ServiceID] = errors.Wrap(err, "getting service")
+					releaseErr[spec.ServiceID] = errors.Wrap(err, "getting service")
 					continue
 				}
 
 				controller, err := matchController(service, controllers)
 				if err != nil {
-					regradeErr[spec.ServiceID] = errors.Wrap(err, "getting pod controller")
+					releaseErr[spec.ServiceID] = errors.Wrap(err, "getting pod controller")
 					continue
 				}
 
-				plan, err := controller.newRegrade(newDef)
+				plan, err := controller.newRelease(newDef)
 				if err != nil {
-					regradeErr[spec.ServiceID] = errors.Wrap(err, "creating regrade")
+					releaseErr[spec.ServiceID] = errors.Wrap(err, "creating release")
 					continue
 				}
 
-				c.status.startRegrade(spec.ServiceID, plan)
-				defer c.status.endRegrade(spec.ServiceID)
+				c.status.startRelease(spec.ServiceID, plan)
+				defer c.status.endRelease(spec.ServiceID)
 
 				logger := log.NewContext(c.logger).With("method", "Release", "namespace", namespace, "service", serviceName)
 				if err = plan.exec(c, logger); err != nil {
-					regradeErr[spec.ServiceID] = errors.Wrapf(err, "releasing %s", spec.ServiceID)
+					releaseErr[spec.ServiceID] = errors.Wrapf(err, "releasing %s", spec.ServiceID)
 					continue
 				}
 			}
 		}
-		if len(regradeErr) > 0 {
-			errc <- regradeErr
+		if len(releaseErr) > 0 {
+			errc <- releaseErr
 			return
 		}
 		errc <- nil
@@ -391,23 +391,23 @@ func (c *Cluster) Ping() error {
 // --- end platform API
 
 type statusMap struct {
-	inProgress map[flux.ServiceID]*regrade
+	inProgress map[flux.ServiceID]*release
 	mx         sync.RWMutex
 }
 
 func newStatusMap() *statusMap {
 	return &statusMap{
-		inProgress: make(map[flux.ServiceID]*regrade),
+		inProgress: make(map[flux.ServiceID]*release),
 	}
 }
 
-func (m *statusMap) startRegrade(s flux.ServiceID, r *regrade) {
+func (m *statusMap) startRelease(s flux.ServiceID, r *release) {
 	m.mx.Lock()
 	defer m.mx.Unlock()
 	m.inProgress[s] = r
 }
 
-func (m *statusMap) getRegradeProgress(s flux.ServiceID) (string, bool) {
+func (m *statusMap) getReleaseProgress(s flux.ServiceID) (string, bool) {
 	m.mx.RLock()
 	defer m.mx.RUnlock()
 	if r, ok := m.inProgress[s]; ok {
@@ -416,7 +416,7 @@ func (m *statusMap) getRegradeProgress(s flux.ServiceID) (string, bool) {
 	return "", false
 }
 
-func (m *statusMap) endRegrade(s flux.ServiceID) {
+func (m *statusMap) endRelease(s flux.ServiceID) {
 	m.mx.Lock()
 	defer m.mx.Unlock()
 	delete(m.inProgress, s)

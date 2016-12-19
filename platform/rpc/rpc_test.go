@@ -29,8 +29,8 @@ func TestRPC(t *testing.T) {
 	services := flux.ServiceIDSet{}
 	services.Add(serviceList)
 
-	regrades := []platform.RegradeSpec{
-		platform.RegradeSpec{
+	releases := []platform.ReleaseSpec{
+		platform.ReleaseSpec{
 			ServiceID:     serviceID,
 			NewDefinition: []byte("imagine a definition here"),
 		},
@@ -72,13 +72,13 @@ func TestRPC(t *testing.T) {
 		},
 		SomeServicesAnswer: serviceAnswer,
 
-		RegradeArgTest: func(specs []platform.RegradeSpec) error {
-			if !reflect.DeepEqual(regrades, specs) {
+		ReleaseArgTest: func(specs []platform.ReleaseSpec) error {
+			if !reflect.DeepEqual(releases, specs) {
 				return fmt.Errorf("did not get expected args, got %+v", specs)
 			}
 			return nil
 		},
-		RegradeError: nil,
+		ReleaseError: nil,
 	}
 
 	clientConn, serverConn := pipes()
@@ -120,18 +120,18 @@ func TestRPC(t *testing.T) {
 		t.Error("expected error, got nil")
 	}
 
-	err = client.Regrade(regrades)
+	err = client.Release(releases)
 	if err != nil {
 		t.Error(err)
 	}
 
-	regradeErrors := platform.RegradeError{
+	releaseErrors := platform.ReleaseError{
 		serviceID: fmt.Errorf("it just failed"),
 	}
-	mock.RegradeError = regradeErrors
-	err = client.Regrade(regrades)
-	if !reflect.DeepEqual(err, regradeErrors) {
-		t.Errorf("expected RegradeError, got %#v", err)
+	mock.ReleaseError = releaseErrors
+	err = client.Release(releases)
+	if !reflect.DeepEqual(err, releaseErrors) {
+		t.Errorf("expected ReleaseError, got %#v", err)
 	}
 }
 

@@ -47,18 +47,18 @@ func (p *RPCClient) SomeServices(ids []flux.ServiceID) ([]platform.Service, erro
 	return s, err
 }
 
-// Regrade tells the remote platform to apply some regrade specs.
-func (p *RPCClient) Regrade(spec []platform.RegradeSpec) error {
-	var regradeErrors RegradeResult
-	if err := p.client.Call("RPCServer.Regrade", spec, &regradeErrors); err != nil {
+// Release tells the remote platform to apply some release specs.
+func (p *RPCClient) Release(spec []platform.ReleaseSpec) error {
+	var releaseErrors ReleaseResult
+	if err := p.client.Call("RPCServer.Release", spec, &releaseErrors); err != nil {
 		if _, ok := err.(rpc.ServerError); !ok && err != nil {
 			err = platform.FatalError{err}
 		}
 		return err
 	}
-	if len(regradeErrors) > 0 {
-		errs := platform.RegradeError{}
-		for s, e := range regradeErrors {
+	if len(releaseErrors) > 0 {
+		errs := platform.ReleaseError{}
+		for s, e := range releaseErrors {
 			errs[s] = errors.New(e)
 		}
 		return errs
