@@ -585,13 +585,13 @@ func (r *Releaser) releaseActionRegradeServices(services []flux.ServiceID, msg s
 				namespace, serviceName := service.Components()
 				switch serviceName {
 				case FluxServiceName, FluxDaemonName:
-					rc.Instance.LogEvent(namespace, serviceName, "Starting regrade (no result expected) "+cause)
+					rc.Instance.LogEvent(namespace, serviceName, "Starting "+cause+". (no result expected)")
 					asyncSpecs = append(asyncSpecs, platform.RegradeSpec{
 						ServiceID:     service,
 						NewDefinition: def,
 					})
 				default:
-					rc.Instance.LogEvent(namespace, serviceName, "Starting regrade "+cause)
+					rc.Instance.LogEvent(namespace, serviceName, "Starting "+cause)
 					specs = append(specs, platform.RegradeSpec{
 						ServiceID:     service,
 						NewDefinition: def,
@@ -623,9 +623,9 @@ func (r *Releaser) releaseActionRegradeServices(services []flux.ServiceID, msg s
 					continue
 				default:
 					if err := results[service]; err == nil { // no entry = nil error
-						rc.Instance.LogEvent(namespace, serviceName, "Regrade due to "+cause+": done")
+						rc.Instance.LogEvent(namespace, serviceName, msg+". done")
 					} else {
-						rc.Instance.LogEvent(namespace, serviceName, "Regrade due to "+cause+": failed: "+err.Error())
+						rc.Instance.LogEvent(namespace, serviceName, msg+". failed: "+err.Error())
 					}
 				}
 			}
