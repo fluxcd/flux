@@ -6,6 +6,7 @@ import (
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 
 	"github.com/weaveworks/flux"
+	fluxmetrics "github.com/weaveworks/flux/metrics"
 )
 
 type Metrics struct {
@@ -17,10 +18,8 @@ type Metrics struct {
 }
 
 const (
-	LabelInstanceID  = "instanceID"
 	LabelRepository  = "repository"
 	LabelRequestKind = "kind"
-	LabelSuccess     = "success"
 
 	RequestKindTags     = "tags"
 	RequestKindMetadata = "metadata"
@@ -34,19 +33,19 @@ func NewMetrics() Metrics {
 			Name:      "fetch_duration_seconds",
 			Help:      "Duration of image metadata fetches, in seconds.",
 			Buckets:   stdprometheus.DefBuckets,
-		}, []string{LabelInstanceID, LabelRepository, LabelSuccess}),
+		}, []string{fluxmetrics.LabelInstanceID, LabelRepository, fluxmetrics.LabelSuccess}),
 		RequestDuration: prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
 			Namespace: "flux",
 			Subsystem: "registry",
 			Name:      "request_duration_seconds",
 			Help:      "Duration of HTTP requests made in the course of fetching image metadata",
-		}, []string{LabelInstanceID, LabelRepository, LabelRequestKind, LabelSuccess}),
+		}, []string{fluxmetrics.LabelInstanceID, LabelRepository, LabelRequestKind, fluxmetrics.LabelSuccess}),
 	}
 }
 
 func (m Metrics) WithInstanceID(instanceID flux.InstanceID) Metrics {
 	return Metrics{
-		FetchDuration:   m.FetchDuration.With(LabelInstanceID, string(instanceID)),
-		RequestDuration: m.RequestDuration.With(LabelInstanceID, string(instanceID)),
+		FetchDuration:   m.FetchDuration.With(fluxmetrics.LabelInstanceID, string(instanceID)),
+		RequestDuration: m.RequestDuration.With(fluxmetrics.LabelInstanceID, string(instanceID)),
 	}
 }

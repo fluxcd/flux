@@ -19,6 +19,7 @@ import (
 	"golang.org/x/net/publicsuffix"
 
 	"github.com/weaveworks/flux"
+	fluxmetrics "github.com/weaveworks/flux/metrics"
 )
 
 const (
@@ -60,7 +61,7 @@ func (c *Client) GetRepository(repository string) (_ []flux.ImageDescription, er
 	defer func(start time.Time) {
 		c.Metrics.FetchDuration.With(
 			LabelRepository, repository,
-			LabelSuccess, strconv.FormatBool(err == nil),
+			fluxmetrics.LabelSuccess, strconv.FormatBool(err == nil),
 		).Observe(time.Since(start).Seconds())
 	}(time.Now())
 
@@ -120,7 +121,7 @@ func (c *Client) GetRepository(repository string) (_ []flux.ImageDescription, er
 	c.Metrics.RequestDuration.With(
 		LabelRepository, repository,
 		LabelRequestKind, RequestKindTags,
-		LabelSuccess, strconv.FormatBool(err == nil),
+		fluxmetrics.LabelSuccess, strconv.FormatBool(err == nil),
 	).Observe(time.Since(start).Seconds())
 	if err != nil {
 		cancel()
@@ -146,7 +147,7 @@ func (c *Client) lookupImage(client *dockerregistry.Registry, lookupName, imageN
 	c.Metrics.RequestDuration.With(
 		LabelRepository, imageName,
 		LabelRequestKind, RequestKindMetadata,
-		LabelSuccess, strconv.FormatBool(err == nil),
+		fluxmetrics.LabelSuccess, strconv.FormatBool(err == nil),
 	).Observe(time.Since(start).Seconds())
 	if err != nil {
 		return img, err

@@ -9,11 +9,7 @@ import (
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 
 	"github.com/weaveworks/flux"
-)
-
-const (
-	LabelMethod  = "method"
-	LabelSuccess = "success"
+	fluxmetrics "github.com/weaveworks/flux/metrics"
 )
 
 type Metrics struct {
@@ -28,7 +24,7 @@ func NewMetrics() Metrics {
 			Name:      "request_duration_seconds",
 			Help:      "Request duration in seconds.",
 			Buckets:   stdprometheus.DefBuckets,
-		}, []string{LabelMethod, LabelSuccess}),
+		}, []string{fluxmetrics.LabelMethod, fluxmetrics.LabelSuccess}),
 	}
 }
 
@@ -44,8 +40,8 @@ func Instrument(p Platform, m Metrics) Platform {
 func (i *instrumentedPlatform) AllServices(maybeNamespace string, ignored flux.ServiceIDSet) (svcs []Service, err error) {
 	defer func(begin time.Time) {
 		i.m.RequestDuration.With(
-			LabelMethod, "AllServices",
-			LabelSuccess, fmt.Sprint(err == nil),
+			fluxmetrics.LabelMethod, "AllServices",
+			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
 	}(time.Now())
 	return i.p.AllServices(maybeNamespace, ignored)
@@ -54,8 +50,8 @@ func (i *instrumentedPlatform) AllServices(maybeNamespace string, ignored flux.S
 func (i *instrumentedPlatform) SomeServices(ids []flux.ServiceID) (svcs []Service, err error) {
 	defer func(begin time.Time) {
 		i.m.RequestDuration.With(
-			LabelMethod, "SomeServices",
-			LabelSuccess, fmt.Sprint(err == nil),
+			fluxmetrics.LabelMethod, "SomeServices",
+			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
 	}(time.Now())
 	return i.p.SomeServices(ids)
@@ -64,8 +60,8 @@ func (i *instrumentedPlatform) SomeServices(ids []flux.ServiceID) (svcs []Servic
 func (i *instrumentedPlatform) Apply(defs []ServiceDefinition) (err error) {
 	defer func(begin time.Time) {
 		i.m.RequestDuration.With(
-			LabelMethod, "Release",
-			LabelSuccess, fmt.Sprint(err == nil),
+			fluxmetrics.LabelMethod, "Release",
+			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
 	}(time.Now())
 	return i.p.Apply(defs)
@@ -74,8 +70,8 @@ func (i *instrumentedPlatform) Apply(defs []ServiceDefinition) (err error) {
 func (i *instrumentedPlatform) Ping() (err error) {
 	defer func(begin time.Time) {
 		i.m.RequestDuration.With(
-			LabelMethod, "Ping",
-			LabelSuccess, fmt.Sprint(err == nil),
+			fluxmetrics.LabelMethod, "Ping",
+			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
 	}(time.Now())
 	return i.p.Ping()
@@ -93,10 +89,10 @@ func NewBusMetrics() BusMetrics {
 			Subsystem: "bus",
 			Name:      "kick_total",
 			Help:      "Count of bus subscriptions kicked off by a newer subscription.",
-		}, []string{"instanceID"}),
+		}, []string{fluxmetrics.LabelInstanceID}),
 	}
 }
 
 func (m BusMetrics) IncrKicks(inst flux.InstanceID) {
-	m.KickCount.With("instanceID", string(inst)).Add(1)
+	m.KickCount.With(fluxmetrics.LabelInstanceID, string(inst)).Add(1)
 }
