@@ -59,6 +59,11 @@ func (p *RPCServer) SomeServices(ids []flux.ServiceID, resp *[]platform.Service)
 	return err
 }
 
+// Regrade is still around for backwards compatibility, though it is called "Release" everywhere else.
+func (p *RPCServer) Regrade(spec []platform.ReleaseSpec, releaseResult *ReleaseResult) error {
+	return p.Release(spec, releaseResult)
+}
+
 func (p *RPCServer) Release(spec []platform.ReleaseSpec, releaseResult *ReleaseResult) error {
 	result := ReleaseResult{}
 	err := p.p.Release(spec)
