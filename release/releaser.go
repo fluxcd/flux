@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/metrics"
 	"github.com/pkg/errors"
 
@@ -128,6 +129,8 @@ func (r *Releaser) Handle(job *jobs.Job, updater jobs.JobUpdater) (err error) {
 	if err != nil {
 		return err
 	}
+
+	inst.Logger = log.NewContext(inst.Logger).With("job", job.ID)
 
 	updateJob := func(format string, args ...interface{}) {
 		status := fmt.Sprintf(format, args...)

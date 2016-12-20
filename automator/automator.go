@@ -70,6 +70,7 @@ func (a *Automator) checkAll(errorLogger log.Logger) {
 }
 
 func (a *Automator) Handle(j *jobs.Job, _ jobs.JobUpdater) error {
+	logger := log.NewContext(a.cfg.Logger).With("job", j.ID)
 	params := j.Params.(jobs.AutomatedServiceJobParams)
 
 	serviceID, err := flux.ParseServiceID(string(params.ServiceSpec))
@@ -82,7 +83,7 @@ func (a *Automator) Handle(j *jobs.Job, _ jobs.JobUpdater) error {
 	config, err := a.cfg.InstanceDB.GetConfig(j.Instance)
 	if err != nil {
 		if err2 := a.reschedule(j); err2 != nil {
-			a.cfg.Logger.Log("err", err2) // abnormal
+			logger.Log("err", err2) // abnormal
 		}
 		return errors.Wrap(err, "getting instance config")
 	}
@@ -105,7 +106,7 @@ func (a *Automator) Handle(j *jobs.Job, _ jobs.JobUpdater) error {
 			Kind:        flux.ReleaseKindExecute,
 		},
 	}); err != nil {
-		a.cfg.Logger.Log("err", errors.Wrap(err, "put automated release job")) // abnormal
+		logger.Log("err", errors.Wrap(err, "put automated release job")) // abnormal
 	}
 
 	return a.reschedule(j)
