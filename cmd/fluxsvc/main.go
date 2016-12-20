@@ -26,6 +26,7 @@ import (
 	"github.com/weaveworks/flux/jobs"
 	"github.com/weaveworks/flux/platform"
 	"github.com/weaveworks/flux/platform/rpc/nats"
+	"github.com/weaveworks/flux/registry"
 	"github.com/weaveworks/flux/release"
 	"github.com/weaveworks/flux/server"
 )
@@ -79,14 +80,15 @@ func main() {
 
 	// Instrumentation
 	var (
-		httpDuration    metrics.Histogram
-		serverMetrics   server.Metrics
-		releaseMetrics  release.Metrics
-		helperDuration  metrics.Histogram
 		busMetrics      platform.BusMetrics
+		helperDuration  metrics.Histogram
 		historyMetrics  history.Metrics
+		httpDuration    metrics.Histogram
 		instanceMetrics instance.Metrics
 		jobMetrics      jobs.Metrics
+		registryMetrics registry.Metrics
+		releaseMetrics  release.Metrics
+		serverMetrics   server.Metrics
 	)
 	{
 		httpDuration = prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
@@ -159,6 +161,7 @@ func main() {
 			Help:      "Duration in seconds of a variety of release helper methods.",
 			Buckets:   stdprometheus.DefBuckets,
 		}, []string{"method", "success"})
+		registryMetrics = registry.NewMetrics()
 		busMetrics = platform.NewBusMetrics()
 		historyMetrics = history.NewMetrics()
 		instanceMetrics = instance.NewMetrics()
@@ -206,11 +209,12 @@ func main() {
 	{
 		// Instancer, for the instancing of operations
 		instancer = &instance.MultitenantInstancer{
-			DB:        instanceDB,
-			Connecter: messageBus,
-			Logger:    logger,
-			Histogram: helperDuration,
-			History:   historyDB,
+			DB:              instanceDB,
+			Connecter:       messageBus,
+			Logger:          logger,
+			Histogram:       helperDuration,
+			History:         historyDB,
+			RegistryMetrics: registryMetrics,
 		}
 	}
 
