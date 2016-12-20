@@ -73,7 +73,7 @@ func (c *Cluster) doReleaseCommand(logger log.Logger, newDefinition *apiObject, 
 	cmd.Stdin = bytes.NewReader(newDefinition.bytes)
 	stderr := &bytes.Buffer{}
 	cmd.Stderr = stderr
-	logger.Log("cmd", strings.Join(cmd.Args, " "))
+	logger.Log("cmd", strings.Join(args, " "))
 
 	begin := time.Now()
 	err := cmd.Run()
@@ -109,12 +109,13 @@ func deploymentExec(def *apiext.Deployment, newDef *apiObject) regradeExecFunc {
 		)
 
 		if err == nil {
-			cmd := c.kubectlCommand(
+			args := []string{
 				"rollout", "status",
 				"deployment", newDef.Metadata.Name,
 				"--namespace", newDef.Metadata.Namespace,
-			)
-			logger.Log("cmd", strings.Join(cmd.Args, " "))
+			}
+			cmd := c.kubectlCommand(args...)
+			logger.Log("cmd", strings.Join(args, " "))
 			err = cmd.Run()
 		}
 		return err
