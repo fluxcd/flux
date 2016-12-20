@@ -50,7 +50,7 @@ func (p *RPCClient) SomeServices(ids []flux.ServiceID) ([]platform.Service, erro
 // Release tells the remote platform to apply some release specs.
 func (p *RPCClient) Release(spec []platform.ReleaseSpec) error {
 	var releaseErrors ReleaseResult
-	if err := p.client.Call("RPCServer.Release", spec, &releaseErrors); err != nil {
+	if err := p.client.Call("RPCServer.Regrade", spec, &releaseErrors); err != nil {
 		if _, ok := err.(rpc.ServerError); !ok && err != nil {
 			err = platform.FatalError{err}
 		}
