@@ -109,20 +109,14 @@ func deploymentExec(def *apiext.Deployment, newDef *apiObject) regradeExecFunc {
 		)
 
 		if err == nil {
-			cmd := c.kubectlCommand(
+			args := []string{
 				"rollout", "status",
 				"deployment", newDef.Metadata.Name,
 				"--namespace", newDef.Metadata.Namespace,
-			)
+			}
+			cmd := c.kubectlCommand(args...)
+			logger.Log("cmd", strings.Join(args, " "))
 			err = cmd.Run()
-			logger.Log(
-				"cmd",
-				fmt.Sprintf(
-					"rollout status deployment %q --namespace %q",
-					newDef.Metadata.Name,
-					newDef.Metadata.Namespace,
-				),
-			)
 		}
 		return err
 	}
