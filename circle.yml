@@ -26,13 +26,16 @@ dependencies:
     - "~/flux/vendor/gopkg.in"
     - "~/flux/vendor/golang.org"
     - "~/download"
-  override: 
+  override:
     - go get github.com/Masterminds/glide
     - go get github.com/FiloSottile/gvt
+    - go get github.com/nats-io/gnatsd
     - gvt restore
 
 test:
   override:
+    - gnatsd:
+        background: true
     - go build -v $(glide novendor)
     - go test -v -race $(glide novendor)
   post:

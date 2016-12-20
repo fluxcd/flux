@@ -96,3 +96,23 @@ func (i *instrumentedPlatform) Ping() (err error) {
 	}(time.Now())
 	return i.p.Ping()
 }
+
+// BusMetrics has metrics for messages buses.
+type BusMetrics struct {
+	KickCount metrics.Counter
+}
+
+func NewBusMetrics() BusMetrics {
+	return BusMetrics{
+		KickCount: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
+			Namespace: "flux",
+			Subsystem: "bus",
+			Name:      "kick_total",
+			Help:      "Count of bus subscriptions kicked off by a newer subscription.",
+		}, []string{"instanceID"}),
+	}
+}
+
+func (m BusMetrics) IncrKicks(inst flux.InstanceID) {
+	m.KickCount.With("instanceID", string(inst)).Add(1)
+}

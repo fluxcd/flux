@@ -3,16 +3,11 @@ package jobs
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
-	"math/rand"
 	"time"
 
 	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/guid"
 )
-
-func init() {
-	rand.Seed(time.Now().UnixNano())
-}
 
 const (
 	// DefaultQueue is the queue to use if none is set.
@@ -67,13 +62,7 @@ type JobPopper interface {
 type JobID string
 
 func NewJobID() JobID {
-	b := make([]byte, 16)
-	rand.Read(b)
-	return JobID(fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:]))
-}
-
-func init() {
-	rand.Seed(time.Now().UnixNano())
+	return JobID(guid.New())
 }
 
 // Job describes a worker job

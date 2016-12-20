@@ -25,6 +25,7 @@ import (
 	instancedb "github.com/weaveworks/flux/instance/sql"
 	"github.com/weaveworks/flux/jobs"
 	"github.com/weaveworks/flux/platform"
+	"github.com/weaveworks/flux/platform/rpc/nats"
 	"github.com/weaveworks/flux/release"
 	"github.com/weaveworks/flux/server"
 )
@@ -46,6 +47,7 @@ func main() {
 		listenAddr            = fs.StringP("listen", "l", ":3030", "Listen address for Flux API clients")
 		databaseSource        = fs.String("database-source", "file://fluxy.db", `Database source name; includes the DB driver as the scheme. The default is a temporary, file-based DB`)
 		databaseMigrationsDir = fs.String("database-migrations", "./db/migrations", "Path to database migration scripts, which are in subdirectories named for each driver")
+		natsURL               = fs.String("nats-url", "", `URL on which to connect to NATS, or empty to use the standalone message bus (e.g., "nats://user:pass@nats:4222")`)
 	)
 	fs.Parse(os.Args)
 
@@ -81,6 +83,7 @@ func main() {
 		serverMetrics  server.Metrics
 		releaseMetrics release.Metrics
 		helperDuration metrics.Histogram
+		busMetrics     platform.BusMetrics
 	)
 	{
 		httpDuration = prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
@@ -153,11 +156,23 @@ func main() {
 			Help:      "Duration in seconds of a variety of release helper methods.",
 			Buckets:   stdprometheus.DefBuckets,
 		}, []string{"method", "success"})
+		busMetrics = platform.NewBusMetrics()
 	}
 
 	var messageBus platform.MessageBus
 	{
-		messageBus = platform.NewStandaloneMessageBus()
+		if *natsURL != "" {
+			bus, err := nats.NewMessageBus(*natsURL, busMetrics)
+			if err != nil {
+				logger.Log("component", "message bus", "err", err)
+				os.Exit(1)
+			}
+			logger.Log("component", "message bus", "type", "NATS")
+			messageBus = bus
+		} else {
+			messageBus = platform.NewStandaloneMessageBus(busMetrics)
+			logger.Log("component", "message bus", "type", "standalone")
+		}
 	}
 
 	var historyDB history.DB
