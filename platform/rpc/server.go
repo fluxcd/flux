@@ -11,7 +11,7 @@ import (
 
 // net/rpc cannot serialise errors, so we transmit strings and
 // reconstitute them on the other side.
-type ReleaseResult map[flux.ServiceID]string
+type ApplyResult map[flux.ServiceID]string
 
 // Server takes a platform and makes it available over RPC.
 type Server struct {
@@ -59,23 +59,23 @@ func (p *RPCServer) SomeServices(ids []flux.ServiceID, resp *[]platform.Service)
 	return err
 }
 
-// Regrade is still around for backwards compatibility, though it is called "Release" everywhere else.
-func (p *RPCServer) Regrade(spec []platform.ReleaseSpec, releaseResult *ReleaseResult) error {
-	return p.Release(spec, releaseResult)
+// Regrade is still around for backwards compatibility, though it is called "Apply" everywhere else.
+func (p *RPCServer) Regrade(defs []platform.ServiceDefinition, applyResult *ApplyResult) error {
+	return p.Apply(defs, applyResult)
 }
 
-func (p *RPCServer) Release(spec []platform.ReleaseSpec, releaseResult *ReleaseResult) error {
-	result := ReleaseResult{}
-	err := p.p.Release(spec)
+func (p *RPCServer) Apply(defs []platform.ServiceDefinition, applyResult *ApplyResult) error {
+	result := ApplyResult{}
+	err := p.p.Apply(defs)
 	if err != nil {
-		switch releaseErr := err.(type) {
-		case platform.ReleaseError:
-			for s, e := range releaseErr {
+		switch applyErr := err.(type) {
+		case platform.ApplyError:
+			for s, e := range applyErr {
 				result[s] = e.Error()
 			}
 			err = nil
 		}
 	}
-	*releaseResult = result
+	*applyResult = result
 	return err
 }

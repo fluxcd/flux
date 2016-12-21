@@ -29,8 +29,8 @@ func TestRPC(t *testing.T) {
 	services := flux.ServiceIDSet{}
 	services.Add(serviceList)
 
-	releases := []platform.ReleaseSpec{
-		platform.ReleaseSpec{
+	expectedDefs := []platform.ServiceDefinition{
+		{
 			ServiceID:     serviceID,
 			NewDefinition: []byte("imagine a definition here"),
 		},
@@ -72,13 +72,13 @@ func TestRPC(t *testing.T) {
 		},
 		SomeServicesAnswer: serviceAnswer,
 
-		ReleaseArgTest: func(specs []platform.ReleaseSpec) error {
-			if !reflect.DeepEqual(releases, specs) {
-				return fmt.Errorf("did not get expected args, got %+v", specs)
+		ApplyArgTest: func(defs []platform.ServiceDefinition) error {
+			if !reflect.DeepEqual(expectedDefs, defs) {
+				return fmt.Errorf("did not get expected args, got %+v", defs)
 			}
 			return nil
 		},
-		ReleaseError: nil,
+		ApplyError: nil,
 	}
 
 	clientConn, serverConn := pipes()
@@ -120,18 +120,18 @@ func TestRPC(t *testing.T) {
 		t.Error("expected error, got nil")
 	}
 
-	err = client.Release(releases)
+	err = client.Apply(expectedDefs)
 	if err != nil {
 		t.Error(err)
 	}
 
-	releaseErrors := platform.ReleaseError{
+	applyErrors := platform.ApplyError{
 		serviceID: fmt.Errorf("it just failed"),
 	}
-	mock.ReleaseError = releaseErrors
-	err = client.Release(releases)
-	if !reflect.DeepEqual(err, releaseErrors) {
-		t.Errorf("expected ReleaseError, got %#v", err)
+	mock.ApplyError = applyErrors
+	err = client.Apply(expectedDefs)
+	if !reflect.DeepEqual(err, applyErrors) {
+		t.Errorf("expected ApplyError, got %#v", err)
 	}
 }
 

@@ -117,13 +117,13 @@ func (p *removeablePlatform) SomeServices(ids []flux.ServiceID) (s []Service, er
 	return p.remote.SomeServices(ids)
 }
 
-func (p *removeablePlatform) Release(spec []ReleaseSpec) (err error) {
+func (p *removeablePlatform) Apply(defs []ServiceDefinition) (err error) {
 	defer func() {
 		if _, ok := err.(FatalError); ok {
 			p.closeWithError(err)
 		}
 	}()
-	return p.remote.Release(spec)
+	return p.remote.Apply(defs)
 }
 
 func (p *removeablePlatform) Ping() (err error) {
@@ -145,7 +145,7 @@ func (p disconnectedPlatform) SomeServices([]flux.ServiceID) ([]Service, error) 
 	return nil, ErrPlatformNotAvailable
 }
 
-func (p disconnectedPlatform) Release([]ReleaseSpec) error {
+func (p disconnectedPlatform) Apply([]ServiceDefinition) error {
 	return ErrPlatformNotAvailable
 }
 

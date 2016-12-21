@@ -301,76 +301,76 @@ func (p podController) matchedBy(selector map[string]string) bool {
 	return true
 }
 
-// Release performs service releases as specified by the ReleaseSpecs. If all
-// releases succeed, Release returns a nil error. If any release fails, Release
-// returns an error of type ReleaseError, which can be inspected for more
-// detailed information. Releases are serialized per cluster.
+// Apply applies a new set of ServiceDefinition. If all definitions succeed,
+// Apply returns a nil error. If any definitions fail, Apply returns an error
+// of type ApplyError, which can be inspected for more detailed information.
+// Applies are serialized per cluster.
 //
-// Release assumes there is a one-to-one mapping between services and
-// replication controllers or deployments; this can be improved. Release blocks
-// until an update is complete; this can be improved. Release invokes `kubectl
-// rolling-update` or `kubectl apply` in a seperate process, and assumes kubectl
-// is in the PATH; this can be improved.
-func (c *Cluster) Release(specs []platform.ReleaseSpec) error {
+// Apply assumes there is a one-to-one mapping between services and replication
+// controllers or deployments; this can be improved. Apply blocks until an
+// update is complete; this can be improved. Apply invokes `kubectl
+// rolling-update` or `kubectl apply` in a seperate process, and assumes
+// kubectl is in the PATH; this can be improved.
+func (c *Cluster) Apply(defs []platform.ServiceDefinition) error {
 	errc := make(chan error)
 	c.actionc <- func() {
-		namespacedSpecs := map[string][]platform.ReleaseSpec{}
-		for _, spec := range specs {
-			ns, _ := spec.ServiceID.Components()
-			namespacedSpecs[ns] = append(namespacedSpecs[ns], spec)
+		namespacedDefs := map[string][]platform.ServiceDefinition{}
+		for _, def := range defs {
+			ns, _ := def.ServiceID.Components()
+			namespacedDefs[ns] = append(namespacedDefs[ns], def)
 		}
 
-		releaseErr := platform.ReleaseError{}
-		for namespace, specs := range namespacedSpecs {
+		applyErr := platform.ApplyError{}
+		for namespace, defs := range namespacedDefs {
 			services := c.client.Services(namespace)
 
 			controllers, err := c.podControllersInNamespace(namespace)
 			if err != nil {
 				err = errors.Wrapf(err, "getting pod controllers for namespace %s", namespace)
-				for _, spec := range specs {
-					releaseErr[spec.ServiceID] = err
+				for _, def := range defs {
+					applyErr[def.ServiceID] = err
 				}
 				continue
 			}
 
-			for _, spec := range specs {
-				newDef, err := definitionObj(spec.NewDefinition)
+			for _, def := range defs {
+				newDef, err := definitionObj(def.NewDefinition)
 				if err != nil {
-					releaseErr[spec.ServiceID] = errors.Wrap(err, "reading definition")
+					applyErr[def.ServiceID] = errors.Wrap(err, "reading definition")
 					continue
 				}
 
-				_, serviceName := spec.ServiceID.Components()
+				_, serviceName := def.ServiceID.Components()
 				service, err := services.Get(serviceName)
 				if err != nil {
-					releaseErr[spec.ServiceID] = errors.Wrap(err, "getting service")
+					applyErr[def.ServiceID] = errors.Wrap(err, "getting service")
 					continue
 				}
 
 				controller, err := matchController(service, controllers)
 				if err != nil {
-					releaseErr[spec.ServiceID] = errors.Wrap(err, "getting pod controller")
+					applyErr[def.ServiceID] = errors.Wrap(err, "getting pod controller")
 					continue
 				}
 
 				plan, err := controller.newRelease(newDef)
 				if err != nil {
-					releaseErr[spec.ServiceID] = errors.Wrap(err, "creating release")
+					applyErr[def.ServiceID] = errors.Wrap(err, "creating release")
 					continue
 				}
 
-				c.status.startRelease(spec.ServiceID, plan)
-				defer c.status.endRelease(spec.ServiceID)
+				c.status.startRelease(def.ServiceID, plan)
+				defer c.status.endRelease(def.ServiceID)
 
-				logger := log.NewContext(c.logger).With("method", "Release", "namespace", namespace, "service", serviceName)
+				logger := log.NewContext(c.logger).With("method", "Apply", "namespace", namespace, "service", serviceName)
 				if err = plan.exec(c, logger); err != nil {
-					releaseErr[spec.ServiceID] = errors.Wrapf(err, "releasing %s", spec.ServiceID)
+					applyErr[def.ServiceID] = errors.Wrapf(err, "applying definition to %s", def.ServiceID)
 					continue
 				}
 			}
 		}
-		if len(releaseErr) > 0 {
-			errc <- releaseErr
+		if len(applyErr) > 0 {
+			errc <- applyErr
 			return
 		}
 		errc <- nil
