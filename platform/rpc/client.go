@@ -47,18 +47,20 @@ func (p *RPCClient) SomeServices(ids []flux.ServiceID) ([]platform.Service, erro
 	return s, err
 }
 
-// Release tells the remote platform to apply some release specs.
-func (p *RPCClient) Release(spec []platform.ReleaseSpec) error {
-	var releaseErrors ReleaseResult
-	if err := p.client.Call("RPCServer.Regrade", spec, &releaseErrors); err != nil {
+// Apply tells the remote platform to apply some new service definitions.
+func (p *RPCClient) Apply(defs []platform.ServiceDefinition) error {
+	var applyErrors ApplyResult
+	// TODO: This is still calling "Regrade" for backwards compatibility with old
+	// fluxds. Change this to "Apply" when we do a major version release.
+	if err := p.client.Call("RPCServer.Regrade", defs, &applyErrors); err != nil {
 		if _, ok := err.(rpc.ServerError); !ok && err != nil {
 			err = platform.FatalError{err}
 		}
 		return err
 	}
-	if len(releaseErrors) > 0 {
-		errs := platform.ReleaseError{}
-		for s, e := range releaseErrors {
+	if len(applyErrors) > 0 {
+		errs := platform.ApplyError{}
+		for s, e := range applyErrors {
 			errs[s] = errors.New(e)
 		}
 		return errs

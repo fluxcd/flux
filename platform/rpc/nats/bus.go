@@ -15,16 +15,16 @@ import (
 )
 
 const (
-	timeout        = 5 * time.Second
-	regradeTimeout = 20 * time.Minute
-	presenceTick   = 50 * time.Millisecond
-	encoderType    = nats.JSON_ENCODER
+	timeout      = 5 * time.Second
+	applyTimeout = 20 * time.Minute
+	presenceTick = 50 * time.Millisecond
+	encoderType  = nats.JSON_ENCODER
 
 	methodKick         = ".Platform.Kick"
 	methodPing         = ".Platform.Ping"
 	methodAllServices  = ".Platform.AllServices"
 	methodSomeServices = ".Platform.SomeServices"
-	methodRegrade      = ".Platform.Regrade"
+	methodApply        = ".Platform.Apply"
 )
 
 type NATS struct {
@@ -105,8 +105,8 @@ type SomeServicesResponse struct {
 	ErrorResponse
 }
 
-type RegradeResponse struct {
-	Result fluxrpc.RegradeResult
+type ApplyResponse struct {
+	Result fluxrpc.ApplyResult
 	ErrorResponse
 }
 
@@ -160,21 +160,21 @@ func (r *natsPlatform) SomeServices(incl []flux.ServiceID) ([]platform.Service, 
 	return response.Services, extractError(response.ErrorResponse)
 }
 
-// Call Regrade on the remote platform. Note that we use a much longer
-// timeout, because for now at least, Regrades can take an arbitrary
+// Call Apply on the remote platform. Note that we use a much longer
+// timeout, because for now at least, Applys can take an arbitrary
 // amount of time, and we don't want to return an error if it's simply
 // taking a while. The downside is that if the platform is actually
 // not present, this won't return at all. This is somewhat mitigated
-// because regrades are done after other RPCs which have the normal
-// timeout, but better would be to split Regrades into RPCs which can
+// because applys are done after other RPCs which have the normal
+// timeout, but better would be to split Applys into RPCs which can
 // each have a short timeout.
-func (r *natsPlatform) Regrade(specs []platform.RegradeSpec) error {
-	var response RegradeResponse
-	if err := r.conn.Request(r.instance+methodRegrade, specs, &response, regradeTimeout); err != nil {
+func (r *natsPlatform) Apply(specs []platform.ServiceDefinition) error {
+	var response ApplyResponse
+	if err := r.conn.Request(r.instance+methodApply, specs, &response, applyTimeout); err != nil {
 		return err
 	}
 	if len(response.Result) > 0 {
-		errs := platform.RegradeError{}
+		errs := platform.ApplyError{}
 		for s, e := range response.Result {
 			errs[s] = errors.New(e)
 		}
@@ -261,19 +261,19 @@ func (n *NATS) Subscribe(instID flux.InstanceID, remote platform.Platform, done 
 					res, err = remote.SomeServices(req)
 				}
 				n.enc.Publish(request.Reply, SomeServicesResponse{res, makeErrorResponse(err)})
-			case strings.HasSuffix(request.Subject, methodRegrade):
+			case strings.HasSuffix(request.Subject, methodApply):
 				var (
-					req []platform.RegradeSpec
+					req []platform.ServiceDefinition
 				)
 				err = encoder.Decode(request.Subject, request.Data, &req)
 				if err == nil {
-					err = remote.Regrade(req)
+					err = remote.Apply(req)
 				}
-				response := RegradeResponse{}
-				switch regradeErr := err.(type) {
-				case platform.RegradeError:
-					result := fluxrpc.RegradeResult{}
-					for s, e := range regradeErr {
+				response := ApplyResponse{}
+				switch applyErr := err.(type) {
+				case platform.ApplyError:
+					result := fluxrpc.ApplyResult{}
+					for s, e := range applyErr {
 						result[s] = e.Error()
 					}
 					response.Result = result

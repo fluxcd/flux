@@ -61,14 +61,14 @@ func (i *instrumentedPlatform) SomeServices(ids []flux.ServiceID) (svcs []Servic
 	return i.p.SomeServices(ids)
 }
 
-func (i *instrumentedPlatform) Release(spec []ReleaseSpec) (err error) {
+func (i *instrumentedPlatform) Apply(defs []ServiceDefinition) (err error) {
 	defer func(begin time.Time) {
 		i.m.RequestDuration.With(
 			LabelMethod, "Release",
 			LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
 	}(time.Now())
-	return i.p.Release(spec)
+	return i.p.Apply(defs)
 }
 
 func (i *instrumentedPlatform) Ping() (err error) {
