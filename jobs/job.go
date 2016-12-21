@@ -19,6 +19,9 @@ const (
 	// AutomatedServiceJob is the method for a check automated service job
 	AutomatedServiceJob = "automated_service"
 
+	// AutomatedInstanceJob is the method for a check automated instance job
+	AutomatedInstanceJob = "automated_instance"
+
 	// PriorityBackground is priority for background jobs
 	PriorityBackground = 100
 
@@ -158,7 +161,11 @@ type ReleaseJobParams struct {
 }
 
 // AutomatedServiceJobParams are the params for a automated_service job
-// job
 type AutomatedServiceJobParams struct {
 	ServiceSpec flux.ServiceSpec
+}
+
+// AutomatedInstanceJobParams are the params for an automated_instance job
+type AutomatedInstanceJobParams struct {
+	InstanceID flux.InstanceID
 }

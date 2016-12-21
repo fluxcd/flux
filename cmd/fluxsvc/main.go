@@ -226,6 +226,7 @@ func main() {
 		auto, err = automator.New(automator.Config{
 			Jobs:       jobStore,
 			InstanceDB: instanceDB,
+			Instancer:  instancer,
 			Logger:     log.NewContext(logger).With("component", "automator"),
 		})
 		if err == nil {
@@ -243,6 +244,7 @@ func main() {
 		logger := log.NewContext(logger).With("component", "worker")
 		worker := jobs.NewWorker(jobStore, logger)
 		worker.Register(jobs.AutomatedServiceJob, auto)
+		worker.Register(jobs.AutomatedInstanceJob, auto)
 		worker.Register(jobs.ReleaseJob, release.NewReleaser(instancer, releaseMetrics))
 
 		defer func() {

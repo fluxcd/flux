@@ -1,6 +1,7 @@
 package automator
 
 import (
+	"fmt"
 	"strings"
 	"time"
 
@@ -8,7 +9,9 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/instance"
 	"github.com/weaveworks/flux/jobs"
+	"github.com/weaveworks/flux/platform/kubernetes"
 )
 
 const (
@@ -45,59 +48,77 @@ func (a *Automator) checkAll(errorLogger log.Logger) {
 		return
 	}
 	for _, inst := range insts {
-		for service, conf := range inst.Config.Services {
-			if conf.Policy() != flux.PolicyAutomated {
-				continue
-			}
-			_, err := a.cfg.Jobs.PutJob(inst.ID, jobs.Job{
-				// Key stops us getting two jobs for the same service
-				Key: strings.Join([]string{
-					jobs.AutomatedServiceJob,
-					string(inst.ID),
-					string(service),
-				}, "|"),
-				Method:   jobs.AutomatedServiceJob,
-				Priority: jobs.PriorityBackground,
-				Params: jobs.AutomatedServiceJobParams{
-					ServiceSpec: flux.ServiceSpec(service),
-				},
-			})
-			if err != nil && err != jobs.ErrJobAlreadyQueued {
-				errorLogger.Log("err", errors.Wrapf(err, "queueing automated service job"))
-			}
+		if !a.hasAutomatedServices(inst.Config.Services) {
+			continue
+		}
+
+		_, err := a.cfg.Jobs.PutJob(inst.ID, jobs.Job{
+			// Key stops us getting two jobs for the same service
+			Key: strings.Join([]string{
+				jobs.AutomatedInstanceJob,
+				string(inst.ID),
+			}, "|"),
+			Method:   jobs.AutomatedInstanceJob,
+			Priority: jobs.PriorityBackground,
+			Params: jobs.AutomatedInstanceJobParams{
+				InstanceID: inst.ID,
+			},
+		})
+		if err != nil && err != jobs.ErrJobAlreadyQueued {
+			errorLogger.Log("err", errors.Wrapf(err, "queueing automated instance job"))
 		}
 	}
 }
 
-func (a *Automator) Handle(j *jobs.Job, _ jobs.JobUpdater) error {
-	logger := log.NewContext(a.cfg.Logger).With("job", j.ID)
-	params := j.Params.(jobs.AutomatedServiceJobParams)
+func (a *Automator) hasAutomatedServices(services map[flux.ServiceID]instance.ServiceConfig) bool {
+	for _, service := range services {
+		if service.Policy() == flux.PolicyAutomated {
+			return true
+		}
+	}
+	return false
+}
 
+func (a *Automator) Handle(j *jobs.Job, _ jobs.JobUpdater) ([]jobs.Job, error) {
+	logger := log.NewContext(a.cfg.Logger).With("job", j.ID)
+	switch j.Method {
+	case jobs.AutomatedServiceJob:
+		return a.handleAutomatedServiceJob(logger, j)
+	case jobs.AutomatedInstanceJob:
+		return a.handleAutomatedInstanceJob(logger, j)
+	default:
+		return nil, jobs.ErrUnknownJobMethod
+	}
+}
+
+func (a *Automator) handleAutomatedServiceJob(logger log.Logger, j *jobs.Job) ([]jobs.Job, error) {
+	params := j.Params.(jobs.AutomatedServiceJobParams)
 	serviceID, err := flux.ParseServiceID(string(params.ServiceSpec))
 	if err != nil {
 		// I don't see how we could ever expect this to work, so let's not
 		// reschedule.
-		return errors.Wrapf(err, "parsing service ID from spec %s", params.ServiceSpec)
+		return nil, errors.Wrapf(err, "parsing service ID from spec %s", params.ServiceSpec)
 	}
+
+	j.ScheduledAt = j.ScheduledAt.Add(automationCycle)
+	followUps := []jobs.Job{*j}
 
 	config, err := a.cfg.InstanceDB.GetConfig(j.Instance)
 	if err != nil {
-		if err2 := a.reschedule(j); err2 != nil {
-			logger.Log("err", err2) // abnormal
-		}
-		return errors.Wrap(err, "getting instance config")
+		return followUps, errors.Wrap(err, "getting instance config")
 	}
 
 	s := config.Services[serviceID]
 	if !s.Automated {
 		// Job is not automated, don't reschedule
-		return nil
+		return nil, nil
 	}
 	if s.Locked {
-		return a.reschedule(j)
+		// Just locked, might work at some point.
+		return followUps, nil
 	}
 
-	if _, err := a.cfg.Jobs.PutJob(j.Instance, jobs.Job{
+	followUps = append(followUps, jobs.Job{
 		Method:   jobs.ReleaseJob,
 		Priority: jobs.PriorityBackground,
 		Params: jobs.ReleaseJobParams{
@@ -105,17 +126,89 @@ func (a *Automator) Handle(j *jobs.Job, _ jobs.JobUpdater) error {
 			ImageSpec:   flux.ImageSpecLatest,
 			Kind:        flux.ReleaseKindExecute,
 		},
-	}); err != nil {
-		logger.Log("err", errors.Wrap(err, "put automated release job")) // abnormal
-	}
-
-	return a.reschedule(j)
+	})
+	return followUps, nil
 }
 
-func (a *Automator) reschedule(j *jobs.Job) error {
+func (a *Automator) handleAutomatedInstanceJob(logger log.Logger, j *jobs.Job) ([]jobs.Job, error) {
 	j.ScheduledAt = j.ScheduledAt.Add(automationCycle)
-	if _, err := a.cfg.Jobs.PutJobIgnoringDuplicates(j.Instance, *j); err != nil {
-		return errors.Wrap(err, "rescheduling check automated service job") // abnormal
+	followUps := []jobs.Job{*j}
+
+	params := j.Params.(jobs.AutomatedInstanceJobParams)
+	config, err := a.cfg.InstanceDB.GetConfig(params.InstanceID)
+	if err != nil {
+		return followUps, errors.Wrap(err, "getting instance config")
 	}
-	return nil
+
+	if !a.hasAutomatedServices(config.Services) {
+		// All services have been deautomated. Don't reschedule.
+		return nil, nil
+	}
+
+	inst, err := a.cfg.Instancer.Get(params.InstanceID)
+	if err != nil {
+		return followUps, errors.Wrap(err, "getting job instance")
+	}
+
+	// Clone the repo
+	path, keyfile, err := inst.ConfigRepo().Clone()
+	if err != nil {
+		return followUps, errors.Wrap(err, "cloning config repo")
+	}
+
+	// Get all defined services
+	serviceFiles, err := kubernetes.DefinedServices(path)
+	if err != nil {
+		return followUps, errors.Wrap(err, "finding defined services")
+	}
+
+	// Get the intersection of defined and automated services
+	// TODO: What do we do if there are automated, but undefined services?
+	var serviceIDs []flux.ServiceID
+	for id, service := range config.Services {
+		if service.Policy() != flux.PolicyAutomated {
+			continue
+		}
+		if _, ok := serviceFiles[id]; !ok {
+			continue
+		}
+		serviceIDs = append(serviceIDs, id)
+	}
+
+	if len(serviceIDs) == 0 {
+		// No automated services are defined, don't reschedule.
+		return nil, fmt.Errorf("no definitions found for automated services")
+	}
+
+	// Fetch the automated services from the platform, because
+	// CollectAvailableImages needs a platform.Service
+	services, err := inst.GetServices(serviceIDs)
+	if err != nil {
+		return followUps, errors.Wrap(err, "getting automated services")
+	}
+
+	images, err := inst.CollectAvailableImages(services)
+	if err != nil {
+		return followUps, errors.Wrap(err, "collecting available images")
+	}
+
+	// Schedule the release for each image. Will be a noop if all services are
+	// running latest of that image.
+	for image := range images {
+		latest := images.LatestImage(image)
+		if latest == nil {
+			continue
+		}
+		followUps = append(followUps, jobs.Job{
+			Method:   jobs.ReleaseJob,
+			Priority: jobs.PriorityBackground,
+			Params: jobs.ReleaseJobParams{
+				ServiceSpecs: serviceIDs,
+				ImageSpec:    flux.ImageSpec(latest.ID),
+				Kind:         flux.ReleaseKindExecute,
+			},
+		})
+	}
+
+	return followUps, nil
 }

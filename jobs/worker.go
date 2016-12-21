@@ -17,12 +17,12 @@ var (
 )
 
 type Handler interface {
-	Handle(*Job, JobUpdater) error
+	Handle(*Job, JobUpdater) ([]Job, error)
 }
 
 // Worker grabs jobs from the job store and executes them.
 type Worker struct {
-	jobs     JobWritePopper
+	jobs     JobStore
 	handlers map[string]Handler
 	logger   log.Logger
 	stopping chan struct{}
@@ -32,7 +32,7 @@ type Worker struct {
 // NewWorker returns a usable worker pulling jobs from the JobPopper.
 // Run Work in its own goroutine to start execution.
 func NewWorker(
-	jobs JobWritePopper,
+	jobs JobStore,
 	logger log.Logger,
 ) *Worker {
 	return &Worker{
@@ -78,10 +78,11 @@ func (w *Worker) Work() {
 			w.logger.Log("err", errors.Wrapf(err, "updating job %s", job.ID))
 		}
 
+		var followUps []Job
 		if handler, ok := w.handlers[job.Method]; !ok {
 			err = ErrNoHandlerForJob
 		} else {
-			err = handler.Handle(&job, w.jobs)
+			followUps, err = handler.Handle(&job, w.jobs)
 		}
 		job.Done = true
 		if err != nil {
@@ -95,6 +96,13 @@ func (w *Worker) Work() {
 		}
 		if err := w.jobs.UpdateJob(job); err != nil {
 			w.logger.Log("err", errors.Wrapf(err, "updating job %s", job.ID))
+		}
+
+		// Schedule any follow-up jobs
+		for _, followUp := range followUps {
+			if _, err := w.jobs.PutJob(job.Instance, followUp); err != nil {
+				w.logger.Log("err", errors.Wrapf(err, "putting follow-up job"))
+			}
 		}
 
 		close(cancel)
