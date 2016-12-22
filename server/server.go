@@ -92,6 +92,10 @@ func (s *Server) Status(inst flux.InstanceID) (res flux.Status, err error) {
 	// TODO: This should really check we have access permissions.
 	res.Git.Configured = config.Settings.Git.URL != "" && config.Settings.Git.Key != ""
 
+	if _, _, err := helper.ConfigRepo().Clone(); err != nil {
+		res.Git.Error = err.Error()
+	}
+
 	res.Fluxd.Connected = (helper.Ping() == nil)
 
 	return res, nil

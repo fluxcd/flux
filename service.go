@@ -291,5 +291,6 @@ type FluxdStatus struct {
 }
 
 type GitStatus struct {
-	Configured bool `json:"configured" yaml:"configured"`
+	Configured bool   `json:"configured" yaml:"configured"`
+	Error      string `json:"error,omitempty" yaml:"error,omitempty"`
 }
