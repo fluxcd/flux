@@ -290,6 +290,11 @@ func recordLock(inst *instance.Instance, service flux.ServiceID, locked bool) er
 }
 
 func (s *Server) PostRelease(inst flux.InstanceID, params jobs.ReleaseJobParams) (jobs.JobID, error) {
+	// TODO: backwards compatibility, support older single-service-spec release jobs
+	if params.ServiceSpec != "" {
+		params.ServiceSpecs = append(params.ServiceSpecs, params.ServiceSpec)
+	}
+
 	return s.jobs.PutJob(inst, jobs.Job{
 		Method:   jobs.ReleaseJob,
 		Priority: jobs.PriorityInteractive,
