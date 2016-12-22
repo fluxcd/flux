@@ -12,48 +12,23 @@ import (
 )
 
 const (
-	LabelInstanceID = "instance_id"
-	LabelNamespace  = "namespace"
-	LabelSuccess    = "success"
+	LabelMethod  = "method"
+	LabelSuccess = "success"
 )
 
 type Metrics struct {
-	LogEventDuration         metrics.Histogram
-	AllEventsDuration        metrics.Histogram
-	EventsForServiceDuration metrics.Histogram
-	CloseDuration            metrics.Histogram
+	RequestDuration metrics.Histogram
 }
 
 func NewMetrics() Metrics {
 	return Metrics{
-		LogEventDuration: prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
+		RequestDuration: prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
 			Namespace: "flux",
 			Subsystem: "history",
-			Name:      "log_event_duration_seconds",
-			Help:      "LogEvent method duration in seconds.",
+			Name:      "request_duration_seconds",
+			Help:      "Request duration in seconds.",
 			Buckets:   stdprometheus.DefBuckets,
-		}, []string{LabelInstanceID, LabelNamespace, LabelSuccess}),
-		AllEventsDuration: prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
-			Namespace: "flux",
-			Subsystem: "history",
-			Name:      "all_events_duration_seconds",
-			Help:      "AllEvents method duration in seconds.",
-			Buckets:   stdprometheus.DefBuckets,
-		}, []string{LabelInstanceID, LabelSuccess}),
-		EventsForServiceDuration: prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
-			Namespace: "flux",
-			Subsystem: "history",
-			Name:      "events_for_service_duration_seconds",
-			Help:      "EventsForService method duration in seconds.",
-			Buckets:   stdprometheus.DefBuckets,
-		}, []string{LabelInstanceID, LabelNamespace, LabelSuccess}),
-		CloseDuration: prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
-			Namespace: "flux",
-			Subsystem: "history",
-			Name:      "close_duration_seconds",
-			Help:      "Close method duration in seconds.",
-			Buckets:   stdprometheus.DefBuckets,
-		}, []string{LabelSuccess}),
+		}, []string{LabelMethod, LabelSuccess}),
 	}
 }
 
@@ -68,9 +43,8 @@ func InstrumentedDB(db DB, m Metrics) DB {
 
 func (i *instrumentedDB) LogEvent(inst flux.InstanceID, namespace, service, msg string) (err error) {
 	defer func(begin time.Time) {
-		i.m.AllEventsDuration.With(
-			LabelInstanceID, string(inst),
-			LabelNamespace, namespace,
+		i.m.RequestDuration.With(
+			LabelMethod, "LogEvent",
 			LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
 	}(time.Now())
@@ -79,8 +53,8 @@ func (i *instrumentedDB) LogEvent(inst flux.InstanceID, namespace, service, msg 
 
 func (i *instrumentedDB) AllEvents(inst flux.InstanceID) (e []Event, err error) {
 	defer func(begin time.Time) {
-		i.m.AllEventsDuration.With(
-			LabelInstanceID, string(inst),
+		i.m.RequestDuration.With(
+			LabelMethod, "AllEvents",
 			LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
 	}(time.Now())
@@ -89,9 +63,8 @@ func (i *instrumentedDB) AllEvents(inst flux.InstanceID) (e []Event, err error) 
 
 func (i *instrumentedDB) EventsForService(inst flux.InstanceID, namespace, service string) (e []Event, err error) {
 	defer func(begin time.Time) {
-		i.m.EventsForServiceDuration.With(
-			LabelInstanceID, string(inst),
-			LabelNamespace, namespace,
+		i.m.RequestDuration.With(
+			LabelMethod, "EventsForService",
 			LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
 	}(time.Now())
@@ -101,6 +74,7 @@ func (i *instrumentedDB) EventsForService(inst flux.InstanceID, namespace, servi
 func (i *instrumentedDB) Close() (err error) {
 	defer func(begin time.Time) {
 		i.m.CloseDuration.With(
+			LabelMethod, "Close",
 			LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
 	}(time.Now())

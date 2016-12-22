@@ -12,72 +12,23 @@ import (
 )
 
 const (
-	LabelInstanceID = "instance_id"
-	LabelNamespace  = "namespace"
-	LabelSuccess    = "success"
+	LabelMethod  = "method"
+	LabelSuccess = "success"
 )
 
 type Metrics struct {
-	GetJobDuration                   metrics.Histogram
-	PutJobDuration                   metrics.Histogram
-	PutJobIgnoringDuplicatesDuration metrics.Histogram
-	UpdateJobDuration                metrics.Histogram
-	HeartbeatDuration                metrics.Histogram
-	NextJobDuration                  metrics.Histogram
-	GCDuration                       metrics.Histogram
+	RequestDuration metrics.Histogram
 }
 
 func NewMetrics() Metrics {
 	return Metrics{
-		GetJobDuration: prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
+		RequestDuration: prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
 			Namespace: "flux",
 			Subsystem: "jobs",
-			Name:      "get_job_duration_seconds",
-			Help:      "GetJob method duration in seconds.",
+			Name:      "request_duration_seconds",
+			Help:      "Request duration in seconds.",
 			Buckets:   stdprometheus.DefBuckets,
-		}, []string{LabelInstanceID, LabelSuccess}),
-		PutJobDuration: prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
-			Namespace: "flux",
-			Subsystem: "jobs",
-			Name:      "put_job_duration_seconds",
-			Help:      "PutJob method duration in seconds.",
-			Buckets:   stdprometheus.DefBuckets,
-		}, []string{LabelInstanceID, LabelSuccess}),
-		PutJobIgnoringDuplicatesDuration: prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
-			Namespace: "flux",
-			Subsystem: "jobs",
-			Name:      "put_job_ignoring_duplicates_duration_seconds",
-			Help:      "PutJobIgnoringDuplicates method duration in seconds.",
-			Buckets:   stdprometheus.DefBuckets,
-		}, []string{LabelInstanceID, LabelSuccess}),
-		UpdateJobDuration: prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
-			Namespace: "flux",
-			Subsystem: "jobs",
-			Name:      "update_job_duration_seconds",
-			Help:      "UpdateJob method duration in seconds.",
-			Buckets:   stdprometheus.DefBuckets,
-		}, []string{LabelSuccess}),
-		HeartbeatDuration: prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
-			Namespace: "flux",
-			Subsystem: "jobs",
-			Name:      "heartbeat_duration_seconds",
-			Help:      "Heartbeat method duration in seconds.",
-			Buckets:   stdprometheus.DefBuckets,
-		}, []string{LabelSuccess}),
-		NextJobDuration: prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
-			Namespace: "flux",
-			Subsystem: "jobs",
-			Name:      "next_job_duration_seconds",
-			Help:      "NextJob method duration in seconds.",
-			Buckets:   stdprometheus.DefBuckets,
-		}, []string{LabelSuccess}),
-		GCDuration: prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
-			Namespace: "flux",
-			Subsystem: "jobs",
-			Name:      "gc_duration_seconds",
-			Help:      "GC method duration in seconds.",
-			Buckets:   stdprometheus.DefBuckets,
-		}, []string{LabelSuccess}),
+		}, []string{LabelMethod, LabelSuccess}),
 	}
 }
 
@@ -92,8 +43,8 @@ func InstrumentedJobStore(js JobStore, m Metrics) JobStore {
 
 func (i *instrumentedJobStore) GetJob(inst flux.InstanceID, jobID JobID) (j Job, err error) {
 	defer func(begin time.Time) {
-		i.m.GetJobDuration.With(
-			LabelInstanceID, string(inst),
+		i.m.RequestDuration.With(
+			LabelMethod, "GetJob",
 			LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
 	}(time.Now())
@@ -102,8 +53,8 @@ func (i *instrumentedJobStore) GetJob(inst flux.InstanceID, jobID JobID) (j Job,
 
 func (i *instrumentedJobStore) PutJob(inst flux.InstanceID, j Job) (jobID JobID, err error) {
 	defer func(begin time.Time) {
-		i.m.PutJobDuration.With(
-			LabelInstanceID, string(inst),
+		i.m.RequestDuration.With(
+			LabelMethod, "PutJob",
 			LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
 	}(time.Now())
@@ -112,8 +63,8 @@ func (i *instrumentedJobStore) PutJob(inst flux.InstanceID, j Job) (jobID JobID,
 
 func (i *instrumentedJobStore) PutJobIgnoringDuplicates(inst flux.InstanceID, j Job) (jobID JobID, err error) {
 	defer func(begin time.Time) {
-		i.m.PutJobIgnoringDuplicatesDuration.With(
-			LabelInstanceID, string(inst),
+		i.m.RequestDuration.With(
+			LabelMethod, "PutJobIgnoringDuplicates",
 			LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
 	}(time.Now())
@@ -122,7 +73,8 @@ func (i *instrumentedJobStore) PutJobIgnoringDuplicates(inst flux.InstanceID, j 
 
 func (i *instrumentedJobStore) UpdateJob(j Job) (err error) {
 	defer func(begin time.Time) {
-		i.m.UpdateJobDuration.With(
+		i.m.RequestDuration.With(
+			LabelMethod, "UpdateJob",
 			LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
 	}(time.Now())
@@ -131,7 +83,8 @@ func (i *instrumentedJobStore) UpdateJob(j Job) (err error) {
 
 func (i *instrumentedJobStore) Heartbeat(jobID JobID) (err error) {
 	defer func(begin time.Time) {
-		i.m.HeartbeatDuration.With(
+		i.m.RequestDuration.With(
+			LabelMethod, "UpdateJob",
 			LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
 	}(time.Now())
@@ -140,7 +93,8 @@ func (i *instrumentedJobStore) Heartbeat(jobID JobID) (err error) {
 
 func (i *instrumentedJobStore) NextJob(queues []string) (j Job, err error) {
 	defer func(begin time.Time) {
-		i.m.NextJobDuration.With(
+		i.m.RequestDuration.With(
+			LabelMethod, "NextJob",
 			LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
 	}(time.Now())
@@ -149,7 +103,8 @@ func (i *instrumentedJobStore) NextJob(queues []string) (j Job, err error) {
 
 func (i *instrumentedJobStore) GC() (err error) {
 	defer func(begin time.Time) {
-		i.m.GCDuration.With(
+		i.m.RequestDuration.With(
+			LabelMethod, "GC",
 			LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
 	}(time.Now())

@@ -12,39 +12,23 @@ import (
 )
 
 const (
-	LabelInstanceID = "instance_id"
-	LabelSuccess    = "success"
+	LabelMethod  = "method"
+	LabelSuccess = "success"
 )
 
 type Metrics struct {
-	UpdateConfigDuration metrics.Histogram
-	GetConfigDuration    metrics.Histogram
-	AllDuration          metrics.Histogram
+	RequestDuration metrics.Histogram
 }
 
 func NewMetrics() Metrics {
 	return Metrics{
-		UpdateConfigDuration: prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
+		RequestDuration: prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
 			Namespace: "flux",
 			Subsystem: "instance",
-			Name:      "update_config_duration_seconds",
-			Help:      "UpdateConfig method duration in seconds.",
+			Name:      "request_duration_seconds",
+			Help:      "Request duration in seconds.",
 			Buckets:   stdprometheus.DefBuckets,
-		}, []string{LabelInstanceID, LabelSuccess}),
-		GetConfigDuration: prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
-			Namespace: "flux",
-			Subsystem: "instance",
-			Name:      "get_config_duration_seconds",
-			Help:      "GetConfig method duration in seconds.",
-			Buckets:   stdprometheus.DefBuckets,
-		}, []string{LabelInstanceID, LabelSuccess}),
-		AllDuration: prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
-			Namespace: "flux",
-			Subsystem: "instance",
-			Name:      "all_duration_seconds",
-			Help:      "All method duration in seconds.",
-			Buckets:   stdprometheus.DefBuckets,
-		}, []string{LabelSuccess}),
+		}, []string{LabelMethod, LabelSuccess}),
 	}
 }
 
@@ -59,8 +43,8 @@ func InstrumentedDB(db DB, m Metrics) DB {
 
 func (i *instrumentedDB) UpdateConfig(inst flux.InstanceID, update UpdateFunc) (err error) {
 	defer func(begin time.Time) {
-		i.m.UpdateConfigDuration.With(
-			LabelInstanceID, string(inst),
+		i.m.RequestDuration.With(
+			LabelMethod, "UpdateConfig",
 			LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
 	}(time.Now())
@@ -69,8 +53,8 @@ func (i *instrumentedDB) UpdateConfig(inst flux.InstanceID, update UpdateFunc) (
 
 func (i *instrumentedDB) GetConfig(inst flux.InstanceID) (c Config, err error) {
 	defer func(begin time.Time) {
-		i.m.GetConfigDuration.With(
-			LabelInstanceID, string(inst),
+		i.m.RequestDuration.With(
+			LabelMethod, "GetConfig",
 			LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
 	}(time.Now())
@@ -79,7 +63,8 @@ func (i *instrumentedDB) GetConfig(inst flux.InstanceID) (c Config, err error) {
 
 func (i *instrumentedDB) All() (c []NamedConfig, err error) {
 	defer func(begin time.Time) {
-		i.m.AllDuration.With(
+		i.m.RequestDuration.With(
+			LabelMethod, "All",
 			LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
 	}(time.Now())
