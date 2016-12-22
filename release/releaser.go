@@ -625,7 +625,7 @@ func (r *Releaser) releaseActionReleaseServices(services []flux.ServiceID, msg s
 					if err := results[service]; err == nil { // no entry = nil error
 						rc.Instance.LogEvent(namespace, serviceName, msg+". done")
 					} else {
-						rc.Instance.LogEvent(namespace, serviceName, msg+". failed: "+err.Error())
+						rc.Instance.LogEvent(namespace, serviceName, msg+". error: "+err.Error()+". failed")
 					}
 				}
 			}
