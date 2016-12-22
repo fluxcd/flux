@@ -28,27 +28,28 @@ func imageSelectorForSpec(spec flux.ImageSpec) imageSelector {
 
 type funcImageSelector struct {
 	text string
-	f    func(*instance.Instance, []platform.Service) (instance.ImageMap, error)
+	f    func(*instance.Instance, map[flux.ServiceID][]string) (instance.ImageMap, error)
 }
 
 func (f funcImageSelector) String() string {
 	return f.text
 }
 
-func (f funcImageSelector) SelectImages(inst *instance.Instance, services []platform.Service) (instance.ImageMap, error) {
+func (f funcImageSelector) SelectImages(inst *instance.Instance, services map[flux.ServiceID][]string) (instance.ImageMap, error) {
 	return f.f(inst, services)
 }
 
 var (
 	allLatestImages = funcImageSelector{
 		text: "latest images",
-		f: func(h *instance.Instance, services []platform.Service) (instance.ImageMap, error) {
+		f: func(h *instance.Instance, services map[flux.ServiceID][]string) (instance.ImageMap, error) {
 			return h.CollectAvailableImages(services)
 		},
 	}
 	latestConfig = funcImageSelector{
 		text: "latest config",
-		f: func(h *instance.Instance, services []platform.Service) (instance.ImageMap, error) {
+		f: func(h *instance.Instance, services map[flux.ServiceID][]string) (instance.ImageMap, error) {
+			// TODO: Read and figure out all the images for the services files passed in here.
 			return instance.ImageMap{}, nil
 		},
 	}
@@ -57,7 +58,7 @@ var (
 func exactlyTheseImages(images []flux.ImageID) imageSelector {
 	return funcImageSelector{
 		text: strings.Join(images, ", "),
-		f: func(h *instance.Instance, _ []platform.Service) (instance.ImageMap, error) {
+		f: func(h *instance.Instance, _ map[flux.ServiceID][]string) (instance.ImageMap, error) {
 			return h.ExactImages(images)
 		},
 	}

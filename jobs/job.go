@@ -161,6 +161,28 @@ type ReleaseJobParams struct {
 	Excludes     []flux.ServiceID
 }
 
+func (p ReleaseJobParams) ReleaseType() string {
+	switch {
+	case p.ServiceSpec == flux.ServiceSpecAll && p.ImageSpec == flux.ImageSpecLatest:
+		return "release_all_to_latest"
+
+	case p.ServiceSpec == flux.ServiceSpecAll && p.ImageSpec == flux.ImageSpecNone:
+		return "release_all_without_update"
+
+	case p.ServiceSpec == flux.ServiceSpecAll:
+		return "release_all_for_image"
+
+	case p.ImageSpec == flux.ImageSpecLatest:
+		return "release_one_to_latest"
+
+	case p.ImageSpec == flux.ImageSpecNone:
+		return "release_one_without_update"
+
+	default:
+		return "release_one"
+	}
+}
+
 // AutomatedServiceJobParams are the params for a automated_service job
 type AutomatedServiceJobParams struct {
 	ServiceSpec flux.ServiceSpec
