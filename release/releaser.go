@@ -218,16 +218,16 @@ func (r *Releaser) releaseImages(method, msg string, inst *instance.Instance, ki
 	}
 
 	stage.ObserveDuration()
-	stage = metrics.NewTimer(base.With("stage", "calculate_releases"))
+	stage = metrics.NewTimer(base.With("stage", "calculate_applies"))
 
 	// Each service is running multiple images.
-	// Each image may need to be upgraded, and trigger a release.
+	// Each image may need to be upgraded, and trigger an apply.
 	images, err := getImages(inst, services)
 	if err != nil {
-		return errors.Wrap(err, "collecting available images to calculate releases")
+		return errors.Wrap(err, "collecting available images to calculate applies")
 	}
 
-	releaseMap := map[flux.ServiceID][]containerRelease{}
+	updateMap := map[flux.ServiceID][]containerUpdate{}
 	for _, service := range services {
 		containers, err := service.ContainersOrError()
 		if err != nil {
@@ -246,7 +246,7 @@ func (r *Releaser) releaseImages(method, msg string, inst *instance.Instance, ki
 				continue
 			}
 
-			releaseMap[service.ID] = append(releaseMap[service.ID], containerRelease{
+			updateMap[service.ID] = append(updateMap[service.ID], containerUpdate{
 				container: container.Name,
 				current:   currentImageID,
 				target:    latestImage.ID,
@@ -254,7 +254,7 @@ func (r *Releaser) releaseImages(method, msg string, inst *instance.Instance, ki
 		}
 	}
 
-	if len(releaseMap) <= 0 {
+	if len(updateMap) <= 0 {
 		res = append(res, r.releaseActionPrintf("All selected services are running the requested images. Nothing to do."))
 		return nil
 	}
@@ -267,15 +267,15 @@ func (r *Releaser) releaseImages(method, msg string, inst *instance.Instance, ki
 	// pushing, and then making the release(s) to the platform.
 
 	res = append(res, r.releaseActionClone())
-	for service, releases := range releaseMap {
-		res = append(res, r.releaseActionUpdatePodController(service, releases))
+	for service, applies := range updateMap {
+		res = append(res, r.releaseActionUpdatePodController(service, applies))
 	}
 	res = append(res, r.releaseActionCommitAndPush(msg))
-	var servicesToRelease []flux.ServiceID
-	for service := range releaseMap {
-		servicesToRelease = append(servicesToRelease, service)
+	var servicesToApply []flux.ServiceID
+	for service := range updateMap {
+		servicesToApply = append(servicesToApply, service)
 	}
-	res = append(res, r.releaseActionReleaseServices(servicesToRelease, msg))
+	res = append(res, r.releaseActionReleaseServices(servicesToApply, msg))
 
 	return nil
 }
@@ -365,7 +365,7 @@ func (r *Releaser) execute(inst *instance.Instance, actions []ReleaseAction, kin
 
 // Release helpers.
 
-type containerRelease struct {
+type containerUpdate struct {
 	container string
 	current   flux.ImageID
 	target    flux.ImageID
@@ -448,15 +448,15 @@ func (r *Releaser) releaseActionFindPodController(service flux.ServiceID) Releas
 	}
 }
 
-func (r *Releaser) releaseActionUpdatePodController(service flux.ServiceID, releases []containerRelease) ReleaseAction {
+func (r *Releaser) releaseActionUpdatePodController(service flux.ServiceID, updates []containerUpdate) ReleaseAction {
 	var actions []string
-	for _, release := range releases {
-		actions = append(actions, fmt.Sprintf("%s (%s -> %s)", release.container, release.current, release.target))
+	for _, update := range updates {
+		actions = append(actions, fmt.Sprintf("%s (%s -> %s)", update.container, update.current, update.target))
 	}
 	actionList := strings.Join(actions, ", ")
 
 	return ReleaseAction{
-		Description: fmt.Sprintf("Update %d images(s) in the resource definition file for %s: %s.", len(releases), service, actionList),
+		Description: fmt.Sprintf("Update %d images(s) in the resource definition file for %s: %s.", len(updates), service, actionList),
 		Do: func(rc *ReleaseContext) (res string, err error) {
 			defer func(begin time.Time) {
 				r.metrics.ActionDuration.With(
@@ -491,7 +491,7 @@ func (r *Releaser) releaseActionUpdatePodController(service flux.ServiceID, rele
 				return "", err
 			}
 
-			for _, release := range releases {
+			for _, update := range updates {
 				// Note 1: UpdatePodController parses the target (new) image
 				// name, extracts the repository, and only mutates the line(s)
 				// in the definition that match it. So for the time being we
@@ -500,9 +500,9 @@ func (r *Releaser) releaseActionUpdatePodController(service flux.ServiceID, rele
 				//
 				// Note 2: we keep overwriting the same def, to handle multiple
 				// images in a single file.
-				def, err = kubernetes.UpdatePodController(def, string(release.target), ioutil.Discard)
+				def, err = kubernetes.UpdatePodController(def, string(update.target), ioutil.Discard)
 				if err != nil {
-					return "", errors.Wrapf(err, "updating pod controller for %s", release.target)
+					return "", errors.Wrapf(err, "updating pod controller for %s", update.target)
 				}
 			}
 

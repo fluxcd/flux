@@ -36,10 +36,10 @@ type apiObject struct {
 	} `yaml:"metadata"`
 }
 
-type releaseExecFunc func(*Cluster, log.Logger) error
+type applyExecFunc func(*Cluster, log.Logger) error
 
-type release struct {
-	exec    releaseExecFunc
+type apply struct {
+	exec    applyExecFunc
 	summary string
 }
 
@@ -171,7 +171,7 @@ func (c *Cluster) AllServices(namespace string, ignore flux.ServiceIDSet) (res [
 
 func (c *Cluster) makeService(ns string, service *api.Service, controllers []podController) platform.Service {
 	id := flux.MakeServiceID(ns, service.Name)
-	status, _ := c.status.getReleaseProgress(id)
+	status, _ := c.status.getApplyProgress(id)
 	return platform.Service{
 		ID:         id,
 		IP:         service.Spec.ClusterIP,
@@ -353,14 +353,14 @@ func (c *Cluster) Apply(defs []platform.ServiceDefinition) error {
 					continue
 				}
 
-				plan, err := controller.newRelease(newDef)
+				plan, err := controller.newApply(newDef)
 				if err != nil {
 					applyErr[def.ServiceID] = errors.Wrap(err, "creating release")
 					continue
 				}
 
-				c.status.startRelease(def.ServiceID, plan)
-				defer c.status.endRelease(def.ServiceID)
+				c.status.startApply(def.ServiceID, plan)
+				defer c.status.endApply(def.ServiceID)
 
 				logger := log.NewContext(c.logger).With("method", "Apply", "namespace", namespace, "service", serviceName)
 				if err = plan.exec(c, logger); err != nil {
@@ -391,32 +391,32 @@ func (c *Cluster) Ping() error {
 // --- end platform API
 
 type statusMap struct {
-	inProgress map[flux.ServiceID]*release
+	inProgress map[flux.ServiceID]*apply
 	mx         sync.RWMutex
 }
 
 func newStatusMap() *statusMap {
 	return &statusMap{
-		inProgress: make(map[flux.ServiceID]*release),
+		inProgress: make(map[flux.ServiceID]*apply),
 	}
 }
 
-func (m *statusMap) startRelease(s flux.ServiceID, r *release) {
+func (m *statusMap) startApply(s flux.ServiceID, a *apply) {
 	m.mx.Lock()
 	defer m.mx.Unlock()
-	m.inProgress[s] = r
+	m.inProgress[s] = a
 }
 
-func (m *statusMap) getReleaseProgress(s flux.ServiceID) (string, bool) {
+func (m *statusMap) getApplyProgress(s flux.ServiceID) (string, bool) {
 	m.mx.RLock()
 	defer m.mx.RUnlock()
-	if r, ok := m.inProgress[s]; ok {
-		return r.summary, true
+	if a, ok := m.inProgress[s]; ok {
+		return a.summary, true
 	}
 	return "", false
 }
 
-func (m *statusMap) endRelease(s flux.ServiceID) {
+func (m *statusMap) endApply(s flux.ServiceID) {
 	m.mx.Lock()
 	defer m.mx.Unlock()
 	delete(m.inProgress, s)

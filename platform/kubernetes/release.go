@@ -16,13 +16,13 @@ import (
 	"github.com/weaveworks/flux/platform"
 )
 
-func (c podController) newRelease(newDefinition *apiObject) (*release, error) {
+func (c podController) newApply(newDefinition *apiObject) (*apply, error) {
 	k := c.kind()
 	if newDefinition.Kind != k {
 		return nil, fmt.Errorf(`Expected new definition of kind %q, to match old definition; got %q`, k, newDefinition.Kind)
 	}
 
-	var result release
+	var result apply
 	if c.Deployment != nil {
 		result.exec = deploymentExec(c.Deployment, newDefinition)
 		result.summary = "Applying deployment"
@@ -68,7 +68,7 @@ func (c *Cluster) kubectlCommand(args ...string) *exec.Cmd {
 	return cmd
 }
 
-func (c *Cluster) doReleaseCommand(logger log.Logger, newDefinition *apiObject, args ...string) error {
+func (c *Cluster) doApplyCommand(logger log.Logger, newDefinition *apiObject, args ...string) error {
 	cmd := c.kubectlCommand(args...)
 	cmd.Stdin = bytes.NewReader(newDefinition.bytes)
 	stderr := &bytes.Buffer{}
@@ -86,9 +86,9 @@ func (c *Cluster) doReleaseCommand(logger log.Logger, newDefinition *apiObject, 
 	return err
 }
 
-func rollingUpgradeExec(def *api.ReplicationController, newDef *apiObject) releaseExecFunc {
+func rollingUpgradeExec(def *api.ReplicationController, newDef *apiObject) applyExecFunc {
 	return func(c *Cluster, logger log.Logger) error {
-		return c.doReleaseCommand(
+		return c.doApplyCommand(
 			logger,
 			newDef,
 			"rolling-update",
@@ -99,9 +99,9 @@ func rollingUpgradeExec(def *api.ReplicationController, newDef *apiObject) relea
 	}
 }
 
-func deploymentExec(def *apiext.Deployment, newDef *apiObject) releaseExecFunc {
+func deploymentExec(def *apiext.Deployment, newDef *apiObject) applyExecFunc {
 	return func(c *Cluster, logger log.Logger) error {
-		err := c.doReleaseCommand(
+		err := c.doApplyCommand(
 			logger,
 			newDef,
 			"apply",
