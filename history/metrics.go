@@ -73,7 +73,7 @@ func (i *instrumentedDB) EventsForService(inst flux.InstanceID, namespace, servi
 
 func (i *instrumentedDB) Close() (err error) {
 	defer func(begin time.Time) {
-		i.m.CloseDuration.With(
+		i.m.RequestDuration.With(
 			LabelMethod, "Close",
 			LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
