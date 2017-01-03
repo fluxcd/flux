@@ -23,13 +23,17 @@ func (c podController) newRegrade(newDefinition *apiObject) (*regrade, error) {
 	}
 
 	var result regrade
-	if c.Deployment != nil {
+	switch {
+	case c.Deployment != nil:
 		result.exec = deploymentExec(c.Deployment, newDefinition)
 		result.summary = "Applying deployment"
-	} else if c.ReplicationController != nil {
+	case c.ReplicationController != nil:
 		result.exec = rollingUpgradeExec(c.ReplicationController, newDefinition)
 		result.summary = "Rolling upgrade"
-	} else {
+	case c.DaemonSet != nil:
+		result.exec = daemonsetExec(c.DaemonSet, newDefinition)
+		result.summary = "Applying DaemonSet"
+	default:
 		return nil, platform.ErrNoMatching
 	}
 	return &result, nil
@@ -119,5 +123,16 @@ func deploymentExec(def *apiext.Deployment, newDef *apiObject) regradeExecFunc {
 			err = cmd.Run()
 		}
 		return err
+	}
+}
+
+func daemonsetExec(def *apiext.DaemonSet, newDef *apiObject) regradeExecFunc {
+	return func(c *Cluster, logger log.Logger) error {
+		return c.doReleaseCommand(
+			logger,
+			newDef,
+			"apply",
+			"-f", "-", // take definition from stdin
+		)
 	}
 }

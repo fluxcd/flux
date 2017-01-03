@@ -59,8 +59,8 @@ def service_for_file(path):
     obj = yaml.load(stream)
 
   kind = obj["kind"]
-  if kind not in {"ReplicationController", "Deployment"}:
-    raise Kubeimage("Not a ReplicationController or Deployment")
+  if kind not in {"ReplicationController", "Deployment", "DaemonSet"}:
+    raise Kubeimage("Not a ReplicationController, Deployment or DaemonSet")
 
   namespace = safe_lookup(obj, ["metadata", "namespace"], default="default")
   labels = safe_lookup(obj, ["spec", "template", "metadata", "labels"])
