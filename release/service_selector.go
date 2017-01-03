@@ -27,7 +27,7 @@ func serviceSelector(inst *instance.Instance, includeSpecs []flux.ServiceSpec, e
 			// If one of the specs is '<all>' we can ignore the rest.
 			return allServicesExcept(excludeSet), nil
 		}
-		serviceID, err := flux.ParseServiceID(string(includeSpecs))
+		serviceID, err := flux.ParseServiceID(string(spec))
 		if err != nil {
 			return nil, errors.Wrapf(err, "parsing service ID from params %q", spec)
 		}

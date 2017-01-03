@@ -11,7 +11,7 @@ import (
 
 // net/rpc cannot serialise errors, so we transmit strings and
 // reconstitute them on the other side.
-type RegradeResult map[flux.ServiceID]string
+type ApplyResult map[flux.ServiceID]string
 
 // Server takes a platform and makes it available over RPC.
 type Server struct {
@@ -59,18 +59,23 @@ func (p *RPCServer) SomeServices(ids []flux.ServiceID, resp *[]platform.Service)
 	return err
 }
 
-func (p *RPCServer) Regrade(spec []platform.RegradeSpec, regradeResult *RegradeResult) error {
-	result := RegradeResult{}
-	err := p.p.Regrade(spec)
+// Regrade is still around for backwards compatibility, though it is called "Apply" everywhere else.
+func (p *RPCServer) Regrade(defs []platform.ServiceDefinition, applyResult *ApplyResult) error {
+	return p.Apply(defs, applyResult)
+}
+
+func (p *RPCServer) Apply(defs []platform.ServiceDefinition, applyResult *ApplyResult) error {
+	result := ApplyResult{}
+	err := p.p.Apply(defs)
 	if err != nil {
-		switch regradeErr := err.(type) {
-		case platform.RegradeError:
-			for s, e := range regradeErr {
+		switch applyErr := err.(type) {
+		case platform.ApplyError:
+			for s, e := range applyErr {
 				result[s] = e.Error()
 			}
 			err = nil
 		}
 	}
-	*regradeResult = result
+	*applyResult = result
 	return err
 }

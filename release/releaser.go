@@ -372,15 +372,15 @@ func (r *Releaser) releaseActionApplyToPlatform(kind flux.ReleaseKind, commitMsg
 				return "Skipped", nil
 			}
 
-			// We'll collect results for each service apply
+			// We'll collect results for each service release.
 			results := map[flux.ServiceID]error{}
 
-			// Collect specs for each service apply.
-			var specs []platform.ServiceDefinition
-			// If we're applying our own image, we want to do that
+			// Collect definitions for each service release.
+			var defs []platform.ServiceDefinition
+			// If we're releasing our own image, we want to do that
 			// last, and "asynchronously" (meaning we probably won't
 			// see the reply).
-			var asyncSpecs []platform.ServiceDefinition
+			var asyncDefs []platform.ServiceDefinition
 
 			// Apply each changed definition to the platform, so commit/push works.
 			cause := strconv.Quote(commitMsg)
@@ -398,18 +398,18 @@ func (r *Releaser) releaseActionApplyToPlatform(kind flux.ReleaseKind, commitMsg
 					}
 					switch serviceName {
 					case FluxServiceName, FluxDaemonName:
-						rc.Instance.LogEvent(namespace, serviceName, "Starting apply (no result expected) "+cause)
-						asyncSpecs = append(asyncSpecs, newDefinition)
+						rc.Instance.LogEvent(namespace, serviceName, "Starting "+cause+". (no result expected)")
+						asyncDefs = append(asyncDefs, newDefinition)
 					default:
-						rc.Instance.LogEvent(namespace, serviceName, "Starting apply "+cause)
-						specs = append(specs, newDefinition)
+						rc.Instance.LogEvent(namespace, serviceName, "Starting "+cause)
+						defs = append(defs, newDefinition)
 					}
 				}
 			}
 
-			// Execute the applys as a single transaction.
+			// Execute the releases as a single transaction.
 			// Splat any errors into our results map.
-			transactionErr := rc.Instance.PlatformApply(specs)
+			transactionErr := rc.Instance.PlatformApply(defs)
 			if transactionErr != nil {
 				switch err := transactionErr.(type) {
 				case platform.ApplyError:
@@ -417,40 +417,40 @@ func (r *Releaser) releaseActionApplyToPlatform(kind flux.ReleaseKind, commitMsg
 						results[id] = applyErr
 					}
 				default: // assume everything failed, if there was a coverall error
-					for _, service := range services {
+					for service := range rc.UpdatedDefinitions {
 						results[service] = transactionErr
 					}
 				}
 			}
 
-			// Report individual service apply results.
+			// Report individual service release results.
 			// TODO: Integrate Regrade -> Apply changes here
 			// TODO: Record the changes into the ReleaseContext, so we can send
 			// notifications of them in the next step.
-			for _, service := range services {
+			for service := range rc.UpdatedDefinitions {
 				namespace, serviceName := service.Components()
 				switch serviceName {
 				case FluxServiceName, FluxDaemonName:
 					continue
 				default:
 					if err := results[service]; err == nil { // no entry = nil error
-						rc.Instance.LogEvent(namespace, serviceName, "Apply due to "+cause+": done")
+						rc.Instance.LogEvent(namespace, serviceName, commitMsg+". done")
 					} else {
-						rc.Instance.LogEvent(namespace, serviceName, "Apply due to "+cause+": failed: "+err.Error())
+						rc.Instance.LogEvent(namespace, serviceName, commitMsg+". failed: "+err.Error())
 					}
 				}
 			}
 
 			// Lastly, services for which we don't expect a result
-			// (i.e., ourselves). This will kick off the apply in
+			// (i.e., ourselves). This will kick off the release in
 			// the daemon, which will cause Kubernetes to restart the
 			// service. In the meantime, however, we will have
 			// finished recording what happened, as part of a graceful
 			// shutdown. So the only thing that goes missing is the
-			// result from this apply call.
-			if len(asyncSpecs) > 0 {
+			// result from this release call.
+			if len(asyncDefs) > 0 {
 				go func() {
-					rc.Instance.PlatformApply(asyncSpecs)
+					rc.Instance.PlatformApply(asyncDefs)
 				}()
 			}
 
@@ -475,7 +475,7 @@ func (r *Releaser) releaseActionSendNotifications(kind flux.ReleaseKind, notific
 }
 
 func (r *Releaser) execute(metric metrics.Histogram, inst *instance.Instance, actions []ReleaseAction, kind flux.ReleaseKind, updateJob func(string, ...interface{})) error {
-	rc := NewRepo(inst)
+	rc := NewReleaseContext(inst)
 	defer rc.Clean()
 
 	for i, action := range actions {
@@ -506,6 +506,7 @@ func (r *Releaser) execute(metric metrics.Histogram, inst *instance.Instance, ac
 				updateJob(result)
 			}
 			actions[i].Result = result
+			return nil
 		}()
 		if err != nil {
 			return err

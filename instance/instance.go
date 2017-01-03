@@ -122,15 +122,15 @@ func (h *Instance) ExactImages(images []flux.ImageID) (ImageMap, error) {
 	return m, nil
 }
 
-func (h *Instance) PlatformRegrade(specs []platform.RegradeSpec) (err error) {
+func (h *Instance) PlatformApply(defs []platform.ServiceDefinition) (err error) {
 	defer func(begin time.Time) {
 		h.duration.With(
-			"method", "PlatformRegrade",
+			"method", "PlatformApply",
 			"success", fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
-	return h.platform.Regrade(specs)
+	return h.platform.Apply(defs)
 }
 
 func (h *Instance) GetConfig() (Config, error) {

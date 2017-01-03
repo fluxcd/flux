@@ -57,7 +57,7 @@ func (m *MultitenantInstancer) Get(instanceID flux.InstanceID) (*Instance, error
 			http.DefaultClient,
 			c.Settings.Slack.HookURL,
 			c.Settings.Slack.Username,
-			`Regrade`, // only catch the final message
+			`Release`, // only catch the final message
 		))
 	}
 

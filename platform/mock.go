@@ -13,8 +13,8 @@ type MockPlatform struct {
 	SomeServicesAnswer  []Service
 	SomeServicesError   error
 
-	RegradeArgTest func([]RegradeSpec) error
-	RegradeError   error
+	ApplyArgTest func([]ServiceDefinition) error
+	ApplyError   error
 
 	PingError error
 }
@@ -37,13 +37,13 @@ func (p *MockPlatform) SomeServices(ss []flux.ServiceID) ([]Service, error) {
 	return p.SomeServicesAnswer, p.SomeServicesError
 }
 
-func (p *MockPlatform) Regrade(ss []RegradeSpec) error {
-	if p.RegradeArgTest != nil {
-		if err := p.RegradeArgTest(ss); err != nil {
+func (p *MockPlatform) Apply(defs []ServiceDefinition) error {
+	if p.ApplyArgTest != nil {
+		if err := p.ApplyArgTest(defs); err != nil {
 			return err
 		}
 	}
-	return p.RegradeError
+	return p.ApplyError
 }
 
 func (p *MockPlatform) Ping() error {

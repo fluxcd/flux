@@ -415,13 +415,13 @@ func (p *loggingPlatform) SomeServices(include []flux.ServiceID) (ss []platform.
 	return p.platform.SomeServices(include)
 }
 
-func (p *loggingPlatform) Regrade(regrades []platform.RegradeSpec) (err error) {
+func (p *loggingPlatform) Apply(defs []platform.ServiceDefinition) (err error) {
 	defer func() {
 		if err != nil {
-			p.logger.Log("method", "Regrade", "error", err)
+			p.logger.Log("method", "Apply", "error", err)
 		}
 	}()
-	return p.platform.Regrade(regrades)
+	return p.platform.Apply(defs)
 }
 
 func (p *loggingPlatform) Ping() (err error) {
