@@ -11,43 +11,24 @@ import (
 	"github.com/weaveworks/flux"
 )
 
+const (
+	LabelMethod  = "method"
+	LabelSuccess = "success"
+)
+
 type Metrics struct {
-	AllServicesDuration  metrics.Histogram
-	SomeServicesDuration metrics.Histogram
-	RegradeDuration      metrics.Histogram
-	PingDuration         metrics.Histogram
+	RequestDuration metrics.Histogram
 }
 
 func NewMetrics() Metrics {
 	return Metrics{
-		AllServicesDuration: prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
+		RequestDuration: prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
 			Namespace: "flux",
 			Subsystem: "platform",
-			Name:      "all_services_duration_seconds",
-			Help:      "AllServices method duration in seconds.",
+			Name:      "request_duration_seconds",
+			Help:      "Request duration in seconds.",
 			Buckets:   stdprometheus.DefBuckets,
-		}, []string{"namespace", "success"}),
-		SomeServicesDuration: prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
-			Namespace: "flux",
-			Subsystem: "platform",
-			Name:      "some_services_duration_seconds",
-			Help:      "SomeServices method duration in seconds.",
-			Buckets:   stdprometheus.DefBuckets,
-		}, []string{"success"}),
-		RegradeDuration: prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
-			Namespace: "flux",
-			Subsystem: "platform",
-			Name:      "regrade_duration_seconds",
-			Help:      "Regrade method duration in seconds.",
-			Buckets:   stdprometheus.DefBuckets,
-		}, []string{"success"}),
-		PingDuration: prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
-			Namespace: "flux",
-			Subsystem: "platform",
-			Name:      "ping_duration_seconds",
-			Help:      "Ping method duration in seconds.",
-			Buckets:   stdprometheus.DefBuckets,
-		}, []string{"success"}),
+		}, []string{LabelMethod, LabelSuccess}),
 	}
 }
 
@@ -62,9 +43,9 @@ func Instrument(p Platform, m Metrics) Platform {
 
 func (i *instrumentedPlatform) AllServices(maybeNamespace string, ignored flux.ServiceIDSet) (svcs []Service, err error) {
 	defer func(begin time.Time) {
-		i.m.AllServicesDuration.With(
-			"namespace", maybeNamespace,
-			"success", fmt.Sprint(err == nil),
+		i.m.RequestDuration.With(
+			LabelMethod, "AllServices",
+			LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
 	}(time.Now())
 	return i.p.AllServices(maybeNamespace, ignored)
@@ -72,8 +53,9 @@ func (i *instrumentedPlatform) AllServices(maybeNamespace string, ignored flux.S
 
 func (i *instrumentedPlatform) SomeServices(ids []flux.ServiceID) (svcs []Service, err error) {
 	defer func(begin time.Time) {
-		i.m.SomeServicesDuration.With(
-			"success", fmt.Sprint(err == nil),
+		i.m.RequestDuration.With(
+			LabelMethod, "SomeServices",
+			LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
 	}(time.Now())
 	return i.p.SomeServices(ids)
@@ -81,8 +63,9 @@ func (i *instrumentedPlatform) SomeServices(ids []flux.ServiceID) (svcs []Servic
 
 func (i *instrumentedPlatform) Regrade(spec []RegradeSpec) (err error) {
 	defer func(begin time.Time) {
-		i.m.RegradeDuration.With(
-			"success", fmt.Sprint(err == nil),
+		i.m.RequestDuration.With(
+			LabelMethod, "Regrade",
+			LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
 	}(time.Now())
 	return i.p.Regrade(spec)
@@ -90,8 +73,9 @@ func (i *instrumentedPlatform) Regrade(spec []RegradeSpec) (err error) {
 
 func (i *instrumentedPlatform) Ping() (err error) {
 	defer func(begin time.Time) {
-		i.m.PingDuration.With(
-			"success", fmt.Sprint(err == nil),
+		i.m.RequestDuration.With(
+			LabelMethod, "Ping",
+			LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
 	}(time.Now())
 	return i.p.Ping()
