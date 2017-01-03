@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -46,9 +45,9 @@ func NewReleaser(
 
 type ReleaseAction struct {
 	Name        string
-	Description string                      `json:"description"`
-	Do          func(*Repo) (string, error) `json:"-"`
-	Result      string                      `json:"result"`
+	Description string                                `json:"description"`
+	Do          func(*ReleaseContext) (string, error) `json:"-"`
+	Result      string                                `json:"result"`
 }
 
 func (r *Releaser) Handle(job *jobs.Job, updater jobs.JobUpdater) (followUps []jobs.Job, err error) {
@@ -97,7 +96,7 @@ func (r *Releaser) Handle(job *jobs.Job, updater jobs.JobUpdater) (followUps []j
 			images,
 			updateJob,
 		),
-		kind,
+		params.Kind,
 		updateJob,
 	)
 }
@@ -137,9 +136,13 @@ func (r *Releaser) plan(
 	//
 	//   Result: Fail: no definition files found for foobar
 	//
+
+	// TODO: Implement this
+	var notifications []Notification
+
 	res = append(res, r.releaseActionPrintf(msg)) // TODO: Replace this with a better title-printer.
-	res = append(res, r.planActions(inst, imageSpec, getImages)...)
-	res = append(res, r.executeActions(msg, imageSpec, getServices, kind)...)
+	res = append(res, r.planActions(inst, imageSpec, getImages, getServices)...)
+	res = append(res, r.executeActions(msg, imageSpec, kind, notifications)...)
 	return res
 }
 
@@ -153,19 +156,19 @@ func (r *Releaser) releaseActionPrintf(format string, args ...interface{}) Relea
 	}
 }
 
-func (r *Releaser) planActions(inst *instance.Instance, imageSpec flux.ImageSpec, getServices serviceQuery, getImages imageSelector) []ReleaseAction {
+func (r *Releaser) planActions(inst *instance.Instance, imageSpec flux.ImageSpec, getImages imageSelector, getServices serviceQuery) []ReleaseAction {
 	return []ReleaseAction{
-		r.releaseActionClone(inst),
+		r.releaseActionClone(),
 		r.releaseActionFindDefinitions(getServices),
 		r.releaseActionCheckForNewImages(imageSpec, getImages),
-		r.releaseActionUpdateDefinitions(imageSpec, getServices),
+		r.releaseActionUpdateDefinitions(imageSpec, getImages, getServices),
 	}
 }
 
-func (r *Releaser) executeActions(commitMsg string, imageSpec flux.ImageSpec, kind flux.ReleaseKind, notifications []Notifications) []ReleaseAction {
+func (r *Releaser) executeActions(commitMsg string, imageSpec flux.ImageSpec, kind flux.ReleaseKind, notifications []Notification) []ReleaseAction {
 	return []ReleaseAction{
 		r.releaseActionCommitAndPush(imageSpec, kind, commitMsg),
-		r.releaseActionApplyToPlatform(imageSpec, kind),
+		r.releaseActionApplyToPlatform(kind, commitMsg),
 		r.releaseActionSendNotifications(kind, notifications),
 	}
 }
@@ -179,7 +182,7 @@ func (r *Releaser) releaseActionClone() ReleaseAction {
 			if err != nil {
 				return "", errors.Wrap(err, "clone the definition repository")
 			}
-			return fmt.Sprintf("Cloned %s", rs.URL), nil
+			return "Cloned " + rc.RepoURL(), nil
 		},
 	}
 }
@@ -202,7 +205,7 @@ func (r *Releaser) releaseActionFindDefinitions(getServiceDefinitions serviceQue
 				return "", errors.Wrapf(err, "finding resource definition files for %s", getServiceDefinitions)
 			}
 			if len(services) <= 0 {
-				return nil, errors.New("no resource definition files found")
+				return "", errors.New("no resource definition files found")
 			}
 			for service, files := range services {
 				if len(files) > 1 {
@@ -229,7 +232,7 @@ func (r *Releaser) releaseActionFindDefinitions(getServiceDefinitions serviceQue
 				for image := range images {
 					rc.ServiceImages[service] = append(rc.ServiceImages[service], image)
 				}
-				sort.Strings(rc.ServiceImages[service])
+				flux.ImageIDSlice(rc.ServiceImages[service]).Sort()
 			}
 
 			return fmt.Sprintf("Found %d definition files", len(services)), nil
@@ -250,7 +253,7 @@ func (r *Releaser) releaseActionCheckForNewImages(imageSpec flux.ImageSpec, getI
 			}
 
 			// Fetch the image metadata
-			rc.Images, err = getImages.SelectImages(rc.Instance, serviceImages)
+			rc.Images, err = getImages.SelectImages(rc.Instance, rc.ServiceImages)
 			if err != nil {
 				return "", err
 			}
@@ -259,7 +262,7 @@ func (r *Releaser) releaseActionCheckForNewImages(imageSpec flux.ImageSpec, getI
 	}
 }
 
-func (r *Releaser) releaseActionUpdateDefinitions(imageSpec flux.ServiceSpec, getServices serviceQuery, getImages imageSelector) ReleaseAction {
+func (r *Releaser) releaseActionUpdateDefinitions(imageSpec flux.ImageSpec, getImages imageSelector, getServices serviceQuery) ReleaseAction {
 	return ReleaseAction{
 		Name:        "update_definitions",
 		Description: fmt.Sprintf("Update definition files for %s to %s", getServices, getImages),
@@ -286,7 +289,8 @@ func (r *Releaser) releaseActionUpdateDefinitions(imageSpec flux.ServiceSpec, ge
 						}
 
 						if image == target.ID {
-							res = append(res, r.releaseActionPrintf("Service %s image %s is already the latest one; skipping.", service, image))
+							// Definition is already up to date. Nothing to do.
+							// TODO: Add a log or output of this.
 							continue
 						}
 
@@ -295,7 +299,7 @@ func (r *Releaser) releaseActionUpdateDefinitions(imageSpec flux.ServiceSpec, ge
 						// in the definition that match it. So for the time being we
 						// ignore the current image. UpdateDefinition could be
 						// updated, if necessary.
-						updatedDefinition, err = kubernetes.UpdateDefinition(updatedDefinition, string(target), ioutil.Discard)
+						updatedDefinition, err = kubernetes.UpdateDefinition(updatedDefinition, target.ID, ioutil.Discard)
 						if err != nil {
 							return "", errors.Wrapf(err, "updating definition for %s", target)
 						}
@@ -315,7 +319,7 @@ func (r *Releaser) releaseActionUpdateDefinitions(imageSpec flux.ServiceSpec, ge
 	}
 }
 
-func (r *Releaser) releaseActionCommitAndPush(imageSpec flux.ImageSpec, kind flux.ReleaseKind, msg string) ReleaseAction {
+func (r *Releaser) releaseActionCommitAndPush(imageSpec flux.ImageSpec, kind flux.ReleaseKind, commitMsg string) ReleaseAction {
 	return ReleaseAction{
 		Name:        "commit_and_push",
 		Description: "Commit and push the definitions repo",
@@ -348,16 +352,16 @@ func (r *Releaser) releaseActionCommitAndPush(imageSpec flux.ImageSpec, kind flu
 			if _, err := os.Stat(rc.KeyPath); err != nil {
 				return "", fmt.Errorf("the repo key (%s) is not valid: %v", rc.KeyPath, err)
 			}
-			result, err := rc.CommitAndPush(msg)
+			result, err := rc.CommitAndPush(commitMsg)
 			if err == nil && result == "" {
-				return "Pushed commit: " + msg, nil
+				return "Pushed commit: " + commitMsg, nil
 			}
 			return result, err
 		},
 	}
 }
 
-func (r *Releaser) releaseActionApplyToPlatform(kind flux.ReleaseKind) ReleaseAction {
+func (r *Releaser) releaseActionApplyToPlatform(kind flux.ReleaseKind, commitMsg string) ReleaseAction {
 	return ReleaseAction{
 		Name: "apply_to_platform",
 		// TODO: take the platform here and *ask* it what type it is, instead of
@@ -379,7 +383,7 @@ func (r *Releaser) releaseActionApplyToPlatform(kind flux.ReleaseKind) ReleaseAc
 			var asyncSpecs []platform.ServiceDefinition
 
 			// Apply each changed definition to the platform, so commit/push works.
-			cause := strconv.Quote(msg)
+			cause := strconv.Quote(commitMsg)
 			for service, definitions := range rc.UpdatedDefinitions {
 				if len(definitions) == 0 {
 					results[service] = errors.New("no definitions found; skipping apply")
@@ -455,7 +459,7 @@ func (r *Releaser) releaseActionApplyToPlatform(kind flux.ReleaseKind) ReleaseAc
 	}
 }
 
-func (r *Releaser) releaseActionSendNotifications(kind flux.ReleaseKind, notifications []Notifications) ReleaseAction {
+func (r *Releaser) releaseActionSendNotifications(kind flux.ReleaseKind, notifications []Notification) ReleaseAction {
 	return ReleaseAction{
 		Name:        "send_notifications",
 		Description: fmt.Sprintf("Send notifications to %s", notifications),

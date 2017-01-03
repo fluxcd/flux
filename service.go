@@ -152,6 +152,16 @@ func (id ImageID) Repository() string {
 	return ""
 }
 
+// ImageIDSlice attaches the methods of sort.Interface to []ImageID, sorting in increasing order.
+type ImageIDSlice []ImageID
+
+func (s ImageIDSlice) Len() int           { return len(s) }
+func (s ImageIDSlice) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+func (s ImageIDSlice) Less(i, j int) bool { return string(s[i]) < string(s[j]) }
+
+// Sort is a convenience method.
+func (s ImageIDSlice) Sort() { sort.Sort(s) }
+
 type ServiceSpec string // ServiceID or "<all>"
 
 func ParseServiceSpec(s string) (ServiceSpec, error) {

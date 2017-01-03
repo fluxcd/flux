@@ -5,7 +5,6 @@ import (
 
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/instance"
-	"github.com/weaveworks/flux/platform"
 )
 
 type imageSelector interface {
@@ -28,7 +27,7 @@ func imageSelectorForSpec(spec flux.ImageSpec) imageSelector {
 
 type funcImageSelector struct {
 	text string
-	f    func(*instance.Instance, map[flux.ServiceID][]string) (instance.ImageMap, error)
+	f    func(*instance.Instance, map[flux.ServiceID][]flux.ImageID) (instance.ImageMap, error)
 }
 
 func (f funcImageSelector) String() string {
@@ -36,7 +35,7 @@ func (f funcImageSelector) String() string {
 }
 
 func (f funcImageSelector) SelectImages(inst *instance.Instance, serviceImages map[flux.ServiceID][]flux.ImageID) (instance.ImageMap, error) {
-	return f.f(inst, services)
+	return f.f(inst, serviceImages)
 }
 
 var (
@@ -54,6 +53,7 @@ var (
 			for repo := range uniqueRepos {
 				repos = append(repos, repo)
 			}
+			// Go look in the registry for new images
 			return h.CollectAvailableImages(repos)
 		},
 	}
@@ -67,8 +67,12 @@ var (
 )
 
 func exactlyTheseImages(images []flux.ImageID) imageSelector {
+	imageText := make([]string, len(images))
+	for _, image := range images {
+		imageText = append(imageText, string(image))
+	}
 	return funcImageSelector{
-		text: strings.Join(images, ", "),
+		text: strings.Join(imageText, ", "),
 		f: func(h *instance.Instance, _ map[flux.ServiceID][]flux.ImageID) (instance.ImageMap, error) {
 			return h.ExactImages(images)
 		},

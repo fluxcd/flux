@@ -10,33 +10,33 @@ import (
 // Build the selector query to fetch the services from the platform
 //
 // TODO: Why do we need to fetch them from the platform? Surely they need to
-// come from the manifests...
-func serviceSelector(inst *instance.Instance, include []flux.ServiceSpec, exclude []flux.ServiceID) (serviceQuery, error) {
-	exclude := flux.ServiceIDSet{}
-	exclude.Add(params.Excludes)
+// come from the definition files...
+func serviceSelector(inst *instance.Instance, includeSpecs []flux.ServiceSpec, exclude []flux.ServiceID) (serviceQuery, error) {
+	excludeSet := flux.ServiceIDSet{}
+	excludeSet.Add(exclude)
 
 	locked, err := lockedServices(inst)
 	if err != nil {
 		return nil, err
 	}
-	exclude.Add(locked)
+	excludeSet.Add(locked)
 
 	var include []flux.ServiceID
-	for _, spec := range params.ServiceSpecs {
+	for _, spec := range includeSpecs {
 		if spec == flux.ServiceSpecAll {
 			// If one of the specs is '<all>' we can ignore the rest.
-			return allServicesExcept(exclude), nil
+			return allServicesExcept(excludeSet), nil
 		}
-		serviceID, err := flux.ParseServiceID(string(params.ServiceSpec))
+		serviceID, err := flux.ParseServiceID(string(includeSpecs))
 		if err != nil {
 			return nil, errors.Wrapf(err, "parsing service ID from params %q", spec)
 		}
 		include = append(include, serviceID)
 	}
-	return exactlyTheseServices(flux.ServiceIDs(include).Without(exclude)), nil
+	return exactlyTheseServices(flux.ServiceIDs(include).Without(excludeSet)), nil
 }
 
-type serviceQuery func(*instance.Instance) ([]platform.Service, error)
+type serviceQuery func(*instance.Instance) (map[flux.ServiceID]map[string][]byte, error)
 
 func exactlyTheseServices(include []flux.ServiceID) serviceQuery {
 	return func(h *instance.Instance) ([]platform.Service, error) {
