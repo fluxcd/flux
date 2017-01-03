@@ -7,8 +7,10 @@ import (
 	"github.com/go-kit/kit/log"
 
 	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/git"
 	"github.com/weaveworks/flux/instance"
 	"github.com/weaveworks/flux/jobs"
+	"github.com/weaveworks/flux/platform"
 )
 
 type mockInstanceDB map[flux.InstanceID]instance.Config
@@ -74,9 +76,17 @@ func TestHandleAutomatedInstanceJob(t *testing.T) {
 	instanceDB := mockInstanceDB{
 		instID: instance.Config{},
 	}
+	instancer := instance.StandaloneInstancer{
+		Instance:  instID,
+		Connecter: platform.NewStandaloneMessageBus(platform.NewBusMetrics()),
+		Registry:  nil, // *registry.Client
+		Config:    instanceDB,
+		GitRepo:   git.Repo{},
+	}
 	a, err := New(Config{
 		Jobs:       &mockJobStore{},
 		InstanceDB: instanceDB,
+		Instancer:  instancer,
 		Logger:     nullLogger,
 	})
 	if err != nil {
@@ -161,5 +171,13 @@ func TestHandleAutomatedInstanceJob(t *testing.T) {
 		// - There should be a release for each new image
 	}
 
+	t.Error("TODO")
+}
+
+func TestHandleAutomatedInstanceJob_IgnoresUndefinedAutomatedServices(t *testing.T) {
+	t.Error("TODO")
+}
+
+func TestHandleAutomatedInstanceJob_DeploysNonRunningAutomatedServices(t *testing.T) {
 	t.Error("TODO")
 }

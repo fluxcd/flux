@@ -151,7 +151,7 @@ func (a *Automator) handleAutomatedInstanceJob(logger log.Logger, j *jobs.Job) (
 	}
 
 	// Clone the repo
-	path, keyfile, err := inst.ConfigRepo().Clone()
+	path, _, err := inst.ConfigRepo().Clone()
 	if err != nil {
 		return followUps, errors.Wrap(err, "cloning config repo")
 	}
@@ -163,13 +163,14 @@ func (a *Automator) handleAutomatedInstanceJob(logger log.Logger, j *jobs.Job) (
 	}
 
 	// Get the intersection of defined and automated services
-	// TODO: What do we do if there are automated, but undefined services?
 	var serviceIDs []flux.ServiceID
 	for id, service := range config.Services {
 		if service.Policy() != flux.PolicyAutomated {
 			continue
 		}
 		if _, ok := serviceFiles[id]; !ok {
+			// Service is automated, but undefined. Skip it.
+			// TODO: Log something here, probably.
 			continue
 		}
 		serviceIDs = append(serviceIDs, id)
@@ -187,9 +188,14 @@ func (a *Automator) handleAutomatedInstanceJob(logger log.Logger, j *jobs.Job) (
 		return followUps, errors.Wrap(err, "getting automated services")
 	}
 
-	images, err := inst.CollectAvailableImages(services)
+	images, err := inst.CollectAvailableImages(repos)
 	if err != nil {
 		return followUps, errors.Wrap(err, "collecting available images")
+	}
+
+	serviceSpecs := make([]flux.ServiceSpec, len(serviceIDs))
+	for _, id := range serviceIDs {
+		serviceSpecs = append(serviceSpecs, flux.ServiceSpec(id))
 	}
 
 	// Schedule the release for each image. Will be a noop if all services are
@@ -203,7 +209,7 @@ func (a *Automator) handleAutomatedInstanceJob(logger log.Logger, j *jobs.Job) (
 			Method:   jobs.ReleaseJob,
 			Priority: jobs.PriorityBackground,
 			Params: jobs.ReleaseJobParams{
-				ServiceSpecs: serviceIDs,
+				ServiceSpecs: serviceSpecs,
 				ImageSpec:    flux.ImageSpec(latest.ID),
 				Kind:         flux.ReleaseKindExecute,
 			},

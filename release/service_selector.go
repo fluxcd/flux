@@ -1,4 +1,4 @@
-package releaser
+package release
 
 import (
 	"github.com/pkg/errors"

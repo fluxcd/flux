@@ -1,6 +1,9 @@
 package release
 
 import (
+	"os"
+	"path/filepath"
+
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/instance"
 )
@@ -9,15 +12,19 @@ type ReleaseContext struct {
 	Instance           *instance.Instance
 	WorkingDir         string
 	KeyPath            string
-	ServiceDefinitions map[flux.ServiceID][]string
+	ServiceDefinitions map[flux.ServiceID]map[string][]byte
 	Images             instance.ImageMap
+	ServiceImages      map[flux.ServiceID][]flux.ImageID
+	UpdatedDefinitions map[flux.ServiceID]map[string][]byte
 }
 
 func NewReleaseContext(inst *instance.Instance) *ReleaseContext {
 	return &ReleaseContext{
 		Instance:           inst,
-		ServiceDefinitions: map[flux.ServiceID][]string{},
+		ServiceDefinitions: map[flux.ServiceID]map[string][]byte{},
 		Images:             instance.ImageMap{},
+		ServiceImages:      map[flux.ServiceID][]flux.ImageID{},
+		UpdatedDefinitions: map[flux.ServiceID]map[string][]byte{},
 	}
 }
 

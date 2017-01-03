@@ -91,6 +91,7 @@ func (r *Releaser) Handle(job *jobs.Job, updater jobs.JobUpdater) (followUps []j
 		r.plan(
 			fmt.Sprintf("Release %s to %s", images, services),
 			inst,
+			params.ImageSpec,
 			params.Kind,
 			services,
 			images,
@@ -101,7 +102,15 @@ func (r *Releaser) Handle(job *jobs.Job, updater jobs.JobUpdater) (followUps []j
 	)
 }
 
-func (r *Releaser) plan(msg string, inst *instance.Instance, kind flux.ReleaseKind, getServices serviceQuery, getImages imageSelector, updateJob func(string, ...interface{})) []ReleaseAction {
+func (r *Releaser) plan(
+	msg string,
+	inst *instance.Instance,
+	imageSpec flux.ImageSpec,
+	kind flux.ReleaseKind,
+	getServices serviceQuery,
+	getImages imageSelector,
+	updateJob func(string, ...interface{}),
+) []ReleaseAction {
 	var res []ReleaseAction
 	// TODO: consider maybe having Stages, then actions
 	// Like: [{Name: "gather_materials", Actions: []}, ]
@@ -129,8 +138,8 @@ func (r *Releaser) plan(msg string, inst *instance.Instance, kind flux.ReleaseKi
 	//   Result: Fail: no definition files found for foobar
 	//
 	res = append(res, r.releaseActionPrintf(msg)) // TODO: Replace this with a better title-printer.
-	res = append(res, r.planActions(inst, getImages)...)
-	res = append(res, r.executeActions(msg, getServices, kind)...)
+	res = append(res, r.planActions(inst, imageSpec, getImages)...)
+	res = append(res, r.executeActions(msg, imageSpec, getServices, kind)...)
 	return res
 }
 
@@ -144,19 +153,19 @@ func (r *Releaser) releaseActionPrintf(format string, args ...interface{}) Relea
 	}
 }
 
-func (r *Releaser) planActions(inst *instance.Instance, getServices serviceQuery, getImages imageSelector) []ReleaseAction {
+func (r *Releaser) planActions(inst *instance.Instance, imageSpec flux.ImageSpec, getServices serviceQuery, getImages imageSelector) []ReleaseAction {
 	return []ReleaseAction{
 		r.releaseActionClone(inst),
 		r.releaseActionFindDefinitions(getServices),
-		r.releaseActionCheckForNewImages(getImages),
-		r.releaseActionUpdateDefinitions(getServices),
+		r.releaseActionCheckForNewImages(imageSpec, getImages),
+		r.releaseActionUpdateDefinitions(imageSpec, getServices),
 	}
 }
 
-func (r *Releaser) executeActions(commitMsg string, kind flux.ReleaseKind, notifications []Notifications) []ReleaseAction {
+func (r *Releaser) executeActions(commitMsg string, imageSpec flux.ImageSpec, kind flux.ReleaseKind, notifications []Notifications) []ReleaseAction {
 	return []ReleaseAction{
-		r.releaseActionCommitAndPush(kind, commitMsg),
-		r.releaseActionApplyToPlatform(kind),
+		r.releaseActionCommitAndPush(imageSpec, kind, commitMsg),
+		r.releaseActionApplyToPlatform(imageSpec, kind),
 		r.releaseActionSendNotifications(kind, notifications),
 	}
 }
@@ -187,6 +196,7 @@ func (r *Releaser) releaseActionFindDefinitions(getServiceDefinitions serviceQue
 
 			// TODO: The files returned here should actually have a "position" of the
 			// definition, for multi-document and list-style k8s manifests
+			// TODO: This should be looking at files, not k8s platform. It should be reading the files as well.
 			services, err := getServiceDefinitions(resourcePath)
 			if err != nil {
 				return "", errors.Wrapf(err, "finding resource definition files for %s", getServiceDefinitions)
@@ -201,160 +211,148 @@ func (r *Releaser) releaseActionFindDefinitions(getServiceDefinitions serviceQue
 			}
 
 			rc.ServiceDefinitions = services
+
+			// Parse service definitions to find currently used images for each service
+			// TODO: take the platform here and *ask* it what type it is, instead of
+			// assuming kubernetes.
+			for service, files := range rc.ServiceDefinitions {
+				images := map[flux.ImageID]struct{}{}
+				for path, definition := range files {
+					found, err := kubernetes.ImagesForDefinition(definition)
+					if err != nil {
+						return "", errors.Wrapf(err, "parsing definition file: %s", path)
+					}
+					for image := range found {
+						images[image] = struct{}{}
+					}
+				}
+				for image := range images {
+					rc.ServiceImages[service] = append(rc.ServiceImages[service], image)
+				}
+				sort.Strings(rc.ServiceImages[service])
+			}
+
 			return fmt.Sprintf("Found %d definition files", len(services)), nil
 		},
 	}
 }
 
-func (r *Releaser) releaseActionCheckForNewImages(getImages imageSelector) ReleaseAction {
+func (r *Releaser) releaseActionCheckForNewImages(imageSpec flux.ImageSpec, getImages imageSelector) ReleaseAction {
 	return ReleaseAction{
 		Name:        "check_for_new_images",
 		Description: fmt.Sprintf("Check registry for %s", getImages),
 		Do: func(rc *ReleaseContext) (res string, err error) {
-			rc.Images, err = getImages(rc.Instance, rc.Services)
+			// Handle --no-update-image releases here! No need to look up new images.
+			// Calling getImages would be a noop, but this way we output a nicer
+			// message.
+			if imageSpec == flux.ImageSpecNone {
+				return "Skipped", nil
+			}
+
+			// Fetch the image metadata
+			rc.Images, err = getImages.SelectImages(rc.Instance, serviceImages)
 			if err != nil {
 				return "", err
 			}
 			return fmt.Sprintf("Found %d new images", len(rc.Images)), nil
-
-			/*
-				resourcePath := rc.RepoPath()
-				if fi, err := os.Stat(resourcePath); err != nil || !fi.IsDir() {
-					return "", fmt.Errorf("the resource path (%s) is not valid", resourcePath)
-				}
-
-				namespace, serviceName := service.Components()
-				files, err := kubernetes.FilesFor(resourcePath, namespace, serviceName)
-
-				if err != nil {
-					return "", errors.Wrapf(err, "finding resource definition file for %s", service)
-				}
-				if len(files) <= 0 { // fine; we'll just skip it
-					return fmt.Sprintf("no resource definition file found for %s; skipping", service), nil
-				}
-				if len(files) > 1 {
-					return "", fmt.Errorf("multiple resource definition files found for %s: %s", service, strings.Join(files, ", "))
-				}
-
-				def, err := ioutil.ReadFile(files[0]) // TODO(mb) not multi-doc safe
-				if err != nil {
-					return "", err
-				}
-				rc.PodControllers[service] = def
-				return "Found pod controller OK.", nil
-			*/
 		},
 	}
 }
 
-func (r *Releaser) releaseActionUpdateDefinitions(getServices serviceQuery, getImages imageSelector) ReleaseAction {
+func (r *Releaser) releaseActionUpdateDefinitions(imageSpec flux.ServiceSpec, getServices serviceQuery, getImages imageSelector) ReleaseAction {
 	return ReleaseAction{
 		Name:        "update_definitions",
 		Description: fmt.Sprintf("Update definition files for %s to %s", getServices, getImages),
 		Do: func(rc *ReleaseContext) (res string, err error) {
-			return "", fmt.Errorf("TODO")
+			// Handle --no-update-image releases here! Need to apply existing definitions instead.
+			if imageSpec == flux.ImageSpecNone {
+				rc.UpdatedDefinitions = rc.ServiceDefinitions
+				return "Skipped", nil
+			}
 
-			/*
-				// Each service is running multiple images.
-				// Each image may need to be upgraded, and trigger a release.
-				images, err := getImages(inst, services)
-				if err != nil {
-					return errors.Wrap(err, "collecting available images to calculate regrades")
-				}
-
-				regradeMap := map[flux.ServiceID][]containerRegrade{}
-				for _, service := range services {
-					containers, err := service.ContainersOrError()
-					if err != nil {
-						res = append(res, r.releaseActionPrintf("service %s does not have images associated: %s", service.ID, err))
-						continue
-					}
-					for _, container := range containers {
-						currentImageID := flux.ParseImageID(container.Image)
-						latestImage := images.LatestImage(currentImageID.Repository())
-						if latestImage == nil {
-							continue
-						}
-
-						if currentImageID == latestImage.ID {
-							res = append(res, r.releaseActionPrintf("Service %s image %s is already the latest one; skipping.", service.ID, currentImageID))
-							continue
-						}
-
-						regradeMap[service.ID] = append(regradeMap[service.ID], containerRegrade{
-							container: container.Name,
-							current:   currentImageID,
-							target:    latestImage.ID,
-						})
-					}
-				}
-
-				if len(regradeMap) <= 0 {
-					res = append(res, r.releaseActionPrintf("All selected services are running the requested images. Nothing to do."))
-					return nil
-				}
-
-				for service, files := range rc.ServiceDefinitions {
-					def, err := ioutil.ReadFile(files[0]) // TODO(mb) not multi-doc safe
-					if err != nil {
-						return "", err
-					}
-					fi, err := os.Stat(files[0])
-					if err != nil {
-						return "", err
-					}
-				}
-
-				for _, regrade := range regrades {
-					// Note 1: UpdatePodController parses the target (new) image
-					// name, extracts the repository, and only mutates the line(s)
-					// in the definition that match it. So for the time being we
-					// ignore the current image. UpdatePodController could be
-					// updated, if necessary.
-					//
-					// Note 2: we keep overwriting the same def, to handle multiple
+			definitionCount := 0
+			for service, images := range rc.ServiceImages {
+				// Update all definition files for this service. (should only be one)
+				serviceChanged := false
+				for path, definition := range rc.ServiceDefinitions[service] {
+					// We keep overwriting the same def, to handle multiple
 					// images in a single file.
-					def, err = kubernetes.UpdatePodController(def, string(regrade.target), ioutil.Discard)
-					if err != nil {
-						return "", errors.Wrapf(err, "updating pod controller for %s", regrade.target)
+					updatedDefinition := definition
+					definitionChanged := false
+					for _, image := range images {
+						target := rc.Images.LatestImage(image.Repository())
+						if target == nil {
+							continue
+						}
+
+						if image == target.ID {
+							res = append(res, r.releaseActionPrintf("Service %s image %s is already the latest one; skipping.", service, image))
+							continue
+						}
+
+						// UpdateDefinition parses the target (new) image
+						// name, extracts the repository, and only mutates the line(s)
+						// in the definition that match it. So for the time being we
+						// ignore the current image. UpdateDefinition could be
+						// updated, if necessary.
+						updatedDefinition, err = kubernetes.UpdateDefinition(updatedDefinition, string(target), ioutil.Discard)
+						if err != nil {
+							return "", errors.Wrapf(err, "updating definition for %s", target)
+						}
+						definitionChanged = true
+					}
+					if definitionChanged {
+						if _, ok := rc.UpdatedDefinitions[service]; !ok {
+							rc.UpdatedDefinitions[service] = map[string][]byte{}
+						}
+						rc.UpdatedDefinitions[service][path] = updatedDefinition
+						definitionCount++
 					}
 				}
-
-				// Write the file back, so commit/push works.
-				if err := ioutil.WriteFile(files[0], def, fi.Mode()); err != nil {
-					return "", err
-				}
-
-				// Put the def in the map, so release works.
-				rc.PodControllers[service] = def
-				return "Update pod controller OK.", nil
-			*/
+			}
+			return fmt.Sprintf("Updated %d definition files for %d services", definitionCount, len(rc.UpdatedDefinitions)), nil
 		},
 	}
 }
 
-func (r *Releaser) releaseActionCommitAndPush(kind flux.ReleaseKind, msg string) ReleaseAction {
+func (r *Releaser) releaseActionCommitAndPush(imageSpec flux.ImageSpec, kind flux.ReleaseKind, msg string) ReleaseAction {
 	return ReleaseAction{
 		Name:        "commit_and_push",
 		Description: "Commit and push the definitions repo",
 		Do: func(rc *ReleaseContext) (res string, err error) {
-			if kind != flux.ReleaseKindExecute {
+			if imageSpec == flux.ImageSpecNone || kind != flux.ReleaseKindExecute {
 				return "Skipped", nil
 			}
-			return "", fmt.Errorf("TODO")
-			/*
-				if fi, err := os.Stat(rc.WorkingDir); err != nil || !fi.IsDir() {
-					return "", fmt.Errorf("the repo path (%s) is not valid", rc.WorkingDir)
+
+			if len(rc.UpdatedDefinitions) == 0 {
+				return "No definitions updated, nothing to commit", nil
+			}
+
+			// Write each changed definition file back, so commit/push works.
+			for service, definitions := range rc.UpdatedDefinitions {
+				for path, definition := range definitions {
+					fi, err := os.Stat(path)
+					if err != nil {
+						return "", errors.Wrapf(err, "writing new definition file")
+					}
+
+					if err := ioutil.WriteFile(path, definition, fi.Mode()); err != nil {
+						return "", errors.Wrapf(err, "writing new definition file")
+					}
 				}
-				if _, err := os.Stat(rc.KeyPath); err != nil {
-					return "", fmt.Errorf("the repo key (%s) is not valid: %v", rc.KeyPath, err)
-				}
-				result, err := rc.CommitAndPush(msg)
-				if err == nil && result == "" {
-					return "Pushed commit: " + msg, nil
-				}
-				return result, err
-			*/
+			}
+
+			if fi, err := os.Stat(rc.WorkingDir); err != nil || !fi.IsDir() {
+				return "", fmt.Errorf("the repo path (%s) is not valid", rc.WorkingDir)
+			}
+			if _, err := os.Stat(rc.KeyPath); err != nil {
+				return "", fmt.Errorf("the repo key (%s) is not valid: %v", rc.KeyPath, err)
+			}
+			result, err := rc.CommitAndPush(msg)
+			if err == nil && result == "" {
+				return "Pushed commit: " + msg, nil
+			}
+			return result, err
 		},
 	}
 }
@@ -369,7 +367,90 @@ func (r *Releaser) releaseActionApplyToPlatform(kind flux.ReleaseKind) ReleaseAc
 			if kind != flux.ReleaseKindExecute {
 				return "Skipped", nil
 			}
-			return "", fmt.Errorf("TODO")
+
+			// We'll collect results for each service apply
+			results := map[flux.ServiceID]error{}
+
+			// Collect specs for each service apply.
+			var specs []platform.ServiceDefinition
+			// If we're applying our own image, we want to do that
+			// last, and "asynchronously" (meaning we probably won't
+			// see the reply).
+			var asyncSpecs []platform.ServiceDefinition
+
+			// Apply each changed definition to the platform, so commit/push works.
+			cause := strconv.Quote(msg)
+			for service, definitions := range rc.UpdatedDefinitions {
+				if len(definitions) == 0 {
+					results[service] = errors.New("no definitions found; skipping apply")
+					continue
+				}
+
+				for _, definition := range definitions {
+					namespace, serviceName := service.Components()
+					newDefinition := platform.ServiceDefinition{
+						ServiceID:     service,
+						NewDefinition: definition,
+					}
+					switch serviceName {
+					case FluxServiceName, FluxDaemonName:
+						rc.Instance.LogEvent(namespace, serviceName, "Starting apply (no result expected) "+cause)
+						asyncSpecs = append(asyncSpecs, newDefinition)
+					default:
+						rc.Instance.LogEvent(namespace, serviceName, "Starting apply "+cause)
+						specs = append(specs, newDefinition)
+					}
+				}
+			}
+
+			// Execute the applys as a single transaction.
+			// Splat any errors into our results map.
+			transactionErr := rc.Instance.PlatformApply(specs)
+			if transactionErr != nil {
+				switch err := transactionErr.(type) {
+				case platform.ApplyError:
+					for id, applyErr := range err {
+						results[id] = applyErr
+					}
+				default: // assume everything failed, if there was a coverall error
+					for _, service := range services {
+						results[service] = transactionErr
+					}
+				}
+			}
+
+			// Report individual service apply results.
+			// TODO: Integrate Regrade -> Apply changes here
+			// TODO: Record the changes into the ReleaseContext, so we can send
+			// notifications of them in the next step.
+			for _, service := range services {
+				namespace, serviceName := service.Components()
+				switch serviceName {
+				case FluxServiceName, FluxDaemonName:
+					continue
+				default:
+					if err := results[service]; err == nil { // no entry = nil error
+						rc.Instance.LogEvent(namespace, serviceName, "Apply due to "+cause+": done")
+					} else {
+						rc.Instance.LogEvent(namespace, serviceName, "Apply due to "+cause+": failed: "+err.Error())
+					}
+				}
+			}
+
+			// Lastly, services for which we don't expect a result
+			// (i.e., ourselves). This will kick off the apply in
+			// the daemon, which will cause Kubernetes to restart the
+			// service. In the meantime, however, we will have
+			// finished recording what happened, as part of a graceful
+			// shutdown. So the only thing that goes missing is the
+			// result from this apply call.
+			if len(asyncSpecs) > 0 {
+				go func() {
+					rc.Instance.PlatformApply(asyncSpecs)
+				}()
+			}
+
+			return "", transactionErr
 		},
 	}
 }
@@ -382,6 +463,8 @@ func (r *Releaser) releaseActionSendNotifications(kind flux.ReleaseKind, notific
 			if kind != flux.ReleaseKindExecute {
 				return "Skipped", nil
 			}
+			// TODO: We should run this even if some other steps have failed... So we
+			// can report failed releases.
 			return "", fmt.Errorf("TODO")
 		},
 	}
@@ -426,118 +509,4 @@ func (r *Releaser) execute(metric metrics.Histogram, inst *instance.Instance, ac
 	}
 
 	return nil
-}
-
-// Release helpers.
-
-type containerRegrade struct {
-	container string
-	current   flux.ImageID
-	target    flux.ImageID
-}
-
-// ReleaseAction Do funcs
-
-func service2string(a []flux.ServiceID) []string {
-	s := make([]string, len(a))
-	for i := range a {
-		s[i] = string(a[i])
-	}
-	return s
-}
-
-func (r *Releaser) releaseActionRegradeServices(services []flux.ServiceID, msg string) ReleaseAction {
-	return ReleaseAction{
-		Description: fmt.Sprintf("Regrade %d service(s): %s.", len(services), strings.Join(service2string(services), ", ")),
-		Do: func(rc *Repo) (res string, err error) {
-			defer func(begin time.Time) {
-				r.metrics.ActionDuration.With(
-					"action", "regrade_services",
-					"success", fmt.Sprint(err == nil),
-				).Observe(time.Since(begin).Seconds())
-			}(time.Now())
-
-			cause := strconv.Quote(msg)
-
-			// We'll collect results for each service regrade.
-			results := map[flux.ServiceID]error{}
-
-			// Collect specs for each service regrade.
-			var specs []platform.RegradeSpec
-			// If we're regrading our own image, we want to do that
-			// last, and "asynchronously" (meaning we probably won't
-			// see the reply).
-			var asyncSpecs []platform.RegradeSpec
-
-			for _, service := range services {
-				def, ok := rc.PodControllers[service]
-				if !ok {
-					results[service] = errors.New("no definition found; skipping regrade")
-					continue
-				}
-
-				namespace, serviceName := service.Components()
-				switch serviceName {
-				case FluxServiceName, FluxDaemonName:
-					rc.Instance.LogEvent(namespace, serviceName, "Starting regrade (no result expected) "+cause)
-					asyncSpecs = append(asyncSpecs, platform.RegradeSpec{
-						ServiceID:     service,
-						NewDefinition: def,
-					})
-				default:
-					rc.Instance.LogEvent(namespace, serviceName, "Starting regrade "+cause)
-					specs = append(specs, platform.RegradeSpec{
-						ServiceID:     service,
-						NewDefinition: def,
-					})
-				}
-			}
-
-			// Execute the regrades as a single transaction.
-			// Splat any errors into our results map.
-			transactionErr := rc.Instance.PlatformRegrade(specs)
-			if transactionErr != nil {
-				switch err := transactionErr.(type) {
-				case platform.RegradeError:
-					for id, regradeErr := range err {
-						results[id] = regradeErr
-					}
-				default: // assume everything failed, if there was a coverall error
-					for _, service := range services {
-						results[service] = transactionErr
-					}
-				}
-			}
-
-			// Report individual service regrade results.
-			for _, service := range services {
-				namespace, serviceName := service.Components()
-				switch serviceName {
-				case FluxServiceName, FluxDaemonName:
-					continue
-				default:
-					if err := results[service]; err == nil { // no entry = nil error
-						rc.Instance.LogEvent(namespace, serviceName, "Regrade due to "+cause+": done")
-					} else {
-						rc.Instance.LogEvent(namespace, serviceName, "Regrade due to "+cause+": failed: "+err.Error())
-					}
-				}
-			}
-
-			// Lastly, services for which we don't expect a result
-			// (i.e., ourselves). This will kick off the regrade in
-			// the daemon, which will cause Kubernetes to restart the
-			// service. In the meantime, however, we will have
-			// finished recording what happened, as part of a graceful
-			// shutdown. So the only thing that goes missing is the
-			// result from this regrade call.
-			if len(asyncSpecs) > 0 {
-				go func() {
-					rc.Instance.PlatformRegrade(asyncSpecs)
-				}()
-			}
-
-			return "", transactionErr
-		},
-	}
 }
