@@ -79,11 +79,14 @@ func main() {
 
 	// Instrumentation
 	var (
-		httpDuration   metrics.Histogram
-		serverMetrics  server.Metrics
-		releaseMetrics release.Metrics
-		helperDuration metrics.Histogram
-		busMetrics     platform.BusMetrics
+		httpDuration    metrics.Histogram
+		serverMetrics   server.Metrics
+		releaseMetrics  release.Metrics
+		helperDuration  metrics.Histogram
+		busMetrics      platform.BusMetrics
+		historyMetrics  history.Metrics
+		instanceMetrics instance.Metrics
+		jobMetrics      jobs.Metrics
 	)
 	{
 		httpDuration = prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
@@ -157,6 +160,9 @@ func main() {
 			Buckets:   stdprometheus.DefBuckets,
 		}, []string{"method", "success"})
 		busMetrics = platform.NewBusMetrics()
+		historyMetrics = history.NewMetrics()
+		instanceMetrics = instance.NewMetrics()
+		jobMetrics = jobs.NewMetrics()
 	}
 
 	var messageBus platform.MessageBus
@@ -182,7 +188,7 @@ func main() {
 			logger.Log("component", "history", "err", err)
 			os.Exit(1)
 		}
-		historyDB = db
+		historyDB = history.InstrumentedDB(db, historyMetrics)
 	}
 
 	// Configuration, i.e., whether services are automated or not.
@@ -193,7 +199,7 @@ func main() {
 			logger.Log("component", "config", "err", err)
 			os.Exit(1)
 		}
-		instanceDB = db
+		instanceDB = instance.InstrumentedDB(db, instanceMetrics)
 	}
 
 	var instancer instance.Instancer
@@ -216,7 +222,7 @@ func main() {
 			logger.Log("component", "release job store", "err", err)
 			os.Exit(1)
 		}
-		jobStore = s
+		jobStore = jobs.InstrumentedJobStore(s, jobMetrics)
 	}
 
 	// Automator component.
