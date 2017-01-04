@@ -98,14 +98,14 @@ func main() {
 			Name:      "http_request_duration_seconds",
 			Help:      "HTTP request duration in seconds.",
 			Buckets:   stdprometheus.DefBuckets,
-		}, []string{"method", "status_code"})
+		}, []string{fluxmetrics.LabelMethod, "status_code"})
 		serverMetrics.ListServicesDuration = prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
 			Namespace: "flux",
 			Subsystem: "fluxsvc",
 			Name:      "list_services_duration_seconds",
 			Help:      "ListServices method duration in seconds.",
 			Buckets:   stdprometheus.DefBuckets,
-		}, []string{"namespace", fluxmetrics.LabelSuccess})
+		}, []string{fluxmetrics.LabelNamespace, fluxmetrics.LabelSuccess})
 		serverMetrics.ListImagesDuration = prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
 			Namespace: "flux",
 			Subsystem: "fluxsvc",
@@ -140,28 +140,28 @@ func main() {
 			Name:      "release_duration_seconds",
 			Help:      "Release method duration in seconds.",
 			Buckets:   stdprometheus.DefBuckets,
-		}, []string{"release_type", "release_kind", fluxmetrics.LabelSuccess})
+		}, []string{fluxmetrics.LabelReleaseType, fluxmetrics.LabelSuccess})
 		releaseMetrics.ActionDuration = prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
 			Namespace: "flux",
 			Subsystem: "fluxsvc",
 			Name:      "release_action_duration_seconds",
 			Help:      "Duration in seconds of each sub-action invoked as part of a non-dry-run release.",
 			Buckets:   stdprometheus.DefBuckets,
-		}, []string{"action", fluxmetrics.LabelSuccess})
+		}, []string{fluxmetrics.LabelAction, fluxmetrics.LabelSuccess})
 		releaseMetrics.StageDuration = prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
 			Namespace: "flux",
 			Subsystem: "fluxsvc",
 			Name:      "release_stage_duration_seconds",
 			Help:      "Duration in seconds of each stage of a release, including dry-runs.",
 			Buckets:   stdprometheus.DefBuckets,
-		}, []string{"method", "stage"})
+		}, []string{fluxmetrics.LabelMethod, fluxmetrics.LabelStage})
 		helperDuration = prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
 			Namespace: "flux",
 			Subsystem: "fluxsvc",
 			Name:      "release_helper_duration_seconds",
 			Help:      "Duration in seconds of a variety of release helper methods.",
 			Buckets:   stdprometheus.DefBuckets,
-		}, []string{"method", fluxmetrics.LabelSuccess})
+		}, []string{fluxmetrics.LabelMethod, fluxmetrics.LabelSuccess})
 		registryMetrics = registry.NewMetrics()
 		busMetrics = platform.NewBusMetrics()
 		historyMetrics = history.NewMetrics()

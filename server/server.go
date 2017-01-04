@@ -72,7 +72,7 @@ func New(
 func (s *Server) ListServices(inst flux.InstanceID, namespace string) (res []flux.ServiceStatus, err error) {
 	defer func(begin time.Time) {
 		s.metrics.ListServicesDuration.With(
-			"namespace", namespace,
+			fluxmetrics.LabelNamespace, namespace,
 			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
 	}(time.Now())
