@@ -16,6 +16,7 @@ import (
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/instance"
 	"github.com/weaveworks/flux/jobs"
+	fluxmetrics "github.com/weaveworks/flux/metrics"
 	"github.com/weaveworks/flux/platform"
 	"github.com/weaveworks/flux/platform/kubernetes"
 )
@@ -119,9 +120,8 @@ func (r *Releaser) Handle(job *jobs.Job, updater jobs.JobUpdater) (err error) {
 	releaseType := "unknown"
 	defer func(begin time.Time) {
 		r.metrics.ReleaseDuration.With(
-			"release_type", releaseType,
-			"release_kind", fmt.Sprint(params.Kind),
-			"success", fmt.Sprint(err == nil),
+			fluxmetrics.LabelReleaseType, releaseType,
+			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
@@ -379,8 +379,8 @@ func (r *Releaser) releaseActionPrintf(format string, args ...interface{}) Relea
 		Do: func(_ *ReleaseContext) (res string, err error) {
 			defer func(begin time.Time) {
 				r.metrics.ActionDuration.With(
-					"action", "printf",
-					"success", fmt.Sprint(err == nil),
+					fluxmetrics.LabelAction, "printf",
+					fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
 				).Observe(time.Since(begin).Seconds())
 			}(time.Now())
 
@@ -395,8 +395,8 @@ func (r *Releaser) releaseActionClone() ReleaseAction {
 		Do: func(rc *ReleaseContext) (res string, err error) {
 			defer func(begin time.Time) {
 				r.metrics.ActionDuration.With(
-					"action", "clone",
-					"success", fmt.Sprint(err == nil),
+					fluxmetrics.LabelAction, "clone",
+					fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
 				).Observe(time.Since(begin).Seconds())
 			}(time.Now())
 
@@ -415,8 +415,8 @@ func (r *Releaser) releaseActionFindPodController(service flux.ServiceID) Releas
 		Do: func(rc *ReleaseContext) (res string, err error) {
 			defer func(begin time.Time) {
 				r.metrics.ActionDuration.With(
-					"action", "find_pod_controller",
-					"success", fmt.Sprint(err == nil),
+					fluxmetrics.LabelAction, "find_pod_controller",
+					fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
 				).Observe(time.Since(begin).Seconds())
 			}(time.Now())
 
@@ -460,8 +460,8 @@ func (r *Releaser) releaseActionUpdatePodController(service flux.ServiceID, upda
 		Do: func(rc *ReleaseContext) (res string, err error) {
 			defer func(begin time.Time) {
 				r.metrics.ActionDuration.With(
-					"action", "update_pod_controller",
-					"success", fmt.Sprint(err == nil),
+					fluxmetrics.LabelAction, "update_pod_controller",
+					fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
 				).Observe(time.Since(begin).Seconds())
 			}(time.Now())
 
@@ -524,8 +524,8 @@ func (r *Releaser) releaseActionCommitAndPush(msg string) ReleaseAction {
 		Do: func(rc *ReleaseContext) (res string, err error) {
 			defer func(begin time.Time) {
 				r.metrics.ActionDuration.With(
-					"action", "commit_and_push",
-					"success", fmt.Sprint(err == nil),
+					fluxmetrics.LabelAction, "commit_and_push",
+					fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
 				).Observe(time.Since(begin).Seconds())
 			}(time.Now())
 
@@ -558,8 +558,8 @@ func (r *Releaser) releaseActionReleaseServices(services []flux.ServiceID, msg s
 		Do: func(rc *ReleaseContext) (res string, err error) {
 			defer func(begin time.Time) {
 				r.metrics.ActionDuration.With(
-					"action", "release_services",
-					"success", fmt.Sprint(err == nil),
+					fluxmetrics.LabelAction, "release_services",
+					fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
 				).Observe(time.Since(begin).Seconds())
 			}(time.Now())
 

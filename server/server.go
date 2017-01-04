@@ -14,6 +14,7 @@ import (
 	"github.com/weaveworks/flux/history"
 	"github.com/weaveworks/flux/instance"
 	"github.com/weaveworks/flux/jobs"
+	fluxmetrics "github.com/weaveworks/flux/metrics"
 	"github.com/weaveworks/flux/platform"
 )
 
@@ -71,8 +72,8 @@ func New(
 func (s *Server) ListServices(inst flux.InstanceID, namespace string) (res []flux.ServiceStatus, err error) {
 	defer func(begin time.Time) {
 		s.metrics.ListServicesDuration.With(
-			"namespace", namespace,
-			"success", fmt.Sprint(err == nil),
+			fluxmetrics.LabelNamespace, namespace,
+			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
@@ -123,7 +124,7 @@ func (s *Server) ListImages(inst flux.InstanceID, spec flux.ServiceSpec) (res []
 	defer func(begin time.Time) {
 		s.metrics.ListImagesDuration.With(
 			"service_spec", fmt.Sprint(spec),
-			"success", fmt.Sprint(err == nil),
+			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
@@ -179,7 +180,7 @@ func (s *Server) History(inst flux.InstanceID, spec flux.ServiceSpec) (res []flu
 	defer func(begin time.Time) {
 		s.metrics.HistoryDuration.With(
 			"service_spec", fmt.Sprint(spec),
-			"success", fmt.Sprint(err == nil),
+			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
@@ -381,8 +382,8 @@ func (s *Server) RegisterDaemon(instID flux.InstanceID, platform platform.Platfo
 		}
 
 		s.metrics.RegisterDaemonDuration.With(
-			"instance_id", fmt.Sprint(instID),
-			"success", fmt.Sprint(err == nil),
+			fluxmetrics.LabelInstanceID, fmt.Sprint(instID),
+			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
 		s.metrics.ConnectedDaemons.Set(float64(atomic.AddInt32(&s.connected, -1)))
 	}(time.Now())
