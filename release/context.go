@@ -11,7 +11,6 @@ import (
 type ReleaseContext struct {
 	Instance           *instance.Instance
 	WorkingDir         string
-	KeyPath            string
 	ServiceDefinitions map[flux.ServiceID]map[string][]byte
 	Images             instance.ImageMap
 	ServiceImages      map[flux.ServiceID][]flux.ImageID
@@ -33,17 +32,16 @@ func (rc *ReleaseContext) RepoURL() string {
 }
 
 func (rc *ReleaseContext) CloneRepo() error {
-	path, keyfile, err := rc.Instance.ConfigRepo().Clone()
+	path, err := rc.Instance.ConfigRepo().Clone()
 	if err != nil {
 		return err
 	}
 	rc.WorkingDir = path
-	rc.KeyPath = keyfile
 	return nil
 }
 
 func (rc *ReleaseContext) CommitAndPush(msg string) (string, error) {
-	return rc.Instance.ConfigRepo().CommitAndPush(rc.WorkingDir, rc.KeyPath, msg)
+	return rc.Instance.ConfigRepo().CommitAndPush(rc.WorkingDir, msg)
 }
 
 func (rc *ReleaseContext) RepoPath() string {

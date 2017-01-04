@@ -152,7 +152,7 @@ func (a *Automator) handleAutomatedInstanceJob(logger log.Logger, j *jobs.Job) (
 	}
 
 	// Clone the repo
-	path, _, err := inst.ConfigRepo().Clone()
+	path, err := inst.ConfigRepo().Clone()
 	if err != nil {
 		return followUps, errors.Wrap(err, "cloning config repo")
 	}

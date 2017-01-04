@@ -377,9 +377,6 @@ func (r *Releaser) releaseActionCommitAndPush(imageSpec flux.ImageSpec, kind flu
 			if fi, err := os.Stat(rc.WorkingDir); err != nil || !fi.IsDir() {
 				return "", fmt.Errorf("the repo path (%s) is not valid", rc.WorkingDir)
 			}
-			if _, err := os.Stat(rc.KeyPath); err != nil {
-				return "", fmt.Errorf("the repo key (%s) is not valid: %v", rc.KeyPath, err)
-			}
 			result, err := rc.CommitAndPush(commitMsg)
 			if err == nil && result == "" {
 				return "Pushed commit: " + commitMsg, nil
