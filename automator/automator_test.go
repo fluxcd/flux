@@ -85,8 +85,8 @@ func TestHandleAutomatedInstanceJob(t *testing.T) {
 
 	// TODO: We shouldn't need the service definition, just the deployment.
 	for path, data := range map[string]string{
-		"pr-assigner-svc.yml": prAssignerSvcYaml,
-		"pr-assigner-dep.yml": prAssignerDepYaml,
+		"pr-assigner-svc.yaml": prAssignerSvcYaml,
+		"pr-assigner-dep.yaml": prAssignerDepYaml,
 	} {
 		if err := git.AddFileToMockRepo(repoSource, path, []byte(data)); err != nil {
 			t.Fatal(err)

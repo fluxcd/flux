@@ -79,6 +79,8 @@ func tryUpdate(def string, newImage flux.ImageID, trace io.Writer, out io.Writer
 	oldDefName := matches[1]
 	fmt.Fprintf(trace, "Found resource name %q in fragment:\n\n%s\n\n", oldDefName, matches[0])
 
+	// TODO: This seems broken! What if the image is used multiple times??? Or
+	// has no tag?
 	imageRE := multilineRE(
 		`      containers:.*`,
 		`(?:      .*\n)*(?:  ){3,4}- name:\s*"?([\w-]+)"?(?:\s.*)?`,
