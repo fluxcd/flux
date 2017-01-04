@@ -151,7 +151,7 @@ func main() {
 			Name:      "release_stage_duration_seconds",
 			Help:      "Duration in seconds of each stage of a release, including dry-runs.",
 			Buckets:   stdprometheus.DefBuckets,
-		}, []string{"method", "stage"})
+		}, []string{"method", "action", "success"})
 		helperDuration = prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
 			Namespace: "flux",
 			Subsystem: "fluxsvc",

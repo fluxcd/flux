@@ -170,6 +170,7 @@ func (a *Automator) handleAutomatedInstanceJob(logger log.Logger, j *jobs.Job) (
 		if service.Policy() != flux.PolicyAutomated {
 			continue
 		}
+		fmt.Printf("[DEBUG] Looking for definitions for %q in %v\n", id, serviceFiles)
 		if _, ok := serviceFiles[id]; !ok {
 			// Service is automated, but undefined. Skip it.
 			// TODO: Log something here, probably.

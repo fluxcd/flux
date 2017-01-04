@@ -3,6 +3,7 @@ package kubernetes
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -44,15 +45,19 @@ func DefinedServices(path string) (filenames map[flux.ServiceID][]string, err er
 		return nil
 	})
 
+	fmt.Printf("[DEBUG] Found files: %v\n", files)
 	services := map[flux.ServiceID][]string{}
 	for _, file := range files {
-		var stdout bytes.Buffer
+		var stdout, stderr bytes.Buffer
 		cmd := exec.Command(bin, "./"+filepath.Base(file)) // due to bug (?) in kubeservice
 		cmd.Dir = filepath.Dir(file)
 		cmd.Stdout = &stdout
+		cmd.Stderr = &stderr
 		if err := cmd.Run(); err != nil {
+			fmt.Printf("[DEBUG] Kubeservice error for %q: %q\n", file, stderr.String())
 			continue
 		}
+		fmt.Printf("[DEBUG] Output for %q: %q\n", file, stdout.String())
 		for _, out := range strings.Split(strings.TrimSpace(stdout.String()), "\n") {
 			id := flux.ServiceID(out)
 			services[id] = append(services[id], file)

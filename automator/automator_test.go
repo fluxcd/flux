@@ -1,6 +1,7 @@
 package automator
 
 import (
+	"os"
 	"strings"
 	"testing"
 
@@ -72,16 +73,32 @@ var nullLogger = log.NewNopLogger()
 
 func TestHandleAutomatedInstanceJob(t *testing.T) {
 	instID := flux.InstanceID("instance1")
-	serviceID := flux.ServiceID("ns1/service1")
+	serviceID := flux.ServiceID("extra/pr-assigner")
 	instanceDB := mockInstanceDB{
 		instID: instance.Config{},
 	}
+	repoSource, err := git.NewMockRepo()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(repoSource)
+
+	// TODO: We shouldn't need the service definition, just the deployment.
+	for path, data := range map[string]string{
+		"pr-assigner-svc.yml": prAssignerSvcYaml,
+		"pr-assigner-dep.yml": prAssignerDepYaml,
+	} {
+		if err := git.AddFileToMockRepo(repoSource, path, []byte(data)); err != nil {
+			t.Fatal(err)
+		}
+	}
+
 	instancer := instance.StandaloneInstancer{
 		Instance:  instID,
 		Connecter: platform.NewStandaloneMessageBus(platform.NewBusMetrics()),
 		Registry:  nil, // *registry.Client
 		Config:    instanceDB,
-		GitRepo:   git.Repo{},
+		GitRepo:   git.Repo{URL: "file://" + repoSource},
 	}
 	a, err := New(Config{
 		Jobs:       &mockJobStore{},
@@ -171,6 +188,63 @@ func TestHandleAutomatedInstanceJob(t *testing.T) {
 		// - There should be a release for each new image
 	}
 
+	t.Error("TODO")
+}
+
+const prAssignerSvcYaml = `---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pr-assigner
+  namespace: extra
+spec:
+  ports:
+    - port: 80
+  selector:
+    name: pr-assigner
+`
+
+const prAssignerDepYaml = `---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: pr-assigner
+  namespace: extra
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        name: pr-assigner
+    spec:
+      imagePullSecrets:
+      - name: quay-secret
+      containers:
+        - name: pr-assigner
+          image: quay.io/weaveworks/pr-assigner:master-6f5e816
+          imagePullPolicy: IfNotPresent
+          args:
+            - --conf_path=/config/pr-assigner.json
+          env:
+            - name: GITHUB_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: pr-assigner
+                  key: githubtoken
+          volumeMounts:
+            - name: config-volume
+              mountPath: /config
+      volumes:
+        - name: config-volume
+          configMap:
+            name: pr-assigner
+            items:
+              - key: conffile
+                path: pr-assigner.json
+`
+
+func TestHandleAutomatedInstanceJob_CloningRepoFails(t *testing.T) {
+	// It should send a notification and back-off
 	t.Error("TODO")
 }
 
