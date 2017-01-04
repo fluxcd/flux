@@ -2,6 +2,7 @@ package automator
 
 import (
 	"fmt"
+	"io/ioutil"
 	"strings"
 	"time"
 
@@ -157,6 +158,7 @@ func (a *Automator) handleAutomatedInstanceJob(logger log.Logger, j *jobs.Job) (
 	}
 
 	// Get all defined services
+	// TODO: This should handle multi-document files
 	serviceFiles, err := kubernetes.DefinedServices(path)
 	if err != nil {
 		return followUps, errors.Wrap(err, "finding defined services")
@@ -181,11 +183,23 @@ func (a *Automator) handleAutomatedInstanceJob(logger log.Logger, j *jobs.Job) (
 		return nil, fmt.Errorf("no definitions found for automated services")
 	}
 
-	// Fetch the automated services from the platform, because
-	// CollectAvailableImages needs a platform.Service
-	services, err := inst.GetServices(serviceIDs)
-	if err != nil {
-		return followUps, errors.Wrap(err, "getting automated services")
+	// Get the images used for each automated service
+	var repos []string
+	for _, serviceID := range serviceIDs {
+		// TODO: Pass in the platform, don't just assume kubernetes here
+		for _, path := range serviceFiles[serviceID] {
+			definition, err := ioutil.ReadFile(path) // TODO: not multi-doc safe
+			if err != nil {
+				return nil, errors.Wrapf(err, "reading definition file for %s: %s", serviceID, path)
+			}
+			images, err := kubernetes.ImagesForDefinition(definition)
+			if err != nil {
+				return nil, errors.Wrapf(err, "reading definition file for %s: %s", serviceID, path)
+			}
+			for _, image := range images {
+				repos = append(repos, image.Repository())
+			}
+		}
 	}
 
 	images, err := inst.CollectAvailableImages(repos)

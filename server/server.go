@@ -142,7 +142,14 @@ func (s *Server) ListImages(inst flux.InstanceID, spec flux.ServiceSpec) (res []
 		services, err = helper.GetServices([]flux.ServiceID{id})
 	}
 
-	images, err := helper.CollectAvailableImages(services)
+	var repos []string
+	for _, service := range services {
+		for _, container := range service.ContainersOrNil() {
+			repos = append(repos, flux.ParseImageID(container.Image).Repository())
+		}
+	}
+
+	images, err := helper.CollectAvailableImages(repos)
 	if err != nil {
 		return nil, errors.Wrap(err, "getting images for services")
 	}

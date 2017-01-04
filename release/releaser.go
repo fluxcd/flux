@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -199,33 +200,61 @@ func (r *Releaser) releaseActionFindDefinitions(getServiceDefinitions serviceQue
 
 			// TODO: The files returned here should actually have a "position" of the
 			// definition, for multi-document and list-style k8s manifests
-			// TODO: This should be looking at files, not k8s platform. It should be reading the files as well.
-			services, err := getServiceDefinitions(resourcePath)
+			// TODO: take the platform here and *ask* it what type it is, instead of
+			// assuming kubernetes.
+			allServiceDefinitions, err := kubernetes.DefinedServices(resourcePath)
 			if err != nil {
 				return "", errors.Wrapf(err, "finding resource definition files for %s", getServiceDefinitions)
 			}
-			if len(services) <= 0 {
+			definedServiceIDs := make([]flux.ServiceID, len(allServiceDefinitions))
+			for id := range allServiceDefinitions {
+				definedServiceIDs = append(definedServiceIDs, id)
+			}
+			if len(definedServiceIDs) <= 0 {
 				return "", errors.New("no resource definition files found")
 			}
-			for service, files := range services {
-				if len(files) > 1 {
-					return "", fmt.Errorf("multiple resource definition files found for %s: %s", service, strings.Join(files, ", "))
+
+			serviceIDs, err := getServiceDefinitions.SelectServices(definedServiceIDs)
+			if err != nil {
+				return "", errors.Wrapf(err, "selecting definition files for %s", getServiceDefinitions)
+			}
+
+			if len(serviceIDs) <= 0 {
+				return "", errors.New("no resource definition files selected")
+			}
+
+			for _, id := range serviceIDs {
+				if paths := allServiceDefinitions[id]; len(paths) > 1 {
+					sort.Strings(paths)
+					return "", fmt.Errorf("multiple resource definition files found for %s: %s", id, strings.Join(paths, ", "))
 				}
 			}
 
-			rc.ServiceDefinitions = services
+			// Load the actual definitions for services we've selected.
+			for _, id := range serviceIDs {
+				rc.ServiceDefinitions[id] = map[string][]byte{}
+				for _, path := range allServiceDefinitions[id] {
+					definition, err := ioutil.ReadFile(path)
+					if err != nil {
+						return "", errors.Wrapf(err, "reading definition file for %s: %s", id, path)
+					}
+					rc.ServiceDefinitions[id][path] = definition
+				}
+			}
 
 			// Parse service definitions to find currently used images for each service
 			// TODO: take the platform here and *ask* it what type it is, instead of
 			// assuming kubernetes.
+			filesCount := 0
 			for service, files := range rc.ServiceDefinitions {
+				filesCount += len(files)
 				images := map[flux.ImageID]struct{}{}
 				for path, definition := range files {
 					found, err := kubernetes.ImagesForDefinition(definition)
 					if err != nil {
 						return "", errors.Wrapf(err, "parsing definition file: %s", path)
 					}
-					for image := range found {
+					for _, image := range found {
 						images[image] = struct{}{}
 					}
 				}
@@ -235,7 +264,7 @@ func (r *Releaser) releaseActionFindDefinitions(getServiceDefinitions serviceQue
 				flux.ImageIDSlice(rc.ServiceImages[service]).Sort()
 			}
 
-			return fmt.Sprintf("Found %d definition files", len(services)), nil
+			return fmt.Sprintf("Found %d definition files", filesCount), nil
 		},
 	}
 }
@@ -276,7 +305,6 @@ func (r *Releaser) releaseActionUpdateDefinitions(imageSpec flux.ImageSpec, getI
 			definitionCount := 0
 			for service, images := range rc.ServiceImages {
 				// Update all definition files for this service. (should only be one)
-				serviceChanged := false
 				for path, definition := range rc.ServiceDefinitions[service] {
 					// We keep overwriting the same def, to handle multiple
 					// images in a single file.
@@ -337,11 +365,11 @@ func (r *Releaser) releaseActionCommitAndPush(imageSpec flux.ImageSpec, kind flu
 				for path, definition := range definitions {
 					fi, err := os.Stat(path)
 					if err != nil {
-						return "", errors.Wrapf(err, "writing new definition file")
+						return "", errors.Wrapf(err, "writing new definition file for %s: %s", service, path)
 					}
 
 					if err := ioutil.WriteFile(path, definition, fi.Mode()); err != nil {
-						return "", errors.Wrapf(err, "writing new definition file")
+						return "", errors.Wrapf(err, "writing new definition file for %s: %s", service, path)
 					}
 				}
 			}
