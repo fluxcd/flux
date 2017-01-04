@@ -36,10 +36,10 @@ type apiObject struct {
 	} `yaml:"metadata"`
 }
 
-type regradeExecFunc func(*Cluster, log.Logger) error
+type applyExecFunc func(*Cluster, log.Logger) error
 
-type regrade struct {
-	exec    regradeExecFunc
+type apply struct {
+	exec    applyExecFunc
 	summary string
 }
 
@@ -171,7 +171,7 @@ func (c *Cluster) AllServices(namespace string, ignore flux.ServiceIDSet) (res [
 
 func (c *Cluster) makeService(ns string, service *api.Service, controllers []podController) platform.Service {
 	id := flux.MakeServiceID(ns, service.Name)
-	status, _ := c.status.getRegradeProgress(id)
+	status, _ := c.status.getApplyProgress(id)
 	return platform.Service{
 		ID:         id,
 		IP:         service.Spec.ClusterIP,
@@ -301,76 +301,76 @@ func (p podController) matchedBy(selector map[string]string) bool {
 	return true
 }
 
-// Regrade performs service regrades as specified by the RegradeSpecs. If all
-// regrades succeed, Regrade returns a nil error. If any regrade fails, Regrade
-// returns an error of type RegradeError, which can be inspected for more
-// detailed information. Regrades are serialized per cluster.
+// Apply applies a new set of ServiceDefinition. If all definitions succeed,
+// Apply returns a nil error. If any definitions fail, Apply returns an error
+// of type ApplyError, which can be inspected for more detailed information.
+// Applies are serialized per cluster.
 //
-// Regrade assumes there is a one-to-one mapping between services and
-// replication controllers or deployments; this can be improved. Regrade blocks
-// until an update is complete; this can be improved. Regrade invokes `kubectl
-// rolling-update` or `kubectl apply` in a seperate process, and assumes kubectl
-// is in the PATH; this can be improved.
-func (c *Cluster) Regrade(specs []platform.RegradeSpec) error {
+// Apply assumes there is a one-to-one mapping between services and replication
+// controllers or deployments; this can be improved. Apply blocks until an
+// update is complete; this can be improved. Apply invokes `kubectl
+// rolling-update` or `kubectl apply` in a seperate process, and assumes
+// kubectl is in the PATH; this can be improved.
+func (c *Cluster) Apply(defs []platform.ServiceDefinition) error {
 	errc := make(chan error)
 	c.actionc <- func() {
-		namespacedSpecs := map[string][]platform.RegradeSpec{}
-		for _, spec := range specs {
-			ns, _ := spec.ServiceID.Components()
-			namespacedSpecs[ns] = append(namespacedSpecs[ns], spec)
+		namespacedDefs := map[string][]platform.ServiceDefinition{}
+		for _, def := range defs {
+			ns, _ := def.ServiceID.Components()
+			namespacedDefs[ns] = append(namespacedDefs[ns], def)
 		}
 
-		regradeErr := platform.RegradeError{}
-		for namespace, specs := range namespacedSpecs {
+		applyErr := platform.ApplyError{}
+		for namespace, defs := range namespacedDefs {
 			services := c.client.Services(namespace)
 
 			controllers, err := c.podControllersInNamespace(namespace)
 			if err != nil {
 				err = errors.Wrapf(err, "getting pod controllers for namespace %s", namespace)
-				for _, spec := range specs {
-					regradeErr[spec.ServiceID] = err
+				for _, def := range defs {
+					applyErr[def.ServiceID] = err
 				}
 				continue
 			}
 
-			for _, spec := range specs {
-				newDef, err := definitionObj(spec.NewDefinition)
+			for _, def := range defs {
+				newDef, err := definitionObj(def.NewDefinition)
 				if err != nil {
-					regradeErr[spec.ServiceID] = errors.Wrap(err, "reading definition")
+					applyErr[def.ServiceID] = errors.Wrap(err, "reading definition")
 					continue
 				}
 
-				_, serviceName := spec.ServiceID.Components()
+				_, serviceName := def.ServiceID.Components()
 				service, err := services.Get(serviceName)
 				if err != nil {
-					regradeErr[spec.ServiceID] = errors.Wrap(err, "getting service")
+					applyErr[def.ServiceID] = errors.Wrap(err, "getting service")
 					continue
 				}
 
 				controller, err := matchController(service, controllers)
 				if err != nil {
-					regradeErr[spec.ServiceID] = errors.Wrap(err, "getting pod controller")
+					applyErr[def.ServiceID] = errors.Wrap(err, "getting pod controller")
 					continue
 				}
 
-				plan, err := controller.newRegrade(newDef)
+				plan, err := controller.newApply(newDef)
 				if err != nil {
-					regradeErr[spec.ServiceID] = errors.Wrap(err, "creating regrade")
+					applyErr[def.ServiceID] = errors.Wrap(err, "creating release")
 					continue
 				}
 
-				c.status.startRegrade(spec.ServiceID, plan)
-				defer c.status.endRegrade(spec.ServiceID)
+				c.status.startApply(def.ServiceID, plan)
+				defer c.status.endApply(def.ServiceID)
 
-				logger := log.NewContext(c.logger).With("method", "Release", "namespace", namespace, "service", serviceName)
+				logger := log.NewContext(c.logger).With("method", "Apply", "namespace", namespace, "service", serviceName)
 				if err = plan.exec(c, logger); err != nil {
-					regradeErr[spec.ServiceID] = errors.Wrapf(err, "releasing %s", spec.ServiceID)
+					applyErr[def.ServiceID] = errors.Wrapf(err, "applying definition to %s", def.ServiceID)
 					continue
 				}
 			}
 		}
-		if len(regradeErr) > 0 {
-			errc <- regradeErr
+		if len(applyErr) > 0 {
+			errc <- applyErr
 			return
 		}
 		errc <- nil
@@ -391,32 +391,32 @@ func (c *Cluster) Ping() error {
 // --- end platform API
 
 type statusMap struct {
-	inProgress map[flux.ServiceID]*regrade
+	inProgress map[flux.ServiceID]*apply
 	mx         sync.RWMutex
 }
 
 func newStatusMap() *statusMap {
 	return &statusMap{
-		inProgress: make(map[flux.ServiceID]*regrade),
+		inProgress: make(map[flux.ServiceID]*apply),
 	}
 }
 
-func (m *statusMap) startRegrade(s flux.ServiceID, r *regrade) {
+func (m *statusMap) startApply(s flux.ServiceID, a *apply) {
 	m.mx.Lock()
 	defer m.mx.Unlock()
-	m.inProgress[s] = r
+	m.inProgress[s] = a
 }
 
-func (m *statusMap) getRegradeProgress(s flux.ServiceID) (string, bool) {
+func (m *statusMap) getApplyProgress(s flux.ServiceID) (string, bool) {
 	m.mx.RLock()
 	defer m.mx.RUnlock()
-	if r, ok := m.inProgress[s]; ok {
-		return r.summary, true
+	if a, ok := m.inProgress[s]; ok {
+		return a.summary, true
 	}
 	return "", false
 }
 
-func (m *statusMap) endRegrade(s flux.ServiceID) {
+func (m *statusMap) endApply(s flux.ServiceID) {
 	m.mx.Lock()
 	defer m.mx.Unlock()
 	delete(m.inProgress, s)

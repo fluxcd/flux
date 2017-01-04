@@ -29,8 +29,8 @@ func TestRPC(t *testing.T) {
 	services := flux.ServiceIDSet{}
 	services.Add(serviceList)
 
-	regrades := []platform.RegradeSpec{
-		platform.RegradeSpec{
+	expectedDefs := []platform.ServiceDefinition{
+		{
 			ServiceID:     serviceID,
 			NewDefinition: []byte("imagine a definition here"),
 		},
@@ -72,13 +72,13 @@ func TestRPC(t *testing.T) {
 		},
 		SomeServicesAnswer: serviceAnswer,
 
-		RegradeArgTest: func(specs []platform.RegradeSpec) error {
-			if !reflect.DeepEqual(regrades, specs) {
-				return fmt.Errorf("did not get expected args, got %+v", specs)
+		ApplyArgTest: func(defs []platform.ServiceDefinition) error {
+			if !reflect.DeepEqual(expectedDefs, defs) {
+				return fmt.Errorf("did not get expected args, got %+v", defs)
 			}
 			return nil
 		},
-		RegradeError: nil,
+		ApplyError: nil,
 	}
 
 	clientConn, serverConn := pipes()
@@ -120,18 +120,18 @@ func TestRPC(t *testing.T) {
 		t.Error("expected error, got nil")
 	}
 
-	err = client.Regrade(regrades)
+	err = client.Apply(expectedDefs)
 	if err != nil {
 		t.Error(err)
 	}
 
-	regradeErrors := platform.RegradeError{
+	applyErrors := platform.ApplyError{
 		serviceID: fmt.Errorf("it just failed"),
 	}
-	mock.RegradeError = regradeErrors
-	err = client.Regrade(regrades)
-	if !reflect.DeepEqual(err, regradeErrors) {
-		t.Errorf("expected RegradeError, got %#v", err)
+	mock.ApplyError = applyErrors
+	err = client.Apply(expectedDefs)
+	if !reflect.DeepEqual(err, applyErrors) {
+		t.Errorf("expected ApplyError, got %#v", err)
 	}
 }
 

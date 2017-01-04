@@ -77,7 +77,7 @@ func TestMethods(t *testing.T) {
 	instA := flux.InstanceID("steamy-windows-89")
 	mockA := &platform.MockPlatform{
 		AllServicesAnswer: []platform.Service{platform.Service{}},
-		RegradeError:      platform.RegradeError{flux.ServiceID("foo/bar"): errors.New("foo barred")},
+		ApplyError:        platform.ApplyError{flux.ServiceID("foo/bar"): errors.New("foo barred")},
 	}
 	subscribe(t, bus, errc, instA, mockA)
 
@@ -93,9 +93,9 @@ func TestMethods(t *testing.T) {
 		t.Fatalf("Expected %d result, got %d", len(mockA.AllServicesAnswer), len(ss))
 	}
 
-	err = plat.Regrade([]platform.RegradeSpec{})
-	if _, ok := err.(platform.RegradeError); !ok {
-		t.Fatalf("expected RegradeError, got %+v", err)
+	err = plat.Apply([]platform.ServiceDefinition{})
+	if _, ok := err.(platform.ApplyError); !ok {
+		t.Fatalf("expected ApplyError, got %+v", err)
 	}
 
 	mockB := &platform.MockPlatform{

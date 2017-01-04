@@ -21,7 +21,7 @@ var (
 type Platform interface {
 	AllServices(maybeNamespace string, ignored flux.ServiceIDSet) ([]Service, error)
 	SomeServices([]flux.ServiceID) ([]Service, error)
-	Regrade([]RegradeSpec) error
+	Apply([]ServiceDefinition) error
 	Ping() error
 }
 
@@ -112,15 +112,15 @@ var (
 	ErrNoMatchingImages     = errors.New("no matching images")
 )
 
-// RegradeSpec is provided to platform.Regrade method/s.
-type RegradeSpec struct {
+// ServiceDefinition is provided to platform.Apply method/s.
+type ServiceDefinition struct {
 	ServiceID     flux.ServiceID
 	NewDefinition []byte // of the pod controller e.g. deployment
 }
 
-type RegradeError map[flux.ServiceID]error
+type ApplyError map[flux.ServiceID]error
 
-func (e RegradeError) Error() string {
+func (e ApplyError) Error() string {
 	var errs []string
 	for id, err := range e {
 		errs = append(errs, fmt.Sprintf("%s: %v", id, err))
