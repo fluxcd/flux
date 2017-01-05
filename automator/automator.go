@@ -124,7 +124,7 @@ func (a *Automator) Handle(j *jobs.Job, _ jobs.JobUpdater) error {
 }
 
 func (a *Automator) reschedule(j *jobs.Job) error {
-	j.ScheduledAt = j.ScheduledAt.Add(automationCycle)
+	j.ScheduledAt = time.Now().UTC().Add(automationCycle) // We use time.Now(), as j.ScheduledAt could be way in the past.
 	if _, err := a.cfg.Jobs.PutJobIgnoringDuplicates(j.Instance, *j); err != nil {
 		return errors.Wrap(err, "rescheduling check automated service job") // abnormal
 	}
