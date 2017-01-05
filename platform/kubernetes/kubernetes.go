@@ -51,12 +51,13 @@ type Cluster struct {
 	kubectl string
 	status  *statusMap
 	actionc chan func()
+	version string // string response for the version command.
 	logger  log.Logger
 }
 
 // NewCluster returns a usable cluster. Host should be of the form
 // "http://hostname:8080".
-func NewCluster(config *restclient.Config, kubectl string, logger log.Logger) (*Cluster, error) {
+func NewCluster(config *restclient.Config, kubectl, version string, logger log.Logger) (*Cluster, error) {
 	client, err := k8sclient.New(config)
 	if err != nil {
 		return nil, err
@@ -84,6 +85,7 @@ func NewCluster(config *restclient.Config, kubectl string, logger log.Logger) (*
 		kubectl: kubectl,
 		status:  newStatusMap(),
 		actionc: make(chan func()),
+		version: version,
 		logger:  logger,
 	}
 	go c.loop()
@@ -386,6 +388,10 @@ func definitionObj(bytes []byte) (*apiObject, error) {
 func (c *Cluster) Ping() error {
 	_, err := c.client.ServerVersion()
 	return err
+}
+
+func (c *Cluster) Version() (string, error) {
+	return c.version, nil
 }
 
 // --- end platform API

@@ -89,14 +89,14 @@ func (s *Server) Status(inst flux.InstanceID) (res flux.Status, err error) {
 	if err != nil {
 		return res, errors.Wrapf(err, "getting config for %s", inst)
 	}
-	// TODO: This should really check we have access permissions.
 	res.Git.Configured = config.Settings.Git.URL != "" && config.Settings.Git.Key != ""
 
 	if _, _, err := helper.ConfigRepo().Clone(); err != nil {
 		res.Git.Error = err.Error()
 	}
 
-	res.Fluxd.Connected = (helper.Ping() == nil)
+	res.Fluxd.Version, err = helper.Version()
+	res.Fluxd.Connected = (err == nil)
 
 	return res, nil
 }
@@ -456,4 +456,13 @@ func (p *loggingPlatform) Ping() (err error) {
 		}
 	}()
 	return p.platform.Ping()
+}
+
+func (p *loggingPlatform) Version() (v string, err error) {
+	defer func() {
+		if err != nil {
+			p.logger.Log("method", "Version", "error", err, "version", v)
+		}
+	}()
+	return p.platform.Version()
 }

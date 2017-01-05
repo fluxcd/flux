@@ -140,6 +140,10 @@ func (h *Instance) Ping() error {
 	return h.platform.Ping()
 }
 
+func (h *Instance) Version() (string, error) {
+	return h.platform.Version()
+}
+
 func (h *Instance) GetConfig() (Config, error) {
 	return h.config.Get()
 }

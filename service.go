@@ -278,16 +278,15 @@ type HistoryEntry struct {
 	Data  string
 }
 
-// TODO: This should also check we have access to any provided repositories.
-// How similar should it be to the `get-config` result?
+// TODO: How similar should this be to the `get-config` result?
 type Status struct {
 	Fluxd FluxdStatus `json:"fluxd" yaml:"fluxd"`
 	Git   GitStatus   `json:"git" yaml:"git"`
 }
 
-// TODO: This should include the fluxd version
 type FluxdStatus struct {
-	Connected bool `json:"connected" yaml:"connected"`
+	Connected bool   `json:"connected" yaml:"connected"`
+	Version   string `json:"version,omitempty" yaml:"version,omitempty"`
 }
 
 type GitStatus struct {

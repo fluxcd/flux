@@ -77,6 +77,16 @@ func (i *instrumentedPlatform) Ping() (err error) {
 	return i.p.Ping()
 }
 
+func (i *instrumentedPlatform) Version() (v string, err error) {
+	defer func(begin time.Time) {
+		i.m.RequestDuration.With(
+			fluxmetrics.LabelMethod, "Version",
+			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
+		).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+	return i.p.Version()
+}
+
 // BusMetrics has metrics for messages buses.
 type BusMetrics struct {
 	KickCount metrics.Counter

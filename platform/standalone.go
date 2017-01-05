@@ -86,6 +86,23 @@ func (s *StandaloneMessageBus) Ping(inst flux.InstanceID) error {
 	return ErrPlatformNotAvailable
 }
 
+// Version returns the fluxd version for the connected instance if the specified instance is connected, and
+// ErrPlatformNotAvailable if not.
+func (s *StandaloneMessageBus) Version(inst flux.InstanceID) (string, error) {
+	var (
+		p  Platform
+		ok bool
+	)
+	s.RLock()
+	p, ok = s.connected[inst]
+	s.RUnlock()
+
+	if ok {
+		return p.Version()
+	}
+	return "", ErrPlatformNotAvailable
+}
+
 type removeablePlatform struct {
 	remote Platform
 	done   chan error
@@ -138,6 +155,15 @@ func (p *removeablePlatform) Ping() (err error) {
 	return p.remote.Ping()
 }
 
+func (p *removeablePlatform) Version() (v string, err error) {
+	defer func() {
+		if _, ok := err.(FatalError); ok {
+			p.closeWithError(err)
+		}
+	}()
+	return p.remote.Version()
+}
+
 type disconnectedPlatform struct{}
 
 func (p disconnectedPlatform) AllServices(string, flux.ServiceIDSet) ([]Service, error) {
@@ -154,4 +180,8 @@ func (p disconnectedPlatform) Apply([]ServiceDefinition) error {
 
 func (p disconnectedPlatform) Ping() error {
 	return ErrPlatformNotAvailable
+}
+
+func (p disconnectedPlatform) Version() (string, error) {
+	return "", ErrPlatformNotAvailable
 }

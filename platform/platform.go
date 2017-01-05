@@ -23,6 +23,7 @@ type Platform interface {
 	SomeServices([]flux.ServiceID) ([]Service, error)
 	Apply([]ServiceDefinition) error
 	Ping() error
+	Version() (string, error)
 }
 
 // Wrap errors in this to indicate that the platform should be

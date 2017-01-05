@@ -41,6 +41,12 @@ func (p *RPCServer) Ping(_ struct{}, _ *struct{}) error {
 	return p.p.Ping()
 }
 
+func (p *RPCServer) Version(_ struct{}, resp *string) error {
+	v, err := p.p.Version()
+	*resp = v
+	return err
+}
+
 func (p *RPCServer) AllServices(req AllServicesRequest, resp *[]platform.Service) error {
 	s, err := p.p.AllServices(req.MaybeNamespace, req.Ignored)
 	if s == nil {
