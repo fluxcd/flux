@@ -1,7 +1,8 @@
 package kubernetes
 
 import (
-	"fmt"
+	"github.com/pkg/errors"
+	"gopkg.in/yaml.v2"
 
 	"github.com/weaveworks/flux"
 )
@@ -15,43 +16,47 @@ func ImagesForDefinition(definition []byte) ([]flux.ImageID, error) {
 	var imageIDs []flux.ImageID
 	switch obj.Kind {
 	case "List":
+		var l list
+		if err := yaml.Unmarshal(obj.bytes, &l); err != nil {
+			return nil, errors.Wrap(err, "parsing resource definition")
+		}
 		// Split up the list items, and iterate over them
-		for _, item := range obj.Items {
-			ids, err := ImagesForDefinition(item.bytes)
+		for _, item := range l.Items {
+			ids, err := ImagesForDefinition(item)
 			if err != nil {
 				return nil, errors.Wrap(err, "parsing resource definition")
 			}
 			imageIDs = append(imageIDs, ids...)
 		}
-	case "Deployment", "ReplicationController":
+	case "Deployment", "ReplicationController", "DaemonSet":
+		var p templateContainer
+		if err := yaml.Unmarshal(obj.bytes, &p); err != nil {
+			return nil, errors.Wrap(err, "parsing resource definition")
+		}
 		// Find the images for each container
-		for _, container := range obj.Spec.Template.Spec.Containers {
-			imageIDs = append(imageIDs, container.Image)
+		for _, container := range p.Spec.Template.Spec.Containers {
+			imageIDs = append(imageIDs, flux.ParseImageID(container.Image))
+
 		}
 	default:
 		// Ignoring this
 		// TODO: Log something here?
 	}
 	return imageIDs, nil
+}
 
-	definitionStr := string(definition)
+type list struct {
+	Items [][]byte `yaml:"items"`
+}
 
-	// ${SED} -nr "s/^(\s*)image: $(escape "${image}")://p" "${filename}"
-	imageRE := multilineRE(
-		`      containers:.*`,
-		`(?:      .*\n)*(?:  ){3,4}- name:\s*"?([\w-]+)"?(?:\s.*)?`,
-		`(?:  ){4,5}image:\s*"?(`+newImage.Repository()+`:[\w][\w.-]{0,127})"?(\s.*)?`,
-	)
-	// tag part of regexp from
-	// https://github.com/docker/distribution/blob/master/reference/regexp.go#L36
-
-	matches = imageRE.FindStringSubmatch(def)
-	if matches == nil || len(matches) < 3 {
-		return nil, fmt.Errorf("Could not find image name")
-	}
-	containerName := matches[1]
-	oldImage := flux.ParseImageID(matches[2])
-	fmt.Fprintf(trace, "Found container %q using image %v in fragment:\n\n%s\n\n", containerName, oldImage, matches[0])
-
-	return nil, fmt.Errorf("TODO: Implement kubernetes.ImagesForDefinition")
+type templateContainer struct {
+	Spec struct {
+		Template struct {
+			Spec struct {
+				Containers []struct {
+					Image string `yaml:"image"`
+				} `yaml:"containers"`
+			} `yaml:"spec"`
+		} `yaml:"template"`
+	} `yaml:"spec"`
 }

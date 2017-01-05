@@ -203,6 +203,8 @@ func (a *Automator) handleAutomatedInstanceJob(logger log.Logger, j *jobs.Job) (
 		}
 	}
 
+	fmt.Printf("[DEBUG] Found the following repos: %v\n", repos)
+
 	images, err := inst.CollectAvailableImages(repos)
 	if err != nil {
 		return followUps, errors.Wrap(err, "collecting available images")

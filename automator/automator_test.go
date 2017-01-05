@@ -12,6 +12,7 @@ import (
 	"github.com/weaveworks/flux/instance"
 	"github.com/weaveworks/flux/jobs"
 	"github.com/weaveworks/flux/platform"
+	"github.com/weaveworks/flux/registry"
 )
 
 type mockInstanceDB map[flux.InstanceID]instance.Config
@@ -96,7 +97,7 @@ func TestHandleAutomatedInstanceJob(t *testing.T) {
 	instancer := instance.StandaloneInstancer{
 		Instance:  instID,
 		Connecter: platform.NewStandaloneMessageBus(platform.NewBusMetrics()),
-		Registry:  nil, // *registry.Client
+		Registry:  registry.NewMockRegistry(),
 		Config:    instanceDB,
 		GitRepo:   git.Repo{URL: "file://" + repoSource},
 	}
