@@ -98,6 +98,15 @@ func (a *Automator) Handle(j *jobs.Job, _ jobs.JobUpdater) error {
 	}
 
 	if _, err := a.cfg.Jobs.PutJob(j.Instance, jobs.Job{
+		// Key stops us getting two jobs queued for the same service. That way if a
+		// release is slow the automator won't queue a horde of jobs to upgrade it.
+		Key: strings.Join([]string{
+			jobs.ReleaseJob,
+			string(j.Instance),
+			string(params.ServiceSpec),
+			string(flux.ImageSpecLatest),
+			"automated",
+		}, "|"),
 		Method:   jobs.ReleaseJob,
 		Priority: jobs.PriorityBackground,
 		Params: jobs.ReleaseJobParams{
@@ -105,7 +114,7 @@ func (a *Automator) Handle(j *jobs.Job, _ jobs.JobUpdater) error {
 			ImageSpec:   flux.ImageSpecLatest,
 			Kind:        flux.ReleaseKindExecute,
 		},
-	}); err != nil {
+	}); err != nil && err != jobs.ErrJobAlreadyQueued {
 		logger.Log("err", errors.Wrap(err, "put automated release job")) // abnormal
 	}
 
