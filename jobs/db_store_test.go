@@ -120,6 +120,11 @@ func TestDatabaseStore(t *testing.T) {
 		t.Errorf("Expected no id for duplicate job, got: %q", duplicateID)
 	}
 
+	// Take one from an empty queue
+	if _, err := db.NextJob([]string{"emptyQueue"}); err != ErrNoJobAvailable {
+		t.Fatalf("Expected ErrNoJobAvailable, got %q", err)
+	}
+
 	// Take one
 	interactiveJob, err := db.NextJob(nil)
 	bailIfErr(t, err)

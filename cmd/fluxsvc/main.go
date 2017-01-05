@@ -250,9 +250,14 @@ func main() {
 	go auto.Start(log.NewContext(logger).With("component", "automator"))
 
 	// Job workers.
-	{
-		logger := log.NewContext(logger).With("component", "worker")
-		worker := jobs.NewWorker(jobStore, logger)
+	//
+	// Doing one worker (and one queue) for each job type for now. This way slow
+	// release jobs can't interfere with slow automated service jobs, or vice
+	// versa. This is probably not optimal. Really all jobs should be quick and
+	// recoverable.
+	for _, queue := range []string{jobs.DefaultQueue, jobs.ReleaseJob, jobs.AutomatedServiceJob} {
+		logger := log.NewContext(logger).With("component", "worker", "queues", []string{queue})
+		worker := jobs.NewWorker(jobStore, logger, []string{queue})
 		worker.Register(jobs.AutomatedServiceJob, auto)
 		worker.Register(jobs.ReleaseJob, release.NewReleaser(instancer, releaseMetrics))
 
@@ -263,6 +268,10 @@ func main() {
 		}()
 		go worker.Work()
 
+	}
+
+	// Job GC cleaner
+	{
 		cleaner := jobs.NewCleaner(jobStore, logger)
 		cleanTicker := time.NewTicker(15 * time.Second)
 		defer cleanTicker.Stop()

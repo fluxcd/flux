@@ -25,6 +25,7 @@ type Worker struct {
 	jobs     JobWritePopper
 	handlers map[string]Handler
 	logger   log.Logger
+	queues   []string
 	stopping chan struct{}
 	done     chan struct{}
 }
@@ -34,11 +35,13 @@ type Worker struct {
 func NewWorker(
 	jobs JobWritePopper,
 	logger log.Logger,
+	queues []string,
 ) *Worker {
 	return &Worker{
 		jobs:     jobs,
 		handlers: map[string]Handler{},
 		logger:   logger,
+		queues:   queues,
 		stopping: make(chan struct{}),
 		done:     make(chan struct{}),
 	}
@@ -59,7 +62,7 @@ func (w *Worker) Work() {
 			return
 		default:
 		}
-		job, err := w.jobs.NextJob(nil)
+		job, err := w.jobs.NextJob(w.queues)
 		if err == ErrNoJobAvailable {
 			time.Sleep(pollingPeriod)
 			continue // normal

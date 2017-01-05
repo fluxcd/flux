@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
 
 	"github.com/weaveworks/flux"
@@ -184,6 +185,9 @@ func (s *DatabaseStore) PutJob(inst flux.InstanceID, job Job) (JobID, error) {
 // Take the next job from specified queues. If queues is nil, all queues are
 // used.
 func (s *DatabaseStore) NextJob(queues []string) (Job, error) {
+	if len(queues) == 0 {
+		queues = []string{DefaultQueue}
+	}
 	var job Job
 	err := s.Transaction(func(s *DatabaseStore) error {
 		now, err := s.now(s.conn)
@@ -208,25 +212,29 @@ func (s *DatabaseStore) NextJob(queues []string) (Job, error) {
 			done        sql.NullBool
 			success     sql.NullBool
 		)
-		if err := s.conn.QueryRow(`
+		query, args, err := sqlx.In(`
 			SELECT instance_id, id, queue, method, params,
 						 scheduled_at, priority, key, submitted_at,
 						 claimed_at, heartbeat_at, finished_at, log, status,
 						 done, success
 			FROM jobs
 
+			-- Scope it to our selected queues
+			WHERE queue IN (?)
+
 			-- Only unclaimed/unfinished jobs are available
-			WHERE claimed_at IS NULL
+			AND claimed_at IS NULL
 			AND finished_at IS NULL
 
 			-- Don't make jobs available until after they are scheduled
-			AND scheduled_at <= $1
+			AND scheduled_at <= ?
 
-			-- Only one job at a time per instance
+			-- Only one job at a time per instance * queue
 			AND instance_id NOT IN (
 				SELECT instance_id
 				FROM jobs
-				WHERE claimed_at IS NOT NULL
+				WHERE queue IN (?)
+				AND claimed_at IS NOT NULL
 				AND finished_at IS NULL
 				GROUP BY instance_id
 			)
@@ -235,8 +243,15 @@ func (s *DatabaseStore) NextJob(queues []string) (Job, error) {
 			-- multiple columns in different ways.
 			ORDER BY (-1 * priority), scheduled_at, submitted_at
 			LIMIT 1`,
+			queues,
 			now,
-		).Scan(
+			queues,
+		)
+		if err != nil {
+			return errors.Wrap(err, "dequeueing next job")
+		}
+		query = sqlx.Rebind(sqlx.DOLLAR, query)
+		if err := s.conn.QueryRow(query, args...).Scan(
 			&instanceID,
 			&jobID,
 			&queue,

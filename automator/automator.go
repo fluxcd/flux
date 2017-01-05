@@ -50,6 +50,7 @@ func (a *Automator) checkAll(errorLogger log.Logger) {
 				continue
 			}
 			_, err := a.cfg.Jobs.PutJob(inst.ID, jobs.Job{
+				Queue: jobs.AutomatedServiceJob,
 				// Key stops us getting two jobs for the same service
 				Key: strings.Join([]string{
 					jobs.AutomatedServiceJob,
@@ -98,6 +99,7 @@ func (a *Automator) Handle(j *jobs.Job, _ jobs.JobUpdater) error {
 	}
 
 	if _, err := a.cfg.Jobs.PutJob(j.Instance, jobs.Job{
+		Queue: jobs.ReleaseJob,
 		// Key stops us getting two jobs queued for the same service. That way if a
 		// release is slow the automator won't queue a horde of jobs to upgrade it.
 		Key: strings.Join([]string{
