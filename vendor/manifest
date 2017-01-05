@@ -426,6 +426,14 @@
 			"notests": true
 		},
 		{
+			"importpath": "github.com/jmoiron/sqlx",
+			"repository": "https://github.com/jmoiron/sqlx",
+			"vcs": "git",
+			"revision": "cac998c4f0959c19c638c523e374fa8e4e0bcfe3",
+			"branch": "master",
+			"notests": true
+		},
+		{
 			"importpath": "github.com/kr/logfmt",
 			"repository": "https://github.com/kr/logfmt",
 			"vcs": "git",

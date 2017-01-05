@@ -233,6 +233,7 @@ func (s *Server) Automate(instID flux.InstanceID, service flux.ServiceID) error 
 
 	// Schedule an immediate check, so things feel snappy for the user.
 	_, err = s.jobs.PutJob(instID, jobs.Job{
+		Queue: jobs.AutomatedServiceJob,
 		// Key stops us getting two jobs for the same service
 		Key: strings.Join([]string{
 			jobs.AutomatedServiceJob,
@@ -315,6 +316,7 @@ func recordLock(inst *instance.Instance, service flux.ServiceID, locked bool) er
 
 func (s *Server) PostRelease(inst flux.InstanceID, params jobs.ReleaseJobParams) (jobs.JobID, error) {
 	return s.jobs.PutJob(inst, jobs.Job{
+		Queue:    jobs.ReleaseJob,
 		Method:   jobs.ReleaseJob,
 		Priority: jobs.PriorityInteractive,
 		Params:   params,
