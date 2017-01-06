@@ -49,20 +49,7 @@ func (a *Automator) checkAll(errorLogger log.Logger) {
 			if conf.Policy() != flux.PolicyAutomated {
 				continue
 			}
-			_, err := a.cfg.Jobs.PutJob(inst.ID, jobs.Job{
-				Queue: jobs.AutomatedServiceJob,
-				// Key stops us getting two jobs for the same service
-				Key: strings.Join([]string{
-					jobs.AutomatedServiceJob,
-					string(inst.ID),
-					string(service),
-				}, "|"),
-				Method:   jobs.AutomatedServiceJob,
-				Priority: jobs.PriorityBackground,
-				Params: jobs.AutomatedServiceJobParams{
-					ServiceSpec: flux.ServiceSpec(service),
-				},
-			})
+			_, err := a.cfg.Jobs.PutJob(inst.ID, automatedServiceJob(inst.ID, service, time.Now()))
 			if err != nil && err != jobs.ErrJobAlreadyQueued {
 				errorLogger.Log("err", errors.Wrapf(err, "queueing automated service job"))
 			}
@@ -70,35 +57,35 @@ func (a *Automator) checkAll(errorLogger log.Logger) {
 	}
 }
 
-func (a *Automator) Handle(j *jobs.Job, _ jobs.JobUpdater) error {
-	logger := log.NewContext(a.cfg.Logger).With("job", j.ID)
+func (a *Automator) Handle(j *jobs.Job, _ jobs.JobUpdater) ([]jobs.Job, error) {
 	params := j.Params.(jobs.AutomatedServiceJobParams)
 
 	serviceID, err := flux.ParseServiceID(string(params.ServiceSpec))
 	if err != nil {
 		// I don't see how we could ever expect this to work, so let's not
 		// reschedule.
-		return errors.Wrapf(err, "parsing service ID from spec %s", params.ServiceSpec)
+		return nil, errors.Wrapf(err, "parsing service ID from spec %s", params.ServiceSpec)
+	}
+
+	followUps := []jobs.Job{
+		automatedServiceJob(j.Instance, flux.ServiceID(params.ServiceSpec), time.Now()),
 	}
 
 	config, err := a.cfg.InstanceDB.GetConfig(j.Instance)
 	if err != nil {
-		if err2 := a.reschedule(j); err2 != nil {
-			logger.Log("err", err2) // abnormal
-		}
-		return errors.Wrap(err, "getting instance config")
+		return followUps, errors.Wrap(err, "getting instance config")
 	}
 
 	s := config.Services[serviceID]
 	if !s.Automated {
 		// Job is not automated, don't reschedule
-		return nil
+		return nil, nil
 	}
 	if s.Locked {
-		return a.reschedule(j)
+		return followUps, nil
 	}
 
-	if _, err := a.cfg.Jobs.PutJob(j.Instance, jobs.Job{
+	followUps = append(followUps, jobs.Job{
 		Queue: jobs.ReleaseJob,
 		// Key stops us getting two jobs queued for the same service. That way if a
 		// release is slow the automator won't queue a horde of jobs to upgrade it.
@@ -116,17 +103,24 @@ func (a *Automator) Handle(j *jobs.Job, _ jobs.JobUpdater) error {
 			ImageSpec:   flux.ImageSpecLatest,
 			Kind:        flux.ReleaseKindExecute,
 		},
-	}); err != nil && err != jobs.ErrJobAlreadyQueued {
-		logger.Log("err", errors.Wrap(err, "put automated release job")) // abnormal
-	}
-
-	return a.reschedule(j)
+	})
+	return followUps, nil
 }
 
-func (a *Automator) reschedule(j *jobs.Job) error {
-	j.ScheduledAt = time.Now().UTC().Add(automationCycle) // We use time.Now(), as j.ScheduledAt could be way in the past.
-	if _, err := a.cfg.Jobs.PutJobIgnoringDuplicates(j.Instance, *j); err != nil {
-		return errors.Wrap(err, "rescheduling check automated service job") // abnormal
+func automatedServiceJob(instanceID flux.InstanceID, serviceID flux.ServiceID, now time.Time) jobs.Job {
+	return jobs.Job{
+		Queue: jobs.AutomatedServiceJob,
+		// Key stops us getting two jobs for the same service
+		Key: strings.Join([]string{
+			jobs.AutomatedServiceJob,
+			string(instanceID),
+			string(serviceID),
+		}, "|"),
+		Method:   jobs.AutomatedServiceJob,
+		Priority: jobs.PriorityBackground,
+		Params: jobs.AutomatedServiceJobParams{
+			ServiceSpec: flux.ServiceSpec(serviceID),
+		},
+		ScheduledAt: now.UTC().Add(automationCycle),
 	}
-	return nil
 }

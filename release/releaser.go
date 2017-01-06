@@ -115,7 +115,7 @@ func exactlyTheseImages(images []flux.ImageID) imageCollect {
 	}
 }
 
-func (r *Releaser) Handle(job *jobs.Job, updater jobs.JobUpdater) (err error) {
+func (r *Releaser) Handle(job *jobs.Job, updater jobs.JobUpdater) (followUps []jobs.Job, err error) {
 	params := job.Params.(jobs.ReleaseJobParams)
 	releaseType := "unknown"
 	defer func(begin time.Time) {
@@ -127,7 +127,7 @@ func (r *Releaser) Handle(job *jobs.Job, updater jobs.JobUpdater) (err error) {
 
 	inst, err := r.instancer.Get(job.Instance)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	inst.Logger = log.NewContext(inst.Logger).With("job", job.ID)
@@ -144,7 +144,7 @@ func (r *Releaser) Handle(job *jobs.Job, updater jobs.JobUpdater) (err error) {
 
 	locked, err := lockedServices(inst)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	exclude.Add(locked)
 
@@ -153,44 +153,44 @@ func (r *Releaser) Handle(job *jobs.Job, updater jobs.JobUpdater) (err error) {
 	switch {
 	case params.ServiceSpec == flux.ServiceSpecAll && params.ImageSpec == flux.ImageSpecLatest:
 		releaseType = "release_all_to_latest"
-		return r.releaseImages(releaseType, "Release latest images to all services", inst, params.Kind, allServicesExcept(exclude), allLatestImages, updateJob)
+		return nil, r.releaseImages(releaseType, "Release latest images to all services", inst, params.Kind, allServicesExcept(exclude), allLatestImages, updateJob)
 
 	case params.ServiceSpec == flux.ServiceSpecAll && params.ImageSpec == flux.ImageSpecNone:
 		releaseType = "release_all_without_update"
-		return r.releaseWithoutUpdate(releaseType, "Apply latest config to all services", inst, params.Kind, allServicesExcept(exclude), updateJob)
+		return nil, r.releaseWithoutUpdate(releaseType, "Apply latest config to all services", inst, params.Kind, allServicesExcept(exclude), updateJob)
 
 	case params.ServiceSpec == flux.ServiceSpecAll:
 		releaseType = "release_all_for_image"
 		imageID := flux.ParseImageID(string(params.ImageSpec))
-		return r.releaseImages(releaseType, fmt.Sprintf("Release %s to all services", imageID), inst, params.Kind, allServicesExcept(exclude), exactlyTheseImages([]flux.ImageID{imageID}), updateJob)
+		return nil, r.releaseImages(releaseType, fmt.Sprintf("Release %s to all services", imageID), inst, params.Kind, allServicesExcept(exclude), exactlyTheseImages([]flux.ImageID{imageID}), updateJob)
 
 	case params.ImageSpec == flux.ImageSpecLatest:
 		releaseType = "release_one_to_latest"
 		serviceID, err := flux.ParseServiceID(string(params.ServiceSpec))
 		if err != nil {
-			return errors.Wrapf(err, "parsing service ID from params %s", params.ServiceSpec)
+			return nil, errors.Wrapf(err, "parsing service ID from params %s", params.ServiceSpec)
 		}
 		services := flux.ServiceIDs([]flux.ServiceID{serviceID}).Without(exclude)
-		return r.releaseImages(releaseType, fmt.Sprintf("Release latest images to %s", serviceID), inst, params.Kind, exactlyTheseServices(services), allLatestImages, updateJob)
+		return nil, r.releaseImages(releaseType, fmt.Sprintf("Release latest images to %s", serviceID), inst, params.Kind, exactlyTheseServices(services), allLatestImages, updateJob)
 
 	case params.ImageSpec == flux.ImageSpecNone:
 		releaseType = "release_one_without_update"
 		serviceID, err := flux.ParseServiceID(string(params.ServiceSpec))
 		if err != nil {
-			return errors.Wrapf(err, "parsing service ID from params %s", params.ServiceSpec)
+			return nil, errors.Wrapf(err, "parsing service ID from params %s", params.ServiceSpec)
 		}
 		services := flux.ServiceIDs([]flux.ServiceID{serviceID}).Without(exclude)
-		return r.releaseWithoutUpdate(releaseType, fmt.Sprintf("Apply latest config to %s", serviceID), inst, params.Kind, exactlyTheseServices(services), updateJob)
+		return nil, r.releaseWithoutUpdate(releaseType, fmt.Sprintf("Apply latest config to %s", serviceID), inst, params.Kind, exactlyTheseServices(services), updateJob)
 
 	default:
 		releaseType = "release_one"
 		serviceID, err := flux.ParseServiceID(string(params.ServiceSpec))
 		if err != nil {
-			return errors.Wrapf(err, "parsing service ID from params %s", params.ServiceSpec)
+			return nil, errors.Wrapf(err, "parsing service ID from params %s", params.ServiceSpec)
 		}
 		services := flux.ServiceIDs([]flux.ServiceID{serviceID}).Without(exclude)
 		imageID := flux.ParseImageID(string(params.ImageSpec))
-		return r.releaseImages(releaseType, fmt.Sprintf("Release %s to %s", imageID, serviceID), inst, params.Kind, exactlyTheseServices(services), exactlyTheseImages([]flux.ImageID{imageID}), updateJob)
+		return nil, r.releaseImages(releaseType, fmt.Sprintf("Release %s to %s", imageID, serviceID), inst, params.Kind, exactlyTheseServices(services), exactlyTheseImages([]flux.ImageID{imageID}), updateJob)
 	}
 }
 

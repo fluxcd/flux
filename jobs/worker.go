@@ -17,12 +17,12 @@ var (
 )
 
 type Handler interface {
-	Handle(*Job, JobUpdater) error
+	Handle(*Job, JobUpdater) ([]Job, error)
 }
 
 // Worker grabs jobs from the job store and executes them.
 type Worker struct {
-	jobs     JobWritePopper
+	jobs     JobStore
 	handlers map[string]Handler
 	logger   log.Logger
 	queues   []string
@@ -33,7 +33,7 @@ type Worker struct {
 // NewWorker returns a usable worker pulling jobs from the JobPopper.
 // Run Work in its own goroutine to start execution.
 func NewWorker(
-	jobs JobWritePopper,
+	jobs JobStore,
 	logger log.Logger,
 	queues []string,
 ) *Worker {
@@ -72,19 +72,21 @@ func (w *Worker) Work() {
 			time.Sleep(pollingPeriod)
 			continue
 		}
+		logger := log.NewContext(w.logger).With("job", job.ID)
 
 		cancel, done := make(chan struct{}), make(chan struct{})
-		go heartbeat(job.ID, w.jobs, time.Second, cancel, done, w.logger)
+		go heartbeat(job.ID, w.jobs, time.Second, cancel, done, logger)
 
 		job.Status = "Executing..."
 		if err := w.jobs.UpdateJob(job); err != nil {
-			w.logger.Log("err", errors.Wrapf(err, "updating job %s", job.ID))
+			logger.Log("err", errors.Wrap(err, "updating job"))
 		}
 
+		var followUps []Job
 		if handler, ok := w.handlers[job.Method]; !ok {
 			err = ErrNoHandlerForJob
 		} else {
-			err = handler.Handle(&job, w.jobs)
+			followUps, err = handler.Handle(&job, w.jobs)
 		}
 		job.Done = true
 		if err != nil {
@@ -97,7 +99,14 @@ func (w *Worker) Work() {
 			job.Status = "Complete."
 		}
 		if err := w.jobs.UpdateJob(job); err != nil {
-			w.logger.Log("err", errors.Wrapf(err, "updating job %s", job.ID))
+			logger.Log("err", errors.Wrap(err, "updating job"))
+		}
+
+		// Schedule any follow-up jobs
+		for _, followUp := range followUps {
+			if _, err := w.jobs.PutJob(job.Instance, followUp); err != nil && err != ErrJobAlreadyQueued {
+				logger.Log("err", errors.Wrap(err, "putting follow-up job"))
+			}
 		}
 
 		close(cancel)
