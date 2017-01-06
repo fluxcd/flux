@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -49,70 +48,6 @@ type ReleaseAction struct {
 	Description string                                `json:"description"`
 	Do          func(*ReleaseContext) (string, error) `json:"-"`
 	Result      string                                `json:"result"`
-}
-
-type ReleaseContext struct {
-	Instance       *instance.Instance
-	WorkingDir     string
-	KeyPath        string
-	PodControllers map[flux.ServiceID][]byte
-}
-
-func NewReleaseContext(inst *instance.Instance) *ReleaseContext {
-	return &ReleaseContext{
-		Instance:       inst,
-		PodControllers: map[flux.ServiceID][]byte{},
-	}
-}
-
-func (rc *ReleaseContext) CloneConfig() error {
-	path, keyfile, err := rc.Instance.ConfigRepo().Clone()
-	if err != nil {
-		return err
-	}
-	rc.WorkingDir = path
-	rc.KeyPath = keyfile
-	return nil
-}
-
-func (rc *ReleaseContext) CommitAndPush(msg string) (string, error) {
-	return rc.Instance.ConfigRepo().CommitAndPush(rc.WorkingDir, rc.KeyPath, msg)
-}
-
-func (rc *ReleaseContext) ConfigPath() string {
-	return filepath.Join(rc.WorkingDir, rc.Instance.ConfigRepo().Path)
-}
-
-func (rc *ReleaseContext) Clean() {
-	if rc.WorkingDir != "" {
-		os.RemoveAll(rc.WorkingDir)
-	}
-}
-
-type serviceQuery func(*instance.Instance) ([]platform.Service, error)
-
-func exactlyTheseServices(include []flux.ServiceID) serviceQuery {
-	return func(h *instance.Instance) ([]platform.Service, error) {
-		return h.GetServices(include)
-	}
-}
-
-func allServicesExcept(exclude flux.ServiceIDSet) serviceQuery {
-	return func(h *instance.Instance) ([]platform.Service, error) {
-		return h.GetAllServicesExcept("", exclude)
-	}
-}
-
-type imageCollect func(*instance.Instance, []platform.Service) (instance.ImageMap, error)
-
-func allLatestImages(h *instance.Instance, services []platform.Service) (instance.ImageMap, error) {
-	return h.CollectAvailableImages(services)
-}
-
-func exactlyTheseImages(images []flux.ImageID) imageCollect {
-	return func(h *instance.Instance, _ []platform.Service) (instance.ImageMap, error) {
-		return h.ExactImages(images)
-	}
 }
 
 func (r *Releaser) Handle(job *jobs.Job, updater jobs.JobUpdater) (followUps []jobs.Job, err error) {
@@ -194,7 +129,7 @@ func (r *Releaser) Handle(job *jobs.Job, updater jobs.JobUpdater) (followUps []j
 	}
 }
 
-func (r *Releaser) releaseImages(method, msg string, inst *instance.Instance, kind flux.ReleaseKind, getServices serviceQuery, getImages imageCollect, updateJob func(string, ...interface{})) (err error) {
+func (r *Releaser) releaseImages(method, msg string, inst *instance.Instance, kind flux.ReleaseKind, getServices serviceSelector, getImages imageSelector, updateJob func(string, ...interface{})) (err error) {
 	var res []ReleaseAction
 	defer func() {
 		if err == nil {
@@ -297,7 +232,7 @@ func lockedServices(inst *instance.Instance) ([]flux.ServiceID, error) {
 }
 
 // Release whatever is in the cloned configuration, without changing anything
-func (r *Releaser) releaseWithoutUpdate(method, msg string, inst *instance.Instance, kind flux.ReleaseKind, getServices serviceQuery, updateJob func(string, ...interface{})) (err error) {
+func (r *Releaser) releaseWithoutUpdate(method, msg string, inst *instance.Instance, kind flux.ReleaseKind, getServices serviceSelector, updateJob func(string, ...interface{})) (err error) {
 	var res []ReleaseAction
 	defer func() {
 		if err == nil {
@@ -400,7 +335,7 @@ func (r *Releaser) releaseActionClone() ReleaseAction {
 				).Observe(time.Since(begin).Seconds())
 			}(time.Now())
 
-			err = rc.CloneConfig()
+			err = rc.CloneRepo()
 			if err != nil {
 				return "", errors.Wrap(err, "clone the config repo")
 			}
@@ -420,7 +355,7 @@ func (r *Releaser) releaseActionFindPodController(service flux.ServiceID) Releas
 				).Observe(time.Since(begin).Seconds())
 			}(time.Now())
 
-			resourcePath := rc.ConfigPath()
+			resourcePath := rc.RepoPath()
 			if fi, err := os.Stat(resourcePath); err != nil || !fi.IsDir() {
 				return "", fmt.Errorf("the resource path (%s) is not valid", resourcePath)
 			}
@@ -465,7 +400,7 @@ func (r *Releaser) releaseActionUpdatePodController(service flux.ServiceID, upda
 				).Observe(time.Since(begin).Seconds())
 			}(time.Now())
 
-			resourcePath := rc.ConfigPath()
+			resourcePath := rc.RepoPath()
 			if fi, err := os.Stat(resourcePath); err != nil || !fi.IsDir() {
 				return "", fmt.Errorf("the resource path (%s) is not valid", resourcePath)
 			}
@@ -531,9 +466,6 @@ func (r *Releaser) releaseActionCommitAndPush(msg string) ReleaseAction {
 
 			if fi, err := os.Stat(rc.WorkingDir); err != nil || !fi.IsDir() {
 				return "", fmt.Errorf("the repo path (%s) is not valid", rc.WorkingDir)
-			}
-			if _, err := os.Stat(rc.KeyPath); err != nil {
-				return "", fmt.Errorf("the repo key (%s) is not valid: %v", rc.KeyPath, err)
 			}
 			result, err := rc.CommitAndPush(msg)
 			if err == nil && result == "" {
