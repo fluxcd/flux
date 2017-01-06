@@ -50,32 +50,6 @@ type ReleaseAction struct {
 	Result      string                                `json:"result"`
 }
 
-type serviceQuery func(*instance.Instance) ([]platform.Service, error)
-
-func exactlyTheseServices(include []flux.ServiceID) serviceQuery {
-	return func(h *instance.Instance) ([]platform.Service, error) {
-		return h.GetServices(include)
-	}
-}
-
-func allServicesExcept(exclude flux.ServiceIDSet) serviceQuery {
-	return func(h *instance.Instance) ([]platform.Service, error) {
-		return h.GetAllServicesExcept("", exclude)
-	}
-}
-
-type imageCollect func(*instance.Instance, []platform.Service) (instance.ImageMap, error)
-
-func allLatestImages(h *instance.Instance, services []platform.Service) (instance.ImageMap, error) {
-	return h.CollectAvailableImages(services)
-}
-
-func exactlyTheseImages(images []flux.ImageID) imageCollect {
-	return func(h *instance.Instance, _ []platform.Service) (instance.ImageMap, error) {
-		return h.ExactImages(images)
-	}
-}
-
 func (r *Releaser) Handle(job *jobs.Job, updater jobs.JobUpdater) (followUps []jobs.Job, err error) {
 	params := job.Params.(jobs.ReleaseJobParams)
 	releaseType := "unknown"
@@ -155,7 +129,7 @@ func (r *Releaser) Handle(job *jobs.Job, updater jobs.JobUpdater) (followUps []j
 	}
 }
 
-func (r *Releaser) releaseImages(method, msg string, inst *instance.Instance, kind flux.ReleaseKind, getServices serviceQuery, getImages imageCollect, updateJob func(string, ...interface{})) (err error) {
+func (r *Releaser) releaseImages(method, msg string, inst *instance.Instance, kind flux.ReleaseKind, getServices serviceSelector, getImages imageSelector, updateJob func(string, ...interface{})) (err error) {
 	var res []ReleaseAction
 	defer func() {
 		if err == nil {
@@ -258,7 +232,7 @@ func lockedServices(inst *instance.Instance) ([]flux.ServiceID, error) {
 }
 
 // Release whatever is in the cloned configuration, without changing anything
-func (r *Releaser) releaseWithoutUpdate(method, msg string, inst *instance.Instance, kind flux.ReleaseKind, getServices serviceQuery, updateJob func(string, ...interface{})) (err error) {
+func (r *Releaser) releaseWithoutUpdate(method, msg string, inst *instance.Instance, kind flux.ReleaseKind, getServices serviceSelector, updateJob func(string, ...interface{})) (err error) {
 	var res []ReleaseAction
 	defer func() {
 		if err == nil {
