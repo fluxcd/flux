@@ -60,7 +60,7 @@ func (i *instrumentedPlatform) SomeServices(ids []flux.ServiceID) (svcs []Servic
 func (i *instrumentedPlatform) Apply(defs []ServiceDefinition) (err error) {
 	defer func(begin time.Time) {
 		i.m.RequestDuration.With(
-			fluxmetrics.LabelMethod, "Release",
+			fluxmetrics.LabelMethod, "Apply",
 			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
 	}(time.Now())
