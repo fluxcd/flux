@@ -162,7 +162,9 @@ func (c *Client) lookupImage(client *dockerregistry.Registry, lookupName, imageN
 	}
 	var topmost v1image
 	if err = json.Unmarshal([]byte(meta.History[0].V1Compatibility), &topmost); err == nil {
-		img.CreatedAt = topmost.Created
+		if !topmost.Created.IsZero() {
+			img.CreatedAt = &topmost.Created
+		}
 	}
 
 	return img, err
@@ -289,10 +291,16 @@ type byCreatedDesc []flux.ImageDescription
 func (is byCreatedDesc) Len() int      { return len(is) }
 func (is byCreatedDesc) Swap(i, j int) { is[i], is[j] = is[j], is[i] }
 func (is byCreatedDesc) Less(i, j int) bool {
-	if is[i].CreatedAt.Equal(is[j].CreatedAt) {
+	if is[i].CreatedAt == nil {
+		return true
+	}
+	if is[j].CreatedAt == nil {
+		return false
+	}
+	if is[i].CreatedAt.Equal(*is[j].CreatedAt) {
 		return is[i].ID < is[j].ID
 	}
-	return is[i].CreatedAt.After(is[j].CreatedAt)
+	return is[i].CreatedAt.After(*is[j].CreatedAt)
 }
 
 // Log requests as they go through, and responses as they come back.

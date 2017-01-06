@@ -230,12 +230,12 @@ type Container struct {
 
 type ImageDescription struct {
 	ID        ImageID
-	CreatedAt time.Time
+	CreatedAt *time.Time `json:",omitempty"`
 }
 
 // Ask me for more details.
 type HistoryEntry struct {
-	Stamp time.Time
+	Stamp *time.Time `json:",omitempty"`
 	Type  string
 	Data  string
 }
