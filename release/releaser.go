@@ -16,6 +16,7 @@ import (
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/instance"
 	"github.com/weaveworks/flux/jobs"
+	fluxmetrics "github.com/weaveworks/flux/metrics"
 	"github.com/weaveworks/flux/platform"
 	"github.com/weaveworks/flux/platform/kubernetes"
 )
@@ -56,9 +57,9 @@ func (r *Releaser) Handle(job *jobs.Job, updater jobs.JobUpdater) (followUps []j
 	releaseType := params.ReleaseType()
 	defer func(begin time.Time) {
 		r.metrics.ReleaseDuration.With(
-			"method", releaseType,
-			"release_kind", fmt.Sprint(params.Kind),
-			"success", fmt.Sprint(err == nil),
+			fluxmetrics.LabelReleaseType, releaseType,
+			fluxmetrics.LabelReleaseKind, string(params.Kind),
+			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
@@ -507,8 +508,8 @@ func (r *Releaser) execute(metric metrics.Histogram, inst *instance.Instance, ac
 		err := func() (err error) {
 			defer func(begin time.Time) {
 				metric.With(
-					"action", action.Name,
-					"success", fmt.Sprint(err == nil),
+					fluxmetrics.LabelAction, action.Name,
+					fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
 				).Observe(time.Since(begin).Seconds())
 			}(time.Now())
 

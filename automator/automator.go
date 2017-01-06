@@ -54,6 +54,7 @@ func (a *Automator) checkAll(errorLogger log.Logger) {
 		}
 
 		_, err := a.cfg.Jobs.PutJob(inst.ID, jobs.Job{
+			Queue: jobs.AutomatedInstanceJob,
 			// Key stops us getting two jobs for the same service
 			Key: strings.Join([]string{
 				jobs.AutomatedInstanceJob,
@@ -101,7 +102,7 @@ func (a *Automator) handleAutomatedServiceJob(logger log.Logger, j *jobs.Job) ([
 		return nil, errors.Wrapf(err, "parsing service ID from spec %s", params.ServiceSpec)
 	}
 
-	j.ScheduledAt = j.ScheduledAt.Add(automationCycle)
+	j.ScheduledAt = time.Now().UTC().Add(automationCycle)
 	followUps := []jobs.Job{*j}
 
 	config, err := a.cfg.InstanceDB.GetConfig(j.Instance)
@@ -120,6 +121,16 @@ func (a *Automator) handleAutomatedServiceJob(logger log.Logger, j *jobs.Job) ([
 	}
 
 	followUps = append(followUps, jobs.Job{
+		Queue: jobs.ReleaseJob,
+		// Key stops us getting two jobs queued for the same service. That way if a
+		// release is slow the automator won't queue a horde of jobs to upgrade it.
+		Key: strings.Join([]string{
+			jobs.ReleaseJob,
+			string(j.Instance),
+			string(params.ServiceSpec),
+			string(flux.ImageSpecLatest),
+			"automated",
+		}, "|"),
 		Method:   jobs.ReleaseJob,
 		Priority: jobs.PriorityBackground,
 		Params: jobs.ReleaseJobParams{
@@ -132,7 +143,7 @@ func (a *Automator) handleAutomatedServiceJob(logger log.Logger, j *jobs.Job) ([
 }
 
 func (a *Automator) handleAutomatedInstanceJob(logger log.Logger, j *jobs.Job) ([]jobs.Job, error) {
-	j.ScheduledAt = j.ScheduledAt.Add(automationCycle)
+	j.ScheduledAt = time.Now().UTC().Add(automationCycle)
 	followUps := []jobs.Job{*j}
 
 	params := j.Params.(jobs.AutomatedInstanceJobParams)
@@ -223,6 +234,15 @@ func (a *Automator) handleAutomatedInstanceJob(logger log.Logger, j *jobs.Job) (
 			continue
 		}
 		followUps = append(followUps, jobs.Job{
+			Queue: jobs.ReleaseJob,
+			// Key stops us getting two jobs queued for the same service. That way if a
+			// release is slow the automator won't queue a horde of jobs to upgrade it.
+			Key: strings.Join([]string{
+				jobs.ReleaseJob,
+				string(params.InstanceID),
+				string(latest.ID),
+				"automated",
+			}, "|"),
 			Method:   jobs.ReleaseJob,
 			Priority: jobs.PriorityBackground,
 			Params: jobs.ReleaseJobParams{

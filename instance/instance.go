@@ -12,6 +12,7 @@ import (
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/git"
 	"github.com/weaveworks/flux/history"
+	fluxmetrics "github.com/weaveworks/flux/metrics"
 	"github.com/weaveworks/flux/platform"
 	"github.com/weaveworks/flux/registry"
 )
@@ -125,8 +126,8 @@ func (h *Instance) ExactImages(images []flux.ImageID) (ImageMap, error) {
 func (h *Instance) PlatformApply(defs []platform.ServiceDefinition) (err error) {
 	defer func(begin time.Time) {
 		h.duration.With(
-			"method", "PlatformApply",
-			"success", fmt.Sprint(err == nil),
+			fluxmetrics.LabelMethod, "PlatformApply",
+			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
 	}(time.Now())
 

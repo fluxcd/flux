@@ -24,8 +24,10 @@ import (
 	"github.com/weaveworks/flux/instance"
 	instancedb "github.com/weaveworks/flux/instance/sql"
 	"github.com/weaveworks/flux/jobs"
+	fluxmetrics "github.com/weaveworks/flux/metrics"
 	"github.com/weaveworks/flux/platform"
 	"github.com/weaveworks/flux/platform/rpc/nats"
+	"github.com/weaveworks/flux/registry"
 	"github.com/weaveworks/flux/release"
 	"github.com/weaveworks/flux/server"
 )
@@ -79,14 +81,15 @@ func main() {
 
 	// Instrumentation
 	var (
-		httpDuration    metrics.Histogram
-		serverMetrics   server.Metrics
-		releaseMetrics  release.Metrics
-		helperDuration  metrics.Histogram
 		busMetrics      platform.BusMetrics
+		helperDuration  metrics.Histogram
 		historyMetrics  history.Metrics
+		httpDuration    metrics.Histogram
 		instanceMetrics instance.Metrics
 		jobMetrics      jobs.Metrics
+		registryMetrics registry.Metrics
+		releaseMetrics  release.Metrics
+		serverMetrics   server.Metrics
 	)
 	{
 		httpDuration = prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
@@ -95,35 +98,35 @@ func main() {
 			Name:      "http_request_duration_seconds",
 			Help:      "HTTP request duration in seconds.",
 			Buckets:   stdprometheus.DefBuckets,
-		}, []string{"method", "status_code"})
+		}, []string{fluxmetrics.LabelMethod, "status_code"})
 		serverMetrics.ListServicesDuration = prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
 			Namespace: "flux",
 			Subsystem: "fluxsvc",
 			Name:      "list_services_duration_seconds",
 			Help:      "ListServices method duration in seconds.",
 			Buckets:   stdprometheus.DefBuckets,
-		}, []string{"namespace", "success"})
+		}, []string{fluxmetrics.LabelNamespace, fluxmetrics.LabelSuccess})
 		serverMetrics.ListImagesDuration = prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
 			Namespace: "flux",
 			Subsystem: "fluxsvc",
 			Name:      "list_images_duration_seconds",
 			Help:      "ListImages method duration in seconds.",
 			Buckets:   stdprometheus.DefBuckets,
-		}, []string{"service_spec", "success"})
+		}, []string{"service_spec", fluxmetrics.LabelSuccess})
 		serverMetrics.HistoryDuration = prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
 			Namespace: "flux",
 			Subsystem: "fluxsvc",
 			Name:      "history_duration_seconds",
 			Help:      "History method duration in seconds.",
 			Buckets:   stdprometheus.DefBuckets,
-		}, []string{"service_spec", "success"})
+		}, []string{"service_spec", fluxmetrics.LabelSuccess})
 		serverMetrics.RegisterDaemonDuration = prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
 			Namespace: "flux",
 			Subsystem: "fluxsvc",
 			Name:      "register_daemon_duration_seconds",
 			Help:      "RegisterDaemon method duration in seconds.",
 			Buckets:   stdprometheus.DefBuckets,
-		}, []string{"instance_id", "success"})
+		}, []string{fluxmetrics.LabelInstanceID, fluxmetrics.LabelSuccess})
 		serverMetrics.ConnectedDaemons = prometheus.NewGaugeFrom(stdprometheus.GaugeOpts{
 			Namespace: "flux",
 			Subsystem: "fluxsvc",
@@ -137,28 +140,29 @@ func main() {
 			Name:      "release_duration_seconds",
 			Help:      "Release method duration in seconds.",
 			Buckets:   stdprometheus.DefBuckets,
-		}, []string{"method", "release_kind", "success"})
+		}, []string{fluxmetrics.LabelReleaseType, fluxmetrics.LabelReleaseKind, fluxmetrics.LabelSuccess})
 		releaseMetrics.ActionDuration = prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
 			Namespace: "flux",
 			Subsystem: "fluxsvc",
 			Name:      "release_action_duration_seconds",
 			Help:      "Duration in seconds of each sub-action invoked as part of a non-dry-run release.",
 			Buckets:   stdprometheus.DefBuckets,
-		}, []string{"action", "success"})
+		}, []string{fluxmetrics.LabelAction, fluxmetrics.LabelSuccess})
 		releaseMetrics.StageDuration = prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
 			Namespace: "flux",
 			Subsystem: "fluxsvc",
 			Name:      "release_stage_duration_seconds",
 			Help:      "Duration in seconds of each stage of a release, including dry-runs.",
 			Buckets:   stdprometheus.DefBuckets,
-		}, []string{"method", "action", "success"})
+		}, []string{fluxmetrics.LabelMethod, fluxmetrics.LabelAction, fluxmetrics.LabelStage})
 		helperDuration = prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
 			Namespace: "flux",
 			Subsystem: "fluxsvc",
 			Name:      "release_helper_duration_seconds",
 			Help:      "Duration in seconds of a variety of release helper methods.",
 			Buckets:   stdprometheus.DefBuckets,
-		}, []string{"method", "success"})
+		}, []string{fluxmetrics.LabelMethod, fluxmetrics.LabelSuccess})
+		registryMetrics = registry.NewMetrics()
 		busMetrics = platform.NewBusMetrics()
 		historyMetrics = history.NewMetrics()
 		instanceMetrics = instance.NewMetrics()
@@ -206,11 +210,12 @@ func main() {
 	{
 		// Instancer, for the instancing of operations
 		instancer = &instance.MultitenantInstancer{
-			DB:        instanceDB,
-			Connecter: messageBus,
-			Logger:    logger,
-			Histogram: helperDuration,
-			History:   historyDB,
+			DB:              instanceDB,
+			Connecter:       messageBus,
+			Logger:          logger,
+			Histogram:       helperDuration,
+			History:         historyDB,
+			RegistryMetrics: registryMetrics,
 		}
 	}
 
@@ -246,9 +251,19 @@ func main() {
 	go auto.Start(log.NewContext(logger).With("component", "automator"))
 
 	// Job workers.
-	{
-		logger := log.NewContext(logger).With("component", "worker")
-		worker := jobs.NewWorker(jobStore, logger)
+	//
+	// Doing one worker (and one queue) for each job type for now. This way slow
+	// release jobs can't interfere with slow automated service jobs, or vice
+	// versa. This is probably not optimal. Really all jobs should be quick and
+	// recoverable.
+	for _, queue := range []string{
+		jobs.DefaultQueue,
+		jobs.ReleaseJob,
+		jobs.AutomatedServiceJob,
+		jobs.AutomatedInstanceJob,
+	} {
+		logger := log.NewContext(logger).With("component", "worker", "queues", []string{queue})
+		worker := jobs.NewWorker(jobStore, logger, []string{queue})
 		worker.Register(jobs.AutomatedServiceJob, auto)
 		worker.Register(jobs.AutomatedInstanceJob, auto)
 		worker.Register(jobs.ReleaseJob, release.NewReleaser(instancer, releaseMetrics))
@@ -260,6 +275,10 @@ func main() {
 		}()
 		go worker.Work()
 
+	}
+
+	// Job GC cleaner
+	{
 		cleaner := jobs.NewCleaner(jobStore, logger)
 		cleanTicker := time.NewTicker(15 * time.Second)
 		defer cleanTicker.Stop()

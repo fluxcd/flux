@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/cookiejar"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -18,6 +19,7 @@ import (
 	"golang.org/x/net/publicsuffix"
 
 	"github.com/weaveworks/flux"
+	fluxmetrics "github.com/weaveworks/flux/metrics"
 )
 
 const (
@@ -38,6 +40,7 @@ type Credentials struct {
 type Client struct {
 	Credentials Credentials
 	Logger      log.Logger
+	Metrics     Metrics
 }
 
 type roundtripperFunc func(*http.Request) (*http.Response, error)
@@ -54,7 +57,14 @@ func (f roundtripperFunc) RoundTrip(r *http.Request) (*http.Response, error) {
 //   foo/helloworld         -> index.docker.io/foo/helloworld
 //   quay.io/foo/helloworld -> quay.io/foo/helloworld
 //
-func (c *Client) GetRepository(repository string) ([]flux.ImageDescription, error) {
+func (c *Client) GetRepository(repository string) (_ []flux.ImageDescription, err error) {
+	defer func(start time.Time) {
+		c.Metrics.FetchDuration.With(
+			LabelRepository, repository,
+			fluxmetrics.LabelSuccess, strconv.FormatBool(err == nil),
+		).Observe(time.Since(start).Seconds())
+	}(time.Now())
+
 	var host, org, image string
 	parts := strings.Split(repository, "/")
 	switch len(parts) {
@@ -106,7 +116,13 @@ func (c *Client) GetRepository(repository string) ([]flux.ImageDescription, erro
 		Logf: dockerregistry.Quiet,
 	}
 
+	start := time.Now()
 	tags, err := client.Tags(hostlessImageName)
+	c.Metrics.RequestDuration.With(
+		LabelRepository, repository,
+		LabelRequestKind, RequestKindTags,
+		fluxmetrics.LabelSuccess, strconv.FormatBool(err == nil),
+	).Observe(time.Since(start).Seconds())
 	if err != nil {
 		cancel()
 		return nil, err
@@ -126,7 +142,13 @@ func (c *Client) lookupImage(client *dockerregistry.Registry, lookupName, imageN
 	id := flux.MakeImageID("", imageName, tag)
 	img := flux.ImageDescription{ID: id}
 
+	start := time.Now()
 	meta, err := client.Manifest(lookupName, tag)
+	c.Metrics.RequestDuration.With(
+		LabelRepository, imageName,
+		LabelRequestKind, RequestKindMetadata,
+		fluxmetrics.LabelSuccess, strconv.FormatBool(err == nil),
+	).Observe(time.Since(start).Seconds())
 	if err != nil {
 		return img, err
 	}
