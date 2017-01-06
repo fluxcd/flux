@@ -140,7 +140,7 @@ func main() {
 			Name:      "release_duration_seconds",
 			Help:      "Release method duration in seconds.",
 			Buckets:   stdprometheus.DefBuckets,
-		}, []string{fluxmetrics.LabelReleaseType, fluxmetrics.LabelSuccess})
+		}, []string{fluxmetrics.LabelReleaseType, fluxmetrics.LabelReleaseKind, fluxmetrics.LabelSuccess})
 		releaseMetrics.ActionDuration = prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
 			Namespace: "flux",
 			Subsystem: "fluxsvc",

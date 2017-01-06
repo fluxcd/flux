@@ -56,6 +56,7 @@ func (r *Releaser) Handle(job *jobs.Job, updater jobs.JobUpdater) (followUps []j
 	defer func(begin time.Time) {
 		r.metrics.ReleaseDuration.With(
 			fluxmetrics.LabelReleaseType, releaseType,
+			fluxmetrics.LabelReleaseKind, string(params.Kind),
 			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
 	}(time.Now())
