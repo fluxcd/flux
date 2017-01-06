@@ -10,9 +10,19 @@ import (
 	"github.com/pkg/errors"
 )
 
-func clone(workingDir, keyPath, repoURL, repoBranch string) (path string, err error) {
+func clone(workingDir, keyData, repoURL, repoBranch string) (path string, err error) {
+	keyPath, err := writeKey(keyData)
+	if err != nil {
+		return "", err
+	}
+	defer os.Remove(keyPath)
 	repoPath := filepath.Join(workingDir, "repo")
-	if err := gitCmd("", keyPath, "clone", "--branch", repoBranch, repoURL, repoPath).Run(); err != nil {
+	args := []string{"clone"}
+	if repoBranch != "" {
+		args = append(args, "--branch", repoBranch)
+	}
+	args = append(args, repoURL, repoPath)
+	if err := gitCmd(workingDir, keyPath, args...).Run(); err != nil {
 		return "", errors.Wrap(err, "git clone")
 	}
 	return repoPath, nil
@@ -30,7 +40,12 @@ func commit(workingDir, commitMessage string) error {
 	return nil
 }
 
-func push(keyPath, repoBranch, workingDir string) error {
+func push(keyData, repoBranch, workingDir string) error {
+	keyPath, err := writeKey(keyData)
+	if err != nil {
+		return err
+	}
+	defer os.Remove(keyPath)
 	if err := gitCmd(workingDir, keyPath, "push", "origin", repoBranch).Run(); err != nil {
 		return errors.Wrap(err, fmt.Sprintf("git push origin %s", repoBranch))
 	}
@@ -63,8 +78,18 @@ func check(workingDir, subdir string) bool {
 	return diff.Run() != nil
 }
 
-func writeKey(workingDir, keyData string) (string, error) {
-	keyPath := filepath.Join(workingDir, "id-rsa")
-	err := ioutil.WriteFile(keyPath, []byte(keyData), 0400)
-	return keyPath, err
+func writeKey(keyData string) (string, error) {
+	f, err := ioutil.TempFile("", "flux-key")
+	if err != nil {
+		return "", err
+	}
+	if err := f.Close(); err != nil {
+		os.Remove(f.Name())
+		return "", err
+	}
+	if err := ioutil.WriteFile(f.Name(), []byte(keyData), 0400); err != nil {
+		os.Remove(f.Name())
+		return "", err
+	}
+	return f.Name(), nil
 }

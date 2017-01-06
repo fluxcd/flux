@@ -19,6 +19,9 @@ const (
 	// AutomatedServiceJob is the method for a check automated service job
 	AutomatedServiceJob = "automated_service"
 
+	// AutomatedInstanceJob is the method for a check automated instance job
+	AutomatedInstanceJob = "automated_instance"
+
 	// PriorityBackground is priority for background jobs
 	PriorityBackground = 100
 
@@ -151,14 +154,41 @@ func (j *Job) UnmarshalJSON(data []byte) error {
 
 // ReleaseJobParams are the params for a release job
 type ReleaseJobParams struct {
-	ServiceSpec flux.ServiceSpec
-	ImageSpec   flux.ImageSpec
-	Kind        flux.ReleaseKind
-	Excludes    []flux.ServiceID
+	ServiceSpec  flux.ServiceSpec
+	ServiceSpecs []flux.ServiceSpec
+	ImageSpec    flux.ImageSpec
+	Kind         flux.ReleaseKind
+	Excludes     []flux.ServiceID
+}
+
+func (p ReleaseJobParams) ReleaseType() string {
+	switch {
+	case p.ServiceSpec == flux.ServiceSpecAll && p.ImageSpec == flux.ImageSpecLatest:
+		return "release_all_to_latest"
+
+	case p.ServiceSpec == flux.ServiceSpecAll && p.ImageSpec == flux.ImageSpecNone:
+		return "release_all_without_update"
+
+	case p.ServiceSpec == flux.ServiceSpecAll:
+		return "release_all_for_image"
+
+	case p.ImageSpec == flux.ImageSpecLatest:
+		return "release_one_to_latest"
+
+	case p.ImageSpec == flux.ImageSpecNone:
+		return "release_one_without_update"
+
+	default:
+		return "release_one"
+	}
 }
 
 // AutomatedServiceJobParams are the params for a automated_service job
-// job
 type AutomatedServiceJobParams struct {
 	ServiceSpec flux.ServiceSpec
+}
+
+// AutomatedInstanceJobParams are the params for an automated_instance job
+type AutomatedInstanceJobParams struct {
+	InstanceID flux.InstanceID
 }

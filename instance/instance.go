@@ -94,16 +94,14 @@ func (h *Instance) GetServices(ids []flux.ServiceID) ([]platform.Service, error)
 	return h.platform.SomeServices(ids)
 }
 
-// Get the images available for the services given. An image may be
+// Get the images available for the image repos given. An image may be
 // mentioned more than once in the services, but will only be fetched
 // once.
-func (h *Instance) CollectAvailableImages(services []platform.Service) (ImageMap, error) {
+func (h *Instance) CollectAvailableImages(repos []string) (ImageMap, error) {
 	images := ImageMap{}
-	for _, service := range services {
-		for _, container := range service.ContainersOrNil() {
-			repo := flux.ParseImageID(container.Image).Repository()
-			images[repo] = nil
-		}
+	// Ensure each repo is unique
+	for _, repo := range repos {
+		images[repo] = nil
 	}
 	for repo := range images {
 		imageRepo, err := h.registry.GetRepository(repo)

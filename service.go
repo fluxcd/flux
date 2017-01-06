@@ -82,14 +82,53 @@ func (id ServiceID) Components() (namespace, service string) {
 type ServiceIDSet map[ServiceID]struct{}
 
 func (s ServiceIDSet) Add(ids []ServiceID) {
+	if s == nil {
+		s = map[ServiceID]struct{}{}
+	}
 	for _, id := range ids {
 		s[id] = struct{}{}
 	}
 }
 
+func (s ServiceIDSet) Without(others ServiceIDSet) ServiceIDSet {
+	if others == nil || len(others) == 0 {
+		return s
+	}
+	res := ServiceIDSet{}
+	if s == nil {
+		return res
+	}
+	for id := range others {
+		if s.Contains(id) {
+			continue
+		}
+		res[id] = struct{}{}
+	}
+	return res
+}
+
 func (s ServiceIDSet) Contains(id ServiceID) bool {
+	if s == nil {
+		return false
+	}
 	_, ok := s[id]
 	return ok
+}
+
+func (s ServiceIDSet) Intersection(others ServiceIDSet) ServiceIDSet {
+	if s == nil {
+		return others
+	}
+	if others == nil {
+		return s
+	}
+	result := ServiceIDSet{}
+	for id := range s {
+		if _, ok := others[id]; ok {
+			result[id] = struct{}{}
+		}
+	}
+	return result
 }
 
 type ServiceIDs []ServiceID
@@ -107,6 +146,12 @@ func (ids ServiceIDs) Contains(id ServiceID) bool {
 	set := ServiceIDSet{}
 	set.Add(ids)
 	return set.Contains(id)
+}
+
+func (ids ServiceIDs) Intersection(others ServiceIDSet) ServiceIDSet {
+	set := ServiceIDSet{}
+	set.Add(ids)
+	return set.Intersection(others)
 }
 
 type ImageID string // "quay.io/weaveworks/helloworld:v1"
@@ -151,6 +196,16 @@ func (id ImageID) Repository() string {
 	}
 	return ""
 }
+
+// ImageIDSlice attaches the methods of sort.Interface to []ImageID, sorting in increasing order.
+type ImageIDSlice []ImageID
+
+func (s ImageIDSlice) Len() int           { return len(s) }
+func (s ImageIDSlice) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+func (s ImageIDSlice) Less(i, j int) bool { return string(s[i]) < string(s[j]) }
+
+// Sort is a convenience method.
+func (s ImageIDSlice) Sort() { sort.Sort(s) }
 
 type ServiceSpec string // ServiceID or "<all>"
 

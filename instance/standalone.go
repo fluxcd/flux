@@ -18,7 +18,7 @@ type StandaloneInstancer struct {
 	Instance     flux.InstanceID
 	Connecter    platform.Connecter
 	Registry     *registry.Client
-	Config       Configurer
+	Config       DB
 	GitRepo      git.Repo
 	EventReader  history.EventReader
 	EventWriter  history.EventWriter
@@ -37,7 +37,7 @@ func (s StandaloneInstancer) Get(inst flux.InstanceID) (*Instance, error) {
 	return New(
 		platform,
 		s.Registry,
-		s.Config,
+		configurer{inst, s.Config},
 		s.GitRepo,
 		log.NewContext(s.BaseLogger).With("instanceID", s.Instance),
 		s.BaseDuration,

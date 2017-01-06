@@ -12,6 +12,7 @@ const (
 
 	// Labels for release metrics
 	LabelAction      = "action"
+	LabelReleaseKind = "release_kind"
 	LabelReleaseType = "release_type"
 	LabelStage       = "stage"
 )

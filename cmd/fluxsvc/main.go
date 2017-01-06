@@ -140,7 +140,7 @@ func main() {
 			Name:      "release_duration_seconds",
 			Help:      "Release method duration in seconds.",
 			Buckets:   stdprometheus.DefBuckets,
-		}, []string{fluxmetrics.LabelReleaseType, fluxmetrics.LabelSuccess})
+		}, []string{fluxmetrics.LabelReleaseType, fluxmetrics.LabelReleaseKind, fluxmetrics.LabelSuccess})
 		releaseMetrics.ActionDuration = prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
 			Namespace: "flux",
 			Subsystem: "fluxsvc",
@@ -154,7 +154,7 @@ func main() {
 			Name:      "release_stage_duration_seconds",
 			Help:      "Duration in seconds of each stage of a release, including dry-runs.",
 			Buckets:   stdprometheus.DefBuckets,
-		}, []string{fluxmetrics.LabelMethod, fluxmetrics.LabelStage})
+		}, []string{fluxmetrics.LabelMethod, fluxmetrics.LabelAction, fluxmetrics.LabelStage})
 		helperDuration = prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
 			Namespace: "flux",
 			Subsystem: "fluxsvc",
@@ -237,6 +237,7 @@ func main() {
 		auto, err = automator.New(automator.Config{
 			Jobs:       jobStore,
 			InstanceDB: instanceDB,
+			Instancer:  instancer,
 			Logger:     log.NewContext(logger).With("component", "automator"),
 		})
 		if err == nil {
@@ -255,10 +256,16 @@ func main() {
 	// release jobs can't interfere with slow automated service jobs, or vice
 	// versa. This is probably not optimal. Really all jobs should be quick and
 	// recoverable.
-	for _, queue := range []string{jobs.DefaultQueue, jobs.ReleaseJob, jobs.AutomatedServiceJob} {
+	for _, queue := range []string{
+		jobs.DefaultQueue,
+		jobs.ReleaseJob,
+		jobs.AutomatedServiceJob,
+		jobs.AutomatedInstanceJob,
+	} {
 		logger := log.NewContext(logger).With("component", "worker", "queues", []string{queue})
 		worker := jobs.NewWorker(jobStore, logger, []string{queue})
 		worker.Register(jobs.AutomatedServiceJob, auto)
+		worker.Register(jobs.AutomatedInstanceJob, auto)
 		worker.Register(jobs.ReleaseJob, release.NewReleaser(instancer, releaseMetrics))
 
 		defer func() {

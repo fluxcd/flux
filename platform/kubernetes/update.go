@@ -10,7 +10,7 @@ import (
 	"github.com/weaveworks/flux"
 )
 
-// UpdatePodController takes the body of a ReplicationController or Deployment
+// UpdateDefinition takes the body of a ReplicationController or Deployment
 // resource definition (specified in YAML) and the name of the new image that
 // should be put in the definition (in the format "repo.org/group/name:tag"). It
 // returns a new resource definition body where all references to the old image
@@ -18,9 +18,9 @@ import (
 //
 // This function has many additional requirements that are likely in flux. Read
 // the source to learn about them.
-func UpdatePodController(def []byte, newImageName string, trace io.Writer) ([]byte, error) {
+func UpdateDefinition(def []byte, newImage flux.ImageID, trace io.Writer) ([]byte, error) {
 	var buf bytes.Buffer
-	err := tryUpdate(string(def), newImageName, trace, &buf)
+	err := tryUpdate(string(def), newImage, trace, &buf)
 	return buf.Bytes(), err
 }
 
@@ -67,9 +67,7 @@ func UpdatePodController(def []byte, newImageName string, trace io.Writer) ([]by
 //         ports:
 //         - containerPort: 80
 // ```
-func tryUpdate(def, newImageStr string, trace io.Writer, out io.Writer) error {
-	newImage := flux.ParseImageID(newImageStr)
-
+func tryUpdate(def string, newImage flux.ImageID, trace io.Writer, out io.Writer) error {
 	nameRE := multilineRE(
 		`metadata:\s*`,
 		`(?:  .*\n)*  name:\s*"?([\w-]+)"?\s*`,
@@ -81,6 +79,8 @@ func tryUpdate(def, newImageStr string, trace io.Writer, out io.Writer) error {
 	oldDefName := matches[1]
 	fmt.Fprintf(trace, "Found resource name %q in fragment:\n\n%s\n\n", oldDefName, matches[0])
 
+	// TODO: This seems broken! What if the image is used multiple times??? Or
+	// has no tag?
 	imageRE := multilineRE(
 		`      containers:.*`,
 		`(?:      .*\n)*(?:  ){3,4}- name:\s*"?([\w-]+)"?(?:\s.*)?`,

@@ -5,31 +5,34 @@ import (
 	"fmt"
 	"os"
 	"testing"
+
+	"github.com/weaveworks/flux"
 )
 
-func testUpdate(t *testing.T, name, caseIn, updatedImage, caseOut string) {
-	var trace, out bytes.Buffer
-	if err := tryUpdate(caseIn, updatedImage, &trace, &out); err != nil {
-		fmt.Fprintln(os.Stderr, "Failed:", name)
-		fmt.Fprintf(os.Stderr, "--- TRACE ---\n"+trace.String()+"\n---\n")
-		t.Fatal(err)
-	}
-	if string(out.Bytes()) != caseOut {
-		fmt.Fprintln(os.Stderr, "Failed:", name)
-		fmt.Fprintf(os.Stderr, "--- TRACE ---\n"+trace.String()+"\n---\n")
-		t.Fatalf("Did not get expected result, instead got\n\n%s", string(out.Bytes()))
-	}
-}
-
 func TestUpdates(t *testing.T) {
-	for _, c := range [][]string{
+	for _, c := range []struct {
+		name  string
+		in    string
+		image flux.ImageID
+		out   string
+	}{
 		{"common case", case1, case1image, case1out},
 		{"new version like number", case2, case2image, case2out},
 		{"old version like number", case2out, case2reverseImage, case2},
 		{"name label out of order", case3, case3image, case3out},
 		{"version (tag) with dots", case4, case4image, case4out},
 	} {
-		testUpdate(t, c[0], c[1], c[2], c[3])
+		var trace, out bytes.Buffer
+		if err := tryUpdate(c.in, c.image, &trace, &out); err != nil {
+			fmt.Fprintln(os.Stderr, "Failed:", c.name)
+			fmt.Fprintf(os.Stderr, "--- TRACE ---\n"+trace.String()+"\n---\n")
+			t.Fatal(err)
+		}
+		if string(out.Bytes()) != c.out {
+			fmt.Fprintln(os.Stderr, "Failed:", c.name)
+			fmt.Fprintf(os.Stderr, "--- TRACE ---\n"+trace.String()+"\n---\n")
+			t.Fatalf("Did not get expected result, instead got\n\n%s", string(out.Bytes()))
+		}
 	}
 }
 

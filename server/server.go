@@ -2,7 +2,6 @@ package server
 
 import (
 	"fmt"
-	"strings"
 	"sync/atomic"
 	"time"
 
@@ -144,7 +143,14 @@ func (s *Server) ListImages(inst flux.InstanceID, spec flux.ServiceSpec) (res []
 		services, err = helper.GetServices([]flux.ServiceID{id})
 	}
 
-	images, err := helper.CollectAvailableImages(services)
+	var repos []string
+	for _, service := range services {
+		for _, container := range service.ContainersOrNil() {
+			repos = append(repos, flux.ParseImageID(container.Image).Repository())
+		}
+	}
+
+	images, err := helper.CollectAvailableImages(repos)
 	if err != nil {
 		return nil, errors.Wrap(err, "getting images for services")
 	}
@@ -227,30 +233,7 @@ func (s *Server) Automate(instID flux.InstanceID, service flux.ServiceID) error 
 	}
 	ns, svc := service.Components()
 	inst.LogEvent(ns, svc, serviceAutomated)
-	if err := recordAutomated(inst, service, true); err != nil {
-		return err
-	}
-
-	// Schedule an immediate check, so things feel snappy for the user.
-	_, err = s.jobs.PutJob(instID, jobs.Job{
-		Queue: jobs.AutomatedServiceJob,
-		// Key stops us getting two jobs for the same service
-		Key: strings.Join([]string{
-			jobs.AutomatedServiceJob,
-			string(instID),
-			string(service),
-		}, "|"),
-		Method: jobs.AutomatedServiceJob,
-		Params: jobs.AutomatedServiceJobParams{
-			ServiceSpec: flux.ServiceSpec(service),
-		},
-		Priority: jobs.PriorityBackground,
-	})
-	if err == jobs.ErrJobAlreadyQueued {
-		// Ignore this error, we're already doing it!
-		err = nil
-	}
-	return err
+	return recordAutomated(inst, service, true)
 }
 
 func (s *Server) Deautomate(instID flux.InstanceID, service flux.ServiceID) error {
@@ -315,6 +298,11 @@ func recordLock(inst *instance.Instance, service flux.ServiceID, locked bool) er
 }
 
 func (s *Server) PostRelease(inst flux.InstanceID, params jobs.ReleaseJobParams) (jobs.JobID, error) {
+	// TODO: backwards compatibility, support older single-service-spec release jobs
+	if params.ServiceSpec != "" {
+		params.ServiceSpecs = append(params.ServiceSpecs, params.ServiceSpec)
+	}
+
 	return s.jobs.PutJob(inst, jobs.Job{
 		Queue:    jobs.ReleaseJob,
 		Method:   jobs.ReleaseJob,

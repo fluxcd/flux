@@ -14,6 +14,7 @@ import (
 type Config struct {
 	Jobs       jobs.JobReadPusher
 	InstanceDB instance.DB
+	Instancer  instance.Instancer
 	Logger     log.Logger
 }
 

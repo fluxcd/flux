@@ -22,27 +22,22 @@ type Repo struct {
 	Path string
 }
 
-func (r Repo) Clone() (path string, key string, err error) {
+func (r Repo) Clone() (path string, err error) {
 	workingDir, err := ioutil.TempDir(os.TempDir(), "flux-gitclone")
 	if err != nil {
-		return "", "", err
+		return "", err
 	}
 
-	keyFile, err := writeKey(workingDir, r.Key)
-	if err != nil {
-		return "", "", err
-	}
-
-	repoDir, err := clone(workingDir, keyFile, r.URL, r.Branch)
-	return repoDir, keyFile, err
+	repoDir, err := clone(workingDir, r.Key, r.URL, r.Branch)
+	return repoDir, err
 }
 
-func (r Repo) CommitAndPush(path, keyFile, commitMessage string) (string, error) {
+func (r Repo) CommitAndPush(path, commitMessage string) (string, error) {
 	if !check(path, r.Path) {
 		return "no changes made to files", nil
 	}
 	if err := commit(path, commitMessage); err != nil {
 		return "", err
 	}
-	return "", push(keyFile, r.Branch, path)
+	return "", push(r.Key, r.Branch, path)
 }
