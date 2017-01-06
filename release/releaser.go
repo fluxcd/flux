@@ -335,7 +335,7 @@ func (r *Releaser) releaseActionClone() ReleaseAction {
 				).Observe(time.Since(begin).Seconds())
 			}(time.Now())
 
-			err = rc.CloneConfig()
+			err = rc.CloneRepo()
 			if err != nil {
 				return "", errors.Wrap(err, "clone the config repo")
 			}
@@ -355,7 +355,7 @@ func (r *Releaser) releaseActionFindPodController(service flux.ServiceID) Releas
 				).Observe(time.Since(begin).Seconds())
 			}(time.Now())
 
-			resourcePath := rc.ConfigPath()
+			resourcePath := rc.RepoPath()
 			if fi, err := os.Stat(resourcePath); err != nil || !fi.IsDir() {
 				return "", fmt.Errorf("the resource path (%s) is not valid", resourcePath)
 			}
@@ -400,7 +400,7 @@ func (r *Releaser) releaseActionUpdatePodController(service flux.ServiceID, upda
 				).Observe(time.Since(begin).Seconds())
 			}(time.Now())
 
-			resourcePath := rc.ConfigPath()
+			resourcePath := rc.RepoPath()
 			if fi, err := os.Stat(resourcePath); err != nil || !fi.IsDir() {
 				return "", fmt.Errorf("the resource path (%s) is not valid", resourcePath)
 			}
@@ -466,9 +466,6 @@ func (r *Releaser) releaseActionCommitAndPush(msg string) ReleaseAction {
 
 			if fi, err := os.Stat(rc.WorkingDir); err != nil || !fi.IsDir() {
 				return "", fmt.Errorf("the repo path (%s) is not valid", rc.WorkingDir)
-			}
-			if _, err := os.Stat(rc.KeyPath); err != nil {
-				return "", fmt.Errorf("the repo key (%s) is not valid: %v", rc.KeyPath, err)
 			}
 			result, err := rc.CommitAndPush(msg)
 			if err == nil && result == "" {

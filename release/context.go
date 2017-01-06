@@ -11,7 +11,6 @@ import (
 type ReleaseContext struct {
 	Instance       *instance.Instance
 	WorkingDir     string
-	KeyPath        string
 	PodControllers map[flux.ServiceID][]byte
 }
 
@@ -22,21 +21,20 @@ func NewReleaseContext(inst *instance.Instance) *ReleaseContext {
 	}
 }
 
-func (rc *ReleaseContext) CloneConfig() error {
-	path, keyfile, err := rc.Instance.ConfigRepo().Clone()
+func (rc *ReleaseContext) CloneRepo() error {
+	path, err := rc.Instance.ConfigRepo().Clone()
 	if err != nil {
 		return err
 	}
 	rc.WorkingDir = path
-	rc.KeyPath = keyfile
 	return nil
 }
 
 func (rc *ReleaseContext) CommitAndPush(msg string) (string, error) {
-	return rc.Instance.ConfigRepo().CommitAndPush(rc.WorkingDir, rc.KeyPath, msg)
+	return rc.Instance.ConfigRepo().CommitAndPush(rc.WorkingDir, msg)
 }
 
-func (rc *ReleaseContext) ConfigPath() string {
+func (rc *ReleaseContext) RepoPath() string {
 	return filepath.Join(rc.WorkingDir, rc.Instance.ConfigRepo().Path)
 }
 
