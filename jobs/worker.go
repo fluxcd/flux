@@ -72,13 +72,14 @@ func (w *Worker) Work() {
 			time.Sleep(pollingPeriod)
 			continue
 		}
+		logger := log.NewContext(w.logger).With("job", job.ID)
 
 		cancel, done := make(chan struct{}), make(chan struct{})
-		go heartbeat(job.ID, w.jobs, time.Second, cancel, done, w.logger)
+		go heartbeat(job.ID, w.jobs, time.Second, cancel, done, logger)
 
 		job.Status = "Executing..."
 		if err := w.jobs.UpdateJob(job); err != nil {
-			w.logger.Log("err", errors.Wrapf(err, "updating job %s", job.ID))
+			logger.Log("err", errors.Wrap(err, "updating job"))
 		}
 
 		var followUps []Job
@@ -98,13 +99,13 @@ func (w *Worker) Work() {
 			job.Status = "Complete."
 		}
 		if err := w.jobs.UpdateJob(job); err != nil {
-			w.logger.Log("err", errors.Wrapf(err, "updating job %s", job.ID))
+			logger.Log("err", errors.Wrap(err, "updating job"))
 		}
 
 		// Schedule any follow-up jobs
 		for _, followUp := range followUps {
 			if _, err := w.jobs.PutJob(job.Instance, followUp); err != nil && err != ErrJobAlreadyQueued {
-				w.logger.Log("err", errors.Wrap(err, "putting follow-up job"))
+				logger.Log("err", errors.Wrap(err, "putting follow-up job"))
 			}
 		}
 
