@@ -81,15 +81,15 @@ func main() {
 
 	// Instrumentation
 	var (
-		busMetrics      platform.BusMetrics
-		helperDuration  metrics.Histogram
-		historyMetrics  history.Metrics
-		httpDuration    metrics.Histogram
-		instanceMetrics instance.Metrics
-		jobMetrics      jobs.Metrics
-		registryMetrics registry.Metrics
-		releaseMetrics  release.Metrics
-		serverMetrics   server.Metrics
+		busMetrics       platform.BusMetrics
+		helperDuration   metrics.Histogram
+		historyMetrics   history.Metrics
+		httpDuration     metrics.Histogram
+		instanceMetrics  instance.Metrics
+		jobWorkerMetrics jobs.WorkerMetrics
+		registryMetrics  registry.Metrics
+		releaseMetrics   release.Metrics
+		serverMetrics    server.Metrics
 	)
 	{
 		httpDuration = prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
@@ -166,7 +166,7 @@ func main() {
 		busMetrics = platform.NewBusMetrics()
 		historyMetrics = history.NewMetrics()
 		instanceMetrics = instance.NewMetrics()
-		jobMetrics = jobs.NewMetrics()
+		jobWorkerMetrics = jobs.NewWorkerMetrics()
 	}
 
 	var messageBus platform.MessageBus
@@ -227,7 +227,7 @@ func main() {
 			logger.Log("component", "release job store", "err", err)
 			os.Exit(1)
 		}
-		jobStore = jobs.InstrumentedJobStore(s, jobMetrics)
+		jobStore = jobs.InstrumentedJobStore(s)
 	}
 
 	// Automator component.
@@ -237,6 +237,7 @@ func main() {
 		auto, err = automator.New(automator.Config{
 			Jobs:       jobStore,
 			InstanceDB: instanceDB,
+			Instancer:  instancer,
 			Logger:     log.NewContext(logger).With("component", "automator"),
 		})
 		if err == nil {
@@ -261,7 +262,7 @@ func main() {
 		jobs.AutomatedServiceJob,
 	} {
 		logger := log.NewContext(logger).With("component", "worker", "queues", fmt.Sprint([]string{queue}))
-		worker := jobs.NewWorker(jobStore, logger, []string{queue})
+		worker := jobs.NewWorker(jobStore, logger, jobWorkerMetrics, []string{queue})
 		worker.Register(jobs.AutomatedServiceJob, auto)
 		worker.Register(jobs.ReleaseJob, release.NewReleaser(instancer, releaseMetrics))
 

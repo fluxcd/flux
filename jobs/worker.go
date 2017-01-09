@@ -6,6 +6,8 @@ import (
 
 	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
+
+	fluxmetrics "github.com/weaveworks/flux/metrics"
 )
 
 const (
@@ -24,6 +26,7 @@ type Handler interface {
 type Worker struct {
 	jobs     JobStore
 	handlers map[string]Handler
+	metrics  WorkerMetrics
 	logger   log.Logger
 	queues   []string
 	stopping chan struct{}
@@ -35,11 +38,13 @@ type Worker struct {
 func NewWorker(
 	jobs JobStore,
 	logger log.Logger,
+	metrics WorkerMetrics,
 	queues []string,
 ) *Worker {
 	return &Worker{
 		jobs:     jobs,
 		handlers: map[string]Handler{},
+		metrics:  metrics,
 		logger:   logger,
 		queues:   queues,
 		stopping: make(chan struct{}),
@@ -73,6 +78,7 @@ func (w *Worker) Work() {
 			continue
 		}
 		logger := log.NewContext(w.logger).With("job", job.ID)
+		logger.Log("method", job.Method)
 
 		cancel, done := make(chan struct{}), make(chan struct{})
 		go heartbeat(job.ID, w.jobs, time.Second, cancel, done, logger)
@@ -82,12 +88,18 @@ func (w *Worker) Work() {
 			logger.Log("err", errors.Wrap(err, "updating job"))
 		}
 
+		begin := time.Now().UTC()
 		var followUps []Job
 		if handler, ok := w.handlers[job.Method]; !ok {
 			err = ErrNoHandlerForJob
 		} else {
 			followUps, err = handler.Handle(&job, w.jobs)
 		}
+		w.metrics.JobDuration.With(
+			fluxmetrics.LabelMethod, job.Method,
+			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
+		).Observe(time.Since(begin).Seconds())
+		logger.Log("took", time.Since(begin))
 		job.Done = true
 		if err != nil {
 			job.Success = false
