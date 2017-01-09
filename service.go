@@ -87,16 +87,48 @@ func (s ServiceIDSet) Add(ids []ServiceID) {
 	}
 }
 
+func (s ServiceIDSet) Without(others ServiceIDSet) ServiceIDSet {
+	if s == nil || len(s) == 0 || others == nil || len(others) == 0 {
+		return s
+	}
+	res := ServiceIDSet{}
+	for id := range s {
+		if !others.Contains(id) {
+			res[id] = struct{}{}
+		}
+	}
+	return res
+}
+
 func (s ServiceIDSet) Contains(id ServiceID) bool {
+	if s == nil {
+		return false
+	}
 	_, ok := s[id]
 	return ok
 }
 
+func (s ServiceIDSet) Intersection(others ServiceIDSet) ServiceIDSet {
+	if s == nil {
+		return others
+	}
+	if others == nil {
+		return s
+	}
+	result := ServiceIDSet{}
+	for id := range s {
+		if _, ok := others[id]; ok {
+			result[id] = struct{}{}
+		}
+	}
+	return result
+}
+
 type ServiceIDs []ServiceID
 
-func (ids ServiceIDs) Without(set ServiceIDSet) (res ServiceIDs) {
+func (ids ServiceIDs) Without(others ServiceIDSet) (res ServiceIDs) {
 	for _, id := range ids {
-		if !set.Contains(id) {
+		if !others.Contains(id) {
 			res = append(res, id)
 		}
 	}
@@ -107,6 +139,12 @@ func (ids ServiceIDs) Contains(id ServiceID) bool {
 	set := ServiceIDSet{}
 	set.Add(ids)
 	return set.Contains(id)
+}
+
+func (ids ServiceIDs) Intersection(others ServiceIDSet) ServiceIDSet {
+	set := ServiceIDSet{}
+	set.Add(ids)
+	return set.Intersection(others)
 }
 
 type ImageID string // "quay.io/weaveworks/helloworld:v1"
