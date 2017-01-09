@@ -75,69 +75,76 @@ func (r *Releaser) Handle(job *jobs.Job, updater jobs.JobUpdater) (followUps []j
 		updater.UpdateJob(*job)
 	}
 
+	updateJob("Calculating release actions.")
+
+	var actions []ReleaseAction
+	releaseType, actions, err = r.plan(inst, params)
+	if err != nil {
+		return nil, errors.Wrap(err, "planning release")
+	}
+	return nil, r.execute(inst, actions, params.Kind, updateJob)
+}
+
+func (r *Releaser) plan(inst *instance.Instance, params jobs.ReleaseJobParams) (string, []ReleaseAction, error) {
+	releaseType := "unknown"
+
 	exclude := flux.ServiceIDSet{}
 	exclude.Add(params.Excludes)
 
 	locked, err := lockedServices(inst)
 	if err != nil {
-		return nil, err
+		return releaseType, nil, err
 	}
 	exclude.Add(locked)
 
-	updateJob("Calculating release actions.")
-
+	var actions []ReleaseAction
 	switch {
 	case params.ServiceSpec == flux.ServiceSpecAll && params.ImageSpec == flux.ImageSpecLatest:
 		releaseType = "release_all_to_latest"
-		return nil, r.releaseImages(releaseType, "Release latest images to all services", inst, params.Kind, allServicesExcept(exclude), allLatestImages, updateJob)
+		actions, err = r.releaseImages(releaseType, "Release latest images to all services", inst, allServicesExcept(exclude), allLatestImages)
 
 	case params.ServiceSpec == flux.ServiceSpecAll && params.ImageSpec == flux.ImageSpecNone:
 		releaseType = "release_all_without_update"
-		return nil, r.releaseWithoutUpdate(releaseType, "Apply latest config to all services", inst, params.Kind, allServicesExcept(exclude), updateJob)
+		actions, err = r.releaseWithoutUpdate(releaseType, "Apply latest config to all services", inst, allServicesExcept(exclude))
 
 	case params.ServiceSpec == flux.ServiceSpecAll:
 		releaseType = "release_all_for_image"
 		imageID := flux.ParseImageID(string(params.ImageSpec))
-		return nil, r.releaseImages(releaseType, fmt.Sprintf("Release %s to all services", imageID), inst, params.Kind, allServicesExcept(exclude), exactlyTheseImages([]flux.ImageID{imageID}), updateJob)
+		actions, err = r.releaseImages(releaseType, fmt.Sprintf("Release %s to all services", imageID), inst, allServicesExcept(exclude), exactlyTheseImages([]flux.ImageID{imageID}))
 
 	case params.ImageSpec == flux.ImageSpecLatest:
 		releaseType = "release_one_to_latest"
 		serviceID, err := flux.ParseServiceID(string(params.ServiceSpec))
 		if err != nil {
-			return nil, errors.Wrapf(err, "parsing service ID from params %s", params.ServiceSpec)
+			return releaseType, nil, errors.Wrapf(err, "parsing service ID from params %s", params.ServiceSpec)
 		}
 		services := flux.ServiceIDs([]flux.ServiceID{serviceID}).Without(exclude)
-		return nil, r.releaseImages(releaseType, fmt.Sprintf("Release latest images to %s", serviceID), inst, params.Kind, exactlyTheseServices(services), allLatestImages, updateJob)
+		actions, err = r.releaseImages(releaseType, fmt.Sprintf("Release latest images to %s", serviceID), inst, exactlyTheseServices(services), allLatestImages)
 
 	case params.ImageSpec == flux.ImageSpecNone:
 		releaseType = "release_one_without_update"
 		serviceID, err := flux.ParseServiceID(string(params.ServiceSpec))
 		if err != nil {
-			return nil, errors.Wrapf(err, "parsing service ID from params %s", params.ServiceSpec)
+			return releaseType, nil, errors.Wrapf(err, "parsing service ID from params %s", params.ServiceSpec)
 		}
 		services := flux.ServiceIDs([]flux.ServiceID{serviceID}).Without(exclude)
-		return nil, r.releaseWithoutUpdate(releaseType, fmt.Sprintf("Apply latest config to %s", serviceID), inst, params.Kind, exactlyTheseServices(services), updateJob)
+		actions, err = r.releaseWithoutUpdate(releaseType, fmt.Sprintf("Apply latest config to %s", serviceID), inst, exactlyTheseServices(services))
 
 	default:
 		releaseType = "release_one"
 		serviceID, err := flux.ParseServiceID(string(params.ServiceSpec))
 		if err != nil {
-			return nil, errors.Wrapf(err, "parsing service ID from params %s", params.ServiceSpec)
+			return releaseType, nil, errors.Wrapf(err, "parsing service ID from params %s", params.ServiceSpec)
 		}
 		services := flux.ServiceIDs([]flux.ServiceID{serviceID}).Without(exclude)
 		imageID := flux.ParseImageID(string(params.ImageSpec))
-		return nil, r.releaseImages(releaseType, fmt.Sprintf("Release %s to %s", imageID, serviceID), inst, params.Kind, exactlyTheseServices(services), exactlyTheseImages([]flux.ImageID{imageID}), updateJob)
+		actions, err = r.releaseImages(releaseType, fmt.Sprintf("Release %s to %s", imageID, serviceID), inst, exactlyTheseServices(services), exactlyTheseImages([]flux.ImageID{imageID}))
 	}
+	return releaseType, actions, err
 }
 
-func (r *Releaser) releaseImages(method, msg string, inst *instance.Instance, kind flux.ReleaseKind, getServices serviceSelector, getImages imageSelector, updateJob func(string, ...interface{})) (err error) {
+func (r *Releaser) releaseImages(method, msg string, inst *instance.Instance, getServices serviceSelector, getImages imageSelector) ([]ReleaseAction, error) {
 	var res []ReleaseAction
-	defer func() {
-		if err == nil {
-			err = r.execute(inst, res, kind, updateJob)
-		}
-	}()
-
 	res = append(res, r.releaseActionPrintf(msg))
 
 	var (
@@ -150,7 +157,7 @@ func (r *Releaser) releaseImages(method, msg string, inst *instance.Instance, ki
 
 	services, err := getServices(inst)
 	if err != nil {
-		return errors.Wrap(err, "fetching platform services")
+		return nil, errors.Wrap(err, "fetching platform services")
 	}
 
 	stage.ObserveDuration()
@@ -160,7 +167,7 @@ func (r *Releaser) releaseImages(method, msg string, inst *instance.Instance, ki
 	// Each image may need to be upgraded, and trigger an apply.
 	images, err := getImages(inst, services)
 	if err != nil {
-		return errors.Wrap(err, "collecting available images to calculate applies")
+		return nil, errors.Wrap(err, "collecting available images to calculate applies")
 	}
 
 	updateMap := map[flux.ServiceID][]containerUpdate{}
@@ -192,7 +199,7 @@ func (r *Releaser) releaseImages(method, msg string, inst *instance.Instance, ki
 
 	if len(updateMap) <= 0 {
 		res = append(res, r.releaseActionPrintf("All selected services are running the requested images. Nothing to do."))
-		return nil
+		return res, nil
 	}
 
 	stage.ObserveDuration()
@@ -213,7 +220,7 @@ func (r *Releaser) releaseImages(method, msg string, inst *instance.Instance, ki
 	}
 	res = append(res, r.releaseActionReleaseServices(servicesToApply, msg))
 
-	return nil
+	return res, nil
 }
 
 // Get set of all locked services
@@ -233,13 +240,8 @@ func lockedServices(inst *instance.Instance) ([]flux.ServiceID, error) {
 }
 
 // Release whatever is in the cloned configuration, without changing anything
-func (r *Releaser) releaseWithoutUpdate(method, msg string, inst *instance.Instance, kind flux.ReleaseKind, getServices serviceSelector, updateJob func(string, ...interface{})) (err error) {
+func (r *Releaser) releaseWithoutUpdate(method, msg string, inst *instance.Instance, getServices serviceSelector) ([]ReleaseAction, error) {
 	var res []ReleaseAction
-	defer func() {
-		if err == nil {
-			err = r.execute(inst, res, kind, updateJob)
-		}
-	}()
 
 	var (
 		base  = r.metrics.StageDuration.With("method", method)
@@ -251,7 +253,7 @@ func (r *Releaser) releaseWithoutUpdate(method, msg string, inst *instance.Insta
 
 	services, err := getServices(inst)
 	if err != nil {
-		return errors.Wrap(err, "fetching platform services")
+		return nil, errors.Wrap(err, "fetching platform services")
 	}
 
 	stage.ObserveDuration()
@@ -266,8 +268,7 @@ func (r *Releaser) releaseWithoutUpdate(method, msg string, inst *instance.Insta
 		ids = append(ids, service.ID)
 	}
 	res = append(res, r.releaseActionReleaseServices(ids, msg))
-
-	return nil
+	return res, nil
 }
 
 func (r *Releaser) execute(inst *instance.Instance, actions []ReleaseAction, kind flux.ReleaseKind, updateJob func(string, ...interface{})) error {
