@@ -45,6 +45,7 @@ func NewReleaser(
 }
 
 type ReleaseAction struct {
+	Name        string                                `json:"name"`
 	Description string                                `json:"description"`
 	Do          func(*ReleaseContext) (string, error) `json:"-"`
 	Result      string                                `json:"result"`
@@ -283,7 +284,12 @@ func (r *Releaser) execute(inst *instance.Instance, actions []ReleaseAction, kin
 		}
 
 		if kind == flux.ReleaseKindExecute {
+			begin := time.Now()
 			result, err := action.Do(rc)
+			r.metrics.ActionDuration.With(
+				fluxmetrics.LabelAction, action.Name,
+				fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
+			).Observe(time.Since(begin).Seconds())
 			if err != nil {
 				updateJob(err.Error())
 				inst.Log("err", err)
@@ -312,15 +318,9 @@ type containerUpdate struct {
 
 func (r *Releaser) releaseActionPrintf(format string, args ...interface{}) ReleaseAction {
 	return ReleaseAction{
+		Name:        "printf",
 		Description: fmt.Sprintf(format, args...),
 		Do: func(_ *ReleaseContext) (res string, err error) {
-			defer func(begin time.Time) {
-				r.metrics.ActionDuration.With(
-					fluxmetrics.LabelAction, "printf",
-					fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
-				).Observe(time.Since(begin).Seconds())
-			}(time.Now())
-
 			return "", nil
 		},
 	}
@@ -328,15 +328,9 @@ func (r *Releaser) releaseActionPrintf(format string, args ...interface{}) Relea
 
 func (r *Releaser) releaseActionClone() ReleaseAction {
 	return ReleaseAction{
+		Name:        "clone",
 		Description: "Clone the config repo.",
 		Do: func(rc *ReleaseContext) (res string, err error) {
-			defer func(begin time.Time) {
-				r.metrics.ActionDuration.With(
-					fluxmetrics.LabelAction, "clone",
-					fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
-				).Observe(time.Since(begin).Seconds())
-			}(time.Now())
-
 			err = rc.CloneRepo()
 			if err != nil {
 				return "", errors.Wrap(err, "clone the config repo")
@@ -348,15 +342,9 @@ func (r *Releaser) releaseActionClone() ReleaseAction {
 
 func (r *Releaser) releaseActionFindPodController(service flux.ServiceID) ReleaseAction {
 	return ReleaseAction{
+		Name:        "find_pod_controller",
 		Description: fmt.Sprintf("Load the resource definition file for service %s", service),
 		Do: func(rc *ReleaseContext) (res string, err error) {
-			defer func(begin time.Time) {
-				r.metrics.ActionDuration.With(
-					fluxmetrics.LabelAction, "find_pod_controller",
-					fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
-				).Observe(time.Since(begin).Seconds())
-			}(time.Now())
-
 			resourcePath := rc.RepoPath()
 			if fi, err := os.Stat(resourcePath); err != nil || !fi.IsDir() {
 				return "", fmt.Errorf("the resource path (%s) is not valid", resourcePath)
@@ -393,15 +381,9 @@ func (r *Releaser) releaseActionUpdatePodController(service flux.ServiceID, upda
 	actionList := strings.Join(actions, ", ")
 
 	return ReleaseAction{
+		Name:        "update_pod_controller",
 		Description: fmt.Sprintf("Update %d images(s) in the resource definition file for %s: %s.", len(updates), service, actionList),
 		Do: func(rc *ReleaseContext) (res string, err error) {
-			defer func(begin time.Time) {
-				r.metrics.ActionDuration.With(
-					fluxmetrics.LabelAction, "update_pod_controller",
-					fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
-				).Observe(time.Since(begin).Seconds())
-			}(time.Now())
-
 			resourcePath := rc.RepoPath()
 			if fi, err := os.Stat(resourcePath); err != nil || !fi.IsDir() {
 				return "", fmt.Errorf("the resource path (%s) is not valid", resourcePath)
@@ -457,15 +439,9 @@ func (r *Releaser) releaseActionUpdatePodController(service flux.ServiceID, upda
 
 func (r *Releaser) releaseActionCommitAndPush(msg string) ReleaseAction {
 	return ReleaseAction{
+		Name:        "commit_and_push",
 		Description: "Commit and push the config repo.",
 		Do: func(rc *ReleaseContext) (res string, err error) {
-			defer func(begin time.Time) {
-				r.metrics.ActionDuration.With(
-					fluxmetrics.LabelAction, "commit_and_push",
-					fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
-				).Observe(time.Since(begin).Seconds())
-			}(time.Now())
-
 			if fi, err := os.Stat(rc.WorkingDir); err != nil || !fi.IsDir() {
 				return "", fmt.Errorf("the repo path (%s) is not valid", rc.WorkingDir)
 			}
@@ -488,15 +464,9 @@ func service2string(a []flux.ServiceID) []string {
 
 func (r *Releaser) releaseActionReleaseServices(services []flux.ServiceID, msg string) ReleaseAction {
 	return ReleaseAction{
+		Name:        "release_services",
 		Description: fmt.Sprintf("Release %d service(s): %s.", len(services), strings.Join(service2string(services), ", ")),
 		Do: func(rc *ReleaseContext) (res string, err error) {
-			defer func(begin time.Time) {
-				r.metrics.ActionDuration.With(
-					fluxmetrics.LabelAction, "release_services",
-					fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
-				).Observe(time.Since(begin).Seconds())
-			}(time.Now())
-
 			cause := strconv.Quote(msg)
 
 			// We'll collect results for each service release.
