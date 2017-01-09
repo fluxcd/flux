@@ -20,6 +20,8 @@ import (
 	"github.com/weaveworks/flux/platform/kubernetes"
 )
 
+var version string
+
 func main() {
 	// Flag domain.
 	fs := pflag.NewFlagSet("default", pflag.ExitOnError)
@@ -36,8 +38,17 @@ func main() {
 		fluxsvcAddress    = fs.String("fluxsvc-address", "wss://cloud.weave.works/api/flux", "Address of the fluxsvc to connect to.")
 		token             = fs.String("token", "", "Token to use to authenticate with flux service")
 		kubernetesKubectl = fs.String("kubernetes-kubectl", "", "Optional, explicit path to kubectl tool")
+		versionFlag       = fs.Bool("version", false, "Get version number")
 	)
 	fs.Parse(os.Args)
+
+	if *versionFlag {
+		if version == "" {
+			version = "unversioned"
+		}
+		fmt.Println(version)
+		os.Exit(0)
+	}
 
 	// Logger component.
 	var logger log.Logger
