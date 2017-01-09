@@ -89,57 +89,39 @@ func (r *Releaser) Handle(job *jobs.Job, updater jobs.JobUpdater) (followUps []j
 func (r *Releaser) plan(inst *instance.Instance, params jobs.ReleaseJobParams) (string, []ReleaseAction, error) {
 	releaseType := "unknown"
 
-	exclude := flux.ServiceIDSet{}
-	exclude.Add(params.Excludes)
+	images := imageSelectorForSpec(params.ImageSpec)
 
-	locked, err := lockedServices(inst)
+	services, err := serviceSelectorForSpec(inst, params.ServiceSpec, params.Excludes)
 	if err != nil {
 		return releaseType, nil, err
 	}
-	exclude.Add(locked)
 
+	msg := fmt.Sprintf("Release %v to %v", images, services)
 	var actions []ReleaseAction
 	switch {
 	case params.ServiceSpec == flux.ServiceSpecAll && params.ImageSpec == flux.ImageSpecLatest:
 		releaseType = "release_all_to_latest"
-		actions, err = r.releaseImages(releaseType, "Release latest images to all services", inst, allServicesExcept(exclude), allLatestImages)
+		actions, err = r.releaseImages(releaseType, msg, inst, services, images)
 
 	case params.ServiceSpec == flux.ServiceSpecAll && params.ImageSpec == flux.ImageSpecNone:
 		releaseType = "release_all_without_update"
-		actions, err = r.releaseWithoutUpdate(releaseType, "Apply latest config to all services", inst, allServicesExcept(exclude))
+		actions, err = r.releaseWithoutUpdate(releaseType, msg, inst, services)
 
 	case params.ServiceSpec == flux.ServiceSpecAll:
 		releaseType = "release_all_for_image"
-		imageID := flux.ParseImageID(string(params.ImageSpec))
-		actions, err = r.releaseImages(releaseType, fmt.Sprintf("Release %s to all services", imageID), inst, allServicesExcept(exclude), exactlyTheseImages([]flux.ImageID{imageID}))
+		actions, err = r.releaseImages(releaseType, msg, inst, services, images)
 
 	case params.ImageSpec == flux.ImageSpecLatest:
 		releaseType = "release_one_to_latest"
-		serviceID, err := flux.ParseServiceID(string(params.ServiceSpec))
-		if err != nil {
-			return releaseType, nil, errors.Wrapf(err, "parsing service ID from params %s", params.ServiceSpec)
-		}
-		services := flux.ServiceIDs([]flux.ServiceID{serviceID}).Without(exclude)
-		actions, err = r.releaseImages(releaseType, fmt.Sprintf("Release latest images to %s", serviceID), inst, exactlyTheseServices(services), allLatestImages)
+		actions, err = r.releaseImages(releaseType, msg, inst, services, images)
 
 	case params.ImageSpec == flux.ImageSpecNone:
 		releaseType = "release_one_without_update"
-		serviceID, err := flux.ParseServiceID(string(params.ServiceSpec))
-		if err != nil {
-			return releaseType, nil, errors.Wrapf(err, "parsing service ID from params %s", params.ServiceSpec)
-		}
-		services := flux.ServiceIDs([]flux.ServiceID{serviceID}).Without(exclude)
-		actions, err = r.releaseWithoutUpdate(releaseType, fmt.Sprintf("Apply latest config to %s", serviceID), inst, exactlyTheseServices(services))
+		actions, err = r.releaseWithoutUpdate(releaseType, msg, inst, services)
 
 	default:
 		releaseType = "release_one"
-		serviceID, err := flux.ParseServiceID(string(params.ServiceSpec))
-		if err != nil {
-			return releaseType, nil, errors.Wrapf(err, "parsing service ID from params %s", params.ServiceSpec)
-		}
-		services := flux.ServiceIDs([]flux.ServiceID{serviceID}).Without(exclude)
-		imageID := flux.ParseImageID(string(params.ImageSpec))
-		actions, err = r.releaseImages(releaseType, fmt.Sprintf("Release %s to %s", imageID, serviceID), inst, exactlyTheseServices(services), exactlyTheseImages([]flux.ImageID{imageID}))
+		actions, err = r.releaseImages(releaseType, msg, inst, services, images)
 	}
 	return releaseType, actions, err
 }
@@ -156,9 +138,13 @@ func (r *Releaser) releaseImages(method, msg string, inst *instance.Instance, ge
 	defer func() { stage.ObserveDuration() }()
 	stage = metrics.NewTimer(base.With("stage", "fetch_platform_services"))
 
-	services, err := getServices(inst)
+	services, err := getServices.SelectServices(inst)
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching platform services")
+	}
+	if len(services) == 0 {
+		res = append(res, r.releaseActionPrintf("No selected services found. Nothing to do."))
+		return res, nil
 	}
 
 	stage.ObserveDuration()
@@ -166,7 +152,7 @@ func (r *Releaser) releaseImages(method, msg string, inst *instance.Instance, ge
 
 	// Each service is running multiple images.
 	// Each image may need to be upgraded, and trigger an apply.
-	images, err := getImages(inst, services)
+	images, err := getImages.SelectImages(inst, services)
 	if err != nil {
 		return nil, errors.Wrap(err, "collecting available images to calculate applies")
 	}
@@ -224,22 +210,6 @@ func (r *Releaser) releaseImages(method, msg string, inst *instance.Instance, ge
 	return res, nil
 }
 
-// Get set of all locked services
-func lockedServices(inst *instance.Instance) ([]flux.ServiceID, error) {
-	config, err := inst.GetConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	ids := []flux.ServiceID{}
-	for id, s := range config.Services {
-		if s.Locked {
-			ids = append(ids, id)
-		}
-	}
-	return ids, nil
-}
-
 // Release whatever is in the cloned configuration, without changing anything
 func (r *Releaser) releaseWithoutUpdate(method, msg string, inst *instance.Instance, getServices serviceSelector) ([]ReleaseAction, error) {
 	var res []ReleaseAction
@@ -252,9 +222,13 @@ func (r *Releaser) releaseWithoutUpdate(method, msg string, inst *instance.Insta
 	defer func() { stage.ObserveDuration() }()
 	stage = metrics.NewTimer(base.With("stage", "fetch_platform_services"))
 
-	services, err := getServices(inst)
+	services, err := getServices.SelectServices(inst)
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching platform services")
+	}
+	if len(services) == 0 {
+		res = append(res, r.releaseActionPrintf("No selected services found. Nothing to do."))
+		return res, nil
 	}
 
 	stage.ObserveDuration()
