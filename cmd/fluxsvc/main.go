@@ -255,8 +255,12 @@ func main() {
 	// release jobs can't interfere with slow automated service jobs, or vice
 	// versa. This is probably not optimal. Really all jobs should be quick and
 	// recoverable.
-	for _, queue := range []string{jobs.DefaultQueue, jobs.ReleaseJob, jobs.AutomatedServiceJob} {
-		logger := log.NewContext(logger).With("component", "worker", "queues", []string{queue})
+	for _, queue := range []string{
+		jobs.DefaultQueue,
+		jobs.ReleaseJob,
+		jobs.AutomatedServiceJob,
+	} {
+		logger := log.NewContext(logger).With("component", "worker", "queues", fmt.Sprint([]string{queue}))
 		worker := jobs.NewWorker(jobStore, logger, []string{queue})
 		worker.Register(jobs.AutomatedServiceJob, auto)
 		worker.Register(jobs.ReleaseJob, release.NewReleaser(instancer, releaseMetrics))
