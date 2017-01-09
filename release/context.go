@@ -22,7 +22,7 @@ func NewReleaseContext(inst *instance.Instance) *ReleaseContext {
 }
 
 func (rc *ReleaseContext) CloneRepo() error {
-	path, err := rc.Instance.ConfigRepo().Clone()
+	path, err := rc.Instance.ConfigRepo().Clone(nil)
 	if err != nil {
 		return err
 	}
