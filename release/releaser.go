@@ -53,6 +53,12 @@ type ReleaseAction struct {
 
 func (r *Releaser) Handle(job *jobs.Job, updater jobs.JobUpdater) (followUps []jobs.Job, err error) {
 	params := job.Params.(jobs.ReleaseJobParams)
+
+	// Backwards compatibility
+	if string(params.ServiceSpec) != "" {
+		params.ServiceSpecs = append(params.ServiceSpecs, params.ServiceSpec)
+	}
+
 	releaseType := "unknown"
 	defer func(begin time.Time) {
 		r.metrics.ReleaseDuration.With(
@@ -91,7 +97,7 @@ func (r *Releaser) plan(inst *instance.Instance, params jobs.ReleaseJobParams) (
 
 	images := imageSelectorForSpec(params.ImageSpec)
 
-	services, err := serviceSelectorForSpec(inst, params.ServiceSpec, params.Excludes)
+	services, err := serviceSelectorForSpecs(inst, params.ServiceSpecs, params.Excludes)
 	if err != nil {
 		return releaseType, nil, err
 	}

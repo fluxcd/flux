@@ -16,7 +16,7 @@ type serviceSelector interface {
 	SelectServices(*instance.Instance) ([]platform.Service, error)
 }
 
-func serviceSelectorForSpec(inst *instance.Instance, includeSpec flux.ServiceSpec, exclude []flux.ServiceID) (serviceSelector, error) {
+func serviceSelectorForSpecs(inst *instance.Instance, includeSpecs []flux.ServiceSpec, exclude []flux.ServiceID) (serviceSelector, error) {
 	excludeSet := flux.ServiceIDSet{}
 	excludeSet.Add(exclude)
 
@@ -26,17 +26,18 @@ func serviceSelectorForSpec(inst *instance.Instance, includeSpec flux.ServiceSpe
 	}
 	excludeSet.Add(locked)
 
-	if includeSpec == flux.ServiceSpecAll {
-		// If one of the specs is '<all>' we can ignore the rest.
-		return allServicesExcept(excludeSet), nil
+	include := flux.ServiceIDSet{}
+	for _, spec := range includeSpecs {
+		if spec == flux.ServiceSpecAll {
+			// If one of the specs is '<all>' we can ignore the rest.
+			return allServicesExcept(excludeSet), nil
+		}
+		serviceID, err := flux.ParseServiceID(string(spec))
+		if err != nil {
+			return nil, errors.Wrapf(err, "parsing service ID from params %q", spec)
+		}
+		include.Add([]flux.ServiceID{serviceID})
 	}
-
-	serviceID, err := flux.ParseServiceID(string(includeSpec))
-	if err != nil {
-		return nil, errors.Wrapf(err, "parsing service ID from params %q", spec)
-	}
- include := flux.ServiceIDSet{}
-	include.Add([]flux.ServiceID{serviceID})
 	return exactlyTheseServices(include.Without(excludeSet)), nil
 }
 
@@ -58,12 +59,16 @@ func exactlyTheseServices(include flux.ServiceIDSet) serviceSelector {
 		idText  []string
 		idSlice []flux.ServiceID
 	)
-	for id := range include {
-		idText = append(idText, string(id))
-		idSlice = append(idSlice, id)
+	text := "no services"
+	if len(include) > 0 {
+		for id := range include {
+			idText = append(idText, string(id))
+			idSlice = append(idSlice, id)
+		}
+		text = strings.Join(idText, ", ")
 	}
 	return funcServiceQuery{
-		text: strings.Join(idText, ", "),
+		text: text,
 		f: func(h *instance.Instance) ([]platform.Service, error) {
 			return h.GetServices(idSlice)
 		},
