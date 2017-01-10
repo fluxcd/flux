@@ -15,8 +15,6 @@ This process will create a new tagged release of flux, push dockerfiles and uplo
 
 Circle will then run the build and upload the built binaries to the "Downloads" section of the release.
 
-Circle will also create a new tag called "latest_release" which points to the same commit and contains the same binaries as those just built.
-
 ## Outputs
 
 The most recent binaries are always available at: https://github.com/weaveworks/flux/releases/latest
