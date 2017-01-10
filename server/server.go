@@ -15,6 +15,7 @@ import (
 	"github.com/weaveworks/flux/jobs"
 	fluxmetrics "github.com/weaveworks/flux/metrics"
 	"github.com/weaveworks/flux/platform"
+	"github.com/weaveworks/flux/registry"
 )
 
 const (
@@ -27,6 +28,7 @@ const (
 
 type Server struct {
 	instancer   instance.Instancer
+	config      instance.DB
 	messageBus  platform.MessageBus
 	jobs        jobs.JobStore
 	logger      log.Logger
@@ -46,6 +48,7 @@ type Metrics struct {
 
 func New(
 	instancer instance.Instancer,
+	config instance.DB,
 	messageBus platform.MessageBus,
 	jobs jobs.JobStore,
 	logger log.Logger,
@@ -54,6 +57,7 @@ func New(
 	metrics.ConnectedDaemons.Set(0)
 	return &Server{
 		instancer:   instancer,
+		config:      config,
 		messageBus:  messageBus,
 		jobs:        jobs,
 		logger:      logger,
@@ -311,11 +315,7 @@ func (s *Server) GetRelease(inst flux.InstanceID, id jobs.JobID) (jobs.Job, erro
 }
 
 func (s *Server) GetConfig(instID flux.InstanceID) (flux.InstanceConfig, error) {
-	inst, err := s.instancer.Get(instID)
-	if err != nil {
-		return flux.InstanceConfig{}, err
-	}
-	fullConfig, err := inst.GetConfig()
+	fullConfig, err := s.config.GetConfig(instID)
 	if err != nil {
 		return flux.InstanceConfig{}, nil
 	}
@@ -325,11 +325,10 @@ func (s *Server) GetConfig(instID flux.InstanceID) (flux.InstanceConfig, error) 
 }
 
 func (s *Server) SetConfig(instID flux.InstanceID, updates flux.UnsafeInstanceConfig) error {
-	inst, err := s.instancer.Get(instID)
-	if err != nil {
-		return err
+	if _, err := registry.CredentialsFromConfig(updates); err != nil {
+		return errors.Wrap(err, "invalid registry credentials")
 	}
-	return inst.UpdateConfig(applyConfigUpdates(updates))
+	return s.config.UpdateConfig(instID, applyConfigUpdates(updates))
 }
 
 func applyConfigUpdates(updates flux.UnsafeInstanceConfig) instance.UpdateFunc {
