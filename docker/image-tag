@@ -9,6 +9,14 @@ if [ "${1:-}" = '--show-diff' ]; then
     OUTPUT=
 fi
 
+# If a tagged version, just print that tag
+HEAD_TAGS=$(git tag --points-at HEAD)
+if [ ${HEAD_TAGS} ] ; then
+	echo ${HEAD_TAGS}
+	exit 0
+fi
+
+
 WORKING_SUFFIX=$(if ! git diff --exit-code ${OUTPUT} HEAD >&2; \
                  then echo "-WIP"; \
                  else echo ""; \

@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+## Uploads the built binaries to the GH release
+## Requires github-release
+
+set -e
+
+GITHUB_USER=${GITHUB_USER:-"${CIRCLE_PROJECT_USERNAME}"}
+GITHUB_REPO=${GITHUB_REPO:-"${CIRCLE_PROJECT_REPONAME}"}
+GITHUB_TAG=${GITHUB_TAG:-"${CIRCLE_TAG}"}
+
+for arch in amd64; do
+	for os in linux darwin; do
+		echo "= Uploading fluxctl_${os}_${arch} to GH release ${GITHUB_TAG}"
+		github-release upload \
+			--user ${GITHUB_USER} \
+			--repo ${GITHUB_REPO} \
+			--tag ${GITHUB_TAG} \
+			--name "fluxctl_${os}_${arch}" \
+			--file "build/fluxctl_${os}_${arch}"
+		echo "* Finished pushing fluxctl_${os}_${arch} for ${GITHUB_TAG}"
+	done
+done
