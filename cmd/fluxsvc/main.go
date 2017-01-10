@@ -56,10 +56,10 @@ func main() {
 	)
 	fs.Parse(os.Args)
 
+	if version == "" {
+		version = "unversioned"
+	}
 	if *versionFlag {
-		if version == "" {
-			version = "unversioned"
-		}
 		fmt.Println(version)
 		os.Exit(0)
 	}
