@@ -247,7 +247,7 @@ func (s *Server) History(inst flux.InstanceID, spec flux.ServiceSpec) (res []flu
 	res = make([]flux.HistoryEntry, len(events))
 	for i, event := range events {
 		res[i] = flux.HistoryEntry{
-			Stamp: &event.Stamp,
+			Stamp: &events[i].Stamp,
 			Type:  "v0",
 			Data:  fmt.Sprintf("%s: %s", event.Service, event.Msg),
 		}
