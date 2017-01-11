@@ -10,6 +10,7 @@ import (
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/instance"
 	"github.com/weaveworks/flux/jobs"
+	"github.com/weaveworks/flux/platform"
 	"github.com/weaveworks/flux/release"
 )
 
@@ -47,7 +48,6 @@ func (a *Automator) checkAll(errorLogger log.Logger) {
 		return
 	}
 	for _, inst := range insts {
-		errorLogger.Log("checking_instance", inst.ID, "has_automated_services", a.hasAutomatedServices(inst.Config.Services))
 		if !a.hasAutomatedServices(inst.Config.Services) {
 			continue
 		}
@@ -106,12 +106,20 @@ func (a *Automator) handleAutomatedInstanceJob(logger log.Logger, j *jobs.Job) (
 		return followUps, errors.Wrap(err, "getting job instance")
 	}
 
-	// Get all automated services
-	// TODO: This should check the repo so it will pick up newly defined or
-	// non-running services.
-	services, err := release.ExactlyTheseServices(automatedServiceIDs).SelectServices(inst)
+	// Get all services, then filter to the automated ones.
+	// It's done this way so a single missing service doesn't fail everything.
+	// TODO: This should come from git not kubernetes
+	allServices, err := release.AllServicesExcept(nil).SelectServices(inst)
 	if err != nil {
 		return followUps, errors.Wrap(err, "getting services")
+	}
+
+	// Get just the automated services we can release.
+	var services []platform.Service
+	for _, service := range allServices {
+		if automatedServiceIDs.Contains(service.ID) {
+			services = append(services, service)
+		}
 	}
 
 	if len(services) == 0 {
@@ -119,13 +127,26 @@ func (a *Automator) handleAutomatedInstanceJob(logger log.Logger, j *jobs.Job) (
 		return nil, nil
 	}
 
-	// Get the images used for each automated service
-	// TODO: This should not fail all images if we are lacking permissions for one image.
-	images, err := release.AllLatestImages.SelectImages(inst, services)
-	if err != nil {
-		return followUps, errors.Wrap(err, "getting images")
+	// Get the images used for each automated service. We have to do this
+	// ourselves, so that any individual failure doesn't error out the whole
+	// job.
+	images := instance.ImageMap{}
+	for _, service := range services {
+		for _, container := range service.ContainersOrNil() {
+			repo := flux.ParseImageID(container.Image).Repository()
+			images[repo] = nil
+		}
+	}
+	for repo := range images {
+		imageRepo, err := inst.GetRepository(repo)
+		if err != nil {
+			logger.Log("err", errors.Wrapf(err, "fetching image metadata for %s", repo))
+			continue
+		}
+		images[repo] = imageRepo
 	}
 
+	// Calculate which services need releasing.
 	updateMap := release.CalculateUpdates(services, images, func(format string, args ...interface{}) { /* noop */ })
 	releases := map[flux.ImageID]flux.ServiceIDSet{}
 	for serviceID, updates := range updateMap {
