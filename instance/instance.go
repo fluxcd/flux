@@ -115,6 +115,11 @@ func (h *Instance) CollectAvailableImages(services []platform.Service) (ImageMap
 	return images, nil
 }
 
+// GetRepository exposes this instance's registry's GetRepository method directly.
+func (h *Instance) GetRepository(repo string) ([]flux.ImageDescription, error) {
+	return h.registry.GetRepository(repo)
+}
+
 // Create an image map containing exact images. At present this
 // assumes they exist; but it may in the future be made to verify so.
 func (h *Instance) ExactImages(images []flux.ImageID) (ImageMap, error) {
