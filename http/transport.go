@@ -218,7 +218,12 @@ func handlePostRelease(s api.FluxService) http.Handler {
 			fmt.Fprintf(w, errors.Wrapf(err, "parsing service spec %q", service).Error())
 			return
 		}
-		imageSpec := flux.ParseImageSpec(image)
+		imageSpec, err := flux.ParseImageSpec(image)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			fmt.Fprintf(w, errors.Wrapf(err, "parsing image spec %q", image).Error())
+			return
+		}
 		releaseKind, err := flux.ParseReleaseKind(kind)
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
