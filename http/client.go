@@ -69,3 +69,7 @@ func (c *client) GetConfig(_ flux.InstanceID) (flux.InstanceConfig, error) {
 func (c *client) SetConfig(_ flux.InstanceID, config flux.UnsafeInstanceConfig) error {
 	return invokeSetConfig(c.client, c.token, c.router, c.endpoint, config)
 }
+
+func (c *client) Status(_ flux.InstanceID) (flux.Status, error) {
+	return invokeStatus(c.client, c.token, c.router, c.endpoint)
+}

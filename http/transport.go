@@ -38,6 +38,7 @@ func NewRouter() *mux.Router {
 	r.NewRoute().Name("Lock").Methods("POST").Path("/v3/lock").Queries("service", "{service}")
 	r.NewRoute().Name("Unlock").Methods("POST").Path("/v3/unlock").Queries("service", "{service}")
 	r.NewRoute().Name("History").Methods("GET").Path("/v3/history").Queries("service", "{service}")
+	r.NewRoute().Name("Status").Methods("GET").Path("/v3/status")
 	r.NewRoute().Name("GetConfig").Methods("GET").Path("/v4/config")
 	r.NewRoute().Name("SetConfig").Methods("POST").Path("/v4/config")
 	r.NewRoute().Name("RegisterDaemon").Methods("GET").Path("/v4/daemon")
@@ -56,6 +57,7 @@ func NewHandler(s api.FluxService, r *mux.Router, logger log.Logger, h metrics.H
 		"Lock":           handleLock,
 		"Unlock":         handleUnlock,
 		"History":        handleHistory,
+		"Status":         handleStatus,
 		"GetConfig":      handleGetConfig,
 		"SetConfig":      handleSetConfig,
 		"RegisterDaemon": handleRegister,
@@ -636,6 +638,53 @@ func invokeSetConfig(client *http.Client, t flux.Token, router *mux.Router, endp
 	}
 
 	return nil
+}
+
+func invokeStatus(client *http.Client, t flux.Token, router *mux.Router, endpoint string) (flux.Status, error) {
+	u, err := makeURL(endpoint, router, "Status")
+	if err != nil {
+		return flux.Status{}, errors.Wrap(err, "constructing URL")
+	}
+
+	req, err := http.NewRequest("GET", u.String(), nil)
+	if err != nil {
+		return flux.Status{}, errors.Wrapf(err, "constructing request %s", u)
+	}
+	t.Set(req)
+
+	resp, err := executeRequest(client, req)
+	if err != nil {
+		return flux.Status{}, errors.Wrap(err, "executing HTTP request")
+	}
+
+	var res flux.Status
+	if err := json.NewDecoder(resp.Body).Decode(&res); err != nil {
+		return res, errors.Wrap(err, "decoding response body")
+	}
+	return res, nil
+}
+
+func handleStatus(s api.FluxService) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		inst := getInstanceID(r)
+		status, err := s.Status(inst)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintf(w, err.Error())
+			return
+		}
+
+		statusBytes := bytes.Buffer{}
+		if err = json.NewEncoder(&statusBytes).Encode(status); err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintf(w, err.Error())
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		w.Write(statusBytes.Bytes())
+		return
+	})
 }
 
 func handleRegister(s api.FluxService) http.Handler {

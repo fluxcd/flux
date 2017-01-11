@@ -17,6 +17,9 @@ type MockPlatform struct {
 	ApplyError   error
 
 	PingError error
+
+	VersionAnswer string
+	VersionError  error
 }
 
 func (p *MockPlatform) AllServices(ns string, ss flux.ServiceIDSet) ([]Service, error) {
@@ -48,4 +51,8 @@ func (p *MockPlatform) Apply(defs []ServiceDefinition) error {
 
 func (p *MockPlatform) Ping() error {
 	return p.PingError
+}
+
+func (p *MockPlatform) Version() (string, error) {
+	return p.VersionAnswer, p.VersionError
 }

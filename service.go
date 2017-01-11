@@ -277,3 +277,19 @@ type HistoryEntry struct {
 	Type  string
 	Data  string
 }
+
+// TODO: How similar should this be to the `get-config` result?
+type Status struct {
+	Fluxd FluxdStatus `json:"fluxd" yaml:"fluxd"`
+	Git   GitStatus   `json:"git" yaml:"git"`
+}
+
+type FluxdStatus struct {
+	Connected bool   `json:"connected" yaml:"connected"`
+	Version   string `json:"version,omitempty" yaml:"version,omitempty"`
+}
+
+type GitStatus struct {
+	Configured bool   `json:"configured" yaml:"configured"`
+	Error      string `json:"error,omitempty" yaml:"error,omitempty"`
+}

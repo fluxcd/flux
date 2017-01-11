@@ -42,10 +42,10 @@ func main() {
 	)
 	fs.Parse(os.Args)
 
+	if version == "" {
+		version = "unversioned"
+	}
 	if *versionFlag {
-		if version == "" {
-			version = "unversioned"
-		}
 		fmt.Println(version)
 		os.Exit(0)
 	}
@@ -73,7 +73,7 @@ func main() {
 		logger := log.NewContext(logger).With("component", "platform")
 		logger.Log("host", restClientConfig.Host)
 
-		cluster, err := kubernetes.NewCluster(restClientConfig, *kubernetesKubectl, logger)
+		cluster, err := kubernetes.NewCluster(restClientConfig, *kubernetesKubectl, version, logger)
 		if err != nil {
 			logger.Log("err", err)
 			os.Exit(1)

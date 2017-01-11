@@ -2,6 +2,7 @@ package git
 
 import (
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -10,7 +11,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func clone(workingDir, keyData, repoURL, repoBranch string) (path string, err error) {
+func clone(stderr io.Writer, workingDir, keyData, repoURL, repoBranch string) (path string, err error) {
 	keyPath, err := writeKey(keyData)
 	if err != nil {
 		return "", err
@@ -22,7 +23,7 @@ func clone(workingDir, keyData, repoURL, repoBranch string) (path string, err er
 		args = append(args, "--branch", repoBranch)
 	}
 	args = append(args, repoURL, repoPath)
-	if err := gitCmd(workingDir, keyPath, args...).Run(); err != nil {
+	if err := gitCmd(stderr, workingDir, keyPath, args...).Run(); err != nil {
 		return "", errors.Wrap(err, "git clone")
 	}
 	return repoPath, nil
@@ -30,7 +31,7 @@ func clone(workingDir, keyData, repoURL, repoBranch string) (path string, err er
 
 func commit(workingDir, commitMessage string) error {
 	if err := gitCmd(
-		workingDir, "",
+		nil, workingDir, "",
 		"-c", "user.name=Weave Flux", "-c", "user.email=support@weave.works",
 		"commit",
 		"--no-verify", "-a", "-m", commitMessage,
@@ -46,20 +47,23 @@ func push(keyData, repoBranch, workingDir string) error {
 		return err
 	}
 	defer os.Remove(keyPath)
-	if err := gitCmd(workingDir, keyPath, "push", "origin", repoBranch).Run(); err != nil {
+	if err := gitCmd(nil, workingDir, keyPath, "push", "origin", repoBranch).Run(); err != nil {
 		return errors.Wrap(err, fmt.Sprintf("git push origin %s", repoBranch))
 	}
 	return nil
 }
 
-func gitCmd(dir, keyPath string, args ...string) *exec.Cmd {
+func gitCmd(stderr io.Writer, dir, keyPath string, args ...string) *exec.Cmd {
 	c := exec.Command("git", args...)
 	if dir != "" {
 		c.Dir = dir
 	}
 	c.Env = env(keyPath)
-	c.Stdout = os.Stdout
-	c.Stderr = os.Stderr
+	c.Stdout = ioutil.Discard
+	c.Stderr = ioutil.Discard
+	if stderr != nil {
+		c.Stderr = stderr
+	}
 	return c
 }
 
@@ -73,7 +77,7 @@ func env(keyPath string) []string {
 
 // check returns true if there are changes locally.
 func check(workingDir, subdir string) bool {
-	diff := gitCmd(workingDir, "", "diff", "--quiet", "--", subdir)
+	diff := gitCmd(nil, workingDir, "", "diff", "--quiet", "--", subdir)
 	// `--quiet` means "exit with 1 if there are changes"
 	return diff.Run() != nil
 }

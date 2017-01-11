@@ -22,6 +22,7 @@ const (
 
 	methodKick         = ".Platform.Kick"
 	methodPing         = ".Platform.Ping"
+	methodVersion      = ".Platform.Version"
 	methodAllServices  = ".Platform.AllServices"
 	methodSomeServices = ".Platform.SomeServices"
 	methodApply        = ".Platform.Apply"
@@ -116,6 +117,13 @@ type PingResponse struct {
 	ErrorResponse
 }
 
+type version struct{}
+
+type VersionResponse struct {
+	Version string
+	ErrorResponse
+}
+
 func extractError(resp ErrorResponse) error {
 	if resp.Error != "" {
 		if resp.Fatal {
@@ -189,6 +197,14 @@ func (r *natsPlatform) Ping() error {
 		return err
 	}
 	return extractError(response.ErrorResponse)
+}
+
+func (r *natsPlatform) Version() (string, error) {
+	var response VersionResponse
+	if err := r.conn.Request(r.instance+methodVersion, version{}, &response, timeout); err != nil {
+		return "", err
+	}
+	return response.Version, extractError(response.ErrorResponse)
 }
 
 // Connect returns a platform.Platform implementation that can be used

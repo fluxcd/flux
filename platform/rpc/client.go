@@ -77,6 +77,20 @@ func (p *RPCClient) Ping() error {
 	return err
 }
 
+// Version is used to check if the remote platform is available
+func (p *RPCClient) Version() (string, error) {
+	var version string
+	err := p.client.Call("RPCServer.Version", struct{}{}, &version)
+	if _, ok := err.(rpc.ServerError); !ok && err != nil {
+		return "", platform.FatalError{err}
+	} else if err != nil && err.Error() == "rpc: can't find method RPCServer.Version" {
+		// "Version" is not supported by this version of fluxd (it is old). Fail
+		// gracefully.
+		return "unknown", nil
+	}
+	return version, err
+}
+
 // Close closes the connection to the remote platform, it does *not* cause the
 // remote platform to shut down.
 func (p *RPCClient) Close() error {
