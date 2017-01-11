@@ -95,9 +95,9 @@ func (r *Releaser) Handle(job *jobs.Job, updater jobs.JobUpdater) (followUps []j
 func (r *Releaser) plan(inst *instance.Instance, params jobs.ReleaseJobParams) (string, []ReleaseAction, error) {
 	releaseType := "unknown"
 
-	images := imageSelectorForSpec(params.ImageSpec)
+	images := ImageSelectorForSpec(params.ImageSpec)
 
-	services, err := serviceSelectorForSpecs(inst, params.ServiceSpecs, params.Excludes)
+	services, err := ServiceSelectorForSpecs(inst, params.ServiceSpecs, params.Excludes)
 	if err != nil {
 		return releaseType, nil, err
 	}
@@ -132,7 +132,7 @@ func (r *Releaser) plan(inst *instance.Instance, params jobs.ReleaseJobParams) (
 	return releaseType, actions, err
 }
 
-func (r *Releaser) releaseImages(method, msg string, inst *instance.Instance, getServices serviceSelector, getImages imageSelector) ([]ReleaseAction, error) {
+func (r *Releaser) releaseImages(method, msg string, inst *instance.Instance, getServices ServiceSelector, getImages ImageSelector) ([]ReleaseAction, error) {
 	var res []ReleaseAction
 	res = append(res, r.releaseActionPrintf(msg))
 
@@ -163,32 +163,9 @@ func (r *Releaser) releaseImages(method, msg string, inst *instance.Instance, ge
 		return nil, errors.Wrap(err, "collecting available images to calculate applies")
 	}
 
-	updateMap := map[flux.ServiceID][]containerUpdate{}
-	for _, service := range services {
-		containers, err := service.ContainersOrError()
-		if err != nil {
-			res = append(res, r.releaseActionPrintf("service %s does not have images associated: %s", service.ID, err))
-			continue
-		}
-		for _, container := range containers {
-			currentImageID := flux.ParseImageID(container.Image)
-			latestImage := images.LatestImage(currentImageID.Repository())
-			if latestImage == nil {
-				continue
-			}
-
-			if currentImageID == latestImage.ID {
-				res = append(res, r.releaseActionPrintf("Service %s image %s is already the latest one; skipping.", service.ID, currentImageID))
-				continue
-			}
-
-			updateMap[service.ID] = append(updateMap[service.ID], containerUpdate{
-				container: container.Name,
-				current:   currentImageID,
-				target:    latestImage.ID,
-			})
-		}
-	}
+	updateMap := CalculateUpdates(services, images, func(format string, args ...interface{}) {
+		res = append(res, r.releaseActionPrintf(format, args...))
+	})
 
 	if len(updateMap) <= 0 {
 		res = append(res, r.releaseActionPrintf("All selected services are running the requested images. Nothing to do."))
@@ -217,7 +194,7 @@ func (r *Releaser) releaseImages(method, msg string, inst *instance.Instance, ge
 }
 
 // Release whatever is in the cloned configuration, without changing anything
-func (r *Releaser) releaseWithoutUpdate(method, msg string, inst *instance.Instance, getServices serviceSelector) ([]ReleaseAction, error) {
+func (r *Releaser) releaseWithoutUpdate(method, msg string, inst *instance.Instance, getServices ServiceSelector) ([]ReleaseAction, error) {
 	var res []ReleaseAction
 
 	var (
@@ -286,12 +263,42 @@ func (r *Releaser) execute(inst *instance.Instance, actions []ReleaseAction, kin
 	return nil
 }
 
+func CalculateUpdates(services []platform.Service, images instance.ImageMap, printf func(string, ...interface{})) map[flux.ServiceID][]ContainerUpdate {
+	updateMap := map[flux.ServiceID][]ContainerUpdate{}
+	for _, service := range services {
+		containers, err := service.ContainersOrError()
+		if err != nil {
+			printf("service %s does not have images associated: %s", service.ID, err)
+			continue
+		}
+		for _, container := range containers {
+			currentImageID := flux.ParseImageID(container.Image)
+			latestImage := images.LatestImage(currentImageID.Repository())
+			if latestImage == nil {
+				continue
+			}
+
+			if currentImageID == latestImage.ID {
+				printf("Service %s image %s is already the latest one; skipping.", service.ID, currentImageID)
+				continue
+			}
+
+			updateMap[service.ID] = append(updateMap[service.ID], ContainerUpdate{
+				Container: container.Name,
+				Current:   currentImageID,
+				Target:    latestImage.ID,
+			})
+		}
+	}
+	return updateMap
+}
+
 // Release helpers.
 
-type containerUpdate struct {
-	container string
-	current   flux.ImageID
-	target    flux.ImageID
+type ContainerUpdate struct {
+	Container string
+	Current   flux.ImageID
+	Target    flux.ImageID
 }
 
 // ReleaseAction Do funcs
@@ -353,10 +360,10 @@ func (r *Releaser) releaseActionFindPodController(service flux.ServiceID) Releas
 	}
 }
 
-func (r *Releaser) releaseActionUpdatePodController(service flux.ServiceID, updates []containerUpdate) ReleaseAction {
+func (r *Releaser) releaseActionUpdatePodController(service flux.ServiceID, updates []ContainerUpdate) ReleaseAction {
 	var actions []string
 	for _, update := range updates {
-		actions = append(actions, fmt.Sprintf("%s (%s -> %s)", update.container, update.current, update.target))
+		actions = append(actions, fmt.Sprintf("%s (%s -> %s)", update.Container, update.Current, update.Target))
 	}
 	actionList := strings.Join(actions, ", ")
 
@@ -399,9 +406,9 @@ func (r *Releaser) releaseActionUpdatePodController(service flux.ServiceID, upda
 				//
 				// Note 2: we keep overwriting the same def, to handle multiple
 				// images in a single file.
-				def, err = kubernetes.UpdatePodController(def, string(update.target), ioutil.Discard)
+				def, err = kubernetes.UpdatePodController(def, string(update.Target), ioutil.Discard)
 				if err != nil {
-					return "", errors.Wrapf(err, "updating pod controller for %s", update.target)
+					return "", errors.Wrapf(err, "updating pod controller for %s", update.Target)
 				}
 			}
 

@@ -11,12 +11,12 @@ import (
 	"github.com/weaveworks/flux/platform"
 )
 
-type serviceSelector interface {
+type ServiceSelector interface {
 	String() string
 	SelectServices(*instance.Instance) ([]platform.Service, error)
 }
 
-func serviceSelectorForSpecs(inst *instance.Instance, includeSpecs []flux.ServiceSpec, exclude []flux.ServiceID) (serviceSelector, error) {
+func ServiceSelectorForSpecs(inst *instance.Instance, includeSpecs []flux.ServiceSpec, exclude []flux.ServiceID) (ServiceSelector, error) {
 	excludeSet := flux.ServiceIDSet{}
 	excludeSet.Add(exclude)
 
@@ -30,7 +30,7 @@ func serviceSelectorForSpecs(inst *instance.Instance, includeSpecs []flux.Servic
 	for _, spec := range includeSpecs {
 		if spec == flux.ServiceSpecAll {
 			// If one of the specs is '<all>' we can ignore the rest.
-			return allServicesExcept(excludeSet), nil
+			return AllServicesExcept(excludeSet), nil
 		}
 		serviceID, err := flux.ParseServiceID(string(spec))
 		if err != nil {
@@ -38,7 +38,7 @@ func serviceSelectorForSpecs(inst *instance.Instance, includeSpecs []flux.Servic
 		}
 		include.Add([]flux.ServiceID{serviceID})
 	}
-	return exactlyTheseServices(include.Without(excludeSet)), nil
+	return ExactlyTheseServices(include.Without(excludeSet)), nil
 }
 
 type funcServiceQuery struct {
@@ -54,7 +54,7 @@ func (f funcServiceQuery) SelectServices(inst *instance.Instance) ([]platform.Se
 	return f.f(inst)
 }
 
-func exactlyTheseServices(include flux.ServiceIDSet) serviceSelector {
+func ExactlyTheseServices(include flux.ServiceIDSet) ServiceSelector {
 	var (
 		idText  []string
 		idSlice []flux.ServiceID
@@ -75,7 +75,7 @@ func exactlyTheseServices(include flux.ServiceIDSet) serviceSelector {
 	}
 }
 
-func allServicesExcept(exclude flux.ServiceIDSet) serviceSelector {
+func AllServicesExcept(exclude flux.ServiceIDSet) ServiceSelector {
 	text := "all services"
 	if len(exclude) > 0 {
 		var idText []string

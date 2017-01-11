@@ -8,19 +8,19 @@ import (
 	"github.com/weaveworks/flux/platform"
 )
 
-type imageSelector interface {
+type ImageSelector interface {
 	String() string
 	SelectImages(*instance.Instance, []platform.Service) (instance.ImageMap, error)
 }
 
-func imageSelectorForSpec(spec flux.ImageSpec) imageSelector {
+func ImageSelectorForSpec(spec flux.ImageSpec) ImageSelector {
 	switch spec {
 	case flux.ImageSpecLatest:
-		return allLatestImages
+		return AllLatestImages
 	case flux.ImageSpecNone:
-		return latestConfig
+		return LatestConfig
 	default:
-		return exactlyTheseImages([]flux.ImageID{
+		return ExactlyTheseImages([]flux.ImageID{
 			flux.ParseImageID(string(spec)),
 		})
 	}
@@ -40,13 +40,13 @@ func (f funcImageSelector) SelectImages(inst *instance.Instance, services []plat
 }
 
 var (
-	allLatestImages = funcImageSelector{
+	AllLatestImages = funcImageSelector{
 		text: "latest images",
 		f: func(h *instance.Instance, services []platform.Service) (instance.ImageMap, error) {
 			return h.CollectAvailableImages(services)
 		},
 	}
-	latestConfig = funcImageSelector{
+	LatestConfig = funcImageSelector{
 		text: "latest config",
 		f: func(h *instance.Instance, services []platform.Service) (instance.ImageMap, error) {
 			// TODO: Nothing to do here.
@@ -55,7 +55,7 @@ var (
 	}
 )
 
-func exactlyTheseImages(images []flux.ImageID) imageSelector {
+func ExactlyTheseImages(images []flux.ImageID) ImageSelector {
 	var imageText []string
 	for _, image := range images {
 		imageText = append(imageText, string(image))
