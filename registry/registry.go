@@ -16,6 +16,7 @@ import (
 
 	"github.com/go-kit/kit/log"
 	dockerregistry "github.com/heroku/docker-registry-client/registry"
+	"github.com/jonboulle/clockwork"
 	"golang.org/x/net/publicsuffix"
 
 	"github.com/weaveworks/flux"
@@ -25,6 +26,8 @@ import (
 const (
 	dockerHubHost    = "index.docker.io"
 	dockerHubLibrary = "library"
+
+	requestTimeout = 10 * time.Second
 )
 
 type creds struct {
@@ -113,11 +116,15 @@ func (c *client) GetRepository(repository string) (_ []flux.ImageDescription, er
 
 	// A context we'll use to cancel requests on error
 	ctx, cancel := context.WithCancel(context.Background())
+	// Add a timeout to the request
+	ctx, cancel = context.WithTimeout(ctx, requestTimeout)
 
 	// Use the wrapper to fix headers for quay.io, and remember bearer tokens
 	var transport http.RoundTripper = &wwwAuthenticateFixer{transport: http.DefaultTransport}
 	// Now the auth-handling wrappers that come with the library
 	transport = dockerregistry.WrapTransport(transport, httphost, auth.username, auth.password)
+	// Add the backoff mechanism so we don't DOS registries
+	transport = BackoffRoundTripper(transport, initialBackoff, maxBackoff, clockwork.NewRealClock())
 
 	client := &dockerregistry.Registry{
 		URL: httphost,
