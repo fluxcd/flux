@@ -213,7 +213,7 @@ func (s ServiceSpec) AsID() (ServiceID, error) {
 type ImageSpec string
 
 func ParseImageSpec(s string) (ImageSpec, error) {
-	if s == string(ImageSpecLatest) {
+	if s == string(ImageSpecLatest) || s == string(ImageSpecNone) {
 		return ImageSpec(s), nil
 	}
 	id := ParseImageID(s)
