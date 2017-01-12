@@ -36,11 +36,25 @@ type Credentials struct {
 	m map[string]creds
 }
 
-// Client is a handle to a registry.
-type Client struct {
+// Client is a handle to a bunch of registries.
+type Client interface {
+	GetRepository(repository string) ([]flux.ImageDescription, error)
+}
+
+// client is a handle to a registry.
+type client struct {
 	Credentials Credentials
 	Logger      log.Logger
 	Metrics     Metrics
+}
+
+// NewClient creates a new registry client, to use when fetching repositories.
+func NewClient(c Credentials, l log.Logger, m Metrics) Client {
+	return &client{
+		Credentials: c,
+		Logger:      l,
+		Metrics:     m,
+	}
 }
 
 type roundtripperFunc func(*http.Request) (*http.Response, error)
@@ -57,7 +71,7 @@ func (f roundtripperFunc) RoundTrip(r *http.Request) (*http.Response, error) {
 //   foo/helloworld         -> index.docker.io/foo/helloworld
 //   quay.io/foo/helloworld -> quay.io/foo/helloworld
 //
-func (c *Client) GetRepository(repository string) (_ []flux.ImageDescription, err error) {
+func (c *client) GetRepository(repository string) (_ []flux.ImageDescription, err error) {
 	defer func(start time.Time) {
 		c.Metrics.FetchDuration.With(
 			LabelRepository, repository,
@@ -136,7 +150,7 @@ func (c *Client) GetRepository(repository string) (_ []flux.ImageDescription, er
 	return c.tagsToRepository(cancel, client, hostlessImageName, repository, tags)
 }
 
-func (c *Client) lookupImage(client *dockerregistry.Registry, lookupName, imageName, tag string) (flux.ImageDescription, error) {
+func (c *client) lookupImage(client *dockerregistry.Registry, lookupName, imageName, tag string) (flux.ImageDescription, error) {
 	// Minor cheat: this will give the correct result even if the
 	// imageName includes a host
 	id := flux.MakeImageID("", imageName, tag)
@@ -170,7 +184,7 @@ func (c *Client) lookupImage(client *dockerregistry.Registry, lookupName, imageN
 	return img, err
 }
 
-func (c *Client) tagsToRepository(cancel func(), client *dockerregistry.Registry, lookupName, imageName string, tags []string) ([]flux.ImageDescription, error) {
+func (c *client) tagsToRepository(cancel func(), client *dockerregistry.Registry, lookupName, imageName string, tags []string) ([]flux.ImageDescription, error) {
 	// one way or another, we'll be finishing all requests
 	defer cancel()
 
