@@ -59,7 +59,7 @@ func (m *MultitenantInstancer) Get(instanceID flux.InstanceID) (*Instance, error
 			http.DefaultClient,
 			c.Settings.Slack.HookURL,
 			c.Settings.Slack.Username,
-			`(done|failed)$`, // only catch the final message
+			`(done|failed|\(no result expected\))$`, // only catch the final message, or started msg for async releases
 		))
 	}
 
