@@ -23,7 +23,7 @@ type Instancer interface {
 
 type Instance struct {
 	platform platform.Platform
-	registry *registry.Client
+	registry registry.Client
 	config   Configurer
 	duration metrics.Histogram
 	gitrepo  git.Repo
@@ -35,7 +35,7 @@ type Instance struct {
 
 func New(
 	platform platform.Platform,
-	registry *registry.Client,
+	registry registry.Client,
 	config Configurer,
 	gitrepo git.Repo,
 	logger log.Logger,

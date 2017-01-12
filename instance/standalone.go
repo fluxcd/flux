@@ -17,7 +17,7 @@ import (
 type StandaloneInstancer struct {
 	Instance     flux.InstanceID
 	Connecter    platform.Connecter
-	Registry     *registry.Client
+	Registry     registry.Client
 	Config       Configurer
 	GitRepo      git.Repo
 	EventReader  history.EventReader
