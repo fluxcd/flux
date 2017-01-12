@@ -329,10 +329,6 @@ func (s *DatabaseStore) scanParams(method string, params []byte) (interface{}, e
 		var p ReleaseJobParams
 		err := json.Unmarshal(params, &p)
 		return p, err
-	case AutomatedServiceJob:
-		var p AutomatedServiceJobParams
-		err := json.Unmarshal(params, &p)
-		return p, err
 	case AutomatedInstanceJob:
 		var p AutomatedInstanceJobParams
 		err := json.Unmarshal(params, &p)

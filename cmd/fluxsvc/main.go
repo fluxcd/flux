@@ -277,12 +277,10 @@ func main() {
 	for _, queue := range []string{
 		jobs.DefaultQueue,
 		jobs.ReleaseJob,
-		jobs.AutomatedServiceJob,
 		jobs.AutomatedInstanceJob,
 	} {
 		logger := log.NewContext(logger).With("component", "worker", "queues", fmt.Sprint([]string{queue}))
 		worker := jobs.NewWorker(jobStore, logger, jobWorkerMetrics, []string{queue})
-		worker.Register(jobs.AutomatedServiceJob, auto)
 		worker.Register(jobs.AutomatedInstanceJob, auto)
 		worker.Register(jobs.ReleaseJob, release.NewReleaser(instancer, releaseMetrics))
 
