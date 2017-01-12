@@ -222,7 +222,7 @@ func ParseImageSpec(s string) (ImageSpec, error) {
 		return "", errors.Wrap(ErrInvalidImageID, "blank image name")
 	}
 	if tag == "" {
-		return "", errors.Wrap(ErrInvalidImageID, "blank tag (if you want latest, explicitly state the tag :latest")
+		return "", errors.Wrap(ErrInvalidImageID, "blank tag (if you want latest, explicitly state the tag :latest)")
 	}
 	return ImageSpec(id), nil
 }
