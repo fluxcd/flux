@@ -71,9 +71,6 @@ func (a *Automator) hasAutomatedServices(services map[flux.ServiceID]instance.Se
 func (a *Automator) Handle(j *jobs.Job, _ jobs.JobUpdater) ([]jobs.Job, error) {
 	logger := log.NewContext(a.cfg.Logger).With("job", j.ID)
 	switch j.Method {
-	case jobs.AutomatedServiceJob:
-		// Clean up automated service jobs. They're being replaced
-		return nil, nil
 	case jobs.AutomatedInstanceJob:
 		return a.handleAutomatedInstanceJob(logger, j)
 	default:

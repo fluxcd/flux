@@ -16,9 +16,6 @@ const (
 	// ReleaseJob is the method for a release job
 	ReleaseJob = "release"
 
-	// AutomatedServiceJob is the method for a check automated service job
-	AutomatedServiceJob = "automated_service"
-
 	// AutomatedInstanceJob is the method for a check automated instance job
 	AutomatedInstanceJob = "automated_instance"
 
@@ -159,12 +156,6 @@ type ReleaseJobParams struct {
 	ImageSpec    flux.ImageSpec
 	Kind         flux.ReleaseKind
 	Excludes     []flux.ServiceID
-}
-
-// AutomatedServiceJobParams are the params for a automated_service job
-// job
-type AutomatedServiceJobParams struct {
-	ServiceSpec flux.ServiceSpec
 }
 
 // AutomatedInstanceJobParams are the params for an automated_instance job
