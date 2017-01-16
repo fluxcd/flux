@@ -212,11 +212,19 @@ func (s ServiceSpec) AsID() (ServiceID, error) {
 // images)
 type ImageSpec string
 
-func ParseImageSpec(s string) ImageSpec {
-	if s == string(ImageSpecLatest) {
-		return ImageSpec(s)
+func ParseImageSpec(s string) (ImageSpec, error) {
+	if s == string(ImageSpecLatest) || s == string(ImageSpecNone) {
+		return ImageSpec(s), nil
 	}
-	return ImageSpec(ParseImageID(s))
+	id := ParseImageID(s)
+	_, name, tag := id.Components()
+	if name == "" {
+		return "", errors.Wrap(ErrInvalidImageID, "blank image name")
+	}
+	if tag == "" {
+		return "", errors.Wrap(ErrInvalidImageID, "blank tag (if you want latest, explicitly state the tag :latest)")
+	}
+	return ImageSpec(id), nil
 }
 
 type ImageStatus struct {

@@ -72,7 +72,10 @@ func (opts *serviceReleaseOpts) RunE(cmd *cobra.Command, args []string) error {
 	var image flux.ImageSpec
 	switch {
 	case opts.image != "":
-		image = flux.ParseImageSpec(opts.image)
+		image, err = flux.ParseImageSpec(opts.image)
+		if err != nil {
+			return err
+		}
 	case opts.allImages:
 		image = flux.ImageSpecLatest
 	case opts.noUpdate:

@@ -125,9 +125,35 @@ func (h *Instance) GetRepository(repo string) ([]flux.ImageDescription, error) {
 func (h *Instance) ExactImages(images []flux.ImageID) (ImageMap, error) {
 	m := ImageMap{}
 	for _, id := range images {
+		// We must check that the exact images requested actually exist. Otherwise we risk pushing invalid images to git.
+		exist, err := h.imageExists(id)
+		if err != nil {
+			return m, errors.Wrap(flux.ErrInvalidImageID, err.Error())
+		}
+		if !exist {
+			return m, errors.Wrap(flux.ErrInvalidImageID, fmt.Sprintf("image %q does not exist", id))
+		}
 		m[id.Repository()] = []flux.ImageDescription{flux.ImageDescription{ID: id}}
 	}
 	return m, nil
+}
+
+// Checks whether the given image exists in the repository.
+// Return true if exist, false otherwise
+func (h *Instance) imageExists(image flux.ImageID) (exists bool, err error) {
+	// Get a list of images
+	images, err := h.registry.GetRepository(image.Repository())
+	if err != nil {
+		return
+	}
+	// See if that image exists
+	for _, desc := range images {
+		if desc.ID == image {
+			exists = true
+			return
+		}
+	}
+	return
 }
 
 func (h *Instance) PlatformApply(defs []platform.ServiceDefinition) (err error) {
