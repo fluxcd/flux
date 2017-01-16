@@ -132,7 +132,8 @@ func (c *client) GetRepository(repository string) (_ []flux.ImageDescription, er
 			Transport: roundtripperFunc(func(r *http.Request) (*http.Response, error) {
 				return transport.RoundTrip(r.WithContext(ctx))
 			}),
-			Jar: jar,
+			Jar:     jar,
+			Timeout: 10 * time.Second,
 		},
 		Logf: dockerregistry.Quiet,
 	}
