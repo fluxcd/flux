@@ -67,6 +67,8 @@ func TestBackoffRoundTripper(t *testing.T) {
 		{nil, errors.New("Too Many Requests (HAP429).")},
 		// it should catch http.StatusTooManyRequests
 		{&http.Response{StatusCode: http.StatusTooManyRequests}, nil},
+		// it should catch http.StatusInternalServerError
+		{&http.Response{StatusCode: http.StatusInternalServerError}, nil},
 	} {
 		calls := []time.Time{}
 		rt := roundtripperFunc(func(r *http.Request) (*http.Response, error) {

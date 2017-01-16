@@ -52,6 +52,8 @@ func (c *backoffRoundTripper) RoundTrip(r *http.Request) (*http.Response, error)
 			// Catch the terrible dockerregistry error here. Eugh. :(
 			fallthrough
 		case resp != nil && resp.StatusCode == http.StatusTooManyRequests:
+			fallthrough
+		case resp != nil && resp.StatusCode >= 500:
 			// Request rate-limited, backoff and retry.
 			b.Failure()
 			// Wait until the next time we are allowed to make a request
