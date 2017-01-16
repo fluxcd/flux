@@ -4,7 +4,6 @@ import (
 	"errors"
 	"net/http"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/jonboulle/clockwork"
@@ -70,13 +69,10 @@ type backoff struct {
 	max     time.Duration
 
 	current time.Duration
-	sync.RWMutex
 }
 
 // Failure should be called each time a request fails.
 func (b *backoff) Failure() {
-	b.Lock()
-	defer b.Unlock()
 	b.current *= 2
 	if b.current == 0 {
 		b.current = b.initial
@@ -87,7 +83,5 @@ func (b *backoff) Failure() {
 
 // Wait how long to sleep before *actually* starting the request.
 func (b *backoff) Wait() time.Duration {
-	b.RLock()
-	defer b.RUnlock()
 	return b.current
 }
