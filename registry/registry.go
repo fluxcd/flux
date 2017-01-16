@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/docker/distribution/manifest/schema1"
 	"github.com/go-kit/kit/log"
 	dockerregistry "github.com/heroku/docker-registry-client/registry"
 	"github.com/jonboulle/clockwork"
@@ -58,6 +59,11 @@ func NewClient(c Credentials, l log.Logger, m Metrics) Client {
 		Logger:      l,
 		Metrics:     m,
 	}
+}
+
+type backend interface {
+	Tags(repository string) ([]string, error)
+	Manifest(repository, reference string) (*schema1.SignedManifest, error)
 }
 
 type roundtripperFunc func(*http.Request) (*http.Response, error)
