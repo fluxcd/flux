@@ -386,7 +386,7 @@
 			"importpath": "github.com/heroku/docker-registry-client",
 			"repository": "https://github.com/heroku/docker-registry-client",
 			"vcs": "git",
-			"revision": "62e650e32756ca5bef4193e2fd5e48b0a52073af",
+			"revision": "36bd5f538a6b9e70f2d863c9a8f6bf955a98eddc",
 			"branch": "master",
 			"notests": true
 		},
