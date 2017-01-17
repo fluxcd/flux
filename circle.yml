@@ -30,6 +30,7 @@ dependencies:
     - go get github.com/Masterminds/glide
     - go get github.com/FiloSottile/gvt
     - go get github.com/nats-io/gnatsd
+    - go get github.com/weaveworks/github-release
     - gvt restore
 
 test:
@@ -58,3 +59,8 @@ deployment:
           echo Pushing $IMAGE_TAG
           docker tag weaveworks/fluxsvc "$IMAGE_TAG"
           docker push "$IMAGE_TAG"
+  release:
+    tag: /v[0-9]+(\.[0-9]+)*/
+    commands:
+      - make release-bins
+      - bin/upload-binaries

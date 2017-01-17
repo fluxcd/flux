@@ -51,6 +51,10 @@ $ gvt fetch <dependency>
 recursively; so, it should be sufficient to just add packages you
 import.
 
+### Releasing
+
+See the [release docs](./docs/releasing.md) for instructions about how to release a version of flux.
+
 ### Contribution
 
 Flux follows a typical PR workflow.
