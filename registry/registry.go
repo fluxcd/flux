@@ -67,7 +67,7 @@ func NewClient(c Credentials, l log.Logger, m Metrics, mc *MemcacheClient, ce ti
 
 type backend interface {
 	Tags(repository string) ([]string, error)
-	Manifest(repository, reference string) (*schema1.SignedManifest, error)
+	Manifest(repository, reference string) ([]schema1.History, error)
 }
 
 type roundtripperFunc func(*http.Request) (*http.Response, error)
@@ -182,7 +182,7 @@ func (c *client) lookupImage(client backend, lookupName, imageName, tag string) 
 	img := flux.ImageDescription{ID: id}
 
 	start := time.Now()
-	meta, err := client.Manifest(lookupName, tag)
+	history, err := client.Manifest(lookupName, tag)
 	c.Metrics.RequestDuration.With(
 		LabelRepository, imageName,
 		LabelRequestKind, RequestKindMetadata,
@@ -200,7 +200,7 @@ func (c *client) lookupImage(client backend, lookupName, imageName, tag string) 
 		Created time.Time `json:"created"`
 	}
 	var topmost v1image
-	if err = json.Unmarshal([]byte(meta.History[0].V1Compatibility), &topmost); err == nil {
+	if err = json.Unmarshal([]byte(history[0].V1Compatibility), &topmost); err == nil {
 		if !topmost.Created.IsZero() {
 			img.CreatedAt = &topmost.Created
 		}

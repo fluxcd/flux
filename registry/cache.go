@@ -8,6 +8,8 @@ import (
 	"github.com/bradfitz/gomemcache/memcache"
 	"github.com/docker/distribution/manifest/schema1"
 	"github.com/go-kit/kit/log"
+	"github.com/pkg/errors"
+
 	"github.com/weaveworks/flux"
 )
 
@@ -30,7 +32,7 @@ func NewCache(b backend, creds Credentials, cache *MemcacheClient, expiry time.D
 	}
 }
 
-func (c *Cache) Manifest(repository, reference string) (*schema1.SignedManifest, error) {
+func (c *Cache) Manifest(repository, reference string) ([]schema1.History, error) {
 	// Don't cache latest. There are probably some other frequently changing tags
 	// we shouldn't cache here as well.
 	if reference == "latest" {
@@ -42,6 +44,7 @@ func (c *Cache) Manifest(repository, reference string) (*schema1.SignedManifest,
 
 	// Try the cache
 	key := strings.Join([]string{
+		"registryhistoryv1", // Just to version in case we need to change format later.
 		// Just the username here means we won't invalidate the cache when user
 		// changes password, but that should be rare. And, it also means we're not
 		// putting user passwords in plaintext into memcache.
@@ -50,36 +53,36 @@ func (c *Cache) Manifest(repository, reference string) (*schema1.SignedManifest,
 		reference,
 	}, "|")
 	cacheItem, err := c.Client.Get(key)
-	var m *schema1.SignedManifest
 	if err == nil {
 		// Return the cache item
-		if err := json.Unmarshal(cacheItem.Value, m); err == nil {
-			return m, nil
+		var history []schema1.History
+		if err := json.Unmarshal(cacheItem.Value, &history); err == nil {
+			return history, nil
 		} else {
 			c.logger.Log("err", err.Error)
 		}
 	} else if err != memcache.ErrCacheMiss {
-		// TODO: Log the error here.
+		c.logger.Log("err", errors.Wrap(err, "Fetching tag from memcache"))
 	}
 
 	// fall back to the backend
-	m, err = c.backend.Manifest(repository, reference)
+	history, err := c.backend.Manifest(repository, reference)
 	if err == nil {
 		// Store positive responses in the cache
-		val, err := json.Marshal(m)
+		val, err := json.Marshal(history)
 		if err != nil {
-			c.logger.Log("err", err.Error)
-			return m, nil
+			c.logger.Log("err", errors.Wrap(err, "serializing tag to store in memcache"))
+			return history, nil
 		}
 		if err := c.Client.Set(&memcache.Item{
 			Key:        key,
 			Value:      val,
 			Expiration: int32(c.expiry.Seconds()),
 		}); err != nil {
-			c.logger.Log("err", err.Error)
-			return m, nil
+			c.logger.Log("err", errors.Wrap(err, "storing tag in memcache"))
+			return history, nil
 		}
 	}
 
-	return m, nil
+	return history, nil
 }
