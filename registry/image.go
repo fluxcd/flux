@@ -41,6 +41,9 @@ func ParseImage(s string, createdAt *time.Time) (Image, error) {
 	img := &image{
 		createdAt: createdAt,
 	}
+	if s == "" {
+		return nil, fmt.Errorf(`expected image name as either <image>:<tag> or just <image>`)
+	}
 	parts := strings.Split(s, ":")
 	switch len(parts) {
 	case 0:
@@ -87,7 +90,7 @@ func (i *image) WithCreatedAt(c *time.Time) Image {
 }
 
 func (i *image) Components() (host, org, repo, tag string) {
-	return host, org, repo, tag
+	return i.host, i.org, i.repo, i.tag
 }
 func (i *image) Host() string {
 	return i.host
