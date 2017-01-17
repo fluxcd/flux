@@ -44,8 +44,9 @@ func ParseImage(s string, createdAt *time.Time) (Image, error) {
 	parts := strings.Split(s, ":")
 	switch len(parts) {
 	case 0:
-		break
+		return nil, fmt.Errorf(`expected image name as either <image>:<tag> or just <image>`)
 	case 1:
+		img.tag = "latest"
 		break
 	case 2:
 		img.tag = parts[1]
