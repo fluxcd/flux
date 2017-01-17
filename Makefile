@@ -20,6 +20,7 @@ all: $(GOPATH)/bin/fluxctl $(GOPATH)/bin/fluxd $(GOPATH)/bin/fluxsvc build/.flux
 
 .PHONY: release-bins
 release-bins:
+	rm -r ./vendor/github.com/heroku/docker-registry-client/vendor || true # Remove the heroku vendor folder. Won't build without this.
 	for arch in amd64; do \
 		for os in linux darwin; do \
 			CGO_ENABLED=0 GOOS=$$os GOARCH=$$arch go build -o "build/fluxctl_"$$os"_$$arch" $(LDFLAGS) -ldflags "-X main.version=$(shell ./docker/image-tag)" ./cmd/fluxctl/; \
@@ -51,6 +52,7 @@ build/fluxd: cmd/fluxd/*.go
 
 build/fluxsvc: $(FLUXSVC_DEPS)
 build/fluxsvc: cmd/fluxsvc/*.go
+	rm -r ./vendor/github.com/heroku/docker-registry-client/vendor || true # Remove the heroku vendor folder. Won't build without this.
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o $@ $(LDFLAGS) -ldflags "-X main.version=$(shell ./docker/image-tag)" cmd/fluxsvc/main.go
 
 build/kubectl: cache/kubectl-$(KUBECTL_VERSION) docker/kubectl.version
