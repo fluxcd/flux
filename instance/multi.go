@@ -2,6 +2,7 @@ package instance
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/metrics"
@@ -15,13 +16,14 @@ import (
 )
 
 type MultitenantInstancer struct {
-	DB               DB
-	Connecter        platform.Connecter
-	Logger           log.Logger
-	Histogram        metrics.Histogram
-	History          history.DB
-	RegistryMetrics  registry.Metrics
-	RegistryCacheIPs []string
+	DB                  DB
+	Connecter           platform.Connecter
+	Logger              log.Logger
+	Histogram           metrics.Histogram
+	History             history.DB
+	RegistryMetrics     registry.Metrics
+	MemcacheClient      *registry.MemcacheClient
+	RegistryCacheExpiry time.Duration
 }
 
 func (m *MultitenantInstancer) Get(instanceID flux.InstanceID) (*Instance, error) {
@@ -48,7 +50,8 @@ func (m *MultitenantInstancer) Get(instanceID flux.InstanceID) (*Instance, error
 		creds,
 		log.NewContext(instanceLogger).With("component", "registry"),
 		m.RegistryMetrics.WithInstanceID(instanceID),
-		m.RegistryCacheIPs,
+		m.MemcacheClient,
+		m.RegistryCacheExpiry,
 	)
 
 	repo := gitRepoFromSettings(c.Settings)

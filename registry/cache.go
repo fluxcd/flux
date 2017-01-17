@@ -8,33 +8,29 @@ import (
 	"github.com/bradfitz/gomemcache/memcache"
 	"github.com/docker/distribution/manifest/schema1"
 	"github.com/go-kit/kit/log"
-
 	"github.com/weaveworks/flux"
 )
 
-const (
-	// Memcache requires this to be < 1 month
-	cacheExpiration = 20 * time.Minute
-)
-
-type cache struct {
+type Cache struct {
 	backend
-	c      *memcache.Client
 	creds  Credentials
+	expiry time.Duration
+	Client *MemcacheClient
 	logger log.Logger
 }
 
 // TODO: Add timing metrics
-func NewCache(b backend, creds Credentials, cacheIPs []string, logger log.Logger) *cache {
-	return &cache{
+func NewCache(b backend, creds Credentials, cache *MemcacheClient, expiry time.Duration, logger log.Logger) *Cache {
+	return &Cache{
 		backend: b,
-		c:       memcache.New(cacheIPs...),
 		creds:   creds,
+		expiry:  expiry,
+		Client:  cache,
 		logger:  logger,
 	}
 }
 
-func (c *cache) Manifest(repository, reference string) (*schema1.SignedManifest, error) {
+func (c *Cache) Manifest(repository, reference string) (*schema1.SignedManifest, error) {
 	// Don't cache latest. There are probably some other frequently changing tags
 	// we shouldn't cache here as well.
 	if reference == "latest" {
@@ -53,7 +49,7 @@ func (c *cache) Manifest(repository, reference string) (*schema1.SignedManifest,
 		repository,
 		reference,
 	}, "|")
-	cacheItem, err := c.c.Get(key)
+	cacheItem, err := c.Client.Get(key)
 	var m *schema1.SignedManifest
 	if err == nil {
 		// Return the cache item
@@ -75,10 +71,10 @@ func (c *cache) Manifest(repository, reference string) (*schema1.SignedManifest,
 			c.logger.Log("err", err.Error)
 			return m, nil
 		}
-		if err := c.c.Set(&memcache.Item{
+		if err := c.Client.Set(&memcache.Item{
 			Key:        key,
 			Value:      val,
-			Expiration: int32(cacheExpiration.Seconds()),
+			Expiration: int32(c.expiry.Seconds()),
 		}); err != nil {
 			c.logger.Log("err", err.Error)
 			return m, nil

@@ -47,19 +47,21 @@ type Client interface {
 
 // client is a handle to a registry.
 type client struct {
-	Credentials Credentials
-	Logger      log.Logger
-	Metrics     Metrics
-	CacheIPs    []string
+	Credentials    Credentials
+	Logger         log.Logger
+	Metrics        Metrics
+	MemcacheClient *MemcacheClient
+	CacheExpiry    time.Duration
 }
 
 // NewClient creates a new registry client, to use when fetching repositories.
-func NewClient(c Credentials, l log.Logger, m Metrics, cacheIPs []string) Client {
+func NewClient(c Credentials, l log.Logger, m Metrics, mc *MemcacheClient, ce time.Duration) Client {
 	return &client{
-		Credentials: c,
-		Logger:      l,
-		Metrics:     m,
-		CacheIPs:    cacheIPs,
+		Credentials:    c,
+		Logger:         l,
+		Metrics:        m,
+		MemcacheClient: mc,
+		CacheExpiry:    ce,
 	}
 }
 
@@ -147,8 +149,8 @@ func (c *client) GetRepository(repository string) (_ []flux.ImageDescription, er
 			Logf: dockerregistry.Quiet,
 		},
 	}
-	if len(c.CacheIPs) > 0 {
-		client = NewCache(client, c.Credentials, c.CacheIPs, c.Logger)
+	if c.MemcacheClient != nil {
+		client = NewCache(client, c.Credentials, c.MemcacheClient, c.CacheExpiry, c.Logger)
 	} else {
 		c.Logger.Log("registry_cache", "disabled")
 	}
