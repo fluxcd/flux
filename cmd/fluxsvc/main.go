@@ -9,6 +9,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/bradfitz/gomemcache/memcache"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/metrics"
 	"github.com/go-kit/kit/metrics/prometheus"
@@ -228,16 +229,17 @@ func main() {
 		instanceDB = instance.InstrumentedDB(db, instanceMetrics)
 	}
 
-	var memcacheClient *registry.MemcacheClient
+	var memcacheClient *memcache.Client
 	if *memcachedHostname != "" {
-		memcacheClient = registry.NewMemcacheClient(registry.MemcacheConfig{
+		mc := registry.NewMemcacheClient(registry.MemcacheConfig{
 			Host:           *memcachedHostname,
 			Service:        *memcachedService,
 			Timeout:        *memcachedTimeout,
 			UpdateInterval: 1 * time.Minute,
 			Logger:         log.NewContext(logger).With("component", "memcached"),
 		})
-		defer memcacheClient.Stop()
+		memcacheClient = mc.Client
+		defer mc.Stop()
 	}
 
 	var instancer instance.Instancer

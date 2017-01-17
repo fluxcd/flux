@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/bradfitz/gomemcache/memcache"
 	"github.com/docker/distribution/manifest/schema1"
 	"github.com/go-kit/kit/log"
 	dockerregistry "github.com/heroku/docker-registry-client/registry"
@@ -50,12 +51,12 @@ type client struct {
 	Credentials    Credentials
 	Logger         log.Logger
 	Metrics        Metrics
-	MemcacheClient *MemcacheClient
+	MemcacheClient *memcache.Client
 	CacheExpiry    time.Duration
 }
 
 // NewClient creates a new registry client, to use when fetching repositories.
-func NewClient(c Credentials, l log.Logger, m Metrics, mc *MemcacheClient, ce time.Duration) Client {
+func NewClient(c Credentials, l log.Logger, m Metrics, mc *memcache.Client, ce time.Duration) Client {
 	return &client{
 		Credentials:    c,
 		Logger:         l,

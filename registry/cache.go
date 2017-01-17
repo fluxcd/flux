@@ -17,12 +17,12 @@ type Cache struct {
 	backend
 	creds  Credentials
 	expiry time.Duration
-	Client *MemcacheClient
+	Client *memcache.Client
 	logger log.Logger
 }
 
 // TODO: Add timing metrics
-func NewCache(b backend, creds Credentials, cache *MemcacheClient, expiry time.Duration, logger log.Logger) *Cache {
+func NewCache(b backend, creds Credentials, cache *memcache.Client, expiry time.Duration, logger log.Logger) *Cache {
 	return &Cache{
 		backend: b,
 		creds:   creds,
