@@ -59,6 +59,15 @@
 			"notests": true
 		},
 		{
+			"importpath": "github.com/bradfitz/gomemcache/memcache",
+			"repository": "https://github.com/bradfitz/gomemcache",
+			"vcs": "git",
+			"revision": "2fafb84a66c4911e11a8f50955b01e74fe3ab9c5",
+			"branch": "master",
+			"path": "/memcache",
+			"notests": true
+		},
+		{
 			"importpath": "github.com/circonus-labs/circonus-gometrics",
 			"repository": "https://github.com/circonus-labs/circonus-gometrics",
 			"vcs": "git",
