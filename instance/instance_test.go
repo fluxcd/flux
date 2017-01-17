@@ -10,7 +10,7 @@ import (
 var (
 	fixedTime    = time.Unix(1000000000, 0)
 	exampleImage = "owner/repo:tag"
-	testRegistry = registry.NewMockRegistry([]flux.ImageDescription{
+	testRegistry = registry.NewMockClientAdapter([]flux.ImageDescription{
 		{
 			ID:        flux.ParseImageID(exampleImage),
 			CreatedAt: &fixedTime,

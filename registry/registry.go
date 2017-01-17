@@ -77,18 +77,14 @@ func NewRegistry(c RemoteClientFactory, l log.Logger, m Metrics) Registry {
 //   quay.io/foo/helloworld -> quay.io/foo/helloworld
 //
 func (c *registry) GetRepository(img Image) (_ []Image, err error) {
-	var remote Remote
-	{
-		remote, err = c.factory.Create(img)
-		remote = NewRemoteMonitoringMiddleware(c.Metrics)(remote)
-	}
+	r, err := c.newRemote(img)
 	if err != nil {
 		return
 	}
 
-	tags, err := remote.Tags(img)
+	tags, err := r.Tags(img)
 	if err != nil {
-		remote.Cancel()
+		r.Cancel()
 		return nil, err
 	}
 
@@ -97,21 +93,25 @@ func (c *registry) GetRepository(img Image) (_ []Image, err error) {
 	// `library/nats`. We need that to fetch the tags etc. However, we
 	// want the results to use the *actual* name of the images to be
 	// as supplied, e.g., `nats`.
-	return c.tagsToRepository(remote, img, tags)
+	return c.tagsToRepository(r, img, tags)
 }
 
 // Get a single image from the registry if it exists
 func (c *registry) GetImage(img Image) (_ Image, err error) {
-	var remote Remote
-	{
-		remote, err = c.factory.Create(img)
-		remote = NewRemoteMonitoringMiddleware(c.Metrics)(remote)
-	}
+	r, err := c.newRemote(img)
 	if err != nil {
 		return
 	}
+	return r.Manifest(img)
+}
 
-	return remote.Manifest(img)
+func (c *registry) newRemote(img Image) (remote Remote, err error) {
+	remote, err = c.factory.Create(img)
+	if err != nil {
+		return
+	}
+	remote = NewRemoteMonitoringMiddleware(c.Metrics)(remote)
+	return
 }
 
 func (c *registry) tagsToRepository(remote Remote, img Image, tags []string) ([]Image, error) {
