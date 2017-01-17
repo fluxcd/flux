@@ -14,6 +14,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/bradfitz/gomemcache/memcache"
+	"github.com/docker/distribution/manifest/schema1"
 	"github.com/go-kit/kit/log"
 	dockerregistry "github.com/heroku/docker-registry-client/registry"
 	"github.com/jonboulle/clockwork"
@@ -46,18 +48,27 @@ type Client interface {
 
 // client is a handle to a registry.
 type client struct {
-	Credentials Credentials
-	Logger      log.Logger
-	Metrics     Metrics
+	Credentials    Credentials
+	Logger         log.Logger
+	Metrics        Metrics
+	MemcacheClient *memcache.Client
+	CacheExpiry    time.Duration
 }
 
 // NewClient creates a new registry client, to use when fetching repositories.
-func NewClient(c Credentials, l log.Logger, m Metrics) Client {
+func NewClient(c Credentials, l log.Logger, m Metrics, mc *memcache.Client, ce time.Duration) Client {
 	return &client{
-		Credentials: c,
-		Logger:      l,
-		Metrics:     m,
+		Credentials:    c,
+		Logger:         l,
+		Metrics:        m,
+		MemcacheClient: mc,
+		CacheExpiry:    ce,
 	}
+}
+
+type backend interface {
+	Tags(repository string) ([]string, error)
+	Manifest(repository, reference string) ([]schema1.History, error)
 }
 
 type roundtripperFunc func(*http.Request) (*http.Response, error)
@@ -126,16 +137,23 @@ func (c *client) GetRepository(repository string) (_ []flux.ImageDescription, er
 	// Add the backoff mechanism so we don't DOS registries
 	transport = BackoffRoundTripper(transport, initialBackoff, maxBackoff, clockwork.NewRealClock())
 
-	client := &dockerregistry.Registry{
-		URL: httphost,
-		Client: &http.Client{
-			Transport: roundtripperFunc(func(r *http.Request) (*http.Response, error) {
-				return transport.RoundTrip(r.WithContext(ctx))
-			}),
-			Jar:     jar,
-			Timeout: 10 * time.Second,
+	var client backend = herokuWrapper{
+		&dockerregistry.Registry{
+			URL: httphost,
+			Client: &http.Client{
+				Transport: roundtripperFunc(func(r *http.Request) (*http.Response, error) {
+					return transport.RoundTrip(r.WithContext(ctx))
+				}),
+				Jar:     jar,
+				Timeout: 10 * time.Second,
+			},
+			Logf: dockerregistry.Quiet,
 		},
-		Logf: dockerregistry.Quiet,
+	}
+	if c.MemcacheClient != nil {
+		client = NewCache(client, c.Credentials, c.MemcacheClient, c.CacheExpiry, c.Logger)
+	} else {
+		c.Logger.Log("registry_cache", "disabled")
 	}
 
 	start := time.Now()
@@ -158,14 +176,14 @@ func (c *client) GetRepository(repository string) (_ []flux.ImageDescription, er
 	return c.tagsToRepository(cancel, client, hostlessImageName, repository, tags)
 }
 
-func (c *client) lookupImage(client *dockerregistry.Registry, lookupName, imageName, tag string) (flux.ImageDescription, error) {
+func (c *client) lookupImage(client backend, lookupName, imageName, tag string) (flux.ImageDescription, error) {
 	// Minor cheat: this will give the correct result even if the
 	// imageName includes a host
 	id := flux.MakeImageID("", imageName, tag)
 	img := flux.ImageDescription{ID: id}
 
 	start := time.Now()
-	meta, err := client.Manifest(lookupName, tag)
+	history, err := client.Manifest(lookupName, tag)
 	c.Metrics.RequestDuration.With(
 		LabelRepository, imageName,
 		LabelRequestKind, RequestKindMetadata,
@@ -183,7 +201,7 @@ func (c *client) lookupImage(client *dockerregistry.Registry, lookupName, imageN
 		Created time.Time `json:"created"`
 	}
 	var topmost v1image
-	if err = json.Unmarshal([]byte(meta.History[0].V1Compatibility), &topmost); err == nil {
+	if err = json.Unmarshal([]byte(history[0].V1Compatibility), &topmost); err == nil {
 		if !topmost.Created.IsZero() {
 			img.CreatedAt = &topmost.Created
 		}
@@ -192,7 +210,7 @@ func (c *client) lookupImage(client *dockerregistry.Registry, lookupName, imageN
 	return img, err
 }
 
-func (c *client) tagsToRepository(cancel func(), client *dockerregistry.Registry, lookupName, imageName string, tags []string) ([]flux.ImageDescription, error) {
+func (c *client) tagsToRepository(cancel func(), client backend, lookupName, imageName string, tags []string) ([]flux.ImageDescription, error) {
 	// one way or another, we'll be finishing all requests
 	defer cancel()
 

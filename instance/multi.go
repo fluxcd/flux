@@ -2,7 +2,9 @@ package instance
 
 import (
 	"net/http"
+	"time"
 
+	"github.com/bradfitz/gomemcache/memcache"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/metrics"
 	"github.com/pkg/errors"
@@ -15,12 +17,14 @@ import (
 )
 
 type MultitenantInstancer struct {
-	DB              DB
-	Connecter       platform.Connecter
-	Logger          log.Logger
-	Histogram       metrics.Histogram
-	History         history.DB
-	RegistryMetrics registry.Metrics
+	DB                  DB
+	Connecter           platform.Connecter
+	Logger              log.Logger
+	Histogram           metrics.Histogram
+	History             history.DB
+	RegistryMetrics     registry.Metrics
+	MemcacheClient      *memcache.Client
+	RegistryCacheExpiry time.Duration
 }
 
 func (m *MultitenantInstancer) Get(instanceID flux.InstanceID) (*Instance, error) {
@@ -47,6 +51,8 @@ func (m *MultitenantInstancer) Get(instanceID flux.InstanceID) (*Instance, error
 		creds,
 		log.NewContext(instanceLogger).With("component", "registry"),
 		m.RegistryMetrics.WithInstanceID(instanceID),
+		m.MemcacheClient,
+		m.RegistryCacheExpiry,
 	)
 
 	repo := gitRepoFromSettings(c.Settings)

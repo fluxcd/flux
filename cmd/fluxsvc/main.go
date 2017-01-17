@@ -9,6 +9,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/bradfitz/gomemcache/memcache"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/metrics"
 	"github.com/go-kit/kit/metrics/prometheus"
@@ -52,6 +53,10 @@ func main() {
 		databaseSource        = fs.String("database-source", "file://fluxy.db", `Database source name; includes the DB driver as the scheme. The default is a temporary, file-based DB`)
 		databaseMigrationsDir = fs.String("database-migrations", "./db/migrations", "Path to database migration scripts, which are in subdirectories named for each driver")
 		natsURL               = fs.String("nats-url", "", `URL on which to connect to NATS, or empty to use the standalone message bus (e.g., "nats://user:pass@nats:4222")`)
+		memcachedHostname     = fs.String("memcached-hostname", "", "Hostname for memcached service to use when caching chunks. If empty, no memcached will be used.")
+		memcachedTimeout      = fs.Duration("memcached-timeout", 100*time.Millisecond, "Maximum time to wait before giving up on memcached requests.")
+		memcachedService      = fs.String("memcached-service", "memcached", "SRV service used to discover memcache servers.")
+		registryCacheExpiry   = fs.Duration("registry-cache-expiry", 20*time.Minute, "Duration to keep cached registry tag info. Must be < 1 month.")
 		versionFlag           = fs.Bool("version", false, "Get version number")
 	)
 	fs.Parse(os.Args)
@@ -224,16 +229,31 @@ func main() {
 		instanceDB = instance.InstrumentedDB(db, instanceMetrics)
 	}
 
+	var memcacheClient *memcache.Client
+	if *memcachedHostname != "" {
+		mc := registry.NewMemcacheClient(registry.MemcacheConfig{
+			Host:           *memcachedHostname,
+			Service:        *memcachedService,
+			Timeout:        *memcachedTimeout,
+			UpdateInterval: 1 * time.Minute,
+			Logger:         log.NewContext(logger).With("component", "memcached"),
+		})
+		memcacheClient = mc.Client
+		defer mc.Stop()
+	}
+
 	var instancer instance.Instancer
 	{
 		// Instancer, for the instancing of operations
 		instancer = &instance.MultitenantInstancer{
-			DB:              instanceDB,
-			Connecter:       messageBus,
-			Logger:          logger,
-			Histogram:       helperDuration,
-			History:         historyDB,
-			RegistryMetrics: registryMetrics,
+			DB:                  instanceDB,
+			Connecter:           messageBus,
+			Logger:              logger,
+			Histogram:           helperDuration,
+			History:             historyDB,
+			RegistryMetrics:     registryMetrics,
+			MemcacheClient:      memcacheClient,
+			RegistryCacheExpiry: *registryCacheExpiry,
 		}
 	}
 
