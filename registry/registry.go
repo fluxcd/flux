@@ -50,14 +50,16 @@ type client struct {
 	Credentials Credentials
 	Logger      log.Logger
 	Metrics     Metrics
+	CacheIPs    []string
 }
 
 // NewClient creates a new registry client, to use when fetching repositories.
-func NewClient(c Credentials, l log.Logger, m Metrics) Client {
+func NewClient(c Credentials, l log.Logger, m Metrics, cacheIPs []string) Client {
 	return &client{
 		Credentials: c,
 		Logger:      l,
 		Metrics:     m,
+		CacheIPs:    cacheIPs,
 	}
 }
 
@@ -132,16 +134,23 @@ func (c *client) GetRepository(repository string) (_ []flux.ImageDescription, er
 	// Add the backoff mechanism so we don't DOS registries
 	transport = BackoffRoundTripper(transport, initialBackoff, maxBackoff, clockwork.NewRealClock())
 
-	client := &dockerregistry.Registry{
-		URL: httphost,
-		Client: &http.Client{
-			Transport: roundtripperFunc(func(r *http.Request) (*http.Response, error) {
-				return transport.RoundTrip(r.WithContext(ctx))
-			}),
-			Jar:     jar,
-			Timeout: 10 * time.Second,
+	var client backend = herokuWrapper{
+		&dockerregistry.Registry{
+			URL: httphost,
+			Client: &http.Client{
+				Transport: roundtripperFunc(func(r *http.Request) (*http.Response, error) {
+					return transport.RoundTrip(r.WithContext(ctx))
+				}),
+				Jar:     jar,
+				Timeout: 10 * time.Second,
+			},
+			Logf: dockerregistry.Quiet,
 		},
-		Logf: dockerregistry.Quiet,
+	}
+	if len(c.CacheIPs) > 0 {
+		client = NewCache(client, c.Credentials, c.CacheIPs, c.Logger)
+	} else {
+		c.Logger.Log("registry_cache", "disabled")
 	}
 
 	start := time.Now()
@@ -164,7 +173,7 @@ func (c *client) GetRepository(repository string) (_ []flux.ImageDescription, er
 	return c.tagsToRepository(cancel, client, hostlessImageName, repository, tags)
 }
 
-func (c *client) lookupImage(client *dockerregistry.Registry, lookupName, imageName, tag string) (flux.ImageDescription, error) {
+func (c *client) lookupImage(client backend, lookupName, imageName, tag string) (flux.ImageDescription, error) {
 	// Minor cheat: this will give the correct result even if the
 	// imageName includes a host
 	id := flux.MakeImageID("", imageName, tag)
@@ -198,7 +207,7 @@ func (c *client) lookupImage(client *dockerregistry.Registry, lookupName, imageN
 	return img, err
 }
 
-func (c *client) tagsToRepository(cancel func(), client *dockerregistry.Registry, lookupName, imageName string, tags []string) ([]flux.ImageDescription, error) {
+func (c *client) tagsToRepository(cancel func(), client backend, lookupName, imageName string, tags []string) ([]flux.ImageDescription, error) {
 	// one way or another, we'll be finishing all requests
 	defer cancel()
 

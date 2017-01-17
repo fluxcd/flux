@@ -15,12 +15,13 @@ import (
 )
 
 type MultitenantInstancer struct {
-	DB              DB
-	Connecter       platform.Connecter
-	Logger          log.Logger
-	Histogram       metrics.Histogram
-	History         history.DB
-	RegistryMetrics registry.Metrics
+	DB               DB
+	Connecter        platform.Connecter
+	Logger           log.Logger
+	Histogram        metrics.Histogram
+	History          history.DB
+	RegistryMetrics  registry.Metrics
+	RegistryCacheIPs []string
 }
 
 func (m *MultitenantInstancer) Get(instanceID flux.InstanceID) (*Instance, error) {
@@ -47,6 +48,7 @@ func (m *MultitenantInstancer) Get(instanceID flux.InstanceID) (*Instance, error
 		creds,
 		log.NewContext(instanceLogger).With("component", "registry"),
 		m.RegistryMetrics.WithInstanceID(instanceID),
+		m.RegistryCacheIPs,
 	)
 
 	repo := gitRepoFromSettings(c.Settings)
