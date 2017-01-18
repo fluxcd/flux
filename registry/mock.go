@@ -25,12 +25,12 @@ func NewMockRemote(img Image, tags []string, err error) Remote {
 	}
 }
 
-func (r *mockRemote) Tags(img Image) ([]string, error) {
+func (r *mockRemote) Tags(repository Repository) ([]string, error) {
 	return r.tags, r.err
 }
 
-func (r *mockRemote) Manifest(img Image) (Image, error) {
-	if img.Tag == "error" {
+func (r *mockRemote) Manifest(repository Repository, tag string) (Image, error) {
+	if tag == "error" {
 		return Image{}, errors.New("Mock is set to error when tag == error")
 	}
 	return r.img, r.err
@@ -73,7 +73,7 @@ func NewMockRemoteFactory(r Remote, err error) RemoteClientFactory {
 	}
 }
 
-func (m *mockRemoteFactory) Create(id Image) (Remote, error) {
+func (m *mockRemoteFactory) CreateFor(repository string) (Remote, error) {
 	return m.r, m.err
 }
 
@@ -89,14 +89,14 @@ func NewMockRegistry(images []Image, err error) Registry {
 	}
 }
 
-func (m *mockRegistry) GetRepository(repository Image) ([]Image, error) {
+func (m *mockRegistry) GetRepository(repository Repository) ([]Image, error) {
 	return m.imgs, m.err
 }
 
-func (m *mockRegistry) GetImage(repository Image) (Image, error) {
+func (m *mockRegistry) GetImage(repository Repository, tag string) (Image, error) {
 	if len(m.imgs) > 0 {
 		for _, i := range m.imgs {
-			if i.String() == repository.String() {
+			if i.String() == repository.ToImage(tag).String() {
 				return i, nil
 			}
 		}

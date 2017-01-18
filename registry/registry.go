@@ -13,8 +13,8 @@ const (
 
 // New registry interface
 type Registry interface {
-	GetRepository(repository Image) ([]Image, error)
-	GetImage(repository Image) (Image, error)
+	GetRepository(repository Repository) ([]Image, error)
+	GetImage(repository Repository, tag string) (Image, error)
 }
 
 // registry is a handle to a registry.
@@ -41,7 +41,7 @@ func NewRegistry(c RemoteClientFactory, l log.Logger, m Metrics) Registry {
 //   foo/helloworld         -> index.docker.io/foo/helloworld
 //   quay.io/foo/helloworld -> quay.io/foo/helloworld
 //
-func (c *registry) GetRepository(img Image) (_ []Image, err error) {
+func (c *registry) GetRepository(img Repository) (_ []Image, err error) {
 	r, err := c.newRemote(img)
 	if err != nil {
 		return
@@ -62,16 +62,16 @@ func (c *registry) GetRepository(img Image) (_ []Image, err error) {
 }
 
 // Get a single Image from the registry if it exists
-func (c *registry) GetImage(img Image) (_ Image, err error) {
+func (c *registry) GetImage(img Repository, tag string) (_ Image, err error) {
 	r, err := c.newRemote(img)
 	if err != nil {
 		return
 	}
-	return r.Manifest(img)
+	return r.Manifest(img, tag)
 }
 
-func (c *registry) newRemote(img Image) (remote Remote, err error) {
-	remote, err = c.factory.Create(img)
+func (c *registry) newRemote(img Repository) (remote Remote, err error) {
+	remote, err = c.factory.CreateFor(img.Host())
 	if err != nil {
 		return
 	}
@@ -79,7 +79,7 @@ func (c *registry) newRemote(img Image) (remote Remote, err error) {
 	return
 }
 
-func (c *registry) tagsToRepository(remote Remote, img Image, tags []string) ([]Image, error) {
+func (c *registry) tagsToRepository(remote Remote, repository Repository, tags []string) ([]Image, error) {
 	// one way or another, we'll be finishing all requests
 	defer remote.Cancel()
 
@@ -92,9 +92,7 @@ func (c *registry) tagsToRepository(remote Remote, img Image, tags []string) ([]
 
 	for _, tag := range tags {
 		go func(t string) {
-			imgCopy := img
-			imgCopy.Tag = t
-			i, err := remote.Manifest(imgCopy)
+			i, err := remote.Manifest(repository, t)
 			if err != nil {
 				c.Logger.Log("registry-metadata-err", err)
 			}

@@ -13,14 +13,15 @@ func TestRemoteFactory_CreateForDockerHub(t *testing.T) {
 	// No credentials required for public Image
 	fact := NewRemoteClientFactory(Credentials{})
 	img, err := ParseImage("alpine:latest", nil)
+	testRepository = RepositoryFromImage(img)
 	if err != nil {
 		t.Fatal(err)
 	}
-	r, err := fact.Create(img)
+	r, err := fact.CreateFor(testRepository.Host())
 	if err != nil {
 		t.Fatal(err)
 	}
-	res, err := r.Manifest(img)
+	res, err := r.Manifest(testRepository, img.Tag)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -36,11 +37,12 @@ func TestRemoteFactory_InvalidHost(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	r, err := fact.Create(img)
+	testRepository = RepositoryFromImage(img)
+	r, err := fact.CreateFor(testRepository.Host())
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = r.Manifest(img)
+	_, err = r.Manifest(testRepository, img.Tag)
 	if err == nil {
 		t.Fatal("Expected error due to invalid host but got none.")
 	}

@@ -26,7 +26,7 @@ type Credentials struct {
 }
 
 type RemoteClientFactory interface {
-	Create(id Image) (Remote, error)
+	CreateFor(host string) (Remote, error)
 }
 
 func NewRemoteClientFactory(c Credentials) RemoteClientFactory {
@@ -39,8 +39,8 @@ type remoteClientFactory struct {
 	creds Credentials
 }
 
-func (f *remoteClientFactory) Create(id Image) (_ Remote, err error) {
-	client, cancel, err := newRegistryClient(id.Host, f.creds)
+func (f *remoteClientFactory) CreateFor(host string) (_ Remote, err error) {
+	client, cancel, err := newRegistryClient(host, f.creds)
 	if err != nil {
 		return
 	}

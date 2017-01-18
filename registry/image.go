@@ -67,7 +67,7 @@ func ParseImage(s string, createdAt *time.Time) (img Image, err error) {
 }
 
 // Fully qualified name
-func (i *Image) String() string {
+func (i Image) String() string {
 	if i.Image == "" {
 		return "" // Doesn't make sense to return anything if it doesn't even have an image
 	}
@@ -85,10 +85,10 @@ func (i *Image) String() string {
 	return fmt.Sprintf("%s%s%s%s", ho, na, i.Image, ta)
 }
 
-func (i *Image) HostNamespaceImage() string {
+func (i Image) HostNamespaceImage() string {
 	return fmt.Sprintf("%s/%s/%s", i.Host, i.Namespace, i.Image)
 }
 
-func (i *Image) NamespaceImage() string {
+func (i Image) NamespaceImage() string {
 	return fmt.Sprintf("%s/%s", i.Namespace, i.Image)
 }

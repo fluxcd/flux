@@ -13,7 +13,8 @@ const testImageStr = "index.docker.io/test/Image:" + testTagStr
 const constTime = "2017-01-13T16:22:58.009923189Z"
 
 var (
-	img, _ = ParseImage(testImageStr, nil)
+	img, _         = ParseImage(testImageStr, nil)
+	testRepository = RepositoryFromImage(img)
 )
 
 // Need to create a dummy manifest here
@@ -30,7 +31,8 @@ func TestRemoteClient_ParseManifest(t *testing.T) {
 	c := remote{
 		client: NewMockDockerClient(man, nil, nil),
 	}
-	desc, err := c.Manifest(img)
+	testRepository = RepositoryFromImage(img)
+	desc, err := c.Manifest(testRepository, img.Tag)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
@@ -49,7 +51,7 @@ func TestRemoteClient_GetTags(t *testing.T) {
 			testTagStr,
 		}, nil),
 	}
-	tags, err := c.Tags(img)
+	tags, err := c.Tags(testRepository)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
@@ -75,11 +77,11 @@ func TestRemoteClient_ErrorsForCoverage(t *testing.T) {
 			testTagStr,
 		}, errors.New("dummy")),
 	}
-	_, err := c.Tags(img)
+	_, err := c.Tags(testRepository)
 	if err == nil {
 		t.Fatal("Expected error")
 	}
-	_, err = c.Manifest(img)
+	_, err = c.Manifest(testRepository, img.Tag)
 	if err == nil {
 		t.Fatal("Expected error")
 	}

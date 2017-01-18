@@ -3,14 +3,15 @@ package registry
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	manifest "github.com/docker/distribution/manifest/schema1"
 	dockerregistry "github.com/heroku/docker-registry-client/registry"
 	"time"
 )
 
 type Remote interface {
-	Tags(img Image) ([]string, error)
-	Manifest(img Image) (Image, error)
+	Tags(repository Repository) ([]string, error)
+	Manifest(repository Repository, tag string) (Image, error)
 	Cancel()
 }
 
@@ -26,15 +27,20 @@ func newRemote(client *dockerregistry.Registry, cancel context.CancelFunc) Remot
 	}
 }
 
-func (rc *remote) Tags(id Image) (_ []string, err error) {
-	return rc.client.Tags(id.NamespaceImage())
+func (rc *remote) Tags(repository Repository) (_ []string, err error) {
+	return rc.client.Tags(repository.NamespaceImage())
 }
 
-func (rc *remote) Manifest(img Image) (Image, error) {
-	meta, err := rc.client.Manifest(img.NamespaceImage(), img.Tag)
+func (rc *remote) Manifest(repository Repository, tag string) (img Image, err error) {
+	img, err = ParseImage(fmt.Sprintf("%s:%s", repository.String(), tag), nil)
 	if err != nil {
-		return img, err
+		return
 	}
+	meta, err := rc.client.Manifest(repository.NamespaceImage(), tag)
+	if err != nil {
+		return
+	}
+
 	// the manifest includes some v1-backwards-compatibility data,
 	// oddly called "History", which are layer metadata as JSON
 	// strings; these appear most-recent (i.e., topmost layer) first,
@@ -50,7 +56,7 @@ func (rc *remote) Manifest(img Image) (Image, error) {
 		}
 	}
 
-	return img, err
+	return
 }
 
 func (rc *remote) Cancel() {

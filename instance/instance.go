@@ -106,11 +106,11 @@ func (h *Instance) CollectAvailableImages(services []platform.Service) (ImageMap
 		}
 	}
 	for repo := range images {
-		img, err := registry.ParseImage(repo, nil)
+		r, err := registry.ParseRepository(repo)
 		if err != nil {
 			return nil, errors.Wrapf(err, "parsing image %s", repo)
 		}
-		imageRepo, err := h.registry.GetRepository(img)
+		imageRepo, err := h.registry.GetRepository(r)
 		if err != nil {
 			return nil, errors.Wrapf(err, "fetching image metadata for %s", repo)
 		}
@@ -128,11 +128,11 @@ func (h *Instance) CollectAvailableImages(services []platform.Service) (ImageMap
 
 // GetRepository exposes this instance's registry's GetRepository method directly.
 func (h *Instance) GetRepository(repo string) (res []flux.ImageDescription, err error) {
-	img, err := registry.ParseImage(repo, nil)
+	r, err := registry.ParseRepository(repo)
 	if err != nil {
 		return
 	}
-	images, err := h.registry.GetRepository(img)
+	images, err := h.registry.GetRepository(r)
 	if err != nil {
 		return
 	}
@@ -146,7 +146,7 @@ func (h *Instance) GetRepository(repo string) (res []flux.ImageDescription, err 
 	return
 }
 
-// Create an image map containing exact images.
+// CreateFor an image map containing exact images.
 func (h *Instance) ExactImages(images []flux.ImageID) (ImageMap, error) {
 	m := ImageMap{}
 	for _, id := range images {
@@ -171,7 +171,7 @@ func (h *Instance) imageExists(image flux.ImageID) (bool, error) {
 		return false, err
 	}
 	// Get a specific image.
-	_, err = h.registry.GetImage(img)
+	_, err = h.registry.GetImage(registry.RepositoryFromImage(img), img.Tag)
 	if err != nil {
 		return false, nil
 	}
