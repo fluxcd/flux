@@ -5,15 +5,11 @@ package registry
 
 import (
 	"context"
-	"encoding/base64"
-	"fmt"
 	dockerregistry "github.com/heroku/docker-registry-client/registry"
 	"github.com/jonboulle/clockwork"
-	"github.com/weaveworks/flux"
 	"golang.org/x/net/publicsuffix"
 	"net/http"
 	"net/http/cookiejar"
-	"strings"
 )
 
 type creds struct {
@@ -84,48 +80,4 @@ func newRegistryClient(host string, creds Credentials) (client *dockerregistry.R
 		Logf: dockerregistry.Quiet,
 	}
 	return
-}
-
-// --- Credentials
-
-func CredentialsFromConfig(config flux.UnsafeInstanceConfig) (Credentials, error) {
-	m := map[string]creds{}
-	for host, entry := range config.Registry.Auths {
-		decodedAuth, err := base64.StdEncoding.DecodeString(entry.Auth)
-		if err != nil {
-			return Credentials{}, err
-		}
-		authParts := strings.SplitN(string(decodedAuth), ":", 2)
-		m[host] = creds{
-			username: authParts[0],
-			password: authParts[1],
-		}
-	}
-	return Credentials{m: m}, nil
-}
-
-// For yields an authenticator for a specific host.
-func (cs Credentials) credsFor(host string) creds {
-	if cred, found := cs.m[host]; found {
-		return cred
-	}
-	if cred, found := cs.m[fmt.Sprintf("https://%s/v1/", host)]; found {
-		return cred
-	}
-	return creds{}
-}
-
-// Hosts returns all of the hosts available in these credentials.
-func (cs Credentials) Hosts() []string {
-	hosts := []string{}
-	for host := range cs.m {
-		hosts = append(hosts, host)
-	}
-	return hosts
-}
-
-type roundtripperFunc func(*http.Request) (*http.Response, error)
-
-func (f roundtripperFunc) RoundTrip(r *http.Request) (*http.Response, error) {
-	return f(r)
 }
