@@ -41,8 +41,8 @@ func (r *mockRemote) Tags(img Image) ([]string, error) {
 }
 
 func (r *mockRemote) Manifest(img Image) (Image, error) {
-	if img.Tag() == "error" {
-		return nil, errors.New("Mock is set to error when tag == error")
+	if img.Tag == "error" {
+		return Image{}, errors.New("Mock is set to error when tag == error")
 	}
 	return r.img, r.err
 }

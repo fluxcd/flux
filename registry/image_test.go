@@ -20,8 +20,8 @@ func TestImage_ParseImage(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed parsing %q, expected %q", x.test, x.expected)
 		}
-		if i.FQN() != x.expected {
-			t.Fatalf("%q does not match expected %q", i.FQN(), x.expected)
+		if i.String() != x.expected {
+			t.Fatalf("%q does not match expected %q", i.String(), x.expected)
 		}
 	}
 }
@@ -44,28 +44,23 @@ func TestImage_ParseImageErrorCases(t *testing.T) {
 
 func TestImage_TestComponents(t *testing.T) {
 	host := "quay.io"
-	org := "org"
-	repo := "myrepo"
+	namespace := "namespace"
+	image := "myrepo"
 	tag := "mytag"
-	fqn := fmt.Sprintf("%v/%v/%v:%v", host, org, repo, tag)
+	fqn := fmt.Sprintf("%v/%v/%v:%v", host, namespace, image, tag)
 	i, err := ParseImage(fqn, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	h, o, r, ta := i.Components()
 	for _, x := range []struct {
 		test     string
 		expected string
 	}{
-		{i.Host(), host},
-		{i.Org(), org},
-		{i.Repo(), repo},
-		{i.Tag(), tag},
-		{i.FQN(), fqn},
-		{h, host},
-		{o, org},
-		{r, repo},
-		{ta, tag},
+		{i.Host, host},
+		{i.Namespace, namespace},
+		{i.Image, image},
+		{i.Tag, tag},
+		{i.String(), fqn},
 	} {
 		if x.test != x.expected {
 			t.Fatalf("Expected %v, but got %v", x.expected, x.test)

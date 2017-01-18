@@ -9,7 +9,7 @@ import (
 )
 
 const testTagStr = "tag"
-const testImageStr = "index.docker.io/test/image:" + testTagStr
+const testImageStr = "index.docker.io/test/Image:" + testTagStr
 const constTime = "2017-01-13T16:22:58.009923189Z"
 
 var (
@@ -34,11 +34,11 @@ func TestRemoteClient_ParseManifest(t *testing.T) {
 	if err != nil {
 		t.Fatal(err.Error())
 	}
-	if string(desc.FQN()) != testImageStr {
-		t.Fatalf("Expecting %q but got %q", testImageStr, string(desc.FQN()))
+	if string(desc.String()) != testImageStr {
+		t.Fatalf("Expecting %q but got %q", testImageStr, string(desc.String()))
 	}
-	if desc.CreatedAt().Format(time.RFC3339Nano) != constTime {
-		t.Fatalf("Expecting %q but got %q", constTime, desc.CreatedAt().Format(time.RFC3339Nano))
+	if desc.CreatedAt.Format(time.RFC3339Nano) != constTime {
+		t.Fatalf("Expecting %q but got %q", constTime, desc.CreatedAt.Format(time.RFC3339Nano))
 	}
 }
 

@@ -7,10 +7,10 @@ import (
 	"testing"
 )
 
-// Note: This actually goes off to docker hub to find the image.
+// Note: This actually goes off to docker hub to find the Image.
 // It will fail if there is not internet connection
 func TestRemoteFactory_CreateForDockerHub(t *testing.T) {
-	// No credentials required for public image
+	// No credentials required for public Image
 	fact := NewRemoteClientFactory(Credentials{})
 	img, err := ParseImage("alpine:latest", nil)
 	if err != nil {
@@ -25,8 +25,8 @@ func TestRemoteFactory_CreateForDockerHub(t *testing.T) {
 		t.Fatal(err)
 	}
 	expected := "index.docker.io/library/alpine:latest"
-	if res.FQN() != expected {
-		t.Fatal("Expected %q. Got %q", expected, res.FQN())
+	if res.String() != expected {
+		t.Fatal("Expected %q. Got %q", expected, res.String())
 	}
 }
 

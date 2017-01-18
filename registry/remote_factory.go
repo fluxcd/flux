@@ -1,6 +1,6 @@
 // We can't inject a remote client directly because each repository request might be to a different
 // registry provider. E.g. both docker hub and quay containers. So a new remote client must be
-// created for each new image. This factory provides that and can be mocked out.
+// created for each new Image. This factory provides that and can be mocked out.
 package registry
 
 import (
@@ -40,7 +40,7 @@ type remoteClientFactory struct {
 }
 
 func (f *remoteClientFactory) Create(id Image) (_ Remote, err error) {
-	client, cancel, err := newRegistryClient(id.Host(), f.creds)
+	client, cancel, err := newRegistryClient(id.Host, f.creds)
 	if err != nil {
 		return
 	}

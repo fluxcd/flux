@@ -39,8 +39,8 @@ func (a *registryAdapter) GetRepository(repository string) (res []flux.ImageDesc
 	res = make([]flux.ImageDescription, len(images))
 	for i, im := range images {
 		res[i] = flux.ImageDescription{
-			ID:        flux.ParseImageID(im.FQN()),
-			CreatedAt: im.CreatedAt(),
+			ID:        flux.ParseImageID(im.String()),
+			CreatedAt: im.CreatedAt,
 		}
 	}
 	return
@@ -96,7 +96,7 @@ func (c *registry) GetRepository(img Image) (_ []Image, err error) {
 	return c.tagsToRepository(r, img, tags)
 }
 
-// Get a single image from the registry if it exists
+// Get a single Image from the registry if it exists
 func (c *registry) GetImage(img Image) (_ Image, err error) {
 	r, err := c.newRemote(img)
 	if err != nil {
@@ -127,7 +127,8 @@ func (c *registry) tagsToRepository(remote Remote, img Image, tags []string) ([]
 
 	for _, tag := range tags {
 		go func(t string) {
-			i, err := remote.Manifest(img.WithTag(t))
+			img.Tag = t
+			i, err := remote.Manifest(img)
 			if err != nil {
 				c.Logger.Log("registry-metadata-err", err)
 			}
@@ -155,14 +156,14 @@ type byCreatedDesc []Image
 func (is byCreatedDesc) Len() int      { return len(is) }
 func (is byCreatedDesc) Swap(i, j int) { is[i], is[j] = is[j], is[i] }
 func (is byCreatedDesc) Less(i, j int) bool {
-	if is[i].CreatedAt() == nil {
+	if is[i].CreatedAt == nil {
 		return true
 	}
-	if is[j].CreatedAt() == nil {
+	if is[j].CreatedAt == nil {
 		return false
 	}
-	if is[i].CreatedAt().Equal(*is[j].CreatedAt()) {
-		return is[i].FQN() < is[j].FQN()
+	if is[i].CreatedAt.Equal(*is[j].CreatedAt) {
+		return is[i].String() < is[j].String()
 	}
-	return is[i].CreatedAt().After(*is[j].CreatedAt())
+	return is[i].CreatedAt.After(*is[j].CreatedAt)
 }

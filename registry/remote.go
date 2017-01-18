@@ -27,11 +27,11 @@ func newRemote(client *dockerregistry.Registry, cancel context.CancelFunc) Remot
 }
 
 func (rc *remote) Tags(id Image) (_ []string, err error) {
-	return rc.client.Tags(id.OrgRepo())
+	return rc.client.Tags(id.NamespaceImage())
 }
 
 func (rc *remote) Manifest(img Image) (Image, error) {
-	meta, err := rc.client.Manifest(img.OrgRepo(), img.Tag())
+	meta, err := rc.client.Manifest(img.NamespaceImage(), img.Tag)
 	if err != nil {
 		return img, err
 	}
@@ -46,7 +46,7 @@ func (rc *remote) Manifest(img Image) (Image, error) {
 	var topmost v1image
 	if err = json.Unmarshal([]byte(meta.History[0].V1Compatibility), &topmost); err == nil {
 		if !topmost.Created.IsZero() {
-			img = img.WithCreatedAt(&topmost.Created)
+			img.CreatedAt = &topmost.Created
 		}
 	}
 

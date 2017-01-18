@@ -9,8 +9,8 @@ import (
 )
 
 type Metrics struct {
-	// Latency of image fetch, that is getting *all* information about
-	// an image
+	// Latency of Image fetch, that is getting *all* information about
+	// an Image
 	FetchDuration metrics.Histogram
 	// Counts of particular kinds of request
 	RequestDuration metrics.Histogram
@@ -30,14 +30,14 @@ func NewMetrics() Metrics {
 			Namespace: "flux",
 			Subsystem: "registry",
 			Name:      "fetch_duration_seconds",
-			Help:      "Duration of image metadata fetches, in seconds.",
+			Help:      "Duration of Image metadata fetches, in seconds.",
 			Buckets:   stdprometheus.DefBuckets,
 		}, []string{fluxmetrics.LabelInstanceID, LabelRepository, fluxmetrics.LabelSuccess}),
 		RequestDuration: prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
 			Namespace: "flux",
 			Subsystem: "registry",
 			Name:      "request_duration_seconds",
-			Help:      "Duration of HTTP requests made in the course of fetching image metadata",
+			Help:      "Duration of HTTP requests made in the course of fetching Image metadata",
 		}, []string{fluxmetrics.LabelInstanceID, LabelRepository, LabelRequestKind, fluxmetrics.LabelSuccess}),
 	}
 }
