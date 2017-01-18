@@ -23,7 +23,7 @@ type Instancer interface {
 
 type Instance struct {
 	platform platform.Platform
-	registry registry.Client
+	registry registry.Registry
 	config   Configurer
 	duration metrics.Histogram
 	gitrepo  git.Repo
@@ -35,7 +35,7 @@ type Instance struct {
 
 func New(
 	platform platform.Platform,
-	registry registry.Client,
+	registry registry.Registry,
 	config Configurer,
 	gitrepo git.Repo,
 	logger log.Logger,
@@ -106,22 +106,47 @@ func (h *Instance) CollectAvailableImages(services []platform.Service) (ImageMap
 		}
 	}
 	for repo := range images {
-		imageRepo, err := h.registry.GetRepository(repo)
+		img, err := registry.ParseImage(repo, nil)
+		if err != nil {
+			return nil, errors.Wrapf(err, "parsing image %s", repo)
+		}
+		imageRepo, err := h.registry.GetRepository(img)
 		if err != nil {
 			return nil, errors.Wrapf(err, "fetching image metadata for %s", repo)
 		}
-		images[repo] = imageRepo
+		res := make([]flux.ImageDescription, len(imageRepo))
+		for i, im := range imageRepo {
+			res[i] = flux.ImageDescription{
+				ID:        flux.ParseImageID(im.String()),
+				CreatedAt: im.CreatedAt,
+			}
+		}
+		images[repo] = res
 	}
 	return images, nil
 }
 
 // GetRepository exposes this instance's registry's GetRepository method directly.
-func (h *Instance) GetRepository(repo string) ([]flux.ImageDescription, error) {
-	return h.registry.GetRepository(repo)
+func (h *Instance) GetRepository(repo string) (res []flux.ImageDescription, err error) {
+	img, err := registry.ParseImage(repo, nil)
+	if err != nil {
+		return
+	}
+	images, err := h.registry.GetRepository(img)
+	if err != nil {
+		return
+	}
+	res = make([]flux.ImageDescription, len(images))
+	for i, im := range images {
+		res[i] = flux.ImageDescription{
+			ID:        flux.ParseImageID(im.String()),
+			CreatedAt: im.CreatedAt,
+		}
+	}
+	return
 }
 
-// Create an image map containing exact images. At present this
-// assumes they exist; but it may in the future be made to verify so.
+// Create an image map containing exact images.
 func (h *Instance) ExactImages(images []flux.ImageID) (ImageMap, error) {
 	m := ImageMap{}
 	for _, id := range images {
@@ -140,20 +165,17 @@ func (h *Instance) ExactImages(images []flux.ImageID) (ImageMap, error) {
 
 // Checks whether the given image exists in the repository.
 // Return true if exist, false otherwise
-func (h *Instance) imageExists(image flux.ImageID) (exists bool, err error) {
-	// Get a list of images
-	images, err := h.registry.GetRepository(image.Repository())
+func (h *Instance) imageExists(image flux.ImageID) (bool, error) {
+	img, err := registry.ParseImage(string(image), nil)
 	if err != nil {
-		return
+		return false, err
 	}
-	// See if that image exists
-	for _, desc := range images {
-		if desc.ID == image {
-			exists = true
-			return
-		}
+	// Get a specific image.
+	_, err = h.registry.GetImage(img)
+	if err != nil {
+		return false, nil
 	}
-	return
+	return true, nil
 }
 
 func (h *Instance) PlatformApply(defs []platform.ServiceDefinition) (err error) {

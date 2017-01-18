@@ -8,14 +8,14 @@ import (
 	fluxmetrics "github.com/weaveworks/flux/metrics"
 )
 
-type RegistryMonitoringMiddleware func(Registry) Registry
+type InstrumentedRegistry func(Registry) Registry
 
 type registryMonitoringMiddleware struct {
 	next    Registry
 	metrics Metrics
 }
 
-func NewRegistryMonitoringMiddleware(metrics Metrics) RegistryMonitoringMiddleware {
+func NewInstrumentedRegistry(metrics Metrics) InstrumentedRegistry {
 	return func(next Registry) Registry {
 		return &registryMonitoringMiddleware{
 			next:    next,
@@ -44,14 +44,14 @@ func (m *registryMonitoringMiddleware) GetImage(img Image) (res Image, err error
 	return
 }
 
-type RemoteMonitoringMiddleware func(Remote) Remote
+type InstrumentedRemote func(Remote) Remote
 
 type remoteMonitoringMiddleware struct {
 	next    Remote
 	metrics Metrics
 }
 
-func NewRemoteMonitoringMiddleware(metrics Metrics) RemoteMonitoringMiddleware {
+func NewInstrumentedRemote(metrics Metrics) InstrumentedRemote {
 	return func(next Remote) Remote {
 		return &remoteMonitoringMiddleware{
 			next:    next,

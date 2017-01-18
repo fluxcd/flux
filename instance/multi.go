@@ -50,9 +50,8 @@ func (m *MultitenantInstancer) Get(instanceID flux.InstanceID) (*Instance, error
 			log.NewContext(instanceLogger).With("component", "registry"),
 			m.RegistryMetrics.WithInstanceID(string(instanceID)),
 		)
-		reg = registry.NewRegistryMonitoringMiddleware(m.RegistryMetrics.WithInstanceID(string(instanceID)))(reg)
+		reg = registry.NewInstrumentedRegistry(m.RegistryMetrics.WithInstanceID(string(instanceID)))(reg)
 	}
-	regClient := registry.NewClient(reg)
 
 	repo := gitRepoFromSettings(c.Settings)
 
@@ -73,7 +72,7 @@ func (m *MultitenantInstancer) Get(instanceID flux.InstanceID) (*Instance, error
 
 	return New(
 		platform,
-		regClient,
+		reg,
 		config,
 		repo,
 		instanceLogger,

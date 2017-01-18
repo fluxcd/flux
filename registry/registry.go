@@ -3,7 +3,6 @@ package registry
 
 import (
 	"github.com/go-kit/kit/log"
-	"github.com/weaveworks/flux"
 	"sort"
 	"time"
 )
@@ -11,40 +10,6 @@ import (
 const (
 	requestTimeout = 10 * time.Second
 )
-
-// Old registry interface. Used as an adaptor to the new class
-type Client interface {
-	GetRepository(repository string) ([]flux.ImageDescription, error)
-}
-
-type registryAdapter struct {
-	r Registry
-}
-
-func NewClient(r Registry) Client {
-	return &registryAdapter{
-		r: r,
-	}
-}
-
-func (a *registryAdapter) GetRepository(repository string) (res []flux.ImageDescription, err error) {
-	img, err := ParseImage(repository, nil)
-	if err != nil {
-		return
-	}
-	images, err := a.r.GetRepository(img)
-	if err != nil {
-		return
-	}
-	res = make([]flux.ImageDescription, len(images))
-	for i, im := range images {
-		res[i] = flux.ImageDescription{
-			ID:        flux.ParseImageID(im.String()),
-			CreatedAt: im.CreatedAt,
-		}
-	}
-	return
-}
 
 // New registry interface
 type Registry interface {
@@ -110,7 +75,7 @@ func (c *registry) newRemote(img Image) (remote Remote, err error) {
 	if err != nil {
 		return
 	}
-	remote = NewRemoteMonitoringMiddleware(c.Metrics)(remote)
+	remote = NewInstrumentedRemote(c.Metrics)(remote)
 	return
 }
 
@@ -127,8 +92,9 @@ func (c *registry) tagsToRepository(remote Remote, img Image, tags []string) ([]
 
 	for _, tag := range tags {
 		go func(t string) {
-			img.Tag = t
-			i, err := remote.Manifest(img)
+			imgCopy := img
+			imgCopy.Tag = t
+			i, err := remote.Manifest(imgCopy)
 			if err != nil {
 				c.Logger.Log("registry-metadata-err", err)
 			}

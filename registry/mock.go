@@ -11,17 +11,6 @@ type mockClientAdapter struct {
 	err  error
 }
 
-func NewMockClientAdapter(imgs []flux.ImageDescription, err error) Client {
-	return &mockClientAdapter{
-		imgs: imgs,
-		err:  err,
-	}
-}
-
-func (m *mockClientAdapter) GetRepository(repository string) (res []flux.ImageDescription, err error) {
-	return m.imgs, m.err
-}
-
 type mockRemote struct {
 	img  Image
 	tags []string
@@ -86,4 +75,31 @@ func NewMockRemoteFactory(r Remote, err error) RemoteClientFactory {
 
 func (m *mockRemoteFactory) Create(id Image) (Remote, error) {
 	return m.r, m.err
+}
+
+type mockRegistry struct {
+	imgs []Image
+	err  error
+}
+
+func NewMockRegistry(images []Image, err error) Registry {
+	return &mockRegistry{
+		imgs: images,
+		err:  err,
+	}
+}
+
+func (m *mockRegistry) GetRepository(repository Image) ([]Image, error) {
+	return m.imgs, m.err
+}
+
+func (m *mockRegistry) GetImage(repository Image) (Image, error) {
+	if len(m.imgs) > 0 {
+		for _, i := range m.imgs {
+			if i.String() == repository.String() {
+				return i, nil
+			}
+		}
+	}
+	return Image{}, errors.New("not found")
 }

@@ -108,37 +108,3 @@ func TestRegistry_OrderByCreationDate(t *testing.T) {
 		}
 	}
 }
-
-func TestRegistry_Adapter(t *testing.T) {
-	reg := NewRegistry(mRemoteFact, log.NewNopLogger(), testRegistryMetrics)
-	adapter := NewClient(reg)
-	imgs, err := adapter.GetRepository("dummy")
-	if err != nil {
-		t.Fatal(err)
-	}
-	// Dev note, the tags will look the same because we are returning the same
-	// Image from the mock remote. But they are distinct images.
-	if len(testTags) != len(imgs) {
-		t.Fatal("Expecting %v images, but got %v", len(testTags), len(imgs))
-	}
-}
-
-func TestRegistry_AdapterParseError(t *testing.T) {
-	reg := NewRegistry(mRemoteFact, log.NewNopLogger(), testRegistryMetrics)
-	adapter := NewClient(reg)
-	_, err := adapter.GetRepository("invalid::")
-	if err == nil {
-		t.Fatal("Expected error when parsing Image")
-	}
-}
-
-func TestRegistry_AdapterGetRepositoryRemoteErr(t *testing.T) {
-	r := NewMockRemote(img, testTags, errors.New(""))
-	errFact := NewMockRemoteFactory(r, nil)
-	reg := NewRegistry(errFact, log.NewNopLogger(), testRegistryMetrics)
-	adapter := NewClient(reg)
-	_, err := adapter.GetRepository("dummy")
-	if err == nil {
-		t.Fatal("Expecting error")
-	}
-}
