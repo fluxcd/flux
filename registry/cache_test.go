@@ -19,19 +19,24 @@ var (
 	memcachedIPs = flag.String("memcached-ips", "127.0.0.1:11211", "space-separated host:port values for memcached to connect to")
 )
 
+type stoppableMemcacheClient struct {
+	*memcache.Client
+}
+
+func (s *stoppableMemcacheClient) Stop() {}
+
 // Setup sets up stuff for testing
-func Setup(t *testing.T) *memcache.Client {
+func Setup(t *testing.T) MemcacheClient {
 	fmt.Printf("Memcache IPs: %v\n", strings.Fields(*memcachedIPs))
 	mc := memcache.New(strings.Fields(*memcachedIPs)...)
 	if err := mc.FlushAll(); err != nil {
 		t.Fatal(err)
 	}
-	return mc
+	return &stoppableMemcacheClient{mc}
 }
 
 // Cleanup cleans up after a test
-func Cleanup(t *testing.T) {
-}
+func Cleanup(t *testing.T) {}
 
 type MockBackend struct {
 	tags     func(repository string) ([]string, error)
