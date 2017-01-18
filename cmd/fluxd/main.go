@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/metrics/prometheus"
@@ -105,7 +106,7 @@ func main() {
 	// Connect to fluxsvc
 	daemonLogger := log.NewContext(logger).With("component", "client")
 	daemon, err := transport.NewDaemon(
-		http.DefaultClient,
+		&http.Client{Timeout: 10 * time.Second},
 		flux.Token(*token),
 		transport.NewRouter(),
 		*fluxsvcAddress,
