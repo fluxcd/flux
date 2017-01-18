@@ -15,6 +15,9 @@ type herokuWrapper struct {
 // be easier to convert it to JSON and back.
 func (h herokuWrapper) Manifest(repository, reference string) ([]schema1.History, error) {
 	manifest, err := h.Registry.Manifest(repository, reference)
+	if err != nil || manifest == nil {
+		return manifest, err
+	}
 	var result []schema1.History
 	for _, item := range manifest.History {
 		result = append(result, schema1.History{item.V1Compatibility})
