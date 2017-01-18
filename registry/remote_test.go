@@ -71,7 +71,7 @@ func TestRemoteClient_IsCancelCalled(t *testing.T) {
 	}
 }
 
-func TestRemoteClient_ErrorsForCoverage(t *testing.T) {
+func TestRemoteClient_RemoteErrors(t *testing.T) {
 	c := remote{
 		client: NewMockDockerClient(schema1.SignedManifest{}, []string{
 			testTagStr,
@@ -92,11 +92,11 @@ func TestRemoteClient_TestNew(t *testing.T) {
 	var flag bool
 	f := func() { flag = true }
 	c := newRemote(r, f)
-	if c.(*remote).client != r {
-		t.Log("Client was not set")
+	if c.(*remote).client != r { // Test that client was set
+		t.Fatal("Client was not set")
 	}
 	c.(*remote).cancel()
-	if !flag {
+	if !flag { // Test that our cancel function, when called, works
 		t.Fatal("Expected it to call the cancel func")
 	}
 }
