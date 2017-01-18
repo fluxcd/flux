@@ -16,7 +16,7 @@ type herokuWrapper struct {
 func (h herokuWrapper) Manifest(repository, reference string) ([]schema1.History, error) {
 	manifest, err := h.Registry.Manifest(repository, reference)
 	if err != nil || manifest == nil {
-		return manifest, err
+		return nil, err
 	}
 	var result []schema1.History
 	for _, item := range manifest.History {
