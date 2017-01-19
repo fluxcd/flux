@@ -108,7 +108,7 @@ func (h *Instance) CollectAvailableImages(services []platform.Service) (ImageMap
 	for repo := range images {
 		r, err := registry.ParseRepository(repo)
 		if err != nil {
-			return nil, errors.Wrapf(err, "parsing image %s", repo)
+			return nil, errors.Wrapf(err, "parsing repository %s", repo)
 		}
 		imageRepo, err := h.registry.GetRepository(r)
 		if err != nil {
@@ -146,7 +146,7 @@ func (h *Instance) GetRepository(repo string) (res []flux.ImageDescription, err 
 	return
 }
 
-// CreateFor an image map containing exact images.
+// Create a map of images. It will check that each image exists.
 func (h *Instance) ExactImages(images []flux.ImageID) (ImageMap, error) {
 	m := ImageMap{}
 	for _, id := range images {
@@ -166,6 +166,7 @@ func (h *Instance) ExactImages(images []flux.ImageID) (ImageMap, error) {
 // Checks whether the given image exists in the repository.
 // Return true if exist, false otherwise
 func (h *Instance) imageExists(image flux.ImageID) (bool, error) {
+	// Use this method to parse the image, because it is safe. I.e. it will error and inform the user if it is malformed.
 	img, err := registry.ParseImage(string(image), nil)
 	if err != nil {
 		return false, err

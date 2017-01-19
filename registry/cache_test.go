@@ -38,31 +38,18 @@ func Setup(t *testing.T) MemcacheClient {
 // Cleanup cleans up after a test
 func Cleanup(t *testing.T) {}
 
-type MockBackend struct {
-	tags     func(repository string) ([]string, error)
-	manifest func(repository, reference string) ([]schema1.History, error)
-}
-
-func (m *MockBackend) Tags(repository string) ([]string, error) {
-	return m.tags(repository)
-}
-
-func (m *MockBackend) Manifest(repository, reference string) ([]schema1.History, error) {
-	return m.manifest(repository, reference)
-}
-
 func TestCache(t *testing.T) {
 	mc := Setup(t)
 	defer Cleanup(t)
 
 	manifestCalled := 0
 
-	mock := &MockBackend{
-		manifest: func(repo, ref string) ([]schema1.History, error) {
-			manifestCalled++
-			return []schema1.History{{`{"test":"json"}`}}, nil
-		},
+	manifestFunc := func(repo, ref string) ([]schema1.History, error) {
+		manifestCalled++
+		return []schema1.History{{`{"test":"json"}`}}, nil
 	}
+
+	mock := NewMockDockerClient(manifestFunc, nil)
 	c := NewCache(
 		NoCredentials(),
 		mc,

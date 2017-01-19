@@ -40,25 +40,23 @@ func (r *mockRemote) Cancel() {
 }
 
 type mockDockerClient struct {
-	manifest []schema1.History
-	tags     []string
-	err      error
+	manifest func(repository, reference string) ([]schema1.History, error)
+	tags     func(repository string) ([]string, error)
 }
 
-func NewMockDockerClient(manifest []schema1.History, tags []string, err error) dockerRegistryInterface {
+func NewMockDockerClient(manifest func(repository, reference string) ([]schema1.History, error), tags func(repository string) ([]string, error)) dockerRegistryInterface {
 	return &mockDockerClient{
 		manifest: manifest,
 		tags:     tags,
-		err:      err,
 	}
 }
 
 func (m *mockDockerClient) Manifest(repository, reference string) ([]schema1.History, error) {
-	return m.manifest, m.err
+	return m.manifest(repository, reference)
 }
 
 func (m *mockDockerClient) Tags(repository string) ([]string, error) {
-	return m.tags, m.err
+	return m.tags(repository)
 }
 
 type mockRemoteFactory struct {

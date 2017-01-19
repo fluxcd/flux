@@ -11,13 +11,12 @@ const (
 	requestTimeout = 10 * time.Second
 )
 
-// New registry interface
+// The Registry interface is a domain specific API to access container registries.
 type Registry interface {
 	GetRepository(repository Repository) ([]Image, error)
 	GetImage(repository Repository, tag string) (Image, error)
 }
 
-// registry is a handle to a registry.
 type registry struct {
 	factory RemoteClientFactory
 	Logger  log.Logger
@@ -41,15 +40,15 @@ func NewRegistry(c RemoteClientFactory, l log.Logger, m Metrics) Registry {
 //   foo/helloworld         -> index.docker.io/foo/helloworld
 //   quay.io/foo/helloworld -> quay.io/foo/helloworld
 //
-func (c *registry) GetRepository(img Repository) (_ []Image, err error) {
-	r, err := c.newRemote(img)
+func (reg *registry) GetRepository(img Repository) (_ []Image, err error) {
+	rem, err := reg.newRemote(img)
 	if err != nil {
 		return
 	}
 
-	tags, err := r.Tags(img)
+	tags, err := rem.Tags(img)
 	if err != nil {
-		r.Cancel()
+		rem.Cancel()
 		return nil, err
 	}
 
@@ -58,28 +57,28 @@ func (c *registry) GetRepository(img Repository) (_ []Image, err error) {
 	// `library/nats`. We need that to fetch the tags etc. However, we
 	// want the results to use the *actual* name of the images to be
 	// as supplied, e.g., `nats`.
-	return c.tagsToRepository(r, img, tags)
+	return reg.tagsToRepository(rem, img, tags)
 }
 
 // Get a single Image from the registry if it exists
-func (c *registry) GetImage(img Repository, tag string) (_ Image, err error) {
-	r, err := c.newRemote(img)
+func (reg *registry) GetImage(img Repository, tag string) (_ Image, err error) {
+	rem, err := reg.newRemote(img)
 	if err != nil {
 		return
 	}
-	return r.Manifest(img, tag)
+	return rem.Manifest(img, tag)
 }
 
-func (c *registry) newRemote(img Repository) (remote Remote, err error) {
-	remote, err = c.factory.CreateFor(img.Host())
+func (reg *registry) newRemote(img Repository) (rem Remote, err error) {
+	rem, err = reg.factory.CreateFor(img.Host())
 	if err != nil {
 		return
 	}
-	remote = NewInstrumentedRemote(c.Metrics)(remote)
+	rem = NewInstrumentedRemote(rem, reg.Metrics)
 	return
 }
 
-func (c *registry) tagsToRepository(remote Remote, repository Repository, tags []string) ([]Image, error) {
+func (reg *registry) tagsToRepository(remote Remote, repository Repository, tags []string) ([]Image, error) {
 	// one way or another, we'll be finishing all requests
 	defer remote.Cancel()
 
@@ -92,11 +91,11 @@ func (c *registry) tagsToRepository(remote Remote, repository Repository, tags [
 
 	for _, tag := range tags {
 		go func(t string) {
-			i, err := remote.Manifest(repository, t)
+			image, err := remote.Manifest(repository, t)
 			if err != nil {
-				c.Logger.Log("registry-metadata-err", err)
+				reg.Logger.Log("registry-metadata-err", err)
 			}
-			fetched <- result{i, err}
+			fetched <- result{image, err}
 		}(tag)
 	}
 

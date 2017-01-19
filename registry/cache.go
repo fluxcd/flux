@@ -9,8 +9,6 @@ import (
 	"github.com/docker/distribution/manifest/schema1"
 	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
-
-	"github.com/weaveworks/flux"
 )
 
 type Cache struct {
@@ -41,9 +39,11 @@ func (c *Cache) Manifest(repository, reference string) ([]schema1.History, error
 	if reference == "latest" {
 		return c.next.Manifest(repository, reference)
 	}
-
-	host, _, _ := flux.ImageID(repository).Components()
-	creds := c.creds.credsFor(host)
+	repo, err := ParseRepository(repository)
+	if err != nil {
+		return []schema1.History{}, err
+	}
+	creds := c.creds.credsFor(repo.Host())
 
 	// Try the cache
 	key := strings.Join([]string{

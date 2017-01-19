@@ -14,11 +14,8 @@ const constTime = "2017-01-13T16:22:58.009923189Z"
 var (
 	img, _         = ParseImage(testImageStr, nil)
 	testRepository = RepositoryFromImage(img)
-)
 
-// Need to create a dummy manifest here
-func TestRemoteClient_ParseManifest(t *testing.T) {
-	man := schema1.SignedManifest{
+	man = schema1.SignedManifest{
 		Manifest: schema1.Manifest{
 			History: []schema1.History{
 				{
@@ -27,8 +24,15 @@ func TestRemoteClient_ParseManifest(t *testing.T) {
 			},
 		},
 	}
+)
+
+// Need to create a dummy manifest here
+func TestRemoteClient_ParseManifest(t *testing.T) {
+	manifestFunc := func(repo, ref string) ([]schema1.History, error) {
+		return man.Manifest.History, nil
+	}
 	c := remote{
-		client: NewMockDockerClient(man.Manifest.History, nil, nil),
+		client: NewMockDockerClient(manifestFunc, nil),
 	}
 	testRepository = RepositoryFromImage(img)
 	desc, err := c.Manifest(testRepository, img.Tag)
@@ -46,9 +50,11 @@ func TestRemoteClient_ParseManifest(t *testing.T) {
 // Just a simple pass through.
 func TestRemoteClient_GetTags(t *testing.T) {
 	c := remote{
-		client: NewMockDockerClient([]schema1.History{}, []string{
-			testTagStr,
-		}, nil),
+		client: NewMockDockerClient(nil, func(repository string) ([]string, error) {
+			return []string{
+				testTagStr,
+			}, nil
+		}),
 	}
 	tags, err := c.Tags(testRepository)
 	if err != nil {
@@ -71,10 +77,16 @@ func TestRemoteClient_IsCancelCalled(t *testing.T) {
 }
 
 func TestRemoteClient_RemoteErrors(t *testing.T) {
-	c := remote{
-		client: NewMockDockerClient([]schema1.History{}, []string{
+	manifestFunc := func(repo, ref string) ([]schema1.History, error) {
+		return man.Manifest.History, errors.New("dummy")
+	}
+	tagsFunc := func(repository string) ([]string, error) {
+		return []string{
 			testTagStr,
-		}, errors.New("dummy")),
+		}, errors.New("dummy")
+	}
+	c := remote{
+		client: NewMockDockerClient(manifestFunc, tagsFunc),
 	}
 	_, err := c.Tags(testRepository)
 	if err == nil {

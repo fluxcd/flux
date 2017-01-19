@@ -9,6 +9,7 @@ import (
 	"github.com/go-kit/kit/metrics/prometheus"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 
+	"github.com/weaveworks/flux"
 	fluxmetrics "github.com/weaveworks/flux/metrics"
 )
 
@@ -46,7 +47,7 @@ func NewMetrics() Metrics {
 	}
 }
 
-func (m Metrics) WithInstanceID(instanceID string) Metrics {
+func (m Metrics) WithInstanceID(instanceID flux.InstanceID) Metrics {
 	return Metrics{
 		FetchDuration:   m.FetchDuration.With(fluxmetrics.LabelInstanceID, string(instanceID)),
 		RequestDuration: m.RequestDuration.With(fluxmetrics.LabelInstanceID, string(instanceID)),

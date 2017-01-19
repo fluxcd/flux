@@ -4,7 +4,6 @@ import (
 	"encoding/base64"
 	"fmt"
 	"github.com/weaveworks/flux"
-	"net/http"
 	"strings"
 )
 
@@ -49,10 +48,4 @@ func (cs Credentials) Hosts() []string {
 		hosts = append(hosts, host)
 	}
 	return hosts
-}
-
-type roundtripperFunc func(*http.Request) (*http.Response, error)
-
-func (f roundtripperFunc) RoundTrip(r *http.Request) (*http.Response, error) {
-	return f(r)
 }

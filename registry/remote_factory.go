@@ -96,3 +96,9 @@ func (f *remoteClientFactory) newRegistryClient(host string) (client dockerRegis
 	}
 	return
 }
+
+type roundtripperFunc func(*http.Request) (*http.Response, error)
+
+func (f roundtripperFunc) RoundTrip(r *http.Request) (*http.Response, error) {
+	return f(r)
+}
