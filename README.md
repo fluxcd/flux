@@ -29,6 +29,8 @@ This makes Docker images, and installs binaries to $GOPATH/bin.
 $ go test ./...
 ```
 
+Note: In order to run the NATS message bus tests (the message bus that connects fluxctl -> fluxsvc -> nats -> fluxsvc -> fluxd) you need to have a running gnatsd instance.
+
 ### Dependency management
 
 We use [gvt](https://github.com/FiloSottile/gvt) to manage vendored dependencies.
@@ -50,6 +52,10 @@ $ gvt fetch <dependency>
 `gvt` does not *discover* dependencies for you, but it will add them
 recursively; so, it should be sufficient to just add packages you
 import.
+
+### Releasing
+
+See the [release docs](./docs/releasing.md) for instructions about how to release a version of flux.
 
 ### Contribution
 

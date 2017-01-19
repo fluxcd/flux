@@ -1,6 +1,7 @@
 package websocket
 
 import (
+	"net"
 	"net/http"
 	"net/url"
 
@@ -33,6 +34,9 @@ func Dial(client *http.Client, token flux.Token, u *url.URL) (Websocket, error) 
 
 func dialer(client *http.Client) *websocket.Dialer {
 	return &websocket.Dialer{
+		NetDial: func(network, addr string) (net.Conn, error) {
+			return net.DialTimeout(network, addr, client.Timeout)
+		},
 		HandshakeTimeout: client.Timeout,
 		Jar:              client.Jar,
 		// TODO: TLSClientConfig: client.TLSClientConfig,
