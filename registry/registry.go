@@ -200,9 +200,11 @@ func (c *client) lookupImage(client backend, lookupName, imageName, tag string) 
 		Created time.Time `json:"created"`
 	}
 	var topmost v1image
-	if err = json.Unmarshal([]byte(history[0].V1Compatibility), &topmost); err == nil {
-		if !topmost.Created.IsZero() {
-			img.CreatedAt = &topmost.Created
+	if len(history) > 0 {
+		if err = json.Unmarshal([]byte(history[0].V1Compatibility), &topmost); err == nil {
+			if !topmost.Created.IsZero() {
+				img.CreatedAt = &topmost.Created
+			}
 		}
 	}
 
