@@ -4,7 +4,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/bradfitz/gomemcache/memcache"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/metrics"
 	"github.com/pkg/errors"
@@ -23,7 +22,7 @@ type MultitenantInstancer struct {
 	Histogram           metrics.Histogram
 	History             history.DB
 	RegistryMetrics     registry.Metrics
-	MemcacheClient      *memcache.Client
+	MemcacheClient      registry.MemcacheClient
 	RegistryCacheExpiry time.Duration
 }
 

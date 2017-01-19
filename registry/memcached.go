@@ -12,9 +12,26 @@ import (
 	"github.com/pkg/errors"
 )
 
+type MemcacheClient interface {
+	Add(item *memcache.Item) error
+	CompareAndSwap(item *memcache.Item) error
+	Decrement(key string, delta uint64) (newValue uint64, err error)
+	Delete(key string) error
+	DeleteAll() error
+	FlushAll() error
+	Get(key string) (item *memcache.Item, err error)
+	GetMulti(keys []string) (map[string]*memcache.Item, error)
+	Increment(key string, delta uint64) (newValue uint64, err error)
+	Replace(item *memcache.Item) error
+	Set(item *memcache.Item) error
+	Touch(key string, seconds int32) (err error)
+
+	Stop()
+}
+
 // MemcacheClient is a memcache client that gets its server list from SRV
 // records, and periodically updates that ServerList.
-type MemcacheClient struct {
+type memcacheClient struct {
 	*memcache.Client
 	serverList *memcache.ServerList
 	hostname   string
@@ -34,12 +51,12 @@ type MemcacheConfig struct {
 	Logger         log.Logger
 }
 
-func NewMemcacheClient(config MemcacheConfig) *MemcacheClient {
+func NewMemcacheClient(config MemcacheConfig) MemcacheClient {
 	var servers memcache.ServerList
 	client := memcache.NewFromSelector(&servers)
 	client.Timeout = config.Timeout
 
-	newClient := &MemcacheClient{
+	newClient := &memcacheClient{
 		Client:     client,
 		serverList: &servers,
 		hostname:   config.Host,
@@ -59,12 +76,12 @@ func NewMemcacheClient(config MemcacheConfig) *MemcacheClient {
 }
 
 // Stop the memcache client.
-func (c *MemcacheClient) Stop() {
+func (c *memcacheClient) Stop() {
 	close(c.quit)
 	c.wait.Wait()
 }
 
-func (c *MemcacheClient) updateLoop(updateInterval time.Duration) error {
+func (c *memcacheClient) updateLoop(updateInterval time.Duration) error {
 	defer c.wait.Done()
 	ticker := time.NewTicker(updateInterval)
 	var err error
@@ -83,7 +100,7 @@ func (c *MemcacheClient) updateLoop(updateInterval time.Duration) error {
 
 // updateMemcacheServers sets a memcache server list from SRV records. SRV
 // priority & weight are ignored.
-func (c *MemcacheClient) updateMemcacheServers() error {
+func (c *memcacheClient) updateMemcacheServers() error {
 	_, addrs, err := net.LookupSRV(c.service, "tcp", c.hostname)
 	if err != nil {
 		return err
