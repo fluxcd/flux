@@ -56,18 +56,19 @@ func TestCache(t *testing.T) {
 	defer Cleanup(t)
 
 	manifestCalled := 0
-	c := NewCache(
-		&MockBackend{
-			manifest: func(repo, ref string) ([]schema1.History, error) {
-				manifestCalled++
-				return []schema1.History{{`{"test":"json"}`}}, nil
-			},
+
+	mock := &MockBackend{
+		manifest: func(repo, ref string) ([]schema1.History, error) {
+			manifestCalled++
+			return []schema1.History{{`{"test":"json"}`}}, nil
 		},
+	}
+	c := NewCache(
 		NoCredentials(),
 		mc,
 		20*time.Minute,
 		log.NewLogfmtLogger(log.NewSyncWriter(os.Stdout)),
-	)
+	)(mock)
 
 	// It should fetch stuff from the backend
 	response, err := c.Manifest("weaveworks/foorepo", "tag1")

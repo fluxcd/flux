@@ -5,11 +5,13 @@ package registry
 
 import (
 	"context"
+	"github.com/go-kit/kit/log"
 	dockerregistry "github.com/heroku/docker-registry-client/registry"
 	"github.com/jonboulle/clockwork"
 	"golang.org/x/net/publicsuffix"
 	"net/http"
 	"net/http/cookiejar"
+	"time"
 )
 
 type creds struct {
@@ -25,25 +27,31 @@ type RemoteClientFactory interface {
 	CreateFor(host string) (Remote, error)
 }
 
-func NewRemoteClientFactory(c Credentials) RemoteClientFactory {
+func NewRemoteClientFactory(c Credentials, l log.Logger, mc MemcacheClient, ce time.Duration) RemoteClientFactory {
 	return &remoteClientFactory{
-		creds: c,
+		creds:          c,
+		Logger:         l,
+		MemcacheClient: mc,
+		CacheExpiry:    ce,
 	}
 }
 
 type remoteClientFactory struct {
-	creds Credentials
+	creds          Credentials
+	Logger         log.Logger
+	MemcacheClient MemcacheClient
+	CacheExpiry    time.Duration
 }
 
 func (f *remoteClientFactory) CreateFor(host string) (_ Remote, err error) {
-	client, cancel, err := newRegistryClient(host, f.creds)
+	client, cancel, err := f.newRegistryClient(host)
 	if err != nil {
 		return
 	}
 	return newRemote(client, cancel), nil
 }
 
-func newRegistryClient(host string, creds Credentials) (client *dockerregistry.Registry, cancel context.CancelFunc, err error) {
+func (f *remoteClientFactory) newRegistryClient(host string) (client dockerRegistryInterface, cancel context.CancelFunc, err error) {
 	httphost := "https://" + host
 
 	// quay.io wants us to use cookies for authorisation, so we have
@@ -54,7 +62,7 @@ func newRegistryClient(host string, creds Credentials) (client *dockerregistry.R
 	if err != nil {
 		return
 	}
-	auth := creds.credsFor(host)
+	auth := f.creds.credsFor(host)
 
 	// A context we'll use to cancel requests on error
 	ctx, cancel := context.WithCancel(context.Background())
@@ -68,16 +76,23 @@ func newRegistryClient(host string, creds Credentials) (client *dockerregistry.R
 	// Add the backoff mechanism so we don't DOS registries
 	transport = BackoffRoundTripper(transport, initialBackoff, maxBackoff, clockwork.NewRealClock())
 
-	client = &dockerregistry.Registry{
-		URL: httphost,
-		Client: &http.Client{
-			Transport: roundtripperFunc(func(r *http.Request) (*http.Response, error) {
-				return transport.RoundTrip(r.WithContext(ctx))
-			}),
-			Jar:     jar,
-			Timeout: requestTimeout,
+	client = herokuWrapper{
+		&dockerregistry.Registry{
+			URL: httphost,
+			Client: &http.Client{
+				Transport: roundtripperFunc(func(r *http.Request) (*http.Response, error) {
+					return transport.RoundTrip(r.WithContext(ctx))
+				}),
+				Jar:     jar,
+				Timeout: requestTimeout,
+			},
+			Logf: dockerregistry.Quiet,
 		},
-		Logf: dockerregistry.Quiet,
+	}
+	if f.MemcacheClient != nil {
+		client = NewCache(f.creds, f.MemcacheClient, f.CacheExpiry, f.Logger)(client)
+	} else {
+		f.Logger.Log("registry_cache", "disabled")
 	}
 	return
 }

@@ -4,8 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	manifest "github.com/docker/distribution/manifest/schema1"
-	dockerregistry "github.com/heroku/docker-registry-client/registry"
+	"github.com/docker/distribution/manifest/schema1"
 	"time"
 )
 
@@ -20,7 +19,7 @@ type remote struct {
 	cancel context.CancelFunc
 }
 
-func newRemote(client *dockerregistry.Registry, cancel context.CancelFunc) Remote {
+func newRemote(client dockerRegistryInterface, cancel context.CancelFunc) Remote {
 	return &remote{
 		client: client,
 		cancel: cancel,
@@ -36,7 +35,7 @@ func (rc *remote) Manifest(repository Repository, tag string) (img Image, err er
 	if err != nil {
 		return
 	}
-	meta, err := rc.client.Manifest(repository.NamespaceImage(), tag)
+	history, err := rc.client.Manifest(repository.NamespaceImage(), tag)
 	if err != nil {
 		return
 	}
@@ -50,7 +49,7 @@ func (rc *remote) Manifest(repository Repository, tag string) (img Image, err er
 		Created time.Time `json:"created"`
 	}
 	var topmost v1image
-	if err = json.Unmarshal([]byte(meta.History[0].V1Compatibility), &topmost); err == nil {
+	if err = json.Unmarshal([]byte(history[0].V1Compatibility), &topmost); err == nil {
 		if !topmost.Created.IsZero() {
 			img.CreatedAt = &topmost.Created
 		}
@@ -66,5 +65,5 @@ func (rc *remote) Cancel() {
 // We need this because they didn't wrap it in an interface.
 type dockerRegistryInterface interface {
 	Tags(repository string) ([]string, error)
-	Manifest(repository, reference string) (*manifest.SignedManifest, error)
+	Manifest(repository, reference string) ([]schema1.History, error)
 }

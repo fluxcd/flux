@@ -8,6 +8,13 @@ import (
 	"strings"
 )
 
+// NoCredentials returns a usable but empty credentials object.
+func NoCredentials() Credentials {
+	return Credentials{
+		m: map[string]creds{},
+	}
+}
+
 func CredentialsFromConfig(config flux.UnsafeInstanceConfig) (Credentials, error) {
 	m := map[string]creds{}
 	for host, entry := range config.Registry.Auths {

@@ -2,7 +2,6 @@ package registry
 
 import (
 	"github.com/docker/distribution/manifest/schema1"
-	dockerregistry "github.com/heroku/docker-registry-client/registry"
 	"github.com/pkg/errors"
 	"testing"
 	"time"
@@ -29,7 +28,7 @@ func TestRemoteClient_ParseManifest(t *testing.T) {
 		},
 	}
 	c := remote{
-		client: NewMockDockerClient(man, nil, nil),
+		client: NewMockDockerClient(man.Manifest.History, nil, nil),
 	}
 	testRepository = RepositoryFromImage(img)
 	desc, err := c.Manifest(testRepository, img.Tag)
@@ -47,7 +46,7 @@ func TestRemoteClient_ParseManifest(t *testing.T) {
 // Just a simple pass through.
 func TestRemoteClient_GetTags(t *testing.T) {
 	c := remote{
-		client: NewMockDockerClient(schema1.SignedManifest{}, []string{
+		client: NewMockDockerClient([]schema1.History{}, []string{
 			testTagStr,
 		}, nil),
 	}
@@ -73,7 +72,7 @@ func TestRemoteClient_IsCancelCalled(t *testing.T) {
 
 func TestRemoteClient_RemoteErrors(t *testing.T) {
 	c := remote{
-		client: NewMockDockerClient(schema1.SignedManifest{}, []string{
+		client: NewMockDockerClient([]schema1.History{}, []string{
 			testTagStr,
 		}, errors.New("dummy")),
 	}
@@ -88,7 +87,7 @@ func TestRemoteClient_RemoteErrors(t *testing.T) {
 }
 
 func TestRemoteClient_TestNew(t *testing.T) {
-	r := &dockerregistry.Registry{}
+	r := &herokuWrapper{}
 	var flag bool
 	f := func() { flag = true }
 	c := newRemote(r, f)

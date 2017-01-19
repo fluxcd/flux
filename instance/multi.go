@@ -12,15 +12,18 @@ import (
 	"github.com/weaveworks/flux/history"
 	"github.com/weaveworks/flux/platform"
 	"github.com/weaveworks/flux/registry"
+	"time"
 )
 
 type MultitenantInstancer struct {
-	DB              DB
-	Connecter       platform.Connecter
-	Logger          log.Logger
-	Histogram       metrics.Histogram
-	History         history.DB
-	RegistryMetrics registry.Metrics
+	DB                  DB
+	Connecter           platform.Connecter
+	Logger              log.Logger
+	Histogram           metrics.Histogram
+	History             history.DB
+	RegistryMetrics     registry.Metrics
+	MemcacheClient      registry.MemcacheClient
+	RegistryCacheExpiry time.Duration
 }
 
 func (m *MultitenantInstancer) Get(instanceID flux.InstanceID) (*Instance, error) {
@@ -43,11 +46,12 @@ func (m *MultitenantInstancer) Get(instanceID flux.InstanceID) (*Instance, error
 	if err != nil {
 		return nil, errors.Wrap(err, "decoding registry credentials")
 	}
+	registryLogger := log.NewContext(instanceLogger).With("component", "registry")
 	var reg registry.Registry
 	{
 		reg = registry.NewRegistry(
-			registry.NewRemoteClientFactory(creds),
-			log.NewContext(instanceLogger).With("component", "registry"),
+			registry.NewRemoteClientFactory(creds, registryLogger, m.MemcacheClient, m.RegistryCacheExpiry),
+			registryLogger,
 			m.RegistryMetrics.WithInstanceID(string(instanceID)),
 		)
 		reg = registry.NewInstrumentedRegistry(m.RegistryMetrics.WithInstanceID(string(instanceID)))(reg)
