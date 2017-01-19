@@ -9,6 +9,7 @@ import (
 
 const (
 	requestTimeout = 10 * time.Second
+	maxConcurrency = 10 // Chosen arbitrarily
 )
 
 // The Registry interface is a domain specific API to access container registries.
@@ -87,17 +88,24 @@ func (reg *registry) tagsToRepository(remote Remote, repository Repository, tags
 		err   error
 	}
 
+	toFetch := make(chan string, len(tags))
 	fetched := make(chan result, len(tags))
 
-	for _, tag := range tags {
-		go func(t string) {
-			image, err := remote.Manifest(repository, t)
-			if err != nil {
-				reg.Logger.Log("registry-metadata-err", err)
+	for i := 0; i < maxConcurrency; i++ {
+		go func() {
+			for tag := range toFetch {
+				image, err := remote.Manifest(repository, tag)
+				if err != nil {
+					reg.Logger.Log("registry-metadata-err", err)
+				}
+				fetched <- result{image, err}
 			}
-			fetched <- result{image, err}
-		}(tag)
+		}()
 	}
+	for _, tag := range tags {
+		toFetch <- tag
+	}
+	close(toFetch)
 
 	images := make([]Image, cap(fetched))
 	for i := 0; i < cap(fetched); i++ {
