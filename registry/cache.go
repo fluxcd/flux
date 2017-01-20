@@ -87,7 +87,7 @@ func (c *Cache) Manifest(repository, reference string) ([]schema1.History, error
 		}
 	}
 
-	return history, nil
+	return history, err
 }
 
 // Pass through. Not caching tags.

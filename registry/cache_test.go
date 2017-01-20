@@ -94,4 +94,20 @@ func TestCache(t *testing.T) {
 	if manifestCalled != 1 {
 		t.Errorf("Expected 1 call to the backend, got %d", manifestCalled)
 	}
+
+	// It should pass through errors from the backend
+	manifestFunc = func(repo, ref string) ([]schema1.History, error) {
+		return nil, fmt.Errorf("test error")
+	}
+	mock = NewMockDockerClient(manifestFunc, nil)
+	c = NewCache(
+		NoCredentials(),
+		mc,
+		20*time.Minute,
+		log.NewLogfmtLogger(log.NewSyncWriter(os.Stdout)),
+	)(mock)
+	response, err = c.Manifest("weaveworks/foorepo", "tag2")
+	if err == nil || err.Error() != "test error" {
+		t.Fatalf("Expected test error, but got %v", err)
+	}
 }
