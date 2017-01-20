@@ -2,7 +2,6 @@ package instance
 
 import (
 	"net/http"
-	"time"
 
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/metrics"
@@ -13,6 +12,7 @@ import (
 	"github.com/weaveworks/flux/history"
 	"github.com/weaveworks/flux/platform"
 	"github.com/weaveworks/flux/registry"
+	"time"
 )
 
 type MultitenantInstancer struct {
@@ -46,13 +46,13 @@ func (m *MultitenantInstancer) Get(instanceID flux.InstanceID) (*Instance, error
 	if err != nil {
 		return nil, errors.Wrap(err, "decoding registry credentials")
 	}
-	regClient := registry.NewClient(
-		creds,
-		log.NewContext(instanceLogger).With("component", "registry"),
+	registryLogger := log.NewContext(instanceLogger).With("component", "registry")
+	reg := registry.NewRegistry(
+		registry.NewRemoteClientFactory(creds, registryLogger, m.MemcacheClient, m.RegistryCacheExpiry),
+		registryLogger,
 		m.RegistryMetrics.WithInstanceID(instanceID),
-		m.MemcacheClient,
-		m.RegistryCacheExpiry,
 	)
+	reg = registry.NewInstrumentedRegistry(reg, m.RegistryMetrics.WithInstanceID(instanceID))
 
 	repo := gitRepoFromSettings(c.Settings)
 
@@ -73,7 +73,7 @@ func (m *MultitenantInstancer) Get(instanceID flux.InstanceID) (*Instance, error
 
 	return New(
 		platform,
-		regClient,
+		reg,
 		config,
 		repo,
 		instanceLogger,

@@ -9,25 +9,27 @@ import (
 	"github.com/docker/distribution/manifest/schema1"
 	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
-
-	"github.com/weaveworks/flux"
 )
 
 type Cache struct {
-	backend
+	next   dockerRegistryInterface
 	creds  Credentials
 	expiry time.Duration
 	Client MemcacheClient
 	logger log.Logger
 }
 
-func NewCache(b backend, creds Credentials, cache MemcacheClient, expiry time.Duration, logger log.Logger) *Cache {
-	return &Cache{
-		backend: b,
-		creds:   creds,
-		expiry:  expiry,
-		Client:  cache,
-		logger:  logger,
+type CachedDockerRegistry func(dockerRegistryInterface) dockerRegistryInterface
+
+func NewCache(creds Credentials, cache MemcacheClient, expiry time.Duration, logger log.Logger) CachedDockerRegistry {
+	return func(next dockerRegistryInterface) dockerRegistryInterface {
+		return &Cache{
+			next:   next,
+			creds:  creds,
+			expiry: expiry,
+			Client: cache,
+			logger: logger,
+		}
 	}
 }
 
@@ -35,11 +37,13 @@ func (c *Cache) Manifest(repository, reference string) ([]schema1.History, error
 	// Don't cache latest. There are probably some other frequently changing tags
 	// we shouldn't cache here as well.
 	if reference == "latest" {
-		return c.backend.Manifest(repository, reference)
+		return c.next.Manifest(repository, reference)
 	}
-
-	host, _, _ := flux.ImageID(repository).Components()
-	creds := c.creds.credsFor(host)
+	repo, err := ParseRepository(repository)
+	if err != nil {
+		return []schema1.History{}, err
+	}
+	creds := c.creds.credsFor(repo.Host())
 
 	// Try the cache
 	key := strings.Join([]string{
@@ -65,7 +69,7 @@ func (c *Cache) Manifest(repository, reference string) ([]schema1.History, error
 	}
 
 	// fall back to the backend
-	history, err := c.backend.Manifest(repository, reference)
+	history, err := c.next.Manifest(repository, reference)
 	if err == nil {
 		// Store positive responses in the cache
 		val, err := json.Marshal(history)
@@ -84,4 +88,9 @@ func (c *Cache) Manifest(repository, reference string) ([]schema1.History, error
 	}
 
 	return history, nil
+}
+
+// Pass through. Not caching tags.
+func (c *Cache) Tags(repository string) ([]string, error) {
+	return c.next.Tags(repository)
 }

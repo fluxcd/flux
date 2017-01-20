@@ -2,78 +2,34 @@
 package registry
 
 import (
-	"context"
-	"encoding/base64"
-	"encoding/json"
-	"fmt"
-	"io/ioutil"
-	"net/http"
-	"net/http/cookiejar"
-	"sort"
-	"strconv"
-	"strings"
-	"time"
-
-	"github.com/docker/distribution/manifest/schema1"
 	"github.com/go-kit/kit/log"
-	dockerregistry "github.com/heroku/docker-registry-client/registry"
-	"github.com/jonboulle/clockwork"
-	"golang.org/x/net/publicsuffix"
-
-	"github.com/weaveworks/flux"
-	fluxmetrics "github.com/weaveworks/flux/metrics"
+	"sort"
+	"time"
 )
 
 const (
-	dockerHubHost    = "index.docker.io"
-	dockerHubLibrary = "library"
-
 	requestTimeout = 10 * time.Second
 )
 
-type creds struct {
-	username, password string
+// The Registry interface is a domain specific API to access container registries.
+type Registry interface {
+	GetRepository(repository Repository) ([]Image, error)
+	GetImage(repository Repository, tag string) (Image, error)
 }
 
-// Credentials to a (Docker) registry.
-type Credentials struct {
-	m map[string]creds
+type registry struct {
+	factory RemoteClientFactory
+	Logger  log.Logger
+	Metrics Metrics
 }
 
-// Client is a handle to a bunch of registries.
-type Client interface {
-	GetRepository(repository string) ([]flux.ImageDescription, error)
-}
-
-// client is a handle to a registry.
-type client struct {
-	Credentials    Credentials
-	Logger         log.Logger
-	Metrics        Metrics
-	MemcacheClient MemcacheClient
-	CacheExpiry    time.Duration
-}
-
-// NewClient creates a new registry client, to use when fetching repositories.
-func NewClient(c Credentials, l log.Logger, m Metrics, mc MemcacheClient, ce time.Duration) Client {
-	return &client{
-		Credentials:    c,
-		Logger:         l,
-		Metrics:        m,
-		MemcacheClient: mc,
-		CacheExpiry:    ce,
+// NewClient creates a new registry registry, to use when fetching repositories.
+func NewRegistry(c RemoteClientFactory, l log.Logger, m Metrics) Registry {
+	return &registry{
+		factory: c,
+		Logger:  l,
+		Metrics: m,
 	}
-}
-
-type backend interface {
-	Tags(repository string) ([]string, error)
-	Manifest(repository, reference string) ([]schema1.History, error)
-}
-
-type roundtripperFunc func(*http.Request) (*http.Response, error)
-
-func (f roundtripperFunc) RoundTrip(r *http.Request) (*http.Response, error) {
-	return f(r)
 }
 
 // GetRepository yields a repository matching the given name, if any exists.
@@ -84,86 +40,15 @@ func (f roundtripperFunc) RoundTrip(r *http.Request) (*http.Response, error) {
 //   foo/helloworld         -> index.docker.io/foo/helloworld
 //   quay.io/foo/helloworld -> quay.io/foo/helloworld
 //
-func (c *client) GetRepository(repository string) (_ []flux.ImageDescription, err error) {
-	defer func(start time.Time) {
-		c.Metrics.FetchDuration.With(
-			LabelRepository, repository,
-			fluxmetrics.LabelSuccess, strconv.FormatBool(err == nil),
-		).Observe(time.Since(start).Seconds())
-	}(time.Now())
-
-	var host, org, image string
-	parts := strings.Split(repository, "/")
-	switch len(parts) {
-	case 1:
-		host = dockerHubHost
-		org = dockerHubLibrary
-		image = parts[0]
-	case 2:
-		host = dockerHubHost
-		org = parts[0]
-		image = parts[1]
-	case 3:
-		host = parts[0]
-		org = parts[1]
-		image = parts[2]
-	default:
-		return nil, fmt.Errorf(`expected image name as either "<host>/<org>/<image>", "<org>/<image>", or "<image>"`)
-	}
-
-	hostlessImageName := fmt.Sprintf("%s/%s", org, image)
-	httphost := "https://" + host
-
-	// quay.io wants us to use cookies for authorisation, so we have
-	// to construct one (the default client has none). This means a
-	// bit more constructing things to be able to make a registry
-	// client literal, rather than calling .New()
-	jar, err := cookiejar.New(&cookiejar.Options{PublicSuffixList: publicsuffix.List})
+func (reg *registry) GetRepository(img Repository) (_ []Image, err error) {
+	rem, err := reg.newRemote(img)
 	if err != nil {
-		return nil, err
-	}
-	auth := c.Credentials.credsFor(host)
-
-	// A context we'll use to cancel requests on error
-	ctx, cancel := context.WithCancel(context.Background())
-	// Add a timeout to the request
-	ctx, cancel = context.WithTimeout(ctx, requestTimeout)
-
-	// Use the wrapper to fix headers for quay.io, and remember bearer tokens
-	var transport http.RoundTripper = &wwwAuthenticateFixer{transport: http.DefaultTransport}
-	// Now the auth-handling wrappers that come with the library
-	transport = dockerregistry.WrapTransport(transport, httphost, auth.username, auth.password)
-	// Add the backoff mechanism so we don't DOS registries
-	transport = BackoffRoundTripper(transport, initialBackoff, maxBackoff, clockwork.NewRealClock())
-
-	var client backend = herokuWrapper{
-		&dockerregistry.Registry{
-			URL: httphost,
-			Client: &http.Client{
-				Transport: roundtripperFunc(func(r *http.Request) (*http.Response, error) {
-					return transport.RoundTrip(r.WithContext(ctx))
-				}),
-				Jar:     jar,
-				Timeout: 10 * time.Second,
-			},
-			Logf: dockerregistry.Quiet,
-		},
-	}
-	if c.MemcacheClient != nil {
-		client = NewCache(client, c.Credentials, c.MemcacheClient, c.CacheExpiry, c.Logger)
-	} else {
-		c.Logger.Log("registry_cache", "disabled")
+		return
 	}
 
-	start := time.Now()
-	tags, err := client.Tags(hostlessImageName)
-	c.Metrics.RequestDuration.With(
-		LabelRepository, repository,
-		LabelRequestKind, RequestKindTags,
-		fluxmetrics.LabelSuccess, strconv.FormatBool(err == nil),
-	).Observe(time.Since(start).Seconds())
+	tags, err := rem.Tags(img)
 	if err != nil {
-		cancel()
+		rem.Cancel()
 		return nil, err
 	}
 
@@ -172,51 +57,33 @@ func (c *client) GetRepository(repository string) (_ []flux.ImageDescription, er
 	// `library/nats`. We need that to fetch the tags etc. However, we
 	// want the results to use the *actual* name of the images to be
 	// as supplied, e.g., `nats`.
-	return c.tagsToRepository(cancel, client, hostlessImageName, repository, tags)
+	return reg.tagsToRepository(rem, img, tags)
 }
 
-func (c *client) lookupImage(client backend, lookupName, imageName, tag string) (flux.ImageDescription, error) {
-	// Minor cheat: this will give the correct result even if the
-	// imageName includes a host
-	id := flux.MakeImageID("", imageName, tag)
-	img := flux.ImageDescription{ID: id}
-
-	start := time.Now()
-	history, err := client.Manifest(lookupName, tag)
-	c.Metrics.RequestDuration.With(
-		LabelRepository, imageName,
-		LabelRequestKind, RequestKindMetadata,
-		fluxmetrics.LabelSuccess, strconv.FormatBool(err == nil),
-	).Observe(time.Since(start).Seconds())
+// Get a single Image from the registry if it exists
+func (reg *registry) GetImage(img Repository, tag string) (_ Image, err error) {
+	rem, err := reg.newRemote(img)
 	if err != nil {
-		return img, err
+		return
 	}
-	// the manifest includes some v1-backwards-compatibility data,
-	// oddly called "History", which are layer metadata as JSON
-	// strings; these appear most-recent (i.e., topmost layer) first,
-	// so happily we can just decode the first entry to get a created
-	// time.
-	type v1image struct {
-		Created time.Time `json:"created"`
-	}
-	var topmost v1image
-	if len(history) > 0 {
-		if err = json.Unmarshal([]byte(history[0].V1Compatibility), &topmost); err == nil {
-			if !topmost.Created.IsZero() {
-				img.CreatedAt = &topmost.Created
-			}
-		}
-	}
-
-	return img, err
+	return rem.Manifest(img, tag)
 }
 
-func (c *client) tagsToRepository(cancel func(), client backend, lookupName, imageName string, tags []string) ([]flux.ImageDescription, error) {
+func (reg *registry) newRemote(img Repository) (rem Remote, err error) {
+	rem, err = reg.factory.CreateFor(img.Host())
+	if err != nil {
+		return
+	}
+	rem = NewInstrumentedRemote(rem, reg.Metrics)
+	return
+}
+
+func (reg *registry) tagsToRepository(remote Remote, repository Repository, tags []string) ([]Image, error) {
 	// one way or another, we'll be finishing all requests
-	defer cancel()
+	defer remote.Cancel()
 
 	type result struct {
-		image flux.ImageDescription
+		image Image
 		err   error
 	}
 
@@ -224,15 +91,15 @@ func (c *client) tagsToRepository(cancel func(), client backend, lookupName, ima
 
 	for _, tag := range tags {
 		go func(t string) {
-			img, err := c.lookupImage(client, lookupName, imageName, t)
+			image, err := remote.Manifest(repository, t)
 			if err != nil {
-				c.Logger.Log("registry-metadata-err", err)
+				reg.Logger.Log("registry-metadata-err", err)
 			}
-			fetched <- result{img, err}
+			fetched <- result{image, err}
 		}(tag)
 	}
 
-	images := make([]flux.ImageDescription, cap(fetched))
+	images := make([]Image, cap(fetched))
 	for i := 0; i < cap(fetched); i++ {
 		res := <-fetched
 		if res.err != nil {
@@ -245,89 +112,9 @@ func (c *client) tagsToRepository(cancel func(), client backend, lookupName, ima
 	return images, nil
 }
 
-// --- Credentials
-
-// NoCredentials returns a usable but empty credentials object.
-func NoCredentials() Credentials {
-	return Credentials{
-		m: map[string]creds{},
-	}
-}
-
-// CredentialsFromFile returns a credentials object parsed from the given
-// filepath.
-func CredentialsFromFile(path string) (Credentials, error) {
-	bytes, err := ioutil.ReadFile(path)
-	if err != nil {
-		return Credentials{}, err
-	}
-
-	type dockerConfig struct {
-		Auths map[string]struct {
-			Auth  string `json:"auth"`
-			Email string `json:"email"`
-		} `json:"auths"`
-	}
-
-	var config dockerConfig
-	if err = json.Unmarshal(bytes, &config); err != nil {
-		return Credentials{}, err
-	}
-
-	m := map[string]creds{}
-	for host, entry := range config.Auths {
-		decodedAuth, err := base64.StdEncoding.DecodeString(entry.Auth)
-		if err != nil {
-			return Credentials{}, err
-		}
-		authParts := strings.SplitN(string(decodedAuth), ":", 2)
-		m[host] = creds{
-			username: authParts[0],
-			password: authParts[1],
-		}
-	}
-	return Credentials{m: m}, nil
-}
-
-func CredentialsFromConfig(config flux.UnsafeInstanceConfig) (Credentials, error) {
-	m := map[string]creds{}
-	for host, entry := range config.Registry.Auths {
-		decodedAuth, err := base64.StdEncoding.DecodeString(entry.Auth)
-		if err != nil {
-			return Credentials{}, err
-		}
-		authParts := strings.SplitN(string(decodedAuth), ":", 2)
-		m[host] = creds{
-			username: authParts[0],
-			password: authParts[1],
-		}
-	}
-	return Credentials{m: m}, nil
-}
-
-// For yields an authenticator for a specific host.
-func (cs Credentials) credsFor(host string) creds {
-	if cred, found := cs.m[host]; found {
-		return cred
-	}
-	if cred, found := cs.m[fmt.Sprintf("https://%s/v1/", host)]; found {
-		return cred
-	}
-	return creds{}
-}
-
-// Hosts returns all of the hosts available in these credentials.
-func (cs Credentials) Hosts() []string {
-	hosts := []string{}
-	for host := range cs.m {
-		hosts = append(hosts, host)
-	}
-	return hosts
-}
-
 // -----
 
-type byCreatedDesc []flux.ImageDescription
+type byCreatedDesc []Image
 
 func (is byCreatedDesc) Len() int      { return len(is) }
 func (is byCreatedDesc) Swap(i, j int) { is[i], is[j] = is[j], is[i] }
@@ -339,29 +126,7 @@ func (is byCreatedDesc) Less(i, j int) bool {
 		return false
 	}
 	if is[i].CreatedAt.Equal(*is[j].CreatedAt) {
-		return is[i].ID < is[j].ID
+		return is[i].String() < is[j].String()
 	}
 	return is[i].CreatedAt.After(*is[j].CreatedAt)
-}
-
-// Log requests as they go through, and responses as they come back.
-// transport = logTransport{
-// 	transport: transport,
-// 	log: func(format string, args ...interface{}) {
-// 		c.Logger.Log("registry-client-log", fmt.Sprintf(format, args...))
-// 	},
-// }
-type logTransport struct {
-	log       func(string, ...interface{})
-	transport http.RoundTripper
-}
-
-func (t logTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	t.log("Request %s %#v", req.URL, req)
-	res, err := t.transport.RoundTrip(req)
-	t.log("Response %#v", res)
-	if err != nil {
-		t.log("Error %s", err)
-	}
-	return res, err
 }

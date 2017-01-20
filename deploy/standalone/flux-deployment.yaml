@@ -17,4 +17,8 @@ spec:
       - name: fluxsvc
         image: quay.io/weaveworks/fluxsvc:master-6cc08e4
         args:
-        - --database-source=file://fluxy.db
+        - --database-source=file://flux.db
+        - --memcached-hostname=memcached.default.svc.cluster.local
+        - --memcached-timeout=100ms
+        - --memcached-service=memcached
+        - --registry-cache-expiry=20m

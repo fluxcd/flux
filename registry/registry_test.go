@@ -1,80 +1,110 @@
 package registry
 
 import (
+	"github.com/go-kit/kit/log"
+	"github.com/pkg/errors"
+	"sort"
+	"strconv"
 	"testing"
-
-	"github.com/weaveworks/flux"
+	"time"
 )
 
-type image struct {
-	Registry, Name, Tag string
-}
+var (
+	testTags            = []string{testTagStr, "anotherTag"}
+	mRemote             = NewMockRemote(img, testTags, nil)
+	mRemoteFact         = NewMockRemoteFactory(mRemote, nil)
+	testRegistryMetrics = NewMetrics().WithInstanceID("1")
+	testTime, _         = time.Parse(constTime, time.RFC3339Nano)
+)
 
-var imageParsingExamples = map[string]image{
-	"foo/bar": image{
-		Registry: "",
-		Name:     "foo/bar",
-		Tag:      "",
-	},
-	"foo/bar:baz": image{
-		Registry: "",
-		Name:     "foo/bar",
-		Tag:      "baz",
-	},
-	"reg:123/foo/bar:baz": image{
-		Registry: "reg:123",
-		Name:     "foo/bar",
-		Tag:      "baz",
-	},
-	"docker-registry.domain.name:5000/repo/image1:ver": image{
-		Registry: "docker-registry.domain.name:5000",
-		Name:     "repo/image1",
-		Tag:      "ver",
-	},
-	"shortreg/repo/image1": image{
-		Registry: "shortreg",
-		Name:     "repo/image1",
-		Tag:      "",
-	},
-	"foo": image{
-		Registry: "",
-		Name:     "foo",
-		Tag:      "",
-	},
-}
-
-func TestParseImage(t *testing.T) {
-	for in, want := range imageParsingExamples {
-		outReg, outName, outTag := flux.ParseImageID(in).Components()
-		if outReg != want.Registry ||
-			outName != want.Name ||
-			outTag != want.Tag {
-			t.Fatalf("%s: %v != %v", in, image{outReg, outName, outTag}, want)
-		}
+func TestRegistry_GetImage(t *testing.T) {
+	reg := NewRegistry(mRemoteFact, log.NewNopLogger(), testRegistryMetrics)
+	newImg, err := reg.GetImage(testRepository, img.Tag)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if img.String() != newImg.String() {
+		t.Fatal("Expected %v, but got %v", img.String(), newImg.String())
 	}
 }
 
-func TestMakeImage(t *testing.T) {
-	for want, in := range imageParsingExamples {
-		out := flux.MakeImageID(in.Registry, in.Name, in.Tag)
-		if string(out) != want {
-			t.Fatalf("%#v.String(): %s != %s", in, out, want)
-		}
+func TestRegistry_GetImageFactoryErr(t *testing.T) {
+	errFact := NewMockRemoteFactory(mRemote, errors.New(""))
+	reg := NewRegistry(errFact, nil, testRegistryMetrics)
+	_, err := reg.GetImage(testRepository, img.Tag)
+	if err == nil {
+		t.Fatal("Expecting error")
 	}
 }
 
-func TestImageRepository(t *testing.T) {
-	for in, want := range map[string]string{
-		"foo/bar":                                          "foo/bar",
-		"foo/bar:baz":                                      "foo/bar",
-		"reg:123/foo/bar:baz":                              "reg:123/foo/bar",
-		"docker-registry.domain.name:5000/repo/image1:ver": "docker-registry.domain.name:5000/repo/image1",
-		"shortreg/repo/image1":                             "shortreg/repo/image1",
-		"foo": "foo",
-	} {
-		out := flux.ParseImageID(in).Repository()
-		if out != want {
-			t.Fatalf("%#v.Repository(): %s != %s", in, out, want)
+func TestRegistry_GetImageRemoteErr(t *testing.T) {
+	r := NewMockRemote(img, testTags, errors.New(""))
+	errFact := NewMockRemoteFactory(r, nil)
+	reg := NewRegistry(errFact, log.NewNopLogger(), testRegistryMetrics)
+	_, err := reg.GetImage(testRepository, img.Tag)
+	if err == nil {
+		t.Fatal("Expecting error")
+	}
+}
+
+func TestRegistry_GetRepository(t *testing.T) {
+	reg := NewRegistry(mRemoteFact, log.NewNopLogger(), testRegistryMetrics)
+	imgs, err := reg.GetRepository(testRepository)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Dev note, the tags will look the same because we are returning the same
+	// Image from the mock remote. But they are distinct images.
+	if len(testTags) != len(imgs) {
+		t.Fatal("Expecting %v images, but got %v", len(testTags), len(imgs))
+	}
+}
+
+func TestRegistry_GetRepositoryFactoryError(t *testing.T) {
+	errFact := NewMockRemoteFactory(mRemote, errors.New(""))
+	reg := NewRegistry(errFact, nil, testRegistryMetrics)
+	_, err := reg.GetRepository(testRepository)
+	if err == nil {
+		t.Fatal("Expecting error")
+	}
+}
+
+func TestRegistry_GetRepositoryRemoteErr(t *testing.T) {
+	r := NewMockRemote(img, testTags, errors.New(""))
+	errFact := NewMockRemoteFactory(r, nil)
+	reg := NewRegistry(errFact, log.NewNopLogger(), testRegistryMetrics)
+	_, err := reg.GetRepository(testRepository)
+	if err == nil {
+		t.Fatal("Expecting error")
+	}
+}
+
+func TestRegistry_GetRepositoryManifestError(t *testing.T) {
+	r := NewMockRemote(img, []string{"valid", "error"}, nil)
+	errFact := NewMockRemoteFactory(r, nil)
+	reg := NewRegistry(errFact, log.NewNopLogger(), testRegistryMetrics)
+	_, err := reg.GetRepository(testRepository)
+	if err == nil {
+		t.Fatal("Expecting error")
+	}
+}
+
+func TestRegistry_OrderByCreationDate(t *testing.T) {
+	time0 := testTime.Add(time.Second)
+	time2 := testTime.Add(-time.Second)
+	imA, _ := ParseImage("my/Image:3", &testTime)
+	imB, _ := ParseImage("my/Image:1", &time0)
+	imC, _ := ParseImage("my/Image:4", &time2)
+	imD, _ := ParseImage("my/Image:0", nil)       // test nil
+	imE, _ := ParseImage("my/Image:2", &testTime) // test equal
+	imgs := []Image{imA, imB, imC, imD, imE}
+	sort.Sort(byCreatedDesc(imgs))
+	for i, im := range imgs {
+		if strconv.Itoa(i) != im.Tag {
+			for j, jim := range imgs {
+				t.Logf("%v: %v", j, jim.String())
+			}
+			t.Fatalf("Not sorted in expected order: %#v", imgs)
 		}
 	}
 }
