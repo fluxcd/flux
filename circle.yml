@@ -33,7 +33,6 @@ dependencies:
     - go get github.com/nats-io/gnatsd
     - go get github.com/weaveworks/github-release
     - gvt restore
-    - rm -r ./vendor/github.com/heroku/docker-registry-client/vendor || true # Remove the heroku vendor folder. Won't build without this.
 
 test:
   override:
