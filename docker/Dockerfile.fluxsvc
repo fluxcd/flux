@@ -4,4 +4,6 @@ RUN apk add --no-cache 'git>=2.3.0' openssh python py-yaml ca-certificates
 COPY ./kubeservice /usr/local/bin/
 ADD ./migrations.tar /home/flux/
 COPY ./fluxsvc /usr/local/bin/
+COPY ./queries.yaml /home/flux
+COPY ./fluxmon /usr/local/bin/
 ENTRYPOINT [ "fluxsvc" ]

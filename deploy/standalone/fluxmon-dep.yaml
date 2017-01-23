@@ -1,0 +1,21 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: fluxmon
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        name: fluxmon
+    spec:
+      containers:
+      - name: fluxmon
+        image: weaveworks/fluxsvc:test
+        command:
+        - "fluxmon"
+        args:
+        - --database-source=postgres://user:password@flux-db.default.svc.cluster.local:5432/flux?sslmode=disable
+        - --listen=:3031
+        ports:
+        - containerPort: 3031
