@@ -257,6 +257,10 @@ func (n *NATS) Subscribe(instID flux.InstanceID, remote platform.Platform, done 
 					err = remote.Ping()
 				}
 				n.enc.Publish(request.Reply, PingResponse{makeErrorResponse(err)})
+			case strings.HasSuffix(request.Subject, methodVersion):
+				var vsn string
+				vsn, err = remote.Version()
+				n.enc.Publish(request.Reply, VersionResponse{vsn, makeErrorResponse(err)})
 			case strings.HasSuffix(request.Subject, methodAllServices):
 				var (
 					req fluxrpc.AllServicesRequest
