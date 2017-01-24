@@ -37,7 +37,7 @@ port, with
 ```
 $ flux_host=$(minikube ip)
 $ flux_port=$(kubectl get service fluxsvc --template '{{ index .spec.ports 0 "nodePort" }}')
-$ export FLUX_URL=http://$flux_host:$flux_port
+$ export FLUX_URL=http://$flux_host:$flux_port/api/flux
 ```
 
 At this point you can see if it's all running by doing:
