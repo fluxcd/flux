@@ -76,6 +76,7 @@ func TestMethods(t *testing.T) {
 
 	instA := flux.InstanceID("steamy-windows-89")
 	mockA := &platform.MockPlatform{
+		VersionAnswer:     "a-version-123",
 		AllServicesAnswer: []platform.Service{platform.Service{}},
 		ApplyError:        platform.ApplyError{flux.ServiceID("foo/bar"): errors.New("foo barred")},
 	}
@@ -85,6 +86,14 @@ func TestMethods(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	vsn, err := plat.Version()
+	if err != nil {
+		t.Error(err)
+	} else if vsn != mockA.VersionAnswer {
+		t.Errorf(`expected version "%s", got "%s"`, mockA.VersionAnswer, vsn)
+	}
+
 	ss, err := plat.AllServices("", nil)
 	if err != nil {
 		t.Fatal(err)
