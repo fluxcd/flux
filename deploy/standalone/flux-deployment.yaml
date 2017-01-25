@@ -11,13 +11,13 @@ spec:
     spec:
       containers:
       - name: fluxd
-        image: quay.io/weaveworks/fluxd:master-6cc08e4
+        image: weaveworks/fluxd:test
         args:
         - --fluxsvc-address=ws://localhost:3030/api/flux
       - name: fluxsvc
-        image: quay.io/weaveworks/fluxsvc:master-6cc08e4
+        image: weaveworks/fluxsvc:test
         args:
-        - --database-source=file://flux.db
+        - --database-source=postgres://user:password@flux-db.default.svc.cluster.local:5432/flux?sslmode=disable
         - --memcached-hostname=memcached.default.svc.cluster.local
         - --memcached-timeout=100ms
         - --memcached-service=memcached

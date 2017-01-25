@@ -13,10 +13,11 @@ godeps=$(shell go list -f '{{join .Deps "\n"}}' $1 | grep -v /vendor/ | xargs go
 FLUXD_DEPS:=$(call godeps,./cmd/fluxd)
 FLUXSVC_DEPS:=$(call godeps,./cmd/fluxsvc)
 FLUXCTL_DEPS:=$(call godeps,./cmd/fluxctl)
+FLUXMON_DEPS:=$(call godeps,./cmd/fluxmon)
 
 MIGRATIONS:=$(shell find db/migrations -type f)
 
-all: $(GOPATH)/bin/fluxctl $(GOPATH)/bin/fluxd $(GOPATH)/bin/fluxsvc build/.fluxd.done build/.fluxsvc.done
+all: $(GOPATH)/bin/fluxctl $(GOPATH)/bin/fluxd $(GOPATH)/bin/fluxsvc $(GOPATH)/bin/fluxmon build/.fluxd.done build/.fluxsvc.done
 
 .PHONY: release-bins
 release-bins:
@@ -43,7 +44,7 @@ build/.%.done: docker/Dockerfile.%
 	touch $@
 
 build/.fluxd.done: build/fluxd build/kubectl
-build/.fluxsvc.done: build/fluxsvc cmd/fluxsvc/kubeservice build/migrations.tar
+build/.fluxsvc.done: build/fluxsvc build/fluxmon cmd/fluxmon/queries.yaml cmd/fluxsvc/kubeservice build/migrations.tar
 
 build/fluxd: $(FLUXD_DEPS)
 build/fluxd: cmd/fluxd/*.go
@@ -52,6 +53,10 @@ build/fluxd: cmd/fluxd/*.go
 build/fluxsvc: $(FLUXSVC_DEPS)
 build/fluxsvc: cmd/fluxsvc/*.go
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o $@ $(LDFLAGS) -ldflags "-X main.version=$(shell ./docker/image-tag)" cmd/fluxsvc/main.go
+
+build/fluxmon: $(FLUXMON_DEPS)
+build/fluxmon: cmd/fluxmon/*.go
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o $@ $(LDFLAGS) -ldflags "-X main.version=$(shell ./docker/image-tag)" cmd/fluxmon/main.go
 
 build/kubectl: cache/kubectl-$(KUBECTL_VERSION) docker/kubectl.version
 	cp cache/kubectl-$(KUBECTL_VERSION) $@
