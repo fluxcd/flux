@@ -13,7 +13,7 @@ import (
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/pflag"
-	"k8s.io/kubernetes/pkg/client/restclient"
+	"k8s.io/client-go/1.5/rest"
 
 	"github.com/weaveworks/flux"
 	transport "github.com/weaveworks/flux/http"
@@ -62,7 +62,7 @@ func main() {
 	// Platform component.
 	var k8s platform.Platform
 	{
-		restClientConfig, err := restclient.InClusterConfig()
+		restClientConfig, err := rest.InClusterConfig()
 		if err != nil {
 			logger.Log("err", err)
 			os.Exit(1)
