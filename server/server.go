@@ -12,6 +12,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/git"
 	"github.com/weaveworks/flux/history"
 	"github.com/weaveworks/flux/instance"
 	"github.com/weaveworks/flux/jobs"
@@ -369,6 +370,24 @@ func applyConfigUpdates(updates flux.UnsafeInstanceConfig) instance.UpdateFunc {
 		config.Settings = updates
 		return config, nil
 	}
+}
+
+func (s *Server) GenerateDeployKey(instID flux.InstanceID) error {
+	// Generate new key
+	unsafePrivateKey, err := git.NewKeyGenerator().Generate()
+	if err != nil {
+		return err
+	}
+
+	// Get current config
+	cfg, err := s.GetConfig(instID)
+	if err != nil {
+		return err
+	}
+	cfg.Git.Key = string(unsafePrivateKey)
+
+	// Set new config
+	return s.config.UpdateConfig(instID, applyConfigUpdates(flux.UnsafeInstanceConfig(cfg)))
 }
 
 // RegisterDaemon handles a daemon connection. It blocks until the

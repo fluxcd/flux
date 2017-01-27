@@ -19,6 +19,7 @@ type ClientService interface {
 	History(flux.InstanceID, flux.ServiceSpec) ([]flux.HistoryEntry, error)
 	GetConfig(_ flux.InstanceID) (flux.InstanceConfig, error)
 	SetConfig(flux.InstanceID, flux.UnsafeInstanceConfig) error
+	GenerateDeployKey(flux.InstanceID) error
 }
 
 type DaemonService interface {
