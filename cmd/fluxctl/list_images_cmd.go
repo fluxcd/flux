@@ -62,7 +62,7 @@ func (opts *serviceShowOpts) RunE(_ *cobra.Command, args []string) error {
 		var lineCount int
 		for _, container := range service.Containers {
 			containerName := container.Name
-			reg, repo, _ := container.Current.ID.Components()
+			reg, repo, currentTag := container.Current.ID.Components()
 			if reg != "" {
 				reg += "/"
 			}
@@ -70,14 +70,13 @@ func (opts *serviceShowOpts) RunE(_ *cobra.Command, args []string) error {
 			foundRunning := false
 			for _, available := range container.Available {
 				running := "|  "
-				if container.Current.ID == available.ID {
+				_, _, tag := available.ID.Components()
+				if currentTag == tag {
 					running = "'->"
 					foundRunning = true
 				} else if foundRunning {
 					running = "   "
 				}
-
-				_, _, tag := available.ID.Components()
 
 				lineCount++
 				var printEllipsis, printLine bool
