@@ -12,10 +12,15 @@ cluster.
 
 The file `flux-deployment.yaml` contains a Kubernetes deployment
 configuration that runs the Flux service and the Flux daemon in a
-single pod.
+single pod. But before deploying the Flux daemon and service, you
+need to deploy Memcache, which is a requirement:
 
-In a standalone deployment, the manifest doesn't need any
-customisation. You can just create it:
+```
+kubectl create -f memcache-dep.yaml memcache-svc.yaml
+```
+
+Once that is deployed, you can proceed to deploying Flux. In a standalone
+deployment, the manifest doesn't need any customisation. You can just create it:
 
 ```
 kubectl create -f flux-deployment.yaml
