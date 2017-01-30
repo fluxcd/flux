@@ -35,14 +35,11 @@ func exampleRelease(t *testing.T) flux.Release {
 			flux.ServiceID("default/helloworld"): {
 				Status: flux.ReleaseStatusFailed,
 				Error:  "overall-release-error",
-				PerContainer: []flux.ContainerResult{
-					{
-						Error: "",
-						ContainerUpdate: flux.ContainerUpdate{
-							Container: "container1",
-							Current:   img1a1,
-							Target:    img1a2,
-						},
+				PerContainer: []flux.ContainerUpdate{
+					flux.ContainerUpdate{
+						Container: "container1",
+						Current:   img1a1,
+						Target:    img1a2,
 					},
 				},
 			},

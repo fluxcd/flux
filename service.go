@@ -80,6 +80,14 @@ func (id ServiceID) Components() (namespace, service string) {
 
 type ServiceIDSet map[ServiceID]struct{}
 
+func (s ServiceIDSet) String() string {
+	var ids []string
+	for id, _ := range s {
+		ids = append(ids, string(id))
+	}
+	return "{" + strings.Join(ids, ", ") + "}"
+}
+
 func (s ServiceIDSet) Add(ids []ServiceID) {
 	for _, id := range ids {
 		s[id] = struct{}{}
@@ -168,6 +176,10 @@ func (s ServiceSpec) AsID() (ServiceID, error) {
 	return ParseServiceID(string(s))
 }
 
+func (s ServiceSpec) String() string {
+	return string(s)
+}
+
 // ImageSpec is an ImageID, or "<all latest>" (update all containers
 // to the latest available), or "<no updates>" (do not update any
 // images)
@@ -185,6 +197,18 @@ func ParseImageSpec(s string) (ImageSpec, error) {
 
 	id, err := ParseImageID(s)
 	return ImageSpec(id.String()), err
+}
+
+func (s ImageSpec) String() string {
+	return string(s)
+}
+
+func (s ImageSpec) AsID() (ImageID, error) {
+	return ParseImageID(s.String())
+}
+
+func ImageSpecFromID(id ImageID) ImageSpec {
+	return ImageSpec(id.String())
 }
 
 type ImageStatus struct {

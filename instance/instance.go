@@ -22,11 +22,11 @@ type Instancer interface {
 }
 
 type Instance struct {
-	platform platform.Platform
-	registry registry.Registry
-	config   Configurer
-	duration metrics.Histogram
-	gitrepo  git.Repo
+	Platform platform.Platform
+	Registry registry.Registry
+	Config   Configurer
+	Duration metrics.Histogram
+	Repo     git.Repo
 
 	log.Logger
 	history.EventReader
@@ -44,19 +44,15 @@ func New(
 	eventlog history.EventWriter,
 ) *Instance {
 	return &Instance{
-		platform:    platform,
-		registry:    registry,
-		config:      config,
-		gitrepo:     gitrepo,
-		duration:    duration,
+		Platform:    platform,
+		Registry:    registry,
+		Config:      config,
+		Repo:        gitrepo,
+		Duration:    duration,
 		Logger:      logger,
 		EventReader: events,
 		EventWriter: eventlog,
 	}
-}
-
-func (h *Instance) ConfigRepo() git.Repo {
-	return h.gitrepo
 }
 
 type ImageMap map[string][]flux.ImageDescription
@@ -77,6 +73,10 @@ func (m ImageMap) LatestImage(repo string) *flux.ImageDescription {
 	return nil
 }
 
+func (h *Instance) ConfigRepo() git.Repo {
+	return h.Repo
+}
+
 // Get the services in `namespace` along with their containers (if
 // there are any) from the platform; if namespace is blank, just get
 // all the services, in any namespace.
@@ -86,12 +86,12 @@ func (h *Instance) GetAllServices(maybeNamespace string) ([]platform.Service, er
 
 // Get all services except those with an ID in the set given
 func (h *Instance) GetAllServicesExcept(maybeNamespace string, ignored flux.ServiceIDSet) (res []platform.Service, err error) {
-	return h.platform.AllServices(maybeNamespace, ignored)
+	return h.Platform.AllServices(maybeNamespace, ignored)
 }
 
 // Get the services mentioned, along with their containers.
 func (h *Instance) GetServices(ids []flux.ServiceID) ([]platform.Service, error) {
-	return h.platform.SomeServices(ids)
+	return h.Platform.SomeServices(ids)
 }
 
 // Get the images available for the services given. An image may be
@@ -114,7 +114,7 @@ func (h *Instance) CollectAvailableImages(services []platform.Service) (ImageMap
 		if err != nil {
 			return nil, errors.Wrapf(err, "parsing repository %s", repo)
 		}
-		imageRepo, err := h.registry.GetRepository(r)
+		imageRepo, err := h.Registry.GetRepository(r)
 		if err != nil {
 			return nil, errors.Wrapf(err, "fetching image metadata for %s", repo)
 		}
@@ -141,7 +141,7 @@ func (h *Instance) GetRepository(repo string) (res []flux.ImageDescription, err 
 	if err != nil {
 		return
 	}
-	images, err := h.registry.GetRepository(r)
+	images, err := h.Registry.GetRepository(r)
 	if err != nil {
 		return
 	}
@@ -186,7 +186,7 @@ func (h *Instance) imageExists(imageID flux.ImageID) (bool, error) {
 		return false, err
 	}
 	// Get a specific image.
-	_, err = h.registry.GetImage(registry.RepositoryFromImage(img), img.Tag)
+	_, err = h.Registry.GetImage(registry.RepositoryFromImage(img), img.Tag)
 	if err != nil {
 		return false, nil
 	}
@@ -195,27 +195,27 @@ func (h *Instance) imageExists(imageID flux.ImageID) (bool, error) {
 
 func (h *Instance) PlatformApply(defs []platform.ServiceDefinition) (err error) {
 	defer func(begin time.Time) {
-		h.duration.With(
+		h.Duration.With(
 			fluxmetrics.LabelMethod, "PlatformApply",
 			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
 	}(time.Now())
 
-	return h.platform.Apply(defs)
+	return h.Platform.Apply(defs)
 }
 
 func (h *Instance) Ping() error {
-	return h.platform.Ping()
+	return h.Platform.Ping()
 }
 
 func (h *Instance) Version() (string, error) {
-	return h.platform.Version()
+	return h.Platform.Version()
 }
 
 func (h *Instance) GetConfig() (Config, error) {
-	return h.config.Get()
+	return h.Config.Get()
 }
 
 func (h *Instance) UpdateConfig(update UpdateFunc) error {
-	return h.config.Update(update)
+	return h.Config.Update(update)
 }

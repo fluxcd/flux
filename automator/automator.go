@@ -1,6 +1,7 @@
 package automator
 
 import (
+	"fmt"
 	"strings"
 	"time"
 
@@ -10,7 +11,6 @@ import (
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/instance"
 	"github.com/weaveworks/flux/jobs"
-	"github.com/weaveworks/flux/platform"
 	"github.com/weaveworks/flux/release"
 )
 
@@ -103,73 +103,58 @@ func (a *Automator) handleAutomatedInstanceJob(logger log.Logger, j *jobs.Job) (
 		return followUps, errors.Wrap(err, "getting job instance")
 	}
 
-	// Get all services, then filter to the automated ones.
-	// It's done this way so a single missing service doesn't fail everything.
-	// TODO: This should come from git not kubernetes
-	allServices, err := release.AllServicesExcept(nil).SelectServices(inst)
+	rc := release.NewReleaseContext(inst)
+	if err = rc.CloneRepo(); err != nil {
+		return followUps, errors.Wrap(err, "cloning repo")
+	}
+	defer rc.Clean()
+
+	results := flux.ReleaseResult{}
+
+	// Get the list of services that are automated, in the repo, and in the running service.
+	// TODO append to the job log -- we may still want to know what happens!
+	updates, err := rc.SelectServices(automatedServiceIDs, flux.ServiceIDSet{}, flux.ServiceIDSet{}, results, func(string, ...interface{}) {})
+
+	// No services that are automated exist. Don't check again.
+	if len(updates) == 0 {
+		return nil, fmt.Errorf("no automated service(s) %s exist in config or running system", automatedServiceIDs)
+	}
+
+	// Get the images available for each automated service.
+	images, err := rc.CollectAvailableImages(updates)
 	if err != nil {
-		return followUps, errors.Wrap(err, "getting services")
+		return followUps, errors.Wrap(err, "fetching image updates")
 	}
 
-	// Get just the automated services we can release.
-	var services []platform.Service
-	for _, service := range allServices {
-		if automatedServiceIDs.Contains(service.ID) {
-			services = append(services, service)
-		}
-	}
+	// At this point we have all the data we need to know precisely
+	// what needs updating. However, we want to break this down into
+	// individual jobs that can be scheduled, rather than doing it all
+	// inline here, since that is closer to the ideal of reacting to
+	// each new image appearing (as well as being more incremental and
+	// thus less risky).
 
-	if len(services) == 0 {
-		// No automated services are defined, don't reschedule.
-		return nil, nil
-	}
-
-	// Get the images used for each automated service. We have to do this
-	// ourselves, so that any individual failure doesn't error out the whole
-	// job.
-	images := instance.ImageMap{}
-	for _, service := range services {
-		for _, container := range service.ContainersOrNil() {
-			id, err := flux.ParseImageID(container.Image)
+	// We effectively need a transpose of what we have so far. To get
+	// there in one pass, we look through the _services_, since we
+	// already have a map of the available images.
+	imageServices := map[flux.ImageID][]flux.ServiceSpec{}
+	for _, update := range updates {
+		for _, container := range update.Service.ContainersOrNil() {
+			currentImageID, err := flux.ParseImageID(container.Image)
 			if err != nil {
-				// Container is running an invalid image? what?
-				continue
+				return followUps, errors.Wrapf(err, "calculating image updates for %s", container.Name)
 			}
-			images[id.Repository()] = nil
-		}
-	}
-	for repo := range images {
-		imageRepo, err := inst.GetRepository(repo)
-		if err != nil {
-			logger.Log("err", errors.Wrapf(err, "fetching image metadata for %s", repo))
-			continue
-		}
-		images[repo] = imageRepo
-	}
-
-	// Calculate which services need releasing.
-	updateMap := release.CalculateUpdates(services, images, func(format string, args ...interface{}) { /* noop */ })
-	releases := map[flux.ImageID]flux.ServiceIDSet{}
-	for serviceID, updates := range updateMap {
-		for _, update := range updates {
-			if releases[update.Target] == nil {
-				releases[update.Target] = flux.ServiceIDSet{}
+			if latest := images.LatestImage(currentImageID.Repository()); latest != nil && latest.ID != currentImageID {
+				imageServices[latest.ID] = append(imageServices[latest.ID], flux.ServiceSpec(update.ServiceID))
 			}
-			releases[update.Target].Add([]flux.ServiceID{serviceID})
 		}
 	}
 
-	// Schedule the release for each image. Will be a noop if all services are
-	// running latest of that image.
-	for imageID, serviceIDSet := range releases {
-		var serviceSpecs []flux.ServiceSpec
-		for id := range serviceIDSet {
-			serviceSpecs = append(serviceSpecs, flux.ServiceSpec(id))
-		}
+	for imageID, services := range imageServices {
 		followUps = append(followUps, jobs.Job{
 			Queue: jobs.ReleaseJob,
-			// Key stops us getting two jobs queued for the same service. That way if a
-			// release is slow the automator won't queue a horde of jobs to upgrade it.
+			// Key stops us getting two jobs queued for the same
+			// service. That way if a release is slow the automator
+			// won't queue a horde of jobs to upgrade it.
 			Key: strings.Join([]string{
 				jobs.ReleaseJob,
 				string(params.InstanceID),
@@ -179,13 +164,12 @@ func (a *Automator) handleAutomatedInstanceJob(logger log.Logger, j *jobs.Job) (
 			Method:   jobs.ReleaseJob,
 			Priority: jobs.PriorityBackground,
 			Params: jobs.ReleaseJobParams{
-				ServiceSpecs: serviceSpecs,
-				ImageSpec:    flux.ImageSpec(imageID.String()),
+				ServiceSpecs: services,
+				ImageSpec:    flux.ImageSpecFromID(imageID),
 				Kind:         flux.ReleaseKindExecute,
 			},
 		})
 	}
-
 	return followUps, nil
 }
 

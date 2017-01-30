@@ -9,10 +9,10 @@ import (
 
 const (
 	ReleaseStatusPending ServiceReleaseStatus = "pending"
-	ReleaseStatusRunning ServiceReleaseStatus = "running"
 	ReleaseStatusSuccess ServiceReleaseStatus = "success"
 	ReleaseStatusFailed  ServiceReleaseStatus = "failed"
 	ReleaseStatusSkipped ServiceReleaseStatus = "skipped"
+	ReleaseStatusUnknown ServiceReleaseStatus = "unknown"
 )
 
 type ServiceReleaseStatus string
@@ -91,12 +91,7 @@ func (r ReleaseResult) Error() string {
 type ServiceResult struct {
 	Status       ServiceReleaseStatus // summary of what happened, e.g., "incomplete", "ignored", "success"
 	Error        string               // error if there was one finding the service (e.g., it doesn't exist in repo)
-	PerContainer []ContainerResult    // what happened with each container
-}
-
-type ContainerResult struct {
-	ContainerUpdate
-	Error string // error in upgrading, if one occured
+	PerContainer []ContainerUpdate    // what happened with each container
 }
 
 type ContainerUpdate struct {

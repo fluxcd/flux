@@ -3,7 +3,7 @@ machine:
     - docker
     - memcached
   environment:
-    PATH: "/usr/local/go/bin:${HOME}/bin:${PATH}"
+    PATH: "/usr/local/go/bin:${HOME}/bin:${PATH}:${HOME}/flux/cmd/fluxsvc" # last for kubeservice
     GOROOT: ""
     GOPATH: "${HOME}"
     GO15VENDOREXPERIMENT: "1"
@@ -19,6 +19,8 @@ checkout:
     - mv ${HOME}/flux ${GOPATH}/src/github.com/weaveworks/
     - ln -s ${GOPATH}/src/github.com/weaveworks/flux ${HOME}/flux # Circle needs this to be here, apparently
     - cd ${GOPATH}/src/github.com/weaveworks/flux
+    - git config --global user.email "example@example.com"
+    - git config --global user.name "Weave Flux test user"
 
 dependencies:
   cache_directories:

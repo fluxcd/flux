@@ -126,9 +126,8 @@ func (c *Cluster) SomeServices(ids []flux.ServiceID) (res []platform.Service, er
 		for _, name := range names {
 			service, err := services.Get(name)
 			if err != nil {
-				return nil, errors.Wrapf(err, "finding service %s among services for namespace %s", name, ns)
+				continue
 			}
-
 			res = append(res, c.makeService(ns, service, controllers))
 		}
 	}
