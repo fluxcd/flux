@@ -153,39 +153,16 @@ func (r *Releaser) release(instanceID flux.InstanceID, job *jobs.Job, logStatus 
 	timer = NewStageTimer("apply_changes")
 	applyErr := applyChanges(rc.Instance, updates, results)
 	timer.ObserveDuration()
-	// Report on success or failure of the application above.
-	timer = NewStageTimer("send_notifications")
-	err = sendNotifications(rc.Instance, applyErr, results, job)
-	timer.ObserveDuration()
-	report(results)
-
-	return nil, err
-}
-
-// `sendNotifications` expects the result of applying updates, and
-// sends notifications indicating success or failure. It returns the
-// origin error if that was non-nil, otherwise the result of the
-// attempted notifications.
-func sendNotifications(inst *instance.Instance, executeErr error, results flux.ReleaseResult, job *jobs.Job) error {
-	cfg, err := inst.GetConfig()
-	if err != nil {
-		if executeErr == nil {
-			return errors.Wrap(err, "sending notifications")
-		}
-		return executeErr
-	}
 
 	status := flux.ReleaseStatusSuccess
-	if executeErr != nil {
+	if applyErr != nil {
 		status = flux.ReleaseStatusFailed
 	}
-	// Filling this from the job is a temporary migration hack. Ideally all
-	// the release info should be stored on the release object in a releases
-	// table, and the job should really just have a pointer to that.
-	err = notifications.Release(cfg, flux.Release{
-		ID:        flux.ReleaseID(job.ID),
-		CreatedAt: job.Submitted,
-		StartedAt: job.Claimed,
+	release := flux.Release{
+		ID:         flux.ReleaseID(job.ID),
+		InstanceID: job.Instance,
+		CreatedAt:  job.Submitted,
+		StartedAt:  job.Claimed,
 		// TODO: fetch the job and look this up so it matches
 		// (which must be done after completing the job)
 		EndedAt:  time.Now().UTC(),
@@ -194,15 +171,83 @@ func sendNotifications(inst *instance.Instance, executeErr error, results flux.R
 		Status:   status,
 		Log:      job.Log,
 
-		Spec:   flux.ReleaseSpec(job.Params.(jobs.ReleaseJobParams)),
+		Spec:   job.Params.(jobs.ReleaseJobParams).Spec(),
 		Result: results,
-	}, executeErr)
+	}
+
+	// Report on success or failure of the application above.
+	timer = NewStageTimer("send_notifications")
+	notifyErr := sendNotifications(rc.Instance, applyErr, release)
+	timer.ObserveDuration()
+
+	// Log the event into the history
+	timer = NewStageTimer("log_event")
+	err = logEvent(rc.Instance, notifyErr, release)
+	timer.ObserveDuration()
+
+	report(results)
+
+	return nil, err
+}
+
+// `logEvent` expects the result of applying updates, and records an event in
+// the history about the release taking place. It returns the origin error if
+// that was non-nil, otherwise the result of the attempted logging.
+func logEvent(inst *instance.Instance, executeErr error, release flux.Release) error {
+	errorMessage := ""
+	logLevel := flux.LogLevelInfo
+	if executeErr != nil {
+		errorMessage = executeErr.Error()
+		logLevel = flux.LogLevelError
+	}
+
+	var serviceIDs []flux.ServiceID
+	for _, id := range release.Result.ServiceIDs() {
+		serviceIDs = append(serviceIDs, flux.ServiceID(id))
+	}
+
+	err := inst.LogEvent(flux.Event{
+		ServiceIDs: serviceIDs,
+		Type:       flux.EventRelease,
+		StartedAt:  release.StartedAt,
+		EndedAt:    release.EndedAt,
+		LogLevel:   logLevel,
+		Metadata: flux.ReleaseEventMetadata{
+			Release: release,
+			Error:   errorMessage,
+		},
+	})
+	if err != nil {
+		if executeErr == nil {
+			return errors.Wrap(err, "logging event")
+		}
+	}
+	return executeErr
+}
+
+// `sendNotifications` expects the result of applying updates, and
+// sends notifications indicating success or failure. It returns the
+// origin error if that was non-nil, otherwise the result of the
+// attempted notifications.
+func sendNotifications(inst *instance.Instance, executeErr error, release flux.Release) error {
+	cfg, err := inst.GetConfig()
+	if err != nil {
+		if executeErr == nil {
+			return errors.Wrap(err, "sending notifications")
+		}
+		return executeErr
+	}
+
+	// Filling this from the job is a temporary migration hack. Ideally all
+	// the release info should be stored on the release object in a releases
+	// table, and the job should really just have a pointer to that.
+	err = notifications.Release(cfg, release, executeErr)
 	if err != nil {
 		if executeErr == nil {
 			return errors.Wrap(err, "sending notifications")
 		}
 	}
-	return nil
+	return executeErr
 }
 
 // Take the spec given in the job, and figure out which services are

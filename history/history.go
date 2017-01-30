@@ -2,34 +2,37 @@ package history
 
 import (
 	"io"
-	"time"
 
 	"github.com/weaveworks/flux"
 )
 
-type Event struct {
-	Service, Msg string
-	Stamp        time.Time
+type EventReadWriter interface {
+	EventReader
+	EventWriter
 }
 
 type EventWriter interface {
 	// LogEvent records a message in the history of a service.
-	LogEvent(namespace, service, msg string) error
+	LogEvent(flux.Event) error
 }
 
 type EventReader interface {
 	// AllEvents returns a history for every service. Events must be
 	// returned in descending timestamp order.
-	AllEvents() ([]Event, error)
+	AllEvents() ([]flux.Event, error)
 
 	// EventsForService returns the history for a particular
 	// service. Events must be returned in descending timestamp order.
-	EventsForService(namespace, service string) ([]Event, error)
+	EventsForService(flux.ServiceID) ([]flux.Event, error)
+
+	// GetEvent finds a single event, by ID.
+	GetEvent(flux.EventID) (flux.Event, error)
 }
 
 type DB interface {
-	LogEvent(inst flux.InstanceID, namespace, service, msg string) error
-	AllEvents(inst flux.InstanceID) ([]Event, error)
-	EventsForService(inst flux.InstanceID, namespace, service string) ([]Event, error)
+	LogEvent(flux.InstanceID, flux.Event) error
+	AllEvents(flux.InstanceID) ([]flux.Event, error)
+	EventsForService(flux.InstanceID, flux.ServiceID) ([]flux.Event, error)
+	GetEvent(flux.EventID) (flux.Event, error)
 	io.Closer
 }

@@ -56,11 +56,23 @@ func TestHistoryLog(t *testing.T) {
 	db := newSQL(t)
 	defer db.Close()
 
-	bailIfErr(t, db.LogEvent(instance, "namespace", "service", "event 1"))
-	bailIfErr(t, db.LogEvent(instance, "namespace", "other", "event 3"))
-	bailIfErr(t, db.LogEvent(instance, "namespace", "service", "event 2"))
+	bailIfErr(t, db.LogEvent(instance, flux.Event{
+		ServiceIDs: []flux.ServiceID{flux.ServiceID("namespace/service")},
+		Type:       "test",
+		Message:    "event 1",
+	}))
+	bailIfErr(t, db.LogEvent(instance, flux.Event{
+		ServiceIDs: []flux.ServiceID{flux.ServiceID("namespace/other")},
+		Type:       "test",
+		Message:    "event 3",
+	}))
+	bailIfErr(t, db.LogEvent(instance, flux.Event{
+		ServiceIDs: []flux.ServiceID{flux.ServiceID("namespace/service")},
+		Type:       "test",
+		Message:    "event 2",
+	}))
 
-	es, err := db.EventsForService(instance, "namespace", "service")
+	es, err := db.EventsForService(instance, flux.ServiceID("namespace/service"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -79,12 +91,12 @@ func TestHistoryLog(t *testing.T) {
 	checkInDescOrder(t, es)
 }
 
-func checkInDescOrder(t *testing.T, events []history.Event) {
+func checkInDescOrder(t *testing.T, events []flux.Event) {
 	var last time.Time = time.Now()
 	for _, event := range events {
-		if event.Stamp.After(last) {
+		if event.StartedAt.After(last) {
 			t.Fatalf("Events out of order: %+v > %s", event, last)
 		}
-		last = event.Stamp
+		last = event.StartedAt
 	}
 }

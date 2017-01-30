@@ -33,17 +33,17 @@ func InstrumentedDB(db DB) DB {
 	return &instrumentedDB{db}
 }
 
-func (i *instrumentedDB) LogEvent(inst flux.InstanceID, namespace, service, msg string) (err error) {
+func (i *instrumentedDB) LogEvent(inst flux.InstanceID, e flux.Event) (err error) {
 	defer func(begin time.Time) {
 		requestDuration.With(
 			LabelMethod, "LogEvent",
 			LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
 	}(time.Now())
-	return i.db.LogEvent(inst, namespace, service, msg)
+	return i.db.LogEvent(inst, e)
 }
 
-func (i *instrumentedDB) AllEvents(inst flux.InstanceID) (e []Event, err error) {
+func (i *instrumentedDB) AllEvents(inst flux.InstanceID) (e []flux.Event, err error) {
 	defer func(begin time.Time) {
 		requestDuration.With(
 			LabelMethod, "AllEvents",
@@ -53,14 +53,24 @@ func (i *instrumentedDB) AllEvents(inst flux.InstanceID) (e []Event, err error) 
 	return i.db.AllEvents(inst)
 }
 
-func (i *instrumentedDB) EventsForService(inst flux.InstanceID, namespace, service string) (e []Event, err error) {
+func (i *instrumentedDB) EventsForService(inst flux.InstanceID, s flux.ServiceID) (e []flux.Event, err error) {
 	defer func(begin time.Time) {
 		requestDuration.With(
 			LabelMethod, "EventsForService",
 			LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
 	}(time.Now())
-	return i.db.EventsForService(inst, namespace, service)
+	return i.db.EventsForService(inst, s)
+}
+
+func (i *instrumentedDB) GetEvent(id flux.EventID) (e flux.Event, err error) {
+	defer func(begin time.Time) {
+		requestDuration.With(
+			LabelMethod, "GetEvent",
+			LabelSuccess, fmt.Sprint(err == nil),
+		).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+	return i.db.GetEvent(id)
 }
 
 func (i *instrumentedDB) Close() (err error) {
