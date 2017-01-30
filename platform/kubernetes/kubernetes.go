@@ -12,18 +12,23 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
-	"k8s.io/kubernetes/pkg/api"
-	apiext "k8s.io/kubernetes/pkg/apis/extensions"
-	"k8s.io/kubernetes/pkg/client/restclient"
-	k8sclient "k8s.io/kubernetes/pkg/client/unversioned"
+	discovery "k8s.io/client-go/1.5/discovery"
+	k8sclient "k8s.io/client-go/1.5/kubernetes"
+	v1core "k8s.io/client-go/1.5/kubernetes/typed/core/v1"
+	v1beta1extensions "k8s.io/client-go/1.5/kubernetes/typed/extensions/v1beta1"
+	api "k8s.io/client-go/1.5/pkg/api"
+	v1 "k8s.io/client-go/1.5/pkg/api/v1"
+	apiext "k8s.io/client-go/1.5/pkg/apis/extensions/v1beta1"
+	rest "k8s.io/client-go/1.5/rest"
 
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/platform"
 )
 
 type extendedClient struct {
-	*k8sclient.Client
-	*k8sclient.ExtensionsClient
+	discovery.DiscoveryInterface
+	v1core.CoreInterface
+	v1beta1extensions.ExtensionsInterface
 }
 
 type apiObject struct {
@@ -46,7 +51,7 @@ type apply struct {
 // Cluster is a handle to a Kubernetes API server.
 // (Typically, this code is deployed into the same cluster.)
 type Cluster struct {
-	config  *restclient.Config
+	config  *rest.Config
 	client  extendedClient
 	kubectl string
 	status  *statusMap
@@ -57,12 +62,8 @@ type Cluster struct {
 
 // NewCluster returns a usable cluster. Host should be of the form
 // "http://hostname:8080".
-func NewCluster(config *restclient.Config, kubectl, version string, logger log.Logger) (*Cluster, error) {
-	client, err := k8sclient.New(config)
-	if err != nil {
-		return nil, err
-	}
-	extclient, err := k8sclient.NewExtensions(config)
+func NewCluster(config *rest.Config, kubectl, version string, logger log.Logger) (*Cluster, error) {
+	client, err := k8sclient.NewForConfig(config)
 	if err != nil {
 		return nil, err
 	}
@@ -81,7 +82,7 @@ func NewCluster(config *restclient.Config, kubectl, version string, logger log.L
 
 	c := &Cluster{
 		config:  config,
-		client:  extendedClient{client, extclient},
+		client:  extendedClient{client.Discovery(), client.Core(), client.Extensions()},
 		kubectl: kubectl,
 		status:  newStatusMap(),
 		actionc: make(chan func()),
@@ -171,7 +172,7 @@ func (c *Cluster) AllServices(namespace string, ignore flux.ServiceIDSet) (res [
 	return res, nil
 }
 
-func (c *Cluster) makeService(ns string, service *api.Service, controllers []podController) platform.Service {
+func (c *Cluster) makeService(ns string, service *v1.Service, controllers []podController) platform.Service {
 	id := flux.MakeServiceID(ns, service.Name)
 	status, _ := c.status.getApplyProgress(id)
 	return platform.Service{
@@ -183,7 +184,7 @@ func (c *Cluster) makeService(ns string, service *api.Service, controllers []pod
 	}
 }
 
-func metadataForService(s *api.Service) map[string]string {
+func metadataForService(s *v1.Service) map[string]string {
 	return map[string]string{
 		"created_at":       s.CreationTimestamp.String(),
 		"resource_version": s.ResourceVersion,
@@ -213,7 +214,7 @@ func (c *Cluster) podControllersInNamespace(namespace string) (res []podControll
 }
 
 // Find the pod controller (deployment or replication controller) that matches the service
-func matchController(service *api.Service, controllers []podController) (podController, error) {
+func matchController(service *v1.Service, controllers []podController) (podController, error) {
 	selector := service.Spec.Selector
 	if len(selector) == 0 {
 		return podController{}, platform.ErrEmptySelector
@@ -235,7 +236,7 @@ func matchController(service *api.Service, controllers []podController) (podCont
 	}
 }
 
-func containersOrExcuse(service *api.Service, controllers []podController) platform.ContainersOrExcuse {
+func containersOrExcuse(service *v1.Service, controllers []podController) platform.ContainersOrExcuse {
 	pc, err := matchController(service, controllers)
 	if err != nil {
 		return platform.ContainersOrExcuse{Excuse: err.Error()}
@@ -245,7 +246,7 @@ func containersOrExcuse(service *api.Service, controllers []podController) platf
 
 // Either a replication controller, a deployment, or neither (both nils).
 type podController struct {
-	ReplicationController *api.ReplicationController
+	ReplicationController *v1.ReplicationController
 	Deployment            *apiext.Deployment
 }
 
@@ -268,7 +269,7 @@ func (p podController) kind() string {
 }
 
 func (p podController) templateContainers() (res []platform.Container) {
-	var apiContainers []api.Container
+	var apiContainers []v1.Container
 	if p.Deployment != nil {
 		apiContainers = p.Deployment.Spec.Template.Spec.Containers
 	} else if p.ReplicationController != nil {

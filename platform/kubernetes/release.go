@@ -10,8 +10,8 @@ import (
 
 	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
-	"k8s.io/kubernetes/pkg/api"
-	apiext "k8s.io/kubernetes/pkg/apis/extensions"
+	api "k8s.io/client-go/1.5/pkg/api/v1"
+	apiext "k8s.io/client-go/1.5/pkg/apis/extensions/v1beta1"
 
 	"github.com/weaveworks/flux/platform"
 )
