@@ -55,6 +55,7 @@ func (r *Releaser) Handle(job *jobs.Job, updater jobs.JobUpdater) (followUps []j
 	params := job.Params.(jobs.ReleaseJobParams)
 
 	// Backwards compatibility
+	// TODO: Remove this once there are no more jobs with ServiceSpec, only ServiceSpecs
 	if string(params.ServiceSpec) != "" {
 		params.ServiceSpecs = append(params.ServiceSpecs, params.ServiceSpec)
 	}
