@@ -1,22 +1,23 @@
-package registry
+package flux
 
 import (
 	"fmt"
 	"testing"
 )
 
-func TestImage_ParseImage(t *testing.T) {
+func TestImageID_ParseImageID(t *testing.T) {
 	for _, x := range []struct {
 		test     string
 		expected string
 	}{
-		{"alpine", "index.docker.io/library/alpine:latest"},
-		{"library/alpine", "index.docker.io/library/alpine:latest"},
+		{"alpine", "alpine:latest"},
+		{"library/alpine", "alpine:latest"},
+		{"alpine:mytag", "alpine:mytag"},
 		{"quay.io/library/alpine", "quay.io/library/alpine:latest"},
 		{"quay.io/library/alpine:latest", "quay.io/library/alpine:latest"},
 		{"quay.io/library/alpine:mytag", "quay.io/library/alpine:mytag"},
 	} {
-		i, err := ParseImage(x.test, nil)
+		i, err := ParseImageID(x.test)
 		if err != nil {
 			t.Fatalf("Failed parsing %q, expected %q", x.test, x.expected)
 		}
@@ -26,29 +27,30 @@ func TestImage_ParseImage(t *testing.T) {
 	}
 }
 
-func TestImage_ParseImageErrorCases(t *testing.T) {
+func TestImageID_ParseImageIDErrorCases(t *testing.T) {
 	for _, x := range []struct {
 		test string
 	}{
 		{""},
+		{":tag"},
 		{"alpine::"},
 		{"alpine:invalid:"},
 		{"/too/many/slashes/"},
 	} {
-		_, err := ParseImage(x.test, nil)
+		_, err := ParseImageID(x.test)
 		if err == nil {
 			t.Fatalf("Expected parse failure for %q", x.test)
 		}
 	}
 }
 
-func TestImage_TestComponents(t *testing.T) {
+func TestImageID_TestComponents(t *testing.T) {
 	host := "quay.io"
 	namespace := "namespace"
 	image := "myrepo"
 	tag := "mytag"
 	fqn := fmt.Sprintf("%v/%v/%v:%v", host, namespace, image, tag)
-	i, err := ParseImage(fqn, nil)
+	i, err := ParseImageID(fqn)
 	if err != nil {
 		t.Fatal(err)
 	}

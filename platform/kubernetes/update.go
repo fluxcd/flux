@@ -18,9 +18,9 @@ import (
 //
 // This function has many additional requirements that are likely in flux. Read
 // the source to learn about them.
-func UpdatePodController(def []byte, newImageName string, trace io.Writer) ([]byte, error) {
+func UpdatePodController(def []byte, newImageID flux.ImageID, trace io.Writer) ([]byte, error) {
 	var buf bytes.Buffer
-	err := tryUpdate(string(def), newImageName, trace, &buf)
+	err := tryUpdate(string(def), newImageID, trace, &buf)
 	return buf.Bytes(), err
 }
 
@@ -67,9 +67,7 @@ func UpdatePodController(def []byte, newImageName string, trace io.Writer) ([]by
 //         ports:
 //         - containerPort: 80
 // ```
-func tryUpdate(def, newImageStr string, trace io.Writer, out io.Writer) error {
-	newImage := flux.ParseImageID(newImageStr)
-
+func tryUpdate(def string, newImage flux.ImageID, trace io.Writer, out io.Writer) error {
 	nameRE := multilineRE(
 		`metadata:\s*`,
 		`(?:  .*\n)*  name:\s*"?([\w-]+)"?\s*`,
@@ -84,17 +82,20 @@ func tryUpdate(def, newImageStr string, trace io.Writer, out io.Writer) error {
 	imageRE := multilineRE(
 		`      containers:.*`,
 		`(?:      .*\n)*(?:  ){3,4}- name:\s*"?([\w-]+)"?(?:\s.*)?`,
-		`(?:  ){4,5}image:\s*"?(`+newImage.Repository()+`:[\w][\w.-]{0,127})"?(\s.*)?`,
+		`(?:  ){4,5}image:\s*"?(`+newImage.Repository()+`(:[\w][\w.-]{0,127})?)"?(\s.*)?`,
 	)
 	// tag part of regexp from
 	// https://github.com/docker/distribution/blob/master/reference/regexp.go#L36
 
 	matches = imageRE.FindStringSubmatch(def)
 	if matches == nil || len(matches) < 3 {
-		return fmt.Errorf("Could not find image name")
+		return fmt.Errorf("Could not find image name: %s", newImage.Repository())
 	}
 	containerName := matches[1]
-	oldImage := flux.ParseImageID(matches[2])
+	oldImage, err := flux.ParseImageID(matches[2])
+	if err != nil {
+		return err
+	}
 	fmt.Fprintf(trace, "Found container %q using image %v in fragment:\n\n%s\n\n", containerName, oldImage, matches[0])
 
 	if oldImage.Repository() != newImage.Repository() {
@@ -145,7 +146,7 @@ func tryUpdate(def, newImageStr string, trace io.Writer, out io.Writer) error {
 		`((?:  ){3,4}- name:\s*`+containerName+`)`,
 		`((?:  ){4,5}image:\s*) .*`,
 	)
-	replaceImage := fmt.Sprintf("$1\n$2 %s$3", string(newImage))
+	replaceImage := fmt.Sprintf("$1\n$2 %s$3", newImage.String())
 	withNewImage := replaceImageRE.ReplaceAllString(withNewLabels, replaceImage)
 
 	fmt.Fprint(out, withNewImage)

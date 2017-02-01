@@ -101,8 +101,12 @@ func (h *Instance) CollectAvailableImages(services []platform.Service) (ImageMap
 	images := ImageMap{}
 	for _, service := range services {
 		for _, container := range service.ContainersOrNil() {
-			repo := flux.ParseImageID(container.Image).Repository()
-			images[repo] = nil
+			id, err := flux.ParseImageID(container.Image)
+			if err != nil {
+				// container is running an invalid image id? what?
+				return nil, err
+			}
+			images[id.Repository()] = nil
 		}
 	}
 	for repo := range images {
@@ -116,8 +120,13 @@ func (h *Instance) CollectAvailableImages(services []platform.Service) (ImageMap
 		}
 		res := make([]flux.ImageDescription, len(imageRepo))
 		for i, im := range imageRepo {
+			id, err := flux.ParseImageID(im.String())
+			if err != nil {
+				// registry returned an invalid image id
+				return nil, err
+			}
 			res[i] = flux.ImageDescription{
-				ID:        flux.ParseImageID(im.String()),
+				ID:        id,
 				CreatedAt: im.CreatedAt,
 			}
 		}
@@ -138,8 +147,13 @@ func (h *Instance) GetRepository(repo string) (res []flux.ImageDescription, err 
 	}
 	res = make([]flux.ImageDescription, len(images))
 	for i, im := range images {
+		id, err := flux.ParseImageID(im.String())
+		if err != nil {
+			// registry returned an invalid image id
+			return nil, err
+		}
 		res[i] = flux.ImageDescription{
-			ID:        flux.ParseImageID(im.String()),
+			ID:        id,
 			CreatedAt: im.CreatedAt,
 		}
 	}
@@ -165,9 +179,9 @@ func (h *Instance) ExactImages(images []flux.ImageID) (ImageMap, error) {
 
 // Checks whether the given image exists in the repository.
 // Return true if exist, false otherwise
-func (h *Instance) imageExists(image flux.ImageID) (bool, error) {
+func (h *Instance) imageExists(imageID flux.ImageID) (bool, error) {
 	// Use this method to parse the image, because it is safe. I.e. it will error and inform the user if it is malformed.
-	img, err := registry.ParseImage(string(image), nil)
+	img, err := flux.ParseImage(imageID.String(), nil)
 	if err != nil {
 		return false, err
 	}

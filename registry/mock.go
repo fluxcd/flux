@@ -3,6 +3,7 @@ package registry
 import (
 	"github.com/docker/distribution/manifest/schema1"
 	"github.com/pkg/errors"
+
 	"github.com/weaveworks/flux"
 )
 
@@ -12,12 +13,12 @@ type mockClientAdapter struct {
 }
 
 type mockRemote struct {
-	img  Image
+	img  flux.Image
 	tags []string
 	err  error
 }
 
-func NewMockRemote(img Image, tags []string, err error) Remote {
+func NewMockRemote(img flux.Image, tags []string, err error) Remote {
 	return &mockRemote{
 		img:  img,
 		tags: tags,
@@ -29,9 +30,9 @@ func (r *mockRemote) Tags(repository Repository) ([]string, error) {
 	return r.tags, r.err
 }
 
-func (r *mockRemote) Manifest(repository Repository, tag string) (Image, error) {
+func (r *mockRemote) Manifest(repository Repository, tag string) (flux.Image, error) {
 	if tag == "error" {
-		return Image{}, errors.New("Mock is set to error when tag == error")
+		return flux.Image{}, errors.New("Mock is set to error when tag == error")
 	}
 	return r.img, r.err
 }
@@ -76,22 +77,22 @@ func (m *mockRemoteFactory) CreateFor(repository string) (Remote, error) {
 }
 
 type mockRegistry struct {
-	imgs []Image
+	imgs []flux.Image
 	err  error
 }
 
-func NewMockRegistry(images []Image, err error) Registry {
+func NewMockRegistry(images []flux.Image, err error) Registry {
 	return &mockRegistry{
 		imgs: images,
 		err:  err,
 	}
 }
 
-func (m *mockRegistry) GetRepository(repository Repository) ([]Image, error) {
+func (m *mockRegistry) GetRepository(repository Repository) ([]flux.Image, error) {
 	return m.imgs, m.err
 }
 
-func (m *mockRegistry) GetImage(repository Repository, tag string) (Image, error) {
+func (m *mockRegistry) GetImage(repository Repository, tag string) (flux.Image, error) {
 	if len(m.imgs) > 0 {
 		for _, i := range m.imgs {
 			if i.String() == repository.ToImage(tag).String() {
@@ -99,5 +100,5 @@ func (m *mockRegistry) GetImage(repository Repository, tag string) (Image, error
 			}
 		}
 	}
-	return Image{}, errors.New("not found")
+	return flux.Image{}, errors.New("not found")
 }

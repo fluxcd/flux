@@ -21,7 +21,6 @@ const (
 
 var (
 	ErrInvalidServiceID   = errors.New("invalid service ID")
-	ErrInvalidImageID     = errors.New("invalid image ID")
 	ErrInvalidReleaseKind = errors.New("invalid release kind")
 )
 
@@ -147,49 +146,6 @@ func (ids ServiceIDs) Intersection(others ServiceIDSet) ServiceIDSet {
 	return set.Intersection(others)
 }
 
-type ImageID string // "quay.io/weaveworks/helloworld:v1"
-
-func ParseImageID(s string) ImageID {
-	return ImageID(s) // technically all strings are valid
-}
-
-func MakeImageID(registry, name, tag string) ImageID {
-	result := name
-	if registry != "" {
-		result = registry + "/" + name
-	}
-	if tag != "" {
-		result = result + ":" + tag
-	}
-	return ImageID(result)
-}
-
-func (id ImageID) Components() (registry, name, tag string) {
-	s := string(id)
-	toks := strings.SplitN(s, "/", 3)
-	if len(toks) == 3 {
-		registry = toks[0]
-		s = fmt.Sprintf("%s/%s", toks[1], toks[2])
-	}
-	toks = strings.SplitN(s, ":", 2)
-	if len(toks) == 2 {
-		tag = toks[1]
-	}
-	name = toks[0]
-	return registry, name, tag
-}
-
-func (id ImageID) Repository() string {
-	registry, name, _ := id.Components()
-	if registry != "" && name != "" {
-		return registry + "/" + name
-	}
-	if name != "" {
-		return name
-	}
-	return ""
-}
-
 type ServiceSpec string // ServiceID or "<all>"
 
 func ParseServiceSpec(s string) (ServiceSpec, error) {
@@ -216,15 +172,14 @@ func ParseImageSpec(s string) (ImageSpec, error) {
 	if s == string(ImageSpecLatest) || s == string(ImageSpecNone) {
 		return ImageSpec(s), nil
 	}
-	id := ParseImageID(s)
-	_, name, tag := id.Components()
-	if name == "" {
-		return "", errors.Wrap(ErrInvalidImageID, "blank image name")
-	}
-	if tag == "" {
+
+	parts := strings.Split(s, ":")
+	if len(parts) != 2 || parts[1] == "" {
 		return "", errors.Wrap(ErrInvalidImageID, "blank tag (if you want latest, explicitly state the tag :latest)")
 	}
-	return ImageSpec(id), nil
+
+	id, err := ParseImageID(s)
+	return ImageSpec(id.String()), err
 }
 
 type ImageStatus struct {

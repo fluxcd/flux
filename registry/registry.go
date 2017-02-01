@@ -2,9 +2,12 @@
 package registry
 
 import (
-	"github.com/go-kit/kit/log"
 	"sort"
 	"time"
+
+	"github.com/go-kit/kit/log"
+
+	"github.com/weaveworks/flux"
 )
 
 const (
@@ -14,8 +17,8 @@ const (
 
 // The Registry interface is a domain specific API to access container registries.
 type Registry interface {
-	GetRepository(repository Repository) ([]Image, error)
-	GetImage(repository Repository, tag string) (Image, error)
+	GetRepository(repository Repository) ([]flux.Image, error)
+	GetImage(repository Repository, tag string) (flux.Image, error)
 }
 
 type registry struct {
@@ -41,7 +44,7 @@ func NewRegistry(c RemoteClientFactory, l log.Logger, m Metrics) Registry {
 //   foo/helloworld         -> index.docker.io/foo/helloworld
 //   quay.io/foo/helloworld -> quay.io/foo/helloworld
 //
-func (reg *registry) GetRepository(img Repository) (_ []Image, err error) {
+func (reg *registry) GetRepository(img Repository) (_ []flux.Image, err error) {
 	rem, err := reg.newRemote(img)
 	if err != nil {
 		return
@@ -62,7 +65,7 @@ func (reg *registry) GetRepository(img Repository) (_ []Image, err error) {
 }
 
 // Get a single Image from the registry if it exists
-func (reg *registry) GetImage(img Repository, tag string) (_ Image, err error) {
+func (reg *registry) GetImage(img Repository, tag string) (_ flux.Image, err error) {
 	rem, err := reg.newRemote(img)
 	if err != nil {
 		return
@@ -79,12 +82,12 @@ func (reg *registry) newRemote(img Repository) (rem Remote, err error) {
 	return
 }
 
-func (reg *registry) tagsToRepository(remote Remote, repository Repository, tags []string) ([]Image, error) {
+func (reg *registry) tagsToRepository(remote Remote, repository Repository, tags []string) ([]flux.Image, error) {
 	// one way or another, we'll be finishing all requests
 	defer remote.Cancel()
 
 	type result struct {
-		image Image
+		image flux.Image
 		err   error
 	}
 
@@ -107,7 +110,7 @@ func (reg *registry) tagsToRepository(remote Remote, repository Repository, tags
 	}
 	close(toFetch)
 
-	images := make([]Image, cap(fetched))
+	images := make([]flux.Image, cap(fetched))
 	for i := 0; i < cap(fetched); i++ {
 		res := <-fetched
 		if res.err != nil {
@@ -122,7 +125,7 @@ func (reg *registry) tagsToRepository(remote Remote, repository Repository, tags
 
 // -----
 
-type byCreatedDesc []Image
+type byCreatedDesc []flux.Image
 
 func (is byCreatedDesc) Len() int      { return len(is) }
 func (is byCreatedDesc) Swap(i, j int) { is[i], is[j] = is[j], is[i] }

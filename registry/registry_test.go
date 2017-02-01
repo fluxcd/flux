@@ -1,12 +1,15 @@
 package registry
 
 import (
-	"github.com/go-kit/kit/log"
-	"github.com/pkg/errors"
 	"sort"
 	"strconv"
 	"testing"
 	"time"
+
+	"github.com/go-kit/kit/log"
+	"github.com/pkg/errors"
+
+	"github.com/weaveworks/flux"
 )
 
 var (
@@ -92,12 +95,12 @@ func TestRegistry_GetRepositoryManifestError(t *testing.T) {
 func TestRegistry_OrderByCreationDate(t *testing.T) {
 	time0 := testTime.Add(time.Second)
 	time2 := testTime.Add(-time.Second)
-	imA, _ := ParseImage("my/Image:3", &testTime)
-	imB, _ := ParseImage("my/Image:1", &time0)
-	imC, _ := ParseImage("my/Image:4", &time2)
-	imD, _ := ParseImage("my/Image:0", nil)       // test nil
-	imE, _ := ParseImage("my/Image:2", &testTime) // test equal
-	imgs := []Image{imA, imB, imC, imD, imE}
+	imA, _ := flux.ParseImage("my/Image:3", &testTime)
+	imB, _ := flux.ParseImage("my/Image:1", &time0)
+	imC, _ := flux.ParseImage("my/Image:4", &time2)
+	imD, _ := flux.ParseImage("my/Image:0", nil)       // test nil
+	imE, _ := flux.ParseImage("my/Image:2", &testTime) // test equal
+	imgs := []flux.Image{imA, imB, imC, imD, imE}
 	sort.Sort(byCreatedDesc(imgs))
 	for i, im := range imgs {
 		if strconv.Itoa(i) != im.Tag {

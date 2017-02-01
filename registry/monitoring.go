@@ -2,10 +2,11 @@
 package registry
 
 import (
+	"fmt"
 	"strconv"
 	"time"
 
-	"fmt"
+	"github.com/weaveworks/flux"
 	fluxmetrics "github.com/weaveworks/flux/metrics"
 )
 
@@ -23,7 +24,7 @@ func NewInstrumentedRegistry(next Registry, metrics Metrics) InstrumentedRegistr
 	}
 }
 
-func (m *instrumentedRegistry) GetRepository(repository Repository) (res []Image, err error) {
+func (m *instrumentedRegistry) GetRepository(repository Repository) (res []flux.Image, err error) {
 	start := time.Now()
 	res, err = m.next.GetRepository(repository)
 	m.metrics.FetchDuration.With(
@@ -33,7 +34,7 @@ func (m *instrumentedRegistry) GetRepository(repository Repository) (res []Image
 	return
 }
 
-func (m *instrumentedRegistry) GetImage(repository Repository, tag string) (res Image, err error) {
+func (m *instrumentedRegistry) GetImage(repository Repository, tag string) (res flux.Image, err error) {
 	start := time.Now()
 	res, err = m.next.GetImage(repository, tag)
 	m.metrics.FetchDuration.With(
@@ -57,7 +58,7 @@ func NewInstrumentedRemote(next Remote, metrics Metrics) Remote {
 	}
 }
 
-func (m *instrumentedRemote) Manifest(repository Repository, tag string) (res Image, err error) {
+func (m *instrumentedRemote) Manifest(repository Repository, tag string) (res flux.Image, err error) {
 	start := time.Now()
 	res, err = m.next.Manifest(repository, tag)
 	m.metrics.RequestDuration.With(

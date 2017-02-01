@@ -1,10 +1,13 @@
 package registry
 
 import (
-	"github.com/docker/distribution/manifest/schema1"
-	"github.com/pkg/errors"
 	"testing"
 	"time"
+
+	"github.com/docker/distribution/manifest/schema1"
+	"github.com/pkg/errors"
+
+	"github.com/weaveworks/flux"
 )
 
 const testTagStr = "tag"
@@ -12,7 +15,7 @@ const testImageStr = "index.docker.io/test/Image:" + testTagStr
 const constTime = "2017-01-13T16:22:58.009923189Z"
 
 var (
-	img, _         = ParseImage(testImageStr, nil)
+	img, _         = flux.ParseImage(testImageStr, nil)
 	testRepository = RepositoryFromImage(img)
 
 	man = schema1.SignedManifest{
@@ -39,8 +42,8 @@ func TestRemoteClient_ParseManifest(t *testing.T) {
 	if err != nil {
 		t.Fatal(err.Error())
 	}
-	if string(desc.String()) != testImageStr {
-		t.Fatalf("Expecting %q but got %q", testImageStr, string(desc.String()))
+	if string(desc.FullID()) != testImageStr {
+		t.Fatalf("Expecting %q but got %q", testImageStr, string(desc.FullID()))
 	}
 	if desc.CreatedAt.Format(time.RFC3339Nano) != constTime {
 		t.Fatalf("Expecting %q but got %q", constTime, desc.CreatedAt.Format(time.RFC3339Nano))
