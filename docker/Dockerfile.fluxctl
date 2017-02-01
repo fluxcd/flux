@@ -1,0 +1,5 @@
+FROM alpine:3.3
+WORKDIR /home/flux
+RUN apk add --no-cache 'git>=2.3.0' openssh python py-yaml ca-certificates
+COPY ./fluxctl /usr/local/bin/
+ENTRYPOINT [ "fluxctl" ]
