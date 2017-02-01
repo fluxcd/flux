@@ -3,10 +3,12 @@ package registry
 import (
 	"encoding/base64"
 	"fmt"
-	"github.com/go-kit/kit/log"
-	"github.com/weaveworks/flux"
 	"testing"
 	"time"
+
+	"github.com/go-kit/kit/log"
+
+	"github.com/weaveworks/flux"
 )
 
 // Note: This actually goes off to docker hub to find the Image.
@@ -14,7 +16,7 @@ import (
 func TestRemoteFactory_CreateForDockerHub(t *testing.T) {
 	// No credentials required for public Image
 	fact := NewRemoteClientFactory(Credentials{}, log.NewNopLogger(), nil, time.Second)
-	img, err := ParseImage("alpine:latest", nil)
+	img, err := flux.ParseImage("alpine:latest", nil)
 	testRepository = RepositoryFromImage(img)
 	if err != nil {
 		t.Fatal(err)
@@ -28,14 +30,14 @@ func TestRemoteFactory_CreateForDockerHub(t *testing.T) {
 		t.Fatal(err)
 	}
 	expected := "index.docker.io/library/alpine:latest"
-	if res.String() != expected {
-		t.Fatal("Expected %q. Got %q", expected, res.String())
+	if res.FullID() != expected {
+		t.Fatal("Expected %q. Got %q", expected, res.FullID())
 	}
 }
 
 func TestRemoteFactory_InvalidHost(t *testing.T) {
 	fact := NewRemoteClientFactory(Credentials{}, log.NewNopLogger(), nil, time.Second)
-	img, err := ParseImage("invalid.host/library/alpine:latest", nil)
+	img, err := flux.ParseImage("invalid.host/library/alpine:latest", nil)
 	if err != nil {
 		t.Fatal(err)
 	}

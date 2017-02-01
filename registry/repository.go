@@ -1,17 +1,21 @@
 package registry
 
+import (
+	"github.com/weaveworks/flux"
+)
+
 type Repository struct {
-	img Image // Internally we use an image to store data
+	img flux.Image // Internally we use an image to store data
 }
 
-func RepositoryFromImage(img Image) Repository {
+func RepositoryFromImage(img flux.Image) Repository {
 	return Repository{
 		img: img,
 	}
 }
 
 func ParseRepository(imgStr string) (Repository, error) {
-	i, err := ParseImage(imgStr, nil)
+	i, err := flux.ParseImage(imgStr, nil)
 	if err != nil {
 		return Repository{}, err
 	}
@@ -32,7 +36,7 @@ func (r Repository) String() string {
 	return r.img.HostNamespaceImage()
 }
 
-func (r Repository) ToImage(tag string) Image {
+func (r Repository) ToImage(tag string) flux.Image {
 	newImage := r.img
 	newImage.Tag = tag
 	return newImage

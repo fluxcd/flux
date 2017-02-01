@@ -130,8 +130,12 @@ func (a *Automator) handleAutomatedInstanceJob(logger log.Logger, j *jobs.Job) (
 	images := instance.ImageMap{}
 	for _, service := range services {
 		for _, container := range service.ContainersOrNil() {
-			repo := flux.ParseImageID(container.Image).Repository()
-			images[repo] = nil
+			id, err := flux.ParseImageID(container.Image)
+			if err != nil {
+				// Container is running an invalid image? what?
+				continue
+			}
+			images[id.Repository()] = nil
 		}
 	}
 	for repo := range images {
@@ -169,14 +173,14 @@ func (a *Automator) handleAutomatedInstanceJob(logger log.Logger, j *jobs.Job) (
 			Key: strings.Join([]string{
 				jobs.ReleaseJob,
 				string(params.InstanceID),
-				string(imageID),
+				imageID.String(),
 				"automated",
 			}, "|"),
 			Method:   jobs.ReleaseJob,
 			Priority: jobs.PriorityBackground,
 			Params: jobs.ReleaseJobParams{
 				ServiceSpecs: serviceSpecs,
-				ImageSpec:    flux.ImageSpec(imageID),
+				ImageSpec:    flux.ImageSpec(imageID.String()),
 				Kind:         flux.ReleaseKindExecute,
 			},
 		})

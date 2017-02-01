@@ -20,9 +20,8 @@ func ImageSelectorForSpec(spec flux.ImageSpec) ImageSelector {
 	case flux.ImageSpecNone:
 		return LatestConfig
 	default:
-		return ExactlyTheseImages([]flux.ImageID{
-			flux.ParseImageID(string(spec)),
-		})
+		id, _ := flux.ParseImageID(string(spec))
+		return ExactlyTheseImages([]flux.ImageID{id})
 	}
 }
 
@@ -58,7 +57,7 @@ var (
 func ExactlyTheseImages(images []flux.ImageID) ImageSelector {
 	var imageText []string
 	for _, image := range images {
-		imageText = append(imageText, string(image))
+		imageText = append(imageText, image.String())
 	}
 	return funcImageSelector{
 		text: strings.Join(imageText, ", "),

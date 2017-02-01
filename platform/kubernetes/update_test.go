@@ -5,11 +5,17 @@ import (
 	"fmt"
 	"os"
 	"testing"
+
+	"github.com/weaveworks/flux"
 )
 
 func testUpdate(t *testing.T, name, caseIn, updatedImage, caseOut string) {
+	id, err := flux.ParseImageID(updatedImage)
+	if err != nil {
+		t.Fatal(err)
+	}
 	var trace, out bytes.Buffer
-	if err := tryUpdate(caseIn, updatedImage, &trace, &out); err != nil {
+	if err := tryUpdate(caseIn, id, &trace, &out); err != nil {
 		fmt.Fprintln(os.Stderr, "Failed:", name)
 		fmt.Fprintf(os.Stderr, "--- TRACE ---\n"+trace.String()+"\n---\n")
 		t.Fatal(err)
@@ -17,7 +23,7 @@ func testUpdate(t *testing.T, name, caseIn, updatedImage, caseOut string) {
 	if string(out.Bytes()) != caseOut {
 		fmt.Fprintln(os.Stderr, "Failed:", name)
 		fmt.Fprintf(os.Stderr, "--- TRACE ---\n"+trace.String()+"\n---\n")
-		t.Fatalf("Did not get expected result, instead got\n\n%s", string(out.Bytes()))
+		t.Fatalf("Did not get expected result:\n\n%s\n\nInstead got:\n\n%s", caseOut, string(out.Bytes()))
 	}
 }
 
@@ -28,6 +34,7 @@ func TestUpdates(t *testing.T) {
 		{"old version like number", case2out, case2reverseImage, case2},
 		{"name label out of order", case3, case3image, case3out},
 		{"version (tag) with dots", case4, case4image, case4out},
+		{"minimal dockerhub image name", case5, case5image, case5out},
 	} {
 		testUpdate(t, c[0], c[1], c[2], c[3])
 	}
@@ -320,4 +327,44 @@ spec:
             drop:
               - all
           readOnlyRootFilesystem: true
+`
+
+const case5 = `---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: nginx
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        name: nginx
+    spec:
+      containers:
+      - name: nginx
+        image: nginx
+        ports:
+        - containerPort: 80
+`
+
+const case5image = "nginx:1.10-alpine"
+
+const case5out = `---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: nginx
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        name: nginx
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.10-alpine
+        ports:
+        - containerPort: 80
 `

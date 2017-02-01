@@ -8,8 +8,8 @@ import (
 
 var (
 	exampleImage   = "index.docker.io/owner/repo:tag"
-	parsedImage, _ = registry.ParseImage(exampleImage, nil)
-	testRegistry   = registry.NewMockRegistry([]registry.Image{
+	parsedImage, _ = flux.ParseImage(exampleImage, nil)
+	testRegistry   = registry.NewMockRegistry([]flux.Image{
 		parsedImage,
 	}, nil)
 )
@@ -27,7 +27,8 @@ func TestInstance_ImageExists(t *testing.T) {
 }
 
 func testImageExists(t *testing.T, i Instance, image string, expected bool) {
-	b, err := i.imageExists(flux.ParseImageID(image))
+	id, _ := flux.ParseImageID(image)
+	b, err := i.imageExists(id)
 	if err != nil {
 		t.Fatalf("%v: error when requesting image %q", err.Error(), image)
 	}
@@ -40,7 +41,8 @@ func TestInstance_ErrWhenBlank(t *testing.T) {
 	i := Instance{
 		registry: testRegistry,
 	}
-	_, err := i.imageExists(flux.ParseImageID(""))
+	id, _ := flux.ParseImageID("")
+	_, err := i.imageExists(id)
 	if err == nil {
 		t.Fatal("Was expecting error")
 	}

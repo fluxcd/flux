@@ -272,7 +272,11 @@ func CalculateUpdates(services []platform.Service, images instance.ImageMap, pri
 			continue
 		}
 		for _, container := range containers {
-			currentImageID := flux.ParseImageID(container.Image)
+			currentImageID, err := flux.ParseImageID(container.Image)
+			if err != nil {
+				// container is running an invalid image id? what?
+				continue
+			}
 			latestImage := images.LatestImage(currentImageID.Repository())
 			if latestImage == nil {
 				continue
@@ -406,7 +410,7 @@ func (r *Releaser) releaseActionUpdatePodController(service flux.ServiceID, upda
 				//
 				// Note 2: we keep overwriting the same def, to handle multiple
 				// images in a single file.
-				def, err = kubernetes.UpdatePodController(def, string(update.Target), ioutil.Discard)
+				def, err = kubernetes.UpdatePodController(def, update.Target, ioutil.Discard)
 				if err != nil {
 					return "", errors.Wrapf(err, "updating pod controller for %s", update.Target)
 				}

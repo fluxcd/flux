@@ -4,13 +4,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/docker/distribution/manifest/schema1"
 	"time"
+
+	"github.com/docker/distribution/manifest/schema1"
+
+	"github.com/weaveworks/flux"
 )
 
 type Remote interface {
 	Tags(repository Repository) ([]string, error)
-	Manifest(repository Repository, tag string) (Image, error)
+	Manifest(repository Repository, tag string) (flux.Image, error)
 	Cancel()
 }
 
@@ -30,8 +33,8 @@ func (rc *remote) Tags(repository Repository) (_ []string, err error) {
 	return rc.client.Tags(repository.NamespaceImage())
 }
 
-func (rc *remote) Manifest(repository Repository, tag string) (img Image, err error) {
-	img, err = ParseImage(fmt.Sprintf("%s:%s", repository.String(), tag), nil)
+func (rc *remote) Manifest(repository Repository, tag string) (img flux.Image, err error) {
+	img, err = flux.ParseImage(fmt.Sprintf("%s:%s", repository.String(), tag), nil)
 	if err != nil {
 		return
 	}

@@ -146,10 +146,11 @@ func (s *Server) ListServices(inst flux.InstanceID, namespace string) (res []flu
 func containers2containers(cs []platform.Container) []flux.Container {
 	res := make([]flux.Container, len(cs))
 	for i, c := range cs {
+		id, _ := flux.ParseImageID(c.Image)
 		res[i] = flux.Container{
 			Name: c.Name,
 			Current: flux.ImageDescription{
-				ID: flux.ParseImageID(c.Image),
+				ID: id,
 			},
 		}
 	}
@@ -198,7 +199,7 @@ func (s *Server) ListImages(inst flux.InstanceID, spec flux.ServiceSpec) (res []
 
 func containersWithAvailable(service platform.Service, images instance.ImageMap) (res []flux.Container) {
 	for _, c := range service.ContainersOrNil() {
-		id := flux.ParseImageID(c.Image)
+		id, _ := flux.ParseImageID(c.Image)
 		repo := id.Repository()
 		available := images[repo]
 		res = append(res, flux.Container{
