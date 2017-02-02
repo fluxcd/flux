@@ -27,7 +27,6 @@ func (m *instrumentedRegistry) GetRepository(repository Repository) (res []flux.
 	start := time.Now()
 	res, err = m.next.GetRepository(repository)
 	m.metrics.FetchDuration.With(
-		LabelRepositoryHost, repository.Host(),
 		fluxmetrics.LabelSuccess, strconv.FormatBool(err == nil),
 	).Observe(time.Since(start).Seconds())
 	return
@@ -37,7 +36,6 @@ func (m *instrumentedRegistry) GetImage(repository Repository, tag string) (res 
 	start := time.Now()
 	res, err = m.next.GetImage(repository, tag)
 	m.metrics.FetchDuration.With(
-		LabelRepositoryHost, repository.Host(),
 		fluxmetrics.LabelSuccess, strconv.FormatBool(err == nil),
 	).Observe(time.Since(start).Seconds())
 	return
@@ -61,7 +59,6 @@ func (m *instrumentedRemote) Manifest(repository Repository, tag string) (res fl
 	start := time.Now()
 	res, err = m.next.Manifest(repository, tag)
 	m.metrics.RequestDuration.With(
-		LabelRepositoryHost, repository.Host(),
 		LabelRequestKind, RequestKindMetadata,
 		fluxmetrics.LabelSuccess, strconv.FormatBool(err == nil),
 	).Observe(time.Since(start).Seconds())
@@ -72,7 +69,6 @@ func (m *instrumentedRemote) Tags(repository Repository) (res []string, err erro
 	start := time.Now()
 	res, err = m.next.Tags(repository)
 	m.metrics.RequestDuration.With(
-		LabelRepositoryHost, repository.Host(),
 		LabelRequestKind, RequestKindTags,
 		fluxmetrics.LabelSuccess, strconv.FormatBool(err == nil),
 	).Observe(time.Since(start).Seconds())

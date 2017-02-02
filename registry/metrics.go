@@ -21,8 +21,7 @@ type Metrics struct {
 }
 
 const (
-	LabelRepositoryHost = "repository_host"
-	LabelRequestKind    = "kind"
+	LabelRequestKind = "kind"
 
 	RequestKindTags     = "tags"
 	RequestKindMetadata = "metadata"
@@ -36,13 +35,13 @@ func NewMetrics() Metrics {
 			Name:      "fetch_duration_seconds",
 			Help:      "Duration of Image metadata fetches, in seconds.",
 			Buckets:   stdprometheus.DefBuckets,
-		}, []string{LabelRepositoryHost, fluxmetrics.LabelSuccess}),
+		}, []string{fluxmetrics.LabelSuccess}),
 		RequestDuration: prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
 			Namespace: "flux",
 			Subsystem: "registry",
 			Name:      "request_duration_seconds",
 			Help:      "Duration of HTTP requests made in the course of fetching Image metadata",
-		}, []string{LabelRepositoryHost, LabelRequestKind, fluxmetrics.LabelSuccess}),
+		}, []string{LabelRequestKind, fluxmetrics.LabelSuccess}),
 	}
 }
 
