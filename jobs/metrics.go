@@ -73,7 +73,7 @@ func (i *instrumentedJobStore) UpdateJob(j Job) (err error) {
 func (i *instrumentedJobStore) Heartbeat(jobID JobID) (err error) {
 	defer func(begin time.Time) {
 		i.RequestDuration.With(
-			fluxmetrics.LabelMethod, "UpdateJob",
+			fluxmetrics.LabelMethod, "Heartbeat",
 			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
 	}(time.Now())

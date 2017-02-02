@@ -127,28 +127,28 @@ func main() {
 			Name:      "list_services_duration_seconds",
 			Help:      "ListServices method duration in seconds.",
 			Buckets:   stdprometheus.DefBuckets,
-		}, []string{fluxmetrics.LabelNamespace, fluxmetrics.LabelSuccess})
+		}, []string{fluxmetrics.LabelSuccess})
 		serverMetrics.ListImagesDuration = prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
 			Namespace: "flux",
 			Subsystem: "fluxsvc",
 			Name:      "list_images_duration_seconds",
 			Help:      "ListImages method duration in seconds.",
 			Buckets:   stdprometheus.DefBuckets,
-		}, []string{"service_spec", fluxmetrics.LabelSuccess})
+		}, []string{"service_spec_all", fluxmetrics.LabelSuccess})
 		serverMetrics.HistoryDuration = prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
 			Namespace: "flux",
 			Subsystem: "fluxsvc",
 			Name:      "history_duration_seconds",
 			Help:      "History method duration in seconds.",
 			Buckets:   stdprometheus.DefBuckets,
-		}, []string{"service_spec", fluxmetrics.LabelSuccess})
+		}, []string{"service_spec_all", fluxmetrics.LabelSuccess})
 		serverMetrics.RegisterDaemonDuration = prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
 			Namespace: "flux",
 			Subsystem: "fluxsvc",
 			Name:      "register_daemon_duration_seconds",
 			Help:      "RegisterDaemon method duration in seconds.",
 			Buckets:   stdprometheus.DefBuckets,
-		}, []string{fluxmetrics.LabelInstanceID, fluxmetrics.LabelSuccess})
+		}, []string{fluxmetrics.LabelSuccess})
 		serverMetrics.ConnectedDaemons = prometheus.NewGaugeFrom(stdprometheus.GaugeOpts{
 			Namespace: "flux",
 			Subsystem: "fluxsvc",
