@@ -99,7 +99,7 @@ func main() {
 		busMetrics       platform.BusMetrics
 		helperDuration   metrics.Histogram
 		historyMetrics   history.Metrics
-		httpDuration     metrics.Histogram
+		httpDuration     *stdprometheus.HistogramVec
 		instanceMetrics  instance.Metrics
 		jobWorkerMetrics jobs.WorkerMetrics
 		registryMetrics  registry.Metrics
@@ -107,13 +107,12 @@ func main() {
 		serverMetrics    server.Metrics
 	)
 	{
-		httpDuration = prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
+		httpDuration = stdprometheus.NewHistogramVec(stdprometheus.HistogramOpts{
 			Namespace: "flux",
-			Subsystem: "fluxsvc",
-			Name:      "http_request_duration_seconds",
-			Help:      "HTTP request duration in seconds.",
+			Name:      "request_duration_seconds",
+			Help:      "Time (in seconds) spent serving HTTP requests.",
 			Buckets:   stdprometheus.DefBuckets,
-		}, []string{fluxmetrics.LabelMethod, "status_code"})
+		}, []string{fluxmetrics.LabelMethod, fluxmetrics.LabelRoute, "status_code", "ws"})
 		serverMetrics.StatusDuration = prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
 			Namespace: "flux",
 			Subsystem: "fluxsvc",
@@ -190,6 +189,7 @@ func main() {
 		instanceMetrics = instance.NewMetrics()
 		jobWorkerMetrics = jobs.NewWorkerMetrics()
 	}
+	stdprometheus.MustRegister(httpDuration)
 
 	var messageBus platform.MessageBus
 	{

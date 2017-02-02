@@ -10,14 +10,14 @@ import (
 	"net/http"
 	"net/url"
 	"path"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/metrics"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
+	stdprometheus "github.com/prometheus/client_golang/prometheus"
+	"github.com/weaveworks/common/middleware"
 
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/api"
@@ -46,7 +46,7 @@ func NewRouter() *mux.Router {
 	return r
 }
 
-func NewHandler(s api.FluxService, r *mux.Router, logger log.Logger, h metrics.Histogram) http.Handler {
+func NewHandler(s api.FluxService, r *mux.Router, logger log.Logger, h *stdprometheus.HistogramVec) http.Handler {
 	for method, handlerFunc := range map[string]func(api.FluxService) http.Handler{
 		"ListServices":   handleListServices,
 		"ListImages":     handleListImages,
@@ -66,11 +66,14 @@ func NewHandler(s api.FluxService, r *mux.Router, logger log.Logger, h metrics.H
 		var handler http.Handler
 		handler = handlerFunc(s)
 		handler = logging(handler, log.NewContext(logger).With("method", method))
-		handler = observing(handler, h.With("method", method))
 
 		r.Get(method).Handler(handler)
 	}
-	return r
+
+	return middleware.Instrument{
+		RouteMatcher: r,
+		Duration:     h,
+	}.Wrap(r)
 }
 
 // When an API call fails, we may want to distinguish among the causes
@@ -820,15 +823,6 @@ func logging(next http.Handler, logger log.Logger) http.Handler {
 			requestLogger = requestLogger.With("error", strings.TrimSpace(tw.buf.String()))
 		}
 		requestLogger.Log()
-	})
-}
-
-func observing(next http.Handler, h metrics.Histogram) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		begin := time.Now()
-		cw := &codeWriter{w, http.StatusOK}
-		next.ServeHTTP(cw, r)
-		h.With("status_code", strconv.Itoa(cw.code)).Observe(time.Since(begin).Seconds())
 	})
 }
 
