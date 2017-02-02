@@ -16,7 +16,7 @@ var (
 	testTags            = []string{testTagStr, "anotherTag"}
 	mRemote             = NewMockRemote(img, testTags, nil)
 	mRemoteFact         = NewMockRemoteFactory(mRemote, nil)
-	testRegistryMetrics = NewMetrics().WithInstanceID("1")
+	testRegistryMetrics = NewMetrics()
 	testTime, _         = time.Parse(constTime, time.RFC3339Nano)
 )
 

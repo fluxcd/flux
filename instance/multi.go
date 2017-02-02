@@ -50,9 +50,9 @@ func (m *MultitenantInstancer) Get(instanceID flux.InstanceID) (*Instance, error
 	reg := registry.NewRegistry(
 		registry.NewRemoteClientFactory(creds, registryLogger, m.MemcacheClient, m.RegistryCacheExpiry),
 		registryLogger,
-		m.RegistryMetrics.WithInstanceID(instanceID),
+		m.RegistryMetrics,
 	)
-	reg = registry.NewInstrumentedRegistry(reg, m.RegistryMetrics.WithInstanceID(instanceID))
+	reg = registry.NewInstrumentedRegistry(reg, m.RegistryMetrics)
 
 	repo := gitRepoFromSettings(c.Settings)
 

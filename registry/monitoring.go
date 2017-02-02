@@ -2,7 +2,6 @@
 package registry
 
 import (
-	"fmt"
 	"strconv"
 	"time"
 
@@ -28,7 +27,7 @@ func (m *instrumentedRegistry) GetRepository(repository Repository) (res []flux.
 	start := time.Now()
 	res, err = m.next.GetRepository(repository)
 	m.metrics.FetchDuration.With(
-		LabelRepository, repository.String(),
+		LabelRepositoryHost, repository.Host(),
 		fluxmetrics.LabelSuccess, strconv.FormatBool(err == nil),
 	).Observe(time.Since(start).Seconds())
 	return
@@ -38,7 +37,7 @@ func (m *instrumentedRegistry) GetImage(repository Repository, tag string) (res 
 	start := time.Now()
 	res, err = m.next.GetImage(repository, tag)
 	m.metrics.FetchDuration.With(
-		LabelRepository, fmt.Sprintf("%s:%s", repository.String(), tag),
+		LabelRepositoryHost, repository.Host(),
 		fluxmetrics.LabelSuccess, strconv.FormatBool(err == nil),
 	).Observe(time.Since(start).Seconds())
 	return
@@ -62,7 +61,7 @@ func (m *instrumentedRemote) Manifest(repository Repository, tag string) (res fl
 	start := time.Now()
 	res, err = m.next.Manifest(repository, tag)
 	m.metrics.RequestDuration.With(
-		LabelRepository, fmt.Sprintf("%s:%s", repository.String(), tag),
+		LabelRepositoryHost, repository.Host(),
 		LabelRequestKind, RequestKindMetadata,
 		fluxmetrics.LabelSuccess, strconv.FormatBool(err == nil),
 	).Observe(time.Since(start).Seconds())
@@ -73,7 +72,7 @@ func (m *instrumentedRemote) Tags(repository Repository) (res []string, err erro
 	start := time.Now()
 	res, err = m.next.Tags(repository)
 	m.metrics.RequestDuration.With(
-		LabelRepository, repository.String(),
+		LabelRepositoryHost, repository.Host(),
 		LabelRequestKind, RequestKindTags,
 		fluxmetrics.LabelSuccess, strconv.FormatBool(err == nil),
 	).Observe(time.Since(start).Seconds())

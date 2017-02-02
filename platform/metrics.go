@@ -99,10 +99,10 @@ func NewBusMetrics() BusMetrics {
 			Subsystem: "bus",
 			Name:      "kick_total",
 			Help:      "Count of bus subscriptions kicked off by a newer subscription.",
-		}, []string{fluxmetrics.LabelInstanceID}),
+		}, []string{}),
 	}
 }
 
 func (m BusMetrics) IncrKicks(inst flux.InstanceID) {
-	m.KickCount.With(fluxmetrics.LabelInstanceID, string(inst)).Add(1)
+	m.KickCount.Add(1)
 }

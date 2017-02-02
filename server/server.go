@@ -108,7 +108,6 @@ func (s *Server) Status(inst flux.InstanceID) (res flux.Status, err error) {
 func (s *Server) ListServices(inst flux.InstanceID, namespace string) (res []flux.ServiceStatus, err error) {
 	defer func(begin time.Time) {
 		s.metrics.ListServicesDuration.With(
-			fluxmetrics.LabelNamespace, namespace,
 			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
 	}(time.Now())
@@ -160,7 +159,7 @@ func containers2containers(cs []platform.Container) []flux.Container {
 func (s *Server) ListImages(inst flux.InstanceID, spec flux.ServiceSpec) (res []flux.ImageStatus, err error) {
 	defer func(begin time.Time) {
 		s.metrics.ListImagesDuration.With(
-			"service_spec", fmt.Sprint(spec),
+			"service_spec_all", fmt.Sprint(spec == flux.ServiceSpecAll),
 			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
 	}(time.Now())
@@ -216,7 +215,7 @@ func containersWithAvailable(service platform.Service, images instance.ImageMap)
 func (s *Server) History(inst flux.InstanceID, spec flux.ServiceSpec) (res []flux.HistoryEntry, err error) {
 	defer func(begin time.Time) {
 		s.metrics.HistoryDuration.With(
-			"service_spec", fmt.Sprint(spec),
+			"service_spec_all", fmt.Sprint(spec == flux.ServiceSpecAll),
 			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
 	}(time.Now())
@@ -393,7 +392,6 @@ func (s *Server) RegisterDaemon(instID flux.InstanceID, platform platform.Platfo
 		}
 
 		s.metrics.RegisterDaemonDuration.With(
-			fluxmetrics.LabelInstanceID, fmt.Sprint(instID),
 			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
 		s.metrics.ConnectedDaemons.Set(float64(atomic.AddInt32(&s.connected, -1)))
