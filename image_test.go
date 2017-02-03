@@ -1,6 +1,7 @@
 package flux
 
 import (
+	"encoding/json"
 	"fmt"
 	"testing"
 )
@@ -69,4 +70,30 @@ func TestImageID_TestComponents(t *testing.T) {
 		}
 	}
 
+}
+
+func TestImageID_Serialization(t *testing.T) {
+	for _, x := range []struct {
+		test     ImageID
+		expected string
+	}{
+		{ImageID{Host: dockerHubHost, Namespace: dockerHubLibrary, Image: "alpine", Tag: "a123"}, `"alpine:a123"`},
+		{ImageID{Host: "quay.io", Namespace: "weaveworks", Image: "foobar", Tag: "baz"}, `"quay.io/weaveworks/foobar:baz"`},
+	} {
+		serialized, err := json.Marshal(x.test)
+		if err != nil {
+			t.Fatalf("Error encoding %v: %v", x.test, err)
+		}
+		if string(serialized) != x.expected {
+			t.Fatalf("Encoded %v as %s, but expected %s", x.test, string(serialized), x.expected)
+		}
+
+		var decoded ImageID
+		if err := json.Unmarshal([]byte(x.expected), &decoded); err != nil {
+			t.Fatalf("Error decoding %v: %v", x.expected, err)
+		}
+		if decoded != x.test {
+			t.Fatalf("Decoded %s as %v, but expected %v", x.expected, decoded, x.test)
+		}
+	}
 }
