@@ -1,6 +1,7 @@
 package flux
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -76,6 +77,21 @@ func (i ImageID) String() string {
 		ta = fmt.Sprintf(":%s", i.Tag)
 	}
 	return fmt.Sprintf("%s%s", i.Repository(), ta)
+}
+
+// ImageID is serialized/deserialized as a string
+func (i ImageID) MarshalJSON() ([]byte, error) {
+	return json.Marshal(i.String())
+}
+
+// ImageID is serialized/deserialized as a string
+func (i *ImageID) UnmarshalJSON(data []byte) (err error) {
+	var str string
+	if err := json.Unmarshal(data, &str); err != nil {
+		return err
+	}
+	*i, err = ParseImageID(string(str))
+	return err
 }
 
 // Repository returns the short version of an image's repository (trimming if dockerhub)
