@@ -18,9 +18,9 @@ func TestJobEncodingDecoding(t *testing.T) {
 		Queue:    DefaultQueue,
 		Method:   ReleaseJob,
 		Params: ReleaseJobParams{
-			ServiceSpec: flux.ServiceSpecAll,
-			ImageSpec:   flux.ImageSpecLatest,
-			Kind:        flux.ReleaseKindExecute,
+			ServiceSpecs: []flux.ServiceSpec{flux.ServiceSpecAll},
+			ImageSpec:    flux.ImageSpecLatest,
+			Kind:         flux.ReleaseKindExecute,
 		},
 		ScheduledAt: now,
 		Priority:    PriorityInteractive,

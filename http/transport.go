@@ -246,10 +246,10 @@ func handlePostRelease(s api.FluxService) http.Handler {
 		}
 
 		id, err := s.PostRelease(inst, jobs.ReleaseJobParams{
-			ServiceSpec: serviceSpec,
-			ImageSpec:   imageSpec,
-			Kind:        releaseKind,
-			Excludes:    excludes,
+			ServiceSpecs: []flux.ServiceSpec{serviceSpec},
+			ImageSpec:    imageSpec,
+			Kind:         releaseKind,
+			Excludes:     excludes,
 		})
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
@@ -270,7 +270,10 @@ func handlePostRelease(s api.FluxService) http.Handler {
 }
 
 func invokePostRelease(client *http.Client, t flux.Token, router *mux.Router, endpoint string, s jobs.ReleaseJobParams) (jobs.JobID, error) {
-	args := []string{"service", string(s.ServiceSpec), "image", string(s.ImageSpec), "kind", string(s.Kind)}
+	args := []string{"image", string(s.ImageSpec), "kind", string(s.Kind)}
+	for _, spec := range s.ServiceSpecs {
+		args = append(args, "service", string(spec))
+	}
 	for _, ex := range s.Excludes {
 		args = append(args, "exclude", string(ex))
 	}

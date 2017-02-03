@@ -103,10 +103,10 @@ func (opts *serviceReleaseOpts) RunE(cmd *cobra.Command, args []string) error {
 	}
 
 	id, err := opts.API.PostRelease(noInstanceID, jobs.ReleaseJobParams{
-		ServiceSpec: service,
-		ImageSpec:   image,
-		Kind:        kind,
-		Excludes:    excludes,
+		ServiceSpecs: []flux.ServiceSpec{service},
+		ImageSpec:    image,
+		Kind:         kind,
+		Excludes:     excludes,
 	})
 	if err != nil {
 		return err

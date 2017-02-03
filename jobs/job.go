@@ -151,11 +151,14 @@ func (j *Job) UnmarshalJSON(data []byte) error {
 
 // ReleaseJobParams are the params for a release job
 type ReleaseJobParams struct {
-	ServiceSpec  flux.ServiceSpec // For backwards compatibility
 	ServiceSpecs []flux.ServiceSpec
 	ImageSpec    flux.ImageSpec
 	Kind         flux.ReleaseKind
 	Excludes     []flux.ServiceID
+
+	// Backwards Compatibility, remove once no more jobs
+	// TODO: Remove this once there are no more jobs with ServiceSpec, only ServiceSpecs
+	ServiceSpec flux.ServiceSpec
 }
 
 // AutomatedInstanceJobParams are the params for an automated_instance job
