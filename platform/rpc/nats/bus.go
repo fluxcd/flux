@@ -42,7 +42,7 @@ type NATS struct {
 var _ platform.MessageBus = &NATS{}
 
 func NewMessageBus(url string, metrics platform.BusMetrics) (*NATS, error) {
-	conn, err := nats.Connect(url)
+	conn, err := nats.Connect(url, nats.MaxReconnects(-1))
 	if err != nil {
 		return nil, err
 	}
