@@ -240,75 +240,110 @@ func (n *NATS) Subscribe(instID flux.InstanceID, remote platform.Platform, done 
 	myID := guid.New()
 	n.raw.Publish(string(instID)+methodKick, []byte(myID))
 
-	go func() {
+	errc := make(chan error)
+
+	processRequest := func(request *nats.Msg) {
 		var err error
-		for request := range requests {
-			switch {
-			case strings.HasSuffix(request.Subject, methodKick):
-				id := string(request.Data)
-				if id != myID {
-					n.metrics.IncrKicks(instID)
-					err = platform.FatalError{errors.New("Kicked by new subscriber " + id)}
-				}
-			case strings.HasSuffix(request.Subject, methodPing):
-				var p ping
-				err = encoder.Decode(request.Subject, request.Data, &p)
-				if err == nil {
-					err = remote.Ping()
-				}
-				n.enc.Publish(request.Reply, PingResponse{makeErrorResponse(err)})
-			case strings.HasSuffix(request.Subject, methodVersion):
-				var vsn string
-				vsn, err = remote.Version()
-				n.enc.Publish(request.Reply, VersionResponse{vsn, makeErrorResponse(err)})
-			case strings.HasSuffix(request.Subject, methodAllServices):
-				var (
-					req fluxrpc.AllServicesRequest
-					res []platform.Service
-				)
-				err = encoder.Decode(request.Subject, request.Data, &req)
-				if err == nil {
-					res, err = remote.AllServices(req.MaybeNamespace, req.Ignored)
-				}
-				n.enc.Publish(request.Reply, AllServicesResponse{res, makeErrorResponse(err)})
-			case strings.HasSuffix(request.Subject, methodSomeServices):
-				var (
-					req []flux.ServiceID
-					res []platform.Service
-				)
-				err = encoder.Decode(request.Subject, request.Data, &req)
-				if err == nil {
-					res, err = remote.SomeServices(req)
-				}
-				n.enc.Publish(request.Reply, SomeServicesResponse{res, makeErrorResponse(err)})
-			case strings.HasSuffix(request.Subject, methodApply):
-				var (
-					req []platform.ServiceDefinition
-				)
-				err = encoder.Decode(request.Subject, request.Data, &req)
-				if err == nil {
-					err = remote.Apply(req)
-				}
-				response := ApplyResponse{}
-				switch applyErr := err.(type) {
-				case platform.ApplyError:
-					result := fluxrpc.ApplyResult{}
-					for s, e := range applyErr {
-						result[s] = e.Error()
-					}
-					response.Result = result
-				default:
-					response.ErrorResponse = makeErrorResponse(err)
-				}
-				n.enc.Publish(request.Reply, response)
-			default:
-				err = errors.New("unknown message: " + request.Subject)
+		switch {
+		case strings.HasSuffix(request.Subject, methodKick):
+			id := string(request.Data)
+			if id != myID {
+				n.metrics.IncrKicks(instID)
+				err = platform.FatalError{errors.New("Kicked by new subscriber " + id)}
 			}
-			if _, ok := err.(platform.FatalError); ok && err != nil {
-				sub.Unsubscribe()
-				close(requests)
-				done <- err
-				return
+		case strings.HasSuffix(request.Subject, methodPing):
+			var p ping
+			err = encoder.Decode(request.Subject, request.Data, &p)
+			if err == nil {
+				err = remote.Ping()
+			}
+			n.enc.Publish(request.Reply, PingResponse{makeErrorResponse(err)})
+		case strings.HasSuffix(request.Subject, methodVersion):
+			var vsn string
+			vsn, err = remote.Version()
+			n.enc.Publish(request.Reply, VersionResponse{vsn, makeErrorResponse(err)})
+		case strings.HasSuffix(request.Subject, methodAllServices):
+			var (
+				req fluxrpc.AllServicesRequest
+				res []platform.Service
+			)
+			err = encoder.Decode(request.Subject, request.Data, &req)
+			if err == nil {
+				res, err = remote.AllServices(req.MaybeNamespace, req.Ignored)
+			}
+			n.enc.Publish(request.Reply, AllServicesResponse{res, makeErrorResponse(err)})
+		case strings.HasSuffix(request.Subject, methodSomeServices):
+			var (
+				req []flux.ServiceID
+				res []platform.Service
+			)
+			err = encoder.Decode(request.Subject, request.Data, &req)
+			if err == nil {
+				res, err = remote.SomeServices(req)
+			}
+			n.enc.Publish(request.Reply, SomeServicesResponse{res, makeErrorResponse(err)})
+		case strings.HasSuffix(request.Subject, methodApply):
+			var (
+				req []platform.ServiceDefinition
+			)
+			err = encoder.Decode(request.Subject, request.Data, &req)
+			if err == nil {
+				err = remote.Apply(req)
+			}
+			response := ApplyResponse{}
+			switch applyErr := err.(type) {
+			case platform.ApplyError:
+				result := fluxrpc.ApplyResult{}
+				for s, e := range applyErr {
+					result[s] = e.Error()
+				}
+				response.Result = result
+			default:
+				response.ErrorResponse = makeErrorResponse(err)
+			}
+			n.enc.Publish(request.Reply, response)
+		default:
+			err = errors.New("unknown message: " + request.Subject)
+		}
+		if err != nil {
+			select {
+			case errc <- err:
+			default:
+				// If the error channel is closed, it means that a
+				// different RPC goroutine had a fatal error that
+				// triggered the clean up and return of the parent
+				// goroutine. It is likely that the error we have
+				// encountered is due to the closure of the RPC
+				// client whilst our request was still in progress
+				// - don't panic.
+			}
+		}
+	}
+
+	go func() {
+		for {
+			select {
+			// If both an error and a request are available, the runtime may
+			// chose (by uniform pseudo-random selection) to process the
+			// request first. This may seem like a problem, but even if we were
+			// guaranteed to prefer the error channel there would still be a
+			// race between selecting a request here and a failing goroutine
+			// putting an error into the channel - it's an unavoidable
+			// consequence of asynchronous request handling. The error will get
+			// selected and handled soon enough.
+			case err := <-errc:
+				if _, ok := err.(platform.FatalError); ok && err != nil {
+					close(errc)
+					sub.Unsubscribe()
+					close(requests)
+					done <- err
+					return
+				}
+			case request := <-requests:
+				// Some of these operations (Apply in particular) can block for a long time;
+				// dispatch in a goroutine and deliver any errors back to us so that we can
+				// clean up on any hard failures.
+				go processRequest(request)
 			}
 		}
 	}()
