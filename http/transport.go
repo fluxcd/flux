@@ -23,6 +23,7 @@ import (
 	"github.com/weaveworks/flux/api"
 	"github.com/weaveworks/flux/http/error"
 	"github.com/weaveworks/flux/http/websocket"
+	"github.com/weaveworks/flux/integrations/github"
 	"github.com/weaveworks/flux/jobs"
 	"github.com/weaveworks/flux/platform"
 	"github.com/weaveworks/flux/platform/rpc"
@@ -43,6 +44,7 @@ func NewRouter() *mux.Router {
 	r.NewRoute().Name("GetConfig").Methods("GET").Path("/v4/config")
 	r.NewRoute().Name("SetConfig").Methods("POST").Path("/v4/config")
 	r.NewRoute().Name("GenerateDeployKeys").Methods("POST").Path("/v5/config/deploy-keys")
+	r.NewRoute().Name("PostIntegrationsGithub").Methods("POST").Path("/v5/integrations/github").Queries("owner", "{owner}", "repository", "{repository}")
 	r.NewRoute().Name("RegisterDaemon").Methods("GET").Path("/v4/daemon")
 	r.NewRoute().Name("IsConnected").Methods("HEAD", "GET").Path("/v4/ping")
 	return r
@@ -50,21 +52,22 @@ func NewRouter() *mux.Router {
 
 func NewHandler(s api.FluxService, r *mux.Router, logger log.Logger, h *stdprometheus.HistogramVec) http.Handler {
 	for method, handlerFunc := range map[string]func(api.FluxService) http.Handler{
-		"ListServices":       handleListServices,
-		"ListImages":         handleListImages,
-		"PostRelease":        handlePostRelease,
-		"GetRelease":         handleGetRelease,
-		"Automate":           handleAutomate,
-		"Deautomate":         handleDeautomate,
-		"Lock":               handleLock,
-		"Unlock":             handleUnlock,
-		"History":            handleHistory,
-		"Status":             handleStatus,
-		"GetConfig":          handleGetConfig,
-		"SetConfig":          handleSetConfig,
-		"GenerateDeployKeys": handleGenerateKeys,
-		"RegisterDaemon":     handleRegister,
-		"IsConnected":        handleIsConnected,
+		"ListServices":           handleListServices,
+		"ListImages":             handleListImages,
+		"PostRelease":            handlePostRelease,
+		"GetRelease":             handleGetRelease,
+		"Automate":               handleAutomate,
+		"Deautomate":             handleDeautomate,
+		"Lock":                   handleLock,
+		"Unlock":                 handleUnlock,
+		"History":                handleHistory,
+		"Status":                 handleStatus,
+		"GetConfig":              handleGetConfig,
+		"SetConfig":              handleSetConfig,
+		"GenerateDeployKeys":     handleGenerateKeys,
+		"PostIntegrationsGithub": handlePostIntegrationsGithub,
+		"RegisterDaemon":         handleRegister,
+		"IsConnected":            handleIsConnected,
 	} {
 		var handler http.Handler
 		handler = handlerFunc(s)
@@ -666,6 +669,60 @@ func invokeGenerateKeys(client *http.Client, t flux.Token, router *mux.Router, e
 		return errors.Wrap(err, "executing HTTP request")
 	}
 	return nil
+}
+
+func handlePostIntegrationsGithub(s api.FluxService) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var (
+			inst  = getInstanceID(r)
+			vars  = mux.Vars(r)
+			owner = vars["owner"]
+			repo  = vars["repository"]
+			tok   = r.Header.Get("GithubToken")
+		)
+
+		if repo == "" || owner == "" || tok == "" {
+			w.WriteHeader(http.StatusUnprocessableEntity)
+			fmt.Fprintf(w, "repo, owner or token is empty")
+			return
+		}
+
+		// Generate deploy key
+		err := s.GenerateDeployKey(inst)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintf(w, err.Error())
+			return
+		}
+
+		// Obtain the generated key
+		cfg, err := s.GetConfig(inst)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintf(w, err.Error())
+			return
+		}
+		publicKey := cfg.Git.HideKey().Key
+
+		// Use the Github API to insert the key
+		// Have to create a new instance here because there is no
+		// clean way of injecting without significantly altering
+		// the initialisation (at the top)
+		gh := github.NewGithubClient(tok)
+		err = gh.InsertDeployKey(owner, repo, publicKey)
+		if err != nil {
+			httpErr, isHttpErr := err.(*httperror.APIError)
+			if isHttpErr {
+				w.WriteHeader(httpErr.StatusCode)
+			} else {
+				w.WriteHeader(http.StatusInternalServerError)
+			}
+			fmt.Fprintf(w, err.Error())
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		return
+	})
 }
 
 func invokeStatus(client *http.Client, t flux.Token, router *mux.Router, endpoint string) (flux.Status, error) {
