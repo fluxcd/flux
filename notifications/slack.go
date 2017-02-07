@@ -7,6 +7,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"reflect"
 	"strings"
 	"text/template"
 	"time"
@@ -17,7 +18,7 @@ import (
 )
 
 const (
-	defaultReleaseTemplate = `Release {{join .Result.ImageIDs ", "}} to {{join .Result.ServiceIDs ", "}}. {{with .Error}}error: {{.}}. failed{{else}}done{{end}}`
+	defaultReleaseTemplate = `Release {{trim (print .Spec.ImageSpec) "<>"}} to {{with .Spec.ServiceSpecs}}{{range $index, $spec := .}}{{if not (eq $index 0)}}, {{if last $index $}}and {{end}}{{end}}{{trim (print .) "<>"}}{{end}}{{end}}. {{with .Error}}{{.}}. failed{{else}}done{{end}}`
 )
 
 var (
@@ -79,8 +80,16 @@ func notify(config flux.NotifierConfig, text string) error {
 
 func instantiateTemplate(tmplName, tmplStr string, args interface{}) (string, error) {
 	tmpl, err := template.New(tmplName).Funcs(template.FuncMap{
-		"iso8601": func(t time.Time) string { return t.Format(time.RFC3339) },
-		"join":    strings.Join,
+		"iso8601":    func(t time.Time) string { return t.Format(time.RFC3339) },
+		"join":       strings.Join,
+		"replace":    strings.Replace,
+		"trim":       strings.Trim,
+		"trimLeft":   strings.TrimLeft,
+		"trimPrefix": strings.TrimPrefix,
+		"trimRight":  strings.TrimRight,
+		"trimSuffix": strings.TrimSuffix,
+		"trimSpace":  strings.TrimSpace,
+		"last":       func(i int, a interface{}) bool { return i == reflect.ValueOf(a).Len()-1 },
 	}).Parse(tmplStr)
 	if err != nil {
 		return "", err

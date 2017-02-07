@@ -8,50 +8,9 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	"time"
 
 	"github.com/weaveworks/flux"
 )
-
-// Generate an example release
-func exampleRelease(t *testing.T) flux.Release {
-	now := time.Now().UTC()
-	img1a1, _ := flux.ParseImageID("img1:a1")
-	img1a2, _ := flux.ParseImageID("img1:a2")
-	return flux.Release{
-		ID:        flux.NewReleaseID(),
-		CreatedAt: now.Add(-1 * time.Minute),
-		StartedAt: now.Add(-30 * time.Second),
-		EndedAt:   now.Add(-1 * time.Second),
-		Done:      true,
-		Priority:  100,
-		Status:    flux.FailedReleaseStatus,
-		Log:       []string{flux.FailedReleaseStatus},
-
-		Spec: flux.ReleaseSpec{
-			ServiceSpecs: []flux.ServiceSpec{flux.ServiceSpecAll},
-			ImageSpec:    flux.ImageSpecLatest,
-			Kind:         flux.ReleaseKindExecute,
-			Excludes:     nil,
-		},
-		Result: flux.ReleaseResult{
-			flux.ServiceID("default/helloworld"): {
-				Status: flux.FailedReleaseStatus,
-				Error:  "overall-release-error",
-				PerContainer: []flux.ContainerResult{
-					{
-						Error: "",
-						ContainerUpdate: flux.ContainerUpdate{
-							Container: "container1",
-							Current:   img1a1,
-							Target:    img1a2,
-						},
-					},
-				},
-			},
-		},
-	}
-}
 
 func TestSlackNotifier(t *testing.T) {
 	var gotReq *http.Request
@@ -85,7 +44,7 @@ func TestSlackNotifier(t *testing.T) {
 	}
 	for k, expectedV := range map[string]string{
 		"username": "user1",
-		"text":     "Release img1:a2 to default/helloworld: error: test-error. failed",
+		"text":     "Release all latest to default/helloworld. test-error. failed",
 	} {
 		if v, ok := body[k]; !ok || v != expectedV {
 			t.Errorf("Expected %s to have been set to %q, but got: %q", k, expectedV, v)

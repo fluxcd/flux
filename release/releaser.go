@@ -258,7 +258,8 @@ func (r *Releaser) execute(inst *instance.Instance, actions []ReleaseAction, kin
 			Log:      job.Log,
 
 			Spec: flux.ReleaseSpec(job.Params.(jobs.ReleaseJobParams)),
-			// TODO: Result: actions
+			// TODO: Populate this... It's just included so the user can't trigger a null-pointer.
+			Result: flux.ReleaseResult{},
 		}, err)
 		if err2 != nil {
 			if err == nil {
