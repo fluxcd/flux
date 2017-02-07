@@ -41,6 +41,7 @@ func NewRouter() *mux.Router {
 	r.NewRoute().Name("Status").Methods("GET").Path("/v3/status")
 	r.NewRoute().Name("GetConfig").Methods("GET").Path("/v4/config")
 	r.NewRoute().Name("SetConfig").Methods("POST").Path("/v4/config")
+	r.NewRoute().Name("GenerateDeployKeys").Methods("POST").Path("/v5/config/deploy-keys")
 	r.NewRoute().Name("RegisterDaemon").Methods("GET").Path("/v4/daemon")
 	r.NewRoute().Name("IsConnected").Methods("HEAD", "GET").Path("/v4/ping")
 	return r
@@ -48,20 +49,21 @@ func NewRouter() *mux.Router {
 
 func NewHandler(s api.FluxService, r *mux.Router, logger log.Logger, h *stdprometheus.HistogramVec) http.Handler {
 	for method, handlerFunc := range map[string]func(api.FluxService) http.Handler{
-		"ListServices":   handleListServices,
-		"ListImages":     handleListImages,
-		"PostRelease":    handlePostRelease,
-		"GetRelease":     handleGetRelease,
-		"Automate":       handleAutomate,
-		"Deautomate":     handleDeautomate,
-		"Lock":           handleLock,
-		"Unlock":         handleUnlock,
-		"History":        handleHistory,
-		"Status":         handleStatus,
-		"GetConfig":      handleGetConfig,
-		"SetConfig":      handleSetConfig,
-		"RegisterDaemon": handleRegister,
-		"IsConnected":    handleIsConnected,
+		"ListServices":       handleListServices,
+		"ListImages":         handleListImages,
+		"PostRelease":        handlePostRelease,
+		"GetRelease":         handleGetRelease,
+		"Automate":           handleAutomate,
+		"Deautomate":         handleDeautomate,
+		"Lock":               handleLock,
+		"Unlock":             handleUnlock,
+		"History":            handleHistory,
+		"Status":             handleStatus,
+		"GetConfig":          handleGetConfig,
+		"SetConfig":          handleSetConfig,
+		"GenerateDeployKeys": handleGenerateKeys,
+		"RegisterDaemon":     handleRegister,
+		"IsConnected":        handleIsConnected,
 	} {
 		var handler http.Handler
 		handler = handlerFunc(s)
@@ -648,6 +650,40 @@ func invokeSetConfig(client *http.Client, t flux.Token, router *mux.Router, endp
 		return errors.Wrap(err, "executing HTTP request")
 	}
 
+	return nil
+}
+
+func handleGenerateKeys(s api.FluxService) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		inst := getInstanceID(r)
+		err := s.GenerateDeployKey(inst)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintf(w, err.Error())
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		return
+	})
+}
+
+func invokeGenerateKeys(client *http.Client, t flux.Token, router *mux.Router, endpoint string) error {
+	u, err := makeURL(endpoint, router, "GenerateDeployKeys")
+	if err != nil {
+		return errors.Wrap(err, "constructing URL")
+	}
+
+	req, err := http.NewRequest("POST", u.String(), nil)
+	if err != nil {
+		return errors.Wrapf(err, "constructing request %s", u)
+	}
+	t.Set(req)
+
+	_, err = executeRequest(client, req)
+	if err != nil {
+		return errors.Wrap(err, "executing HTTP request")
+	}
 	return nil
 }
 

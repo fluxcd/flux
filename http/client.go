@@ -70,6 +70,10 @@ func (c *client) SetConfig(_ flux.InstanceID, config flux.UnsafeInstanceConfig) 
 	return invokeSetConfig(c.client, c.token, c.router, c.endpoint, config)
 }
 
+func (c *client) GenerateDeployKey(_ flux.InstanceID) error {
+	return invokeGenerateKeys(c.client, c.token, c.router, c.endpoint)
+}
+
 func (c *client) Status(_ flux.InstanceID) (flux.Status, error) {
 	return invokeStatus(c.client, c.token, c.router, c.endpoint)
 }
