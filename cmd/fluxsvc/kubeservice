@@ -26,7 +26,7 @@ def safe_lookup(d, ks, default=None):
 
 def load_service(path):
   _, extension = os.path.splitext(path)
-  if extension != ".yaml":
+  if extension != ".yaml" and extension != ".yml":
     raise Kubeimage("Not a yaml file '%s'" % path)
 
   with open(path, 'r') as stream:
@@ -52,7 +52,7 @@ def load_services(path):
 
 def service_for_file(path):
   _, extension = os.path.splitext(path)
-  if extension != ".yaml":
+  if extension != ".yaml" and extension != ".yml":
     raise Kubeimage("Not a yaml file")
 
   with open(path, 'r') as stream:
