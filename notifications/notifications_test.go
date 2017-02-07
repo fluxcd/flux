@@ -22,8 +22,8 @@ func exampleRelease(t *testing.T) flux.Release {
 		EndedAt:   now.Add(-1 * time.Second),
 		Done:      true,
 		Priority:  100,
-		Status:    flux.FailedReleaseStatus,
-		Log:       []string{flux.FailedReleaseStatus},
+		Status:    flux.ReleaseStatusFailed,
+		Log:       []string{flux.ReleaseStatusFailed},
 
 		Spec: flux.ReleaseSpec{
 			ServiceSpecs: []flux.ServiceSpec{flux.ServiceSpec("default/helloworld")},
@@ -33,7 +33,7 @@ func exampleRelease(t *testing.T) flux.Release {
 		},
 		Result: flux.ReleaseResult{
 			flux.ServiceID("default/helloworld"): {
-				Status: flux.FailedReleaseStatus,
+				Status: flux.ReleaseStatusFailed,
 				Error:  "overall-release-error",
 				PerContainer: []flux.ContainerResult{
 					{
