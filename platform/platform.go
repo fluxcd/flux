@@ -117,6 +117,7 @@ var (
 type ServiceDefinition struct {
 	ServiceID     flux.ServiceID
 	NewDefinition []byte // of the pod controller e.g. deployment
+	Async         bool   // Should this definition be applied without waiting for the result.
 }
 
 type ApplyError map[flux.ServiceID]error

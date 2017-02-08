@@ -524,6 +524,7 @@ func (r *Releaser) releaseActionReleaseServices(services []flux.ServiceID, msg s
 					asyncDefs = append(asyncDefs, platform.ServiceDefinition{
 						ServiceID:     service,
 						NewDefinition: def,
+						Async:         true,
 					})
 				default:
 					rc.Instance.LogEvent(namespace, serviceName, "Starting "+cause)
@@ -573,9 +574,7 @@ func (r *Releaser) releaseActionReleaseServices(services []flux.ServiceID, msg s
 			// shutdown. So the only thing that goes missing is the
 			// result from this release call.
 			if len(asyncDefs) > 0 {
-				go func() {
-					rc.Instance.PlatformApply(asyncDefs)
-				}()
+				rc.Instance.PlatformApply(asyncDefs)
 			}
 
 			return "", transactionErr

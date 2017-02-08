@@ -356,7 +356,7 @@ func (c *Cluster) Apply(defs []platform.ServiceDefinition) error {
 					continue
 				}
 
-				plan, err := controller.newApply(newDef)
+				plan, err := controller.newApply(newDef, def.Async)
 				if err != nil {
 					applyErr[def.ServiceID] = errors.Wrap(err, "creating release")
 					continue
