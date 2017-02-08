@@ -125,6 +125,11 @@ func (s ServiceIDSet) Intersection(others ServiceIDSet) ServiceIDSet {
 
 type ServiceIDs []ServiceID
 
+func (p ServiceIDs) Len() int           { return len(p) }
+func (p ServiceIDs) Less(i, j int) bool { return string(p[i]) < string(p[j]) }
+func (p ServiceIDs) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
+func (p ServiceIDs) Sort()              { sort.Sort(p) }
+
 func (ids ServiceIDs) Without(others ServiceIDSet) (res ServiceIDs) {
 	for _, id := range ids {
 		if !others.Contains(id) {

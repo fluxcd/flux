@@ -22,9 +22,11 @@ type GitConfig struct {
 	Key    string `json:"key" yaml:"key"`
 }
 
-type SlackConfig struct {
-	HookURL  string `json:"hookURL" yaml:"hookURL"`
-	Username string `json:"username" yaml:"username"`
+// NotifierConfig is the config used to set up a notifier.
+type NotifierConfig struct {
+	HookURL         string `json:"hookURL" yaml:"hookURL"`
+	Username        string `json:"username" yaml:"username"`
+	ReleaseTemplate string `json:"releaseTemplate" yaml:"releaseTemplate"`
 }
 
 type RegistryConfig struct {
@@ -40,7 +42,7 @@ type Auth struct {
 
 type InstanceConfig struct {
 	Git      GitConfig      `json:"git" yaml:"git"`
-	Slack    SlackConfig    `json:"slack" yaml:"slack"`
+	Slack    NotifierConfig `json:"slack" yaml:"slack"`
 	Registry RegistryConfig `json:"registry" yaml:"registry"`
 }
 

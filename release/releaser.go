@@ -16,6 +16,7 @@ import (
 	"github.com/weaveworks/flux/instance"
 	"github.com/weaveworks/flux/jobs"
 	fluxmetrics "github.com/weaveworks/flux/metrics"
+	"github.com/weaveworks/flux/notifications"
 	"github.com/weaveworks/flux/platform"
 	"github.com/weaveworks/flux/platform/kubernetes"
 )
@@ -90,7 +91,7 @@ func (r *Releaser) Handle(job *jobs.Job, updater jobs.JobUpdater) (followUps []j
 	if err != nil {
 		return nil, errors.Wrap(err, "planning release")
 	}
-	return nil, r.execute(inst, actions, params.Kind, updateJob)
+	return nil, r.execute(inst, actions, params.Kind, job, updateJob)
 }
 
 func (r *Releaser) plan(inst *instance.Instance, params jobs.ReleaseJobParams) (string, []ReleaseAction, error) {
@@ -230,9 +231,47 @@ func (r *Releaser) releaseWithoutUpdate(method, msg string, inst *instance.Insta
 	return res, nil
 }
 
-func (r *Releaser) execute(inst *instance.Instance, actions []ReleaseAction, kind flux.ReleaseKind, updateJob func(string, ...interface{})) error {
+func (r *Releaser) execute(inst *instance.Instance, actions []ReleaseAction, kind flux.ReleaseKind, job *jobs.Job, updateJob func(string, ...interface{})) (err error) {
 	rc := NewReleaseContext(inst)
 	defer rc.Clean()
+
+	defer func() {
+		cfg, err2 := inst.GetConfig()
+		if err2 != nil {
+			if err == nil {
+				err = errors.Wrap(err2, "sending notifications")
+			}
+			return
+		}
+
+		status := flux.ReleaseStatusSuccess
+		if err != nil {
+			status = flux.ReleaseStatusFailed
+		}
+		// Filling this from the job is a temporary migration hack. Ideally all
+		// the release info should be stored on the release object in a releases
+		// table, and the job should really just have a pointer to that.
+		err2 = notifications.Release(cfg, flux.Release{
+			ID:        flux.ReleaseID(job.ID),
+			CreatedAt: job.Submitted,
+			StartedAt: job.Claimed,
+			// TODO: fetch the job and look this up so it matches
+			EndedAt:  time.Now().UTC(),
+			Done:     true,
+			Priority: job.Priority,
+			Status:   status,
+			Log:      job.Log,
+
+			Spec: flux.ReleaseSpec(job.Params.(jobs.ReleaseJobParams)),
+			// TODO: Populate this... It's just included so the user can't trigger a null-pointer.
+			Result: flux.ReleaseResult{},
+		}, err)
+		if err2 != nil {
+			if err == nil {
+				err = errors.Wrap(err2, "sending notifications")
+			}
+		}
+	}()
 
 	for i, action := range actions {
 		updateJob(action.Description)
