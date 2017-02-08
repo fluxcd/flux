@@ -39,18 +39,18 @@ func TestToken(t *testing.T) {
 }
 
 func TestByteStream(t *testing.T) {
-	mx := sync.Mutex{}
 	buf := &bytes.Buffer{}
+	var wg sync.WaitGroup
+	wg.Add(1)
 	upgrade := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ws, err := Upgrade(w, r, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
-		mx.Lock()
-		defer mx.Unlock()
 		if _, err := io.Copy(buf, ws); err != nil {
 			t.Fatal(err)
 		}
+		wg.Done()
 	})
 
 	srv := httptest.NewServer(upgrade)
@@ -78,8 +78,7 @@ func TestByteStream(t *testing.T) {
 
 	// Make sure the server reads everything from the connection
 	srv.Close()
-	mx.Lock()
-	defer mx.Unlock()
+	wg.Wait()
 	if buf.String() != "hey there champ" {
 		t.Fatalf("did not collect message as expected, got %s", buf.String())
 	}
