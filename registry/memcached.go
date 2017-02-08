@@ -81,19 +81,18 @@ func (c *memcacheClient) Stop() {
 	c.wait.Wait()
 }
 
-func (c *memcacheClient) updateLoop(updateInterval time.Duration) error {
+func (c *memcacheClient) updateLoop(updateInterval time.Duration) {
 	defer c.wait.Done()
 	ticker := time.NewTicker(updateInterval)
-	var err error
+	defer ticker.Stop()
 	for {
 		select {
 		case <-ticker.C:
-			err = c.updateMemcacheServers()
-			if err != nil {
+			if err := c.updateMemcacheServers(); err != nil {
 				c.logger.Log("err", errors.Wrap(err, "error updating memcache servers"))
 			}
 		case <-c.quit:
-			ticker.Stop()
+			return
 		}
 	}
 }
