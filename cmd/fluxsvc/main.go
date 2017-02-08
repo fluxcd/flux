@@ -304,6 +304,7 @@ func main() {
 		worker.Register(jobs.ReleaseJob, release.NewReleaser(instancer, releaseMetrics))
 
 		defer func() {
+			logger.Log("stopping", "true")
 			if err := worker.Stop(shutdownTimeout); err != nil {
 				logger.Log("err", err)
 			}
