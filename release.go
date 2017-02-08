@@ -8,11 +8,11 @@ import (
 )
 
 const (
-	ReleaseStatusPending = "pending"
-	ReleaseStatusRunning = "running"
-	ReleaseStatusSuccess = "success"
-	ReleaseStatusFailed  = "failed"
-	ReleaseStatusSkipped = "skipped"
+	ReleaseStatusPending ServiceReleaseStatus = "pending"
+	ReleaseStatusRunning ServiceReleaseStatus = "running"
+	ReleaseStatusSuccess ServiceReleaseStatus = "success"
+	ReleaseStatusFailed  ServiceReleaseStatus = "failed"
+	ReleaseStatusSkipped ServiceReleaseStatus = "skipped"
 )
 
 type ServiceReleaseStatus string

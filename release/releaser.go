@@ -243,6 +243,11 @@ func (r *Releaser) execute(inst *instance.Instance, actions []ReleaseAction, kin
 			}
 			return
 		}
+
+		status := flux.ReleaseStatusSuccess
+		if err != nil {
+			status = flux.ReleaseStatusFailed
+		}
 		// Filling this from the job is a temporary migration hack. Ideally all
 		// the release info should be stored on the release object in a releases
 		// table, and the job should really just have a pointer to that.
@@ -254,7 +259,7 @@ func (r *Releaser) execute(inst *instance.Instance, actions []ReleaseAction, kin
 			EndedAt:  time.Now().UTC(),
 			Done:     true,
 			Priority: job.Priority,
-			Status:   flux.ServiceReleaseStatus(job.Status),
+			Status:   status,
 			Log:      job.Log,
 
 			Spec: flux.ReleaseSpec(job.Params.(jobs.ReleaseJobParams)),

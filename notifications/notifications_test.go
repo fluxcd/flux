@@ -23,7 +23,7 @@ func exampleRelease(t *testing.T) flux.Release {
 		Done:      true,
 		Priority:  100,
 		Status:    flux.ReleaseStatusFailed,
-		Log:       []string{flux.ReleaseStatusFailed},
+		Log:       []string{string(flux.ReleaseStatusFailed)},
 
 		Spec: flux.ReleaseSpec{
 			ServiceSpecs: []flux.ServiceSpec{flux.ServiceSpec("default/helloworld")},
