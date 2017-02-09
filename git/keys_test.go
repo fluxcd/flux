@@ -6,6 +6,8 @@ import (
 )
 
 func TestKey_Generate(t *testing.T) {
+	keySize = 128 // smaller keys for faster test
+
 	keygen := NewKeyGenerator()
 	priv, err := keygen.Generate()
 	if err != nil {
