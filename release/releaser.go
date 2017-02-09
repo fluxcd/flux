@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	//	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/metrics"
 	"github.com/pkg/errors"
 
@@ -308,6 +307,13 @@ func (r *Releaser) applyChanges(rc *ReleaseContext, updates []*ServiceUpdate, re
 				NewDefinition: update.ManifestBytes,
 			})
 		}
+		// Mark as successful, until we have an answer
+		result := results[update.ServiceID]
+		results[update.ServiceID] = flux.ServiceResult{
+			Status:       flux.ReleaseStatusSuccess,
+			Error:        result.Error,
+			PerContainer: result.PerContainer,
+		}
 	}
 
 	transactionErr := rc.Instance.PlatformApply(defs)
@@ -320,16 +326,18 @@ func (r *Releaser) applyChanges(rc *ReleaseContext, updates []*ServiceUpdate, re
 					Error:  applyErr.Error(),
 				}
 			}
-		default: // assume everything that was planned failed, if
-			// there was a coverall error
-			for id, _ := range results {
-				if results[id].Status == flux.ReleaseStatusPending {
-					results[id] = flux.ServiceResult{
-						Status: flux.ReleaseStatusUnknown,
-						Error:  transactionErr.Error(),
-					}
+		default:
+			for _, update := range updates {
+				results[update.ServiceID] = flux.ServiceResult{
+					Status: flux.ReleaseStatusUnknown,
+					Error:  transactionErr.Error(),
 				}
 			}
+			// assume everything that was planned failed, if there
+			// was a coverall error. Note that this _includes_ the
+			// async releases, since if there's a problem, we don't attempt
+			// them.
+			return transactionErr
 		}
 	}
 	// Lastly, services for which we don't expect a result
@@ -341,6 +349,12 @@ func (r *Releaser) applyChanges(rc *ReleaseContext, updates []*ServiceUpdate, re
 	// result from this release call.
 	if len(asyncDefs) > 0 {
 		rc.Instance.PlatformApply(asyncDefs)
+	}
+
+	if len(asyncDefs) > 0 {
+		go func() {
+			rc.Instance.PlatformApply(defs)
+		}()
 	}
 
 	return transactionErr
@@ -389,7 +403,7 @@ func (rc *ReleaseContext) CalculateContainerUpdates(updateable []*ServiceUpdate,
 			continue
 		}
 
-		var containerUpdates []flux.ContainerUpdate
+		containerUpdates := make([]flux.ContainerUpdate, 0, 0)
 		for _, container := range containers {
 			currentImageID, err := flux.ParseImageID(container.Image)
 			if err != nil {
@@ -409,18 +423,17 @@ func (rc *ReleaseContext) CalculateContainerUpdates(updateable []*ServiceUpdate,
 
 			update.ManifestBytes, err = kubernetes.UpdatePodController(update.ManifestBytes, latestImage.ID, ioutil.Discard)
 			if err != nil {
-				// TODO do I want to fail utterly, or just this service?
 				return nil, err
 			}
 
-			logStatus("Updating service %s container %s: %s -> :%s", update.ServiceID, container.Name, currentImageID, latestImage.ID.Tag)
+			logStatus("Will update %s container %s: %s -> %s", update.ServiceID, container.Name, currentImageID, latestImage.ID.Tag)
 			containerUpdates = append(containerUpdates, flux.ContainerUpdate{
 				Container: container.Name,
 				Current:   currentImageID,
 				Target:    latestImage.ID,
 			})
-
 		}
+
 		if len(containerUpdates) > 0 {
 			update.Updates = containerUpdates
 			updates = append(updates, update)
@@ -430,6 +443,10 @@ func (rc *ReleaseContext) CalculateContainerUpdates(updateable []*ServiceUpdate,
 			}
 		} else {
 			logStatus("Skipping service %s, no container images to update", update.ServiceID)
+			result[update.ServiceID] = flux.ServiceResult{
+				Status: flux.ReleaseStatusSkipped,
+				Error:  "no container images to update",
+			}
 		}
 	}
 

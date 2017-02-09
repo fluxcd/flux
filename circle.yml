@@ -19,6 +19,7 @@ checkout:
     - mv ${HOME}/flux ${GOPATH}/src/github.com/weaveworks/
     - ln -s ${GOPATH}/src/github.com/weaveworks/flux ${HOME}/flux # Circle needs this to be here, apparently
     - cd ${GOPATH}/src/github.com/weaveworks/flux
+    - sudo pip install pyyaml
     - git config --global user.email "example@example.com"
     - git config --global user.name "Weave Flux test user"
 

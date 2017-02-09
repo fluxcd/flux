@@ -2,7 +2,6 @@ package release
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -12,6 +11,7 @@ import (
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/git"
 	"github.com/weaveworks/flux/instance"
+	"github.com/weaveworks/flux/platform/kubernetes/testdata"
 )
 
 func TestCloneCommitAndPush(t *testing.T) {
@@ -34,7 +34,7 @@ func TestCloneCommitAndPush(t *testing.T) {
 	}
 
 	// change a file and try again
-	for name, _ := range files {
+	for name, _ := range testdata.Files {
 		if err = execCommand("rm", filepath.Join(ctx.WorkingDir, name)); err != nil {
 			t.Fatal(err)
 		}
@@ -78,19 +78,7 @@ func TestLockedServices(t *testing.T) {
 }
 
 func setupRepo(t *testing.T) (git.Repo, func()) {
-	newDir, err := ioutil.TempDir(os.TempDir(), "flux-testrepo")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	cleanup := func() {
-		if strings.HasPrefix(newDir, os.TempDir()) {
-			execCommand("rm", "-rf", newDir)
-			println("Deleted " + newDir)
-		} else {
-			println("Refusing to delete " + newDir)
-		}
-	}
+	newDir, cleanup := testdata.TempDir(t)
 
 	filesDir := filepath.Join(newDir, "files")
 	gitDir := filepath.Join(newDir, "git")
@@ -98,17 +86,18 @@ func setupRepo(t *testing.T) (git.Repo, func()) {
 		t.Fatal(err)
 	}
 
+	var err error
 	if err = execCommand("git", "-C", filesDir, "init"); err != nil {
 		cleanup()
 		t.Fatal(err)
 	}
-	for name, content := range files {
-		path := filepath.Join(filesDir, name)
-		ioutil.WriteFile(path, []byte(content), 0666)
-		if err = execCommand("git", "-C", filesDir, "add", name); err != nil {
-			cleanup()
-			t.Fatal(err)
-		}
+	if err = testdata.WriteTestFiles(filesDir); err != nil {
+		cleanup()
+		t.Fatal(err)
+	}
+	if err = execCommand("git", "-C", filesDir, "add", "--all"); err != nil {
+		cleanup()
+		t.Fatal(err)
 	}
 	if err = execCommand("git", "-C", filesDir, "commit", "-m", "'Initial revision'"); err != nil {
 		cleanup()
@@ -131,45 +120,4 @@ func execCommand(cmd string, args ...string) error {
 	c.Stderr = os.Stderr
 	c.Stdout = os.Stdout
 	return c.Run()
-}
-
-// ----- DATA
-
-var files = map[string]string{
-	"helloworld-deploy.yaml": `apiVersion: extensions/v1beta1
-kind: Deployment
-metadata:
-  name: helloworld
-spec:
-  minReadySeconds: 1
-  replicas: 5
-  template:
-    metadata:
-      labels:
-        name: helloworld
-    spec:
-      containers:
-      - name: helloworld
-        image: quay.io/weaveworks/helloworld:master-a000001
-        args:
-        - -msg=Ahoy
-        ports:
-        - containerPort: 80
-      - name: sidecar
-        image: quay.io/weaveworks/sidecar:master-a000002
-        args:
-        - -addr=:8080
-        ports:
-        - containerPort: 8080
-`,
-	"helloworld-svc.yaml": `apiVersion: v1
-kind: Service
-metadata:
-  name: helloworld
-spec:
-  ports:
-    - port: 80
-  selector:
-    name: helloworld
-`,
 }

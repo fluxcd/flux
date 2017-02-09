@@ -40,6 +40,10 @@ const DefaultInstanceID = "<default-instance-id>"
 
 type ServiceID string // "default/helloworld"
 
+func (id ServiceID) String() string {
+	return string(id)
+}
+
 func ParseServiceID(s string) (ServiceID, error) {
 	toks := strings.SplitN(s, "/", 2)
 	if len(toks) != 2 {
