@@ -17,9 +17,6 @@ func run(args []string, stderr io.Writer) int {
 	if cmd, err := rootCmd.ExecuteC(); err != nil {
 		err = errors.Cause(err)
 		switch err := err.(type) {
-		case usageError:
-			cmd.Println("")
-			cmd.Println(cmd.UsageString())
 		case *transport.APIError:
 			switch {
 			case err.IsMissing():
