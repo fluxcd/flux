@@ -95,6 +95,7 @@ func rollingUpgradeExec(def *api.ReplicationController, newDef *apiObject, async
 				newDef,
 				"rolling-update",
 				"--update-period", "3s",
+				"--namespace", def.Namespace,
 				def.Name,
 				"-f", "-", // take definition from stdin
 			)
