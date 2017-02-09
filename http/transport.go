@@ -211,17 +211,25 @@ type postReleaseResponse struct {
 func handlePostRelease(s api.FluxService) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var (
-			inst    = getInstanceID(r)
-			vars    = mux.Vars(r)
-			service = vars["service"]
-			image   = vars["image"]
-			kind    = vars["kind"]
+			inst  = getInstanceID(r)
+			vars  = mux.Vars(r)
+			image = vars["image"]
+			kind  = vars["kind"]
 		)
-		serviceSpec, err := flux.ParseServiceSpec(service)
-		if err != nil {
+		if err := r.ParseForm(); err != nil {
 			w.WriteHeader(http.StatusBadRequest)
-			fmt.Fprintf(w, errors.Wrapf(err, "parsing service spec %q", service).Error())
+			fmt.Fprintf(w, errors.Wrapf(err, "parsing form").Error())
 			return
+		}
+		var serviceSpecs []flux.ServiceSpec
+		for _, service := range r.Form["service"] {
+			serviceSpec, err := flux.ParseServiceSpec(service)
+			if err != nil {
+				w.WriteHeader(http.StatusBadRequest)
+				fmt.Fprintf(w, errors.Wrapf(err, "parsing service spec %q", service).Error())
+				return
+			}
+			serviceSpecs = append(serviceSpecs, serviceSpec)
 		}
 		imageSpec, err := flux.ParseImageSpec(image)
 		if err != nil {
@@ -248,7 +256,7 @@ func handlePostRelease(s api.FluxService) http.Handler {
 		}
 
 		id, err := s.PostRelease(inst, jobs.ReleaseJobParams{
-			ServiceSpecs: []flux.ServiceSpec{serviceSpec},
+			ServiceSpecs: serviceSpecs,
 			ImageSpec:    imageSpec,
 			Kind:         releaseKind,
 			Excludes:     excludes,
