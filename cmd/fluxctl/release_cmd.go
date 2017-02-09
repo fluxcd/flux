@@ -60,16 +60,19 @@ func (opts *serviceReleaseOpts) RunE(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if err := checkExactlyOne("--service=<service>, or --all", len(opts.services) > 0, opts.allServices); err != nil {
-		return err
+	if len(opts.services) <= 0 && !opts.allServices {
+		return newUsageError("please supply either --all, or at least one --service=<service>")
 	}
 
 	var services []flux.ServiceSpec
 	if opts.allServices {
 		services = []flux.ServiceSpec{flux.ServiceSpecAll}
 	} else {
-		for _, spec := range opts.services {
-			services = append(services, flux.ServiceSpec(spec))
+		for _, service := range opts.services {
+			if _, err := flux.ParseServiceID(service); err != nil {
+				return err
+			}
+			services = append(services, flux.ServiceSpec(service))
 		}
 	}
 
