@@ -12,7 +12,7 @@ import (
 
 type serviceReleaseOpts struct {
 	*serviceOpts
-	service     string
+	services    []string
 	allServices bool
 	image       string
 	allImages   bool
@@ -39,7 +39,7 @@ func (opts *serviceReleaseOpts) Command() *cobra.Command {
 		),
 		RunE: opts.RunE,
 	}
-	cmd.Flags().StringVarP(&opts.service, "service", "s", "", "service to release")
+	cmd.Flags().StringSliceVarP(&opts.services, "service", "s", []string{}, "service to release")
 	cmd.Flags().BoolVar(&opts.allServices, "all", false, "release all services")
 	cmd.Flags().StringVarP(&opts.image, "update-image", "i", "", "update a specific image")
 	cmd.Flags().BoolVar(&opts.allImages, "update-all-images", false, "update all images to latest versions")
@@ -60,16 +60,23 @@ func (opts *serviceReleaseOpts) RunE(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if err := checkExactlyOne("--service=<service>, or --all", opts.service != "", opts.allServices); err != nil {
+	if err := checkExactlyOne("--service=<service>, or --all", len(opts.services) > 0, opts.allServices); err != nil {
 		return err
 	}
 
-	service, err := parseServiceOption(opts.service) // will be "" iff opts.allServices
-	if err != nil {
-		return err
+	var services []flux.ServiceSpec
+	if opts.allServices {
+		services = []flux.ServiceSpec{flux.ServiceSpecAll}
+	} else {
+		for _, spec := range opts.services {
+			services = append(services, flux.ServiceSpec(spec))
+		}
 	}
 
-	var image flux.ImageSpec
+	var (
+		image flux.ImageSpec
+		err   error
+	)
 	switch {
 	case opts.image != "":
 		image, err = flux.ParseImageSpec(opts.image)
@@ -103,7 +110,7 @@ func (opts *serviceReleaseOpts) RunE(cmd *cobra.Command, args []string) error {
 	}
 
 	id, err := opts.API.PostRelease(noInstanceID, jobs.ReleaseJobParams{
-		ServiceSpecs: []flux.ServiceSpec{service},
+		ServiceSpecs: services,
 		ImageSpec:    image,
 		Kind:         kind,
 		Excludes:     excludes,
