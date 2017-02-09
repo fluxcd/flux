@@ -14,6 +14,7 @@ import (
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/instance"
 	"github.com/weaveworks/flux/jobs"
+	fluxmetrics "github.com/weaveworks/flux/metrics"
 	"github.com/weaveworks/flux/notifications"
 	"github.com/weaveworks/flux/platform"
 	"github.com/weaveworks/flux/platform/kubernetes"
@@ -25,12 +26,6 @@ const FluxDaemonName = "fluxd"
 type Releaser struct {
 	instancer instance.Instancer
 	metrics   Metrics
-}
-
-type Metrics struct {
-	ReleaseDuration metrics.Histogram
-	ActionDuration  metrics.Histogram
-	StageDuration   metrics.Histogram
 }
 
 func NewReleaser(
@@ -76,8 +71,15 @@ func (r *Releaser) Handle(job *jobs.Job, updater jobs.JobUpdater) ([]jobs.Job, e
 	return r.release(job.Instance, job, logStatus, updateResult)
 }
 
-func (r *Releaser) release(instanceID flux.InstanceID, job *jobs.Job, logStatus statusFn, report resultFn) ([]jobs.Job, error) {
+func (r *Releaser) release(instanceID flux.InstanceID, job *jobs.Job, logStatus statusFn, report resultFn) (_ []jobs.Job, err error) {
 	spec := job.Params.(jobs.ReleaseJobParams)
+	defer func(started time.Time) {
+		r.metrics.ReleaseDuration.With(
+			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
+			fluxmetrics.LabelReleaseType, flux.ReleaseSpec(spec).ReleaseType(),
+			fluxmetrics.LabelReleaseKind, string(spec.Kind),
+		).Observe(time.Since(started).Seconds())
+	}(time.Now())
 
 	logStatus("Calculating updates for release.")
 	inst, err := r.instancer.Get(instanceID)
@@ -85,21 +87,29 @@ func (r *Releaser) release(instanceID flux.InstanceID, job *jobs.Job, logStatus 
 		return nil, err
 	}
 
+	// We time each stage of this process, and expose as metrics.
+	var timer *metrics.Timer
+
 	// Preparation: we always need the repository
 	rc := NewReleaseContext(inst)
 	defer rc.Clean()
 	logStatus("Cloning git repository.")
+	timer = r.metrics.NewStageTimer("clone_repository")
 	if err = rc.CloneRepo(); err != nil {
 		return nil, err
 	}
+	timer.ObserveDuration()
 
 	// From here in, we collect the results of the calculations.
 	results := flux.ReleaseResult{}
 
 	// Figure out the services involved.
 	logStatus("Finding defined services.")
+	timer = r.metrics.NewStageTimer("select_services")
 	var updates []*ServiceUpdate
-	if updates, err = r.selectServices(rc, &spec, results, logStatus); err != nil {
+	updates, err = r.selectServices(rc, &spec, results, logStatus)
+	timer.ObserveDuration()
+	if err != nil {
 		return nil, err
 	}
 	logStatus("Found %d services.", len(updates))
@@ -107,12 +117,15 @@ func (r *Releaser) release(instanceID flux.InstanceID, job *jobs.Job, logStatus 
 
 	logStatus("Looking up images.")
 	if spec.ImageSpec != flux.ImageSpecNone {
+		timer = r.metrics.NewStageTimer("lookup_images")
 		// Figure out how the services are to be updated.
-		if updates, err = r.calculateImageUpdates(rc, updates, &spec, results, logStatus); err != nil {
+		updates, err = r.calculateImageUpdates(rc, updates, &spec, results, logStatus)
+		timer.ObserveDuration()
+		if err != nil {
 			return nil, err
 		}
+		report(results)
 	}
-	report(results)
 
 	// At this point we have have filtered the updates we can do down
 	// to nothing. Check and exit early if so
@@ -123,8 +136,24 @@ func (r *Releaser) release(instanceID flux.InstanceID, job *jobs.Job, logStatus 
 	}
 
 	if spec.Kind == flux.ReleaseKindExecute {
-		err = r.execute(rc, updates, &spec, results, logStatus)
+		if spec.ImageSpec != flux.ImageSpecNone {
+			logStatus("Pushing changes.")
+			timer = r.metrics.NewStageTimer("push_changes")
+			err = r.pushChanges(rc, updates, &spec)
+			timer.ObserveDuration()
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		logStatus("Applying changes.")
+		timer = r.metrics.NewStageTimer("apply_changes")
+		err = r.applyChanges(rc, updates, &spec, results)
+		timer.ObserveDuration()
+		// Report on success or failure of the application above
+		timer = r.metrics.NewStageTimer("send_notifications")
 		err = sendNotifications(rc, err, results, job)
+		timer.ObserveDuration()
 	}
 	report(results)
 
@@ -241,25 +270,20 @@ func (r *Releaser) calculateImageUpdates(rc *ReleaseContext, updates []*ServiceU
 	return rc.CalculateContainerUpdates(updates, images, results, logStatus)
 }
 
-// execute is called if the release is *not* a dry run; i.e., it
-// should actually effect the changes calculated.
-func (r *Releaser) execute(rc *ReleaseContext, updates []*ServiceUpdate, releaseJob *jobs.ReleaseJobParams, results flux.ReleaseResult, logStatus statusFn) error {
-	var err error
-	// Write changes, commit and push
-	logStatus("Writing changes to files.")
-	err = rc.WriteUpdates(updates)
+func (r *Releaser) pushChanges(rc *ReleaseContext, updates []*ServiceUpdate, spec *jobs.ReleaseJobParams) error {
+	err := rc.WriteUpdates(updates)
 	if err != nil {
 		return err
 	}
 
+	commitMsg := CommitMessageFromReleaseSpec(spec)
 	// TODO account for "nothing changed" message, which may be returned here
-	logStatus("Pushing commit.")
-	commitMsg := CommitMessageFromReleaseSpec(releaseJob)
 	_, err = rc.CommitAndPush(commitMsg)
-	if err != nil {
-		return err
-	}
+	return err
+}
 
+// applyChanges effects the calculated changes on the platform.
+func (r *Releaser) applyChanges(rc *ReleaseContext, updates []*ServiceUpdate, releaseJob *jobs.ReleaseJobParams, results flux.ReleaseResult) error {
 	// Collect definitions for each service release.
 	var defs []platform.ServiceDefinition
 	// If we're regrading our own image, we want to do that
@@ -286,9 +310,6 @@ func (r *Releaser) execute(rc *ReleaseContext, updates []*ServiceUpdate, release
 		}
 	}
 
-	// Execute the releases as a single transaction.
-	// Splat any errors into our results map.
-	logStatus("Applying changes.")
 	transactionErr := rc.Instance.PlatformApply(defs)
 	if transactionErr != nil {
 		switch err := transactionErr.(type) {

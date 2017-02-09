@@ -155,27 +155,6 @@ func main() {
 			Help:      "Gauge of the current number of connected daemons",
 		}, []string{})
 		serverMetrics.PlatformMetrics = platform.NewMetrics()
-		releaseMetrics.ReleaseDuration = prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
-			Namespace: "flux",
-			Subsystem: "fluxsvc",
-			Name:      "release_duration_seconds",
-			Help:      "Release method duration in seconds.",
-			Buckets:   stdprometheus.DefBuckets,
-		}, []string{fluxmetrics.LabelReleaseType, fluxmetrics.LabelReleaseKind, fluxmetrics.LabelSuccess})
-		releaseMetrics.ActionDuration = prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
-			Namespace: "flux",
-			Subsystem: "fluxsvc",
-			Name:      "release_action_duration_seconds",
-			Help:      "Duration in seconds of each sub-action invoked as part of a non-dry-run release.",
-			Buckets:   stdprometheus.DefBuckets,
-		}, []string{fluxmetrics.LabelAction, fluxmetrics.LabelSuccess})
-		releaseMetrics.StageDuration = prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
-			Namespace: "flux",
-			Subsystem: "fluxsvc",
-			Name:      "release_stage_duration_seconds",
-			Help:      "Duration in seconds of each stage of a release, including dry-runs.",
-			Buckets:   stdprometheus.DefBuckets,
-		}, []string{fluxmetrics.LabelMethod, fluxmetrics.LabelStage})
 		helperDuration = prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
 			Namespace: "flux",
 			Subsystem: "fluxsvc",
@@ -183,6 +162,7 @@ func main() {
 			Help:      "Duration in seconds of a variety of release helper methods.",
 			Buckets:   stdprometheus.DefBuckets,
 		}, []string{fluxmetrics.LabelMethod, fluxmetrics.LabelSuccess})
+		releaseMetrics = release.NewMetrics()
 		registryMetrics = registry.NewMetrics()
 		busMetrics = platform.NewBusMetrics()
 		historyMetrics = history.NewMetrics()

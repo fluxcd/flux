@@ -38,24 +38,6 @@ const InstanceIDHeaderKey = "X-Scope-OrgID"
 
 const DefaultInstanceID = "<default-instance-id>"
 
-type ReleaseKind string
-
-const (
-	ReleaseKindPlan    ReleaseKind = "plan"
-	ReleaseKindExecute             = "execute"
-)
-
-func ParseReleaseKind(s string) (ReleaseKind, error) {
-	switch s {
-	case string(ReleaseKindPlan):
-		return ReleaseKindPlan, nil
-	case string(ReleaseKindExecute):
-		return ReleaseKindExecute, nil
-	default:
-		return "", ErrInvalidReleaseKind
-	}
-}
-
 type ServiceID string // "default/helloworld"
 
 func ParseServiceID(s string) (ServiceID, error) {

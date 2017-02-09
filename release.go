@@ -7,6 +7,25 @@ import (
 	"github.com/weaveworks/flux/guid"
 )
 
+// ReleaseKind says whether a release is to be planned only, or planned then executed
+type ReleaseKind string
+
+const (
+	ReleaseKindPlan    ReleaseKind = "plan"
+	ReleaseKindExecute             = "execute"
+)
+
+func ParseReleaseKind(s string) (ReleaseKind, error) {
+	switch s {
+	case string(ReleaseKindPlan):
+		return ReleaseKindPlan, nil
+	case string(ReleaseKindExecute):
+		return ReleaseKindExecute, nil
+	default:
+		return "", ErrInvalidReleaseKind
+	}
+}
+
 const (
 	ReleaseStatusPending ServiceReleaseStatus = "pending"
 	ReleaseStatusSuccess ServiceReleaseStatus = "success"
@@ -49,6 +68,19 @@ type ReleaseSpec struct {
 	// Backwards Compatibility, remove once no more jobs
 	// TODO: Remove this once there are no more jobs with ServiceSpec, only ServiceSpecs
 	ServiceSpec ServiceSpec
+}
+
+// ReleaseType gives a one-word description of the release, mainly
+// useful for labelling metrics or log messages.
+func (s ReleaseSpec) ReleaseType() string {
+	switch {
+	case s.ImageSpec == ImageSpecLatest:
+		return "latest_images"
+	case s.ImageSpec == ImageSpecNone:
+		return "config_only"
+	default:
+		return "specific_image"
+	}
 }
 
 type ReleaseResult map[ServiceID]ServiceResult

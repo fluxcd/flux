@@ -33,7 +33,7 @@ func setup(t *testing.T) (*Releaser, func()) {
 	)
 
 	instancer := &instance.MockInstancer{inst, nil}
-	return NewReleaser(instancer, Metrics{}), cleanup
+	return NewReleaser(instancer, NewMetrics()), cleanup
 }
 
 func TestNopCalculation(t *testing.T) {
