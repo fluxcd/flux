@@ -14,7 +14,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/weaveworks/flux"
-	transport "github.com/weaveworks/flux/http"
+	"github.com/weaveworks/flux/http/error"
 	"github.com/weaveworks/flux/jobs"
 )
 
@@ -99,7 +99,7 @@ func (opts *serviceCheckReleaseOpts) RunE(cmd *cobra.Command, args []string) err
 
 		job, err = opts.API.GetRelease(noInstanceID, jobs.JobID(opts.releaseID))
 		if err != nil {
-			if err, ok := errors.Cause(err).(*transport.APIError); ok && err.IsUnavailable() {
+			if err, ok := errors.Cause(err).(*httperror.APIError); ok && err.IsUnavailable() {
 				if time.Since(lastSucceeded) > retryTimeout {
 					stop()
 					fmt.Fprintln(os.Stdout, "Giving up; you can try again with")
