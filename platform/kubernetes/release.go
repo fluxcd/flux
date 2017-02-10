@@ -88,9 +88,9 @@ func (c *Cluster) doApplyCommand(logger log.Logger, newDefinition *apiObject, ar
 
 func rollingUpgradeExec(def *api.ReplicationController, newDef *apiObject, async bool) applyExecFunc {
 	return func(c *Cluster, logger log.Logger) error {
-		err := make(chan error)
+		errc := make(chan error)
 		go func() {
-			err <- c.doApplyCommand(
+			errc <- c.doApplyCommand(
 				logger,
 				newDef,
 				"rolling-update",
@@ -103,7 +103,7 @@ func rollingUpgradeExec(def *api.ReplicationController, newDef *apiObject, async
 		if async {
 			return nil
 		}
-		return <-err
+		return <-errc
 	}
 }
 

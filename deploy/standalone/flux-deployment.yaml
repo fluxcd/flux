@@ -7,7 +7,8 @@ spec:
 
   # Having maxSurge 0 and maxUnavailable 1 means the deployment will update one
   # replica at a time as it will have to stop one (making one unavailable)
-  # before it can start one (surge of zero)
+  # before it can start one (surge of zero). This means if we have > 1 replica,
+  # we will stay available while deploying.
   strategy:
     rollingUpdate:
       maxSurge: 0
