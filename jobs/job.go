@@ -160,6 +160,10 @@ func (j *Job) UnmarshalJSON(data []byte) error {
 // ReleaseJobParams are the params for a release job
 type ReleaseJobParams flux.ReleaseSpec
 
+func (params ReleaseJobParams) Spec() flux.ReleaseSpec {
+	return flux.ReleaseSpec(params)
+}
+
 // AutomatedInstanceJobParams are the params for an automated_instance job
 type AutomatedInstanceJobParams struct {
 	InstanceID flux.InstanceID

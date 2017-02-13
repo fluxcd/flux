@@ -23,7 +23,7 @@ func NewReleaseContext(inst *instance.Instance) *ReleaseContext {
 	}
 }
 
-// Preparation and cleanup
+// Repo operations
 
 func (rc *ReleaseContext) CloneRepo() error {
 	path, err := rc.Instance.ConfigRepo().Clone()
@@ -42,25 +42,38 @@ func (rc *ReleaseContext) RepoPath() string {
 	return filepath.Join(rc.WorkingDir, rc.Instance.ConfigRepo().Path)
 }
 
+func (rc *ReleaseContext) PushChanges(updates []*ServiceUpdate, spec *flux.ReleaseSpec) error {
+	err := writeUpdates(updates)
+	if err != nil {
+		return err
+	}
+
+	commitMsg := commitMessageFromReleaseSpec(spec)
+	return rc.CommitAndPush(commitMsg)
+}
+
+func writeUpdates(updates []*ServiceUpdate) error {
+	for _, update := range updates {
+		fi, err := os.Stat(update.ManifestPath)
+		if err != nil {
+			return err
+		}
+		if err = ioutil.WriteFile(update.ManifestPath, update.ManifestBytes, fi.Mode()); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (rc *ReleaseContext) Clean() {
 	if rc.WorkingDir != "" {
 		os.RemoveAll(rc.WorkingDir)
 	}
 }
 
-// Selecting services
-
-func LockedServices(config instance.Config) flux.ServiceIDSet {
-	ids := []flux.ServiceID{}
-	for id, s := range config.Services {
-		if s.Locked {
-			ids = append(ids, id)
-		}
-	}
-	idSet := flux.ServiceIDSet{}
-	idSet.Add(ids)
-	return idSet
-}
+// Compiling lists of defined and running services. These need the
+// release context because they look at files in the working
+// directory.
 
 func (rc *ReleaseContext) SelectServices(only flux.ServiceIDSet, locked flux.ServiceIDSet, excluded flux.ServiceIDSet, results flux.ReleaseResult, logStatus statusFn) ([]*ServiceUpdate, error) {
 	// Figure out all services that are defined in the repo and should

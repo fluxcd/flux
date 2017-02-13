@@ -121,7 +121,7 @@ func (a *Automator) handleAutomatedInstanceJob(logger log.Logger, j *jobs.Job) (
 	}
 
 	// Get the images available for each automated service.
-	images, err := rc.CollectAvailableImages(updates)
+	images, err := release.CollectAvailableImages(rc.Instance, updates)
 	if err != nil {
 		return followUps, errors.Wrap(err, "fetching image updates")
 	}
