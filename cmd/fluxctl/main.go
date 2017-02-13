@@ -7,7 +7,7 @@ import (
 
 	"github.com/pkg/errors"
 
-	transport "github.com/weaveworks/flux/http"
+	"github.com/weaveworks/flux/http/error"
 )
 
 func run(args []string, stderr io.Writer) int {
@@ -17,7 +17,7 @@ func run(args []string, stderr io.Writer) int {
 	if cmd, err := rootCmd.ExecuteC(); err != nil {
 		err = errors.Cause(err)
 		switch err := err.(type) {
-		case *transport.APIError:
+		case *httperror.APIError:
 			switch {
 			case err.IsMissing():
 				cmd.Println(strings.Join([]string{
