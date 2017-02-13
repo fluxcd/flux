@@ -59,7 +59,8 @@ func (r *Releaser) Handle(job *jobs.Job, updater jobs.JobUpdater) ([]jobs.Job, e
 		updater.UpdateJob(*job)
 	}
 	updateResult := func(result flux.ReleaseResult) {
-		// TODO update in the job structure -- once it has that field.
+		job.Result = result
+		updater.UpdateJob(*job)
 	}
 
 	// The job gets handed down through methods just so it can be used
@@ -276,9 +277,7 @@ func (r *Releaser) pushChanges(rc *ReleaseContext, updates []*ServiceUpdate, spe
 	}
 
 	commitMsg := CommitMessageFromReleaseSpec(spec)
-	// TODO account for "nothing changed" message, which may be returned here
-	_, err = rc.CommitAndPush(commitMsg)
-	return err
+	return rc.CommitAndPush(commitMsg)
 }
 
 // applyChanges effects the calculated changes on the platform.
@@ -403,11 +402,16 @@ func (rc *ReleaseContext) CalculateContainerUpdates(updateable []*ServiceUpdate,
 			continue
 		}
 
-		containerUpdates := make([]flux.ContainerUpdate, 0, 0)
+		// If at least one container used an image in question, we say
+		// we're skipping it rather than ignoring it. This is mainly
+		// for the purpose of filtering the output.
+		ignoredOrSkipped := flux.ReleaseStatusIgnored
+		var containerUpdates []flux.ContainerUpdate
+
 		for _, container := range containers {
 			currentImageID, err := flux.ParseImageID(container.Image)
 			if err != nil {
-				// We may hope not to find a malformed image ID, but
+				// We may hope never to find a malformed image ID, but
 				// anything is possible.
 				return nil, err
 			}
@@ -418,6 +422,7 @@ func (rc *ReleaseContext) CalculateContainerUpdates(updateable []*ServiceUpdate,
 			}
 
 			if currentImageID == latestImage.ID {
+				ignoredOrSkipped = flux.ReleaseStatusSkipped
 				continue
 			}
 
@@ -434,18 +439,25 @@ func (rc *ReleaseContext) CalculateContainerUpdates(updateable []*ServiceUpdate,
 			})
 		}
 
-		if len(containerUpdates) > 0 {
+		switch {
+		case len(containerUpdates) > 0:
 			update.Updates = containerUpdates
 			updates = append(updates, update)
 			result[update.ServiceID] = flux.ServiceResult{
 				Status:       flux.ReleaseStatusPending,
 				PerContainer: containerUpdates,
 			}
-		} else {
-			logStatus("Skipping service %s, no container images to update", update.ServiceID)
+		case ignoredOrSkipped == flux.ReleaseStatusSkipped:
+			logStatus("Skipping service %s, images are up to date", update.ServiceID)
 			result[update.ServiceID] = flux.ServiceResult{
 				Status: flux.ReleaseStatusSkipped,
-				Error:  "no container images to update",
+				Error:  "image(s) up to date",
+			}
+		case ignoredOrSkipped == flux.ReleaseStatusIgnored:
+			logStatus("Ignoring service %s, does not use image(s) in question")
+			result[update.ServiceID] = flux.ServiceResult{
+				Status: flux.ReleaseStatusIgnored,
+				Error:  "does not use image(s)",
 			}
 		}
 	}

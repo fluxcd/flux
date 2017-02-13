@@ -31,6 +31,7 @@ const (
 	ReleaseStatusSuccess ServiceReleaseStatus = "success"
 	ReleaseStatusFailed  ServiceReleaseStatus = "failed"
 	ReleaseStatusSkipped ServiceReleaseStatus = "skipped"
+	ReleaseStatusIgnored ServiceReleaseStatus = "ignored"
 	ReleaseStatusUnknown ServiceReleaseStatus = "unknown"
 )
 

@@ -76,7 +76,7 @@ func TestMissingFromPlatform(t *testing.T) {
 		t.Errorf("expected one service in results, got %v", results)
 	}
 	println()
-	PrintResults(results)
+	PrintResults(results, true)
 	println()
 }
 
@@ -158,6 +158,6 @@ func TestUpdateOne(t *testing.T) {
 	}
 
 	println()
-	PrintResults(results)
+	PrintResults(results, true)
 	println()
 }

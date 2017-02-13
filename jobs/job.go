@@ -31,6 +31,7 @@ var (
 	ErrNoJobAvailable   = errors.New("no job available")
 	ErrUnknownJobMethod = errors.New("unknown job method")
 	ErrJobAlreadyQueued = errors.New("job is already queued")
+	ErrNoResultExpected = errors.New("no result expected")
 )
 
 type JobStore interface {
@@ -82,14 +83,15 @@ type Job struct {
 	Key string `json:"key,omitempty"`
 
 	// To be used by the worker
-	Submitted time.Time `json:"submitted"`
-	Claimed   time.Time `json:"claimed,omitempty"`
-	Heartbeat time.Time `json:"heartbeat,omitempty"`
-	Finished  time.Time `json:"finished,omitempty"`
-	Log       []string  `json:"log,omitempty"`
-	Status    string    `json:"status"`
-	Done      bool      `json:"done"`
-	Success   bool      `json:"success"` // only makes sense after done is true
+	Submitted time.Time   `json:"submitted"`
+	Claimed   time.Time   `json:"claimed,omitempty"`
+	Heartbeat time.Time   `json:"heartbeat,omitempty"`
+	Finished  time.Time   `json:"finished,omitempty"`
+	Log       []string    `json:"log,omitempty"`
+	Result    interface{} `json:"result"` // may be updated to reflect progress
+	Status    string      `json:"status"`
+	Done      bool        `json:"done"`
+	Success   bool        `json:"success"` // only makes sense after done is true
 }
 
 func (j *Job) UnmarshalJSON(data []byte) error {
@@ -109,14 +111,15 @@ func (j *Job) UnmarshalJSON(data []byte) error {
 		Key string `json:"key,omitempty"`
 
 		// To be used by the worker
-		Submitted time.Time `json:"submitted"`
-		Claimed   time.Time `json:"claimed,omitempty"`
-		Heartbeat time.Time `json:"heartbeat,omitempty"`
-		Finished  time.Time `json:"finished,omitempty"`
-		Log       []string  `json:"log,omitempty"`
-		Status    string    `json:"status"`
-		Done      bool      `json:"done"`
-		Success   bool      `json:"success"` // only makes sense after done is true
+		Submitted time.Time       `json:"submitted"`
+		Claimed   time.Time       `json:"claimed,omitempty"`
+		Heartbeat time.Time       `json:"heartbeat,omitempty"`
+		Finished  time.Time       `json:"finished,omitempty"`
+		Log       []string        `json:"log,omitempty"`
+		Result    json.RawMessage `json:"result"`
+		Status    string          `json:"status"`
+		Done      bool            `json:"done"`
+		Success   bool            `json:"success"` // only makes sense after done is true
 	}
 	if err := json.Unmarshal(data, &wireJob); err != nil {
 		return err
@@ -145,6 +148,11 @@ func (j *Job) UnmarshalJSON(data []byte) error {
 			return err
 		}
 		j.Params = p
+		var r flux.ReleaseResult
+		if err := json.Unmarshal(wireJob.Result, &r); err != nil {
+			return err
+		}
+		j.Result = r
 	}
 	return nil
 }

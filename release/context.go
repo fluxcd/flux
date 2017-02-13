@@ -34,7 +34,7 @@ func (rc *ReleaseContext) CloneRepo() error {
 	return nil
 }
 
-func (rc *ReleaseContext) CommitAndPush(msg string) (string, error) {
+func (rc *ReleaseContext) CommitAndPush(msg string) error {
 	return rc.Instance.ConfigRepo().CommitAndPush(rc.WorkingDir, msg)
 }
 
@@ -118,7 +118,7 @@ func (rc *ReleaseContext) SelectServices(only flux.ServiceIDSet, locked flux.Ser
 	for id, _ := range updateMap {
 		logStatus("Ignoring service %s as it is not in the running system", id)
 		results[id] = flux.ServiceResult{
-			Status: flux.ReleaseStatusSkipped,
+			Status: flux.ReleaseStatusIgnored,
 			Error:  "not in running system",
 		}
 	}

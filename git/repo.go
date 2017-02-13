@@ -1,8 +1,13 @@
 package git
 
 import (
+	"errors"
 	"io/ioutil"
 	"os"
+)
+
+var (
+	ErrNoChanges = errors.New("no changes made in repo")
 )
 
 // Repo represents a remote git repo
@@ -32,12 +37,12 @@ func (r Repo) Clone() (path string, err error) {
 	return repoDir, err
 }
 
-func (r Repo) CommitAndPush(path, commitMessage string) (string, error) {
+func (r Repo) CommitAndPush(path, commitMessage string) error {
 	if !check(path, r.Path) {
-		return "no changes made to files", nil
+		return ErrNoChanges
 	}
 	if err := commit(path, commitMessage); err != nil {
-		return "", err
+		return err
 	}
-	return "", push(r.Key, r.Branch, path)
+	return push(r.Key, r.Branch, path)
 }

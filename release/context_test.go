@@ -25,12 +25,9 @@ func TestCloneCommitAndPush(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	out, err := ctx.CommitAndPush("No changes!")
-	if err != nil {
-		t.Error(err)
-	}
-	if out == "" {
-		t.Errorf("Expected no-op message back from git")
+	err := ctx.CommitAndPush("No changes!")
+	if err != git.ErrNoChanges {
+		t.Errorf("expected ErrNoChanges, got %s", err)
 	}
 
 	// change a file and try again
@@ -40,12 +37,9 @@ func TestCloneCommitAndPush(t *testing.T) {
 		}
 		break
 	}
-	out, err = ctx.CommitAndPush("Removed file")
+	err = ctx.CommitAndPush("Removed file")
 	if err != nil {
 		t.Fatal(err)
-	}
-	if out != "" {
-		t.Errorf("Expected no warning from CommitAndPush but got: %q", out)
 	}
 }
 

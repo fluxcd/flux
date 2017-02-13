@@ -16,16 +16,22 @@ import (
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/http/error"
 	"github.com/weaveworks/flux/jobs"
+	"github.com/weaveworks/flux/release"
 )
 
 const largestHeartbeatDelta = 5 * time.Second
 const retryTimeout = 2 * time.Minute
 
+type serviceReleaseOutputOpts struct {
+	noFollow bool
+	noTty    bool
+	verbose  bool
+}
+
 type serviceCheckReleaseOpts struct {
 	*serviceOpts
 	releaseID string
-	noFollow  bool
-	noTty     bool
+	serviceReleaseOutputOpts
 }
 
 func newServiceCheckRelease(parent *serviceOpts) *serviceCheckReleaseOpts {
@@ -44,6 +50,7 @@ func (opts *serviceCheckReleaseOpts) Command() *cobra.Command {
 	cmd.Flags().StringVarP(&opts.releaseID, "release-id", "r", "", "release ID to check")
 	cmd.Flags().BoolVar(&opts.noFollow, "no-follow", false, "dump release job as JSON to stdout")
 	cmd.Flags().BoolVar(&opts.noTty, "no-tty", false, "forces simpler, non-TTY status output")
+	cmd.Flags().BoolVarP(&opts.verbose, "verbose", "v", false, "include ignored services in output")
 	return cmd
 }
 
@@ -156,13 +163,15 @@ func (opts *serviceCheckReleaseOpts) RunE(cmd *cobra.Command, args []string) err
 	fmt.Fprintf(os.Stdout, "\n")
 	if !job.Success {
 		fmt.Fprintf(os.Stdout, "Here's as far as we got:\n")
+		for i, msg := range job.Log {
+			fmt.Fprintf(os.Stdout, " %d) %s\n", i+1, msg)
+		}
 	} else if spec.Kind == flux.ReleaseKindPlan {
 		fmt.Fprintf(os.Stdout, "Here's the plan:\n")
+		release.PrintResults(job.Result.(flux.ReleaseResult), opts.verbose)
 	} else {
 		fmt.Fprintf(os.Stdout, "Here's what happened:\n")
-	}
-	for i, msg := range job.Log {
-		fmt.Fprintf(os.Stdout, " %d) %s\n", i+1, msg)
+		release.PrintResults(job.Result.(flux.ReleaseResult), opts.verbose)
 	}
 
 	if spec.Kind == flux.ReleaseKindExecute {
