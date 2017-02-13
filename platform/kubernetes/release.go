@@ -16,7 +16,7 @@ import (
 	"github.com/weaveworks/flux/platform"
 )
 
-func (c podController) newApply(newDefinition *apiObject) (*apply, error) {
+func (c podController) newApply(newDefinition *apiObject, async bool) (*apply, error) {
 	k := c.kind()
 	if newDefinition.Kind != k {
 		return nil, fmt.Errorf(`Expected new definition of kind %q, to match old definition; got %q`, k, newDefinition.Kind)
@@ -24,10 +24,10 @@ func (c podController) newApply(newDefinition *apiObject) (*apply, error) {
 
 	var result apply
 	if c.Deployment != nil {
-		result.exec = deploymentExec(c.Deployment, newDefinition)
+		result.exec = deploymentExec(c.Deployment, newDefinition, async)
 		result.summary = "Applying deployment"
 	} else if c.ReplicationController != nil {
-		result.exec = rollingUpgradeExec(c.ReplicationController, newDefinition)
+		result.exec = rollingUpgradeExec(c.ReplicationController, newDefinition, async)
 		result.summary = "Rolling upgrade"
 	} else {
 		return nil, platform.ErrNoMatching
@@ -86,20 +86,28 @@ func (c *Cluster) doApplyCommand(logger log.Logger, newDefinition *apiObject, ar
 	return err
 }
 
-func rollingUpgradeExec(def *api.ReplicationController, newDef *apiObject) applyExecFunc {
+func rollingUpgradeExec(def *api.ReplicationController, newDef *apiObject, async bool) applyExecFunc {
 	return func(c *Cluster, logger log.Logger) error {
-		return c.doApplyCommand(
-			logger,
-			newDef,
-			"rolling-update",
-			"--update-period", "3s",
-			def.Name,
-			"-f", "-", // take definition from stdin
-		)
+		errc := make(chan error)
+		go func() {
+			errc <- c.doApplyCommand(
+				logger,
+				newDef,
+				"rolling-update",
+				"--update-period", "3s",
+				"--namespace", def.Namespace,
+				def.Name,
+				"-f", "-", // take definition from stdin
+			)
+		}()
+		if async {
+			return nil
+		}
+		return <-errc
 	}
 }
 
-func deploymentExec(def *apiext.Deployment, newDef *apiObject) applyExecFunc {
+func deploymentExec(def *apiext.Deployment, newDef *apiObject, async bool) applyExecFunc {
 	return func(c *Cluster, logger log.Logger) error {
 		err := c.doApplyCommand(
 			logger,
@@ -107,6 +115,9 @@ func deploymentExec(def *apiext.Deployment, newDef *apiObject) applyExecFunc {
 			"apply",
 			"-f", "-", // take definition from stdin
 		)
+		if async {
+			return err
+		}
 
 		if err == nil {
 			args := []string{
