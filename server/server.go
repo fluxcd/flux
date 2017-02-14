@@ -30,6 +30,7 @@ const (
 )
 
 type Server struct {
+	version     string
 	instancer   instance.Instancer
 	config      instance.DB
 	messageBus  platform.MessageBus
@@ -51,6 +52,7 @@ type Metrics struct {
 }
 
 func New(
+	version string,
 	instancer instance.Instancer,
 	config instance.DB,
 	messageBus platform.MessageBus,
@@ -60,6 +62,7 @@ func New(
 ) *Server {
 	metrics.ConnectedDaemons.Set(0)
 	return &Server{
+		version:     version,
 		instancer:   instancer,
 		config:      config,
 		messageBus:  messageBus,
@@ -100,6 +103,7 @@ func (s *Server) Status(inst flux.InstanceID) (res flux.Status, err error) {
 		res.Git.Error = strings.Replace(stderr.String(), "\r", "", -1)
 	}
 
+	res.Fluxsvc = flux.FluxsvcStatus{Version: s.version}
 	res.Fluxd.Version, err = helper.Version()
 	res.Fluxd.Connected = (err == nil)
 

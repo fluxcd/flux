@@ -54,7 +54,6 @@ func (opts *statusOpts) RunE(_ *cobra.Command, args []string) error {
 		return err
 	}
 
-	// Since we always want to output whatever we got, use UnsafeInstanceConfig
 	bytes, err := marshal(status)
 	if err != nil {
 		return errors.Wrap(err, "marshalling to output format "+opts.output)
