@@ -322,7 +322,7 @@ func main() {
 	}
 
 	// The server.
-	server := server.New(instancer, instanceDB, messageBus, jobStore, logger, serverMetrics)
+	server := server.New(version, instancer, instanceDB, messageBus, jobStore, logger, serverMetrics)
 
 	// Mechanical components.
 	errc := make(chan error)

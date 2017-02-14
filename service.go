@@ -248,8 +248,13 @@ type HistoryEntry struct {
 
 // TODO: How similar should this be to the `get-config` result?
 type Status struct {
-	Fluxd FluxdStatus `json:"fluxd" yaml:"fluxd"`
-	Git   GitStatus   `json:"git" yaml:"git"`
+	Fluxsvc FluxsvcStatus `json:"fluxsvc" yaml:"fluxsvc"`
+	Fluxd   FluxdStatus   `json:"fluxd" yaml:"fluxd"`
+	Git     GitStatus     `json:"git" yaml:"git"`
+}
+
+type FluxsvcStatus struct {
+	Version string `json:"version,omitempty" yaml:"version,omitempty"`
 }
 
 type FluxdStatus struct {
