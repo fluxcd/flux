@@ -68,19 +68,19 @@ func (a *Automator) hasAutomatedServices(services map[flux.ServiceID]instance.Se
 	return false
 }
 
-func (a *Automator) Handle(j *jobs.Job, _ jobs.JobUpdater) ([]jobs.Job, error) {
+func (a *Automator) Handle(j *jobs.Job, updater jobs.JobUpdater) ([]jobs.Job, error) {
 	logger := log.NewContext(a.cfg.Logger).With("job", j.ID)
 	switch j.Method {
 	case jobs.AutomatedInstanceJob:
-		return a.handleAutomatedInstanceJob(logger, j)
+		return a.handleAutomatedInstanceJob(logger, j, updater)
 	default:
 		return nil, jobs.ErrUnknownJobMethod
 	}
 }
 
-func (a *Automator) handleAutomatedInstanceJob(logger log.Logger, j *jobs.Job) ([]jobs.Job, error) {
-	followUps := []jobs.Job{automatedInstanceJob(j.Instance, time.Now())}
-	params := j.Params.(jobs.AutomatedInstanceJobParams)
+func (a *Automator) handleAutomatedInstanceJob(logger log.Logger, job *jobs.Job, updater jobs.JobUpdater) ([]jobs.Job, error) {
+	followUps := []jobs.Job{automatedInstanceJob(job.Instance, time.Now())}
+	params := job.Params.(jobs.AutomatedInstanceJobParams)
 
 	config, err := a.cfg.InstanceDB.GetConfig(params.InstanceID)
 	if err != nil {
@@ -111,18 +111,29 @@ func (a *Automator) handleAutomatedInstanceJob(logger log.Logger, j *jobs.Job) (
 
 	results := flux.ReleaseResult{}
 
+	logInJob := func(format string, args ...interface{}) {
+		msg := fmt.Sprintf(format, args...)
+		job.Log = append(job.Log, msg)
+		updater.UpdateJob(*job)
+	}
+
 	// Get the list of services that are automated, in the repo, and in the running service.
-	// TODO append to the job log -- we may still want to know what happens!
-	updates, err := rc.SelectServices(automatedServiceIDs, flux.ServiceIDSet{}, flux.ServiceIDSet{}, results, func(string, ...interface{}) {})
+	updates, err := rc.SelectServices(automatedServiceIDs, flux.ServiceIDSet{}, flux.ServiceIDSet{}, results, logInJob)
+	if err != nil {
+		logInJob("error finding services: %s", err)
+		return followUps, err
+	}
 
 	// No services that are automated exist. Don't check again.
 	if len(updates) == 0 {
+		logInJob("no services to update; descheduling automatic check")
 		return nil, fmt.Errorf("no automated service(s) %s exist in config or running system", automatedServiceIDs)
 	}
 
 	// Get the images available for each automated service.
 	images, err := release.CollectAvailableImages(rc.Instance, updates)
 	if err != nil {
+		logInJob("error fetching image updates: %s", err)
 		return followUps, errors.Wrap(err, "fetching image updates")
 	}
 
@@ -141,6 +152,7 @@ func (a *Automator) handleAutomatedInstanceJob(logger log.Logger, j *jobs.Job) (
 		for _, container := range update.Service.ContainersOrNil() {
 			currentImageID, err := flux.ParseImageID(container.Image)
 			if err != nil {
+				logInJob("error parsing image in service %s container %s (%q): %s", update.Service.ID, container.Name, container.Image, err)
 				return followUps, errors.Wrapf(err, "calculating image updates for %s", container.Name)
 			}
 			if latest := images.LatestImage(currentImageID.Repository()); latest != nil && latest.ID != currentImageID {
@@ -150,6 +162,7 @@ func (a *Automator) handleAutomatedInstanceJob(logger log.Logger, j *jobs.Job) (
 	}
 
 	for imageID, services := range imageServices {
+		logInJob("scheduling release of image %s to services %s", imageID, services)
 		followUps = append(followUps, jobs.Job{
 			Queue: jobs.ReleaseJob,
 			// Key stops us getting two jobs queued for the same
