@@ -8,7 +8,7 @@ import (
 )
 
 // keySize is the size of generated private keys.
-var keySize = 4096
+var keySize = 2048
 
 type KeyGenerator interface {
 	Generate() (privateKey []byte, err error)

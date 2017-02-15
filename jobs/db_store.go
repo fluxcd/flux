@@ -13,6 +13,8 @@ import (
 	"github.com/weaveworks/flux"
 )
 
+const StatusQueued = "Queued."
+
 // DatabaseStore is a job store backed by a sql.DB.
 type DatabaseStore struct {
 	conn   dbProxy
@@ -106,7 +108,7 @@ func (s *DatabaseStore) GetJob(inst flux.InstanceID, id JobID) (Job, error) {
 func (s *DatabaseStore) PutJobIgnoringDuplicates(inst flux.InstanceID, job Job) (JobID, error) {
 	var (
 		jobID       = NewJobID()
-		status      = "Queued."
+		status      = StatusQueued
 		paramsBytes []byte
 		err         error
 	)
