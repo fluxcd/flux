@@ -114,8 +114,9 @@ func (r *Releaser) release(instanceID flux.InstanceID, job *jobs.Job, logStatus 
 	logStatus("Found %d services.", len(updates))
 	report(results)
 
-	logStatus("Looking up images.")
+	// Look up images, and calculate updates, if we've been asked to
 	if spec.ImageSpec != flux.ImageSpecNone {
+		logStatus("Looking up images.")
 		timer = r.metrics.NewStageTimer("lookup_images")
 		// Figure out how the services are to be updated.
 		updates, err = calculateImageUpdates(rc.Instance, updates, &spec, results, logStatus)
@@ -126,39 +127,45 @@ func (r *Releaser) release(instanceID flux.InstanceID, job *jobs.Job, logStatus 
 		report(results)
 	}
 
-	// At this point we have have filtered the updates we can do down
-	// to nothing. Check and exit early if so
+	// At this point we may have filtered the updates we can do down
+	// to nothing. Check and exit early if so.
 	if len(updates) == 0 {
 		logStatus("No updates to do, finishing.")
-		report(results)
 		return nil, nil
 	}
 
-	if spec.Kind == flux.ReleaseKindExecute {
-		if spec.ImageSpec != flux.ImageSpecNone {
-			logStatus("Pushing changes.")
-			timer = r.metrics.NewStageTimer("push_changes")
-			err = rc.PushChanges(updates, &spec)
-			timer.ObserveDuration()
-			if err != nil {
-				return nil, err
-			}
-		}
-
-		logStatus("Applying changes.")
-		timer = r.metrics.NewStageTimer("apply_changes")
-		err = applyChanges(rc.Instance, updates, results)
-		timer.ObserveDuration()
-		// Report on success or failure of the application above
-		timer = r.metrics.NewStageTimer("send_notifications")
-		err = sendNotifications(rc.Instance, err, results, job)
-		timer.ObserveDuration()
+	// If it's a dry run, we're done.
+	if spec.Kind == flux.ReleaseKindPlan {
+		return nil, nil
 	}
+
+	if spec.ImageSpec != flux.ImageSpecNone {
+		logStatus("Pushing changes.")
+		timer = r.metrics.NewStageTimer("push_changes")
+		err = rc.PushChanges(updates, &spec)
+		timer.ObserveDuration()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	logStatus("Applying changes.")
+	timer = r.metrics.NewStageTimer("apply_changes")
+	applyErr := applyChanges(rc.Instance, updates, results)
+	timer.ObserveDuration()
+	// Report on success or failure of the application above.
+	timer = r.metrics.NewStageTimer("send_notifications")
+	err = sendNotifications(rc.Instance, applyErr, results, job)
+	timer.ObserveDuration()
 	report(results)
 
 	return nil, err
 }
 
+// `sendNotifications` expects the result of applying updates, and
+// sends notifications indicating success or failure. It returns the
+// origin error if that was non-nil, otherwise the result of the
+// attempted notifications.
 func sendNotifications(inst *instance.Instance, executeErr error, results flux.ReleaseResult, job *jobs.Job) error {
 	cfg, err := inst.GetConfig()
 	if err != nil {
@@ -244,7 +251,7 @@ func selectServices(rc *ReleaseContext, spec *flux.ReleaseSpec, results flux.Rel
 // however we do want to see if we *can* do the replacements, because
 // if not, it indicates there's likely some problem with the running
 // system vs the definitions given in the repo.)
-func calculateImageUpdates(inst *instance.Instance, updateable []*ServiceUpdate, spec *flux.ReleaseSpec, results flux.ReleaseResult, logStatus statusFn) ([]*ServiceUpdate, error) {
+func calculateImageUpdates(inst *instance.Instance, candidates []*ServiceUpdate, spec *flux.ReleaseSpec, results flux.ReleaseResult, logStatus statusFn) ([]*ServiceUpdate, error) {
 	// Compile an `ImageMap` of all relevant images
 	var images instance.ImageMap
 	var err error
@@ -253,7 +260,7 @@ func calculateImageUpdates(inst *instance.Instance, updateable []*ServiceUpdate,
 	case flux.ImageSpecNone:
 		images = instance.ImageMap{}
 	case flux.ImageSpecLatest:
-		images, err = CollectAvailableImages(inst, updateable)
+		images, err = CollectAvailableImages(inst, candidates)
 	default:
 		var image flux.ImageID
 		image, err = spec.ImageSpec.AsID()
@@ -269,7 +276,7 @@ func calculateImageUpdates(inst *instance.Instance, updateable []*ServiceUpdate,
 	// Look through all the services' containers to see which have an
 	// image that could be updated.
 	var updates []*ServiceUpdate
-	for _, update := range updateable {
+	for _, update := range candidates {
 		containers, err := update.Service.ContainersOrError()
 		if err != nil {
 			logStatus("Failing service %s: %s", update.ServiceID, err.Error())
