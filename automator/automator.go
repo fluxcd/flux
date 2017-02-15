@@ -87,10 +87,10 @@ func (a *Automator) handleAutomatedInstanceJob(logger log.Logger, j *jobs.Job) (
 		return followUps, errors.Wrap(err, "getting instance config")
 	}
 
-	automatedServiceIDs := flux.ServiceIDSet{}
+	automatedServiceIDs := []flux.ServiceID{}
 	for id, service := range config.Services {
 		if service.Policy() == flux.PolicyAutomated {
-			automatedServiceIDs.Add([]flux.ServiceID{id})
+			automatedServiceIDs = append(automatedServiceIDs, id)
 		}
 	}
 

@@ -226,7 +226,7 @@ func selectServices(rc *ReleaseContext, spec *flux.ReleaseSpec, results flux.Rel
 			}
 			ids = append(ids, id)
 		}
-		return rc.SelectExactServices(ids, lockedSet, excludedSet, results, logStatus)
+		return rc.SelectServices(ids, lockedSet, excludedSet, results, logStatus)
 	case flux.ServiceSpecAll:
 		return rc.SelectServices(nil, lockedSet, excludedSet, results, logStatus)
 	default:
@@ -234,7 +234,7 @@ func selectServices(rc *ReleaseContext, spec *flux.ReleaseSpec, results flux.Rel
 		if err != nil {
 			return nil, err
 		}
-		return rc.SelectExactServices([]flux.ServiceID{id}, lockedSet, excludedSet, results, logStatus)
+		return rc.SelectServices([]flux.ServiceID{id}, lockedSet, excludedSet, results, logStatus)
 	}
 }
 

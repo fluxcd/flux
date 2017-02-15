@@ -75,7 +75,15 @@ func (rc *ReleaseContext) Clean() {
 // release context because they look at files in the working
 // directory.
 
-func (rc *ReleaseContext) SelectServices(only flux.ServiceIDSet, locked flux.ServiceIDSet, excluded flux.ServiceIDSet, results flux.ReleaseResult, logStatus statusFn) ([]*ServiceUpdate, error) {
+// SelectServices finds the services that exist both in the definition
+// files and the running platform. If given a list of `flux.ServiceID`
+// as the first argument, it will include *only* those services, and
+// treat missing services as *skipped*; otherwise, it will include all
+// services, and *ignore* those that are defined by not
+// running. Services in the locked and excluded sets are omitted (and
+// recorded as so). The return value is a set of potentially
+// updateable services.
+func (rc *ReleaseContext) SelectServices(included []flux.ServiceID, locked flux.ServiceIDSet, excluded flux.ServiceIDSet, results flux.ReleaseResult, logStatus statusFn) ([]*ServiceUpdate, error) {
 	// Figure out all services that are defined in the repo and should
 	// be selected for upgrading/applying.
 	defined, err := rc.FindDefinedServices()
@@ -85,6 +93,15 @@ func (rc *ReleaseContext) SelectServices(only flux.ServiceIDSet, locked flux.Ser
 
 	updateMap := map[flux.ServiceID]*ServiceUpdate{}
 	var ids []flux.ServiceID
+
+	// The services to explicitly include; this is left as nil if only
+	// was not given, since we treat missing services slightly
+	// differently depending on whether an exact set was requested.
+	var only flux.ServiceIDSet
+	if included != nil {
+		only = flux.ServiceIDSet{}
+		only.Add(included)
+	}
 
 	for _, s := range defined {
 		if only == nil || only.Contains(s.ServiceID) {
@@ -129,20 +146,20 @@ func (rc *ReleaseContext) SelectServices(only flux.ServiceIDSet, locked flux.Ser
 	}
 	// Mark anything left over as skipped
 	for id, _ := range updateMap {
-		logStatus("Ignoring service %s as it is not in the running system", id)
+		ignoringOrSkipping := "Ignoring"
+		status := flux.ReleaseStatusIgnored
+		if included != nil { // i.e., this service was specifically requested
+			ignoringOrSkipping = "Skipping"
+			status = flux.ReleaseStatusSkipped
+		}
+		logStatus("%s service %s as it is not in the running system", ignoringOrSkipping, id)
 		results[id] = flux.ServiceResult{
-			Status: flux.ReleaseStatusIgnored,
+			Status: status,
 			Error:  "not in running system",
 		}
 	}
 
 	return updates, nil
-}
-
-func (rc *ReleaseContext) SelectExactServices(ss []flux.ServiceID, locked flux.ServiceIDSet, excluded flux.ServiceIDSet, results flux.ReleaseResult, logStatus statusFn) ([]*ServiceUpdate, error) {
-	include := flux.ServiceIDSet{}
-	include.Add(ss)
-	return rc.SelectServices(include, locked, excluded, results, logStatus)
 }
 
 func (rc *ReleaseContext) FindDefinedServices() ([]*ServiceUpdate, error) {

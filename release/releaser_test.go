@@ -3,6 +3,7 @@ package release
 import (
 	"errors"
 	"fmt"
+	"reflect"
 	"testing"
 	"time"
 
@@ -50,6 +51,10 @@ func TestMissingFromPlatform(t *testing.T) {
 	releaser, cleanup := setup(t, instance.Instance{})
 	defer cleanup()
 
+	output := func(f string, a ...interface{}) {
+		fmt.Printf(f+"\n", a...)
+	}
+
 	spec := jobs.ReleaseJobParams{
 		ServiceSpec: flux.ServiceSpecAll,
 		ImageSpec:   flux.ImageSpecLatest,
@@ -57,27 +62,56 @@ func TestMissingFromPlatform(t *testing.T) {
 	}
 
 	results := flux.ReleaseResult{}
-	moreJobs, err := releaser.release(flux.InstanceID("instance 3"),
-		&jobs.Job{Params: spec}, func(f string, a ...interface{}) {
-			fmt.Printf(f+"\n", a...)
-		}, func(r flux.ReleaseResult) {
-			if r == nil {
-				t.Errorf("result update called with nil value")
-			}
-			results = r
-		})
+	update := func(r flux.ReleaseResult) {
+		if r == nil {
+			t.Errorf("result update called with nil value")
+		}
+		results = r
+	}
+
+	moreJobs, err := releaser.release(flux.InstanceID("unimportant"),
+		&jobs.Job{Params: spec}, output, update)
 	if err != nil {
 		t.Error(err)
 	}
 	if len(moreJobs) > 0 {
 		t.Errorf("did not expect follow-on jobs, got %v", moreJobs)
 	}
-	if len(results) != 1 {
-		t.Errorf("expected one service in results, got %v", results)
+
+	expected := flux.ReleaseResult{
+		flux.ServiceID("default/helloworld"): flux.ServiceResult{
+			Status: flux.ReleaseStatusIgnored,
+			Error:  "not in running system",
+		},
 	}
-	println()
-	PrintResults(results, true)
-	println()
+	if !reflect.DeepEqual(expected, results) {
+		t.Errorf("expected %#v, got %#v", expected, results)
+	}
+
+	spec = jobs.ReleaseJobParams{
+		ServiceSpec: flux.ServiceSpec("default/helloworld"),
+		ImageSpec:   flux.ImageSpecLatest,
+		Kind:        flux.ReleaseKindPlan,
+	}
+	results = flux.ReleaseResult{}
+	moreJobs, err = releaser.release(flux.InstanceID("unimportant"),
+		&jobs.Job{Params: spec}, output, update)
+	if err != nil {
+		t.Error(err)
+	}
+	if len(moreJobs) > 0 {
+		t.Errorf("did not expect followup jobs, got %#v", moreJobs)
+	}
+
+	expected = flux.ReleaseResult{
+		flux.ServiceID("default/helloworld"): flux.ServiceResult{
+			Status: flux.ReleaseStatusSkipped,
+			Error:  "not in running system",
+		},
+	}
+	if !reflect.DeepEqual(expected, results) {
+		t.Errorf("expected %#v, got %#v", expected, results)
+	}
 }
 
 func TestUpdateOne(t *testing.T) {
