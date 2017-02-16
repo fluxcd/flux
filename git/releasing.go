@@ -1,17 +1,20 @@
 package git
 
 import (
+	"bufio"
+	"bytes"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 
 	"github.com/pkg/errors"
 )
 
-func clone(stderr io.Writer, workingDir, keyData, repoURL, repoBranch string) (path string, err error) {
+func clone(workingDir, keyData, repoURL, repoBranch string) (path string, err error) {
 	keyPath, err := writeKey(keyData)
 	if err != nil {
 		return "", err
@@ -23,19 +26,19 @@ func clone(stderr io.Writer, workingDir, keyData, repoURL, repoBranch string) (p
 		args = append(args, "--branch", repoBranch)
 	}
 	args = append(args, repoURL, repoPath)
-	if err := gitCmd(stderr, workingDir, keyPath, args...).Run(); err != nil {
+	if err := execGitCmd(workingDir, keyPath, args...); err != nil {
 		return "", errors.Wrap(err, "git clone")
 	}
 	return repoPath, nil
 }
 
 func commit(workingDir, commitMessage string) error {
-	if err := gitCmd(
-		nil, workingDir, "",
+	if err := execGitCmd(
+		workingDir, "",
 		"-c", "user.name=Weave Flux", "-c", "user.email=support@weave.works",
 		"commit",
 		"--no-verify", "-a", "-m", commitMessage,
-	).Run(); err != nil {
+	); err != nil {
 		return errors.Wrap(err, "git commit")
 	}
 	return nil
@@ -47,24 +50,29 @@ func push(keyData, repoBranch, workingDir string) error {
 		return err
 	}
 	defer os.Remove(keyPath)
-	if err := gitCmd(nil, workingDir, keyPath, "push", "origin", repoBranch).Run(); err != nil {
+	if err := execGitCmd(workingDir, keyPath, "push", "origin", repoBranch); err != nil {
 		return errors.Wrap(err, fmt.Sprintf("git push origin %s", repoBranch))
 	}
 	return nil
 }
 
-func gitCmd(stderr io.Writer, dir, keyPath string, args ...string) *exec.Cmd {
+func execGitCmd(dir, keyPath string, args ...string) error {
 	c := exec.Command("git", args...)
 	if dir != "" {
 		c.Dir = dir
 	}
 	c.Env = env(keyPath)
 	c.Stdout = ioutil.Discard
-	c.Stderr = ioutil.Discard
-	if stderr != nil {
-		c.Stderr = stderr
+	errOut := &bytes.Buffer{}
+	c.Stderr = errOut
+	err := c.Run()
+	if err != nil {
+		msg := findFatalMessage(errOut)
+		if msg != "" {
+			err = errors.New(msg)
+		}
 	}
-	return c
+	return err
 }
 
 func env(keyPath string) []string {
@@ -77,9 +85,8 @@ func env(keyPath string) []string {
 
 // check returns true if there are changes locally.
 func check(workingDir, subdir string) bool {
-	diff := gitCmd(nil, workingDir, "", "diff", "--quiet", "--", subdir)
 	// `--quiet` means "exit with 1 if there are changes"
-	return diff.Run() != nil
+	return execGitCmd(workingDir, "", "diff", "--quiet", "--", subdir) != nil
 }
 
 func writeKey(keyData string) (string, error) {
@@ -96,4 +103,14 @@ func writeKey(keyData string) (string, error) {
 		return "", err
 	}
 	return f.Name(), nil
+}
+
+func findFatalMessage(output io.Reader) string {
+	sc := bufio.NewScanner(output)
+	for sc.Scan() {
+		if strings.HasPrefix(sc.Text(), "fatal:") {
+			return sc.Text()
+		}
+	}
+	return ""
 }

@@ -1,7 +1,6 @@
 package server
 
 import (
-	"bytes"
 	"fmt"
 	"strings"
 	"sync/atomic"
@@ -97,10 +96,9 @@ func (s *Server) Status(inst flux.InstanceID) (res flux.Status, err error) {
 	}
 	res.Git.Configured = config.Settings.Git.URL != "" && config.Settings.Git.Key != ""
 
-	stderr := &bytes.Buffer{}
-	if _, err := helper.ConfigRepo().Clone(stderr); err != nil {
+	if _, err := helper.ConfigRepo().Clone(); err != nil {
 		// Remove \r, so it prints as a yaml block
-		res.Git.Error = strings.Replace(stderr.String(), "\r", "", -1)
+		res.Git.Error = strings.Replace(err.Error(), "\r", "", -1)
 	}
 
 	res.Fluxsvc = flux.FluxsvcStatus{Version: s.version}
