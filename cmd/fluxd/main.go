@@ -68,6 +68,9 @@ func main() {
 			os.Exit(1)
 		}
 
+		restClientConfig.QPS = 50.0
+		restClientConfig.Burst = 100
+
 		// When adding a new platform, don't just bash it in. Create a Platform
 		// or Cluster interface in package platform, and have kubernetes.Cluster
 		// and your new platform implement that interface.
