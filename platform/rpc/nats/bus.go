@@ -305,7 +305,7 @@ func (n *NATS) Subscribe(instID flux.InstanceID, remote platform.Platform, done 
 		default:
 			err = errors.New("unknown message: " + request.Subject)
 		}
-		if err != nil {
+		if _, ok := err.(platform.FatalError); ok && err != nil {
 			select {
 			case errc <- err:
 			default:
@@ -332,13 +332,11 @@ func (n *NATS) Subscribe(instID flux.InstanceID, remote platform.Platform, done 
 			// consequence of asynchronous request handling. The error will get
 			// selected and handled soon enough.
 			case err := <-errc:
-				if _, ok := err.(platform.FatalError); ok && err != nil {
-					close(errc)
-					sub.Unsubscribe()
-					close(requests)
-					done <- err
-					return
-				}
+				close(errc)
+				sub.Unsubscribe()
+				close(requests)
+				done <- err
+				return
 			case request := <-requests:
 				// Some of these operations (Apply in particular) can block for a long time;
 				// dispatch in a goroutine and deliver any errors back to us so that we can
