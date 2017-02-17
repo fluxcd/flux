@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/metrics"
 	"github.com/pkg/errors"
 
 	"github.com/weaveworks/flux"
@@ -18,9 +17,7 @@ type MultitenantInstancer struct {
 	DB                  DB
 	Connecter           platform.Connecter
 	Logger              log.Logger
-	Histogram           metrics.Histogram
 	History             history.DB
-	RegistryMetrics     registry.Metrics
 	MemcacheClient      registry.MemcacheClient
 	RegistryCacheExpiry time.Duration
 }
@@ -49,9 +46,8 @@ func (m *MultitenantInstancer) Get(instanceID flux.InstanceID) (*Instance, error
 	reg := registry.NewRegistry(
 		registry.NewRemoteClientFactory(creds, registryLogger, m.MemcacheClient, m.RegistryCacheExpiry),
 		registryLogger,
-		m.RegistryMetrics,
 	)
-	reg = registry.NewInstrumentedRegistry(reg, m.RegistryMetrics)
+	reg = registry.NewInstrumentedRegistry(reg)
 
 	repo := gitRepoFromSettings(c.Settings)
 
@@ -67,7 +63,6 @@ func (m *MultitenantInstancer) Get(instanceID flux.InstanceID) (*Instance, error
 		config,
 		repo,
 		instanceLogger,
-		m.Histogram,
 		eventRW,
 		eventRW,
 	), nil

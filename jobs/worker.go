@@ -26,7 +26,6 @@ type Handler interface {
 type Worker struct {
 	jobs     JobStore
 	handlers map[string]Handler
-	metrics  WorkerMetrics
 	logger   log.Logger
 	queues   []string
 	stopping chan struct{}
@@ -38,13 +37,11 @@ type Worker struct {
 func NewWorker(
 	jobs JobStore,
 	logger log.Logger,
-	metrics WorkerMetrics,
 	queues []string,
 ) *Worker {
 	return &Worker{
 		jobs:     jobs,
 		handlers: map[string]Handler{},
-		metrics:  metrics,
 		logger:   logger,
 		queues:   queues,
 		stopping: make(chan struct{}),
@@ -95,7 +92,7 @@ func (w *Worker) Work() {
 		} else {
 			followUps, err = handler.Handle(&job, w.jobs)
 		}
-		w.metrics.JobDuration.With(
+		jobDuration.With(
 			fluxmetrics.LabelMethod, job.Method,
 			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())

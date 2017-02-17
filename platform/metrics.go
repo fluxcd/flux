@@ -12,34 +12,27 @@ import (
 	fluxmetrics "github.com/weaveworks/flux/metrics"
 )
 
-type Metrics struct {
-	RequestDuration metrics.Histogram
-}
-
-func NewMetrics() Metrics {
-	return Metrics{
-		RequestDuration: prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
-			Namespace: "flux",
-			Subsystem: "platform",
-			Name:      "request_duration_seconds",
-			Help:      "Request duration in seconds.",
-			Buckets:   stdprometheus.DefBuckets,
-		}, []string{fluxmetrics.LabelMethod, fluxmetrics.LabelSuccess}),
-	}
-}
+var (
+	requestDuration = prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
+		Namespace: "flux",
+		Subsystem: "platform",
+		Name:      "request_duration_seconds",
+		Help:      "Request duration in seconds.",
+		Buckets:   stdprometheus.DefBuckets,
+	}, []string{fluxmetrics.LabelMethod, fluxmetrics.LabelSuccess})
+)
 
 type instrumentedPlatform struct {
 	p Platform
-	m Metrics
 }
 
-func Instrument(p Platform, m Metrics) Platform {
-	return &instrumentedPlatform{p, m}
+func Instrument(p Platform) Platform {
+	return &instrumentedPlatform{p}
 }
 
 func (i *instrumentedPlatform) AllServices(maybeNamespace string, ignored flux.ServiceIDSet) (svcs []Service, err error) {
 	defer func(begin time.Time) {
-		i.m.RequestDuration.With(
+		requestDuration.With(
 			fluxmetrics.LabelMethod, "AllServices",
 			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
@@ -49,7 +42,7 @@ func (i *instrumentedPlatform) AllServices(maybeNamespace string, ignored flux.S
 
 func (i *instrumentedPlatform) SomeServices(ids []flux.ServiceID) (svcs []Service, err error) {
 	defer func(begin time.Time) {
-		i.m.RequestDuration.With(
+		requestDuration.With(
 			fluxmetrics.LabelMethod, "SomeServices",
 			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
@@ -59,7 +52,7 @@ func (i *instrumentedPlatform) SomeServices(ids []flux.ServiceID) (svcs []Servic
 
 func (i *instrumentedPlatform) Apply(defs []ServiceDefinition) (err error) {
 	defer func(begin time.Time) {
-		i.m.RequestDuration.With(
+		requestDuration.With(
 			fluxmetrics.LabelMethod, "Apply",
 			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
@@ -69,7 +62,7 @@ func (i *instrumentedPlatform) Apply(defs []ServiceDefinition) (err error) {
 
 func (i *instrumentedPlatform) Ping() (err error) {
 	defer func(begin time.Time) {
-		i.m.RequestDuration.With(
+		requestDuration.With(
 			fluxmetrics.LabelMethod, "Ping",
 			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
@@ -79,7 +72,7 @@ func (i *instrumentedPlatform) Ping() (err error) {
 
 func (i *instrumentedPlatform) Version() (v string, err error) {
 	defer func(begin time.Time) {
-		i.m.RequestDuration.With(
+		requestDuration.With(
 			fluxmetrics.LabelMethod, "Version",
 			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
@@ -92,8 +85,8 @@ type BusMetrics struct {
 	KickCount metrics.Counter
 }
 
-func NewBusMetrics() BusMetrics {
-	return BusMetrics{
+var (
+	BusMetricsImpl = BusMetrics{
 		KickCount: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
 			Namespace: "flux",
 			Subsystem: "bus",
@@ -101,7 +94,7 @@ func NewBusMetrics() BusMetrics {
 			Help:      "Count of bus subscriptions kicked off by a newer subscription.",
 		}, []string{}),
 	}
-}
+)
 
 func (m BusMetrics) IncrKicks(inst flux.InstanceID) {
 	m.KickCount.Add(1)

@@ -6,10 +6,11 @@ import (
 	"time"
 
 	"github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/metrics"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 
+	"github.com/go-kit/kit/metrics/prometheus"
+	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/http/websocket"
 	"github.com/weaveworks/flux/platform"
@@ -24,17 +25,21 @@ type Daemon struct {
 	endpoint string
 	platform platform.Platform
 	logger   log.Logger
-	metrics  DaemonMetrics
 	quit     chan struct{}
 
 	ws websocket.Websocket
 }
 
-type DaemonMetrics struct {
-	ConnectionDuration metrics.Gauge
-}
+var (
+	connectionDuration = prometheus.NewGaugeFrom(stdprometheus.GaugeOpts{
+		Namespace: "flux",
+		Subsystem: "fluxd",
+		Name:      "connection_duration_seconds",
+		Help:      "Duration in seconds of the current connection to fluxsvc. Zero means unconnected.",
+	}, []string{"target"})
+)
 
-func NewDaemon(client *http.Client, t flux.Token, router *mux.Router, endpoint string, p platform.Platform, logger log.Logger, m DaemonMetrics) (*Daemon, error) {
+func NewDaemon(client *http.Client, t flux.Token, router *mux.Router, endpoint string, p platform.Platform, logger log.Logger) (*Daemon, error) {
 	u, err := makeURL(endpoint, router, "RegisterDaemon")
 	if err != nil {
 		return nil, errors.Wrap(err, "constructing URL")
@@ -47,7 +52,6 @@ func NewDaemon(client *http.Client, t flux.Token, router *mux.Router, endpoint s
 		endpoint: endpoint,
 		platform: p,
 		logger:   logger,
-		metrics:  m,
 		quit:     make(chan struct{}),
 	}
 	go a.loop()
@@ -119,7 +123,7 @@ func (a *Daemon) connect() error {
 }
 
 func (a *Daemon) setConnectionDuration(duration float64) {
-	a.metrics.ConnectionDuration.With("target", a.endpoint).Set(duration)
+	connectionDuration.With("target", a.endpoint).Set(duration)
 }
 
 // Close closes the connection to the service

@@ -16,14 +16,7 @@ import (
 	"github.com/weaveworks/flux/registry"
 
 	"github.com/go-kit/kit/log"
-	metrics "github.com/go-kit/kit/metrics/discard"
 )
-
-var discardHistogram = metrics.NewHistogram()
-var testMetrics = Metrics{
-	ReleaseDuration: discardHistogram,
-	StageDuration:   discardHistogram,
-}
 
 func setup(t *testing.T, mocks instance.Instance) (*Releaser, func()) {
 	repo, cleanup := setupRepo(t)
@@ -42,10 +35,9 @@ func setup(t *testing.T, mocks instance.Instance) (*Releaser, func()) {
 	events := history.NewMock()
 	mocks.EventReader, mocks.EventWriter = events, events
 	mocks.Logger = log.NewNopLogger()
-	mocks.Duration = discardHistogram
 
 	instancer := &instance.MockInstancer{&mocks, nil}
-	return NewReleaser(instancer, testMetrics), cleanup
+	return NewReleaser(instancer), cleanup
 }
 
 func TestMissingFromPlatform(t *testing.T) {

@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/metrics"
 	"github.com/pkg/errors"
 
 	"github.com/weaveworks/flux"
@@ -25,7 +24,6 @@ type Instance struct {
 	Platform platform.Platform
 	Registry registry.Registry
 	Config   Configurer
-	Duration metrics.Histogram
 	Repo     git.Repo
 
 	log.Logger
@@ -39,7 +37,6 @@ func New(
 	config Configurer,
 	gitrepo git.Repo,
 	logger log.Logger,
-	duration metrics.Histogram,
 	events history.EventReader,
 	eventlog history.EventWriter,
 ) *Instance {
@@ -48,7 +45,6 @@ func New(
 		Registry:    registry,
 		Config:      config,
 		Repo:        gitrepo,
-		Duration:    duration,
 		Logger:      logger,
 		EventReader: events,
 		EventWriter: eventlog,
@@ -195,7 +191,7 @@ func (h *Instance) imageExists(imageID flux.ImageID) (bool, error) {
 
 func (h *Instance) PlatformApply(defs []platform.ServiceDefinition) (err error) {
 	defer func(begin time.Time) {
-		h.Duration.With(
+		releaseHelperDuration.With(
 			fluxmetrics.LabelMethod, "PlatformApply",
 			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())

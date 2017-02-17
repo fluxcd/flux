@@ -15,7 +15,7 @@ import (
 
 var testNATS = flag.String("nats-url", "", "NATS connection URL; use NATS' default if empty")
 
-var metrics = platform.NewBusMetrics()
+var metrics = platform.BusMetricsImpl
 
 func setup(t *testing.T) *NATS {
 	flag.Parse()

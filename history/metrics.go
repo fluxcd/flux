@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/go-kit/kit/metrics"
 	"github.com/go-kit/kit/metrics/prometheus"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 
@@ -16,34 +15,27 @@ const (
 	LabelSuccess = "success"
 )
 
-type Metrics struct {
-	RequestDuration metrics.Histogram
-}
-
-func NewMetrics() Metrics {
-	return Metrics{
-		RequestDuration: prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
-			Namespace: "flux",
-			Subsystem: "history",
-			Name:      "request_duration_seconds",
-			Help:      "Request duration in seconds.",
-			Buckets:   stdprometheus.DefBuckets,
-		}, []string{LabelMethod, LabelSuccess}),
-	}
-}
+var (
+	requestDuration = prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
+		Namespace: "flux",
+		Subsystem: "history",
+		Name:      "request_duration_seconds",
+		Help:      "Request duration in seconds.",
+		Buckets:   stdprometheus.DefBuckets,
+	}, []string{LabelMethod, LabelSuccess})
+)
 
 type instrumentedDB struct {
 	db DB
-	m  Metrics
 }
 
-func InstrumentedDB(db DB, m Metrics) DB {
-	return &instrumentedDB{db, m}
+func InstrumentedDB(db DB) DB {
+	return &instrumentedDB{db}
 }
 
 func (i *instrumentedDB) LogEvent(inst flux.InstanceID, namespace, service, msg string) (err error) {
 	defer func(begin time.Time) {
-		i.m.RequestDuration.With(
+		requestDuration.With(
 			LabelMethod, "LogEvent",
 			LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
@@ -53,7 +45,7 @@ func (i *instrumentedDB) LogEvent(inst flux.InstanceID, namespace, service, msg 
 
 func (i *instrumentedDB) AllEvents(inst flux.InstanceID) (e []Event, err error) {
 	defer func(begin time.Time) {
-		i.m.RequestDuration.With(
+		requestDuration.With(
 			LabelMethod, "AllEvents",
 			LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
@@ -63,7 +55,7 @@ func (i *instrumentedDB) AllEvents(inst flux.InstanceID) (e []Event, err error) 
 
 func (i *instrumentedDB) EventsForService(inst flux.InstanceID, namespace, service string) (e []Event, err error) {
 	defer func(begin time.Time) {
-		i.m.RequestDuration.With(
+		requestDuration.With(
 			LabelMethod, "EventsForService",
 			LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
@@ -73,7 +65,7 @@ func (i *instrumentedDB) EventsForService(inst flux.InstanceID, namespace, servi
 
 func (i *instrumentedDB) Close() (err error) {
 	defer func(begin time.Time) {
-		i.m.RequestDuration.With(
+		requestDuration.With(
 			LabelMethod, "Close",
 			LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())

@@ -13,15 +13,14 @@ import (
 )
 
 var (
-	testTags            = []string{testTagStr, "anotherTag"}
-	mRemote             = NewMockRemote(img, testTags, nil)
-	mRemoteFact         = NewMockRemoteFactory(mRemote, nil)
-	testRegistryMetrics = NewMetrics()
-	testTime, _         = time.Parse(constTime, time.RFC3339Nano)
+	testTags    = []string{testTagStr, "anotherTag"}
+	mRemote     = NewMockRemote(img, testTags, nil)
+	mRemoteFact = NewMockRemoteFactory(mRemote, nil)
+	testTime, _ = time.Parse(constTime, time.RFC3339Nano)
 )
 
 func TestRegistry_GetImage(t *testing.T) {
-	reg := NewRegistry(mRemoteFact, log.NewNopLogger(), testRegistryMetrics)
+	reg := NewRegistry(mRemoteFact, log.NewNopLogger())
 	newImg, err := reg.GetImage(testRepository, img.Tag)
 	if err != nil {
 		t.Fatal(err)
@@ -33,7 +32,7 @@ func TestRegistry_GetImage(t *testing.T) {
 
 func TestRegistry_GetImageFactoryErr(t *testing.T) {
 	errFact := NewMockRemoteFactory(mRemote, errors.New(""))
-	reg := NewRegistry(errFact, nil, testRegistryMetrics)
+	reg := NewRegistry(errFact, nil)
 	_, err := reg.GetImage(testRepository, img.Tag)
 	if err == nil {
 		t.Fatal("Expecting error")
@@ -43,7 +42,7 @@ func TestRegistry_GetImageFactoryErr(t *testing.T) {
 func TestRegistry_GetImageRemoteErr(t *testing.T) {
 	r := NewMockRemote(img, testTags, errors.New(""))
 	errFact := NewMockRemoteFactory(r, nil)
-	reg := NewRegistry(errFact, log.NewNopLogger(), testRegistryMetrics)
+	reg := NewRegistry(errFact, log.NewNopLogger())
 	_, err := reg.GetImage(testRepository, img.Tag)
 	if err == nil {
 		t.Fatal("Expecting error")
@@ -51,7 +50,7 @@ func TestRegistry_GetImageRemoteErr(t *testing.T) {
 }
 
 func TestRegistry_GetRepository(t *testing.T) {
-	reg := NewRegistry(mRemoteFact, log.NewNopLogger(), testRegistryMetrics)
+	reg := NewRegistry(mRemoteFact, log.NewNopLogger())
 	imgs, err := reg.GetRepository(testRepository)
 	if err != nil {
 		t.Fatal(err)
@@ -65,7 +64,7 @@ func TestRegistry_GetRepository(t *testing.T) {
 
 func TestRegistry_GetRepositoryFactoryError(t *testing.T) {
 	errFact := NewMockRemoteFactory(mRemote, errors.New(""))
-	reg := NewRegistry(errFact, nil, testRegistryMetrics)
+	reg := NewRegistry(errFact, nil)
 	_, err := reg.GetRepository(testRepository)
 	if err == nil {
 		t.Fatal("Expecting error")
@@ -75,7 +74,7 @@ func TestRegistry_GetRepositoryFactoryError(t *testing.T) {
 func TestRegistry_GetRepositoryRemoteErr(t *testing.T) {
 	r := NewMockRemote(img, testTags, errors.New(""))
 	errFact := NewMockRemoteFactory(r, nil)
-	reg := NewRegistry(errFact, log.NewNopLogger(), testRegistryMetrics)
+	reg := NewRegistry(errFact, log.NewNopLogger())
 	_, err := reg.GetRepository(testRepository)
 	if err == nil {
 		t.Fatal("Expecting error")
@@ -85,7 +84,7 @@ func TestRegistry_GetRepositoryRemoteErr(t *testing.T) {
 func TestRegistry_GetRepositoryManifestError(t *testing.T) {
 	r := NewMockRemote(img, []string{"valid", "error"}, nil)
 	errFact := NewMockRemoteFactory(r, nil)
-	reg := NewRegistry(errFact, log.NewNopLogger(), testRegistryMetrics)
+	reg := NewRegistry(errFact, log.NewNopLogger())
 	_, err := reg.GetRepository(testRepository)
 	if err == nil {
 		t.Fatal("Expecting error")
