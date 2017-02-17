@@ -363,6 +363,23 @@
 			"notests": true
 		},
 		{
+			"importpath": "github.com/google/go-github",
+			"repository": "https://github.com/google/go-github",
+			"vcs": "git",
+			"revision": "dfd20fd7fa6edec56447fcb049acd5e17a78ec2e",
+			"branch": "master",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/google/go-querystring/query",
+			"repository": "https://github.com/google/go-querystring",
+			"vcs": "git",
+			"revision": "53e6ce116135b80d037921a7fdd5138cf32d7a8a",
+			"branch": "master",
+			"path": "/query",
+			"notests": true
+		},
+		{
 			"importpath": "github.com/googleapis/gax-go",
 			"repository": "https://github.com/googleapis/gax-go",
 			"vcs": "git",
