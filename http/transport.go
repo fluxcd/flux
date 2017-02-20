@@ -121,6 +121,7 @@ func invokeListServices(client *http.Client, t flux.Token, router *mux.Router, e
 	if err != nil {
 		return nil, errors.Wrap(err, "executing HTTP request")
 	}
+	defer resp.Body.Close()
 
 	var res []flux.ServiceStatus
 	if err := json.NewDecoder(resp.Body).Decode(&res); err != nil {
@@ -171,6 +172,7 @@ func invokeListImages(client *http.Client, t flux.Token, router *mux.Router, end
 	if err != nil {
 		return nil, errors.Wrap(err, "executing HTTP request")
 	}
+	defer resp.Body.Close()
 
 	var res []flux.ImageStatus
 	if err := json.NewDecoder(resp.Body).Decode(&res); err != nil {
@@ -279,6 +281,7 @@ func invokePostRelease(client *http.Client, t flux.Token, router *mux.Router, en
 	if err != nil {
 		return "", errors.Wrap(err, "executing HTTP request")
 	}
+	defer resp.Body.Close()
 
 	var res postReleaseResponse
 	if err := json.NewDecoder(resp.Body).Decode(&res); err != nil {
@@ -323,6 +326,7 @@ func invokeGetRelease(client *http.Client, t flux.Token, router *mux.Router, end
 	if err != nil {
 		return jobs.Job{}, errors.Wrap(err, "executing HTTP request")
 	}
+	defer resp.Body.Close()
 
 	var res jobs.Job
 	if err := json.NewDecoder(resp.Body).Decode(&res); err != nil {
@@ -364,9 +368,11 @@ func invokeAutomate(client *http.Client, t flux.Token, router *mux.Router, endpo
 	}
 	t.Set(req)
 
-	if _, err = executeRequest(client, req); err != nil {
+	resp, err := executeRequest(client, req)
+	if err != nil {
 		return errors.Wrap(err, "executing HTTP request")
 	}
+	defer resp.Body.Close()
 
 	return nil
 }
@@ -404,9 +410,12 @@ func invokeDeautomate(client *http.Client, t flux.Token, router *mux.Router, end
 	}
 	t.Set(req)
 
-	if _, err = executeRequest(client, req); err != nil {
+	resp, err := executeRequest(client, req)
+	if err != nil {
+
 		return errors.Wrap(err, "executing HTTP request")
 	}
+	defer resp.Body.Close()
 
 	return nil
 }
@@ -444,9 +453,11 @@ func invokeLock(client *http.Client, t flux.Token, router *mux.Router, endpoint 
 	}
 	t.Set(req)
 
-	if _, err = executeRequest(client, req); err != nil {
+	resp, err := executeRequest(client, req)
+	if err != nil {
 		return errors.Wrap(err, "executing HTTP request")
 	}
+	defer resp.Body.Close()
 
 	return nil
 }
@@ -484,9 +495,11 @@ func invokeUnlock(client *http.Client, t flux.Token, router *mux.Router, endpoin
 	}
 	t.Set(req)
 
-	if _, err = executeRequest(client, req); err != nil {
+	resp, err := executeRequest(client, req)
+	if err != nil {
 		return errors.Wrap(err, "executing HTTP request")
 	}
+	defer resp.Body.Close()
 
 	return nil
 }
@@ -534,6 +547,7 @@ func invokeHistory(client *http.Client, t flux.Token, router *mux.Router, endpoi
 	if err != nil {
 		return nil, errors.Wrap(err, "executing HTTP request")
 	}
+	defer resp.Body.Close()
 
 	var res []flux.HistoryEntry
 	if err := json.NewDecoder(resp.Body).Decode(&res); err != nil {
@@ -582,6 +596,7 @@ func invokeGetConfig(client *http.Client, t flux.Token, router *mux.Router, endp
 	if err != nil {
 		return flux.InstanceConfig{}, errors.Wrap(err, "executing HTTP request")
 	}
+	defer resp.Body.Close()
 
 	var res flux.InstanceConfig
 	if err := json.NewDecoder(resp.Body).Decode(&res); err != nil {
@@ -630,9 +645,11 @@ func invokeSetConfig(client *http.Client, t flux.Token, router *mux.Router, endp
 	}
 	t.Set(req)
 
-	if _, err = executeRequest(client, req); err != nil {
+	resp, err := executeRequest(client, req)
+	if err != nil {
 		return errors.Wrap(err, "executing HTTP request")
 	}
+	defer resp.Body.Close()
 
 	return nil
 }
@@ -664,10 +681,11 @@ func invokeGenerateKeys(client *http.Client, t flux.Token, router *mux.Router, e
 	}
 	t.Set(req)
 
-	_, err = executeRequest(client, req)
+	resp, err := executeRequest(client, req)
 	if err != nil {
 		return errors.Wrap(err, "executing HTTP request")
 	}
+	defer resp.Body.Close()
 	return nil
 }
 
@@ -741,6 +759,7 @@ func invokeStatus(client *http.Client, t flux.Token, router *mux.Router, endpoin
 	if err != nil {
 		return flux.Status{}, errors.Wrap(err, "executing HTTP request")
 	}
+	defer resp.Body.Close()
 
 	var res flux.Status
 	if err := json.NewDecoder(resp.Body).Decode(&res); err != nil {
