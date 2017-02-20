@@ -1,7 +1,6 @@
 package git
 
 import (
-	"io"
 	"io/ioutil"
 	"os"
 )
@@ -23,13 +22,13 @@ type Repo struct {
 	Path string
 }
 
-func (r Repo) Clone(stderr io.Writer) (path string, err error) {
+func (r Repo) Clone() (path string, err error) {
 	workingDir, err := ioutil.TempDir(os.TempDir(), "flux-gitclone")
 	if err != nil {
 		return "", err
 	}
 
-	repoDir, err := clone(stderr, workingDir, r.Key, r.URL, r.Branch)
+	repoDir, err := clone(workingDir, r.Key, r.URL, r.Branch)
 	return repoDir, err
 }
 
