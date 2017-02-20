@@ -12,7 +12,6 @@ import (
 
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/api"
-	"github.com/weaveworks/flux/http/httperror"
 	"github.com/weaveworks/flux/jobs"
 )
 
@@ -60,7 +59,7 @@ func (c *client) PostRelease(_ flux.InstanceID, s jobs.ReleaseJobParams) (jobs.J
 
 func (c *client) GetRelease(_ flux.InstanceID, id jobs.JobID) (jobs.Job, error) {
 	var res jobs.Job
-	err := c.get(&res, "GetRelease", "id", string(id))
+	err := c.get(&res, "GetRelease:v6", "id", string(id))
 	return res, err
 }
 
@@ -190,15 +189,24 @@ func (c *client) executeRequest(req *http.Request) (*http.Response, error) {
 		return nil, errors.Wrap(err, "executing HTTP request")
 	}
 	switch resp.StatusCode {
-	case http.StatusOK:
+	case http.StatusOK, http.StatusCreated, http.StatusNoContent:
 		return resp, nil
+	case http.StatusGone:
+		return resp, ErrorGone
 	default:
-		buf, _ := ioutil.ReadAll(resp.Body)
-		body := strings.TrimSpace(string(buf))
-		return nil, &httperror.APIError{
-			StatusCode: resp.StatusCode,
-			Status:     resp.Status,
-			Body:       body,
+		// Use the content type to discriminate between `flux.Error`,
+		// and the previous "any old error"
+		if strings.HasPrefix(resp.Header.Get(http.CanonicalHeaderKey("Content-Type")), "application/json") {
+			var niceError flux.BaseError
+			if err := json.NewDecoder(resp.Body).Decode(&niceError); err != nil {
+				return resp, errors.Wrap(err, "decoding error in response body")
+			}
+			return resp, niceError
 		}
+		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return resp, errors.Wrap(err, "reading assumed plaintext response body")
+		}
+		return resp, errors.New(string(body))
 	}
 }

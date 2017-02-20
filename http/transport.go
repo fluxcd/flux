@@ -45,6 +45,8 @@ func NewRouter() *mux.Router {
 	r.NewRoute().Name("PostIntegrationsGithub").Methods("POST").Path("/v5/integrations/github").Queries("owner", "{owner}", "repository", "{repository}")
 	r.NewRoute().Name("RegisterDaemon").Methods("GET").Path("/v4/daemon")
 	r.NewRoute().Name("IsConnected").Methods("HEAD", "GET").Path("/v4/ping")
+
+	r.NewRoute().Name("GetRelease:v6").Methods("GET").Path("/v6/release").Queries("id", "{id}")
 	return r
 }
 
@@ -66,6 +68,8 @@ func NewHandler(s api.FluxService, r *mux.Router, logger log.Logger) http.Handle
 		"PostIntegrationsGithub": handlePostIntegrationsGithub,
 		"RegisterDaemon":         handleRegister,
 		"IsConnected":            handleIsConnected,
+
+		"GetRelease:v6": handleGetReleaseV6,
 	} {
 		var handler http.Handler
 		handler = handlerFunc(s)
@@ -217,6 +221,25 @@ func handleGetRelease(s api.FluxService) http.Handler {
 		if err := json.NewEncoder(w).Encode(job); err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			fmt.Fprintf(w, err.Error())
+			return
+		}
+	})
+}
+
+func handleGetReleaseV6(s api.FluxService) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		inst := getInstanceID(r)
+		id := mux.Vars(r)["id"]
+		job, err := s.GetRelease(inst, jobs.JobID(id))
+		if err != nil {
+			errorResponse(w, r, err)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		if err := json.NewEncoder(w).Encode(job); err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprint(w, err.Error())
 			return
 		}
 	})
@@ -555,6 +578,31 @@ func getInstanceID(req *http.Request) flux.InstanceID {
 		return flux.DefaultInstanceID
 	}
 	return flux.InstanceID(s)
+}
+
+func errorResponse(w http.ResponseWriter, r *http.Request, apiError error) {
+	var err flux.BaseError
+	var code int
+	switch e := apiError.(type) {
+	case flux.Missing:
+		code = http.StatusNotFound
+		err = e.BaseError
+	case flux.UserConfigProblem:
+		code = http.StatusUnprocessableEntity
+		err = e.BaseError
+	case flux.ServerException:
+		code = http.StatusInternalServerError
+		err = e.BaseError
+	default:
+		code = http.StatusInternalServerError
+		err = flux.CoverAllError(apiError)
+	}
+
+	w.Header().Set(http.CanonicalHeaderKey("Content-Type"), "application/json; charset=utf-8")
+	w.WriteHeader(code)
+	if encodeErr := json.NewEncoder(w).Encode(err); encodeErr != nil {
+		fmt.Fprintf(w, "Error encoding error response: %s\n\nOriginal error: %s", encodeErr.Error(), err.Error())
+	}
 }
 
 func logging(next http.Handler, logger log.Logger) http.Handler {

@@ -332,6 +332,15 @@ func (s *Server) PostRelease(inst flux.InstanceID, params jobs.ReleaseJobParams)
 func (s *Server) GetRelease(inst flux.InstanceID, id jobs.JobID) (jobs.Job, error) {
 	j, err := s.jobs.GetJob(inst, id)
 	if err != nil {
+		if err == jobs.ErrNoSuchJob {
+			err = flux.Missing{flux.BaseError{
+				Help: `The release you requested does not exist.
+
+This may mean that it has expired, or that you have mistyped the
+release ID.`,
+				Err: err,
+			}}
+		}
 		return jobs.Job{}, err
 	}
 	if j.Method != jobs.ReleaseJob {
