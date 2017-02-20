@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/metrics"
 	"github.com/pkg/errors"
 
@@ -85,6 +86,8 @@ func (r *Releaser) release(instanceID flux.InstanceID, job *jobs.Job, logStatus 
 	if err != nil {
 		return nil, err
 	}
+
+	inst.Logger = log.NewContext(inst.Logger).With("release-id", string(job.ID))
 
 	// We time each stage of this process, and expose as metrics.
 	var timer *metrics.Timer

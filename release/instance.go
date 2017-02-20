@@ -1,6 +1,9 @@
 package release
 
 import (
+	"fmt"
+	"strings"
+
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/instance"
 	"github.com/weaveworks/flux/platform"
@@ -42,16 +45,17 @@ func applyChanges(inst *instance.Instance, updates []*ServiceUpdate, results flu
 
 	for _, update := range updates {
 		namespace, serviceName := update.ServiceID.Components()
+		updateMsg := summariseUpdate(update.Updates)
 		switch serviceName {
 		case FluxServiceName, FluxDaemonName:
-			inst.LogEvent(namespace, serviceName, "Starting. (no result expected)")
+			inst.LogEvent(namespace, serviceName, "Starting "+updateMsg+". (no result expected)")
 			asyncDefs = append(asyncDefs, platform.ServiceDefinition{
 				ServiceID:     update.ServiceID,
 				NewDefinition: update.ManifestBytes,
 				Async:         true,
 			})
 		default:
-			inst.LogEvent(namespace, serviceName, "Starting")
+			inst.LogEvent(namespace, serviceName, "Starting "+updateMsg)
 			defs = append(defs, platform.ServiceDefinition{
 				ServiceID:     update.ServiceID,
 				NewDefinition: update.ManifestBytes,
@@ -90,6 +94,25 @@ func applyChanges(inst *instance.Instance, updates []*ServiceUpdate, results flu
 			return transactionErr
 		}
 	}
+
+	// Report the results for the _synchronous_ updates.
+	for _, def := range defs { // this is our list of sync updates
+		result := results[def.ServiceID]
+		namespace, serviceName := def.ServiceID.Components()
+		updateMsg := summariseUpdate(result.PerContainer)
+		switch result.Status {
+		// these three cases should line up with the possibilities above
+		case flux.ReleaseStatusSuccess:
+			inst.LogEvent(namespace, serviceName, "Release "+updateMsg+" succeeded")
+		case flux.ReleaseStatusFailed:
+			inst.LogEvent(namespace, serviceName, "Release "+updateMsg+" failed: "+result.Error)
+		case flux.ReleaseStatusUnknown:
+			inst.LogEvent(namespace, serviceName, "Release "+updateMsg+" outcome unknown: "+result.Error)
+		default:
+			inst.Log("error", "unexpected release status", "service-id", def.ServiceID.String(), "status", string(result.Status))
+		}
+	}
+
 	// Lastly, services for which we don't expect a result
 	// (i.e., ourselves). This will kick off the release in
 	// the daemon, which will cause Kubernetes to restart the
@@ -102,4 +125,15 @@ func applyChanges(inst *instance.Instance, updates []*ServiceUpdate, results flu
 	}
 
 	return transactionErr
+}
+
+func summariseUpdate(containerUpdates []flux.ContainerUpdate) string {
+	if len(containerUpdates) == 0 {
+		return "(no image changes)"
+	}
+	var individualUpdates []string
+	for _, c := range containerUpdates {
+		individualUpdates = append(individualUpdates, fmt.Sprintf("%s (%s -> %s)", c.Container, c.Current, c.Target.Tag))
+	}
+	return strings.Join(individualUpdates, ", ")
 }
