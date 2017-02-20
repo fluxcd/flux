@@ -168,10 +168,10 @@ func (opts *serviceCheckReleaseOpts) RunE(cmd *cobra.Command, args []string) err
 		}
 	} else if spec.Kind == flux.ReleaseKindPlan {
 		fmt.Fprintf(os.Stdout, "Here's the plan:\n")
-		release.PrintResults(job.Result.(flux.ReleaseResult), opts.verbose)
+		release.PrintResults(os.Stdout, job.Result.(flux.ReleaseResult), opts.verbose)
 	} else {
 		fmt.Fprintf(os.Stdout, "Here's what happened:\n")
-		release.PrintResults(job.Result.(flux.ReleaseResult), opts.verbose)
+		release.PrintResults(os.Stdout, job.Result.(flux.ReleaseResult), opts.verbose)
 	}
 
 	if spec.Kind == flux.ReleaseKindExecute {

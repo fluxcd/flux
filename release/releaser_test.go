@@ -3,6 +3,7 @@ package release
 import (
 	"errors"
 	"fmt"
+	"os"
 	"reflect"
 	"testing"
 	"time"
@@ -192,6 +193,6 @@ func TestUpdateOne(t *testing.T) {
 	}
 
 	println()
-	PrintResults(results, true)
+	PrintResults(os.Stdout, results, true)
 	println()
 }
