@@ -54,19 +54,20 @@ func (s *DatabaseStore) GetJob(inst flux.InstanceID, id JobID) (Job, error) {
 		claimedAt   nullTime
 		heartbeatAt nullTime
 		finishedAt  nullTime
+		resultBytes []byte
 		logStr      string
 		status      string
 		done        sql.NullBool
 		success     sql.NullBool
 	)
 	if err := s.conn.QueryRow(`
-		SELECT queue, method, params, scheduled_at, priority, key, submitted_at, claimed_at, heartbeat_at, finished_at, log, status, done, success
+		SELECT queue, method, params, scheduled_at, priority, key, submitted_at, claimed_at, heartbeat_at, finished_at, result, log, status, done, success
 		  FROM jobs
 		 WHERE id = $1
 		   AND instance_id = $2
 	`, string(id), string(inst)).Scan(
 		&queue, &method, &paramsBytes, &scheduledAt, &priority, &key, &submittedAt,
-		&claimedAt, &heartbeatAt, &finishedAt, &logStr, &status, &done, &success,
+		&claimedAt, &heartbeatAt, &finishedAt, &resultBytes, &logStr, &status, &done, &success,
 	); err == sql.ErrNoRows {
 		return Job{}, ErrNoSuchJob
 	} else if err != nil {
@@ -76,6 +77,11 @@ func (s *DatabaseStore) GetJob(inst flux.InstanceID, id JobID) (Job, error) {
 	params, err := s.scanParams(method, paramsBytes)
 	if err != nil {
 		return Job{}, errors.Wrap(err, "unmarshaling params")
+	}
+
+	result, err := s.scanResult(method, resultBytes)
+	if err != nil {
+		return Job{}, errors.Wrap(err, "unmarshaling result")
 	}
 
 	var log []string
@@ -96,6 +102,7 @@ func (s *DatabaseStore) GetJob(inst flux.InstanceID, id JobID) (Job, error) {
 		Claimed:     claimedAt.Time,
 		Heartbeat:   heartbeatAt.Time,
 		Finished:    finishedAt.Time,
+		Result:      result,
 		Log:         log,
 		Status:      status,
 		Done:        done.Bool,
@@ -279,6 +286,9 @@ func (s *DatabaseStore) NextJob(queues []string) (Job, error) {
 			return errors.Wrap(err, "unmarshaling params")
 		}
 
+		// NB because we're getting a fresh job, we don't expect any
+		// result to be present.
+
 		var log []string
 		if err := json.NewDecoder(strings.NewReader(logStr)).Decode(&log); err != nil {
 			return errors.Wrap(err, "unmarshaling log")
@@ -321,18 +331,38 @@ func (s *DatabaseStore) NextJob(queues []string) (Job, error) {
 }
 
 func (s *DatabaseStore) scanParams(method string, params []byte) (interface{}, error) {
-	if params == nil {
-		return nil, nil
-	}
 	switch method {
 	case ReleaseJob:
 		var p ReleaseJobParams
+		if params == nil {
+			return p, nil
+		}
 		err := json.Unmarshal(params, &p)
 		return p, err
 	case AutomatedInstanceJob:
 		var p AutomatedInstanceJobParams
+		if params == nil {
+			return p, nil
+		}
 		err := json.Unmarshal(params, &p)
 		return p, err
+	default:
+		return nil, ErrUnknownJobMethod
+	}
+}
+
+func (s *DatabaseStore) scanResult(method string, result []byte) (interface{}, error) {
+	switch method {
+	case ReleaseJob:
+		var r flux.ReleaseResult
+		if result == nil {
+			return r, nil
+		}
+		err := json.Unmarshal(result, &r)
+		return r, err
+	case AutomatedInstanceJob:
+		// A result is not expected for these jobs
+		return nil, ErrNoResultExpected
 	default:
 		return nil, ErrUnknownJobMethod
 	}
@@ -343,6 +373,10 @@ func (s *DatabaseStore) UpdateJob(job Job) error {
 	if err != nil {
 		return errors.Wrap(err, "marshaling params")
 	}
+	resultBytes, err := json.Marshal(job.Result)
+	if err != nil {
+		return errors.Wrap(err, "marshaling results")
+	}
 	logBytes, err := json.Marshal(job.Log)
 	if err != nil {
 		return errors.Wrap(err, "marshaling log")
@@ -351,10 +385,10 @@ func (s *DatabaseStore) UpdateJob(job Job) error {
 	return s.Transaction(func(s *DatabaseStore) error {
 		if res, err := s.conn.Exec(`
 			UPDATE jobs
-				 SET params = $1, log = $2, status = $3
-			 WHERE id = $4
-				 AND instance_id = $5
-		`, string(paramsBytes), string(logBytes), job.Status, string(job.ID), string(job.Instance)); err != nil {
+				 SET params = $1, result = $2, log = $3, status = $4
+			 WHERE id = $5
+				 AND instance_id = $6
+		`, string(paramsBytes), string(resultBytes), string(logBytes), job.Status, string(job.ID), string(job.Instance)); err != nil {
 			return errors.Wrap(err, "updating job in database")
 		} else if n, err := res.RowsAffected(); err != nil {
 			return errors.Wrap(err, "after update, checking affected rows")

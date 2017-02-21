@@ -29,10 +29,15 @@ func TestJobEncodingDecoding(t *testing.T) {
 		Claimed:     now,
 		Heartbeat:   now,
 		Finished:    now,
-		Log:         []string{"log1"},
-		Status:      "status",
-		Done:        true,
-		Success:     true,
+		Result: flux.ReleaseResult{
+			flux.ServiceID("hippo/birdy"): flux.ServiceResult{
+				Status: flux.ReleaseStatusPending,
+			},
+		},
+		Log:     []string{"log1"},
+		Status:  "status",
+		Done:    true,
+		Success: true,
 	}
 	b, err := json.Marshal(expected)
 	bailIfErr(t, err)
@@ -42,4 +47,28 @@ func TestJobEncodingDecoding(t *testing.T) {
 	if !reflect.DeepEqual(got, expected) {
 		t.Errorf("got %q, expected %q", got, expected)
 	}
+}
+
+func TestJobEncodingDecodingWithMissingFields(t *testing.T) {
+	now := time.Now().UTC()
+	input := Job{
+		Instance:    flux.InstanceID("instance"),
+		ID:          NewJobID(),
+		Queue:       DefaultQueue,
+		Method:      ReleaseJob,
+		ScheduledAt: now,
+		Priority:    PriorityInteractive,
+		Key:         "key1",
+		Submitted:   now,
+		Claimed:     now,
+		Heartbeat:   now,
+		Finished:    now,
+		Status:      "status",
+		Done:        true,
+		Success:     true,
+	}
+	b, err := json.Marshal(input)
+	bailIfErr(t, err)
+	var got Job
+	bailIfErr(t, json.Unmarshal(b, &got))
 }

@@ -16,7 +16,7 @@ var (
 
 func TestInstance_ImageExists(t *testing.T) {
 	i := Instance{
-		registry: testRegistry,
+		Registry: testRegistry,
 	}
 	testImageExists(t, i, exampleImage, true)
 	testImageExists(t, i, "owner/repo", false) // False because latest doesn't exist in repo above
@@ -39,7 +39,7 @@ func testImageExists(t *testing.T, i Instance, image string, expected bool) {
 
 func TestInstance_ErrWhenBlank(t *testing.T) {
 	i := Instance{
-		registry: testRegistry,
+		Registry: testRegistry,
 	}
 	id, _ := flux.ParseImageID("")
 	_, err := i.imageExists(id)

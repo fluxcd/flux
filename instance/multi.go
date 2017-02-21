@@ -1,6 +1,8 @@
 package instance
 
 import (
+	"time"
+
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/metrics"
 	"github.com/pkg/errors"
@@ -10,7 +12,6 @@ import (
 	"github.com/weaveworks/flux/history"
 	"github.com/weaveworks/flux/platform"
 	"github.com/weaveworks/flux/registry"
-	"time"
 )
 
 type MultitenantInstancer struct {

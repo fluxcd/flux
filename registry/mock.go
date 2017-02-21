@@ -89,7 +89,14 @@ func NewMockRegistry(images []flux.Image, err error) Registry {
 }
 
 func (m *mockRegistry) GetRepository(repository Repository) ([]flux.Image, error) {
-	return m.imgs, m.err
+	var imgs []flux.Image
+	for _, i := range m.imgs {
+		// include only if it's the same repository in the same place
+		if i.ImageID.NamespaceImage() == repository.NamespaceImage() {
+			imgs = append(imgs, i)
+		}
+	}
+	return imgs, m.err
 }
 
 func (m *mockRegistry) GetImage(repository Repository, tag string) (flux.Image, error) {

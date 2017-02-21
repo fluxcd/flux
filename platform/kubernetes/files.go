@@ -3,17 +3,19 @@ package kubernetes
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/weaveworks/flux"
 )
 
-// FilesFor returns the resource definition files in path (or any subdirectory)
-// that are responsible for driving the given namespace/service. It presumes
-// kubeservice is available in the PWD or PATH.
-func FilesFor(path, namespace, service string) (filenames []string, err error) {
+// FindDefinedServices finds all the services defined under the
+// directory given, and returns a map of service IDs (from its
+// specified namespace and name) to the paths of resource definition
+// files.
+func FindDefinedServices(path string) (map[flux.ServiceID][]string, error) {
 	bin, err := func() (string, error) {
 		cwd, err := os.Getwd()
 		if err != nil {
@@ -32,34 +34,33 @@ func FilesFor(path, namespace, service string) (filenames []string, err error) {
 		return nil, err
 	}
 
-	var candidates []string
-	filepath.Walk(path, func(target string, fi os.FileInfo, err error) error {
-		if fi.IsDir() {
+	var files []string
+	filepath.Walk(path, func(target string, info os.FileInfo, err error) error {
+		if info.IsDir() {
 			return nil
 		}
 		if ext := filepath.Ext(target); ext == ".yaml" || ext == ".yml" {
-			candidates = append(candidates, target)
+			files = append(files, target)
 		}
 		return nil
 	})
 
-	tgt := fmt.Sprintf("%s/%s", namespace, service)
-	var winners []string
-	for _, file := range candidates {
-		var stdout bytes.Buffer
+	services := map[flux.ServiceID][]string{}
+	for _, file := range files {
+		var stdout, stderr bytes.Buffer
 		cmd := exec.Command(bin, "./"+filepath.Base(file)) // due to bug (?) in kubeservice
 		cmd.Dir = filepath.Dir(file)
 		cmd.Stdout = &stdout
+		cmd.Stderr = &stderr
 		if err := cmd.Run(); err != nil {
 			continue
 		}
 		for _, out := range strings.Split(strings.TrimSpace(stdout.String()), "\n") {
-			if out == tgt { // kubeservice output is "namespace/service", same as ServiceID
-				winners = append(winners, file)
-				break
+			if out != "" {
+				id := flux.ServiceID(out)
+				services[id] = append(services[id], file)
 			}
 		}
 	}
-
-	return winners, nil
+	return services, nil
 }
