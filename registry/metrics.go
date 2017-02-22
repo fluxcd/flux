@@ -5,20 +5,11 @@ import (
 	"time"
 
 	"github.com/bradfitz/gomemcache/memcache"
-	"github.com/go-kit/kit/metrics"
 	"github.com/go-kit/kit/metrics/prometheus"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 
 	fluxmetrics "github.com/weaveworks/flux/metrics"
 )
-
-type Metrics struct {
-	// Latency of Image fetch, that is getting *all* information about
-	// an Image
-	FetchDuration metrics.Histogram
-	// Counts of particular kinds of request
-	RequestDuration metrics.Histogram
-}
 
 const (
 	LabelRequestKind = "kind"
@@ -27,46 +18,42 @@ const (
 	RequestKindMetadata = "metadata"
 )
 
-func NewMetrics() Metrics {
-	return Metrics{
-		FetchDuration: prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
-			Namespace: "flux",
-			Subsystem: "registry",
-			Name:      "fetch_duration_seconds",
-			Help:      "Duration of Image metadata fetches, in seconds.",
-			Buckets:   stdprometheus.DefBuckets,
-		}, []string{fluxmetrics.LabelSuccess}),
-		RequestDuration: prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
-			Namespace: "flux",
-			Subsystem: "registry",
-			Name:      "request_duration_seconds",
-			Help:      "Duration of HTTP requests made in the course of fetching Image metadata",
-		}, []string{LabelRequestKind, fluxmetrics.LabelSuccess}),
-	}
-}
+var (
+	fetchDuration = prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
+		Namespace: "flux",
+		Subsystem: "registry",
+		Name:      "fetch_duration_seconds",
+		Help:      "Duration of Image metadata fetches, in seconds.",
+		Buckets:   stdprometheus.DefBuckets,
+	}, []string{fluxmetrics.LabelSuccess})
+	requestDuration = prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
+		Namespace: "flux",
+		Subsystem: "registry",
+		Name:      "request_duration_seconds",
+		Help:      "Duration of HTTP requests made in the course of fetching Image metadata",
+	}, []string{LabelRequestKind, fluxmetrics.LabelSuccess})
+	memcacheRequestDuration = prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
+		Namespace: "flux",
+		Subsystem: "memcache",
+		Name:      "request_duration_seconds",
+		Help:      "Duration of memcache requests, in seconds.",
+		Buckets:   stdprometheus.DefBuckets,
+	}, []string{fluxmetrics.LabelMethod, fluxmetrics.LabelSuccess})
+)
 
 type instrumentedMemcacheClient struct {
 	c MemcacheClient
-	// Success rate of cache requests
-	MemcacheRequestDuration metrics.Histogram
 }
 
 func InstrumentMemcacheClient(c MemcacheClient) MemcacheClient {
 	return &instrumentedMemcacheClient{
 		c: c,
-		MemcacheRequestDuration: prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
-			Namespace: "flux",
-			Subsystem: "memcache",
-			Name:      "request_duration_seconds",
-			Help:      "Duration of memcache requests, in seconds.",
-			Buckets:   stdprometheus.DefBuckets,
-		}, []string{fluxmetrics.LabelMethod, fluxmetrics.LabelSuccess}),
 	}
 }
 
 func (i *instrumentedMemcacheClient) Add(item *memcache.Item) (err error) {
 	defer func(begin time.Time) {
-		i.MemcacheRequestDuration.With(
+		memcacheRequestDuration.With(
 			fluxmetrics.LabelMethod, "Add",
 			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
@@ -76,7 +63,7 @@ func (i *instrumentedMemcacheClient) Add(item *memcache.Item) (err error) {
 
 func (i *instrumentedMemcacheClient) CompareAndSwap(item *memcache.Item) (err error) {
 	defer func(begin time.Time) {
-		i.MemcacheRequestDuration.With(
+		memcacheRequestDuration.With(
 			fluxmetrics.LabelMethod, "CompareAndSwap",
 			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
@@ -86,7 +73,7 @@ func (i *instrumentedMemcacheClient) CompareAndSwap(item *memcache.Item) (err er
 
 func (i *instrumentedMemcacheClient) Decrement(key string, delta uint64) (newValue uint64, err error) {
 	defer func(begin time.Time) {
-		i.MemcacheRequestDuration.With(
+		memcacheRequestDuration.With(
 			fluxmetrics.LabelMethod, "Decrement",
 			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
@@ -96,7 +83,7 @@ func (i *instrumentedMemcacheClient) Decrement(key string, delta uint64) (newVal
 
 func (i *instrumentedMemcacheClient) Delete(key string) (err error) {
 	defer func(begin time.Time) {
-		i.MemcacheRequestDuration.With(
+		memcacheRequestDuration.With(
 			fluxmetrics.LabelMethod, "Delete",
 			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
@@ -106,7 +93,7 @@ func (i *instrumentedMemcacheClient) Delete(key string) (err error) {
 
 func (i *instrumentedMemcacheClient) DeleteAll() (err error) {
 	defer func(begin time.Time) {
-		i.MemcacheRequestDuration.With(
+		memcacheRequestDuration.With(
 			fluxmetrics.LabelMethod, "DeleteAll",
 			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
@@ -116,7 +103,7 @@ func (i *instrumentedMemcacheClient) DeleteAll() (err error) {
 
 func (i *instrumentedMemcacheClient) FlushAll() (err error) {
 	defer func(begin time.Time) {
-		i.MemcacheRequestDuration.With(
+		memcacheRequestDuration.With(
 			fluxmetrics.LabelMethod, "FlushAll",
 			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
@@ -126,7 +113,7 @@ func (i *instrumentedMemcacheClient) FlushAll() (err error) {
 
 func (i *instrumentedMemcacheClient) Get(key string) (item *memcache.Item, err error) {
 	defer func(begin time.Time) {
-		i.MemcacheRequestDuration.With(
+		memcacheRequestDuration.With(
 			fluxmetrics.LabelMethod, "Get",
 			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
@@ -136,7 +123,7 @@ func (i *instrumentedMemcacheClient) Get(key string) (item *memcache.Item, err e
 
 func (i *instrumentedMemcacheClient) GetMulti(keys []string) (items map[string]*memcache.Item, err error) {
 	defer func(begin time.Time) {
-		i.MemcacheRequestDuration.With(
+		memcacheRequestDuration.With(
 			fluxmetrics.LabelMethod, "GetMulti",
 			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
@@ -146,7 +133,7 @@ func (i *instrumentedMemcacheClient) GetMulti(keys []string) (items map[string]*
 
 func (i *instrumentedMemcacheClient) Increment(key string, delta uint64) (newValue uint64, err error) {
 	defer func(begin time.Time) {
-		i.MemcacheRequestDuration.With(
+		memcacheRequestDuration.With(
 			fluxmetrics.LabelMethod, "Increment",
 			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
@@ -156,7 +143,7 @@ func (i *instrumentedMemcacheClient) Increment(key string, delta uint64) (newVal
 
 func (i *instrumentedMemcacheClient) Replace(item *memcache.Item) (err error) {
 	defer func(begin time.Time) {
-		i.MemcacheRequestDuration.With(
+		memcacheRequestDuration.With(
 			fluxmetrics.LabelMethod, "Replace",
 			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
@@ -166,7 +153,7 @@ func (i *instrumentedMemcacheClient) Replace(item *memcache.Item) (err error) {
 
 func (i *instrumentedMemcacheClient) Set(item *memcache.Item) (err error) {
 	defer func(begin time.Time) {
-		i.MemcacheRequestDuration.With(
+		memcacheRequestDuration.With(
 			fluxmetrics.LabelMethod, "Set",
 			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
@@ -176,7 +163,7 @@ func (i *instrumentedMemcacheClient) Set(item *memcache.Item) (err error) {
 
 func (i *instrumentedMemcacheClient) Touch(key string, seconds int32) (err error) {
 	defer func(begin time.Time) {
-		i.MemcacheRequestDuration.With(
+		memcacheRequestDuration.With(
 			fluxmetrics.LabelMethod, "Touch",
 			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
@@ -186,7 +173,7 @@ func (i *instrumentedMemcacheClient) Touch(key string, seconds int32) (err error
 
 func (i *instrumentedMemcacheClient) Stop() {
 	defer func(begin time.Time) {
-		i.MemcacheRequestDuration.With(
+		memcacheRequestDuration.With(
 			fluxmetrics.LabelMethod, "Stop",
 			fluxmetrics.LabelSuccess, "true",
 		).Observe(time.Since(begin).Seconds())

@@ -10,7 +10,7 @@ import (
 
 func TestStandaloneMessageBus(t *testing.T) {
 	instID := flux.InstanceID("instance")
-	bus := NewStandaloneMessageBus(NewBusMetrics())
+	bus := NewStandaloneMessageBus(BusMetricsImpl)
 	p := &MockPlatform{}
 
 	done := make(chan error)

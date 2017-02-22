@@ -16,7 +16,6 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
-	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	"github.com/weaveworks/common/middleware"
 
 	"github.com/weaveworks/flux"
@@ -50,7 +49,7 @@ func NewRouter() *mux.Router {
 	return r
 }
 
-func NewHandler(s api.FluxService, r *mux.Router, logger log.Logger, h *stdprometheus.HistogramVec) http.Handler {
+func NewHandler(s api.FluxService, r *mux.Router, logger log.Logger) http.Handler {
 	for method, handlerFunc := range map[string]func(api.FluxService) http.Handler{
 		"ListServices":           handleListServices,
 		"ListImages":             handleListImages,
@@ -78,7 +77,7 @@ func NewHandler(s api.FluxService, r *mux.Router, logger log.Logger, h *stdprome
 
 	return middleware.Instrument{
 		RouteMatcher: r,
-		Duration:     h,
+		Duration:     requestDuration,
 	}.Wrap(r)
 }
 

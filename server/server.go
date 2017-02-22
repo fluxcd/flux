@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/metrics"
 	"github.com/pkg/errors"
 
 	"github.com/weaveworks/flux"
@@ -36,18 +35,7 @@ type Server struct {
 	jobs        jobs.JobStore
 	logger      log.Logger
 	maxPlatform chan struct{} // semaphore for concurrent calls to the platform
-	metrics     Metrics
 	connected   int32
-}
-
-type Metrics struct {
-	StatusDuration         metrics.Histogram
-	ListServicesDuration   metrics.Histogram
-	ListImagesDuration     metrics.Histogram
-	HistoryDuration        metrics.Histogram
-	RegisterDaemonDuration metrics.Histogram
-	ConnectedDaemons       metrics.Gauge
-	PlatformMetrics        platform.Metrics
 }
 
 func New(
@@ -57,9 +45,8 @@ func New(
 	messageBus platform.MessageBus,
 	jobs jobs.JobStore,
 	logger log.Logger,
-	metrics Metrics,
 ) *Server {
-	metrics.ConnectedDaemons.Set(0)
+	connectedDaemons.Set(0)
 	return &Server{
 		version:     version,
 		instancer:   instancer,
@@ -68,7 +55,6 @@ func New(
 		jobs:        jobs,
 		logger:      logger,
 		maxPlatform: make(chan struct{}, 8),
-		metrics:     metrics,
 	}
 }
 
@@ -80,7 +66,7 @@ func New(
 
 func (s *Server) Status(inst flux.InstanceID) (res flux.Status, err error) {
 	defer func(begin time.Time) {
-		s.metrics.StatusDuration.With(
+		statusDuration.With(
 			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
 	}(time.Now())
@@ -110,7 +96,7 @@ func (s *Server) Status(inst flux.InstanceID) (res flux.Status, err error) {
 
 func (s *Server) ListServices(inst flux.InstanceID, namespace string) (res []flux.ServiceStatus, err error) {
 	defer func(begin time.Time) {
-		s.metrics.ListServicesDuration.With(
+		listServicesDuration.With(
 			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
 	}(time.Now())
@@ -161,7 +147,7 @@ func containers2containers(cs []platform.Container) []flux.Container {
 
 func (s *Server) ListImages(inst flux.InstanceID, spec flux.ServiceSpec) (res []flux.ImageStatus, err error) {
 	defer func(begin time.Time) {
-		s.metrics.ListImagesDuration.With(
+		listImagesDuration.With(
 			"service_spec_all", fmt.Sprint(spec == flux.ServiceSpecAll),
 			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
@@ -217,7 +203,7 @@ func containersWithAvailable(service platform.Service, images instance.ImageMap)
 
 func (s *Server) History(inst flux.InstanceID, spec flux.ServiceSpec) (res []flux.HistoryEntry, err error) {
 	defer func(begin time.Time) {
-		s.metrics.HistoryDuration.With(
+		historyDuration.With(
 			"service_spec_all", fmt.Sprint(spec == flux.ServiceSpecAll),
 			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
@@ -412,12 +398,12 @@ func (s *Server) RegisterDaemon(instID flux.InstanceID, platform platform.Platfo
 			s.logger.Log("method", "RegisterDaemon", "err", err)
 		}
 
-		s.metrics.RegisterDaemonDuration.With(
+		registerDaemonDuration.With(
 			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
-		s.metrics.ConnectedDaemons.Set(float64(atomic.AddInt32(&s.connected, -1)))
+		connectedDaemons.Set(float64(atomic.AddInt32(&s.connected, -1)))
 	}(time.Now())
-	s.metrics.ConnectedDaemons.Set(float64(atomic.AddInt32(&s.connected, 1)))
+	connectedDaemons.Set(float64(atomic.AddInt32(&s.connected, 1)))
 
 	// Register the daemon with our message bus, waiting for it to be
 	// closed. NB we cannot in general expect there to be a
@@ -432,7 +418,7 @@ func (s *Server) RegisterDaemon(instID flux.InstanceID, platform platform.Platfo
 
 func (s *Server) instrumentPlatform(instID flux.InstanceID, p platform.Platform) platform.Platform {
 	return &loggingPlatform{
-		platform.Instrument(p, s.metrics.PlatformMetrics),
+		platform.Instrument(p),
 		log.NewContext(s.logger).With("instanceID", instID),
 	}
 }

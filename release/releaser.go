@@ -24,16 +24,13 @@ const FluxDaemonName = "fluxd"
 
 type Releaser struct {
 	instancer instance.Instancer
-	metrics   Metrics
 }
 
 func NewReleaser(
 	instancer instance.Instancer,
-	metrics Metrics,
 ) *Releaser {
 	return &Releaser{
 		instancer: instancer,
-		metrics:   metrics,
 	}
 }
 
@@ -74,7 +71,7 @@ func (r *Releaser) Handle(job *jobs.Job, updater jobs.JobUpdater) ([]jobs.Job, e
 func (r *Releaser) release(instanceID flux.InstanceID, job *jobs.Job, logStatus statusFn, report resultFn) (_ []jobs.Job, err error) {
 	spec := job.Params.(jobs.ReleaseJobParams).Spec()
 	defer func(started time.Time) {
-		r.metrics.ReleaseDuration.With(
+		releaseDuration.With(
 			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
 			fluxmetrics.LabelReleaseType, flux.ReleaseSpec(spec).ReleaseType(),
 			fluxmetrics.LabelReleaseKind, string(spec.Kind),
@@ -96,7 +93,7 @@ func (r *Releaser) release(instanceID flux.InstanceID, job *jobs.Job, logStatus 
 	rc := NewReleaseContext(inst)
 	defer rc.Clean()
 	logStatus("Cloning git repository.")
-	timer = r.metrics.NewStageTimer("clone_repository")
+	timer = NewStageTimer("clone_repository")
 	if err = rc.CloneRepo(); err != nil {
 		return nil, err
 	}
@@ -107,7 +104,7 @@ func (r *Releaser) release(instanceID flux.InstanceID, job *jobs.Job, logStatus 
 
 	// Figure out the services involved.
 	logStatus("Finding defined services.")
-	timer = r.metrics.NewStageTimer("select_services")
+	timer = NewStageTimer("select_services")
 	var updates []*ServiceUpdate
 	updates, err = selectServices(rc, &spec, results, logStatus)
 	timer.ObserveDuration()
@@ -120,7 +117,7 @@ func (r *Releaser) release(instanceID flux.InstanceID, job *jobs.Job, logStatus 
 	// Look up images, and calculate updates, if we've been asked to
 	if spec.ImageSpec != flux.ImageSpecNone {
 		logStatus("Looking up images.")
-		timer = r.metrics.NewStageTimer("lookup_images")
+		timer = NewStageTimer("lookup_images")
 		// Figure out how the services are to be updated.
 		updates, err = calculateImageUpdates(rc.Instance, updates, &spec, results, logStatus)
 		timer.ObserveDuration()
@@ -144,7 +141,7 @@ func (r *Releaser) release(instanceID flux.InstanceID, job *jobs.Job, logStatus 
 
 	if spec.ImageSpec != flux.ImageSpecNone {
 		logStatus("Pushing changes.")
-		timer = r.metrics.NewStageTimer("push_changes")
+		timer = NewStageTimer("push_changes")
 		err = rc.PushChanges(updates, &spec)
 		timer.ObserveDuration()
 		if err != nil {
@@ -153,11 +150,11 @@ func (r *Releaser) release(instanceID flux.InstanceID, job *jobs.Job, logStatus 
 	}
 
 	logStatus("Applying changes.")
-	timer = r.metrics.NewStageTimer("apply_changes")
+	timer = NewStageTimer("apply_changes")
 	applyErr := applyChanges(rc.Instance, updates, results)
 	timer.ObserveDuration()
 	// Report on success or failure of the application above.
-	timer = r.metrics.NewStageTimer("send_notifications")
+	timer = NewStageTimer("send_notifications")
 	err = sendNotifications(rc.Instance, applyErr, results, job)
 	timer.ObserveDuration()
 	report(results)

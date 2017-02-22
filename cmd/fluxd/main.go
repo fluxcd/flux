@@ -9,8 +9,6 @@ import (
 	"time"
 
 	"github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/metrics/prometheus"
-	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/pflag"
 	"k8s.io/client-go/1.5/rest"
@@ -92,20 +90,6 @@ func main() {
 		k8s = cluster
 	}
 
-	// Instrumentation
-	var (
-		daemonMetrics transport.DaemonMetrics
-	)
-	{
-		k8s = platform.Instrument(k8s, platform.NewMetrics())
-		daemonMetrics.ConnectionDuration = prometheus.NewGaugeFrom(stdprometheus.GaugeOpts{
-			Namespace: "flux",
-			Subsystem: "fluxd",
-			Name:      "connection_duration_seconds",
-			Help:      "Duration in seconds of the current connection to fluxsvc. Zero means unconnected.",
-		}, []string{"target"})
-	}
-
 	// Connect to fluxsvc
 	daemonLogger := log.NewContext(logger).With("component", "client")
 	daemon, err := transport.NewDaemon(
@@ -115,7 +99,6 @@ func main() {
 		*fluxsvcAddress,
 		k8s,
 		daemonLogger,
-		daemonMetrics,
 	)
 	if err != nil {
 		logger.Log("err", err)

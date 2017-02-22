@@ -24,15 +24,13 @@ type Registry interface {
 type registry struct {
 	factory RemoteClientFactory
 	Logger  log.Logger
-	Metrics Metrics
 }
 
 // NewClient creates a new registry registry, to use when fetching repositories.
-func NewRegistry(c RemoteClientFactory, l log.Logger, m Metrics) Registry {
+func NewRegistry(c RemoteClientFactory, l log.Logger) Registry {
 	return &registry{
 		factory: c,
 		Logger:  l,
-		Metrics: m,
 	}
 }
 
@@ -78,7 +76,7 @@ func (reg *registry) newRemote(img Repository) (rem Remote, err error) {
 	if err != nil {
 		return
 	}
-	rem = NewInstrumentedRemote(rem, reg.Metrics)
+	rem = NewInstrumentedRemote(rem)
 	return
 }
 

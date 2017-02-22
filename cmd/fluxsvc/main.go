@@ -10,9 +10,6 @@ import (
 	"time"
 
 	"github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/metrics"
-	"github.com/go-kit/kit/metrics/prometheus"
-	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/pflag"
 
@@ -24,7 +21,6 @@ import (
 	"github.com/weaveworks/flux/instance"
 	instancedb "github.com/weaveworks/flux/instance/sql"
 	"github.com/weaveworks/flux/jobs"
-	fluxmetrics "github.com/weaveworks/flux/metrics"
 	"github.com/weaveworks/flux/platform"
 	"github.com/weaveworks/flux/platform/rpc/nats"
 	"github.com/weaveworks/flux/registry"
@@ -94,87 +90,10 @@ func main() {
 		logger.Log("migrations", "success", "driver", dbDriver, "db-version", fmt.Sprintf("%d", version))
 	}
 
-	// Instrumentation
-	var (
-		busMetrics       platform.BusMetrics
-		helperDuration   metrics.Histogram
-		historyMetrics   history.Metrics
-		httpDuration     *stdprometheus.HistogramVec
-		instanceMetrics  instance.Metrics
-		jobWorkerMetrics jobs.WorkerMetrics
-		registryMetrics  registry.Metrics
-		releaseMetrics   release.Metrics
-		serverMetrics    server.Metrics
-	)
-	{
-		httpDuration = stdprometheus.NewHistogramVec(stdprometheus.HistogramOpts{
-			Namespace: "flux",
-			Name:      "request_duration_seconds",
-			Help:      "Time (in seconds) spent serving HTTP requests.",
-			Buckets:   stdprometheus.DefBuckets,
-		}, []string{fluxmetrics.LabelMethod, fluxmetrics.LabelRoute, "status_code", "ws"})
-		serverMetrics.StatusDuration = prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
-			Namespace: "flux",
-			Subsystem: "fluxsvc",
-			Name:      "status_duration_seconds",
-			Help:      "Status method duration in seconds.",
-			Buckets:   stdprometheus.DefBuckets,
-		}, []string{fluxmetrics.LabelSuccess})
-		serverMetrics.ListServicesDuration = prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
-			Namespace: "flux",
-			Subsystem: "fluxsvc",
-			Name:      "list_services_duration_seconds",
-			Help:      "ListServices method duration in seconds.",
-			Buckets:   stdprometheus.DefBuckets,
-		}, []string{fluxmetrics.LabelSuccess})
-		serverMetrics.ListImagesDuration = prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
-			Namespace: "flux",
-			Subsystem: "fluxsvc",
-			Name:      "list_images_duration_seconds",
-			Help:      "ListImages method duration in seconds.",
-			Buckets:   stdprometheus.DefBuckets,
-		}, []string{"service_spec_all", fluxmetrics.LabelSuccess})
-		serverMetrics.HistoryDuration = prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
-			Namespace: "flux",
-			Subsystem: "fluxsvc",
-			Name:      "history_duration_seconds",
-			Help:      "History method duration in seconds.",
-			Buckets:   stdprometheus.DefBuckets,
-		}, []string{"service_spec_all", fluxmetrics.LabelSuccess})
-		serverMetrics.RegisterDaemonDuration = prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
-			Namespace: "flux",
-			Subsystem: "fluxsvc",
-			Name:      "register_daemon_duration_seconds",
-			Help:      "RegisterDaemon method duration in seconds.",
-			Buckets:   stdprometheus.DefBuckets,
-		}, []string{fluxmetrics.LabelSuccess})
-		serverMetrics.ConnectedDaemons = prometheus.NewGaugeFrom(stdprometheus.GaugeOpts{
-			Namespace: "flux",
-			Subsystem: "fluxsvc",
-			Name:      "connected_daemons_count",
-			Help:      "Gauge of the current number of connected daemons",
-		}, []string{})
-		serverMetrics.PlatformMetrics = platform.NewMetrics()
-		helperDuration = prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
-			Namespace: "flux",
-			Subsystem: "fluxsvc",
-			Name:      "release_helper_duration_seconds",
-			Help:      "Duration in seconds of a variety of release helper methods.",
-			Buckets:   stdprometheus.DefBuckets,
-		}, []string{fluxmetrics.LabelMethod, fluxmetrics.LabelSuccess})
-		releaseMetrics = release.NewMetrics()
-		registryMetrics = registry.NewMetrics()
-		busMetrics = platform.NewBusMetrics()
-		historyMetrics = history.NewMetrics()
-		instanceMetrics = instance.NewMetrics()
-		jobWorkerMetrics = jobs.NewWorkerMetrics()
-	}
-	stdprometheus.MustRegister(httpDuration)
-
 	var messageBus platform.MessageBus
 	{
 		if *natsURL != "" {
-			bus, err := nats.NewMessageBus(*natsURL, busMetrics)
+			bus, err := nats.NewMessageBus(*natsURL, platform.BusMetricsImpl)
 			if err != nil {
 				logger.Log("component", "message bus", "err", err)
 				os.Exit(1)
@@ -182,7 +101,7 @@ func main() {
 			logger.Log("component", "message bus", "type", "NATS")
 			messageBus = bus
 		} else {
-			messageBus = platform.NewStandaloneMessageBus(busMetrics)
+			messageBus = platform.NewStandaloneMessageBus(platform.BusMetricsImpl)
 			logger.Log("component", "message bus", "type", "standalone")
 		}
 	}
@@ -194,7 +113,7 @@ func main() {
 			logger.Log("component", "history", "err", err)
 			os.Exit(1)
 		}
-		historyDB = history.InstrumentedDB(db, historyMetrics)
+		historyDB = history.InstrumentedDB(db)
 	}
 
 	// Configuration, i.e., whether services are automated or not.
@@ -205,7 +124,7 @@ func main() {
 			logger.Log("component", "config", "err", err)
 			os.Exit(1)
 		}
-		instanceDB = instance.InstrumentedDB(db, instanceMetrics)
+		instanceDB = instance.InstrumentedDB(db)
 	}
 
 	var memcacheClient registry.MemcacheClient
@@ -228,9 +147,7 @@ func main() {
 			DB:                  instanceDB,
 			Connecter:           messageBus,
 			Logger:              logger,
-			Histogram:           helperDuration,
 			History:             historyDB,
-			RegistryMetrics:     registryMetrics,
 			MemcacheClient:      memcacheClient,
 			RegistryCacheExpiry: *registryCacheExpiry,
 		}
@@ -279,9 +196,9 @@ func main() {
 		jobs.AutomatedInstanceJob,
 	} {
 		logger := log.NewContext(logger).With("component", "worker", "queues", fmt.Sprint([]string{queue}))
-		worker := jobs.NewWorker(jobStore, logger, jobWorkerMetrics, []string{queue})
+		worker := jobs.NewWorker(jobStore, logger, []string{queue})
 		worker.Register(jobs.AutomatedInstanceJob, auto)
-		worker.Register(jobs.ReleaseJob, release.NewReleaser(instancer, releaseMetrics))
+		worker.Register(jobs.ReleaseJob, release.NewReleaser(instancer))
 
 		defer func() {
 			logger.Log("stopping", "true")
@@ -302,7 +219,7 @@ func main() {
 	}
 
 	// The server.
-	server := server.New(version, instancer, instanceDB, messageBus, jobStore, logger, serverMetrics)
+	server := server.New(version, instancer, instanceDB, messageBus, jobStore, logger)
 
 	// Mechanical components.
 	errc := make(chan error)
@@ -317,7 +234,7 @@ func main() {
 		logger.Log("addr", *listenAddr)
 		mux := http.NewServeMux()
 		mux.Handle("/metrics", promhttp.Handler())
-		handler := transport.NewHandler(server, transport.NewRouter(), logger, httpDuration)
+		handler := transport.NewHandler(server, transport.NewRouter(), logger)
 		mux.Handle("/", handler)
 		mux.Handle("/api/flux/", http.StripPrefix("/api/flux", handler))
 		errc <- http.ListenAndServe(*listenAddr, mux)

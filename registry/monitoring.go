@@ -12,21 +12,19 @@ import (
 type InstrumentedRegistry Registry
 
 type instrumentedRegistry struct {
-	next    Registry
-	metrics Metrics
+	next Registry
 }
 
-func NewInstrumentedRegistry(next Registry, metrics Metrics) InstrumentedRegistry {
+func NewInstrumentedRegistry(next Registry) InstrumentedRegistry {
 	return &instrumentedRegistry{
-		next:    next,
-		metrics: metrics,
+		next: next,
 	}
 }
 
 func (m *instrumentedRegistry) GetRepository(repository Repository) (res []flux.Image, err error) {
 	start := time.Now()
 	res, err = m.next.GetRepository(repository)
-	m.metrics.FetchDuration.With(
+	fetchDuration.With(
 		fluxmetrics.LabelSuccess, strconv.FormatBool(err == nil),
 	).Observe(time.Since(start).Seconds())
 	return
@@ -35,7 +33,7 @@ func (m *instrumentedRegistry) GetRepository(repository Repository) (res []flux.
 func (m *instrumentedRegistry) GetImage(repository Repository, tag string) (res flux.Image, err error) {
 	start := time.Now()
 	res, err = m.next.GetImage(repository, tag)
-	m.metrics.FetchDuration.With(
+	fetchDuration.With(
 		fluxmetrics.LabelSuccess, strconv.FormatBool(err == nil),
 	).Observe(time.Since(start).Seconds())
 	return
@@ -44,21 +42,19 @@ func (m *instrumentedRegistry) GetImage(repository Repository, tag string) (res 
 type InstrumentedRemote Remote
 
 type instrumentedRemote struct {
-	next    Remote
-	metrics Metrics
+	next Remote
 }
 
-func NewInstrumentedRemote(next Remote, metrics Metrics) Remote {
+func NewInstrumentedRemote(next Remote) Remote {
 	return &instrumentedRemote{
-		next:    next,
-		metrics: metrics,
+		next: next,
 	}
 }
 
 func (m *instrumentedRemote) Manifest(repository Repository, tag string) (res flux.Image, err error) {
 	start := time.Now()
 	res, err = m.next.Manifest(repository, tag)
-	m.metrics.RequestDuration.With(
+	requestDuration.With(
 		LabelRequestKind, RequestKindMetadata,
 		fluxmetrics.LabelSuccess, strconv.FormatBool(err == nil),
 	).Observe(time.Since(start).Seconds())
@@ -68,7 +64,7 @@ func (m *instrumentedRemote) Manifest(repository Repository, tag string) (res fl
 func (m *instrumentedRemote) Tags(repository Repository) (res []string, err error) {
 	start := time.Now()
 	res, err = m.next.Tags(repository)
-	m.metrics.RequestDuration.With(
+	requestDuration.With(
 		LabelRequestKind, RequestKindTags,
 		fluxmetrics.LabelSuccess, strconv.FormatBool(err == nil),
 	).Observe(time.Since(start).Seconds())
