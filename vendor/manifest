@@ -818,7 +818,7 @@
 			"importpath": "github.com/weaveworks/common/middleware",
 			"repository": "https://github.com/weaveworks/common",
 			"vcs": "git",
-			"revision": "08ae9c839237b80dd6fd41b8570573d1528cec3b",
+			"revision": "ceec9d7f5c36c903ff37d06aaa34fd69621b08d7",
 			"branch": "master",
 			"path": "/middleware",
 			"notests": true

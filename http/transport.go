@@ -29,6 +29,15 @@ import (
 
 func NewRouter() *mux.Router {
 	r := mux.NewRouter()
+	// Any versions not represented in the routes below are
+	// deprecated. They are done separately so we can see them as
+	// different methods in metrics and logging.
+	for _, version := range []string{"v1", "v2"} {
+		r.NewRoute().Name("Deprecated:" + version).PathPrefix("/" + version + "/").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			writeError(w, http.StatusGone, ErrorDeprecated)
+		})
+	}
+
 	r.NewRoute().Name("ListServices").Methods("GET").Path("/v3/services").Queries("namespace", "{namespace}") // optional namespace!
 	r.NewRoute().Name("ListImages").Methods("GET").Path("/v3/images").Queries("service", "{service}")
 	r.NewRoute().Name("PostRelease").Methods("POST").Path("/v4/release").Queries("service", "{service}", "image", "{image}", "kind", "{kind}")
@@ -47,6 +56,13 @@ func NewRouter() *mux.Router {
 	r.NewRoute().Name("IsConnected").Methods("HEAD", "GET").Path("/v4/ping")
 
 	r.NewRoute().Name("GetRelease:v6").Methods("GET").Path("/v6/release").Queries("id", "{id}")
+
+	// We assume every request that doesn't match a route is a client
+	// calling an old or hitherto unsupported API.
+	r.NewRoute().Name("NotFound").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		writeError(w, http.StatusNotFound, MakeAPINotFound(r.URL.Path))
+	})
+
 	return r
 }
 
@@ -598,11 +614,21 @@ func errorResponse(w http.ResponseWriter, r *http.Request, apiError error) {
 		err = flux.CoverAllError(apiError)
 	}
 
+	writeError(w, code, err)
+}
+
+func writeError(w http.ResponseWriter, code int, err error) {
+	body, encodeErr := json.Marshal(err)
+	if encodeErr != nil {
+		w.Header().Set(http.CanonicalHeaderKey("Content-Type"), "text/plain; charset=utf-8")
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintf(w, "Error encoding error response: %s\n\nOriginal error: %s", encodeErr.Error(), err.Error())
+		return
+	}
+
 	w.Header().Set(http.CanonicalHeaderKey("Content-Type"), "application/json; charset=utf-8")
 	w.WriteHeader(code)
-	if encodeErr := json.NewEncoder(w).Encode(err); encodeErr != nil {
-		fmt.Fprintf(w, "Error encoding error response: %s\n\nOriginal error: %s", encodeErr.Error(), err.Error())
-	}
+	w.Write(body)
 }
 
 func logging(next http.Handler, logger log.Logger) http.Handler {

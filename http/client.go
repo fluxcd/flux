@@ -191,8 +191,6 @@ func (c *client) executeRequest(req *http.Request) (*http.Response, error) {
 	switch resp.StatusCode {
 	case http.StatusOK, http.StatusCreated, http.StatusNoContent:
 		return resp, nil
-	case http.StatusGone:
-		return resp, ErrorGone
 	default:
 		// Use the content type to discriminate between `flux.Error`,
 		// and the previous "any old error"
