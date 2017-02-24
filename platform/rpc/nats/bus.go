@@ -72,7 +72,7 @@ func (n *NATS) AwaitPresence(instID flux.InstanceID, timeout time.Duration) erro
 				return nil
 			}
 		case <-timer:
-			return errors.New("presence timeout")
+			return platform.UnavailableError(errors.New("presence timeout"))
 		}
 	}
 }
@@ -155,6 +155,9 @@ type natsPlatform struct {
 func (r *natsPlatform) AllServices(ns string, ig flux.ServiceIDSet) ([]platform.Service, error) {
 	var response AllServicesResponse
 	if err := r.conn.Request(r.instance+methodAllServices, fluxrpc.AllServicesRequest{ns, ig}, &response, timeout); err != nil {
+		if err == nats.ErrTimeout {
+			err = platform.UnavailableError(err)
+		}
 		return nil, err
 	}
 	return response.Services, extractError(response.ErrorResponse)
@@ -163,6 +166,9 @@ func (r *natsPlatform) AllServices(ns string, ig flux.ServiceIDSet) ([]platform.
 func (r *natsPlatform) SomeServices(incl []flux.ServiceID) ([]platform.Service, error) {
 	var response SomeServicesResponse
 	if err := r.conn.Request(r.instance+methodSomeServices, incl, &response, timeout); err != nil {
+		if err == nats.ErrTimeout {
+			err = platform.UnavailableError(err)
+		}
 		return nil, err
 	}
 	return response.Services, extractError(response.ErrorResponse)
@@ -179,6 +185,9 @@ func (r *natsPlatform) SomeServices(incl []flux.ServiceID) ([]platform.Service, 
 func (r *natsPlatform) Apply(specs []platform.ServiceDefinition) error {
 	var response ApplyResponse
 	if err := r.conn.Request(r.instance+methodApply, specs, &response, applyTimeout); err != nil {
+		if err == nats.ErrTimeout {
+			err = platform.UnavailableError(err)
+		}
 		return err
 	}
 	if len(response.Result) > 0 {
@@ -194,6 +203,9 @@ func (r *natsPlatform) Apply(specs []platform.ServiceDefinition) error {
 func (r *natsPlatform) Ping() error {
 	var response PingResponse
 	if err := r.conn.Request(r.instance+methodPing, ping{}, &response, timeout); err != nil {
+		if err == nats.ErrTimeout {
+			err = platform.UnavailableError(err)
+		}
 		return err
 	}
 	return extractError(response.ErrorResponse)
@@ -202,6 +214,9 @@ func (r *natsPlatform) Ping() error {
 func (r *natsPlatform) Version() (string, error) {
 	var response VersionResponse
 	if err := r.conn.Request(r.instance+methodVersion, version{}, &response, timeout); err != nil {
+		if err == nats.ErrTimeout {
+			err = platform.UnavailableError(err)
+		}
 		return "", err
 	}
 	return response.Version, extractError(response.ErrorResponse)

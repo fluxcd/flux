@@ -23,7 +23,6 @@ import (
 	"github.com/weaveworks/flux/http/websocket"
 	"github.com/weaveworks/flux/integrations/github"
 	"github.com/weaveworks/flux/jobs"
-	"github.com/weaveworks/flux/platform"
 	"github.com/weaveworks/flux/platform/rpc"
 )
 
@@ -106,8 +105,7 @@ func handleListServices(s api.FluxService) http.Handler {
 		namespace := mux.Vars(r)["namespace"]
 		res, err := s.ListServices(inst, namespace)
 		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprintf(w, err.Error())
+			errorResponse(w, r, err)
 			return
 		}
 
@@ -541,11 +539,14 @@ func handleIsConnected(s api.FluxService) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		inst := getInstanceID(r)
 
-		switch s.IsDaemonConnected(inst) {
-		case platform.ErrPlatformNotAvailable:
-			w.WriteHeader(http.StatusNotFound)
-		case nil:
+		err := s.IsDaemonConnected(inst)
+		if err == nil {
 			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		switch err.(type) {
+		case flux.UserConfigProblem:
+			w.WriteHeader(http.StatusNotFound)
 		default:
 			w.WriteHeader(http.StatusInternalServerError)
 		}
@@ -597,24 +598,25 @@ func getInstanceID(req *http.Request) flux.InstanceID {
 }
 
 func errorResponse(w http.ResponseWriter, r *http.Request, apiError error) {
-	var err flux.BaseError
+	var outErr flux.BaseError
 	var code int
-	switch e := apiError.(type) {
+	err := errors.Cause(apiError)
+	switch err := err.(type) {
 	case flux.Missing:
 		code = http.StatusNotFound
-		err = e.BaseError
+		outErr = err.BaseError
 	case flux.UserConfigProblem:
 		code = http.StatusUnprocessableEntity
-		err = e.BaseError
+		outErr = err.BaseError
 	case flux.ServerException:
 		code = http.StatusInternalServerError
-		err = e.BaseError
+		outErr = err.BaseError
 	default:
 		code = http.StatusInternalServerError
-		err = flux.CoverAllError(apiError)
+		outErr = flux.CoverAllError(apiError)
 	}
 
-	writeError(w, code, err)
+	writeError(w, code, outErr)
 }
 
 func writeError(w http.ResponseWriter, code int, err error) {
