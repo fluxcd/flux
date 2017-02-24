@@ -45,15 +45,14 @@ func NewReleaseID() ReleaseID {
 
 // Release describes a release
 type Release struct {
-	ID         ReleaseID            `json:"id"`
-	InstanceID InstanceID           `json:"instanceID"`
-	CreatedAt  time.Time            `json:"createdAt"`
-	StartedAt  time.Time            `json:"startedAt"`
-	EndedAt    time.Time            `json:"endedAt"`
-	Done       bool                 `json:"done"`
-	Priority   int                  `json:"priority"`
-	Status     ServiceReleaseStatus `json:"status"`
-	Log        []string             `json:"log"`
+	ID        ReleaseID            `json:"id"`
+	CreatedAt time.Time            `json:"createdAt"`
+	StartedAt time.Time            `json:"startedAt"`
+	EndedAt   time.Time            `json:"endedAt"`
+	Done      bool                 `json:"done"`
+	Priority  int                  `json:"priority"`
+	Status    ServiceReleaseStatus `json:"status"`
+	Log       []string             `json:"log"`
 
 	Spec   ReleaseSpec   `json:"spec"`
 	Result ReleaseResult `json:"result"`

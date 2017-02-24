@@ -159,10 +159,9 @@ func (r *Releaser) release(instanceID flux.InstanceID, job *jobs.Job, logStatus 
 		status = flux.ReleaseStatusFailed
 	}
 	release := flux.Release{
-		ID:         flux.ReleaseID(job.ID),
-		InstanceID: job.Instance,
-		CreatedAt:  job.Submitted,
-		StartedAt:  job.Claimed,
+		ID:        flux.ReleaseID(job.ID),
+		CreatedAt: job.Submitted,
+		StartedAt: job.Claimed,
 		// TODO: fetch the job and look this up so it matches
 		// (which must be done after completing the job)
 		EndedAt:  time.Now().UTC(),
