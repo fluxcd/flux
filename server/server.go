@@ -11,7 +11,6 @@ import (
 
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/git"
-	"github.com/weaveworks/flux/history"
 	"github.com/weaveworks/flux/instance"
 	"github.com/weaveworks/flux/jobs"
 	fluxmetrics "github.com/weaveworks/flux/metrics"
@@ -214,7 +213,7 @@ func (s *Server) History(inst flux.InstanceID, spec flux.ServiceSpec) (res []flu
 		return nil, errors.Wrapf(err, "getting instance")
 	}
 
-	var events []history.Event
+	var events []flux.Event
 	if spec == flux.ServiceSpecAll {
 		events, err = helper.AllEvents()
 		if err != nil {
@@ -226,8 +225,7 @@ func (s *Server) History(inst flux.InstanceID, spec flux.ServiceSpec) (res []flu
 			return nil, errors.Wrapf(err, "parsing service ID from spec %s", spec)
 		}
 
-		namespace, service := id.Components()
-		events, err = helper.EventsForService(namespace, service)
+		events, err = helper.EventsForService(id)
 		if err != nil {
 			return nil, errors.Wrapf(err, "fetching history events for %s", id)
 		}
@@ -236,9 +234,10 @@ func (s *Server) History(inst flux.InstanceID, spec flux.ServiceSpec) (res []flu
 	res = make([]flux.HistoryEntry, len(events))
 	for i, event := range events {
 		res[i] = flux.HistoryEntry{
-			Stamp: &events[i].Stamp,
+			Stamp: &events[i].StartedAt,
 			Type:  "v0",
-			Data:  fmt.Sprintf("%s: %s", event.Service, event.Msg),
+			Data:  event.String(),
+			Event: event,
 		}
 	}
 
@@ -250,8 +249,16 @@ func (s *Server) Automate(instID flux.InstanceID, service flux.ServiceID) error 
 	if err != nil {
 		return err
 	}
-	ns, svc := service.Components()
-	inst.LogEvent(ns, svc, serviceAutomated)
+	now := time.Now().UTC()
+	if err := inst.LogEvent(flux.Event{
+		ServiceIDs: []flux.ServiceID{service},
+		Type:       flux.EventAutomate,
+		StartedAt:  now,
+		EndedAt:    now,
+		LogLevel:   flux.LogLevelInfo,
+	}); err != nil {
+		return err
+	}
 	return recordAutomated(inst, service, true)
 }
 
@@ -260,8 +267,16 @@ func (s *Server) Deautomate(instID flux.InstanceID, service flux.ServiceID) erro
 	if err != nil {
 		return err
 	}
-	ns, svc := service.Components()
-	inst.LogEvent(ns, svc, serviceDeautomated)
+	now := time.Now().UTC()
+	if err := inst.LogEvent(flux.Event{
+		ServiceIDs: []flux.ServiceID{service},
+		Type:       flux.EventDeautomate,
+		StartedAt:  now,
+		EndedAt:    now,
+		LogLevel:   flux.LogLevelInfo,
+	}); err != nil {
+		return err
+	}
 	return recordAutomated(inst, service, false)
 }
 
@@ -284,8 +299,16 @@ func (s *Server) Lock(instID flux.InstanceID, service flux.ServiceID) error {
 	if err != nil {
 		return err
 	}
-	ns, svc := service.Components()
-	inst.LogEvent(ns, svc, serviceLocked)
+	now := time.Now().UTC()
+	if err := inst.LogEvent(flux.Event{
+		ServiceIDs: []flux.ServiceID{service},
+		Type:       flux.EventLock,
+		StartedAt:  now,
+		EndedAt:    now,
+		LogLevel:   flux.LogLevelInfo,
+	}); err != nil {
+		return err
+	}
 	return recordLock(inst, service, true)
 }
 
@@ -294,8 +317,16 @@ func (s *Server) Unlock(instID flux.InstanceID, service flux.ServiceID) error {
 	if err != nil {
 		return err
 	}
-	ns, svc := service.Components()
-	inst.LogEvent(ns, svc, serviceUnlocked)
+	now := time.Now().UTC()
+	if err := inst.LogEvent(flux.Event{
+		ServiceIDs: []flux.ServiceID{service},
+		Type:       flux.EventUnlock,
+		StartedAt:  now,
+		EndedAt:    now,
+		LogLevel:   flux.LogLevelInfo,
+	}); err != nil {
+		return err
+	}
 	return recordLock(inst, service, false)
 }
 

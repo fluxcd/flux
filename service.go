@@ -254,6 +254,7 @@ type HistoryEntry struct {
 	Stamp *time.Time `json:",omitempty"`
 	Type  string
 	Data  string
+	Event Event
 }
 
 // TODO: How similar should this be to the `get-config` result?
