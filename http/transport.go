@@ -33,7 +33,7 @@ func NewRouter() *mux.Router {
 	// different methods in metrics and logging.
 	for _, version := range []string{"v1", "v2"} {
 		r.NewRoute().Name("Deprecated:" + version).PathPrefix("/" + version + "/").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			writeError(w, http.StatusGone, ErrorDeprecated)
+			writeError(w, r, http.StatusGone, ErrorDeprecated)
 		})
 	}
 
@@ -54,12 +54,10 @@ func NewRouter() *mux.Router {
 	r.NewRoute().Name("RegisterDaemon").Methods("GET").Path("/v4/daemon")
 	r.NewRoute().Name("IsConnected").Methods("HEAD", "GET").Path("/v4/ping")
 
-	r.NewRoute().Name("GetRelease:v6").Methods("GET").Path("/v6/release").Queries("id", "{id}")
-
 	// We assume every request that doesn't match a route is a client
 	// calling an old or hitherto unsupported API.
 	r.NewRoute().Name("NotFound").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		writeError(w, http.StatusNotFound, MakeAPINotFound(r.URL.Path))
+		writeError(w, r, http.StatusNotFound, MakeAPINotFound(r.URL.Path))
 	})
 
 	return r
@@ -83,8 +81,6 @@ func NewHandler(s api.FluxService, r *mux.Router, logger log.Logger) http.Handle
 		"PostIntegrationsGithub": handlePostIntegrationsGithub,
 		"RegisterDaemon":         handleRegister,
 		"IsConnected":            handleIsConnected,
-
-		"GetRelease:v6": handleGetReleaseV6,
 	} {
 		var handler http.Handler
 		handler = handlerFunc(s)
@@ -109,12 +105,15 @@ func handleListServices(s api.FluxService) http.Handler {
 			return
 		}
 
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		if err := json.NewEncoder(w).Encode(res); err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprintf(w, err.Error())
+		body, err := json.Marshal(res)
+		if err != nil {
+			errorResponse(w, r, err)
 			return
 		}
+
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(http.StatusOK)
+		w.Write(body)
 	})
 }
 
@@ -221,26 +220,6 @@ func handlePostRelease(s api.FluxService) http.Handler {
 }
 
 func handleGetRelease(s api.FluxService) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		inst := getInstanceID(r)
-		id := mux.Vars(r)["id"]
-		job, err := s.GetRelease(inst, jobs.JobID(id))
-		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprintf(w, err.Error())
-			return
-		}
-
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		if err := json.NewEncoder(w).Encode(job); err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprintf(w, err.Error())
-			return
-		}
-	})
-}
-
-func handleGetReleaseV6(s api.FluxService) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		inst := getInstanceID(r)
 		id := mux.Vars(r)["id"]
@@ -616,21 +595,42 @@ func errorResponse(w http.ResponseWriter, r *http.Request, apiError error) {
 		outErr = flux.CoverAllError(apiError)
 	}
 
-	writeError(w, code, outErr)
+	writeError(w, r, code, outErr)
 }
 
-func writeError(w http.ResponseWriter, code int, err error) {
-	body, encodeErr := json.Marshal(err)
-	if encodeErr != nil {
-		w.Header().Set(http.CanonicalHeaderKey("Content-Type"), "text/plain; charset=utf-8")
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintf(w, "Error encoding error response: %s\n\nOriginal error: %s", encodeErr.Error(), err.Error())
-		return
+func writeError(w http.ResponseWriter, r *http.Request, code int, err error) {
+	// An Accept header with "application/json" is sent by clients
+	// understanding how to decode JSON errors. Older clients don't
+	// send an Accept header, so we just give them the error text.
+	if len(r.Header.Get("Accept")) > 0 {
+		switch negotiateContentType(r, []string{"application/json", "text/plain"}) {
+		case "application/json":
+			body, encodeErr := json.Marshal(err)
+			if encodeErr != nil {
+				w.Header().Set(http.CanonicalHeaderKey("Content-Type"), "text/plain; charset=utf-8")
+				w.WriteHeader(http.StatusInternalServerError)
+				fmt.Fprintf(w, "Error encoding error response: %s\n\nOriginal error: %s", encodeErr.Error(), err.Error())
+				return
+			}
+			w.Header().Set(http.CanonicalHeaderKey("Content-Type"), "application/json; charset=utf-8")
+			w.WriteHeader(code)
+			w.Write(body)
+			return
+		case "text/plain":
+			w.Header().Set(http.CanonicalHeaderKey("Content-Type"), "text/plain; charset=utf-8")
+			w.WriteHeader(code)
+			switch err := err.(type) {
+			case flux.BaseError:
+				fmt.Fprint(w, err.Help)
+			default:
+				fmt.Fprint(w, err.Error())
+			}
+			return
+		}
 	}
-
-	w.Header().Set(http.CanonicalHeaderKey("Content-Type"), "application/json; charset=utf-8")
+	w.Header().Set(http.CanonicalHeaderKey("Content-Type"), "text/plain; charset=utf-8")
 	w.WriteHeader(code)
-	w.Write(body)
+	fmt.Fprint(w, err.Error())
 }
 
 func logging(next http.Handler, logger log.Logger) http.Handler {

@@ -320,6 +320,15 @@
 			"notests": true
 		},
 		{
+			"importpath": "github.com/golang/gddo/httputil/header",
+			"repository": "https://github.com/golang/gddo",
+			"vcs": "git",
+			"revision": "806603679dee755c926f72ac76673ee4594dcd32",
+			"branch": "master",
+			"path": "/httputil/header",
+			"notests": true
+		},
+		{
 			"importpath": "github.com/golang/glog",
 			"repository": "https://github.com/golang/glog",
 			"vcs": "git",

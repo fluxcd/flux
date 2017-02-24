@@ -59,7 +59,7 @@ func (c *client) PostRelease(_ flux.InstanceID, s jobs.ReleaseJobParams) (jobs.J
 
 func (c *client) GetRelease(_ flux.InstanceID, id jobs.JobID) (jobs.Job, error) {
 	var res jobs.Job
-	err := c.get(&res, "GetRelease:v6", "id", string(id))
+	err := c.get(&res, "GetRelease", "id", string(id))
 	return res, err
 }
 
@@ -138,6 +138,7 @@ func (c *client) postWithResp(dest interface{}, route string, body interface{}, 
 		return errors.Wrapf(err, "constructing request %s", u)
 	}
 	c.token.Set(req)
+	req.Header.Set("Accept", "application/json")
 
 	resp, err := c.executeRequest(req)
 	if err != nil {
@@ -170,6 +171,7 @@ func (c *client) get(dest interface{}, route string, queryParams ...string) erro
 		return errors.Wrapf(err, "constructing request %s", u)
 	}
 	c.token.Set(req)
+	req.Header.Set("Accept", "application/json")
 
 	resp, err := c.executeRequest(req)
 	if err != nil {
