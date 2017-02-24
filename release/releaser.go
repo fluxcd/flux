@@ -339,7 +339,7 @@ func calculateImageUpdates(inst *instance.Instance, candidates []*ServiceUpdate,
 				Error:  "image(s) up to date",
 			}
 		case ignoredOrSkipped == flux.ReleaseStatusIgnored:
-			logStatus("Ignoring service %s, does not use image(s) in question")
+			logStatus("Ignoring service %s, does not use image(s) in question", update.ServiceID)
 			results[update.ServiceID] = flux.ServiceResult{
 				Status: flux.ReleaseStatusIgnored,
 				Error:  "does not use image(s)",
