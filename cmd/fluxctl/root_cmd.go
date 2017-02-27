@@ -82,6 +82,8 @@ func (opts *rootOpts) Command() *cobra.Command {
 		newGetConfig(opts).Command(),
 		newSetConfig(opts).Command(),
 		newSave(opts).Command(),
+		newWatch(opts).Command(),
+		newUnwatch(opts).Command(),
 	)
 
 	return cmd

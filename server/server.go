@@ -26,18 +26,19 @@ const (
 )
 
 type Server struct {
-	version     string
-	instancer   instance.Instancer
-	config      instance.DB
-	messageBus  platform.MessageBus
-	jobs        jobs.JobStore
-	logger      log.Logger
-	maxPlatform chan struct{} // semaphore for concurrent calls to the platform
-	connected   int32
+	version         string
+	webhookEndpoint string
+	instancer       instance.Instancer
+	config          instance.DB
+	messageBus      platform.MessageBus
+	jobs            jobs.JobStore
+	logger          log.Logger
+	maxPlatform     chan struct{} // semaphore for concurrent calls to the platform
+	connected       int32
 }
 
 func New(
-	version string,
+	version, webhookEndpoint string,
 	instancer instance.Instancer,
 	config instance.DB,
 	messageBus platform.MessageBus,
@@ -61,6 +62,10 @@ func New(
 // get something working. There's also a lot of code duplication here for the
 // same reason: let's not add abstraction until it's merged, or nearly so, and
 // it's clear where the abstraction should exist.
+
+func (s *Server) WebhookEndpoint() string {
+	return s.webhookEndpoint
+}
 
 func (s *Server) Status(inst flux.InstanceID) (res flux.Status, err error) {
 	helper, err := s.instancer.Get(inst)

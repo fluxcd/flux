@@ -21,6 +21,8 @@ type ClientService interface {
 	SetConfig(flux.InstanceID, flux.UnsafeInstanceConfig) error
 	GenerateDeployKey(flux.InstanceID) error
 	Export(inst flux.InstanceID) ([]byte, error)
+	Watch(flux.InstanceID) (string, error)
+	Unwatch(flux.InstanceID) error
 }
 
 type DaemonService interface {
@@ -28,7 +30,12 @@ type DaemonService interface {
 	IsDaemonConnected(flux.InstanceID) error
 }
 
+type WebService interface {
+	WebhookEndpoint() string
+}
+
 type FluxService interface {
 	ClientService
 	DaemonService
+	WebService
 }

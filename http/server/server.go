@@ -49,6 +49,8 @@ func NewHandler(s api.FluxService, r *mux.Router, logger log.Logger) http.Handle
 		"RegisterDaemonV5":       handle.RegisterV5,
 		"IsConnected":            handle.IsConnected,
 		"Export":                 handle.Export,
+		"Watch":                  handle.Watch,
+		"Unwatch":                handle.Unwatch,
 	} {
 		handler := logging(handlerMethod, log.NewContext(logger).With("method", method))
 		r.Get(method).Handler(handler)
@@ -426,6 +428,29 @@ func (s HTTPService) Export(w http.ResponseWriter, r *http.Request) {
 	}
 
 	jsonResponse(w, r, status)
+}
+
+func (s HTTPService) Watch(w http.ResponseWriter, r *http.Request) {
+	inst := getInstanceID(r)
+	webhookEndpoint, err := s.service.Watch(inst)
+	if err != nil {
+		errorResponse(w, r, err)
+		return
+	}
+
+	resp := transport.PostWatchResponse{WebhookEndpoint: webhookEndpoint}
+	jsonResponse(w, r, resp)
+}
+
+func (s HTTPService) Unwatch(w http.ResponseWriter, r *http.Request) {
+	inst := getInstanceID(r)
+	err := s.service.Unwatch(inst)
+	if err != nil {
+		errorResponse(w, r, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
 }
 
 // --- end handlers

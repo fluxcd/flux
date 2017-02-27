@@ -119,6 +119,16 @@ func (c *client) Export(_ flux.InstanceID) ([]byte, error) {
 	return res, err
 }
 
+func (c *client) Watch(_ flux.InstanceID) (string, error) {
+	var resp transport.PostWatchResponse
+	err := c.postWithResp(&resp, "Watch", nil)
+	return resp.WebhookEndpoint, err
+}
+
+func (c *client) Unwatch(_ flux.InstanceID) error {
+	return c.post("Unwatch")
+}
+
 // post is a simple query-param only post request
 func (c *client) post(route string, queryParams ...string) error {
 	return c.postWithBody(route, nil, queryParams...)
