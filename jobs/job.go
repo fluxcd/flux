@@ -83,64 +83,30 @@ type Job struct {
 	Key string `json:"key,omitempty"`
 
 	// To be used by the worker
-	Submitted time.Time   `json:"submitted"`
-	Claimed   time.Time   `json:"claimed,omitempty"`
-	Heartbeat time.Time   `json:"heartbeat,omitempty"`
-	Finished  time.Time   `json:"finished,omitempty"`
-	Log       []string    `json:"log,omitempty"`
-	Result    interface{} `json:"result"` // may be updated to reflect progress
-	Status    string      `json:"status"`
-	Done      bool        `json:"done"`
-	Success   bool        `json:"success"` // only makes sense after done is true
+	Submitted time.Time       `json:"submitted"`
+	Claimed   time.Time       `json:"claimed,omitempty"`
+	Heartbeat time.Time       `json:"heartbeat,omitempty"`
+	Finished  time.Time       `json:"finished,omitempty"`
+	Log       []string        `json:"log,omitempty"`
+	Result    interface{}     `json:"result"` // may be updated to reflect progress
+	Status    string          `json:"status"`
+	Done      bool            `json:"done"`
+	Success   bool            `json:"success"` // only makes sense after done is true
+	Error     *flux.BaseError `json:"error,omitempty"`
 }
 
 func (j *Job) UnmarshalJSON(data []byte) error {
+	type JobAlias Job
 	var wireJob struct {
-		Instance flux.InstanceID `json:"instanceID"`
-		ID       JobID           `json:"id"`
-
-		// To be set when scheduling the job
-		Queue       string          `json:"queue"`
-		Method      string          `json:"method"`
-		Params      json.RawMessage `json:"params"`
-		ScheduledAt time.Time       `json:"scheduled_at"`
-		Priority    int             `json:"priority"`
-
-		// Key is an optional field, and can be used to create jobs iff a pending
-		// job with the same key doesn't exist.
-		Key string `json:"key,omitempty"`
-
-		// To be used by the worker
-		Submitted time.Time       `json:"submitted"`
-		Claimed   time.Time       `json:"claimed,omitempty"`
-		Heartbeat time.Time       `json:"heartbeat,omitempty"`
-		Finished  time.Time       `json:"finished,omitempty"`
-		Log       []string        `json:"log,omitempty"`
-		Result    json.RawMessage `json:"result"`
-		Status    string          `json:"status"`
-		Done      bool            `json:"done"`
-		Success   bool            `json:"success"` // only makes sense after done is true
+		*JobAlias
+		Params json.RawMessage `json:"params"`
+		Result json.RawMessage `json:"result"`
 	}
+	wireJob.JobAlias = (*JobAlias)(j)
 	if err := json.Unmarshal(data, &wireJob); err != nil {
 		return err
 	}
-	*j = Job{
-		Instance:    wireJob.Instance,
-		ID:          wireJob.ID,
-		Queue:       wireJob.Queue,
-		Method:      wireJob.Method,
-		ScheduledAt: wireJob.ScheduledAt,
-		Priority:    wireJob.Priority,
-		Key:         wireJob.Key,
-		Submitted:   wireJob.Submitted,
-		Claimed:     wireJob.Claimed,
-		Heartbeat:   wireJob.Heartbeat,
-		Finished:    wireJob.Finished,
-		Log:         wireJob.Log,
-		Status:      wireJob.Status,
-		Done:        wireJob.Done,
-		Success:     wireJob.Success,
-	}
+
 	switch j.Method {
 	case ReleaseJob:
 		var p ReleaseJobParams

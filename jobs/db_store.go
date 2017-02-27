@@ -44,70 +44,63 @@ func NewDatabaseStore(driver, datasource string, oldest time.Duration) (*Databas
 
 func (s *DatabaseStore) GetJob(inst flux.InstanceID, id JobID) (Job, error) {
 	var (
-		queue       string
-		method      string
+		job Job
+		err error
+
+		// these all need special treatment, either because they can
+		// be null, or because they need decoding
 		paramsBytes []byte
-		scheduledAt time.Time
-		priority    int
-		key         string
-		submittedAt time.Time
 		claimedAt   nullTime
 		heartbeatAt nullTime
 		finishedAt  nullTime
 		resultBytes []byte
-		logStr      string
-		status      string
+		logBytes    []byte
 		done        sql.NullBool
 		success     sql.NullBool
+		errorBytes  []byte
 	)
-	if err := s.conn.QueryRow(`
-		SELECT queue, method, params, scheduled_at, priority, key, submitted_at, claimed_at, heartbeat_at, finished_at, result, log, status, done, success
+
+	if err = s.conn.QueryRow(`
+		SELECT queue, method, params, scheduled_at, priority, key, submitted_at, claimed_at, heartbeat_at, finished_at, result, log, status, done, success, error
 		  FROM jobs
 		 WHERE id = $1
 		   AND instance_id = $2
 	`, string(id), string(inst)).Scan(
-		&queue, &method, &paramsBytes, &scheduledAt, &priority, &key, &submittedAt,
-		&claimedAt, &heartbeatAt, &finishedAt, &resultBytes, &logStr, &status, &done, &success,
+		&job.Queue, &job.Method, &paramsBytes, &job.ScheduledAt, &job.Priority, &job.Key, &job.Submitted,
+		&claimedAt, &heartbeatAt, &finishedAt, &resultBytes, &logBytes, &job.Status, &done, &success, &errorBytes,
 	); err == sql.ErrNoRows {
 		return Job{}, ErrNoSuchJob
 	} else if err != nil {
 		return Job{}, errors.Wrap(err, "error getting job")
 	}
 
-	params, err := s.scanParams(method, paramsBytes)
-	if err != nil {
+	job.Claimed = claimedAt.Time
+	job.Heartbeat = heartbeatAt.Time
+	job.Finished = finishedAt.Time
+	job.Done = done.Bool
+	job.Success = success.Bool
+
+	if job.Params, err = s.scanParams(job.Method, paramsBytes); err != nil {
 		return Job{}, errors.Wrap(err, "unmarshaling params")
 	}
 
-	result, err := s.scanResult(method, resultBytes)
-	if err != nil {
+	if job.Result, err = s.scanResult(job.Method, resultBytes); err != nil {
 		return Job{}, errors.Wrap(err, "unmarshaling result")
 	}
 
-	var log []string
-	if err := json.NewDecoder(strings.NewReader(logStr)).Decode(&log); err != nil {
+	var jerr flux.BaseError
+	if errorBytes != nil {
+		if err = json.Unmarshal(errorBytes, &jerr); err != nil {
+			return Job{}, err
+		}
+		job.Error = &jerr
+	}
+
+	if err = json.Unmarshal(logBytes, &job.Log); err != nil {
 		return Job{}, errors.Wrap(err, "unmarshaling log")
 	}
 
-	return Job{
-		Instance:    inst,
-		ID:          id,
-		Queue:       queue,
-		Method:      method,
-		Params:      params,
-		ScheduledAt: scheduledAt,
-		Priority:    priority,
-		Key:         key,
-		Submitted:   submittedAt,
-		Claimed:     claimedAt.Time,
-		Heartbeat:   heartbeatAt.Time,
-		Finished:    finishedAt.Time,
-		Result:      result,
-		Log:         log,
-		Status:      status,
-		Done:        done.Bool,
-		Success:     success.Bool,
-	}, nil
+	return job, nil
 }
 
 // PutJobIgnoringDuplicates schedules a job to run. Key field and any
@@ -381,14 +374,18 @@ func (s *DatabaseStore) UpdateJob(job Job) error {
 	if err != nil {
 		return errors.Wrap(err, "marshaling log")
 	}
+	errBytes, err := json.Marshal(job.Error)
+	if err != nil {
+		return errors.Wrap(err, "marshaling error")
+	}
 
 	return s.Transaction(func(s *DatabaseStore) error {
 		if res, err := s.conn.Exec(`
 			UPDATE jobs
-				 SET params = $1, result = $2, log = $3, status = $4
-			 WHERE id = $5
-				 AND instance_id = $6
-		`, string(paramsBytes), string(resultBytes), string(logBytes), job.Status, string(job.ID), string(job.Instance)); err != nil {
+				 SET params = $1, result = $2, log = $3, status = $4, error = $5
+			 WHERE id = $6
+				 AND instance_id = $7
+		`, string(paramsBytes), string(resultBytes), string(logBytes), job.Status, string(errBytes), string(job.ID), string(job.Instance)); err != nil {
 			return errors.Wrap(err, "updating job in database")
 		} else if n, err := res.RowsAffected(); err != nil {
 			return errors.Wrap(err, "after update, checking affected rows")

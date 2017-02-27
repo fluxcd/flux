@@ -37,8 +37,10 @@ func (e *BaseError) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &jsonable); err != nil {
 		return err
 	}
-	e.Help = jsonable.Help
-	e.Err = errors.New(jsonable.Err)
+	if jsonable != nil {
+		e.Help = jsonable.Help
+		e.Err = errors.New(jsonable.Err)
+	}
 	return nil
 }
 
