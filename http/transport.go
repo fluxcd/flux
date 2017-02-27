@@ -45,6 +45,7 @@ func NewRouter() *mux.Router {
 	r.NewRoute().Name("Export").Methods("HEAD", "GET").Path("/v5/export")
 	r.NewRoute().Name("Watch").Methods("POST").Path("/v4/watch")
 	r.NewRoute().Name("Unwatch").Methods("POST").Path("/v4/unwatch")
+	r.NewRoute().Name("Hooks").Methods("POST").Path("/hooks/{externalInstanceID}") // Unversioned, as this gets put into remote services
 
 	// We assume every request that doesn't match a route is a client
 	// calling an old or hitherto unsupported API.

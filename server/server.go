@@ -2,6 +2,7 @@ package server
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -26,23 +27,25 @@ const (
 )
 
 type Server struct {
-	version         string
-	webhookEndpoint string
-	instancer       instance.Instancer
-	config          instance.DB
-	messageBus      platform.MessageBus
-	jobs            jobs.JobStore
-	logger          log.Logger
-	maxPlatform     chan struct{} // semaphore for concurrent calls to the platform
-	connected       int32
+	version     string
+	webhookURL  string
+	instancer   instance.Instancer
+	config      instance.DB
+	messageBus  platform.MessageBus
+	jobs        jobs.JobStore
+	idMapper    instance.IDMapper
+	logger      log.Logger
+	maxPlatform chan struct{} // semaphore for concurrent calls to the platform
+	connected   int32
 }
 
 func New(
-	version, webhookEndpoint string,
+	version, webhookURL string,
 	instancer instance.Instancer,
 	config instance.DB,
 	messageBus platform.MessageBus,
 	jobs jobs.JobStore,
+	idMapper instance.IDMapper,
 	logger log.Logger,
 ) *Server {
 	connectedDaemons.Set(0)
@@ -52,6 +55,7 @@ func New(
 		config:      config,
 		messageBus:  messageBus,
 		jobs:        jobs,
+		idMapper:    idMapper,
 		logger:      logger,
 		maxPlatform: make(chan struct{}, 8),
 	}
@@ -63,8 +67,12 @@ func New(
 // same reason: let's not add abstraction until it's merged, or nearly so, and
 // it's clear where the abstraction should exist.
 
-func (s *Server) WebhookEndpoint() string {
-	return s.webhookEndpoint
+func (s *Server) WebhookURL(inst flux.InstanceID) (string, error) {
+	external, err := s.idMapper.ExternalInstanceID(inst)
+	if err != nil {
+		return "", errors.Wrap(err, "fetching instance id")
+	}
+	return filepath.Join(s.webhookURL, external), nil
 }
 
 func (s *Server) Status(inst flux.InstanceID) (res flux.Status, err error) {
@@ -443,4 +451,55 @@ func (s *Server) instrumentPlatform(instID flux.InstanceID, p platform.Platform)
 
 func (s *Server) IsDaemonConnected(instID flux.InstanceID) error {
 	return s.messageBus.Ping(instID)
+}
+
+func (s *Server) Watch(instID flux.InstanceID) (string, error) {
+	// Get current config
+	cfg, err := s.GetConfig(instID)
+	if err != nil {
+		return "", err
+	}
+	cfg.Watching = true
+
+	// TODO: Sync the repo, and apply the state immediately!
+
+	// Set new config
+	if err := s.config.UpdateConfig(instID, applyConfigUpdates(flux.UnsafeInstanceConfig(cfg))); err != nil {
+		return "", err
+	}
+	return s.WebhookURL(instID)
+}
+
+func (s *Server) Unwatch(instID flux.InstanceID) error {
+	// Get current config
+	cfg, err := s.GetConfig(instID)
+	if err != nil {
+		return err
+	}
+	cfg.Watching = false
+
+	// Set new config
+	return s.config.UpdateConfig(instID, applyConfigUpdates(flux.UnsafeInstanceConfig(cfg)))
+}
+
+func (s *Server) RepoUpdate(externalInstanceID string) error {
+	inst, err := s.idMapper.InternalInstanceID(externalInstanceID)
+	if err != nil {
+		return err
+	}
+
+	_, err = s.jobs.PutJob(inst, jobs.Job{
+		Queue: jobs.SyncJob,
+		// Key stops us getting two queued jobs for the same instance
+		Key: strings.Join([]string{
+			jobs.SyncJob,
+			string(inst),
+		}, "|"),
+		Method:   jobs.SyncJob,
+		Priority: jobs.PriorityBackground,
+		Params: jobs.SyncJobParams{
+			InstanceID: inst,
+		},
+	})
+	return err
 }

@@ -32,13 +32,13 @@ func (opts *watchOpts) RunE(_ *cobra.Command, args []string) error {
 		return errorWantedNoArgs
 	}
 
-	webhookEndpoint, err := opts.API.Watch(noInstanceID)
+	webhookURL, err := opts.API.Watch(noInstanceID)
 	if err != nil {
 		return err
 	}
 
 	fmt.Fprintf(os.Stdout, "Syncing state of manifests repo to the cluster.\n\n")
 	fmt.Fprintf(os.Stdout, "To ensure that new changes are applied, create\n")
-	fmt.Fprintf(os.Stdout, "a webhook from your repo to:\n%s\n", webhookEndpoint)
+	fmt.Fprintf(os.Stdout, "a webhook from your repo to:\n%s\n", webhookURL)
 	return nil
 }

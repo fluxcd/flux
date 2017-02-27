@@ -27,6 +27,7 @@ import (
 	"github.com/weaveworks/flux/registry"
 	"github.com/weaveworks/flux/release"
 	"github.com/weaveworks/flux/server"
+	"github.com/weaveworks/flux/users"
 )
 
 const shutdownTimeout = 30 * time.Second
@@ -54,7 +55,8 @@ func main() {
 		memcachedService      = fs.String("memcached-service", "memcached", "SRV service used to discover memcache servers.")
 		registryCacheExpiry   = fs.Duration("registry-cache-expiry", 20*time.Minute, "Duration to keep cached registry tag info. Must be < 1 month.")
 		versionFlag           = fs.Bool("version", false, "Get version number")
-		webhookEndpoint       = fs.String("webhook-endpoint", "", "Endpoint where webhooks should be configured to post to. If empty, no webhooks will be installed.")
+		webhookURL            = fs.String("webhook-url", "", "Base URL where webhooks should be configured to post to. If empty, no webhooks will be installed.")
+		instanceService       = fs.String("instance-service", "", `GRPC service to look up instances, for converting internal to external IDs (e.g. "<service>.<namespace>:<port>"). If empty, instance IDs will not be converted.`)
 	)
 	fs.Parse(os.Args)
 
@@ -220,8 +222,16 @@ func main() {
 		go cleaner.Clean(cleanTicker.C)
 	}
 
+	// Instance lookup service for mapping internal ids to external ids
+	var idMapper instance.IDMapper = instance.IdentityIDMapper
+	if *instanceService != "" {
+		client := users.NewClient(*instanceService)
+		idMapper = client
+		defer client.Close()
+	}
+
 	// The server.
-	server := server.New(version, *webhookEndpoint, instancer, instanceDB, messageBus, jobStore, logger)
+	server := server.New(version, *webhookURL, instancer, instanceDB, messageBus, jobStore, idMapper, logger)
 
 	// Mechanical components.
 	errc := make(chan error)
