@@ -193,6 +193,8 @@ func (c *client) executeRequest(req *http.Request) (*http.Response, error) {
 	switch resp.StatusCode {
 	case http.StatusOK, http.StatusCreated, http.StatusNoContent:
 		return resp, nil
+	case http.StatusUnauthorized:
+		return resp, ErrorUnauthorized
 	default:
 		// Use the content type to discriminate between `flux.Error`,
 		// and the previous "any old error"
@@ -207,6 +209,6 @@ func (c *client) executeRequest(req *http.Request) (*http.Response, error) {
 		if err != nil {
 			return resp, errors.Wrap(err, "reading assumed plaintext response body")
 		}
-		return resp, errors.New(string(body))
+		return resp, errors.New(resp.Status + " " + string(body))
 	}
 }

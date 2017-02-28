@@ -24,6 +24,18 @@ mentioning what you were attempting to do, and the output of
 	Err: errors.New("API endpoint deprecated"),
 }
 
+var ErrorUnauthorized = &flux.BaseError{
+	Help: `The request failed authentication
+
+This most likely means you have a missing or incorrect token. Please
+make sure you supply a service token, either by setting the
+environment variable FLUX_SERVICE_TOKEN, or using the argument --token
+with fluxctl.
+
+`,
+	Err: errors.New("request failed authentication"),
+}
+
 func MakeAPINotFound(path string) *flux.BaseError {
 	return &flux.BaseError{
 		Help: `The API endpoint requested is not supported by this server.

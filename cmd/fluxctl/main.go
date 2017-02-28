@@ -19,7 +19,7 @@ func run(args []string, stderr io.Writer) int {
 		case *flux.BaseError:
 			cmd.Println("== Error ==\n\n" + err.Help)
 		default:
-			cmd.Println("Error: ", err.Error())
+			cmd.Println("Error: " + err.Error())
 			cmd.Printf("Run '%v --help' for usage.\n", cmd.CommandPath())
 		}
 		return 1
