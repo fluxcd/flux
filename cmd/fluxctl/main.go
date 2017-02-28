@@ -7,7 +7,7 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/weaveworks/flux/http/error"
+	"github.com/weaveworks/flux/http/httperror"
 )
 
 func run(args []string, stderr io.Writer) int {

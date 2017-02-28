@@ -14,7 +14,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/weaveworks/flux"
-	"github.com/weaveworks/flux/http/error"
+	"github.com/weaveworks/flux/http/httperror"
 	"github.com/weaveworks/flux/jobs"
 	"github.com/weaveworks/flux/release"
 )

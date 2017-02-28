@@ -12,7 +12,7 @@ import (
 
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/api"
-	"github.com/weaveworks/flux/http/error"
+	"github.com/weaveworks/flux/http/httperror"
 	"github.com/weaveworks/flux/jobs"
 )
 
