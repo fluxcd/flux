@@ -88,12 +88,10 @@ func (s *DatabaseStore) GetJob(inst flux.InstanceID, id JobID) (Job, error) {
 		return Job{}, errors.Wrap(err, "unmarshaling result")
 	}
 
-	var jerr flux.BaseError
 	if errorBytes != nil {
-		if err = json.Unmarshal(errorBytes, &jerr); err != nil {
-			return Job{}, err
+		if err = json.Unmarshal(errorBytes, &job.Error); err != nil {
+			return Job{}, errors.Wrap(err, "unmarshaling error from job")
 		}
-		job.Error = &jerr
 	}
 
 	if err = json.Unmarshal(logBytes, &job.Log); err != nil {

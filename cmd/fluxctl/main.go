@@ -16,7 +16,7 @@ func run(args []string, stderr io.Writer) int {
 	if cmd, err := rootCmd.ExecuteC(); err != nil {
 		err = errors.Cause(err)
 		switch err := err.(type) {
-		case flux.BaseError:
+		case *flux.BaseError:
 			cmd.Println("== Error ==\n\n" + err.Help)
 		default:
 			cmd.Println("Error: ", err.Error())

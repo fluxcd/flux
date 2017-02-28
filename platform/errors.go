@@ -5,7 +5,7 @@ import (
 )
 
 func UnavailableError(err error) error {
-	return flux.UserConfigProblem{flux.BaseError{
+	return flux.UserConfigProblem{&flux.BaseError{
 		Help: `Cannot contact fluxd
 
 To service this request, we need to ask the agent running in your

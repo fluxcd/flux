@@ -5,6 +5,10 @@ import (
 	"errors"
 )
 
+type HelpfulError interface {
+	Base() *BaseError
+}
+
 // Representation of errors in the API. These are divided into a small
 // number of categories, essentially distinguished by whose fault the
 // error is; i.e., is this error:
@@ -18,13 +22,25 @@ type BaseError struct {
 	Err error
 }
 
-func (e BaseError) MarshalJSON() ([]byte, error) {
+func (e *BaseError) Base() *BaseError {
+	return e
+}
+
+func (e *BaseError) Error() string {
+	return e.Err.Error()
+}
+
+func (e *BaseError) MarshalJSON() ([]byte, error) {
+	var errMsg string
+	if e.Err != nil {
+		errMsg = e.Err.Error()
+	}
 	jsonable := &struct {
 		Help string `json:"help"`
 		Err  string `json:"error,omitempty"`
 	}{
 		Help: e.Help,
-		Err:  e.Err.Error(),
+		Err:  errMsg,
 	}
 	return json.Marshal(jsonable)
 }
@@ -39,13 +55,15 @@ func (e *BaseError) UnmarshalJSON(data []byte) error {
 	}
 	if jsonable != nil {
 		e.Help = jsonable.Help
-		e.Err = errors.New(jsonable.Err)
+		if jsonable.Err != "" {
+			e.Err = errors.New(jsonable.Err)
+		}
 	}
 	return nil
 }
 
-func CoverAllError(err error) BaseError {
-	return BaseError{
+func CoverAllError(err error) *BaseError {
+	return &BaseError{
 		Err: err,
 		Help: `An error occured for which we don't have a specific message.
 
@@ -58,24 +76,20 @@ when you saw this, and quoting the following:
 	}
 }
 
-func (err BaseError) Error() string {
-	return err.Err.Error()
-}
-
 // A problem that is most likely caused by the user's configuration
 // being incomplete or incorrect. For example, not having supplied a
 // git repo.
 type UserConfigProblem struct {
-	BaseError
+	*BaseError
 }
 
 // Something unexpected and bad happened and we're not sure why, but
 // if you retry it may have come right again.
 type ServerException struct {
-	BaseError
+	*BaseError
 }
 
 // The thing you asked for just doesn't exist. Sorry!
 type Missing struct {
-	BaseError
+	*BaseError
 }

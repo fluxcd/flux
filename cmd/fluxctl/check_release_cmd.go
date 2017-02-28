@@ -177,5 +177,9 @@ func (opts *serviceCheckReleaseOpts) RunE(cmd *cobra.Command, args []string) err
 	if spec.Kind == flux.ReleaseKindExecute {
 		fmt.Fprintf(os.Stdout, "Took %s\n", job.Finished.Sub(job.Submitted))
 	}
+
+	if job.Error != nil {
+		return job.Error
+	}
 	return nil
 }

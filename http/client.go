@@ -201,7 +201,7 @@ func (c *client) executeRequest(req *http.Request) (*http.Response, error) {
 			if err := json.NewDecoder(resp.Body).Decode(&niceError); err != nil {
 				return resp, errors.Wrap(err, "decoding error in response body")
 			}
-			return resp, niceError
+			return resp, &niceError
 		}
 		body, err := ioutil.ReadAll(resp.Body)
 		if err != nil {

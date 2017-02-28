@@ -577,7 +577,7 @@ func getInstanceID(req *http.Request) flux.InstanceID {
 }
 
 func errorResponse(w http.ResponseWriter, r *http.Request, apiError error) {
-	var outErr flux.BaseError
+	var outErr *flux.BaseError
 	var code int
 	err := errors.Cause(apiError)
 	switch err := err.(type) {
@@ -620,7 +620,7 @@ func writeError(w http.ResponseWriter, r *http.Request, code int, err error) {
 			w.Header().Set(http.CanonicalHeaderKey("Content-Type"), "text/plain; charset=utf-8")
 			w.WriteHeader(code)
 			switch err := err.(type) {
-			case flux.BaseError:
+			case *flux.BaseError:
 				fmt.Fprint(w, err.Help)
 			default:
 				fmt.Fprint(w, err.Error())

@@ -47,7 +47,7 @@ func TestJobEncodingDecoding(t *testing.T) {
 	bailIfErr(t, json.Unmarshal(b, &got))
 
 	if !reflect.DeepEqual(got, expected) {
-		t.Errorf("got %q, expected %q", got, expected)
+		t.Errorf("got %+v\nexpected %+v", got, expected)
 	}
 }
 

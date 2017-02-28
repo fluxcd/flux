@@ -27,7 +27,15 @@ const (
 )
 
 var (
-	ErrNoSuchJob        = errors.New("no such release job found")
+	// This is a user-facing error
+	ErrNoSuchJob = flux.Missing{&flux.BaseError{
+		Help: `The release you requested does not exist.
+
+This may mean that it has expired, or that you have mistyped the
+release ID.`,
+		Err: errors.New("no such release job found"),
+	}}
+
 	ErrNoJobAvailable   = errors.New("no job available")
 	ErrUnknownJobMethod = errors.New("unknown job method")
 	ErrJobAlreadyQueued = errors.New("job is already queued")
