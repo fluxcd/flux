@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"net/url"
@@ -20,7 +19,7 @@ import (
 
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/api"
-	"github.com/weaveworks/flux/http/error"
+	"github.com/weaveworks/flux/http/httperror"
 	"github.com/weaveworks/flux/http/websocket"
 	"github.com/weaveworks/flux/integrations/github"
 	"github.com/weaveworks/flux/jobs"
@@ -81,9 +80,6 @@ func NewHandler(s api.FluxService, r *mux.Router, logger log.Logger) http.Handle
 	}.Wrap(r)
 }
 
-// The idea here is to place the handleFoo and invokeFoo functions next to each
-// other, so changes in one can easily be accommodated in the other.
-
 func handleListServices(s api.FluxService) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		inst := getInstanceID(r)
@@ -102,31 +98,6 @@ func handleListServices(s api.FluxService) http.Handler {
 			return
 		}
 	})
-}
-
-func invokeListServices(client *http.Client, t flux.Token, router *mux.Router, endpoint string, namespace string) ([]flux.ServiceStatus, error) {
-	u, err := makeURL(endpoint, router, "ListServices", "namespace", namespace)
-	if err != nil {
-		return nil, errors.Wrap(err, "constructing URL")
-	}
-
-	req, err := http.NewRequest("GET", u.String(), nil)
-	if err != nil {
-		return nil, errors.Wrapf(err, "constructing request %s", u)
-	}
-	t.Set(req)
-
-	resp, err := executeRequest(client, req)
-	if err != nil {
-		return nil, errors.Wrap(err, "executing HTTP request")
-	}
-	defer resp.Body.Close()
-
-	var res []flux.ServiceStatus
-	if err := json.NewDecoder(resp.Body).Decode(&res); err != nil {
-		return nil, errors.Wrap(err, "decoding response from server")
-	}
-	return res, nil
 }
 
 func handleListImages(s api.FluxService) http.Handler {
@@ -153,31 +124,6 @@ func handleListImages(s api.FluxService) http.Handler {
 			return
 		}
 	})
-}
-
-func invokeListImages(client *http.Client, t flux.Token, router *mux.Router, endpoint string, s flux.ServiceSpec) ([]flux.ImageStatus, error) {
-	u, err := makeURL(endpoint, router, "ListImages", "service", string(s))
-	if err != nil {
-		return nil, errors.Wrap(err, "constructing URL")
-	}
-
-	req, err := http.NewRequest("GET", u.String(), nil)
-	if err != nil {
-		return nil, errors.Wrapf(err, "constructing request %s", u)
-	}
-	t.Set(req)
-
-	resp, err := executeRequest(client, req)
-	if err != nil {
-		return nil, errors.Wrap(err, "executing HTTP request")
-	}
-	defer resp.Body.Close()
-
-	var res []flux.ImageStatus
-	if err := json.NewDecoder(resp.Body).Decode(&res); err != nil {
-		return nil, errors.Wrap(err, "decoding response from server")
-	}
-	return res, nil
 }
 
 type postReleaseResponse struct {
@@ -256,39 +202,6 @@ func handlePostRelease(s api.FluxService) http.Handler {
 	})
 }
 
-func invokePostRelease(client *http.Client, t flux.Token, router *mux.Router, endpoint string, s jobs.ReleaseJobParams) (jobs.JobID, error) {
-	args := []string{"image", string(s.ImageSpec), "kind", string(s.Kind)}
-	for _, spec := range s.ServiceSpecs {
-		args = append(args, "service", string(spec))
-	}
-	for _, ex := range s.Excludes {
-		args = append(args, "exclude", string(ex))
-	}
-
-	u, err := makeURL(endpoint, router, "PostRelease", args...)
-	if err != nil {
-		return "", errors.Wrap(err, "constructing URL")
-	}
-
-	req, err := http.NewRequest("POST", u.String(), nil)
-	if err != nil {
-		return "", errors.Wrapf(err, "constructing request %s", u)
-	}
-	t.Set(req)
-
-	resp, err := executeRequest(client, req)
-	if err != nil {
-		return "", errors.Wrap(err, "executing HTTP request")
-	}
-	defer resp.Body.Close()
-
-	var res postReleaseResponse
-	if err := json.NewDecoder(resp.Body).Decode(&res); err != nil {
-		return "", errors.Wrap(err, "decoding response from server")
-	}
-	return res.ReleaseID, nil
-}
-
 func handleGetRelease(s api.FluxService) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		inst := getInstanceID(r)
@@ -307,31 +220,6 @@ func handleGetRelease(s api.FluxService) http.Handler {
 			return
 		}
 	})
-}
-
-func invokeGetRelease(client *http.Client, t flux.Token, router *mux.Router, endpoint string, id jobs.JobID) (jobs.Job, error) {
-	u, err := makeURL(endpoint, router, "GetRelease", "id", string(id))
-	if err != nil {
-		return jobs.Job{}, errors.Wrap(err, "constructing URL")
-	}
-
-	req, err := http.NewRequest("GET", u.String(), nil)
-	if err != nil {
-		return jobs.Job{}, errors.Wrapf(err, "constructing request %s", u)
-	}
-	t.Set(req)
-
-	resp, err := executeRequest(client, req)
-	if err != nil {
-		return jobs.Job{}, errors.Wrap(err, "executing HTTP request")
-	}
-	defer resp.Body.Close()
-
-	var res jobs.Job
-	if err := json.NewDecoder(resp.Body).Decode(&res); err != nil {
-		return jobs.Job{}, errors.Wrap(err, "decoding response from server")
-	}
-	return res, nil
 }
 
 func handleAutomate(s api.FluxService) http.Handler {
@@ -355,27 +243,6 @@ func handleAutomate(s api.FluxService) http.Handler {
 	})
 }
 
-func invokeAutomate(client *http.Client, t flux.Token, router *mux.Router, endpoint string, s flux.ServiceID) error {
-	u, err := makeURL(endpoint, router, "Automate", "service", string(s))
-	if err != nil {
-		return errors.Wrap(err, "constructing URL")
-	}
-
-	req, err := http.NewRequest("POST", u.String(), nil)
-	if err != nil {
-		return errors.Wrapf(err, "constructing request %s", u)
-	}
-	t.Set(req)
-
-	resp, err := executeRequest(client, req)
-	if err != nil {
-		return errors.Wrap(err, "executing HTTP request")
-	}
-	defer resp.Body.Close()
-
-	return nil
-}
-
 func handleDeautomate(s api.FluxService) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		inst := getInstanceID(r)
@@ -395,28 +262,6 @@ func handleDeautomate(s api.FluxService) http.Handler {
 
 		w.WriteHeader(http.StatusOK)
 	})
-}
-
-func invokeDeautomate(client *http.Client, t flux.Token, router *mux.Router, endpoint string, id flux.ServiceID) error {
-	u, err := makeURL(endpoint, router, "Deautomate", "service", string(id))
-	if err != nil {
-		return errors.Wrap(err, "constructing URL")
-	}
-
-	req, err := http.NewRequest("POST", u.String(), nil)
-	if err != nil {
-		return errors.Wrapf(err, "constructing request %s", u)
-	}
-	t.Set(req)
-
-	resp, err := executeRequest(client, req)
-	if err != nil {
-
-		return errors.Wrap(err, "executing HTTP request")
-	}
-	defer resp.Body.Close()
-
-	return nil
 }
 
 func handleLock(s api.FluxService) http.Handler {
@@ -440,27 +285,6 @@ func handleLock(s api.FluxService) http.Handler {
 	})
 }
 
-func invokeLock(client *http.Client, t flux.Token, router *mux.Router, endpoint string, id flux.ServiceID) error {
-	u, err := makeURL(endpoint, router, "Lock", "service", string(id))
-	if err != nil {
-		return errors.Wrap(err, "constructing URL")
-	}
-
-	req, err := http.NewRequest("POST", u.String(), nil)
-	if err != nil {
-		return errors.Wrapf(err, "constructing request %s", u)
-	}
-	t.Set(req)
-
-	resp, err := executeRequest(client, req)
-	if err != nil {
-		return errors.Wrap(err, "executing HTTP request")
-	}
-	defer resp.Body.Close()
-
-	return nil
-}
-
 func handleUnlock(s api.FluxService) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		inst := getInstanceID(r)
@@ -480,27 +304,6 @@ func handleUnlock(s api.FluxService) http.Handler {
 
 		w.WriteHeader(http.StatusOK)
 	})
-}
-
-func invokeUnlock(client *http.Client, t flux.Token, router *mux.Router, endpoint string, id flux.ServiceID) error {
-	u, err := makeURL(endpoint, router, "Unlock", "service", string(id))
-	if err != nil {
-		return errors.Wrap(err, "constructing URL")
-	}
-
-	req, err := http.NewRequest("POST", u.String(), nil)
-	if err != nil {
-		return errors.Wrapf(err, "constructing request %s", u)
-	}
-	t.Set(req)
-
-	resp, err := executeRequest(client, req)
-	if err != nil {
-		return errors.Wrap(err, "executing HTTP request")
-	}
-	defer resp.Body.Close()
-
-	return nil
 }
 
 func handleHistory(s api.FluxService) http.Handler {
@@ -530,32 +333,6 @@ func handleHistory(s api.FluxService) http.Handler {
 	})
 }
 
-func invokeHistory(client *http.Client, t flux.Token, router *mux.Router, endpoint string, s flux.ServiceSpec) ([]flux.HistoryEntry, error) {
-	u, err := makeURL(endpoint, router, "History", "service", string(s))
-	if err != nil {
-		return nil, errors.Wrap(err, "constructing URL")
-	}
-
-	req, err := http.NewRequest("GET", u.String(), nil)
-	if err != nil {
-		return nil, errors.Wrapf(err, "constructing request %s", u)
-	}
-	t.Set(req)
-
-	resp, err := executeRequest(client, req)
-	if err != nil {
-		return nil, errors.Wrap(err, "executing HTTP request")
-	}
-	defer resp.Body.Close()
-
-	var res []flux.HistoryEntry
-	if err := json.NewDecoder(resp.Body).Decode(&res); err != nil {
-		return nil, errors.Wrap(err, "decoding response from server")
-	}
-
-	return res, nil
-}
-
 func handleGetConfig(s api.FluxService) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		inst := getInstanceID(r)
@@ -577,31 +354,6 @@ func handleGetConfig(s api.FluxService) http.Handler {
 		w.Write(configBytes.Bytes())
 		return
 	})
-}
-
-func invokeGetConfig(client *http.Client, t flux.Token, router *mux.Router, endpoint string) (flux.InstanceConfig, error) {
-	u, err := makeURL(endpoint, router, "GetConfig")
-	if err != nil {
-		return flux.InstanceConfig{}, errors.Wrap(err, "constructing URL")
-	}
-
-	req, err := http.NewRequest("GET", u.String(), nil)
-	if err != nil {
-		return flux.InstanceConfig{}, errors.Wrapf(err, "constructing request %s", u)
-	}
-	t.Set(req)
-
-	resp, err := executeRequest(client, req)
-	if err != nil {
-		return flux.InstanceConfig{}, errors.Wrap(err, "executing HTTP request")
-	}
-	defer resp.Body.Close()
-
-	var res flux.InstanceConfig
-	if err := json.NewDecoder(resp.Body).Decode(&res); err != nil {
-		return res, errors.Wrap(err, "decoding response body")
-	}
-	return res, nil
 }
 
 func handleSetConfig(s api.FluxService) http.Handler {
@@ -627,32 +379,6 @@ func handleSetConfig(s api.FluxService) http.Handler {
 	})
 }
 
-func invokeSetConfig(client *http.Client, t flux.Token, router *mux.Router, endpoint string, updates flux.UnsafeInstanceConfig) error {
-	u, err := makeURL(endpoint, router, "SetConfig")
-	if err != nil {
-		return errors.Wrap(err, "constructing URL")
-	}
-
-	var configBytes bytes.Buffer
-	if err = json.NewEncoder(&configBytes).Encode(updates); err != nil {
-		return errors.Wrap(err, "encoding config updates")
-	}
-
-	req, err := http.NewRequest("POST", u.String(), &configBytes)
-	if err != nil {
-		return errors.Wrapf(err, "constructing request %s", u)
-	}
-	t.Set(req)
-
-	resp, err := executeRequest(client, req)
-	if err != nil {
-		return errors.Wrap(err, "executing HTTP request")
-	}
-	defer resp.Body.Close()
-
-	return nil
-}
-
 func handleGenerateKeys(s api.FluxService) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		inst := getInstanceID(r)
@@ -666,26 +392,6 @@ func handleGenerateKeys(s api.FluxService) http.Handler {
 		w.WriteHeader(http.StatusOK)
 		return
 	})
-}
-
-func invokeGenerateKeys(client *http.Client, t flux.Token, router *mux.Router, endpoint string) error {
-	u, err := makeURL(endpoint, router, "GenerateDeployKeys")
-	if err != nil {
-		return errors.Wrap(err, "constructing URL")
-	}
-
-	req, err := http.NewRequest("POST", u.String(), nil)
-	if err != nil {
-		return errors.Wrapf(err, "constructing request %s", u)
-	}
-	t.Set(req)
-
-	resp, err := executeRequest(client, req)
-	if err != nil {
-		return errors.Wrap(err, "executing HTTP request")
-	}
-	defer resp.Body.Close()
-	return nil
 }
 
 func handlePostIntegrationsGithub(s api.FluxService) http.Handler {
@@ -742,31 +448,6 @@ func handlePostIntegrationsGithub(s api.FluxService) http.Handler {
 	})
 }
 
-func invokeStatus(client *http.Client, t flux.Token, router *mux.Router, endpoint string) (flux.Status, error) {
-	u, err := makeURL(endpoint, router, "Status")
-	if err != nil {
-		return flux.Status{}, errors.Wrap(err, "constructing URL")
-	}
-
-	req, err := http.NewRequest("GET", u.String(), nil)
-	if err != nil {
-		return flux.Status{}, errors.Wrapf(err, "constructing request %s", u)
-	}
-	t.Set(req)
-
-	resp, err := executeRequest(client, req)
-	if err != nil {
-		return flux.Status{}, errors.Wrap(err, "executing HTTP request")
-	}
-	defer resp.Body.Close()
-
-	var res flux.Status
-	if err := json.NewDecoder(resp.Body).Decode(&res); err != nil {
-		return res, errors.Wrap(err, "decoding response body")
-	}
-	return res, nil
-}
-
 func handleStatus(s api.FluxService) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		inst := getInstanceID(r)
@@ -817,9 +498,6 @@ func handleRegister(s api.FluxService) http.Handler {
 	})
 }
 
-// invokeRegister, which might be expected here, is supplanted by
-// `Daemon.connect()`.
-
 func handleIsConnected(s api.FluxService) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		inst := getInstanceID(r)
@@ -836,10 +514,7 @@ func handleIsConnected(s api.FluxService) http.Handler {
 	})
 }
 
-// invokeIsConnected is not implemented, since it is not (at present)
-// used in a command-line client command.
-
-// --- end handle/invoke
+// --- end handle
 
 func mustGetPathTemplate(route *mux.Route) string {
 	t, err := route.GetPathTemplate()
@@ -880,25 +555,6 @@ func getInstanceID(req *http.Request) flux.InstanceID {
 		return flux.DefaultInstanceID
 	}
 	return flux.InstanceID(s)
-}
-
-func executeRequest(client *http.Client, req *http.Request) (*http.Response, error) {
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, errors.Wrap(err, "executing HTTP request")
-	}
-	switch resp.StatusCode {
-	case http.StatusOK:
-		return resp, nil
-	default:
-		buf, _ := ioutil.ReadAll(resp.Body)
-		body := strings.TrimSpace(string(buf))
-		return nil, &httperror.APIError{
-			StatusCode: resp.StatusCode,
-			Status:     resp.Status,
-			Body:       body,
-		}
-	}
 }
 
 func logging(next http.Handler, logger log.Logger) http.Handler {

@@ -13,7 +13,6 @@ import (
 	"github.com/weaveworks/flux/git"
 	"github.com/weaveworks/flux/instance"
 	"github.com/weaveworks/flux/jobs"
-	fluxmetrics "github.com/weaveworks/flux/metrics"
 	"github.com/weaveworks/flux/platform"
 	"github.com/weaveworks/flux/registry"
 )
@@ -64,12 +63,6 @@ func New(
 // it's clear where the abstraction should exist.
 
 func (s *Server) Status(inst flux.InstanceID) (res flux.Status, err error) {
-	defer func(begin time.Time) {
-		statusDuration.With(
-			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
-		).Observe(time.Since(begin).Seconds())
-	}(time.Now())
-
 	helper, err := s.instancer.Get(inst)
 	if err != nil {
 		return res, errors.Wrapf(err, "getting instance")
@@ -94,12 +87,6 @@ func (s *Server) Status(inst flux.InstanceID) (res flux.Status, err error) {
 }
 
 func (s *Server) ListServices(inst flux.InstanceID, namespace string) (res []flux.ServiceStatus, err error) {
-	defer func(begin time.Time) {
-		listServicesDuration.With(
-			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
-		).Observe(time.Since(begin).Seconds())
-	}(time.Now())
-
 	helper, err := s.instancer.Get(inst)
 	if err != nil {
 		return nil, errors.Wrapf(err, "getting instance")
@@ -145,13 +132,6 @@ func containers2containers(cs []platform.Container) []flux.Container {
 }
 
 func (s *Server) ListImages(inst flux.InstanceID, spec flux.ServiceSpec) (res []flux.ImageStatus, err error) {
-	defer func(begin time.Time) {
-		listImagesDuration.With(
-			"service_spec_all", fmt.Sprint(spec == flux.ServiceSpecAll),
-			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
-		).Observe(time.Since(begin).Seconds())
-	}(time.Now())
-
 	helper, err := s.instancer.Get(inst)
 	if err != nil {
 		return nil, errors.Wrapf(err, "getting instance")
@@ -201,13 +181,6 @@ func containersWithAvailable(service platform.Service, images instance.ImageMap)
 }
 
 func (s *Server) History(inst flux.InstanceID, spec flux.ServiceSpec) (res []flux.HistoryEntry, err error) {
-	defer func(begin time.Time) {
-		historyDuration.With(
-			"service_spec_all", fmt.Sprint(spec == flux.ServiceSpecAll),
-			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
-		).Observe(time.Since(begin).Seconds())
-	}(time.Now())
-
 	helper, err := s.instancer.Get(inst)
 	if err != nil {
 		return nil, errors.Wrapf(err, "getting instance")
@@ -424,16 +397,12 @@ func (s *Server) GenerateDeployKey(instID flux.InstanceID) error {
 // will get an error when we try to use the client. We rely on that to
 // break us out of this method.
 func (s *Server) RegisterDaemon(instID flux.InstanceID, platform platform.Platform) (err error) {
-	defer func(begin time.Time) {
+	defer func() {
 		if err != nil {
 			s.logger.Log("method", "RegisterDaemon", "err", err)
 		}
-
-		registerDaemonDuration.With(
-			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
-		).Observe(time.Since(begin).Seconds())
 		connectedDaemons.Set(float64(atomic.AddInt32(&s.connected, -1)))
-	}(time.Now())
+	}()
 	connectedDaemons.Set(float64(atomic.AddInt32(&s.connected, 1)))
 
 	// Register the daemon with our message bus, waiting for it to be
