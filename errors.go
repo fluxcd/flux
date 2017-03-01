@@ -65,14 +65,17 @@ func (e *BaseError) UnmarshalJSON(data []byte) error {
 func CoverAllError(err error) *BaseError {
 	return &BaseError{
 		Err: err,
-		Help: `An error occured for which we don't have a specific message.
+		Help: `Internal error: ` + err.Error() + `
 
-If you see this, it means we need to come up with a better message! It
-would help us if you log an issue at
-https://github.com/weaveworks/flux/issues saying what you were doing
-when you saw this, and quoting the following:
+We don't have a specific help message for the error above.
 
-    ` + err.Error(),
+It would help us remedy this if you log an issue at
+
+    https://github.com/weaveworks/flux/issues
+
+saying what you were doing when you saw this, and quoting the message
+at the top.
+`,
 	}
 }
 

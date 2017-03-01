@@ -29,7 +29,7 @@ There was a problem cloning your git repository,
     ` + url + `
 
 This may be because you have not supplied a valid deploy key, or
-because the repository has been moved or deleted (or never existed!).
+because the repository has been moved, deleted, or never existed.
 
 Please check that there is a repository at the address above, and that
 there is a deploy key with write permissions to the repository. In
