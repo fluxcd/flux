@@ -7,6 +7,10 @@ import (
 	"github.com/weaveworks/flux"
 )
 
+var (
+	errNotSubscribed = UnavailableError(errors.New("daemon not subscribed"))
+)
+
 type StandaloneMessageBus struct {
 	connected map[flux.InstanceID]*removeablePlatform
 	sync.RWMutex
@@ -70,7 +74,7 @@ func (s *StandaloneMessageBus) Subscribe(inst flux.InstanceID, p Platform, compl
 }
 
 // Ping returns nil if the specified instance is connected, and
-// ErrPlatformNotAvailable if not.
+// an error if not.
 func (s *StandaloneMessageBus) Ping(inst flux.InstanceID) error {
 	var (
 		p  Platform
@@ -83,11 +87,11 @@ func (s *StandaloneMessageBus) Ping(inst flux.InstanceID) error {
 	if ok {
 		return p.Ping()
 	}
-	return ErrPlatformNotAvailable
+	return errNotSubscribed
 }
 
-// Version returns the fluxd version for the connected instance if the specified instance is connected, and
-// ErrPlatformNotAvailable if not.
+// Version returns the fluxd version for the connected instance if the
+// specified instance is connected, and an error if not.
 func (s *StandaloneMessageBus) Version(inst flux.InstanceID) (string, error) {
 	var (
 		p  Platform
@@ -100,7 +104,7 @@ func (s *StandaloneMessageBus) Version(inst flux.InstanceID) (string, error) {
 	if ok {
 		return p.Version()
 	}
-	return "", ErrPlatformNotAvailable
+	return "", errNotSubscribed
 }
 
 type removeablePlatform struct {
@@ -167,21 +171,21 @@ func (p *removeablePlatform) Version() (v string, err error) {
 type disconnectedPlatform struct{}
 
 func (p disconnectedPlatform) AllServices(string, flux.ServiceIDSet) ([]Service, error) {
-	return nil, ErrPlatformNotAvailable
+	return nil, errNotSubscribed
 }
 
 func (p disconnectedPlatform) SomeServices([]flux.ServiceID) ([]Service, error) {
-	return nil, ErrPlatformNotAvailable
+	return nil, errNotSubscribed
 }
 
 func (p disconnectedPlatform) Apply([]ServiceDefinition) error {
-	return ErrPlatformNotAvailable
+	return errNotSubscribed
 }
 
 func (p disconnectedPlatform) Ping() error {
-	return ErrPlatformNotAvailable
+	return errNotSubscribed
 }
 
 func (p disconnectedPlatform) Version() (string, error) {
-	return "", ErrPlatformNotAvailable
+	return "", errNotSubscribed
 }

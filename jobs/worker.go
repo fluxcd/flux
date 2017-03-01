@@ -7,6 +7,7 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
 
+	"github.com/weaveworks/flux"
 	fluxmetrics "github.com/weaveworks/flux/metrics"
 )
 
@@ -100,9 +101,18 @@ func (w *Worker) Work() {
 		job.Done = true
 		if err != nil {
 			job.Success = false
-			status := fmt.Sprintf("Failed: %v", err)
+			status := fmt.Sprintf("Failed: %s", err)
 			job.Status = status
 			job.Log = append(job.Log, status)
+			// Find the underlying, "helpful" error. We get the base
+			// error because we don't care about dispatching on the
+			// kind of error, just the help message.
+			err = errors.Cause(err)
+			if baseErr, ok := err.(flux.HelpfulError); ok {
+				job.Error = baseErr.Base()
+			} else {
+				job.Error = flux.CoverAllError(err)
+			}
 		} else {
 			job.Success = true
 			job.Status = "Complete."

@@ -2,6 +2,7 @@ package jobs
 
 import (
 	"encoding/json"
+	"errors"
 	"reflect"
 	"testing"
 	"time"
@@ -37,7 +38,8 @@ func TestJobEncodingDecoding(t *testing.T) {
 		Log:     []string{"log1"},
 		Status:  "status",
 		Done:    true,
-		Success: true,
+		Success: false,
+		Error:   &flux.BaseError{Err: errors.New("actual error"), Help: "helpful text"},
 	}
 	b, err := json.Marshal(expected)
 	bailIfErr(t, err)
@@ -45,7 +47,7 @@ func TestJobEncodingDecoding(t *testing.T) {
 	bailIfErr(t, json.Unmarshal(b, &got))
 
 	if !reflect.DeepEqual(got, expected) {
-		t.Errorf("got %q, expected %q", got, expected)
+		t.Errorf("got %+v\nexpected %+v", got, expected)
 	}
 }
 

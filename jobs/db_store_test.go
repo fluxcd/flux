@@ -1,6 +1,7 @@
 package jobs
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -45,7 +46,7 @@ func Setup(t *testing.T) *DatabaseStore {
 	}
 
 	if _, err = db.Migrate(*databaseSource, "../db/migrations"); err != nil {
-		t.Fatal(err)
+		t.Fatalf("error migrating: %s", err.Error())
 	}
 
 	db, err := NewDatabaseStore(db.DriverForScheme(u.Scheme), *databaseSource, 1*time.Minute)
@@ -183,12 +184,17 @@ func TestDatabaseStore(t *testing.T) {
 	newStatus := "Being used in testing"
 	interactiveJob.Status = newStatus
 	interactiveJob.Log = append(interactiveJob.Log, newStatus)
+	jobError := flux.BaseError{Err: errors.New("underlying error"), Help: "helpful text goes here"}
+	interactiveJob.Error = &jobError
 	bailIfErr(t, db.UpdateJob(interactiveJob))
 	// - It should have saved the changes
 	interactiveJob, err = db.GetJob(instance, interactiveJobID)
 	bailIfErr(t, err)
 	if interactiveJob.Status != newStatus || len(interactiveJob.Log) != 2 || interactiveJob.Log[1] != interactiveJob.Status {
 		t.Errorf("expected job to have new log and status")
+	}
+	if interactiveJob.Error == nil || interactiveJob.Error.Help != jobError.Help {
+		t.Errorf("expected job to have error with same help text, got %v", interactiveJob.Error)
 	}
 
 	// Heartbeat the job

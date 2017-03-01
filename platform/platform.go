@@ -12,10 +12,6 @@ import (
 	"github.com/weaveworks/flux"
 )
 
-var (
-	ErrPlatformNotAvailable = errors.New("Platform is not available")
-)
-
 // Platform is the interface various platforms fulfill, e.g.
 // *kubernetes.Cluster
 type Platform interface {

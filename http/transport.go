@@ -23,12 +23,20 @@ import (
 	"github.com/weaveworks/flux/http/websocket"
 	"github.com/weaveworks/flux/integrations/github"
 	"github.com/weaveworks/flux/jobs"
-	"github.com/weaveworks/flux/platform"
 	"github.com/weaveworks/flux/platform/rpc"
 )
 
 func NewRouter() *mux.Router {
 	r := mux.NewRouter()
+	// Any versions not represented in the routes below are
+	// deprecated. They are done separately so we can see them as
+	// different methods in metrics and logging.
+	for _, version := range []string{"v1", "v2"} {
+		r.NewRoute().Name("Deprecated:" + version).PathPrefix("/" + version + "/").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			writeError(w, r, http.StatusGone, ErrorDeprecated)
+		})
+	}
+
 	r.NewRoute().Name("ListServices").Methods("GET").Path("/v3/services").Queries("namespace", "{namespace}") // optional namespace!
 	r.NewRoute().Name("ListImages").Methods("GET").Path("/v3/images").Queries("service", "{service}")
 	r.NewRoute().Name("PostRelease").Methods("POST").Path("/v4/release").Queries("service", "{service}", "image", "{image}", "kind", "{kind}")
@@ -45,6 +53,13 @@ func NewRouter() *mux.Router {
 	r.NewRoute().Name("PostIntegrationsGithub").Methods("POST").Path("/v5/integrations/github").Queries("owner", "{owner}", "repository", "{repository}")
 	r.NewRoute().Name("RegisterDaemon").Methods("GET").Path("/v4/daemon")
 	r.NewRoute().Name("IsConnected").Methods("HEAD", "GET").Path("/v4/ping")
+
+	// We assume every request that doesn't match a route is a client
+	// calling an old or hitherto unsupported API.
+	r.NewRoute().Name("NotFound").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		writeError(w, r, http.StatusNotFound, MakeAPINotFound(r.URL.Path))
+	})
+
 	return r
 }
 
@@ -86,17 +101,11 @@ func handleListServices(s api.FluxService) http.Handler {
 		namespace := mux.Vars(r)["namespace"]
 		res, err := s.ListServices(inst, namespace)
 		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprintf(w, err.Error())
+			errorResponse(w, r, err)
 			return
 		}
 
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		if err := json.NewEncoder(w).Encode(res); err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprintf(w, err.Error())
-			return
-		}
+		jsonResponse(w, r, res)
 	})
 }
 
@@ -106,23 +115,17 @@ func handleListImages(s api.FluxService) http.Handler {
 		service := mux.Vars(r)["service"]
 		spec, err := flux.ParseServiceSpec(service)
 		if err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			fmt.Fprintf(w, errors.Wrapf(err, "parsing service spec %q", service).Error())
-			return
-		}
-		d, err := s.ListImages(inst, spec)
-		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprintf(w, err.Error())
+			writeError(w, r, http.StatusBadRequest, errors.Wrapf(err, "parsing service spec %q", service))
 			return
 		}
 
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		if err := json.NewEncoder(w).Encode(d); err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprintf(w, err.Error())
+		d, err := s.ListImages(inst, spec)
+		if err != nil {
+			errorResponse(w, r, err)
 			return
 		}
+
+		jsonResponse(w, r, d)
 	})
 }
 
@@ -140,30 +143,26 @@ func handlePostRelease(s api.FluxService) http.Handler {
 			kind  = vars["kind"]
 		)
 		if err := r.ParseForm(); err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			fmt.Fprintf(w, errors.Wrapf(err, "parsing form").Error())
+			writeError(w, r, http.StatusBadRequest, errors.Wrapf(err, "parsing form"))
 			return
 		}
 		var serviceSpecs []flux.ServiceSpec
 		for _, service := range r.Form["service"] {
 			serviceSpec, err := flux.ParseServiceSpec(service)
 			if err != nil {
-				w.WriteHeader(http.StatusBadRequest)
-				fmt.Fprintf(w, errors.Wrapf(err, "parsing service spec %q", service).Error())
+				writeError(w, r, http.StatusBadRequest, errors.Wrapf(err, "parsing service spec %q", service))
 				return
 			}
 			serviceSpecs = append(serviceSpecs, serviceSpec)
 		}
 		imageSpec, err := flux.ParseImageSpec(image)
 		if err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			fmt.Fprintf(w, errors.Wrapf(err, "parsing image spec %q", image).Error())
+			writeError(w, r, http.StatusBadRequest, errors.Wrapf(err, "parsing image spec %q", image))
 			return
 		}
 		releaseKind, err := flux.ParseReleaseKind(kind)
 		if err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			fmt.Fprintf(w, errors.Wrapf(err, "parsing release kind %q", kind).Error())
+			writeError(w, r, http.StatusBadRequest, errors.Wrapf(err, "parsing release kind %q", kind))
 			return
 		}
 
@@ -171,8 +170,7 @@ func handlePostRelease(s api.FluxService) http.Handler {
 		for _, ex := range r.URL.Query()["exclude"] {
 			s, err := flux.ParseServiceID(ex)
 			if err != nil {
-				w.WriteHeader(http.StatusBadRequest)
-				fmt.Fprintf(w, errors.Wrapf(err, "parsing excluded service %q", ex).Error())
+				writeError(w, r, http.StatusBadRequest, errors.Wrapf(err, "parsing excluded service %q", ex))
 				return
 			}
 			excludes = append(excludes, s)
@@ -185,20 +183,14 @@ func handlePostRelease(s api.FluxService) http.Handler {
 			Excludes:     excludes,
 		})
 		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprintf(w, err.Error())
+			errorResponse(w, r, err)
 			return
 		}
 
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		if err := json.NewEncoder(w).Encode(postReleaseResponse{
+		jsonResponse(w, r, postReleaseResponse{
 			Status:    "Queued.",
 			ReleaseID: id,
-		}); err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprintf(w, err.Error())
-			return
-		}
+		})
 	})
 }
 
@@ -208,17 +200,11 @@ func handleGetRelease(s api.FluxService) http.Handler {
 		id := mux.Vars(r)["id"]
 		job, err := s.GetRelease(inst, jobs.JobID(id))
 		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprintf(w, err.Error())
+			errorResponse(w, r, err)
 			return
 		}
 
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		if err := json.NewEncoder(w).Encode(job); err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprintf(w, err.Error())
-			return
-		}
+		jsonResponse(w, r, job)
 	})
 }
 
@@ -228,14 +214,12 @@ func handleAutomate(s api.FluxService) http.Handler {
 		service := mux.Vars(r)["service"]
 		id, err := flux.ParseServiceID(service)
 		if err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			fmt.Fprintf(w, errors.Wrapf(err, "parsing service ID %q", id).Error())
+			writeError(w, r, http.StatusBadRequest, errors.Wrapf(err, "parsing service ID %q", id))
 			return
 		}
 
 		if err = s.Automate(inst, id); err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprintf(w, err.Error())
+			errorResponse(w, r, err)
 			return
 		}
 
@@ -249,14 +233,12 @@ func handleDeautomate(s api.FluxService) http.Handler {
 		service := mux.Vars(r)["service"]
 		id, err := flux.ParseServiceID(service)
 		if err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			fmt.Fprintf(w, errors.Wrapf(err, "parsing service ID %q", id).Error())
+			writeError(w, r, http.StatusBadRequest, errors.Wrapf(err, "parsing service ID %q", id))
 			return
 		}
 
 		if err = s.Deautomate(inst, id); err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprintf(w, err.Error())
+			errorResponse(w, r, err)
 			return
 		}
 
@@ -270,14 +252,12 @@ func handleLock(s api.FluxService) http.Handler {
 		service := mux.Vars(r)["service"]
 		id, err := flux.ParseServiceID(service)
 		if err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			fmt.Fprintf(w, errors.Wrapf(err, "parsing service ID %q", id).Error())
+			writeError(w, r, http.StatusBadRequest, errors.Wrapf(err, "parsing service ID %q", id))
 			return
 		}
 
 		if err = s.Lock(inst, id); err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprintf(w, err.Error())
+			errorResponse(w, r, err)
 			return
 		}
 
@@ -291,14 +271,12 @@ func handleUnlock(s api.FluxService) http.Handler {
 		service := mux.Vars(r)["service"]
 		id, err := flux.ParseServiceID(service)
 		if err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			fmt.Fprintf(w, errors.Wrapf(err, "parsing service ID %q", id).Error())
+			writeError(w, r, http.StatusBadRequest, errors.Wrapf(err, "parsing service ID %q", id))
 			return
 		}
 
 		if err = s.Unlock(inst, id); err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprintf(w, err.Error())
+			errorResponse(w, r, err)
 			return
 		}
 
@@ -312,24 +290,17 @@ func handleHistory(s api.FluxService) http.Handler {
 		service := mux.Vars(r)["service"]
 		spec, err := flux.ParseServiceSpec(service)
 		if err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			fmt.Fprintf(w, errors.Wrapf(err, "parsing service spec %q", spec).Error())
+			writeError(w, r, http.StatusBadRequest, errors.Wrapf(err, "parsing service spec %q", spec))
 			return
 		}
 
 		h, err := s.History(inst, spec)
 		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprintf(w, err.Error())
+			errorResponse(w, r, err)
 			return
 		}
 
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		if err := json.NewEncoder(w).Encode(h); err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprintf(w, err.Error())
-			return
-		}
+		jsonResponse(w, r, h)
 	})
 }
 
@@ -338,21 +309,11 @@ func handleGetConfig(s api.FluxService) http.Handler {
 		inst := getInstanceID(r)
 		config, err := s.GetConfig(inst)
 		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprintf(w, err.Error())
+			errorResponse(w, r, err)
 			return
 		}
 
-		configBytes := bytes.Buffer{}
-		if err = json.NewEncoder(&configBytes).Encode(config); err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprintf(w, err.Error())
-			return
-		}
-
-		w.WriteHeader(http.StatusOK)
-		w.Write(configBytes.Bytes())
-		return
+		jsonResponse(w, r, config)
 	})
 }
 
@@ -362,20 +323,16 @@ func handleSetConfig(s api.FluxService) http.Handler {
 
 		var config flux.UnsafeInstanceConfig
 		if err := json.NewDecoder(r.Body).Decode(&config); err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			fmt.Fprintf(w, err.Error())
+			writeError(w, r, http.StatusBadRequest, err)
 			return
 		}
 
 		if err := s.SetConfig(inst, config); err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprintf(w, err.Error())
+			errorResponse(w, r, err)
 			return
 		}
 
 		w.WriteHeader(http.StatusOK)
-		return
-
 	})
 }
 
@@ -384,13 +341,11 @@ func handleGenerateKeys(s api.FluxService) http.Handler {
 		inst := getInstanceID(r)
 		err := s.GenerateDeployKey(inst)
 		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprintf(w, err.Error())
+			errorResponse(w, r, err)
 			return
 		}
 
 		w.WriteHeader(http.StatusOK)
-		return
 	})
 }
 
@@ -405,24 +360,21 @@ func handlePostIntegrationsGithub(s api.FluxService) http.Handler {
 		)
 
 		if repo == "" || owner == "" || tok == "" {
-			w.WriteHeader(http.StatusUnprocessableEntity)
-			fmt.Fprintf(w, "repo, owner or token is empty")
+			writeError(w, r, http.StatusUnprocessableEntity, errors.New("repo, owner or token is empty"))
 			return
 		}
 
 		// Generate deploy key
 		err := s.GenerateDeployKey(inst)
 		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprintf(w, err.Error())
+			errorResponse(w, r, err)
 			return
 		}
 
 		// Obtain the generated key
 		cfg, err := s.GetConfig(inst)
 		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprintf(w, err.Error())
+			errorResponse(w, r, err)
 			return
 		}
 		publicKey := cfg.Git.HideKey().Key
@@ -435,16 +387,15 @@ func handlePostIntegrationsGithub(s api.FluxService) http.Handler {
 		err = gh.InsertDeployKey(owner, repo, publicKey)
 		if err != nil {
 			httpErr, isHttpErr := err.(*httperror.APIError)
+			code := http.StatusInternalServerError
 			if isHttpErr {
-				w.WriteHeader(httpErr.StatusCode)
-			} else {
-				w.WriteHeader(http.StatusInternalServerError)
+				code = httpErr.StatusCode
 			}
-			fmt.Fprintf(w, err.Error())
+			writeError(w, r, code, err)
 			return
 		}
+
 		w.WriteHeader(http.StatusOK)
-		return
 	})
 }
 
@@ -453,27 +404,20 @@ func handleStatus(s api.FluxService) http.Handler {
 		inst := getInstanceID(r)
 		status, err := s.Status(inst)
 		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprintf(w, err.Error())
+			errorResponse(w, r, err)
 			return
 		}
 
-		statusBytes := bytes.Buffer{}
-		if err = json.NewEncoder(&statusBytes).Encode(status); err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprintf(w, err.Error())
-			return
-		}
-
-		w.WriteHeader(http.StatusOK)
-		w.Write(statusBytes.Bytes())
-		return
+		jsonResponse(w, r, status)
 	})
 }
 
 func handleRegister(s api.FluxService) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		inst := getInstanceID(r)
+
+		// This is not client-facing, so we don't do content
+		// negotiation here.
 
 		// Upgrade to a websocket
 		ws, err := websocket.Upgrade(w, r, nil)
@@ -502,15 +446,18 @@ func handleIsConnected(s api.FluxService) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		inst := getInstanceID(r)
 
-		switch s.IsDaemonConnected(inst) {
-		case platform.ErrPlatformNotAvailable:
-			w.WriteHeader(http.StatusNotFound)
-		case nil:
+		err := s.IsDaemonConnected(inst)
+		if err == nil {
 			w.WriteHeader(http.StatusNoContent)
-		default:
-			w.WriteHeader(http.StatusInternalServerError)
+			return
 		}
-		return
+		switch err.(type) {
+		case flux.UserConfigProblem:
+			// NB this has a specific contract for "cannot contact" -> // "404 not found"
+			writeError(w, r, http.StatusNotFound, err)
+		default:
+			errorResponse(w, r, err)
+		}
 	})
 }
 
@@ -555,6 +502,75 @@ func getInstanceID(req *http.Request) flux.InstanceID {
 		return flux.DefaultInstanceID
 	}
 	return flux.InstanceID(s)
+}
+
+func jsonResponse(w http.ResponseWriter, r *http.Request, result interface{}) {
+	body, err := json.Marshal(result)
+	if err != nil {
+		errorResponse(w, r, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	w.Write(body)
+}
+
+func errorResponse(w http.ResponseWriter, r *http.Request, apiError error) {
+	var outErr *flux.BaseError
+	var code int
+	err := errors.Cause(apiError)
+	switch err := err.(type) {
+	case flux.Missing:
+		code = http.StatusNotFound
+		outErr = err.BaseError
+	case flux.UserConfigProblem:
+		code = http.StatusUnprocessableEntity
+		outErr = err.BaseError
+	case flux.ServerException:
+		code = http.StatusInternalServerError
+		outErr = err.BaseError
+	default:
+		code = http.StatusInternalServerError
+		outErr = flux.CoverAllError(apiError)
+	}
+
+	writeError(w, r, code, outErr)
+}
+
+func writeError(w http.ResponseWriter, r *http.Request, code int, err error) {
+	// An Accept header with "application/json" is sent by clients
+	// understanding how to decode JSON errors. Older clients don't
+	// send an Accept header, so we just give them the error text.
+	if len(r.Header.Get("Accept")) > 0 {
+		switch negotiateContentType(r, []string{"application/json", "text/plain"}) {
+		case "application/json":
+			body, encodeErr := json.Marshal(err)
+			if encodeErr != nil {
+				w.Header().Set(http.CanonicalHeaderKey("Content-Type"), "text/plain; charset=utf-8")
+				w.WriteHeader(http.StatusInternalServerError)
+				fmt.Fprintf(w, "Error encoding error response: %s\n\nOriginal error: %s", encodeErr.Error(), err.Error())
+				return
+			}
+			w.Header().Set(http.CanonicalHeaderKey("Content-Type"), "application/json; charset=utf-8")
+			w.WriteHeader(code)
+			w.Write(body)
+			return
+		case "text/plain":
+			w.Header().Set(http.CanonicalHeaderKey("Content-Type"), "text/plain; charset=utf-8")
+			w.WriteHeader(code)
+			switch err := err.(type) {
+			case *flux.BaseError:
+				fmt.Fprint(w, err.Help)
+			default:
+				fmt.Fprint(w, err.Error())
+			}
+			return
+		}
+	}
+	w.Header().Set(http.CanonicalHeaderKey("Content-Type"), "text/plain; charset=utf-8")
+	w.WriteHeader(code)
+	fmt.Fprint(w, err.Error())
 }
 
 func logging(next http.Handler, logger log.Logger) http.Handler {

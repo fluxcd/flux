@@ -28,13 +28,20 @@ type Repo struct {
 }
 
 func (r Repo) Clone() (path string, err error) {
+	if r.URL == "" {
+		return "", NoRepoError
+	}
+
 	workingDir, err := ioutil.TempDir(os.TempDir(), "flux-gitclone")
 	if err != nil {
 		return "", err
 	}
 
 	repoDir, err := clone(workingDir, r.Key, r.URL, r.Branch)
-	return repoDir, err
+	if err != nil {
+		return "", CloningError(r.URL, err)
+	}
+	return repoDir, nil
 }
 
 func (r Repo) CommitAndPush(path, commitMessage string) error {
@@ -44,5 +51,8 @@ func (r Repo) CommitAndPush(path, commitMessage string) error {
 	if err := commit(path, commitMessage); err != nil {
 		return err
 	}
-	return push(r.Key, r.Branch, path)
+	if err := push(r.Key, r.Branch, path); err != nil {
+		return PushError(r.URL, err)
+	}
+	return nil
 }
