@@ -494,7 +494,7 @@ func handleRegister(s api.FluxService) http.Handler {
 
 		// Clean up
 		// TODO: Handle the error here
-		rpcClient.Close()
+		rpcClient.Close() // also closes the underlying socket
 	})
 }
 
