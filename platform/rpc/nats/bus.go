@@ -340,7 +340,6 @@ func (n *NATS) Subscribe(instID flux.InstanceID, remote platform.Platform, done 
 			// consequence of asynchronous request handling. The error will get
 			// selected and handled soon enough.
 			case err := <-errc:
-				close(errc)
 				sub.Unsubscribe()
 				close(requests)
 				done <- err
