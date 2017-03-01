@@ -15,7 +15,13 @@ import (
 )
 
 const (
-	timeout      = 5 * time.Second
+	// We give subscriptions an age limit, because if we have very
+	// long-lived connections we don't get fine-enough-grained usage
+	// metrics
+	maxAge  = 2 * time.Hour
+	timeout = 5 * time.Second
+	// Apply can take minutes, simply because some deployments take a
+	// while to roll out for whatever reason
 	applyTimeout = 20 * time.Minute
 	presenceTick = 50 * time.Millisecond
 	encoderType  = nats.JSON_ENCODER
@@ -336,6 +342,8 @@ func (n *NATS) Subscribe(instID flux.InstanceID, remote platform.Platform, done 
 	}
 
 	go func() {
+		forceReconnect := time.NewTimer(maxAge)
+		defer forceReconnect.Stop()
 		for {
 			select {
 			// If both an error and a request are available, the runtime may
@@ -347,7 +355,6 @@ func (n *NATS) Subscribe(instID flux.InstanceID, remote platform.Platform, done 
 			// consequence of asynchronous request handling. The error will get
 			// selected and handled soon enough.
 			case err := <-errc:
-				close(errc)
 				sub.Unsubscribe()
 				close(requests)
 				done <- err
@@ -357,6 +364,11 @@ func (n *NATS) Subscribe(instID flux.InstanceID, remote platform.Platform, done 
 				// dispatch in a goroutine and deliver any errors back to us so that we can
 				// clean up on any hard failures.
 				go processRequest(request)
+			case <-forceReconnect.C:
+				sub.Unsubscribe()
+				close(requests)
+				done <- nil
+				return
 			}
 		}
 	}()

@@ -412,7 +412,6 @@ func (s *Server) RegisterDaemon(instID flux.InstanceID, platform platform.Platfo
 	done := make(chan error)
 	s.messageBus.Subscribe(instID, s.instrumentPlatform(instID, platform), done)
 	err = <-done
-	close(done)
 	return err
 }
 
