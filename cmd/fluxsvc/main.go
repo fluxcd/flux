@@ -27,6 +27,7 @@ import (
 	"github.com/weaveworks/flux/registry"
 	"github.com/weaveworks/flux/release"
 	"github.com/weaveworks/flux/server"
+	"github.com/weaveworks/flux/sync"
 	"github.com/weaveworks/flux/users"
 )
 
@@ -188,21 +189,25 @@ func main() {
 
 	go auto.Start(log.NewContext(logger).With("component", "automator"))
 
+	// Syncer
+	syncer := sync.NewSyncer(instancer, instanceDB, log.NewContext(logger).With("component", "syncer"))
+
 	// Job workers.
 	//
 	// Doing one worker (and one queue) for each job type for now. This way slow
 	// release jobs can't interfere with slow automated service jobs, or vice
 	// versa. This is probably not optimal. Really all jobs should be quick and
 	// recoverable.
-	for _, queue := range []string{
-		jobs.DefaultQueue,
-		jobs.ReleaseJob,
-		jobs.AutomatedInstanceJob,
+	for _, queues := range [][]string{
+		{jobs.DefaultQueue},
+		{jobs.ReleaseJob, jobs.SyncJob}, // Need to process these serially per-instance
+		{jobs.AutomatedInstanceJob},
 	} {
-		logger := log.NewContext(logger).With("component", "worker", "queues", fmt.Sprint([]string{queue}))
-		worker := jobs.NewWorker(jobStore, logger, []string{queue})
+		logger := log.NewContext(logger).With("component", "worker", "queues", fmt.Sprint(queues))
+		worker := jobs.NewWorker(jobStore, logger, queues)
 		worker.Register(jobs.AutomatedInstanceJob, auto)
 		worker.Register(jobs.ReleaseJob, release.NewReleaser(instancer))
+		worker.Register(jobs.SyncJob, syncer)
 
 		defer func() {
 			logger.Log("stopping", "true")
