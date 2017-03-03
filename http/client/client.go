@@ -1,4 +1,4 @@
-package http
+package client
 
 import (
 	"bytes"
@@ -12,6 +12,7 @@ import (
 
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/api"
+	transport "github.com/weaveworks/flux/http"
 	"github.com/weaveworks/flux/jobs"
 )
 
@@ -22,7 +23,7 @@ type client struct {
 	endpoint string
 }
 
-func NewClient(c *http.Client, router *mux.Router, endpoint string, t flux.Token) api.ClientService {
+func New(c *http.Client, router *mux.Router, endpoint string, t flux.Token) api.ClientService {
 	return &client{
 		client:   c,
 		token:    t,
@@ -52,7 +53,7 @@ func (c *client) PostRelease(_ flux.InstanceID, s jobs.ReleaseJobParams) (jobs.J
 		args = append(args, "exclude", string(ex))
 	}
 
-	var resp postReleaseResponse
+	var resp transport.PostReleaseResponse
 	err := c.postWithResp(&resp, "PostRelease", nil, args...)
 	return resp.ReleaseID, err
 }
@@ -120,7 +121,7 @@ func (c *client) postWithBody(route string, body interface{}, queryParams ...str
 // encoding, as well as decoding the response into the provided destination.
 // Note, the response will only be decoded into the dest if the len is > 0.
 func (c *client) postWithResp(dest interface{}, route string, body interface{}, queryParams ...string) error {
-	u, err := makeURL(c.endpoint, c.router, route, queryParams...)
+	u, err := transport.MakeURL(c.endpoint, c.router, route, queryParams...)
 	if err != nil {
 		return errors.Wrap(err, "constructing URL")
 	}
@@ -161,7 +162,7 @@ func (c *client) postWithResp(dest interface{}, route string, body interface{}, 
 
 // get executes a get request against the flux server. it unmarshals the response into dest.
 func (c *client) get(dest interface{}, route string, queryParams ...string) error {
-	u, err := makeURL(c.endpoint, c.router, route, queryParams...)
+	u, err := transport.MakeURL(c.endpoint, c.router, route, queryParams...)
 	if err != nil {
 		return errors.Wrap(err, "constructing URL")
 	}
@@ -194,9 +195,9 @@ func (c *client) executeRequest(req *http.Request) (*http.Response, error) {
 	case http.StatusOK, http.StatusCreated, http.StatusNoContent:
 		return resp, nil
 	case http.StatusUnauthorized:
-		return resp, ErrorUnauthorized
+		return resp, transport.ErrorUnauthorized
 	default:
-		// Use the content type to discriminate between `flux.Error`,
+		// Use the content type to discriminate between `flux.BaseError`,
 		// and the previous "any old error"
 		if strings.HasPrefix(resp.Header.Get(http.CanonicalHeaderKey("Content-Type")), "application/json") {
 			var niceError flux.BaseError
