@@ -48,6 +48,37 @@ type apply struct {
 	summary string
 }
 
+// --- add-ons
+
+// Kubernetes has a mechanism of "Add-ons", whereby manifest files
+// left in a particular directory on the Kubernetes master will be
+// applied. We can recognise these, because they:
+//  1. Must be in the namespace `kube-system`; and,
+//  2. Must have one of the labels below set, else the addon manager will ignore them.
+//
+// We want to ignore add-ons, since they are managed by the add-on
+// manager, and attempts to control them via other means will fail.
+
+type namespacedLabeled interface {
+	GetNamespace() string
+	GetLabels() map[string]string
+}
+
+func isAddon(obj namespacedLabeled) bool {
+	if obj.GetNamespace() != "kube-system" {
+		return false
+	}
+	labels := obj.GetLabels()
+	if labels["kubernetes.io/cluster-service"] == "true" ||
+		labels["addonmanager.kubernetes.io/mode"] == "EnsureExists" ||
+		labels["addonmanager.kubernetes.io/mode"] == "Reconcile" {
+		return true
+	}
+	return false
+}
+
+// --- /add ons
+
 // Cluster is a handle to a Kubernetes API server.
 // (Typically, this code is deployed into the same cluster.)
 type Cluster struct {
@@ -128,6 +159,9 @@ func (c *Cluster) SomeServices(ids []flux.ServiceID) (res []platform.Service, er
 			if err != nil {
 				continue
 			}
+			if isAddon(service) {
+				continue
+			}
 			res = append(res, c.makeService(ns, service, controllers))
 		}
 	}
@@ -163,6 +197,9 @@ func (c *Cluster) AllServices(namespace string, ignore flux.ServiceIDSet) (res [
 		}
 
 		for _, service := range list.Items {
+			if isAddon(&service) {
+				continue
+			}
 			if !ignore.Contains(flux.MakeServiceID(ns, service.Name)) {
 				res = append(res, c.makeService(ns, &service, controllers))
 			}
@@ -198,7 +235,9 @@ func (c *Cluster) podControllersInNamespace(namespace string) (res []podControll
 		return nil, errors.Wrap(err, "collecting deployments")
 	}
 	for i := range deploylist.Items {
-		res = append(res, podController{Deployment: &deploylist.Items[i]})
+		if !isAddon(&deploylist.Items[i]) {
+			res = append(res, podController{Deployment: &deploylist.Items[i]})
+		}
 	}
 
 	rclist, err := c.client.ReplicationControllers(namespace).List(api.ListOptions{})
@@ -206,7 +245,9 @@ func (c *Cluster) podControllersInNamespace(namespace string) (res []podControll
 		return nil, errors.Wrap(err, "collecting replication controllers")
 	}
 	for i := range rclist.Items {
-		res = append(res, podController{ReplicationController: &rclist.Items[i]})
+		if !isAddon(&rclist.Items[i]) {
+			res = append(res, podController{ReplicationController: &rclist.Items[i]})
+		}
 	}
 
 	return res, nil
