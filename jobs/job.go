@@ -144,13 +144,17 @@ func (j *Job) UnmarshalJSON(data []byte) error {
 	switch j.Method {
 	case ReleaseJob:
 		var p ReleaseJobParams
-		if err := json.Unmarshal(wireJob.Params, &p); err != nil {
-			return err
+		if wireJob.Params != nil {
+			if err := json.Unmarshal(wireJob.Params, &p); err != nil {
+				return err
+			}
 		}
 		j.Params = p
 		var r flux.ReleaseResult
-		if err := json.Unmarshal(wireJob.Result, &r); err != nil {
-			return err
+		if wireJob.Result != nil {
+			if err := json.Unmarshal(wireJob.Result, &r); err != nil {
+				return err
+			}
 		}
 		j.Result = r
 	}
