@@ -64,28 +64,26 @@ func NewRouter() *mux.Router {
 }
 
 func NewHandler(s api.FluxService, r *mux.Router, logger log.Logger) http.Handler {
-	for method, handlerFunc := range map[string]func(api.FluxService) http.Handler{
-		"ListServices":           handleListServices,
-		"ListImages":             handleListImages,
-		"PostRelease":            handlePostRelease,
-		"GetRelease":             handleGetRelease,
-		"Automate":               handleAutomate,
-		"Deautomate":             handleDeautomate,
-		"Lock":                   handleLock,
-		"Unlock":                 handleUnlock,
-		"History":                handleHistory,
-		"Status":                 handleStatus,
-		"GetConfig":              handleGetConfig,
-		"SetConfig":              handleSetConfig,
-		"GenerateDeployKeys":     handleGenerateKeys,
-		"PostIntegrationsGithub": handlePostIntegrationsGithub,
-		"RegisterDaemon":         handleRegister,
-		"IsConnected":            handleIsConnected,
+	handle := HTTPService{s}
+	for method, handlerMethod := range map[string]http.HandlerFunc{
+		"ListServices":           handle.ListServices,
+		"ListImages":             handle.ListImages,
+		"PostRelease":            handle.PostRelease,
+		"GetRelease":             handle.GetRelease,
+		"Automate":               handle.Automate,
+		"Deautomate":             handle.Deautomate,
+		"Lock":                   handle.Lock,
+		"Unlock":                 handle.Unlock,
+		"History":                handle.History,
+		"Status":                 handle.Status,
+		"GetConfig":              handle.GetConfig,
+		"SetConfig":              handle.SetConfig,
+		"GenerateDeployKeys":     handle.GenerateKeys,
+		"PostIntegrationsGithub": handle.PostIntegrationsGithub,
+		"RegisterDaemon":         handle.Register,
+		"IsConnected":            handle.IsConnected,
 	} {
-		var handler http.Handler
-		handler = handlerFunc(s)
-		handler = logging(handler, log.NewContext(logger).With("method", method))
-
+		handler := logging(handlerMethod, log.NewContext(logger).With("method", method))
 		r.Get(method).Handler(handler)
 	}
 
@@ -95,38 +93,37 @@ func NewHandler(s api.FluxService, r *mux.Router, logger log.Logger) http.Handle
 	}.Wrap(r)
 }
 
-func handleListServices(s api.FluxService) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		inst := getInstanceID(r)
-		namespace := mux.Vars(r)["namespace"]
-		res, err := s.ListServices(inst, namespace)
-		if err != nil {
-			errorResponse(w, r, err)
-			return
-		}
-
-		jsonResponse(w, r, res)
-	})
+type HTTPService struct {
+	service api.FluxService
 }
 
-func handleListImages(s api.FluxService) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		inst := getInstanceID(r)
-		service := mux.Vars(r)["service"]
-		spec, err := flux.ParseServiceSpec(service)
-		if err != nil {
-			writeError(w, r, http.StatusBadRequest, errors.Wrapf(err, "parsing service spec %q", service))
-			return
-		}
+func (s HTTPService) ListServices(w http.ResponseWriter, r *http.Request) {
+	inst := getInstanceID(r)
+	namespace := mux.Vars(r)["namespace"]
+	res, err := s.service.ListServices(inst, namespace)
+	if err != nil {
+		errorResponse(w, r, err)
+		return
+	}
+	jsonResponse(w, r, res)
+}
 
-		d, err := s.ListImages(inst, spec)
-		if err != nil {
-			errorResponse(w, r, err)
-			return
-		}
+func (s HTTPService) ListImages(w http.ResponseWriter, r *http.Request) {
+	inst := getInstanceID(r)
+	service := mux.Vars(r)["service"]
+	spec, err := flux.ParseServiceSpec(service)
+	if err != nil {
+		writeError(w, r, http.StatusBadRequest, errors.Wrapf(err, "parsing service spec %q", service))
+		return
+	}
 
-		jsonResponse(w, r, d)
-	})
+	d, err := s.service.ListImages(inst, spec)
+	if err != nil {
+		errorResponse(w, r, err)
+		return
+	}
+
+	jsonResponse(w, r, d)
 }
 
 type postReleaseResponse struct {
@@ -134,331 +131,303 @@ type postReleaseResponse struct {
 	ReleaseID jobs.JobID `json:"release_id"`
 }
 
-func handlePostRelease(s api.FluxService) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var (
-			inst  = getInstanceID(r)
-			vars  = mux.Vars(r)
-			image = vars["image"]
-			kind  = vars["kind"]
-		)
-		if err := r.ParseForm(); err != nil {
-			writeError(w, r, http.StatusBadRequest, errors.Wrapf(err, "parsing form"))
-			return
-		}
-		var serviceSpecs []flux.ServiceSpec
-		for _, service := range r.Form["service"] {
-			serviceSpec, err := flux.ParseServiceSpec(service)
-			if err != nil {
-				writeError(w, r, http.StatusBadRequest, errors.Wrapf(err, "parsing service spec %q", service))
-				return
-			}
-			serviceSpecs = append(serviceSpecs, serviceSpec)
-		}
-		imageSpec, err := flux.ParseImageSpec(image)
+func (s HTTPService) PostRelease(w http.ResponseWriter, r *http.Request) {
+	var (
+		inst  = getInstanceID(r)
+		vars  = mux.Vars(r)
+		image = vars["image"]
+		kind  = vars["kind"]
+	)
+	if err := r.ParseForm(); err != nil {
+		writeError(w, r, http.StatusBadRequest, errors.Wrapf(err, "parsing form"))
+		return
+	}
+	var serviceSpecs []flux.ServiceSpec
+	for _, service := range r.Form["service"] {
+		serviceSpec, err := flux.ParseServiceSpec(service)
 		if err != nil {
-			writeError(w, r, http.StatusBadRequest, errors.Wrapf(err, "parsing image spec %q", image))
+			writeError(w, r, http.StatusBadRequest, errors.Wrapf(err, "parsing service spec %q", service))
 			return
 		}
-		releaseKind, err := flux.ParseReleaseKind(kind)
+		serviceSpecs = append(serviceSpecs, serviceSpec)
+	}
+	imageSpec, err := flux.ParseImageSpec(image)
+	if err != nil {
+		writeError(w, r, http.StatusBadRequest, errors.Wrapf(err, "parsing image spec %q", image))
+		return
+	}
+	releaseKind, err := flux.ParseReleaseKind(kind)
+	if err != nil {
+		writeError(w, r, http.StatusBadRequest, errors.Wrapf(err, "parsing release kind %q", kind))
+		return
+	}
+
+	var excludes []flux.ServiceID
+	for _, ex := range r.URL.Query()["exclude"] {
+		s, err := flux.ParseServiceID(ex)
 		if err != nil {
-			writeError(w, r, http.StatusBadRequest, errors.Wrapf(err, "parsing release kind %q", kind))
+			writeError(w, r, http.StatusBadRequest, errors.Wrapf(err, "parsing excluded service %q", ex))
 			return
 		}
+		excludes = append(excludes, s)
+	}
 
-		var excludes []flux.ServiceID
-		for _, ex := range r.URL.Query()["exclude"] {
-			s, err := flux.ParseServiceID(ex)
-			if err != nil {
-				writeError(w, r, http.StatusBadRequest, errors.Wrapf(err, "parsing excluded service %q", ex))
-				return
-			}
-			excludes = append(excludes, s)
-		}
+	id, err := s.service.PostRelease(inst, jobs.ReleaseJobParams{
+		ServiceSpecs: serviceSpecs,
+		ImageSpec:    imageSpec,
+		Kind:         releaseKind,
+		Excludes:     excludes,
+	})
+	if err != nil {
+		errorResponse(w, r, err)
+		return
+	}
 
-		id, err := s.PostRelease(inst, jobs.ReleaseJobParams{
-			ServiceSpecs: serviceSpecs,
-			ImageSpec:    imageSpec,
-			Kind:         releaseKind,
-			Excludes:     excludes,
-		})
-		if err != nil {
-			errorResponse(w, r, err)
-			return
-		}
-
-		jsonResponse(w, r, postReleaseResponse{
-			Status:    "Queued.",
-			ReleaseID: id,
-		})
+	jsonResponse(w, r, postReleaseResponse{
+		Status:    "Queued.",
+		ReleaseID: id,
 	})
 }
 
-func handleGetRelease(s api.FluxService) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		inst := getInstanceID(r)
-		id := mux.Vars(r)["id"]
-		job, err := s.GetRelease(inst, jobs.JobID(id))
-		if err != nil {
-			errorResponse(w, r, err)
-			return
-		}
+func (s HTTPService) GetRelease(w http.ResponseWriter, r *http.Request) {
+	inst := getInstanceID(r)
+	id := mux.Vars(r)["id"]
+	job, err := s.service.GetRelease(inst, jobs.JobID(id))
+	if err != nil {
+		errorResponse(w, r, err)
+		return
+	}
 
-		jsonResponse(w, r, job)
-	})
+	jsonResponse(w, r, job)
 }
 
-func handleAutomate(s api.FluxService) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		inst := getInstanceID(r)
-		service := mux.Vars(r)["service"]
-		id, err := flux.ParseServiceID(service)
-		if err != nil {
-			writeError(w, r, http.StatusBadRequest, errors.Wrapf(err, "parsing service ID %q", id))
-			return
-		}
+func (s HTTPService) Automate(w http.ResponseWriter, r *http.Request) {
+	inst := getInstanceID(r)
+	service := mux.Vars(r)["service"]
+	id, err := flux.ParseServiceID(service)
+	if err != nil {
+		writeError(w, r, http.StatusBadRequest, errors.Wrapf(err, "parsing service ID %q", id))
+		return
+	}
 
-		if err = s.Automate(inst, id); err != nil {
-			errorResponse(w, r, err)
-			return
-		}
+	if err = s.service.Automate(inst, id); err != nil {
+		errorResponse(w, r, err)
+		return
+	}
 
-		w.WriteHeader(http.StatusOK)
-	})
+	w.WriteHeader(http.StatusOK)
 }
 
-func handleDeautomate(s api.FluxService) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		inst := getInstanceID(r)
-		service := mux.Vars(r)["service"]
-		id, err := flux.ParseServiceID(service)
-		if err != nil {
-			writeError(w, r, http.StatusBadRequest, errors.Wrapf(err, "parsing service ID %q", id))
-			return
-		}
+func (s HTTPService) Deautomate(w http.ResponseWriter, r *http.Request) {
+	inst := getInstanceID(r)
+	service := mux.Vars(r)["service"]
+	id, err := flux.ParseServiceID(service)
+	if err != nil {
+		writeError(w, r, http.StatusBadRequest, errors.Wrapf(err, "parsing service ID %q", id))
+		return
+	}
 
-		if err = s.Deautomate(inst, id); err != nil {
-			errorResponse(w, r, err)
-			return
-		}
+	if err = s.service.Deautomate(inst, id); err != nil {
+		errorResponse(w, r, err)
+		return
+	}
 
-		w.WriteHeader(http.StatusOK)
-	})
+	w.WriteHeader(http.StatusOK)
 }
 
-func handleLock(s api.FluxService) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		inst := getInstanceID(r)
-		service := mux.Vars(r)["service"]
-		id, err := flux.ParseServiceID(service)
-		if err != nil {
-			writeError(w, r, http.StatusBadRequest, errors.Wrapf(err, "parsing service ID %q", id))
-			return
-		}
+func (s HTTPService) Lock(w http.ResponseWriter, r *http.Request) {
+	inst := getInstanceID(r)
+	service := mux.Vars(r)["service"]
+	id, err := flux.ParseServiceID(service)
+	if err != nil {
+		writeError(w, r, http.StatusBadRequest, errors.Wrapf(err, "parsing service ID %q", id))
+		return
+	}
 
-		if err = s.Lock(inst, id); err != nil {
-			errorResponse(w, r, err)
-			return
-		}
+	if err = s.service.Lock(inst, id); err != nil {
+		errorResponse(w, r, err)
+		return
+	}
 
-		w.WriteHeader(http.StatusOK)
-	})
+	w.WriteHeader(http.StatusOK)
 }
 
-func handleUnlock(s api.FluxService) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		inst := getInstanceID(r)
-		service := mux.Vars(r)["service"]
-		id, err := flux.ParseServiceID(service)
-		if err != nil {
-			writeError(w, r, http.StatusBadRequest, errors.Wrapf(err, "parsing service ID %q", id))
-			return
-		}
+func (s HTTPService) Unlock(w http.ResponseWriter, r *http.Request) {
+	inst := getInstanceID(r)
+	service := mux.Vars(r)["service"]
+	id, err := flux.ParseServiceID(service)
+	if err != nil {
+		writeError(w, r, http.StatusBadRequest, errors.Wrapf(err, "parsing service ID %q", id))
+		return
+	}
 
-		if err = s.Unlock(inst, id); err != nil {
-			errorResponse(w, r, err)
-			return
-		}
+	if err = s.service.Unlock(inst, id); err != nil {
+		errorResponse(w, r, err)
+		return
+	}
 
-		w.WriteHeader(http.StatusOK)
-	})
+	w.WriteHeader(http.StatusOK)
 }
 
-func handleHistory(s api.FluxService) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		inst := getInstanceID(r)
-		service := mux.Vars(r)["service"]
-		spec, err := flux.ParseServiceSpec(service)
-		if err != nil {
-			writeError(w, r, http.StatusBadRequest, errors.Wrapf(err, "parsing service spec %q", spec))
-			return
-		}
+func (s HTTPService) History(w http.ResponseWriter, r *http.Request) {
+	inst := getInstanceID(r)
+	service := mux.Vars(r)["service"]
+	spec, err := flux.ParseServiceSpec(service)
+	if err != nil {
+		writeError(w, r, http.StatusBadRequest, errors.Wrapf(err, "parsing service spec %q", spec))
+		return
+	}
 
-		h, err := s.History(inst, spec)
-		if err != nil {
-			errorResponse(w, r, err)
-			return
-		}
+	h, err := s.service.History(inst, spec)
+	if err != nil {
+		errorResponse(w, r, err)
+		return
+	}
 
-		jsonResponse(w, r, h)
-	})
+	jsonResponse(w, r, h)
 }
 
-func handleGetConfig(s api.FluxService) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		inst := getInstanceID(r)
-		config, err := s.GetConfig(inst)
-		if err != nil {
-			errorResponse(w, r, err)
-			return
-		}
+func (s HTTPService) GetConfig(w http.ResponseWriter, r *http.Request) {
+	inst := getInstanceID(r)
+	config, err := s.service.GetConfig(inst)
+	if err != nil {
+		errorResponse(w, r, err)
+		return
+	}
 
-		jsonResponse(w, r, config)
-	})
+	jsonResponse(w, r, config)
 }
 
-func handleSetConfig(s api.FluxService) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		inst := getInstanceID(r)
+func (s HTTPService) SetConfig(w http.ResponseWriter, r *http.Request) {
+	inst := getInstanceID(r)
 
-		var config flux.UnsafeInstanceConfig
-		if err := json.NewDecoder(r.Body).Decode(&config); err != nil {
-			writeError(w, r, http.StatusBadRequest, err)
-			return
-		}
+	var config flux.UnsafeInstanceConfig
+	if err := json.NewDecoder(r.Body).Decode(&config); err != nil {
+		writeError(w, r, http.StatusBadRequest, err)
+		return
+	}
 
-		if err := s.SetConfig(inst, config); err != nil {
-			errorResponse(w, r, err)
-			return
-		}
+	if err := s.service.SetConfig(inst, config); err != nil {
+		errorResponse(w, r, err)
+		return
+	}
 
-		w.WriteHeader(http.StatusOK)
-	})
+	w.WriteHeader(http.StatusOK)
 }
 
-func handleGenerateKeys(s api.FluxService) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		inst := getInstanceID(r)
-		err := s.GenerateDeployKey(inst)
-		if err != nil {
-			errorResponse(w, r, err)
-			return
-		}
+func (s HTTPService) GenerateKeys(w http.ResponseWriter, r *http.Request) {
+	inst := getInstanceID(r)
+	err := s.service.GenerateDeployKey(inst)
+	if err != nil {
+		errorResponse(w, r, err)
+		return
+	}
 
-		w.WriteHeader(http.StatusOK)
-	})
+	w.WriteHeader(http.StatusOK)
 }
 
-func handlePostIntegrationsGithub(s api.FluxService) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var (
-			inst  = getInstanceID(r)
-			vars  = mux.Vars(r)
-			owner = vars["owner"]
-			repo  = vars["repository"]
-			tok   = r.Header.Get("GithubToken")
-		)
+func (s HTTPService) PostIntegrationsGithub(w http.ResponseWriter, r *http.Request) {
+	var (
+		inst  = getInstanceID(r)
+		vars  = mux.Vars(r)
+		owner = vars["owner"]
+		repo  = vars["repository"]
+		tok   = r.Header.Get("GithubToken")
+	)
 
-		if repo == "" || owner == "" || tok == "" {
-			writeError(w, r, http.StatusUnprocessableEntity, errors.New("repo, owner or token is empty"))
-			return
+	if repo == "" || owner == "" || tok == "" {
+		writeError(w, r, http.StatusUnprocessableEntity, errors.New("repo, owner or token is empty"))
+		return
+	}
+
+	// Generate deploy key
+	err := s.service.GenerateDeployKey(inst)
+	if err != nil {
+		errorResponse(w, r, err)
+		return
+	}
+
+	// Obtain the generated key
+	cfg, err := s.service.GetConfig(inst)
+	if err != nil {
+		errorResponse(w, r, err)
+		return
+	}
+	publicKey := cfg.Git.HideKey().Key
+
+	// Use the Github API to insert the key
+	// Have to create a new instance here because there is no
+	// clean way of injecting without significantly altering
+	// the initialisation (at the top)
+	gh := github.NewGithubClient(tok)
+	err = gh.InsertDeployKey(owner, repo, publicKey)
+	if err != nil {
+		httpErr, isHttpErr := err.(*httperror.APIError)
+		code := http.StatusInternalServerError
+		if isHttpErr {
+			code = httpErr.StatusCode
 		}
+		writeError(w, r, code, err)
+		return
+	}
 
-		// Generate deploy key
-		err := s.GenerateDeployKey(inst)
-		if err != nil {
-			errorResponse(w, r, err)
-			return
-		}
-
-		// Obtain the generated key
-		cfg, err := s.GetConfig(inst)
-		if err != nil {
-			errorResponse(w, r, err)
-			return
-		}
-		publicKey := cfg.Git.HideKey().Key
-
-		// Use the Github API to insert the key
-		// Have to create a new instance here because there is no
-		// clean way of injecting without significantly altering
-		// the initialisation (at the top)
-		gh := github.NewGithubClient(tok)
-		err = gh.InsertDeployKey(owner, repo, publicKey)
-		if err != nil {
-			httpErr, isHttpErr := err.(*httperror.APIError)
-			code := http.StatusInternalServerError
-			if isHttpErr {
-				code = httpErr.StatusCode
-			}
-			writeError(w, r, code, err)
-			return
-		}
-
-		w.WriteHeader(http.StatusOK)
-	})
+	w.WriteHeader(http.StatusOK)
 }
 
-func handleStatus(s api.FluxService) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		inst := getInstanceID(r)
-		status, err := s.Status(inst)
-		if err != nil {
-			errorResponse(w, r, err)
-			return
-		}
+func (s HTTPService) Status(w http.ResponseWriter, r *http.Request) {
+	inst := getInstanceID(r)
+	status, err := s.service.Status(inst)
+	if err != nil {
+		errorResponse(w, r, err)
+		return
+	}
 
-		jsonResponse(w, r, status)
-	})
+	jsonResponse(w, r, status)
 }
 
-func handleRegister(s api.FluxService) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		inst := getInstanceID(r)
+func (s HTTPService) Register(w http.ResponseWriter, r *http.Request) {
+	inst := getInstanceID(r)
 
-		// This is not client-facing, so we don't do content
-		// negotiation here.
+	// This is not client-facing, so we don't do content
+	// negotiation here.
 
-		// Upgrade to a websocket
-		ws, err := websocket.Upgrade(w, r, nil)
-		if err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			fmt.Fprintf(w, err.Error())
-			return
-		}
+	// Upgrade to a websocket
+	ws, err := websocket.Upgrade(w, r, nil)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprintf(w, err.Error())
+		return
+	}
 
-		// Set up RPC. The service is a websocket _server_ but an RPC
-		// _client_.
-		rpcClient := rpc.NewClient(ws)
+	// Set up RPC. The service is a websocket _server_ but an RPC
+	// _client_.
+	rpcClient := rpc.NewClient(ws)
 
-		// Make platform available to clients
-		// This should block until the daemon disconnects
-		// TODO: Handle the error here
-		s.RegisterDaemon(inst, rpcClient)
+	// Make platform available to clients
+	// This should block until the daemon disconnects
+	// TODO: Handle the error here
+	s.service.RegisterDaemon(inst, rpcClient)
 
-		// Clean up
-		// TODO: Handle the error here
-		rpcClient.Close() // also closes the underlying socket
-	})
+	// Clean up
+	// TODO: Handle the error here
+	rpcClient.Close() // also closes the underlying socket
 }
 
-func handleIsConnected(s api.FluxService) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		inst := getInstanceID(r)
+func (s HTTPService) IsConnected(w http.ResponseWriter, r *http.Request) {
+	inst := getInstanceID(r)
 
-		err := s.IsDaemonConnected(inst)
-		if err == nil {
-			w.WriteHeader(http.StatusNoContent)
-			return
-		}
-		switch err.(type) {
-		case flux.UserConfigProblem:
-			// NB this has a specific contract for "cannot contact" -> // "404 not found"
-			writeError(w, r, http.StatusNotFound, err)
-		default:
-			errorResponse(w, r, err)
-		}
-	})
+	err := s.service.IsDaemonConnected(inst)
+	if err == nil {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	switch err.(type) {
+	case flux.UserConfigProblem:
+		// NB this has a specific contract for "cannot contact" -> // "404 not found"
+		writeError(w, r, http.StatusNotFound, err)
+	default:
+		errorResponse(w, r, err)
+	}
 }
 
 // --- end handle
