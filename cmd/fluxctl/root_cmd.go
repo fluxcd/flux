@@ -14,6 +14,7 @@ import (
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/api"
 	transport "github.com/weaveworks/flux/http"
+	"github.com/weaveworks/flux/http/client"
 )
 
 type rootOpts struct {
@@ -91,7 +92,7 @@ func (opts *rootOpts) PersistentPreRunE(cmd *cobra.Command, _ []string) error {
 		return errors.Wrapf(err, "parsing URL")
 	}
 	opts.Token = getFromEnvIfNotSet(cmd.Flags(), "token", envVariableToken, opts.Token)
-	opts.API = transport.NewClient(http.DefaultClient, transport.NewRouter(), opts.URL, flux.Token(opts.Token))
+	opts.API = client.New(http.DefaultClient, transport.NewRouter(), opts.URL, flux.Token(opts.Token))
 	return nil
 }
 

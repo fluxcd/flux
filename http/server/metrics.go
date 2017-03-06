@@ -1,4 +1,4 @@
-package http
+package server
 
 import (
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
