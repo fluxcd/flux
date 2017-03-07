@@ -106,6 +106,12 @@ func (c *client) Status(_ flux.InstanceID) (flux.Status, error) {
 	return res, err
 }
 
+func (c *client) Export(_ flux.InstanceID) ([]byte, error) {
+	var res []byte
+	err := c.get(&res, "Export")
+	return res, err
+}
+
 // post is a simple query-param only post request
 func (c *client) post(route string, queryParams ...string) error {
 	return c.postWithBody(route, nil, queryParams...)

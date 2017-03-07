@@ -215,3 +215,7 @@ func (h *Instance) GetConfig() (Config, error) {
 func (h *Instance) UpdateConfig(update UpdateFunc) error {
 	return h.Config.Update(update)
 }
+
+func (h *Instance) Export() ([]byte, error) {
+	return h.Platform.Export()
+}

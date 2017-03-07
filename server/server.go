@@ -415,6 +415,20 @@ func (s *Server) RegisterDaemon(instID flux.InstanceID, platform platform.Platfo
 	return err
 }
 
+func (s *Server) Export(inst flux.InstanceID) (res []byte, err error) {
+	helper, err := s.instancer.Get(inst)
+	if err != nil {
+		return res, errors.Wrapf(err, "getting instance")
+	}
+
+	res, err = helper.Export()
+	if err != nil {
+		return res, errors.Wrapf(err, "exporting %s", inst)
+	}
+
+	return res, nil
+}
+
 func (s *Server) instrumentPlatform(instID flux.InstanceID, p platform.Platform) platform.Platform {
 	return &loggingPlatform{
 		platform.Instrument(p),
