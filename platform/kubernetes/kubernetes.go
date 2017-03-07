@@ -435,6 +435,10 @@ func (c *Cluster) Version() (string, error) {
 	return c.version, nil
 }
 
+func (c *Cluster) Export() ([]byte, error) {
+	return nil, errors.Errorf("not implemented")
+}
+
 // --- end platform API
 
 type statusMap struct {

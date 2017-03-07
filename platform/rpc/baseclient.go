@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"github.com/pkg/errors"
+
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/platform"
 )
@@ -28,4 +29,9 @@ func (bc baseClient) Ping() error {
 
 func (bc baseClient) Version() (string, error) {
 	return "", platform.UpgradeNeededError(errors.New("Version method not implemented"))
+}
+
+// Export is used to get service configuration in platform-specific format
+func (p baseClient) Export() ([]byte, error) {
+	return nil, platform.UpgradeNeededError(errors.New("Export method not implemented"))
 }

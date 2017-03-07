@@ -475,3 +475,13 @@ func (p *loggingPlatform) Version() (v string, err error) {
 	}()
 	return p.platform.Version()
 }
+
+func (p *loggingPlatform) Export() (config []byte, err error) {
+	defer func() {
+		if err != nil {
+			// Omit config as it could be large
+			p.logger.Log("method", "Export", "error", err)
+		}
+	}()
+	return p.platform.Export()
+}

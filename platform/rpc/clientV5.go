@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"io"
+	"net/rpc"
 
 	"github.com/weaveworks/flux/platform"
 )
@@ -20,3 +21,13 @@ func NewClientV5(conn io.ReadWriteCloser) *RPCClientV5 {
 }
 
 // Additional/overridden methods go here
+
+// Export is used to get service configuration in platform-specific format
+func (p *RPCClientV5) Export() ([]byte, error) {
+	var config []byte
+	err := p.client.Call("RPCServer.Export", struct{}{}, &config)
+	if _, ok := err.(rpc.ServerError); !ok && err != nil {
+		return nil, platform.FatalError{err}
+	}
+	return config, err
+}

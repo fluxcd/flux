@@ -65,6 +65,12 @@ func (p *RPCServer) SomeServices(ids []flux.ServiceID, resp *[]platform.Service)
 	return err
 }
 
+func (p *RPCServer) Export(_ struct{}, resp *[]byte) error {
+	v, err := p.p.Export()
+	*resp = v
+	return err
+}
+
 // Regrade is still around for backwards compatibility, though it is called "Apply" everywhere else.
 func (p *RPCServer) Regrade(defs []platform.ServiceDefinition, applyResult *ApplyResult) error {
 	return p.Apply(defs, applyResult)
