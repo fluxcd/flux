@@ -8,6 +8,64 @@ import (
 	"time"
 
 	"github.com/weaveworks/flux"
+	"strings"
+)
+
+var (
+	noResultExample = `{
+  "instanceID": "<default-instance-id>",
+  "id": "46ce39e6-711c-e2d2-6a60-51306f111040",
+  "queue": "release",
+  "method": "release",
+  "params": {
+    "ServiceSpec": "default/helloworld",
+    "ServiceSpecs": null,
+    "ImageSpec": "<all latest>",
+    "Kind": "execute",
+    "Excludes": null
+  },
+  "scheduled_at": "2017-02-24T14:56:03.224413935Z",
+  "priority": 200,
+  "submitted": "2017-02-24T14:56:03.224413935Z",
+  "claimed": "2017-02-24T14:56:03.393622435Z",
+  "heartbeat": "0001-01-01T00:00:00Z",
+  "finished": "2017-02-24T14:56:04.111071358Z",
+  "log": [
+    "Queued.",
+    "Calculating release actions.",
+    "Release latest images to default/helloworld",
+    "Service default/helloworld image quay.io/weaveworks/helloworld:master-9a16ff945b9e is already the latest one; skipping.",
+    "Service default/helloworld image quay.io/weaveworks/sidecar:master-a000002 is already the latest one; skipping.",
+    "All selected services are running the requested images. Nothing to do."
+  ],
+  "status": "Complete.",
+  "done": true,
+  "success": true
+}`
+	noParamsExample = `{
+  "instanceID": "<default-instance-id>",
+  "id": "46ce39e6-711c-e2d2-6a60-51306f111040",
+  "queue": "release",
+  "method": "release",
+  "scheduled_at": "2017-02-24T14:56:03.224413935Z",
+  "priority": 200,
+  "submitted": "2017-02-24T14:56:03.224413935Z",
+  "claimed": "2017-02-24T14:56:03.393622435Z",
+  "heartbeat": "0001-01-01T00:00:00Z",
+  "finished": "2017-02-24T14:56:04.111071358Z",
+  "log": [
+    "Queued.",
+    "Calculating release actions.",
+    "Release latest images to default/helloworld",
+    "Service default/helloworld image quay.io/weaveworks/helloworld:master-9a16ff945b9e is already the latest one; skipping.",
+    "Service default/helloworld image quay.io/weaveworks/sidecar:master-a000002 is already the latest one; skipping.",
+    "All selected services are running the requested images. Nothing to do."
+  ],
+  "status": "Complete.",
+  "done": true,
+  "success": true,
+  "result":{"id":{"Status":"ok","Error":"","PerContainer":null}}
+}`
 )
 
 func TestJobEncodingDecoding(t *testing.T) {
@@ -73,4 +131,20 @@ func TestJobEncodingDecodingWithMissingFields(t *testing.T) {
 	bailIfErr(t, err)
 	var got Job
 	bailIfErr(t, json.Unmarshal(b, &got))
+}
+
+func TestJob_NoParams(t *testing.T) {
+	r := strings.NewReader(noParamsExample)
+	var res Job
+	if err := json.NewDecoder(r).Decode(&res); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestJob_NoResult(t *testing.T) {
+	r := strings.NewReader(noResultExample)
+	var res Job
+	if err := json.NewDecoder(r).Decode(&res); err != nil {
+		t.Fatal(err)
+	}
 }
