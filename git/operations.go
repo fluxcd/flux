@@ -14,6 +14,9 @@ import (
 	"github.com/pkg/errors"
 )
 
+// Do a shallow clone of the repo. We only need the files, and not the
+// history. A shallow clone is marginally quicker, and takes less
+// space, than a full clone.
 func clone(workingDir, keyData, repoURL, repoBranch string) (path string, err error) {
 	keyPath, err := writeKey(keyData)
 	if err != nil {
@@ -21,7 +24,8 @@ func clone(workingDir, keyData, repoURL, repoBranch string) (path string, err er
 	}
 	defer os.Remove(keyPath)
 	repoPath := filepath.Join(workingDir, "repo")
-	args := []string{"clone"}
+	// --single-branch is also useful, but is implied by --depth=1
+	args := []string{"clone", "--depth=1"}
 	if repoBranch != "" {
 		args = append(args, "--branch", repoBranch)
 	}
