@@ -90,6 +90,16 @@ func (i *instrumentedPlatform) Export() (config []byte, err error) {
 	return i.p.Export()
 }
 
+func (i *instrumentedPlatform) Sync(spec SyncDef) (err error) {
+	defer func(begin time.Time) {
+		requestDuration.With(
+			fluxmetrics.LabelMethod, "Sync",
+			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
+		).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+	return i.p.Sync(spec)
+}
+
 // BusMetrics has metrics for messages buses.
 type BusMetrics struct {
 	KickCount metrics.Counter

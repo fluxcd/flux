@@ -13,6 +13,9 @@ import (
 // reconstitute them on the other side.
 type ApplyResult map[flux.ServiceID]string
 
+// Likewise with SyncResult
+type SyncResult map[platform.ResourceID]string
+
 // Server takes a platform and makes it available over RPC.
 type Server struct {
 	server *rpc.Server
@@ -89,5 +92,21 @@ func (p *RPCServer) Apply(defs []platform.ServiceDefinition, applyResult *ApplyR
 		}
 	}
 	*applyResult = result
+	return err
+}
+
+func (p *RPCServer) Sync(spec platform.SyncDef, syncResult *SyncResult) error {
+	result := SyncResult{}
+	err := p.p.Sync(spec)
+	if err != nil {
+		switch syncError := err.(type) {
+		case platform.SyncError:
+			for s, e := range syncError {
+				result[s] = e.Error()
+			}
+			err = nil
+		}
+	}
+	*syncResult = result
 	return err
 }

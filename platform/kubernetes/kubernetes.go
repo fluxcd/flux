@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"os"
 	"os/exec"
-	"sync"
 
 	k8syaml "github.com/ghodss/yaml"
 	"github.com/go-kit/kit/log"
@@ -41,13 +40,6 @@ type apiObject struct {
 		Name      string `yaml:"name"`
 		Namespace string `yaml:"namespace"`
 	} `yaml:"metadata"`
-}
-
-type applyExecFunc func(*Cluster, log.Logger) error
-
-type apply struct {
-	exec    applyExecFunc
-	summary string
 }
 
 // --- add-ons
@@ -87,7 +79,6 @@ type Cluster struct {
 	config  *rest.Config
 	client  extendedClient
 	kubectl string
-	status  *statusMap
 	actionc chan func()
 	version string // string response for the version command.
 	logger  log.Logger
@@ -117,7 +108,6 @@ func NewCluster(config *rest.Config, kubectl, version string, logger log.Logger)
 		config:  config,
 		client:  extendedClient{client.Discovery(), client.Core(), client.Extensions()},
 		kubectl: kubectl,
-		status:  newStatusMap(),
 		actionc: make(chan func()),
 		version: version,
 		logger:  logger,
@@ -212,7 +202,8 @@ func (c *Cluster) AllServices(namespace string, ignore flux.ServiceIDSet) (res [
 
 func (c *Cluster) makeService(ns string, service *v1.Service, controllers []podController) platform.Service {
 	id := flux.MakeServiceID(ns, service.Name)
-	status, _ := c.status.getApplyProgress(id)
+	// FIXME go look in the k8s API
+	var status = ""
 	return platform.Service{
 		ID:         id,
 		IP:         service.Spec.ClusterIP,
@@ -292,24 +283,6 @@ type podController struct {
 	Deployment            *apiext.Deployment
 }
 
-func (p podController) name() string {
-	if p.Deployment != nil {
-		return p.Deployment.Name
-	} else if p.ReplicationController != nil {
-		return p.ReplicationController.Name
-	}
-	return ""
-}
-
-func (p podController) kind() string {
-	if p.Deployment != nil {
-		return "Deployment"
-	} else if p.ReplicationController != nil {
-		return "ReplicationController"
-	}
-	return "unknown"
-}
-
 func (p podController) templateContainers() (res []platform.Container) {
 	var apiContainers []v1.Container
 	if p.Deployment != nil {
@@ -346,86 +319,78 @@ func (p podController) matchedBy(selector map[string]string) bool {
 	return true
 }
 
-// Apply applies a new set of ServiceDefinition. If all definitions succeed,
-// Apply returns a nil error. If any definitions fail, Apply returns an error
-// of type ApplyError, which can be inspected for more detailed information.
-// Applies are serialized per cluster.
-//
-// Apply assumes there is a one-to-one mapping between services and replication
-// controllers or deployments; this can be improved. Apply blocks until an
-// update is complete; this can be improved. Apply invokes `kubectl
-// rolling-update` or `kubectl apply` in a seperate process, and assumes
-// kubectl is in the PATH; this can be improved.
-func (c *Cluster) Apply(defs []platform.ServiceDefinition) error {
+// Sync performs the given actions on resources. Operations are
+// asynchronous, but serialised.
+func (c *Cluster) Sync(spec platform.SyncDef) error {
 	errc := make(chan error)
+	logger := log.NewContext(c.logger).With("method", "Sync")
 	c.actionc <- func() {
-		namespacedDefs := map[string][]platform.ServiceDefinition{}
-		for _, def := range defs {
-			ns, _ := def.ServiceID.Components()
-			namespacedDefs[ns] = append(namespacedDefs[ns], def)
-		}
-
-		applyErr := platform.ApplyError{}
-		for namespace, defs := range namespacedDefs {
-			services := c.client.Services(namespace)
-
-			controllers, err := c.podControllersInNamespace(namespace)
-			if err != nil {
-				err = errors.Wrapf(err, "getting pod controllers for namespace %s", namespace)
-				for _, def := range defs {
-					applyErr[def.ServiceID] = err
+		errs := platform.SyncError{}
+		for id, action := range spec.Actions {
+			if len(action.Delete) > 0 {
+				if err := c.doCommand(logger, action.Delete, "delete", "-f", "-"); err != nil {
+					errs[id] = err
+					continue
 				}
-				continue
 			}
-
-			for _, def := range defs {
-				newDef, err := definitionObj(def.NewDefinition)
-				if err != nil {
-					applyErr[def.ServiceID] = errors.Wrap(err, "reading definition")
+			if len(action.Create) > 0 {
+				if err := c.doCommand(logger, action.Create, "create", "-f", "-"); err != nil {
+					errs[id] = err
 					continue
 				}
-
-				_, serviceName := def.ServiceID.Components()
-				service, err := services.Get(serviceName)
+			}
+			if len(action.Apply) > 0 {
+				// special case for rolling upgrades
+				obj, err := definitionObj(action.Apply)
 				if err != nil {
-					applyErr[def.ServiceID] = errors.Wrap(err, "getting service")
+					errs[id] = err
 					continue
 				}
-
-				controller, err := matchController(service, controllers)
-				if err != nil {
-					applyErr[def.ServiceID] = errors.Wrap(err, "getting pod controller")
-					continue
+				switch obj.Kind {
+				case "ReplicationController":
+					err = c.startRollingUpgrade(logger, obj)
+				default:
+					err = c.doCommand(logger, action.Apply, "apply", "-f", "-")
 				}
-
-				plan, err := controller.newApply(newDef, def.Async)
 				if err != nil {
-					applyErr[def.ServiceID] = errors.Wrap(err, "creating release")
-					continue
-				}
-
-				c.status.startApply(def.ServiceID, plan)
-				defer c.status.endApply(def.ServiceID)
-
-				logger := log.NewContext(c.logger).With("method", "Apply", "namespace", namespace, "service", serviceName)
-				if err = plan.exec(c, logger); err != nil {
-					applyErr[def.ServiceID] = errors.Wrapf(err, "applying definition to %s", def.ServiceID)
+					errs[id] = err
 					continue
 				}
 			}
 		}
-		if len(applyErr) > 0 {
-			errc <- applyErr
-			return
+		if len(errs) > 0 {
+			errc <- errs
 		}
 		errc <- nil
 	}
 	return <-errc
 }
 
-func definitionObj(bytes []byte) (*apiObject, error) {
-	obj := apiObject{bytes: bytes}
-	return &obj, yaml.Unmarshal(bytes, &obj)
+// Apply applies a new set of ServiceDefinition. If all definitions succeed,
+// Apply returns a nil error. If any definitions fail, Apply returns an error
+// of type ApplyError, which can be inspected for more detailed information.
+// Applies are serialized.
+func (c *Cluster) Apply(defs []platform.ServiceDefinition) error {
+	sync := platform.SyncDef{Actions: map[platform.ResourceID]platform.SyncAction{}}
+	for _, def := range defs {
+		id := platform.ResourceID(def.ServiceID.String())
+		sync.Actions[id] = platform.SyncAction{Apply: def.NewDefinition}
+	}
+	err := c.Sync(sync)
+	if err == nil {
+		return nil
+	}
+
+	switch err := err.(type) {
+	case platform.SyncError:
+		applyErr := platform.ApplyError{}
+		for rid, syncErr := range err {
+			applyErr[flux.ServiceID(rid.String())] = syncErr
+		}
+		return applyErr
+	default:
+		return err
+	}
 }
 
 func (c *Cluster) Ping() error {
@@ -512,34 +477,8 @@ func appendYAML(buffer *bytes.Buffer, apiVersion, kind string, object interface{
 
 // --- end platform API
 
-type statusMap struct {
-	inProgress map[flux.ServiceID]*apply
-	mx         sync.RWMutex
-}
-
-func newStatusMap() *statusMap {
-	return &statusMap{
-		inProgress: make(map[flux.ServiceID]*apply),
-	}
-}
-
-func (m *statusMap) startApply(s flux.ServiceID, a *apply) {
-	m.mx.Lock()
-	defer m.mx.Unlock()
-	m.inProgress[s] = a
-}
-
-func (m *statusMap) getApplyProgress(s flux.ServiceID) (string, bool) {
-	m.mx.RLock()
-	defer m.mx.RUnlock()
-	if a, ok := m.inProgress[s]; ok {
-		return a.summary, true
-	}
-	return "", false
-}
-
-func (m *statusMap) endApply(s flux.ServiceID) {
-	m.mx.Lock()
-	defer m.mx.Unlock()
-	delete(m.inProgress, s)
+// A convenience for getting an minimal object from some bytes.
+func definitionObj(bytes []byte) (*apiObject, error) {
+	obj := apiObject{bytes: bytes}
+	return &obj, yaml.Unmarshal(bytes, &obj)
 }

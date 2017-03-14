@@ -2,7 +2,6 @@
 
 import yaml, sys, os, os.path, string, subprocess, optparse, json
 
-
 class Kubeimage(Exception):
   pass
 

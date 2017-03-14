@@ -32,6 +32,11 @@ func (bc baseClient) Version() (string, error) {
 }
 
 // Export is used to get service configuration in platform-specific format
-func (p baseClient) Export() ([]byte, error) {
+func (bc baseClient) Export() ([]byte, error) {
 	return nil, platform.UpgradeNeededError(errors.New("Export method not implemented"))
+}
+
+// Export is used to get service configuration in platform-specific format
+func (bc baseClient) Sync(platform.SyncDef) error {
+	return platform.UpgradeNeededError(errors.New("Sync method not implemented"))
 }

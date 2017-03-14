@@ -33,6 +33,7 @@ const (
 	methodSomeServices = ".Platform.SomeServices"
 	methodApply        = ".Platform.Apply"
 	methodExport       = ".Platform.Export"
+	methodSync         = ".Platform.Sync"
 )
 
 type NATS struct {
@@ -135,6 +136,11 @@ type export struct{}
 
 type ExportResponse struct {
 	Config []byte
+	ErrorResponse
+}
+
+type SyncResponse struct {
+	Result fluxrpc.SyncResult
 	ErrorResponse
 }
 
@@ -246,6 +252,29 @@ func (r *natsPlatform) Export() ([]byte, error) {
 	}
 	return response.Config, extractError(response.ErrorResponse)
 }
+
+func (r *natsPlatform) Sync(spec platform.SyncDef) error {
+	var response SyncResponse
+	// I use the applyTimeout here to be conservative; just applying
+	// things should take much less time (though it'll still be in the
+	// seconds)
+	if err := r.conn.Request(r.instance+methodSync, spec, &response, applyTimeout); err != nil {
+		if err == nats.ErrTimeout {
+			err = platform.UnavailableError(err)
+		}
+		return err
+	}
+	if len(response.Result) > 0 {
+		errs := platform.SyncError{}
+		for s, e := range response.Result {
+			errs[s] = errors.New(e)
+		}
+		return errs
+	}
+	return extractError(response.ErrorResponse)
+}
+
+// --- end Platform implementation
 
 // Connect returns a platform.Platform implementation that can be used
 // to talk to a particular instance.

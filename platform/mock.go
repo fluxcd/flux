@@ -23,6 +23,8 @@ type MockPlatform struct {
 
 	ExportAnswer []byte
 	ExportError  error
+
+	SyncError error
 }
 
 func (p *MockPlatform) AllServices(ns string, ss flux.ServiceIDSet) ([]Service, error) {
@@ -62,4 +64,8 @@ func (p *MockPlatform) Version() (string, error) {
 
 func (p *MockPlatform) Export() ([]byte, error) {
 	return p.ExportAnswer, p.ExportError
+}
+
+func (p *MockPlatform) Sync(SyncDef) error {
+	return p.SyncError
 }
