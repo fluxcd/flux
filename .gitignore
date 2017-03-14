@@ -23,6 +23,10 @@ _testmain.go
 *.test
 *.prof
 
+# Tool related configurations
+.ackrc
+.envrc
+
 # Specific to this project
 vendor/
 build/
