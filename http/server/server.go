@@ -43,7 +43,8 @@ func NewHandler(s api.FluxService, r *mux.Router, logger log.Logger) http.Handle
 		"SetConfig":              handle.SetConfig,
 		"GenerateDeployKeys":     handle.GenerateKeys,
 		"PostIntegrationsGithub": handle.PostIntegrationsGithub,
-		"RegisterDaemon":         handle.Register,
+		"RegisterDaemonV0":       handle.RegisterV0,
+		"RegisterDaemon":         handle.Register, // V1 is implied
 		"IsConnected":            handle.IsConnected,
 	} {
 		handler := logging(handlerMethod, log.NewContext(logger).With("method", method))
@@ -341,6 +342,27 @@ func (s HTTPService) Status(w http.ResponseWriter, r *http.Request) {
 	}
 
 	jsonResponse(w, r, status)
+}
+
+// Largely a copy of Register; obviously we would factor out commonality
+func (s HTTPService) RegisterV0(w http.ResponseWriter, r *http.Request) {
+	inst := getInstanceID(r)
+
+	ws, err := websocket.Upgrade(w, r, nil)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprintf(w, err.Error())
+		return
+	}
+
+	// Instantiate a client for the V0 RPC server; NB this supports the V1
+	// Platform interface and is responsible for adapting behaviour or returning
+	// missing method errors as appropriate
+	rpcClientV0 := rpc.NewClientV0(ws)
+
+	s.service.RegisterDaemon(inst, rpcClientV0)
+
+	rpcClientV0.Close() // also closes the underlying socket
 }
 
 func (s HTTPService) Register(w http.ResponseWriter, r *http.Request) {

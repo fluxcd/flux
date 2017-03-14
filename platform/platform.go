@@ -12,13 +12,22 @@ import (
 	"github.com/weaveworks/flux"
 )
 
-// Platform is the interface various platforms fulfill, e.g.
-// *kubernetes.Cluster
-type Platform interface {
+// The conceit here is to move the existing interface out of the way to a name
+// which includes a historic version, and updating the unaddorned `Platform`
+// interface with the new method. Moving the existing interface to a different
+// name avoids us having to modify all places in the code that refer to
+// 'Platform'.
+type PlatformV0 interface {
 	AllServices(maybeNamespace string, ignored flux.ServiceIDSet) ([]Service, error)
 	SomeServices([]flux.ServiceID) ([]Service, error)
 	Apply([]ServiceDefinition) error
 	Ping() error
+}
+
+// Platform is the interface various platforms fulfill, e.g.
+// *kubernetes.Cluster
+type Platform interface { // V1 is implied to avoid us having to rename all the things
+	PlatformV0
 	Version() (string, error)
 }
 

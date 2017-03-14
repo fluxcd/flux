@@ -39,7 +39,8 @@ func NewRouter() *mux.Router {
 	r.NewRoute().Name("SetConfig").Methods("POST").Path("/v4/config")
 	r.NewRoute().Name("GenerateDeployKeys").Methods("POST").Path("/v5/config/deploy-keys")
 	r.NewRoute().Name("PostIntegrationsGithub").Methods("POST").Path("/v5/integrations/github").Queries("owner", "{owner}", "repository", "{repository}")
-	r.NewRoute().Name("RegisterDaemon").Methods("GET").Path("/v4/daemon")
+	r.NewRoute().Name("RegisterDaemonV0").Methods("GET").Path("/v4/daemon") // This is the route compiled into existing 'V0' fluxds in the wild
+	r.NewRoute().Name("RegisterDaemon").Methods("GET").Path("/v5/daemon")   // This is the new route for new implied 'V1' fluxds
 	r.NewRoute().Name("IsConnected").Methods("HEAD", "GET").Path("/v4/ping")
 
 	// We assume every request that doesn't match a route is a client
