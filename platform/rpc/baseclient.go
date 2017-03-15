@@ -9,7 +9,7 @@ import (
 
 type baseClient struct{}
 
-var _ platform.Platform = &baseClient{}
+var _ platform.Platform = baseClient{}
 
 func (bc baseClient) AllServices(string, flux.ServiceIDSet) ([]platform.Service, error) {
 	return nil, platform.UpgradeNeededError(errors.New("AllServices method not implemented"))
@@ -31,12 +31,10 @@ func (bc baseClient) Version() (string, error) {
 	return "", platform.UpgradeNeededError(errors.New("Version method not implemented"))
 }
 
-// Export is used to get service configuration in platform-specific format
 func (bc baseClient) Export() ([]byte, error) {
 	return nil, platform.UpgradeNeededError(errors.New("Export method not implemented"))
 }
 
-// Export is used to get service configuration in platform-specific format
 func (bc baseClient) Sync(platform.SyncDef) error {
 	return platform.UpgradeNeededError(errors.New("Sync method not implemented"))
 }

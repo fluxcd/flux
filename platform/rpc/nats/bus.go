@@ -18,13 +18,13 @@ const (
 	// We give subscriptions an age limit, because if we have very
 	// long-lived connections we don't get fine-enough-grained usage
 	// metrics
-	maxAge  = 2 * time.Hour
-	timeout = 5 * time.Second
+	maxAge         = 2 * time.Hour
+	defaultTimeout = 5 * time.Second
 	// Apply can take minutes, simply because some deployments take a
 	// while to roll out for whatever reason
-	applyTimeout = 20 * time.Minute
-	presenceTick = 50 * time.Millisecond
-	encoderType  = nats.JSON_ENCODER
+	defaultApplyTimeout = 20 * time.Minute
+	presenceTick        = 50 * time.Millisecond
+	encoderType         = nats.JSON_ENCODER
 
 	methodKick         = ".Platform.Kick"
 	methodPing         = ".Platform.Ping"
@@ -35,6 +35,9 @@ const (
 	methodExport       = ".Platform.Export"
 	methodSync         = ".Platform.Sync"
 )
+
+var applyTimeout = defaultApplyTimeout
+var timeout = defaultTimeout
 
 type NATS struct {
 	url string
@@ -381,6 +384,24 @@ func (n *NATS) Subscribe(instID flux.InstanceID, remote platform.Platform, done 
 				bytes, err = remote.Export()
 			}
 			n.enc.Publish(request.Reply, ExportResponse{bytes, makeErrorResponse(err)})
+		case strings.HasSuffix(request.Subject, methodSync):
+			var def platform.SyncDef
+			err = encoder.Decode(request.Subject, request.Data, &def)
+			if err == nil {
+				err = remote.Sync(def)
+			}
+			response := SyncResponse{}
+			switch syncErr := err.(type) {
+			case platform.SyncError:
+				result := fluxrpc.SyncResult{}
+				for s, e := range syncErr {
+					result[s] = e.Error()
+				}
+				response.Result = result
+			default:
+				response.ErrorResponse = makeErrorResponse(err)
+			}
+			n.enc.Publish(request.Reply, response)
 		default:
 			err = errors.New("unknown message: " + request.Subject)
 		}
