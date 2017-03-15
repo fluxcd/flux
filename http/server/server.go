@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"net/url"
@@ -23,6 +24,7 @@ import (
 	"github.com/weaveworks/flux/http/websocket"
 	"github.com/weaveworks/flux/integrations/github"
 	"github.com/weaveworks/flux/jobs"
+	"github.com/weaveworks/flux/platform"
 	"github.com/weaveworks/flux/platform/rpc"
 )
 
@@ -43,8 +45,8 @@ func NewHandler(s api.FluxService, r *mux.Router, logger log.Logger) http.Handle
 		"SetConfig":              handle.SetConfig,
 		"GenerateDeployKeys":     handle.GenerateKeys,
 		"PostIntegrationsGithub": handle.PostIntegrationsGithub,
-		"RegisterDaemonV0":       handle.RegisterV0,
-		"RegisterDaemon":         handle.Register, // V1 is implied
+		"RegisterDaemonV4":       handle.RegisterV4,
+		"RegisterDaemonV5":       handle.RegisterV5,
 		"IsConnected":            handle.IsConnected,
 	} {
 		handler := logging(handlerMethod, log.NewContext(logger).With("method", method))
@@ -344,28 +346,26 @@ func (s HTTPService) Status(w http.ResponseWriter, r *http.Request) {
 	jsonResponse(w, r, status)
 }
 
-// Largely a copy of Register; obviously we would factor out commonality
-func (s HTTPService) RegisterV0(w http.ResponseWriter, r *http.Request) {
-	inst := getInstanceID(r)
-
-	ws, err := websocket.Upgrade(w, r, nil)
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprintf(w, err.Error())
-		return
-	}
-
-	// Instantiate a client for the V0 RPC server; NB this supports the V1
-	// Platform interface and is responsible for adapting behaviour or returning
-	// missing method errors as appropriate
-	rpcClientV0 := rpc.NewClientV0(ws)
-
-	s.service.RegisterDaemon(inst, rpcClientV0)
-
-	rpcClientV0.Close() // also closes the underlying socket
+func (s HTTPService) RegisterV4(w http.ResponseWriter, r *http.Request) {
+	s.doRegister(w, r, func(conn io.ReadWriteCloser) platformCloser {
+		return rpc.NewClientV4(conn)
+	})
 }
 
-func (s HTTPService) Register(w http.ResponseWriter, r *http.Request) {
+func (s HTTPService) RegisterV5(w http.ResponseWriter, r *http.Request) {
+	s.doRegister(w, r, func(conn io.ReadWriteCloser) platformCloser {
+		return rpc.NewClientV5(conn)
+	})
+}
+
+type platformCloser interface {
+	platform.Platform
+	io.Closer
+}
+
+type platformCloserFn func(io.ReadWriteCloser) platformCloser
+
+func (s HTTPService) doRegister(w http.ResponseWriter, r *http.Request, newRPCFn platformCloserFn) {
 	inst := getInstanceID(r)
 
 	// This is not client-facing, so we don't do content
@@ -381,7 +381,7 @@ func (s HTTPService) Register(w http.ResponseWriter, r *http.Request) {
 
 	// Set up RPC. The service is a websocket _server_ but an RPC
 	// _client_.
-	rpcClient := rpc.NewClient(ws)
+	rpcClient := newRPCFn(ws)
 
 	// Make platform available to clients
 	// This should block until the daemon disconnects
