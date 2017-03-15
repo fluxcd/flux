@@ -89,7 +89,7 @@ func TestRPC(t *testing.T) {
 	}
 	go server.ServeConn(serverConn)
 
-	client := NewClient(clientConn)
+	client := NewClientV5(clientConn)
 	if err := client.Ping(); err != nil {
 		t.Fatal(err)
 	}
@@ -165,7 +165,7 @@ func TestBadRPC(t *testing.T) {
 	}
 	go server.ServeConn(serverConn)
 
-	client := NewClient(clientConn)
+	client := NewClientV5(clientConn)
 	if err = client.Ping(); err == nil {
 		t.Error("expected error from RPC system, got nil")
 	}
