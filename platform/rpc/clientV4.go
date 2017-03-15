@@ -13,12 +13,15 @@ import (
 // RPCClientV4 is the rpc-backed implementation of a platform, for
 // talking to remote daemons.
 type RPCClientV4 struct {
+	*baseClient
 	client *rpc.Client
 }
 
+var _ platform.PlatformV4 = &RPCClientV4{}
+
 // NewClient creates a new rpc-backed implementation of the platform.
 func NewClientV4(conn io.ReadWriteCloser) *RPCClientV4 {
-	return &RPCClientV4{jsonrpc.NewClient(conn)}
+	return &RPCClientV4{&baseClient{}, jsonrpc.NewClient(conn)}
 }
 
 // AllServicesRequest is the request datastructure for AllServices
