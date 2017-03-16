@@ -4,33 +4,61 @@ import (
 	"fmt"
 )
 
-// TODO: coalesce `-` followed by `+` into a change (if it looks
-// similar?)
 func DiffLines(a, b []string, path string) ([]Difference, error) {
 	if len(a) == 0 && len(b) == 0 {
 		return nil, nil
 	}
 
-	var diffs []Difference
-	addIndex, removeIndex := 0, 0
-
 	chunks := diffChunks(a, b)
-	for _, chunk := range chunks {
-		for i, line := range chunk.Deleted {
-			diffs = append(diffs, Removed{line, fmt.Sprintf("%s[%d]", path, removeIndex+i)})
-		}
-		removeIndex += len(chunk.Deleted) + len(chunk.Equal)
+	var diffs []Difference
 
-		for i, line := range chunk.Added {
-			diffs = append(diffs, Added{line, fmt.Sprintf("%s[%d]", path, addIndex+i)})
+	pathIndex := 0
+	i := 0
+	for i < len(chunks) {
+		chunk := chunks[i]
+		i++
+
+		if len(chunk.Deleted) == 0 && len(chunk.Added) == 0 {
+			pathIndex += len(chunk.Equal)
+			continue
 		}
-		addIndex += len(chunk.Added) + len(chunk.Equal)
+
+		diff := Chunk{
+			Path:    fmt.Sprintf("%s[%d]", path, pathIndex),
+			Added:   toIfaceSlice(chunk.Added),
+			Deleted: toIfaceSlice(chunk.Deleted),
+		}
+
+		pathIndex += len(chunk.Added) + len(chunk.Equal)
+
+		// if this is one half of a Remove/Add pair, coalesce it with the next
+		if i < len(chunks) {
+			next := chunks[i]
+			if len(chunk.Deleted) > 0 && len(chunk.Equal) == 0 && len(next.Added) > 0 {
+				diff.Added = toIfaceSlice(next.Added)
+				pathIndex += len(next.Added) + len(next.Equal)
+				i++
+			}
+		}
+
+		diffs = append(diffs, diff)
 	}
 	return diffs, nil
 }
 
+func toIfaceSlice(ss []string) []interface{} {
+	if ss == nil {
+		return nil
+	}
+	is := make([]interface{}, len(ss))
+	for i := range ss {
+		is[i] = ss[i]
+	}
+	return is
+}
+
 // Taken from https://gowalker.org/github.com/kylelemons/godebug/diff
-func diffChunks(A, B []string) []Chunk {
+func diffChunks(A, B []string) []LineChunk {
 	// algorithm: http://www.xmailserver.org/diff2.pdf
 	N, M := len(A), len(B)
 	MAX := N + M
@@ -63,7 +91,7 @@ dLoop:
 	if D == 0 {
 		return nil
 	}
-	chunks := make([]Chunk, D+1)
+	chunks := make([]LineChunk, D+1)
 
 	x, y := N, M
 	for d := D; d > 0; d-- {
@@ -84,7 +112,7 @@ dLoop:
 		}
 		y0 := x0 - kk
 
-		var c Chunk
+		var c LineChunk
 		if insert {
 			c.Added = B[y0:][:1]
 		} else {
@@ -103,7 +131,7 @@ dLoop:
 	return chunks
 }
 
-type Chunk struct {
+type LineChunk struct {
 	Added   []string
 	Deleted []string
 	Equal   []string

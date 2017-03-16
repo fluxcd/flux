@@ -89,15 +89,15 @@ func (a Env) Diff(d diff.Differ, path string) ([]diff.Difference, error) {
 		for keyA, entryA := range as {
 			if entryB, ok := bs[keyA]; ok {
 				if entryB.Value != entryA.Value {
-					diffs = append(diffs, diff.Changed{entryA.Value, entryB.Value, fmt.Sprintf("%s[%s]", path, entryA.Name)})
+					diffs = append(diffs, diff.Changed(entryA.Value, entryB.Value, fmt.Sprintf("%s[%s]", path, entryA.Name)))
 				}
 			} else {
-				diffs = append(diffs, diff.Removed{entryA.Value, fmt.Sprintf("%s[%s]", path, entryA.Name)})
+				diffs = append(diffs, diff.Removed(entryA.Value, fmt.Sprintf("%s[%s]", path, entryA.Name)))
 			}
 		}
 		for keyB, entryB := range bs {
 			if _, ok := as[keyB]; !ok {
-				diffs = append(diffs, diff.Added{entryB.Value, fmt.Sprintf("%s[%s]", path, entryB.Name)})
+				diffs = append(diffs, diff.Added(entryB.Value, fmt.Sprintf("%s[%s]", path, entryB.Name)))
 			}
 		}
 		return diffs, nil
