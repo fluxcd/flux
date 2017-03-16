@@ -1,6 +1,6 @@
 ## 0.2.0 (2017-03-16)
 
-More helpful.
+More informative and helpful UI.
 
 ### Features
 
