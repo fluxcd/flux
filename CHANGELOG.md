@@ -1,3 +1,24 @@
+## 0.2.0 (2017-03-16)
+
+More helpful.
+
+### Features
+
+-   Lots more documentation
+-   More informative output from `fluxctl release`
+-   Added option in `fluxctl set-config` to generate a deploy key
+
+### Improvements
+
+-   Slack notifications are tidier
+-   Support for releasing to >1 service at a time
+-   Better behaviour when flux deploys itself
+-   More help given for commonly encountered errors
+-   Filter out Kubernetes add-ons from consideration
+-   More consistent Prometheus metric labeling
+
+See also https://github.com/weaveworks/flux/issues?&q=is%3Aclosed%3A>%3D2017-01-27 
+
 ## 0.1.0 (2017-01-27)
 
 Initial semver release.
