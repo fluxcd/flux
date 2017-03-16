@@ -17,7 +17,7 @@ func (s SecretData) Diff(d diff.Differ, path string) ([]diff.Difference, error) 
 		if s1 == s {
 			return nil, nil
 		}
-		return []diff.Difference{diff.OpaqueChanged{path}}, nil
+		return []diff.Difference{diff.OpaqueChunk{Path: path}}, nil
 	}
 	return nil, diff.ErrNotDiffable
 }

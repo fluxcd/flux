@@ -9,30 +9,55 @@ import (
 	"strings"
 )
 
-// Difference represents an individual difference between two
-// `Object`s. This is an interface because
+// Difference represents a "chunk" of difference between two
+// `Object`s.
 type Difference interface {
 	Summarise(out io.Writer)
+	AtPath() string
 }
 
-type Changed struct {
-	A, B interface{}
+type Chunk struct {
+	Deleted []interface{}
+	Added   []interface{}
+	Path    string
+}
+
+func (c Chunk) AtPath() string {
+	return c.Path
+}
+
+// Some convenience funcs for when a single value has changed,
+// appeared or disappeared.
+
+func Changed(A, B interface{}, path string) Difference {
+	return Chunk{
+		Path:    path,
+		Deleted: []interface{}{A},
+		Added:   []interface{}{B},
+	}
+}
+
+func Added(B interface{}, path string) Difference {
+	return Chunk{
+		Path:  path,
+		Added: []interface{}{B},
+	}
+}
+
+func Removed(A interface{}, path string) Difference {
+	return Chunk{
+		Path:    path,
+		Deleted: []interface{}{A},
+	}
+}
+
+// a value has changed, but don't report the before or after
+type OpaqueChunk struct {
 	Path string
 }
 
-type Added struct {
-	Value interface{}
-	Path  string
-}
-
-type Removed struct {
-	Value interface{}
-	Path  string
-}
-
-// the value has changed, but don't report the before or after
-type OpaqueChanged struct {
-	Path string
+func (c OpaqueChunk) AtPath() string {
+	return c.Path
 }
 
 // Objects are considered unique by {Namespace, Kind, Name}
@@ -131,13 +156,14 @@ func DiffObject(a, b Object) ([]Difference, error) {
 	if typA != typB {
 		return nil, ErrNotDiffable
 	}
-	return diffObj(reflect.ValueOf(a), reflect.ValueOf(b), typA, "")
+	return diffValue(reflect.ValueOf(a), reflect.ValueOf(b), typA, "")
 }
 
 var differType = reflect.TypeOf((*Differ)(nil)).Elem()
 
-// Compare two values and compile a list of differences between them.
-func diffObj(a, b reflect.Value, typ reflect.Type, path string) ([]Difference, error) {
+// Compare two reflected values and compile a list of differences
+// between them.
+func diffValue(a, b reflect.Value, typ reflect.Type, path string) ([]Difference, error) {
 	if typ.Implements(differType) {
 		differA, differB := a.Interface().(Differ), b.Interface().(Differ)
 		return differA.Diff(differB, path)
@@ -152,7 +178,7 @@ func diffObj(a, b reflect.Value, typ reflect.Type, path string) ([]Difference, e
 		return nil, errors.New("interface diff not implemented")
 	case reflect.Ptr:
 		a, b, typ = reflect.Indirect(a), reflect.Indirect(b), typ.Elem()
-		return diffObj(a, b, typ, path)
+		return diffValue(a, b, typ, path)
 	case reflect.Struct:
 		return diffStruct(a, b, typ, path)
 	case reflect.Map:
@@ -161,20 +187,22 @@ func diffObj(a, b reflect.Value, typ reflect.Type, path string) ([]Difference, e
 		return nil, errors.New("func diff not implemented (and not implementable)")
 	default: // all ground types
 		if a.Interface() != b.Interface() {
-			return []Difference{Changed{a.Interface(), b.Interface(), path}}, nil
+			return []Difference{Changed(a.Interface(), b.Interface(), path)}, nil
 		}
 		return nil, nil
 	}
 }
 
-// diff each exported field individually
+// diff each exported field individually. TODO: treat a struct with
+// diffs in ground values as a single chunk, rather than always
+// recursing.
 func diffStruct(a, b reflect.Value, structTyp reflect.Type, path string) ([]Difference, error) {
 	var diffs []Difference
 
 	for i := 0; i < structTyp.NumField(); i++ {
 		field := structTyp.Field(i)
 		if field.PkgPath == "" { // i.e., is an exported field
-			fieldDiffs, err := diffObj(a.Field(i), b.Field(i), field.Type, path+"."+field.Name)
+			fieldDiffs, err := diffValue(a.Field(i), b.Field(i), field.Type, path+"."+field.Name)
 			if err != nil {
 				return nil, err
 			}
@@ -184,29 +212,40 @@ func diffStruct(a, b reflect.Value, structTyp reflect.Type, path string) ([]Diff
 	return diffs, nil
 }
 
-// diff each element, report over- or underbite
+// diff each element, and include over- or underbite. TODO report an
+// array of ground values as a single chunk, rather than recursing.
 func diffArrayOrSlice(a, b reflect.Value, sliceTyp reflect.Type, path string) ([]Difference, error) {
-	var diffs []Difference
+	var changed []Difference
 	elemTyp := sliceTyp.Elem()
 
 	i := 0
 	for ; i < a.Len() && i < b.Len(); i++ {
-		d, err := diffObj(a.Index(i), b.Index(i), elemTyp, fmt.Sprintf("%s[%d]", path, i))
+		d, err := diffValue(a.Index(i), b.Index(i), elemTyp, fmt.Sprintf("%s[%d]", path, i))
 		if err != nil {
 			return nil, err
 		}
-		diffs = append(diffs, d...)
+		changed = append(changed, d...)
 	}
 
-	for j := i; j < a.Len(); j++ {
-		diffs = append(diffs, Removed{a.Index(j).Interface(), fmt.Sprintf("%s[%d]", path, j)})
+	if i < a.Len() {
+		var deleted []interface{}
+		for j := i; j < a.Len(); j++ {
+			deleted = append(deleted, a.Index(j).Interface())
+		}
+		return append(changed, Chunk{Deleted: deleted, Path: fmt.Sprintf("%s[%d]", path, i)}), nil
 	}
-	for j := i; j < b.Len(); j++ {
-		diffs = append(diffs, Added{b.Index(j).Interface(), fmt.Sprintf("%s[%d]", path, j)})
+	if i < b.Len() {
+		var added []interface{}
+		for j := i; j < b.Len(); j++ {
+			added = append(added, b.Index(j).Interface())
+		}
+		return append(changed, Chunk{Added: added, Path: fmt.Sprintf("%s[%d]", path, i)}), nil
 	}
-	return diffs, nil
+	return changed, nil
 }
 
+// diff each entry in the map, and include entries in only one of A,
+// B.
 func diffMap(a, b reflect.Value, elemTyp reflect.Type, path string) ([]Difference, error) {
 	if a.Kind() != reflect.Map || b.Kind() != reflect.Map {
 		return nil, errors.New("both values must be maps")
@@ -217,19 +256,19 @@ func diffMap(a, b reflect.Value, elemTyp reflect.Type, path string) ([]Differenc
 	for _, keyA := range a.MapKeys() {
 		valA := a.MapIndex(keyA)
 		if valB := b.MapIndex(keyA); valB != zero {
-			moreDiffs, err := diffObj(valA, valB, elemTyp, fmt.Sprintf(`%s[%v]`, path, keyA))
+			moreDiffs, err := diffValue(valA, valB, elemTyp, fmt.Sprintf(`%s[%v]`, path, keyA))
 			if err != nil {
 				return nil, err
 			}
 			diffs = append(diffs, moreDiffs...)
 		} else {
-			diffs = append(diffs, Removed{valA.Interface(), fmt.Sprintf(`%s[%v]`, path, keyA)})
+			diffs = append(diffs, Removed(valA.Interface(), fmt.Sprintf(`%s[%v]`, path, keyA)))
 		}
 	}
 	for _, keyB := range b.MapKeys() {
 		valB := b.MapIndex(keyB)
 		if valA := a.MapIndex(keyB); valA == zero {
-			diffs = append(diffs, Added{valB.Interface(), fmt.Sprintf(`%s[%v]`, path, keyB)})
+			diffs = append(diffs, Added(valB.Interface(), fmt.Sprintf(`%s[%v]`, path, keyB)))
 		}
 	}
 
@@ -244,49 +283,9 @@ func (d sorted) Len() int {
 	return len(d)
 }
 
-// Sort order for changes: Removed < {Changed, OpaqueChanged} < Added,
-// then lexicographic on Path
-
+// Sort order for chunks: lexically on path
 func (d sorted) Less(i, j int) bool {
-	switch a := d[i].(type) {
-	case Removed:
-		switch b := d[j].(type) {
-		case Removed:
-			return strings.Compare(a.Path, b.Path) == -1
-		default:
-			return true
-		}
-	case Changed:
-		switch b := d[j].(type) {
-		case Removed:
-			return false
-		case Changed:
-			return strings.Compare(a.Path, b.Path) == -1
-		case OpaqueChanged:
-			return strings.Compare(a.Path, b.Path) == -1
-		default:
-			return true
-		}
-	case OpaqueChanged:
-		switch b := d[j].(type) {
-		case Removed:
-			return false
-		case Changed:
-			return strings.Compare(a.Path, b.Path) == -1
-		case OpaqueChanged:
-			return strings.Compare(a.Path, b.Path) == -1
-		default:
-			return true
-		}
-	case Added:
-		switch b := d[j].(type) {
-		case Added:
-			return strings.Compare(a.Path, b.Path) == -1
-		default:
-			return false
-		}
-	}
-	return false
+	return strings.Compare(d[i].AtPath(), d[j].AtPath()) == -1
 }
 
 func (d sorted) Swap(a, b int) {

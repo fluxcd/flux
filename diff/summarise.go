@@ -5,18 +5,16 @@ import (
 	"io"
 )
 
-func (d Changed) Summarise(out io.Writer) {
-	fmt.Fprintf(out, "* %s: %v != %v\n", d.Path, d.A, d.B)
+func (d Chunk) Summarise(out io.Writer) {
+	fmt.Fprintf(out, "%s:\n", d.Path)
+	for _, del := range d.Deleted {
+		fmt.Fprintf(out, "- %#v\n", del)
+	}
+	for _, add := range d.Added {
+		fmt.Fprintf(out, "+ %#v\n", add)
+	}
 }
 
-func (d Added) Summarise(out io.Writer) {
-	fmt.Fprintf(out, "+ %s: %+v\n", d.Path, d.Value)
-}
-
-func (d Removed) Summarise(out io.Writer) {
-	fmt.Fprintf(out, "- %s: %+v\n", d.Path, d.Value)
-}
-
-func (d OpaqueChanged) Summarise(out io.Writer) {
-	fmt.Fprintf(out, "* %s: data has changed\n", d.Path)
+func (d OpaqueChunk) Summarise(out io.Writer) {
+	fmt.Fprintf(out, "%s: value has changed\n", d.Path)
 }
