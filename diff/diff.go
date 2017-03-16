@@ -42,6 +42,13 @@ type ObjectID struct {
 	Name      string
 }
 
+func (id ObjectID) String() string {
+	if id.Namespace == "" {
+		return id.Kind + " " + id.Name
+	}
+	return fmt.Sprintf("%s %s/%s", id.Kind, id.Namespace, id.Name)
+}
+
 type Object interface {
 	ID() ObjectID
 	Source() string
