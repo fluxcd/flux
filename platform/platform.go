@@ -12,14 +12,24 @@ import (
 	"github.com/weaveworks/flux"
 )
 
-// Platform is the interface various platforms fulfill, e.g.
-// *kubernetes.Cluster
-type Platform interface {
+type PlatformV4 interface {
 	AllServices(maybeNamespace string, ignored flux.ServiceIDSet) ([]Service, error)
 	SomeServices([]flux.ServiceID) ([]Service, error)
 	Apply([]ServiceDefinition) error
 	Ping() error
 	Version() (string, error)
+}
+
+type PlatformV5 interface {
+	PlatformV4
+
+	// Additional methods accumulate here as we develop V5
+}
+
+// Platform is the interface various platforms fulfill, e.g.
+// *kubernetes.Cluster
+type Platform interface {
+	PlatformV5
 }
 
 // Wrap errors in this to indicate that the platform should be

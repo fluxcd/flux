@@ -10,27 +10,30 @@ import (
 	"github.com/weaveworks/flux/platform"
 )
 
-// RPCClient is the rpc-backed implementation of a platform, for
+// RPCClientV4 is the rpc-backed implementation of a platform, for
 // talking to remote daemons.
-type RPCClient struct {
+type RPCClientV4 struct {
+	*baseClient
 	client *rpc.Client
 }
 
+var _ platform.PlatformV4 = &RPCClientV4{}
+
 // NewClient creates a new rpc-backed implementation of the platform.
-func NewClient(conn io.ReadWriteCloser) *RPCClient {
-	return &RPCClient{jsonrpc.NewClient(conn)}
+func NewClientV4(conn io.ReadWriteCloser) *RPCClientV4 {
+	return &RPCClientV4{&baseClient{}, jsonrpc.NewClient(conn)}
 }
 
 // AllServicesRequest is the request datastructure for AllServices
-type AllServicesRequest struct {
+type AllServicesRequestV4 struct {
 	MaybeNamespace string
 	Ignored        flux.ServiceIDSet
 }
 
 // AllServices asks the remote platform to list all services.
-func (p *RPCClient) AllServices(maybeNamespace string, ignored flux.ServiceIDSet) ([]platform.Service, error) {
+func (p *RPCClientV4) AllServices(maybeNamespace string, ignored flux.ServiceIDSet) ([]platform.Service, error) {
 	var s []platform.Service
-	err := p.client.Call("RPCServer.AllServices", AllServicesRequest{maybeNamespace, ignored}, &s)
+	err := p.client.Call("RPCServer.AllServices", AllServicesRequestV4{maybeNamespace, ignored}, &s)
 	if _, ok := err.(rpc.ServerError); !ok && err != nil {
 		err = platform.FatalError{err}
 	}
@@ -38,7 +41,7 @@ func (p *RPCClient) AllServices(maybeNamespace string, ignored flux.ServiceIDSet
 }
 
 // SomeServices asks the remote platform about some specific set of services.
-func (p *RPCClient) SomeServices(ids []flux.ServiceID) ([]platform.Service, error) {
+func (p *RPCClientV4) SomeServices(ids []flux.ServiceID) ([]platform.Service, error) {
 	var s []platform.Service
 	err := p.client.Call("RPCServer.SomeServices", ids, &s)
 	if _, ok := err.(rpc.ServerError); !ok && err != nil {
@@ -48,7 +51,7 @@ func (p *RPCClient) SomeServices(ids []flux.ServiceID) ([]platform.Service, erro
 }
 
 // Apply tells the remote platform to apply some new service definitions.
-func (p *RPCClient) Apply(defs []platform.ServiceDefinition) error {
+func (p *RPCClientV4) Apply(defs []platform.ServiceDefinition) error {
 	var applyErrors ApplyResult
 	// TODO: This is still calling "Regrade" for backwards compatibility with old
 	// fluxds. Change this to "Apply" when we do a major version release.
@@ -69,7 +72,7 @@ func (p *RPCClient) Apply(defs []platform.ServiceDefinition) error {
 }
 
 // Ping is used to check if the remote platform is available.
-func (p *RPCClient) Ping() error {
+func (p *RPCClientV4) Ping() error {
 	err := p.client.Call("RPCServer.Ping", struct{}{}, nil)
 	if _, ok := err.(rpc.ServerError); !ok && err != nil {
 		return platform.FatalError{err}
@@ -78,7 +81,7 @@ func (p *RPCClient) Ping() error {
 }
 
 // Version is used to check if the remote platform is available
-func (p *RPCClient) Version() (string, error) {
+func (p *RPCClientV4) Version() (string, error) {
 	var version string
 	err := p.client.Call("RPCServer.Version", struct{}{}, &version)
 	if _, ok := err.(rpc.ServerError); !ok && err != nil {
@@ -93,6 +96,6 @@ func (p *RPCClient) Version() (string, error) {
 
 // Close closes the connection to the remote platform, it does *not* cause the
 // remote platform to shut down.
-func (p *RPCClient) Close() error {
+func (p *RPCClientV4) Close() error {
 	return p.client.Close()
 }

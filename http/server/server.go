@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"net/url"
@@ -23,6 +24,7 @@ import (
 	"github.com/weaveworks/flux/http/websocket"
 	"github.com/weaveworks/flux/integrations/github"
 	"github.com/weaveworks/flux/jobs"
+	"github.com/weaveworks/flux/platform"
 	"github.com/weaveworks/flux/platform/rpc"
 )
 
@@ -43,7 +45,8 @@ func NewHandler(s api.FluxService, r *mux.Router, logger log.Logger) http.Handle
 		"SetConfig":              handle.SetConfig,
 		"GenerateDeployKeys":     handle.GenerateKeys,
 		"PostIntegrationsGithub": handle.PostIntegrationsGithub,
-		"RegisterDaemon":         handle.Register,
+		"RegisterDaemonV4":       handle.RegisterV4,
+		"RegisterDaemonV5":       handle.RegisterV5,
 		"IsConnected":            handle.IsConnected,
 	} {
 		handler := logging(handlerMethod, log.NewContext(logger).With("method", method))
@@ -343,7 +346,26 @@ func (s HTTPService) Status(w http.ResponseWriter, r *http.Request) {
 	jsonResponse(w, r, status)
 }
 
-func (s HTTPService) Register(w http.ResponseWriter, r *http.Request) {
+func (s HTTPService) RegisterV4(w http.ResponseWriter, r *http.Request) {
+	s.doRegister(w, r, func(conn io.ReadWriteCloser) platformCloser {
+		return rpc.NewClientV4(conn)
+	})
+}
+
+func (s HTTPService) RegisterV5(w http.ResponseWriter, r *http.Request) {
+	s.doRegister(w, r, func(conn io.ReadWriteCloser) platformCloser {
+		return rpc.NewClientV5(conn)
+	})
+}
+
+type platformCloser interface {
+	platform.Platform
+	io.Closer
+}
+
+type platformCloserFn func(io.ReadWriteCloser) platformCloser
+
+func (s HTTPService) doRegister(w http.ResponseWriter, r *http.Request, newRPCFn platformCloserFn) {
 	inst := getInstanceID(r)
 
 	// This is not client-facing, so we don't do content
@@ -359,7 +381,7 @@ func (s HTTPService) Register(w http.ResponseWriter, r *http.Request) {
 
 	// Set up RPC. The service is a websocket _server_ but an RPC
 	// _client_.
-	rpcClient := rpc.NewClient(ws)
+	rpcClient := newRPCFn(ws)
 
 	// Make platform available to clients
 	// This should block until the daemon disconnects

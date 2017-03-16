@@ -47,7 +47,7 @@ func (p *RPCServer) Version(_ struct{}, resp *string) error {
 	return err
 }
 
-func (p *RPCServer) AllServices(req AllServicesRequest, resp *[]platform.Service) error {
+func (p *RPCServer) AllServices(req AllServicesRequestV4, resp *[]platform.Service) error {
 	s, err := p.p.AllServices(req.MaybeNamespace, req.Ignored)
 	if s == nil {
 		s = []platform.Service{}

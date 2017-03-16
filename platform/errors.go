@@ -33,3 +33,18 @@ If you are still stuck, please log an issue:
 		Err: err,
 	}}
 }
+
+func UpgradeNeededError(err error) error {
+	return &flux.BaseError{
+		Help: `Your fluxd needs to be upgraded
+
+To service this request, we need to ask the agent running in your
+cluster (fluxd) to perform an operation on our behalf, but the
+version you have running is too old to understand the request.
+
+Please install the latest version of fluxd and try again.
+
+`,
+		Err: err,
+	}
+}

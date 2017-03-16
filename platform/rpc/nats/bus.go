@@ -160,7 +160,7 @@ type natsPlatform struct {
 
 func (r *natsPlatform) AllServices(ns string, ig flux.ServiceIDSet) ([]platform.Service, error) {
 	var response AllServicesResponse
-	if err := r.conn.Request(r.instance+methodAllServices, fluxrpc.AllServicesRequest{ns, ig}, &response, timeout); err != nil {
+	if err := r.conn.Request(r.instance+methodAllServices, fluxrpc.AllServicesRequestV4{ns, ig}, &response, timeout); err != nil {
 		if err == nats.ErrTimeout {
 			err = platform.UnavailableError(err)
 		}
@@ -285,7 +285,7 @@ func (n *NATS) Subscribe(instID flux.InstanceID, remote platform.Platform, done 
 			n.enc.Publish(request.Reply, VersionResponse{vsn, makeErrorResponse(err)})
 		case strings.HasSuffix(request.Subject, methodAllServices):
 			var (
-				req fluxrpc.AllServicesRequest
+				req fluxrpc.AllServicesRequestV4
 				res []platform.Service
 			)
 			err = encoder.Decode(request.Subject, request.Data, &req)

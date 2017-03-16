@@ -40,7 +40,7 @@ var (
 )
 
 func NewDaemon(client *http.Client, t flux.Token, router *mux.Router, endpoint string, p platform.Platform, logger log.Logger) (*Daemon, error) {
-	u, err := MakeURL(endpoint, router, "RegisterDaemon")
+	u, err := MakeURL(endpoint, router, "RegisterDaemonV5")
 	if err != nil {
 		return nil, errors.Wrap(err, "constructing URL")
 	}
