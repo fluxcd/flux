@@ -1,11 +1,11 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
+	"io"
+	"path/filepath"
 
 	"github.com/spf13/cobra"
-	yaml "gopkg.in/yaml.v2"
 
 	"github.com/weaveworks/flux/diff"
 	"github.com/weaveworks/flux/platform/kubernetes/resource"
@@ -13,7 +13,7 @@ import (
 
 type diffOpts struct {
 	*rootOpts
-	format string
+	quiet bool
 }
 
 func newDiff(root *rootOpts) *diffOpts {
@@ -26,48 +26,13 @@ func (opts *diffOpts) Command() *cobra.Command {
 		Short: "Show differences between one platform config and another",
 		RunE:  opts.RunE,
 	}
-	cmd.Flags().StringVarP(&opts.format, "output", "o", "text", "(yaml|json|text) whether to output differences in YAML or JSON, or just summarise in text")
+	cmd.Flags().BoolVarP(&opts.quiet, "quiet", "q", false, "just report which files differ")
 	return cmd
 }
 
 func (opts *diffOpts) RunE(cmd *cobra.Command, args []string) error {
 	if len(args) != 2 {
 		return newUsageError("please supply two filenames")
-	}
-
-	output := func(diffs diff.ObjectSetDiff) error {
-		diffs.Summarise(cmd.OutOrStdout())
-		return nil
-	}
-
-	switch opts.format {
-	case "text":
-		// already output
-	case "raw":
-		output = func(diffs diff.ObjectSetDiff) error {
-			fmt.Fprintf(cmd.OutOrStdout(), "%#v\n", diffs)
-			return nil
-		}
-	case "json":
-		output = func(diffs diff.ObjectSetDiff) error {
-			bytes, err := json.Marshal(diffs)
-			if err != nil {
-				return err
-			}
-			cmd.OutOrStdout().Write(bytes)
-			return nil
-		}
-	case "yaml":
-		output = func(diffs diff.ObjectSetDiff) error {
-			bytes, err := yaml.Marshal(diffs)
-			if err != nil {
-				return err
-			}
-			cmd.OutOrStdout().Write(bytes)
-			return nil
-		}
-	default:
-		return newUsageError("output format --output,-o must be 'raw', 'text', 'json' or 'yaml'")
 	}
 
 	a, err := resource.Load(args[0])
@@ -84,5 +49,42 @@ func (opts *diffOpts) RunE(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	return output(diffs)
+	output(diffs, opts.quiet, cmd.OutOrStdout())
+	return nil
+}
+
+func output(d diff.ObjectSetDiff, quiet bool, out io.Writer) {
+	if len(d.OnlyA) > 0 {
+		for _, obj := range d.OnlyA {
+			id := obj.ID()
+			fmt.Fprintf(out, "Only in %s: %s %s\n", d.A.Source, id.String(), mustRel(d.A, obj))
+		}
+	}
+	if len(d.OnlyB) > 0 {
+		for _, obj := range d.OnlyB {
+			id := obj.ID()
+			fmt.Fprintf(out, "Only in %s: %s %s\n", d.B.Source, id.String(), mustRel(d.B, obj))
+		}
+	}
+	if len(d.Different) > 0 {
+		for id, diffs := range d.Different {
+			a, b := d.A.Objects[id], d.B.Objects[id]
+			if quiet {
+				fmt.Fprintf(out, "Object %s in %s and %s differs\n", id.String(), a.Source(), b.Source())
+				continue
+			}
+			fmt.Fprintf(out, "Object %s %s %s\n", id.String(), a.Source(), b.Source())
+			for _, diff := range diffs {
+				diff.Summarise(out)
+			}
+		}
+	}
+}
+
+func mustRel(objset *diff.ObjectSet, obj diff.Object) string {
+	p, err := filepath.Rel(objset.Source, obj.Source())
+	if err != nil {
+		panic(err)
+	}
+	return p
 }
