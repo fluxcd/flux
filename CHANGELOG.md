@@ -17,7 +17,7 @@ More helpful.
 -   Filter out Kubernetes add-ons from consideration
 -   More consistent Prometheus metric labeling
 
-See also https://github.com/weaveworks/flux/issues?&q=is%3Aclosed%3A>%3D2017-01-27 
+See also https://github.com/weaveworks/flux/issues?&q=closed%3A"2017-01-27 .. 2017-03-15"
 
 ## 0.1.0 (2017-01-27)
 
