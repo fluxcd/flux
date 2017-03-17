@@ -7,10 +7,13 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/gorilla/mux"
 	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/api"
 	"github.com/weaveworks/flux/db"
 	"github.com/weaveworks/flux/history"
 	historysql "github.com/weaveworks/flux/history/sql"
 	transport "github.com/weaveworks/flux/http"
+	"github.com/weaveworks/flux/http/client"
+	httpserver "github.com/weaveworks/flux/http/server"
 	"github.com/weaveworks/flux/instance"
 	instancedb "github.com/weaveworks/flux/instance/sql"
 	"github.com/weaveworks/flux/jobs"
@@ -39,6 +42,9 @@ var (
 
 	// Mocked out platform. Global for use in Register test.
 	mockPlatform platform.Platform
+
+	// API Client
+	apiClient api.ClientService
 )
 
 const (
@@ -120,10 +126,11 @@ func setup() {
 	}
 
 	// Server
-	server := server.New(ver, instancer, instanceDB, messageBus, jobStore, log.NewNopLogger())
+	apiServer := server.New(ver, instancer, instanceDB, messageBus, jobStore, log.NewNopLogger())
 	router = transport.NewRouter()
-	handler := transport.NewHandler(server, router, log.NewNopLogger())
+	handler := httpserver.NewHandler(apiServer, router, log.NewNopLogger())
 	ts = httptest.NewServer(handler)
+	apiClient = client.New(http.DefaultClient, router, ts.URL, "")
 }
 
 func teardown() {
@@ -135,7 +142,7 @@ func TestFluxsvc_ListServices(t *testing.T) {
 	defer teardown()
 
 	// Test ListServices
-	svcs, err := transport.InvokeListServices(http.DefaultClient, "", router, ts.URL, "default")
+	svcs, err := apiClient.ListServices("", "default")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -165,7 +172,7 @@ func TestFluxsvc_ListImages(t *testing.T) {
 	defer teardown()
 
 	// Test ListImages
-	imgs, err := transport.InvokeListImages(http.DefaultClient, "", router, ts.URL, flux.ServiceSpecAll)
+	imgs, err := apiClient.ListImages("", flux.ServiceSpecAll)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -177,7 +184,7 @@ func TestFluxsvc_ListImages(t *testing.T) {
 	}
 
 	// Test ListImages for specific service
-	imgs, err = transport.InvokeListImages(http.DefaultClient, "", router, ts.URL, helloWorldSvc)
+	imgs, err = apiClient.ListImages("", helloWorldSvc)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -205,7 +212,7 @@ func TestFluxsvc_Release(t *testing.T) {
 	defer teardown()
 
 	// Test PostRelease
-	r, err := transport.InvokePostRelease(http.DefaultClient, "", router, ts.URL, jobs.ReleaseJobParams{
+	r, err := apiClient.PostRelease("", jobs.ReleaseJobParams{
 		ImageSpec:    "alpine:latest",
 		Kind:         "execute",
 		ServiceSpecs: []flux.ServiceSpec{helloWorldSvc},
@@ -226,19 +233,16 @@ func TestFluxsvc_Release(t *testing.T) {
 	}
 
 	// Test GetRelease
-	res, err := transport.InvokeGetRelease(http.DefaultClient, "", router, ts.URL, j.ID)
+	res, err := apiClient.GetRelease("", r)
 	if err != nil {
 		t.Fatal(err)
-	}
-	if res.ID != j.ID {
-		t.Fatalf("Id's should match: %q, %q", res.ID, j.ID)
 	}
 	if res.Method != jobs.ReleaseJob {
 		t.Fatalf("Job should have been of type %q", jobs.ReleaseJob)
 	}
 
 	// Test GetRelease doesn't exist
-	_, err = transport.InvokeGetRelease(http.DefaultClient, "", router, ts.URL, "does-not-exist")
+	_, err = apiClient.GetRelease("", "does-not-exist")
 	if err == nil {
 		t.Fatal("Should have errored due to not existing")
 	}
@@ -260,7 +264,7 @@ func TestFluxsvc_Automate(t *testing.T) {
 	defer teardown()
 
 	// Test Automate
-	err := transport.InvokeAutomate(http.DefaultClient, "", router, ts.URL, helloWorldSvc)
+	err := apiClient.Automate("", helloWorldSvc)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -286,7 +290,7 @@ func TestFluxsvc_Deautomate(t *testing.T) {
 	defer teardown()
 
 	// Test Deautomate
-	err := transport.InvokeDeautomate(http.DefaultClient, "", router, ts.URL, helloWorldSvc)
+	err := apiClient.Deautomate("", helloWorldSvc)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -312,7 +316,7 @@ func TestFluxsvc_Lock(t *testing.T) {
 	defer teardown()
 
 	// Test Lock
-	err := transport.InvokeLock(http.DefaultClient, "", router, ts.URL, helloWorldSvc)
+	err := apiClient.Lock("", helloWorldSvc)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -338,7 +342,7 @@ func TestFluxsvc_Unlock(t *testing.T) {
 	defer teardown()
 
 	// Test Unlock
-	err := transport.InvokeUnlock(http.DefaultClient, "", router, ts.URL, helloWorldSvc)
+	err := apiClient.Unlock("", helloWorldSvc)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -364,10 +368,10 @@ func TestFluxsvc_History(t *testing.T) {
 	defer teardown()
 
 	// Do something that will appear in the history
-	transport.InvokeLock(http.DefaultClient, "", router, ts.URL, helloWorldSvc)
+	apiClient.Lock("", helloWorldSvc)
 
 	// Test History
-	hist, err := transport.InvokeHistory(http.DefaultClient, "", router, ts.URL, helloWorldSvc)
+	hist, err := apiClient.History("", helloWorldSvc)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -402,7 +406,7 @@ func TestFluxsvc_Status(t *testing.T) {
 	defer teardown()
 
 	// Test Status
-	status, err := transport.InvokeStatus(&http.Client{}, "", transport.NewRouter(), ts.URL)
+	status, err := apiClient.Status("")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -416,7 +420,7 @@ func TestFluxsvc_Config(t *testing.T) {
 	defer teardown()
 
 	// Test that config is written
-	err := transport.InvokeSetConfig(&http.Client{}, "", router, ts.URL, flux.UnsafeInstanceConfig{
+	err := apiClient.SetConfig("", flux.UnsafeInstanceConfig{
 		Git: flux.GitConfig{
 			Key:    "exampleKey",
 			Branch: "exampleBranch",
@@ -425,7 +429,7 @@ func TestFluxsvc_Config(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	conf, err := transport.InvokeGetConfig(&http.Client{}, "", router, ts.URL)
+	conf, err := apiClient.GetConfig("")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -434,7 +438,6 @@ func TestFluxsvc_Config(t *testing.T) {
 	}
 	if conf.Git.Branch != "exampleBranch" {
 		t.Fatalf("Expected %q but got %q", "exampleBranch", conf.Git.Key)
-
 	}
 }
 
@@ -443,7 +446,7 @@ func TestFluxsvc_DeployKeys(t *testing.T) {
 	defer teardown()
 
 	// Ensure empty key
-	err := transport.InvokeSetConfig(&http.Client{}, "", router, ts.URL, flux.UnsafeInstanceConfig{
+	err := apiClient.SetConfig("", flux.UnsafeInstanceConfig{
 		Git: flux.GitConfig{
 			Key: "",
 		},
@@ -453,13 +456,13 @@ func TestFluxsvc_DeployKeys(t *testing.T) {
 	}
 
 	// Generate key
-	err = transport.InvokeGenerateKeys(&http.Client{}, "", router, ts.URL)
+	err = apiClient.GenerateDeployKey("")
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// Get new key
-	conf, err := transport.InvokeGetConfig(&http.Client{}, "", router, ts.URL)
+	conf, err := apiClient.GetConfig("")
 	if err != nil {
 		t.Fatal(err)
 	}
