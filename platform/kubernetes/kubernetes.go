@@ -6,6 +6,7 @@ package kubernetes
 
 import (
 	"bytes"
+	"fmt"
 
 	k8syaml "github.com/ghodss/yaml"
 	"github.com/go-kit/kit/log"
@@ -22,6 +23,12 @@ import (
 
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/platform"
+)
+
+const (
+	StatusUnknown  = "unknown"
+	StatusReady    = "ready"
+	StatusUpdating = "updating"
 )
 
 type extendedClient struct {
@@ -194,15 +201,22 @@ func (c *Cluster) AllServices(namespace string, ignore flux.ServiceIDSet) (res [
 
 func (c *Cluster) makeService(ns string, service *v1.Service, controllers []podController) platform.Service {
 	id := flux.MakeServiceID(ns, service.Name)
-	// FIXME go look in the k8s API
-	var status = ""
-	return platform.Service{
-		ID:         id,
-		IP:         service.Spec.ClusterIP,
-		Metadata:   metadataForService(service),
-		Containers: containersOrExcuse(service, controllers),
-		Status:     status,
+	svc := platform.Service{
+		ID:       id,
+		IP:       service.Spec.ClusterIP,
+		Metadata: metadataForService(service),
 	}
+
+	pc, err := matchController(service, controllers)
+	if err != nil {
+		svc.Containers = platform.ContainersOrExcuse{Excuse: err.Error()}
+		svc.Status = StatusUnknown
+	} else {
+		svc.Containers = platform.ContainersOrExcuse{Containers: pc.templateContainers()}
+		svc.Status = pc.status()
+	}
+
+	return svc
 }
 
 func metadataForService(s *v1.Service) map[string]string {
@@ -261,14 +275,6 @@ func matchController(service *v1.Service, controllers []podController) (podContr
 	}
 }
 
-func containersOrExcuse(service *v1.Service, controllers []podController) platform.ContainersOrExcuse {
-	pc, err := matchController(service, controllers)
-	if err != nil {
-		return platform.ContainersOrExcuse{Excuse: err.Error()}
-	}
-	return platform.ContainersOrExcuse{Containers: pc.templateContainers()}
-}
-
 // Either a replication controller, a deployment, or neither (both nils).
 type podController struct {
 	ReplicationController *v1.ReplicationController
@@ -309,6 +315,39 @@ func (p podController) matchedBy(selector map[string]string) bool {
 		}
 	}
 	return true
+}
+
+// Determine a status for the service by looking at the rollout status
+// for the deployment or replication controller.
+func (p podController) status() string {
+	switch {
+	case p.Deployment != nil:
+		meta, status := p.Deployment.ObjectMeta, p.Deployment.Status
+		if status.ObservedGeneration >= meta.Generation {
+			// the definition has been updated; now let's see about the replicas
+			updated, wanted := status.UpdatedReplicas, *p.Deployment.Spec.Replicas
+			if updated == wanted {
+				return StatusReady
+			}
+			return fmt.Sprintf("%d out of %d updated", updated, wanted)
+		}
+		return StatusUpdating
+	case p.ReplicationController != nil:
+		meta, status := p.ReplicationController.ObjectMeta, p.ReplicationController.Status
+		// This is more difficult, simply because updating a
+		// replication controller really means creating a new one,
+		// transitioning to it a pod at a time, and throwing the old
+		// one away. So this is an approximation.
+		if status.ObservedGeneration >= meta.Generation {
+			ready, total := status.ReadyReplicas, status.Replicas
+			if ready == total {
+				return StatusReady
+			}
+			return fmt.Sprintf("%d out of %d ready", ready, total)
+		}
+		return StatusUpdating
+	}
+	return StatusUnknown
 }
 
 // Sync performs the given actions on resources. Operations are
