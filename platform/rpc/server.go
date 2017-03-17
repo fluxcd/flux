@@ -14,7 +14,7 @@ import (
 type ApplyResult map[flux.ServiceID]string
 
 // Likewise with SyncResult
-type SyncResult map[platform.ResourceID]string
+type SyncResult map[string]string
 
 // Server takes a platform and makes it available over RPC.
 type Server struct {

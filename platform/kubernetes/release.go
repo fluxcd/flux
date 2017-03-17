@@ -10,9 +10,19 @@ import (
 
 	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
+	rest "k8s.io/client-go/1.5/rest"
 )
 
-func (c *Cluster) connectArgs() []string {
+func NewKubectl(exe string, config *rest.Config) *Kubectl {
+	return &Kubectl{exe, config}
+}
+
+type Kubectl struct {
+	exe    string
+	config *rest.Config
+}
+
+func (c *Kubectl) connectArgs() []string {
 	var args []string
 	if c.config.Host != "" {
 		args = append(args, fmt.Sprintf("--server=%s", c.config.Host))
@@ -38,14 +48,14 @@ func (c *Cluster) connectArgs() []string {
 	return args
 }
 
-func (c *Cluster) kubectlCommand(args ...string) *exec.Cmd {
-	cmd := exec.Command(c.kubectl, append(c.connectArgs(), args...)...)
+func (c *Kubectl) kubectlCommand(args ...string) *exec.Cmd {
+	cmd := exec.Command(c.exe, append(c.connectArgs(), args...)...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	return cmd
 }
 
-func (c *Cluster) doCommand(logger log.Logger, newDefinition []byte, args ...string) error {
+func (c *Kubectl) doCommand(logger log.Logger, newDefinition []byte, args ...string) error {
 	cmd := c.kubectlCommand(args...)
 	cmd.Stdin = bytes.NewReader(newDefinition)
 	stderr := &bytes.Buffer{}
@@ -67,7 +77,7 @@ func (c *Cluster) doCommand(logger log.Logger, newDefinition []byte, args ...str
 // deployments can. As a hack, we just start the process off in a
 // goroutine; it'll get logged, at least, even if we don't get the
 // result.
-func (c *Cluster) startRollingUpgrade(logger log.Logger, newDef *apiObject) error {
+func (c *Kubectl) startRollingUpgrade(logger log.Logger, newDef *apiObject) error {
 	go func() {
 		c.doCommand(
 			logger,
@@ -80,4 +90,26 @@ func (c *Cluster) startRollingUpgrade(logger log.Logger, newDef *apiObject) erro
 		)
 	}()
 	return nil
+}
+
+func (c *Kubectl) Delete(logger log.Logger, def []byte) error {
+	return c.doCommand(logger, def, "delete", "-f", "-")
+}
+
+func (c *Kubectl) Create(logger log.Logger, def []byte) error {
+	return c.doCommand(logger, def, "create", "-f", "-")
+}
+
+func (c *Kubectl) Apply(logger log.Logger, def []byte) error {
+	// special case for rolling upgrades
+	obj, err := definitionObj(def)
+	if err != nil {
+		return err
+	}
+	switch obj.Kind {
+	case "ReplicationController":
+		return c.startRollingUpgrade(logger, obj)
+	default:
+		return c.doCommand(logger, def, "apply", "-f", "-")
+	}
 }

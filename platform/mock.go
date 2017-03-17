@@ -117,13 +117,15 @@ func PlatformTestBattery(t *testing.T, wrap func(mock Platform) Platform) {
 	}
 
 	expectedSyncDef := SyncDef{
-		Actions: map[ResourceID]SyncAction{
-			ResourceID("deployment/foo/bar"): SyncAction{
-				Delete: []byte("delete this"),
+		Actions: []SyncAction{
+			SyncAction{
+				ResourceID: "deployment/foo/bar",
+				Delete:     []byte("delete this"),
 			},
-			ResourceID("service/foo/bar"): SyncAction{
-				Apply:  []byte("apply this"),
-				Create: []byte("create this"),
+			SyncAction{
+				ResourceID: "service/foo/bar",
+				Apply:      []byte("apply this"),
+				Create:     []byte("create this"),
 			},
 		},
 	}
@@ -216,7 +218,7 @@ func PlatformTestBattery(t *testing.T, wrap func(mock Platform) Platform) {
 	}
 
 	syncErrors := SyncError{
-		ResourceID("deployment/foo/bar"): errors.New("delete failed for this"),
+		"deployment/foo/bar": errors.New("delete failed for this"),
 	}
 	mock.SyncError = syncErrors
 	err = client.Sync(expectedSyncDef)

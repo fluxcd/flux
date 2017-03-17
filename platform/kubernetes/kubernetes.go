@@ -6,8 +6,6 @@ package kubernetes
 
 import (
 	"bytes"
-	"os"
-	"os/exec"
 
 	k8syaml "github.com/ghodss/yaml"
 	"github.com/go-kit/kit/log"
@@ -73,12 +71,18 @@ func isAddon(obj namespacedLabeled) bool {
 
 // --- /add ons
 
+type Applier interface {
+	Delete(logger log.Logger, def []byte) error
+	Create(logger log.Logger, def []byte) error
+	Apply(logger log.Logger, def []byte) error
+}
+
 // Cluster is a handle to a Kubernetes API server.
 // (Typically, this code is deployed into the same cluster.)
 type Cluster struct {
 	config  *rest.Config
 	client  extendedClient
-	kubectl string
+	applier Applier
 	actionc chan func()
 	version string // string response for the version command.
 	logger  log.Logger
@@ -86,28 +90,16 @@ type Cluster struct {
 
 // NewCluster returns a usable cluster. Host should be of the form
 // "http://hostname:8080".
-func NewCluster(config *rest.Config, kubectl, version string, logger log.Logger) (*Cluster, error) {
+func NewCluster(config *rest.Config, applier Applier, version string, logger log.Logger) (*Cluster, error) {
 	client, err := k8sclient.NewForConfig(config)
 	if err != nil {
 		return nil, err
 	}
 
-	if kubectl == "" {
-		kubectl, err = exec.LookPath("kubectl")
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		if _, err := os.Stat(kubectl); err != nil {
-			return nil, err
-		}
-	}
-	logger.Log("kubectl", kubectl)
-
 	c := &Cluster{
 		config:  config,
 		client:  extendedClient{client.Discovery(), client.Core(), client.Extensions()},
-		kubectl: kubectl,
+		applier: applier,
 		actionc: make(chan func()),
 		version: version,
 		logger:  logger,
@@ -326,34 +318,22 @@ func (c *Cluster) Sync(spec platform.SyncDef) error {
 	logger := log.NewContext(c.logger).With("method", "Sync")
 	c.actionc <- func() {
 		errs := platform.SyncError{}
-		for id, action := range spec.Actions {
+		for _, action := range spec.Actions {
 			if len(action.Delete) > 0 {
-				if err := c.doCommand(logger, action.Delete, "delete", "-f", "-"); err != nil {
-					errs[id] = err
+				if err := c.applier.Delete(logger, action.Delete); err != nil {
+					errs[action.ResourceID] = err
 					continue
 				}
 			}
 			if len(action.Create) > 0 {
-				if err := c.doCommand(logger, action.Create, "create", "-f", "-"); err != nil {
-					errs[id] = err
+				if err := c.applier.Create(logger, action.Create); err != nil {
+					errs[action.ResourceID] = err
 					continue
 				}
 			}
 			if len(action.Apply) > 0 {
-				// special case for rolling upgrades
-				obj, err := definitionObj(action.Apply)
-				if err != nil {
-					errs[id] = err
-					continue
-				}
-				switch obj.Kind {
-				case "ReplicationController":
-					err = c.startRollingUpgrade(logger, obj)
-				default:
-					err = c.doCommand(logger, action.Apply, "apply", "-f", "-")
-				}
-				if err != nil {
-					errs[id] = err
+				if err := c.applier.Apply(logger, action.Apply); err != nil {
+					errs[action.ResourceID] = err
 					continue
 				}
 			}
@@ -371,10 +351,10 @@ func (c *Cluster) Sync(spec platform.SyncDef) error {
 // of type ApplyError, which can be inspected for more detailed information.
 // Applies are serialized.
 func (c *Cluster) Apply(defs []platform.ServiceDefinition) error {
-	sync := platform.SyncDef{Actions: map[platform.ResourceID]platform.SyncAction{}}
+	sync := platform.SyncDef{Actions: []platform.SyncAction{}}
 	for _, def := range defs {
-		id := platform.ResourceID(def.ServiceID.String())
-		sync.Actions[id] = platform.SyncAction{Apply: def.NewDefinition}
+		id := def.ServiceID.String()
+		sync.Actions = append(sync.Actions, platform.SyncAction{ResourceID: id, Apply: def.NewDefinition})
 	}
 	err := c.Sync(sync)
 	if err == nil {
@@ -385,7 +365,7 @@ func (c *Cluster) Apply(defs []platform.ServiceDefinition) error {
 	case platform.SyncError:
 		applyErr := platform.ApplyError{}
 		for rid, syncErr := range err {
-			applyErr[flux.ServiceID(rid.String())] = syncErr
+			applyErr[flux.ServiceID(rid)] = syncErr
 		}
 		return applyErr
 	default:

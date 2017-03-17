@@ -6,16 +6,6 @@ import (
 
 // Definitions for use in synchronising a platform with a git repo.
 
-// This is really just to have a handle for reporting back; when,
-// e.g., deleting a resource, it's the definition that matters. (The
-// definition should certainly match the ID though, otherwise chaos or
-// at least confusion will ensue)
-type ResourceID string
-
-func (id ResourceID) String() string {
-	return string(id)
-}
-
 // Yep, resources are defined by opaque bytes. It's up to the platform
 // at the other end to do the right thing.
 type ResourceDef []byte
@@ -26,22 +16,25 @@ type ResourceDef []byte
 //  2. create if something in Create
 //  3. apply if something in Apply
 type SyncAction struct {
-	Delete ResourceDef
-	Create ResourceDef
-	Apply  ResourceDef
+	// The ID is just a handle for labeling any error. No other
+	// meaning is attached to it.
+	ResourceID string
+	Delete     ResourceDef
+	Create     ResourceDef
+	Apply      ResourceDef
 }
 
 type SyncDef struct {
 	// The actions to undertake
-	Actions map[ResourceID]SyncAction
+	Actions []SyncAction
 }
 
-type SyncError map[ResourceID]error
+type SyncError map[string]error
 
 func (err SyncError) Error() string {
 	var errs []string
 	for id, e := range err {
-		errs = append(errs, id.String()+": "+e.Error())
+		errs = append(errs, id+": "+e.Error())
 	}
 	return strings.Join(errs, "; ")
 }
