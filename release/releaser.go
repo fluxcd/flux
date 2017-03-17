@@ -170,11 +170,13 @@ func (r *Releaser) release(instanceID flux.InstanceID, job *jobs.Job, logStatus 
 		Status:   status,
 		Log:      job.Log,
 
+		Cause:  job.Params.(jobs.ReleaseJobParams).Cause,
 		Spec:   job.Params.(jobs.ReleaseJobParams).Spec(),
 		Result: results,
 	}
 
 	// Report on success or failure of the application above.
+	logStatus("Sending notifications.")
 	timer = NewStageTimer("send_notifications")
 	notifyErr := sendNotifications(rc.Instance, applyErr, release)
 	timer.ObserveDuration()

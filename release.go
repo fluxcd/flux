@@ -43,6 +43,14 @@ func NewReleaseID() ReleaseID {
 	return ReleaseID(guid.New())
 }
 
+// How did this release get triggered?
+type ReleaseCause struct {
+	Message string
+	User    string
+}
+
+const UserAutomated = "<automated>"
+
 // Release describes a release
 type Release struct {
 	ID        ReleaseID            `json:"id"`
@@ -54,6 +62,7 @@ type Release struct {
 	Status    ServiceReleaseStatus `json:"status"`
 	Log       []string             `json:"log"`
 
+	Cause  ReleaseCause  `json:"cause"`
 	Spec   ReleaseSpec   `json:"spec"`
 	Result ReleaseResult `json:"result"`
 }
