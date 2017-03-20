@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -13,7 +14,7 @@ import (
 
 type saveOpts struct {
 	*rootOpts
-	output string
+	path string
 }
 
 func newSave(parent *rootOpts) *saveOpts {
@@ -22,13 +23,14 @@ func newSave(parent *rootOpts) *saveOpts {
 
 func (opts *saveOpts) Command() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "save",
+		Use:   "save --out config/",
 		Short: "save service definitions to local files in platform-native format",
 		Example: makeExample(
 			"fluxctl save",
 		),
 		RunE: opts.RunE,
 	}
+	cmd.Flags().StringVarP(&opts.path, "out", "o", "-", "output path for exported config; the default. '-' indicates stdout; if a directory is given, each item will be saved in a file under the directory")
 	return cmd
 }
 
@@ -47,7 +49,7 @@ type saveObject struct {
 	Spec map[interface{}]interface{} `yaml:"spec,omitempty"`
 }
 
-func (opts *saveOpts) RunE(_ *cobra.Command, args []string) error {
+func (opts *saveOpts) RunE(cmd *cobra.Command, args []string) error {
 	if len(args) > 0 {
 		return errorWantedNoArgs
 	}
@@ -60,6 +62,15 @@ func (opts *saveOpts) RunE(_ *cobra.Command, args []string) error {
 	yamls := bufio.NewScanner(bytes.NewReader(config))
 	yamls.Split(splitYAMLDocument)
 
+	if opts.path != "-" {
+		// check supplied path is a directory
+		if info, err := os.Stat(opts.path); err != nil {
+			return err
+		} else if !info.IsDir() {
+			return fmt.Errorf("path %s is not a directory", opts.path)
+		}
+	}
+
 	for yamls.Scan() {
 		var object saveObject
 		// Most unwanted fields are ignored at this point
@@ -71,7 +82,7 @@ func (opts *saveOpts) RunE(_ *cobra.Command, args []string) error {
 		// e.g. .Spec and .Metadata.Annotations
 		filterObject(object)
 
-		if err := saveYAML(object); err != nil {
+		if err := saveYAML(object, opts.path); err != nil {
 			return errors.Wrap(err, "saving yaml object")
 		}
 	}
@@ -132,33 +143,50 @@ func deleteEmptyMapValues(i interface{}) bool {
 	return false
 }
 
-// Save YAML to directory structure
-func saveYAML(object saveObject) error {
+func outputFile(object saveObject, out string) (string, error) {
 	var path string
 	if object.Kind == "Namespace" {
 		path = fmt.Sprintf("%s-ns.yaml", object.Metadata.Name)
 	} else {
 		dir := object.Metadata.Namespace
-		if err := os.MkdirAll(dir, os.ModePerm); err != nil {
-			return errors.Wrap(err, "making directory for namespace")
+		if err := os.MkdirAll(filepath.Join(out, dir), os.ModePerm); err != nil {
+			return "", errors.Wrap(err, "making directory for namespace")
 		}
 
 		shortKind := abbreviateKind(object.Kind)
-		path = fmt.Sprintf("%s/%s-%s.yaml", dir, object.Metadata.Name, shortKind)
+		path = filepath.Join(dir, fmt.Sprintf("%s-%s.yaml", object.Metadata.Name, shortKind))
 	}
 
+	path = filepath.Join(out, path)
 	fmt.Printf("Saving %s '%s' to %s\n", object.Kind, object.Metadata.Name, path)
+	return path, nil
+}
+
+// Save YAML to directory structure
+func saveYAML(object saveObject, out string) error {
+	buf, err := yaml.Marshal(object)
+	if err != nil {
+		return errors.Wrap(err, "marshalling yaml")
+	}
+
+	// to stdout
+	if out == "-" {
+		fmt.Fprintln(os.Stdout, "---")
+		fmt.Fprint(os.Stdout, string(buf))
+		return nil
+	}
+
+	// to a directory
+	path, err := outputFile(object, out)
+	if err != nil {
+		return err
+	}
 
 	file, err := os.Create(path)
 	if err != nil {
 		return errors.Wrap(err, "creating yaml file")
 	}
 	defer file.Close()
-
-	buf, err := yaml.Marshal(object)
-	if err != nil {
-		return errors.Wrap(err, "marshalling yaml")
-	}
 
 	if _, err := file.Write(buf); err != nil {
 		return errors.Wrap(err, "writing yaml file")
