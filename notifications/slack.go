@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	defaultReleaseTemplate = `Release {{trim (print .Spec.ImageSpec) "<>"}} to {{with .Spec.ServiceSpecs}}{{range $index, $spec := .}}{{if not (eq $index 0)}}, {{if last $index $.Spec.ServiceSpecs}}and {{end}}{{end}}{{trim (print .) "<>"}}{{end}}{{end}}. {{with .Error}}{{.}}. failed{{else}}done{{end}}`
+	defaultReleaseTemplate = `Release {{with .Cause}}{{if .User}}({{.User}}){{end}}{{end}} {{trim (print .Spec.ImageSpec) "<>"}} to {{with .Spec.ServiceSpecs}}{{range $index, $spec := .}}{{if not (eq $index 0)}}, {{if last $index $.Spec.ServiceSpecs}}and {{end}}{{end}}{{trim (print .) "<>"}}{{end}}{{end}}. {{with .Error}}{{.}}. failed{{else}}done{{end}}`
 )
 
 var (

@@ -44,6 +44,10 @@ func exampleRelease(t *testing.T) flux.Release {
 				},
 			},
 		},
+		Cause: flux.ReleaseCause{
+			User:    "test-user",
+			Message: "this was to test notifications",
+		},
 	}
 }
 
