@@ -49,9 +49,11 @@ func TestMissingFromPlatform(t *testing.T) {
 	}
 
 	spec := jobs.ReleaseJobParams{
-		ServiceSpec: flux.ServiceSpecAll,
-		ImageSpec:   flux.ImageSpecLatest,
-		Kind:        flux.ReleaseKindPlan,
+		ReleaseSpec: flux.ReleaseSpec{
+			ServiceSpec: flux.ServiceSpecAll,
+			ImageSpec:   flux.ImageSpecLatest,
+			Kind:        flux.ReleaseKindPlan,
+		},
 	}
 
 	results := flux.ReleaseResult{}
@@ -82,9 +84,11 @@ func TestMissingFromPlatform(t *testing.T) {
 	}
 
 	spec = jobs.ReleaseJobParams{
-		ServiceSpec: flux.ServiceSpec("default/helloworld"),
-		ImageSpec:   flux.ImageSpecLatest,
-		Kind:        flux.ReleaseKindPlan,
+		ReleaseSpec: flux.ReleaseSpec{
+			ServiceSpec: flux.ServiceSpec("default/helloworld"),
+			ImageSpec:   flux.ImageSpecLatest,
+			Kind:        flux.ReleaseKindPlan,
+		},
 	}
 	results = flux.ReleaseResult{}
 	moreJobs, err = releaser.release(flux.InstanceID("unimportant"),
@@ -152,9 +156,11 @@ func TestUpdateOne(t *testing.T) {
 	defer cleanup()
 
 	spec := jobs.ReleaseJobParams{
-		ServiceSpec: flux.ServiceSpec("default/helloworld"),
-		ImageSpec:   flux.ImageSpecLatest,
-		Kind:        flux.ReleaseKindExecute,
+		ReleaseSpec: flux.ReleaseSpec{
+			ServiceSpec: flux.ServiceSpec("default/helloworld"),
+			ImageSpec:   flux.ImageSpecLatest,
+			Kind:        flux.ReleaseKindExecute,
+		},
 	}
 
 	results := flux.ReleaseResult{}

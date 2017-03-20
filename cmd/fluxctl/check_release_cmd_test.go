@@ -1,6 +1,8 @@
 package main //+integration
 import (
 	"github.com/gorilla/mux"
+
+	"github.com/weaveworks/flux"
 	transport "github.com/weaveworks/flux/http"
 	"github.com/weaveworks/flux/jobs"
 	"testing"
@@ -52,7 +54,9 @@ func testCheckReleaseArgs(t *testing.T, args []string, shouldErr bool, errMsg st
 				Done: true,
 				ID:   "1",
 				Params: jobs.ReleaseJobParams{
-					Kind: "test",
+					ReleaseSpec: flux.ReleaseSpec{
+						Kind: "test",
+					},
 				},
 				Method: jobs.ReleaseJob,
 			},
