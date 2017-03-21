@@ -188,6 +188,9 @@ func saveYAML(object saveObject, out string) error {
 	}
 	defer file.Close()
 
+	// We prepend a document separator, because it helps when files
+	// are cat'd together, and is otherwise harmless.
+	fmt.Fprintln(file, "---")
 	if _, err := file.Write(buf); err != nil {
 		return errors.Wrap(err, "writing yaml file")
 	}
