@@ -243,6 +243,14 @@
 			"notests": true
 		},
 		{
+			"importpath": "github.com/ghodss/yaml",
+			"repository": "https://github.com/ghodss/yaml",
+			"vcs": "git",
+			"revision": "04f313413ffd65ce25f2541bfd2b2ceec5c0908c",
+			"branch": "master",
+			"notests": true
+		},
+		{
 			"importpath": "github.com/go-kit/kit/endpoint",
 			"repository": "https://github.com/go-kit/kit",
 			"vcs": "git",

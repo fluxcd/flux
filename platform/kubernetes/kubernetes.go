@@ -5,10 +5,12 @@
 package kubernetes
 
 import (
+	"bytes"
 	"os"
 	"os/exec"
 	"sync"
 
+	k8syaml "github.com/ghodss/yaml"
 	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
@@ -433,6 +435,79 @@ func (c *Cluster) Ping() error {
 
 func (c *Cluster) Version() (string, error) {
 	return c.version, nil
+}
+
+func (c *Cluster) Export() ([]byte, error) {
+	var config bytes.Buffer
+	list, err := c.client.Namespaces().List(api.ListOptions{})
+	if err != nil {
+		return nil, errors.Wrap(err, "getting namespaces")
+	}
+	for _, ns := range list.Items {
+		err := appendYAML(&config, "v1", "Namespace", ns)
+		if err != nil {
+			return nil, errors.Wrap(err, "marshalling namespace to YAML")
+		}
+
+		deployments, err := c.client.Deployments(ns.Name).List(api.ListOptions{})
+		if err != nil {
+			return nil, errors.Wrap(err, "getting deployments")
+		}
+		for _, deployment := range deployments.Items {
+			if isAddon(&deployment) {
+				continue
+			}
+			err := appendYAML(&config, "extensions/v1beta1", "Deployment", deployment)
+			if err != nil {
+				return nil, errors.Wrap(err, "marshalling deployment to YAML")
+			}
+		}
+
+		rcs, err := c.client.ReplicationControllers(ns.Name).List(api.ListOptions{})
+		if err != nil {
+			return nil, errors.Wrap(err, "getting replication controllers")
+		}
+		for _, rc := range rcs.Items {
+			if isAddon(&rc) {
+				continue
+			}
+			err := appendYAML(&config, "v1", "ReplicationController", rc)
+			if err != nil {
+				return nil, errors.Wrap(err, "marshalling replication controller to YAML")
+			}
+		}
+
+		services, err := c.client.Services(ns.Name).List(api.ListOptions{})
+		if err != nil {
+			return nil, errors.Wrap(err, "getting services")
+		}
+		for _, service := range services.Items {
+			if isAddon(&service) {
+				continue
+			}
+			err := appendYAML(&config, "v1", "Service", service)
+			if err != nil {
+				return nil, errors.Wrap(err, "marshalling service to YAML")
+			}
+		}
+	}
+	return config.Bytes(), nil
+}
+
+// kind & apiVersion must be passed separately as the object's TypeMeta is not populated
+func appendYAML(buffer *bytes.Buffer, apiVersion, kind string, object interface{}) error {
+	yamlBytes, err := k8syaml.Marshal(object)
+	if err != nil {
+		return err
+	}
+	buffer.WriteString("---\n")
+	buffer.WriteString("apiVersion: ")
+	buffer.WriteString(apiVersion)
+	buffer.WriteString("\nkind: ")
+	buffer.WriteString(kind)
+	buffer.WriteString("\n")
+	buffer.Write(yamlBytes)
+	return nil
 }
 
 // --- end platform API

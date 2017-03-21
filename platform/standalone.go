@@ -168,6 +168,15 @@ func (p *removeablePlatform) Version() (v string, err error) {
 	return p.remote.Version()
 }
 
+func (p *removeablePlatform) Export() (config []byte, err error) {
+	defer func() {
+		if _, ok := err.(FatalError); ok {
+			p.closeWithError(err)
+		}
+	}()
+	return p.remote.Export()
+}
+
 type disconnectedPlatform struct{}
 
 func (p disconnectedPlatform) AllServices(string, flux.ServiceIDSet) ([]Service, error) {
@@ -188,4 +197,8 @@ func (p disconnectedPlatform) Ping() error {
 
 func (p disconnectedPlatform) Version() (string, error) {
 	return "", errNotSubscribed
+}
+
+func (p disconnectedPlatform) Export() ([]byte, error) {
+	return nil, errNotSubscribed
 }

@@ -20,6 +20,9 @@ type MockPlatform struct {
 
 	VersionAnswer string
 	VersionError  error
+
+	ExportAnswer []byte
+	ExportError  error
 }
 
 func (p *MockPlatform) AllServices(ns string, ss flux.ServiceIDSet) ([]Service, error) {
@@ -55,4 +58,8 @@ func (p *MockPlatform) Ping() error {
 
 func (p *MockPlatform) Version() (string, error) {
 	return p.VersionAnswer, p.VersionError
+}
+
+func (p *MockPlatform) Export() ([]byte, error) {
+	return p.ExportAnswer, p.ExportError
 }

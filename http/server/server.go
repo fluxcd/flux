@@ -48,6 +48,7 @@ func NewHandler(s api.FluxService, r *mux.Router, logger log.Logger) http.Handle
 		"RegisterDaemonV4":       handle.RegisterV4,
 		"RegisterDaemonV5":       handle.RegisterV5,
 		"IsConnected":            handle.IsConnected,
+		"Export":                 handle.Export,
 	} {
 		handler := logging(handlerMethod, log.NewContext(logger).With("method", method))
 		r.Get(method).Handler(handler)
@@ -408,6 +409,17 @@ func (s HTTPService) IsConnected(w http.ResponseWriter, r *http.Request) {
 	default:
 		errorResponse(w, r, err)
 	}
+}
+
+func (s HTTPService) Export(w http.ResponseWriter, r *http.Request) {
+	inst := getInstanceID(r)
+	status, err := s.service.Export(inst)
+	if err != nil {
+		errorResponse(w, r, err)
+		return
+	}
+
+	jsonResponse(w, r, status)
 }
 
 // --- end handlers
