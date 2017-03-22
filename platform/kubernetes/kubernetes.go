@@ -79,9 +79,8 @@ func isAddon(obj namespacedLabeled) bool {
 // --- /add ons
 
 type Applier interface {
-	Delete(logger log.Logger, def []byte) error
-	Create(logger log.Logger, def []byte) error
-	Apply(logger log.Logger, def []byte) error
+	Delete(logger log.Logger, def *apiObject) error
+	Apply(logger log.Logger, def *apiObject) error
 }
 
 // Cluster is a handle to a Kubernetes API server.
@@ -359,19 +358,21 @@ func (c *Cluster) Sync(spec platform.SyncDef) error {
 		errs := platform.SyncError{}
 		for _, action := range spec.Actions {
 			if len(action.Delete) > 0 {
-				if err := c.applier.Delete(logger, action.Delete); err != nil {
-					errs[action.ResourceID] = err
-					continue
+				obj, err := definitionObj(action.Delete)
+				if err == nil {
+					err = c.applier.Delete(logger, obj)
 				}
-			}
-			if len(action.Create) > 0 {
-				if err := c.applier.Create(logger, action.Create); err != nil {
+				if err != nil {
 					errs[action.ResourceID] = err
 					continue
 				}
 			}
 			if len(action.Apply) > 0 {
-				if err := c.applier.Apply(logger, action.Apply); err != nil {
+				obj, err := definitionObj(action.Apply)
+				if err == nil {
+					err = c.applier.Apply(logger, obj)
+				}
+				if err != nil {
 					errs[action.ResourceID] = err
 					continue
 				}

@@ -125,7 +125,6 @@ func PlatformTestBattery(t *testing.T, wrap func(mock Platform) Platform) {
 			SyncAction{
 				ResourceID: "service/foo/bar",
 				Apply:      []byte("apply this"),
-				Create:     []byte("create this"),
 			},
 		},
 	}

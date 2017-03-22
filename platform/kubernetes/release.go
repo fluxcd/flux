@@ -73,43 +73,10 @@ func (c *Kubectl) doCommand(logger log.Logger, newDefinition []byte, args ...str
 	return err
 }
 
-// Sadly, replication controllers can't be `kubectl apply`ed like
-// deployments can. As a hack, we just start the process off in a
-// goroutine; it'll get logged, at least, even if we don't get the
-// result.
-func (c *Kubectl) startRollingUpgrade(logger log.Logger, newDef *apiObject) error {
-	go func() {
-		c.doCommand(
-			logger,
-			newDef.bytes,
-			"rolling-update",
-			"--update-period", "3s",
-			"--namespace", newDef.Metadata.Namespace,
-			newDef.Metadata.Name,
-			"-f", "-", // take definition from stdin
-		)
-	}()
-	return nil
+func (c *Kubectl) Delete(logger log.Logger, obj *apiObject) error {
+	return c.doCommand(logger, obj.bytes, "delete", "-f", "-")
 }
 
-func (c *Kubectl) Delete(logger log.Logger, def []byte) error {
-	return c.doCommand(logger, def, "delete", "-f", "-")
-}
-
-func (c *Kubectl) Create(logger log.Logger, def []byte) error {
-	return c.doCommand(logger, def, "create", "-f", "-")
-}
-
-func (c *Kubectl) Apply(logger log.Logger, def []byte) error {
-	// special case for rolling upgrades
-	obj, err := definitionObj(def)
-	if err != nil {
-		return err
-	}
-	switch obj.Kind {
-	case "ReplicationController":
-		return c.startRollingUpgrade(logger, obj)
-	default:
-		return c.doCommand(logger, def, "apply", "-f", "-")
-	}
+func (c *Kubectl) Apply(logger log.Logger, obj *apiObject) error {
+	return c.doCommand(logger, obj.bytes, "apply", "-f", "-")
 }

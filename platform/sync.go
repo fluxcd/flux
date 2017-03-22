@@ -13,14 +13,12 @@ type ResourceDef []byte
 // The action(s) to take on a particular resource.
 // This should just be done in order, i.e.,:
 //  1. delete if something in Delete
-//  2. create if something in Create
-//  3. apply if something in Apply
+//  2. apply if something in Apply
 type SyncAction struct {
 	// The ID is just a handle for labeling any error. No other
 	// meaning is attached to it.
 	ResourceID string
 	Delete     ResourceDef
-	Create     ResourceDef
 	Apply      ResourceDef
 }
 
