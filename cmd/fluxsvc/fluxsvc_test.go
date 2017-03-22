@@ -9,6 +9,7 @@ import (
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/api"
 	"github.com/weaveworks/flux/db"
+	"github.com/weaveworks/flux/git"
 	"github.com/weaveworks/flux/history"
 	historysql "github.com/weaveworks/flux/history/sql"
 	transport "github.com/weaveworks/flux/http"
@@ -53,6 +54,7 @@ const (
 )
 
 func setup() {
+	git.KeySize = 128
 	databaseSource := "file://fluxy.db"
 	databaseMigrationsDir, _ := filepath.Abs("../../db/migrations")
 	var dbDriver string
