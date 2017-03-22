@@ -58,14 +58,6 @@ type PostReleaseResponse struct {
 	ReleaseID jobs.JobID `json:"release_id"`
 }
 
-func mustGetPathTemplate(route *mux.Route) string {
-	t, err := route.GetPathTemplate()
-	if err != nil {
-		panic(err)
-	}
-	return t
-}
-
 func MakeURL(endpoint string, router *mux.Router, routeName string, urlParams ...string) (*url.URL, error) {
 	if len(urlParams)%2 != 0 {
 		panic("urlParams must be even!")
