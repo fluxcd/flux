@@ -21,6 +21,6 @@ func TestDefinedServices(t *testing.T) {
 	}
 
 	if !reflect.DeepEqual(testdata.ServiceMap(dir), services) {
-		t.Errorf("Got unexpected result: %#v", services)
+		t.Errorf("Expected:\n%#v\ngot:\n%#v\n", testdata.ServiceMap(dir), services)
 	}
 }

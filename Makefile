@@ -43,7 +43,7 @@ build/.%.done: docker/Dockerfile.%
 	touch $@
 
 build/.fluxd.done: build/fluxd build/kubectl
-build/.fluxsvc.done: build/fluxsvc cmd/fluxsvc/kubeservice build/migrations.tar
+build/.fluxsvc.done: build/fluxsvc build/migrations.tar
 
 build/fluxd: $(FLUXD_DEPS)
 build/fluxd: cmd/fluxd/*.go
