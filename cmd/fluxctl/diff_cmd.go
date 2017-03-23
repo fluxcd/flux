@@ -24,7 +24,13 @@ func (opts *diffOpts) Command() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "diff",
 		Short: "Show differences between one platform config and another",
-		RunE:  opts.RunE,
+		Example: `# Diff the resource(s) from two files
+fluxctl diff dev/resource.yml prod/resource.yml
+
+# Diff the resource(s) in directory dev vs directory prod, recursively
+fluxctl diff dev prod
+`,
+		RunE: opts.RunE,
 	}
 	cmd.Flags().BoolVarP(&opts.quiet, "quiet", "q", false, "just report which files differ")
 	return cmd
