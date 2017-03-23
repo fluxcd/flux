@@ -18,6 +18,7 @@ var testNATS = flag.String("nats-url", "", "NATS connection URL; use NATS' defau
 var metrics = platform.BusMetricsImpl
 
 func setup(t *testing.T) *NATS {
+	applyTimeout = timeout // so we don't wait 20 minutes to fail
 	flag.Parse()
 	if *testNATS == "" {
 		*testNATS = nats.DefaultURL
@@ -39,7 +40,6 @@ func subscribe(t *testing.T, bus *NATS, errc chan error, inst flux.InstanceID, p
 
 func TestPing(t *testing.T) {
 	bus := setup(t)
-
 	errc := make(chan error)
 	instID := flux.InstanceID("wirey-bird-68")
 	platA := &platform.MockPlatform{}
@@ -71,68 +71,21 @@ func TestPing(t *testing.T) {
 
 func TestMethods(t *testing.T) {
 	bus := setup(t)
-
 	errc := make(chan error, 1)
-
 	instA := flux.InstanceID("steamy-windows-89")
-	mockA := &platform.MockPlatform{
-		VersionAnswer:     "a-version-123",
-		AllServicesAnswer: []platform.Service{platform.Service{}},
-		ApplyError:        platform.ApplyError{flux.ServiceID("foo/bar"): errors.New("foo barred")},
-	}
-	subscribe(t, bus, errc, instA, mockA)
 
-	plat, err := bus.Connect(instA)
-	if err != nil {
-		t.Fatal(err)
+	wrap := func(mock platform.Platform) platform.Platform {
+		subscribe(t, bus, errc, instA, mock)
+		plat, err := bus.Connect(instA)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return plat
 	}
-
-	vsn, err := plat.Version()
-	if err != nil {
-		t.Error(err)
-	} else if vsn != mockA.VersionAnswer {
-		t.Errorf(`expected version "%s", got "%s"`, mockA.VersionAnswer, vsn)
-	}
-
-	ss, err := plat.AllServices("", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(mockA.AllServicesAnswer) != len(ss) {
-		t.Fatalf("Expected %d result, got %d", len(mockA.AllServicesAnswer), len(ss))
-	}
-
-	err = plat.Apply([]platform.ServiceDefinition{})
-	if _, ok := err.(platform.ApplyError); !ok {
-		t.Fatalf("expected ApplyError, got %+v", err)
-	}
-
-	mockB := &platform.MockPlatform{
-		AllServicesError:   errors.New("just didn't feel like it"),
-		SomeServicesAnswer: []platform.Service{platform.Service{}, platform.Service{}},
-	}
-	instB := flux.InstanceID("smokey-water-72")
-	subscribe(t, bus, errc, instB, mockB)
-	platB, err := bus.Connect(instB)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	ss, err = platB.SomeServices([]flux.ServiceID{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(mockB.SomeServicesAnswer) != len(ss) {
-		t.Fatalf("Expected %d result, got %d", len(mockB.SomeServicesAnswer), len(ss))
-	}
-
-	ss, err = platB.AllServices("", nil)
-	if err == nil {
-		t.Fatal("expected error but didn't get one")
-	}
+	platform.PlatformTestBattery(t, wrap)
 
 	close(errc)
-	err = <-errc
+	err := <-errc
 	if err != nil {
 		t.Fatalf("expected nil from subscription channel, but got err %v", err)
 	}

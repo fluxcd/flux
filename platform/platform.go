@@ -24,6 +24,7 @@ type PlatformV5 interface {
 	PlatformV4
 	// Additional methods accumulate here as we develop V5
 	Export() ([]byte, error)
+	Sync(SyncDef) error
 }
 
 // Platform is the interface various platforms fulfill, e.g.

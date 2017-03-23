@@ -6,9 +6,7 @@ package kubernetes
 
 import (
 	"bytes"
-	"os"
-	"os/exec"
-	"sync"
+	"fmt"
 
 	k8syaml "github.com/ghodss/yaml"
 	"github.com/go-kit/kit/log"
@@ -27,6 +25,12 @@ import (
 	"github.com/weaveworks/flux/platform"
 )
 
+const (
+	StatusUnknown  = "unknown"
+	StatusReady    = "ready"
+	StatusUpdating = "updating"
+)
+
 type extendedClient struct {
 	discovery.DiscoveryInterface
 	v1core.CoreInterface
@@ -41,13 +45,6 @@ type apiObject struct {
 		Name      string `yaml:"name"`
 		Namespace string `yaml:"namespace"`
 	} `yaml:"metadata"`
-}
-
-type applyExecFunc func(*Cluster, log.Logger) error
-
-type apply struct {
-	exec    applyExecFunc
-	summary string
 }
 
 // --- add-ons
@@ -81,13 +78,17 @@ func isAddon(obj namespacedLabeled) bool {
 
 // --- /add ons
 
+type Applier interface {
+	Delete(logger log.Logger, def *apiObject) error
+	Apply(logger log.Logger, def *apiObject) error
+}
+
 // Cluster is a handle to a Kubernetes API server.
 // (Typically, this code is deployed into the same cluster.)
 type Cluster struct {
 	config  *rest.Config
 	client  extendedClient
-	kubectl string
-	status  *statusMap
+	applier Applier
 	actionc chan func()
 	version string // string response for the version command.
 	logger  log.Logger
@@ -95,29 +96,16 @@ type Cluster struct {
 
 // NewCluster returns a usable cluster. Host should be of the form
 // "http://hostname:8080".
-func NewCluster(config *rest.Config, kubectl, version string, logger log.Logger) (*Cluster, error) {
+func NewCluster(config *rest.Config, applier Applier, version string, logger log.Logger) (*Cluster, error) {
 	client, err := k8sclient.NewForConfig(config)
 	if err != nil {
 		return nil, err
 	}
 
-	if kubectl == "" {
-		kubectl, err = exec.LookPath("kubectl")
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		if _, err := os.Stat(kubectl); err != nil {
-			return nil, err
-		}
-	}
-	logger.Log("kubectl", kubectl)
-
 	c := &Cluster{
 		config:  config,
 		client:  extendedClient{client.Discovery(), client.Core(), client.Extensions()},
-		kubectl: kubectl,
-		status:  newStatusMap(),
+		applier: applier,
 		actionc: make(chan func()),
 		version: version,
 		logger:  logger,
@@ -212,14 +200,22 @@ func (c *Cluster) AllServices(namespace string, ignore flux.ServiceIDSet) (res [
 
 func (c *Cluster) makeService(ns string, service *v1.Service, controllers []podController) platform.Service {
 	id := flux.MakeServiceID(ns, service.Name)
-	status, _ := c.status.getApplyProgress(id)
-	return platform.Service{
-		ID:         id,
-		IP:         service.Spec.ClusterIP,
-		Metadata:   metadataForService(service),
-		Containers: containersOrExcuse(service, controllers),
-		Status:     status,
+	svc := platform.Service{
+		ID:       id,
+		IP:       service.Spec.ClusterIP,
+		Metadata: metadataForService(service),
 	}
+
+	pc, err := matchController(service, controllers)
+	if err != nil {
+		svc.Containers = platform.ContainersOrExcuse{Excuse: err.Error()}
+		svc.Status = StatusUnknown
+	} else {
+		svc.Containers = platform.ContainersOrExcuse{Containers: pc.templateContainers()}
+		svc.Status = pc.status()
+	}
+
+	return svc
 }
 
 func metadataForService(s *v1.Service) map[string]string {
@@ -278,36 +274,10 @@ func matchController(service *v1.Service, controllers []podController) (podContr
 	}
 }
 
-func containersOrExcuse(service *v1.Service, controllers []podController) platform.ContainersOrExcuse {
-	pc, err := matchController(service, controllers)
-	if err != nil {
-		return platform.ContainersOrExcuse{Excuse: err.Error()}
-	}
-	return platform.ContainersOrExcuse{Containers: pc.templateContainers()}
-}
-
 // Either a replication controller, a deployment, or neither (both nils).
 type podController struct {
 	ReplicationController *v1.ReplicationController
 	Deployment            *apiext.Deployment
-}
-
-func (p podController) name() string {
-	if p.Deployment != nil {
-		return p.Deployment.Name
-	} else if p.ReplicationController != nil {
-		return p.ReplicationController.Name
-	}
-	return ""
-}
-
-func (p podController) kind() string {
-	if p.Deployment != nil {
-		return "Deployment"
-	} else if p.ReplicationController != nil {
-		return "ReplicationController"
-	}
-	return "unknown"
 }
 
 func (p podController) templateContainers() (res []platform.Container) {
@@ -346,86 +316,101 @@ func (p podController) matchedBy(selector map[string]string) bool {
 	return true
 }
 
-// Apply applies a new set of ServiceDefinition. If all definitions succeed,
-// Apply returns a nil error. If any definitions fail, Apply returns an error
-// of type ApplyError, which can be inspected for more detailed information.
-// Applies are serialized per cluster.
-//
-// Apply assumes there is a one-to-one mapping between services and replication
-// controllers or deployments; this can be improved. Apply blocks until an
-// update is complete; this can be improved. Apply invokes `kubectl
-// rolling-update` or `kubectl apply` in a seperate process, and assumes
-// kubectl is in the PATH; this can be improved.
-func (c *Cluster) Apply(defs []platform.ServiceDefinition) error {
+// Determine a status for the service by looking at the rollout status
+// for the deployment or replication controller.
+func (p podController) status() string {
+	switch {
+	case p.Deployment != nil:
+		meta, status := p.Deployment.ObjectMeta, p.Deployment.Status
+		if status.ObservedGeneration >= meta.Generation {
+			// the definition has been updated; now let's see about the replicas
+			updated, wanted := status.UpdatedReplicas, *p.Deployment.Spec.Replicas
+			if updated == wanted {
+				return StatusReady
+			}
+			return fmt.Sprintf("%d out of %d updated", updated, wanted)
+		}
+		return StatusUpdating
+	case p.ReplicationController != nil:
+		meta, status := p.ReplicationController.ObjectMeta, p.ReplicationController.Status
+		// This is more difficult, simply because updating a
+		// replication controller really means creating a new one,
+		// transitioning to it a pod at a time, and throwing the old
+		// one away. So this is an approximation.
+		if status.ObservedGeneration >= meta.Generation {
+			ready, total := status.ReadyReplicas, status.Replicas
+			if ready == total {
+				return StatusReady
+			}
+			return fmt.Sprintf("%d out of %d ready", ready, total)
+		}
+		return StatusUpdating
+	}
+	return StatusUnknown
+}
+
+// Sync performs the given actions on resources. Operations are
+// asynchronous, but serialised.
+func (c *Cluster) Sync(spec platform.SyncDef) error {
 	errc := make(chan error)
+	logger := log.NewContext(c.logger).With("method", "Sync")
 	c.actionc <- func() {
-		namespacedDefs := map[string][]platform.ServiceDefinition{}
-		for _, def := range defs {
-			ns, _ := def.ServiceID.Components()
-			namespacedDefs[ns] = append(namespacedDefs[ns], def)
-		}
-
-		applyErr := platform.ApplyError{}
-		for namespace, defs := range namespacedDefs {
-			services := c.client.Services(namespace)
-
-			controllers, err := c.podControllersInNamespace(namespace)
-			if err != nil {
-				err = errors.Wrapf(err, "getting pod controllers for namespace %s", namespace)
-				for _, def := range defs {
-					applyErr[def.ServiceID] = err
+		errs := platform.SyncError{}
+		for _, action := range spec.Actions {
+			if len(action.Delete) > 0 {
+				obj, err := definitionObj(action.Delete)
+				if err == nil {
+					err = c.applier.Delete(logger, obj)
 				}
-				continue
+				if err != nil {
+					errs[action.ResourceID] = err
+					continue
+				}
 			}
-
-			for _, def := range defs {
-				newDef, err := definitionObj(def.NewDefinition)
-				if err != nil {
-					applyErr[def.ServiceID] = errors.Wrap(err, "reading definition")
-					continue
+			if len(action.Apply) > 0 {
+				obj, err := definitionObj(action.Apply)
+				if err == nil {
+					err = c.applier.Apply(logger, obj)
 				}
-
-				_, serviceName := def.ServiceID.Components()
-				service, err := services.Get(serviceName)
 				if err != nil {
-					applyErr[def.ServiceID] = errors.Wrap(err, "getting service")
-					continue
-				}
-
-				controller, err := matchController(service, controllers)
-				if err != nil {
-					applyErr[def.ServiceID] = errors.Wrap(err, "getting pod controller")
-					continue
-				}
-
-				plan, err := controller.newApply(newDef, def.Async)
-				if err != nil {
-					applyErr[def.ServiceID] = errors.Wrap(err, "creating release")
-					continue
-				}
-
-				c.status.startApply(def.ServiceID, plan)
-				defer c.status.endApply(def.ServiceID)
-
-				logger := log.NewContext(c.logger).With("method", "Apply", "namespace", namespace, "service", serviceName)
-				if err = plan.exec(c, logger); err != nil {
-					applyErr[def.ServiceID] = errors.Wrapf(err, "applying definition to %s", def.ServiceID)
+					errs[action.ResourceID] = err
 					continue
 				}
 			}
 		}
-		if len(applyErr) > 0 {
-			errc <- applyErr
-			return
+		if len(errs) > 0 {
+			errc <- errs
 		}
 		errc <- nil
 	}
 	return <-errc
 }
 
-func definitionObj(bytes []byte) (*apiObject, error) {
-	obj := apiObject{bytes: bytes}
-	return &obj, yaml.Unmarshal(bytes, &obj)
+// Apply applies a new set of ServiceDefinition. If all definitions succeed,
+// Apply returns a nil error. If any definitions fail, Apply returns an error
+// of type ApplyError, which can be inspected for more detailed information.
+// Applies are serialized.
+func (c *Cluster) Apply(defs []platform.ServiceDefinition) error {
+	sync := platform.SyncDef{Actions: []platform.SyncAction{}}
+	for _, def := range defs {
+		id := def.ServiceID.String()
+		sync.Actions = append(sync.Actions, platform.SyncAction{ResourceID: id, Apply: def.NewDefinition})
+	}
+	err := c.Sync(sync)
+	if err == nil {
+		return nil
+	}
+
+	switch err := err.(type) {
+	case platform.SyncError:
+		applyErr := platform.ApplyError{}
+		for rid, syncErr := range err {
+			applyErr[flux.ServiceID(rid)] = syncErr
+		}
+		return applyErr
+	default:
+		return err
+	}
 }
 
 func (c *Cluster) Ping() error {
@@ -512,34 +497,8 @@ func appendYAML(buffer *bytes.Buffer, apiVersion, kind string, object interface{
 
 // --- end platform API
 
-type statusMap struct {
-	inProgress map[flux.ServiceID]*apply
-	mx         sync.RWMutex
-}
-
-func newStatusMap() *statusMap {
-	return &statusMap{
-		inProgress: make(map[flux.ServiceID]*apply),
-	}
-}
-
-func (m *statusMap) startApply(s flux.ServiceID, a *apply) {
-	m.mx.Lock()
-	defer m.mx.Unlock()
-	m.inProgress[s] = a
-}
-
-func (m *statusMap) getApplyProgress(s flux.ServiceID) (string, bool) {
-	m.mx.RLock()
-	defer m.mx.RUnlock()
-	if a, ok := m.inProgress[s]; ok {
-		return a.summary, true
-	}
-	return "", false
-}
-
-func (m *statusMap) endApply(s flux.ServiceID) {
-	m.mx.Lock()
-	defer m.mx.Unlock()
-	delete(m.inProgress, s)
+// A convenience for getting an minimal object from some bytes.
+func definitionObj(bytes []byte) (*apiObject, error) {
+	obj := apiObject{bytes: bytes}
+	return &obj, yaml.Unmarshal(bytes, &obj)
 }

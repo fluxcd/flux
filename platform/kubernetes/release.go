@@ -10,32 +10,19 @@ import (
 
 	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
-	api "k8s.io/client-go/1.5/pkg/api/v1"
-	apiext "k8s.io/client-go/1.5/pkg/apis/extensions/v1beta1"
-
-	"github.com/weaveworks/flux/platform"
+	rest "k8s.io/client-go/1.5/rest"
 )
 
-func (c podController) newApply(newDefinition *apiObject, async bool) (*apply, error) {
-	k := c.kind()
-	if newDefinition.Kind != k {
-		return nil, fmt.Errorf(`Expected new definition of kind %q, to match old definition; got %q`, k, newDefinition.Kind)
-	}
-
-	var result apply
-	if c.Deployment != nil {
-		result.exec = deploymentExec(c.Deployment, newDefinition, async)
-		result.summary = "Applying deployment"
-	} else if c.ReplicationController != nil {
-		result.exec = rollingUpgradeExec(c.ReplicationController, newDefinition, async)
-		result.summary = "Rolling upgrade"
-	} else {
-		return nil, platform.ErrNoMatching
-	}
-	return &result, nil
+func NewKubectl(exe string, config *rest.Config) *Kubectl {
+	return &Kubectl{exe, config}
 }
 
-func (c *Cluster) connectArgs() []string {
+type Kubectl struct {
+	exe    string
+	config *rest.Config
+}
+
+func (c *Kubectl) connectArgs() []string {
 	var args []string
 	if c.config.Host != "" {
 		args = append(args, fmt.Sprintf("--server=%s", c.config.Host))
@@ -61,16 +48,16 @@ func (c *Cluster) connectArgs() []string {
 	return args
 }
 
-func (c *Cluster) kubectlCommand(args ...string) *exec.Cmd {
-	cmd := exec.Command(c.kubectl, append(c.connectArgs(), args...)...)
+func (c *Kubectl) kubectlCommand(args ...string) *exec.Cmd {
+	cmd := exec.Command(c.exe, append(c.connectArgs(), args...)...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	return cmd
 }
 
-func (c *Cluster) doApplyCommand(logger log.Logger, newDefinition *apiObject, args ...string) error {
+func (c *Kubectl) doCommand(logger log.Logger, newDefinition []byte, args ...string) error {
 	cmd := c.kubectlCommand(args...)
-	cmd.Stdin = bytes.NewReader(newDefinition.bytes)
+	cmd.Stdin = bytes.NewReader(newDefinition)
 	stderr := &bytes.Buffer{}
 	cmd.Stderr = stderr
 	logger.Log("cmd", strings.Join(args, " "))
@@ -86,49 +73,10 @@ func (c *Cluster) doApplyCommand(logger log.Logger, newDefinition *apiObject, ar
 	return err
 }
 
-func rollingUpgradeExec(def *api.ReplicationController, newDef *apiObject, async bool) applyExecFunc {
-	return func(c *Cluster, logger log.Logger) error {
-		errc := make(chan error)
-		go func() {
-			errc <- c.doApplyCommand(
-				logger,
-				newDef,
-				"rolling-update",
-				"--update-period", "3s",
-				"--namespace", def.Namespace,
-				def.Name,
-				"-f", "-", // take definition from stdin
-			)
-		}()
-		if async {
-			return nil
-		}
-		return <-errc
-	}
+func (c *Kubectl) Delete(logger log.Logger, obj *apiObject) error {
+	return c.doCommand(logger, obj.bytes, "delete", "-f", "-")
 }
 
-func deploymentExec(def *apiext.Deployment, newDef *apiObject, async bool) applyExecFunc {
-	return func(c *Cluster, logger log.Logger) error {
-		err := c.doApplyCommand(
-			logger,
-			newDef,
-			"apply",
-			"-f", "-", // take definition from stdin
-		)
-		if async {
-			return err
-		}
-
-		if err == nil {
-			args := []string{
-				"rollout", "status",
-				"deployment", newDef.Metadata.Name,
-				"--namespace", newDef.Metadata.Namespace,
-			}
-			cmd := c.kubectlCommand(args...)
-			logger.Log("cmd", strings.Join(args, " "))
-			err = cmd.Run()
-		}
-		return err
-	}
+func (c *Kubectl) Apply(logger log.Logger, obj *apiObject) error {
+	return c.doCommand(logger, obj.bytes, "apply", "-f", "-")
 }

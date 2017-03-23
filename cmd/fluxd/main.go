@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"os/exec"
 	"os/signal"
 	"syscall"
 	"time"
@@ -75,7 +76,20 @@ func main() {
 		logger := log.NewContext(logger).With("component", "platform")
 		logger.Log("host", restClientConfig.Host)
 
-		cluster, err := kubernetes.NewCluster(restClientConfig, *kubernetesKubectl, version, logger)
+		kubectl := *kubernetesKubectl
+		if kubectl == "" {
+			kubectl, err = exec.LookPath("kubectl")
+		} else {
+			_, err = os.Stat(kubectl)
+		}
+		if err != nil {
+			logger.Log("err", err)
+			os.Exit(1)
+		}
+		logger.Log("kubectl", kubectl)
+
+		kubectlApplier := kubernetes.NewKubectl(kubectl, restClientConfig)
+		cluster, err := kubernetes.NewCluster(restClientConfig, kubectlApplier, version, logger)
 		if err != nil {
 			logger.Log("err", err)
 			os.Exit(1)
