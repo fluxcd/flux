@@ -44,7 +44,7 @@ func TestSlackNotifier(t *testing.T) {
 	}
 	for k, expectedV := range map[string]string{
 		"username": "user1",
-		"text":     "Release all latest to default/helloworld. test-error. failed",
+		"text":     "Release (test-user) all latest to default/helloworld. test-error. failed",
 	} {
 		if v, ok := body[k]; !ok || v != expectedV {
 			t.Errorf("Expected %s to have been set to %q, but got: %q", k, expectedV, v)

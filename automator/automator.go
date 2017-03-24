@@ -177,9 +177,15 @@ func (a *Automator) handleAutomatedInstanceJob(logger log.Logger, job *jobs.Job,
 			Method:   jobs.ReleaseJob,
 			Priority: jobs.PriorityBackground,
 			Params: jobs.ReleaseJobParams{
-				ServiceSpecs: services,
-				ImageSpec:    flux.ImageSpecFromID(imageID),
-				Kind:         flux.ReleaseKindExecute,
+				ReleaseSpec: flux.ReleaseSpec{
+					ServiceSpecs: services,
+					ImageSpec:    flux.ImageSpecFromID(imageID),
+					Kind:         flux.ReleaseKindExecute,
+				},
+				Cause: flux.ReleaseCause{
+					User:    flux.UserAutomated,
+					Message: fmt.Sprintf("due to new image %s", imageID.String()),
+				},
 			},
 		})
 	}

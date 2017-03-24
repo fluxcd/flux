@@ -45,12 +45,19 @@ func (c *client) ListImages(_ flux.InstanceID, s flux.ServiceSpec) ([]flux.Image
 }
 
 func (c *client) PostRelease(_ flux.InstanceID, s jobs.ReleaseJobParams) (jobs.JobID, error) {
-	args := []string{"image", string(s.ImageSpec), "kind", string(s.Kind)}
+	args := []string{
+		"image", string(s.ImageSpec),
+		"kind", string(s.Kind),
+		"user", s.Cause.User,
+	}
 	for _, spec := range s.ServiceSpecs {
 		args = append(args, "service", string(spec))
 	}
 	for _, ex := range s.Excludes {
 		args = append(args, "exclude", string(ex))
+	}
+	if s.Cause.Message != "" {
+		args = append(args, "message", s.Cause.Message)
 	}
 
 	var resp transport.PostReleaseResponse

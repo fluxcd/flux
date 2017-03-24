@@ -135,10 +135,16 @@ func (s HTTPService) PostRelease(w http.ResponseWriter, r *http.Request) {
 	}
 
 	id, err := s.service.PostRelease(inst, jobs.ReleaseJobParams{
-		ServiceSpecs: serviceSpecs,
-		ImageSpec:    imageSpec,
-		Kind:         releaseKind,
-		Excludes:     excludes,
+		ReleaseSpec: flux.ReleaseSpec{
+			ServiceSpecs: serviceSpecs,
+			ImageSpec:    imageSpec,
+			Kind:         releaseKind,
+			Excludes:     excludes,
+		},
+		Cause: flux.ReleaseCause{
+			User:    r.FormValue("user"),
+			Message: r.FormValue("message"),
+		},
 	})
 	if err != nil {
 		errorResponse(w, r, err)

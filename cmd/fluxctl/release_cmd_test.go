@@ -103,7 +103,9 @@ func newMockService() *genericMockRoundTripper {
 				Done: true,
 				ID:   "1",
 				Params: jobs.ReleaseJobParams{
-					Kind: "test",
+					ReleaseSpec: flux.ReleaseSpec{
+						Kind: "test",
+					},
 				},
 				Method: jobs.ReleaseJob,
 			},

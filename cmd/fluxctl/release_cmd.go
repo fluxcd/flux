@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"os/user"
 
 	"github.com/spf13/cobra"
 
@@ -19,6 +20,8 @@ type serviceReleaseOpts struct {
 	noUpdate    bool
 	exclude     []string
 	dryRun      bool
+	user        string
+	message     string
 	serviceReleaseOutputOpts
 }
 
@@ -38,6 +41,13 @@ func (opts *serviceReleaseOpts) Command() *cobra.Command {
 		),
 		RunE: opts.RunE,
 	}
+
+	username := ""
+	user, err := user.Current()
+	if err == nil {
+		username = user.Username
+	}
+
 	cmd.Flags().StringSliceVarP(&opts.services, "service", "s", []string{}, "service to release")
 	cmd.Flags().BoolVar(&opts.allServices, "all", false, "release all services")
 	cmd.Flags().StringVarP(&opts.image, "update-image", "i", "", "update a specific image")
@@ -48,6 +58,8 @@ func (opts *serviceReleaseOpts) Command() *cobra.Command {
 	cmd.Flags().BoolVar(&opts.noFollow, "no-follow", false, "just submit the release job, don't invoke check-release afterwards")
 	cmd.Flags().BoolVar(&opts.noTty, "no-tty", false, "if not --no-follow, forces simpler, non-TTY status output")
 	cmd.Flags().BoolVarP(&opts.verbose, "verbose", "v", false, "include ignored services in output")
+	cmd.Flags().StringVarP(&opts.message, "message", "m", "", "attach a message to the release job")
+	cmd.Flags().StringVar(&opts.user, "user", username, "override the user reported as initating the release job")
 	return cmd
 }
 
@@ -113,10 +125,16 @@ func (opts *serviceReleaseOpts) RunE(cmd *cobra.Command, args []string) error {
 	}
 
 	id, err := opts.API.PostRelease(noInstanceID, jobs.ReleaseJobParams{
-		ServiceSpecs: services,
-		ImageSpec:    image,
-		Kind:         kind,
-		Excludes:     excludes,
+		ReleaseSpec: flux.ReleaseSpec{
+			ServiceSpecs: services,
+			ImageSpec:    image,
+			Kind:         kind,
+			Excludes:     excludes,
+		},
+		Cause: flux.ReleaseCause{
+			User:    opts.user,
+			Message: opts.message,
+		},
 	})
 	if err != nil {
 		return err
