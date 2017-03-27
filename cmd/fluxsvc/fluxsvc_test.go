@@ -215,9 +215,11 @@ func TestFluxsvc_Release(t *testing.T) {
 
 	// Test PostRelease
 	r, err := apiClient.PostRelease("", jobs.ReleaseJobParams{
-		ImageSpec:    "alpine:latest",
-		Kind:         "execute",
-		ServiceSpecs: []flux.ServiceSpec{helloWorldSvc},
+		ReleaseSpec: flux.ReleaseSpec{
+			ImageSpec:    "alpine:latest",
+			Kind:         "execute",
+			ServiceSpecs: []flux.ServiceSpec{helloWorldSvc},
+		},
 	})
 	if err != nil {
 		t.Fatal(err)
