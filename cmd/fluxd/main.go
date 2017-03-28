@@ -108,6 +108,7 @@ func main() {
 	daemonLogger := log.NewContext(logger).With("component", "client")
 	daemon, err := transport.NewDaemon(
 		&http.Client{Timeout: 10 * time.Second},
+		fmt.Sprintf("fluxd/%v", version),
 		flux.Token(*token),
 		transport.NewRouter(),
 		*fluxsvcAddress,

@@ -31,7 +31,7 @@ func TestToken(t *testing.T) {
 	url, _ := url.Parse(srv.URL)
 	url.Scheme = "ws"
 
-	ws, err := Dial(http.DefaultClient, flux.Token(token), url)
+	ws, err := Dial(http.DefaultClient, "fluxd/test", flux.Token(token), url)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -58,7 +58,7 @@ func TestByteStream(t *testing.T) {
 	url, _ := url.Parse(srv.URL)
 	url.Scheme = "ws"
 
-	ws, err := Dial(http.DefaultClient, flux.Token(""), url)
+	ws, err := Dial(http.DefaultClient, "fluxd/test", flux.Token(""), url)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -12,12 +12,15 @@ import (
 )
 
 // Dial initiates a new websocket connection.
-func Dial(client *http.Client, token flux.Token, u *url.URL) (Websocket, error) {
+func Dial(client *http.Client, ua string, token flux.Token, u *url.URL) (Websocket, error) {
 	// Build the http request
 	req, err := http.NewRequest("GET", u.String(), nil)
 	if err != nil {
 		return nil, errors.Wrapf(err, "constructing request %s", u)
 	}
+
+	// Send version in user-agent
+	req.Header.Set("User-Agent", ua)
 
 	// Add authentication if provided
 	token.Set(req)
