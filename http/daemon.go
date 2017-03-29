@@ -20,6 +20,7 @@ import (
 // Daemon handles communication from the daemon to the service
 type Daemon struct {
 	client   *http.Client
+	ua       string
 	token    flux.Token
 	url      *url.URL
 	endpoint string
@@ -39,7 +40,7 @@ var (
 	}, []string{"target"})
 )
 
-func NewDaemon(client *http.Client, t flux.Token, router *mux.Router, endpoint string, p platform.Platform, logger log.Logger) (*Daemon, error) {
+func NewDaemon(client *http.Client, ua string, t flux.Token, router *mux.Router, endpoint string, p platform.Platform, logger log.Logger) (*Daemon, error) {
 	u, err := MakeURL(endpoint, router, "RegisterDaemonV5")
 	if err != nil {
 		return nil, errors.Wrap(err, "constructing URL")
@@ -47,6 +48,7 @@ func NewDaemon(client *http.Client, t flux.Token, router *mux.Router, endpoint s
 
 	a := &Daemon{
 		client:   client,
+		ua:       ua,
 		token:    t,
 		url:      u,
 		endpoint: endpoint,
@@ -81,7 +83,7 @@ func (a *Daemon) loop() {
 func (a *Daemon) connect() error {
 	a.setConnectionDuration(0)
 	a.logger.Log("connecting", true)
-	ws, err := websocket.Dial(a.client, a.token, a.url)
+	ws, err := websocket.Dial(a.client, a.ua, a.token, a.url)
 	if err != nil {
 		return errors.Wrapf(err, "executing websocket %s", a.url)
 	}

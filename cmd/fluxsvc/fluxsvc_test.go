@@ -496,7 +496,7 @@ func TestFluxsvc_Register(t *testing.T) {
 	setup()
 	defer teardown()
 
-	_, err := transport.NewDaemon(&http.Client{}, "", router, ts.URL, mockPlatform, log.NewNopLogger()) // For ping and for
+	_, err := transport.NewDaemon(&http.Client{}, "fluxd/test", "", router, ts.URL, mockPlatform, log.NewNopLogger()) // For ping and for
 	if err != nil {
 		t.Fatal(err)
 	}
