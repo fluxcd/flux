@@ -350,6 +350,34 @@ func (s *Server) GetConfig(instID flux.InstanceID) (flux.InstanceConfig, error) 
 	return config, nil
 }
 
+func (s *Server) GetConfigSingle(instID flux.InstanceID, path string, syntax string) (string, error) {
+	config, err := s.GetConfig(instID)
+	if err != nil {
+		return "", flux.ServerException{
+			BaseError: &flux.BaseError{
+				Help: "Cannot get config. Does `fluxctl get-config` work?",
+				Err:  err,
+			},
+		}
+	}
+	// Must hide the config so the user can't see our secrets!
+	hiddenConfig := config.HideSecrets()
+
+	// Find the setting for the given path
+	v := hiddenConfig.FindSetting(path, syntax)
+
+	if !v.IsValid() {
+		return "", flux.Missing{
+			BaseError: &flux.BaseError{
+				Help: "The requested configuration parameter does not exist. Please ensure your request matches the configuration from `fluxctl get-config`",
+				Err:  errors.New("Configuration parameter does not exist"),
+			},
+		}
+	}
+
+	return v.String(), nil
+}
+
 func (s *Server) SetConfig(instID flux.InstanceID, updates flux.UnsafeInstanceConfig) error {
 	if _, err := registry.CredentialsFromConfig(updates); err != nil {
 		return errors.Wrap(err, "invalid registry credentials")

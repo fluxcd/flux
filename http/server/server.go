@@ -42,6 +42,7 @@ func NewHandler(s api.FluxService, r *mux.Router, logger log.Logger) http.Handle
 		"History":                handle.History,
 		"Status":                 handle.Status,
 		"GetConfig":              handle.GetConfig,
+		"GetConfigSingle":        handle.GetConfigSingle,
 		"SetConfig":              handle.SetConfig,
 		"GenerateDeployKeys":     handle.GenerateKeys,
 		"PostIntegrationsGithub": handle.PostIntegrationsGithub,
@@ -264,6 +265,21 @@ func (s HTTPService) GetConfig(w http.ResponseWriter, r *http.Request) {
 	}
 
 	jsonResponse(w, r, config)
+}
+
+func (s HTTPService) GetConfigSingle(w http.ResponseWriter, r *http.Request) {
+	inst := getInstanceID(r)
+	settingPath := r.URL.Query().Get("key")
+	syntax := r.URL.Query().Get("syntax")
+	if syntax == "" {
+		syntax = "yaml"
+	}
+	value, err := s.service.GetConfigSingle(inst, settingPath, syntax)
+	if err != nil {
+		errorResponse(w, r, err)
+		return
+	}
+	jsonResponse(w, r, value)
 }
 
 func (s HTTPService) SetConfig(w http.ResponseWriter, r *http.Request) {

@@ -99,6 +99,11 @@ func (c *client) GetConfig(_ flux.InstanceID) (flux.InstanceConfig, error) {
 	return res, err
 }
 
+func (c *client) GetConfigSingle(_ flux.InstanceID, settingPath, syntax string) (res string, err error) {
+	err = c.get(&res, "GetConfigSingle", "key", settingPath, "syntax", syntax)
+	return
+}
+
 func (c *client) SetConfig(_ flux.InstanceID, config flux.UnsafeInstanceConfig) error {
 	return c.postWithBody("SetConfig", config)
 }
