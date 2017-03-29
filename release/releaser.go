@@ -359,6 +359,7 @@ func calculateImageUpdates(inst *instance.Instance, candidates []*ServiceUpdate,
 
 			update.ManifestBytes, err = kubernetes.UpdatePodController(update.ManifestBytes, latestImage.ID, ioutil.Discard)
 			if err != nil {
+				logStatus("Failed on service %s: %s", update.ServiceID, err.Error())
 				return nil, err
 			}
 

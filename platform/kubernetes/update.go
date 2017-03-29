@@ -19,8 +19,22 @@ import (
 // This function has many additional requirements that are likely in flux. Read
 // the source to learn about them.
 func UpdatePodController(def []byte, newImageID flux.ImageID, trace io.Writer) ([]byte, error) {
+	// Sanity check
+	obj, err := definitionObj(def)
+	if err != nil {
+		return nil, err
+	}
+	switch obj.Kind {
+	case "ReplicationController":
+		return nil, ErrReplicationControllersDeprecated
+	case "Deployment":
+		break
+	default:
+		return nil, UpdateNotSupportedError(obj.Kind)
+	}
+
 	var buf bytes.Buffer
-	err := tryUpdate(string(def), newImageID, trace, &buf)
+	err = tryUpdate(string(def), newImageID, trace, &buf)
 	return buf.Bytes(), err
 }
 
