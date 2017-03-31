@@ -98,6 +98,7 @@ func (opts *saveOpts) RunE(cmd *cobra.Command, args []string) error {
 func filterObject(object saveObject) {
 	delete(object.Metadata.Annotations, "deployment.kubernetes.io/revision")
 	delete(object.Metadata.Annotations, "kubectl.kubernetes.io/last-applied-configuration")
+	delete(object.Metadata.Annotations, "kubernetes.io/change-cause")
 	deleteNested(object.Spec, "template", "metadata", "creationTimestamp")
 	deleteEmptyMapValues(object.Spec)
 }
