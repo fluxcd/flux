@@ -10,6 +10,7 @@ import (
 	"github.com/weaveworks/flux/platform"
 	"github.com/weaveworks/flux/registry"
 	"github.com/weaveworks/flux/release"
+	"github.com/weaveworks/flux/sync"
 )
 
 // Combine these things to form Devasta^Wan implementation of
@@ -88,7 +89,9 @@ func (d *Daemon) ListImages(spec flux.ServiceSpec) ([]flux.ImageStatus, error) {
 func (d *Daemon) UpdateImages(spec flux.ReleaseSpec) (flux.ReleaseResult, error) {
 	started := time.Now()
 	rc := release.NewReleaseContext(d.Cluster, d.Registry, d.Repo, d.WorkingDir)
-	// FIXME update the repo?
+	if err := rc.UpdateRepo(); err != nil {
+		return nil, errors.Wrap(err, "updating repo for sync")
+	}
 	results, err := release.Release(rc, spec)
 
 	status := flux.ReleaseStatusSuccess
@@ -118,7 +121,12 @@ func (d *Daemon) UpdateImages(spec flux.ReleaseSpec) (flux.ReleaseResult, error)
 // Tell the daemon to synchronise the cluster with the manifests in
 // the git repo.
 func (d *Daemon) SyncCluster() error {
-	return errors.New("FIXME")
+	// TODO metrics
+	rc := release.NewReleaseContext(d.Cluster, d.Registry, d.Repo, d.WorkingDir)
+	if err := rc.UpdateRepo(); err != nil {
+		return errors.Wrap(err, "updating repo for sync")
+	}
+	return sync.Sync(rc)
 }
 
 // Ask the daemon how far it's got applying things; in particular, is it

@@ -50,6 +50,13 @@ func push(keyPath, repoBranch, workingDir string) error {
 	return nil
 }
 
+func pull(keyPath, repoBranch, workingDir string) error {
+	if err := execGitCmd(workingDir, keyPath, "pull", "--ff-only", "origin", repoBranch); err != nil {
+		return errors.Wrap(err, fmt.Sprintf("git pull --ff-only origin %s", repoBranch))
+	}
+	return nil
+}
+
 func execGitCmd(dir, keyPath string, args ...string) error {
 	c := exec.Command("git", args...)
 	if dir != "" {

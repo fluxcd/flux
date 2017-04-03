@@ -62,3 +62,7 @@ func (r Repo) CommitAndPush(path, commitMessage string) error {
 	}
 	return nil
 }
+
+func (r Repo) Pull(path string) error {
+	return pull(r.Key, r.Branch, path)
+}

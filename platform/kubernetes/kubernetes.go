@@ -23,6 +23,8 @@ import (
 
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/platform"
+	kresource "github.com/weaveworks/flux/platform/kubernetes/resource"
+	"github.com/weaveworks/flux/resource"
 )
 
 const (
@@ -442,6 +444,14 @@ func (c *Cluster) Export() ([]byte, error) {
 		}
 	}
 	return config.Bytes(), nil
+}
+
+func (c *Cluster) LoadManifests(path string) (map[string]resource.Resource, error) {
+	return kresource.Load(path)
+}
+
+func (c *Cluster) ParseManifests(allDefs []byte) (map[string]resource.Resource, error) {
+	return kresource.ParseMultidoc(allDefs, "exported")
 }
 
 // kind & apiVersion must be passed separately as the object's TypeMeta is not populated

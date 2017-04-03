@@ -43,8 +43,8 @@ func (rc *ReleaseContext) CommitAndPush(msg string) error {
 	return rc.Repo.CommitAndPush(rc.WorkingDir, msg)
 }
 
-func (rc *ReleaseContext) RepoPath() string {
-	return filepath.Join(rc.WorkingDir, rc.Repo.Path)
+func (rc *ReleaseContext) UpdateRepo() error {
+	return rc.Repo.Pull(rc.WorkingDir)
 }
 
 func (rc *ReleaseContext) PushChanges(updates []*ServiceUpdate, spec *flux.ReleaseSpec) error {
@@ -56,6 +56,12 @@ func (rc *ReleaseContext) PushChanges(updates []*ServiceUpdate, spec *flux.Relea
 	commitMsg := commitMessageFromReleaseSpec(spec)
 	return rc.CommitAndPush(commitMsg)
 }
+
+func (rc *ReleaseContext) ManifestDir() string {
+	return filepath.Join(rc.WorkingDir, rc.Repo.Path)
+}
+
+// ---
 
 func writeUpdates(updates []*ServiceUpdate) error {
 	for _, update := range updates {
@@ -145,7 +151,7 @@ func (s *ServiceUpdate) filter(filters ...ServiceFilter) flux.ServiceResult {
 }
 
 func (rc *ReleaseContext) FindDefinedServices() ([]*ServiceUpdate, error) {
-	services, err := rc.Cluster.FindDefinedServices(rc.RepoPath())
+	services, err := rc.Cluster.FindDefinedServices(rc.ManifestDir())
 	if err != nil {
 		return nil, err
 	}
