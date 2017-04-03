@@ -35,7 +35,7 @@ The following describes how Flux achieves the goals.
 ## Monitoring For New Images
 
 Flux reads a list of running containers from Kubernetes. 
-For each image, it will querey the container registry to obtain
+For each image, it will query the container registry to obtain
 the most recently released tag.
 
 You can then observe whether containers are running the most recent
