@@ -1,6 +1,7 @@
 package websocket
 
 import (
+	"fmt"
 	"net"
 	"net/http"
 	"net/url"
@@ -10,6 +11,15 @@ import (
 
 	"github.com/weaveworks/flux"
 )
+
+type DialErr struct {
+	URL          *url.URL
+	HTTPResponse *http.Response
+}
+
+func (de DialErr) Error() string {
+	return fmt.Sprintf("connecting websocket %s (http status code = %v)", de.URL, de.HTTPResponse.StatusCode)
+}
 
 // Dial initiates a new websocket connection.
 func Dial(client *http.Client, ua string, token flux.Token, u *url.URL) (Websocket, error) {
@@ -26,9 +36,9 @@ func Dial(client *http.Client, ua string, token flux.Token, u *url.URL) (Websock
 	token.Set(req)
 
 	// Use http client to do the http request
-	conn, _, err := dialer(client).Dial(u.String(), req.Header)
+	conn, resp, err := dialer(client).Dial(u.String(), req.Header)
 	if err != nil {
-		return nil, errors.Wrapf(err, "connecting websocket %s", u)
+		return nil, &DialErr{u, resp}
 	}
 
 	// Set up the ping heartbeat
