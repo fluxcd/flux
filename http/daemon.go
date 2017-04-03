@@ -3,6 +3,7 @@ package http
 import (
 	"net/http"
 	"net/url"
+	"os"
 	"time"
 
 	"github.com/go-kit/kit/log"
@@ -32,7 +33,8 @@ type Daemon struct {
 }
 
 var (
-	connectionDuration = prometheus.NewGaugeFrom(stdprometheus.GaugeOpts{
+	ErrEndpointDeprecated = errors.New("Your fluxd version is deprecated - please upgrade, see https://github.com/weaveworks/flux/releases")
+	connectionDuration    = prometheus.NewGaugeFrom(stdprometheus.GaugeOpts{
 		Namespace: "flux",
 		Subsystem: "fluxd",
 		Name:      "connection_duration_seconds",
@@ -71,6 +73,10 @@ func (a *Daemon) loop() {
 		case err := <-errc:
 			if err != nil {
 				a.logger.Log("err", err)
+				if err == ErrEndpointDeprecated {
+					// We have logged the deprecation error, now crashloop to garner attention
+					os.Exit(1)
+				}
 				time.Sleep(backoff)
 				continue
 			}
@@ -85,6 +91,9 @@ func (a *Daemon) connect() error {
 	a.logger.Log("connecting", true)
 	ws, err := websocket.Dial(a.client, a.ua, a.token, a.url)
 	if err != nil {
+		if err, ok := err.(*websocket.DialErr); ok && err.HTTPResponse != nil && err.HTTPResponse.StatusCode == http.StatusGone {
+			return ErrEndpointDeprecated
+		}
 		return errors.Wrapf(err, "executing websocket %s", a.url)
 	}
 	a.ws = ws
