@@ -1,6 +1,8 @@
 package history
 
 import (
+	"time"
+
 	"github.com/weaveworks/flux"
 )
 
@@ -13,11 +15,11 @@ func NewMock() interface {
 	return mock{}
 }
 
-func (m mock) AllEvents() ([]flux.Event, error) {
+func (m mock) AllEvents(_ time.Time, _ int64) ([]flux.Event, error) {
 	return nil, nil
 }
 
-func (m mock) EventsForService(_ flux.ServiceID) ([]flux.Event, error) {
+func (m mock) EventsForService(_ flux.ServiceID, _ time.Time, _ int64) ([]flux.Event, error) {
 	return nil, nil
 }
 

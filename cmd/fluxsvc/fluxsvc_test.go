@@ -375,7 +375,7 @@ func TestFluxsvc_History(t *testing.T) {
 	apiClient.Lock("", helloWorldSvc)
 
 	// Test History
-	hist, err := apiClient.History("", helloWorldSvc)
+	hist, err := apiClient.History("", helloWorldSvc, time.Now().UTC(), -1)
 	if err != nil {
 		t.Fatal(err)
 	}

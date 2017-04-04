@@ -246,10 +246,33 @@ func (s HTTPService) History(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h, err := s.service.History(inst, spec)
+	before := time.Now().UTC()
+	if r.FormValue("before") != "" {
+		before, err = time.Parse(time.RFC3339Nano, r.FormValue("before"))
+		if err != nil {
+			errorResponse(w, r, err)
+			return
+		}
+	}
+	limit := int64(-1)
+	if r.FormValue("limit") != "" {
+		if _, err := fmt.Sscan(r.FormValue("limit"), &limit); err != nil {
+			errorResponse(w, r, err)
+			return
+		}
+	}
+
+	h, err := s.service.History(inst, spec, before, limit)
 	if err != nil {
 		errorResponse(w, r, err)
 		return
+	}
+
+	if r.FormValue("simple") == "1" {
+		// Remove all the individual event data, just return the timestamps and messages
+		for i := range h {
+			h[i].Event = nil
+		}
 	}
 
 	jsonResponse(w, r, h)

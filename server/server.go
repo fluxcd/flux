@@ -180,7 +180,7 @@ func containersWithAvailable(service platform.Service, images instance.ImageMap)
 	return res
 }
 
-func (s *Server) History(inst flux.InstanceID, spec flux.ServiceSpec) (res []flux.HistoryEntry, err error) {
+func (s *Server) History(inst flux.InstanceID, spec flux.ServiceSpec, before time.Time, limit int64) (res []flux.HistoryEntry, err error) {
 	helper, err := s.instancer.Get(inst)
 	if err != nil {
 		return nil, errors.Wrapf(err, "getting instance")
@@ -188,7 +188,7 @@ func (s *Server) History(inst flux.InstanceID, spec flux.ServiceSpec) (res []flu
 
 	var events []flux.Event
 	if spec == flux.ServiceSpecAll {
-		events, err = helper.AllEvents()
+		events, err = helper.AllEvents(before, limit)
 		if err != nil {
 			return nil, errors.Wrap(err, "fetching all history events")
 		}
@@ -198,7 +198,7 @@ func (s *Server) History(inst flux.InstanceID, spec flux.ServiceSpec) (res []flu
 			return nil, errors.Wrapf(err, "parsing service ID from spec %s", spec)
 		}
 
-		events, err = helper.EventsForService(id)
+		events, err = helper.EventsForService(id, before, limit)
 		if err != nil {
 			return nil, errors.Wrapf(err, "fetching history events for %s", id)
 		}
@@ -210,7 +210,7 @@ func (s *Server) History(inst flux.InstanceID, spec flux.ServiceSpec) (res []flu
 			Stamp: &events[i].StartedAt,
 			Type:  "v0",
 			Data:  event.String(),
-			Event: event,
+			Event: &events[i],
 		}
 	}
 
