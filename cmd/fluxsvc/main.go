@@ -190,7 +190,7 @@ func main() {
 	go auto.Start(log.NewContext(logger).With("component", "automator"))
 
 	// Syncer
-	syncer := sync.NewSyncer(instancer, instanceDB, log.NewContext(logger).With("component", "syncer"))
+	syncer := sync.NewSyncer(instancer, log.NewContext(logger).With("component", "syncer"))
 
 	// Job workers.
 	//

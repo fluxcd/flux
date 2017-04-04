@@ -70,6 +70,7 @@ func unmarshalObject(source string, bytes []byte) (Resource, error) {
 		return &ns, nil
 	}
 
+	// FIXME what about other kinds of resource?
 	return nil, errors.New("unknown object type " + base.Kind)
 }
 

@@ -13,13 +13,14 @@ import (
 	"github.com/weaveworks/flux/instance"
 	"github.com/weaveworks/flux/jobs"
 	"github.com/weaveworks/flux/platform"
+	"github.com/weaveworks/flux/platform/kubernetes/testdata"
 	"github.com/weaveworks/flux/registry"
 
 	"github.com/go-kit/kit/log"
 )
 
 func setup(t *testing.T, mocks instance.Instance) (*Releaser, func()) {
-	repo, cleanup := setupRepo(t)
+	repo, cleanup := testdata.SetupRepo(t)
 
 	if mocks.Platform == nil {
 		mocks.Platform = &platform.MockPlatform{}

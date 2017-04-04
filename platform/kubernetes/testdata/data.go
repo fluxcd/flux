@@ -1,6 +1,7 @@
 package testdata
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -9,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/git"
 )
 
 func TempDir(t *testing.T) (string, func()) {
@@ -39,6 +41,51 @@ func WriteTestFiles(dir string) error {
 		}
 	}
 	return nil
+}
+
+func SetupRepo(t *testing.T) (git.Repo, func()) {
+	newDir, cleanup := TempDir(t)
+
+	filesDir := filepath.Join(newDir, "files")
+	gitDir := filepath.Join(newDir, "git")
+	if err := execCommand("mkdir", filesDir); err != nil {
+		t.Fatal(err)
+	}
+
+	var err error
+	if err = execCommand("git", "-C", filesDir, "init"); err != nil {
+		cleanup()
+		t.Fatal(err)
+	}
+	if err = WriteTestFiles(filesDir); err != nil {
+		cleanup()
+		t.Fatal(err)
+	}
+	if err = execCommand("git", "-C", filesDir, "add", "--all"); err != nil {
+		cleanup()
+		t.Fatal(err)
+	}
+	if err = execCommand("git", "-C", filesDir, "commit", "-m", "'Initial revision'"); err != nil {
+		cleanup()
+		t.Fatal(err)
+	}
+
+	if err = execCommand("git", "clone", "--bare", filesDir, gitDir); err != nil {
+		t.Fatal(err)
+	}
+
+	return git.Repo{
+		URL:    gitDir,
+		Branch: "master",
+	}, cleanup
+}
+
+func execCommand(cmd string, args ...string) error {
+	c := exec.Command(cmd, args...)
+	fmt.Printf("exec: %s %s\n", cmd, strings.Join(args, " "))
+	c.Stderr = os.Stderr
+	c.Stdout = os.Stdout
+	return c.Run()
 }
 
 // ----- DATA

@@ -14,7 +14,7 @@ import (
 )
 
 func TestCloneCommitAndPush(t *testing.T) {
-	r, cleanup := setupRepo(t)
+	r, cleanup := testdata.SetupRepo(t)
 	defer cleanup()
 	inst := &instance.Instance{Repo: r}
 	ctx := NewReleaseContext(inst)
@@ -40,43 +40,6 @@ func TestCloneCommitAndPush(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-}
-
-func setupRepo(t *testing.T) (git.Repo, func()) {
-	newDir, cleanup := testdata.TempDir(t)
-
-	filesDir := filepath.Join(newDir, "files")
-	gitDir := filepath.Join(newDir, "git")
-	if err := execCommand("mkdir", filesDir); err != nil {
-		t.Fatal(err)
-	}
-
-	var err error
-	if err = execCommand("git", "-C", filesDir, "init"); err != nil {
-		cleanup()
-		t.Fatal(err)
-	}
-	if err = testdata.WriteTestFiles(filesDir); err != nil {
-		cleanup()
-		t.Fatal(err)
-	}
-	if err = execCommand("git", "-C", filesDir, "add", "--all"); err != nil {
-		cleanup()
-		t.Fatal(err)
-	}
-	if err = execCommand("git", "-C", filesDir, "commit", "-m", "'Initial revision'"); err != nil {
-		cleanup()
-		t.Fatal(err)
-	}
-
-	if err = execCommand("git", "clone", "--bare", filesDir, gitDir); err != nil {
-		t.Fatal(err)
-	}
-
-	return git.Repo{
-		URL:    gitDir,
-		Branch: "master",
-	}, cleanup
 }
 
 func execCommand(cmd string, args ...string) error {

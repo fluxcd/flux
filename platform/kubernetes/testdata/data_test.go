@@ -26,3 +26,9 @@ func TestWriteTestFiles(t *testing.T) {
 		}
 	}
 }
+
+func TestSetupRepo(t *testing.T) {
+	// just make sure it doesn't error, for now
+	_, cleanup := SetupRepo(t)
+	defer cleanup()
+}
