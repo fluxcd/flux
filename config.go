@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"strings"
 
+	"errors"
 	"golang.org/x/crypto/ssh"
 	"reflect"
 	"regexp"
@@ -14,8 +15,10 @@ import (
 const secretReplacement = "******"
 
 var (
-	settingCleaner  = regexp.MustCompile(`[']`)
-	settingSplitter = regexp.MustCompile(`('.+'|[^.]+)`)
+	settingCleaner   = regexp.MustCompile(`[']`)
+	settingSplitter  = regexp.MustCompile(`('.+'|[^.]+)`)
+	settingDelimiter = "."
+	mapKeyWrapper    = byte('\'')
 )
 
 // Instance configuration, mutated via `fluxctl config`. It can be
@@ -51,6 +54,13 @@ type InstanceConfig struct {
 	Git      GitConfig      `json:"git" yaml:"git"`
 	Slack    NotifierConfig `json:"slack" yaml:"slack"`
 	Registry RegistryConfig `json:"registry" yaml:"registry"`
+}
+
+type ConfigSyntax string
+
+type SingleConfigParams struct {
+	Key    string
+	Syntax ConfigSyntax
 }
 
 // As a safeguard, we make the default behaviour to hide secrets when
@@ -109,13 +119,74 @@ func (g GitConfig) HideKey() GitConfig {
 	return g
 }
 
+// WriteSetting will set a value in an InstanceConfig struct for a given key.
+// The reference to the config must be a pointer so it can update values in place.
+func (c *InstanceConfig) WriteSetting(setting SingleConfigParams, value string) error {
+	if setting.Syntax == "" {
+		setting.Syntax = "yaml" // Default to yaml, to match `fluxctl get-config`
+	}
+
+	// Get value for the configuration path
+	w := configWalker{
+		string(setting.Syntax),
+	}
+
+	path := setting.Key
+	v := reflect.ValueOf(c)
+	splitPaths := settingSplitter.FindAllString(path, -1)
+	// Only walk up to the first map. Then have custom code to write to specific maps
+	// Really hacky way of doing it, but I've no better idea right now.
+	lastIndex := 0
+	for ; lastIndex < len(splitPaths); lastIndex++ {
+		v = w.walk(v, splitPaths[lastIndex])
+		if v.Kind() == reflect.Map {
+			break
+		}
+	}
+
+	if !v.CanSet() {
+		return Missing{
+			BaseError: &BaseError{
+				Help: "The requested configuration parameter does not exist. Please ensure your request matches the configuration from `fluxctl get-config`",
+				Err:  errors.New("Configuration parameter does not exist"),
+			},
+		}
+	}
+
+	// Special set for maps
+	switch v.Kind() {
+	case reflect.Map:
+		m := v.Interface()
+		match := settingCleaner.ReplaceAllString(splitPaths[lastIndex+1], "")
+		switch m.(type) {
+		case map[string]Auth:
+			castMap := v.Interface().(map[string]Auth)
+			newMap := make(map[string]Auth, len(castMap))
+			for k, v := range castMap {
+				if k == match {
+					newMap[k] = Auth{value}
+				} else {
+					newMap[k] = v
+				}
+			}
+			v.Set(reflect.ValueOf(newMap))
+		default:
+			panic("Setting map of type " + v.Kind().String() + " is not implemented")
+		}
+		break
+	default:
+		v.SetString(value)
+	}
+	return nil
+}
+
 // FindSetting returns a reflect.Value representing the found setting.
 // If the Value is invalid, the setting wasn't found.
 // Only allow from SafeInstanceConfig to attempt to prevent leaking
 // secure variables.
 func (c SafeInstanceConfig) FindSetting(path, syntax string) reflect.Value {
 	if syntax == "" {
-		syntax = "yaml" // Default to yaml, to match `fluxctl get-config`
+		syntax = "yaml" // Default to yaml, to key `fluxctl get-config`
 	}
 	// Split path into configuration keys
 	confKeys := settingSplitter.FindAllString(path, -1)
@@ -124,7 +195,22 @@ func (c SafeInstanceConfig) FindSetting(path, syntax string) reflect.Value {
 	w := configWalker{
 		syntax,
 	}
-	return w.walk(reflect.ValueOf(c), confKeys...)
+	v := w.walk(reflect.ValueOf(c), confKeys...)
+
+	// Special get for maps
+	if v.Kind() == reflect.Map {
+		m := v.Interface()
+		paths := settingSplitter.FindAllString(path, -1)
+		key := settingCleaner.ReplaceAllString(paths[len(paths)-1], "")
+		switch m.(type) {
+		case map[string]Auth:
+			castMap := v.Interface().(map[string]Auth)
+			v = reflect.ValueOf(castMap[key].Auth)
+		default:
+			panic("Getting map of type " + v.Kind().String() + " is not implemented")
+		}
+	}
+	return v
 }
 
 type configWalker struct {
@@ -136,34 +222,56 @@ type configWalker struct {
 // E.g. git.url will first look for a top level
 // field with a json tag called git, reflect into that struct and then
 // find and return a field that has the json tag url.
-func (w configWalker) walk(topValue reflect.Value, paths ...string) reflect.Value {
-	// Clean path of any invalid character
-	paths[0] = settingCleaner.ReplaceAllString(paths[0], "")
-
-	var nextValue reflect.Value
-	switch topValue.Kind() {
+func (w configWalker) walk(v reflect.Value, paths ...string) reflect.Value {
+	nextPath := paths[0]
+	paths = paths[1:]
+	nextValue := reflect.Value{}
+	switch unwrap(v).Kind() {
 	case reflect.Struct:
-		nextValue = w.valueFromStruct(topValue, paths[0])
+		for i := 0; i < unwrap(v).NumField(); i++ {
+			vt := unwrap(v).Type().Field(i)
+			tag := vt.Tag.Get(w.Syntax)
+			if tag == nextPath {
+				nextValue = unwrap(v).Field(i)
+				break
+			}
+		}
 		break
 	case reflect.Map:
-		nextValue = w.valueFromMap(topValue, paths[0])
+		m := v.Interface()
+		key := settingCleaner.ReplaceAllString(nextPath, "")
+		switch m.(type) {
+		case map[string]Auth:
+			castMap := v.Interface().(map[string]Auth)
+			nextValue = reflect.ValueOf(castMap[key])
+		default:
+			panic("Getting map of type " + v.Kind().String() + " is not implemented")
+		}
 		break
 	}
-	// If we continue to have valid values and there are more paths to search
-	if nextValue.IsValid() && len(paths[1:]) > 0 {
-		return w.walk(nextValue, paths[1:]...)
+	if len(paths) > 0 {
+		return w.walk(nextValue, paths...)
 	}
-	// Final value
 	return nextValue
+}
+
+// unwrap is a helper to dereference values if they need to be.
+// To write values, values must be a pointer to a variable. But to read
+// from them they need to be dereferenced.
+func unwrap(v reflect.Value) reflect.Value {
+	if v.IsValid() && !v.CanAddr() && v.Kind() != reflect.Struct && v.Kind() != reflect.Map {
+		return v.Elem()
+	}
+	return v
 }
 
 // Search fields for json tags
 func (w configWalker) valueFromStruct(v reflect.Value, match string) reflect.Value {
-	for i := 0; i < v.NumField(); i++ {
-		vt := v.Type().Field(i)
-		jsonTag := vt.Tag.Get(w.Syntax)
-		if jsonTag == match {
-			return v.Field(i)
+	for i := 0; i < unwrap(v).NumField(); i++ {
+		vt := unwrap(v).Type().Field(i)
+		tag := vt.Tag.Get(w.Syntax)
+		if tag == match {
+			return unwrap(v).Field(i)
 		}
 	}
 	return reflect.Value{}

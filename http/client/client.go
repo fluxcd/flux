@@ -108,6 +108,14 @@ func (c *client) SetConfig(_ flux.InstanceID, config flux.UnsafeInstanceConfig) 
 	return c.postWithBody("SetConfig", config)
 }
 
+func (c *client) SetConfigSingle(_ flux.InstanceID, params flux.SingleConfigParams, data string) error {
+	return c.putWithBody("SetConfigSingle", data, "key", params.Key, "syntax", string(params.Syntax))
+}
+
+func (c *client) DeleteConfigSingle(_ flux.InstanceID, params flux.SingleConfigParams) error {
+	return c.SetConfigSingle("", params, "")
+}
+
 func (c *client) GenerateDeployKey(_ flux.InstanceID) error {
 	return c.post("GenerateDeployKeys")
 }
@@ -178,6 +186,34 @@ func (c *client) postWithResp(dest interface{}, route string, body interface{}, 
 	return nil
 }
 
+func (c *client) putWithBody(route string, body interface{}, queryParams ...string) error {
+	u, err := transport.MakeURL(c.endpoint, c.router, route, queryParams...)
+	if err != nil {
+		return errors.Wrap(err, "constructing URL")
+	}
+
+	var bodyBytes []byte
+	if body != nil {
+		bodyBytes, err = json.Marshal(body)
+		if err != nil {
+			return errors.Wrap(err, "encoding request body")
+		}
+	}
+
+	req, err := http.NewRequest("PUT", u.String(), bytes.NewReader(bodyBytes))
+	if err != nil {
+		return errors.Wrapf(err, "constructing request %s", u)
+	}
+	c.token.Set(req)
+	req.Header.Set("Accept", "application/json")
+	resp, err := c.executeRequest(req)
+	if err != nil {
+		return errors.Wrap(err, "executing HTTP request")
+	}
+	defer resp.Body.Close()
+	return nil
+}
+
 // get executes a get request against the flux server. it unmarshals the response into dest.
 func (c *client) get(dest interface{}, route string, queryParams ...string) error {
 	u, err := transport.MakeURL(c.endpoint, c.router, route, queryParams...)
@@ -210,7 +246,7 @@ func (c *client) executeRequest(req *http.Request) (*http.Response, error) {
 		return nil, errors.Wrap(err, "executing HTTP request")
 	}
 	switch resp.StatusCode {
-	case http.StatusOK, http.StatusCreated, http.StatusNoContent:
+	case http.StatusOK, http.StatusCreated, http.StatusNoContent, http.StatusResetContent:
 		return resp, nil
 	case http.StatusUnauthorized:
 		return resp, transport.ErrorUnauthorized

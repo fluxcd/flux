@@ -385,6 +385,31 @@ func (s *Server) SetConfig(instID flux.InstanceID, updates flux.UnsafeInstanceCo
 	return s.config.UpdateConfig(instID, applyConfigUpdates(updates))
 }
 
+func (s *Server) SetConfigSingle(instID flux.InstanceID, params flux.SingleConfigParams, data string) error {
+	config, err := s.GetConfig(instID)
+	if err != nil {
+		return flux.ServerException{
+			BaseError: &flux.BaseError{
+				Help: "Cannot get config. Does `fluxctl get-config` work?",
+				Err:  err,
+			},
+		}
+	}
+	if err = config.WriteSetting(params, data); err != nil {
+		return flux.ServerException{
+			BaseError: &flux.BaseError{
+				Help: "Cannot write config. Does `fluxctl set-config` work?",
+				Err:  err,
+			},
+		}
+	}
+	return s.SetConfig(instID, flux.UnsafeInstanceConfig(config))
+}
+
+func (s *Server) DeleteConfigSingle(instID flux.InstanceID, params flux.SingleConfigParams) error {
+	return s.SetConfigSingle(instID, params, "")
+}
+
 func applyConfigUpdates(updates flux.UnsafeInstanceConfig) instance.UpdateFunc {
 	return func(config instance.Config) (instance.Config, error) {
 		config.Settings = updates

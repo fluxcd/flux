@@ -37,6 +37,8 @@ func NewRouter() *mux.Router {
 	r.NewRoute().Name("Status").Methods("GET").Path("/v3/status")
 	r.NewRoute().Name("GetConfig").Methods("GET").Path("/v4/config")
 	r.NewRoute().Name("GetConfigSingle").Methods("GET").Path("/v5/config").Queries("key", "{key}", "syntax", "{syntax}")
+	r.NewRoute().Name("SetConfigSingle").Methods("PUT").Path("/v5/config").Queries("key", "{key}", "syntax", "{syntax}")
+	r.NewRoute().Name("DeleteConfigSingle").Methods("DELETE").Path("/v5/config").Queries("key", "{key}", "syntax", "{syntax}")
 	r.NewRoute().Name("SetConfig").Methods("POST").Path("/v4/config")
 	r.NewRoute().Name("GenerateDeployKeys").Methods("POST").Path("/v5/config/deploy-keys")
 	r.NewRoute().Name("PostIntegrationsGithub").Methods("POST").Path("/v5/integrations/github").Queries("owner", "{owner}", "repository", "{repository}")
