@@ -357,6 +357,23 @@ func (s *Server) SetConfig(instID flux.InstanceID, updates flux.UnsafeInstanceCo
 	return s.config.UpdateConfig(instID, applyConfigUpdates(updates))
 }
 
+func (s *Server) PatchConfig(instID flux.InstanceID, patch flux.ConfigPatch) error {
+	fullConfig, err := s.config.GetConfig(instID)
+	if err != nil {
+		return errors.Wrap(err, "unable to get config")
+	}
+
+	patchedConfig, err := fullConfig.Settings.Patch(patch)
+	if err != nil {
+		return errors.Wrap(err, "unable to apply patch")
+	}
+
+	if _, err := registry.CredentialsFromConfig(patchedConfig); err != nil {
+		return errors.Wrap(err, "invalid registry credentials")
+	}
+	return s.config.UpdateConfig(instID, applyConfigUpdates(patchedConfig))
+}
+
 func applyConfigUpdates(updates flux.UnsafeInstanceConfig) instance.UpdateFunc {
 	return func(config instance.Config) (instance.Config, error) {
 		config.Settings = updates

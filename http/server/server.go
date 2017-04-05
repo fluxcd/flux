@@ -43,6 +43,7 @@ func NewHandler(s api.FluxService, r *mux.Router, logger log.Logger) http.Handle
 		"Status":                 handle.Status,
 		"GetConfig":              handle.GetConfig,
 		"SetConfig":              handle.SetConfig,
+		"PatchConfig":            handle.PatchConfig,
 		"GenerateDeployKeys":     handle.GenerateKeys,
 		"PostIntegrationsGithub": handle.PostIntegrationsGithub,
 		"RegisterDaemonV4":       handle.RegisterV4,
@@ -276,6 +277,23 @@ func (s HTTPService) SetConfig(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := s.service.SetConfig(inst, config); err != nil {
+		errorResponse(w, r, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+func (s HTTPService) PatchConfig(w http.ResponseWriter, r *http.Request) {
+	inst := getInstanceID(r)
+
+	var patch flux.ConfigPatch
+	if err := json.NewDecoder(r.Body).Decode(&patch); err != nil {
+		transport.WriteError(w, r, http.StatusBadRequest, err)
+		return
+	}
+
+	if err := s.service.PatchConfig(inst, patch); err != nil {
 		errorResponse(w, r, err)
 		return
 	}

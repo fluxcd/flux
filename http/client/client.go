@@ -103,6 +103,10 @@ func (c *client) SetConfig(_ flux.InstanceID, config flux.UnsafeInstanceConfig) 
 	return c.postWithBody("SetConfig", config)
 }
 
+func (c *client) PatchConfig(_ flux.InstanceID, config flux.ConfigPatch) error {
+	return errors.New("not implemented")
+}
+
 func (c *client) GenerateDeployKey(_ flux.InstanceID) error {
 	return c.post("GenerateDeployKeys")
 }
