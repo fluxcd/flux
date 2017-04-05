@@ -441,7 +441,105 @@ func TestFluxsvc_Config(t *testing.T) {
 		t.Fatalf("Expected hidden Key! %q but got %q", "******", conf.Git.Key)
 	}
 	if conf.Git.Branch != "exampleBranch" {
-		t.Fatalf("Expected %q but got %q", "exampleBranch", conf.Git.Key)
+		t.Fatalf("Expected %q but got %q", "exampleBranch", conf.Git.Branch)
+	}
+}
+
+func TestFluxsvc_GetConfigSingleSecret(t *testing.T) {
+	setup()
+	defer teardown()
+
+	err := apiClient.SetConfig("", flux.UnsafeInstanceConfig{
+		Git: flux.GitConfig{
+			Branch: "dummy",
+			Key:    "exampleKey",
+		},
+		Registry: flux.RegistryConfig{
+			Auths: map[string]flux.Auth{
+				"https://index.docker.io/v1/": flux.Auth{
+					Auth: "dXNlcjpwYXNzd29yZA==",
+				},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// We only need to test that items are hidden here. All the standard
+	// get/set/parse stuff is tested in config_test.go
+	for _, v := range []struct {
+		Key   string
+		Value string
+	}{
+		{"git.key", "******"},                                           // Ensure git key is hidden
+		{"registry.auths.'https://index.docker.io/v1/'", "user:******"}, // Get a map value
+	} {
+		resp, err := apiClient.GetConfigSingle("", v.Key, "")
+		if err != nil {
+			t.Fatal(v.Key, err)
+		}
+		if resp != v.Value {
+			t.Fatalf("Expected %q but got %q", "exampleBranch", resp)
+		}
+	}
+}
+
+func TestFluxsvc_SetConfigSingle(t *testing.T) {
+	setup()
+	defer teardown()
+
+	err := apiClient.SetConfigSingle("", flux.SingleConfigParams{
+		Key:    "git.branch",
+		Syntax: "yaml",
+	}, "test")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	resp, err := apiClient.GetConfigSingle("", "git.branch", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp != "test" {
+		t.Fatal("Should have set config but got", resp)
+	}
+}
+
+func TestFluxsvc_DeleteConfigSingle(t *testing.T) {
+	setup()
+	defer teardown()
+
+	err := apiClient.SetConfig("", flux.UnsafeInstanceConfig{
+		Git: flux.GitConfig{
+			Branch: "dummy",
+			Key:    "exampleKey",
+		},
+		Registry: flux.RegistryConfig{
+			Auths: map[string]flux.Auth{
+				"https://index.docker.io/v1/": flux.Auth{
+					Auth: "dXNlcjpwYXNzd29yZA==",
+				},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = apiClient.DeleteConfigSingle("", flux.SingleConfigParams{
+		Key:    "git.branch",
+		Syntax: "yaml",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp, err := apiClient.GetConfigSingle("", "git.branch", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp != "" {
+		t.Fatal("Config should be blank (deleted)")
 	}
 }
 

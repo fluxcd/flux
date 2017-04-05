@@ -42,7 +42,10 @@ func NewHandler(s api.FluxService, r *mux.Router, logger log.Logger) http.Handle
 		"History":                handle.History,
 		"Status":                 handle.Status,
 		"GetConfig":              handle.GetConfig,
+		"GetConfigSingle":        handle.GetConfigSingle,
 		"SetConfig":              handle.SetConfig,
+		"SetConfigSingle":        handle.SetConfigSingle,
+		"DeleteConfigSingle":     handle.DeleteConfigSingle,
 		"GenerateDeployKeys":     handle.GenerateKeys,
 		"PostIntegrationsGithub": handle.PostIntegrationsGithub,
 		"RegisterDaemonV4":       handle.RegisterV4,
@@ -266,6 +269,21 @@ func (s HTTPService) GetConfig(w http.ResponseWriter, r *http.Request) {
 	jsonResponse(w, r, config)
 }
 
+func (s HTTPService) GetConfigSingle(w http.ResponseWriter, r *http.Request) {
+	inst := getInstanceID(r)
+	settingPath := r.URL.Query().Get("key")
+	syntax := r.URL.Query().Get("syntax")
+	if syntax == "" {
+		syntax = "yaml"
+	}
+	value, err := s.service.GetConfigSingle(inst, settingPath, syntax)
+	if err != nil {
+		errorResponse(w, r, err)
+		return
+	}
+	jsonResponse(w, r, value)
+}
+
 func (s HTTPService) SetConfig(w http.ResponseWriter, r *http.Request) {
 	inst := getInstanceID(r)
 
@@ -281,6 +299,43 @@ func (s HTTPService) SetConfig(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
+}
+
+func (s HTTPService) SetConfigSingle(w http.ResponseWriter, r *http.Request) {
+	inst := getInstanceID(r)
+
+	settingPath := r.URL.Query().Get("key")
+	syntax := r.URL.Query().Get("syntax")
+	var value string
+	if err := json.NewDecoder(r.Body).Decode(&value); err != nil {
+		transport.WriteError(w, r, http.StatusBadRequest, err)
+		return
+	}
+	if err := s.service.SetConfigSingle(inst, flux.SingleConfigParams{
+		Key:    settingPath,
+		Syntax: flux.ConfigSyntax(syntax),
+	}, value); err != nil {
+		errorResponse(w, r, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (s HTTPService) DeleteConfigSingle(w http.ResponseWriter, r *http.Request) {
+	inst := getInstanceID(r)
+
+	settingPath := r.URL.Query().Get("key")
+	syntax := r.URL.Query().Get("syntax")
+	if err := s.service.DeleteConfigSingle(inst, flux.SingleConfigParams{
+		Key:    settingPath,
+		Syntax: flux.ConfigSyntax(syntax),
+	}); err != nil {
+		errorResponse(w, r, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusResetContent)
 }
 
 func (s HTTPService) GenerateKeys(w http.ResponseWriter, r *http.Request) {

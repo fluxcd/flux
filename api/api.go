@@ -18,7 +18,10 @@ type ClientService interface {
 	Unlock(flux.InstanceID, flux.ServiceID) error
 	History(flux.InstanceID, flux.ServiceSpec) ([]flux.HistoryEntry, error)
 	GetConfig(_ flux.InstanceID) (flux.InstanceConfig, error)
+	GetConfigSingle(flux.InstanceID, string, string) (string, error)
 	SetConfig(flux.InstanceID, flux.UnsafeInstanceConfig) error
+	SetConfigSingle(flux.InstanceID, flux.SingleConfigParams, string) error
+	DeleteConfigSingle(flux.InstanceID, flux.SingleConfigParams) error
 	GenerateDeployKey(flux.InstanceID) error
 	Export(inst flux.InstanceID) ([]byte, error)
 }
