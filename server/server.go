@@ -343,7 +343,7 @@ func (s *Server) GetRelease(inst flux.InstanceID, id jobs.JobID) (jobs.Job, erro
 func (s *Server) GetConfig(instID flux.InstanceID) (flux.InstanceConfig, error) {
 	fullConfig, err := s.config.GetConfig(instID)
 	if err != nil {
-		return flux.InstanceConfig{}, nil
+		return flux.InstanceConfig{}, err
 	}
 
 	config := flux.InstanceConfig(fullConfig.Settings)

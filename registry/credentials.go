@@ -22,6 +22,10 @@ func CredentialsFromConfig(config flux.UnsafeInstanceConfig) (Credentials, error
 			return Credentials{}, err
 		}
 		authParts := strings.SplitN(string(decodedAuth), ":", 2)
+		if len(authParts) != 2 {
+			return Credentials{},
+				fmt.Errorf("decoded credential for %v has wrong number of fields (expected 2, got %d)", host, len(authParts))
+		}
 		m[host] = creds{
 			username: authParts[0],
 			password: authParts[1],
