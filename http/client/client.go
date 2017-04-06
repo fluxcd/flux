@@ -3,9 +3,11 @@ package client
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
@@ -87,9 +89,16 @@ func (c *client) Unlock(_ flux.InstanceID, id flux.ServiceID) error {
 	return c.post("Unlock", "service", string(id))
 }
 
-func (c *client) History(_ flux.InstanceID, s flux.ServiceSpec) ([]flux.HistoryEntry, error) {
+func (c *client) History(_ flux.InstanceID, s flux.ServiceSpec, before time.Time, limit int64) ([]flux.HistoryEntry, error) {
+	params := []string{"service", string(s)}
+	if !before.IsZero() {
+		params = append(params, "before", before.Format(time.RFC3339Nano))
+	}
+	if limit >= 0 {
+		params = append(params, "limit", fmt.Sprint(limit))
+	}
 	var res []flux.HistoryEntry
-	err := c.get(&res, "History", "service", string(s))
+	err := c.get(&res, "History", params...)
 	return res, err
 }
 

@@ -28,6 +28,14 @@
 			"notests": true
 		},
 		{
+			"importpath": "github.com/Masterminds/squirrel",
+			"repository": "https://github.com/Masterminds/squirrel",
+			"vcs": "git",
+			"revision": "20f192218cf52a73397fa2df45bdda720f3e47c8",
+			"branch": "v1",
+			"notests": true
+		},
+		{
 			"importpath": "github.com/PuerkitoBio/goquery",
 			"repository": "https://github.com/PuerkitoBio/goquery",
 			"vcs": "git",
@@ -532,6 +540,22 @@
 			"repository": "https://github.com/kr/logfmt",
 			"vcs": "git",
 			"revision": "b84e30acd515aadc4b783ad4ff83aff3299bdfe0",
+			"branch": "master",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/lann/builder",
+			"repository": "https://github.com/lann/builder",
+			"vcs": "git",
+			"revision": "f22ce00fd9394014049dad11c244859432bd6820",
+			"branch": "master",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/lann/ps",
+			"repository": "https://github.com/lann/ps",
+			"vcs": "git",
+			"revision": "62de8c46ede02a7675c4c79c84883eb164cb71e3",
 			"branch": "master",
 			"notests": true
 		},

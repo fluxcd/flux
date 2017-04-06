@@ -43,24 +43,24 @@ func (i *instrumentedDB) LogEvent(inst flux.InstanceID, e flux.Event) (err error
 	return i.db.LogEvent(inst, e)
 }
 
-func (i *instrumentedDB) AllEvents(inst flux.InstanceID) (e []flux.Event, err error) {
+func (i *instrumentedDB) AllEvents(inst flux.InstanceID, before time.Time, limit int64) (e []flux.Event, err error) {
 	defer func(begin time.Time) {
 		requestDuration.With(
 			LabelMethod, "AllEvents",
 			LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
 	}(time.Now())
-	return i.db.AllEvents(inst)
+	return i.db.AllEvents(inst, before, limit)
 }
 
-func (i *instrumentedDB) EventsForService(inst flux.InstanceID, s flux.ServiceID) (e []flux.Event, err error) {
+func (i *instrumentedDB) EventsForService(inst flux.InstanceID, s flux.ServiceID, before time.Time, limit int64) (e []flux.Event, err error) {
 	defer func(begin time.Time) {
 		requestDuration.With(
 			LabelMethod, "EventsForService",
 			LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
 	}(time.Now())
-	return i.db.EventsForService(inst, s)
+	return i.db.EventsForService(inst, s, before, limit)
 }
 
 func (i *instrumentedDB) GetEvent(id flux.EventID) (e flux.Event, err error) {

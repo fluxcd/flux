@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/Masterminds/squirrel"
 	"github.com/lib/pq"
 	"github.com/pkg/errors"
 
@@ -16,8 +17,16 @@ type qlDB struct {
 	*DB
 }
 
-func (db *qlDB) queryEvents(query string, params ...interface{}) ([]flux.Event, error) {
-	rows, err := db.driver.Query(query, params...)
+func (db *qlDB) eventsQuery() squirrel.SelectBuilder {
+	return db.Select(
+		"id(events)", "type", "started_at", "ended_at", "log_level", "message", "metadata",
+	).
+		From("events").
+		OrderBy("started_at desc")
+}
+
+func (db *qlDB) scanEvents(query squirrel.Sqlizer) ([]flux.Event, error) {
+	rows, err := squirrel.QueryWith(db, query)
 	if err != nil {
 		return nil, err
 	}
@@ -56,30 +65,29 @@ func (db *qlDB) queryEvents(query string, params ...interface{}) ([]flux.Event, 
 	return events, rows.Err()
 }
 
-func (db *qlDB) EventsForService(inst flux.InstanceID, service flux.ServiceID) ([]flux.Event, error) {
-	h, err := db.queryEvents(
-		`SELECT id(events), type, started_at, ended_at, log_level, message, metadata
-		FROM events
-		WHERE instance_id = $1
-		AND id(e) IN (select event_id from event_service_ids WHERE service_id = $2)
-		ORDER BY started_at DESC`,
-		string(inst),
-		string(service),
-	)
-	if err != nil {
-		return h, err
+func (db *qlDB) EventsForService(inst flux.InstanceID, service flux.ServiceID, before time.Time, limit int64) ([]flux.Event, error) {
+	q := db.eventsQuery().
+		Where("instance_id = ?", string(inst)).
+		Where("id(e) IN (select event_id from event_service_ids WHERE service_id = ?)", string(service)).
+		Where("started_at < ?", before)
+	if limit >= 0 {
+		q = q.Limit(uint64(limit))
 	}
-	return db.loadServiceIDs(h)
+	events, err := db.scanEvents(q)
+	if err != nil {
+		return nil, err
+	}
+	return db.loadServiceIDs(events)
 }
 
-func (db *qlDB) AllEvents(inst flux.InstanceID) ([]flux.Event, error) {
-	events, err := db.queryEvents(
-		`SELECT id(events), type, started_at, ended_at, log_level, message, metadata
-		FROM events
-		WHERE instance_id = $1
-		ORDER BY started_at DESC`,
-		string(inst),
-	)
+func (db *qlDB) AllEvents(inst flux.InstanceID, before time.Time, limit int64) ([]flux.Event, error) {
+	q := db.eventsQuery().
+		Where("instance_id = ?", string(inst)).
+		Where("started_at < ?", before)
+	if limit >= 0 {
+		q = q.Limit(uint64(limit))
+	}
+	events, err := db.scanEvents(q)
 	if err != nil {
 		return nil, err
 	}
@@ -87,12 +95,7 @@ func (db *qlDB) AllEvents(inst flux.InstanceID) ([]flux.Event, error) {
 }
 
 func (db *qlDB) GetEvent(id flux.EventID) (flux.Event, error) {
-	es, err := db.queryEvents(
-		`SELECT id(events), type, started_at, ended_at, log_level, message, metadata
-		FROM events
-		WHERE id = $1`,
-		string(id),
-	)
+	es, err := db.scanEvents(db.eventsQuery().Where("id(events) = ?", string(id)))
 	if err != nil {
 		return flux.Event{}, err
 	}

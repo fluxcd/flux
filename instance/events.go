@@ -1,6 +1,8 @@
 package instance
 
 import (
+	"time"
+
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/history"
 )
@@ -14,12 +16,12 @@ func (rw EventReadWriter) LogEvent(e flux.Event) error {
 	return rw.db.LogEvent(rw.inst, e)
 }
 
-func (rw EventReadWriter) AllEvents() ([]flux.Event, error) {
-	return rw.db.AllEvents(rw.inst)
+func (rw EventReadWriter) AllEvents(before time.Time, limit int64) ([]flux.Event, error) {
+	return rw.db.AllEvents(rw.inst, before, limit)
 }
 
-func (rw EventReadWriter) EventsForService(service flux.ServiceID) ([]flux.Event, error) {
-	return rw.db.EventsForService(rw.inst, service)
+func (rw EventReadWriter) EventsForService(service flux.ServiceID, before time.Time, limit int64) ([]flux.Event, error) {
+	return rw.db.EventsForService(rw.inst, service, before, limit)
 }
 
 func (rw EventReadWriter) GetEvent(id flux.EventID) (flux.Event, error) {

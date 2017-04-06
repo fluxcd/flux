@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/Masterminds/squirrel"
 	"github.com/lib/pq"
 	"github.com/pkg/errors"
 
@@ -16,8 +17,17 @@ type pgDB struct {
 	*DB
 }
 
-func (db *pgDB) queryEvents(query string, params ...interface{}) ([]flux.Event, error) {
-	rows, err := db.driver.Query(query, params...)
+func (db *pgDB) eventsQuery() squirrel.SelectBuilder {
+	return db.Select(
+		"id", "service_ids", "type", "started_at", "ended_at", "log_level",
+		"message", "metadata",
+	).
+		From("events").
+		OrderBy("started_at desc")
+}
+
+func (db *pgDB) scanEvents(query squirrel.Sqlizer) ([]flux.Event, error) {
+	rows, err := squirrel.QueryWith(db, query)
 	if err != nil {
 		return nil, err
 	}
@@ -61,35 +71,29 @@ func (db *pgDB) queryEvents(query string, params ...interface{}) ([]flux.Event, 
 	return events, rows.Err()
 }
 
-func (db *pgDB) EventsForService(inst flux.InstanceID, service flux.ServiceID) ([]flux.Event, error) {
-	return db.queryEvents(
-		`SELECT id, service_ids, type, started_at, ended_at, log_level, message, metadata
-		FROM events
-		WHERE instance_id = $1
-		AND service_ids @> $2
-		ORDER BY started_at DESC`,
-		string(inst),
-		pq.StringArray{string(service)},
-	)
+func (db *pgDB) EventsForService(inst flux.InstanceID, service flux.ServiceID, before time.Time, limit int64) ([]flux.Event, error) {
+	q := db.eventsQuery().
+		Where("instance_id = ?", string(inst)).
+		Where("service_ids @> ?", pq.StringArray{string(service)}).
+		Where("started_at < ?", before)
+	if limit >= 0 {
+		q = q.Limit(uint64(limit))
+	}
+	return db.scanEvents(q)
 }
 
-func (db *pgDB) AllEvents(inst flux.InstanceID) ([]flux.Event, error) {
-	return db.queryEvents(
-		`SELECT id, service_ids, type, started_at, ended_at, log_level, message, metadata
-		FROM events
-		WHERE instance_id = $1
-		ORDER BY started_at DESC`,
-		string(inst),
-	)
+func (db *pgDB) AllEvents(inst flux.InstanceID, before time.Time, limit int64) ([]flux.Event, error) {
+	q := db.eventsQuery().
+		Where("instance_id = ?", string(inst)).
+		Where("started_at < ?", before)
+	if limit >= 0 {
+		q = q.Limit(uint64(limit))
+	}
+	return db.scanEvents(q)
 }
 
 func (db *pgDB) GetEvent(id flux.EventID) (flux.Event, error) {
-	es, err := db.queryEvents(
-		`SELECT id, service_ids, type, started_at, ended_at, log_level, message, metadata
-		FROM events
-		WHERE id = $1`,
-		string(id),
-	)
+	es, err := db.scanEvents(db.eventsQuery().Where("id = ?", string(id)))
 	if err != nil {
 		return flux.Event{}, err
 	}

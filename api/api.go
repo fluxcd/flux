@@ -1,6 +1,8 @@
 package api
 
 import (
+	"time"
+
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/jobs"
 	"github.com/weaveworks/flux/platform"
@@ -16,7 +18,7 @@ type ClientService interface {
 	Deautomate(flux.InstanceID, flux.ServiceID) error
 	Lock(flux.InstanceID, flux.ServiceID) error
 	Unlock(flux.InstanceID, flux.ServiceID) error
-	History(flux.InstanceID, flux.ServiceSpec) ([]flux.HistoryEntry, error)
+	History(flux.InstanceID, flux.ServiceSpec, time.Time, int64) ([]flux.HistoryEntry, error)
 	GetConfig(_ flux.InstanceID) (flux.InstanceConfig, error)
 	SetConfig(flux.InstanceID, flux.UnsafeInstanceConfig) error
 	GenerateDeployKey(flux.InstanceID) error
