@@ -63,7 +63,7 @@ func (c *client) PostRelease(_ flux.InstanceID, s jobs.ReleaseJobParams) (jobs.J
 	}
 
 	var resp transport.PostReleaseResponse
-	err := c.postWithResp(&resp, "PostRelease", nil, args...)
+	err := c.methodWithResp("POST", &resp, "PostRelease", nil, args...)
 	return resp.ReleaseID, err
 }
 
@@ -112,6 +112,10 @@ func (c *client) SetConfig(_ flux.InstanceID, config flux.UnsafeInstanceConfig) 
 	return c.postWithBody("SetConfig", config)
 }
 
+func (c *client) PatchConfig(_ flux.InstanceID, patch flux.ConfigPatch) error {
+	return c.patchWithBody("PatchConfig", patch)
+}
+
 func (c *client) GenerateDeployKey(_ flux.InstanceID) error {
 	return c.post("GenerateDeployKeys")
 }
@@ -136,13 +140,17 @@ func (c *client) post(route string, queryParams ...string) error {
 // postWithBody is a more complex post request, which includes a json-ified body.
 // If body is not nil, it is encoded to json before sending
 func (c *client) postWithBody(route string, body interface{}, queryParams ...string) error {
-	return c.postWithResp(nil, route, body, queryParams...)
+	return c.methodWithResp("POST", nil, route, body, queryParams...)
 }
 
-// postWithResp is the full enchilada, it handles body and query-param
+func (c *client) patchWithBody(route string, body interface{}, queryParams ...string) error {
+	return c.methodWithResp("PATCH", nil, route, body, queryParams...)
+}
+
+// methodWithResp is the full enchilada, it handles body and query-param
 // encoding, as well as decoding the response into the provided destination.
 // Note, the response will only be decoded into the dest if the len is > 0.
-func (c *client) postWithResp(dest interface{}, route string, body interface{}, queryParams ...string) error {
+func (c *client) methodWithResp(method string, dest interface{}, route string, body interface{}, queryParams ...string) error {
 	u, err := transport.MakeURL(c.endpoint, c.router, route, queryParams...)
 	if err != nil {
 		return errors.Wrap(err, "constructing URL")
@@ -156,7 +164,7 @@ func (c *client) postWithResp(dest interface{}, route string, body interface{}, 
 		}
 	}
 
-	req, err := http.NewRequest("POST", u.String(), bytes.NewReader(bodyBytes))
+	req, err := http.NewRequest(method, u.String(), bytes.NewReader(bodyBytes))
 	if err != nil {
 		return errors.Wrapf(err, "constructing request %s", u)
 	}
