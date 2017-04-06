@@ -34,6 +34,7 @@ func ParseImageID(s string) (ImageID, error) {
 		return ImageID{}, ErrBlankImageID
 	}
 	var img ImageID
+	s = strings.Split(s, "@")[0]
 	parts := strings.Split(s, ":")
 	switch len(parts) {
 	case 0:
