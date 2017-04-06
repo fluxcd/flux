@@ -268,7 +268,7 @@ func (s HTTPService) History(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if r.FormValue("simple") == "1" {
+	if r.FormValue("simple") == "true" {
 		// Remove all the individual event data, just return the timestamps and messages
 		for i := range h {
 			h[i].Event = nil
