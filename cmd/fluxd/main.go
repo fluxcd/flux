@@ -14,10 +14,12 @@ import (
 	"github.com/spf13/pflag"
 	"k8s.io/client-go/1.5/rest"
 
-	"github.com/weaveworks/flux"
-	transport "github.com/weaveworks/flux/http"
+	//	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/git"
+	daemonhttp "github.com/weaveworks/flux/http/daemon"
 	"github.com/weaveworks/flux/platform"
 	"github.com/weaveworks/flux/platform/kubernetes"
+	"github.com/weaveworks/flux/registry"
 )
 
 var version string
@@ -34,11 +36,22 @@ func main() {
 	}
 	// This mirrors how kubectl extracts information from the environment.
 	var (
-		listenAddr        = fs.StringP("listen", "l", ":3031", "Listen address where /metrics will be served")
-		fluxsvcAddress    = fs.String("fluxsvc-address", "wss://cloud.weave.works/api/flux", "Address of the fluxsvc to connect to.")
-		token             = fs.String("token", "", "Token to use to authenticate with flux service")
+		listenAddr = fs.StringP("listen", "l", ":3031", "Listen address where /metrics will be served")
+		//		fluxsvcAddress    = fs.String("fluxsvc-address", "wss://cloud.weave.works/api/flux", "Address of the fluxsvc to connect to.")
+		//		token             = fs.String("token", "", "Token to use to authenticate with flux service")
 		kubernetesKubectl = fs.String("kubernetes-kubectl", "", "Optional, explicit path to kubectl tool")
 		versionFlag       = fs.Bool("version", false, "Get version number")
+		// Git repo & key
+		gitURL    = fs.String("git-url", "", "URL of git repo with Kubernetes manifests; e.g., git@github.com:weaveworks/flux-example")
+		gitBranch = fs.String("git-branch", "master", "branch of git repo to use for Kubernetes manifests")
+		gitPath   = fs.String("git-path", "", "path within git repo to locate Kubernetes manifests")
+		gitKey    = fs.String("git-key", "", "path in local filesystem to (deploy) key")
+		// registry
+		dockerCredFile      = fs.String("docker-config", "~/.docker/config.json", "Path to config file with credentials for DockerHub, quay.io etc.")
+		memcachedHostname   = fs.String("memcached-hostname", "", "Hostname for memcached service to use when caching chunks. If empty, no memcached will be used.")
+		memcachedTimeout    = fs.Duration("memcached-timeout", 100*time.Millisecond, "Maximum time to wait before giving up on memcached requests.")
+		memcachedService    = fs.String("memcached-service", "memcached", "SRV service used to discover memcache servers.")
+		registryCacheExpiry = fs.Duration("registry-cache-expiry", 20*time.Minute, "Duration to keep cached registry tag info. Must be < 1 month.")
 	)
 	fs.Parse(os.Args)
 
@@ -59,7 +72,7 @@ func main() {
 	}
 
 	// Platform component.
-	var k8s platform.Platform
+	var k8s platform.Cluster
 	{
 		restClientConfig, err := rest.InClusterConfig()
 		if err != nil {
@@ -89,37 +102,81 @@ func main() {
 		logger.Log("kubectl", kubectl)
 
 		kubectlApplier := kubernetes.NewKubectl(kubectl, restClientConfig)
-		cluster, err := kubernetes.NewCluster(restClientConfig, kubectlApplier, version, logger)
+		cluster, err := kubernetes.NewCluster(restClientConfig, kubectlApplier, logger)
 		if err != nil {
 			logger.Log("err", err)
 			os.Exit(1)
 		}
 
-		if services, err := cluster.AllServices("", nil); err != nil {
-			logger.Log("services", err)
+		if err := cluster.Ping(); err != nil {
+			logger.Log("ping", err)
 		} else {
-			logger.Log("services", len(services))
+			logger.Log("ping", true)
 		}
 
 		k8s = cluster
 	}
 
-	// Connect to fluxsvc
-	daemonLogger := log.NewContext(logger).With("component", "client")
-	daemon, err := transport.NewDaemon(
-		&http.Client{Timeout: 10 * time.Second},
-		fmt.Sprintf("fluxd/%v", version),
-		flux.Token(*token),
-		transport.NewRouter(),
-		*fluxsvcAddress,
-		k8s,
-		daemonLogger,
-	)
-	if err != nil {
-		logger.Log("err", err)
-		os.Exit(1)
+	var reg registry.Registry
+	{
+		var memcacheClient registry.MemcacheClient
+		if *memcachedHostname != "" {
+			memcacheClient = registry.NewMemcacheClient(registry.MemcacheConfig{
+				Host:           *memcachedHostname,
+				Service:        *memcachedService,
+				Timeout:        *memcachedTimeout,
+				UpdateInterval: 1 * time.Minute,
+				Logger:         log.NewContext(logger).With("component", "memcached"),
+			})
+			memcacheClient = registry.InstrumentMemcacheClient(memcacheClient)
+			defer memcacheClient.Stop()
+		}
+
+		creds, err := registry.CredentialsFromFile(*dockerCredFile)
+		if err != nil {
+			logger.Log("err", err)
+		}
+		registryLogger := log.NewContext(logger).With("component", "registry")
+		reg := registry.NewRegistry(
+			registry.NewRemoteClientFactory(creds, registryLogger, memcacheClient, *registryCacheExpiry),
+			registryLogger,
+		)
+		reg = registry.NewInstrumentedRegistry(reg)
 	}
-	defer daemon.Close()
+
+	var repo git.Repo
+	{
+		repo = git.Repo{
+			URL:    *gitURL,
+			Path:   *gitPath,
+			Branch: *gitBranch,
+			Key:    *gitKey, // FIXME this should be treated as a path now
+		}
+	}
+
+	daemon := &platform.Daemon{
+		V:        version,
+		Cluster:  k8s,
+		Repo:     repo,
+		Registry: reg,
+	}
+
+	// // Connect to fluxsvc
+	// daemonLogger := log.NewContext(logger).With("component", "client")
+	// daemon, err := transport.NewUpstream(
+	// 	&http.Client{Timeout: 10 * time.Second},
+	// 	fmt.Sprintf("fluxd/%v", version),
+	// 	flux.Token(*token),
+	// 	transport.NewRouter(),
+	// 	*fluxsvcAddress,
+	// 	pform,
+	// 	daemonLogger,
+	// )
+	// if err != nil {
+	// 	logger.Log("err", err)
+	// 	os.Exit(1)
+	// }
+	// defer daemon.Close()
 
 	// Mechanical components.
 	errc := make(chan error)
@@ -131,9 +188,11 @@ func main() {
 
 	// HTTP transport component, for metrics
 	go func() {
-		logger.Log("addr", *listenAddr)
 		mux := http.NewServeMux()
 		mux.Handle("/metrics", promhttp.Handler())
+		handler := daemonhttp.NewHandler(daemon, daemonhttp.NewRouter())
+		mux.Handle("/api/flux/", http.StripPrefix("/api/flux", handler))
+		logger.Log("addr", *listenAddr)
 		errc <- http.ListenAndServe(*listenAddr, mux)
 	}()
 

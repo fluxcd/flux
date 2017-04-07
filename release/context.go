@@ -8,8 +8,8 @@ import (
 	"strings"
 
 	"github.com/weaveworks/flux"
-	"github.com/weaveworks/flux/instance"
-	"github.com/weaveworks/flux/platform/kubernetes"
+	"github.com/weaveworks/flux/git"
+	"github.com/weaveworks/flux/platform"
 )
 
 const (
@@ -23,20 +23,22 @@ const (
 )
 
 type ReleaseContext struct {
-	Instance   *instance.Instance
+	Cluster    platform.Cluster
+	Repo       git.Repo
 	WorkingDir string
 }
 
-func NewReleaseContext(inst *instance.Instance) *ReleaseContext {
+func NewReleaseContext(c platform.Cluster, repo git.Repo) *ReleaseContext {
 	return &ReleaseContext{
-		Instance: inst,
+		Cluster: c,
+		Repo:    repo,
 	}
 }
 
 // Repo operations
 
 func (rc *ReleaseContext) CloneRepo() error {
-	path, err := rc.Instance.ConfigRepo().Clone()
+	path, err := rc.Repo.Clone()
 	if err != nil {
 		return err
 	}
@@ -45,11 +47,11 @@ func (rc *ReleaseContext) CloneRepo() error {
 }
 
 func (rc *ReleaseContext) CommitAndPush(msg string) error {
-	return rc.Instance.ConfigRepo().CommitAndPush(rc.WorkingDir, msg)
+	return rc.Repo.CommitAndPush(rc.WorkingDir, msg)
 }
 
 func (rc *ReleaseContext) RepoPath() string {
-	return filepath.Join(rc.WorkingDir, rc.Instance.ConfigRepo().Path)
+	return filepath.Join(rc.WorkingDir, rc.Repo.Path)
 }
 
 func (rc *ReleaseContext) PushChanges(updates []*ServiceUpdate, spec *flux.ReleaseSpec) error {
@@ -87,8 +89,7 @@ func (rc *ReleaseContext) Clean() {
 // ServiceFilter's can be provided to filter the found services.
 // Be careful about the ordering of the filters. Filters that are earlier
 // in the slice will have higher priority (they are run first).
-func (rc *ReleaseContext) SelectServices(results flux.ReleaseResult, logStatus statusFn, filters ...ServiceFilter) ([]*ServiceUpdate, error) {
-	// Get services defined in repository
+func (rc *ReleaseContext) SelectServices(results flux.ReleaseResult, filters ...ServiceFilter) ([]*ServiceUpdate, error) {
 	defined, err := rc.FindDefinedServices()
 	if err != nil {
 		return nil, err
@@ -101,8 +102,8 @@ func (rc *ReleaseContext) SelectServices(results flux.ReleaseResult, logStatus s
 		definedMap[s.ServiceID] = s
 	}
 
-	// Get running services from cluster
-	services, err := rc.Instance.GetServices(ids)
+	// Correlate with services in running system.
+	services, err := rc.Cluster.SomeServices(ids)
 	if err != nil {
 		return nil, err
 	}
@@ -110,7 +111,6 @@ func (rc *ReleaseContext) SelectServices(results flux.ReleaseResult, logStatus s
 	// Compare defined vs running
 	var updates []*ServiceUpdate
 	for _, s := range services {
-		logStatus("Found service %s", s.ID)
 		update := definedMap[s.ID]
 		update.Service = s
 		updates = append(updates, update)
@@ -121,9 +121,6 @@ func (rc *ReleaseContext) SelectServices(results flux.ReleaseResult, logStatus s
 	var filteredUpdates []*ServiceUpdate
 	for _, s := range updates {
 		fr := s.filter(filters...)
-		if fr.Error != "" {
-			logStatus(fr.Msg(s.ServiceID))
-		}
 		results[s.ServiceID] = fr
 		if fr.Status == flux.ReleaseStatusPending || fr.Status == flux.ReleaseStatusSuccess || fr.Status == "" {
 			filteredUpdates = append(filteredUpdates, s)
@@ -134,9 +131,6 @@ func (rc *ReleaseContext) SelectServices(results flux.ReleaseResult, logStatus s
 	filteredDefined := map[flux.ServiceID]*ServiceUpdate{}
 	for k, s := range definedMap {
 		fr := s.filter(filters...)
-		if fr.Error != "" {
-			logStatus(fr.Msg(s.ServiceID))
-		}
 		results[s.ServiceID] = fr
 		if fr.Status != flux.ReleaseStatusIgnored {
 			filteredDefined[k] = s
@@ -145,13 +139,11 @@ func (rc *ReleaseContext) SelectServices(results flux.ReleaseResult, logStatus s
 
 	// Mark anything left over as skipped
 	for id, _ := range filteredDefined {
-		logStatus("Skipping service %s as it is not in the running system", id)
 		results[id] = flux.ServiceResult{
 			Status: flux.ReleaseStatusSkipped,
 			Error:  NotInCluster,
 		}
 	}
-
 	return filteredUpdates, nil
 }
 
@@ -166,7 +158,7 @@ func (s *ServiceUpdate) filter(filters ...ServiceFilter) flux.ServiceResult {
 }
 
 func (rc *ReleaseContext) FindDefinedServices() ([]*ServiceUpdate, error) {
-	services, err := kubernetes.FindDefinedServices(rc.RepoPath())
+	services, err := rc.Cluster.FindDefinedServices(rc.RepoPath())
 	if err != nil {
 		return nil, err
 	}
@@ -268,4 +260,9 @@ func (f *LockedFilter) Filter(u ServiceUpdate) flux.ServiceResult {
 		}
 	}
 	return flux.ServiceResult{}
+}
+
+func (rc *ReleaseContext) LockedServices() flux.ServiceIDSet {
+	// FIXME look at the annotations, if that's what we do
+	return flux.ServiceIDSet{}
 }

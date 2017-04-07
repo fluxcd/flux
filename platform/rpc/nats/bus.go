@@ -20,23 +20,20 @@ const (
 	// metrics
 	maxAge         = 2 * time.Hour
 	defaultTimeout = 5 * time.Second
-	// Apply can take minutes, simply because some deployments take a
-	// while to roll out for whatever reason
-	defaultApplyTimeout = 20 * time.Minute
-	presenceTick        = 50 * time.Millisecond
-	encoderType         = nats.JSON_ENCODER
+	presenceTick   = 50 * time.Millisecond
+	encoderType    = nats.JSON_ENCODER
 
 	methodKick         = ".Platform.Kick"
 	methodPing         = ".Platform.Ping"
 	methodVersion      = ".Platform.Version"
-	methodAllServices  = ".Platform.AllServices"
-	methodSomeServices = ".Platform.SomeServices"
-	methodApply        = ".Platform.Apply"
 	methodExport       = ".Platform.Export"
-	methodSync         = ".Platform.Sync"
+	methodListServices = ".Platform.ListServices"
+	methodListImages   = ".Platform.ListImages"
+	methodUpdateImages = ".Platform.UpdateImages"
+	methodSyncCluster  = ".Platform.SyncCluster"
+	methodSyncStatus   = ".Platform.SyncStatus"
 )
 
-var applyTimeout = defaultApplyTimeout
 var timeout = defaultTimeout
 
 type NATS struct {
@@ -107,21 +104,6 @@ type ErrorResponse struct {
 	Fatal bool
 }
 
-type AllServicesResponse struct {
-	Services []platform.Service
-	ErrorResponse
-}
-
-type SomeServicesResponse struct {
-	Services []platform.Service
-	ErrorResponse
-}
-
-type ApplyResponse struct {
-	Result fluxrpc.ApplyResult
-	ErrorResponse
-}
-
 type ping struct{}
 
 type PingResponse struct {
@@ -142,8 +124,29 @@ type ExportResponse struct {
 	ErrorResponse
 }
 
-type SyncResponse struct {
-	Result fluxrpc.SyncResult
+type ListServicesResponse struct {
+	Result []flux.ServiceStatus
+	ErrorResponse
+}
+
+type ListImagesResponse struct {
+	Result []flux.ImageStatus
+	ErrorResponse
+}
+
+type UpdateImagesResponse struct {
+	Result flux.ReleaseResult
+	ErrorResponse
+}
+
+type sync struct{}
+
+type SyncClusterResponse struct {
+	ErrorResponse
+}
+
+type SyncStatusResponse struct {
+	Result []string
 	ErrorResponse
 }
 
@@ -173,54 +176,6 @@ func makeErrorResponse(err error) (resp ErrorResponse) {
 type natsPlatform struct {
 	conn     *nats.EncodedConn
 	instance string
-}
-
-func (r *natsPlatform) AllServices(ns string, ig flux.ServiceIDSet) ([]platform.Service, error) {
-	var response AllServicesResponse
-	if err := r.conn.Request(r.instance+methodAllServices, fluxrpc.AllServicesRequestV4{ns, ig}, &response, timeout); err != nil {
-		if err == nats.ErrTimeout {
-			err = platform.UnavailableError(err)
-		}
-		return nil, err
-	}
-	return response.Services, extractError(response.ErrorResponse)
-}
-
-func (r *natsPlatform) SomeServices(incl []flux.ServiceID) ([]platform.Service, error) {
-	var response SomeServicesResponse
-	if err := r.conn.Request(r.instance+methodSomeServices, incl, &response, timeout); err != nil {
-		if err == nats.ErrTimeout {
-			err = platform.UnavailableError(err)
-		}
-		return nil, err
-	}
-	return response.Services, extractError(response.ErrorResponse)
-}
-
-// Call Apply on the remote platform. Note that we use a much longer
-// timeout, because for now at least, Applys can take an arbitrary
-// amount of time, and we don't want to return an error if it's simply
-// taking a while. The downside is that if the platform is actually
-// not present, this won't return at all. This is somewhat mitigated
-// because applys are done after other RPCs which have the normal
-// timeout, but better would be to split Applys into RPCs which can
-// each have a short timeout.
-func (r *natsPlatform) Apply(specs []platform.ServiceDefinition) error {
-	var response ApplyResponse
-	if err := r.conn.Request(r.instance+methodApply, specs, &response, applyTimeout); err != nil {
-		if err == nats.ErrTimeout {
-			err = platform.UnavailableError(err)
-		}
-		return err
-	}
-	if len(response.Result) > 0 {
-		errs := platform.ApplyError{}
-		for s, e := range response.Result {
-			errs[s] = errors.New(e)
-		}
-		return errs
-	}
-	return extractError(response.ErrorResponse)
 }
 
 func (r *natsPlatform) Ping() error {
@@ -256,25 +211,59 @@ func (r *natsPlatform) Export() ([]byte, error) {
 	return response.Config, extractError(response.ErrorResponse)
 }
 
-func (r *natsPlatform) Sync(spec platform.SyncDef) error {
-	var response SyncResponse
-	// I use the applyTimeout here to be conservative; just applying
-	// things should take much less time (though it'll still be in the
-	// seconds)
-	if err := r.conn.Request(r.instance+methodSync, spec, &response, applyTimeout); err != nil {
+func (r *natsPlatform) ListServices(namespace string) ([]flux.ServiceStatus, error) {
+	var response ListServicesResponse
+	if err := r.conn.Request(r.instance+methodListServices, spec, &response, timeout); err != nil {
 		if err == nats.ErrTimeout {
 			err = platform.UnavailableError(err)
 		}
 		return err
 	}
-	if len(response.Result) > 0 {
-		errs := platform.SyncError{}
-		for s, e := range response.Result {
-			errs[s] = errors.New(e)
+	return response.Result, extractError(response.ErrorResponse)
+}
+
+func (r *natsPlatform) ListImages(spec flux.ServiceSpec) ([]flux.ImageStatus, error) {
+	var response ListImagesResponse
+	if err := r.conn.Request(r.instance+methodListImages, spec, &response, timeout); err != nil {
+		if err == nats.ErrTimeout {
+			err = platform.UnavailableError(err)
 		}
-		return errs
+		return err
+	}
+	return response.Result, extractError(response.ErrorResponse)
+}
+
+func (r *natsPlatform) UpdateImages(spec flux.ReleaseSpec) (ReleaseResult, error) {
+	var response UpdateImagesResponse
+	if err := r.conn.Request(r.instance+methodUpdateImages, spec, &response, timeout); err != nil {
+		if err == nats.ErrTimeout {
+			err = platform.UnavailableError(err)
+		}
+		return err
+	}
+	return response.Result, extractError(response.ErrorResponse)
+}
+
+func (r *natsPlatform) SyncCluster() error {
+	var response SyncClusterResponse
+	if err := r.conn.Request(r.instance+methodSyncCluster, sync{}, &response, timeout); err != nil {
+		if err == nats.ErrTimeout {
+			err = platform.UnavailableError(err)
+		}
+		return err
 	}
 	return extractError(response.ErrorResponse)
+}
+
+func (r *natsPlatform) SyncStatus(cursor string) ([]string, error) {
+	var response SyncStatusResponse
+	if err := r.conn.Request(r.instance+methodSyncStatus, cursor, &response, timeout); err != nil {
+		if err == nats.ErrTimeout {
+			err = platform.UnavailableError(err)
+		}
+		return err
+	}
+	return response.Result, extractError(response.ErrorResponse)
 }
 
 // --- end Platform implementation
@@ -323,6 +312,7 @@ func (n *NATS) Subscribe(instID flux.InstanceID, remote platform.Platform, done 
 				n.metrics.IncrKicks(instID)
 				err = platform.FatalError{errors.New("Kicked by new subscriber " + id)}
 			}
+
 		case strings.HasSuffix(request.Subject, methodPing):
 			var p ping
 			err = encoder.Decode(request.Subject, request.Data, &p)
@@ -330,50 +320,12 @@ func (n *NATS) Subscribe(instID flux.InstanceID, remote platform.Platform, done 
 				err = remote.Ping()
 			}
 			n.enc.Publish(request.Reply, PingResponse{makeErrorResponse(err)})
+
 		case strings.HasSuffix(request.Subject, methodVersion):
 			var vsn string
 			vsn, err = remote.Version()
 			n.enc.Publish(request.Reply, VersionResponse{vsn, makeErrorResponse(err)})
-		case strings.HasSuffix(request.Subject, methodAllServices):
-			var (
-				req fluxrpc.AllServicesRequestV4
-				res []platform.Service
-			)
-			err = encoder.Decode(request.Subject, request.Data, &req)
-			if err == nil {
-				res, err = remote.AllServices(req.MaybeNamespace, req.Ignored)
-			}
-			n.enc.Publish(request.Reply, AllServicesResponse{res, makeErrorResponse(err)})
-		case strings.HasSuffix(request.Subject, methodSomeServices):
-			var (
-				req []flux.ServiceID
-				res []platform.Service
-			)
-			err = encoder.Decode(request.Subject, request.Data, &req)
-			if err == nil {
-				res, err = remote.SomeServices(req)
-			}
-			n.enc.Publish(request.Reply, SomeServicesResponse{res, makeErrorResponse(err)})
-		case strings.HasSuffix(request.Subject, methodApply):
-			var (
-				req []platform.ServiceDefinition
-			)
-			err = encoder.Decode(request.Subject, request.Data, &req)
-			if err == nil {
-				err = remote.Apply(req)
-			}
-			response := ApplyResponse{}
-			switch applyErr := err.(type) {
-			case platform.ApplyError:
-				result := fluxrpc.ApplyResult{}
-				for s, e := range applyErr {
-					result[s] = e.Error()
-				}
-				response.Result = result
-			default:
-				response.ErrorResponse = makeErrorResponse(err)
-			}
-			n.enc.Publish(request.Reply, response)
+
 		case strings.HasSuffix(request.Subject, methodExport):
 			var (
 				req   export
@@ -384,24 +336,59 @@ func (n *NATS) Subscribe(instID flux.InstanceID, remote platform.Platform, done 
 				bytes, err = remote.Export()
 			}
 			n.enc.Publish(request.Reply, ExportResponse{bytes, makeErrorResponse(err)})
-		case strings.HasSuffix(request.Subject, methodSync):
-			var def platform.SyncDef
-			err = encoder.Decode(request.Subject, request.Data, &def)
+
+		case strings.HasSuffix(request.Subject, methodListServices):
+			var (
+				namespace string
+				res       []flux.ServiceStatus
+			)
+			err = encoder.Decode(request.Subject, request.Data, &namespace)
 			if err == nil {
-				err = remote.Sync(def)
+				res, err = remote.ListServices(namespace)
 			}
-			response := SyncResponse{}
-			switch syncErr := err.(type) {
-			case platform.SyncError:
-				result := fluxrpc.SyncResult{}
-				for s, e := range syncErr {
-					result[s] = e.Error()
-				}
-				response.Result = result
-			default:
-				response.ErrorResponse = makeErrorResponse(err)
+			n.enc.Publish(request.Reply, ListServicesResponse{res, makeErrorResponse(err)})
+
+		case strings.HasSuffix(request.Subject, methodListImages):
+			var (
+				req flux.ServiceSpec
+				res []flux.ImageStatus
+			)
+			err = encoder.Decode(request.Subject, request.Data, &req)
+			if err == nil {
+				res, err = remote.ListImages(req)
 			}
-			n.enc.Publish(request.Reply, response)
+			n.enc.Publish(request.Reply, ListImagesResponse{res, makeErrorResponse(err)})
+
+		case strings.HasSuffix(request.Subject, methodUpdateImages):
+			var (
+				req flux.ReleaseSpec
+				res flux.ReleaseResult
+			)
+			err = encoder.Decode(request.Subject, request.Data, &req)
+			if err == nil {
+				res, err = remote.UpdateImages(req)
+			}
+			n.enc.Publish(request.Reply, UpdateImagesResponse{res, makeErrorResponse(err)})
+
+		case strings.HasSuffix(request.Subject, methodSyncCluster):
+			var req sync
+			err = encoder.Decode(request.Subject, request.Data, &req)
+			if err == nil {
+				err = remote.SyncCluster()
+			}
+			n.enc.Publish(request.Reply, SyncClusterResponse{makeErrorResponse(err)})
+
+		case strings.HasSuffix(request.Subject, methodSyncUpdate):
+			var (
+				req string
+				res []string
+			)
+			err = encoder.Decode(request.Subject, request.Data, &req)
+			if err == nil {
+				err = remote.SyncStatus()
+			}
+			n.enc.Publish(request.Reply, SyncStatusResponse{res, makeErrorResponse(err)})
+
 		default:
 			err = errors.New("unknown message: " + request.Subject)
 		}

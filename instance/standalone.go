@@ -5,19 +5,15 @@ import (
 
 	"github.com/go-kit/kit/log"
 	"github.com/weaveworks/flux"
-	"github.com/weaveworks/flux/git"
 	"github.com/weaveworks/flux/history"
 	"github.com/weaveworks/flux/platform"
-	"github.com/weaveworks/flux/registry"
 )
 
 // StandaloneInstancer is the instancer for standalone mode
 type StandaloneInstancer struct {
 	Instance    flux.InstanceID
 	Connecter   platform.Connecter
-	Registry    registry.Registry
 	Config      Configurer
-	GitRepo     git.Repo
 	EventReader history.EventReader
 	EventWriter history.EventWriter
 	BaseLogger  log.Logger
@@ -33,9 +29,7 @@ func (s StandaloneInstancer) Get(inst flux.InstanceID) (*Instance, error) {
 	}
 	return New(
 		platform,
-		s.Registry,
 		s.Config,
-		s.GitRepo,
 		log.NewContext(s.BaseLogger).With("instanceID", s.Instance),
 		s.EventReader,
 		s.EventWriter,

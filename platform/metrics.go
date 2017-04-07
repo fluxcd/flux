@@ -30,36 +30,6 @@ func Instrument(p Platform) Platform {
 	return &instrumentedPlatform{p}
 }
 
-func (i *instrumentedPlatform) AllServices(maybeNamespace string, ignored flux.ServiceIDSet) (svcs []Service, err error) {
-	defer func(begin time.Time) {
-		requestDuration.With(
-			fluxmetrics.LabelMethod, "AllServices",
-			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
-		).Observe(time.Since(begin).Seconds())
-	}(time.Now())
-	return i.p.AllServices(maybeNamespace, ignored)
-}
-
-func (i *instrumentedPlatform) SomeServices(ids []flux.ServiceID) (svcs []Service, err error) {
-	defer func(begin time.Time) {
-		requestDuration.With(
-			fluxmetrics.LabelMethod, "SomeServices",
-			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
-		).Observe(time.Since(begin).Seconds())
-	}(time.Now())
-	return i.p.SomeServices(ids)
-}
-
-func (i *instrumentedPlatform) Apply(defs []ServiceDefinition) (err error) {
-	defer func(begin time.Time) {
-		requestDuration.With(
-			fluxmetrics.LabelMethod, "Apply",
-			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
-		).Observe(time.Since(begin).Seconds())
-	}(time.Now())
-	return i.p.Apply(defs)
-}
-
 func (i *instrumentedPlatform) Ping() (err error) {
 	defer func(begin time.Time) {
 		requestDuration.With(
@@ -90,14 +60,54 @@ func (i *instrumentedPlatform) Export() (config []byte, err error) {
 	return i.p.Export()
 }
 
-func (i *instrumentedPlatform) Sync(spec SyncDef) (err error) {
+func (i *instrumentedPlatform) ListServices(namespace string) (_ []flux.ServiceStatus, err error) {
 	defer func(begin time.Time) {
 		requestDuration.With(
-			fluxmetrics.LabelMethod, "Sync",
+			fluxmetrics.LabelMethod, "ListServices",
 			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
 	}(time.Now())
-	return i.p.Sync(spec)
+	return i.p.ListServices(namespace)
+}
+
+func (i *instrumentedPlatform) ListImages(spec flux.ServiceSpec) (_ []flux.ImageStatus, err error) {
+	defer func(begin time.Time) {
+		requestDuration.With(
+			fluxmetrics.LabelMethod, "ListImages",
+			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
+		).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+	return i.p.ListImages(spec)
+}
+
+func (i *instrumentedPlatform) UpdateImages(spec flux.ReleaseSpec) (_ flux.ReleaseResult, err error) {
+	defer func(begin time.Time) {
+		requestDuration.With(
+			fluxmetrics.LabelMethod, "UpdateImages",
+			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
+		).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+	return i.p.UpdateImages(spec)
+}
+
+func (i *instrumentedPlatform) SyncCluster() (err error) {
+	defer func(begin time.Time) {
+		requestDuration.With(
+			fluxmetrics.LabelMethod, "SyncCluster",
+			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
+		).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+	return i.p.SyncCluster()
+}
+
+func (i *instrumentedPlatform) SyncStatus(cursor string) (_ []string, err error) {
+	defer func(begin time.Time) {
+		requestDuration.With(
+			fluxmetrics.LabelMethod, "SyncStatus",
+			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
+		).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+	return i.p.SyncStatus(cursor)
 }
 
 // BusMetrics has metrics for messages buses.

@@ -15,7 +15,7 @@ import (
 // directory given, and returns a map of service IDs (from its
 // specified namespace and name) to the paths of resource definition
 // files.
-func FindDefinedServices(path string) (map[flux.ServiceID][]string, error) {
+func (c *Cluster) FindDefinedServices(path string) (map[flux.ServiceID][]string, error) {
 	bin, err := findBinary("kubeservice")
 	if err != nil {
 		return nil, err

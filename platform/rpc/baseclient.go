@@ -11,30 +11,34 @@ type baseClient struct{}
 
 var _ platform.Platform = baseClient{}
 
-func (bc baseClient) AllServices(string, flux.ServiceIDSet) ([]platform.Service, error) {
-	return nil, platform.UpgradeNeededError(errors.New("AllServices method not implemented"))
-}
-
-func (bc baseClient) SomeServices([]flux.ServiceID) ([]platform.Service, error) {
-	return nil, platform.UpgradeNeededError(errors.New("SomeServices method not implemented"))
-}
-
-func (bc baseClient) Apply([]platform.ServiceDefinition) error {
-	return platform.UpgradeNeededError(errors.New("Apply method not implemented"))
+func (bc baseClient) Version() (string, error) {
+	return "", platform.UpgradeNeededError(errors.New("Version method not implemented"))
 }
 
 func (bc baseClient) Ping() error {
 	return platform.UpgradeNeededError(errors.New("Ping method not implemented"))
 }
 
-func (bc baseClient) Version() (string, error) {
-	return "", platform.UpgradeNeededError(errors.New("Version method not implemented"))
-}
-
 func (bc baseClient) Export() ([]byte, error) {
 	return nil, platform.UpgradeNeededError(errors.New("Export method not implemented"))
 }
 
-func (bc baseClient) Sync(platform.SyncDef) error {
-	return platform.UpgradeNeededError(errors.New("Sync method not implemented"))
+func (bc baseClient) ListServices(string) ([]flux.ServiceStatus, error) {
+	return nil, platform.UpgradeNeededError(errors.New("ListServices method not implemented"))
+}
+
+func (bc baseClient) ListImages(flux.ServiceSpec) ([]flux.ImageStatus, error) {
+	return nil, platform.UpgradeNeededError(errors.New("ListImages method not implemented"))
+}
+
+func (bc baseClient) UpdateImages(flux.ReleaseSpec) (flux.ReleaseResult, error) {
+	return nil, platform.UpgradeNeededError(errors.New("UpdateImages method not implemented"))
+}
+
+func (bc baseClient) SyncCluster() error {
+	return platform.UpgradeNeededError(errors.New("SyncCluster method not implemented"))
+}
+
+func (bc baseClient) SyncStatus(string) ([]string, error) {
+	return nil, platform.UpgradeNeededError(errors.New("SyncStatus method not implemented"))
 }

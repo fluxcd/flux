@@ -96,7 +96,7 @@ type Cluster struct {
 
 // NewCluster returns a usable cluster. Host should be of the form
 // "http://hostname:8080".
-func NewCluster(config *rest.Config, applier Applier, version string, logger log.Logger) (*Cluster, error) {
+func NewCluster(config *rest.Config, applier Applier, logger log.Logger) (*Cluster, error) {
 	client, err := k8sclient.NewForConfig(config)
 	if err != nil {
 		return nil, err
@@ -107,7 +107,6 @@ func NewCluster(config *rest.Config, applier Applier, version string, logger log
 		client:  extendedClient{client.Discovery(), client.Core(), client.Extensions()},
 		applier: applier,
 		actionc: make(chan func()),
-		version: version,
 		logger:  logger,
 	}
 	go c.loop()
@@ -126,7 +125,7 @@ func (c *Cluster) loop() {
 	}
 }
 
-// --- platform API
+// --- platform.Cluster
 
 // SomeServices returns the services named, missing out any that don't
 // exist in the cluster. They do not necessarily have to be returned
@@ -159,9 +158,8 @@ func (c *Cluster) SomeServices(ids []flux.ServiceID) (res []platform.Service, er
 }
 
 // AllServices returns all services matching the criteria; that is, in
-// the namespace (or any namespace if that argument is empty), and not
-// in the `ignore` set given.
-func (c *Cluster) AllServices(namespace string, ignore flux.ServiceIDSet) (res []platform.Service, err error) {
+// the namespace (or any namespace if that argument is empty)
+func (c *Cluster) AllServices(namespace string) (res []platform.Service, err error) {
 	namespaces := []string{}
 	if namespace == "" {
 		list, err := c.client.Namespaces().List(api.ListOptions{})
@@ -190,9 +188,7 @@ func (c *Cluster) AllServices(namespace string, ignore flux.ServiceIDSet) (res [
 			if isAddon(&service) {
 				continue
 			}
-			if !ignore.Contains(flux.MakeServiceID(ns, service.Name)) {
-				res = append(res, c.makeService(ns, &service, controllers))
-			}
+			res = append(res, c.makeService(ns, &service, controllers))
 		}
 	}
 	return res, nil
@@ -386,40 +382,9 @@ func (c *Cluster) Sync(spec platform.SyncDef) error {
 	return <-errc
 }
 
-// Apply applies a new set of ServiceDefinition. If all definitions succeed,
-// Apply returns a nil error. If any definitions fail, Apply returns an error
-// of type ApplyError, which can be inspected for more detailed information.
-// Applies are serialized.
-func (c *Cluster) Apply(defs []platform.ServiceDefinition) error {
-	sync := platform.SyncDef{Actions: []platform.SyncAction{}}
-	for _, def := range defs {
-		id := def.ServiceID.String()
-		sync.Actions = append(sync.Actions, platform.SyncAction{ResourceID: id, Apply: def.NewDefinition})
-	}
-	err := c.Sync(sync)
-	if err == nil {
-		return nil
-	}
-
-	switch err := err.(type) {
-	case platform.SyncError:
-		applyErr := platform.ApplyError{}
-		for rid, syncErr := range err {
-			applyErr[flux.ServiceID(rid)] = syncErr
-		}
-		return applyErr
-	default:
-		return err
-	}
-}
-
 func (c *Cluster) Ping() error {
 	_, err := c.client.ServerVersion()
 	return err
-}
-
-func (c *Cluster) Version() (string, error) {
-	return c.version, nil
 }
 
 func (c *Cluster) Export() ([]byte, error) {
@@ -495,7 +460,11 @@ func appendYAML(buffer *bytes.Buffer, apiVersion, kind string, object interface{
 	return nil
 }
 
-// --- end platform API
+func (c *Cluster) UpdateDefinition(def []byte, image flux.ImageID) ([]byte, error) {
+	return updatePodController(def, image)
+}
+
+// --- end platform.Cluster
 
 // A convenience for getting an minimal object from some bytes.
 func definitionObj(bytes []byte) (*apiObject, error) {

@@ -13,24 +13,42 @@ import (
 )
 
 type PlatformV4 interface {
-	AllServices(maybeNamespace string, ignored flux.ServiceIDSet) ([]Service, error)
-	SomeServices([]flux.ServiceID) ([]Service, error)
-	Apply([]ServiceDefinition) error
 	Ping() error
 	Version() (string, error)
+	// Deprecated
+	//	AllServices(maybeNamespace string, ignored flux.ServiceIDSet) ([]Service, error)
+	//	SomeServices([]flux.ServiceID) ([]Service, error)
+	//	Apply([]ServiceDefinition) error
 }
 
 type PlatformV5 interface {
 	PlatformV4
-	// Additional methods accumulate here as we develop V5
+	// We still support this, for bootstrapping; but it might
+	// reasonably be moved to the daemon interface, or removed in
+	// favour of letting people use their cluster-specific tooling.
 	Export() ([]byte, error)
-	Sync(SyncDef) error
+	// Deprecated
+	//	Sync(SyncDef) error
 }
 
-// Platform is the interface various platforms fulfill, e.g.
-// *kubernetes.Cluster
-type Platform interface {
+// In which we move functionality that refers to the Git repo or image
+// registry into the platform. Methods that we no longer use are
+// deprecated, so this does not include the previous definitions,
+// though it does include some their methods.
+type PlatformV6 interface {
 	PlatformV5
+	// These are new, or newly moved to this interface
+	ListServices(namespace string) ([]flux.ServiceStatus, error)
+	ListImages(flux.ServiceSpec) ([]flux.ImageStatus, error)
+	UpdateImages(flux.ReleaseSpec) (flux.ReleaseResult, error)
+	SyncCluster() error
+	SyncStatus(string) ([]string, error)
+}
+
+// Platform is the SPI for the daemon; i.e., it's all the things we
+// have to ask to the daemon, rather than the service.
+type Platform interface {
+	PlatformV6
 }
 
 // Wrap errors in this to indicate that the platform should be

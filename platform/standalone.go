@@ -123,33 +123,6 @@ func (p *removeablePlatform) closeWithError(err error) {
 	}
 }
 
-func (p *removeablePlatform) AllServices(maybeNamespace string, ignored flux.ServiceIDSet) (s []Service, err error) {
-	defer func() {
-		if _, ok := err.(FatalError); ok {
-			p.closeWithError(err)
-		}
-	}()
-	return p.remote.AllServices(maybeNamespace, ignored)
-}
-
-func (p *removeablePlatform) SomeServices(ids []flux.ServiceID) (s []Service, err error) {
-	defer func() {
-		if _, ok := err.(FatalError); ok {
-			p.closeWithError(err)
-		}
-	}()
-	return p.remote.SomeServices(ids)
-}
-
-func (p *removeablePlatform) Apply(defs []ServiceDefinition) (err error) {
-	defer func() {
-		if _, ok := err.(FatalError); ok {
-			p.closeWithError(err)
-		}
-	}()
-	return p.remote.Apply(defs)
-}
-
 func (p *removeablePlatform) Ping() (err error) {
 	defer func() {
 		if _, ok := err.(FatalError); ok {
@@ -177,31 +150,55 @@ func (p *removeablePlatform) Export() (config []byte, err error) {
 	return p.remote.Export()
 }
 
-func (p *removeablePlatform) Sync(spec SyncDef) (err error) {
+func (p *removeablePlatform) ListServices(namespace string) (_ []flux.ServiceStatus, err error) {
 	defer func() {
 		if _, ok := err.(FatalError); ok {
 			p.closeWithError(err)
 		}
 	}()
-	return p.remote.Sync(spec)
+	return p.remote.ListServices(namespace)
+}
+
+func (p *removeablePlatform) ListImages(spec flux.ServiceSpec) (_ []flux.ImageStatus, err error) {
+	defer func() {
+		if _, ok := err.(FatalError); ok {
+			p.closeWithError(err)
+		}
+	}()
+	return p.remote.ListImages(spec)
+}
+
+func (p *removeablePlatform) UpdateImages(spec flux.ReleaseSpec) (_ flux.ReleaseResult, err error) {
+	defer func() {
+		if _, ok := err.(FatalError); ok {
+			p.closeWithError(err)
+		}
+	}()
+	return p.remote.UpdateImages(spec)
+}
+
+func (p *removeablePlatform) SyncCluster() (err error) {
+	defer func() {
+		if _, ok := err.(FatalError); ok {
+			p.closeWithError(err)
+		}
+	}()
+	return p.remote.SyncCluster()
+}
+
+func (p *removeablePlatform) SyncStatus(cursor string) (_ []string, err error) {
+	defer func() {
+		if _, ok := err.(FatalError); ok {
+			p.closeWithError(err)
+		}
+	}()
+	return p.remote.SyncStatus(cursor)
 }
 
 // disconnectedPlatform is a stub implementation used when the
 // platform is known to be missing.
 
 type disconnectedPlatform struct{}
-
-func (p disconnectedPlatform) AllServices(string, flux.ServiceIDSet) ([]Service, error) {
-	return nil, errNotSubscribed
-}
-
-func (p disconnectedPlatform) SomeServices([]flux.ServiceID) ([]Service, error) {
-	return nil, errNotSubscribed
-}
-
-func (p disconnectedPlatform) Apply([]ServiceDefinition) error {
-	return errNotSubscribed
-}
 
 func (p disconnectedPlatform) Ping() error {
 	return errNotSubscribed
@@ -215,6 +212,22 @@ func (p disconnectedPlatform) Export() ([]byte, error) {
 	return nil, errNotSubscribed
 }
 
-func (p disconnectedPlatform) Sync(_ SyncDef) error {
+func (p disconnectedPlatform) ListServices(namespace string) ([]flux.ServiceStatus, error) {
+	return nil, errNotSubscribed
+}
+
+func (p disconnectedPlatform) ListImages(flux.ServiceSpec) ([]flux.ImageStatus, error) {
+	return nil, errNotSubscribed
+}
+
+func (p disconnectedPlatform) UpdateImages(flux.ReleaseSpec) (flux.ReleaseResult, error) {
+	return nil, errNotSubscribed
+}
+
+func (p disconnectedPlatform) SyncCluster() error {
 	return errNotSubscribed
+}
+
+func (p disconnectedPlatform) SyncStatus(string) ([]string, error) {
+	return nil, errNotSubscribed
 }

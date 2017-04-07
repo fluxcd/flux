@@ -10,7 +10,7 @@ import (
 	"github.com/weaveworks/flux"
 )
 
-// UpdatePodController takes the body of a ReplicationController or Deployment
+// updatePodController takes the body of a ReplicationController or Deployment
 // resource definition (specified in YAML) and the name of the new image that
 // should be put in the definition (in the format "repo.org/group/name:tag"). It
 // returns a new resource definition body where all references to the old image
@@ -18,7 +18,7 @@ import (
 //
 // This function has many additional requirements that are likely in flux. Read
 // the source to learn about them.
-func UpdatePodController(def []byte, newImageID flux.ImageID, trace io.Writer) ([]byte, error) {
+func updatePodController(def []byte, newImageID flux.ImageID) ([]byte, error) {
 	// Sanity check
 	obj, err := definitionObj(def)
 	if err != nil {
@@ -34,7 +34,7 @@ func UpdatePodController(def []byte, newImageID flux.ImageID, trace io.Writer) (
 	}
 
 	var buf bytes.Buffer
-	err = tryUpdate(string(def), newImageID, trace, &buf)
+	err = tryUpdate(string(def), newImageID, &buf)
 	return buf.Bytes(), err
 }
 
@@ -81,7 +81,7 @@ func UpdatePodController(def []byte, newImageID flux.ImageID, trace io.Writer) (
 //         ports:
 //         - containerPort: 80
 // ```
-func tryUpdate(def string, newImage flux.ImageID, trace io.Writer, out io.Writer) error {
+func tryUpdate(def string, newImage flux.ImageID, out io.Writer) error {
 	nameRE := multilineRE(
 		`metadata:\s*`,
 		`(?:  .*\n)*  name:\s*"?([\w-]+)"?\s*`,
@@ -91,7 +91,7 @@ func tryUpdate(def string, newImage flux.ImageID, trace io.Writer, out io.Writer
 		return fmt.Errorf("Could not find resource name")
 	}
 	oldDefName := matches[1]
-	fmt.Fprintf(trace, "Found resource name %q in fragment:\n\n%s\n\n", oldDefName, matches[0])
+	//	fmt.Fprintf(trace, "Found resource name %q in fragment:\n\n%s\n\n", oldDefName, matches[0])
 
 	imageRE := multilineRE(
 		`      containers:.*`,
@@ -110,7 +110,7 @@ func tryUpdate(def string, newImage flux.ImageID, trace io.Writer, out io.Writer
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(trace, "Found container %q using image %v in fragment:\n\n%s\n\n", containerName, oldImage, matches[0])
+	// 	fmt.Fprintf(trace, "Found container %q using image %v in fragment:\n\n%s\n\n", containerName, oldImage, matches[0])
 
 	if oldImage.Repository() != newImage.Repository() {
 		return fmt.Errorf(`expected existing image name and new image name to match, but %q != %q`, oldImage.Repository(), newImage.Repository())
@@ -136,12 +136,12 @@ func tryUpdate(def string, newImage flux.ImageID, trace io.Writer, out io.Writer
 	newDefName = maybeQuote(newDefName)
 	newTag := maybeQuote(newImageTag)
 
-	fmt.Fprintln(trace, "")
-	fmt.Fprintln(trace, "Replacing ...")
-	fmt.Fprintf(trace, "Resource name: %s -> %s\n", oldDefName, newDefName)
-	fmt.Fprintf(trace, "Version in templates (and selector if present): %s -> %s\n", oldImageTag, newTag)
-	fmt.Fprintf(trace, "Image in templates: %s -> %s\n", oldImage, newImage)
-	fmt.Fprintln(trace, "")
+	// fmt.Fprintln(trace, "")
+	// fmt.Fprintln(trace, "Replacing ...")
+	// fmt.Fprintf(trace, "Resource name: %s -> %s\n", oldDefName, newDefName)
+	// fmt.Fprintf(trace, "Version in templates (and selector if present): %s -> %s\n", oldImageTag, newTag)
+	// fmt.Fprintf(trace, "Image in templates: %s -> %s\n", oldImage, newImage)
+	// fmt.Fprintln(trace, "")
 
 	// The name we want is that under `metadata:`, which will be indented once
 	replaceRCNameRE := regexp.MustCompile(`(?m:^(  name:\s*) (?:"?[\w-]+"?)(\s.*)$)`)

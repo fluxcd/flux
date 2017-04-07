@@ -1,4 +1,4 @@
-package http
+package daemon
 
 import (
 	"net/http"
@@ -13,13 +13,14 @@ import (
 	"github.com/go-kit/kit/metrics/prometheus"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	"github.com/weaveworks/flux"
+	transport "github.com/weaveworks/flux/http"
 	"github.com/weaveworks/flux/http/websocket"
 	"github.com/weaveworks/flux/platform"
 	"github.com/weaveworks/flux/platform/rpc"
 )
 
-// Daemon handles communication from the daemon to the service
-type Daemon struct {
+// Upstream handles communication from the daemon to a service
+type Upstream struct {
 	client   *http.Client
 	ua       string
 	token    flux.Token
@@ -42,13 +43,13 @@ var (
 	}, []string{"target"})
 )
 
-func NewDaemon(client *http.Client, ua string, t flux.Token, router *mux.Router, endpoint string, p platform.Platform, logger log.Logger) (*Daemon, error) {
-	u, err := MakeURL(endpoint, router, "RegisterDaemonV5")
+func NewUpstream(client *http.Client, ua string, t flux.Token, router *mux.Router, endpoint string, p platform.Platform, logger log.Logger) (*Upstream, error) {
+	u, err := transport.MakeURL(endpoint, router, "RegisterDaemonV5")
 	if err != nil {
 		return nil, errors.Wrap(err, "constructing URL")
 	}
 
-	a := &Daemon{
+	a := &Upstream{
 		client:   client,
 		ua:       ua,
 		token:    t,
@@ -62,7 +63,7 @@ func NewDaemon(client *http.Client, ua string, t flux.Token, router *mux.Router,
 	return a, nil
 }
 
-func (a *Daemon) loop() {
+func (a *Upstream) loop() {
 	backoff := 5 * time.Second
 	errc := make(chan error, 1)
 	for {
@@ -86,7 +87,7 @@ func (a *Daemon) loop() {
 	}
 }
 
-func (a *Daemon) connect() error {
+func (a *Upstream) connect() error {
 	a.setConnectionDuration(0)
 	a.logger.Log("connecting", true)
 	ws, err := websocket.Dial(a.client, a.ua, a.token, a.url)
@@ -133,12 +134,12 @@ func (a *Daemon) connect() error {
 	return nil
 }
 
-func (a *Daemon) setConnectionDuration(duration float64) {
+func (a *Upstream) setConnectionDuration(duration float64) {
 	connectionDuration.With("target", a.endpoint).Set(duration)
 }
 
 // Close closes the connection to the service
-func (a *Daemon) Close() error {
+func (a *Upstream) Close() error {
 	close(a.quit)
 	if a.ws == nil {
 		return nil

@@ -8,6 +8,7 @@ import (
 	"github.com/weaveworks/flux/platform"
 )
 
+// API for clients connecting to the service
 type ClientService interface {
 	Status(inst flux.InstanceID) (flux.Status, error)
 	ListServices(inst flux.InstanceID, namespace string) ([]flux.ServiceStatus, error)
@@ -26,6 +27,7 @@ type ClientService interface {
 	Export(inst flux.InstanceID) ([]byte, error)
 }
 
+// API for daemons connecting to the service
 type DaemonService interface {
 	RegisterDaemon(flux.InstanceID, platform.Platform) error
 	IsDaemonConnected(flux.InstanceID) error

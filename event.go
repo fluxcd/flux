@@ -87,12 +87,12 @@ func (e Event) String() string {
 			strServiceIDs = []string{"no services"}
 		}
 		var user string
-		if metadata.Release.Cause.User != "" {
-			user = fmt.Sprintf(", by %s", metadata.Release.Cause.User)
+		if metadata.Release.Spec.Cause.User != "" {
+			user = fmt.Sprintf(", by %s", metadata.Release.Spec.Cause.User)
 		}
 		var msg string
-		if metadata.Release.Cause.Message != "" {
-			msg = fmt.Sprintf(", with message %q", metadata.Release.Cause.Message)
+		if metadata.Release.Spec.Cause.Message != "" {
+			msg = fmt.Sprintf(", with message %q", metadata.Release.Spec.Cause.Message)
 		}
 		return fmt.Sprintf(
 			"Released: %s to %s%s%s",

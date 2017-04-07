@@ -2,37 +2,16 @@ package release
 
 import (
 	"fmt"
-	"io/ioutil"
 	"strings"
 	"time"
 
-	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/metrics"
 	"github.com/pkg/errors"
 
 	"github.com/weaveworks/flux"
-	"github.com/weaveworks/flux/instance"
-	"github.com/weaveworks/flux/jobs"
 	fluxmetrics "github.com/weaveworks/flux/metrics"
-	"github.com/weaveworks/flux/notifications"
 	"github.com/weaveworks/flux/platform"
-	"github.com/weaveworks/flux/platform/kubernetes"
 )
-
-const FluxServiceName = "fluxsvc"
-const FluxDaemonName = "fluxd"
-
-type Releaser struct {
-	instancer instance.Instancer
-}
-
-func NewReleaser(
-	instancer instance.Instancer,
-) *Releaser {
-	return &Releaser{
-		instancer: instancer,
-	}
-}
 
 type ServiceUpdate struct {
 	ServiceID     flux.ServiceID
@@ -42,57 +21,22 @@ type ServiceUpdate struct {
 	Updates       []flux.ContainerUpdate
 }
 
-// These represent the side-effects that calculating and applying the
-// release can have: namely, outputting status messages, and updating
-// a result report.
-type statusFn func(string, ...interface{})
-type resultFn func(resultSoFar flux.ReleaseResult)
-
-func (r *Releaser) Handle(job *jobs.Job, updater jobs.JobUpdater) ([]jobs.Job, error) {
-	logStatus := func(format string, args ...interface{}) {
-		status := fmt.Sprintf(format, args...)
-		job.Status = status
-		job.Log = append(job.Log, status)
-		updater.UpdateJob(*job)
-	}
-	updateResult := func(result flux.ReleaseResult) {
-		job.Result = result
-		updater.UpdateJob(*job)
-	}
-
-	// The job gets handed down through methods just so it can be used
-	// to construct a Release for the (possible) notification, which
-	// is a bit awkward; but we can factor it out once we have a less
-	// coupled way of dealing with release notifications (e.g., as a
-	// job itself).
-	return r.release(job.Instance, job, logStatus, updateResult)
-}
-
-func (r *Releaser) release(instanceID flux.InstanceID, job *jobs.Job, logStatus statusFn, report resultFn) (_ []jobs.Job, err error) {
-	spec := job.Params.(jobs.ReleaseJobParams).Spec()
-	defer func(started time.Time) {
+func Release(daemon platform.Daemon, spec flux.ReleaseSpec) (results flux.ReleaseResult, err error) {
+	started := time.Now()
+	defer func(start time.Time) {
 		releaseDuration.With(
 			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
 			fluxmetrics.LabelReleaseType, flux.ReleaseSpec(spec).ReleaseType(),
 			fluxmetrics.LabelReleaseKind, string(spec.Kind),
 		).Observe(time.Since(started).Seconds())
-	}(time.Now())
-
-	logStatus("Calculating updates for release.")
-	inst, err := r.instancer.Get(instanceID)
-	if err != nil {
-		return nil, err
-	}
-
-	inst.Logger = log.NewContext(inst.Logger).With("release-id", string(job.ID))
+	}(started)
 
 	// We time each stage of this process, and expose as metrics.
 	var timer *metrics.Timer
 
 	// Preparation: we always need the repository
-	rc := NewReleaseContext(inst)
+	rc := NewReleaseContext(daemon.Cluster, daemon.Repo)
 	defer rc.Clean()
-	logStatus("Cloning git repository.")
 	timer = NewStageTimer("clone_repository")
 	if err = rc.CloneRepo(); err != nil {
 		return nil, err
@@ -100,47 +44,40 @@ func (r *Releaser) release(instanceID flux.InstanceID, job *jobs.Job, logStatus 
 	timer.ObserveDuration()
 
 	// From here in, we collect the results of the calculations.
-	results := flux.ReleaseResult{}
+	results = flux.ReleaseResult{}
 
 	// Figure out the services involved.
-	logStatus("Finding defined services.")
 	timer = NewStageTimer("select_services")
 	var updates []*ServiceUpdate
-	updates, err = selectServices(rc, &spec, results, logStatus)
+	updates, err = selectServices(rc, &spec, results)
 	timer.ObserveDuration()
 	if err != nil {
 		return nil, err
 	}
-	logStatus("Found %d services.", len(updates))
-	report(results)
 
 	// Look up images, and calculate updates, if we've been asked to
 	if spec.ImageSpec != flux.ImageSpecNone {
-		logStatus("Looking up images.")
 		timer = NewStageTimer("lookup_images")
 		// Figure out how the services are to be updated.
-		updates, err = calculateImageUpdates(rc.Instance, updates, &spec, results, logStatus)
+		updates, err = calculateImageUpdates(daemon, updates, &spec, results)
 		timer.ObserveDuration()
 		if err != nil {
 			return nil, err
 		}
-		report(results)
 	}
 
 	// At this point we may have filtered the updates we can do down
 	// to nothing. Check and exit early if so.
 	if len(updates) == 0 {
-		logStatus("No updates to do, finishing.")
-		return nil, nil
+		return results, nil
 	}
 
 	// If it's a dry run, we're done.
 	if spec.Kind == flux.ReleaseKindPlan {
-		return nil, nil
+		return results, nil
 	}
 
 	if spec.ImageSpec != flux.ImageSpecNone {
-		logStatus("Pushing changes.")
 		timer = NewStageTimer("push_changes")
 		err = rc.PushChanges(updates, &spec)
 		timer.ObserveDuration()
@@ -149,52 +86,38 @@ func (r *Releaser) release(instanceID flux.InstanceID, job *jobs.Job, logStatus 
 		}
 	}
 
-	logStatus("Applying changes.")
-	timer = NewStageTimer("apply_changes")
-	applyErr := applyChanges(rc.Instance, updates, results)
-	timer.ObserveDuration()
-
 	status := flux.ReleaseStatusSuccess
-	if applyErr != nil {
+	if err != nil {
 		status = flux.ReleaseStatusFailed
 	}
 	release := flux.Release{
-		ID:        flux.ReleaseID(job.ID),
-		CreatedAt: job.Submitted,
-		StartedAt: job.Claimed,
+		StartedAt: started,
 		// TODO: fetch the job and look this up so it matches
 		// (which must be done after completing the job)
-		EndedAt:  time.Now().UTC(),
-		Done:     true,
-		Priority: job.Priority,
-		Status:   status,
-		Log:      job.Log,
+		EndedAt: time.Now().UTC(),
+		Done:    true,
+		Status:  status,
+		// %%%FIXME reinstate the log, if it's useful
+		//		Log:      logged,
 
-		Cause:  job.Params.(jobs.ReleaseJobParams).Cause,
-		Spec:   job.Params.(jobs.ReleaseJobParams).Spec(),
+		// %%% FIXME where does this come from? Redesign
+		//		Cause:  job.Params.(jobs.ReleaseJobParams).Cause,
+		Spec:   spec,
 		Result: results,
 	}
 
-	// Report on success or failure of the application above.
-	logStatus("Sending notifications.")
-	timer = NewStageTimer("send_notifications")
-	notifyErr := sendNotifications(rc.Instance, applyErr, release)
-	timer.ObserveDuration()
-
 	// Log the event into the history
 	timer = NewStageTimer("log_event")
-	err = logEvent(rc.Instance, notifyErr, release)
+	err = logEvent(daemon, err, release)
 	timer.ObserveDuration()
 
-	report(results)
-
-	return nil, err
+	return results, err
 }
 
 // `logEvent` expects the result of applying updates, and records an event in
 // the history about the release taking place. It returns the origin error if
 // that was non-nil, otherwise the result of the attempted logging.
-func logEvent(inst *instance.Instance, executeErr error, release flux.Release) error {
+func logEvent(d platform.Daemon, executeErr error, release flux.Release) error {
 	errorMessage := ""
 	logLevel := flux.LogLevelInfo
 	if executeErr != nil {
@@ -209,7 +132,7 @@ func logEvent(inst *instance.Instance, executeErr error, release flux.Release) e
 		}
 	}
 
-	err := inst.LogEvent(flux.Event{
+	err := d.LogEvent(flux.Event{
 		ServiceIDs: serviceIDs,
 		Type:       flux.EventRelease,
 		StartedAt:  release.StartedAt,
@@ -228,45 +151,18 @@ func logEvent(inst *instance.Instance, executeErr error, release flux.Release) e
 	return executeErr
 }
 
-// `sendNotifications` expects the result of applying updates, and
-// sends notifications indicating success or failure. It returns the
-// origin error if that was non-nil, otherwise the result of the
-// attempted notifications.
-func sendNotifications(inst *instance.Instance, executeErr error, release flux.Release) error {
-	cfg, err := inst.GetConfig()
-	if err != nil {
-		if executeErr == nil {
-			return errors.Wrap(err, "sending notifications")
-		}
-		return executeErr
-	}
-
-	// Filling this from the job is a temporary migration hack. Ideally all
-	// the release info should be stored on the release object in a releases
-	// table, and the job should really just have a pointer to that.
-	err = notifications.Release(cfg, release, executeErr)
-	if err != nil {
-		if executeErr == nil {
-			return errors.Wrap(err, "sending notifications")
-		}
-	}
-	return executeErr
-}
-
 // Take the spec given in the job, and figure out which services are
 // in question based on the running services and those defined in the
 // repo. Fill in the release results along the way.
-func selectServices(rc *ReleaseContext, spec *flux.ReleaseSpec, results flux.ReleaseResult, logStatus statusFn) ([]*ServiceUpdate, error) {
+func selectServices(rc *ReleaseContext, spec *flux.ReleaseSpec, results flux.ReleaseResult) ([]*ServiceUpdate, error) {
 	// Build list of filters
 	filtList, err := filters(spec, rc)
 	if err != nil {
 		return nil, err
 	}
-
 	// Find and filter services
 	return rc.SelectServices(
 		results,
-		logStatus,
 		filtList...,
 	)
 }
@@ -309,14 +205,7 @@ func filters(spec *flux.ReleaseSpec, rc *ReleaseContext) ([]ServiceFilter, error
 	}
 
 	// Locked filter
-	// - Get config
-	conf, err := rc.Instance.GetConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	// - Get locked services from config
-	lockedSet := LockedServices(conf)
+	lockedSet := rc.LockedServices()
 	lockFilt := &LockedFilter{lockedSet.ToSlice()}
 	filtList = append(filtList, lockFilt)
 	return filtList, nil
@@ -328,21 +217,21 @@ func filters(spec *flux.ReleaseSpec, rc *ReleaseContext) ([]ServiceFilter, error
 // however we do want to see if we *can* do the replacements, because
 // if not, it indicates there's likely some problem with the running
 // system vs the definitions given in the repo.)
-func calculateImageUpdates(inst *instance.Instance, candidates []*ServiceUpdate, spec *flux.ReleaseSpec, results flux.ReleaseResult, logStatus statusFn) ([]*ServiceUpdate, error) {
+func calculateImageUpdates(daemon platform.Daemon, candidates []*ServiceUpdate, spec *flux.ReleaseSpec, results flux.ReleaseResult) ([]*ServiceUpdate, error) {
 	// Compile an `ImageMap` of all relevant images
-	var images instance.ImageMap
+	var images platform.ImageMap
 	var err error
 
 	switch spec.ImageSpec {
 	case flux.ImageSpecNone:
-		images = instance.ImageMap{}
+		images = platform.ImageMap{}
 	case flux.ImageSpecLatest:
-		images, err = CollectAvailableImages(inst, candidates)
+		images, err = CollectAvailableImages(daemon.Registry, candidates)
 	default:
 		var image flux.ImageID
 		image, err = spec.ImageSpec.AsID()
 		if err == nil {
-			images, err = inst.ExactImages([]flux.ImageID{image})
+			images, err = platform.ExactImages(daemon.Registry, []flux.ImageID{image})
 		}
 	}
 
@@ -356,7 +245,6 @@ func calculateImageUpdates(inst *instance.Instance, candidates []*ServiceUpdate,
 	for _, update := range candidates {
 		containers, err := update.Service.ContainersOrError()
 		if err != nil {
-			logStatus("Failing service %s: %s", update.ServiceID, err.Error())
 			results[update.ServiceID] = flux.ServiceResult{
 				Status: flux.ReleaseStatusFailed,
 				Error:  err.Error(),
@@ -389,13 +277,11 @@ func calculateImageUpdates(inst *instance.Instance, candidates []*ServiceUpdate,
 				continue
 			}
 
-			update.ManifestBytes, err = kubernetes.UpdatePodController(update.ManifestBytes, latestImage.ID, ioutil.Discard)
+			update.ManifestBytes, err = daemon.Cluster.UpdateDefinition(update.ManifestBytes, latestImage.ID)
 			if err != nil {
-				logStatus("Failed on service %s: %s", update.ServiceID, err.Error())
 				return nil, err
 			}
 
-			logStatus("Will update %s container %s: %s -> %s", update.ServiceID, container.Name, currentImageID, latestImage.ID.Tag)
 			containerUpdates = append(containerUpdates, flux.ContainerUpdate{
 				Container: container.Name,
 				Current:   currentImageID,
@@ -412,19 +298,16 @@ func calculateImageUpdates(inst *instance.Instance, candidates []*ServiceUpdate,
 				PerContainer: containerUpdates,
 			}
 		case ignoredOrSkipped == flux.ReleaseStatusSkipped:
-			logStatus("Skipping service %s, images are up to date", update.ServiceID)
 			results[update.ServiceID] = flux.ServiceResult{
 				Status: flux.ReleaseStatusSkipped,
 				Error:  ImageUpToDate,
 			}
 		case ignoredOrSkipped == flux.ReleaseStatusIgnored:
-			logStatus("Ignoring service %s, does not use image(s) in question", update.ServiceID)
 			results[update.ServiceID] = flux.ServiceResult{
 				Status: flux.ReleaseStatusIgnored,
 				Error:  "does not use image(s)",
 			}
 		case ignoredOrSkipped == flux.ReleaseStatusUnknown:
-			logStatus("Ignoring service %s, cannot find image(s)", update.ServiceID)
 			results[update.ServiceID] = flux.ServiceResult{
 				Status: flux.ReleaseStatusSkipped,
 				Error:  ImageNotFound,

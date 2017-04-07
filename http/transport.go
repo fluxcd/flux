@@ -118,3 +118,37 @@ func WriteError(w http.ResponseWriter, r *http.Request, code int, err error) {
 	w.WriteHeader(code)
 	fmt.Fprint(w, err.Error())
 }
+
+func JSONResponse(w http.ResponseWriter, r *http.Request, result interface{}) {
+	body, err := json.Marshal(result)
+	if err != nil {
+		ErrorResponse(w, r, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	w.Write(body)
+}
+
+func ErrorResponse(w http.ResponseWriter, r *http.Request, apiError error) {
+	var outErr *flux.BaseError
+	var code int
+	err := errors.Cause(apiError)
+	switch err := err.(type) {
+	case flux.Missing:
+		code = http.StatusNotFound
+		outErr = err.BaseError
+	case flux.UserConfigProblem:
+		code = http.StatusUnprocessableEntity
+		outErr = err.BaseError
+	case flux.ServerException:
+		code = http.StatusInternalServerError
+		outErr = err.BaseError
+	default:
+		code = http.StatusInternalServerError
+		outErr = flux.CoverAllError(apiError)
+	}
+
+	WriteError(w, r, code, outErr)
+}

@@ -2,7 +2,6 @@ package server
 
 import (
 	"fmt"
-	"strings"
 	"sync/atomic"
 	"time"
 
@@ -56,12 +55,6 @@ func New(
 	}
 }
 
-// The server methods are deliberately awkward, cobbled together from existing
-// platform and registry APIs. I want to avoid changing those components until I
-// get something working. There's also a lot of code duplication here for the
-// same reason: let's not add abstraction until it's merged, or nearly so, and
-// it's clear where the abstraction should exist.
-
 func (s *Server) Status(inst flux.InstanceID) (res flux.Status, err error) {
 	helper, err := s.instancer.Get(inst)
 	if err != nil {
@@ -72,16 +65,16 @@ func (s *Server) Status(inst flux.InstanceID) (res flux.Status, err error) {
 	if err != nil {
 		return res, errors.Wrapf(err, "getting config for %s", inst)
 	}
-	res.Git.Configured = config.Settings.Git.URL != "" && config.Settings.Git.Key != ""
-
-	if _, err := helper.ConfigRepo().Clone(); err != nil {
-		// Remove \r, so it prints as a yaml block
-		res.Git.Error = strings.Replace(err.Error(), "\r", "", -1)
-	}
 
 	res.Fluxsvc = flux.FluxsvcStatus{Version: s.version}
 	res.Fluxd.Version, err = helper.Version()
 	res.Fluxd.Connected = (err == nil)
+	commits, err := helper.Platform.SyncStatus("HEAD")
+	if err != nil {
+		res.Git.Error = err.Error()
+	} else {
+		res.Git.Configured = commits[0]
+	}
 
 	return res, nil
 }
@@ -92,7 +85,7 @@ func (s *Server) ListServices(inst flux.InstanceID, namespace string) (res []flu
 		return nil, errors.Wrapf(err, "getting instance")
 	}
 
-	services, err := helper.GetAllServices(namespace)
+	services, err := helper.Platform.ListServices(namespace)
 	if err != nil {
 		return nil, errors.Wrap(err, "getting services from platform")
 	}
@@ -103,32 +96,10 @@ func (s *Server) ListServices(inst flux.InstanceID, namespace string) (res []flu
 	}
 
 	for _, service := range services {
-		if _, err := service.ContainersOrError(); err != nil {
-			helper.Log("service", service.ID, "err", err)
-		}
-		res = append(res, flux.ServiceStatus{
-			ID:         service.ID,
-			Containers: containers2containers(service.ContainersOrNil()),
-			Status:     service.Status,
-			Automated:  config.Services[service.ID].Automated,
-			Locked:     config.Services[service.ID].Locked,
-		})
+		service.Automated = config.Services[service.ID].Automated
+		service.Locked = config.Services[service.ID].Locked
 	}
 	return res, nil
-}
-
-func containers2containers(cs []platform.Container) []flux.Container {
-	res := make([]flux.Container, len(cs))
-	for i, c := range cs {
-		id, _ := flux.ParseImageID(c.Image)
-		res[i] = flux.Container{
-			Name: c.Name,
-			Current: flux.ImageDescription{
-				ID: id,
-			},
-		}
-	}
-	return res
 }
 
 func (s *Server) ListImages(inst flux.InstanceID, spec flux.ServiceSpec) (res []flux.ImageStatus, err error) {
@@ -137,47 +108,7 @@ func (s *Server) ListImages(inst flux.InstanceID, spec flux.ServiceSpec) (res []
 		return nil, errors.Wrapf(err, "getting instance")
 	}
 
-	var services []platform.Service
-	if spec == flux.ServiceSpecAll {
-		services, err = helper.GetAllServices("")
-	} else {
-		id, err := spec.AsID()
-		if err != nil {
-			return nil, errors.Wrap(err, "treating service spec as ID")
-		}
-		services, err = helper.GetServices([]flux.ServiceID{id})
-	}
-
-	images, err := helper.CollectAvailableImages(services)
-	if err != nil {
-		return nil, errors.Wrap(err, "getting images for services")
-	}
-
-	for _, service := range services {
-		containers := containersWithAvailable(service, images)
-		res = append(res, flux.ImageStatus{
-			ID:         service.ID,
-			Containers: containers,
-		})
-	}
-
-	return res, nil
-}
-
-func containersWithAvailable(service platform.Service, images instance.ImageMap) (res []flux.Container) {
-	for _, c := range service.ContainersOrNil() {
-		id, _ := flux.ParseImageID(c.Image)
-		repo := id.Repository()
-		available := images[repo]
-		res = append(res, flux.Container{
-			Name: c.Name,
-			Current: flux.ImageDescription{
-				ID: id,
-			},
-			Available: available,
-		})
-	}
-	return res
+	return helper.Platform.ListImages(spec)
 }
 
 func (s *Server) History(inst flux.InstanceID, spec flux.ServiceSpec, before time.Time, limit int64) (res []flux.HistoryEntry, err error) {
@@ -320,6 +251,7 @@ func recordLock(inst *instance.Instance, service flux.ServiceID, locked bool) er
 	return nil
 }
 
+// FIXME change to punt it to the daemon, and record it in the event log?
 func (s *Server) PostRelease(inst flux.InstanceID, params jobs.ReleaseJobParams) (jobs.JobID, error) {
 	return s.jobs.PutJob(inst, jobs.Job{
 		Queue:    jobs.ReleaseJob,
@@ -329,6 +261,8 @@ func (s *Server) PostRelease(inst flux.InstanceID, params jobs.ReleaseJobParams)
 	})
 }
 
+// FIXME check the event log? This is a service thing rather than a
+// daemon thing.
 func (s *Server) GetRelease(inst flux.InstanceID, id jobs.JobID) (jobs.Job, error) {
 	j, err := s.jobs.GetJob(inst, id)
 	if err != nil {
@@ -382,6 +316,8 @@ func applyConfigUpdates(updates flux.UnsafeInstanceConfig) instance.UpdateFunc {
 	}
 }
 
+// FIXME this will have to be done differently; also it's part of the
+// service iface
 func (s *Server) GenerateDeployKey(instID flux.InstanceID) error {
 	// Generate new key
 	unsafePrivateKey, err := git.NewKeyGenerator().Generate()
