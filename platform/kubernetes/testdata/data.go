@@ -88,4 +88,64 @@ spec:
   selector:
     name: helloworld
 `,
+	"locked-service-deploy.yaml": `apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: locked-service
+spec:
+  minReadySeconds: 1
+  replicas: 5
+  template:
+    metadata:
+      labels:
+        name: locked-service
+    spec:
+      containers:
+      - name: locked-service
+        image: quay.io/weaveworks/locked-service:1
+        args:
+        - -msg=Ahoy
+        ports:
+        - containerPort: 80
+`,
+	"locked-service-svc.yaml": `apiVersion: v1
+kind: Service
+metadata:
+  name: locked-service
+spec:
+  ports:
+    - port: 80
+  selector:
+    name: locked-service
+`,
+	"test-service-deploy.yaml": `apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: test-service
+spec:
+  minReadySeconds: 1
+  replicas: 5
+  template:
+    metadata:
+      labels:
+        name: test-service
+    spec:
+      containers:
+      - name: test-service
+        image: quay.io/weaveworks/test-service:1
+        args:
+        - -msg=Ahoy
+        ports:
+        - containerPort: 80
+`,
+	"test-service-svc.yaml": `apiVersion: v1
+kind: Service
+metadata:
+  name: test-service
+spec:
+  ports:
+    - port: 80
+  selector:
+    name: test-service
+`,
 }
