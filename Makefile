@@ -1,7 +1,9 @@
 .DEFAULT: all
-.PHONY: all release-bins clean realclean
+.PHONY: all release-bins clean realclean test
 
 DOCKER?=docker
+TEST_FLAGS?=
+
 include docker/kubectl.version
 
 # NB because this outputs absolute file names, you have to be careful
@@ -18,7 +20,6 @@ MIGRATIONS:=$(shell find db/migrations -type f)
 
 all: $(GOPATH)/bin/fluxctl $(GOPATH)/bin/fluxd $(GOPATH)/bin/fluxsvc build/.fluxd.done build/.fluxsvc.done
 
-.PHONY: release-bins
 release-bins:
 	for arch in amd64; do \
 		for os in linux darwin; do \
@@ -32,6 +33,10 @@ clean:
 
 realclean: clean
 	rm -rf ./cache
+
+test:
+	export PATH="$$PATH:$$PWD/cmd/fluxsvc"; \
+	go test -v ${TEST_FLAGS} $(shell find . -path './vendor' -prune -o -name '*.go' -printf '%h\n' | sort -u)
 
 build/migrations.tar: $(MIGRATIONS)
 	tar cf $@ db/migrations
