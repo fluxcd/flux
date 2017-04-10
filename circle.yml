@@ -31,7 +31,6 @@ dependencies:
     - "~/flux/vendor/golang.org"
     - "~/download"
   override:
-    - go get github.com/Masterminds/glide
     - go get github.com/FiloSottile/gvt
     - go get github.com/nats-io/gnatsd
     - go get github.com/weaveworks/github-release
@@ -41,9 +40,7 @@ test:
   override:
     - gnatsd:
         background: true
-    - go build -v $(glide novendor)
-    - go test -v -race $(glide novendor)
-    - go test -v -race -tags integration -timeout 30s $(glide novendor)
+    - make test TEST_FLAGS="-race -tags integration -timeout 30s"
   post:
     - |
         cd ${GOPATH}/src/github.com/weaveworks/flux
