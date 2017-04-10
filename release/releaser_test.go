@@ -18,61 +18,6 @@ import (
 	"github.com/go-kit/kit/log"
 )
 
-var (
-	hwSvcID, _ = flux.ParseServiceID("default/helloworld")
-	hwSvc      = platform.Service{
-		ID: hwSvcID,
-		Containers: platform.ContainersOrExcuse{
-			Containers: []platform.Container{
-				platform.Container{
-					Name:  "helloworld",
-					Image: "quay.io/weaveworks/helloworld:master-a000001",
-				},
-				platform.Container{
-					Name:  "sidecar",
-					Image: "quay.io/weaveworks/sidecar:master-a000002",
-				},
-			},
-		},
-	}
-	lockedSvcID, _ = flux.ParseServiceID("default/locked-service")
-	lockedSvc      = platform.Service{
-		ID: lockedSvcID,
-		Containers: platform.ContainersOrExcuse{
-			Containers: []platform.Container{
-				platform.Container{
-					Name:  "locked-service",
-					Image: "quay.io/weaveworks/locked-service:1",
-				},
-			},
-		},
-	}
-	testScv = platform.Service{
-		ID: "default/test-service",
-		Containers: platform.ContainersOrExcuse{
-			Containers: []platform.Container{
-				platform.Container{
-					Name:  "test-service",
-					Image: "quay.io/weaveworks/test-service:1",
-				},
-			},
-		},
-	}
-	allSvcs = []platform.Service{
-		hwSvc,
-		lockedSvc,
-		testScv,
-	}
-	imageID, _   = flux.ParseImageID("quay.io/weaveworks/helloworld:master-a000002")
-	timeNow      = time.Now()
-	mockRegistry = registry.NewMockRegistry([]flux.Image{
-		flux.Image{
-			ImageID:   imageID,
-			CreatedAt: &timeNow,
-		},
-	}, nil)
-)
-
 func setup(t *testing.T, mocks instance.Instance) (*Releaser, func()) {
 	repo, cleanup := setupRepo(t)
 
@@ -133,14 +78,6 @@ func TestMissingFromPlatform(t *testing.T) {
 			Status: flux.ReleaseStatusIgnored,
 			Error:  "not in running system",
 		},
-		flux.ServiceID("default/locked-service"): flux.ServiceResult{
-			Status: flux.ReleaseStatusIgnored,
-			Error:  "not in running system",
-		},
-		flux.ServiceID("default/test-service"): flux.ServiceResult{
-			Status: flux.ReleaseStatusIgnored,
-			Error:  "not in running system",
-		},
 	}
 	if !reflect.DeepEqual(expected, results) {
 		t.Errorf("expected %#v, got %#v", expected, results)
@@ -176,6 +113,7 @@ func TestMissingFromPlatform(t *testing.T) {
 
 func TestUpdateOne(t *testing.T) {
 	serviceID, _ := flux.ParseServiceID("default/helloworld")
+
 	mockPlatform := &platform.MockPlatform{
 		SomeServicesArgTest: func(req []flux.ServiceID) error {
 			if len(req) != 1 || req[0] != serviceID {
@@ -184,9 +122,32 @@ func TestUpdateOne(t *testing.T) {
 			return nil
 		},
 		SomeServicesAnswer: []platform.Service{
-			hwSvc,
+			platform.Service{
+				ID: serviceID,
+				Containers: platform.ContainersOrExcuse{
+					Containers: []platform.Container{
+						platform.Container{
+							Name:  "helloworld",
+							Image: "quay.io/weaveworks/helloworld:master-a000001",
+						},
+						platform.Container{
+							Name:  "sidecar",
+							Image: "quay.io/weaveworks/sidecar:master-a000002",
+						},
+					},
+				},
+			},
 		},
 	}
+
+	imageID, _ := flux.ParseImageID("quay.io/weaveworks/helloworld:master-a000002")
+	now := time.Now()
+	mockRegistry := registry.NewMockRegistry([]flux.Image{
+		flux.Image{
+			ImageID:   imageID,
+			CreatedAt: &now,
+		},
+	}, nil)
 
 	releaser, cleanup := setup(t, instance.Instance{
 		Platform: mockPlatform,
@@ -215,11 +176,6 @@ func TestUpdateOne(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-
-	println()
-	PrintResults(os.Stdout, results, true)
-	println()
-
 	if len(moreJobs) > 0 {
 		t.Errorf("did not expect follow-on jobs, got %v", moreJobs)
 	}
@@ -233,137 +189,8 @@ func TestUpdateOne(t *testing.T) {
 	if result.Status != flux.ReleaseStatusSuccess {
 		t.Errorf("expected entry to be success, but was %s", result.Status)
 	}
-}
-
-func Test_492_OnUpdateImage_OnlyShowServicePertainingToImage(t *testing.T) {
-	lockedID, _ := flux.ParseServiceID("default/locked-service")
-
-	mockConfig := &instance.MockConfigurer{
-		Config: instance.Config{
-			Services: map[flux.ServiceID]instance.ServiceConfig{
-				lockedID: {
-					Automated: false,
-					Locked:    true,
-				},
-			},
-		},
-		Error: nil,
-	}
-
-	mockPlatform := &platform.MockPlatform{
-		AllServicesAnswer: allSvcs,
-		SomeServicesAnswer: []platform.Service{
-			hwSvc,
-			testScv,
-		},
-	}
-
-	releaser, cleanup := setup(t, instance.Instance{
-		Platform: mockPlatform,
-		Registry: mockRegistry,
-		Config:   mockConfig,
-	})
-	defer cleanup()
-
-	spec := jobs.ReleaseJobParams{
-		ReleaseSpec: flux.ReleaseSpec{
-			ServiceSpec: flux.ServiceSpecAll,
-			ImageSpec:   flux.ImageSpecFromID(imageID),
-			Kind:        flux.ReleaseKindExecute,
-		},
-	}
-
-	results := flux.ReleaseResult{}
-	moreJobs, err := releaser.release(flux.InstanceID("instance 3"),
-		&jobs.Job{Params: spec}, func(f string, a ...interface{}) {
-			fmt.Printf(f+"\n", a...)
-		}, func(r flux.ReleaseResult) {
-			if r == nil {
-				t.Errorf("result update called with nil value")
-			}
-			results = r
-		})
-	if err != nil {
-		t.Error(err)
-	}
 
 	println()
 	PrintResults(os.Stdout, results, true)
 	println()
-
-	if len(moreJobs) > 0 {
-		t.Errorf("did not expect follow-on jobs, got %v", moreJobs)
-	}
-	if len(results) != 1 {
-		t.Errorf("expected one service in results, got %v", len(results))
-	}
-	result, ok := results[hwSvcID]
-	if !ok {
-		t.Errorf("expected entry for %s but there was none", hwSvcID)
-	}
-	if result.Status != flux.ReleaseStatusSuccess {
-		t.Errorf("expected entry to be success, but was %s", result.Status)
-	}
-}
-
-func Test_492_OnUpdateService_OnlyShowServicePertainingToService(t *testing.T) {
-	mockPlatform := &platform.MockPlatform{
-		SomeServicesArgTest: func(req []flux.ServiceID) error {
-			//if len(req) != 1 || req[0] != hwSvcID {
-			//	return errors.New("expected exactly {default/helloworld}")
-			//}
-			return nil
-		},
-		AllServicesAnswer: allSvcs,
-		SomeServicesAnswer: []platform.Service{
-			hwSvc,
-		},
-	}
-
-	releaser, cleanup := setup(t, instance.Instance{
-		Platform: mockPlatform,
-		Registry: mockRegistry,
-	})
-	defer cleanup()
-
-	svc, _ := flux.ParseServiceSpec(hwSvcID.String())
-	spec := jobs.ReleaseJobParams{
-		ReleaseSpec: flux.ReleaseSpec{
-			ServiceSpec: svc,
-			ImageSpec:   flux.ImageSpecLatest,
-			Kind:        flux.ReleaseKindExecute,
-		},
-	}
-
-	results := flux.ReleaseResult{}
-	moreJobs, err := releaser.release(flux.InstanceID("instance 3"),
-		&jobs.Job{Params: spec}, func(f string, a ...interface{}) {
-			fmt.Printf(f+"\n", a...)
-		}, func(r flux.ReleaseResult) {
-			if r == nil {
-				t.Errorf("result update called with nil value")
-			}
-			results = r
-		})
-	if err != nil {
-		t.Error(err)
-	}
-
-	println()
-	PrintResults(os.Stdout, results, true)
-	println()
-
-	if len(moreJobs) > 0 {
-		t.Errorf("did not expect follow-on jobs, got %v", moreJobs)
-	}
-	if len(results) != 1 {
-		t.Errorf("expected one service in results, got %v", len(results))
-	}
-	result, ok := results[hwSvcID]
-	if !ok {
-		t.Errorf("expected entry for %s but there was none", hwSvcID)
-	}
-	if result.Status != flux.ReleaseStatusSuccess {
-		t.Errorf("expected entry to be success, but was %s", result.Status)
-	}
 }

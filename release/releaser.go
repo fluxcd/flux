@@ -154,16 +154,6 @@ func (r *Releaser) release(instanceID flux.InstanceID, job *jobs.Job, logStatus 
 	applyErr := applyChanges(rc.Instance, updates, results)
 	timer.ObserveDuration()
 
-	// #492: If updating all services, but requested a specific image, only result in services that pertain to that image
-	if spec.ServiceSpec == flux.ServiceSpecAll && spec.ImageSpec != flux.ImageSpecNone {
-		for k, v := range results {
-			if v.Status == flux.ReleaseStatusSkipped || v.Status == flux.ReleaseStatusIgnored {
-				delete(results, k)
-			}
-		}
-
-	}
-
 	status := flux.ReleaseStatusSuccess
 	if applyErr != nil {
 		status = flux.ReleaseStatusFailed
