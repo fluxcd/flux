@@ -117,6 +117,16 @@ func (s ServiceIDSet) Intersection(others ServiceIDSet) ServiceIDSet {
 	return result
 }
 
+func (s ServiceIDSet) ToSlice() ServiceIDs {
+	i := 0
+	keys := make(ServiceIDs, len(s))
+	for k := range s {
+		keys[i] = k
+		i++
+	}
+	return keys
+}
+
 type ServiceIDs []ServiceID
 
 func (p ServiceIDs) Len() int           { return len(p) }

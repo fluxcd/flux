@@ -1,7 +1,6 @@
 package release
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"reflect"
@@ -16,6 +15,77 @@ import (
 	"github.com/weaveworks/flux/registry"
 
 	"github.com/go-kit/kit/log"
+)
+
+var (
+	oldImage          = "quay.io/weaveworks/helloworld:master-a000001"
+	oldImageID, _     = flux.ParseImageID(oldImage)
+	sidecarImage      = "quay.io/weaveworks/sidecar:master-a000002"
+	sidecarImageID, _ = flux.ParseImageID(sidecarImage)
+	hwSvcID, _        = flux.ParseServiceID("default/helloworld")
+	hwSvc             = platform.Service{
+		ID: hwSvcID,
+		Containers: platform.ContainersOrExcuse{
+			Containers: []platform.Container{
+				platform.Container{
+					Name:  "helloworld",
+					Image: oldImage,
+				},
+				platform.Container{
+					Name:  "sidecar",
+					Image: "quay.io/weaveworks/sidecar:master-a000002",
+				},
+			},
+		},
+	}
+
+	hwSvcSpec, _ = flux.ParseServiceSpec(hwSvcID.String())
+
+	oldLockedImg   = "quay.io/weaveworks/locked-service:1"
+	newLockedImg   = "quay.io/weaveworks/locked-service:2"
+	newLockedID, _ = flux.ParseImageID(newLockedImg)
+	lockedSvcID, _ = flux.ParseServiceID("default/locked-service")
+	lockedSvc      = platform.Service{
+		ID: lockedSvcID,
+		Containers: platform.ContainersOrExcuse{
+			Containers: []platform.Container{
+				platform.Container{
+					Name:  "locked-service",
+					Image: oldLockedImg,
+				},
+			},
+		},
+	}
+	testScv = platform.Service{
+		ID: "default/test-service",
+		Containers: platform.ContainersOrExcuse{
+			Containers: []platform.Container{
+				platform.Container{
+					Name:  "test-service",
+					Image: "quay.io/weaveworks/test-service:1",
+				},
+			},
+		},
+	}
+	testSvcSpec, _ = flux.ParseServiceSpec(testScv.ID.String())
+
+	allSvcs = []platform.Service{
+		hwSvc,
+		lockedSvc,
+		testScv,
+	}
+	newImageID, _ = flux.ParseImageID("quay.io/weaveworks/helloworld:master-a000002")
+	timeNow       = time.Now()
+	mockRegistry  = registry.NewMockRegistry([]flux.Image{
+		flux.Image{
+			ImageID:   newImageID,
+			CreatedAt: &timeNow,
+		},
+		flux.Image{
+			ImageID:   newLockedID,
+			CreatedAt: &timeNow,
+		},
+	}, nil)
 )
 
 func setup(t *testing.T, mocks instance.Instance) (*Releaser, func()) {
@@ -40,136 +110,269 @@ func setup(t *testing.T, mocks instance.Instance) (*Releaser, func()) {
 	return NewReleaser(instancer), cleanup
 }
 
-func TestMissingFromPlatform(t *testing.T) {
-	releaser, cleanup := setup(t, instance.Instance{})
-	defer cleanup()
-
-	output := func(f string, a ...interface{}) {
-		fmt.Printf(f+"\n", a...)
-	}
-
-	spec := jobs.ReleaseJobParams{
-		ReleaseSpec: flux.ReleaseSpec{
-			ServiceSpec: flux.ServiceSpecAll,
-			ImageSpec:   flux.ImageSpecLatest,
-			Kind:        flux.ReleaseKindPlan,
-		},
-	}
-
-	results := flux.ReleaseResult{}
-	update := func(r flux.ReleaseResult) {
-		if r == nil {
-			t.Errorf("result update called with nil value")
-		}
-		results = r
-	}
-
-	moreJobs, err := releaser.release(flux.InstanceID("unimportant"),
-		&jobs.Job{Params: spec}, output, update)
-	if err != nil {
-		t.Error(err)
-	}
-	if len(moreJobs) > 0 {
-		t.Errorf("did not expect follow-on jobs, got %v", moreJobs)
-	}
-
-	expected := flux.ReleaseResult{
-		flux.ServiceID("default/helloworld"): flux.ServiceResult{
-			Status: flux.ReleaseStatusIgnored,
-			Error:  "not in running system",
-		},
-	}
-	if !reflect.DeepEqual(expected, results) {
-		t.Errorf("expected %#v, got %#v", expected, results)
-	}
-
-	spec = jobs.ReleaseJobParams{
-		ReleaseSpec: flux.ReleaseSpec{
-			ServiceSpec: flux.ServiceSpec("default/helloworld"),
-			ImageSpec:   flux.ImageSpecLatest,
-			Kind:        flux.ReleaseKindPlan,
-		},
-	}
-	results = flux.ReleaseResult{}
-	moreJobs, err = releaser.release(flux.InstanceID("unimportant"),
-		&jobs.Job{Params: spec}, output, update)
-	if err != nil {
-		t.Error(err)
-	}
-	if len(moreJobs) > 0 {
-		t.Errorf("did not expect followup jobs, got %#v", moreJobs)
-	}
-
-	expected = flux.ReleaseResult{
-		flux.ServiceID("default/helloworld"): flux.ServiceResult{
-			Status: flux.ReleaseStatusSkipped,
-			Error:  "not in running system",
-		},
-	}
-	if !reflect.DeepEqual(expected, results) {
-		t.Errorf("expected %#v, got %#v", expected, results)
-	}
-}
-
-func TestUpdateOne(t *testing.T) {
-	serviceID, _ := flux.ParseServiceID("default/helloworld")
-
+func Test_FilterLogic(t *testing.T) {
 	mockPlatform := &platform.MockPlatform{
-		SomeServicesArgTest: func(req []flux.ServiceID) error {
-			if len(req) != 1 || req[0] != serviceID {
-				return errors.New("expected exactly {default/helloworld}")
-			}
-			return nil
-		},
+		AllServicesAnswer: allSvcs,
 		SomeServicesAnswer: []platform.Service{
-			platform.Service{
-				ID: serviceID,
-				Containers: platform.ContainersOrExcuse{
-					Containers: []platform.Container{
-						platform.Container{
-							Name:  "helloworld",
-							Image: "quay.io/weaveworks/helloworld:master-a000001",
-						},
-						platform.Container{
-							Name:  "sidecar",
-							Image: "quay.io/weaveworks/sidecar:master-a000002",
-						},
-					},
+			hwSvc,
+			lockedSvc,
+		},
+	}
+
+	mockConfig := &instance.MockConfigurer{
+		Config: instance.Config{
+			Services: map[flux.ServiceID]instance.ServiceConfig{
+				lockedSvcID: {
+					Automated: false,
+					Locked:    true,
 				},
 			},
 		},
+		Error: nil,
 	}
 
-	imageID, _ := flux.ParseImageID("quay.io/weaveworks/helloworld:master-a000002")
-	now := time.Now()
-	mockRegistry := registry.NewMockRegistry([]flux.Image{
+	for _, tst := range []struct {
+		Name     string
+		Spec     flux.ReleaseSpec
+		Expected flux.ReleaseResult
+	}{
+		// ignored if: excluded OR not included OR not correct image.
+		{
+			Name: "not included",
+			Spec: flux.ReleaseSpec{
+				ServiceSpec: hwSvcSpec,
+				ImageSpec:   flux.ImageSpecLatest,
+				Kind:        flux.ReleaseKindExecute,
+				Excludes:    []flux.ServiceID{},
+			},
+			Expected: flux.ReleaseResult{
+				flux.ServiceID("default/helloworld"): flux.ServiceResult{
+					Status: flux.ReleaseStatusSuccess,
+					PerContainer: []flux.ContainerUpdate{
+						flux.ContainerUpdate{
+							Container: "helloworld",
+							Current:   oldImageID,
+							Target:    newImageID,
+						},
+					},
+				},
+				flux.ServiceID("default/locked-service"): flux.ServiceResult{
+					Status: flux.ReleaseStatusIgnored,
+					Error:  NotIncluded,
+				},
+				flux.ServiceID("default/test-service"): flux.ServiceResult{
+					Status: flux.ReleaseStatusIgnored,
+					Error:  NotIncluded,
+				},
+			},
+		}, {
+			Name: "excluded",
+			Spec: flux.ReleaseSpec{
+				ServiceSpec: flux.ServiceSpecAll,
+				ImageSpec:   flux.ImageSpecLatest,
+				Kind:        flux.ReleaseKindExecute,
+				Excludes:    []flux.ServiceID{lockedSvcID},
+			},
+			Expected: flux.ReleaseResult{
+				flux.ServiceID("default/helloworld"): flux.ServiceResult{
+					Status: flux.ReleaseStatusSuccess,
+					PerContainer: []flux.ContainerUpdate{
+						flux.ContainerUpdate{
+							Container: "helloworld",
+							Current:   oldImageID,
+							Target:    newImageID,
+						},
+					},
+				},
+				flux.ServiceID("default/locked-service"): flux.ServiceResult{
+					Status: flux.ReleaseStatusIgnored,
+					Error:  Excluded,
+				},
+				flux.ServiceID("default/test-service"): flux.ServiceResult{
+					Status: flux.ReleaseStatusSkipped,
+					Error:  NotInCluster,
+				},
+			},
+		}, {
+			Name: "not image",
+			Spec: flux.ReleaseSpec{
+				ServiceSpec: flux.ServiceSpecAll,
+				ImageSpec:   flux.ImageSpecFromID(newImageID),
+				Kind:        flux.ReleaseKindExecute,
+				Excludes:    []flux.ServiceID{},
+			},
+			Expected: flux.ReleaseResult{
+				flux.ServiceID("default/helloworld"): flux.ServiceResult{
+					Status: flux.ReleaseStatusSuccess,
+					PerContainer: []flux.ContainerUpdate{
+						flux.ContainerUpdate{
+							Container: "helloworld",
+							Current:   oldImageID,
+							Target:    newImageID,
+						},
+					},
+				},
+				flux.ServiceID("default/locked-service"): flux.ServiceResult{
+					Status: flux.ReleaseStatusIgnored,
+					Error:  DifferentImage,
+				},
+				flux.ServiceID("default/test-service"): flux.ServiceResult{
+					Status: flux.ReleaseStatusIgnored,
+					Error:  NotInCluster,
+				},
+			},
+		},
+		// skipped if: not ignored AND (locked or not found in cluster)
+		// else: service is pending.
+		{
+			Name: "skipped & service is pending",
+			Spec: flux.ReleaseSpec{
+				ServiceSpec: flux.ServiceSpecAll,
+				ImageSpec:   flux.ImageSpecLatest,
+				Kind:        flux.ReleaseKindExecute,
+				Excludes:    []flux.ServiceID{},
+			},
+			Expected: flux.ReleaseResult{
+				flux.ServiceID("default/helloworld"): flux.ServiceResult{
+					Status: flux.ReleaseStatusSuccess,
+					PerContainer: []flux.ContainerUpdate{
+						flux.ContainerUpdate{
+							Container: "helloworld",
+							Current:   oldImageID,
+							Target:    newImageID,
+						},
+					},
+				},
+				flux.ServiceID("default/locked-service"): flux.ServiceResult{
+					Status: flux.ReleaseStatusSkipped,
+					Error:  Locked,
+				},
+				flux.ServiceID("default/test-service"): flux.ServiceResult{
+					Status: flux.ReleaseStatusSkipped,
+					Error:  NotInCluster,
+				},
+			},
+		},
+	} {
+		releaser, cleanup := setup(t, instance.Instance{
+			Platform: mockPlatform,
+			Registry: mockRegistry,
+			Config:   mockConfig,
+		})
+		defer cleanup()
+
+		testRelease(t, releaser, tst.Name, tst.Spec, tst.Expected)
+	}
+}
+
+func Test_ImageStatus(t *testing.T) {
+	mockPlatform := &platform.MockPlatform{
+		AllServicesAnswer: allSvcs,
+		SomeServicesAnswer: []platform.Service{
+			hwSvc,
+			lockedSvc,
+			testScv,
+		},
+	}
+
+	mockConfig := &instance.MockConfigurer{
+		Config: instance.Config{
+			Services: map[flux.ServiceID]instance.ServiceConfig{
+				lockedSvcID: {
+					Automated: false,
+					Locked:    true,
+				},
+			},
+		},
+		Error: nil,
+	}
+
+	upToDateRegistry := registry.NewMockRegistry([]flux.Image{
 		flux.Image{
-			ImageID:   imageID,
-			CreatedAt: &now,
+			ImageID:   oldImageID,
+			CreatedAt: &timeNow,
+		},
+		flux.Image{
+			ImageID:   sidecarImageID,
+			CreatedAt: &timeNow,
 		},
 	}, nil)
 
-	releaser, cleanup := setup(t, instance.Instance{
-		Platform: mockPlatform,
-		Registry: mockRegistry,
-	})
-	defer cleanup()
-
-	spec := jobs.ReleaseJobParams{
-		ReleaseSpec: flux.ReleaseSpec{
-			ServiceSpec: flux.ServiceSpec("default/helloworld"),
-			ImageSpec:   flux.ImageSpecLatest,
-			Kind:        flux.ReleaseKindExecute,
+	testSvcSpec, _ := flux.ParseServiceSpec(testScv.ID.String())
+	for _, tst := range []struct {
+		Name     string
+		Spec     flux.ReleaseSpec
+		Expected flux.ReleaseResult
+	}{
+		{
+			Name: "image not found",
+			Spec: flux.ReleaseSpec{
+				ServiceSpec: testSvcSpec,
+				ImageSpec:   flux.ImageSpecLatest,
+				Kind:        flux.ReleaseKindExecute,
+				Excludes:    []flux.ServiceID{},
+			},
+			Expected: flux.ReleaseResult{
+				flux.ServiceID("default/helloworld"): flux.ServiceResult{
+					Status: flux.ReleaseStatusIgnored,
+					Error:  NotIncluded,
+				},
+				flux.ServiceID("default/locked-service"): flux.ServiceResult{
+					Status: flux.ReleaseStatusIgnored,
+					Error:  NotIncluded,
+				},
+				flux.ServiceID("default/test-service"): flux.ServiceResult{
+					Status: flux.ReleaseStatusSkipped,
+					Error:  ImageNotFound,
+				},
+			},
+		}, {
+			Name: "image up to date",
+			Spec: flux.ReleaseSpec{
+				ServiceSpec: hwSvcSpec,
+				ImageSpec:   flux.ImageSpecLatest,
+				Kind:        flux.ReleaseKindExecute,
+				Excludes:    []flux.ServiceID{},
+			},
+			Expected: flux.ReleaseResult{
+				flux.ServiceID("default/helloworld"): flux.ServiceResult{
+					Status: flux.ReleaseStatusSkipped,
+					Error:  ImageUpToDate,
+				},
+				flux.ServiceID("default/locked-service"): flux.ServiceResult{
+					Status: flux.ReleaseStatusIgnored,
+					Error:  NotIncluded,
+				},
+				flux.ServiceID("default/test-service"): flux.ServiceResult{
+					Status: flux.ReleaseStatusIgnored,
+					Error:  NotIncluded,
+				},
+			},
 		},
-	}
+	} {
+		releaser, cleanup := setup(t, instance.Instance{
+			Platform: mockPlatform,
+			Config:   mockConfig,
+			Registry: upToDateRegistry,
+		})
+		defer cleanup()
 
+		testRelease(t, releaser, tst.Name, tst.Spec, tst.Expected)
+	}
+}
+
+func testRelease(t *testing.T, releaser *Releaser, name string, spec flux.ReleaseSpec, expected flux.ReleaseResult) {
 	results := flux.ReleaseResult{}
-	moreJobs, err := releaser.release(flux.InstanceID("instance 3"),
-		&jobs.Job{Params: spec}, func(f string, a ...interface{}) {
+	moreJobs, err := releaser.release(flux.InstanceID("doesn't matter"),
+		&jobs.Job{
+			Params: jobs.ReleaseJobParams{
+				ReleaseSpec: spec,
+			},
+		}, func(f string, a ...interface{}) {
 			fmt.Printf(f+"\n", a...)
 		}, func(r flux.ReleaseResult) {
 			if r == nil {
-				t.Errorf("result update called with nil value")
+				t.Errorf("%s - result update called with nil value", name)
 			}
 			results = r
 		})
@@ -177,20 +380,12 @@ func TestUpdateOne(t *testing.T) {
 		t.Error(err)
 	}
 	if len(moreJobs) > 0 {
-		t.Errorf("did not expect follow-on jobs, got %v", moreJobs)
+		t.Errorf("%s - did not expect followup jobs, got %#v", name, moreJobs)
 	}
-	if len(results) != 1 {
-		t.Errorf("expected one service in results, got %v", results)
-	}
-	result, ok := results[serviceID]
-	if !ok {
-		t.Errorf("expected entry for %s but there was none", serviceID)
-	}
-	if result.Status != flux.ReleaseStatusSuccess {
-		t.Errorf("expected entry to be success, but was %s", result.Status)
-	}
-
 	println()
 	PrintResults(os.Stdout, results, true)
 	println()
+	if !reflect.DeepEqual(expected, results) {
+		t.Errorf("%s - expected:\n%#v, got:\n%#v", name, expected, results)
+	}
 }

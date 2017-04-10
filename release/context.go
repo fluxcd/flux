@@ -12,6 +12,16 @@ import (
 	"github.com/weaveworks/flux/platform/kubernetes"
 )
 
+const (
+	Locked         = "locked"
+	NotIncluded    = "not included"
+	Excluded       = "excluded"
+	DifferentImage = "a different image"
+	NotInCluster   = "not running in cluster"
+	ImageNotFound  = "cannot find one or more images"
+	ImageUpToDate  = "image(s) up to date"
+)
+
 type ReleaseContext struct {
 	Instance   *instance.Instance
 	WorkingDir string
@@ -76,90 +86,86 @@ func (rc *ReleaseContext) Clean() {
 // directory.
 
 // SelectServices finds the services that exist both in the definition
-// files and the running platform. If given a list of `flux.ServiceID`
-// as the first argument, it will include *only* those services, and
-// treat missing services as *skipped*; otherwise, it will include all
-// services, and *ignore* those that are defined by not
-// running. Services in the locked and excluded sets are omitted (and
-// recorded as so). The return value is a set of potentially
-// updateable services.
-func (rc *ReleaseContext) SelectServices(included []flux.ServiceID, locked flux.ServiceIDSet, excluded flux.ServiceIDSet, results flux.ReleaseResult, logStatus statusFn) ([]*ServiceUpdate, error) {
-	// Figure out all services that are defined in the repo and should
-	// be selected for upgrading/applying.
+// files and the running platform.
+// ServiceFilter's can be provided to filter the found services.
+// Be careful about the ordering of the filters. Filters that are earlier
+// in the slice will have higher priority (they are run first).
+func (rc *ReleaseContext) SelectServices(results flux.ReleaseResult, logStatus statusFn, filters ...ServiceFilter) ([]*ServiceUpdate, error) {
+	// Get services defined in repository
 	defined, err := rc.FindDefinedServices()
 	if err != nil {
 		return nil, err
 	}
 
-	updateMap := map[flux.ServiceID]*ServiceUpdate{}
 	var ids []flux.ServiceID
-
-	// The services to explicitly include; this is left as nil if only
-	// was not given, since we treat missing services slightly
-	// differently depending on whether an exact set was requested.
-	var only flux.ServiceIDSet
-	if included != nil {
-		only = flux.ServiceIDSet{}
-		only.Add(included)
-	}
-
+	definedMap := map[flux.ServiceID]*ServiceUpdate{}
 	for _, s := range defined {
-		if only == nil || only.Contains(s.ServiceID) {
-			var result flux.ServiceResult
-			switch {
-			case excluded.Contains(s.ServiceID):
-				logStatus("Skipping service %s as it is excluded", s.ServiceID)
-				result = flux.ServiceResult{
-					Status: flux.ReleaseStatusSkipped,
-					Error:  "excluded",
-				}
-			case locked.Contains(s.ServiceID):
-				logStatus("Skipping service %s as it is locked", s.ServiceID)
-				result = flux.ServiceResult{
-					Status: flux.ReleaseStatusSkipped,
-					Error:  "locked",
-				}
-			default:
-				result = flux.ServiceResult{
-					Status: flux.ReleaseStatusPending,
-				}
-				updateMap[s.ServiceID] = s
-				ids = append(ids, s.ServiceID)
-			}
-			results[s.ServiceID] = result
-		}
+		ids = append(ids, s.ServiceID)
+		definedMap[s.ServiceID] = s
 	}
 
-	// Correlate with services in running system.
+	// Get running services from cluster
 	services, err := rc.Instance.GetServices(ids)
 	if err != nil {
 		return nil, err
 	}
 
+	// Compare defined vs running
 	var updates []*ServiceUpdate
-	for _, service := range services {
-		logStatus("Found service %s", service.ID)
-		update := updateMap[service.ID]
-		update.Service = service
+	for _, s := range services {
+		logStatus("Found service %s", s.ID)
+		update := definedMap[s.ID]
+		update.Service = s
 		updates = append(updates, update)
-		delete(updateMap, service.ID)
+		delete(definedMap, s.ID)
 	}
-	// Mark anything left over as skipped
-	for id, _ := range updateMap {
-		ignoringOrSkipping := "Ignoring"
-		status := flux.ReleaseStatusIgnored
-		if included != nil { // i.e., this service was specifically requested
-			ignoringOrSkipping = "Skipping"
-			status = flux.ReleaseStatusSkipped
+
+	// Filter both updates ...
+	var filteredUpdates []*ServiceUpdate
+	for _, s := range updates {
+		fr := s.filter(filters...)
+		if fr.Result.Error != "" {
+			logStatus(fr.String())
 		}
-		logStatus("%s service %s as it is not in the running system", ignoringOrSkipping, id)
-		results[id] = flux.ServiceResult{
-			Status: status,
-			Error:  "not in running system",
+		results[s.ServiceID] = fr.Result
+		if fr.Result.Status == flux.ReleaseStatusPending || fr.Result.Status == flux.ReleaseStatusSuccess || fr.Result.Status == "" {
+			filteredUpdates = append(filteredUpdates, s)
 		}
 	}
 
-	return updates, nil
+	// ... and missing services
+	filteredDefined := map[flux.ServiceID]*ServiceUpdate{}
+	for k, s := range definedMap {
+		fr := s.filter(filters...)
+		if fr.Result.Error != "" {
+			logStatus(fr.String())
+		}
+		results[s.ServiceID] = fr.Result
+		if fr.Result.Status != flux.ReleaseStatusIgnored {
+			filteredDefined[k] = s
+		}
+	}
+
+	// Mark anything left over as skipped
+	for id, _ := range filteredDefined {
+		logStatus("Skipping service %s as it is not in the running system", id)
+		results[id] = flux.ServiceResult{
+			Status: flux.ReleaseStatusSkipped,
+			Error:  NotInCluster,
+		}
+	}
+
+	return filteredUpdates, nil
+}
+
+func (s *ServiceUpdate) filter(filters ...ServiceFilter) FilterResult {
+	for _, f := range filters {
+		fr := f.Filter(*s)
+		if fr.Result.Error != "" {
+			return fr
+		}
+	}
+	return FilterResult{}
 }
 
 func (rc *ReleaseContext) FindDefinedServices() ([]*ServiceUpdate, error) {
@@ -186,4 +192,107 @@ func (rc *ReleaseContext) FindDefinedServices() ([]*ServiceUpdate, error) {
 		}
 	}
 	return defined, nil
+}
+
+type FilterResult struct {
+	Result flux.ServiceResult
+	ID     flux.ServiceID
+}
+
+func (fr *FilterResult) String() string {
+	return fmt.Sprintf("%s service %s as it is %s", fr.Result.Status, fr.ID, fr.Result.Error)
+}
+
+type ServiceFilter interface {
+	Filter(ServiceUpdate) FilterResult
+}
+
+type SpecificImageFilter struct {
+	Img flux.ImageID
+}
+
+func (f *SpecificImageFilter) Filter(u ServiceUpdate) FilterResult {
+	// If there are no containers, then we can't check the image.
+	if len(u.Service.Containers.Containers) == 0 {
+		return FilterResult{
+			ID: u.ServiceID,
+			Result: flux.ServiceResult{
+				Status: flux.ReleaseStatusIgnored,
+				Error:  NotInCluster,
+			},
+		}
+	}
+	// For each container in update
+	for _, c := range u.Service.Containers.Containers {
+		cID, _ := flux.ParseImageID(c.Image)
+		// If container image == image in update
+		if cID.HostNamespaceImage() == f.Img.HostNamespaceImage() {
+			// We want to update this
+			return FilterResult{}
+		}
+	}
+	return FilterResult{
+		ID: u.ServiceID,
+		Result: flux.ServiceResult{
+			Status: flux.ReleaseStatusIgnored,
+			Error:  DifferentImage,
+		},
+	}
+}
+
+type ExcludeFilter struct {
+	IDs []flux.ServiceID
+}
+
+func (f *ExcludeFilter) Filter(u ServiceUpdate) FilterResult {
+	for _, id := range f.IDs {
+		if u.ServiceID == id {
+			return FilterResult{
+				ID: u.ServiceID,
+				Result: flux.ServiceResult{
+					Status: flux.ReleaseStatusIgnored,
+					Error:  Excluded,
+				},
+			}
+		}
+	}
+	return FilterResult{}
+}
+
+type IncludeFilter struct {
+	IDs []flux.ServiceID
+}
+
+func (f *IncludeFilter) Filter(u ServiceUpdate) FilterResult {
+	for _, id := range f.IDs {
+		if u.ServiceID == id {
+			return FilterResult{}
+		}
+	}
+	return FilterResult{
+		ID: u.ServiceID,
+		Result: flux.ServiceResult{
+			Status: flux.ReleaseStatusIgnored,
+			Error:  NotIncluded,
+		},
+	}
+}
+
+type LockedFilter struct {
+	IDs []flux.ServiceID
+}
+
+func (f *LockedFilter) Filter(u ServiceUpdate) FilterResult {
+	for _, id := range f.IDs {
+		if u.ServiceID == id {
+			return FilterResult{
+				ID: u.ServiceID,
+				Result: flux.ServiceResult{
+					Status: flux.ReleaseStatusSkipped,
+					Error:  Locked,
+				},
+			}
+		}
+	}
+	return FilterResult{}
 }

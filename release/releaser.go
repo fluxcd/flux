@@ -259,10 +259,35 @@ func selectServices(rc *ReleaseContext, spec *flux.ReleaseSpec, results flux.Rel
 	if err != nil {
 		return nil, err
 	}
-	lockedSet := LockedServices(conf)
 
-	excludedSet := flux.ServiceIDSet{}
-	excludedSet.Add(spec.Excludes)
+	// Build list of filters
+	var filtList []ServiceFilter
+
+	if spec.ImageSpec != flux.ImageSpecNone && spec.ImageSpec != flux.ImageSpecLatest {
+		id, err := flux.ParseImageID(spec.ImageSpec.String())
+		if err != nil {
+			return nil, err
+		}
+		imgFilt := &SpecificImageFilter{id}
+		filtList = append(filtList, imgFilt)
+	}
+	if spec.ServiceSpec != flux.ServiceSpecAll {
+		svcID, err := flux.ParseServiceID(string(spec.ServiceSpec))
+		if err != nil {
+			return nil, err
+		}
+		incFilt := &IncludeFilter{[]flux.ServiceID{svcID}}
+		filtList = append(filtList, incFilt)
+	}
+	if len(spec.Excludes) > 0 {
+		exFilt := &ExcludeFilter{spec.Excludes}
+		filtList = append(filtList, exFilt)
+	}
+
+	// Get locked services
+	lockedSet := LockedServices(conf)
+	lockFilt := &LockedFilter{lockedSet.ToSlice()}
+	filtList = append(filtList, lockFilt)
 
 	// For backwards-compatibility, there's two fields: ServiceSpec
 	// and ServiceSpecs. An entry in ServiceSpec takes precedence.
@@ -271,7 +296,7 @@ func selectServices(rc *ReleaseContext, spec *flux.ReleaseSpec, results flux.Rel
 		ids := []flux.ServiceID{}
 		for _, s := range spec.ServiceSpecs {
 			if s == flux.ServiceSpecAll {
-				return rc.SelectServices(nil, lockedSet, excludedSet, results, logStatus)
+				return rc.SelectServices(results, logStatus, filtList...)
 			}
 			id, err := flux.ParseServiceID(string(s))
 			if err != nil {
@@ -279,15 +304,10 @@ func selectServices(rc *ReleaseContext, spec *flux.ReleaseSpec, results flux.Rel
 			}
 			ids = append(ids, id)
 		}
-		return rc.SelectServices(ids, lockedSet, excludedSet, results, logStatus)
-	case flux.ServiceSpecAll:
-		return rc.SelectServices(nil, lockedSet, excludedSet, results, logStatus)
+		incFilt := &IncludeFilter{ids}
+		return rc.SelectServices(results, logStatus, append([]ServiceFilter{incFilt}, filtList...)...)
 	default:
-		id, err := flux.ParseServiceID(string(spec.ServiceSpec))
-		if err != nil {
-			return nil, err
-		}
-		return rc.SelectServices([]flux.ServiceID{id}, lockedSet, excludedSet, results, logStatus)
+		return rc.SelectServices(results, logStatus, filtList...)
 	}
 }
 
@@ -349,6 +369,7 @@ func calculateImageUpdates(inst *instance.Instance, candidates []*ServiceUpdate,
 
 			latestImage := images.LatestImage(currentImageID.Repository())
 			if latestImage == nil {
+				ignoredOrSkipped = flux.ReleaseStatusUnknown
 				continue
 			}
 
@@ -383,13 +404,19 @@ func calculateImageUpdates(inst *instance.Instance, candidates []*ServiceUpdate,
 			logStatus("Skipping service %s, images are up to date", update.ServiceID)
 			results[update.ServiceID] = flux.ServiceResult{
 				Status: flux.ReleaseStatusSkipped,
-				Error:  "image(s) up to date",
+				Error:  ImageUpToDate,
 			}
 		case ignoredOrSkipped == flux.ReleaseStatusIgnored:
 			logStatus("Ignoring service %s, does not use image(s) in question", update.ServiceID)
 			results[update.ServiceID] = flux.ServiceResult{
 				Status: flux.ReleaseStatusIgnored,
 				Error:  "does not use image(s)",
+			}
+		case ignoredOrSkipped == flux.ReleaseStatusUnknown:
+			logStatus("Ignoring service %s, cannot find image(s)", update.ServiceID)
+			results[update.ServiceID] = flux.ServiceResult{
+				Status: flux.ReleaseStatusSkipped,
+				Error:  ImageNotFound,
 			}
 		}
 	}
