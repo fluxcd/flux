@@ -292,6 +292,8 @@ func (s HTTPService) GetConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// This replaces the private key with the public one, so we can fingerprint
+	// it if needed
 	safeConfig := config.HideSecrets()
 	if fingerprint != "" && config.Git.Key != "" {
 		pk, _, _, _, err := ssh.ParseAuthorizedKey([]byte(safeConfig.Git.Key))
