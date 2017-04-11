@@ -433,7 +433,7 @@ func TestFluxsvc_Config(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	conf, err := apiClient.GetConfig("")
+	conf, err := apiClient.GetConfig("", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -466,7 +466,7 @@ func TestFluxsvc_DeployKeys(t *testing.T) {
 	}
 
 	// Get new key
-	conf, err := apiClient.GetConfig("")
+	conf, err := apiClient.GetConfig("", "")
 	if err != nil {
 		t.Fatal(err)
 	}
