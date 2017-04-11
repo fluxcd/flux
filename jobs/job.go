@@ -19,6 +19,9 @@ const (
 	// AutomatedInstanceJob is the method for a check automated instance job
 	AutomatedInstanceJob = "automated_instance"
 
+	// SyncJob is the method for a sync job
+	SyncJob = "sync"
+
 	// PriorityBackground is priority for background jobs
 	PriorityBackground = 100
 
@@ -147,5 +150,10 @@ func (params ReleaseJobParams) Spec() flux.ReleaseSpec {
 
 // AutomatedInstanceJobParams are the params for an automated_instance job
 type AutomatedInstanceJobParams struct {
+	InstanceID flux.InstanceID
+}
+
+// SyncJobParams are the params for a sync job
+type SyncJobParams struct {
 	InstanceID flux.InstanceID
 }

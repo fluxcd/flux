@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"net/url"
@@ -13,6 +14,7 @@ import (
 	"time"
 
 	"github.com/go-kit/kit/log"
+	gh "github.com/google/go-github/github"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 	"github.com/weaveworks/common/middleware"
@@ -50,6 +52,9 @@ func NewHandler(s api.FluxService, r *mux.Router, logger log.Logger) http.Handle
 		"RegisterDaemonV5":       handle.RegisterV5,
 		"IsConnected":            handle.IsConnected,
 		"Export":                 handle.Export,
+		"Watch":                  handle.Watch,
+		"Unwatch":                handle.Unwatch,
+		"Hooks":                  handle.Hooks,
 	} {
 		handler := logging(handlerMethod, log.NewContext(logger).With("method", method))
 		r.Get(method).Handler(handler)
@@ -469,7 +474,75 @@ func (s HTTPService) Export(w http.ResponseWriter, r *http.Request) {
 	jsonResponse(w, r, status)
 }
 
+func (s HTTPService) Watch(w http.ResponseWriter, r *http.Request) {
+	inst := getInstanceID(r)
+	webhookEndpoint, err := s.service.Watch(inst)
+	if err != nil {
+		errorResponse(w, r, err)
+		return
+	}
+
+	resp := transport.PostWatchResponse{WebhookEndpoint: webhookEndpoint}
+	jsonResponse(w, r, resp)
+}
+
+func (s HTTPService) Unwatch(w http.ResponseWriter, r *http.Request) {
+	inst := getInstanceID(r)
+	err := s.service.Unwatch(inst)
+	if err != nil {
+		errorResponse(w, r, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+func (s HTTPService) Hooks(w http.ResponseWriter, r *http.Request) {
+	// Figure out where it came from
+	// This is done by presence of headers.
+	if r.Header.Get("X-GitHub-Delivery") == "" {
+		// It's not from github... eh? They're the only ones we support right
+		// now, so bail.
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+
+	payload, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintf(w, err.Error())
+		return
+	}
+	r.Body.Close()
+
+	// Parse the event
+	event, err := gh.ParseWebHook(gh.WebHookType(r), payload)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprintf(w, err.Error())
+		return
+	}
+
+	// For now we only do anything on push events from github
+	switch event.(type) {
+	case *gh.PushEvent:
+		if err := s.service.RepoUpdate(mux.Vars(r)["externalInstanceID"]); err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintf(w, err.Error())
+			return
+		}
+	}
+
+	w.WriteHeader(http.StatusOK)
+	return
+}
+
 // --- end handlers
+
+// map external instance
+func internalInstanceIDFromExternal(ext string) (flux.InstanceID, error) {
+	return flux.DefaultInstanceID, fmt.Errorf("TODO: implement http.internalInstanceIDFromExternal")
+}
 
 func logging(next http.Handler, logger log.Logger) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

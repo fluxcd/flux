@@ -44,6 +44,7 @@ type InstanceConfig struct {
 	Git      GitConfig      `json:"git" yaml:"git"`
 	Slack    NotifierConfig `json:"slack" yaml:"slack"`
 	Registry RegistryConfig `json:"registry" yaml:"registry"`
+	Watching bool           `json:"watching" yaml:"watching"`
 }
 
 // As a safeguard, we make the default behaviour to hide secrets when

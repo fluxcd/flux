@@ -2,6 +2,7 @@ package server
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -27,21 +28,24 @@ const (
 
 type Server struct {
 	version     string
+	webhookURL  string
 	instancer   instance.Instancer
 	config      instance.DB
 	messageBus  platform.MessageBus
 	jobs        jobs.JobStore
+	idMapper    instance.IDMapper
 	logger      log.Logger
 	maxPlatform chan struct{} // semaphore for concurrent calls to the platform
 	connected   int32
 }
 
 func New(
-	version string,
+	version, webhookURL string,
 	instancer instance.Instancer,
 	config instance.DB,
 	messageBus platform.MessageBus,
 	jobs jobs.JobStore,
+	idMapper instance.IDMapper,
 	logger log.Logger,
 ) *Server {
 	connectedDaemons.Set(0)
@@ -51,6 +55,7 @@ func New(
 		config:      config,
 		messageBus:  messageBus,
 		jobs:        jobs,
+		idMapper:    idMapper,
 		logger:      logger,
 		maxPlatform: make(chan struct{}, 8),
 	}
@@ -61,6 +66,14 @@ func New(
 // get something working. There's also a lot of code duplication here for the
 // same reason: let's not add abstraction until it's merged, or nearly so, and
 // it's clear where the abstraction should exist.
+
+func (s *Server) WebhookURL(inst flux.InstanceID) (string, error) {
+	external, err := s.idMapper.ExternalInstanceID(inst)
+	if err != nil {
+		return "", errors.Wrap(err, "fetching instance id")
+	}
+	return filepath.Join(s.webhookURL, external), nil
+}
 
 func (s *Server) Status(inst flux.InstanceID) (res flux.Status, err error) {
 	helper, err := s.instancer.Get(inst)
@@ -457,71 +470,53 @@ func (s *Server) IsDaemonConnected(instID flux.InstanceID) error {
 	return s.messageBus.Ping(instID)
 }
 
-type loggingPlatform struct {
-	platform platform.Platform
-	logger   log.Logger
+func (s *Server) Watch(instID flux.InstanceID) (string, error) {
+	// Get current config
+	cfg, err := s.GetConfig(instID)
+	if err != nil {
+		return "", err
+	}
+	cfg.Watching = true
+
+	// TODO: Sync the repo, and apply the state immediately!
+
+	// Set new config
+	if err := s.config.UpdateConfig(instID, applyConfigUpdates(flux.UnsafeInstanceConfig(cfg))); err != nil {
+		return "", err
+	}
+	return s.WebhookURL(instID)
 }
 
-func (p *loggingPlatform) AllServices(maybeNamespace string, ignored flux.ServiceIDSet) (ss []platform.Service, err error) {
-	defer func() {
-		if err != nil {
-			p.logger.Log("method", "AllServices", "error", err)
-		}
-	}()
-	return p.platform.AllServices(maybeNamespace, ignored)
+func (s *Server) Unwatch(instID flux.InstanceID) error {
+	// Get current config
+	cfg, err := s.GetConfig(instID)
+	if err != nil {
+		return err
+	}
+	cfg.Watching = false
+
+	// Set new config
+	return s.config.UpdateConfig(instID, applyConfigUpdates(flux.UnsafeInstanceConfig(cfg)))
 }
 
-func (p *loggingPlatform) SomeServices(include []flux.ServiceID) (ss []platform.Service, err error) {
-	defer func() {
-		if err != nil {
-			p.logger.Log("method", "SomeServices", "error", err)
-		}
-	}()
-	return p.platform.SomeServices(include)
-}
+func (s *Server) RepoUpdate(externalInstanceID string) error {
+	inst, err := s.idMapper.InternalInstanceID(externalInstanceID)
+	if err != nil {
+		return err
+	}
 
-func (p *loggingPlatform) Apply(defs []platform.ServiceDefinition) (err error) {
-	defer func() {
-		if err != nil {
-			p.logger.Log("method", "Apply", "error", err)
-		}
-	}()
-	return p.platform.Apply(defs)
-}
-
-func (p *loggingPlatform) Ping() (err error) {
-	defer func() {
-		if err != nil {
-			p.logger.Log("method", "Ping", "error", err)
-		}
-	}()
-	return p.platform.Ping()
-}
-
-func (p *loggingPlatform) Version() (v string, err error) {
-	defer func() {
-		if err != nil {
-			p.logger.Log("method", "Version", "error", err, "version", v)
-		}
-	}()
-	return p.platform.Version()
-}
-
-func (p *loggingPlatform) Export() (config []byte, err error) {
-	defer func() {
-		if err != nil {
-			// Omit config as it could be large
-			p.logger.Log("method", "Export", "error", err)
-		}
-	}()
-	return p.platform.Export()
-}
-
-func (p *loggingPlatform) Sync(def platform.SyncDef) (err error) {
-	defer func() {
-		if err != nil {
-			p.logger.Log("method", "Sync", "error", err)
-		}
-	}()
-	return p.platform.Sync(def)
+	_, err = s.jobs.PutJob(inst, jobs.Job{
+		Queue: jobs.SyncJob,
+		// Key stops us getting two queued jobs for the same instance
+		Key: strings.Join([]string{
+			jobs.SyncJob,
+			string(inst),
+		}, "|"),
+		Method:   jobs.SyncJob,
+		Priority: jobs.PriorityBackground,
+		Params: jobs.SyncJobParams{
+			InstanceID: inst,
+		},
+	})
+	return err
 }

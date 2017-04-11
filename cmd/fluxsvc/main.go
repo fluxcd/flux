@@ -27,6 +27,8 @@ import (
 	"github.com/weaveworks/flux/registry"
 	"github.com/weaveworks/flux/release"
 	"github.com/weaveworks/flux/server"
+	"github.com/weaveworks/flux/sync"
+	"github.com/weaveworks/flux/users"
 )
 
 const shutdownTimeout = 30 * time.Second
@@ -54,6 +56,8 @@ func main() {
 		memcachedService      = fs.String("memcached-service", "memcached", "SRV service used to discover memcache servers.")
 		registryCacheExpiry   = fs.Duration("registry-cache-expiry", 20*time.Minute, "Duration to keep cached registry tag info. Must be < 1 month.")
 		versionFlag           = fs.Bool("version", false, "Get version number")
+		webhookURL            = fs.String("webhook-url", "", "Base URL where webhooks should be configured to post to. If empty, no webhooks will be installed.")
+		instanceService       = fs.String("instance-service", "", `GRPC service to look up instances, for converting internal to external IDs (e.g. "<service>.<namespace>:<port>"). If empty, instance IDs will not be converted.`)
 	)
 	fs.Parse(os.Args)
 
@@ -185,21 +189,25 @@ func main() {
 
 	go auto.Start(log.NewContext(logger).With("component", "automator"))
 
+	// Syncer
+	syncer := sync.NewSyncer(instancer, log.NewContext(logger).With("component", "syncer"))
+
 	// Job workers.
 	//
 	// Doing one worker (and one queue) for each job type for now. This way slow
 	// release jobs can't interfere with slow automated service jobs, or vice
 	// versa. This is probably not optimal. Really all jobs should be quick and
 	// recoverable.
-	for _, queue := range []string{
-		jobs.DefaultQueue,
-		jobs.ReleaseJob,
-		jobs.AutomatedInstanceJob,
+	for _, queues := range [][]string{
+		{jobs.DefaultQueue},
+		{jobs.ReleaseJob, jobs.SyncJob}, // Need to process these serially per-instance
+		{jobs.AutomatedInstanceJob},
 	} {
-		logger := log.NewContext(logger).With("component", "worker", "queues", fmt.Sprint([]string{queue}))
-		worker := jobs.NewWorker(jobStore, logger, []string{queue})
+		logger := log.NewContext(logger).With("component", "worker", "queues", fmt.Sprint(queues))
+		worker := jobs.NewWorker(jobStore, logger, queues)
 		worker.Register(jobs.AutomatedInstanceJob, auto)
 		worker.Register(jobs.ReleaseJob, release.NewReleaser(instancer))
+		worker.Register(jobs.SyncJob, syncer)
 
 		defer func() {
 			logger.Log("stopping", "true")
@@ -219,8 +227,16 @@ func main() {
 		go cleaner.Clean(cleanTicker.C)
 	}
 
+	// Instance lookup service for mapping internal ids to external ids
+	var idMapper instance.IDMapper = instance.IdentityIDMapper
+	if *instanceService != "" {
+		client := users.NewClient(*instanceService)
+		idMapper = client
+		defer client.Close()
+	}
+
 	// The server.
-	server := server.New(version, instancer, instanceDB, messageBus, jobStore, logger)
+	server := server.New(version, *webhookURL, instancer, instanceDB, messageBus, jobStore, idMapper, logger)
 
 	// Mechanical components.
 	errc := make(chan error)
