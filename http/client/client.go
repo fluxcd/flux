@@ -102,8 +102,8 @@ func (c *client) History(_ flux.InstanceID, s flux.ServiceSpec, before time.Time
 	return res, err
 }
 
-func (c *client) GetConfig(_ flux.InstanceID, secrets bool, fingerprint string) (flux.InstanceConfig, error) {
-	params := []string{"secrets", fmt.Sprint(secrets)}
+func (c *client) GetConfig(_ flux.InstanceID, fingerprint string) (flux.InstanceConfig, error) {
+	var params []string
 	if fingerprint != "" {
 		params = append(params, "fingerprint", fingerprint)
 	}

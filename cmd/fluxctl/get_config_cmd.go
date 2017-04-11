@@ -52,7 +52,7 @@ func (opts *getConfigOpts) RunE(_ *cobra.Command, args []string) error {
 		return errors.New("unknown output format " + opts.output)
 	}
 
-	config, err := opts.API.GetConfig(noInstanceID, false, opts.fingerprint)
+	config, err := opts.API.GetConfig(noInstanceID, opts.fingerprint)
 	if err != nil {
 		return err
 	}

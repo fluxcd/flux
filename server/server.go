@@ -340,7 +340,7 @@ func (s *Server) GetRelease(inst flux.InstanceID, id jobs.JobID) (jobs.Job, erro
 	return j, err
 }
 
-func (s *Server) GetConfig(instID flux.InstanceID, secrets bool, fingerprint string) (flux.InstanceConfig, error) {
+func (s *Server) GetConfig(instID flux.InstanceID, fingerprint string) (flux.InstanceConfig, error) {
 	fullConfig, err := s.config.GetConfig(instID)
 	if err != nil {
 		return flux.InstanceConfig{}, err
@@ -390,7 +390,7 @@ func (s *Server) GenerateDeployKey(instID flux.InstanceID) error {
 	}
 
 	// Get current config
-	cfg, err := s.GetConfig(instID, true, "")
+	cfg, err := s.GetConfig(instID, "")
 	if err != nil {
 		return err
 	}

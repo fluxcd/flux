@@ -57,6 +57,7 @@ func (c InstanceConfig) MarshalJSON() ([]byte, error) {
 }
 
 func (c InstanceConfig) HideSecrets() SafeInstanceConfig {
+	c.Git = c.Git.HideKey()
 	for host, auth := range c.Registry.Auths {
 		c.Registry.Auths[host] = auth.HidePassword()
 	}

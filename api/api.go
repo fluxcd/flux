@@ -19,7 +19,7 @@ type ClientService interface {
 	Lock(flux.InstanceID, flux.ServiceID) error
 	Unlock(flux.InstanceID, flux.ServiceID) error
 	History(flux.InstanceID, flux.ServiceSpec, time.Time, int64) ([]flux.HistoryEntry, error)
-	GetConfig(_ flux.InstanceID, secrets bool, fingerprint string) (flux.InstanceConfig, error)
+	GetConfig(_ flux.InstanceID, fingerprint string) (flux.InstanceConfig, error)
 	SetConfig(flux.InstanceID, flux.UnsafeInstanceConfig) error
 	PatchConfig(flux.InstanceID, flux.ConfigPatch) error
 	GenerateDeployKey(flux.InstanceID) error
