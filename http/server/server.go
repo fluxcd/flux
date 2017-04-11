@@ -3,6 +3,9 @@ package server
 import (
 	"bufio"
 	"bytes"
+	"crypto/md5"
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -16,6 +19,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 	"github.com/weaveworks/common/middleware"
+	"golang.org/x/crypto/ssh"
 
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/api"
@@ -281,13 +285,50 @@ func (s HTTPService) History(w http.ResponseWriter, r *http.Request) {
 
 func (s HTTPService) GetConfig(w http.ResponseWriter, r *http.Request) {
 	inst := getInstanceID(r)
-	config, err := s.service.GetConfig(inst)
+	secrets := r.FormValue("secrets") == "true"
+	fingerprint := r.FormValue("fingerprint")
+	config, err := s.service.GetConfig(inst, secrets, fingerprint)
 	if err != nil {
 		errorResponse(w, r, err)
 		return
 	}
 
-	jsonResponse(w, r, config)
+	var fingerprinted = false
+	if fingerprint != "" && config.Git.Key != "" {
+		pk, _, _, _, err := ssh.ParseAuthorizedKey([]byte(config.Git.HideKey().Key))
+		if err != nil {
+			fingerprinted = true
+			config.Git.Key = "unable to parse public key"
+		} else {
+			switch fingerprint {
+			case "md5":
+				fingerprinted = true
+				hash := md5.Sum(pk.Marshal())
+				fingerprint := ""
+				for i, b := range hash {
+					fingerprint = fmt.Sprintf("%s%0.2x", fingerprint, b)
+					if i < len(hash)-1 {
+						fingerprint = fingerprint + ":"
+					}
+				}
+				config.Git.Key = fingerprint
+			case "sha256":
+				fingerprinted = true
+				hash := sha256.Sum256(pk.Marshal())
+				config.Git.Key = strings.TrimRight(base64.StdEncoding.EncodeToString(hash[:]), "=")
+			}
+		}
+	}
+
+	if secrets {
+		jsonResponse(w, r, flux.UnsafeInstanceConfig(config))
+		return
+	}
+
+	if !fingerprinted {
+		config.Git = config.Git.HideKey()
+	}
+	jsonResponse(w, r, config.HideSecrets())
 }
 
 func (s HTTPService) SetConfig(w http.ResponseWriter, r *http.Request) {
@@ -357,7 +398,7 @@ func (s HTTPService) PostIntegrationsGithub(w http.ResponseWriter, r *http.Reque
 	}
 
 	// Obtain the generated key
-	cfg, err := s.service.GetConfig(inst)
+	cfg, err := s.service.GetConfig(inst, true, "")
 	if err != nil {
 		errorResponse(w, r, err)
 		return
