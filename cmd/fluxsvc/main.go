@@ -45,15 +45,17 @@ func main() {
 	}
 
 	var (
-		listenAddr            = fs.StringP("listen", "l", ":3030", "Listen address for Flux API clients")
-		databaseSource        = fs.String("database-source", "file://fluxy.db", `Database source name; includes the DB driver as the scheme. The default is a temporary, file-based DB`)
-		databaseMigrationsDir = fs.String("database-migrations", "./db/migrations", "Path to database migration scripts, which are in subdirectories named for each driver")
-		natsURL               = fs.String("nats-url", "", `URL on which to connect to NATS, or empty to use the standalone message bus (e.g., "nats://user:pass@nats:4222")`)
-		memcachedHostname     = fs.String("memcached-hostname", "", "Hostname for memcached service to use when caching chunks. If empty, no memcached will be used.")
-		memcachedTimeout      = fs.Duration("memcached-timeout", 100*time.Millisecond, "Maximum time to wait before giving up on memcached requests.")
-		memcachedService      = fs.String("memcached-service", "memcached", "SRV service used to discover memcache servers.")
-		registryCacheExpiry   = fs.Duration("registry-cache-expiry", 20*time.Minute, "Duration to keep cached registry tag info. Must be < 1 month.")
-		versionFlag           = fs.Bool("version", false, "Get version number")
+		listenAddr                  = fs.StringP("listen", "l", ":3030", "Listen address for Flux API clients")
+		databaseSource              = fs.String("database-source", "file://fluxy.db", `Database source name; includes the DB driver as the scheme. The default is a temporary, file-based DB`)
+		databaseMigrationsDir       = fs.String("database-migrations", "./db/migrations", "Path to database migration scripts, which are in subdirectories named for each driver")
+		natsURL                     = fs.String("nats-url", "", `URL on which to connect to NATS, or empty to use the standalone message bus (e.g., "nats://user:pass@nats:4222")`)
+		memcachedHostname           = fs.String("memcached-hostname", "", "Hostname for memcached service to use when caching chunks. If empty, no memcached will be used.")
+		memcachedTimeout            = fs.Duration("memcached-timeout", 100*time.Millisecond, "Maximum time to wait before giving up on memcached requests.")
+		memcachedService            = fs.String("memcached-service", "memcached", "SRV service used to discover memcache servers.")
+		registryCacheExpiry         = fs.Duration("registry-cache-expiry", 20*time.Minute, "Duration to keep cached registry tag info. Must be < 1 month.")
+		releaseJobWorkers           = fs.Int(jobs.ReleaseJob+"-workers", 1, "Number of workers to process release jobs")
+		automatedInstanceJobWorkers = fs.Int(jobs.AutomatedInstanceJob+"-workers", 1, "Number of workers to process automated_instance jobs")
+		versionFlag                 = fs.Bool("version", false, "Get version number")
 	)
 	fs.Parse(os.Args)
 
@@ -191,24 +193,28 @@ func main() {
 	// release jobs can't interfere with slow automated service jobs, or vice
 	// versa. This is probably not optimal. Really all jobs should be quick and
 	// recoverable.
-	for _, queue := range []string{
-		jobs.DefaultQueue,
-		jobs.ReleaseJob,
-		jobs.AutomatedInstanceJob,
+	for queue, workers := range map[string]int{
+		jobs.DefaultQueue:         1, // Backwards compatibility...
+		jobs.ReleaseJob:           *releaseJobWorkers,
+		jobs.AutomatedInstanceJob: *automatedInstanceJobWorkers,
 	} {
 		logger := log.NewContext(logger).With("component", "worker", "queues", fmt.Sprint([]string{queue}))
-		worker := jobs.NewWorker(jobStore, logger, []string{queue})
-		worker.Register(jobs.AutomatedInstanceJob, auto)
-		worker.Register(jobs.ReleaseJob, release.NewReleaser(instancer))
+		// create i workers for this queue
+		for i := 0; i < workers; i++ {
+			worker := jobs.NewWorker(jobStore, logger, []string{queue})
 
-		defer func() {
-			logger.Log("stopping", "true")
-			if err := worker.Stop(shutdownTimeout); err != nil {
-				logger.Log("err", err)
-			}
-		}()
-		go worker.Work()
+			// All workers understand all job types, because I'm a lazy coder.
+			worker.Register(jobs.AutomatedInstanceJob, auto)
+			worker.Register(jobs.ReleaseJob, release.NewReleaser(instancer))
 
+			defer func() {
+				logger.Log("stopping", "true")
+				if err := worker.Stop(shutdownTimeout); err != nil {
+					logger.Log("err", err)
+				}
+			}()
+			go worker.Work()
+		}
 	}
 
 	// Job GC cleaner
