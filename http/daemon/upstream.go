@@ -44,7 +44,7 @@ var (
 )
 
 func NewUpstream(client *http.Client, ua string, t flux.Token, router *mux.Router, endpoint string, p platform.Platform, logger log.Logger) (*Upstream, error) {
-	u, err := transport.MakeURL(endpoint, router, "RegisterDaemonV5")
+	u, err := transport.MakeURL(endpoint, router, "RegisterDaemonV6")
 	if err != nil {
 		return nil, errors.Wrap(err, "constructing URL")
 	}

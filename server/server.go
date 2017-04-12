@@ -78,26 +78,15 @@ func (s *Server) ListServices(instID flux.InstanceID, namespace string) (res []f
 	if err != nil {
 		return nil, errors.Wrap(err, "getting services from platform")
 	}
-
-	config, err := inst.Config.Get()
-	if err != nil {
-		return nil, errors.Wrapf(err, "getting config for %s", inst)
-	}
-
-	for _, service := range services {
-		service.Automated = config.Services[service.ID].Automated
-		service.Locked = config.Services[service.ID].Locked
-	}
-	return res, nil
+	return services, nil
 }
 
-func (s *Server) ListImages(inst flux.InstanceID, spec flux.ServiceSpec) (res []flux.ImageStatus, err error) {
-	helper, err := s.instancer.Get(inst)
+func (s *Server) ListImages(instID flux.InstanceID, spec flux.ServiceSpec) (res []flux.ImageStatus, err error) {
+	inst, err := s.instancer.Get(instID)
 	if err != nil {
-		return nil, errors.Wrapf(err, "getting instance")
+		return nil, errors.Wrapf(err, "getting instance "+string(instID))
 	}
-
-	return helper.Platform.ListImages(spec)
+	return inst.Platform.ListImages(spec)
 }
 
 func (s *Server) UpdateImages(instID flux.InstanceID, spec flux.ReleaseSpec) (res flux.ReleaseResult, err error) {
@@ -371,7 +360,7 @@ func (s *Server) Export(instID flux.InstanceID) (res []byte, err error) {
 }
 
 func (s *Server) instrumentPlatform(instID flux.InstanceID, p platform.Platform) platform.Platform {
-	return &loggingPlatform{
+	return &platform.ErrorLoggingPlatform{
 		platform.Instrument(p),
 		log.NewContext(s.logger).With("instanceID", instID),
 	}
@@ -379,82 +368,4 @@ func (s *Server) instrumentPlatform(instID flux.InstanceID, p platform.Platform)
 
 func (s *Server) IsDaemonConnected(instID flux.InstanceID) error {
 	return s.messageBus.Ping(instID)
-}
-
-type loggingPlatform struct {
-	platform platform.Platform
-	logger   log.Logger
-}
-
-func (p *loggingPlatform) Ping() (err error) {
-	defer func() {
-		if err != nil {
-			p.logger.Log("method", "Ping", "error", err)
-		}
-	}()
-	return p.platform.Ping()
-}
-
-func (p *loggingPlatform) Version() (v string, err error) {
-	defer func() {
-		if err != nil {
-			p.logger.Log("method", "Version", "error", err, "version", v)
-		}
-	}()
-	return p.platform.Version()
-}
-
-func (p *loggingPlatform) Export() (config []byte, err error) {
-	defer func() {
-		if err != nil {
-			// Omit config as it could be large
-			p.logger.Log("method", "Export", "error", err)
-		}
-	}()
-	return p.platform.Export()
-}
-
-func (p *loggingPlatform) ListServices(maybeNamespace string) (_ []flux.ServiceStatus, err error) {
-	defer func() {
-		if err != nil {
-			p.logger.Log("method", "ListServices", "error", err)
-		}
-	}()
-	return p.platform.ListServices(maybeNamespace)
-}
-
-func (p *loggingPlatform) ListImages(spec flux.ServiceSpec) (_ []flux.ImageStatus, err error) {
-	defer func() {
-		if err != nil {
-			p.logger.Log("method", "ListImages", "error", err)
-		}
-	}()
-	return p.platform.ListImages(spec)
-}
-
-func (p *loggingPlatform) SyncCluster() (err error) {
-	defer func() {
-		if err != nil {
-			p.logger.Log("method", "SyncCluster", "error", err)
-		}
-	}()
-	return p.platform.SyncCluster()
-}
-
-func (p *loggingPlatform) SyncStatus(rev string) (_ []string, err error) {
-	defer func() {
-		if err != nil {
-			p.logger.Log("method", "SyncStatus", "error", err)
-		}
-	}()
-	return p.platform.SyncStatus(rev)
-}
-
-func (p *loggingPlatform) UpdateImages(spec flux.ReleaseSpec) (_ flux.ReleaseResult, err error) {
-	defer func() {
-		if err != nil {
-			p.logger.Log("method", "UpdateImages", "error", err)
-		}
-	}()
-	return p.platform.UpdateImages(spec)
 }

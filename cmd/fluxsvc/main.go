@@ -147,7 +147,7 @@ func main() {
 		logger.Log("addr", *listenAddr)
 		mux := http.NewServeMux()
 		mux.Handle("/metrics", promhttp.Handler())
-		handler := httpserver.NewHandler(server, transport.NewRouter(), logger)
+		handler := httpserver.NewHandler(server, transport.NewServiceRouter(), logger)
 		mux.Handle("/", handler)
 		mux.Handle("/api/flux/", http.StripPrefix("/api/flux", handler))
 		errc <- http.ListenAndServe(*listenAddr, mux)

@@ -13,15 +13,24 @@ import (
 	"github.com/weaveworks/flux"
 )
 
-func NewRouter() *mux.Router {
+func NewAPIRouter() *mux.Router {
 	r := mux.NewRouter()
 	// Any versions not represented in the routes below are
 	// deprecated. They are done separately so we can see them as
 	// different methods in metrics and logging.
+	var deprecated http.HandlerFunc = func(w http.ResponseWriter, r *http.Request) {
+		WriteError(w, r, http.StatusGone, ErrorDeprecated)
+	}
+
 	for _, version := range []string{"v1", "v2"} {
-		r.NewRoute().Name("Deprecated:" + version).PathPrefix("/" + version + "/").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			WriteError(w, r, http.StatusGone, ErrorDeprecated)
-		})
+		r.NewRoute().Name("Deprecated:" + version).PathPrefix("/" + version + "/").HandlerFunc(deprecated)
+	}
+
+	// These API endpoints are specifically deprecated
+	for name, path := range map[string]string{
+		"PostOrGetRelease": "/v4/release", // deprecated because UpdateImages and Sync{Cluster,Status} supercede them, and we cannot support both
+	} {
+		r.NewRoute().Name("Deprecated:" + name).Path(path).HandlerFunc(deprecated)
 	}
 
 	r.NewRoute().Name("ListServices").Methods("GET").Path("/v3/services").Queries("namespace", "{namespace}") // optional namespace!
@@ -30,6 +39,13 @@ func NewRouter() *mux.Router {
 	r.NewRoute().Name("UpdateImages").Methods("POST").Path("/v6/update-images").Queries("service", "{service}", "image", "{image}", "kind", "{kind}")
 	r.NewRoute().Name("SyncCluster").Methods("POST").Path("/v6/sync")
 	r.NewRoute().Name("SyncStatus").Methods("GET").Path("/v6/sync").Queries("rev", "{rev}")
+	r.NewRoute().Name("Export").Methods("HEAD", "GET").Path("/v5/export")
+
+	return r // TODO 404 though?
+}
+
+func NewServiceRouter() *mux.Router {
+	r := NewAPIRouter()
 
 	r.NewRoute().Name("Automate").Methods("POST").Path("/v3/automate").Queries("service", "{service}")
 	r.NewRoute().Name("Deautomate").Methods("POST").Path("/v3/deautomate").Queries("service", "{service}")
@@ -46,7 +62,6 @@ func NewRouter() *mux.Router {
 	r.NewRoute().Name("RegisterDaemonV5").Methods("GET").Path("/v5/daemon")
 	r.NewRoute().Name("RegisterDaemonV6").Methods("GET").Path("/v6/daemon")
 	r.NewRoute().Name("IsConnected").Methods("HEAD", "GET").Path("/v4/ping")
-	r.NewRoute().Name("Export").Methods("HEAD", "GET").Path("/v5/export")
 
 	// We assume every request that doesn't match a route is a client
 	// calling an old or hitherto unsupported API.

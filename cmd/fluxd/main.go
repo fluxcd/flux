@@ -15,7 +15,9 @@ import (
 	"k8s.io/client-go/1.5/rest"
 
 	//	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/git"
+	transport "github.com/weaveworks/flux/http"
 	daemonhttp "github.com/weaveworks/flux/http/daemon"
 	"github.com/weaveworks/flux/platform"
 	"github.com/weaveworks/flux/platform/kubernetes"
@@ -36,7 +38,7 @@ func main() {
 	}
 	// This mirrors how kubectl extracts information from the environment.
 	var (
-		listenAddr = fs.StringP("listen", "l", ":3031", "Listen address where /metrics will be served")
+		listenAddr = fs.StringP("listen", "l", ":3031", "Listen address where /metrics and API will be served")
 		//		fluxsvcAddress    = fs.String("fluxsvc-address", "wss://cloud.weave.works/api/flux", "Address of the fluxsvc to connect to.")
 		//		token             = fs.String("token", "", "Token to use to authenticate with flux service")
 		kubernetesKubectl = fs.String("kubernetes-kubectl", "", "Optional, explicit path to kubectl tool")
@@ -52,6 +54,9 @@ func main() {
 		memcachedTimeout    = fs.Duration("memcached-timeout", 100*time.Millisecond, "Maximum time to wait before giving up on memcached requests.")
 		memcachedService    = fs.String("memcached-service", "memcached", "SRV service used to discover memcache servers.")
 		registryCacheExpiry = fs.Duration("registry-cache-expiry", 20*time.Minute, "Duration to keep cached registry tag info. Must be < 1 month.")
+
+		upstreamURL = fs.String("connect", "", "Connect to an upstream service e.g., Weave Cloud, at this base address")
+		token       = fs.String("token", "", "Authentication token for upstream service")
 	)
 	fs.Parse(os.Args)
 
@@ -161,22 +166,25 @@ func main() {
 		Registry: reg,
 	}
 
-	// // Connect to fluxsvc
-	// daemonLogger := log.NewContext(logger).With("component", "client")
-	// daemon, err := transport.NewUpstream(
-	// 	&http.Client{Timeout: 10 * time.Second},
-	// 	fmt.Sprintf("fluxd/%v", version),
-	// 	flux.Token(*token),
-	// 	transport.NewRouter(),
-	// 	*fluxsvcAddress,
-	// 	pform,
-	// 	daemonLogger,
-	// )
-	// if err != nil {
-	// 	logger.Log("err", err)
-	// 	os.Exit(1)
-	// }
-	// defer daemon.Close()
+	// Connect to fluxsvc if given an upstream address
+	if *upstreamURL != "" {
+		daemonLogger := log.NewContext(logger).With("component", "upstream")
+		daemonLogger.Log("connectURL", *upstreamURL)
+		upstream, err := daemonhttp.NewUpstream(
+			&http.Client{Timeout: 10 * time.Second},
+			fmt.Sprintf("fluxd/%v", version),
+			flux.Token(*token),
+			transport.NewServiceRouter(), // TODO should be NewUpstreamRouter, since it only need the registration endpoint
+			*upstreamURL,
+			&platform.ErrorLoggingPlatform{daemon, daemonLogger},
+			daemonLogger,
+		)
+		if err != nil {
+			logger.Log("err", err)
+			os.Exit(1)
+		}
+		defer upstream.Close()
+	}
 
 	// Mechanical components.
 	errc := make(chan error)
