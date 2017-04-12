@@ -142,7 +142,7 @@ func main() {
 			logger.Log("err", err)
 		}
 		registryLogger := log.NewContext(logger).With("component", "registry")
-		reg := registry.NewRegistry(
+		reg = registry.NewRegistry(
 			registry.NewRemoteClientFactory(creds, registryLogger, memcacheClient, *registryCacheExpiry),
 			registryLogger,
 		)

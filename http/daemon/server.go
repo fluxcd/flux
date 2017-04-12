@@ -25,14 +25,7 @@ var (
 
 // An API server for the daemon
 func NewRouter() *mux.Router {
-	r := mux.NewRouter()
-	r.NewRoute().Name("SyncCluster").Methods("POST").Path("/v6/sync")
-	r.NewRoute().Name("SyncStatus").Methods("GET").Path("/v6/sync")
-	// TODO This one could be the same Release as for the service, possibly
-	r.NewRoute().Name("UpdateImages").Methods("POST").Path("/v6/update-images").Queries("image", "{image}", "kind", "{kind}")
-	// FIXME until this is part of a common routing table
-	r.NewRoute().Name("ListServices").Methods("GET").Path("/v3/services").Queries("namespace", "{namespace}")
-
+	r := transport.NewAPIRouter()
 	// We assume every request that doesn't match a route is a client
 	// calling an old or hitherto unsupported API.
 	r.NewRoute().Name("NotFound").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -48,6 +41,7 @@ func NewHandler(d *platform.Daemon, r *mux.Router) http.Handler {
 	r.Get("SyncStatus").HandlerFunc(handle.SyncStatus)
 	r.Get("UpdateImages").HandlerFunc(handle.UpdateImages)
 	r.Get("ListServices").HandlerFunc(handle.ListServices)
+	r.Get("ListImages").HandlerFunc(handle.ListImages)
 
 	return middleware.Instrument{
 		RouteMatcher: r,
@@ -75,6 +69,22 @@ func (s HTTPServer) SyncStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	transport.JSONResponse(w, r, commits)
+}
+
+func (s HTTPServer) ListImages(w http.ResponseWriter, r *http.Request) {
+	service := mux.Vars(r)["service"]
+	spec, err := flux.ParseServiceSpec(service)
+	if err != nil {
+		transport.WriteError(w, r, http.StatusBadRequest, errors.Wrapf(err, "parsing service spec %q", service))
+		return
+	}
+
+	d, err := s.daemon.ListImages(spec)
+	if err != nil {
+		transport.ErrorResponse(w, r, err)
+		return
+	}
+	transport.JSONResponse(w, r, d)
 }
 
 func (s HTTPServer) UpdateImages(w http.ResponseWriter, r *http.Request) {
