@@ -1,7 +1,6 @@
 package server
 
 import (
-	"fmt"
 	"sync/atomic"
 	"time"
 
@@ -11,9 +10,7 @@ import (
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/git"
 	"github.com/weaveworks/flux/instance"
-	"github.com/weaveworks/flux/jobs"
 	"github.com/weaveworks/flux/platform"
-	"github.com/weaveworks/flux/registry"
 )
 
 const (
@@ -29,7 +26,6 @@ type Server struct {
 	instancer   instance.Instancer
 	config      instance.DB
 	messageBus  platform.MessageBus
-	jobs        jobs.JobStore
 	logger      log.Logger
 	maxPlatform chan struct{} // semaphore for concurrent calls to the platform
 	connected   int32
@@ -40,7 +36,6 @@ func New(
 	instancer instance.Instancer,
 	config instance.DB,
 	messageBus platform.MessageBus,
-	jobs jobs.JobStore,
 	logger log.Logger,
 ) *Server {
 	connectedDaemons.Set(0)
@@ -49,48 +44,42 @@ func New(
 		instancer:   instancer,
 		config:      config,
 		messageBus:  messageBus,
-		jobs:        jobs,
 		logger:      logger,
 		maxPlatform: make(chan struct{}, 8),
 	}
 }
 
-func (s *Server) Status(inst flux.InstanceID) (res flux.Status, err error) {
-	helper, err := s.instancer.Get(inst)
+func (s *Server) Status(instID flux.InstanceID) (res flux.Status, err error) {
+	inst, err := s.instancer.Get(instID)
 	if err != nil {
 		return res, errors.Wrapf(err, "getting instance")
 	}
 
-	config, err := helper.GetConfig()
-	if err != nil {
-		return res, errors.Wrapf(err, "getting config for %s", inst)
-	}
-
 	res.Fluxsvc = flux.FluxsvcStatus{Version: s.version}
-	res.Fluxd.Version, err = helper.Version()
+	res.Fluxd.Version, err = inst.Platform.Version()
 	res.Fluxd.Connected = (err == nil)
-	commits, err := helper.Platform.SyncStatus("HEAD")
+	_, err = inst.Platform.SyncStatus("HEAD")
 	if err != nil {
 		res.Git.Error = err.Error()
 	} else {
-		res.Git.Configured = commits[0]
+		res.Git.Configured = true
 	}
 
 	return res, nil
 }
 
-func (s *Server) ListServices(inst flux.InstanceID, namespace string) (res []flux.ServiceStatus, err error) {
-	helper, err := s.instancer.Get(inst)
+func (s *Server) ListServices(instID flux.InstanceID, namespace string) (res []flux.ServiceStatus, err error) {
+	inst, err := s.instancer.Get(instID)
 	if err != nil {
 		return nil, errors.Wrapf(err, "getting instance")
 	}
 
-	services, err := helper.Platform.ListServices(namespace)
+	services, err := inst.Platform.ListServices(namespace)
 	if err != nil {
 		return nil, errors.Wrap(err, "getting services from platform")
 	}
 
-	config, err := helper.GetConfig()
+	config, err := inst.Config.Get()
 	if err != nil {
 		return nil, errors.Wrapf(err, "getting config for %s", inst)
 	}
@@ -109,6 +98,33 @@ func (s *Server) ListImages(inst flux.InstanceID, spec flux.ServiceSpec) (res []
 	}
 
 	return helper.Platform.ListImages(spec)
+}
+
+func (s *Server) UpdateImages(instID flux.InstanceID, spec flux.ReleaseSpec) (res flux.ReleaseResult, err error) {
+	inst, err := s.instancer.Get(instID)
+	if err != nil {
+		return nil, errors.Wrapf(err, "getting instance "+string(instID))
+	}
+
+	return inst.Platform.UpdateImages(spec)
+}
+
+func (s *Server) SyncCluster(instID flux.InstanceID) (err error) {
+	inst, err := s.instancer.Get(instID)
+	if err != nil {
+		return errors.Wrapf(err, "getting instance "+string(instID))
+	}
+
+	return inst.Platform.SyncCluster()
+}
+
+func (s *Server) SyncStatus(instID flux.InstanceID, rev string) (res []string, err error) {
+	inst, err := s.instancer.Get(instID)
+	if err != nil {
+		return nil, errors.Wrapf(err, "getting instance "+string(instID))
+	}
+
+	return inst.Platform.SyncStatus(rev)
 }
 
 func (s *Server) History(inst flux.InstanceID, spec flux.ServiceSpec, before time.Time, limit int64) (res []flux.HistoryEntry, err error) {
@@ -185,7 +201,7 @@ func (s *Server) Deautomate(instID flux.InstanceID, service flux.ServiceID) erro
 }
 
 func recordAutomated(inst *instance.Instance, service flux.ServiceID, automated bool) error {
-	return inst.UpdateConfig(func(conf instance.Config) (instance.Config, error) {
+	return inst.Config.Update(func(conf instance.Config) (instance.Config, error) {
 		if serviceConf, found := conf.Services[service]; found {
 			serviceConf.Automated = automated
 			conf.Services[service] = serviceConf
@@ -235,7 +251,7 @@ func (s *Server) Unlock(instID flux.InstanceID, service flux.ServiceID) error {
 }
 
 func recordLock(inst *instance.Instance, service flux.ServiceID, locked bool) error {
-	if err := inst.UpdateConfig(func(conf instance.Config) (instance.Config, error) {
+	if err := inst.Config.Update(func(conf instance.Config) (instance.Config, error) {
 		if serviceConf, found := conf.Services[service]; found {
 			serviceConf.Locked = locked
 			conf.Services[service] = serviceConf
@@ -251,29 +267,6 @@ func recordLock(inst *instance.Instance, service flux.ServiceID, locked bool) er
 	return nil
 }
 
-// FIXME change to punt it to the daemon, and record it in the event log?
-func (s *Server) PostRelease(inst flux.InstanceID, params jobs.ReleaseJobParams) (jobs.JobID, error) {
-	return s.jobs.PutJob(inst, jobs.Job{
-		Queue:    jobs.ReleaseJob,
-		Method:   jobs.ReleaseJob,
-		Priority: jobs.PriorityInteractive,
-		Params:   params,
-	})
-}
-
-// FIXME check the event log? This is a service thing rather than a
-// daemon thing.
-func (s *Server) GetRelease(inst flux.InstanceID, id jobs.JobID) (jobs.Job, error) {
-	j, err := s.jobs.GetJob(inst, id)
-	if err != nil {
-		return jobs.Job{}, err
-	}
-	if j.Method != jobs.ReleaseJob {
-		return jobs.Job{}, fmt.Errorf("job is not a release")
-	}
-	return j, err
-}
-
 func (s *Server) GetConfig(instID flux.InstanceID, fingerprint string) (flux.InstanceConfig, error) {
 	fullConfig, err := s.config.GetConfig(instID)
 	if err != nil {
@@ -286,9 +279,6 @@ func (s *Server) GetConfig(instID flux.InstanceID, fingerprint string) (flux.Ins
 }
 
 func (s *Server) SetConfig(instID flux.InstanceID, updates flux.UnsafeInstanceConfig) error {
-	if _, err := registry.CredentialsFromConfig(updates); err != nil {
-		return errors.Wrap(err, "invalid registry credentials")
-	}
 	return s.config.UpdateConfig(instID, applyConfigUpdates(updates))
 }
 
@@ -303,9 +293,6 @@ func (s *Server) PatchConfig(instID flux.InstanceID, patch flux.ConfigPatch) err
 		return errors.Wrap(err, "unable to apply patch")
 	}
 
-	if _, err := registry.CredentialsFromConfig(patchedConfig); err != nil {
-		return errors.Wrap(err, "invalid registry credentials")
-	}
 	return s.config.UpdateConfig(instID, applyConfigUpdates(patchedConfig))
 }
 
@@ -369,15 +356,15 @@ func (s *Server) RegisterDaemon(instID flux.InstanceID, platform platform.Platfo
 	return err
 }
 
-func (s *Server) Export(inst flux.InstanceID) (res []byte, err error) {
-	helper, err := s.instancer.Get(inst)
+func (s *Server) Export(instID flux.InstanceID) (res []byte, err error) {
+	inst, err := s.instancer.Get(instID)
 	if err != nil {
 		return res, errors.Wrapf(err, "getting instance")
 	}
 
-	res, err = helper.Export()
+	res, err = inst.Platform.Export()
 	if err != nil {
-		return res, errors.Wrapf(err, "exporting %s", inst)
+		return res, errors.Wrapf(err, "exporting %s", instID)
 	}
 
 	return res, nil
@@ -397,33 +384,6 @@ func (s *Server) IsDaemonConnected(instID flux.InstanceID) error {
 type loggingPlatform struct {
 	platform platform.Platform
 	logger   log.Logger
-}
-
-func (p *loggingPlatform) AllServices(maybeNamespace string, ignored flux.ServiceIDSet) (ss []platform.Service, err error) {
-	defer func() {
-		if err != nil {
-			p.logger.Log("method", "AllServices", "error", err)
-		}
-	}()
-	return p.platform.AllServices(maybeNamespace, ignored)
-}
-
-func (p *loggingPlatform) SomeServices(include []flux.ServiceID) (ss []platform.Service, err error) {
-	defer func() {
-		if err != nil {
-			p.logger.Log("method", "SomeServices", "error", err)
-		}
-	}()
-	return p.platform.SomeServices(include)
-}
-
-func (p *loggingPlatform) Apply(defs []platform.ServiceDefinition) (err error) {
-	defer func() {
-		if err != nil {
-			p.logger.Log("method", "Apply", "error", err)
-		}
-	}()
-	return p.platform.Apply(defs)
 }
 
 func (p *loggingPlatform) Ping() (err error) {
@@ -454,11 +414,47 @@ func (p *loggingPlatform) Export() (config []byte, err error) {
 	return p.platform.Export()
 }
 
-func (p *loggingPlatform) Sync(def platform.SyncDef) (err error) {
+func (p *loggingPlatform) ListServices(maybeNamespace string) (_ []flux.ServiceStatus, err error) {
 	defer func() {
 		if err != nil {
-			p.logger.Log("method", "Sync", "error", err)
+			p.logger.Log("method", "ListServices", "error", err)
 		}
 	}()
-	return p.platform.Sync(def)
+	return p.platform.ListServices(maybeNamespace)
+}
+
+func (p *loggingPlatform) ListImages(spec flux.ServiceSpec) (_ []flux.ImageStatus, err error) {
+	defer func() {
+		if err != nil {
+			p.logger.Log("method", "ListImages", "error", err)
+		}
+	}()
+	return p.platform.ListImages(spec)
+}
+
+func (p *loggingPlatform) SyncCluster() (err error) {
+	defer func() {
+		if err != nil {
+			p.logger.Log("method", "SyncCluster", "error", err)
+		}
+	}()
+	return p.platform.SyncCluster()
+}
+
+func (p *loggingPlatform) SyncStatus(rev string) (_ []string, err error) {
+	defer func() {
+		if err != nil {
+			p.logger.Log("method", "SyncStatus", "error", err)
+		}
+	}()
+	return p.platform.SyncStatus(rev)
+}
+
+func (p *loggingPlatform) UpdateImages(spec flux.ReleaseSpec) (_ flux.ReleaseResult, err error) {
+	defer func() {
+		if err != nil {
+			p.logger.Log("method", "UpdateImages", "error", err)
+		}
+	}()
+	return p.platform.UpdateImages(spec)
 }

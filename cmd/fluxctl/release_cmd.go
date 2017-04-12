@@ -8,8 +8,14 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/weaveworks/flux"
-	"github.com/weaveworks/flux/jobs"
+	"github.com/weaveworks/flux/release"
 )
+
+type serviceReleaseOutputOpts struct {
+	noFollow bool
+	verbose  bool
+	noTty    bool
+}
 
 type serviceReleaseOpts struct {
 	*serviceOpts
@@ -55,7 +61,7 @@ func (opts *serviceReleaseOpts) Command() *cobra.Command {
 	cmd.Flags().BoolVar(&opts.noUpdate, "no-update", false, "don't update images; just deploy the service(s) as configured in the git repo")
 	cmd.Flags().StringSliceVar(&opts.exclude, "exclude", []string{}, "exclude a service")
 	cmd.Flags().BoolVar(&opts.dryRun, "dry-run", false, "do not release anything; just report back what would have been done")
-	cmd.Flags().BoolVar(&opts.noFollow, "no-follow", false, "just submit the release job, don't invoke check-release afterwards")
+	cmd.Flags().BoolVar(&opts.noFollow, "no-follow", false, "just submit the release, don't wait for it to sync")
 	cmd.Flags().BoolVar(&opts.noTty, "no-tty", false, "if not --no-follow, forces simpler, non-TTY status output")
 	cmd.Flags().BoolVarP(&opts.verbose, "verbose", "v", false, "include ignored services in output")
 	cmd.Flags().StringVarP(&opts.message, "message", "m", "", "attach a message to the release job")
@@ -119,18 +125,16 @@ func (opts *serviceReleaseOpts) RunE(cmd *cobra.Command, args []string) error {
 	}
 
 	if opts.dryRun {
-		fmt.Fprintf(os.Stdout, "Submitting dry-run release job...\n")
+		fmt.Fprintf(os.Stderr, "Requesting dry-run release...\n")
 	} else {
-		fmt.Fprintf(os.Stdout, "Submitting release job...\n")
+		fmt.Fprintf(os.Stderr, "Requesting release ...\n")
 	}
 
-	id, err := opts.API.PostRelease(noInstanceID, jobs.ReleaseJobParams{
-		ReleaseSpec: flux.ReleaseSpec{
-			ServiceSpecs: services,
-			ImageSpec:    image,
-			Kind:         kind,
-			Excludes:     excludes,
-		},
+	result, err := opts.API.UpdateImages(noInstanceID, flux.ReleaseSpec{
+		ServiceSpecs: services,
+		ImageSpec:    image,
+		Kind:         kind,
+		Excludes:     excludes,
 		Cause: flux.ReleaseCause{
 			User:    opts.user,
 			Message: opts.message,
@@ -140,19 +144,22 @@ func (opts *serviceReleaseOpts) RunE(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	fmt.Fprintf(os.Stdout, "Release job submitted, ID %s\n", id)
+	release.PrintResults(os.Stdout, result, opts.verbose)
+
 	if opts.noFollow {
-		fmt.Fprintf(os.Stdout, "To check the status of this release job, run\n")
-		fmt.Fprintf(os.Stdout, "\n")
-		fmt.Fprintf(os.Stdout, "\tfluxctl check-release --release-id=%s\n", id)
-		fmt.Fprintf(os.Stdout, "\n")
+		fmt.Fprintf(os.Stderr, "To check the status of this release, run\n")
+		fmt.Fprintf(os.Stderr, "\n")
+		// FIXME put rev in results
+		fmt.Fprintf(os.Stderr, "\tfluxctl sync-status --rev=%s\n", "FIXME")
+		fmt.Fprintf(os.Stderr, "\n")
 		return nil
 	}
 
-	// This is a bit funny, but works.
-	return (&serviceCheckReleaseOpts{
-		serviceOpts:              opts.serviceOpts,
-		releaseID:                string(id),
-		serviceReleaseOutputOpts: opts.serviceReleaseOutputOpts,
-	}).RunE(cmd, nil)
+	return nil
+	// // This is a bit funny, but works.
+	// return (&serviceSyncStatusOpts{
+	// 	serviceOpts: opts.serviceOpts,
+	// 	revID:       results.Revision,
+	// 	serviceReleaseOutputOpts: opts.serviceReleaseOutputOpts,
+	// }).RunE(cmd, nil)
 }

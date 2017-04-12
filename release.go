@@ -63,7 +63,6 @@ type Release struct {
 	Status    ServiceReleaseStatus `json:"status"`
 	Log       []string             `json:"log"`
 
-	Cause  ReleaseCause  `json:"cause"`
 	Spec   ReleaseSpec   `json:"spec"`
 	Result ReleaseResult `json:"result"`
 }
@@ -75,6 +74,7 @@ type ReleaseSpec struct {
 	ImageSpec    ImageSpec
 	Kind         ReleaseKind
 	Excludes     []ServiceID
+	Cause        ReleaseCause
 }
 
 // ReleaseType gives a one-word description of the release, mainly

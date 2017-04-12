@@ -27,7 +27,6 @@ import (
 	"github.com/weaveworks/flux/http/httperror"
 	"github.com/weaveworks/flux/http/websocket"
 	"github.com/weaveworks/flux/integrations/github"
-	"github.com/weaveworks/flux/jobs"
 	"github.com/weaveworks/flux/platform"
 	"github.com/weaveworks/flux/platform/rpc"
 )
@@ -35,10 +34,11 @@ import (
 func NewHandler(s api.FluxService, r *mux.Router, logger log.Logger) http.Handler {
 	handle := HTTPService{s}
 	for method, handlerMethod := range map[string]http.HandlerFunc{
-		"ListServices":           handle.ListServices,
-		"ListImages":             handle.ListImages,
-		"PostRelease":            handle.PostRelease,
-		"GetRelease":             handle.GetRelease,
+		"ListServices": handle.ListServices,
+		"ListImages":   handle.ListImages,
+		// FIXME replace these
+		// "PostRelease":            handle.PostRelease,
+		// "GetRelease":             handle.GetRelease,
 		"Automate":               handle.Automate,
 		"Deautomate":             handle.Deautomate,
 		"Lock":                   handle.Lock,
@@ -52,6 +52,7 @@ func NewHandler(s api.FluxService, r *mux.Router, logger log.Logger) http.Handle
 		"PostIntegrationsGithub": handle.PostIntegrationsGithub,
 		"RegisterDaemonV4":       handle.RegisterV4,
 		"RegisterDaemonV5":       handle.RegisterV5,
+		"RegisterDaemonV6":       handle.RegisterV6,
 		"IsConnected":            handle.IsConnected,
 		"Export":                 handle.Export,
 	} {
@@ -98,7 +99,7 @@ func (s HTTPService) ListImages(w http.ResponseWriter, r *http.Request) {
 	transport.JSONResponse(w, r, d)
 }
 
-func (s HTTPService) PostRelease(w http.ResponseWriter, r *http.Request) {
+func (s HTTPService) UpdateImages(w http.ResponseWriter, r *http.Request) {
 	var (
 		inst  = getInstanceID(r)
 		vars  = mux.Vars(r)
@@ -139,13 +140,11 @@ func (s HTTPService) PostRelease(w http.ResponseWriter, r *http.Request) {
 		excludes = append(excludes, s)
 	}
 
-	id, err := s.service.PostRelease(inst, jobs.ReleaseJobParams{
-		ReleaseSpec: flux.ReleaseSpec{
-			ServiceSpecs: serviceSpecs,
-			ImageSpec:    imageSpec,
-			Kind:         releaseKind,
-			Excludes:     excludes,
-		},
+	result, err := s.service.UpdateImages(inst, flux.ReleaseSpec{
+		ServiceSpecs: serviceSpecs,
+		ImageSpec:    imageSpec,
+		Kind:         releaseKind,
+		Excludes:     excludes,
 		Cause: flux.ReleaseCause{
 			User:    r.FormValue("user"),
 			Message: r.FormValue("message"),
@@ -156,22 +155,29 @@ func (s HTTPService) PostRelease(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	transport.JSONResponse(w, r, transport.PostReleaseResponse{
-		Status:    "Queued.",
-		ReleaseID: id,
-	})
+	transport.JSONResponse(w, r, result)
 }
 
-func (s HTTPService) GetRelease(w http.ResponseWriter, r *http.Request) {
+func (s HTTPService) SyncCluster(w http.ResponseWriter, r *http.Request) {
 	inst := getInstanceID(r)
-	id := mux.Vars(r)["id"]
-	job, err := s.service.GetRelease(inst, jobs.JobID(id))
+	err := s.service.SyncCluster(inst)
 	if err != nil {
 		transport.ErrorResponse(w, r, err)
 		return
 	}
 
-	transport.JSONResponse(w, r, job)
+	w.WriteHeader(http.StatusAccepted)
+}
+
+func (s HTTPService) SyncStatus(w http.ResponseWriter, r *http.Request) {
+	inst := getInstanceID(r)
+	rev := mux.Vars(r)["rev"]
+	res, err := s.service.SyncStatus(inst, rev)
+	if err != nil {
+		transport.ErrorResponse(w, r, err)
+		return
+	}
+	transport.JSONResponse(w, r, res)
 }
 
 func (s HTTPService) Automate(w http.ResponseWriter, r *http.Request) {
@@ -434,6 +440,12 @@ func (s HTTPService) RegisterV4(w http.ResponseWriter, r *http.Request) {
 func (s HTTPService) RegisterV5(w http.ResponseWriter, r *http.Request) {
 	s.doRegister(w, r, func(conn io.ReadWriteCloser) platformCloser {
 		return rpc.NewClientV5(conn)
+	})
+}
+
+func (s HTTPService) RegisterV6(w http.ResponseWriter, r *http.Request) {
+	s.doRegister(w, r, func(conn io.ReadWriteCloser) platformCloser {
+		return rpc.NewClientV6(conn)
 	})
 }
 

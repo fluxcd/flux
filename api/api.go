@@ -4,17 +4,17 @@ import (
 	"time"
 
 	"github.com/weaveworks/flux"
-	"github.com/weaveworks/flux/jobs"
 	"github.com/weaveworks/flux/platform"
 )
 
-// API for clients connecting to the service
+// API for clients connecting to the service.
 type ClientService interface {
 	Status(inst flux.InstanceID) (flux.Status, error)
 	ListServices(inst flux.InstanceID, namespace string) ([]flux.ServiceStatus, error)
 	ListImages(flux.InstanceID, flux.ServiceSpec) ([]flux.ImageStatus, error)
-	PostRelease(flux.InstanceID, jobs.ReleaseJobParams) (jobs.JobID, error)
-	GetRelease(flux.InstanceID, jobs.JobID) (jobs.Job, error)
+	UpdateImages(flux.InstanceID, flux.ReleaseSpec) (flux.ReleaseResult, error)
+	SyncCluster(flux.InstanceID) error
+	SyncStatus(flux.InstanceID, string) ([]string, error)
 	Automate(flux.InstanceID, flux.ServiceID) error
 	Deautomate(flux.InstanceID, flux.ServiceID) error
 	Lock(flux.InstanceID, flux.ServiceID) error

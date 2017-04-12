@@ -13,7 +13,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/pflag"
 
-	"github.com/weaveworks/flux/automator"
 	"github.com/weaveworks/flux/db"
 	"github.com/weaveworks/flux/history"
 	historysql "github.com/weaveworks/flux/history/sql"
@@ -21,11 +20,8 @@ import (
 	httpserver "github.com/weaveworks/flux/http/server"
 	"github.com/weaveworks/flux/instance"
 	instancedb "github.com/weaveworks/flux/instance/sql"
-	"github.com/weaveworks/flux/jobs"
 	"github.com/weaveworks/flux/platform"
 	"github.com/weaveworks/flux/platform/rpc/nats"
-	"github.com/weaveworks/flux/registry"
-	"github.com/weaveworks/flux/release"
 	"github.com/weaveworks/flux/server"
 )
 
@@ -45,12 +41,11 @@ func main() {
 	}
 
 	var (
-		listenAddr                  = fs.StringP("listen", "l", ":3030", "Listen address for Flux API clients")
-		databaseSource              = fs.String("database-source", "file://fluxy.db", `Database source name; includes the DB driver as the scheme. The default is a temporary, file-based DB`)
-		databaseMigrationsDir       = fs.String("database-migrations", "./db/migrations", "Path to database migration scripts, which are in subdirectories named for each driver")
-		natsURL                     = fs.String("nats-url", "", `URL on which to connect to NATS, or empty to use the standalone message bus (e.g., "nats://user:pass@nats:4222")`)
-		automatedInstanceJobWorkers = fs.Int(jobs.AutomatedInstanceJob+"-workers", 1, "Number of workers to process automated_instance jobs")
-		versionFlag                 = fs.Bool("version", false, "Get version number")
+		listenAddr            = fs.StringP("listen", "l", ":3030", "Listen address for Flux API clients")
+		databaseSource        = fs.String("database-source", "file://fluxy.db", `Database source name; includes the DB driver as the scheme. The default is a temporary, file-based DB`)
+		databaseMigrationsDir = fs.String("database-migrations", "./db/migrations", "Path to database migration scripts, which are in subdirectories named for each driver")
+		natsURL               = fs.String("nats-url", "", `URL on which to connect to NATS, or empty to use the standalone message bus (e.g., "nats://user:pass@nats:4222")`)
+		versionFlag           = fs.Bool("version", false, "Get version number")
 	)
 	fs.Parse(os.Args)
 
@@ -136,72 +131,8 @@ func main() {
 		}
 	}
 
-	// Job store.
-	var jobStore jobs.JobStore
-	{
-		s, err := jobs.NewDatabaseStore(dbDriver, *databaseSource, time.Hour)
-		if err != nil {
-			logger.Log("component", "release job store", "err", err)
-			os.Exit(1)
-		}
-		jobStore = jobs.InstrumentedJobStore(s)
-	}
-
-	// Automator component.
-	var auto *automator.Automator
-	{
-		var err error
-		auto, err = automator.New(automator.Config{
-			Jobs:       jobStore,
-			InstanceDB: instanceDB,
-			Instancer:  instancer,
-			Logger:     log.NewContext(logger).With("component", "automator"),
-		})
-		if err == nil {
-			logger.Log("automator", "enabled")
-		} else {
-			// Service can handle a nil automator pointer.
-			logger.Log("automator", "disabled", "reason", err)
-		}
-	}
-
-	go auto.Start(log.NewContext(logger).With("component", "automator"))
-
-	// Job workers.
-	//
-	// Doing one worker (and one queue) for each job type for now. This way slow
-	// release jobs can't interfere with slow automated service jobs, or vice
-	// versa. This is probably not optimal. Really all jobs should be quick and
-	// recoverable.
-	for queue, workers := range map[string]int{
-		jobs.DefaultQueue:         1, // Backwards compatibility...
-		jobs.AutomatedInstanceJob: *automatedInstanceJobWorkers,
-	} {
-		logger := log.NewContext(logger).With("component", "worker", "queues", fmt.Sprint([]string{queue}))
-		// create i workers for this queue
-		for i := 0; i < workers; i++ {
-			worker := jobs.NewWorker(jobStore, logger, []string{queue})
-			worker.Register(jobs.AutomatedInstanceJob, auto)
-			defer func() {
-				logger.Log("stopping", "true")
-				if err := worker.Stop(shutdownTimeout); err != nil {
-					logger.Log("err", err)
-				}
-			}()
-			go worker.Work()
-		}
-	}
-
-	// Job GC cleaner
-	{
-		cleaner := jobs.NewCleaner(jobStore, logger)
-		cleanTicker := time.NewTicker(15 * time.Second)
-		defer cleanTicker.Stop()
-		go cleaner.Clean(cleanTicker.C)
-	}
-
 	// The server.
-	server := server.New(version, instancer, instanceDB, messageBus, jobStore, logger)
+	server := server.New(version, instancer, instanceDB, messageBus, logger)
 
 	// Mechanical components.
 	errc := make(chan error)

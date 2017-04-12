@@ -15,7 +15,6 @@ import (
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/api"
 	transport "github.com/weaveworks/flux/http"
-	"github.com/weaveworks/flux/jobs"
 )
 
 type client struct {
@@ -46,7 +45,7 @@ func (c *client) ListImages(_ flux.InstanceID, s flux.ServiceSpec) ([]flux.Image
 	return res, err
 }
 
-func (c *client) PostRelease(_ flux.InstanceID, s jobs.ReleaseJobParams) (jobs.JobID, error) {
+func (c *client) UpdateImages(_ flux.InstanceID, s flux.ReleaseSpec) (flux.ReleaseResult, error) {
 	args := []string{
 		"image", string(s.ImageSpec),
 		"kind", string(s.Kind),
@@ -62,14 +61,19 @@ func (c *client) PostRelease(_ flux.InstanceID, s jobs.ReleaseJobParams) (jobs.J
 		args = append(args, "message", s.Cause.Message)
 	}
 
-	var resp transport.PostReleaseResponse
-	err := c.methodWithResp("POST", &resp, "PostRelease", nil, args...)
-	return resp.ReleaseID, err
+	var resp flux.ReleaseResult
+	err := c.methodWithResp("POST", &resp, "UpdateImages", nil, args...)
+	return resp, err
 }
 
-func (c *client) GetRelease(_ flux.InstanceID, id jobs.JobID) (jobs.Job, error) {
-	var res jobs.Job
-	err := c.get(&res, "GetRelease", "id", string(id))
+func (c *client) SyncCluster(_ flux.InstanceID) error {
+	err := c.post("SyncCluster")
+	return err
+}
+
+func (c *client) SyncStatus(_ flux.InstanceID, rev string) ([]string, error) {
+	var res []string
+	err := c.get(&res, "SyncStatus", "rev", rev)
 	return res, err
 }
 

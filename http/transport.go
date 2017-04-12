@@ -11,7 +11,6 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/weaveworks/flux"
-	"github.com/weaveworks/flux/jobs"
 )
 
 func NewRouter() *mux.Router {
@@ -27,8 +26,11 @@ func NewRouter() *mux.Router {
 
 	r.NewRoute().Name("ListServices").Methods("GET").Path("/v3/services").Queries("namespace", "{namespace}") // optional namespace!
 	r.NewRoute().Name("ListImages").Methods("GET").Path("/v3/images").Queries("service", "{service}")
-	r.NewRoute().Name("PostRelease").Methods("POST").Path("/v4/release").Queries("service", "{service}", "image", "{image}", "kind", "{kind}")
-	r.NewRoute().Name("GetRelease").Methods("GET").Path("/v4/release").Queries("id", "{id}")
+
+	r.NewRoute().Name("UpdateImages").Methods("POST").Path("/v6/update-images").Queries("service", "{service}", "image", "{image}", "kind", "{kind}")
+	r.NewRoute().Name("SyncCluster").Methods("POST").Path("/v6/sync")
+	r.NewRoute().Name("SyncStatus").Methods("GET").Path("/v6/sync").Queries("rev", "{rev}")
+
 	r.NewRoute().Name("Automate").Methods("POST").Path("/v3/automate").Queries("service", "{service}")
 	r.NewRoute().Name("Deautomate").Methods("POST").Path("/v3/deautomate").Queries("service", "{service}")
 	r.NewRoute().Name("Lock").Methods("POST").Path("/v3/lock").Queries("service", "{service}")
@@ -42,6 +44,7 @@ func NewRouter() *mux.Router {
 	r.NewRoute().Name("PostIntegrationsGithub").Methods("POST").Path("/v5/integrations/github").Queries("owner", "{owner}", "repository", "{repository}")
 	r.NewRoute().Name("RegisterDaemonV4").Methods("GET").Path("/v4/daemon")
 	r.NewRoute().Name("RegisterDaemonV5").Methods("GET").Path("/v5/daemon")
+	r.NewRoute().Name("RegisterDaemonV6").Methods("GET").Path("/v6/daemon")
 	r.NewRoute().Name("IsConnected").Methods("HEAD", "GET").Path("/v4/ping")
 	r.NewRoute().Name("Export").Methods("HEAD", "GET").Path("/v5/export")
 
@@ -52,11 +55,6 @@ func NewRouter() *mux.Router {
 	})
 
 	return r
-}
-
-type PostReleaseResponse struct {
-	Status    string     `json:"status"`
-	ReleaseID jobs.JobID `json:"release_id"`
 }
 
 func MakeURL(endpoint string, router *mux.Router, routeName string, urlParams ...string) (*url.URL, error) {

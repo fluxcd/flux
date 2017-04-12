@@ -73,7 +73,8 @@ func (opts *rootOpts) Command() *cobra.Command {
 		newServiceShow(svcopts).Command(),
 		newServiceList(svcopts).Command(),
 		newServiceRelease(svcopts).Command(),
-		newServiceCheckRelease(svcopts).Command(),
+		// FIXME change to syncStatus
+		//		newServiceCheckRelease(svcopts).Command(),
 		newServiceHistory(svcopts).Command(),
 		newServiceAutomate(svcopts).Command(),
 		newServiceDeautomate(svcopts).Command(),
