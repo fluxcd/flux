@@ -118,7 +118,13 @@ func (a *Automator) handleAutomatedInstanceJob(logger log.Logger, job *jobs.Job,
 	}
 
 	// Get the list of services that are automated, in the repo, and in the running service.
-	updates, err := rc.SelectServices(automatedServiceIDs, flux.ServiceIDSet{}, flux.ServiceIDSet{}, results, logInJob)
+	updates, err := rc.SelectServices(
+		results,
+		logInJob,
+		&release.IncludeFilter{
+			IDs: automatedServiceIDs,
+		},
+	)
 	if err != nil {
 		logInJob("error finding services: %s", err)
 		return followUps, err

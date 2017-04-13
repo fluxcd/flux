@@ -255,40 +255,69 @@ func sendNotifications(inst *instance.Instance, executeErr error, release flux.R
 // in question based on the running services and those defined in the
 // repo. Fill in the release results along the way.
 func selectServices(rc *ReleaseContext, spec *flux.ReleaseSpec, results flux.ReleaseResult, logStatus statusFn) ([]*ServiceUpdate, error) {
+	// Build list of filters
+	filtList, err := filters(spec, rc)
+	if err != nil {
+		return nil, err
+	}
+
+	// Find and filter services
+	return rc.SelectServices(
+		results,
+		logStatus,
+		filtList...,
+	)
+}
+
+// filters converts a ReleaseSpec (and Lock config) into ServiceFilters
+func filters(spec *flux.ReleaseSpec, rc *ReleaseContext) ([]ServiceFilter, error) {
+	// Image filter
+	var filtList []ServiceFilter
+	if spec.ImageSpec != flux.ImageSpecNone && spec.ImageSpec != flux.ImageSpecLatest {
+		id, err := flux.ParseImageID(spec.ImageSpec.String())
+		if err != nil {
+			return nil, err
+		}
+		imgFilt := &SpecificImageFilter{id}
+		filtList = append(filtList, imgFilt)
+	}
+
+	// Service filter
+	ids := []flux.ServiceID{}
+	for _, s := range spec.ServiceSpecs {
+		if s == flux.ServiceSpecAll {
+			ids = []flux.ServiceID{} // "<all>" Overrides any other filters
+			break
+		}
+		id, err := flux.ParseServiceID(string(s))
+		if err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	if len(ids) > 0 {
+		incFilt := &IncludeFilter{ids}
+		filtList = append(filtList, incFilt)
+	}
+
+	// Exclude filter
+	if len(spec.Excludes) > 0 {
+		exFilt := &ExcludeFilter{spec.Excludes}
+		filtList = append(filtList, exFilt)
+	}
+
+	// Locked filter
+	// - Get config
 	conf, err := rc.Instance.GetConfig()
 	if err != nil {
 		return nil, err
 	}
+
+	// - Get locked services from config
 	lockedSet := LockedServices(conf)
-
-	excludedSet := flux.ServiceIDSet{}
-	excludedSet.Add(spec.Excludes)
-
-	// For backwards-compatibility, there's two fields: ServiceSpec
-	// and ServiceSpecs. An entry in ServiceSpec takes precedence.
-	switch spec.ServiceSpec {
-	case flux.ServiceSpec(""):
-		ids := []flux.ServiceID{}
-		for _, s := range spec.ServiceSpecs {
-			if s == flux.ServiceSpecAll {
-				return rc.SelectServices(nil, lockedSet, excludedSet, results, logStatus)
-			}
-			id, err := flux.ParseServiceID(string(s))
-			if err != nil {
-				return nil, err
-			}
-			ids = append(ids, id)
-		}
-		return rc.SelectServices(ids, lockedSet, excludedSet, results, logStatus)
-	case flux.ServiceSpecAll:
-		return rc.SelectServices(nil, lockedSet, excludedSet, results, logStatus)
-	default:
-		id, err := flux.ParseServiceID(string(spec.ServiceSpec))
-		if err != nil {
-			return nil, err
-		}
-		return rc.SelectServices([]flux.ServiceID{id}, lockedSet, excludedSet, results, logStatus)
-	}
+	lockFilt := &LockedFilter{lockedSet.ToSlice()}
+	filtList = append(filtList, lockFilt)
+	return filtList, nil
 }
 
 // Find all the image updates that should be performed, and do
@@ -349,6 +378,7 @@ func calculateImageUpdates(inst *instance.Instance, candidates []*ServiceUpdate,
 
 			latestImage := images.LatestImage(currentImageID.Repository())
 			if latestImage == nil {
+				ignoredOrSkipped = flux.ReleaseStatusUnknown
 				continue
 			}
 
@@ -383,13 +413,19 @@ func calculateImageUpdates(inst *instance.Instance, candidates []*ServiceUpdate,
 			logStatus("Skipping service %s, images are up to date", update.ServiceID)
 			results[update.ServiceID] = flux.ServiceResult{
 				Status: flux.ReleaseStatusSkipped,
-				Error:  "image(s) up to date",
+				Error:  ImageUpToDate,
 			}
 		case ignoredOrSkipped == flux.ReleaseStatusIgnored:
 			logStatus("Ignoring service %s, does not use image(s) in question", update.ServiceID)
 			results[update.ServiceID] = flux.ServiceResult{
 				Status: flux.ReleaseStatusIgnored,
 				Error:  "does not use image(s)",
+			}
+		case ignoredOrSkipped == flux.ReleaseStatusUnknown:
+			logStatus("Ignoring service %s, cannot find image(s)", update.ServiceID)
+			results[update.ServiceID] = flux.ServiceResult{
+				Status: flux.ReleaseStatusSkipped,
+				Error:  ImageNotFound,
 			}
 		}
 	}
