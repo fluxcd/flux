@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/git/gittest"
 	"github.com/weaveworks/flux/history"
 	"github.com/weaveworks/flux/instance"
 	"github.com/weaveworks/flux/jobs"
@@ -90,7 +91,7 @@ var (
 )
 
 func setup(t *testing.T, mocks instance.Instance) (*Releaser, func()) {
-	repo, cleanup := setupRepo(t)
+	repo, cleanup := gittest.Repo(t)
 
 	if mocks.Platform == nil {
 		mocks.Platform = &platform.MockPlatform{}

@@ -115,8 +115,8 @@ type removeablePlatform struct {
 }
 
 func (p *removeablePlatform) closeWithError(err error) {
-	p.Lock()
-	defer p.Unlock()
+	p.Mutex.Lock()
+	defer p.Mutex.Unlock()
 	if p.done != nil {
 		p.done <- err
 		close(p.done)
@@ -196,6 +196,15 @@ func (p *removeablePlatform) SyncStatus(ref string) (revs []string, err error) {
 	return p.remote.SyncStatus(ref)
 }
 
+func (p *removeablePlatform) UpdatePolicies(u flux.PolicyUpdates) (err error) {
+	defer func() {
+		if _, ok := err.(FatalError); ok {
+			p.closeWithError(err)
+		}
+	}()
+	return p.remote.UpdatePolicies(u)
+}
+
 // disconnectedPlatform is a stub implementation used when the
 // platform is known to be missing.
 
@@ -231,4 +240,8 @@ func (p disconnectedPlatform) SyncCluster(fluxsync.Params) (*fluxsync.Result, er
 
 func (p disconnectedPlatform) SyncStatus(string) ([]string, error) {
 	return nil, errNotSubscribed
+}
+
+func (p disconnectedPlatform) UpdatePolicies(flux.PolicyUpdates) error {
+	return errNotSubscribed
 }

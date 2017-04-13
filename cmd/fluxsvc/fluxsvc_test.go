@@ -1,15 +1,24 @@
 package main
 
 import (
-	"github.com/weaveworks/flux/server"
+	"io"
+	"io/ioutil"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/go-kit/kit/log"
 	"github.com/gorilla/mux"
+
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/api"
 	"github.com/weaveworks/flux/db"
 	"github.com/weaveworks/flux/git"
+	"github.com/weaveworks/flux/git/gittest"
 	"github.com/weaveworks/flux/history"
 	historysql "github.com/weaveworks/flux/history/sql"
 	transport "github.com/weaveworks/flux/http"
@@ -19,13 +28,8 @@ import (
 	instancedb "github.com/weaveworks/flux/instance/sql"
 	"github.com/weaveworks/flux/jobs"
 	"github.com/weaveworks/flux/platform"
-	"io"
-	"net/http"
-	"net/http/httptest"
-	"os"
-	"path/filepath"
-	"strings"
-	"time"
+	"github.com/weaveworks/flux/platform/kubernetes"
+	"github.com/weaveworks/flux/server"
 )
 
 var (
@@ -142,6 +146,19 @@ func teardown() {
 func TestFluxsvc_ListServices(t *testing.T) {
 	setup()
 	defer teardown()
+
+	// Set up the git repo
+	repo, cleanup := gittest.Repo(t)
+	defer cleanup()
+	err := apiClient.SetConfig("", flux.UnsafeInstanceConfig{
+		Git: flux.GitConfig{
+			URL:    repo.URL,
+			Branch: repo.Branch,
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// Test ListServices
 	svcs, err := apiClient.ListServices("", "default")
@@ -267,14 +284,38 @@ func TestFluxsvc_Automate(t *testing.T) {
 	setup()
 	defer teardown()
 
-	// Test Automate
-	err := apiClient.Automate("", helloWorldSvc)
+	// Set up the git repo
+	repo, cleanup := gittest.Repo(t)
+	defer cleanup()
+	err := apiClient.SetConfig("", flux.UnsafeInstanceConfig{
+		Git: flux.GitConfig{
+			URL:    repo.URL,
+			Branch: repo.Branch,
+		},
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	cfg, err := instanceDB.GetConfig(flux.DefaultInstanceID)
-	if !cfg.Services[helloWorldSvc].Automated {
-		t.Fatal("Expected DB to record that it is automated. %#v", cfg.Services[helloWorldSvc])
+
+	// Test Automate
+	err = apiClient.UpdatePolicies("", flux.PolicyUpdates{
+		helloWorldSvc: flux.PolicyUpdate{Add: []flux.Policy{flux.PolicyAutomated}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	path, err := repo.Clone()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(path)
+	automated, err := kubernetes.ServicesWithPolicy(path, flux.PolicyAutomated)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !automated.Contains(helloWorldSvc) {
+		t.Fatal("Expected repo to record that it is automated. Automated services: %v", automated)
 	}
 
 	// Test no service error
@@ -293,14 +334,38 @@ func TestFluxsvc_Deautomate(t *testing.T) {
 	setup()
 	defer teardown()
 
-	// Test Deautomate
-	err := apiClient.Deautomate("", helloWorldSvc)
+	// Set up the git repo
+	repo, cleanup := gittest.Repo(t)
+	defer cleanup()
+	err := apiClient.SetConfig("", flux.UnsafeInstanceConfig{
+		Git: flux.GitConfig{
+			URL:    repo.URL,
+			Branch: repo.Branch,
+		},
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	cfg, err := instanceDB.GetConfig(flux.DefaultInstanceID)
-	if cfg.Services[helloWorldSvc].Automated {
-		t.Fatal("Expected DB to record that it is deautomated. %#v", cfg.Services[helloWorldSvc])
+
+	// Test Deautomate
+	err = apiClient.UpdatePolicies("", flux.PolicyUpdates{
+		helloWorldSvc: flux.PolicyUpdate{Remove: []flux.Policy{flux.PolicyAutomated}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	path, err := repo.Clone()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(path)
+	automated, err := kubernetes.ServicesWithPolicy(path, flux.PolicyAutomated)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if automated.Contains(helloWorldSvc) {
+		t.Fatal("Expected repo to record that it is deautomated. Automated services: %v", automated)
 	}
 
 	// Test no service error
@@ -319,14 +384,38 @@ func TestFluxsvc_Lock(t *testing.T) {
 	setup()
 	defer teardown()
 
-	// Test Lock
-	err := apiClient.Lock("", helloWorldSvc)
+	// Set up the git repo
+	repo, cleanup := gittest.Repo(t)
+	defer cleanup()
+	err := apiClient.SetConfig("", flux.UnsafeInstanceConfig{
+		Git: flux.GitConfig{
+			URL:    repo.URL,
+			Branch: repo.Branch,
+		},
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	cfg, err := instanceDB.GetConfig(flux.DefaultInstanceID)
-	if !cfg.Services[helloWorldSvc].Locked {
-		t.Fatal("Expected DB to record that it is locked. %#v", cfg.Services[helloWorldSvc])
+
+	// Test Lock
+	err = apiClient.UpdatePolicies("", flux.PolicyUpdates{
+		helloWorldSvc: flux.PolicyUpdate{Add: []flux.Policy{flux.PolicyLocked}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	path, err := repo.Clone()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(path)
+	locked, err := kubernetes.ServicesWithPolicy(path, flux.PolicyLocked)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !locked.Contains(helloWorldSvc) {
+		t.Fatal("Expected repo to record that it is locked. Locked services: %v", locked)
 	}
 
 	// Test no service error
@@ -345,14 +434,38 @@ func TestFluxsvc_Unlock(t *testing.T) {
 	setup()
 	defer teardown()
 
-	// Test Unlock
-	err := apiClient.Unlock("", helloWorldSvc)
+	// Set up the git repo
+	repo, cleanup := gittest.Repo(t)
+	defer cleanup()
+	err := apiClient.SetConfig("", flux.UnsafeInstanceConfig{
+		Git: flux.GitConfig{
+			URL:    repo.URL,
+			Branch: repo.Branch,
+		},
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	cfg, err := instanceDB.GetConfig(flux.DefaultInstanceID)
-	if cfg.Services[helloWorldSvc].Locked {
-		t.Fatal("Expected DB to record that it is unlocked. %#v", cfg.Services[helloWorldSvc])
+
+	// Test Unlock
+	err = apiClient.UpdatePolicies("", flux.PolicyUpdates{
+		helloWorldSvc: flux.PolicyUpdate{Remove: []flux.Policy{flux.PolicyLocked}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	path, err := repo.Clone()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(path)
+	locked, err := kubernetes.ServicesWithPolicy(path, flux.PolicyLocked)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if locked.Contains(helloWorldSvc) {
+		t.Fatal("Expected repo to record that it is unlocked. Locked services: %v", locked)
 	}
 
 	// Test no service error
@@ -371,8 +484,26 @@ func TestFluxsvc_History(t *testing.T) {
 	setup()
 	defer teardown()
 
+	// Set up the git repo
+	repo, cleanup := gittest.Repo(t)
+	defer cleanup()
+	err := apiClient.SetConfig("", flux.UnsafeInstanceConfig{
+		Git: flux.GitConfig{
+			URL:    repo.URL,
+			Branch: repo.Branch,
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	// Do something that will appear in the history
-	apiClient.Lock("", helloWorldSvc)
+	err = apiClient.UpdatePolicies("", flux.PolicyUpdates{
+		helloWorldSvc: flux.PolicyUpdate{Add: []flux.Policy{flux.PolicyLocked}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// Test History
 	hist, err := apiClient.History("", helloWorldSvc, time.Now().UTC(), -1)

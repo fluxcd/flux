@@ -14,9 +14,6 @@ const (
 	ServiceSpecAll  = ServiceSpec("<all>")
 	ImageSpecLatest = ImageSpec("<all latest>")
 	ImageSpecNone   = ImageSpec("<no updates>")
-	PolicyNone      = Policy("")
-	PolicyLocked    = Policy("locked")
-	PolicyAutomated = Policy("automated")
 )
 
 var (
@@ -210,22 +207,6 @@ func ImageSpecFromID(id ImageID) ImageSpec {
 type ImageStatus struct {
 	ID         ServiceID
 	Containers []Container
-}
-
-// Policy is an string, denoting the current deployment policy of a service,
-// e.g. automated, or locked.
-type Policy string
-
-func ParsePolicy(s string) Policy {
-	for _, p := range []Policy{
-		PolicyLocked,
-		PolicyAutomated,
-	} {
-		if s == string(p) {
-			return p
-		}
-	}
-	return PolicyNone
 }
 
 type ServiceStatus struct {

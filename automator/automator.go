@@ -9,8 +9,8 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/weaveworks/flux"
-	"github.com/weaveworks/flux/instance"
 	"github.com/weaveworks/flux/jobs"
+	"github.com/weaveworks/flux/platform/kubernetes"
 	"github.com/weaveworks/flux/release"
 )
 
@@ -48,24 +48,40 @@ func (a *Automator) checkAll(errorLogger log.Logger) {
 		return
 	}
 	for _, inst := range insts {
-		if !a.hasAutomatedServices(inst.Config.Services) {
+		s, err := a.automatedServices(inst.ID)
+		if err != nil {
+			errorLogger.Log("err", errors.Wrapf(err, "checking for automated instances"))
+			continue
+		}
+		if len(s) <= 0 {
 			continue
 		}
 
-		_, err := a.cfg.Jobs.PutJob(inst.ID, automatedInstanceJob(inst.ID, time.Now()))
+		_, err = a.cfg.Jobs.PutJob(inst.ID, automatedInstanceJob(inst.ID, time.Now()))
 		if err != nil && err != jobs.ErrJobAlreadyQueued {
 			errorLogger.Log("err", errors.Wrapf(err, "queueing automated instance job"))
 		}
 	}
 }
 
-func (a *Automator) hasAutomatedServices(services map[flux.ServiceID]instance.ServiceConfig) bool {
-	for _, service := range services {
-		if service.Policy() == flux.PolicyAutomated {
-			return true
-		}
+func (a *Automator) automatedServices(instanceID flux.InstanceID) (flux.ServiceIDSet, error) {
+	inst, err := a.cfg.Instancer.Get(instanceID)
+	if err != nil {
+		return nil, errors.Wrap(err, "getting job instance")
 	}
-	return false
+
+	rc := release.NewReleaseContext(inst)
+	if err = rc.CloneRepo(); err != nil {
+		return nil, errors.Wrap(err, "cloning repo")
+	}
+	defer rc.Clean()
+
+	s, err := kubernetes.ServicesWithPolicy(rc.RepoPath(), flux.PolicyAutomated)
+	if err != nil {
+		return nil, errors.Wrap(err, "checking service policies")
+	}
+
+	return s, nil
 }
 
 func (a *Automator) Handle(j *jobs.Job, updater jobs.JobUpdater) ([]jobs.Job, error) {
@@ -82,22 +98,6 @@ func (a *Automator) handleAutomatedInstanceJob(logger log.Logger, job *jobs.Job,
 	followUps := []jobs.Job{automatedInstanceJob(job.Instance, time.Now())}
 	params := job.Params.(jobs.AutomatedInstanceJobParams)
 
-	config, err := a.cfg.InstanceDB.GetConfig(params.InstanceID)
-	if err != nil {
-		return followUps, errors.Wrap(err, "getting instance config")
-	}
-
-	automatedServiceIDs := []flux.ServiceID{}
-	for id, service := range config.Services {
-		if service.Policy() == flux.PolicyAutomated {
-			automatedServiceIDs = append(automatedServiceIDs, id)
-		}
-	}
-
-	if len(automatedServiceIDs) == 0 {
-		return nil, nil
-	}
-
 	inst, err := a.cfg.Instancer.Get(params.InstanceID)
 	if err != nil {
 		return followUps, errors.Wrap(err, "getting job instance")
@@ -108,6 +108,15 @@ func (a *Automator) handleAutomatedInstanceJob(logger log.Logger, job *jobs.Job,
 		return followUps, errors.Wrap(err, "cloning repo")
 	}
 	defer rc.Clean()
+
+	automatedServiceIDs, err := kubernetes.ServicesWithPolicy(rc.RepoPath(), flux.PolicyAutomated)
+	if err != nil {
+		return followUps, errors.Wrap(err, "checking service policies")
+	}
+
+	if len(automatedServiceIDs) == 0 {
+		return nil, nil
+	}
 
 	results := flux.ReleaseResult{}
 
@@ -122,7 +131,7 @@ func (a *Automator) handleAutomatedInstanceJob(logger log.Logger, job *jobs.Job,
 		results,
 		logInJob,
 		&release.IncludeFilter{
-			IDs: automatedServiceIDs,
+			IDs: automatedServiceIDs.ToSlice(),
 		},
 	)
 	if err != nil {
@@ -133,7 +142,7 @@ func (a *Automator) handleAutomatedInstanceJob(logger log.Logger, job *jobs.Job,
 	// No services that are automated exist. Don't check again.
 	if len(updates) == 0 {
 		logInJob("no services to update; descheduling automatic check")
-		return nil, fmt.Errorf("no automated service(s) %s exist in config or running system", automatedServiceIDs)
+		return nil, fmt.Errorf("no automated service(s) %s exist in config or running system", automatedServiceIDs.ToSlice())
 	}
 
 	// Get the images available for each automated service.

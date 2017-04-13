@@ -111,6 +111,16 @@ func (i *instrumentedPlatform) SyncStatus(cursor string) (_ []string, err error)
 	return i.p.SyncStatus(cursor)
 }
 
+func (i *instrumentedPlatform) UpdatePolicies(u flux.PolicyUpdates) (err error) {
+	defer func(begin time.Time) {
+		requestDuration.With(
+			fluxmetrics.LabelMethod, "UpdatePolicies",
+			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
+		).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+	return i.p.UpdatePolicies(u)
+}
+
 // BusMetrics has metrics for messages buses.
 type BusMetrics struct {
 	KickCount metrics.Counter

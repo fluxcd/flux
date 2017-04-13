@@ -93,6 +93,8 @@ spec:
 	"locked-service-deploy.yaml": `apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
+  annotations:
+    flux.weave.works/locked: "true"
   name: locked-service
 spec:
   minReadySeconds: 1

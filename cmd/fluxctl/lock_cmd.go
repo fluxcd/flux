@@ -41,5 +41,7 @@ func (opts *serviceLockOpts) RunE(_ *cobra.Command, args []string) error {
 		return err
 	}
 
-	return opts.API.Lock(noInstanceID, serviceID)
+	return opts.API.UpdatePolicies(noInstanceID, flux.PolicyUpdates{
+		serviceID: flux.PolicyUpdate{Add: []flux.Policy{flux.PolicyLocked}},
+	})
 }

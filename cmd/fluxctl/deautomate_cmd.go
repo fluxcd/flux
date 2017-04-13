@@ -41,5 +41,7 @@ func (opts *serviceDeautomateOpts) RunE(_ *cobra.Command, args []string) error {
 		return err
 	}
 
-	return opts.API.Deautomate(noInstanceID, serviceID)
+	return opts.API.UpdatePolicies(noInstanceID, flux.PolicyUpdates{
+		serviceID: flux.PolicyUpdate{Remove: []flux.Policy{flux.PolicyAutomated}},
+	})
 }

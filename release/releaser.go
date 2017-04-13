@@ -108,8 +108,7 @@ func filters(spec *flux.ReleaseSpec, rc *ReleaseContext) ([]ServiceFilter, error
 		if err != nil {
 			return nil, err
 		}
-		imgFilt := &SpecificImageFilter{id}
-		filtList = append(filtList, imgFilt)
+		filtList = append(filtList, &SpecificImageFilter{id})
 	}
 
 	// Service filter
@@ -126,20 +125,20 @@ func filters(spec *flux.ReleaseSpec, rc *ReleaseContext) ([]ServiceFilter, error
 		ids = append(ids, id)
 	}
 	if len(ids) > 0 {
-		incFilt := &IncludeFilter{ids}
-		filtList = append(filtList, incFilt)
+		filtList = append(filtList, &IncludeFilter{ids})
 	}
 
 	// Exclude filter
 	if len(spec.Excludes) > 0 {
-		exFilt := &ExcludeFilter{spec.Excludes}
-		filtList = append(filtList, exFilt)
+		filtList = append(filtList, &ExcludeFilter{spec.Excludes})
 	}
 
 	// Locked filter
-	lockedSet := rc.LockedServices()
-	lockFilt := &LockedFilter{lockedSet.ToSlice()}
-	filtList = append(filtList, lockFilt)
+	lockedSet, err := rc.ServicesWithPolicy(flux.PolicyLocked)
+	if err != nil {
+		return nil, err
+	}
+	filtList = append(filtList, &LockedFilter{lockedSet.ToSlice()})
 	return filtList, nil
 }
 

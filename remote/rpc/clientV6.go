@@ -77,3 +77,11 @@ func (p *RPCClientV6) SyncStatus(ref string) ([]string, error) {
 	}
 	return result, err
 }
+
+func (p *RPCClientV6) UpdatePolicies(u flux.PolicyUpdates) error {
+	err := p.client.Call("RPCServer.UpdatePolicies", u, nil)
+	if _, ok := err.(rpc.ServerError); !ok && err != nil {
+		return remote.FatalError{err}
+	}
+	return err
+}

@@ -154,106 +154,24 @@ func (s *Server) History(inst flux.InstanceID, spec flux.ServiceSpec, before tim
 	return res, nil
 }
 
-func (s *Server) Automate(instID flux.InstanceID, service flux.ServiceID) error {
+func (s *Server) UpdatePolicies(instID flux.InstanceID, updates flux.PolicyUpdates) error {
 	inst, err := s.instancer.Get(instID)
+	if err != nil {
+		return errors.Wrapf(err, "getting instance "+string(instID))
+	}
+
+	err = inst.Platform.UpdatePolicies(updates)
 	if err != nil {
 		return err
 	}
-	now := time.Now().UTC()
-	if err := inst.LogEvent(flux.Event{
-		ServiceIDs: []flux.ServiceID{service},
-		Type:       flux.EventAutomate,
-		StartedAt:  now,
-		EndedAt:    now,
-		LogLevel:   flux.LogLevelInfo,
-	}); err != nil {
-		return err
-	}
-	return recordAutomated(inst, service, true)
-}
 
-func (s *Server) Deautomate(instID flux.InstanceID, service flux.ServiceID) error {
-	inst, err := s.instancer.Get(instID)
-	if err != nil {
-		return err
-	}
-	now := time.Now().UTC()
-	if err := inst.LogEvent(flux.Event{
-		ServiceIDs: []flux.ServiceID{service},
-		Type:       flux.EventDeautomate,
-		StartedAt:  now,
-		EndedAt:    now,
-		LogLevel:   flux.LogLevelInfo,
-	}); err != nil {
-		return err
-	}
-	return recordAutomated(inst, service, false)
-}
-
-func recordAutomated(inst *instance.Instance, service flux.ServiceID, automated bool) error {
-	return inst.Config.Update(func(conf instance.Config) (instance.Config, error) {
-		if serviceConf, found := conf.Services[service]; found {
-			serviceConf.Automated = automated
-			conf.Services[service] = serviceConf
-		} else if automated {
-			conf.Services[service] = instance.ServiceConfig{
-				Automated: true,
-			}
+	// Log events into the history DB
+	for _, event := range updates.Events(time.Now().UTC()) {
+		if err := inst.LogEvent(event); err != nil {
+			return err
 		}
-		return conf, nil
-	})
-}
+	}
 
-func (s *Server) Lock(instID flux.InstanceID, service flux.ServiceID) error {
-	inst, err := s.instancer.Get(instID)
-	if err != nil {
-		return err
-	}
-	now := time.Now().UTC()
-	if err := inst.LogEvent(flux.Event{
-		ServiceIDs: []flux.ServiceID{service},
-		Type:       flux.EventLock,
-		StartedAt:  now,
-		EndedAt:    now,
-		LogLevel:   flux.LogLevelInfo,
-	}); err != nil {
-		return err
-	}
-	return recordLock(inst, service, true)
-}
-
-func (s *Server) Unlock(instID flux.InstanceID, service flux.ServiceID) error {
-	inst, err := s.instancer.Get(instID)
-	if err != nil {
-		return err
-	}
-	now := time.Now().UTC()
-	if err := inst.LogEvent(flux.Event{
-		ServiceIDs: []flux.ServiceID{service},
-		Type:       flux.EventUnlock,
-		StartedAt:  now,
-		EndedAt:    now,
-		LogLevel:   flux.LogLevelInfo,
-	}); err != nil {
-		return err
-	}
-	return recordLock(inst, service, false)
-}
-
-func recordLock(inst *instance.Instance, service flux.ServiceID, locked bool) error {
-	if err := inst.Config.Update(func(conf instance.Config) (instance.Config, error) {
-		if serviceConf, found := conf.Services[service]; found {
-			serviceConf.Locked = locked
-			conf.Services[service] = serviceConf
-		} else if locked {
-			conf.Services[service] = instance.ServiceConfig{
-				Locked: true,
-			}
-		}
-		return conf, nil
-	}); err != nil {
-		return err
-	}
 	return nil
 }
 
