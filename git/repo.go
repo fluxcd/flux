@@ -19,7 +19,7 @@ type Repo struct {
 	// The branch of the config repo that holds the resource definition files.
 	Branch string
 
-	// The private key (e.g., the contents of an id_rsa file) with
+	// Path to a private key (e.g., an id_rsa file) with
 	// permissions to clone and push to the config repo.
 	Key string
 
@@ -34,6 +34,12 @@ func (r Repo) Clone() (path string, err error) {
 
 	workingDir, err := ioutil.TempDir(os.TempDir(), "flux-gitclone")
 	if err != nil {
+		return "", err
+	}
+
+	// Hack, while it's not possible to mount a secret with a
+	// particular mode in Kubernetes
+	if err := narrowKeyPerms(r.Key); err != nil {
 		return "", err
 	}
 

@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"os/exec"
@@ -16,6 +17,7 @@ import (
 
 	//	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/daemon"
 	"github.com/weaveworks/flux/git"
 	transport "github.com/weaveworks/flux/http"
 	daemonhttp "github.com/weaveworks/flux/http/daemon"
@@ -150,20 +152,41 @@ func main() {
 	}
 
 	var repo git.Repo
+	var workingDir string
 	{
 		repo = git.Repo{
 			URL:    *gitURL,
 			Path:   *gitPath,
 			Branch: *gitBranch,
-			Key:    *gitKey, // FIXME this should be treated as a path now
+			Key:    *gitKey,
 		}
+
+		keyBytes, err := ioutil.ReadFile(*gitKey) // TODO do straight from disk?
+		if err != nil {
+			logger.Log("component", "git", "err", err.Error())
+		} else {
+			fp, err := git.Fingerprint(keyBytes, "md5")
+			if err != nil {
+				logger.Log("component", "git", "err", err.Error())
+			} else {
+				logger.Log("component", "git", "fingerprint", fp)
+			}
+		}
+
+		working, err := repo.Clone()
+		if err != nil {
+			logger.Log("component", "git", "err", err.Error())
+			os.Exit(1)
+		}
+		workingDir = working
 	}
 
-	daemon := &platform.Daemon{
-		V:        version,
-		Cluster:  k8s,
-		Repo:     repo,
-		Registry: reg,
+	daemon := &daemon.Daemon{
+		V:          version,
+		Cluster:    k8s,
+		Repo:       repo,
+		Registry:   reg,
+		WorkingDir: workingDir,
 	}
 
 	// Connect to fluxsvc if given an upstream address

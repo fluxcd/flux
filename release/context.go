@@ -10,6 +10,7 @@ import (
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/git"
 	"github.com/weaveworks/flux/platform"
+	"github.com/weaveworks/flux/registry"
 )
 
 const (
@@ -25,25 +26,17 @@ const (
 type ReleaseContext struct {
 	Cluster    platform.Cluster
 	Repo       git.Repo
+	Registry   registry.Registry
 	WorkingDir string
 }
 
-func NewReleaseContext(c platform.Cluster, repo git.Repo) *ReleaseContext {
+func NewReleaseContext(c platform.Cluster, reg registry.Registry, repo git.Repo, working string) *ReleaseContext {
 	return &ReleaseContext{
-		Cluster: c,
-		Repo:    repo,
+		Cluster:    c,
+		Repo:       repo,
+		Registry:   reg,
+		WorkingDir: working,
 	}
-}
-
-// Repo operations
-
-func (rc *ReleaseContext) CloneRepo() error {
-	path, err := rc.Repo.Clone()
-	if err != nil {
-		return err
-	}
-	rc.WorkingDir = path
-	return nil
 }
 
 func (rc *ReleaseContext) CommitAndPush(msg string) error {
@@ -77,16 +70,10 @@ func writeUpdates(updates []*ServiceUpdate) error {
 	return nil
 }
 
-func (rc *ReleaseContext) Clean() {
-	if rc.WorkingDir != "" {
-		os.RemoveAll(rc.WorkingDir)
-	}
-}
-
 // SelectServices finds the services that exist both in the definition
 // files and the running platform.
 //
-// ServiceFilter's can be provided to filter the found services.
+// `ServiceFilter`s can be provided to filter the found services.
 // Be careful about the ordering of the filters. Filters that are earlier
 // in the slice will have higher priority (they are run first).
 func (rc *ReleaseContext) SelectServices(results flux.ReleaseResult, filters ...ServiceFilter) ([]*ServiceUpdate, error) {

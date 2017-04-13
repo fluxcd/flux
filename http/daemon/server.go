@@ -9,9 +9,9 @@ import (
 	"github.com/weaveworks/common/middleware"
 
 	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/daemon"
 	transport "github.com/weaveworks/flux/http"
 	fluxmetrics "github.com/weaveworks/flux/metrics"
-	"github.com/weaveworks/flux/platform"
 )
 
 var (
@@ -35,13 +35,14 @@ func NewRouter() *mux.Router {
 	return r
 }
 
-func NewHandler(d *platform.Daemon, r *mux.Router) http.Handler {
+func NewHandler(d *daemon.Daemon, r *mux.Router) http.Handler {
 	handle := HTTPServer{d}
 	r.Get("SyncCluster").HandlerFunc(handle.SyncCluster)
 	r.Get("SyncStatus").HandlerFunc(handle.SyncStatus)
 	r.Get("UpdateImages").HandlerFunc(handle.UpdateImages)
 	r.Get("ListServices").HandlerFunc(handle.ListServices)
 	r.Get("ListImages").HandlerFunc(handle.ListImages)
+	r.Get("UpdateImages").HandlerFunc(handle.UpdateImages)
 
 	return middleware.Instrument{
 		RouteMatcher: r,
@@ -50,7 +51,7 @@ func NewHandler(d *platform.Daemon, r *mux.Router) http.Handler {
 }
 
 type HTTPServer struct {
-	daemon *platform.Daemon
+	daemon *daemon.Daemon
 }
 
 func (s HTTPServer) SyncCluster(w http.ResponseWriter, r *http.Request) {

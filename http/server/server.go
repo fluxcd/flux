@@ -36,6 +36,7 @@ func NewHandler(s api.FluxService, r *mux.Router, logger log.Logger) http.Handle
 	for method, handlerMethod := range map[string]http.HandlerFunc{
 		"ListServices": handle.ListServices,
 		"ListImages":   handle.ListImages,
+		"UpdateImages": handle.UpdateImages,
 		// FIXME replace these
 		// "PostRelease":            handle.PostRelease,
 		// "GetRelease":             handle.GetRelease,

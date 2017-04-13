@@ -17,12 +17,7 @@ import (
 // Do a shallow clone of the repo. We only need the files, and not the
 // history. A shallow clone is marginally quicker, and takes less
 // space, than a full clone.
-func clone(workingDir, keyData, repoURL, repoBranch string) (path string, err error) {
-	keyPath, err := writeKey(keyData)
-	if err != nil {
-		return "", err
-	}
-	defer os.Remove(keyPath)
+func clone(workingDir, keyPath, repoURL, repoBranch string) (path string, err error) {
 	repoPath := filepath.Join(workingDir, "repo")
 	// --single-branch is also useful, but is implied by --depth=1
 	args := []string{"clone", "--depth=1"}
@@ -48,12 +43,7 @@ func commit(workingDir, commitMessage string) error {
 	return nil
 }
 
-func push(keyData, repoBranch, workingDir string) error {
-	keyPath, err := writeKey(keyData)
-	if err != nil {
-		return err
-	}
-	defer os.Remove(keyPath)
+func push(keyPath, repoBranch, workingDir string) error {
 	if err := execGitCmd(workingDir, keyPath, "push", "origin", repoBranch); err != nil {
 		return errors.Wrap(err, fmt.Sprintf("git push origin %s", repoBranch))
 	}
@@ -93,20 +83,8 @@ func check(workingDir, subdir string) bool {
 	return execGitCmd(workingDir, "", "diff", "--quiet", "--", subdir) != nil
 }
 
-func writeKey(keyData string) (string, error) {
-	f, err := ioutil.TempFile("", "flux-key")
-	if err != nil {
-		return "", err
-	}
-	if err := f.Close(); err != nil {
-		os.Remove(f.Name())
-		return "", err
-	}
-	if err := ioutil.WriteFile(f.Name(), []byte(keyData), 0400); err != nil {
-		os.Remove(f.Name())
-		return "", err
-	}
-	return f.Name(), nil
+func narrowKeyPerms(keyPath string) error {
+	return os.Chmod(keyPath, 0400)
 }
 
 func findFatalMessage(output io.Reader) string {
