@@ -4,6 +4,7 @@ import (
 	"sort"
 	"time"
 
+	"fmt"
 	"github.com/weaveworks/flux/guid"
 )
 
@@ -74,10 +75,6 @@ type ReleaseSpec struct {
 	ImageSpec    ImageSpec
 	Kind         ReleaseKind
 	Excludes     []ServiceID
-
-	// Backwards Compatibility, remove once no more jobs
-	// TODO: Remove this once there are no more jobs with ServiceSpec, only ServiceSpecs
-	ServiceSpec ServiceSpec
 }
 
 // ReleaseType gives a one-word description of the release, mainly
@@ -134,6 +131,10 @@ type ServiceResult struct {
 	Status       ServiceReleaseStatus // summary of what happened, e.g., "incomplete", "ignored", "success"
 	Error        string               `json:",omitempty"` // error if there was one finding the service (e.g., it doesn't exist in repo)
 	PerContainer []ContainerUpdate    // what happened with each container
+}
+
+func (fr ServiceResult) Msg(id ServiceID) string {
+	return fmt.Sprintf("%s service %s as it is %s", fr.Status, fr.Error)
 }
 
 type ContainerUpdate struct {

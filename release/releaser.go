@@ -255,49 +255,23 @@ func sendNotifications(inst *instance.Instance, executeErr error, release flux.R
 // in question based on the running services and those defined in the
 // repo. Fill in the release results along the way.
 func selectServices(rc *ReleaseContext, spec *flux.ReleaseSpec, results flux.ReleaseResult, logStatus statusFn) ([]*ServiceUpdate, error) {
-	conf, err := rc.Instance.GetConfig()
-	if err != nil {
-		return nil, err
-	}
-
 	// Build list of filters
-	filtList, err := filters(spec, conf)
+	filtList, err := filters(spec, rc)
 	if err != nil {
 		return nil, err
 	}
 
-	// For backwards-compatibility, there's two fields: ServiceSpec
-	// and ServiceSpecs. An entry in ServiceSpec takes precedence.
-	switch spec.ServiceSpec {
-	case flux.ServiceSpec(""):
-		ids := []flux.ServiceID{}
-		for _, s := range spec.ServiceSpecs {
-			if s == flux.ServiceSpecAll {
-				return rc.SelectServices(results, logStatus, filtList...)
-			}
-			id, err := flux.ParseServiceID(string(s))
-			if err != nil {
-				return nil, err
-			}
-			ids = append(ids, id)
-		}
-		incFilt := &IncludeFilter{ids}
-		return rc.SelectServices(
-			results,
-			logStatus,
-			append([]ServiceFilter{incFilt}, filtList...)...,
-		)
-	default:
-		return rc.SelectServices(
-			results,
-			logStatus,
-			filtList...,
-		)
-	}
+	// Find and filter services
+	return rc.SelectServices(
+		results,
+		logStatus,
+		filtList...,
+	)
 }
 
 // filters converts a ReleaseSpec (and Lock config) into ServiceFilters
-func filters(spec *flux.ReleaseSpec, conf instance.Config) ([]ServiceFilter, error) {
+func filters(spec *flux.ReleaseSpec, rc *ReleaseContext) ([]ServiceFilter, error) {
+	// Image filter
 	var filtList []ServiceFilter
 	if spec.ImageSpec != flux.ImageSpecNone && spec.ImageSpec != flux.ImageSpecLatest {
 		id, err := flux.ParseImageID(spec.ImageSpec.String())
@@ -307,20 +281,38 @@ func filters(spec *flux.ReleaseSpec, conf instance.Config) ([]ServiceFilter, err
 		imgFilt := &SpecificImageFilter{id}
 		filtList = append(filtList, imgFilt)
 	}
-	if spec.ServiceSpec != flux.ServiceSpecAll {
-		svcID, err := flux.ParseServiceID(string(spec.ServiceSpec))
+
+	// Service filter
+	ids := []flux.ServiceID{}
+	for _, s := range spec.ServiceSpecs {
+		if s == flux.ServiceSpecAll {
+			break
+		}
+		id, err := flux.ParseServiceID(string(s))
 		if err != nil {
 			return nil, err
 		}
-		incFilt := &IncludeFilter{[]flux.ServiceID{svcID}}
+		ids = append(ids, id)
+	}
+	if len(ids) > 0 {
+		incFilt := &IncludeFilter{ids}
 		filtList = append(filtList, incFilt)
 	}
+
+	// Exclude filter
 	if len(spec.Excludes) > 0 {
 		exFilt := &ExcludeFilter{spec.Excludes}
 		filtList = append(filtList, exFilt)
 	}
 
-	// Get locked services
+	// Locked filter
+	// - Get config
+	conf, err := rc.Instance.GetConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	// - Get locked services from config
 	lockedSet := LockedServices(conf)
 	lockFilt := &LockedFilter{lockedSet.ToSlice()}
 	filtList = append(filtList, lockFilt)

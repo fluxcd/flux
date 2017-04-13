@@ -140,10 +140,10 @@ func Test_FilterLogic(t *testing.T) {
 		{
 			Name: "not included",
 			Spec: flux.ReleaseSpec{
-				ServiceSpec: hwSvcSpec,
-				ImageSpec:   flux.ImageSpecLatest,
-				Kind:        flux.ReleaseKindExecute,
-				Excludes:    []flux.ServiceID{},
+				ServiceSpecs: []flux.ServiceSpec{hwSvcSpec},
+				ImageSpec:    flux.ImageSpecLatest,
+				Kind:         flux.ReleaseKindExecute,
+				Excludes:     []flux.ServiceID{},
 			},
 			Expected: flux.ReleaseResult{
 				flux.ServiceID("default/helloworld"): flux.ServiceResult{
@@ -168,10 +168,10 @@ func Test_FilterLogic(t *testing.T) {
 		}, {
 			Name: "excluded",
 			Spec: flux.ReleaseSpec{
-				ServiceSpec: flux.ServiceSpecAll,
-				ImageSpec:   flux.ImageSpecLatest,
-				Kind:        flux.ReleaseKindExecute,
-				Excludes:    []flux.ServiceID{lockedSvcID},
+				ServiceSpecs: []flux.ServiceSpec{flux.ServiceSpecAll},
+				ImageSpec:    flux.ImageSpecLatest,
+				Kind:         flux.ReleaseKindExecute,
+				Excludes:     []flux.ServiceID{lockedSvcID},
 			},
 			Expected: flux.ReleaseResult{
 				flux.ServiceID("default/helloworld"): flux.ServiceResult{
@@ -196,10 +196,10 @@ func Test_FilterLogic(t *testing.T) {
 		}, {
 			Name: "not image",
 			Spec: flux.ReleaseSpec{
-				ServiceSpec: flux.ServiceSpecAll,
-				ImageSpec:   flux.ImageSpecFromID(newImageID),
-				Kind:        flux.ReleaseKindExecute,
-				Excludes:    []flux.ServiceID{},
+				ServiceSpecs: []flux.ServiceSpec{flux.ServiceSpecAll},
+				ImageSpec:    flux.ImageSpecFromID(newImageID),
+				Kind:         flux.ReleaseKindExecute,
+				Excludes:     []flux.ServiceID{},
 			},
 			Expected: flux.ReleaseResult{
 				flux.ServiceID("default/helloworld"): flux.ServiceResult{
@@ -227,10 +227,10 @@ func Test_FilterLogic(t *testing.T) {
 		{
 			Name: "skipped & service is pending",
 			Spec: flux.ReleaseSpec{
-				ServiceSpec: flux.ServiceSpecAll,
-				ImageSpec:   flux.ImageSpecLatest,
-				Kind:        flux.ReleaseKindExecute,
-				Excludes:    []flux.ServiceID{},
+				ServiceSpecs: []flux.ServiceSpec{flux.ServiceSpecAll},
+				ImageSpec:    flux.ImageSpecLatest,
+				Kind:         flux.ReleaseKindExecute,
+				Excludes:     []flux.ServiceID{},
 			},
 			Expected: flux.ReleaseResult{
 				flux.ServiceID("default/helloworld"): flux.ServiceResult{
@@ -307,10 +307,10 @@ func Test_ImageStatus(t *testing.T) {
 		{
 			Name: "image not found",
 			Spec: flux.ReleaseSpec{
-				ServiceSpec: testSvcSpec,
-				ImageSpec:   flux.ImageSpecLatest,
-				Kind:        flux.ReleaseKindExecute,
-				Excludes:    []flux.ServiceID{},
+				ServiceSpecs: []flux.ServiceSpec{testSvcSpec},
+				ImageSpec:    flux.ImageSpecLatest,
+				Kind:         flux.ReleaseKindExecute,
+				Excludes:     []flux.ServiceID{},
 			},
 			Expected: flux.ReleaseResult{
 				flux.ServiceID("default/helloworld"): flux.ServiceResult{
@@ -329,10 +329,10 @@ func Test_ImageStatus(t *testing.T) {
 		}, {
 			Name: "image up to date",
 			Spec: flux.ReleaseSpec{
-				ServiceSpec: hwSvcSpec,
-				ImageSpec:   flux.ImageSpecLatest,
-				Kind:        flux.ReleaseKindExecute,
-				Excludes:    []flux.ServiceID{},
+				ServiceSpecs: []flux.ServiceSpec{hwSvcSpec},
+				ImageSpec:    flux.ImageSpecLatest,
+				Kind:         flux.ReleaseKindExecute,
+				Excludes:     []flux.ServiceID{},
 			},
 			Expected: flux.ReleaseResult{
 				flux.ServiceID("default/helloworld"): flux.ServiceResult{

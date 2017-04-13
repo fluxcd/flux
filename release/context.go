@@ -121,11 +121,11 @@ func (rc *ReleaseContext) SelectServices(results flux.ReleaseResult, logStatus s
 	var filteredUpdates []*ServiceUpdate
 	for _, s := range updates {
 		fr := s.filter(filters...)
-		if fr.ServiceResult.Error != "" {
-			logStatus(fr.String())
+		if fr.Error != "" {
+			logStatus(fr.Msg(s.ServiceID))
 		}
-		results[s.ServiceID] = fr.ServiceResult
-		if fr.ServiceResult.Status == flux.ReleaseStatusPending || fr.ServiceResult.Status == flux.ReleaseStatusSuccess || fr.ServiceResult.Status == "" {
+		results[s.ServiceID] = fr
+		if fr.Status == flux.ReleaseStatusPending || fr.Status == flux.ReleaseStatusSuccess || fr.Status == "" {
 			filteredUpdates = append(filteredUpdates, s)
 		}
 	}
@@ -134,11 +134,11 @@ func (rc *ReleaseContext) SelectServices(results flux.ReleaseResult, logStatus s
 	filteredDefined := map[flux.ServiceID]*ServiceUpdate{}
 	for k, s := range definedMap {
 		fr := s.filter(filters...)
-		if fr.ServiceResult.Error != "" {
-			logStatus(fr.String())
+		if fr.Error != "" {
+			logStatus(fr.Msg(s.ServiceID))
 		}
-		results[s.ServiceID] = fr.ServiceResult
-		if fr.ServiceResult.Status != flux.ReleaseStatusIgnored {
+		results[s.ServiceID] = fr
+		if fr.Status != flux.ReleaseStatusIgnored {
 			filteredDefined[k] = s
 		}
 	}
@@ -155,14 +155,14 @@ func (rc *ReleaseContext) SelectServices(results flux.ReleaseResult, logStatus s
 	return filteredUpdates, nil
 }
 
-func (s *ServiceUpdate) filter(filters ...ServiceFilter) FilterResult {
+func (s *ServiceUpdate) filter(filters ...ServiceFilter) flux.ServiceResult {
 	for _, f := range filters {
 		fr := f.Filter(*s)
-		if fr.ServiceResult.Error != "" {
+		if fr.Error != "" {
 			return fr
 		}
 	}
-	return FilterResult{}
+	return flux.ServiceResult{}
 }
 
 func (rc *ReleaseContext) FindDefinedServices() ([]*ServiceUpdate, error) {
@@ -191,32 +191,20 @@ func (rc *ReleaseContext) FindDefinedServices() ([]*ServiceUpdate, error) {
 	return defined, nil
 }
 
-type FilterResult struct {
-	ServiceResult flux.ServiceResult
-	ID            flux.ServiceID
-}
-
-func (fr *FilterResult) String() string {
-	return fmt.Sprintf("%s service %s as it is %s", fr.ServiceResult.Status, fr.ID, fr.ServiceResult.Error)
-}
-
 type ServiceFilter interface {
-	Filter(ServiceUpdate) FilterResult
+	Filter(ServiceUpdate) flux.ServiceResult
 }
 
 type SpecificImageFilter struct {
 	Img flux.ImageID
 }
 
-func (f *SpecificImageFilter) Filter(u ServiceUpdate) FilterResult {
+func (f *SpecificImageFilter) Filter(u ServiceUpdate) flux.ServiceResult {
 	// If there are no containers, then we can't check the image.
 	if len(u.Service.Containers.Containers) == 0 {
-		return FilterResult{
-			ID: u.ServiceID,
-			ServiceResult: flux.ServiceResult{
-				Status: flux.ReleaseStatusIgnored,
-				Error:  NotInCluster,
-			},
+		return flux.ServiceResult{
+			Status: flux.ReleaseStatusIgnored,
+			Error:  NotInCluster,
 		}
 	}
 	// For each container in update
@@ -225,15 +213,12 @@ func (f *SpecificImageFilter) Filter(u ServiceUpdate) FilterResult {
 		// If container image == image in update
 		if cID.HostNamespaceImage() == f.Img.HostNamespaceImage() {
 			// We want to update this
-			return FilterResult{}
+			return flux.ServiceResult{}
 		}
 	}
-	return FilterResult{
-		ID: u.ServiceID,
-		ServiceResult: flux.ServiceResult{
-			Status: flux.ReleaseStatusIgnored,
-			Error:  DifferentImage,
-		},
+	return flux.ServiceResult{
+		Status: flux.ReleaseStatusIgnored,
+		Error:  DifferentImage,
 	}
 }
 
@@ -241,37 +226,31 @@ type ExcludeFilter struct {
 	IDs []flux.ServiceID
 }
 
-func (f *ExcludeFilter) Filter(u ServiceUpdate) FilterResult {
+func (f *ExcludeFilter) Filter(u ServiceUpdate) flux.ServiceResult {
 	for _, id := range f.IDs {
 		if u.ServiceID == id {
-			return FilterResult{
-				ID: u.ServiceID,
-				ServiceResult: flux.ServiceResult{
-					Status: flux.ReleaseStatusIgnored,
-					Error:  Excluded,
-				},
+			return flux.ServiceResult{
+				Status: flux.ReleaseStatusIgnored,
+				Error:  Excluded,
 			}
 		}
 	}
-	return FilterResult{}
+	return flux.ServiceResult{}
 }
 
 type IncludeFilter struct {
 	IDs []flux.ServiceID
 }
 
-func (f *IncludeFilter) Filter(u ServiceUpdate) FilterResult {
+func (f *IncludeFilter) Filter(u ServiceUpdate) flux.ServiceResult {
 	for _, id := range f.IDs {
 		if u.ServiceID == id {
-			return FilterResult{}
+			return flux.ServiceResult{}
 		}
 	}
-	return FilterResult{
-		ID: u.ServiceID,
-		ServiceResult: flux.ServiceResult{
-			Status: flux.ReleaseStatusIgnored,
-			Error:  NotIncluded,
-		},
+	return flux.ServiceResult{
+		Status: flux.ReleaseStatusIgnored,
+		Error:  NotIncluded,
 	}
 }
 
@@ -279,17 +258,14 @@ type LockedFilter struct {
 	IDs []flux.ServiceID
 }
 
-func (f *LockedFilter) Filter(u ServiceUpdate) FilterResult {
+func (f *LockedFilter) Filter(u ServiceUpdate) flux.ServiceResult {
 	for _, id := range f.IDs {
 		if u.ServiceID == id {
-			return FilterResult{
-				ID: u.ServiceID,
-				ServiceResult: flux.ServiceResult{
-					Status: flux.ReleaseStatusSkipped,
-					Error:  Locked,
-				},
+			return flux.ServiceResult{
+				Status: flux.ReleaseStatusSkipped,
+				Error:  Locked,
 			}
 		}
 	}
-	return FilterResult{}
+	return flux.ServiceResult{}
 }
