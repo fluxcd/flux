@@ -286,6 +286,7 @@ func filters(spec *flux.ReleaseSpec, rc *ReleaseContext) ([]ServiceFilter, error
 	ids := []flux.ServiceID{}
 	for _, s := range spec.ServiceSpecs {
 		if s == flux.ServiceSpecAll {
+			ids = []flux.ServiceID{} // "<all>" Overrides any other filters
 			break
 		}
 		id, err := flux.ParseServiceID(string(s))

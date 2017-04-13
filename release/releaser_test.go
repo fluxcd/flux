@@ -253,6 +253,35 @@ func Test_FilterLogic(t *testing.T) {
 				},
 			},
 		},
+		{
+			Name: "all overrides spec",
+			Spec: flux.ReleaseSpec{
+				ServiceSpecs: []flux.ServiceSpec{hwSvcSpec, flux.ServiceSpecAll},
+				ImageSpec:    flux.ImageSpecLatest,
+				Kind:         flux.ReleaseKindExecute,
+				Excludes:     []flux.ServiceID{},
+			},
+			Expected: flux.ReleaseResult{
+				flux.ServiceID("default/helloworld"): flux.ServiceResult{
+					Status: flux.ReleaseStatusSuccess,
+					PerContainer: []flux.ContainerUpdate{
+						flux.ContainerUpdate{
+							Container: "helloworld",
+							Current:   oldImageID,
+							Target:    newImageID,
+						},
+					},
+				},
+				flux.ServiceID("default/locked-service"): flux.ServiceResult{
+					Status: flux.ReleaseStatusSkipped,
+					Error:  Locked,
+				},
+				flux.ServiceID("default/test-service"): flux.ServiceResult{
+					Status: flux.ReleaseStatusSkipped,
+					Error:  NotInCluster,
+				},
+			},
+		},
 	} {
 		releaser, cleanup := setup(t, instance.Instance{
 			Platform: mockPlatform,
