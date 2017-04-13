@@ -261,8 +261,44 @@ func selectServices(rc *ReleaseContext, spec *flux.ReleaseSpec, results flux.Rel
 	}
 
 	// Build list of filters
-	var filtList []ServiceFilter
+	filtList, err := filters(spec, conf)
+	if err != nil {
+		return nil, err
+	}
 
+	// For backwards-compatibility, there's two fields: ServiceSpec
+	// and ServiceSpecs. An entry in ServiceSpec takes precedence.
+	switch spec.ServiceSpec {
+	case flux.ServiceSpec(""):
+		ids := []flux.ServiceID{}
+		for _, s := range spec.ServiceSpecs {
+			if s == flux.ServiceSpecAll {
+				return rc.SelectServices(results, logStatus, filtList...)
+			}
+			id, err := flux.ParseServiceID(string(s))
+			if err != nil {
+				return nil, err
+			}
+			ids = append(ids, id)
+		}
+		incFilt := &IncludeFilter{ids}
+		return rc.SelectServices(
+			results,
+			logStatus,
+			append([]ServiceFilter{incFilt}, filtList...)...,
+		)
+	default:
+		return rc.SelectServices(
+			results,
+			logStatus,
+			filtList...,
+		)
+	}
+}
+
+// filters converts a ReleaseSpec (and Lock config) into ServiceFilters
+func filters(spec *flux.ReleaseSpec, conf instance.Config) ([]ServiceFilter, error) {
+	var filtList []ServiceFilter
 	if spec.ImageSpec != flux.ImageSpecNone && spec.ImageSpec != flux.ImageSpecLatest {
 		id, err := flux.ParseImageID(spec.ImageSpec.String())
 		if err != nil {
@@ -288,27 +324,7 @@ func selectServices(rc *ReleaseContext, spec *flux.ReleaseSpec, results flux.Rel
 	lockedSet := LockedServices(conf)
 	lockFilt := &LockedFilter{lockedSet.ToSlice()}
 	filtList = append(filtList, lockFilt)
-
-	// For backwards-compatibility, there's two fields: ServiceSpec
-	// and ServiceSpecs. An entry in ServiceSpec takes precedence.
-	switch spec.ServiceSpec {
-	case flux.ServiceSpec(""):
-		ids := []flux.ServiceID{}
-		for _, s := range spec.ServiceSpecs {
-			if s == flux.ServiceSpecAll {
-				return rc.SelectServices(results, logStatus, filtList...)
-			}
-			id, err := flux.ParseServiceID(string(s))
-			if err != nil {
-				return nil, err
-			}
-			ids = append(ids, id)
-		}
-		incFilt := &IncludeFilter{ids}
-		return rc.SelectServices(results, logStatus, append([]ServiceFilter{incFilt}, filtList...)...)
-	default:
-		return rc.SelectServices(results, logStatus, filtList...)
-	}
+	return filtList, nil
 }
 
 // Find all the image updates that should be performed, and do

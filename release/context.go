@@ -81,12 +81,9 @@ func (rc *ReleaseContext) Clean() {
 	}
 }
 
-// Compiling lists of defined and running services. These need the
-// release context because they look at files in the working
-// directory.
-
 // SelectServices finds the services that exist both in the definition
 // files and the running platform.
+//
 // ServiceFilter's can be provided to filter the found services.
 // Be careful about the ordering of the filters. Filters that are earlier
 // in the slice will have higher priority (they are run first).
@@ -124,11 +121,11 @@ func (rc *ReleaseContext) SelectServices(results flux.ReleaseResult, logStatus s
 	var filteredUpdates []*ServiceUpdate
 	for _, s := range updates {
 		fr := s.filter(filters...)
-		if fr.Result.Error != "" {
+		if fr.ServiceResult.Error != "" {
 			logStatus(fr.String())
 		}
-		results[s.ServiceID] = fr.Result
-		if fr.Result.Status == flux.ReleaseStatusPending || fr.Result.Status == flux.ReleaseStatusSuccess || fr.Result.Status == "" {
+		results[s.ServiceID] = fr.ServiceResult
+		if fr.ServiceResult.Status == flux.ReleaseStatusPending || fr.ServiceResult.Status == flux.ReleaseStatusSuccess || fr.ServiceResult.Status == "" {
 			filteredUpdates = append(filteredUpdates, s)
 		}
 	}
@@ -137,11 +134,11 @@ func (rc *ReleaseContext) SelectServices(results flux.ReleaseResult, logStatus s
 	filteredDefined := map[flux.ServiceID]*ServiceUpdate{}
 	for k, s := range definedMap {
 		fr := s.filter(filters...)
-		if fr.Result.Error != "" {
+		if fr.ServiceResult.Error != "" {
 			logStatus(fr.String())
 		}
-		results[s.ServiceID] = fr.Result
-		if fr.Result.Status != flux.ReleaseStatusIgnored {
+		results[s.ServiceID] = fr.ServiceResult
+		if fr.ServiceResult.Status != flux.ReleaseStatusIgnored {
 			filteredDefined[k] = s
 		}
 	}
@@ -161,7 +158,7 @@ func (rc *ReleaseContext) SelectServices(results flux.ReleaseResult, logStatus s
 func (s *ServiceUpdate) filter(filters ...ServiceFilter) FilterResult {
 	for _, f := range filters {
 		fr := f.Filter(*s)
-		if fr.Result.Error != "" {
+		if fr.ServiceResult.Error != "" {
 			return fr
 		}
 	}
@@ -195,12 +192,12 @@ func (rc *ReleaseContext) FindDefinedServices() ([]*ServiceUpdate, error) {
 }
 
 type FilterResult struct {
-	Result flux.ServiceResult
-	ID     flux.ServiceID
+	ServiceResult flux.ServiceResult
+	ID            flux.ServiceID
 }
 
 func (fr *FilterResult) String() string {
-	return fmt.Sprintf("%s service %s as it is %s", fr.Result.Status, fr.ID, fr.Result.Error)
+	return fmt.Sprintf("%s service %s as it is %s", fr.ServiceResult.Status, fr.ID, fr.ServiceResult.Error)
 }
 
 type ServiceFilter interface {
@@ -216,7 +213,7 @@ func (f *SpecificImageFilter) Filter(u ServiceUpdate) FilterResult {
 	if len(u.Service.Containers.Containers) == 0 {
 		return FilterResult{
 			ID: u.ServiceID,
-			Result: flux.ServiceResult{
+			ServiceResult: flux.ServiceResult{
 				Status: flux.ReleaseStatusIgnored,
 				Error:  NotInCluster,
 			},
@@ -233,7 +230,7 @@ func (f *SpecificImageFilter) Filter(u ServiceUpdate) FilterResult {
 	}
 	return FilterResult{
 		ID: u.ServiceID,
-		Result: flux.ServiceResult{
+		ServiceResult: flux.ServiceResult{
 			Status: flux.ReleaseStatusIgnored,
 			Error:  DifferentImage,
 		},
@@ -249,7 +246,7 @@ func (f *ExcludeFilter) Filter(u ServiceUpdate) FilterResult {
 		if u.ServiceID == id {
 			return FilterResult{
 				ID: u.ServiceID,
-				Result: flux.ServiceResult{
+				ServiceResult: flux.ServiceResult{
 					Status: flux.ReleaseStatusIgnored,
 					Error:  Excluded,
 				},
@@ -271,7 +268,7 @@ func (f *IncludeFilter) Filter(u ServiceUpdate) FilterResult {
 	}
 	return FilterResult{
 		ID: u.ServiceID,
-		Result: flux.ServiceResult{
+		ServiceResult: flux.ServiceResult{
 			Status: flux.ReleaseStatusIgnored,
 			Error:  NotIncluded,
 		},
@@ -287,7 +284,7 @@ func (f *LockedFilter) Filter(u ServiceUpdate) FilterResult {
 		if u.ServiceID == id {
 			return FilterResult{
 				ID: u.ServiceID,
-				Result: flux.ServiceResult{
+				ServiceResult: flux.ServiceResult{
 					Status: flux.ReleaseStatusSkipped,
 					Error:  Locked,
 				},
