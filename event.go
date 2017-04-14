@@ -86,10 +86,20 @@ func (e Event) String() string {
 		if len(strServiceIDs) == 0 {
 			strServiceIDs = []string{"no services"}
 		}
+		var user string
+		if metadata.Release.Cause.User != "" {
+			user = fmt.Sprintf(", by %s", metadata.Release.Cause.User)
+		}
+		var msg string
+		if metadata.Release.Cause.Message != "" {
+			msg = fmt.Sprintf(", with message %q", metadata.Release.Cause.Message)
+		}
 		return fmt.Sprintf(
-			"Released: %s to %s",
+			"Released: %s to %s%s%s",
 			strings.Join(strImageIDs, ", "),
 			strings.Join(strServiceIDs, ", "),
+			user,
+			msg,
 		)
 	case EventAutomate:
 		return fmt.Sprintf("Automated: %s", strings.Join(strServiceIDs, ", "))
