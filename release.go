@@ -134,7 +134,7 @@ type ServiceResult struct {
 }
 
 func (fr ServiceResult) Msg(id ServiceID) string {
-	return fmt.Sprintf("%s service %s as it is %s", fr.Status, fr.Error)
+	return fmt.Sprintf("%s service %s as it is %s", fr.Status, id.String(), fr.Error)
 }
 
 type ContainerUpdate struct {
