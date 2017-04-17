@@ -23,6 +23,7 @@ var (
 	sidecarImage      = "quay.io/weaveworks/sidecar:master-a000002"
 	sidecarImageID, _ = flux.ParseImageID(sidecarImage)
 	hwSvcID, _        = flux.ParseServiceID("default/helloworld")
+	hwSvcSpec, _      = flux.ParseServiceSpec(hwSvcID.String())
 	hwSvc             = platform.Service{
 		ID: hwSvcID,
 		Containers: platform.ContainersOrExcuse{
@@ -39,13 +40,12 @@ var (
 		},
 	}
 
-	hwSvcSpec, _ = flux.ParseServiceSpec(hwSvcID.String())
-
-	oldLockedImg   = "quay.io/weaveworks/locked-service:1"
-	newLockedImg   = "quay.io/weaveworks/locked-service:2"
-	newLockedID, _ = flux.ParseImageID(newLockedImg)
-	lockedSvcID, _ = flux.ParseServiceID("default/locked-service")
-	lockedSvc      = platform.Service{
+	oldLockedImg     = "quay.io/weaveworks/locked-service:1"
+	newLockedImg     = "quay.io/weaveworks/locked-service:2"
+	newLockedID, _   = flux.ParseImageID(newLockedImg)
+	lockedSvcID, _   = flux.ParseServiceID("default/locked-service")
+	lockedSvcSpec, _ = flux.ParseServiceSpec(lockedSvcID.String())
+	lockedSvc        = platform.Service{
 		ID: lockedSvcID,
 		Containers: platform.ContainersOrExcuse{
 			Containers: []platform.Container{
@@ -56,6 +56,7 @@ var (
 			},
 		},
 	}
+
 	testScv = platform.Service{
 		ID: "default/test-service",
 		Containers: platform.ContainersOrExcuse{
@@ -416,5 +417,75 @@ func testRelease(t *testing.T, releaser *Releaser, name string, spec flux.Releas
 	println()
 	if !reflect.DeepEqual(expected, results) {
 		t.Errorf("%s - expected:\n%#v, got:\n%#v", name, expected, results)
+	}
+}
+
+type mockEventWriter struct {
+	events []flux.Event
+}
+
+func (ew *mockEventWriter) LogEvent(e flux.Event) error {
+	if ew.events == nil {
+		ew.events = make([]flux.Event, 0)
+	}
+	ew.events = append(ew.events, e)
+	return nil
+}
+
+func Test_LogEvent(t *testing.T) {
+	mockEventWriter := mockEventWriter{}
+	inst := instance.Instance{
+		EventWriter: &mockEventWriter,
+	}
+	release := flux.Release{
+		ID:        "testID",
+		CreatedAt: time.Now(),
+		StartedAt: time.Now(),
+		EndedAt:   time.Now(),
+		Done:      true,
+		Priority:  100,
+		Status:    flux.ReleaseStatusSuccess,
+		Log:       []string{"Step 1", "Step 2"},
+		Cause: flux.ReleaseCause{
+			User:    "TestUser",
+			Message: "Test message",
+		},
+		Spec: flux.ReleaseSpec{
+			ServiceSpecs: []flux.ServiceSpec{hwSvcSpec, lockedSvcSpec},
+			ImageSpec:    flux.ImageSpecFromID(newImageID),
+			Kind:         flux.ReleaseKindExecute,
+			Excludes:     []flux.ServiceID{},
+		},
+		Result: flux.ReleaseResult{
+			flux.ServiceID("default/helloworld"): flux.ServiceResult{
+				Status: flux.ReleaseStatusSuccess,
+				PerContainer: []flux.ContainerUpdate{
+					flux.ContainerUpdate{
+						Container: "helloworld",
+						Current:   oldImageID,
+						Target:    newImageID,
+					},
+				},
+			},
+			flux.ServiceID("default/locked-service"): flux.ServiceResult{
+				Status: flux.ReleaseStatusIgnored,
+				Error:  DifferentImage,
+			},
+			flux.ServiceID("default/test-service"): flux.ServiceResult{
+				Status: flux.ReleaseStatusIgnored,
+				Error:  DifferentImage,
+			},
+		},
+	}
+	err := logEvent(&inst, nil, release)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(mockEventWriter.events) != 1 {
+		t.Fatalf("Expecting single event but got %v", len(mockEventWriter.events))
+	}
+	event1 := mockEventWriter.events[0]
+	if len(event1.ServiceIDs) != 1 {
+		t.Fatalf("Expecting single service to be reported as altered but got %v services", len(event1.ServiceIDs))
 	}
 }

@@ -203,8 +203,10 @@ func logEvent(inst *instance.Instance, executeErr error, release flux.Release) e
 	}
 
 	var serviceIDs []flux.ServiceID
-	for _, id := range release.Result.ServiceIDs() {
-		serviceIDs = append(serviceIDs, flux.ServiceID(id))
+	for k, v := range release.Result {
+		if v.Status != flux.ReleaseStatusIgnored {
+			serviceIDs = append(serviceIDs, flux.ServiceID(k))
+		}
 	}
 
 	err := inst.LogEvent(flux.Event{
