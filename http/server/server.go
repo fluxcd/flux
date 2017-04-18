@@ -3,6 +3,9 @@ package server
 import (
 	"bufio"
 	"bytes"
+	"crypto/md5"
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -16,6 +19,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 	"github.com/weaveworks/common/middleware"
+	"golang.org/x/crypto/ssh"
 
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/api"
@@ -281,13 +285,40 @@ func (s HTTPService) History(w http.ResponseWriter, r *http.Request) {
 
 func (s HTTPService) GetConfig(w http.ResponseWriter, r *http.Request) {
 	inst := getInstanceID(r)
-	config, err := s.service.GetConfig(inst)
+	fingerprint := r.FormValue("fingerprint")
+	config, err := s.service.GetConfig(inst, fingerprint)
 	if err != nil {
 		errorResponse(w, r, err)
 		return
 	}
 
-	jsonResponse(w, r, config)
+	// This replaces the private key with the public one, so we can fingerprint
+	// it if needed
+	safeConfig := config.HideSecrets()
+	if fingerprint != "" && config.Git.Key != "" {
+		pk, _, _, _, err := ssh.ParseAuthorizedKey([]byte(safeConfig.Git.Key))
+		if err != nil {
+			safeConfig.Git.Key = "unable to parse public key"
+		} else {
+			switch fingerprint {
+			case "md5":
+				hash := md5.Sum(pk.Marshal())
+				fingerprint := ""
+				for i, b := range hash {
+					fingerprint = fmt.Sprintf("%s%0.2x", fingerprint, b)
+					if i < len(hash)-1 {
+						fingerprint = fingerprint + ":"
+					}
+				}
+				safeConfig.Git.Key = fingerprint
+			case "sha256":
+				hash := sha256.Sum256(pk.Marshal())
+				safeConfig.Git.Key = strings.TrimRight(base64.StdEncoding.EncodeToString(hash[:]), "=")
+			}
+		}
+	}
+
+	jsonResponse(w, r, safeConfig)
 }
 
 func (s HTTPService) SetConfig(w http.ResponseWriter, r *http.Request) {
@@ -357,7 +388,7 @@ func (s HTTPService) PostIntegrationsGithub(w http.ResponseWriter, r *http.Reque
 	}
 
 	// Obtain the generated key
-	cfg, err := s.service.GetConfig(inst)
+	cfg, err := s.service.GetConfig(inst, "")
 	if err != nil {
 		errorResponse(w, r, err)
 		return

@@ -102,9 +102,13 @@ func (c *client) History(_ flux.InstanceID, s flux.ServiceSpec, before time.Time
 	return res, err
 }
 
-func (c *client) GetConfig(_ flux.InstanceID) (flux.InstanceConfig, error) {
+func (c *client) GetConfig(_ flux.InstanceID, fingerprint string) (flux.InstanceConfig, error) {
+	var params []string
+	if fingerprint != "" {
+		params = append(params, "fingerprint", fingerprint)
+	}
 	var res flux.InstanceConfig
-	err := c.get(&res, "GetConfig")
+	err := c.get(&res, "GetConfig", params...)
 	return res, err
 }
 
