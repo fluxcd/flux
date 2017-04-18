@@ -10,7 +10,7 @@ import (
 
 	"github.com/weaveworks/flux/git"
 	"github.com/weaveworks/flux/instance"
-	"github.com/weaveworks/flux/platform/kubernetes/testdata"
+	"github.com/weaveworks/flux/platform/kubernetes/testfiles"
 )
 
 func TestCloneCommitAndPush(t *testing.T) {
@@ -30,7 +30,7 @@ func TestCloneCommitAndPush(t *testing.T) {
 	}
 
 	// change a file and try again
-	for name, _ := range testdata.Files {
+	for name, _ := range testfiles.Files {
 		if err = execCommand("rm", filepath.Join(ctx.WorkingDir, name)); err != nil {
 			t.Fatal(err)
 		}
@@ -43,7 +43,7 @@ func TestCloneCommitAndPush(t *testing.T) {
 }
 
 func setupRepo(t *testing.T) (git.Repo, func()) {
-	newDir, cleanup := testdata.TempDir(t)
+	newDir, cleanup := testfiles.TempDir(t)
 
 	filesDir := filepath.Join(newDir, "files")
 	gitDir := filepath.Join(newDir, "git")
@@ -56,7 +56,7 @@ func setupRepo(t *testing.T) (git.Repo, func()) {
 		cleanup()
 		t.Fatal(err)
 	}
-	if err = testdata.WriteTestFiles(filesDir); err != nil {
+	if err = testfiles.WriteTestFiles(filesDir); err != nil {
 		cleanup()
 		t.Fatal(err)
 	}

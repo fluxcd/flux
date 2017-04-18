@@ -1,4 +1,4 @@
-package testdata
+package testfiles
 
 import (
 	"io/ioutil"

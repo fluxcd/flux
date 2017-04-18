@@ -4,14 +4,14 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/weaveworks/flux/platform/kubernetes/testdata"
+	"github.com/weaveworks/flux/platform/kubernetes/testfiles"
 )
 
 func TestDefinedServices(t *testing.T) {
-	dir, cleanup := testdata.TempDir(t)
+	dir, cleanup := testfiles.TempDir(t)
 	defer cleanup()
 
-	if err := testdata.WriteTestFiles(dir); err != nil {
+	if err := testfiles.WriteTestFiles(dir); err != nil {
 		t.Fatal(err)
 	}
 
@@ -20,7 +20,7 @@ func TestDefinedServices(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if !reflect.DeepEqual(testdata.ServiceMap(dir), services) {
+	if !reflect.DeepEqual(testfiles.ServiceMap(dir), services) {
 		t.Errorf("Got unexpected result: %#v", services)
 	}
 }
