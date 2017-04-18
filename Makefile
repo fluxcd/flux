@@ -36,7 +36,7 @@ realclean: clean
 
 test:
 	export PATH="$$PATH:$$PWD/cmd/fluxsvc"; \
-	go test -v ${TEST_FLAGS} $(shell find . -path './vendor' -prune -o -name '*.go' -printf '%h\n' | sort -u)
+	go test -v ${TEST_FLAGS} $(shell go list ./... | grep -v "^github.com/weaveworks/flux/vendor" | sort -u)
 
 build/migrations.tar: $(MIGRATIONS)
 	tar cf $@ db/migrations
