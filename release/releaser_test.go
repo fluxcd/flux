@@ -132,6 +132,7 @@ func Test_FilterLogic(t *testing.T) {
 		Error: nil,
 	}
 
+	notInRepoSpec, _ := flux.ParseServiceSpec("default/notInRepo")
 	for _, tst := range []struct {
 		Name     string
 		Spec     flux.ReleaseSpec
@@ -280,6 +281,33 @@ func Test_FilterLogic(t *testing.T) {
 				flux.ServiceID("default/test-service"): flux.ServiceResult{
 					Status: flux.ReleaseStatusSkipped,
 					Error:  NotInCluster,
+				},
+			},
+		},
+		{
+			Name: "service not in repo",
+			Spec: flux.ReleaseSpec{
+				ServiceSpecs: []flux.ServiceSpec{notInRepoSpec},
+				ImageSpec:    flux.ImageSpecLatest,
+				Kind:         flux.ReleaseKindExecute,
+				Excludes:     []flux.ServiceID{},
+			},
+			Expected: flux.ReleaseResult{
+				flux.ServiceID("default/helloworld"): flux.ServiceResult{
+					Status: flux.ReleaseStatusIgnored,
+					Error:  NotIncluded,
+				},
+				flux.ServiceID("default/locked-service"): flux.ServiceResult{
+					Status: flux.ReleaseStatusIgnored,
+					Error:  NotIncluded,
+				},
+				flux.ServiceID("default/test-service"): flux.ServiceResult{
+					Status: flux.ReleaseStatusIgnored,
+					Error:  NotIncluded,
+				},
+				flux.ServiceID(notInRepoSpec.String()): flux.ServiceResult{
+					Status: flux.ReleaseStatusSkipped,
+					Error:  NotInRepo,
 				},
 			},
 		},

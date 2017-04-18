@@ -112,6 +112,24 @@ func (r *Releaser) release(instanceID flux.InstanceID, job *jobs.Job, logStatus 
 		return nil, err
 	}
 	logStatus("Found %d services.", len(updates))
+
+	// If the request was for a specific service and the service was
+	// not in the cluster, then add a result with a skipped status
+	for _, v := range spec.ServiceSpecs {
+		if v == flux.ServiceSpecAll {
+			continue
+		}
+		id, err := v.AsID()
+		if err != nil {
+			continue
+		}
+		if _, ok := results[id]; !ok {
+			results[id] = flux.ServiceResult{
+				Status: flux.ReleaseStatusSkipped,
+				Error:  NotInRepo,
+			}
+		}
+	}
 	report(results)
 
 	// Look up images, and calculate updates, if we've been asked to
