@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/weaveworks/flux/platform/kubernetes/testdata"
+	"github.com/weaveworks/flux/cluster/kubernetes/testdata"
 )
 
 // for convenience

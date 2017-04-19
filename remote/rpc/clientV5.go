@@ -4,7 +4,7 @@ import (
 	"io"
 	"net/rpc"
 
-	"github.com/weaveworks/flux/platform"
+	"github.com/weaveworks/flux/remote"
 )
 
 // RPCClient is the rpc-backed implementation of a platform, for
@@ -13,7 +13,7 @@ type RPCClientV5 struct {
 	*RPCClientV4
 }
 
-var _ platform.PlatformV5 = &RPCClientV5{}
+var _ remote.PlatformV5 = &RPCClientV5{}
 
 // NewClient creates a new rpc-backed implementation of the platform.
 func NewClientV5(conn io.ReadWriteCloser) *RPCClientV5 {
@@ -25,7 +25,7 @@ func (p *RPCClientV5) Export() ([]byte, error) {
 	var config []byte
 	err := p.client.Call("RPCServer.Export", struct{}{}, &config)
 	if _, ok := err.(rpc.ServerError); !ok && err != nil {
-		return nil, platform.FatalError{err}
+		return nil, remote.FatalError{err}
 	}
 	return config, err
 }

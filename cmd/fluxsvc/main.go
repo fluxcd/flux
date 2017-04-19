@@ -20,8 +20,8 @@ import (
 	httpserver "github.com/weaveworks/flux/http/server"
 	"github.com/weaveworks/flux/instance"
 	instancedb "github.com/weaveworks/flux/instance/sql"
-	"github.com/weaveworks/flux/platform"
-	"github.com/weaveworks/flux/platform/rpc/nats"
+	"github.com/weaveworks/flux/remote"
+	"github.com/weaveworks/flux/remote/rpc/nats"
 	"github.com/weaveworks/flux/server"
 )
 
@@ -83,10 +83,10 @@ func main() {
 		logger.Log("migrations", "success", "driver", dbDriver, "db-version", fmt.Sprintf("%d", version))
 	}
 
-	var messageBus platform.MessageBus
+	var messageBus remote.MessageBus
 	{
 		if *natsURL != "" {
-			bus, err := nats.NewMessageBus(*natsURL, platform.BusMetricsImpl)
+			bus, err := nats.NewMessageBus(*natsURL, remote.BusMetricsImpl)
 			if err != nil {
 				logger.Log("component", "message bus", "err", err)
 				os.Exit(1)
@@ -94,7 +94,7 @@ func main() {
 			logger.Log("component", "message bus", "type", "NATS")
 			messageBus = bus
 		} else {
-			messageBus = platform.NewStandaloneMessageBus(platform.BusMetricsImpl)
+			messageBus = remote.NewStandaloneMessageBus(remote.BusMetricsImpl)
 			logger.Log("component", "message bus", "type", "standalone")
 		}
 	}

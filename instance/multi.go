@@ -6,12 +6,12 @@ import (
 
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/history"
-	"github.com/weaveworks/flux/platform"
+	"github.com/weaveworks/flux/remote"
 )
 
 type MultitenantInstancer struct {
 	DB        DB
-	Connecter platform.Connecter
+	Connecter remote.Connecter
 	Logger    log.Logger
 	History   history.DB
 }

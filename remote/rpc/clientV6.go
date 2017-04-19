@@ -6,7 +6,7 @@ import (
 	"net/rpc"
 
 	"github.com/weaveworks/flux"
-	"github.com/weaveworks/flux/platform"
+	"github.com/weaveworks/flux/remote"
 )
 
 // RPCClient is the rpc-backed implementation of a platform, for
@@ -15,7 +15,7 @@ type RPCClientV6 struct {
 	*RPCClientV5
 }
 
-var _ platform.PlatformV6 = &RPCClientV6{}
+var _ remote.PlatformV6 = &RPCClientV6{}
 
 // NewClient creates a new rpc-backed implementation of the platform.
 func NewClientV6(conn io.ReadWriteCloser) *RPCClientV6 {
@@ -27,7 +27,7 @@ func (p *RPCClientV6) Export() ([]byte, error) {
 	var config []byte
 	err := p.client.Call("RPCServer.Export", struct{}{}, &config)
 	if _, ok := err.(rpc.ServerError); !ok && err != nil {
-		return nil, platform.FatalError{err}
+		return nil, remote.FatalError{err}
 	}
 	return config, err
 }
@@ -37,7 +37,7 @@ func (p *RPCClientV6) ListServices(namespace string) ([]flux.ServiceStatus, erro
 	var services []flux.ServiceStatus
 	err := p.client.Call("RPCServer.ListServices", namespace, &services)
 	if _, ok := err.(rpc.ServerError); !ok && err != nil {
-		return nil, platform.FatalError{err}
+		return nil, remote.FatalError{err}
 	}
 	return services, err
 }
@@ -46,7 +46,7 @@ func (p *RPCClientV6) ListImages(spec flux.ServiceSpec) ([]flux.ImageStatus, err
 	var images []flux.ImageStatus
 	err := p.client.Call("RPCServer.ListImages", spec, &images)
 	if _, ok := err.(rpc.ServerError); !ok && err != nil {
-		return nil, platform.FatalError{err}
+		return nil, remote.FatalError{err}
 	}
 	return images, err
 }

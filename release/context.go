@@ -8,8 +8,8 @@ import (
 	"strings"
 
 	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/cluster"
 	"github.com/weaveworks/flux/git"
-	"github.com/weaveworks/flux/platform"
 	"github.com/weaveworks/flux/registry"
 )
 
@@ -24,13 +24,13 @@ const (
 )
 
 type ReleaseContext struct {
-	Cluster    platform.Cluster
+	Cluster    cluster.Cluster
 	Repo       git.Repo
 	Registry   registry.Registry
 	WorkingDir string
 }
 
-func NewReleaseContext(c platform.Cluster, reg registry.Registry, repo git.Repo, working string) *ReleaseContext {
+func NewReleaseContext(c cluster.Cluster, reg registry.Registry, repo git.Repo, working string) *ReleaseContext {
 	return &ReleaseContext{
 		Cluster:    c,
 		Repo:       repo,

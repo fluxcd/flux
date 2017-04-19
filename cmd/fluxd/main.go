@@ -17,13 +17,14 @@ import (
 
 	//	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/cluster"
+	"github.com/weaveworks/flux/cluster/kubernetes"
 	"github.com/weaveworks/flux/daemon"
 	"github.com/weaveworks/flux/git"
 	transport "github.com/weaveworks/flux/http"
 	daemonhttp "github.com/weaveworks/flux/http/daemon"
-	"github.com/weaveworks/flux/platform"
-	"github.com/weaveworks/flux/platform/kubernetes"
 	"github.com/weaveworks/flux/registry"
+	"github.com/weaveworks/flux/remote"
 )
 
 var version string
@@ -79,7 +80,7 @@ func main() {
 	}
 
 	// Platform component.
-	var k8s platform.Cluster
+	var k8s cluster.Cluster
 	{
 		restClientConfig, err := rest.InClusterConfig()
 		if err != nil {
@@ -199,7 +200,7 @@ func main() {
 			flux.Token(*token),
 			transport.NewServiceRouter(), // TODO should be NewUpstreamRouter, since it only need the registration endpoint
 			*upstreamURL,
-			&platform.ErrorLoggingPlatform{daemon, daemonLogger},
+			&remote.ErrorLoggingPlatform{daemon, daemonLogger},
 			daemonLogger,
 		)
 		if err != nil {

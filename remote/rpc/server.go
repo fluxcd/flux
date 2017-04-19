@@ -6,7 +6,7 @@ import (
 	"net/rpc/jsonrpc"
 
 	"github.com/weaveworks/flux"
-	"github.com/weaveworks/flux/platform"
+	"github.com/weaveworks/flux/remote"
 )
 
 // Server takes a platform and makes it available over RPC.
@@ -17,7 +17,7 @@ type Server struct {
 // NewServer instantiates a new RPC server, handling requests on the
 // conn by invoking methods on the underlying (assumed local)
 // platform.
-func NewServer(p platform.Platform) (*Server, error) {
+func NewServer(p remote.Platform) (*Server, error) {
 	server := rpc.NewServer()
 	if err := server.Register(&RPCServer{p}); err != nil {
 		return nil, err
@@ -30,7 +30,7 @@ func (c *Server) ServeConn(conn io.ReadWriteCloser) {
 }
 
 type RPCServer struct {
-	p platform.Platform
+	p remote.Platform
 }
 
 func (p *RPCServer) Ping(_ struct{}, _ *struct{}) error {

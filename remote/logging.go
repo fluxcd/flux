@@ -1,4 +1,4 @@
-package platform
+package remote
 
 import (
 	"github.com/go-kit/kit/log"

@@ -6,7 +6,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/weaveworks/flux/platform"
+	"github.com/weaveworks/flux/remote"
 )
 
 func pipes() (io.ReadWriteCloser, io.ReadWriteCloser) {
@@ -22,7 +22,7 @@ func pipes() (io.ReadWriteCloser, io.ReadWriteCloser) {
 
 func TestRPC(t *testing.T) {
 
-	wrap := func(mock platform.Platform) platform.Platform {
+	wrap := func(mock remote.Platform) remote.Platform {
 		clientConn, serverConn := pipes()
 
 		server, err := NewServer(mock)
@@ -32,7 +32,7 @@ func TestRPC(t *testing.T) {
 		go server.ServeConn(serverConn)
 		return NewClientV5(clientConn)
 	}
-	platform.PlatformTestBattery(t, wrap)
+	remote.PlatformTestBattery(t, wrap)
 }
 
 // ---
@@ -57,7 +57,7 @@ func faultyPipes() (io.ReadWriteCloser, io.ReadWriteCloser) {
 }
 
 func TestBadRPC(t *testing.T) {
-	mock := &platform.MockPlatform{}
+	mock := &remote.MockPlatform{}
 	clientConn, serverConn := faultyPipes()
 	server, err := NewServer(mock)
 	if err != nil {
@@ -69,7 +69,7 @@ func TestBadRPC(t *testing.T) {
 	if err = client.Ping(); err == nil {
 		t.Error("expected error from RPC system, got nil")
 	}
-	if _, ok := err.(platform.FatalError); !ok {
-		t.Errorf("expected platform.FatalError from RPC mechanism, got %s", reflect.TypeOf(err))
+	if _, ok := err.(remote.FatalError); !ok {
+		t.Errorf("expected remote.FatalError from RPC mechanism, got %s", reflect.TypeOf(err))
 	}
 }

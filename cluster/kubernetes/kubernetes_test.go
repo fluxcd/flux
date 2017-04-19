@@ -11,7 +11,7 @@ import (
 	"github.com/go-kit/kit/log"
 	"k8s.io/client-go/1.5/rest"
 
-	"github.com/weaveworks/flux/platform"
+	"github.com/weaveworks/flux/cluster"
 )
 
 type command struct {
@@ -59,7 +59,7 @@ func setup(t *testing.T) (platform.Platform, *mockApplier) {
 
 func TestSyncNop(t *testing.T) {
 	kube, mock := setup(t)
-	if err := kube.Sync(platform.SyncDef{}); err != nil {
+	if err := kube.Sync(cluster.SyncDef{}); err != nil {
 		t.Error(err)
 	}
 	if len(mock.commands) > 0 {
@@ -69,9 +69,9 @@ func TestSyncNop(t *testing.T) {
 
 func TestSyncMalformed(t *testing.T) {
 	kube, mock := setup(t)
-	err := kube.Sync(platform.SyncDef{
-		Actions: []platform.SyncAction{
-			platform.SyncAction{
+	err := kube.Sync(cluster.SyncDef{
+		Actions: []cluster.SyncAction{
+			cluster.SyncAction{
 				ResourceID: "foobar",
 				Apply:      []byte("garbage"),
 			},
@@ -87,9 +87,9 @@ func TestSyncMalformed(t *testing.T) {
 
 func TestSyncOrder(t *testing.T) {
 	kube, mock := setup(t)
-	if err := kube.Sync(platform.SyncDef{
-		Actions: []platform.SyncAction{
-			platform.SyncAction{
+	if err := kube.Sync(cluster.SyncDef{
+		Actions: []cluster.SyncAction{
+			cluster.SyncAction{
 				ResourceID: "foobar",
 				Delete:     deploymentDef("delete first"),
 				Apply:      deploymentDef("apply last"),
@@ -114,14 +114,14 @@ func TestSkipOnError(t *testing.T) {
 	kube, mock := setup(t)
 	mock.deleteErr = errors.New("create failed")
 
-	def := platform.SyncDef{
-		Actions: []platform.SyncAction{
-			platform.SyncAction{
+	def := cluster.SyncDef{
+		Actions: []cluster.SyncAction{
+			cluster.SyncAction{
 				ResourceID: "fail in middle",
 				Delete:     deploymentDef("should fail"),
 				Apply:      deploymentDef("skipped"),
 			},
-			platform.SyncAction{
+			cluster.SyncAction{
 				ResourceID: "proceed",
 				Apply:      deploymentDef("apply works"),
 			},
@@ -130,7 +130,7 @@ func TestSkipOnError(t *testing.T) {
 
 	err := kube.Sync(def)
 	switch err := err.(type) {
-	case platform.SyncError:
+	case cluster.SyncError:
 		if _, ok := err["fail in middle"]; !ok {
 			t.Errorf("expected error for failing resource %q, but got %#v", "fail in middle", err)
 		}

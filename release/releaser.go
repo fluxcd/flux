@@ -8,14 +8,14 @@ import (
 	"github.com/go-kit/kit/metrics"
 
 	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/cluster"
 	fluxmetrics "github.com/weaveworks/flux/metrics"
-	"github.com/weaveworks/flux/platform"
 	"github.com/weaveworks/flux/registry"
 )
 
 type ServiceUpdate struct {
 	ServiceID     flux.ServiceID
-	Service       platform.Service
+	Service       cluster.Service
 	ManifestPath  string
 	ManifestBytes []byte
 	Updates       []flux.ContainerUpdate
@@ -262,7 +262,7 @@ func commitMessageFromReleaseSpec(spec *flux.ReleaseSpec) string {
 // CollectUpdateImages is a convenient shim to
 // `CollectAvailableImages`.
 func CollectUpdateImages(registry registry.Registry, updateable []*ServiceUpdate) (ImageMap, error) {
-	var servicesToCheck []platform.Service
+	var servicesToCheck []cluster.Service
 	for _, update := range updateable {
 		servicesToCheck = append(servicesToCheck, update.Service)
 	}

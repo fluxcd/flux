@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/weaveworks/flux"
-	"github.com/weaveworks/flux/platform"
+	"github.com/weaveworks/flux/remote"
 )
 
 // API for clients connecting to the service.
@@ -29,7 +29,7 @@ type ClientService interface {
 
 // API for daemons connecting to the service
 type DaemonService interface {
-	RegisterDaemon(flux.InstanceID, platform.Platform) error
+	RegisterDaemon(flux.InstanceID, remote.Platform) error
 	IsDaemonConnected(flux.InstanceID) error
 }
 

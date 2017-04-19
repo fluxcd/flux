@@ -27,8 +27,8 @@ import (
 	"github.com/weaveworks/flux/http/httperror"
 	"github.com/weaveworks/flux/http/websocket"
 	"github.com/weaveworks/flux/integrations/github"
-	"github.com/weaveworks/flux/platform"
-	"github.com/weaveworks/flux/platform/rpc"
+	"github.com/weaveworks/flux/remote"
+	"github.com/weaveworks/flux/remote/rpc"
 )
 
 func NewHandler(s api.FluxService, r *mux.Router, logger log.Logger) http.Handler {
@@ -451,7 +451,7 @@ func (s HTTPService) RegisterV6(w http.ResponseWriter, r *http.Request) {
 }
 
 type platformCloser interface {
-	platform.Platform
+	remote.Platform
 	io.Closer
 }
 

@@ -6,10 +6,11 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/cluster"
 	"github.com/weaveworks/flux/git"
-	"github.com/weaveworks/flux/platform"
 	"github.com/weaveworks/flux/registry"
 	"github.com/weaveworks/flux/release"
+	"github.com/weaveworks/flux/remote"
 	"github.com/weaveworks/flux/sync"
 )
 
@@ -17,14 +18,14 @@ import (
 // Platform.
 type Daemon struct {
 	V          string
-	Cluster    platform.Cluster
+	Cluster    cluster.Cluster
 	Registry   registry.Registry
 	Repo       git.Repo
 	WorkingDir string
 }
 
 // Invariant.
-var _ platform.Platform = &Daemon{}
+var _ remote.Platform = &Daemon{}
 
 func (d *Daemon) Version() (string, error) {
 	return d.V, nil
@@ -56,7 +57,7 @@ func (d *Daemon) ListServices(namespace string) ([]flux.ServiceStatus, error) {
 
 // List the images available for set of services
 func (d *Daemon) ListImages(spec flux.ServiceSpec) ([]flux.ImageStatus, error) {
-	var services []platform.Service
+	var services []cluster.Service
 	var err error
 	if spec == flux.ServiceSpecAll {
 		services, err = d.Cluster.AllServices("")
@@ -138,7 +139,7 @@ func (d *Daemon) SyncStatus(commitRef string) ([]string, error) {
 	return nil, errors.New("FIXME")
 }
 
-// Non-platform.Platform methods
+// Non-remote.Platform methods
 
 // `logEvent` expects the result of applying updates, and records an event in
 // the history about the release taking place. It returns the origin error if
@@ -182,7 +183,7 @@ func (d *Daemon) LogEvent(ev flux.Event) error {
 
 // vvv helpers vvv
 
-func containers2containers(cs []platform.Container) []flux.Container {
+func containers2containers(cs []cluster.Container) []flux.Container {
 	res := make([]flux.Container, len(cs))
 	for i, c := range cs {
 		id, _ := flux.ParseImageID(c.Image)
@@ -196,7 +197,7 @@ func containers2containers(cs []platform.Container) []flux.Container {
 	return res
 }
 
-func containersWithAvailable(service platform.Service, images release.ImageMap) (res []flux.Container) {
+func containersWithAvailable(service cluster.Service, images release.ImageMap) (res []flux.Container) {
 	for _, c := range service.ContainersOrNil() {
 		id, _ := flux.ParseImageID(c.Image)
 		repo := id.Repository()

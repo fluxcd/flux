@@ -3,7 +3,7 @@ package sync
 import (
 	"github.com/pkg/errors"
 
-	"github.com/weaveworks/flux/platform"
+	"github.com/weaveworks/flux/cluster"
 	"github.com/weaveworks/flux/release"
 )
 
@@ -30,17 +30,17 @@ func Sync(rc *release.ReleaseContext) error {
 	// to figuring out what's changed, and applying that. We're
 	// relying on Kubernetes to decide for each application is it is a
 	// no-op.
-	var sync platform.SyncDef
+	var sync cluster.SyncDef
 	for id, res := range clusterResources {
 		if _, ok := repoResources[id]; !ok {
-			sync.Actions = append(sync.Actions, platform.SyncAction{
+			sync.Actions = append(sync.Actions, cluster.SyncAction{
 				ResourceID: id,
 				Delete:     res.Bytes(),
 			})
 		}
 	}
 	for id, res := range repoResources {
-		sync.Actions = append(sync.Actions, platform.SyncAction{
+		sync.Actions = append(sync.Actions, cluster.SyncAction{
 			ResourceID: id,
 			Apply:      res.Bytes(),
 		})

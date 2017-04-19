@@ -10,12 +10,12 @@ import (
 	"github.com/nats-io/nats"
 
 	"github.com/weaveworks/flux"
-	"github.com/weaveworks/flux/platform"
+	"github.com/weaveworks/flux/remote"
 )
 
 var testNATS = flag.String("nats-url", "", "NATS connection URL; use NATS' default if empty")
 
-var metrics = platform.BusMetricsImpl
+var metrics = remote.BusMetricsImpl
 
 func setup(t *testing.T) *NATS {
 	applyTimeout = timeout // so we don't wait 20 minutes to fail

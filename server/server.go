@@ -10,7 +10,7 @@ import (
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/git"
 	"github.com/weaveworks/flux/instance"
-	"github.com/weaveworks/flux/platform"
+	"github.com/weaveworks/flux/remote"
 )
 
 const (
@@ -25,7 +25,7 @@ type Server struct {
 	version     string
 	instancer   instance.Instancer
 	config      instance.DB
-	messageBus  platform.MessageBus
+	messageBus  remote.MessageBus
 	logger      log.Logger
 	maxPlatform chan struct{} // semaphore for concurrent calls to the platform
 	connected   int32
@@ -35,7 +35,7 @@ func New(
 	version string,
 	instancer instance.Instancer,
 	config instance.DB,
-	messageBus platform.MessageBus,
+	messageBus remote.MessageBus,
 	logger log.Logger,
 ) *Server {
 	connectedDaemons.Set(0)
@@ -326,7 +326,7 @@ func (s *Server) GenerateDeployKey(instID flux.InstanceID) error {
 // go, aside from just trying to connection. Therefore, the server
 // will get an error when we try to use the client. We rely on that to
 // break us out of this method.
-func (s *Server) RegisterDaemon(instID flux.InstanceID, platform platform.Platform) (err error) {
+func (s *Server) RegisterDaemon(instID flux.InstanceID, platform remote.Platform) (err error) {
 	defer func() {
 		if err != nil {
 			s.logger.Log("method", "RegisterDaemon", "err", err)
@@ -359,9 +359,9 @@ func (s *Server) Export(instID flux.InstanceID) (res []byte, err error) {
 	return res, nil
 }
 
-func (s *Server) instrumentPlatform(instID flux.InstanceID, p platform.Platform) platform.Platform {
-	return &platform.ErrorLoggingPlatform{
-		platform.Instrument(p),
+func (s *Server) instrumentPlatform(instID flux.InstanceID, p remote.Platform) remote.Platform {
+	return &remote.ErrorLoggingPlatform{
+		remote.Instrument(p),
 		log.NewContext(s.logger).With("instanceID", instID),
 	}
 }

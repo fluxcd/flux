@@ -15,8 +15,8 @@ import (
 	"github.com/weaveworks/flux"
 	transport "github.com/weaveworks/flux/http"
 	"github.com/weaveworks/flux/http/websocket"
-	"github.com/weaveworks/flux/platform"
-	"github.com/weaveworks/flux/platform/rpc"
+	"github.com/weaveworks/flux/remote"
+	"github.com/weaveworks/flux/remote/rpc"
 )
 
 // Upstream handles communication from the daemon to a service
@@ -26,7 +26,7 @@ type Upstream struct {
 	token    flux.Token
 	url      *url.URL
 	endpoint string
-	platform platform.Platform
+	platform remote.Platform
 	logger   log.Logger
 	quit     chan struct{}
 
@@ -43,7 +43,7 @@ var (
 	}, []string{"target"})
 )
 
-func NewUpstream(client *http.Client, ua string, t flux.Token, router *mux.Router, endpoint string, p platform.Platform, logger log.Logger) (*Upstream, error) {
+func NewUpstream(client *http.Client, ua string, t flux.Token, router *mux.Router, endpoint string, p remote.Platform, logger log.Logger) (*Upstream, error) {
 	u, err := transport.MakeURL(endpoint, router, "RegisterDaemonV6")
 	if err != nil {
 		return nil, errors.Wrap(err, "constructing URL")

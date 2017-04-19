@@ -5,7 +5,7 @@ import (
 
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/history"
-	"github.com/weaveworks/flux/platform"
+	"github.com/weaveworks/flux/remote"
 )
 
 type Instancer interface {
@@ -13,7 +13,7 @@ type Instancer interface {
 }
 
 type Instance struct {
-	Platform platform.Platform
+	Platform remote.Platform
 	Config   Configurer
 
 	log.Logger
@@ -22,7 +22,7 @@ type Instance struct {
 }
 
 func New(
-	platform platform.Platform,
+	platform remote.Platform,
 	config Configurer,
 	logger log.Logger,
 	events history.EventReader,

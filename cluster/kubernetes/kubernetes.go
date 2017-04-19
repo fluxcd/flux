@@ -22,8 +22,8 @@ import (
 	rest "k8s.io/client-go/1.5/rest"
 
 	"github.com/weaveworks/flux"
-	"github.com/weaveworks/flux/platform"
-	kresource "github.com/weaveworks/flux/platform/kubernetes/resource"
+	"github.com/weaveworks/flux/cluster"
+	kresource "github.com/weaveworks/flux/cluster/kubernetes/resource"
 	"github.com/weaveworks/flux/resource"
 )
 
@@ -127,12 +127,12 @@ func (c *Cluster) loop() {
 	}
 }
 
-// --- platform.Cluster
+// --- cluster.Cluster
 
 // SomeServices returns the services named, missing out any that don't
 // exist in the cluster. They do not necessarily have to be returned
 // in the order requested.
-func (c *Cluster) SomeServices(ids []flux.ServiceID) (res []platform.Service, err error) {
+func (c *Cluster) SomeServices(ids []flux.ServiceID) (res []cluster.Service, err error) {
 	namespacedServices := map[string][]string{}
 	for _, id := range ids {
 		ns, name := id.Components()
@@ -161,7 +161,7 @@ func (c *Cluster) SomeServices(ids []flux.ServiceID) (res []platform.Service, er
 
 // AllServices returns all services matching the criteria; that is, in
 // the namespace (or any namespace if that argument is empty)
-func (c *Cluster) AllServices(namespace string) (res []platform.Service, err error) {
+func (c *Cluster) AllServices(namespace string) (res []cluster.Service, err error) {
 	namespaces := []string{}
 	if namespace == "" {
 		list, err := c.client.Namespaces().List(api.ListOptions{})
@@ -196,9 +196,9 @@ func (c *Cluster) AllServices(namespace string) (res []platform.Service, err err
 	return res, nil
 }
 
-func (c *Cluster) makeService(ns string, service *v1.Service, controllers []podController) platform.Service {
+func (c *Cluster) makeService(ns string, service *v1.Service, controllers []podController) cluster.Service {
 	id := flux.MakeServiceID(ns, service.Name)
-	svc := platform.Service{
+	svc := cluster.Service{
 		ID:       id,
 		IP:       service.Spec.ClusterIP,
 		Metadata: metadataForService(service),
@@ -206,10 +206,10 @@ func (c *Cluster) makeService(ns string, service *v1.Service, controllers []podC
 
 	pc, err := matchController(service, controllers)
 	if err != nil {
-		svc.Containers = platform.ContainersOrExcuse{Excuse: err.Error()}
+		svc.Containers = cluster.ContainersOrExcuse{Excuse: err.Error()}
 		svc.Status = StatusUnknown
 	} else {
-		svc.Containers = platform.ContainersOrExcuse{Containers: pc.templateContainers()}
+		svc.Containers = cluster.ContainersOrExcuse{Containers: pc.templateContainers()}
 		svc.Status = pc.status()
 	}
 
@@ -253,7 +253,7 @@ func (c *Cluster) podControllersInNamespace(namespace string) (res []podControll
 func matchController(service *v1.Service, controllers []podController) (podController, error) {
 	selector := service.Spec.Selector
 	if len(selector) == 0 {
-		return podController{}, platform.ErrEmptySelector
+		return podController{}, cluster.ErrEmptySelector
 	}
 
 	var matching []podController
@@ -266,9 +266,9 @@ func matchController(service *v1.Service, controllers []podController) (podContr
 	case 1:
 		return matching[0], nil
 	case 0:
-		return podController{}, platform.ErrNoMatching
+		return podController{}, cluster.ErrNoMatching
 	default:
-		return podController{}, platform.ErrMultipleMatching
+		return podController{}, cluster.ErrMultipleMatching
 	}
 }
 
@@ -278,7 +278,7 @@ type podController struct {
 	Deployment            *apiext.Deployment
 }
 
-func (p podController) templateContainers() (res []platform.Container) {
+func (p podController) templateContainers() (res []cluster.Container) {
 	var apiContainers []v1.Container
 	if p.Deployment != nil {
 		apiContainers = p.Deployment.Spec.Template.Spec.Containers
@@ -287,7 +287,7 @@ func (p podController) templateContainers() (res []platform.Container) {
 	}
 
 	for _, c := range apiContainers {
-		res = append(res, platform.Container{Name: c.Name, Image: c.Image})
+		res = append(res, cluster.Container{Name: c.Name, Image: c.Image})
 	}
 	return res
 }
@@ -349,11 +349,11 @@ func (p podController) status() string {
 
 // Sync performs the given actions on resources. Operations are
 // asynchronous, but serialised.
-func (c *Cluster) Sync(spec platform.SyncDef) error {
+func (c *Cluster) Sync(spec cluster.SyncDef) error {
 	errc := make(chan error)
 	logger := log.NewContext(c.logger).With("method", "Sync")
 	c.actionc <- func() {
-		errs := platform.SyncError{}
+		errs := cluster.SyncError{}
 		for _, action := range spec.Actions {
 			if len(action.Delete) > 0 {
 				obj, err := definitionObj(action.Delete)
@@ -474,7 +474,7 @@ func (c *Cluster) UpdateDefinition(def []byte, image flux.ImageID) ([]byte, erro
 	return updatePodController(def, image)
 }
 
-// --- end platform.Cluster
+// --- end cluster.Cluster
 
 // A convenience for getting an minimal object from some bytes.
 func definitionObj(bytes []byte) (*apiObject, error) {

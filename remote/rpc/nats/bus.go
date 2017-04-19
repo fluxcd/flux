@@ -10,7 +10,7 @@ import (
 
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/guid"
-	"github.com/weaveworks/flux/platform"
+	"github.com/weaveworks/flux/remote"
 )
 
 const (
@@ -43,12 +43,12 @@ type NATS struct {
 	// so we use a regular connection and do the decoding ourselves.
 	enc     *nats.EncodedConn
 	raw     *nats.Conn
-	metrics platform.BusMetrics
+	metrics remote.BusMetrics
 }
 
-var _ platform.MessageBus = &NATS{}
+var _ remote.MessageBus = &NATS{}
 
-func NewMessageBus(url string, metrics platform.BusMetrics) (*NATS, error) {
+func NewMessageBus(url string, metrics remote.BusMetrics) (*NATS, error) {
 	conn, err := nats.Connect(url, nats.MaxReconnects(-1))
 	if err != nil {
 		return nil, err
@@ -79,7 +79,7 @@ func (n *NATS) AwaitPresence(instID flux.InstanceID, timeout time.Duration) erro
 				return nil
 			}
 		case <-timer:
-			return platform.UnavailableError(errors.New("presence timeout"))
+			return remote.UnavailableError(errors.New("presence timeout"))
 		}
 	}
 }
@@ -152,7 +152,7 @@ type SyncStatusResponse struct {
 func extractError(resp ErrorResponse) error {
 	if resp.Error != "" {
 		if resp.Fatal {
-			return platform.FatalError{errors.New(resp.Error)}
+			return remote.FatalError{errors.New(resp.Error)}
 		}
 		return rpc.ServerError(resp.Error)
 	}
@@ -163,7 +163,7 @@ func makeErrorResponse(err error) (resp ErrorResponse) {
 	if err == nil {
 		return resp
 	}
-	if _, ok := err.(platform.FatalError); ok {
+	if _, ok := err.(remote.FatalError); ok {
 		resp.Fatal = true
 	}
 	resp.Error = err.Error()
@@ -171,7 +171,7 @@ func makeErrorResponse(err error) (resp ErrorResponse) {
 }
 
 // natsPlatform collects the things you need to make a request via NATS
-// together, and implements platform.Platform using that mechanism.
+// together, and implements remote.Platform using that mechanism.
 type natsPlatform struct {
 	conn     *nats.EncodedConn
 	instance string
@@ -181,7 +181,7 @@ func (r *natsPlatform) Ping() error {
 	var response PingResponse
 	if err := r.conn.Request(r.instance+methodPing, ping{}, &response, timeout); err != nil {
 		if err == nats.ErrTimeout {
-			err = platform.UnavailableError(err)
+			err = remote.UnavailableError(err)
 		}
 		return err
 	}
@@ -192,7 +192,7 @@ func (r *natsPlatform) Version() (string, error) {
 	var response VersionResponse
 	if err := r.conn.Request(r.instance+methodVersion, version{}, &response, timeout); err != nil {
 		if err == nats.ErrTimeout {
-			err = platform.UnavailableError(err)
+			err = remote.UnavailableError(err)
 		}
 		return "", err
 	}
@@ -203,7 +203,7 @@ func (r *natsPlatform) Export() ([]byte, error) {
 	var response ExportResponse
 	if err := r.conn.Request(r.instance+methodExport, export{}, &response, timeout); err != nil {
 		if err == nats.ErrTimeout {
-			err = platform.UnavailableError(err)
+			err = remote.UnavailableError(err)
 		}
 		return nil, err
 	}
@@ -214,7 +214,7 @@ func (r *natsPlatform) ListServices(namespace string) ([]flux.ServiceStatus, err
 	var response ListServicesResponse
 	if err := r.conn.Request(r.instance+methodListServices, namespace, &response, timeout); err != nil {
 		if err == nats.ErrTimeout {
-			err = platform.UnavailableError(err)
+			err = remote.UnavailableError(err)
 		}
 		return nil, err
 	}
@@ -225,7 +225,7 @@ func (r *natsPlatform) ListImages(spec flux.ServiceSpec) ([]flux.ImageStatus, er
 	var response ListImagesResponse
 	if err := r.conn.Request(r.instance+methodListImages, spec, &response, timeout); err != nil {
 		if err == nats.ErrTimeout {
-			err = platform.UnavailableError(err)
+			err = remote.UnavailableError(err)
 		}
 		return nil, err
 	}
@@ -236,7 +236,7 @@ func (r *natsPlatform) UpdateImages(spec flux.ReleaseSpec) (flux.ReleaseResult, 
 	var response UpdateImagesResponse
 	if err := r.conn.Request(r.instance+methodUpdateImages, spec, &response, timeout); err != nil {
 		if err == nats.ErrTimeout {
-			err = platform.UnavailableError(err)
+			err = remote.UnavailableError(err)
 		}
 		return nil, err
 	}
@@ -247,7 +247,7 @@ func (r *natsPlatform) SyncCluster() error {
 	var response SyncClusterResponse
 	if err := r.conn.Request(r.instance+methodSyncCluster, sync{}, &response, timeout); err != nil {
 		if err == nats.ErrTimeout {
-			err = platform.UnavailableError(err)
+			err = remote.UnavailableError(err)
 		}
 		return err
 	}
@@ -258,7 +258,7 @@ func (r *natsPlatform) SyncStatus(cursor string) ([]string, error) {
 	var response SyncStatusResponse
 	if err := r.conn.Request(r.instance+methodSyncStatus, cursor, &response, timeout); err != nil {
 		if err == nats.ErrTimeout {
-			err = platform.UnavailableError(err)
+			err = remote.UnavailableError(err)
 		}
 		return nil, err
 	}
@@ -267,21 +267,21 @@ func (r *natsPlatform) SyncStatus(cursor string) ([]string, error) {
 
 // --- end Platform implementation
 
-// Connect returns a platform.Platform implementation that can be used
+// Connect returns a remote.Platform implementation that can be used
 // to talk to a particular instance.
-func (n *NATS) Connect(instID flux.InstanceID) (platform.Platform, error) {
+func (n *NATS) Connect(instID flux.InstanceID) (remote.Platform, error) {
 	return &natsPlatform{
 		conn:     n.enc,
 		instance: string(instID),
 	}, nil
 }
 
-// Subscribe registers a remote platform.Platform implementation as
+// Subscribe registers a remote remote.Platform implementation as
 // the daemon for an instance (identified by instID). Any
-// platform.FatalError returned when processing requests will result
+// remote.FatalError returned when processing requests will result
 // in the platform being deregistered, with the error put on the
 // channel `done`.
-func (n *NATS) Subscribe(instID flux.InstanceID, remote platform.Platform, done chan<- error) {
+func (n *NATS) Subscribe(instID flux.InstanceID, platform remote.Platform, done chan<- error) {
 	encoder := nats.EncoderForType(encoderType)
 
 	requests := make(chan *nats.Msg)
@@ -309,20 +309,20 @@ func (n *NATS) Subscribe(instID flux.InstanceID, remote platform.Platform, done 
 			id := string(request.Data)
 			if id != myID {
 				n.metrics.IncrKicks(instID)
-				err = platform.FatalError{errors.New("Kicked by new subscriber " + id)}
+				err = remote.FatalError{errors.New("Kicked by new subscriber " + id)}
 			}
 
 		case strings.HasSuffix(request.Subject, methodPing):
 			var p ping
 			err = encoder.Decode(request.Subject, request.Data, &p)
 			if err == nil {
-				err = remote.Ping()
+				err = platform.Ping()
 			}
 			n.enc.Publish(request.Reply, PingResponse{makeErrorResponse(err)})
 
 		case strings.HasSuffix(request.Subject, methodVersion):
 			var vsn string
-			vsn, err = remote.Version()
+			vsn, err = platform.Version()
 			n.enc.Publish(request.Reply, VersionResponse{vsn, makeErrorResponse(err)})
 
 		case strings.HasSuffix(request.Subject, methodExport):
@@ -332,7 +332,7 @@ func (n *NATS) Subscribe(instID flux.InstanceID, remote platform.Platform, done 
 			)
 			err = encoder.Decode(request.Subject, request.Data, &req)
 			if err == nil {
-				bytes, err = remote.Export()
+				bytes, err = platform.Export()
 			}
 			n.enc.Publish(request.Reply, ExportResponse{bytes, makeErrorResponse(err)})
 
@@ -343,7 +343,7 @@ func (n *NATS) Subscribe(instID flux.InstanceID, remote platform.Platform, done 
 			)
 			err = encoder.Decode(request.Subject, request.Data, &namespace)
 			if err == nil {
-				res, err = remote.ListServices(namespace)
+				res, err = platform.ListServices(namespace)
 			}
 			n.enc.Publish(request.Reply, ListServicesResponse{res, makeErrorResponse(err)})
 
@@ -354,7 +354,7 @@ func (n *NATS) Subscribe(instID flux.InstanceID, remote platform.Platform, done 
 			)
 			err = encoder.Decode(request.Subject, request.Data, &req)
 			if err == nil {
-				res, err = remote.ListImages(req)
+				res, err = platform.ListImages(req)
 			}
 			n.enc.Publish(request.Reply, ListImagesResponse{res, makeErrorResponse(err)})
 
@@ -365,7 +365,7 @@ func (n *NATS) Subscribe(instID flux.InstanceID, remote platform.Platform, done 
 			)
 			err = encoder.Decode(request.Subject, request.Data, &req)
 			if err == nil {
-				res, err = remote.UpdateImages(req)
+				res, err = platform.UpdateImages(req)
 			}
 			n.enc.Publish(request.Reply, UpdateImagesResponse{res, makeErrorResponse(err)})
 
@@ -373,7 +373,7 @@ func (n *NATS) Subscribe(instID flux.InstanceID, remote platform.Platform, done 
 			var req sync
 			err = encoder.Decode(request.Subject, request.Data, &req)
 			if err == nil {
-				err = remote.SyncCluster()
+				err = platform.SyncCluster()
 			}
 			n.enc.Publish(request.Reply, SyncClusterResponse{makeErrorResponse(err)})
 
@@ -384,14 +384,14 @@ func (n *NATS) Subscribe(instID flux.InstanceID, remote platform.Platform, done 
 			)
 			err = encoder.Decode(request.Subject, request.Data, &req)
 			if err == nil {
-				res, err = remote.SyncStatus(req)
+				res, err = platform.SyncStatus(req)
 			}
 			n.enc.Publish(request.Reply, SyncStatusResponse{res, makeErrorResponse(err)})
 
 		default:
 			err = errors.New("unknown message: " + request.Subject)
 		}
-		if _, ok := err.(platform.FatalError); ok && err != nil {
+		if _, ok := err.(remote.FatalError); ok && err != nil {
 			select {
 			case errc <- err:
 			default:

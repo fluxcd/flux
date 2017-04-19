@@ -6,13 +6,13 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/history"
-	"github.com/weaveworks/flux/platform"
+	"github.com/weaveworks/flux/remote"
 )
 
 // StandaloneInstancer is the instancer for standalone mode
 type StandaloneInstancer struct {
 	Instance    flux.InstanceID
-	Connecter   platform.Connecter
+	Connecter   remote.Connecter
 	Config      Configurer
 	EventReader history.EventReader
 	EventWriter history.EventWriter

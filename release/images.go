@@ -7,14 +7,14 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/weaveworks/flux"
-	"github.com/weaveworks/flux/platform"
+	"github.com/weaveworks/flux/cluster"
 	"github.com/weaveworks/flux/registry"
 )
 
 // Get the images available for the services given. An image may be
 // mentioned more than once in the services, but will only be fetched
 // once.
-func CollectAvailableImages(reg registry.Registry, services []platform.Service) (ImageMap, error) {
+func CollectAvailableImages(reg registry.Registry, services []cluster.Service) (ImageMap, error) {
 	images := ImageMap{}
 	for _, service := range services {
 		for _, container := range service.ContainersOrNil() {
