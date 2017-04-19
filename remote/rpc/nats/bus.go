@@ -11,6 +11,7 @@ import (
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/guid"
 	"github.com/weaveworks/flux/remote"
+	"github.com/weaveworks/flux/sync"
 )
 
 const (
@@ -138,9 +139,8 @@ type UpdateImagesResponse struct {
 	ErrorResponse
 }
 
-type sync struct{}
-
 type SyncClusterResponse struct {
+	Result *sync.Result
 	ErrorResponse
 }
 
@@ -243,20 +243,20 @@ func (r *natsPlatform) UpdateImages(spec flux.ReleaseSpec) (flux.ReleaseResult, 
 	return response.Result, extractError(response.ErrorResponse)
 }
 
-func (r *natsPlatform) SyncCluster() error {
+func (r *natsPlatform) SyncCluster(params sync.Params) (*sync.Result, error) {
 	var response SyncClusterResponse
-	if err := r.conn.Request(r.instance+methodSyncCluster, sync{}, &response, timeout); err != nil {
+	if err := r.conn.Request(r.instance+methodSyncCluster, params, &response, timeout); err != nil {
 		if err == nats.ErrTimeout {
 			err = remote.UnavailableError(err)
 		}
-		return err
+		return nil, err
 	}
-	return extractError(response.ErrorResponse)
+	return response.Result, extractError(response.ErrorResponse)
 }
 
-func (r *natsPlatform) SyncStatus(cursor string) ([]string, error) {
+func (r *natsPlatform) SyncStatus(ref string) ([]string, error) {
 	var response SyncStatusResponse
-	if err := r.conn.Request(r.instance+methodSyncStatus, cursor, &response, timeout); err != nil {
+	if err := r.conn.Request(r.instance+methodSyncStatus, ref, &response, timeout); err != nil {
 		if err == nats.ErrTimeout {
 			err = remote.UnavailableError(err)
 		}
@@ -370,12 +370,13 @@ func (n *NATS) Subscribe(instID flux.InstanceID, platform remote.Platform, done 
 			n.enc.Publish(request.Reply, UpdateImagesResponse{res, makeErrorResponse(err)})
 
 		case strings.HasSuffix(request.Subject, methodSyncCluster):
-			var req sync
+			var req sync.Params
+			var res *sync.Result
 			err = encoder.Decode(request.Subject, request.Data, &req)
 			if err == nil {
-				err = platform.SyncCluster()
+				res, err = platform.SyncCluster(req)
 			}
-			n.enc.Publish(request.Reply, SyncClusterResponse{makeErrorResponse(err)})
+			n.enc.Publish(request.Reply, SyncClusterResponse{res, makeErrorResponse(err)})
 
 		case strings.HasSuffix(request.Subject, methodSyncStatus):
 			var (

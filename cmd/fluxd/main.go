@@ -179,6 +179,7 @@ func main() {
 			logger.Log("component", "git", "err", err.Error())
 			os.Exit(1)
 		}
+		logger.Log("working-dir", working)
 		workingDir = working
 	}
 

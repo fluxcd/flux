@@ -7,6 +7,7 @@ import (
 
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/remote"
+	"github.com/weaveworks/flux/sync"
 )
 
 // RPCClient is the rpc-backed implementation of a platform, for
@@ -55,8 +56,8 @@ func (p *RPCClientV6) UpdateImages(spec flux.ReleaseSpec) (flux.ReleaseResult, e
 	return nil, errors.New("FIXME")
 }
 
-func (p *RPCClientV6) SyncCluster() error {
-	return errors.New("FIXME")
+func (p *RPCClientV6) SyncCluster(sync.Params) (*sync.Result, error) {
+	return nil, errors.New("FIXME")
 }
 
 func (p *RPCClientV6) SyncStatus(cursor string) ([]string, error) {

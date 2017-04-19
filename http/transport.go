@@ -37,8 +37,8 @@ func NewAPIRouter() *mux.Router {
 	r.NewRoute().Name("ListImages").Methods("GET").Path("/v3/images").Queries("service", "{service}")
 
 	r.NewRoute().Name("UpdateImages").Methods("POST").Path("/v6/update-images").Queries("service", "{service}", "image", "{image}", "kind", "{kind}")
-	r.NewRoute().Name("SyncCluster").Methods("POST").Path("/v6/sync")
-	r.NewRoute().Name("SyncStatus").Methods("GET").Path("/v6/sync").Queries("rev", "{rev}")
+	r.NewRoute().Name("SyncCluster").Methods("POST").Path("/v6/sync").Queries("deletes", "{deletes}", "dry-run", "{dryRun}")
+	r.NewRoute().Name("SyncStatus").Methods("GET").Path("/v6/sync").Queries("ref", "{ref}")
 	r.NewRoute().Name("Export").Methods("HEAD", "GET").Path("/v5/export")
 
 	return r // TODO 404 though?

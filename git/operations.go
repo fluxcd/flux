@@ -25,7 +25,7 @@ func clone(workingDir, keyPath, repoURL, repoBranch string) (path string, err er
 		args = append(args, "--branch", repoBranch)
 	}
 	args = append(args, repoURL, repoPath)
-	if err := execGitCmd(workingDir, keyPath, args...); err != nil {
+	if err := execGitCmd(workingDir, keyPath, nil, args...); err != nil {
 		return "", errors.Wrap(err, "git clone")
 	}
 	return repoPath, nil
@@ -33,7 +33,7 @@ func clone(workingDir, keyPath, repoURL, repoBranch string) (path string, err er
 
 func commit(workingDir, commitMessage string) error {
 	if err := execGitCmd(
-		workingDir, "",
+		workingDir, "", nil,
 		"-c", "user.name=Weave Flux", "-c", "user.email=support@weave.works",
 		"commit",
 		"--no-verify", "-a", "-m", commitMessage,
@@ -44,26 +44,38 @@ func commit(workingDir, commitMessage string) error {
 }
 
 func push(keyPath, repoBranch, workingDir string) error {
-	if err := execGitCmd(workingDir, keyPath, "push", "origin", repoBranch); err != nil {
+	if err := execGitCmd(workingDir, keyPath, nil, "push", "origin", repoBranch); err != nil {
 		return errors.Wrap(err, fmt.Sprintf("git push origin %s", repoBranch))
 	}
 	return nil
 }
 
 func pull(keyPath, repoBranch, workingDir string) error {
-	if err := execGitCmd(workingDir, keyPath, "pull", "--ff-only", "origin", repoBranch); err != nil {
+	if err := execGitCmd(workingDir, keyPath, nil, "pull", "--ff-only", "origin", repoBranch); err != nil {
 		return errors.Wrap(err, fmt.Sprintf("git pull --ff-only origin %s", repoBranch))
 	}
 	return nil
 }
 
-func execGitCmd(dir, keyPath string, args ...string) error {
+// Get the commit hash for HEAD
+func revision(path string) (string, error) {
+	out := &bytes.Buffer{}
+	if err := execGitCmd(path, "", out, "rev-list", "--max-count", "1", "HEAD"); err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(out.String()), nil
+}
+
+func execGitCmd(dir, keyPath string, out io.Writer, args ...string) error {
 	c := exec.Command("git", args...)
 	if dir != "" {
 		c.Dir = dir
 	}
 	c.Env = env(keyPath)
 	c.Stdout = ioutil.Discard
+	if out != nil {
+		c.Stdout = out
+	}
 	errOut := &bytes.Buffer{}
 	c.Stderr = errOut
 	err := c.Run()
@@ -87,7 +99,7 @@ func env(keyPath string) []string {
 // check returns true if there are changes locally.
 func check(workingDir, subdir string) bool {
 	// `--quiet` means "exit with 1 if there are changes"
-	return execGitCmd(workingDir, "", "diff", "--quiet", "--", subdir) != nil
+	return execGitCmd(workingDir, "", nil, "diff", "--quiet", "--", subdir) != nil
 }
 
 func narrowKeyPerms(keyPath string) error {

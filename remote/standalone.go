@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/weaveworks/flux"
+	fluxsync "github.com/weaveworks/flux/sync"
 )
 
 var (
@@ -177,22 +178,22 @@ func (p *removeablePlatform) UpdateImages(spec flux.ReleaseSpec) (_ flux.Release
 	return p.remote.UpdateImages(spec)
 }
 
-func (p *removeablePlatform) SyncCluster() (err error) {
+func (p *removeablePlatform) SyncCluster(params fluxsync.Params) (_ *fluxsync.Result, err error) {
 	defer func() {
 		if _, ok := err.(FatalError); ok {
 			p.closeWithError(err)
 		}
 	}()
-	return p.remote.SyncCluster()
+	return p.remote.SyncCluster(params)
 }
 
-func (p *removeablePlatform) SyncStatus(cursor string) (_ []string, err error) {
+func (p *removeablePlatform) SyncStatus(ref string) (revs []string, err error) {
 	defer func() {
 		if _, ok := err.(FatalError); ok {
 			p.closeWithError(err)
 		}
 	}()
-	return p.remote.SyncStatus(cursor)
+	return p.remote.SyncStatus(ref)
 }
 
 // disconnectedPlatform is a stub implementation used when the
@@ -224,8 +225,8 @@ func (p disconnectedPlatform) UpdateImages(flux.ReleaseSpec) (flux.ReleaseResult
 	return nil, errNotSubscribed
 }
 
-func (p disconnectedPlatform) SyncCluster() error {
-	return errNotSubscribed
+func (p disconnectedPlatform) SyncCluster(fluxsync.Params) (*fluxsync.Result, error) {
+	return nil, errNotSubscribed
 }
 
 func (p disconnectedPlatform) SyncStatus(string) ([]string, error) {

@@ -11,6 +11,7 @@ import (
 	"github.com/weaveworks/flux/git"
 	"github.com/weaveworks/flux/instance"
 	"github.com/weaveworks/flux/remote"
+	"github.com/weaveworks/flux/sync"
 )
 
 const (
@@ -98,22 +99,22 @@ func (s *Server) UpdateImages(instID flux.InstanceID, spec flux.ReleaseSpec) (re
 	return inst.Platform.UpdateImages(spec)
 }
 
-func (s *Server) SyncCluster(instID flux.InstanceID) (err error) {
-	inst, err := s.instancer.Get(instID)
-	if err != nil {
-		return errors.Wrapf(err, "getting instance "+string(instID))
-	}
-
-	return inst.Platform.SyncCluster()
-}
-
-func (s *Server) SyncStatus(instID flux.InstanceID, rev string) (res []string, err error) {
+func (s *Server) SyncCluster(instID flux.InstanceID, params sync.Params) (result *sync.Result, err error) {
 	inst, err := s.instancer.Get(instID)
 	if err != nil {
 		return nil, errors.Wrapf(err, "getting instance "+string(instID))
 	}
 
-	return inst.Platform.SyncStatus(rev)
+	return inst.Platform.SyncCluster(params)
+}
+
+func (s *Server) SyncStatus(instID flux.InstanceID, ref string) (res []string, err error) {
+	inst, err := s.instancer.Get(instID)
+	if err != nil {
+		return nil, errors.Wrapf(err, "getting instance "+string(instID))
+	}
+
+	return inst.Platform.SyncStatus(ref)
 }
 
 func (s *Server) History(inst flux.InstanceID, spec flux.ServiceSpec, before time.Time, limit int64) (res []flux.HistoryEntry, err error) {

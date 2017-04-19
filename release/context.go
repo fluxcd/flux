@@ -61,6 +61,11 @@ func (rc *ReleaseContext) ManifestDir() string {
 	return filepath.Join(rc.WorkingDir, rc.Repo.Path)
 }
 
+// Return the revision of HEAD as a commit hash.
+func (rc *ReleaseContext) Revision() (string, error) {
+	return rc.Repo.Revision(rc.WorkingDir)
+}
+
 // ---
 
 func writeUpdates(updates []*ServiceUpdate) error {

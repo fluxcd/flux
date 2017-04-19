@@ -15,6 +15,7 @@ import (
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/api"
 	transport "github.com/weaveworks/flux/http"
+	"github.com/weaveworks/flux/sync"
 )
 
 type client struct {
@@ -66,14 +67,22 @@ func (c *client) UpdateImages(_ flux.InstanceID, s flux.ReleaseSpec) (flux.Relea
 	return resp, err
 }
 
-func (c *client) SyncCluster(_ flux.InstanceID) error {
-	err := c.post("SyncCluster")
-	return err
+func (c *client) SyncCluster(_ flux.InstanceID, params sync.Params) (*sync.Result, error) {
+	args := []string{
+		"deletes", fmt.Sprint(params.Deletes),
+		"dry-run", fmt.Sprint(params.DryRun),
+	}
+
+	var resp sync.Result
+	if err := c.methodWithResp("POST", &resp, "SyncCluster", nil, args...); err != nil {
+		return nil, err
+	}
+	return &resp, nil
 }
 
-func (c *client) SyncStatus(_ flux.InstanceID, rev string) ([]string, error) {
+func (c *client) SyncStatus(_ flux.InstanceID, ref string) ([]string, error) {
 	var res []string
-	err := c.get(&res, "SyncStatus", "rev", rev)
+	err := c.get(&res, "SyncStatus", "ref", ref)
 	return res, err
 }
 

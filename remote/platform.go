@@ -4,6 +4,7 @@ package remote
 
 import (
 	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/sync"
 )
 
 // For historical reasons, the (versioned) interface is called
@@ -38,7 +39,7 @@ type PlatformV6 interface {
 	ListServices(namespace string) ([]flux.ServiceStatus, error)
 	ListImages(flux.ServiceSpec) ([]flux.ImageStatus, error)
 	UpdateImages(flux.ReleaseSpec) (flux.ReleaseResult, error)
-	SyncCluster() error
+	SyncCluster(sync.Params) (*sync.Result, error)
 	SyncStatus(string) ([]string, error)
 }
 

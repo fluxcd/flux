@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
@@ -12,6 +13,7 @@ import (
 	"github.com/weaveworks/flux/daemon"
 	transport "github.com/weaveworks/flux/http"
 	fluxmetrics "github.com/weaveworks/flux/metrics"
+	"github.com/weaveworks/flux/sync"
 )
 
 var (
@@ -55,12 +57,15 @@ type HTTPServer struct {
 }
 
 func (s HTTPServer) SyncCluster(w http.ResponseWriter, r *http.Request) {
-	err := s.daemon.SyncCluster()
+	var deletes, dryRun bool
+	deletes, _ = strconv.ParseBool(mux.Vars(r)["deletes"])
+	dryRun, _ = strconv.ParseBool(mux.Vars(r)["dryRun"])
+	result, err := s.daemon.SyncCluster(sync.Params{Deletes: deletes, DryRun: dryRun})
 	if err != nil {
 		transport.ErrorResponse(w, r, err)
 		return
 	}
-	w.WriteHeader(http.StatusAccepted)
+	transport.JSONResponse(w, r, result)
 }
 
 func (s HTTPServer) SyncStatus(w http.ResponseWriter, r *http.Request) {
