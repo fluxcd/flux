@@ -22,7 +22,10 @@ func FindDefinedServices(path string) (map[flux.ServiceID][]string, error) {
 	}
 
 	var files []string
-	filepath.Walk(path, func(target string, info os.FileInfo, err error) error {
+	if err = filepath.Walk(path, func(target string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
 		if info.IsDir() {
 			return nil
 		}
@@ -30,7 +33,9 @@ func FindDefinedServices(path string) (map[flux.ServiceID][]string, error) {
 			files = append(files, target)
 		}
 		return nil
-	})
+	}); err != nil {
+		return nil, err
+	}
 
 	services := map[flux.ServiceID][]string{}
 	for _, file := range files {
