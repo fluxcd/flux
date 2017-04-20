@@ -22,6 +22,7 @@ type Daemon struct {
 	Registry   registry.Registry
 	Repo       git.Repo
 	WorkingDir string
+	SyncTag    string
 }
 
 // Invariant.
@@ -89,7 +90,7 @@ func (d *Daemon) ListImages(spec flux.ServiceSpec) ([]flux.ImageStatus, error) {
 // Apply the desired changes to the config files
 func (d *Daemon) UpdateImages(spec flux.ReleaseSpec) (flux.ReleaseResult, error) {
 	started := time.Now()
-	rc := release.NewReleaseContext(d.Cluster, d.Registry, d.Repo, d.WorkingDir)
+	rc := release.NewReleaseContext(d.Cluster, d.Registry, d.Repo, d.WorkingDir, "")
 	if err := rc.UpdateRepo(); err != nil {
 		return nil, errors.Wrap(err, "updating repo for sync")
 	}
@@ -123,7 +124,7 @@ func (d *Daemon) UpdateImages(spec flux.ReleaseSpec) (flux.ReleaseResult, error)
 // the git repo.
 func (d *Daemon) SyncCluster(params sync.Params) (*sync.Result, error) {
 	// TODO metrics
-	rc := release.NewReleaseContext(d.Cluster, d.Registry, d.Repo, d.WorkingDir)
+	rc := release.NewReleaseContext(d.Cluster, d.Registry, d.Repo, d.WorkingDir, d.SyncTag)
 	if err := rc.UpdateRepo(); err != nil {
 		return nil, errors.Wrap(err, "updating repo for sync")
 	}
@@ -136,7 +137,11 @@ func (d *Daemon) SyncCluster(params sync.Params) (*sync.Result, error) {
 // you'll get all the commits yet to be applied. If you send a hash
 // and it's applied _past_ it, you'll get an empty list.
 func (d *Daemon) SyncStatus(commitRef string) ([]string, error) {
-	return nil, errors.New("FIXME")
+	rc := release.NewReleaseContext(d.Cluster, d.Registry, d.Repo, d.WorkingDir, d.SyncTag)
+	if err := rc.UpdateRepo(); err != nil {
+		return nil, errors.Wrap(err, "updating repo for status")
+	}
+	return rc.ListRevisions(commitRef)
 }
 
 // Non-remote.Platform methods

@@ -69,7 +69,8 @@ func (s HTTPServer) SyncCluster(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s HTTPServer) SyncStatus(w http.ResponseWriter, r *http.Request) {
-	commits, err := s.daemon.SyncStatus("HEAD")
+	ref := mux.Vars(r)["ref"]
+	commits, err := s.daemon.SyncStatus(ref)
 	if err != nil {
 		transport.ErrorResponse(w, r, err)
 		return

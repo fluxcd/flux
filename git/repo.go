@@ -50,6 +50,10 @@ func (r Repo) Clone() (path string, err error) {
 	return repoDir, nil
 }
 
+func (r Repo) Config(path, user, email string) error {
+	return config(path, user, email)
+}
+
 func (r Repo) CommitAndPush(path, commitMessage string) error {
 	if !check(path, r.Path) {
 		return ErrNoChanges
@@ -67,6 +71,14 @@ func (r Repo) Pull(path string) error {
 	return pull(r.Key, r.Branch, path)
 }
 
-func (r Repo) Revision(path string) (string, error) {
-	return revision(path)
+func (r Repo) HeadRevision(path string) (string, error) {
+	return headRevision(path)
+}
+
+func (r Repo) RevisionsBetween(path, ref1, ref2 string) ([]string, error) {
+	return revlist(path, ref1, ref2)
+}
+
+func (r Repo) MoveTagAndPush(path, tag, ref, msg string) error {
+	return moveTagAndPush(path, r.Key, tag, ref, msg)
 }

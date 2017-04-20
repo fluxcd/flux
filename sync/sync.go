@@ -50,7 +50,7 @@ func Sync(rc *release.ReleaseContext, deletes bool, dryRun bool) (*Result, error
 	// TODO logging, metrics?
 	// Get a map of resources defined in the repo
 
-	rev, err := rc.Revision()
+	rev, err := rc.HeadRevision()
 	if err != nil {
 		return nil, errors.Wrap(err, "getting revision of repo")
 	}
@@ -103,5 +103,13 @@ func Sync(rc *release.ReleaseContext, deletes bool, dryRun bool) (*Result, error
 	if dryRun {
 		return result, nil
 	}
-	return result, rc.Cluster.Sync(sync)
+
+	err = rc.Cluster.Sync(sync)
+	if err == nil {
+		err = rc.UpdateTag()
+	}
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
 }

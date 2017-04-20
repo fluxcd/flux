@@ -28,14 +28,16 @@ type ReleaseContext struct {
 	Repo       git.Repo
 	Registry   registry.Registry
 	WorkingDir string
+	SyncTag    string
 }
 
-func NewReleaseContext(c cluster.Cluster, reg registry.Registry, repo git.Repo, working string) *ReleaseContext {
+func NewReleaseContext(c cluster.Cluster, reg registry.Registry, repo git.Repo, working, tag string) *ReleaseContext {
 	return &ReleaseContext{
 		Cluster:    c,
 		Repo:       repo,
 		Registry:   reg,
 		WorkingDir: working,
+		SyncTag:    tag,
 	}
 }
 
@@ -62,8 +64,16 @@ func (rc *ReleaseContext) ManifestDir() string {
 }
 
 // Return the revision of HEAD as a commit hash.
-func (rc *ReleaseContext) Revision() (string, error) {
-	return rc.Repo.Revision(rc.WorkingDir)
+func (rc *ReleaseContext) HeadRevision() (string, error) {
+	return rc.Repo.HeadRevision(rc.WorkingDir)
+}
+
+func (rc *ReleaseContext) ListRevisions(ref string) ([]string, error) {
+	return rc.Repo.RevisionsBetween(rc.WorkingDir, rc.SyncTag, ref)
+}
+
+func (rc *ReleaseContext) UpdateTag() error {
+	return rc.Repo.MoveTagAndPush(rc.WorkingDir, rc.SyncTag, "HEAD", "Sync pointer")
 }
 
 // ---

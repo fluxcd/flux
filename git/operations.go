@@ -14,6 +14,18 @@ import (
 	"github.com/pkg/errors"
 )
 
+func config(workingDir, user, email string) error {
+	for k, v := range map[string]string{
+		"user.name":  user,
+		"user.email": email,
+	} {
+		if err := execGitCmd(workingDir, "", nil, "config", k, v); err != nil {
+			return errors.Wrap(err, "setting git config")
+		}
+	}
+	return nil
+}
+
 // Do a shallow clone of the repo. We only need the files, and not the
 // history. A shallow clone is marginally quicker, and takes less
 // space, than a full clone.
@@ -34,7 +46,6 @@ func clone(workingDir, keyPath, repoURL, repoBranch string) (path string, err er
 func commit(workingDir, commitMessage string) error {
 	if err := execGitCmd(
 		workingDir, "", nil,
-		"-c", "user.name=Weave Flux", "-c", "user.email=support@weave.works",
 		"commit",
 		"--no-verify", "-a", "-m", commitMessage,
 	); err != nil {
@@ -58,12 +69,31 @@ func pull(keyPath, repoBranch, workingDir string) error {
 }
 
 // Get the commit hash for HEAD
-func revision(path string) (string, error) {
+func headRevision(path string) (string, error) {
 	out := &bytes.Buffer{}
 	if err := execGitCmd(path, "", out, "rev-list", "--max-count", "1", "HEAD"); err != nil {
 		return "", err
 	}
 	return strings.TrimSpace(out.String()), nil
+}
+
+func revlist(path, ref1, ref2 string) ([]string, error) {
+	out := &bytes.Buffer{}
+	if err := execGitCmd(path, "", out, "rev-list", fmt.Sprintf("%s..%s", ref1, ref2)); err != nil {
+		return nil, err
+	}
+	return strings.Split(out.String(), "\n"), nil
+}
+
+// Move the tag to the ref given and push that tag to origin
+func moveTagAndPush(path, key, tag, ref, msg string) error {
+	if err := execGitCmd(path, "", nil, "tag", "--force", "-a", "-m", msg, tag, ref); err != nil {
+		return errors.Wrap(err, "moving tag "+tag)
+	}
+	if err := execGitCmd(path, key, nil, "push", "origin", "tag", tag); err != nil {
+		return errors.Wrap(err, "pushing tag to origin")
+	}
+	return nil
 }
 
 func execGitCmd(dir, keyPath string, out io.Writer, args ...string) error {

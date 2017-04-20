@@ -41,16 +41,17 @@ func main() {
 	}
 	// This mirrors how kubectl extracts information from the environment.
 	var (
-		listenAddr = fs.StringP("listen", "l", ":3031", "Listen address where /metrics and API will be served")
-		//		fluxsvcAddress    = fs.String("fluxsvc-address", "wss://cloud.weave.works/api/flux", "Address of the fluxsvc to connect to.")
-		//		token             = fs.String("token", "", "Token to use to authenticate with flux service")
+		listenAddr        = fs.StringP("listen", "l", ":3031", "Listen address where /metrics and API will be served")
 		kubernetesKubectl = fs.String("kubernetes-kubectl", "", "Optional, explicit path to kubectl tool")
 		versionFlag       = fs.Bool("version", false, "Get version number")
-		// Git repo & key
-		gitURL    = fs.String("git-url", "", "URL of git repo with Kubernetes manifests; e.g., git@github.com:weaveworks/flux-example")
-		gitBranch = fs.String("git-branch", "master", "branch of git repo to use for Kubernetes manifests")
-		gitPath   = fs.String("git-path", "", "path within git repo to locate Kubernetes manifests")
-		gitKey    = fs.String("git-key", "", "path in local filesystem to (deploy) key")
+		// Git repo & key etc.
+		gitURL     = fs.String("git-url", "", "URL of git repo with Kubernetes manifests; e.g., git@github.com:weaveworks/flux-example")
+		gitBranch  = fs.String("git-branch", "master", "branch of git repo to use for Kubernetes manifests")
+		gitPath    = fs.String("git-path", "", "path within git repo to locate Kubernetes manifests")
+		gitKey     = fs.String("git-key", "", "path in local filesystem to (deploy) key")
+		gitUser    = fs.String("git-user", "Weave Flux", "username to use for git operations")
+		gitEmail   = fs.String("git-email", "support@weave.works", "email to use for git operations")
+		gitSyncTag = fs.String("git-sync-tag", "flux-sync", "tag to use to mark sync progress for this cluster")
 		// registry
 		dockerCredFile      = fs.String("docker-config", "~/.docker/config.json", "Path to config file with credentials for DockerHub, quay.io etc.")
 		memcachedHostname   = fs.String("memcached-hostname", "", "Hostname for memcached service to use when caching chunks. If empty, no memcached will be used.")
@@ -175,11 +176,15 @@ func main() {
 		}
 
 		working, err := repo.Clone()
+		if err == nil {
+			err = repo.Config(working, *gitUser, *gitEmail)
+		}
 		if err != nil {
 			logger.Log("component", "git", "err", err.Error())
 			os.Exit(1)
 		}
-		logger.Log("working-dir", working)
+
+		logger.Log("working-dir", working, "user", *gitUser, "email", *gitEmail, "sync-tag", *gitSyncTag)
 		workingDir = working
 	}
 
@@ -189,6 +194,7 @@ func main() {
 		Repo:       repo,
 		Registry:   reg,
 		WorkingDir: workingDir,
+		SyncTag:    *gitSyncTag,
 	}
 
 	// Connect to fluxsvc if given an upstream address
