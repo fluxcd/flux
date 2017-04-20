@@ -3,7 +3,6 @@ package testfiles
 import (
 	"io/ioutil"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -19,13 +18,9 @@ func TempDir(t *testing.T) (string, func()) {
 
 	cleanup := func() {
 		if strings.HasPrefix(newDir, os.TempDir()) {
-			if err = exec.Command("rm", "-rf", newDir).Run(); err == nil {
-				println("Deleted " + newDir)
-			} else {
-				println("Failed to delete " + newDir)
+			if err := os.RemoveAll(newDir); err != nil {
+				t.Errorf("Failed to delete %s: %v", newDir, err)
 			}
-		} else {
-			println("Refusing to delete " + newDir)
 		}
 	}
 	return newDir, cleanup

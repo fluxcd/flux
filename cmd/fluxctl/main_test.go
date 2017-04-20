@@ -2,18 +2,18 @@
 package main
 
 import (
-	transport "github.com/weaveworks/flux/http"
-	"net/http"
-
 	"bytes"
 	"encoding/json"
-	"fmt"
-	"github.com/gorilla/mux"
-	"github.com/weaveworks/flux/http/client"
 	"io/ioutil"
+	"net/http"
 	"net/url"
 	"strings"
 	"testing"
+
+	"github.com/gorilla/mux"
+
+	transport "github.com/weaveworks/flux/http"
+	"github.com/weaveworks/flux/http/client"
 )
 
 func mockServiceOpts(trip *genericMockRoundTripper) *serviceOpts {
@@ -37,7 +37,6 @@ func (t *genericMockRoundTripper) RoundTrip(req *http.Request) (*http.Response, 
 	var matched mux.RouteMatch
 	var b []byte
 	status := 404
-	fmt.Println(req.URL.String())
 	for k, v := range t.mockResponses {
 		if k.Match(req, &matched) {
 			queryParamsWithArrays := make(map[string]string, len(req.URL.Query()))
@@ -92,6 +91,7 @@ func testArgs(t *testing.T, args []string, shouldErr bool, errMsg string) *gener
 
 	// Run fluxctl release
 	cmd := releaseClient.Command()
+	cmd.SetOutput(ioutil.Discard)
 	cmd.SetArgs(args)
 	if err := cmd.Execute(); (err == nil) == shouldErr {
 		if errMsg != "" {

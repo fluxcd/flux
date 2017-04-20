@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"os"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -35,7 +34,7 @@ func (opts *getConfigOpts) Command() *cobra.Command {
 	return cmd
 }
 
-func (opts *getConfigOpts) RunE(_ *cobra.Command, args []string) error {
+func (opts *getConfigOpts) RunE(cmd *cobra.Command, args []string) error {
 	if len(args) > 0 {
 		return errorWantedNoArgs
 	}
@@ -62,6 +61,6 @@ func (opts *getConfigOpts) RunE(_ *cobra.Command, args []string) error {
 	if err != nil {
 		return errors.Wrap(err, "marshalling to output format "+opts.output)
 	}
-	os.Stdout.Write(bytes)
+	cmd.OutOrStdout().Write(bytes)
 	return nil
 }

@@ -1,11 +1,14 @@
 package main //+integration
+
 import (
+	"io/ioutil"
+	"testing"
+
 	"github.com/gorilla/mux"
 
 	"github.com/weaveworks/flux"
 	transport "github.com/weaveworks/flux/http"
 	"github.com/weaveworks/flux/jobs"
-	"testing"
 )
 
 func TestCheckReleaseCommand_CLIConversion(t *testing.T) {
@@ -65,6 +68,7 @@ func testCheckReleaseArgs(t *testing.T, args []string, shouldErr bool, errMsg st
 	client := newServiceCheckRelease(mockServiceOpts(svc))
 
 	cmd := client.Command()
+	cmd.SetOutput(ioutil.Discard)
 	cmd.SetArgs(args)
 	if err := cmd.Execute(); (err == nil) == shouldErr {
 		if errMsg != "" {

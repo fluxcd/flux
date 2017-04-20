@@ -72,16 +72,17 @@ func (opts *serviceCheckReleaseOpts) RunE(cmd *cobra.Command, args []string) err
 		if err != nil {
 			return err
 		}
-		_, err = os.Stdout.Write(buf)
+		_, err = cmd.OutOrStdout().Write(buf)
 		return err
 	}
 
 	var (
-		w    io.Writer = os.Stdout
+		w    io.Writer = cmd.OutOrStdout()
 		stop           = func() {}
 	)
 	if !opts.noTty && isatty.IsTerminal(os.Stdout.Fd()) {
 		liveWriter := uilive.New()
+		liveWriter.Out = cmd.OutOrStdout()
 		liveWriter.Start()
 		var stopOnce sync.Once
 		w, stop = liveWriter, func() { stopOnce.Do(liveWriter.Stop) }
@@ -109,9 +110,9 @@ func (opts *serviceCheckReleaseOpts) RunE(cmd *cobra.Command, args []string) err
 			if err, ok := errors.Cause(err).(*httperror.APIError); ok && err.IsUnavailable() {
 				if time.Since(lastSucceeded) > retryTimeout {
 					stop()
-					fmt.Fprintln(os.Stdout, "Giving up; you can try again with")
-					fmt.Fprintf(os.Stdout, "    fluxctl check-release -r %s\n", opts.releaseID)
-					fmt.Fprintln(os.Stdout)
+					fmt.Fprintln(cmd.OutOrStdout(), "Giving up; you can try again with")
+					fmt.Fprintf(cmd.OutOrStdout(), "    fluxctl check-release -r %s\n", opts.releaseID)
+					fmt.Fprintln(cmd.OutOrStdout())
 					break
 				}
 				retryCount++
@@ -160,22 +161,22 @@ func (opts *serviceCheckReleaseOpts) RunE(cmd *cobra.Command, args []string) err
 
 	spec := job.Params.(jobs.ReleaseJobParams)
 
-	fmt.Fprintf(os.Stdout, "\n")
+	fmt.Fprintf(cmd.OutOrStdout(), "\n")
 	if !job.Success {
-		fmt.Fprintf(os.Stdout, "Here's as far as we got:\n")
+		fmt.Fprintf(cmd.OutOrStdout(), "Here's as far as we got:\n")
 		for i, msg := range job.Log {
-			fmt.Fprintf(os.Stdout, " %d) %s\n", i+1, msg)
+			fmt.Fprintf(cmd.OutOrStdout(), " %d) %s\n", i+1, msg)
 		}
 	} else if spec.Kind == flux.ReleaseKindPlan {
-		fmt.Fprintf(os.Stdout, "Here's the plan:\n")
-		release.PrintResults(os.Stdout, job.Result.(flux.ReleaseResult), opts.verbose)
+		fmt.Fprintf(cmd.OutOrStdout(), "Here's the plan:\n")
+		release.PrintResults(cmd.OutOrStdout(), job.Result.(flux.ReleaseResult), opts.verbose)
 	} else {
-		fmt.Fprintf(os.Stdout, "Here's what happened:\n")
-		release.PrintResults(os.Stdout, job.Result.(flux.ReleaseResult), opts.verbose)
+		fmt.Fprintf(cmd.OutOrStdout(), "Here's what happened:\n")
+		release.PrintResults(cmd.OutOrStdout(), job.Result.(flux.ReleaseResult), opts.verbose)
 	}
 
 	if spec.Kind == flux.ReleaseKindExecute {
-		fmt.Fprintf(os.Stdout, "Took %s\n", job.Finished.Sub(job.Submitted))
+		fmt.Fprintf(cmd.OutOrStdout(), "Took %s\n", job.Finished.Sub(job.Submitted))
 	}
 
 	if job.Error != nil {

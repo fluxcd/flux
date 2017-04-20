@@ -1,8 +1,7 @@
 package release
 
 import (
-	"fmt"
-	"os"
+	"io/ioutil"
 	"reflect"
 	"testing"
 	"time"
@@ -427,7 +426,6 @@ func testRelease(t *testing.T, releaser *Releaser, name string, spec flux.Releas
 				ReleaseSpec: spec,
 			},
 		}, func(f string, a ...interface{}) {
-			fmt.Printf(f+"\n", a...)
 		}, func(r flux.ReleaseResult) {
 			if r == nil {
 				t.Errorf("%s - result update called with nil value", name)
@@ -440,9 +438,7 @@ func testRelease(t *testing.T, releaser *Releaser, name string, spec flux.Releas
 	if len(moreJobs) > 0 {
 		t.Errorf("%s - did not expect followup jobs, got %#v", name, moreJobs)
 	}
-	println()
-	PrintResults(os.Stdout, results, true)
-	println()
+	PrintResults(ioutil.Discard, results, true)
 	if !reflect.DeepEqual(expected, results) {
 		t.Errorf("%s - expected:\n%#v, got:\n%#v", name, expected, results)
 	}

@@ -1,11 +1,17 @@
 package main
 
 import (
-	"github.com/weaveworks/flux/server"
+	"io/ioutil"
+	"net/http"
+	"net/http/httptest"
+	"path/filepath"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/go-kit/kit/log"
 	"github.com/gorilla/mux"
+
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/api"
 	"github.com/weaveworks/flux/db"
@@ -19,13 +25,7 @@ import (
 	instancedb "github.com/weaveworks/flux/instance/sql"
 	"github.com/weaveworks/flux/jobs"
 	"github.com/weaveworks/flux/platform"
-	"io"
-	"net/http"
-	"net/http/httptest"
-	"os"
-	"path/filepath"
-	"strings"
-	"time"
+	"github.com/weaveworks/flux/server"
 )
 
 var (
@@ -487,8 +487,11 @@ func TestFluxsvc_Ping(t *testing.T) {
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusNoContent {
-		io.Copy(os.Stdout, resp.Body)
-		t.Fatal("Request should have been ok but got %q", resp.Status)
+		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Fatal("Request should have been ok but got %q, body:\n%v", resp.Status, body)
 	}
 }
 
@@ -509,7 +512,10 @@ func TestFluxsvc_Register(t *testing.T) {
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusNoContent {
-		io.Copy(os.Stdout, resp.Body)
-		t.Fatal("Request should have been ok but got %q", resp.Status)
+		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Fatal("Request should have been ok but got %q, body:\n%v", resp.Status, body)
 	}
 }

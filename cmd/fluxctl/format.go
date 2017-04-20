@@ -3,13 +3,13 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"os"
+	"io"
 	"strings"
 	"text/tabwriter"
 )
 
-func newTabwriter() *tabwriter.Writer {
-	return tabwriter.NewWriter(os.Stdout, 0, 2, 2, ' ', 0)
+func newTabwriter(w io.Writer) *tabwriter.Writer {
+	return tabwriter.NewWriter(w, 0, 2, 2, ' ', 0)
 }
 
 func makeExample(examples ...string) string {

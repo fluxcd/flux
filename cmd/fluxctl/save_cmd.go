@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 
@@ -82,7 +83,7 @@ func (opts *saveOpts) RunE(cmd *cobra.Command, args []string) error {
 		// e.g. .Spec and .Metadata.Annotations
 		filterObject(object)
 
-		if err := saveYAML(object, opts.path); err != nil {
+		if err := saveYAML(cmd.OutOrStdout(), object, opts.path); err != nil {
 			return errors.Wrap(err, "saving yaml object")
 		}
 	}
@@ -144,7 +145,7 @@ func deleteEmptyMapValues(i interface{}) bool {
 	return false
 }
 
-func outputFile(object saveObject, out string) (string, error) {
+func outputFile(stdout io.Writer, object saveObject, out string) (string, error) {
 	var path string
 	if object.Kind == "Namespace" {
 		path = fmt.Sprintf("%s-ns.yaml", object.Metadata.Name)
@@ -159,12 +160,12 @@ func outputFile(object saveObject, out string) (string, error) {
 	}
 
 	path = filepath.Join(out, path)
-	fmt.Printf("Saving %s '%s' to %s\n", object.Kind, object.Metadata.Name, path)
+	fmt.Fprintf(stdout, "Saving %s '%s' to %s\n", object.Kind, object.Metadata.Name, path)
 	return path, nil
 }
 
 // Save YAML to directory structure
-func saveYAML(object saveObject, out string) error {
+func saveYAML(stdout io.Writer, object saveObject, out string) error {
 	buf, err := yaml.Marshal(object)
 	if err != nil {
 		return errors.Wrap(err, "marshalling yaml")
@@ -172,13 +173,13 @@ func saveYAML(object saveObject, out string) error {
 
 	// to stdout
 	if out == "-" {
-		fmt.Fprintln(os.Stdout, "---")
-		fmt.Fprint(os.Stdout, string(buf))
+		fmt.Fprintln(stdout, "---")
+		fmt.Fprint(stdout, string(buf))
 		return nil
 	}
 
 	// to a directory
-	path, err := outputFile(object, out)
+	path, err := outputFile(stdout, object, out)
 	if err != nil {
 		return err
 	}

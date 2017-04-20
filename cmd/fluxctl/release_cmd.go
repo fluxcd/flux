@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"os"
 	"os/user"
 
 	"github.com/spf13/cobra"
@@ -119,9 +118,9 @@ func (opts *serviceReleaseOpts) RunE(cmd *cobra.Command, args []string) error {
 	}
 
 	if opts.dryRun {
-		fmt.Fprintf(os.Stdout, "Submitting dry-run release job...\n")
+		fmt.Fprintf(cmd.OutOrStdout(), "Submitting dry-run release job...\n")
 	} else {
-		fmt.Fprintf(os.Stdout, "Submitting release job...\n")
+		fmt.Fprintf(cmd.OutOrStdout(), "Submitting release job...\n")
 	}
 
 	id, err := opts.API.PostRelease(noInstanceID, jobs.ReleaseJobParams{
@@ -140,12 +139,12 @@ func (opts *serviceReleaseOpts) RunE(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	fmt.Fprintf(os.Stdout, "Release job submitted, ID %s\n", id)
+	fmt.Fprintf(cmd.OutOrStdout(), "Release job submitted, ID %s\n", id)
 	if opts.noFollow {
-		fmt.Fprintf(os.Stdout, "To check the status of this release job, run\n")
-		fmt.Fprintf(os.Stdout, "\n")
-		fmt.Fprintf(os.Stdout, "\tfluxctl check-release --release-id=%s\n", id)
-		fmt.Fprintf(os.Stdout, "\n")
+		fmt.Fprintf(cmd.OutOrStdout(), "To check the status of this release job, run\n")
+		fmt.Fprintf(cmd.OutOrStdout(), "\n")
+		fmt.Fprintf(cmd.OutOrStdout(), "\tfluxctl check-release --release-id=%s\n", id)
+		fmt.Fprintf(cmd.OutOrStdout(), "\n")
 		return nil
 	}
 

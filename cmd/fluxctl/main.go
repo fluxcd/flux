@@ -1,7 +1,6 @@
 package main
 
 import (
-	"io"
 	"os"
 
 	"github.com/pkg/errors"
@@ -9,10 +8,9 @@ import (
 	"github.com/weaveworks/flux"
 )
 
-func run(args []string, stderr io.Writer) int {
+func run(args []string) int {
 	rootCmd := newRoot().Command()
 	rootCmd.SetArgs(args)
-	rootCmd.SetOutput(stderr)
 	if cmd, err := rootCmd.ExecuteC(); err != nil {
 		err = errors.Cause(err)
 		switch err := err.(type) {
@@ -28,5 +26,5 @@ func run(args []string, stderr io.Writer) int {
 }
 
 func main() {
-	os.Exit(run(os.Args[1:], os.Stderr))
+	os.Exit(run(os.Args[1:]))
 }

@@ -27,7 +27,6 @@ func (s *stoppableMemcacheClient) Stop() {}
 
 // Setup sets up stuff for testing
 func Setup(t *testing.T) MemcacheClient {
-	fmt.Printf("Memcache IPs: %v\n", strings.Fields(*memcachedIPs))
 	mc := memcache.New(strings.Fields(*memcachedIPs)...)
 	if err := mc.FlushAll(); err != nil {
 		t.Fatal(err)
@@ -54,7 +53,7 @@ func TestCache(t *testing.T) {
 		NoCredentials(),
 		mc,
 		20*time.Minute,
-		log.NewLogfmtLogger(log.NewSyncWriter(os.Stdout)),
+		log.NewLogfmtLogger(log.NewSyncWriter(os.Stderr)),
 	)(mock)
 
 	// It should fetch stuff from the backend
@@ -104,7 +103,7 @@ func TestCache(t *testing.T) {
 		NoCredentials(),
 		mc,
 		20*time.Minute,
-		log.NewLogfmtLogger(log.NewSyncWriter(os.Stdout)),
+		log.NewLogfmtLogger(log.NewSyncWriter(os.Stderr)),
 	)(mock)
 	response, err = c.Manifest("weaveworks/foorepo", "tag2")
 	if err == nil || err.Error() != "test error" {
