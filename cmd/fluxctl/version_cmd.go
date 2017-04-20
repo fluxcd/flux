@@ -12,11 +12,11 @@ func newVersionCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "version",
 		Short: "Output the version of fluxctl",
-		RunE: func(_ *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, args []string) error {
 			if version == "" {
 				version = "unversioned"
 			}
-			fmt.Println(version)
+			fmt.Fprintln(cmd.OutOrStdout(), version)
 			return nil
 		},
 	}

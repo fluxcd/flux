@@ -1,7 +1,6 @@
 package release
 
 import (
-	"fmt"
 	"os"
 	"reflect"
 	"testing"
@@ -399,7 +398,6 @@ func testRelease(t *testing.T, releaser *Releaser, name string, spec flux.Releas
 				ReleaseSpec: spec,
 			},
 		}, func(f string, a ...interface{}) {
-			fmt.Printf(f+"\n", a...)
 		}, func(r flux.ReleaseResult) {
 			if r == nil {
 				t.Errorf("%s - result update called with nil value", name)

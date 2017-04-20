@@ -32,7 +32,7 @@ func (opts *serviceShowOpts) Command() *cobra.Command {
 	return cmd
 }
 
-func (opts *serviceShowOpts) RunE(_ *cobra.Command, args []string) error {
+func (opts *serviceShowOpts) RunE(cmd *cobra.Command, args []string) error {
 	if len(args) != 0 {
 		return errorWantedNoArgs
 	}
@@ -49,7 +49,7 @@ func (opts *serviceShowOpts) RunE(_ *cobra.Command, args []string) error {
 
 	sort.Sort(imageStatusByName(services))
 
-	out := newTabwriter()
+	out := newTabwriter(cmd.OutOrStdout())
 
 	fmt.Fprintln(out, "SERVICE\tCONTAINER\tIMAGE\tCREATED")
 	for _, service := range services {

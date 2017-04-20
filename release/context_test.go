@@ -1,11 +1,9 @@
 package release
 
 import (
-	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/weaveworks/flux/git"
@@ -81,7 +79,6 @@ func setupRepo(t *testing.T) (git.Repo, func()) {
 
 func execCommand(cmd string, args ...string) error {
 	c := exec.Command(cmd, args...)
-	fmt.Printf("exec: %s %s\n", cmd, strings.Join(args, " "))
 	c.Stderr = os.Stderr
 	c.Stdout = os.Stdout
 	return c.Run()

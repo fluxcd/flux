@@ -30,7 +30,7 @@ func (opts *serviceHistoryOpts) Command() *cobra.Command {
 	return cmd
 }
 
-func (opts *serviceHistoryOpts) RunE(_ *cobra.Command, args []string) error {
+func (opts *serviceHistoryOpts) RunE(cmd *cobra.Command, args []string) error {
 	if len(args) > 0 {
 		return errorWantedNoArgs
 	}
@@ -45,7 +45,7 @@ func (opts *serviceHistoryOpts) RunE(_ *cobra.Command, args []string) error {
 		return err
 	}
 
-	out := newTabwriter()
+	out := newTabwriter(cmd.OutOrStdout())
 
 	fmt.Fprintln(out, "TIME\tTYPE\tMESSAGE")
 	for _, event := range events {

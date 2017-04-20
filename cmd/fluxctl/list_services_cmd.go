@@ -29,7 +29,7 @@ func (opts *serviceListOpts) Command() *cobra.Command {
 	return cmd
 }
 
-func (opts *serviceListOpts) RunE(_ *cobra.Command, args []string) error {
+func (opts *serviceListOpts) RunE(cmd *cobra.Command, args []string) error {
 	if len(args) != 0 {
 		return errorWantedNoArgs
 	}
@@ -41,7 +41,7 @@ func (opts *serviceListOpts) RunE(_ *cobra.Command, args []string) error {
 
 	sort.Sort(serviceStatusByName(services))
 
-	w := newTabwriter()
+	w := newTabwriter(cmd.OutOrStdout())
 	fmt.Fprintf(w, "SERVICE\tCONTAINER\tIMAGE\tRELEASE\tPOLICY\n")
 	for _, s := range services {
 		if len(s.Containers) > 0 {

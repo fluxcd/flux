@@ -27,7 +27,6 @@ func (s *stoppableMemcacheClient) Stop() {}
 
 // Setup sets up stuff for testing
 func Setup(t *testing.T) MemcacheClient {
-	fmt.Printf("Memcache IPs: %v\n", strings.Fields(*memcachedIPs))
 	mc := memcache.New(strings.Fields(*memcachedIPs)...)
 	if err := mc.FlushAll(); err != nil {
 		t.Fatal(err)
