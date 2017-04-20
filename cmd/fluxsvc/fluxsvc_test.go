@@ -1,10 +1,8 @@
 package main
 
 import (
-	"io"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -29,6 +27,7 @@ import (
 	"github.com/weaveworks/flux/remote"
 	"github.com/weaveworks/flux/server"
 	"github.com/weaveworks/flux/update"
+	"io/ioutil"
 )
 
 var (
@@ -361,9 +360,12 @@ func TestFluxsvc_Ping(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusNoContent {
-		io.Copy(os.Stdout, resp.Body)
-		t.Fatal("Request should have been ok but got %q", resp.Status)
+	if resp.StatusCode != http.StatusOK {
+		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Fatal("Request should have been ok but got %q, body:\n%v", resp.Status, body)
 	}
 }
 
@@ -383,8 +385,11 @@ func TestFluxsvc_Register(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusNoContent {
-		io.Copy(os.Stdout, resp.Body)
-		t.Fatal("Request should have been ok but got %q", resp.Status)
+	if resp.StatusCode != http.StatusOK {
+		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Fatal("Request should have been ok but got %q, body:\n%v", resp.Status, body)
 	}
 }
