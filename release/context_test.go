@@ -1,7 +1,7 @@
 package release
 
 import (
-	"os"
+	"io/ioutil"
 	"os/exec"
 	"path/filepath"
 	"testing"
@@ -79,7 +79,7 @@ func setupRepo(t *testing.T) (git.Repo, func()) {
 
 func execCommand(cmd string, args ...string) error {
 	c := exec.Command(cmd, args...)
-	c.Stderr = os.Stderr
-	c.Stdout = os.Stdout
+	c.Stderr = ioutil.Discard
+	c.Stdout = ioutil.Discard
 	return c.Run()
 }

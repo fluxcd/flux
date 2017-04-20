@@ -3,7 +3,7 @@ package kubernetes
 import (
 	"bytes"
 	"fmt"
-	"os"
+	"io"
 	"os/exec"
 	"strings"
 	"time"
@@ -13,13 +13,14 @@ import (
 	rest "k8s.io/client-go/1.5/rest"
 )
 
-func NewKubectl(exe string, config *rest.Config) *Kubectl {
-	return &Kubectl{exe, config}
+func NewKubectl(exe string, config *rest.Config, stdout, stderr io.Writer) *Kubectl {
+	return &Kubectl{exe, config, stdout, stderr}
 }
 
 type Kubectl struct {
-	exe    string
-	config *rest.Config
+	exe            string
+	config         *rest.Config
+	stdout, stderr io.Writer
 }
 
 func (c *Kubectl) connectArgs() []string {
@@ -50,8 +51,8 @@ func (c *Kubectl) connectArgs() []string {
 
 func (c *Kubectl) kubectlCommand(args ...string) *exec.Cmd {
 	cmd := exec.Command(c.exe, append(c.connectArgs(), args...)...)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	cmd.Stdout = c.stdout
+	cmd.Stderr = c.stderr
 	return cmd
 }
 

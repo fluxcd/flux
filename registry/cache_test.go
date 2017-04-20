@@ -53,7 +53,7 @@ func TestCache(t *testing.T) {
 		NoCredentials(),
 		mc,
 		20*time.Minute,
-		log.NewLogfmtLogger(log.NewSyncWriter(os.Stdout)),
+		log.NewLogfmtLogger(log.NewSyncWriter(os.Stderr)),
 	)(mock)
 
 	// It should fetch stuff from the backend
@@ -103,7 +103,7 @@ func TestCache(t *testing.T) {
 		NoCredentials(),
 		mc,
 		20*time.Minute,
-		log.NewLogfmtLogger(log.NewSyncWriter(os.Stdout)),
+		log.NewLogfmtLogger(log.NewSyncWriter(os.Stderr)),
 	)(mock)
 	response, err = c.Manifest("weaveworks/foorepo", "tag2")
 	if err == nil || err.Error() != "test error" {

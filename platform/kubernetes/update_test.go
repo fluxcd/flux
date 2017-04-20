@@ -2,8 +2,6 @@ package kubernetes
 
 import (
 	"bytes"
-	"fmt"
-	"os"
 	"testing"
 
 	"github.com/weaveworks/flux"
@@ -16,13 +14,9 @@ func testUpdate(t *testing.T, name, caseIn, updatedImage, caseOut string) {
 	}
 	var trace, out bytes.Buffer
 	if err := tryUpdate(caseIn, id, &trace, &out); err != nil {
-		fmt.Fprintln(os.Stderr, "Failed:", name)
-		fmt.Fprintf(os.Stderr, "--- TRACE ---\n"+trace.String()+"\n---\n")
 		t.Fatal(err)
 	}
 	if string(out.Bytes()) != caseOut {
-		fmt.Fprintln(os.Stderr, "Failed:", name)
-		fmt.Fprintf(os.Stderr, "--- TRACE ---\n"+trace.String()+"\n---\n")
 		t.Fatalf("Did not get expected result:\n\n%s\n\nInstead got:\n\n%s", caseOut, string(out.Bytes()))
 	}
 }
