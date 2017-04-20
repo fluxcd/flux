@@ -3,7 +3,9 @@ package registry
 import (
 	"encoding/base64"
 	"fmt"
+	"github.com/pkg/errors"
 	"github.com/weaveworks/flux"
+	"net/url"
 	"strings"
 )
 
@@ -26,6 +28,29 @@ func CredentialsFromConfig(config flux.UnsafeInstanceConfig) (Credentials, error
 			return Credentials{},
 				fmt.Errorf("decoded credential for %v has wrong number of fields (expected 2, got %d)", host, len(authParts))
 		}
+
+		// Some users were passing in credentials in the form of
+		// http://docker.io and http://docker.io/v1/, etc.
+		// So strip everything down to it's base host.
+		u, err := url.Parse(host)
+		if err != nil {
+			return Credentials{}, err
+		}
+		if u.Host == "" && u.Path == "" {
+			return Credentials{}, errors.New("Empty registry auth url")
+		}
+		if u.Host == "" { // If there's no https:// prefix, it won't parse the host.
+			u, err = url.Parse(fmt.Sprintf("https://%s/", host))
+			if err != nil {
+				return Credentials{}, err
+			}
+			// If the host is still empty, then there's probably a rogue /
+			if u.Host == "" {
+				return Credentials{}, errors.New("Invalid registry auth url. Must be a valid http address (e.g. https://gcr.io/v1/)")
+			}
+		}
+		host = u.Host
+
 		m[host] = creds{
 			username: authParts[0],
 			password: authParts[1],
@@ -37,9 +62,6 @@ func CredentialsFromConfig(config flux.UnsafeInstanceConfig) (Credentials, error
 // For yields an authenticator for a specific host.
 func (cs Credentials) credsFor(host string) creds {
 	if cred, found := cs.m[host]; found {
-		return cred
-	}
-	if cred, found := cs.m[fmt.Sprintf("https://%s/v1/", host)]; found {
 		return cred
 	}
 	return creds{}

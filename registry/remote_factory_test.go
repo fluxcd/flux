@@ -123,7 +123,88 @@ func TestRemoteFactory_CredentialsFromConfigHTTPSHosts(t *testing.T) {
 	if pass != c.password {
 		t.Fatalf("Expected %q, got %q.", pass, c.password)
 	}
-	if len(creds.Hosts()) != 1 || httpsHost != creds.Hosts()[0] {
+	if len(creds.Hosts()) != 1 || host != creds.Hosts()[0] {
 		t.Fatalf("Expected %q, got %q.", httpsHost, creds.Hosts()[0])
+	}
+}
+
+func TestRemoteFactory_ParseHost(t *testing.T) {
+	user := "user"
+	pass := "pass"
+	encodedUserPass := base64.StdEncoding.EncodeToString([]byte(user + ":" + pass))
+
+	for _, v := range []struct {
+		host        string
+		imagePrefix string
+		error       bool
+	}{
+		{
+			host:        "host",
+			imagePrefix: "host",
+		},
+		{
+			host:        "gcr.io",
+			imagePrefix: "gcr.io",
+		},
+		{
+			host:        "https://gcr.io",
+			imagePrefix: "gcr.io",
+		},
+		{
+			host:        "https://gcr.io/v1",
+			imagePrefix: "gcr.io",
+		},
+		{
+			host:        "https://gcr.io/v1/",
+			imagePrefix: "gcr.io",
+		},
+		{
+			host:        "gcr.io/v1",
+			imagePrefix: "gcr.io",
+		},
+		{
+			host:        "telnet://gcr.io/v1",
+			imagePrefix: "gcr.io",
+		},
+		{
+			host:        "",
+			imagePrefix: "gcr.io",
+			error:       true,
+		},
+		{
+			host:        "https://",
+			imagePrefix: "gcr.io",
+			error:       true,
+		},
+		{
+			host:        "^#invalid.io/v1/",
+			imagePrefix: "gcr.io",
+			error:       true,
+		},
+		{
+			host:        "/var/user",
+			imagePrefix: "gcr.io",
+			error:       true,
+		},
+	} {
+		conf := flux.UnsafeInstanceConfig{
+			Registry: flux.RegistryConfig{
+				Auths: map[string]flux.Auth{
+					v.host: {
+						Auth: encodedUserPass,
+					},
+				},
+			},
+		}
+		creds, err := CredentialsFromConfig(conf)
+		if (err != nil) != v.error {
+			t.Fatalf("For test %q, expected error = %v but got %v", v.host, v.error, err != nil)
+		}
+		if v.error {
+			continue
+		}
+		if u := creds.credsFor(v.imagePrefix).username; u != user {
+			t.Fatalf("For test %q, expected %q but got %v", v.host, user, u)
+		}
 	}
 }
