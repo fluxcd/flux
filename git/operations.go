@@ -90,13 +90,14 @@ func moveTagAndPush(path, key, tag, ref, msg string) error {
 	if err := execGitCmd(path, "", nil, "tag", "--force", "-a", "-m", msg, tag, ref); err != nil {
 		return errors.Wrap(err, "moving tag "+tag)
 	}
-	if err := execGitCmd(path, key, nil, "push", "origin", "tag", tag); err != nil {
+	if err := execGitCmd(path, key, nil, "push", "--force", "origin", "tag", tag); err != nil {
 		return errors.Wrap(err, "pushing tag to origin")
 	}
 	return nil
 }
 
 func execGitCmd(dir, keyPath string, out io.Writer, args ...string) error {
+	//	println("git", strings.Join(args, " "))
 	c := exec.Command("git", args...)
 	if dir != "" {
 		c.Dir = dir
@@ -110,6 +111,7 @@ func execGitCmd(dir, keyPath string, out io.Writer, args ...string) error {
 	c.Stderr = errOut
 	err := c.Run()
 	if err != nil {
+		//		println(errOut.String())
 		msg := findFatalMessage(errOut)
 		if msg != "" {
 			err = errors.New(msg)
