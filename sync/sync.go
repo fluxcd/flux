@@ -5,11 +5,14 @@ import (
 
 	"github.com/weaveworks/flux/cluster"
 	"github.com/weaveworks/flux/release"
+	"github.com/weaveworks/flux/resource"
 )
 
 const (
 	ResultDelete = "delete"
 	ResultApply  = "apply"
+
+	IgnoreAnnotation = "flux.weave.works/ignore"
 )
 
 type Result struct {
@@ -79,6 +82,9 @@ func Sync(rc *release.ReleaseContext, deletes bool, dryRun bool) (*Result, error
 
 	if deletes {
 		for id, res := range clusterResources {
+			if ignore(res) {
+				continue
+			}
 			if _, ok := repoResources[id]; !ok {
 				sync.Actions = append(sync.Actions, cluster.SyncAction{
 					ResourceID: id,
@@ -89,6 +95,14 @@ func Sync(rc *release.ReleaseContext, deletes bool, dryRun bool) (*Result, error
 	}
 
 	for id, res := range repoResources {
+		if ignore(res) {
+			continue
+		}
+		if cres, ok := clusterResources[id]; ok {
+			if ignore(cres) {
+				continue
+			}
+		}
 		sync.Actions = append(sync.Actions, cluster.SyncAction{
 			ResourceID: id,
 			Apply:      res.Bytes(),
@@ -112,4 +126,12 @@ func Sync(rc *release.ReleaseContext, deletes bool, dryRun bool) (*Result, error
 		return nil, err
 	}
 	return result, nil
+}
+
+func ignore(res resource.Resource) bool {
+	notes := res.Annotations()
+	if notes == nil {
+		return false
+	}
+	return notes[IgnoreAnnotation] == "true"
 }

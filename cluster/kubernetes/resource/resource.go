@@ -16,8 +16,9 @@ type baseObject struct {
 	bytes  []byte
 	Kind   string `yaml:"kind"`
 	Meta   struct {
-		Namespace string `yaml:"namespace"`
-		Name      string `yaml:"name"`
+		Namespace   string            `yaml:"namespace"`
+		Name        string            `yaml:"name"`
+		Annotations map[string]string `yaml:"annotations,omitempty"`
 	} `yaml:"metadata"`
 }
 
@@ -27,6 +28,10 @@ func (o baseObject) ResourceID() string {
 		ns = "default"
 	}
 	return fmt.Sprintf("%s %s/%s", o.Kind, ns, o.Meta.Name)
+}
+
+func (o baseObject) Annotations() map[string]string {
+	return o.Meta.Annotations
 }
 
 func (o baseObject) Source() string {
