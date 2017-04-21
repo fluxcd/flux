@@ -19,7 +19,7 @@ const (
 	// long-lived connections we don't get fine-enough-grained usage
 	// metrics
 	maxAge         = 2 * time.Hour
-	defaultTimeout = 5 * time.Second
+	defaultTimeout = 10 * time.Second
 	presenceTick   = 50 * time.Millisecond
 	encoderType    = nats.JSON_ENCODER
 

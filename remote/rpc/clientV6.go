@@ -1,7 +1,6 @@
 package rpc
 
 import (
-	"errors"
 	"io"
 	"net/rpc"
 
@@ -53,13 +52,28 @@ func (p *RPCClientV6) ListImages(spec flux.ServiceSpec) ([]flux.ImageStatus, err
 }
 
 func (p *RPCClientV6) UpdateImages(spec flux.ReleaseSpec) (flux.ReleaseResult, error) {
-	return nil, errors.New("FIXME")
+	var result flux.ReleaseResult
+	err := p.client.Call("RPCServer.UpdateImages", spec, &result)
+	if _, ok := err.(rpc.ServerError); !ok && err != nil {
+		return nil, remote.FatalError{err}
+	}
+	return result, err
 }
 
-func (p *RPCClientV6) SyncCluster(sync.Params) (*sync.Result, error) {
-	return nil, errors.New("FIXME")
+func (p *RPCClientV6) SyncCluster(params sync.Params) (*sync.Result, error) {
+	var result *sync.Result
+	err := p.client.Call("RPCServer.SyncCluster", params, &result)
+	if _, ok := err.(rpc.ServerError); !ok && err != nil {
+		return nil, remote.FatalError{err}
+	}
+	return result, err
 }
 
-func (p *RPCClientV6) SyncStatus(cursor string) ([]string, error) {
-	return nil, errors.New("FIXME")
+func (p *RPCClientV6) SyncStatus(ref string) ([]string, error) {
+	var result []string
+	err := p.client.Call("RPCServer.SyncStatus", ref, &result)
+	if _, ok := err.(rpc.ServerError); !ok && err != nil {
+		return nil, remote.FatalError{err}
+	}
+	return result, err
 }
