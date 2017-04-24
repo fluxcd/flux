@@ -2,7 +2,6 @@ package nats
 
 import (
 	"errors"
-	"net/rpc"
 	"strings"
 	"time"
 
@@ -152,7 +151,7 @@ func extractError(resp ErrorResponse) error {
 		if resp.Fatal {
 			return platform.FatalError{errors.New(resp.Error)}
 		}
-		return rpc.ServerError(resp.Error)
+		return platform.ClusterError(errors.New(resp.Error))
 	}
 	return nil
 }

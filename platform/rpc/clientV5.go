@@ -3,7 +3,6 @@ package rpc
 import (
 	"errors"
 	"io"
-	"net/rpc"
 
 	"github.com/weaveworks/flux/platform"
 )
@@ -25,26 +24,20 @@ func NewClientV5(conn io.ReadWriteCloser) *RPCClientV5 {
 func (p *RPCClientV5) Export() ([]byte, error) {
 	var config []byte
 	err := p.client.Call("RPCServer.Export", struct{}{}, &config)
-	if _, ok := err.(rpc.ServerError); !ok && err != nil {
-		return nil, platform.FatalError{err}
-	}
-	return config, err
+	return config, CategoriseRPCError(err)
 }
 
 func (p *RPCClientV5) Sync(spec platform.SyncDef) error {
 	var result SyncResult
 	if err := p.client.Call("RPCServer.Sync", spec, &result); err != nil {
-		if _, ok := err.(rpc.ServerError); !ok && err != nil {
-			err = platform.FatalError{err}
-		}
-		return err
+		return CategoriseRPCError(err)
 	}
 	if len(result) > 0 {
 		errs := platform.SyncError{}
 		for id, msg := range result {
 			errs[id] = errors.New(msg)
 		}
-		return errs
+		return platform.ClusterError(errs)
 	}
 	return nil
 }

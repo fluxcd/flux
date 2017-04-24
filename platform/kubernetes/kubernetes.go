@@ -172,13 +172,17 @@ func (c *Cluster) AllServices(namespace string, ignore flux.ServiceIDSet) (res [
 			namespaces = append(namespaces, ns.Name)
 		}
 	} else {
+		_, err := c.client.Namespaces().Get(namespace)
+		if err != nil {
+			return nil, errors.Wrap(err, "checking supplied namespace")
+		}
 		namespaces = []string{namespace}
 	}
 
 	for _, ns := range namespaces {
 		controllers, err := c.podControllersInNamespace(ns)
 		if err != nil {
-			return nil, errors.Wrapf(err, "getting pod controllers for namespace %s", ns)
+			return nil, errors.Wrapf(err, "getting controllers for namespace %s", ns)
 		}
 
 		list, err := c.client.Services(ns).List(api.ListOptions{})

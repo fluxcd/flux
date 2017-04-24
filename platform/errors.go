@@ -35,7 +35,7 @@ If you are still stuck, please log an issue:
 }
 
 func UpgradeNeededError(err error) error {
-	return &flux.BaseError{
+	return flux.UserConfigProblem{&flux.BaseError{
 		Help: `Your fluxd needs to be upgraded
 
 To service this request, we need to ask the agent running in your
@@ -46,5 +46,33 @@ Please install the latest version of fluxd and try again.
 
 `,
 		Err: err,
-	}
+	}}
+}
+
+func ClusterError(err error) error {
+	return flux.UserConfigProblem{&flux.BaseError{
+		Help: `Error from Flux daemon
+
+The Flux daemon (fluxd) reported this error:
+
+    ` + err.Error() + `
+
+which indicates that it is running, but cannot complete the request.
+
+Thus may be because the request wasn't valid; e.g., you asked for
+something in a namespace that doesn't exist.
+
+Otherwise, it is likely to be an ongoing problem until fluxd is
+updated and/or redeployed. For help, please consult the installation
+instructions:
+
+    https://github.com/weaveworks/flux/blob/master/site/installing.md
+
+If you are still stuck, please log an issue:
+
+    https://github.com/weaveworks/flux/issues
+
+`,
+		Err: err,
+	}}
 }

@@ -9,6 +9,13 @@ type HelpfulError interface {
 	Base() *BaseError
 }
 
+func UnderlyingError(err error) error {
+	if helpful, ok := err.(HelpfulError); ok {
+		return helpful.Base().Err
+	}
+	return err
+}
+
 // Representation of errors in the API. These are divided into a small
 // number of categories, essentially distinguished by whose fault the
 // error is; i.e., is this error:
