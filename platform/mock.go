@@ -208,7 +208,7 @@ func PlatformTestBattery(t *testing.T, wrap func(mock Platform) Platform) {
 	mock.ApplyError = applyErrors
 	err = client.Apply(expectedDefs)
 	if !reflect.DeepEqual(flux.UnderlyingError(err), applyErrors) {
-		t.Errorf("expected ApplyError, got %#v", err)
+		t.Errorf("expected ApplyError, got %+v: %s", err, err.Error())
 	}
 
 	err = client.Sync(expectedSyncDef)
@@ -222,6 +222,6 @@ func PlatformTestBattery(t *testing.T, wrap func(mock Platform) Platform) {
 	mock.SyncError = syncErrors
 	err = client.Sync(expectedSyncDef)
 	if !reflect.DeepEqual(flux.UnderlyingError(err), syncErrors) {
-		t.Errorf("expected SyncError, got %#v", err)
+		t.Errorf("expected SyncError, got %+v: %s", err, err.Error())
 	}
 }
