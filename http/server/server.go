@@ -477,13 +477,23 @@ func (s HTTPService) IsConnected(w http.ResponseWriter, r *http.Request) {
 
 	err := s.service.IsDaemonConnected(inst)
 	if err == nil {
-		w.WriteHeader(http.StatusNoContent)
+		jsonResponse(w, r, flux.FluxdStatus{
+			Connected: true,
+		})
 		return
 	}
 	switch err.(type) {
 	case flux.UserConfigProblem:
 		// NB this has a specific contract for "cannot contact" -> // "404 not found"
 		transport.WriteError(w, r, http.StatusNotFound, err)
+	case flux.Missing: // From standalone, not connected.
+		jsonResponse(w, r, flux.FluxdStatus{
+			Connected: false,
+		})
+	case platform.FatalError: // An error from nats, but probably due to not connected.
+		jsonResponse(w, r, flux.FluxdStatus{
+			Connected: false,
+		})
 	default:
 		errorResponse(w, r, err)
 	}

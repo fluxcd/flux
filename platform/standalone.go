@@ -87,7 +87,15 @@ func (s *StandaloneMessageBus) Ping(inst flux.InstanceID) error {
 	if ok {
 		return p.Ping()
 	}
-	return errNotSubscribed
+	return flux.Missing{
+		BaseError: &flux.BaseError{
+			Err: errNotSubscribed,
+			Help: `Flux daemon is not connected
+
+Please check that you have started fluxd in your cluster and that
+the FLUX_URL or FLUX_SERVICE_TOKEN is configured correctly.`,
+		},
+	}
 }
 
 // Version returns the fluxd version for the connected instance if the
