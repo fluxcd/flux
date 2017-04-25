@@ -89,11 +89,13 @@ func (n *NATS) AwaitPresence(instID flux.InstanceID, timeout time.Duration) erro
 
 func (n *NATS) Ping(instID flux.InstanceID) error {
 	var response PingResponse
-	err := n.enc.Request(string(instID)+methodPing, ping{}, &response, timeout)
-	if err == nil {
-		err = extractError(response.ErrorResponse)
+	if err := n.enc.Request(string(instID)+methodPing, ping{}, &response, timeout); err != nil {
+		if err == nats.ErrTimeout {
+			err = platform.UnavailableError(err)
+		}
+		return err
 	}
-	return err
+	return extractError(response.ErrorResponse)
 }
 
 // ErrorResponse is for dropping into responses so they have
