@@ -90,9 +90,9 @@ func tryUpdate(def []byte, newImage flux.ImageID, out io.Writer) error {
 		return fmt.Errorf("could not find resource name")
 	}
 
-	// Check if any containers need updating. As we go though, we calculate the
-	// new manifest name, in case it includes the image tag (as in the case of
-	// replication controllers).
+	// Check if any containers need updating. As we go through, we calculate the
+	// new manifest name, in case it includes the image tag (as in replication
+	// controllers).
 	newDefName := manifest.Metadata.Name
 	matchingContainers := map[int]Container{}
 	for i, c := range manifest.Spec.Template.Spec.Containers {
@@ -129,7 +129,6 @@ func tryUpdate(def []byte, newImage flux.ImageID, out io.Writer) error {
 
 	// Replace the container images
 	containersRE := regexp.MustCompile(`(?m:^` + indent + `containers:\s*(?:#.*)*$(?:\n(?:` + indent + `[-\s].*)?)*)`)
-	//containerRE := regexp.MustCompile(`(?m:^` + indent + `-.*(?:\n(?:` + indent + `\s+.*)?)*)`)
 	containerRE := regexp.MustCompile(`(?m:` + indent + `-.*(?:\n(?:` + indent + `\s+.*)?)*)`)
 	imageRE := regexp.MustCompile(`(` + indent + `[-\s]\s*"?image"?:\s*)"?(?:[\w\.\-/:]+\s*?)*"?([\t\f #]+.*)?`)
 	imageReplacement := fmt.Sprintf("${1}%s${2}", maybeQuote(newImage.String()))
@@ -147,7 +146,7 @@ func tryUpdate(def []byte, newImage flux.ImageID, out io.Writer) error {
 		})
 	})
 
-	// The name we want is that under `metadata:`, which will be the first one
+	// The name we want is that under `metadata:`, which will *probably* be the first one
 	replacedName := false
 	replaceRCNameRE := regexp.MustCompile(`(\s+"?name"?:\s*)"?(?:[\w\.\-/:]+\s*?)"?([\t\f #]+.*)`)
 	replaceRCNameRE.ReplaceAllStringFunc(newDef, func(found string) string {
