@@ -1,4 +1,4 @@
-package jobs
+package job
 
 import (
 	"sync"
@@ -35,7 +35,7 @@ func NewQueue() *Queue {
 	return &Queue{
 		ready:    make(chan *Job),
 		incoming: make(chan *Job),
-		waiting:  make([]*Job),
+		waiting:  make([]*Job, 0),
 	}
 }
 
@@ -55,7 +55,7 @@ func (q *Queue) Enqueue(j *Job) {
 // Ready returns a channel that can be used to dequeue items. Note
 // that dequeuing is not atomic: you may still see the
 // dequeued item with ForEach, for a time.
-func (q *Queue) Ready() <-chan *job {
+func (q *Queue) Ready() <-chan *Job {
 	return q.ready
 }
 
@@ -85,7 +85,7 @@ func (q *Queue) Loop(stop chan struct{}) {
 			q.waitingLock.Lock()
 			q.waiting = append(q.waiting, in)
 			q.waitingLock.Unlock()
-		case out <- q.NextOrNil(): // cannot proceed if out is nil
+		case out <- q.nextOrNil(): // cannot proceed if out is nil
 			q.waitingLock.Lock()
 			q.waiting = q.waiting[1:]
 			q.waitingLock.Unlock()

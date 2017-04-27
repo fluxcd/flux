@@ -8,6 +8,7 @@ import (
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster"
 	"github.com/weaveworks/flux/git"
+	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/registry"
 	"github.com/weaveworks/flux/release"
 	"github.com/weaveworks/flux/remote"
@@ -23,6 +24,7 @@ type Daemon struct {
 	Repo       git.Repo
 	WorkingDir string
 	SyncTag    string
+	Jobs       job.Queue
 }
 
 // Invariant.
