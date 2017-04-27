@@ -119,7 +119,11 @@ func (rc *ReleaseContext) SelectServices(results flux.ReleaseResult, filters ...
 	// Compare defined vs running
 	var updates []*ServiceUpdate
 	for _, s := range services {
-		update := definedMap[s.ID]
+		update, ok := definedMap[s.ID]
+		if !ok {
+			// Found running service, but not defined...
+			continue
+		}
 		update.Service = s
 		updates = append(updates, update)
 		delete(definedMap, s.ID)
@@ -189,6 +193,10 @@ func (rc *ReleaseContext) FindDefinedServices() ([]*ServiceUpdate, error) {
 		}
 	}
 	return defined, nil
+}
+
+func (rc *ReleaseContext) ServicesWithPolicy(p flux.Policy) (flux.ServiceIDSet, error) {
+	return rc.Cluster.ServicesWithPolicy(rc.ManifestDir(), p)
 }
 
 type ServiceFilter interface {
@@ -268,9 +276,4 @@ func (f *LockedFilter) Filter(u ServiceUpdate) flux.ServiceResult {
 		}
 	}
 	return flux.ServiceResult{}
-}
-
-func (rc *ReleaseContext) LockedServices() flux.ServiceIDSet {
-	// FIXME look at the annotations, if that's what we do
-	return flux.ServiceIDSet{}
 }

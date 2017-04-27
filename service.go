@@ -11,12 +11,10 @@ import (
 )
 
 const (
-	ServiceSpecAll  = ServiceSpec("<all>")
-	ImageSpecLatest = ImageSpec("<all latest>")
-	ImageSpecNone   = ImageSpec("<no updates>")
-	PolicyNone      = Policy("")
-	PolicyLocked    = Policy("locked")
-	PolicyAutomated = Policy("automated")
+	ServiceSpecAll       = ServiceSpec("<all>")
+	ServiceSpecAutomated = ServiceSpec("<automated>")
+	ImageSpecLatest      = ImageSpec("<all latest>")
+	ImageSpecNone        = ImageSpec("<no updates>")
 )
 
 var (
@@ -158,8 +156,11 @@ func (ids ServiceIDs) Intersection(others ServiceIDSet) ServiceIDSet {
 type ServiceSpec string // ServiceID or "<all>"
 
 func ParseServiceSpec(s string) (ServiceSpec, error) {
-	if s == string(ServiceSpecAll) {
+	switch s {
+	case string(ServiceSpecAll):
 		return ServiceSpecAll, nil
+	case string(ServiceSpecAutomated):
+		return ServiceSpecAutomated, nil
 	}
 	id, err := ParseServiceID(s)
 	if err != nil {
@@ -210,22 +211,6 @@ func ImageSpecFromID(id ImageID) ImageSpec {
 type ImageStatus struct {
 	ID         ServiceID
 	Containers []Container
-}
-
-// Policy is an string, denoting the current deployment policy of a service,
-// e.g. automated, or locked.
-type Policy string
-
-func ParsePolicy(s string) Policy {
-	for _, p := range []Policy{
-		PolicyLocked,
-		PolicyAutomated,
-	} {
-		if s == string(p) {
-			return p
-		}
-	}
-	return PolicyNone
 }
 
 type ServiceStatus struct {

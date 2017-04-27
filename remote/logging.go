@@ -84,3 +84,12 @@ func (p *ErrorLoggingPlatform) UpdateImages(spec flux.ReleaseSpec) (_ flux.Relea
 	}()
 	return p.Platform.UpdateImages(spec)
 }
+
+func (p *ErrorLoggingPlatform) UpdatePolicies(u flux.PolicyUpdates) (err error) {
+	defer func() {
+		if err != nil {
+			p.Logger.Log("method", "UpdatePolicies", "error", err)
+		}
+	}()
+	return p.Platform.UpdatePolicies(u)
+}

@@ -28,6 +28,13 @@ type Cluster interface {
 	LoadManifests(path string) (map[string]resource.Resource, error)
 	// Parse the manifests given in an exported blob
 	ParseManifests([]byte) (map[string]resource.Resource, error)
+	// UpdateManifest applies a resource modifying function to the definition,
+	// and writes the result back.
+	UpdateManifest(path, resourceID string, f func(def []byte) ([]byte, error)) error
+	// UpdatePolicies modifies a manifest to apply the policy update specified
+	UpdatePolicies([]byte, flux.PolicyUpdate) ([]byte, error)
+	// ServicesWithPolicy finds the services which have a particular policy set on them.
+	ServicesWithPolicy(path string, p flux.Policy) (flux.ServiceIDSet, error)
 }
 
 // Service describes a platform service, generally a floating IP with one or

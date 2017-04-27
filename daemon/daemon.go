@@ -43,18 +43,33 @@ func (d *Daemon) Export() ([]byte, error) {
 }
 
 func (d *Daemon) ListServices(namespace string) ([]flux.ServiceStatus, error) {
+	rc := release.NewReleaseContext(d.Cluster, d.Registry, d.Repo, d.WorkingDir, d.SyncTag)
+
 	var res []flux.ServiceStatus
 	services, err := d.Cluster.AllServices(namespace)
 	if err != nil {
 		return nil, errors.Wrap(err, "getting services from cluster")
 	}
+
+	automatedServices, err := rc.ServicesWithPolicy(flux.PolicyAutomated)
+	if err != nil {
+		return nil, errors.Wrap(err, "checking service policies")
+	}
+	lockedServices, err := rc.ServicesWithPolicy(flux.PolicyLocked)
+	if err != nil {
+		return nil, errors.Wrap(err, "checking service policies")
+	}
+
 	for _, service := range services {
 		res = append(res, flux.ServiceStatus{
 			ID:         service.ID,
 			Containers: containers2containers(service.ContainersOrNil()),
 			Status:     service.Status,
+			Automated:  automatedServices.Contains(service.ID),
+			Locked:     lockedServices.Contains(service.ID),
 		})
 	}
+
 	return res, nil
 }
 
@@ -91,7 +106,7 @@ func (d *Daemon) ListImages(spec flux.ServiceSpec) ([]flux.ImageStatus, error) {
 
 // Apply the desired changes to the config files
 func (d *Daemon) UpdateImages(spec flux.ReleaseSpec) (flux.ReleaseResult, error) {
-	started := time.Now()
+	started := time.Now().UTC()
 	rc := release.NewReleaseContext(d.Cluster, d.Registry, d.Repo, d.WorkingDir, "")
 	if err := rc.UpdateRepo(); err != nil {
 		return nil, errors.Wrap(err, "updating repo for sync")
@@ -185,6 +200,32 @@ func (d *Daemon) logRelease(executeErr error, release flux.Release) error {
 
 func (d *Daemon) LogEvent(ev flux.Event) error {
 	// FIXME FIX FIXMEEEEEEE
+	return nil
+}
+
+func (d *Daemon) UpdatePolicies(updates flux.PolicyUpdates) error {
+	started := time.Now().UTC()
+	rc := release.NewReleaseContext(d.Cluster, d.Registry, d.Repo, d.WorkingDir, d.SyncTag)
+	if err := rc.UpdateRepo(); err != nil {
+		return errors.Wrap(err, "updating repo for policies")
+	}
+
+	// For each update
+	for serviceID, update := range updates {
+		// find the service manifest
+		err := d.Cluster.UpdateManifest(rc.ManifestDir(), string(serviceID), func(def []byte) ([]byte, error) {
+			return d.Cluster.UpdatePolicies(def, update)
+		})
+		if err != nil {
+			return err
+		}
+	}
+
+	// Commit and push
+	if err := rc.CommitAndPush(updates.CommitMessage(started)); err != nil && err != git.ErrNoChanges {
+		return err
+	}
+
 	return nil
 }
 

@@ -16,10 +16,7 @@ type ClientService interface {
 	UpdateImages(flux.InstanceID, flux.ReleaseSpec) (flux.ReleaseResult, error)
 	SyncCluster(flux.InstanceID, sync.Params) (*sync.Result, error)
 	SyncStatus(flux.InstanceID, string) ([]string, error)
-	Automate(flux.InstanceID, flux.ServiceID) error
-	Deautomate(flux.InstanceID, flux.ServiceID) error
-	Lock(flux.InstanceID, flux.ServiceID) error
-	Unlock(flux.InstanceID, flux.ServiceID) error
+	UpdatePolicies(flux.InstanceID, flux.PolicyUpdates) error
 	History(flux.InstanceID, flux.ServiceSpec, time.Time, int64) ([]flux.HistoryEntry, error)
 	GetConfig(_ flux.InstanceID, fingerprint string) (flux.InstanceConfig, error)
 	SetConfig(flux.InstanceID, flux.UnsafeInstanceConfig) error

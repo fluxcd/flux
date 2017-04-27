@@ -43,3 +43,7 @@ func (bc baseClient) SyncCluster(sync.Params) (*sync.Result, error) {
 func (bc baseClient) SyncStatus(string) ([]string, error) {
 	return nil, remote.UpgradeNeededError(errors.New("SyncStatus method not implemented"))
 }
+
+func (bc baseClient) UpdatePolicies(flux.PolicyUpdates) error {
+	return remote.UpgradeNeededError(errors.New("UpdatePolicies method not implemented"))
+}

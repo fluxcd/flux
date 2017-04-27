@@ -4,7 +4,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/weaveworks/flux/cluster/kubernetes/testdata"
+	"github.com/weaveworks/flux/cluster/kubernetes/testfiles"
+	"github.com/weaveworks/flux/resource"
 )
 
 // for convenience
@@ -45,7 +46,7 @@ metadata:
 
 	objA := base("test", "Deployment", "", "a-deployment")
 	objB := base("test", "Service", "b-namespace", "b-service")
-	expected := map[string]Resource{
+	expected := map[string]resource.Resource{
 		objA.ResourceID(): &Deployment{baseObject: objA},
 		objB.ResourceID(): &Service{baseObject: objB},
 	}
@@ -58,9 +59,9 @@ metadata:
 }
 
 func TestLoadSome(t *testing.T) {
-	dir, cleanup := testdata.TempDir(t)
+	dir, cleanup := testfiles.TempDir(t)
 	defer cleanup()
-	if err := testdata.WriteTestFiles(dir); err != nil {
+	if err := testfiles.WriteTestFiles(dir); err != nil {
 		t.Fatal(err)
 	}
 	objs, err := Load(dir)
@@ -68,7 +69,7 @@ func TestLoadSome(t *testing.T) {
 		t.Error(err)
 	}
 	// assume it's one per file for the minute
-	if len(objs) != len(testdata.Files) {
-		t.Errorf("expected %d objects from %d files, got result:\n%#v", len(testdata.Files), len(testdata.Files), objs)
+	if len(objs) != len(testfiles.Files) {
+		t.Errorf("expected %d objects from %d files, got result:\n%#v", len(testfiles.Files), len(testfiles.Files), objs)
 	}
 }

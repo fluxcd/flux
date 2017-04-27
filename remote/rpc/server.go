@@ -79,3 +79,7 @@ func (p *RPCServer) SyncStatus(cursor string, resp *[]string) error {
 	*resp = v
 	return err
 }
+
+func (p *RPCServer) UpdatePolicies(u flux.PolicyUpdates, _ *struct{}) error {
+	return p.p.UpdatePolicies(u)
+}

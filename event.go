@@ -78,8 +78,12 @@ func (e Event) String() string {
 			strImageIDs = []string{"no image changes"}
 		}
 		for _, spec := range metadata.Release.Spec.ServiceSpecs {
-			if spec == ServiceSpecAll {
+			switch spec {
+			case ServiceSpecAll:
 				strServiceIDs = []string{"all services"}
+				break
+			case ServiceSpecAutomated:
+				strServiceIDs = []string{"automated services"}
 				break
 			}
 		}

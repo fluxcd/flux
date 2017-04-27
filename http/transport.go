@@ -51,6 +51,7 @@ func NewServiceRouter() *mux.Router {
 	r.NewRoute().Name("Deautomate").Methods("POST").Path("/v3/deautomate").Queries("service", "{service}")
 	r.NewRoute().Name("Lock").Methods("POST").Path("/v3/lock").Queries("service", "{service}")
 	r.NewRoute().Name("Unlock").Methods("POST").Path("/v3/unlock").Queries("service", "{service}")
+	r.NewRoute().Name("UpdatePolicies").Methods("PATCH").Path("/v4/policies")
 	r.NewRoute().Name("History").Methods("GET").Path("/v3/history").Queries("service", "{service}")
 	r.NewRoute().Name("Status").Methods("GET").Path("/v3/status")
 	r.NewRoute().Name("GetConfig").Methods("GET").Path("/v4/config")

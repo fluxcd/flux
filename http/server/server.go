@@ -46,6 +46,7 @@ func NewHandler(s api.FluxService, r *mux.Router, logger log.Logger) http.Handle
 		"Deautomate":             handle.Deautomate,
 		"Lock":                   handle.Lock,
 		"Unlock":                 handle.Unlock,
+		"UpdatePolicies":         handle.UpdatePolicies,
 		"History":                handle.History,
 		"Status":                 handle.Status,
 		"GetConfig":              handle.GetConfig,
@@ -196,7 +197,9 @@ func (s HTTPService) Automate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err = s.service.Automate(inst, id); err != nil {
+	if err = s.service.UpdatePolicies(inst, flux.PolicyUpdates{
+		id: flux.PolicyUpdate{Add: []flux.Policy{flux.PolicyAutomated}},
+	}); err != nil {
 		transport.ErrorResponse(w, r, err)
 		return
 	}
@@ -213,7 +216,9 @@ func (s HTTPService) Deautomate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err = s.service.Deautomate(inst, id); err != nil {
+	if err = s.service.UpdatePolicies(inst, flux.PolicyUpdates{
+		id: flux.PolicyUpdate{Remove: []flux.Policy{flux.PolicyAutomated}},
+	}); err != nil {
 		transport.ErrorResponse(w, r, err)
 		return
 	}
@@ -230,7 +235,9 @@ func (s HTTPService) Lock(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err = s.service.Lock(inst, id); err != nil {
+	if err = s.service.UpdatePolicies(inst, flux.PolicyUpdates{
+		id: flux.PolicyUpdate{Add: []flux.Policy{flux.PolicyLocked}},
+	}); err != nil {
 		transport.ErrorResponse(w, r, err)
 		return
 	}
@@ -247,7 +254,26 @@ func (s HTTPService) Unlock(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err = s.service.Unlock(inst, id); err != nil {
+	if err = s.service.UpdatePolicies(inst, flux.PolicyUpdates{
+		id: flux.PolicyUpdate{Remove: []flux.Policy{flux.PolicyLocked}},
+	}); err != nil {
+		transport.ErrorResponse(w, r, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+func (s HTTPService) UpdatePolicies(w http.ResponseWriter, r *http.Request) {
+	inst := getInstanceID(r)
+
+	var updates flux.PolicyUpdates
+	if err := json.NewDecoder(r.Body).Decode(&updates); err != nil {
+		transport.WriteError(w, r, http.StatusBadRequest, err)
+		return
+	}
+
+	if err := s.service.UpdatePolicies(inst, updates); err != nil {
 		transport.ErrorResponse(w, r, err)
 		return
 	}

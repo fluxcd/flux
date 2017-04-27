@@ -86,20 +86,8 @@ func (c *client) SyncStatus(_ flux.InstanceID, ref string) ([]string, error) {
 	return res, err
 }
 
-func (c *client) Automate(_ flux.InstanceID, id flux.ServiceID) error {
-	return c.post("Automate", "service", string(id))
-}
-
-func (c *client) Deautomate(_ flux.InstanceID, id flux.ServiceID) error {
-	return c.post("Deautomate", "service", string(id))
-}
-
-func (c *client) Lock(_ flux.InstanceID, id flux.ServiceID) error {
-	return c.post("Lock", "service", string(id))
-}
-
-func (c *client) Unlock(_ flux.InstanceID, id flux.ServiceID) error {
-	return c.post("Unlock", "service", string(id))
+func (c *client) UpdatePolicies(_ flux.InstanceID, updates flux.PolicyUpdates) error {
+	return c.patchWithBody("UpdatePolicies", updates)
 }
 
 func (c *client) History(_ flux.InstanceID, s flux.ServiceSpec, before time.Time, limit int64) ([]flux.HistoryEntry, error) {

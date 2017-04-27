@@ -23,15 +23,16 @@ const (
 	presenceTick   = 50 * time.Millisecond
 	encoderType    = nats.JSON_ENCODER
 
-	methodKick         = ".Platform.Kick"
-	methodPing         = ".Platform.Ping"
-	methodVersion      = ".Platform.Version"
-	methodExport       = ".Platform.Export"
-	methodListServices = ".Platform.ListServices"
-	methodListImages   = ".Platform.ListImages"
-	methodUpdateImages = ".Platform.UpdateImages"
-	methodSyncCluster  = ".Platform.SyncCluster"
-	methodSyncStatus   = ".Platform.SyncStatus"
+	methodKick           = ".Platform.Kick"
+	methodPing           = ".Platform.Ping"
+	methodVersion        = ".Platform.Version"
+	methodExport         = ".Platform.Export"
+	methodListServices   = ".Platform.ListServices"
+	methodListImages     = ".Platform.ListImages"
+	methodUpdateImages   = ".Platform.UpdateImages"
+	methodSyncCluster    = ".Platform.SyncCluster"
+	methodSyncStatus     = ".Platform.SyncStatus"
+	methodUpdatePolicies = ".Platform.UpdatePolicies"
 )
 
 var timeout = defaultTimeout
@@ -149,6 +150,10 @@ type SyncStatusResponse struct {
 	ErrorResponse
 }
 
+type UpdatePoliciesResponse struct {
+	ErrorResponse
+}
+
 func extractError(resp ErrorResponse) error {
 	if resp.Error != "" {
 		if resp.Fatal {
@@ -263,6 +268,17 @@ func (r *natsPlatform) SyncStatus(ref string) ([]string, error) {
 		return nil, err
 	}
 	return response.Result, extractError(response.ErrorResponse)
+}
+
+func (r *natsPlatform) UpdatePolicies(u flux.PolicyUpdates) error {
+	var response UpdatePoliciesResponse
+	if err := r.conn.Request(r.instance+methodUpdatePolicies, u, &response, timeout); err != nil {
+		if err == nats.ErrTimeout {
+			err = remote.UnavailableError(err)
+		}
+		return err
+	}
+	return extractError(response.ErrorResponse)
 }
 
 // --- end Platform implementation
@@ -388,6 +404,14 @@ func (n *NATS) Subscribe(instID flux.InstanceID, platform remote.Platform, done 
 				res, err = platform.SyncStatus(req)
 			}
 			n.enc.Publish(request.Reply, SyncStatusResponse{res, makeErrorResponse(err)})
+
+		case strings.HasSuffix(request.Subject, methodUpdatePolicies):
+			var req flux.PolicyUpdates
+			err = encoder.Decode(request.Subject, request.Data, &req)
+			if err == nil {
+				err = platform.UpdatePolicies(req)
+			}
+			n.enc.Publish(request.Reply, UpdatePoliciesResponse{makeErrorResponse(err)})
 
 		default:
 			err = errors.New("unknown message: " + request.Subject)
