@@ -34,7 +34,7 @@ func updatePodController(def []byte, newImageID flux.ImageID) ([]byte, error) {
 	}
 
 	var buf bytes.Buffer
-	err = tryUpdate(string(def), newImageID, &buf)
+	err = tryUpdate(def, newImageID, &buf)
 	return buf.Bytes(), err
 }
 
@@ -81,89 +81,96 @@ func updatePodController(def []byte, newImageID flux.ImageID) ([]byte, error) {
 //         ports:
 //         - containerPort: 80
 // ```
-func tryUpdate(def string, newImage flux.ImageID, out io.Writer) error {
-	nameRE := multilineRE(
-		`metadata:\s*`,
-		`(?:  .*\n)*  name:\s*"?([\w-]+)"?\s*`,
-	)
-	matches := nameRE.FindStringSubmatch(def)
-	if matches == nil || len(matches) < 2 {
-		return fmt.Errorf("Could not find resource name")
-	}
-	oldDefName := matches[1]
-	//	fmt.Fprintf(trace, "Found resource name %q in fragment:\n\n%s\n\n", oldDefName, matches[0])
-
-	imageRE := multilineRE(
-		`      containers:.*`,
-		`(?:      .*\n)*(?:  ){3,4}- name:\s*"?([\w-]+)"?(?:\s.*)?`,
-		`(?:  ){4,5}image:\s*"?(`+newImage.Repository()+`(:[\w][\w.-]{0,127})?)"?(\s.*)?`,
-	)
-	// tag part of regexp from
-	// https://github.com/docker/distribution/blob/master/reference/regexp.go#L36
-
-	matches = imageRE.FindStringSubmatch(def)
-	if matches == nil || len(matches) < 3 {
-		return fmt.Errorf("Could not find image name: %s", newImage.Repository())
-	}
-	containerName := matches[1]
-	oldImage, err := flux.ParseImageID(matches[2])
+func tryUpdate(def []byte, newImage flux.ImageID, out io.Writer) error {
+	manifest, err := parseManifest(def)
 	if err != nil {
 		return err
 	}
-	// 	fmt.Fprintf(trace, "Found container %q using image %v in fragment:\n\n%s\n\n", containerName, oldImage, matches[0])
-
-	if oldImage.Repository() != newImage.Repository() {
-		return fmt.Errorf(`expected existing image name and new image name to match, but %q != %q`, oldImage.Repository(), newImage.Repository())
+	if manifest.Metadata.Name == "" {
+		return fmt.Errorf("could not find resource name")
 	}
 
-	// Now to replace bits. Specifically,
-	// * the name, with a re-tagged name
-	// * the image for the container
-	// * the version label (in two places)
-	//
+	// Check if any containers need updating. As we go though, we calculate the
+	// new manifest name, in case it includes the image tag (as in the case of
+	// replication controllers).
+	newDefName := manifest.Metadata.Name
+	matchingContainers := map[int]Container{}
+	for i, c := range manifest.Spec.Template.Spec.Containers {
+		currentImage, err := flux.ParseImageID(c.Image)
+		if err != nil {
+			return fmt.Errorf("could not parse image %s", c.Image)
+		}
+		if currentImage.Repository() == newImage.Repository() {
+			matchingContainers[i] = c
+		}
+		_, _, oldImageTag := currentImage.Components()
+		if strings.HasSuffix(manifest.Metadata.Name, oldImageTag) {
+			newDefName = manifest.Metadata.Name[:len(manifest.Metadata.Name)-len(oldImageTag)] + newImage.Tag
+		}
+	}
+
 	// Some values (most likely the version) will be interpreted as a
 	// number if unquoted; while, on the other hand, it is apparently
 	// not OK to quote things that don't look like numbers. So: we
 	// extract values *without* quotes, and add them if necessary.
+	newDefName = maybeQuote(newDefName)
 
-	newDefName := oldDefName
-	_, _, oldImageTag := oldImage.Components()
-	_, _, newImageTag := newImage.Components()
-	if strings.HasSuffix(oldDefName, oldImageTag) {
-		newDefName = oldDefName[:len(oldDefName)-len(oldImageTag)] + newImageTag
+	if len(matchingContainers) == 0 {
+		return fmt.Errorf("could not find container using image: %s", newImage.Repository())
 	}
 
-	newDefName = maybeQuote(newDefName)
-	newTag := maybeQuote(newImageTag)
+	// Detect how indented the "containers" block is.
+	newDef := string(def)
+	matches := regexp.MustCompile(`( +)containers:.*`).FindStringSubmatch(newDef)
+	if len(matches) != 2 {
+		return fmt.Errorf("could not find container specs")
+	}
+	indent := matches[1]
 
-	// fmt.Fprintln(trace, "")
-	// fmt.Fprintln(trace, "Replacing ...")
-	// fmt.Fprintf(trace, "Resource name: %s -> %s\n", oldDefName, newDefName)
-	// fmt.Fprintf(trace, "Version in templates (and selector if present): %s -> %s\n", oldImageTag, newTag)
-	// fmt.Fprintf(trace, "Image in templates: %s -> %s\n", oldImage, newImage)
-	// fmt.Fprintln(trace, "")
+	// Replace the container images
+	containersRE := regexp.MustCompile(`(?m:^` + indent + `containers:\s*(?:#.*)*$(?:\n(?:` + indent + `[-\s].*)?)*)`)
+	//containerRE := regexp.MustCompile(`(?m:^` + indent + `-.*(?:\n(?:` + indent + `\s+.*)?)*)`)
+	containerRE := regexp.MustCompile(`(?m:` + indent + `-.*(?:\n(?:` + indent + `\s+.*)?)*)`)
+	imageRE := regexp.MustCompile(`(` + indent + `[-\s]\s*"?image"?:\s*)"?(?:[\w\.\-/:]+\s*?)*"?([\t\f #]+.*)?`)
+	imageReplacement := fmt.Sprintf("${1}%s${2}", maybeQuote(newImage.String()))
+	// Find the block of container specs
+	newDef = containersRE.ReplaceAllStringFunc(newDef, func(containers string) string {
+		i := 0
+		// Find each container spec
+		return containerRE.ReplaceAllStringFunc(containers, func(spec string) string {
+			if _, ok := matchingContainers[i]; ok {
+				// container matches, let's replace the image
+				spec = imageRE.ReplaceAllString(spec, imageReplacement)
+			}
+			i++
+			return spec
+		})
+	})
 
-	// The name we want is that under `metadata:`, which will be indented once
-	replaceRCNameRE := regexp.MustCompile(`(?m:^(  name:\s*) (?:"?[\w-]+"?)(\s.*)$)`)
-	withNewDefName := replaceRCNameRE.ReplaceAllString(def, fmt.Sprintf(`$1 %s$2`, newDefName))
+	// The name we want is that under `metadata:`, which will be the first one
+	replacedName := false
+	replaceRCNameRE := regexp.MustCompile(`(\s+"?name"?:\s*)"?(?:[\w\.\-/:]+\s*?)"?([\t\f #]+.*)`)
+	replaceRCNameRE.ReplaceAllStringFunc(newDef, func(found string) string {
+		if replacedName {
+			return found
+		}
+		replacedName = true
+		return replaceRCNameRE.ReplaceAllString(found, fmt.Sprintf(`${1}%s${2}`, newDefName))
+	})
 
 	// Replacing labels: these are in two places, the container template and the selector
+	// TODO: This doesn't handle # comments
+	// TODO: This encodes an expectation of map keys being ordered (i.e. name *then* version)
+	// TODO: This assumes that these are indented by exactly 2 spaces (which may not be true)
 	replaceLabelsRE := multilineRE(
 		`((?:  selector|      labels):.*)`,
 		`((?:  ){2,4}name:.*)`,
 		`((?:  ){2,4}version:\s*) (?:"?[-\w]+"?)(\s.*)`,
 	)
-	replaceLabels := fmt.Sprintf("$1\n$2\n$3 %s$4", newTag)
-	withNewLabels := replaceLabelsRE.ReplaceAllString(withNewDefName, replaceLabels)
+	replaceLabels := fmt.Sprintf("$1\n$2\n$3 %s$4", maybeQuote(newImage.Tag))
+	newDef = replaceLabelsRE.ReplaceAllString(newDef, replaceLabels)
 
-	replaceImageRE := multilineRE(
-		`((?:  ){3,4}- name:\s*`+containerName+`)`,
-		`((?:  ){4,5}image:\s*) .*`,
-	)
-	replaceImage := fmt.Sprintf("$1\n$2 %s$3", newImage.String())
-	withNewImage := replaceImageRE.ReplaceAllString(withNewLabels, replaceImage)
-
-	fmt.Fprint(out, withNewImage)
+	fmt.Fprint(out, newDef)
 	return nil
 }
 
