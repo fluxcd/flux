@@ -47,10 +47,10 @@ metadata:
 
 // ---
 
-func setup(t *testing.T) (platform.Platform, *mockApplier) {
+func setup(t *testing.T) (*Cluster, *mockApplier) {
 	restClientConfig := &rest.Config{}
 	applier := &mockApplier{}
-	kube, err := NewCluster(restClientConfig, applier, "test-version", log.NewNopLogger())
+	kube, err := NewCluster(restClientConfig, applier, log.NewNopLogger())
 	if err != nil {
 		t.Fatal(err)
 	}
