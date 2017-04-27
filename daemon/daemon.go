@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"encoding/json"
 	"time"
 
 	"github.com/pkg/errors"
@@ -18,13 +19,12 @@ import (
 // Combine these things to form Devasta^Wan implementation of
 // Platform.
 type Daemon struct {
-	V          string
-	Cluster    cluster.Cluster
-	Registry   registry.Registry
-	Repo       git.Repo
-	WorkingDir string
-	SyncTag    string
-	Jobs       job.Queue
+	V        string
+	Cluster  cluster.Cluster
+	Registry registry.Registry
+	Repo     git.Repo
+	Checkout git.Checkout
+	Jobs     job.Queue
 }
 
 // Invariant.
@@ -43,19 +43,17 @@ func (d *Daemon) Export() ([]byte, error) {
 }
 
 func (d *Daemon) ListServices(namespace string) ([]flux.ServiceStatus, error) {
-	rc := release.NewReleaseContext(d.Cluster, d.Registry, d.Repo, d.WorkingDir, d.SyncTag)
-
 	var res []flux.ServiceStatus
 	services, err := d.Cluster.AllServices(namespace)
 	if err != nil {
 		return nil, errors.Wrap(err, "getting services from cluster")
 	}
 
-	automatedServices, err := rc.ServicesWithPolicy(flux.PolicyAutomated)
+	automatedServices, err := d.Cluster.ServicesWithPolicy(d.Checkout.ManifestDir(), flux.PolicyAutomated)
 	if err != nil {
 		return nil, errors.Wrap(err, "checking service policies")
 	}
-	lockedServices, err := rc.ServicesWithPolicy(flux.PolicyLocked)
+	lockedServices, err := d.Cluster.ServicesWithPolicy(d.Checkout.ManifestDir(), flux.PolicyLocked)
 	if err != nil {
 		return nil, errors.Wrap(err, "checking service policies")
 	}
@@ -106,34 +104,19 @@ func (d *Daemon) ListImages(spec flux.ServiceSpec) ([]flux.ImageStatus, error) {
 
 // Apply the desired changes to the config files
 func (d *Daemon) UpdateImages(spec flux.ReleaseSpec) (flux.ReleaseResult, error) {
-	started := time.Now().UTC()
-	rc := release.NewReleaseContext(d.Cluster, d.Registry, d.Repo, d.WorkingDir, "")
-	if err := rc.UpdateRepo(); err != nil {
+	// make a working clone so we don't mess with files we will be
+	// reading from elsewhere
+	working, err := d.Checkout.WorkingClone()
+	defer working.Clean()
+	if err != nil {
+		return nil, err
+	}
+
+	rc := release.NewReleaseContext(d.Cluster, d.Registry, working)
+	results, err := release.Release(rc, spec)
+	if err := d.Checkout.Pull(); err != nil {
 		return nil, errors.Wrap(err, "updating repo for sync")
 	}
-	results, err := release.Release(rc, spec)
-
-	status := flux.ReleaseStatusSuccess
-	if err != nil {
-		status = flux.ReleaseStatusFailed
-	}
-
-	release := flux.Release{
-		StartedAt: started,
-		// TODO: fetch the job and look this up so it matches
-		// (which must be done after completing the job)
-		EndedAt: time.Now().UTC(),
-		Done:    true,
-		Status:  status,
-		// %%%FIXME reinstate the log, if it's useful
-		//		Log:      logged,
-
-		// %%% FIXME where does this come from? Redesign
-		//		Cause:  job.Params.(jobs.ReleaseJobParams).Cause,
-		Spec:   spec,
-		Result: results,
-	}
-	err = d.logRelease(err, release)
 	return results, err
 }
 
@@ -141,10 +124,10 @@ func (d *Daemon) UpdateImages(spec flux.ReleaseSpec) (flux.ReleaseResult, error)
 // the git repo.
 func (d *Daemon) SyncCluster(params sync.Params) (*sync.Result, error) {
 	// TODO metrics
-	rc := release.NewReleaseContext(d.Cluster, d.Registry, d.Repo, d.WorkingDir, d.SyncTag)
-	if err := rc.UpdateRepo(); err != nil {
+	if err := d.Checkout.Pull(); err != nil {
 		return nil, errors.Wrap(err, "updating repo for sync")
 	}
+	rc := release.NewReleaseContext(d.Cluster, d.Registry, d.Checkout)
 	return sync.Sync(rc, params.Deletes, params.DryRun)
 }
 
@@ -154,10 +137,10 @@ func (d *Daemon) SyncCluster(params sync.Params) (*sync.Result, error) {
 // you'll get all the commits yet to be applied. If you send a hash
 // and it's applied _past_ it, you'll get an empty list.
 func (d *Daemon) SyncStatus(commitRef string) ([]string, error) {
-	rc := release.NewReleaseContext(d.Cluster, d.Registry, d.Repo, d.WorkingDir, d.SyncTag)
-	if err := rc.UpdateRepo(); err != nil {
+	if err := d.Checkout.Pull(); err != nil {
 		return nil, errors.Wrap(err, "updating repo for status")
 	}
+	rc := release.NewReleaseContext(d.Cluster, d.Registry, d.Checkout)
 	return rc.ListRevisions(commitRef)
 }
 
@@ -205,15 +188,16 @@ func (d *Daemon) LogEvent(ev flux.Event) error {
 
 func (d *Daemon) UpdatePolicies(updates flux.PolicyUpdates) error {
 	started := time.Now().UTC()
-	rc := release.NewReleaseContext(d.Cluster, d.Registry, d.Repo, d.WorkingDir, d.SyncTag)
-	if err := rc.UpdateRepo(); err != nil {
-		return errors.Wrap(err, "updating repo for policies")
+	working, err := d.Checkout.WorkingClone()
+	if err != nil {
+		return err
 	}
+	defer working.Clean()
 
 	// For each update
 	for serviceID, update := range updates {
 		// find the service manifest
-		err := d.Cluster.UpdateManifest(rc.ManifestDir(), string(serviceID), func(def []byte) ([]byte, error) {
+		err := d.Cluster.UpdateManifest(working.ManifestDir(), string(serviceID), func(def []byte) ([]byte, error) {
 			return d.Cluster.UpdatePolicies(def, update)
 		})
 		if err != nil {
@@ -221,8 +205,11 @@ func (d *Daemon) UpdatePolicies(updates flux.PolicyUpdates) error {
 		}
 	}
 
-	// Commit and push
-	if err := rc.CommitAndPush(updates.CommitMessage(started)); err != nil && err != git.ErrNoChanges {
+	noteBytes, err := json.Marshal(updates)
+	if err != nil {
+		return err
+	}
+	if err := working.CommitAndPush(updates.CommitMessage(started), string(noteBytes)); err != nil && err != git.ErrNoChanges {
 		return err
 	}
 

@@ -12,14 +12,12 @@ import (
 )
 
 func (d *Daemon) PollImages() {
-	rc := release.NewReleaseContext(d.Cluster, d.Registry, d.Repo, d.WorkingDir, d.SyncTag)
-
-	automatedServices, err := rc.ServicesWithPolicy(flux.PolicyAutomated)
+	automatedServices, err := d.Cluster.ServicesWithPolicy(d.Checkout.ManifestDir(), flux.PolicyAutomated)
 	if err != nil {
 		log.Error(errors.Wrap(err, "checking service policies"))
 		return
 	}
-	lockedServices, err := rc.ServicesWithPolicy(flux.PolicyLocked)
+	lockedServices, err := d.Cluster.ServicesWithPolicy(d.Checkout.ManifestDir(), flux.PolicyLocked)
 	if err != nil {
 		log.Error(errors.Wrap(err, "checking service policies"))
 		return

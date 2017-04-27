@@ -1,10 +1,10 @@
 package release
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/weaveworks/flux"
@@ -24,56 +24,48 @@ const (
 )
 
 type ReleaseContext struct {
-	Cluster    cluster.Cluster
-	Repo       git.Repo
-	Registry   registry.Registry
-	WorkingDir string
-	SyncTag    string
+	Cluster  cluster.Cluster
+	Repo     git.Checkout
+	Registry registry.Registry
 }
 
-func NewReleaseContext(c cluster.Cluster, reg registry.Registry, repo git.Repo, working, tag string) *ReleaseContext {
+func NewReleaseContext(c cluster.Cluster, reg registry.Registry, repo git.Checkout) *ReleaseContext {
 	return &ReleaseContext{
-		Cluster:    c,
-		Repo:       repo,
-		Registry:   reg,
-		WorkingDir: working,
-		SyncTag:    tag,
+		Cluster:  c,
+		Repo:     repo,
+		Registry: reg,
 	}
 }
 
-func (rc *ReleaseContext) CommitAndPush(msg string) error {
-	return rc.Repo.CommitAndPush(rc.WorkingDir, msg)
+func (rc *ReleaseContext) CommitAndPush(msg string, result flux.ReleaseResult) error {
+	noteBytes, err := json.Marshal(result)
+	if err != nil {
+		return err
+	}
+	return rc.Repo.CommitAndPush(msg, string(noteBytes))
 }
 
-func (rc *ReleaseContext) UpdateRepo() error {
-	return rc.Repo.Pull(rc.WorkingDir)
-}
-
-func (rc *ReleaseContext) PushChanges(updates []*ServiceUpdate, spec *flux.ReleaseSpec) error {
+func (rc *ReleaseContext) PushChanges(updates []*ServiceUpdate, spec *flux.ReleaseSpec, result flux.ReleaseResult) error {
 	err := writeUpdates(updates)
 	if err != nil {
 		return err
 	}
 
 	commitMsg := commitMessageFromReleaseSpec(spec)
-	return rc.CommitAndPush(commitMsg)
-}
-
-func (rc *ReleaseContext) ManifestDir() string {
-	return filepath.Join(rc.WorkingDir, rc.Repo.Path)
+	return rc.CommitAndPush(commitMsg, result)
 }
 
 // Return the revision of HEAD as a commit hash.
 func (rc *ReleaseContext) HeadRevision() (string, error) {
-	return rc.Repo.HeadRevision(rc.WorkingDir)
+	return rc.Repo.HeadRevision()
 }
 
 func (rc *ReleaseContext) ListRevisions(ref string) ([]string, error) {
-	return rc.Repo.RevisionsBetween(rc.WorkingDir, rc.SyncTag, ref)
+	return rc.Repo.RevisionsBetween(rc.Repo.SyncTag, ref)
 }
 
 func (rc *ReleaseContext) UpdateTag() error {
-	return rc.Repo.MoveTagAndPush(rc.WorkingDir, rc.SyncTag, "HEAD", "Sync pointer")
+	return rc.Repo.MoveTagAndPush("HEAD", "Sync pointer")
 }
 
 // ---
@@ -170,7 +162,7 @@ func (s *ServiceUpdate) filter(filters ...ServiceFilter) flux.ServiceResult {
 }
 
 func (rc *ReleaseContext) FindDefinedServices() ([]*ServiceUpdate, error) {
-	services, err := rc.Cluster.FindDefinedServices(rc.ManifestDir())
+	services, err := rc.Cluster.FindDefinedServices(rc.Repo.ManifestDir())
 	if err != nil {
 		return nil, err
 	}
@@ -195,8 +187,9 @@ func (rc *ReleaseContext) FindDefinedServices() ([]*ServiceUpdate, error) {
 	return defined, nil
 }
 
+// Shortcut for this
 func (rc *ReleaseContext) ServicesWithPolicy(p flux.Policy) (flux.ServiceIDSet, error) {
-	return rc.Cluster.ServicesWithPolicy(rc.ManifestDir(), p)
+	return rc.Cluster.ServicesWithPolicy(rc.Repo.ManifestDir(), p)
 }
 
 type ServiceFilter interface {

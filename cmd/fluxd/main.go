@@ -45,13 +45,14 @@ func main() {
 		kubernetesKubectl = fs.String("kubernetes-kubectl", "", "Optional, explicit path to kubectl tool")
 		versionFlag       = fs.Bool("version", false, "Get version number")
 		// Git repo & key etc.
-		gitURL     = fs.String("git-url", "", "URL of git repo with Kubernetes manifests; e.g., git@github.com:weaveworks/flux-example")
-		gitBranch  = fs.String("git-branch", "master", "branch of git repo to use for Kubernetes manifests")
-		gitPath    = fs.String("git-path", "", "path within git repo to locate Kubernetes manifests")
-		gitKey     = fs.String("git-key", "", "path in local filesystem to (deploy) key")
-		gitUser    = fs.String("git-user", "Weave Flux", "username to use for git operations")
-		gitEmail   = fs.String("git-email", "support@weave.works", "email to use for git operations")
-		gitSyncTag = fs.String("git-sync-tag", "flux-sync", "tag to use to mark sync progress for this cluster")
+		gitURL      = fs.String("git-url", "", "URL of git repo with Kubernetes manifests; e.g., git@github.com:weaveworks/flux-example")
+		gitBranch   = fs.String("git-branch", "master", "branch of git repo to use for Kubernetes manifests")
+		gitPath     = fs.String("git-path", "", "path within git repo to locate Kubernetes manifests")
+		gitKey      = fs.String("git-key", "", "path in local filesystem to (deploy) key")
+		gitUser     = fs.String("git-user", "Weave Flux", "username to use as git committer")
+		gitEmail    = fs.String("git-email", "support@weave.works", "email to use as git committer")
+		gitSyncTag  = fs.String("git-sync-tag", "flux-sync", "tag to use to mark sync progress for this cluster")
+		gitNotesRef = fs.String("git-notes-ref", "flux", "ref to use for keeping commit annotations in git notes")
 		// registry
 		dockerCredFile      = fs.String("docker-config", "~/.docker/config.json", "Path to config file with credentials for DockerHub, quay.io etc.")
 		memcachedHostname   = fs.String("memcached-hostname", "", "Hostname for memcached service to use when caching chunks. If empty, no memcached will be used.")
@@ -153,14 +154,19 @@ func main() {
 		reg = registry.NewInstrumentedRegistry(reg)
 	}
 
-	var repo git.Repo
-	var workingDir string
+	var checkout git.Checkout
 	{
-		repo = git.Repo{
+		repo := git.Repo{
 			URL:    *gitURL,
 			Path:   *gitPath,
 			Branch: *gitBranch,
 			Key:    *gitKey,
+		}
+		gitConfig := git.Config{
+			SyncTag:   *gitSyncTag,
+			NotesRef:  *gitNotesRef,
+			UserName:  *gitUser,
+			UserEmail: *gitEmail,
 		}
 
 		keyBytes, err := ioutil.ReadFile(*gitKey) // TODO do straight from disk?
@@ -175,26 +181,25 @@ func main() {
 			}
 		}
 
-		working, err := repo.Clone()
-		if err == nil {
-			err = repo.Config(working, *gitUser, *gitEmail)
-		}
+		working, err := repo.Clone(gitConfig)
 		if err != nil {
 			logger.Log("component", "git", "err", err.Error())
 			os.Exit(1)
 		}
 
-		logger.Log("working-dir", working, "user", *gitUser, "email", *gitEmail, "sync-tag", *gitSyncTag)
-		workingDir = working
+		logger.Log("working-dir", working,
+			"user", *gitUser,
+			"email", *gitEmail,
+			"sync-tag", *gitSyncTag,
+			"notes-ref", *gitNotesRef)
+		checkout = working
 	}
 
 	daemon := &daemon.Daemon{
-		V:          version,
-		Cluster:    k8s,
-		Repo:       repo,
-		Registry:   reg,
-		WorkingDir: workingDir,
-		SyncTag:    *gitSyncTag,
+		V:        version,
+		Cluster:  k8s,
+		Registry: reg,
+		Checkout: checkout,
 	}
 
 	// Connect to fluxsvc if given an upstream address

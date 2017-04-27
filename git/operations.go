@@ -54,18 +54,41 @@ func commit(workingDir, commitMessage string) error {
 	return nil
 }
 
-func push(keyPath, repoBranch, workingDir string) error {
-	if err := execGitCmd(workingDir, keyPath, nil, "push", "origin", repoBranch); err != nil {
-		return errors.Wrap(err, fmt.Sprintf("git push origin %s", repoBranch))
+// push the refs given to the upstream repo
+func push(keyPath, workingDir, upstream string, refs ...string) error {
+	args := append([]string{"push", upstream}, refs...)
+	if err := execGitCmd(workingDir, keyPath, nil, args...); err != nil {
+		return errors.Wrap(err, fmt.Sprintf("git push %s %s", upstream, refs))
 	}
 	return nil
 }
 
-func pull(keyPath, repoBranch, workingDir string) error {
-	if err := execGitCmd(workingDir, keyPath, nil, "pull", "--ff-only", "origin", repoBranch); err != nil {
-		return errors.Wrap(err, fmt.Sprintf("git pull --ff-only origin %s", repoBranch))
+// pull the specific ref from upstream. Usually this would
+func pull(keyPath, workingDir, upstream, ref string) error {
+	if err := execGitCmd(workingDir, keyPath, nil, "pull", "--ff-only", upstream, ref); err != nil {
+		return errors.Wrap(err, fmt.Sprintf("git pull --ff-only %s %s", upstream, ref))
 	}
 	return nil
+}
+
+func fetch(keyPath, workingDir, upstream, refspec string) error {
+	if err := execGitCmd(workingDir, keyPath, nil, "fetch", upstream, refspec); err != nil {
+		return errors.Wrap(err, fmt.Sprintf("git fetch %s %s", upstream, refspec))
+	}
+	return nil
+}
+
+// Get the full ref for a shorthand notes ref
+func getNotesRef(workingDir, ref string) (string, error) {
+	out := &bytes.Buffer{}
+	if err := execGitCmd(workingDir, "", out, "notes", "--ref", ref, "get-ref"); err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(out.String()), nil
+}
+
+func addNote(workingDir, rev, notesRef, note string) error {
+	return execGitCmd(workingDir, "", nil, "notes", "--ref", notesRef, "add", "-m", note)
 }
 
 // Get the commit hash for HEAD
@@ -85,12 +108,12 @@ func revlist(path, ref1, ref2 string) ([]string, error) {
 	return strings.Split(out.String(), "\n"), nil
 }
 
-// Move the tag to the ref given and push that tag to origin
-func moveTagAndPush(path, key, tag, ref, msg string) error {
+// Move the tag to the ref given and push that tag upstream
+func moveTagAndPush(path, key, tag, ref, msg, upstream string) error {
 	if err := execGitCmd(path, "", nil, "tag", "--force", "-a", "-m", msg, tag, ref); err != nil {
 		return errors.Wrap(err, "moving tag "+tag)
 	}
-	if err := execGitCmd(path, key, nil, "push", "--force", "origin", "tag", tag); err != nil {
+	if err := execGitCmd(path, key, nil, "push", "--force", upstream, "tag", tag); err != nil {
 		return errors.Wrap(err, "pushing tag to origin")
 	}
 	return nil

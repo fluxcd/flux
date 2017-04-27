@@ -73,7 +73,7 @@ func Release(rc *ReleaseContext, spec flux.ReleaseSpec) (results flux.ReleaseRes
 
 	if spec.ImageSpec != flux.ImageSpecNone {
 		timer = NewStageTimer("push_changes")
-		err = rc.PushChanges(updates, &spec)
+		err = rc.PushChanges(updates, &spec, results)
 		timer.ObserveDuration()
 		if err != nil {
 			return nil, err

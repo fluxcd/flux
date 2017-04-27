@@ -58,7 +58,7 @@ func Sync(rc *release.ReleaseContext, deletes bool, dryRun bool) (*Result, error
 		return nil, errors.Wrap(err, "getting revision of repo")
 	}
 
-	repoResources, err := rc.Cluster.LoadManifests(rc.ManifestDir())
+	repoResources, err := rc.Cluster.LoadManifests(rc.Repo.ManifestDir())
 	if err != nil {
 		return nil, errors.Wrap(err, "loading resources from repo")
 	}
