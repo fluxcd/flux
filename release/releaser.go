@@ -114,8 +114,18 @@ func filters(spec *flux.ReleaseSpec, rc *ReleaseContext) ([]ServiceFilter, error
 	// Service filter
 	ids := []flux.ServiceID{}
 	for _, s := range spec.ServiceSpecs {
-		if s == flux.ServiceSpecAll {
-			ids = []flux.ServiceID{} // "<all>" Overrides any other filters
+		switch s {
+		case flux.ServiceSpecAll:
+			// "<all>" Overrides any other filters
+			ids = []flux.ServiceID{}
+			break
+		case flux.ServiceSpecAutomated:
+			// "<automated>" Overrides any other filters
+			automated, err := rc.ServicesWithPolicy(flux.PolicyAutomated)
+			if err != nil {
+				return nil, err
+			}
+			ids = automated.ToSlice()
 			break
 		}
 		id, err := flux.ParseServiceID(string(s))

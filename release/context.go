@@ -195,6 +195,10 @@ func (rc *ReleaseContext) FindDefinedServices() ([]*ServiceUpdate, error) {
 	return defined, nil
 }
 
+func (rc *ReleaseContext) ServicesWithPolicy(p flux.Policy) (flux.ServiceIDSet, error) {
+	return rc.Cluster.ServicesWithPolicy(rc.ManifestDir(), p)
+}
+
 type ServiceFilter interface {
 	Filter(ServiceUpdate) flux.ServiceResult
 }
@@ -272,8 +276,4 @@ func (f *LockedFilter) Filter(u ServiceUpdate) flux.ServiceResult {
 		}
 	}
 	return flux.ServiceResult{}
-}
-
-func (rc *ReleaseContext) ServicesWithPolicy(p flux.Policy) (flux.ServiceIDSet, error) {
-	return rc.Cluster.ServicesWithPolicy(rc.ManifestDir(), p)
 }
