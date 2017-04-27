@@ -39,6 +39,7 @@ func (r Repo) Clone() (path string, err error) {
 
 	// Hack, while it's not possible to mount a secret with a
 	// particular mode in Kubernetes
+	// FIXME this fails if the key is mounted as read-only.
 	if err := narrowKeyPerms(r.Key); err != nil {
 		return "", err
 	}
