@@ -187,7 +187,7 @@ func main() {
 			os.Exit(1)
 		}
 
-		logger.Log("working-dir", working,
+		logger.Log("working-dir", working.Dir,
 			"user", *gitUser,
 			"email", *gitEmail,
 			"sync-tag", *gitSyncTag,
@@ -210,7 +210,7 @@ func main() {
 			&http.Client{Timeout: 10 * time.Second},
 			fmt.Sprintf("fluxd/%v", version),
 			flux.Token(*token),
-			transport.NewServiceRouter(), // TODO should be NewUpstreamRouter, since it only need the registration endpoint
+			transport.NewServiceRouter(), // TODO should be NewUpstreamRouter, since it only needs the registration endpoint
 			*upstreamURL,
 			&remote.ErrorLoggingPlatform{daemon, daemonLogger},
 			daemonLogger,

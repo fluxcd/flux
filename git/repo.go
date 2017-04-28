@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 var (
@@ -33,6 +34,7 @@ type Checkout struct {
 	repo Repo
 	Dir  string
 	Config
+	realNotesRef string
 }
 
 // Config holds some values we use when working in the local copy of
@@ -55,12 +57,21 @@ func (r Repo) Clone(c Config) (Checkout, error) {
 		return Checkout{}, err
 	}
 
-	// Hack, while it's not possible to mount a secret with a
-	// particular mode in Kubernetes
-	// FIXME this fails if the key is mounted as read-only; but we
-	// cannot proceed if we can't do it.
-	if err := narrowKeyPerms(r.Key); err != nil {
-		return Checkout{}, err
+	// ssh will balk if it's asked to use a key file with loose
+	// permissions. However, this could be mounted as a Kubernetes
+	// secret -- and it's not possible to mount a secret with a
+	// particular mode in Kubernetes < 1.6. So, for old Kubernetes, we
+	// need it mounted RW, and we'll narrow the permissions.
+	if r.Key != "" {
+		stat, err := os.Stat(r.Key)
+		if err != nil {
+			return Checkout{}, err
+		}
+		if stat.Mode()&os.ModePerm != 0400 {
+			if err := narrowKeyPerms(r.Key); err != nil {
+				return Checkout{}, err
+			}
+		}
 	}
 
 	repoDir, err := clone(workingDir, r.Key, r.URL, r.Branch)
@@ -72,10 +83,22 @@ func (r Repo) Clone(c Config) (Checkout, error) {
 		return Checkout{}, err
 	}
 
+	notesRef, err := getNotesRef(repoDir, c.NotesRef)
+	if err != nil {
+		return Checkout{}, err
+	}
+
+	// this fetches and updates the local ref, so we'll see notes
+	if err := fetch(r.Key, repoDir, r.URL, notesRef+":"+notesRef); err != nil &&
+		!strings.Contains(err.Error(), "Couldn't find remote ref") {
+		return Checkout{}, err
+	}
+
 	return Checkout{
-		repo:   r,
-		Dir:    repoDir,
-		Config: c,
+		repo:         r,
+		Dir:          repoDir,
+		Config:       c,
+		realNotesRef: notesRef,
 	}, nil
 }
 
@@ -93,10 +116,21 @@ func (c Checkout) WorkingClone() (Checkout, error) {
 		return Checkout{}, err
 	}
 
+	if err := config(repoDir, c.UserName, c.UserEmail); err != nil {
+		return Checkout{}, err
+	}
+
+	// this fetches and updates the local ref, so we'll see notes
+	if err := fetch("", repoDir, c.Dir, c.realNotesRef+":"+c.realNotesRef); err != nil &&
+		!strings.Contains(err.Error(), "Couldn't find remote ref") {
+		return Checkout{}, err
+	}
+
 	return Checkout{
-		repo:   c.repo,
-		Dir:    repoDir,
-		Config: c.Config,
+		repo:         c.repo,
+		Dir:          repoDir,
+		Config:       c.Config,
+		realNotesRef: c.realNotesRef,
 	}, nil
 }
 
@@ -127,15 +161,24 @@ func (c Checkout) CommitAndPush(commitMessage, note string) error {
 		if err != nil {
 			return err
 		}
-		if err := addNote(c.Dir, rev, c.NotesRef, note); err != nil {
+		if err := addNote(c.Dir, rev, c.realNotesRef, note); err != nil {
 			return err
 		}
 	}
 
-	if err := push(c.repo.Key, c.Dir, c.repo.URL, c.repo.Branch, c.NotesRef); err != nil {
+	if err := push(c.repo.Key, c.Dir, c.repo.URL, c.repo.Branch, c.realNotesRef); err != nil {
 		return PushError(c.repo.URL, err)
 	}
 	return nil
+}
+
+// GetNote gets a note for the revision specified, or "" if there is no such note.
+func (c Checkout) GetNote(rev string) (string, error) {
+	note, err := getNote(c.Dir, c.realNotesRef, rev)
+	if err != nil {
+		return "", err
+	}
+	return note, nil
 }
 
 // Pull fetches the latest commits on the branch we're using, and the latest notes
@@ -143,12 +186,14 @@ func (c Checkout) Pull() error {
 	if err := pull(c.repo.Key, c.Dir, c.repo.URL, c.repo.Branch); err != nil {
 		return err
 	}
-	notesRef, err := getNotesRef(c.Dir, c.NotesRef)
-	if err != nil {
+	// this fetches and updates the local ref, so we'll see the new
+	// notes; but it's possible that the upstream doesn't have this
+	// ref.
+	if err := fetch(c.repo.Key, c.Dir, c.repo.URL, c.realNotesRef+":"+c.realNotesRef); err != nil &&
+		!strings.Contains(err.Error(), "Couldn't find remote ref") {
 		return err
 	}
-	// this fetches and updates the local ref, so we'll see the new notes
-	return fetch(c.repo.Key, c.Dir, c.repo.URL, notesRef+":"+notesRef)
+	return nil
 }
 
 func (c Checkout) HeadRevision() (string, error) {

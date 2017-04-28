@@ -26,13 +26,9 @@ func config(workingDir, user, email string) error {
 	return nil
 }
 
-// Do a shallow clone of the repo. We only need the files, and not the
-// history. A shallow clone is marginally quicker, and takes less
-// space, than a full clone.
 func clone(workingDir, keyPath, repoURL, repoBranch string) (path string, err error) {
 	repoPath := filepath.Join(workingDir, "repo")
-	// --single-branch is also useful, but is implied by --depth=1
-	args := []string{"clone", "--depth=1"}
+	args := []string{"clone"}
 	if repoBranch != "" {
 		args = append(args, "--branch", repoBranch)
 	}
@@ -88,7 +84,15 @@ func getNotesRef(workingDir, ref string) (string, error) {
 }
 
 func addNote(workingDir, rev, notesRef, note string) error {
-	return execGitCmd(workingDir, "", nil, "notes", "--ref", notesRef, "add", "-m", note)
+	return execGitCmd(workingDir, "", nil, "notes", "--ref", notesRef, "add", "-m", note, rev)
+}
+
+func getNote(workingDir, notesRef, rev string) (string, error) {
+	out := &bytes.Buffer{}
+	if err := execGitCmd(workingDir, "", out, "notes", "--ref", notesRef, "show", rev); err != nil {
+		return "", err
+	}
+	return out.String(), nil
 }
 
 // Get the commit hash for HEAD
@@ -134,7 +138,7 @@ func execGitCmd(dir, keyPath string, out io.Writer, args ...string) error {
 	c.Stderr = errOut
 	err := c.Run()
 	if err != nil {
-		//		println(errOut.String())
+		println(errOut.String())
 		msg := findFatalMessage(errOut)
 		if msg != "" {
 			err = errors.New(msg)

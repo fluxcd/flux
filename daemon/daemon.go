@@ -107,10 +107,10 @@ func (d *Daemon) UpdateImages(spec flux.ReleaseSpec) (flux.ReleaseResult, error)
 	// make a working clone so we don't mess with files we will be
 	// reading from elsewhere
 	working, err := d.Checkout.WorkingClone()
-	defer working.Clean()
 	if err != nil {
 		return nil, err
 	}
+	defer working.Clean()
 
 	rc := release.NewReleaseContext(d.Cluster, d.Registry, working)
 	results, err := release.Release(rc, spec)
