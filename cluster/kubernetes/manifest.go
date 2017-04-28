@@ -9,7 +9,7 @@ import (
 	"github.com/weaveworks/flux"
 )
 
-// UpdateManifest looks for the manifest for a given service, reads it's
+// UpdateManifest looks for the manifest for a given service, reads its
 // contents, applies f(contents), and writes the results back to the file.
 // TODO: It is super inefficient, as it calls kubeservice on all files every
 // time.

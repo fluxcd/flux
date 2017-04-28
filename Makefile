@@ -47,7 +47,7 @@ build/.%.done: docker/Dockerfile.%
 	${DOCKER} build -t weaveworks/$* -f build/docker/$*/Dockerfile.$* ./build/docker/$*
 	touch $@
 
-build/.fluxd.done: build/fluxd build/kubectl cmd/fluxd/kubeservice 
+build/.fluxd.done: build/fluxd build/kubectl
 build/.fluxsvc.done: build/fluxsvc build/migrations.tar
 
 build/fluxd: $(FLUXD_DEPS)

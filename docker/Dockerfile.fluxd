@@ -1,7 +1,6 @@
 FROM alpine:3.5
 WORKDIR /home/flux
 ENTRYPOINT [ "/sbin/tini", "--", "fluxd" ]
-RUN apk add --no-cache python py-yaml openssh ca-certificates tini 'git>=2.3.0'
-COPY ./kubeservice /usr/local/bin/
+RUN apk add --no-cache openssh ca-certificates tini 'git>=2.3.0'
 COPY ./kubectl /usr/local/bin/
 COPY ./fluxd /usr/local/bin/

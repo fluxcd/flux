@@ -1,5 +1,9 @@
 package resource
 
+import (
+	"github.com/weaveworks/flux"
+)
+
 // For reference:
 // https://github.com/kubernetes/client-go/blob/master/pkg/api/v1/types.go#L2641
 
@@ -20,4 +24,13 @@ type ServicePort struct {
 	Port       int32  `yaml:"port"`
 	TargetPort string `yaml:"targetPort"`
 	NodePort   int32  `yaml:"nodePort"`
+}
+
+// This is handy when we want to talk about flux.Services
+func (s Service) ServiceID() flux.ServiceID {
+	ns := s.Meta.Namespace
+	if ns == "" {
+		ns = "default"
+	}
+	return flux.MakeServiceID(ns, s.Meta.Name)
 }

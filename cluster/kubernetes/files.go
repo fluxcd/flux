@@ -1,14 +1,11 @@
 package kubernetes
 
 import (
-	"bytes"
-	"fmt"
-	"os"
-	"os/exec"
-	"path/filepath"
-	"strings"
+	"github.com/pkg/errors"
 
 	"github.com/weaveworks/flux"
+
+	"github.com/weaveworks/flux/cluster/kubernetes/resource"
 )
 
 // FindDefinedServices finds all the services defined under the
@@ -16,53 +13,60 @@ import (
 // specified namespace and name) to the paths of resource definition
 // files.
 func (c *Cluster) FindDefinedServices(path string) (map[flux.ServiceID][]string, error) {
-	bin, err := findBinary("kubeservice")
+	objects, err := resource.Load(path)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "loading resources")
 	}
 
-	var files []string
-	filepath.Walk(path, func(target string, info os.FileInfo, err error) error {
-		if info.IsDir() {
-			return nil
-		}
-		if ext := filepath.Ext(target); ext == ".yaml" || ext == ".yml" {
-			files = append(files, target)
-		}
-		return nil
-	})
+	type template struct {
+		source string
+		*resource.PodTemplate
+	}
 
-	services := map[flux.ServiceID][]string{}
-	for _, file := range files {
-		var stdout, stderr bytes.Buffer
-		cmd := exec.Command(bin, "./"+filepath.Base(file)) // due to bug (?) in kubeservice
-		cmd.Dir = filepath.Dir(file)
-		cmd.Stdout = &stdout
-		cmd.Stderr = &stderr
-		if err := cmd.Run(); err != nil {
-			continue
-		}
-		for _, out := range strings.Split(strings.TrimSpace(stdout.String()), "\n") {
-			if out != "" {
-				id := flux.ServiceID(out)
-				services[id] = append(services[id], file)
+	var (
+		result    = map[flux.ServiceID][]string{}
+		services  []*resource.Service
+		templates []template
+	)
+
+	for _, obj := range objects {
+		switch res := obj.(type) {
+		case *resource.Service:
+			services = append(services, res)
+			for _, template := range templates {
+				if matches(res, template.PodTemplate) {
+					sid := res.ServiceID()
+					result[sid] = append(result[sid], template.source)
+				}
+			}
+		case *resource.Deployment:
+			source := res.Source()
+			templates = append(templates, template{source, &res.Spec.Template})
+			for _, service := range services {
+				if matches(service, &res.Spec.Template) {
+					sid := service.ServiceID()
+					result[sid] = append(result[sid], source)
+				}
 			}
 		}
 	}
-	return services, nil
+	return result, nil
 }
 
-func findBinary(name string) (string, error) {
-	cwd, err := os.Getwd()
-	if err != nil {
-		return "", err
+func matches(s *resource.Service, t *resource.PodTemplate) bool {
+	labels := t.Metadata.Labels
+	selector := s.Spec.Selector
+	// A nil selector matches nothing
+	if selector == nil {
+		return false
 	}
-	localBin := filepath.Join(cwd, name)
-	if _, err := os.Stat(localBin); err == nil {
-		return localBin, nil
+
+	// otherwise, each label in the selector must have a match in the
+	// pod
+	for k, v := range selector {
+		if labels[k] != v {
+			return false
+		}
 	}
-	if pathBin, err := exec.LookPath(name); err == nil {
-		return pathBin, nil
-	}
-	return "", fmt.Errorf("%s not found", name)
+	return true
 }
