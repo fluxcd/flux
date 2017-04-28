@@ -38,7 +38,10 @@ func Dial(client *http.Client, ua string, token flux.Token, u *url.URL) (Websock
 	// Use http client to do the http request
 	conn, resp, err := dialer(client).Dial(u.String(), req.Header)
 	if err != nil {
-		return nil, &DialErr{u, resp}
+		if resp != nil {
+			err = &DialErr{u, resp}
+		}
+		return nil, err
 	}
 
 	// Set up the ping heartbeat
