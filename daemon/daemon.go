@@ -122,13 +122,13 @@ func (d *Daemon) UpdateImages(spec flux.ReleaseSpec) (flux.ReleaseResult, error)
 
 // Tell the daemon to synchronise the cluster with the manifests in
 // the git repo.
-func (d *Daemon) SyncCluster(params sync.Params) (*sync.Result, error) {
+func (d *Daemon) SyncNotify() error {
 	// TODO metrics
+	// TODO queue this rather than doing synchronously
 	if err := d.Checkout.Pull(); err != nil {
-		return nil, errors.Wrap(err, "updating repo for sync")
+		return errors.Wrap(err, "updating repo for sync")
 	}
-	rc := release.NewReleaseContext(d.Cluster, d.Registry, d.Checkout)
-	return sync.Sync(rc, params.Deletes, params.DryRun)
+	return sync.Sync(d.Checkout.ManifestDir(), d.Cluster, false) // <-- TODO delete argument
 }
 
 // Ask the daemon how far it's got applying things; in particular, is it

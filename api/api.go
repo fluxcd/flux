@@ -5,7 +5,6 @@ import (
 
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/remote"
-	"github.com/weaveworks/flux/sync"
 )
 
 // API for clients connecting to the service.
@@ -14,7 +13,7 @@ type ClientService interface {
 	ListServices(inst flux.InstanceID, namespace string) ([]flux.ServiceStatus, error)
 	ListImages(flux.InstanceID, flux.ServiceSpec) ([]flux.ImageStatus, error)
 	UpdateImages(flux.InstanceID, flux.ReleaseSpec) (flux.ReleaseResult, error)
-	SyncCluster(flux.InstanceID, sync.Params) (*sync.Result, error)
+	SyncNotify(flux.InstanceID) error
 	SyncStatus(flux.InstanceID, string) ([]string, error)
 	UpdatePolicies(flux.InstanceID, flux.PolicyUpdates) error
 	History(flux.InstanceID, flux.ServiceSpec, time.Time, int64) ([]flux.HistoryEntry, error)

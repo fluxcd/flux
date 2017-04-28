@@ -8,7 +8,7 @@ type ID string
 
 type Job struct {
 	ID ID
-	Do func()
+	Do func() error
 }
 
 // Status holds the possible states of a job; either,
@@ -74,7 +74,7 @@ func (q *Queue) Loop(stop chan struct{}) {
 	defer q.stop()
 	for {
 		var out chan *Job = nil
-		if len(q.waiting) > 1 {
+		if len(q.waiting) > 0 {
 			out = q.ready
 		}
 
@@ -104,14 +104,13 @@ func (q *Queue) stop() {
 	}
 }
 
-// nextOrNil returns the *next* job that will be made ready, or nil if
-// there is no such. Because we keep all the jobs in the waiting
-// slice, including that made ready, the next job is at waiting[1]
+// nextOrNil returns the next job that will be made ready, or nil if
+// the queue is empty.
 func (q *Queue) nextOrNil() *Job {
 	q.waitingLock.Lock()
 	defer q.waitingLock.Unlock()
-	if len(q.waiting) > 1 {
-		return q.waiting[1]
+	if len(q.waiting) > 0 {
+		return q.waiting[0]
 	}
 	return nil
 }

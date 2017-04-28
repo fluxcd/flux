@@ -10,7 +10,6 @@ import (
 
 	"github.com/weaveworks/flux"
 	fluxmetrics "github.com/weaveworks/flux/metrics"
-	"github.com/weaveworks/flux/sync"
 )
 
 var (
@@ -91,14 +90,14 @@ func (i *instrumentedPlatform) UpdateImages(spec flux.ReleaseSpec) (_ flux.Relea
 	return i.p.UpdateImages(spec)
 }
 
-func (i *instrumentedPlatform) SyncCluster(params sync.Params) (_ *sync.Result, err error) {
+func (i *instrumentedPlatform) SyncNotify() (err error) {
 	defer func(begin time.Time) {
 		requestDuration.With(
-			fluxmetrics.LabelMethod, "SyncCluster",
+			fluxmetrics.LabelMethod, "SyncNotify",
 			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
 	}(time.Now())
-	return i.p.SyncCluster(params)
+	return i.p.SyncNotify()
 }
 
 func (i *instrumentedPlatform) SyncStatus(cursor string) (_ []string, err error) {

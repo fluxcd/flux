@@ -2,7 +2,6 @@ package daemon
 
 import (
 	"net/http"
-	"strconv"
 
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
@@ -13,7 +12,6 @@ import (
 	"github.com/weaveworks/flux/daemon"
 	transport "github.com/weaveworks/flux/http"
 	fluxmetrics "github.com/weaveworks/flux/metrics"
-	"github.com/weaveworks/flux/sync"
 )
 
 var (
@@ -39,7 +37,7 @@ func NewRouter() *mux.Router {
 
 func NewHandler(d *daemon.Daemon, r *mux.Router) http.Handler {
 	handle := HTTPServer{d}
-	r.Get("SyncCluster").HandlerFunc(handle.SyncCluster)
+	r.Get("SyncNotify").HandlerFunc(handle.SyncNotify)
 	r.Get("SyncStatus").HandlerFunc(handle.SyncStatus)
 	r.Get("UpdateImages").HandlerFunc(handle.UpdateImages)
 	r.Get("ListServices").HandlerFunc(handle.ListServices)
@@ -56,16 +54,13 @@ type HTTPServer struct {
 	daemon *daemon.Daemon
 }
 
-func (s HTTPServer) SyncCluster(w http.ResponseWriter, r *http.Request) {
-	var deletes, dryRun bool
-	deletes, _ = strconv.ParseBool(mux.Vars(r)["deletes"])
-	dryRun, _ = strconv.ParseBool(mux.Vars(r)["dryRun"])
-	result, err := s.daemon.SyncCluster(sync.Params{Deletes: deletes, DryRun: dryRun})
+func (s HTTPServer) SyncNotify(w http.ResponseWriter, r *http.Request) {
+	err := s.daemon.SyncNotify()
 	if err != nil {
 		transport.ErrorResponse(w, r, err)
 		return
 	}
-	transport.JSONResponse(w, r, result)
+	w.WriteHeader(http.StatusAccepted)
 }
 
 func (s HTTPServer) SyncStatus(w http.ResponseWriter, r *http.Request) {

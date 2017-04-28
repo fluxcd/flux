@@ -5,7 +5,6 @@ import (
 
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/remote"
-	"github.com/weaveworks/flux/sync"
 )
 
 type baseClient struct{}
@@ -36,8 +35,8 @@ func (bc baseClient) UpdateImages(flux.ReleaseSpec) (flux.ReleaseResult, error) 
 	return nil, remote.UpgradeNeededError(errors.New("UpdateImages method not implemented"))
 }
 
-func (bc baseClient) SyncCluster(sync.Params) (*sync.Result, error) {
-	return nil, remote.UpgradeNeededError(errors.New("SyncCluster method not implemented"))
+func (bc baseClient) SyncNotify() error {
+	return remote.UpgradeNeededError(errors.New("SyncNotify method not implemented"))
 }
 
 func (bc baseClient) SyncStatus(string) ([]string, error) {

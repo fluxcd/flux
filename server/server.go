@@ -11,7 +11,6 @@ import (
 	"github.com/weaveworks/flux/git"
 	"github.com/weaveworks/flux/instance"
 	"github.com/weaveworks/flux/remote"
-	"github.com/weaveworks/flux/sync"
 )
 
 const (
@@ -99,13 +98,12 @@ func (s *Server) UpdateImages(instID flux.InstanceID, spec flux.ReleaseSpec) (re
 	return inst.Platform.UpdateImages(spec)
 }
 
-func (s *Server) SyncCluster(instID flux.InstanceID, params sync.Params) (result *sync.Result, err error) {
+func (s *Server) SyncNotify(instID flux.InstanceID) (err error) {
 	inst, err := s.instancer.Get(instID)
 	if err != nil {
-		return nil, errors.Wrapf(err, "getting instance "+string(instID))
+		return errors.Wrapf(err, "getting instance "+string(instID))
 	}
-
-	return inst.Platform.SyncCluster(params)
+	return inst.Platform.SyncNotify()
 }
 
 func (s *Server) SyncStatus(instID flux.InstanceID, ref string) (res []string, err error) {

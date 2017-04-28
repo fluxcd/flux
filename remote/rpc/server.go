@@ -7,7 +7,6 @@ import (
 
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/remote"
-	"github.com/weaveworks/flux/sync"
 )
 
 // Server takes a platform and makes it available over RPC.
@@ -68,10 +67,8 @@ func (p *RPCServer) UpdateImages(spec flux.ReleaseSpec, resp *flux.ReleaseResult
 	return err
 }
 
-func (p *RPCServer) SyncCluster(params sync.Params, resp **sync.Result) error {
-	v, err := p.p.SyncCluster(params)
-	*resp = v
-	return err
+func (p *RPCServer) SyncNotify(_ struct{}, _ *struct{}) error {
+	return p.p.SyncNotify()
 }
 
 func (p *RPCServer) SyncStatus(cursor string, resp *[]string) error {

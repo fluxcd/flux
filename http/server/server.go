@@ -12,7 +12,6 @@ import (
 	"net"
 	"net/http"
 	"net/url"
-	"strconv"
 	"strings"
 	"time"
 
@@ -30,7 +29,6 @@ import (
 	"github.com/weaveworks/flux/integrations/github"
 	"github.com/weaveworks/flux/remote"
 	"github.com/weaveworks/flux/remote/rpc"
-	"github.com/weaveworks/flux/sync"
 )
 
 func NewHandler(s api.FluxService, r *mux.Router, logger log.Logger) http.Handler {
@@ -59,7 +57,7 @@ func NewHandler(s api.FluxService, r *mux.Router, logger log.Logger) http.Handle
 		"RegisterDaemonV6":       handle.RegisterV6,
 		"IsConnected":            handle.IsConnected,
 		"Export":                 handle.Export,
-		"SyncCluster":            handle.SyncCluster,
+		"SyncNotify":             handle.SyncNotify,
 		"SyncStatus":             handle.SyncStatus,
 	} {
 		handler := logging(handlerMethod, log.NewContext(logger).With("method", method))
@@ -164,17 +162,14 @@ func (s HTTPService) UpdateImages(w http.ResponseWriter, r *http.Request) {
 	transport.JSONResponse(w, r, result)
 }
 
-func (s HTTPService) SyncCluster(w http.ResponseWriter, r *http.Request) {
+func (s HTTPService) SyncNotify(w http.ResponseWriter, r *http.Request) {
 	instID := getInstanceID(r)
-	var deletes, dryRun bool
-	deletes, _ = strconv.ParseBool(mux.Vars(r)["deletes"])
-	dryRun, _ = strconv.ParseBool(mux.Vars(r)["dryRun"])
-	result, err := s.service.SyncCluster(instID, sync.Params{Deletes: deletes, DryRun: dryRun})
+	err := s.service.SyncNotify(instID)
 	if err != nil {
 		transport.ErrorResponse(w, r, err)
 		return
 	}
-	transport.JSONResponse(w, r, result)
+	w.WriteHeader(http.StatusAccepted)
 }
 
 func (s HTTPService) SyncStatus(w http.ResponseWriter, r *http.Request) {

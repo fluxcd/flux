@@ -4,7 +4,6 @@ import (
 	"github.com/go-kit/kit/log"
 
 	"github.com/weaveworks/flux"
-	"github.com/weaveworks/flux/sync"
 )
 
 type ErrorLoggingPlatform struct {
@@ -58,13 +57,13 @@ func (p *ErrorLoggingPlatform) ListImages(spec flux.ServiceSpec) (_ []flux.Image
 	return p.Platform.ListImages(spec)
 }
 
-func (p *ErrorLoggingPlatform) SyncCluster(params sync.Params) (_ *sync.Result, err error) {
+func (p *ErrorLoggingPlatform) SyncNotify() (err error) {
 	defer func() {
 		if err != nil {
-			p.Logger.Log("method", "SyncCluster", "error", err)
+			p.Logger.Log("method", "SyncNotify", "error", err)
 		}
 	}()
-	return p.Platform.SyncCluster(params)
+	return p.Platform.SyncNotify()
 }
 
 func (p *ErrorLoggingPlatform) SyncStatus(rev string) (_ []string, err error) {

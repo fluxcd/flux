@@ -202,18 +202,21 @@ func main() {
 		Checkout: checkout,
 	}
 
+	shutdown := make(chan struct{})
+	go daemon.Loop(shutdown, log.NewContext(logger).With("component", "sync-loop"))
+
 	// Connect to fluxsvc if given an upstream address
 	if *upstreamURL != "" {
-		daemonLogger := log.NewContext(logger).With("component", "upstream")
-		daemonLogger.Log("connectURL", *upstreamURL)
+		upstreamLogger := log.NewContext(logger).With("component", "upstream")
+		upstreamLogger.Log("connectURL", *upstreamURL)
 		upstream, err := daemonhttp.NewUpstream(
 			&http.Client{Timeout: 10 * time.Second},
 			fmt.Sprintf("fluxd/%v", version),
 			flux.Token(*token),
 			transport.NewServiceRouter(), // TODO should be NewUpstreamRouter, since it only needs the registration endpoint
 			*upstreamURL,
-			&remote.ErrorLoggingPlatform{daemon, daemonLogger},
-			daemonLogger,
+			&remote.ErrorLoggingPlatform{daemon, upstreamLogger},
+			upstreamLogger,
 		)
 		if err != nil {
 			logger.Log("err", err)
@@ -242,4 +245,5 @@ func main() {
 
 	// Go!
 	logger.Log("exiting", <-errc)
+	close(shutdown)
 }
