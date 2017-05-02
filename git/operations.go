@@ -43,7 +43,7 @@ func commit(workingDir, commitMessage string) error {
 	if err := execGitCmd(
 		workingDir, "", nil,
 		"commit",
-		"--no-verify", "-a", "-m", commitMessage, ".",
+		"--no-verify", "-a", "-m", commitMessage,
 	); err != nil {
 		return errors.Wrap(err, "git commit")
 	}
