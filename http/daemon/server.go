@@ -12,6 +12,7 @@ import (
 	"github.com/weaveworks/flux/daemon"
 	transport "github.com/weaveworks/flux/http"
 	fluxmetrics "github.com/weaveworks/flux/metrics"
+	"github.com/weaveworks/flux/update"
 )
 
 var (
@@ -42,7 +43,6 @@ func NewHandler(d *daemon.Daemon, r *mux.Router) http.Handler {
 	r.Get("UpdateImages").HandlerFunc(handle.UpdateImages)
 	r.Get("ListServices").HandlerFunc(handle.ListServices)
 	r.Get("ListImages").HandlerFunc(handle.ListImages)
-	r.Get("UpdateImages").HandlerFunc(handle.UpdateImages)
 
 	return middleware.Instrument{
 		RouteMatcher: r,
@@ -135,7 +135,7 @@ func (s HTTPServer) UpdateImages(w http.ResponseWriter, r *http.Request) {
 		Kind:         releaseKind,
 		Excludes:     excludes,
 	}
-	result, err := s.daemon.UpdateImages(spec)
+	result, err := s.daemon.UpdateManifests(update.Spec{Type: update.Images, Spec: spec})
 	if err != nil {
 		transport.ErrorResponse(w, r, err)
 		return

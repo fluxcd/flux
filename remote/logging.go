@@ -5,6 +5,7 @@ import (
 
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/job"
+	"github.com/weaveworks/flux/update"
 )
 
 type ErrorLoggingPlatform struct {
@@ -76,20 +77,11 @@ func (p *ErrorLoggingPlatform) SyncStatus(rev string) (_ []string, err error) {
 	return p.Platform.SyncStatus(rev)
 }
 
-func (p *ErrorLoggingPlatform) UpdateImages(spec flux.ReleaseSpec) (_ job.ID, err error) {
+func (p *ErrorLoggingPlatform) UpdateManifests(u update.Spec) (_ job.ID, err error) {
 	defer func() {
 		if err != nil {
-			p.Logger.Log("method", "UpdateImages", "error", err)
+			p.Logger.Log("method", "UpdateManifests", "error", err)
 		}
 	}()
-	return p.Platform.UpdateImages(spec)
-}
-
-func (p *ErrorLoggingPlatform) UpdatePolicies(u flux.PolicyUpdates) (_ job.ID, err error) {
-	defer func() {
-		if err != nil {
-			p.Logger.Log("method", "UpdatePolicies", "error", err)
-		}
-	}()
-	return p.Platform.UpdatePolicies(u)
+	return p.Platform.UpdateManifests(u)
 }

@@ -6,6 +6,7 @@ import (
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/remote"
+	"github.com/weaveworks/flux/update"
 )
 
 type baseClient struct{}
@@ -32,12 +33,9 @@ func (bc baseClient) ListImages(flux.ServiceSpec) ([]flux.ImageStatus, error) {
 	return nil, remote.UpgradeNeededError(errors.New("ListImages method not implemented"))
 }
 
-func (bc baseClient) UpdateImages(flux.ReleaseSpec) (job.ID, error) {
-	return "", remote.UpgradeNeededError(errors.New("UpdateImages method not implemented"))
-}
-
-func (bc baseClient) UpdatePolicies(flux.PolicyUpdates) (job.ID, error) {
-	return "", remote.UpgradeNeededError(errors.New("UpdatePolicies method not implemented"))
+func (bc baseClient) UpdateManifests(update.Spec) (job.ID, error) {
+	var id job.ID
+	return id, remote.UpgradeNeededError(errors.New("UpdateManifests method not implemented"))
 }
 
 func (bc baseClient) SyncNotify() error {

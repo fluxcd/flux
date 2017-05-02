@@ -7,6 +7,7 @@ import (
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/remote"
+	"github.com/weaveworks/flux/update"
 )
 
 // RPCClient is the rpc-backed implementation of a platform, for
@@ -51,18 +52,9 @@ func (p *RPCClientV6) ListImages(spec flux.ServiceSpec) ([]flux.ImageStatus, err
 	return images, err
 }
 
-func (p *RPCClientV6) UpdateImages(spec flux.ReleaseSpec) (job.ID, error) {
+func (p *RPCClientV6) UpdateManifests(u update.Spec) (job.ID, error) {
 	var result job.ID
-	err := p.client.Call("RPCServer.UpdateImages", spec, &result)
-	if _, ok := err.(rpc.ServerError); !ok && err != nil {
-		return result, remote.FatalError{err}
-	}
-	return result, err
-}
-
-func (p *RPCClientV6) UpdatePolicies(u flux.PolicyUpdates) (job.ID, error) {
-	var result job.ID
-	err := p.client.Call("RPCServer.UpdatePolicies", u, &result)
+	err := p.client.Call("RPCServer.UpdateManifests", u, &result)
 	if _, ok := err.(rpc.ServerError); !ok && err != nil {
 		return result, remote.FatalError{err}
 	}

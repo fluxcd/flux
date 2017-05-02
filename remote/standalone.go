@@ -6,6 +6,7 @@ import (
 
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/job"
+	"github.com/weaveworks/flux/update"
 )
 
 var (
@@ -169,22 +170,13 @@ func (p *removeablePlatform) ListImages(spec flux.ServiceSpec) (_ []flux.ImageSt
 	return p.remote.ListImages(spec)
 }
 
-func (p *removeablePlatform) UpdateImages(spec flux.ReleaseSpec) (_ job.ID, err error) {
+func (p *removeablePlatform) UpdateManifests(u update.Spec) (_ job.ID, err error) {
 	defer func() {
 		if _, ok := err.(FatalError); ok {
 			p.closeWithError(err)
 		}
 	}()
-	return p.remote.UpdateImages(spec)
-}
-
-func (p *removeablePlatform) UpdatePolicies(u flux.PolicyUpdates) (_ job.ID, err error) {
-	defer func() {
-		if _, ok := err.(FatalError); ok {
-			p.closeWithError(err)
-		}
-	}()
-	return p.remote.UpdatePolicies(u)
+	return p.remote.UpdateManifests(u)
 }
 
 func (p *removeablePlatform) SyncNotify() (err error) {
@@ -230,12 +222,9 @@ func (p disconnectedPlatform) ListImages(flux.ServiceSpec) ([]flux.ImageStatus, 
 	return nil, errNotSubscribed
 }
 
-func (p disconnectedPlatform) UpdateImages(flux.ReleaseSpec) (job.ID, error) {
-	return "", errNotSubscribed
-}
-
-func (p disconnectedPlatform) UpdatePolicies(flux.PolicyUpdates) (job.ID, error) {
-	return "", errNotSubscribed
+func (p disconnectedPlatform) UpdateManifests(update.Spec) (job.ID, error) {
+	var id job.ID
+	return id, errNotSubscribed
 }
 
 func (p disconnectedPlatform) SyncNotify() error {

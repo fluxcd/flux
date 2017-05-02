@@ -12,6 +12,7 @@ import (
 	"github.com/weaveworks/flux/guid"
 	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/remote"
+	"github.com/weaveworks/flux/update"
 )
 
 const (
@@ -23,16 +24,15 @@ const (
 	presenceTick   = 50 * time.Millisecond
 	encoderType    = nats.JSON_ENCODER
 
-	methodKick           = ".Platform.Kick"
-	methodPing           = ".Platform.Ping"
-	methodVersion        = ".Platform.Version"
-	methodExport         = ".Platform.Export"
-	methodListServices   = ".Platform.ListServices"
-	methodListImages     = ".Platform.ListImages"
-	methodUpdateImages   = ".Platform.UpdateImages"
-	methodSyncNotify     = ".Platform.SyncNotify"
-	methodSyncStatus     = ".Platform.SyncStatus"
-	methodUpdatePolicies = ".Platform.UpdatePolicies"
+	methodKick            = ".Platform.Kick"
+	methodPing            = ".Platform.Ping"
+	methodVersion         = ".Platform.Version"
+	methodExport          = ".Platform.Export"
+	methodListServices    = ".Platform.ListServices"
+	methodListImages      = ".Platform.ListImages"
+	methodSyncNotify      = ".Platform.SyncNotify"
+	methodSyncStatus      = ".Platform.SyncStatus"
+	methodUpdateManifests = ".Platform.UpdateManifests"
 )
 
 var timeout = defaultTimeout
@@ -135,7 +135,7 @@ type ListImagesResponse struct {
 	ErrorResponse
 }
 
-type UpdateImagesResponse struct {
+type UpdateManifestsResponse struct {
 	Result job.ID
 	ErrorResponse
 }
@@ -147,11 +147,6 @@ type SyncNotifyResponse struct {
 
 type SyncStatusResponse struct {
 	Result []string
-	ErrorResponse
-}
-
-type UpdatePoliciesResponse struct {
-	Result job.ID
 	ErrorResponse
 }
 
@@ -238,20 +233,9 @@ func (r *natsPlatform) ListImages(spec flux.ServiceSpec) ([]flux.ImageStatus, er
 	return response.Result, extractError(response.ErrorResponse)
 }
 
-func (r *natsPlatform) UpdateImages(spec flux.ReleaseSpec) (job.ID, error) {
-	var response UpdateImagesResponse
-	if err := r.conn.Request(r.instance+methodUpdateImages, spec, &response, timeout); err != nil {
-		if err == nats.ErrTimeout {
-			err = remote.UnavailableError(err)
-		}
-		return response.Result, err
-	}
-	return response.Result, extractError(response.ErrorResponse)
-}
-
-func (r *natsPlatform) UpdatePolicies(u flux.PolicyUpdates) (job.ID, error) {
-	var response UpdatePoliciesResponse
-	if err := r.conn.Request(r.instance+methodUpdatePolicies, u, &response, timeout); err != nil {
+func (r *natsPlatform) UpdateManifests(u update.Spec) (job.ID, error) {
+	var response UpdateManifestsResponse
+	if err := r.conn.Request(r.instance+methodUpdateManifests, u, &response, timeout); err != nil {
 		if err == nats.ErrTimeout {
 			err = remote.UnavailableError(err)
 		}
@@ -375,27 +359,16 @@ func (n *NATS) Subscribe(instID flux.InstanceID, platform remote.Platform, done 
 			}
 			n.enc.Publish(request.Reply, ListImagesResponse{res, makeErrorResponse(err)})
 
-		case strings.HasSuffix(request.Subject, methodUpdateImages):
+		case strings.HasSuffix(request.Subject, methodUpdateManifests):
 			var (
-				req flux.ReleaseSpec
+				req update.Spec
 				res job.ID
 			)
 			err = encoder.Decode(request.Subject, request.Data, &req)
 			if err == nil {
-				res, err = platform.UpdateImages(req)
+				res, err = platform.UpdateManifests(req)
 			}
-			n.enc.Publish(request.Reply, UpdateImagesResponse{res, makeErrorResponse(err)})
-
-		case strings.HasSuffix(request.Subject, methodUpdatePolicies):
-			var (
-				req flux.PolicyUpdates
-				res job.ID
-			)
-			err = encoder.Decode(request.Subject, request.Data, &req)
-			if err == nil {
-				res, err = platform.UpdatePolicies(req)
-			}
-			n.enc.Publish(request.Reply, UpdatePoliciesResponse{res, makeErrorResponse(err)})
+			n.enc.Publish(request.Reply, UpdateManifestsResponse{res, makeErrorResponse(err)})
 
 		case strings.HasSuffix(request.Subject, methodSyncNotify):
 			err = platform.SyncNotify()

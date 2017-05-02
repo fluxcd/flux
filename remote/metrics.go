@@ -11,6 +11,7 @@ import (
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/job"
 	fluxmetrics "github.com/weaveworks/flux/metrics"
+	"github.com/weaveworks/flux/update"
 )
 
 var (
@@ -81,14 +82,14 @@ func (i *instrumentedPlatform) ListImages(spec flux.ServiceSpec) (_ []flux.Image
 	return i.p.ListImages(spec)
 }
 
-func (i *instrumentedPlatform) UpdateImages(spec flux.ReleaseSpec) (_ job.ID, err error) {
+func (i *instrumentedPlatform) UpdateManifests(spec update.Spec) (_ job.ID, err error) {
 	defer func(begin time.Time) {
 		requestDuration.With(
-			fluxmetrics.LabelMethod, "UpdateImages",
+			fluxmetrics.LabelMethod, "UpdateManifests",
 			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
 	}(time.Now())
-	return i.p.UpdateImages(spec)
+	return i.p.UpdateManifests(spec)
 }
 
 func (i *instrumentedPlatform) SyncNotify() (err error) {
@@ -109,16 +110,6 @@ func (i *instrumentedPlatform) SyncStatus(cursor string) (_ []string, err error)
 		).Observe(time.Since(begin).Seconds())
 	}(time.Now())
 	return i.p.SyncStatus(cursor)
-}
-
-func (i *instrumentedPlatform) UpdatePolicies(u flux.PolicyUpdates) (_ job.ID, err error) {
-	defer func(begin time.Time) {
-		requestDuration.With(
-			fluxmetrics.LabelMethod, "UpdatePolicies",
-			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
-		).Observe(time.Since(begin).Seconds())
-	}(time.Now())
-	return i.p.UpdatePolicies(u)
 }
 
 // BusMetrics has metrics for messages buses.

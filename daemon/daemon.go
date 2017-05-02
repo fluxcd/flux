@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"encoding/json"
+	"fmt"
 	gosync "sync"
 	"time"
 
@@ -15,6 +16,7 @@ import (
 	"github.com/weaveworks/flux/registry"
 	"github.com/weaveworks/flux/release"
 	"github.com/weaveworks/flux/remote"
+	"github.com/weaveworks/flux/update"
 )
 
 // Combine these things to form Devasta^Wan implementation of
@@ -129,37 +131,41 @@ func (d *Daemon) queueJob(do JobFunc) job.ID {
 }
 
 // Apply the desired changes to the config files
-func (d *Daemon) UpdateImages(spec flux.ReleaseSpec) (job.ID, error) {
-	return d.queueJob(func(working git.Checkout) error {
-		rc := release.NewReleaseContext(d.Cluster, d.Registry, working)
-		_, err := release.Release(rc, spec)
-		return err
-	}), nil
-}
+func (d *Daemon) UpdateManifests(spec update.Spec) (job.ID, error) {
+	switch s := spec.Spec.(type) {
+	case flux.ReleaseSpec:
+		return d.queueJob(func(working git.Checkout) error {
+			rc := release.NewReleaseContext(d.Cluster, d.Registry, working)
+			_, err := release.Release(rc, s)
+			return err
+		}), nil
+	case flux.PolicyUpdates:
+		return d.queueJob(func(working git.Checkout) error {
+			started := time.Now().UTC()
+			// For each update
+			for serviceID, update := range s {
+				// find the service manifest
+				err := d.Cluster.UpdateManifest(working.ManifestDir(), string(serviceID), func(def []byte) ([]byte, error) {
+					return d.Cluster.UpdatePolicies(def, update)
+				})
+				if err != nil {
+					return err
+				}
+			}
 
-func (d *Daemon) UpdatePolicies(updates flux.PolicyUpdates) (job.ID, error) {
-	return d.queueJob(func(working git.Checkout) error {
-		started := time.Now().UTC()
-		// For each update
-		for serviceID, update := range updates {
-			// find the service manifest
-			err := d.Cluster.UpdateManifest(working.ManifestDir(), string(serviceID), func(def []byte) ([]byte, error) {
-				return d.Cluster.UpdatePolicies(def, update)
-			})
+			noteBytes, err := json.Marshal(s)
 			if err != nil {
 				return err
 			}
-		}
-
-		noteBytes, err := json.Marshal(updates)
-		if err != nil {
-			return err
-		}
-		if err := working.CommitAndPush(updates.CommitMessage(started), string(noteBytes)); err != nil {
-			return err
-		}
-		return nil
-	}), nil
+			if err := working.CommitAndPush(s.CommitMessage(started), string(noteBytes)); err != nil {
+				return err
+			}
+			return nil
+		}), nil
+	default:
+		var id job.ID
+		return id, fmt.Errorf(`unknown update type "%s"`, spec.Type)
+	}
 }
 
 // Tell the daemon to synchronise the cluster with the manifests in

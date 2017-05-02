@@ -5,6 +5,7 @@ package remote
 import (
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/job"
+	"github.com/weaveworks/flux/update"
 )
 
 // For historical reasons, the (versioned) interface is called
@@ -38,9 +39,11 @@ type PlatformV6 interface {
 	// These are new, or newly moved to this interface
 	ListServices(namespace string) ([]flux.ServiceStatus, error)
 	ListImages(flux.ServiceSpec) ([]flux.ImageStatus, error)
-	UpdateImages(flux.ReleaseSpec) (job.ID, error)
-	UpdatePolicies(flux.PolicyUpdates) (job.ID, error)
+	// Send a spec for updating config to the daemon
+	UpdateManifests(update.Spec) (job.ID, error)
+	// Poke the daemon to sync with git
 	SyncNotify() error
+	// Ask the daemon where it's up to with syncing
 	SyncStatus(string) ([]string, error)
 }
 

@@ -8,6 +8,7 @@ import (
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/remote"
+	"github.com/weaveworks/flux/update"
 )
 
 // Server takes a platform and makes it available over RPC.
@@ -62,14 +63,8 @@ func (p *RPCServer) ListImages(spec flux.ServiceSpec, resp *[]flux.ImageStatus) 
 	return err
 }
 
-func (p *RPCServer) UpdateImages(spec flux.ReleaseSpec, resp *job.ID) error {
-	v, err := p.p.UpdateImages(spec)
-	*resp = v
-	return err
-}
-
-func (p *RPCServer) UpdatePolicies(u flux.PolicyUpdates, resp *job.ID) error {
-	v, err := p.p.UpdatePolicies(u)
+func (p *RPCServer) UpdateManifests(spec update.Spec, resp *job.ID) error {
+	v, err := p.p.UpdateManifests(spec)
 	*resp = v
 	return err
 }

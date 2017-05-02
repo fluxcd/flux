@@ -12,6 +12,7 @@ import (
 	"github.com/weaveworks/flux/instance"
 	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/remote"
+	"github.com/weaveworks/flux/update"
 )
 
 const (
@@ -95,7 +96,7 @@ func (s *Server) UpdateImages(instID flux.InstanceID, spec flux.ReleaseSpec) (jo
 	if err != nil {
 		return "", errors.Wrapf(err, "getting instance "+string(instID))
 	}
-	return inst.Platform.UpdateImages(spec)
+	return inst.Platform.UpdateManifests(update.Spec{Type: update.Images, Spec: spec})
 }
 
 func (s *Server) UpdatePolicies(instID flux.InstanceID, updates flux.PolicyUpdates) (job.ID, error) {
@@ -104,7 +105,7 @@ func (s *Server) UpdatePolicies(instID flux.InstanceID, updates flux.PolicyUpdat
 		return "", errors.Wrapf(err, "getting instance "+string(instID))
 	}
 
-	return inst.Platform.UpdatePolicies(updates)
+	return inst.Platform.UpdateManifests(update.Spec{Type: update.Policy, Spec: updates})
 }
 
 func (s *Server) SyncNotify(instID flux.InstanceID) (err error) {

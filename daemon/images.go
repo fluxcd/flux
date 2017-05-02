@@ -9,6 +9,7 @@ import (
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/git"
 	"github.com/weaveworks/flux/release"
+	"github.com/weaveworks/flux/update"
 )
 
 func (d *Daemon) PollImages() {
@@ -68,7 +69,7 @@ func (d *Daemon) PollImages() {
 
 func (d *Daemon) NewImage(imageID flux.ImageID) error {
 	// Try to update any automated services using this image
-	_, err := d.UpdateImages(flux.ReleaseSpec{
+	spec := flux.ReleaseSpec{
 		ServiceSpecs: []flux.ServiceSpec{flux.ServiceSpecAutomated},
 		ImageSpec:    flux.ImageSpecFromID(imageID),
 		Kind:         flux.ReleaseKindExecute,
@@ -76,7 +77,8 @@ func (d *Daemon) NewImage(imageID flux.ImageID) error {
 			User:    flux.UserAutomated,
 			Message: fmt.Sprintf("due to new image %s", imageID.String()),
 		},
-	})
+	}
+	_, err := d.UpdateManifests(update.Spec{Type: update.Images, Spec: spec})
 	if err == git.ErrNoChanges {
 		err = nil
 	}
