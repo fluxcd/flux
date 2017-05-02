@@ -4,6 +4,7 @@ package remote
 
 import (
 	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/job"
 )
 
 // For historical reasons, the (versioned) interface is called
@@ -37,10 +38,10 @@ type PlatformV6 interface {
 	// These are new, or newly moved to this interface
 	ListServices(namespace string) ([]flux.ServiceStatus, error)
 	ListImages(flux.ServiceSpec) ([]flux.ImageStatus, error)
-	UpdateImages(flux.ReleaseSpec) (flux.ReleaseResult, error)
+	UpdateImages(flux.ReleaseSpec) (job.ID, error)
+	UpdatePolicies(flux.PolicyUpdates) (job.ID, error)
 	SyncNotify() error
 	SyncStatus(string) ([]string, error)
-	UpdatePolicies(flux.PolicyUpdates) error
 }
 
 // Platform is the SPI for the daemon; i.e., it's all the things we

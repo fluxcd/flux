@@ -23,6 +23,7 @@ import (
 	"github.com/weaveworks/flux/git"
 	transport "github.com/weaveworks/flux/http"
 	daemonhttp "github.com/weaveworks/flux/http/daemon"
+	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/registry"
 	"github.com/weaveworks/flux/remote"
 )
@@ -195,14 +196,22 @@ func main() {
 		checkout = working
 	}
 
+	shutdown := make(chan struct{})
+
+	var jobs *job.Queue
+	{
+		jobs = job.NewQueue()
+		go jobs.Loop(shutdown)
+	}
+
 	daemon := &daemon.Daemon{
 		V:        version,
 		Cluster:  k8s,
 		Registry: reg,
 		Checkout: checkout,
+		Jobs:     jobs,
 	}
 
-	shutdown := make(chan struct{})
 	go daemon.Loop(shutdown, log.NewContext(logger).With("component", "sync-loop"))
 
 	// Connect to fluxsvc if given an upstream address

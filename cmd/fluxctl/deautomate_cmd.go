@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+
 	"github.com/spf13/cobra"
 
 	"github.com/weaveworks/flux"
@@ -28,7 +30,7 @@ func (opts *serviceDeautomateOpts) Command() *cobra.Command {
 	return cmd
 }
 
-func (opts *serviceDeautomateOpts) RunE(_ *cobra.Command, args []string) error {
+func (opts *serviceDeautomateOpts) RunE(cmd *cobra.Command, args []string) error {
 	if len(args) > 0 {
 		return errorWantedNoArgs
 	}
@@ -41,7 +43,12 @@ func (opts *serviceDeautomateOpts) RunE(_ *cobra.Command, args []string) error {
 		return err
 	}
 
-	return opts.API.UpdatePolicies(noInstanceID, flux.PolicyUpdates{
+	jobID, err := opts.API.UpdatePolicies(noInstanceID, flux.PolicyUpdates{
 		serviceID: flux.PolicyUpdate{Remove: []flux.Policy{flux.PolicyAutomated}},
 	})
+	if err != nil {
+		return err
+	}
+	fmt.Fprintln(cmd.OutOrStdout(), "Job ID:", jobID)
+	return nil
 }

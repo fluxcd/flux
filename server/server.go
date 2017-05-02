@@ -10,6 +10,7 @@ import (
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/git"
 	"github.com/weaveworks/flux/instance"
+	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/remote"
 )
 
@@ -89,13 +90,21 @@ func (s *Server) ListImages(instID flux.InstanceID, spec flux.ServiceSpec) (res 
 	return inst.Platform.ListImages(spec)
 }
 
-func (s *Server) UpdateImages(instID flux.InstanceID, spec flux.ReleaseSpec) (res flux.ReleaseResult, err error) {
+func (s *Server) UpdateImages(instID flux.InstanceID, spec flux.ReleaseSpec) (job.ID, error) {
 	inst, err := s.instancer.Get(instID)
 	if err != nil {
-		return nil, errors.Wrapf(err, "getting instance "+string(instID))
+		return "", errors.Wrapf(err, "getting instance "+string(instID))
+	}
+	return inst.Platform.UpdateImages(spec)
+}
+
+func (s *Server) UpdatePolicies(instID flux.InstanceID, updates flux.PolicyUpdates) (job.ID, error) {
+	inst, err := s.instancer.Get(instID)
+	if err != nil {
+		return "", errors.Wrapf(err, "getting instance "+string(instID))
 	}
 
-	return inst.Platform.UpdateImages(spec)
+	return inst.Platform.UpdatePolicies(updates)
 }
 
 func (s *Server) SyncNotify(instID flux.InstanceID) (err error) {
@@ -150,27 +159,6 @@ func (s *Server) History(inst flux.InstanceID, spec flux.ServiceSpec, before tim
 	}
 
 	return res, nil
-}
-
-func (s *Server) UpdatePolicies(instID flux.InstanceID, updates flux.PolicyUpdates) error {
-	inst, err := s.instancer.Get(instID)
-	if err != nil {
-		return errors.Wrapf(err, "getting instance "+string(instID))
-	}
-
-	err = inst.Platform.UpdatePolicies(updates)
-	if err != nil {
-		return err
-	}
-
-	// Log events into the history DB
-	for _, event := range updates.Events(time.Now().UTC()) {
-		if err := inst.LogEvent(event); err != nil {
-			return err
-		}
-	}
-
-	return nil
 }
 
 func (s *Server) GetConfig(instID flux.InstanceID, fingerprint string) (flux.InstanceConfig, error) {

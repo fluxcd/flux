@@ -4,6 +4,7 @@ import (
 	"github.com/go-kit/kit/log"
 
 	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/job"
 )
 
 type ErrorLoggingPlatform struct {
@@ -75,7 +76,7 @@ func (p *ErrorLoggingPlatform) SyncStatus(rev string) (_ []string, err error) {
 	return p.Platform.SyncStatus(rev)
 }
 
-func (p *ErrorLoggingPlatform) UpdateImages(spec flux.ReleaseSpec) (_ flux.ReleaseResult, err error) {
+func (p *ErrorLoggingPlatform) UpdateImages(spec flux.ReleaseSpec) (_ job.ID, err error) {
 	defer func() {
 		if err != nil {
 			p.Logger.Log("method", "UpdateImages", "error", err)
@@ -84,7 +85,7 @@ func (p *ErrorLoggingPlatform) UpdateImages(spec flux.ReleaseSpec) (_ flux.Relea
 	return p.Platform.UpdateImages(spec)
 }
 
-func (p *ErrorLoggingPlatform) UpdatePolicies(u flux.PolicyUpdates) (err error) {
+func (p *ErrorLoggingPlatform) UpdatePolicies(u flux.PolicyUpdates) (_ job.ID, err error) {
 	defer func() {
 		if err != nil {
 			p.Logger.Log("method", "UpdatePolicies", "error", err)

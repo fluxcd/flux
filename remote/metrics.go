@@ -9,6 +9,7 @@ import (
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 
 	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/job"
 	fluxmetrics "github.com/weaveworks/flux/metrics"
 )
 
@@ -80,7 +81,7 @@ func (i *instrumentedPlatform) ListImages(spec flux.ServiceSpec) (_ []flux.Image
 	return i.p.ListImages(spec)
 }
 
-func (i *instrumentedPlatform) UpdateImages(spec flux.ReleaseSpec) (_ flux.ReleaseResult, err error) {
+func (i *instrumentedPlatform) UpdateImages(spec flux.ReleaseSpec) (_ job.ID, err error) {
 	defer func(begin time.Time) {
 		requestDuration.With(
 			fluxmetrics.LabelMethod, "UpdateImages",
@@ -110,7 +111,7 @@ func (i *instrumentedPlatform) SyncStatus(cursor string) (_ []string, err error)
 	return i.p.SyncStatus(cursor)
 }
 
-func (i *instrumentedPlatform) UpdatePolicies(u flux.PolicyUpdates) (err error) {
+func (i *instrumentedPlatform) UpdatePolicies(u flux.PolicyUpdates) (_ job.ID, err error) {
 	defer func(begin time.Time) {
 		requestDuration.With(
 			fluxmetrics.LabelMethod, "UpdatePolicies",

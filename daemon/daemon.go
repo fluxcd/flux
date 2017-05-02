@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"encoding/json"
+	gosync "sync"
 	"time"
 
 	"github.com/pkg/errors"
@@ -9,11 +10,11 @@ import (
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster"
 	"github.com/weaveworks/flux/git"
+	"github.com/weaveworks/flux/guid"
 	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/registry"
 	"github.com/weaveworks/flux/release"
 	"github.com/weaveworks/flux/remote"
-	"github.com/weaveworks/flux/sync"
 )
 
 // Combine these things to form Devasta^Wan implementation of
@@ -24,7 +25,10 @@ type Daemon struct {
 	Registry registry.Registry
 	Repo     git.Repo
 	Checkout git.Checkout
-	Jobs     job.Queue
+	Jobs     *job.Queue
+	// bookkeeping
+	syncSoon     chan struct{}
+	initSyncSoon gosync.Once
 }
 
 // Invariant.
@@ -102,33 +106,69 @@ func (d *Daemon) ListImages(spec flux.ServiceSpec) ([]flux.ImageStatus, error) {
 	return res, nil
 }
 
-// Apply the desired changes to the config files
-func (d *Daemon) UpdateImages(spec flux.ReleaseSpec) (flux.ReleaseResult, error) {
-	// make a working clone so we don't mess with files we will be
-	// reading from elsewhere
-	working, err := d.Checkout.WorkingClone()
-	if err != nil {
-		return nil, err
-	}
-	defer working.Clean()
+type JobFunc func(working git.Checkout) error
 
-	rc := release.NewReleaseContext(d.Cluster, d.Registry, working)
-	results, err := release.Release(rc, spec)
-	if err := d.Checkout.Pull(); err != nil {
-		return nil, errors.Wrap(err, "updating repo for sync")
-	}
-	return results, err
+func (d *Daemon) queueJob(do JobFunc) job.ID {
+	// TODO record job as current upon Do'ing (or in the loop)
+	id := job.ID(guid.New())
+	d.Jobs.Enqueue(&job.Job{
+		ID: id,
+		// make a working clone so we don't mess with files we will be
+		// reading from elsewhere
+		Do: func() error {
+			working, err := d.Checkout.WorkingClone()
+			if err != nil {
+				return err
+			}
+			defer working.Clean()
+			return do(working)
+		},
+	})
+	println("enqueued job " + id)
+	return id
+}
+
+// Apply the desired changes to the config files
+func (d *Daemon) UpdateImages(spec flux.ReleaseSpec) (job.ID, error) {
+	return d.queueJob(func(working git.Checkout) error {
+		rc := release.NewReleaseContext(d.Cluster, d.Registry, working)
+		_, err := release.Release(rc, spec)
+		return err
+	}), nil
+}
+
+func (d *Daemon) UpdatePolicies(updates flux.PolicyUpdates) (job.ID, error) {
+	return d.queueJob(func(working git.Checkout) error {
+		started := time.Now().UTC()
+		// For each update
+		for serviceID, update := range updates {
+			// find the service manifest
+			err := d.Cluster.UpdateManifest(working.ManifestDir(), string(serviceID), func(def []byte) ([]byte, error) {
+				return d.Cluster.UpdatePolicies(def, update)
+			})
+			if err != nil {
+				return err
+			}
+		}
+
+		noteBytes, err := json.Marshal(updates)
+		if err != nil {
+			return err
+		}
+		if err := working.CommitAndPush(updates.CommitMessage(started), string(noteBytes)); err != nil {
+			return err
+		}
+		return nil
+	}), nil
 }
 
 // Tell the daemon to synchronise the cluster with the manifests in
-// the git repo.
+// the git repo. This has an error return value because upstream there
+// may be comms difficulties or other sources of problems; here, we
+// always succeed because it's just bookkeeping.
 func (d *Daemon) SyncNotify() error {
-	// TODO metrics
-	// TODO queue this rather than doing synchronously
-	if err := d.Checkout.Pull(); err != nil {
-		return errors.Wrap(err, "updating repo for sync")
-	}
-	return sync.Sync(d.Checkout.ManifestDir(), d.Cluster, false) // <-- TODO delete argument
+	d.askForSync()
+	return nil
 }
 
 // Ask the daemon how far it's got applying things; in particular, is it
@@ -183,36 +223,6 @@ func (d *Daemon) logRelease(executeErr error, release flux.Release) error {
 
 func (d *Daemon) LogEvent(ev flux.Event) error {
 	// FIXME FIX FIXMEEEEEEE
-	return nil
-}
-
-func (d *Daemon) UpdatePolicies(updates flux.PolicyUpdates) error {
-	started := time.Now().UTC()
-	working, err := d.Checkout.WorkingClone()
-	if err != nil {
-		return err
-	}
-	defer working.Clean()
-
-	// For each update
-	for serviceID, update := range updates {
-		// find the service manifest
-		err := d.Cluster.UpdateManifest(working.ManifestDir(), string(serviceID), func(def []byte) ([]byte, error) {
-			return d.Cluster.UpdatePolicies(def, update)
-		})
-		if err != nil {
-			return err
-		}
-	}
-
-	noteBytes, err := json.Marshal(updates)
-	if err != nil {
-		return err
-	}
-	if err := working.CommitAndPush(updates.CommitMessage(started), string(noteBytes)); err != nil && err != git.ErrNoChanges {
-		return err
-	}
-
 	return nil
 }
 

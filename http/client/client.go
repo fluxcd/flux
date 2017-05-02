@@ -15,6 +15,7 @@ import (
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/api"
 	transport "github.com/weaveworks/flux/http"
+	"github.com/weaveworks/flux/job"
 )
 
 type client struct {
@@ -45,7 +46,7 @@ func (c *client) ListImages(_ flux.InstanceID, s flux.ServiceSpec) ([]flux.Image
 	return res, err
 }
 
-func (c *client) UpdateImages(_ flux.InstanceID, s flux.ReleaseSpec) (flux.ReleaseResult, error) {
+func (c *client) UpdateImages(_ flux.InstanceID, s flux.ReleaseSpec) (job.ID, error) {
 	args := []string{
 		"image", string(s.ImageSpec),
 		"kind", string(s.Kind),
@@ -61,9 +62,9 @@ func (c *client) UpdateImages(_ flux.InstanceID, s flux.ReleaseSpec) (flux.Relea
 		args = append(args, "message", s.Cause.Message)
 	}
 
-	var resp flux.ReleaseResult
-	err := c.methodWithResp("POST", &resp, "UpdateImages", nil, args...)
-	return resp, err
+	var res job.ID
+	err := c.methodWithResp("POST", &res, "UpdateImages", nil, args...)
+	return res, err
 }
 
 func (c *client) SyncNotify(_ flux.InstanceID) error {
@@ -79,8 +80,9 @@ func (c *client) SyncStatus(_ flux.InstanceID, ref string) ([]string, error) {
 	return res, err
 }
 
-func (c *client) UpdatePolicies(_ flux.InstanceID, updates flux.PolicyUpdates) error {
-	return c.patchWithBody("UpdatePolicies", updates)
+func (c *client) UpdatePolicies(_ flux.InstanceID, updates flux.PolicyUpdates) (job.ID, error) {
+	var res job.ID
+	return res, c.methodWithResp("PATCH", &res, "UpdatePolicies", updates)
 }
 
 func (c *client) History(_ flux.InstanceID, s flux.ServiceSpec, before time.Time, limit int64) ([]flux.HistoryEntry, error) {

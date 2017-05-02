@@ -6,6 +6,7 @@ import (
 	"net/rpc/jsonrpc"
 
 	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/remote"
 )
 
@@ -61,8 +62,14 @@ func (p *RPCServer) ListImages(spec flux.ServiceSpec, resp *[]flux.ImageStatus) 
 	return err
 }
 
-func (p *RPCServer) UpdateImages(spec flux.ReleaseSpec, resp *flux.ReleaseResult) error {
+func (p *RPCServer) UpdateImages(spec flux.ReleaseSpec, resp *job.ID) error {
 	v, err := p.p.UpdateImages(spec)
+	*resp = v
+	return err
+}
+
+func (p *RPCServer) UpdatePolicies(u flux.PolicyUpdates, resp *job.ID) error {
+	v, err := p.p.UpdatePolicies(u)
 	*resp = v
 	return err
 }
@@ -75,8 +82,4 @@ func (p *RPCServer) SyncStatus(cursor string, resp *[]string) error {
 	v, err := p.p.SyncStatus(cursor)
 	*resp = v
 	return err
-}
-
-func (p *RPCServer) UpdatePolicies(u flux.PolicyUpdates, _ *struct{}) error {
-	return p.p.UpdatePolicies(u)
 }

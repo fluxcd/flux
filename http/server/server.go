@@ -34,16 +34,9 @@ import (
 func NewHandler(s api.FluxService, r *mux.Router, logger log.Logger) http.Handler {
 	handle := HTTPService{s}
 	for method, handlerMethod := range map[string]http.HandlerFunc{
-		"ListServices": handle.ListServices,
-		"ListImages":   handle.ListImages,
-		"UpdateImages": handle.UpdateImages,
-		// FIXME replace these
-		// "PostRelease":            handle.PostRelease,
-		// "GetRelease":             handle.GetRelease,
-		"Automate":               handle.Automate,
-		"Deautomate":             handle.Deautomate,
-		"Lock":                   handle.Lock,
-		"Unlock":                 handle.Unlock,
+		"ListServices":           handle.ListServices,
+		"ListImages":             handle.ListImages,
+		"UpdateImages":           handle.UpdateImages,
 		"UpdatePolicies":         handle.UpdatePolicies,
 		"History":                handle.History,
 		"Status":                 handle.Status,
@@ -144,7 +137,7 @@ func (s HTTPService) UpdateImages(w http.ResponseWriter, r *http.Request) {
 		excludes = append(excludes, s)
 	}
 
-	result, err := s.service.UpdateImages(inst, flux.ReleaseSpec{
+	jobID, err := s.service.UpdateImages(inst, flux.ReleaseSpec{
 		ServiceSpecs: serviceSpecs,
 		ImageSpec:    imageSpec,
 		Kind:         releaseKind,
@@ -159,7 +152,7 @@ func (s HTTPService) UpdateImages(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	transport.JSONResponse(w, r, result)
+	transport.JSONResponse(w, r, jobID)
 }
 
 func (s HTTPService) SyncNotify(w http.ResponseWriter, r *http.Request) {
@@ -183,82 +176,6 @@ func (s HTTPService) SyncStatus(w http.ResponseWriter, r *http.Request) {
 	transport.JSONResponse(w, r, res)
 }
 
-func (s HTTPService) Automate(w http.ResponseWriter, r *http.Request) {
-	inst := getInstanceID(r)
-	service := mux.Vars(r)["service"]
-	id, err := flux.ParseServiceID(service)
-	if err != nil {
-		transport.WriteError(w, r, http.StatusBadRequest, errors.Wrapf(err, "parsing service ID %q", id))
-		return
-	}
-
-	if err = s.service.UpdatePolicies(inst, flux.PolicyUpdates{
-		id: flux.PolicyUpdate{Add: []flux.Policy{flux.PolicyAutomated}},
-	}); err != nil {
-		transport.ErrorResponse(w, r, err)
-		return
-	}
-
-	w.WriteHeader(http.StatusOK)
-}
-
-func (s HTTPService) Deautomate(w http.ResponseWriter, r *http.Request) {
-	inst := getInstanceID(r)
-	service := mux.Vars(r)["service"]
-	id, err := flux.ParseServiceID(service)
-	if err != nil {
-		transport.WriteError(w, r, http.StatusBadRequest, errors.Wrapf(err, "parsing service ID %q", id))
-		return
-	}
-
-	if err = s.service.UpdatePolicies(inst, flux.PolicyUpdates{
-		id: flux.PolicyUpdate{Remove: []flux.Policy{flux.PolicyAutomated}},
-	}); err != nil {
-		transport.ErrorResponse(w, r, err)
-		return
-	}
-
-	w.WriteHeader(http.StatusOK)
-}
-
-func (s HTTPService) Lock(w http.ResponseWriter, r *http.Request) {
-	inst := getInstanceID(r)
-	service := mux.Vars(r)["service"]
-	id, err := flux.ParseServiceID(service)
-	if err != nil {
-		transport.WriteError(w, r, http.StatusBadRequest, errors.Wrapf(err, "parsing service ID %q", id))
-		return
-	}
-
-	if err = s.service.UpdatePolicies(inst, flux.PolicyUpdates{
-		id: flux.PolicyUpdate{Add: []flux.Policy{flux.PolicyLocked}},
-	}); err != nil {
-		transport.ErrorResponse(w, r, err)
-		return
-	}
-
-	w.WriteHeader(http.StatusOK)
-}
-
-func (s HTTPService) Unlock(w http.ResponseWriter, r *http.Request) {
-	inst := getInstanceID(r)
-	service := mux.Vars(r)["service"]
-	id, err := flux.ParseServiceID(service)
-	if err != nil {
-		transport.WriteError(w, r, http.StatusBadRequest, errors.Wrapf(err, "parsing service ID %q", id))
-		return
-	}
-
-	if err = s.service.UpdatePolicies(inst, flux.PolicyUpdates{
-		id: flux.PolicyUpdate{Remove: []flux.Policy{flux.PolicyLocked}},
-	}); err != nil {
-		transport.ErrorResponse(w, r, err)
-		return
-	}
-
-	w.WriteHeader(http.StatusOK)
-}
-
 func (s HTTPService) UpdatePolicies(w http.ResponseWriter, r *http.Request) {
 	inst := getInstanceID(r)
 
@@ -268,12 +185,13 @@ func (s HTTPService) UpdatePolicies(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := s.service.UpdatePolicies(inst, updates); err != nil {
+	jobID, err := s.service.UpdatePolicies(inst, updates)
+	if err != nil {
 		transport.ErrorResponse(w, r, err)
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
+	transport.JSONResponse(w, r, jobID)
 }
 
 func (s HTTPService) History(w http.ResponseWriter, r *http.Request) {

@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/remote"
 )
 
@@ -12,10 +13,10 @@ type ClientService interface {
 	Status(inst flux.InstanceID) (flux.Status, error)
 	ListServices(inst flux.InstanceID, namespace string) ([]flux.ServiceStatus, error)
 	ListImages(flux.InstanceID, flux.ServiceSpec) ([]flux.ImageStatus, error)
-	UpdateImages(flux.InstanceID, flux.ReleaseSpec) (flux.ReleaseResult, error)
+	UpdateImages(flux.InstanceID, flux.ReleaseSpec) (job.ID, error)
 	SyncNotify(flux.InstanceID) error
 	SyncStatus(flux.InstanceID, string) ([]string, error)
-	UpdatePolicies(flux.InstanceID, flux.PolicyUpdates) error
+	UpdatePolicies(flux.InstanceID, flux.PolicyUpdates) (job.ID, error)
 	History(flux.InstanceID, flux.ServiceSpec, time.Time, int64) ([]flux.HistoryEntry, error)
 	GetConfig(_ flux.InstanceID, fingerprint string) (flux.InstanceConfig, error)
 	SetConfig(flux.InstanceID, flux.UnsafeInstanceConfig) error

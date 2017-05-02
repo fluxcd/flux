@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/job"
 )
 
 var (
@@ -168,13 +169,22 @@ func (p *removeablePlatform) ListImages(spec flux.ServiceSpec) (_ []flux.ImageSt
 	return p.remote.ListImages(spec)
 }
 
-func (p *removeablePlatform) UpdateImages(spec flux.ReleaseSpec) (_ flux.ReleaseResult, err error) {
+func (p *removeablePlatform) UpdateImages(spec flux.ReleaseSpec) (_ job.ID, err error) {
 	defer func() {
 		if _, ok := err.(FatalError); ok {
 			p.closeWithError(err)
 		}
 	}()
 	return p.remote.UpdateImages(spec)
+}
+
+func (p *removeablePlatform) UpdatePolicies(u flux.PolicyUpdates) (_ job.ID, err error) {
+	defer func() {
+		if _, ok := err.(FatalError); ok {
+			p.closeWithError(err)
+		}
+	}()
+	return p.remote.UpdatePolicies(u)
 }
 
 func (p *removeablePlatform) SyncNotify() (err error) {
@@ -193,15 +203,6 @@ func (p *removeablePlatform) SyncStatus(ref string) (revs []string, err error) {
 		}
 	}()
 	return p.remote.SyncStatus(ref)
-}
-
-func (p *removeablePlatform) UpdatePolicies(u flux.PolicyUpdates) (err error) {
-	defer func() {
-		if _, ok := err.(FatalError); ok {
-			p.closeWithError(err)
-		}
-	}()
-	return p.remote.UpdatePolicies(u)
 }
 
 // disconnectedPlatform is a stub implementation used when the
@@ -229,8 +230,12 @@ func (p disconnectedPlatform) ListImages(flux.ServiceSpec) ([]flux.ImageStatus, 
 	return nil, errNotSubscribed
 }
 
-func (p disconnectedPlatform) UpdateImages(flux.ReleaseSpec) (flux.ReleaseResult, error) {
-	return nil, errNotSubscribed
+func (p disconnectedPlatform) UpdateImages(flux.ReleaseSpec) (job.ID, error) {
+	return "", errNotSubscribed
+}
+
+func (p disconnectedPlatform) UpdatePolicies(flux.PolicyUpdates) (job.ID, error) {
+	return "", errNotSubscribed
 }
 
 func (p disconnectedPlatform) SyncNotify() error {
@@ -239,8 +244,4 @@ func (p disconnectedPlatform) SyncNotify() error {
 
 func (p disconnectedPlatform) SyncStatus(string) ([]string, error) {
 	return nil, errNotSubscribed
-}
-
-func (p disconnectedPlatform) UpdatePolicies(flux.PolicyUpdates) error {
-	return errNotSubscribed
 }

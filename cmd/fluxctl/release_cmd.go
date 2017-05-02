@@ -8,7 +8,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/weaveworks/flux"
-	"github.com/weaveworks/flux/release"
 )
 
 type serviceReleaseOutputOpts struct {
@@ -130,7 +129,7 @@ func (opts *serviceReleaseOpts) RunE(cmd *cobra.Command, args []string) error {
 		fmt.Fprintf(os.Stderr, "Requesting release ...\n")
 	}
 
-	result, err := opts.API.UpdateImages(noInstanceID, flux.ReleaseSpec{
+	jobID, err := opts.API.UpdateImages(noInstanceID, flux.ReleaseSpec{
 		ServiceSpecs: services,
 		ImageSpec:    image,
 		Kind:         kind,
@@ -144,17 +143,7 @@ func (opts *serviceReleaseOpts) RunE(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	release.PrintResults(os.Stdout, result, opts.verbose)
-
-	if opts.noFollow {
-		fmt.Fprintf(os.Stderr, "To check the status of this release, run\n")
-		fmt.Fprintf(os.Stderr, "\n")
-		// FIXME put rev in results
-		fmt.Fprintf(os.Stderr, "\tfluxctl sync-status --rev=%s\n", "FIXME")
-		fmt.Fprintf(os.Stderr, "\n")
-		return nil
-	}
-
+	fmt.Fprintln(cmd.OutOrStdout(), "Job ID:", jobID)
 	return nil
 	// // This is a bit funny, but works.
 	// return (&serviceSyncStatusOpts{

@@ -10,6 +10,7 @@ import (
 
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/guid"
+	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/remote"
 )
 
@@ -135,7 +136,7 @@ type ListImagesResponse struct {
 }
 
 type UpdateImagesResponse struct {
-	Result flux.ReleaseResult
+	Result job.ID
 	ErrorResponse
 }
 
@@ -150,6 +151,7 @@ type SyncStatusResponse struct {
 }
 
 type UpdatePoliciesResponse struct {
+	Result job.ID
 	ErrorResponse
 }
 
@@ -236,13 +238,24 @@ func (r *natsPlatform) ListImages(spec flux.ServiceSpec) ([]flux.ImageStatus, er
 	return response.Result, extractError(response.ErrorResponse)
 }
 
-func (r *natsPlatform) UpdateImages(spec flux.ReleaseSpec) (flux.ReleaseResult, error) {
+func (r *natsPlatform) UpdateImages(spec flux.ReleaseSpec) (job.ID, error) {
 	var response UpdateImagesResponse
 	if err := r.conn.Request(r.instance+methodUpdateImages, spec, &response, timeout); err != nil {
 		if err == nats.ErrTimeout {
 			err = remote.UnavailableError(err)
 		}
-		return nil, err
+		return response.Result, err
+	}
+	return response.Result, extractError(response.ErrorResponse)
+}
+
+func (r *natsPlatform) UpdatePolicies(u flux.PolicyUpdates) (job.ID, error) {
+	var response UpdatePoliciesResponse
+	if err := r.conn.Request(r.instance+methodUpdatePolicies, u, &response, timeout); err != nil {
+		if err == nats.ErrTimeout {
+			err = remote.UnavailableError(err)
+		}
+		return response.Result, err
 	}
 	return response.Result, extractError(response.ErrorResponse)
 }
@@ -267,17 +280,6 @@ func (r *natsPlatform) SyncStatus(ref string) ([]string, error) {
 		return nil, err
 	}
 	return response.Result, extractError(response.ErrorResponse)
-}
-
-func (r *natsPlatform) UpdatePolicies(u flux.PolicyUpdates) error {
-	var response UpdatePoliciesResponse
-	if err := r.conn.Request(r.instance+methodUpdatePolicies, u, &response, timeout); err != nil {
-		if err == nats.ErrTimeout {
-			err = remote.UnavailableError(err)
-		}
-		return err
-	}
-	return extractError(response.ErrorResponse)
 }
 
 // --- end Platform implementation
@@ -376,13 +378,24 @@ func (n *NATS) Subscribe(instID flux.InstanceID, platform remote.Platform, done 
 		case strings.HasSuffix(request.Subject, methodUpdateImages):
 			var (
 				req flux.ReleaseSpec
-				res flux.ReleaseResult
+				res job.ID
 			)
 			err = encoder.Decode(request.Subject, request.Data, &req)
 			if err == nil {
 				res, err = platform.UpdateImages(req)
 			}
 			n.enc.Publish(request.Reply, UpdateImagesResponse{res, makeErrorResponse(err)})
+
+		case strings.HasSuffix(request.Subject, methodUpdatePolicies):
+			var (
+				req flux.PolicyUpdates
+				res job.ID
+			)
+			err = encoder.Decode(request.Subject, request.Data, &req)
+			if err == nil {
+				res, err = platform.UpdatePolicies(req)
+			}
+			n.enc.Publish(request.Reply, UpdatePoliciesResponse{res, makeErrorResponse(err)})
 
 		case strings.HasSuffix(request.Subject, methodSyncNotify):
 			err = platform.SyncNotify()
@@ -398,14 +411,6 @@ func (n *NATS) Subscribe(instID flux.InstanceID, platform remote.Platform, done 
 				res, err = platform.SyncStatus(req)
 			}
 			n.enc.Publish(request.Reply, SyncStatusResponse{res, makeErrorResponse(err)})
-
-		case strings.HasSuffix(request.Subject, methodUpdatePolicies):
-			var req flux.PolicyUpdates
-			err = encoder.Decode(request.Subject, request.Data, &req)
-			if err == nil {
-				err = platform.UpdatePolicies(req)
-			}
-			n.enc.Publish(request.Reply, UpdatePoliciesResponse{makeErrorResponse(err)})
 
 		default:
 			err = errors.New("unknown message: " + request.Subject)

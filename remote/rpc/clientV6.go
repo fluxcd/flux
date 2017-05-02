@@ -5,6 +5,7 @@ import (
 	"net/rpc"
 
 	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/remote"
 )
 
@@ -50,11 +51,20 @@ func (p *RPCClientV6) ListImages(spec flux.ServiceSpec) ([]flux.ImageStatus, err
 	return images, err
 }
 
-func (p *RPCClientV6) UpdateImages(spec flux.ReleaseSpec) (flux.ReleaseResult, error) {
-	var result flux.ReleaseResult
+func (p *RPCClientV6) UpdateImages(spec flux.ReleaseSpec) (job.ID, error) {
+	var result job.ID
 	err := p.client.Call("RPCServer.UpdateImages", spec, &result)
 	if _, ok := err.(rpc.ServerError); !ok && err != nil {
-		return nil, remote.FatalError{err}
+		return result, remote.FatalError{err}
+	}
+	return result, err
+}
+
+func (p *RPCClientV6) UpdatePolicies(u flux.PolicyUpdates) (job.ID, error) {
+	var result job.ID
+	err := p.client.Call("RPCServer.UpdatePolicies", u, &result)
+	if _, ok := err.(rpc.ServerError); !ok && err != nil {
+		return result, remote.FatalError{err}
 	}
 	return result, err
 }
@@ -75,12 +85,4 @@ func (p *RPCClientV6) SyncStatus(ref string) ([]string, error) {
 		return nil, remote.FatalError{err}
 	}
 	return result, err
-}
-
-func (p *RPCClientV6) UpdatePolicies(u flux.PolicyUpdates) error {
-	err := p.client.Call("RPCServer.UpdatePolicies", u, nil)
-	if _, ok := err.(rpc.ServerError); !ok && err != nil {
-		return remote.FatalError{err}
-	}
-	return err
 }
