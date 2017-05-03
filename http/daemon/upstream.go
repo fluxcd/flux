@@ -14,7 +14,6 @@ import (
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 
 	"github.com/weaveworks/flux"
-	"github.com/weaveworks/flux/api"
 	transport "github.com/weaveworks/flux/http"
 	fluxclient "github.com/weaveworks/flux/http/client"
 	"github.com/weaveworks/flux/http/websocket"
@@ -29,7 +28,7 @@ type Upstream struct {
 	token     flux.Token
 	url       *url.URL
 	endpoint  string
-	apiClient api.ClientService
+	apiClient *fluxclient.Client
 	platform  remote.Platform
 	logger    log.Logger
 	quit      chan struct{}
