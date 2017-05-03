@@ -52,6 +52,22 @@ runs the Flux service and the Flux daemon in a single pod.
 kubectl create -f flux-deployment.yaml
 ```
 
+#### Note for Kubernetes >=1.6 with role-based access control (RBAC)
+
+You will need to provide fluxd with a service account which can access
+the namespaces you want to use Flux with. To do this, consult the
+example service account given in
+[flux-account.yaml](../../deploy/standalone/flux-account.yaml) (which
+puts essentially no constraints on the account) and the
+[RBAC documentation](https://kubernetes.io/docs/admin/authorization/rbac/),
+and create a service account in whichever namespace you put fluxd
+in. You may need to alter the `namespace: default` lines, if you adapt
+the example.
+
+You will need to explicitly tell fluxd to use that service account by
+uncommenting and possible adapting the line `# serviceAccountName:
+flux` in the file `fluxd-deployment.yaml` before applying it.
+
 ### Flux service
 
 To make the pod accessible to the command-line client `fluxctl`, you
