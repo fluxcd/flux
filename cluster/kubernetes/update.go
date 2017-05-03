@@ -128,8 +128,11 @@ func tryUpdate(def []byte, newImage flux.ImageID, out io.Writer) error {
 	indent := matches[1]
 
 	// Replace the container images
+	// Parse out all the container blocks
 	containersRE := regexp.MustCompile(`(?m:^` + indent + `containers:\s*(?:#.*)*$(?:\n(?:` + indent + `[-\s].*)?)*)`)
+	// Parse out an individual container blog
 	containerRE := regexp.MustCompile(`(?m:` + indent + `-.*(?:\n(?:` + indent + `\s+.*)?)*)`)
+	// Parse out the image ID
 	imageRE := regexp.MustCompile(`(` + indent + `[-\s]\s*"?image"?:\s*)"?(?:[\w\.\-/:]+\s*?)*"?([\t\f #]+.*)?`)
 	imageReplacement := fmt.Sprintf("${1}%s${2}", maybeQuote(newImage.String()))
 	// Find the block of container specs
