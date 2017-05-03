@@ -23,10 +23,12 @@ import (
 
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/api"
+	"github.com/weaveworks/flux/history"
 	transport "github.com/weaveworks/flux/http"
 	"github.com/weaveworks/flux/http/httperror"
 	"github.com/weaveworks/flux/http/websocket"
 	"github.com/weaveworks/flux/integrations/github"
+	"github.com/weaveworks/flux/policy"
 	"github.com/weaveworks/flux/remote"
 	"github.com/weaveworks/flux/remote/rpc"
 )
@@ -180,7 +182,7 @@ func (s HTTPService) SyncStatus(w http.ResponseWriter, r *http.Request) {
 func (s HTTPService) UpdatePolicies(w http.ResponseWriter, r *http.Request) {
 	inst := getInstanceID(r)
 
-	var updates flux.PolicyUpdates
+	var updates policy.Updates
 	if err := json.NewDecoder(r.Body).Decode(&updates); err != nil {
 		transport.WriteError(w, r, http.StatusBadRequest, err)
 		return
@@ -198,7 +200,7 @@ func (s HTTPService) UpdatePolicies(w http.ResponseWriter, r *http.Request) {
 func (s HTTPService) LogEvent(w http.ResponseWriter, r *http.Request) {
 	inst := getInstanceID(r)
 
-	var event flux.Event
+	var event history.Event
 	if err := json.NewDecoder(r.Body).Decode(&event); err != nil {
 		transport.WriteError(w, r, http.StatusBadRequest, err)
 		return

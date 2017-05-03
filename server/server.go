@@ -9,8 +9,10 @@ import (
 
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/git"
+	"github.com/weaveworks/flux/history"
 	"github.com/weaveworks/flux/instance"
 	"github.com/weaveworks/flux/job"
+	"github.com/weaveworks/flux/policy"
 	"github.com/weaveworks/flux/remote"
 	"github.com/weaveworks/flux/update"
 )
@@ -99,7 +101,7 @@ func (s *Server) UpdateImages(instID flux.InstanceID, spec flux.ReleaseSpec) (jo
 	return inst.Platform.UpdateManifests(update.Spec{Type: update.Images, Spec: spec})
 }
 
-func (s *Server) UpdatePolicies(instID flux.InstanceID, updates flux.PolicyUpdates) (job.ID, error) {
+func (s *Server) UpdatePolicies(instID flux.InstanceID, updates policy.Updates) (job.ID, error) {
 	inst, err := s.instancer.Get(instID)
 	if err != nil {
 		return "", errors.Wrapf(err, "getting instance "+string(instID))
@@ -126,7 +128,7 @@ func (s *Server) SyncStatus(instID flux.InstanceID, ref string) (res []string, e
 }
 
 // LogEvent stores an event in the instance's history.
-func (s *Server) LogEvent(instID flux.InstanceID, event flux.Event) error {
+func (s *Server) LogEvent(instID flux.InstanceID, event history.Event) error {
 	helper, err := s.instancer.Get(instID)
 	if err != nil {
 		return errors.Wrapf(err, "getting instance")
@@ -134,13 +136,13 @@ func (s *Server) LogEvent(instID flux.InstanceID, event flux.Event) error {
 	return helper.LogEvent(event)
 }
 
-func (s *Server) History(inst flux.InstanceID, spec flux.ServiceSpec, before time.Time, limit int64) (res []flux.HistoryEntry, err error) {
+func (s *Server) History(inst flux.InstanceID, spec flux.ServiceSpec, before time.Time, limit int64) (res []history.Entry, err error) {
 	helper, err := s.instancer.Get(inst)
 	if err != nil {
 		return nil, errors.Wrapf(err, "getting instance")
 	}
 
-	var events []flux.Event
+	var events []history.Event
 	if spec == flux.ServiceSpecAll {
 		events, err = helper.AllEvents(before, limit)
 		if err != nil {
@@ -158,9 +160,9 @@ func (s *Server) History(inst flux.InstanceID, spec flux.ServiceSpec, before tim
 		}
 	}
 
-	res = make([]flux.HistoryEntry, len(events))
+	res = make([]history.Entry, len(events))
 	for i, event := range events {
-		res[i] = flux.HistoryEntry{
+		res[i] = history.Entry{
 			Stamp: &events[i].StartedAt,
 			Type:  "v0",
 			Data:  event.String(),

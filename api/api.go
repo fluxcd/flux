@@ -4,7 +4,9 @@ import (
 	"time"
 
 	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/history"
 	"github.com/weaveworks/flux/job"
+	"github.com/weaveworks/flux/policy"
 	"github.com/weaveworks/flux/remote"
 )
 
@@ -16,8 +18,8 @@ type ClientService interface {
 	UpdateImages(flux.InstanceID, flux.ReleaseSpec) (job.ID, error)
 	SyncNotify(flux.InstanceID) error
 	SyncStatus(flux.InstanceID, string) ([]string, error)
-	UpdatePolicies(flux.InstanceID, flux.PolicyUpdates) (job.ID, error)
-	History(flux.InstanceID, flux.ServiceSpec, time.Time, int64) ([]flux.HistoryEntry, error)
+	UpdatePolicies(flux.InstanceID, policy.Updates) (job.ID, error)
+	History(flux.InstanceID, flux.ServiceSpec, time.Time, int64) ([]history.Entry, error)
 	GetConfig(_ flux.InstanceID, fingerprint string) (flux.InstanceConfig, error)
 	SetConfig(flux.InstanceID, flux.UnsafeInstanceConfig) error
 	PatchConfig(flux.InstanceID, flux.ConfigPatch) error
@@ -29,7 +31,7 @@ type ClientService interface {
 type DaemonService interface {
 	RegisterDaemon(flux.InstanceID, remote.Platform) error
 	IsDaemonConnected(flux.InstanceID) error
-	LogEvent(flux.InstanceID, flux.Event) error
+	LogEvent(flux.InstanceID, history.Event) error
 }
 
 type FluxService interface {

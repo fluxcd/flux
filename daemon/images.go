@@ -8,17 +8,18 @@ import (
 
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/git"
+	"github.com/weaveworks/flux/policy"
 	"github.com/weaveworks/flux/release"
 	"github.com/weaveworks/flux/update"
 )
 
 func (d *Daemon) PollImages() {
-	automatedServices, err := d.Cluster.ServicesWithPolicy(d.Checkout.ManifestDir(), flux.PolicyAutomated)
+	automatedServices, err := d.Cluster.ServicesWithPolicy(d.Checkout.ManifestDir(), policy.Automated)
 	if err != nil {
 		log.Error(errors.Wrap(err, "checking service policies"))
 		return
 	}
-	lockedServices, err := d.Cluster.ServicesWithPolicy(d.Checkout.ManifestDir(), flux.PolicyLocked)
+	lockedServices, err := d.Cluster.ServicesWithPolicy(d.Checkout.ManifestDir(), policy.Locked)
 	if err != nil {
 		log.Error(errors.Wrap(err, "checking service policies"))
 		return

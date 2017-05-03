@@ -13,8 +13,10 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/history"
 	transport "github.com/weaveworks/flux/http"
 	"github.com/weaveworks/flux/job"
+	"github.com/weaveworks/flux/policy"
 )
 
 type Client struct {
@@ -79,16 +81,16 @@ func (c *Client) SyncStatus(_ flux.InstanceID, ref string) ([]string, error) {
 	return res, err
 }
 
-func (c *Client) UpdatePolicies(_ flux.InstanceID, updates flux.PolicyUpdates) (job.ID, error) {
+func (c *Client) UpdatePolicies(_ flux.InstanceID, updates policy.Updates) (job.ID, error) {
 	var res job.ID
 	return res, c.methodWithResp("PATCH", &res, "UpdatePolicies", updates)
 }
 
-func (c *Client) LogEvent(_ flux.InstanceID, event flux.Event) error {
+func (c *Client) LogEvent(_ flux.InstanceID, event history.Event) error {
 	return c.postWithBody("LogEvent", event)
 }
 
-func (c *Client) History(_ flux.InstanceID, s flux.ServiceSpec, before time.Time, limit int64) ([]flux.HistoryEntry, error) {
+func (c *Client) History(_ flux.InstanceID, s flux.ServiceSpec, before time.Time, limit int64) ([]history.Entry, error) {
 	params := []string{"service", string(s)}
 	if !before.IsZero() {
 		params = append(params, "before", before.Format(time.RFC3339Nano))
@@ -96,7 +98,7 @@ func (c *Client) History(_ flux.InstanceID, s flux.ServiceSpec, before time.Time
 	if limit >= 0 {
 		params = append(params, "limit", fmt.Sprint(limit))
 	}
-	var res []flux.HistoryEntry
+	var res []history.Entry
 	err := c.get(&res, "History", params...)
 	return res, err
 }

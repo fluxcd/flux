@@ -3,10 +3,12 @@ package main
 import (
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/spf13/cobra"
 
 	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/policy"
 )
 
 type serviceListOpts struct {
@@ -46,7 +48,7 @@ func (opts *serviceListOpts) RunE(_ *cobra.Command, args []string) error {
 	for _, s := range services {
 		if len(s.Containers) > 0 {
 			c := s.Containers[0]
-			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", s.ID, c.Name, c.Current.ID, s.Status, s.Policies())
+			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", s.ID, c.Name, c.Current.ID, s.Status, policies(s))
 			for _, c := range s.Containers[1:] {
 				fmt.Fprintf(w, "\t%s\t%s\t\t\n", c.Name, c.Current.ID)
 			}
@@ -70,4 +72,16 @@ func (s serviceStatusByName) Less(a, b int) bool {
 
 func (s serviceStatusByName) Swap(a, b int) {
 	s[a], s[b] = s[b], s[a]
+}
+
+func policies(s flux.ServiceStatus) string {
+	var ps []string
+	if s.Automated {
+		ps = append(ps, string(policy.Automated))
+	}
+	if s.Locked {
+		ps = append(ps, string(policy.Locked))
+	}
+	sort.Strings(ps)
+	return strings.Join(ps, ",")
 }

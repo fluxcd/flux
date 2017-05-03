@@ -2,7 +2,6 @@ package main
 
 import (
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -29,6 +28,7 @@ import (
 	"github.com/weaveworks/flux/jobs"
 	"github.com/weaveworks/flux/platform"
 	"github.com/weaveworks/flux/platform/kubernetes"
+	"github.com/weaveworks/flux/policy"
 	"github.com/weaveworks/flux/server"
 )
 
@@ -298,8 +298,8 @@ func TestFluxsvc_Automate(t *testing.T) {
 	}
 
 	// Test Automate
-	err = apiClient.UpdatePolicies("", flux.PolicyUpdates{
-		helloWorldSvc: flux.PolicyUpdate{Add: []flux.Policy{flux.PolicyAutomated}},
+	err = apiClient.UpdatePolicies("", policy.Updates{
+		helloWorldSvc: policy.Update{Add: []policy.Policy{policy.Automated}},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -310,7 +310,7 @@ func TestFluxsvc_Automate(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(path)
-	automated, err := kubernetes.ServicesWithPolicy(path, flux.PolicyAutomated)
+	automated, err := kubernetes.ServicesWithPolicy(path, policy.Automated)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -348,8 +348,8 @@ func TestFluxsvc_Deautomate(t *testing.T) {
 	}
 
 	// Test Deautomate
-	err = apiClient.UpdatePolicies("", flux.PolicyUpdates{
-		helloWorldSvc: flux.PolicyUpdate{Remove: []flux.Policy{flux.PolicyAutomated}},
+	err = apiClient.UpdatePolicies("", policy.Updates{
+		helloWorldSvc: policy.Update{Remove: []policy.Policy{policy.Automated}},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -360,7 +360,7 @@ func TestFluxsvc_Deautomate(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(path)
-	automated, err := kubernetes.ServicesWithPolicy(path, flux.PolicyAutomated)
+	automated, err := kubernetes.ServicesWithPolicy(path, policy.Automated)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -398,8 +398,8 @@ func TestFluxsvc_Lock(t *testing.T) {
 	}
 
 	// Test Lock
-	err = apiClient.UpdatePolicies("", flux.PolicyUpdates{
-		helloWorldSvc: flux.PolicyUpdate{Add: []flux.Policy{flux.PolicyLocked}},
+	err = apiClient.UpdatePolicies("", policy.Updates{
+		helloWorldSvc: policy.Update{Add: []policy.Policy{policy.Locked}},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -410,7 +410,7 @@ func TestFluxsvc_Lock(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(path)
-	locked, err := kubernetes.ServicesWithPolicy(path, flux.PolicyLocked)
+	locked, err := kubernetes.ServicesWithPolicy(path, policy.Locked)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -448,8 +448,8 @@ func TestFluxsvc_Unlock(t *testing.T) {
 	}
 
 	// Test Unlock
-	err = apiClient.UpdatePolicies("", flux.PolicyUpdates{
-		helloWorldSvc: flux.PolicyUpdate{Remove: []flux.Policy{flux.PolicyLocked}},
+	err = apiClient.UpdatePolicies("", policy.Updates{
+		helloWorldSvc: policy.Update{Remove: []policy.Policy{policy.Locked}},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -460,7 +460,7 @@ func TestFluxsvc_Unlock(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(path)
-	locked, err := kubernetes.ServicesWithPolicy(path, flux.PolicyLocked)
+	locked, err := kubernetes.ServicesWithPolicy(path, policy.Locked)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -498,8 +498,8 @@ func TestFluxsvc_History(t *testing.T) {
 	}
 
 	// Do something that will appear in the history
-	err = apiClient.UpdatePolicies("", flux.PolicyUpdates{
-		helloWorldSvc: flux.PolicyUpdate{Add: []flux.Policy{flux.PolicyLocked}},
+	err = apiClient.UpdatePolicies("", policy.Updates{
+		helloWorldSvc: policy.Update{Add: []policy.Policy{policy.Locked}},
 	})
 	if err != nil {
 		t.Fatal(err)

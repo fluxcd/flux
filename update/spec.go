@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/policy"
 )
 
 const (
@@ -32,7 +33,7 @@ func (spec *Spec) UnmarshalJSON(in []byte) error {
 	spec.Type = wire.Type
 	switch wire.Type {
 	case Policy:
-		var update flux.PolicyUpdates
+		var update policy.Updates
 		if err := json.Unmarshal(wire.SpecBytes, &update); err != nil {
 			return err
 		}

@@ -422,12 +422,12 @@ func testRelease(t *testing.T, releaser *Releaser, name string, spec flux.Releas
 }
 
 type mockEventWriter struct {
-	events []flux.Event
+	events []history.Event
 }
 
-func (ew *mockEventWriter) LogEvent(e flux.Event) error {
+func (ew *mockEventWriter) LogEvent(e history.Event) error {
 	if ew.events == nil {
-		ew.events = make([]flux.Event, 0)
+		ew.events = make([]history.Event, 0)
 	}
 	ew.events = append(ew.events, e)
 	return nil

@@ -10,6 +10,7 @@ import (
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster"
 	fluxmetrics "github.com/weaveworks/flux/metrics"
+	"github.com/weaveworks/flux/policy"
 	"github.com/weaveworks/flux/registry"
 )
 
@@ -121,7 +122,7 @@ func filters(spec *flux.ReleaseSpec, rc *ReleaseContext) ([]ServiceFilter, error
 			break
 		case flux.ServiceSpecAutomated:
 			// "<automated>" Overrides any other filters
-			automated, err := rc.ServicesWithPolicy(flux.PolicyAutomated)
+			automated, err := rc.ServicesWithPolicy(policy.Automated)
 			if err != nil {
 				return nil, err
 			}
@@ -144,7 +145,7 @@ func filters(spec *flux.ReleaseSpec, rc *ReleaseContext) ([]ServiceFilter, error
 	}
 
 	// Locked filter
-	lockedSet, err := rc.ServicesWithPolicy(flux.PolicyLocked)
+	lockedSet, err := rc.ServicesWithPolicy(policy.Locked)
 	if err != nil {
 		return nil, err
 	}
