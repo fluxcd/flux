@@ -28,11 +28,11 @@ func (c *Cluster) UpdatePolicies(in []byte, update flux.PolicyUpdate) ([]byte, e
 }
 
 func updateAnnotations(def []byte, f func(map[string]string) map[string]string) ([]byte, error) {
-	ann, err := parseAnnotations(def)
+	manifest, err := parseManifest(def)
 	if err != nil {
 		return nil, err
 	}
-	newAnnotations := f(ann)
+	newAnnotations := f(manifest.Metadata.AnnotationsOrNil())
 
 	// Write the new annotations back into the manifest
 	// Generate a fragment of the new annotations.
@@ -89,21 +89,40 @@ func updateAnnotations(def []byte, f func(map[string]string) map[string]string) 
 	return []byte(newDef), err
 }
 
-type annotationsParser struct {
-	Metadata struct {
-		Annotations map[string]string `yaml:"annotations"`
-	} `yaml:"metadata"`
+type Manifest struct {
+	Metadata Metadata `yaml:"metadata"`
+	Spec     struct {
+		Template struct {
+			Spec struct {
+				Containers []Container `yaml:"containers"`
+			} `yaml:"spec"`
+		} `yaml:"template"`
+	} `yaml:"spec"`
 }
 
-func parseAnnotations(def []byte) (map[string]string, error) {
-	var p annotationsParser
-	if err := yaml.Unmarshal(def, &p); err != nil {
-		return nil, errors.Wrap(err, "decoding annotations")
+func (m Metadata) AnnotationsOrNil() map[string]string {
+	if m.Annotations == nil {
+		return map[string]string{}
 	}
-	if p.Metadata.Annotations == nil {
-		p.Metadata.Annotations = map[string]string{}
+	return m.Annotations
+}
+
+type Metadata struct {
+	Name        string            `yaml:"name"`
+	Annotations map[string]string `yaml:"annotations"`
+}
+
+type Container struct {
+	Name  string `yaml:"name"`
+	Image string `yaml:"image"`
+}
+
+func parseManifest(def []byte) (Manifest, error) {
+	var m Manifest
+	if err := yaml.Unmarshal(def, &m); err != nil {
+		return m, errors.Wrap(err, "decoding annotations")
 	}
-	return p.Metadata.Annotations, nil
+	return m, nil
 }
 
 func (c *Cluster) ServicesWithPolicy(root string, policy flux.Policy) (flux.ServiceIDSet, error) {
@@ -134,13 +153,13 @@ func (c *Cluster) ServicesWithPolicy(root string, policy flux.Policy) (flux.Serv
 }
 
 func policiesFrom(def []byte) (flux.PolicySet, error) {
-	annotations, err := parseAnnotations(def)
+	manifest, err := parseManifest(def)
 	if err != nil {
 		return nil, err
 	}
 
 	var policies flux.PolicySet
-	for k, v := range annotations {
+	for k, v := range manifest.Metadata.AnnotationsOrNil() {
 		if !strings.HasPrefix(k, policyPrefix) {
 			continue
 		}

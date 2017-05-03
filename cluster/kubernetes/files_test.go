@@ -15,12 +15,12 @@ func TestDefinedServices(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	services, err := FindDefinedServices(dir)
+	services, err := (&Cluster{}).FindDefinedServices(dir)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	if !reflect.DeepEqual(testfiles.ServiceMap(dir), services) {
-		t.Errorf("Expected:\n%#v\ngot:\n%#v\n", testdata.ServiceMap(dir), services)
+		t.Errorf("Expected:\n%#v\ngot:\n%#v\n", testfiles.ServiceMap(dir), services)
 	}
 }

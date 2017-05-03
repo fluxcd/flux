@@ -14,15 +14,13 @@ func testUpdate(t *testing.T, name, caseIn, updatedImage, caseOut string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var trace, out bytes.Buffer
-	if err := tryUpdate(caseIn, id, &trace, &out); err != nil {
+	var out bytes.Buffer
+	if err := tryUpdate([]byte(caseIn), id, &out); err != nil {
 		fmt.Fprintln(os.Stderr, "Failed:", name)
-		fmt.Fprintf(os.Stderr, "--- TRACE ---\n"+trace.String()+"\n---\n")
 		t.Fatal(err)
 	}
 	if string(out.Bytes()) != caseOut {
 		fmt.Fprintln(os.Stderr, "Failed:", name)
-		fmt.Fprintf(os.Stderr, "--- TRACE ---\n"+trace.String()+"\n---\n")
 		t.Fatalf("Did not get expected result:\n\n%s\n\nInstead got:\n\n%s", caseOut, string(out.Bytes()))
 	}
 }
@@ -35,6 +33,7 @@ func TestUpdates(t *testing.T) {
 		{"name label out of order", case3, case3image, case3out},
 		{"version (tag) with dots", case4, case4image, case4out},
 		{"minimal dockerhub image name", case5, case5image, case5out},
+		{"reordered keys", case6, case6image, case6out},
 	} {
 		testUpdate(t, c[0], c[1], c[2], c[3])
 	}
@@ -211,8 +210,8 @@ const case3 = `---
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
-  namespace: monitoring
-  name: grafana
+ namespace: monitoring
+ name: grafana # comment, and only one space
 spec:
   replicas: 1
   template:
@@ -241,8 +240,8 @@ const case3out = `---
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
-  namespace: monitoring
-  name: grafana
+ namespace: monitoring
+ name: grafana # comment, and only one space
 spec:
   replicas: 1
   template:
@@ -367,4 +366,48 @@ spec:
         image: nginx:1.10-alpine
         ports:
         - containerPort: 80
+`
+
+const case6 = `---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: nginx
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        name: nginx
+    spec:
+      containers:
+      - ports:
+        - containerPort: 80
+        image: nginx
+        name: nginx
+      - image: nginx:some-other-tag # testing comments, and this image is on the first line.
+        name: nginx2
+`
+
+const case6image = "nginx:1.10-alpine"
+
+const case6out = `---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: nginx
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        name: nginx
+    spec:
+      containers:
+      - ports:
+        - containerPort: 80
+        image: nginx:1.10-alpine
+        name: nginx
+      - image: nginx:1.10-alpine # testing comments, and this image is on the first line.
+        name: nginx2
 `
