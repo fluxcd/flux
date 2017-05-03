@@ -9,6 +9,7 @@ import (
 
 // These are all the types of events.
 const (
+	EventCommit     = "commit"
 	EventRelease    = "release"
 	EventAutomate   = "automate"
 	EventDeautomate = "deautomate"
@@ -105,6 +106,9 @@ func (e Event) String() string {
 			user,
 			msg,
 		)
+	case EventCommit:
+		metadata := e.Metadata.(CommitEventMetadata)
+		return fmt.Sprintf("Commit: %s, %s", metadata.Revision, strings.Join(strServiceIDs, ", "))
 	case EventAutomate:
 		return fmt.Sprintf("Automated: %s", strings.Join(strServiceIDs, ", "))
 	case EventDeautomate:
@@ -116,6 +120,11 @@ func (e Event) String() string {
 	default:
 		return "Unknown event"
 	}
+}
+
+// CommitEventMetadata is the metadata for when new git commits are created
+type CommitEventMetadata struct {
+	Revision string `json:"revision"`
 }
 
 // ReleaseEventMetadata is the metadata for when service(s) are released

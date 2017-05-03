@@ -145,7 +145,9 @@ func (d *Daemon) UpdateManifests(spec update.Spec) (job.ID, error) {
 		return d.queueJob(func(working git.Checkout) error {
 			started := time.Now().UTC()
 			// For each update
+			var serviceIDs []flux.ServiceID
 			for serviceID, update := range s {
+				serviceIDs = append(serviceIDs, serviceID)
 				// find the service manifest
 				err := d.Cluster.UpdateManifest(working.ManifestDir(), string(serviceID), func(def []byte) ([]byte, error) {
 					return d.Cluster.UpdatePolicies(def, update)
@@ -162,7 +164,21 @@ func (d *Daemon) UpdateManifests(spec update.Spec) (job.ID, error) {
 			if err := working.CommitAndPush(s.CommitMessage(started), string(noteBytes)); err != nil {
 				return err
 			}
-			return nil
+
+			revision, err := working.HeadRevision()
+			if err != nil {
+				return err
+			}
+			return d.LogEvent(flux.Event{
+				ServiceIDs: serviceIDs,
+				Type:       flux.EventCommit,
+				StartedAt:  started,
+				EndedAt:    started,
+				LogLevel:   flux.LogLevelInfo,
+				Metadata: flux.CommitEventMetadata{
+					Revision: revision,
+				},
+			})
 		}), nil
 	default:
 		var id job.ID

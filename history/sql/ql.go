@@ -52,6 +52,12 @@ func (db *qlDB) scanEvents(query squirrel.Sqlizer) ([]flux.Event, error) {
 
 		if len(metadataBytes) > 0 {
 			switch h.Type {
+			case flux.EventCommit:
+				var m flux.CommitEventMetadata
+				if err := json.Unmarshal(metadataBytes, &m); err != nil {
+					return nil, err
+				}
+				h.Metadata = m
 			case flux.EventRelease:
 				var m flux.ReleaseEventMetadata
 				if err := json.Unmarshal(metadataBytes, &m); err != nil {
