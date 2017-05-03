@@ -27,6 +27,7 @@ type ClientService interface {
 
 // API for daemons connecting to the service
 type DaemonService interface {
+	LogEvent(inst flux.InstanceID, e flux.Event) error
 	RegisterDaemon(flux.InstanceID, remote.Platform) error
 	IsDaemonConnected(flux.InstanceID) error
 }

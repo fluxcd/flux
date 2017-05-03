@@ -38,6 +38,7 @@ func NewHandler(s api.FluxService, r *mux.Router, logger log.Logger) http.Handle
 		"ListImages":             handle.ListImages,
 		"UpdateImages":           handle.UpdateImages,
 		"UpdatePolicies":         handle.UpdatePolicies,
+		"LogEvent":               handle.LogEvent,
 		"History":                handle.History,
 		"Status":                 handle.Status,
 		"GetConfig":              handle.GetConfig,
@@ -192,6 +193,24 @@ func (s HTTPService) UpdatePolicies(w http.ResponseWriter, r *http.Request) {
 	}
 
 	transport.JSONResponse(w, r, jobID)
+}
+
+func (s HTTPService) LogEvent(w http.ResponseWriter, r *http.Request) {
+	inst := getInstanceID(r)
+
+	var event flux.Event
+	if err := json.NewDecoder(r.Body).Decode(&event); err != nil {
+		transport.WriteError(w, r, http.StatusBadRequest, err)
+		return
+	}
+
+	err := s.service.LogEvent(inst, event)
+	if err != nil {
+		transport.ErrorResponse(w, r, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
 }
 
 func (s HTTPService) History(w http.ResponseWriter, r *http.Request) {

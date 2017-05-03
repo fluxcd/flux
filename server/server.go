@@ -125,6 +125,15 @@ func (s *Server) SyncStatus(instID flux.InstanceID, ref string) (res []string, e
 	return inst.Platform.SyncStatus(ref)
 }
 
+// LogEvent stores an event in the instance's history.
+func (s *Server) LogEvent(instID flux.InstanceID, event flux.Event) error {
+	helper, err := s.instancer.Get(instID)
+	if err != nil {
+		return errors.Wrapf(err, "getting instance")
+	}
+	return helper.LogEvent(event)
+}
+
 func (s *Server) History(inst flux.InstanceID, spec flux.ServiceSpec, before time.Time, limit int64) (res []flux.HistoryEntry, err error) {
 	helper, err := s.instancer.Get(inst)
 	if err != nil {

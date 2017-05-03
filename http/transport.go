@@ -63,6 +63,7 @@ func NewServiceRouter() *mux.Router {
 	r.NewRoute().Name("RegisterDaemonV5").Methods("GET").Path("/v5/daemon")
 	r.NewRoute().Name("RegisterDaemonV6").Methods("GET").Path("/v6/daemon")
 	r.NewRoute().Name("IsConnected").Methods("HEAD", "GET").Path("/v4/ping")
+	r.NewRoute().Name("LogEvent").Methods("POST").Path("/v4/events")
 
 	// We assume every request that doesn't match a route is a client
 	// calling an old or hitherto unsupported API.
