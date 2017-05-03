@@ -17,6 +17,7 @@ type ClientService interface {
 	SyncNotify(flux.InstanceID) error
 	SyncStatus(flux.InstanceID, string) ([]string, error)
 	UpdatePolicies(flux.InstanceID, flux.PolicyUpdates) (job.ID, error)
+	LogEvent(inst flux.InstanceID, e flux.Event) error
 	History(flux.InstanceID, flux.ServiceSpec, time.Time, int64) ([]flux.HistoryEntry, error)
 	GetConfig(_ flux.InstanceID, fingerprint string) (flux.InstanceConfig, error)
 	SetConfig(flux.InstanceID, flux.UnsafeInstanceConfig) error
@@ -27,7 +28,6 @@ type ClientService interface {
 
 // API for daemons connecting to the service
 type DaemonService interface {
-	LogEvent(inst flux.InstanceID, e flux.Event) error
 	RegisterDaemon(flux.InstanceID, remote.Platform) error
 	IsDaemonConnected(flux.InstanceID) error
 }

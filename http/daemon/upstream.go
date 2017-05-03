@@ -4,16 +4,19 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"regexp"
 	"time"
 
 	"github.com/go-kit/kit/log"
+	"github.com/go-kit/kit/metrics/prometheus"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
-
-	"github.com/go-kit/kit/metrics/prometheus"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
+
 	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/api"
 	transport "github.com/weaveworks/flux/http"
+	fluxclient "github.com/weaveworks/flux/http/client"
 	"github.com/weaveworks/flux/http/websocket"
 	"github.com/weaveworks/flux/remote"
 	"github.com/weaveworks/flux/remote/rpc"
@@ -21,14 +24,15 @@ import (
 
 // Upstream handles communication from the daemon to a service
 type Upstream struct {
-	client   *http.Client
-	ua       string
-	token    flux.Token
-	url      *url.URL
-	endpoint string
-	platform remote.Platform
-	logger   log.Logger
-	quit     chan struct{}
+	client    *http.Client
+	ua        string
+	token     flux.Token
+	url       *url.URL
+	endpoint  string
+	apiClient api.ClientService
+	platform  remote.Platform
+	logger    log.Logger
+	quit      chan struct{}
 
 	ws websocket.Websocket
 }
@@ -41,6 +45,7 @@ var (
 		Name:      "connection_duration_seconds",
 		Help:      "Duration in seconds of the current connection to fluxsvc. Zero means unconnected.",
 	}, []string{"target"})
+	urlSchemeRE = regexp.MustCompile("^([[:alpha:]]+)(s?)://")
 )
 
 func NewUpstream(client *http.Client, ua string, t flux.Token, router *mux.Router, endpoint string, p remote.Platform, logger log.Logger) (*Upstream, error) {
@@ -49,15 +54,20 @@ func NewUpstream(client *http.Client, ua string, t flux.Token, router *mux.Route
 		return nil, errors.Wrap(err, "constructing URL")
 	}
 
+	// TODO: hacky regex hacks are hacky
+	httpEndpoint := urlSchemeRE.ReplaceAllString(endpoint, "http${2}://")
+
 	a := &Upstream{
 		client:   client,
 		ua:       ua,
 		token:    t,
 		url:      u,
 		endpoint: endpoint,
-		platform: p,
-		logger:   logger,
-		quit:     make(chan struct{}),
+		// FIXME This endpoint might be a wss, and we might need to swap it for an https...
+		apiClient: fluxclient.New(client, router, httpEndpoint, t),
+		platform:  p,
+		logger:    logger,
+		quit:      make(chan struct{}),
 	}
 	go a.loop()
 	return a, nil
@@ -136,6 +146,11 @@ func (a *Upstream) connect() error {
 
 func (a *Upstream) setConnectionDuration(duration float64) {
 	connectionDuration.With("target", a.endpoint).Set(duration)
+}
+
+func (a *Upstream) LogEvent(event flux.Event) error {
+	// Instance ID is set via token here, so we can leave it blank.
+	return a.apiClient.LogEvent(flux.InstanceID(""), event)
 }
 
 // Close closes the connection to the service

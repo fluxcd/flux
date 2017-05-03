@@ -12,6 +12,7 @@ import (
 	"github.com/weaveworks/flux/cluster"
 	"github.com/weaveworks/flux/git"
 	"github.com/weaveworks/flux/guid"
+	"github.com/weaveworks/flux/history"
 	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/registry"
 	"github.com/weaveworks/flux/release"
@@ -22,12 +23,13 @@ import (
 // Combine these things to form Devasta^Wan implementation of
 // Platform.
 type Daemon struct {
-	V        string
-	Cluster  cluster.Cluster
-	Registry registry.Registry
-	Repo     git.Repo
-	Checkout git.Checkout
-	Jobs     *job.Queue
+	V           string
+	Cluster     cluster.Cluster
+	Registry    registry.Registry
+	Repo        git.Repo
+	Checkout    git.Checkout
+	Jobs        *job.Queue
+	EventWriter history.EventWriter
 	// bookkeeping
 	syncSoon     chan struct{}
 	initSyncSoon gosync.Once
@@ -228,8 +230,7 @@ func (d *Daemon) logRelease(executeErr error, release flux.Release) error {
 }
 
 func (d *Daemon) LogEvent(ev flux.Event) error {
-	// FIXME FIX FIXMEEEEEEE
-	return nil
+	return d.EventWriter.LogEvent(ev)
 }
 
 // vvv helpers vvv

@@ -85,6 +85,10 @@ func (c *client) UpdatePolicies(_ flux.InstanceID, updates flux.PolicyUpdates) (
 	return res, c.methodWithResp("PATCH", &res, "UpdatePolicies", updates)
 }
 
+func (c *client) LogEvent(_ flux.InstanceID, event flux.Event) error {
+	return c.postWithBody("LogEvent", event)
+}
+
 func (c *client) History(_ flux.InstanceID, s flux.ServiceSpec, before time.Time, limit int64) ([]flux.HistoryEntry, error) {
 	params := []string{"service", string(s)}
 	if !before.IsZero() {

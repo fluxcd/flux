@@ -212,8 +212,6 @@ func main() {
 		Jobs:     jobs,
 	}
 
-	go daemon.Loop(shutdown, log.NewContext(logger).With("component", "sync-loop"))
-
 	// Connect to fluxsvc if given an upstream address
 	if *upstreamURL != "" {
 		upstreamLogger := log.NewContext(logger).With("component", "upstream")
@@ -231,8 +229,11 @@ func main() {
 			logger.Log("err", err)
 			os.Exit(1)
 		}
+		daemon.EventWriter = upstream
 		defer upstream.Close()
 	}
+
+	go daemon.Loop(shutdown, log.NewContext(logger).With("component", "sync-loop"))
 
 	// Mechanical components.
 	errc := make(chan error)
