@@ -19,6 +19,7 @@ spec:
       labels:
         name: flux
     spec:
+      # serviceAccountName: flux
       # Give fluxsvc up to 10 minutes grace to finish jobs in progress and exit
       # cleanly. Service is available during this time, as long as we don't
       # stop too many replicas at once.
