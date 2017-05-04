@@ -18,6 +18,8 @@ FLUXCTL_DEPS:=$(call godeps,./cmd/fluxctl)
 
 MIGRATIONS:=$(shell find db/migrations -type f)
 
+IMAGE_TAG:=$(shell ./docker/image-tag)
+
 all: $(GOPATH)/bin/fluxctl $(GOPATH)/bin/fluxd $(GOPATH)/bin/fluxsvc build/.fluxd.done build/.fluxsvc.done
 
 release-bins:
@@ -44,7 +46,7 @@ build/migrations.tar: $(MIGRATIONS)
 build/.%.done: docker/Dockerfile.%
 	mkdir -p ./build/docker/$*
 	cp $^ ./build/docker/$*/
-	${DOCKER} build -t weaveworks/$* -f build/docker/$*/Dockerfile.$* ./build/docker/$*
+	${DOCKER} build -t weaveworks/$* -t weaveworks/$*:$(IMAGE_TAG) -t quay.io/weaveworks/$* -t quay.io/weaveworks/$*:$(IMAGE_TAG) -f build/docker/$*/Dockerfile.$* ./build/docker/$*
 	touch $@
 
 build/.fluxd.done: build/fluxd build/kubectl
