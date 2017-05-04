@@ -3,6 +3,7 @@ package git
 import (
 	"bufio"
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -93,16 +94,20 @@ func getNotesRef(workingDir, ref string) (string, error) {
 	return strings.TrimSpace(out.String()), nil
 }
 
-func addNote(workingDir, rev, notesRef, note string) error {
-	return execGitCmd(workingDir, "", nil, "notes", "--ref", notesRef, "add", "-m", note, rev)
+func addNote(workingDir, rev, notesRef string, note []byte) error {
+	return execGitCmd(workingDir, "", nil, "notes", "--ref", notesRef, "add", "-m", string(note), rev)
 }
 
-func getNote(workingDir, notesRef, rev string) (string, error) {
+func getNote(workingDir, notesRef, rev string) (*Note, error) {
 	out := &bytes.Buffer{}
 	if err := execGitCmd(workingDir, "", out, "notes", "--ref", notesRef, "show", rev); err != nil {
-		return "", err
+		return nil, err
 	}
-	return out.String(), nil
+	var note Note
+	if err := json.NewDecoder(out).Decode(&note); err != nil {
+		return nil, err
+	}
+	return &note, nil
 }
 
 // Get the commit hash for HEAD
@@ -114,9 +119,9 @@ func headRevision(path string) (string, error) {
 	return strings.TrimSpace(out.String()), nil
 }
 
-func revlist(path, ref1, ref2 string) ([]string, error) {
+func revlist(path, ref string) ([]string, error) {
 	out := &bytes.Buffer{}
-	if err := execGitCmd(path, "", out, "rev-list", fmt.Sprintf("%s..%s", ref1, ref2)); err != nil {
+	if err := execGitCmd(path, "", out, "rev-list", ref); err != nil {
 		return nil, err
 	}
 	return strings.Split(out.String(), "\n"), nil

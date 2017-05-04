@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 
-	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/policy"
 )
 
@@ -39,7 +38,7 @@ func (spec *Spec) UnmarshalJSON(in []byte) error {
 		}
 		spec.Spec = update
 	case Images:
-		var update flux.ReleaseSpec
+		var update ReleaseSpec
 		if err := json.Unmarshal(wire.SpecBytes, &update); err != nil {
 			return err
 		}

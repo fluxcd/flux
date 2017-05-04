@@ -161,7 +161,7 @@ func (p *removeablePlatform) ListServices(namespace string) (_ []flux.ServiceSta
 	return p.remote.ListServices(namespace)
 }
 
-func (p *removeablePlatform) ListImages(spec flux.ServiceSpec) (_ []flux.ImageStatus, err error) {
+func (p *removeablePlatform) ListImages(spec update.ServiceSpec) (_ []flux.ImageStatus, err error) {
 	defer func() {
 		if _, ok := err.(FatalError); ok {
 			p.closeWithError(err)
@@ -186,6 +186,15 @@ func (p *removeablePlatform) SyncNotify() (err error) {
 		}
 	}()
 	return p.remote.SyncNotify()
+}
+
+func (p *removeablePlatform) JobStatus(id job.ID) (_ job.Status, err error) {
+	defer func() {
+		if _, ok := err.(FatalError); ok {
+			p.closeWithError(err)
+		}
+	}()
+	return p.remote.JobStatus(id)
 }
 
 func (p *removeablePlatform) SyncStatus(ref string) (revs []string, err error) {
@@ -218,7 +227,7 @@ func (p disconnectedPlatform) ListServices(namespace string) ([]flux.ServiceStat
 	return nil, errNotSubscribed
 }
 
-func (p disconnectedPlatform) ListImages(flux.ServiceSpec) ([]flux.ImageStatus, error) {
+func (p disconnectedPlatform) ListImages(update.ServiceSpec) ([]flux.ImageStatus, error) {
 	return nil, errNotSubscribed
 }
 
@@ -229,6 +238,10 @@ func (p disconnectedPlatform) UpdateManifests(update.Spec) (job.ID, error) {
 
 func (p disconnectedPlatform) SyncNotify() error {
 	return errNotSubscribed
+}
+
+func (p disconnectedPlatform) JobStatus(id job.ID) (job.Status, error) {
+	return job.Status{}, errNotSubscribed
 }
 
 func (p disconnectedPlatform) SyncStatus(string) ([]string, error) {

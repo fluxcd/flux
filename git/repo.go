@@ -1,6 +1,7 @@
 package git
 
 import (
+	"encoding/json"
 	"errors"
 	"io/ioutil"
 	"os"
@@ -148,7 +149,7 @@ func (c Checkout) ManifestDir() string {
 
 // CommitAndPush commits changes made in this checkout, along with any
 // extra data as a note, and pushes the commit and note to the remote repo.
-func (c Checkout) CommitAndPush(commitMessage, note string) error {
+func (c Checkout) CommitAndPush(commitMessage string, note *Note) error {
 	if !check(c.Dir, c.repo.Path) {
 		return ErrNoChanges
 	}
@@ -156,12 +157,16 @@ func (c Checkout) CommitAndPush(commitMessage, note string) error {
 		return err
 	}
 
-	if note != "" {
+	if note != nil {
+		noteBytes, err := json.Marshal(note)
+		if err != nil {
+			return err
+		}
 		rev, err := headRevision(c.Dir)
 		if err != nil {
 			return err
 		}
-		if err := addNote(c.Dir, rev, c.realNotesRef, note); err != nil {
+		if err := addNote(c.Dir, rev, c.realNotesRef, noteBytes); err != nil {
 			return err
 		}
 	}
@@ -181,12 +186,8 @@ func (c Checkout) CommitAndPush(commitMessage, note string) error {
 }
 
 // GetNote gets a note for the revision specified, or "" if there is no such note.
-func (c Checkout) GetNote(rev string) (string, error) {
-	note, err := getNote(c.Dir, c.realNotesRef, rev)
-	if err != nil {
-		return "", err
-	}
-	return note, nil
+func (c Checkout) GetNote(rev string) (*Note, error) {
+	return getNote(c.Dir, c.realNotesRef, rev)
 }
 
 // Pull fetches the latest commits on the branch we're using, and the latest notes
@@ -209,7 +210,11 @@ func (c Checkout) HeadRevision() (string, error) {
 }
 
 func (c Checkout) RevisionsBetween(ref1, ref2 string) ([]string, error) {
-	return revlist(c.Dir, ref1, ref2)
+	return revlist(c.Dir, ref1+".."+ref2)
+}
+
+func (c Checkout) RevisionsBefore(ref string) ([]string, error) {
+	return revlist(c.Dir, ref)
 }
 
 func (c Checkout) MoveTagAndPush(ref, msg string) error {

@@ -57,7 +57,7 @@ func (p *RPCServer) ListServices(namespace string, resp *[]flux.ServiceStatus) e
 	return err
 }
 
-func (p *RPCServer) ListImages(spec flux.ServiceSpec, resp *[]flux.ImageStatus) error {
+func (p *RPCServer) ListImages(spec update.ServiceSpec, resp *[]flux.ImageStatus) error {
 	v, err := p.p.ListImages(spec)
 	*resp = v
 	return err
@@ -71,6 +71,12 @@ func (p *RPCServer) UpdateManifests(spec update.Spec, resp *job.ID) error {
 
 func (p *RPCServer) SyncNotify(_ struct{}, _ *struct{}) error {
 	return p.p.SyncNotify()
+}
+
+func (p *RPCServer) JobStatus(jobID job.ID, resp *job.Status) error {
+	v, err := p.p.JobStatus(jobID)
+	*resp = v
+	return err
 }
 
 func (p *RPCServer) SyncStatus(cursor string, resp *[]string) error {

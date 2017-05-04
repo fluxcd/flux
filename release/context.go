@@ -1,7 +1,6 @@
 package release
 
 import (
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -12,6 +11,7 @@ import (
 	"github.com/weaveworks/flux/git"
 	"github.com/weaveworks/flux/policy"
 	"github.com/weaveworks/flux/registry"
+	"github.com/weaveworks/flux/update"
 )
 
 const (
@@ -38,22 +38,25 @@ func NewReleaseContext(c cluster.Cluster, reg registry.Registry, repo git.Checko
 	}
 }
 
-func (rc *ReleaseContext) CommitAndPush(msg string, result flux.ReleaseResult) error {
-	noteBytes, err := json.Marshal(result)
-	if err != nil {
-		return err
-	}
-	return rc.Repo.CommitAndPush(msg, string(noteBytes))
+func (rc *ReleaseContext) CommitAndPush(msg string, spec *update.ReleaseSpec, result update.Result) error {
+	return rc.Repo.CommitAndPush(msg, &git.Note{
+		JobID: "", // FIXME: get the job id here
+		Spec: update.Spec{
+			Type: update.Images,
+			Spec: *spec,
+		},
+		Result: result,
+	})
 }
 
-func (rc *ReleaseContext) PushChanges(updates []*ServiceUpdate, spec *flux.ReleaseSpec, result flux.ReleaseResult) error {
+func (rc *ReleaseContext) PushChanges(updates []*ServiceUpdate, spec *update.ReleaseSpec, results update.Result) error {
 	err := writeUpdates(updates)
 	if err != nil {
 		return err
 	}
 
 	commitMsg := commitMessageFromReleaseSpec(spec)
-	return rc.CommitAndPush(commitMsg, result)
+	return rc.CommitAndPush(commitMsg, spec, results)
 }
 
 // Return the revision of HEAD as a commit hash.
@@ -90,7 +93,7 @@ func writeUpdates(updates []*ServiceUpdate) error {
 // `ServiceFilter`s can be provided to filter the found services.
 // Be careful about the ordering of the filters. Filters that are earlier
 // in the slice will have higher priority (they are run first).
-func (rc *ReleaseContext) SelectServices(results flux.ReleaseResult, filters ...ServiceFilter) ([]*ServiceUpdate, error) {
+func (rc *ReleaseContext) SelectServices(results update.Result, filters ...ServiceFilter) ([]*ServiceUpdate, error) {
 	defined, err := rc.FindDefinedServices()
 	if err != nil {
 		return nil, err
@@ -127,7 +130,7 @@ func (rc *ReleaseContext) SelectServices(results flux.ReleaseResult, filters ...
 	for _, s := range updates {
 		fr := s.filter(filters...)
 		results[s.ServiceID] = fr
-		if fr.Status == flux.ReleaseStatusPending || fr.Status == flux.ReleaseStatusSuccess || fr.Status == "" {
+		if fr.Status == update.ReleaseStatusPending || fr.Status == update.ReleaseStatusSuccess || fr.Status == "" {
 			filteredUpdates = append(filteredUpdates, s)
 		}
 	}
@@ -137,29 +140,29 @@ func (rc *ReleaseContext) SelectServices(results flux.ReleaseResult, filters ...
 	for k, s := range definedMap {
 		fr := s.filter(filters...)
 		results[s.ServiceID] = fr
-		if fr.Status != flux.ReleaseStatusIgnored {
+		if fr.Status != update.ReleaseStatusIgnored {
 			filteredDefined[k] = s
 		}
 	}
 
 	// Mark anything left over as skipped
 	for id, _ := range filteredDefined {
-		results[id] = flux.ServiceResult{
-			Status: flux.ReleaseStatusSkipped,
+		results[id] = update.ServiceResult{
+			Status: update.ReleaseStatusSkipped,
 			Error:  NotInCluster,
 		}
 	}
 	return filteredUpdates, nil
 }
 
-func (s *ServiceUpdate) filter(filters ...ServiceFilter) flux.ServiceResult {
+func (s *ServiceUpdate) filter(filters ...ServiceFilter) update.ServiceResult {
 	for _, f := range filters {
 		fr := f.Filter(*s)
 		if fr.Error != "" {
 			return fr
 		}
 	}
-	return flux.ServiceResult{}
+	return update.ServiceResult{}
 }
 
 func (rc *ReleaseContext) FindDefinedServices() ([]*ServiceUpdate, error) {
@@ -194,18 +197,18 @@ func (rc *ReleaseContext) ServicesWithPolicy(p policy.Policy) (flux.ServiceIDSet
 }
 
 type ServiceFilter interface {
-	Filter(ServiceUpdate) flux.ServiceResult
+	Filter(ServiceUpdate) update.ServiceResult
 }
 
 type SpecificImageFilter struct {
 	Img flux.ImageID
 }
 
-func (f *SpecificImageFilter) Filter(u ServiceUpdate) flux.ServiceResult {
+func (f *SpecificImageFilter) Filter(u ServiceUpdate) update.ServiceResult {
 	// If there are no containers, then we can't check the image.
 	if len(u.Service.Containers.Containers) == 0 {
-		return flux.ServiceResult{
-			Status: flux.ReleaseStatusIgnored,
+		return update.ServiceResult{
+			Status: update.ReleaseStatusIgnored,
 			Error:  NotInCluster,
 		}
 	}
@@ -215,11 +218,11 @@ func (f *SpecificImageFilter) Filter(u ServiceUpdate) flux.ServiceResult {
 		// If container image == image in update
 		if cID.HostNamespaceImage() == f.Img.HostNamespaceImage() {
 			// We want to update this
-			return flux.ServiceResult{}
+			return update.ServiceResult{}
 		}
 	}
-	return flux.ServiceResult{
-		Status: flux.ReleaseStatusIgnored,
+	return update.ServiceResult{
+		Status: update.ReleaseStatusIgnored,
 		Error:  DifferentImage,
 	}
 }
@@ -228,30 +231,30 @@ type ExcludeFilter struct {
 	IDs []flux.ServiceID
 }
 
-func (f *ExcludeFilter) Filter(u ServiceUpdate) flux.ServiceResult {
+func (f *ExcludeFilter) Filter(u ServiceUpdate) update.ServiceResult {
 	for _, id := range f.IDs {
 		if u.ServiceID == id {
-			return flux.ServiceResult{
-				Status: flux.ReleaseStatusIgnored,
+			return update.ServiceResult{
+				Status: update.ReleaseStatusIgnored,
 				Error:  Excluded,
 			}
 		}
 	}
-	return flux.ServiceResult{}
+	return update.ServiceResult{}
 }
 
 type IncludeFilter struct {
 	IDs []flux.ServiceID
 }
 
-func (f *IncludeFilter) Filter(u ServiceUpdate) flux.ServiceResult {
+func (f *IncludeFilter) Filter(u ServiceUpdate) update.ServiceResult {
 	for _, id := range f.IDs {
 		if u.ServiceID == id {
-			return flux.ServiceResult{}
+			return update.ServiceResult{}
 		}
 	}
-	return flux.ServiceResult{
-		Status: flux.ReleaseStatusIgnored,
+	return update.ServiceResult{
+		Status: update.ReleaseStatusIgnored,
 		Error:  NotIncluded,
 	}
 }
@@ -260,14 +263,14 @@ type LockedFilter struct {
 	IDs []flux.ServiceID
 }
 
-func (f *LockedFilter) Filter(u ServiceUpdate) flux.ServiceResult {
+func (f *LockedFilter) Filter(u ServiceUpdate) update.ServiceResult {
 	for _, id := range f.IDs {
 		if u.ServiceID == id {
-			return flux.ServiceResult{
-				Status: flux.ReleaseStatusSkipped,
+			return update.ServiceResult{
+				Status: update.ReleaseStatusSkipped,
 				Error:  Locked,
 			}
 		}
 	}
-	return flux.ServiceResult{}
+	return update.ServiceResult{}
 }

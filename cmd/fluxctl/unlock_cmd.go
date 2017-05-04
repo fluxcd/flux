@@ -1,8 +1,6 @@
 package main
 
 import (
-	"fmt"
-
 	"github.com/spf13/cobra"
 
 	"github.com/weaveworks/flux"
@@ -50,6 +48,5 @@ func (opts *serviceUnlockOpts) RunE(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Fprintln(cmd.OutOrStdout(), "Job ID:", jobID)
-	return nil
+	return await(cmd.OutOrStdout(), opts.API, jobID, false)
 }

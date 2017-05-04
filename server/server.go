@@ -85,7 +85,7 @@ func (s *Server) ListServices(instID flux.InstanceID, namespace string) (res []f
 	return services, nil
 }
 
-func (s *Server) ListImages(instID flux.InstanceID, spec flux.ServiceSpec) (res []flux.ImageStatus, err error) {
+func (s *Server) ListImages(instID flux.InstanceID, spec update.ServiceSpec) (res []flux.ImageStatus, err error) {
 	inst, err := s.instancer.Get(instID)
 	if err != nil {
 		return nil, errors.Wrapf(err, "getting instance "+string(instID))
@@ -93,7 +93,7 @@ func (s *Server) ListImages(instID flux.InstanceID, spec flux.ServiceSpec) (res 
 	return inst.Platform.ListImages(spec)
 }
 
-func (s *Server) UpdateImages(instID flux.InstanceID, spec flux.ReleaseSpec) (job.ID, error) {
+func (s *Server) UpdateImages(instID flux.InstanceID, spec update.ReleaseSpec) (job.ID, error) {
 	inst, err := s.instancer.Get(instID)
 	if err != nil {
 		return "", errors.Wrapf(err, "getting instance "+string(instID))
@@ -118,6 +118,15 @@ func (s *Server) SyncNotify(instID flux.InstanceID) (err error) {
 	return inst.Platform.SyncNotify()
 }
 
+func (s *Server) JobStatus(instID flux.InstanceID, jobID job.ID) (res job.Status, err error) {
+	inst, err := s.instancer.Get(instID)
+	if err != nil {
+		return job.Status{}, errors.Wrapf(err, "getting instance "+string(instID))
+	}
+
+	return inst.Platform.JobStatus(jobID)
+}
+
 func (s *Server) SyncStatus(instID flux.InstanceID, ref string) (res []string, err error) {
 	inst, err := s.instancer.Get(instID)
 	if err != nil {
@@ -136,14 +145,14 @@ func (s *Server) LogEvent(instID flux.InstanceID, event history.Event) error {
 	return helper.LogEvent(event)
 }
 
-func (s *Server) History(inst flux.InstanceID, spec flux.ServiceSpec, before time.Time, limit int64) (res []history.Entry, err error) {
+func (s *Server) History(inst flux.InstanceID, spec update.ServiceSpec, before time.Time, limit int64) (res []history.Entry, err error) {
 	helper, err := s.instancer.Get(inst)
 	if err != nil {
 		return nil, errors.Wrapf(err, "getting instance")
 	}
 
 	var events []history.Event
-	if spec == flux.ServiceSpecAll {
+	if spec == update.ServiceSpecAll {
 		events, err = helper.AllEvents(before, limit)
 		if err != nil {
 			return nil, errors.Wrap(err, "fetching all history events")

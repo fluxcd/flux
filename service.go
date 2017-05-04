@@ -10,16 +10,8 @@ import (
 	"github.com/pkg/errors"
 )
 
-const (
-	ServiceSpecAll       = ServiceSpec("<all>")
-	ServiceSpecAutomated = ServiceSpec("<automated>")
-	ImageSpecLatest      = ImageSpec("<all latest>")
-	ImageSpecNone        = ImageSpec("<no updates>")
-)
-
 var (
-	ErrInvalidServiceID   = errors.New("invalid service ID")
-	ErrInvalidReleaseKind = errors.New("invalid release kind")
+	ErrInvalidServiceID = errors.New("invalid service ID")
 )
 
 type Token string
@@ -151,61 +143,6 @@ func (ids ServiceIDs) Intersection(others ServiceIDSet) ServiceIDSet {
 	set := ServiceIDSet{}
 	set.Add(ids)
 	return set.Intersection(others)
-}
-
-type ServiceSpec string // ServiceID or "<all>"
-
-func ParseServiceSpec(s string) (ServiceSpec, error) {
-	switch s {
-	case string(ServiceSpecAll):
-		return ServiceSpecAll, nil
-	case string(ServiceSpecAutomated):
-		return ServiceSpecAutomated, nil
-	}
-	id, err := ParseServiceID(s)
-	if err != nil {
-		return "", errors.Wrap(err, "invalid service spec")
-	}
-	return ServiceSpec(id), nil
-}
-
-func (s ServiceSpec) AsID() (ServiceID, error) {
-	return ParseServiceID(string(s))
-}
-
-func (s ServiceSpec) String() string {
-	return string(s)
-}
-
-// ImageSpec is an ImageID, or "<all latest>" (update all containers
-// to the latest available), or "<no updates>" (do not update any
-// images)
-type ImageSpec string
-
-func ParseImageSpec(s string) (ImageSpec, error) {
-	if s == string(ImageSpecLatest) || s == string(ImageSpecNone) {
-		return ImageSpec(s), nil
-	}
-
-	parts := strings.Split(s, ":")
-	if len(parts) != 2 || parts[1] == "" {
-		return "", errors.Wrap(ErrInvalidImageID, "blank tag (if you want latest, explicitly state the tag :latest)")
-	}
-
-	id, err := ParseImageID(s)
-	return ImageSpec(id.String()), err
-}
-
-func (s ImageSpec) String() string {
-	return string(s)
-}
-
-func (s ImageSpec) AsID() (ImageID, error) {
-	return ParseImageID(s.String())
-}
-
-func ImageSpecFromID(id ImageID) ImageSpec {
-	return ImageSpec(id.String())
 }
 
 type ImageStatus struct {

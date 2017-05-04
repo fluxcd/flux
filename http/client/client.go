@@ -17,6 +17,7 @@ import (
 	transport "github.com/weaveworks/flux/http"
 	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/policy"
+	"github.com/weaveworks/flux/update"
 )
 
 type Client struct {
@@ -41,13 +42,13 @@ func (c *Client) ListServices(_ flux.InstanceID, namespace string) ([]flux.Servi
 	return res, err
 }
 
-func (c *Client) ListImages(_ flux.InstanceID, s flux.ServiceSpec) ([]flux.ImageStatus, error) {
+func (c *Client) ListImages(_ flux.InstanceID, s update.ServiceSpec) ([]flux.ImageStatus, error) {
 	var res []flux.ImageStatus
 	err := c.get(&res, "ListImages", "service", string(s))
 	return res, err
 }
 
-func (c *Client) UpdateImages(_ flux.InstanceID, s flux.ReleaseSpec) (job.ID, error) {
+func (c *Client) UpdateImages(_ flux.InstanceID, s update.ReleaseSpec) (job.ID, error) {
 	args := []string{
 		"image", string(s.ImageSpec),
 		"kind", string(s.Kind),
@@ -75,6 +76,12 @@ func (c *Client) SyncNotify(_ flux.InstanceID) error {
 	return nil
 }
 
+func (c *Client) JobStatus(_ flux.InstanceID, jobID job.ID) (job.Status, error) {
+	var res job.Status
+	err := c.get(&res, "JobStatus", "id", string(jobID))
+	return res, err
+}
+
 func (c *Client) SyncStatus(_ flux.InstanceID, ref string) ([]string, error) {
 	var res []string
 	err := c.get(&res, "SyncStatus", "ref", ref)
@@ -90,7 +97,7 @@ func (c *Client) LogEvent(_ flux.InstanceID, event history.Event) error {
 	return c.postWithBody("LogEvent", event)
 }
 
-func (c *Client) History(_ flux.InstanceID, s flux.ServiceSpec, before time.Time, limit int64) ([]history.Entry, error) {
+func (c *Client) History(_ flux.InstanceID, s update.ServiceSpec, before time.Time, limit int64) ([]history.Entry, error) {
 	params := []string{"service", string(s)}
 	if !before.IsZero() {
 		params = append(params, "before", before.Format(time.RFC3339Nano))

@@ -50,7 +50,7 @@ func (p *ErrorLoggingPlatform) ListServices(maybeNamespace string) (_ []flux.Ser
 	return p.Platform.ListServices(maybeNamespace)
 }
 
-func (p *ErrorLoggingPlatform) ListImages(spec flux.ServiceSpec) (_ []flux.ImageStatus, err error) {
+func (p *ErrorLoggingPlatform) ListImages(spec update.ServiceSpec) (_ []flux.ImageStatus, err error) {
 	defer func() {
 		if err != nil {
 			p.Logger.Log("method", "ListImages", "error", err)
@@ -66,6 +66,15 @@ func (p *ErrorLoggingPlatform) SyncNotify() (err error) {
 		}
 	}()
 	return p.Platform.SyncNotify()
+}
+
+func (p *ErrorLoggingPlatform) JobStatus(jobID job.ID) (_ job.Status, err error) {
+	defer func() {
+		if err != nil {
+			p.Logger.Log("method", "JobStatus", "error", err)
+		}
+	}()
+	return p.Platform.JobStatus(jobID)
 }
 
 func (p *ErrorLoggingPlatform) SyncStatus(rev string) (_ []string, err error) {

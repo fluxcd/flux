@@ -11,14 +11,23 @@ type Job struct {
 	Do func() error
 }
 
+type StatusString string
+
+const (
+	StatusQueued    StatusString = "queued"
+	StatusRunning   StatusString = "running"
+	StatusFailed    StatusString = "failed"
+	StatusSucceeded StatusString = "succeeded"
+)
+
 // Status holds the possible states of a job; either,
 //  1. queued or otherwise pending
 //  2. succeeded with a job-specific result
 //  3. failed, resulting in an error and possibly a job-specific result
 type Status struct {
-	Result  interface{}
-	Error   error
-	Pending string
+	Result       interface{}
+	Error        error
+	StatusString StatusString
 }
 
 // Queue is an unbounded queue of jobs; enqueuing a job will always

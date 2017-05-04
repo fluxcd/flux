@@ -72,7 +72,7 @@ func (i *instrumentedPlatform) ListServices(namespace string) (_ []flux.ServiceS
 	return i.p.ListServices(namespace)
 }
 
-func (i *instrumentedPlatform) ListImages(spec flux.ServiceSpec) (_ []flux.ImageStatus, err error) {
+func (i *instrumentedPlatform) ListImages(spec update.ServiceSpec) (_ []flux.ImageStatus, err error) {
 	defer func(begin time.Time) {
 		requestDuration.With(
 			fluxmetrics.LabelMethod, "ListImages",
@@ -100,6 +100,16 @@ func (i *instrumentedPlatform) SyncNotify() (err error) {
 		).Observe(time.Since(begin).Seconds())
 	}(time.Now())
 	return i.p.SyncNotify()
+}
+
+func (i *instrumentedPlatform) JobStatus(id job.ID) (_ job.Status, err error) {
+	defer func(begin time.Time) {
+		requestDuration.With(
+			fluxmetrics.LabelMethod, "JobStatus",
+			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
+		).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+	return i.p.JobStatus(id)
 }
 
 func (i *instrumentedPlatform) SyncStatus(cursor string) (_ []string, err error) {

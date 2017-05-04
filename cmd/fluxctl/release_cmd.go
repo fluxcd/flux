@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/update"
 )
 
 type serviceReleaseOutputOpts struct {
@@ -81,37 +82,37 @@ func (opts *serviceReleaseOpts) RunE(cmd *cobra.Command, args []string) error {
 		return newUsageError("please supply either --all, or at least one --service=<service>")
 	}
 
-	var services []flux.ServiceSpec
+	var services []update.ServiceSpec
 	if opts.allServices {
-		services = []flux.ServiceSpec{flux.ServiceSpecAll}
+		services = []update.ServiceSpec{update.ServiceSpecAll}
 	} else {
 		for _, service := range opts.services {
 			if _, err := flux.ParseServiceID(service); err != nil {
 				return err
 			}
-			services = append(services, flux.ServiceSpec(service))
+			services = append(services, update.ServiceSpec(service))
 		}
 	}
 
 	var (
-		image flux.ImageSpec
+		image update.ImageSpec
 		err   error
 	)
 	switch {
 	case opts.image != "":
-		image, err = flux.ParseImageSpec(opts.image)
+		image, err = update.ParseImageSpec(opts.image)
 		if err != nil {
 			return err
 		}
 	case opts.allImages:
-		image = flux.ImageSpecLatest
+		image = update.ImageSpecLatest
 	case opts.noUpdate:
-		image = flux.ImageSpecNone
+		image = update.ImageSpecNone
 	}
 
-	var kind flux.ReleaseKind = flux.ReleaseKindExecute
+	var kind update.ReleaseKind = update.ReleaseKindExecute
 	if opts.dryRun {
-		kind = flux.ReleaseKindPlan
+		kind = update.ReleaseKindPlan
 	}
 
 	var excludes []flux.ServiceID
@@ -129,12 +130,12 @@ func (opts *serviceReleaseOpts) RunE(cmd *cobra.Command, args []string) error {
 		fmt.Fprintf(os.Stderr, "Requesting release ...\n")
 	}
 
-	jobID, err := opts.API.UpdateImages(noInstanceID, flux.ReleaseSpec{
+	jobID, err := opts.API.UpdateImages(noInstanceID, update.ReleaseSpec{
 		ServiceSpecs: services,
 		ImageSpec:    image,
 		Kind:         kind,
 		Excludes:     excludes,
-		Cause: flux.ReleaseCause{
+		Cause: update.ReleaseCause{
 			User:    opts.user,
 			Message: opts.message,
 		},
@@ -143,12 +144,5 @@ func (opts *serviceReleaseOpts) RunE(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	fmt.Fprintln(cmd.OutOrStdout(), "Job ID:", jobID)
-	return nil
-	// // This is a bit funny, but works.
-	// return (&serviceSyncStatusOpts{
-	// 	serviceOpts: opts.serviceOpts,
-	// 	revID:       results.Revision,
-	// 	serviceReleaseOutputOpts: opts.serviceReleaseOutputOpts,
-	// }).RunE(cmd, nil)
+	return await(cmd.OutOrStdout(), opts.API, jobID, true)
 }

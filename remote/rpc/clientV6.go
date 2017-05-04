@@ -43,7 +43,7 @@ func (p *RPCClientV6) ListServices(namespace string) ([]flux.ServiceStatus, erro
 	return services, err
 }
 
-func (p *RPCClientV6) ListImages(spec flux.ServiceSpec) ([]flux.ImageStatus, error) {
+func (p *RPCClientV6) ListImages(spec update.ServiceSpec) ([]flux.ImageStatus, error) {
 	var images []flux.ImageStatus
 	err := p.client.Call("RPCServer.ListImages", spec, &images)
 	if _, ok := err.(rpc.ServerError); !ok && err != nil {
@@ -68,6 +68,15 @@ func (p *RPCClientV6) SyncNotify() error {
 		return remote.FatalError{err}
 	}
 	return err
+}
+
+func (p *RPCClientV6) JobStatus(jobID job.ID) (job.Status, error) {
+	var result job.Status
+	err := p.client.Call("RPCServer.JobStatus", jobID, &result)
+	if _, ok := err.(rpc.ServerError); !ok && err != nil {
+		return job.Status{}, remote.FatalError{err}
+	}
+	return result, err
 }
 
 func (p *RPCClientV6) SyncStatus(ref string) ([]string, error) {

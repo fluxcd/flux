@@ -37,7 +37,9 @@ func NewAPIRouter() *mux.Router {
 	r.NewRoute().Name("ListImages").Methods("GET").Path("/v3/images").Queries("service", "{service}")
 
 	r.NewRoute().Name("UpdateImages").Methods("POST").Path("/v6/update-images").Queries("service", "{service}", "image", "{image}", "kind", "{kind}")
+	r.NewRoute().Name("UpdatePolicies").Methods("PATCH").Path("/v4/policies")
 	r.NewRoute().Name("SyncNotify").Methods("POST").Path("/v6/sync")
+	r.NewRoute().Name("JobStatus").Methods("GET").Path("/v6/jobs").Queries("id", "{id}")
 	r.NewRoute().Name("SyncStatus").Methods("GET").Path("/v6/sync").Queries("ref", "{ref}")
 	r.NewRoute().Name("Export").Methods("HEAD", "GET").Path("/v5/export")
 
@@ -51,7 +53,6 @@ func NewServiceRouter() *mux.Router {
 	r.NewRoute().Name("Deautomate").Methods("POST").Path("/v3/deautomate").Queries("service", "{service}")
 	r.NewRoute().Name("Lock").Methods("POST").Path("/v3/lock").Queries("service", "{service}")
 	r.NewRoute().Name("Unlock").Methods("POST").Path("/v3/unlock").Queries("service", "{service}")
-	r.NewRoute().Name("UpdatePolicies").Methods("PATCH").Path("/v4/policies")
 	r.NewRoute().Name("History").Methods("GET").Path("/v3/history").Queries("service", "{service}")
 	r.NewRoute().Name("Status").Methods("GET").Path("/v3/status")
 	r.NewRoute().Name("GetConfig").Methods("GET").Path("/v4/config")

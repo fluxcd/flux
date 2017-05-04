@@ -1,4 +1,4 @@
-package release
+package update
 
 import (
 	"fmt"
@@ -8,13 +8,13 @@ import (
 	"github.com/weaveworks/flux"
 )
 
-func PrintResults(out io.Writer, results flux.ReleaseResult, verbose bool) {
+func PrintResults(out io.Writer, results Result, verbose bool) {
 	w := tabwriter.NewWriter(out, 0, 2, 2, ' ', 0)
 	fmt.Fprintln(w, "SERVICE \tSTATUS \tUPDATES")
 	for _, serviceID := range results.ServiceIDs() {
 		result := results[flux.ServiceID(serviceID)]
 		switch result.Status {
-		case flux.ReleaseStatusIgnored:
+		case ReleaseStatusIgnored:
 			if !verbose {
 				continue
 			}

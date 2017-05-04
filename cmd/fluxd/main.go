@@ -205,11 +205,12 @@ func main() {
 	}
 
 	daemon := &daemon.Daemon{
-		V:        version,
-		Cluster:  k8s,
-		Registry: reg,
-		Checkout: checkout,
-		Jobs:     jobs,
+		V:              version,
+		Cluster:        k8s,
+		Registry:       reg,
+		Checkout:       checkout,
+		Jobs:           jobs,
+		JobStatusCache: &job.StatusCache{Size: 100},
 	}
 
 	// Connect to fluxsvc if given an upstream address

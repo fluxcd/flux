@@ -8,18 +8,20 @@ import (
 	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/policy"
 	"github.com/weaveworks/flux/remote"
+	"github.com/weaveworks/flux/update"
 )
 
 // API for clients connecting to the service.
 type ClientService interface {
 	Status(inst flux.InstanceID) (flux.Status, error)
 	ListServices(inst flux.InstanceID, namespace string) ([]flux.ServiceStatus, error)
-	ListImages(flux.InstanceID, flux.ServiceSpec) ([]flux.ImageStatus, error)
-	UpdateImages(flux.InstanceID, flux.ReleaseSpec) (job.ID, error)
+	ListImages(flux.InstanceID, update.ServiceSpec) ([]flux.ImageStatus, error)
+	UpdateImages(flux.InstanceID, update.ReleaseSpec) (job.ID, error)
 	SyncNotify(flux.InstanceID) error
+	JobStatus(flux.InstanceID, job.ID) (job.Status, error)
 	SyncStatus(flux.InstanceID, string) ([]string, error)
 	UpdatePolicies(flux.InstanceID, policy.Updates) (job.ID, error)
-	History(flux.InstanceID, flux.ServiceSpec, time.Time, int64) ([]history.Entry, error)
+	History(flux.InstanceID, update.ServiceSpec, time.Time, int64) ([]history.Entry, error)
 	GetConfig(_ flux.InstanceID, fingerprint string) (flux.InstanceConfig, error)
 	SetConfig(flux.InstanceID, flux.UnsafeInstanceConfig) error
 	PatchConfig(flux.InstanceID, flux.ConfigPatch) error

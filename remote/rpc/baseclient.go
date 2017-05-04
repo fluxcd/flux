@@ -29,7 +29,7 @@ func (bc baseClient) ListServices(string) ([]flux.ServiceStatus, error) {
 	return nil, remote.UpgradeNeededError(errors.New("ListServices method not implemented"))
 }
 
-func (bc baseClient) ListImages(flux.ServiceSpec) ([]flux.ImageStatus, error) {
+func (bc baseClient) ListImages(update.ServiceSpec) ([]flux.ImageStatus, error) {
 	return nil, remote.UpgradeNeededError(errors.New("ListImages method not implemented"))
 }
 
@@ -40,6 +40,10 @@ func (bc baseClient) UpdateManifests(update.Spec) (job.ID, error) {
 
 func (bc baseClient) SyncNotify() error {
 	return remote.UpgradeNeededError(errors.New("SyncNotify method not implemented"))
+}
+
+func (bc baseClient) JobStatus(job.ID) (job.Status, error) {
+	return job.Status{}, remote.UpgradeNeededError(errors.New("JobStatus method not implemented"))
 }
 
 func (bc baseClient) SyncStatus(string) ([]string, error) {

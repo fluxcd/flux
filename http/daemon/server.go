@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"encoding/json"
 	"net/http"
 
 	"github.com/gorilla/mux"
@@ -11,7 +12,9 @@ import (
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/daemon"
 	transport "github.com/weaveworks/flux/http"
+	"github.com/weaveworks/flux/job"
 	fluxmetrics "github.com/weaveworks/flux/metrics"
+	"github.com/weaveworks/flux/policy"
 	"github.com/weaveworks/flux/update"
 )
 
@@ -39,8 +42,10 @@ func NewRouter() *mux.Router {
 func NewHandler(d *daemon.Daemon, r *mux.Router) http.Handler {
 	handle := HTTPServer{d}
 	r.Get("SyncNotify").HandlerFunc(handle.SyncNotify)
+	r.Get("JobStatus").HandlerFunc(handle.JobStatus)
 	r.Get("SyncStatus").HandlerFunc(handle.SyncStatus)
 	r.Get("UpdateImages").HandlerFunc(handle.UpdateImages)
+	r.Get("UpdatePolicies").HandlerFunc(handle.UpdatePolicies)
 	r.Get("ListServices").HandlerFunc(handle.ListServices)
 	r.Get("ListImages").HandlerFunc(handle.ListImages)
 
@@ -63,6 +68,16 @@ func (s HTTPServer) SyncNotify(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusAccepted)
 }
 
+func (s HTTPServer) JobStatus(w http.ResponseWriter, r *http.Request) {
+	id := job.ID(mux.Vars(r)["id"])
+	status, err := s.daemon.JobStatus(id)
+	if err != nil {
+		transport.ErrorResponse(w, r, err)
+		return
+	}
+	transport.JSONResponse(w, r, status)
+}
+
 func (s HTTPServer) SyncStatus(w http.ResponseWriter, r *http.Request) {
 	ref := mux.Vars(r)["ref"]
 	commits, err := s.daemon.SyncStatus(ref)
@@ -75,7 +90,7 @@ func (s HTTPServer) SyncStatus(w http.ResponseWriter, r *http.Request) {
 
 func (s HTTPServer) ListImages(w http.ResponseWriter, r *http.Request) {
 	service := mux.Vars(r)["service"]
-	spec, err := flux.ParseServiceSpec(service)
+	spec, err := update.ParseServiceSpec(service)
 	if err != nil {
 		transport.WriteError(w, r, http.StatusBadRequest, errors.Wrapf(err, "parsing service spec %q", service))
 		return
@@ -99,21 +114,21 @@ func (s HTTPServer) UpdateImages(w http.ResponseWriter, r *http.Request) {
 		transport.WriteError(w, r, http.StatusBadRequest, errors.Wrapf(err, "parsing form"))
 		return
 	}
-	var serviceSpecs []flux.ServiceSpec
+	var serviceSpecs []update.ServiceSpec
 	for _, service := range r.Form["service"] {
-		serviceSpec, err := flux.ParseServiceSpec(service)
+		serviceSpec, err := update.ParseServiceSpec(service)
 		if err != nil {
 			transport.WriteError(w, r, http.StatusBadRequest, errors.Wrapf(err, "parsing service spec %q", service))
 			return
 		}
 		serviceSpecs = append(serviceSpecs, serviceSpec)
 	}
-	imageSpec, err := flux.ParseImageSpec(image)
+	imageSpec, err := update.ParseImageSpec(image)
 	if err != nil {
 		transport.WriteError(w, r, http.StatusBadRequest, errors.Wrapf(err, "parsing image spec %q", image))
 		return
 	}
-	releaseKind, err := flux.ParseReleaseKind(kind)
+	releaseKind, err := update.ParseReleaseKind(kind)
 	if err != nil {
 		transport.WriteError(w, r, http.StatusBadRequest, errors.Wrapf(err, "parsing release kind %q", kind))
 		return
@@ -129,7 +144,7 @@ func (s HTTPServer) UpdateImages(w http.ResponseWriter, r *http.Request) {
 		excludes = append(excludes, s)
 	}
 
-	spec := flux.ReleaseSpec{
+	spec := update.ReleaseSpec{
 		ServiceSpecs: serviceSpecs,
 		ImageSpec:    imageSpec,
 		Kind:         releaseKind,
@@ -141,6 +156,22 @@ func (s HTTPServer) UpdateImages(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	transport.JSONResponse(w, r, result)
+}
+
+func (s HTTPServer) UpdatePolicies(w http.ResponseWriter, r *http.Request) {
+	var updates policy.Updates
+	if err := json.NewDecoder(r.Body).Decode(&updates); err != nil {
+		transport.WriteError(w, r, http.StatusBadRequest, err)
+		return
+	}
+
+	jobID, err := s.daemon.UpdateManifests(update.Spec{Type: update.Policy, Spec: updates})
+	if err != nil {
+		transport.ErrorResponse(w, r, err)
+		return
+	}
+
+	transport.JSONResponse(w, r, jobID)
 }
 
 func (s HTTPServer) ListServices(w http.ResponseWriter, r *http.Request) {

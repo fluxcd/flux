@@ -70,12 +70,12 @@ func (d *Daemon) PollImages() {
 
 func (d *Daemon) NewImage(imageID flux.ImageID) error {
 	// Try to update any automated services using this image
-	spec := flux.ReleaseSpec{
-		ServiceSpecs: []flux.ServiceSpec{flux.ServiceSpecAutomated},
-		ImageSpec:    flux.ImageSpecFromID(imageID),
-		Kind:         flux.ReleaseKindExecute,
-		Cause: flux.ReleaseCause{
-			User:    flux.UserAutomated,
+	spec := update.ReleaseSpec{
+		ServiceSpecs: []update.ServiceSpec{update.ServiceSpecAutomated},
+		ImageSpec:    update.ImageSpecFromID(imageID),
+		Kind:         update.ReleaseKindExecute,
+		Cause: update.ReleaseCause{
+			User:    update.UserAutomated,
 			Message: fmt.Sprintf("due to new image %s", imageID.String()),
 		},
 	}

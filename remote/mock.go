@@ -54,7 +54,7 @@ func (p *MockPlatform) ListServices(ns string) ([]flux.ServiceStatus, error) {
 	return p.ListServicesAnswer, p.ListServicesError
 }
 
-func (p *MockPlatform) ListImages(flux.ServiceSpec) ([]flux.ImageStatus, error) {
+func (p *MockPlatform) ListImages(update.ServiceSpec) ([]flux.ImageStatus, error) {
 	return p.ListImagesAnswer, p.ListImagesError
 }
 
