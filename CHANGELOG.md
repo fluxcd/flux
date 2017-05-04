@@ -1,6 +1,6 @@
 ## 0.3.0 (2017-05-03)
 
-Support for newer Kubernetes.
+Update to support newer Kubernetes (1.6.1).
 
 ### Potentially breaking changes
 
