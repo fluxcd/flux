@@ -5,6 +5,10 @@ import (
 	fluxmetrics "github.com/weaveworks/flux/metrics"
 )
 
+func init() {
+	stdprometheus.MustRegister(requestDuration)
+}
+
 var (
 	requestDuration = stdprometheus.NewHistogramVec(stdprometheus.HistogramOpts{
 		Namespace: "flux",
