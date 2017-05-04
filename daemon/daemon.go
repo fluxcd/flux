@@ -250,6 +250,9 @@ func (d *Daemon) logRelease(executeErr error, release flux.Release) error {
 }
 
 func (d *Daemon) LogEvent(ev history.Event) error {
+	if d.EventWriter == nil {
+		return nil
+	}
 	return d.EventWriter.LogEvent(ev)
 }
 
