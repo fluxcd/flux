@@ -47,29 +47,38 @@ func TestCheckout(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	check := func(c git.Checkout) {
+		contents, err := ioutil.ReadFile(filepath.Join(c.ManifestDir(), changedFile))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if string(contents) != "CHANGED" {
+			t.Error("contents in checkout are not what we committed")
+		}
+		rev, err := c.HeadRevision()
+		if err != nil {
+			t.Fatal(err)
+		}
+		note, err := c.GetNote(rev)
+		if err != nil {
+			t.Error(err)
+		}
+		if strings.TrimSpace(note) != "With note" {
+			t.Error("note is not what we supplied when committing: " + note)
+		}
+	}
+
+	// Do we see the changes if we pull into the original checkout?
+	if err := checkout.Pull(); err != nil {
+		t.Fatal(err)
+	}
+	check(checkout)
+
 	// Do we see the changes if we clone again?
 	anotherCheckout, err := repo.Clone(params)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer anotherCheckout.Clean()
-
-	contents, err := ioutil.ReadFile(filepath.Join(anotherCheckout.ManifestDir(), changedFile))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if string(contents) != "CHANGED" {
-		t.Error("contents in fresh checkout are not what we committed")
-	}
-	rev, err := anotherCheckout.HeadRevision()
-	if err != nil {
-		t.Fatal(err)
-	}
-	note, err := anotherCheckout.GetNote(rev)
-	if err != nil {
-		t.Error(err)
-	}
-	if strings.TrimSpace(note) != "With note" {
-		t.Error("note is not what we supplied when committing: " + note)
-	}
+	check(checkout)
 }
