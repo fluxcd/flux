@@ -191,7 +191,15 @@ func (d *Daemon) UpdateManifests(spec update.Spec) (job.ID, error) {
 					}
 					return newDef, nil
 				})
-				if err != nil {
+				switch err {
+				case cluster.ErrNoResourceFilesFoundForService, cluster.ErrMultipleResourceFilesFoundForService:
+					(*metadata.Result)[serviceID] = update.ServiceResult{
+						Status: update.ReleaseStatusFailed,
+						Error:  err.Error(),
+					}
+				case nil:
+					// continue
+				default:
 					return nil, err
 				}
 			}

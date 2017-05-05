@@ -1,12 +1,11 @@
 package kubernetes
 
 import (
-	"fmt"
 	"io/ioutil"
 	"os"
-	"strings"
 
 	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/cluster"
 )
 
 // UpdateManifest looks for the manifest for a given service, reads its
@@ -20,10 +19,10 @@ func (c *Cluster) UpdateManifest(root string, serviceID string, f func(manifest 
 	}
 	paths := services[flux.ServiceID(serviceID)]
 	if len(paths) == 0 {
-		return fmt.Errorf("no resource file found for service %s", serviceID)
+		return cluster.ErrNoResourceFilesFoundForService
 	}
 	if len(paths) > 1 {
-		return fmt.Errorf("multiple resource files found for service %s: %s", serviceID, strings.Join(paths, ", "))
+		return cluster.ErrMultipleResourceFilesFoundForService
 	}
 
 	def, err := ioutil.ReadFile(paths[0])
