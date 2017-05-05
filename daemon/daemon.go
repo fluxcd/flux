@@ -164,41 +164,49 @@ func (d *Daemon) UpdateManifests(spec update.Spec) (job.ID, error) {
 			started := time.Now().UTC()
 			// For each update
 			var serviceIDs []flux.ServiceID
-			result := update.Result{}
+			metadata := &history.CommitEventMetadata{
+				Spec:   &spec,
+				Result: &update.Result{},
+			}
 			for serviceID, u := range s {
-				serviceIDs = append(serviceIDs, serviceID)
 				// find the service manifest
 				err := d.Cluster.UpdateManifest(working.ManifestDir(), string(serviceID), func(def []byte) ([]byte, error) {
 					newDef, err := d.Cluster.UpdatePolicies(def, u)
-					if err == nil {
-						result[serviceID] = update.ServiceResult{
-							Status: update.ReleaseStatusSuccess,
-						}
-					} else {
-						result[serviceID] = update.ServiceResult{
+					if err != nil {
+						(*metadata.Result)[serviceID] = update.ServiceResult{
 							Status: update.ReleaseStatusFailed,
 							Error:  err.Error(),
 						}
+						return nil, err
 					}
-					return newDef, err
+					if string(newDef) == string(def) {
+						(*metadata.Result)[serviceID] = update.ServiceResult{
+							Status: update.ReleaseStatusSkipped,
+						}
+					} else {
+						serviceIDs = append(serviceIDs, serviceID)
+						(*metadata.Result)[serviceID] = update.ServiceResult{
+							Status: update.ReleaseStatusSuccess,
+						}
+					}
+					return newDef, nil
 				})
 				if err != nil {
 					return nil, err
 				}
+			}
+			if len(serviceIDs) == 0 {
+				return metadata, nil
 			}
 
 			if err := working.CommitAndPush(policyCommitMessage(s, started), &git.Note{JobID: jobID, Spec: spec}); err != nil {
 				return nil, err
 			}
 
-			revision, err := working.HeadRevision()
+			var err error
+			metadata.Revision, err = working.HeadRevision()
 			if err != nil {
 				return nil, err
-			}
-			metadata := &history.CommitEventMetadata{
-				Revision: revision,
-				Spec:     &spec,
-				Result:   &result,
 			}
 			return metadata, d.LogEvent(history.Event{
 				ServiceIDs: serviceIDs,
