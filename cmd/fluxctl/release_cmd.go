@@ -144,5 +144,5 @@ func (opts *serviceReleaseOpts) RunE(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	return await(cmd.OutOrStdout(), opts.API, jobID, true)
+	return await(cmd.OutOrStdout(), opts.API, jobID, !opts.dryRun, opts.verbose)
 }

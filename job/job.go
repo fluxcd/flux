@@ -2,6 +2,8 @@ package job
 
 import (
 	"sync"
+
+	"github.com/weaveworks/flux/history"
 )
 
 type ID string
@@ -25,9 +27,13 @@ const (
 //  2. succeeded with a job-specific result
 //  3. failed, resulting in an error and possibly a job-specific result
 type Status struct {
-	Result       interface{}
-	Error        error
+	Result       history.CommitEventMetadata
+	Err          string
 	StatusString StatusString
+}
+
+func (s Status) Error() string {
+	return s.Err
 }
 
 // Queue is an unbounded queue of jobs; enqueuing a job will always

@@ -128,9 +128,9 @@ func (e Event) String() string {
 
 // CommitEventMetadata is the metadata for when new git commits are created
 type CommitEventMetadata struct {
-	Revision string        `json:"revision,omitempty"`
-	Spec     update.Spec   `json:"spec"`
-	Result   update.Result `json:"result"`
+	Revision string         `json:"revision,omitempty"`
+	Spec     *update.Spec   `json:"spec"`
+	Result   *update.Result `json:"result"`
 }
 
 func (c CommitEventMetadata) ShortRevision() string {

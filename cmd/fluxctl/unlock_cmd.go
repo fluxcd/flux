@@ -10,6 +10,7 @@ import (
 type serviceUnlockOpts struct {
 	*serviceOpts
 	service string
+	verbose bool
 }
 
 func newServiceUnlock(parent *serviceOpts) *serviceUnlockOpts {
@@ -26,6 +27,7 @@ func (opts *serviceUnlockOpts) Command() *cobra.Command {
 		RunE: opts.RunE,
 	}
 	cmd.Flags().StringVarP(&opts.service, "service", "s", "", "Service to unlock")
+	cmd.Flags().BoolVarP(&opts.verbose, "verbose", "v", false, "include ignored services in output")
 	return cmd
 }
 
@@ -48,5 +50,5 @@ func (opts *serviceUnlockOpts) RunE(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	return await(cmd.OutOrStdout(), opts.API, jobID, false)
+	return await(cmd.OutOrStdout(), opts.API, jobID, false, opts.verbose)
 }

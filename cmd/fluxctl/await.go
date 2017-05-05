@@ -7,34 +7,39 @@ import (
 	"time"
 
 	"github.com/weaveworks/flux/api"
+	"github.com/weaveworks/flux/git"
 	"github.com/weaveworks/flux/history"
 	"github.com/weaveworks/flux/job"
+	"github.com/weaveworks/flux/update"
 )
 
 var ErrTimeout = errors.New("timeout")
 
 // await polls for a job to complete, then for it's commit to be applied
-func await(stdout io.Writer, client api.ClientService, jobID job.ID, apply bool) error {
-	fmt.Fprintf(stdout, "Job queued\n")
-	result, err := awaitJob(client, jobID)
-	if err != nil {
+func await(stdout io.Writer, client api.ClientService, jobID job.ID, apply, verbose bool) error {
+	metadata, err := awaitJob(client, jobID)
+	if err != nil && err.Error() != git.ErrNoChanges.Error() {
 		return err
 	}
-	if result.Revision == "" {
+	if metadata.Revision != "" {
+		fmt.Fprintf(stdout, "Commit pushed: %s\n", metadata.ShortRevision())
+	}
+	if metadata.Result == nil {
 		fmt.Fprintf(stdout, "Nothing to do\n")
 		return nil
 	}
-	fmt.Fprintf(stdout, "Commit pushed: %s\n", result.ShortRevision())
 
 	if apply {
-		if err := awaitSync(client, result.Revision); err != nil {
+		if err := awaitSync(client, metadata.Revision); err != nil {
 			return err
 		}
 
 		fmt.Fprintf(stdout, "Applied\n")
 	}
 
-	// FIXME Write out the result here
+	if metadata.Result != nil {
+		update.PrintResults(stdout, *metadata.Result, verbose)
+	}
 	return nil
 }
 
@@ -48,17 +53,13 @@ func awaitJob(client api.ClientService, jobID job.ID) (history.CommitEventMetada
 		}
 		switch j.StatusString {
 		case job.StatusFailed:
-			return false, j.Error
+			return false, j
 		case job.StatusSucceeded:
-			if j.Error != nil {
+			if j.Err != "" {
 				// How did we succeed but still get an error!?
-				return false, j.Error
+				return false, j
 			}
-			var ok bool
-			result, ok = j.Result.(history.CommitEventMetadata)
-			if !ok {
-				return false, fmt.Errorf("Unknown result type: %T", j.Result)
-			}
+			result = j.Result
 			return true, nil
 		}
 		return false, nil

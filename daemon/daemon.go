@@ -115,7 +115,7 @@ func (d *Daemon) ListImages(spec update.ServiceSpec) ([]flux.ImageStatus, error)
 	return res, nil
 }
 
-type JobFunc func(jobID job.ID, working git.Checkout) (interface{}, error)
+type JobFunc func(jobID job.ID, working git.Checkout) (*history.CommitEventMetadata, error)
 
 func (d *Daemon) queueJob(do JobFunc) job.ID {
 	// TODO record job as current upon Do'ing (or in the loop)
@@ -128,16 +128,16 @@ func (d *Daemon) queueJob(do JobFunc) job.ID {
 			d.JobStatusCache.SetStatus(id, job.Status{StatusString: job.StatusRunning})
 			working, err := d.Checkout.WorkingClone()
 			if err != nil {
-				d.JobStatusCache.SetStatus(id, job.Status{StatusString: job.StatusFailed, Error: err})
+				d.JobStatusCache.SetStatus(id, job.Status{StatusString: job.StatusFailed, Err: err.Error()})
 				return err
 			}
 			defer working.Clean()
 			result, err := do(id, working)
 			if err != nil {
-				d.JobStatusCache.SetStatus(id, job.Status{StatusString: job.StatusFailed, Error: err})
+				d.JobStatusCache.SetStatus(id, job.Status{StatusString: job.StatusFailed, Err: err.Error()})
 				return err
 			}
-			d.JobStatusCache.SetStatus(id, job.Status{StatusString: job.StatusSucceeded, Result: result})
+			d.JobStatusCache.SetStatus(id, job.Status{StatusString: job.StatusSucceeded, Result: *result})
 			return nil
 		},
 	})
@@ -150,25 +150,37 @@ func (d *Daemon) queueJob(do JobFunc) job.ID {
 func (d *Daemon) UpdateManifests(spec update.Spec) (job.ID, error) {
 	switch s := spec.Spec.(type) {
 	case update.ReleaseSpec:
-		return d.queueJob(func(jobID job.ID, working git.Checkout) (interface{}, error) {
+		return d.queueJob(func(jobID job.ID, working git.Checkout) (*history.CommitEventMetadata, error) {
 			rc := release.NewReleaseContext(d.Cluster, d.Registry, working)
 			revision, result, err := release.Release(rc, s)
-			return history.CommitEventMetadata{
+			return &history.CommitEventMetadata{
 				Revision: revision,
-				Spec:     spec,
-				Result:   result,
+				Spec:     &spec,
+				Result:   &result,
 			}, err
 		}), nil
 	case policy.Updates:
-		return d.queueJob(func(jobID job.ID, working git.Checkout) (interface{}, error) {
+		return d.queueJob(func(jobID job.ID, working git.Checkout) (*history.CommitEventMetadata, error) {
 			started := time.Now().UTC()
 			// For each update
 			var serviceIDs []flux.ServiceID
-			for serviceID, update := range s {
+			result := update.Result{}
+			for serviceID, u := range s {
 				serviceIDs = append(serviceIDs, serviceID)
 				// find the service manifest
 				err := d.Cluster.UpdateManifest(working.ManifestDir(), string(serviceID), func(def []byte) ([]byte, error) {
-					return d.Cluster.UpdatePolicies(def, update)
+					newDef, err := d.Cluster.UpdatePolicies(def, u)
+					if err == nil {
+						result[serviceID] = update.ServiceResult{
+							Status: update.ReleaseStatusSuccess,
+						}
+					} else {
+						result[serviceID] = update.ServiceResult{
+							Status: update.ReleaseStatusFailed,
+							Error:  err.Error(),
+						}
+					}
+					return newDef, err
 				})
 				if err != nil {
 					return nil, err
@@ -183,10 +195,10 @@ func (d *Daemon) UpdateManifests(spec update.Spec) (job.ID, error) {
 			if err != nil {
 				return nil, err
 			}
-			metadata := history.CommitEventMetadata{
+			metadata := &history.CommitEventMetadata{
 				Revision: revision,
-				Spec:     spec,
-				// FIXME: include the service results here, so they get printed.
+				Spec:     &spec,
+				Result:   &result,
 			}
 			return metadata, d.LogEvent(history.Event{
 				ServiceIDs: serviceIDs,
@@ -235,7 +247,14 @@ func (d *Daemon) JobStatus(jobID job.ID) (job.Status, error) {
 	for _, ref := range refs {
 		note, _ := d.Checkout.GetNote(ref)
 		if note != nil && note.JobID == jobID {
-			return job.Status{StatusString: job.StatusSucceeded, Result: ref}, nil
+			return job.Status{
+				StatusString: job.StatusSucceeded,
+				Result: history.CommitEventMetadata{
+					Revision: ref,
+					Spec:     &note.Spec,
+					Result:   &note.Result,
+				},
+			}, nil
 		}
 	}
 

@@ -149,9 +149,7 @@ type SyncNotifyResponse struct {
 // JobStatusResponse has status decomposed into it, so that we can transfer the
 // error as an ErrorResponse to avoid marshalling issues.
 type JobStatusResponse struct {
-	StatusResult interface{}
-	StatusError  ErrorResponse
-	StatusString job.StatusString
+	Result job.Status
 	ErrorResponse
 }
 
@@ -273,11 +271,7 @@ func (r *natsPlatform) JobStatus(jobID job.ID) (job.Status, error) {
 		}
 		return job.Status{}, err
 	}
-	return job.Status{
-		Result:       response.StatusResult,
-		Error:        extractError(response.StatusError),
-		StatusString: response.StatusString,
-	}, extractError(response.ErrorResponse)
+	return response.Result, extractError(response.ErrorResponse)
 }
 
 func (r *natsPlatform) SyncStatus(ref string) ([]string, error) {
@@ -409,9 +403,7 @@ func (n *NATS) Subscribe(instID flux.InstanceID, platform remote.Platform, done 
 				res, err = platform.JobStatus(req)
 			}
 			n.enc.Publish(request.Reply, JobStatusResponse{
-				StatusResult:  res.Result,
-				StatusError:   makeErrorResponse(res.Error),
-				StatusString:  res.StatusString,
+				Result:        res,
 				ErrorResponse: makeErrorResponse(err),
 			})
 
