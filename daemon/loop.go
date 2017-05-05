@@ -77,4 +77,8 @@ func (d *Daemon) pullAndSync(logger log.Logger) {
 	if err := sync.Sync(d.Checkout.ManifestDir(), d.Cluster, false); err != nil {
 		logger.Log("err", err)
 	}
+
+	if err := d.Checkout.MoveTagAndPush("HEAD", "Sync pointer"); err != nil {
+		logger.Log("err", err)
+	}
 }
