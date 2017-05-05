@@ -166,7 +166,15 @@ func (c Checkout) CommitAndPush(commitMessage, note string) error {
 		}
 	}
 
-	if err := push(c.repo.Key, c.Dir, c.repo.URL, c.repo.Branch, c.realNotesRef); err != nil {
+	refs := []string{c.repo.Branch}
+	ok, err := refExists(c.Dir, c.realNotesRef)
+	if ok {
+		refs = append(refs, c.realNotesRef)
+	} else if err != nil {
+		return err
+	}
+
+	if err := push(c.repo.Key, c.Dir, c.repo.URL, refs); err != nil {
 		return PushError(c.repo.URL, err)
 	}
 	return nil

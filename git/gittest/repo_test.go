@@ -37,13 +37,21 @@ func TestCheckout(t *testing.T) {
 	changedFile := ""
 	for file, _ := range testfiles.Files {
 		path := filepath.Join(working.ManifestDir(), file)
-		if err := ioutil.WriteFile(path, []byte("CHANGED"), 0666); err != nil {
+		if err := ioutil.WriteFile(path, []byte("FIRST CHANGE"), 0666); err != nil {
 			t.Fatal(err)
 		}
 		changedFile = file
 		break
 	}
-	if err := working.CommitAndPush("Changed file", "With note"); err != nil {
+	if err := working.CommitAndPush("Changed file", ""); err != nil {
+		t.Fatal(err)
+	}
+
+	path := filepath.Join(working.ManifestDir(), changedFile)
+	if err := ioutil.WriteFile(path, []byte("SECOND CHANGE"), 0666); err != nil {
+		t.Fatal(err)
+	}
+	if err := working.CommitAndPush("Changed file again", "With a note this time"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -52,7 +60,7 @@ func TestCheckout(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if string(contents) != "CHANGED" {
+		if string(contents) != "SECOND CHANGE" {
 			t.Error("contents in checkout are not what we committed")
 		}
 		rev, err := c.HeadRevision()
@@ -63,7 +71,7 @@ func TestCheckout(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		if strings.TrimSpace(note) != "With note" {
+		if strings.TrimSpace(note) != "With a note this time" {
 			t.Error("note is not what we supplied when committing: " + note)
 		}
 	}

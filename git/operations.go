@@ -51,7 +51,7 @@ func commit(workingDir, commitMessage string) error {
 }
 
 // push the refs given to the upstream repo
-func push(keyPath, workingDir, upstream string, refs ...string) error {
+func push(keyPath, workingDir, upstream string, refs []string) error {
 	args := append([]string{"push", upstream}, refs...)
 	if err := execGitCmd(workingDir, keyPath, nil, args...); err != nil {
 		return errors.Wrap(err, fmt.Sprintf("git push %s %s", upstream, refs))
@@ -72,6 +72,16 @@ func fetch(keyPath, workingDir, upstream, refspec string) error {
 		return errors.Wrap(err, fmt.Sprintf("git fetch %s %s", upstream, refspec))
 	}
 	return nil
+}
+
+func refExists(workingDir, ref string) (bool, error) {
+	if err := execGitCmd(workingDir, "", nil, "rev-list", ref); err != nil {
+		if strings.Contains(err.Error(), "unknown revision") {
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
 }
 
 // Get the full ref for a shorthand notes ref
