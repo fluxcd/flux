@@ -185,6 +185,10 @@ func PlatformTestBattery(t *testing.T, wrap func(mock Platform) Platform) {
 	if jobid != mock.UpdateManifestsAnswer {
 		t.Error(fmt.Errorf("expected %q, got %q", mock.UpdateManifestsAnswer, jobid))
 	}
+	mock.UpdateManifestsError = fmt.Errorf("update manifests error")
+	if _, err = client.UpdateManifests(updateSpec); err == nil {
+		t.Error("expected error from UpdateManifests, got nil")
+	}
 
 	if err := client.SyncNotify(); err != nil {
 		t.Error(err)

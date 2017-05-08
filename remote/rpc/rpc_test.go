@@ -30,7 +30,7 @@ func TestRPC(t *testing.T) {
 			t.Fatal(err)
 		}
 		go server.ServeConn(serverConn)
-		return NewClientV5(clientConn)
+		return NewClientV6(clientConn)
 	}
 	remote.PlatformTestBattery(t, wrap)
 }
@@ -65,7 +65,7 @@ func TestBadRPC(t *testing.T) {
 	}
 	go server.ServeConn(serverConn)
 
-	client := NewClientV5(clientConn)
+	client := NewClientV6(clientConn)
 	if err = client.Ping(); err == nil {
 		t.Error("expected error from RPC system, got nil")
 	}

@@ -18,7 +18,6 @@ var testNATS = flag.String("nats-url", "", "NATS connection URL; use NATS' defau
 var metrics = remote.BusMetricsImpl
 
 func setup(t *testing.T) *NATS {
-	applyTimeout = timeout // so we don't wait 20 minutes to fail
 	flag.Parse()
 	if *testNATS == "" {
 		*testNATS = nats.DefaultURL
@@ -31,7 +30,7 @@ func setup(t *testing.T) *NATS {
 	return bus
 }
 
-func subscribe(t *testing.T, bus *NATS, errc chan error, inst flux.InstanceID, plat platform.Platform) {
+func subscribe(t *testing.T, bus *NATS, errc chan error, inst flux.InstanceID, plat remote.Platform) {
 	bus.Subscribe(inst, plat, errc)
 	if err := bus.AwaitPresence(inst, 5*time.Second); err != nil {
 		t.Fatal("Timed out waiting for instance to subscribe")
@@ -42,12 +41,12 @@ func TestPing(t *testing.T) {
 	bus := setup(t)
 	errc := make(chan error)
 	instID := flux.InstanceID("wirey-bird-68")
-	platA := &platform.MockPlatform{}
+	platA := &remote.MockPlatform{}
 	subscribe(t, bus, errc, instID, platA)
 
 	// AwaitPresence uses Ping, so we have to install our error after
 	// subscribe succeeds.
-	platA.PingError = platform.FatalError{errors.New("ping problem")}
+	platA.PingError = remote.FatalError{errors.New("ping problem")}
 	if err := platA.Ping(); err == nil {
 		t.Fatalf("expected error from directly calling ping, got nil")
 	}
@@ -74,7 +73,7 @@ func TestMethods(t *testing.T) {
 	errc := make(chan error, 1)
 	instA := flux.InstanceID("steamy-windows-89")
 
-	wrap := func(mock platform.Platform) platform.Platform {
+	wrap := func(mock remote.Platform) remote.Platform {
 		subscribe(t, bus, errc, instA, mock)
 		plat, err := bus.Connect(instA)
 		if err != nil {
@@ -82,7 +81,7 @@ func TestMethods(t *testing.T) {
 		}
 		return plat
 	}
-	platform.PlatformTestBattery(t, wrap)
+	remote.PlatformTestBattery(t, wrap)
 
 	close(errc)
 	err := <-errc
@@ -97,8 +96,8 @@ func TestFatalErrorDisconnects(t *testing.T) {
 	errc := make(chan error)
 
 	instA := flux.InstanceID("golden-years-75")
-	mockA := &platform.MockPlatform{
-		SomeServicesError: platform.FatalError{errors.New("Disaster.")},
+	mockA := &remote.MockPlatform{
+		ListServicesError: remote.FatalError{errors.New("Disaster.")},
 	}
 	subscribe(t, bus, errc, instA, mockA)
 
@@ -107,11 +106,11 @@ func TestFatalErrorDisconnects(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = plat.SomeServices([]flux.ServiceID{})
+	_, err = plat.ListServices("")
 	if err == nil {
 		t.Error("expected error, got nil")
-	} else if _, ok := err.(platform.FatalError); !ok {
-		t.Errorf("expected platform.FatalError, got %v", err)
+	} else if _, ok := err.(remote.FatalError); !ok {
+		t.Errorf("expected remote.FatalError, got %v", err)
 	}
 
 	select {
@@ -127,13 +126,13 @@ func TestFatalErrorDisconnects(t *testing.T) {
 func TestNewConnectionKicks(t *testing.T) {
 	bus := setup(t)
 
-	instA := flux.InstanceID("foo")
+	instA := flux.InstanceID("breaky-chain-77")
 
-	mockA := &platform.MockPlatform{}
+	mockA := &remote.MockPlatform{}
 	errA := make(chan error)
 	subscribe(t, bus, errA, instA, mockA)
 
-	mockB := &platform.MockPlatform{}
+	mockB := &remote.MockPlatform{}
 	errB := make(chan error)
 	subscribe(t, bus, errB, instA, mockB)
 
