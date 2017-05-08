@@ -155,6 +155,9 @@ func (d *Daemon) UpdateManifests(spec update.Spec) (job.ID, error) {
 		return d.queueJob(func(jobID job.ID, working *git.Checkout) (*history.CommitEventMetadata, error) {
 			rc := release.NewReleaseContext(d.Cluster, d.Registry, working)
 			revision, result, err := release.Release(rc, s)
+			if err == nil {
+				d.askForSync()
+			}
 			return &history.CommitEventMetadata{
 				Revision: revision,
 				Spec:     &spec,
