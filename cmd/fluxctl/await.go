@@ -29,7 +29,7 @@ func await(stdout io.Writer, client api.ClientService, jobID job.ID, apply, verb
 		return nil
 	}
 
-	if apply {
+	if apply && metadata.Revision != "" {
 		if err := awaitSync(client, metadata.Revision); err != nil {
 			return err
 		}
