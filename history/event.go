@@ -120,13 +120,13 @@ func (e Event) String() string {
 	case EventSync:
 		metadata := e.Metadata.(SyncEventMetadata)
 		revStr := "<no revision>"
-		if len(metadata.Revisions) == 1 {
+		if 0 < len(metadata.Revisions) && len(metadata.Revisions) <= 2 {
 			revStr = shortRevision(metadata.Revisions[0])
-		} else if len(metadata.Revisions) > 1 {
+		} else if len(metadata.Revisions) > 2 {
 			revStr = fmt.Sprintf(
 				"%s..%s",
-				shortRevision(metadata.Revisions[0]),
 				shortRevision(metadata.Revisions[len(metadata.Revisions)-1]),
+				shortRevision(metadata.Revisions[0]),
 			)
 		}
 		svcStr := "<no changes>"
