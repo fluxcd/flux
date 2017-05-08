@@ -124,7 +124,11 @@ func revlist(path, ref string) ([]string, error) {
 	if err := execGitCmd(path, "", out, "rev-list", ref); err != nil {
 		return nil, err
 	}
-	return strings.Split(out.String(), "\n"), nil
+	outStr := strings.TrimSpace(out.String())
+	if outStr == "" {
+		return []string{}, nil
+	}
+	return strings.Split(outStr, "\n"), nil
 }
 
 // Move the tag to the ref given and push that tag upstream
