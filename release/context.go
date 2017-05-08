@@ -26,11 +26,11 @@ const (
 
 type ReleaseContext struct {
 	Cluster  cluster.Cluster
-	Repo     git.Checkout
+	Repo     *git.Checkout
 	Registry registry.Registry
 }
 
-func NewReleaseContext(c cluster.Cluster, reg registry.Registry, repo git.Checkout) *ReleaseContext {
+func NewReleaseContext(c cluster.Cluster, reg registry.Registry, repo *git.Checkout) *ReleaseContext {
 	return &ReleaseContext{
 		Cluster:  c,
 		Repo:     repo,
@@ -50,10 +50,13 @@ func (rc *ReleaseContext) CommitAndPush(msg string, spec *update.ReleaseSpec, re
 }
 
 func (rc *ReleaseContext) PushChanges(updates []*ServiceUpdate, spec *update.ReleaseSpec, results update.Result) error {
+	rc.Repo.Lock()
 	err := writeUpdates(updates)
 	if err != nil {
+		rc.Repo.Unlock()
 		return err
 	}
+	rc.Repo.Unlock()
 
 	commitMsg := commitMessageFromReleaseSpec(spec)
 	return rc.CommitAndPush(commitMsg, spec, results)
@@ -166,6 +169,8 @@ func (s *ServiceUpdate) filter(filters ...ServiceFilter) update.ServiceResult {
 }
 
 func (rc *ReleaseContext) FindDefinedServices() ([]*ServiceUpdate, error) {
+	rc.Repo.RLock()
+	defer rc.Repo.RUnlock()
 	services, err := rc.Cluster.FindDefinedServices(rc.Repo.ManifestDir())
 	if err != nil {
 		return nil, err
@@ -193,6 +198,8 @@ func (rc *ReleaseContext) FindDefinedServices() ([]*ServiceUpdate, error) {
 
 // Shortcut for this
 func (rc *ReleaseContext) ServicesWithPolicy(p policy.Policy) (flux.ServiceIDSet, error) {
+	rc.Repo.RLock()
+	defer rc.Repo.RUnlock()
 	return rc.Cluster.ServicesWithPolicy(rc.Repo.ManifestDir(), p)
 }
 

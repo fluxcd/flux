@@ -155,7 +155,7 @@ func main() {
 		reg = registry.NewInstrumentedRegistry(reg)
 	}
 
-	var checkout git.Checkout
+	var checkout *git.Checkout
 	{
 		repo := git.Repo{
 			URL:    *gitURL,

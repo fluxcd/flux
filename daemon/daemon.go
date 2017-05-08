@@ -31,7 +31,7 @@ type Daemon struct {
 	Cluster        cluster.Cluster
 	Registry       registry.Registry
 	Repo           git.Repo
-	Checkout       git.Checkout
+	Checkout       *git.Checkout
 	Jobs           *job.Queue
 	JobStatusCache *job.StatusCache
 	EventWriter    history.EventWriter
@@ -62,6 +62,8 @@ func (d *Daemon) ListServices(namespace string) ([]flux.ServiceStatus, error) {
 		return nil, errors.Wrap(err, "getting services from cluster")
 	}
 
+	d.Checkout.RLock()
+	defer d.Checkout.RUnlock()
 	automatedServices, err := d.Cluster.ServicesWithPolicy(d.Checkout.ManifestDir(), policy.Automated)
 	if err != nil {
 		return nil, errors.Wrap(err, "checking service policies")
@@ -115,7 +117,7 @@ func (d *Daemon) ListImages(spec update.ServiceSpec) ([]flux.ImageStatus, error)
 	return res, nil
 }
 
-type JobFunc func(jobID job.ID, working git.Checkout) (*history.CommitEventMetadata, error)
+type JobFunc func(jobID job.ID, working *git.Checkout) (*history.CommitEventMetadata, error)
 
 func (d *Daemon) queueJob(do JobFunc) job.ID {
 	// TODO record job as current upon Do'ing (or in the loop)
@@ -150,7 +152,7 @@ func (d *Daemon) queueJob(do JobFunc) job.ID {
 func (d *Daemon) UpdateManifests(spec update.Spec) (job.ID, error) {
 	switch s := spec.Spec.(type) {
 	case update.ReleaseSpec:
-		return d.queueJob(func(jobID job.ID, working git.Checkout) (*history.CommitEventMetadata, error) {
+		return d.queueJob(func(jobID job.ID, working *git.Checkout) (*history.CommitEventMetadata, error) {
 			rc := release.NewReleaseContext(d.Cluster, d.Registry, working)
 			revision, result, err := release.Release(rc, s)
 			return &history.CommitEventMetadata{
@@ -160,7 +162,7 @@ func (d *Daemon) UpdateManifests(spec update.Spec) (job.ID, error) {
 			}, err
 		}), nil
 	case policy.Updates:
-		return d.queueJob(func(jobID job.ID, working git.Checkout) (*history.CommitEventMetadata, error) {
+		return d.queueJob(func(jobID job.ID, working *git.Checkout) (*history.CommitEventMetadata, error) {
 			started := time.Now().UTC()
 			// For each update
 			var serviceIDs []flux.ServiceID

@@ -73,10 +73,12 @@ func (d *Daemon) pullAndSync(logger log.Logger) {
 	if err := d.Checkout.Pull(); err != nil {
 		logger.Log("err", err)
 	}
+	d.Checkout.RLock()
 	// TODO supply deletes argument from somewhere (command-line?)
 	if err := sync.Sync(d.Checkout.ManifestDir(), d.Cluster, false); err != nil {
 		logger.Log("err", err)
 	}
+	d.Checkout.RUnlock()
 
 	if err := d.Checkout.MoveTagAndPush("HEAD", "Sync pointer"); err != nil {
 		logger.Log("err", err)
