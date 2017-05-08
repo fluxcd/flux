@@ -3,6 +3,8 @@ package registry
 import (
 	"encoding/base64"
 	"fmt"
+	"io/ioutil"
+	"os"
 	"testing"
 	"time"
 
@@ -52,20 +54,36 @@ func TestRemoteFactory_InvalidHost(t *testing.T) {
 	}
 }
 
-func TestRemoteFactory_CredentialsFromConfig(t *testing.T) {
-	user := "user"
-	pass := "pass"
-	host := "host"
-	conf := flux.UnsafeInstanceConfig{
-		Registry: flux.RegistryConfig{
-			Auths: map[string]flux.Auth{
-				host: {
-					Auth: base64.StdEncoding.EncodeToString([]byte(user + ":" + pass)),
-				},
-			},
-		},
+var (
+	user string = "user"
+	pass string = "pass"
+	host string = "host"
+	tmpl string = `
+    {
+        "auths": {
+            %q: {"auth": %q}
+        }
+    }`
+	okCreds string = base64.StdEncoding.EncodeToString([]byte(user + ":" + pass))
+)
+
+func writeCreds(t *testing.T, creds string) (string, func()) {
+	file, err := ioutil.TempFile("", "testcreds")
+	file.Write([]byte(creds))
+	file.Close()
+	if err != nil {
+		t.Fatal(err)
 	}
-	creds, err := CredentialsFromConfig(conf)
+	return file.Name(), func() {
+		os.Remove(file.Name())
+	}
+}
+
+func TestRemoteFactory_CredentialsFromFile(t *testing.T) {
+	file, cleanup := writeCreds(t, fmt.Sprintf(tmpl, host, okCreds))
+	defer cleanup()
+
+	creds, err := CredentialsFromFile(file)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -82,37 +100,24 @@ func TestRemoteFactory_CredentialsFromConfig(t *testing.T) {
 }
 
 func TestRemoteFactory_CredentialsFromConfigDecodeError(t *testing.T) {
-	host := "host"
-	conf := flux.UnsafeInstanceConfig{
-		Registry: flux.RegistryConfig{
-			Auths: map[string]flux.Auth{
-				host: {
-					Auth: "shouldnotbe:plaintext",
-				},
-			},
-		},
-	}
-	_, err := CredentialsFromConfig(conf)
+	file, cleanup := writeCreds(t, `{
+    "auths": {
+        "host": {"auth": "credentials:notencoded"}
+    }
+}`)
+	defer cleanup()
+	_, err := CredentialsFromFile(file)
 	if err == nil {
 		t.Fatal("Expected error")
 	}
 }
 
 func TestRemoteFactory_CredentialsFromConfigHTTPSHosts(t *testing.T) {
-	user := "user"
-	pass := "pass"
-	host := "host"
 	httpsHost := fmt.Sprintf("https://%s/v1/", host)
-	conf := flux.UnsafeInstanceConfig{
-		Registry: flux.RegistryConfig{
-			Auths: map[string]flux.Auth{
-				httpsHost: {
-					Auth: base64.StdEncoding.EncodeToString([]byte(user + ":" + pass)),
-				},
-			},
-		},
-	}
-	creds, err := CredentialsFromConfig(conf)
+	file, cleanup := writeCreds(t, fmt.Sprintf(tmpl, httpsHost, okCreds))
+	defer cleanup()
+
+	creds, err := CredentialsFromFile(file)
 	if err != nil {
 		t.Fatal(err)
 	}

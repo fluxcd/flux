@@ -22,10 +22,8 @@ func CredentialsFromFile(path string) (Credentials, error) {
 	}
 
 	var config struct {
-		Registry struct {
-			Auths map[string]struct {
-				Auth string
-			}
+		Auths map[string]struct {
+			Auth string
 		}
 	}
 	if err = json.Unmarshal(configBytes, &config); err != nil {
@@ -34,7 +32,7 @@ func CredentialsFromFile(path string) (Credentials, error) {
 
 	m := map[string]creds{}
 
-	for host, entry := range config.Registry.Auths {
+	for host, entry := range config.Auths {
 		decodedAuth, err := base64.StdEncoding.DecodeString(entry.Auth)
 		if err != nil {
 			return Credentials{}, err

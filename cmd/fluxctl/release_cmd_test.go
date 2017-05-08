@@ -3,7 +3,6 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/weaveworks/flux"
 	transport "github.com/weaveworks/flux/http"
-	"github.com/weaveworks/flux/jobs"
 	"testing"
 )
 
