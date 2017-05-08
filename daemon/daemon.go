@@ -127,6 +127,7 @@ func (d *Daemon) queueJob(do JobFunc) job.ID {
 		// make a working clone so we don't mess with files we will be
 		// reading from elsewhere
 		Do: func() error {
+			started := time.Now().UTC()
 			d.JobStatusCache.SetStatus(id, job.Status{StatusString: job.StatusRunning})
 			working, err := d.Checkout.WorkingClone()
 			if err != nil {
@@ -134,13 +135,27 @@ func (d *Daemon) queueJob(do JobFunc) job.ID {
 				return err
 			}
 			defer working.Clean()
-			result, err := do(id, working)
+			metadata, err := do(id, working)
 			if err != nil {
 				d.JobStatusCache.SetStatus(id, job.Status{StatusString: job.StatusFailed, Err: err.Error()})
 				return err
 			}
-			d.JobStatusCache.SetStatus(id, job.Status{StatusString: job.StatusSucceeded, Result: *result})
-			return nil
+			d.JobStatusCache.SetStatus(id, job.Status{StatusString: job.StatusSucceeded, Result: *metadata})
+			var serviceIDs []flux.ServiceID
+			for id, result := range *metadata.Result {
+				switch result.Status {
+				case update.ReleaseStatusPending, update.ReleaseStatusSuccess:
+					serviceIDs = append(serviceIDs, id)
+				}
+			}
+			return d.LogEvent(history.Event{
+				ServiceIDs: serviceIDs,
+				Type:       history.EventCommit,
+				StartedAt:  started,
+				EndedAt:    started,
+				LogLevel:   history.LogLevelInfo,
+				Metadata:   metadata,
+			})
 		},
 	})
 	d.JobStatusCache.SetStatus(id, job.Status{StatusString: job.StatusQueued})
@@ -162,11 +177,10 @@ func (d *Daemon) UpdateManifests(spec update.Spec) (job.ID, error) {
 				Revision: revision,
 				Spec:     &spec,
 				Result:   &result,
-			}, err
+			}, nil
 		}), nil
 	case policy.Updates:
 		return d.queueJob(func(jobID job.ID, working *git.Checkout) (*history.CommitEventMetadata, error) {
-			started := time.Now().UTC()
 			// For each update
 			var serviceIDs []flux.ServiceID
 			metadata := &history.CommitEventMetadata{
@@ -212,7 +226,7 @@ func (d *Daemon) UpdateManifests(spec update.Spec) (job.ID, error) {
 				return metadata, nil
 			}
 
-			if err := working.CommitAndPush(policyCommitMessage(s, started), &git.Note{JobID: jobID, Spec: spec}); err != nil {
+			if err := working.CommitAndPush(policyCommitMessage(s, time.Now().UTC()), &git.Note{JobID: jobID, Spec: spec}); err != nil {
 				return nil, err
 			}
 
@@ -221,14 +235,7 @@ func (d *Daemon) UpdateManifests(spec update.Spec) (job.ID, error) {
 			if err != nil {
 				return nil, err
 			}
-			return metadata, d.LogEvent(history.Event{
-				ServiceIDs: serviceIDs,
-				Type:       history.EventCommit,
-				StartedAt:  started,
-				EndedAt:    started,
-				LogLevel:   history.LogLevelInfo,
-				Metadata:   metadata,
-			})
+			return metadata, nil
 		}), nil
 	default:
 		var id job.ID
@@ -296,41 +303,6 @@ func (d *Daemon) SyncStatus(commitRef string) ([]string, error) {
 }
 
 // Non-remote.Platform methods
-
-// `logEvent` expects the result of applying updates, and records an event in
-// the history about the release taking place. It returns the origin error if
-// that was non-nil, otherwise the result of the attempted logging.
-func (d *Daemon) logRelease(executeErr error, release update.Release) error {
-	errorMessage := ""
-	logLevel := history.LogLevelInfo
-	if executeErr != nil {
-		errorMessage = executeErr.Error()
-		logLevel = history.LogLevelError
-	}
-
-	var serviceIDs []flux.ServiceID
-	for _, id := range release.Result.ServiceIDs() {
-		serviceIDs = append(serviceIDs, flux.ServiceID(id))
-	}
-
-	err := d.LogEvent(history.Event{
-		ServiceIDs: serviceIDs,
-		Type:       history.EventRelease,
-		StartedAt:  release.StartedAt,
-		EndedAt:    release.EndedAt,
-		LogLevel:   logLevel,
-		Metadata: history.ReleaseEventMetadata{
-			Release: release,
-			Error:   errorMessage,
-		},
-	})
-	if err != nil {
-		if executeErr == nil {
-			return errors.Wrap(err, "logging event")
-		}
-	}
-	return executeErr
-}
 
 func (d *Daemon) LogEvent(ev history.Event) error {
 	if d.EventWriter == nil {
