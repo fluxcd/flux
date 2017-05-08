@@ -30,6 +30,10 @@ func exampleRelease(t *testing.T) flux.Release {
 			ImageSpec:    flux.ImageSpecLatest,
 			Kind:         flux.ReleaseKindExecute,
 			Excludes:     nil,
+			Cause: flux.ReleaseCause{
+				User:    "test-user",
+				Message: "this was to test notifications",
+			},
 		},
 		Result: flux.ReleaseResult{
 			flux.ServiceID("default/helloworld"): {
@@ -43,10 +47,6 @@ func exampleRelease(t *testing.T) flux.Release {
 					},
 				},
 			},
-		},
-		Cause: flux.ReleaseCause{
-			User:    "test-user",
-			Message: "this was to test notifications",
 		},
 	}
 }
