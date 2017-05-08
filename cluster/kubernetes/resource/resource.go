@@ -30,6 +30,12 @@ func (o baseObject) ResourceID() string {
 	return fmt.Sprintf("%s %s/%s", o.Kind, ns, o.Meta.Name)
 }
 
+// It's useful for comparisons in tests to be able to remove the
+// record of bytes
+func (o *baseObject) debyte() {
+	o.bytes = nil
+}
+
 func (o baseObject) Annotations() map[string]string {
 	return o.Meta.Annotations
 }

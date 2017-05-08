@@ -52,10 +52,20 @@ metadata:
 	}
 
 	for id, obj := range expected {
-		if !reflect.DeepEqual(obj, objs[id]) {
+		// Remove the bytes, so we can compare
+		if !reflect.DeepEqual(obj, debyte(objs[id])) {
 			t.Errorf("At %+v expected:\n%#v\ngot:\n%#v", id, obj, objs[id])
 		}
 	}
+}
+
+func debyte(r resource.Resource) resource.Resource {
+	if res, ok := r.(interface {
+		debyte()
+	}); ok {
+		res.debyte()
+	}
+	return r
 }
 
 func TestLoadSome(t *testing.T) {
