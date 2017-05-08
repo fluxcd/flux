@@ -446,8 +446,8 @@ func (c *Cluster) Export() ([]byte, error) {
 	return config.Bytes(), nil
 }
 
-func (c *Cluster) LoadManifests(path string) (map[string]resource.Resource, error) {
-	return kresource.Load(path)
+func (c *Cluster) LoadManifests(paths ...string) (map[string]resource.Resource, error) {
+	return kresource.Load(paths...)
 }
 
 func (c *Cluster) ParseManifests(allDefs []byte) (map[string]resource.Resource, error) {

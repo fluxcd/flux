@@ -1,10 +1,13 @@
 package daemon
 
 import (
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/go-kit/kit/log"
 
+	"github.com/weaveworks/flux/history"
 	"github.com/weaveworks/flux/sync"
 )
 
@@ -70,17 +73,57 @@ func (d *Daemon) askForSync() {
 }
 
 func (d *Daemon) pullAndSync(logger log.Logger) {
+	started := time.Now().UTC()
+
+	// Pull for new commits
 	if err := d.Checkout.Pull(); err != nil {
 		logger.Log("err", err)
+		return
 	}
-	d.Checkout.RLock()
-	// TODO supply deletes argument from somewhere (command-line?)
-	if err := sync.Sync(d.Checkout.ManifestDir(), d.Cluster, false); err != nil {
+
+	// checkout a working clone so we can mess around with tags later
+	working, err := d.Checkout.WorkingClone()
+	if err != nil {
+		logger.Log("err", err)
+		return
+	}
+	defer working.Clean()
+
+	// update notes and emit events for applied commits
+	revisions, err := working.RevisionsBetween(working.SyncTag+"~1", "HEAD")
+	if err != nil && !strings.Contains(err.Error(), "unknown revision or path not in the working tree.") {
 		logger.Log("err", err)
 	}
-	d.Checkout.RUnlock()
 
-	if err := d.Checkout.MoveTagAndPush("HEAD", "Sync pointer"); err != nil {
+	// TODO supply deletes argument from somewhere (command-line?)
+	changedFiles, err := working.ChangedFiles(working.SyncTag)
+	if err != nil {
+		logger.Log("err", err)
+	}
+	if len(changedFiles) == 0 {
+		return
+	}
+	serviceIDs, err := sync.Sync(changedFiles, d.Cluster, false)
+	if err != nil {
+		logger.Log("err", err)
+	}
+
+	// Emit an event
+	if len(revisions) > 0 {
+		if err := d.LogEvent(history.Event{
+			ServiceIDs: serviceIDs,
+			Type:       history.EventSync,
+			StartedAt:  started,
+			EndedAt:    started,
+			LogLevel:   history.LogLevelInfo,
+			Metadata:   &history.SyncEventMetadata{Revisions: revisions},
+		}); err != nil {
+			logger.Log("err", err)
+		}
+	}
+
+	// Move the tag and push it so we know how far we've gotten.
+	if err := working.MoveTagAndPush("HEAD", "Sync pointer"); err != nil {
 		logger.Log("err", err)
 	}
 }

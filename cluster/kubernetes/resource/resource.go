@@ -5,6 +5,7 @@ import (
 
 	yaml "gopkg.in/yaml.v2"
 
+	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/resource"
 )
 
@@ -34,6 +35,19 @@ func (o baseObject) ResourceID() string {
 // record of bytes
 func (o *baseObject) debyte() {
 	o.bytes = nil
+}
+
+// TODO: Implement this for more service types
+func (o baseObject) ServiceIDs() []flux.ServiceID {
+	switch o.Kind {
+	case "Deployment", "ReplicationController":
+		ns := o.Meta.Namespace
+		if ns == "" {
+			ns = "default"
+		}
+		return []flux.ServiceID{flux.ServiceID(fmt.Sprintf("%s/%s", ns, o.Meta.Name))}
+	}
+	return nil
 }
 
 func (o baseObject) Annotations() map[string]string {

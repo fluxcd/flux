@@ -69,8 +69,8 @@ func pull(keyPath, workingDir, upstream, ref string) error {
 }
 
 func fetch(keyPath, workingDir, upstream, refspec string) error {
-	if err := execGitCmd(workingDir, keyPath, nil, "fetch", upstream, refspec); err != nil {
-		return errors.Wrap(err, fmt.Sprintf("git fetch %s %s", upstream, refspec))
+	if err := execGitCmd(workingDir, keyPath, nil, "fetch", "--tags", upstream, refspec); err != nil {
+		return errors.Wrap(err, fmt.Sprintf("git fetch --tags %s %s", upstream, refspec))
 	}
 	return nil
 }
@@ -94,8 +94,12 @@ func getNotesRef(workingDir, ref string) (string, error) {
 	return strings.TrimSpace(out.String()), nil
 }
 
-func addNote(workingDir, rev, notesRef string, note []byte) error {
-	return execGitCmd(workingDir, "", nil, "notes", "--ref", notesRef, "add", "-m", string(note), rev)
+func addNote(workingDir, rev, notesRef string, note *Note) error {
+	b, err := json.Marshal(note)
+	if err != nil {
+		return err
+	}
+	return execGitCmd(workingDir, "", nil, "notes", "--ref", notesRef, "add", "-m", string(b), rev)
 }
 
 func getNote(workingDir, notesRef, rev string) (*Note, error) {
@@ -124,11 +128,15 @@ func revlist(path, ref string) ([]string, error) {
 	if err := execGitCmd(path, "", out, "rev-list", ref); err != nil {
 		return nil, err
 	}
-	outStr := strings.TrimSpace(out.String())
+	return splitList(out.String()), nil
+}
+
+func splitList(s string) []string {
+	outStr := strings.TrimSpace(s)
 	if outStr == "" {
-		return []string{}, nil
+		return []string{}
 	}
-	return strings.Split(outStr, "\n"), nil
+	return strings.Split(outStr, "\n")
 }
 
 // Move the tag to the ref given and push that tag upstream
@@ -140,6 +148,14 @@ func moveTagAndPush(path, key, tag, ref, msg, upstream string) error {
 		return errors.Wrap(err, "pushing tag to origin")
 	}
 	return nil
+}
+
+func changedFiles(path, subPath, ref string) ([]string, error) {
+	out := &bytes.Buffer{}
+	if err := execGitCmd(path, "", out, "diff", "--name-only", ref, "--", subPath); err != nil {
+		return nil, err
+	}
+	return splitList(out.String()), nil
 }
 
 func execGitCmd(dir, keyPath string, out io.Writer, args ...string) error {

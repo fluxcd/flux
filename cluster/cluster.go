@@ -30,8 +30,8 @@ type Cluster interface {
 	// Update the definitions in the manifest file according to the
 	// spec given.
 	UpdateDefinition(def []byte, newImageID flux.ImageID) ([]byte, error)
-	// Load all the resource manifests under the path given
-	LoadManifests(path string) (map[string]resource.Resource, error)
+	// Load all the resource manifests under the path(s) given
+	LoadManifests(paths ...string) (map[string]resource.Resource, error)
 	// Parse the manifests given in an exported blob
 	ParseManifests([]byte) (map[string]resource.Resource, error)
 	// UpdateManifest applies a resource modifying function to the definition,

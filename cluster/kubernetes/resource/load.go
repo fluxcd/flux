@@ -14,32 +14,36 @@ import (
 // Load takes a path to a directory or file, and creates an object set
 // based on the file(s) therein. Resources are named according to the
 // file content, rather than the file name of directory structure.
-func Load(root string) (map[string]resource.Resource, error) {
+func Load(roots ...string) (map[string]resource.Resource, error) {
 	objs := map[string]resource.Resource{}
-	var err error
-	err = filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return fmt.Errorf(`walking %q for yamels: %s`, path, err.Error())
-		}
-		if !info.IsDir() && filepath.Ext(path) == ".yaml" || filepath.Ext(path) == ".yml" {
-			bytes, err := ioutil.ReadFile(path)
+	for _, root := range roots {
+		err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 			if err != nil {
-				return fmt.Errorf(`reading file at "%s": %s`, path, err.Error())
+				return fmt.Errorf(`walking %q for yamels: %s`, path, err.Error())
 			}
-			docsInFile, err := ParseMultidoc(bytes, path)
-			if err != nil {
-				return fmt.Errorf(`parsing file at "%s": %s`, path, err.Error())
-			}
-			for id, obj := range docsInFile {
-				if alreadyDefined, ok := objs[id]; ok {
-					return fmt.Errorf(`resource '%s' defined more than once (in %s and %s)`, id, alreadyDefined.Source(), path)
+			if !info.IsDir() && filepath.Ext(path) == ".yaml" || filepath.Ext(path) == ".yml" {
+				bytes, err := ioutil.ReadFile(path)
+				if err != nil {
+					return fmt.Errorf(`reading file at "%s": %s`, path, err.Error())
 				}
-				objs[id] = obj
+				docsInFile, err := ParseMultidoc(bytes, path)
+				if err != nil {
+					return fmt.Errorf(`parsing file at "%s": %s`, path, err.Error())
+				}
+				for id, obj := range docsInFile {
+					if alreadyDefined, ok := objs[id]; ok {
+						return fmt.Errorf(`resource '%s' defined more than once (in %s and %s)`, id, alreadyDefined.Source(), path)
+					}
+					objs[id] = obj
+				}
 			}
+			return nil
+		})
+		if err != nil {
+			return objs, err
 		}
-		return nil
-	})
-	return objs, err
+	}
+	return objs, nil
 }
 
 // ParseManifests takes a dump of config (a multidoc YAML) and

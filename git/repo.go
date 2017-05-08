@@ -1,7 +1,6 @@
 package git
 
 import (
-	"encoding/json"
 	"errors"
 	"io/ioutil"
 	"os"
@@ -164,15 +163,11 @@ func (c *Checkout) CommitAndPush(commitMessage string, note *Note) error {
 	}
 
 	if note != nil {
-		noteBytes, err := json.Marshal(note)
-		if err != nil {
-			return err
-		}
 		rev, err := headRevision(c.Dir)
 		if err != nil {
 			return err
 		}
-		if err := addNote(c.Dir, rev, c.realNotesRef, noteBytes); err != nil {
+		if err := addNote(c.Dir, rev, c.realNotesRef, note); err != nil {
 			return err
 		}
 	}
@@ -205,12 +200,17 @@ func (c *Checkout) Pull() error {
 	if err := pull(c.repo.Key, c.Dir, c.repo.URL, c.repo.Branch); err != nil {
 		return err
 	}
-	// this fetches and updates the local ref, so we'll see the new
-	// notes; but it's possible that the upstream doesn't have this
-	// ref.
-	if err := fetch(c.repo.Key, c.Dir, c.repo.URL, c.realNotesRef+":"+c.realNotesRef); err != nil &&
-		!strings.Contains(err.Error(), "Couldn't find remote ref") {
-		return err
+	for _, ref := range []string{
+		c.realNotesRef + ":" + c.realNotesRef,
+		c.SyncTag,
+	} {
+		// this fetches and updates the local ref, so we'll see the new
+		// notes; but it's possible that the upstream doesn't have this
+		// ref.
+		if err := fetch(c.repo.Key, c.Dir, c.repo.URL, ref); err != nil &&
+			!strings.Contains(err.Error(), "Couldn't find remote ref") {
+			return err
+		}
 	}
 	return nil
 }
@@ -237,4 +237,17 @@ func (c *Checkout) MoveTagAndPush(ref, msg string) error {
 	c.Lock()
 	defer c.Unlock()
 	return moveTagAndPush(c.Dir, c.repo.Key, c.SyncTag, ref, msg, c.repo.URL)
+}
+
+// ChangedFiles does a git diff listing changed files
+func (c *Checkout) ChangedFiles(ref string) ([]string, error) {
+	c.Lock()
+	defer c.Unlock()
+	list, err := changedFiles(c.Dir, c.repo.Path, ref)
+	if err == nil {
+		for i, file := range list {
+			list[i] = filepath.Join(c.Dir, file)
+		}
+	}
+	return list, err
 }

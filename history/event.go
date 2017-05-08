@@ -112,7 +112,28 @@ func (e Event) String() string {
 		)
 	case EventCommit:
 		metadata := e.Metadata.(CommitEventMetadata)
-		return fmt.Sprintf("Commit: %s, %s", metadata.Revision, strings.Join(strServiceIDs, ", "))
+		svcStr := "<no changes>"
+		if len(strServiceIDs) > 0 {
+			svcStr = strings.Join(strServiceIDs, ", ")
+		}
+		return fmt.Sprintf("Commit: %s, %s", shortRevision(metadata.Revision), svcStr)
+	case EventSync:
+		metadata := e.Metadata.(SyncEventMetadata)
+		revStr := "<no revision>"
+		if len(metadata.Revisions) == 1 {
+			revStr = shortRevision(metadata.Revisions[0])
+		} else if len(metadata.Revisions) > 1 {
+			revStr = fmt.Sprintf(
+				"%s..%s",
+				shortRevision(metadata.Revisions[0]),
+				shortRevision(metadata.Revisions[len(metadata.Revisions)-1]),
+			)
+		}
+		svcStr := "<no changes>"
+		if len(strServiceIDs) > 0 {
+			svcStr = strings.Join(strServiceIDs, ", ")
+		}
+		return fmt.Sprintf("Sync: %s, %s", revStr, svcStr)
 	case EventAutomate:
 		return fmt.Sprintf("Automated: %s", strings.Join(strServiceIDs, ", "))
 	case EventDeautomate:
@@ -124,6 +145,13 @@ func (e Event) String() string {
 	default:
 		return "Unknown event"
 	}
+}
+
+func shortRevision(rev string) string {
+	if len(rev) <= 7 {
+		return rev
+	}
+	return rev[:7]
 }
 
 // CommitEventMetadata is the metadata for when new git commits are created
@@ -138,6 +166,11 @@ func (c CommitEventMetadata) ShortRevision() string {
 		return c.Revision
 	}
 	return c.Revision[:7]
+}
+
+// SyncEventMetadata is the metadata for when new a commit is synced to the cluster
+type SyncEventMetadata struct {
+	Revisions []string `json:"revisions,omitempty"`
 }
 
 // ReleaseEventMetadata is the metadata for when service(s) are released
