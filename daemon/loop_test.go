@@ -51,8 +51,8 @@ func daemon(t *testing.T) (*Daemon, func()) {
 		return kresource.ParseMultidoc(allDefs, "exported")
 	}
 	k8s.ExportFunc = func() ([]byte, error) { return nil, nil }
-	//k8s.FindDefinedServicesFunc = (&kubernetes.Cluster{}).FindDefinedServices
-	//k8s.ServicesWithPolicyFunc = (&kubernetes.Cluster{}).ServicesWithPolicy
+	k8s.FindDefinedServicesFunc = (&kubernetes.Manifests{}).FindDefinedServices
+	k8s.ServicesWithPolicyFunc = (&kubernetes.Manifests{}).ServicesWithPolicy
 
 	events = history.NewMock()
 
@@ -61,6 +61,7 @@ func daemon(t *testing.T) (*Daemon, func()) {
 	go jobs.Loop(shutdown)
 	d := &Daemon{
 		Cluster:        k8s,
+		Manifests:      k8s,
 		Registry:       registry.NewMockRegistry(nil, nil),
 		Checkout:       working,
 		Jobs:           jobs,
@@ -200,7 +201,7 @@ func TestPullAndSync_WithNewCommit(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Push some new changes
-	if err := (&kubernetes.Cluster{}).UpdateManifest(d.Checkout.ManifestDir(), "default/helloworld", func(def []byte) ([]byte, error) {
+	if err := cluster.UpdateManifest(k8s, d.Checkout.ManifestDir(), "default/helloworld", func(def []byte) ([]byte, error) {
 		// A simple modification so we have changes to push
 		return []byte(strings.Replace(string(def), "replicas: 5", "replicas: 4", -1)), nil
 	}); err != nil {

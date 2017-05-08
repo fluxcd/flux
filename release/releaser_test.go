@@ -84,18 +84,8 @@ var (
 			CreatedAt: &timeNow,
 		},
 	}, nil)
+	mockManifests = &kubernetes.Manifests{}
 )
-
-func mockManifests(mock *cluster.Mock) {
-	manifests := &kubernetes.Cluster{}
-	mock.FindDefinedServicesFunc = manifests.FindDefinedServices
-	mock.UpdateDefinitionFunc = manifests.UpdateDefinition
-	mock.LoadManifestsFunc = manifests.LoadManifests
-	mock.ParseManifestsFunc = manifests.ParseManifests
-	mock.UpdateManifestFunc = manifests.UpdateManifest
-	mock.UpdatePoliciesFunc = manifests.UpdatePolicies
-	mock.ServicesWithPolicyFunc = manifests.ServicesWithPolicy
-}
 
 func setup(t *testing.T) (*git.Checkout, func()) {
 	return gittest.Checkout(t)
@@ -113,7 +103,6 @@ func Test_FilterLogic(t *testing.T) {
 			}, nil
 		},
 	}
-	mockManifests(mockCluster)
 
 	for _, tst := range []struct {
 		Name     string
@@ -270,9 +259,10 @@ func Test_FilterLogic(t *testing.T) {
 		checkout, cleanup := setup(t)
 		defer cleanup()
 		testRelease(t, tst.Name, &ReleaseContext{
-			Cluster:  mockCluster,
-			Registry: mockRegistry,
-			Repo:     checkout,
+			Cluster:   mockCluster,
+			Manifests: mockManifests,
+			Registry:  mockRegistry,
+			Repo:      checkout,
 		}, tst.Spec, tst.Expected)
 	}
 }
@@ -290,7 +280,6 @@ func Test_ImageStatus(t *testing.T) {
 			}, nil
 		},
 	}
-	mockManifests(mockCluster)
 
 	upToDateRegistry := registry.NewMockRegistry([]flux.Image{
 		flux.Image{
@@ -357,7 +346,12 @@ func Test_ImageStatus(t *testing.T) {
 	} {
 		checkout, cleanup := setup(t)
 		defer cleanup()
-		ctx := &ReleaseContext{Cluster: mockCluster, Repo: checkout, Registry: upToDateRegistry}
+		ctx := &ReleaseContext{
+			Cluster:   mockCluster,
+			Manifests: mockManifests,
+			Repo:      checkout,
+			Registry:  upToDateRegistry,
+		}
 		testRelease(t, tst.Name, ctx, tst.Spec, tst.Expected)
 	}
 }

@@ -16,7 +16,7 @@ const (
 	policyPrefix = "flux.weave.works/"
 )
 
-func (c *Cluster) UpdatePolicies(in []byte, update policy.Update) ([]byte, error) {
+func (m *Manifests) UpdatePolicies(in []byte, update policy.Update) ([]byte, error) {
 	return updateAnnotations(in, func(a map[string]string) map[string]string {
 		for _, policy := range update.Add {
 			a[policyPrefix+string(policy)] = "true"
@@ -126,8 +126,8 @@ func parseManifest(def []byte) (Manifest, error) {
 	return m, nil
 }
 
-func (c *Cluster) ServicesWithPolicy(root string, policy policy.Policy) (flux.ServiceIDSet, error) {
-	all, err := c.FindDefinedServices(root)
+func (m *Manifests) ServicesWithPolicy(root string, policy policy.Policy) (flux.ServiceIDSet, error) {
+	all, err := m.FindDefinedServices(root)
 	if err != nil {
 		return nil, err
 	}

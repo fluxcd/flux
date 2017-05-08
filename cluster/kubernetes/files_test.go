@@ -15,7 +15,7 @@ func TestDefinedServices(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	services, err := (&Cluster{}).FindDefinedServices(dir)
+	services, err := (&Manifests{}).FindDefinedServices(dir)
 	if err != nil {
 		t.Fatal(err)
 	}

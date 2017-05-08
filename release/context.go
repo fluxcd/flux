@@ -25,16 +25,18 @@ const (
 )
 
 type ReleaseContext struct {
-	Cluster  cluster.Cluster
-	Repo     *git.Checkout
-	Registry registry.Registry
+	Cluster   cluster.Cluster
+	Manifests cluster.Manifests
+	Repo      *git.Checkout
+	Registry  registry.Registry
 }
 
-func NewReleaseContext(c cluster.Cluster, reg registry.Registry, repo *git.Checkout) *ReleaseContext {
+func NewReleaseContext(c cluster.Cluster, m cluster.Manifests, reg registry.Registry, repo *git.Checkout) *ReleaseContext {
 	return &ReleaseContext{
-		Cluster:  c,
-		Repo:     repo,
-		Registry: reg,
+		Cluster:   c,
+		Manifests: m,
+		Repo:      repo,
+		Registry:  reg,
 	}
 }
 
@@ -62,21 +64,9 @@ func (rc *ReleaseContext) PushChanges(updates []*ServiceUpdate, spec *update.Rel
 	return rc.CommitAndPush(commitMsg, spec, results)
 }
 
-// Return the revision of HEAD as a commit hash.
-func (rc *ReleaseContext) HeadRevision() (string, error) {
-	return rc.Repo.HeadRevision()
-}
-
-func (rc *ReleaseContext) ListRevisions(ref string) ([]string, error) {
-	return rc.Repo.RevisionsBetween(rc.Repo.SyncTag, ref)
-}
-
-func (rc *ReleaseContext) UpdateTag() error {
-	return rc.Repo.MoveTagAndPush("HEAD", "Sync pointer")
-}
-
 // ---
 
+// FIXME use UpdateManifest instead
 func writeUpdates(updates []*ServiceUpdate) error {
 	for _, update := range updates {
 		fi, err := os.Stat(update.ManifestPath)
@@ -171,7 +161,7 @@ func (s *ServiceUpdate) filter(filters ...ServiceFilter) update.ServiceResult {
 func (rc *ReleaseContext) FindDefinedServices() ([]*ServiceUpdate, error) {
 	rc.Repo.RLock()
 	defer rc.Repo.RUnlock()
-	services, err := rc.Cluster.FindDefinedServices(rc.Repo.ManifestDir())
+	services, err := rc.Manifests.FindDefinedServices(rc.Repo.ManifestDir())
 	if err != nil {
 		return nil, err
 	}
@@ -200,7 +190,7 @@ func (rc *ReleaseContext) FindDefinedServices() ([]*ServiceUpdate, error) {
 func (rc *ReleaseContext) ServicesWithPolicy(p policy.Policy) (flux.ServiceIDSet, error) {
 	rc.Repo.RLock()
 	defer rc.Repo.RUnlock()
-	return rc.Cluster.ServicesWithPolicy(rc.Repo.ManifestDir(), p)
+	return rc.Manifests.ServicesWithPolicy(rc.Repo.ManifestDir(), p)
 }
 
 type ServiceFilter interface {

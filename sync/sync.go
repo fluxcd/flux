@@ -15,13 +15,13 @@ const (
 )
 
 // Synchronise the cluster to the files in a directory
-func Sync(repoResources map[string]resource.Resource, clus cluster.Cluster, deletes bool) error {
+func Sync(m cluster.Manifests, repoResources map[string]resource.Resource, clus cluster.Cluster, deletes bool) error {
 	// Get a map of resources defined in the cluster
 	clusterBytes, err := clus.Export()
 	if err != nil {
 		return errors.Wrap(err, "exporting resource defs from cluster")
 	}
-	clusterResources, err := clus.ParseManifests(clusterBytes)
+	clusterResources, err := m.ParseManifests(clusterBytes)
 	if err != nil {
 		return errors.Wrap(err, "parsing exported resources")
 	}
