@@ -90,13 +90,20 @@ func (d *Daemon) pullAndSync(logger log.Logger) {
 
 	// update notes and emit events for applied commits
 	revisions, err := working.RevisionsBetween(working.SyncTag+"~1", "HEAD")
-	if err != nil && !strings.Contains(err.Error(), "unknown revision or path not in the working tree.") {
+	if isUnknownRevision(err) {
+		// No sync tag, grab all revisions
+		revisions, err = working.RevisionsBefore("HEAD")
+	}
+	if err != nil {
 		logger.Log("err", err)
 	}
 
 	// TODO supply deletes argument from somewhere (command-line?)
 	changedFiles, err := working.ChangedFiles(working.SyncTag)
-	if err != nil {
+	if isUnknownRevision(err) {
+		// no synctag, list all files
+		changedFiles = []string{working.ManifestDir()}
+	} else if err != nil {
 		logger.Log("err", err)
 	}
 	if len(changedFiles) == 0 {
@@ -125,4 +132,10 @@ func (d *Daemon) pullAndSync(logger log.Logger) {
 	if err := working.MoveTagAndPush("HEAD", "Sync pointer"); err != nil {
 		logger.Log("err", err)
 	}
+}
+
+func isUnknownRevision(err error) bool {
+	return err != nil &&
+		(strings.Contains(err.Error(), "unknown revision or path not in the working tree.") ||
+			strings.Contains(err.Error(), "bad revision"))
 }
