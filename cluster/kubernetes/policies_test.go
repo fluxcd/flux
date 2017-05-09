@@ -5,7 +5,6 @@ import (
 	"testing"
 	"text/template"
 
-	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/policy"
 )
 
@@ -13,88 +12,88 @@ func TestUpdatePolicies(t *testing.T) {
 	for _, c := range []struct {
 		name    string
 		in, out map[string]string
-		update  flux.PolicyUpdate
+		update  policy.Update
 	}{
 		{
 			name: "adding annotation with others existing",
 			in:   map[string]string{"prometheus.io.scrape": "false"},
 			out:  map[string]string{"flux.weave.works/automated": "true", "prometheus.io.scrape": "false"},
-			update: flux.PolicyUpdate{
-				Add: []flux.Policy{policy.Automated},
+			update: policy.Update{
+				Add: []policy.Policy{policy.Automated},
 			},
 		},
 		{
 			name: "adding annotation when already has annotation",
 			in:   map[string]string{"flux.weave.works/automated": "true"},
 			out:  map[string]string{"flux.weave.works/automated": "true"},
-			update: flux.PolicyUpdate{
-				Add: []flux.Policy{policy.Automated},
+			update: policy.Update{
+				Add: []policy.Policy{policy.Automated},
 			},
 		},
 		{
 			name: "adding annotation when already has annotation and others",
 			in:   map[string]string{"flux.weave.works/automated": "true", "prometheus.io.scrape": "false"},
 			out:  map[string]string{"flux.weave.works/automated": "true", "prometheus.io.scrape": "false"},
-			update: flux.PolicyUpdate{
-				Add: []flux.Policy{policy.Automated},
+			update: policy.Update{
+				Add: []policy.Policy{policy.Automated},
 			},
 		},
 		{
 			name: "adding first annotation",
 			in:   nil,
 			out:  map[string]string{"flux.weave.works/automated": "true"},
-			update: flux.PolicyUpdate{
-				Add: []flux.Policy{policy.Automated},
+			update: policy.Update{
+				Add: []policy.Policy{policy.Automated},
 			},
 		},
 		{
 			name: "add and remove different annotations at the same time",
 			in:   map[string]string{"flux.weave.works/automated": "true", "prometheus.io.scrape": "false"},
 			out:  map[string]string{"flux.weave.works/locked": "true", "prometheus.io.scrape": "false"},
-			update: flux.PolicyUpdate{
-				Add:    []flux.Policy{policy.Locked},
-				Remove: []flux.Policy{policy.Automated},
+			update: policy.Update{
+				Add:    []policy.Policy{policy.Locked},
+				Remove: []policy.Policy{policy.Automated},
 			},
 		},
 		{
 			name: "remove overrides add for same key",
 			in:   nil,
 			out:  nil,
-			update: flux.PolicyUpdate{
-				Add:    []flux.Policy{policy.Locked},
-				Remove: []flux.Policy{policy.Locked},
+			update: policy.Update{
+				Add:    []policy.Policy{policy.Locked},
+				Remove: []policy.Policy{policy.Locked},
 			},
 		},
 		{
 			name: "remove annotation with others existing",
 			in:   map[string]string{"flux.weave.works/automated": "true", "prometheus.io.scrape": "false"},
 			out:  map[string]string{"prometheus.io.scrape": "false"},
-			update: flux.PolicyUpdate{
-				Remove: []flux.Policy{policy.Automated},
+			update: policy.Update{
+				Remove: []policy.Policy{policy.Automated},
 			},
 		},
 		{
 			name: "remove last annotation",
 			in:   map[string]string{"flux.weave.works/automated": "true"},
 			out:  nil,
-			update: flux.PolicyUpdate{
-				Remove: []flux.Policy{policy.Automated},
+			update: policy.Update{
+				Remove: []policy.Policy{policy.Automated},
 			},
 		},
 		{
 			name: "remove annotation with no annotations",
 			in:   nil,
 			out:  nil,
-			update: flux.PolicyUpdate{
-				Remove: []flux.Policy{policy.Automated},
+			update: policy.Update{
+				Remove: []policy.Policy{policy.Automated},
 			},
 		},
 		{
 			name: "remove annotation with only others",
 			in:   map[string]string{"prometheus.io.scrape": "false"},
 			out:  map[string]string{"prometheus.io.scrape": "false"},
-			update: flux.PolicyUpdate{
-				Remove: []flux.Policy{policy.Automated},
+			update: policy.Update{
+				Remove: []policy.Policy{policy.Automated},
 			},
 		},
 	} {

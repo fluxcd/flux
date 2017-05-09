@@ -56,17 +56,17 @@ func TestHistoryLog(t *testing.T) {
 	db := newSQL(t)
 	defer db.Close()
 
-	bailIfErr(t, db.LogEvent(instance, Event{
+	bailIfErr(t, db.LogEvent(instance, history.Event{
 		ServiceIDs: []flux.ServiceID{flux.ServiceID("namespace/service")},
 		Type:       "test",
 		Message:    "event 1",
 	}))
-	bailIfErr(t, db.LogEvent(instance, Event{
+	bailIfErr(t, db.LogEvent(instance, history.Event{
 		ServiceIDs: []flux.ServiceID{flux.ServiceID("namespace/other")},
 		Type:       "test",
 		Message:    "event 3",
 	}))
-	bailIfErr(t, db.LogEvent(instance, Event{
+	bailIfErr(t, db.LogEvent(instance, history.Event{
 		ServiceIDs: []flux.ServiceID{flux.ServiceID("namespace/service")},
 		Type:       "test",
 		Message:    "event 2",
@@ -91,7 +91,7 @@ func TestHistoryLog(t *testing.T) {
 	checkInDescOrder(t, es)
 }
 
-func checkInDescOrder(t *testing.T, events []Event) {
+func checkInDescOrder(t *testing.T, events []history.Event) {
 	var last time.Time = time.Now()
 	for _, event := range events {
 		if event.StartedAt.After(last) {
