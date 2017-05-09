@@ -1,4 +1,4 @@
-package flux
+package update
 
 import "testing"
 

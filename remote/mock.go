@@ -36,6 +36,9 @@ type MockPlatform struct {
 
 	SyncStatusAnswer []string
 	SyncStatusError  error
+
+	JobStatusAnswer job.Status
+	JobStatusError  error
 }
 
 func (p *MockPlatform) Ping() error {
@@ -73,6 +76,10 @@ func (p *MockPlatform) SyncNotify() error {
 
 func (p *MockPlatform) SyncStatus(string) ([]string, error) {
 	return p.SyncStatusAnswer, p.SyncStatusError
+}
+
+func (p *MockPlatform) JobStatus(job.ID) (job.Status, error) {
+	return p.JobStatusAnswer, p.JobStatusError
 }
 
 var _ Platform = &MockPlatform{}
@@ -124,11 +131,11 @@ func PlatformTestBattery(t *testing.T, wrap func(mock Platform) Platform) {
 
 	updateSpec := update.Spec{
 		Type: update.Images,
-		Spec: flux.ReleaseSpec{
-			ServiceSpecs: []flux.ServiceSpec{
-				flux.ServiceSpecAll,
+		Spec: update.ReleaseSpec{
+			ServiceSpecs: []update.ServiceSpec{
+				update.ServiceSpecAll,
 			},
-			ImageSpec: flux.ImageSpecLatest,
+			ImageSpec: update.ImageSpecLatest,
 		},
 	}
 	checkUpdateSpec := func(s update.Spec) error {
@@ -166,7 +173,7 @@ func PlatformTestBattery(t *testing.T, wrap func(mock Platform) Platform) {
 		t.Error("expected error from ListServices, got nil")
 	}
 
-	ims, err := client.ListImages(flux.ServiceSpecAll)
+	ims, err := client.ListImages(update.ServiceSpecAll)
 	if err != nil {
 		t.Error(err)
 	}
@@ -174,7 +181,7 @@ func PlatformTestBattery(t *testing.T, wrap func(mock Platform) Platform) {
 		t.Error(fmt.Errorf("expected:\n%#v\ngot:\n%#v", mock.ListImagesAnswer, ims))
 	}
 	mock.ListImagesError = fmt.Errorf("list images error")
-	if _, err = client.ListImages(flux.ServiceSpecAll); err == nil {
+	if _, err = client.ListImages(update.ServiceSpecAll); err == nil {
 		t.Error("expected error from ListImages, got nil")
 	}
 

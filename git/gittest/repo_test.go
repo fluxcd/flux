@@ -3,11 +3,14 @@ package gittest
 import (
 	"io/ioutil"
 	"path/filepath"
-	"strings"
+	"reflect"
 	"testing"
 
+	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster/kubernetes/testfiles"
 	"github.com/weaveworks/flux/git"
+	"github.com/weaveworks/flux/job"
+	"github.com/weaveworks/flux/update"
 )
 
 func TestCheckout(t *testing.T) {
@@ -43,7 +46,7 @@ func TestCheckout(t *testing.T) {
 		changedFile = file
 		break
 	}
-	if err := working.CommitAndPush("Changed file", ""); err != nil {
+	if err := working.CommitAndPush("Changed file", nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -51,11 +54,26 @@ func TestCheckout(t *testing.T) {
 	if err := ioutil.WriteFile(path, []byte("SECOND CHANGE"), 0666); err != nil {
 		t.Fatal(err)
 	}
-	if err := working.CommitAndPush("Changed file again", "With a note this time"); err != nil {
+	// An example note with some of the fields filled in, so we can test
+	// serialization a bit.
+	expectedNote := git.Note{
+		JobID: job.ID("jobID1234"),
+		Spec: update.Spec{
+			Type: update.Images,
+			Spec: update.ReleaseSpec{},
+		},
+		Result: update.Result{
+			flux.ServiceID("service1"): update.ServiceResult{
+				Status: update.ReleaseStatusFailed,
+				Error:  "failed the frobulator",
+			},
+		},
+	}
+	if err := working.CommitAndPush("Changed file again", &expectedNote); err != nil {
 		t.Fatal(err)
 	}
 
-	check := func(c git.Checkout) {
+	check := func(c *git.Checkout) {
 		contents, err := ioutil.ReadFile(filepath.Join(c.ManifestDir(), changedFile))
 		if err != nil {
 			t.Fatal(err)
@@ -71,8 +89,8 @@ func TestCheckout(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		if strings.TrimSpace(note) != "With a note this time" {
-			t.Error("note is not what we supplied when committing: " + note)
+		if !reflect.DeepEqual(*note, expectedNote) {
+			t.Errorf("note is not what we supplied when committing: %#v", note)
 		}
 	}
 
