@@ -10,6 +10,7 @@ import (
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster"
 	"github.com/weaveworks/flux/git"
+	"github.com/weaveworks/flux/policy"
 	"github.com/weaveworks/flux/registry"
 )
 
@@ -188,7 +189,7 @@ func (rc *ReleaseContext) FindDefinedServices() ([]*ServiceUpdate, error) {
 }
 
 // Shortcut for this
-func (rc *ReleaseContext) ServicesWithPolicy(p flux.Policy) (flux.ServiceIDSet, error) {
+func (rc *ReleaseContext) ServicesWithPolicy(p policy.Policy) (flux.ServiceIDSet, error) {
 	return rc.Cluster.ServicesWithPolicy(rc.Repo.ManifestDir(), p)
 }
 

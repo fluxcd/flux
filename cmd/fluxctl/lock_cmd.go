@@ -6,6 +6,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/policy"
 )
 
 type serviceLockOpts struct {
@@ -43,8 +44,8 @@ func (opts *serviceLockOpts) RunE(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	jobID, err := opts.API.UpdatePolicies(noInstanceID, flux.PolicyUpdates{
-		serviceID: flux.PolicyUpdate{Add: []flux.Policy{flux.PolicyLocked}},
+	jobID, err := opts.API.UpdatePolicies(noInstanceID, policy.Updates{
+		serviceID: policy.Update{Add: []policy.Policy{policy.Locked}},
 	})
 	if err != nil {
 		return err

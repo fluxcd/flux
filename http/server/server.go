@@ -23,10 +23,12 @@ import (
 
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/api"
+	"github.com/weaveworks/flux/history"
 	transport "github.com/weaveworks/flux/http"
 	"github.com/weaveworks/flux/http/httperror"
 	"github.com/weaveworks/flux/http/websocket"
 	"github.com/weaveworks/flux/integrations/github"
+	"github.com/weaveworks/flux/policy"
 	"github.com/weaveworks/flux/remote"
 	"github.com/weaveworks/flux/remote/rpc"
 )
@@ -38,6 +40,7 @@ func NewHandler(s api.FluxService, r *mux.Router, logger log.Logger) http.Handle
 		"ListImages":             handle.ListImages,
 		"UpdateImages":           handle.UpdateImages,
 		"UpdatePolicies":         handle.UpdatePolicies,
+		"LogEvent":               handle.LogEvent,
 		"History":                handle.History,
 		"Status":                 handle.Status,
 		"GetConfig":              handle.GetConfig,
@@ -179,7 +182,7 @@ func (s HTTPService) SyncStatus(w http.ResponseWriter, r *http.Request) {
 func (s HTTPService) UpdatePolicies(w http.ResponseWriter, r *http.Request) {
 	inst := getInstanceID(r)
 
-	var updates flux.PolicyUpdates
+	var updates policy.Updates
 	if err := json.NewDecoder(r.Body).Decode(&updates); err != nil {
 		transport.WriteError(w, r, http.StatusBadRequest, err)
 		return
@@ -192,6 +195,24 @@ func (s HTTPService) UpdatePolicies(w http.ResponseWriter, r *http.Request) {
 	}
 
 	transport.JSONResponse(w, r, jobID)
+}
+
+func (s HTTPService) LogEvent(w http.ResponseWriter, r *http.Request) {
+	inst := getInstanceID(r)
+
+	var event history.Event
+	if err := json.NewDecoder(r.Body).Decode(&event); err != nil {
+		transport.WriteError(w, r, http.StatusBadRequest, err)
+		return
+	}
+
+	err := s.service.LogEvent(inst, event)
+	if err != nil {
+		transport.ErrorResponse(w, r, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
 }
 
 func (s HTTPService) History(w http.ResponseWriter, r *http.Request) {

@@ -1,14 +1,18 @@
-package flux
+package history
 
 import (
 	"fmt"
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/update"
 )
 
 // These are all the types of events.
 const (
+	EventCommit     = "commit"
 	EventRelease    = "release"
 	EventAutomate   = "automate"
 	EventDeautomate = "deautomate"
@@ -28,7 +32,7 @@ type Event struct {
 	ID EventID `json:"id"`
 
 	// ServiceIDs affected by this event.
-	ServiceIDs []ServiceID `json:"serviceIDs"`
+	ServiceIDs []flux.ServiceID `json:"serviceIDs"`
 
 	// Type is the type of event, usually "release" for now, but could be other
 	// things later
@@ -79,10 +83,10 @@ func (e Event) String() string {
 		}
 		for _, spec := range metadata.Release.Spec.ServiceSpecs {
 			switch spec {
-			case ServiceSpecAll:
+			case flux.ServiceSpecAll:
 				strServiceIDs = []string{"all services"}
 				break
-			case ServiceSpecAutomated:
+			case flux.ServiceSpecAutomated:
 				strServiceIDs = []string{"automated services"}
 				break
 			}
@@ -105,6 +109,9 @@ func (e Event) String() string {
 			user,
 			msg,
 		)
+	case EventCommit:
+		metadata := e.Metadata.(CommitEventMetadata)
+		return fmt.Sprintf("Commit: %s, %s", metadata.Revision, strings.Join(strServiceIDs, ", "))
 	case EventAutomate:
 		return fmt.Sprintf("Automated: %s", strings.Join(strServiceIDs, ", "))
 	case EventDeautomate:
@@ -118,10 +125,17 @@ func (e Event) String() string {
 	}
 }
 
+// CommitEventMetadata is the metadata for when new git commits are created
+type CommitEventMetadata struct {
+	Revision string `json:"revision"`
+
+	Spec update.Spec `json:"spec"`
+}
+
 // ReleaseEventMetadata is the metadata for when service(s) are released
 type ReleaseEventMetadata struct {
 	// Release points to this release
-	Release Release `json:"release"`
+	Release flux.Release `json:"release"`
 	// Message of the error if there was one.
 	Error string `json:"error,omitempty"`
 }

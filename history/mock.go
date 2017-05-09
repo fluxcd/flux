@@ -15,18 +15,18 @@ func NewMock() interface {
 	return mock{}
 }
 
-func (m mock) AllEvents(_ time.Time, _ int64) ([]flux.Event, error) {
+func (m mock) AllEvents(_ time.Time, _ int64) ([]Event, error) {
 	return nil, nil
 }
 
-func (m mock) EventsForService(_ flux.ServiceID, _ time.Time, _ int64) ([]flux.Event, error) {
+func (m mock) EventsForService(_ flux.ServiceID, _ time.Time, _ int64) ([]Event, error) {
 	return nil, nil
 }
 
-func (m mock) GetEvent(_ flux.EventID) (flux.Event, error) {
-	return flux.Event{}, nil
+func (m mock) GetEvent(_ EventID) (Event, error) {
+	return Event{}, nil
 }
 
-func (m mock) LogEvent(_ flux.Event) error {
+func (m mock) LogEvent(_ Event) error {
 	return nil
 }

@@ -221,18 +221,6 @@ type ServiceStatus struct {
 	Locked     bool
 }
 
-func (s ServiceStatus) Policies() string {
-	var ps []string
-	if s.Automated {
-		ps = append(ps, string(PolicyAutomated))
-	}
-	if s.Locked {
-		ps = append(ps, string(PolicyLocked))
-	}
-	sort.Strings(ps)
-	return strings.Join(ps, ",")
-}
-
 type Container struct {
 	Name      string
 	Current   ImageDescription
@@ -242,14 +230,6 @@ type Container struct {
 type ImageDescription struct {
 	ID        ImageID
 	CreatedAt *time.Time `json:",omitempty"`
-}
-
-// Ask me for more details.
-type HistoryEntry struct {
-	Stamp *time.Time `json:",omitempty"`
-	Type  string
-	Data  string
-	Event *Event `json:",omitempty"`
 }
 
 // TODO: How similar should this be to the `get-config` result?

@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/policy"
 	"github.com/weaveworks/flux/resource"
 )
 
@@ -32,9 +33,9 @@ type Cluster interface {
 	// and writes the result back.
 	UpdateManifest(path, resourceID string, f func(def []byte) ([]byte, error)) error
 	// UpdatePolicies modifies a manifest to apply the policy update specified
-	UpdatePolicies([]byte, flux.PolicyUpdate) ([]byte, error)
+	UpdatePolicies([]byte, policy.Update) ([]byte, error)
 	// ServicesWithPolicy finds the services which have a particular policy set on them.
-	ServicesWithPolicy(path string, p flux.Policy) (flux.ServiceIDSet, error)
+	ServicesWithPolicy(path string, p policy.Policy) (flux.ServiceIDSet, error)
 }
 
 // Service describes a platform service, generally a floating IP with one or

@@ -9,13 +9,14 @@ import (
 	yaml "gopkg.in/yaml.v2"
 
 	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/policy"
 )
 
 const (
 	policyPrefix = "flux.weave.works/"
 )
 
-func (c *Cluster) UpdatePolicies(in []byte, update flux.PolicyUpdate) ([]byte, error) {
+func (c *Cluster) UpdatePolicies(in []byte, update policy.Update) ([]byte, error) {
 	return updateAnnotations(in, func(a map[string]string) map[string]string {
 		for _, policy := range update.Add {
 			a[policyPrefix+string(policy)] = "true"
@@ -125,7 +126,7 @@ func parseManifest(def []byte) (Manifest, error) {
 	return m, nil
 }
 
-func (c *Cluster) ServicesWithPolicy(root string, policy flux.Policy) (flux.ServiceIDSet, error) {
+func (c *Cluster) ServicesWithPolicy(root string, policy policy.Policy) (flux.ServiceIDSet, error) {
 	all, err := c.FindDefinedServices(root)
 	if err != nil {
 		return nil, err
@@ -152,13 +153,13 @@ func (c *Cluster) ServicesWithPolicy(root string, policy flux.Policy) (flux.Serv
 	return result, nil
 }
 
-func policiesFrom(def []byte) (flux.PolicySet, error) {
+func policiesFrom(def []byte) (policy.PolicySet, error) {
 	manifest, err := parseManifest(def)
 	if err != nil {
 		return nil, err
 	}
 
-	var policies flux.PolicySet
+	var policies policy.PolicySet
 	for k, v := range manifest.Metadata.AnnotationsOrNil() {
 		if !strings.HasPrefix(k, policyPrefix) {
 			continue
@@ -166,7 +167,7 @@ func policiesFrom(def []byte) (flux.PolicySet, error) {
 		if v != "true" {
 			continue
 		}
-		policies = policies.Add(flux.ParsePolicy(strings.TrimPrefix(k, policyPrefix)))
+		policies = policies.Add(policy.Parse(strings.TrimPrefix(k, policyPrefix)))
 	}
 	return policies, nil
 }

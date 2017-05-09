@@ -2,18 +2,20 @@
 package main
 
 import (
-	transport "github.com/weaveworks/flux/http"
 	"net/http"
+
+	transport "github.com/weaveworks/flux/http"
 
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/gorilla/mux"
-	"github.com/weaveworks/flux/http/client"
 	"io/ioutil"
 	"net/url"
 	"strings"
 	"testing"
+
+	"github.com/gorilla/mux"
+	"github.com/weaveworks/flux/http/client"
 )
 
 func mockServiceOpts(trip *genericMockRoundTripper) *serviceOpts {
