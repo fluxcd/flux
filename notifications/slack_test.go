@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/update"
 )
 
 func TestSlackNotifier(t *testing.T) {
@@ -60,7 +61,7 @@ func TestSlackNotifierDryRun(t *testing.T) {
 
 	// It should send releases to slack
 	release := exampleRelease(t)
-	release.Spec.Kind = flux.ReleaseKindPlan
+	release.Spec.Kind = update.ReleaseKindPlan
 	if err := slackNotifyRelease(flux.NotifierConfig{HookURL: server.URL}, release, fmt.Errorf("test-error")); err != nil {
 		t.Fatal(err)
 	}

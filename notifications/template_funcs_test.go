@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/update"
 )
 
 func TestTemplateFunc_Last(t *testing.T) {
@@ -45,7 +45,7 @@ func TestTemplateFunc_Last(t *testing.T) {
 		// Shouldn't panic
 		{0, struct{}{}, false, errors.New("unsupported type: struct {}")},
 		{0, nil, false, errors.New("unsupported type: <nil>")},
-		{0, flux.Release{}, false, errors.New("unsupported type: flux.Release")},
+		{0, update.Release{}, false, errors.New("unsupported type: update.Release")},
 	} {
 		gotVal, gotErr := last(test.i, test.a)
 		if gotVal != test.expectedVal {
