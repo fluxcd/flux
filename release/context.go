@@ -133,7 +133,7 @@ func (rc *ReleaseContext) SelectServices(results update.Result, filters ...Servi
 	for _, s := range updates {
 		fr := s.filter(filters...)
 		results[s.ServiceID] = fr
-		if fr.Status == update.ReleaseStatusPending || fr.Status == update.ReleaseStatusSuccess || fr.Status == "" {
+		if fr.Status == update.ReleaseStatusSuccess || fr.Status == "" {
 			filteredUpdates = append(filteredUpdates, s)
 		}
 	}

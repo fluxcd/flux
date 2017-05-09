@@ -238,7 +238,7 @@ func calculateImageUpdates(rc *ReleaseContext, candidates []*ServiceUpdate, spec
 			u.Updates = containerUpdates
 			updates = append(updates, u)
 			results[u.ServiceID] = update.ServiceResult{
-				Status:       update.ReleaseStatusPending,
+				Status:       update.ReleaseStatusSuccess,
 				PerContainer: containerUpdates,
 			}
 		case ignoredOrSkipped == update.ReleaseStatusSkipped:

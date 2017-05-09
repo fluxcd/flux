@@ -10,7 +10,6 @@ import (
 type ServiceUpdateStatus string
 
 const (
-	ReleaseStatusPending ServiceUpdateStatus = "pending"
 	ReleaseStatusSuccess ServiceUpdateStatus = "success"
 	ReleaseStatusFailed  ServiceUpdateStatus = "failed"
 	ReleaseStatusSkipped ServiceUpdateStatus = "skipped"

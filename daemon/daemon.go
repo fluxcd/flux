@@ -143,8 +143,7 @@ func (d *Daemon) queueJob(do JobFunc) job.ID {
 			d.JobStatusCache.SetStatus(id, job.Status{StatusString: job.StatusSucceeded, Result: *metadata})
 			var serviceIDs []flux.ServiceID
 			for id, result := range *metadata.Result {
-				switch result.Status {
-				case update.ReleaseStatusPending, update.ReleaseStatusSuccess:
+				if result.Status == update.ReleaseStatusSuccess {
 					serviceIDs = append(serviceIDs, id)
 				}
 			}

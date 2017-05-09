@@ -18,7 +18,7 @@ func TestPrintResults(t *testing.T) {
 			name: "basic, just results",
 			result: flux.ReleaseResult{
 				flux.ServiceID("default/helloworld"): flux.ServiceResult{
-					Status: flux.ReleaseStatusPending,
+					Status: flux.ReleaseStatusSuccess,
 					Error:  "",
 					PerContainer: []flux.ContainerUpdate{
 						{
@@ -31,7 +31,7 @@ func TestPrintResults(t *testing.T) {
 			},
 			expected: `
 SERVICE             STATUS   UPDATES
-default/helloworld  pending  helloworld: quay.io/weaveworks/helloworld:master-a000002 -> master-a000001
+default/helloworld  success  helloworld: quay.io/weaveworks/helloworld:master-a000002 -> master-a000001
 `,
 		},
 
@@ -39,7 +39,7 @@ default/helloworld  pending  helloworld: quay.io/weaveworks/helloworld:master-a0
 			name: "With an error, *and* results",
 			result: flux.ReleaseResult{
 				flux.ServiceID("default/helloworld"): flux.ServiceResult{
-					Status: flux.ReleaseStatusPending,
+					Status: flux.ReleaseStatusSuccess,
 					Error:  "test error",
 					PerContainer: []flux.ContainerUpdate{
 						{
@@ -52,7 +52,7 @@ default/helloworld  pending  helloworld: quay.io/weaveworks/helloworld:master-a0
 			},
 			expected: `
 SERVICE             STATUS   UPDATES
-default/helloworld  pending  test error
+default/helloworld  success  test error
                              helloworld: quay.io/weaveworks/helloworld:master-a000002 -> master-a000001
 `,
 		},
@@ -60,17 +60,17 @@ default/helloworld  pending  test error
 		{
 			name: "Service results should be sorted",
 			result: flux.ReleaseResult{
-				flux.ServiceID("d"): flux.ServiceResult{Status: flux.ReleaseStatusPending},
-				flux.ServiceID("c"): flux.ServiceResult{Status: flux.ReleaseStatusPending},
-				flux.ServiceID("b"): flux.ServiceResult{Status: flux.ReleaseStatusPending},
-				flux.ServiceID("a"): flux.ServiceResult{Status: flux.ReleaseStatusPending},
+				flux.ServiceID("d"): flux.ServiceResult{Status: flux.ReleaseStatusSuccess},
+				flux.ServiceID("c"): flux.ServiceResult{Status: flux.ReleaseStatusSuccess},
+				flux.ServiceID("b"): flux.ServiceResult{Status: flux.ReleaseStatusSuccess},
+				flux.ServiceID("a"): flux.ServiceResult{Status: flux.ReleaseStatusSuccesSuccess},
 			},
 			expected: `
 SERVICE   STATUS   UPDATES
-a         pending  
-b         pending  
-c         pending  
-d         pending  
+a         success  
+b         success  
+c         success  
+d         success  
 `,
 		},
 	} {

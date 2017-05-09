@@ -1,7 +1,6 @@
 package daemon
 
 import (
-	"fmt"
 	"strings"
 	"time"
 
