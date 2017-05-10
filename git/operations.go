@@ -173,7 +173,6 @@ func execGitCmd(dir, keyPath string, out io.Writer, args ...string) error {
 	c.Stderr = errOut
 	err := c.Run()
 	if err != nil {
-		println(errOut.String())
 		msg := findFatalMessage(errOut)
 		if msg != "" {
 			err = errors.New(msg)
