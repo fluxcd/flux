@@ -3,7 +3,6 @@ package sync
 import (
 	"github.com/pkg/errors"
 
-	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster"
 	"github.com/weaveworks/flux/resource"
 )
@@ -16,22 +15,15 @@ const (
 )
 
 // Synchronise the cluster to the files in a directory
-func Sync(changedFiles []string, clus cluster.Cluster, deletes bool) ([]flux.ServiceID, error) {
-	// TODO logging, metrics?
-	// Get a map of resources defined in the repo
-	repoResources, err := clus.LoadManifests(changedFiles...)
-	if err != nil {
-		return nil, errors.Wrap(err, "loading resources from repo")
-	}
-
+func Sync(repoResources map[string]resource.Resource, clus cluster.Cluster, deletes bool) error {
 	// Get a map of resources defined in the cluster
 	clusterBytes, err := clus.Export()
 	if err != nil {
-		return nil, errors.Wrap(err, "exporting resource defs from cluster")
+		return errors.Wrap(err, "exporting resource defs from cluster")
 	}
 	clusterResources, err := clus.ParseManifests(clusterBytes)
 	if err != nil {
-		return nil, errors.Wrap(err, "parsing exported resources")
+		return errors.Wrap(err, "parsing exported resources")
 	}
 
 	// Everything that's in the cluster but not in the repo, delete;
@@ -40,7 +32,6 @@ func Sync(changedFiles []string, clus cluster.Cluster, deletes bool) ([]flux.Ser
 	// relying on Kubernetes to decide for each application if it is a
 	// no-op.
 	var sync cluster.SyncDef
-	serviceIDs := flux.ServiceIDSet{}
 
 	if deletes {
 		for id, res := range clusterResources {
@@ -65,13 +56,12 @@ func Sync(changedFiles []string, clus cluster.Cluster, deletes bool) ([]flux.Ser
 				continue
 			}
 		}
-		serviceIDs.Add(res.ServiceIDs())
 		sync.Actions = append(sync.Actions, cluster.SyncAction{
 			ResourceID: id,
 			Apply:      res.Bytes(),
 		})
 	}
-	return serviceIDs.ToSlice(), clus.Sync(sync)
+	return clus.Sync(sync)
 }
 
 func ignore(res resource.Resource) bool {

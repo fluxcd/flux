@@ -5,8 +5,11 @@ import (
 	"time"
 
 	"github.com/go-kit/kit/log"
+	"github.com/pkg/errors"
 
+	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/history"
+	"github.com/weaveworks/flux/resource"
 	"github.com/weaveworks/flux/sync"
 )
 
@@ -98,26 +101,45 @@ func (d *Daemon) pullAndSync(logger log.Logger) {
 		logger.Log("err", err)
 	}
 
-	// TODO supply deletes argument from somewhere (command-line?)
-	changedFiles, err := working.ChangedFiles(working.SyncTag)
-	if isUnknownRevision(err) {
-		// no synctag, list all files
-		changedFiles = []string{working.ManifestDir()}
-	} else if err != nil {
-		logger.Log("err", err)
-	}
-	if len(changedFiles) == 0 {
+	// TODO logging, metrics?
+	// Get a map of all resources defined in the repo
+	allResources, err := d.Cluster.LoadManifests(working.ManifestDir())
+	if err != nil {
+		logger.Log("err", errors.Wrap(err, "loading resources from repo"))
 		return
 	}
-	serviceIDs, err := sync.Sync(changedFiles, d.Cluster, false)
-	if err != nil {
+
+	// TODO supply deletes argument from somewhere (command-line?)
+	if err := sync.Sync(allResources, d.Cluster, false); err != nil {
 		logger.Log("err", err)
+	}
+
+	// Figure out which service IDs changed in this release
+	changedResources := map[string]resource.Resource{}
+	changedFiles, err := working.ChangedFiles(working.SyncTag)
+	switch {
+	case err == nil:
+		// We had some changed files, we're syncing a diff
+		changedResources, err = d.Cluster.LoadManifests(changedFiles...)
+		if err != nil {
+			logger.Log("err", errors.Wrap(err, "loading resources from repo"))
+			return
+		}
+	case isUnknownRevision(err):
+		// no synctag, We are syncing everything from scratch
+		changedResources = allResources
+	default:
+		logger.Log("err", err)
+	}
+	serviceIDs := flux.ServiceIDSet{}
+	for _, r := range changedResources {
+		serviceIDs.Add(r.ServiceIDs(allResources))
 	}
 
 	// Emit an event
 	if len(revisions) > 0 {
 		if err := d.LogEvent(history.Event{
-			ServiceIDs: serviceIDs,
+			ServiceIDs: serviceIDs.ToSlice(),
 			Type:       history.EventSync,
 			StartedAt:  started,
 			EndedAt:    started,

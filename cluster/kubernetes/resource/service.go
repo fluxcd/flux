@@ -1,7 +1,12 @@
 package resource
 
 import (
+	"fmt"
+
+	"k8s.io/client-go/1.5/pkg/labels"
+
 	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/resource"
 )
 
 // For reference:
@@ -12,10 +17,29 @@ type Service struct {
 	Spec ServiceSpec `yaml:"spec"`
 }
 
+func (o Service) ServiceIDs(all map[string]resource.Resource) []flux.ServiceID {
+	// A service is part of its own service id
+	ns := o.Meta.Namespace
+	if ns == "" {
+		ns = "default"
+	}
+	return []flux.ServiceID{flux.ServiceID(fmt.Sprintf("%s/%s", ns, o.Meta.Name))}
+}
+
+// Matches checks if this service's label selectors match the labels fo some
+// deployment
+func (o Service) Matches(l labels.Labels) bool {
+	return o.Spec.Matches(l)
+}
+
 type ServiceSpec struct {
 	Type     string            `yaml:"type"`
 	Ports    []ServicePort     `yaml:"ports"`
 	Selector map[string]string `yaml:"selector"`
+}
+
+func (s ServiceSpec) Matches(l labels.Labels) bool {
+	return labels.SelectorFromSet(labels.Set(s.Selector)).Matches(l)
 }
 
 type ServicePort struct {

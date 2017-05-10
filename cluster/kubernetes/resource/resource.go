@@ -38,15 +38,7 @@ func (o *baseObject) debyte() {
 }
 
 // TODO: Implement this for more service types
-func (o baseObject) ServiceIDs() []flux.ServiceID {
-	switch o.Kind {
-	case "Deployment", "ReplicationController":
-		ns := o.Meta.Namespace
-		if ns == "" {
-			ns = "default"
-		}
-		return []flux.ServiceID{flux.ServiceID(fmt.Sprintf("%s/%s", ns, o.Meta.Name))}
-	}
+func (o baseObject) ServiceIDs(all map[string]resource.Resource) []flux.ServiceID {
 	return nil
 }
 
