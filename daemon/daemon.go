@@ -142,7 +142,7 @@ func (d *Daemon) queueJob(do JobFunc) job.ID {
 			}
 			d.JobStatusCache.SetStatus(id, job.Status{StatusString: job.StatusSucceeded, Result: *metadata})
 			var serviceIDs []flux.ServiceID
-			for id, result := range *metadata.Result {
+			for id, result := range metadata.Result {
 				if result.Status == update.ReleaseStatusSuccess {
 					serviceIDs = append(serviceIDs, id)
 				}
@@ -175,7 +175,7 @@ func (d *Daemon) UpdateManifests(spec update.Spec) (job.ID, error) {
 			return &history.CommitEventMetadata{
 				Revision: revision,
 				Spec:     &spec,
-				Result:   &result,
+				Result:   result,
 			}, nil
 		}), nil
 	case policy.Updates:
@@ -184,26 +184,26 @@ func (d *Daemon) UpdateManifests(spec update.Spec) (job.ID, error) {
 			var serviceIDs []flux.ServiceID
 			metadata := &history.CommitEventMetadata{
 				Spec:   &spec,
-				Result: &update.Result{},
+				Result: update.Result{},
 			}
 			for serviceID, u := range s {
 				// find the service manifest
 				err := d.Cluster.UpdateManifest(working.ManifestDir(), string(serviceID), func(def []byte) ([]byte, error) {
 					newDef, err := d.Cluster.UpdatePolicies(def, u)
 					if err != nil {
-						(*metadata.Result)[serviceID] = update.ServiceResult{
+						metadata.Result[serviceID] = update.ServiceResult{
 							Status: update.ReleaseStatusFailed,
 							Error:  err.Error(),
 						}
 						return nil, err
 					}
 					if string(newDef) == string(def) {
-						(*metadata.Result)[serviceID] = update.ServiceResult{
+						metadata.Result[serviceID] = update.ServiceResult{
 							Status: update.ReleaseStatusSkipped,
 						}
 					} else {
 						serviceIDs = append(serviceIDs, serviceID)
-						(*metadata.Result)[serviceID] = update.ServiceResult{
+						metadata.Result[serviceID] = update.ServiceResult{
 							Status: update.ReleaseStatusSuccess,
 						}
 					}
@@ -211,7 +211,7 @@ func (d *Daemon) UpdateManifests(spec update.Spec) (job.ID, error) {
 				})
 				switch err {
 				case cluster.ErrNoResourceFilesFoundForService, cluster.ErrMultipleResourceFilesFoundForService:
-					(*metadata.Result)[serviceID] = update.ServiceResult{
+					metadata.Result[serviceID] = update.ServiceResult{
 						Status: update.ReleaseStatusFailed,
 						Error:  err.Error(),
 					}
@@ -279,7 +279,7 @@ func (d *Daemon) JobStatus(jobID job.ID) (job.Status, error) {
 				Result: history.CommitEventMetadata{
 					Revision: ref,
 					Spec:     &note.Spec,
-					Result:   &note.Result,
+					Result:   note.Result,
 				},
 			}, nil
 		}

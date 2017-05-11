@@ -39,7 +39,7 @@ func await(stdout, stderr io.Writer, client api.ClientService, jobID job.ID, app
 	}
 
 	if metadata.Result != nil {
-		update.PrintResults(stdout, *metadata.Result, verbose)
+		update.PrintResults(stdout, metadata.Result, verbose)
 	}
 	return nil
 }

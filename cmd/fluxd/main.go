@@ -94,9 +94,6 @@ func main() {
 		restClientConfig.QPS = 50.0
 		restClientConfig.Burst = 100
 
-		// When adding a new platform, don't just bash it in. Create a Platform
-		// or Cluster interface in package platform, and have kubernetes.Cluster
-		// and your new platform implement that interface.
 		logger := log.NewContext(logger).With("component", "platform")
 		logger.Log("host", restClientConfig.Host)
 
@@ -216,7 +213,7 @@ func main() {
 	// Connect to fluxsvc if given an upstream address
 	if *upstreamURL != "" {
 		upstreamLogger := log.NewContext(logger).With("component", "upstream")
-		upstreamLogger.Log("connectURL", *upstreamURL)
+		upstreamLogger.Log("URL", *upstreamURL)
 		upstream, err := daemonhttp.NewUpstream(
 			&http.Client{Timeout: 10 * time.Second},
 			fmt.Sprintf("fluxd/%v", version),
@@ -232,6 +229,8 @@ func main() {
 		}
 		daemon.EventWriter = upstream
 		defer upstream.Close()
+	} else {
+		logger.Log("upstream", "no upstream URL given")
 	}
 
 	go daemon.Loop(shutdown, log.NewContext(logger).With("component", "sync-loop"))
