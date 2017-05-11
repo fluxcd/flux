@@ -11,7 +11,7 @@ import (
 	"github.com/weaveworks/flux/resource"
 )
 
-// Load takes a path to a directory or file, and creates an object set
+// Load takes paths to directories or files, and creates an object set
 // based on the file(s) therein. Resources are named according to the
 // file content, rather than the file name of directory structure.
 func Load(roots ...string) (map[string]resource.Resource, error) {

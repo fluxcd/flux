@@ -37,7 +37,7 @@ func (o *baseObject) debyte() {
 	o.bytes = nil
 }
 
-// TODO: Implement this for more service types
+// ServiceIDs reports the services that depend on this resource.
 func (o baseObject) ServiceIDs(all map[string]resource.Resource) []flux.ServiceID {
 	return nil
 }
