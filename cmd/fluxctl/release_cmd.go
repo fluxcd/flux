@@ -11,12 +11,6 @@ import (
 	"github.com/weaveworks/flux/update"
 )
 
-type serviceReleaseOutputOpts struct {
-	noFollow bool
-	verbose  bool
-	noTty    bool
-}
-
 type serviceReleaseOpts struct {
 	*serviceOpts
 	services    []string
@@ -28,7 +22,7 @@ type serviceReleaseOpts struct {
 	dryRun      bool
 	user        string
 	message     string
-	serviceReleaseOutputOpts
+	outputOpts
 }
 
 func newServiceRelease(parent *serviceOpts) *serviceReleaseOpts {
@@ -54,6 +48,7 @@ func (opts *serviceReleaseOpts) Command() *cobra.Command {
 		username = user.Username
 	}
 
+	OutputFlags(cmd, &opts.outputOpts)
 	cmd.Flags().StringSliceVarP(&opts.services, "service", "s", []string{}, "service to release")
 	cmd.Flags().BoolVar(&opts.allServices, "all", false, "release all services")
 	cmd.Flags().StringVarP(&opts.image, "update-image", "i", "", "update a specific image")
@@ -61,9 +56,6 @@ func (opts *serviceReleaseOpts) Command() *cobra.Command {
 	cmd.Flags().BoolVar(&opts.noUpdate, "no-update", false, "don't update images; just deploy the service(s) as configured in the git repo")
 	cmd.Flags().StringSliceVar(&opts.exclude, "exclude", []string{}, "exclude a service")
 	cmd.Flags().BoolVar(&opts.dryRun, "dry-run", false, "do not release anything; just report back what would have been done")
-	cmd.Flags().BoolVar(&opts.noFollow, "no-follow", false, "just submit the release, don't wait for it to sync")
-	cmd.Flags().BoolVar(&opts.noTty, "no-tty", false, "if not --no-follow, forces simpler, non-TTY status output")
-	cmd.Flags().BoolVarP(&opts.verbose, "verbose", "v", false, "include ignored services in output")
 	cmd.Flags().StringVarP(&opts.message, "message", "m", "", "attach a message to the release job")
 	cmd.Flags().StringVar(&opts.user, "user", username, "override the user reported as initating the release job")
 	return cmd
@@ -144,5 +136,5 @@ func (opts *serviceReleaseOpts) RunE(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	return await(cmd.OutOrStdout(), opts.API, jobID, !opts.dryRun, opts.verbose)
+	return await(cmd.OutOrStdout(), cmd.OutOrStderr(), opts.API, jobID, !opts.dryRun, opts.verbose)
 }

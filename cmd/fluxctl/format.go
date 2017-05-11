@@ -6,7 +6,17 @@ import (
 	"os"
 	"strings"
 	"text/tabwriter"
+
+	"github.com/spf13/cobra"
 )
+
+type outputOpts struct {
+	verbose bool
+}
+
+func OutputFlags(cmd *cobra.Command, opts *outputOpts) {
+	cmd.Flags().BoolVarP(&opts.verbose, "verbose", "v", false, "include ignored services in output")
+}
 
 func newTabwriter() *tabwriter.Writer {
 	return tabwriter.NewWriter(os.Stdout, 0, 2, 2, ' ', 0)

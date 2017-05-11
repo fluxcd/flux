@@ -15,17 +15,18 @@ import (
 
 var ErrTimeout = errors.New("timeout")
 
-// await polls for a job to complete, then for it's commit to be applied
-func await(stdout io.Writer, client api.ClientService, jobID job.ID, apply, verbose bool) error {
+// await polls for a job to complete, then for the resulting commit to
+// be applied
+func await(stdout, stderr io.Writer, client api.ClientService, jobID job.ID, apply, verbose bool) error {
 	metadata, err := awaitJob(client, jobID)
 	if err != nil && err.Error() != git.ErrNoChanges.Error() {
 		return err
 	}
 	if metadata.Revision != "" {
-		fmt.Fprintf(stdout, "Commit pushed: %s\n", metadata.ShortRevision())
+		fmt.Fprintf(stderr, "Commit pushed: %s\n", metadata.ShortRevision())
 	}
 	if metadata.Result == nil {
-		fmt.Fprintf(stdout, "Nothing to do\n")
+		fmt.Fprintf(stderr, "Nothing to do\n")
 		return nil
 	}
 
@@ -34,7 +35,7 @@ func await(stdout io.Writer, client api.ClientService, jobID job.ID, apply, verb
 			return err
 		}
 
-		fmt.Fprintf(stdout, "Applied\n")
+		fmt.Fprintf(stderr, "Applied %s\n", metadata.Revision)
 	}
 
 	if metadata.Result != nil {
