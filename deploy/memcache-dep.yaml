@@ -1,4 +1,6 @@
 ---
+# You can optionally deploy memcache, for the Flux daemon to cache
+# container image metadata.
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
