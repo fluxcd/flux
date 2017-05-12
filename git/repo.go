@@ -5,7 +5,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"strings"
 	"sync"
 )
 
@@ -91,8 +90,7 @@ func (r Repo) Clone(c Config) (*Checkout, error) {
 	}
 
 	// this fetches and updates the local ref, so we'll see notes
-	if err := fetch(r.Key, repoDir, r.URL, notesRef+":"+notesRef); err != nil &&
-		!strings.Contains(err.Error(), "Couldn't find remote ref") {
+	if err := fetch(r.Key, repoDir, r.URL, notesRef+":"+notesRef); err != nil {
 		return nil, err
 	}
 
@@ -125,8 +123,7 @@ func (c *Checkout) WorkingClone() (*Checkout, error) {
 	}
 
 	// this fetches and updates the local ref, so we'll see notes
-	if err := fetch("", repoDir, c.Dir, c.realNotesRef+":"+c.realNotesRef); err != nil &&
-		!strings.Contains(err.Error(), "Couldn't find remote ref") {
+	if err := fetch("", repoDir, c.Dir, c.realNotesRef+":"+c.realNotesRef); err != nil {
 		return nil, err
 	}
 
@@ -207,8 +204,7 @@ func (c *Checkout) Pull() error {
 		// this fetches and updates the local ref, so we'll see the new
 		// notes; but it's possible that the upstream doesn't have this
 		// ref.
-		if err := fetch(c.repo.Key, c.Dir, c.repo.URL, ref); err != nil &&
-			!strings.Contains(err.Error(), "Couldn't find remote ref") {
+		if err := fetch(c.repo.Key, c.Dir, c.repo.URL, ref); err != nil {
 			return err
 		}
 	}
