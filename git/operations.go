@@ -69,7 +69,8 @@ func pull(keyPath, workingDir, upstream, ref string) error {
 }
 
 func fetch(keyPath, workingDir, upstream, refspec string) error {
-	if err := execGitCmd(workingDir, keyPath, nil, "fetch", "--tags", upstream, refspec); err != nil {
+	if err := execGitCmd(workingDir, keyPath, nil, "fetch", "--tags", upstream, refspec); err != nil &&
+		!strings.Contains(err.Error(), "Couldn't find remote ref") {
 		return errors.Wrap(err, fmt.Sprintf("git fetch --tags %s %s", upstream, refspec))
 	}
 	return nil
