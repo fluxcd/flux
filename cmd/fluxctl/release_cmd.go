@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"os"
 	"os/user"
 
 	"github.com/spf13/cobra"
@@ -117,9 +116,9 @@ func (opts *serviceReleaseOpts) RunE(cmd *cobra.Command, args []string) error {
 	}
 
 	if opts.dryRun {
-		fmt.Fprintf(os.Stderr, "Requesting dry-run release...\n")
+		fmt.Fprintf(cmd.OutOrStderr(), "Requesting dry-run release...\n")
 	} else {
-		fmt.Fprintf(os.Stderr, "Requesting release ...\n")
+		fmt.Fprintf(cmd.OutOrStderr(), "Requesting release ...\n")
 	}
 
 	jobID, err := opts.API.UpdateImages(noInstanceID, update.ReleaseSpec{
