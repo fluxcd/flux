@@ -10,20 +10,35 @@ spec:
       labels:
         name: flux
     spec:
-      # The serviceAccount is only needed for Kubernetes with RBAC
-      # serviceAccount: flux
+      serviceAccountName: flux # Service account to allow pods RBAC
       volumes:
       - name: git-key
         secret:
+          # A k8s secret containing the git deploy key. Create with:
+          # kubectl create secret generic flux-git-deploy --from-file /path/to/private-key
           secretName: flux-git-deploy
       containers:
       - name: fluxd
-        image: quay.io/weaveworks/fluxd:latest
-        imagePullPolicy: IfNotPresent
+        # Build this image with `make all`
+        image: weaveworks/fluxd
+        imagePullPolicy: Never
         volumeMounts:
         - name: git-key
-          mountPath: /secrets/flux/git
+          mountPath: /secrets/flux/git # Mount the secret to a volume
         args:
+        # The repository location and branch
+        - --git-url=git@github.com:weaveworks/flux-example
+        - --git-branch=master
+
+        # The mounted volume and the name of the key
+        - --git-key=/secrets/flux/git/private-key
+
+        # include these to connect to an "upstream" service (e.g.,
+        # Weave Cloud). The token is particular to the service.
+        # - --connect=ws://cloud.weave.works/api/flux
+        # - --token=abc123abc123abc123abc123
+        - --connect=ws://localhost:3030/api/flux
+
         # if you deployed memcached, you can supply these arguments to
         # tell fluxd to use it. You may need to change the namespace
         # (`default`)
@@ -31,11 +46,11 @@ spec:
         - --memcached-timeout=100ms
         - --memcached-service=memcached
         - --registry-cache-expiry=20m
-        # replace (at least) the following URL
-        - --git-url=git@github.com:weaveworks/flux-example
-        - --git-key=/secrets/flux/git/id-rsa-flux
-        - --git-branch=master
-        # include these to connect to an "upstream" service (e.g.,
-        # Weave Cloud). The token is particular to the service.
-        # - --connect=ws://cloud.weave.works/api/flux
-        # - --token=abc123abc123abc123abc123
+
+      - name: fluxsvc
+        # Build this image with `make all`
+        image: weaveworks/fluxsvc
+        imagePullPolicy: Never
+        args:
+        # The URL to the nats cluster
+        - --nats-url=nats://nats.default.svc.cluster.local:4222
