@@ -4,8 +4,6 @@ import (
 	"errors"
 
 	"github.com/weaveworks/flux"
-	"github.com/weaveworks/flux/policy"
-	"github.com/weaveworks/flux/resource"
 )
 
 var (
@@ -22,25 +20,7 @@ type Cluster interface {
 	SomeServices([]flux.ServiceID) ([]Service, error)
 	Ping() error
 	Export() ([]byte, error)
-	// For use by git sync
 	Sync(SyncDef) error
-	// Given a directory with manifest files, find which files define
-	// which services.
-	FindDefinedServices(path string) (map[flux.ServiceID][]string, error)
-	// Update the definitions in the manifest file according to the
-	// spec given.
-	UpdateDefinition(def []byte, newImageID flux.ImageID) ([]byte, error)
-	// Load all the resource manifests under the path(s) given
-	LoadManifests(paths ...string) (map[string]resource.Resource, error)
-	// Parse the manifests given in an exported blob
-	ParseManifests([]byte) (map[string]resource.Resource, error)
-	// UpdateManifest applies a resource modifying function to the definition,
-	// and writes the result back.
-	UpdateManifest(path, resourceID string, f func(def []byte) ([]byte, error)) error
-	// UpdatePolicies modifies a manifest to apply the policy update specified
-	UpdatePolicies([]byte, policy.Update) ([]byte, error)
-	// ServicesWithPolicy finds the services which have a particular policy set on them.
-	ServicesWithPolicy(path string, p policy.Policy) (flux.ServiceIDSet, error)
 }
 
 // Service describes a platform service, generally a floating IP with one or

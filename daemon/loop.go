@@ -103,14 +103,14 @@ func (d *Daemon) pullAndSync(logger log.Logger) {
 
 	// TODO logging, metrics?
 	// Get a map of all resources defined in the repo
-	allResources, err := d.Cluster.LoadManifests(working.ManifestDir())
+	allResources, err := d.Manifests.LoadManifests(working.ManifestDir())
 	if err != nil {
 		logger.Log("err", errors.Wrap(err, "loading resources from repo"))
 		return
 	}
 
 	// TODO supply deletes argument from somewhere (command-line?)
-	if err := sync.Sync(allResources, d.Cluster, false); err != nil {
+	if err := sync.Sync(d.Manifests, allResources, d.Cluster, false); err != nil {
 		logger.Log("err", err)
 	}
 
@@ -120,7 +120,7 @@ func (d *Daemon) pullAndSync(logger log.Logger) {
 	switch {
 	case err == nil:
 		// We had some changed files, we're syncing a diff
-		changedResources, err = d.Cluster.LoadManifests(changedFiles...)
+		changedResources, err = d.Manifests.LoadManifests(changedFiles...)
 		if err != nil {
 			logger.Log("err", errors.Wrap(err, "loading resources from repo"))
 			return

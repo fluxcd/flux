@@ -23,8 +23,6 @@ import (
 
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster"
-	kresource "github.com/weaveworks/flux/cluster/kubernetes/resource"
-	"github.com/weaveworks/flux/resource"
 )
 
 const (
@@ -446,14 +444,6 @@ func (c *Cluster) Export() ([]byte, error) {
 	return config.Bytes(), nil
 }
 
-func (c *Cluster) LoadManifests(paths ...string) (map[string]resource.Resource, error) {
-	return kresource.Load(paths...)
-}
-
-func (c *Cluster) ParseManifests(allDefs []byte) (map[string]resource.Resource, error) {
-	return kresource.ParseMultidoc(allDefs, "exported")
-}
-
 // kind & apiVersion must be passed separately as the object's TypeMeta is not populated
 func appendYAML(buffer *bytes.Buffer, apiVersion, kind string, object interface{}) error {
 	yamlBytes, err := k8syaml.Marshal(object)
@@ -468,10 +458,6 @@ func appendYAML(buffer *bytes.Buffer, apiVersion, kind string, object interface{
 	buffer.WriteString("\n")
 	buffer.Write(yamlBytes)
 	return nil
-}
-
-func (c *Cluster) UpdateDefinition(def []byte, image flux.ImageID) ([]byte, error) {
-	return updatePodController(def, image)
 }
 
 // --- end cluster.Cluster

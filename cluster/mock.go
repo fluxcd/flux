@@ -6,6 +6,7 @@ import (
 	"github.com/weaveworks/flux/resource"
 )
 
+// Doubles as a cluster.Cluster and cluster.Manifests implementation
 type Mock struct {
 	AllServicesFunc         func(maybeNamespace string) ([]Service, error)
 	SomeServicesFunc        func([]flux.ServiceID) ([]Service, error)

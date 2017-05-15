@@ -84,6 +84,7 @@ func main() {
 
 	// Platform component.
 	var k8s cluster.Cluster
+	var k8sManifests cluster.Manifests
 	{
 		restClientConfig, err := rest.InClusterConfig()
 		if err != nil {
@@ -123,6 +124,9 @@ func main() {
 		}
 
 		k8s = cluster
+		// There is only one way we currently interpret a repo of
+		// files as manifests, and that's as Kubernetes yamels.
+		k8sManifests = &kubernetes.Manifests{}
 	}
 
 	var reg registry.Registry
@@ -204,6 +208,7 @@ func main() {
 	daemon := &daemon.Daemon{
 		V:              version,
 		Cluster:        k8s,
+		Manifests:      k8sManifests,
 		Registry:       reg,
 		Checkout:       checkout,
 		Jobs:           jobs,

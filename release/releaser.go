@@ -82,7 +82,7 @@ func Release(rc *ReleaseContext, spec update.ReleaseSpec) (commitRef string, res
 		}
 	}
 
-	revision, err := rc.HeadRevision()
+	revision, err := rc.Repo.HeadRevision()
 	return revision, results, err
 }
 
@@ -222,7 +222,7 @@ func calculateImageUpdates(rc *ReleaseContext, candidates []*ServiceUpdate, spec
 				continue
 			}
 
-			u.ManifestBytes, err = rc.Cluster.UpdateDefinition(u.ManifestBytes, latestImage.ID)
+			u.ManifestBytes, err = rc.Manifests.UpdateDefinition(u.ManifestBytes, latestImage.ID)
 			if err != nil {
 				return nil, err
 			}

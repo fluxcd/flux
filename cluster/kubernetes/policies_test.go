@@ -99,7 +99,7 @@ func TestUpdatePolicies(t *testing.T) {
 	} {
 		caseIn := templToString(t, annotationsTemplate, c.in)
 		caseOut := templToString(t, annotationsTemplate, c.out)
-		out, err := (&Cluster{}).UpdatePolicies([]byte(caseIn), c.update)
+		out, err := (&Manifests{}).UpdatePolicies([]byte(caseIn), c.update)
 		if err != nil {
 			t.Errorf("[%s] %v", c.name, err)
 		} else if string(out) != caseOut {

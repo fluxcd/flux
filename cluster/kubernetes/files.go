@@ -12,7 +12,7 @@ import (
 // directory given, and returns a map of service IDs (from its
 // specified namespace and name) to the paths of resource definition
 // files.
-func (c *Cluster) FindDefinedServices(path string) (map[flux.ServiceID][]string, error) {
+func (c *Manifests) FindDefinedServices(path string) (map[flux.ServiceID][]string, error) {
 	objects, err := resource.Load(path)
 	if err != nil {
 		return nil, errors.Wrap(err, "loading resources")

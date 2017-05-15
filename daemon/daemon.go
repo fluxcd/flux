@@ -29,6 +29,7 @@ var ErrUnknownJob = fmt.Errorf("unkown job")
 type Daemon struct {
 	V              string
 	Cluster        cluster.Cluster
+	Manifests      cluster.Manifests
 	Registry       registry.Registry
 	Repo           git.Repo
 	Checkout       *git.Checkout
@@ -64,11 +65,11 @@ func (d *Daemon) ListServices(namespace string) ([]flux.ServiceStatus, error) {
 
 	d.Checkout.RLock()
 	defer d.Checkout.RUnlock()
-	automatedServices, err := d.Cluster.ServicesWithPolicy(d.Checkout.ManifestDir(), policy.Automated)
+	automatedServices, err := d.Manifests.ServicesWithPolicy(d.Checkout.ManifestDir(), policy.Automated)
 	if err != nil {
 		return nil, errors.Wrap(err, "checking service policies")
 	}
-	lockedServices, err := d.Cluster.ServicesWithPolicy(d.Checkout.ManifestDir(), policy.Locked)
+	lockedServices, err := d.Manifests.ServicesWithPolicy(d.Checkout.ManifestDir(), policy.Locked)
 	if err != nil {
 		return nil, errors.Wrap(err, "checking service policies")
 	}
@@ -167,7 +168,7 @@ func (d *Daemon) UpdateManifests(spec update.Spec) (job.ID, error) {
 	switch s := spec.Spec.(type) {
 	case update.ReleaseSpec:
 		return d.queueJob(func(jobID job.ID, working *git.Checkout) (*history.CommitEventMetadata, error) {
-			rc := release.NewReleaseContext(d.Cluster, d.Registry, working)
+			rc := release.NewReleaseContext(d.Cluster, d.Manifests, d.Registry, working)
 			revision, result, err := release.Release(rc, s)
 			if err == nil {
 				d.askForSync()
@@ -188,8 +189,8 @@ func (d *Daemon) UpdateManifests(spec update.Spec) (job.ID, error) {
 			}
 			for serviceID, u := range s {
 				// find the service manifest
-				err := d.Cluster.UpdateManifest(working.ManifestDir(), string(serviceID), func(def []byte) ([]byte, error) {
-					newDef, err := d.Cluster.UpdatePolicies(def, u)
+				err := cluster.UpdateManifest(d.Manifests, working.ManifestDir(), string(serviceID), func(def []byte) ([]byte, error) {
+					newDef, err := d.Manifests.UpdatePolicies(def, u)
 					if err != nil {
 						metadata.Result[serviceID] = update.ServiceResult{
 							Status: update.ReleaseStatusFailed,
@@ -294,11 +295,7 @@ func (d *Daemon) JobStatus(jobID job.ID) (job.Status, error) {
 // you'll get all the commits yet to be applied. If you send a hash
 // and it's applied _past_ it, you'll get an empty list.
 func (d *Daemon) SyncStatus(commitRef string) ([]string, error) {
-	if err := d.Checkout.Pull(); err != nil {
-		return nil, errors.Wrap(err, "updating repo for status")
-	}
-	rc := release.NewReleaseContext(d.Cluster, d.Registry, d.Checkout)
-	return rc.ListRevisions(commitRef)
+	return d.Checkout.RevisionsBetween(d.Checkout.SyncTag, commitRef)
 }
 
 // Non-remote.Platform methods
