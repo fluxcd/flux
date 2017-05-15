@@ -1,4 +1,4 @@
-package release
+package update
 
 import (
 	"bytes"
@@ -10,17 +10,17 @@ import (
 func TestPrintResults(t *testing.T) {
 	for _, example := range []struct {
 		name     string
-		result   flux.ReleaseResult
+		result   Result
 		verbose  bool
 		expected string
 	}{
 		{
 			name: "basic, just results",
-			result: flux.ReleaseResult{
-				flux.ServiceID("default/helloworld"): flux.ServiceResult{
-					Status: flux.ReleaseStatusSuccess,
+			result: Result{
+				flux.ServiceID("default/helloworld"): ServiceResult{
+					Status: ReleaseStatusSuccess,
 					Error:  "",
-					PerContainer: []flux.ContainerUpdate{
+					PerContainer: []ContainerUpdate{
 						{
 							Container: "helloworld",
 							Current:   flux.ImageID{"quay.io", "weaveworks", "helloworld", "master-a000002"},
@@ -37,11 +37,11 @@ default/helloworld  success  helloworld: quay.io/weaveworks/helloworld:master-a0
 
 		{
 			name: "With an error, *and* results",
-			result: flux.ReleaseResult{
-				flux.ServiceID("default/helloworld"): flux.ServiceResult{
-					Status: flux.ReleaseStatusSuccess,
+			result: Result{
+				flux.ServiceID("default/helloworld"): ServiceResult{
+					Status: ReleaseStatusSuccess,
 					Error:  "test error",
-					PerContainer: []flux.ContainerUpdate{
+					PerContainer: []ContainerUpdate{
 						{
 							Container: "helloworld",
 							Current:   flux.ImageID{"quay.io", "weaveworks", "helloworld", "master-a000002"},
@@ -59,11 +59,11 @@ default/helloworld  success  test error
 
 		{
 			name: "Service results should be sorted",
-			result: flux.ReleaseResult{
-				flux.ServiceID("d"): flux.ServiceResult{Status: flux.ReleaseStatusSuccess},
-				flux.ServiceID("c"): flux.ServiceResult{Status: flux.ReleaseStatusSuccess},
-				flux.ServiceID("b"): flux.ServiceResult{Status: flux.ReleaseStatusSuccess},
-				flux.ServiceID("a"): flux.ServiceResult{Status: flux.ReleaseStatusSuccesSuccess},
+			result: Result{
+				flux.ServiceID("d"): ServiceResult{Status: ReleaseStatusSuccess},
+				flux.ServiceID("c"): ServiceResult{Status: ReleaseStatusSuccess},
+				flux.ServiceID("b"): ServiceResult{Status: ReleaseStatusSuccess},
+				flux.ServiceID("a"): ServiceResult{Status: ReleaseStatusSuccess},
 			},
 			expected: `
 SERVICE   STATUS   UPDATES

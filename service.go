@@ -37,7 +37,7 @@ func (id ServiceID) String() string {
 func ParseServiceID(s string) (ServiceID, error) {
 	toks := strings.SplitN(s, "/", 2)
 	if len(toks) != 2 {
-		return "", ErrInvalidServiceID
+		return "", errors.Wrap(ErrInvalidServiceID, "parsing "+s)
 	}
 	return ServiceID(s), nil
 }

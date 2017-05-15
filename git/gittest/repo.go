@@ -49,6 +49,25 @@ func Repo(t *testing.T) (git.Repo, func()) {
 	}, cleanup
 }
 
+func Checkout(t *testing.T) (*git.Checkout, func()) {
+	repo, cleanup := Repo(t)
+	config := git.Config{
+		UserName:  "example",
+		UserEmail: "example@example.com",
+		SyncTag:   "flux-test",
+		NotesRef:  "fluxtest",
+	}
+	co, err := repo.Clone(config)
+	if err != nil {
+		cleanup()
+		t.Fatal(err)
+	}
+	return co, func() {
+		co.Clean()
+		cleanup()
+	}
+}
+
 func execCommand(cmd string, args ...string) error {
 	c := exec.Command(cmd, args...)
 	c.Stderr = ioutil.Discard
