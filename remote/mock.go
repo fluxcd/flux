@@ -165,7 +165,7 @@ func PlatformTestBattery(t *testing.T, wrap func(mock Platform) Platform) {
 		t.Error(err)
 	}
 	if !reflect.DeepEqual(ss, mock.ListServicesAnswer) {
-		t.Error(fmt.Errorf("expected %d result(s), got %+v", len(mock.ListServicesAnswer), ss))
+		t.Error(fmt.Errorf("expected:\n%#v\ngot:\n%#v", mock.ListServicesAnswer, ss))
 	}
 	mock.ListServicesError = fmt.Errorf("list services query failure")
 	ss, err = client.ListServices(namespace)

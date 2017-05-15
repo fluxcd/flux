@@ -289,7 +289,7 @@ func TestFluxsvc_History(t *testing.T) {
 	}
 	var hasLock bool
 	for _, v := range hist {
-		if strings.Contains(v.Data, "locked") {
+		if strings.Contains(v.Data, "Locked") {
 			hasLock = true
 			break
 		}
