@@ -74,7 +74,7 @@ func setup() {
 				Containers: []flux.Container{
 					flux.Container{
 						Name: "helloworld",
-						Current: flux.ImageDescription{
+						Current: flux.Image{
 							ID: imageID,
 						},
 					},
@@ -88,7 +88,7 @@ func setup() {
 				Containers: []flux.Container{
 					flux.Container{
 						Name: "helloworld",
-						Current: flux.ImageDescription{
+						Current: flux.Image{
 							ID: imageID,
 						},
 					},
@@ -99,7 +99,7 @@ func setup() {
 				Containers: []flux.Container{
 					flux.Container{
 						Name: "helloworld",
-						Current: flux.ImageDescription{
+						Current: flux.Image{
 							ID: imageID,
 						},
 					},

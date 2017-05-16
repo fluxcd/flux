@@ -76,12 +76,12 @@ var (
 	timeNow       = time.Now()
 	mockRegistry  = registry.NewMockRegistry([]flux.Image{
 		flux.Image{
-			ImageID:   newImageID,
-			CreatedAt: &timeNow,
+			ID:        newImageID,
+			CreatedAt: timeNow,
 		},
 		flux.Image{
-			ImageID:   newLockedID,
-			CreatedAt: &timeNow,
+			ID:        newLockedID,
+			CreatedAt: timeNow,
 		},
 	}, nil)
 )
@@ -294,12 +294,12 @@ func Test_ImageStatus(t *testing.T) {
 
 	upToDateRegistry := registry.NewMockRegistry([]flux.Image{
 		flux.Image{
-			ImageID:   oldImageID,
-			CreatedAt: &timeNow,
+			ID:        oldImageID,
+			CreatedAt: timeNow,
 		},
 		flux.Image{
-			ImageID:   sidecarImageID,
-			CreatedAt: &timeNow,
+			ID:        sidecarImageID,
+			CreatedAt: timeNow,
 		},
 	}, nil)
 

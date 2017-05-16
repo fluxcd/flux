@@ -96,7 +96,7 @@ func PlatformTestBattery(t *testing.T, wrap func(mock Platform) Platform) {
 	services := flux.ServiceIDSet{}
 	services.Add(serviceList)
 
-	now := time.Now()
+	now := time.Now().UTC()
 
 	imageID, _ := flux.ParseImageID("quay.io/example.com/frob:v0.4.5")
 	serviceAnswer := []flux.ServiceStatus{
@@ -106,9 +106,9 @@ func PlatformTestBattery(t *testing.T, wrap func(mock Platform) Platform) {
 			Containers: []flux.Container{
 				flux.Container{
 					Name: "frobnicator",
-					Current: flux.ImageDescription{
+					Current: flux.Image{
 						ID:        imageID,
-						CreatedAt: &now,
+						CreatedAt: now,
 					},
 				},
 			},
@@ -118,8 +118,15 @@ func PlatformTestBattery(t *testing.T, wrap func(mock Platform) Platform) {
 
 	imagesAnswer := []flux.ImageStatus{
 		flux.ImageStatus{
-			ID:         flux.ServiceID("barfoo/yello"),
-			Containers: []flux.Container{},
+			ID: flux.ServiceID("barfoo/yello"),
+			Containers: []flux.Container{
+				{
+					Name: "flubnicator",
+					Current: flux.Image{
+						ID: imageID,
+					},
+				},
+			},
 		},
 	}
 

@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"sort"
 	"strings"
-	"time"
 
 	"github.com/pkg/errors"
 )
@@ -160,13 +159,8 @@ type ServiceStatus struct {
 
 type Container struct {
 	Name      string
-	Current   ImageDescription
-	Available []ImageDescription
-}
-
-type ImageDescription struct {
-	ID        ImageID
-	CreatedAt *time.Time `json:",omitempty"`
+	Current   Image
+	Available []Image
 }
 
 // TODO: How similar should this be to the `get-config` result?
