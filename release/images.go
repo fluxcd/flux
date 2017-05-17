@@ -3,6 +3,7 @@ package release
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/pkg/errors"
 
@@ -35,19 +36,7 @@ func CollectAvailableImages(reg registry.Registry, services []cluster.Service) (
 		if err != nil {
 			return nil, errors.Wrapf(err, "fetching image metadata for %s", repo)
 		}
-		res := make([]flux.ImageDescription, len(imageRepo))
-		for i, im := range imageRepo {
-			id, err := flux.ParseImageID(im.String())
-			if err != nil {
-				// registry returned an invalid image id
-				return nil, err
-			}
-			res[i] = flux.ImageDescription{
-				ID:        id,
-				CreatedAt: im.CreatedAt,
-			}
-		}
-		images[repo] = res
+		images[repo] = imageRepo
 	}
 	return images, nil
 }
@@ -57,7 +46,7 @@ func CollectAvailableImages(reg registry.Registry, services []cluster.Service) (
 // available images are in descending order of latestness.) If no such
 // image exists, returns nil, and the caller can decide whether that's
 // an error or not.
-func (m ImageMap) LatestImage(repo string) *flux.ImageDescription {
+func (m ImageMap) LatestImage(repo string) *flux.Image {
 	for _, image := range m[repo] {
 		_, _, tag := image.ID.Components()
 		if strings.EqualFold(tag, "latest") {
@@ -69,7 +58,7 @@ func (m ImageMap) LatestImage(repo string) *flux.ImageDescription {
 }
 
 // For keeping track of which images are available
-type ImageMap map[string][]flux.ImageDescription
+type ImageMap map[string][]flux.Image
 
 // Create a map of images. It will check that each image exists.
 func ExactImages(reg registry.Registry, images []flux.ImageID) (ImageMap, error) {
@@ -83,7 +72,7 @@ func ExactImages(reg registry.Registry, images []flux.ImageID) (ImageMap, error)
 		if !exist {
 			return m, errors.Wrap(flux.ErrInvalidImageID, fmt.Sprintf("image %q does not exist", id))
 		}
-		m[id.Repository()] = []flux.ImageDescription{flux.ImageDescription{ID: id}}
+		m[id.Repository()] = []flux.Image{flux.Image{ID: id}}
 	}
 	return m, nil
 }
@@ -92,12 +81,12 @@ func ExactImages(reg registry.Registry, images []flux.ImageID) (ImageMap, error)
 // Return true if exist, false otherwise
 func imageExists(reg registry.Registry, imageID flux.ImageID) (bool, error) {
 	// Use this method to parse the image, because it is safe. I.e. it will error and inform the user if it is malformed.
-	img, err := flux.ParseImage(imageID.String(), nil)
+	img, err := flux.ParseImage(imageID.String(), time.Time{})
 	if err != nil {
 		return false, err
 	}
 	// Get a specific image.
-	_, err = reg.GetImage(registry.RepositoryFromImage(img), img.Tag)
+	_, err = reg.GetImage(registry.RepositoryFromImage(img), img.ID.Tag)
 	if err != nil {
 		return false, nil
 	}

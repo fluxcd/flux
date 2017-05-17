@@ -15,7 +15,7 @@ const testImageStr = "index.docker.io/test/Image:" + testTagStr
 const constTime = "2017-01-13T16:22:58.009923189Z"
 
 var (
-	img, _         = flux.ParseImage(testImageStr, nil)
+	img, _         = flux.ParseImage(testImageStr, time.Time{})
 	testRepository = RepositoryFromImage(img)
 
 	man = schema1.SignedManifest{
@@ -38,12 +38,12 @@ func TestRemoteClient_ParseManifest(t *testing.T) {
 		client: NewMockDockerClient(manifestFunc, nil),
 	}
 	testRepository = RepositoryFromImage(img)
-	desc, err := c.Manifest(testRepository, img.Tag)
+	desc, err := c.Manifest(testRepository, img.ID.Tag)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
-	if string(desc.FullID()) != testImageStr {
-		t.Fatalf("Expecting %q but got %q", testImageStr, string(desc.FullID()))
+	if string(desc.ID.FullID()) != testImageStr {
+		t.Fatalf("Expecting %q but got %q", testImageStr, string(desc.ID.FullID()))
 	}
 	if desc.CreatedAt.Format(time.RFC3339Nano) != constTime {
 		t.Fatalf("Expecting %q but got %q", constTime, desc.CreatedAt.Format(time.RFC3339Nano))
@@ -95,7 +95,7 @@ func TestRemoteClient_RemoteErrors(t *testing.T) {
 	if err == nil {
 		t.Fatal("Expected error")
 	}
-	_, err = c.Manifest(testRepository, img.Tag)
+	_, err = c.Manifest(testRepository, img.ID.Tag)
 	if err == nil {
 		t.Fatal("Expected error")
 	}
