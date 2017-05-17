@@ -8,6 +8,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/git"
 	"github.com/weaveworks/flux/history"
 	"github.com/weaveworks/flux/resource"
 	"github.com/weaveworks/flux/sync"
@@ -154,6 +155,32 @@ func (d *Daemon) pullAndSync(logger log.Logger) {
 	if err := working.MoveTagAndPush("HEAD", "Sync pointer"); err != nil {
 		logger.Log("err", err)
 	}
+
+	// Pull the tag if it has changed
+	if err := d.updateTagRev(working, logger); err != nil {
+		logger.Log("err", errors.Wrap(err, "updating tag"))
+	}
+}
+
+func (d *Daemon) updateTagRev(working *git.Checkout, logger log.Logger) error {
+	oldTagRev, err := d.Checkout.TagRevision(d.Checkout.SyncTag)
+	if err != nil {
+		return err
+	}
+	newTagRev, err := working.TagRevision(working.SyncTag)
+	if err != nil {
+		return err
+	}
+
+	if oldTagRev != newTagRev {
+		logger.Log("tag", d.Checkout.SyncTag, "old", oldTagRev, "new", newTagRev)
+
+		if err := d.Checkout.Pull(); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func isUnknownRevision(err error) bool {
