@@ -85,10 +85,11 @@ func backoff(initialDelay, factor, maxFactor, timeout time.Duration, f func() (b
 		if ok || err != nil {
 			return err
 		}
-		// If we will have time to try again, sleep
-		if time.Now().UTC().Add(delay).Before(finish) {
-			time.Sleep(delay)
+		// If we don't have time to try again, stop
+		if time.Now().UTC().Add(delay).After(finish) {
+			break
 		}
+		time.Sleep(delay)
 	}
 	return ErrTimeout
 }

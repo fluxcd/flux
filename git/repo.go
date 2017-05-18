@@ -160,7 +160,7 @@ func (c *Checkout) CommitAndPush(commitMessage string, note *Note) error {
 	}
 
 	if note != nil {
-		rev, err := headRevision(c.Dir)
+		rev, err := refRevision(c.Dir, "HEAD")
 		if err != nil {
 			return err
 		}
@@ -214,7 +214,13 @@ func (c *Checkout) Pull() error {
 func (c *Checkout) HeadRevision() (string, error) {
 	c.RLock()
 	defer c.RUnlock()
-	return headRevision(c.Dir)
+	return refRevision(c.Dir, "HEAD")
+}
+
+func (c *Checkout) TagRevision(tag string) (string, error) {
+	c.RLock()
+	defer c.RUnlock()
+	return refRevision(c.Dir, tag)
 }
 
 func (c *Checkout) RevisionsBetween(ref1, ref2 string) ([]string, error) {
