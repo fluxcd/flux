@@ -48,6 +48,7 @@ func NewHandler(d *daemon.Daemon, r *mux.Router) http.Handler {
 	r.Get("UpdatePolicies").HandlerFunc(handle.UpdatePolicies)
 	r.Get("ListServices").HandlerFunc(handle.ListServices)
 	r.Get("ListImages").HandlerFunc(handle.ListImages)
+	r.Get("Export").HandlerFunc(handle.Export)
 
 	return middleware.Instrument{
 		RouteMatcher: r,
@@ -182,4 +183,14 @@ func (s HTTPServer) ListServices(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	transport.JSONResponse(w, r, res)
+}
+
+func (s HTTPServer) Export(w http.ResponseWriter, r *http.Request) {
+	status, err := s.daemon.Export()
+	if err != nil {
+		transport.ErrorResponse(w, r, err)
+		return
+	}
+
+	transport.JSONResponse(w, r, status)
 }
