@@ -48,9 +48,13 @@ func PushError(url string, actual error) error {
 		Help: `Problem committing and pushing to git repository.
 
 There was a problem with committing changes and pushing to the git
-repository. Since the repository had to be cloned to get to this
-point, this probably means that the repository exists but the deploy
-key provided doesn't have write permission.
+repository.
+
+If this has worked before, it most likely means a fast-forward push
+was not possible. It is safe to try again.
+
+If it has not worked before, this probably means that the repository
+exists but the deploy key provided doesn't have write permission.
 
 In GitHub, please check via the repository settings that the deploy
 key is "Read/write". You can cross-check the fingerprint with that
