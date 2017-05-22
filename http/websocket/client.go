@@ -18,7 +18,10 @@ type DialErr struct {
 }
 
 func (de DialErr) Error() string {
-	return fmt.Sprintf("connecting websocket %s (http status code = %v)", de.URL, de.HTTPResponse.StatusCode)
+	if de.URL != nil && de.HTTPResponse != nil {
+		return fmt.Sprintf("connecting to websocket %s (http status code = %v)", de.URL, de.HTTPResponse.StatusCode)
+	}
+	return "connecting to websocket (unknown error)"
 }
 
 // Dial initiates a new websocket connection.
