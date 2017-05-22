@@ -18,7 +18,10 @@ type DialErr struct {
 }
 
 func (de DialErr) Error() string {
-	return fmt.Sprintf("connecting websocket %s (http status code = %v)", de.URL, de.HTTPResponse.StatusCode)
+	if de.URL != nil && de.HTTPResponse != nil {
+		return fmt.Sprintf("connecting to websocket %s (http status code = %v)", de.URL, de.HTTPResponse.StatusCode)
+	}
+	return "connecting to websocket (unknown error)"
 }
 
 // Dial initiates a new websocket connection.
@@ -38,7 +41,10 @@ func Dial(client *http.Client, ua string, token flux.Token, u *url.URL) (Websock
 	// Use http client to do the http request
 	conn, resp, err := dialer(client).Dial(u.String(), req.Header)
 	if err != nil {
-		return nil, &DialErr{u, resp}
+		if resp != nil {
+			err = &DialErr{u, resp}
+		}
+		return nil, err
 	}
 
 	// Set up the ping heartbeat
