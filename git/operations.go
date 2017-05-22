@@ -183,7 +183,7 @@ func execGitCmd(dir, keyPath string, out io.Writer, args ...string) error {
 }
 
 func env(keyPath string) []string {
-	base := `GIT_SSH_COMMAND=ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -o LogLevel=error`
+	base := `GIT_SSH_COMMAND=ssh -o LogLevel=error`
 	if keyPath == "" {
 		return []string{base}
 	}
