@@ -15,5 +15,6 @@ spec:
   type: NodePort
   ports:
     - port: 3030
+      nodePort: 30303
   selector:
     name: flux
