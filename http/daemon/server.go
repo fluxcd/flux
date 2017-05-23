@@ -49,6 +49,8 @@ func NewHandler(d *daemon.Daemon, r *mux.Router) http.Handler {
 	r.Get("ListServices").HandlerFunc(handle.ListServices)
 	r.Get("ListImages").HandlerFunc(handle.ListImages)
 	r.Get("Export").HandlerFunc(handle.Export)
+	r.Get("GetPublicSSHKey").HandlerFunc(handle.GetPublicSSHKey)
+	r.Get("RegeneratePublicSSHKey").HandlerFunc(handle.RegeneratePublicSSHKey)
 
 	return middleware.Instrument{
 		RouteMatcher: r,
@@ -193,4 +195,23 @@ func (s HTTPServer) Export(w http.ResponseWriter, r *http.Request) {
 	}
 
 	transport.JSONResponse(w, r, status)
+}
+
+func (s HTTPServer) GetPublicSSHKey(w http.ResponseWriter, r *http.Request) {
+	res, err := s.daemon.PublicSSHKey(false)
+	if err != nil {
+		transport.ErrorResponse(w, r, err)
+		return
+	}
+	transport.JSONResponse(w, r, res)
+}
+
+func (s HTTPServer) RegeneratePublicSSHKey(w http.ResponseWriter, r *http.Request) {
+	_, err := s.daemon.PublicSSHKey(true)
+	if err != nil {
+		transport.ErrorResponse(w, r, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+	return
 }

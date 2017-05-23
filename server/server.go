@@ -8,12 +8,12 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/weaveworks/flux"
-	"github.com/weaveworks/flux/git"
 	"github.com/weaveworks/flux/history"
 	"github.com/weaveworks/flux/instance"
 	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/policy"
 	"github.com/weaveworks/flux/remote"
+	"github.com/weaveworks/flux/ssh"
 	"github.com/weaveworks/flux/update"
 )
 
@@ -218,24 +218,13 @@ func applyConfigUpdates(updates flux.UnsafeInstanceConfig) instance.UpdateFunc {
 	}
 }
 
-// FIXME this will have to be done differently; also it's part of the
-// service iface
-func (s *Server) GenerateDeployKey(instID flux.InstanceID) error {
-	// Generate new key
-	unsafePrivateKey, err := git.NewKeyGenerator().Generate()
+func (s *Server) PublicSSHKey(instID flux.InstanceID, regenerate bool) (ssh.PublicKey, error) {
+	inst, err := s.instancer.Get(instID)
 	if err != nil {
-		return err
+		return ssh.PublicKey{}, errors.Wrapf(err, "getting instance "+string(instID))
 	}
 
-	// Get current config
-	cfg, err := s.GetConfig(instID, "")
-	if err != nil {
-		return err
-	}
-	cfg.Git.Key = string(unsafePrivateKey)
-
-	// Set new config
-	return s.config.UpdateConfig(instID, applyConfigUpdates(flux.UnsafeInstanceConfig(cfg)))
+	return inst.Platform.PublicSSHKey(regenerate)
 }
 
 // RegisterDaemon handles a daemon connection. It blocks until the

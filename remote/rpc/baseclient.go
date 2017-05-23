@@ -6,6 +6,7 @@ import (
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/remote"
+	"github.com/weaveworks/flux/ssh"
 	"github.com/weaveworks/flux/update"
 )
 
@@ -48,4 +49,8 @@ func (bc baseClient) JobStatus(job.ID) (job.Status, error) {
 
 func (bc baseClient) SyncStatus(string) ([]string, error) {
 	return nil, remote.UpgradeNeededError(errors.New("SyncStatus method not implemented"))
+}
+
+func (bc baseClient) PublicSSHKey(bool) (ssh.PublicKey, error) {
+	return ssh.PublicKey{}, remote.UpgradeNeededError(errors.New("PublicSSHKey method not implemented"))
 }

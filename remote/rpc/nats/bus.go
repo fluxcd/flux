@@ -12,6 +12,7 @@ import (
 	"github.com/weaveworks/flux/guid"
 	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/remote"
+	"github.com/weaveworks/flux/ssh"
 	"github.com/weaveworks/flux/update"
 )
 
@@ -34,6 +35,7 @@ const (
 	methodJobStatus       = ".Platform.JobStatus"
 	methodSyncStatus      = ".Platform.SyncStatus"
 	methodUpdateManifests = ".Platform.UpdateManifests"
+	methodPublicSSHKey    = ".Platform.PublicSSHKey"
 )
 
 var timeout = defaultTimeout
@@ -155,6 +157,11 @@ type JobStatusResponse struct {
 
 type SyncStatusResponse struct {
 	Result []string
+	ErrorResponse
+}
+
+type PublicSSHKeyResponse struct {
+	Result ssh.PublicKey
 	ErrorResponse
 }
 
@@ -281,6 +288,17 @@ func (r *natsPlatform) SyncStatus(ref string) ([]string, error) {
 			err = remote.UnavailableError(err)
 		}
 		return nil, err
+	}
+	return response.Result, extractError(response.ErrorResponse)
+}
+
+func (r *natsPlatform) PublicSSHKey(regenerate bool) (ssh.PublicKey, error) {
+	var response PublicSSHKeyResponse
+	if err := r.conn.Request(r.instance+methodPublicSSHKey, regenerate, &response, timeout); err != nil {
+		if err == nats.ErrTimeout {
+			err = remote.UnavailableError(err)
+		}
+		return ssh.PublicKey{}, err
 	}
 	return response.Result, extractError(response.ErrorResponse)
 }
@@ -417,6 +435,17 @@ func (n *NATS) Subscribe(instID flux.InstanceID, platform remote.Platform, done 
 				res, err = platform.SyncStatus(req)
 			}
 			n.enc.Publish(request.Reply, SyncStatusResponse{res, makeErrorResponse(err)})
+
+		case strings.HasSuffix(request.Subject, methodPublicSSHKey):
+			var (
+				req bool
+				res ssh.PublicKey
+			)
+			err = encoder.Decode(request.Subject, request.Data, &req)
+			if err == nil {
+				res, err = platform.PublicSSHKey(req)
+			}
+			n.enc.Publish(request.Reply, PublicSSHKeyResponse{res, makeErrorResponse(err)})
 
 		default:
 			err = errors.New("unknown message: " + request.Subject)

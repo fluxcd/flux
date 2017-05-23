@@ -28,7 +28,8 @@ func NewAPIRouter() *mux.Router {
 
 	// These API endpoints are specifically deprecated
 	for name, path := range map[string]string{
-		"PostOrGetRelease": "/v4/release", // deprecated because UpdateImages and Sync{Cluster,Status} supercede them, and we cannot support both
+		"PostOrGetRelease":   "/v4/release",            // deprecated because UpdateImages and Sync{Cluster,Status} supercede them, and we cannot support both
+		"GenerateDeployKeys": "/v5/config/deploy-keys", // replaced by PublicSSHKey
 	} {
 		r.NewRoute().Name("Deprecated:" + name).Path(path).HandlerFunc(deprecated)
 	}
@@ -42,6 +43,8 @@ func NewAPIRouter() *mux.Router {
 	r.NewRoute().Name("JobStatus").Methods("GET").Path("/v6/jobs").Queries("id", "{id}")
 	r.NewRoute().Name("SyncStatus").Methods("GET").Path("/v6/sync").Queries("ref", "{ref}")
 	r.NewRoute().Name("Export").Methods("HEAD", "GET").Path("/v5/export")
+	r.NewRoute().Name("GetPublicSSHKey").Methods("GET").Path("/v6/identity.pub")
+	r.NewRoute().Name("RegeneratePublicSSHKey").Methods("POST").Path("/v6/identity.pub")
 
 	return r // TODO 404 though?
 }
@@ -58,7 +61,6 @@ func NewServiceRouter() *mux.Router {
 	r.NewRoute().Name("GetConfig").Methods("GET").Path("/v4/config")
 	r.NewRoute().Name("SetConfig").Methods("POST").Path("/v4/config")
 	r.NewRoute().Name("PatchConfig").Methods("PATCH").Path("/v4/config")
-	r.NewRoute().Name("GenerateDeployKeys").Methods("POST").Path("/v5/config/deploy-keys")
 	r.NewRoute().Name("PostIntegrationsGithub").Methods("POST").Path("/v5/integrations/github").Queries("owner", "{owner}", "repository", "{repository}")
 	r.NewRoute().Name("RegisterDaemonV4").Methods("GET").Path("/v4/daemon")
 	r.NewRoute().Name("RegisterDaemonV5").Methods("GET").Path("/v5/daemon")

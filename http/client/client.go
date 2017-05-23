@@ -17,6 +17,7 @@ import (
 	transport "github.com/weaveworks/flux/http"
 	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/policy"
+	"github.com/weaveworks/flux/ssh"
 	"github.com/weaveworks/flux/update"
 )
 
@@ -128,10 +129,6 @@ func (c *Client) PatchConfig(_ flux.InstanceID, patch flux.ConfigPatch) error {
 	return c.patchWithBody("PatchConfig", patch)
 }
 
-func (c *Client) GenerateDeployKey(_ flux.InstanceID) error {
-	return c.post("GenerateDeployKeys")
-}
-
 func (c *Client) Status(_ flux.InstanceID) (flux.Status, error) {
 	var res flux.Status
 	err := c.get(&res, "Status")
@@ -141,6 +138,19 @@ func (c *Client) Status(_ flux.InstanceID) (flux.Status, error) {
 func (c *Client) Export(_ flux.InstanceID) ([]byte, error) {
 	var res []byte
 	err := c.get(&res, "Export")
+	return res, err
+}
+
+func (c *Client) PublicSSHKey(_ flux.InstanceID, regenerate bool) (ssh.PublicKey, error) {
+	if regenerate {
+		err := c.post("RegeneratePublicSSHKey")
+		if err != nil {
+			return ssh.PublicKey{}, err
+		}
+	}
+
+	var res ssh.PublicKey
+	err := c.get(&res, "GetPublicSSHKey")
 	return res, err
 }
 

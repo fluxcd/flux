@@ -4,6 +4,7 @@ import (
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/policy"
 	"github.com/weaveworks/flux/resource"
+	"github.com/weaveworks/flux/ssh"
 )
 
 // Doubles as a cluster.Cluster and cluster.Manifests implementation
@@ -13,6 +14,7 @@ type Mock struct {
 	PingFunc                func() error
 	ExportFunc              func() ([]byte, error)
 	SyncFunc                func(SyncDef) error
+	PublicSSHKeyFunc        func(regenerate bool) (ssh.PublicKey, error)
 	FindDefinedServicesFunc func(path string) (map[flux.ServiceID][]string, error)
 	UpdateDefinitionFunc    func(def []byte, newImageID flux.ImageID) ([]byte, error)
 	LoadManifestsFunc       func(paths ...string) (map[string]resource.Resource, error)
@@ -40,6 +42,10 @@ func (m *Mock) Export() ([]byte, error) {
 
 func (m *Mock) Sync(c SyncDef) error {
 	return m.SyncFunc(c)
+}
+
+func (m *Mock) PublicSSHKey(regenerate bool) (ssh.PublicKey, error) {
+	return m.PublicSSHKeyFunc(regenerate)
 }
 
 func (m *Mock) FindDefinedServices(path string) (map[flux.ServiceID][]string, error) {

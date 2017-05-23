@@ -7,6 +7,7 @@ import (
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/remote"
+	"github.com/weaveworks/flux/ssh"
 	"github.com/weaveworks/flux/update"
 )
 
@@ -84,6 +85,15 @@ func (p *RPCClientV6) SyncStatus(ref string) ([]string, error) {
 	err := p.client.Call("RPCServer.SyncStatus", ref, &result)
 	if _, ok := err.(rpc.ServerError); !ok && err != nil {
 		return nil, remote.FatalError{err}
+	}
+	return result, err
+}
+
+func (p *RPCClientV6) PublicSSHKey(regenerate bool) (ssh.PublicKey, error) {
+	var result ssh.PublicKey
+	err := p.client.Call("RPCServer.PublicSSHKey", regenerate, &result)
+	if _, ok := err.(rpc.ServerError); !ok && err != nil {
+		return ssh.PublicKey{}, remote.FatalError{err}
 	}
 	return result, err
 }

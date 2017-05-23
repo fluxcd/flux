@@ -460,6 +460,16 @@ func appendYAML(buffer *bytes.Buffer, apiVersion, kind string, object interface{
 	return nil
 }
 
+func (c *Cluster) PublicSSHKey(regenerate bool) (ssh.PublicKey, error) {
+	if regenerate {
+		if err := c.sshKeyRing.Regenerate(); err != nil {
+			return ssh.PublicKey{}, err
+		}
+	}
+	publicKey, _ := c.sshKeyRing.KeyPair()
+	return publicKey, nil
+}
+
 // --- end cluster.Cluster
 
 // A convenience for getting an minimal object from some bytes.
