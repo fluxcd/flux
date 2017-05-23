@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+
+	"github.com/weaveworks/flux/ssh"
 )
 
 var (
@@ -21,9 +23,9 @@ type Repo struct {
 	// The branch of the config repo that holds the resource definition files.
 	Branch string
 
-	// Path to a private key (e.g., an id_rsa file) with
-	// permissions to clone and push to the config repo.
-	Key string
+	// KeyRing providing access to an SSH identity with permissions to clone
+	// and push to the config repo.
+	KeyRing ssh.KeyRing
 
 	// The path within the config repo where files are stored.
 	Path string
@@ -58,24 +60,7 @@ func (r Repo) Clone(c Config) (*Checkout, error) {
 		return nil, err
 	}
 
-	// ssh will balk if it's asked to use a key file with loose
-	// permissions. However, this could be mounted as a Kubernetes
-	// secret -- and it's not possible to mount a secret with a
-	// particular mode in Kubernetes < 1.6. So, for old Kubernetes, we
-	// need it mounted RW, and we'll narrow the permissions.
-	if r.Key != "" {
-		stat, err := os.Stat(r.Key)
-		if err != nil {
-			return nil, err
-		}
-		if stat.Mode()&os.ModePerm != 0400 {
-			if err := narrowKeyPerms(r.Key); err != nil {
-				return nil, err
-			}
-		}
-	}
-
-	repoDir, err := clone(workingDir, r.Key, r.URL, r.Branch)
+	repoDir, err := clone(workingDir, r.KeyRing, r.URL, r.Branch)
 	if err != nil {
 		return nil, CloningError(r.URL, err)
 	}
@@ -90,7 +75,7 @@ func (r Repo) Clone(c Config) (*Checkout, error) {
 	}
 
 	// this fetches and updates the local ref, so we'll see notes
-	if err := fetch(r.Key, repoDir, r.URL, notesRef+":"+notesRef); err != nil {
+	if err := fetch(r.KeyRing, repoDir, r.URL, notesRef+":"+notesRef); err != nil {
 		return nil, err
 	}
 
@@ -113,7 +98,7 @@ func (c *Checkout) WorkingClone() (*Checkout, error) {
 		return nil, err
 	}
 
-	repoDir, err := clone(workingDir, "", c.Dir, c.repo.Branch)
+	repoDir, err := clone(workingDir, nil, c.Dir, c.repo.Branch)
 	if err != nil {
 		return nil, err
 	}
@@ -123,7 +108,7 @@ func (c *Checkout) WorkingClone() (*Checkout, error) {
 	}
 
 	// this fetches and updates the local ref, so we'll see notes
-	if err := fetch("", repoDir, c.Dir, c.realNotesRef+":"+c.realNotesRef); err != nil {
+	if err := fetch(nil, repoDir, c.Dir, c.realNotesRef+":"+c.realNotesRef); err != nil {
 		return nil, err
 	}
 
@@ -177,7 +162,7 @@ func (c *Checkout) CommitAndPush(commitMessage string, note *Note) error {
 		return err
 	}
 
-	if err := push(c.repo.Key, c.Dir, c.repo.URL, refs); err != nil {
+	if err := push(c.repo.KeyRing, c.Dir, c.repo.URL, refs); err != nil {
 		return PushError(c.repo.URL, err)
 	}
 	return nil
@@ -194,7 +179,7 @@ func (c *Checkout) GetNote(rev string) (*Note, error) {
 func (c *Checkout) Pull() error {
 	c.Lock()
 	defer c.Unlock()
-	if err := pull(c.repo.Key, c.Dir, c.repo.URL, c.repo.Branch); err != nil {
+	if err := pull(c.repo.KeyRing, c.Dir, c.repo.URL, c.repo.Branch); err != nil {
 		return err
 	}
 	for _, ref := range []string{
@@ -204,7 +189,7 @@ func (c *Checkout) Pull() error {
 		// this fetches and updates the local ref, so we'll see the new
 		// notes; but it's possible that the upstream doesn't have this
 		// ref.
-		if err := fetch(c.repo.Key, c.Dir, c.repo.URL, ref); err != nil {
+		if err := fetch(c.repo.KeyRing, c.Dir, c.repo.URL, ref); err != nil {
 			return err
 		}
 	}
@@ -238,7 +223,7 @@ func (c *Checkout) RevisionsBefore(ref string) ([]string, error) {
 func (c *Checkout) MoveTagAndPush(ref, msg string) error {
 	c.Lock()
 	defer c.Unlock()
-	return moveTagAndPush(c.Dir, c.repo.Key, c.SyncTag, ref, msg, c.repo.URL)
+	return moveTagAndPush(c.Dir, c.repo.KeyRing, c.SyncTag, ref, msg, c.repo.URL)
 }
 
 // ChangedFiles does a git diff listing changed files
