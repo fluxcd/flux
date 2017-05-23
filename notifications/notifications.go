@@ -6,7 +6,7 @@ import (
 )
 
 // Release performs post-release notifications for an instance
-func Release(cfg instance.Config, r update.Release, releaseError error) error {
+func Release(cfg instance.Config, r update.Release, releaseError string) error {
 	if r.Spec.Kind != update.ReleaseKindExecute {
 		return nil
 	}

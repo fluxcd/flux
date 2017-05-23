@@ -7,10 +7,12 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
 
+	"encoding/json"
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/history"
 	"github.com/weaveworks/flux/instance"
 	"github.com/weaveworks/flux/job"
+	"github.com/weaveworks/flux/notifications"
 	"github.com/weaveworks/flux/policy"
 	"github.com/weaveworks/flux/remote"
 	"github.com/weaveworks/flux/ssh"
@@ -137,12 +139,40 @@ func (s *Server) SyncStatus(instID flux.InstanceID, ref string) (res []string, e
 }
 
 // LogEvent stores an event in the instance's history.
-func (s *Server) LogEvent(instID flux.InstanceID, event history.Event) error {
+func (s *Server) LogEvent(instID flux.InstanceID, e history.Event) error {
 	helper, err := s.instancer.Get(instID)
 	if err != nil {
 		return errors.Wrapf(err, "getting instance")
 	}
-	return helper.LogEvent(event)
+
+	// Log event in history first. This is less likely to fail
+	err = helper.LogEvent(e)
+	if err != nil {
+		return errors.Wrapf(err, "logging event")
+	}
+
+	// If this is a release
+	if e.Type == history.EventRelease {
+		// Casting to ReleaseEventMetadata
+		bytes, err := json.Marshal(e.Metadata)
+		if err != nil {
+			return errors.Wrapf(err, "re-marshalling data")
+		}
+		var metadata history.ReleaseEventMetadata
+		if err = json.Unmarshal(bytes, &metadata); err == nil {
+			// Send notification
+			cfg, err := helper.Config.Get()
+			if err != nil {
+				return errors.Wrapf(err, "getting config")
+			}
+			err = notifications.Release(cfg, metadata.Release, metadata.Error)
+			if err != nil {
+				return errors.Wrapf(err, "notifying slack")
+			}
+		}
+
+	}
+	return nil
 }
 
 func (s *Server) History(inst flux.InstanceID, spec update.ServiceSpec, before time.Time, limit int64) (res []history.Entry, err error) {

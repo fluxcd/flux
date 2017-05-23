@@ -13,6 +13,7 @@ import (
 	"github.com/weaveworks/flux/git"
 	"github.com/weaveworks/flux/history"
 	"github.com/weaveworks/flux/resource"
+	"github.com/weaveworks/flux/update"
 	fluxsync "github.com/weaveworks/flux/sync"
 )
 
@@ -152,6 +153,52 @@ func (d *Daemon) pullAndSync(logger log.Logger) {
 			Metadata:   &history.SyncEventMetadata{Revisions: revisions},
 		}); err != nil {
 			logger.Log("err", err)
+		}
+
+		// Find notes in revisions.
+		for i, rev := range revisions {
+			// Skip last revision (since we requested HEAD~1 above)
+			if i == len(revisions)-1 {
+				continue
+			}
+			n, err := working.GetNote(rev)
+			if err != nil {
+				logger.Log("err", errors.Wrap(err, "loading notes from repo; possibly no notes"))
+				continue
+			}
+
+			// If one of the notes has a release event, send that to the service
+			if n.Spec.Type == update.Images {
+				// Map new note.Spec into ReleaseSpec
+				spec := n.Spec.Spec.(update.ReleaseSpec)
+				status := update.ReleaseStatusSuccess
+				if n.Result.Error() != "" {
+					status = update.ReleaseStatusFailed
+				}
+				// And create a release event
+				releaseEvent := update.Release{
+					StartedAt: started,
+					EndedAt:   time.Now().UTC(),
+					Done:      true,
+					Status:    status,
+					Spec:      spec,
+					Result:    n.Result,
+				}
+				// Then wrap inside a ReleaseEventMetadata
+				if err := d.LogEvent(history.Event{
+					ServiceIDs: serviceIDs.ToSlice(),
+					Type:       history.EventRelease,
+					StartedAt:  started,
+					EndedAt:    time.Now().UTC(),
+					LogLevel:   history.LogLevelInfo,
+					Metadata: &history.ReleaseEventMetadata{
+						Release: releaseEvent,
+						Error:   n.Result.Error(),
+					},
+				}); err != nil {
+					logger.Log("err", err)
+				}
+			}
 		}
 	}
 
