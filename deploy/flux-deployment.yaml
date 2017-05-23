@@ -22,7 +22,7 @@ spec:
         imagePullPolicy: IfNotPresent
         volumeMounts:
         - name: git-key
-          mountPath: /secrets/flux/git
+          mountPath: /etc/fluxd/ssh
         args:
         # if you deployed memcached, you can supply these arguments to
         # tell fluxd to use it. You may need to change the namespace
@@ -33,9 +33,11 @@ spec:
         - --registry-cache-expiry=20m
         # replace (at least) the following URL
         - --git-url=git@github.com:weaveworks/flux-example
-        - --git-key=/secrets/flux/git/id-rsa-flux
         - --git-branch=master
         # include these to connect to an "upstream" service (e.g.,
         # Weave Cloud). The token is particular to the service.
         # - --connect=ws://cloud.weave.works/api/flux
         # - --token=abc123abc123abc123abc123
+        # override -b and -t arguments to ssh-keygen
+        # - --ssh-keygen-bits=2048
+        - --ssh-keygen-type=ed25519
