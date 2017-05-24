@@ -7,6 +7,7 @@ import (
 	gosync "sync"
 	"time"
 
+	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
 
 	"github.com/weaveworks/flux"
@@ -118,25 +119,24 @@ func (d *Daemon) ListImages(spec update.ServiceSpec) ([]flux.ImageStatus, error)
 	return res, nil
 }
 
-type JobFunc func(jobID job.ID, working *git.Checkout) (*history.CommitEventMetadata, error)
+type DaemonJobFunc func(jobID job.ID, working *git.Checkout, logger log.Logger) (*history.CommitEventMetadata, error)
 
-func (d *Daemon) queueJob(do JobFunc) job.ID {
-	// TODO record job as current upon Do'ing (or in the loop)
+func (d *Daemon) queueJob(do DaemonJobFunc) job.ID {
 	id := job.ID(guid.New())
 	d.Jobs.Enqueue(&job.Job{
 		ID: id,
-		// make a working clone so we don't mess with files we will be
-		// reading from elsewhere
-		Do: func() error {
+		Do: func(logger log.Logger) error {
 			started := time.Now().UTC()
 			d.JobStatusCache.SetStatus(id, job.Status{StatusString: job.StatusRunning})
+			// make a working clone so we don't mess with files we
+			// will be reading from elsewhere
 			working, err := d.Checkout.WorkingClone()
 			if err != nil {
 				d.JobStatusCache.SetStatus(id, job.Status{StatusString: job.StatusFailed, Err: err.Error()})
 				return err
 			}
 			defer working.Clean()
-			metadata, err := do(id, working)
+			metadata, err := do(id, working, logger)
 			if err != nil {
 				d.JobStatusCache.SetStatus(id, job.Status{StatusString: job.StatusFailed, Err: err.Error()})
 				return err
@@ -148,6 +148,7 @@ func (d *Daemon) queueJob(do JobFunc) job.ID {
 					serviceIDs = append(serviceIDs, id)
 				}
 			}
+			logger.Log("revision", metadata.Revision)
 			return d.LogEvent(history.Event{
 				ServiceIDs: serviceIDs,
 				Type:       history.EventCommit,
@@ -159,7 +160,6 @@ func (d *Daemon) queueJob(do JobFunc) job.ID {
 		},
 	})
 	d.JobStatusCache.SetStatus(id, job.Status{StatusString: job.StatusQueued})
-	println("enqueued job " + id)
 	return id
 }
 
@@ -167,12 +167,13 @@ func (d *Daemon) queueJob(do JobFunc) job.ID {
 func (d *Daemon) UpdateManifests(spec update.Spec) (job.ID, error) {
 	switch s := spec.Spec.(type) {
 	case update.ReleaseSpec:
-		return d.queueJob(func(jobID job.ID, working *git.Checkout) (*history.CommitEventMetadata, error) {
+		return d.queueJob(func(jobID job.ID, working *git.Checkout, logger log.Logger) (*history.CommitEventMetadata, error) {
 			rc := release.NewReleaseContext(d.Cluster, d.Manifests, d.Registry, working)
-			revision, result, err := release.Release(rc, s)
-			if err == nil {
-				d.askForSync()
+			revision, result, err := release.Release(rc, s, logger)
+			if err != nil {
+				return nil, err
 			}
+			d.askForSync()
 			return &history.CommitEventMetadata{
 				Revision: revision,
 				Spec:     &spec,
@@ -180,7 +181,7 @@ func (d *Daemon) UpdateManifests(spec update.Spec) (job.ID, error) {
 			}, nil
 		}), nil
 	case policy.Updates:
-		return d.queueJob(func(jobID job.ID, working *git.Checkout) (*history.CommitEventMetadata, error) {
+		return d.queueJob(func(jobID job.ID, working *git.Checkout, logger log.Logger) (*history.CommitEventMetadata, error) {
 			// For each update
 			var serviceIDs []flux.ServiceID
 			metadata := &history.CommitEventMetadata{

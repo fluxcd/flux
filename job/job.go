@@ -3,14 +3,18 @@ package job
 import (
 	"sync"
 
+	"github.com/go-kit/kit/log"
+
 	"github.com/weaveworks/flux/history"
 )
 
 type ID string
 
+type JobFunc func(log.Logger) error
+
 type Job struct {
 	ID ID
-	Do func() error
+	Do JobFunc
 }
 
 type StatusString string

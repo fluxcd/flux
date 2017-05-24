@@ -5,6 +5,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-kit/kit/log"
+
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster"
 	"github.com/weaveworks/flux/cluster/kubernetes"
@@ -357,7 +359,7 @@ func Test_ImageStatus(t *testing.T) {
 }
 
 func testRelease(t *testing.T, name string, ctx *ReleaseContext, spec update.ReleaseSpec, expected update.Result) {
-	_, results, err := Release(ctx, spec)
+	_, results, err := Release(ctx, spec, log.NewNopLogger())
 	if err != nil {
 		t.Fatal(err)
 	}
