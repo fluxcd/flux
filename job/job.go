@@ -48,16 +48,24 @@ type Queue struct {
 	incoming    chan *Job
 	waiting     []*Job
 	waitingLock sync.Mutex
+	sync        chan struct{}
 }
 
-func NewQueue() *Queue {
-	return &Queue{
+func NewQueue(stop <-chan struct{}, wg *sync.WaitGroup) *Queue {
+	q := &Queue{
 		ready:    make(chan *Job),
 		incoming: make(chan *Job),
 		waiting:  make([]*Job, 0),
+		sync:     make(chan struct{}),
 	}
+	wg.Add(1)
+	go q.loop(stop, wg)
+	return q
 }
 
+// This is not guaranteed to be up-to-date; i.e., it is possible to
+// receive from `q.Ready()` or enqueue an item, then see the same
+// length as before, temporarily.
 func (q *Queue) Len() int {
 	q.waitingLock.Lock()
 	defer q.waitingLock.Unlock()
@@ -65,8 +73,8 @@ func (q *Queue) Len() int {
 }
 
 // Enqueue puts a job onto the queue. It will block until the queue's
-// loop can accept the job; this does _not_ depend on a job being
-// dequeued.
+// loop can accept the job; but this does _not_ depend on a job being
+// dequeued and will always proceed eventually.
 func (q *Queue) Enqueue(j *Job) {
 	q.incoming <- j
 }
@@ -89,9 +97,22 @@ func (q *Queue) ForEach(fn func(int, *Job) bool) {
 	}
 }
 
-func (q *Queue) Loop(stop chan struct{}, wg *sync.WaitGroup) {
+// Block until any previous operations have completed. Note that this
+// is only meaningful if you are using the queue from a single other
+// goroutine; i.e., it makes sense to do, say,
+//
+//    q.Enqueue(j)
+//    q.Sync()
+//    fmt.Printf("Queue length is %d\n", q.Len())
+//
+// but only because those statements are sequential in a single
+// thread. So this is really only useful for testing.
+func (q *Queue) Sync() {
+	q.sync <- struct{}{}
+}
+
+func (q *Queue) loop(stop <-chan struct{}, wg *sync.WaitGroup) {
 	defer wg.Done()
-	defer q.stop()
 	for {
 		var out chan *Job = nil
 		if len(q.waiting) > 0 {
@@ -101,6 +122,8 @@ func (q *Queue) Loop(stop chan struct{}, wg *sync.WaitGroup) {
 		select {
 		case <-stop:
 			return
+		case <-q.sync:
+			continue
 		case in := <-q.incoming:
 			q.waitingLock.Lock()
 			q.waiting = append(q.waiting, in)
@@ -113,18 +136,7 @@ func (q *Queue) Loop(stop chan struct{}, wg *sync.WaitGroup) {
 	}
 }
 
-func (q *Queue) stop() {
-	// unblock anyone waiting on a value
-	close(q.ready)
-	// unblock anyone waiting on incoming (possibly discarding a
-	// value)
-	select {
-	case <-q.incoming:
-	default:
-	}
-}
-
-// nextOrNil returns the next job that will be made ready, or nil if
+// nextOrNil returns the head of the queue, or nil if
 // the queue is empty.
 func (q *Queue) nextOrNil() *Job {
 	q.waitingLock.Lock()
