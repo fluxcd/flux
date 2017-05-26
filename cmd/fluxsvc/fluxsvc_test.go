@@ -16,6 +16,7 @@ import (
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/api"
 	"github.com/weaveworks/flux/db"
+	"github.com/weaveworks/flux/git"
 	"github.com/weaveworks/flux/guid"
 	"github.com/weaveworks/flux/history"
 	historysql "github.com/weaveworks/flux/history/sql"
@@ -353,6 +354,9 @@ func TestFluxsvc_Config(t *testing.T) {
 func TestFluxsvc_DeployKeys(t *testing.T) {
 	setup()
 	defer teardown()
+
+	// Use smaller keysize for speed during tests.
+	git.KeySize = 128
 
 	// Ensure empty key
 	err := apiClient.SetConfig("", flux.UnsafeInstanceConfig{

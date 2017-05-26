@@ -30,7 +30,8 @@ const (
 )
 
 var (
-	k8s *cluster.Mock
+	k8s    *cluster.Mock
+	events history.EventReadWriter
 )
 
 func daemon(t *testing.T) (*Daemon, func()) {

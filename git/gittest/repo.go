@@ -38,10 +38,6 @@ func Repo(t *testing.T) (git.Repo, func()) {
 		cleanup()
 		t.Fatal(err)
 	}
-	if err = execCommand("git", "-C", filesDir, "tag", "flux-test"); err != nil {
-		cleanup()
-		t.Fatal(err)
-	}
 
 	if err = execCommand("git", "clone", "--bare", filesDir, gitDir); err != nil {
 		t.Fatal(err)
