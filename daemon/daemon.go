@@ -165,6 +165,10 @@ func (d *Daemon) queueJob(do DaemonJobFunc) job.ID {
 
 // Apply the desired changes to the config files
 func (d *Daemon) UpdateManifests(spec update.Spec) (job.ID, error) {
+	var id job.ID
+	if spec.Type == "" {
+		return id, errors.New("no type in update spec")
+	}
 	switch s := spec.Spec.(type) {
 	case update.ReleaseSpec:
 		return d.queueJob(func(jobID job.ID, working *git.Checkout, logger log.Logger) (*history.CommitEventMetadata, error) {
@@ -239,7 +243,6 @@ func (d *Daemon) UpdateManifests(spec update.Spec) (job.ID, error) {
 			return metadata, nil
 		}), nil
 	default:
-		var id job.ID
 		return id, fmt.Errorf(`unknown update type "%s"`, spec.Type)
 	}
 }
