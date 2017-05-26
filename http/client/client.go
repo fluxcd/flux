@@ -48,11 +48,11 @@ func (c *Client) ListImages(_ flux.InstanceID, s update.ServiceSpec) ([]flux.Ima
 	return res, err
 }
 
-func (c *Client) UpdateImages(_ flux.InstanceID, s update.ReleaseSpec) (job.ID, error) {
+func (c *Client) UpdateImages(_ flux.InstanceID, s update.ReleaseSpec, cause update.Cause) (job.ID, error) {
 	args := []string{
 		"image", string(s.ImageSpec),
 		"kind", string(s.Kind),
-		"user", s.Cause.User,
+		"user", cause.User,
 	}
 	for _, spec := range s.ServiceSpecs {
 		args = append(args, "service", string(spec))
@@ -60,8 +60,8 @@ func (c *Client) UpdateImages(_ flux.InstanceID, s update.ReleaseSpec) (job.ID, 
 	for _, ex := range s.Excludes {
 		args = append(args, "exclude", string(ex))
 	}
-	if s.Cause.Message != "" {
-		args = append(args, "message", s.Cause.Message)
+	if cause.Message != "" {
+		args = append(args, "message", cause.Message)
 	}
 
 	var res job.ID
@@ -88,9 +88,13 @@ func (c *Client) SyncStatus(_ flux.InstanceID, ref string) ([]string, error) {
 	return res, err
 }
 
-func (c *Client) UpdatePolicies(_ flux.InstanceID, updates policy.Updates) (job.ID, error) {
+func (c *Client) UpdatePolicies(_ flux.InstanceID, updates policy.Updates, cause update.Cause) (job.ID, error) {
+	args := []string{"user", cause.User}
+	if cause.Message != "" {
+		args = append(args, "message", cause.Message)
+	}
 	var res job.ID
-	return res, c.methodWithResp("PATCH", &res, "UpdatePolicies", updates)
+	return res, c.methodWithResp("PATCH", &res, "UpdatePolicies", updates, args...)
 }
 
 func (c *Client) LogEvent(_ flux.InstanceID, event history.Event) error {

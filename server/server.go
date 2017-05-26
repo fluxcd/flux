@@ -93,21 +93,21 @@ func (s *Server) ListImages(instID flux.InstanceID, spec update.ServiceSpec) (re
 	return inst.Platform.ListImages(spec)
 }
 
-func (s *Server) UpdateImages(instID flux.InstanceID, spec update.ReleaseSpec) (job.ID, error) {
+func (s *Server) UpdateImages(instID flux.InstanceID, spec update.ReleaseSpec, cause update.Cause) (job.ID, error) {
 	inst, err := s.instancer.Get(instID)
 	if err != nil {
 		return "", errors.Wrapf(err, "getting instance "+string(instID))
 	}
-	return inst.Platform.UpdateManifests(update.Spec{Type: update.Images, Spec: spec})
+	return inst.Platform.UpdateManifests(update.Spec{Type: update.Images, Cause: cause, Spec: spec})
 }
 
-func (s *Server) UpdatePolicies(instID flux.InstanceID, updates policy.Updates) (job.ID, error) {
+func (s *Server) UpdatePolicies(instID flux.InstanceID, updates policy.Updates, cause update.Cause) (job.ID, error) {
 	inst, err := s.instancer.Get(instID)
 	if err != nil {
 		return "", errors.Wrapf(err, "getting instance "+string(instID))
 	}
 
-	return inst.Platform.UpdateManifests(update.Spec{Type: update.Policy, Spec: updates})
+	return inst.Platform.UpdateManifests(update.Spec{Type: update.Policy, Cause: cause, Spec: updates})
 }
 
 func (s *Server) SyncNotify(instID flux.InstanceID) (err error) {

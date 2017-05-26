@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"os/user"
 
 	"github.com/spf13/cobra"
 
@@ -19,9 +18,8 @@ type serviceReleaseOpts struct {
 	noUpdate    bool
 	exclude     []string
 	dryRun      bool
-	user        string
-	message     string
 	outputOpts
+	cause update.Cause
 }
 
 func newServiceRelease(parent *serviceOpts) *serviceReleaseOpts {
@@ -41,13 +39,8 @@ func (opts *serviceReleaseOpts) Command() *cobra.Command {
 		RunE: opts.RunE,
 	}
 
-	username := ""
-	user, err := user.Current()
-	if err == nil {
-		username = user.Username
-	}
-
-	OutputFlags(cmd, &opts.outputOpts)
+	AddOutputFlags(cmd, &opts.outputOpts)
+	AddCauseFlags(cmd, &opts.cause)
 	cmd.Flags().StringSliceVarP(&opts.services, "service", "s", []string{}, "service to release")
 	cmd.Flags().BoolVar(&opts.allServices, "all", false, "release all services")
 	cmd.Flags().StringVarP(&opts.image, "update-image", "i", "", "update a specific image")
@@ -55,8 +48,6 @@ func (opts *serviceReleaseOpts) Command() *cobra.Command {
 	cmd.Flags().BoolVar(&opts.noUpdate, "no-update", false, "don't update images; just deploy the service(s) as configured in the git repo")
 	cmd.Flags().StringSliceVar(&opts.exclude, "exclude", []string{}, "exclude a service")
 	cmd.Flags().BoolVar(&opts.dryRun, "dry-run", false, "do not release anything; just report back what would have been done")
-	cmd.Flags().StringVarP(&opts.message, "message", "m", "", "attach a message to the release job")
-	cmd.Flags().StringVar(&opts.user, "user", username, "override the user reported as initating the release job")
 	return cmd
 }
 
@@ -126,11 +117,7 @@ func (opts *serviceReleaseOpts) RunE(cmd *cobra.Command, args []string) error {
 		ImageSpec:    image,
 		Kind:         kind,
 		Excludes:     excludes,
-		Cause: update.ReleaseCause{
-			User:    opts.user,
-			Message: opts.message,
-		},
-	})
+	}, opts.cause)
 	if err != nil {
 		return err
 	}

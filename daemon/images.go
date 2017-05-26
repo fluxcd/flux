@@ -74,12 +74,13 @@ func (d *Daemon) NewImage(imageID flux.ImageID) error {
 		ServiceSpecs: []update.ServiceSpec{update.ServiceSpecAutomated},
 		ImageSpec:    update.ImageSpecFromID(imageID),
 		Kind:         update.ReleaseKindExecute,
-		Cause: update.ReleaseCause{
-			User:    update.UserAutomated,
-			Message: fmt.Sprintf("due to new image %s", imageID.String()),
-		},
 	}
-	_, err := d.UpdateManifests(update.Spec{Type: update.Images, Spec: spec})
+	cause := update.Cause{
+		User:    update.UserAutomated,
+		Message: fmt.Sprintf("due to new image %s", imageID.String()),
+	}
+
+	_, err := d.UpdateManifests(update.Spec{Type: update.Images, Cause: cause, Spec: spec})
 	if err == git.ErrNoChanges {
 		err = nil
 	}

@@ -151,7 +151,11 @@ func (s HTTPServer) UpdateImages(w http.ResponseWriter, r *http.Request) {
 		Kind:         releaseKind,
 		Excludes:     excludes,
 	}
-	result, err := s.daemon.UpdateManifests(update.Spec{Type: update.Images, Spec: spec})
+	cause := update.Cause{
+		User:    r.FormValue("user"),
+		Message: r.FormValue("message"),
+	}
+	result, err := s.daemon.UpdateManifests(update.Spec{Type: update.Images, Cause: cause, Spec: spec})
 	if err != nil {
 		transport.ErrorResponse(w, r, err)
 		return
@@ -166,7 +170,12 @@ func (s HTTPServer) UpdatePolicies(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	jobID, err := s.daemon.UpdateManifests(update.Spec{Type: update.Policy, Spec: updates})
+	cause := update.Cause{
+		User:    r.FormValue("user"),
+		Message: r.FormValue("message"),
+	}
+
+	jobID, err := s.daemon.UpdateManifests(update.Spec{Type: update.Policy, Cause: cause, Spec: updates})
 	if err != nil {
 		transport.ErrorResponse(w, r, err)
 		return

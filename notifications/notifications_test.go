@@ -17,24 +17,19 @@ func exampleRelease(t *testing.T) update.Release {
 	img1a1, _ := flux.ParseImageID("img1:a1")
 	img1a2, _ := flux.ParseImageID("img1:a2")
 	return update.Release{
-		ID:        update.NewReleaseID(),
 		CreatedAt: now.Add(-1 * time.Minute),
 		StartedAt: now.Add(-30 * time.Second),
 		EndedAt:   now.Add(-1 * time.Second),
-		Done:      true,
-		Priority:  100,
-		Status:    update.ReleaseStatusFailed,
-		Log:       []string{string(update.ReleaseStatusFailed)},
 
+		Cause: update.Cause{
+			User:    "test-user",
+			Message: "this was to test notifications",
+		},
 		Spec: update.ReleaseSpec{
 			ServiceSpecs: []update.ServiceSpec{update.ServiceSpec("default/helloworld")},
 			ImageSpec:    update.ImageSpecLatest,
 			Kind:         update.ReleaseKindExecute,
 			Excludes:     nil,
-			Cause: update.ReleaseCause{
-				User:    "test-user",
-				Message: "this was to test notifications",
-			},
 		},
 		Result: update.Result{
 			flux.ServiceID("default/helloworld"): {

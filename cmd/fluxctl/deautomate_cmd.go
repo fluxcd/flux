@@ -5,12 +5,14 @@ import (
 
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/policy"
+	"github.com/weaveworks/flux/update"
 )
 
 type serviceDeautomateOpts struct {
 	*serviceOpts
 	service string
 	outputOpts
+	cause update.Cause
 }
 
 func newServiceDeautomate(parent *serviceOpts) *serviceDeautomateOpts {
@@ -26,7 +28,8 @@ func (opts *serviceDeautomateOpts) Command() *cobra.Command {
 		),
 		RunE: opts.RunE,
 	}
-	OutputFlags(cmd, &opts.outputOpts)
+	AddOutputFlags(cmd, &opts.outputOpts)
+	AddCauseFlags(cmd, &opts.cause)
 	cmd.Flags().StringVarP(&opts.service, "service", "s", "", "Service to deautomate")
 	return cmd
 }
@@ -46,7 +49,7 @@ func (opts *serviceDeautomateOpts) RunE(cmd *cobra.Command, args []string) error
 
 	jobID, err := opts.API.UpdatePolicies(noInstanceID, policy.Updates{
 		serviceID: policy.Update{Remove: []policy.Policy{policy.Automated}},
-	})
+	}, opts.cause)
 	if err != nil {
 		return err
 	}

@@ -24,7 +24,7 @@ type ServiceUpdate struct {
 	Updates       []update.ContainerUpdate
 }
 
-func Release(rc *ReleaseContext, spec update.ReleaseSpec, logger log.Logger) (commitRef string, results update.Result, err error) {
+func Release(rc *ReleaseContext, spec update.ReleaseSpec, cause update.Cause, logger log.Logger) (commitRef string, results update.Result, err error) {
 	started := time.Now()
 	defer func(start time.Time) {
 		releaseDuration.With(
@@ -80,7 +80,7 @@ func Release(rc *ReleaseContext, spec update.ReleaseSpec, logger log.Logger) (co
 
 	if spec.ImageSpec != update.ImageSpecNone {
 		timer = NewStageTimer("push_changes")
-		err = rc.PushChanges(updates, &spec, results)
+		err = rc.PushChanges(updates, &spec, cause, results)
 		timer.ObserveDuration()
 		if err != nil {
 			return "", nil, err
