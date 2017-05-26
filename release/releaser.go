@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/metrics"
 
 	"github.com/weaveworks/flux"
@@ -23,7 +24,7 @@ type ServiceUpdate struct {
 	Updates       []update.ContainerUpdate
 }
 
-func Release(rc *ReleaseContext, spec update.ReleaseSpec) (commitRef string, results update.Result, err error) {
+func Release(rc *ReleaseContext, spec update.ReleaseSpec, logger log.Logger) (commitRef string, results update.Result, err error) {
 	started := time.Now()
 	defer func(start time.Time) {
 		releaseDuration.With(
@@ -33,6 +34,7 @@ func Release(rc *ReleaseContext, spec update.ReleaseSpec) (commitRef string, res
 		).Observe(time.Since(started).Seconds())
 	}(started)
 
+	logger = log.NewContext(logger).With("type", "release")
 	// We time each stage of this process, and expose as metrics.
 	var timer *metrics.Timer
 
@@ -64,12 +66,15 @@ func Release(rc *ReleaseContext, spec update.ReleaseSpec) (commitRef string, res
 
 	// At this point we may have filtered the updates we can do down
 	// to nothing. Check and exit early if so.
+	logger.Log("updates", len(updates))
 	if len(updates) == 0 {
+		logger.Log("exit", "no images to update for services given")
 		return "", results, nil
 	}
 
 	// If it's a dry run, we're done.
 	if spec.Kind == update.ReleaseKindPlan {
+		logger.Log("exit", "dry-run")
 		return "", results, nil
 	}
 

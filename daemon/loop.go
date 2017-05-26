@@ -50,15 +50,16 @@ func (d *Daemon) Loop(stop chan struct{}, logger log.Logger) {
 			// Time to poll for new images
 			d.PollImages()
 		case job := <-d.Jobs.Ready():
-			logger.Log("job", job.ID)
+			jobLogger := log.NewContext(logger).With("jobID", job.ID)
+			jobLogger.Log("state", "in-progress")
 			// It's assumed that (successful) jobs will push commits
 			// to the upstream repo, and therefore we probably want to
 			// pull from there and sync the cluster.
-			if err := job.Do(); err != nil {
-				logger.Log("job", job.ID, "err", err)
+			if err := job.Do(jobLogger); err != nil {
+				jobLogger.Log("state", "done", "success", "false", "err", err)
 				continue
 			}
-			logger.Log("job", job.ID, "success", "true")
+			jobLogger.Log("state", "done", "success", "true")
 			d.askForSync()
 		}
 	}
