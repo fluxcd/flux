@@ -12,6 +12,7 @@ import (
 	"github.com/weaveworks/flux/history"
 	"github.com/weaveworks/flux/resource"
 	"github.com/weaveworks/flux/sync"
+	sync2 "sync"
 )
 
 const (
@@ -22,7 +23,8 @@ const (
 // Loop for potentially long-running stuff. This includes running
 // jobs, and looking for new commits.
 
-func (d *Daemon) Loop(stop chan struct{}, logger log.Logger) {
+func (d *Daemon) Loop(stop chan struct{}, wg *sync2.WaitGroup, logger log.Logger) {
+	defer wg.Done()
 	pollGit := time.NewTimer(gitPollInterval)
 	resetGitPoll := func() {
 		if pollGit != nil {
