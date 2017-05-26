@@ -6,6 +6,8 @@ import (
 	"strings"
 	"time"
 
+	"encoding/json"
+	"errors"
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/update"
 )
@@ -179,4 +181,42 @@ type ReleaseEventMetadata struct {
 	Release update.Release `json:"release"`
 	// Message of the error if there was one.
 	Error string `json:"error,omitempty"`
+}
+
+func (e *Event) UnmarshalJSON(in []byte) error {
+	type alias Event
+	var wireEvent struct {
+		*alias
+		MetadataBytes json.RawMessage `json:"metadata,omitempty"`
+	}
+	wireEvent.alias = (*alias)(e)
+
+	// Now unmarshall custom wireEvent with RawMessage
+	if err := json.Unmarshal(in, &wireEvent); err != nil {
+		return err
+	}
+	if wireEvent.Type == "" {
+		return errors.New("Event type is empty")
+	}
+
+	// If we have a type which we want to convert, overwrite the
+	// standard Event with the new unmarshalled type
+	switch wireEvent.Type {
+	case EventRelease:
+		var metadata ReleaseEventMetadata
+		if err := json.Unmarshal(wireEvent.MetadataBytes, &metadata); err != nil {
+			return err
+		}
+		e.Metadata = metadata
+		break
+	default:
+		var metadata interface{}
+		if err := json.Unmarshal(wireEvent.MetadataBytes, &metadata); err != nil {
+			return err
+		}
+		e.Metadata = metadata
+	}
+
+	// By default, leave the Event Metadata as map[string]interface{}
+	return nil
 }
