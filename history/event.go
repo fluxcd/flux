@@ -210,11 +210,13 @@ func (e *Event) UnmarshalJSON(in []byte) error {
 		e.Metadata = metadata
 		break
 	default:
-		var metadata interface{}
-		if err := json.Unmarshal(wireEvent.MetadataBytes, &metadata); err != nil {
-			return err
+		if len(wireEvent.MetadataBytes) > 0 {
+			var metadata interface{}
+			if err := json.Unmarshal(wireEvent.MetadataBytes, &metadata); err != nil {
+				return err
+			}
+			e.Metadata = metadata
 		}
-		e.Metadata = metadata
 	}
 
 	// By default, leave the Event Metadata as map[string]interface{}
