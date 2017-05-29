@@ -164,6 +164,7 @@ func (d *Daemon) pullAndSync(logger log.Logger) {
 			n, err := working.GetNote(rev)
 			if err != nil {
 				logger.Log("err", errors.Wrap(err, "loading notes from repo; possibly no notes"))
+				// TODO: We're ignoring all errors here, not just the "no notes" error. Parse error to report proper errors.
 				continue
 			}
 
