@@ -21,11 +21,6 @@ func TestReleaseCommand_CLIConversion(t *testing.T) {
 			"image":   string(update.ImageSpecLatest),
 			"kind":    string(update.ReleaseKindPlan),
 		}},
-		{[]string{"--no-update", "--all"}, map[string]string{
-			"service": string(update.ServiceSpecAll),
-			"image":   string(update.ImageSpecNone),
-			"kind":    string(update.ReleaseKindExecute),
-		}},
 		{[]string{"--update-image=alpine:latest", "--all"}, map[string]string{
 			"service": string(update.ServiceSpecAll),
 			"image":   "alpine:latest",
