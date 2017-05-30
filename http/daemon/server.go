@@ -10,11 +10,11 @@ import (
 	"github.com/weaveworks/common/middleware"
 
 	"github.com/weaveworks/flux"
-	"github.com/weaveworks/flux/daemon"
 	transport "github.com/weaveworks/flux/http"
 	"github.com/weaveworks/flux/job"
 	fluxmetrics "github.com/weaveworks/flux/metrics"
 	"github.com/weaveworks/flux/policy"
+	"github.com/weaveworks/flux/remote"
 	"github.com/weaveworks/flux/update"
 )
 
@@ -39,7 +39,7 @@ func NewRouter() *mux.Router {
 	return r
 }
 
-func NewHandler(d *daemon.Daemon, r *mux.Router) http.Handler {
+func NewHandler(d remote.Platform, r *mux.Router) http.Handler {
 	handle := HTTPServer{d}
 	r.Get("SyncNotify").HandlerFunc(handle.SyncNotify)
 	r.Get("JobStatus").HandlerFunc(handle.JobStatus)
@@ -59,7 +59,7 @@ func NewHandler(d *daemon.Daemon, r *mux.Router) http.Handler {
 }
 
 type HTTPServer struct {
-	daemon *daemon.Daemon
+	daemon remote.Platform
 }
 
 func (s HTTPServer) SyncNotify(w http.ResponseWriter, r *http.Request) {
