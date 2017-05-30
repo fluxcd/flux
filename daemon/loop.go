@@ -97,16 +97,6 @@ func (d *Daemon) pullAndSync(logger log.Logger) {
 	}
 	defer working.Clean()
 
-	// update notes and emit events for applied commits
-	revisions, err := working.RevisionsBetween(working.SyncTag+"~1", "HEAD")
-	if isUnknownRevision(err) {
-		// No sync tag, grab all revisions
-		revisions, err = working.RevisionsBefore("HEAD")
-	}
-	if err != nil {
-		logger.Log("err", err)
-	}
-
 	// TODO logging, metrics?
 	// Get a map of all resources defined in the repo
 	allResources, err := d.Manifests.LoadManifests(working.ManifestDir())
@@ -142,6 +132,16 @@ func (d *Daemon) pullAndSync(logger log.Logger) {
 		serviceIDs.Add(r.ServiceIDs(allResources))
 	}
 
+	// update notes and emit events for applied commits
+	revisions, err := working.RevisionsBetween(working.SyncTag, "HEAD")
+	if isUnknownRevision(err) {
+		// No sync tag, grab all revisions
+		revisions, err = working.RevisionsBefore("HEAD")
+	}
+	if err != nil {
+		logger.Log("err", err)
+	}
+
 	// Emit an event
 	if len(revisions) > 0 {
 		if err := d.LogEvent(history.Event{
@@ -156,11 +156,7 @@ func (d *Daemon) pullAndSync(logger log.Logger) {
 		}
 
 		// Find notes in revisions.
-		for i, rev := range revisions {
-			// Skip last revision (since we requested HEAD~1 above)
-			if i == len(revisions)-1 {
-				continue
-			}
+		for _, rev := range revisions {
 			n, err := working.GetNote(rev)
 			if err != nil {
 				logger.Log("err", errors.Wrap(err, "loading notes from repo; possibly no notes"))

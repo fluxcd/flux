@@ -167,17 +167,10 @@ func TestPullAndSync_NoNewCommits(t *testing.T) {
 	es, err := events.AllEvents(time.Time{}, -1)
 	if err != nil {
 		t.Error(err)
-	} else if len(es) != 1 {
+	} else if len(es) != 0 {
 		t.Errorf("Unexpected events: %#v", es)
-	} else if es[0].Type != history.EventSync {
-		t.Errorf("Unexpected event type: %#v", es[0])
-	} else {
-		gotServiceIDs := es[0].ServiceIDs
-		flux.ServiceIDs(gotServiceIDs).Sort()
-		if !reflect.DeepEqual(gotServiceIDs, []flux.ServiceID{}) {
-			t.Errorf("Unexpected event service ids: %#v, expected: %#v", gotServiceIDs, []flux.ServiceID{})
-		}
 	}
+
 	// It doesn't move the tag
 	oldRevs, err := d.Checkout.RevisionsBefore(gitSyncTag)
 	if err != nil {
