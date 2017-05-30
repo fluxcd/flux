@@ -13,8 +13,8 @@ import (
 	"github.com/weaveworks/flux/git"
 	"github.com/weaveworks/flux/history"
 	"github.com/weaveworks/flux/resource"
-	"github.com/weaveworks/flux/update"
 	fluxsync "github.com/weaveworks/flux/sync"
+	"github.com/weaveworks/flux/update"
 )
 
 const (
@@ -156,8 +156,8 @@ func (d *Daemon) pullAndSync(logger log.Logger) {
 		}
 
 		// Find notes in revisions.
-		for _, rev := range revisions {
-			n, err := working.GetNote(rev)
+		for i := len(revisions) - 1; i >= 0; i-- {
+			n, err := working.GetNote(revisions[i])
 			if err != nil {
 				logger.Log("err", errors.Wrap(err, "loading notes from repo; possibly no notes"))
 				// TODO: We're ignoring all errors here, not just the "no notes" error. Parse error to report proper errors.
