@@ -76,6 +76,7 @@ func (opts *rootOpts) Command() *cobra.Command {
 		newServiceLock(svcopts).Command(),
 		newServiceUnlock(svcopts).Command(),
 		newSave(opts).Command(),
+		newIdentity(opts).Command(),
 	)
 
 	return cmd

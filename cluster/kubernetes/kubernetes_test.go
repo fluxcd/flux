@@ -9,7 +9,18 @@ import (
 	"testing"
 
 	"github.com/go-kit/kit/log"
-	"k8s.io/client-go/1.5/rest"
+	discovery "k8s.io/client-go/1.5/discovery"
+	v1alpha1apps "k8s.io/client-go/1.5/kubernetes/typed/apps/v1alpha1"
+	v1beta1authentication "k8s.io/client-go/1.5/kubernetes/typed/authentication/v1beta1"
+	v1beta1authorization "k8s.io/client-go/1.5/kubernetes/typed/authorization/v1beta1"
+	v1autoscaling "k8s.io/client-go/1.5/kubernetes/typed/autoscaling/v1"
+	v1batch "k8s.io/client-go/1.5/kubernetes/typed/batch/v1"
+	v1alpha1certificates "k8s.io/client-go/1.5/kubernetes/typed/certificates/v1alpha1"
+	v1core "k8s.io/client-go/1.5/kubernetes/typed/core/v1"
+	v1beta1extensions "k8s.io/client-go/1.5/kubernetes/typed/extensions/v1beta1"
+	v1alpha1policy "k8s.io/client-go/1.5/kubernetes/typed/policy/v1alpha1"
+	v1alpha1rbac "k8s.io/client-go/1.5/kubernetes/typed/rbac/v1alpha1"
+	v1beta1storage "k8s.io/client-go/1.5/kubernetes/typed/storage/v1beta1"
 
 	"github.com/weaveworks/flux/cluster"
 )
@@ -17,6 +28,57 @@ import (
 type command struct {
 	action string
 	def    string
+}
+
+type mockClientset struct {
+}
+
+func (m *mockClientset) Discovery() discovery.DiscoveryInterface {
+	return nil
+}
+
+func (m *mockClientset) Core() v1core.CoreInterface {
+	return nil
+}
+
+func (m *mockClientset) Apps() v1alpha1apps.AppsInterface {
+	return nil
+}
+
+func (m *mockClientset) Authentication() v1beta1authentication.AuthenticationInterface {
+	return nil
+}
+
+func (m *mockClientset) Authorization() v1beta1authorization.AuthorizationInterface {
+	return nil
+}
+
+func (m *mockClientset) Autoscaling() v1autoscaling.AutoscalingInterface {
+	return nil
+}
+
+func (m *mockClientset) Batch() v1batch.BatchInterface {
+	return nil
+}
+
+func (m *mockClientset) Certificates() v1alpha1certificates.CertificatesInterface {
+	return nil
+}
+
+func (m *mockClientset) Extensions() v1beta1extensions.ExtensionsInterface {
+	return nil
+}
+
+func (m *mockClientset) Policy() v1alpha1policy.PolicyInterface {
+	return nil
+}
+
+func (m *mockClientset) Rbac() v1alpha1rbac.RbacInterface {
+	return nil
+}
+
+func (m *mockClientset) Storage() v1beta1storage.StorageInterface {
+	return nil
 }
 
 type mockApplier struct {
@@ -48,9 +110,9 @@ metadata:
 // ---
 
 func setup(t *testing.T) (*Cluster, *mockApplier) {
-	restClientConfig := &rest.Config{}
+	clientset := &mockClientset{}
 	applier := &mockApplier{}
-	kube, err := NewCluster(restClientConfig, applier, log.NewNopLogger())
+	kube, err := NewCluster(clientset, applier, nil, log.NewNopLogger())
 	if err != nil {
 		t.Fatal(err)
 	}

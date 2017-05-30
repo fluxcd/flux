@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/ssh"
 )
 
 var (
@@ -21,6 +22,7 @@ type Cluster interface {
 	Ping() error
 	Export() ([]byte, error)
 	Sync(SyncDef) error
+	PublicSSHKey(regenerate bool) (ssh.PublicKey, error)
 }
 
 // Service describes a platform service, generally a floating IP with one or

@@ -8,6 +8,7 @@ import (
 	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/policy"
 	"github.com/weaveworks/flux/remote"
+	"github.com/weaveworks/flux/ssh"
 	"github.com/weaveworks/flux/update"
 )
 
@@ -25,8 +26,8 @@ type ClientService interface {
 	GetConfig(_ flux.InstanceID, fingerprint string) (flux.InstanceConfig, error)
 	SetConfig(flux.InstanceID, flux.UnsafeInstanceConfig) error
 	PatchConfig(flux.InstanceID, flux.ConfigPatch) error
-	GenerateDeployKey(flux.InstanceID) error
 	Export(inst flux.InstanceID) ([]byte, error)
+	PublicSSHKey(inst flux.InstanceID, regenerate bool) (ssh.PublicKey, error)
 }
 
 // API for daemons connecting to the service

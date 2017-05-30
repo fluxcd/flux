@@ -48,7 +48,6 @@ func NewHandler(s api.FluxService, r *mux.Router, logger log.Logger) http.Handle
 		"GetConfig":              handle.GetConfig,
 		"SetConfig":              handle.SetConfig,
 		"PatchConfig":            handle.PatchConfig,
-		"GenerateDeployKeys":     handle.GenerateKeys,
 		"PostIntegrationsGithub": handle.PostIntegrationsGithub,
 		"RegisterDaemonV4":       handle.RegisterV4,
 		"RegisterDaemonV5":       handle.RegisterV5,
@@ -58,6 +57,8 @@ func NewHandler(s api.FluxService, r *mux.Router, logger log.Logger) http.Handle
 		"SyncNotify":             handle.SyncNotify,
 		"JobStatus":              handle.JobStatus,
 		"SyncStatus":             handle.SyncStatus,
+		"GetPublicSSHKey":        handle.GetPublicSSHKey,
+		"RegeneratePublicSSHKey": handle.RegeneratePublicSSHKey,
 	} {
 		handler := logging(handlerMethod, log.NewContext(logger).With("method", method))
 		r.Get(method).Handler(handler)
@@ -342,17 +343,6 @@ func (s HTTPService) PatchConfig(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func (s HTTPService) GenerateKeys(w http.ResponseWriter, r *http.Request) {
-	inst := getInstanceID(r)
-	err := s.service.GenerateDeployKey(inst)
-	if err != nil {
-		transport.ErrorResponse(w, r, err)
-		return
-	}
-
-	w.WriteHeader(http.StatusOK)
-}
-
 func (s HTTPService) PostIntegrationsGithub(w http.ResponseWriter, r *http.Request) {
 	var (
 		inst  = getInstanceID(r)
@@ -367,27 +357,19 @@ func (s HTTPService) PostIntegrationsGithub(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	// Generate deploy key
-	err := s.service.GenerateDeployKey(inst)
+	// Obtain public key from daemon
+	publicKey, err := s.service.PublicSSHKey(inst, false)
 	if err != nil {
 		transport.ErrorResponse(w, r, err)
 		return
 	}
-
-	// Obtain the generated key
-	cfg, err := s.service.GetConfig(inst, "")
-	if err != nil {
-		transport.ErrorResponse(w, r, err)
-		return
-	}
-	publicKey := cfg.Git.HideKey().Key
 
 	// Use the Github API to insert the key
 	// Have to create a new instance here because there is no
 	// clean way of injecting without significantly altering
 	// the initialisation (at the top)
 	gh := github.NewGithubClient(tok)
-	err = gh.InsertDeployKey(owner, repo, publicKey)
+	err = gh.InsertDeployKey(owner, repo, publicKey.Key)
 	if err != nil {
 		httpErr, isHttpErr := err.(*httperror.APIError)
 		code := http.StatusInternalServerError
@@ -491,6 +473,29 @@ func (s HTTPService) Export(w http.ResponseWriter, r *http.Request) {
 	}
 
 	transport.JSONResponse(w, r, status)
+}
+
+func (s HTTPService) GetPublicSSHKey(w http.ResponseWriter, r *http.Request) {
+	inst := getInstanceID(r)
+	publicSSHKey, err := s.service.PublicSSHKey(inst, false)
+	if err != nil {
+		transport.ErrorResponse(w, r, err)
+		return
+	}
+
+	transport.JSONResponse(w, r, publicSSHKey)
+}
+
+func (s HTTPService) RegeneratePublicSSHKey(w http.ResponseWriter, r *http.Request) {
+	inst := getInstanceID(r)
+	_, err := s.service.PublicSSHKey(inst, true)
+	if err != nil {
+		transport.ErrorResponse(w, r, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+	return
 }
 
 // --- end handlers

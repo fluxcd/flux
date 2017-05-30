@@ -11,6 +11,7 @@ import (
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/job"
 	fluxmetrics "github.com/weaveworks/flux/metrics"
+	"github.com/weaveworks/flux/ssh"
 	"github.com/weaveworks/flux/update"
 )
 
@@ -120,6 +121,16 @@ func (i *instrumentedPlatform) SyncStatus(cursor string) (_ []string, err error)
 		).Observe(time.Since(begin).Seconds())
 	}(time.Now())
 	return i.p.SyncStatus(cursor)
+}
+
+func (i *instrumentedPlatform) PublicSSHKey(regenerate bool) (_ ssh.PublicKey, err error) {
+	defer func(begin time.Time) {
+		requestDuration.With(
+			fluxmetrics.LabelMethod, "PublicSSHKey",
+			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
+		).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+	return i.p.PublicSSHKey(regenerate)
 }
 
 // BusMetrics has metrics for messages buses.

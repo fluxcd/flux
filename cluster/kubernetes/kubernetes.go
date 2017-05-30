@@ -19,10 +19,10 @@ import (
 	api "k8s.io/client-go/1.5/pkg/api"
 	v1 "k8s.io/client-go/1.5/pkg/api/v1"
 	apiext "k8s.io/client-go/1.5/pkg/apis/extensions/v1beta1"
-	rest "k8s.io/client-go/1.5/rest"
 
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster"
+	"github.com/weaveworks/flux/ssh"
 )
 
 const (
@@ -86,29 +86,29 @@ type Applier interface {
 // Cluster is a handle to a Kubernetes API server.
 // (Typically, this code is deployed into the same cluster.)
 type Cluster struct {
-	config  *rest.Config
-	client  extendedClient
-	applier Applier
-	actionc chan func()
-	version string // string response for the version command.
-	logger  log.Logger
+	client     extendedClient
+	applier    Applier
+	actionc    chan func()
+	version    string // string response for the version command.
+	logger     log.Logger
+	sshKeyRing ssh.KeyRing
 }
 
 // NewCluster returns a usable cluster. Host should be of the form
 // "http://hostname:8080".
-func NewCluster(config *rest.Config, applier Applier, logger log.Logger) (*Cluster, error) {
-	client, err := k8sclient.NewForConfig(config)
-	if err != nil {
-		return nil, err
-	}
+func NewCluster(clientset k8sclient.Interface,
+	applier Applier,
+	sshKeyRing ssh.KeyRing,
+	logger log.Logger) (*Cluster, error) {
 
 	c := &Cluster{
-		config:  config,
-		client:  extendedClient{client.Discovery(), client.Core(), client.Extensions()},
-		applier: applier,
-		actionc: make(chan func()),
-		logger:  logger,
+		client:     extendedClient{clientset.Discovery(), clientset.Core(), clientset.Extensions()},
+		applier:    applier,
+		actionc:    make(chan func()),
+		logger:     logger,
+		sshKeyRing: sshKeyRing,
 	}
+
 	go c.loop()
 	return c, nil
 }
@@ -458,6 +458,16 @@ func appendYAML(buffer *bytes.Buffer, apiVersion, kind string, object interface{
 	buffer.WriteString("\n")
 	buffer.Write(yamlBytes)
 	return nil
+}
+
+func (c *Cluster) PublicSSHKey(regenerate bool) (ssh.PublicKey, error) {
+	if regenerate {
+		if err := c.sshKeyRing.Regenerate(); err != nil {
+			return ssh.PublicKey{}, err
+		}
+	}
+	publicKey, _ := c.sshKeyRing.KeyPair()
+	return publicKey, nil
 }
 
 // --- end cluster.Cluster

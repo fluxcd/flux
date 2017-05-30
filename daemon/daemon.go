@@ -20,6 +20,7 @@ import (
 	"github.com/weaveworks/flux/registry"
 	"github.com/weaveworks/flux/release"
 	"github.com/weaveworks/flux/remote"
+	"github.com/weaveworks/flux/ssh"
 	"github.com/weaveworks/flux/update"
 )
 
@@ -300,6 +301,10 @@ func (d *Daemon) JobStatus(jobID job.ID) (job.Status, error) {
 // and it's applied _past_ it, you'll get an empty list.
 func (d *Daemon) SyncStatus(commitRef string) ([]string, error) {
 	return d.Checkout.RevisionsBetween(d.Checkout.SyncTag, commitRef)
+}
+
+func (d *Daemon) PublicSSHKey(regenerate bool) (ssh.PublicKey, error) {
+	return d.Cluster.PublicSSHKey(regenerate)
 }
 
 // Non-remote.Platform methods

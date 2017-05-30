@@ -7,12 +7,14 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"sync"
 	"syscall"
 	"time"
 
 	"github.com/go-kit/kit/log"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/pflag"
+	k8sclient "k8s.io/client-go/1.5/kubernetes"
 	"k8s.io/client-go/1.5/rest"
 
 	//	"github.com/weaveworks/flux"
@@ -26,10 +28,15 @@ import (
 	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/registry"
 	"github.com/weaveworks/flux/remote"
-	"sync"
+	"github.com/weaveworks/flux/ssh"
 )
 
 var version string
+
+func optionalVar(fs *pflag.FlagSet, value ssh.OptionalValue, name, usage string) ssh.OptionalValue {
+	fs.Var(value, name, usage)
+	return value
+}
 
 func main() {
 	// Flag domain.
@@ -50,7 +57,6 @@ func main() {
 		gitURL      = fs.String("git-url", "", "URL of git repo with Kubernetes manifests; e.g., git@github.com:weaveworks/flux-example")
 		gitBranch   = fs.String("git-branch", "master", "branch of git repo to use for Kubernetes manifests")
 		gitPath     = fs.String("git-path", "", "path within git repo to locate Kubernetes manifests")
-		gitKey      = fs.String("git-key", "", "path in local filesystem to (deploy) key")
 		gitUser     = fs.String("git-user", "Weave Flux", "username to use as git committer")
 		gitEmail    = fs.String("git-email", "support@weave.works", "email to use as git committer")
 		gitSyncTag  = fs.String("git-sync-tag", "flux-sync", "tag to use to mark sync progress for this cluster")
@@ -61,6 +67,9 @@ func main() {
 		memcachedTimeout    = fs.Duration("memcached-timeout", 100*time.Millisecond, "Maximum time to wait before giving up on memcached requests.")
 		memcachedService    = fs.String("memcached-service", "memcached", "SRV service used to discover memcache servers.")
 		registryCacheExpiry = fs.Duration("registry-cache-expiry", 20*time.Minute, "Duration to keep cached registry tag info. Must be < 1 month.")
+		// SSH key generation
+		sshKeyBits = optionalVar(fs, &ssh.KeyBitsValue{}, "ssh-keygen-bits", "-b argument to ssh-keygen (default unspecified)")
+		sshKeyType = optionalVar(fs, &ssh.KeyTypeValue{}, "ssh-keygen-type", "-t argument to ssh-keygen (default unspecified)")
 
 		upstreamURL = fs.String("connect", "", "Connect to an upstream service e.g., Weave Cloud, at this base address")
 		token       = fs.String("token", "", "Authentication token for upstream service")
@@ -84,6 +93,7 @@ func main() {
 	}
 
 	// Platform component.
+	var sshKeyRing ssh.KeyRing
 	var k8s cluster.Cluster
 	var k8sManifests cluster.Manifests
 	{
@@ -96,7 +106,36 @@ func main() {
 		restClientConfig.QPS = 50.0
 		restClientConfig.Burst = 100
 
+		clientset, err := k8sclient.NewForConfig(restClientConfig)
+		if err != nil {
+			logger.Log("err", err)
+			os.Exit(1)
+		}
+
+		namespace, err := ioutil.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
+		if err != nil {
+			logger.Log("err", err)
+			os.Exit(1)
+		}
+
+		sshKeyRing, err = kubernetes.NewSSHKeyRing(kubernetes.SSHKeyRingConfig{
+			SecretAPI:             clientset.Core().Secrets(string(namespace)),
+			SecretName:            "flux-git-deploy",
+			SecretVolumeMountPath: "/etc/fluxd/ssh",
+			SecretDataKey:         "identity",
+			KeyBits:               sshKeyBits,
+			KeyType:               sshKeyType,
+		})
+		if err != nil {
+			logger.Log("err", err)
+			os.Exit(1)
+		}
+
+		publicKey, privateKeyPath := sshKeyRing.KeyPair()
+
 		logger := log.NewContext(logger).With("component", "platform")
+		logger.Log("identity", privateKeyPath)
+		logger.Log("identity.pub", publicKey.Key)
 		logger.Log("host", restClientConfig.Host)
 
 		kubectl := *kubernetesKubectl
@@ -112,7 +151,7 @@ func main() {
 		logger.Log("kubectl", kubectl)
 
 		kubectlApplier := kubernetes.NewKubectl(kubectl, restClientConfig)
-		cluster, err := kubernetes.NewCluster(restClientConfig, kubectlApplier, logger)
+		cluster, err := kubernetes.NewCluster(clientset, kubectlApplier, sshKeyRing, logger)
 		if err != nil {
 			logger.Log("err", err)
 			os.Exit(1)
@@ -160,28 +199,16 @@ func main() {
 	var checkout *git.Checkout
 	{
 		repo := git.Repo{
-			URL:    *gitURL,
-			Path:   *gitPath,
-			Branch: *gitBranch,
-			Key:    *gitKey,
+			URL:     *gitURL,
+			Path:    *gitPath,
+			Branch:  *gitBranch,
+			KeyRing: sshKeyRing,
 		}
 		gitConfig := git.Config{
 			SyncTag:   *gitSyncTag,
 			NotesRef:  *gitNotesRef,
 			UserName:  *gitUser,
 			UserEmail: *gitEmail,
-		}
-
-		keyBytes, err := ioutil.ReadFile(*gitKey) // TODO do straight from disk?
-		if err != nil {
-			logger.Log("component", "git", "err", err.Error())
-		} else {
-			fp, err := git.Fingerprint(keyBytes, "md5")
-			if err != nil {
-				logger.Log("component", "git", "err", err.Error())
-			} else {
-				logger.Log("component", "git", "fingerprint", fp)
-			}
 		}
 
 		working, err := repo.Clone(gitConfig)
