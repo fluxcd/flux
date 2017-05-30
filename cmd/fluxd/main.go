@@ -26,6 +26,7 @@ import (
 	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/registry"
 	"github.com/weaveworks/flux/remote"
+	"sync"
 )
 
 var version string
@@ -199,10 +200,12 @@ func main() {
 
 	shutdown := make(chan struct{})
 
+	queueWg := &sync.WaitGroup{}
 	var jobs *job.Queue
 	{
 		jobs = job.NewQueue()
-		go jobs.Loop(shutdown)
+		queueWg.Add(1)
+		go jobs.Loop(shutdown, queueWg)
 	}
 
 	daemon := &daemon.Daemon{
@@ -238,7 +241,9 @@ func main() {
 		logger.Log("upstream", "no upstream URL given")
 	}
 
-	go daemon.Loop(shutdown, log.NewContext(logger).With("component", "sync-loop"))
+	daemonWg := &sync.WaitGroup{}
+	daemonWg.Add(1)
+	go daemon.Loop(shutdown, daemonWg, log.NewContext(logger).With("component", "sync-loop"))
 
 	// Mechanical components.
 	errc := make(chan error)
@@ -261,4 +266,6 @@ func main() {
 	// Go!
 	logger.Log("exiting", <-errc)
 	close(shutdown)
+	daemonWg.Wait()
+	queueWg.Wait()
 }

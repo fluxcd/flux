@@ -7,11 +7,13 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
 
+	"sync"
+
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/git"
 	"github.com/weaveworks/flux/history"
 	"github.com/weaveworks/flux/resource"
-	"github.com/weaveworks/flux/sync"
+	fluxsync "github.com/weaveworks/flux/sync"
 )
 
 const (
@@ -22,7 +24,8 @@ const (
 // Loop for potentially long-running stuff. This includes running
 // jobs, and looking for new commits.
 
-func (d *Daemon) Loop(stop chan struct{}, logger log.Logger) {
+func (d *Daemon) Loop(stop chan struct{}, wg *sync.WaitGroup, logger log.Logger) {
+	defer wg.Done()
 	pollGit := time.NewTimer(gitPollInterval)
 	resetGitPoll := func() {
 		if pollGit != nil {
@@ -112,7 +115,7 @@ func (d *Daemon) pullAndSync(logger log.Logger) {
 	}
 
 	// TODO supply deletes argument from somewhere (command-line?)
-	if err := sync.Sync(d.Manifests, allResources, d.Cluster, false); err != nil {
+	if err := fluxsync.Sync(d.Manifests, allResources, d.Cluster, false); err != nil {
 		logger.Log("err", err)
 	}
 
@@ -165,7 +168,7 @@ func (d *Daemon) pullAndSync(logger log.Logger) {
 
 func (d *Daemon) updateTagRev(working *git.Checkout, logger log.Logger) error {
 	oldTagRev, err := d.Checkout.TagRevision(d.Checkout.SyncTag)
-	if err != nil {
+	if err != nil && !strings.Contains(err.Error(), "unknown revision or path not in the working tree") {
 		return err
 	}
 	newTagRev, err := working.TagRevision(working.SyncTag)

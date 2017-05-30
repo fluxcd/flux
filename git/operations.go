@@ -115,7 +115,7 @@ func getNote(workingDir, notesRef, rev string) (*Note, error) {
 	return &note, nil
 }
 
-// Get the commit hash for HEAD
+// Get the commit hash for a reference
 func refRevision(path, ref string) (string, error) {
 	out := &bytes.Buffer{}
 	if err := execGitCmd(path, "", out, "rev-list", "--max-count", "1", ref); err != nil {

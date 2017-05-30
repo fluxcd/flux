@@ -19,6 +19,7 @@ import (
 	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/registry"
 	"github.com/weaveworks/flux/resource"
+	"sync"
 )
 
 const (
@@ -56,9 +57,11 @@ func daemon(t *testing.T) (*Daemon, func()) {
 
 	events = history.NewMock()
 
+	wg := &sync.WaitGroup{}
 	jobs := job.NewQueue()
 	shutdown := make(chan struct{})
-	go jobs.Loop(shutdown)
+	wg.Add(1)
+	go jobs.Loop(shutdown, wg)
 	d := &Daemon{
 		Cluster:        k8s,
 		Manifests:      k8s,
@@ -70,6 +73,7 @@ func daemon(t *testing.T) (*Daemon, func()) {
 	}
 	return d, func() {
 		close(shutdown)
+		wg.Wait()
 		repoCleanup()
 		k8s = nil
 		events = nil

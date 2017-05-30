@@ -89,7 +89,8 @@ func (q *Queue) ForEach(fn func(int, *Job) bool) {
 	}
 }
 
-func (q *Queue) Loop(stop chan struct{}) {
+func (q *Queue) Loop(stop chan struct{}, wg *sync.WaitGroup) {
+	defer wg.Done()
 	defer q.stop()
 	for {
 		var out chan *Job = nil
