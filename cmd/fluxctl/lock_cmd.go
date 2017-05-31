@@ -5,12 +5,14 @@ import (
 
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/policy"
+	"github.com/weaveworks/flux/update"
 )
 
 type serviceLockOpts struct {
 	*serviceOpts
 	service string
 	outputOpts
+	cause update.Cause
 }
 
 func newServiceLock(parent *serviceOpts) *serviceLockOpts {
@@ -26,7 +28,8 @@ func (opts *serviceLockOpts) Command() *cobra.Command {
 		),
 		RunE: opts.RunE,
 	}
-	OutputFlags(cmd, &opts.outputOpts)
+	AddOutputFlags(cmd, &opts.outputOpts)
+	AddCauseFlags(cmd, &opts.cause)
 	cmd.Flags().StringVarP(&opts.service, "service", "s", "", "Service to lock")
 	return cmd
 }
@@ -46,7 +49,7 @@ func (opts *serviceLockOpts) RunE(cmd *cobra.Command, args []string) error {
 
 	jobID, err := opts.API.UpdatePolicies(noInstanceID, policy.Updates{
 		serviceID: policy.Update{Add: []policy.Policy{policy.Locked}},
-	})
+	}, opts.cause)
 	if err != nil {
 		return err
 	}

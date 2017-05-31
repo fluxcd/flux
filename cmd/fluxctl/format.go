@@ -14,7 +14,7 @@ type outputOpts struct {
 	verbose bool
 }
 
-func OutputFlags(cmd *cobra.Command, opts *outputOpts) {
+func AddOutputFlags(cmd *cobra.Command, opts *outputOpts) {
 	cmd.Flags().BoolVarP(&opts.verbose, "verbose", "v", false, "include ignored services in output")
 }
 

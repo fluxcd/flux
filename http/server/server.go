@@ -149,10 +149,9 @@ func (s HTTPService) UpdateImages(w http.ResponseWriter, r *http.Request) {
 		ImageSpec:    imageSpec,
 		Kind:         releaseKind,
 		Excludes:     excludes,
-		Cause: update.ReleaseCause{
-			User:    r.FormValue("user"),
-			Message: r.FormValue("message"),
-		},
+	}, update.Cause{
+		User:    r.FormValue("user"),
+		Message: r.FormValue("message"),
 	})
 	if err != nil {
 		transport.ErrorResponse(w, r, err)
@@ -203,7 +202,10 @@ func (s HTTPService) UpdatePolicies(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	jobID, err := s.service.UpdatePolicies(inst, updates)
+	jobID, err := s.service.UpdatePolicies(inst, updates, update.Cause{
+		User:    r.FormValue("user"),
+		Message: r.FormValue("message"),
+	})
 	if err != nil {
 		transport.ErrorResponse(w, r, err)
 		return

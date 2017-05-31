@@ -52,16 +52,18 @@ func (rc *ReleaseContext) CommitAndPush(msg string, spec *update.ReleaseSpec, re
 	})
 }
 
-func (rc *ReleaseContext) PushChanges(updates []*ServiceUpdate, spec *update.ReleaseSpec, results update.Result) error {
+func (rc *ReleaseContext) PushChanges(updates []*ServiceUpdate, spec *update.ReleaseSpec, cause update.Cause, results update.Result) error {
 	rc.Repo.Lock()
 	err := writeUpdates(updates)
+	rc.Repo.Unlock()
 	if err != nil {
-		rc.Repo.Unlock()
 		return err
 	}
-	rc.Repo.Unlock()
 
-	commitMsg := commitMessageFromReleaseSpec(spec)
+	commitMsg := cause.Message
+	if commitMsg == "" {
+		commitMsg = commitMessageFromReleaseSpec(spec)
+	}
 	return rc.CommitAndPush(commitMsg, spec, results)
 }
 

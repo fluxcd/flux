@@ -225,7 +225,7 @@ func TestFluxsvc_Release(t *testing.T) {
 		ImageSpec:    "alpine:latest",
 		Kind:         "execute",
 		ServiceSpecs: []update.ServiceSpec{helloWorldSvc},
-	})
+	}, update.Cause{})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -174,7 +174,7 @@ func (d *Daemon) UpdateManifests(spec update.Spec) (job.ID, error) {
 	case update.ReleaseSpec:
 		return d.queueJob(func(jobID job.ID, working *git.Checkout, logger log.Logger) (*history.CommitEventMetadata, error) {
 			rc := release.NewReleaseContext(d.Cluster, d.Manifests, d.Registry, working)
-			revision, result, err := release.Release(rc, s, logger)
+			revision, result, err := release.Release(rc, s, spec.Cause, logger)
 			if err != nil {
 				return nil, err
 			}
@@ -232,7 +232,7 @@ func (d *Daemon) UpdateManifests(spec update.Spec) (job.ID, error) {
 				return metadata, nil
 			}
 
-			if err := working.CommitAndPush(policyCommitMessage(s, time.Now().UTC()), &git.Note{JobID: jobID, Spec: spec}); err != nil {
+			if err := working.CommitAndPush(policyCommitMessage(s, spec.Cause), &git.Note{JobID: jobID, Spec: spec}); err != nil {
 				return nil, err
 			}
 
@@ -372,14 +372,20 @@ func policyEvents(us policy.Updates, now time.Time) map[string]history.Event {
 	return eventsByType
 }
 
-func policyCommitMessage(us policy.Updates, now time.Time) string {
-	events := policyEvents(us, now)
+func policyCommitMessage(us policy.Updates, cause update.Cause) string {
+	// shortcut, since we want roughly the same information
+	events := policyEvents(us, time.Now())
 	commitMsg := &bytes.Buffer{}
-	prefix := ""
-	if len(events) > 1 {
-		fmt.Fprintf(commitMsg, "Updated service policies:\n\n")
-		prefix = "- "
+	prefix := "- "
+	switch {
+	case cause.Message != "":
+		fmt.Fprintf(commitMsg, "%s\n\n", cause.Message)
+	case len(events) > 1:
+		fmt.Fprintf(commitMsg, "Updated service policies\n\n")
+	default:
+		prefix = ""
 	}
+
 	for _, event := range events {
 		fmt.Fprintf(commitMsg, "%s%v\n", prefix, event)
 	}

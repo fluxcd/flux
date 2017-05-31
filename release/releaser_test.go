@@ -387,7 +387,7 @@ func Test_ImageStatus(t *testing.T) {
 }
 
 func testRelease(t *testing.T, name string, ctx *ReleaseContext, spec update.ReleaseSpec, expected update.Result) {
-	_, results, err := Release(ctx, spec, log.NewNopLogger())
+	_, results, err := Release(ctx, spec, update.Cause{}, log.NewNopLogger())
 	if err != nil {
 		t.Fatal(err)
 	}

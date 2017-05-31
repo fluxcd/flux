@@ -7,7 +7,6 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/weaveworks/flux"
-	"github.com/weaveworks/flux/guid"
 )
 
 const (
@@ -40,31 +39,15 @@ func ParseReleaseKind(s string) (ReleaseKind, error) {
 	}
 }
 
-type ReleaseID string
-
-func NewReleaseID() ReleaseID {
-	return ReleaseID(guid.New())
-}
-
-// How did this release get triggered?
-type ReleaseCause struct {
-	Message string
-	User    string
-}
-
 const UserAutomated = "<automated>"
 
 // Release describes a release
 type Release struct {
-	ID        ReleaseID           `json:"id"`
-	CreatedAt time.Time           `json:"createdAt"`
-	StartedAt time.Time           `json:"startedAt"`
-	EndedAt   time.Time           `json:"endedAt"`
-	Done      bool                `json:"done"`
-	Priority  int                 `json:"priority"`
-	Status    ServiceUpdateStatus `json:"status"`
-	Log       []string            `json:"log"`
+	CreatedAt time.Time `json:"createdAt"`
+	StartedAt time.Time `json:"startedAt"`
+	EndedAt   time.Time `json:"endedAt"`
 
+	Cause  Cause       `json:"cause"`
 	Spec   ReleaseSpec `json:"spec"`
 	Result Result      `json:"result"`
 }
@@ -76,7 +59,6 @@ type ReleaseSpec struct {
 	ImageSpec    ImageSpec
 	Kind         ReleaseKind
 	Excludes     []flux.ServiceID
-	Cause        ReleaseCause
 }
 
 // ReleaseType gives a one-word description of the release, mainly
