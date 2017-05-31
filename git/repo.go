@@ -70,7 +70,7 @@ func (r Repo) Clone(c Config) (*Checkout, error) {
 	}
 
 	notesRef, err := getNotesRef(repoDir, c.NotesRef)
-	if err != nil {
+	if err != nil && !strings.Contains(err.Error(), "Couldn't find remote ref") {
 		return nil, err
 	}
 
