@@ -168,16 +168,10 @@ func (d *Daemon) pullAndSync(logger log.Logger) {
 			if n.Spec.Type == update.Images {
 				// Map new note.Spec into ReleaseSpec
 				spec := n.Spec.Spec.(update.ReleaseSpec)
-				status := update.ReleaseStatusSuccess
-				if n.Result.Error() != "" {
-					status = update.ReleaseStatusFailed
-				}
 				// And create a release event
 				releaseEvent := update.Release{
 					StartedAt: started,
 					EndedAt:   time.Now().UTC(),
-					Done:      true,
-					Status:    status,
 					Spec:      spec,
 					Result:    n.Result,
 				}

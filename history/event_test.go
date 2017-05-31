@@ -7,8 +7,10 @@ import (
 	"testing"
 )
 
-const (
-	releaseID = "1"
+var (
+	spec = update.ReleaseSpec{
+		ImageSpec: update.ImageSpecLatest,
+	}
 )
 
 func TestEvent_ParseReleaseMetaData(t *testing.T) {
@@ -16,7 +18,7 @@ func TestEvent_ParseReleaseMetaData(t *testing.T) {
 		Type: EventRelease,
 		Metadata: &ReleaseEventMetadata{
 			Release: update.Release{
-				ID: releaseID,
+				Spec: spec,
 			},
 		},
 	}
@@ -28,8 +30,8 @@ func TestEvent_ParseReleaseMetaData(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if e.Metadata.(ReleaseEventMetadata).Release.ID != releaseID {
-		t.Fatal("Release.ID wasn't marshalled/unmarshalled")
+	if e.Metadata.(ReleaseEventMetadata).Release.Spec.ImageSpec != spec.ImageSpec {
+		t.Fatal("Release.Spec wasn't marshalled/unmarshalled")
 	}
 }
 
