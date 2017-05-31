@@ -42,10 +42,11 @@ const UserAutomated = "<automated>"
 // NB: these get sent from fluxctl, so we have to maintain the json format of
 // this. Eugh.
 type ReleaseSpec struct {
-	ServiceSpecs []ServiceSpec
-	ImageSpec    ImageSpec
-	Kind         ReleaseKind
-	Excludes     []flux.ServiceID
+	ServiceSpecs  []ServiceSpec
+	ContainerName string
+	ImageSpec     ImageSpec
+	Kind          ReleaseKind
+	Excludes      []flux.ServiceID
 }
 
 // ReleaseType gives a one-word description of the release, mainly
