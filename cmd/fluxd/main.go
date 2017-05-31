@@ -50,7 +50,7 @@ func main() {
 	}
 	// This mirrors how kubectl extracts information from the environment.
 	var (
-		listenAddr        = fs.StringP("listen", "l", ":3031", "Listen address where /metrics and API will be served")
+		listenAddr        = fs.StringP("listen", "l", ":3030", "Listen address where /metrics and API will be served")
 		kubernetesKubectl = fs.String("kubernetes-kubectl", "", "Optional, explicit path to kubectl tool")
 		versionFlag       = fs.Bool("version", false, "Get version number")
 		// Git repo & key etc.

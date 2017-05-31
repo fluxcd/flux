@@ -20,6 +20,8 @@ spec:
       - name: fluxd
         image: quay.io/weaveworks/fluxd:latest
         imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 3030 # informational
         volumeMounts:
         - name: git-key
           mountPath: /etc/fluxd/ssh
