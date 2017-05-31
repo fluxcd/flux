@@ -46,7 +46,6 @@ Workflow:
   fluxctl list-services                                        # Which services are running?
   fluxctl list-images --service=default/foo                    # Which images are running/available?
   fluxctl release --service=default/foo --update-image=bar:v2  # Release new version.
-  fluxctl history --service=default/foo                        # Review what happened
 `)
 
 const envVariableURL = "FLUX_URL"
@@ -69,19 +68,15 @@ func (opts *rootOpts) Command() *cobra.Command {
 
 	cmd.AddCommand(
 		newVersionCommand(),
-		newStatus(opts).Command(),
 		newServiceShow(svcopts).Command(),
 		newServiceList(svcopts).Command(),
 		newServiceRelease(svcopts).Command(),
-		newServiceCheckRelease(svcopts).Command(),
-		newServiceHistory(svcopts).Command(),
 		newServiceAutomate(svcopts).Command(),
 		newServiceDeautomate(svcopts).Command(),
 		newServiceLock(svcopts).Command(),
 		newServiceUnlock(svcopts).Command(),
-		newGetConfig(opts).Command(),
-		newSetConfig(opts).Command(),
 		newSave(opts).Command(),
+		newIdentity(opts).Command(),
 	)
 
 	return cmd
@@ -93,7 +88,7 @@ func (opts *rootOpts) PersistentPreRunE(cmd *cobra.Command, _ []string) error {
 		return errors.Wrapf(err, "parsing URL")
 	}
 	opts.Token = getFromEnvIfNotSet(cmd.Flags(), "token", envVariableToken, opts.Token)
-	opts.API = client.New(http.DefaultClient, transport.NewRouter(), opts.URL, flux.Token(opts.Token))
+	opts.API = client.New(http.DefaultClient, transport.NewServiceRouter(), opts.URL, flux.Token(opts.Token))
 	return nil
 }
 

@@ -2,11 +2,12 @@ package registry
 
 import (
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"github.com/pkg/errors"
-	"github.com/weaveworks/flux"
 	"net/url"
 	"strings"
+	"io/ioutil"
 )
 
 // NoCredentials returns a usable but empty credentials object.
@@ -16,9 +17,23 @@ func NoCredentials() Credentials {
 	}
 }
 
-func CredentialsFromConfig(config flux.UnsafeInstanceConfig) (Credentials, error) {
+func CredentialsFromFile(path string) (Credentials, error) {
+	configBytes, err := ioutil.ReadFile(path)
+	if err != nil {
+		return Credentials{}, err
+	}
+
+	var config struct {
+		Auths map[string]struct {
+			Auth string
+		}
+	}
+	if err = json.Unmarshal(configBytes, &config); err != nil {
+		return Credentials{}, err
+	}
+
 	m := map[string]creds{}
-	for host, entry := range config.Registry.Auths {
+	for host, entry := range config.Auths {
 		decodedAuth, err := base64.StdEncoding.DecodeString(entry.Auth)
 		if err != nil {
 			return Credentials{}, err

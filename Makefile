@@ -46,11 +46,11 @@ build/migrations.tar: $(MIGRATIONS)
 build/.%.done: docker/Dockerfile.%
 	mkdir -p ./build/docker/$*
 	cp $^ ./build/docker/$*/
-	${DOCKER} build -t weaveworks/$* -t weaveworks/$*:$(IMAGE_TAG) -t quay.io/weaveworks/$* -t quay.io/weaveworks/$*:$(IMAGE_TAG) -f build/docker/$*/Dockerfile.$* ./build/docker/$*
+	${DOCKER} build -t quay.io/weaveworks/$* -t weaveworks/$*:$(IMAGE_TAG) -t quay.io/weaveworks/$* -t quay.io/weaveworks/$*:$(IMAGE_TAG) -f build/docker/$*/Dockerfile.$* ./build/docker/$*
 	touch $@
 
 build/.fluxd.done: build/fluxd build/kubectl
-build/.fluxsvc.done: build/fluxsvc cmd/fluxsvc/kubeservice build/migrations.tar
+build/.fluxsvc.done: build/fluxsvc build/migrations.tar
 
 build/fluxd: $(FLUXD_DEPS)
 build/fluxd: cmd/fluxd/*.go

@@ -3,13 +3,23 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"io"
+	"os"
 	"strings"
 	"text/tabwriter"
+
+	"github.com/spf13/cobra"
 )
 
-func newTabwriter(w io.Writer) *tabwriter.Writer {
-	return tabwriter.NewWriter(w, 0, 2, 2, ' ', 0)
+type outputOpts struct {
+	verbose bool
+}
+
+func OutputFlags(cmd *cobra.Command, opts *outputOpts) {
+	cmd.Flags().BoolVarP(&opts.verbose, "verbose", "v", false, "include ignored services in output")
+}
+
+func newTabwriter() *tabwriter.Writer {
+	return tabwriter.NewWriter(os.Stdout, 0, 2, 2, ' ', 0)
 }
 
 func makeExample(examples ...string) string {

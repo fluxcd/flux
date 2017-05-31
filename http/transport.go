@@ -11,24 +11,47 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/weaveworks/flux"
-	"github.com/weaveworks/flux/jobs"
 )
 
-func NewRouter() *mux.Router {
+func NewAPIRouter() *mux.Router {
 	r := mux.NewRouter()
 	// Any versions not represented in the routes below are
 	// deprecated. They are done separately so we can see them as
 	// different methods in metrics and logging.
+	var deprecated http.HandlerFunc = func(w http.ResponseWriter, r *http.Request) {
+		WriteError(w, r, http.StatusGone, ErrorDeprecated)
+	}
+
 	for _, version := range []string{"v1", "v2"} {
-		r.NewRoute().Name("Deprecated:" + version).PathPrefix("/" + version + "/").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			WriteError(w, r, http.StatusGone, ErrorDeprecated)
-		})
+		r.NewRoute().Name("Deprecated:" + version).PathPrefix("/" + version + "/").HandlerFunc(deprecated)
+	}
+
+	// These API endpoints are specifically deprecated
+	for name, path := range map[string]string{
+		"PostOrGetRelease":   "/v4/release",            // deprecated because UpdateImages and Sync{Cluster,Status} supercede them, and we cannot support both
+		"GenerateDeployKeys": "/v5/config/deploy-keys", // replaced by PublicSSHKey
+	} {
+		r.NewRoute().Name("Deprecated:" + name).Path(path).HandlerFunc(deprecated)
 	}
 
 	r.NewRoute().Name("ListServices").Methods("GET").Path("/v3/services").Queries("namespace", "{namespace}") // optional namespace!
 	r.NewRoute().Name("ListImages").Methods("GET").Path("/v3/images").Queries("service", "{service}")
-	r.NewRoute().Name("PostRelease").Methods("POST").Path("/v4/release").Queries("service", "{service}", "image", "{image}", "kind", "{kind}")
-	r.NewRoute().Name("GetRelease").Methods("GET").Path("/v4/release").Queries("id", "{id}")
+
+	r.NewRoute().Name("UpdateImages").Methods("POST").Path("/v6/update-images").Queries("service", "{service}", "image", "{image}", "kind", "{kind}")
+	r.NewRoute().Name("UpdatePolicies").Methods("PATCH").Path("/v4/policies")
+	r.NewRoute().Name("SyncNotify").Methods("POST").Path("/v6/sync")
+	r.NewRoute().Name("JobStatus").Methods("GET").Path("/v6/jobs").Queries("id", "{id}")
+	r.NewRoute().Name("SyncStatus").Methods("GET").Path("/v6/sync").Queries("ref", "{ref}")
+	r.NewRoute().Name("Export").Methods("HEAD", "GET").Path("/v5/export")
+	r.NewRoute().Name("GetPublicSSHKey").Methods("GET").Path("/v6/identity.pub")
+	r.NewRoute().Name("RegeneratePublicSSHKey").Methods("POST").Path("/v6/identity.pub")
+
+	return r // TODO 404 though?
+}
+
+func NewServiceRouter() *mux.Router {
+	r := NewAPIRouter()
+
 	r.NewRoute().Name("Automate").Methods("POST").Path("/v3/automate").Queries("service", "{service}")
 	r.NewRoute().Name("Deautomate").Methods("POST").Path("/v3/deautomate").Queries("service", "{service}")
 	r.NewRoute().Name("Lock").Methods("POST").Path("/v3/lock").Queries("service", "{service}")
@@ -38,12 +61,12 @@ func NewRouter() *mux.Router {
 	r.NewRoute().Name("GetConfig").Methods("GET").Path("/v4/config")
 	r.NewRoute().Name("SetConfig").Methods("POST").Path("/v4/config")
 	r.NewRoute().Name("PatchConfig").Methods("PATCH").Path("/v4/config")
-	r.NewRoute().Name("GenerateDeployKeys").Methods("POST").Path("/v5/config/deploy-keys")
 	r.NewRoute().Name("PostIntegrationsGithub").Methods("POST").Path("/v5/integrations/github").Queries("owner", "{owner}", "repository", "{repository}")
 	r.NewRoute().Name("RegisterDaemonV4").Methods("GET").Path("/v4/daemon")
 	r.NewRoute().Name("RegisterDaemonV5").Methods("GET").Path("/v5/daemon")
+	r.NewRoute().Name("RegisterDaemonV6").Methods("GET").Path("/v6/daemon")
 	r.NewRoute().Name("IsConnected").Methods("HEAD", "GET").Path("/v4/ping")
-	r.NewRoute().Name("Export").Methods("HEAD", "GET").Path("/v5/export")
+	r.NewRoute().Name("LogEvent").Methods("POST").Path("/v4/events")
 
 	// We assume every request that doesn't match a route is a client
 	// calling an old or hitherto unsupported API.
@@ -52,11 +75,6 @@ func NewRouter() *mux.Router {
 	})
 
 	return r
-}
-
-type PostReleaseResponse struct {
-	Status    string     `json:"status"`
-	ReleaseID jobs.JobID `json:"release_id"`
 }
 
 func MakeURL(endpoint string, router *mux.Router, routeName string, urlParams ...string) (*url.URL, error) {
@@ -117,4 +135,38 @@ func WriteError(w http.ResponseWriter, r *http.Request, code int, err error) {
 	w.Header().Set(http.CanonicalHeaderKey("Content-Type"), "text/plain; charset=utf-8")
 	w.WriteHeader(code)
 	fmt.Fprint(w, err.Error())
+}
+
+func JSONResponse(w http.ResponseWriter, r *http.Request, result interface{}) {
+	body, err := json.Marshal(result)
+	if err != nil {
+		ErrorResponse(w, r, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	w.Write(body)
+}
+
+func ErrorResponse(w http.ResponseWriter, r *http.Request, apiError error) {
+	var outErr *flux.BaseError
+	var code int
+	err := errors.Cause(apiError)
+	switch err := err.(type) {
+	case flux.Missing:
+		code = http.StatusNotFound
+		outErr = err.BaseError
+	case flux.UserConfigProblem:
+		code = http.StatusUnprocessableEntity
+		outErr = err.BaseError
+	case flux.ServerException:
+		code = http.StatusInternalServerError
+		outErr = err.BaseError
+	default:
+		code = http.StatusInternalServerError
+		outErr = flux.CoverAllError(apiError)
+	}
+
+	WriteError(w, r, code, outErr)
 }

@@ -4,11 +4,13 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/policy"
 )
 
 type serviceLockOpts struct {
 	*serviceOpts
 	service string
+	outputOpts
 }
 
 func newServiceLock(parent *serviceOpts) *serviceLockOpts {
@@ -24,11 +26,12 @@ func (opts *serviceLockOpts) Command() *cobra.Command {
 		),
 		RunE: opts.RunE,
 	}
+	OutputFlags(cmd, &opts.outputOpts)
 	cmd.Flags().StringVarP(&opts.service, "service", "s", "", "Service to lock")
 	return cmd
 }
 
-func (opts *serviceLockOpts) RunE(_ *cobra.Command, args []string) error {
+func (opts *serviceLockOpts) RunE(cmd *cobra.Command, args []string) error {
 	if len(args) > 0 {
 		return errorWantedNoArgs
 	}
@@ -41,5 +44,11 @@ func (opts *serviceLockOpts) RunE(_ *cobra.Command, args []string) error {
 		return err
 	}
 
-	return opts.API.Lock(noInstanceID, serviceID)
+	jobID, err := opts.API.UpdatePolicies(noInstanceID, policy.Updates{
+		serviceID: policy.Update{Add: []policy.Policy{policy.Locked}},
+	})
+	if err != nil {
+		return err
+	}
+	return await(cmd.OutOrStdout(), cmd.OutOrStderr(), opts.API, jobID, false, opts.verbose)
 }

@@ -1,0 +1,224 @@
+package history
+
+import (
+	"fmt"
+	"sort"
+	"strings"
+	"time"
+
+	"encoding/json"
+	"errors"
+	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/update"
+)
+
+// These are all the types of events.
+const (
+	EventCommit     = "commit"
+	EventSync       = "sync"
+	EventRelease    = "release"
+	EventAutomate   = "automate"
+	EventDeautomate = "deautomate"
+	EventLock       = "lock"
+	EventUnlock     = "unlock"
+
+	LogLevelDebug = "debug"
+	LogLevelInfo  = "info"
+	LogLevelWarn  = "warn"
+	LogLevelError = "error"
+)
+
+type EventID int64
+
+type Event struct {
+	// ID is a UUID for this event. Will be auto-set when saving if blank.
+	ID EventID `json:"id"`
+
+	// ServiceIDs affected by this event.
+	ServiceIDs []flux.ServiceID `json:"serviceIDs"`
+
+	// Type is the type of event, usually "release" for now, but could be other
+	// things later
+	Type string `json:"type"`
+
+	// StartedAt is the time the event began.
+	StartedAt time.Time `json:"startedAt"`
+
+	// EndedAt is the time the event ended. For instantaneous events, this will
+	// be the same as StartedAt.
+	EndedAt time.Time `json:"endedAt"`
+
+	// LogLevel for this event. Used to indicate how important it is.
+	// `debug|info|warn|error`
+	LogLevel string `json:"logLevel"`
+
+	// Message is a pre-formatted string for errors and other stuff. Included for
+	// backwards-compatibility, and is now somewhat unnecessary. Should only be
+	// used if metadata is empty.
+	Message string `json:"message,omitempty"`
+
+	// Metadata is Event.Type-specific metadata. If an event has no metadata,
+	// this will be nil.
+	Metadata interface{} `json:"metadata,omitempty"`
+}
+
+func (e Event) ServiceIDStrings() []string {
+	var strServiceIDs []string
+	for _, serviceID := range e.ServiceIDs {
+		strServiceIDs = append(strServiceIDs, string(serviceID))
+	}
+	sort.Strings(strServiceIDs)
+	return strServiceIDs
+}
+
+func (e Event) String() string {
+	if e.Message != "" {
+		return e.Message
+	}
+
+	strServiceIDs := e.ServiceIDStrings()
+	switch e.Type {
+	case EventRelease:
+		metadata := e.Metadata.(ReleaseEventMetadata)
+		strImageIDs := metadata.Release.Result.ImageIDs()
+		if len(strImageIDs) == 0 {
+			strImageIDs = []string{"no image changes"}
+		}
+		for _, spec := range metadata.Release.Spec.ServiceSpecs {
+			switch spec {
+			case update.ServiceSpecAll:
+				strServiceIDs = []string{"all services"}
+				break
+			case update.ServiceSpecAutomated:
+				strServiceIDs = []string{"automated services"}
+				break
+			}
+		}
+		if len(strServiceIDs) == 0 {
+			strServiceIDs = []string{"no services"}
+		}
+		var user string
+		if metadata.Release.Spec.Cause.User != "" {
+			user = fmt.Sprintf(", by %s", metadata.Release.Spec.Cause.User)
+		}
+		var msg string
+		if metadata.Release.Spec.Cause.Message != "" {
+			msg = fmt.Sprintf(", with message %q", metadata.Release.Spec.Cause.Message)
+		}
+		return fmt.Sprintf(
+			"Released: %s to %s%s%s",
+			strings.Join(strImageIDs, ", "),
+			strings.Join(strServiceIDs, ", "),
+			user,
+			msg,
+		)
+	case EventCommit:
+		metadata := e.Metadata.(CommitEventMetadata)
+		svcStr := "<no changes>"
+		if len(strServiceIDs) > 0 {
+			svcStr = strings.Join(strServiceIDs, ", ")
+		}
+		return fmt.Sprintf("Commit: %s, %s", shortRevision(metadata.Revision), svcStr)
+	case EventSync:
+		metadata := e.Metadata.(SyncEventMetadata)
+		revStr := "<no revision>"
+		if 0 < len(metadata.Revisions) && len(metadata.Revisions) <= 2 {
+			revStr = shortRevision(metadata.Revisions[0])
+		} else if len(metadata.Revisions) > 2 {
+			revStr = fmt.Sprintf(
+				"%s..%s",
+				shortRevision(metadata.Revisions[len(metadata.Revisions)-1]),
+				shortRevision(metadata.Revisions[0]),
+			)
+		}
+		svcStr := "<no changes>"
+		if len(strServiceIDs) > 0 {
+			svcStr = strings.Join(strServiceIDs, ", ")
+		}
+		return fmt.Sprintf("Sync: %s, %s", revStr, svcStr)
+	case EventAutomate:
+		return fmt.Sprintf("Automated: %s", strings.Join(strServiceIDs, ", "))
+	case EventDeautomate:
+		return fmt.Sprintf("Deautomated: %s", strings.Join(strServiceIDs, ", "))
+	case EventLock:
+		return fmt.Sprintf("Locked: %s", strings.Join(strServiceIDs, ", "))
+	case EventUnlock:
+		return fmt.Sprintf("Unlocked: %s", strings.Join(strServiceIDs, ", "))
+	default:
+		return "Unknown event"
+	}
+}
+
+func shortRevision(rev string) string {
+	if len(rev) <= 7 {
+		return rev
+	}
+	return rev[:7]
+}
+
+// CommitEventMetadata is the metadata for when new git commits are created
+type CommitEventMetadata struct {
+	Revision string        `json:"revision,omitempty"`
+	Spec     *update.Spec  `json:"spec"`
+	Result   update.Result `json:"result,omitempty"`
+}
+
+func (c CommitEventMetadata) ShortRevision() string {
+	if len(c.Revision) <= 7 {
+		return c.Revision
+	}
+	return c.Revision[:7]
+}
+
+// SyncEventMetadata is the metadata for when new a commit is synced to the cluster
+type SyncEventMetadata struct {
+	Revisions []string `json:"revisions,omitempty"`
+}
+
+// ReleaseEventMetadata is the metadata for when service(s) are released
+type ReleaseEventMetadata struct {
+	// Release points to this release
+	Release update.Release `json:"release"`
+	// Message of the error if there was one.
+	Error string `json:"error,omitempty"`
+}
+
+func (e *Event) UnmarshalJSON(in []byte) error {
+	type alias Event
+	var wireEvent struct {
+		*alias
+		MetadataBytes json.RawMessage `json:"metadata,omitempty"`
+	}
+	wireEvent.alias = (*alias)(e)
+
+	// Now unmarshall custom wireEvent with RawMessage
+	if err := json.Unmarshal(in, &wireEvent); err != nil {
+		return err
+	}
+	if wireEvent.Type == "" {
+		return errors.New("Event type is empty")
+	}
+
+	// If we have a type which we want to convert, overwrite the
+	// standard Event with the new unmarshalled type
+	switch wireEvent.Type {
+	case EventRelease:
+		var metadata ReleaseEventMetadata
+		if err := json.Unmarshal(wireEvent.MetadataBytes, &metadata); err != nil {
+			return err
+		}
+		e.Metadata = metadata
+		break
+	default:
+		if len(wireEvent.MetadataBytes) > 0 {
+			var metadata interface{}
+			if err := json.Unmarshal(wireEvent.MetadataBytes, &metadata); err != nil {
+				return err
+			}
+			e.Metadata = metadata
+		}
+	}
+
+	// By default, leave the Event Metadata as map[string]interface{}
+	return nil
+}

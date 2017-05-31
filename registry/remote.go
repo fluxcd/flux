@@ -34,7 +34,7 @@ func (rc *remote) Tags(repository Repository) (_ []string, err error) {
 }
 
 func (rc *remote) Manifest(repository Repository, tag string) (img flux.Image, err error) {
-	img, err = flux.ParseImage(fmt.Sprintf("%s:%s", repository.String(), tag), nil)
+	img, err = flux.ParseImage(fmt.Sprintf("%s:%s", repository.String(), tag), time.Time{})
 	if err != nil {
 		return
 	}
@@ -55,7 +55,7 @@ func (rc *remote) Manifest(repository Repository, tag string) (img flux.Image, e
 	if len(history) > 0 {
 		if err = json.Unmarshal([]byte(history[0].V1Compatibility), &topmost); err == nil {
 			if !topmost.Created.IsZero() {
-				img.CreatedAt = &topmost.Created
+				img.CreatedAt = topmost.Created
 			}
 		}
 	}

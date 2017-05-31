@@ -2,6 +2,7 @@ package instance
 
 import (
 	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/policy"
 )
 
 type ServiceConfig struct {
@@ -9,14 +10,14 @@ type ServiceConfig struct {
 	Locked    bool `json:"locked"`
 }
 
-func (c ServiceConfig) Policy() flux.Policy {
+func (c ServiceConfig) Policy() policy.Policy {
 	if c.Locked {
-		return flux.PolicyLocked
+		return policy.Locked
 	}
 	if c.Automated {
-		return flux.PolicyAutomated
+		return policy.Automated
 	}
-	return flux.PolicyNone
+	return policy.None
 }
 
 type Config struct {

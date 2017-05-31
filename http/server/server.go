@@ -23,13 +23,16 @@ import (
 
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/api"
+	"github.com/weaveworks/flux/history"
 	transport "github.com/weaveworks/flux/http"
 	"github.com/weaveworks/flux/http/httperror"
 	"github.com/weaveworks/flux/http/websocket"
 	"github.com/weaveworks/flux/integrations/github"
-	"github.com/weaveworks/flux/jobs"
-	"github.com/weaveworks/flux/platform"
-	"github.com/weaveworks/flux/platform/rpc"
+	"github.com/weaveworks/flux/job"
+	"github.com/weaveworks/flux/policy"
+	"github.com/weaveworks/flux/remote"
+	"github.com/weaveworks/flux/remote/rpc"
+	"github.com/weaveworks/flux/update"
 )
 
 func NewHandler(s api.FluxService, r *mux.Router, logger log.Logger) http.Handler {
@@ -37,23 +40,25 @@ func NewHandler(s api.FluxService, r *mux.Router, logger log.Logger) http.Handle
 	for method, handlerMethod := range map[string]http.HandlerFunc{
 		"ListServices":           handle.ListServices,
 		"ListImages":             handle.ListImages,
-		"PostRelease":            handle.PostRelease,
-		"GetRelease":             handle.GetRelease,
-		"Automate":               handle.Automate,
-		"Deautomate":             handle.Deautomate,
-		"Lock":                   handle.Lock,
-		"Unlock":                 handle.Unlock,
+		"UpdateImages":           handle.UpdateImages,
+		"UpdatePolicies":         handle.UpdatePolicies,
+		"LogEvent":               handle.LogEvent,
 		"History":                handle.History,
 		"Status":                 handle.Status,
 		"GetConfig":              handle.GetConfig,
 		"SetConfig":              handle.SetConfig,
 		"PatchConfig":            handle.PatchConfig,
-		"GenerateDeployKeys":     handle.GenerateKeys,
 		"PostIntegrationsGithub": handle.PostIntegrationsGithub,
 		"RegisterDaemonV4":       handle.RegisterV4,
 		"RegisterDaemonV5":       handle.RegisterV5,
+		"RegisterDaemonV6":       handle.RegisterV6,
 		"IsConnected":            handle.IsConnected,
 		"Export":                 handle.Export,
+		"SyncNotify":             handle.SyncNotify,
+		"JobStatus":              handle.JobStatus,
+		"SyncStatus":             handle.SyncStatus,
+		"GetPublicSSHKey":        handle.GetPublicSSHKey,
+		"RegeneratePublicSSHKey": handle.RegeneratePublicSSHKey,
 	} {
 		handler := logging(handlerMethod, log.NewContext(logger).With("method", method))
 		r.Get(method).Handler(handler)
@@ -74,16 +79,16 @@ func (s HTTPService) ListServices(w http.ResponseWriter, r *http.Request) {
 	namespace := mux.Vars(r)["namespace"]
 	res, err := s.service.ListServices(inst, namespace)
 	if err != nil {
-		errorResponse(w, r, err)
+		transport.ErrorResponse(w, r, err)
 		return
 	}
-	jsonResponse(w, r, res)
+	transport.JSONResponse(w, r, res)
 }
 
 func (s HTTPService) ListImages(w http.ResponseWriter, r *http.Request) {
 	inst := getInstanceID(r)
 	service := mux.Vars(r)["service"]
-	spec, err := flux.ParseServiceSpec(service)
+	spec, err := update.ParseServiceSpec(service)
 	if err != nil {
 		transport.WriteError(w, r, http.StatusBadRequest, errors.Wrapf(err, "parsing service spec %q", service))
 		return
@@ -91,14 +96,14 @@ func (s HTTPService) ListImages(w http.ResponseWriter, r *http.Request) {
 
 	d, err := s.service.ListImages(inst, spec)
 	if err != nil {
-		errorResponse(w, r, err)
+		transport.ErrorResponse(w, r, err)
 		return
 	}
 
-	jsonResponse(w, r, d)
+	transport.JSONResponse(w, r, d)
 }
 
-func (s HTTPService) PostRelease(w http.ResponseWriter, r *http.Request) {
+func (s HTTPService) UpdateImages(w http.ResponseWriter, r *http.Request) {
 	var (
 		inst  = getInstanceID(r)
 		vars  = mux.Vars(r)
@@ -109,21 +114,21 @@ func (s HTTPService) PostRelease(w http.ResponseWriter, r *http.Request) {
 		transport.WriteError(w, r, http.StatusBadRequest, errors.Wrapf(err, "parsing form"))
 		return
 	}
-	var serviceSpecs []flux.ServiceSpec
+	var serviceSpecs []update.ServiceSpec
 	for _, service := range r.Form["service"] {
-		serviceSpec, err := flux.ParseServiceSpec(service)
+		serviceSpec, err := update.ParseServiceSpec(service)
 		if err != nil {
 			transport.WriteError(w, r, http.StatusBadRequest, errors.Wrapf(err, "parsing service spec %q", service))
 			return
 		}
 		serviceSpecs = append(serviceSpecs, serviceSpec)
 	}
-	imageSpec, err := flux.ParseImageSpec(image)
+	imageSpec, err := update.ParseImageSpec(image)
 	if err != nil {
 		transport.WriteError(w, r, http.StatusBadRequest, errors.Wrapf(err, "parsing image spec %q", image))
 		return
 	}
-	releaseKind, err := flux.ParseReleaseKind(kind)
+	releaseKind, err := update.ParseReleaseKind(kind)
 	if err != nil {
 		transport.WriteError(w, r, http.StatusBadRequest, errors.Wrapf(err, "parsing release kind %q", kind))
 		return
@@ -139,103 +144,86 @@ func (s HTTPService) PostRelease(w http.ResponseWriter, r *http.Request) {
 		excludes = append(excludes, s)
 	}
 
-	id, err := s.service.PostRelease(inst, jobs.ReleaseJobParams{
-		ReleaseSpec: flux.ReleaseSpec{
-			ServiceSpecs: serviceSpecs,
-			ImageSpec:    imageSpec,
-			Kind:         releaseKind,
-			Excludes:     excludes,
-		},
-		Cause: flux.ReleaseCause{
+	jobID, err := s.service.UpdateImages(inst, update.ReleaseSpec{
+		ServiceSpecs: serviceSpecs,
+		ImageSpec:    imageSpec,
+		Kind:         releaseKind,
+		Excludes:     excludes,
+		Cause: update.ReleaseCause{
 			User:    r.FormValue("user"),
 			Message: r.FormValue("message"),
 		},
 	})
 	if err != nil {
-		errorResponse(w, r, err)
+		transport.ErrorResponse(w, r, err)
 		return
 	}
 
-	jsonResponse(w, r, transport.PostReleaseResponse{
-		Status:    "Queued.",
-		ReleaseID: id,
-	})
+	transport.JSONResponse(w, r, jobID)
 }
 
-func (s HTTPService) GetRelease(w http.ResponseWriter, r *http.Request) {
-	inst := getInstanceID(r)
-	id := mux.Vars(r)["id"]
-	job, err := s.service.GetRelease(inst, jobs.JobID(id))
+func (s HTTPService) SyncNotify(w http.ResponseWriter, r *http.Request) {
+	instID := getInstanceID(r)
+	err := s.service.SyncNotify(instID)
 	if err != nil {
-		errorResponse(w, r, err)
+		transport.ErrorResponse(w, r, err)
 		return
 	}
-
-	jsonResponse(w, r, job)
+	w.WriteHeader(http.StatusAccepted)
 }
 
-func (s HTTPService) Automate(w http.ResponseWriter, r *http.Request) {
+func (s HTTPService) JobStatus(w http.ResponseWriter, r *http.Request) {
 	inst := getInstanceID(r)
-	service := mux.Vars(r)["service"]
-	id, err := flux.ParseServiceID(service)
+	id := job.ID(mux.Vars(r)["id"])
+	res, err := s.service.JobStatus(inst, id)
 	if err != nil {
-		transport.WriteError(w, r, http.StatusBadRequest, errors.Wrapf(err, "parsing service ID %q", id))
+		transport.ErrorResponse(w, r, err)
 		return
 	}
-
-	if err = s.service.Automate(inst, id); err != nil {
-		errorResponse(w, r, err)
-		return
-	}
-
-	w.WriteHeader(http.StatusOK)
+	transport.JSONResponse(w, r, res)
 }
 
-func (s HTTPService) Deautomate(w http.ResponseWriter, r *http.Request) {
+func (s HTTPService) SyncStatus(w http.ResponseWriter, r *http.Request) {
 	inst := getInstanceID(r)
-	service := mux.Vars(r)["service"]
-	id, err := flux.ParseServiceID(service)
+	rev := mux.Vars(r)["ref"]
+	res, err := s.service.SyncStatus(inst, rev)
 	if err != nil {
-		transport.WriteError(w, r, http.StatusBadRequest, errors.Wrapf(err, "parsing service ID %q", id))
+		transport.ErrorResponse(w, r, err)
 		return
 	}
-
-	if err = s.service.Deautomate(inst, id); err != nil {
-		errorResponse(w, r, err)
-		return
-	}
-
-	w.WriteHeader(http.StatusOK)
+	transport.JSONResponse(w, r, res)
 }
 
-func (s HTTPService) Lock(w http.ResponseWriter, r *http.Request) {
+func (s HTTPService) UpdatePolicies(w http.ResponseWriter, r *http.Request) {
 	inst := getInstanceID(r)
-	service := mux.Vars(r)["service"]
-	id, err := flux.ParseServiceID(service)
+
+	var updates policy.Updates
+	if err := json.NewDecoder(r.Body).Decode(&updates); err != nil {
+		transport.WriteError(w, r, http.StatusBadRequest, err)
+		return
+	}
+
+	jobID, err := s.service.UpdatePolicies(inst, updates)
 	if err != nil {
-		transport.WriteError(w, r, http.StatusBadRequest, errors.Wrapf(err, "parsing service ID %q", id))
+		transport.ErrorResponse(w, r, err)
 		return
 	}
 
-	if err = s.service.Lock(inst, id); err != nil {
-		errorResponse(w, r, err)
-		return
-	}
-
-	w.WriteHeader(http.StatusOK)
+	transport.JSONResponse(w, r, jobID)
 }
 
-func (s HTTPService) Unlock(w http.ResponseWriter, r *http.Request) {
+func (s HTTPService) LogEvent(w http.ResponseWriter, r *http.Request) {
 	inst := getInstanceID(r)
-	service := mux.Vars(r)["service"]
-	id, err := flux.ParseServiceID(service)
-	if err != nil {
-		transport.WriteError(w, r, http.StatusBadRequest, errors.Wrapf(err, "parsing service ID %q", id))
+
+	var event history.Event
+	if err := json.NewDecoder(r.Body).Decode(&event); err != nil {
+		transport.WriteError(w, r, http.StatusBadRequest, err)
 		return
 	}
 
-	if err = s.service.Unlock(inst, id); err != nil {
-		errorResponse(w, r, err)
+	err := s.service.LogEvent(inst, event)
+	if err != nil {
+		transport.ErrorResponse(w, r, err)
 		return
 	}
 
@@ -245,7 +233,7 @@ func (s HTTPService) Unlock(w http.ResponseWriter, r *http.Request) {
 func (s HTTPService) History(w http.ResponseWriter, r *http.Request) {
 	inst := getInstanceID(r)
 	service := mux.Vars(r)["service"]
-	spec, err := flux.ParseServiceSpec(service)
+	spec, err := update.ParseServiceSpec(service)
 	if err != nil {
 		transport.WriteError(w, r, http.StatusBadRequest, errors.Wrapf(err, "parsing service spec %q", spec))
 		return
@@ -255,21 +243,21 @@ func (s HTTPService) History(w http.ResponseWriter, r *http.Request) {
 	if r.FormValue("before") != "" {
 		before, err = time.Parse(time.RFC3339Nano, r.FormValue("before"))
 		if err != nil {
-			errorResponse(w, r, err)
+			transport.ErrorResponse(w, r, err)
 			return
 		}
 	}
 	limit := int64(-1)
 	if r.FormValue("limit") != "" {
 		if _, err := fmt.Sscan(r.FormValue("limit"), &limit); err != nil {
-			errorResponse(w, r, err)
+			transport.ErrorResponse(w, r, err)
 			return
 		}
 	}
 
 	h, err := s.service.History(inst, spec, before, limit)
 	if err != nil {
-		errorResponse(w, r, err)
+		transport.ErrorResponse(w, r, err)
 		return
 	}
 
@@ -280,7 +268,7 @@ func (s HTTPService) History(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	jsonResponse(w, r, h)
+	transport.JSONResponse(w, r, h)
 }
 
 func (s HTTPService) GetConfig(w http.ResponseWriter, r *http.Request) {
@@ -288,7 +276,7 @@ func (s HTTPService) GetConfig(w http.ResponseWriter, r *http.Request) {
 	fingerprint := r.FormValue("fingerprint")
 	config, err := s.service.GetConfig(inst, fingerprint)
 	if err != nil {
-		errorResponse(w, r, err)
+		transport.ErrorResponse(w, r, err)
 		return
 	}
 
@@ -318,7 +306,7 @@ func (s HTTPService) GetConfig(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	jsonResponse(w, r, safeConfig)
+	transport.JSONResponse(w, r, safeConfig)
 }
 
 func (s HTTPService) SetConfig(w http.ResponseWriter, r *http.Request) {
@@ -331,7 +319,7 @@ func (s HTTPService) SetConfig(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := s.service.SetConfig(inst, config); err != nil {
-		errorResponse(w, r, err)
+		transport.ErrorResponse(w, r, err)
 		return
 	}
 
@@ -348,18 +336,7 @@ func (s HTTPService) PatchConfig(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := s.service.PatchConfig(inst, patch); err != nil {
-		errorResponse(w, r, err)
-		return
-	}
-
-	w.WriteHeader(http.StatusOK)
-}
-
-func (s HTTPService) GenerateKeys(w http.ResponseWriter, r *http.Request) {
-	inst := getInstanceID(r)
-	err := s.service.GenerateDeployKey(inst)
-	if err != nil {
-		errorResponse(w, r, err)
+		transport.ErrorResponse(w, r, err)
 		return
 	}
 
@@ -380,27 +357,19 @@ func (s HTTPService) PostIntegrationsGithub(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	// Generate deploy key
-	err := s.service.GenerateDeployKey(inst)
+	// Obtain public key from daemon
+	publicKey, err := s.service.PublicSSHKey(inst, false)
 	if err != nil {
-		errorResponse(w, r, err)
+		transport.ErrorResponse(w, r, err)
 		return
 	}
-
-	// Obtain the generated key
-	cfg, err := s.service.GetConfig(inst, "")
-	if err != nil {
-		errorResponse(w, r, err)
-		return
-	}
-	publicKey := cfg.Git.HideKey().Key
 
 	// Use the Github API to insert the key
 	// Have to create a new instance here because there is no
 	// clean way of injecting without significantly altering
 	// the initialisation (at the top)
 	gh := github.NewGithubClient(tok)
-	err = gh.InsertDeployKey(owner, repo, publicKey)
+	err = gh.InsertDeployKey(owner, repo, publicKey.Key)
 	if err != nil {
 		httpErr, isHttpErr := err.(*httperror.APIError)
 		code := http.StatusInternalServerError
@@ -418,11 +387,11 @@ func (s HTTPService) Status(w http.ResponseWriter, r *http.Request) {
 	inst := getInstanceID(r)
 	status, err := s.service.Status(inst)
 	if err != nil {
-		errorResponse(w, r, err)
+		transport.ErrorResponse(w, r, err)
 		return
 	}
 
-	jsonResponse(w, r, status)
+	transport.JSONResponse(w, r, status)
 }
 
 func (s HTTPService) RegisterV4(w http.ResponseWriter, r *http.Request) {
@@ -437,8 +406,14 @@ func (s HTTPService) RegisterV5(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (s HTTPService) RegisterV6(w http.ResponseWriter, r *http.Request) {
+	s.doRegister(w, r, func(conn io.ReadWriteCloser) platformCloser {
+		return rpc.NewClientV6(conn)
+	})
+}
+
 type platformCloser interface {
-	platform.Platform
+	remote.Platform
 	io.Closer
 }
 
@@ -477,25 +452,15 @@ func (s HTTPService) IsConnected(w http.ResponseWriter, r *http.Request) {
 
 	err := s.service.IsDaemonConnected(inst)
 	if err == nil {
-		jsonResponse(w, r, flux.FluxdStatus{
-			Connected: true,
-		})
+		w.WriteHeader(http.StatusNoContent)
 		return
 	}
 	switch err.(type) {
 	case flux.UserConfigProblem:
 		// NB this has a specific contract for "cannot contact" -> // "404 not found"
 		transport.WriteError(w, r, http.StatusNotFound, err)
-	case flux.Missing: // From standalone, not connected.
-		jsonResponse(w, r, flux.FluxdStatus{
-			Connected: false,
-		})
-	case platform.FatalError: // An error from nats, but probably due to not connected.
-		jsonResponse(w, r, flux.FluxdStatus{
-			Connected: false,
-		})
 	default:
-		errorResponse(w, r, err)
+		transport.ErrorResponse(w, r, err)
 	}
 }
 
@@ -503,11 +468,34 @@ func (s HTTPService) Export(w http.ResponseWriter, r *http.Request) {
 	inst := getInstanceID(r)
 	status, err := s.service.Export(inst)
 	if err != nil {
-		errorResponse(w, r, err)
+		transport.ErrorResponse(w, r, err)
 		return
 	}
 
-	jsonResponse(w, r, status)
+	transport.JSONResponse(w, r, status)
+}
+
+func (s HTTPService) GetPublicSSHKey(w http.ResponseWriter, r *http.Request) {
+	inst := getInstanceID(r)
+	publicSSHKey, err := s.service.PublicSSHKey(inst, false)
+	if err != nil {
+		transport.ErrorResponse(w, r, err)
+		return
+	}
+
+	transport.JSONResponse(w, r, publicSSHKey)
+}
+
+func (s HTTPService) RegeneratePublicSSHKey(w http.ResponseWriter, r *http.Request) {
+	inst := getInstanceID(r)
+	_, err := s.service.PublicSSHKey(inst, true)
+	if err != nil {
+		transport.ErrorResponse(w, r, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+	return
 }
 
 // --- end handlers
@@ -538,40 +526,6 @@ func getInstanceID(req *http.Request) flux.InstanceID {
 		return flux.DefaultInstanceID
 	}
 	return flux.InstanceID(s)
-}
-
-func jsonResponse(w http.ResponseWriter, r *http.Request, result interface{}) {
-	body, err := json.Marshal(result)
-	if err != nil {
-		errorResponse(w, r, err)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(http.StatusOK)
-	w.Write(body)
-}
-
-func errorResponse(w http.ResponseWriter, r *http.Request, apiError error) {
-	var outErr *flux.BaseError
-	var code int
-	err := errors.Cause(apiError)
-	switch err := err.(type) {
-	case flux.Missing:
-		code = http.StatusNotFound
-		outErr = err.BaseError
-	case flux.UserConfigProblem:
-		code = http.StatusUnprocessableEntity
-		outErr = err.BaseError
-	case flux.ServerException:
-		code = http.StatusInternalServerError
-		outErr = err.BaseError
-	default:
-		code = http.StatusInternalServerError
-		outErr = flux.CoverAllError(apiError)
-	}
-
-	transport.WriteError(w, r, code, outErr)
 }
 
 // codeWriter intercepts the HTTP status code. WriteHeader may not be called in

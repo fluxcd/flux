@@ -49,7 +49,7 @@ func (opts *serviceShowOpts) RunE(cmd *cobra.Command, args []string) error {
 
 	sort.Sort(imageStatusByName(services))
 
-	out := newTabwriter(cmd.OutOrStdout())
+	out := newTabwriter()
 
 	fmt.Fprintln(out, "SERVICE\tCONTAINER\tIMAGE\tCREATED")
 	for _, service := range services {
@@ -90,7 +90,7 @@ func (opts *serviceShowOpts) RunE(cmd *cobra.Command, args []string) error {
 				}
 				if printLine {
 					createdAt := ""
-					if available.CreatedAt != nil {
+					if !available.CreatedAt.IsZero() {
 						createdAt = available.CreatedAt.Format(time.RFC822)
 					}
 					fmt.Fprintf(out, "\t\t%s %s\t%s\n", running, tag, createdAt)

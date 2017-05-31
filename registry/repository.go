@@ -1,6 +1,8 @@
 package registry
 
 import (
+	"time"
+
 	"github.com/weaveworks/flux"
 )
 
@@ -15,7 +17,7 @@ func RepositoryFromImage(img flux.Image) Repository {
 }
 
 func ParseRepository(imgStr string) (Repository, error) {
-	i, err := flux.ParseImage(imgStr, nil)
+	i, err := flux.ParseImage(imgStr, time.Time{})
 	if err != nil {
 		return Repository{}, err
 	}
@@ -25,19 +27,19 @@ func ParseRepository(imgStr string) (Repository, error) {
 }
 
 func (r Repository) NamespaceImage() string {
-	return r.img.NamespaceImage()
+	return r.img.ID.NamespaceImage()
 }
 
 func (r Repository) Host() string {
-	return r.img.Host
+	return r.img.ID.Host
 }
 
 func (r Repository) String() string {
-	return r.img.HostNamespaceImage()
+	return r.img.ID.HostNamespaceImage()
 }
 
 func (r Repository) ToImage(tag string) flux.Image {
 	newImage := r.img
-	newImage.Tag = tag
+	newImage.ID.Tag = tag
 	return newImage
 }

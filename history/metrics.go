@@ -33,7 +33,7 @@ func InstrumentedDB(db DB) DB {
 	return &instrumentedDB{db}
 }
 
-func (i *instrumentedDB) LogEvent(inst flux.InstanceID, e flux.Event) (err error) {
+func (i *instrumentedDB) LogEvent(inst flux.InstanceID, e Event) (err error) {
 	defer func(begin time.Time) {
 		requestDuration.With(
 			LabelMethod, "LogEvent",
@@ -43,7 +43,7 @@ func (i *instrumentedDB) LogEvent(inst flux.InstanceID, e flux.Event) (err error
 	return i.db.LogEvent(inst, e)
 }
 
-func (i *instrumentedDB) AllEvents(inst flux.InstanceID, before time.Time, limit int64) (e []flux.Event, err error) {
+func (i *instrumentedDB) AllEvents(inst flux.InstanceID, before time.Time, limit int64) (e []Event, err error) {
 	defer func(begin time.Time) {
 		requestDuration.With(
 			LabelMethod, "AllEvents",
@@ -53,7 +53,7 @@ func (i *instrumentedDB) AllEvents(inst flux.InstanceID, before time.Time, limit
 	return i.db.AllEvents(inst, before, limit)
 }
 
-func (i *instrumentedDB) EventsForService(inst flux.InstanceID, s flux.ServiceID, before time.Time, limit int64) (e []flux.Event, err error) {
+func (i *instrumentedDB) EventsForService(inst flux.InstanceID, s flux.ServiceID, before time.Time, limit int64) (e []Event, err error) {
 	defer func(begin time.Time) {
 		requestDuration.With(
 			LabelMethod, "EventsForService",
@@ -63,7 +63,7 @@ func (i *instrumentedDB) EventsForService(inst flux.InstanceID, s flux.ServiceID
 	return i.db.EventsForService(inst, s, before, limit)
 }
 
-func (i *instrumentedDB) GetEvent(id flux.EventID) (e flux.Event, err error) {
+func (i *instrumentedDB) GetEvent(id EventID) (e Event, err error) {
 	defer func(begin time.Time) {
 		requestDuration.With(
 			LabelMethod, "GetEvent",
