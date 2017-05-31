@@ -129,35 +129,48 @@ func (m *Manifests) ServicesWithPolicy(root string, policy policy.Policy) (flux.
 		return nil, err
 	}
 	result := flux.ServiceIDSet{}
-	for serviceID, paths := range all {
+
+	err = iterateManifests(all, func(s flux.ServiceID, m Manifest) error {
+		p, err := policiesFrom(m)
+		if err != nil {
+			return err
+		}
+		if p.Contains(policy) {
+			result.Add([]flux.ServiceID{s})
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+func iterateManifests(services map[flux.ServiceID][]string, f func(flux.ServiceID, Manifest) error) error {
+	for serviceID, paths := range services {
 		if len(paths) != 1 {
 			continue
 		}
 
 		def, err := ioutil.ReadFile(paths[0])
 		if err != nil {
-			return nil, err
+			return err
+		}
+		manifest, err := parseManifest(def)
+		if err != nil {
+			return err
 		}
 
-		p, err := policiesFrom(def)
-		if err != nil {
-			return nil, err
-		}
-		if p.Contains(policy) {
-			result.Add([]flux.ServiceID{serviceID})
+		if err = f(serviceID, manifest); err != nil {
+			return err
 		}
 	}
-	return result, nil
+	return nil
 }
 
-func policiesFrom(def []byte) (policy.Set, error) {
-	manifest, err := parseManifest(def)
-	if err != nil {
-		return nil, err
-	}
-
+func policiesFrom(m Manifest) (policy.Set, error) {
 	var policies policy.Set
-	for k, v := range manifest.Metadata.AnnotationsOrNil() {
+	for k, v := range m.Metadata.AnnotationsOrNil() {
 		if !strings.HasPrefix(k, resource.PolicyPrefix) {
 			continue
 		}
@@ -167,4 +180,22 @@ func policiesFrom(def []byte) (policy.Set, error) {
 		policies = policies.Add(policy.Parse(strings.TrimPrefix(k, resource.PolicyPrefix)))
 	}
 	return policies, nil
+}
+
+func (m *Manifests) ServicesMetadata(path string) (map[flux.ServiceID]map[string]string, error) {
+	services, err := m.FindDefinedServices(path)
+	if err != nil {
+		return nil, err
+	}
+	servicesMetadata := map[flux.ServiceID]map[string]string{}
+	err = iterateManifests(services, func(s flux.ServiceID, m Manifest) error {
+		if a := m.Metadata.Annotations; a != nil {
+			servicesMetadata[s] = a
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return servicesMetadata, nil
 }

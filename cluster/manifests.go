@@ -27,6 +27,8 @@ type Manifests interface {
 	UpdatePolicies([]byte, policy.Update) ([]byte, error)
 	// ServicesWithPolicy finds the services which have a particular policy set on them.
 	ServicesWithPolicy(path string, p policy.Policy) (flux.ServiceIDSet, error)
+	// ServicesMetadata gets metadata for all services
+	ServicesMetadata(path string) (map[flux.ServiceID]map[string]string, error)
 }
 
 // UpdateManifest looks for the manifest for a given service, reads
