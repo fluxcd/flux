@@ -25,7 +25,7 @@ var (
 	httpClient = &http.Client{Timeout: 5 * time.Second}
 )
 
-func slackNotifyRelease(config flux.NotifierConfig, release update.Release, releaseError error) error {
+func slackNotifyRelease(config flux.NotifierConfig, release update.Release, releaseError string) error {
 	if release.Spec.Kind == update.ReleaseKindPlan {
 		return nil
 	}
@@ -36,8 +36,8 @@ func slackNotifyRelease(config flux.NotifierConfig, release update.Release, rele
 	}
 
 	errorMessage := ""
-	if releaseError != nil {
-		errorMessage = releaseError.Error()
+	if releaseError != "" {
+		errorMessage = releaseError
 	}
 	text, err := instantiateTemplate("release", template, struct {
 		update.Release

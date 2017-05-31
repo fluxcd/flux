@@ -14,6 +14,7 @@ import (
 	"github.com/weaveworks/flux/history"
 	"github.com/weaveworks/flux/resource"
 	fluxsync "github.com/weaveworks/flux/sync"
+	"github.com/weaveworks/flux/update"
 )
 
 const (
@@ -96,16 +97,6 @@ func (d *Daemon) pullAndSync(logger log.Logger) {
 	}
 	defer working.Clean()
 
-	// update notes and emit events for applied commits
-	revisions, err := working.RevisionsBetween(working.SyncTag+"~1", "HEAD")
-	if isUnknownRevision(err) {
-		// No sync tag, grab all revisions
-		revisions, err = working.RevisionsBefore("HEAD")
-	}
-	if err != nil {
-		logger.Log("err", err)
-	}
-
 	// TODO logging, metrics?
 	// Get a map of all resources defined in the repo
 	allResources, err := d.Manifests.LoadManifests(working.ManifestDir())
@@ -141,6 +132,16 @@ func (d *Daemon) pullAndSync(logger log.Logger) {
 		serviceIDs.Add(r.ServiceIDs(allResources))
 	}
 
+	// update notes and emit events for applied commits
+	revisions, err := working.RevisionsBetween(working.SyncTag, "HEAD")
+	if isUnknownRevision(err) {
+		// No sync tag, grab all revisions
+		revisions, err = working.RevisionsBefore("HEAD")
+	}
+	if err != nil {
+		logger.Log("err", err)
+	}
+
 	// Emit an event
 	if len(revisions) > 0 {
 		if err := d.LogEvent(history.Event{
@@ -152,6 +153,49 @@ func (d *Daemon) pullAndSync(logger log.Logger) {
 			Metadata:   &history.SyncEventMetadata{Revisions: revisions},
 		}); err != nil {
 			logger.Log("err", err)
+		}
+
+		// Find notes in revisions.
+		for i := len(revisions) - 1; i >= 0; i-- {
+			n, err := working.GetNote(revisions[i])
+			if err != nil {
+				logger.Log("err", errors.Wrap(err, "loading notes from repo; possibly no notes"))
+				// TODO: We're ignoring all errors here, not just the "no notes" error. Parse error to report proper errors.
+				continue
+			}
+
+			// If one of the notes has a release event, send that to the service
+			if n.Spec.Type == update.Images {
+				// Map new note.Spec into ReleaseSpec
+				spec := n.Spec.Spec.(update.ReleaseSpec)
+				status := update.ReleaseStatusSuccess
+				if n.Result.Error() != "" {
+					status = update.ReleaseStatusFailed
+				}
+				// And create a release event
+				releaseEvent := update.Release{
+					StartedAt: started,
+					EndedAt:   time.Now().UTC(),
+					Done:      true,
+					Status:    status,
+					Spec:      spec,
+					Result:    n.Result,
+				}
+				// Then wrap inside a ReleaseEventMetadata
+				if err := d.LogEvent(history.Event{
+					ServiceIDs: serviceIDs.ToSlice(),
+					Type:       history.EventRelease,
+					StartedAt:  started,
+					EndedAt:    time.Now().UTC(),
+					LogLevel:   history.LogLevelInfo,
+					Metadata: &history.ReleaseEventMetadata{
+						Release: releaseEvent,
+						Error:   n.Result.Error(),
+					},
+				}); err != nil {
+					logger.Log("err", err)
+				}
+			}
 		}
 	}
 

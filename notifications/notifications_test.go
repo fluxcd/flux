@@ -67,7 +67,7 @@ func TestRelease_DryRun(t *testing.T) {
 				HookURL: server.URL,
 			},
 		},
-	}, r, nil); err != nil {
+	}, r, ""); err != nil {
 		t.Fatal(err)
 	}
 }
