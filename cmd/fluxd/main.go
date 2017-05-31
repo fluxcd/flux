@@ -67,6 +67,10 @@ func main() {
 		memcachedTimeout    = fs.Duration("memcached-timeout", 100*time.Millisecond, "Maximum time to wait before giving up on memcached requests.")
 		memcachedService    = fs.String("memcached-service", "memcached", "SRV service used to discover memcache servers.")
 		registryCacheExpiry = fs.Duration("registry-cache-expiry", 20*time.Minute, "Duration to keep cached registry tag info. Must be < 1 month.")
+		// k8s-secret backed ssh keyring configuration
+		k8sSecretName            = fs.String("k8s-secret-name", "flux-git-deploy", "Name of the k8s secret used to store the private SSH key")
+		k8sSecretVolumeMountPath = fs.String("k8s-secret-volume-mount-path", "/etc/fluxd/ssh", "Mount location of the k8s secret storing the private SSH key")
+		k8sSecretDataKey         = fs.String("k8s-secret-data-key", "identity", "Data key holding the private SSH key within the k8s secret")
 		// SSH key generation
 		sshKeyBits = optionalVar(fs, &ssh.KeyBitsValue{}, "ssh-keygen-bits", "-b argument to ssh-keygen (default unspecified)")
 		sshKeyType = optionalVar(fs, &ssh.KeyTypeValue{}, "ssh-keygen-type", "-t argument to ssh-keygen (default unspecified)")
@@ -120,9 +124,9 @@ func main() {
 
 		sshKeyRing, err = kubernetes.NewSSHKeyRing(kubernetes.SSHKeyRingConfig{
 			SecretAPI:             clientset.Core().Secrets(string(namespace)),
-			SecretName:            "flux-git-deploy",
-			SecretVolumeMountPath: "/etc/fluxd/ssh",
-			SecretDataKey:         "identity",
+			SecretName:            *k8sSecretName,
+			SecretVolumeMountPath: *k8sSecretVolumeMountPath,
+			SecretDataKey:         *k8sSecretDataKey,
 			KeyBits:               sshKeyBits,
 			KeyType:               sshKeyType,
 		})
