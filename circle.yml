@@ -69,13 +69,7 @@ deployment:
           IMAGE_TAG="quay.io/weaveworks/fluxd:$(./docker/image-tag)"
           echo Pushing $IMAGE_TAG
           docker push "$IMAGE_TAG"
-          IMAGE_TAG="quay.io/weaveworks/fluxd:latest"
-          echo Pushing $IMAGE_TAG
-          docker push "$IMAGE_TAG"
           # Assumes that both images change in lock-step (they share a lot of code, so ..)
           IMAGE_TAG="quay.io/weaveworks/fluxsvc:$(./docker/image-tag)"
-          echo Pushing $IMAGE_TAG
-          docker push "$IMAGE_TAG"
-          IMAGE_TAG="quay.io/weaveworks/fluxsvc:latest"
           echo Pushing $IMAGE_TAG
           docker push "$IMAGE_TAG"

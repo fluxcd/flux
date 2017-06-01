@@ -46,7 +46,7 @@ build/migrations.tar: $(MIGRATIONS)
 build/.%.done: docker/Dockerfile.%
 	mkdir -p ./build/docker/$*
 	cp $^ ./build/docker/$*/
-	${DOCKER} build -t quay.io/weaveworks/$* -t weaveworks/$*:$(IMAGE_TAG) -t quay.io/weaveworks/$* -t quay.io/weaveworks/$*:$(IMAGE_TAG) -f build/docker/$*/Dockerfile.$* ./build/docker/$*
+	${DOCKER} build -t quay.io/weaveworks/$* -t quay.io/weaveworks/$*:$(IMAGE_TAG) -f build/docker/$*/Dockerfile.$* ./build/docker/$*
 	touch $@
 
 build/.fluxd.done: build/fluxd build/kubectl
