@@ -287,13 +287,11 @@ func main() {
 	}
 
 	shutdown := make(chan struct{})
+	shutdownWg := &sync.WaitGroup{}
 
-	queueWg := &sync.WaitGroup{}
 	var jobs *job.Queue
 	{
-		jobs = job.NewQueue()
-		queueWg.Add(1)
-		go jobs.Loop(shutdown, queueWg)
+		jobs = job.NewQueue(shutdown, shutdownWg)
 	}
 
 	daemon := &daemon.Daemon{
@@ -308,9 +306,8 @@ func main() {
 
 	daemon.EventWriter = eventWriter
 
-	daemonWg := &sync.WaitGroup{}
-	daemonWg.Add(1)
-	go daemon.Loop(shutdown, daemonWg, log.NewContext(logger).With("component", "sync-loop"))
+	shutdownWg.Add(1)
+	go daemon.Loop(shutdown, shutdownWg, log.NewContext(logger).With("component", "sync-loop"))
 
 	// Update daemonRef so that upstream and handlers point to fully working daemon
 	daemonRef.UpdatePlatform(daemon)
@@ -318,6 +315,5 @@ func main() {
 	// Go!
 	logger.Log("exiting", <-errc)
 	close(shutdown)
-	daemonWg.Wait()
-	queueWg.Wait()
+	shutdownWg.Wait()
 }

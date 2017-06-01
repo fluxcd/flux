@@ -58,10 +58,8 @@ func daemon(t *testing.T) (*Daemon, func()) {
 	events = history.NewMock()
 
 	wg := &sync.WaitGroup{}
-	jobs := job.NewQueue()
 	shutdown := make(chan struct{})
-	wg.Add(1)
-	go jobs.Loop(shutdown, wg)
+	jobs := job.NewQueue(shutdown, wg)
 	d := &Daemon{
 		Cluster:        k8s,
 		Manifests:      k8s,

@@ -386,15 +386,11 @@ func mockDaemon(t *testing.T) (*Daemon, func(), *cluster.Mock, history.EventRead
 	events := history.NewMock()
 
 	// Shutdown chans and waitgroups
-	shutdownQueue := make(chan struct{})
-	shutdownDaemon := make(chan struct{})
-	jobsWg := &sync.WaitGroup{}
-	daemonWg := &sync.WaitGroup{}
+	shutdown := make(chan struct{})
+	wg := &sync.WaitGroup{}
 
 	// Jobs queue
-	jobs := job.NewQueue()
-	jobsWg.Add(1)
-	go jobs.Loop(shutdownQueue, jobsWg)
+	jobs := job.NewQueue(shutdown, wg)
 
 	// Finally, the daemon
 	d := &Daemon{
@@ -408,15 +404,13 @@ func mockDaemon(t *testing.T) (*Daemon, func(), *cluster.Mock, history.EventRead
 		EventWriter:    events,
 	}
 
-	daemonWg.Add(1)
-	go d.Loop(shutdownDaemon, daemonWg, logger)
+	wg.Add(1)
+	go d.Loop(shutdown, wg, logger)
 
 	return d, func() {
 		// Close daemon first so we don't get errors if the queue closes before the daemon
-		close(shutdownDaemon)
-		daemonWg.Wait() // Wait for it to close, it might take a while
-		close(shutdownQueue)
-		jobsWg.Wait()
+		close(shutdown)
+		wg.Wait() // Wait for it to close, it might take a while
 		repoCleanup()
 	}, k8s, events
 }
