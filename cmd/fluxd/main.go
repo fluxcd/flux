@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -23,6 +24,7 @@ import (
 	"github.com/weaveworks/flux/cluster/kubernetes"
 	"github.com/weaveworks/flux/daemon"
 	"github.com/weaveworks/flux/git"
+	"github.com/weaveworks/flux/history"
 	transport "github.com/weaveworks/flux/http"
 	daemonhttp "github.com/weaveworks/flux/http/daemon"
 	"github.com/weaveworks/flux/job"
@@ -200,6 +202,58 @@ func main() {
 		reg = registry.NewInstrumentedRegistry(reg)
 	}
 
+	// Indirect reference to a daemon, initially of the NotReady variety
+	notReadyDaemon := daemon.NewNotReadyDaemon(
+		version,
+		k8s,
+		errors.New("waiting to clone repo"))
+
+	daemonRef := daemon.NewRef(notReadyDaemon)
+
+	var eventWriter history.EventWriter
+	{
+		// Connect to fluxsvc if given an upstream address
+		if *upstreamURL != "" {
+			upstreamLogger := log.NewContext(logger).With("component", "upstream")
+			upstreamLogger.Log("URL", *upstreamURL)
+			upstream, err := daemonhttp.NewUpstream(
+				&http.Client{Timeout: 10 * time.Second},
+				fmt.Sprintf("fluxd/%v", version),
+				flux.Token(*token),
+				transport.NewServiceRouter(), // TODO should be NewUpstreamRouter, since it only needs the registration endpoint
+				*upstreamURL,
+				&remote.ErrorLoggingPlatform{daemonRef, upstreamLogger},
+				upstreamLogger,
+			)
+			if err != nil {
+				logger.Log("err", err)
+				os.Exit(1)
+			}
+			eventWriter = upstream
+			defer upstream.Close()
+		} else {
+			logger.Log("upstream", "no upstream URL given")
+		}
+	}
+
+	// Mechanical components.
+	errc := make(chan error)
+	go func() {
+		c := make(chan os.Signal)
+		signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
+		errc <- fmt.Errorf("%s", <-c)
+	}()
+
+	// HTTP transport component, for metrics
+	go func() {
+		mux := http.NewServeMux()
+		mux.Handle("/metrics", promhttp.Handler())
+		handler := daemonhttp.NewHandler(daemonRef, daemonhttp.NewRouter())
+		mux.Handle("/api/flux/", http.StripPrefix("/api/flux", handler))
+		logger.Log("addr", *listenAddr)
+		errc <- http.ListenAndServe(*listenAddr, mux)
+	}()
+
 	var checkout *git.Checkout
 	{
 		repo := git.Repo{
@@ -215,18 +269,21 @@ func main() {
 			UserEmail: *gitEmail,
 		}
 
-		working, err := repo.Clone(gitConfig)
-		if err != nil {
-			logger.Log("component", "git", "err", err.Error())
-			os.Exit(1)
+		for checkout == nil {
+			working, err := repo.Clone(gitConfig)
+			if err != nil {
+				logger.Log("component", "git", "err", err.Error())
+				notReadyDaemon.UpdateReason(err)
+				time.Sleep(10 * time.Second)
+			} else {
+				logger.Log("working-dir", working.Dir,
+					"user", *gitUser,
+					"email", *gitEmail,
+					"sync-tag", *gitSyncTag,
+					"notes-ref", *gitNotesRef)
+				checkout = working
+			}
 		}
-
-		logger.Log("working-dir", working.Dir,
-			"user", *gitUser,
-			"email", *gitEmail,
-			"sync-tag", *gitSyncTag,
-			"notes-ref", *gitNotesRef)
-		checkout = working
 	}
 
 	shutdown := make(chan struct{})
@@ -249,50 +306,14 @@ func main() {
 		JobStatusCache: &job.StatusCache{Size: 100},
 	}
 
-	// Connect to fluxsvc if given an upstream address
-	if *upstreamURL != "" {
-		upstreamLogger := log.NewContext(logger).With("component", "upstream")
-		upstreamLogger.Log("URL", *upstreamURL)
-		upstream, err := daemonhttp.NewUpstream(
-			&http.Client{Timeout: 10 * time.Second},
-			fmt.Sprintf("fluxd/%v", version),
-			flux.Token(*token),
-			transport.NewServiceRouter(), // TODO should be NewUpstreamRouter, since it only needs the registration endpoint
-			*upstreamURL,
-			&remote.ErrorLoggingPlatform{daemon, upstreamLogger},
-			upstreamLogger,
-		)
-		if err != nil {
-			logger.Log("err", err)
-			os.Exit(1)
-		}
-		daemon.EventWriter = upstream
-		defer upstream.Close()
-	} else {
-		logger.Log("upstream", "no upstream URL given")
-	}
+	daemon.EventWriter = eventWriter
 
 	daemonWg := &sync.WaitGroup{}
 	daemonWg.Add(1)
 	go daemon.Loop(shutdown, daemonWg, log.NewContext(logger).With("component", "sync-loop"))
 
-	// Mechanical components.
-	errc := make(chan error)
-	go func() {
-		c := make(chan os.Signal)
-		signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
-		errc <- fmt.Errorf("%s", <-c)
-	}()
-
-	// HTTP transport component, for metrics
-	go func() {
-		mux := http.NewServeMux()
-		mux.Handle("/metrics", promhttp.Handler())
-		handler := daemonhttp.NewHandler(daemon, daemonhttp.NewRouter())
-		mux.Handle("/api/flux/", http.StripPrefix("/api/flux", handler))
-		logger.Log("addr", *listenAddr)
-		errc <- http.ListenAndServe(*listenAddr, mux)
-	}()
+	// Update daemonRef so that upstream and handlers point to fully working daemon
+	daemonRef.UpdatePlatform(daemon)
 
 	// Go!
 	logger.Log("exiting", <-errc)

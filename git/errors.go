@@ -36,7 +36,7 @@ there is a deploy key with write permissions to the repository. In
 GitHub, you can do this via the settings for the repository, and
 cross-check with the fingerprint given by
 
-    fluxctl get-config --fingerprint=md5
+    fluxctl identity
 
 `,
 	}}
@@ -60,14 +60,12 @@ In GitHub, please check via the repository settings that the deploy
 key is "Read/write". You can cross-check the fingerprint with that
 given by
 
-    fluxctl get-config --fingerprint=md5
+    fluxctl identity
 
 If the key is present but read-only, you will need to delete it and
 create a new deploy key. To create a new one, use
 
-    fluxctl set-config --generate-deploy-key
-    # then retrieve the public key
-    fluxctl get-config
+    fluxctl identity --regenerate
 
 The public key this outputs can then be given to GitHub; make sure you
 check the box to allow write access.
