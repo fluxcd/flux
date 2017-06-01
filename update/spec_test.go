@@ -8,7 +8,6 @@ func TestParseImageSpec(t *testing.T) {
 	parseSpec(t, ":tag", true)
 	parseSpec(t, "image:", true)
 	parseSpec(t, "image", true)
-	parseSpec(t, string(ImageSpecNone), false)
 	parseSpec(t, string(ImageSpecLatest), false)
 	parseSpec(t, "<invalid spec>", true)
 }

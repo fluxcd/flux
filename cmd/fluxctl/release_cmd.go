@@ -15,7 +15,6 @@ type serviceReleaseOpts struct {
 	allServices bool
 	image       string
 	allImages   bool
-	noUpdate    bool
 	exclude     []string
 	dryRun      bool
 	outputOpts
@@ -34,7 +33,6 @@ func (opts *serviceReleaseOpts) Command() *cobra.Command {
 			"fluxctl release --service=default/foo --update-image=library/hello:v2",
 			"fluxctl release --all --update-image=library/hello:v2",
 			"fluxctl release --service=default/foo --update-all-images",
-			"fluxctl release --service=default/foo --no-update",
 		),
 		RunE: opts.RunE,
 	}
@@ -45,7 +43,6 @@ func (opts *serviceReleaseOpts) Command() *cobra.Command {
 	cmd.Flags().BoolVar(&opts.allServices, "all", false, "release all services")
 	cmd.Flags().StringVarP(&opts.image, "update-image", "i", "", "update a specific image")
 	cmd.Flags().BoolVar(&opts.allImages, "update-all-images", false, "update all images to latest versions")
-	cmd.Flags().BoolVar(&opts.noUpdate, "no-update", false, "don't update images; just deploy the service(s) as configured in the git repo")
 	cmd.Flags().StringSliceVar(&opts.exclude, "exclude", []string{}, "exclude a service")
 	cmd.Flags().BoolVar(&opts.dryRun, "dry-run", false, "do not release anything; just report back what would have been done")
 	return cmd
@@ -56,7 +53,7 @@ func (opts *serviceReleaseOpts) RunE(cmd *cobra.Command, args []string) error {
 		return errorWantedNoArgs
 	}
 
-	if err := checkExactlyOne("--update-image=<image>, --update-all-images, or --no-update", opts.image != "", opts.allImages, opts.noUpdate); err != nil {
+	if err := checkExactlyOne("--update-image=<image> or --update-all-images", opts.image != "", opts.allImages); err != nil {
 		return err
 	}
 
@@ -88,8 +85,6 @@ func (opts *serviceReleaseOpts) RunE(cmd *cobra.Command, args []string) error {
 		}
 	case opts.allImages:
 		image = update.ImageSpecLatest
-	case opts.noUpdate:
-		image = update.ImageSpecNone
 	}
 
 	var kind update.ReleaseKind = update.ReleaseKindExecute

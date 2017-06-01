@@ -71,15 +71,13 @@ func Release(rc *ReleaseContext, spec update.ReleaseSpec, cause update.Cause, lo
 		}
 	}
 
-	// Look up images, and calculate updates, if we've been asked to
-	if spec.ImageSpec != update.ImageSpecNone {
-		timer = NewStageTimer("lookup_images")
-		// Figure out how the services are to be updated.
-		updates, err = calculateImageUpdates(rc, updates, &spec, results)
-		timer.ObserveDuration()
-		if err != nil {
-			return "", nil, err
-		}
+	// Look up images, and calculate updates
+	timer = NewStageTimer("lookup_images")
+	// Figure out how the services are to be updated.
+	updates, err = calculateImageUpdates(rc, updates, &spec, results)
+	timer.ObserveDuration()
+	if err != nil {
+		return "", nil, err
 	}
 
 	// At this point we may have filtered the updates we can do down
@@ -96,13 +94,11 @@ func Release(rc *ReleaseContext, spec update.ReleaseSpec, cause update.Cause, lo
 		return "", results, nil
 	}
 
-	if spec.ImageSpec != update.ImageSpecNone {
-		timer = NewStageTimer("push_changes")
-		err = rc.PushChanges(updates, &spec, cause, results)
-		timer.ObserveDuration()
-		if err != nil {
-			return "", nil, err
-		}
+	timer = NewStageTimer("push_changes")
+	err = rc.PushChanges(updates, &spec, cause, results)
+	timer.ObserveDuration()
+	if err != nil {
+		return "", nil, err
 	}
 
 	revision, err := rc.Repo.HeadRevision()
@@ -129,7 +125,7 @@ func selectServices(rc *ReleaseContext, spec *update.ReleaseSpec, results update
 func filters(spec *update.ReleaseSpec, rc *ReleaseContext) ([]ServiceFilter, error) {
 	// Image filter
 	var filtList []ServiceFilter
-	if spec.ImageSpec != update.ImageSpecNone && spec.ImageSpec != update.ImageSpecLatest {
+	if spec.ImageSpec != update.ImageSpecLatest {
 		id, err := flux.ParseImageID(spec.ImageSpec.String())
 		if err != nil {
 			return nil, err
@@ -191,8 +187,6 @@ func calculateImageUpdates(rc *ReleaseContext, candidates []*ServiceUpdate, spec
 	var err error
 
 	switch spec.ImageSpec {
-	case update.ImageSpecNone:
-		images = ImageMap{}
 	case update.ImageSpecLatest:
 		images, err = CollectUpdateImages(rc.Registry, candidates)
 	default:

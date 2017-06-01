@@ -13,7 +13,6 @@ const (
 	ServiceSpecAll       = ServiceSpec("<all>")
 	ServiceSpecAutomated = ServiceSpec("<automated>")
 	ImageSpecLatest      = ImageSpec("<all latest>")
-	ImageSpecNone        = ImageSpec("<no updates>")
 )
 
 var (
@@ -67,8 +66,6 @@ func (s ReleaseSpec) ReleaseType() string {
 	switch {
 	case s.ImageSpec == ImageSpecLatest:
 		return "latest_images"
-	case s.ImageSpec == ImageSpecNone:
-		return "config_only"
 	default:
 		return "specific_image"
 	}
@@ -104,7 +101,7 @@ func (s ServiceSpec) String() string {
 type ImageSpec string
 
 func ParseImageSpec(s string) (ImageSpec, error) {
-	if s == string(ImageSpecLatest) || s == string(ImageSpecNone) {
+	if s == string(ImageSpecLatest) {
 		return ImageSpec(s), nil
 	}
 
