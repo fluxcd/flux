@@ -42,12 +42,11 @@ func CollectAvailableImages(reg registry.Registry, services []cluster.Service) (
 	return images, nil
 }
 
-// TODO: Update this doc (#260)
-// LatestImage returns the latest releasable image for a repository.
-// A releasable image is one that is not tagged "latest". (Assumes the
-// available images are in descending order of latestness.) If no such
-// image exists, returns nil, and the caller can decide whether that's
-// an error or not.
+// LatestImage returns the latest releasable image for a repository for
+// which the tag matches a given pattern. A releasable image is one that
+// is not tagged "latest". (Assumes the available images are in
+// descending order of latestness.) If no such image exists, returns nil,
+// and the caller can decide whether that's an error or not.
 func (m ImageMap) LatestImage(repo, tagGlob string) *flux.Image {
 	for _, image := range m[repo] {
 		_, _, tag := image.ID.Components()

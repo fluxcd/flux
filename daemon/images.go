@@ -58,7 +58,7 @@ func (d *Daemon) PollImages(logger log.Logger) {
 			logger.Log("repo", repo, "pattern", pattern)
 
 			if latest := imageMap.LatestImage(repo, pattern); latest != nil && latest.ID != currentImageID {
-				if err := d.NewImage(service.ID, container.Name, latest.ID); err != nil {
+				if err := d.ReleaseImage(service.ID, container.Name, latest.ID); err != nil {
 					logger.Log("error", err, "image", latest.ID)
 				}
 			}
@@ -116,8 +116,7 @@ func getTagPattern(patterns map[flux.ServiceID]map[string]string, serviceID flux
 	return "*"
 }
 
-// TODO (#260) rename this to UpdateImage?
-func (d *Daemon) NewImage(serviceID flux.ServiceID, container string, imageID flux.ImageID) error {
+func (d *Daemon) ReleaseImage(serviceID flux.ServiceID, container string, imageID flux.ImageID) error {
 	// Try to update any automated services using this image
 	spec := update.ReleaseSpec{
 		ServiceSpecs: []update.ServiceSpec{update.ServiceSpec(serviceID)},
