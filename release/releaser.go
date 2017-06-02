@@ -273,7 +273,7 @@ func calculateImageUpdates(rc *ReleaseContext, candidates []*ServiceUpdate, spec
 		case ignoredOrSkipped == update.ReleaseStatusIgnored:
 			results[u.ServiceID] = update.ServiceResult{
 				Status: update.ReleaseStatusIgnored,
-				Error:  "does not use image(s)",
+				Error:  DoesNotUseImage,
 			}
 		case ignoredOrSkipped == update.ReleaseStatusUnknown:
 			results[u.ServiceID] = update.ServiceResult{

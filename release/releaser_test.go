@@ -56,7 +56,7 @@ var (
 		},
 	}
 
-	testScv = cluster.Service{
+	testSvc = cluster.Service{
 		ID: "default/test-service",
 		Containers: cluster.ContainersOrExcuse{
 			Containers: []cluster.Container{
@@ -67,12 +67,12 @@ var (
 			},
 		},
 	}
-	testSvcSpec, _ = update.ParseServiceSpec(testScv.ID.String())
+	testSvcSpec, _ = update.ParseServiceSpec(testSvc.ID.String())
 
 	allSvcs = []cluster.Service{
 		hwSvc,
 		lockedSvc,
-		testScv,
+		testSvc,
 	}
 	newImageID, _ = flux.ParseImageID("quay.io/weaveworks/helloworld:master-a000002")
 	timeNow       = time.Now()
@@ -306,7 +306,7 @@ func Test_ImageStatus(t *testing.T) {
 			return []cluster.Service{
 				hwSvc,
 				lockedSvc,
-				testScv,
+				testSvc,
 			}, nil
 		},
 	}
@@ -322,7 +322,7 @@ func Test_ImageStatus(t *testing.T) {
 		},
 	}, nil)
 
-	testSvcSpec, _ := update.ParseServiceSpec(testScv.ID.String())
+	testSvcSpec, _ := update.ParseServiceSpec(testSvc.ID.String())
 	for _, tst := range []struct {
 		Name     string
 		Spec     update.ReleaseSpec
@@ -346,8 +346,8 @@ func Test_ImageStatus(t *testing.T) {
 					Error:  NotIncluded,
 				},
 				flux.ServiceID("default/test-service"): update.ServiceResult{
-					Status: update.ReleaseStatusSkipped,
-					Error:  ImageNotFound,
+					Status: update.ReleaseStatusIgnored,
+					Error:  DoesNotUseImage,
 				},
 			},
 		}, {

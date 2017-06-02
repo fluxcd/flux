@@ -15,14 +15,15 @@ import (
 )
 
 const (
-	Locked         = "locked"
-	NotIncluded    = "not included"
-	Excluded       = "excluded"
-	DifferentImage = "a different image"
-	NotInCluster   = "not running in cluster"
-	NotInRepo      = "not found in repository"
-	ImageNotFound  = "cannot find one or more images"
-	ImageUpToDate  = "image(s) up to date"
+	Locked          = "locked"
+	NotIncluded     = "not included"
+	Excluded        = "excluded"
+	DifferentImage  = "a different image"
+	NotInCluster    = "not running in cluster"
+	NotInRepo       = "not found in repository"
+	ImageNotFound   = "cannot find one or more images"
+	ImageUpToDate   = "image(s) up to date"
+	DoesNotUseImage = "does not use image(s)"
 )
 
 type ReleaseContext struct {
