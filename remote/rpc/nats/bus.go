@@ -94,7 +94,7 @@ func (n *NATS) Ping(instID flux.InstanceID) error {
 	var response PingResponse
 	if err := n.enc.Request(string(instID)+methodPing, ping{}, &response, timeout); err != nil {
 		if err == nats.ErrTimeout {
-			err = extractError(response.ErrorResponse)
+			err = remote.UnavailableError(err)
 		}
 		return err
 	}
