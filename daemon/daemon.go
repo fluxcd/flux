@@ -187,34 +187,7 @@ func (d *Daemon) UpdateManifests(spec update.Spec) (job.ID, error) {
 	}
 	switch s := spec.Spec.(type) {
 	case update.ReleaseSpec:
-		return d.queueJob(func(jobID job.ID, working *git.Checkout, logger log.Logger) (*history.CommitEventMetadata, error) {
-			rc := release.NewReleaseContext(d.Cluster, d.Manifests, d.Registry, working)
-			result, err := release.Release(rc, s, logger)
-			if err != nil {
-				return nil, err
-			}
-
-			var revision string
-			if s.Kind == update.ReleaseKindExecute {
-				commitMsg := spec.Cause.Message
-				if commitMsg == "" {
-					commitMsg = commitMessageFromReleaseSpec(&s)
-				}
-				if err := working.CommitAndPush(commitMsg, &git.Note{JobID: jobID, Spec: spec, Result: result}); err != nil {
-					return nil, err
-				}
-				revision, err = working.HeadRevision()
-				if err != nil {
-					return nil, err
-				}
-				defer d.askForSync()
-			}
-			return &history.CommitEventMetadata{
-				Revision: revision,
-				Spec:     &spec,
-				Result:   result,
-			}, nil
-		}), nil
+		return d.queueJob(d.release(spec, s)), nil
 	case policy.Updates:
 		return d.queueJob(func(jobID job.ID, working *git.Checkout, logger log.Logger) (*history.CommitEventMetadata, error) {
 			// For each update
@@ -275,6 +248,37 @@ func (d *Daemon) UpdateManifests(spec update.Spec) (job.ID, error) {
 		}), nil
 	default:
 		return id, fmt.Errorf(`unknown update type "%s"`, spec.Type)
+	}
+}
+
+func (d *Daemon) release(spec update.Spec, s update.ReleaseSpec) DaemonJobFunc {
+	return func(jobID job.ID, working *git.Checkout, logger log.Logger) (*history.CommitEventMetadata, error) {
+		rc := release.NewReleaseContext(d.Cluster, d.Manifests, d.Registry, working)
+		result, err := release.Release(rc, s, logger)
+		if err != nil {
+			return nil, err
+		}
+
+		var revision string
+		if s.Kind == update.ReleaseKindExecute {
+			commitMsg := spec.Cause.Message
+			if commitMsg == "" {
+				commitMsg = commitMessageFromReleaseSpec(&s)
+			}
+			if err := working.CommitAndPush(commitMsg, &git.Note{JobID: jobID, Spec: spec, Result: result}); err != nil {
+				return nil, err
+			}
+			revision, err = working.HeadRevision()
+			if err != nil {
+				return nil, err
+			}
+			defer d.askForSync()
+		}
+		return &history.CommitEventMetadata{
+			Revision: revision,
+			Spec:     &spec,
+			Result:   result,
+		}, nil
 	}
 }
 

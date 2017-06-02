@@ -221,7 +221,7 @@ func calculateImageUpdates(rc *ReleaseContext, candidates []*ServiceUpdate, spec
 				return nil, err
 			}
 
-			latestImage := images.LatestImage(currentImageID.Repository())
+			latestImage := images.LatestImage(currentImageID.Repository(), "*")
 			if latestImage == nil {
 				if currentImageID.Repository() != repo {
 					ignoredOrSkipped = update.ReleaseStatusIgnored

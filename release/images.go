@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	glob "github.com/ryanuber/go-glob"
 
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster"
@@ -41,18 +42,22 @@ func CollectAvailableImages(reg registry.Registry, services []cluster.Service) (
 	return images, nil
 }
 
+// TODO: Update this doc (#260)
 // LatestImage returns the latest releasable image for a repository.
 // A releasable image is one that is not tagged "latest". (Assumes the
 // available images are in descending order of latestness.) If no such
 // image exists, returns nil, and the caller can decide whether that's
 // an error or not.
-func (m ImageMap) LatestImage(repo string) *flux.Image {
+func (m ImageMap) LatestImage(repo, tagGlob string) *flux.Image {
 	for _, image := range m[repo] {
 		_, _, tag := image.ID.Components()
-		if strings.EqualFold(tag, "latest") {
+		// Ignore latest if and only if it's not what the user wants.
+		if !strings.EqualFold(tagGlob, "latest") && strings.EqualFold(tag, "latest") {
 			continue
 		}
-		return &image
+		if glob.Glob(tagGlob, tag) {
+			return &image
+		}
 	}
 	return nil
 }
