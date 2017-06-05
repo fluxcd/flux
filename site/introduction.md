@@ -18,23 +18,55 @@ Weave Flux is a tool that automates the deployment of containers to
 Kubernetes. It fills the automation void that exists between building
 and monitoring.
 
-One of Flux's main features is the automated deployment of containers.
-It will continuously monitor a range of container registries and 
-deploy new versions where applicable. 
+## Automated git->cluster synchronisation
 
-Also, the Kubernetes cluster configuration is automatically 
-synchronised to a version control system. This is an anti-fragile 
-procedure to mitigate against the accidental or catastrophic failure 
-of an application. This also improves visibility, is reproducible and 
-provides a historical log of events.
+Flux's main feature is the automated synchronisation between a version
+control repository and a cluster. If you make any changes to your
+repository, those changes are automatically deployed to your cluster.
+
+This is a simple, but dramatic improvement on current state of the art.
+
+- All configuration is stored within version control and is inherently
+  up to date. At any point anyone could completely recreate the cluster
+  in exactly the same state.
+- Changes to the cluster are immediately visible to all interested
+  parties.
+- During a postmortem, the git log provides the perfect history for an
+  audit.
+- End to end, code to production pipelines become not only possible, but
+  easy.
+
+## Automated deployment of new containers
+
+Another feature is the automated deployment of containers. It will
+continuously monitor a range of container registries and deploy new
+versions where applicable.
+
+This is really useful for keeping the repository and therefor the
+cluster up to date. It allows separate teams to have their own
+deployment pipelines then flux is able to see the new image and update
+the cluster accordingly.
+
+This feature can be disabled and images can be locked to a specific
+version.
+
+## Integrations with other devops tools
 
 One final high level feature is that Flux increases visibility of 
 your application. It provides an audit history for
 your deployments and Slack integration for "ChatOps" style 
 development.
 
+Clear visibility of the state of a cluster is key for maintaining
+operational systems. Developers can be confident in their changes by
+observing a predictable series of deployment events.
+
+## Weave Cloud
+
 These features, and more, integrate tightly with the rest of [Weave 
 Cloud](https://cloud.weave.works).
+
+## Next
 
 _Find out more about [Flux's features](/site/how-it-works.md)._
 

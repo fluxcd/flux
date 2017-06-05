@@ -1,6 +1,6 @@
 ---
 title: How Weave Flux Works
-menu_order: 70
+menu_order: 20
 ---
 
 This page describes the goals of flux, how it achieves them and 
@@ -12,17 +12,17 @@ to prevent it from being out of date too quickly.
 The overall goal of Flux is to automate the deployment of services.
 A typical use case would be:
 
-1. A developer merges their tested code into a branch which creates an
-   artifact as a (Docker) container image
-2. Flux detects the presence of a new image and deploys that to an
-   orchestrator (e.g. Kubernetes)
-3. Flux writes the new cluster configuration to version control
-4. Changes are made visible through chat integration and audit logging
- 
-Hence, the goal is to automate away the need for a developer to 
-interact with an orchestrator (which is a common source of accidental
-failure) or with the systems that ensure that the orchestrator is in
-a working state.
+1. A developer makes changes
+2. An operational cluster is now out of date and needs to be updated
+3. Flux automatically observes those changes and deploys them to the
+   cluster
+4. Flux maintains the current state of the cluster (e.g. in the event of
+   failure)
+
+Hence, the goal is to automate away the need for a developer to interact
+with an orchestrator (which is a common source of accidental failure) or
+with the systems that ensure that the orchestrator is in a working
+state.
 
 Flux also provides a CLI and a UI (in Weave Cloud) to perform these
 operations manually. Flux is flexible enough to fit into any development
@@ -32,18 +32,40 @@ process.
 
 The following describes how Flux achieves the goals.
 
+## Synchronisation of cluster state
+
+The Flux team firmly believe that cluster state should be version
+controlled. This allows users to record the history of the cluster,
+fallback to previous versions and recreate clusters in exactly the same
+state when required.
+
+But there is also another aspect. By tightly integrating the cluster
+with version control, the cluster becomes more tightly integrated with
+the deployment pipeline. This means that developers no longer have to
+interact directly with a cluster (with the inevitable consequences of a
+"fat-finger" mistake) which makes it far more stable and ideally
+immutable.
+
+Flux achieves this by automatically synchronising the the state of the
+cluster to match the code representing the cluster in the repository.
+
+This simple idea then allows for a whole range of tools that can react
+to changes and simply write to a repository.
+
 ## Monitoring For New Images
 
-Flux reads a list of running containers from Kubernetes. 
+Flux reads a list of running containers from the repository.
 For each image, it will query the container registry to obtain
 the most recently released tag.
 
-You can then observe whether containers are running the most recent
-version and then update them to a specific or most recent tag.
+Flux then compares the most recent image tag with that specified in the
+repository. If they don't match, the repository is updated.
 
-When services are in an "automated" mode, the service will 
-periodically check to see whether there are any new images. If there 
-are, they are deployed.
+When services are in an "automated" mode, the service will periodically
+check to see whether there are any new images. If there are, then they
+are written to the repository.
+
+When automation is disabled, images are not checked.
 
 In order to access private registries, credentials may be required.
 
@@ -55,35 +77,24 @@ with the same tag.
 Once a list of new images have been established, it will alter the 
 configuration of the cluster to deploy the new images.
 
-## Integration with Version Control
+Images can be "locked" to a specific version. "locked" images won't be
+updated by automated or manual means.
 
-Whenever Flux alters the configuration of a cluster it will write the
-changes back to version control.
+# Weave Cloud only
 
-The state that Flux reports is the state of the 
-cluster. If you make changes to the version control, Flux will not 
-deploy that new configuration.
+## Slack integration
 
-A version control deploy key is required to write back to the 
-repository.
+Flux integrates with Slack. A Slack API endpoint is required.
 
-## Visibility
+Flux will announce to slack when changes have occured.
 
-Flux integrates with Slack. A Slack API endpoint is required for 
-integration.
+## Auditing
 
-Flux also exposes the history of its internal "job/worker" mechanism 
-for auditing purposes. 
+Flux also exposes the history of its internal "job/worker" mechanism for
+auditing purposes.
 
-# Future changes
+You can see every event that has ever happened on the cluster.
 
-## Monitoring for New Images
+## Next
 
-- _Ability to specify which tags to watch_
-- _See integration with version control, may use VCS as source of 
-state, not Kubernetes_
-
-## Integration with Version Control
-
-- _VCS will become the source of state_
-- _Changes in the VCS will be acted upon by Flux_
+_Get started by [installing Flux](/site/installing.md)._

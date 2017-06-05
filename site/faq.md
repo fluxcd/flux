@@ -13,14 +13,17 @@ Flux automates the process of deploying containers to Kubernetes.
 
 ### How does it automate deployment?
 
-It continuously monitors for new container images, deploys them to 
-Kubernetes and saves the resultant configuration in Git.
+It synchronises all manifests in a repository with a Kubernetes cluster.
+It also monitors container registries for new images and updates the
+manifests accordingly.
 
 ### How is that different from a bash script?
 
 The amount of functionality contained within Flux warrants a dedicated
-application/service. An equivalent script would be too large to
-maintain.
+application/service. An equivalent script would be too large to maintain
+and reuse.
+
+This also forms a base to add features like slack integration.
 
 ### Why should I automate deployment?
 
@@ -33,7 +36,7 @@ tasks. It mitigates against failure by avoiding silly mistakes.
 ### Why does Flux need a deploy key?
 
 Flux needs a deploy key to be allowed to push to the version control
-system in order to store the current cluster configuration.
+system in order to read from and update the manifests.
 
 ### How do I give Flux access to a private registry?
 
