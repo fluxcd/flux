@@ -28,6 +28,9 @@ type RemoteClientFactory interface {
 }
 
 func NewRemoteClientFactory(c Credentials, l log.Logger, mc MemcacheClient, ce time.Duration) RemoteClientFactory {
+	for host, creds := range c.m {
+		l.Log("host", host, "username", creds.username)
+	}
 	return &remoteClientFactory{
 		creds:          c,
 		Logger:         l,
