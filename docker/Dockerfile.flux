@@ -1,4 +1,4 @@
-FROM alpine:3.5
+FROM alpine:3.6
 WORKDIR /home/flux
 ENTRYPOINT [ "/sbin/tini", "--", "fluxd" ]
 RUN apk add --no-cache openssh ca-certificates tini 'git>=2.3.0'
