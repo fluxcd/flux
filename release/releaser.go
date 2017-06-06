@@ -184,6 +184,7 @@ specs:
 func calculateImageUpdates(rc *ReleaseContext, candidates []*ServiceUpdate, spec *update.ReleaseSpec, results update.Result) ([]*ServiceUpdate, error) {
 	// Compile an `ImageMap` of all relevant images
 	var images ImageMap
+	var repo string
 	var err error
 
 	switch spec.ImageSpec {
@@ -193,6 +194,7 @@ func calculateImageUpdates(rc *ReleaseContext, candidates []*ServiceUpdate, spec
 		var image flux.ImageID
 		image, err = spec.ImageSpec.AsID()
 		if err == nil {
+			repo = image.Repository()
 			images, err = ExactImages(rc.Registry, []flux.ImageID{image})
 		}
 	}
@@ -230,7 +232,11 @@ func calculateImageUpdates(rc *ReleaseContext, candidates []*ServiceUpdate, spec
 
 			latestImage := images.LatestImage(currentImageID.Repository())
 			if latestImage == nil {
-				ignoredOrSkipped = update.ReleaseStatusUnknown
+				if currentImageID.Repository() != repo {
+					ignoredOrSkipped = update.ReleaseStatusIgnored
+				} else {
+					ignoredOrSkipped = update.ReleaseStatusUnknown
+				}
 				continue
 			}
 
@@ -267,7 +273,7 @@ func calculateImageUpdates(rc *ReleaseContext, candidates []*ServiceUpdate, spec
 		case ignoredOrSkipped == update.ReleaseStatusIgnored:
 			results[u.ServiceID] = update.ServiceResult{
 				Status: update.ReleaseStatusIgnored,
-				Error:  "does not use image(s)",
+				Error:  DoesNotUseImage,
 			}
 		case ignoredOrSkipped == update.ReleaseStatusUnknown:
 			results[u.ServiceID] = update.ServiceResult{
