@@ -302,6 +302,7 @@ func main() {
 		Checkout:       checkout,
 		Jobs:           jobs,
 		JobStatusCache: &job.StatusCache{Size: 100},
+		Logger:         log.NewContext(logger).With("component", "daemon"),
 	}
 
 	daemon.EventWriter = eventWriter

@@ -38,6 +38,7 @@ type Daemon struct {
 	Jobs           *job.Queue
 	JobStatusCache *job.StatusCache
 	EventWriter    history.EventWriter
+	Logger         log.Logger
 	// bookkeeping
 	syncSoon     chan struct{}
 	initSyncSoon gosync.Once
@@ -311,8 +312,10 @@ func (d *Daemon) PublicSSHKey(regenerate bool) (ssh.PublicKey, error) {
 
 func (d *Daemon) LogEvent(ev history.Event) error {
 	if d.EventWriter == nil {
+		d.Logger.Log("event", ev, "logupstream", "false")
 		return nil
 	}
+	d.Logger.Log("event", ev, "logupstream", "true")
 	return d.EventWriter.LogEvent(ev)
 }
 

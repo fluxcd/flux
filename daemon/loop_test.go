@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"io/ioutil"
+	"os"
 	"reflect"
 	"strings"
 	"testing"
@@ -68,6 +69,7 @@ func daemon(t *testing.T) (*Daemon, func()) {
 		Jobs:           jobs,
 		JobStatusCache: &job.StatusCache{Size: 100},
 		EventWriter:    events,
+		Logger:         log.NewLogfmtLogger(os.Stdout),
 	}
 	return d, func() {
 		close(shutdown)
