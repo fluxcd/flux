@@ -59,7 +59,7 @@ type Event struct {
 
 	// Metadata is Event.Type-specific metadata. If an event has no metadata,
 	// this will be nil.
-	Metadata interface{} `json:"metadata,omitempty"`
+	Metadata EventMetadata `json:"metadata,omitempty"`
 }
 
 func (e Event) ServiceIDStrings() []string {
@@ -183,6 +183,8 @@ type ReleaseEventMetadata struct {
 	Error string `json:"error,omitempty"`
 }
 
+type UnknownEventMetadata map[string]interface{}
+
 func (e *Event) UnmarshalJSON(in []byte) error {
 	type alias Event
 	var wireEvent struct {
@@ -207,11 +209,11 @@ func (e *Event) UnmarshalJSON(in []byte) error {
 		if err := json.Unmarshal(wireEvent.MetadataBytes, &metadata); err != nil {
 			return err
 		}
-		e.Metadata = metadata
+		e.Metadata = &metadata
 		break
 	default:
 		if len(wireEvent.MetadataBytes) > 0 {
-			var metadata interface{}
+			var metadata UnknownEventMetadata
 			if err := json.Unmarshal(wireEvent.MetadataBytes, &metadata); err != nil {
 				return err
 			}
@@ -221,4 +223,31 @@ func (e *Event) UnmarshalJSON(in []byte) error {
 
 	// By default, leave the Event Metadata as map[string]interface{}
 	return nil
+}
+
+// EventMetadata is a type safety trick used to make sure that Metadata field
+// of Event is always a pointer, so that consumers can cast without being
+// concerned about encountering a value type instead. It works by virtue of the
+// fact that the method is only defined for pointer receivers; the actual
+// method chosen is entirely arbitary.
+type EventMetadata interface {
+	Type() string
+}
+
+func (cem *CommitEventMetadata) Type() string {
+	return EventCommit
+}
+
+func (cem *SyncEventMetadata) Type() string {
+	return EventSync
+}
+
+func (rem *ReleaseEventMetadata) Type() string {
+	return EventRelease
+}
+
+// Special exception from pointer receiver rule, as UnknownEventMetadata is a
+// type alias for a map
+func (uem UnknownEventMetadata) Type() string {
+	return "unknown"
 }
