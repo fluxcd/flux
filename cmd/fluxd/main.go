@@ -302,9 +302,9 @@ func main() {
 		Checkout:       checkout,
 		Jobs:           jobs,
 		JobStatusCache: &job.StatusCache{Size: 100},
+		EventWriter:    eventWriter,
+		Logger:         log.NewContext(logger).With("component", "daemon"),
 	}
-
-	daemon.EventWriter = eventWriter
 
 	shutdownWg.Add(1)
 	go daemon.Loop(shutdown, shutdownWg, log.NewContext(logger).With("component", "sync-loop"))
