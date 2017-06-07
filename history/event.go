@@ -145,7 +145,7 @@ func (e Event) String() string {
 	case EventUnlock:
 		return fmt.Sprintf("Unlocked: %s", strings.Join(strServiceIDs, ", "))
 	default:
-		return "Unknown event"
+		return fmt.Sprintf("Unknown event: %s", e.Type)
 	}
 }
 
