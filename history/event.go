@@ -79,7 +79,7 @@ func (e Event) String() string {
 	strServiceIDs := e.ServiceIDStrings()
 	switch e.Type {
 	case EventRelease:
-		metadata := e.Metadata.(ReleaseEventMetadata)
+		metadata := e.Metadata.(*ReleaseEventMetadata)
 		strImageIDs := metadata.Release.Result.ImageIDs()
 		if len(strImageIDs) == 0 {
 			strImageIDs = []string{"no image changes"}
@@ -113,14 +113,14 @@ func (e Event) String() string {
 			msg,
 		)
 	case EventCommit:
-		metadata := e.Metadata.(CommitEventMetadata)
+		metadata := e.Metadata.(*CommitEventMetadata)
 		svcStr := "<no changes>"
 		if len(strServiceIDs) > 0 {
 			svcStr = strings.Join(strServiceIDs, ", ")
 		}
 		return fmt.Sprintf("Commit: %s, %s", shortRevision(metadata.Revision), svcStr)
 	case EventSync:
-		metadata := e.Metadata.(SyncEventMetadata)
+		metadata := e.Metadata.(*SyncEventMetadata)
 		revStr := "<no revision>"
 		if 0 < len(metadata.Revisions) && len(metadata.Revisions) <= 2 {
 			revStr = shortRevision(metadata.Revisions[0])
