@@ -4,7 +4,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"regexp"
 	"time"
 
 	"github.com/go-kit/kit/log"
@@ -45,25 +44,25 @@ var (
 		Name:      "connection_duration_seconds",
 		Help:      "Duration in seconds of the current connection to fluxsvc. Zero means unconnected.",
 	}, []string{"target"})
-	urlSchemeRE = regexp.MustCompile("^([[:alpha:]]+)(s?)://")
 )
 
 func NewUpstream(client *http.Client, ua string, t flux.Token, router *mux.Router, endpoint string, p remote.Platform, logger log.Logger) (*Upstream, error) {
-	u, err := transport.MakeURL(endpoint, router, "RegisterDaemonV6")
+	httpEndpoint, wsEndpoint, err := inferEndpoints(endpoint)
+	if err != nil {
+		return nil, errors.Wrap(err, "inferring WS/HTTP endpoints")
+	}
+
+	u, err := transport.MakeURL(wsEndpoint, router, "RegisterDaemonV6")
 	if err != nil {
 		return nil, errors.Wrap(err, "constructing URL")
 	}
 
-	// TODO: hacky regex hacks are hacky
-	httpEndpoint := urlSchemeRE.ReplaceAllString(endpoint, "http${2}://")
-
 	a := &Upstream{
-		client:   client,
-		ua:       ua,
-		token:    t,
-		url:      u,
-		endpoint: endpoint,
-		// FIXME This endpoint might be a wss, and we might need to swap it for an https...
+		client:    client,
+		ua:        ua,
+		token:     t,
+		url:       u,
+		endpoint:  wsEndpoint,
 		apiClient: fluxclient.New(client, router, httpEndpoint, t),
 		platform:  p,
 		logger:    logger,
@@ -71,6 +70,34 @@ func NewUpstream(client *http.Client, ua string, t flux.Token, router *mux.Route
 	}
 	go a.loop()
 	return a, nil
+}
+
+func inferEndpoints(endpoint string) (httpEndpoint, wsEndpoint string, err error) {
+	endpointURL, err := url.Parse(endpoint)
+	if err != nil {
+		return "", "", errors.Wrapf(err, "parsing endpoint %s", endpoint)
+	}
+
+	switch endpointURL.Scheme {
+	case "ws":
+		httpURL := *endpointURL
+		httpURL.Scheme = "http"
+		return httpURL.String(), endpointURL.String(), nil
+	case "wss":
+		httpURL := *endpointURL
+		httpURL.Scheme = "https"
+		return httpURL.String(), endpointURL.String(), nil
+	case "http":
+		wsURL := *endpointURL
+		wsURL.Scheme = "ws"
+		return endpointURL.String(), wsURL.String(), nil
+	case "https":
+		wsURL := *endpointURL
+		wsURL.Scheme = "wss"
+		return endpointURL.String(), wsURL.String(), nil
+	default:
+		return "", "", errors.Errorf("unsupported scheme %s", endpointURL.Scheme)
+	}
 }
 
 func (a *Upstream) loop() {
