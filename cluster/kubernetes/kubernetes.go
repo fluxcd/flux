@@ -380,8 +380,9 @@ func (c *Cluster) Sync(spec cluster.SyncDef) error {
 		}
 		if len(errs) > 0 {
 			errc <- errs
+		} else {
+			errc <- nil
 		}
-		errc <- nil
 	}
 	return <-errc
 }
