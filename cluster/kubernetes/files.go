@@ -19,7 +19,8 @@ func (c *Manifests) FindDefinedServices(path string) (map[flux.ServiceID][]strin
 	}
 
 	type template struct {
-		source string
+		source    string
+		namespace string
 		*resource.PodTemplate
 	}
 
@@ -34,16 +35,16 @@ func (c *Manifests) FindDefinedServices(path string) (map[flux.ServiceID][]strin
 		case *resource.Service:
 			services = append(services, res)
 			for _, template := range templates {
-				if matches(res, template.PodTemplate) {
+				if res.Meta.Namespace == template.namespace && matches(res, template.PodTemplate) {
 					sid := res.ServiceID()
 					result[sid] = append(result[sid], template.source)
 				}
 			}
 		case *resource.Deployment:
 			source := res.Source()
-			templates = append(templates, template{source, &res.Spec.Template})
+			templates = append(templates, template{source, res.Meta.Namespace, &res.Spec.Template})
 			for _, service := range services {
-				if matches(service, &res.Spec.Template) {
+				if res.Meta.Namespace == service.Meta.Namespace && matches(service, &res.Spec.Template) {
 					sid := service.ServiceID()
 					result[sid] = append(result[sid], source)
 				}
