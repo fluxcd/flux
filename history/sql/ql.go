@@ -58,19 +58,19 @@ func (db *qlDB) scanEvents(query squirrel.Sqlizer) ([]history.Event, error) {
 				if err := json.Unmarshal(metadataBytes, &m); err != nil {
 					return nil, err
 				}
-				h.Metadata = m
+				h.Metadata = &m
 			case history.EventSync:
 				var m history.SyncEventMetadata
 				if err := json.Unmarshal(metadataBytes, &m); err != nil {
 					return nil, err
 				}
-				h.Metadata = m
+				h.Metadata = &m
 			case history.EventRelease:
 				var m history.ReleaseEventMetadata
 				if err := json.Unmarshal(metadataBytes, &m); err != nil {
 					return nil, err
 				}
-				h.Metadata = m
+				h.Metadata = &m
 			}
 		}
 		events = append(events, h)

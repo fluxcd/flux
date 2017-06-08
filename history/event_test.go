@@ -30,7 +30,7 @@ func TestEvent_ParseReleaseMetaData(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if e.Metadata.(ReleaseEventMetadata).Release.Spec.ImageSpec != spec.ImageSpec {
+	if e.Metadata.(*ReleaseEventMetadata).Release.Spec.ImageSpec != spec.ImageSpec {
 		t.Fatal("Release.Spec wasn't marshalled/unmarshalled")
 	}
 }
@@ -52,7 +52,9 @@ func TestEvent_ParseNormalMetadata(t *testing.T) {
 	}
 	if e.Metadata == nil {
 		t.Fatal("Hasn't been unmarshalled properly")
+
 	}
+	fmt.Println(e.Metadata)
 	if fmt.Sprint(e.Metadata) != "map[revisions:[1]]" {
 		t.Fatal("Expected metadata")
 	}
