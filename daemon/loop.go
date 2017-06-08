@@ -17,25 +17,20 @@ import (
 	"github.com/weaveworks/flux/update"
 )
 
-const (
-	gitPollInterval    = 5 * time.Minute
-	imagesPollInterval = 5 * time.Minute
-)
-
 // Loop for potentially long-running stuff. This includes running
 // jobs, and looking for new commits.
 
 func (d *Daemon) Loop(stop chan struct{}, wg *sync.WaitGroup, logger log.Logger) {
 	defer wg.Done()
-	pollGit := time.NewTimer(gitPollInterval)
+	pollGit := time.NewTimer(d.GitPollInterval)
 	resetGitPoll := func() {
 		if pollGit != nil {
 			pollGit.Stop()
-			pollGit = time.NewTimer(gitPollInterval)
+			pollGit = time.NewTimer(d.GitPollInterval)
 		}
 	}
 
-	pollImages := time.Tick(imagesPollInterval)
+	pollImages := time.Tick(d.RegistryPollInterval)
 	// Ask for a sync straight away
 	d.askForSync()
 	for {

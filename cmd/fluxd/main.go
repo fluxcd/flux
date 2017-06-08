@@ -56,19 +56,21 @@ func main() {
 		kubernetesKubectl = fs.String("kubernetes-kubectl", "", "Optional, explicit path to kubectl tool")
 		versionFlag       = fs.Bool("version", false, "Get version number")
 		// Git repo & key etc.
-		gitURL      = fs.String("git-url", "", "URL of git repo with Kubernetes manifests; e.g., git@github.com:weaveworks/flux-example")
-		gitBranch   = fs.String("git-branch", "master", "branch of git repo to use for Kubernetes manifests")
-		gitPath     = fs.String("git-path", "", "path within git repo to locate Kubernetes manifests")
-		gitUser     = fs.String("git-user", "Weave Flux", "username to use as git committer")
-		gitEmail    = fs.String("git-email", "support@weave.works", "email to use as git committer")
-		gitSyncTag  = fs.String("git-sync-tag", "flux-sync", "tag to use to mark sync progress for this cluster")
-		gitNotesRef = fs.String("git-notes-ref", "flux", "ref to use for keeping commit annotations in git notes")
+		gitURL          = fs.String("git-url", "", "URL of git repo with Kubernetes manifests; e.g., git@github.com:weaveworks/flux-example")
+		gitBranch       = fs.String("git-branch", "master", "branch of git repo to use for Kubernetes manifests")
+		gitPath         = fs.String("git-path", "", "path within git repo to locate Kubernetes manifests")
+		gitUser         = fs.String("git-user", "Weave Flux", "username to use as git committer")
+		gitEmail        = fs.String("git-email", "support@weave.works", "email to use as git committer")
+		gitSyncTag      = fs.String("git-sync-tag", "flux-sync", "tag to use to mark sync progress for this cluster")
+		gitNotesRef     = fs.String("git-notes-ref", "flux", "ref to use for keeping commit annotations in git notes")
+		gitPollInterval = fs.Duration("git-poll-interval", 5*time.Minute, "period at which to poll git repo for new commits")
 		// registry
-		dockerCredFile      = fs.String("docker-config", "~/.docker/config.json", "Path to config file with credentials for DockerHub, quay.io etc.")
-		memcachedHostname   = fs.String("memcached-hostname", "", "Hostname for memcached service to use when caching chunks. If empty, no memcached will be used.")
-		memcachedTimeout    = fs.Duration("memcached-timeout", 100*time.Millisecond, "Maximum time to wait before giving up on memcached requests.")
-		memcachedService    = fs.String("memcached-service", "memcached", "SRV service used to discover memcache servers.")
-		registryCacheExpiry = fs.Duration("registry-cache-expiry", 20*time.Minute, "Duration to keep cached registry tag info. Must be < 1 month.")
+		dockerCredFile       = fs.String("docker-config", "~/.docker/config.json", "Path to config file with credentials for DockerHub, quay.io etc.")
+		memcachedHostname    = fs.String("memcached-hostname", "", "Hostname for memcached service to use when caching chunks. If empty, no memcached will be used.")
+		memcachedTimeout     = fs.Duration("memcached-timeout", 100*time.Millisecond, "Maximum time to wait before giving up on memcached requests.")
+		memcachedService     = fs.String("memcached-service", "memcached", "SRV service used to discover memcache servers.")
+		registryCacheExpiry  = fs.Duration("registry-cache-expiry", 20*time.Minute, "Duration to keep cached registry tag info. Must be < 1 month.")
+		registryPollInterval = fs.Duration("registry-poll-interval", 5*time.Minute, "period at which to poll registry for new images")
 		// k8s-secret backed ssh keyring configuration
 		k8sSecretName            = fs.String("k8s-secret-name", "flux-git-deploy", "Name of the k8s secret used to store the private SSH key")
 		k8sSecretVolumeMountPath = fs.String("k8s-secret-volume-mount-path", "/etc/fluxd/ssh", "Mount location of the k8s secret storing the private SSH key")
@@ -295,15 +297,17 @@ func main() {
 	}
 
 	daemon := &daemon.Daemon{
-		V:              version,
-		Cluster:        k8s,
-		Manifests:      k8sManifests,
-		Registry:       reg,
-		Checkout:       checkout,
-		Jobs:           jobs,
-		JobStatusCache: &job.StatusCache{Size: 100},
-		EventWriter:    eventWriter,
-		Logger:         log.NewContext(logger).With("component", "daemon"),
+		V:                    version,
+		Cluster:              k8s,
+		Manifests:            k8sManifests,
+		Registry:             reg,
+		Checkout:             checkout,
+		Jobs:                 jobs,
+		JobStatusCache:       &job.StatusCache{Size: 100},
+		GitPollInterval:      *gitPollInterval,
+		RegistryPollInterval: *registryPollInterval,
+		EventWriter:          eventWriter,
+		Logger:               log.NewContext(logger).With("component", "daemon"),
 	}
 
 	shutdownWg.Add(1)
