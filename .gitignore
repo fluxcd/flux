@@ -28,7 +28,8 @@ _testmain.go
 .envrc
 
 # Specific to this project
-vendor/
+vendor/*
+!vendor/manifest
 build/
 cache/
 testdata/helloworld/helloworld-linux-amd64
