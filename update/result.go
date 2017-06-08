@@ -3,6 +3,7 @@ package update
 import (
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/weaveworks/flux"
 )
@@ -44,14 +45,23 @@ func (r Result) ImageIDs() []string {
 }
 
 // Error returns the error for this release (if any)
-// TODO: should we concat them here? or what if there are multiple?
 func (r Result) Error() string {
-	for _, serviceResult := range r {
-		if serviceResult.Error != "" {
-			return serviceResult.Error
+	var errIds []string
+	var errStr string
+	for id, serviceResult := range r {
+		if serviceResult.Status == ReleaseStatusFailed {
+			errIds = append(errIds, id.String())
+			errStr = serviceResult.Error
 		}
 	}
-	return ""
+	switch {
+	case len(errIds) == 0:
+		return ""
+	case len(errIds) == 1:
+		return fmt.Sprintf("%s failed: %s", errIds[0], errStr)
+	default:
+		return fmt.Sprintf("Multiple services failed: %s", strings.Join(errIds, ", "))
+	}
 }
 
 type ServiceResult struct {
