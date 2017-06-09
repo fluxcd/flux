@@ -1,12 +1,24 @@
 # Flux
 
-Flux is a tool for deploying container images to Kubernetes clusters.
+We believe that environments should be entirely version controlled. This
+is an anti-fragile measure to ensure stability through visibility. If
+anything fails, simply reapply the current state of the repository.
+
+To that end, Flux is a tool that automatically ensures that the state of
+a cluster matches what is specified in version control (along with a few
+[extra features](/site/how-it-works.md)).
+
+It is most useful when used as a deployment tool at the end of a
+Continuous Delivery pipeline. Flux will make sure that your new update
+is propagated to the cluster.
 
 ![Flux Example](https://cloud.githubusercontent.com/assets/8793723/22978790/0d58861a-f38c-11e6-92d4-ce3f869e1ace.gif)
 
-Please start by browsing through the documentation below.
+Get started by browsing through the documentation below.
 
 [Introduction to Flux](/site/introduction.md)
+
+[How it works](/site/how-it-works.md)
 
 [Installing Flux](/site/installing.md)
 

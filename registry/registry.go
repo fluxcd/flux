@@ -128,14 +128,14 @@ type byCreatedDesc []flux.Image
 func (is byCreatedDesc) Len() int      { return len(is) }
 func (is byCreatedDesc) Swap(i, j int) { is[i], is[j] = is[j], is[i] }
 func (is byCreatedDesc) Less(i, j int) bool {
-	if is[i].CreatedAt == nil {
+	switch {
+	case is[i].CreatedAt.IsZero():
 		return true
-	}
-	if is[j].CreatedAt == nil {
+	case is[j].CreatedAt.IsZero():
 		return false
+	case is[i].CreatedAt.Equal(is[j].CreatedAt):
+		return is[i].ID.String() < is[j].ID.String()
+	default:
+		return is[i].CreatedAt.After(is[j].CreatedAt)
 	}
-	if is[i].CreatedAt.Equal(*is[j].CreatedAt) {
-		return is[i].String() < is[j].String()
-	}
-	return is[i].CreatedAt.After(*is[j].CreatedAt)
 }

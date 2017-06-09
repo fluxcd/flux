@@ -8,7 +8,7 @@ import (
 )
 
 type mockClientAdapter struct {
-	imgs []flux.ImageDescription
+	imgs []flux.Image
 	err  error
 }
 
@@ -92,7 +92,7 @@ func (m *mockRegistry) GetRepository(repository Repository) ([]flux.Image, error
 	var imgs []flux.Image
 	for _, i := range m.imgs {
 		// include only if it's the same repository in the same place
-		if i.ImageID.NamespaceImage() == repository.NamespaceImage() {
+		if i.ID.NamespaceImage() == repository.NamespaceImage() {
 			imgs = append(imgs, i)
 		}
 	}
@@ -102,7 +102,7 @@ func (m *mockRegistry) GetRepository(repository Repository) ([]flux.Image, error
 func (m *mockRegistry) GetImage(repository Repository, tag string) (flux.Image, error) {
 	if len(m.imgs) > 0 {
 		for _, i := range m.imgs {
-			if i.String() == repository.ToImage(tag).String() {
+			if i.ID.String() == repository.ToImage(tag).ID.String() {
 				return i, nil
 			}
 		}

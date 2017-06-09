@@ -5,23 +5,12 @@ import (
 	"net/http"
 	"sort"
 	"strings"
-	"time"
 
 	"github.com/pkg/errors"
 )
 
-const (
-	ServiceSpecAll  = ServiceSpec("<all>")
-	ImageSpecLatest = ImageSpec("<all latest>")
-	ImageSpecNone   = ImageSpec("<no updates>")
-	PolicyNone      = Policy("")
-	PolicyLocked    = Policy("locked")
-	PolicyAutomated = Policy("automated")
-)
-
 var (
-	ErrInvalidServiceID   = errors.New("invalid service ID")
-	ErrInvalidReleaseKind = errors.New("invalid release kind")
+	ErrInvalidServiceID = errors.New("invalid service ID")
 )
 
 type Token string
@@ -47,7 +36,7 @@ func (id ServiceID) String() string {
 func ParseServiceID(s string) (ServiceID, error) {
 	toks := strings.SplitN(s, "/", 2)
 	if len(toks) != 2 {
-		return "", ErrInvalidServiceID
+		return "", errors.Wrap(ErrInvalidServiceID, "parsing "+s)
 	}
 	return ServiceID(s), nil
 }
@@ -155,77 +144,9 @@ func (ids ServiceIDs) Intersection(others ServiceIDSet) ServiceIDSet {
 	return set.Intersection(others)
 }
 
-type ServiceSpec string // ServiceID or "<all>"
-
-func ParseServiceSpec(s string) (ServiceSpec, error) {
-	if s == string(ServiceSpecAll) {
-		return ServiceSpecAll, nil
-	}
-	id, err := ParseServiceID(s)
-	if err != nil {
-		return "", errors.Wrap(err, "invalid service spec")
-	}
-	return ServiceSpec(id), nil
-}
-
-func (s ServiceSpec) AsID() (ServiceID, error) {
-	return ParseServiceID(string(s))
-}
-
-func (s ServiceSpec) String() string {
-	return string(s)
-}
-
-// ImageSpec is an ImageID, or "<all latest>" (update all containers
-// to the latest available), or "<no updates>" (do not update any
-// images)
-type ImageSpec string
-
-func ParseImageSpec(s string) (ImageSpec, error) {
-	if s == string(ImageSpecLatest) || s == string(ImageSpecNone) {
-		return ImageSpec(s), nil
-	}
-
-	parts := strings.Split(s, ":")
-	if len(parts) != 2 || parts[1] == "" {
-		return "", errors.Wrap(ErrInvalidImageID, "blank tag (if you want latest, explicitly state the tag :latest)")
-	}
-
-	id, err := ParseImageID(s)
-	return ImageSpec(id.String()), err
-}
-
-func (s ImageSpec) String() string {
-	return string(s)
-}
-
-func (s ImageSpec) AsID() (ImageID, error) {
-	return ParseImageID(s.String())
-}
-
-func ImageSpecFromID(id ImageID) ImageSpec {
-	return ImageSpec(id.String())
-}
-
 type ImageStatus struct {
 	ID         ServiceID
 	Containers []Container
-}
-
-// Policy is an string, denoting the current deployment policy of a service,
-// e.g. automated, or locked.
-type Policy string
-
-func ParsePolicy(s string) Policy {
-	for _, p := range []Policy{
-		PolicyLocked,
-		PolicyAutomated,
-	} {
-		if s == string(p) {
-			return p
-		}
-	}
-	return PolicyNone
 }
 
 type ServiceStatus struct {
@@ -236,35 +157,10 @@ type ServiceStatus struct {
 	Locked     bool
 }
 
-func (s ServiceStatus) Policies() string {
-	var ps []string
-	if s.Automated {
-		ps = append(ps, string(PolicyAutomated))
-	}
-	if s.Locked {
-		ps = append(ps, string(PolicyLocked))
-	}
-	sort.Strings(ps)
-	return strings.Join(ps, ",")
-}
-
 type Container struct {
 	Name      string
-	Current   ImageDescription
-	Available []ImageDescription
-}
-
-type ImageDescription struct {
-	ID        ImageID
-	CreatedAt *time.Time `json:",omitempty"`
-}
-
-// Ask me for more details.
-type HistoryEntry struct {
-	Stamp *time.Time `json:",omitempty"`
-	Type  string
-	Data  string
-	Event *Event `json:",omitempty"`
+	Current   Image
+	Available []Image
 }
 
 // TODO: How similar should this be to the `get-config` result?

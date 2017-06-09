@@ -2,12 +2,11 @@ package main
 
 import (
 	"fmt"
-	"os/user"
 
 	"github.com/spf13/cobra"
 
 	"github.com/weaveworks/flux"
-	"github.com/weaveworks/flux/jobs"
+	"github.com/weaveworks/flux/update"
 )
 
 type serviceReleaseOpts struct {
@@ -16,12 +15,10 @@ type serviceReleaseOpts struct {
 	allServices bool
 	image       string
 	allImages   bool
-	noUpdate    bool
 	exclude     []string
 	dryRun      bool
-	user        string
-	message     string
-	serviceReleaseOutputOpts
+	outputOpts
+	cause update.Cause
 }
 
 func newServiceRelease(parent *serviceOpts) *serviceReleaseOpts {
@@ -36,29 +33,18 @@ func (opts *serviceReleaseOpts) Command() *cobra.Command {
 			"fluxctl release --service=default/foo --update-image=library/hello:v2",
 			"fluxctl release --all --update-image=library/hello:v2",
 			"fluxctl release --service=default/foo --update-all-images",
-			"fluxctl release --service=default/foo --no-update",
 		),
 		RunE: opts.RunE,
 	}
 
-	username := ""
-	user, err := user.Current()
-	if err == nil {
-		username = user.Username
-	}
-
+	AddOutputFlags(cmd, &opts.outputOpts)
+	AddCauseFlags(cmd, &opts.cause)
 	cmd.Flags().StringSliceVarP(&opts.services, "service", "s", []string{}, "service to release")
 	cmd.Flags().BoolVar(&opts.allServices, "all", false, "release all services")
 	cmd.Flags().StringVarP(&opts.image, "update-image", "i", "", "update a specific image")
 	cmd.Flags().BoolVar(&opts.allImages, "update-all-images", false, "update all images to latest versions")
-	cmd.Flags().BoolVar(&opts.noUpdate, "no-update", false, "don't update images; just deploy the service(s) as configured in the git repo")
 	cmd.Flags().StringSliceVar(&opts.exclude, "exclude", []string{}, "exclude a service")
 	cmd.Flags().BoolVar(&opts.dryRun, "dry-run", false, "do not release anything; just report back what would have been done")
-	cmd.Flags().BoolVar(&opts.noFollow, "no-follow", false, "just submit the release job, don't invoke check-release afterwards")
-	cmd.Flags().BoolVar(&opts.noTty, "no-tty", false, "if not --no-follow, forces simpler, non-TTY status output")
-	cmd.Flags().BoolVarP(&opts.verbose, "verbose", "v", false, "include ignored services in output")
-	cmd.Flags().StringVarP(&opts.message, "message", "m", "", "attach a message to the release job")
-	cmd.Flags().StringVar(&opts.user, "user", username, "override the user reported as initating the release job")
 	return cmd
 }
 
@@ -67,7 +53,7 @@ func (opts *serviceReleaseOpts) RunE(cmd *cobra.Command, args []string) error {
 		return errorWantedNoArgs
 	}
 
-	if err := checkExactlyOne("--update-image=<image>, --update-all-images, or --no-update", opts.image != "", opts.allImages, opts.noUpdate); err != nil {
+	if err := checkExactlyOne("--update-image=<image> or --update-all-images", opts.image != "", opts.allImages); err != nil {
 		return err
 	}
 
@@ -75,37 +61,35 @@ func (opts *serviceReleaseOpts) RunE(cmd *cobra.Command, args []string) error {
 		return newUsageError("please supply either --all, or at least one --service=<service>")
 	}
 
-	var services []flux.ServiceSpec
+	var services []update.ServiceSpec
 	if opts.allServices {
-		services = []flux.ServiceSpec{flux.ServiceSpecAll}
+		services = []update.ServiceSpec{update.ServiceSpecAll}
 	} else {
 		for _, service := range opts.services {
 			if _, err := flux.ParseServiceID(service); err != nil {
 				return err
 			}
-			services = append(services, flux.ServiceSpec(service))
+			services = append(services, update.ServiceSpec(service))
 		}
 	}
 
 	var (
-		image flux.ImageSpec
+		image update.ImageSpec
 		err   error
 	)
 	switch {
 	case opts.image != "":
-		image, err = flux.ParseImageSpec(opts.image)
+		image, err = update.ParseImageSpec(opts.image)
 		if err != nil {
 			return err
 		}
 	case opts.allImages:
-		image = flux.ImageSpecLatest
-	case opts.noUpdate:
-		image = flux.ImageSpecNone
+		image = update.ImageSpecLatest
 	}
 
-	var kind flux.ReleaseKind = flux.ReleaseKindExecute
+	var kind update.ReleaseKind = update.ReleaseKindExecute
 	if opts.dryRun {
-		kind = flux.ReleaseKindPlan
+		kind = update.ReleaseKindPlan
 	}
 
 	var excludes []flux.ServiceID
@@ -118,40 +102,20 @@ func (opts *serviceReleaseOpts) RunE(cmd *cobra.Command, args []string) error {
 	}
 
 	if opts.dryRun {
-		fmt.Fprintf(cmd.OutOrStdout(), "Submitting dry-run release job...\n")
+		fmt.Fprintf(cmd.OutOrStderr(), "Submitting dry-run release...\n")
 	} else {
-		fmt.Fprintf(cmd.OutOrStdout(), "Submitting release job...\n")
+		fmt.Fprintf(cmd.OutOrStderr(), "Submitting release ...\n")
 	}
 
-	id, err := opts.API.PostRelease(noInstanceID, jobs.ReleaseJobParams{
-		ReleaseSpec: flux.ReleaseSpec{
-			ServiceSpecs: services,
-			ImageSpec:    image,
-			Kind:         kind,
-			Excludes:     excludes,
-		},
-		Cause: flux.ReleaseCause{
-			User:    opts.user,
-			Message: opts.message,
-		},
-	})
+	jobID, err := opts.API.UpdateImages(noInstanceID, update.ReleaseSpec{
+		ServiceSpecs: services,
+		ImageSpec:    image,
+		Kind:         kind,
+		Excludes:     excludes,
+	}, opts.cause)
 	if err != nil {
 		return err
 	}
 
-	fmt.Fprintf(cmd.OutOrStdout(), "Release job submitted, ID %s\n", id)
-	if opts.noFollow {
-		fmt.Fprintf(cmd.OutOrStdout(), "To check the status of this release job, run\n")
-		fmt.Fprintf(cmd.OutOrStdout(), "\n")
-		fmt.Fprintf(cmd.OutOrStdout(), "\tfluxctl check-release --release-id=%s\n", id)
-		fmt.Fprintf(cmd.OutOrStdout(), "\n")
-		return nil
-	}
-
-	// This is a bit funny, but works.
-	return (&serviceCheckReleaseOpts{
-		serviceOpts:              opts.serviceOpts,
-		releaseID:                string(id),
-		serviceReleaseOutputOpts: opts.serviceReleaseOutputOpts,
-	}).RunE(cmd, nil)
+	return await(cmd.OutOrStdout(), cmd.OutOrStderr(), opts.API, jobID, !opts.dryRun, opts.verbose)
 }

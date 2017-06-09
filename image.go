@@ -122,17 +122,48 @@ func (i ImageID) Components() (host, repo, tag string) {
 // Image can't really be a primitive string only, because we need to also
 // record information about its creation time. (maybe more in the future)
 type Image struct {
-	ImageID
-	CreatedAt *time.Time `json:",omitempty"`
+	ID        ImageID
+	CreatedAt time.Time
 }
 
-func ParseImage(s string, createdAt *time.Time) (Image, error) {
+func (im Image) MarshalJSON() ([]byte, error) {
+	var t string
+	if !im.CreatedAt.IsZero() {
+		t = im.CreatedAt.UTC().Format(time.RFC3339Nano)
+	}
+	encode := struct {
+		ID        ImageID
+		CreatedAt string `json:",omitempty"`
+	}{im.ID, t}
+	return json.Marshal(encode)
+}
+
+func (im *Image) UnmarshalJSON(b []byte) error {
+	unencode := struct {
+		ID        ImageID
+		CreatedAt string `json:",omitempty"`
+	}{}
+	json.Unmarshal(b, &unencode)
+	im.ID = unencode.ID
+	if unencode.CreatedAt == "" {
+		im.CreatedAt = time.Time{}
+	} else {
+		t, err := time.Parse(time.RFC3339, unencode.CreatedAt)
+		if err != nil {
+			return err
+		}
+		im.CreatedAt = t.UTC()
+	}
+	return nil
+}
+
+func ParseImage(s string, createdAt time.Time) (Image, error) {
 	id, err := ParseImageID(s)
 	if err != nil {
 		return Image{}, err
 	}
 	return Image{
-		ImageID:   id,
+		ID:        id,
 		CreatedAt: createdAt,
 	}, nil
 }

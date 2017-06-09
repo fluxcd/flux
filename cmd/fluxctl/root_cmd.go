@@ -46,11 +46,13 @@ Workflow:
   fluxctl list-services                                        # Which services are running?
   fluxctl list-images --service=default/foo                    # Which images are running/available?
   fluxctl release --service=default/foo --update-image=bar:v2  # Release new version.
-  fluxctl history --service=default/foo                        # Review what happened
 `)
 
-const envVariableURL = "FLUX_URL"
-const envVariableToken = "FLUX_SERVICE_TOKEN"
+const (
+	envVariableURL        = "FLUX_URL"
+	envVariableToken      = "FLUX_SERVICE_TOKEN"
+	envVariableCloudToken = "WEAVE_CLOUD_TOKEN"
+)
 
 func (opts *rootOpts) Command() *cobra.Command {
 	cmd := &cobra.Command{
@@ -63,46 +65,44 @@ func (opts *rootOpts) Command() *cobra.Command {
 	cmd.PersistentFlags().StringVarP(&opts.URL, "url", "u", "https://cloud.weave.works/api/flux",
 		fmt.Sprintf("base URL of the flux service; you can also set the environment variable %s", envVariableURL))
 	cmd.PersistentFlags().StringVarP(&opts.Token, "token", "t", "",
-		fmt.Sprintf("Weave Cloud service token; you can also set the environment variable %s", envVariableToken))
+		fmt.Sprintf("Weave Cloud service token; you can also set the environment variable %s or %s", envVariableCloudToken, envVariableToken))
 
 	svcopts := newService(opts)
 
 	cmd.AddCommand(
 		newVersionCommand(),
-		newStatus(opts).Command(),
 		newServiceShow(svcopts).Command(),
 		newServiceList(svcopts).Command(),
 		newServiceRelease(svcopts).Command(),
-		newServiceCheckRelease(svcopts).Command(),
-		newServiceHistory(svcopts).Command(),
 		newServiceAutomate(svcopts).Command(),
 		newServiceDeautomate(svcopts).Command(),
 		newServiceLock(svcopts).Command(),
 		newServiceUnlock(svcopts).Command(),
-		newGetConfig(opts).Command(),
-		newSetConfig(opts).Command(),
 		newSave(opts).Command(),
+		newIdentity(opts).Command(),
 	)
 
 	return cmd
 }
 
 func (opts *rootOpts) PersistentPreRunE(cmd *cobra.Command, _ []string) error {
-	opts.URL = getFromEnvIfNotSet(cmd.Flags(), "url", envVariableURL, opts.URL)
+	opts.URL = getFromEnvIfNotSet(cmd.Flags(), "url", opts.URL, envVariableURL)
 	if _, err := url.Parse(opts.URL); err != nil {
 		return errors.Wrapf(err, "parsing URL")
 	}
-	opts.Token = getFromEnvIfNotSet(cmd.Flags(), "token", envVariableToken, opts.Token)
-	opts.API = client.New(http.DefaultClient, transport.NewRouter(), opts.URL, flux.Token(opts.Token))
+	opts.Token = getFromEnvIfNotSet(cmd.Flags(), "token", opts.Token, envVariableToken, envVariableCloudToken)
+	opts.API = client.New(http.DefaultClient, transport.NewServiceRouter(), opts.URL, flux.Token(opts.Token))
 	return nil
 }
 
-func getFromEnvIfNotSet(flags *pflag.FlagSet, flagName, envName, value string) string {
+func getFromEnvIfNotSet(flags *pflag.FlagSet, flagName, value string, envNames ...string) string {
 	if flags.Changed(flagName) {
 		return value
 	}
-	if env := os.Getenv(envName); env != "" {
-		return env
+	for _, envName := range envNames {
+		if env := os.Getenv(envName); env != "" {
+			return env
+		}
 	}
 	return value // not changed, so presumably the default
 }

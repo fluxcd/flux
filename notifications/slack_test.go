@@ -3,13 +3,13 @@ package notifications
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/update"
 )
 
 func TestSlackNotifier(t *testing.T) {
@@ -26,7 +26,7 @@ func TestSlackNotifier(t *testing.T) {
 	if err := slackNotifyRelease(flux.NotifierConfig{
 		HookURL:  server.URL,
 		Username: "user1",
-	}, exampleRelease(t), fmt.Errorf("test-error")); err != nil {
+	}, exampleRelease(t), "test-error"); err != nil {
 		t.Fatal(err)
 	}
 	if gotReq == nil {
@@ -60,8 +60,8 @@ func TestSlackNotifierDryRun(t *testing.T) {
 
 	// It should send releases to slack
 	release := exampleRelease(t)
-	release.Spec.Kind = flux.ReleaseKindPlan
-	if err := slackNotifyRelease(flux.NotifierConfig{HookURL: server.URL}, release, fmt.Errorf("test-error")); err != nil {
+	release.Spec.Kind = update.ReleaseKindPlan
+	if err := slackNotifyRelease(flux.NotifierConfig{HookURL: server.URL}, release, "test-error"); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -80,7 +80,7 @@ func TestSlackNotifierCustomTemplate(t *testing.T) {
 	if err := slackNotifyRelease(flux.NotifierConfig{
 		HookURL:         server.URL,
 		ReleaseTemplate: "My custom template here",
-	}, exampleRelease(t), fmt.Errorf("test-error")); err != nil {
+	}, exampleRelease(t), "test-error"); err != nil {
 		t.Fatal(err)
 	}
 	if gotReq == nil {
@@ -113,7 +113,7 @@ func TestSlackNotifierErrorHandling(t *testing.T) {
 	defer server.Close()
 
 	// It should get an error back from slack
-	err := slackNotifyRelease(flux.NotifierConfig{HookURL: server.URL}, exampleRelease(t), fmt.Errorf("test-error"))
+	err := slackNotifyRelease(flux.NotifierConfig{HookURL: server.URL}, exampleRelease(t), "test-error")
 	if err == nil {
 		t.Fatal("Expected an error back")
 	}

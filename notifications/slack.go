@@ -14,6 +14,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/update"
 )
 
 const (
@@ -24,8 +25,8 @@ var (
 	httpClient = &http.Client{Timeout: 5 * time.Second}
 )
 
-func slackNotifyRelease(config flux.NotifierConfig, release flux.Release, releaseError error) error {
-	if release.Spec.Kind == flux.ReleaseKindPlan {
+func slackNotifyRelease(config flux.NotifierConfig, release update.Release, releaseError string) error {
+	if release.Spec.Kind == update.ReleaseKindPlan {
 		return nil
 	}
 
@@ -35,11 +36,11 @@ func slackNotifyRelease(config flux.NotifierConfig, release flux.Release, releas
 	}
 
 	errorMessage := ""
-	if releaseError != nil {
-		errorMessage = releaseError.Error()
+	if releaseError != "" {
+		errorMessage = releaseError
 	}
 	text, err := instantiateTemplate("release", template, struct {
-		flux.Release
+		update.Release
 		Error string
 	}{
 		Release: release,

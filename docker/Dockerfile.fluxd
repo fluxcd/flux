@@ -1,6 +1,0 @@
-FROM alpine:3.5
-WORKDIR /home/flux
-RUN apk add --no-cache ca-certificates tini
-COPY ./kubectl /usr/local/bin/
-COPY ./fluxd /usr/local/bin/
-ENTRYPOINT [ "/sbin/tini", "--", "fluxd" ]

@@ -1,0 +1,26 @@
+package kubernetes
+
+import (
+	"github.com/weaveworks/flux"
+	kresource "github.com/weaveworks/flux/cluster/kubernetes/resource"
+	"github.com/weaveworks/flux/resource"
+)
+
+type Manifests struct {
+}
+
+// FindDefinedServices implementation in files.go
+
+func (c *Manifests) LoadManifests(paths ...string) (map[string]resource.Resource, error) {
+	return kresource.Load(paths...)
+}
+
+func (c *Manifests) ParseManifests(allDefs []byte) (map[string]resource.Resource, error) {
+	return kresource.ParseMultidoc(allDefs, "exported")
+}
+
+func (c *Manifests) UpdateDefinition(def []byte, image flux.ImageID) ([]byte, error) {
+	return updatePodController(def, image)
+}
+
+// UpdatePolicies and ServicesWithPolicy in policies.go

@@ -19,10 +19,15 @@ This makes Docker images, and installs binaries to $GOPATH/bin.
 # Test
 
 ```
-$ go test ./...
+$ make test
 ```
 
 Note: In order to run the NATS message bus tests (the message bus that connects fluxctl -> fluxsvc -> nats -> fluxsvc -> fluxd) you need to have a running gnatsd instance.
+
+E.g.
+```
+docker run -d -p 4222:4222 -p 6222:6222 --name nats-main nats
+```
 
 # Dependency management
 

@@ -11,16 +11,17 @@ import (
 	"testing"
 
 	"github.com/gorilla/mux"
+	"github.com/weaveworks/flux/http/client"
 
 	transport "github.com/weaveworks/flux/http"
-	"github.com/weaveworks/flux/http/client"
+	"github.com/weaveworks/flux/job"
 )
 
 func mockServiceOpts(trip *genericMockRoundTripper) *serviceOpts {
 	c := http.Client{
 		Transport: trip,
 	}
-	mockAPI := client.New(&c, transport.NewRouter(), "", "")
+	mockAPI := client.New(&c, transport.NewAPIRouter(), "", "")
 	return &serviceOpts{
 		rootOpts: &rootOpts{
 			API: mockAPI,
@@ -93,6 +94,7 @@ func testArgs(t *testing.T, args []string, shouldErr bool, errMsg string) *gener
 	cmd := releaseClient.Command()
 	cmd.SetOutput(ioutil.Discard)
 	cmd.SetArgs(args)
+	cmd.SetOutput(ioutil.Discard)
 	if err := cmd.Execute(); (err == nil) == shouldErr {
 		if errMsg != "" {
 			t.Fatal(errMsg)
@@ -101,4 +103,16 @@ func testArgs(t *testing.T, args []string, shouldErr bool, errMsg string) *gener
 		}
 	}
 	return svc
+}
+
+// The mocked service is actually a mocked http.RoundTripper
+func newMockService() *genericMockRoundTripper {
+	return &genericMockRoundTripper{
+		mockResponses: map[*mux.Route]interface{}{
+			transport.NewAPIRouter().Get("UpdateImages"): job.ID("here-is-a-job-id"),
+			transport.NewAPIRouter().Get("JobStatus"): job.Status{
+				StatusString: job.StatusSucceeded,
+			},
+		},
+	}
 }

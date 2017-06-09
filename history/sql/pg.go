@@ -10,6 +10,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/history"
 )
 
 // A history DB that uses a postgres database
@@ -26,17 +27,17 @@ func (db *pgDB) eventsQuery() squirrel.SelectBuilder {
 		OrderBy("started_at desc")
 }
 
-func (db *pgDB) scanEvents(query squirrel.Sqlizer) ([]flux.Event, error) {
+func (db *pgDB) scanEvents(query squirrel.Sqlizer) ([]history.Event, error) {
 	rows, err := squirrel.QueryWith(db, query)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	var events []flux.Event
+	var events []history.Event
 	for rows.Next() {
 		var (
-			h             flux.Event
+			h             history.Event
 			serviceIDs    pq.StringArray
 			metadataBytes []byte
 		)
@@ -58,12 +59,24 @@ func (db *pgDB) scanEvents(query squirrel.Sqlizer) ([]flux.Event, error) {
 
 		if len(metadataBytes) > 0 {
 			switch h.Type {
-			case flux.EventRelease:
-				var m flux.ReleaseEventMetadata
+			case history.EventCommit:
+				var m history.CommitEventMetadata
 				if err := json.Unmarshal(metadataBytes, &m); err != nil {
 					return nil, err
 				}
-				h.Metadata = m
+				h.Metadata = &m
+			case history.EventSync:
+				var m history.SyncEventMetadata
+				if err := json.Unmarshal(metadataBytes, &m); err != nil {
+					return nil, err
+				}
+				h.Metadata = &m
+			case history.EventRelease:
+				var m history.ReleaseEventMetadata
+				if err := json.Unmarshal(metadataBytes, &m); err != nil {
+					return nil, err
+				}
+				h.Metadata = &m
 			}
 		}
 		events = append(events, h)
@@ -71,7 +84,7 @@ func (db *pgDB) scanEvents(query squirrel.Sqlizer) ([]flux.Event, error) {
 	return events, rows.Err()
 }
 
-func (db *pgDB) EventsForService(inst flux.InstanceID, service flux.ServiceID, before time.Time, limit int64) ([]flux.Event, error) {
+func (db *pgDB) EventsForService(inst flux.InstanceID, service flux.ServiceID, before time.Time, limit int64) ([]history.Event, error) {
 	q := db.eventsQuery().
 		Where("instance_id = ?", string(inst)).
 		Where("service_ids @> ?", pq.StringArray{string(service)}).
@@ -82,7 +95,7 @@ func (db *pgDB) EventsForService(inst flux.InstanceID, service flux.ServiceID, b
 	return db.scanEvents(q)
 }
 
-func (db *pgDB) AllEvents(inst flux.InstanceID, before time.Time, limit int64) ([]flux.Event, error) {
+func (db *pgDB) AllEvents(inst flux.InstanceID, before time.Time, limit int64) ([]history.Event, error) {
 	q := db.eventsQuery().
 		Where("instance_id = ?", string(inst)).
 		Where("started_at < ?", before)
@@ -92,18 +105,18 @@ func (db *pgDB) AllEvents(inst flux.InstanceID, before time.Time, limit int64) (
 	return db.scanEvents(q)
 }
 
-func (db *pgDB) GetEvent(id flux.EventID) (flux.Event, error) {
+func (db *pgDB) GetEvent(id history.EventID) (history.Event, error) {
 	es, err := db.scanEvents(db.eventsQuery().Where("id = ?", string(id)))
 	if err != nil {
-		return flux.Event{}, err
+		return history.Event{}, err
 	}
 	if len(es) <= 0 {
-		return flux.Event{}, fmt.Errorf("event not found")
+		return history.Event{}, fmt.Errorf("event not found")
 	}
 	return es[0], nil
 }
 
-func (db *pgDB) LogEvent(inst flux.InstanceID, e flux.Event) error {
+func (db *pgDB) LogEvent(inst flux.InstanceID, e history.Event) error {
 	j, err := json.Marshal(e.Metadata)
 	if err != nil {
 		return err
