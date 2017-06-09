@@ -47,6 +47,13 @@ type apiObject struct {
 	} `yaml:"metadata"`
 }
 
+func (obj *apiObject) namespaceOrDefault() string {
+	if obj.Metadata.Namespace == "" {
+		return "default"
+	}
+	return obj.Metadata.Namespace
+}
+
 // --- add-ons
 
 // Kubernetes has a mechanism of "Add-ons", whereby manifest files
@@ -357,6 +364,7 @@ func (c *Cluster) Sync(spec cluster.SyncDef) error {
 	c.actionc <- func() {
 		errs := cluster.SyncError{}
 		for _, action := range spec.Actions {
+			logger := log.NewContext(logger).With("resource", action.ResourceID)
 			if len(action.Delete) > 0 {
 				obj, err := definitionObj(action.Delete)
 				if err == nil {
