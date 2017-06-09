@@ -153,7 +153,10 @@ func moveTagAndPush(path string, keyRing ssh.KeyRing, tag, ref, msg, upstream st
 
 func changedFiles(path, subPath, ref string) ([]string, error) {
 	out := &bytes.Buffer{}
-	if err := execGitCmd(path, nil, out, "diff", "--name-only", ref, "--", subPath); err != nil {
+	// This uses --diff-filter to only look at changes for file _in
+	// the working dir_; i.e, we do not report on things that no
+	// longer appear.
+	if err := execGitCmd(path, nil, out, "diff", "--name-only", "--diff-filter=ACMRT", ref, "--", subPath); err != nil {
 		return nil, err
 	}
 	return splitList(out.String()), nil
