@@ -42,47 +42,25 @@ func NewReleaseContext(c cluster.Cluster, m cluster.Manifests, reg registry.Regi
 	}
 }
 
-func (rc *ReleaseContext) CommitAndPush(msg string, spec *update.ReleaseSpec, result update.Result) error {
-	return rc.Repo.CommitAndPush(msg, &git.Note{
-		JobID: "", // FIXME: get the job id here
-		Spec: update.Spec{
-			Type: update.Images,
-			Spec: *spec,
-		},
-		Result: result,
-	})
-}
-
-func (rc *ReleaseContext) PushChanges(updates []*ServiceUpdate, spec *update.ReleaseSpec, cause update.Cause, results update.Result) error {
+func (rc *ReleaseContext) WriteUpdates(updates []*ServiceUpdate) error {
 	rc.Repo.Lock()
-	err := writeUpdates(updates)
+	err := func() error {
+		for _, update := range updates {
+			fi, err := os.Stat(update.ManifestPath)
+			if err != nil {
+				return err
+			}
+			if err = ioutil.WriteFile(update.ManifestPath, update.ManifestBytes, fi.Mode()); err != nil {
+				return err
+			}
+		}
+		return nil
+	}()
 	rc.Repo.Unlock()
-	if err != nil {
-		return err
-	}
-
-	commitMsg := cause.Message
-	if commitMsg == "" {
-		commitMsg = commitMessageFromReleaseSpec(spec)
-	}
-	return rc.CommitAndPush(commitMsg, spec, results)
+	return err
 }
 
 // ---
-
-// FIXME use UpdateManifest instead
-func writeUpdates(updates []*ServiceUpdate) error {
-	for _, update := range updates {
-		fi, err := os.Stat(update.ManifestPath)
-		if err != nil {
-			return err
-		}
-		if err = ioutil.WriteFile(update.ManifestPath, update.ManifestBytes, fi.Mode()); err != nil {
-			return err
-		}
-	}
-	return nil
-}
 
 // SelectServices finds the services that exist both in the definition
 // files and the running platform.

@@ -2,7 +2,6 @@ package release
 
 import (
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/go-kit/kit/log"
@@ -24,7 +23,7 @@ type ServiceUpdate struct {
 	Updates       []update.ContainerUpdate
 }
 
-func Release(rc *ReleaseContext, spec update.ReleaseSpec, cause update.Cause, logger log.Logger) (commitRef string, results update.Result, err error) {
+func Release(rc *ReleaseContext, spec update.ReleaseSpec, logger log.Logger) (results update.Result, err error) {
 	started := time.Now()
 	defer func(start time.Time) {
 		releaseDuration.With(
@@ -38,10 +37,7 @@ func Release(rc *ReleaseContext, spec update.ReleaseSpec, cause update.Cause, lo
 	// We time each stage of this process, and expose as metrics.
 	var timer *metrics.Timer
 
-	// FIXME pull from the repository? Or rely on something else to do that.
-	// ALSO: clean up in the result of failure, afterwards
-
-	// From here in, we collect the results of the calculations.
+	// To collect the results of the calculations.
 	results = update.Result{}
 
 	// Figure out the services involved.
@@ -50,7 +46,7 @@ func Release(rc *ReleaseContext, spec update.ReleaseSpec, cause update.Cause, lo
 	updates, err = selectServices(rc, &spec, results)
 	timer.ObserveDuration()
 	if err != nil {
-		return "", nil, err
+		return nil, err
 	}
 
 	// If the request was for a specific service and the service was
@@ -77,7 +73,7 @@ func Release(rc *ReleaseContext, spec update.ReleaseSpec, cause update.Cause, lo
 	updates, err = calculateImageUpdates(rc, updates, &spec, results)
 	timer.ObserveDuration()
 	if err != nil {
-		return "", nil, err
+		return nil, err
 	}
 
 	// At this point we may have filtered the updates we can do down
@@ -85,24 +81,10 @@ func Release(rc *ReleaseContext, spec update.ReleaseSpec, cause update.Cause, lo
 	logger.Log("updates", len(updates))
 	if len(updates) == 0 {
 		logger.Log("exit", "no images to update for services given")
-		return "", results, nil
+		return results, nil
 	}
 
-	// If it's a dry run, we're done.
-	if spec.Kind == update.ReleaseKindPlan {
-		logger.Log("exit", "dry-run")
-		return "", results, nil
-	}
-
-	timer = NewStageTimer("push_changes")
-	err = rc.PushChanges(updates, &spec, cause, results)
-	timer.ObserveDuration()
-	if err != nil {
-		return "", nil, err
-	}
-
-	revision, err := rc.Repo.HeadRevision()
-	return revision, results, err
+	return results, rc.WriteUpdates(updates)
 }
 
 // Take the spec given in the job, and figure out which services are
@@ -284,15 +266,6 @@ func calculateImageUpdates(rc *ReleaseContext, candidates []*ServiceUpdate, spec
 	}
 
 	return updates, nil
-}
-
-func commitMessageFromReleaseSpec(spec *update.ReleaseSpec) string {
-	image := strings.Trim(spec.ImageSpec.String(), "<>")
-	var services []string
-	for _, s := range spec.ServiceSpecs {
-		services = append(services, strings.Trim(s.String(), "<>"))
-	}
-	return fmt.Sprintf("Release %s to %s", image, strings.Join(services, ", "))
 }
 
 // CollectUpdateImages is a convenient shim to

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"sort"
+	"strings"
 	gosync "sync"
 	"time"
 
@@ -24,7 +25,7 @@ import (
 	"github.com/weaveworks/flux/update"
 )
 
-var ErrUnknownJob = fmt.Errorf("unkown job")
+var ErrUnknownJob = fmt.Errorf("unknown job")
 
 // Combine these things to form Devasta^Wan implementation of
 // Platform.
@@ -123,6 +124,9 @@ func (d *Daemon) ListImages(spec update.ServiceSpec) ([]flux.ImageStatus, error)
 	return res, nil
 }
 
+// Let's use the CommitEventMetadata as a convenient transport for the
+// results of a job; if no commit was made (e.g., if it was a dry
+// run), leave the revision field empty.
 type DaemonJobFunc func(jobID job.ID, working *git.Checkout, logger log.Logger) (*history.CommitEventMetadata, error)
 
 func (d *Daemon) queueJob(do DaemonJobFunc) job.ID {
@@ -146,21 +150,24 @@ func (d *Daemon) queueJob(do DaemonJobFunc) job.ID {
 				return err
 			}
 			d.JobStatusCache.SetStatus(id, job.Status{StatusString: job.StatusSucceeded, Result: *metadata})
-			var serviceIDs []flux.ServiceID
-			for id, result := range metadata.Result {
-				if result.Status == update.ReleaseStatusSuccess {
-					serviceIDs = append(serviceIDs, id)
-				}
-			}
 			logger.Log("revision", metadata.Revision)
-			return d.LogEvent(history.Event{
-				ServiceIDs: serviceIDs,
-				Type:       history.EventCommit,
-				StartedAt:  started,
-				EndedAt:    started,
-				LogLevel:   history.LogLevelInfo,
-				Metadata:   metadata,
-			})
+			if metadata.Revision != "" {
+				var serviceIDs []flux.ServiceID
+				for id, result := range metadata.Result {
+					if result.Status == update.ReleaseStatusSuccess {
+						serviceIDs = append(serviceIDs, id)
+					}
+				}
+				return d.LogEvent(history.Event{
+					ServiceIDs: serviceIDs,
+					Type:       history.EventCommit,
+					StartedAt:  started,
+					EndedAt:    started,
+					LogLevel:   history.LogLevelInfo,
+					Metadata:   metadata,
+				})
+			}
+			return nil
 		},
 	})
 	d.JobStatusCache.SetStatus(id, job.Status{StatusString: job.StatusQueued})
@@ -177,11 +184,26 @@ func (d *Daemon) UpdateManifests(spec update.Spec) (job.ID, error) {
 	case update.ReleaseSpec:
 		return d.queueJob(func(jobID job.ID, working *git.Checkout, logger log.Logger) (*history.CommitEventMetadata, error) {
 			rc := release.NewReleaseContext(d.Cluster, d.Manifests, d.Registry, working)
-			revision, result, err := release.Release(rc, s, spec.Cause, logger)
+			result, err := release.Release(rc, s, logger)
 			if err != nil {
 				return nil, err
 			}
-			d.askForSync()
+
+			var revision string
+			if s.Kind == update.ReleaseKindExecute {
+				commitMsg := spec.Cause.Message
+				if commitMsg == "" {
+					commitMsg = commitMessageFromReleaseSpec(&s)
+				}
+				if err := working.CommitAndPush(commitMsg, &git.Note{JobID: jobID, Spec: spec, Result: result}); err != nil {
+					return nil, err
+				}
+				revision, err = working.HeadRevision()
+				if err != nil {
+					return nil, err
+				}
+				defer d.askForSync()
+			}
 			return &history.CommitEventMetadata{
 				Revision: revision,
 				Spec:     &spec,
@@ -269,10 +291,9 @@ func (d *Daemon) JobStatus(jobID job.ID) (job.Status, error) {
 		return status, nil
 	}
 
-	// is there a commit for this job?
-	// Look through the commits for a note referencing this job. What a hack.
-	// But, it means that even if fluxd restarts, we will remember jobs which
-	// have pushed a commit.
+	// Look through the commits for a note referencing this job.  This
+	// means that even if fluxd restarts, we will at least remember
+	// jobs which have pushed a commit.
 	if err := d.Checkout.Pull(); err != nil {
 		return job.Status{}, errors.Wrap(err, "updating repo for status")
 	}
@@ -423,4 +444,13 @@ func policyEventTypes(u policy.Update) []string {
 	}
 	sort.Strings(result)
 	return result
+}
+
+func commitMessageFromReleaseSpec(spec *update.ReleaseSpec) string {
+	image := strings.Trim(spec.ImageSpec.String(), "<>")
+	var services []string
+	for _, s := range spec.ServiceSpecs {
+		services = append(services, strings.Trim(s.String(), "<>"))
+	}
+	return fmt.Sprintf("Release %s to %s", image, strings.Join(services, ", "))
 }

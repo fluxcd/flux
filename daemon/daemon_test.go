@@ -476,7 +476,9 @@ func updateImage(d *Daemon, t *testing.T) job.ID {
 	return updateManifest(t, d, update.Spec{
 		Type: update.Images,
 		Spec: update.ReleaseSpec{
-			ImageSpec: newHelloImage,
+			Kind:         update.ReleaseKindExecute,
+			ServiceSpecs: []update.ServiceSpec{update.ServiceSpecAll},
+			ImageSpec:    newHelloImage,
 		},
 	})
 }
