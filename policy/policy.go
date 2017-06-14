@@ -78,6 +78,11 @@ func (s Set) Contains(needle Policy) bool {
 	return false
 }
 
+func (s Set) Get(p Policy) (string, bool) {
+	v, ok := s[p]
+	return v, ok
+}
+
 type ServiceMap map[flux.ServiceID]Set
 
 func (s ServiceMap) ToSlice() []flux.ServiceID {

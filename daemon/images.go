@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
@@ -25,24 +26,18 @@ func (d *Daemon) PollImages(logger log.Logger) {
 		logger.Log("msg", "no automated services")
 		return
 	}
-	logger.Log("candidates", fmt.Sprintf("%#v", candidateServices))
-
 	// Find images to check
 	services, err := d.Cluster.SomeServices(candidateServices.ToSlice())
 	if err != nil {
 		logger.Log("error", errors.Wrap(err, "checking services for new images"))
 		return
 	}
-	logger.Log("services", fmt.Sprintf("%#v", services))
-
 	// Check the latest available image(s) for each service
 	imageMap, err := release.CollectAvailableImages(d.Registry, services)
 	if err != nil {
 		logger.Log("error", errors.Wrap(err, "fetching image updates"))
 		return
 	}
-	logger.Log("imageMap", fmt.Sprintf("%#v", imageMap))
-
 	// Update image for each container
 	for _, service := range services {
 		for _, container := range service.ContainersOrNil() {
@@ -54,8 +49,7 @@ func (d *Daemon) PollImages(logger log.Logger) {
 				continue
 			}
 
-			pattern := "*"
-
+			pattern := getTagPattern(candidateServices, service.ID, container.Name, logger)
 			repo := currentImageID.Repository()
 			logger.Log("repo", repo, "pattern", pattern)
 
@@ -66,6 +60,14 @@ func (d *Daemon) PollImages(logger log.Logger) {
 			}
 		}
 	}
+}
+
+func getTagPattern(services policy.ServiceMap, service flux.ServiceID, container string, logger log.Logger) string {
+	policies := services[service]
+	if pattern, ok := policies.Get(policy.Policy("tag." + container)); ok {
+		return strings.TrimPrefix(pattern, "glob:")
+	}
+	return "*"
 }
 
 func (d *Daemon) unlockedAutomatedServices() (policy.ServiceMap, error) {
