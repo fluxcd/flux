@@ -52,7 +52,7 @@ func (o baseObject) Policy() policy.Set {
 	set := policy.Set{}
 	for k, v := range o.Meta.Annotations {
 		if strings.HasPrefix(k, PolicyPrefix) && v == "true" {
-			set = set.Add(policy.Parse(strings.TrimPrefix(k, PolicyPrefix)))
+			set = set.Add(policy.Policy(strings.TrimPrefix(k, PolicyPrefix)))
 		}
 	}
 	return set

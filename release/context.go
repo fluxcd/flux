@@ -169,7 +169,7 @@ func (rc *ReleaseContext) FindDefinedServices() ([]*ServiceUpdate, error) {
 }
 
 // Shortcut for this
-func (rc *ReleaseContext) ServicesWithPolicy(p policy.Policy) (flux.ServiceIDSet, error) {
+func (rc *ReleaseContext) ServicesWithPolicy(p policy.Policy) (policy.ServiceMap, error) {
 	rc.Repo.RLock()
 	defer rc.Repo.RUnlock()
 	return rc.Manifests.ServicesWithPolicy(rc.Repo.ManifestDir(), p)

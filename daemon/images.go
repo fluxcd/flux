@@ -2,7 +2,6 @@ package daemon
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
@@ -23,15 +22,18 @@ func (d *Daemon) PollImages(logger log.Logger) {
 		return
 	}
 	if len(candidateServices) == 0 {
+		logger.Log("msg", "no automated services")
 		return
 	}
+	logger.Log("candidates", fmt.Sprintf("%#v", candidateServices))
 
 	// Find images to check
-	services, err := d.Cluster.SomeServices(candidateServices)
+	services, err := d.Cluster.SomeServices(candidateServices.ToSlice())
 	if err != nil {
 		logger.Log("error", errors.Wrap(err, "checking services for new images"))
 		return
 	}
+	logger.Log("services", fmt.Sprintf("%#v", services))
 
 	// Check the latest available image(s) for each service
 	imageMap, err := release.CollectAvailableImages(d.Registry, services)
@@ -39,8 +41,7 @@ func (d *Daemon) PollImages(logger log.Logger) {
 		logger.Log("error", errors.Wrap(err, "fetching image updates"))
 		return
 	}
-
-	tagPatterns := d.getTagPatterns()
+	logger.Log("imageMap", fmt.Sprintf("%#v", imageMap))
 
 	// Update image for each container
 	for _, service := range services {
@@ -53,8 +54,9 @@ func (d *Daemon) PollImages(logger log.Logger) {
 				continue
 			}
 
+			pattern := "*"
+
 			repo := currentImageID.Repository()
-			pattern := getTagPattern(tagPatterns, service.ID, container.Name)
 			logger.Log("repo", repo, "pattern", pattern)
 
 			if latest := imageMap.LatestImage(repo, pattern); latest != nil && latest.ID != currentImageID {
@@ -66,7 +68,7 @@ func (d *Daemon) PollImages(logger log.Logger) {
 	}
 }
 
-func (d *Daemon) unlockedAutomatedServices() ([]flux.ServiceID, error) {
+func (d *Daemon) unlockedAutomatedServices() (policy.ServiceMap, error) {
 	automatedServices, err := d.Manifests.ServicesWithPolicy(d.Checkout.ManifestDir(), policy.Automated)
 	if err != nil {
 		return nil, err
@@ -75,45 +77,9 @@ func (d *Daemon) unlockedAutomatedServices() ([]flux.ServiceID, error) {
 	if err != nil {
 		return nil, err
 	}
-	return automatedServices.Without(lockedServices).ToSlice(), nil
-}
-
-func (d *Daemon) getTagPatterns() map[flux.ServiceID]map[string]string {
-	serviceMap := map[flux.ServiceID]map[string]string{}
-	metadata, err := d.Manifests.ServicesMetadata(d.Checkout.ManifestDir())
-	if err != nil {
-		return nil
-	}
-
-	for s, md := range metadata {
-		serviceMap[s] = map[string]string{}
-
-		for k, v := range md {
-			if container, pattern, ok := parseTagPattern(k, v); ok {
-				serviceMap[s][container] = pattern
-			}
-		}
-	}
-
-	return serviceMap
-}
-
-func parseTagPattern(k, v string) (string, string, bool) {
-	if !strings.HasPrefix(k, "flux.weave.works/tag.") || !strings.HasPrefix(v, "glob:") {
-		return "", "", false
-	}
-
-	return strings.TrimPrefix(k, "flux.weave.works/tag."), strings.TrimPrefix(v, "glob:"), true
-}
-
-func getTagPattern(patterns map[flux.ServiceID]map[string]string, serviceID flux.ServiceID, container string) string {
-	if patterns == nil || patterns[serviceID] == nil {
-		return "*"
-	}
-	if p, ok := patterns[serviceID][container]; ok {
-		return p
-	}
-	return "*"
+	without := automatedServices.Without(lockedServices)
+	d.Logger.Log("automated", fmt.Sprintf("%#v", automatedServices), "locked", fmt.Sprintf("%#v", lockedServices), "without", fmt.Sprintf("%#v", without))
+	return without, nil
 }
 
 func (d *Daemon) ReleaseImage(serviceID flux.ServiceID, container string, imageID flux.ImageID) error {

@@ -430,7 +430,7 @@ func policyCommitMessage(us policy.Updates, cause update.Cause) string {
 // policyEventTypes is a deduped list of all event types this update contains
 func policyEventTypes(u policy.Update) []string {
 	types := map[string]struct{}{}
-	for _, p := range u.Add {
+	for p, _ := range u.Add {
 		switch p {
 		case policy.Automated:
 			types[history.EventAutomate] = struct{}{}
@@ -439,7 +439,7 @@ func policyEventTypes(u policy.Update) []string {
 		}
 	}
 
-	for _, p := range u.Remove {
+	for p, _ := range u.Remove {
 		switch p {
 		case policy.Automated:
 			types[history.EventDeautomate] = struct{}{}

@@ -19,7 +19,7 @@ func TestUpdatePolicies(t *testing.T) {
 			in:   map[string]string{"prometheus.io.scrape": "false"},
 			out:  map[string]string{"flux.weave.works/automated": "true", "prometheus.io.scrape": "false"},
 			update: policy.Update{
-				Add: []policy.Policy{policy.Automated},
+				Add: policy.Set{policy.Automated: "true"},
 			},
 		},
 		{
@@ -27,7 +27,7 @@ func TestUpdatePolicies(t *testing.T) {
 			in:   map[string]string{"flux.weave.works/automated": "true"},
 			out:  map[string]string{"flux.weave.works/automated": "true"},
 			update: policy.Update{
-				Add: []policy.Policy{policy.Automated},
+				Add: policy.Set{policy.Automated: "true"},
 			},
 		},
 		{
@@ -35,7 +35,7 @@ func TestUpdatePolicies(t *testing.T) {
 			in:   map[string]string{"flux.weave.works/automated": "true", "prometheus.io.scrape": "false"},
 			out:  map[string]string{"flux.weave.works/automated": "true", "prometheus.io.scrape": "false"},
 			update: policy.Update{
-				Add: []policy.Policy{policy.Automated},
+				Add: policy.Set{policy.Automated: "true"},
 			},
 		},
 		{
@@ -43,7 +43,7 @@ func TestUpdatePolicies(t *testing.T) {
 			in:   nil,
 			out:  map[string]string{"flux.weave.works/automated": "true"},
 			update: policy.Update{
-				Add: []policy.Policy{policy.Automated},
+				Add: policy.Set{policy.Automated: "true"},
 			},
 		},
 		{
@@ -51,8 +51,8 @@ func TestUpdatePolicies(t *testing.T) {
 			in:   map[string]string{"flux.weave.works/automated": "true", "prometheus.io.scrape": "false"},
 			out:  map[string]string{"flux.weave.works/locked": "true", "prometheus.io.scrape": "false"},
 			update: policy.Update{
-				Add:    []policy.Policy{policy.Locked},
-				Remove: []policy.Policy{policy.Automated},
+				Add:    policy.Set{policy.Locked: "true"},
+				Remove: policy.Set{policy.Automated: "true"},
 			},
 		},
 		{
@@ -60,8 +60,8 @@ func TestUpdatePolicies(t *testing.T) {
 			in:   nil,
 			out:  nil,
 			update: policy.Update{
-				Add:    []policy.Policy{policy.Locked},
-				Remove: []policy.Policy{policy.Locked},
+				Add:    policy.Set{policy.Locked: "true"},
+				Remove: policy.Set{policy.Locked: "true"},
 			},
 		},
 		{
@@ -69,7 +69,7 @@ func TestUpdatePolicies(t *testing.T) {
 			in:   map[string]string{"flux.weave.works/automated": "true", "prometheus.io.scrape": "false"},
 			out:  map[string]string{"prometheus.io.scrape": "false"},
 			update: policy.Update{
-				Remove: []policy.Policy{policy.Automated},
+				Remove: policy.Set{policy.Automated: "true"},
 			},
 		},
 		{
@@ -77,7 +77,7 @@ func TestUpdatePolicies(t *testing.T) {
 			in:   map[string]string{"flux.weave.works/automated": "true"},
 			out:  nil,
 			update: policy.Update{
-				Remove: []policy.Policy{policy.Automated},
+				Remove: policy.Set{policy.Automated: "true"},
 			},
 		},
 		{
@@ -85,7 +85,7 @@ func TestUpdatePolicies(t *testing.T) {
 			in:   nil,
 			out:  nil,
 			update: policy.Update{
-				Remove: []policy.Policy{policy.Automated},
+				Remove: policy.Set{policy.Automated: "true"},
 			},
 		},
 		{
@@ -93,7 +93,7 @@ func TestUpdatePolicies(t *testing.T) {
 			in:   map[string]string{"prometheus.io.scrape": "false"},
 			out:  map[string]string{"prometheus.io.scrape": "false"},
 			update: policy.Update{
-				Remove: []policy.Policy{policy.Automated},
+				Remove: policy.Set{policy.Automated: "true"},
 			},
 		},
 	} {

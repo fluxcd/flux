@@ -488,8 +488,8 @@ func updatePolicy(t *testing.T, d *Daemon) job.ID {
 		Type: update.Policy,
 		Spec: policy.Updates{
 			"default/helloworld": {
-				Add: []policy.Policy{
-					policy.Locked,
+				Add: policy.Set{
+					policy.Locked: "true",
 				},
 			},
 		},

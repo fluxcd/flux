@@ -21,8 +21,7 @@ type Mock struct {
 	ParseManifestsFunc      func([]byte) (map[string]resource.Resource, error)
 	UpdateManifestFunc      func(path, resourceID string, f func(def []byte) ([]byte, error)) error
 	UpdatePoliciesFunc      func([]byte, policy.Update) ([]byte, error)
-	ServicesWithPolicyFunc  func(path string, p policy.Policy) (flux.ServiceIDSet, error)
-	ServicesMetadataFunc    func(path string) (map[flux.ServiceID]map[string]string, error)
+	ServicesWithPolicyFunc  func(path string, p policy.Policy) (policy.ServiceMap, error)
 }
 
 func (m *Mock) AllServices(maybeNamespace string) ([]Service, error) {
@@ -73,10 +72,6 @@ func (m *Mock) UpdatePolicies(def []byte, p policy.Update) ([]byte, error) {
 	return m.UpdatePoliciesFunc(def, p)
 }
 
-func (m *Mock) ServicesWithPolicy(path string, p policy.Policy) (flux.ServiceIDSet, error) {
+func (m *Mock) ServicesWithPolicy(path string, p policy.Policy) (policy.ServiceMap, error) {
 	return m.ServicesWithPolicyFunc(path, p)
-}
-
-func (m *Mock) ServicesMetadata(path string) (map[flux.ServiceID]map[string]string, error) {
-	return m.ServicesMetadataFunc(path)
 }

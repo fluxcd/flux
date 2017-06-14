@@ -15,10 +15,10 @@ import (
 
 func (m *Manifests) UpdatePolicies(in []byte, update policy.Update) ([]byte, error) {
 	return updateAnnotations(in, func(a map[string]string) map[string]string {
-		for _, policy := range update.Add {
-			a[resource.PolicyPrefix+string(policy)] = "true"
+		for policy, v := range update.Add {
+			a[resource.PolicyPrefix+string(policy)] = v
 		}
-		for _, policy := range update.Remove {
+		for policy, _ := range update.Remove {
 			delete(a, resource.PolicyPrefix+string(policy))
 		}
 		return a
@@ -123,20 +123,20 @@ func parseManifest(def []byte) (Manifest, error) {
 	return m, nil
 }
 
-func (m *Manifests) ServicesWithPolicy(root string, policy policy.Policy) (flux.ServiceIDSet, error) {
+func (m *Manifests) ServicesWithPolicy(root string, p policy.Policy) (policy.ServiceMap, error) {
 	all, err := m.FindDefinedServices(root)
 	if err != nil {
 		return nil, err
 	}
-	result := flux.ServiceIDSet{}
+	result := map[flux.ServiceID]policy.Set{}
 
 	err = iterateManifests(all, func(s flux.ServiceID, m Manifest) error {
-		p, err := policiesFrom(m)
+		ps, err := policiesFrom(m)
 		if err != nil {
 			return err
 		}
-		if p.Contains(policy) {
-			result.Add([]flux.ServiceID{s})
+		if ps.Contains(p) {
+			result[s] = ps
 		}
 		return nil
 	})
@@ -174,28 +174,15 @@ func policiesFrom(m Manifest) (policy.Set, error) {
 		if !strings.HasPrefix(k, resource.PolicyPrefix) {
 			continue
 		}
-		if v != "true" {
-			continue
+		p := policy.Policy(strings.TrimPrefix(k, resource.PolicyPrefix))
+		if policy.Boolean(p) {
+			if v != "true" {
+				continue
+			}
+			policies = policies.Add(p)
+		} else {
+			policies = policies.Set(p, v)
 		}
-		policies = policies.Add(policy.Parse(strings.TrimPrefix(k, resource.PolicyPrefix)))
 	}
 	return policies, nil
-}
-
-func (m *Manifests) ServicesMetadata(path string) (map[flux.ServiceID]map[string]string, error) {
-	services, err := m.FindDefinedServices(path)
-	if err != nil {
-		return nil, err
-	}
-	servicesMetadata := map[flux.ServiceID]map[string]string{}
-	err = iterateManifests(services, func(s flux.ServiceID, m Manifest) error {
-		if a := m.Metadata.Annotations; a != nil {
-			servicesMetadata[s] = a
-		}
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-	return servicesMetadata, nil
 }

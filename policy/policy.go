@@ -17,56 +17,88 @@ const (
 // e.g. automated, or locked.
 type Policy string
 
-func Parse(s string) Policy {
+func Boolean(policy Policy) bool {
 	for _, p := range []Policy{
 		Locked,
 		Automated,
 		Ignore,
 	} {
-		if s == string(p) {
-			return p
+		if policy == p {
+			return true
 		}
 	}
-	return None
+	return false
 }
 
 type Updates map[flux.ServiceID]Update
 
 type Update struct {
-	Add    []Policy `json:"add"`
-	Remove []Policy `json:"remove"`
+	Add    Set `json:"add"`
+	Remove Set `json:"remove"`
 }
 
-type Set []Policy
+type Set map[Policy]string
 
 func (s Set) String() string {
 	var ps []string
-	for _, p := range s {
-		ps = append(ps, string(p))
+	for p, v := range s {
+		ps = append(ps, string(p)+":"+v)
 	}
 	return "{" + strings.Join(ps, ", ") + "}"
 }
 
 func (s Set) Add(ps ...Policy) Set {
-	dedupe := map[Policy]struct{}{}
-	for _, p := range s {
-		dedupe[p] = struct{}{}
-	}
+	s = clone(s)
 	for _, p := range ps {
-		dedupe[p] = struct{}{}
+		s[p] = "true"
 	}
-	var result Set
-	for p := range dedupe {
-		result = append(result, p)
+	return s
+}
+
+func (s Set) Set(p Policy, v string) Set {
+	s = clone(s)
+	s[p] = v
+	return s
+}
+
+func clone(s Set) Set {
+	newMap := Set{}
+	for p, v := range s {
+		newMap[p] = v
 	}
-	return result
+	return newMap
 }
 
 func (s Set) Contains(needle Policy) bool {
-	for _, p := range s {
+	for p, _ := range s {
 		if p == needle {
 			return true
 		}
 	}
 	return false
+}
+
+type ServiceMap map[flux.ServiceID]Set
+
+func (s ServiceMap) ToSlice() []flux.ServiceID {
+	slice := []flux.ServiceID{}
+	for service, _ := range s {
+		slice = append(slice, service)
+	}
+	return slice
+}
+
+func (s ServiceMap) Contains(id flux.ServiceID) bool {
+	_, ok := s[id]
+	return ok
+}
+
+func (s ServiceMap) Without(other ServiceMap) ServiceMap {
+	newMap := ServiceMap{}
+	for k, v := range s {
+		if !other.Contains(k) {
+			newMap[k] = v
+		}
+	}
+	return newMap
 }
