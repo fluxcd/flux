@@ -11,15 +11,18 @@ var (
 	spec = update.ReleaseSpec{
 		ImageSpec: update.ImageSpecLatest,
 	}
+	cause = update.Cause{
+		User:    "test user",
+		Message: "test message",
+	}
 )
 
 func TestEvent_ParseReleaseMetaData(t *testing.T) {
 	origEvent := Event{
 		Type: EventRelease,
 		Metadata: &ReleaseEventMetadata{
-			Release: update.Release{
-				Spec: spec,
-			},
+			Cause: cause,
+			Spec:  spec,
 		},
 	}
 
@@ -30,8 +33,14 @@ func TestEvent_ParseReleaseMetaData(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if e.Metadata.(*ReleaseEventMetadata).Release.Spec.ImageSpec != spec.ImageSpec {
-		t.Fatal("Release.Spec wasn't marshalled/unmarshalled")
+	switch r := e.Metadata.(type) {
+	case *ReleaseEventMetadata:
+		if r.Spec.ImageSpec != spec.ImageSpec ||
+			r.Cause != cause {
+			t.Fatal("Release event wasn't marshalled/unmarshalled")
+		}
+	default:
+		t.Fatal("Wrong event type unmarshalled")
 	}
 }
 

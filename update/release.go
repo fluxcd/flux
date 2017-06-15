@@ -2,7 +2,6 @@ package update
 
 import (
 	"strings"
-	"time"
 
 	"github.com/pkg/errors"
 
@@ -39,17 +38,6 @@ func ParseReleaseKind(s string) (ReleaseKind, error) {
 }
 
 const UserAutomated = "<automated>"
-
-// Release describes a release
-type Release struct {
-	CreatedAt time.Time `json:"createdAt"`
-	StartedAt time.Time `json:"startedAt"`
-	EndedAt   time.Time `json:"endedAt"`
-
-	Cause  Cause       `json:"cause"`
-	Spec   ReleaseSpec `json:"spec"`
-	Result Result      `json:"result"`
-}
 
 // NB: these get sent from fluxctl, so we have to maintain the json format of
 // this. Eugh.

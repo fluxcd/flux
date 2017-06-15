@@ -80,11 +80,11 @@ func (e Event) String() string {
 	switch e.Type {
 	case EventRelease:
 		metadata := e.Metadata.(*ReleaseEventMetadata)
-		strImageIDs := metadata.Release.Result.ImageIDs()
+		strImageIDs := metadata.Result.ImageIDs()
 		if len(strImageIDs) == 0 {
 			strImageIDs = []string{"no image changes"}
 		}
-		for _, spec := range metadata.Release.Spec.ServiceSpecs {
+		for _, spec := range metadata.Spec.ServiceSpecs {
 			switch spec {
 			case update.ServiceSpecAll:
 				strServiceIDs = []string{"all services"}
@@ -98,12 +98,12 @@ func (e Event) String() string {
 			strServiceIDs = []string{"no services"}
 		}
 		var user string
-		if metadata.Release.Cause.User != "" {
-			user = fmt.Sprintf(", by %s", metadata.Release.Cause.User)
+		if metadata.Cause.User != "" {
+			user = fmt.Sprintf(", by %s", metadata.Cause.User)
 		}
 		var msg string
-		if metadata.Release.Cause.Message != "" {
-			msg = fmt.Sprintf(", with message %q", metadata.Release.Cause.Message)
+		if metadata.Cause.Message != "" {
+			msg = fmt.Sprintf(", with message %q", metadata.Cause.Message)
 		}
 		return fmt.Sprintf(
 			"Released: %s to %s%s%s",
@@ -177,8 +177,10 @@ type SyncEventMetadata struct {
 
 // ReleaseEventMetadata is the metadata for when service(s) are released
 type ReleaseEventMetadata struct {
-	// Release points to this release
-	Release update.Release `json:"release"`
+	Revision string             // the revision which has the changes for the release
+	Spec     update.ReleaseSpec `json:"spec"`
+	Cause    update.Cause       `json:"cause"`
+	Result   update.Result      `json:"result"`
 	// Message of the error if there was one.
 	Error string `json:"error,omitempty"`
 }

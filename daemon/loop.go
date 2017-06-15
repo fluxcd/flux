@@ -159,17 +159,12 @@ func (d *Daemon) pullAndSync(logger log.Logger) {
 				continue
 			}
 
-			// If one of the notes has a release event, send that to the service
+			// If any of the commit notes has a release event, send
+			// that to the service
 			if n.Spec.Type == update.Images {
 				// Map new note.Spec into ReleaseSpec
 				spec := n.Spec.Spec.(update.ReleaseSpec)
 				// And create a release event
-				releaseEvent := update.Release{
-					StartedAt: started,
-					EndedAt:   time.Now().UTC(),
-					Spec:      spec,
-					Result:    n.Result,
-				}
 				// Then wrap inside a ReleaseEventMetadata
 				if err := d.LogEvent(history.Event{
 					ServiceIDs: serviceIDs.ToSlice(),
@@ -178,8 +173,11 @@ func (d *Daemon) pullAndSync(logger log.Logger) {
 					EndedAt:    time.Now().UTC(),
 					LogLevel:   history.LogLevelInfo,
 					Metadata: &history.ReleaseEventMetadata{
-						Release: releaseEvent,
-						Error:   n.Result.Error(),
+						Revision: revisions[i],
+						Spec:     spec,
+						Cause:    n.Spec.Cause,
+						Result:   n.Result,
+						Error:    n.Result.Error(),
 					},
 				}); err != nil {
 					logger.Log("err", err)

@@ -1,12 +1,13 @@
 package notifications
 
 import (
+	"github.com/weaveworks/flux/history"
 	"github.com/weaveworks/flux/instance"
 	"github.com/weaveworks/flux/update"
 )
 
 // Release performs post-release notifications for an instance
-func Release(cfg instance.Config, r update.Release, releaseError string) error {
+func Release(cfg instance.Config, r *history.ReleaseEventMetadata, releaseError string) error {
 	if r.Spec.Kind != update.ReleaseKindExecute {
 		return nil
 	}

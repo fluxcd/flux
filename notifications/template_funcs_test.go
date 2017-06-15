@@ -45,7 +45,7 @@ func TestTemplateFunc_Last(t *testing.T) {
 		// Shouldn't panic
 		{0, struct{}{}, false, errors.New("unsupported type: struct {}")},
 		{0, nil, false, errors.New("unsupported type: <nil>")},
-		{0, update.Release{}, false, errors.New("unsupported type: update.Release")},
+		{0, update.Spec{}, false, errors.New("unsupported type: update.Spec")},
 	} {
 		gotVal, gotErr := last(test.i, test.a)
 		if gotVal != test.expectedVal {
