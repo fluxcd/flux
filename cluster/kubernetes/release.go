@@ -61,30 +61,23 @@ func (c *Kubectl) doCommand(logger log.Logger, newDefinition []byte, args ...str
 	cmd.Stdin = bytes.NewReader(newDefinition)
 	stderr := &bytes.Buffer{}
 	cmd.Stderr = stderr
-	logger.Log("cmd", strings.Join(args, " "))
+	stdout := &bytes.Buffer{}
+	cmd.Stdout = stdout
 
 	begin := time.Now()
 	err := cmd.Run()
-	result := "success"
 	if err != nil {
-		result = stderr.String()
-		err = errors.Wrap(errors.New(result), "running kubectl")
+		err = errors.Wrap(errors.New(strings.TrimSpace(stderr.String())), "running kubectl")
 	}
-	logger.Log("result", result, "took", time.Since(begin).String())
+
+	logger.Log("cmd", "kubectl "+strings.Join(args, " "), "took", time.Since(begin), "err", err, "output", strings.TrimSpace(stdout.String()))
 	return err
 }
 
-func namespaceOrDefault(obj *apiObject) string {
-	if obj.Metadata.Namespace == "" {
-		return "default"
-	}
-	return obj.Metadata.Namespace
-}
-
 func (c *Kubectl) Delete(logger log.Logger, obj *apiObject) error {
-	return c.doCommand(logger, obj.bytes, "--namespace", namespaceOrDefault(obj), "delete", "-f", "-")
+	return c.doCommand(logger, obj.bytes, "--namespace", obj.namespaceOrDefault(), "delete", "-f", "-")
 }
 
 func (c *Kubectl) Apply(logger log.Logger, obj *apiObject) error {
-	return c.doCommand(logger, obj.bytes, "--namespace", namespaceOrDefault(obj), "apply", "-f", "-")
+	return c.doCommand(logger, obj.bytes, "--namespace", obj.namespaceOrDefault(), "apply", "-f", "-")
 }
