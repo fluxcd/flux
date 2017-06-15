@@ -4,23 +4,18 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	"time"
 
 	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/history"
 	"github.com/weaveworks/flux/instance"
 	"github.com/weaveworks/flux/update"
 )
 
 // Generate an example release
-func exampleRelease(t *testing.T) update.Release {
-	now := time.Now().UTC()
+func exampleRelease(t *testing.T) *history.ReleaseEventMetadata {
 	img1a1, _ := flux.ParseImageID("img1:a1")
 	img1a2, _ := flux.ParseImageID("img1:a2")
-	return update.Release{
-		CreatedAt: now.Add(-1 * time.Minute),
-		StartedAt: now.Add(-30 * time.Second),
-		EndedAt:   now.Add(-1 * time.Second),
-
+	return &history.ReleaseEventMetadata{
 		Cause: update.Cause{
 			User:    "test-user",
 			Message: "this was to test notifications",

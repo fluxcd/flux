@@ -14,18 +14,19 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/history"
 	"github.com/weaveworks/flux/update"
 )
 
 const (
-	defaultReleaseTemplate = `Release {{with .Cause}}({{if .User}}{{.User}}{{else}}unknown{{end}}{{if .Message}}: {{.Message}}{{end}}){{end}} {{trim (print .Spec.ImageSpec) "<>"}} to {{with .Spec.ServiceSpecs}}{{range $index, $spec := .}}{{if not (eq $index 0)}}, {{if last $index $.Spec.ServiceSpecs}}and {{end}}{{end}}{{trim (print .) "<>"}}{{end}}{{end}}. {{with .Error}}{{.}}. failed{{else}}done{{end}}`
+	defaultReleaseTemplate = `Release {{with .Release.Cause}}({{if .User}}{{.User}}{{else}}unknown{{end}}{{if .Message}}: {{.Message}}{{end}}){{end}} {{trim (print .Release.Spec.ImageSpec) "<>"}} to {{with .Release.Spec.ServiceSpecs}}{{range $index, $spec := .}}{{if not (eq $index 0)}}, {{if last $index $.Release.Spec.ServiceSpecs}}and {{end}}{{end}}{{trim (print .) "<>"}}{{end}}{{end}}. {{with .Error}}{{.}}. failed{{else}}done{{end}}`
 )
 
 var (
 	httpClient = &http.Client{Timeout: 5 * time.Second}
 )
 
-func slackNotifyRelease(config flux.NotifierConfig, release update.Release, releaseError string) error {
+func slackNotifyRelease(config flux.NotifierConfig, release *history.ReleaseEventMetadata, releaseError string) error {
 	if release.Spec.Kind == update.ReleaseKindPlan {
 		return nil
 	}
@@ -40,8 +41,8 @@ func slackNotifyRelease(config flux.NotifierConfig, release update.Release, rele
 		errorMessage = releaseError
 	}
 	text, err := instantiateTemplate("release", template, struct {
-		update.Release
-		Error string
+		Release *history.ReleaseEventMetadata
+		Error   string
 	}{
 		Release: release,
 		Error:   errorMessage,

@@ -77,7 +77,7 @@ func (d *Daemon) NewImage(imageID flux.ImageID) error {
 	}
 	cause := update.Cause{
 		User:    update.UserAutomated,
-		Message: fmt.Sprintf("due to new image %s", imageID.String()),
+		Message: fmt.Sprintf("Release due to new image %s", imageID.String()),
 	}
 
 	_, err := d.UpdateManifests(update.Spec{Type: update.Images, Cause: cause, Spec: spec})

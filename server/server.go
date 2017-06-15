@@ -158,7 +158,7 @@ func (s *Server) LogEvent(instID flux.InstanceID, e history.Event) error {
 			return errors.Wrapf(err, "getting config")
 		}
 		releaseMeta := e.Metadata.(*history.ReleaseEventMetadata)
-		err = notifications.Release(cfg, releaseMeta.Release, releaseMeta.Error)
+		err = notifications.Release(cfg, releaseMeta, releaseMeta.Error)
 		if err != nil {
 			return errors.Wrapf(err, "notifying slack")
 		}
