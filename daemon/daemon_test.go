@@ -255,7 +255,7 @@ func TestDaemon_PolicyUpdate(t *testing.T) {
 			t.Fatalf("Error: %s", err.Error())
 		}
 		d.Checkout.Unlock()
-		return m["Deployment "+svc].Annotations() != nil
+		return len(m["Deployment "+svc].Policy()) > 0
 	}, "Waiting for new annotation")
 }
 

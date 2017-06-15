@@ -101,7 +101,7 @@ func (d *Daemon) pullAndSync(logger log.Logger) {
 	}
 
 	// TODO supply deletes argument from somewhere (command-line?)
-	if err := fluxsync.Sync(d.Manifests, allResources, d.Cluster, false); err != nil {
+	if err := fluxsync.Sync(d.Manifests, allResources, d.Cluster, false, logger); err != nil {
 		logger.Log("err", err)
 	}
 
