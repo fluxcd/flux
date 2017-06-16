@@ -235,6 +235,10 @@ func (d *Daemon) UpdateManifests(spec update.Spec) (job.ID, error) {
 			}
 
 			if err := working.CommitAndPush(policyCommitMessage(s, spec.Cause), &git.Note{JobID: jobID, Spec: spec}); err != nil {
+				// On the chance pushing failed because it was not
+				// possible to fast-forward, ask for a sync so the
+				// next attempt is more likely to succeed.
+				d.askForSync()
 				return nil, err
 			}
 
@@ -265,6 +269,10 @@ func (d *Daemon) release(spec update.Spec, c release.Changes) DaemonJobFunc {
 				commitMsg = c.CommitMessage()
 			}
 			if err := working.CommitAndPush(commitMsg, &git.Note{JobID: jobID, Spec: spec, Result: result}); err != nil {
+				// On the chance pushing failed because it was not
+				// possible to fast-forward, ask for a sync so the
+				// next attempt is more likely to succeed.
+				d.askForSync()
 				return nil, err
 			}
 			revision, err = working.HeadRevision()
