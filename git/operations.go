@@ -60,7 +60,7 @@ func push(keyRing ssh.KeyRing, workingDir, upstream string, refs []string) error
 	return nil
 }
 
-// pull the specific ref from upstream. Usually this would
+// pull the specific ref from upstream
 func pull(keyRing ssh.KeyRing, workingDir, upstream, ref string) error {
 	if err := execGitCmd(workingDir, keyRing, nil, "pull", "--ff-only", upstream, ref); err != nil {
 		return errors.Wrap(err, fmt.Sprintf("git pull --ff-only %s %s", upstream, ref))
@@ -177,7 +177,7 @@ func execGitCmd(dir string, keyRing ssh.KeyRing, out io.Writer, args ...string) 
 	c.Stderr = errOut
 	err := c.Run()
 	if err != nil {
-		msg := findFatalMessage(errOut)
+		msg := findErrorMessage(errOut)
 		if msg != "" {
 			err = errors.New(msg)
 		}
@@ -200,11 +200,14 @@ func check(workingDir, subdir string) bool {
 	return execGitCmd(workingDir, nil, nil, "diff", "--quiet", "--", subdir) != nil
 }
 
-func findFatalMessage(output io.Reader) string {
+func findErrorMessage(output io.Reader) string {
 	sc := bufio.NewScanner(output)
 	for sc.Scan() {
-		if strings.HasPrefix(sc.Text(), "fatal:") {
+		switch {
+		case strings.HasPrefix(sc.Text(), "fatal: "):
 			return sc.Text()
+		case strings.HasPrefix(sc.Text(), "error:"):
+			return strings.Trim(sc.Text(), "error: ")
 		}
 	}
 	return ""
