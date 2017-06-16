@@ -406,6 +406,7 @@ func mockDaemon(t *testing.T) (*Daemon, func(), *cluster.Mock, history.EventRead
 		JobStatusCache: &job.StatusCache{Size: 100},
 		EventWriter:    events,
 		Logger:         logger,
+		LoopVars:       &LoopVars{},
 	}
 
 	wg.Add(1)

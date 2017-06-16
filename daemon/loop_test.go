@@ -70,6 +70,7 @@ func daemon(t *testing.T) (*Daemon, func()) {
 		JobStatusCache: &job.StatusCache{Size: 100},
 		EventWriter:    events,
 		Logger:         log.NewLogfmtLogger(os.Stdout),
+		LoopVars:       &LoopVars{},
 	}
 	return d, func() {
 		close(shutdown)

@@ -17,6 +17,13 @@ import (
 	"github.com/weaveworks/flux/update"
 )
 
+type LoopVars struct {
+	GitPollInterval      time.Duration
+	RegistryPollInterval time.Duration
+	syncSoon             chan struct{}
+	initSyncSoon         sync.Once
+}
+
 // Loop for potentially long-running stuff. This includes running
 // jobs, and looking for new commits.
 
@@ -65,7 +72,7 @@ func (d *Daemon) Loop(stop chan struct{}, wg *sync.WaitGroup, logger log.Logger)
 }
 
 // Ask for a sync, or if there's one waiting, let that happen.
-func (d *Daemon) askForSync() {
+func (d *LoopVars) askForSync() {
 	d.initSyncSoon.Do(func() {
 		d.syncSoon = make(chan struct{}, 1)
 	})
@@ -74,6 +81,8 @@ func (d *Daemon) askForSync() {
 	default:
 	}
 }
+
+// -- extra bits the loop needs
 
 func (d *Daemon) pullAndSync(logger log.Logger) {
 	started := time.Now().UTC()

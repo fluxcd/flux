@@ -320,17 +320,19 @@ func main() {
 	}
 
 	daemon := &daemon.Daemon{
-		V:                    version,
-		Cluster:              k8s,
-		Manifests:            k8sManifests,
-		Registry:             reg,
-		Checkout:             checkout,
-		Jobs:                 jobs,
-		JobStatusCache:       &job.StatusCache{Size: 100},
-		GitPollInterval:      *gitPollInterval,
-		RegistryPollInterval: *registryPollInterval,
-		EventWriter:          eventWriter,
-		Logger:               log.NewContext(logger).With("component", "daemon"),
+		V:              version,
+		Cluster:        k8s,
+		Manifests:      k8sManifests,
+		Registry:       reg,
+		Checkout:       checkout,
+		Jobs:           jobs,
+		JobStatusCache: &job.StatusCache{Size: 100},
+		EventWriter:    eventWriter,
+		Logger:         log.NewContext(logger).With("component", "daemon"),
+		LoopVars: &daemon.LoopVars{
+			GitPollInterval:      *gitPollInterval,
+			RegistryPollInterval: *registryPollInterval,
+		},
 	}
 
 	shutdownWg.Add(1)

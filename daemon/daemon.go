@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"sort"
-	gosync "sync"
 	"time"
 
 	"github.com/go-kit/kit/log"
@@ -29,21 +28,18 @@ var ErrUnknownJob = fmt.Errorf("unknown job")
 // Combine these things to form Devasta^Wan implementation of
 // Platform.
 type Daemon struct {
-	V                    string
-	Cluster              cluster.Cluster
-	Manifests            cluster.Manifests
-	Registry             registry.Registry
-	Repo                 git.Repo
-	Checkout             *git.Checkout
-	Jobs                 *job.Queue
-	JobStatusCache       *job.StatusCache
-	GitPollInterval      time.Duration
-	RegistryPollInterval time.Duration
-	EventWriter          history.EventWriter
-	Logger               log.Logger
+	V              string
+	Cluster        cluster.Cluster
+	Manifests      cluster.Manifests
+	Registry       registry.Registry
+	Repo           git.Repo
+	Checkout       *git.Checkout
+	Jobs           *job.Queue
+	JobStatusCache *job.StatusCache
+	EventWriter    history.EventWriter
+	Logger         log.Logger
 	// bookkeeping
-	syncSoon     chan struct{}
-	initSyncSoon gosync.Once
+	*LoopVars
 }
 
 // Invariant.
