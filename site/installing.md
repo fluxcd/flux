@@ -11,7 +11,8 @@ benefits:
 
 * A comprehensive dashboard, allowing control of Flux without the CLI
   application
-* Extra features not available in the open source version
+* Extra features not available in the open source version, like Slack
+  notifications
 * Tight integration with other Weave Cloud services
   ([Scope](https://www.weave.works/solution/troubleshooting-dashboard/)
   and
@@ -28,16 +29,17 @@ instance to represent your cluster.
 If you're already using Scope or Cortex to look at a cluster, you can
 choose that instance instead of creating one. But make sure that this
 instance is pointing to the same physical cluster, or else Flux and
-Cortex will show conflicting information (e.g. the containers running).
+Cortex will show conflicting information (e.g. different containers
+running).
 
 Click on the "Deploy" button and follow the instructions to install
-flux.
+Flux.
 
 # Standalone
 
-Alternatively, you can [install flux without Weave Cloud on your own
+Alternatively, you can [install Flux without Weave Cloud on your own
 cluster](./standalone/installing.md).
 
 # Next
 
-[Setup fluxctl](./using.md)
+[Setup fluxctl and run the daemon](./using.md)

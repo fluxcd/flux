@@ -14,8 +14,7 @@ A typical use case would be:
 
 1. A developer makes changes
 2. An operational cluster is now out of date and needs to be updated
-3. Flux automatically observes those changes and deploys them to the
-   cluster
+3. Flux observes those changes and deploys them to the cluster
 4. Flux maintains the current state of the cluster (e.g. in the event of
    failure)
 
@@ -90,10 +89,8 @@ Flux will announce to slack when changes have occured.
 
 ## Auditing
 
-Flux also exposes the history of its internal "job/worker" mechanism for
-auditing purposes.
-
-You can see every event that has ever happened on the cluster.
+Flux also exposes the history of its actions for auditing
+purposes. You can see every event that has happened on the cluster.
 
 ## Next
 

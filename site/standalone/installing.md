@@ -6,7 +6,12 @@ menu_order: 10
 Flux comes in several parts:
 
 -   the command-line client **fluxctl**
--   the daemon, **fluxd** which maintains the state of the cluster
+-   the daemon, **flux** which maintains the state of the cluster
+-   a service, which runs in Weave Cloud
+
+But you don't need the last to use Flux; you can just run the daemon
+and connect to it with the command line client. This page describes
+how.
 
 # Quick Install
 
@@ -44,9 +49,16 @@ kubectl create -f memcache-dep.yaml memcache-svc.yaml
 
 ## Flux deployment
 
+You will need to create a secret in which Flux will store its SSH
+key. The daemon won't start without this present.
+
+```
+kubectl create -f flux-secret.yaml
+```
+
 The Kubernetes deployment configuration file
-[flux-deployment.yaml](../../deploy/flux-deployment.yaml) runs the Flux
-service and the Flux daemon in a single pod.
+[flux-deployment.yaml](../../deploy/flux-deployment.yaml) runs the
+Flux daemon.
 
 ```
 kubectl create -f flux-deployment.yaml
@@ -81,8 +93,9 @@ kubectl create -f flux-service.yaml
 
 ## Fluxctl
 
-This allows you to control Flux from the command line and in standalone
-mode is the only way of working with Flux.
+This allows you to control Flux from the command line, and if you're
+not connecting it to Weave Cloud, is the only way of working with
+Flux.
 
 Download the latest version of the
 [fluxctl client from github](https://github.com/weaveworks/flux/releases/latest).
