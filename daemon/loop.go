@@ -21,7 +21,15 @@ type LoopVars struct {
 	GitPollInterval      time.Duration
 	RegistryPollInterval time.Duration
 	syncSoon             chan struct{}
-	initSyncSoon         sync.Once
+	pollImagesSoon       chan struct{}
+	initOnce             sync.Once
+}
+
+func (loop *LoopVars) ensureInit() {
+	loop.initOnce.Do(func() {
+		loop.syncSoon = make(chan struct{}, 1)
+		loop.pollImagesSoon = make(chan struct{}, 1)
+	})
 }
 
 // Loop for potentially long-running stuff. This includes running
@@ -29,32 +37,58 @@ type LoopVars struct {
 
 func (d *Daemon) Loop(stop chan struct{}, wg *sync.WaitGroup, logger log.Logger) {
 	defer wg.Done()
-	pollGit := time.NewTimer(d.GitPollInterval)
+	gitPollTimer := time.NewTimer(d.GitPollInterval)
+	// This can be called any time to push the next git poll out by
+	// d.GitPollInterval. It must _at least_ be called when the timer
+	// fires, so that the polling continues.
 	resetGitPoll := func() {
-		if pollGit != nil {
-			pollGit.Stop()
-			pollGit = time.NewTimer(d.GitPollInterval)
+		if gitPollTimer != nil {
+			gitPollTimer.Stop()
+			gitPollTimer = time.NewTimer(d.GitPollInterval)
 		}
 	}
 
-	pollImages := time.Tick(d.RegistryPollInterval)
-	// Ask for a sync straight away
+	// Pull for new commits, then if successful, run the procedure given
+	pullThen := func(k func(logger log.Logger)) {
+		if err := d.Checkout.Pull(); err != nil {
+			logger.Log("operation", "pull", "err", err)
+			return
+		}
+		k(logger)
+	}
+
+	imagePollTimer := time.NewTimer(d.RegistryPollInterval)
+	// Similar to resetGitTimer, this must at lest be called when the
+	// timer fires.
+	resetImagePoll := func() {
+		if imagePollTimer != nil {
+			imagePollTimer.Stop()
+			imagePollTimer = time.NewTimer(d.RegistryPollInterval)
+		}
+	}
+
+	// Ask for a sync, and to poll images, straight away
 	d.askForSync()
+	d.askForImagePoll()
 	for {
 		select {
 		case <-stop:
 			logger.Log("stopping", "true")
 			return
 		case <-d.syncSoon:
-			d.pullAndSync(logger)
+			pullThen(d.doSync)
 			resetGitPoll()
-		case <-pollGit.C:
+		case <-d.pollImagesSoon:
+			pullThen(d.pollForNewImages)
+			resetGitPoll()
+		case <-gitPollTimer.C:
 			// Time to poll for new commits (unless we're already
 			// about to do that)
 			d.askForSync()
-		case <-pollImages:
+		case <-imagePollTimer.C:
 			// Time to poll for new images
-			d.PollImages(logger)
+			d.askForImagePoll()
+			resetImagePoll()
 		case job := <-d.Jobs.Ready():
 			jobLogger := log.NewContext(logger).With("jobID", job.ID)
 			jobLogger.Log("state", "in-progress")
@@ -66,25 +100,33 @@ func (d *Daemon) Loop(stop chan struct{}, wg *sync.WaitGroup, logger log.Logger)
 				continue
 			}
 			jobLogger.Log("state", "done", "success", "true")
-			d.askForSync()
+			pullThen(d.doSync)
+			resetGitPoll()
 		}
 	}
 }
 
 // Ask for a sync, or if there's one waiting, let that happen.
 func (d *LoopVars) askForSync() {
-	d.initSyncSoon.Do(func() {
-		d.syncSoon = make(chan struct{}, 1)
-	})
+	d.ensureInit()
 	select {
 	case d.syncSoon <- struct{}{}:
 	default:
 	}
 }
 
+// Ask for an image poll, or if there's one waiting, let that happen.
+func (d *LoopVars) askForImagePoll() {
+	d.ensureInit()
+	select {
+	case d.pollImagesSoon <- struct{}{}:
+	default:
+	}
+}
+
 // -- extra bits the loop needs
 
-func (d *Daemon) pullAndSync(logger log.Logger) {
+func (d *Daemon) doSync(logger log.Logger) {
 	started := time.Now().UTC()
 
 	// Pull for new commits

@@ -191,7 +191,16 @@ func (d *Daemon) UpdateManifests(spec update.Spec) (job.ID, error) {
 				Spec:   &spec,
 				Result: update.Result{},
 			}
+
+			// A shortcut to make things more responsive: if anything
+			// was (probably) set to automated, we will ask for an
+			// automation run straight ASAP.
+			var anythingAutomated bool
+
 			for serviceID, u := range s {
+				if policy.Set(u.Add).Contains(policy.Automated) {
+					anythingAutomated = true
+				}
 				// find the service manifest
 				err := cluster.UpdateManifest(d.Manifests, working.ManifestDir(), string(serviceID), func(def []byte) ([]byte, error) {
 					newDef, err := d.Manifests.UpdatePolicies(def, u)
@@ -237,6 +246,9 @@ func (d *Daemon) UpdateManifests(spec update.Spec) (job.ID, error) {
 				d.askForSync()
 				return nil, err
 			}
+			if anythingAutomated {
+				d.askForImagePoll()
+			}
 
 			var err error
 			metadata.Revision, err = working.HeadRevision()
@@ -275,7 +287,6 @@ func (d *Daemon) release(spec update.Spec, c release.Changes) DaemonJobFunc {
 			if err != nil {
 				return nil, err
 			}
-			defer d.askForSync()
 		}
 		return &history.CommitEventMetadata{
 			Revision: revision,

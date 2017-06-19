@@ -97,7 +97,7 @@ func TestPullAndSync_InitialSync(t *testing.T) {
 		return nil
 	}
 
-	d.pullAndSync(log.NewLogfmtLogger(ioutil.Discard))
+	d.doSync(log.NewLogfmtLogger(ioutil.Discard))
 
 	// It applies everything
 	if syncCalled != 1 {
@@ -134,7 +134,7 @@ func TestPullAndSync_InitialSync(t *testing.T) {
 	}
 }
 
-func TestPullAndSync_NoNewCommits(t *testing.T) {
+func TestDoSync_NoNewCommits(t *testing.T) {
 	// Tag exists
 	d, cleanup := daemon(t)
 	defer cleanup()
@@ -152,7 +152,7 @@ func TestPullAndSync_NoNewCommits(t *testing.T) {
 		return nil
 	}
 
-	d.pullAndSync(log.NewLogfmtLogger(ioutil.Discard))
+	d.doSync(log.NewLogfmtLogger(ioutil.Discard))
 
 	// It applies everything
 	if syncCalled != 1 {
@@ -186,7 +186,7 @@ func TestPullAndSync_NoNewCommits(t *testing.T) {
 	}
 }
 
-func TestPullAndSync_WithNewCommit(t *testing.T) {
+func TestDoSync_WithNewCommit(t *testing.T) {
 	// Tag exists
 	d, cleanup := daemon(t)
 	defer cleanup()
@@ -223,7 +223,7 @@ func TestPullAndSync_WithNewCommit(t *testing.T) {
 		return nil
 	}
 
-	d.pullAndSync(log.NewLogfmtLogger(ioutil.Discard))
+	d.doSync(log.NewLogfmtLogger(ioutil.Discard))
 
 	// It applies everything
 	if syncCalled != 1 {
