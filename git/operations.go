@@ -86,7 +86,7 @@ func refExists(workingDir, ref string) (bool, error) {
 	return true, nil
 }
 
-// Get the full ref for a shorthand notes ref
+// Get the full ref for a shorthand notes ref.
 func getNotesRef(workingDir, ref string) (string, error) {
 	out := &bytes.Buffer{}
 	if err := execGitCmd(workingDir, nil, out, "notes", "--ref", ref, "get-ref"); err != nil {
@@ -103,9 +103,13 @@ func addNote(workingDir, rev, notesRef string, note *Note) error {
 	return execGitCmd(workingDir, nil, nil, "notes", "--ref", notesRef, "add", "-m", string(b), rev)
 }
 
+// NB return values (*Note, nil), (nil, error), (nil, nil)
 func getNote(workingDir, notesRef, rev string) (*Note, error) {
 	out := &bytes.Buffer{}
 	if err := execGitCmd(workingDir, nil, out, "notes", "--ref", notesRef, "show", rev); err != nil {
+		if strings.Contains(err.Error(), "No note found for object") {
+			return nil, nil
+		}
 		return nil, err
 	}
 	var note Note

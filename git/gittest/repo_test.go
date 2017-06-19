@@ -29,6 +29,20 @@ func TestCheckout(t *testing.T) {
 	}
 	defer checkout.Clean()
 
+	// We don't expect any notes in the clone, yet. Make sure we get
+	// no note, rather than an error.
+	head, err := checkout.HeadRevision()
+	if err != nil {
+		t.Fatal(err)
+	}
+	note, err := checkout.GetNote(head)
+	if err != nil {
+		t.Error(err)
+	}
+	if note != nil {
+		t.Errorf("Expected no note on head revision; got %#v", note)
+	}
+
 	// Make a working clone and push changes back; then make sure they
 	// are visible in the original repo
 	working, err := checkout.WorkingClone()
