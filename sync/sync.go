@@ -9,11 +9,6 @@ import (
 	"github.com/weaveworks/flux/resource"
 )
 
-const (
-	ResultDelete = "delete"
-	ResultApply  = "apply"
-)
-
 // Synchronise the cluster to the files in a directory
 func Sync(m cluster.Manifests, repoResources map[string]resource.Resource, clus cluster.Cluster, deletes bool, logger log.Logger) error {
 	// Get a map of resources defined in the cluster
