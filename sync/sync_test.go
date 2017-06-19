@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/go-kit/kit/log"
+
 	//	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster"
 	"github.com/weaveworks/flux/cluster/kubernetes"
@@ -36,7 +38,7 @@ func TestSync(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := Sync(manifests, resources, clus, true); err != nil {
+	if err := Sync(manifests, resources, clus, true, log.NewNopLogger()); err != nil {
 		t.Fatal(err)
 	}
 	checkClusterMatchesFiles(t, manifests, clus, checkout.ManifestDir())
@@ -55,7 +57,7 @@ func TestSync(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := Sync(manifests, resources, clus, true); err != nil {
+	if err := Sync(manifests, resources, clus, true, log.NewNopLogger()); err != nil {
 		t.Fatal(err)
 	}
 	checkClusterMatchesFiles(t, manifests, clus, checkout.ManifestDir())

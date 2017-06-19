@@ -82,6 +82,9 @@ func policies(s flux.ServiceStatus) string {
 	if s.Locked {
 		ps = append(ps, string(policy.Locked))
 	}
+	if s.Ignore {
+		ps = append(ps, string(policy.Ignore))
+	}
 	sort.Strings(ps)
 	return strings.Join(ps, ",")
 }

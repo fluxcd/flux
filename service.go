@@ -155,6 +155,7 @@ type ServiceStatus struct {
 	Status     string
 	Automated  bool
 	Locked     bool
+	Ignore     bool
 }
 
 type Container struct {

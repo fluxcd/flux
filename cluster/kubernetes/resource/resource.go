@@ -2,11 +2,17 @@ package resource
 
 import (
 	"fmt"
+	"strings"
 
 	yaml "gopkg.in/yaml.v2"
 
 	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/policy"
 	"github.com/weaveworks/flux/resource"
+)
+
+const (
+	PolicyPrefix = "flux.weave.works/"
 )
 
 // -- unmarshaling code for specific object and field types
@@ -42,8 +48,14 @@ func (o baseObject) ServiceIDs(all map[string]resource.Resource) []flux.ServiceI
 	return nil
 }
 
-func (o baseObject) Annotations() map[string]string {
-	return o.Meta.Annotations
+func (o baseObject) Policy() policy.Set {
+	set := policy.Set{}
+	for k, v := range o.Meta.Annotations {
+		if strings.HasPrefix(k, PolicyPrefix) && v == "true" {
+			set = set.Add(policy.Parse(strings.TrimPrefix(k, PolicyPrefix)))
+		}
+	}
+	return set
 }
 
 func (o baseObject) Source() string {

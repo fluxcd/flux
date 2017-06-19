@@ -9,20 +9,17 @@ import (
 	yaml "gopkg.in/yaml.v2"
 
 	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/cluster/kubernetes/resource"
 	"github.com/weaveworks/flux/policy"
-)
-
-const (
-	policyPrefix = "flux.weave.works/"
 )
 
 func (m *Manifests) UpdatePolicies(in []byte, update policy.Update) ([]byte, error) {
 	return updateAnnotations(in, func(a map[string]string) map[string]string {
 		for _, policy := range update.Add {
-			a[policyPrefix+string(policy)] = "true"
+			a[resource.PolicyPrefix+string(policy)] = "true"
 		}
 		for _, policy := range update.Remove {
-			delete(a, policyPrefix+string(policy))
+			delete(a, resource.PolicyPrefix+string(policy))
 		}
 		return a
 	})
@@ -153,21 +150,21 @@ func (m *Manifests) ServicesWithPolicy(root string, policy policy.Policy) (flux.
 	return result, nil
 }
 
-func policiesFrom(def []byte) (policy.PolicySet, error) {
+func policiesFrom(def []byte) (policy.Set, error) {
 	manifest, err := parseManifest(def)
 	if err != nil {
 		return nil, err
 	}
 
-	var policies policy.PolicySet
+	var policies policy.Set
 	for k, v := range manifest.Metadata.AnnotationsOrNil() {
-		if !strings.HasPrefix(k, policyPrefix) {
+		if !strings.HasPrefix(k, resource.PolicyPrefix) {
 			continue
 		}
 		if v != "true" {
 			continue
 		}
-		policies = policies.Add(policy.Parse(strings.TrimPrefix(k, policyPrefix)))
+		policies = policies.Add(policy.Parse(strings.TrimPrefix(k, resource.PolicyPrefix)))
 	}
 	return policies, nil
 }

@@ -1,21 +1,16 @@
 package sync
 
 import (
+	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
 
 	"github.com/weaveworks/flux/cluster"
+	"github.com/weaveworks/flux/policy"
 	"github.com/weaveworks/flux/resource"
 )
 
-const (
-	ResultDelete = "delete"
-	ResultApply  = "apply"
-
-	IgnoreAnnotation = "flux.weave.works/ignore"
-)
-
 // Synchronise the cluster to the files in a directory
-func Sync(m cluster.Manifests, repoResources map[string]resource.Resource, clus cluster.Cluster, deletes bool) error {
+func Sync(m cluster.Manifests, repoResources map[string]resource.Resource, clus cluster.Cluster, deletes bool, logger log.Logger) error {
 	// Get a map of resources defined in the cluster
 	clusterBytes, err := clus.Export()
 	if err != nil {
@@ -35,7 +30,8 @@ func Sync(m cluster.Manifests, repoResources map[string]resource.Resource, clus 
 
 	if deletes {
 		for id, res := range clusterResources {
-			if ignore(res) {
+			if res.Policy().Contains(policy.Ignore) {
+				logger.Log("resource", res.ResourceID(), "ignore", "delete")
 				continue
 			}
 			if _, ok := repoResources[id]; !ok {
@@ -48,11 +44,13 @@ func Sync(m cluster.Manifests, repoResources map[string]resource.Resource, clus 
 	}
 
 	for id, res := range repoResources {
-		if ignore(res) {
+		if res.Policy().Contains(policy.Ignore) {
+			logger.Log("resource", res.ResourceID(), "ignore", "apply")
 			continue
 		}
 		if cres, ok := clusterResources[id]; ok {
-			if ignore(cres) {
+			if cres.Policy().Contains(policy.Ignore) {
+				logger.Log("resource", res.ResourceID(), "ignore", "apply")
 				continue
 			}
 		}
@@ -62,12 +60,4 @@ func Sync(m cluster.Manifests, repoResources map[string]resource.Resource, clus 
 		})
 	}
 	return clus.Sync(sync)
-}
-
-func ignore(res resource.Resource) bool {
-	notes := res.Annotations()
-	if notes == nil {
-		return false
-	}
-	return notes[IgnoreAnnotation] == "true"
 }
