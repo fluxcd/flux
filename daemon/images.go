@@ -1,7 +1,6 @@
 package daemon
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/go-kit/kit/log"
@@ -40,6 +39,8 @@ func (d *Daemon) PollImages(logger log.Logger) {
 	}
 	// TODO: #260 Find latest image match for each container,
 	// group by image to do as few releases as possible
+	changes := release.Changes{}
+
 	for _, service := range services {
 		for _, container := range service.ContainersOrNil() {
 			logger := log.NewContext(logger).With("service", service.ID, "container", container.Name, "currentimage", container.Image)
@@ -55,14 +56,13 @@ func (d *Daemon) PollImages(logger log.Logger) {
 			logger.Log("repo", repo, "pattern", pattern)
 
 			if latest := imageMap.LatestImage(repo, pattern); latest != nil && latest.ID != currentImageID {
-				if err := d.ReleaseImage(service.ID, container.Name, latest.ID); err != nil {
-					logger.Log("error", err, "image", latest.ID)
-				} else {
-					logger.Log("msg", "released image", "newimage", latest.ID)
-				}
+				changes.Add(service.ID, container, latest.ID)
+				logger.Log("msg", "added image to changes", "newimage", latest.ID)
 			}
 		}
 	}
+
+	d.ReleaseChanges(changes)
 }
 
 func getTagPattern(services policy.ServiceMap, service flux.ServiceID, container string, logger log.Logger) string {
@@ -82,26 +82,13 @@ func (d *Daemon) unlockedAutomatedServices() (policy.ServiceMap, error) {
 	if err != nil {
 		return nil, err
 	}
-	without := automatedServices.Without(lockedServices)
-	d.Logger.Log("automated", fmt.Sprintf("%#v", automatedServices), "locked", fmt.Sprintf("%#v", lockedServices), "without", fmt.Sprintf("%#v", without))
-	return without, nil
+	return automatedServices.Without(lockedServices), nil
 }
 
-func (d *Daemon) ReleaseImage(serviceID flux.ServiceID, container string, imageID flux.ImageID) error {
-	// Try to update any automated services using this image
-	spec := update.ReleaseSpec{
-		ServiceSpecs: []update.ServiceSpec{update.ServiceSpec(serviceID)},
-		ImageSpec:    update.ImageSpecFromID(imageID),
-		Kind:         update.ReleaseKindExecute,
-	}
-	cause := update.Cause{
-		User:    update.UserAutomated,
-		Message: fmt.Sprintf("Release due to new image %s", imageID.String()),
-	}
-
-	_, err := d.UpdateManifests(update.Spec{Type: update.Images, Cause: cause, Spec: spec})
+func (d *Daemon) ReleaseChanges(changes release.Changes) {
+	cause := update.Cause{}
+	_, err := d.UpdateManifests(update.Spec{Type: update.Images, Cause: cause, Spec: changes})
 	if err == git.ErrNoChanges {
 		err = nil
 	}
-	return err
 }

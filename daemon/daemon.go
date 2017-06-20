@@ -186,6 +186,8 @@ func (d *Daemon) UpdateManifests(spec update.Spec) (job.ID, error) {
 		return id, errors.New("no type in update spec")
 	}
 	switch s := spec.Spec.(type) {
+	case release.Changes:
+		return d.queueJob(d.releaseAutomated(spec, s)), nil
 	case update.ReleaseSpec:
 		return d.queueJob(d.release(spec, s)), nil
 	case policy.Updates:
@@ -279,6 +281,24 @@ func (d *Daemon) release(spec update.Spec, s update.ReleaseSpec) DaemonJobFunc {
 			Spec:     &spec,
 			Result:   result,
 		}, nil
+	}
+}
+
+func (d *Daemon) releaseAutomated(spec update.Spec, s release.Changes) DaemonJobFunc {
+	return func(jobID job.ID, working *git.Checkout, logger log.Logger) (*history.CommitEventMetadata, error) {
+		rc := release.NewReleaseContext(d.Cluster, d.Manifests, d.Registry, working)
+		updates, err := s.ServiceUpdates(rc, logger)
+		if err != nil {
+			logger.Log("msg", "automated release failed", "err", err)
+		}
+
+		err = release.ApplyChanges(rc, updates, logger)
+		if err != nil {
+			logger.Log("msg", "automated release failed", "err", err, "updates", fmt.Sprintf("%#v", updates))
+			return nil, err
+		}
+
+		return &history.CommitEventMetadata{}, nil
 	}
 }
 

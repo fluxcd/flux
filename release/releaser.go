@@ -40,13 +40,7 @@ func Release(rc *ReleaseContext, spec update.ReleaseSpec, logger log.Logger) (re
 		return nil, err
 	}
 
-	logger.Log("updates", len(updates))
-	if len(updates) == 0 {
-		logger.Log("exit", "no images to update for services given")
-		return results, nil
-	}
-
-	err = ApplyChanges(rc, updates)
+	err = ApplyChanges(rc, updates, logger)
 	return results, err
 
 }
@@ -86,13 +80,6 @@ func markSkipped(spec update.ReleaseSpec, results update.Result) {
 			}
 		}
 	}
-}
-
-func ApplyChanges(rc *ReleaseContext, updates []*ServiceUpdate) error {
-	timer := NewStageTimer("push_changes")
-	err := rc.WriteUpdates(updates)
-	timer.ObserveDuration()
-	return err
 }
 
 // Take the spec given in the job, and figure out which services are
@@ -206,6 +193,7 @@ func calculateImageUpdates(rc *ReleaseContext, candidates []*ServiceUpdate, spec
 			continue
 		}
 
+		// TODO #260 revisit this?
 		// Filter container name if it's present in spec
 		if fc, err := filterContainers(containers, spec); err == nil {
 			containers = fc
@@ -282,6 +270,24 @@ func calculateImageUpdates(rc *ReleaseContext, candidates []*ServiceUpdate, spec
 	}
 
 	return updates, nil
+}
+
+func ApplyChanges(rc *ReleaseContext, updates []*ServiceUpdate, logger log.Logger) error {
+	logger.Log("updates", len(updates))
+	if len(updates) == 0 {
+		logger.Log("exit", "no images to update for services given")
+		return nil
+	} else {
+		l := log.NewContext(logger).With("msg", "applying changes")
+		for _, u := range updates {
+			l.Log("changes", fmt.Sprintf("%#v", *u))
+		}
+	}
+
+	timer := NewStageTimer("push_changes")
+	err := rc.WriteUpdates(updates)
+	timer.ObserveDuration()
+	return err
 }
 
 func filterContainers(containers []cluster.Container, spec *update.ReleaseSpec) ([]cluster.Container, error) {
