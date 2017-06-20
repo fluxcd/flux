@@ -17,13 +17,13 @@ func NewMock() EventReadWriter {
 	return &Mock{}
 }
 
-func (m *Mock) AllEvents(_ time.Time, _ int64) ([]Event, error) {
+func (m *Mock) AllEvents(_ time.Time, _ int64, _ time.Time) ([]Event, error) {
 	m.RLock()
 	defer m.RUnlock()
 	return m.events, nil
 }
 
-func (m *Mock) EventsForService(serviceID flux.ServiceID, _ time.Time, _ int64) ([]Event, error) {
+func (m *Mock) EventsForService(serviceID flux.ServiceID, _ time.Time, _ int64, _ time.Time) ([]Event, error) {
 	m.RLock()
 	defer m.RUnlock()
 	var found []Event

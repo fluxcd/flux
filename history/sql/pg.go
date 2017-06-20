@@ -84,21 +84,23 @@ func (db *pgDB) scanEvents(query squirrel.Sqlizer) ([]history.Event, error) {
 	return events, rows.Err()
 }
 
-func (db *pgDB) EventsForService(inst flux.InstanceID, service flux.ServiceID, before time.Time, limit int64) ([]history.Event, error) {
+func (db *pgDB) EventsForService(inst flux.InstanceID, service flux.ServiceID, before time.Time, limit int64, after time.Time) ([]history.Event, error) {
 	q := db.eventsQuery().
 		Where("instance_id = ?", string(inst)).
 		Where("service_ids @> ?", pq.StringArray{string(service)}).
-		Where("started_at < ?", before)
+		Where("started_at < ?", before).
+		Where("started_at > ?", after)
 	if limit >= 0 {
 		q = q.Limit(uint64(limit))
 	}
 	return db.scanEvents(q)
 }
 
-func (db *pgDB) AllEvents(inst flux.InstanceID, before time.Time, limit int64) ([]history.Event, error) {
+func (db *pgDB) AllEvents(inst flux.InstanceID, before time.Time, limit int64, after time.Time) ([]history.Event, error) {
 	q := db.eventsQuery().
 		Where("instance_id = ?", string(inst)).
-		Where("started_at < ?", before)
+		Where("started_at < ?", before).
+		Where("started_at > ?", after)
 	if limit >= 0 {
 		q = q.Limit(uint64(limit))
 	}

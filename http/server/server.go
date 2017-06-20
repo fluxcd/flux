@@ -249,6 +249,14 @@ func (s HTTPService) History(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	after := time.Unix(0, 0)
+	if r.FormValue("after") != "" {
+		after, err = time.Parse(time.RFC3339Nano, r.FormValue("after"))
+		if err != nil {
+			transport.ErrorResponse(w, r, err)
+			return
+		}
+	}
 	limit := int64(-1)
 	if r.FormValue("limit") != "" {
 		if _, err := fmt.Sscan(r.FormValue("limit"), &limit); err != nil {
@@ -257,7 +265,7 @@ func (s HTTPService) History(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	h, err := s.service.History(inst, spec, before, limit)
+	h, err := s.service.History(inst, spec, before, limit, after)
 	if err != nil {
 		transport.ErrorResponse(w, r, err)
 		return

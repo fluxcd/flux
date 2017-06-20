@@ -72,7 +72,7 @@ func TestHistoryLog(t *testing.T) {
 		Message:    "event 2",
 	}))
 
-	es, err := db.EventsForService(instance, flux.ServiceID("namespace/service"), time.Now().UTC(), -1)
+	es, err := db.EventsForService(instance, flux.ServiceID("namespace/service"), time.Now().UTC(), -1, time.Unix(0, 0))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -81,7 +81,7 @@ func TestHistoryLog(t *testing.T) {
 	}
 	checkInDescOrder(t, es)
 
-	es, err = db.AllEvents(instance, time.Now().UTC(), -1)
+	es, err = db.AllEvents(instance, time.Now().UTC(), -1, time.Unix(0, 0))
 	if err != nil {
 		t.Fatal(err)
 	}

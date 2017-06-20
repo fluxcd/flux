@@ -102,10 +102,13 @@ func (c *Client) LogEvent(_ flux.InstanceID, event history.Event) error {
 	return c.postWithBody("LogEvent", event)
 }
 
-func (c *Client) History(_ flux.InstanceID, s update.ServiceSpec, before time.Time, limit int64) ([]history.Entry, error) {
+func (c *Client) History(_ flux.InstanceID, s update.ServiceSpec, before time.Time, limit int64, after time.Time) ([]history.Entry, error) {
 	params := []string{"service", string(s)}
 	if !before.IsZero() {
 		params = append(params, "before", before.Format(time.RFC3339Nano))
+	}
+	if !after.IsZero() {
+		params = append(params, "after", after.Format(time.RFC3339Nano))
 	}
 	if limit >= 0 {
 		params = append(params, "limit", fmt.Sprint(limit))
