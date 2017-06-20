@@ -109,7 +109,7 @@ func TestPullAndSync_InitialSync(t *testing.T) {
 	}
 
 	// The emitted event has all service ids
-	es, err := events.AllEvents(time.Time{}, -1)
+	es, err := events.AllEvents(time.Time{}, -1, time.Time{})
 	if err != nil {
 		t.Error(err)
 	} else if len(es) != 1 {
@@ -164,7 +164,7 @@ func TestPullAndSync_NoNewCommits(t *testing.T) {
 	}
 
 	// The emitted event has no service ids
-	es, err := events.AllEvents(time.Time{}, -1)
+	es, err := events.AllEvents(time.Time{}, -1, time.Time{})
 	if err != nil {
 		t.Error(err)
 	} else if len(es) != 0 {
@@ -235,7 +235,7 @@ func TestPullAndSync_WithNewCommit(t *testing.T) {
 	}
 
 	// The emitted event has no service ids
-	es, err := events.AllEvents(time.Time{}, -1)
+	es, err := events.AllEvents(time.Time{}, -1, time.Time{})
 	if err != nil {
 		t.Error(err)
 	} else if len(es) != 1 {

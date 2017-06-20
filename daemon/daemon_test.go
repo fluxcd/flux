@@ -176,7 +176,7 @@ func TestDaemon_SyncNotify(t *testing.T) {
 	// Check that history was written to
 	var e []history.Event
 	w.Eventually(func() bool {
-		e, _ = events.AllEvents(time.Time{}, -1)
+		e, _ = events.AllEvents(time.Time{}, -1, time.Time{})
 		return len(e) > 0
 	}, "Waiting for new events")
 	if 1 != len(e) {

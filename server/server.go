@@ -166,7 +166,7 @@ func (s *Server) LogEvent(instID flux.InstanceID, e history.Event) error {
 	return nil
 }
 
-func (s *Server) History(inst flux.InstanceID, spec update.ServiceSpec, before time.Time, limit int64) (res []history.Entry, err error) {
+func (s *Server) History(inst flux.InstanceID, spec update.ServiceSpec, before time.Time, limit int64, after time.Time) (res []history.Entry, err error) {
 	helper, err := s.instancer.Get(inst)
 	if err != nil {
 		return nil, errors.Wrapf(err, "getting instance")
@@ -174,7 +174,7 @@ func (s *Server) History(inst flux.InstanceID, spec update.ServiceSpec, before t
 
 	var events []history.Event
 	if spec == update.ServiceSpecAll {
-		events, err = helper.AllEvents(before, limit)
+		events, err = helper.AllEvents(before, limit, after)
 		if err != nil {
 			return nil, errors.Wrap(err, "fetching all history events")
 		}
@@ -184,7 +184,7 @@ func (s *Server) History(inst flux.InstanceID, spec update.ServiceSpec, before t
 			return nil, errors.Wrapf(err, "parsing service ID from spec %s", spec)
 		}
 
-		events, err = helper.EventsForService(id, before, limit)
+		events, err = helper.EventsForService(id, before, limit, after)
 		if err != nil {
 			return nil, errors.Wrapf(err, "fetching history events for %s", id)
 		}

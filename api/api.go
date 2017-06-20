@@ -22,7 +22,7 @@ type ClientService interface {
 	JobStatus(flux.InstanceID, job.ID) (job.Status, error)
 	SyncStatus(flux.InstanceID, string) ([]string, error)
 	UpdatePolicies(flux.InstanceID, policy.Updates, update.Cause) (job.ID, error)
-	History(flux.InstanceID, update.ServiceSpec, time.Time, int64) ([]history.Entry, error)
+	History(flux.InstanceID, update.ServiceSpec, time.Time, int64, time.Time) ([]history.Entry, error)
 	GetConfig(_ flux.InstanceID, fingerprint string) (flux.InstanceConfig, error)
 	SetConfig(flux.InstanceID, flux.UnsafeInstanceConfig) error
 	PatchConfig(flux.InstanceID, flux.ConfigPatch) error
