@@ -3,11 +3,12 @@ package git
 import (
 	"errors"
 
-	"github.com/weaveworks/flux"
+	fluxerr "github.com/weaveworks/flux/errors"
 )
 
-var NoRepoError = flux.UserConfigProblem{&flux.BaseError{
-	Err: errors.New("no repo in user config"),
+var NoRepoError = &fluxerr.Error{
+	Type: fluxerr.User,
+	Err:  errors.New("no repo in user config"),
 	Help: `No Git repository URL in your config
 
 We need to clone a git repo to proceed, and you haven't supplied
@@ -17,11 +18,12 @@ described in
     https://github.com/weaveworks/flux/blob/master/site/using.md
 
 `,
-}}
+}
 
 func CloningError(url string, actual error) error {
-	return flux.UserConfigProblem{&flux.BaseError{
-		Err: actual,
+	return &fluxerr.Error{
+		Type: fluxerr.User,
+		Err:  actual,
 		Help: `Problem cloning your git repository
 
 There was a problem cloning your git repository,
@@ -39,12 +41,13 @@ cross-check with the fingerprint given by
     fluxctl identity
 
 `,
-	}}
+	}
 }
 
 func PushError(url string, actual error) error {
-	return flux.UserConfigProblem{&flux.BaseError{
-		Err: actual,
+	return &fluxerr.Error{
+		Type: fluxerr.User,
+		Err:  actual,
 		Help: `Problem committing and pushing to git repository.
 
 There was a problem with committing changes and pushing to the git
@@ -71,5 +74,5 @@ The public key this outputs can then be given to GitHub; make sure you
 check the box to allow write access.
 
 `,
-	}}
+	}
 }

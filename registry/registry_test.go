@@ -9,6 +9,7 @@ import (
 	"github.com/go-kit/kit/log"
 
 	"github.com/weaveworks/flux"
+	fluxerr "github.com/weaveworks/flux/errors"
 	"github.com/weaveworks/flux/registry/cache"
 	"github.com/weaveworks/flux/registry/middleware"
 )
@@ -158,14 +159,14 @@ func TestRemote_BetterError(t *testing.T) {
 	if err == nil {
 		t.Fatal("Should have errored")
 	}
-	if _, ok := err.(*flux.Missing); !ok {
+	if !fluxerr.IsMissing(err) {
 		t.Fatalf("Should not be bespoke error, got %q", err.Error())
 	}
 	_, err = reg.GetImage(id)
 	if err == nil {
 		t.Fatal("Should have errored")
 	}
-	if _, ok := err.(*flux.Missing); !ok {
+	if !fluxerr.IsMissing(err) {
 		t.Fatalf("Should not be bespoke error, got %q", err.Error())
 	}
 }

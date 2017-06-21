@@ -3,10 +3,11 @@ package http
 import (
 	"errors"
 
-	"github.com/weaveworks/flux"
+	fluxerr "github.com/weaveworks/flux/errors"
 )
 
-var ErrorDeprecated = &flux.BaseError{
+var ErrorDeprecated = &fluxerr.Error{
+	Type: fluxerr.Missing,
 	Help: `The API endpoint requested appears to have been deprecated.
 
 This indicates your client (fluxctl) needs to be updated: please see
@@ -24,7 +25,8 @@ mentioning what you were attempting to do, and the output of
 	Err: errors.New("API endpoint deprecated"),
 }
 
-var ErrorUnauthorized = &flux.BaseError{
+var ErrorUnauthorized = &fluxerr.Error{
+	Type: fluxerr.User,
 	Help: `The request failed authentication
 
 This most likely means you have a missing or incorrect token. Please
@@ -36,8 +38,9 @@ with fluxctl.
 	Err: errors.New("request failed authentication"),
 }
 
-func MakeAPINotFound(path string) *flux.BaseError {
-	return &flux.BaseError{
+func MakeAPINotFound(path string) *fluxerr.Error {
+	return &fluxerr.Error{
+		Type: fluxerr.Missing,
 		Help: `The API endpoint requested is not supported by this server.
 
 This indicates that your client (probably fluxctl) is either out of

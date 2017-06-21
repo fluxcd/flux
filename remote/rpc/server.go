@@ -5,7 +5,10 @@ import (
 	"net/rpc"
 	"net/rpc/jsonrpc"
 
+	"github.com/pkg/errors"
+
 	"github.com/weaveworks/flux"
+	fluxerr "github.com/weaveworks/flux/errors"
 	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/remote"
 	"github.com/weaveworks/flux/update"
@@ -45,48 +48,136 @@ func (p *RPCServer) Version(_ struct{}, resp *string) error {
 	return err
 }
 
-func (p *RPCServer) Export(_ struct{}, resp *[]byte) error {
+type ExportResponse struct {
+	Result           []byte
+	ApplicationError *fluxerr.Error
+}
+
+func (p *RPCServer) Export(_ struct{}, resp *ExportResponse) error {
 	v, err := p.p.Export()
-	*resp = v
+	resp.Result = v
+	if err != nil {
+		if err, ok := errors.Cause(err).(*fluxerr.Error); ok {
+			resp.ApplicationError = err
+			return nil
+		}
+	}
 	return err
 }
 
-func (p *RPCServer) ListServices(namespace string, resp *[]flux.ServiceStatus) error {
+type ListServicesResponse struct {
+	Result           []flux.ServiceStatus
+	ApplicationError *fluxerr.Error
+}
+
+func (p *RPCServer) ListServices(namespace string, resp *ListServicesResponse) error {
 	v, err := p.p.ListServices(namespace)
-	*resp = v
+	resp.Result = v
+	if err != nil {
+		if err, ok := errors.Cause(err).(*fluxerr.Error); ok {
+			resp.ApplicationError = err
+			return nil
+		}
+	}
 	return err
 }
 
-func (p *RPCServer) ListImages(spec update.ServiceSpec, resp *[]flux.ImageStatus) error {
+type ListImagesResponse struct {
+	Result           []flux.ImageStatus
+	ApplicationError *fluxerr.Error
+}
+
+func (p *RPCServer) ListImages(spec update.ServiceSpec, resp *ListImagesResponse) error {
 	v, err := p.p.ListImages(spec)
-	*resp = v
+	resp.Result = v
+	if err != nil {
+		if err, ok := errors.Cause(err).(*fluxerr.Error); ok {
+			resp.ApplicationError = err
+			return nil
+		}
+	}
 	return err
 }
 
-func (p *RPCServer) UpdateManifests(spec update.Spec, resp *job.ID) error {
+type UpdateManifestsResponse struct {
+	Result           job.ID
+	ApplicationError *fluxerr.Error
+}
+
+func (p *RPCServer) UpdateManifests(spec update.Spec, resp *UpdateManifestsResponse) error {
 	v, err := p.p.UpdateManifests(spec)
-	*resp = v
+	resp.Result = v
+	if err != nil {
+		if err, ok := errors.Cause(err).(*fluxerr.Error); ok {
+			resp.ApplicationError = err
+			return nil
+		}
+	}
 	return err
 }
 
-func (p *RPCServer) SyncNotify(_ struct{}, _ *struct{}) error {
-	return p.p.SyncNotify()
+type SyncNotifyResponse struct {
+	ApplicationError *fluxerr.Error
 }
 
-func (p *RPCServer) JobStatus(jobID job.ID, resp *job.Status) error {
+func (p *RPCServer) SyncNotify(_ struct{}, resp *SyncNotifyResponse) error {
+	err := p.p.SyncNotify()
+	if err != nil {
+		if err, ok := errors.Cause(err).(*fluxerr.Error); ok {
+			resp.ApplicationError = err
+			return nil
+		}
+	}
+	return err
+}
+
+type JobStatusResponse struct {
+	Result           job.Status
+	ApplicationError *fluxerr.Error
+}
+
+func (p *RPCServer) JobStatus(jobID job.ID, resp *JobStatusResponse) error {
 	v, err := p.p.JobStatus(jobID)
-	*resp = v
+	resp.Result = v
+	if err != nil {
+		if err, ok := errors.Cause(err).(*fluxerr.Error); ok {
+			resp.ApplicationError = err
+			return nil
+		}
+	}
 	return err
 }
 
-func (p *RPCServer) SyncStatus(cursor string, resp *[]string) error {
+type SyncStatusResponse struct {
+	Result           []string
+	ApplicationError *fluxerr.Error
+}
+
+func (p *RPCServer) SyncStatus(cursor string, resp *SyncStatusResponse) error {
 	v, err := p.p.SyncStatus(cursor)
-	*resp = v
+	resp.Result = v
+	if err != nil {
+		if err, ok := errors.Cause(err).(*fluxerr.Error); ok {
+			resp.ApplicationError = err
+			return nil
+		}
+	}
 	return err
 }
 
-func (p *RPCServer) GitRepoConfig(regenerate bool, resp *flux.GitConfig) error {
+type GitRepoConfigResponse struct {
+	Result           flux.GitConfig
+	ApplicationError *fluxerr.Error
+}
+
+func (p *RPCServer) GitRepoConfig(regenerate bool, resp *GitRepoConfigResponse) error {
 	v, err := p.p.GitRepoConfig(regenerate)
-	*resp = v
+	resp.Result = v
+	if err != nil {
+		if err, ok := errors.Cause(err).(*fluxerr.Error); ok {
+			resp.ApplicationError = err
+			return nil
+		}
+	}
 	return err
 }

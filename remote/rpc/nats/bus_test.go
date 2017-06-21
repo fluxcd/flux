@@ -90,6 +90,9 @@ func TestMethods(t *testing.T) {
 	}
 }
 
+// A fatal error (a problem with the RPC connection, rather than a
+// problem with processing the request) should both disconnect the RPC
+// server, and be returned to the caller, all the way across the bus.
 func TestFatalErrorDisconnects(t *testing.T) {
 	bus := setup(t)
 
@@ -109,8 +112,6 @@ func TestFatalErrorDisconnects(t *testing.T) {
 	_, err = plat.ListServices("")
 	if err == nil {
 		t.Error("expected error, got nil")
-	} else if _, ok := err.(remote.FatalError); !ok {
-		t.Errorf("expected remote.FatalError, got %v", err)
 	}
 
 	select {

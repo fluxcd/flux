@@ -7,8 +7,10 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
 	glob "github.com/ryanuber/go-glob"
+
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster"
+	fluxerr "github.com/weaveworks/flux/errors"
 	"github.com/weaveworks/flux/registry"
 )
 
@@ -66,7 +68,7 @@ func CollectAvailableImages(reg registry.Registry, services []cluster.Service, l
 		imageRepo, err := reg.GetRepository(id)
 		if err != nil {
 			// Not an error if missing. Use empty images.
-			if _, ok := err.(*flux.Missing); !ok {
+			if !fluxerr.IsMissing(err) {
 				logger.Log("err", errors.Wrapf(err, "fetching image metadata for %s", repo))
 				continue
 			}

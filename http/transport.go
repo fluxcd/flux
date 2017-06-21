@@ -10,7 +10,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 
-	"github.com/weaveworks/flux"
+	fluxerr "github.com/weaveworks/flux/errors"
 )
 
 func DeprecateVersions(r *mux.Router, versions ...string) {
@@ -45,7 +45,8 @@ func NewAPIRouter() *mux.Router {
 }
 
 func UpstreamRoutes(r *mux.Router) {
-	r.NewRoute().Name("RegisterDaemon").Methods("GET").Path("/v6/daemon")
+	r.NewRoute().Name("RegisterDaemonV6").Methods("GET").Path("/v6/daemon")
+	r.NewRoute().Name("RegisterDaemonV7").Methods("GET").Path("/v7/daemon")
 	r.NewRoute().Name("LogEvent").Methods("POST").Path("/v6/events")
 }
 
@@ -102,7 +103,7 @@ func WriteError(w http.ResponseWriter, r *http.Request, code int, err error) {
 			w.Header().Set(http.CanonicalHeaderKey("Content-Type"), "text/plain; charset=utf-8")
 			w.WriteHeader(code)
 			switch err := err.(type) {
-			case *flux.BaseError:
+			case *fluxerr.Error:
 				fmt.Fprint(w, err.Help)
 			default:
 				fmt.Fprint(w, err.Error())
@@ -128,23 +129,23 @@ func JSONResponse(w http.ResponseWriter, r *http.Request, result interface{}) {
 }
 
 func ErrorResponse(w http.ResponseWriter, r *http.Request, apiError error) {
-	var outErr *flux.BaseError
+	var outErr *fluxerr.Error
 	var code int
+	var ok bool
+
 	err := errors.Cause(apiError)
-	switch err := err.(type) {
-	case flux.Missing:
+	if outErr, ok = err.(*fluxerr.Error); !ok {
+		outErr = fluxerr.CoverAllError(apiError)
+	}
+	switch outErr.Type {
+	case fluxerr.Missing:
 		code = http.StatusNotFound
-		outErr = err.BaseError
-	case flux.UserConfigProblem:
+	case fluxerr.User:
 		code = http.StatusUnprocessableEntity
-		outErr = err.BaseError
-	case flux.ServerException:
+	case fluxerr.Server:
 		code = http.StatusInternalServerError
-		outErr = err.BaseError
 	default:
 		code = http.StatusInternalServerError
-		outErr = flux.CoverAllError(apiError)
 	}
-
 	WriteError(w, r, code, outErr)
 }

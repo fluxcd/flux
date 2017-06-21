@@ -1,15 +1,16 @@
 package remote
 
 import (
-	"github.com/weaveworks/flux"
+	fluxerr "github.com/weaveworks/flux/errors"
 )
 
 func UnavailableError(err error) error {
-	return flux.UserConfigProblem{&flux.BaseError{
-		Help: `Cannot contact flux
+	return &fluxerr.Error{
+		Type: fluxerr.User,
+		Help: `Cannot contact flux daemon
 
 To service this request, we need to ask the agent running in your
-cluster (flux) for some information. But we can't connect to it at
+cluster (fluxd) for some information. But we can't connect to it at
 present.
 
 This may be because it's not running at all, is temporarily
@@ -29,27 +30,29 @@ If you are still stuck, please log an issue:
 
 `,
 		Err: err,
-	}}
+	}
 }
 
 func UpgradeNeededError(err error) error {
-	return flux.UserConfigProblem{&flux.BaseError{
-		Help: `Your fluxd needs to be upgraded
+	return &fluxerr.Error{
+		Type: fluxerr.User,
+		Help: `Your flux daemon needs to be upgraded
 
 To service this request, we need to ask the agent running in your
 cluster (fluxd) to perform an operation on our behalf, but the
 version you have running is too old to understand the request.
 
-Please install the latest version of fluxd and try again.
+Please install the latest version of flux and try again.
 
 `,
 		Err: err,
-	}}
+	}
 }
 
 func ClusterError(err error) error {
-	return flux.UserConfigProblem{&flux.BaseError{
-		Help: `Error from Flux daemon
+	return &fluxerr.Error{
+		Type: fluxerr.User,
+		Help: `Error from flux daemon
 
 The Flux daemon (fluxd) reported this error:
 
@@ -72,5 +75,5 @@ If you are still stuck, please log an issue:
 
 `,
 		Err: err,
-	}}
+	}
 }

@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/weaveworks/flux"
+	fluxerr "github.com/weaveworks/flux/errors"
 	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/service"
 	"github.com/weaveworks/flux/update"
@@ -90,14 +91,13 @@ func (s *StandaloneMessageBus) Ping(inst service.InstanceID) error {
 	if ok {
 		return p.Ping()
 	}
-	return flux.Missing{
-		BaseError: &flux.BaseError{
-			Err: errNotSubscribed,
-			Help: `Flux daemon is not connected
+	return &fluxerr.Error{
+		Type: fluxerr.Missing,
+		Err:  errNotSubscribed,
+		Help: `Flux daemon is not connected
 
 Please check that you have started fluxd in your cluster and that
 the FLUX_URL or FLUX_SERVICE_TOKEN is configured correctly.`,
-		},
 	}
 }
 
