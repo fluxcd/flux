@@ -107,7 +107,7 @@ func addNote(workingDir, rev, notesRef string, note *Note) error {
 func getNote(workingDir, notesRef, rev string) (*Note, error) {
 	out := &bytes.Buffer{}
 	if err := execGitCmd(workingDir, nil, out, "notes", "--ref", notesRef, "show", rev); err != nil {
-		if strings.Contains(err.Error(), "No note found for object") {
+		if strings.Contains(strings.ToLower(err.Error()), "no note found for object") {
 			return nil, nil
 		}
 		return nil, err
