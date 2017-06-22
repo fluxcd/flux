@@ -60,7 +60,7 @@ func push(keyRing ssh.KeyRing, workingDir, upstream string, refs []string) error
 	return nil
 }
 
-// pull the specific ref from upstream. Usually this would
+// pull the specific ref from upstream
 func pull(keyRing ssh.KeyRing, workingDir, upstream, ref string) error {
 	if err := execGitCmd(workingDir, keyRing, nil, "pull", "--ff-only", upstream, ref); err != nil {
 		return errors.Wrap(err, fmt.Sprintf("git pull --ff-only %s %s", upstream, ref))
@@ -86,7 +86,7 @@ func refExists(workingDir, ref string) (bool, error) {
 	return true, nil
 }
 
-// Get the full ref for a shorthand notes ref
+// Get the full ref for a shorthand notes ref.
 func getNotesRef(workingDir, ref string) (string, error) {
 	out := &bytes.Buffer{}
 	if err := execGitCmd(workingDir, nil, out, "notes", "--ref", ref, "get-ref"); err != nil {
@@ -103,9 +103,13 @@ func addNote(workingDir, rev, notesRef string, note *Note) error {
 	return execGitCmd(workingDir, nil, nil, "notes", "--ref", notesRef, "add", "-m", string(b), rev)
 }
 
+// NB return values (*Note, nil), (nil, error), (nil, nil)
 func getNote(workingDir, notesRef, rev string) (*Note, error) {
 	out := &bytes.Buffer{}
 	if err := execGitCmd(workingDir, nil, out, "notes", "--ref", notesRef, "show", rev); err != nil {
+		if strings.Contains(strings.ToLower(err.Error()), "no note found for object") {
+			return nil, nil
+		}
 		return nil, err
 	}
 	var note Note
@@ -177,7 +181,7 @@ func execGitCmd(dir string, keyRing ssh.KeyRing, out io.Writer, args ...string) 
 	c.Stderr = errOut
 	err := c.Run()
 	if err != nil {
-		msg := findFatalMessage(errOut)
+		msg := findErrorMessage(errOut)
 		if msg != "" {
 			err = errors.New(msg)
 		}
@@ -200,11 +204,14 @@ func check(workingDir, subdir string) bool {
 	return execGitCmd(workingDir, nil, nil, "diff", "--quiet", "--", subdir) != nil
 }
 
-func findFatalMessage(output io.Reader) string {
+func findErrorMessage(output io.Reader) string {
 	sc := bufio.NewScanner(output)
 	for sc.Scan() {
-		if strings.HasPrefix(sc.Text(), "fatal:") {
+		switch {
+		case strings.HasPrefix(sc.Text(), "fatal: "):
 			return sc.Text()
+		case strings.HasPrefix(sc.Text(), "error:"):
+			return strings.Trim(sc.Text(), "error: ")
 		}
 	}
 	return ""

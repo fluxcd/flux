@@ -158,6 +158,9 @@ func (d *Daemon) pullAndSync(logger log.Logger) {
 				// TODO: We're ignoring all errors here, not just the "no notes" error. Parse error to report proper errors.
 				continue
 			}
+			if n == nil {
+				continue
+			}
 
 			// If any of the commit notes has a release event, send
 			// that to the service
