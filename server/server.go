@@ -18,14 +18,6 @@ import (
 	"github.com/weaveworks/flux/update"
 )
 
-const (
-	serviceAutomated   = "Automation enabled."
-	serviceDeautomated = "Automation disabled."
-
-	serviceLocked   = "Service locked."
-	serviceUnlocked = "Service unlocked."
-)
-
 type Server struct {
 	version     string
 	instancer   instance.Instancer
