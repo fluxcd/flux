@@ -222,7 +222,7 @@ func main() {
 				&http.Client{Timeout: 10 * time.Second},
 				fmt.Sprintf("fluxd/%v", version),
 				flux.Token(*token),
-				transport.NewServiceRouter(), // TODO should be NewUpstreamRouter, since it only needs the registration endpoint
+				transport.NewUpstreamRouter(),
 				*upstreamURL,
 				&remote.ErrorLoggingPlatform{daemonRef, upstreamLogger},
 				upstreamLogger,

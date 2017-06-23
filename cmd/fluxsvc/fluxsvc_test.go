@@ -130,7 +130,7 @@ func setup() {
 
 	// Server
 	apiServer := server.New(ver, instancer, instanceDB, messageBus, log.NewNopLogger())
-	router = transport.NewServiceRouter()
+	router = httpserver.NewServiceRouter()
 	handler := httpserver.NewHandler(apiServer, router, log.NewNopLogger())
 	ts = httptest.NewServer(handler)
 	apiClient = client.New(http.DefaultClient, router, ts.URL, "")

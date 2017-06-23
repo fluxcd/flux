@@ -30,6 +30,9 @@ var (
 // An API server for the daemon
 func NewRouter() *mux.Router {
 	r := transport.NewAPIRouter()
+	// All old versions are deprecated in the daemon. Use an up to
+	// date client!
+	transport.DeprecateVersions(r, "v1", "v2", "v3", "v4", "v5")
 	// We assume every request that doesn't match a route is a client
 	// calling an old or hitherto unsupported API.
 	r.NewRoute().Name("NotFound").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

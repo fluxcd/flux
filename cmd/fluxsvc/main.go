@@ -16,7 +16,6 @@ import (
 	"github.com/weaveworks/flux/db"
 	"github.com/weaveworks/flux/history"
 	historysql "github.com/weaveworks/flux/history/sql"
-	transport "github.com/weaveworks/flux/http"
 	httpserver "github.com/weaveworks/flux/http/server"
 	"github.com/weaveworks/flux/instance"
 	instancedb "github.com/weaveworks/flux/instance/sql"
@@ -147,7 +146,7 @@ func main() {
 		logger.Log("addr", *listenAddr)
 		mux := http.NewServeMux()
 		mux.Handle("/metrics", promhttp.Handler())
-		handler := httpserver.NewHandler(server, transport.NewServiceRouter(), logger)
+		handler := httpserver.NewHandler(server, httpserver.NewServiceRouter(), logger)
 		mux.Handle("/", handler)
 		mux.Handle("/api/flux/", http.StripPrefix("/api/flux", handler))
 		errc <- http.ListenAndServe(*listenAddr, mux)
