@@ -478,10 +478,10 @@
 		},
 		{
 			"importpath": "github.com/heroku/docker-registry-client",
-			"repository": "https://github.com/paulbellamy/docker-registry-client",
+			"repository": "https://github.com/heroku/docker-registry-client",
 			"vcs": "git",
-			"revision": "2b1d4773467efc125a91237e10268631398de074",
-			"branch": "handle-relative-nextlinks",
+			"revision": "95467b6cacee2a06f112a3cf7e47a70fad6000cf",
+			"branch": "master",
 			"notests": true
 		},
 		{
