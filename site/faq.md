@@ -9,7 +9,8 @@ Also see [the introduction](/site/introduction.md).
 
 ### What does Flux do?
 
-Flux automates the process of deploying containers to Kubernetes.
+Flux automates the process of deploying new configuration and
+container images to Kubernetes.
 
 ### How does it automate deployment?
 
@@ -20,10 +21,10 @@ manifests accordingly.
 ### How is that different from a bash script?
 
 The amount of functionality contained within Flux warrants a dedicated
-application/service. An equivalent script would be too large to maintain
-and reuse.
+application/service. An equivalent script could easily get too large
+to maintain and reuse.
 
-This also forms a base to add features like slack integration.
+This also forms a base to add features like Slack integration.
 
 ### Why should I automate deployment?
 
@@ -45,5 +46,6 @@ Provide Flux with the registry credentials. See
 
 ### How often does Flux check for new images?
 
-Flux polls the registry every 60 s.
-
+Flux polls image registries every 5 minutes by default. You can change
+this, but beware that registries may throttle and even blacklist
+over-eager clients (like FLux in this scenario).

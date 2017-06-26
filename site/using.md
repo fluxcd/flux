@@ -6,8 +6,8 @@ menu_order: 40
 All of the features of Flux are accessible from within
 [Weave Cloud](https://cloud.weave.works).
 
-However, `fluxctl` provides an equivalent API that can be used from the
-command line. The `--help` for `fluxctl` is described below.
+However, `fluxctl` provides an equivalent API that can be used from
+the command line. The `--help` for `fluxctl` is described below.
 
 ```sh
 fluxctl helps you deploy your code.
@@ -145,10 +145,10 @@ default/memcached   memcached   memcached:1.4.25                                
 default/nats        nats        nats:0.9.4                                         ready    
 ```
 
-We can see that the `list-services` subcommand reports that the 
-helloworld application is automated. Flux will now automatically 
-deploy a new version of a service whenever one is available and 
-persist the configuration to the version control system.
+We can see that the `list-services` subcommand reports that the
+helloworld application is automated. Flux will now automatically
+deploy a new version of a service whenever one is available and commit
+the new configuration to the version control system.
 
 # Turning off Automation
 
@@ -175,7 +175,8 @@ We can see tha the service is no longer automated.
 
 # Locking a Service
 
-Locking a service will prevent the manifest from being synchronised.
+Locking a service will stop manual or automated releases to that
+service. Changes made in the file will still be synced.
 
 ```sh
 $ fluxctl lock --service=default/helloworld
@@ -186,7 +187,8 @@ default/helloworld  success
 
 # Unlocking a Service
 
-Unlocking a service allows a manifest to be synchronised to the cluster.
+Unlocking a service allows it to have manual or automated releases
+(again).
 
 ```sh
 $ fluxctl unlock --service=default/helloworld
