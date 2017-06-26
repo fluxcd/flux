@@ -15,6 +15,7 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/pflag"
+	"github.com/weaveworks/go-checkpoint"
 	k8sclient "k8s.io/client-go/1.5/kubernetes"
 	"k8s.io/client-go/1.5/rest"
 
@@ -101,6 +102,7 @@ func main() {
 	}
 
 	// Platform component.
+	var clusterVersion string
 	var sshKeyRing ssh.KeyRing
 	var k8s cluster.Cluster
 	var k8sManifests cluster.Manifests
@@ -119,6 +121,12 @@ func main() {
 			logger.Log("err", err)
 			os.Exit(1)
 		}
+		serverVersion, err := clientset.ServerVersion()
+		if err != nil {
+			logger.Log("err", err)
+			os.Exit(1)
+		}
+		clusterVersion = "kubernetes-" + serverVersion.GitVersion
 
 		namespace, err := ioutil.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
 		if err != nil {
@@ -144,7 +152,7 @@ func main() {
 		logger := log.NewContext(logger).With("component", "platform")
 		logger.Log("identity", privateKeyPath)
 		logger.Log("identity.pub", publicKey.Key)
-		logger.Log("host", restClientConfig.Host)
+		logger.Log("host", restClientConfig.Host, "version", clusterVersion)
 
 		kubectl := *kubernetesKubectl
 		if kubectl == "" {
@@ -256,6 +264,14 @@ func main() {
 		errc <- http.ListenAndServe(*listenAddr, mux)
 	}()
 
+	// Checkpoint: we want to include the fact of whether the daemon
+	// was given a Git repo it could clone; but the expected scenario
+	// is that it will have been set up already, and we don't want to
+	// report anything before seeing if it works. So, don't start
+	// until we have failed or succeeded.
+	var checker *checkpoint.Checker
+	updateCheckLogger := log.NewContext(logger).With("component", "checkpoint")
+
 	var checkout *git.Checkout
 	{
 		repo := git.Repo{
@@ -274,10 +290,17 @@ func main() {
 		for checkout == nil {
 			working, err := repo.Clone(gitConfig)
 			if err != nil {
+				if checker == nil {
+					checker = checkForUpdates(clusterVersion, "false", updateCheckLogger)
+				}
 				logger.Log("component", "git", "err", err.Error())
 				notReadyDaemon.UpdateReason(err)
 				time.Sleep(10 * time.Second)
 			} else {
+				if checker != nil {
+					checker.Stop()
+				}
+				checker = checkForUpdates(clusterVersion, "true", updateCheckLogger)
 				logger.Log("working-dir", working.Dir,
 					"user", *gitUser,
 					"email", *gitEmail,
@@ -320,4 +343,52 @@ func main() {
 	logger.Log("exiting", <-errc)
 	close(shutdown)
 	shutdownWg.Wait()
+}
+
+// --- checkpoint: please see https://github.com/weaveworks/go-checkpoint
+
+const (
+	versionCheckPeriod = 6 * time.Hour
+)
+
+func cstringToString(c []int8) string {
+	s := make([]byte, len(c))
+	i := 0
+	for ; i < len(c); i++ {
+		if c[i] == 0 {
+			break
+		}
+		s[i] = uint8(c[i])
+	}
+	return string(s[:i])
+}
+
+func checkForUpdates(clusterString string, gitString string, logger log.Logger) *checkpoint.Checker {
+	handleResponse := func(r *checkpoint.CheckResponse, err error) {
+		if err != nil {
+			logger.Log("err", err)
+			return
+		}
+		if r.Outdated {
+			logger.Log("msg", "update available", "version", r.CurrentVersion, "URL", r.CurrentDownloadURL)
+			return
+		}
+		logger.Log("msg", "up to date", "version", r.CurrentVersion)
+	}
+
+	var uts syscall.Utsname
+	syscall.Uname(&uts)
+	kernelVersion := cstringToString(uts.Release[:])
+	flags := map[string]string{
+		"kernel-version":  kernelVersion,
+		"cluster-version": clusterString,
+		"git-configured":  gitString,
+	}
+	params := checkpoint.CheckParams{
+		Product:       "weave-flux",
+		Version:       version,
+		SignatureFile: "",
+		Flags:         flags,
+	}
+	return checkpoint.CheckInterval(&params, versionCheckPeriod, handleResponse)
 }

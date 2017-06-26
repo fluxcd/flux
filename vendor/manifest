@@ -874,6 +874,14 @@
 			"notests": true
 		},
 		{
+			"importpath": "github.com/weaveworks/go-checkpoint",
+			"repository": "https://github.com/weaveworks/go-checkpoint",
+			"vcs": "git",
+			"revision": "ebbb8b0518ab326368631225cabc9435fe580dcc",
+			"branch": "master",
+			"notests": true
+		},
+		{
 			"importpath": "github.com/weaveworks/scope/common/mtime",
 			"repository": "https://github.com/weaveworks/scope",
 			"vcs": "git",
@@ -961,6 +969,24 @@
 			"revision": "7a1054f3ac58191481dc500077c6b060f5d6c7e5",
 			"branch": "master",
 			"path": "/openpgp",
+			"notests": true
+		},
+		{
+			"importpath": "golang.org/x/crypto/pbkdf2",
+			"repository": "https://go.googlesource.com/crypto",
+			"vcs": "git",
+			"revision": "850760c427c516be930bc91280636328f1a62286",
+			"branch": "master",
+			"path": "pbkdf2",
+			"notests": true
+		},
+		{
+			"importpath": "golang.org/x/crypto/scrypt",
+			"repository": "https://go.googlesource.com/crypto",
+			"vcs": "git",
+			"revision": "850760c427c516be930bc91280636328f1a62286",
+			"branch": "master",
+			"path": "/scrypt",
 			"notests": true
 		},
 		{
