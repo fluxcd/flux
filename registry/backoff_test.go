@@ -97,3 +97,9 @@ func TestBackoffRoundTripper(t *testing.T) {
 		<-done
 	}
 }
+
+type roundtripperFunc func(*http.Request) (*http.Response, error)
+
+func (f roundtripperFunc) RoundTrip(r *http.Request) (*http.Response, error) {
+	return f(r)
+}

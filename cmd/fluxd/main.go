@@ -72,6 +72,9 @@ func main() {
 		memcachedService     = fs.String("memcached-service", "memcached", "SRV service used to discover memcache servers.")
 		registryCacheExpiry  = fs.Duration("registry-cache-expiry", 20*time.Minute, "Duration to keep cached registry tag info. Must be < 1 month.")
 		registryPollInterval = fs.Duration("registry-poll-interval", 5*time.Minute, "period at which to poll registry for new images")
+		registryRPS          = fs.Int("registry-rps", 200, "maximum registry requests per second per host")
+		registryBurst        = fs.Int("registry-burst", 10, "maximum registry request burst per host")
+		registryWait         = fs.Duration("registry-wait", time.Second, "maximum wait time when rate limiting")
 		// k8s-secret backed ssh keyring configuration
 		k8sSecretName            = fs.String("k8s-secret-name", "flux-git-deploy", "Name of the k8s secret used to store the private SSH key")
 		k8sSecretVolumeMountPath = fs.String("k8s-secret-volume-mount-path", "/etc/fluxd/ssh", "Mount location of the k8s secret storing the private SSH key")
@@ -206,7 +209,11 @@ func main() {
 		}
 		registryLogger := log.NewContext(logger).With("component", "registry")
 		reg = registry.NewRegistry(
-			registry.NewRemoteClientFactory(creds, registryLogger, memcacheClient, *registryCacheExpiry),
+			registry.NewRemoteClientFactory(creds, registryLogger, memcacheClient, *registryCacheExpiry, registry.RateLimiterConfig{
+				RPS:   *registryRPS,
+				Burst: *registryBurst,
+				Wait:  *registryWait,
+			}),
 			registryLogger,
 		)
 		reg = registry.NewInstrumentedRegistry(reg)

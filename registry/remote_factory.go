@@ -27,7 +27,7 @@ type RemoteClientFactory interface {
 	CreateFor(host string) (Remote, error)
 }
 
-func NewRemoteClientFactory(c Credentials, l log.Logger, mc MemcacheClient, ce time.Duration) RemoteClientFactory {
+func NewRemoteClientFactory(c Credentials, l log.Logger, mc MemcacheClient, ce time.Duration, rlc RateLimiterConfig) RemoteClientFactory {
 	for host, creds := range c.m {
 		l.Log("host", host, "username", creds.username)
 	}
@@ -36,6 +36,7 @@ func NewRemoteClientFactory(c Credentials, l log.Logger, mc MemcacheClient, ce t
 		Logger:         l,
 		MemcacheClient: mc,
 		CacheExpiry:    ce,
+		rlConf:         rlc,
 	}
 }
 
@@ -44,6 +45,7 @@ type remoteClientFactory struct {
 	Logger         log.Logger
 	MemcacheClient MemcacheClient
 	CacheExpiry    time.Duration
+	rlConf         RateLimiterConfig
 }
 
 func (f *remoteClientFactory) CreateFor(host string) (_ Remote, err error) {
@@ -73,21 +75,26 @@ func (f *remoteClientFactory) newRegistryClient(host string) (client dockerRegis
 	ctx, cancel = context.WithTimeout(ctx, requestTimeout)
 
 	// Use the wrapper to fix headers for quay.io, and remember bearer tokens
-	var transport http.RoundTripper = &wwwAuthenticateFixer{transport: http.DefaultTransport}
-	// Now the auth-handling wrappers that come with the library
-	transport = dockerregistry.WrapTransport(transport, httphost, auth.username, auth.password)
-	// Add the backoff mechanism so we don't DOS registries
-	transport = BackoffRoundTripper(transport, initialBackoff, maxBackoff, clockwork.NewRealClock())
+	var transport http.RoundTripper
+	{
+		transport = &wwwAuthenticateFixer{transport: http.DefaultTransport}
+		// Now the auth-handling wrappers that come with the library
+		transport = dockerregistry.WrapTransport(transport, httphost, auth.username, auth.password)
+		// Add the backoff mechanism so we don't DOS registries
+		transport = BackoffRoundTripper(transport, initialBackoff, maxBackoff, clockwork.NewRealClock())
+		// Add timeout context
+		transport = &ContextRoundTripper{Transport: transport, Ctx: ctx}
+		// Rate limit
+		transport = RateLimitedRoundTripper(transport, f.rlConf, host)
+	}
 
 	client = herokuWrapper{
 		&dockerregistry.Registry{
 			URL: httphost,
 			Client: &http.Client{
-				Transport: roundtripperFunc(func(r *http.Request) (*http.Response, error) {
-					return transport.RoundTrip(r.WithContext(ctx))
-				}),
-				Jar:     jar,
-				Timeout: requestTimeout,
+				Transport: transport,
+				Jar:       jar,
+				Timeout:   requestTimeout,
 			},
 			Logf: dockerregistry.Quiet,
 		},
@@ -100,8 +107,11 @@ func (f *remoteClientFactory) newRegistryClient(host string) (client dockerRegis
 	return
 }
 
-type roundtripperFunc func(*http.Request) (*http.Response, error)
+type ContextRoundTripper struct {
+	Transport http.RoundTripper
+	Ctx       context.Context
+}
 
-func (f roundtripperFunc) RoundTrip(r *http.Request) (*http.Response, error) {
-	return f(r)
+func (rt *ContextRoundTripper) RoundTrip(r *http.Request) (*http.Response, error) {
+	return rt.Transport.RoundTrip(r.WithContext(rt.Ctx))
 }

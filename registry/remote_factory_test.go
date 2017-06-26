@@ -17,7 +17,7 @@ import (
 // It will fail if there is not internet connection
 func TestRemoteFactory_CreateForDockerHub(t *testing.T) {
 	// No credentials required for public Image
-	fact := NewRemoteClientFactory(Credentials{}, log.NewNopLogger(), nil, time.Second)
+	fact := NewRemoteClientFactory(Credentials{}, log.NewNopLogger(), nil, time.Second, RateLimiterConfig{})
 	img, err := flux.ParseImage("alpine:latest", time.Time{})
 	testRepository = RepositoryFromImage(img)
 	if err != nil {
@@ -38,7 +38,7 @@ func TestRemoteFactory_CreateForDockerHub(t *testing.T) {
 }
 
 func TestRemoteFactory_InvalidHost(t *testing.T) {
-	fact := NewRemoteClientFactory(Credentials{}, log.NewNopLogger(), nil, time.Second)
+	fact := NewRemoteClientFactory(Credentials{}, log.NewNopLogger(), nil, time.Second, RateLimiterConfig{})
 	img, err := flux.ParseImage("invalid.host/library/alpine:latest", time.Time{})
 	if err != nil {
 		t.Fatal(err)

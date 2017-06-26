@@ -1195,6 +1195,15 @@
 			"notests": true
 		},
 		{
+			"importpath": "golang.org/x/time/rate",
+			"repository": "https://go.googlesource.com/time",
+			"vcs": "git",
+			"revision": "8be79e1e0910c292df4e79c241bb7e8f7e725959",
+			"branch": "master",
+			"path": "/rate",
+			"notests": true
+		},
+		{
 			"importpath": "google.golang.org/api/compute/v1",
 			"repository": "https://code.googlesource.com/google-api-go-client",
 			"vcs": "git",
