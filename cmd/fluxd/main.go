@@ -188,7 +188,7 @@ func main() {
 		k8sManifests = &kubernetes.Manifests{}
 	}
 
-	var reg registry.Registry
+	var cache registry.Registry
 	{
 		var memcacheClient registry.MemcacheClient
 		if *memcachedHostname != "" {
@@ -207,9 +207,23 @@ func main() {
 		if err != nil {
 			logger.Log("err", err)
 		}
+		registryLogger := log.NewContext(logger).With("component", "cache")
+		cache = registry.NewRegistry(
+			registry.NewCacheClientFactory(creds, registryLogger, memcacheClient, *registryCacheExpiry),
+			registryLogger,
+		)
+		cache = registry.NewInstrumentedRegistry(cache)
+	}
+
+	var reg registry.Registry
+	{
+		creds, err := registry.CredentialsFromFile(*dockerCredFile)
+		if err != nil {
+			logger.Log("err", err)
+		}
 		registryLogger := log.NewContext(logger).With("component", "registry")
 		reg = registry.NewRegistry(
-			registry.NewRemoteClientFactory(creds, registryLogger, memcacheClient, *registryCacheExpiry, registry.RateLimiterConfig{
+			registry.NewRemoteClientFactory(creds, registryLogger, registry.RateLimiterConfig{
 				RPS:   *registryRPS,
 				Burst: *registryBurst,
 				Wait:  *registryWait,
@@ -330,17 +344,16 @@ func main() {
 	}
 
 	daemon := &daemon.Daemon{
-		V:              version,
-		Cluster:        k8s,
-		Manifests:      k8sManifests,
-		Registry:       reg,
-		Repo:           repo,
-		Checkout:       checkout,
-		Jobs:           jobs,
-		JobStatusCache: &job.StatusCache{Size: 100},
-		EventWriter:    eventWriter,
-		Logger:         log.NewContext(logger).With("component", "daemon"),
-		LoopVars: &daemon.LoopVars{
+		V:                    version,
+		Cluster:              k8s,
+		Manifests:            k8sManifests,
+		Registry:             cache,
+		Repo:           repo,Checkout:             checkout,
+		Jobs:                 jobs,
+		JobStatusCache:       &job.StatusCache{Size: 100},
+
+		EventWriter:          eventWriter,
+		Logger:               log.NewContext(logger).With("component", "daemon"),LoopVars: &daemon.LoopVars{
 			GitPollInterval:      *gitPollInterval,
 			RegistryPollInterval: *registryPollInterval,
 		},

@@ -22,12 +22,12 @@ type Registry interface {
 }
 
 type registry struct {
-	factory RemoteClientFactory
+	factory ClientFactory
 	Logger  log.Logger
 }
 
 // NewClient creates a new registry registry, to use when fetching repositories.
-func NewRegistry(c RemoteClientFactory, l log.Logger) Registry {
+func NewRegistry(c ClientFactory, l log.Logger) Registry {
 	return &registry{
 		factory: c,
 		Logger:  l,
@@ -72,10 +72,11 @@ func (reg *registry) GetImage(img Repository, tag string) (_ flux.Image, err err
 }
 
 func (reg *registry) newRemote(img Repository) (rem Remote, err error) {
-	rem, err = reg.factory.CreateFor(img.Host())
+	client, cancel, err := reg.factory.ClientFor(img.Host())
 	if err != nil {
 		return
 	}
+	rem = newRemote(client, cancel)
 	rem = NewInstrumentedRemote(rem)
 	return
 }

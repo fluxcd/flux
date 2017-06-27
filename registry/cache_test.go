@@ -34,12 +34,9 @@ func Setup(t *testing.T) MemcacheClient {
 	return &stoppableMemcacheClient{mc}
 }
 
-// Cleanup cleans up after a test
-func Cleanup(t *testing.T) {}
-
 func TestCache_Manifests(t *testing.T) {
 	mc := Setup(t)
-	defer Cleanup(t)
+	defer mc.Stop()
 
 	creds := NoCredentials()
 	c := NewCache(

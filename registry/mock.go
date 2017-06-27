@@ -4,6 +4,7 @@ import (
 	"github.com/docker/distribution/manifest/schema1"
 	"github.com/pkg/errors"
 
+	"context"
 	"github.com/weaveworks/flux"
 )
 
@@ -61,19 +62,19 @@ func (m *mockDockerClient) Tags(repository string) ([]string, error) {
 }
 
 type mockRemoteFactory struct {
-	r   Remote
+	c   dockerRegistryInterface
 	err error
 }
 
-func NewMockRemoteFactory(r Remote, err error) RemoteClientFactory {
+func NewMockClientFactory(c dockerRegistryInterface, err error) ClientFactory {
 	return &mockRemoteFactory{
-		r:   r,
+		c:   c,
 		err: err,
 	}
 }
 
-func (m *mockRemoteFactory) CreateFor(repository string) (Remote, error) {
-	return m.r, m.err
+func (m *mockRemoteFactory) ClientFor(repository string) (dockerRegistryInterface, context.CancelFunc, error) {
+	return m.c, func() {}, m.err
 }
 
 type mockRegistry struct {

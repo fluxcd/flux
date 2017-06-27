@@ -10,19 +10,26 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
 
+	"github.com/docker/distribution/manifest/schema1"
 	"github.com/weaveworks/flux"
 )
 
 var (
-	testTags    = []string{testTagStr, "anotherTag"}
-	mRemote     = NewMockRemote(img, testTags, nil)
-	mRemoteFact = NewMockRemoteFactory(mRemote, nil)
+	testTags = []string{testTagStr, "anotherTag"}
+	mRemote  = NewMockRemote(img, testTags, nil)
+	mClient  = NewMockDockerClient(
+		func(repository, reference string) ([]schema1.History, error) {
+			return []schema1.History{{`{"test":"json"}`}}, nil
+		},
+		func(repository string) ([]string, error) {
+			return testTags, nil
+		},
+	)
 	testTime, _ = time.Parse(time.RFC3339Nano, constTime)
 )
 
 func TestRegistry_GetImage(t *testing.T) {
-	reg := NewRegistry(mRemoteFact, log.NewNopLogger())
-	newImg, err := reg.GetImage(testRepository, img.ID.Tag)
+	newImg, err := mRemote.Manifest(testRepository, img.ID.Tag)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -31,27 +38,9 @@ func TestRegistry_GetImage(t *testing.T) {
 	}
 }
 
-func TestRegistry_GetImageFactoryErr(t *testing.T) {
-	errFact := NewMockRemoteFactory(mRemote, errors.New(""))
-	reg := NewRegistry(errFact, nil)
-	_, err := reg.GetImage(testRepository, img.ID.Tag)
-	if err == nil {
-		t.Fatal("Expecting error")
-	}
-}
-
-func TestRegistry_GetImageRemoteErr(t *testing.T) {
-	r := NewMockRemote(img, testTags, errors.New(""))
-	errFact := NewMockRemoteFactory(r, nil)
-	reg := NewRegistry(errFact, log.NewNopLogger())
-	_, err := reg.GetImage(testRepository, img.ID.Tag)
-	if err == nil {
-		t.Fatal("Expecting error")
-	}
-}
-
 func TestRegistry_GetRepository(t *testing.T) {
-	reg := NewRegistry(mRemoteFact, log.NewNopLogger())
+	fact := NewMockClientFactory(mClient, nil)
+	reg := NewRegistry(fact, log.NewNopLogger())
 	imgs, err := reg.GetRepository(testRepository)
 	if err != nil {
 		t.Fatal(err)
@@ -64,7 +53,7 @@ func TestRegistry_GetRepository(t *testing.T) {
 }
 
 func TestRegistry_GetRepositoryFactoryError(t *testing.T) {
-	errFact := NewMockRemoteFactory(mRemote, errors.New(""))
+	errFact := NewMockClientFactory(mClient, errors.New(""))
 	reg := NewRegistry(errFact, nil)
 	_, err := reg.GetRepository(testRepository)
 	if err == nil {
@@ -72,19 +61,16 @@ func TestRegistry_GetRepositoryFactoryError(t *testing.T) {
 	}
 }
 
-func TestRegistry_GetRepositoryRemoteErr(t *testing.T) {
-	r := NewMockRemote(img, testTags, errors.New(""))
-	errFact := NewMockRemoteFactory(r, nil)
-	reg := NewRegistry(errFact, log.NewNopLogger())
-	_, err := reg.GetRepository(testRepository)
-	if err == nil {
-		t.Fatal("Expecting error")
-	}
-}
-
 func TestRegistry_GetRepositoryManifestError(t *testing.T) {
-	r := NewMockRemote(img, []string{"valid", "error"}, nil)
-	errFact := NewMockRemoteFactory(r, nil)
+	errClient := NewMockDockerClient(
+		func(repository, reference string) ([]schema1.History, error) {
+			return nil, errors.New("")
+		},
+		func(repository string) ([]string, error) {
+			return testTags, nil
+		},
+	)
+	errFact := NewMockClientFactory(errClient, nil)
 	reg := NewRegistry(errFact, log.NewNopLogger())
 	_, err := reg.GetRepository(testRepository)
 	if err == nil {
