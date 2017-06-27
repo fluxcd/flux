@@ -351,18 +351,6 @@ const (
 	versionCheckPeriod = 6 * time.Hour
 )
 
-func cstringToString(c []int8) string {
-	s := make([]byte, len(c))
-	i := 0
-	for ; i < len(c); i++ {
-		if c[i] == 0 {
-			break
-		}
-		s[i] = uint8(c[i])
-	}
-	return string(s[:i])
-}
-
 func checkForUpdates(clusterString string, gitString string, logger log.Logger) *checkpoint.Checker {
 	handleResponse := func(r *checkpoint.CheckResponse, err error) {
 		if err != nil {
@@ -376,11 +364,8 @@ func checkForUpdates(clusterString string, gitString string, logger log.Logger) 
 		logger.Log("msg", "up to date", "version", r.CurrentVersion)
 	}
 
-	var uts syscall.Utsname
-	syscall.Uname(&uts)
-	kernelVersion := cstringToString(uts.Release[:])
 	flags := map[string]string{
-		"kernel-version":  kernelVersion,
+		"kernel-version":  getKernelVersion(),
 		"cluster-version": clusterString,
 		"git-configured":  gitString,
 	}
@@ -390,5 +375,6 @@ func checkForUpdates(clusterString string, gitString string, logger log.Logger) 
 		SignatureFile: "",
 		Flags:         flags,
 	}
+
 	return checkpoint.CheckInterval(&params, versionCheckPeriod, handleResponse)
 }
