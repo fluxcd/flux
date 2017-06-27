@@ -4,12 +4,12 @@ package registry
 
 import (
 	"flag"
-	"fmt"
 	"os"
 	"strings"
 	"testing"
 	"time"
 
+	"encoding/json"
 	"github.com/bradfitz/gomemcache/memcache"
 	"github.com/docker/distribution/manifest/schema1"
 	"github.com/go-kit/kit/log"
@@ -37,26 +37,29 @@ func Setup(t *testing.T) MemcacheClient {
 // Cleanup cleans up after a test
 func Cleanup(t *testing.T) {}
 
-func TestCache(t *testing.T) {
+func TestCache_Manifests(t *testing.T) {
 	mc := Setup(t)
 	defer Cleanup(t)
 
-	manifestCalled := 0
-
-	manifestFunc := func(repo, ref string) ([]schema1.History, error) {
-		manifestCalled++
-		return []schema1.History{{`{"test":"json"}`}}, nil
-	}
-
-	mock := NewMockDockerClient(manifestFunc, nil)
+	creds := NoCredentials()
 	c := NewCache(
-		NoCredentials(),
+		creds,
 		mc,
 		20*time.Minute,
 		log.NewLogfmtLogger(log.NewSyncWriter(os.Stderr)),
-	)(mock)
+	)
 
-	// It should fetch stuff from the backend
+	val, _ := json.Marshal([]schema1.History{{`{"test":"json"}`}})
+	key := manifestKey(creds.credsFor("").username, "weaveworks/foorepo", "tag1")
+	if err := mc.Set(&memcache.Item{
+		Key:        key,
+		Value:      val,
+		Expiration: int32(time.Hour.Seconds()),
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	// It should fetch stuff
 	response, err := c.Manifest("weaveworks/foorepo", "tag1")
 	if err != nil {
 		t.Fatal(err)
@@ -68,45 +71,52 @@ func TestCache(t *testing.T) {
 	if response[0] != expected {
 		t.Fatalf("Expected  history item: %v, got %v", expected, response[0])
 	}
-	if manifestCalled != 1 {
-		t.Errorf("Expected 1 call to the backend, got %d", manifestCalled)
-	}
 
-	// It should cache on the way through
-	_, err = mc.Get(strings.Join([]string{
-		"registryhistoryv1",
-		"", // no username
-		"weaveworks/foorepo",
-		"tag1",
-	}, "|"))
-	if err != nil {
-		// Will catch ErrCacheMiss
-		t.Fatal(err)
+	// It should miss if not in cache
+	_, err = c.Manifest("weaveworks/anotherrepo", "tag1")
+	if err != memcache.ErrCacheMiss {
+		t.Fatal("Expected cache miss")
 	}
+}
 
-	// it should prefer cached data
-	_, err = c.Manifest("weaveworks/foorepo", "tag1")
-	if err != nil {
-		t.Fatal(err)
-	}
-	// still 1 call
-	if manifestCalled != 1 {
-		t.Errorf("Expected 1 call to the backend, got %d", manifestCalled)
-	}
+func TestCache_Tags(t *testing.T) {
+	mc := Setup(t)
+	defer Cleanup(t)
 
-	// It should pass through errors from the backend
-	manifestFunc = func(repo, ref string) ([]schema1.History, error) {
-		return nil, fmt.Errorf("test error")
-	}
-	mock = NewMockDockerClient(manifestFunc, nil)
-	c = NewCache(
-		NoCredentials(),
+	creds := NoCredentials()
+	c := NewCache(
+		creds,
 		mc,
 		20*time.Minute,
 		log.NewLogfmtLogger(log.NewSyncWriter(os.Stderr)),
-	)(mock)
-	response, err = c.Manifest("weaveworks/foorepo", "tag2")
-	if err == nil || err.Error() != "test error" {
-		t.Fatalf("Expected test error, but got %v", err)
+	)
+
+	val, _ := json.Marshal([]string{"tag1", "tag2"})
+	key := tagKey(creds.credsFor("").username, "weaveworks/foorepo")
+	if err := mc.Set(&memcache.Item{
+		Key:        key,
+		Value:      val,
+		Expiration: int32(time.Hour.Seconds()),
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	// It should fetch stuff
+	response, err := c.Tags("weaveworks/foorepo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(response) != 2 {
+		t.Fatalf("Expected 2 tags item, got %v", response)
+	}
+	expected := "tag1"
+	if response[0] != expected {
+		t.Fatalf("Expected  history item: %v, got %v", expected, response[0])
+	}
+
+	// It should miss if not in cache
+	_, err = c.Tags("weaveworks/anotherrepo")
+	if err != memcache.ErrCacheMiss {
+		t.Fatal("Expected cache miss")
 	}
 }
