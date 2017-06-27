@@ -14,18 +14,6 @@ import (
 	"github.com/weaveworks/flux/update"
 )
 
-const (
-	Locked          = "locked"
-	NotIncluded     = "not included"
-	Excluded        = "excluded"
-	DifferentImage  = "a different image"
-	NotInCluster    = "not running in cluster"
-	NotInRepo       = "not found in repository"
-	ImageNotFound   = "cannot find one or more images"
-	ImageUpToDate   = "image(s) up to date"
-	DoesNotUseImage = "does not use image(s)"
-)
-
 type ReleaseContext struct {
 	cluster   cluster.Cluster
 	manifests cluster.Manifests
@@ -132,7 +120,7 @@ func (rc *ReleaseContext) SelectServices(results update.Result, filters ...updat
 	for id, _ := range filteredDefined {
 		results[id] = update.ServiceResult{
 			Status: update.ReleaseStatusSkipped,
-			Error:  NotInCluster,
+			Error:  update.NotInCluster,
 		}
 	}
 	return filteredUpdates, nil
@@ -171,79 +159,4 @@ func (rc *ReleaseContext) ServicesWithPolicy(p policy.Policy) (policy.ServiceMap
 	rc.repo.RLock()
 	defer rc.repo.RUnlock()
 	return rc.manifests.ServicesWithPolicy(rc.repo.ManifestDir(), p)
-}
-
-type SpecificImageFilter struct {
-	Img flux.ImageID
-}
-
-func (f *SpecificImageFilter) Filter(u update.ServiceUpdate) update.ServiceResult {
-	// If there are no containers, then we can't check the image.
-	if len(u.Service.Containers.Containers) == 0 {
-		return update.ServiceResult{
-			Status: update.ReleaseStatusIgnored,
-			Error:  NotInCluster,
-		}
-	}
-	// For each container in update
-	for _, c := range u.Service.Containers.Containers {
-		cID, _ := flux.ParseImageID(c.Image)
-		// If container image == image in update
-		if cID.HostNamespaceImage() == f.Img.HostNamespaceImage() {
-			// We want to update this
-			return update.ServiceResult{}
-		}
-	}
-	return update.ServiceResult{
-		Status: update.ReleaseStatusIgnored,
-		Error:  DifferentImage,
-	}
-}
-
-type ExcludeFilter struct {
-	IDs []flux.ServiceID
-}
-
-func (f *ExcludeFilter) Filter(u update.ServiceUpdate) update.ServiceResult {
-	for _, id := range f.IDs {
-		if u.ServiceID == id {
-			return update.ServiceResult{
-				Status: update.ReleaseStatusIgnored,
-				Error:  Excluded,
-			}
-		}
-	}
-	return update.ServiceResult{}
-}
-
-type IncludeFilter struct {
-	IDs []flux.ServiceID
-}
-
-func (f *IncludeFilter) Filter(u update.ServiceUpdate) update.ServiceResult {
-	for _, id := range f.IDs {
-		if u.ServiceID == id {
-			return update.ServiceResult{}
-		}
-	}
-	return update.ServiceResult{
-		Status: update.ReleaseStatusIgnored,
-		Error:  NotIncluded,
-	}
-}
-
-type LockedFilter struct {
-	IDs []flux.ServiceID
-}
-
-func (f *LockedFilter) Filter(u update.ServiceUpdate) update.ServiceResult {
-	for _, id := range f.IDs {
-		if u.ServiceID == id {
-			return update.ServiceResult{
-				Status: update.ReleaseStatusSkipped,
-				Error:  Locked,
-			}
-		}
-	}
-	return update.ServiceResult{}
 }

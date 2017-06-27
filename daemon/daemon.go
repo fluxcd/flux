@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"sort"
-	"strings"
 	gosync "sync"
 	"time"
 
@@ -112,7 +111,7 @@ func (d *Daemon) ListImages(spec update.ServiceSpec) ([]flux.ImageStatus, error)
 		services, err = d.Cluster.SomeServices([]flux.ServiceID{id})
 	}
 
-	images, err := release.CollectAvailableImages(d.Registry, services)
+	images, err := update.CollectAvailableImages(d.Registry, services)
 	if err != nil {
 		return nil, errors.Wrap(err, "getting images for services")
 	}
@@ -187,8 +186,6 @@ func (d *Daemon) UpdateManifests(spec update.Spec) (job.ID, error) {
 	}
 	switch s := spec.Spec.(type) {
 	case release.Changes:
-		return d.queueJob(d.releaseAutomated(spec, s)), nil
-	case update.ReleaseSpec:
 		return d.queueJob(d.release(spec, s)), nil
 	case policy.Updates:
 		return d.queueJob(func(jobID job.ID, working *git.Checkout, logger log.Logger) (*history.CommitEventMetadata, error) {
@@ -253,19 +250,19 @@ func (d *Daemon) UpdateManifests(spec update.Spec) (job.ID, error) {
 	}
 }
 
-func (d *Daemon) release(spec update.Spec, s update.ReleaseSpec) DaemonJobFunc {
+func (d *Daemon) release(spec update.Spec, c release.Changes) DaemonJobFunc {
 	return func(jobID job.ID, working *git.Checkout, logger log.Logger) (*history.CommitEventMetadata, error) {
 		rc := release.NewReleaseContext(d.Cluster, d.Manifests, d.Registry, working)
-		result, err := release.Release(rc, s, logger)
+		result, err := release.Release(rc, c, logger)
 		if err != nil {
 			return nil, err
 		}
 
 		var revision string
-		if s.Kind == update.ReleaseKindExecute {
+		if c.ReleaseKind() == update.ReleaseKindExecute {
 			commitMsg := spec.Cause.Message
 			if commitMsg == "" {
-				commitMsg = commitMessageFromReleaseSpec(&s)
+				commitMsg = c.CommitMessage()
 			}
 			if err := working.CommitAndPush(commitMsg, &git.Note{JobID: jobID, Spec: spec, Result: result}); err != nil {
 				return nil, err
@@ -281,24 +278,6 @@ func (d *Daemon) release(spec update.Spec, s update.ReleaseSpec) DaemonJobFunc {
 			Spec:     &spec,
 			Result:   result,
 		}, nil
-	}
-}
-
-func (d *Daemon) releaseAutomated(spec update.Spec, s release.Changes) DaemonJobFunc {
-	return func(jobID job.ID, working *git.Checkout, logger log.Logger) (*history.CommitEventMetadata, error) {
-		rc := release.NewReleaseContext(d.Cluster, d.Manifests, d.Registry, working)
-		updates, err := s.ServiceUpdates(rc, logger)
-		if err != nil {
-			logger.Log("msg", "automated release failed", "err", err)
-		}
-
-		err = release.ApplyChanges(rc, updates, logger)
-		if err != nil {
-			logger.Log("msg", "automated release failed", "err", err, "updates", fmt.Sprintf("%#v", updates))
-			return nil, err
-		}
-
-		return &history.CommitEventMetadata{}, nil
 	}
 }
 
@@ -387,7 +366,7 @@ func containers2containers(cs []cluster.Container) []flux.Container {
 	return res
 }
 
-func containersWithAvailable(service cluster.Service, images release.ImageMap) (res []flux.Container) {
+func containersWithAvailable(service cluster.Service, images update.ImageMap) (res []flux.Container) {
 	for _, c := range service.ContainersOrNil() {
 		id, _ := flux.ParseImageID(c.Image)
 		repo := id.Repository()
@@ -473,13 +452,4 @@ func policyEventTypes(u policy.Update) []string {
 	}
 	sort.Strings(result)
 	return result
-}
-
-func commitMessageFromReleaseSpec(spec *update.ReleaseSpec) string {
-	image := strings.Trim(spec.ImageSpec.String(), "<>")
-	var services []string
-	for _, s := range spec.ServiceSpecs {
-		services = append(services, strings.Trim(s.String(), "<>"))
-	}
-	return fmt.Sprintf("Release %s to %s", image, strings.Join(services, ", "))
 }

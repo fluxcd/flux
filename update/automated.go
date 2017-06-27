@@ -1,11 +1,10 @@
-package release
+package update
 
 import (
 	"github.com/go-kit/kit/log"
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster"
 	"github.com/weaveworks/flux/policy"
-	"github.com/weaveworks/flux/update"
 )
 
 type Automated struct {
@@ -22,12 +21,24 @@ func (a *Automated) Add(service flux.ServiceID, container cluster.Container, ima
 	a.changes = append(a.changes, change{service, container, image})
 }
 
-func (a *Automated) ServiceUpdates(rc update.ReleaseContext, logger log.Logger) ([]*update.ServiceUpdate, error) {
+func (a *Automated) CalculateRelease(rc ReleaseContext, logger log.Logger) ([]*ServiceUpdate, Result, error) {
+	return nil, nil, nil
+}
+
+func (a *Automated) ReleaseKind() ReleaseKind {
+	return ReleaseKindExecute
+}
+
+func (a *Automated) CommitMessage() string {
+	return "(TODO) automated release commit message"
+}
+
+func (a *Automated) ServiceUpdates(rc ReleaseContext, logger log.Logger) ([]*ServiceUpdate, error) {
 	filters, err := a.filters(rc)
 	if err != nil {
 		return nil, err
 	}
-	result := update.Result{}
+	result := Result{}
 	updates, err := rc.SelectServices(result, filters...)
 	if err != nil {
 		return nil, err
@@ -42,11 +53,11 @@ func (a *Automated) ServiceUpdates(rc update.ReleaseContext, logger log.Logger) 
 }
 
 // TODO #260 use this
-func (a *Automated) updates() map[flux.ServiceID]*update.ServiceUpdate {
-	updates := map[flux.ServiceID]*update.ServiceUpdate{}
+func (a *Automated) updates() map[flux.ServiceID]*ServiceUpdate {
+	updates := map[flux.ServiceID]*ServiceUpdate{}
 	for _, c := range a.changes {
 		if _, ok := updates[c.service]; !ok {
-			updates[c.service] = &update.ServiceUpdate{}
+			updates[c.service] = &ServiceUpdate{}
 		}
 
 		currentImageID, err := flux.ParseImageID(c.container.Image)
@@ -55,7 +66,7 @@ func (a *Automated) updates() map[flux.ServiceID]*update.ServiceUpdate {
 			continue
 		}
 
-		containerUpdate := update.ContainerUpdate{
+		containerUpdate := ContainerUpdate{
 			Container: c.container.Name,
 			Current:   currentImageID,
 			Target:    c.imageID,
@@ -66,45 +77,45 @@ func (a *Automated) updates() map[flux.ServiceID]*update.ServiceUpdate {
 	return updates
 }
 
-func (a *Automated) filters(rc update.ReleaseContext) ([]update.ServiceFilter, error) {
+func (a *Automated) filters(rc ReleaseContext) ([]ServiceFilter, error) {
 	lockedSet, err := rc.ServicesWithPolicy(policy.Locked)
 	if err != nil {
 		return nil, err
 	}
 
-	return []update.ServiceFilter{
+	return []ServiceFilter{
 		&IncludeFilter{a.serviceIDs()},
 		&LockedFilter{lockedSet.ToSlice()},
 	}, nil
 }
 
-func (a *Automated) markSkipped(results update.Result) {
+func (a *Automated) markSkipped(results Result) {
 	for _, v := range a.serviceIDs() {
 		if _, ok := results[v]; !ok {
-			results[v] = update.ServiceResult{
-				Status: update.ReleaseStatusSkipped,
+			results[v] = ServiceResult{
+				Status: ReleaseStatusSkipped,
 				Error:  NotInRepo,
 			}
 		}
 	}
 }
 
-func (a *Automated) calculateImageUpdates(rc update.ReleaseContext, candidates []*update.ServiceUpdate, result update.Result, logger log.Logger) ([]*update.ServiceUpdate, error) {
-	updates := []*update.ServiceUpdate{}
+func (a *Automated) calculateImageUpdates(rc ReleaseContext, candidates []*ServiceUpdate, result Result, logger log.Logger) ([]*ServiceUpdate, error) {
+	updates := []*ServiceUpdate{}
 
 	serviceMap := a.serviceMap()
 	for _, u := range candidates {
 		containers, err := u.Service.ContainersOrError()
 		if err != nil {
-			result[u.ServiceID] = update.ServiceResult{
-				Status: update.ReleaseStatusFailed,
+			result[u.ServiceID] = ServiceResult{
+				Status: ReleaseStatusFailed,
 				Error:  err.Error(),
 			}
 			continue
 		}
 
 		changes := serviceMap[u.ServiceID]
-		containerUpdates := []update.ContainerUpdate{}
+		containerUpdates := []ContainerUpdate{}
 		for _, container := range containers {
 			currentImageID, err := flux.ParseImageID(container.Image)
 			if err != nil {
@@ -116,7 +127,7 @@ func (a *Automated) calculateImageUpdates(rc update.ReleaseContext, candidates [
 					continue
 				}
 
-				containerUpdates = append(containerUpdates, update.ContainerUpdate{
+				containerUpdates = append(containerUpdates, ContainerUpdate{
 					Container: container.Name,
 					Current:   currentImageID,
 					Target:    change.imageID,
@@ -127,13 +138,13 @@ func (a *Automated) calculateImageUpdates(rc update.ReleaseContext, candidates [
 		if len(containerUpdates) > 0 {
 			u.Updates = containerUpdates
 			updates = append(updates, u)
-			result[u.ServiceID] = update.ServiceResult{
-				Status:       update.ReleaseStatusSuccess,
+			result[u.ServiceID] = ServiceResult{
+				Status:       ReleaseStatusSuccess,
 				PerContainer: containerUpdates,
 			}
 		} else {
-			result[u.ServiceID] = update.ServiceResult{
-				Status: update.ReleaseStatusIgnored,
+			result[u.ServiceID] = ServiceResult{
+				Status: ReleaseStatusIgnored,
 				Error:  DoesNotUseImage,
 			}
 		}
@@ -156,9 +167,4 @@ func (a *Automated) serviceIDs() []flux.ServiceID {
 		slice = append(slice, flux.ServiceID(service.String()))
 	}
 	return slice
-}
-
-// TODO
-func (a *Automated) Result(rc update.ReleaseContext, logger log.Logger) (update.Result, error) {
-	return nil, nil
 }

@@ -32,14 +32,14 @@ func (d *Daemon) PollImages(logger log.Logger) {
 		return
 	}
 	// Check the latest available image(s) for each service
-	imageMap, err := release.CollectAvailableImages(d.Registry, services)
+	imageMap, err := update.CollectAvailableImages(d.Registry, services)
 	if err != nil {
 		logger.Log("error", errors.Wrap(err, "fetching image updates"))
 		return
 	}
 	// TODO: #260 Find latest image match for each container,
 	// group by image to do as few releases as possible
-	changes := &release.Automated{}
+	changes := &update.Automated{}
 
 	for _, service := range services {
 		for _, container := range service.ContainersOrNil() {

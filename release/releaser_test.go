@@ -134,11 +134,11 @@ func Test_FilterLogic(t *testing.T) {
 				},
 				flux.ServiceID("default/locked-service"): update.ServiceResult{
 					Status: update.ReleaseStatusIgnored,
-					Error:  NotIncluded,
+					Error:  update.NotIncluded,
 				},
 				flux.ServiceID("default/test-service"): update.ServiceResult{
 					Status: update.ReleaseStatusIgnored,
-					Error:  NotIncluded,
+					Error:  update.NotIncluded,
 				},
 			},
 		}, {
@@ -162,11 +162,11 @@ func Test_FilterLogic(t *testing.T) {
 				},
 				flux.ServiceID("default/locked-service"): update.ServiceResult{
 					Status: update.ReleaseStatusIgnored,
-					Error:  Excluded,
+					Error:  update.Excluded,
 				},
 				flux.ServiceID("default/test-service"): update.ServiceResult{
 					Status: update.ReleaseStatusSkipped,
-					Error:  NotInCluster,
+					Error:  update.NotInCluster,
 				},
 			},
 		}, {
@@ -190,11 +190,11 @@ func Test_FilterLogic(t *testing.T) {
 				},
 				flux.ServiceID("default/locked-service"): update.ServiceResult{
 					Status: update.ReleaseStatusIgnored,
-					Error:  DifferentImage,
+					Error:  update.DifferentImage,
 				},
 				flux.ServiceID("default/test-service"): update.ServiceResult{
 					Status: update.ReleaseStatusIgnored,
-					Error:  NotInCluster,
+					Error:  update.NotInCluster,
 				},
 			},
 		},
@@ -221,11 +221,11 @@ func Test_FilterLogic(t *testing.T) {
 				},
 				flux.ServiceID("default/locked-service"): update.ServiceResult{
 					Status: update.ReleaseStatusSkipped,
-					Error:  Locked,
+					Error:  update.Locked,
 				},
 				flux.ServiceID("default/test-service"): update.ServiceResult{
 					Status: update.ReleaseStatusSkipped,
-					Error:  NotInCluster,
+					Error:  update.NotInCluster,
 				},
 			},
 		},
@@ -250,11 +250,11 @@ func Test_FilterLogic(t *testing.T) {
 				},
 				flux.ServiceID("default/locked-service"): update.ServiceResult{
 					Status: update.ReleaseStatusSkipped,
-					Error:  Locked,
+					Error:  update.Locked,
 				},
 				flux.ServiceID("default/test-service"): update.ServiceResult{
 					Status: update.ReleaseStatusSkipped,
-					Error:  NotInCluster,
+					Error:  update.NotInCluster,
 				},
 			},
 		},
@@ -269,19 +269,19 @@ func Test_FilterLogic(t *testing.T) {
 			Expected: update.Result{
 				flux.ServiceID("default/helloworld"): update.ServiceResult{
 					Status: update.ReleaseStatusIgnored,
-					Error:  NotIncluded,
+					Error:  update.NotIncluded,
 				},
 				flux.ServiceID("default/locked-service"): update.ServiceResult{
 					Status: update.ReleaseStatusIgnored,
-					Error:  NotIncluded,
+					Error:  update.NotIncluded,
 				},
 				flux.ServiceID("default/test-service"): update.ServiceResult{
 					Status: update.ReleaseStatusIgnored,
-					Error:  NotIncluded,
+					Error:  update.NotIncluded,
 				},
 				flux.ServiceID(notInRepoSpec): update.ServiceResult{
 					Status: update.ReleaseStatusSkipped,
-					Error:  NotInRepo,
+					Error:  update.NotInRepo,
 				},
 			},
 		},
@@ -289,10 +289,10 @@ func Test_FilterLogic(t *testing.T) {
 		checkout, cleanup := setup(t)
 		defer cleanup()
 		testRelease(t, tst.Name, &ReleaseContext{
-			Cluster:   mockCluster,
-			Manifests: mockManifests,
-			Registry:  mockRegistry,
-			Repo:      checkout,
+			cluster:   mockCluster,
+			manifests: mockManifests,
+			registry:  mockRegistry,
+			repo:      checkout,
 		}, tst.Spec, tst.Expected)
 	}
 }
@@ -339,15 +339,15 @@ func Test_ImageStatus(t *testing.T) {
 			Expected: update.Result{
 				flux.ServiceID("default/helloworld"): update.ServiceResult{
 					Status: update.ReleaseStatusIgnored,
-					Error:  NotIncluded,
+					Error:  update.NotIncluded,
 				},
 				flux.ServiceID("default/locked-service"): update.ServiceResult{
 					Status: update.ReleaseStatusIgnored,
-					Error:  NotIncluded,
+					Error:  update.NotIncluded,
 				},
 				flux.ServiceID("default/test-service"): update.ServiceResult{
 					Status: update.ReleaseStatusIgnored,
-					Error:  DoesNotUseImage,
+					Error:  update.DoesNotUseImage,
 				},
 			},
 		}, {
@@ -361,15 +361,15 @@ func Test_ImageStatus(t *testing.T) {
 			Expected: update.Result{
 				flux.ServiceID("default/helloworld"): update.ServiceResult{
 					Status: update.ReleaseStatusSkipped,
-					Error:  ImageUpToDate,
+					Error:  update.ImageUpToDate,
 				},
 				flux.ServiceID("default/locked-service"): update.ServiceResult{
 					Status: update.ReleaseStatusIgnored,
-					Error:  NotIncluded,
+					Error:  update.NotIncluded,
 				},
 				flux.ServiceID("default/test-service"): update.ServiceResult{
 					Status: update.ReleaseStatusIgnored,
-					Error:  NotIncluded,
+					Error:  update.NotIncluded,
 				},
 			},
 		},
@@ -377,10 +377,10 @@ func Test_ImageStatus(t *testing.T) {
 		checkout, cleanup := setup(t)
 		defer cleanup()
 		ctx := &ReleaseContext{
-			Cluster:   mockCluster,
-			Manifests: mockManifests,
-			Repo:      checkout,
-			Registry:  upToDateRegistry,
+			cluster:   mockCluster,
+			manifests: mockManifests,
+			repo:      checkout,
+			registry:  upToDateRegistry,
 		}
 		testRelease(t, tst.Name, ctx, tst.Spec, tst.Expected)
 	}
