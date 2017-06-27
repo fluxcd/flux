@@ -1,11 +1,18 @@
 package update
 
 import (
+	"fmt"
 	"strings"
+	"time"
 
 	"github.com/pkg/errors"
 
+	"github.com/go-kit/kit/log"
 	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/cluster"
+	fluxmetrics "github.com/weaveworks/flux/metrics"
+	"github.com/weaveworks/flux/policy"
+	"github.com/weaveworks/flux/registry"
 )
 
 const (
@@ -39,6 +46,13 @@ func ParseReleaseKind(s string) (ReleaseKind, error) {
 
 const UserAutomated = "<automated>"
 
+type ReleaseContext interface {
+	SelectServices(Result, ...ServiceFilter) ([]*ServiceUpdate, error)
+	ServicesWithPolicy(policy.Policy) (policy.ServiceMap, error)
+	Registry() registry.Registry
+	Manifests() cluster.Manifests
+}
+
 // NB: these get sent from fluxctl, so we have to maintain the json format of
 // this. Eugh.
 type ReleaseSpec struct {
@@ -58,6 +72,23 @@ func (s ReleaseSpec) ReleaseType() string {
 	default:
 		return "specific_image"
 	}
+}
+
+// TODO #260
+func (s ReleaseSpec) ServiceUpdates(rc ReleaseContext, logger log.Logger) ([]*ServiceUpdate, error) {
+	return nil, nil
+}
+
+func (s ReleaseSpec) Result(rc ReleaseContext, logger log.Logger) (Result, error) {
+	return nil, nil
+}
+
+func (s ReleaseSpec) Observe(start time.Time, err error) {
+	releaseDuration.With(
+		fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
+		fluxmetrics.LabelReleaseType, s.ReleaseType(),
+		fluxmetrics.LabelReleaseKind, string(s.Kind),
+	).Observe(time.Since(start).Seconds())
 }
 
 type ServiceSpec string // ServiceID or "<all>"

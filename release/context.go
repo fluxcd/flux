@@ -27,23 +27,32 @@ const (
 )
 
 type ReleaseContext struct {
-	Cluster   cluster.Cluster
-	Manifests cluster.Manifests
-	Repo      *git.Checkout
-	Registry  registry.Registry
+	cluster   cluster.Cluster
+	manifests cluster.Manifests
+	repo      *git.Checkout
+	registry  registry.Registry
 }
 
 func NewReleaseContext(c cluster.Cluster, m cluster.Manifests, reg registry.Registry, repo *git.Checkout) *ReleaseContext {
 	return &ReleaseContext{
-		Cluster:   c,
-		Manifests: m,
-		Repo:      repo,
-		Registry:  reg,
+		cluster:   c,
+		manifests: m,
+		repo:      repo,
+		registry:  reg,
 	}
 }
 
-func (rc *ReleaseContext) WriteUpdates(updates []*ServiceUpdate) error {
-	rc.Repo.Lock()
+func (rc *ReleaseContext) Registry() registry.Registry {
+	return rc.registry
+}
+
+func (rc *ReleaseContext) Manifests() cluster.Manifests {
+	return rc.manifests
+}
+
+func (rc *ReleaseContext) WriteUpdates(updates []*update.ServiceUpdate) error {
+	rc.repo.Lock()
+	defer rc.repo.Unlock()
 	err := func() error {
 		for _, update := range updates {
 			fi, err := os.Stat(update.ManifestPath)
@@ -56,7 +65,6 @@ func (rc *ReleaseContext) WriteUpdates(updates []*ServiceUpdate) error {
 		}
 		return nil
 	}()
-	rc.Repo.Unlock()
 	return err
 }
 
@@ -68,27 +76,27 @@ func (rc *ReleaseContext) WriteUpdates(updates []*ServiceUpdate) error {
 // `ServiceFilter`s can be provided to filter the found services.
 // Be careful about the ordering of the filters. Filters that are earlier
 // in the slice will have higher priority (they are run first).
-func (rc *ReleaseContext) SelectServices(results update.Result, filters ...ServiceFilter) ([]*ServiceUpdate, error) {
+func (rc *ReleaseContext) SelectServices(results update.Result, filters ...update.ServiceFilter) ([]*update.ServiceUpdate, error) {
 	defined, err := rc.FindDefinedServices()
 	if err != nil {
 		return nil, err
 	}
 
 	var ids []flux.ServiceID
-	definedMap := map[flux.ServiceID]*ServiceUpdate{}
+	definedMap := map[flux.ServiceID]*update.ServiceUpdate{}
 	for _, s := range defined {
 		ids = append(ids, s.ServiceID)
 		definedMap[s.ServiceID] = s
 	}
 
 	// Correlate with services in running system.
-	services, err := rc.Cluster.SomeServices(ids)
+	services, err := rc.cluster.SomeServices(ids)
 	if err != nil {
 		return nil, err
 	}
 
 	// Compare defined vs running
-	var updates []*ServiceUpdate
+	var updates []*update.ServiceUpdate
 	for _, s := range services {
 		update, ok := definedMap[s.ID]
 		if !ok {
@@ -101,9 +109,9 @@ func (rc *ReleaseContext) SelectServices(results update.Result, filters ...Servi
 	}
 
 	// Filter both updates ...
-	var filteredUpdates []*ServiceUpdate
+	var filteredUpdates []*update.ServiceUpdate
 	for _, s := range updates {
-		fr := s.filter(filters...)
+		fr := s.Filter(filters...)
 		results[s.ServiceID] = fr
 		if fr.Status == update.ReleaseStatusSuccess || fr.Status == "" {
 			filteredUpdates = append(filteredUpdates, s)
@@ -111,9 +119,9 @@ func (rc *ReleaseContext) SelectServices(results update.Result, filters ...Servi
 	}
 
 	// ... and missing services
-	filteredDefined := map[flux.ServiceID]*ServiceUpdate{}
+	filteredDefined := map[flux.ServiceID]*update.ServiceUpdate{}
 	for k, s := range definedMap {
-		fr := s.filter(filters...)
+		fr := s.Filter(filters...)
 		results[s.ServiceID] = fr
 		if fr.Status != update.ReleaseStatusIgnored {
 			filteredDefined[k] = s
@@ -130,25 +138,15 @@ func (rc *ReleaseContext) SelectServices(results update.Result, filters ...Servi
 	return filteredUpdates, nil
 }
 
-func (s *ServiceUpdate) filter(filters ...ServiceFilter) update.ServiceResult {
-	for _, f := range filters {
-		fr := f.Filter(*s)
-		if fr.Error != "" {
-			return fr
-		}
-	}
-	return update.ServiceResult{}
-}
-
-func (rc *ReleaseContext) FindDefinedServices() ([]*ServiceUpdate, error) {
-	rc.Repo.RLock()
-	defer rc.Repo.RUnlock()
-	services, err := rc.Manifests.FindDefinedServices(rc.Repo.ManifestDir())
+func (rc *ReleaseContext) FindDefinedServices() ([]*update.ServiceUpdate, error) {
+	rc.repo.RLock()
+	defer rc.repo.RUnlock()
+	services, err := rc.manifests.FindDefinedServices(rc.repo.ManifestDir())
 	if err != nil {
 		return nil, err
 	}
 
-	var defined []*ServiceUpdate
+	var defined []*update.ServiceUpdate
 	for id, paths := range services {
 		switch len(paths) {
 		case 1:
@@ -156,7 +154,7 @@ func (rc *ReleaseContext) FindDefinedServices() ([]*ServiceUpdate, error) {
 			if err != nil {
 				return nil, err
 			}
-			defined = append(defined, &ServiceUpdate{
+			defined = append(defined, &update.ServiceUpdate{
 				ServiceID:     id,
 				ManifestPath:  paths[0],
 				ManifestBytes: def,
@@ -170,20 +168,16 @@ func (rc *ReleaseContext) FindDefinedServices() ([]*ServiceUpdate, error) {
 
 // Shortcut for this
 func (rc *ReleaseContext) ServicesWithPolicy(p policy.Policy) (policy.ServiceMap, error) {
-	rc.Repo.RLock()
-	defer rc.Repo.RUnlock()
-	return rc.Manifests.ServicesWithPolicy(rc.Repo.ManifestDir(), p)
-}
-
-type ServiceFilter interface {
-	Filter(ServiceUpdate) update.ServiceResult
+	rc.repo.RLock()
+	defer rc.repo.RUnlock()
+	return rc.manifests.ServicesWithPolicy(rc.repo.ManifestDir(), p)
 }
 
 type SpecificImageFilter struct {
 	Img flux.ImageID
 }
 
-func (f *SpecificImageFilter) Filter(u ServiceUpdate) update.ServiceResult {
+func (f *SpecificImageFilter) Filter(u update.ServiceUpdate) update.ServiceResult {
 	// If there are no containers, then we can't check the image.
 	if len(u.Service.Containers.Containers) == 0 {
 		return update.ServiceResult{
@@ -210,7 +204,7 @@ type ExcludeFilter struct {
 	IDs []flux.ServiceID
 }
 
-func (f *ExcludeFilter) Filter(u ServiceUpdate) update.ServiceResult {
+func (f *ExcludeFilter) Filter(u update.ServiceUpdate) update.ServiceResult {
 	for _, id := range f.IDs {
 		if u.ServiceID == id {
 			return update.ServiceResult{
@@ -226,7 +220,7 @@ type IncludeFilter struct {
 	IDs []flux.ServiceID
 }
 
-func (f *IncludeFilter) Filter(u ServiceUpdate) update.ServiceResult {
+func (f *IncludeFilter) Filter(u update.ServiceUpdate) update.ServiceResult {
 	for _, id := range f.IDs {
 		if u.ServiceID == id {
 			return update.ServiceResult{}
@@ -242,7 +236,7 @@ type LockedFilter struct {
 	IDs []flux.ServiceID
 }
 
-func (f *LockedFilter) Filter(u ServiceUpdate) update.ServiceResult {
+func (f *LockedFilter) Filter(u update.ServiceUpdate) update.ServiceResult {
 	for _, id := range f.IDs {
 		if u.ServiceID == id {
 			return update.ServiceResult{

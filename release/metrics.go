@@ -8,13 +8,6 @@ import (
 )
 
 var (
-	releaseDuration = prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
-		Namespace: "flux",
-		Subsystem: "fluxsvc",
-		Name:      "release_duration_seconds",
-		Help:      "Release method duration in seconds.",
-		Buckets:   stdprometheus.DefBuckets,
-	}, []string{fluxmetrics.LabelReleaseType, fluxmetrics.LabelReleaseKind, fluxmetrics.LabelSuccess})
 	stageDuration = prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
 		Namespace: "flux",
 		Subsystem: "fluxsvc",

@@ -8,7 +8,7 @@ import (
 	"github.com/weaveworks/flux/update"
 )
 
-type Changes struct {
+type Automated struct {
 	changes []change
 }
 
@@ -18,12 +18,12 @@ type change struct {
 	imageID   flux.ImageID
 }
 
-func (c *Changes) Add(service flux.ServiceID, container cluster.Container, image flux.ImageID) {
-	c.changes = append(c.changes, change{service, container, image})
+func (a *Automated) Add(service flux.ServiceID, container cluster.Container, image flux.ImageID) {
+	a.changes = append(a.changes, change{service, container, image})
 }
 
-func (c *Changes) ServiceUpdates(rc *ReleaseContext, logger log.Logger) ([]*ServiceUpdate, error) {
-	filters, err := c.filters(rc)
+func (a *Automated) ServiceUpdates(rc update.ReleaseContext, logger log.Logger) ([]*update.ServiceUpdate, error) {
+	filters, err := a.filters(rc)
 	if err != nil {
 		return nil, err
 	}
@@ -32,8 +32,8 @@ func (c *Changes) ServiceUpdates(rc *ReleaseContext, logger log.Logger) ([]*Serv
 	if err != nil {
 		return nil, err
 	}
-	c.markSkipped(result)
-	updates, err = c.calculateImageUpdates(rc, updates, result, logger)
+	a.markSkipped(result)
+	updates, err = a.calculateImageUpdates(rc, updates, result, logger)
 	if err != nil {
 		return nil, err
 	}
@@ -42,11 +42,11 @@ func (c *Changes) ServiceUpdates(rc *ReleaseContext, logger log.Logger) ([]*Serv
 }
 
 // TODO #260 use this
-func (c *Changes) updates() map[flux.ServiceID]*ServiceUpdate {
-	updates := map[flux.ServiceID]*ServiceUpdate{}
-	for _, c := range c.changes {
+func (a *Automated) updates() map[flux.ServiceID]*update.ServiceUpdate {
+	updates := map[flux.ServiceID]*update.ServiceUpdate{}
+	for _, c := range a.changes {
 		if _, ok := updates[c.service]; !ok {
-			updates[c.service] = &ServiceUpdate{}
+			updates[c.service] = &update.ServiceUpdate{}
 		}
 
 		currentImageID, err := flux.ParseImageID(c.container.Image)
@@ -66,20 +66,20 @@ func (c *Changes) updates() map[flux.ServiceID]*ServiceUpdate {
 	return updates
 }
 
-func (c *Changes) filters(rc *ReleaseContext) ([]ServiceFilter, error) {
+func (a *Automated) filters(rc update.ReleaseContext) ([]update.ServiceFilter, error) {
 	lockedSet, err := rc.ServicesWithPolicy(policy.Locked)
 	if err != nil {
 		return nil, err
 	}
 
-	return []ServiceFilter{
-		&IncludeFilter{c.serviceIDs()},
+	return []update.ServiceFilter{
+		&IncludeFilter{a.serviceIDs()},
 		&LockedFilter{lockedSet.ToSlice()},
 	}, nil
 }
 
-func (c *Changes) markSkipped(results update.Result) {
-	for _, v := range c.serviceIDs() {
+func (a *Automated) markSkipped(results update.Result) {
+	for _, v := range a.serviceIDs() {
 		if _, ok := results[v]; !ok {
 			results[v] = update.ServiceResult{
 				Status: update.ReleaseStatusSkipped,
@@ -89,10 +89,10 @@ func (c *Changes) markSkipped(results update.Result) {
 	}
 }
 
-func (c *Changes) calculateImageUpdates(rc *ReleaseContext, candidates []*ServiceUpdate, result update.Result, logger log.Logger) ([]*ServiceUpdate, error) {
-	updates := []*ServiceUpdate{}
+func (a *Automated) calculateImageUpdates(rc update.ReleaseContext, candidates []*update.ServiceUpdate, result update.Result, logger log.Logger) ([]*update.ServiceUpdate, error) {
+	updates := []*update.ServiceUpdate{}
 
-	serviceMap := c.serviceMap()
+	serviceMap := a.serviceMap()
 	for _, u := range candidates {
 		containers, err := u.Service.ContainersOrError()
 		if err != nil {
@@ -142,19 +142,23 @@ func (c *Changes) calculateImageUpdates(rc *ReleaseContext, candidates []*Servic
 	return updates, nil
 }
 
-func (c *Changes) serviceMap() map[flux.ServiceID][]change {
+func (a *Automated) serviceMap() map[flux.ServiceID][]change {
 	set := map[flux.ServiceID][]change{}
-	for _, change := range c.changes {
+	for _, change := range a.changes {
 		set[change.service] = append(set[change.service], change)
 	}
 	return set
 }
 
-func (c *Changes) serviceIDs() []flux.ServiceID {
+func (a *Automated) serviceIDs() []flux.ServiceID {
 	slice := []flux.ServiceID{}
-	for service, _ := range c.serviceMap() {
+	for service, _ := range a.serviceMap() {
 		slice = append(slice, flux.ServiceID(service.String()))
 	}
 	return slice
+}
 
+// TODO
+func (a *Automated) Result(rc update.ReleaseContext, logger log.Logger) (update.Result, error) {
+	return nil, nil
 }

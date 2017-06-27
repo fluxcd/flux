@@ -39,7 +39,7 @@ func (d *Daemon) PollImages(logger log.Logger) {
 	}
 	// TODO: #260 Find latest image match for each container,
 	// group by image to do as few releases as possible
-	changes := release.Changes{}
+	changes := &release.Automated{}
 
 	for _, service := range services {
 		for _, container := range service.ContainersOrNil() {

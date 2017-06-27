@@ -9,33 +9,35 @@ import (
 
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster"
-	fluxmetrics "github.com/weaveworks/flux/metrics"
 	"github.com/weaveworks/flux/policy"
 	"github.com/weaveworks/flux/registry"
 	"github.com/weaveworks/flux/update"
 )
 
-type ServiceUpdate struct {
-	ServiceID     flux.ServiceID
-	Service       cluster.Service
-	ManifestPath  string
-	ManifestBytes []byte
-	Updates       []update.ContainerUpdate
+type Changes interface {
+	ServiceUpdates(update.ReleaseContext, log.Logger) ([]*update.ServiceUpdate, error)
+	Result(update.ReleaseContext, log.Logger) (update.Result, error)
 }
 
-func Release(rc *ReleaseContext, spec update.ReleaseSpec, logger log.Logger) (results update.Result, err error) {
-	started := time.Now()
-	defer func(start time.Time) {
-		releaseDuration.With(
-			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
-			fluxmetrics.LabelReleaseType, update.ReleaseSpec(spec).ReleaseType(),
-			fluxmetrics.LabelReleaseKind, string(spec.Kind),
-		).Observe(time.Since(started).Seconds())
-	}(started)
+type Observer interface {
+	Observe(time.Time, error)
+}
+
+func Release(rc *ReleaseContext, changes Changes, logger log.Logger) (results update.Result, err error) {
+	if o, ok := changes.(Observer); ok {
+		defer func(start time.Time) {
+			o.Observe(start, err)
+		}(time.Now())
+	}
 
 	logger = log.NewContext(logger).With("type", "release")
 
-	updates, results, err := CalculateRelease(rc, spec, logger)
+	updates, err := changes.ServiceUpdates(rc, logger)
+	if err != nil {
+		return nil, err
+	}
+
+	results, err = changes.Result(rc, logger)
 	if err != nil {
 		return nil, err
 	}
@@ -45,7 +47,7 @@ func Release(rc *ReleaseContext, spec update.ReleaseSpec, logger log.Logger) (re
 
 }
 
-func CalculateRelease(rc *ReleaseContext, spec update.ReleaseSpec, logger log.Logger) ([]*ServiceUpdate, update.Result, error) {
+func CalculateRelease(rc *ReleaseContext, spec update.ReleaseSpec, logger log.Logger) ([]*update.ServiceUpdate, update.Result, error) {
 	results := update.Result{}
 	timer := NewStageTimer("select_services")
 	updates, err := selectServices(rc, &spec, results)
@@ -85,7 +87,7 @@ func markSkipped(spec update.ReleaseSpec, results update.Result) {
 // Take the spec given in the job, and figure out which services are
 // in question based on the running services and those defined in the
 // repo. Fill in the release results along the way.
-func selectServices(rc *ReleaseContext, spec *update.ReleaseSpec, results update.Result) ([]*ServiceUpdate, error) {
+func selectServices(rc *ReleaseContext, spec *update.ReleaseSpec, results update.Result) ([]*update.ServiceUpdate, error) {
 	// Build list of filters
 	filtList, err := filters(spec, rc)
 	if err != nil {
@@ -99,9 +101,9 @@ func selectServices(rc *ReleaseContext, spec *update.ReleaseSpec, results update
 }
 
 // filters converts a ReleaseSpec (and Lock config) into ServiceFilters
-func filters(spec *update.ReleaseSpec, rc *ReleaseContext) ([]ServiceFilter, error) {
+func filters(spec *update.ReleaseSpec, rc *ReleaseContext) ([]update.ServiceFilter, error) {
 	// Image filter
-	var filtList []ServiceFilter
+	var filtList []update.ServiceFilter
 	if spec.ImageSpec != update.ImageSpecLatest {
 		id, err := flux.ParseImageID(spec.ImageSpec.String())
 		if err != nil {
@@ -158,7 +160,7 @@ specs:
 // however we do want to see if we *can* do the replacements, because
 // if not, it indicates there's likely some problem with the running
 // system vs the definitions given in the repo.)
-func calculateImageUpdates(rc *ReleaseContext, candidates []*ServiceUpdate, spec *update.ReleaseSpec, results update.Result, logger log.Logger) ([]*ServiceUpdate, error) {
+func calculateImageUpdates(rc *ReleaseContext, candidates []*update.ServiceUpdate, spec *update.ReleaseSpec, results update.Result, logger log.Logger) ([]*update.ServiceUpdate, error) {
 	// Compile an `ImageMap` of all relevant images
 	var images ImageMap
 	var repo string
@@ -166,13 +168,13 @@ func calculateImageUpdates(rc *ReleaseContext, candidates []*ServiceUpdate, spec
 
 	switch spec.ImageSpec {
 	case update.ImageSpecLatest:
-		images, err = CollectUpdateImages(rc.Registry, candidates)
+		images, err = CollectUpdateImages(rc.Registry(), candidates)
 	default:
 		var image flux.ImageID
 		image, err = spec.ImageSpec.AsID()
 		if err == nil {
 			repo = image.Repository()
-			images, err = ExactImages(rc.Registry, []flux.ImageID{image})
+			images, err = ExactImages(rc.Registry(), []flux.ImageID{image})
 		}
 	}
 
@@ -182,7 +184,7 @@ func calculateImageUpdates(rc *ReleaseContext, candidates []*ServiceUpdate, spec
 
 	// Look through all the services' containers to see which have an
 	// image that could be updated.
-	var updates []*ServiceUpdate
+	var updates []*update.ServiceUpdate
 	for _, u := range candidates {
 		containers, err := u.Service.ContainersOrError()
 		if err != nil {
@@ -231,7 +233,7 @@ func calculateImageUpdates(rc *ReleaseContext, candidates []*ServiceUpdate, spec
 				continue
 			}
 
-			u.ManifestBytes, err = rc.Manifests.UpdateDefinition(u.ManifestBytes, latestImage.ID)
+			u.ManifestBytes, err = rc.Manifests().UpdateDefinition(u.ManifestBytes, latestImage.ID)
 			if err != nil {
 				return nil, err
 			}
@@ -272,7 +274,7 @@ func calculateImageUpdates(rc *ReleaseContext, candidates []*ServiceUpdate, spec
 	return updates, nil
 }
 
-func ApplyChanges(rc *ReleaseContext, updates []*ServiceUpdate, logger log.Logger) error {
+func ApplyChanges(rc *ReleaseContext, updates []*update.ServiceUpdate, logger log.Logger) error {
 	logger.Log("updates", len(updates))
 	if len(updates) == 0 {
 		logger.Log("exit", "no images to update for services given")
@@ -315,7 +317,7 @@ func commitMessageFromReleaseSpec(spec *update.ReleaseSpec) string {
 
 // CollectUpdateImages is a convenient shim to
 // `CollectAvailableImages`.
-func CollectUpdateImages(registry registry.Registry, updateable []*ServiceUpdate) (ImageMap, error) {
+func CollectUpdateImages(registry registry.Registry, updateable []*update.ServiceUpdate) (ImageMap, error) {
 	var servicesToCheck []cluster.Service
 	for _, update := range updateable {
 		servicesToCheck = append(servicesToCheck, update.Service)
