@@ -1,5 +1,3 @@
-// +build integration
-
 package registry
 
 import (
@@ -28,7 +26,7 @@ func TestWarmer_CacheNewRepo(t *testing.T) {
 	w := Warmer{
 		Logger:        log.NewLogfmtLogger(os.Stderr),
 		ClientFactory: &mockRemoteFactory{c: dc},
-		Username:      "user",
+		Creds:         NoCredentials(),
 		Expiry:        time.Hour,
 		Client:        mc,
 	}
@@ -46,7 +44,7 @@ func TestWarmer_CacheNewRepo(t *testing.T) {
 	shutdownWg.Wait()
 
 	// Test that tags were written
-	key := tagKey("user", r.String())
+	key := tagKey("", r.String())
 	item, err := mc.Get(key)
 	if err != nil {
 		t.Fatal(err)
@@ -65,7 +63,7 @@ func TestWarmer_CacheNewRepo(t *testing.T) {
 	}
 
 	// Test that manifest was written
-	key = manifestKey("user", r.String(), "tag1")
+	key = manifestKey("", r.String(), "tag1")
 	item, err = mc.Get(key)
 	if err != nil {
 		t.Fatal(err)

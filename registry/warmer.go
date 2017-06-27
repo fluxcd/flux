@@ -14,7 +14,7 @@ import (
 type Warmer struct {
 	Logger        log.Logger
 	ClientFactory ClientFactory
-	Username      string
+	Creds         Credentials
 	Expiry        time.Duration
 	Client        MemcacheClient
 }
@@ -45,6 +45,8 @@ func (w *Warmer) warm(repository Repository) {
 	}
 	defer cancel()
 
+	username := w.Creds.credsFor(repository.Host()).username
+
 	// Refresh tags first
 	tags, err := client.Tags(repository.String())
 	if err != nil {
@@ -58,7 +60,7 @@ func (w *Warmer) warm(repository Repository) {
 		return
 	}
 
-	key := tagKey(w.Username, repository.String())
+	key := tagKey(username, repository.String())
 
 	if err := w.Client.Set(&memcache.Item{
 		Key:        key,
@@ -79,7 +81,7 @@ func (w *Warmer) warm(repository Repository) {
 			return
 		}
 
-		key := manifestKey(w.Username, repository.String(), tag)
+		key := manifestKey(username, repository.String(), tag)
 		if err := w.Client.Set(&memcache.Item{
 			Key:        key,
 			Value:      val,

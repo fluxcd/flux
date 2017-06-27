@@ -188,8 +188,13 @@ func main() {
 		k8sManifests = &kubernetes.Manifests{}
 	}
 
+	// Registry components
 	var cache registry.Registry
+	var reg registry.Registry
+	var cacheWarmer registry.Warmer
+	var warmerQueue registry.Queue
 	{
+		// Cache
 		var memcacheClient registry.MemcacheClient
 		if *memcachedHostname != "" {
 			memcacheClient = registry.NewMemcacheClient(registry.MemcacheConfig{
@@ -207,30 +212,41 @@ func main() {
 		if err != nil {
 			logger.Log("err", err)
 		}
-		registryLogger := log.NewContext(logger).With("component", "cache")
+		cacheLogger := log.NewContext(logger).With("component", "cache")
 		cache = registry.NewRegistry(
-			registry.NewCacheClientFactory(creds, registryLogger, memcacheClient, *registryCacheExpiry),
-			registryLogger,
+			registry.NewCacheClientFactory(creds, cacheLogger, memcacheClient, *registryCacheExpiry),
+			cacheLogger,
 		)
 		cache = registry.NewInstrumentedRegistry(cache)
-	}
 
-	var reg registry.Registry
-	{
-		creds, err := registry.CredentialsFromFile(*dockerCredFile)
-		if err != nil {
-			logger.Log("err", err)
-		}
+		// Remote
 		registryLogger := log.NewContext(logger).With("component", "registry")
+		remoteFactory := registry.NewRemoteClientFactory(creds, registryLogger, registry.RateLimiterConfig{
+			RPS:   *registryRPS,
+			Burst: *registryBurst,
+			Wait:  *registryWait,
+		})
 		reg = registry.NewRegistry(
-			registry.NewRemoteClientFactory(creds, registryLogger, registry.RateLimiterConfig{
-				RPS:   *registryRPS,
-				Burst: *registryBurst,
-				Wait:  *registryWait,
-			}),
+			remoteFactory,
 			registryLogger,
 		)
 		reg = registry.NewInstrumentedRegistry(reg)
+
+		// Warmer
+		warmerLogger := log.NewContext(logger).With("component", "warmer")
+		cacheWarmer = registry.Warmer{
+			Logger:        warmerLogger,
+			ClientFactory: remoteFactory,
+			Creds:         creds,
+			Expiry:        *registryCacheExpiry,
+			Client:        memcacheClient,
+		}
+		queueLogger := log.NewContext(logger).With("component", "warmer_queue")
+		warmerQueue = registry.Queue{
+			RunningContainers:    servicesToRepositories(k8s, queueLogger),
+			Logger:               queueLogger,
+			RegistryPollInterval: time.Second,
+		}
 	}
 
 	gitRemoteConfig := flux.GitRemoteConfig{
@@ -362,6 +378,12 @@ func main() {
 	shutdownWg.Add(1)
 	go daemon.GitPollLoop(shutdown, shutdownWg, log.NewContext(logger).With("component", "sync-loop"))
 
+	shutdownWg.Add(1)
+	go warmerQueue.Loop(shutdown, shutdownWg)
+
+	shutdownWg.Add(1)
+	go cacheWarmer.Loop(shutdown, shutdownWg, warmerQueue.Queue())
+
 	// Update daemonRef so that upstream and handlers point to fully working daemon
 	daemonRef.UpdatePlatform(daemon)
 
@@ -403,4 +425,27 @@ func checkForUpdates(clusterString string, gitString string, logger log.Logger) 
 	}
 
 	return checkpoint.CheckInterval(&params, versionCheckPeriod, handleResponse)
+}
+
+func servicesToRepositories(k8s cluster.Cluster, log log.Logger) func() []registry.Repository {
+	return func() []registry.Repository {
+		svcs, err := k8s.AllServices("")
+		if err != nil {
+			log.Log("err", err.Error())
+			return []registry.Repository{}
+		}
+		repos := make([]registry.Repository, 0)
+		for _, s := range svcs {
+			for _, c := range s.Containers.Containers {
+				r, err := registry.ParseRepository(c.Image)
+				if err != nil {
+					log.Log("err", err.Error())
+					continue
+				}
+				repos = append(repos, r)
+			}
+
+		}
+		return repos
+	}
 }
