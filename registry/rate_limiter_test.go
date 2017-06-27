@@ -46,7 +46,7 @@ func TestRemoteFactory_RateLimit(t *testing.T) {
 		time.Sleep(time.Millisecond) // Sleep for a millisecond to allow golang to do it's syscalls.
 	}
 
-	observedRateLimit := int(float64(count) / (time.Now().Sub(start).Seconds()))
+	observedRateLimit := int(float64(atomic.LoadUint32(&count)) / (time.Now().Sub(start).Seconds()))
 	if observedRateLimit < rateLimit-5 || observedRateLimit > rateLimit+5 {
 		t.Fatalf("Expected rate limit of %v but got %v. We might need to widen the test.", rateLimit, observedRateLimit)
 	}

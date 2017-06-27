@@ -78,7 +78,6 @@ func TestCache_Manifests(t *testing.T) {
 
 func TestCache_Tags(t *testing.T) {
 	mc := Setup(t)
-	defer Cleanup(t)
 
 	creds := NoCredentials()
 	c := NewCache(

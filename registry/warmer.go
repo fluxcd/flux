@@ -20,14 +20,18 @@ type Warmer struct {
 }
 
 // Continuously wait for a new repository to warm
-func (w *Warmer) Loop(stop chan struct{}, repo chan Repository, wg *sync.WaitGroup) {
+func (w *Warmer) Loop(stop chan struct{}, wg *sync.WaitGroup, warm chan Repository) {
+	if w.Logger == nil || w.ClientFactory == nil || w.Expiry == 0 || w.Client == nil {
+		panic("registry.Warmer fields are nil")
+	}
+
 	defer wg.Done()
 	for {
 		select {
 		case <-stop:
 			w.Logger.Log("stopping", "true")
 			return
-		case r := <-repo:
+		case r := <-warm:
 			w.warm(r)
 		}
 	}

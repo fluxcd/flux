@@ -4,35 +4,13 @@ package registry
 
 import (
 	"encoding/json"
-	"flag"
-	"github.com/bradfitz/gomemcache/memcache"
 	"github.com/docker/distribution/manifest/schema1"
 	"github.com/go-kit/kit/log"
 	"os"
-	"strings"
 	"sync"
 	"testing"
 	"time"
 )
-
-var (
-	memcachedIPs = flag.String("memcached-ips", "127.0.0.1:11211", "space-separated host:port values for memcached to connect to")
-)
-
-type stoppableMemcacheClient struct {
-	*memcache.Client
-}
-
-func (s *stoppableMemcacheClient) Stop() {}
-
-// Setup sets up stuff for testing
-func Setup(t *testing.T) MemcacheClient {
-	mc := memcache.New(strings.Fields(*memcachedIPs)...)
-	if err := mc.FlushAll(); err != nil {
-		t.Fatal(err)
-	}
-	return &stoppableMemcacheClient{mc}
-}
 
 func TestWarmer_CacheNewRepo(t *testing.T) {
 	mc := Setup(t)
@@ -59,7 +37,7 @@ func TestWarmer_CacheNewRepo(t *testing.T) {
 	repo := make(chan Repository)
 	shutdownWg := &sync.WaitGroup{}
 	shutdownWg.Add(1)
-	go w.Loop(shutdown, repo, shutdownWg)
+	go w.Loop(shutdown, shutdownWg, repo)
 
 	r, _ := ParseRepository("test/repo")
 	repo <- r
