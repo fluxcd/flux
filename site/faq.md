@@ -48,22 +48,22 @@ Provide Flux with the registry credentials. See
 
 Flux polls image registries every 5 minutes by default. You can change
 this, but beware that registries may throttle and even blacklist
-over-eager clients (like FLux in this scenario).
+over-eager clients (like Flux in this scenario).
 
 ### How do I use my own deploy key?
 
-Flux uses a k8s secret for the ssh deploy key. You can provide your own
-secret or overwrite the one generated with your own.
+Flux uses a k8s secret to hold the git ssh deploy key. It is possible to
+provide your own.
 
-First delete the secret if it exists:
+First delete the secret (if it exists):
 
 `kubectl delete secret flux-git-deploy`
 
-Then create a new one with your key:
+Then create a new secret named `flux-git-deploy` and using your key as the content of the secret:
 
 `kubectl create secret generic flux-git-deploy --from-file /path/to/id-rsa-flux`
 
 Now restart fluxd to re-read the k8s secret (if it is running):
 
-`kubectl delete -f deploy/flux-deployment.yaml ; kubectl apply -f deploy/flux-deployment.yaml`
+`kubectl delete $(kubectl get pod -o name -l name=flux)`
 
