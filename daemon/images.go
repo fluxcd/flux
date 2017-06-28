@@ -37,10 +37,8 @@ func (d *Daemon) PollImages(logger log.Logger) {
 		logger.Log("error", errors.Wrap(err, "fetching image updates"))
 		return
 	}
-	// TODO: #260 Find latest image match for each container,
-	// group by image to do as few releases as possible
-	changes := &update.Automated{}
 
+	changes := &update.Automated{}
 	for _, service := range services {
 		for _, container := range service.ContainersOrNil() {
 			logger := log.NewContext(logger).With("service", service.ID, "container", container.Name, "currentimage", container.Image)

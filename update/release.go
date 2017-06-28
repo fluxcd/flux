@@ -73,7 +73,6 @@ func (s ReleaseSpec) ReleaseType() string {
 	}
 }
 
-// TODO #260
 func (s ReleaseSpec) CalculateRelease(rc ReleaseContext, logger log.Logger) ([]*ServiceUpdate, Result, error) {
 	results := Result{}
 	timer := NewStageTimer("select_services")
