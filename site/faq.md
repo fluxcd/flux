@@ -59,7 +59,7 @@ First delete the secret (if it exists):
 
 `kubectl delete secret flux-git-deploy`
 
-Then create a new secret named `flux-git-deploy` and using your key as the content of the secret:
+Then create a new secret named `flux-git-deploy`, using your key as the content of the secret:
 
 `kubectl create secret generic flux-git-deploy --from-file /path/to/id-rsa-flux`
 
