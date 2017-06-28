@@ -61,7 +61,7 @@ First delete the secret (if it exists):
 
 Then create a new secret named `flux-git-deploy`, using your key as the content of the secret:
 
-`kubectl create secret generic flux-git-deploy --from-file /path/to/id-rsa-flux`
+`kubectl create secret generic flux-git-deploy --from-file=identity=/full/path/to/key`
 
 Now restart fluxd to re-read the k8s secret (if it is running):
 
