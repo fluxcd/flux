@@ -1,48 +1,40 @@
 package registry
 
 import (
-	"context"
+	"github.com/pkg/errors"
 	"golang.org/x/time/rate"
 	"net/http"
-	"time"
 )
 
-var limiters = make(map[string]http.RoundTripper)
+var limiters = make(map[string]*rate.Limiter)
 
 type RateLimiterConfig struct {
-	RPS   int           // Rate per second per host
-	Burst int           // Burst count per host
-	Wait  time.Duration // Maximum wait time for a request
+	RPS   int // Rate per second per host
+	Burst int // Burst count per host
 }
 
 func RateLimitedRoundTripper(rt http.RoundTripper, config RateLimiterConfig, host string) http.RoundTripper {
 	if _, ok := limiters[host]; !ok {
 		rl := rate.NewLimiter(rate.Limit(config.RPS), config.Burst)
-		limiters[host] = &RoundTripRateLimiter{
-			Wait:      config.Wait,
-			RL:        rl,
-			Transport: rt,
-		}
+		limiters[host] = rl
 	}
-	return limiters[host]
+	return &RoundTripRateLimiter{
+		RL:        limiters[host],
+		Transport: rt,
+	}
 }
 
 type RoundTripRateLimiter struct {
-	Wait      time.Duration // Maximum wait time for a request
 	RL        *rate.Limiter
 	Transport http.RoundTripper
 }
 
 func (rl *RoundTripRateLimiter) RoundTrip(r *http.Request) (*http.Response, error) {
-	ctx, cancel := context.WithTimeout(r.Context(), rl.Wait)
-	defer cancel() // always cancel the context!
-
 	// Wait errors out if the request cannot be processed within
 	// the deadline. This is preemptive, instead of waiting the
 	// entire duration.
-	rl.RL.Allow()
-	if err := rl.RL.Wait(ctx); err != nil {
-		return nil, err
+	if err := rl.RL.Wait(r.Context()); err != nil {
+		return nil, errors.Wrap(err, "rate limited")
 	}
 	return rl.Transport.RoundTrip(r)
 }
