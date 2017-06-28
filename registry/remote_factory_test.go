@@ -20,7 +20,6 @@ func TestRemoteFactory_CreateForDockerHub(t *testing.T) {
 	fact := NewRemoteClientFactory(Credentials{}, log.NewNopLogger(), RateLimiterConfig{
 		RPS:   200,
 		Burst: 1,
-		Wait:  time.Second,
 	})
 	img, err := flux.ParseImage("alpine:latest", time.Time{})
 	testRepository = RepositoryFromImage(img)
@@ -29,7 +28,7 @@ func TestRemoteFactory_CreateForDockerHub(t *testing.T) {
 	}
 	client, cancel, err := fact.ClientFor(testRepository.Host())
 	if err != nil {
-		return
+		t.Fatal(err)
 	}
 	r := newRemote(client, cancel)
 	res, err := r.Manifest(testRepository, img.ID.Tag)
@@ -40,6 +39,48 @@ func TestRemoteFactory_CreateForDockerHub(t *testing.T) {
 	if res.ID.FullID() != expected {
 		t.Fatal("Expected %q. Got %q", expected, res.ID.FullID())
 	}
+}
+
+func TestRemoteFactory_RawClient(t *testing.T) {
+	// No credentials required for public Image
+	fact := NewRemoteClientFactory(Credentials{}, log.NewNopLogger(), RateLimiterConfig{
+		RPS:   200,
+		Burst: 1,
+	})
+	img, err := flux.ParseImage("alpine:latest", time.Time{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	testRepository = RepositoryFromImage(img)
+
+	// Refresh tags first
+	var tags []string
+	client, cancel, err := fact.ClientFor(testRepository.Host())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tags, err = client.Tags(testRepository.NamespaceImage())
+	if err != nil {
+		t.Fatal(err)
+	}
+	cancel()
+	if len(tags) == 0 {
+		t.Fatal("Should have some tags")
+	}
+
+	client, cancel, err = fact.ClientFor(testRepository.Host())
+	if err != nil {
+		t.Fatal(err)
+	}
+	history, err := client.Manifest(testRepository.NamespaceImage(), tags[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(history) == 0 {
+		t.Fatal("Should have some history")
+	}
+	cancel()
 }
 
 func TestRemoteFactory_InvalidHost(t *testing.T) {

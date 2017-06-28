@@ -18,6 +18,15 @@ type Queue struct {
 	queueLock            sync.Mutex
 }
 
+func NewQueue(runningContainersFunc func() []Repository, l log.Logger, emptyQueueTick time.Duration) Queue {
+	return Queue{
+		RunningContainers:    runningContainersFunc,
+		Logger:               l,
+		RegistryPollInterval: emptyQueueTick,
+		warmQueue:            make(chan Repository, 100), // Don't close this. It will be GC'ed when this instance is destroyed.
+	}
+}
+
 // Queue loop to maintain the queue and periodically add a random
 // repository that is running in the cluster.
 func (w *Queue) Loop(stop chan struct{}, wg *sync.WaitGroup) {
@@ -27,12 +36,7 @@ func (w *Queue) Loop(stop chan struct{}, wg *sync.WaitGroup) {
 		panic("registry.Queue fields are nil")
 	}
 
-	w.queueLock.Lock()
-	w.warmQueue = make(chan Repository, 100)
-	w.queueLock.Unlock()
-
 	pollImages := time.Tick(w.RegistryPollInterval)
-	w.Logger.Log("tick", w.RegistryPollInterval)
 
 	for {
 		select {

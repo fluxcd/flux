@@ -74,7 +74,6 @@ func main() {
 		registryPollInterval = fs.Duration("registry-poll-interval", 5*time.Minute, "period at which to poll registry for new images")
 		registryRPS          = fs.Int("registry-rps", 200, "maximum registry requests per second per host")
 		registryBurst        = fs.Int("registry-burst", 10, "maximum registry request burst per host")
-		registryWait         = fs.Duration("registry-wait", time.Second, "maximum wait time when rate limiting")
 		// k8s-secret backed ssh keyring configuration
 		k8sSecretName            = fs.String("k8s-secret-name", "flux-git-deploy", "Name of the k8s secret used to store the private SSH key")
 		k8sSecretVolumeMountPath = fs.String("k8s-secret-volume-mount-path", "/etc/fluxd/ssh", "Mount location of the k8s secret storing the private SSH key")
@@ -224,7 +223,6 @@ func main() {
 		remoteFactory := registry.NewRemoteClientFactory(creds, registryLogger, registry.RateLimiterConfig{
 			RPS:   *registryRPS,
 			Burst: *registryBurst,
-			Wait:  *registryWait,
 		})
 		reg = registry.NewRegistry(
 			remoteFactory,
@@ -233,6 +231,12 @@ func main() {
 		reg = registry.NewInstrumentedRegistry(reg)
 
 		// Warmer
+		queueLogger := log.NewContext(logger).With("component", "warmer_queue")
+		warmerQueue = registry.NewQueue(
+			servicesToRepositories(k8s, queueLogger),
+			queueLogger,
+			100*time.Millisecond,
+		)
 		warmerLogger := log.NewContext(logger).With("component", "warmer")
 		cacheWarmer = registry.Warmer{
 			Logger:        warmerLogger,
@@ -240,12 +244,6 @@ func main() {
 			Creds:         creds,
 			Expiry:        *registryCacheExpiry,
 			Client:        memcacheClient,
-		}
-		queueLogger := log.NewContext(logger).With("component", "warmer_queue")
-		warmerQueue = registry.Queue{
-			RunningContainers:    servicesToRepositories(k8s, queueLogger),
-			Logger:               queueLogger,
-			RegistryPollInterval: time.Second,
 		}
 	}
 

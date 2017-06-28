@@ -30,7 +30,7 @@ func newRemote(client dockerRegistryInterface, cancel context.CancelFunc) Remote
 }
 
 func (rc *remote) Tags(repository Repository) (_ []string, err error) {
-	return rc.client.Tags(repository.NamespaceImage())
+	return rc.client.Tags(repository.String())
 }
 
 func (rc *remote) Manifest(repository Repository, tag string) (img flux.Image, err error) {
@@ -38,7 +38,7 @@ func (rc *remote) Manifest(repository Repository, tag string) (img flux.Image, e
 	if err != nil {
 		return
 	}
-	history, err := rc.client.Manifest(repository.NamespaceImage(), tag)
+	history, err := rc.client.Manifest(repository.String(), tag)
 	if err != nil {
 		return
 	}
@@ -68,6 +68,7 @@ func (rc *remote) Cancel() {
 }
 
 // We need this because they didn't wrap it in an interface.
+// TODO: Change this to use Repository type, not string.
 type dockerRegistryInterface interface {
 	Tags(repository string) ([]string, error)
 	Manifest(repository, reference string) ([]schema1.History, error)

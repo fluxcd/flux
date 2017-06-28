@@ -76,7 +76,7 @@ type remoteClientFactory struct {
 	rlConf RateLimiterConfig
 }
 
-func (f *remoteClientFactory) ClientFor(host string) (client dockerRegistryInterface, cancel context.CancelFunc, err error) {
+func (f *remoteClientFactory) ClientFor(host string) (dockerRegistryInterface, context.CancelFunc, error) {
 	httphost := "https://" + host
 
 	// quay.io wants us to use cookies for authorisation, so we have
@@ -85,7 +85,7 @@ func (f *remoteClientFactory) ClientFor(host string) (client dockerRegistryInter
 	// client literal, rather than calling .New()
 	jar, err := cookiejar.New(&cookiejar.Options{PublicSuffixList: publicsuffix.List})
 	if err != nil {
-		return
+		return nil, nil, err
 	}
 	auth := f.creds.credsFor(host)
 
@@ -108,7 +108,7 @@ func (f *remoteClientFactory) ClientFor(host string) (client dockerRegistryInter
 		transport = RateLimitedRoundTripper(transport, f.rlConf, host)
 	}
 
-	client = herokuWrapper{
+	client := herokuWrapper{
 		&dockerregistry.Registry{
 			URL: httphost,
 			Client: &http.Client{
@@ -119,7 +119,7 @@ func (f *remoteClientFactory) ClientFor(host string) (client dockerRegistryInter
 			Logf: dockerregistry.Quiet,
 		},
 	}
-	return
+	return client, cancel, nil
 }
 
 type ContextRoundTripper struct {
