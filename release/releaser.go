@@ -1,7 +1,6 @@
 package release
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/go-kit/kit/log"
@@ -43,11 +42,6 @@ func ApplyChanges(rc *ReleaseContext, updates []*update.ServiceUpdate, logger lo
 	if len(updates) == 0 {
 		logger.Log("exit", "no images to update for services given")
 		return nil
-	} else {
-		l := log.NewContext(logger).With("msg", "applying changes")
-		for _, u := range updates {
-			l.Log("changes", fmt.Sprintf("%#v", *u))
-		}
 	}
 
 	timer := update.NewStageTimer("push_changes")

@@ -22,7 +22,24 @@ func (a *Automated) Add(service flux.ServiceID, container cluster.Container, ima
 }
 
 func (a *Automated) CalculateRelease(rc ReleaseContext, logger log.Logger) ([]*ServiceUpdate, Result, error) {
-	return nil, nil, nil
+	filters, err := a.filters(rc)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	result := Result{}
+	updates, err := rc.SelectServices(result, filters...)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	a.markSkipped(result)
+	updates, err = a.calculateImageUpdates(rc, updates, result, logger)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return updates, result, err
 }
 
 func (a *Automated) ReleaseKind() ReleaseKind {
@@ -31,50 +48,6 @@ func (a *Automated) ReleaseKind() ReleaseKind {
 
 func (a *Automated) CommitMessage() string {
 	return "(TODO) automated release commit message"
-}
-
-func (a *Automated) ServiceUpdates(rc ReleaseContext, logger log.Logger) ([]*ServiceUpdate, error) {
-	filters, err := a.filters(rc)
-	if err != nil {
-		return nil, err
-	}
-	result := Result{}
-	updates, err := rc.SelectServices(result, filters...)
-	if err != nil {
-		return nil, err
-	}
-	a.markSkipped(result)
-	updates, err = a.calculateImageUpdates(rc, updates, result, logger)
-	if err != nil {
-		return nil, err
-	}
-
-	return updates, err
-}
-
-// TODO #260 use this
-func (a *Automated) updates() map[flux.ServiceID]*ServiceUpdate {
-	updates := map[flux.ServiceID]*ServiceUpdate{}
-	for _, c := range a.changes {
-		if _, ok := updates[c.service]; !ok {
-			updates[c.service] = &ServiceUpdate{}
-		}
-
-		currentImageID, err := flux.ParseImageID(c.container.Image)
-		if err != nil {
-			// shouldn't happen
-			continue
-		}
-
-		containerUpdate := ContainerUpdate{
-			Container: c.container.Name,
-			Current:   currentImageID,
-			Target:    c.imageID,
-		}
-		serviceUpdate := updates[c.service]
-		serviceUpdate.Updates = append(serviceUpdate.Updates, containerUpdate)
-	}
-	return updates
 }
 
 func (a *Automated) filters(rc ReleaseContext) ([]ServiceFilter, error) {
@@ -125,6 +98,11 @@ func (a *Automated) calculateImageUpdates(rc ReleaseContext, candidates []*Servi
 			for _, change := range changes {
 				if change.container.Name != container.Name {
 					continue
+				}
+
+				u.ManifestBytes, err = rc.Manifests().UpdateDefinition(u.ManifestBytes, container.Name, change.imageID)
+				if err != nil {
+					return nil, err
 				}
 
 				containerUpdates = append(containerUpdates, ContainerUpdate{

@@ -17,6 +17,9 @@ import (
 )
 
 var (
+	// This must match the value in cluster/kubernetes/testfiles/data.go
+	container = "goodbyeworld"
+
 	oldImage          = "quay.io/weaveworks/helloworld:master-a000001"
 	oldImageID, _     = flux.ParseImageID(oldImage)
 	sidecarImage      = "quay.io/weaveworks/sidecar:master-a000002"
@@ -28,7 +31,7 @@ var (
 		Containers: cluster.ContainersOrExcuse{
 			Containers: []cluster.Container{
 				cluster.Container{
-					Name:  "helloworld",
+					Name:  container,
 					Image: oldImage,
 				},
 				cluster.Container{
@@ -126,7 +129,7 @@ func Test_FilterLogic(t *testing.T) {
 					Status: update.ReleaseStatusSuccess,
 					PerContainer: []update.ContainerUpdate{
 						update.ContainerUpdate{
-							Container: "helloworld",
+							Container: container,
 							Current:   oldImageID,
 							Target:    newImageID,
 						},
@@ -154,7 +157,7 @@ func Test_FilterLogic(t *testing.T) {
 					Status: update.ReleaseStatusSuccess,
 					PerContainer: []update.ContainerUpdate{
 						update.ContainerUpdate{
-							Container: "helloworld",
+							Container: container,
 							Current:   oldImageID,
 							Target:    newImageID,
 						},
@@ -182,7 +185,7 @@ func Test_FilterLogic(t *testing.T) {
 					Status: update.ReleaseStatusSuccess,
 					PerContainer: []update.ContainerUpdate{
 						update.ContainerUpdate{
-							Container: "helloworld",
+							Container: container,
 							Current:   oldImageID,
 							Target:    newImageID,
 						},
@@ -213,7 +216,7 @@ func Test_FilterLogic(t *testing.T) {
 					Status: update.ReleaseStatusSuccess,
 					PerContainer: []update.ContainerUpdate{
 						update.ContainerUpdate{
-							Container: "helloworld",
+							Container: container,
 							Current:   oldImageID,
 							Target:    newImageID,
 						},
@@ -242,7 +245,7 @@ func Test_FilterLogic(t *testing.T) {
 					Status: update.ReleaseStatusSuccess,
 					PerContainer: []update.ContainerUpdate{
 						update.ContainerUpdate{
-							Container: "helloworld",
+							Container: container,
 							Current:   oldImageID,
 							Target:    newImageID,
 						},

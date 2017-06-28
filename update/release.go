@@ -264,7 +264,7 @@ func (s ReleaseSpec) calculateImageUpdates(rc ReleaseContext, candidates []*Serv
 				continue
 			}
 
-			u.ManifestBytes, err = rc.Manifests().UpdateDefinition(u.ManifestBytes, latestImage.ID)
+			u.ManifestBytes, err = rc.Manifests().UpdateDefinition(u.ManifestBytes, container.Name, latestImage.ID)
 			if err != nil {
 				return nil, err
 			}
