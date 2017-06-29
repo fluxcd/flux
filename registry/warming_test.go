@@ -4,8 +4,8 @@ package registry
 
 import (
 	"encoding/json"
-	"github.com/docker/distribution/manifest/schema1"
 	"github.com/go-kit/kit/log"
+	"github.com/weaveworks/flux"
 	"os"
 	"sync"
 	"testing"
@@ -16,11 +16,11 @@ func TestWarmer_CacheNewRepo(t *testing.T) {
 	mc := Setup(t)
 	defer mc.Stop()
 
-	dc := NewMockDockerClient(
-		func(repository, reference string) ([]schema1.History, error) {
-			return []schema1.History{{`{"test":"json"}`}}, nil
+	dc := NewMockClient(
+		func(repository Repository, tag string) (flux.Image, error) {
+			return img, nil
 		},
-		func(repository string) ([]string, error) {
+		func(repository Repository) ([]string, error) {
 			return []string{"tag1"}, nil
 		},
 	)
@@ -70,18 +70,14 @@ func TestWarmer_CacheNewRepo(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var manifests []schema1.History
-	err = json.Unmarshal(item.Value, &manifests)
+	var i flux.Image
+	err = json.Unmarshal(item.Value, &i)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if len(manifests) != 1 {
-		t.Fatalf("Expected 1 history item, got %v", manifests)
-	}
-	expectedManifest := schema1.History{`{"test":"json"}`}
-	if manifests[0] != expectedManifest {
-		t.Fatalf("Expected  history item: %v, got %v", expectedManifest, manifests[0])
+	if i.ID.String() != img.ID.String() {
+		t.Fatalf("Expected %s, got %s", img.ID.String(), i.ID.String())
 	}
 }
 

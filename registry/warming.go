@@ -42,18 +42,18 @@ func (w *Warmer) Loop(stop <-chan struct{}, wg *sync.WaitGroup, warm <-chan Repo
 }
 
 func (w *Warmer) warm(repository Repository) {
-	client, cancel, err := w.ClientFactory.ClientFor(repository.Host())
+	client, err := w.ClientFactory.ClientFor(repository.Host())
 	if err != nil {
 		w.Logger.Log("err", err.Error())
 		return
 	}
-	defer cancel()
+	defer client.Cancel()
 
 	username := w.Creds.credsFor(repository.Host()).username
 
 	// Refresh tags first
 	// Only, for example, "library/alpine" because we have the host information in the client above.
-	tags, err := client.Tags(repository.NamespaceImage())
+	tags, err := client.Tags(repository)
 	if err != nil {
 		if !strings.Contains(err.Error(), "status=401") {
 			w.Logger.Log("err", err.Error())
@@ -70,7 +70,6 @@ func (w *Warmer) warm(repository Repository) {
 	// Use the full path to image for the memcache key because there
 	// might be duplicates from other registries
 	key := tagKey(username, repository.String())
-
 	if err := w.Client.Set(&officialMemcache.Item{
 		Key:        key,
 		Value:      val,
@@ -81,9 +80,21 @@ func (w *Warmer) warm(repository Repository) {
 	}
 
 	// Now refresh the manifests for each tag
+	var updated bool
 	for _, tag := range tags {
-		// Only, for example, "library/alpine" because we have the host information in the client above.
-		history, err := client.Manifest(repository.NamespaceImage(), tag)
+		// See if we have the manifest already cached
+		// We don't want to re-download a manifest again.
+		key := manifestKey(username, repository.String(), tag)
+		_, err := w.Client.Get(key)
+		if err == nil { // If no error, we've already got it
+			continue
+		}
+
+		history, err := client.Manifest(repository, tag)
+		if err != nil {
+			w.Logger.Log("err", err.Error())
+			continue
+		}
 
 		val, err := json.Marshal(history)
 		if err != nil {
@@ -91,8 +102,6 @@ func (w *Warmer) warm(repository Repository) {
 			return
 		}
 
-		// Full path to image again.
-		key := manifestKey(username, repository.String(), tag)
 		if err := w.Client.Set(&officialMemcache.Item{
 			Key:        key,
 			Value:      val,
@@ -101,6 +110,10 @@ func (w *Warmer) warm(repository Repository) {
 			w.Logger.Log("err", errors.Wrap(err, "storing tags in memcache"))
 			return
 		}
+		updated = true
+	}
+	if updated {
+		w.Logger.Log("updated", repository.String())
 	}
 }
 

@@ -63,19 +63,19 @@ func (m *instrumentedRegistry) GetImage(repository Repository, tag string) (res 
 	return
 }
 
-type InstrumentedRemote Remote
+type InstrumentedClient Client
 
-type instrumentedRemote struct {
-	next Remote
+type instrumentedClient struct {
+	next Client
 }
 
-func NewInstrumentedRemote(next Remote) Remote {
-	return &instrumentedRemote{
+func NewInstrumentedClient(next Client) Client {
+	return &instrumentedClient{
 		next: next,
 	}
 }
 
-func (m *instrumentedRemote) Manifest(repository Repository, tag string) (res flux.Image, err error) {
+func (m *instrumentedClient) Manifest(repository Repository, tag string) (res flux.Image, err error) {
 	start := time.Now()
 	res, err = m.next.Manifest(repository, tag)
 	requestDuration.With(
@@ -85,7 +85,7 @@ func (m *instrumentedRemote) Manifest(repository Repository, tag string) (res fl
 	return
 }
 
-func (m *instrumentedRemote) Tags(repository Repository) (res []string, err error) {
+func (m *instrumentedClient) Tags(repository Repository) (res []string, err error) {
 	start := time.Now()
 	res, err = m.next.Tags(repository)
 	requestDuration.With(
@@ -95,6 +95,6 @@ func (m *instrumentedRemote) Tags(repository Repository) (res []string, err erro
 	return
 }
 
-func (m *instrumentedRemote) Cancel() {
+func (m *instrumentedClient) Cancel() {
 	m.next.Cancel()
 }

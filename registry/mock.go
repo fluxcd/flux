@@ -1,10 +1,8 @@
 package registry
 
 import (
-	"github.com/docker/distribution/manifest/schema1"
 	"github.com/pkg/errors"
 
-	"context"
 	"github.com/weaveworks/flux"
 )
 
@@ -19,62 +17,46 @@ type mockRemote struct {
 	err  error
 }
 
-func NewMockRemote(img flux.Image, tags []string, err error) Remote {
-	return &mockRemote{
-		img:  img,
-		tags: tags,
-		err:  err,
-	}
-}
-
-func (r *mockRemote) Tags(repository Repository) ([]string, error) {
-	return r.tags, r.err
-}
-
-func (r *mockRemote) Manifest(repository Repository, tag string) (flux.Image, error) {
-	if tag == "error" {
-		return flux.Image{}, errors.New("Mock is set to error when tag == error")
-	}
-	return r.img, r.err
-}
-
-func (r *mockRemote) Cancel() {
-}
-
+type ManifestFunc func(repository Repository, tag string) (flux.Image, error)
+type TagsFunc func(repository Repository) ([]string, error)
 type mockDockerClient struct {
-	manifest func(repository, reference string) ([]schema1.History, error)
-	tags     func(repository string) ([]string, error)
+	manifest ManifestFunc
+	tags     TagsFunc
 }
 
-func NewMockDockerClient(manifest func(repository, reference string) ([]schema1.History, error), tags func(repository string) ([]string, error)) dockerRegistryInterface {
+func NewMockClient(manifest ManifestFunc, tags TagsFunc) Client {
 	return &mockDockerClient{
 		manifest: manifest,
 		tags:     tags,
 	}
 }
 
-func (m *mockDockerClient) Manifest(repository, reference string) ([]schema1.History, error) {
-	return m.manifest(repository, reference)
+func (m *mockDockerClient) Manifest(repository Repository, tag string) (flux.Image, error) {
+	return m.manifest(repository, tag)
 }
 
-func (m *mockDockerClient) Tags(repository string) ([]string, error) {
+func (m *mockDockerClient) Tags(repository Repository) ([]string, error) {
 	return m.tags(repository)
 }
 
+func (*mockDockerClient) Cancel() {
+	return
+}
+
 type mockRemoteFactory struct {
-	c   dockerRegistryInterface
+	c   Client
 	err error
 }
 
-func NewMockClientFactory(c dockerRegistryInterface, err error) ClientFactory {
+func NewMockClientFactory(c Client, err error) ClientFactory {
 	return &mockRemoteFactory{
 		c:   c,
 		err: err,
 	}
 }
 
-func (m *mockRemoteFactory) ClientFor(repository string) (dockerRegistryInterface, context.CancelFunc, error) {
-	return m.c, func() {}, m.err
+func (m *mockRemoteFactory) ClientFor(repository string) (Client, error) {
+	return m.c, m.err
 }
 
 type mockRegistry struct {

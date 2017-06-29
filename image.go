@@ -167,3 +167,21 @@ func ParseImage(s string, createdAt time.Time) (Image, error) {
 		CreatedAt: createdAt,
 	}, nil
 }
+
+// Sort image by creation date
+type ByCreatedDesc []Image
+
+func (is ByCreatedDesc) Len() int      { return len(is) }
+func (is ByCreatedDesc) Swap(i, j int) { is[i], is[j] = is[j], is[i] }
+func (is ByCreatedDesc) Less(i, j int) bool {
+	switch {
+	case is[i].CreatedAt.IsZero():
+		return true
+	case is[j].CreatedAt.IsZero():
+		return false
+	case is[i].CreatedAt.Equal(is[j].CreatedAt):
+		return is[i].ID.String() < is[j].ID.String()
+	default:
+		return is[i].CreatedAt.After(is[j].CreatedAt)
+	}
+}

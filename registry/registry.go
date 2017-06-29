@@ -1,25 +1,20 @@
 // Package registry provides domain abstractions over container registries.
+// The aim is that the user only ever sees the registry information that
+// has been cached. A separate process is responsible for ensuring the
+// cache is up to date. The benefit of this is that we can rate limit
+// the requests to prevent rate limiting on the remote side without
+// affecting the UX. To the user, repository information will appear to
+// be returned "quickly"
+//
+// This means that the cache is now a flux requirement.
 package registry
 
 import (
-	"context"
-	"encoding/json"
-	"errors"
-	"fmt"
-	officialMemcache "github.com/bradfitz/gomemcache/memcache"
 	"github.com/docker/distribution/manifest/schema1"
 	"github.com/go-kit/kit/log"
 	dockerregistry "github.com/heroku/docker-registry-client/registry"
-	"github.com/jonboulle/clockwork"
-	wraperrors "github.com/pkg/errors"
 	"github.com/weaveworks/flux"
-	"github.com/weaveworks/flux/registry/memcache"
-	"github.com/weaveworks/flux/registry/middleware"
-	"golang.org/x/net/publicsuffix"
-	"net/http"
-	"net/http/cookiejar"
 	"sort"
-	"strings"
 	"time"
 )
 
@@ -55,10 +50,10 @@ func NewRegistry(c ClientFactory, l log.Logger) Registry {
 //   foo/helloworld         -> index.docker.io/foo/helloworld
 //   quay.io/foo/helloworld -> quay.io/foo/helloworld
 //
-func (reg *registry) GetRepository(img Repository) (_ []flux.Image, err error) {
-	rem, err := reg.newRemote(img)
+func (reg *registry) GetRepository(img Repository) ([]flux.Image, error) {
+	rem, err := reg.newClient(img)
 	if err != nil {
-		return
+		return nil, err
 	}
 
 	tags, err := rem.Tags(img)
@@ -77,26 +72,25 @@ func (reg *registry) GetRepository(img Repository) (_ []flux.Image, err error) {
 
 // Get a single Image from the registry if it exists
 func (reg *registry) GetImage(img Repository, tag string) (_ flux.Image, err error) {
-	rem, err := reg.newRemote(img)
+	rem, err := reg.newClient(img)
 	if err != nil {
 		return
 	}
 	return rem.Manifest(img, tag)
 }
 
-func (reg *registry) newRemote(img Repository) (rem Remote, err error) {
-	client, cancel, err := reg.factory.ClientFor(img.Host())
+func (reg *registry) newClient(img Repository) (Client, error) {
+	client, err := reg.factory.ClientFor(img.Host())
 	if err != nil {
-		return
+		return nil, err
 	}
-	rem = newRemote(client, cancel)
-	rem = NewInstrumentedRemote(rem)
-	return
+	client = NewInstrumentedClient(client)
+	return client, nil
 }
 
-func (reg *registry) tagsToRepository(remote Remote, repository Repository, tags []string) ([]flux.Image, error) {
+func (reg *registry) tagsToRepository(client Client, repository Repository, tags []string) ([]flux.Image, error) {
 	// one way or another, we'll be finishing all requests
-	defer remote.Cancel()
+	defer client.Cancel()
 
 	type result struct {
 		image flux.Image
@@ -109,7 +103,7 @@ func (reg *registry) tagsToRepository(remote Remote, repository Repository, tags
 	for i := 0; i < maxConcurrency; i++ {
 		go func() {
 			for tag := range toFetch {
-				image, err := remote.Manifest(repository, tag)
+				image, err := client.Manifest(repository, tag)
 				if err != nil {
 					reg.Logger.Log("registry-metadata-err", err)
 				}
@@ -129,200 +123,17 @@ func (reg *registry) tagsToRepository(remote Remote, repository Repository, tags
 			return nil, res.err
 		}
 		images[i] = res.image
+		reg.Logger.Log("time", res.image.CreatedAt.String())
 	}
 
-	sort.Sort(byCreatedDesc(images))
+	sort.Sort(flux.ByCreatedDesc(images))
 	return images, nil
 }
 
-// -----
+// ---
 
-type byCreatedDesc []flux.Image
-
-func (is byCreatedDesc) Len() int      { return len(is) }
-func (is byCreatedDesc) Swap(i, j int) { is[i], is[j] = is[j], is[i] }
-func (is byCreatedDesc) Less(i, j int) bool {
-	switch {
-	case is[i].CreatedAt.IsZero():
-		return true
-	case is[j].CreatedAt.IsZero():
-		return false
-	case is[i].CreatedAt.Equal(is[j].CreatedAt):
-		return is[i].ID.String() < is[j].ID.String()
-	default:
-		return is[i].CreatedAt.After(is[j].CreatedAt)
-	}
-}
-
-type Remote interface {
-	Tags(repository Repository) ([]string, error)
-	Manifest(repository Repository, tag string) (flux.Image, error)
-	Cancel()
-}
-
-type remote struct {
-	client dockerRegistryInterface
-	cancel context.CancelFunc
-}
-
-func newRemote(client dockerRegistryInterface, cancel context.CancelFunc) Remote {
-	return &remote{
-		client: client,
-		cancel: cancel,
-	}
-}
-
-func (rc *remote) Tags(repository Repository) (_ []string, err error) {
-	return rc.client.Tags(repository.String())
-}
-
-func (rc *remote) Manifest(repository Repository, tag string) (img flux.Image, err error) {
-	img, err = flux.ParseImage(fmt.Sprintf("%s:%s", repository.String(), tag), time.Time{})
-	if err != nil {
-		return
-	}
-	history, err := rc.client.Manifest(repository.String(), tag)
-	if err != nil {
-		return
-	}
-
-	// the manifest includes some v1-backwards-compatibility data,
-	// oddly called "History", which are layer metadata as JSON
-	// strings; these appear most-recent (i.e., topmost layer) first,
-	// so happily we can just decode the first entry to get a created
-	// time.
-	type v1image struct {
-		Created time.Time `json:"created"`
-	}
-	var topmost v1image
-	if len(history) > 0 {
-		if err = json.Unmarshal([]byte(history[0].V1Compatibility), &topmost); err == nil {
-			if !topmost.Created.IsZero() {
-				img.CreatedAt = topmost.Created
-			}
-		}
-	}
-
-	return
-}
-
-func (rc *remote) Cancel() {
-	rc.cancel()
-}
-
-// This is an interface that represents the heroku docker registry library
-type dockerRegistryInterface interface {
-	Tags(repository string) ([]string, error)
-	Manifest(repository, reference string) ([]schema1.History, error)
-}
-
-var (
-	ErrNoMemcache = errors.New("no memecache")
-)
-
-type creds struct {
-	username, password string
-}
-
-// Credentials to a (Docker) registry.
-type Credentials struct {
-	m map[string]creds
-}
-
-type ClientFactory interface {
-	ClientFor(host string) (client dockerRegistryInterface, cancel context.CancelFunc, err error)
-}
-
-func NewCacheClientFactory(c Credentials, l log.Logger, mc memcache.MemcacheClient, ce time.Duration) ClientFactory {
-	for host, creds := range c.m {
-		l.Log("host", host, "username", creds.username)
-	}
-	return &cacheClientFactory{
-		creds:          c,
-		Logger:         l,
-		MemcacheClient: mc,
-		CacheExpiry:    ce,
-	}
-}
-
-type cacheClientFactory struct {
-	creds          Credentials
-	Logger         log.Logger
-	MemcacheClient memcache.MemcacheClient
-	CacheExpiry    time.Duration
-}
-
-func (f *cacheClientFactory) ClientFor(host string) (dockerRegistryInterface, context.CancelFunc, error) {
-	if f.MemcacheClient == nil {
-		return nil, nil, ErrNoMemcache
-	}
-	client := NewCache(f.creds, f.MemcacheClient, f.CacheExpiry, f.Logger)
-	return client, func() {}, nil
-}
-
-func NewRemoteClientFactory(c Credentials, l log.Logger, rlc middleware.RateLimiterConfig) ClientFactory {
-	for host, creds := range c.m {
-		l.Log("host", host, "username", creds.username)
-	}
-	return &remoteClientFactory{
-		creds:  c,
-		Logger: l,
-		rlConf: rlc,
-	}
-}
-
-type remoteClientFactory struct {
-	creds  Credentials
-	Logger log.Logger
-	rlConf middleware.RateLimiterConfig
-}
-
-func (f *remoteClientFactory) ClientFor(host string) (dockerRegistryInterface, context.CancelFunc, error) {
-	httphost := "https://" + host
-
-	// quay.io wants us to use cookies for authorisation, so we have
-	// to construct one (the default client has none). This means a
-	// bit more constructing things to be able to make a registry
-	// client literal, rather than calling .New()
-	jar, err := cookiejar.New(&cookiejar.Options{PublicSuffixList: publicsuffix.List})
-	if err != nil {
-		return nil, nil, err
-	}
-	auth := f.creds.credsFor(host)
-
-	// A context we'll use to cancel requests on error
-	ctx, cancel := context.WithCancel(context.Background())
-	// Add a timeout to the request
-	ctx, cancel = context.WithTimeout(ctx, requestTimeout)
-
-	// Use the wrapper to fix headers for quay.io, and remember bearer tokens
-	var transport http.RoundTripper
-	{
-		transport = &middleware.WWWAuthenticateFixer{Transport: http.DefaultTransport}
-		// Now the auth-handling wrappers that come with the library
-		transport = dockerregistry.WrapTransport(transport, httphost, auth.username, auth.password)
-		// Add the backoff mechanism so we don't DOS registries
-		transport = middleware.BackoffRoundTripper(transport, middleware.InitialBackoff, middleware.MaxBackoff, clockwork.NewRealClock())
-		// Add timeout context
-		transport = &middleware.ContextRoundTripper{Transport: transport, Ctx: ctx}
-		// Rate limit
-		transport = middleware.RateLimitedRoundTripper(transport, f.rlConf, host)
-	}
-
-	client := herokuWrapper{
-		&dockerregistry.Registry{
-			URL: httphost,
-			Client: &http.Client{
-				Transport: transport,
-				Jar:       jar,
-				Timeout:   requestTimeout,
-			},
-			Logf: dockerregistry.Quiet,
-		},
-	}
-	return client, cancel, nil
-}
-
+// Repository represents a full image address, including host.
+// TODO: This could probably be merged into flux.Image.
 type Repository struct {
 	img flux.Image // Internally we use an image to store data
 }
@@ -361,15 +172,24 @@ func (r Repository) ToImage(tag string) flux.Image {
 	return newImage
 }
 
-type herokuWrapper struct {
+// ---
+
+// This is an interface that represents the heroku docker registry library
+type HerokuRegistryLibrary interface {
+	Tags(repository string) (tags []string, err error)
+	Manifest(repository, reference string) ([]schema1.History, error)
+}
+
+// ---
+
+// Convert between types. dockerregistry returns the *same* type but from a
+// vendored library. Because golang doesn't like to apply interfaces to a
+// vendored type, we have to provide an adaptor to isolate it.
+type herokuManifestAdaptor struct {
 	*dockerregistry.Registry
 }
 
-// Convert between types. dockerregistry returns the *same* type but from a
-// vendored library so go freaks out. Eugh.
-// TODO: The only thing we care about here for now is history. Frankly it might
-// be easier to convert it to JSON and back.
-func (h herokuWrapper) Manifest(repository, reference string) ([]schema1.History, error) {
+func (h herokuManifestAdaptor) Manifest(repository, reference string) ([]schema1.History, error) {
 	manifest, err := h.Registry.Manifest(repository, reference)
 	if err != nil || manifest == nil {
 		return nil, err
@@ -381,95 +201,13 @@ func (h herokuWrapper) Manifest(repository, reference string) ([]schema1.History
 	return result, err
 }
 
-type Cache struct {
-	creds  Credentials
-	expiry time.Duration
-	Client memcache.MemcacheClient
-	logger log.Logger
+// ---
+// Registry Credentials
+type creds struct {
+	username, password string
 }
 
-func NewCache(creds Credentials, cache memcache.MemcacheClient, expiry time.Duration, logger log.Logger) dockerRegistryInterface {
-	return &Cache{
-		creds:  creds,
-		expiry: expiry,
-		Client: cache,
-		logger: logger,
-	}
-}
-
-func (c *Cache) Manifest(repository, reference string) (history []schema1.History, err error) {
-	repo, err := ParseRepository(repository)
-	if err != nil {
-		c.logger.Log("err", wraperrors.Wrap(err, "Parsing repository"))
-		return
-	}
-	creds := c.creds.credsFor(repo.Host())
-
-	// Try the cache
-	key := manifestKey(creds.username, repo.String(), reference)
-	cacheItem, err := c.Client.Get(key)
-	if err != nil {
-		if err != officialMemcache.ErrCacheMiss {
-			c.logger.Log("err", wraperrors.Wrap(err, "Fetching tag from memcache"))
-		}
-		return
-	}
-
-	// Return the cache item
-	err = json.Unmarshal(cacheItem.Value, &history)
-	if err != nil {
-		c.logger.Log("err", err.Error)
-		return
-	}
-	return
-}
-
-func (c *Cache) Tags(repository string) (tags []string, err error) {
-	repo, err := ParseRepository(repository)
-	if err != nil {
-		c.logger.Log("err", wraperrors.Wrap(err, "Parsing repository"))
-		return
-	}
-	creds := c.creds.credsFor(repo.Host())
-
-	// Try the cache
-	key := tagKey(creds.username, repo.String())
-	cacheItem, err := c.Client.Get(key)
-	if err != nil {
-		if err != officialMemcache.ErrCacheMiss {
-			c.logger.Log("err", wraperrors.Wrap(err, "Fetching tag from memcache"))
-		}
-		return
-	}
-
-	// Return the cache item
-	err = json.Unmarshal(cacheItem.Value, &tags)
-	if err != nil {
-		c.logger.Log("err", err.Error)
-		return
-	}
-	return
-}
-
-func manifestKey(username, repository, reference string) string {
-	return strings.Join([]string{
-		"registryhistoryv1", // Just to version in case we need to change format later.
-		// Just the username here means we won't invalidate the cache when user
-		// changes password, but that should be rare. And, it also means we're not
-		// putting user passwords in plaintext into memcache.
-		username,
-		repository,
-		reference,
-	}, "|")
-}
-
-func tagKey(username, repository string) string {
-	return strings.Join([]string{
-		"registrytagsv1", // Just to version in case we need to change format later.
-		// Just the username here means we won't invalidate the cache when user
-		// changes password, but that should be rare. And, it also means we're not
-		// putting user passwords in plaintext into memcache.
-		username,
-		repository,
-	}, "|")
+// Credentials to a (Docker) registry.
+type Credentials struct {
+	m map[string]creds
 }

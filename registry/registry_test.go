@@ -2,8 +2,6 @@ package registry
 
 import (
 	"fmt"
-	"sort"
-	"strconv"
 	"testing"
 	"time"
 
@@ -20,27 +18,15 @@ import (
 
 var (
 	testTags = []string{testTagStr, "anotherTag"}
-	mRemote  = NewMockRemote(img, testTags, nil)
-	mClient  = NewMockDockerClient(
-		func(repository, reference string) ([]schema1.History, error) {
-			return []schema1.History{{`{"test":"json"}`}}, nil
+	mClient  = NewMockClient(
+		func(repository Repository, tag string) (flux.Image, error) {
+			return img, nil
 		},
-		func(repository string) ([]string, error) {
+		func(repository Repository) ([]string, error) {
 			return testTags, nil
 		},
 	)
-	testTime, _ = time.Parse(time.RFC3339Nano, constTime)
 )
-
-func TestRegistry_GetImage(t *testing.T) {
-	newImg, err := mRemote.Manifest(testRepository, img.ID.Tag)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if img.ID.String() != newImg.ID.String() {
-		t.Fatal("Expected %v, but got %v", img.ID.String(), newImg.ID.String())
-	}
-}
 
 func TestRegistry_GetRepository(t *testing.T) {
 	fact := NewMockClientFactory(mClient, nil)
@@ -66,11 +52,11 @@ func TestRegistry_GetRepositoryFactoryError(t *testing.T) {
 }
 
 func TestRegistry_GetRepositoryManifestError(t *testing.T) {
-	errClient := NewMockDockerClient(
-		func(repository, reference string) ([]schema1.History, error) {
-			return nil, errors.New("")
+	errClient := NewMockClient(
+		func(repository Repository, tag string) (flux.Image, error) {
+			return flux.Image{}, errors.New("")
 		},
-		func(repository string) ([]string, error) {
+		func(repository Repository) ([]string, error) {
 			return testTags, nil
 		},
 	)
@@ -79,27 +65,6 @@ func TestRegistry_GetRepositoryManifestError(t *testing.T) {
 	_, err := reg.GetRepository(testRepository)
 	if err == nil {
 		t.Fatal("Expecting error")
-	}
-}
-
-func TestRegistry_OrderByCreationDate(t *testing.T) {
-	fmt.Printf("testTime: %s\n", testTime)
-	time0 := testTime.Add(time.Second)
-	time2 := testTime.Add(-time.Second)
-	imA, _ := flux.ParseImage("my/Image:3", testTime)
-	imB, _ := flux.ParseImage("my/Image:1", time0)
-	imC, _ := flux.ParseImage("my/Image:4", time2)
-	imD, _ := flux.ParseImage("my/Image:0", time.Time{}) // test nil
-	imE, _ := flux.ParseImage("my/Image:2", testTime)    // test equal
-	imgs := []flux.Image{imA, imB, imC, imD, imE}
-	sort.Sort(byCreatedDesc(imgs))
-	for i, im := range imgs {
-		if strconv.Itoa(i) != im.ID.Tag {
-			for j, jim := range imgs {
-				t.Logf("%v: %v %s", j, jim.ID.String(), jim.CreatedAt)
-			}
-			t.Fatalf("Not sorted in expected order: %#v", imgs)
-		}
 	}
 }
 
@@ -119,32 +84,35 @@ func TestRemoteFactory_RawClient(t *testing.T) {
 
 	// Refresh tags first
 	var tags []string
-	client, cancel, err := fact.ClientFor(testRepository.Host())
+	client, err := fact.ClientFor(testRepository.Host())
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	tags, err = client.Tags(testRepository.NamespaceImage())
+	tags, err = client.Tags(testRepository)
 	if err != nil {
 		t.Fatal(err)
 	}
-	cancel()
+	client.Cancel()
 	if len(tags) == 0 {
 		t.Fatal("Should have some tags")
 	}
 
-	client, cancel, err = fact.ClientFor(testRepository.Host())
+	client, err = fact.ClientFor(testRepository.Host())
 	if err != nil {
 		t.Fatal(err)
 	}
-	history, err := client.Manifest(testRepository.NamespaceImage(), tags[0])
+	newImg, err := client.Manifest(testRepository, tags[0])
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(history) == 0 {
-		t.Fatal("Should have some history")
+	if newImg.ID.String() == "" {
+		t.Fatal("Should image ")
 	}
-	cancel()
+	if newImg.CreatedAt.IsZero() {
+		t.Fatal("CreatedAt time was 0")
+	}
+	client.Cancel()
 }
 
 func TestRemoteFactory_InvalidHost(t *testing.T) {
@@ -154,12 +122,11 @@ func TestRemoteFactory_InvalidHost(t *testing.T) {
 		t.Fatal(err)
 	}
 	testRepository = RepositoryFromImage(img)
-	client, cancel, err := fact.ClientFor(testRepository.Host())
+	client, err := fact.ClientFor(testRepository.Host())
 	if err != nil {
 		return
 	}
-	r := newRemote(client, cancel)
-	_, err = r.Manifest(testRepository, img.ID.Tag)
+	_, err = client.Manifest(testRepository, img.ID.Tag)
 	if err == nil {
 		t.Fatal("Expected error due to invalid host but got none.")
 	}
@@ -333,93 +300,6 @@ var (
 		},
 	}
 )
-
-// Need to create a dummy manifest here
-func TestRemoteClient_ParseManifest(t *testing.T) {
-	manifestFunc := func(repo, ref string) ([]schema1.History, error) {
-		return man.Manifest.History, nil
-	}
-	c := newRemote(
-		NewMockDockerClient(manifestFunc, nil),
-		nil,
-	)
-	testRepository = RepositoryFromImage(img)
-	desc, err := c.Manifest(testRepository, img.ID.Tag)
-	if err != nil {
-		t.Fatal(err.Error())
-	}
-	if string(desc.ID.FullID()) != testImageStr {
-		t.Fatalf("Expecting %q but got %q", testImageStr, string(desc.ID.FullID()))
-	}
-	if desc.CreatedAt.Format(time.RFC3339Nano) != constTime {
-		t.Fatalf("Expecting %q but got %q", constTime, desc.CreatedAt.Format(time.RFC3339Nano))
-	}
-}
-
-// Just a simple pass through.
-func TestRemoteClient_GetTags(t *testing.T) {
-	c := remote{
-		client: NewMockDockerClient(nil, func(repository string) ([]string, error) {
-			return []string{
-				testTagStr,
-			}, nil
-		}),
-	}
-	tags, err := c.Tags(testRepository)
-	if err != nil {
-		t.Fatal(err.Error())
-	}
-	if tags[0] != testTagStr {
-		t.Fatalf("Expecting %q but got %q", testTagStr, tags[0])
-	}
-}
-
-func TestRemoteClient_IsCancelCalled(t *testing.T) {
-	var didCancel bool
-	r := remote{
-		cancel: func() { didCancel = true },
-	}
-	r.Cancel()
-	if !didCancel {
-		t.Fatal("Expected it to call the cancel func")
-	}
-}
-
-func TestRemoteClient_RemoteErrors(t *testing.T) {
-	manifestFunc := func(repo, ref string) ([]schema1.History, error) {
-		return man.Manifest.History, errors.New("dummy")
-	}
-	tagsFunc := func(repository string) ([]string, error) {
-		return []string{
-			testTagStr,
-		}, errors.New("dummy")
-	}
-	c := remote{
-		client: NewMockDockerClient(manifestFunc, tagsFunc),
-	}
-	_, err := c.Tags(testRepository)
-	if err == nil {
-		t.Fatal("Expected error")
-	}
-	_, err = c.Manifest(testRepository, img.ID.Tag)
-	if err == nil {
-		t.Fatal("Expected error")
-	}
-}
-
-func TestRemoteClient_TestNew(t *testing.T) {
-	r := &herokuWrapper{}
-	var flag bool
-	f := func() { flag = true }
-	c := newRemote(r, f)
-	if c.(*remote).client != r { // Test that client was set
-		t.Fatal("Client was not set")
-	}
-	c.(*remote).cancel()
-	if !flag { // Test that our cancel function, when called, works
-		t.Fatal("Expected it to call the cancel func")
-	}
-}
 
 func TestRepository_ParseImage(t *testing.T) {
 	for _, x := range []struct {

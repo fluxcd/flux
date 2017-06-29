@@ -11,7 +11,6 @@ import (
 
 	"encoding/json"
 	"github.com/bradfitz/gomemcache/memcache"
-	"github.com/docker/distribution/manifest/schema1"
 	"github.com/go-kit/kit/log"
 	registryMemcache "github.com/weaveworks/flux/registry/memcache"
 )
@@ -47,8 +46,10 @@ func TestCache_Manifests(t *testing.T) {
 		log.NewLogfmtLogger(log.NewSyncWriter(os.Stderr)),
 	)
 
-	val, _ := json.Marshal([]schema1.History{{`{"test":"json"}`}})
-	key := manifestKey(creds.credsFor("").username, "index.docker.io/weaveworks/foorepo", "tag1")
+	r, _ := ParseRepository("index.docker.io/weaveworks/foorepo")
+	img := r.ToImage("tag1")
+	val, _ := json.Marshal(img)
+	key := manifestKey(creds.credsFor(r.Host()).username, r.String(), img.ID.Tag)
 	if err := mc.Set(&memcache.Item{
 		Key:        key,
 		Value:      val,
@@ -58,20 +59,17 @@ func TestCache_Manifests(t *testing.T) {
 	}
 
 	// It should fetch stuff
-	response, err := c.Manifest("index.docker.io/weaveworks/foorepo", "tag1")
+	response, err := c.Manifest(r, img.ID.Tag)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(response) != 1 {
-		t.Fatalf("Expected 1 history item, got %v", response)
-	}
-	expected := schema1.History{`{"test":"json"}`}
-	if response[0] != expected {
-		t.Fatalf("Expected  history item: %v, got %v", expected, response[0])
+	if response.ID.String() == "" {
+		t.Fatal("Should have returned image")
 	}
 
+	r2, _ := ParseRepository("index.docker.io/weaveworks/another")
 	// It should miss if not in cache
-	_, err = c.Manifest("index.docker.io/weaveworks/another", "tag1")
+	_, err = c.Manifest(r2, "tag1")
 	if err != memcache.ErrCacheMiss {
 		t.Fatal("Expected cache miss")
 	}
@@ -88,8 +86,9 @@ func TestCache_Tags(t *testing.T) {
 		log.NewLogfmtLogger(log.NewSyncWriter(os.Stderr)),
 	)
 
+	r, _ := ParseRepository("index.docker.io/weaveworks/foorepo")
 	val, _ := json.Marshal([]string{"tag1", "tag2"})
-	key := tagKey(creds.credsFor("").username, "index.docker.io/weaveworks/foorepo")
+	key := tagKey(creds.credsFor(r.Host()).username, r.String())
 	if err := mc.Set(&memcache.Item{
 		Key:        key,
 		Value:      val,
@@ -99,7 +98,7 @@ func TestCache_Tags(t *testing.T) {
 	}
 
 	// It should fetch stuff
-	response, err := c.Tags("index.docker.io/weaveworks/foorepo")
+	response, err := c.Tags(r)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -111,8 +110,9 @@ func TestCache_Tags(t *testing.T) {
 		t.Fatalf("Expected  history item: %v, got %v", expected, response[0])
 	}
 
+	r2, _ := ParseRepository("index.docker.io/weaveworks/anotherrepo")
 	// It should miss if not in cache
-	_, err = c.Tags("index.docker.io/weaveworks/anotherrepo")
+	_, err = c.Tags(r2)
 	if err != memcache.ErrCacheMiss {
 		t.Fatal("Expected cache miss")
 	}
