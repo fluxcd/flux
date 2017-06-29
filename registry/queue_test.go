@@ -10,14 +10,14 @@ import (
 
 func TestQueue_Usage(t *testing.T) {
 
-	queue := Queue{
-		RunningContainers: func() []Repository {
+	queue := NewQueue(
+		func() []Repository {
 			r, _ := ParseRepository("test/image")
 			return []Repository{r}
 		},
-		Logger:               log.NewLogfmtLogger(os.Stderr),
-		RegistryPollInterval: 1 * time.Millisecond,
-	}
+		log.NewLogfmtLogger(os.Stderr),
+		1*time.Millisecond,
+	)
 
 	shutdown := make(chan struct{})
 	shutdownWg := &sync.WaitGroup{}
@@ -35,13 +35,13 @@ func TestQueue_Usage(t *testing.T) {
 }
 
 func TestQueue_NoContainers(t *testing.T) {
-	queue := Queue{
-		RunningContainers: func() []Repository {
+	queue := NewQueue(
+		func() []Repository {
 			return []Repository{}
 		},
-		Logger:               log.NewLogfmtLogger(os.Stderr),
-		RegistryPollInterval: 1 * time.Millisecond,
-	}
+		log.NewLogfmtLogger(os.Stderr),
+		1*time.Millisecond,
+	)
 
 	shutdown := make(chan struct{})
 	shutdownWg := &sync.WaitGroup{}

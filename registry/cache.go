@@ -28,13 +28,15 @@ func NewCache(creds Credentials, cache MemcacheClient, expiry time.Duration, log
 }
 
 func (c *Cache) Manifest(repository, reference string) (history []schema1.History, err error) {
-	username, err := c.username(repository)
+	repo, err := ParseRepository(repository)
 	if err != nil {
+		c.logger.Log("err", errors.Wrap(err, "Parsing repository"))
 		return
 	}
+	creds := c.creds.credsFor(repo.Host())
 
 	// Try the cache
-	key := manifestKey(username, repository, reference)
+	key := manifestKey(creds.username, repo.String(), reference)
 	cacheItem, err := c.Client.Get(key)
 	if err != nil {
 		if err != memcache.ErrCacheMiss {
@@ -53,13 +55,15 @@ func (c *Cache) Manifest(repository, reference string) (history []schema1.Histor
 }
 
 func (c *Cache) Tags(repository string) (tags []string, err error) {
-	username, err := c.username(repository)
+	repo, err := ParseRepository(repository)
 	if err != nil {
+		c.logger.Log("err", errors.Wrap(err, "Parsing repository"))
 		return
 	}
+	creds := c.creds.credsFor(repo.Host())
 
 	// Try the cache
-	key := tagKey(username, repository)
+	key := tagKey(creds.username, repo.String())
 	cacheItem, err := c.Client.Get(key)
 	if err != nil {
 		if err != memcache.ErrCacheMiss {
@@ -98,14 +102,4 @@ func tagKey(username, repository string) string {
 		username,
 		repository,
 	}, "|")
-}
-
-func (c *Cache) username(repository string) (_ string, err error) {
-	repo, err := ParseRepository(repository)
-	if err != nil {
-		c.logger.Log("err", errors.Wrap(err, "Parsing repository"))
-		return
-	}
-	creds := c.creds.credsFor(repo.Host())
-	return creds.username, nil
 }

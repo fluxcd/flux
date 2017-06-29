@@ -65,6 +65,8 @@ func (w *Warmer) warm(repository Repository) {
 		return
 	}
 
+	// Use the full path to image for the memcache key because there
+	// might be duplicates from other registries
 	key := tagKey(username, repository.String())
 
 	if err := w.Client.Set(&memcache.Item{
@@ -87,6 +89,7 @@ func (w *Warmer) warm(repository Repository) {
 			return
 		}
 
+		// Full path to image again.
 		key := manifestKey(username, repository.String(), tag)
 		if err := w.Client.Set(&memcache.Item{
 			Key:        key,

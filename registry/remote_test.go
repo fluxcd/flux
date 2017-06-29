@@ -34,9 +34,10 @@ func TestRemoteClient_ParseManifest(t *testing.T) {
 	manifestFunc := func(repo, ref string) ([]schema1.History, error) {
 		return man.Manifest.History, nil
 	}
-	c := remote{
-		client: NewMockDockerClient(manifestFunc, nil),
-	}
+	c := newRemote(
+		NewMockDockerClient(manifestFunc, nil),
+		nil,
+	)
 	testRepository = RepositoryFromImage(img)
 	desc, err := c.Manifest(testRepository, img.ID.Tag)
 	if err != nil {

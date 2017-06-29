@@ -3,11 +3,11 @@ package registry
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"time"
 
 	"github.com/docker/distribution/manifest/schema1"
 
+	"fmt"
 	"github.com/weaveworks/flux"
 )
 
@@ -67,8 +67,7 @@ func (rc *remote) Cancel() {
 	rc.cancel()
 }
 
-// We need this because they didn't wrap it in an interface.
-// TODO: Change this to use Repository type, not string.
+// This is an interface that represents the heroku docker registry library
 type dockerRegistryInterface interface {
 	Tags(repository string) ([]string, error)
 	Manifest(repository, reference string) ([]schema1.History, error)
