@@ -30,6 +30,8 @@ import (
 	daemonhttp "github.com/weaveworks/flux/http/daemon"
 	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/registry"
+	registryMemcache "github.com/weaveworks/flux/registry/memcache"
+	registryMiddleware "github.com/weaveworks/flux/registry/middleware"
 	"github.com/weaveworks/flux/remote"
 	"github.com/weaveworks/flux/ssh"
 )
@@ -194,16 +196,16 @@ func main() {
 	var warmerQueue registry.Queue
 	{
 		// Cache
-		var memcacheClient registry.MemcacheClient
+		var memcacheClient registryMemcache.MemcacheClient
 		if *memcachedHostname != "" {
-			memcacheClient = registry.NewMemcacheClient(registry.MemcacheConfig{
+			memcacheClient = registryMemcache.NewMemcacheClient(registryMemcache.MemcacheConfig{
 				Host:           *memcachedHostname,
 				Service:        *memcachedService,
 				Timeout:        *memcachedTimeout,
 				UpdateInterval: 1 * time.Minute,
 				Logger:         log.NewContext(logger).With("component", "memcached"),
 			})
-			memcacheClient = registry.InstrumentMemcacheClient(memcacheClient)
+			memcacheClient = registryMemcache.InstrumentMemcacheClient(memcacheClient)
 			defer memcacheClient.Stop()
 		}
 
@@ -220,7 +222,7 @@ func main() {
 
 		// Remote
 		registryLogger := log.NewContext(logger).With("component", "registry")
-		remoteFactory := registry.NewRemoteClientFactory(creds, registryLogger, registry.RateLimiterConfig{
+		remoteFactory := registry.NewRemoteClientFactory(creds, registryLogger, registryMiddleware.RateLimiterConfig{
 			RPS:   *registryRPS,
 			Burst: *registryBurst,
 		})

@@ -1,4 +1,4 @@
-package registry
+package middleware
 
 import (
 	"context"
@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 )
+
+const requestTimeout = 10 * time.Second
 
 func TestRemoteFactory_RateLimit(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

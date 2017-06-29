@@ -1,4 +1,4 @@
-package registry
+package memcache
 
 import (
 	"fmt"
@@ -11,27 +11,7 @@ import (
 	fluxmetrics "github.com/weaveworks/flux/metrics"
 )
 
-const (
-	LabelRequestKind = "kind"
-
-	RequestKindTags     = "tags"
-	RequestKindMetadata = "metadata"
-)
-
 var (
-	fetchDuration = prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
-		Namespace: "flux",
-		Subsystem: "registry",
-		Name:      "fetch_duration_seconds",
-		Help:      "Duration of Image metadata fetches, in seconds.",
-		Buckets:   stdprometheus.DefBuckets,
-	}, []string{fluxmetrics.LabelSuccess})
-	requestDuration = prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
-		Namespace: "flux",
-		Subsystem: "registry",
-		Name:      "request_duration_seconds",
-		Help:      "Duration of HTTP requests made in the course of fetching Image metadata",
-	}, []string{LabelRequestKind, fluxmetrics.LabelSuccess})
 	memcacheRequestDuration = prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
 		Namespace: "flux",
 		Subsystem: "memcache",

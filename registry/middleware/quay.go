@@ -1,4 +1,4 @@
-package registry
+package middleware
 
 import (
 	"net/http"
@@ -11,14 +11,14 @@ import (
 // token, so once you have authenticated, it can keep using it rather
 // than authenticating each time.
 
-type wwwAuthenticateFixer struct {
-	transport   http.RoundTripper
+type WWWAuthenticateFixer struct {
+	Transport   http.RoundTripper
 	tokenHeader string
 }
 
-func (t *wwwAuthenticateFixer) RoundTrip(req *http.Request) (*http.Response, error) {
+func (t *WWWAuthenticateFixer) RoundTrip(req *http.Request) (*http.Response, error) {
 	t.maybeAddToken(req)
-	res, err := t.transport.RoundTrip(req)
+	res, err := t.Transport.RoundTrip(req)
 	if err == nil {
 		newAuthHeaders := []string{}
 		for _, h := range res.Header[http.CanonicalHeaderKey("WWW-Authenticate")] {
@@ -46,7 +46,7 @@ func replaceUnquoted(h string) string {
 // again. BEWARE: this means this transport should only be used when
 // asking (repeatedly) about a single repository, otherwise we may
 // leak authorisation.
-func (t *wwwAuthenticateFixer) maybeAddToken(req *http.Request) {
+func (t *WWWAuthenticateFixer) maybeAddToken(req *http.Request) {
 	authHeaders := req.Header[http.CanonicalHeaderKey("Authorization")]
 	for _, h := range authHeaders {
 		if strings.EqualFold(h[:7], "bearer ") {

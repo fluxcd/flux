@@ -5,8 +5,32 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/go-kit/kit/metrics/prometheus"
+	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	"github.com/weaveworks/flux"
 	fluxmetrics "github.com/weaveworks/flux/metrics"
+)
+
+const (
+	LabelRequestKind    = "kind"
+	RequestKindTags     = "tags"
+	RequestKindMetadata = "metadata"
+)
+
+var (
+	fetchDuration = prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
+		Namespace: "flux",
+		Subsystem: "registry",
+		Name:      "fetch_duration_seconds",
+		Help:      "Duration of Image metadata fetches, in seconds.",
+		Buckets:   stdprometheus.DefBuckets,
+	}, []string{fluxmetrics.LabelSuccess})
+	requestDuration = prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
+		Namespace: "flux",
+		Subsystem: "registry",
+		Name:      "request_duration_seconds",
+		Help:      "Duration of HTTP requests made in the course of fetching Image metadata",
+	}, []string{LabelRequestKind, fluxmetrics.LabelSuccess})
 )
 
 type InstrumentedRegistry Registry

@@ -13,6 +13,7 @@ import (
 	"github.com/bradfitz/gomemcache/memcache"
 	"github.com/docker/distribution/manifest/schema1"
 	"github.com/go-kit/kit/log"
+	registryMemcache "github.com/weaveworks/flux/registry/memcache"
 )
 
 var (
@@ -26,7 +27,7 @@ type stoppableMemcacheClient struct {
 func (s *stoppableMemcacheClient) Stop() {}
 
 // Setup sets up stuff for testing
-func Setup(t *testing.T) MemcacheClient {
+func Setup(t *testing.T) registryMemcache.MemcacheClient {
 	mc := memcache.New(strings.Fields(*memcachedIPs)...)
 	if err := mc.FlushAll(); err != nil {
 		t.Fatal(err)

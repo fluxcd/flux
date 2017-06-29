@@ -1,6 +1,7 @@
-package registry
+package middleware
 
 import (
+	"context"
 	"github.com/pkg/errors"
 	"golang.org/x/time/rate"
 	"net/http"
@@ -37,4 +38,13 @@ func (rl *RoundTripRateLimiter) RoundTrip(r *http.Request) (*http.Response, erro
 		return nil, errors.Wrap(err, "rate limited")
 	}
 	return rl.Transport.RoundTrip(r)
+}
+
+type ContextRoundTripper struct {
+	Transport http.RoundTripper
+	Ctx       context.Context
+}
+
+func (rt *ContextRoundTripper) RoundTrip(r *http.Request) (*http.Response, error) {
+	return rt.Transport.RoundTrip(r.WithContext(rt.Ctx))
 }

@@ -1,4 +1,4 @@
-package registry
+package middleware
 
 import (
 	"errors"
@@ -10,8 +10,8 @@ import (
 )
 
 const (
-	initialBackoff = 500 * time.Millisecond
-	maxBackoff     = 10 * time.Second
+	InitialBackoff = 500 * time.Millisecond
+	MaxBackoff     = 10 * time.Second
 )
 
 var (
