@@ -52,7 +52,7 @@ func NewUpstream(client *http.Client, ua string, t flux.Token, router *mux.Route
 		return nil, errors.Wrap(err, "inferring WS/HTTP endpoints")
 	}
 
-	u, err := transport.MakeURL(wsEndpoint, router, "RegisterDaemonV6")
+	u, err := transport.MakeURL(wsEndpoint, router, "RegisterDaemon")
 	if err != nil {
 		return nil, errors.Wrap(err, "constructing URL")
 	}

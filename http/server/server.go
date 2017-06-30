@@ -35,30 +35,77 @@ import (
 	"github.com/weaveworks/flux/update"
 )
 
+func NewServiceRouter() *mux.Router {
+	r := transport.NewAPIRouter()
+
+	transport.DeprecateVersions(r, "v1", "v2")
+	transport.UpstreamRoutes(r)
+
+	// Backwards compatibility: we only expect the web UI to use these
+	// routes, until it is updated to use v6.
+	r.NewRoute().Name("ListServicesV3").Methods("GET").Path("/v3/services").Queries("namespace", "{namespace}") // optional namespace!
+	r.NewRoute().Name("ListImagesV3").Methods("GET").Path("/v3/images").Queries("service", "{service}")
+	r.NewRoute().Name("UpdatePoliciesV4").Methods("PATCH").Path("/v4/policies")
+	r.NewRoute().Name("HistoryV3").Methods("GET").Path("/v3/history").Queries("service", "{service}")
+	r.NewRoute().Name("StatusV3").Methods("GET").Path("/v3/status")
+	r.NewRoute().Name("GetConfigV4").Methods("GET").Path("/v4/config")
+	r.NewRoute().Name("SetConfigV4").Methods("POST").Path("/v4/config")
+	r.NewRoute().Name("PatchConfigV4").Methods("PATCH").Path("/v4/config")
+	r.NewRoute().Name("ExportV5").Methods("HEAD", "GET").Path("/v5/export")
+	r.NewRoute().Name("PostIntegrationsGithubV5").Methods("POST").Path("/v5/integrations/github").Queries("owner", "{owner}", "repository", "{repository}")
+	r.NewRoute().Name("IsConnectedV4").Methods("HEAD", "GET").Path("/v4/ping")
+
+	// V6 service routes
+	r.NewRoute().Name("History").Methods("GET").Path("/v6/history").Queries("service", "{service}")
+	r.NewRoute().Name("Status").Methods("GET").Path("/v6/status")
+	r.NewRoute().Name("GetConfig").Methods("GET").Path("/v6/config")
+	r.NewRoute().Name("SetConfig").Methods("POST").Path("/v6/config")
+	r.NewRoute().Name("PatchConfig").Methods("PATCH").Path("/v6/config")
+	r.NewRoute().Name("PostIntegrationsGithub").Methods("POST").Path("/v6/integrations/github").Queries("owner", "{owner}", "repository", "{repository}")
+	r.NewRoute().Name("IsConnected").Methods("HEAD", "GET").Path("/v6/ping")
+
+	// We assume every request that doesn't match a route is a client
+	// calling an old or hitherto unsupported API.
+	r.NewRoute().Name("NotFound").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		transport.WriteError(w, r, http.StatusNotFound, transport.MakeAPINotFound(r.URL.Path))
+	})
+
+	return r
+}
+
 func NewHandler(s api.FluxService, r *mux.Router, logger log.Logger) http.Handler {
 	handle := HTTPService{s}
 	for method, handlerMethod := range map[string]http.HandlerFunc{
-		"ListServices":           handle.ListServices,
-		"ListImages":             handle.ListImages,
-		"UpdateImages":           handle.UpdateImages,
-		"UpdatePolicies":         handle.UpdatePolicies,
-		"LogEvent":               handle.LogEvent,
-		"History":                handle.History,
-		"Status":                 handle.Status,
-		"GetConfig":              handle.GetConfig,
-		"SetConfig":              handle.SetConfig,
-		"PatchConfig":            handle.PatchConfig,
-		"PostIntegrationsGithub": handle.PostIntegrationsGithub,
-		"RegisterDaemonV4":       handle.RegisterV4,
-		"RegisterDaemonV5":       handle.RegisterV5,
-		"RegisterDaemonV6":       handle.RegisterV6,
-		"IsConnected":            handle.IsConnected,
-		"Export":                 handle.Export,
-		"SyncNotify":             handle.SyncNotify,
-		"JobStatus":              handle.JobStatus,
-		"SyncStatus":             handle.SyncStatus,
-		"GetPublicSSHKey":        handle.GetPublicSSHKey,
-		"RegeneratePublicSSHKey": handle.RegeneratePublicSSHKey,
+		"ListServices":             handle.ListServices,
+		"ListServicesV3":           handle.ListServices,
+		"ListImages":               handle.ListImages,
+		"ListImagesV3":             handle.ListImages,
+		"UpdateImages":             handle.UpdateImages,
+		"UpdatePolicies":           handle.UpdatePolicies,
+		"UpdatePoliciesV4":         handle.UpdatePolicies,
+		"LogEvent":                 handle.LogEvent,
+		"History":                  handle.History,
+		"HistoryV3":                handle.History,
+		"Status":                   handle.Status,
+		"StatusV3":                 handle.Status,
+		"GetConfigV4":              handle.GetConfig,
+		"GetConfig":                handle.GetConfig,
+		"SetConfig":                handle.SetConfig,
+		"SetConfigV4":              handle.SetConfig,
+		"PatchConfig":              handle.PatchConfig,
+		"PatchConfigV4":            handle.PatchConfig,
+		"PostIntegrationsGithub":   handle.PostIntegrationsGithub,
+		"PostIntegrationsGithubV5": handle.PostIntegrationsGithub,
+		"Export":                   handle.Export,
+		"ExportV5":                 handle.Export,
+		"RegisterDaemon":           handle.RegisterV6,
+		"IsConnected":              handle.IsConnected,
+		"IsConnectedV4":            handle.IsConnected,
+		"SyncNotify":               handle.SyncNotify,
+		"JobStatus":                handle.JobStatus,
+		"SyncStatus":               handle.SyncStatus,
+		"GetPublicSSHKey":          handle.GetPublicSSHKey,
+		"RegeneratePublicSSHKey":   handle.RegeneratePublicSSHKey,
 	} {
 		handler := logging(handlerMethod, log.NewContext(logger).With("method", method))
 		r.Get(method).Handler(handler)
@@ -402,18 +449,6 @@ func (s HTTPService) Status(w http.ResponseWriter, r *http.Request) {
 	}
 
 	transport.JSONResponse(w, r, status)
-}
-
-func (s HTTPService) RegisterV4(w http.ResponseWriter, r *http.Request) {
-	s.doRegister(w, r, func(conn io.ReadWriteCloser) platformCloser {
-		return rpc.NewClientV4(conn)
-	})
-}
-
-func (s HTTPService) RegisterV5(w http.ResponseWriter, r *http.Request) {
-	s.doRegister(w, r, func(conn io.ReadWriteCloser) platformCloser {
-		return rpc.NewClientV5(conn)
-	})
 }
 
 func (s HTTPService) RegisterV6(w http.ResponseWriter, r *http.Request) {

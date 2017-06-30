@@ -13,67 +13,45 @@ import (
 	"github.com/weaveworks/flux"
 )
 
-func NewAPIRouter() *mux.Router {
-	r := mux.NewRouter()
-	// Any versions not represented in the routes below are
-	// deprecated. They are done separately so we can see them as
-	// different methods in metrics and logging.
+func DeprecateVersions(r *mux.Router, versions ...string) {
 	var deprecated http.HandlerFunc = func(w http.ResponseWriter, r *http.Request) {
 		WriteError(w, r, http.StatusGone, ErrorDeprecated)
 	}
 
-	for _, version := range []string{"v1", "v2"} {
+	// Any versions not represented in the routes below should be
+	// deprecated. They are done separately so we can see them as
+	// different methods in metrics and logging.
+	for _, version := range versions {
 		r.NewRoute().Name("Deprecated:" + version).PathPrefix("/" + version + "/").HandlerFunc(deprecated)
 	}
+}
 
-	// These API endpoints are specifically deprecated
-	for name, path := range map[string]string{
-		"PostOrGetRelease":   "/v4/release",            // deprecated because UpdateImages and Sync{Cluster,Status} supercede them, and we cannot support both
-		"GenerateDeployKeys": "/v5/config/deploy-keys", // replaced by PublicSSHKey
-	} {
-		r.NewRoute().Name("Deprecated:" + name).Path(path).HandlerFunc(deprecated)
-	}
+func NewAPIRouter() *mux.Router {
+	r := mux.NewRouter()
 
-	r.NewRoute().Name("ListServices").Methods("GET").Path("/v3/services").Queries("namespace", "{namespace}") // optional namespace!
-	r.NewRoute().Name("ListImages").Methods("GET").Path("/v3/images").Queries("service", "{service}")
+	r.NewRoute().Name("ListServices").Methods("GET").Path("/v6/services").Queries("namespace", "{namespace}") // optional namespace!
+	r.NewRoute().Name("ListImages").Methods("GET").Path("/v6/images").Queries("service", "{service}")
 
 	r.NewRoute().Name("UpdateImages").Methods("POST").Path("/v6/update-images").Queries("service", "{service}", "image", "{image}", "kind", "{kind}")
-	r.NewRoute().Name("UpdatePolicies").Methods("PATCH").Path("/v4/policies")
+	r.NewRoute().Name("UpdatePolicies").Methods("PATCH").Path("/v6/policies")
 	r.NewRoute().Name("SyncNotify").Methods("POST").Path("/v6/sync")
 	r.NewRoute().Name("JobStatus").Methods("GET").Path("/v6/jobs").Queries("id", "{id}")
 	r.NewRoute().Name("SyncStatus").Methods("GET").Path("/v6/sync").Queries("ref", "{ref}")
-	r.NewRoute().Name("Export").Methods("HEAD", "GET").Path("/v5/export")
+	r.NewRoute().Name("Export").Methods("HEAD", "GET").Path("/v6/export")
 	r.NewRoute().Name("GetPublicSSHKey").Methods("GET").Path("/v6/identity.pub")
 	r.NewRoute().Name("RegeneratePublicSSHKey").Methods("POST").Path("/v6/identity.pub")
 
 	return r // TODO 404 though?
 }
 
-func NewServiceRouter() *mux.Router {
-	r := NewAPIRouter()
+func UpstreamRoutes(r *mux.Router) {
+	r.NewRoute().Name("RegisterDaemon").Methods("GET").Path("/v6/daemon")
+	r.NewRoute().Name("LogEvent").Methods("POST").Path("/v6/events")
+}
 
-	r.NewRoute().Name("Automate").Methods("POST").Path("/v3/automate").Queries("service", "{service}")
-	r.NewRoute().Name("Deautomate").Methods("POST").Path("/v3/deautomate").Queries("service", "{service}")
-	r.NewRoute().Name("Lock").Methods("POST").Path("/v3/lock").Queries("service", "{service}")
-	r.NewRoute().Name("Unlock").Methods("POST").Path("/v3/unlock").Queries("service", "{service}")
-	r.NewRoute().Name("History").Methods("GET").Path("/v3/history").Queries("service", "{service}")
-	r.NewRoute().Name("Status").Methods("GET").Path("/v3/status")
-	r.NewRoute().Name("GetConfig").Methods("GET").Path("/v4/config")
-	r.NewRoute().Name("SetConfig").Methods("POST").Path("/v4/config")
-	r.NewRoute().Name("PatchConfig").Methods("PATCH").Path("/v4/config")
-	r.NewRoute().Name("PostIntegrationsGithub").Methods("POST").Path("/v5/integrations/github").Queries("owner", "{owner}", "repository", "{repository}")
-	r.NewRoute().Name("RegisterDaemonV4").Methods("GET").Path("/v4/daemon")
-	r.NewRoute().Name("RegisterDaemonV5").Methods("GET").Path("/v5/daemon")
-	r.NewRoute().Name("RegisterDaemonV6").Methods("GET").Path("/v6/daemon")
-	r.NewRoute().Name("IsConnected").Methods("HEAD", "GET").Path("/v4/ping")
-	r.NewRoute().Name("LogEvent").Methods("POST").Path("/v4/events")
-
-	// We assume every request that doesn't match a route is a client
-	// calling an old or hitherto unsupported API.
-	r.NewRoute().Name("NotFound").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		WriteError(w, r, http.StatusNotFound, MakeAPINotFound(r.URL.Path))
-	})
-
+func NewUpstreamRouter() *mux.Router {
+	r := mux.NewRouter()
+	UpstreamRoutes(r)
 	return r
 }
 
