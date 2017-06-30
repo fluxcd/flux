@@ -18,14 +18,9 @@ const (
 type Policy string
 
 func Boolean(policy Policy) bool {
-	for _, p := range []Policy{
-		Locked,
-		Automated,
-		Ignore,
-	} {
-		if policy == p {
-			return true
-		}
+	switch policy {
+	case Locked, Automated, Ignore:
+		return true
 	}
 	return false
 }
