@@ -10,6 +10,7 @@ import (
 	"github.com/bradfitz/gomemcache/memcache"
 	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
+	"github.com/weaveworks/flux"
 	"strings"
 )
 
@@ -176,11 +177,8 @@ type manifestKey struct {
 	username, fullRepositoryPath, reference string
 }
 
-func NewManifestKey(username, fullRepositoryPath, reference string) (Key, error) {
-	if strings.Count(fullRepositoryPath, "/") != 2 {
-		return nil, errors.New("Must pass a full path to the image repository")
-	}
-	return &manifestKey{username, fullRepositoryPath, reference}, nil
+func NewManifestKey(username string, id flux.ImageID, reference string) (Key, error) {
+	return &manifestKey{username, id.HostNamespaceImage(), reference}, nil
 }
 
 func (k *manifestKey) String() string {
@@ -199,11 +197,8 @@ type tagKey struct {
 	username, fullRepositoryPath string
 }
 
-func NewTagKey(username, fullRepositoryPath string) (Key, error) {
-	if strings.Count(fullRepositoryPath, "/") != 2 {
-		return nil, errors.New("Must pass a full path to the image repository")
-	}
-	return &tagKey{username, fullRepositoryPath}, nil
+func NewTagKey(username string, id flux.ImageID) (Key, error) {
+	return &tagKey{username, id.HostNamespaceImage()}, nil
 }
 
 func (k *tagKey) String() string {

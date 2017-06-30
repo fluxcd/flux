@@ -21,12 +21,12 @@ var (
 )
 
 type instrumentedMemcacheClient struct {
-	c Client
+	next Client
 }
 
 func InstrumentMemcacheClient(c Client) Client {
 	return &instrumentedMemcacheClient{
-		c: c,
+		next: c,
 	}
 }
 
@@ -37,7 +37,7 @@ func (i *instrumentedMemcacheClient) GetKey(k Key) (_ []byte, err error) {
 			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
 	}(time.Now())
-	return i.GetKey(k)
+	return i.next.GetKey(k)
 }
 
 func (i *instrumentedMemcacheClient) SetKey(k Key, v []byte) (err error) {
@@ -47,7 +47,7 @@ func (i *instrumentedMemcacheClient) SetKey(k Key, v []byte) (err error) {
 			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
 	}(time.Now())
-	return i.SetKey(k, v)
+	return i.next.SetKey(k, v)
 }
 
 func (i *instrumentedMemcacheClient) Stop() {
@@ -57,5 +57,5 @@ func (i *instrumentedMemcacheClient) Stop() {
 			fluxmetrics.LabelSuccess, "true",
 		).Observe(time.Since(begin).Seconds())
 	}(time.Now())
-	i.c.Stop()
+	i.next.Stop()
 }

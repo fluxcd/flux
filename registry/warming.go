@@ -68,7 +68,7 @@ func (w *Warmer) warm(id flux.ImageID) {
 		return
 	}
 
-	key, err := cache.NewTagKey(username, id.String())
+	key, err := cache.NewTagKey(username, id)
 	if err != nil {
 		w.Logger.Log("err", errors.Wrap(err, "creating key for memcache"))
 		return
@@ -85,7 +85,7 @@ func (w *Warmer) warm(id flux.ImageID) {
 	for _, tag := range tags {
 		// See if we have the manifest already cached
 		// We don't want to re-download a manifest again.
-		key, err := cache.NewManifestKey(username, id.String(), tag)
+		key, err := cache.NewManifestKey(username, id, tag)
 		if err != nil {
 			w.Logger.Log("err", errors.Wrap(err, "creating key for memcache"))
 			return
@@ -116,7 +116,7 @@ func (w *Warmer) warm(id flux.ImageID) {
 		updated = true // Report that we've updated something
 	}
 	if updated {
-		w.Logger.Log("updated", id.String())
+		w.Logger.Log("updated", id.HostNamespaceImage())
 	}
 }
 

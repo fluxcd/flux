@@ -93,7 +93,7 @@ func NewCache(creds Credentials, cr cache.Reader, expiry time.Duration, logger l
 
 func (c *Cache) Manifest(id flux.ImageID, tag string) (flux.Image, error) {
 	creds := c.creds.credsFor(id.Host)
-	key, err := cache.NewManifestKey(creds.username, id.HostNamespaceImage(), tag)
+	key, err := cache.NewManifestKey(creds.username, id, tag)
 	if err != nil {
 		return flux.Image{}, err
 	}
@@ -112,7 +112,7 @@ func (c *Cache) Manifest(id flux.ImageID, tag string) (flux.Image, error) {
 
 func (c *Cache) Tags(id flux.ImageID) ([]string, error) {
 	creds := c.creds.credsFor(id.Host)
-	key, err := cache.NewTagKey(creds.username, id.HostNamespaceImage())
+	key, err := cache.NewTagKey(creds.username, id)
 	if err != nil {
 		return []string{}, err
 	}
