@@ -1,6 +1,9 @@
 package update
 
 import (
+	"fmt"
+	"strings"
+
 	"github.com/go-kit/kit/log"
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster"
@@ -51,7 +54,23 @@ func (a *Automated) ReleaseKind() ReleaseKind {
 }
 
 func (a *Automated) CommitMessage() string {
-	return "(TODO) automated release commit message"
+	var images []string
+	for _, image := range a.images() {
+		images = append(images, image.String())
+	}
+	return fmt.Sprintf("Release %s to automated", strings.Join(images, ", "))
+}
+
+func (a *Automated) images() []flux.ImageID {
+	imageMap := map[flux.ImageID]struct{}{}
+	for _, change := range a.changes {
+		imageMap[change.imageID] = struct{}{}
+	}
+	var images []flux.ImageID
+	for image, _ := range imageMap {
+		images = append(images, image)
+	}
+	return images
 }
 
 func (a *Automated) filters(rc ReleaseContext) ([]ServiceFilter, error) {
