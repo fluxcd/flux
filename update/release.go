@@ -10,7 +10,6 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster"
-	fluxmetrics "github.com/weaveworks/flux/metrics"
 	"github.com/weaveworks/flux/policy"
 	"github.com/weaveworks/flux/registry"
 )
@@ -27,6 +26,7 @@ var (
 
 // ReleaseKind says whether a release is to be planned only, or planned then executed
 type ReleaseKind string
+type ReleaseType string
 
 const (
 	ReleaseKindPlan    ReleaseKind = "plan"
@@ -64,7 +64,7 @@ type ReleaseSpec struct {
 
 // ReleaseType gives a one-word description of the release, mainly
 // useful for labelling metrics or log messages.
-func (s ReleaseSpec) ReleaseType() string {
+func (s ReleaseSpec) ReleaseType() ReleaseType {
 	switch {
 	case s.ImageSpec == ImageSpecLatest:
 		return "latest_images"
@@ -305,11 +305,6 @@ func (s ReleaseSpec) calculateImageUpdates(rc ReleaseContext, candidates []*Serv
 }
 
 func (s ReleaseSpec) Observe(start time.Time, err error) {
-	releaseDuration.With(
-		fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
-		fluxmetrics.LabelReleaseType, s.ReleaseType(),
-		fluxmetrics.LabelReleaseKind, string(s.Kind),
-	).Observe(time.Since(start).Seconds())
 }
 
 type ServiceSpec string // ServiceID or "<all>"

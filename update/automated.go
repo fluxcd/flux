@@ -42,6 +42,10 @@ func (a *Automated) CalculateRelease(rc ReleaseContext, logger log.Logger) ([]*S
 	return updates, result, err
 }
 
+func (a *Automated) ReleaseType() ReleaseType {
+	return "automated"
+}
+
 func (a *Automated) ReleaseKind() ReleaseKind {
 	return ReleaseKindExecute
 }

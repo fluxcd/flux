@@ -11,19 +11,19 @@ import (
 type Changes interface {
 	CalculateRelease(update.ReleaseContext, log.Logger) ([]*update.ServiceUpdate, update.Result, error)
 	ReleaseKind() update.ReleaseKind
+	ReleaseType() update.ReleaseType
 	CommitMessage() string
 }
 
-type Observer interface {
-	Observe(time.Time, error)
-}
-
 func Release(rc *ReleaseContext, changes Changes, logger log.Logger) (results update.Result, err error) {
-	if o, ok := changes.(Observer); ok {
-		defer func(start time.Time) {
-			o.Observe(start, err)
-		}(time.Now())
-	}
+	defer func(start time.Time) {
+		update.ObserveRelease(
+			start,
+			err == nil,
+			changes.ReleaseType(),
+			changes.ReleaseKind(),
+		)
+	}(time.Now())
 
 	logger = log.NewContext(logger).With("type", "release")
 
@@ -34,7 +34,6 @@ func Release(rc *ReleaseContext, changes Changes, logger log.Logger) (results up
 
 	err = ApplyChanges(rc, updates, logger)
 	return results, err
-
 }
 
 func ApplyChanges(rc *ReleaseContext, updates []*update.ServiceUpdate, logger log.Logger) error {
