@@ -410,7 +410,7 @@ func mockDaemon(t *testing.T) (*Daemon, func(), *cluster.Mock, history.EventRead
 	}
 
 	wg.Add(1)
-	go d.Loop(shutdown, wg, logger)
+	go d.GitPollLoop(shutdown, wg, logger)
 
 	return d, func() {
 		// Close daemon first so we don't get errors if the queue closes before the daemon

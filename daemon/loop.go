@@ -35,21 +35,36 @@ func (loop *LoopVars) ensureInit() {
 // Loop for potentially long-running stuff. This includes running
 // jobs, and looking for new commits.
 
-func (d *Daemon) Loop(stop chan struct{}, wg *sync.WaitGroup, logger log.Logger) {
+func (d *Daemon) ImagePollLoop(stop chan struct{}, wg *sync.WaitGroup, logger log.Logger) {
 	defer wg.Done()
-	gitPollTimer := time.NewTimer(d.GitPollInterval)
-	// This can be called any time to push the next git poll out by
-	// d.GitPollInterval. It must _at least_ be called when the timer
-	// fires, so that the polling continues.
-	resetGitPoll := func() {
-		if gitPollTimer != nil {
-			gitPollTimer.Stop()
-			gitPollTimer = time.NewTimer(d.GitPollInterval)
+
+	imagePollTicker := time.NewTicker(d.RegistryPollInterval)
+	d.askForImagePoll()
+	for {
+		select {
+		case <-stop:
+			logger.Log("stopping", "true")
+			return
+		case <-d.pollImagesSoon:
+			d.pollForNewImages(logger)
+		case <-imagePollTicker.C:
+			// Time to poll for new images
+			d.askForImagePoll()
 		}
 	}
+}
 
-	// Pull for new commits, then if successful, run the procedure given
+func (d *Daemon) GitPollLoop(stop chan struct{}, wg *sync.WaitGroup, logger log.Logger) {
+	defer wg.Done()
+	// We want to pull the repo and sync at least every
+	// `GitPollInterval`. Being told to sync, or completing a job, may
+	// intervene (in which case, reschedule the next pull-and-sync)
+	gitPollTimer := time.NewTimer(d.GitPollInterval)
 	pullThen := func(k func(logger log.Logger)) {
+		defer func() {
+			gitPollTimer.Stop()
+			gitPollTimer = time.NewTimer(d.GitPollInterval)
+		}()
 		if err := d.Checkout.Pull(); err != nil {
 			logger.Log("operation", "pull", "err", err)
 			return
@@ -57,19 +72,8 @@ func (d *Daemon) Loop(stop chan struct{}, wg *sync.WaitGroup, logger log.Logger)
 		k(logger)
 	}
 
-	imagePollTimer := time.NewTimer(d.RegistryPollInterval)
-	// Similar to resetGitTimer, this must at lest be called when the
-	// timer fires.
-	resetImagePoll := func() {
-		if imagePollTimer != nil {
-			imagePollTimer.Stop()
-			imagePollTimer = time.NewTimer(d.RegistryPollInterval)
-		}
-	}
-
 	// Ask for a sync, and to poll images, straight away
 	d.askForSync()
-	d.askForImagePoll()
 	for {
 		select {
 		case <-stop:
@@ -77,31 +81,22 @@ func (d *Daemon) Loop(stop chan struct{}, wg *sync.WaitGroup, logger log.Logger)
 			return
 		case <-d.syncSoon:
 			pullThen(d.doSync)
-			resetGitPoll()
-		case <-d.pollImagesSoon:
-			pullThen(d.pollForNewImages)
-			resetGitPoll()
 		case <-gitPollTimer.C:
 			// Time to poll for new commits (unless we're already
 			// about to do that)
 			d.askForSync()
-		case <-imagePollTimer.C:
-			// Time to poll for new images
-			d.askForImagePoll()
-			resetImagePoll()
 		case job := <-d.Jobs.Ready():
 			jobLogger := log.NewContext(logger).With("jobID", job.ID)
 			jobLogger.Log("state", "in-progress")
 			// It's assumed that (successful) jobs will push commits
 			// to the upstream repo, and therefore we probably want to
-			// pull from there and sync the cluster.
+			// pull from there and sync the cluster afterwards.
 			if err := job.Do(jobLogger); err != nil {
 				jobLogger.Log("state", "done", "success", "false", "err", err)
 				continue
 			}
 			jobLogger.Log("state", "done", "success", "true")
 			pullThen(d.doSync)
-			resetGitPoll()
 		}
 	}
 }

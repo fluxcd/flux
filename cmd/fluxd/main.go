@@ -336,7 +336,9 @@ func main() {
 	}
 
 	shutdownWg.Add(1)
-	go daemon.Loop(shutdown, shutdownWg, log.NewContext(logger).With("component", "sync-loop"))
+	go daemon.GitPollLoop(shutdown, shutdownWg, log.NewContext(logger).With("component", "sync-loop"))
+	shutdownWg.Add(1)
+	go daemon.ImagePollLoop(shutdown, shutdownWg, log.NewContext(logger).With("component", "image-poll-loop"))
 
 	// Update daemonRef so that upstream and handlers point to fully working daemon
 	daemonRef.UpdatePlatform(daemon)
