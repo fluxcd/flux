@@ -6,10 +6,9 @@ import (
 	"sync"
 	"time"
 
-	officialMemcache "github.com/bradfitz/gomemcache/memcache"
 	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
-	"github.com/weaveworks/flux/registry/memcache"
+	"github.com/weaveworks/flux/registry/cache"
 	"math/rand"
 	"strings"
 )
@@ -19,14 +18,15 @@ type Warmer struct {
 	ClientFactory ClientFactory
 	Creds         Credentials
 	Expiry        time.Duration
-	Client        memcache.MemcacheClient
+	Writer        cache.Writer
+	Reader        cache.Reader
 }
 
 // Continuously wait for a new repository to warm
 func (w *Warmer) Loop(stop <-chan struct{}, wg *sync.WaitGroup, warm <-chan Repository) {
 	defer wg.Done()
 
-	if w.Logger == nil || w.ClientFactory == nil || w.Expiry == 0 || w.Client == nil {
+	if w.Logger == nil || w.ClientFactory == nil || w.Expiry == 0 || w.Writer == nil || w.Reader == nil {
 		panic("registry.Warmer fields are nil")
 	}
 
@@ -67,14 +67,14 @@ func (w *Warmer) warm(repository Repository) {
 		return
 	}
 
-	// Use the full path to image for the memcache key because there
-	// might be duplicates from other registries
-	key := tagKey(username, repository.String())
-	if err := w.Client.Set(&officialMemcache.Item{
-		Key:        key,
-		Value:      val,
-		Expiration: int32(w.Expiry.Seconds()),
-	}); err != nil {
+	key, err := cache.NewTagKey(username, repository.String())
+	if err != nil {
+		w.Logger.Log("err", errors.Wrap(err, "creating key for memcache"))
+		return
+	}
+
+	err = w.Writer.SetKey(key, val)
+	if err != nil {
 		w.Logger.Log("err", errors.Wrap(err, "storing tags in memcache"))
 		return
 	}
@@ -84,33 +84,35 @@ func (w *Warmer) warm(repository Repository) {
 	for _, tag := range tags {
 		// See if we have the manifest already cached
 		// We don't want to re-download a manifest again.
-		key := manifestKey(username, repository.String(), tag)
-		_, err := w.Client.Get(key)
-		if err == nil { // If no error, we've already got it
+		key, err := cache.NewManifestKey(username, repository.String(), tag)
+		if err != nil {
+			w.Logger.Log("err", errors.Wrap(err, "creating key for memcache"))
+			return
+		}
+		_, err = w.Reader.GetKey(key)
+		if err == nil { // If no error, we've already got it, skip
 			continue
 		}
 
-		history, err := client.Manifest(repository, tag)
+		// Get the image from the remote
+		img, err := client.Manifest(repository, tag)
 		if err != nil {
 			w.Logger.Log("err", err.Error())
 			continue
 		}
 
-		val, err := json.Marshal(history)
+		// Write back to memcache
+		val, err := json.Marshal(img)
 		if err != nil {
 			w.Logger.Log("err", errors.Wrap(err, "serializing tag to store in memcache"))
 			return
 		}
-
-		if err := w.Client.Set(&officialMemcache.Item{
-			Key:        key,
-			Value:      val,
-			Expiration: int32(w.Expiry.Seconds()),
-		}); err != nil {
+		err = w.Writer.SetKey(key, val)
+		if err != nil {
 			w.Logger.Log("err", errors.Wrap(err, "storing tags in memcache"))
 			return
 		}
-		updated = true
+		updated = true // Report that we've updated something
 	}
 	if updated {
 		w.Logger.Log("updated", repository.String())

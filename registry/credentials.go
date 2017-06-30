@@ -5,10 +5,20 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/pkg/errors"
+	"io/ioutil"
 	"net/url"
 	"strings"
-	"io/ioutil"
 )
+
+// Registry Credentials
+type creds struct {
+	username, password string
+}
+
+// Credentials to a (Docker) registry.
+type Credentials struct {
+	m map[string]creds
+}
 
 // NoCredentials returns a usable but empty credentials object.
 func NoCredentials() Credentials {

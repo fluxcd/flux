@@ -6,7 +6,7 @@ import (
 	"github.com/go-kit/kit/log"
 	dockerregistry "github.com/heroku/docker-registry-client/registry"
 	"github.com/jonboulle/clockwork"
-	"github.com/weaveworks/flux/registry/memcache"
+	"github.com/weaveworks/flux/registry/cache"
 	"github.com/weaveworks/flux/registry/middleware"
 	"golang.org/x/net/publicsuffix"
 	"net/http"
@@ -96,29 +96,29 @@ func (f *remoteClientFactory) ClientFor(host string) (Client, error) {
 
 // ---
 // A new ClientFactory implementation for a Cache
-func NewCacheClientFactory(c Credentials, l log.Logger, mc memcache.MemcacheClient, ce time.Duration) ClientFactory {
+func NewCacheClientFactory(c Credentials, l log.Logger, cache cache.Reader, cacheExpiry time.Duration) ClientFactory {
 	for host, creds := range c.m {
 		l.Log("host", host, "username", creds.username)
 	}
 	return &cacheClientFactory{
-		creds:          c,
-		Logger:         l,
-		MemcacheClient: mc,
-		CacheExpiry:    ce,
+		creds:       c,
+		Logger:      l,
+		cache:       cache,
+		CacheExpiry: cacheExpiry,
 	}
 }
 
 type cacheClientFactory struct {
-	creds          Credentials
-	Logger         log.Logger
-	MemcacheClient memcache.MemcacheClient
-	CacheExpiry    time.Duration
+	creds       Credentials
+	Logger      log.Logger
+	cache       cache.Reader
+	CacheExpiry time.Duration
 }
 
 func (f *cacheClientFactory) ClientFor(host string) (Client, error) {
-	if f.MemcacheClient == nil {
+	if f.cache == nil {
 		return nil, ErrNoMemcache
 	}
-	client := NewCache(f.creds, f.MemcacheClient, f.CacheExpiry, f.Logger)
+	client := NewCache(f.creds, f.cache, f.CacheExpiry, f.Logger)
 	return client, nil
 }

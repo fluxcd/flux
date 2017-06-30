@@ -31,7 +31,7 @@ _testmain.go
 vendor/*
 !vendor/manifest
 build/
-cache/
+/cache/*
 testdata/helloworld/helloworld-linux-amd64
 testdata/helloworld/.helloworld
 testdata/sidecar/sidecar-linux-amd64

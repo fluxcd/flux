@@ -4,12 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	officialMemcache "github.com/bradfitz/gomemcache/memcache"
 	"github.com/go-kit/kit/log"
-	wraperrors "github.com/pkg/errors"
+	"github.com/pkg/errors"
 	"github.com/weaveworks/flux"
-	"github.com/weaveworks/flux/registry/memcache"
-	"strings"
+	"github.com/weaveworks/flux/registry/cache"
 	"time"
 )
 
@@ -45,7 +43,7 @@ func (a *Remote) Manifest(repository Repository, tag string) (flux.Image, error)
 
 	history, err := a.Registry.Manifest(repository.NamespaceImage(), tag)
 	if err != nil || history == nil {
-		return flux.Image{}, err
+		return flux.Image{}, errors.Wrap(err, "getting remote manifest")
 	}
 
 	// the manifest includes some v1-backwards-compatibility data,
@@ -79,7 +77,7 @@ func (a *Remote) Cancel() {
 type Cache struct {
 	creds  Credentials
 	expiry time.Duration
-	Client memcache.MemcacheClient
+	cr     cache.Reader
 	logger log.Logger
 }
 
@@ -87,86 +85,49 @@ func (*Cache) Cancel() {
 	return
 }
 
-func NewCache(creds Credentials, cache memcache.MemcacheClient, expiry time.Duration, logger log.Logger) Client {
+func NewCache(creds Credentials, cr cache.Reader, expiry time.Duration, logger log.Logger) Client {
 	return &Cache{
 		creds:  creds,
 		expiry: expiry,
-		Client: cache,
+		cr:     cr,
 		logger: logger,
 	}
 }
 
 func (c *Cache) Manifest(repository Repository, tag string) (flux.Image, error) {
-	img, err := flux.ParseImage(fmt.Sprintf("%s:%s", repository.String(), tag), time.Time{})
-	if err != nil {
-		return flux.Image{}, err
-	}
-
-	// Try the cache
 	creds := c.creds.credsFor(repository.Host())
-	key := manifestKey(creds.username, repository.String(), tag)
-	cacheItem, err := c.Client.Get(key)
+	key, err := cache.NewManifestKey(creds.username, repository.String(), tag)
 	if err != nil {
-		if err != officialMemcache.ErrCacheMiss {
-			c.logger.Log("err", wraperrors.Wrap(err, "Fetching tag from memcache"))
-		}
 		return flux.Image{}, err
 	}
-	err = json.Unmarshal(cacheItem.Value, &img)
+	val, err := c.cr.GetKey(key)
+	if err != nil {
+		return flux.Image{}, err
+	}
+	var img flux.Image
+	err = json.Unmarshal(val, &img)
 	if err != nil {
 		c.logger.Log("err", err.Error)
 		return flux.Image{}, err
 	}
-
 	return img, nil
 }
 
-func (c *Cache) Tags(repository Repository) (tags []string, err error) {
-	repo, err := ParseRepository(repository.String())
+func (c *Cache) Tags(repository Repository) ([]string, error) {
+	creds := c.creds.credsFor(repository.Host())
+	key, err := cache.NewTagKey(creds.username, repository.String())
 	if err != nil {
-		c.logger.Log("err", wraperrors.Wrap(err, "Parsing repository"))
-		return
+		return []string{}, err
 	}
-	creds := c.creds.credsFor(repo.Host())
-
-	// Try the cache
-	key := tagKey(creds.username, repo.String())
-	cacheItem, err := c.Client.Get(key)
+	val, err := c.cr.GetKey(key)
 	if err != nil {
-		if err != officialMemcache.ErrCacheMiss {
-			c.logger.Log("err", wraperrors.Wrap(err, "Fetching tag from memcache"))
-		}
-		return
+		return []string{}, err
 	}
-
-	// Return the cache item
-	err = json.Unmarshal(cacheItem.Value, &tags)
+	var tags []string
+	err = json.Unmarshal(val, &tags)
 	if err != nil {
 		c.logger.Log("err", err.Error)
-		return
+		return []string{}, err
 	}
-	return
-}
-
-func manifestKey(username, repository, reference string) string {
-	return strings.Join([]string{
-		"registryhistoryv1", // Just to version in case we need to change format later.
-		// Just the username here means we won't invalidate the cache when user
-		// changes password, but that should be rare. And, it also means we're not
-		// putting user passwords in plaintext into memcache.
-		username,
-		repository,
-		reference,
-	}, "|")
-}
-
-func tagKey(username, repository string) string {
-	return strings.Join([]string{
-		"registrytagsv1", // Just to version in case we need to change format later.
-		// Just the username here means we won't invalidate the cache when user
-		// changes password, but that should be rare. And, it also means we're not
-		// putting user passwords in plaintext into memcache.
-		username,
-		repository,
-	}, "|")
+	return tags, nil
 }

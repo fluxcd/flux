@@ -30,7 +30,7 @@ import (
 	daemonhttp "github.com/weaveworks/flux/http/daemon"
 	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/registry"
-	registryMemcache "github.com/weaveworks/flux/registry/memcache"
+	registryMemcache "github.com/weaveworks/flux/registry/cache"
 	registryMiddleware "github.com/weaveworks/flux/registry/middleware"
 	"github.com/weaveworks/flux/remote"
 	"github.com/weaveworks/flux/ssh"
@@ -196,7 +196,7 @@ func main() {
 	var warmerQueue registry.Queue
 	{
 		// Cache
-		var memcacheClient registryMemcache.MemcacheClient
+		var memcacheClient registryMemcache.Client
 		if *memcachedHostname != "" {
 			memcacheClient = registryMemcache.NewMemcacheClient(registryMemcache.MemcacheConfig{
 				Host:           *memcachedHostname,
@@ -245,7 +245,8 @@ func main() {
 			ClientFactory: remoteFactory,
 			Creds:         creds,
 			Expiry:        *registryCacheExpiry,
-			Client:        memcacheClient,
+			Reader:        memcacheClient,
+			Writer:        memcacheClient,
 		}
 	}
 

@@ -35,6 +35,9 @@ type registry struct {
 }
 
 // NewClient creates a new registry registry, to use when fetching repositories.
+// Behind the scenes the registry will call ClientFactory.ClientFor(...)
+// when requesting an image. This will generate a Client to access the
+// backend.
 func NewRegistry(c ClientFactory, l log.Logger) Registry {
 	return &registry{
 		factory: c,
@@ -123,7 +126,6 @@ func (reg *registry) tagsToRepository(client Client, repository Repository, tags
 			return nil, res.err
 		}
 		images[i] = res.image
-		reg.Logger.Log("time", res.image.CreatedAt.String())
 	}
 
 	sort.Sort(flux.ByCreatedDesc(images))
@@ -199,15 +201,4 @@ func (h herokuManifestAdaptor) Manifest(repository, reference string) ([]schema1
 		result = append(result, schema1.History{item.V1Compatibility})
 	}
 	return result, err
-}
-
-// ---
-// Registry Credentials
-type creds struct {
-	username, password string
-}
-
-// Credentials to a (Docker) registry.
-type Credentials struct {
-	m map[string]creds
 }
