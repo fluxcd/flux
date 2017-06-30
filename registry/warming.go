@@ -8,6 +8,7 @@ import (
 
 	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
+	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/registry/cache"
 	"math/rand"
 	"strings"
@@ -23,7 +24,7 @@ type Warmer struct {
 }
 
 // Continuously wait for a new repository to warm
-func (w *Warmer) Loop(stop <-chan struct{}, wg *sync.WaitGroup, warm <-chan Repository) {
+func (w *Warmer) Loop(stop <-chan struct{}, wg *sync.WaitGroup, warm <-chan flux.ImageID) {
 	defer wg.Done()
 
 	if w.Logger == nil || w.ClientFactory == nil || w.Expiry == 0 || w.Writer == nil || w.Reader == nil {
@@ -41,19 +42,19 @@ func (w *Warmer) Loop(stop <-chan struct{}, wg *sync.WaitGroup, warm <-chan Repo
 	}
 }
 
-func (w *Warmer) warm(repository Repository) {
-	client, err := w.ClientFactory.ClientFor(repository.Host())
+func (w *Warmer) warm(id flux.ImageID) {
+	client, err := w.ClientFactory.ClientFor(id.Host)
 	if err != nil {
 		w.Logger.Log("err", err.Error())
 		return
 	}
 	defer client.Cancel()
 
-	username := w.Creds.credsFor(repository.Host()).username
+	username := w.Creds.credsFor(id.Host).username
 
 	// Refresh tags first
 	// Only, for example, "library/alpine" because we have the host information in the client above.
-	tags, err := client.Tags(repository)
+	tags, err := client.Tags(id)
 	if err != nil {
 		if !strings.Contains(err.Error(), "status=401") {
 			w.Logger.Log("err", err.Error())
@@ -67,7 +68,7 @@ func (w *Warmer) warm(repository Repository) {
 		return
 	}
 
-	key, err := cache.NewTagKey(username, repository.String())
+	key, err := cache.NewTagKey(username, id.String())
 	if err != nil {
 		w.Logger.Log("err", errors.Wrap(err, "creating key for memcache"))
 		return
@@ -84,7 +85,7 @@ func (w *Warmer) warm(repository Repository) {
 	for _, tag := range tags {
 		// See if we have the manifest already cached
 		// We don't want to re-download a manifest again.
-		key, err := cache.NewManifestKey(username, repository.String(), tag)
+		key, err := cache.NewManifestKey(username, id.String(), tag)
 		if err != nil {
 			w.Logger.Log("err", errors.Wrap(err, "creating key for memcache"))
 			return
@@ -95,7 +96,7 @@ func (w *Warmer) warm(repository Repository) {
 		}
 
 		// Get the image from the remote
-		img, err := client.Manifest(repository, tag)
+		img, err := client.Manifest(id, tag)
 		if err != nil {
 			w.Logger.Log("err", err.Error())
 			continue
@@ -115,7 +116,7 @@ func (w *Warmer) warm(repository Repository) {
 		updated = true // Report that we've updated something
 	}
 	if updated {
-		w.Logger.Log("updated", repository.String())
+		w.Logger.Log("updated", id.String())
 	}
 }
 
@@ -123,19 +124,19 @@ func (w *Warmer) warm(repository Repository) {
 // If no items are added to the queue this will randomly add a new
 // registry to warm
 type Queue struct {
-	RunningContainers    func() []Repository
+	RunningContainers    func() []flux.ImageID
 	Logger               log.Logger
 	RegistryPollInterval time.Duration
-	warmQueue            chan Repository
+	warmQueue            chan flux.ImageID
 	queueLock            sync.Mutex
 }
 
-func NewQueue(runningContainersFunc func() []Repository, l log.Logger, emptyQueueTick time.Duration) Queue {
+func NewQueue(runningContainersFunc func() []flux.ImageID, l log.Logger, emptyQueueTick time.Duration) Queue {
 	return Queue{
 		RunningContainers:    runningContainersFunc,
 		Logger:               l,
 		RegistryPollInterval: emptyQueueTick,
-		warmQueue:            make(chan Repository, 100), // Don't close this. It will be GC'ed when this instance is destroyed.
+		warmQueue:            make(chan flux.ImageID, 100), // Don't close this. It will be GC'ed when this instance is destroyed.
 	}
 }
 
@@ -167,7 +168,7 @@ func (w *Queue) Loop(stop chan struct{}, wg *sync.WaitGroup) {
 	}
 }
 
-func (w *Queue) Queue() chan Repository {
+func (w *Queue) Queue() chan flux.ImageID {
 	w.queueLock.Lock()
 	defer w.queueLock.Unlock()
 	return w.warmQueue

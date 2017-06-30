@@ -4,6 +4,7 @@ package registry
 
 import (
 	"github.com/go-kit/kit/log"
+	"github.com/weaveworks/flux"
 	"os"
 	"sync"
 	"testing"
@@ -13,9 +14,9 @@ import (
 func TestQueue_Usage(t *testing.T) {
 
 	queue := NewQueue(
-		func() []Repository {
-			r, _ := ParseRepository("test/image")
-			return []Repository{r}
+		func() []flux.ImageID {
+			id, _ := flux.ParseImageID("test/image")
+			return []flux.ImageID{id}
 		},
 		log.NewLogfmtLogger(os.Stderr),
 		1*time.Millisecond,
@@ -38,8 +39,8 @@ func TestQueue_Usage(t *testing.T) {
 
 func TestQueue_NoContainers(t *testing.T) {
 	queue := NewQueue(
-		func() []Repository {
-			return []Repository{}
+		func() []flux.ImageID {
+			return []flux.ImageID{}
 		},
 		log.NewLogfmtLogger(os.Stderr),
 		1*time.Millisecond,

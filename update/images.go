@@ -3,7 +3,6 @@ package update
 import (
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/pkg/errors"
 	glob "github.com/ryanuber/go-glob"
@@ -59,11 +58,11 @@ func CollectAvailableImages(reg registry.Registry, services []cluster.Service) (
 		}
 	}
 	for repo := range images {
-		r, err := registry.ParseRepository(repo)
+		id, err := flux.ParseImageID(repo)
 		if err != nil {
 			return nil, errors.Wrapf(err, "parsing repository %s", repo)
 		}
-		imageRepo, err := reg.GetRepository(r)
+		imageRepo, err := reg.GetRepository(id)
 		if err != nil {
 			return nil, errors.Wrapf(err, "fetching image metadata for %s", repo)
 		}
@@ -84,7 +83,7 @@ func exactImages(reg registry.Registry, images []flux.ImageID) (ImageMap, error)
 		if !exist {
 			return m, errors.Wrap(flux.ErrInvalidImageID, fmt.Sprintf("image %q does not exist", id))
 		}
-		m[id.Repository()] = []flux.Image{flux.Image{ID: id}}
+		m[id.Repository()] = []flux.Image{{ID: id}}
 	}
 	return m, nil
 }
@@ -92,13 +91,7 @@ func exactImages(reg registry.Registry, images []flux.ImageID) (ImageMap, error)
 // Checks whether the given image exists in the repository.
 // Return true if exist, false otherwise
 func imageExists(reg registry.Registry, imageID flux.ImageID) (bool, error) {
-	// Use this method to parse the image, because it is safe. I.e. it will error and inform the user if it is malformed.
-	img, err := flux.ParseImage(imageID.String(), time.Time{})
-	if err != nil {
-		return false, err
-	}
-	// Get a specific image.
-	_, err = reg.GetImage(registry.RepositoryFromImage(img), img.ID.Tag)
+	_, err := reg.GetImage(imageID, imageID.Tag)
 	if err != nil {
 		return false, nil
 	}

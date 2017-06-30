@@ -3,7 +3,6 @@ package registry
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
 	"github.com/weaveworks/flux"
@@ -14,8 +13,8 @@ import (
 // A client represents an entity that returns manifest and tags information.
 // It might be a chache, it might be a real registry.
 type Client interface {
-	Tags(repository Repository) ([]string, error)
-	Manifest(repository Repository, tag string) (flux.Image, error)
+	Tags(id flux.ImageID) ([]string, error)
+	Manifest(id flux.ImageID, tag string) (flux.Image, error)
 	Cancel()
 }
 
@@ -29,19 +28,14 @@ type Remote struct {
 }
 
 // Return the tags for this repository.
-func (a *Remote) Tags(repository Repository) ([]string, error) {
-	return a.Registry.Tags(repository.NamespaceImage())
+func (a *Remote) Tags(id flux.ImageID) ([]string, error) {
+	return a.Registry.Tags(id.NamespaceImage())
 }
 
 // We need to do some adapting here to convert from the return values
 // from dockerregistry to our domain types.
-func (a *Remote) Manifest(repository Repository, tag string) (flux.Image, error) {
-	img, err := flux.ParseImage(fmt.Sprintf("%s:%s", repository.String(), tag), time.Time{})
-	if err != nil {
-		return flux.Image{}, err
-	}
-
-	history, err := a.Registry.Manifest(repository.NamespaceImage(), tag)
+func (a *Remote) Manifest(id flux.ImageID, tag string) (flux.Image, error) {
+	history, err := a.Registry.Manifest(id.NamespaceImage(), tag)
 	if err != nil || history == nil {
 		return flux.Image{}, errors.Wrap(err, "getting remote manifest")
 	}
@@ -55,6 +49,9 @@ func (a *Remote) Manifest(repository Repository, tag string) (flux.Image, error)
 		Created time.Time `json:"created"`
 	}
 	var topmost v1image
+	var img flux.Image
+	img.ID = id
+	img.ID.Tag = tag
 	if len(history) > 0 {
 		if err = json.Unmarshal([]byte(history[0].V1Compatibility), &topmost); err == nil {
 			if !topmost.Created.IsZero() {
@@ -94,9 +91,9 @@ func NewCache(creds Credentials, cr cache.Reader, expiry time.Duration, logger l
 	}
 }
 
-func (c *Cache) Manifest(repository Repository, tag string) (flux.Image, error) {
-	creds := c.creds.credsFor(repository.Host())
-	key, err := cache.NewManifestKey(creds.username, repository.String(), tag)
+func (c *Cache) Manifest(id flux.ImageID, tag string) (flux.Image, error) {
+	creds := c.creds.credsFor(id.Host)
+	key, err := cache.NewManifestKey(creds.username, id.HostNamespaceImage(), tag)
 	if err != nil {
 		return flux.Image{}, err
 	}
@@ -113,9 +110,9 @@ func (c *Cache) Manifest(repository Repository, tag string) (flux.Image, error) 
 	return img, nil
 }
 
-func (c *Cache) Tags(repository Repository) ([]string, error) {
-	creds := c.creds.credsFor(repository.Host())
-	key, err := cache.NewTagKey(creds.username, repository.String())
+func (c *Cache) Tags(id flux.ImageID) ([]string, error) {
+	creds := c.creds.credsFor(id.Host)
+	key, err := cache.NewTagKey(creds.username, id.HostNamespaceImage())
 	if err != nil {
 		return []string{}, err
 	}

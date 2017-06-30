@@ -428,17 +428,17 @@ func checkForUpdates(clusterString string, gitString string, logger log.Logger) 
 	return checkpoint.CheckInterval(&params, versionCheckPeriod, handleResponse)
 }
 
-func servicesToRepositories(k8s cluster.Cluster, log log.Logger) func() []registry.Repository {
-	return func() []registry.Repository {
+func servicesToRepositories(k8s cluster.Cluster, log log.Logger) func() []flux.ImageID {
+	return func() []flux.ImageID {
 		svcs, err := k8s.AllServices("")
 		if err != nil {
 			log.Log("err", err.Error())
-			return []registry.Repository{}
+			return []flux.ImageID{}
 		}
-		repos := make([]registry.Repository, 0)
+		repos := make([]flux.ImageID, 0)
 		for _, s := range svcs {
 			for _, c := range s.Containers.Containers {
-				r, err := registry.ParseRepository(c.Image)
+				r, err := flux.ParseImageID(c.Image)
 				if err != nil {
 					log.Log("err", err.Error())
 					continue

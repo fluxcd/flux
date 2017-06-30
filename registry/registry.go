@@ -25,8 +25,8 @@ const (
 
 // The Registry interface is a domain specific API to access container registries.
 type Registry interface {
-	GetRepository(repository Repository) ([]flux.Image, error)
-	GetImage(repository Repository, tag string) (flux.Image, error)
+	GetRepository(id flux.ImageID) ([]flux.Image, error)
+	GetImage(id flux.ImageID, tag string) (flux.Image, error)
 }
 
 type registry struct {
@@ -53,13 +53,13 @@ func NewRegistry(c ClientFactory, l log.Logger) Registry {
 //   foo/helloworld         -> index.docker.io/foo/helloworld
 //   quay.io/foo/helloworld -> quay.io/foo/helloworld
 //
-func (reg *registry) GetRepository(img Repository) ([]flux.Image, error) {
-	rem, err := reg.newClient(img)
+func (reg *registry) GetRepository(id flux.ImageID) ([]flux.Image, error) {
+	rem, err := reg.newClient(id)
 	if err != nil {
 		return nil, err
 	}
 
-	tags, err := rem.Tags(img)
+	tags, err := rem.Tags(id)
 	if err != nil {
 		rem.Cancel()
 		return nil, err
@@ -70,20 +70,20 @@ func (reg *registry) GetRepository(img Repository) ([]flux.Image, error) {
 	// `library/nats`. We need that to fetch the tags etc. However, we
 	// want the results to use the *actual* name of the images to be
 	// as supplied, e.g., `nats`.
-	return reg.tagsToRepository(rem, img, tags)
+	return reg.tagsToRepository(rem, id, tags)
 }
 
 // Get a single Image from the registry if it exists
-func (reg *registry) GetImage(img Repository, tag string) (_ flux.Image, err error) {
-	rem, err := reg.newClient(img)
+func (reg *registry) GetImage(id flux.ImageID, tag string) (_ flux.Image, err error) {
+	rem, err := reg.newClient(id)
 	if err != nil {
 		return
 	}
-	return rem.Manifest(img, tag)
+	return rem.Manifest(id, tag)
 }
 
-func (reg *registry) newClient(img Repository) (Client, error) {
-	client, err := reg.factory.ClientFor(img.Host())
+func (reg *registry) newClient(id flux.ImageID) (Client, error) {
+	client, err := reg.factory.ClientFor(id.Host)
 	if err != nil {
 		return nil, err
 	}
@@ -91,7 +91,7 @@ func (reg *registry) newClient(img Repository) (Client, error) {
 	return client, nil
 }
 
-func (reg *registry) tagsToRepository(client Client, repository Repository, tags []string) ([]flux.Image, error) {
+func (reg *registry) tagsToRepository(client Client, id flux.ImageID, tags []string) ([]flux.Image, error) {
 	// one way or another, we'll be finishing all requests
 	defer client.Cancel()
 
@@ -106,7 +106,7 @@ func (reg *registry) tagsToRepository(client Client, repository Repository, tags
 	for i := 0; i < maxConcurrency; i++ {
 		go func() {
 			for tag := range toFetch {
-				image, err := client.Manifest(repository, tag)
+				image, err := client.Manifest(id, tag)
 				if err != nil {
 					reg.Logger.Log("registry-metadata-err", err)
 				}
@@ -130,48 +130,6 @@ func (reg *registry) tagsToRepository(client Client, repository Repository, tags
 
 	sort.Sort(flux.ByCreatedDesc(images))
 	return images, nil
-}
-
-// ---
-
-// Repository represents a full image address, including host.
-// TODO: This could probably be merged into flux.Image.
-type Repository struct {
-	img flux.Image // Internally we use an image to store data
-}
-
-func RepositoryFromImage(img flux.Image) Repository {
-	return Repository{
-		img: img,
-	}
-}
-
-func ParseRepository(imgStr string) (Repository, error) {
-	i, err := flux.ParseImage(imgStr, time.Time{})
-	if err != nil {
-		return Repository{}, err
-	}
-	return Repository{
-		img: i,
-	}, nil
-}
-
-func (r Repository) NamespaceImage() string {
-	return r.img.ID.NamespaceImage()
-}
-
-func (r Repository) Host() string {
-	return r.img.ID.Host
-}
-
-func (r Repository) String() string {
-	return r.img.ID.HostNamespaceImage()
-}
-
-func (r Repository) ToImage(tag string) flux.Image {
-	newImage := r.img
-	newImage.ID.Tag = tag
-	return newImage
 }
 
 // ---

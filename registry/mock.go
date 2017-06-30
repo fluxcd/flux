@@ -17,8 +17,8 @@ type mockRemote struct {
 	err  error
 }
 
-type ManifestFunc func(repository Repository, tag string) (flux.Image, error)
-type TagsFunc func(repository Repository) ([]string, error)
+type ManifestFunc func(id flux.ImageID, tag string) (flux.Image, error)
+type TagsFunc func(id flux.ImageID) ([]string, error)
 type mockDockerClient struct {
 	manifest ManifestFunc
 	tags     TagsFunc
@@ -31,12 +31,12 @@ func NewMockClient(manifest ManifestFunc, tags TagsFunc) Client {
 	}
 }
 
-func (m *mockDockerClient) Manifest(repository Repository, tag string) (flux.Image, error) {
-	return m.manifest(repository, tag)
+func (m *mockDockerClient) Manifest(id flux.ImageID, tag string) (flux.Image, error) {
+	return m.manifest(id, tag)
 }
 
-func (m *mockDockerClient) Tags(repository Repository) ([]string, error) {
-	return m.tags(repository)
+func (m *mockDockerClient) Tags(id flux.ImageID) ([]string, error) {
+	return m.tags(id)
 }
 
 func (*mockDockerClient) Cancel() {
@@ -71,21 +71,22 @@ func NewMockRegistry(images []flux.Image, err error) Registry {
 	}
 }
 
-func (m *mockRegistry) GetRepository(repository Repository) ([]flux.Image, error) {
+func (m *mockRegistry) GetRepository(id flux.ImageID) ([]flux.Image, error) {
 	var imgs []flux.Image
 	for _, i := range m.imgs {
 		// include only if it's the same repository in the same place
-		if i.ID.NamespaceImage() == repository.NamespaceImage() {
+		if i.ID.NamespaceImage() == id.NamespaceImage() {
 			imgs = append(imgs, i)
 		}
 	}
 	return imgs, m.err
 }
 
-func (m *mockRegistry) GetImage(repository Repository, tag string) (flux.Image, error) {
+func (m *mockRegistry) GetImage(id flux.ImageID, tag string) (flux.Image, error) {
+	id.Tag = tag
 	if len(m.imgs) > 0 {
 		for _, i := range m.imgs {
-			if i.ID.String() == repository.ToImage(tag).ID.String() {
+			if i.ID.String() == id.String() {
 				return i, nil
 			}
 		}

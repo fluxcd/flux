@@ -5,6 +5,7 @@ package registry
 import (
 	"flag"
 	"github.com/go-kit/kit/log"
+	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/registry/cache"
 	"github.com/weaveworks/flux/registry/middleware"
 	"os"
@@ -29,7 +30,7 @@ func TestWarming_WarmerWriteCacheRead(t *testing.T) {
 		Logger:         log.NewContext(log.NewLogfmtLogger(os.Stderr)).With("component", "memcached"),
 	}, strings.Fields(*memcachedIPs)...)
 
-	repo, _ := ParseRepository("alpine")
+	id, _ := flux.ParseImageID("alpine")
 
 	logger := log.NewContext(log.NewLogfmtLogger(os.Stderr))
 
@@ -52,8 +53,8 @@ func TestWarming_WarmerWriteCacheRead(t *testing.T) {
 	)
 
 	q := NewQueue(
-		func() []Repository {
-			return []Repository{repo}
+		func() []flux.ImageID {
+			return []flux.ImageID{id}
 		},
 		logger.With("component", "queue"),
 		time.Second,
@@ -90,14 +91,14 @@ Loop:
 		case <-timeout.C:
 			return
 		case <-tick.C:
-			_, err := r.GetImage(repo, "latest")
+			_, err := r.GetImage(id, "latest")
 			if err == nil {
 				break Loop
 			}
 		}
 	}
 
-	img, err := r.GetRepository(repo)
+	img, err := r.GetRepository(id)
 	if err != nil {
 		t.Fatal(err)
 	}
