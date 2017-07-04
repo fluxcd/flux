@@ -53,7 +53,10 @@ func NewServiceRouter() *mux.Router {
 	r.NewRoute().Name("PatchConfigV4").Methods("PATCH").Path("/v4/config")
 	r.NewRoute().Name("ExportV5").Methods("HEAD", "GET").Path("/v5/export")
 	r.NewRoute().Name("PostIntegrationsGithubV5").Methods("POST").Path("/v5/integrations/github").Queries("owner", "{owner}", "repository", "{repository}")
-	r.NewRoute().Name("IsConnectedV4").Methods("HEAD", "GET").Path("/v4/ping")
+	// NB no old IsConnected route, as we expect old requests are
+	// forwarded to an instance of the old service, and we want to be
+	// able to sniff the daemon version depending on which ping
+	// responds.
 
 	// V6 service routes
 	r.NewRoute().Name("History").Methods("GET").Path("/v6/history").Queries("service", "{service}")
@@ -100,7 +103,6 @@ func NewHandler(s api.FluxService, r *mux.Router, logger log.Logger) http.Handle
 		"ExportV5":                 handle.Export,
 		"RegisterDaemon":           handle.RegisterV6,
 		"IsConnected":              handle.IsConnected,
-		"IsConnectedV4":            handle.IsConnected,
 		"SyncNotify":               handle.SyncNotify,
 		"JobStatus":                handle.JobStatus,
 		"SyncStatus":               handle.SyncStatus,
