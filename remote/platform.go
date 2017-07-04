@@ -49,7 +49,7 @@ type PlatformV6 interface {
 	// Ask the daemon where it's up to with job processing
 	JobStatus(job.ID) (job.Status, error)
 	// Get the daemon's public SSH key
-	PublicSSHKey(regenerate bool) (ssh.PublicKey, error)
+	GitRepoConfig(regenerate bool) (ssh.PublicKey, error)
 }
 
 // Platform is the SPI for the daemon; i.e., it's all the things we

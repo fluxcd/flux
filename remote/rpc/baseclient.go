@@ -51,6 +51,6 @@ func (bc baseClient) SyncStatus(string) ([]string, error) {
 	return nil, remote.UpgradeNeededError(errors.New("SyncStatus method not implemented"))
 }
 
-func (bc baseClient) PublicSSHKey(bool) (ssh.PublicKey, error) {
-	return ssh.PublicKey{}, remote.UpgradeNeededError(errors.New("PublicSSHKey method not implemented"))
+func (bc baseClient) GitRepoConfig(bool) (ssh.PublicKey, error) {
+	return ssh.PublicKey{}, remote.UpgradeNeededError(errors.New("GitRepoConfig method not implemented"))
 }

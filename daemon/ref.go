@@ -70,6 +70,6 @@ func (pr *Ref) SyncStatus(ref string) ([]string, error) {
 	return pr.Platform().SyncStatus(ref)
 }
 
-func (pr *Ref) PublicSSHKey(regenerate bool) (ssh.PublicKey, error) {
-	return pr.Platform().PublicSSHKey(regenerate)
+func (pr *Ref) GitRepoConfig(regenerate bool) (ssh.PublicKey, error) {
+	return pr.Platform().GitRepoConfig(regenerate)
 }

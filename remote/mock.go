@@ -41,8 +41,8 @@ type MockPlatform struct {
 	JobStatusAnswer job.Status
 	JobStatusError  error
 
-	PublicSSHKeyAnswer ssh.PublicKey
-	PublicSSHKeyError  error
+	GitRepoConfigAnswer ssh.PublicKey
+	GitRepoConfigError  error
 }
 
 func (p *MockPlatform) Ping() error {
@@ -86,8 +86,8 @@ func (p *MockPlatform) JobStatus(job.ID) (job.Status, error) {
 	return p.JobStatusAnswer, p.JobStatusError
 }
 
-func (p *MockPlatform) PublicSSHKey(regenerate bool) (ssh.PublicKey, error) {
-	return p.PublicSSHKeyAnswer, p.PublicSSHKeyError
+func (p *MockPlatform) GitRepoConfig(regenerate bool) (ssh.PublicKey, error) {
+	return p.GitRepoConfigAnswer, p.GitRepoConfigError
 }
 
 var _ Platform = &MockPlatform{}

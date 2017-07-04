@@ -215,13 +215,13 @@ func (p *removeablePlatform) SyncStatus(ref string) (revs []string, err error) {
 	return p.remote.SyncStatus(ref)
 }
 
-func (p *removeablePlatform) PublicSSHKey(regenerate bool) (_ ssh.PublicKey, err error) {
+func (p *removeablePlatform) GitRepoConfig(regenerate bool) (_ ssh.PublicKey, err error) {
 	defer func() {
 		if _, ok := err.(FatalError); ok {
 			p.closeWithError(err)
 		}
 	}()
-	return p.remote.PublicSSHKey(regenerate)
+	return p.remote.GitRepoConfig(regenerate)
 }
 
 // disconnectedPlatform is a stub implementation used when the
@@ -266,6 +266,6 @@ func (p disconnectedPlatform) SyncStatus(string) ([]string, error) {
 	return nil, errNotSubscribed
 }
 
-func (p disconnectedPlatform) PublicSSHKey(bool) (ssh.PublicKey, error) {
+func (p disconnectedPlatform) GitRepoConfig(bool) (ssh.PublicKey, error) {
 	return ssh.PublicKey{}, errNotSubscribed
 }

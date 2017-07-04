@@ -123,14 +123,14 @@ func (i *instrumentedPlatform) SyncStatus(cursor string) (_ []string, err error)
 	return i.p.SyncStatus(cursor)
 }
 
-func (i *instrumentedPlatform) PublicSSHKey(regenerate bool) (_ ssh.PublicKey, err error) {
+func (i *instrumentedPlatform) GitRepoConfig(regenerate bool) (_ ssh.PublicKey, err error) {
 	defer func(begin time.Time) {
 		requestDuration.With(
-			fluxmetrics.LabelMethod, "PublicSSHKey",
+			fluxmetrics.LabelMethod, "GitRepoConfig",
 			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
 	}(time.Now())
-	return i.p.PublicSSHKey(regenerate)
+	return i.p.GitRepoConfig(regenerate)
 }
 
 // BusMetrics has metrics for messages buses.

@@ -78,6 +78,6 @@ func (nrd *NotReadyDaemon) SyncStatus(string) ([]string, error) {
 	return nil, nrd.Reason()
 }
 
-func (nrd *NotReadyDaemon) PublicSSHKey(regenerate bool) (ssh.PublicKey, error) {
+func (nrd *NotReadyDaemon) GitRepoConfig(regenerate bool) (ssh.PublicKey, error) {
 	return nrd.cluster.PublicSSHKey(regenerate)
 }

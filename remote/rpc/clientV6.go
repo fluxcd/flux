@@ -89,9 +89,9 @@ func (p *RPCClientV6) SyncStatus(ref string) ([]string, error) {
 	return result, err
 }
 
-func (p *RPCClientV6) PublicSSHKey(regenerate bool) (ssh.PublicKey, error) {
+func (p *RPCClientV6) GitRepoConfig(regenerate bool) (ssh.PublicKey, error) {
 	var result ssh.PublicKey
-	err := p.client.Call("RPCServer.PublicSSHKey", regenerate, &result)
+	err := p.client.Call("RPCServer.GitRepoConfig", regenerate, &result)
 	if _, ok := err.(rpc.ServerError); !ok && err != nil {
 		return ssh.PublicKey{}, remote.FatalError{err}
 	}

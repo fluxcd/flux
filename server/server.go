@@ -233,7 +233,7 @@ func (s *Server) PublicSSHKey(instID flux.InstanceID, regenerate bool) (ssh.Publ
 		return ssh.PublicKey{}, errors.Wrapf(err, "getting instance "+string(instID))
 	}
 
-	return inst.Platform.PublicSSHKey(regenerate)
+	return inst.Platform.GitRepoConfig(regenerate)
 }
 
 // RegisterDaemon handles a daemon connection. It blocks until the

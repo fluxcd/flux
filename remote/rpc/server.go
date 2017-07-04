@@ -86,8 +86,8 @@ func (p *RPCServer) SyncStatus(cursor string, resp *[]string) error {
 	return err
 }
 
-func (p *RPCServer) PublicSSHKey(regenerate bool, resp *ssh.PublicKey) error {
-	v, err := p.p.PublicSSHKey(regenerate)
+func (p *RPCServer) GitRepoConfig(regenerate bool, resp *ssh.PublicKey) error {
+	v, err := p.p.GitRepoConfig(regenerate)
 	*resp = v
 	return err
 }

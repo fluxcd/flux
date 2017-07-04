@@ -96,11 +96,11 @@ func (p *ErrorLoggingPlatform) UpdateManifests(u update.Spec) (_ job.ID, err err
 	return p.Platform.UpdateManifests(u)
 }
 
-func (p *ErrorLoggingPlatform) PublicSSHKey(regenerate bool) (_ ssh.PublicKey, err error) {
+func (p *ErrorLoggingPlatform) GitRepoConfig(regenerate bool) (_ ssh.PublicKey, err error) {
 	defer func() {
 		if err != nil {
-			p.Logger.Log("method", "PublicSSHKey", "error", err)
+			p.Logger.Log("method", "GitRepoConfig", "error", err)
 		}
 	}()
-	return p.Platform.PublicSSHKey(regenerate)
+	return p.Platform.GitRepoConfig(regenerate)
 }

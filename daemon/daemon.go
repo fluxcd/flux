@@ -350,7 +350,7 @@ func (d *Daemon) SyncStatus(commitRef string) ([]string, error) {
 	return d.Checkout.RevisionsBetween(d.Checkout.SyncTag, commitRef)
 }
 
-func (d *Daemon) PublicSSHKey(regenerate bool) (ssh.PublicKey, error) {
+func (d *Daemon) GitRepoConfig(regenerate bool) (ssh.PublicKey, error) {
 	return d.Cluster.PublicSSHKey(regenerate)
 }
 
