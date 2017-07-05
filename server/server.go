@@ -53,14 +53,25 @@ func (s *Server) Status(instID flux.InstanceID) (res flux.Status, err error) {
 	}
 
 	res.Fluxsvc = flux.FluxsvcStatus{Version: s.version}
+
 	res.Fluxd.Version, err = inst.Platform.Version()
-	res.Fluxd.Connected = (err == nil)
+	if err != nil {
+		return res, err
+	}
+
+	res.Git.Config, err = inst.Platform.GitRepoConfig(false)
+	if err != nil {
+		return res, err
+	}
+
 	_, err = inst.Platform.SyncStatus("HEAD")
 	if err != nil {
 		res.Git.Error = err.Error()
 	} else {
 		res.Git.Configured = true
 	}
+
+	res.Fluxd.Connected = true
 
 	return res, nil
 }
