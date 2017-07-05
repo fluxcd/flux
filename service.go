@@ -53,9 +53,9 @@ func (id ServiceID) Components() (namespace, service string) {
 	return toks[0], toks[1]
 }
 
-type ServiceIDMap map[ServiceID]map[string]string
+type ServiceIDSet map[ServiceID]struct{}
 
-func (s ServiceIDMap) String() string {
+func (s ServiceIDSet) String() string {
 	var ids []string
 	for id, _ := range s {
 		ids = append(ids, string(id))
@@ -63,26 +63,26 @@ func (s ServiceIDMap) String() string {
 	return "{" + strings.Join(ids, ", ") + "}"
 }
 
-func (s ServiceIDMap) Add(ids []ServiceID) {
+func (s ServiceIDSet) Add(ids []ServiceID) {
 	for _, id := range ids {
-		s[id] = nil
+		s[id] = struct{}{}
 	}
 }
 
-func (s ServiceIDMap) Without(others ServiceIDMap) ServiceIDMap {
+func (s ServiceIDSet) Without(others ServiceIDSet) ServiceIDSet {
 	if s == nil || len(s) == 0 || others == nil || len(others) == 0 {
 		return s
 	}
-	res := ServiceIDMap{}
-	for id := range s {
+	res := ServiceIDSet{}
+	for id, _ := range s {
 		if !others.Contains(id) {
-			res[id] = s[id]
+			res[id] = struct{}{}
 		}
 	}
 	return res
 }
 
-func (s ServiceIDMap) Contains(id ServiceID) bool {
+func (s ServiceIDSet) Contains(id ServiceID) bool {
 	if s == nil {
 		return false
 	}
@@ -90,23 +90,23 @@ func (s ServiceIDMap) Contains(id ServiceID) bool {
 	return ok
 }
 
-func (s ServiceIDMap) Intersection(others ServiceIDMap) ServiceIDMap {
+func (s ServiceIDSet) Intersection(others ServiceIDSet) ServiceIDSet {
 	if s == nil {
 		return others
 	}
 	if others == nil {
 		return s
 	}
-	result := ServiceIDMap{}
+	result := ServiceIDSet{}
 	for id := range s {
 		if _, ok := others[id]; ok {
-			result[id] = s[id]
+			result[id] = struct{}{}
 		}
 	}
 	return result
 }
 
-func (s ServiceIDMap) ToSlice() ServiceIDs {
+func (s ServiceIDSet) ToSlice() ServiceIDs {
 	i := 0
 	keys := make(ServiceIDs, len(s))
 	for k := range s {
@@ -123,7 +123,7 @@ func (p ServiceIDs) Less(i, j int) bool { return string(p[i]) < string(p[j]) }
 func (p ServiceIDs) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
 func (p ServiceIDs) Sort()              { sort.Sort(p) }
 
-func (ids ServiceIDs) Without(others ServiceIDMap) (res ServiceIDs) {
+func (ids ServiceIDs) Without(others ServiceIDSet) (res ServiceIDs) {
 	for _, id := range ids {
 		if !others.Contains(id) {
 			res = append(res, id)
@@ -133,13 +133,13 @@ func (ids ServiceIDs) Without(others ServiceIDMap) (res ServiceIDs) {
 }
 
 func (ids ServiceIDs) Contains(id ServiceID) bool {
-	set := ServiceIDMap{}
+	set := ServiceIDSet{}
 	set.Add(ids)
 	return set.Contains(id)
 }
 
-func (ids ServiceIDs) Intersection(others ServiceIDMap) ServiceIDMap {
-	set := ServiceIDMap{}
+func (ids ServiceIDs) Intersection(others ServiceIDSet) ServiceIDSet {
+	set := ServiceIDSet{}
 	set.Add(ids)
 	return set.Intersection(others)
 }

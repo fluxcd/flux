@@ -13,7 +13,7 @@ type Deployment struct {
 }
 
 func (o Deployment) ServiceIDs(all map[string]resource.Resource) []flux.ServiceID {
-	found := flux.ServiceIDMap{}
+	found := flux.ServiceIDSet{}
 	// Look through all for any matching services
 	for _, r := range all {
 		s, ok := r.(*Service)

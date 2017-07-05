@@ -122,7 +122,7 @@ func (d *Daemon) pullAndSync(logger log.Logger) {
 	default:
 		logger.Log("err", err)
 	}
-	serviceIDs := flux.ServiceIDMap{}
+	serviceIDs := flux.ServiceIDSet{}
 	for _, r := range changedResources {
 		serviceIDs.Add(r.ServiceIDs(allResources))
 	}

@@ -101,7 +101,7 @@ func PlatformTestBattery(t *testing.T, wrap func(mock Platform) Platform) {
 	namespace := "the-space-of-names"
 	serviceID := flux.ServiceID(namespace + "/service")
 	serviceList := []flux.ServiceID{serviceID}
-	services := flux.ServiceIDMap{}
+	services := flux.ServiceIDSet{}
 	services.Add(serviceList)
 
 	now := time.Now().UTC()
