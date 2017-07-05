@@ -202,7 +202,7 @@ func (s *Server) GetConfig(instID flux.InstanceID, fingerprint string) (flux.Ins
 	return config, nil
 }
 
-func (s *Server) SetConfig(instID flux.InstanceID, updates flux.UnsafeInstanceConfig) error {
+func (s *Server) SetConfig(instID flux.InstanceID, updates flux.InstanceConfig) error {
 	return s.config.UpdateConfig(instID, applyConfigUpdates(updates))
 }
 
@@ -220,7 +220,7 @@ func (s *Server) PatchConfig(instID flux.InstanceID, patch flux.ConfigPatch) err
 	return s.config.UpdateConfig(instID, applyConfigUpdates(patchedConfig))
 }
 
-func applyConfigUpdates(updates flux.UnsafeInstanceConfig) instance.UpdateFunc {
+func applyConfigUpdates(updates flux.InstanceConfig) instance.UpdateFunc {
 	return func(config instance.Config) (instance.Config, error) {
 		config.Settings = updates
 		return config, nil

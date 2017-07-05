@@ -128,7 +128,7 @@ func (c *Client) GetConfig(_ flux.InstanceID, fingerprint string) (flux.Instance
 	return res, err
 }
 
-func (c *Client) SetConfig(_ flux.InstanceID, config flux.UnsafeInstanceConfig) error {
+func (c *Client) SetConfig(_ flux.InstanceID, config flux.InstanceConfig) error {
 	return c.postWithBody("SetConfig", config)
 }
 

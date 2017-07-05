@@ -55,7 +55,7 @@ func TestRelease_DryRun(t *testing.T) {
 	ev := history.Event{Metadata: r}
 	r.Spec.Kind = update.ReleaseKindPlan
 	if err := Event(instance.Config{
-		Settings: flux.UnsafeInstanceConfig{
+		Settings: flux.InstanceConfig{
 			Slack: flux.NotifierConfig{
 				HookURL: server.URL,
 			},

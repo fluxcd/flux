@@ -1,26 +1,8 @@
 package flux
 
 import (
-	"crypto/rsa"
-	"encoding/base64"
 	"encoding/json"
-	"strings"
-
-	"golang.org/x/crypto/ssh"
 )
-
-const secretReplacement = "******"
-
-// Instance configuration, mutated via `fluxctl config`. It can be
-// supplied as YAML (hence YAML annotations) and is transported as
-// JSON (hence JSON annotations).
-
-type GitConfig struct {
-	URL    string `json:"URL" yaml:"URL"`
-	Path   string `json:"path" yaml:"path"`
-	Branch string `json:"branch" yaml:"branch"`
-	Key    string `json:"key" yaml:"key"`
-}
 
 // NotifierConfig is the config used to set up a notifier.
 type NotifierConfig struct {
@@ -29,94 +11,25 @@ type NotifierConfig struct {
 	ReleaseTemplate string `json:"releaseTemplate" yaml:"releaseTemplate"`
 }
 
-type RegistryConfig struct {
-	// Map of index host to Basic auth string (base64 encoded
-	// username:password), to make it easy to copypasta from docker
-	// config.
-	Auths map[string]Auth `json:"auths" yaml:"auths"`
-}
-
-type Auth struct {
-	Auth string `json:"auth" yaml:"auth"`
-}
-
 type InstanceConfig struct {
-	Git      GitConfig      `json:"git" yaml:"git"`
-	Slack    NotifierConfig `json:"slack" yaml:"slack"`
-	Registry RegistryConfig `json:"registry" yaml:"registry"`
-}
-
-// As a safeguard, we make the default behaviour to hide secrets when
-// marshalling config.
-
-type SafeInstanceConfig InstanceConfig
-type UnsafeInstanceConfig InstanceConfig
-
-func (c InstanceConfig) MarshalJSON() ([]byte, error) {
-	return json.Marshal(c.HideSecrets())
-}
-
-func (c InstanceConfig) HideSecrets() SafeInstanceConfig {
-	c.Git = c.Git.HideKey()
-	for host, auth := range c.Registry.Auths {
-		c.Registry.Auths[host] = auth.HidePassword()
-	}
-	return SafeInstanceConfig(c)
-}
-
-func (a Auth) HidePassword() Auth {
-	if a.Auth == "" {
-		return a
-	}
-	bytes, err := base64.StdEncoding.DecodeString(a.Auth)
-	if err != nil {
-		return Auth{secretReplacement}
-	}
-	parts := strings.SplitN(string(bytes), ":", 2)
-	return Auth{parts[0] + ":" + secretReplacement}
-}
-
-func (g GitConfig) HideKey() GitConfig {
-	if g.Key == "" {
-		return g
-	}
-	key, err := ssh.ParseRawPrivateKey([]byte(g.Key))
-	if err != nil {
-		g.Key = secretReplacement
-		return g
-	}
-
-	privKey, ok := key.(*rsa.PrivateKey)
-	if !ok {
-		g.Key = secretReplacement
-		return g
-	}
-
-	pubKey, err := ssh.NewPublicKey(&privKey.PublicKey)
-	if err != nil {
-		g.Key = secretReplacement
-		return g
-	}
-
-	g.Key = string(ssh.MarshalAuthorizedKey(pubKey))
-	return g
+	Slack NotifierConfig `json:"slack" yaml:"slack"`
 }
 
 type untypedConfig map[string]interface{}
 
-func (uc untypedConfig) toUnsafeInstanceConfig() (UnsafeInstanceConfig, error) {
+func (uc untypedConfig) toInstanceConfig() (InstanceConfig, error) {
 	bytes, err := json.Marshal(uc)
 	if err != nil {
-		return UnsafeInstanceConfig{}, err
+		return InstanceConfig{}, err
 	}
-	var uic UnsafeInstanceConfig
+	var uic InstanceConfig
 	if err := json.Unmarshal(bytes, &uic); err != nil {
-		return UnsafeInstanceConfig{}, err
+		return InstanceConfig{}, err
 	}
 	return uic, nil
 }
 
-func (uic UnsafeInstanceConfig) toUntypedConfig() (untypedConfig, error) {
+func (uic InstanceConfig) toUntypedConfig() (untypedConfig, error) {
 	bytes, err := json.Marshal(uic)
 	if err != nil {
 		return nil, err
@@ -130,18 +43,18 @@ func (uic UnsafeInstanceConfig) toUntypedConfig() (untypedConfig, error) {
 
 type ConfigPatch map[string]interface{}
 
-func (uic UnsafeInstanceConfig) Patch(cp ConfigPatch) (UnsafeInstanceConfig, error) {
+func (uic InstanceConfig) Patch(cp ConfigPatch) (InstanceConfig, error) {
 	// Convert the strongly-typed config into an untyped form that's easier to patch
 	uc, err := uic.toUntypedConfig()
 	if err != nil {
-		return UnsafeInstanceConfig{}, err
+		return InstanceConfig{}, err
 	}
 
 	applyPatch(uc, cp)
 
 	// If the modifications detailed by the patch have resulted in JSON which
 	// doesn't meet the config schema it will be caught here
-	return uc.toUnsafeInstanceConfig()
+	return uc.toInstanceConfig()
 }
 
 func applyPatch(uc untypedConfig, cp ConfigPatch) {

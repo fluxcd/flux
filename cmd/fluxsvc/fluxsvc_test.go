@@ -323,32 +323,6 @@ func TestFluxsvc_Status(t *testing.T) {
 	}
 }
 
-func TestFluxsvc_Config(t *testing.T) {
-	setup()
-	defer teardown()
-
-	// Test that config is written
-	err := apiClient.SetConfig("", flux.UnsafeInstanceConfig{
-		Git: flux.GitConfig{
-			Key:    "exampleKey",
-			Branch: "exampleBranch",
-		},
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	conf, err := apiClient.GetConfig("", "")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if conf.Git.Key != "******" {
-		t.Fatalf("Expected hidden Key! %q but got %q", "******", conf.Git.Key)
-	}
-	if conf.Git.Branch != "exampleBranch" {
-		t.Fatalf("Expected %q but got %q", "exampleBranch", conf.Git.Key)
-	}
-}
-
 func TestFluxsvc_Ping(t *testing.T) {
 	setup()
 	defer teardown()
