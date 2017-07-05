@@ -3,7 +3,6 @@ package update
 import (
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/pkg/errors"
 
@@ -302,9 +301,6 @@ func (s ReleaseSpec) calculateImageUpdates(rc ReleaseContext, candidates []*Serv
 	}
 
 	return updates, nil
-}
-
-func (s ReleaseSpec) Observe(start time.Time, err error) {
 }
 
 type ServiceSpec string // ServiceID or "<all>"
