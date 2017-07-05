@@ -14,9 +14,8 @@ import (
 )
 
 const (
-	ServiceSpecAll       = ServiceSpec("<all>")
-	ServiceSpecAutomated = ServiceSpec("<automated>")
-	ImageSpecLatest      = ImageSpec("<all latest>")
+	ServiceSpecAll  = ServiceSpec("<all>")
+	ImageSpecLatest = ImageSpec("<all latest>")
 )
 
 var (
@@ -134,21 +133,11 @@ func (s ReleaseSpec) filters(rc ReleaseContext) ([]ServiceFilter, error) {
 
 	// Service filter
 	ids := []flux.ServiceID{}
-specs:
 	for _, s := range s.ServiceSpecs {
-		switch s {
-		case ServiceSpecAll:
+		if s == ServiceSpecAll {
 			// "<all>" Overrides any other filters
 			ids = []flux.ServiceID{}
-			break specs
-		case ServiceSpecAutomated:
-			// "<automated>" Overrides any other filters
-			automated, err := rc.ServicesWithPolicy(policy.Automated)
-			if err != nil {
-				return nil, err
-			}
-			ids = automated.ToSlice()
-			break specs
+			break
 		}
 		id, err := flux.ParseServiceID(string(s))
 		if err != nil {
@@ -306,11 +295,8 @@ func (s ReleaseSpec) calculateImageUpdates(rc ReleaseContext, candidates []*Serv
 type ServiceSpec string // ServiceID or "<all>"
 
 func ParseServiceSpec(s string) (ServiceSpec, error) {
-	switch s {
-	case string(ServiceSpecAll):
+	if s == string(ServiceSpecAll) {
 		return ServiceSpecAll, nil
-	case string(ServiceSpecAutomated):
-		return ServiceSpecAutomated, nil
 	}
 	id, err := flux.ParseServiceID(s)
 	if err != nil {

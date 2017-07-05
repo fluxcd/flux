@@ -8,6 +8,7 @@ import (
 
 	"encoding/json"
 	"errors"
+
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/update"
 )
@@ -85,12 +86,8 @@ func (e Event) String() string {
 			strImageIDs = []string{"no image changes"}
 		}
 		for _, spec := range metadata.Spec.ServiceSpecs {
-			switch spec {
-			case update.ServiceSpecAll:
+			if spec == update.ServiceSpecAll {
 				strServiceIDs = []string{"all services"}
-				break
-			case update.ServiceSpecAutomated:
-				strServiceIDs = []string{"automated services"}
 				break
 			}
 		}
