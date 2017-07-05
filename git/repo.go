@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"sync"
 
+	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/ssh"
 )
 
@@ -16,19 +17,8 @@ var (
 
 // Repo represents a (remote) git repo.
 type Repo struct {
-	// The URL to the config repo that holds the resource definition files. For
-	// example, "https://github.com/myorg/conf.git", "git@foo.com:myorg/conf".
-	URL string
-
-	// The branch of the config repo that holds the resource definition files.
-	Branch string
-
-	// KeyRing providing access to an SSH identity with permissions to clone
-	// and push to the config repo.
+	flux.GitRemoteConfig
 	KeyRing ssh.KeyRing
-
-	// The path within the config repo where files are stored.
-	Path string
 }
 
 // Checkout is a local clone of the remote repo.

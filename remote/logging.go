@@ -5,7 +5,6 @@ import (
 
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/job"
-	"github.com/weaveworks/flux/ssh"
 	"github.com/weaveworks/flux/update"
 )
 
@@ -96,7 +95,7 @@ func (p *ErrorLoggingPlatform) UpdateManifests(u update.Spec) (_ job.ID, err err
 	return p.Platform.UpdateManifests(u)
 }
 
-func (p *ErrorLoggingPlatform) GitRepoConfig(regenerate bool) (_ ssh.PublicKey, err error) {
+func (p *ErrorLoggingPlatform) GitRepoConfig(regenerate bool) (_ flux.GitConfig, err error) {
 	defer func() {
 		if err != nil {
 			p.Logger.Log("method", "GitRepoConfig", "error", err)

@@ -13,7 +13,6 @@ import (
 	"github.com/weaveworks/flux/guid"
 	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/remote"
-	"github.com/weaveworks/flux/ssh"
 	"github.com/weaveworks/flux/update"
 )
 
@@ -164,7 +163,7 @@ type SyncStatusResponse struct {
 }
 
 type GitRepoConfigResponse struct {
-	Result ssh.PublicKey
+	Result flux.GitConfig
 	ErrorResponse
 }
 
@@ -295,13 +294,13 @@ func (r *natsPlatform) SyncStatus(ref string) ([]string, error) {
 	return response.Result, extractError(response.ErrorResponse)
 }
 
-func (r *natsPlatform) GitRepoConfig(regenerate bool) (ssh.PublicKey, error) {
+func (r *natsPlatform) GitRepoConfig(regenerate bool) (flux.GitConfig, error) {
 	var response GitRepoConfigResponse
 	if err := r.conn.Request(r.instance+methodGitRepoConfig, regenerate, &response, timeout); err != nil {
 		if err == nats.ErrTimeout {
 			err = remote.UnavailableError(err)
 		}
-		return ssh.PublicKey{}, err
+		return flux.GitConfig{}, err
 	}
 	return response.Result, extractError(response.ErrorResponse)
 }
@@ -442,7 +441,7 @@ func (n *NATS) Subscribe(instID flux.InstanceID, platform remote.Platform, done 
 		case strings.HasSuffix(request.Subject, methodGitRepoConfig):
 			var (
 				req bool
-				res ssh.PublicKey
+				res flux.GitConfig
 			)
 			err = encoder.Decode(request.Subject, request.Data, &req)
 			if err == nil {

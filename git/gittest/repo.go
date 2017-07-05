@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster/kubernetes/testfiles"
 	"github.com/weaveworks/flux/git"
 )
@@ -44,8 +45,10 @@ func Repo(t *testing.T) (git.Repo, func()) {
 	}
 
 	return git.Repo{
-		URL:    gitDir,
-		Branch: "master",
+		GitRemoteConfig: flux.GitRemoteConfig{
+			URL:    gitDir,
+			Branch: "master",
+		},
 	}, cleanup
 }
 

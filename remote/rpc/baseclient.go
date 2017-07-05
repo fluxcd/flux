@@ -6,7 +6,6 @@ import (
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/remote"
-	"github.com/weaveworks/flux/ssh"
 	"github.com/weaveworks/flux/update"
 )
 
@@ -51,6 +50,6 @@ func (bc baseClient) SyncStatus(string) ([]string, error) {
 	return nil, remote.UpgradeNeededError(errors.New("SyncStatus method not implemented"))
 }
 
-func (bc baseClient) GitRepoConfig(bool) (ssh.PublicKey, error) {
-	return ssh.PublicKey{}, remote.UpgradeNeededError(errors.New("GitRepoConfig method not implemented"))
+func (bc baseClient) GitRepoConfig(bool) (flux.GitConfig, error) {
+	return flux.GitConfig{}, remote.UpgradeNeededError(errors.New("GitRepoConfig method not implemented"))
 }

@@ -212,11 +212,15 @@ func main() {
 		reg = registry.NewInstrumentedRegistry(reg)
 	}
 
+	gitRemoteConfig := flux.GitRemoteConfig{
+		URL:    *gitURL,
+		Branch: *gitBranch,
+		Path:   *gitPath,
+	}
+
 	// Indirect reference to a daemon, initially of the NotReady variety
 	notReadyDaemon := daemon.NewNotReadyDaemon(
-		version,
-		k8s,
-		errors.New("waiting to clone repo"))
+		version, k8s, gitRemoteConfig, errors.New("waiting to clone repo"))
 
 	daemonRef := daemon.NewRef(notReadyDaemon)
 
@@ -272,13 +276,12 @@ func main() {
 	var checker *checkpoint.Checker
 	updateCheckLogger := log.NewContext(logger).With("component", "checkpoint")
 
+	var repo git.Repo
 	var checkout *git.Checkout
 	{
-		repo := git.Repo{
-			URL:     *gitURL,
-			Path:    *gitPath,
-			Branch:  *gitBranch,
-			KeyRing: sshKeyRing,
+		repo = git.Repo{
+			GitRemoteConfig: gitRemoteConfig,
+			KeyRing:         sshKeyRing,
 		}
 		gitConfig := git.Config{
 			SyncTag:   *gitSyncTag,
@@ -324,6 +327,7 @@ func main() {
 		Cluster:        k8s,
 		Manifests:      k8sManifests,
 		Registry:       reg,
+		Repo:           repo,
 		Checkout:       checkout,
 		Jobs:           jobs,
 		JobStatusCache: &job.StatusCache{Size: 100},

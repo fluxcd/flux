@@ -7,7 +7,6 @@ import (
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/remote"
-	"github.com/weaveworks/flux/ssh"
 	"github.com/weaveworks/flux/update"
 )
 
@@ -89,11 +88,11 @@ func (p *RPCClientV6) SyncStatus(ref string) ([]string, error) {
 	return result, err
 }
 
-func (p *RPCClientV6) GitRepoConfig(regenerate bool) (ssh.PublicKey, error) {
-	var result ssh.PublicKey
+func (p *RPCClientV6) GitRepoConfig(regenerate bool) (flux.GitConfig, error) {
+	var result flux.GitConfig
 	err := p.client.Call("RPCServer.GitRepoConfig", regenerate, &result)
 	if _, ok := err.(rpc.ServerError); !ok && err != nil {
-		return ssh.PublicKey{}, remote.FatalError{err}
+		return flux.GitConfig{}, remote.FatalError{err}
 	}
 	return result, err
 }

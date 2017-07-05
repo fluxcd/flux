@@ -6,7 +6,6 @@ import (
 
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/job"
-	"github.com/weaveworks/flux/ssh"
 	"github.com/weaveworks/flux/update"
 )
 
@@ -215,7 +214,7 @@ func (p *removeablePlatform) SyncStatus(ref string) (revs []string, err error) {
 	return p.remote.SyncStatus(ref)
 }
 
-func (p *removeablePlatform) GitRepoConfig(regenerate bool) (_ ssh.PublicKey, err error) {
+func (p *removeablePlatform) GitRepoConfig(regenerate bool) (_ flux.GitConfig, err error) {
 	defer func() {
 		if _, ok := err.(FatalError); ok {
 			p.closeWithError(err)
@@ -266,6 +265,6 @@ func (p disconnectedPlatform) SyncStatus(string) ([]string, error) {
 	return nil, errNotSubscribed
 }
 
-func (p disconnectedPlatform) GitRepoConfig(bool) (ssh.PublicKey, error) {
-	return ssh.PublicKey{}, errNotSubscribed
+func (p disconnectedPlatform) GitRepoConfig(bool) (flux.GitConfig, error) {
+	return flux.GitConfig{}, errNotSubscribed
 }
