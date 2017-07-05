@@ -10,33 +10,46 @@ import (
 	"github.com/weaveworks/flux"
 )
 
-func testUpdate(t *testing.T, name, caseIn, updatedImage, caseOut string) {
-	id, err := flux.ParseImageID(updatedImage)
+type update struct {
+	name            string
+	containers      []string
+	updatedImage    string
+	caseIn, caseOut string
+}
+
+func testUpdate(t *testing.T, u update) {
+	id, err := flux.ParseImageID(u.updatedImage)
 	if err != nil {
 		t.Fatal(err)
 	}
-	var out bytes.Buffer
-	if err := tryUpdate([]byte(caseIn), id, &out); err != nil {
-		fmt.Fprintln(os.Stderr, "Failed:", name)
-		t.Fatal(err)
+
+	manifest := u.caseIn
+	for _, container := range u.containers {
+		var out bytes.Buffer
+		if err := tryUpdate([]byte(manifest), container, id, &out); err != nil {
+			fmt.Fprintln(os.Stderr, "Failed:", u.name)
+			t.Fatal(err)
+		}
+		manifest = out.String()
 	}
-	if string(out.Bytes()) != caseOut {
-		fmt.Fprintln(os.Stderr, "Failed:", name)
-		t.Fatalf("Did not get expected result:\n\n%s\n\nInstead got:\n\n%s", caseOut, string(out.Bytes()))
+	if manifest != u.caseOut {
+		fmt.Fprintln(os.Stderr, "Failed:", u.name)
+		t.Fatalf("Did not get expected result:\n\n%s\n\nInstead got:\n\n%s", u.caseOut, manifest)
 	}
+
 }
 
 func TestUpdates(t *testing.T) {
-	for _, c := range [][]string{
-		{"common case", case1, case1image, case1out},
-		{"new version like number", case2, case2image, case2out},
-		{"old version like number", case2out, case2reverseImage, case2},
-		{"name label out of order", case3, case3image, case3out},
-		{"version (tag) with dots", case4, case4image, case4out},
-		{"minimal dockerhub image name", case5, case5image, case5out},
-		{"reordered keys", case6, case6image, case6out},
+	for _, c := range []update{
+		{"common case", case1container, case1image, case1, case1out},
+		{"new version like number", case2container, case2image, case2, case2out},
+		{"old version like number", case2container, case2reverseImage, case2out, case2},
+		{"name label out of order", case3container, case3image, case3, case3out},
+		{"version (tag) with dots", case4container, case4image, case4, case4out},
+		{"minimal dockerhub image name", case5container, case5image, case5, case5out},
+		{"reordered keys", case6containers, case6image, case6, case6out},
 	} {
-		testUpdate(t, c[0], c[1], c[2], c[3])
+		testUpdate(t, c)
 	}
 }
 
@@ -81,7 +94,9 @@ spec:
                 path: pr-assigner.json
 `
 
-const case1image = `quay.io/weaveworks/pr-assigner:master-1234567`
+const case1image = "quay.io/weaveworks/pr-assigner:master-1234567"
+
+var case1container = []string{"pr-assigner"}
 
 const case1out = `---
 apiVersion: extensions/v1beta1
@@ -163,7 +178,9 @@ spec:
         - --repo-path=testdata
 `
 
-const case2image = `weaveworks/fluxy:1234567`
+const case2image = "weaveworks/fluxy:1234567"
+
+var case2container = []string{"fluxy"}
 
 const case2out = `---
 apiVersion: extensions/v1beta1
@@ -235,7 +252,9 @@ spec:
         - http://prometheus.monitoring.svc.cluster.local/admin/prometheus
 `
 
-const case3image = `quay.io/weaveworks/grafana:master-37aaf67`
+const case3image = "quay.io/weaveworks/grafana:master-37aaf67"
+
+var case3container = []string{"grafana"}
 
 const case3out = `---
 apiVersion: extensions/v1beta1
@@ -298,6 +317,8 @@ spec:
 
 const case4image = "weaveworksdemos/front-end:7f511af2d21fd601b86b3bed7baa6adfa9c8c669"
 
+var case4container = []string{"front-end"}
+
 const case4out = `---
 apiVersion: extensions/v1beta1
 kind: Deployment
@@ -350,6 +371,8 @@ spec:
 
 const case5image = "nginx:1.10-alpine"
 
+var case5container = []string{"nginx"}
+
 const case5out = `---
 apiVersion: extensions/v1beta1
 kind: Deployment
@@ -391,6 +414,8 @@ spec:
 `
 
 const case6image = "nginx:1.10-alpine"
+
+var case6containers = []string{"nginx", "nginx2"}
 
 const case6out = `---
 apiVersion: extensions/v1beta1

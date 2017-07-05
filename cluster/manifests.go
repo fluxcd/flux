@@ -18,7 +18,7 @@ type Manifests interface {
 	FindDefinedServices(path string) (map[flux.ServiceID][]string, error)
 	// Update the definitions in a manifests bytes according to the
 	// spec given.
-	UpdateDefinition(def []byte, newImageID flux.ImageID) ([]byte, error)
+	UpdateDefinition(def []byte, container string, newImageID flux.ImageID) ([]byte, error)
 	// Load all the resource manifests under the path given
 	LoadManifests(paths ...string) (map[string]resource.Resource, error)
 	// Parse the manifests given in an exported blob
@@ -26,7 +26,7 @@ type Manifests interface {
 	// UpdatePolicies modifies a manifest to apply the policy update specified
 	UpdatePolicies([]byte, policy.Update) ([]byte, error)
 	// ServicesWithPolicy finds the services which have a particular policy set on them.
-	ServicesWithPolicy(path string, p policy.Policy) (flux.ServiceIDSet, error)
+	ServicesWithPolicy(path string, p policy.Policy) (policy.ServiceMap, error)
 }
 
 // UpdateManifest looks for the manifest for a given service, reads

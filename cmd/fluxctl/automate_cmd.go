@@ -48,7 +48,7 @@ func (opts *serviceAutomateOpts) RunE(cmd *cobra.Command, args []string) error {
 	}
 
 	jobID, err := opts.API.UpdatePolicies(noInstanceID, policy.Updates{
-		serviceID: policy.Update{Add: []policy.Policy{policy.Automated}},
+		serviceID: policy.Update{Add: policy.Set{policy.Automated: "true"}},
 	}, opts.cause)
 	if err != nil {
 		return err

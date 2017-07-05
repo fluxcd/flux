@@ -1,6 +1,9 @@
-package release
+package update
 
 import (
+	"fmt"
+	"time"
+
 	"github.com/go-kit/kit/metrics"
 	"github.com/go-kit/kit/metrics/prometheus"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
@@ -26,4 +29,12 @@ var (
 
 func NewStageTimer(stage string) *metrics.Timer {
 	return metrics.NewTimer(stageDuration.With(fluxmetrics.LabelStage, stage))
+}
+
+func ObserveRelease(start time.Time, success bool, releaseType ReleaseType, releaseKind ReleaseKind) {
+	releaseDuration.With(
+		fluxmetrics.LabelSuccess, fmt.Sprint(success),
+		fluxmetrics.LabelReleaseType, string(releaseType),
+		fluxmetrics.LabelReleaseKind, string(releaseKind),
+	).Observe(time.Since(start).Seconds())
 }

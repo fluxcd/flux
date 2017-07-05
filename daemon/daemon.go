@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"sort"
-	"strings"
 	gosync "sync"
 	"time"
 
@@ -112,7 +111,7 @@ func (d *Daemon) ListImages(spec update.ServiceSpec) ([]flux.ImageStatus, error)
 		services, err = d.Cluster.SomeServices([]flux.ServiceID{id})
 	}
 
-	images, err := release.CollectAvailableImages(d.Registry, services)
+	images, err := update.CollectAvailableImages(d.Registry, services)
 	if err != nil {
 		return nil, errors.Wrap(err, "getting images for services")
 	}
@@ -186,35 +185,8 @@ func (d *Daemon) UpdateManifests(spec update.Spec) (job.ID, error) {
 		return id, errors.New("no type in update spec")
 	}
 	switch s := spec.Spec.(type) {
-	case update.ReleaseSpec:
-		return d.queueJob(func(jobID job.ID, working *git.Checkout, logger log.Logger) (*history.CommitEventMetadata, error) {
-			rc := release.NewReleaseContext(d.Cluster, d.Manifests, d.Registry, working)
-			result, err := release.Release(rc, s, logger)
-			if err != nil {
-				return nil, err
-			}
-
-			var revision string
-			if s.Kind == update.ReleaseKindExecute {
-				commitMsg := spec.Cause.Message
-				if commitMsg == "" {
-					commitMsg = commitMessageFromReleaseSpec(&s)
-				}
-				if err := working.CommitAndPush(commitMsg, &git.Note{JobID: jobID, Spec: spec, Result: result}); err != nil {
-					return nil, err
-				}
-				revision, err = working.HeadRevision()
-				if err != nil {
-					return nil, err
-				}
-				defer d.askForSync()
-			}
-			return &history.CommitEventMetadata{
-				Revision: revision,
-				Spec:     &spec,
-				Result:   result,
-			}, nil
-		}), nil
+	case release.Changes:
+		return d.queueJob(d.release(spec, s)), nil
 	case policy.Updates:
 		return d.queueJob(func(jobID job.ID, working *git.Checkout, logger log.Logger) (*history.CommitEventMetadata, error) {
 			// For each update
@@ -275,6 +247,37 @@ func (d *Daemon) UpdateManifests(spec update.Spec) (job.ID, error) {
 		}), nil
 	default:
 		return id, fmt.Errorf(`unknown update type "%s"`, spec.Type)
+	}
+}
+
+func (d *Daemon) release(spec update.Spec, c release.Changes) DaemonJobFunc {
+	return func(jobID job.ID, working *git.Checkout, logger log.Logger) (*history.CommitEventMetadata, error) {
+		rc := release.NewReleaseContext(d.Cluster, d.Manifests, d.Registry, working)
+		result, err := release.Release(rc, c, logger)
+		if err != nil {
+			return nil, err
+		}
+
+		var revision string
+		if c.ReleaseKind() == update.ReleaseKindExecute {
+			commitMsg := spec.Cause.Message
+			if commitMsg == "" {
+				commitMsg = c.CommitMessage()
+			}
+			if err := working.CommitAndPush(commitMsg, &git.Note{JobID: jobID, Spec: spec, Result: result}); err != nil {
+				return nil, err
+			}
+			revision, err = working.HeadRevision()
+			if err != nil {
+				return nil, err
+			}
+			defer d.askForSync()
+		}
+		return &history.CommitEventMetadata{
+			Revision: revision,
+			Spec:     &spec,
+			Result:   result,
+		}, nil
 	}
 }
 
@@ -363,7 +366,7 @@ func containers2containers(cs []cluster.Container) []flux.Container {
 	return res
 }
 
-func containersWithAvailable(service cluster.Service, images release.ImageMap) (res []flux.Container) {
+func containersWithAvailable(service cluster.Service, images update.ImageMap) (res []flux.Container) {
 	for _, c := range service.ContainersOrNil() {
 		id, _ := flux.ParseImageID(c.Image)
 		repo := id.Repository()
@@ -426,7 +429,7 @@ func policyCommitMessage(us policy.Updates, cause update.Cause) string {
 // policyEventTypes is a deduped list of all event types this update contains
 func policyEventTypes(u policy.Update) []string {
 	types := map[string]struct{}{}
-	for _, p := range u.Add {
+	for p, _ := range u.Add {
 		switch p {
 		case policy.Automated:
 			types[history.EventAutomate] = struct{}{}
@@ -435,7 +438,7 @@ func policyEventTypes(u policy.Update) []string {
 		}
 	}
 
-	for _, p := range u.Remove {
+	for p, _ := range u.Remove {
 		switch p {
 		case policy.Automated:
 			types[history.EventDeautomate] = struct{}{}
@@ -449,13 +452,4 @@ func policyEventTypes(u policy.Update) []string {
 	}
 	sort.Strings(result)
 	return result
-}
-
-func commitMessageFromReleaseSpec(spec *update.ReleaseSpec) string {
-	image := strings.Trim(spec.ImageSpec.String(), "<>")
-	var services []string
-	for _, s := range spec.ServiceSpecs {
-		services = append(services, strings.Trim(s.String(), "<>"))
-	}
-	return fmt.Sprintf("Release %s to %s", image, strings.Join(services, ", "))
 }

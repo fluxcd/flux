@@ -27,12 +27,15 @@ import (
 )
 
 const (
+	// These have to match the values in cluster/kubernetes/testfiles/data.go
 	svc               = "default/helloworld"
+	container         = "goodbyeworld"
 	ns                = "default"
-	invalidNS         = "adsajkfldsa"
-	testVersion       = "test"
 	newHelloImage     = "quay.io/weaveworks/helloworld:2"
 	currentHelloImage = "quay.io/weaveworks/helloworld:master-a000001"
+
+	invalidNS   = "adsajkfldsa"
+	testVersion = "test"
 )
 
 var (
@@ -307,7 +310,7 @@ func mockDaemon(t *testing.T) (*Daemon, func(), *cluster.Mock, history.EventRead
 		Containers: cluster.ContainersOrExcuse{
 			Containers: []cluster.Container{
 				{
-					Name:  svc,
+					Name:  container,
 					Image: currentHelloImage,
 				},
 			},
@@ -488,8 +491,8 @@ func updatePolicy(t *testing.T, d *Daemon) job.ID {
 		Type: update.Policy,
 		Spec: policy.Updates{
 			"default/helloworld": {
-				Add: []policy.Policy{
-					policy.Locked,
+				Add: policy.Set{
+					policy.Locked: "true",
 				},
 			},
 		},

@@ -47,7 +47,7 @@ func (d *Daemon) Loop(stop chan struct{}, wg *sync.WaitGroup, logger log.Logger)
 			d.askForSync()
 		case <-pollImages:
 			// Time to poll for new images
-			d.PollImages()
+			d.PollImages(logger)
 		case job := <-d.Jobs.Ready():
 			jobLogger := log.NewContext(logger).With("jobID", job.ID)
 			jobLogger.Log("state", "in-progress")

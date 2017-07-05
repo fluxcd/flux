@@ -62,7 +62,7 @@ spec:
         name: helloworld
     spec:
       containers:
-      - name: helloworld
+      - name: goodbyeworld
         image: quay.io/weaveworks/helloworld:master-a000001
         args:
         - -msg=Ahoy

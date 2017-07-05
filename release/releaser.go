@@ -1,279 +1,50 @@
 package release
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/metrics"
 
-	"github.com/weaveworks/flux"
-	"github.com/weaveworks/flux/cluster"
-	fluxmetrics "github.com/weaveworks/flux/metrics"
-	"github.com/weaveworks/flux/policy"
-	"github.com/weaveworks/flux/registry"
 	"github.com/weaveworks/flux/update"
 )
 
-type ServiceUpdate struct {
-	ServiceID     flux.ServiceID
-	Service       cluster.Service
-	ManifestPath  string
-	ManifestBytes []byte
-	Updates       []update.ContainerUpdate
+type Changes interface {
+	CalculateRelease(update.ReleaseContext, log.Logger) ([]*update.ServiceUpdate, update.Result, error)
+	ReleaseKind() update.ReleaseKind
+	ReleaseType() update.ReleaseType
+	CommitMessage() string
 }
 
-func Release(rc *ReleaseContext, spec update.ReleaseSpec, logger log.Logger) (results update.Result, err error) {
-	started := time.Now()
+func Release(rc *ReleaseContext, changes Changes, logger log.Logger) (results update.Result, err error) {
 	defer func(start time.Time) {
-		releaseDuration.With(
-			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
-			fluxmetrics.LabelReleaseType, update.ReleaseSpec(spec).ReleaseType(),
-			fluxmetrics.LabelReleaseKind, string(spec.Kind),
-		).Observe(time.Since(started).Seconds())
-	}(started)
+		update.ObserveRelease(
+			start,
+			err == nil,
+			changes.ReleaseType(),
+			changes.ReleaseKind(),
+		)
+	}(time.Now())
 
 	logger = log.NewContext(logger).With("type", "release")
-	// We time each stage of this process, and expose as metrics.
-	var timer *metrics.Timer
 
-	// To collect the results of the calculations.
-	results = update.Result{}
-
-	// Figure out the services involved.
-	timer = NewStageTimer("select_services")
-	var updates []*ServiceUpdate
-	updates, err = selectServices(rc, &spec, results)
-	timer.ObserveDuration()
+	updates, results, err := changes.CalculateRelease(rc, logger)
 	if err != nil {
 		return nil, err
 	}
 
-	// If the request was for a specific service and the service was
-	// not in the cluster, then add a result with a skipped status
-	for _, v := range spec.ServiceSpecs {
-		if v == update.ServiceSpecAll {
-			continue
-		}
-		id, err := v.AsID()
-		if err != nil {
-			continue
-		}
-		if _, ok := results[id]; !ok {
-			results[id] = update.ServiceResult{
-				Status: update.ReleaseStatusSkipped,
-				Error:  NotInRepo,
-			}
-		}
-	}
+	err = ApplyChanges(rc, updates, logger)
+	return results, err
+}
 
-	// Look up images, and calculate updates
-	timer = NewStageTimer("lookup_images")
-	// Figure out how the services are to be updated.
-	updates, err = calculateImageUpdates(rc, updates, &spec, results)
-	timer.ObserveDuration()
-	if err != nil {
-		return nil, err
-	}
-
-	// At this point we may have filtered the updates we can do down
-	// to nothing. Check and exit early if so.
+func ApplyChanges(rc *ReleaseContext, updates []*update.ServiceUpdate, logger log.Logger) error {
 	logger.Log("updates", len(updates))
 	if len(updates) == 0 {
 		logger.Log("exit", "no images to update for services given")
-		return results, nil
+		return nil
 	}
 
-	return results, rc.WriteUpdates(updates)
-}
-
-// Take the spec given in the job, and figure out which services are
-// in question based on the running services and those defined in the
-// repo. Fill in the release results along the way.
-func selectServices(rc *ReleaseContext, spec *update.ReleaseSpec, results update.Result) ([]*ServiceUpdate, error) {
-	// Build list of filters
-	filtList, err := filters(spec, rc)
-	if err != nil {
-		return nil, err
-	}
-	// Find and filter services
-	return rc.SelectServices(
-		results,
-		filtList...,
-	)
-}
-
-// filters converts a ReleaseSpec (and Lock config) into ServiceFilters
-func filters(spec *update.ReleaseSpec, rc *ReleaseContext) ([]ServiceFilter, error) {
-	// Image filter
-	var filtList []ServiceFilter
-	if spec.ImageSpec != update.ImageSpecLatest {
-		id, err := flux.ParseImageID(spec.ImageSpec.String())
-		if err != nil {
-			return nil, err
-		}
-		filtList = append(filtList, &SpecificImageFilter{id})
-	}
-
-	// Service filter
-	ids := []flux.ServiceID{}
-specs:
-	for _, s := range spec.ServiceSpecs {
-		switch s {
-		case update.ServiceSpecAll:
-			// "<all>" Overrides any other filters
-			ids = []flux.ServiceID{}
-			break specs
-		case update.ServiceSpecAutomated:
-			// "<automated>" Overrides any other filters
-			automated, err := rc.ServicesWithPolicy(policy.Automated)
-			if err != nil {
-				return nil, err
-			}
-			ids = automated.ToSlice()
-			break specs
-		}
-		id, err := flux.ParseServiceID(string(s))
-		if err != nil {
-			return nil, err
-		}
-		ids = append(ids, id)
-	}
-	if len(ids) > 0 {
-		filtList = append(filtList, &IncludeFilter{ids})
-	}
-
-	// Exclude filter
-	if len(spec.Excludes) > 0 {
-		filtList = append(filtList, &ExcludeFilter{spec.Excludes})
-	}
-
-	// Locked filter
-	lockedSet, err := rc.ServicesWithPolicy(policy.Locked)
-	if err != nil {
-		return nil, err
-	}
-	filtList = append(filtList, &LockedFilter{lockedSet.ToSlice()})
-	return filtList, nil
-}
-
-// Find all the image updates that should be performed, and do
-// replacements. (For a dry-run, we don't strictly need to do the
-// replacements, since we won't be committing any changes back;
-// however we do want to see if we *can* do the replacements, because
-// if not, it indicates there's likely some problem with the running
-// system vs the definitions given in the repo.)
-func calculateImageUpdates(rc *ReleaseContext, candidates []*ServiceUpdate, spec *update.ReleaseSpec, results update.Result) ([]*ServiceUpdate, error) {
-	// Compile an `ImageMap` of all relevant images
-	var images ImageMap
-	var repo string
-	var err error
-
-	switch spec.ImageSpec {
-	case update.ImageSpecLatest:
-		images, err = CollectUpdateImages(rc.Registry, candidates)
-	default:
-		var image flux.ImageID
-		image, err = spec.ImageSpec.AsID()
-		if err == nil {
-			repo = image.Repository()
-			images, err = ExactImages(rc.Registry, []flux.ImageID{image})
-		}
-	}
-
-	if err != nil {
-		return nil, err
-	}
-
-	// Look through all the services' containers to see which have an
-	// image that could be updated.
-	var updates []*ServiceUpdate
-	for _, u := range candidates {
-		containers, err := u.Service.ContainersOrError()
-		if err != nil {
-			results[u.ServiceID] = update.ServiceResult{
-				Status: update.ReleaseStatusFailed,
-				Error:  err.Error(),
-			}
-			continue
-		}
-
-		// If at least one container used an image in question, we say
-		// we're skipping it rather than ignoring it. This is mainly
-		// for the purpose of filtering the output.
-		ignoredOrSkipped := update.ReleaseStatusIgnored
-		var containerUpdates []update.ContainerUpdate
-
-		for _, container := range containers {
-			currentImageID, err := flux.ParseImageID(container.Image)
-			if err != nil {
-				// We may hope never to find a malformed image ID, but
-				// anything is possible.
-				return nil, err
-			}
-
-			latestImage := images.LatestImage(currentImageID.Repository())
-			if latestImage == nil {
-				if currentImageID.Repository() != repo {
-					ignoredOrSkipped = update.ReleaseStatusIgnored
-				} else {
-					ignoredOrSkipped = update.ReleaseStatusUnknown
-				}
-				continue
-			}
-
-			if currentImageID == latestImage.ID {
-				ignoredOrSkipped = update.ReleaseStatusSkipped
-				continue
-			}
-
-			u.ManifestBytes, err = rc.Manifests.UpdateDefinition(u.ManifestBytes, latestImage.ID)
-			if err != nil {
-				return nil, err
-			}
-
-			containerUpdates = append(containerUpdates, update.ContainerUpdate{
-				Container: container.Name,
-				Current:   currentImageID,
-				Target:    latestImage.ID,
-			})
-		}
-
-		switch {
-		case len(containerUpdates) > 0:
-			u.Updates = containerUpdates
-			updates = append(updates, u)
-			results[u.ServiceID] = update.ServiceResult{
-				Status:       update.ReleaseStatusSuccess,
-				PerContainer: containerUpdates,
-			}
-		case ignoredOrSkipped == update.ReleaseStatusSkipped:
-			results[u.ServiceID] = update.ServiceResult{
-				Status: update.ReleaseStatusSkipped,
-				Error:  ImageUpToDate,
-			}
-		case ignoredOrSkipped == update.ReleaseStatusIgnored:
-			results[u.ServiceID] = update.ServiceResult{
-				Status: update.ReleaseStatusIgnored,
-				Error:  DoesNotUseImage,
-			}
-		case ignoredOrSkipped == update.ReleaseStatusUnknown:
-			results[u.ServiceID] = update.ServiceResult{
-				Status: update.ReleaseStatusSkipped,
-				Error:  ImageNotFound,
-			}
-		}
-	}
-
-	return updates, nil
-}
-
-// CollectUpdateImages is a convenient shim to
-// `CollectAvailableImages`.
-func CollectUpdateImages(registry registry.Registry, updateable []*ServiceUpdate) (ImageMap, error) {
-	var servicesToCheck []cluster.Service
-	for _, update := range updateable {
-		servicesToCheck = append(servicesToCheck, update.Service)
-	}
-	return CollectAvailableImages(registry, servicesToCheck)
+	timer := update.NewStageTimer("write_changes")
+	err := rc.WriteUpdates(updates)
+	timer.ObserveDuration()
+	return err
 }

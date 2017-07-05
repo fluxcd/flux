@@ -74,7 +74,7 @@ func (s ServiceIDSet) Without(others ServiceIDSet) ServiceIDSet {
 		return s
 	}
 	res := ServiceIDSet{}
-	for id := range s {
+	for id, _ := range s {
 		if !others.Contains(id) {
 			res[id] = struct{}{}
 		}

@@ -18,7 +18,7 @@ import (
 //
 // This function has many additional requirements that are likely in flux. Read
 // the source to learn about them.
-func updatePodController(def []byte, newImageID flux.ImageID) ([]byte, error) {
+func updatePodController(def []byte, container string, newImageID flux.ImageID) ([]byte, error) {
 	// Sanity check
 	obj, err := definitionObj(def)
 	if err != nil {
@@ -34,7 +34,7 @@ func updatePodController(def []byte, newImageID flux.ImageID) ([]byte, error) {
 	}
 
 	var buf bytes.Buffer
-	err = tryUpdate(def, newImageID, &buf)
+	err = tryUpdate(def, container, newImageID, &buf)
 	return buf.Bytes(), err
 }
 
@@ -81,7 +81,7 @@ func updatePodController(def []byte, newImageID flux.ImageID) ([]byte, error) {
 //         ports:
 //         - containerPort: 80
 // ```
-func tryUpdate(def []byte, newImage flux.ImageID, out io.Writer) error {
+func tryUpdate(def []byte, container string, newImage flux.ImageID, out io.Writer) error {
 	manifest, err := parseManifest(def)
 	if err != nil {
 		return err
@@ -96,6 +96,9 @@ func tryUpdate(def []byte, newImage flux.ImageID, out io.Writer) error {
 	newDefName := manifest.Metadata.Name
 	matchingContainers := map[int]Container{}
 	for i, c := range manifest.Spec.Template.Spec.Containers {
+		if c.Name != container {
+			continue
+		}
 		currentImage, err := flux.ParseImageID(c.Image)
 		if err != nil {
 			return fmt.Errorf("could not parse image %s", c.Image)

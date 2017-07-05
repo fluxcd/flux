@@ -48,7 +48,7 @@ func (opts *serviceLockOpts) RunE(cmd *cobra.Command, args []string) error {
 	}
 
 	jobID, err := opts.API.UpdatePolicies(noInstanceID, policy.Updates{
-		serviceID: policy.Update{Add: []policy.Policy{policy.Locked}},
+		serviceID: policy.Update{Add: policy.Set{policy.Locked: "true"}},
 	}, opts.cause)
 	if err != nil {
 		return err

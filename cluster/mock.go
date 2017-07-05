@@ -16,12 +16,12 @@ type Mock struct {
 	SyncFunc                func(SyncDef) error
 	PublicSSHKeyFunc        func(regenerate bool) (ssh.PublicKey, error)
 	FindDefinedServicesFunc func(path string) (map[flux.ServiceID][]string, error)
-	UpdateDefinitionFunc    func(def []byte, newImageID flux.ImageID) ([]byte, error)
+	UpdateDefinitionFunc    func(def []byte, container string, newImageID flux.ImageID) ([]byte, error)
 	LoadManifestsFunc       func(paths ...string) (map[string]resource.Resource, error)
 	ParseManifestsFunc      func([]byte) (map[string]resource.Resource, error)
 	UpdateManifestFunc      func(path, resourceID string, f func(def []byte) ([]byte, error)) error
 	UpdatePoliciesFunc      func([]byte, policy.Update) ([]byte, error)
-	ServicesWithPolicyFunc  func(path string, p policy.Policy) (flux.ServiceIDSet, error)
+	ServicesWithPolicyFunc  func(path string, p policy.Policy) (policy.ServiceMap, error)
 }
 
 func (m *Mock) AllServices(maybeNamespace string) ([]Service, error) {
@@ -52,8 +52,8 @@ func (m *Mock) FindDefinedServices(path string) (map[flux.ServiceID][]string, er
 	return m.FindDefinedServicesFunc(path)
 }
 
-func (m *Mock) UpdateDefinition(def []byte, newImageID flux.ImageID) ([]byte, error) {
-	return m.UpdateDefinitionFunc(def, newImageID)
+func (m *Mock) UpdateDefinition(def []byte, container string, newImageID flux.ImageID) ([]byte, error) {
+	return m.UpdateDefinitionFunc(def, container, newImageID)
 }
 
 func (m *Mock) LoadManifests(paths ...string) (map[string]resource.Resource, error) {
@@ -72,6 +72,6 @@ func (m *Mock) UpdatePolicies(def []byte, p policy.Update) ([]byte, error) {
 	return m.UpdatePoliciesFunc(def, p)
 }
 
-func (m *Mock) ServicesWithPolicy(path string, p policy.Policy) (flux.ServiceIDSet, error) {
+func (m *Mock) ServicesWithPolicy(path string, p policy.Policy) (policy.ServiceMap, error) {
 	return m.ServicesWithPolicyFunc(path, p)
 }

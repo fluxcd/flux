@@ -27,7 +27,6 @@ type Spec struct {
 }
 
 func (spec *Spec) UnmarshalJSON(in []byte) error {
-
 	var wire struct {
 		Type      string          `json:"type"`
 		Cause     Cause           `json:"cause"`

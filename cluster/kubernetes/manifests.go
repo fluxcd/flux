@@ -19,8 +19,8 @@ func (c *Manifests) ParseManifests(allDefs []byte) (map[string]resource.Resource
 	return kresource.ParseMultidoc(allDefs, "exported")
 }
 
-func (c *Manifests) UpdateDefinition(def []byte, image flux.ImageID) ([]byte, error) {
-	return updatePodController(def, image)
+func (c *Manifests) UpdateDefinition(def []byte, container string, image flux.ImageID) ([]byte, error) {
+	return updatePodController(def, container, image)
 }
 
 // UpdatePolicies and ServicesWithPolicy in policies.go
