@@ -7,9 +7,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/weaveworks/flux"
-	"github.com/weaveworks/flux/git"
 	"github.com/weaveworks/flux/policy"
-	"github.com/weaveworks/flux/release"
 	"github.com/weaveworks/flux/update"
 )
 
@@ -49,7 +47,7 @@ func (d *Daemon) PollImages(logger log.Logger) {
 				continue
 			}
 
-			pattern := getTagPattern(candidateServices, service.ID, container.Name, logger)
+			pattern := getTagPattern(candidateServices, service.ID, container.Name)
 			repo := currentImageID.Repository()
 			logger.Log("repo", repo, "pattern", pattern)
 
@@ -60,10 +58,10 @@ func (d *Daemon) PollImages(logger log.Logger) {
 		}
 	}
 
-	d.ReleaseChanges(changes)
+	d.UpdateManifests(update.Spec{Type: update.Images, Spec: changes})
 }
 
-func getTagPattern(services policy.ServiceMap, service flux.ServiceID, container string, logger log.Logger) string {
+func getTagPattern(services policy.ServiceMap, service flux.ServiceID, container string) string {
 	policies := services[service]
 	if pattern, ok := policies.Get(policy.Policy("tag." + container)); ok {
 		return strings.TrimPrefix(pattern, "glob:")
@@ -81,12 +79,4 @@ func (d *Daemon) unlockedAutomatedServices() (policy.ServiceMap, error) {
 		return nil, err
 	}
 	return automatedServices.Without(lockedServices), nil
-}
-
-func (d *Daemon) ReleaseChanges(changes release.Changes) {
-	cause := update.Cause{}
-	_, err := d.UpdateManifests(update.Spec{Type: update.Images, Cause: cause, Spec: changes})
-	if err == git.ErrNoChanges {
-		err = nil
-	}
 }
