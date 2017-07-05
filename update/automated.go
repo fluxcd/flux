@@ -7,7 +7,6 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster"
-	"github.com/weaveworks/flux/policy"
 )
 
 type Automated struct {
@@ -74,14 +73,8 @@ func (a *Automated) images() []flux.ImageID {
 }
 
 func (a *Automated) filters(rc ReleaseContext) ([]ServiceFilter, error) {
-	lockedSet, err := rc.ServicesWithPolicy(policy.Locked)
-	if err != nil {
-		return nil, err
-	}
-
 	return []ServiceFilter{
 		&IncludeFilter{a.serviceIDs()},
-		&LockedFilter{lockedSet.ToSlice()},
 	}, nil
 }
 
