@@ -1,4 +1,13 @@
 FROM alpine:3.6
+
+# These are pretty static
+LABEL org.label-schema.schema-version="1.0" \
+      org.label-schema.name="flux" \
+      org.label-schema.description="The Flux daemon, for synchronising your cluster with a git repo, and deploying new images" \
+      org.label-schema.url="https://github.com/weaveworks/flux" \
+      org.label-schema.vcs-url="git@github.com:weaveworks/flux" \
+      org.label-schema.vendor="Weaveworks"
+
 WORKDIR /home/flux
 ENTRYPOINT [ "/sbin/tini", "--", "fluxd" ]
 RUN apk add --no-cache openssh ca-certificates tini 'git>=2.3.0'
@@ -13,3 +22,10 @@ COPY ./ssh_config /root/.ssh/config
 
 COPY ./kubectl /usr/local/bin/
 COPY ./fluxd /usr/local/bin/
+
+ARG BUILD_DATE
+ARG VCS_REF
+
+# These will change for every build
+LABEL org.label-schema.vcs-ref=$VCS_REF \
+      org.label-schema.build-date=$BUILD_DATE
