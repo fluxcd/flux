@@ -43,7 +43,7 @@ func ApplyChanges(rc *ReleaseContext, updates []*update.ServiceUpdate, logger lo
 		return nil
 	}
 
-	timer := update.NewStageTimer("push_changes")
+	timer := update.NewStageTimer("write_changes")
 	err := rc.WriteUpdates(updates)
 	timer.ObserveDuration()
 	return err
