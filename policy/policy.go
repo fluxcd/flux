@@ -1,6 +1,7 @@
 package policy
 
 import (
+	"encoding/json"
 	"strings"
 
 	"github.com/weaveworks/flux"
@@ -33,6 +34,21 @@ type Update struct {
 }
 
 type Set map[Policy]string
+
+// We used to specify a set of policies as []Policy, and in some places
+// it may be so serialised.
+func (s *Set) UnmarshalJSON(in []byte) error {
+	type set Set
+	if err := json.Unmarshal(in, (*set)(s)); err != nil {
+		var list []Policy
+		if err = json.Unmarshal(in, &list); err != nil {
+			return err
+		}
+		var s1 = Set{}
+		*s = s1.Add(list...)
+	}
+	return nil
+}
 
 func (s Set) String() string {
 	var ps []string
