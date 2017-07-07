@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"testing"
 
 	"github.com/weaveworks/flux"
@@ -22,11 +23,13 @@ func TestSlackNotifier(t *testing.T) {
 	}))
 	defer server.Close()
 
+	release := exampleRelease(t)
+
 	// It should send releases to slack
 	if err := slackNotifyRelease(flux.NotifierConfig{
 		HookURL:  server.URL,
 		Username: "user1",
-	}, exampleRelease(t), "test-error"); err != nil {
+	}, release, "test-error"); err != nil {
 		t.Fatal(err)
 	}
 	if gotReq == nil {
@@ -38,17 +41,36 @@ func TestSlackNotifier(t *testing.T) {
 		t.Errorf("Expected request method to be POST, but got %q", gotReq.Method)
 	}
 
-	body := map[string]string{}
+	var body map[string]interface{}
 	if err := json.NewDecoder(&bodyBuffer).Decode(&body); err != nil {
 		t.Fatal(err)
 	}
-	for k, expectedV := range map[string]string{
+
+	// compile a result output to compare to
+	var resultOut bytes.Buffer
+	update.PrintResults(&resultOut, release.Result, false)
+	expected := map[string]interface{}{
 		"username": "user1",
-		"text":     "Release (test-user: this was to test notifications) all latest to default/helloworld. Failed: test-error",
-	} {
-		if v, ok := body[k]; !ok || v != expectedV {
-			t.Errorf("Expected %s to have been set to %q, but got: %q", k, expectedV, v)
-		}
+		"text":     "Release all latest to default/helloworld.",
+		"attachments": []interface{}{
+			map[string]interface{}{
+				"text":     "test-error",
+				"fallback": "test-error",
+				"color":    "warning",
+			},
+			map[string]interface{}{
+				"text":        "this was to test notifications",
+				"author_name": "test-user",
+			},
+			map[string]interface{}{
+				"text":      "```" + resultOut.String() + "```",
+				"color":     "warning",
+				"mrkdwn_in": []interface{}{"text"},
+			},
+		},
+	}
+	if !reflect.DeepEqual(body, expected) {
+		t.Errorf("Expected:\n%#v\nGot:\n%#v\n", expected, body)
 	}
 }
 

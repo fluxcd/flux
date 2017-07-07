@@ -18,10 +18,40 @@ import (
 	"github.com/weaveworks/flux/update"
 )
 
-const (
-	ReleaseTemplate = `Release {{with .Release.Cause}}({{if .User}}{{.User}}{{else}}unknown{{end}}{{if .Message}}: {{.Message}}{{end}}){{end}} {{trim (print .Release.Spec.ImageSpec) "<>"}} to {{with .Release.Spec.ServiceSpecs}}{{range $index, $spec := .}}{{if not (eq $index 0)}}, {{if last $index $.Release.Spec.ServiceSpecs}}and {{end}}{{end}}{{trim (print .) "<>"}}{{end}}{{end}}.{{with .Error}} Failed: {{.}}{{end}}`
+type SlackMsg struct {
+	Username    string            `json:"username"`
+	Text        string            `json:"text"`
+	Attachments []SlackAttachment `json:"attachments,omitempty"`
+}
 
-	AutoReleaseTemplate = `Automated release of new image{{if not (last 0 $.Images)}}s{{end}} {{with .Images}}{{range $index, $image := .}}{{if not (eq $index 0)}}, {{if last $index $.Images}}and {{end}}{{end}}{{.}}{{end}}{{end}}.{{with .Error}} Failed: {{.}}{{end}}`
+type SlackAttachment struct {
+	Fallback string   `json:"fallback,omitempty"`
+	Text     string   `json:"text"`
+	Author   string   `json:"author_name,omitempty"`
+	Color    string   `json:"color,omitempty"`
+	Markdown []string `json:"mrkdwn_in,omitempty"`
+}
+
+func errorAttachment(msg string) SlackAttachment {
+	return SlackAttachment{
+		Fallback: msg,
+		Text:     msg,
+		Color:    "warning",
+	}
+}
+
+func successAttachment(msg string) SlackAttachment {
+	return SlackAttachment{
+		Fallback: msg,
+		Text:     msg,
+		Color:    "good",
+	}
+}
+
+const (
+	ReleaseTemplate = `Release {{trim (print .Release.Spec.ImageSpec) "<>"}} to {{with .Release.Spec.ServiceSpecs}}{{range $index, $spec := .}}{{if not (eq $index 0)}}, {{if last $index $.Release.Spec.ServiceSpecs}}and {{end}}{{end}}{{trim (print .) "<>"}}{{end}}{{end}}.`
+
+	AutoReleaseTemplate = `Automated release of new image{{if not (last 0 $.Images)}}s{{end}} {{with .Images}}{{range $index, $image := .}}{{if not (eq $index 0)}}, {{if last $index $.Images}}and {{end}}{{end}}{{.}}{{end}}{{end}}.`
 )
 
 var (
@@ -29,54 +59,91 @@ var (
 )
 
 func slackNotifyRelease(config flux.NotifierConfig, release *history.ReleaseEventMetadata, releaseError string) error {
-	// sanity check: we shouldn't get any other kind, but you
+	// Sanity check: we shouldn't get any other kind, but you
 	// never know.
 	if release.Spec.Kind != update.ReleaseKindExecute {
 		return nil
 	}
-	errorMessage := ""
-	if releaseError != "" {
-		errorMessage = releaseError
-	}
+	var attachments []SlackAttachment
+
 	text, err := instantiateTemplate("release", ReleaseTemplate, struct {
 		Release *history.ReleaseEventMetadata
-		Error   string
 	}{
 		Release: release,
-		Error:   errorMessage,
 	})
 	if err != nil {
 		return err
 	}
 
-	return notify(config, text)
+	if releaseError != "" {
+		attachments = append(attachments, errorAttachment(releaseError))
+	}
+
+	if release.Cause.User != "" || release.Cause.Message != "" {
+		cause := SlackAttachment{}
+		if user := release.Cause.User; user != "" {
+			cause.Author = user
+		}
+		if msg := release.Cause.Message; msg != "" {
+			cause.Text = msg
+		}
+		attachments = append(attachments, cause)
+	}
+
+	if release.Result != nil {
+		result := slackResultAttachment(release.Result)
+		attachments = append(attachments, result)
+	}
+
+	return notify(config, SlackMsg{
+		Username:    config.Username,
+		Text:        text,
+		Attachments: attachments,
+	})
 }
 
 func slackNotifyAutoRelease(config flux.NotifierConfig, release *history.AutoReleaseEventMetadata, releaseError string) error {
-	errorMessage := ""
+	var attachments []SlackAttachment
+
 	if releaseError != "" {
-		errorMessage = releaseError
+		attachments = append(attachments, errorAttachment(releaseError))
+	}
+	if release.Result != nil {
+		attachments = append(attachments, slackResultAttachment(release.Result))
 	}
 	text, err := instantiateTemplate("auto-release", AutoReleaseTemplate, struct {
 		Images []flux.ImageID
-		Error  string
 	}{
 		Images: release.Spec.Images(),
-		Error:  errorMessage,
 	})
 	if err != nil {
 		return err
 	}
 
-	return notify(config, text)
+	return notify(config, SlackMsg{
+		Username:    config.Username,
+		Text:        text,
+		Attachments: attachments,
+	})
 }
 
-func notify(config flux.NotifierConfig, text string) error {
+func slackResultAttachment(res update.Result) SlackAttachment {
 	buf := &bytes.Buffer{}
-	if err := json.NewEncoder(buf).Encode(map[string]string{
-		"username": config.Username,
-		"text":     text,
-	}); err != nil {
+	update.PrintResults(buf, res, false)
+	c := "good"
+	if res.Error() != "" {
+		c = "warning"
+	}
+	return SlackAttachment{
+		Text:     "```" + buf.String() + "```",
+		Markdown: []string{"text"},
+		Color:    c,
+	}
+}
+
+func notify(config flux.NotifierConfig, msg SlackMsg) error {
+	buf := &bytes.Buffer{}
+	if err := json.NewEncoder(buf).Encode(msg); err != nil {
 		return errors.Wrap(err, "encoding Slack POST request")
 	}
 
