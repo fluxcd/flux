@@ -10,17 +10,17 @@ import (
 )
 
 type Automated struct {
-	changes []change
+	Changes []Change
 }
 
-type change struct {
-	service   flux.ServiceID
-	container cluster.Container
-	imageID   flux.ImageID
+type Change struct {
+	ServiceID flux.ServiceID
+	Container cluster.Container
+	ImageID   flux.ImageID
 }
 
 func (a *Automated) Add(service flux.ServiceID, container cluster.Container, image flux.ImageID) {
-	a.changes = append(a.changes, change{service, container, image})
+	a.Changes = append(a.Changes, Change{service, container, image})
 }
 
 func (a *Automated) CalculateRelease(rc ReleaseContext, logger log.Logger) ([]*ServiceUpdate, Result, error) {
@@ -54,16 +54,16 @@ func (a *Automated) ReleaseKind() ReleaseKind {
 
 func (a *Automated) CommitMessage() string {
 	var images []string
-	for _, image := range a.images() {
+	for _, image := range a.Images() {
 		images = append(images, image.String())
 	}
 	return fmt.Sprintf("Release %s to automated", strings.Join(images, ", "))
 }
 
-func (a *Automated) images() []flux.ImageID {
+func (a *Automated) Images() []flux.ImageID {
 	imageMap := map[flux.ImageID]struct{}{}
-	for _, change := range a.changes {
-		imageMap[change.imageID] = struct{}{}
+	for _, change := range a.Changes {
+		imageMap[change.ImageID] = struct{}{}
 	}
 	var images []flux.ImageID
 	for image, _ := range imageMap {
@@ -112,11 +112,11 @@ func (a *Automated) calculateImageUpdates(rc ReleaseContext, candidates []*Servi
 			}
 
 			for _, change := range changes {
-				if change.container.Name != container.Name {
+				if change.Container.Name != container.Name {
 					continue
 				}
 
-				u.ManifestBytes, err = rc.Manifests().UpdateDefinition(u.ManifestBytes, container.Name, change.imageID)
+				u.ManifestBytes, err = rc.Manifests().UpdateDefinition(u.ManifestBytes, container.Name, change.ImageID)
 				if err != nil {
 					return nil, err
 				}
@@ -124,7 +124,7 @@ func (a *Automated) calculateImageUpdates(rc ReleaseContext, candidates []*Servi
 				containerUpdates = append(containerUpdates, ContainerUpdate{
 					Container: container.Name,
 					Current:   currentImageID,
-					Target:    change.imageID,
+					Target:    change.ImageID,
 				})
 			}
 		}
@@ -147,10 +147,10 @@ func (a *Automated) calculateImageUpdates(rc ReleaseContext, candidates []*Servi
 	return updates, nil
 }
 
-func (a *Automated) serviceMap() map[flux.ServiceID][]change {
-	set := map[flux.ServiceID][]change{}
-	for _, change := range a.changes {
-		set[change.service] = append(set[change.service], change)
+func (a *Automated) serviceMap() map[flux.ServiceID][]Change {
+	set := map[flux.ServiceID][]Change{}
+	for _, change := range a.Changes {
+		set[change.ServiceID] = append(set[change.ServiceID], change)
 	}
 	return set
 }

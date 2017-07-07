@@ -15,13 +15,14 @@ import (
 
 // These are all the types of events.
 const (
-	EventCommit     = "commit"
-	EventSync       = "sync"
-	EventRelease    = "release"
-	EventAutomate   = "automate"
-	EventDeautomate = "deautomate"
-	EventLock       = "lock"
-	EventUnlock     = "unlock"
+	EventCommit      = "commit"
+	EventSync        = "sync"
+	EventRelease     = "release"
+	EventAutoRelease = "autorelease"
+	EventAutomate    = "automate"
+	EventDeautomate  = "deautomate"
+	EventLock        = "lock"
+	EventUnlock      = "unlock"
 
 	LogLevelDebug = "debug"
 	LogLevelInfo  = "info"
@@ -172,14 +173,25 @@ type SyncEventMetadata struct {
 	Revisions []string `json:"revisions,omitempty"`
 }
 
-// ReleaseEventMetadata is the metadata for when service(s) are released
-type ReleaseEventMetadata struct {
-	Revision string             // the revision which has the changes for the release
-	Spec     update.ReleaseSpec `json:"spec"`
-	Cause    update.Cause       `json:"cause"`
-	Result   update.Result      `json:"result"`
+type ReleaseEventCommon struct {
+	Revision string        // the revision which has the changes for the release
+	Result   update.Result `json:"result"`
 	// Message of the error if there was one.
 	Error string `json:"error,omitempty"`
+}
+
+// ReleaseEventMetadata is the metadata for when service(s) are released
+type ReleaseEventMetadata struct {
+	ReleaseEventCommon
+	Spec  update.ReleaseSpec `json:"spec"`
+	Cause update.Cause       `json:"cause"`
+}
+
+// AutoReleaseEventMetadata is for when service(s) are released
+// automatically because there's a new image or images
+type AutoReleaseEventMetadata struct {
+	ReleaseEventCommon
+	Spec update.Automated `json:"spec"`
 }
 
 type UnknownEventMetadata map[string]interface{}
@@ -200,11 +212,18 @@ func (e *Event) UnmarshalJSON(in []byte) error {
 		return errors.New("Event type is empty")
 	}
 
-	// If we have a type which we want to convert, overwrite the
-	// standard Event with the new unmarshalled type
+	// The cases correspond to kinds of event that we care about
+	// processing e.g., for notifications.
 	switch wireEvent.Type {
 	case EventRelease:
 		var metadata ReleaseEventMetadata
+		if err := json.Unmarshal(wireEvent.MetadataBytes, &metadata); err != nil {
+			return err
+		}
+		e.Metadata = &metadata
+		break
+	case EventAutoRelease:
+		var metadata AutoReleaseEventMetadata
 		if err := json.Unmarshal(wireEvent.MetadataBytes, &metadata); err != nil {
 			return err
 		}
@@ -243,6 +262,10 @@ func (cem *SyncEventMetadata) Type() string {
 
 func (rem *ReleaseEventMetadata) Type() string {
 	return EventRelease
+}
+
+func (rem *AutoReleaseEventMetadata) Type() string {
+	return EventAutoRelease
 }
 
 // Special exception from pointer receiver rule, as UnknownEventMetadata is a

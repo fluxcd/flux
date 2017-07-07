@@ -10,6 +10,7 @@ import (
 const (
 	Images = "image"
 	Policy = "policy"
+	Auto   = "auto"
 )
 
 // How did this update get triggered?
@@ -47,6 +48,12 @@ func (spec *Spec) UnmarshalJSON(in []byte) error {
 		spec.Spec = update
 	case Images:
 		var update ReleaseSpec
+		if err := json.Unmarshal(wire.SpecBytes, &update); err != nil {
+			return err
+		}
+		spec.Spec = update
+	case Auto:
+		var update Automated
 		if err := json.Unmarshal(wire.SpecBytes, &update); err != nil {
 			return err
 		}

@@ -19,7 +19,9 @@ import (
 )
 
 const (
-	defaultReleaseTemplate = `Release {{with .Release.Cause}}({{if .User}}{{.User}}{{else}}unknown{{end}}{{if .Message}}: {{.Message}}{{end}}){{end}} {{trim (print .Release.Spec.ImageSpec) "<>"}} to {{with .Release.Spec.ServiceSpecs}}{{range $index, $spec := .}}{{if not (eq $index 0)}}, {{if last $index $.Release.Spec.ServiceSpecs}}and {{end}}{{end}}{{trim (print .) "<>"}}{{end}}{{end}}. {{with .Error}}{{.}}. failed{{else}}done{{end}}`
+	ReleaseTemplate = `Release {{with .Release.Cause}}({{if .User}}{{.User}}{{else}}unknown{{end}}{{if .Message}}: {{.Message}}{{end}}){{end}} {{trim (print .Release.Spec.ImageSpec) "<>"}} to {{with .Release.Spec.ServiceSpecs}}{{range $index, $spec := .}}{{if not (eq $index 0)}}, {{if last $index $.Release.Spec.ServiceSpecs}}and {{end}}{{end}}{{trim (print .) "<>"}}{{end}}{{end}}.{{with .Error}} Failed: {{.}}{{end}}`
+
+	AutoReleaseTemplate = `Automated release of new image{{if not (last 0 $.Images)}}s{{end}} {{with .Images}}{{range $index, $image := .}}{{if not (eq $index 0)}}, {{if last $index $.Images}}and {{end}}{{end}}{{.}}{{end}}{{end}}.{{with .Error}} Failed: {{.}}{{end}}`
 )
 
 var (
@@ -27,25 +29,40 @@ var (
 )
 
 func slackNotifyRelease(config flux.NotifierConfig, release *history.ReleaseEventMetadata, releaseError string) error {
-	if release.Spec.Kind == update.ReleaseKindPlan {
+	// sanity check: we shouldn't get any other kind, but you
+	// never know.
+	if release.Spec.Kind != update.ReleaseKindExecute {
 		return nil
 	}
-
-	template := defaultReleaseTemplate
-	if config.ReleaseTemplate != "" {
-		template = config.ReleaseTemplate
-	}
-
 	errorMessage := ""
 	if releaseError != "" {
 		errorMessage = releaseError
 	}
-	text, err := instantiateTemplate("release", template, struct {
+	text, err := instantiateTemplate("release", ReleaseTemplate, struct {
 		Release *history.ReleaseEventMetadata
 		Error   string
 	}{
 		Release: release,
 		Error:   errorMessage,
+	})
+	if err != nil {
+		return err
+	}
+
+	return notify(config, text)
+}
+
+func slackNotifyAutoRelease(config flux.NotifierConfig, release *history.AutoReleaseEventMetadata, releaseError string) error {
+	errorMessage := ""
+	if releaseError != "" {
+		errorMessage = releaseError
+	}
+	text, err := instantiateTemplate("auto-release", AutoReleaseTemplate, struct {
+		Images []flux.ImageID
+		Error  string
+	}{
+		Images: release.Spec.Images(),
+		Error:  errorMessage,
 	})
 	if err != nil {
 		return err

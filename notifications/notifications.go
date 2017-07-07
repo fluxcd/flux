@@ -3,20 +3,19 @@ package notifications
 import (
 	"github.com/weaveworks/flux/history"
 	"github.com/weaveworks/flux/instance"
-	"github.com/weaveworks/flux/update"
 )
 
-// Release performs post-release notifications for an instance
-func Release(cfg instance.Config, r *history.ReleaseEventMetadata, releaseError string) error {
-	if r.Spec.Kind != update.ReleaseKindExecute {
-		return nil
-	}
-
-	// TODO: Use a config settings format which allows multiple notifiers to be
-	// configured.
-	var err error
+func Event(cfg instance.Config, e history.Event) error {
+	// If this is a release
 	if cfg.Settings.Slack.HookURL != "" {
-		err = slackNotifyRelease(cfg.Settings.Slack, r, releaseError)
+		switch e.Type {
+		case history.EventRelease:
+			r := e.Metadata.(*history.ReleaseEventMetadata)
+			return slackNotifyRelease(cfg.Settings.Slack, r, r.Error)
+		case history.EventAutoRelease:
+			r := e.Metadata.(*history.AutoReleaseEventMetadata)
+			return slackNotifyAutoRelease(cfg.Settings.Slack, r, r.Error)
+		}
 	}
-	return err
+	return nil
 }
