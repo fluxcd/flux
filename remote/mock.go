@@ -10,7 +10,6 @@ import (
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/guid"
 	"github.com/weaveworks/flux/job"
-	"github.com/weaveworks/flux/ssh"
 	"github.com/weaveworks/flux/update"
 )
 
@@ -41,8 +40,8 @@ type MockPlatform struct {
 	JobStatusAnswer job.Status
 	JobStatusError  error
 
-	PublicSSHKeyAnswer ssh.PublicKey
-	PublicSSHKeyError  error
+	GitRepoConfigAnswer flux.GitConfig
+	GitRepoConfigError  error
 }
 
 func (p *MockPlatform) Ping() error {
@@ -86,8 +85,8 @@ func (p *MockPlatform) JobStatus(job.ID) (job.Status, error) {
 	return p.JobStatusAnswer, p.JobStatusError
 }
 
-func (p *MockPlatform) PublicSSHKey(regenerate bool) (ssh.PublicKey, error) {
-	return p.PublicSSHKeyAnswer, p.PublicSSHKeyError
+func (p *MockPlatform) GitRepoConfig(regenerate bool) (flux.GitConfig, error) {
+	return p.GitRepoConfigAnswer, p.GitRepoConfigError
 }
 
 var _ Platform = &MockPlatform{}

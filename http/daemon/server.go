@@ -210,7 +210,7 @@ func (s HTTPServer) Export(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s HTTPServer) GetPublicSSHKey(w http.ResponseWriter, r *http.Request) {
-	res, err := s.daemon.PublicSSHKey(false)
+	res, err := s.daemon.GitRepoConfig(false)
 	if err != nil {
 		transport.ErrorResponse(w, r, err)
 		return
@@ -219,7 +219,7 @@ func (s HTTPServer) GetPublicSSHKey(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s HTTPServer) RegeneratePublicSSHKey(w http.ResponseWriter, r *http.Request) {
-	_, err := s.daemon.PublicSSHKey(true)
+	_, err := s.daemon.GitRepoConfig(true)
 	if err != nil {
 		transport.ErrorResponse(w, r, err)
 		return

@@ -6,7 +6,6 @@ import (
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster"
 	"github.com/weaveworks/flux/job"
-	"github.com/weaveworks/flux/ssh"
 	"github.com/weaveworks/flux/update"
 )
 
@@ -14,16 +13,18 @@ import (
 // API when we have yet to successfully clone the config repo.
 type NotReadyDaemon struct {
 	sync.RWMutex
-	version string
-	cluster cluster.Cluster
-	reason  error
+	version   string
+	cluster   cluster.Cluster
+	gitRemote flux.GitRemoteConfig
+	reason    error
 }
 
-func NewNotReadyDaemon(version string, cluster cluster.Cluster, reason error) (nrd *NotReadyDaemon) {
+func NewNotReadyDaemon(version string, cluster cluster.Cluster, gitRemote flux.GitRemoteConfig, reason error) (nrd *NotReadyDaemon) {
 	return &NotReadyDaemon{
-		version: version,
-		cluster: cluster,
-		reason:  reason,
+		version:   version,
+		cluster:   cluster,
+		gitRemote: gitRemote,
+		reason:    reason,
 	}
 }
 
@@ -78,6 +79,13 @@ func (nrd *NotReadyDaemon) SyncStatus(string) ([]string, error) {
 	return nil, nrd.Reason()
 }
 
-func (nrd *NotReadyDaemon) PublicSSHKey(regenerate bool) (ssh.PublicKey, error) {
-	return nrd.cluster.PublicSSHKey(regenerate)
+func (nrd *NotReadyDaemon) GitRepoConfig(regenerate bool) (flux.GitConfig, error) {
+	publicSSHKey, err := nrd.cluster.PublicSSHKey(regenerate)
+	if err != nil {
+		return flux.GitConfig{}, err
+	}
+	return flux.GitConfig{
+		Remote:       nrd.gitRemote,
+		PublicSSHKey: publicSSHKey,
+	}, nil
 }

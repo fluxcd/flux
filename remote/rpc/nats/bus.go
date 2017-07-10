@@ -13,7 +13,6 @@ import (
 	"github.com/weaveworks/flux/guid"
 	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/remote"
-	"github.com/weaveworks/flux/ssh"
 	"github.com/weaveworks/flux/update"
 )
 
@@ -36,7 +35,7 @@ const (
 	methodJobStatus       = ".Platform.JobStatus"
 	methodSyncStatus      = ".Platform.SyncStatus"
 	methodUpdateManifests = ".Platform.UpdateManifests"
-	methodPublicSSHKey    = ".Platform.PublicSSHKey"
+	methodGitRepoConfig   = ".Platform.GitRepoConfig"
 )
 
 var timeout = defaultTimeout
@@ -163,8 +162,8 @@ type SyncStatusResponse struct {
 	ErrorResponse
 }
 
-type PublicSSHKeyResponse struct {
-	Result ssh.PublicKey
+type GitRepoConfigResponse struct {
+	Result flux.GitConfig
 	ErrorResponse
 }
 
@@ -295,13 +294,13 @@ func (r *natsPlatform) SyncStatus(ref string) ([]string, error) {
 	return response.Result, extractError(response.ErrorResponse)
 }
 
-func (r *natsPlatform) PublicSSHKey(regenerate bool) (ssh.PublicKey, error) {
-	var response PublicSSHKeyResponse
-	if err := r.conn.Request(r.instance+methodPublicSSHKey, regenerate, &response, timeout); err != nil {
+func (r *natsPlatform) GitRepoConfig(regenerate bool) (flux.GitConfig, error) {
+	var response GitRepoConfigResponse
+	if err := r.conn.Request(r.instance+methodGitRepoConfig, regenerate, &response, timeout); err != nil {
 		if err == nats.ErrTimeout {
 			err = remote.UnavailableError(err)
 		}
-		return ssh.PublicKey{}, err
+		return flux.GitConfig{}, err
 	}
 	return response.Result, extractError(response.ErrorResponse)
 }
@@ -439,16 +438,16 @@ func (n *NATS) Subscribe(instID flux.InstanceID, platform remote.Platform, done 
 			}
 			n.enc.Publish(request.Reply, SyncStatusResponse{res, makeErrorResponse(err)})
 
-		case strings.HasSuffix(request.Subject, methodPublicSSHKey):
+		case strings.HasSuffix(request.Subject, methodGitRepoConfig):
 			var (
 				req bool
-				res ssh.PublicKey
+				res flux.GitConfig
 			)
 			err = encoder.Decode(request.Subject, request.Data, &req)
 			if err == nil {
-				res, err = platform.PublicSSHKey(req)
+				res, err = platform.GitRepoConfig(req)
 			}
-			n.enc.Publish(request.Reply, PublicSSHKeyResponse{res, makeErrorResponse(err)})
+			n.enc.Publish(request.Reply, GitRepoConfigResponse{res, makeErrorResponse(err)})
 
 		default:
 			err = errors.New("unknown message: " + request.Subject)

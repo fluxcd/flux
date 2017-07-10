@@ -53,14 +53,25 @@ func (s *Server) Status(instID flux.InstanceID) (res flux.Status, err error) {
 	}
 
 	res.Fluxsvc = flux.FluxsvcStatus{Version: s.version}
+
 	res.Fluxd.Version, err = inst.Platform.Version()
-	res.Fluxd.Connected = (err == nil)
+	if err != nil {
+		return res, err
+	}
+
+	res.Git.Config, err = inst.Platform.GitRepoConfig(false)
+	if err != nil {
+		return res, err
+	}
+
 	_, err = inst.Platform.SyncStatus("HEAD")
 	if err != nil {
 		res.Git.Error = err.Error()
 	} else {
 		res.Git.Configured = true
 	}
+
+	res.Fluxd.Connected = true
 
 	return res, nil
 }
@@ -202,7 +213,7 @@ func (s *Server) GetConfig(instID flux.InstanceID, fingerprint string) (flux.Ins
 	return config, nil
 }
 
-func (s *Server) SetConfig(instID flux.InstanceID, updates flux.UnsafeInstanceConfig) error {
+func (s *Server) SetConfig(instID flux.InstanceID, updates flux.InstanceConfig) error {
 	return s.config.UpdateConfig(instID, applyConfigUpdates(updates))
 }
 
@@ -220,7 +231,7 @@ func (s *Server) PatchConfig(instID flux.InstanceID, patch flux.ConfigPatch) err
 	return s.config.UpdateConfig(instID, applyConfigUpdates(patchedConfig))
 }
 
-func applyConfigUpdates(updates flux.UnsafeInstanceConfig) instance.UpdateFunc {
+func applyConfigUpdates(updates flux.InstanceConfig) instance.UpdateFunc {
 	return func(config instance.Config) (instance.Config, error) {
 		config.Settings = updates
 		return config, nil
@@ -233,7 +244,11 @@ func (s *Server) PublicSSHKey(instID flux.InstanceID, regenerate bool) (ssh.Publ
 		return ssh.PublicKey{}, errors.Wrapf(err, "getting instance "+string(instID))
 	}
 
-	return inst.Platform.PublicSSHKey(regenerate)
+	gitRepoConfig, err := inst.Platform.GitRepoConfig(regenerate)
+	if err != nil {
+		return ssh.PublicKey{}, err
+	}
+	return gitRepoConfig.PublicSSHKey, nil
 }
 
 // RegisterDaemon handles a daemon connection. It blocks until the

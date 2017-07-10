@@ -22,7 +22,7 @@ func (c ServiceConfig) Policy() policy.Policy {
 
 type Config struct {
 	Services map[flux.ServiceID]ServiceConfig `json:"services"`
-	Settings flux.UnsafeInstanceConfig        `json:"settings"`
+	Settings flux.InstanceConfig              `json:"settings"`
 }
 
 type NamedConfig struct {

@@ -19,7 +19,6 @@ import (
 	"github.com/weaveworks/flux/registry"
 	"github.com/weaveworks/flux/release"
 	"github.com/weaveworks/flux/remote"
-	"github.com/weaveworks/flux/ssh"
 	"github.com/weaveworks/flux/update"
 )
 
@@ -350,8 +349,15 @@ func (d *Daemon) SyncStatus(commitRef string) ([]string, error) {
 	return d.Checkout.RevisionsBetween(d.Checkout.SyncTag, commitRef)
 }
 
-func (d *Daemon) PublicSSHKey(regenerate bool) (ssh.PublicKey, error) {
-	return d.Cluster.PublicSSHKey(regenerate)
+func (d *Daemon) GitRepoConfig(regenerate bool) (flux.GitConfig, error) {
+	publicSSHKey, err := d.Cluster.PublicSSHKey(regenerate)
+	if err != nil {
+		return flux.GitConfig{}, err
+	}
+	return flux.GitConfig{
+		Remote:       d.Repo.GitRemoteConfig,
+		PublicSSHKey: publicSSHKey,
+	}, nil
 }
 
 // Non-remote.Platform methods

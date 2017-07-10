@@ -7,30 +7,15 @@ import (
 
 func TestConfig_Patch(t *testing.T) {
 
-	uic := UnsafeInstanceConfig{
-		Git: GitConfig{
-			Key: "existingkey",
-		},
-		Registry: RegistryConfig{
-			Auths: map[string]Auth{
-				"https://index.docker.io/v1/": {
-					Auth: "existingauth",
-				},
-			},
+	uic := InstanceConfig{
+		NotifierConfig{
+			HookURL: "existingurl",
 		},
 	}
 
 	patchBytes := []byte(`{
-		"git": {
-			"key": "newkey"
-		},
-		"registry": { 
-			"auths": { 
-				"https://index.docker.io/v1/": null,
-				"quay.io": {
-					"Auth": "some auth config"
-				}
-			}
+		"slack": {
+			"hookURL": "newurl"
 		}
 	}`)
 
@@ -44,11 +29,7 @@ func TestConfig_Patch(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if puic.Git.Key != "newkey" {
-		t.Fatalf("git key not patched: %v", puic.Git.Key)
-	}
-
-	if len(puic.Registry.Auths) != 1 || puic.Registry.Auths["quay.io"].Auth != "some auth config" {
-		t.Fatal("auth config not patched")
+	if puic.Slack.HookURL != "newurl" {
+		t.Fatalf("slack hookURL not patched: %v", puic.Slack.HookURL)
 	}
 }

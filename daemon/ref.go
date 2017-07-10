@@ -6,7 +6,6 @@ import (
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/remote"
-	"github.com/weaveworks/flux/ssh"
 	"github.com/weaveworks/flux/update"
 )
 
@@ -70,6 +69,6 @@ func (pr *Ref) SyncStatus(ref string) ([]string, error) {
 	return pr.Platform().SyncStatus(ref)
 }
 
-func (pr *Ref) PublicSSHKey(regenerate bool) (ssh.PublicKey, error) {
-	return pr.Platform().PublicSSHKey(regenerate)
+func (pr *Ref) GitRepoConfig(regenerate bool) (flux.GitConfig, error) {
+	return pr.Platform().GitRepoConfig(regenerate)
 }

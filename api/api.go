@@ -24,7 +24,7 @@ type ClientService interface {
 	UpdatePolicies(flux.InstanceID, policy.Updates, update.Cause) (job.ID, error)
 	History(flux.InstanceID, update.ServiceSpec, time.Time, int64, time.Time) ([]history.Entry, error)
 	GetConfig(_ flux.InstanceID, fingerprint string) (flux.InstanceConfig, error)
-	SetConfig(flux.InstanceID, flux.UnsafeInstanceConfig) error
+	SetConfig(flux.InstanceID, flux.InstanceConfig) error
 	PatchConfig(flux.InstanceID, flux.ConfigPatch) error
 	Export(inst flux.InstanceID) ([]byte, error)
 	PublicSSHKey(inst flux.InstanceID, regenerate bool) (ssh.PublicKey, error)
