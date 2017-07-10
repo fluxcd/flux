@@ -11,7 +11,7 @@ import (
 	"github.com/weaveworks/flux/update"
 )
 
-func (d *Daemon) PollImages(logger log.Logger) {
+func (d *Daemon) pollForNewImages(logger log.Logger) {
 	logger.Log("msg", "polling images")
 
 	candidateServices, err := d.unlockedAutomatedServices()

@@ -320,21 +320,25 @@ func main() {
 	}
 
 	daemon := &daemon.Daemon{
-		V:                    version,
-		Cluster:              k8s,
-		Manifests:            k8sManifests,
-		Registry:             reg,
-		Checkout:             checkout,
-		Jobs:                 jobs,
-		JobStatusCache:       &job.StatusCache{Size: 100},
-		GitPollInterval:      *gitPollInterval,
-		RegistryPollInterval: *registryPollInterval,
-		EventWriter:          eventWriter,
-		Logger:               log.NewContext(logger).With("component", "daemon"),
+		V:              version,
+		Cluster:        k8s,
+		Manifests:      k8sManifests,
+		Registry:       reg,
+		Checkout:       checkout,
+		Jobs:           jobs,
+		JobStatusCache: &job.StatusCache{Size: 100},
+		EventWriter:    eventWriter,
+		Logger:         log.NewContext(logger).With("component", "daemon"),
+		LoopVars: &daemon.LoopVars{
+			GitPollInterval:      *gitPollInterval,
+			RegistryPollInterval: *registryPollInterval,
+		},
 	}
 
 	shutdownWg.Add(1)
-	go daemon.Loop(shutdown, shutdownWg, log.NewContext(logger).With("component", "sync-loop"))
+	go daemon.GitPollLoop(shutdown, shutdownWg, log.NewContext(logger).With("component", "sync-loop"))
+	shutdownWg.Add(1)
+	go daemon.ImagePollLoop(shutdown, shutdownWg, log.NewContext(logger).With("component", "image-poll-loop"))
 
 	// Update daemonRef so that upstream and handlers point to fully working daemon
 	daemonRef.UpdatePlatform(daemon)

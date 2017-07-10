@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"sort"
-	gosync "sync"
 	"time"
 
 	"github.com/go-kit/kit/log"
@@ -29,21 +28,18 @@ var ErrUnknownJob = fmt.Errorf("unknown job")
 // Combine these things to form Devasta^Wan implementation of
 // Platform.
 type Daemon struct {
-	V                    string
-	Cluster              cluster.Cluster
-	Manifests            cluster.Manifests
-	Registry             registry.Registry
-	Repo                 git.Repo
-	Checkout             *git.Checkout
-	Jobs                 *job.Queue
-	JobStatusCache       *job.StatusCache
-	GitPollInterval      time.Duration
-	RegistryPollInterval time.Duration
-	EventWriter          history.EventWriter
-	Logger               log.Logger
+	V              string
+	Cluster        cluster.Cluster
+	Manifests      cluster.Manifests
+	Registry       registry.Registry
+	Repo           git.Repo
+	Checkout       *git.Checkout
+	Jobs           *job.Queue
+	JobStatusCache *job.StatusCache
+	EventWriter    history.EventWriter
+	Logger         log.Logger
 	// bookkeeping
-	syncSoon     chan struct{}
-	initSyncSoon gosync.Once
+	*LoopVars
 }
 
 // Invariant.
@@ -195,7 +191,16 @@ func (d *Daemon) UpdateManifests(spec update.Spec) (job.ID, error) {
 				Spec:   &spec,
 				Result: update.Result{},
 			}
+
+			// A shortcut to make things more responsive: if anything
+			// was (probably) set to automated, we will ask for an
+			// automation run straight ASAP.
+			var anythingAutomated bool
+
 			for serviceID, u := range s {
+				if policy.Set(u.Add).Contains(policy.Automated) {
+					anythingAutomated = true
+				}
 				// find the service manifest
 				err := cluster.UpdateManifest(d.Manifests, working.ManifestDir(), string(serviceID), func(def []byte) ([]byte, error) {
 					newDef, err := d.Manifests.UpdatePolicies(def, u)
@@ -235,7 +240,14 @@ func (d *Daemon) UpdateManifests(spec update.Spec) (job.ID, error) {
 			}
 
 			if err := working.CommitAndPush(policyCommitMessage(s, spec.Cause), &git.Note{JobID: jobID, Spec: spec}); err != nil {
+				// On the chance pushing failed because it was not
+				// possible to fast-forward, ask for a sync so the
+				// next attempt is more likely to succeed.
+				d.askForSync()
 				return nil, err
+			}
+			if anythingAutomated {
+				d.askForImagePoll()
 			}
 
 			var err error
@@ -265,13 +277,16 @@ func (d *Daemon) release(spec update.Spec, c release.Changes) DaemonJobFunc {
 				commitMsg = c.CommitMessage()
 			}
 			if err := working.CommitAndPush(commitMsg, &git.Note{JobID: jobID, Spec: spec, Result: result}); err != nil {
+				// On the chance pushing failed because it was not
+				// possible to fast-forward, ask for a sync so the
+				// next attempt is more likely to succeed.
+				d.askForSync()
 				return nil, err
 			}
 			revision, err = working.HeadRevision()
 			if err != nil {
 				return nil, err
 			}
-			defer d.askForSync()
 		}
 		return &history.CommitEventMetadata{
 			Revision: revision,
