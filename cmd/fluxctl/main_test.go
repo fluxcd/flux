@@ -17,15 +17,13 @@ import (
 	"github.com/weaveworks/flux/job"
 )
 
-func mockServiceOpts(trip *genericMockRoundTripper) *serviceOpts {
+func mockServiceOpts(trip *genericMockRoundTripper) *rootOpts {
 	c := http.Client{
 		Transport: trip,
 	}
 	mockAPI := client.New(&c, transport.NewAPIRouter(), "", "")
-	return &serviceOpts{
-		rootOpts: &rootOpts{
-			API: mockAPI,
-		},
+	return &rootOpts{
+		API: mockAPI,
 	}
 }
 

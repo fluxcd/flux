@@ -9,14 +9,14 @@ import (
 )
 
 type serviceAutomateOpts struct {
-	*serviceOpts
+	*rootOpts
 	service string
 	outputOpts
 	cause update.Cause
 }
 
-func newServiceAutomate(parent *serviceOpts) *serviceAutomateOpts {
-	return &serviceAutomateOpts{serviceOpts: parent}
+func newServiceAutomate(parent *rootOpts) *serviceAutomateOpts {
+	return &serviceAutomateOpts{rootOpts: parent}
 }
 
 func (opts *serviceAutomateOpts) Command() *cobra.Command {

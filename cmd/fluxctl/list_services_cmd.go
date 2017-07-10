@@ -12,12 +12,12 @@ import (
 )
 
 type serviceListOpts struct {
-	*serviceOpts
+	*rootOpts
 	namespace string
 }
 
-func newServiceList(parent *serviceOpts) *serviceListOpts {
-	return &serviceListOpts{serviceOpts: parent}
+func newServiceList(parent *rootOpts) *serviceListOpts {
+	return &serviceListOpts{rootOpts: parent}
 }
 
 func (opts *serviceListOpts) Command() *cobra.Command {

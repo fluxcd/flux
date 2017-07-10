@@ -11,13 +11,13 @@ import (
 )
 
 type serviceShowOpts struct {
-	*serviceOpts
+	*rootOpts
 	service string
 	limit   int
 }
 
-func newServiceShow(parent *serviceOpts) *serviceShowOpts {
-	return &serviceShowOpts{serviceOpts: parent}
+func newServiceShow(parent *rootOpts) *serviceShowOpts {
+	return &serviceShowOpts{rootOpts: parent}
 }
 
 func (opts *serviceShowOpts) Command() *cobra.Command {
