@@ -26,15 +26,17 @@ func exampleRelease(t *testing.T) *history.ReleaseEventMetadata {
 			Kind:         update.ReleaseKindExecute,
 			Excludes:     nil,
 		},
-		Result: update.Result{
-			flux.ServiceID("default/helloworld"): {
-				Status: update.ReleaseStatusFailed,
-				Error:  "overall-release-error",
-				PerContainer: []update.ContainerUpdate{
-					update.ContainerUpdate{
-						Container: "container1",
-						Current:   img1a1,
-						Target:    img1a2,
+		ReleaseEventCommon: history.ReleaseEventCommon{
+			Result: update.Result{
+				flux.ServiceID("default/helloworld"): {
+					Status: update.ReleaseStatusFailed,
+					Error:  "overall-release-error",
+					PerContainer: []update.ContainerUpdate{
+						update.ContainerUpdate{
+							Container: "container1",
+							Current:   img1a1,
+							Target:    img1a2,
+						},
 					},
 				},
 			},
@@ -50,14 +52,15 @@ func TestRelease_DryRun(t *testing.T) {
 
 	// It should send releases to slack
 	r := exampleRelease(t)
+	ev := history.Event{Metadata: r}
 	r.Spec.Kind = update.ReleaseKindPlan
-	if err := Release(instance.Config{
+	if err := Event(instance.Config{
 		Settings: flux.UnsafeInstanceConfig{
 			Slack: flux.NotifierConfig{
 				HookURL: server.URL,
 			},
 		},
-	}, r, ""); err != nil {
+	}, ev); err != nil {
 		t.Fatal(err)
 	}
 }

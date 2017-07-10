@@ -143,17 +143,13 @@ func (s *Server) LogEvent(instID flux.InstanceID, e history.Event) error {
 		return errors.Wrapf(err, "logging event")
 	}
 
-	// If this is a release
-	if e.Type == history.EventRelease {
-		cfg, err := helper.Config.Get()
-		if err != nil {
-			return errors.Wrapf(err, "getting config")
-		}
-		releaseMeta := e.Metadata.(*history.ReleaseEventMetadata)
-		err = notifications.Release(cfg, releaseMeta, releaseMeta.Error)
-		if err != nil {
-			return errors.Wrapf(err, "notifying slack")
-		}
+	cfg, err := helper.Config.Get()
+	if err != nil {
+		return errors.Wrapf(err, "getting config")
+	}
+	err = notifications.Event(cfg, e)
+	if err != nil {
+		return errors.Wrapf(err, "notifying slack")
 	}
 	return nil
 }
