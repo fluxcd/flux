@@ -17,7 +17,7 @@ type mockRemote struct {
 	err  error
 }
 
-type ManifestFunc func(id flux.ImageID, tag string) (flux.Image, error)
+type ManifestFunc func(id flux.ImageID) (flux.Image, error)
 type TagsFunc func(id flux.ImageID) ([]string, error)
 type mockDockerClient struct {
 	manifest ManifestFunc
@@ -31,8 +31,8 @@ func NewMockClient(manifest ManifestFunc, tags TagsFunc) Client {
 	}
 }
 
-func (m *mockDockerClient) Manifest(id flux.ImageID, tag string) (flux.Image, error) {
-	return m.manifest(id, tag)
+func (m *mockDockerClient) Manifest(id flux.ImageID) (flux.Image, error) {
+	return m.manifest(id)
 }
 
 func (m *mockDockerClient) Tags(id flux.ImageID) ([]string, error) {
@@ -82,8 +82,7 @@ func (m *mockRegistry) GetRepository(id flux.ImageID) ([]flux.Image, error) {
 	return imgs, m.err
 }
 
-func (m *mockRegistry) GetImage(id flux.ImageID, tag string) (flux.Image, error) {
-	id.Tag = tag
+func (m *mockRegistry) GetImage(id flux.ImageID) (flux.Image, error) {
 	if len(m.imgs) > 0 {
 		for _, i := range m.imgs {
 			if i.ID.String() == id.String() {

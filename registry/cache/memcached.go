@@ -177,8 +177,8 @@ type manifestKey struct {
 	username, fullRepositoryPath, reference string
 }
 
-func NewManifestKey(username string, id flux.ImageID, reference string) (Key, error) {
-	return &manifestKey{username, id.HostNamespaceImage(), reference}, nil
+func NewManifestKey(username string, id flux.ImageID) (Key, error) {
+	return &manifestKey{username, id.HostNamespaceImage(), id.Tag}, nil
 }
 
 func (k *manifestKey) String() string {

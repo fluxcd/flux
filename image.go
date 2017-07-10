@@ -119,6 +119,14 @@ func (i ImageID) Components() (host, repo, tag string) {
 	return i.Host, fmt.Sprintf("%s/%s", i.Namespace, i.Image), i.Tag
 }
 
+// WithNewTag makes a new copy of an ImageID with a new tag
+func (i ImageID) WithNewTag(t string) ImageID {
+	var img ImageID
+	img = i
+	img.Tag = t
+	return img
+}
+
 // Image can't really be a primitive string only, because we need to also
 // record information about its creation time. (maybe more in the future)
 type Image struct {

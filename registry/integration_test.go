@@ -57,7 +57,7 @@ func TestWarming_WarmerWriteCacheRead(t *testing.T) {
 			return []flux.ImageID{id}
 		},
 		logger.With("component", "queue"),
-		time.Second,
+		100*time.Millisecond,
 	)
 
 	w := Warmer{
@@ -89,9 +89,9 @@ Loop:
 	for {
 		select {
 		case <-timeout.C:
-			return
+			t.Fatal("Cache timeout")
 		case <-tick.C:
-			_, err := r.GetImage(id, "latest")
+			_, err := r.GetImage(id)
 			if err == nil {
 				break Loop
 			}

@@ -54,9 +54,9 @@ func (m *instrumentedRegistry) GetRepository(id flux.ImageID) (res []flux.Image,
 	return
 }
 
-func (m *instrumentedRegistry) GetImage(id flux.ImageID, tag string) (res flux.Image, err error) {
+func (m *instrumentedRegistry) GetImage(id flux.ImageID) (res flux.Image, err error) {
 	start := time.Now()
-	res, err = m.next.GetImage(id, tag)
+	res, err = m.next.GetImage(id)
 	fetchDuration.With(
 		fluxmetrics.LabelSuccess, strconv.FormatBool(err == nil),
 	).Observe(time.Since(start).Seconds())
@@ -75,9 +75,9 @@ func NewInstrumentedClient(next Client) Client {
 	}
 }
 
-func (m *instrumentedClient) Manifest(id flux.ImageID, tag string) (res flux.Image, err error) {
+func (m *instrumentedClient) Manifest(id flux.ImageID) (res flux.Image, err error) {
 	start := time.Now()
-	res, err = m.next.Manifest(id, tag)
+	res, err = m.next.Manifest(id)
 	requestDuration.With(
 		LabelRequestKind, RequestKindMetadata,
 		fluxmetrics.LabelSuccess, strconv.FormatBool(err == nil),

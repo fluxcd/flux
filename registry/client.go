@@ -14,7 +14,7 @@ import (
 // It might be a chache, it might be a real registry.
 type Client interface {
 	Tags(id flux.ImageID) ([]string, error)
-	Manifest(id flux.ImageID, tag string) (flux.Image, error)
+	Manifest(id flux.ImageID) (flux.Image, error)
 	Cancel()
 }
 
@@ -34,8 +34,8 @@ func (a *Remote) Tags(id flux.ImageID) ([]string, error) {
 
 // We need to do some adapting here to convert from the return values
 // from dockerregistry to our domain types.
-func (a *Remote) Manifest(id flux.ImageID, tag string) (flux.Image, error) {
-	history, err := a.Registry.Manifest(id.NamespaceImage(), tag)
+func (a *Remote) Manifest(id flux.ImageID) (flux.Image, error) {
+	history, err := a.Registry.Manifest(id.NamespaceImage(), id.Tag)
 	if err != nil || history == nil {
 		return flux.Image{}, errors.Wrap(err, "getting remote manifest")
 	}
@@ -51,7 +51,6 @@ func (a *Remote) Manifest(id flux.ImageID, tag string) (flux.Image, error) {
 	var topmost v1image
 	var img flux.Image
 	img.ID = id
-	img.ID.Tag = tag
 	if len(history) > 0 {
 		if err = json.Unmarshal([]byte(history[0].V1Compatibility), &topmost); err == nil {
 			if !topmost.Created.IsZero() {
@@ -91,9 +90,9 @@ func NewCache(creds Credentials, cr cache.Reader, expiry time.Duration, logger l
 	}
 }
 
-func (c *Cache) Manifest(id flux.ImageID, tag string) (flux.Image, error) {
+func (c *Cache) Manifest(id flux.ImageID) (flux.Image, error) {
 	creds := c.creds.credsFor(id.Host)
-	key, err := cache.NewManifestKey(creds.username, id, tag)
+	key, err := cache.NewManifestKey(creds.username, id)
 	if err != nil {
 		return flux.Image{}, err
 	}

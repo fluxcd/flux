@@ -85,7 +85,8 @@ func (w *Warmer) warm(id flux.ImageID) {
 	for _, tag := range tags {
 		// See if we have the manifest already cached
 		// We don't want to re-download a manifest again.
-		key, err := cache.NewManifestKey(username, id, tag)
+		i := id.WithNewTag(tag)
+		key, err := cache.NewManifestKey(username, i)
 		if err != nil {
 			w.Logger.Log("err", errors.Wrap(err, "creating key for memcache"))
 			return
@@ -96,7 +97,7 @@ func (w *Warmer) warm(id flux.ImageID) {
 		}
 
 		// Get the image from the remote
-		img, err := client.Manifest(id, tag)
+		img, err := client.Manifest(i)
 		if err != nil {
 			w.Logger.Log("err", err.Error())
 			continue

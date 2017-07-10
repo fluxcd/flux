@@ -31,7 +31,7 @@ var (
 var (
 	testTags = []string{testTagStr, "anotherTag"}
 	mClient  = NewMockClient(
-		func(repository flux.ImageID, tag string) (flux.Image, error) {
+		func(repository flux.ImageID) (flux.Image, error) {
 			img, _ := flux.ParseImage(testImageStr, time.Time{})
 			return img, nil
 		},
@@ -66,7 +66,7 @@ func TestRegistry_GetRepositoryFactoryError(t *testing.T) {
 
 func TestRegistry_GetRepositoryManifestError(t *testing.T) {
 	errClient := NewMockClient(
-		func(repository flux.ImageID, tag string) (flux.Image, error) {
+		func(repository flux.ImageID) (flux.Image, error) {
 			return flux.Image{}, errors.New("")
 		},
 		func(repository flux.ImageID) ([]string, error) {
@@ -110,7 +110,8 @@ func TestRemoteFactory_RawClient(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	newImg, err := client.Manifest(id, tags[0])
+	id.Tag = tags[0]
+	newImg, err := client.Manifest(id)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -133,7 +134,7 @@ func TestRemoteFactory_InvalidHost(t *testing.T) {
 	if err != nil {
 		return
 	}
-	_, err = client.Manifest(invalidId, invalidId.Tag)
+	_, err = client.Manifest(invalidId)
 	if err == nil {
 		t.Fatal("Expected error due to invalid host but got none.")
 	}

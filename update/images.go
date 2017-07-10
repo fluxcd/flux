@@ -91,7 +91,7 @@ func exactImages(reg registry.Registry, images []flux.ImageID) (ImageMap, error)
 // Checks whether the given image exists in the repository.
 // Return true if exist, false otherwise
 func imageExists(reg registry.Registry, imageID flux.ImageID) (bool, error) {
-	_, err := reg.GetImage(imageID, imageID.Tag)
+	_, err := reg.GetImage(imageID)
 	if err != nil {
 		return false, nil
 	}

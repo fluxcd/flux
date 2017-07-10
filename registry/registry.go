@@ -26,7 +26,7 @@ const (
 // The Registry interface is a domain specific API to access container registries.
 type Registry interface {
 	GetRepository(id flux.ImageID) ([]flux.Image, error)
-	GetImage(id flux.ImageID, tag string) (flux.Image, error)
+	GetImage(id flux.ImageID) (flux.Image, error)
 }
 
 type registry struct {
@@ -74,12 +74,12 @@ func (reg *registry) GetRepository(id flux.ImageID) ([]flux.Image, error) {
 }
 
 // Get a single Image from the registry if it exists
-func (reg *registry) GetImage(id flux.ImageID, tag string) (_ flux.Image, err error) {
+func (reg *registry) GetImage(id flux.ImageID) (_ flux.Image, err error) {
 	rem, err := reg.newClient(id)
 	if err != nil {
 		return
 	}
-	return rem.Manifest(id, tag)
+	return rem.Manifest(id)
 }
 
 func (reg *registry) newClient(id flux.ImageID) (Client, error) {
@@ -106,7 +106,7 @@ func (reg *registry) tagsToRepository(client Client, id flux.ImageID, tags []str
 	for i := 0; i < maxConcurrency; i++ {
 		go func() {
 			for tag := range toFetch {
-				image, err := client.Manifest(id, tag)
+				image, err := client.Manifest(id.WithNewTag(tag)) // Copy the imageID to avoid races
 				if err != nil {
 					reg.Logger.Log("registry-metadata-err", err)
 				}
