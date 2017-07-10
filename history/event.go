@@ -23,6 +23,7 @@ const (
 	EventDeautomate  = "deautomate"
 	EventLock        = "lock"
 	EventUnlock      = "unlock"
+	EventUpdateTag   = "update_tag"
 
 	LogLevelDebug = "debug"
 	LogLevelInfo  = "info"

@@ -455,20 +455,24 @@ func policyCommitMessage(us policy.Updates, cause update.Cause) string {
 func policyEventTypes(u policy.Update) []string {
 	types := map[string]struct{}{}
 	for p, _ := range u.Add {
-		switch p {
-		case policy.Automated:
+		switch {
+		case p == policy.Automated:
 			types[history.EventAutomate] = struct{}{}
-		case policy.Locked:
+		case p == policy.Locked:
 			types[history.EventLock] = struct{}{}
+		case policy.Tag(p):
+			types[history.EventUpdateTag] = struct{}{}
 		}
 	}
 
 	for p, _ := range u.Remove {
-		switch p {
-		case policy.Automated:
+		switch {
+		case p == policy.Automated:
 			types[history.EventDeautomate] = struct{}{}
-		case policy.Locked:
+		case p == policy.Locked:
 			types[history.EventUnlock] = struct{}{}
+		case policy.Tag(p):
+			types[history.EventUpdateTag] = struct{}{}
 		}
 	}
 	var result []string

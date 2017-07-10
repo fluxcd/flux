@@ -26,6 +26,14 @@ func Boolean(policy Policy) bool {
 	return false
 }
 
+func TagPrefix(container string) Policy {
+	return Policy("tag." + container)
+}
+
+func Tag(policy Policy) bool {
+	return strings.HasPrefix(string(policy), "tag.")
+}
+
 type Updates map[flux.ServiceID]Update
 
 type Update struct {

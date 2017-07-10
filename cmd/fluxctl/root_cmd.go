@@ -69,6 +69,7 @@ func (opts *rootOpts) Command() *cobra.Command {
 		newServiceDeautomate(opts).Command(),
 		newServiceLock(opts).Command(),
 		newServiceUnlock(opts).Command(),
+		newServicePolicy(opts).Command(),
 		newSave(opts).Command(),
 		newIdentity(opts).Command(),
 	)
