@@ -82,7 +82,7 @@ func (ktv *KeyTypeValue) Specified() bool {
 // subdirectory of tmpfsPath, which should point to a tmpfs mount as the
 // private key is not encrypted.
 func KeyGen(keyBits, keyType OptionalValue, tmpfsPath string) (privateKeyPath string, privateKey []byte, publicKey PublicKey, err error) {
-	tempDir, err := ioutil.TempDir(tmpfsPath, "keygen")
+	tempDir, err := ioutil.TempDir(tmpfsPath, "..weave-keygen")
 	if err != nil {
 		return "", nil, PublicKey{}, err
 	}
