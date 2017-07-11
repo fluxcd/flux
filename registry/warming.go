@@ -10,7 +10,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/registry/cache"
-	"math/rand"
 	"strings"
 )
 
@@ -158,11 +157,16 @@ func (w *Queue) Loop(stop chan struct{}, wg *sync.WaitGroup) {
 			w.Logger.Log("stopping", "true")
 			return
 		case <-pollImages:
-			c := w.RunningContainers()
-			if len(c) > 0 { // Only add random registry if there are running containers
-				i := rand.Intn(len(c)) // Pick random registry
+			if len(w.warmQueue) == 0 { // Only add to queue if queue is empty
+				containers := w.RunningContainers() // Just add containers in order for now
 				w.queueLock.Lock()
-				w.warmQueue <- c[i] // Add registry to queue
+				for _, c := range containers {
+					// if we can't write it immediately, drop it and move on
+					select {
+					case w.warmQueue <- c:
+					default:
+					}
+				}
 				w.queueLock.Unlock()
 			}
 		}
