@@ -64,7 +64,10 @@ func CollectAvailableImages(reg registry.Registry, services []cluster.Service) (
 		}
 		imageRepo, err := reg.GetRepository(id)
 		if err != nil {
-			return nil, errors.Wrapf(err, "fetching image metadata for %s", repo)
+			// Not an error if missing. Use empty images.
+			if _, ok := err.(*flux.Missing); !ok {
+				return nil, errors.Wrapf(err, "fetching image metadata for %s", repo)
+			}
 		}
 		images[repo] = imageRepo
 	}

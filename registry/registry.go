@@ -14,6 +14,7 @@ import (
 	"github.com/go-kit/kit/log"
 	dockerregistry "github.com/heroku/docker-registry-client/registry"
 	"github.com/weaveworks/flux"
+	"google.golang.org/appengine/memcache"
 	"sort"
 	"time"
 )
@@ -21,6 +22,21 @@ import (
 const (
 	requestTimeout = 10 * time.Second
 	maxConcurrency = 10 // Chosen arbitrarily
+)
+
+var (
+	ErrNotCached = &flux.Missing{
+		BaseError: &flux.BaseError{
+			Err: memcache.ErrCacheMiss,
+			Help: `Image not yet cached
+
+It takes time to initially cache all the images. Please wait.
+
+If you have waited for a long time, check the flux logs. Potential
+reasons for the error are: no internet, no cache, error with the remote
+repository.`,
+		},
+	}
 )
 
 // The Registry interface is a domain specific API to access container registries.
@@ -31,7 +47,7 @@ type Registry interface {
 
 type registry struct {
 	factory ClientFactory
-	Logger  log.Logger
+	logger  log.Logger
 }
 
 // NewClient creates a new registry registry, to use when fetching repositories.
@@ -41,7 +57,7 @@ type registry struct {
 func NewRegistry(c ClientFactory, l log.Logger) Registry {
 	return &registry{
 		factory: c,
-		Logger:  l,
+		logger:  l,
 	}
 }
 
@@ -62,6 +78,11 @@ func (reg *registry) GetRepository(id flux.ImageID) ([]flux.Image, error) {
 	tags, err := rem.Tags(id)
 	if err != nil {
 		rem.Cancel()
+		// We have to test for equality of strings, rather than types,
+		// because the ErrCacheMiss is a variable, not a constant.
+		if err.Error() == memcache.ErrCacheMiss.Error() {
+			return nil, ErrNotCached
+		}
 		return nil, err
 	}
 
@@ -74,12 +95,22 @@ func (reg *registry) GetRepository(id flux.ImageID) ([]flux.Image, error) {
 }
 
 // Get a single Image from the registry if it exists
-func (reg *registry) GetImage(id flux.ImageID) (_ flux.Image, err error) {
+func (reg *registry) GetImage(id flux.ImageID) (flux.Image, error) {
 	rem, err := reg.newClient(id)
 	if err != nil {
-		return
+		return flux.Image{}, err
 	}
-	return rem.Manifest(id)
+	img, err := rem.Manifest(id)
+	if err != nil {
+		rem.Cancel()
+		// We have to test for equality of strings, rather than types,
+		// because the ErrCacheMiss is a variable, not a constant.
+		if err.Error() == memcache.ErrCacheMiss.Error() {
+			return flux.Image{}, ErrNotCached
+		}
+		return flux.Image{}, err
+	}
+	return img, nil
 }
 
 func (reg *registry) newClient(id flux.ImageID) (Client, error) {
@@ -108,7 +139,11 @@ func (reg *registry) tagsToRepository(client Client, id flux.ImageID, tags []str
 			for tag := range toFetch {
 				image, err := client.Manifest(id.WithNewTag(tag)) // Copy the imageID to avoid races
 				if err != nil {
-					reg.Logger.Log("registry-metadata-err", err)
+					if err.Error() == memcache.ErrCacheMiss.Error() {
+						err = ErrNotCached
+					} else {
+						reg.logger.Log("registry-metadata-err", err)
+					}
 				}
 				fetched <- result{image, err}
 			}

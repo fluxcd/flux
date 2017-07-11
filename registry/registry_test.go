@@ -2,9 +2,10 @@ package registry
 
 import (
 	"github.com/go-kit/kit/log"
-	"github.com/pkg/errors"
 	"testing"
 
+	"errors"
+	"github.com/bradfitz/gomemcache/memcache"
 	"github.com/docker/distribution/manifest/schema1"
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/registry/middleware"
@@ -137,5 +138,33 @@ func TestRemoteFactory_InvalidHost(t *testing.T) {
 	_, err = client.Manifest(invalidId)
 	if err == nil {
 		t.Fatal("Expected error due to invalid host but got none.")
+	}
+}
+
+func TestRemote_BetterError(t *testing.T) {
+	errClient := NewMockClient(
+		func(repository flux.ImageID) (flux.Image, error) {
+			return flux.Image{}, memcache.ErrCacheMiss
+		},
+		func(repository flux.ImageID) ([]string, error) {
+			return []string{}, memcache.ErrCacheMiss
+		},
+	)
+
+	fact := NewMockClientFactory(errClient, nil)
+	reg := NewRegistry(fact, log.NewNopLogger())
+	_, err := reg.GetRepository(id)
+	if err == nil {
+		t.Fatal("Should have errored")
+	}
+	if _, ok := err.(*flux.Missing); !ok {
+		t.Fatalf("Should not be bespoke error, got %q", err.Error())
+	}
+	_, err = reg.GetImage(id)
+	if err == nil {
+		t.Fatal("Should have errored")
+	}
+	if _, ok := err.(*flux.Missing); !ok {
+		t.Fatalf("Should not be bespoke error, got %q", err.Error())
 	}
 }
