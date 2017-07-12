@@ -183,81 +183,85 @@ func (d *Daemon) UpdateManifests(spec update.Spec) (job.ID, error) {
 	case release.Changes:
 		return d.queueJob(d.release(spec, s)), nil
 	case policy.Updates:
-		return d.queueJob(func(jobID job.ID, working *git.Checkout, logger log.Logger) (*history.CommitEventMetadata, error) {
-			// For each update
-			var serviceIDs []flux.ServiceID
-			metadata := &history.CommitEventMetadata{
-				Spec:   &spec,
-				Result: update.Result{},
+		return d.queueJob(d.updatePolicy(spec, s)), nil
+	default:
+		return id, fmt.Errorf(`unknown update type "%s"`, spec.Type)
+	}
+}
+
+func (d *Daemon) updatePolicy(spec update.Spec, updates policy.Updates) DaemonJobFunc {
+	return func(jobID job.ID, working *git.Checkout, logger log.Logger) (*history.CommitEventMetadata, error) {
+		// For each update
+		var serviceIDs []flux.ServiceID
+		metadata := &history.CommitEventMetadata{
+			Spec:   &spec,
+			Result: update.Result{},
+		}
+
+		// A shortcut to make things more responsive: if anything
+		// was (probably) set to automated, we will ask for an
+		// automation run straight ASAP.
+		var anythingAutomated bool
+
+		for serviceID, u := range updates {
+			if policy.Set(u.Add).Contains(policy.Automated) {
+				anythingAutomated = true
 			}
-
-			// A shortcut to make things more responsive: if anything
-			// was (probably) set to automated, we will ask for an
-			// automation run straight ASAP.
-			var anythingAutomated bool
-
-			for serviceID, u := range s {
-				if policy.Set(u.Add).Contains(policy.Automated) {
-					anythingAutomated = true
-				}
-				// find the service manifest
-				err := cluster.UpdateManifest(d.Manifests, working.ManifestDir(), string(serviceID), func(def []byte) ([]byte, error) {
-					newDef, err := d.Manifests.UpdatePolicies(def, u)
-					if err != nil {
-						metadata.Result[serviceID] = update.ServiceResult{
-							Status: update.ReleaseStatusFailed,
-							Error:  err.Error(),
-						}
-						return nil, err
-					}
-					if string(newDef) == string(def) {
-						metadata.Result[serviceID] = update.ServiceResult{
-							Status: update.ReleaseStatusSkipped,
-						}
-					} else {
-						serviceIDs = append(serviceIDs, serviceID)
-						metadata.Result[serviceID] = update.ServiceResult{
-							Status: update.ReleaseStatusSuccess,
-						}
-					}
-					return newDef, nil
-				})
-				switch err {
-				case cluster.ErrNoResourceFilesFoundForService, cluster.ErrMultipleResourceFilesFoundForService:
+			// find the service manifest
+			err := cluster.UpdateManifest(d.Manifests, working.ManifestDir(), string(serviceID), func(def []byte) ([]byte, error) {
+				newDef, err := d.Manifests.UpdatePolicies(def, u)
+				if err != nil {
 					metadata.Result[serviceID] = update.ServiceResult{
 						Status: update.ReleaseStatusFailed,
 						Error:  err.Error(),
 					}
-				case nil:
-					// continue
-				default:
 					return nil, err
 				}
-			}
-			if len(serviceIDs) == 0 {
-				return metadata, nil
-			}
-
-			if err := working.CommitAndPush(policyCommitMessage(s, spec.Cause), &git.Note{JobID: jobID, Spec: spec}); err != nil {
-				// On the chance pushing failed because it was not
-				// possible to fast-forward, ask for a sync so the
-				// next attempt is more likely to succeed.
-				d.askForSync()
+				if string(newDef) == string(def) {
+					metadata.Result[serviceID] = update.ServiceResult{
+						Status: update.ReleaseStatusSkipped,
+					}
+				} else {
+					serviceIDs = append(serviceIDs, serviceID)
+					metadata.Result[serviceID] = update.ServiceResult{
+						Status: update.ReleaseStatusSuccess,
+					}
+				}
+				return newDef, nil
+			})
+			switch err {
+			case cluster.ErrNoResourceFilesFoundForService, cluster.ErrMultipleResourceFilesFoundForService:
+				metadata.Result[serviceID] = update.ServiceResult{
+					Status: update.ReleaseStatusFailed,
+					Error:  err.Error(),
+				}
+			case nil:
+				// continue
+			default:
 				return nil, err
 			}
-			if anythingAutomated {
-				d.askForImagePoll()
-			}
-
-			var err error
-			metadata.Revision, err = working.HeadRevision()
-			if err != nil {
-				return nil, err
-			}
+		}
+		if len(serviceIDs) == 0 {
 			return metadata, nil
-		}), nil
-	default:
-		return id, fmt.Errorf(`unknown update type "%s"`, spec.Type)
+		}
+
+		if err := working.CommitAndPush(policyCommitMessage(updates, spec.Cause), &git.Note{JobID: jobID, Spec: spec}); err != nil {
+			// On the chance pushing failed because it was not
+			// possible to fast-forward, ask for a sync so the
+			// next attempt is more likely to succeed.
+			d.askForSync()
+			return nil, err
+		}
+		if anythingAutomated {
+			d.askForImagePoll()
+		}
+
+		var err error
+		metadata.Revision, err = working.HeadRevision()
+		if err != nil {
+			return nil, err
+		}
+		return metadata, nil
 	}
 }
 
