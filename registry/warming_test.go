@@ -1,7 +1,9 @@
 package registry
 
 import (
+	"context"
 	"github.com/go-kit/kit/log"
+	"github.com/pkg/errors"
 	"github.com/weaveworks/flux"
 	"os"
 	"sync"
@@ -70,5 +72,16 @@ func TestWarming_ExpiryBuffer(t *testing.T) {
 		if withinExpiryBuffer(testTime.Add(x.expiresIn), x.buffer) != x.expectedResult {
 			t.Fatalf("Should return %t", x.expectedResult)
 		}
+	}
+}
+
+func TestName(t *testing.T) {
+	err := errors.Wrap(context.DeadlineExceeded, "getting remote manifest")
+	t.Log(err.Error())
+	err = errors.Cause(err)
+	if err == context.DeadlineExceeded {
+		t.Log("OK")
+	} else {
+		t.Log("Not OK")
 	}
 }

@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"context"
 	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
 	"github.com/weaveworks/flux"
@@ -57,27 +58,27 @@ func (w *Warmer) warm(id flux.ImageID) {
 	// Only, for example, "library/alpine" because we have the host information in the client above.
 	tags, err := client.Tags(id)
 	if err != nil {
-		if !strings.Contains(err.Error(), "status=401") {
-			w.Logger.Log("err", err.Error())
+		if !strings.Contains(err.Error(), "status=401") && !strings.Contains(err.Error(), context.DeadlineExceeded.Error()) {
+			w.Logger.Log("err", errors.Wrap(err, "requesting tags"))
 		}
 		return
 	}
 
 	val, err := json.Marshal(tags)
 	if err != nil {
-		w.Logger.Log("err", errors.Wrap(err, "serializing tags to store in memcache"))
+		w.Logger.Log("err", errors.Wrap(err, "serializing tags to store in cache"))
 		return
 	}
 
 	key, err := cache.NewTagKey(username, id)
 	if err != nil {
-		w.Logger.Log("err", errors.Wrap(err, "creating key for memcache"))
+		w.Logger.Log("err", errors.Wrap(err, "creating key for cache"))
 		return
 	}
 
 	err = w.Writer.SetKey(key, val)
 	if err != nil {
-		w.Logger.Log("err", errors.Wrap(err, "storing tags in memcache"))
+		w.Logger.Log("err", errors.Wrap(err, "storing tags in cache"))
 		return
 	}
 
@@ -109,19 +110,21 @@ func (w *Warmer) warm(id flux.ImageID) {
 		// Get the image from the remote
 		img, err := client.Manifest(i)
 		if err != nil {
-			w.Logger.Log("err", err.Error())
+			if !strings.Contains(err.Error(), "status=401") && !strings.Contains(err.Error(), context.DeadlineExceeded.Error()) {
+				w.Logger.Log("err", errors.Wrap(err, "requesting manifests"))
+			}
 			continue
 		}
 
 		// Write back to memcache
 		val, err := json.Marshal(img)
 		if err != nil {
-			w.Logger.Log("err", errors.Wrap(err, "serializing tag to store in memcache"))
+			w.Logger.Log("err", errors.Wrap(err, "serializing tag to store in cache"))
 			return
 		}
 		err = w.Writer.SetKey(key, val)
 		if err != nil {
-			w.Logger.Log("err", errors.Wrap(err, "storing tags in memcache"))
+			w.Logger.Log("err", errors.Wrap(err, "storing manifests in cache"))
 			return
 		}
 		updated = true // Report that we've updated something
