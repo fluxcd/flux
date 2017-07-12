@@ -10,9 +10,10 @@ import (
 type servicePolicyOpts struct {
 	*rootOpts
 	outputOpts
-	service   string
-	container string
-	tag       string
+
+	service    string
+	containers []string
+	tags       []string
 
 	automate, deautomate bool
 	lock, unlock         bool
@@ -40,8 +41,8 @@ func (opts *servicePolicyOpts) Command() *cobra.Command {
 	AddCauseFlags(cmd, &opts.cause)
 	flags := cmd.Flags()
 	flags.StringVarP(&opts.service, "service", "s", "", "Service to modify")
-	flags.StringVar(&opts.container, "container", "", "Container to set tag filter")
-	flags.StringVar(&opts.tag, "tag", "", "Tag filter pattern")
+	flags.StringSliceVar(&opts.containers, "container", nil, "Containers to set tag filter")
+	flags.StringSliceVar(&opts.tags, "tag", nil, "Tag filter patterns")
 	flags.BoolVar(&opts.automate, "automate", false, "Automate service")
 	flags.BoolVar(&opts.deautomate, "deautomate", false, "Deautomate for service")
 	flags.BoolVar(&opts.lock, "lock", false, "Lock service")
@@ -63,11 +64,8 @@ func (opts *servicePolicyOpts) RunE(cmd *cobra.Command, args []string) error {
 	if opts.lock && opts.unlock {
 		return newUsageError("lock and unlock both specified")
 	}
-	if opts.container != "" && opts.tag == "" {
-		return newUsageError("container specified without a tag pattern")
-	}
-	if opts.tag != "" && opts.container == "" {
-		return newUsageError("tag pattern specified without a container")
+	if len(opts.containers) != len(opts.tags) {
+		return newUsageError("mismatched container name and tag filter count")
 	}
 
 	serviceID, err := flux.ParseServiceID(opts.service)
@@ -93,9 +91,6 @@ func calculatePolicyChanges(opts *servicePolicyOpts) policy.Update {
 	if opts.lock {
 		add = add.Add(policy.Locked)
 	}
-	if opts.tag != "" && opts.tag != "*" {
-		add = add.Set(policy.TagPrefix(opts.container), "glob:"+opts.tag)
-	}
 
 	remove := policy.Set{}
 	if opts.deautomate {
@@ -104,8 +99,14 @@ func calculatePolicyChanges(opts *servicePolicyOpts) policy.Update {
 	if opts.unlock {
 		remove = remove.Add(policy.Locked)
 	}
-	if opts.tag == "*" {
-		remove = remove.Add(policy.TagPrefix(opts.container))
+
+	for i, container := range opts.containers {
+		tag := opts.tags[i]
+		if tag != "" && tag != "*" {
+			add = add.Set(policy.TagPrefix(container), "glob:"+tag)
+		} else if tag == "*" {
+			remove = remove.Add(policy.TagPrefix(container))
+		}
 	}
 
 	update := policy.Update{}
