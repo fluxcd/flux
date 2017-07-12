@@ -15,6 +15,19 @@ import (
 func exampleRelease(t *testing.T) *history.ReleaseEventMetadata {
 	img1a1, _ := flux.ParseImageID("img1:a1")
 	img1a2, _ := flux.ParseImageID("img1:a2")
+	exampleResult := update.Result{
+		flux.ServiceID("default/helloworld"): {
+			Status: update.ReleaseStatusFailed,
+			Error:  "overall-release-error",
+			PerContainer: []update.ContainerUpdate{
+				update.ContainerUpdate{
+					Container: "container1",
+					Current:   img1a1,
+					Target:    img1a2,
+				},
+			},
+		},
+	}
 	return &history.ReleaseEventMetadata{
 		Cause: update.Cause{
 			User:    "test-user",
@@ -27,19 +40,7 @@ func exampleRelease(t *testing.T) *history.ReleaseEventMetadata {
 			Excludes:     nil,
 		},
 		ReleaseEventCommon: history.ReleaseEventCommon{
-			Result: update.Result{
-				flux.ServiceID("default/helloworld"): {
-					Status: update.ReleaseStatusFailed,
-					Error:  "overall-release-error",
-					PerContainer: []update.ContainerUpdate{
-						update.ContainerUpdate{
-							Container: "container1",
-							Current:   img1a1,
-							Target:    img1a2,
-						},
-					},
-				},
-			},
+			Result: exampleResult,
 		},
 	}
 }
