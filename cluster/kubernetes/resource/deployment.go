@@ -17,7 +17,7 @@ func (o Deployment) ServiceIDs(all map[string]resource.Resource) []flux.ServiceI
 	// Look through all for any matching services
 	for _, r := range all {
 		s, ok := r.(*Service)
-		if ok && s.Matches(labels.Set(o.Spec.Template.Metadata.Labels)) {
+		if ok && s.Meta.Namespace == o.Meta.Namespace && s.Matches(labels.Set(o.Spec.Template.Metadata.Labels)) {
 			found.Add(s.ServiceIDs(all))
 		}
 	}
