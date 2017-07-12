@@ -124,12 +124,6 @@ func (d *LoopVars) askForImagePoll() {
 func (d *Daemon) doSync(logger log.Logger) {
 	started := time.Now().UTC()
 
-	// Pull for new commits
-	if err := d.Checkout.Pull(); err != nil {
-		logger.Log("err", err)
-		return
-	}
-
 	// checkout a working clone so we can mess around with tags later
 	working, err := d.Checkout.WorkingClone()
 	if err != nil {
