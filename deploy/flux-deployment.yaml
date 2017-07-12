@@ -10,7 +10,8 @@ spec:
       labels:
         name: flux
     spec:
-      # The serviceAccount is only needed for Kubernetes with RBAC
+      # The serviceAccount is only needed for Kubernetes with RBAC.
+      # You will also need to create the resources in flux-account.yaml.
       # serviceAccount: flux
       volumes:
       - name: git-key
@@ -18,7 +19,10 @@ spec:
           secretName: flux-git-deploy
       containers:
       - name: flux
-        image: quay.io/weaveworks/flux:latest
+        # There are no ":latest" images for flux. Find the most recent
+        # release or image version at https://quay.io/weaveworks/flux
+        # and replace the tag here.
+        image: quay.io/weaveworks/flux:master-db05f0f
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 3030 # informational
@@ -28,7 +32,7 @@ spec:
         args:
         # if you deployed memcached, you can supply these arguments to
         # tell fluxd to use it. You may need to change the namespace
-        # (`default`)
+        # (`default`) if you run fluxd in another namespace.
         - --memcached-hostname=memcached.default.svc.cluster.local
         - --memcached-timeout=100ms
         - --memcached-service=memcached
@@ -36,9 +40,9 @@ spec:
         # replace (at least) the following URL
         - --git-url=git@github.com:weaveworks/flux-example
         - --git-branch=master
-        # include these to connect to an "upstream" service (e.g.,
-        # Weave Cloud). The token is particular to the service.
-        # - --connect=ws://cloud.weave.works/api/flux
+        # include these next two to connect to an "upstream" service
+        # (e.g., Weave Cloud). The token is particular to the service.
+        # - --connect=wss://cloud.weave.works/api/flux
         # - --token=abc123abc123abc123abc123
         # override -b and -t arguments to ssh-keygen
         # - --ssh-keygen-bits=2048
