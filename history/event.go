@@ -110,6 +110,16 @@ func (e Event) String() string {
 			user,
 			msg,
 		)
+	case EventAutoRelease:
+		metadata := e.Metadata.(*AutoReleaseEventMetadata)
+		strImageIDs := metadata.Result.ImageIDs()
+		if len(strImageIDs) == 0 {
+			strImageIDs = []string{"no image changes"}
+		}
+		return fmt.Sprintf(
+			"Automated release of %s",
+			strings.Join(strImageIDs, ", "),
+		)
 	case EventCommit:
 		metadata := e.Metadata.(*CommitEventMetadata)
 		svcStr := "<no changes>"
