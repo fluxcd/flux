@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"encoding/json"
 	"github.com/bradfitz/gomemcache/memcache"
 	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
@@ -22,6 +23,7 @@ const expiry = time.Hour
 // the wrong location.
 type Reader interface {
 	GetKey(k Key) ([]byte, error)
+	GetExpiration(k Key) (time.Time, error)
 }
 
 type Writer interface {
@@ -32,6 +34,11 @@ type Client interface {
 	Reader
 	Writer
 	Stop()
+}
+
+type expiryData struct {
+	Data   []byte
+	Expiry int32
 }
 
 // MemcacheClient is a memcache client that gets its server list from SRV
@@ -111,16 +118,51 @@ func (c *memcacheClient) GetKey(k Key) ([]byte, error) {
 			return []byte{}, err
 		}
 	}
-	return cacheItem.Value, nil
+	var data expiryData
+	err = json.Unmarshal(cacheItem.Value, &data)
+	if err != nil {
+		return []byte{}, err
+	}
+	return data.Data, nil
+}
+
+// GetExpiration returns the expiry time of the key
+func (c *memcacheClient) GetExpiration(k Key) (time.Time, error) {
+	cacheItem, err := c.Get(k.String())
+	if err != nil {
+		if err == memcache.ErrCacheMiss {
+			// Don't log on cache miss
+			return time.Time{}, err
+		} else {
+			c.logger.Log("err", errors.Wrap(err, "Fetching tag from memcache"))
+			return time.Time{}, err
+		}
+	}
+
+	var data expiryData
+	err = json.Unmarshal(cacheItem.Value, &data)
+	if err != nil {
+		return time.Time{}, err
+	}
+	return time.Unix(int64(data.Expiry), 0), nil
 }
 
 func (c *memcacheClient) SetKey(k Key, v []byte) error {
+	expiry := int32(time.Now().Add(expiry).Unix())
+	data := expiryData{
+		Expiry: expiry,
+		Data:   v,
+	}
+	val, err := json.Marshal(&data)
+	if err != nil {
+		return err
+	}
 	if err := c.Set(&memcache.Item{
 		Key:        k.String(),
-		Value:      v,
-		Expiration: int32(expiry.Seconds()),
+		Value:      val,
+		Expiration: expiry,
 	}); err != nil {
-		c.logger.Log("err", errors.Wrap(err, "storing tags in memcache"))
+		c.logger.Log("err", errors.Wrap(err, "storing in memcache"))
 		return err
 	}
 	return nil
@@ -183,7 +225,7 @@ func NewManifestKey(username string, id flux.ImageID) (Key, error) {
 
 func (k *manifestKey) String() string {
 	return strings.Join([]string{
-		"registryhistoryv1", // Just to version in case we need to change format later.
+		"registryhistoryv2", // Just to version in case we need to change format later.
 		// Just the username here means we won't invalidate the cache when user
 		// changes password, but that should be rare. And, it also means we're not
 		// putting user passwords in plaintext into memcache.
@@ -203,7 +245,7 @@ func NewTagKey(username string, id flux.ImageID) (Key, error) {
 
 func (k *tagKey) String() string {
 	return strings.Join([]string{
-		"registrytagsv1", // Just to version in case we need to change format later.
+		"registrytagsv2", // Just to version in case we need to change format later.
 		// Just the username here means we won't invalidate the cache when user
 		// changes password, but that should be rare. And, it also means we're not
 		// putting user passwords in plaintext into memcache.

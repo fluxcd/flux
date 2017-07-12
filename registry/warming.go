@@ -13,6 +13,8 @@ import (
 	"strings"
 )
 
+const refreshWhenExpiryWithin = time.Minute
+
 type Warmer struct {
 	Logger        log.Logger
 	ClientFactory ClientFactory
@@ -81,6 +83,7 @@ func (w *Warmer) warm(id flux.ImageID) {
 
 	// Now refresh the manifests for each tag
 	var updated bool
+	var expired bool
 	for _, tag := range tags {
 		// See if we have the manifest already cached
 		// We don't want to re-download a manifest again.
@@ -90,9 +93,17 @@ func (w *Warmer) warm(id flux.ImageID) {
 			w.Logger.Log("err", errors.Wrap(err, "creating key for memcache"))
 			return
 		}
-		_, err = w.Reader.GetKey(key)
-		if err == nil { // If no error, we've already got it, skip
-			continue
+		expiry, err := w.Reader.GetExpiration(key)
+		if err == nil { // If no error, we've already got it
+			// If we're outside of the expiry buffer, skip, no need to update.
+			if !withinExpiryBuffer(expiry, refreshWhenExpiryWithin) {
+				continue
+			}
+			// If we're within the expiry buffer, we need to update quick!
+			if !expired {
+				w.Logger.Log("expiring", id.HostNamespaceImage())
+				expired = true
+			}
 		}
 
 		// Get the image from the remote
@@ -118,6 +129,15 @@ func (w *Warmer) warm(id flux.ImageID) {
 	if updated {
 		w.Logger.Log("updated", id.HostNamespaceImage())
 	}
+}
+
+func withinExpiryBuffer(expiry time.Time, buffer time.Duration) bool {
+	// if the `time.Now() + buffer  > expiry`,
+	// then we're within the expiry buffer
+	if time.Now().Add(buffer).After(expiry) {
+		return true
+	}
+	return false
 }
 
 // Queue provides an updating repository queue for the warmer.

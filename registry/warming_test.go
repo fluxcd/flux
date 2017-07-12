@@ -57,3 +57,18 @@ func TestQueue_NoContainers(t *testing.T) {
 		t.Fatal("There were no containers, so there should be no repositories in the queue")
 	}
 }
+
+func TestWarming_ExpiryBuffer(t *testing.T) {
+	testTime := time.Now()
+	for _, x := range []struct {
+		expiresIn, buffer time.Duration
+		expectedResult    bool
+	}{
+		{time.Minute, time.Second, false},
+		{time.Second, time.Minute, true},
+	} {
+		if withinExpiryBuffer(testTime.Add(x.expiresIn), x.buffer) != x.expectedResult {
+			t.Fatalf("Should return %t", x.expectedResult)
+		}
+	}
+}
