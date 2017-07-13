@@ -91,7 +91,7 @@ func (f *remoteClientFactory) ClientFor(host string) (Client, error) {
 		Registry:   &herokuRegistry,
 		CancelFunc: cancel,
 	}
-	return client, nil
+	return NewInstrumentedClient(client), nil
 }
 
 // ---

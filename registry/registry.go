@@ -70,14 +70,14 @@ func NewRegistry(c ClientFactory, l log.Logger) Registry {
 //   quay.io/foo/helloworld -> quay.io/foo/helloworld
 //
 func (reg *registry) GetRepository(id flux.ImageID) ([]flux.Image, error) {
-	rem, err := reg.newClient(id)
+	client, err := reg.factory.ClientFor(id.Host)
 	if err != nil {
 		return nil, err
 	}
 
-	tags, err := rem.Tags(id)
+	tags, err := client.Tags(id)
 	if err != nil {
-		rem.Cancel()
+		client.Cancel()
 		// We have to test for equality of strings, rather than types,
 		// because the ErrCacheMiss is a variable, not a constant.
 		if err.Error() == memcache.ErrCacheMiss.Error() {
@@ -91,18 +91,18 @@ func (reg *registry) GetRepository(id flux.ImageID) ([]flux.Image, error) {
 	// `library/nats`. We need that to fetch the tags etc. However, we
 	// want the results to use the *actual* name of the images to be
 	// as supplied, e.g., `nats`.
-	return reg.tagsToRepository(rem, id, tags)
+	return reg.tagsToRepository(client, id, tags)
 }
 
 // Get a single Image from the registry if it exists
 func (reg *registry) GetImage(id flux.ImageID) (flux.Image, error) {
-	rem, err := reg.newClient(id)
+	client, err := reg.factory.ClientFor(id.Host)
 	if err != nil {
 		return flux.Image{}, err
 	}
-	img, err := rem.Manifest(id)
+	img, err := client.Manifest(id)
 	if err != nil {
-		rem.Cancel()
+		client.Cancel()
 		// We have to test for equality of strings, rather than types,
 		// because the ErrCacheMiss is a variable, not a constant.
 		if err.Error() == memcache.ErrCacheMiss.Error() {
@@ -111,15 +111,6 @@ func (reg *registry) GetImage(id flux.ImageID) (flux.Image, error) {
 		return flux.Image{}, err
 	}
 	return img, nil
-}
-
-func (reg *registry) newClient(id flux.ImageID) (Client, error) {
-	client, err := reg.factory.ClientFor(id.Host)
-	if err != nil {
-		return nil, err
-	}
-	client = NewInstrumentedClient(client)
-	return client, nil
 }
 
 func (reg *registry) tagsToRepository(client Client, id flux.ImageID, tags []string) ([]flux.Image, error) {
