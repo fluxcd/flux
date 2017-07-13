@@ -115,9 +115,8 @@ func (a *Upstream) loop() {
 					// We have logged the deprecation error, now crashloop to garner attention
 					os.Exit(1)
 				}
-				time.Sleep(backoff)
-				continue
 			}
+			time.Sleep(backoff)
 		case <-a.quit:
 			return
 		}
