@@ -21,7 +21,7 @@ import (
 
 const (
 	requestTimeout = 10 * time.Second
-	maxConcurrency = 10 // Chosen arbitrarily
+	maxConcurrency = 200 // Chosen arbitrarily
 )
 
 var (

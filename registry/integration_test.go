@@ -91,7 +91,7 @@ Loop:
 		case <-timeout.C:
 			t.Fatal("Cache timeout")
 		case <-tick.C:
-			_, err := r.GetImage(id)
+			_, err := r.GetRepository(id)
 			if err == nil {
 				break Loop
 			}

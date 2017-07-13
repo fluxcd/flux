@@ -82,8 +82,8 @@ func (w *Warmer) warm(id flux.ImageID) {
 		return
 	}
 
-	// Now refresh the manifests for each tag
-	var updated bool
+	// Create a list of manifests that need updating
+	var toUpdate []flux.ImageID
 	var expired bool
 	for _, tag := range tags {
 		// See if we have the manifest already cached
@@ -92,30 +92,60 @@ func (w *Warmer) warm(id flux.ImageID) {
 		key, err := cache.NewManifestKey(username, i)
 		if err != nil {
 			w.Logger.Log("err", errors.Wrap(err, "creating key for memcache"))
-			return
+			continue
 		}
 		expiry, err := w.Reader.GetExpiration(key)
+		// If err, then we don't have it yet. Update.
 		if err == nil { // If no error, we've already got it
 			// If we're outside of the expiry buffer, skip, no need to update.
 			if !withinExpiryBuffer(expiry, refreshWhenExpiryWithin) {
 				continue
 			}
 			// If we're within the expiry buffer, we need to update quick!
-			if !expired {
-				w.Logger.Log("expiring", id.HostNamespaceImage())
-				expired = true
-			}
+			expired = true
 		}
+		toUpdate = append(toUpdate, i)
+	}
 
-		// Get the image from the remote
-		img, err := client.Manifest(i)
-		if err != nil {
-			if !strings.Contains(err.Error(), "status=401") && !strings.Contains(err.Error(), context.DeadlineExceeded.Error()) {
-				w.Logger.Log("err", errors.Wrap(err, "requesting manifests"))
+	if len(toUpdate) == 0 {
+		return
+	}
+
+	if expired {
+		w.Logger.Log("expiring", id.HostNamespaceImage())
+	}
+
+	// Now refresh the manifests for each tag (in lots of goroutines for improved performance)
+	toFetch := make(chan flux.ImageID, len(toUpdate))
+	fetched := make(chan flux.Image, len(toUpdate))
+	for i := 0; i < maxConcurrency; i++ {
+		go func() {
+			for i := range toFetch {
+				// Get the image from the remote
+				img, err := client.Manifest(i)
+				if err != nil {
+					if !strings.Contains(err.Error(), "status=401") && !strings.Contains(err.Error(), context.DeadlineExceeded.Error()) {
+						w.Logger.Log("err", errors.Wrap(err, "requesting manifests"))
+					}
+				} else {
+					fetched <- img
+				}
 			}
+		}()
+	}
+	for _, img := range toUpdate {
+		toFetch <- img
+	}
+	close(toFetch)
+
+	// Write received manifests back to memcache
+	for i := 0; i < cap(fetched); i++ {
+		img := <-fetched
+		key, err := cache.NewManifestKey(username, img.ID)
+		if err != nil {
+			w.Logger.Log("err", errors.Wrap(err, "creating key for memcache"))
 			continue
 		}
-
 		// Write back to memcache
 		val, err := json.Marshal(img)
 		if err != nil {
@@ -127,11 +157,8 @@ func (w *Warmer) warm(id flux.ImageID) {
 			w.Logger.Log("err", errors.Wrap(err, "storing manifests in cache"))
 			return
 		}
-		updated = true // Report that we've updated something
 	}
-	if updated {
-		w.Logger.Log("updated", id.HostNamespaceImage())
-	}
+	w.Logger.Log("updated", id.HostNamespaceImage())
 }
 
 func withinExpiryBuffer(expiry time.Time, buffer time.Duration) bool {
