@@ -59,7 +59,24 @@ var (
 	httpClient = &http.Client{Timeout: 5 * time.Second}
 )
 
+func hasNotifyEvent(config service.NotifierConfig, event string) bool {
+	// For backwards compatibility: if no such configuration exists,
+	// assume we just care about releases and autoreleases
+	if config.NotifyEvents == nil {
+		return event == history.EventRelease || event == history.EventAutoRelease
+	}
+	for _, s := range config.NotifyEvents {
+		if s == event {
+			return true
+		}
+	}
+	return false
+}
+
 func slackNotifyRelease(config service.NotifierConfig, release *history.ReleaseEventMetadata, releaseError string) error {
+	if !hasNotifyEvent(config, history.EventRelease) {
+		return nil
+	}
 	// Sanity check: we shouldn't get any other kind, but you
 	// never know.
 	if release.Spec.Kind != update.ReleaseKindExecute {
@@ -104,6 +121,10 @@ func slackNotifyRelease(config service.NotifierConfig, release *history.ReleaseE
 }
 
 func slackNotifyAutoRelease(config service.NotifierConfig, release *history.AutoReleaseEventMetadata, releaseError string) error {
+	if !hasNotifyEvent(config, history.EventAutoRelease) {
+		return nil
+	}
+
 	var attachments []SlackAttachment
 
 	if releaseError != "" {
@@ -125,6 +146,16 @@ func slackNotifyAutoRelease(config service.NotifierConfig, release *history.Auto
 		Username:    config.Username,
 		Text:        text,
 		Attachments: attachments,
+	})
+}
+
+func slackNotifySync(config service.NotifierConfig, sync *history.Event) error {
+	if !hasNotifyEvent(config, history.EventSync) {
+		return nil
+	}
+	return notify(config, SlackMsg{
+		Username: config.Username,
+		Text:     sync.String(),
 	})
 }
 

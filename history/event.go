@@ -239,6 +239,20 @@ func (e *Event) UnmarshalJSON(in []byte) error {
 		}
 		e.Metadata = &metadata
 		break
+	case EventCommit:
+		var metadata CommitEventMetadata
+		if err := json.Unmarshal(wireEvent.MetadataBytes, &metadata); err != nil {
+			return err
+		}
+		e.Metadata = &metadata
+		break
+	case EventSync:
+		var metadata SyncEventMetadata
+		if err := json.Unmarshal(wireEvent.MetadataBytes, &metadata); err != nil {
+			return err
+		}
+		e.Metadata = &metadata
+		break
 	default:
 		if len(wireEvent.MetadataBytes) > 0 {
 			var metadata UnknownEventMetadata

@@ -15,6 +15,8 @@ func Event(cfg instance.Config, e history.Event) error {
 		case history.EventAutoRelease:
 			r := e.Metadata.(*history.AutoReleaseEventMetadata)
 			return slackNotifyAutoRelease(cfg.Settings.Slack, r, r.Error)
+		case history.EventSync:
+			return slackNotifySync(cfg.Settings.Slack, &e)
 		}
 	}
 	return nil

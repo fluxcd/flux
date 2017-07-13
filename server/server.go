@@ -153,6 +153,7 @@ func (s *Server) SyncStatus(instID service.InstanceID, ref string) (res []string
 // LogEvent receives events from fluxd and pushes events to the history
 // db and a slack notification
 func (s *Server) LogEvent(instID service.InstanceID, e history.Event) error {
+	s.logger.Log("method", "LogEvent", "instance", instID, "event", e)
 	helper, err := s.instancer.Get(instID)
 	if err != nil {
 		return errors.Wrapf(err, "getting instance")
@@ -170,7 +171,7 @@ func (s *Server) LogEvent(instID service.InstanceID, e history.Event) error {
 	}
 	err = notifications.Event(cfg, e)
 	if err != nil {
-		return errors.Wrapf(err, "notifying slack")
+		return errors.Wrapf(err, "sending notifications")
 	}
 	return nil
 }
