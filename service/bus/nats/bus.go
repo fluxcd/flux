@@ -13,6 +13,7 @@ import (
 	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/remote"
 	"github.com/weaveworks/flux/service"
+	"github.com/weaveworks/flux/service/bus"
 	"github.com/weaveworks/flux/update"
 )
 
@@ -48,12 +49,12 @@ type NATS struct {
 	// so we use a regular connection and do the decoding ourselves.
 	enc     *nats.EncodedConn
 	raw     *nats.Conn
-	metrics remote.BusMetrics
+	metrics bus.Metrics
 }
 
-var _ remote.MessageBus = &NATS{}
+var _ bus.MessageBus = &NATS{}
 
-func NewMessageBus(url string, metrics remote.BusMetrics) (*NATS, error) {
+func NewMessageBus(url string, metrics bus.Metrics) (*NATS, error) {
 	conn, err := nats.Connect(url, nats.MaxReconnects(-1))
 	if err != nil {
 		return nil, err

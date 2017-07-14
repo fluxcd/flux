@@ -11,11 +11,12 @@ import (
 
 	"github.com/weaveworks/flux/remote"
 	"github.com/weaveworks/flux/service"
+	"github.com/weaveworks/flux/service/bus"
 )
 
 var testNATS = flag.String("nats-url", "", "NATS connection URL; use NATS' default if empty")
 
-var metrics = remote.BusMetricsImpl
+var metrics = bus.MetricsImpl
 
 func setup(t *testing.T) *NATS {
 	flag.Parse()

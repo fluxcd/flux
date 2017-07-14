@@ -25,6 +25,8 @@ import (
 	"github.com/weaveworks/flux/remote"
 	"github.com/weaveworks/flux/server"
 	"github.com/weaveworks/flux/service"
+	"github.com/weaveworks/flux/service/bus"
+	"github.com/weaveworks/flux/service/bus/nats"
 	"github.com/weaveworks/flux/service/instance"
 	instancedb "github.com/weaveworks/flux/service/instance/sql"
 	"github.com/weaveworks/flux/update"
@@ -54,7 +56,7 @@ const (
 	id            = service.NoInstanceID
 )
 
-func setup() {
+func setup(t *testing.T) {
 	databaseSource := "file://fluxy.db"
 	databaseMigrationsDir, _ := filepath.Abs("../../db/migrations")
 	var dbDriver string
@@ -64,7 +66,10 @@ func setup() {
 	}
 
 	// Message bus
-	messageBus := remote.NewStandaloneMessageBus(remote.BusMetricsImpl)
+	messageBus, err := nats.NewMessageBus("nats://localhost:4222", bus.MetricsImpl)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	imageID, _ := flux.ParseImageID("quay.io/weaveworks/helloworld:v1")
 	mockPlatform = &remote.MockPlatform{
@@ -143,7 +148,7 @@ func teardown() {
 }
 
 func TestFluxsvc_ListServices(t *testing.T) {
-	setup()
+	setup(t)
 	defer teardown()
 
 	// Test ListServices
@@ -173,7 +178,7 @@ func TestFluxsvc_ListServices(t *testing.T) {
 // Note that this test will reach out to docker hub to check the images
 // associated with alpine
 func TestFluxsvc_ListImages(t *testing.T) {
-	setup()
+	setup(t)
 	defer teardown()
 
 	// Test ListImages
@@ -213,7 +218,7 @@ func TestFluxsvc_ListImages(t *testing.T) {
 }
 
 func TestFluxsvc_Release(t *testing.T) {
-	setup()
+	setup(t)
 	defer teardown()
 
 	mockPlatform.UpdateManifestsAnswer = job.ID(guid.New())
@@ -256,7 +261,7 @@ func TestFluxsvc_Release(t *testing.T) {
 }
 
 func TestFluxsvc_History(t *testing.T) {
-	setup()
+	setup(t)
 	defer teardown()
 
 	// Post an event to the history. We have to cheat a bit here and
@@ -312,7 +317,7 @@ func TestFluxsvc_History(t *testing.T) {
 }
 
 func TestFluxsvc_Status(t *testing.T) {
-	setup()
+	setup(t)
 	defer teardown()
 
 	// Test Status
@@ -326,7 +331,7 @@ func TestFluxsvc_Status(t *testing.T) {
 }
 
 func TestFluxsvc_Ping(t *testing.T) {
-	setup()
+	setup(t)
 	defer teardown()
 
 	// Test Ping
@@ -346,7 +351,7 @@ func TestFluxsvc_Ping(t *testing.T) {
 }
 
 func TestFluxsvc_Register(t *testing.T) {
-	setup()
+	setup(t)
 	defer teardown()
 
 	_, err := httpdaemon.NewUpstream(&http.Client{}, "fluxd/test", "", router, ts.URL, mockPlatform, log.NewNopLogger()) // For ping and for
