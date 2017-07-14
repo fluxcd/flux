@@ -21,7 +21,7 @@ import (
 
 const (
 	requestTimeout = 10 * time.Second
-	maxConcurrency = 200 // Chosen arbitrarily
+	MaxConcurrency = 125 // Chosen performance tests on sock-shop. Unable to get higher performance than this.
 )
 
 var (
@@ -125,7 +125,7 @@ func (reg *registry) tagsToRepository(client Client, id flux.ImageID, tags []str
 	toFetch := make(chan string, len(tags))
 	fetched := make(chan result, len(tags))
 
-	for i := 0; i < maxConcurrency; i++ {
+	for i := 0; i < MaxConcurrency; i++ {
 		go func() {
 			for tag := range toFetch {
 				image, err := client.Manifest(id.WithNewTag(tag)) // Copy the imageID to avoid races

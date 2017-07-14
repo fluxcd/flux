@@ -5,7 +5,6 @@ import (
 	"errors"
 	"github.com/go-kit/kit/log"
 	dockerregistry "github.com/heroku/docker-registry-client/registry"
-	"github.com/jonboulle/clockwork"
 	"github.com/weaveworks/flux/registry/cache"
 	"github.com/weaveworks/flux/registry/middleware"
 	"golang.org/x/net/publicsuffix"
@@ -68,8 +67,6 @@ func (f *remoteClientFactory) ClientFor(host string) (Client, error) {
 		transport = &middleware.WWWAuthenticateFixer{Transport: http.DefaultTransport}
 		// Now the auth-handling wrappers that come with the library
 		transport = dockerregistry.WrapTransport(transport, httphost, auth.username, auth.password)
-		// Add the backoff mechanism so we don't DOS registries
-		transport = middleware.BackoffRoundTripper(transport, middleware.InitialBackoff, middleware.MaxBackoff, clockwork.NewRealClock())
 		// Add timeout context
 		transport = &middleware.ContextRoundTripper{Transport: transport, Ctx: ctx}
 		// Rate limit

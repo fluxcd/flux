@@ -75,7 +75,7 @@ func main() {
 		registryCacheExpiry  = fs.Duration("registry-cache-expiry", 20*time.Minute, "Duration to keep cached registry tag info. Must be < 1 month.")
 		registryPollInterval = fs.Duration("registry-poll-interval", 5*time.Minute, "period at which to poll registry for new images")
 		registryRPS          = fs.Int("registry-rps", 200, "maximum registry requests per second per host")
-		registryBurst        = fs.Int("registry-burst", 10, "maximum registry request burst per host")
+		registryBurst        = fs.Int("registry-burst", registry.MaxConcurrency, "maximum registry request burst per host (default matched to number of http worker goroutines)")
 		// k8s-secret backed ssh keyring configuration
 		k8sSecretName            = fs.String("k8s-secret-name", "flux-git-deploy", "Name of the k8s secret used to store the private SSH key")
 		k8sSecretVolumeMountPath = fs.String("k8s-secret-volume-mount-path", "/etc/fluxd/ssh", "Mount location of the k8s secret storing the private SSH key")

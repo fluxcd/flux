@@ -58,7 +58,7 @@ func (w *Warmer) warm(id flux.ImageID) {
 	// Only, for example, "library/alpine" because we have the host information in the client above.
 	tags, err := client.Tags(id)
 	if err != nil {
-		if !strings.Contains(err.Error(), "status=401") && !strings.Contains(err.Error(), context.DeadlineExceeded.Error()) {
+		if !strings.Contains(err.Error(), context.DeadlineExceeded.Error()) && !strings.Contains(err.Error(), "net/http: request canceled") {
 			w.Logger.Log("err", errors.Wrap(err, "requesting tags"))
 		}
 		return
@@ -118,18 +118,17 @@ func (w *Warmer) warm(id flux.ImageID) {
 	// Now refresh the manifests for each tag (in lots of goroutines for improved performance)
 	toFetch := make(chan flux.ImageID, len(toUpdate))
 	fetched := make(chan flux.Image, len(toUpdate))
-	for i := 0; i < maxConcurrency; i++ {
+	for i := 0; i < MaxConcurrency; i++ {
 		go func() {
 			for i := range toFetch {
 				// Get the image from the remote
 				img, err := client.Manifest(i)
 				if err != nil {
-					if !strings.Contains(err.Error(), "status=401") && !strings.Contains(err.Error(), context.DeadlineExceeded.Error()) {
+					if !strings.Contains(err.Error(), context.DeadlineExceeded.Error()) && !strings.Contains(err.Error(), "net/http: request canceled") {
 						w.Logger.Log("err", errors.Wrap(err, "requesting manifests"))
 					}
-				} else {
-					fetched <- img
 				}
+				fetched <- img // Always return an image, otherwise the for loop below will never finish.
 			}
 		}()
 	}
@@ -141,6 +140,9 @@ func (w *Warmer) warm(id flux.ImageID) {
 	// Write received manifests back to memcache
 	for i := 0; i < cap(fetched); i++ {
 		img := <-fetched
+		if img.ID.String() == "" {
+			continue
+		}
 		key, err := cache.NewManifestKey(username, img.ID)
 		if err != nil {
 			w.Logger.Log("err", errors.Wrap(err, "creating key for memcache"))
@@ -158,6 +160,7 @@ func (w *Warmer) warm(id flux.ImageID) {
 			return
 		}
 	}
+	close(fetched)
 	w.Logger.Log("updated", id.HostNamespaceImage())
 }
 
