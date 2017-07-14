@@ -38,6 +38,14 @@ import (
 
 var version string
 
+const (
+	defaultRemoteConnections = 125 // Chosen performance tests on sock-shop. Unable to get higher performance than this.
+	// Memcache: There is only one thread to accept new client connections. If you are cycling connections very quickly, you can overwhelm the thread. Use persistent connections or UDP in this case.
+	// See https://github.com/memcached/memcached/wiki/Performance
+	// Hence, keep the number of new connections low.
+	defaultMemcacheConnections = 10
+)
+
 func optionalVar(fs *pflag.FlagSet, value ssh.OptionalValue, name, usage string) ssh.OptionalValue {
 	fs.Var(value, name, usage)
 	return value
@@ -70,12 +78,13 @@ func main() {
 		// registry
 		dockerCredFile       = fs.String("docker-config", "~/.docker/config.json", "Path to config file with credentials for DockerHub, quay.io etc.")
 		memcachedHostname    = fs.String("memcached-hostname", "", "Hostname for memcached service to use when caching chunks. If empty, no memcached will be used.")
-		memcachedTimeout     = fs.Duration("memcached-timeout", 100*time.Millisecond, "Maximum time to wait before giving up on memcached requests.")
+		memcachedTimeout     = fs.Duration("memcached-timeout", time.Second, "Maximum time to wait before giving up on memcached requests.")
 		memcachedService     = fs.String("memcached-service", "memcached", "SRV service used to discover memcache servers.")
+		memcachedConnections = fs.Int("memcached-connections", defaultMemcacheConnections, "maximum number of connections to memcache")
 		registryCacheExpiry  = fs.Duration("registry-cache-expiry", 20*time.Minute, "Duration to keep cached registry tag info. Must be < 1 month.")
 		registryPollInterval = fs.Duration("registry-poll-interval", 5*time.Minute, "period at which to poll registry for new images")
 		registryRPS          = fs.Int("registry-rps", 200, "maximum registry requests per second per host")
-		registryBurst        = fs.Int("registry-burst", registry.MaxConcurrency, "maximum registry request burst per host (default matched to number of http worker goroutines)")
+		registryBurst        = fs.Int("registry-burst", defaultRemoteConnections, "maximum registry request burst per host (default matched to number of http worker goroutines)")
 		// k8s-secret backed ssh keyring configuration
 		k8sSecretName            = fs.String("k8s-secret-name", "flux-git-deploy", "Name of the k8s secret used to store the private SSH key")
 		k8sSecretVolumeMountPath = fs.String("k8s-secret-volume-mount-path", "/etc/fluxd/ssh", "Mount location of the k8s secret storing the private SSH key")
@@ -191,7 +200,6 @@ func main() {
 
 	// Registry components
 	var cache registry.Registry
-	var reg registry.Registry
 	var cacheWarmer registry.Warmer
 	var warmerQueue registry.Queue
 	{
@@ -217,6 +225,7 @@ func main() {
 		cache = registry.NewRegistry(
 			registry.NewCacheClientFactory(creds, cacheLogger, memcacheClient, *registryCacheExpiry),
 			cacheLogger,
+			*memcachedConnections,
 		)
 		cache = registry.NewInstrumentedRegistry(cache)
 
@@ -226,11 +235,6 @@ func main() {
 			RPS:   *registryRPS,
 			Burst: *registryBurst,
 		})
-		reg = registry.NewRegistry(
-			remoteFactory,
-			registryLogger,
-		)
-		reg = registry.NewInstrumentedRegistry(reg)
 
 		// Warmer
 		queueLogger := log.NewContext(logger).With("component", "warmer_queue")
@@ -247,6 +251,7 @@ func main() {
 			Expiry:        *registryCacheExpiry,
 			Reader:        memcacheClient,
 			Writer:        memcacheClient,
+			Burst:         *registryBurst,
 		}
 	}
 

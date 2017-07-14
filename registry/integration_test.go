@@ -50,6 +50,7 @@ func TestWarming_WarmerWriteCacheRead(t *testing.T) {
 	r := NewRegistry(
 		cache,
 		logger.With("component", "registry"),
+		512,
 	)
 
 	q := NewQueue(
@@ -67,6 +68,7 @@ func TestWarming_WarmerWriteCacheRead(t *testing.T) {
 		Expiry:        time.Hour,
 		Reader:        mc,
 		Writer:        mc,
+		Burst:         125,
 	}
 
 	shutdown := make(chan struct{})

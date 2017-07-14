@@ -23,6 +23,7 @@ type Warmer struct {
 	Expiry        time.Duration
 	Writer        cache.Writer
 	Reader        cache.Reader
+	Burst         int
 }
 
 // Continuously wait for a new repository to warm
@@ -118,7 +119,7 @@ func (w *Warmer) warm(id flux.ImageID) {
 	// Now refresh the manifests for each tag (in lots of goroutines for improved performance)
 	toFetch := make(chan flux.ImageID, len(toUpdate))
 	fetched := make(chan flux.Image, len(toUpdate))
-	for i := 0; i < MaxConcurrency; i++ {
+	for i := 0; i < w.Burst; i++ {
 		go func() {
 			for i := range toFetch {
 				// Get the image from the remote

@@ -21,7 +21,6 @@ import (
 
 const (
 	requestTimeout = 10 * time.Second
-	MaxConcurrency = 125 // Chosen performance tests on sock-shop. Unable to get higher performance than this.
 )
 
 var (
@@ -46,18 +45,20 @@ type Registry interface {
 }
 
 type registry struct {
-	factory ClientFactory
-	logger  log.Logger
+	factory     ClientFactory
+	logger      log.Logger
+	connections int
 }
 
 // NewClient creates a new registry registry, to use when fetching repositories.
 // Behind the scenes the registry will call ClientFactory.ClientFor(...)
 // when requesting an image. This will generate a Client to access the
 // backend.
-func NewRegistry(c ClientFactory, l log.Logger) Registry {
+func NewRegistry(c ClientFactory, l log.Logger, connections int) Registry {
 	return &registry{
-		factory: c,
-		logger:  l,
+		factory:     c,
+		logger:      l,
+		connections: connections,
 	}
 }
 
@@ -125,7 +126,7 @@ func (reg *registry) tagsToRepository(client Client, id flux.ImageID, tags []str
 	toFetch := make(chan string, len(tags))
 	fetched := make(chan result, len(tags))
 
-	for i := 0; i < MaxConcurrency; i++ {
+	for i := 0; i < reg.connections; i++ {
 		go func() {
 			for tag := range toFetch {
 				image, err := client.Manifest(id.WithNewTag(tag)) // Copy the imageID to avoid races

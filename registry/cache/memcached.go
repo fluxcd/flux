@@ -15,7 +15,9 @@ import (
 	"strings"
 )
 
-const expiry = time.Hour
+const (
+	expiry = time.Hour
+)
 
 // Interface to read from a cache
 // fullRepo must be the full path to the image, including host. E.g.

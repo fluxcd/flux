@@ -44,7 +44,7 @@ var (
 
 func TestRegistry_GetRepository(t *testing.T) {
 	fact := NewMockClientFactory(mClient, nil)
-	reg := NewRegistry(fact, log.NewNopLogger())
+	reg := NewRegistry(fact, log.NewNopLogger(), 512)
 	imgs, err := reg.GetRepository(id)
 	if err != nil {
 		t.Fatal(err)
@@ -58,7 +58,7 @@ func TestRegistry_GetRepository(t *testing.T) {
 
 func TestRegistry_GetRepositoryFactoryError(t *testing.T) {
 	errFact := NewMockClientFactory(mClient, errors.New(""))
-	reg := NewRegistry(errFact, nil)
+	reg := NewRegistry(errFact, nil, 512)
 	_, err := reg.GetRepository(id)
 	if err == nil {
 		t.Fatal("Expecting error")
@@ -75,7 +75,7 @@ func TestRegistry_GetRepositoryManifestError(t *testing.T) {
 		},
 	)
 	errFact := NewMockClientFactory(errClient, nil)
-	reg := NewRegistry(errFact, log.NewNopLogger())
+	reg := NewRegistry(errFact, log.NewNopLogger(), 512)
 	_, err := reg.GetRepository(id)
 	if err == nil {
 		t.Fatal("Expecting error")
@@ -152,7 +152,7 @@ func TestRemote_BetterError(t *testing.T) {
 	)
 
 	fact := NewMockClientFactory(errClient, nil)
-	reg := NewRegistry(fact, log.NewNopLogger())
+	reg := NewRegistry(fact, log.NewNopLogger(), 512)
 	_, err := reg.GetRepository(id)
 	if err == nil {
 		t.Fatal("Should have errored")
