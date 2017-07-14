@@ -6,8 +6,8 @@ import (
 
 	"github.com/go-kit/kit/metrics/prometheus"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
-	"github.com/weaveworks/flux"
 	fluxmetrics "github.com/weaveworks/flux/metrics"
+	"github.com/weaveworks/flux/service"
 )
 
 const (
@@ -40,7 +40,7 @@ func InstrumentedDB(db DB) DB {
 	return &instrumentedDB{db}
 }
 
-func (i *instrumentedDB) UpdateConfig(inst flux.InstanceID, update UpdateFunc) (err error) {
+func (i *instrumentedDB) UpdateConfig(inst service.InstanceID, update UpdateFunc) (err error) {
 	defer func(begin time.Time) {
 		requestDuration.With(
 			LabelMethod, "UpdateConfig",
@@ -50,7 +50,7 @@ func (i *instrumentedDB) UpdateConfig(inst flux.InstanceID, update UpdateFunc) (
 	return i.db.UpdateConfig(inst, update)
 }
 
-func (i *instrumentedDB) GetConfig(inst flux.InstanceID) (c Config, err error) {
+func (i *instrumentedDB) GetConfig(inst service.InstanceID) (c Config, err error) {
 	defer func(begin time.Time) {
 		requestDuration.With(
 			LabelMethod, "GetConfig",
@@ -58,14 +58,4 @@ func (i *instrumentedDB) GetConfig(inst flux.InstanceID) (c Config, err error) {
 		).Observe(time.Since(begin).Seconds())
 	}(time.Now())
 	return i.db.GetConfig(inst)
-}
-
-func (i *instrumentedDB) All() (c []NamedConfig, err error) {
-	defer func(begin time.Time) {
-		requestDuration.With(
-			LabelMethod, "All",
-			LabelSuccess, fmt.Sprint(err == nil),
-		).Observe(time.Since(begin).Seconds())
-	}(time.Now())
-	return i.db.All()
 }

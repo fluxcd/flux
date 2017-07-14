@@ -9,11 +9,12 @@ import (
 
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/history"
-	"github.com/weaveworks/flux/instance"
 	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/notifications"
 	"github.com/weaveworks/flux/policy"
 	"github.com/weaveworks/flux/remote"
+	"github.com/weaveworks/flux/service"
+	"github.com/weaveworks/flux/service/instance"
 	"github.com/weaveworks/flux/ssh"
 	"github.com/weaveworks/flux/update"
 )
@@ -46,37 +47,46 @@ func New(
 	}
 }
 
-func (s *Server) Status(instID flux.InstanceID) (res flux.Status, err error) {
+func (s *Server) Status(instID service.InstanceID) (res service.Status, err error) {
 	inst, err := s.instancer.Get(instID)
 	if err != nil {
 		return res, errors.Wrapf(err, "getting instance")
 	}
 
-	res.Fluxsvc = flux.FluxsvcStatus{Version: s.version}
+	res.Fluxsvc = service.FluxsvcStatus{Version: s.version}
 
-	res.Fluxd.Version, err = inst.Platform.Version()
+	config, err := inst.Config.Get()
 	if err != nil {
 		return res, err
 	}
 
-	res.Git.Config, err = inst.Platform.GitRepoConfig(false)
-	if err != nil {
-		return res, err
-	}
+	res.Fluxd.Last = config.Connection.Last
+	// DOn't bother trying to get information from the daemon if we
+	// haven't recorded it as connected
+	if config.Connection.Connected {
+		res.Fluxd.Connected = true
+		res.Fluxd.Version, err = inst.Platform.Version()
+		if err != nil {
+			return res, err
+		}
 
-	_, err = inst.Platform.SyncStatus("HEAD")
-	if err != nil {
-		res.Git.Error = err.Error()
-	} else {
-		res.Git.Configured = true
-	}
+		res.Git.Config, err = inst.Platform.GitRepoConfig(false)
+		if err != nil {
+			return res, err
+		}
 
-	res.Fluxd.Connected = true
+		_, err = inst.Platform.SyncStatus("HEAD")
+		if err != nil {
+			res.Git.Error = err.Error()
+		} else {
+			res.Git.Configured = true
+		}
+	}
 
 	return res, nil
 }
 
-func (s *Server) ListServices(instID flux.InstanceID, namespace string) (res []flux.ServiceStatus, err error) {
+func (s *Server) ListServices(instID service.InstanceID, namespace string) (res []flux.ServiceStatus, err error) {
 	inst, err := s.instancer.Get(instID)
 	if err != nil {
 		return nil, errors.Wrapf(err, "getting instance")
@@ -89,7 +99,7 @@ func (s *Server) ListServices(instID flux.InstanceID, namespace string) (res []f
 	return services, nil
 }
 
-func (s *Server) ListImages(instID flux.InstanceID, spec update.ServiceSpec) (res []flux.ImageStatus, err error) {
+func (s *Server) ListImages(instID service.InstanceID, spec update.ServiceSpec) (res []flux.ImageStatus, err error) {
 	inst, err := s.instancer.Get(instID)
 	if err != nil {
 		return nil, errors.Wrapf(err, "getting instance "+string(instID))
@@ -97,7 +107,7 @@ func (s *Server) ListImages(instID flux.InstanceID, spec update.ServiceSpec) (re
 	return inst.Platform.ListImages(spec)
 }
 
-func (s *Server) UpdateImages(instID flux.InstanceID, spec update.ReleaseSpec, cause update.Cause) (job.ID, error) {
+func (s *Server) UpdateImages(instID service.InstanceID, spec update.ReleaseSpec, cause update.Cause) (job.ID, error) {
 	inst, err := s.instancer.Get(instID)
 	if err != nil {
 		return "", errors.Wrapf(err, "getting instance "+string(instID))
@@ -105,7 +115,7 @@ func (s *Server) UpdateImages(instID flux.InstanceID, spec update.ReleaseSpec, c
 	return inst.Platform.UpdateManifests(update.Spec{Type: update.Images, Cause: cause, Spec: spec})
 }
 
-func (s *Server) UpdatePolicies(instID flux.InstanceID, updates policy.Updates, cause update.Cause) (job.ID, error) {
+func (s *Server) UpdatePolicies(instID service.InstanceID, updates policy.Updates, cause update.Cause) (job.ID, error) {
 	inst, err := s.instancer.Get(instID)
 	if err != nil {
 		return "", errors.Wrapf(err, "getting instance "+string(instID))
@@ -114,7 +124,7 @@ func (s *Server) UpdatePolicies(instID flux.InstanceID, updates policy.Updates, 
 	return inst.Platform.UpdateManifests(update.Spec{Type: update.Policy, Cause: cause, Spec: updates})
 }
 
-func (s *Server) SyncNotify(instID flux.InstanceID) (err error) {
+func (s *Server) SyncNotify(instID service.InstanceID) (err error) {
 	inst, err := s.instancer.Get(instID)
 	if err != nil {
 		return errors.Wrapf(err, "getting instance "+string(instID))
@@ -122,7 +132,7 @@ func (s *Server) SyncNotify(instID flux.InstanceID) (err error) {
 	return inst.Platform.SyncNotify()
 }
 
-func (s *Server) JobStatus(instID flux.InstanceID, jobID job.ID) (res job.Status, err error) {
+func (s *Server) JobStatus(instID service.InstanceID, jobID job.ID) (res job.Status, err error) {
 	inst, err := s.instancer.Get(instID)
 	if err != nil {
 		return job.Status{}, errors.Wrapf(err, "getting instance "+string(instID))
@@ -131,7 +141,7 @@ func (s *Server) JobStatus(instID flux.InstanceID, jobID job.ID) (res job.Status
 	return inst.Platform.JobStatus(jobID)
 }
 
-func (s *Server) SyncStatus(instID flux.InstanceID, ref string) (res []string, err error) {
+func (s *Server) SyncStatus(instID service.InstanceID, ref string) (res []string, err error) {
 	inst, err := s.instancer.Get(instID)
 	if err != nil {
 		return nil, errors.Wrapf(err, "getting instance "+string(instID))
@@ -142,7 +152,7 @@ func (s *Server) SyncStatus(instID flux.InstanceID, ref string) (res []string, e
 
 // LogEvent receives events from fluxd and pushes events to the history
 // db and a slack notification
-func (s *Server) LogEvent(instID flux.InstanceID, e history.Event) error {
+func (s *Server) LogEvent(instID service.InstanceID, e history.Event) error {
 	helper, err := s.instancer.Get(instID)
 	if err != nil {
 		return errors.Wrapf(err, "getting instance")
@@ -165,7 +175,7 @@ func (s *Server) LogEvent(instID flux.InstanceID, e history.Event) error {
 	return nil
 }
 
-func (s *Server) History(inst flux.InstanceID, spec update.ServiceSpec, before time.Time, limit int64, after time.Time) (res []history.Entry, err error) {
+func (s *Server) History(inst service.InstanceID, spec update.ServiceSpec, before time.Time, limit int64, after time.Time) (res []history.Entry, err error) {
 	helper, err := s.instancer.Get(inst)
 	if err != nil {
 		return nil, errors.Wrapf(err, "getting instance")
@@ -202,22 +212,22 @@ func (s *Server) History(inst flux.InstanceID, spec update.ServiceSpec, before t
 	return res, nil
 }
 
-func (s *Server) GetConfig(instID flux.InstanceID, fingerprint string) (flux.InstanceConfig, error) {
+func (s *Server) GetConfig(instID service.InstanceID, fingerprint string) (service.InstanceConfig, error) {
 	fullConfig, err := s.config.GetConfig(instID)
 	if err != nil {
-		return flux.InstanceConfig{}, err
+		return service.InstanceConfig{}, err
 	}
 
-	config := flux.InstanceConfig(fullConfig.Settings)
+	config := service.InstanceConfig(fullConfig.Settings)
 
 	return config, nil
 }
 
-func (s *Server) SetConfig(instID flux.InstanceID, updates flux.InstanceConfig) error {
+func (s *Server) SetConfig(instID service.InstanceID, updates service.InstanceConfig) error {
 	return s.config.UpdateConfig(instID, applyConfigUpdates(updates))
 }
 
-func (s *Server) PatchConfig(instID flux.InstanceID, patch flux.ConfigPatch) error {
+func (s *Server) PatchConfig(instID service.InstanceID, patch service.ConfigPatch) error {
 	fullConfig, err := s.config.GetConfig(instID)
 	if err != nil {
 		return errors.Wrap(err, "unable to get config")
@@ -231,14 +241,14 @@ func (s *Server) PatchConfig(instID flux.InstanceID, patch flux.ConfigPatch) err
 	return s.config.UpdateConfig(instID, applyConfigUpdates(patchedConfig))
 }
 
-func applyConfigUpdates(updates flux.InstanceConfig) instance.UpdateFunc {
+func applyConfigUpdates(updates service.InstanceConfig) instance.UpdateFunc {
 	return func(config instance.Config) (instance.Config, error) {
 		config.Settings = updates
 		return config, nil
 	}
 }
 
-func (s *Server) PublicSSHKey(instID flux.InstanceID, regenerate bool) (ssh.PublicKey, error) {
+func (s *Server) PublicSSHKey(instID service.InstanceID, regenerate bool) (ssh.PublicKey, error) {
 	inst, err := s.instancer.Get(instID)
 	if err != nil {
 		return ssh.PublicKey{}, errors.Wrapf(err, "getting instance "+string(instID))
@@ -265,7 +275,7 @@ func (s *Server) PublicSSHKey(instID flux.InstanceID, regenerate bool) (ssh.Publ
 // go, aside from just trying to connection. Therefore, the server
 // will get an error when we try to use the client. We rely on that to
 // break us out of this method.
-func (s *Server) RegisterDaemon(instID flux.InstanceID, platform remote.Platform) (err error) {
+func (s *Server) RegisterDaemon(instID service.InstanceID, platform remote.Platform) (err error) {
 	defer func() {
 		if err != nil {
 			s.logger.Log("method", "RegisterDaemon", "err", err)
@@ -273,6 +283,11 @@ func (s *Server) RegisterDaemon(instID flux.InstanceID, platform remote.Platform
 		connectedDaemons.Set(float64(atomic.AddInt32(&s.connected, -1)))
 	}()
 	connectedDaemons.Set(float64(atomic.AddInt32(&s.connected, 1)))
+
+	// Record the time of connection in the "config"
+	now := time.Now()
+	s.config.UpdateConfig(instID, setConnectionTime(now))
+	defer s.config.UpdateConfig(instID, setDisconnectedIf(now))
 
 	// Register the daemon with our message bus, waiting for it to be
 	// closed. NB we cannot in general expect there to be a
@@ -284,7 +299,27 @@ func (s *Server) RegisterDaemon(instID flux.InstanceID, platform remote.Platform
 	return err
 }
 
-func (s *Server) Export(instID flux.InstanceID) (res []byte, err error) {
+func setConnectionTime(t time.Time) instance.UpdateFunc {
+	return func(config instance.Config) (instance.Config, error) {
+		config.Connection.Last = t
+		config.Connection.Connected = true
+		return config, nil
+	}
+}
+
+// Only set the connection time if it's what you think it is (i.e., a
+// kind of compare and swap). Used so that disconnecting doesn't zero
+// the value set by another connection.
+func setDisconnectedIf(t0 time.Time) instance.UpdateFunc {
+	return func(config instance.Config) (instance.Config, error) {
+		if config.Connection.Last.Equal(t0) {
+			config.Connection.Connected = false
+		}
+		return config, nil
+	}
+}
+
+func (s *Server) Export(instID service.InstanceID) (res []byte, err error) {
 	inst, err := s.instancer.Get(instID)
 	if err != nil {
 		return res, errors.Wrapf(err, "getting instance")
@@ -298,13 +333,13 @@ func (s *Server) Export(instID flux.InstanceID) (res []byte, err error) {
 	return res, nil
 }
 
-func (s *Server) instrumentPlatform(instID flux.InstanceID, p remote.Platform) remote.Platform {
+func (s *Server) instrumentPlatform(instID service.InstanceID, p remote.Platform) remote.Platform {
 	return &remote.ErrorLoggingPlatform{
 		remote.Instrument(p),
 		log.NewContext(s.logger).With("instanceID", instID),
 	}
 }
 
-func (s *Server) IsDaemonConnected(instID flux.InstanceID) error {
+func (s *Server) IsDaemonConnected(instID service.InstanceID) error {
 	return s.messageBus.Ping(instID)
 }

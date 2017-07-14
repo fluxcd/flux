@@ -7,6 +7,8 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
+
+	"github.com/weaveworks/flux/ssh"
 )
 
 var (
@@ -21,11 +23,7 @@ func (t Token) Set(req *http.Request) {
 	}
 }
 
-type InstanceID string
-
-const InstanceIDHeaderKey = "X-Scope-OrgID"
-
-const DefaultInstanceID = "<default-instance-id>"
+// (User) Service identifiers
 
 type ServiceID string // "default/helloworld"
 
@@ -144,6 +142,8 @@ func (ids ServiceIDs) Intersection(others ServiceIDSet) ServiceIDSet {
 	return set.Intersection(others)
 }
 
+// -- types used in API
+
 type ImageStatus struct {
 	ID         ServiceID
 	Containers []Container
@@ -164,24 +164,15 @@ type Container struct {
 	Available []Image
 }
 
-// TODO: How similar should this be to the `get-config` result?
-type Status struct {
-	Fluxsvc FluxsvcStatus `json:"fluxsvc" yaml:"fluxsvc"`
-	Fluxd   FluxdStatus   `json:"fluxd" yaml:"fluxd"`
-	Git     GitStatus     `json:"git" yaml:"git"`
+// --- config types
+
+type GitRemoteConfig struct {
+	URL    string `json:"url"`
+	Branch string `json:"branch"`
+	Path   string `json:"path"`
 }
 
-type FluxsvcStatus struct {
-	Version string `json:"version,omitempty" yaml:"version,omitempty"`
-}
-
-type FluxdStatus struct {
-	Connected bool   `json:"connected" yaml:"connected"`
-	Version   string `json:"version,omitempty" yaml:"version,omitempty"`
-}
-
-type GitStatus struct {
-	Configured bool      `json:"configured" yaml:"configured"`
-	Error      string    `json:"error,omitempty" yaml:"error,omitempty"`
-	Config     GitConfig `json:"config"`
+type GitConfig struct {
+	Remote       GitRemoteConfig `json:"remote"`
+	PublicSSHKey ssh.PublicKey   `json:"publicSSHKey"`
 }

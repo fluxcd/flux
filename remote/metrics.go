@@ -11,6 +11,7 @@ import (
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/job"
 	fluxmetrics "github.com/weaveworks/flux/metrics"
+	"github.com/weaveworks/flux/service"
 	"github.com/weaveworks/flux/update"
 )
 
@@ -148,6 +149,6 @@ var (
 	}
 )
 
-func (m BusMetrics) IncrKicks(inst flux.InstanceID) {
+func (m BusMetrics) IncrKicks(inst service.InstanceID) {
 	m.KickCount.Add(1)
 }

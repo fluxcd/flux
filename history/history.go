@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/service"
 )
 
 type EventReadWriter interface {
@@ -31,9 +32,9 @@ type EventReader interface {
 }
 
 type DB interface {
-	LogEvent(flux.InstanceID, Event) error
-	AllEvents(flux.InstanceID, time.Time, int64, time.Time) ([]Event, error)
-	EventsForService(flux.InstanceID, flux.ServiceID, time.Time, int64, time.Time) ([]Event, error)
+	LogEvent(service.InstanceID, Event) error
+	AllEvents(service.InstanceID, time.Time, int64, time.Time) ([]Event, error)
+	EventsForService(service.InstanceID, flux.ServiceID, time.Time, int64, time.Time) ([]Event, error)
 	GetEvent(EventID) (Event, error)
 	io.Closer
 }

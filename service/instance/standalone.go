@@ -4,14 +4,14 @@ import (
 	"errors"
 
 	"github.com/go-kit/kit/log"
-	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/history"
 	"github.com/weaveworks/flux/remote"
+	"github.com/weaveworks/flux/service"
 )
 
 // StandaloneInstancer is the instancer for standalone mode
 type StandaloneInstancer struct {
-	Instance    flux.InstanceID
+	Instance    service.InstanceID
 	Connecter   remote.Connecter
 	Config      Configurer
 	EventReader history.EventReader
@@ -19,7 +19,7 @@ type StandaloneInstancer struct {
 	BaseLogger  log.Logger
 }
 
-func (s StandaloneInstancer) Get(inst flux.InstanceID) (*Instance, error) {
+func (s StandaloneInstancer) Get(inst service.InstanceID) (*Instance, error) {
 	if inst != s.Instance {
 		return nil, errors.New("cannot find instance with ID: " + string(inst))
 	}

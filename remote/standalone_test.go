@@ -5,11 +5,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/service"
 )
 
 func TestStandaloneMessageBus(t *testing.T) {
-	instID := flux.InstanceID("instance")
+	instID := service.InstanceID("instance")
 	bus := NewStandaloneMessageBus(BusMetricsImpl)
 	p := &MockPlatform{}
 

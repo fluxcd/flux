@@ -3,13 +3,13 @@ package instance
 import (
 	"github.com/go-kit/kit/log"
 
-	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/history"
 	"github.com/weaveworks/flux/remote"
+	"github.com/weaveworks/flux/service"
 )
 
 type Instancer interface {
-	Get(inst flux.InstanceID) (*Instance, error)
+	Get(inst service.InstanceID) (*Instance, error)
 }
 
 type Instance struct {

@@ -8,33 +8,34 @@ import (
 	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/policy"
 	"github.com/weaveworks/flux/remote"
+	"github.com/weaveworks/flux/service"
 	"github.com/weaveworks/flux/ssh"
 	"github.com/weaveworks/flux/update"
 )
 
 // API for clients connecting to the service.
 type ClientService interface {
-	Status(inst flux.InstanceID) (flux.Status, error)
-	ListServices(inst flux.InstanceID, namespace string) ([]flux.ServiceStatus, error)
-	ListImages(flux.InstanceID, update.ServiceSpec) ([]flux.ImageStatus, error)
-	UpdateImages(flux.InstanceID, update.ReleaseSpec, update.Cause) (job.ID, error)
-	SyncNotify(flux.InstanceID) error
-	JobStatus(flux.InstanceID, job.ID) (job.Status, error)
-	SyncStatus(flux.InstanceID, string) ([]string, error)
-	UpdatePolicies(flux.InstanceID, policy.Updates, update.Cause) (job.ID, error)
-	History(flux.InstanceID, update.ServiceSpec, time.Time, int64, time.Time) ([]history.Entry, error)
-	GetConfig(_ flux.InstanceID, fingerprint string) (flux.InstanceConfig, error)
-	SetConfig(flux.InstanceID, flux.InstanceConfig) error
-	PatchConfig(flux.InstanceID, flux.ConfigPatch) error
-	Export(inst flux.InstanceID) ([]byte, error)
-	PublicSSHKey(inst flux.InstanceID, regenerate bool) (ssh.PublicKey, error)
+	Status(inst service.InstanceID) (service.Status, error)
+	ListServices(inst service.InstanceID, namespace string) ([]flux.ServiceStatus, error)
+	ListImages(service.InstanceID, update.ServiceSpec) ([]flux.ImageStatus, error)
+	UpdateImages(service.InstanceID, update.ReleaseSpec, update.Cause) (job.ID, error)
+	SyncNotify(service.InstanceID) error
+	JobStatus(service.InstanceID, job.ID) (job.Status, error)
+	SyncStatus(service.InstanceID, string) ([]string, error)
+	UpdatePolicies(service.InstanceID, policy.Updates, update.Cause) (job.ID, error)
+	History(service.InstanceID, update.ServiceSpec, time.Time, int64, time.Time) ([]history.Entry, error)
+	GetConfig(_ service.InstanceID, fingerprint string) (service.InstanceConfig, error)
+	SetConfig(service.InstanceID, service.InstanceConfig) error
+	PatchConfig(service.InstanceID, service.ConfigPatch) error
+	Export(inst service.InstanceID) ([]byte, error)
+	PublicSSHKey(inst service.InstanceID, regenerate bool) (ssh.PublicKey, error)
 }
 
 // API for daemons connecting to the service
 type DaemonService interface {
-	RegisterDaemon(flux.InstanceID, remote.Platform) error
-	IsDaemonConnected(flux.InstanceID) error
-	LogEvent(flux.InstanceID, history.Event) error
+	RegisterDaemon(service.InstanceID, remote.Platform) error
+	IsDaemonConnected(service.InstanceID) error
+	LogEvent(service.InstanceID, history.Event) error
 }
 
 type FluxService interface {

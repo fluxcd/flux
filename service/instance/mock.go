@@ -1,7 +1,7 @@
 package instance
 
 import (
-	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/service"
 )
 
 type MockInstancer struct {
@@ -9,7 +9,7 @@ type MockInstancer struct {
 	Error    error
 }
 
-func (m *MockInstancer) Get(_ flux.InstanceID) (*Instance, error) {
+func (m *MockInstancer) Get(_ service.InstanceID) (*Instance, error) {
 	return m.Instance, m.Error
 }
 

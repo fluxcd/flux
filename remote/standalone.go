@@ -6,6 +6,7 @@ import (
 
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/job"
+	"github.com/weaveworks/flux/service"
 	"github.com/weaveworks/flux/update"
 )
 
@@ -14,14 +15,14 @@ var (
 )
 
 type StandaloneMessageBus struct {
-	connected map[flux.InstanceID]*removeablePlatform
+	connected map[service.InstanceID]*removeablePlatform
 	sync.RWMutex
 	metrics BusMetrics
 }
 
 func NewStandaloneMessageBus(metrics BusMetrics) *StandaloneMessageBus {
 	return &StandaloneMessageBus{
-		connected: map[flux.InstanceID]*removeablePlatform{},
+		connected: map[service.InstanceID]*removeablePlatform{},
 		metrics:   metrics,
 	}
 }
@@ -31,7 +32,7 @@ func NewStandaloneMessageBus(metrics BusMetrics) *StandaloneMessageBus {
 // process operations that don't involve a platform (like setting
 // config), we have a special value for a disconnected platform,
 // rather than returning an error.
-func (s *StandaloneMessageBus) Connect(inst flux.InstanceID) (Platform, error) {
+func (s *StandaloneMessageBus) Connect(inst service.InstanceID) (Platform, error) {
 	s.RLock()
 	defer s.RUnlock()
 	p, ok := s.connected[inst]
@@ -45,7 +46,7 @@ func (s *StandaloneMessageBus) Connect(inst flux.InstanceID) (Platform, error) {
 // requests can be routed to it. Once the connection is closed --
 // trying to use it is the only way to tell if it's closed -- the
 // error representing the cause will be sent to the channel supplied.
-func (s *StandaloneMessageBus) Subscribe(inst flux.InstanceID, p Platform, complete chan<- error) {
+func (s *StandaloneMessageBus) Subscribe(inst service.InstanceID, p Platform, complete chan<- error) {
 	s.Lock()
 	// We're replacing another client
 	if existing, ok := s.connected[inst]; ok {
@@ -77,7 +78,7 @@ func (s *StandaloneMessageBus) Subscribe(inst flux.InstanceID, p Platform, compl
 
 // Ping returns nil if the specified instance is connected, and
 // an error if not.
-func (s *StandaloneMessageBus) Ping(inst flux.InstanceID) error {
+func (s *StandaloneMessageBus) Ping(inst service.InstanceID) error {
 	var (
 		p  Platform
 		ok bool
@@ -102,7 +103,7 @@ the FLUX_URL or FLUX_SERVICE_TOKEN is configured correctly.`,
 
 // Version returns the fluxd version for the connected instance if the
 // specified instance is connected, and an error if not.
-func (s *StandaloneMessageBus) Version(inst flux.InstanceID) (string, error) {
+func (s *StandaloneMessageBus) Version(inst service.InstanceID) (string, error) {
 	var (
 		p  Platform
 		ok bool

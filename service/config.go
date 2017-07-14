@@ -1,21 +1,8 @@
-package flux
+package service
 
 import (
 	"encoding/json"
-
-	"github.com/weaveworks/flux/ssh"
 )
-
-type GitRemoteConfig struct {
-	URL    string `json:"url"`
-	Branch string `json:"branch"`
-	Path   string `json:"path"`
-}
-
-type GitConfig struct {
-	Remote       GitRemoteConfig `json:"remote"`
-	PublicSSHKey ssh.PublicKey   `json:"publicSSHKey"`
-}
 
 type NotifierConfig struct {
 	HookURL         string `json:"hookURL" yaml:"hookURL"`
