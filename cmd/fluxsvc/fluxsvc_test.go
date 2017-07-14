@@ -20,12 +20,12 @@ import (
 	transport "github.com/weaveworks/flux/http"
 	"github.com/weaveworks/flux/http/client"
 	httpdaemon "github.com/weaveworks/flux/http/daemon"
-	httpserver "github.com/weaveworks/flux/http/server"
 	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/remote"
 	"github.com/weaveworks/flux/service"
 	"github.com/weaveworks/flux/service/bus"
 	"github.com/weaveworks/flux/service/bus/nats"
+	httpserver "github.com/weaveworks/flux/service/http"
 	"github.com/weaveworks/flux/service/instance"
 	instancedb "github.com/weaveworks/flux/service/instance/sql"
 	"github.com/weaveworks/flux/service/server"
@@ -346,7 +346,7 @@ func TestFluxsvc_Ping(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		t.Fatal("Request should have been ok but got %q, body:\n%v", resp.Status, body)
+		t.Fatal("Request should have been ok but got %q, body:\n%s", resp.Status, body)
 	}
 }
 
@@ -371,6 +371,6 @@ func TestFluxsvc_Register(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		t.Fatal("Request should have been ok but got %q, body:\n%v", resp.Status, body)
+		t.Fatal("Request should have been ok but got %q, body:\n%s", resp.Status, body)
 	}
 }
