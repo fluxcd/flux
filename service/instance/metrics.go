@@ -59,13 +59,3 @@ func (i *instrumentedDB) GetConfig(inst service.InstanceID) (c Config, err error
 	}(time.Now())
 	return i.db.GetConfig(inst)
 }
-
-func (i *instrumentedDB) All() (c []NamedConfig, err error) {
-	defer func(begin time.Time) {
-		requestDuration.With(
-			LabelMethod, "All",
-			LabelSuccess, fmt.Sprint(err == nil),
-		).Observe(time.Since(begin).Seconds())
-	}(time.Now())
-	return i.db.All()
-}

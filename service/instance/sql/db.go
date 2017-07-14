@@ -39,7 +39,7 @@ func (db *DB) UpdateConfig(inst service.InstanceID, update instance.UpdateFunc) 
 	)
 	switch tx.QueryRow(`SELECT config FROM config WHERE instance = $1`, string(inst)).Scan(&confString) {
 	case sql.ErrNoRows:
-		currentConfig = instance.MakeConfig()
+		currentConfig = instance.Config{}
 	case nil:
 		if err = json.Unmarshal([]byte(confString), &currentConfig); err != nil {
 			return err
@@ -80,40 +80,12 @@ func (db *DB) GetConfig(inst service.InstanceID) (instance.Config, error) {
 	case nil:
 		break
 	case sql.ErrNoRows:
-		return instance.MakeConfig(), nil
+		return instance.Config{}, nil
 	default:
 		return instance.Config{}, err
 	}
 	var conf instance.Config
 	return conf, json.Unmarshal([]byte(c), &conf)
-}
-
-func (db *DB) All() ([]instance.NamedConfig, error) {
-	rows, err := db.conn.Query(`SELECT instance, config FROM config`)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	instances := []instance.NamedConfig{}
-	for rows.Next() {
-		var (
-			id, confStr string
-			conf        instance.Config
-		)
-		err = rows.Scan(&id, &confStr)
-		if err == nil {
-			err = json.Unmarshal([]byte(confStr), &conf)
-		}
-		if err != nil {
-			return nil, err
-		}
-
-		instances = append(instances, instance.NamedConfig{
-			ID:     service.InstanceID(id),
-			Config: conf,
-		})
-	}
-	return instances, rows.Err()
 }
 
 // ---

@@ -8,21 +8,11 @@ type Config struct {
 	Settings service.InstanceConfig `json:"settings"`
 }
 
-type NamedConfig struct {
-	ID     service.InstanceID
-	Config Config
-}
-
-func MakeConfig() Config {
-	return Config{}
-}
-
 type UpdateFunc func(config Config) (Config, error)
 
 type DB interface {
 	UpdateConfig(instance service.InstanceID, update UpdateFunc) error
 	GetConfig(instance service.InstanceID) (Config, error)
-	All() ([]NamedConfig, error)
 }
 
 type Configurer interface {
