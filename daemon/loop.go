@@ -32,28 +32,6 @@ func (loop *LoopVars) ensureInit() {
 	})
 }
 
-// Loop for potentially long-running stuff. This includes running
-// jobs, and looking for new commits.
-
-func (d *Daemon) ImagePollLoop(stop chan struct{}, wg *sync.WaitGroup, logger log.Logger) {
-	defer wg.Done()
-
-	imagePollTicker := time.NewTicker(d.RegistryPollInterval)
-	d.askForImagePoll()
-	for {
-		select {
-		case <-stop:
-			logger.Log("stopping", "true")
-			return
-		case <-d.pollImagesSoon:
-			d.pollForNewImages(logger)
-		case <-imagePollTicker.C:
-			// Time to poll for new images
-			d.askForImagePoll()
-		}
-	}
-}
-
 func (d *Daemon) GitPollLoop(stop chan struct{}, wg *sync.WaitGroup, logger log.Logger) {
 	defer wg.Done()
 	// We want to pull the repo and sync at least every
@@ -72,13 +50,22 @@ func (d *Daemon) GitPollLoop(stop chan struct{}, wg *sync.WaitGroup, logger log.
 		k(logger)
 	}
 
+	imagePollTimer := time.NewTimer(d.RegistryPollInterval)
+
 	// Ask for a sync, and to poll images, straight away
 	d.askForSync()
+	d.askForImagePoll()
 	for {
 		select {
 		case <-stop:
 			logger.Log("stopping", "true")
 			return
+		case <-d.pollImagesSoon:
+			d.pollForNewImages(logger)
+			imagePollTimer.Stop()
+			imagePollTimer = time.NewTimer(d.RegistryPollInterval)
+		case <-imagePollTimer.C:
+			d.askForImagePoll()
 		case <-d.syncSoon:
 			pullThen(d.doSync)
 		case <-gitPollTimer.C:
