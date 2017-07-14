@@ -23,12 +23,12 @@ import (
 	httpserver "github.com/weaveworks/flux/http/server"
 	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/remote"
-	"github.com/weaveworks/flux/server"
 	"github.com/weaveworks/flux/service"
 	"github.com/weaveworks/flux/service/bus"
 	"github.com/weaveworks/flux/service/bus/nats"
 	"github.com/weaveworks/flux/service/instance"
 	instancedb "github.com/weaveworks/flux/service/instance/sql"
+	"github.com/weaveworks/flux/service/server"
 	"github.com/weaveworks/flux/update"
 	"io/ioutil"
 )
