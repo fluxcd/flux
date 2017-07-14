@@ -55,24 +55,33 @@ func (s *Server) Status(instID service.InstanceID) (res service.Status, err erro
 
 	res.Fluxsvc = service.FluxsvcStatus{Version: s.version}
 
-	res.Fluxd.Version, err = inst.Platform.Version()
+	config, err := inst.Config.Get()
 	if err != nil {
 		return res, err
 	}
 
-	res.Git.Config, err = inst.Platform.GitRepoConfig(false)
-	if err != nil {
-		return res, err
-	}
+	res.Fluxd.Last = config.Connection.Last
+	// DOn't bother trying to get information from the daemon if we
+	// haven't recorded it as connected
+	if config.Connection.Connected {
+		res.Fluxd.Connected = true
+		res.Fluxd.Version, err = inst.Platform.Version()
+		if err != nil {
+			return res, err
+		}
 
-	_, err = inst.Platform.SyncStatus("HEAD")
-	if err != nil {
-		res.Git.Error = err.Error()
-	} else {
-		res.Git.Configured = true
-	}
+		res.Git.Config, err = inst.Platform.GitRepoConfig(false)
+		if err != nil {
+			return res, err
+		}
 
-	res.Fluxd.Connected = true
+		_, err = inst.Platform.SyncStatus("HEAD")
+		if err != nil {
+			res.Git.Error = err.Error()
+		} else {
+			res.Git.Configured = true
+		}
+	}
 
 	return res, nil
 }
@@ -275,6 +284,11 @@ func (s *Server) RegisterDaemon(instID service.InstanceID, platform remote.Platf
 	}()
 	connectedDaemons.Set(float64(atomic.AddInt32(&s.connected, 1)))
 
+	// Record the time of connection in the "config"
+	now := time.Now()
+	s.config.UpdateConfig(instID, setConnectionTime(now))
+	defer s.config.UpdateConfig(instID, setDisconnectedIf(now))
+
 	// Register the daemon with our message bus, waiting for it to be
 	// closed. NB we cannot in general expect there to be a
 	// configuration record for this instance; it may be connecting
@@ -283,6 +297,26 @@ func (s *Server) RegisterDaemon(instID service.InstanceID, platform remote.Platf
 	s.messageBus.Subscribe(instID, s.instrumentPlatform(instID, platform), done)
 	err = <-done
 	return err
+}
+
+func setConnectionTime(t time.Time) instance.UpdateFunc {
+	return func(config instance.Config) (instance.Config, error) {
+		config.Connection.Last = t
+		config.Connection.Connected = true
+		return config, nil
+	}
+}
+
+// Only set the connection time if it's what you think it is (i.e., a
+// kind of compare and swap). Used so that disconnecting doesn't zero
+// the value set by another connection.
+func setDisconnectedIf(t0 time.Time) instance.UpdateFunc {
+	return func(config instance.Config) (instance.Config, error) {
+		if config.Connection.Last.Equal(t0) {
+			config.Connection.Connected = false
+		}
+		return config, nil
+	}
 }
 
 func (s *Server) Export(instID service.InstanceID) (res []byte, err error) {

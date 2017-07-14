@@ -1,6 +1,8 @@
 package service
 
 import (
+	"time"
+
 	"github.com/weaveworks/flux"
 )
 
@@ -22,8 +24,9 @@ type FluxsvcStatus struct {
 }
 
 type FluxdStatus struct {
-	Connected bool   `json:"connected" yaml:"connected"`
-	Version   string `json:"version,omitempty" yaml:"version,omitempty"`
+	Connected bool      `json:"connected" yaml:"connected"`
+	Last      time.Time `json:"last,omitempty" yaml:"last,omitempty"`
+	Version   string    `json:"version,omitempty" yaml:"version,omitempty"`
 }
 
 type GitStatus struct {

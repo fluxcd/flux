@@ -1,11 +1,19 @@
 package instance
 
 import (
+	"time"
+
 	"github.com/weaveworks/flux/service"
 )
 
+type Connection struct {
+	Last      time.Time `json:"last"`
+	Connected bool      `json:"connected"`
+}
+
 type Config struct {
-	Settings service.InstanceConfig `json:"settings"`
+	Settings   service.InstanceConfig `json:"settings"`
+	Connection Connection             `json:"connection"`
 }
 
 type UpdateFunc func(config Config) (Config, error)
