@@ -15,6 +15,7 @@ import (
 	"github.com/weaveworks/flux/api"
 	transport "github.com/weaveworks/flux/http"
 	"github.com/weaveworks/flux/http/client"
+	"github.com/weaveworks/flux/service"
 )
 
 type rootOpts struct {
@@ -25,7 +26,7 @@ type rootOpts struct {
 
 // fluxctl never sends an instance ID directly; it's always blank, and
 // optionally gets populated by an intermediating authfe from the token.
-const noInstanceID = flux.InstanceID("")
+const noInstanceID = service.InstanceID("")
 
 type serviceOpts struct {
 	*rootOpts

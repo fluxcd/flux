@@ -11,6 +11,7 @@ import (
 
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/history"
+	"github.com/weaveworks/flux/service"
 )
 
 // A history DB that uses a ql database
@@ -84,7 +85,7 @@ func (db *qlDB) scanEvents(query squirrel.Sqlizer) ([]history.Event, error) {
 	return events, rows.Err()
 }
 
-func (db *qlDB) EventsForService(inst flux.InstanceID, service flux.ServiceID, before time.Time, limit int64, after time.Time) ([]history.Event, error) {
+func (db *qlDB) EventsForService(inst service.InstanceID, service flux.ServiceID, before time.Time, limit int64, after time.Time) ([]history.Event, error) {
 	q := db.eventsQuery().
 		Where("instance_id = ?", string(inst)).
 		Where("id(e) IN (select event_id from event_service_ids WHERE service_id = ?)", string(service)).
@@ -100,7 +101,7 @@ func (db *qlDB) EventsForService(inst flux.InstanceID, service flux.ServiceID, b
 	return db.loadServiceIDs(events)
 }
 
-func (db *qlDB) AllEvents(inst flux.InstanceID, before time.Time, limit int64, after time.Time) ([]history.Event, error) {
+func (db *qlDB) AllEvents(inst service.InstanceID, before time.Time, limit int64, after time.Time) ([]history.Event, error) {
 	q := db.eventsQuery().
 		Where("instance_id = ?", string(inst)).
 		Where("started_at < ?", before).
@@ -147,7 +148,7 @@ func (db *qlDB) loadServiceIDs(events []history.Event) ([]history.Event, error) 
 	return events, nil
 }
 
-func (db *qlDB) LogEvent(inst flux.InstanceID, e history.Event) (err error) {
+func (db *qlDB) LogEvent(inst service.InstanceID, e history.Event) (err error) {
 	metadata, err := json.Marshal(e.Metadata)
 	if err != nil {
 		return err

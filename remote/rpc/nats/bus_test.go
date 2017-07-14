@@ -9,8 +9,8 @@ import (
 
 	"github.com/nats-io/nats"
 
-	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/remote"
+	"github.com/weaveworks/flux/service"
 )
 
 var testNATS = flag.String("nats-url", "", "NATS connection URL; use NATS' default if empty")
@@ -30,7 +30,7 @@ func setup(t *testing.T) *NATS {
 	return bus
 }
 
-func subscribe(t *testing.T, bus *NATS, errc chan error, inst flux.InstanceID, plat remote.Platform) {
+func subscribe(t *testing.T, bus *NATS, errc chan error, inst service.InstanceID, plat remote.Platform) {
 	bus.Subscribe(inst, plat, errc)
 	if err := bus.AwaitPresence(inst, 5*time.Second); err != nil {
 		t.Fatal("Timed out waiting for instance to subscribe")
@@ -40,7 +40,7 @@ func subscribe(t *testing.T, bus *NATS, errc chan error, inst flux.InstanceID, p
 func TestPing(t *testing.T) {
 	bus := setup(t)
 	errc := make(chan error)
-	instID := flux.InstanceID("wirey-bird-68")
+	instID := service.InstanceID("wirey-bird-68")
 	platA := &remote.MockPlatform{}
 	subscribe(t, bus, errc, instID, platA)
 
@@ -71,7 +71,7 @@ func TestPing(t *testing.T) {
 func TestMethods(t *testing.T) {
 	bus := setup(t)
 	errc := make(chan error, 1)
-	instA := flux.InstanceID("steamy-windows-89")
+	instA := service.InstanceID("steamy-windows-89")
 
 	wrap := func(mock remote.Platform) remote.Platform {
 		subscribe(t, bus, errc, instA, mock)
@@ -95,7 +95,7 @@ func TestFatalErrorDisconnects(t *testing.T) {
 
 	errc := make(chan error)
 
-	instA := flux.InstanceID("golden-years-75")
+	instA := service.InstanceID("golden-years-75")
 	mockA := &remote.MockPlatform{
 		ListServicesError: remote.FatalError{errors.New("Disaster.")},
 	}
@@ -126,7 +126,7 @@ func TestFatalErrorDisconnects(t *testing.T) {
 func TestNewConnectionKicks(t *testing.T) {
 	bus := setup(t)
 
-	instA := flux.InstanceID("breaky-chain-77")
+	instA := service.InstanceID("breaky-chain-77")
 
 	mockA := &remote.MockPlatform{}
 	errA := make(chan error)

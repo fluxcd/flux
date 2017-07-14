@@ -1,4 +1,4 @@
-package flux
+package service
 
 import (
 	"encoding/json"

@@ -8,8 +8,8 @@ import (
 	_ "github.com/lib/pq"
 	"github.com/pkg/errors"
 
-	"github.com/weaveworks/flux"
-	"github.com/weaveworks/flux/instance"
+	"github.com/weaveworks/flux/service"
+	"github.com/weaveworks/flux/service/instance"
 )
 
 type DB struct {
@@ -27,7 +27,7 @@ func New(driver, datasource string) (*DB, error) {
 	return db, db.sanityCheck()
 }
 
-func (db *DB) UpdateConfig(inst flux.InstanceID, update instance.UpdateFunc) error {
+func (db *DB) UpdateConfig(inst service.InstanceID, update instance.UpdateFunc) error {
 	tx, err := db.conn.Begin()
 	if err != nil {
 		return err
@@ -73,7 +73,7 @@ func (db *DB) UpdateConfig(inst flux.InstanceID, update instance.UpdateFunc) err
 	return err
 }
 
-func (db *DB) GetConfig(inst flux.InstanceID) (instance.Config, error) {
+func (db *DB) GetConfig(inst service.InstanceID) (instance.Config, error) {
 	var c string
 	err := db.conn.QueryRow(`SELECT config FROM config WHERE instance = $1`, string(inst)).Scan(&c)
 	switch err {
@@ -109,7 +109,7 @@ func (db *DB) All() ([]instance.NamedConfig, error) {
 		}
 
 		instances = append(instances, instance.NamedConfig{
-			ID:     flux.InstanceID(id),
+			ID:     service.InstanceID(id),
 			Config: conf,
 		})
 	}

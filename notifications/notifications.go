@@ -2,7 +2,7 @@ package notifications
 
 import (
 	"github.com/weaveworks/flux/history"
-	"github.com/weaveworks/flux/instance"
+	"github.com/weaveworks/flux/service/instance"
 )
 
 func Event(cfg instance.Config, e history.Event) error {

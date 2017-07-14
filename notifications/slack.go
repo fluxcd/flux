@@ -15,6 +15,7 @@ import (
 
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/history"
+	"github.com/weaveworks/flux/service"
 	"github.com/weaveworks/flux/update"
 )
 
@@ -58,7 +59,7 @@ var (
 	httpClient = &http.Client{Timeout: 5 * time.Second}
 )
 
-func slackNotifyRelease(config flux.NotifierConfig, release *history.ReleaseEventMetadata, releaseError string) error {
+func slackNotifyRelease(config service.NotifierConfig, release *history.ReleaseEventMetadata, releaseError string) error {
 	// Sanity check: we shouldn't get any other kind, but you
 	// never know.
 	if release.Spec.Kind != update.ReleaseKindExecute {
@@ -102,7 +103,7 @@ func slackNotifyRelease(config flux.NotifierConfig, release *history.ReleaseEven
 	})
 }
 
-func slackNotifyAutoRelease(config flux.NotifierConfig, release *history.AutoReleaseEventMetadata, releaseError string) error {
+func slackNotifyAutoRelease(config service.NotifierConfig, release *history.AutoReleaseEventMetadata, releaseError string) error {
 	var attachments []SlackAttachment
 
 	if releaseError != "" {
@@ -141,7 +142,7 @@ func slackResultAttachment(res update.Result) SlackAttachment {
 	}
 }
 
-func notify(config flux.NotifierConfig, msg SlackMsg) error {
+func notify(config service.NotifierConfig, msg SlackMsg) error {
 	buf := &bytes.Buffer{}
 	if err := json.NewEncoder(buf).Encode(msg); err != nil {
 		return errors.Wrap(err, "encoding Slack POST request")

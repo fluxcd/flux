@@ -28,6 +28,7 @@ import (
 	"github.com/weaveworks/flux/policy"
 	"github.com/weaveworks/flux/remote"
 	"github.com/weaveworks/flux/remote/rpc"
+	"github.com/weaveworks/flux/service"
 	"github.com/weaveworks/flux/update"
 )
 
@@ -341,7 +342,7 @@ func (s HTTPService) GetConfig(w http.ResponseWriter, r *http.Request) {
 func (s HTTPService) SetConfig(w http.ResponseWriter, r *http.Request) {
 	inst := getInstanceID(r)
 
-	var config flux.InstanceConfig
+	var config service.InstanceConfig
 	if err := json.NewDecoder(r.Body).Decode(&config); err != nil {
 		transport.WriteError(w, r, http.StatusBadRequest, err)
 		return
@@ -358,7 +359,7 @@ func (s HTTPService) SetConfig(w http.ResponseWriter, r *http.Request) {
 func (s HTTPService) PatchConfig(w http.ResponseWriter, r *http.Request) {
 	inst := getInstanceID(r)
 
-	var patch flux.ConfigPatch
+	var patch service.ConfigPatch
 	if err := json.NewDecoder(r.Body).Decode(&patch); err != nil {
 		transport.WriteError(w, r, http.StatusBadRequest, err)
 		return
@@ -469,7 +470,7 @@ func (s HTTPService) IsConnected(w http.ResponseWriter, r *http.Request) {
 
 	err := s.service.IsDaemonConnected(inst)
 	if err == nil {
-		transport.JSONResponse(w, r, flux.FluxdStatus{
+		transport.JSONResponse(w, r, service.FluxdStatus{
 			Connected: true,
 		})
 		return
@@ -479,11 +480,11 @@ func (s HTTPService) IsConnected(w http.ResponseWriter, r *http.Request) {
 		// NB this has a specific contract for "cannot contact" -> // "404 not found"
 		transport.WriteError(w, r, http.StatusNotFound, err)
 	case flux.Missing: // From standalone, not connected.
-		transport.JSONResponse(w, r, flux.FluxdStatus{
+		transport.JSONResponse(w, r, service.FluxdStatus{
 			Connected: false,
 		})
 	case remote.FatalError: // An error from nats, but probably due to not connected.
-		transport.JSONResponse(w, r, flux.FluxdStatus{
+		transport.JSONResponse(w, r, service.FluxdStatus{
 			Connected: false,
 		})
 	default:
@@ -547,12 +548,12 @@ func logging(next http.Handler, logger log.Logger) http.Handler {
 	})
 }
 
-func getInstanceID(req *http.Request) flux.InstanceID {
-	s := req.Header.Get(flux.InstanceIDHeaderKey)
+func getInstanceID(req *http.Request) service.InstanceID {
+	s := req.Header.Get(service.InstanceIDHeaderKey)
 	if s == "" {
-		return flux.DefaultInstanceID
+		return service.NoInstanceID
 	}
-	return flux.InstanceID(s)
+	return service.InstanceID(s)
 }
 
 // codeWriter intercepts the HTTP status code. WriteHeader may not be called in

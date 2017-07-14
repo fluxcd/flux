@@ -21,11 +21,12 @@ import (
 	"github.com/weaveworks/flux/http/client"
 	httpdaemon "github.com/weaveworks/flux/http/daemon"
 	httpserver "github.com/weaveworks/flux/http/server"
-	"github.com/weaveworks/flux/instance"
-	instancedb "github.com/weaveworks/flux/instance/sql"
 	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/remote"
 	"github.com/weaveworks/flux/server"
+	"github.com/weaveworks/flux/service"
+	"github.com/weaveworks/flux/service/instance"
+	instancedb "github.com/weaveworks/flux/service/instance/sql"
 	"github.com/weaveworks/flux/update"
 	"io/ioutil"
 )
@@ -50,6 +51,7 @@ var (
 const (
 	helloWorldSvc = "default/helloworld"
 	ver           = "123"
+	id            = service.NoInstanceID
 )
 
 func setup() {
@@ -107,7 +109,7 @@ func setup() {
 		},
 	}
 	done := make(chan error)
-	messageBus.Subscribe(flux.DefaultInstanceID, mockPlatform, done) // For ListService
+	messageBus.Subscribe(id, mockPlatform, done) // For ListService
 
 	// History
 	hDb, _ := historysql.NewSQL(dbDriver, databaseSource)
@@ -262,7 +264,7 @@ func TestFluxsvc_History(t *testing.T) {
 	// implements for convenient use in the daemon, without
 	// implementing the other parts of api.DaemonService.
 	eventLogger, ok := apiClient.(interface {
-		LogEvent(flux.InstanceID, history.Event) error
+		LogEvent(service.InstanceID, history.Event) error
 	})
 	if !ok {
 		t.Fatal("API client does not implement LogEvent (maybe that method has moved)")

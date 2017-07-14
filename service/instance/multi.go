@@ -4,9 +4,9 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
 
-	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/history"
 	"github.com/weaveworks/flux/remote"
+	"github.com/weaveworks/flux/service"
 )
 
 type MultitenantInstancer struct {
@@ -16,7 +16,7 @@ type MultitenantInstancer struct {
 	History   history.DB
 }
 
-func (m *MultitenantInstancer) Get(instanceID flux.InstanceID) (*Instance, error) {
+func (m *MultitenantInstancer) Get(instanceID service.InstanceID) (*Instance, error) {
 	// Platform interface for this instance
 	platform, err := m.Connecter.Connect(instanceID)
 	if err != nil {

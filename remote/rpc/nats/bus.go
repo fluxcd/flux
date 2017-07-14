@@ -13,6 +13,7 @@ import (
 	"github.com/weaveworks/flux/guid"
 	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/remote"
+	"github.com/weaveworks/flux/service"
 	"github.com/weaveworks/flux/update"
 )
 
@@ -72,7 +73,7 @@ func NewMessageBus(url string, metrics remote.BusMetrics) (*NATS, error) {
 
 // Wait up to `timeout` for a particular instance to connect. Mostly
 // useful for synchronising during testing.
-func (n *NATS) AwaitPresence(instID flux.InstanceID, timeout time.Duration) error {
+func (n *NATS) AwaitPresence(instID service.InstanceID, timeout time.Duration) error {
 	timer := time.After(timeout)
 	attempts := time.NewTicker(presenceTick)
 	defer attempts.Stop()
@@ -89,7 +90,7 @@ func (n *NATS) AwaitPresence(instID flux.InstanceID, timeout time.Duration) erro
 	}
 }
 
-func (n *NATS) Ping(instID flux.InstanceID) error {
+func (n *NATS) Ping(instID service.InstanceID) error {
 	var response PingResponse
 	if err := n.enc.Request(string(instID)+methodPing, ping{}, &response, timeout); err != nil {
 		if err == nats.ErrTimeout {
@@ -309,7 +310,7 @@ func (r *natsPlatform) GitRepoConfig(regenerate bool) (flux.GitConfig, error) {
 
 // Connect returns a remote.Platform implementation that can be used
 // to talk to a particular instance.
-func (n *NATS) Connect(instID flux.InstanceID) (remote.Platform, error) {
+func (n *NATS) Connect(instID service.InstanceID) (remote.Platform, error) {
 	return &natsPlatform{
 		conn:     n.enc,
 		instance: string(instID),
@@ -321,7 +322,7 @@ func (n *NATS) Connect(instID flux.InstanceID) (remote.Platform, error) {
 // remote.FatalError returned when processing requests will result
 // in the platform being deregistered, with the error put on the
 // channel `done`.
-func (n *NATS) Subscribe(instID flux.InstanceID, platform remote.Platform, done chan<- error) {
+func (n *NATS) Subscribe(instID service.InstanceID, platform remote.Platform, done chan<- error) {
 	encoder := nats.EncoderForType(encoderType)
 
 	requests := make(chan *nats.Msg)

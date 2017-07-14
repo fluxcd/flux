@@ -10,6 +10,7 @@ import (
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/db"
 	"github.com/weaveworks/flux/history"
+	"github.com/weaveworks/flux/service"
 )
 
 var (
@@ -52,7 +53,7 @@ func newSQL(t *testing.T) history.DB {
 }
 
 func TestHistoryLog(t *testing.T) {
-	instance := flux.InstanceID("instance")
+	instance := service.InstanceID("instance")
 	db := newSQL(t)
 	defer db.Close()
 

@@ -19,6 +19,7 @@ import (
 	"github.com/weaveworks/flux/http/websocket"
 	"github.com/weaveworks/flux/remote"
 	"github.com/weaveworks/flux/remote/rpc"
+	"github.com/weaveworks/flux/service"
 )
 
 // Upstream handles communication from the daemon to a service
@@ -177,7 +178,7 @@ func (a *Upstream) setConnectionDuration(duration float64) {
 
 func (a *Upstream) LogEvent(event history.Event) error {
 	// Instance ID is set via token here, so we can leave it blank.
-	return a.apiClient.LogEvent(flux.InstanceID(""), event)
+	return a.apiClient.LogEvent(service.InstanceID(""), event)
 }
 
 // Close closes the connection to the service

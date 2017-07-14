@@ -5,10 +5,11 @@ import (
 
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/history"
+	"github.com/weaveworks/flux/service"
 )
 
 type EventReadWriter struct {
-	inst flux.InstanceID
+	inst service.InstanceID
 	db   history.DB
 }
 
