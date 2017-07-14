@@ -14,6 +14,7 @@ import (
 	"github.com/weaveworks/flux/policy"
 	"github.com/weaveworks/flux/remote"
 	"github.com/weaveworks/flux/service"
+	"github.com/weaveworks/flux/service/bus"
 	"github.com/weaveworks/flux/service/instance"
 	"github.com/weaveworks/flux/ssh"
 	"github.com/weaveworks/flux/update"
@@ -23,7 +24,7 @@ type Server struct {
 	version     string
 	instancer   instance.Instancer
 	config      instance.DB
-	messageBus  remote.MessageBus
+	messageBus  bus.MessageBus
 	logger      log.Logger
 	maxPlatform chan struct{} // semaphore for concurrent calls to the platform
 	connected   int32
@@ -33,7 +34,7 @@ func New(
 	version string,
 	instancer instance.Instancer,
 	config instance.DB,
-	messageBus remote.MessageBus,
+	messageBus bus.MessageBus,
 	logger log.Logger,
 ) *Server {
 	connectedDaemons.Set(0)

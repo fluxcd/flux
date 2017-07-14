@@ -17,9 +17,9 @@ import (
 	"github.com/weaveworks/flux/history"
 	historysql "github.com/weaveworks/flux/history/sql"
 	httpserver "github.com/weaveworks/flux/http/server"
-	"github.com/weaveworks/flux/remote"
-	"github.com/weaveworks/flux/remote/rpc/nats"
 	"github.com/weaveworks/flux/server"
+	"github.com/weaveworks/flux/service/bus"
+	"github.com/weaveworks/flux/service/bus/nats"
 	"github.com/weaveworks/flux/service/instance"
 	instancedb "github.com/weaveworks/flux/service/instance/sql"
 )
@@ -82,10 +82,10 @@ func main() {
 		logger.Log("migrations", "success", "driver", dbDriver, "db-version", fmt.Sprintf("%d", version))
 	}
 
-	var messageBus remote.MessageBus
+	var messageBus bus.MessageBus
 	{
 		if *natsURL != "" {
-			bus, err := nats.NewMessageBus(*natsURL, remote.BusMetricsImpl)
+			bus, err := nats.NewMessageBus(*natsURL, bus.BusMetricsImpl)
 			if err != nil {
 				logger.Log("component", "message bus", "err", err)
 				os.Exit(1)
@@ -93,8 +93,8 @@ func main() {
 			logger.Log("component", "message bus", "type", "NATS")
 			messageBus = bus
 		} else {
-			messageBus = remote.NewStandaloneMessageBus(remote.BusMetricsImpl)
-			logger.Log("component", "message bus", "type", "standalone")
+			logger.Log("component", "message bus", "err", "not configured")
+			os.Exit(1)
 		}
 	}
 

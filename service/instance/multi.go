@@ -5,13 +5,13 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/weaveworks/flux/history"
-	"github.com/weaveworks/flux/remote"
 	"github.com/weaveworks/flux/service"
+	"github.com/weaveworks/flux/service/bus"
 )
 
 type MultitenantInstancer struct {
 	DB        DB
-	Connecter remote.Connecter
+	Connecter bus.Connecter
 	Logger    log.Logger
 	History   history.DB
 }
