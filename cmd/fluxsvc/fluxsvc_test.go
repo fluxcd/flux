@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+	"math/rand"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -53,11 +55,13 @@ var (
 const (
 	helloWorldSvc = "default/helloworld"
 	ver           = "123"
-	id            = service.NoInstanceID
 )
 
-func setup(t *testing.T) {
-	databaseSource := "file://fluxy.db"
+func setup(t *testing.T) (instanceID string) {
+	idBytes := make([]byte, 8)
+	rand.Read(idBytes)
+	id := fmt.Sprintf("%x", idBytes)
+	databaseSource := fmt.Sprintf("file://fluxy-%s.db", id)
 	databaseMigrationsDir, _ := filepath.Abs("../../db/migrations")
 	var dbDriver string
 	{
@@ -114,7 +118,7 @@ func setup(t *testing.T) {
 		},
 	}
 	done := make(chan error)
-	messageBus.Subscribe(id, mockPlatform, done) // For ListService
+	messageBus.Subscribe(service.InstanceID(id), mockPlatform, done)
 
 	// History
 	hDb, _ := historysql.NewSQL(dbDriver, databaseSource)
@@ -140,11 +144,32 @@ func setup(t *testing.T) {
 	router = httpserver.NewServiceRouter()
 	handler := httpserver.NewHandler(apiServer, router, log.NewNopLogger())
 	ts = httptest.NewServer(handler)
-	apiClient = client.New(http.DefaultClient, router, ts.URL, "")
+	apiClient = client.New(instanceClient(id), router, ts.URL, "")
+	return id
 }
 
 func teardown() {
 	ts.Close()
+}
+
+type instanceRoundTripper struct {
+	instanceID string
+	transport  http.RoundTripper
+}
+
+func instanceClient(id string) *http.Client {
+	return &http.Client{
+		Transport: &instanceRoundTripper{id, http.DefaultTransport},
+	}
+}
+
+func (t *instanceRoundTripper) RoundTrip(r *http.Request) (*http.Response, error) {
+	// Shamelessly stomp on headers
+	if r.Header == nil {
+		r.Header = http.Header{}
+	}
+	r.Header.Set(service.InstanceIDHeaderKey, t.instanceID)
+	return t.transport.RoundTrip(r)
 }
 
 func TestFluxsvc_ListServices(t *testing.T) {
@@ -331,12 +356,12 @@ func TestFluxsvc_Status(t *testing.T) {
 }
 
 func TestFluxsvc_Ping(t *testing.T) {
-	setup(t)
+	id := setup(t)
 	defer teardown()
 
 	// Test Ping
 	u, _ := transport.MakeURL(ts.URL, router, "IsConnected")
-	resp, err := http.Get(u.String())
+	resp, err := instanceClient(id).Get(u.String())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -346,12 +371,12 @@ func TestFluxsvc_Ping(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		t.Fatal("Request should have been ok but got %q, body:\n%s", resp.Status, body)
+		t.Errorf("Request should have been ok but got %q, body:\n%s", resp.Status, string(body))
 	}
 }
 
 func TestFluxsvc_Register(t *testing.T) {
-	setup(t)
+	id := setup(t)
 	defer teardown()
 
 	_, err := httpdaemon.NewUpstream(&http.Client{}, "fluxd/test", "", router, ts.URL, mockPlatform, log.NewNopLogger()) // For ping and for
@@ -361,7 +386,7 @@ func TestFluxsvc_Register(t *testing.T) {
 
 	// Test Ping to make sure daemon has registered.
 	u, _ := transport.MakeURL(ts.URL, router, "IsConnected")
-	resp, err := http.Get(u.String())
+	resp, err := instanceClient(id).Get(u.String())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -371,6 +396,6 @@ func TestFluxsvc_Register(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		t.Fatal("Request should have been ok but got %q, body:\n%s", resp.Status, body)
+		t.Errorf("Request should have been ok but got %q, body:\n%s", resp.Status, string(body))
 	}
 }
