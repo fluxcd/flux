@@ -303,7 +303,7 @@ func TestDaemon_JobStatusWithNoCache(t *testing.T) {
 }
 
 func mockDaemon(t *testing.T) (*Daemon, func(), *cluster.Mock, history.EventReadWriter) {
-	logger := log.NewLogfmtLogger(os.Stdout)
+	logger := log.NewNopLogger()
 
 	singleService := cluster.Service{
 		ID: flux.ServiceID(svc),
