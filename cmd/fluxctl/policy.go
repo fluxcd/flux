@@ -1,6 +1,9 @@
 package main
 
 import (
+	"fmt"
+	"strings"
+
 	"github.com/spf13/cobra"
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/policy"
@@ -11,9 +14,8 @@ type servicePolicyOpts struct {
 	*rootOpts
 	outputOpts
 
-	service    string
-	containers []string
-	tags       []string
+	service string
+	tags    []string
 
 	automate, deautomate bool
 	lock, unlock         bool
@@ -32,7 +34,7 @@ func (opts *servicePolicyOpts) Command() *cobra.Command {
 		Example: makeExample(
 			"fluxctl policy --service=foo --automate",
 			"fluxctl policy --service=foo --lock",
-			"fluxctl policy --service=foo --container=bar --tag=1.2.*",
+			"fluxctl policy --service=foo --tag='bar=1.*' --tag='baz=2.*'",
 		),
 		RunE: opts.RunE,
 	}
@@ -41,7 +43,6 @@ func (opts *servicePolicyOpts) Command() *cobra.Command {
 	AddCauseFlags(cmd, &opts.cause)
 	flags := cmd.Flags()
 	flags.StringVarP(&opts.service, "service", "s", "", "Service to modify")
-	flags.StringSliceVar(&opts.containers, "container", nil, "Containers to set tag filter")
 	flags.StringSliceVar(&opts.tags, "tag", nil, "Tag filter patterns")
 	flags.BoolVar(&opts.automate, "automate", false, "Automate service")
 	flags.BoolVar(&opts.deautomate, "deautomate", false, "Deautomate for service")
@@ -64,16 +65,16 @@ func (opts *servicePolicyOpts) RunE(cmd *cobra.Command, args []string) error {
 	if opts.lock && opts.unlock {
 		return newUsageError("lock and unlock both specified")
 	}
-	if len(opts.containers) != len(opts.tags) {
-		return newUsageError("mismatched container name and tag filter count")
-	}
 
 	serviceID, err := flux.ParseServiceID(opts.service)
 	if err != nil {
 		return err
 	}
 
-	update := calculatePolicyChanges(opts)
+	update, err := calculatePolicyChanges(opts)
+	if err != nil {
+		return err
+	}
 	jobID, err := opts.API.UpdatePolicies(noInstanceID, policy.Updates{
 		serviceID: update,
 	}, opts.cause)
@@ -83,7 +84,7 @@ func (opts *servicePolicyOpts) RunE(cmd *cobra.Command, args []string) error {
 	return await(cmd.OutOrStdout(), cmd.OutOrStderr(), opts.API, jobID, false, opts.verbose)
 }
 
-func calculatePolicyChanges(opts *servicePolicyOpts) policy.Update {
+func calculatePolicyChanges(opts *servicePolicyOpts) (policy.Update, error) {
 	add := policy.Set{}
 	if opts.automate {
 		add = add.Add(policy.Automated)
@@ -100,22 +101,22 @@ func calculatePolicyChanges(opts *servicePolicyOpts) policy.Update {
 		remove = remove.Add(policy.Locked)
 	}
 
-	for i, container := range opts.containers {
-		tag := opts.tags[i]
-		if tag != "" && tag != "*" {
+	for _, tagPair := range opts.tags {
+		parts := strings.Split(tagPair, "=")
+		if len(parts) != 2 {
+			return policy.Update{}, fmt.Errorf("invalid container/tag pair: %q", tagPair)
+		}
+
+		container, tag := parts[0], parts[1]
+		if tag != "*" {
 			add = add.Set(policy.TagPrefix(container), "glob:"+tag)
-		} else if tag == "*" {
+		} else {
 			remove = remove.Add(policy.TagPrefix(container))
 		}
 	}
 
-	update := policy.Update{}
-	if len(add) > 0 {
-		update.Add = add
-	}
-	if len(remove) > 0 {
-		update.Remove = remove
-	}
-
-	return update
+	return policy.Update{
+		Add:    add,
+		Remove: remove,
+	}, nil
 }
