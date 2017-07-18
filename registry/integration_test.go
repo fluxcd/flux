@@ -19,10 +19,10 @@ var (
 	memcachedIPs = flag.String("memcached-ips", "127.0.0.1:11211", "space-separated host:port values for memcached to connect to")
 )
 
-// This tests a real memcache cache and a request to a real docker repository.
-// It is intended to be an end-to-end integration test for the warmer
-// since I had a few bugs introduced when refactoring. This should cover
-// against these bugs.
+// This tests a real memcache cache and a request to a real docker
+// repository.  It is intended to be an end-to-end integration test
+// for the warmer since I had a few bugs introduced when
+// refactoring. This should cover against these bugs.
 func TestWarming_WarmerWriteCacheRead(t *testing.T) {
 	mc := cache.NewFixedServerMemcacheClient(cache.MemcacheConfig{
 		Timeout:        time.Second,
@@ -53,14 +53,6 @@ func TestWarming_WarmerWriteCacheRead(t *testing.T) {
 		512,
 	)
 
-	q := NewQueue(
-		func() []flux.ImageID {
-			return []flux.ImageID{id}
-		},
-		logger.With("component", "queue"),
-		100*time.Millisecond,
-	)
-
 	w := Warmer{
 		Logger:        logger.With("component", "warmer"),
 		ClientFactory: remote,
@@ -79,10 +71,9 @@ func TestWarming_WarmerWriteCacheRead(t *testing.T) {
 	}()
 
 	shutdownWg.Add(1)
-	go q.Loop(shutdown, shutdownWg)
-
-	shutdownWg.Add(1)
-	go w.Loop(shutdown, shutdownWg, q.Queue())
+	go w.Loop(shutdown, shutdownWg, func() []flux.ImageID {
+		return []flux.ImageID{id}
+	})
 
 	timeout := time.NewTicker(10 * time.Second)    // Shouldn't take longer than 10s
 	tick := time.NewTicker(100 * time.Millisecond) // Check every 100ms

@@ -15,6 +15,7 @@ import (
 )
 
 const refreshWhenExpiryWithin = time.Minute
+const askForNewImagesInterval = time.Minute
 
 type Warmer struct {
 	Logger        log.Logger
@@ -26,21 +27,29 @@ type Warmer struct {
 	Burst         int
 }
 
-// Continuously wait for a new repository to warm
-func (w *Warmer) Loop(stop <-chan struct{}, wg *sync.WaitGroup, warm <-chan flux.ImageID) {
+// Continuously get the images to populate the cache with, and
+// populate the cache with them.
+func (w *Warmer) Loop(stop <-chan struct{}, wg *sync.WaitGroup, imagesToFetchFunc func() []flux.ImageID) {
 	defer wg.Done()
 
 	if w.Logger == nil || w.ClientFactory == nil || w.Expiry == 0 || w.Writer == nil || w.Reader == nil {
 		panic("registry.Warmer fields are nil")
 	}
 
+	for _, r := range imagesToFetchFunc() {
+		w.warm(r)
+	}
+
+	newImages := time.Tick(askForNewImagesInterval)
 	for {
 		select {
 		case <-stop:
 			w.Logger.Log("stopping", "true")
 			return
-		case r := <-warm:
-			w.warm(r)
+		case <-newImages:
+			for _, r := range imagesToFetchFunc() {
+				w.warm(r)
+			}
 		}
 	}
 }
@@ -111,57 +120,49 @@ func (w *Warmer) warm(id flux.ImageID) {
 	if len(toUpdate) == 0 {
 		return
 	}
+	w.Logger.Log("fetching", id.String(), "to-update", len(toUpdate))
 
 	if expired {
 		w.Logger.Log("expiring", id.HostNamespaceImage())
 	}
 
-	// Now refresh the manifests for each tag (in lots of goroutines for improved performance)
-	toFetch := make(chan flux.ImageID, len(toUpdate))
-	fetched := make(chan flux.Image, len(toUpdate))
-	for i := 0; i < w.Burst; i++ {
-		go func() {
-			for i := range toFetch {
-				// Get the image from the remote
-				img, err := client.Manifest(i)
-				if err != nil {
-					if !strings.Contains(err.Error(), context.DeadlineExceeded.Error()) && !strings.Contains(err.Error(), "net/http: request canceled") {
-						w.Logger.Log("err", errors.Wrap(err, "requesting manifests"))
-					}
+	// The upper bound for concurrent fetches against a single host is
+	// w.Burst, so limit the number of fetching goroutines to that.
+	fetchers := make(chan struct{}, w.Burst)
+	awaitFetchers := &sync.WaitGroup{}
+	for _, imID := range toUpdate {
+		awaitFetchers.Add(1)
+		fetchers <- struct{}{}
+		go func(imageID flux.ImageID) {
+			defer func() { awaitFetchers.Done(); <-fetchers }()
+			// Get the image from the remote
+			img, err := client.Manifest(imageID)
+			if err != nil {
+				if !strings.Contains(err.Error(), context.DeadlineExceeded.Error()) && !strings.Contains(err.Error(), "net/http: request canceled") {
+					w.Logger.Log("err", errors.Wrap(err, "requesting manifests"))
 				}
-				fetched <- img // Always return an image, otherwise the for loop below will never finish.
+				return
 			}
-		}()
-	}
-	for _, img := range toUpdate {
-		toFetch <- img
-	}
-	close(toFetch)
 
-	// Write received manifests back to memcache
-	for i := 0; i < cap(fetched); i++ {
-		img := <-fetched
-		if img.ID.String() == "" {
-			continue
-		}
-		key, err := cache.NewManifestKey(username, img.ID)
-		if err != nil {
-			w.Logger.Log("err", errors.Wrap(err, "creating key for memcache"))
-			continue
-		}
-		// Write back to memcache
-		val, err := json.Marshal(img)
-		if err != nil {
-			w.Logger.Log("err", errors.Wrap(err, "serializing tag to store in cache"))
-			return
-		}
-		err = w.Writer.SetKey(key, val)
-		if err != nil {
-			w.Logger.Log("err", errors.Wrap(err, "storing manifests in cache"))
-			return
-		}
+			key, err := cache.NewManifestKey(username, img.ID)
+			if err != nil {
+				w.Logger.Log("err", errors.Wrap(err, "creating key for memcache"))
+				return
+			}
+			// Write back to memcache
+			val, err := json.Marshal(img)
+			if err != nil {
+				w.Logger.Log("err", errors.Wrap(err, "serializing tag to store in cache"))
+				return
+			}
+			err = w.Writer.SetKey(key, val)
+			if err != nil {
+				w.Logger.Log("err", errors.Wrap(err, "storing manifests in cache"))
+				return
+			}
+		}(imID)
 	}
-	close(fetched)
+	awaitFetchers.Wait()
 	w.Logger.Log("updated", id.HostNamespaceImage())
 }
 
@@ -172,63 +173,4 @@ func withinExpiryBuffer(expiry time.Time, buffer time.Duration) bool {
 		return true
 	}
 	return false
-}
-
-// Queue provides an updating repository queue for the warmer.
-// If no items are added to the queue this will randomly add a new
-// registry to warm
-type Queue struct {
-	RunningContainers    func() []flux.ImageID
-	Logger               log.Logger
-	RegistryPollInterval time.Duration
-	warmQueue            chan flux.ImageID
-	queueLock            sync.Mutex
-}
-
-func NewQueue(runningContainersFunc func() []flux.ImageID, l log.Logger, emptyQueueTick time.Duration) Queue {
-	return Queue{
-		RunningContainers:    runningContainersFunc,
-		Logger:               l,
-		RegistryPollInterval: emptyQueueTick,
-		warmQueue:            make(chan flux.ImageID, 100), // Don't close this. It will be GC'ed when this instance is destroyed.
-	}
-}
-
-// Queue loop to maintain the queue and periodically add a random
-// repository that is running in the cluster.
-func (w *Queue) Loop(stop chan struct{}, wg *sync.WaitGroup) {
-	defer wg.Done()
-
-	if w.RunningContainers == nil || w.Logger == nil || w.RegistryPollInterval == 0 {
-		panic("registry.Queue fields are nil")
-	}
-
-	pollImages := time.Tick(w.RegistryPollInterval)
-
-	for {
-		select {
-		case <-stop:
-			w.Logger.Log("stopping", "true")
-			return
-		case <-pollImages:
-			if len(w.warmQueue) == 0 { // Only add to queue if queue is empty
-				containers := w.RunningContainers() // Just add containers in order for now
-				w.queueLock.Lock()
-				for _, c := range containers {
-					// if we can't write it immediately, drop it and move on
-					select {
-					case w.warmQueue <- c:
-					default:
-					}
-				}
-				w.queueLock.Unlock()
-			}
-		}
-	}
-}
-
-func (w *Queue) Queue() chan flux.ImageID {
-	w.queueLock.Lock()
-	defer w.queueLock.Unlock()
-	return w.warmQueue
 }
