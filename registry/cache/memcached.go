@@ -1,28 +1,25 @@
 package cache
 
 import (
+	"encoding/json"
 	"fmt"
 	"net"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
-	"encoding/json"
 	"github.com/bradfitz/gomemcache/memcache"
 	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
+
 	"github.com/weaveworks/flux"
-	"strings"
 )
 
 const (
 	expiry = time.Hour
 )
 
-// Interface to read from a cache
-// fullRepo must be the full path to the image, including host. E.g.
-// "index.docker.io/weaveworks/foorepo" otherwise it will cache in
-// the wrong location.
 type Reader interface {
 	GetKey(k Key) ([]byte, error)
 	GetExpiration(k Key) (time.Time, error)

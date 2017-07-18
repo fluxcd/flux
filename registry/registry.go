@@ -10,13 +10,15 @@
 package registry
 
 import (
+	"sort"
+	"time"
+
 	"github.com/docker/distribution/manifest/schema1"
 	"github.com/go-kit/kit/log"
 	dockerregistry "github.com/heroku/docker-registry-client/registry"
-	"github.com/weaveworks/flux"
 	"google.golang.org/appengine/memcache"
-	"sort"
-	"time"
+
+	"github.com/weaveworks/flux"
 )
 
 const (

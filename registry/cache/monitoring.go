@@ -43,7 +43,7 @@ func (i *instrumentedMemcacheClient) GetKey(k Key) (_ []byte, err error) {
 func (i *instrumentedMemcacheClient) GetExpiration(k Key) (_ time.Time, err error) {
 	defer func(begin time.Time) {
 		memcacheRequestDuration.With(
-			fluxmetrics.LabelMethod, "GetKey",
+			fluxmetrics.LabelMethod, "GetExpiration",
 			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
 	}(time.Now())

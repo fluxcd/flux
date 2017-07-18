@@ -2,16 +2,17 @@
 package registry
 
 import (
+	"context"
 	"encoding/json"
+	"strings"
 	"sync"
 	"time"
 
-	"context"
 	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
+
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/registry/cache"
-	"strings"
 )
 
 const refreshWhenExpiryWithin = time.Minute

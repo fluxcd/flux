@@ -3,15 +3,17 @@ package registry
 import (
 	"context"
 	"encoding/json"
+	"time"
+
 	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
+
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/registry/cache"
-	"time"
 )
 
-// A client represents an entity that returns manifest and tags information.
-// It might be a chache, it might be a real registry.
+// A client represents an entity that returns manifest and tags
+// information.  It might be a cache, it might be a real registry.
 type Client interface {
 	Tags(id flux.ImageID) ([]string, error)
 	Manifest(id flux.ImageID) (flux.Image, error)

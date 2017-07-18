@@ -3,18 +3,20 @@ package registry
 import (
 	"context"
 	"errors"
-	"github.com/go-kit/kit/log"
-	dockerregistry "github.com/heroku/docker-registry-client/registry"
-	"github.com/weaveworks/flux/registry/cache"
-	"github.com/weaveworks/flux/registry/middleware"
-	"golang.org/x/net/publicsuffix"
 	"net/http"
 	"net/http/cookiejar"
 	"time"
+
+	"github.com/go-kit/kit/log"
+	dockerregistry "github.com/heroku/docker-registry-client/registry"
+	"golang.org/x/net/publicsuffix"
+
+	"github.com/weaveworks/flux/registry/cache"
+	"github.com/weaveworks/flux/registry/middleware"
 )
 
 var (
-	ErrNoMemcache = errors.New("no memecache")
+	ErrNoMemcache = errors.New("no memcache")
 )
 
 // ClientFactory creates a new client for the given host.

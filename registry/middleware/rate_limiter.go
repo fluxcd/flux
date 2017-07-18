@@ -2,9 +2,10 @@ package middleware
 
 import (
 	"context"
+	"net/http"
+
 	"github.com/pkg/errors"
 	"golang.org/x/time/rate"
-	"net/http"
 )
 
 var limiters = make(map[string]*rate.Limiter)
