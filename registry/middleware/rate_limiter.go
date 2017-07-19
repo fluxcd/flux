@@ -3,12 +3,14 @@ package middleware
 import (
 	"context"
 	"net/http"
+	"sync"
 
 	"github.com/pkg/errors"
 	"golang.org/x/time/rate"
 )
 
 var limiters = make(map[string]*rate.Limiter)
+var limitersMutex sync.Mutex
 
 type RateLimiterConfig struct {
 	RPS   int // Rate per second per host
@@ -16,10 +18,12 @@ type RateLimiterConfig struct {
 }
 
 func RateLimitedRoundTripper(rt http.RoundTripper, config RateLimiterConfig, host string) http.RoundTripper {
+	limitersMutex.Lock()
 	if _, ok := limiters[host]; !ok {
 		rl := rate.NewLimiter(rate.Limit(config.RPS), config.Burst)
 		limiters[host] = rl
 	}
+	limitersMutex.Unlock()
 	return &RoundTripRateLimiter{
 		RL:        limiters[host],
 		Transport: rt,
