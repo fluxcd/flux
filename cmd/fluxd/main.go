@@ -30,11 +30,21 @@ import (
 	daemonhttp "github.com/weaveworks/flux/http/daemon"
 	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/registry"
+	registryMemcache "github.com/weaveworks/flux/registry/cache"
+	registryMiddleware "github.com/weaveworks/flux/registry/middleware"
 	"github.com/weaveworks/flux/remote"
 	"github.com/weaveworks/flux/ssh"
 )
 
 var version string
+
+const (
+	defaultRemoteConnections = 125 // Chosen performance tests on sock-shop. Unable to get higher performance than this.
+	// Memcache: There is only one thread to accept new client connections. If you are cycling connections very quickly, you can overwhelm the thread. Use persistent connections or UDP in this case.
+	// See https://github.com/memcached/memcached/wiki/Performance
+	// Hence, keep the number of new connections low.
+	defaultMemcacheConnections = 10
+)
 
 func optionalVar(fs *pflag.FlagSet, value ssh.OptionalValue, name, usage string) ssh.OptionalValue {
 	fs.Var(value, name, usage)
@@ -68,10 +78,13 @@ func main() {
 		// registry
 		dockerCredFile       = fs.String("docker-config", "~/.docker/config.json", "Path to config file with credentials for DockerHub, quay.io etc.")
 		memcachedHostname    = fs.String("memcached-hostname", "", "Hostname for memcached service to use when caching chunks. If empty, no memcached will be used.")
-		memcachedTimeout     = fs.Duration("memcached-timeout", 100*time.Millisecond, "Maximum time to wait before giving up on memcached requests.")
+		memcachedTimeout     = fs.Duration("memcached-timeout", time.Second, "Maximum time to wait before giving up on memcached requests.")
 		memcachedService     = fs.String("memcached-service", "memcached", "SRV service used to discover memcache servers.")
+		memcachedConnections = fs.Int("memcached-connections", defaultMemcacheConnections, "maximum number of connections to memcache")
 		registryCacheExpiry  = fs.Duration("registry-cache-expiry", 20*time.Minute, "Duration to keep cached registry tag info. Must be < 1 month.")
 		registryPollInterval = fs.Duration("registry-poll-interval", 5*time.Minute, "period at which to poll registry for new images")
+		registryRPS          = fs.Int("registry-rps", 200, "maximum registry requests per second per host")
+		registryBurst        = fs.Int("registry-burst", defaultRemoteConnections, "maximum registry request burst per host (default matched to number of http worker goroutines)")
 		// k8s-secret backed ssh keyring configuration
 		k8sSecretName            = fs.String("k8s-secret-name", "flux-git-deploy", "Name of the k8s secret used to store the private SSH key")
 		k8sSecretVolumeMountPath = fs.String("k8s-secret-volume-mount-path", "/etc/fluxd/ssh", "Mount location of the k8s secret storing the private SSH key")
@@ -185,18 +198,21 @@ func main() {
 		k8sManifests = &kubernetes.Manifests{}
 	}
 
-	var reg registry.Registry
+	// Registry components
+	var cache registry.Registry
+	var cacheWarmer registry.Warmer
 	{
-		var memcacheClient registry.MemcacheClient
+		// Cache
+		var memcacheClient registryMemcache.Client
 		if *memcachedHostname != "" {
-			memcacheClient = registry.NewMemcacheClient(registry.MemcacheConfig{
+			memcacheClient = registryMemcache.NewMemcacheClient(registryMemcache.MemcacheConfig{
 				Host:           *memcachedHostname,
 				Service:        *memcachedService,
 				Timeout:        *memcachedTimeout,
 				UpdateInterval: 1 * time.Minute,
 				Logger:         log.NewContext(logger).With("component", "memcached"),
 			})
-			memcacheClient = registry.InstrumentMemcacheClient(memcacheClient)
+			memcacheClient = registryMemcache.InstrumentMemcacheClient(memcacheClient)
 			defer memcacheClient.Stop()
 		}
 
@@ -204,12 +220,32 @@ func main() {
 		if err != nil {
 			logger.Log("err", err)
 		}
-		registryLogger := log.NewContext(logger).With("component", "registry")
-		reg = registry.NewRegistry(
-			registry.NewRemoteClientFactory(creds, registryLogger, memcacheClient, *registryCacheExpiry),
-			registryLogger,
+		cacheLogger := log.NewContext(logger).With("component", "cache")
+		cache = registry.NewRegistry(
+			registry.NewCacheClientFactory(creds, cacheLogger, memcacheClient, *registryCacheExpiry),
+			cacheLogger,
+			*memcachedConnections,
 		)
-		reg = registry.NewInstrumentedRegistry(reg)
+		cache = registry.NewInstrumentedRegistry(cache)
+
+		// Remote
+		registryLogger := log.NewContext(logger).With("component", "registry")
+		remoteFactory := registry.NewRemoteClientFactory(creds, registryLogger, registryMiddleware.RateLimiterConfig{
+			RPS:   *registryRPS,
+			Burst: *registryBurst,
+		})
+
+		// Warmer
+		warmerLogger := log.NewContext(logger).With("component", "warmer")
+		cacheWarmer = registry.Warmer{
+			Logger:        warmerLogger,
+			ClientFactory: remoteFactory,
+			Creds:         creds,
+			Expiry:        *registryCacheExpiry,
+			Reader:        memcacheClient,
+			Writer:        memcacheClient,
+			Burst:         *registryBurst,
+		}
 	}
 
 	gitRemoteConfig := flux.GitRemoteConfig{
@@ -323,17 +359,16 @@ func main() {
 	}
 
 	daemon := &daemon.Daemon{
-		V:              version,
-		Cluster:        k8s,
-		Manifests:      k8sManifests,
-		Registry:       reg,
-		Repo:           repo,
-		Checkout:       checkout,
+		V:         version,
+		Cluster:   k8s,
+		Manifests: k8sManifests,
+		Registry:  cache,
+		Repo:      repo, Checkout: checkout,
 		Jobs:           jobs,
 		JobStatusCache: &job.StatusCache{Size: 100},
-		EventWriter:    eventWriter,
-		Logger:         log.NewContext(logger).With("component", "daemon"),
-		LoopVars: &daemon.LoopVars{
+
+		EventWriter: eventWriter,
+		Logger:      log.NewContext(logger).With("component", "daemon"), LoopVars: &daemon.LoopVars{
 			GitPollInterval:      *gitPollInterval,
 			RegistryPollInterval: *registryPollInterval,
 		},
@@ -341,6 +376,9 @@ func main() {
 
 	shutdownWg.Add(1)
 	go daemon.GitPollLoop(shutdown, shutdownWg, log.NewContext(logger).With("component", "sync-loop"))
+
+	shutdownWg.Add(1)
+	go cacheWarmer.Loop(shutdown, shutdownWg, servicesToRepositories(k8s, cacheWarmer.Logger))
 
 	// Update daemonRef so that upstream and handlers point to fully working daemon
 	daemonRef.UpdatePlatform(daemon)
@@ -383,4 +421,27 @@ func checkForUpdates(clusterString string, gitString string, logger log.Logger) 
 	}
 
 	return checkpoint.CheckInterval(&params, versionCheckPeriod, handleResponse)
+}
+
+func servicesToRepositories(k8s cluster.Cluster, log log.Logger) func() []flux.ImageID {
+	return func() []flux.ImageID {
+		svcs, err := k8s.AllServices("")
+		if err != nil {
+			log.Log("err", err.Error())
+			return []flux.ImageID{}
+		}
+		repos := make([]flux.ImageID, 0)
+		for _, s := range svcs {
+			for _, c := range s.Containers.Containers {
+				r, err := flux.ParseImageID(c.Image)
+				if err != nil {
+					log.Log("err", err.Error())
+					continue
+				}
+				repos = append(repos, r)
+			}
+
+		}
+		return repos
+	}
 }

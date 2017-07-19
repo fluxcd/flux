@@ -478,10 +478,10 @@
 		},
 		{
 			"importpath": "github.com/heroku/docker-registry-client",
-			"repository": "https://github.com/paulbellamy/docker-registry-client",
+			"repository": "https://github.com/heroku/docker-registry-client",
 			"vcs": "git",
-			"revision": "2b1d4773467efc125a91237e10268631398de074",
-			"branch": "handle-relative-nextlinks",
+			"revision": "95467b6cacee2a06f112a3cf7e47a70fad6000cf",
+			"branch": "master",
 			"notests": true
 		},
 		{
@@ -524,14 +524,6 @@
 			"repository": "https://github.com/jmoiron/sqlx",
 			"vcs": "git",
 			"revision": "cac998c4f0959c19c638c523e374fa8e4e0bcfe3",
-			"branch": "master",
-			"notests": true
-		},
-		{
-			"importpath": "github.com/jonboulle/clockwork",
-			"repository": "https://github.com/jonboulle/clockwork",
-			"vcs": "git",
-			"revision": "bcac9884e7502bb2b474c0339d889cb981a2f27f",
 			"branch": "master",
 			"notests": true
 		},
@@ -1192,6 +1184,15 @@
 			"revision": "ece019dcfd29abcf65d0d1dfe145e8faad097640",
 			"branch": "master",
 			"path": "unicode/rangetable",
+			"notests": true
+		},
+		{
+			"importpath": "golang.org/x/time/rate",
+			"repository": "https://go.googlesource.com/time",
+			"vcs": "git",
+			"revision": "8be79e1e0910c292df4e79c241bb7e8f7e725959",
+			"branch": "master",
+			"path": "/rate",
 			"notests": true
 		},
 		{

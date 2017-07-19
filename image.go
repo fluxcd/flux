@@ -119,6 +119,14 @@ func (i ImageID) Components() (host, repo, tag string) {
 	return i.Host, fmt.Sprintf("%s/%s", i.Namespace, i.Image), i.Tag
 }
 
+// WithNewTag makes a new copy of an ImageID with a new tag
+func (i ImageID) WithNewTag(t string) ImageID {
+	var img ImageID
+	img = i
+	img.Tag = t
+	return img
+}
+
 // Image can't really be a primitive string only, because we need to also
 // record information about its creation time. (maybe more in the future)
 type Image struct {
@@ -166,4 +174,22 @@ func ParseImage(s string, createdAt time.Time) (Image, error) {
 		ID:        id,
 		CreatedAt: createdAt,
 	}, nil
+}
+
+// Sort image by creation date
+type ByCreatedDesc []Image
+
+func (is ByCreatedDesc) Len() int      { return len(is) }
+func (is ByCreatedDesc) Swap(i, j int) { is[i], is[j] = is[j], is[i] }
+func (is ByCreatedDesc) Less(i, j int) bool {
+	switch {
+	case is[i].CreatedAt.IsZero():
+		return true
+	case is[j].CreatedAt.IsZero():
+		return false
+	case is[i].CreatedAt.Equal(is[j].CreatedAt):
+		return is[i].ID.String() < is[j].ID.String()
+	default:
+		return is[i].CreatedAt.After(is[j].CreatedAt)
+	}
 }

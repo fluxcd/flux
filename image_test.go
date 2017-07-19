@@ -3,7 +3,16 @@ package flux
 import (
 	"encoding/json"
 	"fmt"
+	"sort"
+	"strconv"
 	"testing"
+	"time"
+)
+
+const constTime = "2017-01-13T16:22:58.009923189Z"
+
+var (
+	testTime, _ = time.Parse(time.RFC3339Nano, constTime)
 )
 
 func TestImageID_ParseImageID(t *testing.T) {
@@ -94,6 +103,27 @@ func TestImageID_Serialization(t *testing.T) {
 		}
 		if decoded != x.test {
 			t.Fatalf("Decoded %s as %v, but expected %v", x.expected, decoded, x.test)
+		}
+	}
+}
+
+func TestImage_OrderByCreationDate(t *testing.T) {
+	fmt.Printf("testTime: %s\n", testTime)
+	time0 := testTime.Add(time.Second)
+	time2 := testTime.Add(-time.Second)
+	imA, _ := ParseImage("my/Image:3", testTime)
+	imB, _ := ParseImage("my/Image:1", time0)
+	imC, _ := ParseImage("my/Image:4", time2)
+	imD, _ := ParseImage("my/Image:0", time.Time{}) // test nil
+	imE, _ := ParseImage("my/Image:2", testTime)    // test equal
+	imgs := []Image{imA, imB, imC, imD, imE}
+	sort.Sort(ByCreatedDesc(imgs))
+	for i, im := range imgs {
+		if strconv.Itoa(i) != im.ID.Tag {
+			for j, jim := range imgs {
+				t.Logf("%v: %v %s", j, jim.ID.String(), jim.CreatedAt)
+			}
+			t.Fatalf("Not sorted in expected order: %#v", imgs)
 		}
 	}
 }

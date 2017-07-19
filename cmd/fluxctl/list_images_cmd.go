@@ -66,7 +66,11 @@ func (opts *serviceShowOpts) RunE(cmd *cobra.Command, args []string) error {
 			if reg != "" {
 				reg += "/"
 			}
-			fmt.Fprintf(out, "%s\t%s\t%s%s\t\n", serviceName, containerName, reg, repo)
+			if len(container.Available) == 0 {
+				fmt.Fprintf(out, "%s\t%s\t%s%s\twaiting for cache\n", serviceName, containerName, reg, repo)
+			} else {
+				fmt.Fprintf(out, "%s\t%s\t%s%s\t\n", serviceName, containerName, reg, repo)
+			}
 			foundRunning := false
 			for _, available := range container.Available {
 				running := "|  "

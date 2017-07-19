@@ -1,58 +1,52 @@
 package registry
 
 import (
-	"fmt"
-	"sort"
-	"strconv"
+	"errors"
 	"testing"
 	"time"
 
+	"github.com/docker/distribution/manifest/schema1"
 	"github.com/go-kit/kit/log"
-	"github.com/pkg/errors"
 
 	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/registry/cache"
+	"github.com/weaveworks/flux/registry/middleware"
+)
+
+const testTagStr = "latest"
+const testImageStr = "alpine:" + testTagStr
+const constTime = "2017-01-13T16:22:58.009923189Z"
+
+var (
+	id, _ = flux.ParseImageID(testImageStr)
+	man   = schema1.SignedManifest{
+		Manifest: schema1.Manifest{
+			History: []schema1.History{
+				{
+					V1Compatibility: `{"created":"` + constTime + `"}`,
+				},
+			},
+		},
+	}
 )
 
 var (
-	testTags    = []string{testTagStr, "anotherTag"}
-	mRemote     = NewMockRemote(img, testTags, nil)
-	mRemoteFact = NewMockRemoteFactory(mRemote, nil)
-	testTime, _ = time.Parse(time.RFC3339Nano, constTime)
+	testTags = []string{testTagStr, "anotherTag"}
+	mClient  = NewMockClient(
+		func(repository flux.ImageID) (flux.Image, error) {
+			img, _ := flux.ParseImage(testImageStr, time.Time{})
+			return img, nil
+		},
+		func(repository flux.ImageID) ([]string, error) {
+			return testTags, nil
+		},
+	)
 )
 
-func TestRegistry_GetImage(t *testing.T) {
-	reg := NewRegistry(mRemoteFact, log.NewNopLogger())
-	newImg, err := reg.GetImage(testRepository, img.ID.Tag)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if img.ID.String() != newImg.ID.String() {
-		t.Fatal("Expected %v, but got %v", img.ID.String(), newImg.ID.String())
-	}
-}
-
-func TestRegistry_GetImageFactoryErr(t *testing.T) {
-	errFact := NewMockRemoteFactory(mRemote, errors.New(""))
-	reg := NewRegistry(errFact, nil)
-	_, err := reg.GetImage(testRepository, img.ID.Tag)
-	if err == nil {
-		t.Fatal("Expecting error")
-	}
-}
-
-func TestRegistry_GetImageRemoteErr(t *testing.T) {
-	r := NewMockRemote(img, testTags, errors.New(""))
-	errFact := NewMockRemoteFactory(r, nil)
-	reg := NewRegistry(errFact, log.NewNopLogger())
-	_, err := reg.GetImage(testRepository, img.ID.Tag)
-	if err == nil {
-		t.Fatal("Expecting error")
-	}
-}
-
 func TestRegistry_GetRepository(t *testing.T) {
-	reg := NewRegistry(mRemoteFact, log.NewNopLogger())
-	imgs, err := reg.GetRepository(testRepository)
+	fact := NewMockClientFactory(mClient, nil)
+	reg := NewRegistry(fact, log.NewNopLogger(), 512)
+	imgs, err := reg.GetRepository(id)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -64,51 +58,114 @@ func TestRegistry_GetRepository(t *testing.T) {
 }
 
 func TestRegistry_GetRepositoryFactoryError(t *testing.T) {
-	errFact := NewMockRemoteFactory(mRemote, errors.New(""))
-	reg := NewRegistry(errFact, nil)
-	_, err := reg.GetRepository(testRepository)
-	if err == nil {
-		t.Fatal("Expecting error")
-	}
-}
-
-func TestRegistry_GetRepositoryRemoteErr(t *testing.T) {
-	r := NewMockRemote(img, testTags, errors.New(""))
-	errFact := NewMockRemoteFactory(r, nil)
-	reg := NewRegistry(errFact, log.NewNopLogger())
-	_, err := reg.GetRepository(testRepository)
+	errFact := NewMockClientFactory(mClient, errors.New(""))
+	reg := NewRegistry(errFact, nil, 512)
+	_, err := reg.GetRepository(id)
 	if err == nil {
 		t.Fatal("Expecting error")
 	}
 }
 
 func TestRegistry_GetRepositoryManifestError(t *testing.T) {
-	r := NewMockRemote(img, []string{"valid", "error"}, nil)
-	errFact := NewMockRemoteFactory(r, nil)
-	reg := NewRegistry(errFact, log.NewNopLogger())
-	_, err := reg.GetRepository(testRepository)
+	errClient := NewMockClient(
+		func(repository flux.ImageID) (flux.Image, error) {
+			return flux.Image{}, errors.New("")
+		},
+		func(repository flux.ImageID) ([]string, error) {
+			return testTags, nil
+		},
+	)
+	errFact := NewMockClientFactory(errClient, nil)
+	reg := NewRegistry(errFact, log.NewNopLogger(), 512)
+	_, err := reg.GetRepository(id)
 	if err == nil {
 		t.Fatal("Expecting error")
 	}
 }
 
-func TestRegistry_OrderByCreationDate(t *testing.T) {
-	fmt.Printf("testTime: %s\n", testTime)
-	time0 := testTime.Add(time.Second)
-	time2 := testTime.Add(-time.Second)
-	imA, _ := flux.ParseImage("my/Image:3", testTime)
-	imB, _ := flux.ParseImage("my/Image:1", time0)
-	imC, _ := flux.ParseImage("my/Image:4", time2)
-	imD, _ := flux.ParseImage("my/Image:0", time.Time{}) // test nil
-	imE, _ := flux.ParseImage("my/Image:2", testTime)    // test equal
-	imgs := []flux.Image{imA, imB, imC, imD, imE}
-	sort.Sort(byCreatedDesc(imgs))
-	for i, im := range imgs {
-		if strconv.Itoa(i) != im.ID.Tag {
-			for j, jim := range imgs {
-				t.Logf("%v: %v %s", j, jim.ID.String(), jim.CreatedAt)
-			}
-			t.Fatalf("Not sorted in expected order: %#v", imgs)
-		}
+// Note: This actually goes off to docker hub to find the Image.
+// It will fail if there is not internet connection
+func TestRemoteFactory_RawClient(t *testing.T) {
+	// No credentials required for public Image
+	fact := NewRemoteClientFactory(Credentials{}, log.NewNopLogger(), middleware.RateLimiterConfig{
+		RPS:   200,
+		Burst: 1,
+	})
+
+	// Refresh tags first
+	var tags []string
+	client, err := fact.ClientFor(id.Host)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tags, err = client.Tags(id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	client.Cancel()
+	if len(tags) == 0 {
+		t.Fatal("Should have some tags")
+	}
+
+	client, err = fact.ClientFor(id.Host)
+	if err != nil {
+		t.Fatal(err)
+	}
+	id.Tag = tags[0]
+	newImg, err := client.Manifest(id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if newImg.ID.String() == "" {
+		t.Fatal("Should image ")
+	}
+	if newImg.CreatedAt.IsZero() {
+		t.Fatal("CreatedAt time was 0")
+	}
+	client.Cancel()
+}
+
+func TestRemoteFactory_InvalidHost(t *testing.T) {
+	fact := NewRemoteClientFactory(Credentials{}, log.NewNopLogger(), middleware.RateLimiterConfig{})
+	invalidId, err := flux.ParseImageID("invalid.host/library/alpine:latest")
+	if err != nil {
+		t.Fatal(err)
+	}
+	client, err := fact.ClientFor(invalidId.Host)
+	if err != nil {
+		return
+	}
+	_, err = client.Manifest(invalidId)
+	if err == nil {
+		t.Fatal("Expected error due to invalid host but got none.")
+	}
+}
+
+func TestRemote_BetterError(t *testing.T) {
+	errClient := NewMockClient(
+		func(repository flux.ImageID) (flux.Image, error) {
+			return flux.Image{}, cache.ErrNotCached
+		},
+		func(repository flux.ImageID) ([]string, error) {
+			return []string{}, cache.ErrNotCached
+		},
+	)
+
+	fact := NewMockClientFactory(errClient, nil)
+	reg := NewRegistry(fact, log.NewNopLogger(), 512)
+	_, err := reg.GetRepository(id)
+	if err == nil {
+		t.Fatal("Should have errored")
+	}
+	if _, ok := err.(*flux.Missing); !ok {
+		t.Fatalf("Should not be bespoke error, got %q", err.Error())
+	}
+	_, err = reg.GetImage(id)
+	if err == nil {
+		t.Fatal("Should have errored")
+	}
+	if _, ok := err.(*flux.Missing); !ok {
+		t.Fatalf("Should not be bespoke error, got %q", err.Error())
 	}
 }

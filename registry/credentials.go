@@ -10,6 +10,16 @@ import (
 	"strings"
 )
 
+// Registry Credentials
+type creds struct {
+	username, password string
+}
+
+// Credentials to a (Docker) registry.
+type Credentials struct {
+	m map[string]creds
+}
+
 // NoCredentials returns a usable but empty credentials object.
 func NoCredentials() Credentials {
 	return Credentials{

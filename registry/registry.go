@@ -1,36 +1,51 @@
 // Package registry provides domain abstractions over container registries.
+// The aim is that the user only ever sees the registry information that
+// has been cached. A separate process is responsible for ensuring the
+// cache is up to date. The benefit of this is that we can rate limit
+// the requests to prevent rate limiting on the remote side without
+// affecting the UX. To the user, repository information will appear to
+// be returned "quickly"
+//
+// This means that the cache is now a flux requirement.
 package registry
 
 import (
 	"sort"
 	"time"
 
+	"github.com/docker/distribution/manifest/schema1"
 	"github.com/go-kit/kit/log"
+	dockerregistry "github.com/heroku/docker-registry-client/registry"
 
 	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/registry/cache"
 )
 
 const (
 	requestTimeout = 10 * time.Second
-	maxConcurrency = 10 // Chosen arbitrarily
 )
 
 // The Registry interface is a domain specific API to access container registries.
 type Registry interface {
-	GetRepository(repository Repository) ([]flux.Image, error)
-	GetImage(repository Repository, tag string) (flux.Image, error)
+	GetRepository(id flux.ImageID) ([]flux.Image, error)
+	GetImage(id flux.ImageID) (flux.Image, error)
 }
 
 type registry struct {
-	factory RemoteClientFactory
-	Logger  log.Logger
+	factory     ClientFactory
+	logger      log.Logger
+	connections int
 }
 
 // NewClient creates a new registry registry, to use when fetching repositories.
-func NewRegistry(c RemoteClientFactory, l log.Logger) Registry {
+// Behind the scenes the registry will call ClientFactory.ClientFor(...)
+// when requesting an image. This will generate a Client to access the
+// backend.
+func NewRegistry(c ClientFactory, l log.Logger, connections int) Registry {
 	return &registry{
-		factory: c,
-		Logger:  l,
+		factory:     c,
+		logger:      l,
+		connections: connections,
 	}
 }
 
@@ -42,15 +57,15 @@ func NewRegistry(c RemoteClientFactory, l log.Logger) Registry {
 //   foo/helloworld         -> index.docker.io/foo/helloworld
 //   quay.io/foo/helloworld -> quay.io/foo/helloworld
 //
-func (reg *registry) GetRepository(img Repository) (_ []flux.Image, err error) {
-	rem, err := reg.newRemote(img)
+func (reg *registry) GetRepository(id flux.ImageID) ([]flux.Image, error) {
+	client, err := reg.factory.ClientFor(id.Host)
 	if err != nil {
-		return
+		return nil, err
 	}
 
-	tags, err := rem.Tags(img)
+	tags, err := client.Tags(id)
 	if err != nil {
-		rem.Cancel()
+		client.Cancel()
 		return nil, err
 	}
 
@@ -59,30 +74,26 @@ func (reg *registry) GetRepository(img Repository) (_ []flux.Image, err error) {
 	// `library/nats`. We need that to fetch the tags etc. However, we
 	// want the results to use the *actual* name of the images to be
 	// as supplied, e.g., `nats`.
-	return reg.tagsToRepository(rem, img, tags)
+	return reg.tagsToRepository(client, id, tags)
 }
 
 // Get a single Image from the registry if it exists
-func (reg *registry) GetImage(img Repository, tag string) (_ flux.Image, err error) {
-	rem, err := reg.newRemote(img)
+func (reg *registry) GetImage(id flux.ImageID) (flux.Image, error) {
+	client, err := reg.factory.ClientFor(id.Host)
 	if err != nil {
-		return
+		return flux.Image{}, err
 	}
-	return rem.Manifest(img, tag)
+	img, err := client.Manifest(id)
+	if err != nil {
+		client.Cancel()
+		return flux.Image{}, err
+	}
+	return img, nil
 }
 
-func (reg *registry) newRemote(img Repository) (rem Remote, err error) {
-	rem, err = reg.factory.CreateFor(img.Host())
-	if err != nil {
-		return
-	}
-	rem = NewInstrumentedRemote(rem)
-	return
-}
-
-func (reg *registry) tagsToRepository(remote Remote, repository Repository, tags []string) ([]flux.Image, error) {
+func (reg *registry) tagsToRepository(client Client, id flux.ImageID, tags []string) ([]flux.Image, error) {
 	// one way or another, we'll be finishing all requests
-	defer remote.Cancel()
+	defer client.Cancel()
 
 	type result struct {
 		image flux.Image
@@ -92,12 +103,14 @@ func (reg *registry) tagsToRepository(remote Remote, repository Repository, tags
 	toFetch := make(chan string, len(tags))
 	fetched := make(chan result, len(tags))
 
-	for i := 0; i < maxConcurrency; i++ {
+	for i := 0; i < reg.connections; i++ {
 		go func() {
 			for tag := range toFetch {
-				image, err := remote.Manifest(repository, tag)
+				image, err := client.Manifest(id.WithNewTag(tag)) // Copy the imageID to avoid races
 				if err != nil {
-					reg.Logger.Log("registry-metadata-err", err)
+					if err != cache.ErrNotCached {
+						reg.logger.Log("registry-metadata-err", err)
+					}
 				}
 				fetched <- result{image, err}
 			}
@@ -117,25 +130,35 @@ func (reg *registry) tagsToRepository(remote Remote, repository Repository, tags
 		images[i] = res.image
 	}
 
-	sort.Sort(byCreatedDesc(images))
+	sort.Sort(flux.ByCreatedDesc(images))
 	return images, nil
 }
 
-// -----
+// ---
 
-type byCreatedDesc []flux.Image
+// This is an interface that represents the heroku docker registry library
+type HerokuRegistryLibrary interface {
+	Tags(repository string) (tags []string, err error)
+	Manifest(repository, reference string) ([]schema1.History, error)
+}
 
-func (is byCreatedDesc) Len() int      { return len(is) }
-func (is byCreatedDesc) Swap(i, j int) { is[i], is[j] = is[j], is[i] }
-func (is byCreatedDesc) Less(i, j int) bool {
-	switch {
-	case is[i].CreatedAt.IsZero():
-		return true
-	case is[j].CreatedAt.IsZero():
-		return false
-	case is[i].CreatedAt.Equal(is[j].CreatedAt):
-		return is[i].ID.String() < is[j].ID.String()
-	default:
-		return is[i].CreatedAt.After(is[j].CreatedAt)
+// ---
+
+// Convert between types. dockerregistry returns the *same* type but from a
+// vendored library. Because golang doesn't like to apply interfaces to a
+// vendored type, we have to provide an adaptor to isolate it.
+type herokuManifestAdaptor struct {
+	*dockerregistry.Registry
+}
+
+func (h herokuManifestAdaptor) Manifest(repository, reference string) ([]schema1.History, error) {
+	manifest, err := h.Registry.Manifest(repository, reference)
+	if err != nil || manifest == nil {
+		return nil, err
 	}
+	var result []schema1.History
+	for _, item := range manifest.History {
+		result = append(result, schema1.History{item.V1Compatibility})
+	}
+	return result, err
 }

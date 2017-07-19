@@ -1,7 +1,6 @@
 package registry
 
 import (
-	"github.com/docker/distribution/manifest/schema1"
 	"github.com/pkg/errors"
 
 	"github.com/weaveworks/flux"
@@ -18,62 +17,46 @@ type mockRemote struct {
 	err  error
 }
 
-func NewMockRemote(img flux.Image, tags []string, err error) Remote {
-	return &mockRemote{
-		img:  img,
-		tags: tags,
-		err:  err,
-	}
-}
-
-func (r *mockRemote) Tags(repository Repository) ([]string, error) {
-	return r.tags, r.err
-}
-
-func (r *mockRemote) Manifest(repository Repository, tag string) (flux.Image, error) {
-	if tag == "error" {
-		return flux.Image{}, errors.New("Mock is set to error when tag == error")
-	}
-	return r.img, r.err
-}
-
-func (r *mockRemote) Cancel() {
-}
-
+type ManifestFunc func(id flux.ImageID) (flux.Image, error)
+type TagsFunc func(id flux.ImageID) ([]string, error)
 type mockDockerClient struct {
-	manifest func(repository, reference string) ([]schema1.History, error)
-	tags     func(repository string) ([]string, error)
+	manifest ManifestFunc
+	tags     TagsFunc
 }
 
-func NewMockDockerClient(manifest func(repository, reference string) ([]schema1.History, error), tags func(repository string) ([]string, error)) dockerRegistryInterface {
+func NewMockClient(manifest ManifestFunc, tags TagsFunc) Client {
 	return &mockDockerClient{
 		manifest: manifest,
 		tags:     tags,
 	}
 }
 
-func (m *mockDockerClient) Manifest(repository, reference string) ([]schema1.History, error) {
-	return m.manifest(repository, reference)
+func (m *mockDockerClient) Manifest(id flux.ImageID) (flux.Image, error) {
+	return m.manifest(id)
 }
 
-func (m *mockDockerClient) Tags(repository string) ([]string, error) {
-	return m.tags(repository)
+func (m *mockDockerClient) Tags(id flux.ImageID) ([]string, error) {
+	return m.tags(id)
+}
+
+func (*mockDockerClient) Cancel() {
+	return
 }
 
 type mockRemoteFactory struct {
-	r   Remote
+	c   Client
 	err error
 }
 
-func NewMockRemoteFactory(r Remote, err error) RemoteClientFactory {
+func NewMockClientFactory(c Client, err error) ClientFactory {
 	return &mockRemoteFactory{
-		r:   r,
+		c:   c,
 		err: err,
 	}
 }
 
-func (m *mockRemoteFactory) CreateFor(repository string) (Remote, error) {
-	return m.r, m.err
+func (m *mockRemoteFactory) ClientFor(repository string) (Client, error) {
+	return m.c, m.err
 }
 
 type mockRegistry struct {
@@ -88,21 +71,21 @@ func NewMockRegistry(images []flux.Image, err error) Registry {
 	}
 }
 
-func (m *mockRegistry) GetRepository(repository Repository) ([]flux.Image, error) {
+func (m *mockRegistry) GetRepository(id flux.ImageID) ([]flux.Image, error) {
 	var imgs []flux.Image
 	for _, i := range m.imgs {
 		// include only if it's the same repository in the same place
-		if i.ID.NamespaceImage() == repository.NamespaceImage() {
+		if i.ID.NamespaceImage() == id.NamespaceImage() {
 			imgs = append(imgs, i)
 		}
 	}
 	return imgs, m.err
 }
 
-func (m *mockRegistry) GetImage(repository Repository, tag string) (flux.Image, error) {
+func (m *mockRegistry) GetImage(id flux.ImageID) (flux.Image, error) {
 	if len(m.imgs) > 0 {
 		for _, i := range m.imgs {
-			if i.ID.String() == repository.ToImage(tag).ID.String() {
+			if i.ID.String() == id.String() {
 				return i, nil
 			}
 		}
