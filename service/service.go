@@ -8,7 +8,7 @@ import (
 
 type InstanceID string
 
-const NoInstanceID InstanceID = "<no InstanceID>"
+const NoInstanceID InstanceID = "NoInstanceID"
 
 const InstanceIDHeaderKey = "X-Scope-OrgID"
 

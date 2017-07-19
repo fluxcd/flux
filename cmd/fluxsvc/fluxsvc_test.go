@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+	"math/rand"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -20,13 +22,15 @@ import (
 	transport "github.com/weaveworks/flux/http"
 	"github.com/weaveworks/flux/http/client"
 	httpdaemon "github.com/weaveworks/flux/http/daemon"
-	httpserver "github.com/weaveworks/flux/http/server"
 	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/remote"
-	"github.com/weaveworks/flux/server"
 	"github.com/weaveworks/flux/service"
+	"github.com/weaveworks/flux/service/bus"
+	"github.com/weaveworks/flux/service/bus/nats"
+	httpserver "github.com/weaveworks/flux/service/http"
 	"github.com/weaveworks/flux/service/instance"
 	instancedb "github.com/weaveworks/flux/service/instance/sql"
+	"github.com/weaveworks/flux/service/server"
 	"github.com/weaveworks/flux/update"
 	"io/ioutil"
 )
@@ -51,11 +55,13 @@ var (
 const (
 	helloWorldSvc = "default/helloworld"
 	ver           = "123"
-	id            = service.NoInstanceID
 )
 
-func setup() {
-	databaseSource := "file://fluxy.db"
+func setup(t *testing.T) (instanceID string) {
+	idBytes := make([]byte, 8)
+	rand.Read(idBytes)
+	id := fmt.Sprintf("%x", idBytes)
+	databaseSource := fmt.Sprintf("file://fluxy-%s.db", id)
 	databaseMigrationsDir, _ := filepath.Abs("../../db/migrations")
 	var dbDriver string
 	{
@@ -64,7 +70,10 @@ func setup() {
 	}
 
 	// Message bus
-	messageBus := remote.NewStandaloneMessageBus(remote.BusMetricsImpl)
+	messageBus, err := nats.NewMessageBus("nats://localhost:4222", bus.BusMetricsImpl)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	imageID, _ := flux.ParseImageID("quay.io/weaveworks/helloworld:v1")
 	mockPlatform = &remote.MockPlatform{
@@ -109,7 +118,7 @@ func setup() {
 		},
 	}
 	done := make(chan error)
-	messageBus.Subscribe(id, mockPlatform, done) // For ListService
+	messageBus.Subscribe(service.InstanceID(id), mockPlatform, done)
 
 	// History
 	hDb, _ := historysql.NewSQL(dbDriver, databaseSource)
@@ -135,15 +144,36 @@ func setup() {
 	router = httpserver.NewServiceRouter()
 	handler := httpserver.NewHandler(apiServer, router, log.NewNopLogger())
 	ts = httptest.NewServer(handler)
-	apiClient = client.New(http.DefaultClient, router, ts.URL, "")
+	apiClient = client.New(instanceClient(id), router, ts.URL, "")
+	return id
 }
 
 func teardown() {
 	ts.Close()
 }
 
+type instanceRoundTripper struct {
+	instanceID string
+	transport  http.RoundTripper
+}
+
+func instanceClient(id string) *http.Client {
+	return &http.Client{
+		Transport: &instanceRoundTripper{id, http.DefaultTransport},
+	}
+}
+
+func (t *instanceRoundTripper) RoundTrip(r *http.Request) (*http.Response, error) {
+	// Shamelessly stomp on headers
+	if r.Header == nil {
+		r.Header = http.Header{}
+	}
+	r.Header.Set(service.InstanceIDHeaderKey, t.instanceID)
+	return t.transport.RoundTrip(r)
+}
+
 func TestFluxsvc_ListServices(t *testing.T) {
-	setup()
+	setup(t)
 	defer teardown()
 
 	// Test ListServices
@@ -173,7 +203,7 @@ func TestFluxsvc_ListServices(t *testing.T) {
 // Note that this test will reach out to docker hub to check the images
 // associated with alpine
 func TestFluxsvc_ListImages(t *testing.T) {
-	setup()
+	setup(t)
 	defer teardown()
 
 	// Test ListImages
@@ -213,7 +243,7 @@ func TestFluxsvc_ListImages(t *testing.T) {
 }
 
 func TestFluxsvc_Release(t *testing.T) {
-	setup()
+	setup(t)
 	defer teardown()
 
 	mockPlatform.UpdateManifestsAnswer = job.ID(guid.New())
@@ -256,7 +286,7 @@ func TestFluxsvc_Release(t *testing.T) {
 }
 
 func TestFluxsvc_History(t *testing.T) {
-	setup()
+	setup(t)
 	defer teardown()
 
 	// Post an event to the history. We have to cheat a bit here and
@@ -312,7 +342,7 @@ func TestFluxsvc_History(t *testing.T) {
 }
 
 func TestFluxsvc_Status(t *testing.T) {
-	setup()
+	setup(t)
 	defer teardown()
 
 	// Test Status
@@ -326,12 +356,12 @@ func TestFluxsvc_Status(t *testing.T) {
 }
 
 func TestFluxsvc_Ping(t *testing.T) {
-	setup()
+	id := setup(t)
 	defer teardown()
 
 	// Test Ping
 	u, _ := transport.MakeURL(ts.URL, router, "IsConnected")
-	resp, err := http.Get(u.String())
+	resp, err := instanceClient(id).Get(u.String())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -341,12 +371,12 @@ func TestFluxsvc_Ping(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		t.Fatal("Request should have been ok but got %q, body:\n%v", resp.Status, body)
+		t.Errorf("Request should have been ok but got %q, body:\n%s", resp.Status, string(body))
 	}
 }
 
 func TestFluxsvc_Register(t *testing.T) {
-	setup()
+	id := setup(t)
 	defer teardown()
 
 	_, err := httpdaemon.NewUpstream(&http.Client{}, "fluxd/test", "", router, ts.URL, mockPlatform, log.NewNopLogger()) // For ping and for
@@ -356,7 +386,7 @@ func TestFluxsvc_Register(t *testing.T) {
 
 	// Test Ping to make sure daemon has registered.
 	u, _ := transport.MakeURL(ts.URL, router, "IsConnected")
-	resp, err := http.Get(u.String())
+	resp, err := instanceClient(id).Get(u.String())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -366,6 +396,6 @@ func TestFluxsvc_Register(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		t.Fatal("Request should have been ok but got %q, body:\n%v", resp.Status, body)
+		t.Errorf("Request should have been ok but got %q, body:\n%s", resp.Status, string(body))
 	}
 }
