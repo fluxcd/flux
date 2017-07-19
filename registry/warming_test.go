@@ -2,9 +2,10 @@ package registry
 
 import (
 	"context"
-	"github.com/pkg/errors"
 	"testing"
 	"time"
+
+	"github.com/pkg/errors"
 )
 
 func TestWarming_ExpiryBuffer(t *testing.T) {

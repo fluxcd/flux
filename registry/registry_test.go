@@ -1,15 +1,16 @@
 package registry
 
 import (
-	"github.com/go-kit/kit/log"
-	"testing"
-
 	"errors"
-	"github.com/bradfitz/gomemcache/memcache"
-	"github.com/docker/distribution/manifest/schema1"
-	"github.com/weaveworks/flux"
-	"github.com/weaveworks/flux/registry/middleware"
+	"testing"
 	"time"
+
+	"github.com/docker/distribution/manifest/schema1"
+	"github.com/go-kit/kit/log"
+
+	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/registry/cache"
+	"github.com/weaveworks/flux/registry/middleware"
 )
 
 const testTagStr = "latest"
@@ -144,10 +145,10 @@ func TestRemoteFactory_InvalidHost(t *testing.T) {
 func TestRemote_BetterError(t *testing.T) {
 	errClient := NewMockClient(
 		func(repository flux.ImageID) (flux.Image, error) {
-			return flux.Image{}, memcache.ErrCacheMiss
+			return flux.Image{}, cache.ErrNotCached
 		},
 		func(repository flux.ImageID) ([]string, error) {
-			return []string{}, memcache.ErrCacheMiss
+			return []string{}, cache.ErrNotCached
 		},
 	)
 

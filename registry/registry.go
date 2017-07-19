@@ -16,28 +16,13 @@ import (
 	"github.com/docker/distribution/manifest/schema1"
 	"github.com/go-kit/kit/log"
 	dockerregistry "github.com/heroku/docker-registry-client/registry"
-	"google.golang.org/appengine/memcache"
 
 	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/registry/cache"
 )
 
 const (
 	requestTimeout = 10 * time.Second
-)
-
-var (
-	ErrNotCached = &flux.Missing{
-		BaseError: &flux.BaseError{
-			Err: memcache.ErrCacheMiss,
-			Help: `Image not yet cached
-
-It takes time to initially cache all the images. Please wait.
-
-If you have waited for a long time, check the flux logs. Potential
-reasons for the error are: no internet, no cache, error with the remote
-repository.`,
-		},
-	}
 )
 
 // The Registry interface is a domain specific API to access container registries.
@@ -81,11 +66,6 @@ func (reg *registry) GetRepository(id flux.ImageID) ([]flux.Image, error) {
 	tags, err := client.Tags(id)
 	if err != nil {
 		client.Cancel()
-		// We have to test for equality of strings, rather than types,
-		// because the ErrCacheMiss is a variable, not a constant.
-		if err.Error() == memcache.ErrCacheMiss.Error() {
-			return nil, ErrNotCached
-		}
 		return nil, err
 	}
 
@@ -106,11 +86,6 @@ func (reg *registry) GetImage(id flux.ImageID) (flux.Image, error) {
 	img, err := client.Manifest(id)
 	if err != nil {
 		client.Cancel()
-		// We have to test for equality of strings, rather than types,
-		// because the ErrCacheMiss is a variable, not a constant.
-		if err.Error() == memcache.ErrCacheMiss.Error() {
-			return flux.Image{}, ErrNotCached
-		}
 		return flux.Image{}, err
 	}
 	return img, nil
@@ -133,9 +108,7 @@ func (reg *registry) tagsToRepository(client Client, id flux.ImageID, tags []str
 			for tag := range toFetch {
 				image, err := client.Manifest(id.WithNewTag(tag)) // Copy the imageID to avoid races
 				if err != nil {
-					if err.Error() == memcache.ErrCacheMiss.Error() {
-						err = ErrNotCached
-					} else {
+					if err != cache.ErrNotCached {
 						reg.logger.Log("registry-metadata-err", err)
 					}
 				}

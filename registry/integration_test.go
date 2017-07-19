@@ -4,15 +4,17 @@ package registry
 
 import (
 	"flag"
-	"github.com/go-kit/kit/log"
-	"github.com/weaveworks/flux"
-	"github.com/weaveworks/flux/registry/cache"
-	"github.com/weaveworks/flux/registry/middleware"
 	"os"
 	"strings"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/go-kit/kit/log"
+
+	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/registry/cache"
+	"github.com/weaveworks/flux/registry/middleware"
 )
 
 var (

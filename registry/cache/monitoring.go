@@ -30,7 +30,7 @@ func InstrumentMemcacheClient(c Client) Client {
 	}
 }
 
-func (i *instrumentedMemcacheClient) GetKey(k Key) (_ []byte, err error) {
+func (i *instrumentedMemcacheClient) GetKey(k Keyer) (_ []byte, err error) {
 	defer func(begin time.Time) {
 		memcacheRequestDuration.With(
 			fluxmetrics.LabelMethod, "GetKey",
@@ -40,7 +40,7 @@ func (i *instrumentedMemcacheClient) GetKey(k Key) (_ []byte, err error) {
 	return i.next.GetKey(k)
 }
 
-func (i *instrumentedMemcacheClient) GetExpiration(k Key) (_ time.Time, err error) {
+func (i *instrumentedMemcacheClient) GetExpiration(k Keyer) (_ time.Time, err error) {
 	defer func(begin time.Time) {
 		memcacheRequestDuration.With(
 			fluxmetrics.LabelMethod, "GetExpiration",
@@ -50,7 +50,7 @@ func (i *instrumentedMemcacheClient) GetExpiration(k Key) (_ time.Time, err erro
 	return i.next.GetExpiration(k)
 }
 
-func (i *instrumentedMemcacheClient) SetKey(k Key, v []byte) (err error) {
+func (i *instrumentedMemcacheClient) SetKey(k Keyer, v []byte) (err error) {
 	defer func(begin time.Time) {
 		memcacheRequestDuration.With(
 			fluxmetrics.LabelMethod, "SetKey",

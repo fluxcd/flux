@@ -20,13 +20,28 @@ const (
 	expiry = time.Hour
 )
 
+var (
+	ErrNotCached = &flux.Missing{
+		BaseError: &flux.BaseError{
+			Err: memcache.ErrCacheMiss,
+			Help: `Image not yet cached
+
+It takes time to initially cache all the images. Please wait.
+
+If you have waited for a long time, check the flux logs. Potential
+reasons for the error are: no internet, no cache, error with the remote
+repository.`,
+		},
+	}
+)
+
 type Reader interface {
-	GetKey(k Key) ([]byte, error)
-	GetExpiration(k Key) (time.Time, error)
+	GetKey(k Keyer) ([]byte, error)
+	GetExpiration(k Keyer) (time.Time, error)
 }
 
 type Writer interface {
-	SetKey(k Key, v []byte) error
+	SetKey(k Keyer, v []byte) error
 }
 
 type Client interface {
@@ -106,12 +121,12 @@ func NewFixedServerMemcacheClient(config MemcacheConfig, addresses ...string) Cl
 	return newClient
 }
 
-func (c *memcacheClient) GetKey(k Key) ([]byte, error) {
-	cacheItem, err := c.Get(k.String())
+func (c *memcacheClient) GetKey(k Keyer) ([]byte, error) {
+	cacheItem, err := c.Get(k.Key())
 	if err != nil {
 		if err == memcache.ErrCacheMiss {
 			// Don't log on cache miss
-			return []byte{}, err
+			return []byte{}, ErrNotCached
 		} else {
 			c.logger.Log("err", errors.Wrap(err, "Fetching tag from memcache"))
 			return []byte{}, err
@@ -126,12 +141,12 @@ func (c *memcacheClient) GetKey(k Key) ([]byte, error) {
 }
 
 // GetExpiration returns the expiry time of the key
-func (c *memcacheClient) GetExpiration(k Key) (time.Time, error) {
-	cacheItem, err := c.Get(k.String())
+func (c *memcacheClient) GetExpiration(k Keyer) (time.Time, error) {
+	cacheItem, err := c.Get(k.Key())
 	if err != nil {
 		if err == memcache.ErrCacheMiss {
 			// Don't log on cache miss
-			return time.Time{}, err
+			return time.Time{}, ErrNotCached
 		} else {
 			c.logger.Log("err", errors.Wrap(err, "Fetching tag from memcache"))
 			return time.Time{}, err
@@ -146,7 +161,7 @@ func (c *memcacheClient) GetExpiration(k Key) (time.Time, error) {
 	return time.Unix(int64(data.Expiry), 0), nil
 }
 
-func (c *memcacheClient) SetKey(k Key, v []byte) error {
+func (c *memcacheClient) SetKey(k Keyer, v []byte) error {
 	expiry := int32(time.Now().Add(expiry).Unix())
 	data := expiryData{
 		Expiry: expiry,
@@ -157,7 +172,7 @@ func (c *memcacheClient) SetKey(k Key, v []byte) error {
 		return err
 	}
 	if err := c.Set(&memcache.Item{
-		Key:        k.String(),
+		Key:        k.Key(),
 		Value:      val,
 		Expiration: expiry,
 	}); err != nil {
@@ -210,19 +225,19 @@ func (c *memcacheClient) updateMemcacheServers() error {
 // An interface to provide the key under which to store the data
 // Use the full path to image for the memcache key because there
 // might be duplicates from other registries
-type Key interface {
-	String() string
+type Keyer interface {
+	Key() string
 }
 
 type manifestKey struct {
 	username, fullRepositoryPath, reference string
 }
 
-func NewManifestKey(username string, id flux.ImageID) (Key, error) {
+func NewManifestKey(username string, id flux.ImageID) (Keyer, error) {
 	return &manifestKey{username, id.HostNamespaceImage(), id.Tag}, nil
 }
 
-func (k *manifestKey) String() string {
+func (k *manifestKey) Key() string {
 	return strings.Join([]string{
 		"registryhistoryv2", // Just to version in case we need to change format later.
 		// Just the username here means we won't invalidate the cache when user
@@ -238,11 +253,11 @@ type tagKey struct {
 	username, fullRepositoryPath string
 }
 
-func NewTagKey(username string, id flux.ImageID) (Key, error) {
+func NewTagKey(username string, id flux.ImageID) (Keyer, error) {
 	return &tagKey{username, id.HostNamespaceImage()}, nil
 }
 
-func (k *tagKey) String() string {
+func (k *tagKey) Key() string {
 	return strings.Join([]string{
 		"registrytagsv2", // Just to version in case we need to change format later.
 		// Just the username here means we won't invalidate the cache when user

@@ -16,7 +16,7 @@ import (
 )
 
 var (
-	ErrNoMemcache = errors.New("no memcache")
+	ErrNoMemcache = errors.New("no memcached")
 )
 
 // ClientFactory creates a new client for the given host.

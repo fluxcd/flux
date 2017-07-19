@@ -21,7 +21,7 @@ var key = testKey("test")
 
 type testKey string
 
-func (t testKey) String() string {
+func (t testKey) Key() string {
 	return string(t)
 }
 
