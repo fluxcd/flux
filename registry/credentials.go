@@ -5,9 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/pkg/errors"
+	"io/ioutil"
 	"net/url"
 	"strings"
-	"io/ioutil"
 )
 
 // NoCredentials returns a usable but empty credentials object.
@@ -78,6 +78,11 @@ func CredentialsFromFile(path string) (Credentials, error) {
 func (cs Credentials) credsFor(host string) creds {
 	if cred, found := cs.m[host]; found {
 		return cred
+	}
+	if host == "gcr.io" {
+		if cred, err := GetGCPOauthToken(); err == nil {
+			return cred
+		}
 	}
 	return creds{}
 }
