@@ -12,6 +12,7 @@ const (
 	Ignore    = Policy("ignore")
 	Locked    = Policy("locked")
 	Automated = Policy("automated")
+	TagAll    = Policy("tag_all")
 )
 
 // Policy is an string, denoting the current deployment policy of a service,

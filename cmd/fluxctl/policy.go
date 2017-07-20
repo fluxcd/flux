@@ -15,6 +15,7 @@ type servicePolicyOpts struct {
 	outputOpts
 
 	service string
+	tagAll  string
 	tags    []string
 
 	automate, deautomate bool
@@ -35,6 +36,7 @@ func (opts *servicePolicyOpts) Command() *cobra.Command {
 			"fluxctl policy --service=foo --automate",
 			"fluxctl policy --service=foo --lock",
 			"fluxctl policy --service=foo --tag='bar=1.*' --tag='baz=2.*'",
+			"fluxctl policy --service=foo --tag-all='master-*' --tag='bar=1.*'",
 		),
 		RunE: opts.RunE,
 	}
@@ -43,7 +45,8 @@ func (opts *servicePolicyOpts) Command() *cobra.Command {
 	AddCauseFlags(cmd, &opts.cause)
 	flags := cmd.Flags()
 	flags.StringVarP(&opts.service, "service", "s", "", "Service to modify")
-	flags.StringSliceVar(&opts.tags, "tag", nil, "Tag filter patterns")
+	flags.StringVar(&opts.tagAll, "tag-all", "", "Tag filter pattern to apply to all containers")
+	flags.StringSliceVar(&opts.tags, "tag", nil, "Tag filter container/pattern pairs")
 	flags.BoolVar(&opts.automate, "automate", false, "Automate service")
 	flags.BoolVar(&opts.deautomate, "deautomate", false, "Deautomate for service")
 	flags.BoolVar(&opts.lock, "lock", false, "Lock service")
@@ -99,6 +102,9 @@ func calculatePolicyChanges(opts *servicePolicyOpts) (policy.Update, error) {
 	}
 	if opts.unlock {
 		remove = remove.Add(policy.Locked)
+	}
+	if opts.tagAll != "" {
+		add = add.Set(policy.TagAll, "glob:"+opts.tagAll)
 	}
 
 	for _, tagPair := range opts.tags {

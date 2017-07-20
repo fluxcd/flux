@@ -15,15 +15,15 @@ import (
 
 // These are all the types of events.
 const (
-	EventCommit      = "commit"
-	EventSync        = "sync"
-	EventRelease     = "release"
-	EventAutoRelease = "autorelease"
-	EventAutomate    = "automate"
-	EventDeautomate  = "deautomate"
-	EventLock        = "lock"
-	EventUnlock      = "unlock"
-	EventUpdateTag   = "update_tag"
+	EventCommit       = "commit"
+	EventSync         = "sync"
+	EventRelease      = "release"
+	EventAutoRelease  = "autorelease"
+	EventAutomate     = "automate"
+	EventDeautomate   = "deautomate"
+	EventLock         = "lock"
+	EventUnlock       = "unlock"
+	EventUpdatePolicy = "update_policy"
 
 	LogLevelDebug = "debug"
 	LogLevelInfo  = "info"
