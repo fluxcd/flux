@@ -11,7 +11,7 @@ fi
 
 # If a tagged version, just print that tag
 HEAD_TAGS=$(git tag --points-at HEAD)
-if [ ${HEAD_TAGS} ] ; then
+if [ -n "${HEAD_TAGS}" ] ; then
 	echo ${HEAD_TAGS}
 	exit 0
 fi
