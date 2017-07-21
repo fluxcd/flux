@@ -323,7 +323,7 @@ func (d *Daemon) JobStatus(jobID job.ID) (job.Status, error) {
 	if err := d.Checkout.Pull(); err != nil {
 		return job.Status{}, errors.Wrap(err, "updating repo for status")
 	}
-	refs, err := d.Checkout.RevisionsBefore("HEAD")
+	refs, _, err := d.Checkout.RevisionsBefore("HEAD")
 	if err != nil {
 		return job.Status{}, errors.Wrap(err, "checking revisions for status")
 	}
@@ -350,7 +350,10 @@ func (d *Daemon) JobStatus(jobID job.ID) (job.Status, error) {
 // you'll get all the commits yet to be applied. If you send a hash
 // and it's applied _past_ it, you'll get an empty list.
 func (d *Daemon) SyncStatus(commitRef string) ([]string, error) {
-	return d.Checkout.RevisionsBetween(d.Checkout.SyncTag, commitRef)
+	revs, _, err := d.Checkout.RevisionsBetween(d.Checkout.SyncTag, commitRef)
+	// NB we could use the messages too if we decide to change the
+	// signature of the API to include it.
+	return revs, err
 }
 
 func (d *Daemon) GitRepoConfig(regenerate bool) (flux.GitConfig, error) {

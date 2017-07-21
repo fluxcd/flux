@@ -153,9 +153,15 @@ func slackNotifySync(config service.NotifierConfig, sync *history.Event) error {
 	if !hasNotifyEvent(config, history.EventSync) {
 		return nil
 	}
+	var attachments []SlackAttachment
+	details := sync.Metadata.(*history.SyncEventMetadata)
+	if len(details.Messages) > 0 {
+		attachments = append(attachments, slackCommitsAttachment(details))
+	}
 	return notify(config, SlackMsg{
-		Username: config.Username,
-		Text:     sync.String(),
+		Username:    config.Username,
+		Text:        sync.String(),
+		Attachments: attachments,
 	})
 }
 
@@ -170,6 +176,21 @@ func slackResultAttachment(res update.Result) SlackAttachment {
 		Text:     "```" + buf.String() + "```",
 		Markdown: []string{"text"},
 		Color:    c,
+	}
+}
+
+func slackCommitsAttachment(ev *history.SyncEventMetadata) SlackAttachment {
+	buf := &bytes.Buffer{}
+	fmt.Fprintln(buf, "```")
+
+	for i := range ev.Revisions {
+		fmt.Fprintf(buf, "%s %s\n", ev.Revisions[i][:7], ev.Messages[i])
+	}
+	fmt.Fprintln(buf, "```")
+	return SlackAttachment{
+		Text:     buf.String(),
+		Markdown: []string{"text"},
+		Color:    "good",
 	}
 }
 

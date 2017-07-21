@@ -198,16 +198,16 @@ func (c *Checkout) TagRevision(tag string) (string, error) {
 	return refRevision(c.Dir, tag)
 }
 
-func (c *Checkout) RevisionsBetween(ref1, ref2 string) ([]string, error) {
+func (c *Checkout) RevisionsBetween(ref1, ref2 string) ([]string, []string, error) {
 	c.RLock()
 	defer c.RUnlock()
-	return revlist(c.Dir, ref1+".."+ref2)
+	return onelinelog(c.Dir, ref1+".."+ref2)
 }
 
-func (c *Checkout) RevisionsBefore(ref string) ([]string, error) {
+func (c *Checkout) RevisionsBefore(ref string) ([]string, []string, error) {
 	c.RLock()
 	defer c.RUnlock()
-	return revlist(c.Dir, ref)
+	return onelinelog(c.Dir, ref)
 }
 
 func (c *Checkout) MoveTagAndPush(ref, msg string) error {

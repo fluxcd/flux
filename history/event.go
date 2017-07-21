@@ -139,7 +139,7 @@ func (e Event) String() string {
 				shortRevision(metadata.Revisions[0]),
 			)
 		}
-		svcStr := "<no changes>"
+		svcStr := "no services changed"
 		if len(strServiceIDs) > 0 {
 			svcStr = strings.Join(strServiceIDs, ", ")
 		}
@@ -181,6 +181,8 @@ func (c CommitEventMetadata) ShortRevision() string {
 // SyncEventMetadata is the metadata for when new a commit is synced to the cluster
 type SyncEventMetadata struct {
 	Revisions []string `json:"revisions,omitempty"`
+	// As a parallel slice so it's an additive change
+	Messages []string `json:"messages,omitempty"`
 }
 
 type ReleaseEventCommon struct {

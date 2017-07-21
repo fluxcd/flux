@@ -155,10 +155,10 @@ func (d *Daemon) doSync(logger log.Logger) {
 	}
 
 	// update notes and emit events for applied commits
-	revisions, err := working.RevisionsBetween(working.SyncTag, "HEAD")
+	revisions, messages, err := working.RevisionsBetween(working.SyncTag, "HEAD")
 	if isUnknownRevision(err) {
 		// No sync tag, grab all revisions
-		revisions, err = working.RevisionsBefore("HEAD")
+		revisions, messages, err = working.RevisionsBefore("HEAD")
 	}
 	if err != nil {
 		logger.Log("err", err)
@@ -172,7 +172,10 @@ func (d *Daemon) doSync(logger log.Logger) {
 			StartedAt:  started,
 			EndedAt:    started,
 			LogLevel:   history.LogLevelInfo,
-			Metadata:   &history.SyncEventMetadata{Revisions: revisions},
+			Metadata: &history.SyncEventMetadata{
+				Revisions: revisions,
+				Messages:  messages,
+			},
 		}); err != nil {
 			logger.Log("err", err)
 		}
