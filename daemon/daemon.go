@@ -407,6 +407,26 @@ func containersWithAvailable(service cluster.Service, images update.ImageMap) (r
 	return res
 }
 
+func policyCommitMessage(us policy.Updates, cause update.Cause) string {
+	// shortcut, since we want roughly the same information
+	events := policyEvents(us, time.Now())
+	commitMsg := &bytes.Buffer{}
+	prefix := "- "
+	switch {
+	case cause.Message != "":
+		fmt.Fprintf(commitMsg, "%s\n\n", cause.Message)
+	case len(events) > 1:
+		fmt.Fprintf(commitMsg, "Updated service policies\n\n")
+	default:
+		prefix = ""
+	}
+
+	for _, event := range events {
+		fmt.Fprintf(commitMsg, "%s%v\n", prefix, event)
+	}
+	return commitMsg.String()
+}
+
 // policyEvents builds a map of events (by type), for all the events in this set of
 // updates. There will be one event per type, containing all service ids
 // affected by that event. e.g. all automated services will share an event.
@@ -431,44 +451,28 @@ func policyEvents(us policy.Updates, now time.Time) map[string]history.Event {
 	return eventsByType
 }
 
-func policyCommitMessage(us policy.Updates, cause update.Cause) string {
-	// shortcut, since we want roughly the same information
-	events := policyEvents(us, time.Now())
-	commitMsg := &bytes.Buffer{}
-	prefix := "- "
-	switch {
-	case cause.Message != "":
-		fmt.Fprintf(commitMsg, "%s\n\n", cause.Message)
-	case len(events) > 1:
-		fmt.Fprintf(commitMsg, "Updated service policies\n\n")
-	default:
-		prefix = ""
-	}
-
-	for _, event := range events {
-		fmt.Fprintf(commitMsg, "%s%v\n", prefix, event)
-	}
-	return commitMsg.String()
-}
-
 // policyEventTypes is a deduped list of all event types this update contains
 func policyEventTypes(u policy.Update) []string {
 	types := map[string]struct{}{}
 	for p, _ := range u.Add {
-		switch p {
-		case policy.Automated:
+		switch {
+		case p == policy.Automated:
 			types[history.EventAutomate] = struct{}{}
-		case policy.Locked:
+		case p == policy.Locked:
 			types[history.EventLock] = struct{}{}
+		default:
+			types[history.EventUpdatePolicy] = struct{}{}
 		}
 	}
 
 	for p, _ := range u.Remove {
-		switch p {
-		case policy.Automated:
+		switch {
+		case p == policy.Automated:
 			types[history.EventDeautomate] = struct{}{}
-		case policy.Locked:
+		case p == policy.Locked:
 			types[history.EventUnlock] = struct{}{}
+		default:
+			types[history.EventUpdatePolicy] = struct{}{}
 		}
 	}
 	var result []string

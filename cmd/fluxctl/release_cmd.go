@@ -10,7 +10,7 @@ import (
 )
 
 type serviceReleaseOpts struct {
-	*serviceOpts
+	*rootOpts
 	services    []string
 	allServices bool
 	image       string
@@ -21,8 +21,8 @@ type serviceReleaseOpts struct {
 	cause update.Cause
 }
 
-func newServiceRelease(parent *serviceOpts) *serviceReleaseOpts {
-	return &serviceReleaseOpts{serviceOpts: parent}
+func newServiceRelease(parent *rootOpts) *serviceReleaseOpts {
+	return &serviceReleaseOpts{rootOpts: parent}
 }
 
 func (opts *serviceReleaseOpts) Command() *cobra.Command {

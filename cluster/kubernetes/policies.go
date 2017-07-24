@@ -14,23 +14,39 @@ import (
 )
 
 func (m *Manifests) UpdatePolicies(in []byte, update policy.Update) ([]byte, error) {
-	return updateAnnotations(in, func(a map[string]string) map[string]string {
-		for policy, v := range update.Add {
-			a[resource.PolicyPrefix+string(policy)] = v
+	tagAll, _ := update.Add.Get(policy.TagAll)
+	return updateAnnotations(in, tagAll, func(a map[string]string) map[string]string {
+		for p, v := range update.Add {
+			if p == policy.TagAll {
+				continue
+			}
+			a[resource.PolicyPrefix+string(p)] = v
 		}
-		for policy, _ := range update.Remove {
-			delete(a, resource.PolicyPrefix+string(policy))
+		for p, _ := range update.Remove {
+			delete(a, resource.PolicyPrefix+string(p))
 		}
 		return a
 	})
 }
 
-func updateAnnotations(def []byte, f func(map[string]string) map[string]string) ([]byte, error) {
+func updateAnnotations(def []byte, tagAll string, f func(map[string]string) map[string]string) ([]byte, error) {
 	manifest, err := parseManifest(def)
 	if err != nil {
 		return nil, err
 	}
-	newAnnotations := f(manifest.Metadata.AnnotationsOrNil())
+	annotations := manifest.Metadata.AnnotationsOrNil()
+	if tagAll != "" {
+		containers := manifest.Spec.Template.Spec.Containers
+		for _, c := range containers {
+			p := resource.PolicyPrefix + string(policy.TagPrefix(c.Name))
+			if tagAll != "glob:*" {
+				annotations[p] = tagAll
+			} else {
+				delete(annotations, p)
+			}
+		}
+	}
+	newAnnotations := f(annotations)
 
 	// Write the new annotations back into the manifest
 	// Generate a fragment of the new annotations.

@@ -9,14 +9,14 @@ import (
 )
 
 type serviceLockOpts struct {
-	*serviceOpts
+	*rootOpts
 	service string
 	outputOpts
 	cause update.Cause
 }
 
-func newServiceLock(parent *serviceOpts) *serviceLockOpts {
-	return &serviceLockOpts{serviceOpts: parent}
+func newServiceLock(parent *rootOpts) *serviceLockOpts {
+	return &serviceLockOpts{rootOpts: parent}
 }
 
 func (opts *serviceLockOpts) Command() *cobra.Command {

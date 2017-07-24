@@ -12,6 +12,7 @@ const (
 	Ignore    = Policy("ignore")
 	Locked    = Policy("locked")
 	Automated = Policy("automated")
+	TagAll    = Policy("tag_all")
 )
 
 // Policy is an string, denoting the current deployment policy of a service,
@@ -24,6 +25,14 @@ func Boolean(policy Policy) bool {
 		return true
 	}
 	return false
+}
+
+func TagPrefix(container string) Policy {
+	return Policy("tag." + container)
+}
+
+func Tag(policy Policy) bool {
+	return strings.HasPrefix(string(policy), "tag.")
 }
 
 type Updates map[flux.ServiceID]Update

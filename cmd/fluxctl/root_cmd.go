@@ -28,14 +28,6 @@ type rootOpts struct {
 // optionally gets populated by an intermediating authfe from the token.
 const noInstanceID = service.InstanceID("")
 
-type serviceOpts struct {
-	*rootOpts
-}
-
-func newService(parent *rootOpts) *serviceOpts {
-	return &serviceOpts{rootOpts: parent}
-}
-
 func newRoot() *rootOpts {
 	return &rootOpts{}
 }
@@ -68,17 +60,16 @@ func (opts *rootOpts) Command() *cobra.Command {
 	cmd.PersistentFlags().StringVarP(&opts.Token, "token", "t", "",
 		fmt.Sprintf("Weave Cloud service token; you can also set the environment variable %s or %s", envVariableCloudToken, envVariableToken))
 
-	svcopts := newService(opts)
-
 	cmd.AddCommand(
 		newVersionCommand(),
-		newServiceShow(svcopts).Command(),
-		newServiceList(svcopts).Command(),
-		newServiceRelease(svcopts).Command(),
-		newServiceAutomate(svcopts).Command(),
-		newServiceDeautomate(svcopts).Command(),
-		newServiceLock(svcopts).Command(),
-		newServiceUnlock(svcopts).Command(),
+		newServiceShow(opts).Command(),
+		newServiceList(opts).Command(),
+		newServiceRelease(opts).Command(),
+		newServiceAutomate(opts).Command(),
+		newServiceDeautomate(opts).Command(),
+		newServiceLock(opts).Command(),
+		newServiceUnlock(opts).Command(),
+		newServicePolicy(opts).Command(),
 		newSave(opts).Command(),
 		newIdentity(opts).Command(),
 	)

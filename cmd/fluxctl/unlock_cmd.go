@@ -9,14 +9,14 @@ import (
 )
 
 type serviceUnlockOpts struct {
-	*serviceOpts
+	*rootOpts
 	service string
 	outputOpts
 	cause update.Cause
 }
 
-func newServiceUnlock(parent *serviceOpts) *serviceUnlockOpts {
-	return &serviceUnlockOpts{serviceOpts: parent}
+func newServiceUnlock(parent *rootOpts) *serviceUnlockOpts {
+	return &serviceUnlockOpts{rootOpts: parent}
 }
 
 func (opts *serviceUnlockOpts) Command() *cobra.Command {
