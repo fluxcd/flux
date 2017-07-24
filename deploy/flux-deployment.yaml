@@ -24,7 +24,7 @@ spec:
         # There are no ":latest" images for flux. Find the most recent
         # release or image version at https://quay.io/weaveworks/flux
         # and replace the tag here.
-        image: quay.io/weaveworks/flux:master-db05f0f
+        image: quay.io/weaveworks/flux:1.0.0-beta
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 3030 # informational
