@@ -32,6 +32,16 @@ func (opts *servicePolicyOpts) Command() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "policy",
 		Short: "Manage policies for a service.",
+		Long: `
+Manage policies for a service.
+
+Tag filter patterns must be specified as 'container=pattern', such as 'foo=1.*'
+where an asterisk means 'match anything'.
+Surrounding these with single-quotes are recommended to avoid shell expansion.
+
+If both --tag-all and --tag are specified, --tag-all will apply to all
+containers which aren't explicitly named.
+        `,
 		Example: makeExample(
 			"fluxctl policy --service=foo --automate",
 			"fluxctl policy --service=foo --lock",
@@ -110,7 +120,7 @@ func calculatePolicyChanges(opts *servicePolicyOpts) (policy.Update, error) {
 	for _, tagPair := range opts.tags {
 		parts := strings.Split(tagPair, "=")
 		if len(parts) != 2 {
-			return policy.Update{}, fmt.Errorf("invalid container/tag pair: %q", tagPair)
+			return policy.Update{}, fmt.Errorf("invalid container/tag pair: %q. Expected format is 'container=filter'", tagPair)
 		}
 
 		container, tag := parts[0], parts[1]
