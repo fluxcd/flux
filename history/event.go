@@ -153,6 +153,8 @@ func (e Event) String() string {
 		return fmt.Sprintf("Locked: %s", strings.Join(strServiceIDs, ", "))
 	case EventUnlock:
 		return fmt.Sprintf("Unlocked: %s", strings.Join(strServiceIDs, ", "))
+	case EventUpdatePolicy:
+		return fmt.Sprintf("Updated policies: %s", strings.Join(strServiceIDs, ", "))
 	default:
 		return fmt.Sprintf("Unknown event: %s", e.Type)
 	}
@@ -173,10 +175,7 @@ type CommitEventMetadata struct {
 }
 
 func (c CommitEventMetadata) ShortRevision() string {
-	if len(c.Revision) <= 7 {
-		return c.Revision
-	}
-	return c.Revision[:7]
+	return shortRevision(c.Revision)
 }
 
 // SyncEventMetadata is the metadata for when new a commit is synced to the cluster
