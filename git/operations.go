@@ -156,6 +156,10 @@ func moveTagAndPush(path string, keyRing ssh.KeyRing, tag, ref, msg, upstream st
 }
 
 func changedFiles(path, subPath, ref string) ([]string, error) {
+	// Remove leading slash if present. diff doesn't work when using github style root paths.
+	if len(subPath) > 0 && subPath[0] == '/' {
+		subPath = subPath[1:]
+	}
 	out := &bytes.Buffer{}
 	// This uses --diff-filter to only look at changes for file _in
 	// the working dir_; i.e, we do not report on things that no
