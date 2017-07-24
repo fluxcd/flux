@@ -20,8 +20,8 @@ func TestChangedFiles_SlashPath(t *testing.T) {
 	}
 
 	_, err = changedFiles(newDir, nestedDir, "HEAD")
-	if err != nil {
-		t.Fatal(err)
+	if err == nil {
+		t.Fatal("Should have errored")
 	}
 }
 
