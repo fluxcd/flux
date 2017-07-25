@@ -19,7 +19,7 @@ Exporting `FLUX_URL` is enough for `fluxctl` to know how to contact
 the daemon. You could alternatively supply the `--url` argument each
 time.
 
-# Customing the daemon configuration
+# Customising the daemon configuration
 
 ## Connect flux to a repository
 

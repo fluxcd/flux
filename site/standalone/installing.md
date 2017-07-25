@@ -15,17 +15,17 @@ how.
 
 # Quick Install
 
-Install Flux and its dependencies on a kubernetes cluster with:
+Clone the Flux repo and edit the example configuration in
+[deploy/flux-deployment.yaml](../../deploy/flux-deployment.yaml). Then
+create all the resources defined in the
+[deploy directory](../../deploy/).
 
 ```
-kubectl create -f ./deploy
+$EDITOR ./deploy/flux-deployment.yaml
+kubectl apply -f ./deploy
 ```
 
-This will create all the resources defined in the
-[deploy directory](../deploy/).
-
-Next, download the latest version of the
-[fluxctl client from github](https://github.com/weaveworks/flux/releases/latest).
+Next, download the latest version of the fluxctl client [from github](https://github.com/weaveworks/flux/releases).
 
 Continue to [setup flux](./setup.md)
 
@@ -33,7 +33,8 @@ Continue to [setup flux](./setup.md)
 
 # Detailed Description
 
-The deployment installs Flux and its dependencies. First, change to the [deploy directory](../deploy/).
+The deployment installs Flux and its dependencies. First, change to
+the directory with the examples configuration.
 
 ```
 cd deploy
@@ -58,9 +59,11 @@ kubectl create -f flux-secret.yaml
 
 The Kubernetes deployment configuration file
 [flux-deployment.yaml](../../deploy/flux-deployment.yaml) runs the
-Flux daemon.
+Flux daemon, but you'll need to edit it first, at least to supply your
+own configuration repo (the `--git-repo` argument).
 
 ```
+$EDITOR flux-deployment.yaml
 kubectl create -f flux-deployment.yaml
 ```
 
@@ -80,7 +83,7 @@ You will need to explicitly tell fluxd to use that service account by
 uncommenting and possible adapting the line `# serviceAccountName:
 flux` in the file `fluxd-deployment.yaml` before applying it.
 
-## Flux Service
+## Flux API service
 
 To make the pod accessible to the command-line client `fluxctl`, you
 can create a service for Flux. The example in `flux-service.yaml`
@@ -97,8 +100,8 @@ This allows you to control Flux from the command line, and if you're
 not connecting it to Weave Cloud, is the only way of working with
 Flux.
 
-Download the latest version of the
-[fluxctl client from github](https://github.com/weaveworks/flux/releases/latest).
+Download the latest version of the fluxctl client
+[from github](https://github.com/weaveworks/flux/releases).
 
 # Next
 
