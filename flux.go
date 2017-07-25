@@ -55,7 +55,7 @@ type ServiceIDSet map[ServiceID]struct{}
 
 func (s ServiceIDSet) String() string {
 	var ids []string
-	for id, _ := range s {
+	for id := range s {
 		ids = append(ids, string(id))
 	}
 	return "{" + strings.Join(ids, ", ") + "}"
@@ -72,7 +72,7 @@ func (s ServiceIDSet) Without(others ServiceIDSet) ServiceIDSet {
 		return s
 	}
 	res := ServiceIDSet{}
-	for id, _ := range s {
+	for id := range s {
 		if !others.Contains(id) {
 			res[id] = struct{}{}
 		}
@@ -165,6 +165,17 @@ type Container struct {
 }
 
 // --- config types
+
+func NewGitRemoteConfig(url, branch, path string) (GitRemoteConfig, error) {
+	if len(path) > 0 && path[0] == '/' {
+		return GitRemoteConfig{}, errors.New("git subdirectory (--git-path) should not have leading forward slash")
+	}
+	return GitRemoteConfig{
+		URL:    url,
+		Branch: branch,
+		Path:   path,
+	}, nil
+}
 
 type GitRemoteConfig struct {
 	URL    string `json:"url"`

@@ -44,11 +44,9 @@ func Repo(t *testing.T) (git.Repo, func()) {
 		t.Fatal(err)
 	}
 
+	conf, _ := flux.NewGitRemoteConfig(gitDir, "master", "")
 	return git.Repo{
-		GitRemoteConfig: flux.GitRemoteConfig{
-			URL:    gitDir,
-			Branch: "master",
-		},
+		GitRemoteConfig: conf,
 	}, cleanup
 }
 

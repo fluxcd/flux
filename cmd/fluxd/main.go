@@ -69,7 +69,7 @@ func main() {
 		// Git repo & key etc.
 		gitURL          = fs.String("git-url", "", "URL of git repo with Kubernetes manifests; e.g., git@github.com:weaveworks/flux-example")
 		gitBranch       = fs.String("git-branch", "master", "branch of git repo to use for Kubernetes manifests")
-		gitPath         = fs.String("git-path", "", "path within git repo to locate Kubernetes manifests")
+		gitPath         = fs.String("git-path", "", "path within git repo to locate Kubernetes manifests (relative path)")
 		gitUser         = fs.String("git-user", "Weave Flux", "username to use as git committer")
 		gitEmail        = fs.String("git-email", "support@weave.works", "email to use as git committer")
 		gitSyncTag      = fs.String("git-sync-tag", "flux-sync", "tag to use to mark sync progress for this cluster")
@@ -248,12 +248,11 @@ func main() {
 		}
 	}
 
-	gitRemoteConfig := flux.GitRemoteConfig{
-		URL:    *gitURL,
-		Branch: *gitBranch,
-		Path:   *gitPath,
+	gitRemoteConfig, err := flux.NewGitRemoteConfig(*gitURL, *gitBranch, *gitPath)
+	if err != nil {
+		logger.Log("err", err)
+		os.Exit(1)
 	}
-
 	// Indirect reference to a daemon, initially of the NotReady variety
 	notReadyDaemon := daemon.NewNotReadyDaemon(
 		version, k8s, gitRemoteConfig, errors.New("waiting to clone repo"))
