@@ -127,7 +127,7 @@ func TestPullAndSync_InitialSync(t *testing.T) {
 	// It creates the tag at HEAD
 	if err := d.Checkout.Pull(); err != nil {
 		t.Errorf("pulling sync tag: %v", err)
-	} else if revs, _, err := d.Checkout.RevisionsBefore(gitSyncTag); err != nil {
+	} else if revs, err := d.Checkout.CommitsBefore(gitSyncTag); err != nil {
 		t.Errorf("finding revisions before sync tag: %v", err)
 	} else if len(revs) <= 0 {
 		t.Errorf("Found no revisions before the sync tag")
@@ -173,13 +173,13 @@ func TestDoSync_NoNewCommits(t *testing.T) {
 	}
 
 	// It doesn't move the tag
-	oldRevs, _, err := d.Checkout.RevisionsBefore(gitSyncTag)
+	oldRevs, err := d.Checkout.CommitsBefore(gitSyncTag)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if err := d.Checkout.Pull(); err != nil {
 		t.Errorf("pulling sync tag: %v", err)
-	} else if revs, _, err := d.Checkout.RevisionsBefore(gitSyncTag); err != nil {
+	} else if revs, err := d.Checkout.CommitsBefore(gitSyncTag); err != nil {
 		t.Errorf("finding revisions before sync tag: %v", err)
 	} else if !reflect.DeepEqual(revs, oldRevs) {
 		t.Errorf("Should have kept the sync tag at HEAD")
@@ -254,11 +254,11 @@ func TestDoSync_WithNewCommit(t *testing.T) {
 	// It moves the tag
 	if err := d.Checkout.Pull(); err != nil {
 		t.Errorf("pulling sync tag: %v", err)
-	} else if revs, _, err := d.Checkout.RevisionsBetween(oldRevision, gitSyncTag); err != nil {
+	} else if revs, err := d.Checkout.CommitsBetween(oldRevision, gitSyncTag); err != nil {
 		t.Errorf("finding revisions before sync tag: %v", err)
 	} else if len(revs) <= 0 {
 		t.Errorf("Should have moved sync tag forward")
-	} else if revs[len(revs)-1] != newRevision {
+	} else if revs[len(revs)-1].Revision != newRevision {
 		t.Errorf("Should have moved sync tag to HEAD (%s), but was moved to: %s")
 	}
 }

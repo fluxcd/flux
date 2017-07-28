@@ -130,13 +130,13 @@ func (e Event) String() string {
 	case EventSync:
 		metadata := e.Metadata.(*SyncEventMetadata)
 		revStr := "<no revision>"
-		if 0 < len(metadata.Revisions) && len(metadata.Revisions) <= 2 {
-			revStr = shortRevision(metadata.Revisions[0])
-		} else if len(metadata.Revisions) > 2 {
+		if 0 < len(metadata.Commits) && len(metadata.Commits) <= 2 {
+			revStr = shortRevision(metadata.Commits[0].Revision)
+		} else if len(metadata.Commits) > 2 {
 			revStr = fmt.Sprintf(
 				"%s..%s",
-				shortRevision(metadata.Revisions[len(metadata.Revisions)-1]),
-				shortRevision(metadata.Revisions[0]),
+				shortRevision(metadata.Commits[len(metadata.Commits)].Revision),
+				shortRevision(metadata.Commits[0].Revision),
 			)
 		}
 		svcStr := "no services changed"
@@ -178,11 +178,36 @@ func (c CommitEventMetadata) ShortRevision() string {
 	return c.Revision[:7]
 }
 
+// Commit represents the commit information in a sync event. We could
+// use git.Commit, but that would lead to an import cycle, and may
+// anyway represent coupling (of an internal API to serialised data)
+// that we don't want.
+type Commit struct {
+	Revision string `json:"revision"`
+	Message  string `json:"message"`
+}
+
 // SyncEventMetadata is the metadata for when new a commit is synced to the cluster
 type SyncEventMetadata struct {
-	Revisions []string `json:"revisions,omitempty"`
-	// As a parallel slice so it's an additive change
-	Messages []string `json:"messages,omitempty"`
+	// for parsing old events; Commits is now used in preference
+	Revs    []string `json:"revisions,omitempty"`
+	Commits []Commit `json:"commits,omitempty"`
+}
+
+// Account for old events, which used the revisions field rather than commits
+func (ev *SyncEventMetadata) UnmarshalJSON(b []byte) error {
+	type data SyncEventMetadata
+	err := json.Unmarshal(b, (*data)(ev))
+	if err != nil {
+		return err
+	}
+	if ev.Commits == nil {
+		ev.Commits = make([]Commit, len(ev.Revs))
+		for i, rev := range ev.Revs {
+			ev.Commits[i].Revision = rev
+		}
+	}
+	return nil
 }
 
 type ReleaseEventCommon struct {

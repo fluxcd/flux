@@ -323,17 +323,17 @@ func (d *Daemon) JobStatus(jobID job.ID) (job.Status, error) {
 	if err := d.Checkout.Pull(); err != nil {
 		return job.Status{}, errors.Wrap(err, "updating repo for status")
 	}
-	refs, _, err := d.Checkout.RevisionsBefore("HEAD")
+	commits, err := d.Checkout.CommitsBefore("HEAD")
 	if err != nil {
 		return job.Status{}, errors.Wrap(err, "checking revisions for status")
 	}
-	for _, ref := range refs {
-		note, _ := d.Checkout.GetNote(ref)
+	for _, commit := range commits {
+		note, _ := d.Checkout.GetNote(commit.Revision)
 		if note != nil && note.JobID == jobID {
 			return job.Status{
 				StatusString: job.StatusSucceeded,
 				Result: history.CommitEventMetadata{
-					Revision: ref,
+					Revision: commit.Revision,
 					Spec:     &note.Spec,
 					Result:   note.Result,
 				},
@@ -350,10 +350,17 @@ func (d *Daemon) JobStatus(jobID job.ID) (job.Status, error) {
 // you'll get all the commits yet to be applied. If you send a hash
 // and it's applied _past_ it, you'll get an empty list.
 func (d *Daemon) SyncStatus(commitRef string) ([]string, error) {
-	revs, _, err := d.Checkout.RevisionsBetween(d.Checkout.SyncTag, commitRef)
+	commits, err := d.Checkout.CommitsBetween(d.Checkout.SyncTag, commitRef)
+	if err != nil {
+		return nil, err
+	}
 	// NB we could use the messages too if we decide to change the
 	// signature of the API to include it.
-	return revs, err
+	revs := make([]string, len(commits))
+	for i, commit := range commits {
+		revs[i] = commit.Revision
+	}
+	return revs, nil
 }
 
 func (d *Daemon) GitRepoConfig(regenerate bool) (flux.GitConfig, error) {

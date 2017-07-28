@@ -155,17 +155,22 @@ func (d *Daemon) doSync(logger log.Logger) {
 	}
 
 	// update notes and emit events for applied commits
-	revisions, messages, err := working.RevisionsBetween(working.SyncTag, "HEAD")
+	commits, err := working.CommitsBetween(working.SyncTag, "HEAD")
 	if isUnknownRevision(err) {
 		// No sync tag, grab all revisions
-		revisions, messages, err = working.RevisionsBefore("HEAD")
+		commits, err = working.CommitsBefore("HEAD")
 	}
 	if err != nil {
 		logger.Log("err", err)
 	}
 
 	// Emit an event
-	if len(revisions) > 0 {
+	if len(commits) > 0 {
+		cs := make([]history.Commit, len(commits))
+		for i, c := range commits {
+			cs[i].Revision = c.Revision
+			cs[i].Message = c.Message
+		}
 		if err := d.LogEvent(history.Event{
 			ServiceIDs: serviceIDs.ToSlice(),
 			Type:       history.EventSync,
@@ -173,16 +178,15 @@ func (d *Daemon) doSync(logger log.Logger) {
 			EndedAt:    started,
 			LogLevel:   history.LogLevelInfo,
 			Metadata: &history.SyncEventMetadata{
-				Revisions: revisions,
-				Messages:  messages,
+				Commits: cs,
 			},
 		}); err != nil {
 			logger.Log("err", err)
 		}
 
 		// Find notes in revisions.
-		for i := len(revisions) - 1; i >= 0; i-- {
-			n, err := working.GetNote(revisions[i])
+		for i := len(commits) - 1; i >= 0; i-- {
+			n, err := working.GetNote(commits[i].Revision)
 			if err != nil {
 				logger.Log("err", errors.Wrap(err, "loading notes from repo; possibly no notes"))
 				// TODO: We're ignoring all errors here, not just the "no notes" error. Parse error to report proper errors.
@@ -208,7 +212,7 @@ func (d *Daemon) doSync(logger log.Logger) {
 					LogLevel:   history.LogLevelInfo,
 					Metadata: &history.ReleaseEventMetadata{
 						ReleaseEventCommon: history.ReleaseEventCommon{
-							Revision: revisions[i],
+							Revision: commits[i].Revision,
 							Result:   n.Result,
 							Error:    n.Result.Error(),
 						},
@@ -228,7 +232,7 @@ func (d *Daemon) doSync(logger log.Logger) {
 					LogLevel:   history.LogLevelInfo,
 					Metadata: &history.AutoReleaseEventMetadata{
 						ReleaseEventCommon: history.ReleaseEventCommon{
-							Revision: revisions[i],
+							Revision: commits[i].Revision,
 							Result:   n.Result,
 							Error:    n.Result.Error(),
 						},

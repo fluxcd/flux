@@ -155,7 +155,9 @@ func slackNotifySync(config service.NotifierConfig, sync *history.Event) error {
 	}
 	var attachments []SlackAttachment
 	details := sync.Metadata.(*history.SyncEventMetadata)
-	if len(details.Messages) > 0 {
+	// A check to see if we got messages with our commits; older
+	// versions don't send them.
+	if len(details.Commits) > 0 && details.Commits[0].Message != "" {
 		attachments = append(attachments, slackCommitsAttachment(details))
 	}
 	return notify(config, SlackMsg{
@@ -183,8 +185,8 @@ func slackCommitsAttachment(ev *history.SyncEventMetadata) SlackAttachment {
 	buf := &bytes.Buffer{}
 	fmt.Fprintln(buf, "```")
 
-	for i := range ev.Revisions {
-		fmt.Fprintf(buf, "%s %s\n", ev.Revisions[i][:7], ev.Messages[i])
+	for i := range ev.Commits {
+		fmt.Fprintf(buf, "%s %s\n", ev.Commits[i].Revision[:7], ev.Commits[i].Message)
 	}
 	fmt.Fprintln(buf, "```")
 	return SlackAttachment{

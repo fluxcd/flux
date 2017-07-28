@@ -39,6 +39,11 @@ type Config struct {
 	UserEmail string
 }
 
+type Commit struct {
+	Revision string
+	Message  string
+}
+
 // Get a local clone of the upstream repo, and use the config given.
 func (r Repo) Clone(c Config) (*Checkout, error) {
 	if r.URL == "" {
@@ -198,13 +203,13 @@ func (c *Checkout) TagRevision(tag string) (string, error) {
 	return refRevision(c.Dir, tag)
 }
 
-func (c *Checkout) RevisionsBetween(ref1, ref2 string) ([]string, []string, error) {
+func (c *Checkout) CommitsBetween(ref1, ref2 string) ([]Commit, error) {
 	c.RLock()
 	defer c.RUnlock()
 	return onelinelog(c.Dir, ref1+".."+ref2)
 }
 
-func (c *Checkout) RevisionsBefore(ref string) ([]string, []string, error) {
+func (c *Checkout) CommitsBefore(ref string) ([]Commit, error) {
 	c.RLock()
 	defer c.RUnlock()
 	return onelinelog(c.Dir, ref)
