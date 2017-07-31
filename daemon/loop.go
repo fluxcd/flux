@@ -233,8 +233,12 @@ func (d *Daemon) doSync(logger log.Logger) {
 					},
 				})
 				includes[history.EventAutoRelease] = true
+			case update.Policy:
+				// Use this to mean any change to policy
+				includes[history.EventUpdatePolicy] = true
 			default:
-				// Not something we're sending as an event
+				// Presume it's not something we're otherwise sending
+				// as an event
 				includes[history.NoneOfTheAbove] = true
 			}
 		}

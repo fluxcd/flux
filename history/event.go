@@ -139,7 +139,7 @@ func (e Event) String() string {
 		} else if len(metadata.Commits) > 2 {
 			revStr = fmt.Sprintf(
 				"%s..%s",
-				shortRevision(metadata.Commits[len(metadata.Commits)].Revision),
+				shortRevision(metadata.Commits[len(metadata.Commits)-1].Revision),
 				shortRevision(metadata.Commits[0].Revision),
 			)
 		}
