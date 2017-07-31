@@ -136,6 +136,26 @@ func revlist(path, ref string) ([]string, error) {
 	return splitList(out.String()), nil
 }
 
+// Return the revisions and one-line log commit messages
+func onelinelog(path, refspec string) ([]Commit, error) {
+	out := &bytes.Buffer{}
+	if err := execGitCmd(path, nil, out, "log", "--oneline", "--no-abbrev-commit", refspec); err != nil {
+		return nil, err
+	}
+	return splitLog(out.String())
+}
+
+func splitLog(s string) ([]Commit, error) {
+	lines := splitList(s)
+	commits := make([]Commit, len(lines))
+	for i, m := range lines {
+		revAndMessage := strings.SplitN(m, " ", 2)
+		commits[i].Revision = revAndMessage[0]
+		commits[i].Message = revAndMessage[1]
+	}
+	return commits, nil
+}
+
 func splitList(s string) []string {
 	outStr := strings.TrimSpace(s)
 	if outStr == "" {

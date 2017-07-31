@@ -25,6 +25,9 @@ const (
 	EventUnlock       = "unlock"
 	EventUpdatePolicy = "update_policy"
 
+	// This is used to label e.g., commits that we _don't_ consider an event in themselves.
+	NoneOfTheAbove = "other"
+
 	LogLevelDebug = "debug"
 	LogLevelInfo  = "info"
 	LogLevelWarn  = "warn"
@@ -131,16 +134,16 @@ func (e Event) String() string {
 	case EventSync:
 		metadata := e.Metadata.(*SyncEventMetadata)
 		revStr := "<no revision>"
-		if 0 < len(metadata.Revisions) && len(metadata.Revisions) <= 2 {
-			revStr = shortRevision(metadata.Revisions[0])
-		} else if len(metadata.Revisions) > 2 {
+		if 0 < len(metadata.Commits) && len(metadata.Commits) <= 2 {
+			revStr = shortRevision(metadata.Commits[0].Revision)
+		} else if len(metadata.Commits) > 2 {
 			revStr = fmt.Sprintf(
 				"%s..%s",
-				shortRevision(metadata.Revisions[len(metadata.Revisions)-1]),
-				shortRevision(metadata.Revisions[0]),
+				shortRevision(metadata.Commits[len(metadata.Commits)].Revision),
+				shortRevision(metadata.Commits[0].Revision),
 			)
 		}
-		svcStr := "<no changes>"
+		svcStr := "no services changed"
 		if len(strServiceIDs) > 0 {
 			svcStr = strings.Join(strServiceIDs, ", ")
 		}
@@ -178,9 +181,42 @@ func (c CommitEventMetadata) ShortRevision() string {
 	return shortRevision(c.Revision)
 }
 
+// Commit represents the commit information in a sync event. We could
+// use git.Commit, but that would lead to an import cycle, and may
+// anyway represent coupling (of an internal API to serialised data)
+// that we don't want.
+type Commit struct {
+	Revision string `json:"revision"`
+	Message  string `json:"message"`
+}
+
 // SyncEventMetadata is the metadata for when new a commit is synced to the cluster
 type SyncEventMetadata struct {
-	Revisions []string `json:"revisions,omitempty"`
+	// for parsing old events; Commits is now used in preference
+	Revs    []string `json:"revisions,omitempty"`
+	Commits []Commit `json:"commits,omitempty"`
+	// Which "kinds" of commit this includes; release, autoreleases,
+	// policy changes, and "other" (meaning things we didn't commit
+	// ourselves)
+	Includes map[string]bool `json:"includes,omitempty"`
+	// `true` if we have no record of having synced before
+	InitialSync bool `json:"initialSync,omitempty"`
+}
+
+// Account for old events, which used the revisions field rather than commits
+func (ev *SyncEventMetadata) UnmarshalJSON(b []byte) error {
+	type data SyncEventMetadata
+	err := json.Unmarshal(b, (*data)(ev))
+	if err != nil {
+		return err
+	}
+	if ev.Commits == nil {
+		ev.Commits = make([]Commit, len(ev.Revs))
+		for i, rev := range ev.Revs {
+			ev.Commits[i].Revision = rev
+		}
+	}
+	return nil
 }
 
 type ReleaseEventCommon struct {

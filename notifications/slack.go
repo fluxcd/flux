@@ -153,9 +153,26 @@ func slackNotifySync(config service.NotifierConfig, sync *history.Event) error {
 	if !hasNotifyEvent(config, history.EventSync) {
 		return nil
 	}
+
+	details := sync.Metadata.(*history.SyncEventMetadata)
+	// Only send a notification if this contains something other
+	// releases and autoreleases (and we were told what it contains)
+	if details.Includes != nil {
+		if _, ok := details.Includes[history.NoneOfTheAbove]; !ok {
+			return nil
+		}
+	}
+
+	var attachments []SlackAttachment
+	// A check to see if we got messages with our commits; older
+	// versions don't send them.
+	if len(details.Commits) > 0 && details.Commits[0].Message != "" {
+		attachments = append(attachments, slackCommitsAttachment(details))
+	}
 	return notify(config, SlackMsg{
-		Username: config.Username,
-		Text:     sync.String(),
+		Username:    config.Username,
+		Text:        sync.String(),
+		Attachments: attachments,
 	})
 }
 
@@ -170,6 +187,21 @@ func slackResultAttachment(res update.Result) SlackAttachment {
 		Text:     "```" + buf.String() + "```",
 		Markdown: []string{"text"},
 		Color:    c,
+	}
+}
+
+func slackCommitsAttachment(ev *history.SyncEventMetadata) SlackAttachment {
+	buf := &bytes.Buffer{}
+	fmt.Fprintln(buf, "```")
+
+	for i := range ev.Commits {
+		fmt.Fprintf(buf, "%s %s\n", ev.Commits[i].Revision[:7], ev.Commits[i].Message)
+	}
+	fmt.Fprintln(buf, "```")
+	return SlackAttachment{
+		Text:     buf.String(),
+		Markdown: []string{"text"},
+		Color:    "good",
 	}
 }
 
