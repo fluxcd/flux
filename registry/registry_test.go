@@ -87,14 +87,14 @@ func TestRegistry_GetRepositoryManifestError(t *testing.T) {
 // It will fail if there is not internet connection
 func TestRemoteFactory_RawClient(t *testing.T) {
 	// No credentials required for public Image
-	fact := NewRemoteClientFactory(Credentials{}, log.NewNopLogger(), middleware.RateLimiterConfig{
+	fact := NewRemoteClientFactory(log.NewNopLogger(), middleware.RateLimiterConfig{
 		RPS:   200,
 		Burst: 1,
 	})
 
 	// Refresh tags first
 	var tags []string
-	client, err := fact.ClientFor(id.Host)
+	client, err := fact.ClientFor(id.Host, Credentials{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -108,7 +108,7 @@ func TestRemoteFactory_RawClient(t *testing.T) {
 		t.Fatal("Should have some tags")
 	}
 
-	client, err = fact.ClientFor(id.Host)
+	client, err = fact.ClientFor(id.Host, Credentials{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -127,12 +127,12 @@ func TestRemoteFactory_RawClient(t *testing.T) {
 }
 
 func TestRemoteFactory_InvalidHost(t *testing.T) {
-	fact := NewRemoteClientFactory(Credentials{}, log.NewNopLogger(), middleware.RateLimiterConfig{})
+	fact := NewRemoteClientFactory(log.NewNopLogger(), middleware.RateLimiterConfig{})
 	invalidId, err := flux.ParseImageID("invalid.host/library/alpine:latest")
 	if err != nil {
 		t.Fatal(err)
 	}
-	client, err := fact.ClientFor(invalidId.Host)
+	client, err := fact.ClientFor(invalidId.Host, Credentials{})
 	if err != nil {
 		return
 	}

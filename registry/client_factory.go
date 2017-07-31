@@ -23,29 +23,24 @@ var (
 // Each request might require a new client. E.g. when retrieving docker
 // images from docker hub, then a second from quay.io
 type ClientFactory interface {
-	ClientFor(host string) (client Client, err error)
+	ClientFor(host string, creds Credentials) (client Client, err error)
 }
 
 // ---
 // A new ClientFactory for a Remote.
-func NewRemoteClientFactory(c Credentials, l log.Logger, rlc middleware.RateLimiterConfig) ClientFactory {
-	for host, creds := range c.m {
-		l.Log("host", host, "username", creds.username)
-	}
+func NewRemoteClientFactory(l log.Logger, rlc middleware.RateLimiterConfig) ClientFactory {
 	return &remoteClientFactory{
-		creds:  c,
 		Logger: l,
 		rlConf: rlc,
 	}
 }
 
 type remoteClientFactory struct {
-	creds  Credentials
 	Logger log.Logger
 	rlConf middleware.RateLimiterConfig
 }
 
-func (f *remoteClientFactory) ClientFor(host string) (Client, error) {
+func (f *remoteClientFactory) ClientFor(host string, creds Credentials) (Client, error) {
 	httphost := "https://" + host
 
 	// quay.io wants us to use cookies for authorisation, so we have
@@ -56,7 +51,7 @@ func (f *remoteClientFactory) ClientFor(host string) (Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	auth := f.creds.credsFor(host)
+	auth := creds.credsFor(host)
 
 	// A context we'll use to cancel requests on error
 	ctx, cancel := context.WithCancel(context.Background())
@@ -95,12 +90,8 @@ func (f *remoteClientFactory) ClientFor(host string) (Client, error) {
 
 // ---
 // A new ClientFactory implementation for a Cache
-func NewCacheClientFactory(c Credentials, l log.Logger, cache cache.Reader, cacheExpiry time.Duration) ClientFactory {
-	for host, creds := range c.m {
-		l.Log("host", host, "username", creds.username)
-	}
+func NewCacheClientFactory(l log.Logger, cache cache.Reader, cacheExpiry time.Duration) ClientFactory {
 	return &cacheClientFactory{
-		creds:       c,
 		Logger:      l,
 		cache:       cache,
 		CacheExpiry: cacheExpiry,
@@ -108,16 +99,15 @@ func NewCacheClientFactory(c Credentials, l log.Logger, cache cache.Reader, cach
 }
 
 type cacheClientFactory struct {
-	creds       Credentials
 	Logger      log.Logger
 	cache       cache.Reader
 	CacheExpiry time.Duration
 }
 
-func (f *cacheClientFactory) ClientFor(host string) (Client, error) {
+func (f *cacheClientFactory) ClientFor(host string, creds Credentials) (Client, error) {
 	if f.cache == nil {
 		return nil, ErrNoMemcache
 	}
-	client := NewCache(f.creds, f.cache, f.CacheExpiry, f.Logger)
+	client := NewCache(creds, f.cache, f.CacheExpiry, f.Logger)
 	return client, nil
 }

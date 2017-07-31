@@ -37,13 +37,11 @@ func TestWarming_WarmerWriteCacheRead(t *testing.T) {
 	logger := log.NewContext(log.NewLogfmtLogger(os.Stderr))
 
 	remote := NewRemoteClientFactory(
-		NoCredentials(),
 		logger.With("component", "client"),
 		middleware.RateLimiterConfig{200, 10},
 	)
 
 	cache := NewCacheClientFactory(
-		NoCredentials(),
 		logger.With("component", "cache"),
 		mc,
 		time.Hour,
@@ -73,8 +71,11 @@ func TestWarming_WarmerWriteCacheRead(t *testing.T) {
 	}()
 
 	shutdownWg.Add(1)
-	go w.Loop(shutdown, shutdownWg, func() []flux.ImageID {
-		return []flux.ImageID{id}
+	go w.Loop(shutdown, shutdownWg, func() []ImageCreds {
+		return []ImageCreds{{
+			ID:    id,
+			Creds: NoCredentials(),
+		}}
 	})
 
 	timeout := time.NewTicker(10 * time.Second)    // Shouldn't take longer than 10s

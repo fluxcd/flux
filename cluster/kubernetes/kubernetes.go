@@ -12,16 +12,17 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
-	discovery "k8s.io/client-go/1.5/discovery"
+	"k8s.io/client-go/1.5/discovery"
 	k8sclient "k8s.io/client-go/1.5/kubernetes"
 	v1core "k8s.io/client-go/1.5/kubernetes/typed/core/v1"
 	v1beta1extensions "k8s.io/client-go/1.5/kubernetes/typed/extensions/v1beta1"
-	api "k8s.io/client-go/1.5/pkg/api"
-	v1 "k8s.io/client-go/1.5/pkg/api/v1"
+	"k8s.io/client-go/1.5/pkg/api"
+	"k8s.io/client-go/1.5/pkg/api/v1"
 	apiext "k8s.io/client-go/1.5/pkg/apis/extensions/v1beta1"
 
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster"
+	"github.com/weaveworks/flux/registry"
 	"github.com/weaveworks/flux/ssh"
 )
 
@@ -481,6 +482,120 @@ func (c *Cluster) PublicSSHKey(regenerate bool) (ssh.PublicKey, error) {
 	}
 	publicKey, _ := c.sshKeyRing.KeyPair()
 	return publicKey, nil
+}
+
+type servicePod struct {
+	s  v1.Service
+	pc podController
+}
+
+// Internal function to get a collection of service-controller pairs for a given namespace
+func (c *Cluster) allServices(ns string) (serviceControllers []servicePod, _ error) {
+	var namespaces []v1.Namespace
+	if ns == "" {
+		nsList, err := c.client.Namespaces().List(api.ListOptions{})
+		if err != nil {
+			return serviceControllers, errors.Wrap(err, "getting namespaces")
+		}
+		namespaces = nsList.Items
+	} else {
+		nsSingle, err := c.client.Namespaces().Get(ns)
+		if err != nil {
+			return serviceControllers, errors.Wrap(err, "getting namespaces")
+		}
+		namespaces = []v1.Namespace{*nsSingle}
+	}
+
+	// Foreach namespace
+	for _, ns := range namespaces {
+		services, err := c.client.Services(ns.Name).List(api.ListOptions{})
+		if err != nil {
+			return serviceControllers, errors.Wrapf(err, "getting services for namespace %s", ns.Name)
+		}
+
+		controllers, err := c.podControllersInNamespace(ns.Name)
+		if err != nil {
+			return serviceControllers, errors.Wrapf(err, "getting controllers for namespace %s", ns.Name)
+		}
+
+		// Foreach service
+		for _, service := range services.Items {
+			if isAddon(&service) {
+				continue
+			}
+
+			// Find controller for service
+			pc, err := matchController(&service, controllers)
+			if err != nil {
+				c.logger.Log(errors.Wrapf(cluster.ErrNoMatching, "matching controllers to service %s/%s", ns.Name, service.Name))
+				continue
+			}
+			serviceControllers = append(serviceControllers, servicePod{s: service, pc: pc})
+		}
+	}
+	return
+}
+
+// ImagesToFetch is a k8s specific method to get a list of images to update along with their credentials
+func (c *Cluster) ImagesToFetch() func() []registry.ImageCreds {
+	return func() (imageCreds []registry.ImageCreds) {
+		serviceControllers, err := c.allServices("")
+		if err != nil {
+			c.logger.Log("err", errors.Wrapf(err, "fetching images"))
+			return
+		}
+
+		// Foreach service-controller combo
+		for _, servicePod := range serviceControllers {
+			service := servicePod.s
+			controller := servicePod.pc
+			var rawSecrets []v1.LocalObjectReference
+			// If deployment doesn't contain any secrets, just return empty
+			if controller.Deployment != nil && controller.Deployment.Spec.Template.Spec.ImagePullSecrets != nil {
+				rawSecrets = controller.Deployment.Spec.Template.Spec.ImagePullSecrets
+			}
+			creds := registry.NoCredentials()
+			// Foreach secret in PodSpec
+			for _, secName := range rawSecrets {
+				// Get secret
+				sec, err := c.client.Secrets(service.Namespace).Get(secName.Name)
+				if err != nil {
+					c.logger.Log("err", errors.Wrapf(err, "getting secret %q from namespace %q", secName.Name, service.Namespace))
+					continue
+				}
+				if sec.Type != v1.SecretTypeDockercfg {
+					continue
+				}
+				decoded, ok := sec.Data[v1.DockerConfigKey]
+				if !ok {
+					c.logger.Log("err", errors.Wrapf(err, "retrieving pod secret %q", secName.Name))
+					continue
+				}
+
+				// Parse secret
+				crd, err := registry.ParseCredentials(decoded)
+				if err != nil {
+					c.logger.Log("err", err.Error())
+					continue
+				}
+
+				// Merge into the credentials for this PodSpec
+				creds.Merge(crd)
+			}
+
+			// Now create the service and attach the credentials
+			svc := c.makeService(service.Namespace, &service, []podController{controller})
+			for _, ctn := range svc.Containers.Containers {
+				r, err := flux.ParseImageID(ctn.Image)
+				if err != nil {
+					c.logger.Log("err", err.Error())
+					continue
+				}
+				imageCreds = append(imageCreds, registry.ImageCreds{ID: r, Creds: creds})
+			}
+		}
+		return
+	}
 }
 
 // --- end cluster.Cluster

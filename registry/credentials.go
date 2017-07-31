@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/pkg/errors"
-	"io/ioutil"
 	"net/url"
 	"strings"
 )
@@ -27,21 +26,21 @@ func NoCredentials() Credentials {
 	}
 }
 
-func CredentialsFromFile(path string) (Credentials, error) {
-	configBytes, err := ioutil.ReadFile(path)
-	if err != nil {
-		return Credentials{}, err
-	}
-
+func ParseCredentials(b []byte) (Credentials, error) {
 	var config struct {
 		Auths map[string]struct {
 			Auth string
 		}
 	}
-	if err = json.Unmarshal(configBytes, &config); err != nil {
+	if err := json.Unmarshal(b, &config); err != nil {
 		return Credentials{}, err
 	}
-
+	// If it's in k8s format, it won't have the surrounding "Auth". Try that too.
+	if len(config.Auths) == 0 {
+		if err := json.Unmarshal(b, &config.Auths); err != nil {
+			return Credentials{}, err
+		}
+	}
 	m := map[string]creds{}
 	for host, entry := range config.Auths {
 		decodedAuth, err := base64.StdEncoding.DecodeString(entry.Auth)
@@ -57,11 +56,13 @@ func CredentialsFromFile(path string) (Credentials, error) {
 		// Some users were passing in credentials in the form of
 		// http://docker.io and http://docker.io/v1/, etc.
 		// So strip everything down to it's base host.
+		// Also, the registry might be local and on a different port.
+		// So we need to check for that because url.Parse won't parse the ip:port format very well.
 		u, err := url.Parse(host)
 		if err != nil {
 			return Credentials{}, err
 		}
-		if u.Host == "" && u.Path == "" {
+		if u.Host == "" && u.Path == "" && !strings.Contains(host, ":") || host == "http://" || host == "https://" {
 			return Credentials{}, errors.New("Empty registry auth url")
 		}
 		if u.Host == "" { // If there's no https:// prefix, it won't parse the host.
@@ -104,4 +105,10 @@ func (cs Credentials) Hosts() []string {
 		hosts = append(hosts, host)
 	}
 	return hosts
+}
+
+func (cs Credentials) Merge(c Credentials) {
+	for k, v := range c.m {
+		cs.m[k] = v
+	}
 }
