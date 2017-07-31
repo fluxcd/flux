@@ -24,6 +24,9 @@ const (
 	EventLock        = "lock"
 	EventUnlock      = "unlock"
 
+	// This is used to label e.g., commits that we _don't_ consider an event in themselves.
+	NoneOfTheAbove = "other"
+
 	LogLevelDebug = "debug"
 	LogLevelInfo  = "info"
 	LogLevelWarn  = "warn"
@@ -192,6 +195,12 @@ type SyncEventMetadata struct {
 	// for parsing old events; Commits is now used in preference
 	Revs    []string `json:"revisions,omitempty"`
 	Commits []Commit `json:"commits,omitempty"`
+	// Which "kinds" of commit this includes; release, autoreleases,
+	// policy changes, and "other" (meaning things we didn't commit
+	// ourselves)
+	Includes map[string]bool `json:"includes,omitempty"`
+	// `true` if we have no record of having synced before
+	InitialSync bool `json:"initialSync,omitempty"`
 }
 
 // Account for old events, which used the revisions field rather than commits

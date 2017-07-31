@@ -153,8 +153,17 @@ func slackNotifySync(config service.NotifierConfig, sync *history.Event) error {
 	if !hasNotifyEvent(config, history.EventSync) {
 		return nil
 	}
-	var attachments []SlackAttachment
+
 	details := sync.Metadata.(*history.SyncEventMetadata)
+	// Only send a notification if this contains something other
+	// releases and autoreleases (and we were told what it contains)
+	if details.Includes != nil {
+		if _, ok := details.Includes[history.NoneOfTheAbove]; !ok {
+			return nil
+		}
+	}
+
+	var attachments []SlackAttachment
 	// A check to see if we got messages with our commits; older
 	// versions don't send them.
 	if len(details.Commits) > 0 && details.Commits[0].Message != "" {

@@ -132,57 +132,49 @@ func (d *Daemon) doSync(logger log.Logger) {
 		logger.Log("err", err)
 	}
 
-	// Figure out which service IDs changed in this release
-	changedResources := map[string]resource.Resource{}
-	changedFiles, err := working.ChangedFiles(working.SyncTag)
-	switch {
-	case err == nil:
-		// We had some changed files, we're syncing a diff
-		changedResources, err = d.Manifests.LoadManifests(changedFiles...)
-		if err != nil {
-			logger.Log("err", errors.Wrap(err, "loading resources from repo"))
-			return
-		}
-	case isUnknownRevision(err):
-		// no synctag, We are syncing everything from scratch
-		changedResources = allResources
-	default:
-		logger.Log("err", err)
-	}
-	serviceIDs := flux.ServiceIDSet{}
-	for _, r := range changedResources {
-		serviceIDs.Add(r.ServiceIDs(allResources))
-	}
-
+	var initialSync bool
 	// update notes and emit events for applied commits
 	commits, err := working.CommitsBetween(working.SyncTag, "HEAD")
 	if isUnknownRevision(err) {
 		// No sync tag, grab all revisions
+		initialSync = true
 		commits, err = working.CommitsBefore("HEAD")
 	}
 	if err != nil {
 		logger.Log("err", err)
 	}
 
-	// Emit an event
+	// Figure out which service IDs changed in this release
+	changedResources := map[string]resource.Resource{}
+
+	if initialSync {
+		// no synctag, We are syncing everything from scratch
+		changedResources = allResources
+	} else {
+		changedFiles, err := working.ChangedFiles(working.SyncTag)
+		if err == nil {
+			// We had some changed files, we're syncing a diff
+			changedResources, err = d.Manifests.LoadManifests(changedFiles...)
+		}
+		if err != nil {
+			logger.Log("err", errors.Wrap(err, "loading resources from repo"))
+			return
+		}
+	}
+
+	serviceIDs := flux.ServiceIDSet{}
+	for _, r := range changedResources {
+		serviceIDs.Add(r.ServiceIDs(allResources))
+	}
+
+	// Collect any events that come from notes attached to the commits
+	// we just synced. While we're doing this, keep track of what
+	// other things this sync includes e.g., releases and
+	// autoreleases, that we're already posting as events, so upstream
+	// can skip the sync event if it wants to.
+	includes := make(map[string]bool)
 	if len(commits) > 0 {
-		cs := make([]history.Commit, len(commits))
-		for i, c := range commits {
-			cs[i].Revision = c.Revision
-			cs[i].Message = c.Message
-		}
-		if err := d.LogEvent(history.Event{
-			ServiceIDs: serviceIDs.ToSlice(),
-			Type:       history.EventSync,
-			StartedAt:  started,
-			EndedAt:    started,
-			LogLevel:   history.LogLevelInfo,
-			Metadata: &history.SyncEventMetadata{
-				Commits: cs,
-			},
-		}); err != nil {
-			logger.Log("err", err)
-		}
+		var noteEvents []history.Event
 
 		// Find notes in revisions.
 		for i := len(commits) - 1; i >= 0; i-- {
@@ -190,9 +182,11 @@ func (d *Daemon) doSync(logger log.Logger) {
 			if err != nil {
 				logger.Log("err", errors.Wrap(err, "loading notes from repo; possibly no notes"))
 				// TODO: We're ignoring all errors here, not just the "no notes" error. Parse error to report proper errors.
+				includes[history.NoneOfTheAbove] = true
 				continue
 			}
 			if n == nil {
+				includes[history.NoneOfTheAbove] = true
 				continue
 			}
 
@@ -204,7 +198,7 @@ func (d *Daemon) doSync(logger log.Logger) {
 				spec := n.Spec.Spec.(update.ReleaseSpec)
 				// And create a release event
 				// Then wrap inside a ReleaseEventMetadata
-				if err := d.LogEvent(history.Event{
+				noteEvents = append(noteEvents, history.Event{
 					ServiceIDs: serviceIDs.ToSlice(),
 					Type:       history.EventRelease,
 					StartedAt:  started,
@@ -219,12 +213,11 @@ func (d *Daemon) doSync(logger log.Logger) {
 						Spec:  spec,
 						Cause: n.Spec.Cause,
 					},
-				}); err != nil {
-					logger.Log("err", err)
-				}
+				})
+				includes[history.EventRelease] = true
 			case update.Auto:
 				spec := n.Spec.Spec.(update.Automated)
-				if err := d.LogEvent(history.Event{
+				noteEvents = append(noteEvents, history.Event{
 					ServiceIDs: serviceIDs.ToSlice(),
 					Type:       history.EventAutoRelease,
 					StartedAt:  started,
@@ -238,9 +231,37 @@ func (d *Daemon) doSync(logger log.Logger) {
 						},
 						Spec: spec,
 					},
-				}); err != nil {
-					logger.Log("err", err)
-				}
+				})
+				includes[history.EventAutoRelease] = true
+			default:
+				// Not something we're sending as an event
+				includes[history.NoneOfTheAbove] = true
+			}
+		}
+
+		cs := make([]history.Commit, len(commits))
+		for i, c := range commits {
+			cs[i].Revision = c.Revision
+			cs[i].Message = c.Message
+		}
+		if err = d.LogEvent(history.Event{
+			ServiceIDs: serviceIDs.ToSlice(),
+			Type:       history.EventSync,
+			StartedAt:  started,
+			EndedAt:    started,
+			LogLevel:   history.LogLevelInfo,
+			Metadata: &history.SyncEventMetadata{
+				Commits:     cs,
+				InitialSync: initialSync,
+				Includes:    includes,
+			},
+		}); err != nil {
+			logger.Log("err", err)
+		}
+
+		for _, event := range noteEvents {
+			if err = d.LogEvent(event); err != nil {
+				logger.Log("err", err)
 			}
 		}
 	}
