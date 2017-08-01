@@ -288,6 +288,16 @@ type podController struct {
 	Deployment            *apiext.Deployment
 }
 
+func (p podController) secrets() (rawSecrets []v1.LocalObjectReference) {
+	// If deployment doesn't contain any secrets, just return empty secret
+	if p.Deployment != nil && p.Deployment.Spec.Template.Spec.ImagePullSecrets != nil {
+		rawSecrets = p.Deployment.Spec.Template.Spec.ImagePullSecrets
+	} else if p.ReplicationController != nil && p.ReplicationController.Spec.Template.Spec.ImagePullSecrets != nil {
+		rawSecrets = p.ReplicationController.Spec.Template.Spec.ImagePullSecrets
+	}
+	return
+}
+
 func (p podController) templateContainers() (res []cluster.Container) {
 	var apiContainers []v1.Container
 	if p.Deployment != nil {
@@ -537,65 +547,59 @@ func (c *Cluster) allServices(ns string) (serviceControllers []servicePod, _ err
 }
 
 // ImagesToFetch is a k8s specific method to get a list of images to update along with their credentials
-func (c *Cluster) ImagesToFetch() func() []registry.ImageCreds {
-	return func() (imageCreds []registry.ImageCreds) {
-		serviceControllers, err := c.allServices("")
-		if err != nil {
-			c.logger.Log("err", errors.Wrapf(err, "fetching images"))
-			return
-		}
-
-		// Foreach service-controller combo
-		for _, servicePod := range serviceControllers {
-			service := servicePod.s
-			controller := servicePod.pc
-			var rawSecrets []v1.LocalObjectReference
-			// If deployment doesn't contain any secrets, just return empty
-			if controller.Deployment != nil && controller.Deployment.Spec.Template.Spec.ImagePullSecrets != nil {
-				rawSecrets = controller.Deployment.Spec.Template.Spec.ImagePullSecrets
-			}
-			creds := registry.NoCredentials()
-			// Foreach secret in PodSpec
-			for _, secName := range rawSecrets {
-				// Get secret
-				sec, err := c.client.Secrets(service.Namespace).Get(secName.Name)
-				if err != nil {
-					c.logger.Log("err", errors.Wrapf(err, "getting secret %q from namespace %q", secName.Name, service.Namespace))
-					continue
-				}
-				if sec.Type != v1.SecretTypeDockercfg {
-					continue
-				}
-				decoded, ok := sec.Data[v1.DockerConfigKey]
-				if !ok {
-					c.logger.Log("err", errors.Wrapf(err, "retrieving pod secret %q", secName.Name))
-					continue
-				}
-
-				// Parse secret
-				crd, err := registry.ParseCredentials(decoded)
-				if err != nil {
-					c.logger.Log("err", err.Error())
-					continue
-				}
-
-				// Merge into the credentials for this PodSpec
-				creds.Merge(crd)
-			}
-
-			// Now create the service and attach the credentials
-			svc := c.makeService(service.Namespace, &service, []podController{controller})
-			for _, ctn := range svc.Containers.Containers {
-				r, err := flux.ParseImageID(ctn.Image)
-				if err != nil {
-					c.logger.Log("err", err.Error())
-					continue
-				}
-				imageCreds = append(imageCreds, registry.ImageCreds{ID: r, Creds: creds})
-			}
-		}
+func (c *Cluster) ImagesToFetch() (imageCreds registry.ImageCreds) {
+	imageCreds = make(registry.ImageCreds, 0)
+	serviceControllers, err := c.allServices("")
+	if err != nil {
+		c.logger.Log("err", errors.Wrapf(err, "fetching images"))
 		return
 	}
+
+	// Foreach service-controller combo
+	for _, servicePod := range serviceControllers {
+		service := servicePod.s
+		controller := servicePod.pc
+		var rawSecrets = controller.secrets()
+		creds := registry.NoCredentials()
+		// Foreach secret in PodSpec
+		for _, secName := range rawSecrets {
+			// Get secret
+			sec, err := c.client.Secrets(service.Namespace).Get(secName.Name)
+			if err != nil {
+				c.logger.Log("err", errors.Wrapf(err, "getting secret %q from namespace %q", secName.Name, service.Namespace))
+				continue
+			}
+			if sec.Type != v1.SecretTypeDockercfg {
+				continue
+			}
+			decoded, ok := sec.Data[v1.DockerConfigKey]
+			if !ok {
+				c.logger.Log("err", errors.Wrapf(err, "retrieving pod secret %q", secName.Name))
+				continue
+			}
+
+			// Parse secret
+			crd, err := registry.ParseCredentials(decoded)
+			if err != nil {
+				c.logger.Log("err", err.Error())
+				continue
+			}
+
+			// Merge into the credentials for this PodSpec
+			creds.Merge(crd)
+		}
+
+		// Now create the service and attach the credentials
+		for _, ctn := range controller.templateContainers() {
+			r, err := flux.ParseImageID(ctn.Image)
+			if err != nil {
+				c.logger.Log("err", err.Error())
+				continue
+			}
+			imageCreds[r] = creds
+		}
+	}
+	return
 }
 
 // --- end cluster.Cluster

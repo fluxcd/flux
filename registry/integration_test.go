@@ -71,11 +71,10 @@ func TestWarming_WarmerWriteCacheRead(t *testing.T) {
 	}()
 
 	shutdownWg.Add(1)
-	go w.Loop(shutdown, shutdownWg, func() []ImageCreds {
-		return []ImageCreds{{
-			ID:    id,
-			Creds: NoCredentials(),
-		}}
+	go w.Loop(shutdown, shutdownWg, func() ImageCreds {
+		return ImageCreds{
+			id: NoCredentials(),
+		}
 	})
 
 	timeout := time.NewTicker(10 * time.Second)    // Shouldn't take longer than 10s

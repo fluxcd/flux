@@ -67,3 +67,11 @@ Now restart fluxd to re-read the k8s secret (if it is running):
 
 `kubectl delete $(kubectl get pod -o name -l name=flux)`
 
+### How do I use a private docker registry?
+
+Create a Kubernetes Secret with your docker credentials then add the
+name of this secret to your Pod manifest under the `imagePullSecrets`
+setting. Flux will read this value and parse the Kubernetes secret.
+
+For a guide showing how to do this, see the
+[Kubernetes documentation](https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/).

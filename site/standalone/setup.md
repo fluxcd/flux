@@ -106,9 +106,3 @@ arguments (examples with defaults): `--k8s-secret-name=flux-git-deploy`,
 Using an SSH key allows you to maintain control of the repository. You
 can revoke permission for `flux` to access the repository at any time
 by removing the deploy key.
-
-## Using a Private Registry
-
-Simply mount the registry credentials into the container. The location
-of the credentials can be customised with the argument (example with
-default): `--docker-config=~/.docker/config.json`

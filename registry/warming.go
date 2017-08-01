@@ -28,22 +28,19 @@ type Warmer struct {
 	Burst         int
 }
 
-type ImageCreds struct {
-	ID    flux.ImageID
-	Creds Credentials
-}
+type ImageCreds map[flux.ImageID]Credentials
 
 // Continuously get the images to populate the cache with, and
 // populate the cache with them.
-func (w *Warmer) Loop(stop <-chan struct{}, wg *sync.WaitGroup, imagesToFetchFunc func() []ImageCreds) {
+func (w *Warmer) Loop(stop <-chan struct{}, wg *sync.WaitGroup, imagesToFetchFunc func() ImageCreds) {
 	defer wg.Done()
 
 	if w.Logger == nil || w.ClientFactory == nil || w.Expiry == 0 || w.Writer == nil || w.Reader == nil {
 		panic("registry.Warmer fields are nil")
 	}
 
-	for _, r := range imagesToFetchFunc() {
-		w.warm(r)
+	for k, v := range imagesToFetchFunc() {
+		w.warm(k, v)
 	}
 
 	newImages := time.Tick(askForNewImagesInterval)
@@ -53,16 +50,15 @@ func (w *Warmer) Loop(stop <-chan struct{}, wg *sync.WaitGroup, imagesToFetchFun
 			w.Logger.Log("stopping", "true")
 			return
 		case <-newImages:
-			for _, r := range imagesToFetchFunc() {
-				w.warm(r)
+			for k, v := range imagesToFetchFunc() {
+				w.warm(k, v)
 			}
 		}
 	}
 }
 
-func (w *Warmer) warm(img ImageCreds) {
-	id := img.ID
-	client, err := w.ClientFactory.ClientFor(id.Host, img.Creds)
+func (w *Warmer) warm(id flux.ImageID, creds Credentials) {
+	client, err := w.ClientFactory.ClientFor(id.Host, creds)
 	if err != nil {
 		w.Logger.Log("err", err.Error())
 		return

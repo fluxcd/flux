@@ -116,7 +116,7 @@ func main() {
 	var clusterVersion string
 	var sshKeyRing ssh.KeyRing
 	var k8s cluster.Cluster
-	var k8s_inst *kubernetes.Cluster
+	var image_creds func() registry.ImageCreds
 	var k8sManifests cluster.Manifests
 	{
 		restClientConfig, err := rest.InClusterConfig()
@@ -133,7 +133,6 @@ func main() {
 			logger.Log("err", err)
 			os.Exit(1)
 		}
-		clientset.Core()
 
 		serverVersion, err := clientset.ServerVersion()
 		if err != nil {
@@ -181,7 +180,7 @@ func main() {
 		logger.Log("kubectl", kubectl)
 
 		kubectlApplier := kubernetes.NewKubectl(kubectl, restClientConfig, os.Stdout, os.Stderr)
-		k8s_inst, err = kubernetes.NewCluster(clientset, kubectlApplier, sshKeyRing, logger)
+		k8s_inst, err := kubernetes.NewCluster(clientset, kubectlApplier, sshKeyRing, logger)
 		if err != nil {
 			logger.Log("err", err)
 			os.Exit(1)
@@ -193,6 +192,7 @@ func main() {
 			logger.Log("ping", true)
 		}
 
+		image_creds = k8s_inst.ImagesToFetch
 		k8s = k8s_inst
 		// There is only one way we currently interpret a repo of
 		// files as manifests, and that's as Kubernetes yamels.
@@ -373,7 +373,7 @@ func main() {
 	go daemon.GitPollLoop(shutdown, shutdownWg, log.NewContext(logger).With("component", "sync-loop"))
 
 	shutdownWg.Add(1)
-	go cacheWarmer.Loop(shutdown, shutdownWg, k8s_inst.ImagesToFetch())
+	go cacheWarmer.Loop(shutdown, shutdownWg, image_creds)
 
 	// Update daemonRef so that upstream and handlers point to fully working daemon
 	daemonRef.UpdatePlatform(daemon)
