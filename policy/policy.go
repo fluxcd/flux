@@ -103,6 +103,14 @@ func (s Set) Get(p Policy) (string, bool) {
 	return v, ok
 }
 
+func (s Set) ToStringMap() map[string]string {
+	m := map[string]string{}
+	for p, v := range s {
+		m[string(p)] = v
+	}
+	return m
+}
+
 type ServiceMap map[flux.ServiceID]Set
 
 func (s ServiceMap) ToSlice() []flux.ServiceID {

@@ -77,6 +77,10 @@ func (d *Daemon) ListServices(namespace string) ([]flux.ServiceStatus, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "checking service policies")
 	}
+	allServices, err := d.Manifests.ServicesWithPolicy(d.Checkout.ManifestDir(), policy.None)
+	if err != nil {
+		return nil, errors.Wrap(err, "checking service policies")
+	}
 
 	for _, service := range services {
 		res = append(res, flux.ServiceStatus{
@@ -86,6 +90,7 @@ func (d *Daemon) ListServices(namespace string) ([]flux.ServiceStatus, error) {
 			Automated:  automatedServices.Contains(service.ID),
 			Locked:     lockedServices.Contains(service.ID),
 			Ignore:     ignoredServices.Contains(service.ID),
+			Policies:   allServices[service.ID].ToStringMap(),
 		})
 	}
 

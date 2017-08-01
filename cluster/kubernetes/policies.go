@@ -151,7 +151,7 @@ func (m *Manifests) ServicesWithPolicy(root string, p policy.Policy) (policy.Ser
 		if err != nil {
 			return err
 		}
-		if ps.Contains(p) {
+		if ps.Contains(p) || p == policy.None {
 			result[s] = ps
 		}
 		return nil
