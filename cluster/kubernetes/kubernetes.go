@@ -288,14 +288,14 @@ type podController struct {
 	Deployment            *apiext.Deployment
 }
 
-func (p podController) secrets() (rawSecrets []v1.LocalObjectReference) {
+func (p podController) secrets() []v1.LocalObjectReference {
 	// If deployment doesn't contain any secrets, just return empty secret
-	if p.Deployment != nil && p.Deployment.Spec.Template.Spec.ImagePullSecrets != nil {
-		rawSecrets = p.Deployment.Spec.Template.Spec.ImagePullSecrets
-	} else if p.ReplicationController != nil && p.ReplicationController.Spec.Template.Spec.ImagePullSecrets != nil {
-		rawSecrets = p.ReplicationController.Spec.Template.Spec.ImagePullSecrets
+	if p.Deployment != nil {
+		return p.Deployment.Spec.Template.Spec.ImagePullSecrets
+	} else if p.ReplicationController != nil {
+		return p.ReplicationController.Spec.Template.Spec.ImagePullSecrets
 	}
-	return
+	return nil
 }
 
 func (p podController) templateContainers() (res []cluster.Container) {
@@ -569,10 +569,21 @@ func (c *Cluster) ImagesToFetch() (imageCreds registry.ImageCreds) {
 				c.logger.Log("err", errors.Wrapf(err, "getting secret %q from namespace %q", secName.Name, service.Namespace))
 				continue
 			}
-			if sec.Type != v1.SecretTypeDockercfg {
+
+			var decoded []byte
+			var ok bool
+			// These differ in format; but, ParseCredentials will
+			// handle either.
+			switch api.SecretType(sec.Type) {
+			case api.SecretTypeDockercfg:
+				decoded, ok = sec.Data[api.DockerConfigKey]
+			case api.SecretTypeDockerConfigJson:
+				decoded, ok = sec.Data[api.DockerConfigJsonKey]
+			default:
+				c.logger.Log("skip", "unknown type", "secret", service.Namespace+"/"+secName.Name, "type", sec.Type)
 				continue
 			}
-			decoded, ok := sec.Data[v1.DockerConfigKey]
+
 			if !ok {
 				c.logger.Log("err", errors.Wrapf(err, "retrieving pod secret %q", secName.Name))
 				continue
