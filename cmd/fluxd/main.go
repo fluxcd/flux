@@ -93,7 +93,13 @@ func main() {
 
 		upstreamURL = fs.String("connect", "", "Connect to an upstream service e.g., Weave Cloud, at this base address")
 		token       = fs.String("token", "", "Authentication token for upstream service")
+
+		// Deprecated
+		_ = fs.String("docker-config", "", "path to a docker config to use for credentials")
 	)
+
+	fs.MarkDeprecated("docker-config", "credentials are taken from imagePullSecrets now")
+
 	fs.Parse(os.Args)
 
 	if version == "" {
