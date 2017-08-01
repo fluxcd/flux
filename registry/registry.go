@@ -37,7 +37,7 @@ type registry struct {
 	connections int
 }
 
-// NewClient creates a new registry registry, to use when fetching repositories.
+// NewRegistry creates a new registry, to use when fetching repositories.
 // Behind the scenes the registry will call ClientFactory.ClientFor(...)
 // when requesting an image. This will generate a Client to access the
 // backend.
@@ -58,7 +58,7 @@ func NewRegistry(c ClientFactory, l log.Logger, connections int) Registry {
 //   quay.io/foo/helloworld -> quay.io/foo/helloworld
 //
 func (reg *registry) GetRepository(id flux.ImageID) ([]flux.Image, error) {
-	client, err := reg.factory.ClientFor(id.Host)
+	client, err := reg.factory.ClientFor(id.Host, Credentials{})
 	if err != nil {
 		return nil, err
 	}
@@ -79,7 +79,7 @@ func (reg *registry) GetRepository(id flux.ImageID) ([]flux.Image, error) {
 
 // Get a single Image from the registry if it exists
 func (reg *registry) GetImage(id flux.ImageID) (flux.Image, error) {
-	client, err := reg.factory.ClientFor(id.Host)
+	client, err := reg.factory.ClientFor(id.Host, Credentials{})
 	if err != nil {
 		return flux.Image{}, err
 	}

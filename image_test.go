@@ -26,6 +26,8 @@ func TestImageID_ParseImageID(t *testing.T) {
 		{"quay.io/library/alpine", "quay.io/library/alpine:latest"},
 		{"quay.io/library/alpine:latest", "quay.io/library/alpine:latest"},
 		{"quay.io/library/alpine:mytag", "quay.io/library/alpine:mytag"},
+		{"localhost:5000/library/alpine:mytag", "localhost:5000/library/alpine:mytag"},
+		{"kube-registry.kube-system.svc.cluster.local:31000/secret/repo:latest", "kube-registry.kube-system.svc.cluster.local:31000/secret/repo:latest"},
 	} {
 		i, err := ParseImageID(x.test)
 		if err != nil {
@@ -43,8 +45,6 @@ func TestImageID_ParseImageIDErrorCases(t *testing.T) {
 	}{
 		{""},
 		{":tag"},
-		{"alpine::"},
-		{"alpine:invalid:"},
 		{"/too/many/slashes/"},
 	} {
 		_, err := ParseImageID(x.test)

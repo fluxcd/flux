@@ -41,6 +41,9 @@ func ParseImageID(s string) (ImageID, error) {
 	case 2:
 		img.Tag = parts[1]
 		s = parts[0]
+	case 3: // There might be three parts if there is a host with a custom port
+		img.Tag = parts[2]
+		s = s[:strings.LastIndex(s, ":")]
 	default:
 		return ImageID{}, ErrMalformedImageID
 	}

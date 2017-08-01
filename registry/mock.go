@@ -55,7 +55,7 @@ func NewMockClientFactory(c Client, err error) ClientFactory {
 	}
 }
 
-func (m *mockRemoteFactory) ClientFor(repository string) (Client, error) {
+func (m *mockRemoteFactory) ClientFor(repository string, creds Credentials) (Client, error) {
 	return m.c, m.err
 }
 
