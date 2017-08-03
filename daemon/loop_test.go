@@ -5,12 +5,11 @@ import (
 	"os"
 	"reflect"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/go-kit/kit/log"
-
-	"sync"
 
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster"

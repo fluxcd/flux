@@ -69,20 +69,18 @@ func (d *Daemon) ListServices(namespace string) ([]flux.ServiceStatus, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "getting service policies")
 	}
-	automatedServices := services.OnlyWithPolicy(policy.Automated)
-	lockedServices := services.OnlyWithPolicy(policy.Locked)
-	ignoredServices := services.OnlyWithPolicy(policy.Ignore)
 
 	var res []flux.ServiceStatus
 	for _, service := range clusterServices {
+		policies := services[service.ID]
 		res = append(res, flux.ServiceStatus{
 			ID:         service.ID,
 			Containers: containers2containers(service.ContainersOrNil()),
 			Status:     service.Status,
-			Automated:  automatedServices.Contains(service.ID),
-			Locked:     lockedServices.Contains(service.ID),
-			Ignore:     ignoredServices.Contains(service.ID),
-			Policies:   services[service.ID].ToStringMap(),
+			Automated:  policies.Contains(policy.Automated),
+			Locked:     policies.Contains(policy.Locked),
+			Ignore:     policies.Contains(policy.Ignore),
+			Policies:   policies.ToStringMap(),
 		})
 	}
 

@@ -8,7 +8,6 @@ import (
 )
 
 const (
-	None      = Policy("")
 	Ignore    = Policy("ignore")
 	Locked    = Policy("locked")
 	Automated = Policy("automated")
