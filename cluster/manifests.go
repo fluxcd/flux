@@ -25,8 +25,8 @@ type Manifests interface {
 	ParseManifests([]byte) (map[string]resource.Resource, error)
 	// UpdatePolicies modifies a manifest to apply the policy update specified
 	UpdatePolicies([]byte, policy.Update) ([]byte, error)
-	// ServicesWithPolicy finds the services which have a particular policy set on them.
-	ServicesWithPolicy(path string, p policy.Policy) (policy.ServiceMap, error)
+	// ServicesWithPolicies returns all services with their associated policies
+	ServicesWithPolicies(path string) (policy.ServiceMap, error)
 }
 
 // UpdateManifest looks for the manifest for a given service, reads

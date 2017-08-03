@@ -363,7 +363,7 @@ func mockDaemon(t *testing.T) (*Daemon, func(), *cluster.Mock, history.EventRead
 			return kresource.ParseMultidoc(allDefs, "test")
 		}
 		k8s.PingFunc = func() error { return nil }
-		k8s.ServicesWithPolicyFunc = (&kubernetes.Manifests{}).ServicesWithPolicy
+		k8s.ServicesWithPoliciesFunc = (&kubernetes.Manifests{}).ServicesWithPolicies
 		k8s.SomeServicesFunc = func([]flux.ServiceID) ([]cluster.Service, error) {
 			return []cluster.Service{
 				singleService,

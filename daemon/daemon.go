@@ -57,32 +57,24 @@ func (d *Daemon) Export() ([]byte, error) {
 }
 
 func (d *Daemon) ListServices(namespace string) ([]flux.ServiceStatus, error) {
-	var res []flux.ServiceStatus
-	services, err := d.Cluster.AllServices(namespace)
+	clusterServices, err := d.Cluster.AllServices(namespace)
 	if err != nil {
 		return nil, errors.Wrap(err, "getting services from cluster")
 	}
 
 	d.Checkout.RLock()
 	defer d.Checkout.RUnlock()
-	automatedServices, err := d.Manifests.ServicesWithPolicy(d.Checkout.ManifestDir(), policy.Automated)
-	if err != nil {
-		return nil, errors.Wrap(err, "checking service policies")
-	}
-	lockedServices, err := d.Manifests.ServicesWithPolicy(d.Checkout.ManifestDir(), policy.Locked)
-	if err != nil {
-		return nil, errors.Wrap(err, "checking service policies")
-	}
-	ignoredServices, err := d.Manifests.ServicesWithPolicy(d.Checkout.ManifestDir(), policy.Ignore)
-	if err != nil {
-		return nil, errors.Wrap(err, "checking service policies")
-	}
-	allServices, err := d.Manifests.ServicesWithPolicy(d.Checkout.ManifestDir(), policy.None)
-	if err != nil {
-		return nil, errors.Wrap(err, "checking service policies")
-	}
 
-	for _, service := range services {
+	services, err := d.Manifests.ServicesWithPolicies(d.Checkout.ManifestDir())
+	if err != nil {
+		return nil, errors.Wrap(err, "getting service policies")
+	}
+	automatedServices := services.OnlyWithPolicy(policy.Automated)
+	lockedServices := services.OnlyWithPolicy(policy.Locked)
+	ignoredServices := services.OnlyWithPolicy(policy.Ignore)
+
+	var res []flux.ServiceStatus
+	for _, service := range clusterServices {
 		res = append(res, flux.ServiceStatus{
 			ID:         service.ID,
 			Containers: containers2containers(service.ContainersOrNil()),
@@ -90,7 +82,7 @@ func (d *Daemon) ListServices(namespace string) ([]flux.ServiceStatus, error) {
 			Automated:  automatedServices.Contains(service.ID),
 			Locked:     lockedServices.Contains(service.ID),
 			Ignore:     ignoredServices.Contains(service.ID),
-			Policies:   allServices[service.ID].ToStringMap(),
+			Policies:   services[service.ID].ToStringMap(),
 		})
 	}
 

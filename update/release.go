@@ -46,7 +46,7 @@ const UserAutomated = "<automated>"
 
 type ReleaseContext interface {
 	SelectServices(Result, ...ServiceFilter) ([]*ServiceUpdate, error)
-	ServicesWithPolicy(policy.Policy) (policy.ServiceMap, error)
+	ServicesWithPolicies() (policy.ServiceMap, error)
 	Registry() registry.Registry
 	Manifests() cluster.Manifests
 }
@@ -155,10 +155,11 @@ func (s ReleaseSpec) filters(rc ReleaseContext) ([]ServiceFilter, error) {
 	}
 
 	// Locked filter
-	lockedSet, err := rc.ServicesWithPolicy(policy.Locked)
+	services, err := rc.ServicesWithPolicies()
 	if err != nil {
 		return nil, err
 	}
+	lockedSet := services.OnlyWithPolicy(policy.Locked)
 	filtList = append(filtList, &LockedFilter{lockedSet.ToSlice()})
 	return filtList, nil
 }

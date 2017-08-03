@@ -139,21 +139,19 @@ func parseManifest(def []byte) (Manifest, error) {
 	return m, nil
 }
 
-func (m *Manifests) ServicesWithPolicy(root string, p policy.Policy) (policy.ServiceMap, error) {
+func (m *Manifests) ServicesWithPolicies(root string) (policy.ServiceMap, error) {
 	all, err := m.FindDefinedServices(root)
 	if err != nil {
 		return nil, err
 	}
-	result := map[flux.ServiceID]policy.Set{}
 
+	result := map[flux.ServiceID]policy.Set{}
 	err = iterateManifests(all, func(s flux.ServiceID, m Manifest) error {
 		ps, err := policiesFrom(m)
 		if err != nil {
 			return err
 		}
-		if ps.Contains(p) || p == policy.None {
-			result[s] = ps
-		}
+		result[s] = ps
 		return nil
 	})
 	if err != nil {

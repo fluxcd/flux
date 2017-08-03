@@ -23,4 +23,4 @@ func (c *Manifests) UpdateDefinition(def []byte, container string, image flux.Im
 	return updatePodController(def, container, image)
 }
 
-// UpdatePolicies and ServicesWithPolicy in policies.go
+// UpdatePolicies and ServicesWithPolicies in policies.go

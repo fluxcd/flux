@@ -9,19 +9,19 @@ import (
 
 // Doubles as a cluster.Cluster and cluster.Manifests implementation
 type Mock struct {
-	AllServicesFunc         func(maybeNamespace string) ([]Service, error)
-	SomeServicesFunc        func([]flux.ServiceID) ([]Service, error)
-	PingFunc                func() error
-	ExportFunc              func() ([]byte, error)
-	SyncFunc                func(SyncDef) error
-	PublicSSHKeyFunc        func(regenerate bool) (ssh.PublicKey, error)
-	FindDefinedServicesFunc func(path string) (map[flux.ServiceID][]string, error)
-	UpdateDefinitionFunc    func(def []byte, container string, newImageID flux.ImageID) ([]byte, error)
-	LoadManifestsFunc       func(paths ...string) (map[string]resource.Resource, error)
-	ParseManifestsFunc      func([]byte) (map[string]resource.Resource, error)
-	UpdateManifestFunc      func(path, resourceID string, f func(def []byte) ([]byte, error)) error
-	UpdatePoliciesFunc      func([]byte, policy.Update) ([]byte, error)
-	ServicesWithPolicyFunc  func(path string, p policy.Policy) (policy.ServiceMap, error)
+	AllServicesFunc          func(maybeNamespace string) ([]Service, error)
+	SomeServicesFunc         func([]flux.ServiceID) ([]Service, error)
+	PingFunc                 func() error
+	ExportFunc               func() ([]byte, error)
+	SyncFunc                 func(SyncDef) error
+	PublicSSHKeyFunc         func(regenerate bool) (ssh.PublicKey, error)
+	FindDefinedServicesFunc  func(path string) (map[flux.ServiceID][]string, error)
+	UpdateDefinitionFunc     func(def []byte, container string, newImageID flux.ImageID) ([]byte, error)
+	LoadManifestsFunc        func(paths ...string) (map[string]resource.Resource, error)
+	ParseManifestsFunc       func([]byte) (map[string]resource.Resource, error)
+	UpdateManifestFunc       func(path, resourceID string, f func(def []byte) ([]byte, error)) error
+	UpdatePoliciesFunc       func([]byte, policy.Update) ([]byte, error)
+	ServicesWithPoliciesFunc func(path string) (policy.ServiceMap, error)
 }
 
 func (m *Mock) AllServices(maybeNamespace string) ([]Service, error) {
@@ -72,6 +72,6 @@ func (m *Mock) UpdatePolicies(def []byte, p policy.Update) ([]byte, error) {
 	return m.UpdatePoliciesFunc(def, p)
 }
 
-func (m *Mock) ServicesWithPolicy(path string, p policy.Policy) (policy.ServiceMap, error) {
-	return m.ServicesWithPolicyFunc(path, p)
+func (m *Mock) ServicesWithPolicies(path string) (policy.ServiceMap, error) {
+	return m.ServicesWithPoliciesFunc(path)
 }

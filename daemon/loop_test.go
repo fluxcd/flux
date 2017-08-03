@@ -10,6 +10,8 @@ import (
 
 	"github.com/go-kit/kit/log"
 
+	"sync"
+
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster"
 	"github.com/weaveworks/flux/cluster/kubernetes"
@@ -20,7 +22,6 @@ import (
 	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/registry"
 	"github.com/weaveworks/flux/resource"
-	"sync"
 )
 
 const (
@@ -54,7 +55,7 @@ func daemon(t *testing.T) (*Daemon, func()) {
 	}
 	k8s.ExportFunc = func() ([]byte, error) { return nil, nil }
 	k8s.FindDefinedServicesFunc = (&kubernetes.Manifests{}).FindDefinedServices
-	k8s.ServicesWithPolicyFunc = (&kubernetes.Manifests{}).ServicesWithPolicy
+	k8s.ServicesWithPoliciesFunc = (&kubernetes.Manifests{}).ServicesWithPolicies
 
 	events = history.NewMock()
 

@@ -135,3 +135,13 @@ func (s ServiceMap) Without(other ServiceMap) ServiceMap {
 	}
 	return newMap
 }
+
+func (s ServiceMap) OnlyWithPolicy(p Policy) ServiceMap {
+	newMap := ServiceMap{}
+	for k, v := range s {
+		if _, ok := v[p]; ok {
+			newMap[k] = v
+		}
+	}
+	return newMap
+}
