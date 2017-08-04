@@ -24,6 +24,7 @@ import (
 	"github.com/weaveworks/flux/cluster"
 	"github.com/weaveworks/flux/registry"
 	"github.com/weaveworks/flux/ssh"
+	"k8s.io/client-go/1.5/pkg/labels"
 )
 
 const (
@@ -86,6 +87,185 @@ func isAddon(obj namespacedLabeled) bool {
 
 // --- /add ons
 
+// --- k8s-service-level-info
+
+// KubeAPI represents the interface to raw k8s calls. The interface
+// allows us to test the k8s calls without a cluster.
+type KubeAPI interface {
+	KubeNamespaces() (*v1.NamespaceList, error)
+	KubeServices(namespace string) (*v1.ServiceList, error)
+	KubeService(ns, svc string) (*v1.Service, error)
+	KubeControllers(svc *v1.Service) ([]podController, error)
+	KubeSecrets(ns, secret string) (*v1.Secret, error)
+}
+
+type kubeAPI struct {
+	client extendedClient
+}
+
+func NewKubeAPI(clientset k8sclient.Interface) KubeAPI {
+	return &kubeAPI{
+		client: extendedClient{clientset.Discovery(), clientset.Core(), clientset.Extensions()},
+	}
+}
+
+// KubeNamespaces gets all k8s namespaces
+func (c *kubeAPI) KubeNamespaces() (*v1.NamespaceList, error) {
+	return c.client.Namespaces().List(api.ListOptions{})
+}
+
+// KubeServices gets all k8s services in the given namespace
+func (c *kubeAPI) KubeServices(namespace string) (*v1.ServiceList, error) {
+	return c.client.Services(namespace).List(api.ListOptions{})
+}
+
+// KubeService gets a matching k8s service for a given cluster.Service
+func (c *kubeAPI) KubeService(ns, svc string) (*v1.Service, error) {
+	return c.client.Services(ns).Get(svc)
+}
+
+// KubeDeployments gets all the deployments for a given service
+func (c *kubeAPI) KubeControllers(svc *v1.Service) (res []podController, _ error) {
+	set := labels.Set(svc.Spec.Selector)
+
+	deploylist, err := c.client.Deployments(svc.Namespace).List(api.ListOptions{
+		LabelSelector: set.AsSelector(),
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "collecting deployments")
+	}
+	for i := range deploylist.Items {
+		if !isAddon(&deploylist.Items[i]) {
+			res = append(res, podController{Deployment: &deploylist.Items[i]})
+		}
+	}
+
+	rclist, err := c.client.ReplicationControllers(svc.Namespace).List(api.ListOptions{
+		LabelSelector: set.AsSelector(),
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "collecting replication controllers")
+	}
+	for i := range rclist.Items {
+		if !isAddon(&rclist.Items[i]) {
+			res = append(res, podController{ReplicationController: &rclist.Items[i]})
+		}
+	}
+
+	return res, nil
+}
+
+func (c *kubeAPI) KubeSecrets(ns, secret string) (*v1.Secret, error) {
+	return c.client.Secrets(ns).Get(secret)
+}
+
+// --- /k8s-service-level-info
+
+// --- Flux-k8s-adapter
+
+// KubeFluxAdapter converts the flux service domain into the k8s domain
+type KubeFluxAdapter interface {
+	Services(namespace string) ([]cluster.Service, error)
+	ImageCredentials(service cluster.Service) (registry.Credentials, error)
+}
+
+func NewKubeFluxAdapter(si KubeAPI, l log.Logger) KubeFluxAdapter {
+	return &kubeFluxAdapter{
+		kube:   si,
+		logger: l,
+	}
+}
+
+type kubeFluxAdapter struct {
+	kube   KubeAPI
+	logger log.Logger
+}
+
+// Services gets all flux services
+func (c *kubeFluxAdapter) Services(namespace string) (svcs []cluster.Service, _ error) {
+	nsList, err := c.kube.KubeNamespaces()
+	if err != nil {
+		return svcs, errors.Wrap(err, "getting namespaces")
+	}
+	for _, ns := range nsList.Items {
+		if namespace != "" && namespace != ns.Name {
+			continue
+		}
+		services, err := c.kube.KubeServices(ns.Name)
+		if err != nil {
+			return svcs, errors.Wrapf(err, "getting services for namespace %s", ns)
+		}
+
+		// Foreach service
+		for _, service := range services.Items {
+			if isAddon(&service) {
+				continue
+			}
+
+			controllers, err := c.kube.KubeControllers(&service)
+			if err != nil {
+				c.logger.Log(errors.Wrapf(cluster.ErrNoMatching, "matching controllers to service %s/%s", ns, service.Name))
+				continue
+			}
+			svc := makeService(service.Namespace, &service, controllers)
+			svcs = append(svcs, svc)
+		}
+	}
+	return svcs, nil
+}
+
+// ImageCredentials gets the image credentials for a given service.
+func (c *kubeFluxAdapter) ImageCredentials(service cluster.Service) (creds registry.Credentials, _ error) {
+	creds = registry.NoCredentials()
+	ns, _ := service.ID.Components()
+
+	// Convert our representation of service to a k8s Service
+	kSvc, err := c.kube.KubeService(service.ID.Components())
+	if err != nil {
+		return creds, errors.Wrapf(err, "getting service %q", service.ID.String())
+	}
+
+	// Get all deployments that match the given service
+	deployments, err := c.kube.KubeControllers(kSvc)
+	if err != nil {
+		return creds, errors.Wrapf(err, "getting image credentials for service %q", service.ID.String())
+	}
+
+	for _, deployment := range deployments {
+		rawSecrets := deployment.secrets()
+		// Foreach secret in PodSpec
+		for _, secName := range rawSecrets {
+			// Get secret
+			sec, err := c.kube.KubeSecrets(ns, secName.Name)
+			if err != nil {
+				c.logger.Log("err", errors.Wrapf(err, "getting secret %q from namespace %q", secName.Name, ns))
+				continue
+			}
+			if sec.Type != v1.SecretTypeDockercfg {
+				continue
+			}
+			decoded, ok := sec.Data[v1.DockerConfigKey]
+			if !ok {
+				c.logger.Log("err", fmt.Errorf("retrieving pod secret %q", secName.Name))
+				continue
+			}
+
+			// Parse secret
+			crd, err := registry.ParseCredentials(decoded)
+			if err != nil {
+				c.logger.Log("err", err.Error())
+				continue
+			}
+
+			// Merge into the credentials for this PodSpec
+			creds.Merge(crd)
+		}
+	}
+	return creds, nil
+}
+
+// --- /Flux-k8s-adapter
+
 type Applier interface {
 	Delete(logger log.Logger, def *apiObject) error
 	Apply(logger log.Logger, def *apiObject) error
@@ -94,12 +274,14 @@ type Applier interface {
 // Cluster is a handle to a Kubernetes API server.
 // (Typically, this code is deployed into the same cluster.)
 type Cluster struct {
-	client     extendedClient
-	applier    Applier
-	actionc    chan func()
-	version    string // string response for the version command.
-	logger     log.Logger
-	sshKeyRing ssh.KeyRing
+	client      extendedClient
+	fluxAdapter KubeFluxAdapter
+	kubeService KubeAPI
+	applier     Applier
+	actionc     chan func()
+	version     string // string response for the version command.
+	logger      log.Logger
+	sshKeyRing  ssh.KeyRing
 }
 
 // NewCluster returns a usable cluster. Host should be of the form
@@ -107,14 +289,18 @@ type Cluster struct {
 func NewCluster(clientset k8sclient.Interface,
 	applier Applier,
 	sshKeyRing ssh.KeyRing,
+	adapter KubeFluxAdapter,
+	kube KubeAPI,
 	logger log.Logger) (*Cluster, error) {
 
 	c := &Cluster{
-		client:     extendedClient{clientset.Discovery(), clientset.Core(), clientset.Extensions()},
-		applier:    applier,
-		actionc:    make(chan func()),
-		logger:     logger,
-		sshKeyRing: sshKeyRing,
+		client:      extendedClient{clientset.Discovery(), clientset.Core(), clientset.Extensions()},
+		applier:     applier,
+		fluxAdapter: adapter,
+		kubeService: kube,
+		actionc:     make(chan func()),
+		logger:      logger,
+		sshKeyRing:  sshKeyRing,
 	}
 
 	go c.loop()
@@ -139,74 +325,29 @@ func (c *Cluster) loop() {
 // exist in the cluster. They do not necessarily have to be returned
 // in the order requested.
 func (c *Cluster) SomeServices(ids []flux.ServiceID) (res []cluster.Service, err error) {
-	namespacedServices := map[string][]string{}
-	for _, id := range ids {
-		ns, name := id.Components()
-		namespacedServices[ns] = append(namespacedServices[ns], name)
+	svcs, err := c.AllServices("")
+	if err != nil {
+		return res, errors.Wrap(err, "requesting some services")
 	}
 
-	for ns, names := range namespacedServices {
-		services := c.client.Services(ns)
-		controllers, err := c.podControllersInNamespace(ns)
-		if err != nil {
-			return nil, errors.Wrapf(err, "finding pod controllers for namespace %s", ns)
-		}
-		for _, name := range names {
-			service, err := services.Get(name)
-			if err != nil {
-				continue
+	for _, svc := range svcs {
+		for _, id := range ids {
+			if id.String() == svc.ID.String() {
+				res = append(res, svc)
 			}
-			if isAddon(service) {
-				continue
-			}
-			res = append(res, c.makeService(ns, service, controllers))
 		}
 	}
+
 	return res, nil
 }
 
 // AllServices returns all services matching the criteria; that is, in
 // the namespace (or any namespace if that argument is empty)
-func (c *Cluster) AllServices(namespace string) (res []cluster.Service, err error) {
-	namespaces := []string{}
-	if namespace == "" {
-		list, err := c.client.Namespaces().List(api.ListOptions{})
-		if err != nil {
-			return nil, errors.Wrap(err, "getting namespaces")
-		}
-		for _, ns := range list.Items {
-			namespaces = append(namespaces, ns.Name)
-		}
-	} else {
-		_, err := c.client.Namespaces().Get(namespace)
-		if err != nil {
-			return nil, errors.Wrap(err, "checking supplied namespace")
-		}
-		namespaces = []string{namespace}
-	}
-
-	for _, ns := range namespaces {
-		controllers, err := c.podControllersInNamespace(ns)
-		if err != nil {
-			return nil, errors.Wrapf(err, "getting controllers for namespace %s", ns)
-		}
-
-		list, err := c.client.Services(ns).List(api.ListOptions{})
-		if err != nil {
-			return nil, errors.Wrapf(err, "getting services for namespace %s", ns)
-		}
-
-		for _, service := range list.Items {
-			if isAddon(&service) {
-				continue
-			}
-			res = append(res, c.makeService(ns, &service, controllers))
-		}
-	}
-	return res, nil
+func (c *Cluster) AllServices(namespace string) (svcs []cluster.Service, err error) {
+	return c.fluxAdapter.Services(namespace)
 }
 
-func (c *Cluster) makeService(ns string, service *v1.Service, controllers []podController) cluster.Service {
+func makeService(ns string, service *v1.Service, controllers []podController) cluster.Service {
 	id := flux.MakeServiceID(ns, service.Name)
 	svc := cluster.Service{
 		ID:       id,
@@ -224,6 +365,107 @@ func (c *Cluster) makeService(ns string, service *v1.Service, controllers []podC
 	}
 
 	return svc
+}
+
+// Sync performs the given actions on resources. Operations are
+// asynchronous, but serialised.
+func (c *Cluster) Sync(spec cluster.SyncDef) error {
+	errc := make(chan error)
+	logger := log.NewContext(c.logger).With("method", "Sync")
+	c.actionc <- func() {
+		errs := cluster.SyncError{}
+		for _, action := range spec.Actions {
+			logger := log.NewContext(logger).With("resource", action.ResourceID)
+			if len(action.Delete) > 0 {
+				obj, err := definitionObj(action.Delete)
+				if err == nil {
+					err = c.applier.Delete(logger, obj)
+				}
+				if err != nil {
+					errs[action.ResourceID] = err
+					continue
+				}
+			}
+			if len(action.Apply) > 0 {
+				obj, err := definitionObj(action.Apply)
+				if err == nil {
+					err = c.applier.Apply(logger, obj)
+				}
+				if err != nil {
+					errs[action.ResourceID] = err
+					continue
+				}
+			}
+		}
+		if len(errs) > 0 {
+			errc <- errs
+		} else {
+			errc <- nil
+		}
+	}
+	return <-errc
+}
+
+func (c *Cluster) Ping() error {
+	_, err := c.client.ServerVersion()
+	return err
+}
+
+func (c *Cluster) Export() ([]byte, error) {
+	var config bytes.Buffer
+	list, err := c.kubeService.KubeNamespaces()
+	if err != nil {
+		return nil, errors.Wrap(err, "getting namespaces")
+	}
+	for _, ns := range list.Items {
+		err := appendYAML(&config, "v1", "Namespace", ns)
+		if err != nil {
+			return nil, errors.Wrap(err, "marshalling namespace to YAML")
+		}
+
+		deployments, err := c.client.Deployments(ns.Name).List(api.ListOptions{})
+		if err != nil {
+			return nil, errors.Wrap(err, "getting deployments")
+		}
+		for _, deployment := range deployments.Items {
+			if isAddon(&deployment) {
+				continue
+			}
+			err := appendYAML(&config, "extensions/v1beta1", "Deployment", deployment)
+			if err != nil {
+				return nil, errors.Wrap(err, "marshalling deployment to YAML")
+			}
+		}
+
+		rcs, err := c.client.ReplicationControllers(ns.Name).List(api.ListOptions{})
+		if err != nil {
+			return nil, errors.Wrap(err, "getting replication controllers")
+		}
+		for _, rc := range rcs.Items {
+			if isAddon(&rc) {
+				continue
+			}
+			err := appendYAML(&config, "v1", "ReplicationController", rc)
+			if err != nil {
+				return nil, errors.Wrap(err, "marshalling replication controller to YAML")
+			}
+		}
+
+		services, err := c.kubeService.KubeServices(ns.Name)
+		if err != nil {
+			return nil, errors.Wrap(err, "getting services")
+		}
+		for _, service := range services.Items {
+			if isAddon(&service) {
+				continue
+			}
+			err := appendYAML(&config, "v1", "Service", service)
+			if err != nil {
+				return nil, errors.Wrap(err, "marshalling service to YAML")
+			}
+		}
+	}
+	return config.Bytes(), nil
 }
 
 func metadataForService(s *v1.Service) map[string]string {
@@ -367,107 +609,6 @@ func (p podController) status() string {
 	return StatusUnknown
 }
 
-// Sync performs the given actions on resources. Operations are
-// asynchronous, but serialised.
-func (c *Cluster) Sync(spec cluster.SyncDef) error {
-	errc := make(chan error)
-	logger := log.NewContext(c.logger).With("method", "Sync")
-	c.actionc <- func() {
-		errs := cluster.SyncError{}
-		for _, action := range spec.Actions {
-			logger := log.NewContext(logger).With("resource", action.ResourceID)
-			if len(action.Delete) > 0 {
-				obj, err := definitionObj(action.Delete)
-				if err == nil {
-					err = c.applier.Delete(logger, obj)
-				}
-				if err != nil {
-					errs[action.ResourceID] = err
-					continue
-				}
-			}
-			if len(action.Apply) > 0 {
-				obj, err := definitionObj(action.Apply)
-				if err == nil {
-					err = c.applier.Apply(logger, obj)
-				}
-				if err != nil {
-					errs[action.ResourceID] = err
-					continue
-				}
-			}
-		}
-		if len(errs) > 0 {
-			errc <- errs
-		} else {
-			errc <- nil
-		}
-	}
-	return <-errc
-}
-
-func (c *Cluster) Ping() error {
-	_, err := c.client.ServerVersion()
-	return err
-}
-
-func (c *Cluster) Export() ([]byte, error) {
-	var config bytes.Buffer
-	list, err := c.client.Namespaces().List(api.ListOptions{})
-	if err != nil {
-		return nil, errors.Wrap(err, "getting namespaces")
-	}
-	for _, ns := range list.Items {
-		err := appendYAML(&config, "v1", "Namespace", ns)
-		if err != nil {
-			return nil, errors.Wrap(err, "marshalling namespace to YAML")
-		}
-
-		deployments, err := c.client.Deployments(ns.Name).List(api.ListOptions{})
-		if err != nil {
-			return nil, errors.Wrap(err, "getting deployments")
-		}
-		for _, deployment := range deployments.Items {
-			if isAddon(&deployment) {
-				continue
-			}
-			err := appendYAML(&config, "extensions/v1beta1", "Deployment", deployment)
-			if err != nil {
-				return nil, errors.Wrap(err, "marshalling deployment to YAML")
-			}
-		}
-
-		rcs, err := c.client.ReplicationControllers(ns.Name).List(api.ListOptions{})
-		if err != nil {
-			return nil, errors.Wrap(err, "getting replication controllers")
-		}
-		for _, rc := range rcs.Items {
-			if isAddon(&rc) {
-				continue
-			}
-			err := appendYAML(&config, "v1", "ReplicationController", rc)
-			if err != nil {
-				return nil, errors.Wrap(err, "marshalling replication controller to YAML")
-			}
-		}
-
-		services, err := c.client.Services(ns.Name).List(api.ListOptions{})
-		if err != nil {
-			return nil, errors.Wrap(err, "getting services")
-		}
-		for _, service := range services.Items {
-			if isAddon(&service) {
-				continue
-			}
-			err := appendYAML(&config, "v1", "Service", service)
-			if err != nil {
-				return nil, errors.Wrap(err, "marshalling service to YAML")
-			}
-		}
-	}
-	return config.Bytes(), nil
-}
-
 // kind & apiVersion must be passed separately as the object's TypeMeta is not populated
 func appendYAML(buffer *bytes.Buffer, apiVersion, kind string, object interface{}) error {
 	yamlBytes, err := k8syaml.Marshal(object)
@@ -499,112 +640,46 @@ type servicePod struct {
 	pc podController
 }
 
-// Internal function to get a collection of service-controller pairs for a given namespace
-func (c *Cluster) allServices(ns string) (serviceControllers []servicePod, _ error) {
-	var namespaces []v1.Namespace
-	if ns == "" {
-		nsList, err := c.client.Namespaces().List(api.ListOptions{})
-		if err != nil {
-			return serviceControllers, errors.Wrap(err, "getting namespaces")
-		}
-		namespaces = nsList.Items
-	} else {
-		nsSingle, err := c.client.Namespaces().Get(ns)
-		if err != nil {
-			return serviceControllers, errors.Wrap(err, "getting namespaces")
-		}
-		namespaces = []v1.Namespace{*nsSingle}
+// --- end cluster.Cluster
+
+// --- image-fetcher
+
+// ImageFetcher contains a method that will return all the images (with
+// credentials) to fetch when doing an image update.
+type ImageFetcher interface {
+	ImagesToFetch() registry.ImageCreds
+}
+
+type imageFetcher struct {
+	sc     KubeFluxAdapter
+	logger log.Logger
+}
+
+func NewImageFetcher(sc KubeFluxAdapter, l log.Logger) ImageFetcher {
+	return &imageFetcher{
+		sc:     sc,
+		logger: l,
 	}
-
-	// Foreach namespace
-	for _, ns := range namespaces {
-		services, err := c.client.Services(ns.Name).List(api.ListOptions{})
-		if err != nil {
-			return serviceControllers, errors.Wrapf(err, "getting services for namespace %s", ns.Name)
-		}
-
-		controllers, err := c.podControllersInNamespace(ns.Name)
-		if err != nil {
-			return serviceControllers, errors.Wrapf(err, "getting controllers for namespace %s", ns.Name)
-		}
-
-		// Foreach service
-		for _, service := range services.Items {
-			if isAddon(&service) {
-				continue
-			}
-
-			// Find controller for service
-			pc, err := matchController(&service, controllers)
-			if err != nil {
-				c.logger.Log(errors.Wrapf(cluster.ErrNoMatching, "matching controllers to service %s/%s", ns.Name, service.Name))
-				continue
-			}
-			serviceControllers = append(serviceControllers, servicePod{s: service, pc: pc})
-		}
-	}
-	return
 }
 
 // ImagesToFetch is a k8s specific method to get a list of images to update along with their credentials
-func (c *Cluster) ImagesToFetch() (imageCreds registry.ImageCreds) {
+func (f *imageFetcher) ImagesToFetch() (imageCreds registry.ImageCreds) {
 	imageCreds = make(registry.ImageCreds, 0)
-	serviceControllers, err := c.allServices("")
+	svcs, err := f.sc.Services("")
 	if err != nil {
-		c.logger.Log("err", errors.Wrapf(err, "fetching images"))
+		f.logger.Log("err", errors.Wrapf(err, "getting list of images to fetch"))
 		return
 	}
-
-	// Foreach service-controller combo
-	for _, servicePod := range serviceControllers {
-		service := servicePod.s
-		controller := servicePod.pc
-		var rawSecrets = controller.secrets()
-		creds := registry.NoCredentials()
-		// Foreach secret in PodSpec
-		for _, secName := range rawSecrets {
-			// Get secret
-			sec, err := c.client.Secrets(service.Namespace).Get(secName.Name)
-			if err != nil {
-				c.logger.Log("err", errors.Wrapf(err, "getting secret %q from namespace %q", secName.Name, service.Namespace))
-				continue
-			}
-
-			var decoded []byte
-			var ok bool
-			// These differ in format; but, ParseCredentials will
-			// handle either.
-			switch api.SecretType(sec.Type) {
-			case api.SecretTypeDockercfg:
-				decoded, ok = sec.Data[api.DockerConfigKey]
-			case api.SecretTypeDockerConfigJson:
-				decoded, ok = sec.Data[api.DockerConfigJsonKey]
-			default:
-				c.logger.Log("skip", "unknown type", "secret", service.Namespace+"/"+secName.Name, "type", sec.Type)
-				continue
-			}
-
-			if !ok {
-				c.logger.Log("err", errors.Wrapf(err, "retrieving pod secret %q", secName.Name))
-				continue
-			}
-
-			// Parse secret
-			crd, err := registry.ParseCredentials(decoded)
-			if err != nil {
-				c.logger.Log("err", err.Error())
-				continue
-			}
-
-			// Merge into the credentials for this PodSpec
-			creds.Merge(crd)
+	for _, svc := range svcs {
+		creds, err := f.sc.ImageCredentials(svc)
+		if err != nil {
+			f.logger.Log("err", errors.Wrapf(err, "getting list of images to fetch"))
+			continue
 		}
-
-		// Now create the service and attach the credentials
-		for _, ctn := range controller.templateContainers() {
+		for _, ctn := range svc.Containers.Containers {
 			r, err := flux.ParseImageID(ctn.Image)
 			if err != nil {
-				c.logger.Log("err", err.Error())
+				f.logger.Log("err", err.Error())
 				continue
 			}
 			imageCreds[r] = creds
@@ -613,7 +688,7 @@ func (c *Cluster) ImagesToFetch() (imageCreds registry.ImageCreds) {
 	return
 }
 
-// --- end cluster.Cluster
+// --- /image-fetcher
 
 // A convenience for getting an minimal object from some bytes.
 func definitionObj(bytes []byte) (*apiObject, error) {
