@@ -88,7 +88,7 @@
 			"importpath": "github.com/bradfitz/gomemcache/memcache",
 			"repository": "https://github.com/bradfitz/gomemcache",
 			"vcs": "git",
-			"revision": "2fafb84a66c4911e11a8f50955b01e74fe3ab9c5",
+			"revision": "1952afaa557dc08e8e0d89eafab110fb501c1a2b",
 			"branch": "master",
 			"path": "/memcache",
 			"notests": true

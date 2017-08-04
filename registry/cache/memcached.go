@@ -75,12 +75,14 @@ type MemcacheConfig struct {
 	Timeout        time.Duration
 	UpdateInterval time.Duration
 	Logger         log.Logger
+	MaxConnections int
 }
 
 func NewMemcacheClient(config MemcacheConfig) Client {
 	var servers memcache.ServerList
 	client := memcache.NewFromSelector(&servers)
 	client.Timeout = config.Timeout
+	client.MaxIdleConns = config.MaxConnections
 
 	newClient := &memcacheClient{
 		Client:     client,
