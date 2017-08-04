@@ -4,13 +4,13 @@ package registry
 import (
 	"context"
 	"encoding/json"
+	"net"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
-
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/registry/cache"
 )
@@ -141,9 +141,11 @@ func (w *Warmer) warm(id flux.ImageID, creds Credentials) {
 			// Get the image from the remote
 			img, err := client.Manifest(imageID)
 			if err != nil {
-				if !strings.Contains(err.Error(), context.DeadlineExceeded.Error()) && !strings.Contains(err.Error(), "net/http: request canceled") {
-					w.Logger.Log("err", errors.Wrap(err, "requesting manifests"))
+				if err, ok := errors.Cause(err).(net.Error); ok && err.Timeout() {
+					// This was due to a context timeout, don't bother logging
+					return
 				}
+				w.Logger.Log("err", errors.Wrap(err, "requesting manifests"))
 				return
 			}
 
