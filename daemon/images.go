@@ -70,13 +70,11 @@ func getTagPattern(services policy.ServiceMap, service flux.ServiceID, container
 }
 
 func (d *Daemon) unlockedAutomatedServices() (policy.ServiceMap, error) {
-	automatedServices, err := d.Manifests.ServicesWithPolicy(d.Checkout.ManifestDir(), policy.Automated)
+	services, err := d.Manifests.ServicesWithPolicies(d.Checkout.ManifestDir())
 	if err != nil {
 		return nil, err
 	}
-	lockedServices, err := d.Manifests.ServicesWithPolicy(d.Checkout.ManifestDir(), policy.Locked)
-	if err != nil {
-		return nil, err
-	}
+	automatedServices := services.OnlyWithPolicy(policy.Automated)
+	lockedServices := services.OnlyWithPolicy(policy.Locked)
 	return automatedServices.Without(lockedServices), nil
 }

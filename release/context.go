@@ -155,8 +155,8 @@ func (rc *ReleaseContext) FindDefinedServices() ([]*update.ServiceUpdate, error)
 }
 
 // Shortcut for this
-func (rc *ReleaseContext) ServicesWithPolicy(p policy.Policy) (policy.ServiceMap, error) {
+func (rc *ReleaseContext) ServicesWithPolicies() (policy.ServiceMap, error) {
 	rc.repo.RLock()
 	defer rc.repo.RUnlock()
-	return rc.manifests.ServicesWithPolicy(rc.repo.ManifestDir(), p)
+	return rc.manifests.ServicesWithPolicies(rc.repo.ManifestDir())
 }

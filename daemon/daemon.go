@@ -57,35 +57,30 @@ func (d *Daemon) Export() ([]byte, error) {
 }
 
 func (d *Daemon) ListServices(namespace string) ([]flux.ServiceStatus, error) {
-	var res []flux.ServiceStatus
-	services, err := d.Cluster.AllServices(namespace)
+	clusterServices, err := d.Cluster.AllServices(namespace)
 	if err != nil {
 		return nil, errors.Wrap(err, "getting services from cluster")
 	}
 
 	d.Checkout.RLock()
 	defer d.Checkout.RUnlock()
-	automatedServices, err := d.Manifests.ServicesWithPolicy(d.Checkout.ManifestDir(), policy.Automated)
+
+	services, err := d.Manifests.ServicesWithPolicies(d.Checkout.ManifestDir())
 	if err != nil {
-		return nil, errors.Wrap(err, "checking service policies")
-	}
-	lockedServices, err := d.Manifests.ServicesWithPolicy(d.Checkout.ManifestDir(), policy.Locked)
-	if err != nil {
-		return nil, errors.Wrap(err, "checking service policies")
-	}
-	ignoredServices, err := d.Manifests.ServicesWithPolicy(d.Checkout.ManifestDir(), policy.Ignore)
-	if err != nil {
-		return nil, errors.Wrap(err, "checking service policies")
+		return nil, errors.Wrap(err, "getting service policies")
 	}
 
-	for _, service := range services {
+	var res []flux.ServiceStatus
+	for _, service := range clusterServices {
+		policies := services[service.ID]
 		res = append(res, flux.ServiceStatus{
 			ID:         service.ID,
 			Containers: containers2containers(service.ContainersOrNil()),
 			Status:     service.Status,
-			Automated:  automatedServices.Contains(service.ID),
-			Locked:     lockedServices.Contains(service.ID),
-			Ignore:     ignoredServices.Contains(service.ID),
+			Automated:  policies.Contains(policy.Automated),
+			Locked:     policies.Contains(policy.Locked),
+			Ignore:     policies.Contains(policy.Ignore),
+			Policies:   policies.ToStringMap(),
 		})
 	}
 
