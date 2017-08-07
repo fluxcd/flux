@@ -30,7 +30,7 @@ func (d *Daemon) pollForNewImages(logger log.Logger) {
 		return
 	}
 	// Check the latest available image(s) for each service
-	imageMap, err := update.CollectAvailableImages(d.Registry, services)
+	imageMap, err := update.CollectAvailableImages(d.Registry, services, logger)
 	if err != nil {
 		logger.Log("error", errors.Wrap(err, "fetching image updates"))
 		return

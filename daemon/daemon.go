@@ -101,7 +101,7 @@ func (d *Daemon) ListImages(spec update.ServiceSpec) ([]flux.ImageStatus, error)
 		services, err = d.Cluster.SomeServices([]flux.ServiceID{id})
 	}
 
-	images, err := update.CollectAvailableImages(d.Registry, services)
+	images, err := update.CollectAvailableImages(d.Registry, services, d.Logger)
 	if err != nil {
 		return nil, errors.Wrap(err, "getting images for services")
 	}

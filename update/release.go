@@ -196,7 +196,7 @@ func (s ReleaseSpec) calculateImageUpdates(rc ReleaseContext, candidates []*Serv
 
 	switch s.ImageSpec {
 	case ImageSpecLatest:
-		images, err = collectUpdateImages(rc.Registry(), candidates)
+		images, err = collectUpdateImages(rc.Registry(), candidates, logger)
 	default:
 		var image flux.ImageID
 		image, err = s.ImageSpec.AsID()

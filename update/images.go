@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
 	glob "github.com/ryanuber/go-glob"
 	"github.com/weaveworks/flux"
@@ -34,18 +35,18 @@ func (m ImageMap) LatestImage(repo, tagGlob string) *flux.Image {
 
 // CollectUpdateImages is a convenient shim to
 // `CollectAvailableImages`.
-func collectUpdateImages(registry registry.Registry, updateable []*ServiceUpdate) (ImageMap, error) {
+func collectUpdateImages(registry registry.Registry, updateable []*ServiceUpdate, logger log.Logger) (ImageMap, error) {
 	var servicesToCheck []cluster.Service
 	for _, update := range updateable {
 		servicesToCheck = append(servicesToCheck, update.Service)
 	}
-	return CollectAvailableImages(registry, servicesToCheck)
+	return CollectAvailableImages(registry, servicesToCheck, logger)
 }
 
 // Get the images available for the services given. An image may be
 // mentioned more than once in the services, but will only be fetched
 // once.
-func CollectAvailableImages(reg registry.Registry, services []cluster.Service) (ImageMap, error) {
+func CollectAvailableImages(reg registry.Registry, services []cluster.Service, logger log.Logger) (ImageMap, error) {
 	images := ImageMap{}
 	for _, service := range services {
 		for _, container := range service.ContainersOrNil() {
@@ -66,7 +67,8 @@ func CollectAvailableImages(reg registry.Registry, services []cluster.Service) (
 		if err != nil {
 			// Not an error if missing. Use empty images.
 			if _, ok := err.(*flux.Missing); !ok {
-				return nil, errors.Wrapf(err, "fetching image metadata for %s", repo)
+				logger.Log("err", errors.Wrapf(err, "fetching image metadata for %s", repo))
+				continue
 			}
 		}
 		images[repo] = imageRepo
