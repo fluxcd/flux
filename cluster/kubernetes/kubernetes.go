@@ -537,7 +537,7 @@ func (c *Cluster) allServices(ns string) (serviceControllers []servicePod, _ err
 			// Find controller for service
 			pc, err := matchController(&service, controllers)
 			if err != nil {
-				c.logger.Log(errors.Wrapf(cluster.ErrNoMatching, "matching controllers to service %s/%s", ns.Name, service.Name))
+				c.logger.Log("err", errors.Wrapf(cluster.ErrNoMatching, "matching controllers to service %s/%s", ns.Name, service.Name))
 				continue
 			}
 			serviceControllers = append(serviceControllers, servicePod{s: service, pc: pc})
