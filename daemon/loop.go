@@ -51,6 +51,7 @@ func (d *Daemon) GitPollLoop(stop chan struct{}, wg *sync.WaitGroup, logger log.
 	}
 
 	imagePollTimer := time.NewTimer(d.RegistryPollInterval)
+	loopLogger := log.NewContext(logger).With("thing", "git-poll-loop")
 
 	// Ask for a sync, and to poll images, straight away
 	d.askForSync()
@@ -58,21 +59,27 @@ func (d *Daemon) GitPollLoop(stop chan struct{}, wg *sync.WaitGroup, logger log.
 	for {
 		select {
 		case <-stop:
+			loopLogger.Log("case", "stop")
 			logger.Log("stopping", "true")
 			return
 		case <-d.pollImagesSoon:
+			loopLogger.Log("case", "pollImagesSoon")
 			d.pollForNewImages(logger)
 			imagePollTimer.Stop()
 			imagePollTimer = time.NewTimer(d.RegistryPollInterval)
 		case <-imagePollTimer.C:
+			loopLogger.Log("case", "imagePollTimer")
 			d.askForImagePoll()
 		case <-d.syncSoon:
+			loopLogger.Log("case", "syncSoon")
 			pullThen(d.doSync)
 		case <-gitPollTimer.C:
+			loopLogger.Log("case", "gitPollTimer")
 			// Time to poll for new commits (unless we're already
 			// about to do that)
 			d.askForSync()
 		case job := <-d.Jobs.Ready():
+			loopLogger.Log("case", "jobReady")
 			jobLogger := log.NewContext(logger).With("jobID", job.ID)
 			jobLogger.Log("state", "in-progress")
 			// It's assumed that (successful) jobs will push commits
