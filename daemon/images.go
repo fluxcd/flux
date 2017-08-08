@@ -58,7 +58,9 @@ func (d *Daemon) pollForNewImages(logger log.Logger) {
 		}
 	}
 
-	d.UpdateManifests(update.Spec{Type: update.Auto, Spec: changes})
+	if len(changes.Changes) > 0 {
+		d.UpdateManifests(update.Spec{Type: update.Auto, Spec: changes})
+	}
 }
 
 func getTagPattern(services policy.ServiceMap, service flux.ServiceID, container string) string {
