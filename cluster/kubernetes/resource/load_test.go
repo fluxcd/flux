@@ -29,8 +29,7 @@ func TestParseEmpty(t *testing.T) {
 }
 
 func TestParseSome(t *testing.T) {
-	docs := `---
-kind: Service
+	docs := `kind: Service
 metadata:
   name: b-service
   namespace: b-namespace
