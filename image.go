@@ -12,6 +12,8 @@ import (
 const (
 	dockerHubHost    = "index.docker.io"
 	dockerHubLibrary = "library"
+
+	oldDockerHubHost = "docker.io"
 )
 
 var (
@@ -61,6 +63,10 @@ func ParseImageID(s string) (ImageID, error) {
 		img.Namespace = parts[0]
 		img.Image = parts[1]
 	case 3:
+		// Replace docker.io with index.docker.io (#692)
+		if parts[0] == oldDockerHubHost {
+			parts[0] = dockerHubHost
+		}
 		img.Host = parts[0]
 		img.Namespace = parts[1]
 		img.Image = parts[2]
