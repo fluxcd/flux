@@ -8,7 +8,9 @@ import (
 
 type identityOpts struct {
 	*rootOpts
-	regenerate bool
+	regenerate  bool
+	fingerprint bool
+	visual      bool
 }
 
 func newIdentity(parent *rootOpts) *identityOpts {
@@ -22,6 +24,8 @@ func (opts *identityOpts) Command() *cobra.Command {
 		RunE:  opts.RunE,
 	}
 	cmd.Flags().BoolVarP(&opts.regenerate, "regenerate", "r", false, `Generate a new identity`)
+	cmd.Flags().BoolVarP(&opts.fingerprint, "fingerprint", "l", false, `Show fingerprint of public key`)
+	cmd.Flags().BoolVarP(&opts.visual, "visual", "v", false, `Show ASCII art representation with fingerprint (implies -l)`)
 	return cmd
 }
 
@@ -35,9 +39,17 @@ func (opts *identityOpts) RunE(_ *cobra.Command, args []string) error {
 		return err
 	}
 
-	fmt.Print(publicSSHKey.Key)
-	fmt.Println(publicSSHKey.Fingerprints["md5"].Hash)
-	fmt.Print(publicSSHKey.Fingerprints["md5"].Randomart)
+	if opts.visual {
+		opts.fingerprint = true
+	}
 
+	if opts.fingerprint {
+		fmt.Println(publicSSHKey.Fingerprints["md5"].Hash)
+		if opts.visual {
+			fmt.Print(publicSSHKey.Fingerprints["md5"].Randomart)
+		}
+	} else {
+		fmt.Print(publicSSHKey.Key)
+	}
 	return nil
 }
