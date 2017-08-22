@@ -43,6 +43,11 @@ const (
 	// Value chosen through performance tests on sock-shop. I was unable to get higher performance than this.
 	defaultRemoteConnections   = 125 // Chosen performance tests on sock-shop. Unable to get higher performance than this.
 	defaultMemcacheConnections = 10  // This doesn't need to be high. The user is only requesting one tag/image at a time.
+
+	// There are running systems that assume these defaults (by not
+	// supplying a value for one or both). Don't change them.
+	defaultGitSyncTag  = "flux-sync"
+	defaultGitNotesRef = "flux"
 )
 
 func optionalVar(fs *pflag.FlagSet, value ssh.OptionalValue, name, usage string) ssh.OptionalValue {
@@ -66,13 +71,16 @@ func main() {
 		kubernetesKubectl = fs.String("kubernetes-kubectl", "", "Optional, explicit path to kubectl tool")
 		versionFlag       = fs.Bool("version", false, "Get version number")
 		// Git repo & key etc.
-		gitURL          = fs.String("git-url", "", "URL of git repo with Kubernetes manifests; e.g., git@github.com:weaveworks/flux-example")
-		gitBranch       = fs.String("git-branch", "master", "branch of git repo to use for Kubernetes manifests")
-		gitPath         = fs.String("git-path", "", "path within git repo to locate Kubernetes manifests (relative path)")
-		gitUser         = fs.String("git-user", "Weave Flux", "username to use as git committer")
-		gitEmail        = fs.String("git-email", "support@weave.works", "email to use as git committer")
-		gitSyncTag      = fs.String("git-sync-tag", "flux-sync", "tag to use to mark sync progress for this cluster")
-		gitNotesRef     = fs.String("git-notes-ref", "flux", "ref to use for keeping commit annotations in git notes")
+		gitURL    = fs.String("git-url", "", "URL of git repo with Kubernetes manifests; e.g., git@github.com:weaveworks/flux-example")
+		gitBranch = fs.String("git-branch", "master", "branch of git repo to use for Kubernetes manifests")
+		gitPath   = fs.String("git-path", "", "path within git repo to locate Kubernetes manifests (relative path)")
+		gitUser   = fs.String("git-user", "Weave Flux", "username to use as git committer")
+		gitEmail  = fs.String("git-email", "support@weave.works", "email to use as git committer")
+		gitLabel  = fs.String("git-label", "", "label to keep track of sync progress; overrides both --git-sync-tag and --git-notes-ref")
+		// Old git config; still used if --git-label is not supplied, but --git-label is preferred.
+		gitSyncTag  = fs.String("git-sync-tag", defaultGitSyncTag, "tag to use to mark sync progress for this cluster")
+		gitNotesRef = fs.String("git-notes-ref", defaultGitNotesRef, "ref to use for keeping commit annotations in git notes")
+
 		gitPollInterval = fs.Duration("git-poll-interval", 5*time.Minute, "period at which to poll git repo for new commits")
 		// registry
 		memcachedHostname    = fs.String("memcached-hostname", "", "Hostname for memcached service to use when caching chunks. If empty, no memcached will be used.")
@@ -116,6 +124,19 @@ func main() {
 		logger = log.NewLogfmtLogger(os.Stderr)
 		logger = log.NewContext(logger).With("ts", log.DefaultTimestampUTC)
 		logger = log.NewContext(logger).With("caller", log.DefaultCaller)
+	}
+
+	// Sort out values for the git tag and notes ref. There are
+	// running deployments that assume the defaults as given, so don't
+	// mess with those unless explicitly told.
+	if fs.Changed("git-label") {
+		*gitSyncTag = *gitLabel
+		*gitNotesRef = *gitLabel
+		for _, f := range []string{"git-sync-tag", "git-notes-ref"} {
+			if fs.Changed(f) {
+				logger.Log("overridden", f, "value", *gitLabel)
+			}
+		}
 	}
 
 	// Platform component.
