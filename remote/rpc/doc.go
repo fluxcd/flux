@@ -25,4 +25,20 @@ response timing out, or the connection closing abruptly. These are
 treated as "Fatal" errors; that is, they should result in a
 disconnection of the daemon as well as being returned to the caller.
 
+On versions:
+
+The RPC protocol is versioned, because server code (in the daemon) is
+deployed independently of client code (in the upstream service).
+
+We share the RPC protocol versions with the API, because the endpoint
+for connecting to an upstream service (`/api/flux/<version>/register`)
+is part of the API.
+
+Since one client (upstream service) has connections to many servers
+(daemons), it's the client that has explicit versions in the code. The
+server code always implements just the most recent version.
+
+For backwards-incompatible changes, we must bump the protocol version
+(and create a new `RegisterDaemon` endpoint).
+
 */
