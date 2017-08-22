@@ -26,6 +26,7 @@ func TempDir(t *testing.T) (string, func()) {
 	return newDir, cleanup
 }
 
+// WriteTestFiles ... given a directory, create files in it, based on predetermined file content
 func WriteTestFiles(dir string) error {
 	for name, content := range Files {
 		path := filepath.Join(dir, name)
@@ -38,7 +39,7 @@ func WriteTestFiles(dir string) error {
 
 // ----- DATA
 
-// Given a base path, construct the map representing the services
+// ServiceMap ... given a base path, construct the map representing the services
 // given in the test data.
 func ServiceMap(dir string) map[flux.ServiceID][]string {
 	return map[flux.ServiceID][]string{
@@ -146,5 +147,34 @@ spec:
     - port: 80
   selector:
     name: test-service
+`,
+}
+
+var FilesUpdated = map[string]string{
+	"helloworld-deploy.yaml": `apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: helloworld
+spec:
+  minReadySeconds: 1
+  replicas: 5
+  template:
+    metadata:
+      labels:
+        name: helloworld
+    spec:
+      containers:
+      - name: goodbyeworld
+        image: quay.io/weaveworks/helloworld:master-a000001
+        args:
+        - -msg=Ahoy2
+        ports:
+        - containerPort: 80
+      - name: sidecar
+        image: quay.io/weaveworks/sidecar:master-a000002
+        args:
+        - -addr=:8080
+        ports:
+        - containerPort: 8080
 `,
 }
