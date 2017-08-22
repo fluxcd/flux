@@ -22,8 +22,11 @@ func await(stdout, stderr io.Writer, client api.ClientService, jobID job.ID, app
 	if err != nil && err.Error() != git.ErrNoChanges.Error() {
 		return err
 	}
+	if metadata.Result != nil {
+		update.PrintResults(stdout, metadata.Result, verbose)
+	}
 	if metadata.Revision != "" {
-		fmt.Fprintf(stderr, "Commit pushed: %s\n", metadata.ShortRevision())
+		fmt.Fprintf(stderr, "Commit pushed:\t%s\n", metadata.ShortRevision())
 	}
 	if metadata.Result == nil {
 		fmt.Fprintf(stderr, "Nothing to do\n")
@@ -35,12 +38,9 @@ func await(stdout, stderr io.Writer, client api.ClientService, jobID job.ID, app
 			return err
 		}
 
-		fmt.Fprintf(stderr, "Applied %s\n", metadata.Revision)
+		fmt.Fprintf(stderr, "Commit applied:\t%s\n", metadata.ShortRevision())
 	}
 
-	if metadata.Result != nil {
-		update.PrintResults(stdout, metadata.Result, verbose)
-	}
 	return nil
 }
 
