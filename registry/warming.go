@@ -4,7 +4,6 @@ package registry
 import (
 	"context"
 	"encoding/json"
-	"net"
 	"strings"
 	"sync"
 	"time"
@@ -141,10 +140,10 @@ func (w *Warmer) warm(id flux.ImageID, creds Credentials) {
 			// Get the image from the remote
 			img, err := client.Manifest(imageID)
 			if err != nil {
-				if err, ok := errors.Cause(err).(net.Error); ok && err.Timeout() {
-					// This was due to a context timeout, don't bother logging
-					return
-				}
+				//if err, ok := errors.Cause(err).(net.Error); ok && err.Timeout() {
+				//	// This was due to a context timeout, don't bother logging
+				//	return
+				//}
 				w.Logger.Log("err", errors.Wrap(err, "requesting manifests"))
 				return
 			}

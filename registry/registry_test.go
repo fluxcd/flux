@@ -90,7 +90,7 @@ func TestRemoteFactory_RawClient(t *testing.T) {
 	fact := NewRemoteClientFactory(log.NewNopLogger(), middleware.RateLimiterConfig{
 		RPS:   200,
 		Burst: 1,
-	})
+	}, 10*time.Second, 10*time.Second)
 
 	// Refresh tags first
 	var tags []string
@@ -127,7 +127,7 @@ func TestRemoteFactory_RawClient(t *testing.T) {
 }
 
 func TestRemoteFactory_InvalidHost(t *testing.T) {
-	fact := NewRemoteClientFactory(log.NewNopLogger(), middleware.RateLimiterConfig{})
+	fact := NewRemoteClientFactory(log.NewNopLogger(), middleware.RateLimiterConfig{}, time.Second, time.Second)
 	invalidId, err := flux.ParseImageID("invalid.host/library/alpine:latest")
 	if err != nil {
 		t.Fatal(err)

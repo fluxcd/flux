@@ -83,6 +83,8 @@ func main() {
 		registryPollInterval = fs.Duration("registry-poll-interval", 5*time.Minute, "period at which to poll registry for new images")
 		registryRPS          = fs.Int("registry-rps", 200, "maximum registry requests per second per host")
 		registryBurst        = fs.Int("registry-burst", defaultRemoteConnections, "maximum registry request burst per host (default matched to number of http worker goroutines)")
+		imageTimeout         = fs.Duration("registry-image-timeout", 10*time.Second, "maximum time allowed for all requests related to a single image")
+		registryTimeout      = fs.Duration("registry-timeout", 10*time.Second, "maximum time allowed for individual remote registry requests")
 		// k8s-secret backed ssh keyring configuration
 		k8sSecretName            = fs.String("k8s-secret-name", "flux-git-deploy", "Name of the k8s secret used to store the private SSH key")
 		k8sSecretVolumeMountPath = fs.String("k8s-secret-volume-mount-path", "/etc/fluxd/ssh", "Mount location of the k8s secret storing the private SSH key")
@@ -236,7 +238,7 @@ func main() {
 		remoteFactory := registry.NewRemoteClientFactory(registryLogger, registryMiddleware.RateLimiterConfig{
 			RPS:   *registryRPS,
 			Burst: *registryBurst,
-		})
+		}, *imageTimeout, *registryTimeout)
 
 		// Warmer
 		warmerLogger := log.NewContext(logger).With("component", "warmer")

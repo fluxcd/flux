@@ -39,6 +39,8 @@ func TestWarming_WarmerWriteCacheRead(t *testing.T) {
 	remote := NewRemoteClientFactory(
 		logger.With("component", "client"),
 		middleware.RateLimiterConfig{200, 10},
+		10*time.Second,
+		10*time.Second,
 	)
 
 	cache := NewCacheClientFactory(

@@ -28,16 +28,20 @@ type ClientFactory interface {
 
 // ---
 // A new ClientFactory for a Remote.
-func NewRemoteClientFactory(l log.Logger, rlc middleware.RateLimiterConfig) ClientFactory {
+func NewRemoteClientFactory(l log.Logger, rlc middleware.RateLimiterConfig, imgTimeout, rmtTimeout time.Duration) ClientFactory {
 	return &remoteClientFactory{
-		Logger: l,
-		rlConf: rlc,
+		Logger:        l,
+		rlConf:        rlc,
+		ImageTimeout:  imgTimeout,
+		RemoteTimeout: rmtTimeout,
 	}
 }
 
 type remoteClientFactory struct {
-	Logger log.Logger
-	rlConf middleware.RateLimiterConfig
+	Logger        log.Logger
+	rlConf        middleware.RateLimiterConfig
+	ImageTimeout  time.Duration // Max amount of time per image (all requests)
+	RemoteTimeout time.Duration // Max amount of time per HTTP request
 }
 
 func (f *remoteClientFactory) ClientFor(host string, creds Credentials) (Client, error) {
@@ -56,7 +60,8 @@ func (f *remoteClientFactory) ClientFor(host string, creds Credentials) (Client,
 	// A context we'll use to cancel requests on error
 	ctx, cancel := context.WithCancel(context.Background())
 	// Add a timeout to the request
-	ctx, cancel = context.WithTimeout(ctx, requestTimeout)
+	ctx, cancel = context.WithDeadline(ctx, time.Now().Add(f.ImageTimeout))
+	println(time.Now().String(), time.Now().Add(f.ImageTimeout).String())
 
 	// Use the wrapper to fix headers for quay.io, and remember bearer tokens
 	var transport http.RoundTripper
@@ -76,7 +81,7 @@ func (f *remoteClientFactory) ClientFor(host string, creds Credentials) (Client,
 			Client: &http.Client{
 				Transport: transport,
 				Jar:       jar,
-				Timeout:   requestTimeout,
+				Timeout:   f.RemoteTimeout,
 			},
 			Logf: dockerregistry.Quiet,
 		},
