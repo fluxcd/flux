@@ -38,9 +38,7 @@ import (
 var version string
 
 const (
-	// The number of connections chosen for memcache and remote GETs must match.
-	// If they do not match then the remote either creates too many memcache connections
-	// or not enough to be efficient.
+	// The number of connections chosen for memcache and remote GETs should match for best performance (hence the single hardcoded value)
 	// Value chosen through performance tests on sock-shop. I was unable to get higher performance than this.
 	defaultRemoteConnections   = 125 // Chosen performance tests on sock-shop. Unable to get higher performance than this.
 	defaultMemcacheConnections = 10  // This doesn't need to be high. The user is only requesting one tag/image at a time.
@@ -79,11 +77,11 @@ func main() {
 		memcachedHostname    = fs.String("memcached-hostname", "", "Hostname for memcached service to use when caching chunks. If empty, no memcached will be used.")
 		memcachedTimeout     = fs.Duration("memcached-timeout", time.Second, "Maximum time to wait before giving up on memcached requests.")
 		memcachedService     = fs.String("memcached-service", "memcached", "SRV service used to discover memcache servers.")
-		memcachedConnections = fs.Int("memcached-connections", defaultMemcacheConnections, "maximum number of registry connections to memcache")
 		registryCacheExpiry  = fs.Duration("registry-cache-expiry", 20*time.Minute, "Duration to keep cached registry tag info. Must be < 1 month.")
 		registryPollInterval = fs.Duration("registry-poll-interval", 5*time.Minute, "period at which to poll registry for new images")
 		registryRPS          = fs.Int("registry-rps", 200, "maximum registry requests per second per host")
 		registryBurst        = fs.Int("registry-burst", defaultRemoteConnections, "maximum number of warmer connections to remote and memcache")
+
 		// k8s-secret backed ssh keyring configuration
 		k8sSecretName            = fs.String("k8s-secret-name", "flux-git-deploy", "Name of the k8s secret used to store the private SSH key")
 		k8sSecretVolumeMountPath = fs.String("k8s-secret-volume-mount-path", "/etc/fluxd/ssh", "Mount location of the k8s secret storing the private SSH key")
@@ -219,7 +217,7 @@ func main() {
 				Timeout:        *memcachedTimeout,
 				UpdateInterval: 1 * time.Minute,
 				Logger:         log.NewContext(logger).With("component", "memcached"),
-				MaxConnections: *memcachedConnections,
+				MaxIdleConns:   defaultMemcacheConnections,
 			})
 			memcacheRegistry = registryMemcache.InstrumentMemcacheClient(memcacheRegistry)
 			defer memcacheRegistry.Stop()
@@ -232,7 +230,7 @@ func main() {
 				Timeout:        *memcachedTimeout,
 				UpdateInterval: 1 * time.Minute,
 				Logger:         log.NewContext(logger).With("component", "memcached"),
-				MaxConnections: *registryBurst,
+				MaxIdleConns:   *registryBurst,
 			})
 			memcacheWarmer = registryMemcache.InstrumentMemcacheClient(memcacheWarmer)
 			defer memcacheWarmer.Stop()
@@ -242,7 +240,7 @@ func main() {
 		cache = registry.NewRegistry(
 			registry.NewCacheClientFactory(cacheLogger, memcacheRegistry, *registryCacheExpiry),
 			cacheLogger,
-			*memcachedConnections,
+			defaultMemcacheConnections,
 		)
 		cache = registry.NewInstrumentedRegistry(cache)
 
