@@ -22,8 +22,6 @@ import (
 	"github.com/weaveworks/flux/update"
 )
 
-var ErrUnknownJob = fmt.Errorf("unknown job")
-
 // Combine these things to form Devasta^Wan implementation of
 // Platform.
 type Daemon struct {
@@ -336,7 +334,7 @@ func (d *Daemon) JobStatus(jobID job.ID) (job.Status, error) {
 		}
 	}
 
-	return job.Status{}, ErrUnknownJob
+	return job.Status{}, unknownJobError(jobID)
 }
 
 // Ask the daemon how far it's got applying things; in particular, is it
@@ -370,6 +368,10 @@ func (d *Daemon) GitRepoConfig(regenerate bool) (flux.GitConfig, error) {
 }
 
 // Non-remote.Platform methods
+
+func unknownJobError(id job.ID) error {
+	return fmt.Errorf("unknown job %q", string(id))
+}
 
 func (d *Daemon) LogEvent(ev history.Event) error {
 	if d.EventWriter == nil {
