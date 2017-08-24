@@ -199,14 +199,24 @@ func (d *Daemon) doSync(logger log.Logger) {
 				continue
 			}
 
-			// If any of the commit notes has a release event, send
-			// that to the service
+			// If this is the first sync, we should expect no notes,
+			// since this is supposedly the first time we're seeing
+			// the repo. But there are circumstances in which we can
+			// nonetheless see notes -- if the tag was deleted from
+			// the upstream repo, or if this accidentally has the same
+			// notes ref as another daemon using the same repo (but a
+			// different tag). Either way, we don't want to report any
+			// notes on an initial sync, since they (most likely)
+			// don't belong to us.
+			if initialSync {
+				logger.Log("warning", "no notes expected on initial sync; this repo may be in use by another fluxd")
+				break
+			}
+
+			// Interpret some notes as events to send to the upstream
 			switch n.Spec.Type {
 			case update.Images:
-				// Map new note.Spec into ReleaseSpec
 				spec := n.Spec.Spec.(update.ReleaseSpec)
-				// And create a release event
-				// Then wrap inside a ReleaseEventMetadata
 				noteEvents = append(noteEvents, history.Event{
 					ServiceIDs: serviceIDs.ToSlice(),
 					Type:       history.EventRelease,
