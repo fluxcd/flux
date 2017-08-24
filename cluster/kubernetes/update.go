@@ -132,7 +132,7 @@ func tryUpdate(def []byte, container string, newImage flux.ImageID, out io.Write
 
 	// Replace the container images
 	// Parse out all the container blocks
-	containersRE := regexp.MustCompile(`(?m:^` + indent + `containers:\s*(?:#.*)*$(?:\n(?:` + indent + `[-\s].*)?)*)`)
+	containersRE := regexp.MustCompile(`(?m:^` + indent + `containers:\s*(?:#.*)*$(?:\n(?:` + indent + `[-\s#].*)?)*)`)
 	// Parse out an individual container blog
 	containerRE := regexp.MustCompile(`(?m:` + indent + `-.*(?:\n(?:` + indent + `\s+.*)?)*)`)
 	// Parse out the image ID
@@ -146,11 +146,20 @@ func tryUpdate(def []byte, container string, newImage flux.ImageID, out io.Write
 			if _, ok := matchingContainers[i]; ok {
 				// container matches, let's replace the image
 				spec = imageRE.ReplaceAllString(spec, imageReplacement)
+				delete(matchingContainers, i)
 			}
 			i++
 			return spec
 		})
 	})
+
+	if len(matchingContainers) > 0 {
+		missed := []string{}
+		for _, c := range matchingContainers {
+			missed = append(missed, c.Name)
+		}
+		return fmt.Errorf("did not update expected containers: %s", strings.Join(missed, ", "))
+	}
 
 	// The name we want is that under `metadata:`, which will *probably* be the first one
 	replacedName := false
