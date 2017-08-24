@@ -11,8 +11,14 @@ import (
 	"path/filepath"
 	"strings"
 
+	"context"
 	"github.com/pkg/errors"
 	"github.com/weaveworks/flux/ssh"
+	"time"
+)
+
+const (
+	commandTimeout = 10 * time.Second
 )
 
 func config(workingDir, user, email string) error {
@@ -191,8 +197,10 @@ func changedFiles(path, subPath, ref string) ([]string, error) {
 }
 
 func execGitCmd(dir string, keyRing ssh.KeyRing, out io.Writer, args ...string) error {
-	//	println("git", strings.Join(args, " "))
-	c := exec.Command("git", args...)
+	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(ctx, commandTimeout)
+	defer cancel()
+	c := exec.CommandContext(ctx, "git", args...)
 	if dir != "" {
 		c.Dir = dir
 	}
@@ -209,6 +217,9 @@ func execGitCmd(dir string, keyRing ssh.KeyRing, out io.Writer, args ...string) 
 		if msg != "" {
 			err = errors.New(msg)
 		}
+	}
+	if ctx.Err() == context.DeadlineExceeded {
+		return errors.Wrap(ctx.Err(), fmt.Sprintf("running git command took longer than %s: %s %v", commandTimeout.String(), "git", args))
 	}
 	return err
 }
