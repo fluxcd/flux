@@ -48,6 +48,7 @@ func TestUpdates(t *testing.T) {
 		{"version (tag) with dots", case4container, case4image, case4, case4out},
 		{"minimal dockerhub image name", case5container, case5image, case5, case5out},
 		{"reordered keys", case6containers, case6image, case6, case6out},
+		{"from prod", case7containers, case7image, case7, case7out},
 	} {
 		testUpdate(t, c)
 	}
@@ -436,4 +437,100 @@ spec:
         name: nginx
       - image: nginx:1.10-alpine # testing comments, and this image is on the first line.
         name: nginx2
+`
+
+const case7 = `---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: authfe
+spec:
+
+  # A couple of comment lines after a blank line
+  # since that's essentially what we have elsewhere
+  minReadySeconds: 30
+  strategy:
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+
+  replicas: 5
+  template:
+    metadata:
+      labels:
+        name: authfe
+      annotations:
+        prometheus.io.port: "8080"
+    spec:
+      # blank comment spacers in the following
+      containers:
+      - name: authfe
+        image: quay.io/weaveworks/authfe:master-71a4ede
+        args:
+        - -log.level=info
+        #
+        # Can have a comment here
+        - -log.blargle=false
+        #
+        ports:
+        - containerPort: 80
+          name: http
+        - containerPort: 8080
+          name: private
+      #
+      - name: logging
+        image: quay.io/weaveworks/logging:master-ccfa2af
+        env:
+        - name: FLUENTD_CONF
+          value: fluent.conf
+`
+
+const case7image = "quay.io/weaveworks/logging:master-123456"
+
+var case7containers = []string{"logging"}
+
+const case7out = `---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: authfe
+spec:
+
+  # A couple of comment lines after a blank line
+  # since that's essentially what we have elsewhere
+  minReadySeconds: 30
+  strategy:
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+
+  replicas: 5
+  template:
+    metadata:
+      labels:
+        name: authfe
+      annotations:
+        prometheus.io.port: "8080"
+    spec:
+      # blank comment spacers in the following
+      containers:
+      - name: authfe
+        image: quay.io/weaveworks/authfe:master-71a4ede
+        args:
+        - -log.level=info
+        #
+        # Can have a comment here
+        - -log.blargle=false
+        #
+        ports:
+        - containerPort: 80
+          name: http
+        - containerPort: 8080
+          name: private
+      #
+      - name: logging
+        image: quay.io/weaveworks/logging:master-123456
+        env:
+        - name: FLUENTD_CONF
+          value: fluent.conf
 `
