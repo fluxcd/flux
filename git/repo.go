@@ -7,8 +7,14 @@ import (
 	"path/filepath"
 	"sync"
 
+	"context"
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/ssh"
+	"time"
+)
+
+const (
+	DefaultCloneTimeout = 2 * time.Minute
 )
 
 var (
@@ -45,7 +51,7 @@ type Commit struct {
 }
 
 // Get a local clone of the upstream repo, and use the config given.
-func (r Repo) Clone(c Config) (*Checkout, error) {
+func (r Repo) Clone(ctx context.Context, c Config) (*Checkout, error) {
 	if r.URL == "" {
 		return nil, NoRepoError
 	}
@@ -55,22 +61,22 @@ func (r Repo) Clone(c Config) (*Checkout, error) {
 		return nil, err
 	}
 
-	repoDir, err := clone(workingDir, r.KeyRing, r.URL, r.Branch)
+	repoDir, err := clone(ctx, workingDir, r.KeyRing, r.URL, r.Branch)
 	if err != nil {
 		return nil, CloningError(r.URL, err)
 	}
 
-	if err := config(repoDir, c.UserName, c.UserEmail); err != nil {
+	if err := config(ctx, repoDir, c.UserName, c.UserEmail); err != nil {
 		return nil, err
 	}
 
-	notesRef, err := getNotesRef(repoDir, c.NotesRef)
+	notesRef, err := getNotesRef(ctx, repoDir, c.NotesRef)
 	if err != nil {
 		return nil, err
 	}
 
 	// this fetches and updates the local ref, so we'll see notes
-	if err := fetch(r.KeyRing, repoDir, r.URL, notesRef+":"+notesRef); err != nil {
+	if err := fetch(ctx, r.KeyRing, repoDir, r.URL, notesRef+":"+notesRef); err != nil {
 		return nil, err
 	}
 
@@ -85,7 +91,7 @@ func (r Repo) Clone(c Config) (*Checkout, error) {
 // WorkingClone makes a(nother) clone of the repository to use for
 // e.g., rewriting files, so we can keep a pristine clone for reading
 // out of.
-func (c *Checkout) WorkingClone() (*Checkout, error) {
+func (c *Checkout) WorkingClone(ctx context.Context) (*Checkout, error) {
 	c.Lock()
 	defer c.Unlock()
 	workingDir, err := ioutil.TempDir(os.TempDir(), "flux-working")
@@ -93,17 +99,17 @@ func (c *Checkout) WorkingClone() (*Checkout, error) {
 		return nil, err
 	}
 
-	repoDir, err := clone(workingDir, nil, c.Dir, c.repo.Branch)
+	repoDir, err := clone(ctx, workingDir, nil, c.Dir, c.repo.Branch)
 	if err != nil {
 		return nil, err
 	}
 
-	if err := config(repoDir, c.UserName, c.UserEmail); err != nil {
+	if err := config(ctx, repoDir, c.UserName, c.UserEmail); err != nil {
 		return nil, err
 	}
 
 	// this fetches and updates the local ref, so we'll see notes
-	if err := fetch(nil, repoDir, c.Dir, c.realNotesRef+":"+c.realNotesRef); err != nil {
+	if err := fetch(ctx, nil, repoDir, c.Dir, c.realNotesRef+":"+c.realNotesRef); err != nil {
 		return nil, err
 	}
 
@@ -129,52 +135,52 @@ func (c *Checkout) ManifestDir() string {
 
 // CommitAndPush commits changes made in this checkout, along with any
 // extra data as a note, and pushes the commit and note to the remote repo.
-func (c *Checkout) CommitAndPush(commitMessage string, note *Note) error {
+func (c *Checkout) CommitAndPush(ctx context.Context, commitMessage string, note *Note) error {
 	c.Lock()
 	defer c.Unlock()
-	if !check(c.Dir, c.repo.Path) {
+	if !check(ctx, c.Dir, c.repo.Path) {
 		return ErrNoChanges
 	}
-	if err := commit(c.Dir, commitMessage); err != nil {
+	if err := commit(ctx, c.Dir, commitMessage); err != nil {
 		return err
 	}
 
 	if note != nil {
-		rev, err := refRevision(c.Dir, "HEAD")
+		rev, err := refRevision(ctx, c.Dir, "HEAD")
 		if err != nil {
 			return err
 		}
-		if err := addNote(c.Dir, rev, c.realNotesRef, note); err != nil {
+		if err := addNote(ctx, c.Dir, rev, c.realNotesRef, note); err != nil {
 			return err
 		}
 	}
 
 	refs := []string{c.repo.Branch}
-	ok, err := refExists(c.Dir, c.realNotesRef)
+	ok, err := refExists(ctx, c.Dir, c.realNotesRef)
 	if ok {
 		refs = append(refs, c.realNotesRef)
 	} else if err != nil {
 		return err
 	}
 
-	if err := push(c.repo.KeyRing, c.Dir, c.repo.URL, refs); err != nil {
+	if err := push(ctx, c.repo.KeyRing, c.Dir, c.repo.URL, refs); err != nil {
 		return PushError(c.repo.URL, err)
 	}
 	return nil
 }
 
 // GetNote gets a note for the revision specified, or "" if there is no such note.
-func (c *Checkout) GetNote(rev string) (*Note, error) {
+func (c *Checkout) GetNote(ctx context.Context, rev string) (*Note, error) {
 	c.RLock()
 	defer c.RUnlock()
-	return getNote(c.Dir, c.realNotesRef, rev)
+	return getNote(ctx, c.Dir, c.realNotesRef, rev)
 }
 
 // Pull fetches the latest commits on the branch we're using, and the latest notes
-func (c *Checkout) Pull() error {
+func (c *Checkout) Pull(ctx context.Context) error {
 	c.Lock()
 	defer c.Unlock()
-	if err := pull(c.repo.KeyRing, c.Dir, c.repo.URL, c.repo.Branch); err != nil {
+	if err := pull(ctx, c.repo.KeyRing, c.Dir, c.repo.URL, c.repo.Branch); err != nil {
 		return err
 	}
 	for _, ref := range []string{
@@ -184,48 +190,48 @@ func (c *Checkout) Pull() error {
 		// this fetches and updates the local ref, so we'll see the new
 		// notes; but it's possible that the upstream doesn't have this
 		// ref.
-		if err := fetch(c.repo.KeyRing, c.Dir, c.repo.URL, ref); err != nil {
+		if err := fetch(ctx, c.repo.KeyRing, c.Dir, c.repo.URL, ref); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (c *Checkout) HeadRevision() (string, error) {
+func (c *Checkout) HeadRevision(ctx context.Context) (string, error) {
 	c.RLock()
 	defer c.RUnlock()
-	return refRevision(c.Dir, "HEAD")
+	return refRevision(ctx, c.Dir, "HEAD")
 }
 
-func (c *Checkout) TagRevision(tag string) (string, error) {
+func (c *Checkout) TagRevision(ctx context.Context, tag string) (string, error) {
 	c.RLock()
 	defer c.RUnlock()
-	return refRevision(c.Dir, tag)
+	return refRevision(ctx, c.Dir, tag)
 }
 
-func (c *Checkout) CommitsBetween(ref1, ref2 string) ([]Commit, error) {
+func (c *Checkout) CommitsBetween(ctx context.Context, ref1, ref2 string) ([]Commit, error) {
 	c.RLock()
 	defer c.RUnlock()
-	return onelinelog(c.Dir, ref1+".."+ref2)
+	return onelinelog(ctx, c.Dir, ref1+".."+ref2)
 }
 
-func (c *Checkout) CommitsBefore(ref string) ([]Commit, error) {
+func (c *Checkout) CommitsBefore(ctx context.Context, ref string) ([]Commit, error) {
 	c.RLock()
 	defer c.RUnlock()
-	return onelinelog(c.Dir, ref)
+	return onelinelog(ctx, c.Dir, ref)
 }
 
-func (c *Checkout) MoveTagAndPush(ref, msg string) error {
+func (c *Checkout) MoveTagAndPush(ctx context.Context, ref, msg string) error {
 	c.Lock()
 	defer c.Unlock()
-	return moveTagAndPush(c.Dir, c.repo.KeyRing, c.SyncTag, ref, msg, c.repo.URL)
+	return moveTagAndPush(ctx, c.Dir, c.repo.KeyRing, c.SyncTag, ref, msg, c.repo.URL)
 }
 
 // ChangedFiles does a git diff listing changed files
-func (c *Checkout) ChangedFiles(ref string) ([]string, error) {
+func (c *Checkout) ChangedFiles(ctx context.Context, ref string) ([]string, error) {
 	c.Lock()
 	defer c.Unlock()
-	list, err := changedFiles(c.Dir, c.repo.Path, ref)
+	list, err := changedFiles(ctx, c.Dir, c.repo.Path, ref)
 	if err == nil {
 		for i, file := range list {
 			list[i] = filepath.Join(c.Dir, file)

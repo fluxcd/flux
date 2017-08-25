@@ -9,12 +9,17 @@ import (
 
 	"sync"
 
+	"context"
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/git"
 	"github.com/weaveworks/flux/history"
 	"github.com/weaveworks/flux/resource"
 	fluxsync "github.com/weaveworks/flux/sync"
 	"github.com/weaveworks/flux/update"
+)
+
+const (
+	defaultSyncTimeout = 30 * time.Second // Max time allowed for syncs
 )
 
 type LoopVars struct {
@@ -43,7 +48,9 @@ func (d *Daemon) GitPollLoop(stop chan struct{}, wg *sync.WaitGroup, logger log.
 			gitPollTimer.Stop()
 			gitPollTimer = time.NewTimer(d.GitPollInterval)
 		}()
-		if err := d.Checkout.Pull(); err != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), defaultSyncTimeout)
+		defer cancel()
+		if err := d.Checkout.Pull(ctx); err != nil {
 			logger.Log("operation", "pull", "err", err)
 			return
 		}
@@ -109,10 +116,12 @@ func (d *LoopVars) askForImagePoll() {
 // -- extra bits the loop needs
 
 func (d *Daemon) doSync(logger log.Logger) {
+	ctx, cancel := context.WithTimeout(context.Background(), defaultSyncTimeout)
+	defer cancel()
 	started := time.Now().UTC()
 
 	// checkout a working clone so we can mess around with tags later
-	working, err := d.Checkout.WorkingClone()
+	working, err := d.Checkout.WorkingClone(ctx)
 	if err != nil {
 		logger.Log("err", err)
 		return
@@ -134,11 +143,11 @@ func (d *Daemon) doSync(logger log.Logger) {
 
 	var initialSync bool
 	// update notes and emit events for applied commits
-	commits, err := working.CommitsBetween(working.SyncTag, "HEAD")
+	commits, err := working.CommitsBetween(ctx, working.SyncTag, "HEAD")
 	if isUnknownRevision(err) {
 		// No sync tag, grab all revisions
 		initialSync = true
-		commits, err = working.CommitsBefore("HEAD")
+		commits, err = working.CommitsBefore(ctx, "HEAD")
 	}
 	if err != nil {
 		logger.Log("err", err)
@@ -151,7 +160,7 @@ func (d *Daemon) doSync(logger log.Logger) {
 		// no synctag, We are syncing everything from scratch
 		changedResources = allResources
 	} else {
-		changedFiles, err := working.ChangedFiles(working.SyncTag)
+		changedFiles, err := working.ChangedFiles(ctx, working.SyncTag)
 		if err == nil {
 			// We had some changed files, we're syncing a diff
 			changedResources, err = d.Manifests.LoadManifests(changedFiles...)
@@ -178,7 +187,7 @@ func (d *Daemon) doSync(logger log.Logger) {
 
 		// Find notes in revisions.
 		for i := len(commits) - 1; i >= 0; i-- {
-			n, err := working.GetNote(commits[i].Revision)
+			n, err := working.GetNote(ctx, commits[i].Revision)
 			if err != nil {
 				logger.Log("err", errors.Wrap(err, "loading notes from repo; possibly no notes"))
 				// TODO: We're ignoring all errors here, not just the "no notes" error. Parse error to report proper errors.
@@ -271,22 +280,22 @@ func (d *Daemon) doSync(logger log.Logger) {
 	}
 
 	// Move the tag and push it so we know how far we've gotten.
-	if err := working.MoveTagAndPush("HEAD", "Sync pointer"); err != nil {
+	if err := working.MoveTagAndPush(ctx, "HEAD", "Sync pointer"); err != nil {
 		logger.Log("err", err)
 	}
 
 	// Pull the tag if it has changed
-	if err := d.updateTagRev(working, logger); err != nil {
+	if err := d.updateTagRev(ctx, working, logger); err != nil {
 		logger.Log("err", errors.Wrap(err, "updating tag"))
 	}
 }
 
-func (d *Daemon) updateTagRev(working *git.Checkout, logger log.Logger) error {
-	oldTagRev, err := d.Checkout.TagRevision(d.Checkout.SyncTag)
+func (d *Daemon) updateTagRev(ctx context.Context, working *git.Checkout, logger log.Logger) error {
+	oldTagRev, err := d.Checkout.TagRevision(ctx, d.Checkout.SyncTag)
 	if err != nil && !strings.Contains(err.Error(), "unknown revision or path not in the working tree") {
 		return err
 	}
-	newTagRev, err := working.TagRevision(working.SyncTag)
+	newTagRev, err := working.TagRevision(ctx, working.SyncTag)
 	if err != nil {
 		return err
 	}
@@ -294,7 +303,7 @@ func (d *Daemon) updateTagRev(working *git.Checkout, logger log.Logger) error {
 	if oldTagRev != newTagRev {
 		logger.Log("tag", d.Checkout.SyncTag, "old", oldTagRev, "new", newTagRev)
 
-		if err := d.Checkout.Pull(); err != nil {
+		if err := d.Checkout.Pull(ctx); err != nil {
 			return err
 		}
 	}

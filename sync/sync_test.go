@@ -13,6 +13,7 @@ import (
 	"github.com/go-kit/kit/log"
 
 	//	"github.com/weaveworks/flux"
+	"context"
 	"github.com/weaveworks/flux/cluster"
 	"github.com/weaveworks/flux/cluster/kubernetes"
 	"github.com/weaveworks/flux/cluster/kubernetes/testfiles"
@@ -47,7 +48,7 @@ func TestSync(t *testing.T) {
 		if err := execCommand("rm", filepath.Join(checkout.ManifestDir(), file)); err != nil {
 			t.Fatal(err)
 		}
-		if err := checkout.CommitAndPush("deleted "+file, nil); err != nil {
+		if err := checkout.CommitAndPush(context.Background(), "deleted "+file, nil); err != nil {
 			t.Fatal(err)
 		}
 		break
@@ -77,7 +78,7 @@ func setup(t *testing.T) (*git.Checkout, func()) {
 	repo, cleanupRepo := gittest.Repo(t)
 
 	// Clone the repo so we can mess with the files
-	working, err := repo.Clone(gitconf)
+	working, err := repo.Clone(context.Background(), gitconf)
 	if err != nil {
 		t.Fatal(err)
 	}

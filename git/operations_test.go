@@ -1,6 +1,7 @@
 package git
 
 import (
+	"context"
 	"github.com/weaveworks/flux/cluster/kubernetes/testfiles"
 	"io/ioutil"
 	"os/exec"
@@ -19,7 +20,7 @@ func TestChangedFiles_SlashPath(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = changedFiles(newDir, nestedDir, "HEAD")
+	_, err = changedFiles(context.Background(), newDir, nestedDir, "HEAD")
 	if err == nil {
 		t.Fatal("Should have errored")
 	}
@@ -36,7 +37,7 @@ func TestChangedFiles_UnslashPath(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = changedFiles(newDir, nestedDir, "HEAD")
+	_, err = changedFiles(context.Background(), newDir, nestedDir, "HEAD")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -53,7 +54,7 @@ func TestChangedFiles_NoPath(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = changedFiles(newDir, nestedDir, "HEAD")
+	_, err = changedFiles(context.Background(), newDir, nestedDir, "HEAD")
 	if err != nil {
 		t.Fatal(err)
 	}
