@@ -1,13 +1,97 @@
 package git
 
 import (
+	"fmt"
 	"context"
-	"github.com/weaveworks/flux/cluster/kubernetes/testfiles"
 	"io/ioutil"
 	"os/exec"
 	"path"
 	"testing"
+
+	"github.com/weaveworks/flux/cluster/kubernetes/testfiles"
+	"github.com/weaveworks/flux/job"
+	"github.com/weaveworks/flux/update"
 )
+
+const (
+	testNoteRef = "flux-sync"
+)
+
+var (
+	noteIdCounter = 1
+)
+
+func TestListNotes_2Notes(t *testing.T) {
+	newDir, cleanup := testfiles.TempDir(t)
+	defer cleanup()
+
+	err := createRepo(newDir, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	idHEAD_1 := testNote(newDir, "HEAD~1")
+	idHEAD := testNote(newDir, "HEAD")
+
+	notes, err := noteRevList(newDir, testNoteRef)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Now check that these commits actually have a note
+	if len(notes) != 2 {
+		t.Fatal("expected two notes")
+	}
+	for n := range notes {
+		note, err := getNote(newDir, testNoteRef, n)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if note == nil {
+			t.Fatal("note is nil")
+		}
+		if note.JobID != idHEAD_1 && note.JobID != idHEAD {
+			t.Fatal("Note id didn't match expected", note.JobID)
+		}
+	}
+}
+
+func TestListNotes_0Notes(t *testing.T) {
+	newDir, cleanup := testfiles.TempDir(t)
+	defer cleanup()
+
+	err := createRepo(newDir, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	notes, err := noteRevList(newDir, testNoteRef)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(notes) != 0 {
+		t.Fatal("expected two notes")
+	}
+}
+
+func testNote(dir, rev string) job.ID {
+	id := job.ID(fmt.Sprintf("%v", noteIdCounter))
+	noteIdCounter += 1
+	addNote(dir, rev, testNoteRef, &Note{
+		id,
+		update.Spec{
+			update.Auto,
+			update.Cause{
+				"message",
+				"user",
+			},
+			update.Automated{},
+		},
+		update.Result{},
+	})
+	return id
+}
 
 func TestChangedFiles_SlashPath(t *testing.T) {
 	newDir, cleanup := testfiles.TempDir(t)
@@ -76,6 +160,18 @@ func createRepo(dir string, nestedDir string) error {
 		return err
 	}
 	if err = execCommand("git", "-C", dir, "commit", "-m", "'Initial revision'"); err != nil {
+		return err
+	}
+	if err := execCommand("mkdir", "-p", path.Join(fullPath, "another")); err != nil {
+		return err
+	}
+	if err = testfiles.WriteTestFiles(path.Join(fullPath, "another")); err != nil {
+		return err
+	}
+	if err = execCommand("git", "-C", dir, "add", "--all"); err != nil {
+		return err
+	}
+	if err = execCommand("git", "-C", dir, "commit", "-m", "'Second revision'"); err != nil {
 		return err
 	}
 	return nil
