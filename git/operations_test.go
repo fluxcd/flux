@@ -25,13 +25,19 @@ func TestListNotes_2Notes(t *testing.T) {
 	newDir, cleanup := testfiles.TempDir(t)
 	defer cleanup()
 
-	err := createRepo(newDir, "")
+	err := createRepo(newDir, "another")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	idHEAD_1 := testNote(newDir, "HEAD~1")
-	idHEAD := testNote(newDir, "HEAD")
+	idHEAD_1, err := testNote(newDir, "HEAD~1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	idHEAD, err := testNote(newDir, "HEAD")
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	notes, err := noteRevList(newDir, testNoteRef)
 	if err != nil {
@@ -60,7 +66,7 @@ func TestListNotes_0Notes(t *testing.T) {
 	newDir, cleanup := testfiles.TempDir(t)
 	defer cleanup()
 
-	err := createRepo(newDir, "")
+	err := createRepo(newDir, "another")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -75,10 +81,10 @@ func TestListNotes_0Notes(t *testing.T) {
 	}
 }
 
-func testNote(dir, rev string) job.ID {
+func testNote(dir, rev string) (job.ID, error) {
 	id := job.ID(fmt.Sprintf("%v", noteIdCounter))
 	noteIdCounter += 1
-	addNote(dir, rev, testNoteRef, &Note{
+	err := addNote(dir, rev, testNoteRef, &Note{
 		id,
 		update.Spec{
 			update.Auto,
@@ -90,7 +96,7 @@ func testNote(dir, rev string) job.ID {
 		},
 		update.Result{},
 	})
-	return id
+	return id, err
 }
 
 func TestChangedFiles_SlashPath(t *testing.T) {
@@ -150,6 +156,9 @@ func createRepo(dir string, nestedDir string) error {
 	if err = execCommand("git", "-C", dir, "init"); err != nil {
 		return err
 	}
+	if err := config(dir, "operations_test_user", "example@example.com"); err != nil {
+		return err
+	}
 	if err := execCommand("mkdir", "-p", fullPath); err != nil {
 		return err
 	}
@@ -162,16 +171,7 @@ func createRepo(dir string, nestedDir string) error {
 	if err = execCommand("git", "-C", dir, "commit", "-m", "'Initial revision'"); err != nil {
 		return err
 	}
-	if err := execCommand("mkdir", "-p", path.Join(fullPath, "another")); err != nil {
-		return err
-	}
-	if err = testfiles.WriteTestFiles(path.Join(fullPath, "another")); err != nil {
-		return err
-	}
-	if err = execCommand("git", "-C", dir, "add", "--all"); err != nil {
-		return err
-	}
-	if err = execCommand("git", "-C", dir, "commit", "-m", "'Second revision'"); err != nil {
+	if err = execCommand("git", "-C", dir, "commit", "--allow-empty", "-m", "'Second revision'"); err != nil {
 		return err
 	}
 	return nil
