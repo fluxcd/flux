@@ -176,6 +176,12 @@ func (d *Daemon) doSync(logger log.Logger) {
 		serviceIDs.Add(r.ServiceIDs(allResources))
 	}
 
+	notes, err := working.NoteRevList(ctx)
+	if err != nil {
+		logger.Log("err", errors.Wrap(err, "loading notes from repo"))
+		return
+	}
+
 	// Collect any events that come from notes attached to the commits
 	// we just synced. While we're doing this, keep track of what
 	// other things this sync includes e.g., releases and
@@ -187,6 +193,10 @@ func (d *Daemon) doSync(logger log.Logger) {
 
 		// Find notes in revisions.
 		for i := len(commits) - 1; i >= 0; i-- {
+			if ok := notes[commits[i].Revision]; !ok {
+				includes[history.NoneOfTheAbove] = true
+				continue
+			}
 			n, err := working.GetNote(ctx, commits[i].Revision)
 			if err != nil {
 				logger.Log("err", errors.Wrap(err, "loading notes from repo; possibly no notes"))

@@ -120,6 +120,25 @@ func getNote(ctx context.Context, workingDir, notesRef, rev string) (*Note, erro
 	return &note, nil
 }
 
+// Get all revisions with a note (NB: DO NOT RELY ON THE ORDERING)
+// It appears to be ordered by ascending git object ref, not by time.
+// Return a map to make it easier to do "if in" type queries.
+func noteRevList(ctx context.Context, workingDir, notesRef string) (map[string]bool, error) {
+	out := &bytes.Buffer{}
+	if err := execGitCmd(ctx, workingDir, nil, out, "notes", "--ref", notesRef, "list"); err != nil {
+		return nil, err
+	}
+	noteList := splitList(out.String())
+	result := make(map[string]bool, len(noteList))
+	for _, l := range noteList {
+		split := strings.Fields(l)
+		if len(split) > 0 {
+			result[split[1]] = true // First field contains the object ref (commit id in our case)
+		}
+	}
+	return result, nil
+}
+
 // Get the commit hash for a reference
 func refRevision(ctx context.Context, path, ref string) (string, error) {
 	out := &bytes.Buffer{}
@@ -238,6 +257,8 @@ func findErrorMessage(output io.Reader) string {
 	for sc.Scan() {
 		switch {
 		case strings.HasPrefix(sc.Text(), "fatal: "):
+			return sc.Text()
+		case strings.HasPrefix(sc.Text(), "ERROR fatal: "): // Saw this error on ubuntu systems
 			return sc.Text()
 		case strings.HasPrefix(sc.Text(), "error:"):
 			return strings.Trim(sc.Text(), "error: ")
