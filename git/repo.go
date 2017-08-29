@@ -240,8 +240,8 @@ func (c *Checkout) ChangedFiles(ctx context.Context, ref string) ([]string, erro
 	return list, err
 }
 
-func (c *Checkout) NoteRevList() (map[string]bool, error) {
+func (c *Checkout) NoteRevList(ctx context.Context) (map[string]bool, error) {
 	c.Lock()
 	defer c.Unlock()
-	return noteRevList(c.Dir, c.SyncTag)
+	return noteRevList(ctx, c.Dir, c.SyncTag)
 }

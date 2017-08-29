@@ -1,8 +1,8 @@
 package git
 
 import (
-	"fmt"
 	"context"
+	"fmt"
 	"io/ioutil"
 	"os/exec"
 	"path"
@@ -39,7 +39,7 @@ func TestListNotes_2Notes(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	notes, err := noteRevList(newDir, testNoteRef)
+	notes, err := noteRevList(context.Background(), newDir, testNoteRef)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -49,7 +49,7 @@ func TestListNotes_2Notes(t *testing.T) {
 		t.Fatal("expected two notes")
 	}
 	for n := range notes {
-		note, err := getNote(newDir, testNoteRef, n)
+		note, err := getNote(context.Background(), newDir, testNoteRef, n)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -71,7 +71,7 @@ func TestListNotes_0Notes(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	notes, err := noteRevList(newDir, testNoteRef)
+	notes, err := noteRevList(context.Background(), newDir, testNoteRef)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -84,7 +84,7 @@ func TestListNotes_0Notes(t *testing.T) {
 func testNote(dir, rev string) (job.ID, error) {
 	id := job.ID(fmt.Sprintf("%v", noteIdCounter))
 	noteIdCounter += 1
-	err := addNote(dir, rev, testNoteRef, &Note{
+	err := addNote(context.Background(), dir, rev, testNoteRef, &Note{
 		id,
 		update.Spec{
 			update.Auto,
@@ -156,7 +156,7 @@ func createRepo(dir string, nestedDir string) error {
 	if err = execCommand("git", "-C", dir, "init"); err != nil {
 		return err
 	}
-	if err := config(dir, "operations_test_user", "example@example.com"); err != nil {
+	if err := config(context.Background(), dir, "operations_test_user", "example@example.com"); err != nil {
 		return err
 	}
 	if err := execCommand("mkdir", "-p", fullPath); err != nil {

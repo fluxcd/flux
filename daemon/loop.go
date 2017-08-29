@@ -176,7 +176,7 @@ func (d *Daemon) doSync(logger log.Logger) {
 		serviceIDs.Add(r.ServiceIDs(allResources))
 	}
 
-	notes, err := working.NoteRevList()
+	notes, err := working.NoteRevList(ctx)
 	if err != nil {
 		logger.Log("err", errors.Wrap(err, "loading notes from repo"))
 		return
