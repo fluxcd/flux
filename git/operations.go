@@ -258,6 +258,8 @@ func findErrorMessage(output io.Reader) string {
 		switch {
 		case strings.HasPrefix(sc.Text(), "fatal: "):
 			return sc.Text()
+		case strings.HasPrefix(sc.Text(), "ERROR fatal: "): // Saw this error on ubuntu systems
+			return sc.Text()
 		case strings.HasPrefix(sc.Text(), "error:"):
 			return strings.Trim(sc.Text(), "error: ")
 		}
