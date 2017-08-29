@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"context"
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster/kubernetes/testfiles"
 	"github.com/weaveworks/flux/git"
@@ -58,7 +59,7 @@ func Checkout(t *testing.T) (*git.Checkout, func()) {
 		SyncTag:   "flux-test",
 		NotesRef:  "fluxtest",
 	}
-	co, err := repo.Clone(config)
+	co, err := repo.Clone(context.Background(), config)
 	if err != nil {
 		cleanup()
 		t.Fatal(err)

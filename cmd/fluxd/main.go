@@ -19,6 +19,7 @@ import (
 	k8sclient "k8s.io/client-go/1.5/kubernetes"
 	"k8s.io/client-go/1.5/rest"
 
+	"context"
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster"
 	"github.com/weaveworks/flux/cluster/kubernetes"
@@ -341,7 +342,9 @@ func main() {
 		}
 
 		for checkout == nil {
-			working, err := repo.Clone(gitConfig)
+			ctx, cancel := context.WithTimeout(context.Background(), git.DefaultCloneTimeout)
+			working, err := repo.Clone(ctx, gitConfig)
+			cancel()
 			if err != nil {
 				if checker == nil {
 					checker = checkForUpdates(clusterVersion, "false", updateCheckLogger)

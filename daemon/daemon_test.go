@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"context"
 	"github.com/go-kit/kit/log"
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster"
@@ -338,7 +339,7 @@ func mockDaemon(t *testing.T) (*Daemon, func(), *cluster.Mock, history.EventRead
 		SyncTag:   "flux-test",
 		NotesRef:  "fluxtest",
 	}
-	checkout, err := repo.Clone(params)
+	checkout, err := repo.Clone(context.Background(), params)
 	if err != nil {
 		t.Fatal(err)
 	}

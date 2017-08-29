@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"testing"
 
+	"context"
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster/kubernetes/testfiles"
 	"github.com/weaveworks/flux/git"
@@ -17,13 +18,15 @@ func TestCheckout(t *testing.T) {
 	repo, cleanup := Repo(t)
 	defer cleanup()
 
+	ctx := context.Background()
+
 	params := git.Config{
 		UserName:  "example",
 		UserEmail: "example@example.com",
 		SyncTag:   "flux-test",
 		NotesRef:  "fluxtest",
 	}
-	checkout, err := repo.Clone(params)
+	checkout, err := repo.Clone(ctx, params)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -31,11 +34,11 @@ func TestCheckout(t *testing.T) {
 
 	// We don't expect any notes in the clone, yet. Make sure we get
 	// no note, rather than an error.
-	head, err := checkout.HeadRevision()
+	head, err := checkout.HeadRevision(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
-	note, err := checkout.GetNote(head)
+	note, err := checkout.GetNote(ctx, head)
 	if err != nil {
 		t.Error(err)
 	}
@@ -45,7 +48,7 @@ func TestCheckout(t *testing.T) {
 
 	// Make a working clone and push changes back; then make sure they
 	// are visible in the original repo
-	working, err := checkout.WorkingClone()
+	working, err := checkout.WorkingClone(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -60,7 +63,7 @@ func TestCheckout(t *testing.T) {
 		changedFile = file
 		break
 	}
-	if err := working.CommitAndPush("Changed file", nil); err != nil {
+	if err := working.CommitAndPush(ctx, "Changed file", nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -83,7 +86,7 @@ func TestCheckout(t *testing.T) {
 			},
 		},
 	}
-	if err := working.CommitAndPush("Changed file again", &expectedNote); err != nil {
+	if err := working.CommitAndPush(ctx, "Changed file again", &expectedNote); err != nil {
 		t.Fatal(err)
 	}
 
@@ -95,11 +98,11 @@ func TestCheckout(t *testing.T) {
 		if string(contents) != "SECOND CHANGE" {
 			t.Error("contents in checkout are not what we committed")
 		}
-		rev, err := c.HeadRevision()
+		rev, err := c.HeadRevision(ctx)
 		if err != nil {
 			t.Fatal(err)
 		}
-		note, err := c.GetNote(rev)
+		note, err := c.GetNote(ctx, rev)
 		if err != nil {
 			t.Error(err)
 		}
@@ -109,13 +112,13 @@ func TestCheckout(t *testing.T) {
 	}
 
 	// Do we see the changes if we pull into the original checkout?
-	if err := checkout.Pull(); err != nil {
+	if err := checkout.Pull(ctx); err != nil {
 		t.Fatal(err)
 	}
 	check(checkout)
 
 	// Do we see the changes if we clone again?
-	anotherCheckout, err := repo.Clone(params)
+	anotherCheckout, err := repo.Clone(ctx, params)
 	if err != nil {
 		t.Fatal(err)
 	}
