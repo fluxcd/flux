@@ -13,6 +13,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/weaveworks/flux"
+	fluxerr "github.com/weaveworks/flux/errors"
 	"github.com/weaveworks/flux/history"
 	transport "github.com/weaveworks/flux/http"
 	"github.com/weaveworks/flux/job"
@@ -257,10 +258,10 @@ func (c *Client) executeRequest(req *http.Request) (*http.Response, error) {
 	case http.StatusUnauthorized:
 		return resp, transport.ErrorUnauthorized
 	default:
-		// Use the content type to discriminate between `flux.BaseError`,
+		// Use the content type to discriminate between `fluxerr.Error`,
 		// and the previous "any old error"
 		if strings.HasPrefix(resp.Header.Get(http.CanonicalHeaderKey("Content-Type")), "application/json") {
-			var niceError flux.BaseError
+			var niceError fluxerr.Error
 			if err := json.NewDecoder(resp.Body).Decode(&niceError); err != nil {
 				return resp, errors.Wrap(err, "decoding error in response body")
 			}

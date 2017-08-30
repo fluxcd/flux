@@ -14,6 +14,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/weaveworks/flux"
+	fluxerr "github.com/weaveworks/flux/errors"
 )
 
 const (
@@ -21,17 +22,17 @@ const (
 )
 
 var (
-	ErrNotCached = &flux.Missing{
-		BaseError: &flux.BaseError{
-			Err: memcache.ErrCacheMiss,
-			Help: `Image not yet cached
+	ErrNotCached = &fluxerr.Error{
+		Type: fluxerr.Missing,
+		Err:  memcache.ErrCacheMiss,
+		Help: `Image not yet cached
 
 It takes time to initially cache all the images. Please wait.
 
 If you have waited for a long time, check the flux logs. Potential
 reasons for the error are: no internet, no cache, error with the remote
-repository.`,
-		},
+repository.
+`,
 	}
 )
 

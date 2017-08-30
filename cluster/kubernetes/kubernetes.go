@@ -180,7 +180,7 @@ func (c *Cluster) AllServices(namespace string) (res []cluster.Service, err erro
 	} else {
 		_, err := c.client.Namespaces().Get(namespace)
 		if err != nil {
-			return nil, errors.Wrap(err, "checking supplied namespace")
+			return nil, ObjectMissingError("namespace "+namespace, err)
 		}
 		namespaces = []string{namespace}
 	}

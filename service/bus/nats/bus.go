@@ -7,13 +7,13 @@ import (
 
 	"github.com/nats-io/nats"
 
-	"net/rpc"
-
 	"github.com/weaveworks/flux"
+	fluxerr "github.com/weaveworks/flux/errors"
 	"github.com/weaveworks/flux/guid"
 	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/remote"
 	"github.com/weaveworks/flux/service"
+	"github.com/weaveworks/flux/service/bus"
 	"github.com/weaveworks/flux/update"
 )
 
@@ -49,12 +49,12 @@ type NATS struct {
 	// so we use a regular connection and do the decoding ourselves.
 	enc     *nats.EncodedConn
 	raw     *nats.Conn
-	metrics remote.BusMetrics
+	metrics bus.Metrics
 }
 
-var _ remote.MessageBus = &NATS{}
+var _ bus.MessageBus = &NATS{}
 
-func NewMessageBus(url string, metrics remote.BusMetrics) (*NATS, error) {
+func NewMessageBus(url string, metrics bus.Metrics) (*NATS, error) {
 	conn, err := nats.Connect(url, nats.MaxReconnects(-1))
 	if err != nil {
 		return nil, err
@@ -92,100 +92,100 @@ func (n *NATS) AwaitPresence(instID service.InstanceID, timeout time.Duration) e
 
 func (n *NATS) Ping(instID service.InstanceID) error {
 	var response PingResponse
-	if err := n.enc.Request(string(instID)+methodPing, ping{}, &response, timeout); err != nil {
-		if err == nats.ErrTimeout {
-			err = remote.UnavailableError(err)
-		}
-		return err
+	if err := n.enc.Request(string(instID)+methodPing, pingReq{}, &response, timeout); err != nil {
+		return remote.UnavailableError(err)
 	}
 	return extractError(response.ErrorResponse)
 }
 
-// ErrorResponse is for dropping into responses so they have
-// appropriate fields. The field `Error` carries either an empty
-// string (no error), or the error message to be reconstituted as an
-// error). The field `Fatal` indicates that the error resulted in the
-// connection to the daemon being torn down.
+// ErrorResponse is for dropping into response structs to carry error
+// information over the bus.
+//
+// The field `ApplicationError` carries either nil (no error), or an
+// application-level error. The field `Error`, if non-empty,
+// represents any other kind of error.
 type ErrorResponse struct {
-	Error string
-	Fatal bool
+	ApplicationError *fluxerr.Error `json:",omitempty"`
+	Error            string         `json:",omitempty"`
 }
 
-type ping struct{}
+type pingReq struct{}
 
 type PingResponse struct {
-	ErrorResponse
+	ErrorResponse `json:",omitempty`
 }
 
-type version struct{}
+type versionReq struct{}
 
 type VersionResponse struct {
-	Version string
-	ErrorResponse
+	Result        string
+	ErrorResponse `json:",omitempty`
 }
 
-type export struct{}
+type exportReq struct{}
 
 type ExportResponse struct {
-	Config []byte
-	ErrorResponse
+	Result        []byte
+	ErrorResponse `json:",omitempty`
 }
 
 type ListServicesResponse struct {
-	Result []flux.ServiceStatus
-	ErrorResponse
+	Result        []flux.ServiceStatus
+	ErrorResponse `json:",omitempty`
 }
 
 type ListImagesResponse struct {
-	Result []flux.ImageStatus
-	ErrorResponse
+	Result        []flux.ImageStatus
+	ErrorResponse `json:",omitempty`
 }
 
 type UpdateManifestsResponse struct {
-	Result job.ID
-	ErrorResponse
+	Result        job.ID
+	ErrorResponse `json:",omitempty`
 }
 
-type sync struct{}
+type syncReq struct{}
 type SyncNotifyResponse struct {
-	ErrorResponse
+	ErrorResponse `json:",omitempty`
 }
 
 // JobStatusResponse has status decomposed into it, so that we can transfer the
 // error as an ErrorResponse to avoid marshalling issues.
 type JobStatusResponse struct {
-	Result job.Status
-	ErrorResponse
+	Result        job.Status
+	ErrorResponse `json:",omitempty`
 }
 
 type SyncStatusResponse struct {
-	Result []string
-	ErrorResponse
+	Result        []string
+	ErrorResponse `json:",omitempty`
 }
 
 type GitRepoConfigResponse struct {
-	Result flux.GitConfig
-	ErrorResponse
+	Result        flux.GitConfig
+	ErrorResponse `json:",omitempty`
 }
 
 func extractError(resp ErrorResponse) error {
+	var err error
 	if resp.Error != "" {
-		if resp.Fatal {
-			return remote.FatalError{errors.New(resp.Error)}
-		}
-		return rpc.ServerError(resp.Error)
+		err = errors.New(resp.Error)
 	}
-	return nil
+	if resp.ApplicationError != nil {
+		err = resp.ApplicationError
+	}
+	return err
 }
 
-func makeErrorResponse(err error) (resp ErrorResponse) {
-	if err == nil {
-		return resp
+func makeErrorResponse(err error) ErrorResponse {
+	var resp ErrorResponse
+	if err != nil {
+		if err, ok := err.(*fluxerr.Error); ok {
+			resp.ApplicationError = err
+			return resp
+		}
+		resp.Error = err.Error()
 	}
-	if _, ok := err.(remote.FatalError); ok {
-		resp.Fatal = true
-	}
-	resp.Error = err.Error()
 	return resp
 }
 
@@ -198,44 +198,32 @@ type natsPlatform struct {
 
 func (r *natsPlatform) Ping() error {
 	var response PingResponse
-	if err := r.conn.Request(r.instance+methodPing, ping{}, &response, timeout); err != nil {
-		if err == nats.ErrTimeout {
-			err = remote.UnavailableError(err)
-		}
-		return err
+	if err := r.conn.Request(r.instance+methodPing, pingReq{}, &response, timeout); err != nil {
+		return remote.UnavailableError(err)
 	}
 	return extractError(response.ErrorResponse)
 }
 
 func (r *natsPlatform) Version() (string, error) {
 	var response VersionResponse
-	if err := r.conn.Request(r.instance+methodVersion, version{}, &response, timeout); err != nil {
-		if err == nats.ErrTimeout {
-			err = remote.UnavailableError(err)
-		}
-		return "", err
+	if err := r.conn.Request(r.instance+methodVersion, versionReq{}, &response, timeout); err != nil {
+		return response.Result, remote.UnavailableError(err)
 	}
-	return response.Version, extractError(response.ErrorResponse)
+	return response.Result, extractError(response.ErrorResponse)
 }
 
 func (r *natsPlatform) Export() ([]byte, error) {
 	var response ExportResponse
-	if err := r.conn.Request(r.instance+methodExport, export{}, &response, timeout); err != nil {
-		if err == nats.ErrTimeout {
-			err = remote.UnavailableError(err)
-		}
-		return nil, err
+	if err := r.conn.Request(r.instance+methodExport, exportReq{}, &response, timeout); err != nil {
+		return response.Result, remote.UnavailableError(err)
 	}
-	return response.Config, extractError(response.ErrorResponse)
+	return response.Result, extractError(response.ErrorResponse)
 }
 
 func (r *natsPlatform) ListServices(namespace string) ([]flux.ServiceStatus, error) {
 	var response ListServicesResponse
 	if err := r.conn.Request(r.instance+methodListServices, namespace, &response, timeout); err != nil {
-		if err == nats.ErrTimeout {
-			err = remote.UnavailableError(err)
-		}
-		return nil, err
+		return response.Result, remote.UnavailableError(err)
 	}
 	return response.Result, extractError(response.ErrorResponse)
 }
@@ -243,10 +231,7 @@ func (r *natsPlatform) ListServices(namespace string) ([]flux.ServiceStatus, err
 func (r *natsPlatform) ListImages(spec update.ServiceSpec) ([]flux.ImageStatus, error) {
 	var response ListImagesResponse
 	if err := r.conn.Request(r.instance+methodListImages, spec, &response, timeout); err != nil {
-		if err == nats.ErrTimeout {
-			err = remote.UnavailableError(err)
-		}
-		return nil, err
+		return response.Result, remote.UnavailableError(err)
 	}
 	return response.Result, extractError(response.ErrorResponse)
 }
@@ -254,21 +239,15 @@ func (r *natsPlatform) ListImages(spec update.ServiceSpec) ([]flux.ImageStatus, 
 func (r *natsPlatform) UpdateManifests(u update.Spec) (job.ID, error) {
 	var response UpdateManifestsResponse
 	if err := r.conn.Request(r.instance+methodUpdateManifests, u, &response, timeout); err != nil {
-		if err == nats.ErrTimeout {
-			err = remote.UnavailableError(err)
-		}
-		return response.Result, err
+		return response.Result, remote.UnavailableError(err)
 	}
 	return response.Result, extractError(response.ErrorResponse)
 }
 
 func (r *natsPlatform) SyncNotify() error {
 	var response SyncNotifyResponse
-	if err := r.conn.Request(r.instance+methodSyncNotify, sync{}, &response, timeout); err != nil {
-		if err == nats.ErrTimeout {
-			err = remote.UnavailableError(err)
-		}
-		return err
+	if err := r.conn.Request(r.instance+methodSyncNotify, syncReq{}, &response, timeout); err != nil {
+		return remote.UnavailableError(err)
 	}
 	return extractError(response.ErrorResponse)
 }
@@ -276,10 +255,7 @@ func (r *natsPlatform) SyncNotify() error {
 func (r *natsPlatform) JobStatus(jobID job.ID) (job.Status, error) {
 	var response JobStatusResponse
 	if err := r.conn.Request(r.instance+methodJobStatus, jobID, &response, timeout); err != nil {
-		if err == nats.ErrTimeout {
-			err = remote.UnavailableError(err)
-		}
-		return job.Status{}, err
+		return response.Result, remote.UnavailableError(err)
 	}
 	return response.Result, extractError(response.ErrorResponse)
 }
@@ -287,10 +263,7 @@ func (r *natsPlatform) JobStatus(jobID job.ID) (job.Status, error) {
 func (r *natsPlatform) SyncStatus(ref string) ([]string, error) {
 	var response SyncStatusResponse
 	if err := r.conn.Request(r.instance+methodSyncStatus, ref, &response, timeout); err != nil {
-		if err == nats.ErrTimeout {
-			err = remote.UnavailableError(err)
-		}
-		return nil, err
+		return nil, remote.UnavailableError(err)
 	}
 	return response.Result, extractError(response.ErrorResponse)
 }
@@ -298,10 +271,7 @@ func (r *natsPlatform) SyncStatus(ref string) ([]string, error) {
 func (r *natsPlatform) GitRepoConfig(regenerate bool) (flux.GitConfig, error) {
 	var response GitRepoConfigResponse
 	if err := r.conn.Request(r.instance+methodGitRepoConfig, regenerate, &response, timeout); err != nil {
-		if err == nats.ErrTimeout {
-			err = remote.UnavailableError(err)
-		}
-		return flux.GitConfig{}, err
+		return response.Result, remote.UnavailableError(err)
 	}
 	return response.Result, extractError(response.ErrorResponse)
 }
@@ -354,7 +324,7 @@ func (n *NATS) Subscribe(instID service.InstanceID, platform remote.Platform, do
 			}
 
 		case strings.HasSuffix(request.Subject, methodPing):
-			var p ping
+			var p pingReq
 			err = encoder.Decode(request.Subject, request.Data, &p)
 			if err == nil {
 				err = platform.Ping()
@@ -368,7 +338,7 @@ func (n *NATS) Subscribe(instID service.InstanceID, platform remote.Platform, do
 
 		case strings.HasSuffix(request.Subject, methodExport):
 			var (
-				req   export
+				req   exportReq
 				bytes []byte
 			)
 			err = encoder.Decode(request.Subject, request.Data, &req)
@@ -411,7 +381,11 @@ func (n *NATS) Subscribe(instID service.InstanceID, platform remote.Platform, do
 			n.enc.Publish(request.Reply, UpdateManifestsResponse{res, makeErrorResponse(err)})
 
 		case strings.HasSuffix(request.Subject, methodSyncNotify):
-			err = platform.SyncNotify()
+			var p syncReq
+			err = encoder.Decode(request.Subject, request.Data, &p)
+			if err == nil {
+				err = platform.SyncNotify()
+			}
 			n.enc.Publish(request.Reply, SyncNotifyResponse{makeErrorResponse(err)})
 
 		case strings.HasSuffix(request.Subject, methodJobStatus):

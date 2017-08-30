@@ -19,6 +19,7 @@ import (
 
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/api"
+	fluxerr "github.com/weaveworks/flux/errors"
 	"github.com/weaveworks/flux/history"
 	transport "github.com/weaveworks/flux/http"
 	"github.com/weaveworks/flux/http/httperror"
@@ -98,7 +99,8 @@ func NewHandler(s api.FluxService, r *mux.Router, logger log.Logger) http.Handle
 		"PostIntegrationsGithubV5": handle.PostIntegrationsGithub,
 		"Export":                   handle.Export,
 		"ExportV5":                 handle.Export,
-		"RegisterDaemon":           handle.RegisterV6,
+		"RegisterDaemonV6":         handle.RegisterV6,
+		"RegisterDaemonV7":         handle.RegisterV7,
 		"IsConnected":              handle.IsConnected,
 		"SyncNotify":               handle.SyncNotify,
 		"JobStatus":                handle.JobStatus,
@@ -430,6 +432,12 @@ func (s HTTPService) RegisterV6(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (s HTTPService) RegisterV7(w http.ResponseWriter, r *http.Request) {
+	s.doRegister(w, r, func(conn io.ReadWriteCloser) platformCloser {
+		return rpc.NewClientV7(conn)
+	})
+}
+
 type platformCloser interface {
 	remote.Platform
 	io.Closer
@@ -475,21 +483,28 @@ func (s HTTPService) IsConnected(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	switch err.(type) {
-	case flux.UserConfigProblem:
-		// NB this has a specific contract for "cannot contact" -> // "404 not found"
-		transport.WriteError(w, r, http.StatusNotFound, err)
-	case flux.Missing: // From standalone, not connected.
-		transport.JSONResponse(w, r, service.FluxdStatus{
-			Connected: false,
-		})
-	case remote.FatalError: // An error from nats, but probably due to not connected.
-		transport.JSONResponse(w, r, service.FluxdStatus{
-			Connected: false,
-		})
-	default:
-		transport.ErrorResponse(w, r, err)
+	if err, ok := err.(*fluxerr.Error); ok {
+		if err.Type == fluxerr.User {
+			// NB this has a specific contract for "cannot contact" -> // "404 not found"
+			transport.WriteError(w, r, http.StatusNotFound, err)
+			return
+		} else if err.Type == fluxerr.Missing {
+			// From standalone, not connected.
+			transport.JSONResponse(w, r, service.FluxdStatus{
+				Connected: false,
+			})
+			return
+		}
 	}
+	if _, ok := err.(remote.FatalError); ok {
+		// An error from nats, but probably due to not connected.
+		transport.JSONResponse(w, r, service.FluxdStatus{
+			Connected: false,
+		})
+		return
+	}
+	// Last resort, send the error
+	transport.ErrorResponse(w, r, err)
 }
 
 func (s HTTPService) Export(w http.ResponseWriter, r *http.Request) {

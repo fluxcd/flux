@@ -5,7 +5,7 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/weaveworks/flux"
+	fluxerr "github.com/weaveworks/flux/errors"
 )
 
 func run(args []string) int {
@@ -14,7 +14,7 @@ func run(args []string) int {
 	if cmd, err := rootCmd.ExecuteC(); err != nil {
 		err = errors.Cause(err)
 		switch err := err.(type) {
-		case *flux.BaseError:
+		case *fluxerr.Error:
 			cmd.Println("== Error ==\n\n" + err.Help)
 		default:
 			cmd.Println("Error: " + err.Error())

@@ -21,7 +21,6 @@ func pipes() (io.ReadWriteCloser, io.ReadWriteCloser) {
 }
 
 func TestRPC(t *testing.T) {
-
 	wrap := func(mock remote.Platform) remote.Platform {
 		clientConn, serverConn := pipes()
 
@@ -30,7 +29,7 @@ func TestRPC(t *testing.T) {
 			t.Fatal(err)
 		}
 		go server.ServeConn(serverConn)
-		return NewClientV6(clientConn)
+		return NewClientV7(clientConn)
 	}
 	remote.PlatformTestBattery(t, wrap)
 }
