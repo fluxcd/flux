@@ -169,7 +169,7 @@ func (c *Checkout) CommitAndPush(ctx context.Context, commitMessage string, note
 	return nil
 }
 
-// GetNote gets a note for the revision specified, or "" if there is no such note.
+// GetNote gets a note for the revision specified, or nil if there is no such note.
 func (c *Checkout) GetNote(ctx context.Context, rev string) (*Note, error) {
 	c.RLock()
 	defer c.RUnlock()
@@ -240,8 +240,8 @@ func (c *Checkout) ChangedFiles(ctx context.Context, ref string) ([]string, erro
 	return list, err
 }
 
-func (c *Checkout) NoteRevList(ctx context.Context) (map[string]bool, error) {
+func (c *Checkout) NoteRevList(ctx context.Context) (map[string]struct{}, error) {
 	c.Lock()
 	defer c.Unlock()
-	return noteRevList(ctx, c.Dir, c.SyncTag)
+	return noteRevList(ctx, c.Dir, c.realNotesRef)
 }

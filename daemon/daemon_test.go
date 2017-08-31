@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -10,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"context"
 	"github.com/go-kit/kit/log"
+
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster"
 	"github.com/weaveworks/flux/cluster/kubernetes"
@@ -304,7 +305,7 @@ func TestDaemon_JobStatusWithNoCache(t *testing.T) {
 }
 
 func mockDaemon(t *testing.T) (*Daemon, func(), *cluster.Mock, history.EventReadWriter) {
-	logger := log.NewLogfmtLogger(os.Stdout)
+	logger := log.NewNopLogger()
 
 	singleService := cluster.Service{
 		ID: flux.ServiceID(svc),
@@ -500,6 +501,7 @@ func updatePolicy(t *testing.T, d *Daemon) job.ID {
 		},
 	})
 }
+
 func updateManifest(t *testing.T, d *Daemon, spec update.Spec) job.ID {
 	id, err := d.UpdateManifests(spec)
 	if err != nil {
