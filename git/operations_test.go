@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"testing"
 
 	"github.com/weaveworks/flux/cluster/kubernetes/testfiles"
@@ -25,7 +26,7 @@ func TestListNotes_2Notes(t *testing.T) {
 	newDir, cleanup := testfiles.TempDir(t)
 	defer cleanup()
 
-	err := createRepo(newDir, "another")
+	err := createRepo(newDir, []string{"another"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -66,7 +67,7 @@ func TestListNotes_0Notes(t *testing.T) {
 	newDir, cleanup := testfiles.TempDir(t)
 	defer cleanup()
 
-	err := createRepo(newDir, "another")
+	err := createRepo(newDir, []string{"another"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -105,7 +106,7 @@ func TestChangedFiles_SlashPath(t *testing.T) {
 
 	nestedDir := "/test/dir"
 
-	err := createRepo(newDir, nestedDir)
+	err := createRepo(newDir, []string{nestedDir})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -122,7 +123,7 @@ func TestChangedFiles_UnslashPath(t *testing.T) {
 
 	nestedDir := "test/dir"
 
-	err := createRepo(newDir, nestedDir)
+	err := createRepo(newDir, []string{nestedDir})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -139,7 +140,7 @@ func TestChangedFiles_NoPath(t *testing.T) {
 
 	nestedDir := ""
 
-	err := createRepo(newDir, nestedDir)
+	err := createRepo(newDir, []string{nestedDir})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -150,30 +151,94 @@ func TestChangedFiles_NoPath(t *testing.T) {
 	}
 }
 
-func createRepo(dir string, nestedDir string) error {
-	fullPath := path.Join(dir, nestedDir)
-	var err error
+func TestOnelinelog_NoGitpath(t *testing.T) {
+	newDir, cleanup := testfiles.TempDir(t)
+	defer cleanup()
+
+	subdirs := []string{"dev", "prod"}
+	err := createRepo(newDir, subdirs)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err = updateDirAndCommit(newDir, "dev", testfiles.FilesUpdated); err != nil {
+		t.Fatal(err)
+	}
+	if err = updateDirAndCommit(newDir, "prod", testfiles.FilesUpdated); err != nil {
+		t.Fatal(err)
+	}
+
+	commits, err := onelinelog(context.Background(), newDir, "HEAD~2..HEAD", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(commits) != 2 {
+		t.Fatal(err)
+	}
+}
+
+func TestOnelinelog_WithGitpath(t *testing.T) {
+	newDir, cleanup := testfiles.TempDir(t)
+	defer cleanup()
+
+	subdirs := []string{"dev", "prod"}
+
+	err := createRepo(newDir, subdirs)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err = updateDirAndCommit(newDir, "dev", testfiles.FilesUpdated); err != nil {
+		t.Fatal(err)
+	}
+	if err = updateDirAndCommit(newDir, "prod", testfiles.FilesUpdated); err != nil {
+		t.Fatal(err)
+	}
+
+	commits, err := onelinelog(context.Background(), newDir, "HEAD~2..HEAD", "dev")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(commits) != 1 {
+		t.Fatal(err)
+	}
+}
+
+func createRepo(dir string, subdirs []string) error {
+	var (
+		err      error
+		fullPath string
+	)
+
 	if err = execCommand("git", "-C", dir, "init"); err != nil {
 		return err
 	}
 	if err := config(context.Background(), dir, "operations_test_user", "example@example.com"); err != nil {
 		return err
 	}
-	if err := execCommand("mkdir", "-p", fullPath); err != nil {
-		return err
-	}
-	if err = testfiles.WriteTestFiles(fullPath); err != nil {
-		return err
-	}
-	if err = execCommand("git", "-C", dir, "add", "--all"); err != nil {
-		return err
-	}
-	if err = execCommand("git", "-C", dir, "commit", "-m", "'Initial revision'"); err != nil {
-		return err
+
+	for _, subdir := range subdirs {
+		fullPath = path.Join(dir, subdir)
+		if err = execCommand("mkdir", "-p", fullPath); err != nil {
+			return err
+		}
+
+		if err = testfiles.WriteTestFiles(fullPath); err != nil {
+			return err
+		}
+		if err = execCommand("git", "-C", dir, "add", "--all"); err != nil {
+			return err
+		}
+		if err = execCommand("git", "-C", dir, "commit", "-m", "'Initial revision'"); err != nil {
+			return err
+		}
 	}
 	if err = execCommand("git", "-C", dir, "commit", "--allow-empty", "-m", "'Second revision'"); err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -182,4 +247,29 @@ func execCommand(cmd string, args ...string) error {
 	c.Stderr = ioutil.Discard
 	c.Stdout = ioutil.Discard
 	return c.Run()
+}
+
+// Replaces/creates a file
+func updateFile(path string, files map[string]string) error {
+	for file, content := range files {
+		path := filepath.Join(path, file)
+		if err := ioutil.WriteFile(path, []byte(content), 0666); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func updateDirAndCommit(dir, subdir string, filesUpdated map[string]string) error {
+	path := filepath.Join(dir, subdir)
+	if err := updateFile(path, filesUpdated); err != nil {
+		return err
+	}
+	if err := execCommand("git", "-C", path, "add", "--all"); err != nil {
+		return err
+	}
+	if err := execCommand("git", "-C", path, "commit", "-m", "'Update 1'"); err != nil {
+		return err
+	}
+	return nil
 }

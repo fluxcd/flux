@@ -212,13 +212,13 @@ func (c *Checkout) TagRevision(ctx context.Context, tag string) (string, error) 
 func (c *Checkout) CommitsBetween(ctx context.Context, ref1, ref2 string) ([]Commit, error) {
 	c.RLock()
 	defer c.RUnlock()
-	return onelinelog(ctx, c.Dir, ref1+".."+ref2)
+	return onelinelog(ctx, c.Dir, ref1+".."+ref2, c.repo.GitRemoteConfig.Path)
 }
 
 func (c *Checkout) CommitsBefore(ctx context.Context, ref string) ([]Commit, error) {
 	c.RLock()
 	defer c.RUnlock()
-	return onelinelog(ctx, c.Dir, ref)
+	return onelinelog(ctx, c.Dir, ref, c.repo.GitRemoteConfig.Path)
 }
 
 func (c *Checkout) MoveTagAndPush(ctx context.Context, ref, msg string) error {

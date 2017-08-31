@@ -157,11 +157,24 @@ func revlist(ctx context.Context, path, ref string) ([]string, error) {
 }
 
 // Return the revisions and one-line log commit messages
-func onelinelog(ctx context.Context, path, refspec string) ([]Commit, error) {
+// subdir argument ... corresponds to the git-path flag supplied to weave-flux-agent
+func onelinelog(ctx context.Context, path, refspec, subdir string) ([]Commit, error) {
 	out := &bytes.Buffer{}
+
+	// we need to distinguish whether subdir is populated or not,
+	// because supplying an empty string to execGitCmd results in git complaining about
+	// >> ambiguous argument '' <<
+	if subdir != "" {
+		if err := execGitCmd(ctx, path, nil, out, "log", "--oneline", "--no-abbrev-commit", refspec, subdir); err != nil {
+			return nil, err
+		}
+		return splitLog(out.String())
+	}
+
 	if err := execGitCmd(ctx, path, nil, out, "log", "--oneline", "--no-abbrev-commit", refspec); err != nil {
 		return nil, err
 	}
+
 	return splitLog(out.String())
 }
 
@@ -212,6 +225,7 @@ func changedFiles(ctx context.Context, path, subPath, ref string) ([]string, err
 
 func execGitCmd(ctx context.Context, dir string, keyRing ssh.KeyRing, out io.Writer, args ...string) error {
 	c := exec.CommandContext(ctx, "git", args...)
+
 	if dir != "" {
 		c.Dir = dir
 	}
@@ -222,6 +236,7 @@ func execGitCmd(ctx context.Context, dir string, keyRing ssh.KeyRing, out io.Wri
 	}
 	errOut := &bytes.Buffer{}
 	c.Stderr = errOut
+
 	err := c.Run()
 	if err != nil {
 		msg := findErrorMessage(errOut)
