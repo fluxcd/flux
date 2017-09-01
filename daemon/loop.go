@@ -19,7 +19,8 @@ import (
 )
 
 const (
-	defaultSyncTimeout = 30 * time.Second // Max time allowed for syncs
+	// Timeout for git operations we're prepared to abandon
+	gitOpTimeout = 15 * time.Second
 )
 
 type LoopVars struct {
@@ -48,7 +49,7 @@ func (d *Daemon) GitPollLoop(stop chan struct{}, wg *sync.WaitGroup, logger log.
 			gitPollTimer.Stop()
 			gitPollTimer = time.NewTimer(d.GitPollInterval)
 		}()
-		ctx, cancel := context.WithTimeout(context.Background(), defaultSyncTimeout)
+		ctx, cancel := context.WithTimeout(context.Background(), gitOpTimeout)
 		defer cancel()
 		if err := d.Checkout.Pull(ctx); err != nil {
 			logger.Log("operation", "pull", "err", err)
@@ -116,17 +117,25 @@ func (d *LoopVars) askForImagePoll() {
 // -- extra bits the loop needs
 
 func (d *Daemon) doSync(logger log.Logger) {
-	ctx, cancel := context.WithTimeout(context.Background(), defaultSyncTimeout)
-	defer cancel()
 	started := time.Now().UTC()
+	// We don't care how long this takes overall, only about not
+	// getting bogged down in certain operations, so use an
+	// undeadlined context in general.
+	ctx := context.Background()
 
 	// checkout a working clone so we can mess around with tags later
-	working, err := d.Checkout.WorkingClone(ctx)
-	if err != nil {
-		logger.Log("err", err)
-		return
+	var working *git.Checkout
+	{
+		var err error
+		ctx, cancel := context.WithTimeout(ctx, gitOpTimeout)
+		defer cancel()
+		working, err = d.Checkout.WorkingClone(ctx)
+		if err != nil {
+			logger.Log("err", err)
+			return
+		}
+		defer working.Clean()
 	}
-	defer working.Clean()
 
 	// TODO logging, metrics?
 	// Get a map of all resources defined in the repo
@@ -139,18 +148,33 @@ func (d *Daemon) doSync(logger log.Logger) {
 	// TODO supply deletes argument from somewhere (command-line?)
 	if err := fluxsync.Sync(d.Manifests, allResources, d.Cluster, false, logger); err != nil {
 		logger.Log("err", err)
+		// TODO(michael): we should distinguish between "fully mostly
+		// succeeded" and "failed utterly", since we want to abandon
+		// this and not move the tag (and send a SyncFail event
+		// upstream?), if the latter. For now, it's presumed that any
+		// error returned is at worst a minor, partial failure (e.g.,
+		// a small number of resources failed to sync, for unimportant
+		// reasons)
 	}
 
-	var initialSync bool
 	// update notes and emit events for applied commits
-	commits, err := working.CommitsBetween(ctx, working.SyncTag, "HEAD")
-	if isUnknownRevision(err) {
-		// No sync tag, grab all revisions
-		initialSync = true
-		commits, err = working.CommitsBefore(ctx, "HEAD")
-	}
-	if err != nil {
-		logger.Log("err", err)
+
+	var initialSync bool
+	var commits []git.Commit
+	{
+		var err error
+		ctx, cancel := context.WithTimeout(ctx, gitOpTimeout)
+		commits, err = working.CommitsBetween(ctx, working.SyncTag, "HEAD")
+		if isUnknownRevision(err) {
+			// No sync tag, grab all revisions
+			initialSync = true
+			commits, err = working.CommitsBefore(ctx, "HEAD")
+		}
+		cancel()
+		if err != nil {
+			logger.Log("err", err)
+			return
+		}
 	}
 
 	// Figure out which service IDs changed in this release
@@ -160,11 +184,13 @@ func (d *Daemon) doSync(logger log.Logger) {
 		// no synctag, We are syncing everything from scratch
 		changedResources = allResources
 	} else {
+		ctx, cancel := context.WithTimeout(ctx, gitOpTimeout)
 		changedFiles, err := working.ChangedFiles(ctx, working.SyncTag)
 		if err == nil {
 			// We had some changed files, we're syncing a diff
 			changedResources, err = d.Manifests.LoadManifests(changedFiles...)
 		}
+		cancel()
 		if err != nil {
 			logger.Log("err", errors.Wrap(err, "loading resources from repo"))
 			return
@@ -176,10 +202,15 @@ func (d *Daemon) doSync(logger log.Logger) {
 		serviceIDs.Add(r.ServiceIDs(allResources))
 	}
 
-	notes, err := working.NoteRevList(ctx)
-	if err != nil {
-		logger.Log("err", errors.Wrap(err, "loading notes from repo"))
-		return
+	var notes map[string]struct{}
+	{
+		ctx, cancel := context.WithTimeout(ctx, gitOpTimeout)
+		notes, err = working.NoteRevList(ctx)
+		cancel()
+		if err != nil {
+			logger.Log("err", errors.Wrap(err, "loading notes from repo"))
+			return
+		}
 	}
 
 	// Collect any events that come from notes attached to the commits
@@ -193,16 +224,16 @@ func (d *Daemon) doSync(logger log.Logger) {
 
 		// Find notes in revisions.
 		for i := len(commits) - 1; i >= 0; i-- {
-			if ok := notes[commits[i].Revision]; !ok {
+			if _, ok := notes[commits[i].Revision]; !ok {
 				includes[history.NoneOfTheAbove] = true
 				continue
 			}
+			ctx, cancel := context.WithTimeout(ctx, gitOpTimeout)
 			n, err := working.GetNote(ctx, commits[i].Revision)
+			cancel()
 			if err != nil {
 				logger.Log("err", errors.Wrap(err, "loading notes from repo; possibly no notes"))
-				// TODO: We're ignoring all errors here, not just the "no notes" error. Parse error to report proper errors.
-				includes[history.NoneOfTheAbove] = true
-				continue
+				return
 			}
 			if n == nil {
 				includes[history.NoneOfTheAbove] = true
@@ -300,17 +331,27 @@ func (d *Daemon) doSync(logger log.Logger) {
 	}
 
 	// Move the tag and push it so we know how far we've gotten.
-	if err := working.MoveTagAndPush(ctx, "HEAD", "Sync pointer"); err != nil {
-		logger.Log("err", err)
+	{
+		ctx, cancel := context.WithTimeout(ctx, gitOpTimeout)
+		err := working.MoveTagAndPush(ctx, "HEAD", "Sync pointer")
+		cancel()
+		if err != nil {
+			logger.Log("err", err)
+			return
+		}
 	}
 
 	// Pull the tag if it has changed
-	if err := d.updateTagRev(ctx, working, logger); err != nil {
-		logger.Log("err", errors.Wrap(err, "updating tag"))
+	{
+		ctx, cancel := context.WithTimeout(ctx, gitOpTimeout)
+		if err := d.pullIfTagMoved(ctx, working, logger); err != nil {
+			logger.Log("err", errors.Wrap(err, "updating tag"))
+		}
+		cancel()
 	}
 }
 
-func (d *Daemon) updateTagRev(ctx context.Context, working *git.Checkout, logger log.Logger) error {
+func (d *Daemon) pullIfTagMoved(ctx context.Context, working *git.Checkout, logger log.Logger) error {
 	oldTagRev, err := d.Checkout.TagRevision(ctx, d.Checkout.SyncTag)
 	if err != nil && !strings.Contains(err.Error(), "unknown revision or path not in the working tree") {
 		return err
@@ -322,7 +363,6 @@ func (d *Daemon) updateTagRev(ctx context.Context, working *git.Checkout, logger
 
 	if oldTagRev != newTagRev {
 		logger.Log("tag", d.Checkout.SyncTag, "old", oldTagRev, "new", newTagRev)
-
 		if err := d.Checkout.Pull(ctx); err != nil {
 			return err
 		}

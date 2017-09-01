@@ -123,17 +123,17 @@ func getNote(ctx context.Context, workingDir, notesRef, rev string) (*Note, erro
 // Get all revisions with a note (NB: DO NOT RELY ON THE ORDERING)
 // It appears to be ordered by ascending git object ref, not by time.
 // Return a map to make it easier to do "if in" type queries.
-func noteRevList(ctx context.Context, workingDir, notesRef string) (map[string]bool, error) {
+func noteRevList(ctx context.Context, workingDir, notesRef string) (map[string]struct{}, error) {
 	out := &bytes.Buffer{}
 	if err := execGitCmd(ctx, workingDir, nil, out, "notes", "--ref", notesRef, "list"); err != nil {
 		return nil, err
 	}
 	noteList := splitList(out.String())
-	result := make(map[string]bool, len(noteList))
+	result := make(map[string]struct{}, len(noteList))
 	for _, l := range noteList {
 		split := strings.Fields(l)
 		if len(split) > 0 {
-			result[split[1]] = true // First field contains the object ref (commit id in our case)
+			result[split[1]] = struct{}{} // First field contains the object ref (commit id in our case)
 		}
 	}
 	return result, nil

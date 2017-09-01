@@ -25,7 +25,12 @@ import (
 )
 
 const (
-	defaultDaemonTimeout = 10 * time.Second
+	// This is set to be in sympathy with the request / RPC timeout (i.e., empirically)
+	defaultHandlerTimeout = 10 * time.Second
+	// A job can take an arbitrary amount of time but we want to have
+	// a (generous) threshold for considering a job stuck and
+	// abandoning it
+	defaultJobTimeout = 60 * time.Second
 )
 
 // Combine these things to form Devasta^Wan implementation of
@@ -125,16 +130,17 @@ func (d *Daemon) ListImages(spec update.ServiceSpec) ([]flux.ImageStatus, error)
 // Let's use the CommitEventMetadata as a convenient transport for the
 // results of a job; if no commit was made (e.g., if it was a dry
 // run), leave the revision field empty.
-type DaemonJobFunc func(jobID job.ID, working *git.Checkout, logger log.Logger) (*history.CommitEventMetadata, error)
+type DaemonJobFunc func(ctx context.Context, jobID job.ID, working *git.Checkout, logger log.Logger) (*history.CommitEventMetadata, error)
 
 // Must cancel the context once this job is complete
-func (d *Daemon) queueJob(ctx context.Context, cancel context.CancelFunc, do DaemonJobFunc) job.ID {
+func (d *Daemon) queueJob(do DaemonJobFunc) job.ID {
 	id := job.ID(guid.New())
 	d.Jobs.Enqueue(&job.Job{
 		ID: id,
 		Do: func(logger log.Logger) error {
-			defer cancel()
 			started := time.Now().UTC()
+			ctx, cancel := context.WithTimeout(context.Background(), defaultJobTimeout)
+			defer cancel()
 			d.JobStatusCache.SetStatus(id, job.Status{StatusString: job.StatusRunning})
 			// make a working clone so we don't mess with files we
 			// will be reading from elsewhere
@@ -144,7 +150,7 @@ func (d *Daemon) queueJob(ctx context.Context, cancel context.CancelFunc, do Dae
 				return err
 			}
 			defer working.Clean()
-			metadata, err := do(id, working, logger)
+			metadata, err := do(ctx, id, working, logger)
 			if err != nil {
 				d.JobStatusCache.SetStatus(id, job.Status{StatusString: job.StatusFailed, Err: err.Error()})
 				return err
@@ -176,23 +182,22 @@ func (d *Daemon) queueJob(ctx context.Context, cancel context.CancelFunc, do Dae
 
 // Apply the desired changes to the config files
 func (d *Daemon) UpdateManifests(spec update.Spec) (job.ID, error) {
-	ctx, cancel := newDaemonContext()
 	var id job.ID
 	if spec.Type == "" {
 		return id, errors.New("no type in update spec")
 	}
 	switch s := spec.Spec.(type) {
 	case release.Changes:
-		return d.queueJob(ctx, cancel, d.release(ctx, spec, s)), nil
+		return d.queueJob(d.release(spec, s)), nil
 	case policy.Updates:
-		return d.queueJob(ctx, cancel, d.updatePolicy(ctx, spec, s)), nil
+		return d.queueJob(d.updatePolicy(spec, s)), nil
 	default:
 		return id, fmt.Errorf(`unknown update type "%s"`, spec.Type)
 	}
 }
 
-func (d *Daemon) updatePolicy(ctx context.Context, spec update.Spec, updates policy.Updates) DaemonJobFunc {
-	return func(jobID job.ID, working *git.Checkout, logger log.Logger) (*history.CommitEventMetadata, error) {
+func (d *Daemon) updatePolicy(spec update.Spec, updates policy.Updates) DaemonJobFunc {
+	return func(ctx context.Context, jobID job.ID, working *git.Checkout, logger log.Logger) (*history.CommitEventMetadata, error) {
 		// For each update
 		var serviceIDs []flux.ServiceID
 		metadata := &history.CommitEventMetadata{
@@ -267,8 +272,8 @@ func (d *Daemon) updatePolicy(ctx context.Context, spec update.Spec, updates pol
 	}
 }
 
-func (d *Daemon) release(ctx context.Context, spec update.Spec, c release.Changes) DaemonJobFunc {
-	return func(jobID job.ID, working *git.Checkout, logger log.Logger) (*history.CommitEventMetadata, error) {
+func (d *Daemon) release(spec update.Spec, c release.Changes) DaemonJobFunc {
+	return func(ctx context.Context, jobID job.ID, working *git.Checkout, logger log.Logger) (*history.CommitEventMetadata, error) {
 		rc := release.NewReleaseContext(d.Cluster, d.Manifests, d.Registry, working)
 		result, err := release.Release(rc, c, logger)
 		if err != nil {
@@ -313,7 +318,7 @@ func (d *Daemon) SyncNotify() error {
 // Ask the daemon how far it's got committing things; in particular, is the job
 // queued? running? committed? If it is done, the commit ref is returned.
 func (d *Daemon) JobStatus(jobID job.ID) (job.Status, error) {
-	ctx, cancel := newDaemonContext()
+	ctx, cancel := context.WithTimeout(context.Background(), defaultHandlerTimeout)
 	defer cancel()
 	// Is the job queued, running, or recently finished?
 	status, ok := d.JobStatusCache.Status(jobID)
@@ -324,24 +329,28 @@ func (d *Daemon) JobStatus(jobID job.ID) (job.Status, error) {
 	// Look through the commits for a note referencing this job.  This
 	// means that even if fluxd restarts, we will at least remember
 	// jobs which have pushed a commit.
-	if err := d.Checkout.Pull(ctx); err != nil {
-		return job.Status{}, errors.Wrap(err, "updating repo for status")
+	notes, err := d.Checkout.NoteRevList(ctx)
+	if err != nil {
+		return job.Status{}, errors.Wrap(err, "enumerating commit notes")
 	}
 	commits, err := d.Checkout.CommitsBefore(ctx, "HEAD")
 	if err != nil {
 		return job.Status{}, errors.Wrap(err, "checking revisions for status")
 	}
+
 	for _, commit := range commits {
-		note, _ := d.Checkout.GetNote(ctx, commit.Revision)
-		if note != nil && note.JobID == jobID {
-			return job.Status{
-				StatusString: job.StatusSucceeded,
-				Result: history.CommitEventMetadata{
-					Revision: commit.Revision,
-					Spec:     &note.Spec,
-					Result:   note.Result,
-				},
-			}, nil
+		if _, ok := notes[commit.Revision]; ok {
+			note, _ := d.Checkout.GetNote(ctx, commit.Revision)
+			if note != nil && note.JobID == jobID {
+				return job.Status{
+					StatusString: job.StatusSucceeded,
+					Result: history.CommitEventMetadata{
+						Revision: commit.Revision,
+						Spec:     &note.Spec,
+						Result:   note.Result,
+					},
+				}, nil
+			}
 		}
 	}
 
@@ -354,7 +363,7 @@ func (d *Daemon) JobStatus(jobID job.ID) (job.Status, error) {
 // you'll get all the commits yet to be applied. If you send a hash
 // and it's applied _past_ it, you'll get an empty list.
 func (d *Daemon) SyncStatus(commitRef string) ([]string, error) {
-	ctx, cancel := newDaemonContext()
+	ctx, cancel := context.WithTimeout(context.Background(), defaultHandlerTimeout)
 	defer cancel()
 	commits, err := d.Checkout.CommitsBetween(ctx, d.Checkout.SyncTag, commitRef)
 	if err != nil {
@@ -501,8 +510,4 @@ func policyEventTypes(u policy.Update) []string {
 	}
 	sort.Strings(result)
 	return result
-}
-
-func newDaemonContext() (context.Context, context.CancelFunc) {
-	return context.WithTimeout(context.Background(), defaultDaemonTimeout)
 }
