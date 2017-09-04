@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"fmt"
 	"strings"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/git"
 	"github.com/weaveworks/flux/history"
+	fluxmetrics "github.com/weaveworks/flux/metrics"
 	"github.com/weaveworks/flux/resource"
 	fluxsync "github.com/weaveworks/flux/sync"
 	"github.com/weaveworks/flux/update"
@@ -44,7 +46,7 @@ func (d *Daemon) GitPollLoop(stop chan struct{}, wg *sync.WaitGroup, logger log.
 	// `GitPollInterval`. Being told to sync, or completing a job, may
 	// intervene (in which case, reschedule the next pull-and-sync)
 	gitPollTimer := time.NewTimer(d.GitPollInterval)
-	pullThen := func(k func(logger log.Logger)) {
+	pullThen := func(k func(logger log.Logger) error) {
 		defer func() {
 			gitPollTimer.Stop()
 			gitPollTimer = time.NewTimer(d.GitPollInterval)
@@ -55,7 +57,9 @@ func (d *Daemon) GitPollLoop(stop chan struct{}, wg *sync.WaitGroup, logger log.
 			logger.Log("operation", "pull", "err", err)
 			return
 		}
-		k(logger)
+		if err := k(logger); err != nil {
+			logger.Log("operation", "after-pull", "err", err)
+		}
 	}
 
 	imagePollTimer := time.NewTimer(d.RegistryPollInterval)
@@ -116,8 +120,13 @@ func (d *LoopVars) askForImagePoll() {
 
 // -- extra bits the loop needs
 
-func (d *Daemon) doSync(logger log.Logger) {
+func (d *Daemon) doSync(logger log.Logger) (retErr error) {
 	started := time.Now().UTC()
+	defer func() {
+		syncDuration.With(
+			fluxmetrics.LabelSuccess, fmt.Sprint(retErr == nil),
+		).Observe(time.Since(started).Seconds())
+	}()
 	// We don't care how long this takes overall, only about not
 	// getting bogged down in certain operations, so use an
 	// undeadlined context in general.
@@ -131,8 +140,7 @@ func (d *Daemon) doSync(logger log.Logger) {
 		defer cancel()
 		working, err = d.Checkout.WorkingClone(ctx)
 		if err != nil {
-			logger.Log("err", err)
-			return
+			return err
 		}
 		defer working.Clean()
 	}
@@ -141,8 +149,7 @@ func (d *Daemon) doSync(logger log.Logger) {
 	// Get a map of all resources defined in the repo
 	allResources, err := d.Manifests.LoadManifests(working.ManifestDir())
 	if err != nil {
-		logger.Log("err", errors.Wrap(err, "loading resources from repo"))
-		return
+		return errors.Wrap(err, "loading resources from repo")
 	}
 
 	// TODO supply deletes argument from somewhere (command-line?)
@@ -172,8 +179,7 @@ func (d *Daemon) doSync(logger log.Logger) {
 		}
 		cancel()
 		if err != nil {
-			logger.Log("err", err)
-			return
+			return err
 		}
 	}
 
@@ -192,8 +198,7 @@ func (d *Daemon) doSync(logger log.Logger) {
 		}
 		cancel()
 		if err != nil {
-			logger.Log("err", errors.Wrap(err, "loading resources from repo"))
-			return
+			return errors.Wrap(err, "loading resources from repo")
 		}
 	}
 
@@ -208,8 +213,7 @@ func (d *Daemon) doSync(logger log.Logger) {
 		notes, err = working.NoteRevList(ctx)
 		cancel()
 		if err != nil {
-			logger.Log("err", errors.Wrap(err, "loading notes from repo"))
-			return
+			return errors.Wrap(err, "loading notes from repo")
 		}
 	}
 
@@ -232,8 +236,7 @@ func (d *Daemon) doSync(logger log.Logger) {
 			n, err := working.GetNote(ctx, commits[i].Revision)
 			cancel()
 			if err != nil {
-				logger.Log("err", errors.Wrap(err, "loading notes from repo; possibly no notes"))
-				return
+				return errors.Wrap(err, "loading notes from repo")
 			}
 			if n == nil {
 				includes[history.NoneOfTheAbove] = true
@@ -336,8 +339,7 @@ func (d *Daemon) doSync(logger log.Logger) {
 		err := working.MoveTagAndPush(ctx, "HEAD", "Sync pointer")
 		cancel()
 		if err != nil {
-			logger.Log("err", err)
-			return
+			return err
 		}
 	}
 
@@ -349,6 +351,8 @@ func (d *Daemon) doSync(logger log.Logger) {
 		}
 		cancel()
 	}
+
+	return nil
 }
 
 func (d *Daemon) pullIfTagMoved(ctx context.Context, working *git.Checkout, logger log.Logger) error {
