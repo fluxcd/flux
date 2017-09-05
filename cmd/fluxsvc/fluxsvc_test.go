@@ -114,7 +114,10 @@ func setup(t *testing.T) {
 		},
 	}
 	done := make(chan error)
-	messageBus.Subscribe(id, mockPlatform, done) // For ListService
+	messageBus.Subscribe(id, mockPlatform, done)
+	if err := messageBus.AwaitPresence(id, 5*time.Second); err != nil {
+		t.Errorf("Timed out waiting for presence of mockPlatform")
+	}
 
 	// History
 	hDb, _ := historysql.NewSQL(dbDriver, databaseSource)
@@ -346,7 +349,7 @@ func TestFluxsvc_Ping(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		t.Fatal("Request should have been ok but got %q, body:\n%v", resp.Status, body)
+		t.Fatal("Request should have been ok but got %q, body:\n%q", resp.Status, string(body))
 	}
 }
 
@@ -371,6 +374,6 @@ func TestFluxsvc_Register(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		t.Fatal("Request should have been ok but got %q, body:\n%v", resp.Status, body)
+		t.Fatal("Request should have been ok but got %q, body:\n%q", resp.Status, string(body))
 	}
 }
