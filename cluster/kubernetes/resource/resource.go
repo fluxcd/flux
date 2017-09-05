@@ -51,8 +51,13 @@ func (o baseObject) ServiceIDs(all map[string]resource.Resource) []flux.ServiceI
 func (o baseObject) Policy() policy.Set {
 	set := policy.Set{}
 	for k, v := range o.Meta.Annotations {
-		if strings.HasPrefix(k, PolicyPrefix) && v == "true" {
-			set = set.Add(policy.Policy(strings.TrimPrefix(k, PolicyPrefix)))
+		if strings.HasPrefix(k, PolicyPrefix) {
+			p := strings.TrimPrefix(k, PolicyPrefix)
+			if v == "true" {
+				set = set.Add(policy.Policy(p))
+			} else {
+				set = set.Set(policy.Policy(p), v)
+			}
 		}
 	}
 	return set

@@ -47,8 +47,16 @@ func (opts *serviceLockOpts) RunE(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	lockedPolicy := policy.Set{policy.Locked: "true"}
+	if opts.cause.User != "" {
+		lockedPolicy = lockedPolicy.Set(policy.LockedUser, opts.cause.User)
+	}
+	if opts.cause.Message != "" {
+		lockedPolicy = lockedPolicy.Set(policy.LockedMsg, opts.cause.Message)
+	}
+
 	jobID, err := opts.API.UpdatePolicies(noInstanceID, policy.Updates{
-		serviceID: policy.Update{Add: policy.Set{policy.Locked: "true"}},
+		serviceID: policy.Update{Add: lockedPolicy},
 	}, opts.cause)
 	if err != nil {
 		return err
