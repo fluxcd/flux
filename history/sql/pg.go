@@ -55,7 +55,7 @@ func (db *pgDB) scanEvents(query squirrel.Sqlizer) ([]history.Event, error) {
 			return nil, err
 		}
 		for _, id := range serviceIDs {
-			h.ServiceIDs = append(h.ServiceIDs, flux.ServiceID(id))
+			h.ServiceIDs = append(h.ServiceIDs, flux.MustParseServiceID(id))
 		}
 
 		if len(metadataBytes) > 0 {
@@ -94,7 +94,7 @@ func (db *pgDB) scanEvents(query squirrel.Sqlizer) ([]history.Event, error) {
 func (db *pgDB) EventsForService(inst service.InstanceID, service flux.ServiceID, before time.Time, limit int64, after time.Time) ([]history.Event, error) {
 	q := db.eventsQuery().
 		Where("instance_id = ?", string(inst)).
-		Where("service_ids @> ?", pq.StringArray{string(service)}).
+		Where("service_ids @> ?", pq.StringArray{service.String()}).
 		Where("started_at < ?", before).
 		Where("started_at > ?", after)
 	if limit >= 0 {
@@ -136,7 +136,7 @@ func (db *pgDB) LogEvent(inst service.InstanceID, e history.Event) error {
 	}
 	serviceIDs := pq.StringArray{}
 	for _, id := range e.ServiceIDs {
-		serviceIDs = append(serviceIDs, string(id))
+		serviceIDs = append(serviceIDs, id.String())
 	}
 	_, err = db.driver.Exec(
 		`INSERT INTO events

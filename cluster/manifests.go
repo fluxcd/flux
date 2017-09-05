@@ -32,12 +32,12 @@ type Manifests interface {
 // UpdateManifest looks for the manifest for a given service, reads
 // its contents, applies f(contents), and writes the results back to
 // the file.
-func UpdateManifest(m Manifests, root string, serviceID string, f func(manifest []byte) ([]byte, error)) error {
+func UpdateManifest(m Manifests, root string, serviceID flux.ServiceID, f func(manifest []byte) ([]byte, error)) error {
 	services, err := m.FindDefinedServices(root)
 	if err != nil {
 		return err
 	}
-	paths := services[flux.ServiceID(serviceID)]
+	paths := services[serviceID]
 	if len(paths) == 0 {
 		return ErrNoResourceFilesFoundForService
 	}

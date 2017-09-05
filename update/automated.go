@@ -158,7 +158,7 @@ func (a *Automated) serviceMap() map[flux.ServiceID][]Change {
 func (a *Automated) serviceIDs() []flux.ServiceID {
 	slice := []flux.ServiceID{}
 	for service, _ := range a.serviceMap() {
-		slice = append(slice, flux.ServiceID(service.String()))
+		slice = append(slice, flux.MustParseServiceID(service.String()))
 	}
 	return slice
 }

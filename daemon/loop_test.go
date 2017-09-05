@@ -90,7 +90,10 @@ func TestPullAndSync_InitialSync(t *testing.T) {
 
 	syncCalled := 0
 	var syncDef *cluster.SyncDef
-	expectedServiceIDs := flux.ServiceIDs{"default/locked-service", "default/test-service", "default/helloworld"}
+	expectedServiceIDs := flux.ServiceIDs{
+		flux.MustParseServiceID("default/locked-service"),
+		flux.MustParseServiceID("default/test-service"),
+		flux.MustParseServiceID("default/helloworld")}
 	expectedServiceIDs.Sort()
 	k8s.SyncFunc = func(def cluster.SyncDef) error {
 		syncCalled++
@@ -145,7 +148,10 @@ func TestDoSync_NoNewCommits(t *testing.T) {
 
 	syncCalled := 0
 	var syncDef *cluster.SyncDef
-	expectedServiceIDs := flux.ServiceIDs{"default/locked-service", "default/test-service", "default/helloworld"}
+	expectedServiceIDs := flux.ServiceIDs{
+		flux.MustParseServiceID("default/locked-service"),
+		flux.MustParseServiceID("default/test-service"),
+		flux.MustParseServiceID("default/helloworld")}
 	expectedServiceIDs.Sort()
 	k8s.SyncFunc = func(def cluster.SyncDef) error {
 		syncCalled++
@@ -200,7 +206,7 @@ func TestDoSync_WithNewCommit(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Push some new changes
-	if err := cluster.UpdateManifest(k8s, d.Checkout.ManifestDir(), "default/helloworld", func(def []byte) ([]byte, error) {
+	if err := cluster.UpdateManifest(k8s, d.Checkout.ManifestDir(), flux.MustParseServiceID("default/helloworld"), func(def []byte) ([]byte, error) {
 		// A simple modification so we have changes to push
 		return []byte(strings.Replace(string(def), "replicas: 5", "replicas: 4", -1)), nil
 	}); err != nil {
@@ -216,7 +222,10 @@ func TestDoSync_WithNewCommit(t *testing.T) {
 
 	syncCalled := 0
 	var syncDef *cluster.SyncDef
-	expectedServiceIDs := flux.ServiceIDs{"default/locked-service", "default/test-service", "default/helloworld"}
+	expectedServiceIDs := flux.ServiceIDs{
+		flux.MustParseServiceID("default/locked-service"),
+		flux.MustParseServiceID("default/test-service"),
+		flux.MustParseServiceID("default/helloworld")}
 	expectedServiceIDs.Sort()
 	k8s.SyncFunc = func(def cluster.SyncDef) error {
 		syncCalled++
@@ -248,8 +257,8 @@ func TestDoSync_WithNewCommit(t *testing.T) {
 		gotServiceIDs := es[0].ServiceIDs
 		flux.ServiceIDs(gotServiceIDs).Sort()
 		// Event should only have changed service ids
-		if !reflect.DeepEqual(gotServiceIDs, []flux.ServiceID{"default/helloworld"}) {
-			t.Errorf("Unexpected event service ids: %#v, expected: %#v", gotServiceIDs, []flux.ServiceID{"default/helloworld"})
+		if !reflect.DeepEqual(gotServiceIDs, []flux.ServiceID{flux.MustParseServiceID("default/helloworld")}) {
+			t.Errorf("Unexpected event service ids: %#v, expected: %#v", gotServiceIDs, []flux.ServiceID{flux.MustParseServiceID("default/helloworld")})
 		}
 	}
 	// It moves the tag

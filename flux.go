@@ -1,6 +1,7 @@
 package flux
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"sort"
@@ -25,30 +26,63 @@ func (t Token) Set(req *http.Request) {
 
 // (User) Service identifiers
 
-type ServiceID string // "default/helloworld"
+type ServiceID struct {
+	namespace string
+	service   string
+}
 
 func (id ServiceID) String() string {
-	return string(id)
+	return fmt.Sprintf("%s/%s", id.namespace, id.service)
 }
 
 func ParseServiceID(s string) (ServiceID, error) {
 	toks := strings.SplitN(s, "/", 2)
 	if len(toks) != 2 {
-		return "", errors.Wrap(ErrInvalidServiceID, "parsing "+s)
+		return ServiceID{}, errors.Wrap(ErrInvalidServiceID, "parsing "+s)
 	}
-	return ServiceID(s), nil
+	return ServiceID{toks[0], toks[1]}, nil
+}
+
+func MustParseServiceID(s string) ServiceID {
+	id, err := ParseServiceID(s)
+	if err != nil {
+		panic(err)
+	}
+	return id
 }
 
 func MakeServiceID(namespace, service string) ServiceID {
-	return ServiceID(namespace + "/" + service)
+	return ServiceID{namespace, service}
 }
 
 func (id ServiceID) Components() (namespace, service string) {
-	toks := strings.SplitN(string(id), "/", 2)
-	if len(toks) != 2 {
-		panic("invalid service spec")
+	return id.namespace, id.service
+}
+
+func (id ServiceID) MarshalJSON() ([]byte, error) {
+	return json.Marshal(id.String())
+}
+
+func (id *ServiceID) UnmarshalJSON(data []byte) (err error) {
+	var str string
+	if err := json.Unmarshal(data, &str); err != nil {
+		return err
 	}
-	return toks[0], toks[1]
+	*id, err = ParseServiceID(string(str))
+	return err
+}
+
+func (id ServiceID) MarshalText() (text []byte, err error) {
+	return []byte(id.String()), nil
+}
+
+func (id *ServiceID) UnmarshalText(text []byte) error {
+	result, err := ParseServiceID(string(text))
+	if err != nil {
+		return err
+	}
+	*id = result
+	return nil
 }
 
 type ServiceIDSet map[ServiceID]struct{}
@@ -56,7 +90,7 @@ type ServiceIDSet map[ServiceID]struct{}
 func (s ServiceIDSet) String() string {
 	var ids []string
 	for id := range s {
-		ids = append(ids, string(id))
+		ids = append(ids, id.String())
 	}
 	return "{" + strings.Join(ids, ", ") + "}"
 }
@@ -117,7 +151,7 @@ func (s ServiceIDSet) ToSlice() ServiceIDs {
 type ServiceIDs []ServiceID
 
 func (p ServiceIDs) Len() int           { return len(p) }
-func (p ServiceIDs) Less(i, j int) bool { return string(p[i]) < string(p[j]) }
+func (p ServiceIDs) Less(i, j int) bool { return p[i].String() < p[j].String() }
 func (p ServiceIDs) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
 func (p ServiceIDs) Sort()              { sort.Sort(p) }
 

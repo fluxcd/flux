@@ -23,7 +23,7 @@ type Result map[flux.ServiceID]ServiceResult
 func (r Result) ServiceIDs() []string {
 	var result []string
 	for id := range r {
-		result = append(result, string(id))
+		result = append(result, id.String())
 	}
 	sort.StringSlice(result).Sort()
 	return result

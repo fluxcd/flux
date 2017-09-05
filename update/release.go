@@ -303,7 +303,7 @@ func ParseServiceSpec(s string) (ServiceSpec, error) {
 	if err != nil {
 		return "", errors.Wrap(err, "invalid service spec")
 	}
-	return ServiceSpec(id), nil
+	return ServiceSpec(id.String()), nil
 }
 
 func (s ServiceSpec) AsID() (flux.ServiceID, error) {

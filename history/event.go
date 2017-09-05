@@ -71,7 +71,7 @@ type Event struct {
 func (e Event) ServiceIDStrings() []string {
 	var strServiceIDs []string
 	for _, serviceID := range e.ServiceIDs {
-		strServiceIDs = append(strServiceIDs, string(serviceID))
+		strServiceIDs = append(strServiceIDs, serviceID.String())
 	}
 	sort.Strings(strServiceIDs)
 	return strServiceIDs

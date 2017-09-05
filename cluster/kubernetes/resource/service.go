@@ -23,7 +23,7 @@ func (o Service) ServiceIDs(all map[string]resource.Resource) []flux.ServiceID {
 	if ns == "" {
 		ns = "default"
 	}
-	return []flux.ServiceID{flux.ServiceID(fmt.Sprintf("%s/%s", ns, o.Meta.Name))}
+	return []flux.ServiceID{flux.MustParseServiceID(fmt.Sprintf("%s/%s", ns, o.Meta.Name))}
 }
 
 // Matches checks if this service's label selectors match the labels fo some

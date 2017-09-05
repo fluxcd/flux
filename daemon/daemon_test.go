@@ -308,7 +308,7 @@ func mockDaemon(t *testing.T) (*Daemon, func(), *cluster.Mock, history.EventRead
 	logger := log.NewNopLogger()
 
 	singleService := cluster.Service{
-		ID: flux.ServiceID(svc),
+		ID: flux.MustParseServiceID(svc),
 		Containers: cluster.ContainersOrExcuse{
 			Containers: []cluster.Container{
 				{
@@ -493,7 +493,7 @@ func updatePolicy(t *testing.T, d *Daemon) job.ID {
 	return updateManifest(t, d, update.Spec{
 		Type: update.Policy,
 		Spec: policy.Updates{
-			"default/helloworld": {
+			flux.MustParseServiceID("default/helloworld"): {
 				Add: policy.Set{
 					policy.Locked: "true",
 				},

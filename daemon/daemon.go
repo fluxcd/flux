@@ -215,7 +215,7 @@ func (d *Daemon) updatePolicy(spec update.Spec, updates policy.Updates) DaemonJo
 				anythingAutomated = true
 			}
 			// find the service manifest
-			err := cluster.UpdateManifest(d.Manifests, working.ManifestDir(), string(serviceID), func(def []byte) ([]byte, error) {
+			err := cluster.UpdateManifest(d.Manifests, working.ManifestDir(), serviceID, func(def []byte) ([]byte, error) {
 				newDef, err := d.Manifests.UpdatePolicies(def, u)
 				if err != nil {
 					metadata.Result[serviceID] = update.ServiceResult{
