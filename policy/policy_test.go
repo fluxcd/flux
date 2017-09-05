@@ -7,12 +7,16 @@ import (
 )
 
 func TestJSON(t *testing.T) {
-	policy := Set{}
-	policy = policy.Add(Ignore)
-	policy = policy.Add(Locked)
+	boolPolicy := Set{}
+	boolPolicy = boolPolicy.Add(Ignore)
+	boolPolicy = boolPolicy.Add(Locked)
+	policy := boolPolicy.Set(LockedUser, "user@example.com")
 
 	if !(policy.Contains(Ignore) && policy.Contains(Locked)) {
 		t.Errorf("Policy did not include those added")
+	}
+	if val, ok := policy.Get(LockedUser); !ok || val != "user@example.com" {
+		t.Errorf("Policy did not include policy that was set")
 	}
 
 	bs, err := json.Marshal(policy)
@@ -37,7 +41,7 @@ func TestJSON(t *testing.T) {
 	if err = json.Unmarshal(bs, &policy2); err != nil {
 		t.Fatal(err)
 	}
-	if !reflect.DeepEqual(policy, policy2) {
+	if !reflect.DeepEqual(boolPolicy, policy2) {
 		t.Errorf("Parsing equivalent list did not preserve policy. Expected:\n%#v\nGot:\n%#v\n", policy, policy2)
 	}
 }

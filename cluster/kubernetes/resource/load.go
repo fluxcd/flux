@@ -46,7 +46,7 @@ func Load(roots ...string) (map[string]resource.Resource, error) {
 	return objs, nil
 }
 
-// ParseManifests takes a dump of config (a multidoc YAML) and
+// ParseMultidoc takes a dump of config (a multidoc YAML) and
 // constructs an object set from the resources represented therein.
 func ParseMultidoc(multidoc []byte, source string) (map[string]resource.Resource, error) {
 	objs := map[string]resource.Resource{}
