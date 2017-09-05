@@ -5,6 +5,7 @@ import (
 	"net/rpc"
 
 	"github.com/weaveworks/flux"
+	fluxerr "github.com/weaveworks/flux/errors"
 	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/remote"
 	"github.com/weaveworks/flux/update"
@@ -14,6 +15,23 @@ import (
 // talking to remote daemons.
 type RPCClientV6 struct {
 	*RPCClientV5
+}
+
+// We don't get proper application error structs back from v6, but we
+// do know that anything that's not considered a fatal error can be
+// translated into an application error.
+func remoteApplicationError(err error) error {
+	return &fluxerr.Error{
+		Type: fluxerr.User,
+		Err:  err,
+		Help: `Error from daemon
+
+The daemon (fluxd, running in your cluster) reported this error when
+attempting to fulfil your request:
+
+    ` + err.Error() + `
+`,
+	}
 }
 
 var _ remote.PlatformV6 = &RPCClientV6{}
@@ -30,6 +48,9 @@ func (p *RPCClientV6) Export() ([]byte, error) {
 	if _, ok := err.(rpc.ServerError); !ok && err != nil {
 		return nil, remote.FatalError{err}
 	}
+	if err != nil {
+		err = remoteApplicationError(err)
+	}
 	return config, err
 }
 
@@ -40,6 +61,9 @@ func (p *RPCClientV6) ListServices(namespace string) ([]flux.ServiceStatus, erro
 	if _, ok := err.(rpc.ServerError); !ok && err != nil {
 		return nil, remote.FatalError{err}
 	}
+	if err != nil {
+		err = remoteApplicationError(err)
+	}
 	return services, err
 }
 
@@ -48,6 +72,9 @@ func (p *RPCClientV6) ListImages(spec update.ServiceSpec) ([]flux.ImageStatus, e
 	err := p.client.Call("RPCServer.ListImages", spec, &images)
 	if _, ok := err.(rpc.ServerError); !ok && err != nil {
 		return nil, remote.FatalError{err}
+	}
+	if err != nil {
+		err = remoteApplicationError(err)
 	}
 	return images, err
 }
@@ -58,6 +85,9 @@ func (p *RPCClientV6) UpdateManifests(u update.Spec) (job.ID, error) {
 	if _, ok := err.(rpc.ServerError); !ok && err != nil {
 		return result, remote.FatalError{err}
 	}
+	if err != nil {
+		err = remoteApplicationError(err)
+	}
 	return result, err
 }
 
@@ -66,6 +96,9 @@ func (p *RPCClientV6) SyncNotify() error {
 	err := p.client.Call("RPCServer.SyncNotify", struct{}{}, &result)
 	if _, ok := err.(rpc.ServerError); !ok && err != nil {
 		return remote.FatalError{err}
+	}
+	if err != nil {
+		err = remoteApplicationError(err)
 	}
 	return err
 }
@@ -76,6 +109,9 @@ func (p *RPCClientV6) JobStatus(jobID job.ID) (job.Status, error) {
 	if _, ok := err.(rpc.ServerError); !ok && err != nil {
 		return job.Status{}, remote.FatalError{err}
 	}
+	if err != nil {
+		err = remoteApplicationError(err)
+	}
 	return result, err
 }
 
@@ -85,6 +121,9 @@ func (p *RPCClientV6) SyncStatus(ref string) ([]string, error) {
 	if _, ok := err.(rpc.ServerError); !ok && err != nil {
 		return nil, remote.FatalError{err}
 	}
+	if err != nil {
+		err = remoteApplicationError(err)
+	}
 	return result, err
 }
 
@@ -93,6 +132,9 @@ func (p *RPCClientV6) GitRepoConfig(regenerate bool) (flux.GitConfig, error) {
 	err := p.client.Call("RPCServer.GitRepoConfig", regenerate, &result)
 	if _, ok := err.(rpc.ServerError); !ok && err != nil {
 		return flux.GitConfig{}, remote.FatalError{err}
+	}
+	if err != nil {
+		err = remoteApplicationError(err)
 	}
 	return result, err
 }
