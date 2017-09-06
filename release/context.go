@@ -78,7 +78,7 @@ func (rc *ReleaseContext) SelectServices(results update.Result, filters ...updat
 	}
 
 	// Correlate with services in running system.
-	services, err := rc.cluster.SomeServices(ids)
+	services, err := rc.cluster.SomeControllers(ids)
 	if err != nil {
 		return nil, err
 	}

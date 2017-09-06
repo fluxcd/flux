@@ -9,8 +9,8 @@ import (
 
 // Doubles as a cluster.Cluster and cluster.Manifests implementation
 type Mock struct {
-	AllServicesFunc          func(maybeNamespace string) ([]Service, error)
-	SomeServicesFunc         func([]flux.ResourceID) ([]Service, error)
+	AllServicesFunc          func(maybeNamespace string) ([]Controller, error)
+	SomeServicesFunc         func([]flux.ResourceID) ([]Controller, error)
 	PingFunc                 func() error
 	ExportFunc               func() ([]byte, error)
 	SyncFunc                 func(SyncDef) error
@@ -24,11 +24,11 @@ type Mock struct {
 	ServicesWithPoliciesFunc func(path string) (policy.ServiceMap, error)
 }
 
-func (m *Mock) AllServices(maybeNamespace string) ([]Service, error) {
+func (m *Mock) AllControllers(maybeNamespace string) ([]Controller, error) {
 	return m.AllServicesFunc(maybeNamespace)
 }
 
-func (m *Mock) SomeServices(s []flux.ResourceID) ([]Service, error) {
+func (m *Mock) SomeControllers(s []flux.ResourceID) ([]Controller, error) {
 	return m.SomeServicesFunc(s)
 }
 

@@ -38,7 +38,7 @@ func (m ImageMap) LatestImage(repo, tagGlob string) *flux.Image {
 // CollectUpdateImages is a convenient shim to
 // `CollectAvailableImages`.
 func collectUpdateImages(registry registry.Registry, updateable []*ServiceUpdate, logger log.Logger) (ImageMap, error) {
-	var servicesToCheck []cluster.Service
+	var servicesToCheck []cluster.Controller
 	for _, update := range updateable {
 		servicesToCheck = append(servicesToCheck, update.Service)
 	}
@@ -48,7 +48,7 @@ func collectUpdateImages(registry registry.Registry, updateable []*ServiceUpdate
 // Get the images available for the services given. An image may be
 // mentioned more than once in the services, but will only be fetched
 // once.
-func CollectAvailableImages(reg registry.Registry, services []cluster.Service, logger log.Logger) (ImageMap, error) {
+func CollectAvailableImages(reg registry.Registry, services []cluster.Controller, logger log.Logger) (ImageMap, error) {
 	images := ImageMap{}
 	for _, service := range services {
 		for _, container := range service.ContainersOrNil() {

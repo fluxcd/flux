@@ -7,7 +7,7 @@ import (
 
 type ServiceUpdate struct {
 	ServiceID     flux.ResourceID
-	Service       cluster.Service
+	Service       cluster.Controller
 	ManifestPath  string
 	ManifestBytes []byte
 	Updates       []ContainerUpdate

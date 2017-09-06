@@ -66,7 +66,7 @@ func (d *Daemon) Export() ([]byte, error) {
 }
 
 func (d *Daemon) ListServices(namespace string) ([]flux.ServiceStatus, error) {
-	clusterServices, err := d.Cluster.AllServices(namespace)
+	clusterServices, err := d.Cluster.AllControllers(namespace)
 	if err != nil {
 		return nil, errors.Wrap(err, "getting services from cluster")
 	}
@@ -98,16 +98,16 @@ func (d *Daemon) ListServices(namespace string) ([]flux.ServiceStatus, error) {
 
 // List the images available for set of services
 func (d *Daemon) ListImages(spec update.ServiceSpec) ([]flux.ImageStatus, error) {
-	var services []cluster.Service
+	var services []cluster.Controller
 	var err error
 	if spec == update.ServiceSpecAll {
-		services, err = d.Cluster.AllServices("")
+		services, err = d.Cluster.AllControllers("")
 	} else {
 		id, err := spec.AsID()
 		if err != nil {
 			return nil, errors.Wrap(err, "treating service spec as ID")
 		}
-		services, err = d.Cluster.SomeServices([]flux.ResourceID{id})
+		services, err = d.Cluster.SomeControllers([]flux.ResourceID{id})
 	}
 
 	images, err := update.CollectAvailableImages(d.Registry, services, d.Logger)
@@ -420,7 +420,7 @@ func containers2containers(cs []cluster.Container) []flux.Container {
 	return res
 }
 
-func containersWithAvailable(service cluster.Service, images update.ImageMap) (res []flux.Container) {
+func containersWithAvailable(service cluster.Controller, images update.ImageMap) (res []flux.Container) {
 	for _, c := range service.ContainersOrNil() {
 		id, _ := flux.ParseImageID(c.Image)
 		repo := id.Repository()

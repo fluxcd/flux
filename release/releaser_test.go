@@ -26,7 +26,7 @@ var (
 	sidecarImageID, _ = flux.ParseImageID(sidecarImage)
 	hwSvcID, _        = flux.ParseResourceID("default/helloworld")
 	hwSvcSpec, _      = update.ParseServiceSpec(hwSvcID.String())
-	hwSvc             = cluster.Service{
+	hwSvc             = cluster.Controller{
 		ID: hwSvcID,
 		Containers: cluster.ContainersOrExcuse{
 			Containers: []cluster.Container{
@@ -47,7 +47,7 @@ var (
 	newLockedID, _   = flux.ParseImageID(newLockedImg)
 	lockedSvcID, _   = flux.ParseResourceID("default/locked-service")
 	lockedSvcSpec, _ = update.ParseServiceSpec(lockedSvcID.String())
-	lockedSvc        = cluster.Service{
+	lockedSvc        = cluster.Controller{
 		ID: lockedSvcID,
 		Containers: cluster.ContainersOrExcuse{
 			Containers: []cluster.Container{
@@ -59,7 +59,7 @@ var (
 		},
 	}
 
-	testSvc = cluster.Service{
+	testSvc = cluster.Controller{
 		ID: flux.MustParseResourceID("default/test-service"),
 		Containers: cluster.ContainersOrExcuse{
 			Containers: []cluster.Container{
@@ -72,7 +72,7 @@ var (
 	}
 	testSvcSpec, _ = update.ParseServiceSpec(testSvc.ID.String())
 
-	allSvcs = []cluster.Service{
+	allSvcs = []cluster.Controller{
 		hwSvc,
 		lockedSvc,
 		testSvc,
@@ -98,11 +98,11 @@ func setup(t *testing.T) (*git.Checkout, func()) {
 
 func Test_FilterLogic(t *testing.T) {
 	mockCluster := &cluster.Mock{
-		AllServicesFunc: func(string) ([]cluster.Service, error) {
+		AllServicesFunc: func(string) ([]cluster.Controller, error) {
 			return allSvcs, nil
 		},
-		SomeServicesFunc: func([]flux.ResourceID) ([]cluster.Service, error) {
-			return []cluster.Service{
+		SomeServicesFunc: func([]flux.ResourceID) ([]cluster.Controller, error) {
+			return []cluster.Controller{
 				hwSvc,
 				lockedSvc,
 			}, nil
@@ -303,11 +303,11 @@ func Test_FilterLogic(t *testing.T) {
 
 func Test_ImageStatus(t *testing.T) {
 	mockCluster := &cluster.Mock{
-		AllServicesFunc: func(string) ([]cluster.Service, error) {
+		AllServicesFunc: func(string) ([]cluster.Controller, error) {
 			return allSvcs, nil
 		},
-		SomeServicesFunc: func([]flux.ResourceID) ([]cluster.Service, error) {
-			return []cluster.Service{
+		SomeServicesFunc: func([]flux.ResourceID) ([]cluster.Controller, error) {
+			return []cluster.Controller{
 				hwSvc,
 				lockedSvc,
 				testSvc,

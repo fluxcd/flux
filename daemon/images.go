@@ -24,7 +24,7 @@ func (d *Daemon) pollForNewImages(logger log.Logger) {
 		return
 	}
 	// Find images to check
-	services, err := d.Cluster.SomeServices(candidateServices.ToSlice())
+	services, err := d.Cluster.SomeControllers(candidateServices.ToSlice())
 	if err != nil {
 		logger.Log("error", errors.Wrap(err, "checking services for new images"))
 		return
