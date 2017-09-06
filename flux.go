@@ -24,17 +24,20 @@ func (t Token) Set(req *http.Request) {
 	}
 }
 
-// (User) Service identifiers
-
+// ResourceID is an opaque type which uniquely identifies a resource in an
+// orchestrator.
 type ResourceID struct {
 	namespace string
 	service   string
 }
 
+// Obtain a string representation of a ResourceID.
 func (id ResourceID) String() string {
 	return fmt.Sprintf("%s/%s", id.namespace, id.service)
 }
 
+// ParseResourceID constructs a ResourceID from a string representation
+// if possible, returning an error value otherwise.
 func ParseResourceID(s string) (ResourceID, error) {
 	toks := strings.SplitN(s, "/", 2)
 	if len(toks) != 2 {
@@ -43,6 +46,8 @@ func ParseResourceID(s string) (ResourceID, error) {
 	return ResourceID{toks[0], toks[1]}, nil
 }
 
+// MustParseResourceID constructs a ResourceID from a string representation,
+// panicing if the format is invalid.
 func MustParseResourceID(s string) ResourceID {
 	id, err := ParseResourceID(s)
 	if err != nil {
@@ -51,18 +56,26 @@ func MustParseResourceID(s string) ResourceID {
 	return id
 }
 
+// MakeResourceID constructs a ResourceID from constituent components.
 func MakeResourceID(namespace, service string) ResourceID {
 	return ResourceID{namespace, service}
 }
 
+// Components returns the constituent components of a ResourceID.
 func (id ResourceID) Components() (namespace, service string) {
 	return id.namespace, id.service
 }
 
+// MarshalJSON encodes a ResourceID as a JSON string. This is
+// done to maintain backwards compatibility with previous flux
+// versions where the ResourceID is a plain string.
 func (id ResourceID) MarshalJSON() ([]byte, error) {
 	return json.Marshal(id.String())
 }
 
+// UnmarshalJSON decodes a ResourceID from a JSON string. This is
+// done to maintain backwards compatibility with previous flux
+// versions where the ResourceID is a plain string.
 func (id *ResourceID) UnmarshalJSON(data []byte) (err error) {
 	var str string
 	if err := json.Unmarshal(data, &str); err != nil {
@@ -72,10 +85,14 @@ func (id *ResourceID) UnmarshalJSON(data []byte) (err error) {
 	return err
 }
 
+// MarshalText encodes a ResourceID as a flat string; this is
+// required because ResourceIDs are sometimes used as map keys.
 func (id ResourceID) MarshalText() (text []byte, err error) {
 	return []byte(id.String()), nil
 }
 
+// MarshalText decodes a ResourceID from a flat string; this is
+// required because ResourceIDs are sometimes used as map keys.
 func (id *ResourceID) UnmarshalText(text []byte) error {
 	result, err := ParseResourceID(string(text))
 	if err != nil {
