@@ -8,9 +8,10 @@ import (
 	"sync"
 
 	"context"
+	"time"
+
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/ssh"
-	"time"
 )
 
 const (

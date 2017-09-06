@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"context"
+
 	"github.com/pkg/errors"
 	"github.com/weaveworks/flux/ssh"
 )
@@ -42,6 +43,17 @@ func clone(ctx context.Context, workingDir string, keyRing ssh.KeyRing, repoURL,
 }
 
 func commit(ctx context.Context, workingDir, commitMessage string) error {
+	user := ctx.Value("user").(string)
+	if user != "" && user != "test@test" { // this sucks
+		if err := execGitCmd(ctx,
+			workingDir, nil, nil,
+			"commit",
+			"--no-verify", "-a", "--author", user, "-m", commitMessage,
+		); err != nil {
+			return errors.Wrap(err, "git commit")
+		}
+		return nil
+	}
 	if err := execGitCmd(ctx,
 		workingDir, nil, nil,
 		"commit",
