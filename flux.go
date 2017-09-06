@@ -4,16 +4,19 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"regexp"
 	"sort"
 	"strings"
 
 	"github.com/pkg/errors"
-
 	"github.com/weaveworks/flux/ssh"
 )
 
 var (
 	ErrInvalidServiceID = errors.New("invalid service ID")
+
+	LegacyServiceIDRegexp = regexp.MustCompile("^([a-zA-Z0-9_-]+)/([a-zA-Z0-9_-]+)$")
+	ResourceIDRegexp      = regexp.MustCompile("^([a-zA-Z0-9_-]+):([a-zA-Z0-9_-]+)/([a-zA-Z0-9_-]+)$")
 )
 
 type Token string
@@ -27,23 +30,41 @@ func (t Token) Set(req *http.Request) {
 // ResourceID is an opaque type which uniquely identifies a resource in an
 // orchestrator.
 type ResourceID struct {
-	namespace string
-	service   string
+	resourceIDImpl
 }
 
-// Obtain a string representation of a ResourceID.
-func (id ResourceID) String() string {
+type resourceIDImpl interface {
+	String() string
+}
+
+// Old-style <namespace>/<servicename> format
+type legacyServiceID struct {
+	namespace, service string
+}
+
+func (id legacyServiceID) String() string {
 	return fmt.Sprintf("%s/%s", id.namespace, id.service)
+}
+
+// New <namespace>:<kind>/<name> format
+type resourceID struct {
+	namespace, kind, name string
+}
+
+func (id resourceID) String() string {
+	return fmt.Sprintf("%s:%s/%s", id.namespace, id.kind, id.name)
 }
 
 // ParseResourceID constructs a ResourceID from a string representation
 // if possible, returning an error value otherwise.
 func ParseResourceID(s string) (ResourceID, error) {
-	toks := strings.SplitN(s, "/", 2)
-	if len(toks) != 2 {
-		return ResourceID{}, errors.Wrap(ErrInvalidServiceID, "parsing "+s)
+	if m := ResourceIDRegexp.FindStringSubmatch(s); m != nil {
+		return ResourceID{resourceID{m[1], m[2], m[3]}}, nil
 	}
-	return ResourceID{toks[0], toks[1]}, nil
+	if m := LegacyServiceIDRegexp.FindStringSubmatch(s); m != nil {
+		return ResourceID{legacyServiceID{m[1], m[2]}}, nil
+	}
+	return ResourceID{}, errors.Wrap(ErrInvalidServiceID, "parsing "+s)
 }
 
 // MustParseResourceID constructs a ResourceID from a string representation,
@@ -56,20 +77,29 @@ func MustParseResourceID(s string) ResourceID {
 	return id
 }
 
-// MakeResourceID constructs a ResourceID from constituent components.
-func MakeResourceID(namespace, service string) ResourceID {
-	return ResourceID{namespace, service}
+// MakeLegacyServiceID constructs a ResourceID from constituent components.
+func MakeLegacyServiceID(namespace, service string) ResourceID {
+	return ResourceID{legacyServiceID{namespace, service}}
 }
 
-// Components returns the constituent components of a ResourceID.
-func (id ResourceID) Components() (namespace, service string) {
-	return id.namespace, id.service
+// LegacyServiceIDComponents returns the constituent components of a ResourceID.
+func (id ResourceID) LegacyServiceIDComponents() (namespace, service string) {
+	switch impl := id.resourceIDImpl.(type) {
+	case legacyServiceID:
+		return impl.namespace, impl.service
+	default:
+		panic("wrong underlying type")
+	}
 }
 
 // MarshalJSON encodes a ResourceID as a JSON string. This is
 // done to maintain backwards compatibility with previous flux
 // versions where the ResourceID is a plain string.
 func (id ResourceID) MarshalJSON() ([]byte, error) {
+	if id.resourceIDImpl == nil {
+		// Sadly needed as it's possible to construct an empty ResourceID literal
+		return json.Marshal("")
+	}
 	return json.Marshal(id.String())
 }
 
@@ -80,6 +110,11 @@ func (id *ResourceID) UnmarshalJSON(data []byte) (err error) {
 	var str string
 	if err := json.Unmarshal(data, &str); err != nil {
 		return err
+	}
+	if string(str) == "" {
+		// Sadly needed as it's possible to construct an empty ResourceID literal
+		*id = ResourceID{}
+		return nil
 	}
 	*id, err = ParseResourceID(string(str))
 	return err

@@ -56,5 +56,5 @@ func (s Service) ServiceID() flux.ResourceID {
 	if ns == "" {
 		ns = "default"
 	}
-	return flux.MakeResourceID(ns, s.Meta.Name)
+	return flux.MakeLegacyServiceID(ns, s.Meta.Name)
 }

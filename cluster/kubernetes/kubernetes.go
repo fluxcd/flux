@@ -141,7 +141,7 @@ func (c *Cluster) loop() {
 func (c *Cluster) SomeControllers(ids []flux.ResourceID) (res []cluster.Controller, err error) {
 	namespacedServices := map[string][]string{}
 	for _, id := range ids {
-		ns, name := id.Components()
+		ns, name := id.LegacyServiceIDComponents()
 		namespacedServices[ns] = append(namespacedServices[ns], name)
 	}
 
@@ -207,7 +207,7 @@ func (c *Cluster) AllControllers(namespace string) (res []cluster.Controller, er
 }
 
 func (c *Cluster) makeService(ns string, service *v1.Service, controllers []podController) cluster.Controller {
-	id := flux.MakeResourceID(ns, service.Name)
+	id := flux.MakeLegacyServiceID(ns, service.Name)
 	svc := cluster.Controller{
 		ID: id,
 	}
