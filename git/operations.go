@@ -44,7 +44,11 @@ func clone(ctx context.Context, workingDir string, keyRing ssh.KeyRing, repoURL,
 
 func commit(ctx context.Context, workingDir, commitMessage string) error {
 	user := ctx.Value("user").(string)
-	if user != "" && user != "test@test" { // this sucks
+
+	// The user in the update.Cause.User must be a valid github user, otherwise the commit fails
+	// Hardcoding of the user to ignore is not ideal. If there is only one to ignore, ie test@test,
+	// then this is just about ok. Otherwise there could be config file with stored users to ignore etc.
+	if user != "" && user != "test@test" {
 		if err := execGitCmd(ctx,
 			workingDir, nil, nil,
 			"commit",
