@@ -27,10 +27,8 @@ type Cluster interface {
 
 // Controller describes a platform resource that declares versioned images.
 type Controller struct {
-	ID       flux.ResourceID
-	IP       string
-	Metadata map[string]string // a grab bag of goodies, likely platform-specific
-	Status   string            // A status summary for display
+	ID     flux.ResourceID
+	Status string // A status summary for display
 
 	Containers ContainersOrExcuse
 }

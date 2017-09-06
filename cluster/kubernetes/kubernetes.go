@@ -209,9 +209,7 @@ func (c *Cluster) AllControllers(namespace string) (res []cluster.Controller, er
 func (c *Cluster) makeService(ns string, service *v1.Service, controllers []podController) cluster.Controller {
 	id := flux.MakeResourceID(ns, service.Name)
 	svc := cluster.Controller{
-		ID:       id,
-		IP:       service.Spec.ClusterIP,
-		Metadata: metadataForService(service),
+		ID: id,
 	}
 
 	pc, err := matchController(service, controllers)
@@ -224,15 +222,6 @@ func (c *Cluster) makeService(ns string, service *v1.Service, controllers []podC
 	}
 
 	return svc
-}
-
-func metadataForService(s *v1.Service) map[string]string {
-	return map[string]string{
-		"created_at":       s.CreationTimestamp.String(),
-		"resource_version": s.ResourceVersion,
-		"uid":              string(s.UID),
-		"type":             string(s.Spec.Type),
-	}
 }
 
 func (c *Cluster) podControllersInNamespace(namespace string) (res []podController, err error) {
