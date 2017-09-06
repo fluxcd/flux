@@ -23,7 +23,7 @@ func (m *Mock) AllEvents(_ time.Time, _ int64, _ time.Time) ([]Event, error) {
 	return m.events, nil
 }
 
-func (m *Mock) EventsForService(serviceID flux.ServiceID, _ time.Time, _ int64, _ time.Time) ([]Event, error) {
+func (m *Mock) EventsForService(serviceID flux.ResourceID, _ time.Time, _ int64, _ time.Time) ([]Event, error) {
 	m.RLock()
 	defer m.RUnlock()
 	var found []Event

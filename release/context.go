@@ -70,8 +70,8 @@ func (rc *ReleaseContext) SelectServices(results update.Result, filters ...updat
 		return nil, err
 	}
 
-	var ids []flux.ServiceID
-	definedMap := map[flux.ServiceID]*update.ServiceUpdate{}
+	var ids []flux.ResourceID
+	definedMap := map[flux.ResourceID]*update.ServiceUpdate{}
 	for _, s := range defined {
 		ids = append(ids, s.ServiceID)
 		definedMap[s.ServiceID] = s
@@ -107,7 +107,7 @@ func (rc *ReleaseContext) SelectServices(results update.Result, filters ...updat
 	}
 
 	// ... and missing services
-	filteredDefined := map[flux.ServiceID]*update.ServiceUpdate{}
+	filteredDefined := map[flux.ResourceID]*update.ServiceUpdate{}
 	for k, s := range definedMap {
 		fr := s.Filter(filters...)
 		results[s.ServiceID] = fr

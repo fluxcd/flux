@@ -18,7 +18,7 @@ var (
 type Cluster interface {
 	// Get all of the services (optionally, from a specific namespace), excluding those
 	AllServices(maybeNamespace string) ([]Service, error)
-	SomeServices([]flux.ServiceID) ([]Service, error)
+	SomeServices([]flux.ResourceID) ([]Service, error)
 	Ping() error
 	Export() ([]byte, error)
 	Sync(SyncDef) error
@@ -31,7 +31,7 @@ type Cluster interface {
 // all supported platforms, but right now it looks a lot like a Kubernetes
 // service.
 type Service struct {
-	ID       flux.ServiceID
+	ID       flux.ResourceID
 	IP       string
 	Metadata map[string]string // a grab bag of goodies, likely platform-specific
 	Status   string            // A status summary for display

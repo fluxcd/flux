@@ -66,7 +66,7 @@ func (opts *serviceReleaseOpts) RunE(cmd *cobra.Command, args []string) error {
 		services = []update.ServiceSpec{update.ServiceSpecAll}
 	} else {
 		for _, service := range opts.services {
-			if _, err := flux.ParseServiceID(service); err != nil {
+			if _, err := flux.ParseResourceID(service); err != nil {
 				return err
 			}
 			services = append(services, update.ServiceSpec(service))
@@ -92,9 +92,9 @@ func (opts *serviceReleaseOpts) RunE(cmd *cobra.Command, args []string) error {
 		kind = update.ReleaseKindPlan
 	}
 
-	var excludes []flux.ServiceID
+	var excludes []flux.ResourceID
 	for _, exclude := range opts.exclude {
-		s, err := flux.ParseServiceID(exclude)
+		s, err := flux.ParseResourceID(exclude)
 		if err != nil {
 			return err
 		}

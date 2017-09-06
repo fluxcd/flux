@@ -58,22 +58,22 @@ func TestHistoryLog(t *testing.T) {
 	defer db.Close()
 
 	bailIfErr(t, db.LogEvent(instance, history.Event{
-		ServiceIDs: []flux.ServiceID{flux.MustParseServiceID("namespace/service")},
+		ServiceIDs: []flux.ResourceID{flux.MustParseResourceID("namespace/service")},
 		Type:       "test",
 		Message:    "event 1",
 	}))
 	bailIfErr(t, db.LogEvent(instance, history.Event{
-		ServiceIDs: []flux.ServiceID{flux.MustParseServiceID("namespace/other")},
+		ServiceIDs: []flux.ResourceID{flux.MustParseResourceID("namespace/other")},
 		Type:       "test",
 		Message:    "event 3",
 	}))
 	bailIfErr(t, db.LogEvent(instance, history.Event{
-		ServiceIDs: []flux.ServiceID{flux.MustParseServiceID("namespace/service")},
+		ServiceIDs: []flux.ResourceID{flux.MustParseResourceID("namespace/service")},
 		Type:       "test",
 		Message:    "event 2",
 	}))
 
-	es, err := db.EventsForService(instance, flux.MustParseServiceID("namespace/service"), time.Now().UTC(), -1, time.Unix(0, 0))
+	es, err := db.EventsForService(instance, flux.MustParseResourceID("namespace/service"), time.Now().UTC(), -1, time.Unix(0, 0))
 	if err != nil {
 		t.Fatal(err)
 	}

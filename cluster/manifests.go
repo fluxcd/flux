@@ -15,7 +15,7 @@ import (
 type Manifests interface {
 	// Given a directory with manifest files, find which files define
 	// which services.
-	FindDefinedServices(path string) (map[flux.ServiceID][]string, error)
+	FindDefinedServices(path string) (map[flux.ResourceID][]string, error)
 	// Update the definitions in a manifests bytes according to the
 	// spec given.
 	UpdateDefinition(def []byte, container string, newImageID flux.ImageID) ([]byte, error)
@@ -32,7 +32,7 @@ type Manifests interface {
 // UpdateManifest looks for the manifest for a given service, reads
 // its contents, applies f(contents), and writes the results back to
 // the file.
-func UpdateManifest(m Manifests, root string, serviceID flux.ServiceID, f func(manifest []byte) ([]byte, error)) error {
+func UpdateManifest(m Manifests, root string, serviceID flux.ResourceID, f func(manifest []byte) ([]byte, error)) error {
 	services, err := m.FindDefinedServices(root)
 	if err != nil {
 		return err

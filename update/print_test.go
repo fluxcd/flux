@@ -17,7 +17,7 @@ func TestPrintResults(t *testing.T) {
 		{
 			name: "basic, just results",
 			result: Result{
-				flux.MustParseServiceID("default/helloworld"): ServiceResult{
+				flux.MustParseResourceID("default/helloworld"): ServiceResult{
 					Status: ReleaseStatusSuccess,
 					Error:  "",
 					PerContainer: []ContainerUpdate{
@@ -38,7 +38,7 @@ default/helloworld  success  helloworld: quay.io/weaveworks/helloworld:master-a0
 		{
 			name: "With an error, *and* results",
 			result: Result{
-				flux.MustParseServiceID("default/helloworld"): ServiceResult{
+				flux.MustParseResourceID("default/helloworld"): ServiceResult{
 					Status: ReleaseStatusSuccess,
 					Error:  "test error",
 					PerContainer: []ContainerUpdate{
@@ -60,10 +60,10 @@ default/helloworld  success  test error
 		{
 			name: "Service results should be sorted",
 			result: Result{
-				flux.MustParseServiceID("default/d"): ServiceResult{Status: ReleaseStatusSuccess},
-				flux.MustParseServiceID("default/c"): ServiceResult{Status: ReleaseStatusSuccess},
-				flux.MustParseServiceID("default/b"): ServiceResult{Status: ReleaseStatusSuccess},
-				flux.MustParseServiceID("default/a"): ServiceResult{Status: ReleaseStatusSuccess},
+				flux.MustParseResourceID("default/d"): ServiceResult{Status: ReleaseStatusSuccess},
+				flux.MustParseResourceID("default/c"): ServiceResult{Status: ReleaseStatusSuccess},
+				flux.MustParseResourceID("default/b"): ServiceResult{Status: ReleaseStatusSuccess},
+				flux.MustParseResourceID("default/a"): ServiceResult{Status: ReleaseStatusSuccess},
 			},
 			expected: `
 SERVICE    STATUS   UPDATES

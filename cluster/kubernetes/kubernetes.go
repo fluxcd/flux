@@ -138,7 +138,7 @@ func (c *Cluster) loop() {
 // SomeServices returns the services named, missing out any that don't
 // exist in the cluster. They do not necessarily have to be returned
 // in the order requested.
-func (c *Cluster) SomeServices(ids []flux.ServiceID) (res []cluster.Service, err error) {
+func (c *Cluster) SomeServices(ids []flux.ResourceID) (res []cluster.Service, err error) {
 	namespacedServices := map[string][]string{}
 	for _, id := range ids {
 		ns, name := id.Components()
@@ -207,7 +207,7 @@ func (c *Cluster) AllServices(namespace string) (res []cluster.Service, err erro
 }
 
 func (c *Cluster) makeService(ns string, service *v1.Service, controllers []podController) cluster.Service {
-	id := flux.MakeServiceID(ns, service.Name)
+	id := flux.MakeResourceID(ns, service.Name)
 	svc := cluster.Service{
 		ID:       id,
 		IP:       service.Spec.ClusterIP,

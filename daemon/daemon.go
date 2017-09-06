@@ -107,7 +107,7 @@ func (d *Daemon) ListImages(spec update.ServiceSpec) ([]flux.ImageStatus, error)
 		if err != nil {
 			return nil, errors.Wrap(err, "treating service spec as ID")
 		}
-		services, err = d.Cluster.SomeServices([]flux.ServiceID{id})
+		services, err = d.Cluster.SomeServices([]flux.ResourceID{id})
 	}
 
 	images, err := update.CollectAvailableImages(d.Registry, services, d.Logger)
@@ -158,7 +158,7 @@ func (d *Daemon) queueJob(do DaemonJobFunc) job.ID {
 			d.JobStatusCache.SetStatus(id, job.Status{StatusString: job.StatusSucceeded, Result: *metadata})
 			logger.Log("revision", metadata.Revision)
 			if metadata.Revision != "" {
-				var serviceIDs []flux.ServiceID
+				var serviceIDs []flux.ResourceID
 				for id, result := range metadata.Result {
 					if result.Status == update.ReleaseStatusSuccess {
 						serviceIDs = append(serviceIDs, id)
@@ -199,7 +199,7 @@ func (d *Daemon) UpdateManifests(spec update.Spec) (job.ID, error) {
 func (d *Daemon) updatePolicy(spec update.Spec, updates policy.Updates) DaemonJobFunc {
 	return func(ctx context.Context, jobID job.ID, working *git.Checkout, logger log.Logger) (*history.CommitEventMetadata, error) {
 		// For each update
-		var serviceIDs []flux.ServiceID
+		var serviceIDs []flux.ResourceID
 		metadata := &history.CommitEventMetadata{
 			Spec:   &spec,
 			Result: update.Result{},
@@ -466,7 +466,7 @@ func policyEvents(us policy.Updates, now time.Time) map[string]history.Event {
 			e, ok := eventsByType[eventType]
 			if !ok {
 				e = history.Event{
-					ServiceIDs: []flux.ServiceID{},
+					ServiceIDs: []flux.ResourceID{},
 					Type:       eventType,
 					StartedAt:  now,
 					EndedAt:    now,

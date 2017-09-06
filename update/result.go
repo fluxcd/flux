@@ -18,7 +18,7 @@ const (
 	ReleaseStatusUnknown ServiceUpdateStatus = "unknown"
 )
 
-type Result map[flux.ServiceID]ServiceResult
+type Result map[flux.ResourceID]ServiceResult
 
 func (r Result) ServiceIDs() []string {
 	var result []string
@@ -70,7 +70,7 @@ type ServiceResult struct {
 	PerContainer []ContainerUpdate   // what happened with each container
 }
 
-func (fr ServiceResult) Msg(id flux.ServiceID) string {
+func (fr ServiceResult) Msg(id flux.ResourceID) string {
 	return fmt.Sprintf("%s service %s as it is %s", fr.Status, id.String(), fr.Error)
 }
 

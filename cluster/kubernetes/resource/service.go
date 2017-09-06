@@ -17,13 +17,13 @@ type Service struct {
 	Spec ServiceSpec `yaml:"spec"`
 }
 
-func (o Service) ServiceIDs(all map[string]resource.Resource) []flux.ServiceID {
+func (o Service) ServiceIDs(all map[string]resource.Resource) []flux.ResourceID {
 	// A service is part of its own service id
 	ns := o.Meta.Namespace
 	if ns == "" {
 		ns = "default"
 	}
-	return []flux.ServiceID{flux.MustParseServiceID(fmt.Sprintf("%s/%s", ns, o.Meta.Name))}
+	return []flux.ResourceID{flux.MustParseResourceID(fmt.Sprintf("%s/%s", ns, o.Meta.Name))}
 }
 
 // Matches checks if this service's label selectors match the labels fo some
@@ -51,10 +51,10 @@ type ServicePort struct {
 }
 
 // This is handy when we want to talk about flux.Services
-func (s Service) ServiceID() flux.ServiceID {
+func (s Service) ServiceID() flux.ResourceID {
 	ns := s.Meta.Namespace
 	if ns == "" {
 		ns = "default"
 	}
-	return flux.MakeServiceID(ns, s.Meta.Name)
+	return flux.MakeResourceID(ns, s.Meta.Name)
 }

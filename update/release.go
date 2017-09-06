@@ -57,7 +57,7 @@ type ReleaseSpec struct {
 	ServiceSpecs []ServiceSpec
 	ImageSpec    ImageSpec
 	Kind         ReleaseKind
-	Excludes     []flux.ServiceID
+	Excludes     []flux.ResourceID
 }
 
 // ReleaseType gives a one-word description of the release, mainly
@@ -132,14 +132,14 @@ func (s ReleaseSpec) filters(rc ReleaseContext) ([]ServiceFilter, error) {
 	}
 
 	// Service filter
-	ids := []flux.ServiceID{}
+	ids := []flux.ResourceID{}
 	for _, s := range s.ServiceSpecs {
 		if s == ServiceSpecAll {
 			// "<all>" Overrides any other filters
-			ids = []flux.ServiceID{}
+			ids = []flux.ResourceID{}
 			break
 		}
-		id, err := flux.ParseServiceID(string(s))
+		id, err := flux.ParseResourceID(string(s))
 		if err != nil {
 			return nil, err
 		}
@@ -299,15 +299,15 @@ func ParseServiceSpec(s string) (ServiceSpec, error) {
 	if s == string(ServiceSpecAll) {
 		return ServiceSpecAll, nil
 	}
-	id, err := flux.ParseServiceID(s)
+	id, err := flux.ParseResourceID(s)
 	if err != nil {
 		return "", errors.Wrap(err, "invalid service spec")
 	}
 	return ServiceSpec(id.String()), nil
 }
 
-func (s ServiceSpec) AsID() (flux.ServiceID, error) {
-	return flux.ParseServiceID(string(s))
+func (s ServiceSpec) AsID() (flux.ResourceID, error) {
+	return flux.ParseResourceID(string(s))
 }
 
 func (s ServiceSpec) String() string {

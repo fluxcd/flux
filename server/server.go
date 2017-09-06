@@ -190,7 +190,7 @@ func (s *Server) History(inst service.InstanceID, spec update.ServiceSpec, befor
 			return nil, errors.Wrap(err, "fetching all history events")
 		}
 	} else {
-		id, err := flux.ParseServiceID(string(spec))
+		id, err := flux.ParseResourceID(string(spec))
 		if err != nil {
 			return nil, errors.Wrapf(err, "parsing service ID from spec %s", spec)
 		}

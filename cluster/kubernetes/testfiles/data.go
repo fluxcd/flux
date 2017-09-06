@@ -41,11 +41,11 @@ func WriteTestFiles(dir string) error {
 
 // ServiceMap ... given a base path, construct the map representing the services
 // given in the test data.
-func ServiceMap(dir string) map[flux.ServiceID][]string {
-	return map[flux.ServiceID][]string{
-		flux.MustParseServiceID("default/helloworld"):     []string{filepath.Join(dir, "helloworld-deploy.yaml")},
-		flux.MustParseServiceID("default/locked-service"): []string{filepath.Join(dir, "locked-service-deploy.yaml")},
-		flux.MustParseServiceID("default/test-service"):   []string{filepath.Join(dir, "test-service-deploy.yaml")},
+func ServiceMap(dir string) map[flux.ResourceID][]string {
+	return map[flux.ResourceID][]string{
+		flux.MustParseResourceID("default/helloworld"):     []string{filepath.Join(dir, "helloworld-deploy.yaml")},
+		flux.MustParseResourceID("default/locked-service"): []string{filepath.Join(dir, "locked-service-deploy.yaml")},
+		flux.MustParseResourceID("default/test-service"):   []string{filepath.Join(dir, "test-service-deploy.yaml")},
 	}
 }
 

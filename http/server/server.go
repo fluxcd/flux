@@ -182,9 +182,9 @@ func (s HTTPService) UpdateImages(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var excludes []flux.ServiceID
+	var excludes []flux.ResourceID
 	for _, ex := range r.URL.Query()["exclude"] {
-		s, err := flux.ParseServiceID(ex)
+		s, err := flux.ParseResourceID(ex)
 		if err != nil {
 			transport.WriteError(w, r, http.StatusBadRequest, errors.Wrapf(err, "parsing excluded service %q", ex))
 			return

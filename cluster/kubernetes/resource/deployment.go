@@ -12,7 +12,7 @@ type Deployment struct {
 	Spec DeploymentSpec
 }
 
-func (o Deployment) ServiceIDs(all map[string]resource.Resource) []flux.ServiceID {
+func (o Deployment) ServiceIDs(all map[string]resource.Resource) []flux.ResourceID {
 	found := flux.ServiceIDSet{}
 	// Look through all for any matching services
 	for _, r := range all {

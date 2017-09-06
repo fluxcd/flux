@@ -85,7 +85,7 @@ func (db *qlDB) scanEvents(query squirrel.Sqlizer) ([]history.Event, error) {
 	return events, rows.Err()
 }
 
-func (db *qlDB) EventsForService(inst service.InstanceID, service flux.ServiceID, before time.Time, limit int64, after time.Time) ([]history.Event, error) {
+func (db *qlDB) EventsForService(inst service.InstanceID, service flux.ResourceID, before time.Time, limit int64, after time.Time) ([]history.Event, error) {
 	q := db.eventsQuery().
 		Where("instance_id = ?", string(inst)).
 		Where("id(e) IN (select event_id from event_service_ids WHERE service_id = ?)", service.String()).
@@ -139,7 +139,7 @@ func (db *qlDB) loadServiceIDs(events []history.Event) ([]history.Event, error) 
 			if err := rows.Scan(&id); err != nil {
 				return nil, err
 			}
-			e.ServiceIDs = append(e.ServiceIDs, flux.MustParseServiceID(id))
+			e.ServiceIDs = append(e.ServiceIDs, flux.MustParseResourceID(id))
 		}
 		if err := rows.Err(); err != nil {
 			return nil, err

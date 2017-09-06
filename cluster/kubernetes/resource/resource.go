@@ -44,7 +44,7 @@ func (o *baseObject) debyte() {
 }
 
 // ServiceIDs reports the services that depend on this resource.
-func (o baseObject) ServiceIDs(all map[string]resource.Resource) []flux.ServiceID {
+func (o baseObject) ServiceIDs(all map[string]resource.Resource) []flux.ResourceID {
 	return nil
 }
 

@@ -14,12 +14,12 @@ type Automated struct {
 }
 
 type Change struct {
-	ServiceID flux.ServiceID
+	ServiceID flux.ResourceID
 	Container cluster.Container
 	ImageID   flux.ImageID
 }
 
-func (a *Automated) Add(service flux.ServiceID, container cluster.Container, image flux.ImageID) {
+func (a *Automated) Add(service flux.ResourceID, container cluster.Container, image flux.ImageID) {
 	a.Changes = append(a.Changes, Change{service, container, image})
 }
 
@@ -147,18 +147,18 @@ func (a *Automated) calculateImageUpdates(rc ReleaseContext, candidates []*Servi
 	return updates, nil
 }
 
-func (a *Automated) serviceMap() map[flux.ServiceID][]Change {
-	set := map[flux.ServiceID][]Change{}
+func (a *Automated) serviceMap() map[flux.ResourceID][]Change {
+	set := map[flux.ResourceID][]Change{}
 	for _, change := range a.Changes {
 		set[change.ServiceID] = append(set[change.ServiceID], change)
 	}
 	return set
 }
 
-func (a *Automated) serviceIDs() []flux.ServiceID {
-	slice := []flux.ServiceID{}
+func (a *Automated) serviceIDs() []flux.ResourceID {
+	slice := []flux.ResourceID{}
 	for service, _ := range a.serviceMap() {
-		slice = append(slice, flux.MustParseServiceID(service.String()))
+		slice = append(slice, flux.MustParseResourceID(service.String()))
 	}
 	return slice
 }

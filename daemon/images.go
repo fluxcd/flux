@@ -63,7 +63,7 @@ func (d *Daemon) pollForNewImages(logger log.Logger) {
 	}
 }
 
-func getTagPattern(services policy.ServiceMap, service flux.ServiceID, container string) string {
+func getTagPattern(services policy.ServiceMap, service flux.ResourceID, container string) string {
 	policies := services[service]
 	if pattern, ok := policies.Get(policy.TagPrefix(container)); ok {
 		return strings.TrimPrefix(pattern, "glob:")

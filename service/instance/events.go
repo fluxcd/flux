@@ -21,7 +21,7 @@ func (rw EventReadWriter) AllEvents(before time.Time, limit int64, after time.Ti
 	return rw.db.AllEvents(rw.inst, before, limit, after)
 }
 
-func (rw EventReadWriter) EventsForService(service flux.ServiceID, before time.Time, limit int64, after time.Time) ([]history.Event, error) {
+func (rw EventReadWriter) EventsForService(service flux.ResourceID, before time.Time, limit int64, after time.Time) ([]history.Event, error) {
 	return rw.db.EventsForService(rw.inst, service, before, limit, after)
 }
 

@@ -75,7 +75,7 @@ func setup(t *testing.T) {
 	mockPlatform = &remote.MockPlatform{
 		ListServicesAnswer: []flux.ServiceStatus{
 			flux.ServiceStatus{
-				ID:     flux.MustParseServiceID(helloWorldSvc),
+				ID:     flux.MustParseResourceID(helloWorldSvc),
 				Status: "ok",
 				Containers: []flux.Container{
 					flux.Container{
@@ -90,7 +90,7 @@ func setup(t *testing.T) {
 		},
 		ListImagesAnswer: []flux.ImageStatus{
 			flux.ImageStatus{
-				ID: flux.MustParseServiceID(helloWorldSvc),
+				ID: flux.MustParseResourceID(helloWorldSvc),
 				Containers: []flux.Container{
 					flux.Container{
 						Name: "helloworld",
@@ -101,7 +101,7 @@ func setup(t *testing.T) {
 				},
 			},
 			flux.ImageStatus{
-				ID: flux.MustParseServiceID("a/another"),
+				ID: flux.MustParseResourceID("a/another"),
 				Containers: []flux.Container{
 					flux.Container{
 						Name: "helloworld",
@@ -276,8 +276,8 @@ func TestFluxsvc_History(t *testing.T) {
 	}
 	err := eventLogger.LogEvent("", history.Event{
 		Type: history.EventLock,
-		ServiceIDs: []flux.ServiceID{
-			flux.MustParseServiceID(helloWorldSvc),
+		ServiceIDs: []flux.ResourceID{
+			flux.MustParseResourceID(helloWorldSvc),
 		},
 		Message: "default/helloworld locked.",
 	})

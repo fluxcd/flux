@@ -308,7 +308,7 @@ func mockDaemon(t *testing.T) (*Daemon, func(), *cluster.Mock, history.EventRead
 	logger := log.NewNopLogger()
 
 	singleService := cluster.Service{
-		ID: flux.MustParseServiceID(svc),
+		ID: flux.MustParseResourceID(svc),
 		Containers: cluster.ContainersOrExcuse{
 			Containers: []cluster.Container{
 				{
@@ -321,7 +321,7 @@ func mockDaemon(t *testing.T) (*Daemon, func(), *cluster.Mock, history.EventRead
 	multiService := []cluster.Service{
 		singleService,
 		cluster.Service{
-			ID: flux.MakeServiceID("another", "service"),
+			ID: flux.MakeResourceID("another", "service"),
 			Containers: cluster.ContainersOrExcuse{
 				Containers: []cluster.Container{
 					{
@@ -366,7 +366,7 @@ func mockDaemon(t *testing.T) (*Daemon, func(), *cluster.Mock, history.EventRead
 		}
 		k8s.PingFunc = func() error { return nil }
 		k8s.ServicesWithPoliciesFunc = (&kubernetes.Manifests{}).ServicesWithPolicies
-		k8s.SomeServicesFunc = func([]flux.ServiceID) ([]cluster.Service, error) {
+		k8s.SomeServicesFunc = func([]flux.ResourceID) ([]cluster.Service, error) {
 			return []cluster.Service{
 				singleService,
 			}, nil
@@ -493,7 +493,7 @@ func updatePolicy(t *testing.T, d *Daemon) job.ID {
 	return updateManifest(t, d, update.Spec{
 		Type: update.Policy,
 		Spec: policy.Updates{
-			flux.MustParseServiceID("default/helloworld"): {
+			flux.MustParseResourceID("default/helloworld"): {
 				Add: policy.Set{
 					policy.Locked: "true",
 				},

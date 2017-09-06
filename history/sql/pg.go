@@ -55,7 +55,7 @@ func (db *pgDB) scanEvents(query squirrel.Sqlizer) ([]history.Event, error) {
 			return nil, err
 		}
 		for _, id := range serviceIDs {
-			h.ServiceIDs = append(h.ServiceIDs, flux.MustParseServiceID(id))
+			h.ServiceIDs = append(h.ServiceIDs, flux.MustParseResourceID(id))
 		}
 
 		if len(metadataBytes) > 0 {
@@ -91,7 +91,7 @@ func (db *pgDB) scanEvents(query squirrel.Sqlizer) ([]history.Event, error) {
 	return events, rows.Err()
 }
 
-func (db *pgDB) EventsForService(inst service.InstanceID, service flux.ServiceID, before time.Time, limit int64, after time.Time) ([]history.Event, error) {
+func (db *pgDB) EventsForService(inst service.InstanceID, service flux.ResourceID, before time.Time, limit int64, after time.Time) ([]history.Event, error) {
 	q := db.eventsQuery().
 		Where("instance_id = ?", string(inst)).
 		Where("service_ids @> ?", pq.StringArray{service.String()}).

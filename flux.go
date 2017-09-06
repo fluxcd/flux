@@ -26,58 +26,58 @@ func (t Token) Set(req *http.Request) {
 
 // (User) Service identifiers
 
-type ServiceID struct {
+type ResourceID struct {
 	namespace string
 	service   string
 }
 
-func (id ServiceID) String() string {
+func (id ResourceID) String() string {
 	return fmt.Sprintf("%s/%s", id.namespace, id.service)
 }
 
-func ParseServiceID(s string) (ServiceID, error) {
+func ParseResourceID(s string) (ResourceID, error) {
 	toks := strings.SplitN(s, "/", 2)
 	if len(toks) != 2 {
-		return ServiceID{}, errors.Wrap(ErrInvalidServiceID, "parsing "+s)
+		return ResourceID{}, errors.Wrap(ErrInvalidServiceID, "parsing "+s)
 	}
-	return ServiceID{toks[0], toks[1]}, nil
+	return ResourceID{toks[0], toks[1]}, nil
 }
 
-func MustParseServiceID(s string) ServiceID {
-	id, err := ParseServiceID(s)
+func MustParseResourceID(s string) ResourceID {
+	id, err := ParseResourceID(s)
 	if err != nil {
 		panic(err)
 	}
 	return id
 }
 
-func MakeServiceID(namespace, service string) ServiceID {
-	return ServiceID{namespace, service}
+func MakeResourceID(namespace, service string) ResourceID {
+	return ResourceID{namespace, service}
 }
 
-func (id ServiceID) Components() (namespace, service string) {
+func (id ResourceID) Components() (namespace, service string) {
 	return id.namespace, id.service
 }
 
-func (id ServiceID) MarshalJSON() ([]byte, error) {
+func (id ResourceID) MarshalJSON() ([]byte, error) {
 	return json.Marshal(id.String())
 }
 
-func (id *ServiceID) UnmarshalJSON(data []byte) (err error) {
+func (id *ResourceID) UnmarshalJSON(data []byte) (err error) {
 	var str string
 	if err := json.Unmarshal(data, &str); err != nil {
 		return err
 	}
-	*id, err = ParseServiceID(string(str))
+	*id, err = ParseResourceID(string(str))
 	return err
 }
 
-func (id ServiceID) MarshalText() (text []byte, err error) {
+func (id ResourceID) MarshalText() (text []byte, err error) {
 	return []byte(id.String()), nil
 }
 
-func (id *ServiceID) UnmarshalText(text []byte) error {
-	result, err := ParseServiceID(string(text))
+func (id *ResourceID) UnmarshalText(text []byte) error {
+	result, err := ParseResourceID(string(text))
 	if err != nil {
 		return err
 	}
@@ -85,7 +85,7 @@ func (id *ServiceID) UnmarshalText(text []byte) error {
 	return nil
 }
 
-type ServiceIDSet map[ServiceID]struct{}
+type ServiceIDSet map[ResourceID]struct{}
 
 func (s ServiceIDSet) String() string {
 	var ids []string
@@ -95,7 +95,7 @@ func (s ServiceIDSet) String() string {
 	return "{" + strings.Join(ids, ", ") + "}"
 }
 
-func (s ServiceIDSet) Add(ids []ServiceID) {
+func (s ServiceIDSet) Add(ids []ResourceID) {
 	for _, id := range ids {
 		s[id] = struct{}{}
 	}
@@ -114,7 +114,7 @@ func (s ServiceIDSet) Without(others ServiceIDSet) ServiceIDSet {
 	return res
 }
 
-func (s ServiceIDSet) Contains(id ServiceID) bool {
+func (s ServiceIDSet) Contains(id ResourceID) bool {
 	if s == nil {
 		return false
 	}
@@ -148,7 +148,7 @@ func (s ServiceIDSet) ToSlice() ServiceIDs {
 	return keys
 }
 
-type ServiceIDs []ServiceID
+type ServiceIDs []ResourceID
 
 func (p ServiceIDs) Len() int           { return len(p) }
 func (p ServiceIDs) Less(i, j int) bool { return p[i].String() < p[j].String() }
@@ -164,7 +164,7 @@ func (ids ServiceIDs) Without(others ServiceIDSet) (res ServiceIDs) {
 	return res
 }
 
-func (ids ServiceIDs) Contains(id ServiceID) bool {
+func (ids ServiceIDs) Contains(id ResourceID) bool {
 	set := ServiceIDSet{}
 	set.Add(ids)
 	return set.Contains(id)
@@ -179,12 +179,12 @@ func (ids ServiceIDs) Intersection(others ServiceIDSet) ServiceIDSet {
 // -- types used in API
 
 type ImageStatus struct {
-	ID         ServiceID
+	ID         ResourceID
 	Containers []Container
 }
 
 type ServiceStatus struct {
-	ID         ServiceID
+	ID         ResourceID
 	Containers []Container
 	Status     string
 	Automated  bool

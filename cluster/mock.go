@@ -10,12 +10,12 @@ import (
 // Doubles as a cluster.Cluster and cluster.Manifests implementation
 type Mock struct {
 	AllServicesFunc          func(maybeNamespace string) ([]Service, error)
-	SomeServicesFunc         func([]flux.ServiceID) ([]Service, error)
+	SomeServicesFunc         func([]flux.ResourceID) ([]Service, error)
 	PingFunc                 func() error
 	ExportFunc               func() ([]byte, error)
 	SyncFunc                 func(SyncDef) error
 	PublicSSHKeyFunc         func(regenerate bool) (ssh.PublicKey, error)
-	FindDefinedServicesFunc  func(path string) (map[flux.ServiceID][]string, error)
+	FindDefinedServicesFunc  func(path string) (map[flux.ResourceID][]string, error)
 	UpdateDefinitionFunc     func(def []byte, container string, newImageID flux.ImageID) ([]byte, error)
 	LoadManifestsFunc        func(paths ...string) (map[string]resource.Resource, error)
 	ParseManifestsFunc       func([]byte) (map[string]resource.Resource, error)
@@ -28,7 +28,7 @@ func (m *Mock) AllServices(maybeNamespace string) ([]Service, error) {
 	return m.AllServicesFunc(maybeNamespace)
 }
 
-func (m *Mock) SomeServices(s []flux.ServiceID) ([]Service, error) {
+func (m *Mock) SomeServices(s []flux.ResourceID) ([]Service, error) {
 	return m.SomeServicesFunc(s)
 }
 
@@ -48,7 +48,7 @@ func (m *Mock) PublicSSHKey(regenerate bool) (ssh.PublicKey, error) {
 	return m.PublicSSHKeyFunc(regenerate)
 }
 
-func (m *Mock) FindDefinedServices(path string) (map[flux.ServiceID][]string, error) {
+func (m *Mock) FindDefinedServices(path string) (map[flux.ResourceID][]string, error) {
 	return m.FindDefinedServicesFunc(path)
 }
 
