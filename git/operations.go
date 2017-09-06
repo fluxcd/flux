@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"context"
+
 	"github.com/pkg/errors"
 	"github.com/weaveworks/flux/ssh"
 )
@@ -42,6 +43,24 @@ func clone(ctx context.Context, workingDir string, keyRing ssh.KeyRing, repoURL,
 }
 
 func commit(ctx context.Context, workingDir, commitMessage string) error {
+	var user string
+	var ok bool
+	if user, ok = ctx.Value("user").(string); !ok {
+		user = ""
+	}
+	// The user in the update.Cause.User must be a valid github user, otherwise the commit fails
+	// Hardcoding of the user to ignore is not ideal. If there is only one to ignore, ie test@test,
+	// then this is just about ok. Otherwise there could be config file with stored users to ignore etc.
+	if user != "" && user != "test@test" {
+		if err := execGitCmd(ctx,
+			workingDir, nil, nil,
+			"commit",
+			"--no-verify", "-a", "--author", user, "-m", commitMessage,
+		); err != nil {
+			return errors.Wrap(err, "git commit")
+		}
+		return nil
+	}
 	if err := execGitCmd(ctx,
 		workingDir, nil, nil,
 		"commit",

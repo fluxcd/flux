@@ -10,6 +10,7 @@ import (
 	"github.com/pkg/errors"
 
 	"context"
+
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster"
 	//	fluxerr "github.com/weaveworks/flux/errors"
@@ -127,7 +128,7 @@ func (d *Daemon) ListImages(spec update.ServiceSpec) ([]flux.ImageStatus, error)
 	return res, nil
 }
 
-// Let's use the CommitEventMetadata as a convenient transport for the
+// DaemonJobFunc - Let's use the CommitEventMetadata as a convenient transport for the
 // results of a job; if no commit was made (e.g., if it was a dry
 // run), leave the revision field empty.
 type DaemonJobFunc func(ctx context.Context, jobID job.ID, working *git.Checkout, logger log.Logger) (*history.CommitEventMetadata, error)
@@ -180,7 +181,7 @@ func (d *Daemon) queueJob(do DaemonJobFunc) job.ID {
 	return id
 }
 
-// Apply the desired changes to the config files
+// UpdateManifests - Apply the desired changes to the config files
 func (d *Daemon) UpdateManifests(spec update.Spec) (job.ID, error) {
 	var id job.ID
 	if spec.Type == "" {
@@ -252,6 +253,8 @@ func (d *Daemon) updatePolicy(spec update.Spec, updates policy.Updates) DaemonJo
 			return metadata, nil
 		}
 
+		ctx = context.WithValue(ctx, "user", spec.Cause.User)
+
 		if err := working.CommitAndPush(ctx, policyCommitMessage(updates, spec.Cause), &git.Note{JobID: jobID, Spec: spec}); err != nil {
 			// On the chance pushing failed because it was not
 			// possible to fast-forward, ask for a sync so the
@@ -286,6 +289,9 @@ func (d *Daemon) release(spec update.Spec, c release.Changes) DaemonJobFunc {
 			if commitMsg == "" {
 				commitMsg = c.CommitMessage()
 			}
+
+			ctx = context.WithValue(ctx, "user", spec.Cause.User)
+
 			if err := working.CommitAndPush(ctx, commitMsg, &git.Note{JobID: jobID, Spec: spec, Result: result}); err != nil {
 				// On the chance pushing failed because it was not
 				// possible to fast-forward, ask for a sync so the
