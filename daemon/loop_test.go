@@ -12,6 +12,7 @@ import (
 	"github.com/go-kit/kit/log"
 
 	"context"
+
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster"
 	"github.com/weaveworks/flux/cluster/kubernetes"
@@ -206,7 +207,9 @@ func TestDoSync_WithNewCommit(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if err := d.Checkout.CommitAndPush(context.Background(), "test commit", nil); err != nil {
+
+	commitAction := &git.CommitAction{Author: "", Message: "test commit"}
+	if err := d.Checkout.CommitAndPush(context.Background(), commitAction, nil); err != nil {
 		t.Fatal(err)
 	}
 	newRevision, err := d.Checkout.HeadRevision(context.Background())

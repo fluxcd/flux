@@ -20,6 +20,7 @@ import (
 	"k8s.io/client-go/1.5/rest"
 
 	"context"
+
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster"
 	"github.com/weaveworks/flux/cluster/kubernetes"
@@ -71,12 +72,13 @@ func main() {
 		kubernetesKubectl = fs.String("kubernetes-kubectl", "", "Optional, explicit path to kubectl tool")
 		versionFlag       = fs.Bool("version", false, "Get version number")
 		// Git repo & key etc.
-		gitURL    = fs.String("git-url", "", "URL of git repo with Kubernetes manifests; e.g., git@github.com:weaveworks/flux-example")
-		gitBranch = fs.String("git-branch", "master", "branch of git repo to use for Kubernetes manifests")
-		gitPath   = fs.String("git-path", "", "path within git repo to locate Kubernetes manifests (relative path)")
-		gitUser   = fs.String("git-user", "Weave Flux", "username to use as git committer")
-		gitEmail  = fs.String("git-email", "support@weave.works", "email to use as git committer")
-		gitLabel  = fs.String("git-label", "", "label to keep track of sync progress; overrides both --git-sync-tag and --git-notes-ref")
+		gitURL       = fs.String("git-url", "", "URL of git repo with Kubernetes manifests; e.g., git@github.com:weaveworks/flux-example")
+		gitBranch    = fs.String("git-branch", "master", "branch of git repo to use for Kubernetes manifests")
+		gitPath      = fs.String("git-path", "", "path within git repo to locate Kubernetes manifests (relative path)")
+		gitUser      = fs.String("git-user", "Weave Flux", "username to use as git committer")
+		gitEmail     = fs.String("git-email", "support@weave.works", "email to use as git committer")
+		gitSetAuthor = fs.Bool("git-set-author", false, "If set, the author of git commits will reflect the user who initiated the commit and will differ from the git committer.")
+		gitLabel     = fs.String("git-label", "", "label to keep track of sync progress; overrides both --git-sync-tag and --git-notes-ref")
 		// Old git config; still used if --git-label is not supplied, but --git-label is preferred.
 		gitSyncTag  = fs.String("git-sync-tag", defaultGitSyncTag, "tag to use to mark sync progress for this cluster")
 		gitNotesRef = fs.String("git-notes-ref", defaultGitNotesRef, "ref to use for keeping commit annotations in git notes")
@@ -360,6 +362,7 @@ func main() {
 			NotesRef:  *gitNotesRef,
 			UserName:  *gitUser,
 			UserEmail: *gitEmail,
+			SetAuthor: *gitSetAuthor,
 		}
 
 		for checkout == nil {
@@ -382,7 +385,8 @@ func main() {
 					"user", *gitUser,
 					"email", *gitEmail,
 					"sync-tag", *gitSyncTag,
-					"notes-ref", *gitNotesRef)
+					"notes-ref", *gitNotesRef,
+					"set-author", *gitSetAuthor)
 				checkout = working
 			}
 		}

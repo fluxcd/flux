@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"context"
+
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster/kubernetes/testfiles"
 	"github.com/weaveworks/flux/git"
@@ -63,7 +64,8 @@ func TestCheckout(t *testing.T) {
 		changedFile = file
 		break
 	}
-	if err := working.CommitAndPush(ctx, "Changed file", nil); err != nil {
+	commitAction := &git.CommitAction{Author: "", Message: "Changed file"}
+	if err := working.CommitAndPush(ctx, commitAction, nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -86,7 +88,8 @@ func TestCheckout(t *testing.T) {
 			},
 		},
 	}
-	if err := working.CommitAndPush(ctx, "Changed file again", &expectedNote); err != nil {
+	commitAction = &git.CommitAction{Author: "", Message: "Changed file again"}
+	if err := working.CommitAndPush(ctx, commitAction, &expectedNote); err != nil {
 		t.Fatal(err)
 	}
 
