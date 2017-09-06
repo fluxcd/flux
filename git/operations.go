@@ -43,8 +43,11 @@ func clone(ctx context.Context, workingDir string, keyRing ssh.KeyRing, repoURL,
 }
 
 func commit(ctx context.Context, workingDir, commitMessage string) error {
-	user := ctx.Value("user").(string)
-
+	var user string
+	var ok bool
+	if user, ok = ctx.Value("user").(string); !ok {
+		user = ""
+	}
 	// The user in the update.Cause.User must be a valid github user, otherwise the commit fails
 	// Hardcoding of the user to ignore is not ideal. If there is only one to ignore, ie test@test,
 	// then this is just about ok. Otherwise there could be config file with stored users to ignore etc.
