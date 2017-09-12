@@ -90,11 +90,16 @@ func (d *Daemon) GitPollLoop(stop chan struct{}, wg *sync.WaitGroup, logger log.
 			// It's assumed that (successful) jobs will push commits
 			// to the upstream repo, and therefore we probably want to
 			// pull from there and sync the cluster afterwards.
-			if err := job.Do(jobLogger); err != nil {
+			start := time.Now()
+			err := job.Do(jobLogger)
+			if err != nil {
 				jobLogger.Log("state", "done", "success", "false", "err", err)
-				continue
+			} else {
+				jobLogger.Log("state", "done", "success", "true")
 			}
-			jobLogger.Log("state", "done", "success", "true")
+			jobDuration.With(
+				fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
+			).Observe(time.Since(start).Seconds())
 			pullThen(d.doSync)
 		}
 	}
