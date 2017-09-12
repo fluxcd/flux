@@ -215,7 +215,7 @@ func (s HTTPServer) GetPublicSSHKey(w http.ResponseWriter, r *http.Request) {
 		transport.ErrorResponse(w, r, err)
 		return
 	}
-	transport.JSONResponse(w, r, res)
+	transport.JSONResponse(w, r, res.PublicSSHKey)
 }
 
 func (s HTTPServer) RegeneratePublicSSHKey(w http.ResponseWriter, r *http.Request) {
