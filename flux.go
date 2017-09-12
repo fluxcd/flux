@@ -59,7 +59,7 @@ func (id resourceID) String() string {
 // if possible, returning an error value otherwise.
 func ParseResourceID(s string) (ResourceID, error) {
 	if m := ResourceIDRegexp.FindStringSubmatch(s); m != nil {
-		return ResourceID{resourceID{m[1], m[2], m[3]}}, nil
+		return ResourceID{resourceID{m[1], strings.ToLower(m[2]), m[3]}}, nil
 	}
 	if m := LegacyServiceIDRegexp.FindStringSubmatch(s); m != nil {
 		return ResourceID{legacyServiceID{m[1], m[2]}}, nil
@@ -87,6 +87,21 @@ func (id ResourceID) LegacyServiceIDComponents() (namespace, service string) {
 	switch impl := id.resourceIDImpl.(type) {
 	case legacyServiceID:
 		return impl.namespace, impl.service
+	default:
+		panic("wrong underlying type")
+	}
+}
+
+// MakeResourceID constructs a ResourceID from constituent components.
+func MakeResourceID(namespace, kind, name string) ResourceID {
+	return ResourceID{resourceID{namespace, strings.ToLower(kind), name}}
+}
+
+// Components returns the constituent components of a ResourceID
+func (id ResourceID) Components() (namespace, kind, name string) {
+	switch impl := id.resourceIDImpl.(type) {
+	case resourceID:
+		return impl.namespace, impl.kind, impl.name
 	default:
 		panic("wrong underlying type")
 	}

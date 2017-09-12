@@ -10,11 +10,11 @@ import (
 	"github.com/weaveworks/flux"
 )
 
-// updatePodController takes the body of a ReplicationController or Deployment
-// resource definition (specified in YAML) and the name of the new image that
-// should be put in the definition (in the format "repo.org/group/name:tag"). It
-// returns a new resource definition body where all references to the old image
-// have been replaced with the new one.
+// updatePodController takes the body of a Deployment resource definition
+// (specified in YAML) and the name of the new image that should be put in the
+// definition (in the format "repo.org/group/name:tag"). It returns a new
+// resource definition body where all references to the old image have been
+// replaced with the new one.
 //
 // This function has many additional requirements that are likely in flux. Read
 // the source to learn about them.
@@ -25,8 +25,6 @@ func updatePodController(def []byte, container string, newImageID flux.ImageID) 
 		return nil, err
 	}
 	switch obj.Kind {
-	case "ReplicationController":
-		return nil, ErrReplicationControllersDeprecated
 	case "Deployment":
 		break
 	default:
@@ -57,7 +55,7 @@ func updatePodController(def []byte, container string, newImageID flux.ImageID) 
 //
 // ```
 // apiVersion: v1
-// kind: ReplicationController # not presently checked
+// kind: Deployment # not presently checked
 // metadata:                         # )
 //   ...                             # ) any number of equally-indented lines
 //   name: helloworld-master-a000001 # ) can precede the name

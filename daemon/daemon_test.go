@@ -30,7 +30,7 @@ import (
 
 const (
 	// These have to match the values in cluster/kubernetes/testfiles/data.go
-	svc               = "default/helloworld"
+	svc               = "default:deployment/helloworld"
 	container         = "goodbyeworld"
 	ns                = "default"
 	newHelloImage     = "quay.io/weaveworks/helloworld:2"
@@ -260,7 +260,7 @@ func TestDaemon_PolicyUpdate(t *testing.T) {
 			t.Fatalf("Error: %s", err.Error())
 		}
 		d.Checkout.Unlock()
-		return len(m["Deployment "+svc].Policy()) > 0
+		return len(m[svc].Policy()) > 0
 	}, "Waiting for new annotation")
 }
 
@@ -493,7 +493,7 @@ func updatePolicy(t *testing.T, d *Daemon) job.ID {
 	return updateManifest(t, d, update.Spec{
 		Type: update.Policy,
 		Spec: policy.Updates{
-			flux.MustParseResourceID("default/helloworld"): {
+			flux.MustParseResourceID("default:deployment/helloworld"): {
 				Add: policy.Set{
 					policy.Locked: "true",
 				},

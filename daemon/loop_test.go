@@ -91,9 +91,9 @@ func TestPullAndSync_InitialSync(t *testing.T) {
 	syncCalled := 0
 	var syncDef *cluster.SyncDef
 	expectedServiceIDs := flux.ServiceIDs{
-		flux.MustParseResourceID("default/locked-service"),
-		flux.MustParseResourceID("default/test-service"),
-		flux.MustParseResourceID("default/helloworld")}
+		flux.MustParseResourceID("default:deployment/locked-service"),
+		flux.MustParseResourceID("default:deployment/test-service"),
+		flux.MustParseResourceID("default:deployment/helloworld")}
 	expectedServiceIDs.Sort()
 	k8s.SyncFunc = func(def cluster.SyncDef) error {
 		syncCalled++
@@ -108,8 +108,7 @@ func TestPullAndSync_InitialSync(t *testing.T) {
 		t.Errorf("Sync was not called once, was called %d times", syncCalled)
 	} else if syncDef == nil {
 		t.Errorf("Sync was called with a nil syncDef")
-	} else if len(syncDef.Actions) != len(expectedServiceIDs)*2 {
-		// double expected, because there is one for each service, and one for each deployment
+	} else if len(syncDef.Actions) != len(expectedServiceIDs) {
 		t.Errorf("Sync was not called with the %d actions, was called with: %d", len(expectedServiceIDs)*2, len(syncDef.Actions))
 	}
 
@@ -149,9 +148,9 @@ func TestDoSync_NoNewCommits(t *testing.T) {
 	syncCalled := 0
 	var syncDef *cluster.SyncDef
 	expectedServiceIDs := flux.ServiceIDs{
-		flux.MustParseResourceID("default/locked-service"),
-		flux.MustParseResourceID("default/test-service"),
-		flux.MustParseResourceID("default/helloworld")}
+		flux.MustParseResourceID("default:deployment/locked-service"),
+		flux.MustParseResourceID("default:deployment/test-service"),
+		flux.MustParseResourceID("default:deployment/helloworld")}
 	expectedServiceIDs.Sort()
 	k8s.SyncFunc = func(def cluster.SyncDef) error {
 		syncCalled++
@@ -166,8 +165,7 @@ func TestDoSync_NoNewCommits(t *testing.T) {
 		t.Errorf("Sync was not called once, was called %d times", syncCalled)
 	} else if syncDef == nil {
 		t.Errorf("Sync was called with a nil syncDef")
-	} else if len(syncDef.Actions) != len(expectedServiceIDs)*2 {
-		// double expected, because there is one for each service, and one for each deployment
+	} else if len(syncDef.Actions) != len(expectedServiceIDs) {
 		t.Errorf("Sync was not called with the %d actions, was called with: %d", len(expectedServiceIDs)*2, len(syncDef.Actions))
 	}
 
@@ -206,7 +204,7 @@ func TestDoSync_WithNewCommit(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Push some new changes
-	if err := cluster.UpdateManifest(k8s, d.Checkout.ManifestDir(), flux.MustParseResourceID("default/helloworld"), func(def []byte) ([]byte, error) {
+	if err := cluster.UpdateManifest(k8s, d.Checkout.ManifestDir(), flux.MustParseResourceID("default:deployment/helloworld"), func(def []byte) ([]byte, error) {
 		// A simple modification so we have changes to push
 		return []byte(strings.Replace(string(def), "replicas: 5", "replicas: 4", -1)), nil
 	}); err != nil {
@@ -223,9 +221,9 @@ func TestDoSync_WithNewCommit(t *testing.T) {
 	syncCalled := 0
 	var syncDef *cluster.SyncDef
 	expectedServiceIDs := flux.ServiceIDs{
-		flux.MustParseResourceID("default/locked-service"),
-		flux.MustParseResourceID("default/test-service"),
-		flux.MustParseResourceID("default/helloworld")}
+		flux.MustParseResourceID("default:deployment/locked-service"),
+		flux.MustParseResourceID("default:deployment/test-service"),
+		flux.MustParseResourceID("default:deployment/helloworld")}
 	expectedServiceIDs.Sort()
 	k8s.SyncFunc = func(def cluster.SyncDef) error {
 		syncCalled++
@@ -240,8 +238,7 @@ func TestDoSync_WithNewCommit(t *testing.T) {
 		t.Errorf("Sync was not called once, was called %d times", syncCalled)
 	} else if syncDef == nil {
 		t.Errorf("Sync was called with a nil syncDef")
-	} else if len(syncDef.Actions) != len(expectedServiceIDs)*2 {
-		// double expected, because there is one for each service, and one for each deployment
+	} else if len(syncDef.Actions) != len(expectedServiceIDs) {
 		t.Errorf("Sync was not called with the %d actions, was called with: %d", len(expectedServiceIDs)*2, len(syncDef.Actions))
 	}
 
@@ -257,7 +254,7 @@ func TestDoSync_WithNewCommit(t *testing.T) {
 		gotServiceIDs := es[0].ServiceIDs
 		flux.ServiceIDs(gotServiceIDs).Sort()
 		// Event should only have changed service ids
-		if !reflect.DeepEqual(gotServiceIDs, []flux.ResourceID{flux.MustParseResourceID("default/helloworld")}) {
+		if !reflect.DeepEqual(gotServiceIDs, []flux.ResourceID{flux.MustParseResourceID("default:deployment/helloworld")}) {
 			t.Errorf("Unexpected event service ids: %#v, expected: %#v", gotServiceIDs, []flux.ResourceID{flux.MustParseResourceID("default/helloworld")})
 		}
 	}

@@ -199,7 +199,7 @@ func (d *Daemon) doSync(logger log.Logger) {
 
 	serviceIDs := flux.ServiceIDSet{}
 	for _, r := range changedResources {
-		serviceIDs.Add(r.ServiceIDs(allResources))
+		serviceIDs.Add([]flux.ResourceID{r.ResourceID()})
 	}
 
 	var notes map[string]struct{}

@@ -18,56 +18,13 @@ func (c *Manifests) FindDefinedServices(path string) (map[flux.ResourceID][]stri
 		return nil, errors.Wrap(err, "loading resources")
 	}
 
-	type template struct {
-		source    string
-		namespace string
-		*resource.PodTemplate
-	}
-
-	var (
-		result    = map[flux.ResourceID][]string{}
-		services  []*resource.Service
-		templates []template
-	)
-
+	var result = map[flux.ResourceID][]string{}
 	for _, obj := range objects {
 		switch res := obj.(type) {
-		case *resource.Service:
-			services = append(services, res)
-			for _, template := range templates {
-				if res.Meta.Namespace == template.namespace && matches(res, template.PodTemplate) {
-					sid := res.ServiceID()
-					result[sid] = append(result[sid], template.source)
-				}
-			}
 		case *resource.Deployment:
-			source := res.Source()
-			templates = append(templates, template{source, res.Meta.Namespace, &res.Spec.Template})
-			for _, service := range services {
-				if res.Meta.Namespace == service.Meta.Namespace && matches(service, &res.Spec.Template) {
-					sid := service.ServiceID()
-					result[sid] = append(result[sid], source)
-				}
-			}
+			id := res.ResourceID()
+			result[id] = append(result[id], res.Source())
 		}
 	}
 	return result, nil
-}
-
-func matches(s *resource.Service, t *resource.PodTemplate) bool {
-	labels := t.Metadata.Labels
-	selector := s.Spec.Selector
-	// A nil selector matches nothing
-	if selector == nil {
-		return false
-	}
-
-	// otherwise, each label in the selector must have a match in the
-	// pod
-	for k, v := range selector {
-		if labels[k] != v {
-			return false
-		}
-	}
-	return true
 }
