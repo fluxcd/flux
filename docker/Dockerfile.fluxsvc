@@ -1,6 +1,6 @@
-FROM alpine:3.5
+FROM alpine:3.6
 WORKDIR /home/flux
-RUN apk add --no-cache 'git>=2.3.0' openssh python py-yaml ca-certificates tini
+RUN apk add --no-cache 'zlib>=1.2.11-r0' 'git>=2.3.11' openssh python py-yaml ca-certificates tini
 COPY ./kubeservice /usr/local/bin/
 ADD ./migrations.tar /home/flux/
 COPY ./fluxsvc /usr/local/bin/
