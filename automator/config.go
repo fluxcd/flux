@@ -3,6 +3,7 @@ package automator
 import (
 	"errors"
 	"strings"
+	"time"
 
 	"github.com/go-kit/kit/log"
 
@@ -15,6 +16,7 @@ type Config struct {
 	Jobs       jobs.JobReadPusher
 	InstanceDB instance.DB
 	Instancer  instance.Instancer
+	Period     time.Duration
 	Logger     log.Logger
 }
 
@@ -29,6 +31,9 @@ func (cfg Config) Validate() error {
 	}
 	if cfg.Logger == nil {
 		errs = append(errs, "logger not supplied")
+	}
+	if cfg.Period == 0 {
+		errs = append(errs, "automation period not supplied")
 	}
 	if len(errs) > 0 {
 		return errors.New("invalid: " + strings.Join(errs, "; "))

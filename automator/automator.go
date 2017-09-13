@@ -14,10 +14,6 @@ import (
 	"github.com/weaveworks/flux/release"
 )
 
-const (
-	automationCycle = 60 * time.Second
-)
-
 // Automator orchestrates continuous deployment for specific services.
 type Automator struct {
 	cfg Config
@@ -35,7 +31,7 @@ func New(cfg Config) (*Automator, error) {
 
 func (a *Automator) Start(errorLogger log.Logger) {
 	a.checkAll(errorLogger)
-	tick := time.Tick(automationCycle)
+	tick := time.Tick(a.cfg.Period)
 	for range tick {
 		a.checkAll(errorLogger)
 	}
@@ -52,7 +48,7 @@ func (a *Automator) checkAll(errorLogger log.Logger) {
 			continue
 		}
 
-		_, err := a.cfg.Jobs.PutJob(inst.ID, automatedInstanceJob(inst.ID, time.Now()))
+		_, err := a.cfg.Jobs.PutJob(inst.ID, a.automatedInstanceJob(inst.ID, time.Now()))
 		if err != nil && err != jobs.ErrJobAlreadyQueued {
 			errorLogger.Log("err", errors.Wrapf(err, "queueing automated instance job"))
 		}
@@ -79,7 +75,7 @@ func (a *Automator) Handle(j *jobs.Job, updater jobs.JobUpdater) ([]jobs.Job, er
 }
 
 func (a *Automator) handleAutomatedInstanceJob(logger log.Logger, job *jobs.Job, updater jobs.JobUpdater) ([]jobs.Job, error) {
-	followUps := []jobs.Job{automatedInstanceJob(job.Instance, time.Now())}
+	followUps := []jobs.Job{a.automatedInstanceJob(job.Instance, time.Now())}
 	params := job.Params.(jobs.AutomatedInstanceJobParams)
 
 	config, err := a.cfg.InstanceDB.GetConfig(params.InstanceID)
@@ -198,7 +194,7 @@ func (a *Automator) handleAutomatedInstanceJob(logger log.Logger, job *jobs.Job,
 	return followUps, nil
 }
 
-func automatedInstanceJob(instanceID flux.InstanceID, now time.Time) jobs.Job {
+func (a *Automator) automatedInstanceJob(instanceID flux.InstanceID, now time.Time) jobs.Job {
 	return jobs.Job{
 		Queue: jobs.AutomatedInstanceJob,
 		// Key stops us getting two jobs for the same instance
@@ -211,6 +207,6 @@ func automatedInstanceJob(instanceID flux.InstanceID, now time.Time) jobs.Job {
 		Params: jobs.AutomatedInstanceJobParams{
 			InstanceID: instanceID,
 		},
-		ScheduledAt: now.UTC().Add(automationCycle),
+		ScheduledAt: now.UTC().Add(a.cfg.Period),
 	}
 }

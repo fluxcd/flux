@@ -55,7 +55,10 @@ func main() {
 		registryCacheExpiry         = fs.Duration("registry-cache-expiry", 20*time.Minute, "Duration to keep cached registry tag info. Must be < 1 month.")
 		releaseJobWorkers           = fs.Int(jobs.ReleaseJob+"-workers", 1, "Number of workers to process release jobs")
 		automatedInstanceJobWorkers = fs.Int(jobs.AutomatedInstanceJob+"-workers", 1, "Number of workers to process automated_instance jobs")
-		versionFlag                 = fs.Bool("version", false, "Get version number")
+		automationPeriod            = fs.Duration("automation-period", 60*time.Second, "Period of automation run")
+		jobStoreGCPeriod            = fs.Duration("job-gc-period", 15*time.Second, "Period on which the GC of the jobs table is run")
+
+		versionFlag = fs.Bool("version", false, "Get version number")
 	)
 	fs.Parse(os.Args)
 
@@ -175,6 +178,7 @@ func main() {
 			Jobs:       jobStore,
 			InstanceDB: instanceDB,
 			Instancer:  instancer,
+			Period:     *automationPeriod,
 			Logger:     log.NewContext(logger).With("component", "automator"),
 		})
 		if err == nil {
@@ -220,7 +224,7 @@ func main() {
 	// Job GC cleaner
 	{
 		cleaner := jobs.NewCleaner(jobStore, logger)
-		cleanTicker := time.NewTicker(15 * time.Second)
+		cleanTicker := time.NewTicker(*jobStoreGCPeriod)
 		defer cleanTicker.Stop()
 		go cleaner.Clean(cleanTicker.C)
 	}
