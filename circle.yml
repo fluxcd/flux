@@ -48,7 +48,7 @@ test:
 
 deployment:
   push:
-    branch: master
+    branch: 0.3.0-patch
     commands:
       - docker login -e '.' -u "$DOCKER_REGISTRY_USER" -p "$DOCKER_REGISTRY_PASSWORD" quay.io
       - |
