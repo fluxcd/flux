@@ -53,12 +53,12 @@ to changes and simply write to a repository.
 
 ## Monitoring For New Images
 
-Flux reads a list of running containers from the repository.
-For each image, it will query the container registry to obtain
-the most recently released tag.
+Flux reads a list of running containers from the user git repository.
+For each image, it will query the container registry to obtain the most
+recently released tag.
 
 Flux then compares the most recent image tag with that specified in the
-repository. If they don't match, the repository is updated.
+git repository. If they don't match, the repository is updated.
 
 When services are in an "automated" mode, the service will periodically
 check to see whether there are any new images. If there are, then they
