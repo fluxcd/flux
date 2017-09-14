@@ -14,6 +14,7 @@ import (
 
 	//	"github.com/weaveworks/flux"
 	"context"
+
 	"github.com/weaveworks/flux/cluster"
 	"github.com/weaveworks/flux/cluster/kubernetes"
 	"github.com/weaveworks/flux/cluster/kubernetes/testfiles"
@@ -44,11 +45,12 @@ func TestSync(t *testing.T) {
 	}
 	checkClusterMatchesFiles(t, manifests, clus, checkout.ManifestDir())
 
-	for file, _ := range testfiles.Files {
+	for file := range testfiles.Files {
 		if err := execCommand("rm", filepath.Join(checkout.ManifestDir(), file)); err != nil {
 			t.Fatal(err)
 		}
-		if err := checkout.CommitAndPush(context.Background(), "deleted "+file, nil); err != nil {
+		commitAction := &git.CommitAction{Author: "", Message: "deleted " + file}
+		if err := checkout.CommitAndPush(context.Background(), commitAction, nil); err != nil {
 			t.Fatal(err)
 		}
 		break
@@ -66,7 +68,7 @@ func TestSync(t *testing.T) {
 
 // ---
 
-var gitconf git.Config = git.Config{
+var gitconf = git.Config{
 	SyncTag:   "test-sync",
 	NotesRef:  "test-notes",
 	UserName:  "testuser",

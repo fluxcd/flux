@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"context"
+
 	"github.com/pkg/errors"
 	"github.com/weaveworks/flux/ssh"
 )
@@ -41,11 +42,22 @@ func clone(ctx context.Context, workingDir string, keyRing ssh.KeyRing, repoURL,
 	return repoPath, nil
 }
 
-func commit(ctx context.Context, workingDir, commitMessage string) error {
+func commit(ctx context.Context, workingDir string, commitAction *CommitAction) error {
+	commitAuthor := commitAction.Author
+	if commitAuthor != "" {
+		if err := execGitCmd(ctx,
+			workingDir, nil, nil,
+			"commit",
+			"--no-verify", "-a", "--author", commitAuthor, "-m", commitAction.Message,
+		); err != nil {
+			return errors.Wrap(err, "git commit")
+		}
+		return nil
+	}
 	if err := execGitCmd(ctx,
 		workingDir, nil, nil,
 		"commit",
-		"--no-verify", "-a", "-m", commitMessage,
+		"--no-verify", "-a", "-m", commitAction.Message,
 	); err != nil {
 		return errors.Wrap(err, "git commit")
 	}

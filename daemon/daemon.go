@@ -10,6 +10,7 @@ import (
 	"github.com/pkg/errors"
 
 	"context"
+
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster"
 	//	fluxerr "github.com/weaveworks/flux/errors"
@@ -252,7 +253,12 @@ func (d *Daemon) updatePolicy(spec update.Spec, updates policy.Updates) DaemonJo
 			return metadata, nil
 		}
 
-		if err := working.CommitAndPush(ctx, policyCommitMessage(updates, spec.Cause), &git.Note{JobID: jobID, Spec: spec}); err != nil {
+		commitAuthor := ""
+		if d.Checkout.Config.SetAuthor {
+			commitAuthor = spec.Cause.User
+		}
+		commitAction := &git.CommitAction{Author: commitAuthor, Message: policyCommitMessage(updates, spec.Cause)}
+		if err := working.CommitAndPush(ctx, commitAction, &git.Note{JobID: jobID, Spec: spec}); err != nil {
 			// On the chance pushing failed because it was not
 			// possible to fast-forward, ask for a sync so the
 			// next attempt is more likely to succeed.
@@ -286,7 +292,12 @@ func (d *Daemon) release(spec update.Spec, c release.Changes) DaemonJobFunc {
 			if commitMsg == "" {
 				commitMsg = c.CommitMessage()
 			}
-			if err := working.CommitAndPush(ctx, commitMsg, &git.Note{JobID: jobID, Spec: spec, Result: result}); err != nil {
+			commitAuthor := ""
+			if d.Checkout.Config.SetAuthor {
+				commitAuthor = spec.Cause.User
+			}
+			commitAction := &git.CommitAction{Author: commitAuthor, Message: commitMsg}
+			if err := working.CommitAndPush(ctx, commitAction, &git.Note{JobID: jobID, Spec: spec, Result: result}); err != nil {
 				// On the chance pushing failed because it was not
 				// possible to fast-forward, ask for a sync so the
 				// next attempt is more likely to succeed.
@@ -315,7 +326,7 @@ func (d *Daemon) SyncNotify() error {
 	return nil
 }
 
-// Ask the daemon how far it's got committing things; in particular, is the job
+// JobStatus - Ask the daemon how far it's got committing things; in particular, is the job
 // queued? running? committed? If it is done, the commit ref is returned.
 func (d *Daemon) JobStatus(jobID job.ID) (job.Status, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultHandlerTimeout)

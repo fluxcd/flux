@@ -8,9 +8,10 @@ import (
 	"sync"
 
 	"context"
+	"time"
+
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/ssh"
-	"time"
 )
 
 const (
@@ -43,11 +44,18 @@ type Config struct {
 	NotesRef  string
 	UserName  string
 	UserEmail string
+	SetAuthor bool
 }
 
 type Commit struct {
 	Revision string
 	Message  string
+}
+
+// CommitAction - struct holding commit information
+type CommitAction struct {
+	Author  string
+	Message string
 }
 
 // Get a local clone of the upstream repo, and use the config given.
@@ -135,13 +143,13 @@ func (c *Checkout) ManifestDir() string {
 
 // CommitAndPush commits changes made in this checkout, along with any
 // extra data as a note, and pushes the commit and note to the remote repo.
-func (c *Checkout) CommitAndPush(ctx context.Context, commitMessage string, note *Note) error {
+func (c *Checkout) CommitAndPush(ctx context.Context, commitAction *CommitAction, note *Note) error {
 	c.Lock()
 	defer c.Unlock()
 	if !check(ctx, c.Dir, c.repo.Path) {
 		return ErrNoChanges
 	}
-	if err := commit(ctx, c.Dir, commitMessage); err != nil {
+	if err := commit(ctx, c.Dir, commitAction); err != nil {
 		return err
 	}
 
