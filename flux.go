@@ -87,6 +87,8 @@ func (id ResourceID) Components() (namespace, kind, name string) {
 	switch impl := id.resourceIDImpl.(type) {
 	case resourceID:
 		return impl.namespace, impl.kind, impl.name
+	case legacyServiceID:
+		return impl.namespace, "service", impl.service
 	default:
 		panic("wrong underlying type")
 	}

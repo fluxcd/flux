@@ -47,6 +47,7 @@ func NewAPIRouter() *mux.Router {
 func UpstreamRoutes(r *mux.Router) {
 	r.NewRoute().Name("RegisterDaemonV6").Methods("GET").Path("/v6/daemon")
 	r.NewRoute().Name("RegisterDaemonV7").Methods("GET").Path("/v7/daemon")
+	r.NewRoute().Name("RegisterDaemonV8").Methods("GET").Path("/v8/daemon")
 	r.NewRoute().Name("LogEvent").Methods("POST").Path("/v6/events")
 }
 

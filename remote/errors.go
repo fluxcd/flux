@@ -38,11 +38,32 @@ func UpgradeNeededError(err error) error {
 		Type: fluxerr.User,
 		Help: `Your flux daemon needs to be upgraded
 
+    ` + err.Error() + `
+
 To service this request, we need to ask the agent running in your
 cluster (fluxd) to perform an operation on our behalf, but the
 version you have running is too old to understand the request.
 
 Please install the latest version of flux and try again.
+
+`,
+		Err: err,
+	}
+}
+
+func UnsupportedResourceKind(err error) error {
+	return &fluxerr.Error{
+		Type: fluxerr.User,
+		Help: err.Error() + `
+
+The version of the agent running in your cluster (fluxd) can only
+release updates to named deployments. The ability to release to other
+kinds of pod controllers (such as daemon sets and stateful sets) will
+be added in a future version of flux.
+
+Important - releasing by service name is no longer supported - if
+you're using an old version of fluxctl that does not let you specify
+a kind other than 'service', you will need to upgrade it.
 
 `,
 		Err: err,
