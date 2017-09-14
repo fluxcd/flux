@@ -321,7 +321,7 @@ func mockDaemon(t *testing.T) (*Daemon, func(), *cluster.Mock, history.EventRead
 	multiService := []cluster.Controller{
 		singleService,
 		cluster.Controller{
-			ID: flux.MakeLegacyServiceID("another", "service"),
+			ID: flux.MakeResourceID("another", "deployment", "service"),
 			Containers: cluster.ContainersOrExcuse{
 				Containers: []cluster.Container{
 					{

@@ -77,21 +77,6 @@ func MustParseResourceID(s string) ResourceID {
 	return id
 }
 
-// MakeLegacyServiceID constructs a ResourceID from constituent components.
-func MakeLegacyServiceID(namespace, service string) ResourceID {
-	return ResourceID{legacyServiceID{namespace, service}}
-}
-
-// LegacyServiceIDComponents returns the constituent components of a ResourceID.
-func (id ResourceID) LegacyServiceIDComponents() (namespace, service string) {
-	switch impl := id.resourceIDImpl.(type) {
-	case legacyServiceID:
-		return impl.namespace, impl.service
-	default:
-		panic("wrong underlying type")
-	}
-}
-
 // MakeResourceID constructs a ResourceID from constituent components.
 func MakeResourceID(namespace, kind, name string) ResourceID {
 	return ResourceID{resourceID{namespace, strings.ToLower(kind), name}}
