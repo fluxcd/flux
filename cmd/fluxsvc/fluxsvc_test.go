@@ -11,6 +11,8 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/gorilla/mux"
 
+	"io/ioutil"
+
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/api"
 	"github.com/weaveworks/flux/db"
@@ -30,7 +32,6 @@ import (
 	"github.com/weaveworks/flux/service/instance"
 	instancedb "github.com/weaveworks/flux/service/instance/sql"
 	"github.com/weaveworks/flux/update"
-	"io/ioutil"
 )
 
 var (
@@ -374,6 +375,6 @@ func TestFluxsvc_Register(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		t.Fatal("Request should have been ok but got %q, body:\n%q", resp.Status, string(body))
+		t.Fatalf("Request should have been ok but got %q, body:\n%q", resp.Status, string(body))
 	}
 }
