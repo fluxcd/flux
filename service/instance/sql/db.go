@@ -88,6 +88,38 @@ func (db *DB) GetConfig(inst service.InstanceID) (instance.Config, error) {
 	return conf, json.Unmarshal([]byte(c), &conf)
 }
 
+func (db *DB) UpdateGitUrl(inst service.InstanceID, url string) error {
+	tx, err := db.conn.Begin()
+	if err != nil {
+		return err
+	}
+
+	_, err = tx.Exec(`DELETE FROM giturl WHERE instance = $1`, string(inst))
+	if err == nil {
+		_, err = tx.Exec(`INSERT INTO giturl (instance, giturl, stamp) VALUES
+                            ($1, $2, now())`, string(inst), url)
+	}
+	if err == nil {
+		err = tx.Commit()
+	} else {
+		err = tx.Rollback()
+	}
+	return err
+}
+
+func (db *DB) GetGitUrl(inst service.InstanceID) (string, error) {
+	var u string
+	err := db.conn.QueryRow(`SELECT giturl FROM config WHERE instance = $1`, string(inst)).Scan(&u)
+	switch err {
+	case nil:
+		return u, nil
+	case sql.ErrNoRows:
+		return "", nil
+	default:
+		return "", err
+	}
+}
+
 // ---
 
 func (db *DB) sanityCheck() error {

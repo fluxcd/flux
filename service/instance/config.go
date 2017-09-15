@@ -19,8 +19,10 @@ type Config struct {
 type UpdateFunc func(config Config) (Config, error)
 
 type DB interface {
-	UpdateConfig(instance service.InstanceID, update UpdateFunc) error
-	GetConfig(instance service.InstanceID) (Config, error)
+	UpdateConfig(service.InstanceID, UpdateFunc) error
+	GetConfig(service.InstanceID) (Config, error)
+	UpdateGitUrl(service.InstanceID, string) error
+	GetGitUrl(service.InstanceID) (string, error)
 }
 
 type Configurer interface {

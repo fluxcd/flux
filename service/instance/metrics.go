@@ -59,3 +59,23 @@ func (i *instrumentedDB) GetConfig(inst service.InstanceID) (c Config, err error
 	}(time.Now())
 	return i.db.GetConfig(inst)
 }
+
+func (i *instrumentedDB) UpdateGitUrl(inst service.InstanceID, url string) (err error) {
+	defer func(begin time.Time) {
+		requestDuration.With(
+			LabelMethod, "UpdateGitUrl",
+			LabelSuccess, fmt.Sprint(err == nil),
+		).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+	return i.db.UpdateGitUrl(inst, url)
+}
+
+func (i *instrumentedDB) GetGitUrl(inst service.InstanceID) (u string, err error) {
+	defer func(begin time.Time) {
+		requestDuration.With(
+			LabelMethod, "GetGitUrl",
+			LabelSuccess, fmt.Sprint(err == nil),
+		).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+	return i.db.GetGitUrl(inst)
+}
