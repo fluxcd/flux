@@ -39,7 +39,10 @@ const (
 	methodGitRepoConfig   = ".Platform.GitRepoConfig"
 )
 
-var timeout = defaultTimeout
+var (
+	timeout = defaultTimeout
+	encoder = nats.EncoderForType(encoderType)
+)
 
 type NATS struct {
 	url string
@@ -293,8 +296,6 @@ func (n *NATS) Connect(instID service.InstanceID) (remote.Platform, error) {
 // in the platform being deregistered, with the error put on the
 // channel `done`.
 func (n *NATS) Subscribe(instID service.InstanceID, platform remote.Platform, done chan<- error) {
-	encoder := nats.EncoderForType(encoderType)
-
 	requests := make(chan *nats.Msg)
 	sub, err := n.raw.ChanSubscribe(string(instID)+".Platform.>", requests)
 	if err != nil {
@@ -312,135 +313,6 @@ func (n *NATS) Subscribe(instID service.InstanceID, platform remote.Platform, do
 	n.raw.Publish(string(instID)+methodKick, []byte(myID))
 
 	errc := make(chan error)
-
-	processRequest := func(request *nats.Msg) {
-		var err error
-		switch {
-		case strings.HasSuffix(request.Subject, methodKick):
-			id := string(request.Data)
-			if id != myID {
-				n.metrics.IncrKicks(instID)
-				err = remote.FatalError{errors.New("Kicked by new subscriber " + id)}
-			}
-
-		case strings.HasSuffix(request.Subject, methodPing):
-			var p pingReq
-			err = encoder.Decode(request.Subject, request.Data, &p)
-			if err == nil {
-				err = platform.Ping()
-			}
-			n.enc.Publish(request.Reply, PingResponse{makeErrorResponse(err)})
-
-		case strings.HasSuffix(request.Subject, methodVersion):
-			var vsn string
-			vsn, err = platform.Version()
-			n.enc.Publish(request.Reply, VersionResponse{vsn, makeErrorResponse(err)})
-
-		case strings.HasSuffix(request.Subject, methodExport):
-			var (
-				req   exportReq
-				bytes []byte
-			)
-			err = encoder.Decode(request.Subject, request.Data, &req)
-			if err == nil {
-				bytes, err = platform.Export()
-			}
-			n.enc.Publish(request.Reply, ExportResponse{bytes, makeErrorResponse(err)})
-
-		case strings.HasSuffix(request.Subject, methodListServices):
-			var (
-				namespace string
-				res       []flux.ServiceStatus
-			)
-			err = encoder.Decode(request.Subject, request.Data, &namespace)
-			if err == nil {
-				res, err = platform.ListServices(namespace)
-			}
-			n.enc.Publish(request.Reply, ListServicesResponse{res, makeErrorResponse(err)})
-
-		case strings.HasSuffix(request.Subject, methodListImages):
-			var (
-				req update.ServiceSpec
-				res []flux.ImageStatus
-			)
-			err = encoder.Decode(request.Subject, request.Data, &req)
-			if err == nil {
-				res, err = platform.ListImages(req)
-			}
-			n.enc.Publish(request.Reply, ListImagesResponse{res, makeErrorResponse(err)})
-
-		case strings.HasSuffix(request.Subject, methodUpdateManifests):
-			var (
-				req update.Spec
-				res job.ID
-			)
-			err = encoder.Decode(request.Subject, request.Data, &req)
-			if err == nil {
-				res, err = platform.UpdateManifests(req)
-			}
-			n.enc.Publish(request.Reply, UpdateManifestsResponse{res, makeErrorResponse(err)})
-
-		case strings.HasSuffix(request.Subject, methodSyncNotify):
-			var p syncReq
-			err = encoder.Decode(request.Subject, request.Data, &p)
-			if err == nil {
-				err = platform.SyncNotify()
-			}
-			n.enc.Publish(request.Reply, SyncNotifyResponse{makeErrorResponse(err)})
-
-		case strings.HasSuffix(request.Subject, methodJobStatus):
-			var (
-				req job.ID
-				res job.Status
-			)
-			err = encoder.Decode(request.Subject, request.Data, &req)
-			if err == nil {
-				res, err = platform.JobStatus(req)
-			}
-			n.enc.Publish(request.Reply, JobStatusResponse{
-				Result:        res,
-				ErrorResponse: makeErrorResponse(err),
-			})
-
-		case strings.HasSuffix(request.Subject, methodSyncStatus):
-			var (
-				req string
-				res []string
-			)
-			err = encoder.Decode(request.Subject, request.Data, &req)
-			if err == nil {
-				res, err = platform.SyncStatus(req)
-			}
-			n.enc.Publish(request.Reply, SyncStatusResponse{res, makeErrorResponse(err)})
-
-		case strings.HasSuffix(request.Subject, methodGitRepoConfig):
-			var (
-				req bool
-				res flux.GitConfig
-			)
-			err = encoder.Decode(request.Subject, request.Data, &req)
-			if err == nil {
-				res, err = platform.GitRepoConfig(req)
-			}
-			n.enc.Publish(request.Reply, GitRepoConfigResponse{res, makeErrorResponse(err)})
-
-		default:
-			err = errors.New("unknown message: " + request.Subject)
-		}
-		if _, ok := err.(remote.FatalError); ok && err != nil {
-			select {
-			case errc <- err:
-			default:
-				// If the error channel is closed, it means that a
-				// different RPC goroutine had a fatal error that
-				// triggered the clean up and return of the parent
-				// goroutine. It is likely that the error we have
-				// encountered is due to the closure of the RPC
-				// client whilst our request was still in progress
-				// - don't panic.
-			}
-		}
-	}
 
 	go func() {
 		forceReconnect := time.NewTimer(maxAge)
@@ -464,7 +336,7 @@ func (n *NATS) Subscribe(instID service.InstanceID, platform remote.Platform, do
 				// Some of these operations (Apply in particular) can block for a long time;
 				// dispatch in a goroutine and deliver any errors back to us so that we can
 				// clean up on any hard failures.
-				go processRequest(request)
+				go n.processRequest(request, instID, platform, myID, errc)
 			case <-forceReconnect.C:
 				sub.Unsubscribe()
 				close(requests)
@@ -473,4 +345,133 @@ func (n *NATS) Subscribe(instID service.InstanceID, platform remote.Platform, do
 			}
 		}
 	}()
+}
+
+func (n *NATS) processRequest(request *nats.Msg, instID service.InstanceID, platform remote.Platform, myID string, errc chan<- error) {
+	var err error
+	switch {
+	case strings.HasSuffix(request.Subject, methodKick):
+		id := string(request.Data)
+		if id != myID {
+			n.metrics.IncrKicks(instID)
+			err = remote.FatalError{errors.New("Kicked by new subscriber " + id)}
+		}
+
+	case strings.HasSuffix(request.Subject, methodPing):
+		var p pingReq
+		err = encoder.Decode(request.Subject, request.Data, &p)
+		if err == nil {
+			err = platform.Ping()
+		}
+		n.enc.Publish(request.Reply, PingResponse{makeErrorResponse(err)})
+
+	case strings.HasSuffix(request.Subject, methodVersion):
+		var vsn string
+		vsn, err = platform.Version()
+		n.enc.Publish(request.Reply, VersionResponse{vsn, makeErrorResponse(err)})
+
+	case strings.HasSuffix(request.Subject, methodExport):
+		var (
+			req   exportReq
+			bytes []byte
+		)
+		err = encoder.Decode(request.Subject, request.Data, &req)
+		if err == nil {
+			bytes, err = platform.Export()
+		}
+		n.enc.Publish(request.Reply, ExportResponse{bytes, makeErrorResponse(err)})
+
+	case strings.HasSuffix(request.Subject, methodListServices):
+		var (
+			namespace string
+			res       []flux.ServiceStatus
+		)
+		err = encoder.Decode(request.Subject, request.Data, &namespace)
+		if err == nil {
+			res, err = platform.ListServices(namespace)
+		}
+		n.enc.Publish(request.Reply, ListServicesResponse{res, makeErrorResponse(err)})
+
+	case strings.HasSuffix(request.Subject, methodListImages):
+		var (
+			req update.ServiceSpec
+			res []flux.ImageStatus
+		)
+		err = encoder.Decode(request.Subject, request.Data, &req)
+		if err == nil {
+			res, err = platform.ListImages(req)
+		}
+		n.enc.Publish(request.Reply, ListImagesResponse{res, makeErrorResponse(err)})
+
+	case strings.HasSuffix(request.Subject, methodUpdateManifests):
+		var (
+			req update.Spec
+			res job.ID
+		)
+		err = encoder.Decode(request.Subject, request.Data, &req)
+		if err == nil {
+			res, err = platform.UpdateManifests(req)
+		}
+		n.enc.Publish(request.Reply, UpdateManifestsResponse{res, makeErrorResponse(err)})
+
+	case strings.HasSuffix(request.Subject, methodSyncNotify):
+		var p syncReq
+		err = encoder.Decode(request.Subject, request.Data, &p)
+		if err == nil {
+			err = platform.SyncNotify()
+		}
+		n.enc.Publish(request.Reply, SyncNotifyResponse{makeErrorResponse(err)})
+
+	case strings.HasSuffix(request.Subject, methodJobStatus):
+		var (
+			req job.ID
+			res job.Status
+		)
+		err = encoder.Decode(request.Subject, request.Data, &req)
+		if err == nil {
+			res, err = platform.JobStatus(req)
+		}
+		n.enc.Publish(request.Reply, JobStatusResponse{
+			Result:        res,
+			ErrorResponse: makeErrorResponse(err),
+		})
+
+	case strings.HasSuffix(request.Subject, methodSyncStatus):
+		var (
+			req string
+			res []string
+		)
+		err = encoder.Decode(request.Subject, request.Data, &req)
+		if err == nil {
+			res, err = platform.SyncStatus(req)
+		}
+		n.enc.Publish(request.Reply, SyncStatusResponse{res, makeErrorResponse(err)})
+
+	case strings.HasSuffix(request.Subject, methodGitRepoConfig):
+		var (
+			req bool
+			res flux.GitConfig
+		)
+		err = encoder.Decode(request.Subject, request.Data, &req)
+		if err == nil {
+			res, err = platform.GitRepoConfig(req)
+		}
+		n.enc.Publish(request.Reply, GitRepoConfigResponse{res, makeErrorResponse(err)})
+
+	default:
+		err = errors.New("unknown message: " + request.Subject)
+	}
+	if _, ok := err.(remote.FatalError); ok && err != nil {
+		select {
+		case errc <- err:
+		default:
+			// If the error channel is closed, it means that a
+			// different RPC goroutine had a fatal error that
+			// triggered the clean up and return of the parent
+			// goroutine. It is likely that the error we have
+			// encountered is due to the closure of the RPC
+			// client whilst our request was still in progress
+			// - don't panic.
+		}
+	}
 }
