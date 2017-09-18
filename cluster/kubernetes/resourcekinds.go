@@ -5,8 +5,9 @@ import (
 	"fmt"
 
 	"github.com/pkg/errors"
-	"k8s.io/client-go/1.5/pkg/api"
-	apiext "k8s.io/client-go/1.5/pkg/apis/extensions/v1beta1"
+	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/pkg/api"
+	apiext "k8s.io/client-go/pkg/apis/extensions/v1beta1"
 
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster"
@@ -44,7 +45,7 @@ func MakeAllControllers(c *Cluster, namespace string) ([]cluster.Controller, err
 func MakeAllImageCreds(c *Cluster) registry.ImageCreds {
 	allImageCreds := make(registry.ImageCreds)
 
-	namespaces, err := c.client.Namespaces().List(api.ListOptions{})
+	namespaces, err := c.client.Namespaces().List(meta_v1.ListOptions{})
 	if err != nil {
 		c.logger.Log("err", errors.Wrap(err, "getting namespaces"))
 		return allImageCreds
@@ -104,7 +105,7 @@ type deploymentKind struct{}
 func (*deploymentKind) makeController(c *Cluster, id flux.ResourceID) (*cluster.Controller, error) {
 	ns, _, name := id.Components()
 
-	deployment, err := c.client.Deployments(ns).Get(name)
+	deployment, err := c.client.Deployments(ns).Get(name, meta_v1.GetOptions{})
 	if err != nil {
 		return nil, errors.Wrapf(err, "fetching deployment %s for namespace %S", name, ns)
 	}
@@ -116,7 +117,7 @@ func (*deploymentKind) makeController(c *Cluster, id flux.ResourceID) (*cluster.
 
 func (*deploymentKind) makeAllControllers(c *Cluster, namespace string) ([]cluster.Controller, error) {
 	var controllers []cluster.Controller
-	deployments, err := c.client.Deployments(namespace).List(api.ListOptions{})
+	deployments, err := c.client.Deployments(namespace).List(meta_v1.ListOptions{})
 	if err != nil {
 		return nil, errors.Wrapf(err, "getting deployments for namespace %s", namespace)
 	}
@@ -134,7 +135,7 @@ func (*deploymentKind) makeAllControllers(c *Cluster, namespace string) ([]clust
 func (*deploymentKind) makeAllImageCreds(c *Cluster, namespace string) registry.ImageCreds {
 	imageCreds := make(registry.ImageCreds)
 
-	deployments, err := c.client.Deployments(namespace).List(api.ListOptions{})
+	deployments, err := c.client.Deployments(namespace).List(meta_v1.ListOptions{})
 	if err != nil {
 		c.logger.Log("err", errors.Wrapf(err, "getting deployments for namespace %s", namespace))
 		return imageCreds
@@ -143,7 +144,7 @@ func (*deploymentKind) makeAllImageCreds(c *Cluster, namespace string) registry.
 	for _, deployment := range deployments.Items {
 		creds := registry.NoCredentials()
 		for _, imagePullSecret := range deployment.Spec.Template.Spec.ImagePullSecrets {
-			secret, err := c.client.Secrets(namespace).Get(imagePullSecret.Name)
+			secret, err := c.client.Secrets(namespace).Get(imagePullSecret.Name, meta_v1.GetOptions{})
 			if err != nil {
 				c.logger.Log("err", errors.Wrapf(err, "getting secret %q from namespace %q", secret.Name, namespace))
 				continue
@@ -194,7 +195,7 @@ func (*deploymentKind) makeAllImageCreds(c *Cluster, namespace string) registry.
 }
 
 func (*deploymentKind) appendYAML(c *Cluster, namespace string, buffer *bytes.Buffer) error {
-	deployments, err := c.client.Deployments(namespace).List(api.ListOptions{})
+	deployments, err := c.client.Deployments(namespace).List(meta_v1.ListOptions{})
 	if err != nil {
 		return errors.Wrap(err, "getting deployments")
 	}

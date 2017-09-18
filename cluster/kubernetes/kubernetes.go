@@ -11,11 +11,11 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
-	"k8s.io/client-go/1.5/discovery"
-	k8sclient "k8s.io/client-go/1.5/kubernetes"
-	v1core "k8s.io/client-go/1.5/kubernetes/typed/core/v1"
-	v1beta1extensions "k8s.io/client-go/1.5/kubernetes/typed/extensions/v1beta1"
-	"k8s.io/client-go/1.5/pkg/api"
+	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/discovery"
+	k8sclient "k8s.io/client-go/kubernetes"
+	v1core "k8s.io/client-go/kubernetes/typed/core/v1"
+	v1beta1extensions "k8s.io/client-go/kubernetes/typed/extensions/v1beta1"
 
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster"
@@ -31,8 +31,8 @@ const (
 
 type extendedClient struct {
 	discovery.DiscoveryInterface
-	v1core.CoreInterface
-	v1beta1extensions.ExtensionsInterface
+	v1core.CoreV1Interface
+	v1beta1extensions.ExtensionsV1beta1Interface
 }
 
 type apiObject struct {
@@ -150,7 +150,7 @@ func (c *Cluster) SomeControllers(ids []flux.ResourceID) (res []cluster.Controll
 // AllControllers returns all controllers matching the criteria; that is, in
 // the namespace (or any namespace if that argument is empty)
 func (c *Cluster) AllControllers(namespace string) (res []cluster.Controller, err error) {
-	namespaces, err := c.client.Namespaces().List(api.ListOptions{})
+	namespaces, err := c.client.Namespaces().List(meta_v1.ListOptions{})
 	if err != nil {
 		return nil, errors.Wrap(err, "getting namespaces")
 	}
@@ -218,7 +218,7 @@ func (c *Cluster) Ping() error {
 
 func (c *Cluster) Export() ([]byte, error) {
 	var config bytes.Buffer
-	list, err := c.client.Namespaces().List(api.ListOptions{})
+	list, err := c.client.Namespaces().List(meta_v1.ListOptions{})
 	if err != nil {
 		return nil, errors.Wrap(err, "getting namespaces")
 	}

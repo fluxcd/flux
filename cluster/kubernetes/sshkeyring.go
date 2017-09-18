@@ -7,8 +7,8 @@ import (
 	"path"
 	"sync"
 
-	"k8s.io/client-go/1.5/kubernetes/typed/core/v1"
-	"k8s.io/client-go/1.5/pkg/api"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/kubernetes/typed/core/v1"
 
 	"github.com/weaveworks/flux/ssh"
 )
@@ -111,7 +111,7 @@ func (skr *sshKeyRing) Regenerate() error {
 		return err
 	}
 
-	_, err = skr.SecretAPI.Patch(skr.SecretName, api.StrategicMergePatchType, jsonPatch)
+	_, err = skr.SecretAPI.Patch(skr.SecretName, types.StrategicMergePatchType, jsonPatch)
 	if err != nil {
 		return err
 	}

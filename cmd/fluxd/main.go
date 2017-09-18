@@ -16,8 +16,8 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/pflag"
 	"github.com/weaveworks/go-checkpoint"
-	k8sclient "k8s.io/client-go/1.5/kubernetes"
-	"k8s.io/client-go/1.5/rest"
+	k8sclient "k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 
 	"context"
 	"github.com/weaveworks/flux"
