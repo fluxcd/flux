@@ -6,7 +6,6 @@ package kubernetes
 
 import (
 	"bytes"
-	"fmt"
 
 	k8syaml "github.com/ghodss/yaml"
 	"github.com/go-kit/kit/log"
@@ -17,7 +16,6 @@ import (
 	v1core "k8s.io/client-go/1.5/kubernetes/typed/core/v1"
 	v1beta1extensions "k8s.io/client-go/1.5/kubernetes/typed/extensions/v1beta1"
 	"k8s.io/client-go/1.5/pkg/api"
-	apiext "k8s.io/client-go/1.5/pkg/apis/extensions/v1beta1"
 
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster"
@@ -140,18 +138,11 @@ func (c *Cluster) loop() {
 func (c *Cluster) SomeControllers(ids []flux.ResourceID) (res []cluster.Controller, err error) {
 	var controllers []cluster.Controller
 	for _, id := range ids {
-		ns, kind, name := id.Components()
-
-		switch kind {
-		case "deployment":
-			deployment, err := c.client.Deployments(ns).Get(name)
-			if err != nil {
-				return nil, errors.Wrapf(err, "fetching deployment %s for namespace %S", name, ns)
-			}
-			if !isAddon(deployment) {
-				controllers = append(controllers, makeDeploymentController(id, deployment))
-			}
+		controller, err := MakeController(c, id)
+		if err != nil {
+			return nil, err
 		}
+		controllers = append(controllers, *controller)
 	}
 	return controllers, nil
 }
@@ -164,54 +155,21 @@ func (c *Cluster) AllControllers(namespace string) (res []cluster.Controller, er
 		return nil, errors.Wrap(err, "getting namespaces")
 	}
 
-	var controllers []cluster.Controller
+	var allControllers []cluster.Controller
 	for _, ns := range namespaces.Items {
 		if namespace != "" && ns.Name != namespace {
 			continue
 		}
 
-		deployments, err := c.client.Deployments(ns.Name).List(api.ListOptions{})
+		controllers, err := MakeAllControllers(c, ns.Name)
 		if err != nil {
-			return nil, errors.Wrapf(err, "getting deployments for namespace %s", ns.Name)
+			return nil, err
 		}
 
-		for _, deployment := range deployments.Items {
-			if !isAddon(&deployment) {
-				id := flux.MakeResourceID(ns.Name, "deployment", deployment.Name)
-				controllers = append(controllers, makeDeploymentController(id, &deployment))
-			}
-		}
+		allControllers = append(allControllers, controllers...)
 	}
 
-	return controllers, nil
-}
-
-// makeDeploymentController builds a cluster.Controller from a kubernetes Deployment
-func makeDeploymentController(id flux.ResourceID, deployment *apiext.Deployment) cluster.Controller {
-	var statusMessage string
-	meta, status := deployment.ObjectMeta, deployment.Status
-	if status.ObservedGeneration >= meta.Generation {
-		// the definition has been updated; now let's see about the replicas
-		updated, wanted := status.UpdatedReplicas, *deployment.Spec.Replicas
-		if updated == wanted {
-			statusMessage = StatusReady
-		} else {
-			statusMessage = fmt.Sprintf("%d out of %d updated", updated, wanted)
-		}
-	} else {
-		statusMessage = StatusUpdating
-	}
-
-	var containers []cluster.Container
-	for _, container := range deployment.Spec.Template.Spec.Containers {
-		containers = append(containers, cluster.Container{Name: container.Name, Image: container.Image})
-	}
-
-	return cluster.Controller{
-		ID:         id,
-		Status:     statusMessage,
-		Containers: cluster.ContainersOrExcuse{Containers: containers},
-	}
+	return allControllers, nil
 }
 
 // Sync performs the given actions on resources. Operations are
@@ -270,18 +228,8 @@ func (c *Cluster) Export() ([]byte, error) {
 			return nil, errors.Wrap(err, "marshalling namespace to YAML")
 		}
 
-		deployments, err := c.client.Deployments(ns.Name).List(api.ListOptions{})
-		if err != nil {
-			return nil, errors.Wrap(err, "getting deployments")
-		}
-		for _, deployment := range deployments.Items {
-			if isAddon(&deployment) {
-				continue
-			}
-			err := appendYAML(&config, "extensions/v1beta1", "Deployment", deployment)
-			if err != nil {
-				return nil, errors.Wrap(err, "marshalling deployment to YAML")
-			}
+		if err := AppendYAML(c, ns.Name, &config); err != nil {
+			return nil, err
 		}
 	}
 	return config.Bytes(), nil
@@ -314,74 +262,8 @@ func (c *Cluster) PublicSSHKey(regenerate bool) (ssh.PublicKey, error) {
 }
 
 // ImagesToFetch is a k8s specific method to get a list of images to update along with their credentials
-func (c *Cluster) ImagesToFetch() (imageCreds registry.ImageCreds) {
-	imageCreds = make(registry.ImageCreds)
-
-	namespaces, err := c.client.Namespaces().List(api.ListOptions{})
-	if err != nil {
-		c.logger.Log("err", errors.Wrap(err, "getting namespaces"))
-		return
-	}
-
-	for _, ns := range namespaces.Items {
-		deployments, err := c.client.Deployments(ns.Name).List(api.ListOptions{})
-		if err != nil {
-			c.logger.Log("err", errors.Wrapf(err, "getting deployments for namespace %s", ns.Name))
-			return
-		}
-
-		for _, deployment := range deployments.Items {
-			creds := registry.NoCredentials()
-			for _, imagePullSecret := range deployment.Spec.Template.Spec.ImagePullSecrets {
-				secret, err := c.client.Secrets(ns.Name).Get(imagePullSecret.Name)
-				if err != nil {
-					c.logger.Log("err", errors.Wrapf(err, "getting secret %q from namespace %q", secret.Name, ns.Name))
-					continue
-				}
-
-				var decoded []byte
-				var ok bool
-				// These differ in format; but, ParseCredentials will
-				// handle either.
-				switch api.SecretType(secret.Type) {
-				case api.SecretTypeDockercfg:
-					decoded, ok = secret.Data[api.DockerConfigKey]
-				case api.SecretTypeDockerConfigJson:
-					decoded, ok = secret.Data[api.DockerConfigJsonKey]
-				default:
-					c.logger.Log("skip", "unknown type", "secret", ns.Name+"/"+secret.Name, "type", secret.Type)
-					continue
-				}
-
-				if !ok {
-					c.logger.Log("err", errors.Wrapf(err, "retrieving pod secret %q", secret.Name))
-					continue
-				}
-
-				// Parse secret
-				crd, err := registry.ParseCredentials(decoded)
-				if err != nil {
-					c.logger.Log("err", err.Error())
-					continue
-				}
-
-				// Merge into the credentials for this PodSpec
-				creds.Merge(crd)
-			}
-
-			// Now create the service and attach the credentials
-			for _, container := range deployment.Spec.Template.Spec.Containers {
-				r, err := flux.ParseImageID(container.Image)
-				if err != nil {
-					c.logger.Log("err", err.Error())
-					continue
-				}
-				imageCreds[r] = creds
-			}
-		}
-	}
-
-	return
+func (c *Cluster) ImagesToFetch() registry.ImageCreds {
+	return MakeAllImageCreds(c)
 }
 
 // --- end cluster.Cluster

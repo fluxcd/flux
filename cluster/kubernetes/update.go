@@ -24,10 +24,8 @@ func updatePodController(def []byte, container string, newImageID flux.ImageID) 
 	if err != nil {
 		return nil, err
 	}
-	switch obj.Kind {
-	case "Deployment":
-		break
-	default:
+
+	if _, ok := resourceKinds[strings.ToLower(obj.Kind)]; !ok {
 		return nil, UpdateNotSupportedError(obj.Kind)
 	}
 
