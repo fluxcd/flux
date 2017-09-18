@@ -7,6 +7,7 @@ import (
 	"github.com/pkg/errors"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/pkg/api"
+	apiv1 "k8s.io/client-go/pkg/api/v1"
 	apiext "k8s.io/client-go/pkg/apis/extensions/v1beta1"
 
 	"github.com/weaveworks/flux"
@@ -95,6 +96,73 @@ var (
 
 func init() {
 	resourceKinds["deployment"] = &deploymentKind{}
+	resourceKinds["daemonset"] = &daemonSetKind{}
+}
+
+/////////////////////////////////////////////////////////////////////////////
+// Common kind utility functions
+
+func mergeCredentials(c *Cluster, namespace string, podTemplate apiv1.PodTemplateSpec, imageCreds registry.ImageCreds) {
+	creds := registry.NoCredentials()
+	for _, imagePullSecret := range podTemplate.Spec.ImagePullSecrets {
+		secret, err := c.client.Secrets(namespace).Get(imagePullSecret.Name, meta_v1.GetOptions{})
+		if err != nil {
+			c.logger.Log("err", errors.Wrapf(err, "getting secret %q from namespace %q", secret.Name, namespace))
+			continue
+		}
+
+		var decoded []byte
+		var ok bool
+		// These differ in format; but, ParseCredentials will
+		// handle either.
+		switch api.SecretType(secret.Type) {
+		case api.SecretTypeDockercfg:
+			decoded, ok = secret.Data[api.DockerConfigKey]
+		case api.SecretTypeDockerConfigJson:
+			decoded, ok = secret.Data[api.DockerConfigJsonKey]
+		default:
+			c.logger.Log("skip", "unknown type", "secret", namespace+"/"+secret.Name, "type", secret.Type)
+			continue
+		}
+
+		if !ok {
+			c.logger.Log("err", errors.Wrapf(err, "retrieving pod secret %q", secret.Name))
+			continue
+		}
+
+		// Parse secret
+		crd, err := registry.ParseCredentials(decoded)
+		if err != nil {
+			c.logger.Log("err", err.Error())
+			continue
+		}
+
+		// Merge into the credentials for this PodSpec
+		creds.Merge(crd)
+	}
+
+	// Now create the service and attach the credentials
+	for _, container := range podTemplate.Spec.Containers {
+		r, err := flux.ParseImageID(container.Image)
+		if err != nil {
+			c.logger.Log("err", err.Error())
+			continue
+		}
+		imageCreds[r] = creds
+	}
+}
+
+func makeController(id flux.ResourceID, status string, containers []apiv1.Container) *cluster.Controller {
+	var clusterContainers []cluster.Container
+	for _, container := range containers {
+		clusterContainers = append(clusterContainers, cluster.Container{Name: container.Name, Image: container.Image})
+	}
+
+	return &cluster.Controller{
+		ID:         id,
+		Status:     status,
+		Containers: cluster.ContainersOrExcuse{Containers: clusterContainers},
+	}
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -117,6 +185,7 @@ func (*deploymentKind) makeController(c *Cluster, id flux.ResourceID) (*cluster.
 
 func (*deploymentKind) makeAllControllers(c *Cluster, namespace string) ([]cluster.Controller, error) {
 	var controllers []cluster.Controller
+
 	deployments, err := c.client.Deployments(namespace).List(meta_v1.ListOptions{})
 	if err != nil {
 		return nil, errors.Wrapf(err, "getting deployments for namespace %s", namespace)
@@ -142,53 +211,7 @@ func (*deploymentKind) makeAllImageCreds(c *Cluster, namespace string) registry.
 	}
 
 	for _, deployment := range deployments.Items {
-		creds := registry.NoCredentials()
-		for _, imagePullSecret := range deployment.Spec.Template.Spec.ImagePullSecrets {
-			secret, err := c.client.Secrets(namespace).Get(imagePullSecret.Name, meta_v1.GetOptions{})
-			if err != nil {
-				c.logger.Log("err", errors.Wrapf(err, "getting secret %q from namespace %q", secret.Name, namespace))
-				continue
-			}
-
-			var decoded []byte
-			var ok bool
-			// These differ in format; but, ParseCredentials will
-			// handle either.
-			switch api.SecretType(secret.Type) {
-			case api.SecretTypeDockercfg:
-				decoded, ok = secret.Data[api.DockerConfigKey]
-			case api.SecretTypeDockerConfigJson:
-				decoded, ok = secret.Data[api.DockerConfigJsonKey]
-			default:
-				c.logger.Log("skip", "unknown type", "secret", namespace+"/"+secret.Name, "type", secret.Type)
-				continue
-			}
-
-			if !ok {
-				c.logger.Log("err", errors.Wrapf(err, "retrieving pod secret %q", secret.Name))
-				continue
-			}
-
-			// Parse secret
-			crd, err := registry.ParseCredentials(decoded)
-			if err != nil {
-				c.logger.Log("err", err.Error())
-				continue
-			}
-
-			// Merge into the credentials for this PodSpec
-			creds.Merge(crd)
-		}
-
-		// Now create the service and attach the credentials
-		for _, container := range deployment.Spec.Template.Spec.Containers {
-			r, err := flux.ParseImageID(container.Image)
-			if err != nil {
-				c.logger.Log("err", err.Error())
-				continue
-			}
-			imageCreds[r] = creds
-		}
+		mergeCredentials(c, namespace, deployment.Spec.Template, imageCreds)
 	}
 
 	return imageCreds
@@ -226,16 +249,93 @@ func makeDeploymentController(id flux.ResourceID, deployment *apiext.Deployment)
 		statusMessage = StatusUpdating
 	}
 
-	var containers []cluster.Container
-	for _, container := range deployment.Spec.Template.Spec.Containers {
-		containers = append(containers, cluster.Container{Name: container.Name, Image: container.Image})
+	return makeController(id, statusMessage, deployment.Spec.Template.Spec.Containers)
+}
+
+/////////////////////////////////////////////////////////////////////////////
+// extensions/v1beta daemonset
+
+type daemonSetKind struct{}
+
+func (*daemonSetKind) makeController(c *Cluster, id flux.ResourceID) (*cluster.Controller, error) {
+	ns, _, name := id.Components()
+
+	daemonSet, err := c.client.DaemonSets(ns).Get(name, meta_v1.GetOptions{})
+	if err != nil {
+		return nil, errors.Wrapf(err, "fetching daemonSet %s for namespace %S", name, ns)
+	}
+	if isAddon(daemonSet) {
+		return nil, nil
+	}
+	return makeDaemonSetController(id, daemonSet), nil
+}
+
+func (*daemonSetKind) makeAllControllers(c *Cluster, namespace string) ([]cluster.Controller, error) {
+	var controllers []cluster.Controller
+	daemonSets, err := c.client.DaemonSets(namespace).List(meta_v1.ListOptions{})
+	if err != nil {
+		return nil, errors.Wrapf(err, "getting daemonSets for namespace %s", namespace)
 	}
 
-	return &cluster.Controller{
-		ID:         id,
-		Status:     statusMessage,
-		Containers: cluster.ContainersOrExcuse{Containers: containers},
+	for _, daemonSet := range daemonSets.Items {
+		if !isAddon(&daemonSet) {
+			id := flux.MakeResourceID(namespace, "daemonSet", daemonSet.Name)
+			controllers = append(controllers, *makeDaemonSetController(id, &daemonSet))
+		}
 	}
+
+	return controllers, nil
+}
+
+func (*daemonSetKind) makeAllImageCreds(c *Cluster, namespace string) registry.ImageCreds {
+	imageCreds := make(registry.ImageCreds)
+
+	daemonSets, err := c.client.DaemonSets(namespace).List(meta_v1.ListOptions{})
+	if err != nil {
+		c.logger.Log("err", errors.Wrapf(err, "getting daemonSets for namespace %s", namespace))
+		return imageCreds
+	}
+
+	for _, daemonSet := range daemonSets.Items {
+		mergeCredentials(c, namespace, daemonSet.Spec.Template, imageCreds)
+	}
+
+	return imageCreds
+}
+
+func (*daemonSetKind) appendYAML(c *Cluster, namespace string, buffer *bytes.Buffer) error {
+	daemonSets, err := c.client.DaemonSets(namespace).List(meta_v1.ListOptions{})
+	if err != nil {
+		return errors.Wrap(err, "getting daemonSets")
+	}
+	for _, daemonSet := range daemonSets.Items {
+		if isAddon(&daemonSet) {
+			continue
+		}
+		if err := appendYAML(buffer, "extensions/v1beta1", "DaemonSet", daemonSet); err != nil {
+			return errors.Wrap(err, "marshalling daemonSet to YAML")
+		}
+	}
+	return nil
+}
+
+// makeDaemonSetController builds a cluster.Controller from a kubernetes DaemonSet
+func makeDaemonSetController(id flux.ResourceID, daemonSet *apiext.DaemonSet) *cluster.Controller {
+	var statusMessage string
+	meta, status := daemonSet.ObjectMeta, daemonSet.Status
+	if status.ObservedGeneration >= meta.Generation {
+		// the definition has been updated; now let's see about the replicas
+		updated, wanted := status.UpdatedNumberScheduled, status.DesiredNumberScheduled
+		if updated == wanted {
+			statusMessage = StatusReady
+		} else {
+			statusMessage = fmt.Sprintf("%d out of %d updated", updated, wanted)
+		}
+	} else {
+		statusMessage = StatusUpdating
+	}
+
+	return makeController(id, statusMessage, daemonSet.Spec.Template.Spec.Containers)
 }
 
 /////////////////////////////////////////////////////////////////////////////
