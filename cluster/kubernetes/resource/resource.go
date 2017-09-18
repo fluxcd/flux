@@ -67,6 +67,12 @@ func unmarshalObject(source string, bytes []byte) (resource.Resource, error) {
 	}
 
 	switch base.Kind {
+	case "DaemonSet":
+		var ds = DaemonSet{baseObject: base}
+		if err := yaml.Unmarshal(bytes, &ds); err != nil {
+			return nil, err
+		}
+		return &ds, nil
 	case "Deployment":
 		var dep = Deployment{baseObject: base}
 		if err := yaml.Unmarshal(bytes, &dep); err != nil {
