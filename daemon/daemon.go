@@ -136,9 +136,11 @@ type DaemonJobFunc func(ctx context.Context, jobID job.ID, working *git.Checkout
 // Must cancel the context once this job is complete
 func (d *Daemon) queueJob(do DaemonJobFunc) job.ID {
 	id := job.ID(guid.New())
+	enqueuedAt := time.Now()
 	d.Jobs.Enqueue(&job.Job{
 		ID: id,
 		Do: func(logger log.Logger) error {
+			queueDuration.Observe(time.Since(enqueuedAt).Seconds())
 			started := time.Now().UTC()
 			ctx, cancel := context.WithTimeout(context.Background(), defaultJobTimeout)
 			defer cancel()
@@ -177,6 +179,7 @@ func (d *Daemon) queueJob(do DaemonJobFunc) job.ID {
 			return nil
 		},
 	})
+	queueLength.Set(float64(d.Jobs.Len()))
 	d.JobStatusCache.SetStatus(id, job.Status{StatusString: job.StatusQueued})
 	return id
 }
