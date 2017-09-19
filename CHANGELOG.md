@@ -1,3 +1,35 @@
+## 1.0.1 (2017-09-19)
+
+### Improvements
+
+- Flux daemon can be configured to populate the git commit author with
+  the name of the requesting user
+- When multiple flux daemons share the same configuration repository,
+  each fluxd only sends Slack notifications for commits that affect
+  its branch/path
+- When a resource is locked the invoking user is recorded, along with
+  an optional message
+- When a new config repo is synced for the first time, don't send
+  notifications for the entire commit history
+
+### Fixes
+
+- The `fluxctl identity` command only worked via the Weave Cloud
+  service, and not when connecting directly to the daemon
+
+## 1.0.0 (2017-08-22)
+
+This release introduces significant changes to the way flux works:
+
+- The git repository is now the system of record for your cluster
+  state. Flux continually works to synchronise your cluster with the
+  config repository
+- Release, automation and policy actions work by updating the config
+  repository
+
+See https://github.com/weaveworks/flux/releases/tag/1.0.0 for full
+details.
+
 ## 0.3.0 (2017-05-03)
 
 Update to support newer Kubernetes (1.6.1).
