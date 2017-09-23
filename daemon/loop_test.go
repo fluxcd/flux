@@ -91,7 +91,7 @@ func TestPullAndSync_InitialSync(t *testing.T) {
 
 	syncCalled := 0
 	var syncDef *cluster.SyncDef
-	expectedServiceIDs := flux.ServiceIDs{"default/locked-service", "default/test-service", "default/helloworld"}
+	expectedServiceIDs := flux.ServiceIDs{"default/locked-service", "default/test-service", "default/helloworld", "default/reviews"}
 	expectedServiceIDs.Sort()
 	k8s.SyncFunc = func(def cluster.SyncDef) error {
 		syncCalled++
@@ -146,7 +146,7 @@ func TestDoSync_NoNewCommits(t *testing.T) {
 
 	syncCalled := 0
 	var syncDef *cluster.SyncDef
-	expectedServiceIDs := flux.ServiceIDs{"default/locked-service", "default/test-service", "default/helloworld"}
+	expectedServiceIDs := flux.ServiceIDs{"default/locked-service", "default/test-service", "default/helloworld", "default/reviews"}
 	expectedServiceIDs.Sort()
 	k8s.SyncFunc = func(def cluster.SyncDef) error {
 		syncCalled++
@@ -219,7 +219,7 @@ func TestDoSync_WithNewCommit(t *testing.T) {
 
 	syncCalled := 0
 	var syncDef *cluster.SyncDef
-	expectedServiceIDs := flux.ServiceIDs{"default/locked-service", "default/test-service", "default/helloworld"}
+	expectedServiceIDs := flux.ServiceIDs{"default/locked-service", "default/test-service", "default/helloworld", "default/reviews"}
 	expectedServiceIDs.Sort()
 	k8s.SyncFunc = func(def cluster.SyncDef) error {
 		syncCalled++

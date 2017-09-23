@@ -37,7 +37,7 @@ func (c *Manifests) FindDefinedServices(path string) (map[flux.ServiceID][]strin
 			for _, template := range templates {
 				if res.Meta.Namespace == template.namespace && matches(res, template.PodTemplate) {
 					sid := res.ServiceID()
-					result[sid] = append(result[sid], template.source)
+					result[sid] = appendIfMissing(result[sid], template.source)
 				}
 			}
 		case *resource.Deployment:
@@ -46,7 +46,7 @@ func (c *Manifests) FindDefinedServices(path string) (map[flux.ServiceID][]strin
 			for _, service := range services {
 				if res.Meta.Namespace == service.Meta.Namespace && matches(service, &res.Spec.Template) {
 					sid := service.ServiceID()
-					result[sid] = append(result[sid], source)
+					result[sid] = appendIfMissing(result[sid], source)
 				}
 			}
 		}
@@ -70,4 +70,13 @@ func matches(s *resource.Service, t *resource.PodTemplate) bool {
 		}
 	}
 	return true
+}
+
+func appendIfMissing(slice []string, i string) []string {
+	for _, v := range slice {
+		if v == i {
+			return slice
+		}
+	}
+	return append(slice, i)
 }

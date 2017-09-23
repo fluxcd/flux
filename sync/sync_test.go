@@ -152,6 +152,7 @@ func checkClusterMatchesFiles(t *testing.T, m cluster.Manifests, c cluster.Clust
 	}
 	resources, err := m.ParseManifests(conf)
 	if err != nil {
+		fmt.Printf("--- # begin bad conf\n%s\n--- # end bad conf\n", conf)
 		t.Fatal(err)
 	}
 	files, err := m.LoadManifests(dir)

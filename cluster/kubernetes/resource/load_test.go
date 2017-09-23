@@ -29,8 +29,7 @@ func TestParseEmpty(t *testing.T) {
 }
 
 func TestParseSome(t *testing.T) {
-	docs := `---
-kind: Service
+	docs := `kind: Service
 metadata:
   name: b-service
   namespace: b-namespace
@@ -78,8 +77,8 @@ func TestLoadSome(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	// assume it's one per file for the minute
-	if len(objs) != len(testfiles.Files) {
-		t.Errorf("expected %d objects from %d files, got result:\n%#v", len(testfiles.Files), len(testfiles.Files), objs)
+	// assume it's at least one per file for the minute
+	if len(objs) < len(testfiles.Files) {
+		t.Errorf("expected at least %d objects from %d files, got %d object:\n%#v", len(testfiles.Files), len(testfiles.Files), len(objs), objs)
 	}
 }
