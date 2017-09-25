@@ -91,7 +91,7 @@ func tryUpdate(def []byte, container string, newImage flux.ImageID, out io.Write
 	// controllers).
 	newDefName := manifest.Metadata.Name
 	matchingContainers := map[int]Container{}
-	for i, c := range manifest.Spec.Template.Spec.Containers {
+	for i, c := range append(manifest.Spec.Template.Spec.Containers, manifest.Spec.JobTemplate.Spec.Template.Spec.Containers...) {
 		if c.Name != container {
 			continue
 		}

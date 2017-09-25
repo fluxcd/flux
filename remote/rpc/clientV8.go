@@ -19,7 +19,7 @@ type RPCClientV8 struct {
 
 var _ remote.PlatformV6 = &RPCClientV8{}
 
-var supportedKindsV8 = []string{"deployment", "daemonset", "statefulset"}
+var supportedKindsV8 = []string{"deployment", "daemonset", "statefulset", "cronjob"}
 
 // NewClient creates a new rpc-backed implementation of the platform.
 func NewClientV8(conn io.ReadWriteCloser) *RPCClientV8 {

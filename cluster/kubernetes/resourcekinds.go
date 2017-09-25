@@ -6,6 +6,7 @@ import (
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	apiv1 "k8s.io/client-go/pkg/api/v1"
 	apiapps "k8s.io/client-go/pkg/apis/apps/v1beta1"
+	apibatch "k8s.io/client-go/pkg/apis/batch/v2alpha1"
 	apiext "k8s.io/client-go/pkg/apis/extensions/v1beta1"
 
 	"github.com/weaveworks/flux"
@@ -25,8 +26,9 @@ var (
 )
 
 func init() {
-	resourceKinds["deployment"] = &deploymentKind{}
+	resourceKinds["cronjob"] = &cronJobKind{}
 	resourceKinds["daemonset"] = &daemonSetKind{}
+	resourceKinds["deployment"] = &deploymentKind{}
 	resourceKinds["statefulset"] = &statefulSetKind{}
 }
 
@@ -216,6 +218,44 @@ func makeStatefulSetPodController(statefulSet *apiapps.StatefulSet) podControlle
 		status:      status,
 		podTemplate: statefulSet.Spec.Template,
 		apiObject:   statefulSet}
+}
+
+/////////////////////////////////////////////////////////////////////////////
+// batch/v2alpha1 CronJob
+
+type cronJobKind struct{}
+
+func (dk *cronJobKind) getPodController(c *Cluster, namespace, name string) (podController, error) {
+	cronJob, err := c.client.CronJobs(namespace).Get(name, meta_v1.GetOptions{})
+	if err != nil {
+		return podController{}, err
+	}
+
+	return makeCronJobPodController(cronJob), nil
+}
+
+func (dk *cronJobKind) getPodControllers(c *Cluster, namespace string) ([]podController, error) {
+	cronJobs, err := c.client.CronJobs(namespace).List(meta_v1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	var podControllers []podController
+	for _, cronJob := range cronJobs.Items {
+		podControllers = append(podControllers, makeCronJobPodController(&cronJob))
+	}
+
+	return podControllers, nil
+}
+
+func makeCronJobPodController(cronJob *apibatch.CronJob) podController {
+	return podController{
+		apiVersion:  "batch/v2alpha1",
+		kind:        "CronJob",
+		name:        cronJob.ObjectMeta.Name,
+		status:      StatusReady,
+		podTemplate: cronJob.Spec.JobTemplate.Spec.Template,
+		apiObject:   cronJob}
 }
 
 /////////////////////////////////////////////////////////////////////////////

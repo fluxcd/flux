@@ -111,6 +111,15 @@ type Manifest struct {
 				Containers []Container `yaml:"containers"`
 			} `yaml:"spec"`
 		} `yaml:"template"`
+		JobTemplate struct {
+			Spec struct {
+				Template struct {
+					Spec struct {
+						Containers []Container `yaml:"containers"`
+					} `yaml:"spec"`
+				} `yaml:"template"`
+			} `yaml:"spec"`
+		} `yaml:"jobTemplate"`
 	} `yaml:"spec"`
 }
 

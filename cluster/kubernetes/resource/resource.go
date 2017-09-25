@@ -67,6 +67,12 @@ func unmarshalObject(source string, bytes []byte) (resource.Resource, error) {
 	}
 
 	switch base.Kind {
+	case "CronJob":
+		var cj = CronJob{baseObject: base}
+		if err := yaml.Unmarshal(bytes, &cj); err != nil {
+			return nil, err
+		}
+		return &cj, nil
 	case "DaemonSet":
 		var ds = DaemonSet{baseObject: base}
 		if err := yaml.Unmarshal(bytes, &ds); err != nil {

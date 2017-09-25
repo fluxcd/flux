@@ -17,6 +17,7 @@ import (
 	"k8s.io/client-go/discovery"
 	k8sclient "k8s.io/client-go/kubernetes"
 	v1beta1apps "k8s.io/client-go/kubernetes/typed/apps/v1beta1"
+	v2alpha1batch "k8s.io/client-go/kubernetes/typed/batch/v2alpha1"
 	v1core "k8s.io/client-go/kubernetes/typed/core/v1"
 	v1beta1extensions "k8s.io/client-go/kubernetes/typed/extensions/v1beta1"
 	"k8s.io/client-go/pkg/api"
@@ -39,6 +40,7 @@ type extendedClient struct {
 	v1core.CoreV1Interface
 	v1beta1extensions.ExtensionsV1beta1Interface
 	v1beta1apps.StatefulSetsGetter
+	v2alpha1batch.CronJobsGetter
 }
 
 type apiObject struct {
@@ -113,7 +115,12 @@ func NewCluster(clientset k8sclient.Interface,
 	logger log.Logger) (*Cluster, error) {
 
 	c := &Cluster{
-		client:     extendedClient{clientset.Discovery(), clientset.Core(), clientset.Extensions(), clientset.AppsV1beta1()},
+		client: extendedClient{
+			clientset.Discovery(),
+			clientset.Core(),
+			clientset.Extensions(),
+			clientset.AppsV1beta1(),
+			clientset.BatchV2alpha1()},
 		applier:    applier,
 		actionc:    make(chan func()),
 		logger:     logger,
