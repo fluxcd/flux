@@ -5,6 +5,7 @@ import (
 
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	apiv1 "k8s.io/client-go/pkg/api/v1"
+	apiapps "k8s.io/client-go/pkg/apis/apps/v1beta1"
 	apiext "k8s.io/client-go/pkg/apis/extensions/v1beta1"
 
 	"github.com/weaveworks/flux"
@@ -26,6 +27,7 @@ var (
 func init() {
 	resourceKinds["deployment"] = &deploymentKind{}
 	resourceKinds["daemonset"] = &daemonSetKind{}
+	resourceKinds["statefulset"] = &statefulSetKind{}
 }
 
 type podController struct {
@@ -162,6 +164,58 @@ func makeDaemonSetPodController(daemonSet *apiext.DaemonSet) podController {
 		status:      status,
 		podTemplate: daemonSet.Spec.Template,
 		apiObject:   daemonSet}
+}
+
+/////////////////////////////////////////////////////////////////////////////
+// apps/v1beta1 StatefulSet
+
+type statefulSetKind struct{}
+
+func (dk *statefulSetKind) getPodController(c *Cluster, namespace, name string) (podController, error) {
+	statefulSet, err := c.client.StatefulSets(namespace).Get(name, meta_v1.GetOptions{})
+	if err != nil {
+		return podController{}, err
+	}
+
+	return makeStatefulSetPodController(statefulSet), nil
+}
+
+func (dk *statefulSetKind) getPodControllers(c *Cluster, namespace string) ([]podController, error) {
+	statefulSets, err := c.client.StatefulSets(namespace).List(meta_v1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	var podControllers []podController
+	for _, statefulSet := range statefulSets.Items {
+		podControllers = append(podControllers, makeStatefulSetPodController(&statefulSet))
+	}
+
+	return podControllers, nil
+}
+
+func makeStatefulSetPodController(statefulSet *apiapps.StatefulSet) podController {
+	var status string
+	objectMeta, statefulSetStatus := statefulSet.ObjectMeta, statefulSet.Status
+	if *statefulSetStatus.ObservedGeneration >= objectMeta.Generation {
+		// the definition has been updated; now let's see about the replicas
+		updated, wanted := statefulSetStatus.UpdatedReplicas, *statefulSet.Spec.Replicas
+		if updated == wanted {
+			status = StatusReady
+		} else {
+			status = fmt.Sprintf("%d out of %d updated", updated, wanted)
+		}
+	} else {
+		status = StatusUpdating
+	}
+
+	return podController{
+		apiVersion:  "apps/v1beta1",
+		kind:        "StatefulSet",
+		name:        statefulSet.ObjectMeta.Name,
+		status:      status,
+		podTemplate: statefulSet.Spec.Template,
+		apiObject:   statefulSet}
 }
 
 /////////////////////////////////////////////////////////////////////////////

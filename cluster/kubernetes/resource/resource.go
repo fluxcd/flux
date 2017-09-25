@@ -85,6 +85,12 @@ func unmarshalObject(source string, bytes []byte) (resource.Resource, error) {
 			return nil, err
 		}
 		return &ns, nil
+	case "StatefulSet":
+		var ss = StatefulSet{baseObject: base}
+		if err := yaml.Unmarshal(bytes, &ss); err != nil {
+			return nil, err
+		}
+		return &ss, nil
 		// The remainder are things we have to care about, but not
 		// treat specially
 	default:
