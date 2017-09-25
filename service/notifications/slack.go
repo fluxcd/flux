@@ -61,11 +61,13 @@ var (
 
 func hasNotifyEvent(config service.NotifierConfig, event string) bool {
 	// For backwards compatibility: if no such configuration exists,
-	// assume we just care about releases and autoreleases
-	if config.NotifyEvents == nil {
-		return event == history.EventRelease || event == history.EventAutoRelease
+	// assume we just care about the previously hard-wired events
+	// (releases and autoreleases)
+	notifyEvents := config.NotifyEvents
+	if notifyEvents == nil {
+		notifyEvents = DefaultNotifyEvents
 	}
-	for _, s := range config.NotifyEvents {
+	for _, s := range notifyEvents {
 		if s == event {
 			return true
 		}

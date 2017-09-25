@@ -220,6 +220,15 @@ func (s *Server) GetConfig(instID service.InstanceID, fingerprint string) (servi
 		return service.InstanceConfig{}, err
 	}
 
+	// The UI expects `notifyEvents` to either have an array value, or
+	// be absent from the JSON. Since the field is not marked
+	// `omitEmpty`, so that we can distinguish "never set" from "set
+	// to []", we must patch it if it's `nil`. It's convenient to
+	// patch it to the default.
+	if fullConfig.Settings.Slack.NotifyEvents == nil {
+		fullConfig.Settings.Slack.NotifyEvents = notifications.DefaultNotifyEvents
+	}
+
 	config := service.InstanceConfig(fullConfig.Settings)
 
 	return config, nil
