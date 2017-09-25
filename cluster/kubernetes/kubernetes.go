@@ -6,16 +6,21 @@ package kubernetes
 
 import (
 	"bytes"
+	"fmt"
 
 	k8syaml "github.com/ghodss/yaml"
 	"github.com/go-kit/kit/log"
+
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/discovery"
 	k8sclient "k8s.io/client-go/kubernetes"
+	v1beta1apps "k8s.io/client-go/kubernetes/typed/apps/v1beta1"
 	v1core "k8s.io/client-go/kubernetes/typed/core/v1"
 	v1beta1extensions "k8s.io/client-go/kubernetes/typed/extensions/v1beta1"
+	"k8s.io/client-go/pkg/api"
+	apiv1 "k8s.io/client-go/pkg/api/v1"
 
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster"
@@ -33,6 +38,7 @@ type extendedClient struct {
 	discovery.DiscoveryInterface
 	v1core.CoreV1Interface
 	v1beta1extensions.ExtensionsV1beta1Interface
+	v1beta1apps.StatefulSetsGetter
 }
 
 type apiObject struct {
@@ -107,7 +113,7 @@ func NewCluster(clientset k8sclient.Interface,
 	logger log.Logger) (*Cluster, error) {
 
 	c := &Cluster{
-		client:     extendedClient{clientset.Discovery(), clientset.Core(), clientset.Extensions()},
+		client:     extendedClient{clientset.Discovery(), clientset.Core(), clientset.Extensions(), clientset.AppsV1beta1()},
 		applier:    applier,
 		actionc:    make(chan func()),
 		logger:     logger,
@@ -138,11 +144,21 @@ func (c *Cluster) loop() {
 func (c *Cluster) SomeControllers(ids []flux.ResourceID) (res []cluster.Controller, err error) {
 	var controllers []cluster.Controller
 	for _, id := range ids {
-		controller, err := MakeController(c, id)
+		ns, kind, name := id.Components()
+
+		resourceKind, ok := resourceKinds[kind]
+		if !ok {
+			return nil, fmt.Errorf("Unsupported kind %v", kind)
+		}
+
+		podController, err := resourceKind.getPodController(c, ns, name)
 		if err != nil {
 			return nil, err
 		}
-		controllers = append(controllers, *controller)
+
+		if !isAddon(podController) {
+			controllers = append(controllers, podController.toClusterController(id))
+		}
 	}
 	return controllers, nil
 }
@@ -161,12 +177,19 @@ func (c *Cluster) AllControllers(namespace string) (res []cluster.Controller, er
 			continue
 		}
 
-		controllers, err := MakeAllControllers(c, ns.Name)
-		if err != nil {
-			return nil, err
-		}
+		for kind, resourceKind := range resourceKinds {
+			podControllers, err := resourceKind.getPodControllers(c, ns.Name)
+			if err != nil {
+				return nil, err
+			}
 
-		allControllers = append(allControllers, controllers...)
+			for _, podController := range podControllers {
+				if !isAddon(podController) {
+					id := flux.MakeResourceID(ns.Name, kind, podController.name)
+					allControllers = append(allControllers, podController.toClusterController(id))
+				}
+			}
+		}
 	}
 
 	return allControllers, nil
@@ -228,8 +251,19 @@ func (c *Cluster) Export() ([]byte, error) {
 			return nil, errors.Wrap(err, "marshalling namespace to YAML")
 		}
 
-		if err := AppendYAML(c, ns.Name, &config); err != nil {
-			return nil, err
+		for _, resourceKind := range resourceKinds {
+			podControllers, err := resourceKind.getPodControllers(c, ns.Name)
+			if err != nil {
+				return nil, err
+			}
+
+			for _, pc := range podControllers {
+				if !isAddon(pc) {
+					if err := appendYAML(&config, pc.apiVersion, pc.kind, pc.apiObject); err != nil {
+						return nil, err
+					}
+				}
+			}
 		}
 	}
 	return config.Bytes(), nil
@@ -261,9 +295,92 @@ func (c *Cluster) PublicSSHKey(regenerate bool) (ssh.PublicKey, error) {
 	return publicKey, nil
 }
 
+func mergeCredentials(c *Cluster, namespace string, podTemplate apiv1.PodTemplateSpec, imageCreds registry.ImageCreds) {
+	creds := registry.NoCredentials()
+	for _, imagePullSecret := range podTemplate.Spec.ImagePullSecrets {
+		secret, err := c.client.Secrets(namespace).Get(imagePullSecret.Name, meta_v1.GetOptions{})
+		if err != nil {
+			c.logger.Log("err", errors.Wrapf(err, "getting secret %q from namespace %q", secret.Name, namespace))
+			continue
+		}
+
+		var decoded []byte
+		var ok bool
+		// These differ in format; but, ParseCredentials will
+		// handle either.
+		switch api.SecretType(secret.Type) {
+		case api.SecretTypeDockercfg:
+			decoded, ok = secret.Data[api.DockerConfigKey]
+		case api.SecretTypeDockerConfigJson:
+			decoded, ok = secret.Data[api.DockerConfigJsonKey]
+		default:
+			c.logger.Log("skip", "unknown type", "secret", namespace+"/"+secret.Name, "type", secret.Type)
+			continue
+		}
+
+		if !ok {
+			c.logger.Log("err", errors.Wrapf(err, "retrieving pod secret %q", secret.Name))
+			continue
+		}
+
+		// Parse secret
+		crd, err := registry.ParseCredentials(decoded)
+		if err != nil {
+			c.logger.Log("err", err.Error())
+			continue
+		}
+
+		// Merge into the credentials for this PodSpec
+		creds.Merge(crd)
+	}
+
+	// Now create the service and attach the credentials
+	for _, container := range podTemplate.Spec.Containers {
+		r, err := flux.ParseImageID(container.Image)
+		if err != nil {
+			c.logger.Log("err", err.Error())
+			continue
+		}
+		imageCreds[r] = creds
+	}
+}
+
 // ImagesToFetch is a k8s specific method to get a list of images to update along with their credentials
 func (c *Cluster) ImagesToFetch() registry.ImageCreds {
-	return MakeAllImageCreds(c)
+	allImageCreds := make(registry.ImageCreds)
+
+	namespaces, err := c.client.Namespaces().List(meta_v1.ListOptions{})
+	if err != nil {
+		c.logger.Log("err", errors.Wrap(err, "getting namespaces"))
+		return allImageCreds
+	}
+
+	for _, ns := range namespaces.Items {
+		for _, resourceKind := range resourceKinds {
+			podControllers, err := resourceKind.getPodControllers(c, ns.Name)
+			if err != nil {
+				c.logger.Log("err", errors.Wrapf(err, "getting kind %s for namespace %s", resourceKind, ns.Name))
+				continue
+			}
+
+			imageCreds := make(registry.ImageCreds)
+			for _, podController := range podControllers {
+				mergeCredentials(c, ns.Name, podController.podTemplate, imageCreds)
+			}
+
+			// Merge creds
+			for imageID, creds := range imageCreds {
+				existingCreds, ok := allImageCreds[imageID]
+				if ok {
+					existingCreds.Merge(creds)
+				} else {
+					allImageCreds[imageID] = creds
+				}
+			}
+		}
+	}
+
+	return allImageCreds
 }
 
 // --- end cluster.Cluster
