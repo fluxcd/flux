@@ -10,12 +10,12 @@ import (
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/history"
 	"github.com/weaveworks/flux/job"
-	"github.com/weaveworks/flux/notifications"
 	"github.com/weaveworks/flux/policy"
 	"github.com/weaveworks/flux/remote"
 	"github.com/weaveworks/flux/service"
 	"github.com/weaveworks/flux/service/bus"
 	"github.com/weaveworks/flux/service/instance"
+	"github.com/weaveworks/flux/service/notifications"
 	"github.com/weaveworks/flux/ssh"
 	"github.com/weaveworks/flux/update"
 )
