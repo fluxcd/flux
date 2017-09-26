@@ -64,6 +64,7 @@ func NewServiceRouter() *mux.Router {
 	r.NewRoute().Name("PatchConfig").Methods("PATCH").Path("/v6/config")
 	r.NewRoute().Name("PostIntegrationsGithub").Methods("POST").Path("/v6/integrations/github").Queries("owner", "{owner}", "repository", "{repository}")
 	r.NewRoute().Name("IsConnected").Methods("HEAD", "GET").Path("/v6/ping")
+	r.NewRoute().Name("GithubPushNotify").Methods("POST").Path("/v6/notify/github/push")
 
 	// We assume every request that doesn't match a route is a client
 	// calling an old or hitherto unsupported API.
@@ -107,6 +108,7 @@ func NewHandler(s api.FluxService, r *mux.Router, logger log.Logger) http.Handle
 		"SyncStatus":               handle.SyncStatus,
 		"GetPublicSSHKey":          handle.GetPublicSSHKey,
 		"RegeneratePublicSSHKey":   handle.RegeneratePublicSSHKey,
+		"GithubPushNotify":         handle.GithubPushNotify,
 	} {
 		handler := logging(handlerMethod, log.NewContext(logger).With("method", method))
 		r.Get(method).Handler(handler)
@@ -539,6 +541,23 @@ func (s HTTPService) RegeneratePublicSSHKey(w http.ResponseWriter, r *http.Reque
 
 	w.WriteHeader(http.StatusNoContent)
 	return
+}
+
+func (s HTTPService) GithubPushNotify(w http.ResponseWriter, r *http.Request) {
+	type body struct {
+		SSHUrl string `json:"ssh_url"`
+		Branch string `json:"branch"`
+	}
+	var b body
+	if err := json.NewDecoder(r.Body).Decode(&b); err != nil {
+		transport.WriteError(w, r, http.StatusBadRequest, err)
+		return
+	}
+	if err := s.service.SyncNotifyGit(b.SSHUrl, b.Branch); err != nil {
+		transport.ErrorResponse(w, r, err)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
 }
 
 // --- end handlers

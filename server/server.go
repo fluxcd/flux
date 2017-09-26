@@ -343,3 +343,11 @@ func (s *Server) instrumentPlatform(instID service.InstanceID, p remote.Platform
 func (s *Server) IsDaemonConnected(instID service.InstanceID) error {
 	return s.messageBus.Ping(instID)
 }
+
+func (s *Server) SyncNotifyGit(url, branch string) error {
+	p, err := s.messageBus.ConnectWithGitConfig(url, branch)
+	if err != nil {
+		return err
+	}
+	return p.SyncNotify()
+}

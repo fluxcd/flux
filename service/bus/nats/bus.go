@@ -10,6 +10,7 @@ import (
 	"github.com/weaveworks/flux"
 	fluxerr "github.com/weaveworks/flux/errors"
 	"github.com/weaveworks/flux/guid"
+	"github.com/weaveworks/flux/integrations/github"
 	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/remote"
 	"github.com/weaveworks/flux/service"
@@ -195,8 +196,11 @@ func makeErrorResponse(err error) ErrorResponse {
 // natsPlatform collects the things you need to make a request via NATS
 // together, and implements remote.Platform using that mechanism.
 type natsPlatform struct {
-	conn     *nats.EncodedConn
-	instance string
+	conn *nats.EncodedConn
+	// We usually address an instance by its instanceID, but for incoming github
+	// webhooks we only know the git url and branch so we use that.
+	instance    string
+	url, branch string
 }
 
 func (r *natsPlatform) Ping() error {
@@ -248,8 +252,17 @@ func (r *natsPlatform) UpdateManifests(u update.Spec) (job.ID, error) {
 }
 
 func (r *natsPlatform) SyncNotify() error {
+	// The platform could be instantiated using either and instanceID or
+	// a (url, branch) pair, so set the subject accordingly.
+	var subject string
+	if r.instance == "" {
+		subject = github.GitConfigHash(r.url, r.branch)
+	} else {
+		subject = r.instance
+	}
+
 	var response SyncNotifyResponse
-	if err := r.conn.Request(r.instance+methodSyncNotify, syncReq{}, &response, timeout); err != nil {
+	if err := r.conn.Request(subject+methodSyncNotify, syncReq{}, &response, timeout); err != nil {
 		return remote.UnavailableError(err)
 	}
 	return extractError(response.ErrorResponse)
@@ -290,6 +303,14 @@ func (n *NATS) Connect(instID service.InstanceID) (remote.Platform, error) {
 	}, nil
 }
 
+func (n *NATS) ConnectWithGitConfig(url, branch string) (remote.Platform, error) {
+	return &natsPlatform{
+		conn:   n.enc,
+		url:    url,
+		branch: branch,
+	}, nil
+}
+
 // Subscribe registers a remote remote.Platform implementation as
 // the daemon for an instance (identified by instID). Any
 // remote.FatalError returned when processing requests will result
@@ -297,7 +318,18 @@ func (n *NATS) Connect(instID service.InstanceID) (remote.Platform, error) {
 // channel `done`.
 func (n *NATS) Subscribe(instID service.InstanceID, platform remote.Platform, done chan<- error) {
 	requests := make(chan *nats.Msg)
-	sub, err := n.raw.ChanSubscribe(string(instID)+".Platform.>", requests)
+	instSub, err := n.raw.ChanSubscribe(string(instID)+".Platform.>", requests)
+	if err != nil {
+		done <- err
+		return
+	}
+
+	gitSubject, err := github.MakeGitSubject(platform)
+	if err != nil {
+		done <- err
+		return
+	}
+	gitSub, err := n.raw.ChanSubscribe(gitSubject+".Platform.>", requests)
 	if err != nil {
 		done <- err
 		return
@@ -328,7 +360,8 @@ func (n *NATS) Subscribe(instID service.InstanceID, platform remote.Platform, do
 			// consequence of asynchronous request handling. The error will get
 			// selected and handled soon enough.
 			case err := <-errc:
-				sub.Unsubscribe()
+				instSub.Unsubscribe()
+				gitSub.Unsubscribe()
 				close(requests)
 				done <- err
 				return
@@ -338,7 +371,8 @@ func (n *NATS) Subscribe(instID service.InstanceID, platform remote.Platform, do
 				// clean up on any hard failures.
 				go n.processRequest(request, instID, platform, myID, errc)
 			case <-forceReconnect.C:
-				sub.Unsubscribe()
+				instSub.Unsubscribe()
+				gitSub.Unsubscribe()
 				close(requests)
 				done <- nil
 				return
