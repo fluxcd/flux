@@ -21,13 +21,12 @@ import (
 )
 
 type Server struct {
-	version     string
-	instancer   instance.Instancer
-	config      instance.DB
-	messageBus  bus.MessageBus
-	logger      log.Logger
-	maxPlatform chan struct{} // semaphore for concurrent calls to the platform
-	connected   int32
+	version    string
+	instancer  instance.Instancer
+	config     instance.DB
+	messageBus bus.MessageBus
+	logger     log.Logger
+	connected  int32
 }
 
 func New(
@@ -39,12 +38,11 @@ func New(
 ) *Server {
 	connectedDaemons.Set(0)
 	return &Server{
-		version:     version,
-		instancer:   instancer,
-		config:      config,
-		messageBus:  messageBus,
-		logger:      logger,
-		maxPlatform: make(chan struct{}, 8),
+		version:    version,
+		instancer:  instancer,
+		config:     config,
+		messageBus: messageBus,
+		logger:     logger,
 	}
 }
 
