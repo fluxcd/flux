@@ -104,6 +104,11 @@ func calculatePolicyChanges(opts *servicePolicyOpts) (policy.Update, error) {
 	}
 	if opts.lock {
 		add = add.Add(policy.Locked)
+		if opts.cause.User != "" {
+			add = add.
+				Set(policy.LockedUser, opts.cause.User).
+				Set(policy.LockedMsg, opts.cause.Message)
+		}
 	}
 
 	remove := policy.Set{}
@@ -111,7 +116,10 @@ func calculatePolicyChanges(opts *servicePolicyOpts) (policy.Update, error) {
 		remove = remove.Add(policy.Automated)
 	}
 	if opts.unlock {
-		remove = remove.Add(policy.Locked)
+		remove = remove.
+			Add(policy.Locked).
+			Add(policy.LockedMsg).
+			Add(policy.LockedUser)
 	}
 	if opts.tagAll != "" {
 		add = add.Set(policy.TagAll, "glob:"+opts.tagAll)
