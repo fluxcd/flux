@@ -6,8 +6,7 @@ machine:
     PATH: "/usr/local/go/bin:${HOME}/bin:${PATH}:${HOME}/flux/cmd/fluxsvc" # last for kubeservice
     GOROOT: ""
     GOPATH: "${HOME}"
-    GO15VENDOREXPERIMENT: "1"
-    GODIST: "go1.7.1.linux-amd64.tar.gz"
+    GODIST: "go1.9.linux-amd64.tar.gz"
 
 checkout:
   post:
@@ -31,10 +30,10 @@ dependencies:
     - "~/flux/vendor/golang.org"
     - "~/download"
   override:
-    - go get github.com/FiloSottile/gvt
+    - go get github.com/golang/dep/cmd/dep
     - go get github.com/nats-io/gnatsd
     - go get github.com/weaveworks/github-release
-    - gvt restore
+    - dep ensure
 
 test:
   override:
