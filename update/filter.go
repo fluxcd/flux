@@ -42,7 +42,7 @@ func (f *SpecificImageFilter) Filter(u ServiceUpdate) ServiceResult {
 }
 
 type ExcludeFilter struct {
-	IDs []flux.ServiceID
+	IDs []flux.ResourceID
 }
 
 func (f *ExcludeFilter) Filter(u ServiceUpdate) ServiceResult {
@@ -58,7 +58,7 @@ func (f *ExcludeFilter) Filter(u ServiceUpdate) ServiceResult {
 }
 
 type IncludeFilter struct {
-	IDs []flux.ServiceID
+	IDs []flux.ResourceID
 }
 
 func (f *IncludeFilter) Filter(u ServiceUpdate) ServiceResult {
@@ -74,7 +74,7 @@ func (f *IncludeFilter) Filter(u ServiceUpdate) ServiceResult {
 }
 
 type LockedFilter struct {
-	IDs []flux.ServiceID
+	IDs []flux.ResourceID
 }
 
 func (f *LockedFilter) Filter(u ServiceUpdate) ServiceResult {

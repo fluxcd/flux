@@ -30,7 +30,7 @@ import (
 
 const (
 	// These have to match the values in cluster/kubernetes/testfiles/data.go
-	svc               = "default/helloworld"
+	svc               = "default:deployment/helloworld"
 	container         = "goodbyeworld"
 	ns                = "default"
 	newHelloImage     = "quay.io/weaveworks/helloworld:2"
@@ -260,7 +260,7 @@ func TestDaemon_PolicyUpdate(t *testing.T) {
 			t.Fatalf("Error: %s", err.Error())
 		}
 		d.Checkout.Unlock()
-		return len(m["Deployment "+svc].Policy()) > 0
+		return len(m[svc].Policy()) > 0
 	}, "Waiting for new annotation")
 }
 
@@ -307,8 +307,8 @@ func TestDaemon_JobStatusWithNoCache(t *testing.T) {
 func mockDaemon(t *testing.T) (*Daemon, func(), *cluster.Mock, history.EventReadWriter) {
 	logger := log.NewNopLogger()
 
-	singleService := cluster.Service{
-		ID: flux.ServiceID(svc),
+	singleService := cluster.Controller{
+		ID: flux.MustParseResourceID(svc),
 		Containers: cluster.ContainersOrExcuse{
 			Containers: []cluster.Container{
 				{
@@ -318,10 +318,10 @@ func mockDaemon(t *testing.T) (*Daemon, func(), *cluster.Mock, history.EventRead
 			},
 		},
 	}
-	multiService := []cluster.Service{
+	multiService := []cluster.Controller{
 		singleService,
-		cluster.Service{
-			ID: flux.MakeServiceID("another", "service"),
+		cluster.Controller{
+			ID: flux.MakeResourceID("another", "deployment", "service"),
 			Containers: cluster.ContainersOrExcuse{
 				Containers: []cluster.Container{
 					{
@@ -348,15 +348,15 @@ func mockDaemon(t *testing.T) (*Daemon, func(), *cluster.Mock, history.EventRead
 	var k8s *cluster.Mock
 	{
 		k8s = &cluster.Mock{}
-		k8s.AllServicesFunc = func(maybeNamespace string) ([]cluster.Service, error) {
+		k8s.AllServicesFunc = func(maybeNamespace string) ([]cluster.Controller, error) {
 			if maybeNamespace == ns {
-				return []cluster.Service{
+				return []cluster.Controller{
 					singleService,
 				}, nil
 			} else if maybeNamespace == "" {
 				return multiService, nil
 			}
-			return []cluster.Service{}, nil
+			return []cluster.Controller{}, nil
 		}
 		k8s.ExportFunc = func() ([]byte, error) { return testBytes, nil }
 		k8s.FindDefinedServicesFunc = (&kubernetes.Manifests{}).FindDefinedServices
@@ -366,8 +366,8 @@ func mockDaemon(t *testing.T) (*Daemon, func(), *cluster.Mock, history.EventRead
 		}
 		k8s.PingFunc = func() error { return nil }
 		k8s.ServicesWithPoliciesFunc = (&kubernetes.Manifests{}).ServicesWithPolicies
-		k8s.SomeServicesFunc = func([]flux.ServiceID) ([]cluster.Service, error) {
-			return []cluster.Service{
+		k8s.SomeServicesFunc = func([]flux.ResourceID) ([]cluster.Controller, error) {
+			return []cluster.Controller{
 				singleService,
 			}, nil
 		}
@@ -493,7 +493,7 @@ func updatePolicy(t *testing.T, d *Daemon) job.ID {
 	return updateManifest(t, d, update.Spec{
 		Type: update.Policy,
 		Spec: policy.Updates{
-			"default/helloworld": {
+			flux.MustParseResourceID("default:deployment/helloworld"): {
 				Add: policy.Set{
 					policy.Locked: "true",
 				},

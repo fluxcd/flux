@@ -202,10 +202,6 @@ func saveYAML(stdout io.Writer, object saveObject, out string) error {
 
 func abbreviateKind(kind string) string {
 	switch kind {
-	case "Service":
-		return "svc"
-	case "ReplicationController":
-		return "rc"
 	case "Deployment":
 		return "dep"
 	default:

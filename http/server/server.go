@@ -101,6 +101,7 @@ func NewHandler(s api.FluxService, r *mux.Router, logger log.Logger) http.Handle
 		"ExportV5":                 handle.Export,
 		"RegisterDaemonV6":         handle.RegisterV6,
 		"RegisterDaemonV7":         handle.RegisterV7,
+		"RegisterDaemonV8":         handle.RegisterV8,
 		"IsConnected":              handle.IsConnected,
 		"SyncNotify":               handle.SyncNotify,
 		"JobStatus":                handle.JobStatus,
@@ -182,9 +183,9 @@ func (s HTTPService) UpdateImages(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var excludes []flux.ServiceID
+	var excludes []flux.ResourceID
 	for _, ex := range r.URL.Query()["exclude"] {
-		s, err := flux.ParseServiceID(ex)
+		s, err := flux.ParseResourceID(ex)
 		if err != nil {
 			transport.WriteError(w, r, http.StatusBadRequest, errors.Wrapf(err, "parsing excluded service %q", ex))
 			return
@@ -435,6 +436,12 @@ func (s HTTPService) RegisterV6(w http.ResponseWriter, r *http.Request) {
 func (s HTTPService) RegisterV7(w http.ResponseWriter, r *http.Request) {
 	s.doRegister(w, r, func(conn io.ReadWriteCloser) platformCloser {
 		return rpc.NewClientV7(conn)
+	})
+}
+
+func (s HTTPService) RegisterV8(w http.ResponseWriter, r *http.Request) {
+	s.doRegister(w, r, func(conn io.ReadWriteCloser) platformCloser {
+		return rpc.NewClientV8(conn)
 	})
 }
 

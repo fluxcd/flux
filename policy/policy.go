@@ -36,7 +36,7 @@ func Tag(policy Policy) bool {
 	return strings.HasPrefix(string(policy), "tag.")
 }
 
-type Updates map[flux.ServiceID]Update
+type Updates map[flux.ResourceID]Update
 
 type Update struct {
 	Add    Set `json:"add"`
@@ -112,17 +112,17 @@ func (s Set) ToStringMap() map[string]string {
 	return m
 }
 
-type ServiceMap map[flux.ServiceID]Set
+type ServiceMap map[flux.ResourceID]Set
 
-func (s ServiceMap) ToSlice() []flux.ServiceID {
-	slice := []flux.ServiceID{}
+func (s ServiceMap) ToSlice() []flux.ResourceID {
+	slice := []flux.ResourceID{}
 	for service, _ := range s {
 		slice = append(slice, service)
 	}
 	return slice
 }
 
-func (s ServiceMap) Contains(id flux.ServiceID) bool {
+func (s ServiceMap) Contains(id flux.ResourceID) bool {
 	_, ok := s[id]
 	return ok
 }

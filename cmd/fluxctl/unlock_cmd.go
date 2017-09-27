@@ -42,7 +42,7 @@ func (opts *serviceUnlockOpts) RunE(cmd *cobra.Command, args []string) error {
 		return newUsageError("-s, --service is required")
 	}
 
-	serviceID, err := flux.ParseServiceID(opts.service)
+	serviceID, err := flux.ParseResourceID(opts.service)
 	if err != nil {
 		return err
 	}

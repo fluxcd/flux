@@ -25,7 +25,7 @@ type EventReader interface {
 
 	// EventsForService returns the history for a particular
 	// service. Events must be returned in descending timestamp order.
-	EventsForService(flux.ServiceID, time.Time, int64, time.Time) ([]Event, error)
+	EventsForService(flux.ResourceID, time.Time, int64, time.Time) ([]Event, error)
 
 	// GetEvent finds a single event, by ID.
 	GetEvent(EventID) (Event, error)
@@ -34,7 +34,7 @@ type EventReader interface {
 type DB interface {
 	LogEvent(service.InstanceID, Event) error
 	AllEvents(service.InstanceID, time.Time, int64, time.Time) ([]Event, error)
-	EventsForService(service.InstanceID, flux.ServiceID, time.Time, int64, time.Time) ([]Event, error)
+	EventsForService(service.InstanceID, flux.ResourceID, time.Time, int64, time.Time) ([]Event, error)
 	GetEvent(EventID) (Event, error)
 	io.Closer
 }

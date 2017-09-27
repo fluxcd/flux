@@ -41,11 +41,11 @@ func WriteTestFiles(dir string) error {
 
 // ServiceMap ... given a base path, construct the map representing the services
 // given in the test data.
-func ServiceMap(dir string) map[flux.ServiceID][]string {
-	return map[flux.ServiceID][]string{
-		flux.ServiceID("default/helloworld"):     []string{filepath.Join(dir, "helloworld-deploy.yaml")},
-		flux.ServiceID("default/locked-service"): []string{filepath.Join(dir, "locked-service-deploy.yaml")},
-		flux.ServiceID("default/test-service"):   []string{filepath.Join(dir, "test-service-deploy.yaml")},
+func ServiceMap(dir string) map[flux.ResourceID][]string {
+	return map[flux.ResourceID][]string{
+		flux.MustParseResourceID("default:deployment/helloworld"):     []string{filepath.Join(dir, "helloworld-deploy.yaml")},
+		flux.MustParseResourceID("default:deployment/locked-service"): []string{filepath.Join(dir, "locked-service-deploy.yaml")},
+		flux.MustParseResourceID("default:deployment/test-service"):   []string{filepath.Join(dir, "test-service-deploy.yaml")},
 	}
 }
 
@@ -76,16 +76,6 @@ spec:
         ports:
         - containerPort: 8080
 `,
-	"helloworld-svc.yaml": `apiVersion: v1
-kind: Service
-metadata:
-  name: helloworld
-spec:
-  ports:
-    - port: 80
-  selector:
-    name: helloworld
-`,
 	"locked-service-deploy.yaml": `apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
@@ -108,16 +98,6 @@ spec:
         ports:
         - containerPort: 80
 `,
-	"locked-service-svc.yaml": `apiVersion: v1
-kind: Service
-metadata:
-  name: locked-service
-spec:
-  ports:
-    - port: 80
-  selector:
-    name: locked-service
-`,
 	"test-service-deploy.yaml": `apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
@@ -137,16 +117,6 @@ spec:
         - -msg=Ahoy
         ports:
         - containerPort: 80
-`,
-	"test-service-svc.yaml": `apiVersion: v1
-kind: Service
-metadata:
-  name: test-service
-spec:
-  ports:
-    - port: 80
-  selector:
-    name: test-service
 `,
 }
 

@@ -76,7 +76,7 @@ func setup(t *testing.T) {
 	mockPlatform = &remote.MockPlatform{
 		ListServicesAnswer: []flux.ServiceStatus{
 			flux.ServiceStatus{
-				ID:     flux.ServiceID(helloWorldSvc),
+				ID:     flux.MustParseResourceID(helloWorldSvc),
 				Status: "ok",
 				Containers: []flux.Container{
 					flux.Container{
@@ -91,7 +91,7 @@ func setup(t *testing.T) {
 		},
 		ListImagesAnswer: []flux.ImageStatus{
 			flux.ImageStatus{
-				ID: flux.ServiceID(helloWorldSvc),
+				ID: flux.MustParseResourceID(helloWorldSvc),
 				Containers: []flux.Container{
 					flux.Container{
 						Name: "helloworld",
@@ -102,7 +102,7 @@ func setup(t *testing.T) {
 				},
 			},
 			flux.ImageStatus{
-				ID: flux.ServiceID("a/another"),
+				ID: flux.MustParseResourceID("a/another"),
 				Containers: []flux.Container{
 					flux.Container{
 						Name: "helloworld",
@@ -163,7 +163,7 @@ func TestFluxsvc_ListServices(t *testing.T) {
 	if len(svcs) != 2 {
 		t.Error("Expected there to be two services")
 	}
-	if svcs[0].ID != helloWorldSvc && svcs[1].ID != helloWorldSvc {
+	if svcs[0].ID.String() != helloWorldSvc && svcs[1].ID.String() != helloWorldSvc {
 		t.Errorf("Expected one of the services to be %q", helloWorldSvc)
 	}
 
@@ -280,8 +280,8 @@ func TestFluxsvc_History(t *testing.T) {
 	}
 	err := eventLogger.LogEvent("", history.Event{
 		Type: history.EventLock,
-		ServiceIDs: []flux.ServiceID{
-			helloWorldSvc,
+		ServiceIDs: []flux.ResourceID{
+			flux.MustParseResourceID(helloWorldSvc),
 		},
 		Message: "default/helloworld locked.",
 	})

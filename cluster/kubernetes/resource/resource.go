@@ -1,7 +1,6 @@
 package resource
 
 import (
-	"fmt"
 	"strings"
 
 	yaml "gopkg.in/yaml.v2"
@@ -29,23 +28,18 @@ type baseObject struct {
 	} `yaml:"metadata"`
 }
 
-func (o baseObject) ResourceID() string {
+func (o baseObject) ResourceID() flux.ResourceID {
 	ns := o.Meta.Namespace
 	if ns == "" {
 		ns = "default"
 	}
-	return fmt.Sprintf("%s %s/%s", o.Kind, ns, o.Meta.Name)
+	return flux.MakeResourceID(ns, o.Kind, o.Meta.Name)
 }
 
 // It's useful for comparisons in tests to be able to remove the
 // record of bytes
 func (o *baseObject) debyte() {
 	o.bytes = nil
-}
-
-// ServiceIDs reports the services that depend on this resource.
-func (o baseObject) ServiceIDs(all map[string]resource.Resource) []flux.ServiceID {
-	return nil
 }
 
 func (o baseObject) Policy() policy.Set {
@@ -78,24 +72,36 @@ func unmarshalObject(source string, bytes []byte) (resource.Resource, error) {
 	}
 
 	switch base.Kind {
+	case "CronJob":
+		var cj = CronJob{baseObject: base}
+		if err := yaml.Unmarshal(bytes, &cj); err != nil {
+			return nil, err
+		}
+		return &cj, nil
+	case "DaemonSet":
+		var ds = DaemonSet{baseObject: base}
+		if err := yaml.Unmarshal(bytes, &ds); err != nil {
+			return nil, err
+		}
+		return &ds, nil
 	case "Deployment":
 		var dep = Deployment{baseObject: base}
 		if err := yaml.Unmarshal(bytes, &dep); err != nil {
 			return nil, err
 		}
 		return &dep, nil
-	case "Service":
-		var svc = Service{baseObject: base}
-		if err := yaml.Unmarshal(bytes, &svc); err != nil {
-			return nil, err
-		}
-		return &svc, nil
 	case "Namespace":
 		var ns = Namespace{baseObject: base}
 		if err := yaml.Unmarshal(bytes, &ns); err != nil {
 			return nil, err
 		}
 		return &ns, nil
+	case "StatefulSet":
+		var ss = StatefulSet{baseObject: base}
+		if err := yaml.Unmarshal(bytes, &ss); err != nil {
+			return nil, err
+		}
+		return &ss, nil
 		// The remainder are things we have to care about, but not
 		// treat specially
 	default:

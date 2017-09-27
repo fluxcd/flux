@@ -111,6 +111,15 @@ type Manifest struct {
 				Containers []Container `yaml:"containers"`
 			} `yaml:"spec"`
 		} `yaml:"template"`
+		JobTemplate struct {
+			Spec struct {
+				Template struct {
+					Spec struct {
+						Containers []Container `yaml:"containers"`
+					} `yaml:"spec"`
+				} `yaml:"template"`
+			} `yaml:"spec"`
+		} `yaml:"jobTemplate"`
 	} `yaml:"spec"`
 }
 
@@ -145,8 +154,8 @@ func (m *Manifests) ServicesWithPolicies(root string) (policy.ServiceMap, error)
 		return nil, err
 	}
 
-	result := map[flux.ServiceID]policy.Set{}
-	err = iterateManifests(all, func(s flux.ServiceID, m Manifest) error {
+	result := map[flux.ResourceID]policy.Set{}
+	err = iterateManifests(all, func(s flux.ResourceID, m Manifest) error {
 		ps, err := policiesFrom(m)
 		if err != nil {
 			return err
@@ -160,7 +169,7 @@ func (m *Manifests) ServicesWithPolicies(root string) (policy.ServiceMap, error)
 	return result, nil
 }
 
-func iterateManifests(services map[flux.ServiceID][]string, f func(flux.ServiceID, Manifest) error) error {
+func iterateManifests(services map[flux.ResourceID][]string, f func(flux.ResourceID, Manifest) error) error {
 	for serviceID, paths := range services {
 		if len(paths) != 1 {
 			continue

@@ -1,7 +1,6 @@
 package kubernetes
 
 import (
-	"errors"
 	"fmt"
 
 	fluxerr "github.com/weaveworks/flux/errors"
@@ -16,22 +15,6 @@ func ObjectMissingError(obj string, err error) *fluxerr.Error {
 The object requested was not found in the cluster. Check spelling and
 perhaps verify its presence using kubectl.
 `, obj)}
-}
-
-var ErrReplicationControllersDeprecated = &fluxerr.Error{
-	Type: fluxerr.User,
-	Err:  errors.New("updating replication controllers is deprecated"),
-	Help: `Using Flux to update replication controllers is deprecated.
-
-ReplicationController resources are difficult to update, and it is
-almost certainly better to use a Deployment resource instead. Please
-see
-
-    https://kubernetes.io/docs/user-guide/replication-controller/#deployment-recommended
-
-If replacing with a Deployment is not possible, you can still update a
-ReplicationController manually (e.g., with kubectl rolling-update).
-`,
 }
 
 func UpdateNotSupportedError(kind string) error {

@@ -1,18 +1,22 @@
 package flux
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
+	"regexp"
 	"sort"
 	"strings"
 
 	"github.com/pkg/errors"
-
 	"github.com/weaveworks/flux/ssh"
 )
 
 var (
 	ErrInvalidServiceID = errors.New("invalid service ID")
+
+	LegacyServiceIDRegexp = regexp.MustCompile("^([a-zA-Z0-9_-]+)/([a-zA-Z0-9_-]+)$")
+	ResourceIDRegexp      = regexp.MustCompile("^([a-zA-Z0-9_-]+):([a-zA-Z0-9_-]+)/([a-zA-Z0-9_-]+)$")
 )
 
 type Token string
@@ -23,45 +27,129 @@ func (t Token) Set(req *http.Request) {
 	}
 }
 
-// (User) Service identifiers
-
-type ServiceID string // "default/helloworld"
-
-func (id ServiceID) String() string {
-	return string(id)
+// ResourceID is an opaque type which uniquely identifies a resource in an
+// orchestrator.
+type ResourceID struct {
+	resourceIDImpl
 }
 
-func ParseServiceID(s string) (ServiceID, error) {
-	toks := strings.SplitN(s, "/", 2)
-	if len(toks) != 2 {
-		return "", errors.Wrap(ErrInvalidServiceID, "parsing "+s)
+type resourceIDImpl interface {
+	String() string
+}
+
+// Old-style <namespace>/<servicename> format
+type legacyServiceID struct {
+	namespace, service string
+}
+
+func (id legacyServiceID) String() string {
+	return fmt.Sprintf("%s/%s", id.namespace, id.service)
+}
+
+// New <namespace>:<kind>/<name> format
+type resourceID struct {
+	namespace, kind, name string
+}
+
+func (id resourceID) String() string {
+	return fmt.Sprintf("%s:%s/%s", id.namespace, id.kind, id.name)
+}
+
+// ParseResourceID constructs a ResourceID from a string representation
+// if possible, returning an error value otherwise.
+func ParseResourceID(s string) (ResourceID, error) {
+	if m := ResourceIDRegexp.FindStringSubmatch(s); m != nil {
+		return ResourceID{resourceID{m[1], strings.ToLower(m[2]), m[3]}}, nil
 	}
-	return ServiceID(s), nil
-}
-
-func MakeServiceID(namespace, service string) ServiceID {
-	return ServiceID(namespace + "/" + service)
-}
-
-func (id ServiceID) Components() (namespace, service string) {
-	toks := strings.SplitN(string(id), "/", 2)
-	if len(toks) != 2 {
-		panic("invalid service spec")
+	if m := LegacyServiceIDRegexp.FindStringSubmatch(s); m != nil {
+		return ResourceID{legacyServiceID{m[1], m[2]}}, nil
 	}
-	return toks[0], toks[1]
+	return ResourceID{}, errors.Wrap(ErrInvalidServiceID, "parsing "+s)
 }
 
-type ServiceIDSet map[ServiceID]struct{}
+// MustParseResourceID constructs a ResourceID from a string representation,
+// panicing if the format is invalid.
+func MustParseResourceID(s string) ResourceID {
+	id, err := ParseResourceID(s)
+	if err != nil {
+		panic(err)
+	}
+	return id
+}
+
+// MakeResourceID constructs a ResourceID from constituent components.
+func MakeResourceID(namespace, kind, name string) ResourceID {
+	return ResourceID{resourceID{namespace, strings.ToLower(kind), name}}
+}
+
+// Components returns the constituent components of a ResourceID
+func (id ResourceID) Components() (namespace, kind, name string) {
+	switch impl := id.resourceIDImpl.(type) {
+	case resourceID:
+		return impl.namespace, impl.kind, impl.name
+	case legacyServiceID:
+		return impl.namespace, "service", impl.service
+	default:
+		panic("wrong underlying type")
+	}
+}
+
+// MarshalJSON encodes a ResourceID as a JSON string. This is
+// done to maintain backwards compatibility with previous flux
+// versions where the ResourceID is a plain string.
+func (id ResourceID) MarshalJSON() ([]byte, error) {
+	if id.resourceIDImpl == nil {
+		// Sadly needed as it's possible to construct an empty ResourceID literal
+		return json.Marshal("")
+	}
+	return json.Marshal(id.String())
+}
+
+// UnmarshalJSON decodes a ResourceID from a JSON string. This is
+// done to maintain backwards compatibility with previous flux
+// versions where the ResourceID is a plain string.
+func (id *ResourceID) UnmarshalJSON(data []byte) (err error) {
+	var str string
+	if err := json.Unmarshal(data, &str); err != nil {
+		return err
+	}
+	if string(str) == "" {
+		// Sadly needed as it's possible to construct an empty ResourceID literal
+		*id = ResourceID{}
+		return nil
+	}
+	*id, err = ParseResourceID(string(str))
+	return err
+}
+
+// MarshalText encodes a ResourceID as a flat string; this is
+// required because ResourceIDs are sometimes used as map keys.
+func (id ResourceID) MarshalText() (text []byte, err error) {
+	return []byte(id.String()), nil
+}
+
+// MarshalText decodes a ResourceID from a flat string; this is
+// required because ResourceIDs are sometimes used as map keys.
+func (id *ResourceID) UnmarshalText(text []byte) error {
+	result, err := ParseResourceID(string(text))
+	if err != nil {
+		return err
+	}
+	*id = result
+	return nil
+}
+
+type ServiceIDSet map[ResourceID]struct{}
 
 func (s ServiceIDSet) String() string {
 	var ids []string
 	for id := range s {
-		ids = append(ids, string(id))
+		ids = append(ids, id.String())
 	}
 	return "{" + strings.Join(ids, ", ") + "}"
 }
 
-func (s ServiceIDSet) Add(ids []ServiceID) {
+func (s ServiceIDSet) Add(ids []ResourceID) {
 	for _, id := range ids {
 		s[id] = struct{}{}
 	}
@@ -80,7 +168,7 @@ func (s ServiceIDSet) Without(others ServiceIDSet) ServiceIDSet {
 	return res
 }
 
-func (s ServiceIDSet) Contains(id ServiceID) bool {
+func (s ServiceIDSet) Contains(id ResourceID) bool {
 	if s == nil {
 		return false
 	}
@@ -114,10 +202,10 @@ func (s ServiceIDSet) ToSlice() ServiceIDs {
 	return keys
 }
 
-type ServiceIDs []ServiceID
+type ServiceIDs []ResourceID
 
 func (p ServiceIDs) Len() int           { return len(p) }
-func (p ServiceIDs) Less(i, j int) bool { return string(p[i]) < string(p[j]) }
+func (p ServiceIDs) Less(i, j int) bool { return p[i].String() < p[j].String() }
 func (p ServiceIDs) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
 func (p ServiceIDs) Sort()              { sort.Sort(p) }
 
@@ -130,7 +218,7 @@ func (ids ServiceIDs) Without(others ServiceIDSet) (res ServiceIDs) {
 	return res
 }
 
-func (ids ServiceIDs) Contains(id ServiceID) bool {
+func (ids ServiceIDs) Contains(id ResourceID) bool {
 	set := ServiceIDSet{}
 	set.Add(ids)
 	return set.Contains(id)
@@ -145,12 +233,12 @@ func (ids ServiceIDs) Intersection(others ServiceIDSet) ServiceIDSet {
 // -- types used in API
 
 type ImageStatus struct {
-	ID         ServiceID
+	ID         ResourceID
 	Containers []Container
 }
 
 type ServiceStatus struct {
-	ID         ServiceID
+	ID         ResourceID
 	Containers []Container
 	Status     string
 	Automated  bool

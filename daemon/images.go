@@ -24,7 +24,7 @@ func (d *Daemon) pollForNewImages(logger log.Logger) {
 		return
 	}
 	// Find images to check
-	services, err := d.Cluster.SomeServices(candidateServices.ToSlice())
+	services, err := d.Cluster.SomeControllers(candidateServices.ToSlice())
 	if err != nil {
 		logger.Log("error", errors.Wrap(err, "checking services for new images"))
 		return
@@ -63,7 +63,7 @@ func (d *Daemon) pollForNewImages(logger log.Logger) {
 	}
 }
 
-func getTagPattern(services policy.ServiceMap, service flux.ServiceID, container string) string {
+func getTagPattern(services policy.ServiceMap, service flux.ResourceID, container string) string {
 	policies := services[service]
 	if pattern, ok := policies.Get(policy.TagPrefix(container)); ok {
 		return strings.TrimPrefix(pattern, "glob:")

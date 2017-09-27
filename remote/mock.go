@@ -98,8 +98,8 @@ var _ Platform = &MockPlatform{}
 func PlatformTestBattery(t *testing.T, wrap func(mock Platform) Platform) {
 	// set up
 	namespace := "the-space-of-names"
-	serviceID := flux.ServiceID(namespace + "/service")
-	serviceList := []flux.ServiceID{serviceID}
+	serviceID := flux.MustParseResourceID(namespace + "/service")
+	serviceList := []flux.ResourceID{serviceID}
 	services := flux.ServiceIDSet{}
 	services.Add(serviceList)
 
@@ -108,7 +108,7 @@ func PlatformTestBattery(t *testing.T, wrap func(mock Platform) Platform) {
 	imageID, _ := flux.ParseImageID("quay.io/example.com/frob:v0.4.5")
 	serviceAnswer := []flux.ServiceStatus{
 		flux.ServiceStatus{
-			ID:     flux.ServiceID("foobar/hello"),
+			ID:     flux.MustParseResourceID("foobar/hello"),
 			Status: "ok",
 			Containers: []flux.Container{
 				flux.Container{
@@ -125,7 +125,7 @@ func PlatformTestBattery(t *testing.T, wrap func(mock Platform) Platform) {
 
 	imagesAnswer := []flux.ImageStatus{
 		flux.ImageStatus{
-			ID: flux.ServiceID("barfoo/yello"),
+			ID: flux.MustParseResourceID("barfoo/yello"),
 			Containers: []flux.Container{
 				{
 					Name: "flubnicator",

@@ -30,9 +30,9 @@ func TestParseEmpty(t *testing.T) {
 
 func TestParseSome(t *testing.T) {
 	docs := `---
-kind: Service
+kind: Deployment
 metadata:
-  name: b-service
+  name: b-deployment
   namespace: b-namespace
 ---
 kind: Deployment
@@ -45,10 +45,10 @@ metadata:
 	}
 
 	objA := base("test", "Deployment", "", "a-deployment")
-	objB := base("test", "Service", "b-namespace", "b-service")
+	objB := base("test", "Deployment", "b-namespace", "b-deployment")
 	expected := map[string]resource.Resource{
-		objA.ResourceID(): &Deployment{baseObject: objA},
-		objB.ResourceID(): &Service{baseObject: objB},
+		objA.ResourceID().String(): &Deployment{baseObject: objA},
+		objB.ResourceID().String(): &Deployment{baseObject: objB},
 	}
 
 	for id, obj := range expected {

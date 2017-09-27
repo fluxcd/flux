@@ -58,7 +58,7 @@ func (opts *serviceShowOpts) RunE(cmd *cobra.Command, args []string) error {
 			continue
 		}
 
-		serviceName := service.ID
+		serviceName := service.ID.String()
 		var lineCount int
 		for _, container := range service.Containers {
 			containerName := container.Name
@@ -114,7 +114,7 @@ func (s imageStatusByName) Len() int {
 }
 
 func (s imageStatusByName) Less(a, b int) bool {
-	return s[a].ID < s[b].ID
+	return s[a].ID.String() < s[b].ID.String()
 }
 
 func (s imageStatusByName) Swap(a, b int) {

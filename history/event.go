@@ -41,7 +41,7 @@ type Event struct {
 	ID EventID `json:"id"`
 
 	// ServiceIDs affected by this event.
-	ServiceIDs []flux.ServiceID `json:"serviceIDs"`
+	ServiceIDs []flux.ResourceID `json:"serviceIDs"`
 
 	// Type is the type of event, usually "release" for now, but could be other
 	// things later
@@ -71,7 +71,7 @@ type Event struct {
 func (e Event) ServiceIDStrings() []string {
 	var strServiceIDs []string
 	for _, serviceID := range e.ServiceIDs {
-		strServiceIDs = append(strServiceIDs, string(serviceID))
+		strServiceIDs = append(strServiceIDs, serviceID.String())
 	}
 	sort.Strings(strServiceIDs)
 	return strServiceIDs

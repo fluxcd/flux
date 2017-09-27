@@ -20,6 +20,8 @@ type RPCClientV7 struct {
 
 var _ remote.PlatformV6 = &RPCClientV7{}
 
+var supportedKindsV7 = []string{"service"}
+
 // NewClient creates a new rpc-backed implementation of the platform.
 func NewClientV7(conn io.ReadWriteCloser) *RPCClientV7 {
 	return &RPCClientV7{NewClientV6(conn)}
@@ -55,6 +57,10 @@ func (p *RPCClientV7) ListServices(namespace string) ([]flux.ServiceStatus, erro
 
 func (p *RPCClientV7) ListImages(spec update.ServiceSpec) ([]flux.ImageStatus, error) {
 	var resp ListImagesResponse
+	if err := requireServiceSpecKinds(spec, supportedKindsV7); err != nil {
+		return resp.Result, remote.UpgradeNeededError(err)
+	}
+
 	err := p.client.Call("RPCServer.ListImages", spec, &resp)
 	if err != nil {
 		if _, ok := err.(rpc.ServerError); !ok && err != nil {
@@ -68,6 +74,9 @@ func (p *RPCClientV7) ListImages(spec update.ServiceSpec) ([]flux.ImageStatus, e
 
 func (p *RPCClientV7) UpdateManifests(u update.Spec) (job.ID, error) {
 	var resp UpdateManifestsResponse
+	if err := requireSpecKinds(u, supportedKindsV7); err != nil {
+		return resp.Result, remote.UpgradeNeededError(err)
+	}
 	err := p.client.Call("RPCServer.UpdateManifests", u, &resp)
 	if err != nil {
 		if _, ok := err.(rpc.ServerError); !ok && err != nil {

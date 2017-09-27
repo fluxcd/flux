@@ -1,5 +1,5 @@
 package resource
 
-type Namespace struct {
+type CronJob struct {
 	baseObject
 }

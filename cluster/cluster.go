@@ -17,24 +17,18 @@ var (
 // are distinct interfaces.
 type Cluster interface {
 	// Get all of the services (optionally, from a specific namespace), excluding those
-	AllServices(maybeNamespace string) ([]Service, error)
-	SomeServices([]flux.ServiceID) ([]Service, error)
+	AllControllers(maybeNamespace string) ([]Controller, error)
+	SomeControllers([]flux.ResourceID) ([]Controller, error)
 	Ping() error
 	Export() ([]byte, error)
 	Sync(SyncDef) error
 	PublicSSHKey(regenerate bool) (ssh.PublicKey, error)
 }
 
-// Service describes a platform service, generally a floating IP with one or
-// more exposed ports that map to a load-balanced pool of instances. Eventually
-// this type will generalize to something of a lowest-common-denominator for
-// all supported platforms, but right now it looks a lot like a Kubernetes
-// service.
-type Service struct {
-	ID       flux.ServiceID
-	IP       string
-	Metadata map[string]string // a grab bag of goodies, likely platform-specific
-	Status   string            // A status summary for display
+// Controller describes a platform resource that declares versioned images.
+type Controller struct {
+	ID     flux.ResourceID
+	Status string // A status summary for display
 
 	Containers ContainersOrExcuse
 }
@@ -54,11 +48,11 @@ type ContainersOrExcuse struct {
 	Containers []Container
 }
 
-func (s Service) ContainersOrNil() []Container {
+func (s Controller) ContainersOrNil() []Container {
 	return s.Containers.Containers
 }
 
-func (s Service) ContainersOrError() ([]Container, error) {
+func (s Controller) ContainersOrError() ([]Container, error) {
 	var err error
 	if s.Containers.Excuse != "" {
 		err = errors.New(s.Containers.Excuse)

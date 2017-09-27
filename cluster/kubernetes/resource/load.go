@@ -57,7 +57,7 @@ func ParseMultidoc(multidoc []byte, source string) (map[string]resource.Resource
 		if obj, err := unmarshalObject(source, chunks.Bytes()); err != nil {
 			return nil, fmt.Errorf(`parsing YAML doc from "%s": %s`, source, err.Error())
 		} else {
-			objs[obj.ResourceID()] = obj
+			objs[obj.ResourceID().String()] = obj
 		}
 	}
 	if err := chunks.Err(); err != nil {

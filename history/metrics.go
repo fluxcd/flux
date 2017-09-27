@@ -54,7 +54,7 @@ func (i *instrumentedDB) AllEvents(inst service.InstanceID, before time.Time, li
 	return i.db.AllEvents(inst, before, limit, after)
 }
 
-func (i *instrumentedDB) EventsForService(inst service.InstanceID, s flux.ServiceID, before time.Time, limit int64, after time.Time) (e []Event, err error) {
+func (i *instrumentedDB) EventsForService(inst service.InstanceID, s flux.ResourceID, before time.Time, limit int64, after time.Time) (e []Event, err error) {
 	defer func(begin time.Time) {
 		requestDuration.With(
 			LabelMethod, "EventsForService",

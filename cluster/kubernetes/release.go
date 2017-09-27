@@ -10,7 +10,7 @@ import (
 
 	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
-	rest "k8s.io/client-go/1.5/rest"
+	rest "k8s.io/client-go/rest"
 )
 
 func NewKubectl(exe string, config *rest.Config, stdout, stderr io.Writer) *Kubectl {

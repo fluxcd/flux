@@ -67,7 +67,7 @@ func (s serviceStatusByName) Len() int {
 }
 
 func (s serviceStatusByName) Less(a, b int) bool {
-	return s[a].ID < s[b].ID
+	return s[a].ID.String() < s[b].ID.String()
 }
 
 func (s serviceStatusByName) Swap(a, b int) {

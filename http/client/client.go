@@ -61,7 +61,7 @@ func (c *Client) UpdateImages(_ service.InstanceID, s update.ReleaseSpec, cause 
 		args = append(args, "service", string(spec))
 	}
 	for _, ex := range s.Excludes {
-		args = append(args, "exclude", string(ex))
+		args = append(args, "exclude", ex.String())
 	}
 	if cause.Message != "" {
 		args = append(args, "message", cause.Message)
