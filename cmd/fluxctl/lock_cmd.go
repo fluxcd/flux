@@ -3,8 +3,6 @@ package main
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/weaveworks/flux"
-	"github.com/weaveworks/flux/policy"
 	"github.com/weaveworks/flux/update"
 )
 
@@ -35,31 +33,12 @@ func (opts *serviceLockOpts) Command() *cobra.Command {
 }
 
 func (opts *serviceLockOpts) RunE(cmd *cobra.Command, args []string) error {
-	if len(args) > 0 {
-		return errorWantedNoArgs
+	policyOpts := &servicePolicyOpts{
+		rootOpts:   opts.rootOpts,
+		outputOpts: opts.outputOpts,
+		service:    opts.service,
+		cause:      opts.cause,
+		lock:       true,
 	}
-	if opts.service == "" {
-		return newUsageError("-s, --service is required")
-	}
-
-	serviceID, err := flux.ParseResourceID(opts.service)
-	if err != nil {
-		return err
-	}
-
-	lockedPolicy := policy.Set{policy.Locked: "true"}
-	if opts.cause.User != "" {
-		lockedPolicy = lockedPolicy.Set(policy.LockedUser, opts.cause.User)
-	}
-	if opts.cause.Message != "" {
-		lockedPolicy = lockedPolicy.Set(policy.LockedMsg, opts.cause.Message)
-	}
-
-	jobID, err := opts.API.UpdatePolicies(noInstanceID, policy.Updates{
-		serviceID: policy.Update{Add: lockedPolicy},
-	}, opts.cause)
-	if err != nil {
-		return err
-	}
-	return await(cmd.OutOrStdout(), cmd.OutOrStderr(), opts.API, jobID, false, opts.verbose)
+	return policyOpts.RunE(cmd, args)
 }

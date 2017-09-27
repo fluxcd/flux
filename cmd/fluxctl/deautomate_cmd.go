@@ -3,8 +3,6 @@ package main
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/weaveworks/flux"
-	"github.com/weaveworks/flux/policy"
 	"github.com/weaveworks/flux/update"
 )
 
@@ -35,23 +33,12 @@ func (opts *serviceDeautomateOpts) Command() *cobra.Command {
 }
 
 func (opts *serviceDeautomateOpts) RunE(cmd *cobra.Command, args []string) error {
-	if len(args) > 0 {
-		return errorWantedNoArgs
+	policyOpts := &servicePolicyOpts{
+		rootOpts:   opts.rootOpts,
+		outputOpts: opts.outputOpts,
+		service:    opts.service,
+		cause:      opts.cause,
+		deautomate: true,
 	}
-	if opts.service == "" {
-		return newUsageError("-s, --service is required")
-	}
-
-	serviceID, err := flux.ParseResourceID(opts.service)
-	if err != nil {
-		return err
-	}
-
-	jobID, err := opts.API.UpdatePolicies(noInstanceID, policy.Updates{
-		serviceID: policy.Update{Remove: policy.Set{policy.Automated: "true"}},
-	}, opts.cause)
-	if err != nil {
-		return err
-	}
-	return await(cmd.OutOrStdout(), cmd.OutOrStderr(), opts.API, jobID, false, opts.verbose)
+	return policyOpts.RunE(cmd, args)
 }
