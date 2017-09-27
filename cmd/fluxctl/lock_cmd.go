@@ -40,5 +40,5 @@ func (opts *serviceLockOpts) RunE(cmd *cobra.Command, args []string) error {
 		cause:      opts.cause,
 		lock:       true,
 	}
-	return policyOpts.RunE(policyOpts.Command(), args)
+	return policyOpts.RunE(cmd, args)
 }

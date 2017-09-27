@@ -40,5 +40,5 @@ func (opts *serviceAutomateOpts) RunE(cmd *cobra.Command, args []string) error {
 		cause:      opts.cause,
 		automate:   true,
 	}
-	return policyOpts.RunE(policyOpts.Command(), args)
+	return policyOpts.RunE(cmd, args)
 }
