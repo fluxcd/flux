@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"sort"
 	"strings"
@@ -36,7 +37,7 @@ func (opts *serviceListOpts) RunE(cmd *cobra.Command, args []string) error {
 		return errorWantedNoArgs
 	}
 
-	services, err := opts.API.ListServices(noInstanceID, opts.namespace)
+	services, err := opts.API.ListServices(context.TODO(), opts.namespace)
 	if err != nil {
 		return err
 	}

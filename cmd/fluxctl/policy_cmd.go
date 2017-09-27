@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -88,7 +89,7 @@ func (opts *servicePolicyOpts) RunE(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	jobID, err := opts.API.UpdatePolicies(noInstanceID, policy.Updates{
+	jobID, err := opts.API.UpdatePolicies(context.TODO(), policy.Updates{
 		serviceID: update,
 	}, opts.cause)
 	if err != nil {

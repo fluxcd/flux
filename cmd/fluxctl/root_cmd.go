@@ -15,18 +15,13 @@ import (
 	"github.com/weaveworks/flux/api"
 	transport "github.com/weaveworks/flux/http"
 	"github.com/weaveworks/flux/http/client"
-	"github.com/weaveworks/flux/service"
 )
 
 type rootOpts struct {
 	URL   string
 	Token string
-	API   api.ClientService
+	API   api.Client
 }
-
-// fluxctl never sends an instance ID directly; it's always blank, and
-// optionally gets populated by an intermediating authfe from the token.
-const noInstanceID = service.InstanceID("")
 
 func newRoot() *rootOpts {
 	return &rootOpts{}

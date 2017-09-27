@@ -1,44 +1,33 @@
 package api
 
 import (
-	"time"
+	"context"
 
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/history"
 	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/policy"
 	"github.com/weaveworks/flux/remote"
-	"github.com/weaveworks/flux/service"
 	"github.com/weaveworks/flux/ssh"
 	"github.com/weaveworks/flux/update"
 )
 
-// API for clients connecting to the service.
-type ClientService interface {
-	Status(inst service.InstanceID) (service.Status, error)
-	ListServices(inst service.InstanceID, namespace string) ([]flux.ServiceStatus, error)
-	ListImages(service.InstanceID, update.ServiceSpec) ([]flux.ImageStatus, error)
-	UpdateImages(service.InstanceID, update.ReleaseSpec, update.Cause) (job.ID, error)
-	SyncNotify(service.InstanceID) error
-	JobStatus(service.InstanceID, job.ID) (job.Status, error)
-	SyncStatus(service.InstanceID, string) ([]string, error)
-	UpdatePolicies(service.InstanceID, policy.Updates, update.Cause) (job.ID, error)
-	History(service.InstanceID, update.ServiceSpec, time.Time, int64, time.Time) ([]history.Entry, error)
-	GetConfig(_ service.InstanceID, fingerprint string) (service.InstanceConfig, error)
-	SetConfig(service.InstanceID, service.InstanceConfig) error
-	PatchConfig(service.InstanceID, service.ConfigPatch) error
-	Export(inst service.InstanceID) ([]byte, error)
-	PublicSSHKey(inst service.InstanceID, regenerate bool) (ssh.PublicKey, error)
+// API for clients connecting to the service
+type Client interface {
+	ListServices(ctx context.Context, namespace string) ([]flux.ServiceStatus, error)
+	ListImages(context.Context, update.ServiceSpec) ([]flux.ImageStatus, error)
+	UpdateImages(context.Context, update.ReleaseSpec, update.Cause) (job.ID, error)
+	SyncNotify(context.Context) error
+	JobStatus(context.Context, job.ID) (job.Status, error)
+	SyncStatus(ctx context.Context, ref string) ([]string, error)
+	UpdatePolicies(context.Context, policy.Updates, update.Cause) (job.ID, error)
+	Export(context.Context) ([]byte, error)
+	PublicSSHKey(ctx context.Context, regenerate bool) (ssh.PublicKey, error)
 }
 
-// API for daemons connecting to the service
-type DaemonService interface {
-	RegisterDaemon(service.InstanceID, remote.Platform) error
-	IsDaemonConnected(service.InstanceID) error
-	LogEvent(service.InstanceID, history.Event) error
-}
-
-type FluxService interface {
-	ClientService
-	DaemonService
+// API for daemons connecting to an upstream service
+type Upstream interface {
+	RegisterDaemon(context.Context, remote.Platform) error
+	IsDaemonConnected(context.Context) error
+	LogEvent(context.Context, history.Event) error
 }

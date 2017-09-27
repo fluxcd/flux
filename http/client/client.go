@@ -2,6 +2,7 @@ package client
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -18,7 +19,6 @@ import (
 	transport "github.com/weaveworks/flux/http"
 	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/policy"
-	"github.com/weaveworks/flux/service"
 	"github.com/weaveworks/flux/ssh"
 	"github.com/weaveworks/flux/update"
 )
@@ -39,19 +39,19 @@ func New(c *http.Client, router *mux.Router, endpoint string, t flux.Token) *Cli
 	}
 }
 
-func (c *Client) ListServices(_ service.InstanceID, namespace string) ([]flux.ServiceStatus, error) {
+func (c *Client) ListServices(ctx context.Context, namespace string) ([]flux.ServiceStatus, error) {
 	var res []flux.ServiceStatus
 	err := c.get(&res, "ListServices", "namespace", namespace)
 	return res, err
 }
 
-func (c *Client) ListImages(_ service.InstanceID, s update.ServiceSpec) ([]flux.ImageStatus, error) {
+func (c *Client) ListImages(ctx context.Context, s update.ServiceSpec) ([]flux.ImageStatus, error) {
 	var res []flux.ImageStatus
 	err := c.get(&res, "ListImages", "service", string(s))
 	return res, err
 }
 
-func (c *Client) UpdateImages(_ service.InstanceID, s update.ReleaseSpec, cause update.Cause) (job.ID, error) {
+func (c *Client) UpdateImages(ctx context.Context, s update.ReleaseSpec, cause update.Cause) (job.ID, error) {
 	args := []string{
 		"image", string(s.ImageSpec),
 		"kind", string(s.Kind),
@@ -72,26 +72,26 @@ func (c *Client) UpdateImages(_ service.InstanceID, s update.ReleaseSpec, cause 
 	return res, err
 }
 
-func (c *Client) SyncNotify(_ service.InstanceID) error {
+func (c *Client) SyncNotify(ctx context.Context) error {
 	if err := c.post("SyncNotify"); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (c *Client) JobStatus(_ service.InstanceID, jobID job.ID) (job.Status, error) {
+func (c *Client) JobStatus(ctx context.Context, jobID job.ID) (job.Status, error) {
 	var res job.Status
 	err := c.get(&res, "JobStatus", "id", string(jobID))
 	return res, err
 }
 
-func (c *Client) SyncStatus(_ service.InstanceID, ref string) ([]string, error) {
+func (c *Client) SyncStatus(ctx context.Context, ref string) ([]string, error) {
 	var res []string
 	err := c.get(&res, "SyncStatus", "ref", ref)
 	return res, err
 }
 
-func (c *Client) UpdatePolicies(_ service.InstanceID, updates policy.Updates, cause update.Cause) (job.ID, error) {
+func (c *Client) UpdatePolicies(ctx context.Context, updates policy.Updates, cause update.Cause) (job.ID, error) {
 	args := []string{"user", cause.User}
 	if cause.Message != "" {
 		args = append(args, "message", cause.Message)
@@ -100,11 +100,11 @@ func (c *Client) UpdatePolicies(_ service.InstanceID, updates policy.Updates, ca
 	return res, c.methodWithResp("PATCH", &res, "UpdatePolicies", updates, args...)
 }
 
-func (c *Client) LogEvent(_ service.InstanceID, event history.Event) error {
+func (c *Client) LogEvent(ctx context.Context, event history.Event) error {
 	return c.postWithBody("LogEvent", event)
 }
 
-func (c *Client) History(_ service.InstanceID, s update.ServiceSpec, before time.Time, limit int64, after time.Time) ([]history.Entry, error) {
+func (c *Client) History(ctx context.Context, s update.ServiceSpec, before time.Time, limit int64, after time.Time) ([]history.Entry, error) {
 	params := []string{"service", string(s)}
 	if !before.IsZero() {
 		params = append(params, "before", before.Format(time.RFC3339Nano))
@@ -120,37 +120,13 @@ func (c *Client) History(_ service.InstanceID, s update.ServiceSpec, before time
 	return res, err
 }
 
-func (c *Client) GetConfig(_ service.InstanceID, fingerprint string) (service.InstanceConfig, error) {
-	var params []string
-	if fingerprint != "" {
-		params = append(params, "fingerprint", fingerprint)
-	}
-	var res service.InstanceConfig
-	err := c.get(&res, "GetConfig", params...)
-	return res, err
-}
-
-func (c *Client) SetConfig(_ service.InstanceID, config service.InstanceConfig) error {
-	return c.postWithBody("SetConfig", config)
-}
-
-func (c *Client) PatchConfig(_ service.InstanceID, patch service.ConfigPatch) error {
-	return c.patchWithBody("PatchConfig", patch)
-}
-
-func (c *Client) Status(_ service.InstanceID) (service.Status, error) {
-	var res service.Status
-	err := c.get(&res, "Status")
-	return res, err
-}
-
-func (c *Client) Export(_ service.InstanceID) ([]byte, error) {
+func (c *Client) Export(ctx context.Context) ([]byte, error) {
 	var res []byte
 	err := c.get(&res, "Export")
 	return res, err
 }
 
-func (c *Client) PublicSSHKey(_ service.InstanceID, regenerate bool) (ssh.PublicKey, error) {
+func (c *Client) PublicSSHKey(ctx context.Context, regenerate bool) (ssh.PublicKey, error) {
 	if regenerate {
 		err := c.post("RegeneratePublicSSHKey")
 		if err != nil {

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/spf13/cobra"
@@ -107,7 +108,7 @@ func (opts *serviceReleaseOpts) RunE(cmd *cobra.Command, args []string) error {
 		fmt.Fprintf(cmd.OutOrStderr(), "Submitting release ...\n")
 	}
 
-	jobID, err := opts.API.UpdateImages(noInstanceID, update.ReleaseSpec{
+	jobID, err := opts.API.UpdateImages(context.TODO(), update.ReleaseSpec{
 		ServiceSpecs: services,
 		ImageSpec:    image,
 		Kind:         kind,

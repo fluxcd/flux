@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -17,7 +18,7 @@ var ErrTimeout = errors.New("timeout")
 
 // await polls for a job to complete, then for the resulting commit to
 // be applied
-func await(stdout, stderr io.Writer, client api.ClientService, jobID job.ID, apply, verbose bool) error {
+func await(stdout, stderr io.Writer, client api.Client, jobID job.ID, apply, verbose bool) error {
 	metadata, err := awaitJob(client, jobID)
 	if err != nil && err.Error() != git.ErrNoChanges.Error() {
 		return err
@@ -45,10 +46,10 @@ func await(stdout, stderr io.Writer, client api.ClientService, jobID job.ID, app
 }
 
 // await polls for a job to have been completed, with exponential backoff.
-func awaitJob(client api.ClientService, jobID job.ID) (history.CommitEventMetadata, error) {
+func awaitJob(client api.Client, jobID job.ID) (history.CommitEventMetadata, error) {
 	var result history.CommitEventMetadata
 	err := backoff(100*time.Millisecond, 2, 50, 1*time.Minute, func() (bool, error) {
-		j, err := client.JobStatus(noInstanceID, jobID)
+		j, err := client.JobStatus(context.TODO(), jobID)
 		if err != nil {
 			return false, err
 		}
@@ -69,9 +70,9 @@ func awaitJob(client api.ClientService, jobID job.ID) (history.CommitEventMetada
 }
 
 // await polls for a commit to have been applied, with exponential backoff.
-func awaitSync(client api.ClientService, revision string) error {
+func awaitSync(client api.Client, revision string) error {
 	return backoff(1*time.Second, 2, 10, 1*time.Minute, func() (bool, error) {
-		refs, err := client.SyncStatus(noInstanceID, revision)
+		refs, err := client.SyncStatus(context.TODO(), revision)
 		return err == nil && len(refs) == 0, err
 	})
 }
@@ -79,14 +80,14 @@ func awaitSync(client api.ClientService, revision string) error {
 // backoff polls for f() to have been completed, with exponential backoff.
 func backoff(initialDelay, factor, maxFactor, timeout time.Duration, f func() (bool, error)) error {
 	maxDelay := initialDelay * maxFactor
-	finish := time.Now().UTC().Add(timeout)
-	for delay := initialDelay; time.Now().UTC().Before(finish); delay = min(delay*factor, maxDelay) {
+	finish := time.Now().Add(timeout)
+	for delay := initialDelay; time.Now().Before(finish); delay = min(delay*factor, maxDelay) {
 		ok, err := f()
 		if ok || err != nil {
 			return err
 		}
 		// If we don't have time to try again, stop
-		if time.Now().UTC().Add(delay).After(finish) {
+		if time.Now().Add(delay).After(finish) {
 			break
 		}
 		time.Sleep(delay)

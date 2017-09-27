@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/spf13/cobra"
@@ -34,7 +35,7 @@ func (opts *identityOpts) RunE(_ *cobra.Command, args []string) error {
 		return errorWantedNoArgs
 	}
 
-	publicSSHKey, err := opts.API.PublicSSHKey(noInstanceID, opts.regenerate)
+	publicSSHKey, err := opts.API.PublicSSHKey(context.TODO(), opts.regenerate)
 	if err != nil {
 		return err
 	}
