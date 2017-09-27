@@ -10,9 +10,9 @@ import (
 
 	k8syaml "github.com/ghodss/yaml"
 	"github.com/go-kit/kit/log"
-
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/discovery"
 	k8sclient "k8s.io/client-go/kubernetes"
@@ -187,7 +187,12 @@ func (c *Cluster) AllControllers(namespace string) (res []cluster.Controller, er
 		for kind, resourceKind := range resourceKinds {
 			podControllers, err := resourceKind.getPodControllers(c, ns.Name)
 			if err != nil {
-				return nil, err
+				if se, ok := err.(*apierrors.StatusError); ok && se.ErrStatus.Reason == meta_v1.StatusReasonNotFound {
+					// Kind not supported by API server, skip
+					continue
+				} else {
+					return nil, err
+				}
 			}
 
 			for _, podController := range podControllers {
@@ -261,7 +266,12 @@ func (c *Cluster) Export() ([]byte, error) {
 		for _, resourceKind := range resourceKinds {
 			podControllers, err := resourceKind.getPodControllers(c, ns.Name)
 			if err != nil {
-				return nil, err
+				if se, ok := err.(*apierrors.StatusError); ok && se.ErrStatus.Reason == meta_v1.StatusReasonNotFound {
+					// Kind not supported by API server, skip
+					continue
+				} else {
+					return nil, err
+				}
 			}
 
 			for _, pc := range podControllers {
@@ -363,10 +373,14 @@ func (c *Cluster) ImagesToFetch() registry.ImageCreds {
 	}
 
 	for _, ns := range namespaces.Items {
-		for _, resourceKind := range resourceKinds {
+		for kind, resourceKind := range resourceKinds {
 			podControllers, err := resourceKind.getPodControllers(c, ns.Name)
 			if err != nil {
-				c.logger.Log("err", errors.Wrapf(err, "getting kind %s for namespace %s", resourceKind, ns.Name))
+				if se, ok := err.(*apierrors.StatusError); ok && se.ErrStatus.Reason == meta_v1.StatusReasonNotFound {
+					// Kind not supported by API server, skip
+				} else {
+					c.logger.Log("err", errors.Wrapf(err, "getting kind %s for namespace %s", kind, ns.Name))
+				}
 				continue
 			}
 
