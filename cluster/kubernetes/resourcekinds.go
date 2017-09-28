@@ -85,8 +85,8 @@ func (dk *deploymentKind) getPodControllers(c *Cluster, namespace string) ([]pod
 	}
 
 	var podControllers []podController
-	for _, deployment := range deployments.Items {
-		podControllers = append(podControllers, makeDeploymentPodController(&deployment))
+	for i, _ := range deployments.Items {
+		podControllers = append(podControllers, makeDeploymentPodController(&deployments.Items[i]))
 	}
 
 	return podControllers, nil
@@ -137,8 +137,8 @@ func (dk *daemonSetKind) getPodControllers(c *Cluster, namespace string) ([]podC
 	}
 
 	var podControllers []podController
-	for _, daemonSet := range daemonSets.Items {
-		podControllers = append(podControllers, makeDaemonSetPodController(&daemonSet))
+	for i, _ := range daemonSets.Items {
+		podControllers = append(podControllers, makeDaemonSetPodController(&daemonSets.Items[i]))
 	}
 
 	return podControllers, nil
@@ -189,8 +189,8 @@ func (dk *statefulSetKind) getPodControllers(c *Cluster, namespace string) ([]po
 	}
 
 	var podControllers []podController
-	for _, statefulSet := range statefulSets.Items {
-		podControllers = append(podControllers, makeStatefulSetPodController(&statefulSet))
+	for i, _ := range statefulSets.Items {
+		podControllers = append(podControllers, makeStatefulSetPodController(&statefulSets.Items[i]))
 	}
 
 	return podControllers, nil
@@ -241,8 +241,8 @@ func (dk *cronJobKind) getPodControllers(c *Cluster, namespace string) ([]podCon
 	}
 
 	var podControllers []podController
-	for _, cronJob := range cronJobs.Items {
-		podControllers = append(podControllers, makeCronJobPodController(&cronJob))
+	for i, _ := range cronJobs.Items {
+		podControllers = append(podControllers, makeCronJobPodController(&cronJobs.Items[i]))
 	}
 
 	return podControllers, nil
