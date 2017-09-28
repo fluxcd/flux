@@ -84,17 +84,17 @@ func (s *Server) Status(ctx context.Context) (res service.Status, err error) {
 	// haven't recorded it as connected
 	if config.Connection.Connected {
 		res.Fluxd.Connected = true
-		res.Fluxd.Version, err = inst.Platform.Version()
+		res.Fluxd.Version, err = inst.Platform.Version(ctx)
 		if err != nil {
 			return res, err
 		}
 
-		res.Git.Config, err = inst.Platform.GitRepoConfig(false)
+		res.Git.Config, err = inst.Platform.GitRepoConfig(ctx, false)
 		if err != nil {
 			return res, err
 		}
 
-		_, err = inst.Platform.SyncStatus("HEAD")
+		_, err = inst.Platform.SyncStatus(ctx, "HEAD")
 		if err != nil {
 			res.Git.Error = err.Error()
 		} else {
@@ -116,7 +116,7 @@ func (s *Server) ListServices(ctx context.Context, namespace string) (res []flux
 		return nil, errors.Wrapf(err, "getting instance")
 	}
 
-	services, err := inst.Platform.ListServices(namespace)
+	services, err := inst.Platform.ListServices(ctx, namespace)
 	if err != nil {
 		return nil, errors.Wrap(err, "getting services from platform")
 	}
@@ -133,7 +133,7 @@ func (s *Server) ListImages(ctx context.Context, spec update.ServiceSpec) (res [
 	if err != nil {
 		return nil, errors.Wrapf(err, "getting instance "+string(instID))
 	}
-	return inst.Platform.ListImages(spec)
+	return inst.Platform.ListImages(ctx, spec)
 }
 
 func (s *Server) UpdateImages(ctx context.Context, spec update.ReleaseSpec, cause update.Cause) (job.ID, error) {
@@ -146,7 +146,7 @@ func (s *Server) UpdateImages(ctx context.Context, spec update.ReleaseSpec, caus
 	if err != nil {
 		return "", errors.Wrapf(err, "getting instance "+string(instID))
 	}
-	return inst.Platform.UpdateManifests(update.Spec{Type: update.Images, Cause: cause, Spec: spec})
+	return inst.Platform.UpdateManifests(ctx, update.Spec{Type: update.Images, Cause: cause, Spec: spec})
 }
 
 func (s *Server) UpdatePolicies(ctx context.Context, updates policy.Updates, cause update.Cause) (job.ID, error) {
@@ -159,7 +159,7 @@ func (s *Server) UpdatePolicies(ctx context.Context, updates policy.Updates, cau
 		return "", errors.Wrapf(err, "getting instance "+string(instID))
 	}
 
-	return inst.Platform.UpdateManifests(update.Spec{Type: update.Policy, Cause: cause, Spec: updates})
+	return inst.Platform.UpdateManifests(ctx, update.Spec{Type: update.Policy, Cause: cause, Spec: updates})
 }
 
 func (s *Server) SyncNotify(ctx context.Context) (err error) {
@@ -171,7 +171,7 @@ func (s *Server) SyncNotify(ctx context.Context) (err error) {
 	if err != nil {
 		return errors.Wrapf(err, "getting instance "+string(instID))
 	}
-	return inst.Platform.SyncNotify()
+	return inst.Platform.SyncNotify(ctx)
 }
 
 func (s *Server) JobStatus(ctx context.Context, jobID job.ID) (res job.Status, err error) {
@@ -184,7 +184,7 @@ func (s *Server) JobStatus(ctx context.Context, jobID job.ID) (res job.Status, e
 		return job.Status{}, errors.Wrapf(err, "getting instance "+string(instID))
 	}
 
-	return inst.Platform.JobStatus(jobID)
+	return inst.Platform.JobStatus(ctx, jobID)
 }
 
 func (s *Server) SyncStatus(ctx context.Context, ref string) (res []string, err error) {
@@ -197,7 +197,7 @@ func (s *Server) SyncStatus(ctx context.Context, ref string) (res []string, err 
 		return nil, errors.Wrapf(err, "getting instance "+string(instID))
 	}
 
-	return inst.Platform.SyncStatus(ref)
+	return inst.Platform.SyncStatus(ctx, ref)
 }
 
 // LogEvent receives events from fluxd and pushes events to the history
@@ -343,7 +343,7 @@ func (s *Server) PublicSSHKey(ctx context.Context, regenerate bool) (ssh.PublicK
 		return ssh.PublicKey{}, errors.Wrapf(err, "getting instance "+string(instID))
 	}
 
-	gitRepoConfig, err := inst.Platform.GitRepoConfig(regenerate)
+	gitRepoConfig, err := inst.Platform.GitRepoConfig(ctx, regenerate)
 	if err != nil {
 		return ssh.PublicKey{}, err
 	}
@@ -388,7 +388,7 @@ func (s *Server) RegisterDaemon(ctx context.Context, platform remote.Platform) (
 	// configuration record for this instance; it may be connecting
 	// before there is configuration supplied.
 	done := make(chan error)
-	s.messageBus.Subscribe(instID, s.instrumentPlatform(instID, platform), done)
+	s.messageBus.Subscribe(ctx, instID, s.instrumentPlatform(instID, platform), done)
 	err = <-done
 	return err
 }
@@ -424,7 +424,7 @@ func (s *Server) Export(ctx context.Context) (res []byte, err error) {
 		return res, errors.Wrapf(err, "getting instance")
 	}
 
-	res, err = inst.Platform.Export()
+	res, err = inst.Platform.Export(ctx)
 	if err != nil {
 		return res, errors.Wrapf(err, "exporting %s", instID)
 	}
@@ -444,5 +444,5 @@ func (s *Server) IsDaemonConnected(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	return s.messageBus.Ping(instID)
+	return s.messageBus.Ping(ctx, instID)
 }
