@@ -1,6 +1,7 @@
 package rpc
 
 import (
+	"context"
 	"io"
 	"net/rpc"
 	"net/rpc/jsonrpc"
@@ -39,11 +40,11 @@ type RPCServer struct {
 }
 
 func (p *RPCServer) Ping(_ struct{}, _ *struct{}) error {
-	return p.p.Ping()
+	return p.p.Ping(context.Background())
 }
 
 func (p *RPCServer) Version(_ struct{}, resp *string) error {
-	v, err := p.p.Version()
+	v, err := p.p.Version(context.Background())
 	*resp = v
 	return err
 }
@@ -54,7 +55,7 @@ type ExportResponse struct {
 }
 
 func (p *RPCServer) Export(_ struct{}, resp *ExportResponse) error {
-	v, err := p.p.Export()
+	v, err := p.p.Export(context.Background())
 	resp.Result = v
 	if err != nil {
 		if err, ok := errors.Cause(err).(*fluxerr.Error); ok {
@@ -71,7 +72,7 @@ type ListServicesResponse struct {
 }
 
 func (p *RPCServer) ListServices(namespace string, resp *ListServicesResponse) error {
-	v, err := p.p.ListServices(namespace)
+	v, err := p.p.ListServices(context.Background(), namespace)
 	resp.Result = v
 	if err != nil {
 		if err, ok := errors.Cause(err).(*fluxerr.Error); ok {
@@ -88,7 +89,7 @@ type ListImagesResponse struct {
 }
 
 func (p *RPCServer) ListImages(spec update.ServiceSpec, resp *ListImagesResponse) error {
-	v, err := p.p.ListImages(spec)
+	v, err := p.p.ListImages(context.Background(), spec)
 	resp.Result = v
 	if err != nil {
 		if err, ok := errors.Cause(err).(*fluxerr.Error); ok {
@@ -105,7 +106,7 @@ type UpdateManifestsResponse struct {
 }
 
 func (p *RPCServer) UpdateManifests(spec update.Spec, resp *UpdateManifestsResponse) error {
-	v, err := p.p.UpdateManifests(spec)
+	v, err := p.p.UpdateManifests(context.Background(), spec)
 	resp.Result = v
 	if err != nil {
 		if err, ok := errors.Cause(err).(*fluxerr.Error); ok {
@@ -121,7 +122,7 @@ type SyncNotifyResponse struct {
 }
 
 func (p *RPCServer) SyncNotify(_ struct{}, resp *SyncNotifyResponse) error {
-	err := p.p.SyncNotify()
+	err := p.p.SyncNotify(context.Background())
 	if err != nil {
 		if err, ok := errors.Cause(err).(*fluxerr.Error); ok {
 			resp.ApplicationError = err
@@ -137,7 +138,7 @@ type JobStatusResponse struct {
 }
 
 func (p *RPCServer) JobStatus(jobID job.ID, resp *JobStatusResponse) error {
-	v, err := p.p.JobStatus(jobID)
+	v, err := p.p.JobStatus(context.Background(), jobID)
 	resp.Result = v
 	if err != nil {
 		if err, ok := errors.Cause(err).(*fluxerr.Error); ok {
@@ -153,8 +154,8 @@ type SyncStatusResponse struct {
 	ApplicationError *fluxerr.Error
 }
 
-func (p *RPCServer) SyncStatus(cursor string, resp *SyncStatusResponse) error {
-	v, err := p.p.SyncStatus(cursor)
+func (p *RPCServer) SyncStatus(ref string, resp *SyncStatusResponse) error {
+	v, err := p.p.SyncStatus(context.Background(), ref)
 	resp.Result = v
 	if err != nil {
 		if err, ok := errors.Cause(err).(*fluxerr.Error); ok {
@@ -171,7 +172,7 @@ type GitRepoConfigResponse struct {
 }
 
 func (p *RPCServer) GitRepoConfig(regenerate bool, resp *GitRepoConfigResponse) error {
-	v, err := p.p.GitRepoConfig(regenerate)
+	v, err := p.p.GitRepoConfig(context.Background(), regenerate)
 	resp.Result = v
 	if err != nil {
 		if err, ok := errors.Cause(err).(*fluxerr.Error); ok {

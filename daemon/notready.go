@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"context"
 	"sync"
 
 	"github.com/weaveworks/flux"
@@ -42,44 +43,44 @@ func (nrd *NotReadyDaemon) UpdateReason(reason error) {
 
 // 'Not ready' platform implementation
 
-func (nrd *NotReadyDaemon) Ping() error {
+func (nrd *NotReadyDaemon) Ping(ctx context.Context) error {
 	return nrd.cluster.Ping()
 }
 
-func (nrd *NotReadyDaemon) Version() (string, error) {
+func (nrd *NotReadyDaemon) Version(ctx context.Context) (string, error) {
 	return nrd.version, nil
 }
 
-func (nrd *NotReadyDaemon) Export() ([]byte, error) {
+func (nrd *NotReadyDaemon) Export(ctx context.Context) ([]byte, error) {
 	return nrd.cluster.Export()
 }
 
-func (nrd *NotReadyDaemon) ListServices(namespace string) ([]flux.ServiceStatus, error) {
+func (nrd *NotReadyDaemon) ListServices(ctx context.Context, namespace string) ([]flux.ServiceStatus, error) {
 	return nil, nrd.Reason()
 }
 
-func (nrd *NotReadyDaemon) ListImages(update.ServiceSpec) ([]flux.ImageStatus, error) {
+func (nrd *NotReadyDaemon) ListImages(context.Context, update.ServiceSpec) ([]flux.ImageStatus, error) {
 	return nil, nrd.Reason()
 }
 
-func (nrd *NotReadyDaemon) UpdateManifests(update.Spec) (job.ID, error) {
+func (nrd *NotReadyDaemon) UpdateManifests(context.Context, update.Spec) (job.ID, error) {
 	var id job.ID
 	return id, nrd.Reason()
 }
 
-func (nrd *NotReadyDaemon) SyncNotify() error {
+func (nrd *NotReadyDaemon) SyncNotify(context.Context) error {
 	return nrd.Reason()
 }
 
-func (nrd *NotReadyDaemon) JobStatus(id job.ID) (job.Status, error) {
+func (nrd *NotReadyDaemon) JobStatus(context.Context, job.ID) (job.Status, error) {
 	return job.Status{}, nrd.Reason()
 }
 
-func (nrd *NotReadyDaemon) SyncStatus(string) ([]string, error) {
+func (nrd *NotReadyDaemon) SyncStatus(context.Context, string) ([]string, error) {
 	return nil, nrd.Reason()
 }
 
-func (nrd *NotReadyDaemon) GitRepoConfig(regenerate bool) (flux.GitConfig, error) {
+func (nrd *NotReadyDaemon) GitRepoConfig(ctx context.Context, regenerate bool) (flux.GitConfig, error) {
 	publicSSHKey, err := nrd.cluster.PublicSSHKey(regenerate)
 	if err != nil {
 		return flux.GitConfig{}, err

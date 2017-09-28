@@ -1,6 +1,8 @@
 package remote
 
 import (
+	"context"
+
 	"github.com/go-kit/kit/log"
 
 	"github.com/weaveworks/flux"
@@ -13,93 +15,93 @@ type ErrorLoggingPlatform struct {
 	Logger   log.Logger
 }
 
-func (p *ErrorLoggingPlatform) Ping() (err error) {
+func (p *ErrorLoggingPlatform) Ping(ctx context.Context) (err error) {
 	defer func() {
 		if err != nil {
 			p.Logger.Log("method", "Ping", "error", err)
 		}
 	}()
-	return p.Platform.Ping()
+	return p.Platform.Ping(ctx)
 }
 
-func (p *ErrorLoggingPlatform) Version() (v string, err error) {
+func (p *ErrorLoggingPlatform) Version(ctx context.Context) (v string, err error) {
 	defer func() {
 		if err != nil {
 			p.Logger.Log("method", "Version", "error", err, "version", v)
 		}
 	}()
-	return p.Platform.Version()
+	return p.Platform.Version(ctx)
 }
 
-func (p *ErrorLoggingPlatform) Export() (config []byte, err error) {
+func (p *ErrorLoggingPlatform) Export(ctx context.Context) (config []byte, err error) {
 	defer func() {
 		if err != nil {
 			// Omit config as it could be large
 			p.Logger.Log("method", "Export", "error", err)
 		}
 	}()
-	return p.Platform.Export()
+	return p.Platform.Export(ctx)
 }
 
-func (p *ErrorLoggingPlatform) ListServices(maybeNamespace string) (_ []flux.ServiceStatus, err error) {
+func (p *ErrorLoggingPlatform) ListServices(ctx context.Context, maybeNamespace string) (_ []flux.ServiceStatus, err error) {
 	defer func() {
 		if err != nil {
 			p.Logger.Log("method", "ListServices", "error", err)
 		}
 	}()
-	return p.Platform.ListServices(maybeNamespace)
+	return p.Platform.ListServices(ctx, maybeNamespace)
 }
 
-func (p *ErrorLoggingPlatform) ListImages(spec update.ServiceSpec) (_ []flux.ImageStatus, err error) {
+func (p *ErrorLoggingPlatform) ListImages(ctx context.Context, spec update.ServiceSpec) (_ []flux.ImageStatus, err error) {
 	defer func() {
 		if err != nil {
 			p.Logger.Log("method", "ListImages", "error", err)
 		}
 	}()
-	return p.Platform.ListImages(spec)
+	return p.Platform.ListImages(ctx, spec)
 }
 
-func (p *ErrorLoggingPlatform) SyncNotify() (err error) {
+func (p *ErrorLoggingPlatform) SyncNotify(ctx context.Context) (err error) {
 	defer func() {
 		if err != nil {
 			p.Logger.Log("method", "SyncNotify", "error", err)
 		}
 	}()
-	return p.Platform.SyncNotify()
+	return p.Platform.SyncNotify(ctx)
 }
 
-func (p *ErrorLoggingPlatform) JobStatus(jobID job.ID) (_ job.Status, err error) {
+func (p *ErrorLoggingPlatform) JobStatus(ctx context.Context, jobID job.ID) (_ job.Status, err error) {
 	defer func() {
 		if err != nil {
 			p.Logger.Log("method", "JobStatus", "error", err)
 		}
 	}()
-	return p.Platform.JobStatus(jobID)
+	return p.Platform.JobStatus(ctx, jobID)
 }
 
-func (p *ErrorLoggingPlatform) SyncStatus(rev string) (_ []string, err error) {
+func (p *ErrorLoggingPlatform) SyncStatus(ctx context.Context, ref string) (_ []string, err error) {
 	defer func() {
 		if err != nil {
 			p.Logger.Log("method", "SyncStatus", "error", err)
 		}
 	}()
-	return p.Platform.SyncStatus(rev)
+	return p.Platform.SyncStatus(ctx, ref)
 }
 
-func (p *ErrorLoggingPlatform) UpdateManifests(u update.Spec) (_ job.ID, err error) {
+func (p *ErrorLoggingPlatform) UpdateManifests(ctx context.Context, u update.Spec) (_ job.ID, err error) {
 	defer func() {
 		if err != nil {
 			p.Logger.Log("method", "UpdateManifests", "error", err)
 		}
 	}()
-	return p.Platform.UpdateManifests(u)
+	return p.Platform.UpdateManifests(ctx, u)
 }
 
-func (p *ErrorLoggingPlatform) GitRepoConfig(regenerate bool) (_ flux.GitConfig, err error) {
+func (p *ErrorLoggingPlatform) GitRepoConfig(ctx context.Context, regenerate bool) (_ flux.GitConfig, err error) {
 	defer func() {
 		if err != nil {
 			p.Logger.Log("method", "GitRepoConfig", "error", err)
 		}
 	}()
-	return p.Platform.GitRepoConfig(regenerate)
+	return p.Platform.GitRepoConfig(ctx, regenerate)
 }

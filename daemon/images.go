@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"context"
 	"strings"
 
 	"github.com/go-kit/kit/log"
@@ -13,6 +14,9 @@ import (
 
 func (d *Daemon) pollForNewImages(logger log.Logger) {
 	logger.Log("msg", "polling images")
+
+	// One day we may use this for operations other than the call at the end
+	ctx := context.Background()
 
 	candidateServices, err := d.unlockedAutomatedServices()
 	if err != nil {
@@ -59,7 +63,7 @@ func (d *Daemon) pollForNewImages(logger log.Logger) {
 	}
 
 	if len(changes.Changes) > 0 {
-		d.UpdateManifests(update.Spec{Type: update.Auto, Spec: changes})
+		d.UpdateManifests(ctx, update.Spec{Type: update.Auto, Spec: changes})
 	}
 }
 

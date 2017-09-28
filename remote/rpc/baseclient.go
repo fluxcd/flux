@@ -1,6 +1,8 @@
 package rpc
 
 import (
+	"context"
+
 	"github.com/pkg/errors"
 
 	"github.com/weaveworks/flux"
@@ -13,43 +15,43 @@ type baseClient struct{}
 
 var _ remote.Platform = baseClient{}
 
-func (bc baseClient) Version() (string, error) {
+func (bc baseClient) Version(context.Context) (string, error) {
 	return "", remote.UpgradeNeededError(errors.New("Version method not implemented"))
 }
 
-func (bc baseClient) Ping() error {
+func (bc baseClient) Ping(context.Context) error {
 	return remote.UpgradeNeededError(errors.New("Ping method not implemented"))
 }
 
-func (bc baseClient) Export() ([]byte, error) {
+func (bc baseClient) Export(context.Context) ([]byte, error) {
 	return nil, remote.UpgradeNeededError(errors.New("Export method not implemented"))
 }
 
-func (bc baseClient) ListServices(string) ([]flux.ServiceStatus, error) {
+func (bc baseClient) ListServices(context.Context, string) ([]flux.ServiceStatus, error) {
 	return nil, remote.UpgradeNeededError(errors.New("ListServices method not implemented"))
 }
 
-func (bc baseClient) ListImages(update.ServiceSpec) ([]flux.ImageStatus, error) {
+func (bc baseClient) ListImages(context.Context, update.ServiceSpec) ([]flux.ImageStatus, error) {
 	return nil, remote.UpgradeNeededError(errors.New("ListImages method not implemented"))
 }
 
-func (bc baseClient) UpdateManifests(update.Spec) (job.ID, error) {
+func (bc baseClient) UpdateManifests(context.Context, update.Spec) (job.ID, error) {
 	var id job.ID
 	return id, remote.UpgradeNeededError(errors.New("UpdateManifests method not implemented"))
 }
 
-func (bc baseClient) SyncNotify() error {
+func (bc baseClient) SyncNotify(context.Context) error {
 	return remote.UpgradeNeededError(errors.New("SyncNotify method not implemented"))
 }
 
-func (bc baseClient) JobStatus(job.ID) (job.Status, error) {
+func (bc baseClient) JobStatus(context.Context, job.ID) (job.Status, error) {
 	return job.Status{}, remote.UpgradeNeededError(errors.New("JobStatus method not implemented"))
 }
 
-func (bc baseClient) SyncStatus(string) ([]string, error) {
+func (bc baseClient) SyncStatus(context.Context, string) ([]string, error) {
 	return nil, remote.UpgradeNeededError(errors.New("SyncStatus method not implemented"))
 }
 
-func (bc baseClient) GitRepoConfig(bool) (flux.GitConfig, error) {
+func (bc baseClient) GitRepoConfig(context.Context, bool) (flux.GitConfig, error) {
 	return flux.GitConfig{}, remote.UpgradeNeededError(errors.New("GitRepoConfig method not implemented"))
 }

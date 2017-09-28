@@ -41,4 +41,10 @@ server code always implements just the most recent version.
 For backwards-incompatible changes, we must bump the protocol version
 (and create a new `RegisterDaemon` endpoint).
 
+On contexts:
+
+Sadly, `net/rpc` does not support context.Context, and never will. So
+we must ignore the contexts passed in. If we change the RPC mechanism,
+we may be able to address this.
+
 */

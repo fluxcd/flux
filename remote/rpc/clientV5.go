@@ -1,6 +1,7 @@
 package rpc
 
 import (
+	"context"
 	"io"
 	"net/rpc"
 
@@ -21,7 +22,7 @@ func NewClientV5(conn io.ReadWriteCloser) *RPCClientV5 {
 }
 
 // Export is used to get service configuration in platform-specific format
-func (p *RPCClientV5) Export() ([]byte, error) {
+func (p *RPCClientV5) Export(ctx context.Context) ([]byte, error) {
 	var config []byte
 	err := p.client.Call("RPCServer.Export", struct{}{}, &config)
 	if _, ok := err.(rpc.ServerError); !ok && err != nil {

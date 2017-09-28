@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"context"
 	"sync"
 
 	"github.com/weaveworks/flux"
@@ -33,42 +34,42 @@ func (pr *Ref) UpdatePlatform(platform remote.Platform) {
 // remote.Platform implementation so clients don't need to be refactored around
 // Platform() API
 
-func (pr *Ref) Ping() error {
-	return pr.Platform().Ping()
+func (pr *Ref) Ping(ctx context.Context) error {
+	return pr.Platform().Ping(ctx)
 }
 
-func (pr *Ref) Version() (string, error) {
-	return pr.Platform().Version()
+func (pr *Ref) Version(ctx context.Context) (string, error) {
+	return pr.Platform().Version(ctx)
 }
 
-func (pr *Ref) Export() ([]byte, error) {
-	return pr.Platform().Export()
+func (pr *Ref) Export(ctx context.Context) ([]byte, error) {
+	return pr.Platform().Export(ctx)
 }
 
-func (pr *Ref) ListServices(namespace string) ([]flux.ServiceStatus, error) {
-	return pr.Platform().ListServices(namespace)
+func (pr *Ref) ListServices(ctx context.Context, namespace string) ([]flux.ServiceStatus, error) {
+	return pr.Platform().ListServices(ctx, namespace)
 }
 
-func (pr *Ref) ListImages(spec update.ServiceSpec) ([]flux.ImageStatus, error) {
-	return pr.Platform().ListImages(spec)
+func (pr *Ref) ListImages(ctx context.Context, spec update.ServiceSpec) ([]flux.ImageStatus, error) {
+	return pr.Platform().ListImages(ctx, spec)
 }
 
-func (pr *Ref) UpdateManifests(spec update.Spec) (job.ID, error) {
-	return pr.Platform().UpdateManifests(spec)
+func (pr *Ref) UpdateManifests(ctx context.Context, spec update.Spec) (job.ID, error) {
+	return pr.Platform().UpdateManifests(ctx, spec)
 }
 
-func (pr *Ref) SyncNotify() error {
-	return pr.Platform().SyncNotify()
+func (pr *Ref) SyncNotify(ctx context.Context) error {
+	return pr.Platform().SyncNotify(ctx)
 }
 
-func (pr *Ref) JobStatus(id job.ID) (job.Status, error) {
-	return pr.Platform().JobStatus(id)
+func (pr *Ref) JobStatus(ctx context.Context, id job.ID) (job.Status, error) {
+	return pr.Platform().JobStatus(ctx, id)
 }
 
-func (pr *Ref) SyncStatus(ref string) ([]string, error) {
-	return pr.Platform().SyncStatus(ref)
+func (pr *Ref) SyncStatus(ctx context.Context, ref string) ([]string, error) {
+	return pr.Platform().SyncStatus(ctx, ref)
 }
 
-func (pr *Ref) GitRepoConfig(regenerate bool) (flux.GitConfig, error) {
-	return pr.Platform().GitRepoConfig(regenerate)
+func (pr *Ref) GitRepoConfig(ctx context.Context, regenerate bool) (flux.GitConfig, error) {
+	return pr.Platform().GitRepoConfig(ctx, regenerate)
 }
