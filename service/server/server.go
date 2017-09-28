@@ -10,12 +10,12 @@ import (
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/history"
 	"github.com/weaveworks/flux/job"
-	"github.com/weaveworks/flux/notifications"
 	"github.com/weaveworks/flux/policy"
 	"github.com/weaveworks/flux/remote"
 	"github.com/weaveworks/flux/service"
 	"github.com/weaveworks/flux/service/bus"
 	"github.com/weaveworks/flux/service/instance"
+	"github.com/weaveworks/flux/service/notifications"
 	"github.com/weaveworks/flux/ssh"
 	"github.com/weaveworks/flux/update"
 )
@@ -218,6 +218,15 @@ func (s *Server) GetConfig(instID service.InstanceID, fingerprint string) (servi
 	fullConfig, err := s.config.GetConfig(instID)
 	if err != nil {
 		return service.InstanceConfig{}, err
+	}
+
+	// The UI expects `notifyEvents` to either have an array value, or
+	// be absent from the JSON. Since the field is not marked
+	// `omitEmpty`, so that we can distinguish "never set" from "set
+	// to []", we must patch it if it's `nil`. It's convenient to
+	// patch it to the default.
+	if fullConfig.Settings.Slack.NotifyEvents == nil {
+		fullConfig.Settings.Slack.NotifyEvents = notifications.DefaultNotifyEvents
 	}
 
 	config := service.InstanceConfig(fullConfig.Settings)

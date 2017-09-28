@@ -16,12 +16,12 @@ import (
 	"github.com/weaveworks/flux/db"
 	"github.com/weaveworks/flux/history"
 	historysql "github.com/weaveworks/flux/history/sql"
-	httpserver "github.com/weaveworks/flux/http/server"
-	"github.com/weaveworks/flux/server"
 	"github.com/weaveworks/flux/service/bus"
 	"github.com/weaveworks/flux/service/bus/nats"
+	httpserver "github.com/weaveworks/flux/service/http"
 	"github.com/weaveworks/flux/service/instance"
 	instancedb "github.com/weaveworks/flux/service/instance/sql"
+	"github.com/weaveworks/flux/service/server"
 )
 
 const shutdownTimeout = 30 * time.Second

@@ -5,6 +5,8 @@ import (
 	"github.com/weaveworks/flux/service/instance"
 )
 
+var DefaultNotifyEvents = []string{"release", "autorelease"}
+
 func Event(cfg instance.Config, e history.Event) error {
 	// If this is a release
 	if cfg.Settings.Slack.HookURL != "" {

@@ -8,10 +8,8 @@ type NotifierConfig struct {
 	HookURL         string `json:"hookURL" yaml:"hookURL"`
 	Username        string `json:"username" yaml:"username"`
 	ReleaseTemplate string `json:"releaseTemplate" yaml:"releaseTemplate"`
-	// NotifyEvents should be a list of e.g. ["release", "sync"]. default, if
-	// unset, is ["release"].
-	// TODO Implement this.
-	NotifyEvents []string `json:"notifyEvents,omitempty" yaml:"notifyEvents,omitempty"`
+	// NotifyEvents should be a list of e.g. ["release", "sync"].
+	NotifyEvents []string `json:"notifyEvents" yaml:"notifyEvents"`
 }
 
 type InstanceConfig struct {
