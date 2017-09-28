@@ -3,10 +3,10 @@ machine:
     - docker
     - memcached
   environment:
-    PATH: "/usr/local/go/bin:${HOME}/bin:${PATH}:${HOME}/flux/cmd/fluxsvc" # last for kubeservice
-    GOROOT: ""
-    GOPATH: "${HOME}"
+    PATH: "/usr/local/go/bin:$HOME/bin:$PATH:$HOME/flux/cmd/fluxsvc" # last for kubeservice
+    GOPATH: "$HOME"
     GODIST: "go1.9.linux-amd64.tar.gz"
+    SRCDIR: "$GOPATH/src/github.com/weaveworks/flux"
 
 checkout:
   post:
@@ -14,10 +14,10 @@ checkout:
     - test -e download/$GODIST || curl -o download/$GODIST https://storage.googleapis.com/golang/$GODIST
     - sudo rm -rf /usr/local/go
     - sudo tar -C /usr/local -xzf download/$GODIST
-    - mkdir -p ${GOPATH}/src/github.com/weaveworks
-    - mv ${HOME}/flux ${GOPATH}/src/github.com/weaveworks/
-    - ln -s ${GOPATH}/src/github.com/weaveworks/flux ${HOME}/flux # Circle needs this to be here, apparently
-    - cd ${GOPATH}/src/github.com/weaveworks/flux
+    - mkdir -p $GOPATH/src/github.com/weaveworks
+    - mv $HOME/flux $SRCDIR
+    - ln -s $SRCDIR $HOME/flux # Circle needs this to be here, apparently
+    - cd $SRCDIR
     - sudo pip install pyyaml
     - git config --global user.email "example@example.com"
     - git config --global user.name "Weave Flux test user"
@@ -33,7 +33,7 @@ dependencies:
     - go get github.com/golang/dep/cmd/dep
     - go get github.com/nats-io/gnatsd
     - go get github.com/weaveworks/github-release
-    - dep ensure
+    - cd $SRCDIR && dep ensure
 
 test:
   override:
@@ -42,7 +42,7 @@ test:
     - make test TEST_FLAGS="-race -tags integration -timeout 30s"
   post:
     - |
-        cd ${GOPATH}/src/github.com/weaveworks/flux
+        cd $SRCDIR
         make all
 
 deployment:
