@@ -18,16 +18,12 @@ checkout:
     - mv $HOME/flux $SRCDIR
     - ln -s $SRCDIR $HOME/flux # Circle needs this to be here, apparently
     - cd $SRCDIR
-    - sudo pip install pyyaml
     - git config --global user.email "example@example.com"
     - git config --global user.name "Weave Flux test user"
 
 dependencies:
   cache_directories:
-    - "~/flux/vendor/k8s.io"
-    - "~/flux/vendor/github.com"
-    - "~/flux/vendor/gopkg.in"
-    - "~/flux/vendor/golang.org"
+    - "~/flux/vendor"
     - "~/download"
   override:
     - go get github.com/golang/dep/cmd/dep
