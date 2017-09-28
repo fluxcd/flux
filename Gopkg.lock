@@ -254,8 +254,7 @@
 [[projects]]
   name = "github.com/gorilla/mux"
   packages = ["."]
-  revision = "24fca303ac6da784b9e8269f724ddeb0b2eea5e7"
-  version = "v1.5.0"
+  revision = "780415097119f6f61c55475fe59b66f3c3e9ea53"
 
 [[projects]]
   name = "github.com/gorilla/websocket"
@@ -510,6 +509,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "252ef864b64cb82fed94a06f5eba3c71390fe99fd7d18ba3a04c6aa909fe74dd"
+  inputs-digest = "cb82255660c63334baacd0751eefecd6ed7c73399908c84d0a6b47033e5958b3"
   solver-name = "gps-cdcl"
   solver-version = 1
