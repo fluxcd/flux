@@ -108,7 +108,9 @@ func (opts *serviceReleaseOpts) RunE(cmd *cobra.Command, args []string) error {
 		fmt.Fprintf(cmd.OutOrStderr(), "Submitting release ...\n")
 	}
 
-	jobID, err := opts.API.UpdateImages(context.TODO(), update.ReleaseSpec{
+	ctx := context.Background()
+
+	jobID, err := opts.API.UpdateImages(ctx, update.ReleaseSpec{
 		ServiceSpecs: services,
 		ImageSpec:    image,
 		Kind:         kind,
@@ -118,5 +120,5 @@ func (opts *serviceReleaseOpts) RunE(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	return await(cmd.OutOrStdout(), cmd.OutOrStderr(), opts.API, jobID, !opts.dryRun, opts.verbose)
+	return await(ctx, cmd.OutOrStdout(), cmd.OutOrStderr(), opts.API, jobID, !opts.dryRun, opts.verbose)
 }

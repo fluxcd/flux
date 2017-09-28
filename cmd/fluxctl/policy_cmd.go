@@ -89,13 +89,16 @@ func (opts *servicePolicyOpts) RunE(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	jobID, err := opts.API.UpdatePolicies(context.TODO(), policy.Updates{
+
+	ctx := context.Background()
+
+	jobID, err := opts.API.UpdatePolicies(ctx, policy.Updates{
 		serviceID: update,
 	}, opts.cause)
 	if err != nil {
 		return err
 	}
-	return await(cmd.OutOrStdout(), cmd.OutOrStderr(), opts.API, jobID, false, opts.verbose)
+	return await(ctx, cmd.OutOrStdout(), cmd.OutOrStderr(), opts.API, jobID, false, opts.verbose)
 }
 
 func calculatePolicyChanges(opts *servicePolicyOpts) (policy.Update, error) {

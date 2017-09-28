@@ -4,11 +4,9 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
@@ -41,13 +39,13 @@ func New(c *http.Client, router *mux.Router, endpoint string, t flux.Token) *Cli
 
 func (c *Client) ListServices(ctx context.Context, namespace string) ([]flux.ServiceStatus, error) {
 	var res []flux.ServiceStatus
-	err := c.get(&res, "ListServices", "namespace", namespace)
+	err := c.Get(ctx, &res, "ListServices", "namespace", namespace)
 	return res, err
 }
 
 func (c *Client) ListImages(ctx context.Context, s update.ServiceSpec) ([]flux.ImageStatus, error) {
 	var res []flux.ImageStatus
-	err := c.get(&res, "ListImages", "service", string(s))
+	err := c.Get(ctx, &res, "ListImages", "service", string(s))
 	return res, err
 }
 
@@ -68,12 +66,12 @@ func (c *Client) UpdateImages(ctx context.Context, s update.ReleaseSpec, cause u
 	}
 
 	var res job.ID
-	err := c.methodWithResp("POST", &res, "UpdateImages", nil, args...)
+	err := c.methodWithResp(ctx, "POST", &res, "UpdateImages", nil, args...)
 	return res, err
 }
 
 func (c *Client) SyncNotify(ctx context.Context) error {
-	if err := c.post("SyncNotify"); err != nil {
+	if err := c.Post(ctx, "SyncNotify"); err != nil {
 		return err
 	}
 	return nil
@@ -81,13 +79,13 @@ func (c *Client) SyncNotify(ctx context.Context) error {
 
 func (c *Client) JobStatus(ctx context.Context, jobID job.ID) (job.Status, error) {
 	var res job.Status
-	err := c.get(&res, "JobStatus", "id", string(jobID))
+	err := c.Get(ctx, &res, "JobStatus", "id", string(jobID))
 	return res, err
 }
 
 func (c *Client) SyncStatus(ctx context.Context, ref string) ([]string, error) {
 	var res []string
-	err := c.get(&res, "SyncStatus", "ref", ref)
+	err := c.Get(ctx, &res, "SyncStatus", "ref", ref)
 	return res, err
 }
 
@@ -97,67 +95,53 @@ func (c *Client) UpdatePolicies(ctx context.Context, updates policy.Updates, cau
 		args = append(args, "message", cause.Message)
 	}
 	var res job.ID
-	return res, c.methodWithResp("PATCH", &res, "UpdatePolicies", updates, args...)
+	return res, c.methodWithResp(ctx, "PATCH", &res, "UpdatePolicies", updates, args...)
 }
 
 func (c *Client) LogEvent(ctx context.Context, event history.Event) error {
-	return c.postWithBody("LogEvent", event)
-}
-
-func (c *Client) History(ctx context.Context, s update.ServiceSpec, before time.Time, limit int64, after time.Time) ([]history.Entry, error) {
-	params := []string{"service", string(s)}
-	if !before.IsZero() {
-		params = append(params, "before", before.Format(time.RFC3339Nano))
-	}
-	if !after.IsZero() {
-		params = append(params, "after", after.Format(time.RFC3339Nano))
-	}
-	if limit >= 0 {
-		params = append(params, "limit", fmt.Sprint(limit))
-	}
-	var res []history.Entry
-	err := c.get(&res, "History", params...)
-	return res, err
+	return c.PostWithBody(ctx, "LogEvent", event)
 }
 
 func (c *Client) Export(ctx context.Context) ([]byte, error) {
 	var res []byte
-	err := c.get(&res, "Export")
+	err := c.Get(ctx, &res, "Export")
 	return res, err
 }
 
 func (c *Client) PublicSSHKey(ctx context.Context, regenerate bool) (ssh.PublicKey, error) {
 	if regenerate {
-		err := c.post("RegeneratePublicSSHKey")
+		err := c.Post(ctx, "RegeneratePublicSSHKey")
 		if err != nil {
 			return ssh.PublicKey{}, err
 		}
 	}
 
 	var res ssh.PublicKey
-	err := c.get(&res, "GetPublicSSHKey")
+	err := c.Get(ctx, &res, "GetPublicSSHKey")
 	return res, err
 }
 
+// --- Request helpers
+
 // post is a simple query-param only post request
-func (c *Client) post(route string, queryParams ...string) error {
-	return c.postWithBody(route, nil, queryParams...)
+func (c *Client) Post(ctx context.Context, route string, queryParams ...string) error {
+	return c.PostWithBody(ctx, route, nil, queryParams...)
 }
 
-// postWithBody is a more complex post request, which includes a json-ified body.
+// PostWithBody is a more complex post request, which includes a json-ified body.
 // If body is not nil, it is encoded to json before sending
-func (c *Client) postWithBody(route string, body interface{}, queryParams ...string) error {
-	return c.methodWithResp("POST", nil, route, body, queryParams...)
+func (c *Client) PostWithBody(ctx context.Context, route string, body interface{}, queryParams ...string) error {
+	return c.methodWithResp(ctx, "POST", nil, route, body, queryParams...)
 }
 
-func (c *Client) patchWithBody(route string, body interface{}, queryParams ...string) error {
-	return c.methodWithResp("PATCH", nil, route, body, queryParams...)
+func (c *Client) PatchWithBody(ctx context.Context, route string, body interface{}, queryParams ...string) error {
+	return c.methodWithResp(ctx, "PATCH", nil, route, body, queryParams...)
 }
 
 // methodWithResp is the full enchilada, it handles body and query-param
 // encoding, as well as decoding the response into the provided destination.
 // Note, the response will only be decoded into the dest if the len is > 0.
-func (c *Client) methodWithResp(method string, dest interface{}, route string, body interface{}, queryParams ...string) error {
+func (c *Client) methodWithResp(ctx context.Context, method string, dest interface{}, route string, body interface{}, queryParams ...string) error {
 	u, err := transport.MakeURL(c.endpoint, c.router, route, queryParams...)
 	if err != nil {
 		return errors.Wrap(err, "constructing URL")
@@ -175,6 +159,8 @@ func (c *Client) methodWithResp(method string, dest interface{}, route string, b
 	if err != nil {
 		return errors.Wrapf(err, "constructing request %s", u)
 	}
+	req = req.WithContext(ctx)
+
 	c.token.Set(req)
 	req.Header.Set("Accept", "application/json")
 
@@ -198,7 +184,7 @@ func (c *Client) methodWithResp(method string, dest interface{}, route string, b
 }
 
 // get executes a get request against the flux server. it unmarshals the response into dest.
-func (c *Client) get(dest interface{}, route string, queryParams ...string) error {
+func (c *Client) Get(ctx context.Context, dest interface{}, route string, queryParams ...string) error {
 	u, err := transport.MakeURL(c.endpoint, c.router, route, queryParams...)
 	if err != nil {
 		return errors.Wrap(err, "constructing URL")
@@ -208,6 +194,8 @@ func (c *Client) get(dest interface{}, route string, queryParams ...string) erro
 	if err != nil {
 		return errors.Wrapf(err, "constructing request %s", u)
 	}
+	req = req.WithContext(ctx)
+
 	c.token.Set(req)
 	req.Header.Set("Accept", "application/json")
 

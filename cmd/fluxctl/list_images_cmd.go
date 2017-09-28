@@ -43,7 +43,9 @@ func (opts *serviceShowOpts) RunE(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	services, err := opts.API.ListImages(context.TODO(), service)
+	ctx := context.Background()
+
+	services, err := opts.API.ListImages(ctx, service)
 	if err != nil {
 		return err
 	}

@@ -49,7 +49,8 @@ var (
 func TestDaemon_Ping(t *testing.T) {
 	d, clean, _, _ := mockDaemon(t)
 	defer clean()
-	if d.Ping() != nil {
+	ctx := context.Background()
+	if d.Ping(ctx) != nil {
 		t.Fatal("Cluster did not return valid nil ping")
 	}
 }
@@ -59,7 +60,8 @@ func TestDaemon_Version(t *testing.T) {
 	d, clean, _, _ := mockDaemon(t)
 	defer clean()
 
-	v, err := d.Version()
+	ctx := context.Background()
+	v, err := d.Version(ctx)
 	if err != nil {
 		t.Fatalf("Error: %s", err.Error())
 	}
@@ -73,7 +75,9 @@ func TestDaemon_Export(t *testing.T) {
 	d, clean, _, _ := mockDaemon(t)
 	defer clean()
 
-	bytes, err := d.Export()
+	ctx := context.Background()
+
+	bytes, err := d.Export(ctx)
 	if err != nil {
 		t.Fatalf("Error: %s", err.Error())
 	}
@@ -87,8 +91,10 @@ func TestDaemon_ListServices(t *testing.T) {
 	d, clean, _, _ := mockDaemon(t)
 	defer clean()
 
+	ctx := context.Background()
+
 	// No namespace
-	s, err := d.ListServices("")
+	s, err := d.ListServices(ctx, "")
 	if err != nil {
 		t.Fatalf("Error: %s", err.Error())
 	}
@@ -97,7 +103,7 @@ func TestDaemon_ListServices(t *testing.T) {
 	}
 
 	// Just namespace
-	s, err = d.ListServices(ns)
+	s, err = d.ListServices(ctx, ns)
 	if err != nil {
 		t.Fatalf("Error: %s", err.Error())
 	}
@@ -106,7 +112,7 @@ func TestDaemon_ListServices(t *testing.T) {
 	}
 
 	// Invalid NS
-	s, err = d.ListServices(invalidNS)
+	s, err = d.ListServices(ctx, invalidNS)
 	if err != nil {
 		t.Fatalf("Error: %s", err.Error())
 	}
@@ -120,9 +126,11 @@ func TestDaemon_ListImages(t *testing.T) {
 	d, clean, _, _ := mockDaemon(t)
 	defer clean()
 
+	ctx := context.Background()
+
 	// List all images for services
 	ss := update.ServiceSpec(update.ServiceSpecAll)
-	is, err := d.ListImages(ss)
+	is, err := d.ListImages(ctx, ss)
 	if err != nil {
 		t.Fatalf("Error: %s", err.Error())
 	}
@@ -133,7 +141,7 @@ func TestDaemon_ListImages(t *testing.T) {
 
 	// List images for specific service
 	ss = update.ServiceSpec(svc)
-	is, err = d.ListImages(ss)
+	is, err = d.ListImages(ctx, ss)
 	if err != nil {
 		t.Fatalf("Error: %s", err.Error())
 	}
@@ -149,6 +157,8 @@ func TestDaemon_SyncNotify(t *testing.T) {
 	defer clean()
 	w := newWait(t)
 
+	ctx := context.Background()
+
 	var syncCalled int
 	var syncDef *cluster.SyncDef
 	var syncMu sync.Mutex
@@ -160,7 +170,7 @@ func TestDaemon_SyncNotify(t *testing.T) {
 		return nil
 	}
 
-	d.SyncNotify()
+	d.SyncNotify(ctx)
 	w.Eventually(func() bool {
 		syncMu.Lock()
 		defer syncMu.Unlock()
@@ -199,11 +209,13 @@ func TestDaemon_Release(t *testing.T) {
 	defer clean()
 	w := newWait(t)
 
+	ctx := context.Background()
+
 	// Perform a release
-	id := updateImage(d, t)
+	id := updateImage(ctx, d, t)
 
 	// Check that job is queued
-	stat, err := d.JobStatus(id)
+	stat, err := d.JobStatus(ctx, id)
 	if err != nil {
 		t.Fatalf("Error: %s", err.Error())
 	} else if stat.Err != "" {
@@ -246,8 +258,9 @@ func TestDaemon_PolicyUpdate(t *testing.T) {
 	defer clean()
 	w := newWait(t)
 
+	ctx := context.Background()
 	// Push an update to a policy
-	id := updatePolicy(t, d)
+	id := updatePolicy(ctx, t, d)
 
 	// Wait for job to succeed
 	w.ForJobSucceeded(d, id)
@@ -272,8 +285,9 @@ func TestDaemon_SyncStatus(t *testing.T) {
 	defer clean()
 	w := newWait(t)
 
+	ctx := context.Background()
 	// Perform a release
-	id := updateImage(d, t)
+	id := updateImage(ctx, d, t)
 
 	// Get the commit id
 	stat := w.ForJobSucceeded(d, id)
@@ -291,8 +305,9 @@ func TestDaemon_JobStatusWithNoCache(t *testing.T) {
 	defer clean()
 	w := newWait(t)
 
+	ctx := context.Background()
 	// Perform update
-	id := updatePolicy(t, d)
+	id := updatePolicy(ctx, t, d)
 
 	// Make sure the job finishes first
 	w.ForJobSucceeded(d, id)
@@ -340,7 +355,9 @@ func mockDaemon(t *testing.T) (*Daemon, func(), *cluster.Mock, history.EventRead
 		SyncTag:   "flux-test",
 		NotesRef:  "fluxtest",
 	}
-	checkout, err := repo.Clone(context.Background(), params)
+
+	ctx := context.Background()
+	checkout, err := repo.Clone(ctx, params)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -451,8 +468,10 @@ func (w *wait) Eventually(f func() bool, msg string) {
 func (w *wait) ForJobSucceeded(d *Daemon, jobID job.ID) job.Status {
 	var stat job.Status
 	var err error
+
 	w.Eventually(func() bool {
-		stat, err = d.JobStatus(jobID)
+		ctx := context.Background()
+		stat, err = d.JobStatus(ctx, jobID)
 		return err == nil && stat.StatusString == job.StatusSucceeded
 	}, "Waiting for job to succeed")
 	return stat
@@ -462,7 +481,8 @@ func (w *wait) ForSyncStatus(d *Daemon, rev string, expectedNumCommits int) []st
 	var revs []string
 	var err error
 	w.Eventually(func() bool {
-		revs, err = d.SyncStatus(rev)
+		ctx := context.Background()
+		revs, err = d.SyncStatus(ctx, rev)
 		return err == nil && len(revs) == expectedNumCommits
 	}, fmt.Sprintf("Waiting for sync status to have %d commits", expectedNumCommits))
 	return revs
@@ -478,8 +498,8 @@ func imageIDs(status []flux.ImageStatus) []flux.Image {
 	return availableImgs
 }
 
-func updateImage(d *Daemon, t *testing.T) job.ID {
-	return updateManifest(t, d, update.Spec{
+func updateImage(ctx context.Context, d *Daemon, t *testing.T) job.ID {
+	return updateManifest(ctx, t, d, update.Spec{
 		Type: update.Images,
 		Spec: update.ReleaseSpec{
 			Kind:         update.ReleaseKindExecute,
@@ -489,8 +509,8 @@ func updateImage(d *Daemon, t *testing.T) job.ID {
 	})
 }
 
-func updatePolicy(t *testing.T, d *Daemon) job.ID {
-	return updateManifest(t, d, update.Spec{
+func updatePolicy(ctx context.Context, t *testing.T, d *Daemon) job.ID {
+	return updateManifest(ctx, t, d, update.Spec{
 		Type: update.Policy,
 		Spec: policy.Updates{
 			flux.MustParseResourceID("default:deployment/helloworld"): {
@@ -502,8 +522,8 @@ func updatePolicy(t *testing.T, d *Daemon) job.ID {
 	})
 }
 
-func updateManifest(t *testing.T, d *Daemon, spec update.Spec) job.ID {
-	id, err := d.UpdateManifests(spec)
+func updateManifest(ctx context.Context, t *testing.T, d *Daemon, spec update.Spec) job.ID {
+	id, err := d.UpdateManifests(ctx, spec)
 	if err != nil {
 		t.Fatalf("Error: %s", err.Error())
 	}

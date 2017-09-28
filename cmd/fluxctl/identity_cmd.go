@@ -35,7 +35,9 @@ func (opts *identityOpts) RunE(_ *cobra.Command, args []string) error {
 		return errorWantedNoArgs
 	}
 
-	publicSSHKey, err := opts.API.PublicSSHKey(context.TODO(), opts.regenerate)
+	ctx := context.Background()
+
+	publicSSHKey, err := opts.API.PublicSSHKey(ctx, opts.regenerate)
 	if err != nil {
 		return err
 	}

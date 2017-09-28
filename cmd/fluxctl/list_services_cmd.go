@@ -37,7 +37,9 @@ func (opts *serviceListOpts) RunE(cmd *cobra.Command, args []string) error {
 		return errorWantedNoArgs
 	}
 
-	services, err := opts.API.ListServices(context.TODO(), opts.namespace)
+	ctx := context.Background()
+
+	services, err := opts.API.ListServices(ctx, opts.namespace)
 	if err != nil {
 		return err
 	}

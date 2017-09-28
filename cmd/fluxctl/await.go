@@ -18,8 +18,8 @@ var ErrTimeout = errors.New("timeout")
 
 // await polls for a job to complete, then for the resulting commit to
 // be applied
-func await(stdout, stderr io.Writer, client api.Client, jobID job.ID, apply, verbose bool) error {
-	metadata, err := awaitJob(client, jobID)
+func await(ctx context.Context, stdout, stderr io.Writer, client api.Client, jobID job.ID, apply, verbose bool) error {
+	metadata, err := awaitJob(ctx, client, jobID)
 	if err != nil && err.Error() != git.ErrNoChanges.Error() {
 		return err
 	}
@@ -35,7 +35,7 @@ func await(stdout, stderr io.Writer, client api.Client, jobID job.ID, apply, ver
 	}
 
 	if apply && metadata.Revision != "" {
-		if err := awaitSync(client, metadata.Revision); err != nil {
+		if err := awaitSync(ctx, client, metadata.Revision); err != nil {
 			return err
 		}
 
@@ -46,10 +46,10 @@ func await(stdout, stderr io.Writer, client api.Client, jobID job.ID, apply, ver
 }
 
 // await polls for a job to have been completed, with exponential backoff.
-func awaitJob(client api.Client, jobID job.ID) (history.CommitEventMetadata, error) {
+func awaitJob(ctx context.Context, client api.Client, jobID job.ID) (history.CommitEventMetadata, error) {
 	var result history.CommitEventMetadata
 	err := backoff(100*time.Millisecond, 2, 50, 1*time.Minute, func() (bool, error) {
-		j, err := client.JobStatus(context.TODO(), jobID)
+		j, err := client.JobStatus(ctx, jobID)
 		if err != nil {
 			return false, err
 		}
@@ -70,9 +70,9 @@ func awaitJob(client api.Client, jobID job.ID) (history.CommitEventMetadata, err
 }
 
 // await polls for a commit to have been applied, with exponential backoff.
-func awaitSync(client api.Client, revision string) error {
+func awaitSync(ctx context.Context, client api.Client, revision string) error {
 	return backoff(1*time.Second, 2, 10, 1*time.Minute, func() (bool, error) {
-		refs, err := client.SyncStatus(context.TODO(), revision)
+		refs, err := client.SyncStatus(ctx, revision)
 		return err == nil && len(refs) == 0, err
 	})
 }
