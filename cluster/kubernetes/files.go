@@ -21,7 +21,10 @@ func (c *Manifests) FindDefinedServices(path string) (map[flux.ResourceID][]stri
 	var result = map[flux.ResourceID][]string{}
 	for _, obj := range objects {
 		id := obj.ResourceID()
-		result[id] = append(result[id], obj.Source())
+		_, kind, _ := id.Components()
+		if _, ok := resourceKinds[kind]; ok {
+			result[id] = append(result[id], obj.Source())
+		}
 	}
 	return result, nil
 }
