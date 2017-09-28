@@ -14,6 +14,8 @@ type Connecter interface {
 	// with the underlying mechanism (i.e., not if the platform is
 	// simply not known to be connected at this time).
 	Connect(inst service.InstanceID) (remote.Platform, error)
+
+	ConnectWithGitConfig(url, branch string) (remote.Platform, error)
 }
 
 // MessageBus handles routing messages to/from the matching platform.

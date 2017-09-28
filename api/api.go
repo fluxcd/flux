@@ -38,7 +38,13 @@ type DaemonService interface {
 	LogEvent(service.InstanceID, history.Event) error
 }
 
+// API for other services connecting to the service
+type ServiceService interface {
+	SyncNotifyGit(url, branch string) error
+}
+
 type FluxService interface {
 	ClientService
 	DaemonService
+	ServiceService
 }
