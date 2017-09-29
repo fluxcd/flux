@@ -18,24 +18,24 @@ type SpecificImageFilter struct {
 	Img flux.ImageID
 }
 
-func (f *SpecificImageFilter) Filter(u ServiceUpdate) ServiceResult {
+func (f *SpecificImageFilter) Filter(u ControllerUpdate) ControllerResult {
 	// If there are no containers, then we can't check the image.
-	if len(u.Service.Containers.Containers) == 0 {
-		return ServiceResult{
+	if len(u.Controller.Containers.Containers) == 0 {
+		return ControllerResult{
 			Status: ReleaseStatusIgnored,
 			Error:  NotInCluster,
 		}
 	}
 	// For each container in update
-	for _, c := range u.Service.Containers.Containers {
+	for _, c := range u.Controller.Containers.Containers {
 		cID, _ := flux.ParseImageID(c.Image)
 		// If container image == image in update
 		if cID.HostNamespaceImage() == f.Img.HostNamespaceImage() {
 			// We want to update this
-			return ServiceResult{}
+			return ControllerResult{}
 		}
 	}
-	return ServiceResult{
+	return ControllerResult{
 		Status: ReleaseStatusIgnored,
 		Error:  DifferentImage,
 	}
@@ -45,29 +45,29 @@ type ExcludeFilter struct {
 	IDs []flux.ResourceID
 }
 
-func (f *ExcludeFilter) Filter(u ServiceUpdate) ServiceResult {
+func (f *ExcludeFilter) Filter(u ControllerUpdate) ControllerResult {
 	for _, id := range f.IDs {
-		if u.ServiceID == id {
-			return ServiceResult{
+		if u.ResourceID == id {
+			return ControllerResult{
 				Status: ReleaseStatusIgnored,
 				Error:  Excluded,
 			}
 		}
 	}
-	return ServiceResult{}
+	return ControllerResult{}
 }
 
 type IncludeFilter struct {
 	IDs []flux.ResourceID
 }
 
-func (f *IncludeFilter) Filter(u ServiceUpdate) ServiceResult {
+func (f *IncludeFilter) Filter(u ControllerUpdate) ControllerResult {
 	for _, id := range f.IDs {
-		if u.ServiceID == id {
-			return ServiceResult{}
+		if u.ResourceID == id {
+			return ControllerResult{}
 		}
 	}
-	return ServiceResult{
+	return ControllerResult{
 		Status: ReleaseStatusIgnored,
 		Error:  NotIncluded,
 	}
@@ -77,14 +77,14 @@ type LockedFilter struct {
 	IDs []flux.ResourceID
 }
 
-func (f *LockedFilter) Filter(u ServiceUpdate) ServiceResult {
+func (f *LockedFilter) Filter(u ControllerUpdate) ControllerResult {
 	for _, id := range f.IDs {
-		if u.ServiceID == id {
-			return ServiceResult{
+		if u.ResourceID == id {
+			return ControllerResult{
 				Status: ReleaseStatusSkipped,
 				Error:  Locked,
 			}
 		}
 	}
-	return ServiceResult{}
+	return ControllerResult{}
 }

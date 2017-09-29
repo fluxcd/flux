@@ -43,7 +43,7 @@ func (p *ErrorLoggingPlatform) Export(ctx context.Context) (config []byte, err e
 	return p.Platform.Export(ctx)
 }
 
-func (p *ErrorLoggingPlatform) ListServices(ctx context.Context, maybeNamespace string) (_ []flux.ServiceStatus, err error) {
+func (p *ErrorLoggingPlatform) ListServices(ctx context.Context, maybeNamespace string) (_ []flux.ControllerStatus, err error) {
 	defer func() {
 		if err != nil {
 			p.Logger.Log("method", "ListServices", "error", err)
@@ -52,7 +52,7 @@ func (p *ErrorLoggingPlatform) ListServices(ctx context.Context, maybeNamespace 
 	return p.Platform.ListServices(ctx, maybeNamespace)
 }
 
-func (p *ErrorLoggingPlatform) ListImages(ctx context.Context, spec update.ServiceSpec) (_ []flux.ImageStatus, err error) {
+func (p *ErrorLoggingPlatform) ListImages(ctx context.Context, spec update.ResourceSpec) (_ []flux.ImageStatus, err error) {
 	defer func() {
 		if err != nil {
 			p.Logger.Log("method", "ListImages", "error", err)

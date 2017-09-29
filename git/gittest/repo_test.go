@@ -82,7 +82,7 @@ func TestCheckout(t *testing.T) {
 			Spec: update.ReleaseSpec{},
 		},
 		Result: update.Result{
-			flux.MustParseResourceID("default/service1"): update.ServiceResult{
+			flux.MustParseResourceID("default/service1"): update.ControllerResult{
 				Status: update.ReleaseStatusFailed,
 				Error:  "failed the frobulator",
 			},

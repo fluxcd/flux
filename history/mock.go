@@ -28,7 +28,7 @@ func (m *Mock) EventsForService(serviceID flux.ResourceID, _ time.Time, _ int64,
 	defer m.RUnlock()
 	var found []Event
 	for _, e := range m.events {
-		set := flux.ServiceIDSet{}
+		set := flux.ResourceIDSet{}
 		set.Add(e.ServiceIDs)
 		if set.Contains(serviceID) {
 			found = append(found, e)

@@ -62,15 +62,15 @@ func (opts *serviceReleaseOpts) RunE(cmd *cobra.Command, args []string) error {
 		return newUsageError("please supply either --all, or at least one --service=<service>")
 	}
 
-	var services []update.ServiceSpec
+	var services []update.ResourceSpec
 	if opts.allServices {
-		services = []update.ServiceSpec{update.ServiceSpecAll}
+		services = []update.ResourceSpec{update.ResourceSpecAll}
 	} else {
 		for _, service := range opts.services {
 			if _, err := flux.ParseResourceID(service); err != nil {
 				return err
 			}
-			services = append(services, update.ServiceSpec(service))
+			services = append(services, update.ResourceSpec(service))
 		}
 	}
 

@@ -14,7 +14,7 @@ type Service interface {
 	Upstream
 
 	Status(context.Context) (service.Status, error)
-	History(context.Context, update.ServiceSpec, time.Time, int64, time.Time) ([]history.Entry, error)
+	History(context.Context, update.ResourceSpec, time.Time, int64, time.Time) ([]history.Entry, error)
 	GetConfig(ctx context.Context, fingerprint string) (service.InstanceConfig, error)
 	SetConfig(context.Context, service.InstanceConfig) error
 	PatchConfig(context.Context, service.ConfigPatch) error

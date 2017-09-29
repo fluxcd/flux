@@ -62,7 +62,7 @@ func (i *instrumentedPlatform) Export(ctx context.Context) (config []byte, err e
 	return i.p.Export(ctx)
 }
 
-func (i *instrumentedPlatform) ListServices(ctx context.Context, namespace string) (_ []flux.ServiceStatus, err error) {
+func (i *instrumentedPlatform) ListServices(ctx context.Context, namespace string) (_ []flux.ControllerStatus, err error) {
 	defer func(begin time.Time) {
 		requestDuration.With(
 			fluxmetrics.LabelMethod, "ListServices",
@@ -72,7 +72,7 @@ func (i *instrumentedPlatform) ListServices(ctx context.Context, namespace strin
 	return i.p.ListServices(ctx, namespace)
 }
 
-func (i *instrumentedPlatform) ListImages(ctx context.Context, spec update.ServiceSpec) (_ []flux.ImageStatus, err error) {
+func (i *instrumentedPlatform) ListImages(ctx context.Context, spec update.ResourceSpec) (_ []flux.ImageStatus, err error) {
 	defer func(begin time.Time) {
 		requestDuration.With(
 			fluxmetrics.LabelMethod, "ListImages",

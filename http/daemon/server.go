@@ -96,7 +96,7 @@ func (s HTTPServer) SyncStatus(w http.ResponseWriter, r *http.Request) {
 
 func (s HTTPServer) ListImages(w http.ResponseWriter, r *http.Request) {
 	service := mux.Vars(r)["service"]
-	spec, err := update.ParseServiceSpec(service)
+	spec, err := update.ParseResourceSpec(service)
 	if err != nil {
 		transport.WriteError(w, r, http.StatusBadRequest, errors.Wrapf(err, "parsing service spec %q", service))
 		return
@@ -120,9 +120,9 @@ func (s HTTPServer) UpdateImages(w http.ResponseWriter, r *http.Request) {
 		transport.WriteError(w, r, http.StatusBadRequest, errors.Wrapf(err, "parsing form"))
 		return
 	}
-	var serviceSpecs []update.ServiceSpec
+	var serviceSpecs []update.ResourceSpec
 	for _, service := range r.Form["service"] {
-		serviceSpec, err := update.ParseServiceSpec(service)
+		serviceSpec, err := update.ParseResourceSpec(service)
 		if err != nil {
 			transport.WriteError(w, r, http.StatusBadRequest, errors.Wrapf(err, "parsing service spec %q", service))
 			return

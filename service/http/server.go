@@ -141,7 +141,7 @@ func (s HTTPService) ListServices(w http.ResponseWriter, r *http.Request) {
 func (s HTTPService) ListImages(w http.ResponseWriter, r *http.Request) {
 	ctx := getRequestContext(r)
 	service := mux.Vars(r)["service"]
-	spec, err := update.ParseServiceSpec(service)
+	spec, err := update.ParseResourceSpec(service)
 	if err != nil {
 		transport.WriteError(w, r, http.StatusBadRequest, errors.Wrapf(err, "parsing service spec %q", service))
 		return
@@ -167,9 +167,9 @@ func (s HTTPService) UpdateImages(w http.ResponseWriter, r *http.Request) {
 		transport.WriteError(w, r, http.StatusBadRequest, errors.Wrapf(err, "parsing form"))
 		return
 	}
-	var serviceSpecs []update.ServiceSpec
+	var serviceSpecs []update.ResourceSpec
 	for _, service := range r.Form["service"] {
-		serviceSpec, err := update.ParseServiceSpec(service)
+		serviceSpec, err := update.ParseResourceSpec(service)
 		if err != nil {
 			transport.WriteError(w, r, http.StatusBadRequest, errors.Wrapf(err, "parsing service spec %q", service))
 			return
@@ -288,7 +288,7 @@ func (s HTTPService) LogEvent(w http.ResponseWriter, r *http.Request) {
 func (s HTTPService) History(w http.ResponseWriter, r *http.Request) {
 	ctx := getRequestContext(r)
 	service := mux.Vars(r)["service"]
-	spec, err := update.ParseServiceSpec(service)
+	spec, err := update.ParseResourceSpec(service)
 	if err != nil {
 		transport.WriteError(w, r, http.StatusBadRequest, errors.Wrapf(err, "parsing service spec %q", spec))
 		return

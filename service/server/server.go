@@ -105,7 +105,7 @@ func (s *Server) Status(ctx context.Context) (res service.Status, err error) {
 	return res, nil
 }
 
-func (s *Server) ListServices(ctx context.Context, namespace string) (res []flux.ServiceStatus, err error) {
+func (s *Server) ListServices(ctx context.Context, namespace string) (res []flux.ControllerStatus, err error) {
 	instID, err := getInstanceID(ctx)
 	if err != nil {
 		return res, err
@@ -123,7 +123,7 @@ func (s *Server) ListServices(ctx context.Context, namespace string) (res []flux
 	return services, nil
 }
 
-func (s *Server) ListImages(ctx context.Context, spec update.ServiceSpec) (res []flux.ImageStatus, err error) {
+func (s *Server) ListImages(ctx context.Context, spec update.ResourceSpec) (res []flux.ImageStatus, err error) {
 	instID, err := getInstanceID(ctx)
 	if err != nil {
 		return res, err
@@ -231,7 +231,7 @@ func (s *Server) LogEvent(ctx context.Context, e history.Event) error {
 	return nil
 }
 
-func (s *Server) History(ctx context.Context, spec update.ServiceSpec, before time.Time, limit int64, after time.Time) (res []history.Entry, err error) {
+func (s *Server) History(ctx context.Context, spec update.ResourceSpec, before time.Time, limit int64, after time.Time) (res []history.Entry, err error) {
 	instID, err := getInstanceID(ctx)
 	if err != nil {
 		return res, err
@@ -243,7 +243,7 @@ func (s *Server) History(ctx context.Context, spec update.ServiceSpec, before ti
 	}
 
 	var events []history.Event
-	if spec == update.ServiceSpecAll {
+	if spec == update.ResourceSpecAll {
 		events, err = helper.AllEvents(before, limit, after)
 		if err != nil {
 			return nil, errors.Wrap(err, "fetching all history events")

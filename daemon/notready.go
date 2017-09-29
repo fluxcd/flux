@@ -55,11 +55,11 @@ func (nrd *NotReadyDaemon) Export(ctx context.Context) ([]byte, error) {
 	return nrd.cluster.Export()
 }
 
-func (nrd *NotReadyDaemon) ListServices(ctx context.Context, namespace string) ([]flux.ServiceStatus, error) {
+func (nrd *NotReadyDaemon) ListServices(ctx context.Context, namespace string) ([]flux.ControllerStatus, error) {
 	return nil, nrd.Reason()
 }
 
-func (nrd *NotReadyDaemon) ListImages(context.Context, update.ServiceSpec) ([]flux.ImageStatus, error) {
+func (nrd *NotReadyDaemon) ListImages(context.Context, update.ResourceSpec) ([]flux.ImageStatus, error) {
 	return nil, nrd.Reason()
 }
 

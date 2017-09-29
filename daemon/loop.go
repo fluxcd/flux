@@ -208,7 +208,7 @@ func (d *Daemon) doSync(logger log.Logger) (retErr error) {
 		}
 	}
 
-	serviceIDs := flux.ServiceIDSet{}
+	serviceIDs := flux.ResourceIDSet{}
 	for _, r := range changedResources {
 		serviceIDs.Add([]flux.ResourceID{r.ResourceID()})
 	}

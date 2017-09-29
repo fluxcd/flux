@@ -35,7 +35,7 @@ func exampleRelease(t *testing.T) *history.ReleaseEventMetadata {
 			Message: "this was to test notifications",
 		},
 		Spec: update.ReleaseSpec{
-			ServiceSpecs: []update.ServiceSpec{update.ServiceSpec("default/helloworld")},
+			ServiceSpecs: []update.ResourceSpec{update.ResourceSpec("default/helloworld")},
 			ImageSpec:    update.ImageSpecLatest,
 			Kind:         update.ReleaseKindExecute,
 			Excludes:     nil,

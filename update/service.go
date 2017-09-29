@@ -5,24 +5,24 @@ import (
 	"github.com/weaveworks/flux/cluster"
 )
 
-type ServiceUpdate struct {
-	ServiceID     flux.ResourceID
-	Service       cluster.Controller
+type ControllerUpdate struct {
+	ResourceID    flux.ResourceID
+	Controller    cluster.Controller
 	ManifestPath  string
 	ManifestBytes []byte
 	Updates       []ContainerUpdate
 }
 
-type ServiceFilter interface {
-	Filter(ServiceUpdate) ServiceResult
+type ControllerFilter interface {
+	Filter(ControllerUpdate) ControllerResult
 }
 
-func (s *ServiceUpdate) Filter(filters ...ServiceFilter) ServiceResult {
+func (s *ControllerUpdate) Filter(filters ...ControllerFilter) ControllerResult {
 	for _, f := range filters {
 		fr := f.Filter(*s)
 		if fr.Error != "" {
 			return fr
 		}
 	}
-	return ServiceResult{}
+	return ControllerResult{}
 }

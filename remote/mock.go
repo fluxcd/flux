@@ -23,7 +23,7 @@ type MockPlatform struct {
 	ExportAnswer []byte
 	ExportError  error
 
-	ListServicesAnswer []flux.ServiceStatus
+	ListServicesAnswer []flux.ControllerStatus
 	ListServicesError  error
 
 	ListImagesAnswer []flux.ImageStatus
@@ -57,11 +57,11 @@ func (p *MockPlatform) Export(ctx context.Context) ([]byte, error) {
 	return p.ExportAnswer, p.ExportError
 }
 
-func (p *MockPlatform) ListServices(ctx context.Context, ns string) ([]flux.ServiceStatus, error) {
+func (p *MockPlatform) ListServices(ctx context.Context, ns string) ([]flux.ControllerStatus, error) {
 	return p.ListServicesAnswer, p.ListServicesError
 }
 
-func (p *MockPlatform) ListImages(context.Context, update.ServiceSpec) ([]flux.ImageStatus, error) {
+func (p *MockPlatform) ListImages(context.Context, update.ResourceSpec) ([]flux.ImageStatus, error) {
 	return p.ListImagesAnswer, p.ListImagesError
 }
 
@@ -101,14 +101,14 @@ func PlatformTestBattery(t *testing.T, wrap func(mock Platform) Platform) {
 	namespace := "the-space-of-names"
 	serviceID := flux.MustParseResourceID(namespace + "/service")
 	serviceList := []flux.ResourceID{serviceID}
-	services := flux.ServiceIDSet{}
+	services := flux.ResourceIDSet{}
 	services.Add(serviceList)
 
 	now := time.Now().UTC()
 
 	imageID, _ := flux.ParseImageID("quay.io/example.com/frob:v0.4.5")
-	serviceAnswer := []flux.ServiceStatus{
-		flux.ServiceStatus{
+	serviceAnswer := []flux.ControllerStatus{
+		flux.ControllerStatus{
 			ID:     flux.MustParseResourceID("foobar/hello"),
 			Status: "ok",
 			Containers: []flux.Container{
@@ -121,7 +121,7 @@ func PlatformTestBattery(t *testing.T, wrap func(mock Platform) Platform) {
 				},
 			},
 		},
-		flux.ServiceStatus{},
+		flux.ControllerStatus{},
 	}
 
 	imagesAnswer := []flux.ImageStatus{
@@ -147,8 +147,8 @@ func PlatformTestBattery(t *testing.T, wrap func(mock Platform) Platform) {
 	updateSpec := update.Spec{
 		Type: update.Images,
 		Spec: update.ReleaseSpec{
-			ServiceSpecs: []update.ServiceSpec{
-				update.ServiceSpecAll,
+			ServiceSpecs: []update.ResourceSpec{
+				update.ResourceSpecAll,
 			},
 			ImageSpec: update.ImageSpecLatest,
 		},
@@ -190,7 +190,7 @@ func PlatformTestBattery(t *testing.T, wrap func(mock Platform) Platform) {
 		t.Error("expected error from ListServices, got nil")
 	}
 
-	ims, err := client.ListImages(ctx, update.ServiceSpecAll)
+	ims, err := client.ListImages(ctx, update.ResourceSpecAll)
 	if err != nil {
 		t.Error(err)
 	}
@@ -198,7 +198,7 @@ func PlatformTestBattery(t *testing.T, wrap func(mock Platform) Platform) {
 		t.Error(fmt.Errorf("expected:\n%#v\ngot:\n%#v", mock.ListImagesAnswer, ims))
 	}
 	mock.ListImagesError = fmt.Errorf("list images error")
-	if _, err = client.ListImages(ctx, update.ServiceSpecAll); err == nil {
+	if _, err = client.ListImages(ctx, update.ResourceSpecAll); err == nil {
 		t.Error("expected error from ListImages, got nil")
 	}
 

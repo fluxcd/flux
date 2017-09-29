@@ -37,13 +37,13 @@ func New(c *http.Client, router *mux.Router, endpoint string, t flux.Token) *Cli
 	}
 }
 
-func (c *Client) ListServices(ctx context.Context, namespace string) ([]flux.ServiceStatus, error) {
-	var res []flux.ServiceStatus
+func (c *Client) ListServices(ctx context.Context, namespace string) ([]flux.ControllerStatus, error) {
+	var res []flux.ControllerStatus
 	err := c.Get(ctx, &res, "ListServices", "namespace", namespace)
 	return res, err
 }
 
-func (c *Client) ListImages(ctx context.Context, s update.ServiceSpec) ([]flux.ImageStatus, error) {
+func (c *Client) ListImages(ctx context.Context, s update.ResourceSpec) ([]flux.ImageStatus, error) {
 	var res []flux.ImageStatus
 	err := c.Get(ctx, &res, "ListImages", "service", string(s))
 	return res, err

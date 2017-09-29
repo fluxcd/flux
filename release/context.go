@@ -38,7 +38,7 @@ func (rc *ReleaseContext) Manifests() cluster.Manifests {
 	return rc.manifests
 }
 
-func (rc *ReleaseContext) WriteUpdates(updates []*update.ServiceUpdate) error {
+func (rc *ReleaseContext) WriteUpdates(updates []*update.ControllerUpdate) error {
 	rc.repo.Lock()
 	defer rc.repo.Unlock()
 	err := func() error {
@@ -64,17 +64,17 @@ func (rc *ReleaseContext) WriteUpdates(updates []*update.ServiceUpdate) error {
 // `ServiceFilter`s can be provided to filter the found services.
 // Be careful about the ordering of the filters. Filters that are earlier
 // in the slice will have higher priority (they are run first).
-func (rc *ReleaseContext) SelectServices(results update.Result, filters ...update.ServiceFilter) ([]*update.ServiceUpdate, error) {
+func (rc *ReleaseContext) SelectServices(results update.Result, filters ...update.ControllerFilter) ([]*update.ControllerUpdate, error) {
 	defined, err := rc.FindDefinedServices()
 	if err != nil {
 		return nil, err
 	}
 
 	var ids []flux.ResourceID
-	definedMap := map[flux.ResourceID]*update.ServiceUpdate{}
+	definedMap := map[flux.ResourceID]*update.ControllerUpdate{}
 	for _, s := range defined {
-		ids = append(ids, s.ServiceID)
-		definedMap[s.ServiceID] = s
+		ids = append(ids, s.ResourceID)
+		definedMap[s.ResourceID] = s
 	}
 
 	// Correlate with services in running system.
@@ -84,33 +84,33 @@ func (rc *ReleaseContext) SelectServices(results update.Result, filters ...updat
 	}
 
 	// Compare defined vs running
-	var updates []*update.ServiceUpdate
+	var updates []*update.ControllerUpdate
 	for _, s := range services {
 		update, ok := definedMap[s.ID]
 		if !ok {
 			// Found running service, but not defined...
 			continue
 		}
-		update.Service = s
+		update.Controller = s
 		updates = append(updates, update)
 		delete(definedMap, s.ID)
 	}
 
 	// Filter both updates ...
-	var filteredUpdates []*update.ServiceUpdate
+	var filteredUpdates []*update.ControllerUpdate
 	for _, s := range updates {
 		fr := s.Filter(filters...)
-		results[s.ServiceID] = fr
+		results[s.ResourceID] = fr
 		if fr.Status == update.ReleaseStatusSuccess || fr.Status == "" {
 			filteredUpdates = append(filteredUpdates, s)
 		}
 	}
 
 	// ... and missing services
-	filteredDefined := map[flux.ResourceID]*update.ServiceUpdate{}
+	filteredDefined := map[flux.ResourceID]*update.ControllerUpdate{}
 	for k, s := range definedMap {
 		fr := s.Filter(filters...)
-		results[s.ServiceID] = fr
+		results[s.ResourceID] = fr
 		if fr.Status != update.ReleaseStatusIgnored {
 			filteredDefined[k] = s
 		}
@@ -118,7 +118,7 @@ func (rc *ReleaseContext) SelectServices(results update.Result, filters ...updat
 
 	// Mark anything left over as skipped
 	for id, _ := range filteredDefined {
-		results[id] = update.ServiceResult{
+		results[id] = update.ControllerResult{
 			Status: update.ReleaseStatusSkipped,
 			Error:  update.NotInCluster,
 		}
@@ -126,7 +126,7 @@ func (rc *ReleaseContext) SelectServices(results update.Result, filters ...updat
 	return filteredUpdates, nil
 }
 
-func (rc *ReleaseContext) FindDefinedServices() ([]*update.ServiceUpdate, error) {
+func (rc *ReleaseContext) FindDefinedServices() ([]*update.ControllerUpdate, error) {
 	rc.repo.RLock()
 	defer rc.repo.RUnlock()
 	services, err := rc.manifests.FindDefinedServices(rc.repo.ManifestDir())
@@ -134,7 +134,7 @@ func (rc *ReleaseContext) FindDefinedServices() ([]*update.ServiceUpdate, error)
 		return nil, err
 	}
 
-	var defined []*update.ServiceUpdate
+	var defined []*update.ControllerUpdate
 	for id, paths := range services {
 		switch len(paths) {
 		case 1:
@@ -142,8 +142,8 @@ func (rc *ReleaseContext) FindDefinedServices() ([]*update.ServiceUpdate, error)
 			if err != nil {
 				return nil, err
 			}
-			defined = append(defined, &update.ServiceUpdate{
-				ServiceID:     id,
+			defined = append(defined, &update.ControllerUpdate{
+				ResourceID:    id,
 				ManifestPath:  paths[0],
 				ManifestBytes: def,
 			})
@@ -155,7 +155,7 @@ func (rc *ReleaseContext) FindDefinedServices() ([]*update.ServiceUpdate, error)
 }
 
 // Shortcut for this
-func (rc *ReleaseContext) ServicesWithPolicies() (policy.ServiceMap, error) {
+func (rc *ReleaseContext) ServicesWithPolicies() (policy.ResourceMap, error) {
 	rc.repo.RLock()
 	defer rc.repo.RUnlock()
 	return rc.manifests.ServicesWithPolicies(rc.repo.ManifestDir())

@@ -9,7 +9,7 @@ import (
 )
 
 type Changes interface {
-	CalculateRelease(update.ReleaseContext, log.Logger) ([]*update.ServiceUpdate, update.Result, error)
+	CalculateRelease(update.ReleaseContext, log.Logger) ([]*update.ControllerUpdate, update.Result, error)
 	ReleaseKind() update.ReleaseKind
 	ReleaseType() update.ReleaseType
 	CommitMessage() string
@@ -36,7 +36,7 @@ func Release(rc *ReleaseContext, changes Changes, logger log.Logger) (results up
 	return results, err
 }
 
-func ApplyChanges(rc *ReleaseContext, updates []*update.ServiceUpdate, logger log.Logger) error {
+func ApplyChanges(rc *ReleaseContext, updates []*update.ControllerUpdate, logger log.Logger) error {
 	logger.Log("updates", len(updates))
 	if len(updates) == 0 {
 		logger.Log("exit", "no images to update for services given")

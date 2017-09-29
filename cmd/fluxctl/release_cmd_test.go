@@ -12,17 +12,17 @@ func TestReleaseCommand_CLIConversion(t *testing.T) {
 		expectedParams map[string]string
 	}{
 		{[]string{"--update-all-images", "--all"}, map[string]string{
-			"service": string(update.ServiceSpecAll),
+			"service": string(update.ResourceSpecAll),
 			"image":   string(update.ImageSpecLatest),
 			"kind":    string(update.ReleaseKindExecute),
 		}},
 		{[]string{"--update-all-images", "--all", "--dry-run"}, map[string]string{
-			"service": string(update.ServiceSpecAll),
+			"service": string(update.ResourceSpecAll),
 			"image":   string(update.ImageSpecLatest),
 			"kind":    string(update.ReleaseKindPlan),
 		}},
 		{[]string{"--update-image=alpine:latest", "--all"}, map[string]string{
-			"service": string(update.ServiceSpecAll),
+			"service": string(update.ResourceSpecAll),
 			"image":   "alpine:latest",
 			"kind":    string(update.ReleaseKindExecute),
 		}},
@@ -32,7 +32,7 @@ func TestReleaseCommand_CLIConversion(t *testing.T) {
 			"kind":    string(update.ReleaseKindExecute),
 		}},
 		{[]string{"--update-all-images", "--all", "--exclude=default/test,default/yeah"}, map[string]string{
-			"service": string(update.ServiceSpecAll),
+			"service": string(update.ResourceSpecAll),
 			"image":   string(update.ImageSpecLatest),
 			"kind":    string(update.ReleaseKindExecute),
 			"exclude": "default/test,default/yeah",

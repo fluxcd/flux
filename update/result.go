@@ -8,17 +8,17 @@ import (
 	"github.com/weaveworks/flux"
 )
 
-type ServiceUpdateStatus string
+type ControllerUpdateStatus string
 
 const (
-	ReleaseStatusSuccess ServiceUpdateStatus = "success"
-	ReleaseStatusFailed  ServiceUpdateStatus = "failed"
-	ReleaseStatusSkipped ServiceUpdateStatus = "skipped"
-	ReleaseStatusIgnored ServiceUpdateStatus = "ignored"
-	ReleaseStatusUnknown ServiceUpdateStatus = "unknown"
+	ReleaseStatusSuccess ControllerUpdateStatus = "success"
+	ReleaseStatusFailed  ControllerUpdateStatus = "failed"
+	ReleaseStatusSkipped ControllerUpdateStatus = "skipped"
+	ReleaseStatusIgnored ControllerUpdateStatus = "ignored"
+	ReleaseStatusUnknown ControllerUpdateStatus = "unknown"
 )
 
-type Result map[flux.ResourceID]ServiceResult
+type Result map[flux.ResourceID]ControllerResult
 
 func (r Result) ServiceIDs() []string {
 	var result []string
@@ -64,13 +64,13 @@ func (r Result) Error() string {
 	}
 }
 
-type ServiceResult struct {
-	Status       ServiceUpdateStatus // summary of what happened, e.g., "incomplete", "ignored", "success"
-	Error        string              `json:",omitempty"` // error if there was one finding the service (e.g., it doesn't exist in repo)
-	PerContainer []ContainerUpdate   // what happened with each container
+type ControllerResult struct {
+	Status       ControllerUpdateStatus // summary of what happened, e.g., "incomplete", "ignored", "success"
+	Error        string                 `json:",omitempty"` // error if there was one finding the service (e.g., it doesn't exist in repo)
+	PerContainer []ContainerUpdate      // what happened with each container
 }
 
-func (fr ServiceResult) Msg(id flux.ResourceID) string {
+func (fr ControllerResult) Msg(id flux.ResourceID) string {
 	return fmt.Sprintf("%s service %s as it is %s", fr.Status, id.String(), fr.Error)
 }
 

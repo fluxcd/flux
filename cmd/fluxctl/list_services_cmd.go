@@ -63,7 +63,7 @@ func (opts *serviceListOpts) RunE(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-type serviceStatusByName []flux.ServiceStatus
+type serviceStatusByName []flux.ControllerStatus
 
 func (s serviceStatusByName) Len() int {
 	return len(s)
@@ -77,7 +77,7 @@ func (s serviceStatusByName) Swap(a, b int) {
 	s[a], s[b] = s[b], s[a]
 }
 
-func policies(s flux.ServiceStatus) string {
+func policies(s flux.ControllerStatus) string {
 	var ps []string
 	if s.Automated {
 		ps = append(ps, string(policy.Automated))

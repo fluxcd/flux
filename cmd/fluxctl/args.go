@@ -11,11 +11,11 @@ import (
 	"github.com/weaveworks/flux/update"
 )
 
-func parseServiceOption(s string) (update.ServiceSpec, error) {
+func parseServiceOption(s string) (update.ResourceSpec, error) {
 	if s == "" {
-		return update.ServiceSpecAll, nil
+		return update.ResourceSpecAll, nil
 	}
-	return update.ParseServiceSpec(s)
+	return update.ParseResourceSpec(s)
 }
 
 func AddCauseFlags(cmd *cobra.Command, opts *update.Cause) {

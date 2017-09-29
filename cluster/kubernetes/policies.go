@@ -148,7 +148,7 @@ func parseManifest(def []byte) (Manifest, error) {
 	return m, nil
 }
 
-func (m *Manifests) ServicesWithPolicies(root string) (policy.ServiceMap, error) {
+func (m *Manifests) ServicesWithPolicies(root string) (policy.ResourceMap, error) {
 	all, err := m.FindDefinedServices(root)
 	if err != nil {
 		return nil, err

@@ -65,7 +65,7 @@ func (d *Daemon) Export(ctx context.Context) ([]byte, error) {
 	return d.Cluster.Export()
 }
 
-func (d *Daemon) ListServices(ctx context.Context, namespace string) ([]flux.ServiceStatus, error) {
+func (d *Daemon) ListServices(ctx context.Context, namespace string) ([]flux.ControllerStatus, error) {
 	clusterServices, err := d.Cluster.AllControllers(namespace)
 	if err != nil {
 		return nil, errors.Wrap(err, "getting services from cluster")
@@ -79,10 +79,10 @@ func (d *Daemon) ListServices(ctx context.Context, namespace string) ([]flux.Ser
 		return nil, errors.Wrap(err, "getting service policies")
 	}
 
-	var res []flux.ServiceStatus
+	var res []flux.ControllerStatus
 	for _, service := range clusterServices {
 		policies := services[service.ID]
-		res = append(res, flux.ServiceStatus{
+		res = append(res, flux.ControllerStatus{
 			ID:         service.ID,
 			Containers: containers2containers(service.ContainersOrNil()),
 			Status:     service.Status,
@@ -97,10 +97,10 @@ func (d *Daemon) ListServices(ctx context.Context, namespace string) ([]flux.Ser
 }
 
 // List the images available for set of services
-func (d *Daemon) ListImages(ctx context.Context, spec update.ServiceSpec) ([]flux.ImageStatus, error) {
+func (d *Daemon) ListImages(ctx context.Context, spec update.ResourceSpec) ([]flux.ImageStatus, error) {
 	var services []cluster.Controller
 	var err error
-	if spec == update.ServiceSpecAll {
+	if spec == update.ResourceSpecAll {
 		services, err = d.Cluster.AllControllers("")
 	} else {
 		id, err := spec.AsID()
@@ -221,19 +221,19 @@ func (d *Daemon) updatePolicy(spec update.Spec, updates policy.Updates) DaemonJo
 			err := cluster.UpdateManifest(d.Manifests, working.ManifestDir(), serviceID, func(def []byte) ([]byte, error) {
 				newDef, err := d.Manifests.UpdatePolicies(def, u)
 				if err != nil {
-					metadata.Result[serviceID] = update.ServiceResult{
+					metadata.Result[serviceID] = update.ControllerResult{
 						Status: update.ReleaseStatusFailed,
 						Error:  err.Error(),
 					}
 					return nil, err
 				}
 				if string(newDef) == string(def) {
-					metadata.Result[serviceID] = update.ServiceResult{
+					metadata.Result[serviceID] = update.ControllerResult{
 						Status: update.ReleaseStatusSkipped,
 					}
 				} else {
 					serviceIDs = append(serviceIDs, serviceID)
-					metadata.Result[serviceID] = update.ServiceResult{
+					metadata.Result[serviceID] = update.ControllerResult{
 						Status: update.ReleaseStatusSuccess,
 					}
 				}
@@ -241,7 +241,7 @@ func (d *Daemon) updatePolicy(spec update.Spec, updates policy.Updates) DaemonJo
 			})
 			switch err {
 			case cluster.ErrNoResourceFilesFoundForService, cluster.ErrMultipleResourceFilesFoundForService:
-				metadata.Result[serviceID] = update.ServiceResult{
+				metadata.Result[serviceID] = update.ControllerResult{
 					Status: update.ReleaseStatusFailed,
 					Error:  err.Error(),
 				}

@@ -112,9 +112,9 @@ func (s Set) ToStringMap() map[string]string {
 	return m
 }
 
-type ServiceMap map[flux.ResourceID]Set
+type ResourceMap map[flux.ResourceID]Set
 
-func (s ServiceMap) ToSlice() []flux.ResourceID {
+func (s ResourceMap) ToSlice() []flux.ResourceID {
 	slice := []flux.ResourceID{}
 	for service, _ := range s {
 		slice = append(slice, service)
@@ -122,13 +122,13 @@ func (s ServiceMap) ToSlice() []flux.ResourceID {
 	return slice
 }
 
-func (s ServiceMap) Contains(id flux.ResourceID) bool {
+func (s ResourceMap) Contains(id flux.ResourceID) bool {
 	_, ok := s[id]
 	return ok
 }
 
-func (s ServiceMap) Without(other ServiceMap) ServiceMap {
-	newMap := ServiceMap{}
+func (s ResourceMap) Without(other ResourceMap) ResourceMap {
+	newMap := ResourceMap{}
 	for k, v := range s {
 		if !other.Contains(k) {
 			newMap[k] = v
@@ -137,8 +137,8 @@ func (s ServiceMap) Without(other ServiceMap) ServiceMap {
 	return newMap
 }
 
-func (s ServiceMap) OnlyWithPolicy(p Policy) ServiceMap {
-	newMap := ServiceMap{}
+func (s ResourceMap) OnlyWithPolicy(p Policy) ResourceMap {
+	newMap := ResourceMap{}
 	for k, v := range s {
 		if _, ok := v[p]; ok {
 			newMap[k] = v

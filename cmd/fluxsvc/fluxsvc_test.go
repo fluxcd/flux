@@ -74,8 +74,8 @@ func setup(t *testing.T) {
 
 	imageID, _ := flux.ParseImageID("quay.io/weaveworks/helloworld:v1")
 	mockPlatform = &remote.MockPlatform{
-		ListServicesAnswer: []flux.ServiceStatus{
-			flux.ServiceStatus{
+		ListServicesAnswer: []flux.ControllerStatus{
+			flux.ControllerStatus{
 				ID:     flux.MustParseResourceID(helloWorldSvc),
 				Status: "ok",
 				Containers: []flux.Container{
@@ -87,7 +87,7 @@ func setup(t *testing.T) {
 					},
 				},
 			},
-			flux.ServiceStatus{},
+			flux.ControllerStatus{},
 		},
 		ListImagesAnswer: []flux.ImageStatus{
 			flux.ImageStatus{
@@ -202,7 +202,7 @@ func TestFluxsvc_ListImages(t *testing.T) {
 	ctx := context.Background()
 
 	// Test ListImages
-	imgs, err := apiClient.ListImages(ctx, update.ServiceSpecAll)
+	imgs, err := apiClient.ListImages(ctx, update.ResourceSpecAll)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -255,7 +255,7 @@ func TestFluxsvc_Release(t *testing.T) {
 	r, err := apiClient.UpdateImages(ctx, update.ReleaseSpec{
 		ImageSpec:    "alpine:latest",
 		Kind:         "execute",
-		ServiceSpecs: []update.ServiceSpec{helloWorldSvc},
+		ServiceSpecs: []update.ResourceSpec{helloWorldSvc},
 	}, update.Cause{})
 	if err != nil {
 		t.Fatal(err)

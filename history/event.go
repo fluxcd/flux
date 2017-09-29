@@ -91,7 +91,7 @@ func (e Event) String() string {
 			strImageIDs = []string{"no image changes"}
 		}
 		for _, spec := range metadata.Spec.ServiceSpecs {
-			if spec == update.ServiceSpecAll {
+			if spec == update.ResourceSpecAll {
 				strServiceIDs = []string{"all services"}
 				break
 			}
