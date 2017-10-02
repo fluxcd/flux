@@ -53,13 +53,18 @@ func ParseMultidoc(multidoc []byte, source string) (map[string]resource.Resource
 	chunks := bufio.NewScanner(bytes.NewReader(multidoc))
 	chunks.Split(splitYAMLDocument)
 
+	var obj resource.Resource
+	var err error
 	for chunks.Scan() {
-		if obj, err := unmarshalObject(source, chunks.Bytes()); err != nil {
+		if obj, err = unmarshalObject(source, chunks.Bytes()); err != nil {
 			return nil, fmt.Errorf(`parsing YAML doc from "%s": %s`, source, err.Error())
-		} else {
-			objs[obj.ResourceID().String()] = obj
 		}
+		if obj == nil {
+			continue
+		}
+		objs[obj.ResourceID().String()] = obj
 	}
+
 	if err := chunks.Err(); err != nil {
 		return objs, fmt.Errorf(`scanning multidoc from "%s": %s`, source, err.Error())
 	}

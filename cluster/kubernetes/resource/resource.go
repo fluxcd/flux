@@ -102,8 +102,15 @@ func unmarshalObject(source string, bytes []byte) (resource.Resource, error) {
 			return nil, err
 		}
 		return &ss, nil
-		// The remainder are things we have to care about, but not
-		// treat specially
+	case "":
+		// If there is an empty resource (due to eg an introduced comment),
+		// we are returning nil for the resource and nil for an error
+		// (as not really an error). We are not, at least at the moment,
+		// reporting an error for invalid non-resource yamls on the
+		// assumption it is unlikely to happen.
+		return nil, nil
+	// The remainder are things we have to care about, but not
+	// treat specially
 	default:
 		return &base, nil
 	}
