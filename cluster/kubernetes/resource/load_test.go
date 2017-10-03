@@ -59,6 +59,43 @@ metadata:
 	}
 }
 
+func TestParseSomeWithComment(t *testing.T) {
+	docs := `# some random comment
+---
+kind: Deployment
+metadata:
+  name: b-deployment
+  namespace: b-namespace
+---
+kind: Deployment
+metadata:
+  name: a-deployment
+`
+	objs, err := ParseMultidoc([]byte(docs), "test")
+	if err != nil {
+		t.Error(err)
+	}
+
+	objA := base("test", "Deployment", "", "a-deployment")
+	objB := base("test", "Deployment", "b-namespace", "b-deployment")
+	expected := map[string]resource.Resource{
+		objA.ResourceID().String(): &Deployment{baseObject: objA},
+		objB.ResourceID().String(): &Deployment{baseObject: objB},
+	}
+	expectedL := len(expected)
+
+	if len(objs) != expectedL {
+		t.Errorf("expected %d objects from yaml source\n%s\n, got result: %d", expectedL, docs, len(objs))
+	}
+
+	for id, obj := range expected {
+		// Remove the bytes, so we can compare
+		if !reflect.DeepEqual(obj, debyte(objs[id])) {
+			t.Errorf("At %+v expected:\n%#v\ngot:\n%#v", id, obj, objs[id])
+		}
+	}
+}
+
 func debyte(r resource.Resource) resource.Resource {
 	if res, ok := r.(interface {
 		debyte()
