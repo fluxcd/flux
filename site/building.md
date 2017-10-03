@@ -9,7 +9,7 @@ Ensure the repository is checked out into $GOPATH/src/github.com/weaveworks/flux
 Then, from the root,
 
 ```
-$ gvt restore
+$ dep ensure
 # .. time passes ..
 $ make
 ```
@@ -33,22 +33,17 @@ docker run -d -p 4222:4222 -p 6222:6222 --name nats-main nats
 
 # Dependency management
 
-We use [gvt](https://github.com/FiloSottile/gvt) to manage vendored dependencies.
+We use [dep](https://github.com/golang/dep) to manage vendored dependencies.
 Note that **we do not check in the dependencies**.
 
 To get all the dependencies put in the `vendor/` folder, use
 
 ```
-$ go get -u github.com/FiloSottile/gvt # install gvt if you don't have it
-$ gvt restore
+$ dep ensure
 ```
 
 To add dependencies, use
 
 ```
-$ gvt fetch <dependency>
+$ dep ensure -add dependency
 ```
-
-`gvt` does not *discover* dependencies for you, but it will add them
-recursively; so, it should be sufficient to just add packages you
-import.
