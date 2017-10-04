@@ -24,23 +24,29 @@ git (and GitHub) workflows to manage your cluster.
  <tr><th>Setting up the repo</th></tr>
  <tr>
   <td>
-    - Create an SSH keypair
-    - Construct a YAML file with the git repo and private key in it
-    - Feed the config YAML file to the Flux service
-    - Add the public key to GitHub/wherever
+   <ul>
+    <li>Create an SSH keypair</li>
+    <li>Construct a YAML file with the git repo and private key in it</li>
+    <li>Feed the config YAML file to the Flux service</li>
+    <li>Add the public key to GitHub/wherever</li>
+   </ul>
   </td>
-  <td> 
-    - The git repo can be supplied as an argument
-    - The daemon  creates an SSH keypair
-    - Add the public key to GitHub/wherever
+  <td>
+   <ul>
+    <li>The git repo can be supplied as an argument</li>
+    <li>The daemon  creates an SSH keypair</li>
+    <li>Add the public key to GitHub/wherever</li>
+   </ul>
   </td>
  </tr>
  <tr><th>Supplying Docker registry credentials</th></tr>
  <tr>
   <td>
-    - Assemble Docker credentials in a config.json file
-    - Translate that file into entries in the config YAML file
-    - Feed the config YAML file to the Flux service (again)	
+   <ul>
+    <li>Assemble Docker credentials in a config.json file</li>
+    <li>Translate that file into entries in the config YAML file</li>
+    <li>Feed the config YAML file to the Flux service (again)</li>
+   </ul>
   </td>
   <td>
     The daemon finds credentials for itself by looking at Kubernetes resources
@@ -49,13 +55,17 @@ git (and GitHub) workflows to manage your cluster.
  <tr><th>Managing your cluster with Flux</th></tr>
  <tr>
   <td>
-    - For releasing images, use the UI or fluxctl; Flux will apply the changes to the cluster
-    - For other changes, commit them to config, then apply to the cluster with kubectl
+   <ul>
+    <li>For releasing images, use the UI or fluxctl; Flux will apply the changes to the cluster</li>
+    <li>For other changes, commit them to config, then apply to the cluster with kubectl</li>
+   </ul>
   </td>
   <td>
-    - For releasing images, use the UI or fluxctl; Flux will commit changes to your git repo
-    - For other changes, commit them to your git repo
-    - Flux applies all changes to the git repo to the cluster
+   <ul>
+    <li>For releasing images, use the UI or fluxctl; Flux will commit changes to your git repo</li>
+    <li>For other changes, commit them to your git repo</li>
+    <li>Flux applies all changes to the git repo to the cluster</li>
+   </ul>
   </td>
  </tr>
 </table>
