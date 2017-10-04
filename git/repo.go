@@ -22,7 +22,7 @@ var (
 	ErrNoChanges = errors.New("no changes made in repo")
 )
 
-// Repo represents a (remote) git repo.
+// Repo represents a (remote) git repo.:Go
 type Repo struct {
 	flux.GitRemoteConfig
 	KeyRing ssh.KeyRing
@@ -71,6 +71,8 @@ func (r Repo) Clone(ctx context.Context, c Config) (*Checkout, error) {
 
 	repoDir, err := clone(ctx, workingDir, r.KeyRing, r.URL, r.Branch)
 	if err != nil {
+		//		clerr := CloningError(r.URL, err)
+		//		fmt.Printf("\t!!! In repo.Clone Cloning error: [%+v]\n", clerr)
 		return nil, CloningError(r.URL, err)
 	}
 

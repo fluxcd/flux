@@ -36,7 +36,7 @@ func clone(ctx context.Context, workingDir string, keyRing ssh.KeyRing, repoURL,
 		args = append(args, "--branch", repoBranch)
 	}
 	args = append(args, repoURL, repoPath)
-	if err := execGitCmd(ctx, workingDir, keyRing, nil, args...); err != nil {
+	if err := execGitCmd(ctx, workingDir, keyRing, nil, args...); err != nil {	
 		return "", errors.Wrap(err, "git clone")
 	}
 	return repoPath, nil
