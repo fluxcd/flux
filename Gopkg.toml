@@ -18,10 +18,15 @@
   name = "github.com/mattes/migrate"
   revision = "ce1b59bb819416ca67422929b1cb48bb342720b6"
 
+[[constraint]]
+  name = "github.com/gorilla/mux"
+  revision = "780415097119f6f61c55475fe59b66f3c3e9ea53"
+
+[[constraint]]
+  name = "github.com/heroku/docker-registry-client"
+  source = "https://github.com/paulbellamy/docker-registry-client.git"
+  branch = "handle-relative-nextlinks"
+
 [[override]]
   name = "github.com/ugorji/go"
   revision = "8c0409fcbb70099c748d71f714529204975f6c3f"
-
-[[override]]
-  name = "github.com/gorilla/mux"
-  revision = "780415097119f6f61c55475fe59b66f3c3e9ea53"
