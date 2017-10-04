@@ -36,9 +36,8 @@ func clone(ctx context.Context, workingDir string, keyRing ssh.KeyRing, repoURL,
 		args = append(args, "--branch", repoBranch)
 	}
 	args = append(args, repoURL, repoPath)
-	if err := execGitCmd(ctx, workingDir, keyRing, nil, args...); err != nil {
-		clmsg := fmt.Sprintf("%s (%s)", "git clone", "requested repo does not exist, no permission to access it (is deploy key set up?) or timeout")
-		return "", errors.Wrap(err, clmsg)
+	if err := execGitCmd(ctx, workingDir, keyRing, nil, args...); err != nil {	
+		return "", errors.Wrap(err, "git clone")
 	}
 	return repoPath, nil
 }
