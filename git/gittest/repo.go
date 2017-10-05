@@ -28,6 +28,14 @@ func Repo(t *testing.T) (git.Repo, func()) {
 		cleanup()
 		t.Fatal(err)
 	}
+	if err = execCommand("git", "-C", filesDir, "config", "--local", "user.email", "example@example.com"); err != nil {
+		cleanup()
+		t.Fatal(err)
+	}
+	if err = execCommand("git", "-C", filesDir, "config", "--local", "user.name", "example"); err != nil {
+		cleanup()
+		t.Fatal(err)
+	}
 	if err = testfiles.WriteTestFiles(filesDir); err != nil {
 		cleanup()
 		t.Fatal(err)
