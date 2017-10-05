@@ -62,6 +62,7 @@ build/fluxsvc: cmd/fluxsvc/*.go
 
 build/kubectl: cache/kubectl-$(KUBECTL_VERSION) docker/kubectl.version
 	cp cache/kubectl-$(KUBECTL_VERSION) $@
+	strip $@
 	chmod a+x $@
 
 cache/kubectl-$(KUBECTL_VERSION):
