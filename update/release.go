@@ -306,6 +306,10 @@ func ParseResourceSpec(s string) (ResourceSpec, error) {
 	return ResourceSpec(id.String()), nil
 }
 
+func MakeResourceSpec(id flux.ResourceID) ResourceSpec {
+	return ResourceSpec(id.String())
+}
+
 func (s ResourceSpec) AsID() (flux.ResourceID, error) {
 	return flux.ParseResourceID(string(s))
 }

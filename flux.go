@@ -15,8 +15,9 @@ import (
 var (
 	ErrInvalidServiceID = errors.New("invalid service ID")
 
-	LegacyServiceIDRegexp = regexp.MustCompile("^([a-zA-Z0-9_-]+)/([a-zA-Z0-9_-]+)$")
-	ResourceIDRegexp      = regexp.MustCompile("^([a-zA-Z0-9_-]+):([a-zA-Z0-9_-]+)/([a-zA-Z0-9_-]+)$")
+	LegacyServiceIDRegexp       = regexp.MustCompile("^([a-zA-Z0-9_-]+)/([a-zA-Z0-9_-]+)$")
+	ResourceIDRegexp            = regexp.MustCompile("^([a-zA-Z0-9_-]+):([a-zA-Z0-9_-]+)/([a-zA-Z0-9_-]+)$")
+	UnqualifiedResourceIDRegexp = regexp.MustCompile("^([a-zA-Z0-9_-]+)/([a-zA-Z0-9_-]+)$")
 )
 
 type Token string
@@ -75,6 +76,19 @@ func MustParseResourceID(s string) ResourceID {
 		panic(err)
 	}
 	return id
+}
+
+// ParseResourceIDOptionalNamespace constructs a ResourceID from either a fully
+// qualified string representation, or an unqualified kind/name representation
+// and the supplied namespace.
+func ParseResourceIDOptionalNamespace(namespace, s string) (ResourceID, error) {
+	if m := ResourceIDRegexp.FindStringSubmatch(s); m != nil {
+		return ResourceID{resourceID{m[1], strings.ToLower(m[2]), m[3]}}, nil
+	}
+	if m := UnqualifiedResourceIDRegexp.FindStringSubmatch(s); m != nil {
+		return ResourceID{resourceID{namespace, strings.ToLower(m[1]), m[2]}}, nil
+	}
+	return ResourceID{}, errors.Wrap(ErrInvalidServiceID, "parsing "+s)
 }
 
 // MakeResourceID constructs a ResourceID from constituent components.

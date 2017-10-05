@@ -31,9 +31,9 @@ var rootLongHelp = strings.TrimSpace(`
 fluxctl helps you deploy your code.
 
 Workflow:
-  fluxctl list-services                                        # Which services are running?
-  fluxctl list-images --service=default/foo                    # Which images are running/available?
-  fluxctl release --service=default/foo --update-image=bar:v2  # Release new version.
+  fluxctl list-controllers                                           # Which controllers are running?
+  fluxctl list-images --controller=deployment/foo                    # Which images are running/available?
+  fluxctl release --controller=deployment/foo --update-image=bar:v2  # Release new version.
 `)
 
 const (
@@ -57,14 +57,15 @@ func (opts *rootOpts) Command() *cobra.Command {
 
 	cmd.AddCommand(
 		newVersionCommand(),
-		newServiceShow(opts).Command(),
 		newServiceList(opts).Command(),
-		newServiceRelease(opts).Command(),
+		newControllerShow(opts).Command(),
+		newControllerList(opts).Command(),
+		newControllerRelease(opts).Command(),
 		newServiceAutomate(opts).Command(),
-		newServiceDeautomate(opts).Command(),
-		newServiceLock(opts).Command(),
-		newServiceUnlock(opts).Command(),
-		newServicePolicy(opts).Command(),
+		newControllerDeautomate(opts).Command(),
+		newControllerLock(opts).Command(),
+		newControllerUnlock(opts).Command(),
+		newControllerPolicy(opts).Command(),
 		newSave(opts).Command(),
 		newIdentity(opts).Command(),
 	)

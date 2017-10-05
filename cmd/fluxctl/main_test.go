@@ -86,7 +86,7 @@ func calledURL(method string, calls []mux.RouteMatch) (u *url.URL) {
 
 func testArgs(t *testing.T, args []string, shouldErr bool, errMsg string) *genericMockRoundTripper {
 	svc := newMockService()
-	releaseClient := newServiceRelease(mockServiceOpts(svc))
+	releaseClient := newControllerRelease(mockServiceOpts(svc))
 
 	// Run fluxctl release
 	cmd := releaseClient.Command()

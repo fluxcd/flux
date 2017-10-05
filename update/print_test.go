@@ -30,7 +30,7 @@ func TestPrintResults(t *testing.T) {
 				},
 			},
 			expected: `
-SERVICE             STATUS   UPDATES
+CONTROLLER          STATUS   UPDATES
 default/helloworld  success  helloworld: quay.io/weaveworks/helloworld:master-a000002 -> master-a000001
 `,
 		},
@@ -51,7 +51,7 @@ default/helloworld  success  helloworld: quay.io/weaveworks/helloworld:master-a0
 				},
 			},
 			expected: `
-SERVICE             STATUS   UPDATES
+CONTROLLER          STATUS   UPDATES
 default/helloworld  success  test error
                              helloworld: quay.io/weaveworks/helloworld:master-a000002 -> master-a000001
 `,
@@ -66,11 +66,11 @@ default/helloworld  success  test error
 				flux.MustParseResourceID("default/a"): ControllerResult{Status: ReleaseStatusSuccess},
 			},
 			expected: `
-SERVICE    STATUS   UPDATES
-default/a  success  
-default/b  success  
-default/c  success  
-default/d  success  
+CONTROLLER   STATUS   UPDATES
+default/a    success  
+default/b    success  
+default/c    success  
+default/d    success  
 `,
 		},
 	} {
