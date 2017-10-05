@@ -87,11 +87,14 @@ around. Download it from GitHub:
     # curl -o fluxctl_030 https://github.com/weaveworks/flux/releases/download/0.3.0/fluxctl_darwin_amd64
     chmod a+x ./fluxctl_030
 
-The next steps depend on whether you connect Flux to Weave Cloud, or
-you are running Flux standalone (i.e., you run both the Flux daemon
-and the Flux service, rather than going through Weave Cloud).
+The next steps depend on whether you
 
-## If you are connecting to Weave Cloud
+ * [Connect Flux to Weave Cloud](#if-you-are-connecting-to-weave-cloud); or,
+ * [You are running Flux standalone](#if-you-are-running-flux-in-standalone-mode) (i.e., you run both
+   the Flux daemon and the Flux service, rather than going through
+   Weave Cloud).
+
+## <a name="weavecloud">If you are connecting to Weave Cloud</a>
 
 Set the environment variable `FLUX_SERVICE_TOKEN` to be your service
 token (found in the Weave Cloud UI for the instance you are
