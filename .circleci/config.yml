@@ -19,7 +19,7 @@ jobs:
           name: Maybe push master images
           command: |
             if [ -z "${CIRCLE_TAG}" -a "${CIRCLE_BRANCH}" == "master" ]; then
-              docker login -e '.' -u "$DOCKER_REGISTRY_USER" -p "$DOCKER_REGISTRY_PASSWORD" quay.io
+              docker login -u "$DOCKER_REGISTRY_USER" -p "$DOCKER_REGISTRY_PASSWORD" quay.io
               for IMAGE in flux flux-service; do
                 docker push "quay.io/weaveworks/$IMAGE:$(docker/image-tag)"
               done
@@ -32,7 +32,7 @@ jobs:
               go get github.com/weaveworks/github-release
               make release-bins
               bin/upload-binaries
-              docker login -e '.' -u "$DOCKER_REGISTRY_USER" -p "$DOCKER_REGISTRY_PASSWORD" quay.io
+              docker login -u "$DOCKER_REGISTRY_USER" -p "$DOCKER_REGISTRY_PASSWORD" quay.io
               for IMAGE in flux flux-service; do
                 docker push "quay.io/weaveworks/$IMAGE:$(docker/image-tag)"
               done
