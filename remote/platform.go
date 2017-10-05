@@ -39,8 +39,8 @@ type PlatformV5 interface {
 type PlatformV6 interface {
 	PlatformV5
 	// These are new, or newly moved to this interface
-	ListServices(ctx context.Context, namespace string) ([]flux.ServiceStatus, error)
-	ListImages(context.Context, update.ServiceSpec) ([]flux.ImageStatus, error)
+	ListServices(ctx context.Context, namespace string) ([]flux.ControllerStatus, error)
+	ListImages(context.Context, update.ResourceSpec) ([]flux.ImageStatus, error)
 	// Send a spec for updating config to the daemon
 	UpdateManifests(context.Context, update.Spec) (job.ID, error)
 	// Poke the daemon to sync with git

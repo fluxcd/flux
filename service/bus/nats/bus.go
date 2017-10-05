@@ -138,7 +138,7 @@ type ExportResponse struct {
 }
 
 type ListServicesResponse struct {
-	Result        []flux.ServiceStatus
+	Result        []flux.ControllerStatus
 	ErrorResponse `json:",omitempty`
 }
 
@@ -234,7 +234,7 @@ func (r *natsPlatform) Export(ctx context.Context) ([]byte, error) {
 	return response.Result, extractError(response.ErrorResponse)
 }
 
-func (r *natsPlatform) ListServices(ctx context.Context, namespace string) ([]flux.ServiceStatus, error) {
+func (r *natsPlatform) ListServices(ctx context.Context, namespace string) ([]flux.ControllerStatus, error) {
 	var response ListServicesResponse
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
@@ -244,7 +244,7 @@ func (r *natsPlatform) ListServices(ctx context.Context, namespace string) ([]fl
 	return response.Result, extractError(response.ErrorResponse)
 }
 
-func (r *natsPlatform) ListImages(ctx context.Context, spec update.ServiceSpec) ([]flux.ImageStatus, error) {
+func (r *natsPlatform) ListImages(ctx context.Context, spec update.ResourceSpec) ([]flux.ImageStatus, error) {
 	var response ListImagesResponse
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
@@ -414,7 +414,7 @@ func (n *NATS) processRequest(ctx context.Context, request *nats.Msg, instID ser
 	case strings.HasSuffix(request.Subject, methodListServices):
 		var (
 			namespace string
-			res       []flux.ServiceStatus
+			res       []flux.ControllerStatus
 		)
 		err = encoder.Decode(request.Subject, request.Data, &namespace)
 		if err == nil {
@@ -424,7 +424,7 @@ func (n *NATS) processRequest(ctx context.Context, request *nats.Msg, instID ser
 
 	case strings.HasSuffix(request.Subject, methodListImages):
 		var (
-			req update.ServiceSpec
+			req update.ResourceSpec
 			res []flux.ImageStatus
 		)
 		err = encoder.Decode(request.Subject, request.Data, &req)

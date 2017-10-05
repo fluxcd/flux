@@ -91,7 +91,7 @@ func TestPullAndSync_InitialSync(t *testing.T) {
 
 	syncCalled := 0
 	var syncDef *cluster.SyncDef
-	expectedServiceIDs := flux.ServiceIDs{
+	expectedServiceIDs := flux.ResourceIDs{
 		flux.MustParseResourceID("default:deployment/locked-service"),
 		flux.MustParseResourceID("default:deployment/test-service"),
 		flux.MustParseResourceID("default:deployment/helloworld")}
@@ -123,7 +123,7 @@ func TestPullAndSync_InitialSync(t *testing.T) {
 		t.Errorf("Unexpected event type: %#v", es[0])
 	} else {
 		gotServiceIDs := es[0].ServiceIDs
-		flux.ServiceIDs(gotServiceIDs).Sort()
+		flux.ResourceIDs(gotServiceIDs).Sort()
 		if !reflect.DeepEqual(gotServiceIDs, []flux.ResourceID(expectedServiceIDs)) {
 			t.Errorf("Unexpected event service ids: %#v, expected: %#v", gotServiceIDs, expectedServiceIDs)
 		}
@@ -148,7 +148,7 @@ func TestDoSync_NoNewCommits(t *testing.T) {
 
 	syncCalled := 0
 	var syncDef *cluster.SyncDef
-	expectedServiceIDs := flux.ServiceIDs{
+	expectedServiceIDs := flux.ResourceIDs{
 		flux.MustParseResourceID("default:deployment/locked-service"),
 		flux.MustParseResourceID("default:deployment/test-service"),
 		flux.MustParseResourceID("default:deployment/helloworld")}
@@ -223,7 +223,7 @@ func TestDoSync_WithNewCommit(t *testing.T) {
 
 	syncCalled := 0
 	var syncDef *cluster.SyncDef
-	expectedServiceIDs := flux.ServiceIDs{
+	expectedServiceIDs := flux.ResourceIDs{
 		flux.MustParseResourceID("default:deployment/locked-service"),
 		flux.MustParseResourceID("default:deployment/test-service"),
 		flux.MustParseResourceID("default:deployment/helloworld")}
@@ -255,7 +255,7 @@ func TestDoSync_WithNewCommit(t *testing.T) {
 		t.Errorf("Unexpected event type: %#v", es[0])
 	} else {
 		gotServiceIDs := es[0].ServiceIDs
-		flux.ServiceIDs(gotServiceIDs).Sort()
+		flux.ResourceIDs(gotServiceIDs).Sort()
 		// Event should only have changed service ids
 		if !reflect.DeepEqual(gotServiceIDs, []flux.ResourceID{flux.MustParseResourceID("default:deployment/helloworld")}) {
 			t.Errorf("Unexpected event service ids: %#v, expected: %#v", gotServiceIDs, []flux.ResourceID{flux.MustParseResourceID("default/helloworld")})

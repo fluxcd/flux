@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	ServiceSpecAll  = ServiceSpec("<all>")
+	ResourceSpecAll = ResourceSpec("<all>")
 	ImageSpecLatest = ImageSpec("<all latest>")
 )
 
@@ -45,8 +45,8 @@ func ParseReleaseKind(s string) (ReleaseKind, error) {
 const UserAutomated = "<automated>"
 
 type ReleaseContext interface {
-	SelectServices(Result, ...ServiceFilter) ([]*ServiceUpdate, error)
-	ServicesWithPolicies() (policy.ServiceMap, error)
+	SelectServices(Result, ...ControllerFilter) ([]*ControllerUpdate, error)
+	ServicesWithPolicies() (policy.ResourceMap, error)
 	Registry() registry.Registry
 	Manifests() cluster.Manifests
 }
@@ -54,7 +54,7 @@ type ReleaseContext interface {
 // NB: these get sent from fluxctl, so we have to maintain the json format of
 // this. Eugh.
 type ReleaseSpec struct {
-	ServiceSpecs []ServiceSpec
+	ServiceSpecs []ResourceSpec
 	ImageSpec    ImageSpec
 	Kind         ReleaseKind
 	Excludes     []flux.ResourceID
@@ -71,7 +71,7 @@ func (s ReleaseSpec) ReleaseType() ReleaseType {
 	}
 }
 
-func (s ReleaseSpec) CalculateRelease(rc ReleaseContext, logger log.Logger) ([]*ServiceUpdate, Result, error) {
+func (s ReleaseSpec) CalculateRelease(rc ReleaseContext, logger log.Logger) ([]*ControllerUpdate, Result, error) {
 	results := Result{}
 	timer := NewStageTimer("select_services")
 	updates, err := s.selectServices(rc, results)
@@ -106,7 +106,7 @@ func (s ReleaseSpec) CommitMessage() string {
 // Take the spec given in the job, and figure out which services are
 // in question based on the running services and those defined in the
 // repo. Fill in the release results along the way.
-func (s ReleaseSpec) selectServices(rc ReleaseContext, results Result) ([]*ServiceUpdate, error) {
+func (s ReleaseSpec) selectServices(rc ReleaseContext, results Result) ([]*ControllerUpdate, error) {
 	// Build list of filters
 	filtList, err := s.filters(rc)
 	if err != nil {
@@ -120,9 +120,9 @@ func (s ReleaseSpec) selectServices(rc ReleaseContext, results Result) ([]*Servi
 }
 
 // filters converts a ReleaseSpec (and Lock config) into ServiceFilters
-func (s ReleaseSpec) filters(rc ReleaseContext) ([]ServiceFilter, error) {
+func (s ReleaseSpec) filters(rc ReleaseContext) ([]ControllerFilter, error) {
 	// Image filter
-	var filtList []ServiceFilter
+	var filtList []ControllerFilter
 	if s.ImageSpec != ImageSpecLatest {
 		id, err := flux.ParseImageID(s.ImageSpec.String())
 		if err != nil {
@@ -134,7 +134,7 @@ func (s ReleaseSpec) filters(rc ReleaseContext) ([]ServiceFilter, error) {
 	// Service filter
 	ids := []flux.ResourceID{}
 	for _, s := range s.ServiceSpecs {
-		if s == ServiceSpecAll {
+		if s == ResourceSpecAll {
 			// "<all>" Overrides any other filters
 			ids = []flux.ResourceID{}
 			break
@@ -166,7 +166,7 @@ func (s ReleaseSpec) filters(rc ReleaseContext) ([]ServiceFilter, error) {
 
 func (s ReleaseSpec) markSkipped(results Result) {
 	for _, v := range s.ServiceSpecs {
-		if v == ServiceSpecAll {
+		if v == ResourceSpecAll {
 			continue
 		}
 		id, err := v.AsID()
@@ -174,7 +174,7 @@ func (s ReleaseSpec) markSkipped(results Result) {
 			continue
 		}
 		if _, ok := results[id]; !ok {
-			results[id] = ServiceResult{
+			results[id] = ControllerResult{
 				Status: ReleaseStatusSkipped,
 				Error:  NotInRepo,
 			}
@@ -188,7 +188,7 @@ func (s ReleaseSpec) markSkipped(results Result) {
 // however we do want to see if we *can* do the replacements, because
 // if not, it indicates there's likely some problem with the running
 // system vs the definitions given in the repo.)
-func (s ReleaseSpec) calculateImageUpdates(rc ReleaseContext, candidates []*ServiceUpdate, results Result, logger log.Logger) ([]*ServiceUpdate, error) {
+func (s ReleaseSpec) calculateImageUpdates(rc ReleaseContext, candidates []*ControllerUpdate, results Result, logger log.Logger) ([]*ControllerUpdate, error) {
 	// Compile an `ImageMap` of all relevant images
 	var images ImageMap
 	var repo string
@@ -212,11 +212,11 @@ func (s ReleaseSpec) calculateImageUpdates(rc ReleaseContext, candidates []*Serv
 
 	// Look through all the services' containers to see which have an
 	// image that could be updated.
-	var updates []*ServiceUpdate
+	var updates []*ControllerUpdate
 	for _, u := range candidates {
-		containers, err := u.Service.ContainersOrError()
+		containers, err := u.Controller.ContainersOrError()
 		if err != nil {
-			results[u.ServiceID] = ServiceResult{
+			results[u.ResourceID] = ControllerResult{
 				Status: ReleaseStatusFailed,
 				Error:  err.Error(),
 			}
@@ -268,22 +268,22 @@ func (s ReleaseSpec) calculateImageUpdates(rc ReleaseContext, candidates []*Serv
 		case len(containerUpdates) > 0:
 			u.Updates = containerUpdates
 			updates = append(updates, u)
-			results[u.ServiceID] = ServiceResult{
+			results[u.ResourceID] = ControllerResult{
 				Status:       ReleaseStatusSuccess,
 				PerContainer: containerUpdates,
 			}
 		case ignoredOrSkipped == ReleaseStatusSkipped:
-			results[u.ServiceID] = ServiceResult{
+			results[u.ResourceID] = ControllerResult{
 				Status: ReleaseStatusSkipped,
 				Error:  ImageUpToDate,
 			}
 		case ignoredOrSkipped == ReleaseStatusIgnored:
-			results[u.ServiceID] = ServiceResult{
+			results[u.ResourceID] = ControllerResult{
 				Status: ReleaseStatusIgnored,
 				Error:  DoesNotUseImage,
 			}
 		case ignoredOrSkipped == ReleaseStatusUnknown:
-			results[u.ServiceID] = ServiceResult{
+			results[u.ResourceID] = ControllerResult{
 				Status: ReleaseStatusSkipped,
 				Error:  ImageNotFound,
 			}
@@ -293,24 +293,28 @@ func (s ReleaseSpec) calculateImageUpdates(rc ReleaseContext, candidates []*Serv
 	return updates, nil
 }
 
-type ServiceSpec string // ServiceID or "<all>"
+type ResourceSpec string // ResourceID or "<all>"
 
-func ParseServiceSpec(s string) (ServiceSpec, error) {
-	if s == string(ServiceSpecAll) {
-		return ServiceSpecAll, nil
+func ParseResourceSpec(s string) (ResourceSpec, error) {
+	if s == string(ResourceSpecAll) {
+		return ResourceSpecAll, nil
 	}
 	id, err := flux.ParseResourceID(s)
 	if err != nil {
 		return "", errors.Wrap(err, "invalid service spec")
 	}
-	return ServiceSpec(id.String()), nil
+	return ResourceSpec(id.String()), nil
 }
 
-func (s ServiceSpec) AsID() (flux.ResourceID, error) {
+func MakeResourceSpec(id flux.ResourceID) ResourceSpec {
+	return ResourceSpec(id.String())
+}
+
+func (s ResourceSpec) AsID() (flux.ResourceID, error) {
 	return flux.ParseResourceID(string(s))
 }
 
-func (s ServiceSpec) String() string {
+func (s ResourceSpec) String() string {
 	return string(s)
 }
 

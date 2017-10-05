@@ -129,7 +129,7 @@ func TestDaemon_ListImages(t *testing.T) {
 	ctx := context.Background()
 
 	// List all images for services
-	ss := update.ServiceSpec(update.ServiceSpecAll)
+	ss := update.ResourceSpec(update.ResourceSpecAll)
 	is, err := d.ListImages(ctx, ss)
 	if err != nil {
 		t.Fatalf("Error: %s", err.Error())
@@ -140,7 +140,7 @@ func TestDaemon_ListImages(t *testing.T) {
 	}
 
 	// List images for specific service
-	ss = update.ServiceSpec(svc)
+	ss = update.ResourceSpec(svc)
 	is, err = d.ListImages(ctx, ss)
 	if err != nil {
 		t.Fatalf("Error: %s", err.Error())
@@ -503,7 +503,7 @@ func updateImage(ctx context.Context, d *Daemon, t *testing.T) job.ID {
 		Type: update.Images,
 		Spec: update.ReleaseSpec{
 			Kind:         update.ReleaseKindExecute,
-			ServiceSpecs: []update.ServiceSpec{update.ServiceSpecAll},
+			ServiceSpecs: []update.ResourceSpec{update.ResourceSpecAll},
 			ImageSpec:    newHelloImage,
 		},
 	})

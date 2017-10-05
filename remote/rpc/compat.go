@@ -7,7 +7,7 @@ import (
 	"github.com/weaveworks/flux/update"
 )
 
-func requireServiceSpecKinds(ss update.ServiceSpec, kinds []string) error {
+func requireServiceSpecKinds(ss update.ResourceSpec, kinds []string) error {
 	id, err := ss.AsID()
 	if err != nil {
 		return nil

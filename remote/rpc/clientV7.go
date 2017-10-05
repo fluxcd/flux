@@ -42,7 +42,7 @@ func (p *RPCClientV7) Export(ctx context.Context) ([]byte, error) {
 	return resp.Result, err
 }
 
-func (p *RPCClientV7) ListServices(ctx context.Context, namespace string) ([]flux.ServiceStatus, error) {
+func (p *RPCClientV7) ListServices(ctx context.Context, namespace string) ([]flux.ControllerStatus, error) {
 	var resp ListServicesResponse
 	err := p.client.Call("RPCServer.ListServices", namespace, &resp)
 	if err != nil {
@@ -56,7 +56,7 @@ func (p *RPCClientV7) ListServices(ctx context.Context, namespace string) ([]flu
 	return resp.Result, err
 }
 
-func (p *RPCClientV7) ListImages(ctx context.Context, spec update.ServiceSpec) ([]flux.ImageStatus, error) {
+func (p *RPCClientV7) ListImages(ctx context.Context, spec update.ResourceSpec) ([]flux.ImageStatus, error) {
 	var resp ListImagesResponse
 	if err := requireServiceSpecKinds(spec, supportedKindsV7); err != nil {
 		return resp.Result, remote.UpgradeNeededError(err)

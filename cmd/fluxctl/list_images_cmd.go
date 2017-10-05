@@ -9,70 +9,90 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/update"
 )
 
-type serviceShowOpts struct {
+type controllerShowOpts struct {
 	*rootOpts
+	namespace  string
+	controller string
+	limit      int
+
+	// Deprecated
 	service string
-	limit   int
 }
 
-func newServiceShow(parent *rootOpts) *serviceShowOpts {
-	return &serviceShowOpts{rootOpts: parent}
+func newControllerShow(parent *rootOpts) *controllerShowOpts {
+	return &controllerShowOpts{rootOpts: parent}
 }
 
-func (opts *serviceShowOpts) Command() *cobra.Command {
+func (opts *controllerShowOpts) Command() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list-images",
-		Short:   "Show the deployed and available images for a service.",
-		Example: makeExample("fluxctl list-images --service=default/foo"),
+		Short:   "Show the deployed and available images for a controller.",
+		Example: makeExample("fluxctl list-images --namespace default --controller=deployment/foo"),
 		RunE:    opts.RunE,
 	}
+	cmd.Flags().StringVarP(&opts.namespace, "namespace", "n", "default", "Controller namespace")
+	cmd.Flags().StringVarP(&opts.controller, "controller", "c", "", "Show images for this controller")
+	cmd.Flags().IntVarP(&opts.limit, "limit", "l", 10, "Number of images to show (0 for all)")
+
+	// Deprecated
 	cmd.Flags().StringVarP(&opts.service, "service", "s", "", "Show images for this service")
-	cmd.Flags().IntVarP(&opts.limit, "limit", "n", 10, "Number of images to show (0 for all)")
+	cmd.Flags().MarkHidden("service")
+
 	return cmd
 }
 
-func (opts *serviceShowOpts) RunE(cmd *cobra.Command, args []string) error {
+func (opts *controllerShowOpts) RunE(cmd *cobra.Command, args []string) error {
+	if len(opts.service) > 0 {
+		return errorServiceFlagDeprecated
+	}
 	if len(args) != 0 {
 		return errorWantedNoArgs
 	}
 
-	service, err := parseServiceOption(opts.service)
-	if err != nil {
-		return err
+	var resourceSpec update.ResourceSpec
+	if len(opts.controller) == 0 {
+		resourceSpec = update.ResourceSpecAll
+	} else {
+		id, err := flux.ParseResourceIDOptionalNamespace(opts.namespace, opts.controller)
+		if err != nil {
+			return err
+		}
+		resourceSpec = update.MakeResourceSpec(id)
 	}
 
 	ctx := context.Background()
 
-	services, err := opts.API.ListImages(ctx, service)
+	controllers, err := opts.API.ListImages(ctx, resourceSpec)
 	if err != nil {
 		return err
 	}
 
-	sort.Sort(imageStatusByName(services))
+	sort.Sort(imageStatusByName(controllers))
 
 	out := newTabwriter()
 
-	fmt.Fprintln(out, "SERVICE\tCONTAINER\tIMAGE\tCREATED")
-	for _, service := range services {
-		if len(service.Containers) == 0 {
-			fmt.Fprintf(out, "%s\t\t\t\n", service.ID)
+	fmt.Fprintln(out, "CONTROLLER\tCONTAINER\tIMAGE\tCREATED")
+	for _, controller := range controllers {
+		if len(controller.Containers) == 0 {
+			fmt.Fprintf(out, "%s\t\t\t\n", controller.ID)
 			continue
 		}
 
-		serviceName := service.ID.String()
+		controllerName := controller.ID.String()
 		var lineCount int
-		for _, container := range service.Containers {
+		for _, container := range controller.Containers {
 			containerName := container.Name
 			reg, repo, currentTag := container.Current.ID.Components()
 			if reg != "" {
 				reg += "/"
 			}
 			if len(container.Available) == 0 {
-				fmt.Fprintf(out, "%s\t%s\t%s%s\twaiting for cache\n", serviceName, containerName, reg, repo)
+				fmt.Fprintf(out, "%s\t%s\t%s%s\twaiting for cache\n", controllerName, containerName, reg, repo)
 			} else {
-				fmt.Fprintf(out, "%s\t%s\t%s%s\t\n", serviceName, containerName, reg, repo)
+				fmt.Fprintf(out, "%s\t%s\t%s%s\t\n", controllerName, containerName, reg, repo)
 			}
 			foundRunning := false
 			for _, available := range container.Available {
@@ -103,7 +123,7 @@ func (opts *serviceShowOpts) RunE(cmd *cobra.Command, args []string) error {
 					fmt.Fprintf(out, "\t\t%s %s\t%s\n", running, tag, createdAt)
 				}
 			}
-			serviceName = ""
+			controllerName = ""
 		}
 	}
 	out.Flush()

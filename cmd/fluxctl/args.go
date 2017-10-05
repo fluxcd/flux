@@ -11,13 +11,6 @@ import (
 	"github.com/weaveworks/flux/update"
 )
 
-func parseServiceOption(s string) (update.ServiceSpec, error) {
-	if s == "" {
-		return update.ServiceSpecAll, nil
-	}
-	return update.ParseServiceSpec(s)
-}
-
 func AddCauseFlags(cmd *cobra.Command, opts *update.Cause) {
 	authorInfo := getUserGitconfig()
 	username := getCommitAuthor(authorInfo)

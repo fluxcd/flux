@@ -21,7 +21,7 @@ type Mock struct {
 	ParseManifestsFunc       func([]byte) (map[string]resource.Resource, error)
 	UpdateManifestFunc       func(path, resourceID string, f func(def []byte) ([]byte, error)) error
 	UpdatePoliciesFunc       func([]byte, policy.Update) ([]byte, error)
-	ServicesWithPoliciesFunc func(path string) (policy.ServiceMap, error)
+	ServicesWithPoliciesFunc func(path string) (policy.ResourceMap, error)
 }
 
 func (m *Mock) AllControllers(maybeNamespace string) ([]Controller, error) {
@@ -72,6 +72,6 @@ func (m *Mock) UpdatePolicies(def []byte, p policy.Update) ([]byte, error) {
 	return m.UpdatePoliciesFunc(def, p)
 }
 
-func (m *Mock) ServicesWithPolicies(path string) (policy.ServiceMap, error) {
+func (m *Mock) ServicesWithPolicies(path string) (policy.ResourceMap, error) {
 	return m.ServicesWithPoliciesFunc(path)
 }

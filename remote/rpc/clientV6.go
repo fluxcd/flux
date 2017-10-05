@@ -58,8 +58,8 @@ func (p *RPCClientV6) Export(ctx context.Context) ([]byte, error) {
 }
 
 // Export is used to get service configuration in platform-specific format
-func (p *RPCClientV6) ListServices(ctx context.Context, namespace string) ([]flux.ServiceStatus, error) {
-	var services []flux.ServiceStatus
+func (p *RPCClientV6) ListServices(ctx context.Context, namespace string) ([]flux.ControllerStatus, error) {
+	var services []flux.ControllerStatus
 	err := p.client.Call("RPCServer.ListServices", namespace, &services)
 	if _, ok := err.(rpc.ServerError); !ok && err != nil {
 		return nil, remote.FatalError{err}
@@ -70,7 +70,7 @@ func (p *RPCClientV6) ListServices(ctx context.Context, namespace string) ([]flu
 	return services, err
 }
 
-func (p *RPCClientV6) ListImages(ctx context.Context, spec update.ServiceSpec) ([]flux.ImageStatus, error) {
+func (p *RPCClientV6) ListImages(ctx context.Context, spec update.ResourceSpec) ([]flux.ImageStatus, error) {
 	var images []flux.ImageStatus
 	if err := requireServiceSpecKinds(spec, supportedKindsV6); err != nil {
 		return images, remote.UpgradeNeededError(err)

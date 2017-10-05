@@ -14,8 +14,8 @@ import (
 
 // API for clients connecting to the service
 type Client interface {
-	ListServices(ctx context.Context, namespace string) ([]flux.ServiceStatus, error)
-	ListImages(context.Context, update.ServiceSpec) ([]flux.ImageStatus, error)
+	ListServices(ctx context.Context, namespace string) ([]flux.ControllerStatus, error)
+	ListImages(context.Context, update.ResourceSpec) ([]flux.ImageStatus, error)
 	UpdateImages(context.Context, update.ReleaseSpec, update.Cause) (job.ID, error)
 	SyncNotify(context.Context) error
 	JobStatus(context.Context, job.ID) (job.Status, error)
