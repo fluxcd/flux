@@ -102,6 +102,8 @@ func slackNotifyRelease(config service.NotifierConfig, release *history.ReleaseE
 	if release.Cause.User != "" || release.Cause.Message != "" {
 		cause := SlackAttachment{}
 		if user := release.Cause.User; user != "" {
+			user = strings.Replace(user, "<", "(", -1)
+			user = strings.Replace(user, ">", ")", -1)
 			cause.Author = user
 		}
 		if msg := release.Cause.Message; msg != "" {
