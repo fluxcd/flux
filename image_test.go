@@ -45,7 +45,8 @@ func TestImageID_ParseImageIDErrorCases(t *testing.T) {
 	}{
 		{""},
 		{":tag"},
-		{"/too/many/slashes/"},
+		{"/leading/slash"},
+		{"trailing/slash/"},
 	} {
 		_, err := ParseImageID(x.test)
 		if err == nil {
@@ -56,10 +57,9 @@ func TestImageID_ParseImageIDErrorCases(t *testing.T) {
 
 func TestImageID_TestComponents(t *testing.T) {
 	host := "quay.io"
-	namespace := "namespace"
-	image := "myrepo"
+	image := "my/repo"
 	tag := "mytag"
-	fqn := fmt.Sprintf("%v/%v/%v:%v", host, namespace, image, tag)
+	fqn := fmt.Sprintf("%v/%v:%v", host, image, tag)
 	i, err := ParseImageID(fqn)
 	if err != nil {
 		t.Fatal(err)
@@ -69,7 +69,6 @@ func TestImageID_TestComponents(t *testing.T) {
 		expected string
 	}{
 		{i.Host, host},
-		{i.Namespace, namespace},
 		{i.Image, image},
 		{i.Tag, tag},
 		{i.String(), fqn},
@@ -86,8 +85,8 @@ func TestImageID_Serialization(t *testing.T) {
 		test     ImageID
 		expected string
 	}{
-		{ImageID{Host: dockerHubHost, Namespace: dockerHubLibrary, Image: "alpine", Tag: "a123"}, `"alpine:a123"`},
-		{ImageID{Host: "quay.io", Namespace: "weaveworks", Image: "foobar", Tag: "baz"}, `"quay.io/weaveworks/foobar:baz"`},
+		{ImageID{Host: dockerHubHost, Image: dockerHubLibrary + "alpine", Tag: "a123"}, `"alpine:a123"`},
+		{ImageID{Host: "quay.io", Image: "weaveworks/foobar", Tag: "baz"}, `"quay.io/weaveworks/foobar:baz"`},
 	} {
 		serialized, err := json.Marshal(x.test)
 		if err != nil {

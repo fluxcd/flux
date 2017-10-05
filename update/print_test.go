@@ -23,8 +23,8 @@ func TestPrintResults(t *testing.T) {
 					PerContainer: []ContainerUpdate{
 						{
 							Container: "helloworld",
-							Current:   flux.ImageID{"quay.io", "weaveworks", "helloworld", "master-a000002"},
-							Target:    flux.ImageID{"quay.io", "weaveworks", "helloworld", "master-a000001"},
+							Current:   flux.ImageID{"quay.io", "weaveworks/helloworld", "master-a000002"},
+							Target:    flux.ImageID{"quay.io", "weaveworks/helloworld", "master-a000001"},
 						},
 					},
 				},
@@ -44,8 +44,8 @@ default/helloworld  success  helloworld: quay.io/weaveworks/helloworld:master-a0
 					PerContainer: []ContainerUpdate{
 						{
 							Container: "helloworld",
-							Current:   flux.ImageID{"quay.io", "weaveworks", "helloworld", "master-a000002"},
-							Target:    flux.ImageID{"quay.io", "weaveworks", "helloworld", "master-a000001"},
+							Current:   flux.ImageID{"quay.io", "weaveworks/helloworld", "master-a000002"},
+							Target:    flux.ImageID{"quay.io", "weaveworks/helloworld", "master-a000001"},
 						},
 					},
 				},

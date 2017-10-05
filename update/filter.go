@@ -30,7 +30,7 @@ func (f *SpecificImageFilter) Filter(u ServiceUpdate) ServiceResult {
 	for _, c := range u.Service.Containers.Containers {
 		cID, _ := flux.ParseImageID(c.Image)
 		// If container image == image in update
-		if cID.HostNamespaceImage() == f.Img.HostNamespaceImage() {
+		if cID.HostImage() == f.Img.HostImage() {
 			// We want to update this
 			return ServiceResult{}
 		}
