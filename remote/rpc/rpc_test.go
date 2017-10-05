@@ -1,6 +1,7 @@
 package rpc
 
 import (
+	"context"
 	"errors"
 	"io"
 	"reflect"
@@ -56,6 +57,7 @@ func faultyPipes() (io.ReadWriteCloser, io.ReadWriteCloser) {
 }
 
 func TestBadRPC(t *testing.T) {
+	ctx := context.Background()
 	mock := &remote.MockPlatform{}
 	clientConn, serverConn := faultyPipes()
 	server, err := NewServer(mock)
@@ -65,7 +67,7 @@ func TestBadRPC(t *testing.T) {
 	go server.ServeConn(serverConn)
 
 	client := NewClientV6(clientConn)
-	if err = client.Ping(); err == nil {
+	if err = client.Ping(ctx); err == nil {
 		t.Error("expected error from RPC system, got nil")
 	}
 	if _, ok := err.(remote.FatalError); !ok {

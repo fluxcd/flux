@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"sync/atomic"
 	"time"
 
@@ -48,7 +49,24 @@ func New(
 	}
 }
 
-func (s *Server) Status(instID service.InstanceID) (res service.Status, err error) {
+var (
+	ErrNoInstanceID = errors.New("No instance ID supplied in request")
+)
+
+// Get the InstanceID from the context, or fail with an error
+func getInstanceID(ctx context.Context) (service.InstanceID, error) {
+	id, ok := ctx.Value(service.InstanceIDKey).(service.InstanceID)
+	if ok {
+		return id, nil
+	}
+	return "", ErrNoInstanceID
+}
+
+func (s *Server) Status(ctx context.Context) (res service.Status, err error) {
+	instID, err := getInstanceID(ctx)
+	if err != nil {
+		return res, err
+	}
 	inst, err := s.instancer.Get(instID)
 	if err != nil {
 		return res, errors.Wrapf(err, "getting instance")
@@ -62,21 +80,21 @@ func (s *Server) Status(instID service.InstanceID) (res service.Status, err erro
 	}
 
 	res.Fluxd.Last = config.Connection.Last
-	// DOn't bother trying to get information from the daemon if we
+	// Don't bother trying to get information from the daemon if we
 	// haven't recorded it as connected
 	if config.Connection.Connected {
 		res.Fluxd.Connected = true
-		res.Fluxd.Version, err = inst.Platform.Version()
+		res.Fluxd.Version, err = inst.Platform.Version(ctx)
 		if err != nil {
 			return res, err
 		}
 
-		res.Git.Config, err = inst.Platform.GitRepoConfig(false)
+		res.Git.Config, err = inst.Platform.GitRepoConfig(ctx, false)
 		if err != nil {
 			return res, err
 		}
 
-		_, err = inst.Platform.SyncStatus("HEAD")
+		_, err = inst.Platform.SyncStatus(ctx, "HEAD")
 		if err != nil {
 			res.Git.Error = err.Error()
 		} else {
@@ -87,79 +105,115 @@ func (s *Server) Status(instID service.InstanceID) (res service.Status, err erro
 	return res, nil
 }
 
-func (s *Server) ListServices(instID service.InstanceID, namespace string) (res []flux.ServiceStatus, err error) {
+func (s *Server) ListServices(ctx context.Context, namespace string) (res []flux.ServiceStatus, err error) {
+	instID, err := getInstanceID(ctx)
+	if err != nil {
+		return res, err
+	}
+
 	inst, err := s.instancer.Get(instID)
 	if err != nil {
 		return nil, errors.Wrapf(err, "getting instance")
 	}
 
-	services, err := inst.Platform.ListServices(namespace)
+	services, err := inst.Platform.ListServices(ctx, namespace)
 	if err != nil {
 		return nil, errors.Wrap(err, "getting services from platform")
 	}
 	return services, nil
 }
 
-func (s *Server) ListImages(instID service.InstanceID, spec update.ServiceSpec) (res []flux.ImageStatus, err error) {
+func (s *Server) ListImages(ctx context.Context, spec update.ServiceSpec) (res []flux.ImageStatus, err error) {
+	instID, err := getInstanceID(ctx)
+	if err != nil {
+		return res, err
+	}
+
 	inst, err := s.instancer.Get(instID)
 	if err != nil {
 		return nil, errors.Wrapf(err, "getting instance "+string(instID))
 	}
-	return inst.Platform.ListImages(spec)
+	return inst.Platform.ListImages(ctx, spec)
 }
 
-func (s *Server) UpdateImages(instID service.InstanceID, spec update.ReleaseSpec, cause update.Cause) (job.ID, error) {
+func (s *Server) UpdateImages(ctx context.Context, spec update.ReleaseSpec, cause update.Cause) (job.ID, error) {
+	instID, err := getInstanceID(ctx)
+	if err != nil {
+		return "", err
+	}
+
 	inst, err := s.instancer.Get(instID)
 	if err != nil {
 		return "", errors.Wrapf(err, "getting instance "+string(instID))
 	}
-	return inst.Platform.UpdateManifests(update.Spec{Type: update.Images, Cause: cause, Spec: spec})
+	return inst.Platform.UpdateManifests(ctx, update.Spec{Type: update.Images, Cause: cause, Spec: spec})
 }
 
-func (s *Server) UpdatePolicies(instID service.InstanceID, updates policy.Updates, cause update.Cause) (job.ID, error) {
+func (s *Server) UpdatePolicies(ctx context.Context, updates policy.Updates, cause update.Cause) (job.ID, error) {
+	instID, err := getInstanceID(ctx)
+	if err != nil {
+		return "", err
+	}
 	inst, err := s.instancer.Get(instID)
 	if err != nil {
 		return "", errors.Wrapf(err, "getting instance "+string(instID))
 	}
 
-	return inst.Platform.UpdateManifests(update.Spec{Type: update.Policy, Cause: cause, Spec: updates})
+	return inst.Platform.UpdateManifests(ctx, update.Spec{Type: update.Policy, Cause: cause, Spec: updates})
 }
 
-func (s *Server) SyncNotify(instID service.InstanceID) (err error) {
+func (s *Server) SyncNotify(ctx context.Context) (err error) {
+	instID, err := getInstanceID(ctx)
+	if err != nil {
+		return err
+	}
 	inst, err := s.instancer.Get(instID)
 	if err != nil {
 		return errors.Wrapf(err, "getting instance "+string(instID))
 	}
-	return inst.Platform.SyncNotify()
+	return inst.Platform.SyncNotify(ctx)
 }
 
-func (s *Server) JobStatus(instID service.InstanceID, jobID job.ID) (res job.Status, err error) {
+func (s *Server) JobStatus(ctx context.Context, jobID job.ID) (res job.Status, err error) {
+	instID, err := getInstanceID(ctx)
+	if err != nil {
+		return res, err
+	}
 	inst, err := s.instancer.Get(instID)
 	if err != nil {
 		return job.Status{}, errors.Wrapf(err, "getting instance "+string(instID))
 	}
 
-	return inst.Platform.JobStatus(jobID)
+	return inst.Platform.JobStatus(ctx, jobID)
 }
 
-func (s *Server) SyncStatus(instID service.InstanceID, ref string) (res []string, err error) {
+func (s *Server) SyncStatus(ctx context.Context, ref string) (res []string, err error) {
+	instID, err := getInstanceID(ctx)
+	if err != nil {
+		return res, err
+	}
 	inst, err := s.instancer.Get(instID)
 	if err != nil {
 		return nil, errors.Wrapf(err, "getting instance "+string(instID))
 	}
 
-	return inst.Platform.SyncStatus(ref)
+	return inst.Platform.SyncStatus(ctx, ref)
 }
 
 // LogEvent receives events from fluxd and pushes events to the history
 // db and a slack notification
-func (s *Server) LogEvent(instID service.InstanceID, e history.Event) error {
-	s.logger.Log("method", "LogEvent", "instance", instID, "event", e)
+func (s *Server) LogEvent(ctx context.Context, e history.Event) error {
+	instID, err := getInstanceID(ctx)
+	if err != nil {
+		return err
+	}
+
 	helper, err := s.instancer.Get(instID)
 	if err != nil {
 		return errors.Wrapf(err, "getting instance")
 	}
 
+	s.logger.Log("method", "LogEvent", "instance", instID, "event", e)
 	// Log event in history first. This is less likely to fail
 	err = helper.LogEvent(e)
 	if err != nil {
@@ -177,8 +231,13 @@ func (s *Server) LogEvent(instID service.InstanceID, e history.Event) error {
 	return nil
 }
 
-func (s *Server) History(inst service.InstanceID, spec update.ServiceSpec, before time.Time, limit int64, after time.Time) (res []history.Entry, err error) {
-	helper, err := s.instancer.Get(inst)
+func (s *Server) History(ctx context.Context, spec update.ServiceSpec, before time.Time, limit int64, after time.Time) (res []history.Entry, err error) {
+	instID, err := getInstanceID(ctx)
+	if err != nil {
+		return res, err
+	}
+
+	helper, err := s.instancer.Get(instID)
 	if err != nil {
 		return nil, errors.Wrapf(err, "getting instance")
 	}
@@ -214,7 +273,12 @@ func (s *Server) History(inst service.InstanceID, spec update.ServiceSpec, befor
 	return res, nil
 }
 
-func (s *Server) GetConfig(instID service.InstanceID, fingerprint string) (service.InstanceConfig, error) {
+func (s *Server) GetConfig(ctx context.Context, fingerprint string) (service.InstanceConfig, error) {
+	instID, err := getInstanceID(ctx)
+	if err != nil {
+		return service.InstanceConfig{}, err
+	}
+
 	fullConfig, err := s.config.GetConfig(instID)
 	if err != nil {
 		return service.InstanceConfig{}, err
@@ -234,11 +298,20 @@ func (s *Server) GetConfig(instID service.InstanceID, fingerprint string) (servi
 	return config, nil
 }
 
-func (s *Server) SetConfig(instID service.InstanceID, updates service.InstanceConfig) error {
+func (s *Server) SetConfig(ctx context.Context, updates service.InstanceConfig) error {
+	instID, err := getInstanceID(ctx)
+	if err != nil {
+		return err
+	}
 	return s.config.UpdateConfig(instID, applyConfigUpdates(updates))
 }
 
-func (s *Server) PatchConfig(instID service.InstanceID, patch service.ConfigPatch) error {
+func (s *Server) PatchConfig(ctx context.Context, patch service.ConfigPatch) error {
+	instID, err := getInstanceID(ctx)
+	if err != nil {
+		return err
+	}
+
 	fullConfig, err := s.config.GetConfig(instID)
 	if err != nil {
 		return errors.Wrap(err, "unable to get config")
@@ -259,13 +332,18 @@ func applyConfigUpdates(updates service.InstanceConfig) instance.UpdateFunc {
 	}
 }
 
-func (s *Server) PublicSSHKey(instID service.InstanceID, regenerate bool) (ssh.PublicKey, error) {
+func (s *Server) PublicSSHKey(ctx context.Context, regenerate bool) (ssh.PublicKey, error) {
+	instID, err := getInstanceID(ctx)
+	if err != nil {
+		return ssh.PublicKey{}, err
+	}
+
 	inst, err := s.instancer.Get(instID)
 	if err != nil {
 		return ssh.PublicKey{}, errors.Wrapf(err, "getting instance "+string(instID))
 	}
 
-	gitRepoConfig, err := inst.Platform.GitRepoConfig(regenerate)
+	gitRepoConfig, err := inst.Platform.GitRepoConfig(ctx, regenerate)
 	if err != nil {
 		return ssh.PublicKey{}, err
 	}
@@ -286,7 +364,12 @@ func (s *Server) PublicSSHKey(instID service.InstanceID, regenerate bool) (ssh.P
 // go, aside from just trying to connection. Therefore, the server
 // will get an error when we try to use the client. We rely on that to
 // break us out of this method.
-func (s *Server) RegisterDaemon(instID service.InstanceID, platform remote.Platform) (err error) {
+func (s *Server) RegisterDaemon(ctx context.Context, platform remote.Platform) (err error) {
+	instID, err := getInstanceID(ctx)
+	if err != nil {
+		return err
+	}
+
 	defer func() {
 		if err != nil {
 			s.logger.Log("method", "RegisterDaemon", "err", err)
@@ -305,7 +388,7 @@ func (s *Server) RegisterDaemon(instID service.InstanceID, platform remote.Platf
 	// configuration record for this instance; it may be connecting
 	// before there is configuration supplied.
 	done := make(chan error)
-	s.messageBus.Subscribe(instID, s.instrumentPlatform(instID, platform), done)
+	s.messageBus.Subscribe(ctx, instID, s.instrumentPlatform(instID, platform), done)
 	err = <-done
 	return err
 }
@@ -330,13 +413,18 @@ func setDisconnectedIf(t0 time.Time) instance.UpdateFunc {
 	}
 }
 
-func (s *Server) Export(instID service.InstanceID) (res []byte, err error) {
+func (s *Server) Export(ctx context.Context) (res []byte, err error) {
+	instID, err := getInstanceID(ctx)
+	if err != nil {
+		return res, err
+	}
+
 	inst, err := s.instancer.Get(instID)
 	if err != nil {
 		return res, errors.Wrapf(err, "getting instance")
 	}
 
-	res, err = inst.Platform.Export()
+	res, err = inst.Platform.Export(ctx)
 	if err != nil {
 		return res, errors.Wrapf(err, "exporting %s", instID)
 	}
@@ -351,6 +439,10 @@ func (s *Server) instrumentPlatform(instID service.InstanceID, p remote.Platform
 	}
 }
 
-func (s *Server) IsDaemonConnected(instID service.InstanceID) error {
-	return s.messageBus.Ping(instID)
+func (s *Server) IsDaemonConnected(ctx context.Context) error {
+	instID, err := getInstanceID(ctx)
+	if err != nil {
+		return err
+	}
+	return s.messageBus.Ping(ctx, instID)
 }

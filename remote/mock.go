@@ -1,6 +1,7 @@
 package remote
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"reflect"
@@ -44,27 +45,27 @@ type MockPlatform struct {
 	GitRepoConfigError  error
 }
 
-func (p *MockPlatform) Ping() error {
+func (p *MockPlatform) Ping(ctx context.Context) error {
 	return p.PingError
 }
 
-func (p *MockPlatform) Version() (string, error) {
+func (p *MockPlatform) Version(ctx context.Context) (string, error) {
 	return p.VersionAnswer, p.VersionError
 }
 
-func (p *MockPlatform) Export() ([]byte, error) {
+func (p *MockPlatform) Export(ctx context.Context) ([]byte, error) {
 	return p.ExportAnswer, p.ExportError
 }
 
-func (p *MockPlatform) ListServices(ns string) ([]flux.ServiceStatus, error) {
+func (p *MockPlatform) ListServices(ctx context.Context, ns string) ([]flux.ServiceStatus, error) {
 	return p.ListServicesAnswer, p.ListServicesError
 }
 
-func (p *MockPlatform) ListImages(update.ServiceSpec) ([]flux.ImageStatus, error) {
+func (p *MockPlatform) ListImages(context.Context, update.ServiceSpec) ([]flux.ImageStatus, error) {
 	return p.ListImagesAnswer, p.ListImagesError
 }
 
-func (p *MockPlatform) UpdateManifests(s update.Spec) (job.ID, error) {
+func (p *MockPlatform) UpdateManifests(ctx context.Context, s update.Spec) (job.ID, error) {
 	if p.UpdateManifestsArgTest != nil {
 		if err := p.UpdateManifestsArgTest(s); err != nil {
 			return job.ID(""), err
@@ -73,19 +74,19 @@ func (p *MockPlatform) UpdateManifests(s update.Spec) (job.ID, error) {
 	return p.UpdateManifestsAnswer, p.UpdateManifestsError
 }
 
-func (p *MockPlatform) SyncNotify() error {
+func (p *MockPlatform) SyncNotify(ctx context.Context) error {
 	return p.SyncNotifyError
 }
 
-func (p *MockPlatform) SyncStatus(string) ([]string, error) {
+func (p *MockPlatform) SyncStatus(context.Context, string) ([]string, error) {
 	return p.SyncStatusAnswer, p.SyncStatusError
 }
 
-func (p *MockPlatform) JobStatus(job.ID) (job.Status, error) {
+func (p *MockPlatform) JobStatus(context.Context, job.ID) (job.Status, error) {
 	return p.JobStatusAnswer, p.JobStatusError
 }
 
-func (p *MockPlatform) GitRepoConfig(regenerate bool) (flux.GitConfig, error) {
+func (p *MockPlatform) GitRepoConfig(ctx context.Context, regenerate bool) (flux.GitConfig, error) {
 	return p.GitRepoConfigAnswer, p.GitRepoConfigError
 }
 
@@ -167,14 +168,16 @@ func PlatformTestBattery(t *testing.T, wrap func(mock Platform) Platform) {
 		SyncStatusAnswer:       syncStatusAnswer,
 	}
 
+	ctx := context.Background()
+
 	// OK, here we go
 	client := wrap(mock)
 
-	if err := client.Ping(); err != nil {
+	if err := client.Ping(ctx); err != nil {
 		t.Fatal(err)
 	}
 
-	ss, err := client.ListServices(namespace)
+	ss, err := client.ListServices(ctx, namespace)
 	if err != nil {
 		t.Error(err)
 	}
@@ -182,12 +185,12 @@ func PlatformTestBattery(t *testing.T, wrap func(mock Platform) Platform) {
 		t.Error(fmt.Errorf("expected:\n%#v\ngot:\n%#v", mock.ListServicesAnswer, ss))
 	}
 	mock.ListServicesError = fmt.Errorf("list services query failure")
-	ss, err = client.ListServices(namespace)
+	ss, err = client.ListServices(ctx, namespace)
 	if err == nil {
 		t.Error("expected error from ListServices, got nil")
 	}
 
-	ims, err := client.ListImages(update.ServiceSpecAll)
+	ims, err := client.ListImages(ctx, update.ServiceSpecAll)
 	if err != nil {
 		t.Error(err)
 	}
@@ -195,11 +198,11 @@ func PlatformTestBattery(t *testing.T, wrap func(mock Platform) Platform) {
 		t.Error(fmt.Errorf("expected:\n%#v\ngot:\n%#v", mock.ListImagesAnswer, ims))
 	}
 	mock.ListImagesError = fmt.Errorf("list images error")
-	if _, err = client.ListImages(update.ServiceSpecAll); err == nil {
+	if _, err = client.ListImages(ctx, update.ServiceSpecAll); err == nil {
 		t.Error("expected error from ListImages, got nil")
 	}
 
-	jobid, err := mock.UpdateManifests(updateSpec)
+	jobid, err := mock.UpdateManifests(ctx, updateSpec)
 	if err != nil {
 		t.Error(err)
 	}
@@ -207,15 +210,15 @@ func PlatformTestBattery(t *testing.T, wrap func(mock Platform) Platform) {
 		t.Error(fmt.Errorf("expected %q, got %q", mock.UpdateManifestsAnswer, jobid))
 	}
 	mock.UpdateManifestsError = fmt.Errorf("update manifests error")
-	if _, err = client.UpdateManifests(updateSpec); err == nil {
+	if _, err = client.UpdateManifests(ctx, updateSpec); err == nil {
 		t.Error("expected error from UpdateManifests, got nil")
 	}
 
-	if err := client.SyncNotify(); err != nil {
+	if err := client.SyncNotify(ctx); err != nil {
 		t.Error(err)
 	}
 
-	syncSt, err := client.SyncStatus("HEAD")
+	syncSt, err := client.SyncStatus(ctx, "HEAD")
 	if err != nil {
 		t.Error(err)
 	}

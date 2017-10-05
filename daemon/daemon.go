@@ -2,14 +2,13 @@ package daemon
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"sort"
 	"time"
 
 	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
-
-	"context"
 
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster"
@@ -54,19 +53,19 @@ type Daemon struct {
 // Invariant.
 var _ remote.Platform = &Daemon{}
 
-func (d *Daemon) Version() (string, error) {
+func (d *Daemon) Version(ctx context.Context) (string, error) {
 	return d.V, nil
 }
 
-func (d *Daemon) Ping() error {
+func (d *Daemon) Ping(ctx context.Context) error {
 	return d.Cluster.Ping()
 }
 
-func (d *Daemon) Export() ([]byte, error) {
+func (d *Daemon) Export(ctx context.Context) ([]byte, error) {
 	return d.Cluster.Export()
 }
 
-func (d *Daemon) ListServices(namespace string) ([]flux.ServiceStatus, error) {
+func (d *Daemon) ListServices(ctx context.Context, namespace string) ([]flux.ServiceStatus, error) {
 	clusterServices, err := d.Cluster.AllControllers(namespace)
 	if err != nil {
 		return nil, errors.Wrap(err, "getting services from cluster")
@@ -98,7 +97,7 @@ func (d *Daemon) ListServices(namespace string) ([]flux.ServiceStatus, error) {
 }
 
 // List the images available for set of services
-func (d *Daemon) ListImages(spec update.ServiceSpec) ([]flux.ImageStatus, error) {
+func (d *Daemon) ListImages(ctx context.Context, spec update.ServiceSpec) ([]flux.ImageStatus, error) {
 	var services []cluster.Controller
 	var err error
 	if spec == update.ServiceSpecAll {
@@ -185,7 +184,7 @@ func (d *Daemon) queueJob(do DaemonJobFunc) job.ID {
 }
 
 // Apply the desired changes to the config files
-func (d *Daemon) UpdateManifests(spec update.Spec) (job.ID, error) {
+func (d *Daemon) UpdateManifests(ctx context.Context, spec update.Spec) (job.ID, error) {
 	var id job.ID
 	if spec.Type == "" {
 		return id, errors.New("no type in update spec")
@@ -324,16 +323,14 @@ func (d *Daemon) release(spec update.Spec, c release.Changes) DaemonJobFunc {
 // the git repo. This has an error return value because upstream there
 // may be comms difficulties or other sources of problems; here, we
 // always succeed because it's just bookkeeping.
-func (d *Daemon) SyncNotify() error {
+func (d *Daemon) SyncNotify(ctx context.Context) error {
 	d.askForSync()
 	return nil
 }
 
 // JobStatus - Ask the daemon how far it's got committing things; in particular, is the job
 // queued? running? committed? If it is done, the commit ref is returned.
-func (d *Daemon) JobStatus(jobID job.ID) (job.Status, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), defaultHandlerTimeout)
-	defer cancel()
+func (d *Daemon) JobStatus(ctx context.Context, jobID job.ID) (job.Status, error) {
 	// Is the job queued, running, or recently finished?
 	status, ok := d.JobStatusCache.Status(jobID)
 	if ok {
@@ -376,9 +373,7 @@ func (d *Daemon) JobStatus(jobID job.ID) (job.Status, error) {
 // we have applied and the ref given, inclusive. E.g., if you send HEAD,
 // you'll get all the commits yet to be applied. If you send a hash
 // and it's applied _past_ it, you'll get an empty list.
-func (d *Daemon) SyncStatus(commitRef string) ([]string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), defaultHandlerTimeout)
-	defer cancel()
+func (d *Daemon) SyncStatus(ctx context.Context, commitRef string) ([]string, error) {
 	commits, err := d.Checkout.CommitsBetween(ctx, d.Checkout.SyncTag, commitRef)
 	if err != nil {
 		return nil, err
@@ -392,7 +387,7 @@ func (d *Daemon) SyncStatus(commitRef string) ([]string, error) {
 	return revs, nil
 }
 
-func (d *Daemon) GitRepoConfig(regenerate bool) (flux.GitConfig, error) {
+func (d *Daemon) GitRepoConfig(ctx context.Context, regenerate bool) (flux.GitConfig, error) {
 	publicSSHKey, err := d.Cluster.PublicSSHKey(regenerate)
 	if err != nil {
 		return flux.GitConfig{}, err

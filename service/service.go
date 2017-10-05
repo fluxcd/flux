@@ -8,9 +8,8 @@ import (
 
 type InstanceID string
 
-const NoInstanceID InstanceID = "NoInstanceID"
-
-const InstanceIDHeaderKey = "X-Scope-OrgID"
+// Key against which we'll store the instance ID in contexts
+const InstanceIDKey = "InstanceID"
 
 // TODO: How similar should this be to the `get-config` result?
 type Status struct {

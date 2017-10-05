@@ -3,6 +3,8 @@
 package remote
 
 import (
+	"context"
+
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/update"
@@ -12,8 +14,8 @@ import (
 // `Platform`.
 
 type PlatformV4 interface {
-	Ping() error
-	Version() (string, error)
+	Ping(context.Context) error
+	Version(context.Context) (string, error)
 	// Deprecated
 	//	AllServices(maybeNamespace string, ignored flux.ServiceIDSet) ([]Service, error)
 	//	SomeServices([]flux.ServiceID) ([]Service, error)
@@ -25,7 +27,7 @@ type PlatformV5 interface {
 	// We still support this, for bootstrapping; but it might
 	// reasonably be moved to the daemon interface, or removed in
 	// favour of letting people use their cluster-specific tooling.
-	Export() ([]byte, error)
+	Export(context.Context) ([]byte, error)
 	// Deprecated
 	//	Sync(SyncDef) error
 }
@@ -37,18 +39,18 @@ type PlatformV5 interface {
 type PlatformV6 interface {
 	PlatformV5
 	// These are new, or newly moved to this interface
-	ListServices(namespace string) ([]flux.ServiceStatus, error)
-	ListImages(update.ServiceSpec) ([]flux.ImageStatus, error)
+	ListServices(ctx context.Context, namespace string) ([]flux.ServiceStatus, error)
+	ListImages(context.Context, update.ServiceSpec) ([]flux.ImageStatus, error)
 	// Send a spec for updating config to the daemon
-	UpdateManifests(update.Spec) (job.ID, error)
+	UpdateManifests(context.Context, update.Spec) (job.ID, error)
 	// Poke the daemon to sync with git
-	SyncNotify() error
+	SyncNotify(context.Context) error
 	// Ask the daemon where it's up to with syncing
-	SyncStatus(string) ([]string, error)
+	SyncStatus(ctx context.Context, ref string) ([]string, error)
 	// Ask the daemon where it's up to with job processing
-	JobStatus(job.ID) (job.Status, error)
+	JobStatus(context.Context, job.ID) (job.Status, error)
 	// Get the daemon's public SSH key
-	GitRepoConfig(regenerate bool) (flux.GitConfig, error)
+	GitRepoConfig(ctx context.Context, regenerate bool) (flux.GitConfig, error)
 }
 
 // Platform is the SPI for the daemon; i.e., it's all the things we

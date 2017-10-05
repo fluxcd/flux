@@ -342,13 +342,7 @@
 
 [[projects]]
   name = "github.com/nats-io/go-nats"
-  packages = ["encoders/builtin","util"]
-  revision = "29f9728a183bf3fa7e809e14edac00b33be72088"
-  version = "v1.3.0"
-
-[[projects]]
-  name = "github.com/nats-io/nats"
-  packages = ["."]
+  packages = [".","encoders/builtin","util"]
   revision = "29f9728a183bf3fa7e809e14edac00b33be72088"
   version = "v1.3.0"
 
@@ -510,6 +504,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "4f967ec3520cdba630e9a1273e761aa560583cb7c4c7c1b44f3edc99c3614330"
+  inputs-digest = "024a7b8ff1fe11667a508d388ed8055d62a53dacbf9173463aeeddf87b7b586a"
   solver-name = "gps-cdcl"
   solver-version = 1

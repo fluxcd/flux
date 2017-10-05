@@ -1,6 +1,7 @@
 package rpc
 
 import (
+	"context"
 	"io"
 	"net/rpc"
 	"net/rpc/jsonrpc"
@@ -23,7 +24,7 @@ func NewClientV4(conn io.ReadWriteCloser) *RPCClientV4 {
 }
 
 // Ping is used to check if the remote platform is available.
-func (p *RPCClientV4) Ping() error {
+func (p *RPCClientV4) Ping(ctx context.Context) error {
 	err := p.client.Call("RPCServer.Ping", struct{}{}, nil)
 	if _, ok := err.(rpc.ServerError); !ok && err != nil {
 		return remote.FatalError{err}
@@ -32,7 +33,7 @@ func (p *RPCClientV4) Ping() error {
 }
 
 // Version is used to check if the remote platform is available
-func (p *RPCClientV4) Version() (string, error) {
+func (p *RPCClientV4) Version(ctx context.Context) (string, error) {
 	var version string
 	err := p.client.Call("RPCServer.Version", struct{}{}, &version)
 	if _, ok := err.(rpc.ServerError); !ok && err != nil {

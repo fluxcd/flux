@@ -66,7 +66,7 @@ type HTTPServer struct {
 }
 
 func (s HTTPServer) SyncNotify(w http.ResponseWriter, r *http.Request) {
-	err := s.daemon.SyncNotify()
+	err := s.daemon.SyncNotify(r.Context())
 	if err != nil {
 		transport.ErrorResponse(w, r, err)
 		return
@@ -76,7 +76,7 @@ func (s HTTPServer) SyncNotify(w http.ResponseWriter, r *http.Request) {
 
 func (s HTTPServer) JobStatus(w http.ResponseWriter, r *http.Request) {
 	id := job.ID(mux.Vars(r)["id"])
-	status, err := s.daemon.JobStatus(id)
+	status, err := s.daemon.JobStatus(r.Context(), id)
 	if err != nil {
 		transport.ErrorResponse(w, r, err)
 		return
@@ -86,7 +86,7 @@ func (s HTTPServer) JobStatus(w http.ResponseWriter, r *http.Request) {
 
 func (s HTTPServer) SyncStatus(w http.ResponseWriter, r *http.Request) {
 	ref := mux.Vars(r)["ref"]
-	commits, err := s.daemon.SyncStatus(ref)
+	commits, err := s.daemon.SyncStatus(r.Context(), ref)
 	if err != nil {
 		transport.ErrorResponse(w, r, err)
 		return
@@ -102,7 +102,7 @@ func (s HTTPServer) ListImages(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	d, err := s.daemon.ListImages(spec)
+	d, err := s.daemon.ListImages(r.Context(), spec)
 	if err != nil {
 		transport.ErrorResponse(w, r, err)
 		return
@@ -160,7 +160,7 @@ func (s HTTPServer) UpdateImages(w http.ResponseWriter, r *http.Request) {
 		User:    r.FormValue("user"),
 		Message: r.FormValue("message"),
 	}
-	result, err := s.daemon.UpdateManifests(update.Spec{Type: update.Images, Cause: cause, Spec: spec})
+	result, err := s.daemon.UpdateManifests(r.Context(), update.Spec{Type: update.Images, Cause: cause, Spec: spec})
 	if err != nil {
 		transport.ErrorResponse(w, r, err)
 		return
@@ -180,7 +180,7 @@ func (s HTTPServer) UpdatePolicies(w http.ResponseWriter, r *http.Request) {
 		Message: r.FormValue("message"),
 	}
 
-	jobID, err := s.daemon.UpdateManifests(update.Spec{Type: update.Policy, Cause: cause, Spec: updates})
+	jobID, err := s.daemon.UpdateManifests(r.Context(), update.Spec{Type: update.Policy, Cause: cause, Spec: updates})
 	if err != nil {
 		transport.ErrorResponse(w, r, err)
 		return
@@ -191,7 +191,7 @@ func (s HTTPServer) UpdatePolicies(w http.ResponseWriter, r *http.Request) {
 
 func (s HTTPServer) ListServices(w http.ResponseWriter, r *http.Request) {
 	namespace := mux.Vars(r)["namespace"]
-	res, err := s.daemon.ListServices(namespace)
+	res, err := s.daemon.ListServices(r.Context(), namespace)
 	if err != nil {
 		transport.ErrorResponse(w, r, err)
 		return
@@ -200,7 +200,7 @@ func (s HTTPServer) ListServices(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s HTTPServer) Export(w http.ResponseWriter, r *http.Request) {
-	status, err := s.daemon.Export()
+	status, err := s.daemon.Export(r.Context())
 	if err != nil {
 		transport.ErrorResponse(w, r, err)
 		return
@@ -210,7 +210,7 @@ func (s HTTPServer) Export(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s HTTPServer) GetPublicSSHKey(w http.ResponseWriter, r *http.Request) {
-	res, err := s.daemon.GitRepoConfig(false)
+	res, err := s.daemon.GitRepoConfig(r.Context(), false)
 	if err != nil {
 		transport.ErrorResponse(w, r, err)
 		return
@@ -219,7 +219,7 @@ func (s HTTPServer) GetPublicSSHKey(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s HTTPServer) RegeneratePublicSSHKey(w http.ResponseWriter, r *http.Request) {
-	_, err := s.daemon.GitRepoConfig(true)
+	_, err := s.daemon.GitRepoConfig(r.Context(), true)
 	if err != nil {
 		transport.ErrorResponse(w, r, err)
 		return

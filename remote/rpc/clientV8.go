@@ -1,6 +1,7 @@
 package rpc
 
 import (
+	"context"
 	"io"
 	"net/rpc"
 
@@ -26,7 +27,7 @@ func NewClientV8(conn io.ReadWriteCloser) *RPCClientV8 {
 	return &RPCClientV8{NewClientV7(conn)}
 }
 
-func (p *RPCClientV8) ListImages(spec update.ServiceSpec) ([]flux.ImageStatus, error) {
+func (p *RPCClientV8) ListImages(ctx context.Context, spec update.ServiceSpec) ([]flux.ImageStatus, error) {
 	var resp ListImagesResponse
 	if err := requireServiceSpecKinds(spec, supportedKindsV8); err != nil {
 		return resp.Result, remote.UnsupportedResourceKind(err)
@@ -43,7 +44,7 @@ func (p *RPCClientV8) ListImages(spec update.ServiceSpec) ([]flux.ImageStatus, e
 	return resp.Result, err
 }
 
-func (p *RPCClientV8) UpdateManifests(u update.Spec) (job.ID, error) {
+func (p *RPCClientV8) UpdateManifests(ctx context.Context, u update.Spec) (job.ID, error) {
 	var resp UpdateManifestsResponse
 	if err := requireSpecKinds(u, supportedKindsV8); err != nil {
 		return resp.Result, remote.UnsupportedResourceKind(err)

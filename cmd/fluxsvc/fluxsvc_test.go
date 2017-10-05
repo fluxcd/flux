@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -14,7 +15,6 @@ import (
 	"io/ioutil"
 
 	"github.com/weaveworks/flux"
-	"github.com/weaveworks/flux/api"
 	"github.com/weaveworks/flux/db"
 	"github.com/weaveworks/flux/guid"
 	"github.com/weaveworks/flux/history"
@@ -48,13 +48,13 @@ var (
 	mockPlatform *remote.MockPlatform
 
 	// API Client
-	apiClient api.ClientService
+	apiClient *client.Client
 )
 
 const (
 	helloWorldSvc = "default/helloworld"
 	ver           = "123"
-	id            = service.NoInstanceID
+	id            = service.InstanceID("californian-hotel-76")
 )
 
 func setup(t *testing.T) {
@@ -115,7 +115,8 @@ func setup(t *testing.T) {
 		},
 	}
 	done := make(chan error)
-	messageBus.Subscribe(id, mockPlatform, done)
+	ctx := context.Background()
+	messageBus.Subscribe(ctx, id, mockPlatform, done)
 	if err := messageBus.AwaitPresence(id, 5*time.Second); err != nil {
 		t.Errorf("Timed out waiting for presence of mockPlatform")
 	}
@@ -143,8 +144,16 @@ func setup(t *testing.T) {
 	apiServer := server.New(ver, instancer, instanceDB, messageBus, log.NewNopLogger())
 	router = httpserver.NewServiceRouter()
 	handler := httpserver.NewHandler(apiServer, router, log.NewNopLogger())
+	handler = addInstanceIDHandler(handler)
 	ts = httptest.NewServer(handler)
 	apiClient = client.New(http.DefaultClient, router, ts.URL, "")
+}
+
+func addInstanceIDHandler(handler http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		r.Header.Add(httpserver.InstanceIDHeaderKey, string(id))
+		handler.ServeHTTP(w, r)
+	})
 }
 
 func teardown() {
@@ -155,8 +164,10 @@ func TestFluxsvc_ListServices(t *testing.T) {
 	setup(t)
 	defer teardown()
 
+	ctx := context.Background()
+
 	// Test ListServices
-	svcs, err := apiClient.ListServices("", "default")
+	svcs, err := apiClient.ListServices(ctx, "default")
 	if err != nil {
 		t.Error(err)
 	}
@@ -167,15 +178,18 @@ func TestFluxsvc_ListServices(t *testing.T) {
 		t.Errorf("Expected one of the services to be %q", helloWorldSvc)
 	}
 
-	// Test no namespace error
-	u, _ := transport.MakeURL(ts.URL, router, "ListServices")
+	// Test that `namespace` argument is mandatory
+	u, err := transport.MakeURL(ts.URL, router, "ListServices")
+	if err != nil {
+		t.Error(err)
+	}
 	resp, err := http.Get(u.String())
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusNotFound {
-		t.Fatalf("Request should not exist: %q", resp.Status)
+		t.Fatalf("Request should result in 404, but got: %q", resp.Status)
 	}
 }
 
@@ -185,8 +199,10 @@ func TestFluxsvc_ListImages(t *testing.T) {
 	setup(t)
 	defer teardown()
 
+	ctx := context.Background()
+
 	// Test ListImages
-	imgs, err := apiClient.ListImages("", update.ServiceSpecAll)
+	imgs, err := apiClient.ListImages(ctx, update.ServiceSpecAll)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -198,7 +214,7 @@ func TestFluxsvc_ListImages(t *testing.T) {
 	}
 
 	// Test ListImages for specific service
-	imgs, err = apiClient.ListImages("", helloWorldSvc)
+	imgs, err = apiClient.ListImages(ctx, helloWorldSvc)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -209,15 +225,18 @@ func TestFluxsvc_ListImages(t *testing.T) {
 		t.Error("Expected >1 containers")
 	}
 
-	// Test no service error
-	u, _ := transport.MakeURL(ts.URL, router, "ListImages")
+	// Test that `service` argument is mandatory
+	u, err := transport.MakeURL(ts.URL, router, "ListImages")
+	if err != nil {
+		t.Error(err)
+	}
 	resp, err := http.Get(u.String())
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusNotFound {
-		t.Fatalf("Request should not exist: %q", resp.Status)
+		t.Fatalf("Request should result in 404, but got: %s", resp.Status)
 	}
 }
 
@@ -225,13 +244,15 @@ func TestFluxsvc_Release(t *testing.T) {
 	setup(t)
 	defer teardown()
 
+	ctx := context.Background()
+
 	mockPlatform.UpdateManifestsAnswer = job.ID(guid.New())
 	mockPlatform.JobStatusAnswer = job.Status{
 		StatusString: job.StatusQueued,
 	}
 
 	// Test UpdateImages
-	r, err := apiClient.UpdateImages("", update.ReleaseSpec{
+	r, err := apiClient.UpdateImages(ctx, update.ReleaseSpec{
 		ImageSpec:    "alpine:latest",
 		Kind:         "execute",
 		ServiceSpecs: []update.ServiceSpec{helloWorldSvc},
@@ -244,7 +265,7 @@ func TestFluxsvc_Release(t *testing.T) {
 	}
 
 	// Test GetRelease
-	res, err := apiClient.JobStatus("", r)
+	res, err := apiClient.JobStatus(ctx, r)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -260,7 +281,7 @@ func TestFluxsvc_Release(t *testing.T) {
 	}
 	resp.Body.Close()
 	if resp.StatusCode != http.StatusNotFound {
-		t.Fatalf("Path should 404: %q", resp.Status)
+		t.Fatalf("Path should 404, got: %s", resp.Status)
 	}
 }
 
@@ -268,17 +289,9 @@ func TestFluxsvc_History(t *testing.T) {
 	setup(t)
 	defer teardown()
 
-	// Post an event to the history. We have to cheat a bit here and
-	// make a blind cast, because we want LogEvent, which the client
-	// implements for convenient use in the daemon, without
-	// implementing the other parts of api.DaemonService.
-	eventLogger, ok := apiClient.(interface {
-		LogEvent(service.InstanceID, history.Event) error
-	})
-	if !ok {
-		t.Fatal("API client does not implement LogEvent (maybe that method has moved)")
-	}
-	err := eventLogger.LogEvent("", history.Event{
+	ctx := context.Background()
+
+	err := apiClient.LogEvent(ctx, history.Event{
 		Type: history.EventLock,
 		ServiceIDs: []flux.ResourceID{
 			flux.MustParseResourceID(helloWorldSvc),
@@ -289,34 +302,32 @@ func TestFluxsvc_History(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Test History
-	hist, err := apiClient.History("", helloWorldSvc, time.Now().UTC(), -1, time.Unix(0, 0))
+	var hist []history.Entry
+	err = apiClient.Get(ctx, &hist, "History", "service", helloWorldSvc)
 	if err != nil {
-		t.Fatal(err)
-	}
-	if len(hist) == 0 {
-		t.Fatal("History should be longer than this: ", hist)
-	}
-	var hasLock bool
-	for _, v := range hist {
-		if strings.Contains(v.Data, "Locked") {
-			hasLock = true
-			break
+		t.Error(err)
+	} else {
+		var hasLock bool
+		for _, v := range hist {
+			if strings.Contains(v.Data, "Locked") {
+				hasLock = true
+				break
+			}
+		}
+		if !hasLock {
+			t.Errorf("History hasn't recorded a lock ", hist)
 		}
 	}
-	if !hasLock {
-		t.Fatal("History hasn't recorded a lock", hist)
-	}
 
-	// Test no service error
+	// Test `service` argument is mandatory
 	u, _ := transport.MakeURL(ts.URL, router, "History")
 	resp, err := http.Get(u.String())
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusNotFound {
-		t.Fatalf("Request should not exist: %q", resp.Status)
+		t.Errorf("Request should result in 404, got: %s", resp.Status)
 	}
 }
 
@@ -324,13 +335,16 @@ func TestFluxsvc_Status(t *testing.T) {
 	setup(t)
 	defer teardown()
 
+	ctx := context.Background()
+
 	// Test Status
-	status, err := apiClient.Status("")
+	var status service.Status
+	err := apiClient.Get(ctx, &status, "Status")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if status.Fluxsvc.Version != ver {
-		t.Fatal("Expected %q, got %q", ver, status.Fluxsvc.Version)
+		t.Fatalf("Expected %q, got %q", ver, status.Fluxsvc.Version)
 	}
 }
 

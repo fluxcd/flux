@@ -1,6 +1,7 @@
 package rpc
 
 import (
+	"context"
 	"io"
 	"net/rpc"
 
@@ -28,7 +29,7 @@ func NewClientV7(conn io.ReadWriteCloser) *RPCClientV7 {
 }
 
 // Export is used to get service configuration in platform-specific format
-func (p *RPCClientV7) Export() ([]byte, error) {
+func (p *RPCClientV7) Export(ctx context.Context) ([]byte, error) {
 	var resp ExportResponse
 	err := p.client.Call("RPCServer.Export", struct{}{}, &resp)
 	if err != nil {
@@ -41,7 +42,7 @@ func (p *RPCClientV7) Export() ([]byte, error) {
 	return resp.Result, err
 }
 
-func (p *RPCClientV7) ListServices(namespace string) ([]flux.ServiceStatus, error) {
+func (p *RPCClientV7) ListServices(ctx context.Context, namespace string) ([]flux.ServiceStatus, error) {
 	var resp ListServicesResponse
 	err := p.client.Call("RPCServer.ListServices", namespace, &resp)
 	if err != nil {
@@ -55,7 +56,7 @@ func (p *RPCClientV7) ListServices(namespace string) ([]flux.ServiceStatus, erro
 	return resp.Result, err
 }
 
-func (p *RPCClientV7) ListImages(spec update.ServiceSpec) ([]flux.ImageStatus, error) {
+func (p *RPCClientV7) ListImages(ctx context.Context, spec update.ServiceSpec) ([]flux.ImageStatus, error) {
 	var resp ListImagesResponse
 	if err := requireServiceSpecKinds(spec, supportedKindsV7); err != nil {
 		return resp.Result, remote.UpgradeNeededError(err)
@@ -72,7 +73,7 @@ func (p *RPCClientV7) ListImages(spec update.ServiceSpec) ([]flux.ImageStatus, e
 	return resp.Result, err
 }
 
-func (p *RPCClientV7) UpdateManifests(u update.Spec) (job.ID, error) {
+func (p *RPCClientV7) UpdateManifests(ctx context.Context, u update.Spec) (job.ID, error) {
 	var resp UpdateManifestsResponse
 	if err := requireSpecKinds(u, supportedKindsV7); err != nil {
 		return resp.Result, remote.UpgradeNeededError(err)
@@ -88,7 +89,7 @@ func (p *RPCClientV7) UpdateManifests(u update.Spec) (job.ID, error) {
 	return resp.Result, err
 }
 
-func (p *RPCClientV7) SyncNotify() error {
+func (p *RPCClientV7) SyncNotify(ctx context.Context) error {
 	var resp SyncNotifyResponse
 	err := p.client.Call("RPCServer.SyncNotify", struct{}{}, &resp)
 	if err != nil {
@@ -101,7 +102,7 @@ func (p *RPCClientV7) SyncNotify() error {
 	return err
 }
 
-func (p *RPCClientV7) JobStatus(jobID job.ID) (job.Status, error) {
+func (p *RPCClientV7) JobStatus(ctx context.Context, jobID job.ID) (job.Status, error) {
 	var resp JobStatusResponse
 	err := p.client.Call("RPCServer.JobStatus", jobID, &resp)
 	if err != nil {
@@ -114,7 +115,7 @@ func (p *RPCClientV7) JobStatus(jobID job.ID) (job.Status, error) {
 	return resp.Result, err
 }
 
-func (p *RPCClientV7) SyncStatus(ref string) ([]string, error) {
+func (p *RPCClientV7) SyncStatus(ctx context.Context, ref string) ([]string, error) {
 	var resp SyncStatusResponse
 	err := p.client.Call("RPCServer.SyncStatus", ref, &resp)
 	if err != nil {
@@ -127,7 +128,7 @@ func (p *RPCClientV7) SyncStatus(ref string) ([]string, error) {
 	return resp.Result, err
 }
 
-func (p *RPCClientV7) GitRepoConfig(regenerate bool) (flux.GitConfig, error) {
+func (p *RPCClientV7) GitRepoConfig(ctx context.Context, regenerate bool) (flux.GitConfig, error) {
 	var resp GitRepoConfigResponse
 	err := p.client.Call("RPCServer.GitRepoConfig", regenerate, &resp)
 	if err != nil {

@@ -1,11 +1,12 @@
 package nats
 
 import (
+	"context"
 	"errors"
 	"strings"
 	"time"
 
-	"github.com/nats-io/nats"
+	"github.com/nats-io/go-nats"
 
 	"github.com/weaveworks/flux"
 	fluxerr "github.com/weaveworks/flux/errors"
@@ -81,10 +82,12 @@ func (n *NATS) AwaitPresence(instID service.InstanceID, timeout time.Duration) e
 	attempts := time.NewTicker(presenceTick)
 	defer attempts.Stop()
 
+	ctx := context.Background()
+
 	for {
 		select {
 		case <-attempts.C:
-			if err := n.Ping(instID); err == nil {
+			if err := n.Ping(ctx, instID); err == nil {
 				return nil
 			}
 		case <-timer:
@@ -93,9 +96,11 @@ func (n *NATS) AwaitPresence(instID service.InstanceID, timeout time.Duration) e
 	}
 }
 
-func (n *NATS) Ping(instID service.InstanceID) error {
+func (n *NATS) Ping(ctx context.Context, instID service.InstanceID) error {
 	var response PingResponse
-	if err := n.enc.Request(string(instID)+methodPing, pingReq{}, &response, timeout); err != nil {
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	if err := n.enc.RequestWithContext(ctx, string(instID)+methodPing, pingReq{}, &response); err != nil {
 		return remote.UnavailableError(err)
 	}
 	return extractError(response.ErrorResponse)
@@ -199,81 +204,101 @@ type natsPlatform struct {
 	instance string
 }
 
-func (r *natsPlatform) Ping() error {
+func (r *natsPlatform) Ping(ctx context.Context) error {
 	var response PingResponse
-	if err := r.conn.Request(r.instance+methodPing, pingReq{}, &response, timeout); err != nil {
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	if err := r.conn.RequestWithContext(ctx, r.instance+methodPing, pingReq{}, &response); err != nil {
 		return remote.UnavailableError(err)
 	}
 	return extractError(response.ErrorResponse)
 }
 
-func (r *natsPlatform) Version() (string, error) {
+func (r *natsPlatform) Version(ctx context.Context) (string, error) {
 	var response VersionResponse
-	if err := r.conn.Request(r.instance+methodVersion, versionReq{}, &response, timeout); err != nil {
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	if err := r.conn.RequestWithContext(ctx, r.instance+methodVersion, versionReq{}, &response); err != nil {
 		return response.Result, remote.UnavailableError(err)
 	}
 	return response.Result, extractError(response.ErrorResponse)
 }
 
-func (r *natsPlatform) Export() ([]byte, error) {
+func (r *natsPlatform) Export(ctx context.Context) ([]byte, error) {
 	var response ExportResponse
-	if err := r.conn.Request(r.instance+methodExport, exportReq{}, &response, timeout); err != nil {
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	if err := r.conn.RequestWithContext(ctx, r.instance+methodExport, exportReq{}, &response); err != nil {
 		return response.Result, remote.UnavailableError(err)
 	}
 	return response.Result, extractError(response.ErrorResponse)
 }
 
-func (r *natsPlatform) ListServices(namespace string) ([]flux.ServiceStatus, error) {
+func (r *natsPlatform) ListServices(ctx context.Context, namespace string) ([]flux.ServiceStatus, error) {
 	var response ListServicesResponse
-	if err := r.conn.Request(r.instance+methodListServices, namespace, &response, timeout); err != nil {
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	if err := r.conn.RequestWithContext(ctx, r.instance+methodListServices, namespace, &response); err != nil {
 		return response.Result, remote.UnavailableError(err)
 	}
 	return response.Result, extractError(response.ErrorResponse)
 }
 
-func (r *natsPlatform) ListImages(spec update.ServiceSpec) ([]flux.ImageStatus, error) {
+func (r *natsPlatform) ListImages(ctx context.Context, spec update.ServiceSpec) ([]flux.ImageStatus, error) {
 	var response ListImagesResponse
-	if err := r.conn.Request(r.instance+methodListImages, spec, &response, timeout); err != nil {
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	if err := r.conn.RequestWithContext(ctx, r.instance+methodListImages, spec, &response); err != nil {
 		return response.Result, remote.UnavailableError(err)
 	}
 	return response.Result, extractError(response.ErrorResponse)
 }
 
-func (r *natsPlatform) UpdateManifests(u update.Spec) (job.ID, error) {
+func (r *natsPlatform) UpdateManifests(ctx context.Context, u update.Spec) (job.ID, error) {
 	var response UpdateManifestsResponse
-	if err := r.conn.Request(r.instance+methodUpdateManifests, u, &response, timeout); err != nil {
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	if err := r.conn.RequestWithContext(ctx, r.instance+methodUpdateManifests, u, &response); err != nil {
 		return response.Result, remote.UnavailableError(err)
 	}
 	return response.Result, extractError(response.ErrorResponse)
 }
 
-func (r *natsPlatform) SyncNotify() error {
+func (r *natsPlatform) SyncNotify(ctx context.Context) error {
 	var response SyncNotifyResponse
-	if err := r.conn.Request(r.instance+methodSyncNotify, syncReq{}, &response, timeout); err != nil {
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	if err := r.conn.RequestWithContext(ctx, r.instance+methodSyncNotify, syncReq{}, &response); err != nil {
 		return remote.UnavailableError(err)
 	}
 	return extractError(response.ErrorResponse)
 }
 
-func (r *natsPlatform) JobStatus(jobID job.ID) (job.Status, error) {
+func (r *natsPlatform) JobStatus(ctx context.Context, jobID job.ID) (job.Status, error) {
 	var response JobStatusResponse
-	if err := r.conn.Request(r.instance+methodJobStatus, jobID, &response, timeout); err != nil {
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	if err := r.conn.RequestWithContext(ctx, r.instance+methodJobStatus, jobID, &response); err != nil {
 		return response.Result, remote.UnavailableError(err)
 	}
 	return response.Result, extractError(response.ErrorResponse)
 }
 
-func (r *natsPlatform) SyncStatus(ref string) ([]string, error) {
+func (r *natsPlatform) SyncStatus(ctx context.Context, ref string) ([]string, error) {
 	var response SyncStatusResponse
-	if err := r.conn.Request(r.instance+methodSyncStatus, ref, &response, timeout); err != nil {
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	if err := r.conn.RequestWithContext(ctx, r.instance+methodSyncStatus, ref, &response); err != nil {
 		return nil, remote.UnavailableError(err)
 	}
 	return response.Result, extractError(response.ErrorResponse)
 }
 
-func (r *natsPlatform) GitRepoConfig(regenerate bool) (flux.GitConfig, error) {
+func (r *natsPlatform) GitRepoConfig(ctx context.Context, regenerate bool) (flux.GitConfig, error) {
 	var response GitRepoConfigResponse
-	if err := r.conn.Request(r.instance+methodGitRepoConfig, regenerate, &response, timeout); err != nil {
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	if err := r.conn.RequestWithContext(ctx, r.instance+methodGitRepoConfig, regenerate, &response); err != nil {
 		return response.Result, remote.UnavailableError(err)
 	}
 	return response.Result, extractError(response.ErrorResponse)
@@ -295,7 +320,7 @@ func (n *NATS) Connect(instID service.InstanceID) (remote.Platform, error) {
 // remote.FatalError returned when processing requests will result
 // in the platform being deregistered, with the error put on the
 // channel `done`.
-func (n *NATS) Subscribe(instID service.InstanceID, platform remote.Platform, done chan<- error) {
+func (n *NATS) Subscribe(ctx context.Context, instID service.InstanceID, platform remote.Platform, done chan<- error) {
 	requests := make(chan *nats.Msg)
 	sub, err := n.raw.ChanSubscribe(string(instID)+".Platform.>", requests)
 	if err != nil {
@@ -319,6 +344,11 @@ func (n *NATS) Subscribe(instID service.InstanceID, platform remote.Platform, do
 		defer forceReconnect.Stop()
 		for {
 			select {
+			case <-ctx.Done():
+				sub.Unsubscribe()
+				close(requests)
+				done <- ctx.Err()
+				return
 			// If both an error and a request are available, the runtime may
 			// chose (by uniform pseudo-random selection) to process the
 			// request first. This may seem like a problem, but even if we were
@@ -336,7 +366,7 @@ func (n *NATS) Subscribe(instID service.InstanceID, platform remote.Platform, do
 				// Some of these operations (Apply in particular) can block for a long time;
 				// dispatch in a goroutine and deliver any errors back to us so that we can
 				// clean up on any hard failures.
-				go n.processRequest(request, instID, platform, myID, errc)
+				go n.processRequest(ctx, request, instID, platform, myID, errc)
 			case <-forceReconnect.C:
 				sub.Unsubscribe()
 				close(requests)
@@ -347,7 +377,7 @@ func (n *NATS) Subscribe(instID service.InstanceID, platform remote.Platform, do
 	}()
 }
 
-func (n *NATS) processRequest(request *nats.Msg, instID service.InstanceID, platform remote.Platform, myID string, errc chan<- error) {
+func (n *NATS) processRequest(ctx context.Context, request *nats.Msg, instID service.InstanceID, platform remote.Platform, myID string, errc chan<- error) {
 	var err error
 	switch {
 	case strings.HasSuffix(request.Subject, methodKick):
@@ -361,13 +391,13 @@ func (n *NATS) processRequest(request *nats.Msg, instID service.InstanceID, plat
 		var p pingReq
 		err = encoder.Decode(request.Subject, request.Data, &p)
 		if err == nil {
-			err = platform.Ping()
+			err = platform.Ping(ctx)
 		}
 		n.enc.Publish(request.Reply, PingResponse{makeErrorResponse(err)})
 
 	case strings.HasSuffix(request.Subject, methodVersion):
 		var vsn string
-		vsn, err = platform.Version()
+		vsn, err = platform.Version(ctx)
 		n.enc.Publish(request.Reply, VersionResponse{vsn, makeErrorResponse(err)})
 
 	case strings.HasSuffix(request.Subject, methodExport):
@@ -377,7 +407,7 @@ func (n *NATS) processRequest(request *nats.Msg, instID service.InstanceID, plat
 		)
 		err = encoder.Decode(request.Subject, request.Data, &req)
 		if err == nil {
-			bytes, err = platform.Export()
+			bytes, err = platform.Export(ctx)
 		}
 		n.enc.Publish(request.Reply, ExportResponse{bytes, makeErrorResponse(err)})
 
@@ -388,7 +418,7 @@ func (n *NATS) processRequest(request *nats.Msg, instID service.InstanceID, plat
 		)
 		err = encoder.Decode(request.Subject, request.Data, &namespace)
 		if err == nil {
-			res, err = platform.ListServices(namespace)
+			res, err = platform.ListServices(ctx, namespace)
 		}
 		n.enc.Publish(request.Reply, ListServicesResponse{res, makeErrorResponse(err)})
 
@@ -399,7 +429,7 @@ func (n *NATS) processRequest(request *nats.Msg, instID service.InstanceID, plat
 		)
 		err = encoder.Decode(request.Subject, request.Data, &req)
 		if err == nil {
-			res, err = platform.ListImages(req)
+			res, err = platform.ListImages(ctx, req)
 		}
 		n.enc.Publish(request.Reply, ListImagesResponse{res, makeErrorResponse(err)})
 
@@ -410,7 +440,7 @@ func (n *NATS) processRequest(request *nats.Msg, instID service.InstanceID, plat
 		)
 		err = encoder.Decode(request.Subject, request.Data, &req)
 		if err == nil {
-			res, err = platform.UpdateManifests(req)
+			res, err = platform.UpdateManifests(ctx, req)
 		}
 		n.enc.Publish(request.Reply, UpdateManifestsResponse{res, makeErrorResponse(err)})
 
@@ -418,7 +448,7 @@ func (n *NATS) processRequest(request *nats.Msg, instID service.InstanceID, plat
 		var p syncReq
 		err = encoder.Decode(request.Subject, request.Data, &p)
 		if err == nil {
-			err = platform.SyncNotify()
+			err = platform.SyncNotify(ctx)
 		}
 		n.enc.Publish(request.Reply, SyncNotifyResponse{makeErrorResponse(err)})
 
@@ -429,7 +459,7 @@ func (n *NATS) processRequest(request *nats.Msg, instID service.InstanceID, plat
 		)
 		err = encoder.Decode(request.Subject, request.Data, &req)
 		if err == nil {
-			res, err = platform.JobStatus(req)
+			res, err = platform.JobStatus(ctx, req)
 		}
 		n.enc.Publish(request.Reply, JobStatusResponse{
 			Result:        res,
@@ -443,7 +473,7 @@ func (n *NATS) processRequest(request *nats.Msg, instID service.InstanceID, plat
 		)
 		err = encoder.Decode(request.Subject, request.Data, &req)
 		if err == nil {
-			res, err = platform.SyncStatus(req)
+			res, err = platform.SyncStatus(ctx, req)
 		}
 		n.enc.Publish(request.Reply, SyncStatusResponse{res, makeErrorResponse(err)})
 
@@ -454,7 +484,7 @@ func (n *NATS) processRequest(request *nats.Msg, instID service.InstanceID, plat
 		)
 		err = encoder.Decode(request.Subject, request.Data, &req)
 		if err == nil {
-			res, err = platform.GitRepoConfig(req)
+			res, err = platform.GitRepoConfig(ctx, req)
 		}
 		n.enc.Publish(request.Reply, GitRepoConfigResponse{res, makeErrorResponse(err)})
 

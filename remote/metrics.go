@@ -1,6 +1,7 @@
 package remote
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -31,102 +32,102 @@ func Instrument(p Platform) Platform {
 	return &instrumentedPlatform{p}
 }
 
-func (i *instrumentedPlatform) Ping() (err error) {
+func (i *instrumentedPlatform) Ping(ctx context.Context) (err error) {
 	defer func(begin time.Time) {
 		requestDuration.With(
 			fluxmetrics.LabelMethod, "Ping",
 			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
 	}(time.Now())
-	return i.p.Ping()
+	return i.p.Ping(ctx)
 }
 
-func (i *instrumentedPlatform) Version() (v string, err error) {
+func (i *instrumentedPlatform) Version(ctx context.Context) (v string, err error) {
 	defer func(begin time.Time) {
 		requestDuration.With(
 			fluxmetrics.LabelMethod, "Version",
 			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
 	}(time.Now())
-	return i.p.Version()
+	return i.p.Version(ctx)
 }
 
-func (i *instrumentedPlatform) Export() (config []byte, err error) {
+func (i *instrumentedPlatform) Export(ctx context.Context) (config []byte, err error) {
 	defer func(begin time.Time) {
 		requestDuration.With(
 			fluxmetrics.LabelMethod, "Export",
 			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
 	}(time.Now())
-	return i.p.Export()
+	return i.p.Export(ctx)
 }
 
-func (i *instrumentedPlatform) ListServices(namespace string) (_ []flux.ServiceStatus, err error) {
+func (i *instrumentedPlatform) ListServices(ctx context.Context, namespace string) (_ []flux.ServiceStatus, err error) {
 	defer func(begin time.Time) {
 		requestDuration.With(
 			fluxmetrics.LabelMethod, "ListServices",
 			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
 	}(time.Now())
-	return i.p.ListServices(namespace)
+	return i.p.ListServices(ctx, namespace)
 }
 
-func (i *instrumentedPlatform) ListImages(spec update.ServiceSpec) (_ []flux.ImageStatus, err error) {
+func (i *instrumentedPlatform) ListImages(ctx context.Context, spec update.ServiceSpec) (_ []flux.ImageStatus, err error) {
 	defer func(begin time.Time) {
 		requestDuration.With(
 			fluxmetrics.LabelMethod, "ListImages",
 			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
 	}(time.Now())
-	return i.p.ListImages(spec)
+	return i.p.ListImages(ctx, spec)
 }
 
-func (i *instrumentedPlatform) UpdateManifests(spec update.Spec) (_ job.ID, err error) {
+func (i *instrumentedPlatform) UpdateManifests(ctx context.Context, spec update.Spec) (_ job.ID, err error) {
 	defer func(begin time.Time) {
 		requestDuration.With(
 			fluxmetrics.LabelMethod, "UpdateManifests",
 			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
 	}(time.Now())
-	return i.p.UpdateManifests(spec)
+	return i.p.UpdateManifests(ctx, spec)
 }
 
-func (i *instrumentedPlatform) SyncNotify() (err error) {
+func (i *instrumentedPlatform) SyncNotify(ctx context.Context) (err error) {
 	defer func(begin time.Time) {
 		requestDuration.With(
 			fluxmetrics.LabelMethod, "SyncNotify",
 			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
 	}(time.Now())
-	return i.p.SyncNotify()
+	return i.p.SyncNotify(ctx)
 }
 
-func (i *instrumentedPlatform) JobStatus(id job.ID) (_ job.Status, err error) {
+func (i *instrumentedPlatform) JobStatus(ctx context.Context, id job.ID) (_ job.Status, err error) {
 	defer func(begin time.Time) {
 		requestDuration.With(
 			fluxmetrics.LabelMethod, "JobStatus",
 			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
 	}(time.Now())
-	return i.p.JobStatus(id)
+	return i.p.JobStatus(ctx, id)
 }
 
-func (i *instrumentedPlatform) SyncStatus(cursor string) (_ []string, err error) {
+func (i *instrumentedPlatform) SyncStatus(ctx context.Context, cursor string) (_ []string, err error) {
 	defer func(begin time.Time) {
 		requestDuration.With(
 			fluxmetrics.LabelMethod, "SyncStatus",
 			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
 	}(time.Now())
-	return i.p.SyncStatus(cursor)
+	return i.p.SyncStatus(ctx, cursor)
 }
 
-func (i *instrumentedPlatform) GitRepoConfig(regenerate bool) (_ flux.GitConfig, err error) {
+func (i *instrumentedPlatform) GitRepoConfig(ctx context.Context, regenerate bool) (_ flux.GitConfig, err error) {
 	defer func(begin time.Time) {
 		requestDuration.With(
 			fluxmetrics.LabelMethod, "GitRepoConfig",
 			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
 	}(time.Now())
-	return i.p.GitRepoConfig(regenerate)
+	return i.p.GitRepoConfig(ctx, regenerate)
 }
