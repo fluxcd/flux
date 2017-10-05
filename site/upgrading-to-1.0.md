@@ -1,25 +1,30 @@
-# Upgrading to Flux 1.0
+---
+title: Upgrading to Flux v1
+menu_order: 100
+---
 
-Flux 1.0 is a major improvement over the previous versions, and is
+# Upgrading to Flux v1
+
+Flux v1 is a major improvement over the previous versions, and is
 different enough that you need to do a bit of work to upgrade it.
 
 In previous releases of Flux, much of the work was done by the
 service. This meant that to get a useful system, you had to run both
 the daemon and the service in your cluster, or connect the daemon to
-Weave Cloud. In version 1.0, the daemon does all of the mechanical
+Weave Cloud. In version 1, the daemon does all of the mechanical
 work by itself, and Weave Cloud “merely” adds a web user interface and
 integrations, e.g., with Slack.
 
-## Differences between Old Flux and Flux 1.0
+## Differences between Old Flux and Flux v1
 
-In version 1.0 the daemon is more self-sufficient and easier to set
+In version 1 the daemon is more self-sufficient and easier to set
 up. It is also more capable, and in particular, it now synchronises
 your cluster with the manifests you keep in git -- enabling you to use
 git (and GitHub) workflows to manage your cluster.
 
 <table>
  <thead>
-  <tr><th>Old Flux</th><th>Flux 1.0 </th></tr>
+  <tr><th>Old Flux</th><th>Flux v1</th></tr>
  </thead>
  <tr><th>Setting up the repo</th></tr>
  <tr>
@@ -83,7 +88,7 @@ First, it will help in a few places to have an old fluxctl
 around. Download it from GitHub:
 
     curl -o fluxctl_030 https://github.com/weaveworks/flux/releases/download/0.3.0/fluxctl_linux_amd64
-    # or if using MaxOSX,
+    # or if using macOS,
     # curl -o fluxctl_030 https://github.com/weaveworks/flux/releases/download/0.3.0/fluxctl_darwin_amd64
     chmod a+x ./fluxctl_030
 
@@ -234,15 +239,15 @@ help; or use kubectl to look for likely suspects.
 
 Have a look for deployments and services with “flux” in the name.
 
-### I deleted the Flux resources but when I install Flux 1.0 they come back
+### I deleted the Flux resources but when I install Flux v1 they come back
 
 The most likely explanation is that you have manifests for the
-resources in your config repo. When Flux 1.0 starts, it does a sync --
+resources in your config repo. When Flux v1 starts, it does a sync --
 and if there are manifests for the old Flux still in git, it will
 create those as resources.
 
 If that’s the case, you will need to remove the manifests from git
-before running Flux 1.0. You can download manifests from Weave Cloud,
+before running Flux v1. You can download manifests from Weave Cloud,
 or adapt those given in the repo, if you want to check them back in.
 
 ### Something else went wrong
