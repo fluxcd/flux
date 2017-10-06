@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/go-kit/kit/log"
@@ -42,11 +43,14 @@ func (a *Remote) Tags(id flux.ImageID) ([]string, error) {
 func (a *Remote) Manifest(id flux.ImageID) (flux.Image, error) {
 	manifestV2, err := a.Registry.ManifestV2(id.Image, id.Tag)
 	if err != nil {
-		if err, ok := err.(*dockerregistry.HttpStatusError); ok {
-			if err.Response.StatusCode == http.StatusNotFound {
-				return a.ManifestFromV1(id)
+		if err, ok := err.(*url.Error); ok {
+			if err, ok := (err.Err).(*dockerregistry.HttpStatusError); ok {
+				if err.Response.StatusCode == http.StatusNotFound {
+					return a.ManifestFromV1(id)
+				}
 			}
 		}
+		fmt.Printf("%#v\n", err)
 		return flux.Image{}, err
 	}
 	// The above request will happily return a bogus, empty manifest
