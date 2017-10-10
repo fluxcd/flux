@@ -2,6 +2,7 @@ package git
 
 import (
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -198,6 +199,7 @@ func (c *Checkout) Pull(ctx context.Context) error {
 		// this fetches and updates the local ref, so we'll see the new
 		// notes; but it's possible that the upstream doesn't have this
 		// ref.
+		fmt.Printf("\n@@@ node = %v\n\n", ref)
 		if err := fetch(ctx, c.repo.KeyRing, c.Dir, c.repo.URL, ref); err != nil {
 			return err
 		}

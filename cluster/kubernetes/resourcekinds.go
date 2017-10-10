@@ -85,7 +85,7 @@ func (dk *deploymentKind) getPodControllers(c *Cluster, namespace string) ([]pod
 	}
 
 	var podControllers []podController
-	for i, _ := range deployments.Items {
+	for i := range deployments.Items {
 		podControllers = append(podControllers, makeDeploymentPodController(&deployments.Items[i]))
 	}
 
