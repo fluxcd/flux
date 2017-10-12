@@ -1,4 +1,4 @@
-CREATE INDEX events_instance_id_started_at_idx ON events USING btree(instance_id, started_at);
+CREATE INDEX events_instance_id_started_at_desc_idx ON events USING btree(instance_id, started_at DESC);
 
 CREATE INDEX jobs_instance_id_idx ON jobs USING btree(instance_id);
 CREATE INDEX jobs_busy_instance_id_idx ON jobs USING btree(instance_id) WHERE claimed_at IS NOT NULL AND finished_at IS NULL;
