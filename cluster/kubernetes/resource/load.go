@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/pkg/errors"
 	"github.com/weaveworks/flux/resource"
 )
 
@@ -19,16 +20,16 @@ func Load(roots ...string) (map[string]resource.Resource, error) {
 	for _, root := range roots {
 		err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 			if err != nil {
-				return fmt.Errorf(`walking %q for yamels: %s`, path, err.Error())
+				return errors.Wrapf(err, "walking %q for yamels", path)
 			}
 			if !info.IsDir() && filepath.Ext(path) == ".yaml" || filepath.Ext(path) == ".yml" {
 				bytes, err := ioutil.ReadFile(path)
 				if err != nil {
-					return fmt.Errorf(`reading file at "%s": %s`, path, err.Error())
+					return errors.Wrapf(err, "reading file at %q", path)
 				}
 				docsInFile, err := ParseMultidoc(bytes, path)
 				if err != nil {
-					return fmt.Errorf(`parsing file at "%s": %s`, path, err.Error())
+					return errors.Wrapf(err, "parsing file at %q", path)
 				}
 				for id, obj := range docsInFile {
 					if alreadyDefined, ok := objs[id]; ok {
@@ -57,7 +58,7 @@ func ParseMultidoc(multidoc []byte, source string) (map[string]resource.Resource
 	var err error
 	for chunks.Scan() {
 		if obj, err = unmarshalObject(source, chunks.Bytes()); err != nil {
-			return nil, fmt.Errorf(`parsing YAML doc from "%s": %s`, source, err.Error())
+			return nil, errors.Wrapf(err, "parsing YAML doc from %q", source)
 		}
 		if obj == nil {
 			continue
@@ -66,7 +67,7 @@ func ParseMultidoc(multidoc []byte, source string) (map[string]resource.Resource
 	}
 
 	if err := chunks.Err(); err != nil {
-		return objs, fmt.Errorf(`scanning multidoc from "%s": %s`, source, err.Error())
+		return objs, errors.Wrapf(err, "scanning multidoc from %q", source)
 	}
 	return objs, nil
 }
