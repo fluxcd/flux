@@ -6,6 +6,7 @@ import (
 	yaml "gopkg.in/yaml.v2"
 
 	"github.com/weaveworks/flux"
+	fluxerr "github.com/weaveworks/flux/errors"
 	"github.com/weaveworks/flux/policy"
 	"github.com/weaveworks/flux/resource"
 )
@@ -70,7 +71,17 @@ func unmarshalObject(source string, bytes []byte) (resource.Resource, error) {
 	if err := yaml.Unmarshal(bytes, &base); err != nil {
 		return nil, err
 	}
+	r, err := unmarshalKind(base, bytes)
+	if err != nil {
+		return nil, &fluxerr.Error{
+			Type: fluxerr.User,
+			Err:  err,
+		}
+	}
+	return r, nil
+}
 
+func unmarshalKind(base baseObject, bytes []byte) (resource.Resource, error) {
 	switch base.Kind {
 	case "CronJob":
 		var cj = CronJob{baseObject: base}
