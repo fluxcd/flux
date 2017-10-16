@@ -1,5 +1,3 @@
-package nats
-
 /* A `MessageBus` implementation that uses NATS (https://nats.io/).
 
 The responsibility of the MessageBus is to:
@@ -48,3 +46,5 @@ recapitulate as application errors saying "the daemon is
 unavailable").
 
 */
+
+package nats
