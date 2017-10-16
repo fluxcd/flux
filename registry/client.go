@@ -31,13 +31,13 @@ type Remote struct {
 
 // Return the tags for this repository.
 func (a *Remote) Tags(id flux.ImageID) ([]string, error) {
-	return a.Registry.Tags(id.NamespaceImage())
+	return a.Registry.Tags(id.Image)
 }
 
 // We need to do some adapting here to convert from the return values
 // from dockerregistry to our domain types.
 func (a *Remote) Manifest(id flux.ImageID) (flux.Image, error) {
-	history, err := a.Registry.Manifest(id.NamespaceImage(), id.Tag)
+	history, err := a.Registry.Manifest(id.Image, id.Tag)
 	if err != nil || history == nil {
 		return flux.Image{}, errors.Wrap(err, "getting remote manifest")
 	}

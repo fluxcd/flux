@@ -126,7 +126,7 @@ func (w *Warmer) warm(id flux.ImageID, creds Credentials) {
 	w.Logger.Log("fetching", id.String(), "to-update", len(toUpdate))
 
 	if expired {
-		w.Logger.Log("expiring", id.HostNamespaceImage())
+		w.Logger.Log("expiring", id.HostImage())
 	}
 
 	// The upper bound for concurrent fetches against a single host is
@@ -168,7 +168,7 @@ func (w *Warmer) warm(id flux.ImageID, creds Credentials) {
 		}(imID)
 	}
 	awaitFetchers.Wait()
-	w.Logger.Log("updated", id.HostNamespaceImage())
+	w.Logger.Log("updated", id.HostImage())
 }
 
 func withinExpiryBuffer(expiry time.Time, buffer time.Duration) bool {
