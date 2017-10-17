@@ -144,17 +144,18 @@ key used by Flux with
 
 To run the new Flux with Weave Cloud: 
 
- * Go to your instance settings (the cog icon) and click “Deploy Config”
+ * Go to your instance settings (the cog icon) and click the “Config”
+   then “Deploy” menu items
  * Enter the git URL, path and branch values from the saved config
-   (old-config.yaml)
+   (in `old-config.yaml`)
  * Run the `kubectl` command shown below the form.
- * Wait for the 
- * Follow the instructions below that to push the deploy key (this is
-   also a good opportunity to delete any old keys, if you didn’t do
-   that above).
+ * Following the instructions underneath the command, to install the
+   deploy key (this is also a good opportunity to delete any old keys,
+   if you didn’t do that above).
+ * Wait for the big red "Agent not configured" message to clear.
 
-You should now be able to click the “Deploy” tab and see your running
-system (again), with the updated Flux daemon.
+You should now be able to click the “Deploy” tab at the top and see
+your running system (again), with the updated Flux daemon.
 
 ## If you are running Flux in "standalone" mode
 
