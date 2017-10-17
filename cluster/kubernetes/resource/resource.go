@@ -73,10 +73,7 @@ func unmarshalObject(source string, bytes []byte) (resource.Resource, error) {
 	}
 	r, err := unmarshalKind(base, bytes)
 	if err != nil {
-		return nil, &fluxerr.Error{
-			Type: fluxerr.User,
-			Err:  err,
-		}
+		return nil, makeUnmarshalObjectErr(source, err)
 	}
 	return r, nil
 }
@@ -124,6 +121,17 @@ func unmarshalKind(base baseObject, bytes []byte) (resource.Resource, error) {
 	// treat specially
 	default:
 		return &base, nil
+	}
+}
+
+func makeUnmarshalObjectErr(source string, err error) *fluxerr.Error {
+	return &fluxerr.Error{
+		Type: fluxerr.User,
+		Err:  err,
+		Help: `Could not parse "` + source + `".
+
+This likely means it is malformed YAML.
+`,
 	}
 }
 
