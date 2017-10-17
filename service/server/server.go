@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -23,13 +24,14 @@ import (
 )
 
 type Server struct {
-	version     string
-	instancer   instance.Instancer
-	config      instance.DB
-	messageBus  bus.MessageBus
-	logger      log.Logger
-	maxPlatform chan struct{} // semaphore for concurrent calls to the platform
-	connected   int32
+	version             string
+	instancer           instance.Instancer
+	config              instance.DB
+	messageBus          bus.MessageBus
+	logger              log.Logger
+	maxPlatform         chan struct{} // semaphore for concurrent calls to the platform
+	connected           int32
+	defaultEventsConfig *instance.Config
 }
 
 func New(
@@ -38,15 +40,17 @@ func New(
 	config instance.DB,
 	messageBus bus.MessageBus,
 	logger log.Logger,
+	eventsConfig *instance.Config,
 ) *Server {
 	connectedDaemons.Set(0)
 	return &Server{
-		version:     version,
-		instancer:   instancer,
-		config:      config,
-		messageBus:  messageBus,
-		logger:      logger,
-		maxPlatform: make(chan struct{}, 8),
+		version:             version,
+		instancer:           instancer,
+		config:              config,
+		messageBus:          messageBus,
+		logger:              logger,
+		maxPlatform:         make(chan struct{}, 8),
+		defaultEventsConfig: eventsConfig,
 	}
 }
 
@@ -221,9 +225,17 @@ func (s *Server) LogEvent(ctx context.Context, e event.Event) error {
 		return errors.Wrapf(err, "logging event")
 	}
 
-	cfg, err := helper.Config.Get()
-	if err != nil {
-		return errors.Wrapf(err, "getting config")
+	// Override the users's slack settings if an events-url flag is provided.
+	var cfg instance.Config
+	if s.defaultEventsConfig != nil {
+		cfg = *s.defaultEventsConfig
+		cfg.Settings.Slack.HookURL = strings.Replace(cfg.Settings.Slack.HookURL, "{instanceID}", string(instID), 1)
+	} else {
+		// Save a database call if we are overriding with an events-url flag
+		cfg, err = helper.Config.Get()
+		if err != nil {
+			return errors.Wrapf(err, "getting config")
+		}
 	}
 	err = notifications.Event(cfg, e)
 	if err != nil {
