@@ -9,7 +9,7 @@ Ensure the repository is checked out into $GOPATH/src/github.com/weaveworks/flux
 Then, from the root,
 
 ```
-$ dep ensure
+$ dep ensure && dep prune
 # .. time passes ..
 $ make
 ```
