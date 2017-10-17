@@ -112,13 +112,14 @@ later:
 
 ### Remove old Flux resources
 
-> *Important! If you have Flux resources committed to git*
-> 
-> The first thing to do is remove any manifests for running Flux that
-> you have stored in git. Otherwise, when the new Flux daemon runs it
-> will restore the old configuration.
+> *Important! If you have Flux resources committed to git* The first
+> thing to do is remove any manifests for running Flux that you have
+> stored in git, before deleting them in the cluster
+> (below). Otherwise, when the new Flux daemon runs it will restore
+> the old configuration.
 
-Run Weave Cloud’s launch generator to delete the resources:
+Run Weave Cloud’s launch generator to delete the resources in the
+cluster:
 
     kubectl delete -n kube-system -f \
       https://cloud.weave.works/k8s/flux.yaml?flux-version=0.3.0”
@@ -174,8 +175,9 @@ Before making any changes, get the config so that it can be consulted later:
 > *Important! If you have Flux resources committed to git*
 >
 > The first thing to do here is to remove any manifests for running
-> flux you have stored in git. If you don’t remove these, running the
-> new flux daemon will restore the old configuration!
+> flux you have stored in git, before deleting them in the cluster
+> (below). If you don’t remove these, running the new flux daemon will
+> restore the old configuration.
 
 You can delete the Flux resources by referring to the manifest files
 used to create them. If you don’t have the files on hand, you can try
