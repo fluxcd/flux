@@ -12,9 +12,9 @@ import (
 
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster"
+	"github.com/weaveworks/flux/event"
 	"github.com/weaveworks/flux/git"
 	"github.com/weaveworks/flux/guid"
-	"github.com/weaveworks/flux/history"
 	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/policy"
 	"github.com/weaveworks/flux/registry"
@@ -43,7 +43,7 @@ type Daemon struct {
 	Checkout       *git.Checkout
 	Jobs           *job.Queue
 	JobStatusCache *job.StatusCache
-	EventWriter    history.EventWriter
+	EventWriter    event.EventWriter
 	Logger         log.Logger
 	// bookkeeping
 	*LoopVars
@@ -129,7 +129,7 @@ func (d *Daemon) ListImages(ctx context.Context, spec update.ResourceSpec) ([]fl
 // Let's use the CommitEventMetadata as a convenient transport for the
 // results of a job; if no commit was made (e.g., if it was a dry
 // run), leave the revision field empty.
-type DaemonJobFunc func(ctx context.Context, jobID job.ID, working *git.Checkout, logger log.Logger) (*history.CommitEventMetadata, error)
+type DaemonJobFunc func(ctx context.Context, jobID job.ID, working *git.Checkout, logger log.Logger) (*event.CommitEventMetadata, error)
 
 // Must cancel the context once this job is complete
 func (d *Daemon) queueJob(do DaemonJobFunc) job.ID {
@@ -165,12 +165,12 @@ func (d *Daemon) queueJob(do DaemonJobFunc) job.ID {
 						serviceIDs = append(serviceIDs, id)
 					}
 				}
-				return d.LogEvent(history.Event{
+				return d.LogEvent(event.Event{
 					ServiceIDs: serviceIDs,
-					Type:       history.EventCommit,
+					Type:       event.EventCommit,
 					StartedAt:  started,
 					EndedAt:    started,
-					LogLevel:   history.LogLevelInfo,
+					LogLevel:   event.LogLevelInfo,
 					Metadata:   metadata,
 				})
 			}
@@ -199,10 +199,10 @@ func (d *Daemon) UpdateManifests(ctx context.Context, spec update.Spec) (job.ID,
 }
 
 func (d *Daemon) updatePolicy(spec update.Spec, updates policy.Updates) DaemonJobFunc {
-	return func(ctx context.Context, jobID job.ID, working *git.Checkout, logger log.Logger) (*history.CommitEventMetadata, error) {
+	return func(ctx context.Context, jobID job.ID, working *git.Checkout, logger log.Logger) (*event.CommitEventMetadata, error) {
 		// For each update
 		var serviceIDs []flux.ResourceID
-		metadata := &history.CommitEventMetadata{
+		metadata := &event.CommitEventMetadata{
 			Spec:   &spec,
 			Result: update.Result{},
 		}
@@ -280,7 +280,7 @@ func (d *Daemon) updatePolicy(spec update.Spec, updates policy.Updates) DaemonJo
 }
 
 func (d *Daemon) release(spec update.Spec, c release.Changes) DaemonJobFunc {
-	return func(ctx context.Context, jobID job.ID, working *git.Checkout, logger log.Logger) (*history.CommitEventMetadata, error) {
+	return func(ctx context.Context, jobID job.ID, working *git.Checkout, logger log.Logger) (*event.CommitEventMetadata, error) {
 		rc := release.NewReleaseContext(d.Cluster, d.Manifests, d.Registry, working)
 		result, err := release.Release(rc, c, logger)
 		if err != nil {
@@ -310,7 +310,7 @@ func (d *Daemon) release(spec update.Spec, c release.Changes) DaemonJobFunc {
 				return nil, err
 			}
 		}
-		return &history.CommitEventMetadata{
+		return &event.CommitEventMetadata{
 			Revision: revision,
 			Spec:     &spec,
 			Result:   result,
@@ -354,7 +354,7 @@ func (d *Daemon) JobStatus(ctx context.Context, jobID job.ID) (job.Status, error
 			if note != nil && note.JobID == jobID {
 				return job.Status{
 					StatusString: job.StatusSucceeded,
-					Result: history.CommitEventMetadata{
+					Result: event.CommitEventMetadata{
 						Revision: commit.Revision,
 						Spec:     &note.Spec,
 						Result:   note.Result,
@@ -403,7 +403,7 @@ func unknownJobError(id job.ID) error {
 	return fmt.Errorf("unknown job %q", string(id))
 }
 
-func (d *Daemon) LogEvent(ev history.Event) error {
+func (d *Daemon) LogEvent(ev event.Event) error {
 	if d.EventWriter == nil {
 		d.Logger.Log("event", ev, "logupstream", "false")
 		return nil
@@ -467,18 +467,18 @@ func policyCommitMessage(us policy.Updates, cause update.Cause) string {
 // policyEvents builds a map of events (by type), for all the events in this set of
 // updates. There will be one event per type, containing all service ids
 // affected by that event. e.g. all automated services will share an event.
-func policyEvents(us policy.Updates, now time.Time) map[string]history.Event {
-	eventsByType := map[string]history.Event{}
+func policyEvents(us policy.Updates, now time.Time) map[string]event.Event {
+	eventsByType := map[string]event.Event{}
 	for serviceID, update := range us {
 		for _, eventType := range policyEventTypes(update) {
 			e, ok := eventsByType[eventType]
 			if !ok {
-				e = history.Event{
+				e = event.Event{
 					ServiceIDs: []flux.ResourceID{},
 					Type:       eventType,
 					StartedAt:  now,
 					EndedAt:    now,
-					LogLevel:   history.LogLevelInfo,
+					LogLevel:   event.LogLevelInfo,
 				}
 			}
 			e.ServiceIDs = append(e.ServiceIDs, serviceID)
@@ -494,22 +494,22 @@ func policyEventTypes(u policy.Update) []string {
 	for p, _ := range u.Add {
 		switch {
 		case p == policy.Automated:
-			types[history.EventAutomate] = struct{}{}
+			types[event.EventAutomate] = struct{}{}
 		case p == policy.Locked:
-			types[history.EventLock] = struct{}{}
+			types[event.EventLock] = struct{}{}
 		default:
-			types[history.EventUpdatePolicy] = struct{}{}
+			types[event.EventUpdatePolicy] = struct{}{}
 		}
 	}
 
 	for p, _ := range u.Remove {
 		switch {
 		case p == policy.Automated:
-			types[history.EventDeautomate] = struct{}{}
+			types[event.EventDeautomate] = struct{}{}
 		case p == policy.Locked:
-			types[history.EventUnlock] = struct{}{}
+			types[event.EventUnlock] = struct{}{}
 		default:
-			types[history.EventUpdatePolicy] = struct{}{}
+			types[event.EventUpdatePolicy] = struct{}{}
 		}
 	}
 	var result []string

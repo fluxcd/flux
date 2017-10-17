@@ -16,9 +16,8 @@ import (
 
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/db"
+	"github.com/weaveworks/flux/event"
 	"github.com/weaveworks/flux/guid"
-	"github.com/weaveworks/flux/history"
-	historysql "github.com/weaveworks/flux/history/sql"
 	transport "github.com/weaveworks/flux/http"
 	"github.com/weaveworks/flux/http/client"
 	httpdaemon "github.com/weaveworks/flux/http/daemon"
@@ -27,6 +26,8 @@ import (
 	"github.com/weaveworks/flux/service"
 	"github.com/weaveworks/flux/service/bus"
 	"github.com/weaveworks/flux/service/bus/nats"
+	"github.com/weaveworks/flux/service/history"
+	historysql "github.com/weaveworks/flux/service/history/sql"
 	httpserver "github.com/weaveworks/flux/service/http"
 	"github.com/weaveworks/flux/service/instance"
 	instancedb "github.com/weaveworks/flux/service/instance/sql"
@@ -291,8 +292,8 @@ func TestFluxsvc_History(t *testing.T) {
 
 	ctx := context.Background()
 
-	err := apiClient.LogEvent(ctx, history.Event{
-		Type: history.EventLock,
+	err := apiClient.LogEvent(ctx, event.Event{
+		Type: event.EventLock,
 		ServiceIDs: []flux.ResourceID{
 			flux.MustParseResourceID(helloWorldSvc),
 		},

@@ -6,7 +6,7 @@ import (
 	"github.com/Masterminds/squirrel"
 	"github.com/jmoiron/sqlx"
 
-	"github.com/weaveworks/flux/history"
+	"github.com/weaveworks/flux/service/history"
 )
 
 // A history DB that uses a SQL database

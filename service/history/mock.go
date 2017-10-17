@@ -6,27 +6,28 @@ import (
 	"time"
 
 	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/event"
 )
 
 type Mock struct {
-	events []Event
+	events []event.Event
 	sync.RWMutex
 }
 
-func NewMock() EventReadWriter {
+func NewMock() *Mock {
 	return &Mock{}
 }
 
-func (m *Mock) AllEvents(_ time.Time, _ int64, _ time.Time) ([]Event, error) {
+func (m *Mock) AllEvents(_ time.Time, _ int64, _ time.Time) ([]event.Event, error) {
 	m.RLock()
 	defer m.RUnlock()
 	return m.events, nil
 }
 
-func (m *Mock) EventsForService(serviceID flux.ResourceID, _ time.Time, _ int64, _ time.Time) ([]Event, error) {
+func (m *Mock) EventsForService(serviceID flux.ResourceID, _ time.Time, _ int64, _ time.Time) ([]event.Event, error) {
 	m.RLock()
 	defer m.RUnlock()
-	var found []Event
+	var found []event.Event
 	for _, e := range m.events {
 		set := flux.ResourceIDSet{}
 		set.Add(e.ServiceIDs)
@@ -37,7 +38,7 @@ func (m *Mock) EventsForService(serviceID flux.ResourceID, _ time.Time, _ int64,
 	return found, nil
 }
 
-func (m *Mock) GetEvent(id EventID) (Event, error) {
+func (m *Mock) GetEvent(id event.EventID) (event.Event, error) {
 	m.RLock()
 	defer m.RUnlock()
 	for _, e := range m.events {
@@ -45,10 +46,10 @@ func (m *Mock) GetEvent(id EventID) (Event, error) {
 			return e, nil
 		}
 	}
-	return Event{}, sql.ErrNoRows
+	return event.Event{}, sql.ErrNoRows
 }
 
-func (m *Mock) LogEvent(e Event) error {
+func (m *Mock) LogEvent(e event.Event) error {
 	m.Lock()
 	defer m.Unlock()
 	m.events = append(m.events, e)

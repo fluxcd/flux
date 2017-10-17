@@ -14,7 +14,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/weaveworks/flux"
-	"github.com/weaveworks/flux/history"
+	"github.com/weaveworks/flux/event"
 	"github.com/weaveworks/flux/service"
 	"github.com/weaveworks/flux/update"
 )
@@ -75,8 +75,8 @@ func hasNotifyEvent(config service.NotifierConfig, event string) bool {
 	return false
 }
 
-func slackNotifyRelease(config service.NotifierConfig, release *history.ReleaseEventMetadata, releaseError string) error {
-	if !hasNotifyEvent(config, history.EventRelease) {
+func slackNotifyRelease(config service.NotifierConfig, release *event.ReleaseEventMetadata, releaseError string) error {
+	if !hasNotifyEvent(config, event.EventRelease) {
 		return nil
 	}
 	// Sanity check: we shouldn't get any other kind, but you
@@ -87,7 +87,7 @@ func slackNotifyRelease(config service.NotifierConfig, release *history.ReleaseE
 	var attachments []SlackAttachment
 
 	text, err := instantiateTemplate("release", ReleaseTemplate, struct {
-		Release *history.ReleaseEventMetadata
+		Release *event.ReleaseEventMetadata
 	}{
 		Release: release,
 	})
@@ -124,8 +124,8 @@ func slackNotifyRelease(config service.NotifierConfig, release *history.ReleaseE
 	})
 }
 
-func slackNotifyAutoRelease(config service.NotifierConfig, release *history.AutoReleaseEventMetadata, releaseError string) error {
-	if !hasNotifyEvent(config, history.EventAutoRelease) {
+func slackNotifyAutoRelease(config service.NotifierConfig, release *event.AutoReleaseEventMetadata, releaseError string) error {
+	if !hasNotifyEvent(config, event.EventAutoRelease) {
 		return nil
 	}
 
@@ -153,16 +153,16 @@ func slackNotifyAutoRelease(config service.NotifierConfig, release *history.Auto
 	})
 }
 
-func slackNotifySync(config service.NotifierConfig, sync *history.Event) error {
-	if !hasNotifyEvent(config, history.EventSync) {
+func slackNotifySync(config service.NotifierConfig, sync *event.Event) error {
+	if !hasNotifyEvent(config, event.EventSync) {
 		return nil
 	}
 
-	details := sync.Metadata.(*history.SyncEventMetadata)
+	details := sync.Metadata.(*event.SyncEventMetadata)
 	// Only send a notification if this contains something other
 	// releases and autoreleases (and we were told what it contains)
 	if details.Includes != nil {
-		if _, ok := details.Includes[history.NoneOfTheAbove]; !ok {
+		if _, ok := details.Includes[event.NoneOfTheAbove]; !ok {
 			return nil
 		}
 	}
@@ -194,7 +194,7 @@ func slackResultAttachment(res update.Result) SlackAttachment {
 	}
 }
 
-func slackCommitsAttachment(ev *history.SyncEventMetadata) SlackAttachment {
+func slackCommitsAttachment(ev *event.SyncEventMetadata) SlackAttachment {
 	buf := &bytes.Buffer{}
 	fmt.Fprintln(buf, "```")
 

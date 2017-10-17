@@ -9,12 +9,13 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/weaveworks/flux"
-	"github.com/weaveworks/flux/history"
+	"github.com/weaveworks/flux/event"
 	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/policy"
 	"github.com/weaveworks/flux/remote"
 	"github.com/weaveworks/flux/service"
 	"github.com/weaveworks/flux/service/bus"
+	"github.com/weaveworks/flux/service/history"
 	"github.com/weaveworks/flux/service/instance"
 	"github.com/weaveworks/flux/service/notifications"
 	"github.com/weaveworks/flux/ssh"
@@ -202,7 +203,7 @@ func (s *Server) SyncStatus(ctx context.Context, ref string) (res []string, err 
 
 // LogEvent receives events from fluxd and pushes events to the history
 // db and a slack notification
-func (s *Server) LogEvent(ctx context.Context, e history.Event) error {
+func (s *Server) LogEvent(ctx context.Context, e event.Event) error {
 	instID, err := getInstanceID(ctx)
 	if err != nil {
 		return err
@@ -242,7 +243,7 @@ func (s *Server) History(ctx context.Context, spec update.ResourceSpec, before t
 		return nil, errors.Wrapf(err, "getting instance")
 	}
 
-	var events []history.Event
+	var events []event.Event
 	if spec == update.ResourceSpecAll {
 		events, err = helper.AllEvents(before, limit, after)
 		if err != nil {

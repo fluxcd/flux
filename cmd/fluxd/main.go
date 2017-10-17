@@ -25,8 +25,8 @@ import (
 	"github.com/weaveworks/flux/cluster"
 	"github.com/weaveworks/flux/cluster/kubernetes"
 	"github.com/weaveworks/flux/daemon"
+	"github.com/weaveworks/flux/event"
 	"github.com/weaveworks/flux/git"
-	"github.com/weaveworks/flux/history"
 	transport "github.com/weaveworks/flux/http"
 	daemonhttp "github.com/weaveworks/flux/http/daemon"
 	"github.com/weaveworks/flux/job"
@@ -298,7 +298,7 @@ func main() {
 
 	daemonRef := daemon.NewRef(notReadyDaemon)
 
-	var eventWriter history.EventWriter
+	var eventWriter event.EventWriter
 	{
 		// Connect to fluxsvc if given an upstream address
 		if *upstreamURL != "" {

@@ -12,8 +12,8 @@ import (
 
 	"context"
 	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/event"
 	"github.com/weaveworks/flux/git"
-	"github.com/weaveworks/flux/history"
 	fluxmetrics "github.com/weaveworks/flux/metrics"
 	"github.com/weaveworks/flux/resource"
 	fluxsync "github.com/weaveworks/flux/sync"
@@ -230,12 +230,12 @@ func (d *Daemon) doSync(logger log.Logger) (retErr error) {
 	// can skip the sync event if it wants to.
 	includes := make(map[string]bool)
 	if len(commits) > 0 {
-		var noteEvents []history.Event
+		var noteEvents []event.Event
 
 		// Find notes in revisions.
 		for i := len(commits) - 1; i >= 0; i-- {
 			if _, ok := notes[commits[i].Revision]; !ok {
-				includes[history.NoneOfTheAbove] = true
+				includes[event.NoneOfTheAbove] = true
 				continue
 			}
 			ctx, cancel := context.WithTimeout(ctx, gitOpTimeout)
@@ -245,7 +245,7 @@ func (d *Daemon) doSync(logger log.Logger) (retErr error) {
 				return errors.Wrap(err, "loading notes from repo")
 			}
 			if n == nil {
-				includes[history.NoneOfTheAbove] = true
+				includes[event.NoneOfTheAbove] = true
 				continue
 			}
 
@@ -267,14 +267,14 @@ func (d *Daemon) doSync(logger log.Logger) (retErr error) {
 			switch n.Spec.Type {
 			case update.Images:
 				spec := n.Spec.Spec.(update.ReleaseSpec)
-				noteEvents = append(noteEvents, history.Event{
+				noteEvents = append(noteEvents, event.Event{
 					ServiceIDs: serviceIDs.ToSlice(),
-					Type:       history.EventRelease,
+					Type:       event.EventRelease,
 					StartedAt:  started,
 					EndedAt:    time.Now().UTC(),
-					LogLevel:   history.LogLevelInfo,
-					Metadata: &history.ReleaseEventMetadata{
-						ReleaseEventCommon: history.ReleaseEventCommon{
+					LogLevel:   event.LogLevelInfo,
+					Metadata: &event.ReleaseEventMetadata{
+						ReleaseEventCommon: event.ReleaseEventCommon{
 							Revision: commits[i].Revision,
 							Result:   n.Result,
 							Error:    n.Result.Error(),
@@ -283,17 +283,17 @@ func (d *Daemon) doSync(logger log.Logger) (retErr error) {
 						Cause: n.Spec.Cause,
 					},
 				})
-				includes[history.EventRelease] = true
+				includes[event.EventRelease] = true
 			case update.Auto:
 				spec := n.Spec.Spec.(update.Automated)
-				noteEvents = append(noteEvents, history.Event{
+				noteEvents = append(noteEvents, event.Event{
 					ServiceIDs: serviceIDs.ToSlice(),
-					Type:       history.EventAutoRelease,
+					Type:       event.EventAutoRelease,
 					StartedAt:  started,
 					EndedAt:    time.Now().UTC(),
-					LogLevel:   history.LogLevelInfo,
-					Metadata: &history.AutoReleaseEventMetadata{
-						ReleaseEventCommon: history.ReleaseEventCommon{
+					LogLevel:   event.LogLevelInfo,
+					Metadata: &event.AutoReleaseEventMetadata{
+						ReleaseEventCommon: event.ReleaseEventCommon{
 							Revision: commits[i].Revision,
 							Result:   n.Result,
 							Error:    n.Result.Error(),
@@ -301,29 +301,29 @@ func (d *Daemon) doSync(logger log.Logger) (retErr error) {
 						Spec: spec,
 					},
 				})
-				includes[history.EventAutoRelease] = true
+				includes[event.EventAutoRelease] = true
 			case update.Policy:
 				// Use this to mean any change to policy
-				includes[history.EventUpdatePolicy] = true
+				includes[event.EventUpdatePolicy] = true
 			default:
 				// Presume it's not something we're otherwise sending
 				// as an event
-				includes[history.NoneOfTheAbove] = true
+				includes[event.NoneOfTheAbove] = true
 			}
 		}
 
-		cs := make([]history.Commit, len(commits))
+		cs := make([]event.Commit, len(commits))
 		for i, c := range commits {
 			cs[i].Revision = c.Revision
 			cs[i].Message = c.Message
 		}
-		if err = d.LogEvent(history.Event{
+		if err = d.LogEvent(event.Event{
 			ServiceIDs: serviceIDs.ToSlice(),
-			Type:       history.EventSync,
+			Type:       event.EventSync,
 			StartedAt:  started,
 			EndedAt:    started,
-			LogLevel:   history.LogLevelInfo,
-			Metadata: &history.SyncEventMetadata{
+			LogLevel:   event.LogLevelInfo,
+			Metadata: &event.SyncEventMetadata{
 				Commits:     cs,
 				InitialSync: initialSync,
 				Includes:    includes,

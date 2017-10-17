@@ -3,9 +3,10 @@ package instance
 import (
 	"github.com/go-kit/kit/log"
 
-	"github.com/weaveworks/flux/history"
+	"github.com/weaveworks/flux/event"
 	"github.com/weaveworks/flux/remote"
 	"github.com/weaveworks/flux/service"
+	"github.com/weaveworks/flux/service/history"
 )
 
 type Instancer interface {
@@ -18,7 +19,7 @@ type Instance struct {
 
 	log.Logger
 	history.EventReader
-	history.EventWriter
+	event.EventWriter
 }
 
 func New(
@@ -26,7 +27,7 @@ func New(
 	config Configurer,
 	logger log.Logger,
 	events history.EventReader,
-	eventlog history.EventWriter,
+	eventlog event.EventWriter,
 ) *Instance {
 	return &Instance{
 		Platform:    platform,
