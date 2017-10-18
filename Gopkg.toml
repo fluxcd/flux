@@ -12,7 +12,7 @@
 
 [[constraint]]
   name = "github.com/google/go-github"
-  revision = "dfd20fd7fa6edec56447fcb049acd5e17a78ec2e"
+  revision = "59aa6eea1c58ba063a0c3b90a16499cb39e6332a"
 
 [[override]]
   name = "gopkg.in/mattes/migrate.v1"
