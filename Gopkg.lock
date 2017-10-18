@@ -263,10 +263,10 @@
   revision = "3573b8b52aa7b37b9358d966a898feb387f62437"
 
 [[projects]]
-  branch = "handle-relative-nextlinks"
+  branch = "master"
   name = "github.com/heroku/docker-registry-client"
   packages = ["registry"]
-  revision = "b3603f23ac24c8127a10c8733476ccd28204e9b1"
+  revision = "2e2f1c58a06fae38b08307d1a834ae9c971a2467"
   source = "https://github.com/weaveworks/docker-registry-client.git"
 
 [[projects]]
@@ -517,6 +517,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "cf5c6757c5e36837765840141853fa100ad9e856cf8c0474216f668b012759b9"
+  inputs-digest = "7b8c8eaf027d0fe23661785bbc0685fd7284adbdb3366bb90508ded81e1f69f9"
   solver-name = "gps-cdcl"
   solver-version = 1
