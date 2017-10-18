@@ -18,7 +18,7 @@ import (
 	// drivers.
 	_ "github.com/cznic/ql/driver"
 	_ "github.com/lib/pq"
-	_ "github.com/weaveworks/flux/db/ql"
+	_ "github.com/weaveworks/flux/service/db/ql"
 	_ "gopkg.in/mattes/migrate.v1/driver/postgres"
 )
 

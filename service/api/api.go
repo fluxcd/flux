@@ -4,14 +4,15 @@ import (
 	"context"
 	"time"
 
-	"github.com/weaveworks/flux/history"
+	"github.com/weaveworks/flux/api"
 	"github.com/weaveworks/flux/service"
+	"github.com/weaveworks/flux/service/history"
 	"github.com/weaveworks/flux/update"
 )
 
 type Service interface {
-	Client
-	Upstream
+	api.Client
+	api.Upstream
 
 	Status(context.Context) (service.Status, error)
 	History(context.Context, update.ResourceSpec, time.Time, int64, time.Time) ([]history.Entry, error)

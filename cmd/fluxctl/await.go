@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/weaveworks/flux/api"
+	"github.com/weaveworks/flux/event"
 	"github.com/weaveworks/flux/git"
-	"github.com/weaveworks/flux/history"
 	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/update"
 )
@@ -46,8 +46,8 @@ func await(ctx context.Context, stdout, stderr io.Writer, client api.Client, job
 }
 
 // await polls for a job to have been completed, with exponential backoff.
-func awaitJob(ctx context.Context, client api.Client, jobID job.ID) (history.CommitEventMetadata, error) {
-	var result history.CommitEventMetadata
+func awaitJob(ctx context.Context, client api.Client, jobID job.ID) (event.CommitEventMetadata, error) {
+	var result event.CommitEventMetadata
 	err := backoff(100*time.Millisecond, 2, 50, 1*time.Minute, func() (bool, error) {
 		j, err := client.JobStatus(ctx, jobID)
 		if err != nil {

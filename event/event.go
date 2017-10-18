@@ -1,4 +1,4 @@
-package history
+package event
 
 import (
 	"fmt"
@@ -66,6 +66,11 @@ type Event struct {
 	// Metadata is Event.Type-specific metadata. If an event has no metadata,
 	// this will be nil.
 	Metadata EventMetadata `json:"metadata,omitempty"`
+}
+
+type EventWriter interface {
+	// LogEvent records a message in the history.
+	LogEvent(Event) error
 }
 
 func (e Event) ServiceIDStrings() []string {

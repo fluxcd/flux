@@ -14,7 +14,7 @@ import (
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 
 	"github.com/weaveworks/flux"
-	"github.com/weaveworks/flux/history"
+	"github.com/weaveworks/flux/event"
 	transport "github.com/weaveworks/flux/http"
 	fluxclient "github.com/weaveworks/flux/http/client"
 	"github.com/weaveworks/flux/http/websocket"
@@ -175,7 +175,7 @@ func (a *Upstream) setConnectionDuration(duration float64) {
 	connectionDuration.With("target", a.endpoint).Set(duration)
 }
 
-func (a *Upstream) LogEvent(event history.Event) error {
+func (a *Upstream) LogEvent(event event.Event) error {
 	// Instance ID is set via token here, so we can leave it blank.
 	return a.apiClient.LogEvent(context.TODO(), event)
 }

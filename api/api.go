@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/weaveworks/flux"
-	"github.com/weaveworks/flux/history"
+	"github.com/weaveworks/flux/event"
 	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/policy"
 	"github.com/weaveworks/flux/remote"
@@ -29,5 +29,5 @@ type Client interface {
 type Upstream interface {
 	RegisterDaemon(context.Context, remote.Platform) error
 	IsDaemonConnected(context.Context) error
-	LogEvent(context.Context, history.Event) error
+	LogEvent(context.Context, event.Event) error
 }

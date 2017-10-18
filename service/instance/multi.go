@@ -4,9 +4,9 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
 
-	"github.com/weaveworks/flux/history"
 	"github.com/weaveworks/flux/service"
 	"github.com/weaveworks/flux/service/bus"
+	"github.com/weaveworks/flux/service/history"
 )
 
 type MultitenantInstancer struct {
