@@ -20,12 +20,6 @@
   revision = "de5bf2ad457846296e2031421a34e2568e304e35"
 
 [[projects]]
-  name = "github.com/Sirupsen/logrus"
-  packages = ["."]
-  revision = "f006c2ac4710855cf0f916dd6b77acf6b048dc6e"
-  version = "v1.0.3"
-
-[[projects]]
   name = "github.com/asaskevich/govalidator"
   packages = ["."]
   revision = "73945b6115bfbbcc57d89b7316e28109364124e1"
@@ -104,10 +98,10 @@
   version = "v1.1.0"
 
 [[projects]]
+  branch = "master"
   name = "github.com/docker/distribution"
-  packages = [".","context","digest","manifest","manifest/schema1","manifest/schema2","reference","uuid"]
-  revision = "48294d928ced5dd9b378f7fd7c6f5da3ff3f2c89"
-  version = "v2.6.2"
+  packages = [".","digestset","manifest","manifest/schema1","manifest/schema2","reference"]
+  revision = "7484e51bf6af0d3b1a849644cdaced3cfcf13617"
 
 [[projects]]
   branch = "master"
@@ -269,11 +263,11 @@
   revision = "3573b8b52aa7b37b9358d966a898feb387f62437"
 
 [[projects]]
-  branch = "handle-relative-nextlinks"
+  branch = "master"
   name = "github.com/heroku/docker-registry-client"
   packages = ["registry"]
-  revision = "2b1d4773467efc125a91237e10268631398de074"
-  source = "https://github.com/paulbellamy/docker-registry-client.git"
+  revision = "2e2f1c58a06fae38b08307d1a834ae9c971a2467"
+  source = "https://github.com/weaveworks/docker-registry-client.git"
 
 [[projects]]
   name = "github.com/inconshreveable/mousetrap"
@@ -324,11 +318,6 @@
   revision = "2a92e673c9a6302dd05c3a691ae1f24aef46457d"
 
 [[projects]]
-  name = "github.com/mattes/migrate"
-  packages = ["driver","driver/postgres","file","migrate","migrate/direction","pipe"]
-  revision = "ce1b59bb819416ca67422929b1cb48bb342720b6"
-
-[[projects]]
   name = "github.com/matttproud/golang_protobuf_extensions"
   packages = ["pbutil"]
   revision = "3247c84500bff8d9fb6d579d800f20b3e091582c"
@@ -351,6 +340,12 @@
   packages = ["."]
   revision = "289cccf02c178dc782430d534e3c1f5b72af807f"
   version = "v1.0.0"
+
+[[projects]]
+  name = "github.com/opencontainers/go-digest"
+  packages = ["."]
+  revision = "279bed98673dd5bef374d3b6e4b09e2af76183bf"
+  version = "v1.0.0-rc1"
 
 [[projects]]
   name = "github.com/pkg/errors"
@@ -389,6 +384,12 @@
   version = "v0.1"
 
 [[projects]]
+  name = "github.com/sirupsen/logrus"
+  packages = ["."]
+  revision = "a3f95b5c423586578a4e099b11a46c2479628cac"
+  version = "1.0.2"
+
+[[projects]]
   branch = "master"
   name = "github.com/spf13/cobra"
   packages = ["."]
@@ -409,7 +410,7 @@
   branch = "master"
   name = "github.com/weaveworks/common"
   packages = ["errors","httpgrpc","logging","middleware","user"]
-  revision = "955c13089be4f5ee948aeca47af832d23e4bc394"
+  revision = "1df6402aaf7232feadf798b64c6a0cae847e84d8"
 
 [[projects]]
   branch = "master"
@@ -418,9 +419,15 @@
   revision = "ebbb8b0518ab326368631225cabc9435fe580dcc"
 
 [[projects]]
+  name = "github.com/weaveworks/promrus"
+  packages = ["."]
+  revision = "0599d764e054d4e983bb120e30759179fafe3942"
+  version = "v1.2.0"
+
+[[projects]]
   branch = "master"
   name = "golang.org/x/crypto"
-  packages = ["pbkdf2","scrypt","ssh/terminal"]
+  packages = ["pbkdf2","scrypt"]
   revision = "c84b36c635ad003a10f0c755dff5685ceef18c71"
 
 [[projects]]
@@ -438,7 +445,7 @@
 [[projects]]
   branch = "master"
   name = "golang.org/x/sys"
-  packages = ["unix","windows"]
+  packages = ["unix"]
   revision = "314a259e304ff91bd6985da2a7149bbf91237993"
 
 [[projects]]
@@ -478,6 +485,12 @@
   version = "v0.9.0"
 
 [[projects]]
+  name = "gopkg.in/mattes/migrate.v1"
+  packages = ["driver","driver/postgres","file","migrate","migrate/direction","pipe"]
+  revision = "afc973c4e5a6b746217c2d3950fcd110ed1ba349"
+  version = "v1.3.2"
+
+[[projects]]
   branch = "v2"
   name = "gopkg.in/mgo.v2"
   packages = ["bson","internal/json"]
@@ -504,6 +517,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "024a7b8ff1fe11667a508d388ed8055d62a53dacbf9173463aeeddf87b7b586a"
+  inputs-digest = "7b8c8eaf027d0fe23661785bbc0685fd7284adbdb3366bb90508ded81e1f69f9"
   solver-name = "gps-cdcl"
   solver-version = 1
