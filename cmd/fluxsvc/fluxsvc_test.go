@@ -15,7 +15,6 @@ import (
 	"io/ioutil"
 
 	"github.com/weaveworks/flux"
-	"github.com/weaveworks/flux/db"
 	"github.com/weaveworks/flux/event"
 	"github.com/weaveworks/flux/guid"
 	transport "github.com/weaveworks/flux/http"
@@ -26,6 +25,7 @@ import (
 	"github.com/weaveworks/flux/service"
 	"github.com/weaveworks/flux/service/bus"
 	"github.com/weaveworks/flux/service/bus/nats"
+	"github.com/weaveworks/flux/service/db"
 	"github.com/weaveworks/flux/service/history"
 	historysql "github.com/weaveworks/flux/service/history/sql"
 	httpserver "github.com/weaveworks/flux/service/http"
@@ -60,7 +60,7 @@ const (
 
 func setup(t *testing.T) {
 	databaseSource := "file://fluxy.db"
-	databaseMigrationsDir, _ := filepath.Abs("../../db/migrations")
+	databaseMigrationsDir, _ := filepath.Abs("../../service/db/migrations")
 	var dbDriver string
 	{
 		db.Migrate(databaseSource, databaseMigrationsDir)

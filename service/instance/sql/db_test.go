@@ -5,8 +5,8 @@ import (
 	"io/ioutil"
 	"testing"
 
-	"github.com/weaveworks/flux/db"
 	"github.com/weaveworks/flux/service"
+	"github.com/weaveworks/flux/service/db"
 	"github.com/weaveworks/flux/service/instance"
 )
 
@@ -16,7 +16,7 @@ func newDB(t *testing.T) *DB {
 		t.Fatal(err)
 	}
 	dbsource := "file://" + f.Name()
-	if _, err = db.Migrate(dbsource, "../../../db/migrations"); err != nil {
+	if _, err = db.Migrate(dbsource, "../../db/migrations"); err != nil {
 		t.Fatal(err)
 	}
 	db, err := New("ql", dbsource)

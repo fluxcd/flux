@@ -8,9 +8,9 @@ import (
 	"time"
 
 	"github.com/weaveworks/flux"
-	"github.com/weaveworks/flux/db"
 	"github.com/weaveworks/flux/event"
 	"github.com/weaveworks/flux/service"
+	"github.com/weaveworks/flux/service/db"
 	"github.com/weaveworks/flux/service/history"
 )
 

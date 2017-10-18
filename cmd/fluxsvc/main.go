@@ -13,9 +13,9 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/pflag"
 
-	"github.com/weaveworks/flux/db"
 	"github.com/weaveworks/flux/service/bus"
 	"github.com/weaveworks/flux/service/bus/nats"
+	"github.com/weaveworks/flux/service/db"
 	"github.com/weaveworks/flux/service/history"
 	historysql "github.com/weaveworks/flux/service/history/sql"
 	httpserver "github.com/weaveworks/flux/service/http"
