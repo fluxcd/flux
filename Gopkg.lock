@@ -324,11 +324,6 @@
   revision = "2a92e673c9a6302dd05c3a691ae1f24aef46457d"
 
 [[projects]]
-  name = "github.com/mattes/migrate"
-  packages = ["driver","driver/postgres","file","migrate","migrate/direction","pipe"]
-  revision = "ce1b59bb819416ca67422929b1cb48bb342720b6"
-
-[[projects]]
   name = "github.com/matttproud/golang_protobuf_extensions"
   packages = ["pbutil"]
   revision = "3247c84500bff8d9fb6d579d800f20b3e091582c"
@@ -478,6 +473,12 @@
   version = "v0.9.0"
 
 [[projects]]
+  name = "gopkg.in/mattes/migrate.v1"
+  packages = ["driver","driver/postgres","file","migrate","migrate/direction","pipe"]
+  revision = "afc973c4e5a6b746217c2d3950fcd110ed1ba349"
+  version = "v1.3.2"
+
+[[projects]]
   branch = "v2"
   name = "gopkg.in/mgo.v2"
   packages = ["bson","internal/json"]
@@ -504,6 +505,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "024a7b8ff1fe11667a508d388ed8055d62a53dacbf9173463aeeddf87b7b586a"
+  inputs-digest = "7e09292ac2896612bd1b5cded2cc8542087be3ac87ca636ada31f19487ec5b7a"
   solver-name = "gps-cdcl"
   solver-version = 1
