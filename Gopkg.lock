@@ -267,7 +267,7 @@
   name = "github.com/heroku/docker-registry-client"
   packages = ["registry"]
   revision = "2e2f1c58a06fae38b08307d1a834ae9c971a2467"
-  source = "https://github.com/weaveworks/docker-registry-client.git"
+  source = "github.com/weaveworks/docker-registry-client"
 
 [[projects]]
   name = "github.com/inconshreveable/mousetrap"
@@ -517,6 +517,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "7b8c8eaf027d0fe23661785bbc0685fd7284adbdb3366bb90508ded81e1f69f9"
+  inputs-digest = "202aaec71181f11c25dc1dd2a37cd55dbc7a06f551c4d3834a1cbd978972b090"
   solver-name = "gps-cdcl"
   solver-version = 1
