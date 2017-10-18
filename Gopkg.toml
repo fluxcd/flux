@@ -20,7 +20,7 @@
 
 [[constraint]]
   name = "github.com/heroku/docker-registry-client"
-  source = "https://github.com/weaveworks/docker-registry-client.git"
+  source = "github.com/weaveworks/docker-registry-client"
   branch = "master"
 
 [[override]]
