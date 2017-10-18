@@ -23,6 +23,7 @@ import (
 
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster"
+	"github.com/weaveworks/flux/cluster/docker"
 	"github.com/weaveworks/flux/cluster/kubernetes"
 	"github.com/weaveworks/flux/daemon"
 	"github.com/weaveworks/flux/event"
@@ -104,6 +105,9 @@ func main() {
 		upstreamURL = fs.String("connect", "", "Connect to an upstream service e.g., Weave Cloud, at this base address")
 		token       = fs.String("token", "", "Authentication token for upstream service")
 
+		//docker
+		namespace = fs.String("namespace", "", "Docker swarm stack name")
+
 		// Deprecated
 		_ = fs.String("docker-config", "", "path to a docker config to use for credentials")
 	)
@@ -142,90 +146,106 @@ func main() {
 	}
 
 	// Platform component.
-	var clusterVersion string
+
+	var fluxCluster cluster.Cluster
 	var sshKeyRing ssh.KeyRing
-	var k8s cluster.Cluster
+	var clusterVersion string
+	var manifests cluster.Manifests
 	var image_creds func() registry.ImageCreds
-	var k8sManifests cluster.Manifests
-	{
-		restClientConfig, err := rest.InClusterConfig()
+
+	if *namespace == "" {
+		{
+			restClientConfig, err := rest.InClusterConfig()
+			if err != nil {
+				logger.Log("err", err)
+				os.Exit(1)
+			}
+
+			restClientConfig.QPS = 50.0
+			restClientConfig.Burst = 100
+
+			clientset, err := k8sclient.NewForConfig(restClientConfig)
+			if err != nil {
+				logger.Log("err", err)
+				os.Exit(1)
+			}
+
+			serverVersion, err := clientset.ServerVersion()
+			if err != nil {
+				logger.Log("err", err)
+				os.Exit(1)
+			}
+			clusterVersion = "kubernetes-" + serverVersion.GitVersion
+
+			namespace, err := ioutil.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
+			if err != nil {
+				logger.Log("err", err)
+				os.Exit(1)
+			}
+
+			sshKeyRing, err = kubernetes.NewSSHKeyRing(kubernetes.SSHKeyRingConfig{
+				SecretAPI:             clientset.Core().Secrets(string(namespace)),
+				SecretName:            *k8sSecretName,
+				SecretVolumeMountPath: *k8sSecretVolumeMountPath,
+				SecretDataKey:         *k8sSecretDataKey,
+				KeyBits:               sshKeyBits,
+				KeyType:               sshKeyType,
+			})
+			if err != nil {
+				logger.Log("err", err)
+				os.Exit(1)
+			}
+
+			publicKey, privateKeyPath := sshKeyRing.KeyPair()
+
+			logger := log.NewContext(logger).With("component", "platform")
+			logger.Log("identity", privateKeyPath)
+			logger.Log("identity.pub", publicKey.Key)
+			logger.Log("host", restClientConfig.Host, "version", clusterVersion)
+
+			kubectl := *kubernetesKubectl
+			if kubectl == "" {
+				kubectl, err = exec.LookPath("kubectl")
+			} else {
+				_, err = os.Stat(kubectl)
+			}
+			if err != nil {
+				logger.Log("err", err)
+				os.Exit(1)
+			}
+			logger.Log("kubectl", kubectl)
+
+			kubectlApplier := kubernetes.NewKubectl(kubectl, restClientConfig, os.Stdout, os.Stderr)
+			k8s_inst, err := kubernetes.NewCluster(clientset, kubectlApplier, sshKeyRing, logger)
+			if err != nil {
+				logger.Log("err", err)
+				os.Exit(1)
+			}
+
+			if err := k8s_inst.Ping(); err != nil {
+				logger.Log("ping", err)
+			} else {
+				logger.Log("ping", true)
+			}
+
+			image_creds = k8s_inst.ImagesToFetch
+			fluxCluster = k8s_inst
+			// There is only one way we currently interpret a repo of
+			// files as manifests, and that's as Kubernetes yamels.
+			manifests = &kubernetes.Manifests{}
+		}
+	} else {
+		docker_inst, err := docker.NewSwarm(*namespace, logger)
 		if err != nil {
 			logger.Log("err", err)
 			os.Exit(1)
 		}
 
-		restClientConfig.QPS = 50.0
-		restClientConfig.Burst = 100
-
-		clientset, err := k8sclient.NewForConfig(restClientConfig)
-		if err != nil {
-			logger.Log("err", err)
-			os.Exit(1)
+		image_creds = docker_inst.ImagesToFetch
+		fluxCluster = docker_inst
+		manifests = &docker.Manifests{
+			Namespace: *namespace,
 		}
-
-		serverVersion, err := clientset.ServerVersion()
-		if err != nil {
-			logger.Log("err", err)
-			os.Exit(1)
-		}
-		clusterVersion = "kubernetes-" + serverVersion.GitVersion
-
-		namespace, err := ioutil.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
-		if err != nil {
-			logger.Log("err", err)
-			os.Exit(1)
-		}
-
-		sshKeyRing, err = kubernetes.NewSSHKeyRing(kubernetes.SSHKeyRingConfig{
-			SecretAPI:             clientset.Core().Secrets(string(namespace)),
-			SecretName:            *k8sSecretName,
-			SecretVolumeMountPath: *k8sSecretVolumeMountPath,
-			SecretDataKey:         *k8sSecretDataKey,
-			KeyBits:               sshKeyBits,
-			KeyType:               sshKeyType,
-		})
-		if err != nil {
-			logger.Log("err", err)
-			os.Exit(1)
-		}
-
-		publicKey, privateKeyPath := sshKeyRing.KeyPair()
-
-		logger := log.NewContext(logger).With("component", "platform")
-		logger.Log("identity", privateKeyPath)
-		logger.Log("identity.pub", publicKey.Key)
-		logger.Log("host", restClientConfig.Host, "version", clusterVersion)
-
-		kubectl := *kubernetesKubectl
-		if kubectl == "" {
-			kubectl, err = exec.LookPath("kubectl")
-		} else {
-			_, err = os.Stat(kubectl)
-		}
-		if err != nil {
-			logger.Log("err", err)
-			os.Exit(1)
-		}
-		logger.Log("kubectl", kubectl)
-
-		kubectlApplier := kubernetes.NewKubectl(kubectl, restClientConfig, os.Stdout, os.Stderr)
-		k8s_inst, err := kubernetes.NewCluster(clientset, kubectlApplier, sshKeyRing, logger)
-		if err != nil {
-			logger.Log("err", err)
-			os.Exit(1)
-		}
-
-		if err := k8s_inst.Ping(); err != nil {
-			logger.Log("ping", err)
-		} else {
-			logger.Log("ping", true)
-		}
-
-		image_creds = k8s_inst.ImagesToFetch
-		k8s = k8s_inst
-		// There is only one way we currently interpret a repo of
-		// files as manifests, and that's as Kubernetes yamels.
-		k8sManifests = &kubernetes.Manifests{}
 	}
 
 	// Registry components
@@ -292,9 +312,10 @@ func main() {
 		logger.Log("err", err)
 		os.Exit(1)
 	}
+
 	// Indirect reference to a daemon, initially of the NotReady variety
 	notReadyDaemon := daemon.NewNotReadyDaemon(
-		version, k8s, gitRemoteConfig, errors.New("waiting to clone repo"))
+		version, fluxCluster, gitRemoteConfig, errors.New("waiting to clone repo"))
 
 	daemonRef := daemon.NewRef(notReadyDaemon)
 
@@ -401,11 +422,12 @@ func main() {
 	}
 
 	daemon := &daemon.Daemon{
-		V:         version,
-		Cluster:   k8s,
-		Manifests: k8sManifests,
-		Registry:  cache,
-		Repo:      repo, Checkout: checkout,
+		V:              version,
+		Cluster:        fluxCluster,
+		Manifests:      manifests,
+		Registry:       cache,
+		Repo:           repo,
+		Checkout:       checkout,
 		Jobs:           jobs,
 		JobStatusCache: &job.StatusCache{Size: 100},
 
