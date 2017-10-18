@@ -42,7 +42,7 @@ func main() {
 	var (
 		listenAddr            = fs.StringP("listen", "l", ":3030", "Listen address for Flux API clients")
 		databaseSource        = fs.String("database-source", "file://fluxy.db", `Database source name; includes the DB driver as the scheme. The default is a temporary, file-based DB`)
-		databaseMigrationsDir = fs.String("database-migrations", "./db/migrations", "Path to database migration scripts, which are in subdirectories named for each driver")
+		databaseMigrationsDir = fs.String("database-migrations", "./service/db/migrations", "Path to database migration scripts, which are in subdirectories named for each driver")
 		natsURL               = fs.String("nats-url", "", `URL on which to connect to NATS, or empty to use the standalone message bus (e.g., "nats://user:pass@nats:4222")`)
 		versionFlag           = fs.Bool("version", false, "Get version number")
 	)
