@@ -7,10 +7,6 @@
   version = "4.0.0"
 
 [[constraint]]
-  name = "github.com/go-kit/kit"
-  revision = "00e2b89d8ad42af22b20fdb9adfbbfa0d5f34660"
-
-[[constraint]]
   name = "github.com/google/go-github"
   revision = "dfd20fd7fa6edec56447fcb049acd5e17a78ec2e"
 

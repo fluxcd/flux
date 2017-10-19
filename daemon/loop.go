@@ -86,7 +86,7 @@ func (d *Daemon) GitPollLoop(stop chan struct{}, wg *sync.WaitGroup, logger log.
 			d.askForSync()
 		case job := <-d.Jobs.Ready():
 			queueLength.Set(float64(d.Jobs.Len()))
-			jobLogger := log.NewContext(logger).With("jobID", job.ID)
+			jobLogger := log.With(logger, "jobID", job.ID)
 			jobLogger.Log("state", "in-progress")
 			// It's assumed that (successful) jobs will push commits
 			// to the upstream repo, and therefore we probably want to

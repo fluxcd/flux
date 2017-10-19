@@ -436,7 +436,7 @@ func (s *Server) Export(ctx context.Context) (res []byte, err error) {
 func (s *Server) instrumentPlatform(instID service.InstanceID, p remote.Platform) remote.Platform {
 	return &remote.ErrorLoggingPlatform{
 		remote.Instrument(p),
-		log.NewContext(s.logger).With("instanceID", instID),
+		log.With(s.logger, "instanceID", instID),
 	}
 }
 

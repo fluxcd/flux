@@ -25,7 +25,7 @@ func Release(rc *ReleaseContext, changes Changes, logger log.Logger) (results up
 		)
 	}(time.Now())
 
-	logger = log.NewContext(logger).With("type", "release")
+	logger = log.With(logger, "type", "release")
 
 	updates, results, err := changes.CalculateRelease(rc, logger)
 	if err != nil {
