@@ -113,7 +113,7 @@ func NewHandler(s api.Service, r *mux.Router, logger log.Logger) http.Handler {
 		"GetPublicSSHKey":          handle.GetPublicSSHKey,
 		"RegeneratePublicSSHKey":   handle.RegeneratePublicSSHKey,
 	} {
-		handler := logging(handlerMethod, log.NewContext(logger).With("method", method))
+		handler := logging(handlerMethod, log.With(logger, "method", method))
 		r.Get(method).Handler(handler)
 	}
 
@@ -562,13 +562,14 @@ func logging(next http.Handler, logger log.Logger) http.Handler {
 
 		next.ServeHTTP(tw, r)
 
-		requestLogger := log.NewContext(logger).With(
+		requestLogger := log.With(
+			logger,
 			"url", mustUnescape(r.URL.String()),
 			"took", time.Since(begin).String(),
 			"status_code", cw.code,
 		)
 		if cw.code != http.StatusOK {
-			requestLogger = requestLogger.With("error", strings.TrimSpace(tw.buf.String()))
+			requestLogger = log.With(requestLogger, "error", strings.TrimSpace(tw.buf.String()))
 		}
 		requestLogger.Log()
 	})

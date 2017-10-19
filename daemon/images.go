@@ -43,7 +43,7 @@ func (d *Daemon) pollForNewImages(logger log.Logger) {
 	changes := &update.Automated{}
 	for _, service := range services {
 		for _, container := range service.ContainersOrNil() {
-			logger := log.NewContext(logger).With("service", service.ID, "container", container.Name, "currentimage", container.Image)
+			logger := log.With(logger, "service", service.ID, "container", container.Name, "currentimage", container.Image)
 
 			currentImageID, err := flux.ParseImageID(container.Image)
 			if err != nil {

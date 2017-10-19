@@ -24,7 +24,7 @@ func (m *MultitenantInstancer) Get(instanceID service.InstanceID) (*Instance, er
 	}
 
 	// Logger specialised to this instance
-	instanceLogger := log.NewContext(m.Logger).With("instanceID", instanceID)
+	instanceLogger := log.With(m.Logger, "instanceID", instanceID)
 
 	// Events for this instance
 	eventRW := EventReadWriter{instanceID, m.History}

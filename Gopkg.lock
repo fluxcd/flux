@@ -136,7 +136,8 @@
 [[projects]]
   name = "github.com/go-kit/kit"
   packages = ["log","metrics","metrics/internal/lv","metrics/prometheus"]
-  revision = "00e2b89d8ad42af22b20fdb9adfbbfa0d5f34660"
+  revision = "4dc7be5d2d12881735283bcab7352178e190fc71"
+  version = "v0.6.0"
 
 [[projects]]
   name = "github.com/go-logfmt/logfmt"
@@ -517,6 +518,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "202aaec71181f11c25dc1dd2a37cd55dbc7a06f551c4d3834a1cbd978972b090"
+  inputs-digest = "acb592cfe864d6061e477e877382e7746ab70371ab2f0468d0444fd72c646375"
   solver-name = "gps-cdcl"
   solver-version = 1

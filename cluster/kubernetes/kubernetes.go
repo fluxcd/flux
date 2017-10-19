@@ -211,11 +211,11 @@ func (c *Cluster) AllControllers(namespace string) (res []cluster.Controller, er
 // asynchronous, but serialised.
 func (c *Cluster) Sync(spec cluster.SyncDef) error {
 	errc := make(chan error)
-	logger := log.NewContext(c.logger).With("method", "Sync")
+	logger := log.With(c.logger, "method", "Sync")
 	c.actionc <- func() {
 		errs := cluster.SyncError{}
 		for _, action := range spec.Actions {
-			logger := log.NewContext(logger).With("resource", action.ResourceID)
+			logger := log.With(logger, "resource", action.ResourceID)
 			if len(action.Delete) > 0 {
 				obj, err := definitionObj(action.Delete)
 				if err == nil {

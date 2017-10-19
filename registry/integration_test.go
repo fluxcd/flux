@@ -29,32 +29,32 @@ func TestWarming_WarmerWriteCacheRead(t *testing.T) {
 	mc := cache.NewFixedServerMemcacheClient(cache.MemcacheConfig{
 		Timeout:        time.Second,
 		UpdateInterval: 1 * time.Minute,
-		Logger:         log.NewContext(log.NewLogfmtLogger(os.Stderr)).With("component", "memcached"),
+		Logger:         log.With(log.NewLogfmtLogger(os.Stderr), "component", "memcached"),
 	}, strings.Fields(*memcachedIPs)...)
 
 	id, _ := flux.ParseImageID("alpine")
 
-	logger := log.NewContext(log.NewLogfmtLogger(os.Stderr))
+	logger := log.NewLogfmtLogger(os.Stderr)
 
 	remote := NewRemoteClientFactory(
-		logger.With("component", "client"),
+		log.With(logger, "component", "client"),
 		middleware.RateLimiterConfig{200, 10},
 	)
 
 	cache := NewCacheClientFactory(
-		logger.With("component", "cache"),
+		log.With(logger, "component", "cache"),
 		mc,
 		time.Hour,
 	)
 
 	r := NewRegistry(
 		cache,
-		logger.With("component", "registry"),
+		log.With(logger, "component", "registry"),
 		512,
 	)
 
 	w := Warmer{
-		Logger:        logger.With("component", "warmer"),
+		Logger:        log.With(logger, "component", "warmer"),
 		ClientFactory: remote,
 		Creds:         NoCredentials(),
 		Expiry:        time.Hour,
