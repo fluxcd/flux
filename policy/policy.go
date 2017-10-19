@@ -90,8 +90,9 @@ func clone(s Set) Set {
 	return newMap
 }
 
+// Contains method determines if a resource has a particular policy present
 func (s Set) Contains(needle Policy) bool {
-	for p, _ := range s {
+	for p := range s {
 		if p == needle {
 			return true
 		}

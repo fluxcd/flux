@@ -1,8 +1,6 @@
 package sync
 
 import (
-	"fmt"
-
 	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
 
@@ -15,6 +13,7 @@ import (
 func Sync(m cluster.Manifests, repoResources map[string]resource.Resource, clus cluster.Cluster, deletes bool, logger log.Logger) error {
 	// Get a map of resources defined in the cluster
 	clusterBytes, err := clus.Export()
+
 	if err != nil {
 		return errors.Wrap(err, "exporting resource defs from cluster")
 	}
@@ -30,28 +29,20 @@ func Sync(m cluster.Manifests, repoResources map[string]resource.Resource, clus 
 	// no-op.
 	sync := cluster.SyncDef{}
 
-	nsRepoResources := make(map[string]resource.Resource)
-	otherRepoResources := make(map[string]resource.Resource)
-	for id, res := range repoResources {
-		_, kind, name := res.ResourceID().Components()
-		fmt.Printf("\n---------SPLIT----------\n<<< kind: %s, name: %s\n-------------------\n, ", kind, name)
-		if kind == "namespace" {
-			nsRepoResources[id] = res
-		} else {
-			otherRepoResources[id] = res
-		}
-	}
-
-	//fmt.Printf("\n~~~ nsRepoResources: %+v, otherRepoResources: %+v\n\n", nsRepoResources, otherRepoResources)
+	nsClusterResources, otherClusterResources := separateResourcesByType(clusterResources)
+	nsRepoResources, otherRepoResources := separateResourcesByType(repoResources)
 
 	// First tackle resources that are not Namespace kind, in case we are deleting the Namespace as well
 	// Deleting a Namespace first, then a resource in this namespace causes an error
-	deletes=true
+
+	// DANGER ZONE (tamara) This works and is dangerous. At the moment will delete Flux and
+	// other pods unless the relevant manifests are part of the user repo. Needs a lot of thought
+	// before this cleanup cluster feature can be unleashed on the world.
 	if deletes {
-		for id, res := range otherRepoResources {
+		for id, res := range otherClusterResources {
 			prepareSyncDelete(logger, repoResources, id, res, &sync)
 		}
-		for id, res := range nsRepoResources {
+		for id, res := range nsClusterResources {
 			prepareSyncDelete(logger, repoResources, id, res, &sync)
 		}
 	}
@@ -65,18 +56,35 @@ func Sync(m cluster.Manifests, repoResources map[string]resource.Resource, clus 
 		prepareSyncApply(logger, clusterResources, id, res, &sync)
 	}
 
-	//fmt.Printf("\n!!! sync actions: %#v\n\n", sync.Actions)
 	return clus.Sync(sync)
 }
 
+func separateResourcesByType(resources map[string]resource.Resource) (map[string]resource.Resource, map[string]resource.Resource) {
+	if len(resources) == 0 {
+		return nil, nil
+	}
+	nsResources := make(map[string]resource.Resource)
+	otherResources := make(map[string]resource.Resource)
+	for id, res := range resources {
+		_, kind, _ := res.ResourceID().Components()
+		if kind == "namespace" {
+			nsResources[id] = res
+		} else {
+			otherResources[id] = res
+		}
+	}
+	return nsResources, otherResources
+}
+
 func prepareSyncDelete(logger log.Logger, repoResources map[string]resource.Resource, id string, res resource.Resource, sync *cluster.SyncDef) {
+	if len(repoResources) == 0 {
+		return
+	}
 	if res.Policy().Contains(policy.Ignore) {
 		logger.Log("resource", res.ResourceID(), "ignore", "delete")
 		return
 	}
 	if _, ok := repoResources[id]; !ok {
-		ns, k, n := res.ResourceID().Components()
-		fmt.Printf("\n-----------DELETE--------\n>>> res: %s, %s, %s\n-------------------\n, ", ns, k, n)
 		sync.Actions = append(sync.Actions, cluster.SyncAction{
 			ResourceID: id,
 			Delete:     res.Bytes(),
@@ -95,9 +103,6 @@ func prepareSyncApply(logger log.Logger, clusterResources map[string]resource.Re
 			return
 		}
 	}
-
-	ns, k, n := res.ResourceID().Components()
-	fmt.Printf("\n---------APPLY----------\n>>> res: %s, %s, %s\n-------------------\n, ", ns, k, n)
 	sync.Actions = append(sync.Actions, cluster.SyncAction{
 		ResourceID: id,
 		Apply:      res.Bytes(),
