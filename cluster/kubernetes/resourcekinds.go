@@ -96,8 +96,6 @@ func makeDeploymentPodController(deployment *apiext.Deployment) podController {
 	var status string
 	objectMeta, deploymentStatus := deployment.ObjectMeta, deployment.Status
 
-	//fmt.Printf("\n\t??? deployment.ObjectMeta=%+v\n deployment.Status=%+v\n\n", objectMeta, deploymentStatus)
-
 	if deploymentStatus.ObservedGeneration >= objectMeta.Generation {
 		// the definition has been updated; now let's see about the replicas
 		updated, wanted := deploymentStatus.UpdatedReplicas, *deployment.Spec.Replicas

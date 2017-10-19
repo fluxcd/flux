@@ -1,8 +1,6 @@
 package sync
 
 import (
-	"fmt"
-
 	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
 
@@ -15,8 +13,6 @@ import (
 func Sync(m cluster.Manifests, repoResources map[string]resource.Resource, clus cluster.Cluster, deletes bool, logger log.Logger) error {
 	// Get a map of resources defined in the cluster
 	clusterBytes, err := clus.Export()
-
-	fmt.Println("\n>>> SYNCING")
 
 	if err != nil {
 		return errors.Wrap(err, "exporting resource defs from cluster")
@@ -51,20 +47,14 @@ func Sync(m cluster.Manifests, repoResources map[string]resource.Resource, clus 
 		}
 	}
 
-	fmt.Printf("\n>>> SYNCING sync before processing ... %#v\n\n", sync)
-
 	// To avoid errors due to a non existent namespace if a resource in that namespace is created first,
 	// create Namespace objects first
-	fmt.Printf("\n>>> Sg ... nsClusteroResources ... %#v\n\n, otherClusterResources ... %#v\n\n", nsClusterResources, otherClusterResources)
 	for id, res := range nsRepoResources {
-		fmt.Printf("\n\t>>> res ... %#v\n\n", res)
 		prepareSyncApply(logger, clusterResources, id, res, &sync)
 	}
 	for id, res := range otherRepoResources {
 		prepareSyncApply(logger, clusterResources, id, res, &sync)
 	}
-
-	fmt.Printf("\n>>> SYNCING sync after processing ... %#v\n\n", sync)
 
 	return clus.Sync(sync)
 }
