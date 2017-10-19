@@ -13,7 +13,7 @@ import (
 
 	"github.com/weaveworks/flux"
 	fluxerr "github.com/weaveworks/flux/errors"
-	"github.com/weaveworks/flux/history"
+	"github.com/weaveworks/flux/event"
 	transport "github.com/weaveworks/flux/http"
 	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/policy"
@@ -37,13 +37,13 @@ func New(c *http.Client, router *mux.Router, endpoint string, t flux.Token) *Cli
 	}
 }
 
-func (c *Client) ListServices(ctx context.Context, namespace string) ([]flux.ServiceStatus, error) {
-	var res []flux.ServiceStatus
+func (c *Client) ListServices(ctx context.Context, namespace string) ([]flux.ControllerStatus, error) {
+	var res []flux.ControllerStatus
 	err := c.Get(ctx, &res, "ListServices", "namespace", namespace)
 	return res, err
 }
 
-func (c *Client) ListImages(ctx context.Context, s update.ServiceSpec) ([]flux.ImageStatus, error) {
+func (c *Client) ListImages(ctx context.Context, s update.ResourceSpec) ([]flux.ImageStatus, error) {
 	var res []flux.ImageStatus
 	err := c.Get(ctx, &res, "ListImages", "service", string(s))
 	return res, err
@@ -98,7 +98,7 @@ func (c *Client) UpdatePolicies(ctx context.Context, updates policy.Updates, cau
 	return res, c.methodWithResp(ctx, "PATCH", &res, "UpdatePolicies", updates, args...)
 }
 
-func (c *Client) LogEvent(ctx context.Context, event history.Event) error {
+func (c *Client) LogEvent(ctx context.Context, event event.Event) error {
 	return c.PostWithBody(ctx, "LogEvent", event)
 }
 

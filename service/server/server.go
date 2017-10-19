@@ -9,12 +9,13 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/weaveworks/flux"
-	"github.com/weaveworks/flux/history"
+	"github.com/weaveworks/flux/event"
 	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/policy"
 	"github.com/weaveworks/flux/remote"
 	"github.com/weaveworks/flux/service"
 	"github.com/weaveworks/flux/service/bus"
+	"github.com/weaveworks/flux/service/history"
 	"github.com/weaveworks/flux/service/instance"
 	"github.com/weaveworks/flux/service/notifications"
 	"github.com/weaveworks/flux/ssh"
@@ -105,7 +106,7 @@ func (s *Server) Status(ctx context.Context) (res service.Status, err error) {
 	return res, nil
 }
 
-func (s *Server) ListServices(ctx context.Context, namespace string) (res []flux.ServiceStatus, err error) {
+func (s *Server) ListServices(ctx context.Context, namespace string) (res []flux.ControllerStatus, err error) {
 	instID, err := getInstanceID(ctx)
 	if err != nil {
 		return res, err
@@ -123,7 +124,7 @@ func (s *Server) ListServices(ctx context.Context, namespace string) (res []flux
 	return services, nil
 }
 
-func (s *Server) ListImages(ctx context.Context, spec update.ServiceSpec) (res []flux.ImageStatus, err error) {
+func (s *Server) ListImages(ctx context.Context, spec update.ResourceSpec) (res []flux.ImageStatus, err error) {
 	instID, err := getInstanceID(ctx)
 	if err != nil {
 		return res, err
@@ -202,7 +203,7 @@ func (s *Server) SyncStatus(ctx context.Context, ref string) (res []string, err 
 
 // LogEvent receives events from fluxd and pushes events to the history
 // db and a slack notification
-func (s *Server) LogEvent(ctx context.Context, e history.Event) error {
+func (s *Server) LogEvent(ctx context.Context, e event.Event) error {
 	instID, err := getInstanceID(ctx)
 	if err != nil {
 		return err
@@ -231,7 +232,7 @@ func (s *Server) LogEvent(ctx context.Context, e history.Event) error {
 	return nil
 }
 
-func (s *Server) History(ctx context.Context, spec update.ServiceSpec, before time.Time, limit int64, after time.Time) (res []history.Entry, err error) {
+func (s *Server) History(ctx context.Context, spec update.ResourceSpec, before time.Time, limit int64, after time.Time) (res []history.Entry, err error) {
 	instID, err := getInstanceID(ctx)
 	if err != nil {
 		return res, err
@@ -242,8 +243,8 @@ func (s *Server) History(ctx context.Context, spec update.ServiceSpec, before ti
 		return nil, errors.Wrapf(err, "getting instance")
 	}
 
-	var events []history.Event
-	if spec == update.ServiceSpecAll {
+	var events []event.Event
+	if spec == update.ResourceSpecAll {
 		events, err = helper.AllEvents(before, limit, after)
 		if err != nil {
 			return nil, errors.Wrap(err, "fetching all history events")
@@ -435,7 +436,7 @@ func (s *Server) Export(ctx context.Context) (res []byte, err error) {
 func (s *Server) instrumentPlatform(instID service.InstanceID, p remote.Platform) remote.Platform {
 	return &remote.ErrorLoggingPlatform{
 		remote.Instrument(p),
-		log.NewContext(s.logger).With("instanceID", instID),
+		log.With(s.logger, "instanceID", instID),
 	}
 }
 

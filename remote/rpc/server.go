@@ -67,7 +67,7 @@ func (p *RPCServer) Export(_ struct{}, resp *ExportResponse) error {
 }
 
 type ListServicesResponse struct {
-	Result           []flux.ServiceStatus
+	Result           []flux.ControllerStatus
 	ApplicationError *fluxerr.Error
 }
 
@@ -88,7 +88,7 @@ type ListImagesResponse struct {
 	ApplicationError *fluxerr.Error
 }
 
-func (p *RPCServer) ListImages(spec update.ServiceSpec, resp *ListImagesResponse) error {
+func (p *RPCServer) ListImages(spec update.ResourceSpec, resp *ListImagesResponse) error {
 	v, err := p.p.ListImages(context.Background(), spec)
 	resp.Result = v
 	if err != nil {

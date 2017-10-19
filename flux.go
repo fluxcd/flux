@@ -15,8 +15,9 @@ import (
 var (
 	ErrInvalidServiceID = errors.New("invalid service ID")
 
-	LegacyServiceIDRegexp = regexp.MustCompile("^([a-zA-Z0-9_-]+)/([a-zA-Z0-9_-]+)$")
-	ResourceIDRegexp      = regexp.MustCompile("^([a-zA-Z0-9_-]+):([a-zA-Z0-9_-]+)/([a-zA-Z0-9_-]+)$")
+	LegacyServiceIDRegexp       = regexp.MustCompile("^([a-zA-Z0-9_-]+)/([a-zA-Z0-9_-]+)$")
+	ResourceIDRegexp            = regexp.MustCompile("^([a-zA-Z0-9_-]+):([a-zA-Z0-9_-]+)/([a-zA-Z0-9_-]+)$")
+	UnqualifiedResourceIDRegexp = regexp.MustCompile("^([a-zA-Z0-9_-]+)/([a-zA-Z0-9_-]+)$")
 )
 
 type Token string
@@ -75,6 +76,19 @@ func MustParseResourceID(s string) ResourceID {
 		panic(err)
 	}
 	return id
+}
+
+// ParseResourceIDOptionalNamespace constructs a ResourceID from either a fully
+// qualified string representation, or an unqualified kind/name representation
+// and the supplied namespace.
+func ParseResourceIDOptionalNamespace(namespace, s string) (ResourceID, error) {
+	if m := ResourceIDRegexp.FindStringSubmatch(s); m != nil {
+		return ResourceID{resourceID{m[1], strings.ToLower(m[2]), m[3]}}, nil
+	}
+	if m := UnqualifiedResourceIDRegexp.FindStringSubmatch(s); m != nil {
+		return ResourceID{resourceID{namespace, strings.ToLower(m[1]), m[2]}}, nil
+	}
+	return ResourceID{}, errors.Wrap(ErrInvalidServiceID, "parsing "+s)
 }
 
 // MakeResourceID constructs a ResourceID from constituent components.
@@ -139,9 +153,9 @@ func (id *ResourceID) UnmarshalText(text []byte) error {
 	return nil
 }
 
-type ServiceIDSet map[ResourceID]struct{}
+type ResourceIDSet map[ResourceID]struct{}
 
-func (s ServiceIDSet) String() string {
+func (s ResourceIDSet) String() string {
 	var ids []string
 	for id := range s {
 		ids = append(ids, id.String())
@@ -149,17 +163,17 @@ func (s ServiceIDSet) String() string {
 	return "{" + strings.Join(ids, ", ") + "}"
 }
 
-func (s ServiceIDSet) Add(ids []ResourceID) {
+func (s ResourceIDSet) Add(ids []ResourceID) {
 	for _, id := range ids {
 		s[id] = struct{}{}
 	}
 }
 
-func (s ServiceIDSet) Without(others ServiceIDSet) ServiceIDSet {
+func (s ResourceIDSet) Without(others ResourceIDSet) ResourceIDSet {
 	if s == nil || len(s) == 0 || others == nil || len(others) == 0 {
 		return s
 	}
-	res := ServiceIDSet{}
+	res := ResourceIDSet{}
 	for id := range s {
 		if !others.Contains(id) {
 			res[id] = struct{}{}
@@ -168,7 +182,7 @@ func (s ServiceIDSet) Without(others ServiceIDSet) ServiceIDSet {
 	return res
 }
 
-func (s ServiceIDSet) Contains(id ResourceID) bool {
+func (s ResourceIDSet) Contains(id ResourceID) bool {
 	if s == nil {
 		return false
 	}
@@ -176,14 +190,14 @@ func (s ServiceIDSet) Contains(id ResourceID) bool {
 	return ok
 }
 
-func (s ServiceIDSet) Intersection(others ServiceIDSet) ServiceIDSet {
+func (s ResourceIDSet) Intersection(others ResourceIDSet) ResourceIDSet {
 	if s == nil {
 		return others
 	}
 	if others == nil {
 		return s
 	}
-	result := ServiceIDSet{}
+	result := ResourceIDSet{}
 	for id := range s {
 		if _, ok := others[id]; ok {
 			result[id] = struct{}{}
@@ -192,9 +206,9 @@ func (s ServiceIDSet) Intersection(others ServiceIDSet) ServiceIDSet {
 	return result
 }
 
-func (s ServiceIDSet) ToSlice() ServiceIDs {
+func (s ResourceIDSet) ToSlice() ResourceIDs {
 	i := 0
-	keys := make(ServiceIDs, len(s))
+	keys := make(ResourceIDs, len(s))
 	for k := range s {
 		keys[i] = k
 		i++
@@ -202,14 +216,14 @@ func (s ServiceIDSet) ToSlice() ServiceIDs {
 	return keys
 }
 
-type ServiceIDs []ResourceID
+type ResourceIDs []ResourceID
 
-func (p ServiceIDs) Len() int           { return len(p) }
-func (p ServiceIDs) Less(i, j int) bool { return p[i].String() < p[j].String() }
-func (p ServiceIDs) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
-func (p ServiceIDs) Sort()              { sort.Sort(p) }
+func (p ResourceIDs) Len() int           { return len(p) }
+func (p ResourceIDs) Less(i, j int) bool { return p[i].String() < p[j].String() }
+func (p ResourceIDs) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
+func (p ResourceIDs) Sort()              { sort.Sort(p) }
 
-func (ids ServiceIDs) Without(others ServiceIDSet) (res ServiceIDs) {
+func (ids ResourceIDs) Without(others ResourceIDSet) (res ResourceIDs) {
 	for _, id := range ids {
 		if !others.Contains(id) {
 			res = append(res, id)
@@ -218,14 +232,14 @@ func (ids ServiceIDs) Without(others ServiceIDSet) (res ServiceIDs) {
 	return res
 }
 
-func (ids ServiceIDs) Contains(id ResourceID) bool {
-	set := ServiceIDSet{}
+func (ids ResourceIDs) Contains(id ResourceID) bool {
+	set := ResourceIDSet{}
 	set.Add(ids)
 	return set.Contains(id)
 }
 
-func (ids ServiceIDs) Intersection(others ServiceIDSet) ServiceIDSet {
-	set := ServiceIDSet{}
+func (ids ResourceIDs) Intersection(others ResourceIDSet) ResourceIDSet {
+	set := ResourceIDSet{}
 	set.Add(ids)
 	return set.Intersection(others)
 }
@@ -237,7 +251,7 @@ type ImageStatus struct {
 	Containers []Container
 }
 
-type ServiceStatus struct {
+type ControllerStatus struct {
 	ID         ResourceID
 	Containers []Container
 	Status     string

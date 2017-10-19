@@ -15,7 +15,7 @@ type outputOpts struct {
 }
 
 func AddOutputFlags(cmd *cobra.Command, opts *outputOpts) {
-	cmd.Flags().BoolVarP(&opts.verbose, "verbose", "v", false, "include ignored services in output")
+	cmd.Flags().BoolVarP(&opts.verbose, "verbose", "v", false, "include ignored controllers in output")
 }
 
 func newTabwriter() *tabwriter.Writer {

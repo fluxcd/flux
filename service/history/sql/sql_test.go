@@ -8,9 +8,10 @@ import (
 	"time"
 
 	"github.com/weaveworks/flux"
-	"github.com/weaveworks/flux/db"
-	"github.com/weaveworks/flux/history"
+	"github.com/weaveworks/flux/event"
 	"github.com/weaveworks/flux/service"
+	"github.com/weaveworks/flux/service/db"
+	"github.com/weaveworks/flux/service/history"
 )
 
 var (
@@ -57,17 +58,17 @@ func TestHistoryLog(t *testing.T) {
 	db := newSQL(t)
 	defer db.Close()
 
-	bailIfErr(t, db.LogEvent(instance, history.Event{
+	bailIfErr(t, db.LogEvent(instance, event.Event{
 		ServiceIDs: []flux.ResourceID{flux.MustParseResourceID("namespace/service")},
 		Type:       "test",
 		Message:    "event 1",
 	}))
-	bailIfErr(t, db.LogEvent(instance, history.Event{
+	bailIfErr(t, db.LogEvent(instance, event.Event{
 		ServiceIDs: []flux.ResourceID{flux.MustParseResourceID("namespace/other")},
 		Type:       "test",
 		Message:    "event 3",
 	}))
-	bailIfErr(t, db.LogEvent(instance, history.Event{
+	bailIfErr(t, db.LogEvent(instance, event.Event{
 		ServiceIDs: []flux.ResourceID{flux.MustParseResourceID("namespace/service")},
 		Type:       "test",
 		Message:    "event 2",
@@ -92,7 +93,7 @@ func TestHistoryLog(t *testing.T) {
 	checkInDescOrder(t, es)
 }
 
-func checkInDescOrder(t *testing.T, events []history.Event) {
+func checkInDescOrder(t *testing.T, events []event.Event) {
 	var last time.Time = time.Now()
 	for _, event := range events {
 		if event.StartedAt.After(last) {

@@ -10,7 +10,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/weaveworks/flux"
-	"github.com/weaveworks/flux/history"
+	"github.com/weaveworks/flux/event"
 	"github.com/weaveworks/flux/service"
 )
 
@@ -28,17 +28,17 @@ func (db *pgDB) eventsQuery() squirrel.SelectBuilder {
 		OrderBy("started_at desc")
 }
 
-func (db *pgDB) scanEvents(query squirrel.Sqlizer) ([]history.Event, error) {
+func (db *pgDB) scanEvents(query squirrel.Sqlizer) ([]event.Event, error) {
 	rows, err := squirrel.QueryWith(db, query)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	var events []history.Event
+	var events []event.Event
 	for rows.Next() {
 		var (
-			h             history.Event
+			h             event.Event
 			serviceIDs    pq.StringArray
 			metadataBytes []byte
 		)
@@ -60,26 +60,26 @@ func (db *pgDB) scanEvents(query squirrel.Sqlizer) ([]history.Event, error) {
 
 		if len(metadataBytes) > 0 {
 			switch h.Type {
-			case history.EventCommit:
-				var m history.CommitEventMetadata
+			case event.EventCommit:
+				var m event.CommitEventMetadata
 				if err := json.Unmarshal(metadataBytes, &m); err != nil {
 					return nil, err
 				}
 				h.Metadata = &m
-			case history.EventSync:
-				var m history.SyncEventMetadata
+			case event.EventSync:
+				var m event.SyncEventMetadata
 				if err := json.Unmarshal(metadataBytes, &m); err != nil {
 					return nil, err
 				}
 				h.Metadata = &m
-			case history.EventRelease:
-				var m history.ReleaseEventMetadata
+			case event.EventRelease:
+				var m event.ReleaseEventMetadata
 				if err := json.Unmarshal(metadataBytes, &m); err != nil {
 					return nil, err
 				}
 				h.Metadata = &m
-			case history.EventAutoRelease:
-				var m history.AutoReleaseEventMetadata
+			case event.EventAutoRelease:
+				var m event.AutoReleaseEventMetadata
 				if err := json.Unmarshal(metadataBytes, &m); err != nil {
 					return nil, err
 				}
@@ -91,7 +91,7 @@ func (db *pgDB) scanEvents(query squirrel.Sqlizer) ([]history.Event, error) {
 	return events, rows.Err()
 }
 
-func (db *pgDB) EventsForService(inst service.InstanceID, service flux.ResourceID, before time.Time, limit int64, after time.Time) ([]history.Event, error) {
+func (db *pgDB) EventsForService(inst service.InstanceID, service flux.ResourceID, before time.Time, limit int64, after time.Time) ([]event.Event, error) {
 	q := db.eventsQuery().
 		Where("instance_id = ?", string(inst)).
 		Where("service_ids @> ?", pq.StringArray{service.String()}).
@@ -103,7 +103,7 @@ func (db *pgDB) EventsForService(inst service.InstanceID, service flux.ResourceI
 	return db.scanEvents(q)
 }
 
-func (db *pgDB) AllEvents(inst service.InstanceID, before time.Time, limit int64, after time.Time) ([]history.Event, error) {
+func (db *pgDB) AllEvents(inst service.InstanceID, before time.Time, limit int64, after time.Time) ([]event.Event, error) {
 	q := db.eventsQuery().
 		Where("instance_id = ?", string(inst)).
 		Where("started_at < ?", before).
@@ -114,18 +114,18 @@ func (db *pgDB) AllEvents(inst service.InstanceID, before time.Time, limit int64
 	return db.scanEvents(q)
 }
 
-func (db *pgDB) GetEvent(id history.EventID) (history.Event, error) {
+func (db *pgDB) GetEvent(id event.EventID) (event.Event, error) {
 	es, err := db.scanEvents(db.eventsQuery().Where("id = ?", string(id)))
 	if err != nil {
-		return history.Event{}, err
+		return event.Event{}, err
 	}
 	if len(es) <= 0 {
-		return history.Event{}, fmt.Errorf("event not found")
+		return event.Event{}, fmt.Errorf("event not found")
 	}
 	return es[0], nil
 }
 
-func (db *pgDB) LogEvent(inst service.InstanceID, e history.Event) error {
+func (db *pgDB) LogEvent(inst service.InstanceID, e event.Event) error {
 	j, err := json.Marshal(e.Metadata)
 	if err != nil {
 		return err

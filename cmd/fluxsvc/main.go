@@ -13,11 +13,11 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/pflag"
 
-	"github.com/weaveworks/flux/db"
-	"github.com/weaveworks/flux/history"
-	historysql "github.com/weaveworks/flux/history/sql"
 	"github.com/weaveworks/flux/service/bus"
 	"github.com/weaveworks/flux/service/bus/nats"
+	"github.com/weaveworks/flux/service/db"
+	"github.com/weaveworks/flux/service/history"
+	historysql "github.com/weaveworks/flux/service/history/sql"
 	httpserver "github.com/weaveworks/flux/service/http"
 	"github.com/weaveworks/flux/service/instance"
 	instancedb "github.com/weaveworks/flux/service/instance/sql"
@@ -42,7 +42,7 @@ func main() {
 	var (
 		listenAddr            = fs.StringP("listen", "l", ":3030", "Listen address for Flux API clients")
 		databaseSource        = fs.String("database-source", "file://fluxy.db", `Database source name; includes the DB driver as the scheme. The default is a temporary, file-based DB`)
-		databaseMigrationsDir = fs.String("database-migrations", "./db/migrations", "Path to database migration scripts, which are in subdirectories named for each driver")
+		databaseMigrationsDir = fs.String("database-migrations", "./service/db/migrations", "Path to database migration scripts, which are in subdirectories named for each driver")
 		natsURL               = fs.String("nats-url", "", `URL on which to connect to NATS, or empty to use the standalone message bus (e.g., "nats://user:pass@nats:4222")`)
 		versionFlag           = fs.Bool("version", false, "Get version number")
 	)
@@ -60,8 +60,8 @@ func main() {
 	var logger log.Logger
 	{
 		logger = log.NewLogfmtLogger(os.Stderr)
-		logger = log.NewContext(logger).With("ts", log.DefaultTimestampUTC)
-		logger = log.NewContext(logger).With("caller", log.DefaultCaller)
+		logger = log.With(logger, "ts", log.DefaultTimestampUTC)
+		logger = log.With(logger, "caller", log.DefaultCaller)
 	}
 
 	// Initialise database; we must fail if we can't do this, because

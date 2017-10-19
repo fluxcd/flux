@@ -75,7 +75,7 @@ func (m *mockRegistry) GetRepository(id flux.ImageID) ([]flux.Image, error) {
 	var imgs []flux.Image
 	for _, i := range m.imgs {
 		// include only if it's the same repository in the same place
-		if i.ID.NamespaceImage() == id.NamespaceImage() {
+		if i.ID.Image == id.Image {
 			imgs = append(imgs, i)
 		}
 	}

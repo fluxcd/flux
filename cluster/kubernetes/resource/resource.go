@@ -6,6 +6,7 @@ import (
 	yaml "gopkg.in/yaml.v2"
 
 	"github.com/weaveworks/flux"
+	fluxerr "github.com/weaveworks/flux/errors"
 	"github.com/weaveworks/flux/policy"
 	"github.com/weaveworks/flux/resource"
 )
@@ -70,7 +71,14 @@ func unmarshalObject(source string, bytes []byte) (resource.Resource, error) {
 	if err := yaml.Unmarshal(bytes, &base); err != nil {
 		return nil, err
 	}
+	r, err := unmarshalKind(base, bytes)
+	if err != nil {
+		return nil, makeUnmarshalObjectErr(source, err)
+	}
+	return r, nil
+}
 
+func unmarshalKind(base baseObject, bytes []byte) (resource.Resource, error) {
 	switch base.Kind {
 	case "CronJob":
 		var cj = CronJob{baseObject: base}
@@ -113,6 +121,17 @@ func unmarshalObject(source string, bytes []byte) (resource.Resource, error) {
 	// treat specially
 	default:
 		return &base, nil
+	}
+}
+
+func makeUnmarshalObjectErr(source string, err error) *fluxerr.Error {
+	return &fluxerr.Error{
+		Type: fluxerr.User,
+		Err:  err,
+		Help: `Could not parse "` + source + `".
+
+This likely means it is malformed YAML.
+`,
 	}
 }
 

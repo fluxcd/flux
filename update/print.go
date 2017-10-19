@@ -10,7 +10,7 @@ import (
 
 func PrintResults(out io.Writer, results Result, verbose bool) {
 	w := tabwriter.NewWriter(out, 0, 2, 2, ' ', 0)
-	fmt.Fprintln(w, "SERVICE \tSTATUS \tUPDATES")
+	fmt.Fprintln(w, "CONTROLLER \tSTATUS \tUPDATES")
 	for _, serviceID := range results.ServiceIDs() {
 		result := results[flux.MustParseResourceID(serviceID)]
 		switch result.Status {

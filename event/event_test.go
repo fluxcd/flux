@@ -1,4 +1,4 @@
-package history
+package event
 
 import (
 	"encoding/json"

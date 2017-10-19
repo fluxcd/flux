@@ -17,20 +17,20 @@ func TestPrintResults(t *testing.T) {
 		{
 			name: "basic, just results",
 			result: Result{
-				flux.MustParseResourceID("default/helloworld"): ServiceResult{
+				flux.MustParseResourceID("default/helloworld"): ControllerResult{
 					Status: ReleaseStatusSuccess,
 					Error:  "",
 					PerContainer: []ContainerUpdate{
 						{
 							Container: "helloworld",
-							Current:   flux.ImageID{"quay.io", "weaveworks", "helloworld", "master-a000002"},
-							Target:    flux.ImageID{"quay.io", "weaveworks", "helloworld", "master-a000001"},
+							Current:   flux.ImageID{"quay.io", "weaveworks/helloworld", "master-a000002"},
+							Target:    flux.ImageID{"quay.io", "weaveworks/helloworld", "master-a000001"},
 						},
 					},
 				},
 			},
 			expected: `
-SERVICE             STATUS   UPDATES
+CONTROLLER          STATUS   UPDATES
 default/helloworld  success  helloworld: quay.io/weaveworks/helloworld:master-a000002 -> master-a000001
 `,
 		},
@@ -38,20 +38,20 @@ default/helloworld  success  helloworld: quay.io/weaveworks/helloworld:master-a0
 		{
 			name: "With an error, *and* results",
 			result: Result{
-				flux.MustParseResourceID("default/helloworld"): ServiceResult{
+				flux.MustParseResourceID("default/helloworld"): ControllerResult{
 					Status: ReleaseStatusSuccess,
 					Error:  "test error",
 					PerContainer: []ContainerUpdate{
 						{
 							Container: "helloworld",
-							Current:   flux.ImageID{"quay.io", "weaveworks", "helloworld", "master-a000002"},
-							Target:    flux.ImageID{"quay.io", "weaveworks", "helloworld", "master-a000001"},
+							Current:   flux.ImageID{"quay.io", "weaveworks/helloworld", "master-a000002"},
+							Target:    flux.ImageID{"quay.io", "weaveworks/helloworld", "master-a000001"},
 						},
 					},
 				},
 			},
 			expected: `
-SERVICE             STATUS   UPDATES
+CONTROLLER          STATUS   UPDATES
 default/helloworld  success  test error
                              helloworld: quay.io/weaveworks/helloworld:master-a000002 -> master-a000001
 `,
@@ -60,17 +60,17 @@ default/helloworld  success  test error
 		{
 			name: "Service results should be sorted",
 			result: Result{
-				flux.MustParseResourceID("default/d"): ServiceResult{Status: ReleaseStatusSuccess},
-				flux.MustParseResourceID("default/c"): ServiceResult{Status: ReleaseStatusSuccess},
-				flux.MustParseResourceID("default/b"): ServiceResult{Status: ReleaseStatusSuccess},
-				flux.MustParseResourceID("default/a"): ServiceResult{Status: ReleaseStatusSuccess},
+				flux.MustParseResourceID("default/d"): ControllerResult{Status: ReleaseStatusSuccess},
+				flux.MustParseResourceID("default/c"): ControllerResult{Status: ReleaseStatusSuccess},
+				flux.MustParseResourceID("default/b"): ControllerResult{Status: ReleaseStatusSuccess},
+				flux.MustParseResourceID("default/a"): ControllerResult{Status: ReleaseStatusSuccess},
 			},
 			expected: `
-SERVICE    STATUS   UPDATES
-default/a  success  
-default/b  success  
-default/c  success  
-default/d  success  
+CONTROLLER   STATUS   UPDATES
+default/a    success  
+default/b    success  
+default/c    success  
+default/d    success  
 `,
 		},
 	} {

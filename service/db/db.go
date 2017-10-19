@@ -11,15 +11,15 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/mattes/migrate/migrate"
 	"github.com/pkg/errors"
+	"gopkg.in/mattes/migrate.v1/migrate"
 
 	// This section imports the data/sql drivers and the migration
 	// drivers.
 	_ "github.com/cznic/ql/driver"
 	_ "github.com/lib/pq"
-	_ "github.com/mattes/migrate/driver/postgres"
-	_ "github.com/weaveworks/flux/db/ql"
+	_ "github.com/weaveworks/flux/service/db/ql"
+	_ "gopkg.in/mattes/migrate.v1/driver/postgres"
 )
 
 // Most SQL drivers expect the driver name to appear as the scheme in

@@ -27,11 +27,11 @@ func (bc baseClient) Export(context.Context) ([]byte, error) {
 	return nil, remote.UpgradeNeededError(errors.New("Export method not implemented"))
 }
 
-func (bc baseClient) ListServices(context.Context, string) ([]flux.ServiceStatus, error) {
+func (bc baseClient) ListServices(context.Context, string) ([]flux.ControllerStatus, error) {
 	return nil, remote.UpgradeNeededError(errors.New("ListServices method not implemented"))
 }
 
-func (bc baseClient) ListImages(context.Context, update.ServiceSpec) ([]flux.ImageStatus, error) {
+func (bc baseClient) ListImages(context.Context, update.ResourceSpec) ([]flux.ImageStatus, error) {
 	return nil, remote.UpgradeNeededError(errors.New("ListImages method not implemented"))
 }
 

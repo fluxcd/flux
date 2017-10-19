@@ -6,37 +6,51 @@ import (
 	"github.com/weaveworks/flux/update"
 )
 
-type serviceAutomateOpts struct {
+type controllerAutomateOpts struct {
 	*rootOpts
-	service string
+	namespace  string
+	controller string
 	outputOpts
 	cause update.Cause
+
+	// Deprecated
+	service string
 }
 
-func newServiceAutomate(parent *rootOpts) *serviceAutomateOpts {
-	return &serviceAutomateOpts{rootOpts: parent}
+func newServiceAutomate(parent *rootOpts) *controllerAutomateOpts {
+	return &controllerAutomateOpts{rootOpts: parent}
 }
 
-func (opts *serviceAutomateOpts) Command() *cobra.Command {
+func (opts *controllerAutomateOpts) Command() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "automate",
-		Short: "Turn on automatic deployment for a service.",
+		Short: "Turn on automatic deployment for a controller.",
 		Example: makeExample(
-			"fluxctl automate --service=helloworld",
+			"fluxctl automate --controller=deployment/helloworld",
 		),
 		RunE: opts.RunE,
 	}
 	AddOutputFlags(cmd, &opts.outputOpts)
 	AddCauseFlags(cmd, &opts.cause)
+	cmd.Flags().StringVarP(&opts.namespace, "namespace", "n", "default", "Controller namespace")
+	cmd.Flags().StringVarP(&opts.controller, "controller", "c", "", "Controller to automate")
+
+	// Deprecated
 	cmd.Flags().StringVarP(&opts.service, "service", "s", "", "Service to automate")
+	cmd.Flags().MarkHidden("service")
+
 	return cmd
 }
 
-func (opts *serviceAutomateOpts) RunE(cmd *cobra.Command, args []string) error {
-	policyOpts := &servicePolicyOpts{
+func (opts *controllerAutomateOpts) RunE(cmd *cobra.Command, args []string) error {
+	if len(opts.service) > 0 {
+		return errorServiceFlagDeprecated
+	}
+	policyOpts := &controllerPolicyOpts{
 		rootOpts:   opts.rootOpts,
 		outputOpts: opts.outputOpts,
-		service:    opts.service,
+		namespace:  opts.namespace,
+		controller: opts.controller,
 		cause:      opts.cause,
 		automate:   true,
 	}

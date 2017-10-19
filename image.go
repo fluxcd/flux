@@ -11,7 +11,7 @@ import (
 
 const (
 	dockerHubHost    = "index.docker.io"
-	dockerHubLibrary = "library"
+	dockerHubLibrary = "library/"
 
 	oldDockerHubHost = "docker.io"
 )
@@ -23,21 +23,21 @@ var (
 )
 
 // ImageID is a fully qualified name that refers to a particular Image.
-// It is in the format: host[:port]/Namespace/Image[:tag]
-// Here, we refer to the "name" == Namespace/Image
+// It is in the format: host[:port]/Image[:tag]
 type ImageID struct {
-	Host, Namespace, Image, Tag string
+	Host, Image, Tag string
 }
 
 func ParseImageID(s string) (ImageID, error) {
 	if s == "" {
 		return ImageID{}, ErrBlankImageID
 	}
+	if strings.HasPrefix(s, "/") || strings.HasSuffix(s, "/") {
+		return ImageID{}, ErrMalformedImageID
+	}
 	var img ImageID
 	parts := strings.Split(s, ":")
 	switch len(parts) {
-	case 0:
-		return ImageID{}, ErrMalformedImageID
 	case 1:
 		img.Tag = "latest"
 	case 2:
@@ -52,26 +52,20 @@ func ParseImageID(s string) (ImageID, error) {
 	if s == "" {
 		return ImageID{}, ErrBlankImageID
 	}
-	parts = strings.Split(s, "/")
+	parts = strings.SplitN(s, "/", 2)
 	switch len(parts) {
+	case 0:
+		return ImageID{}, ErrMalformedImageID
 	case 1:
 		img.Host = dockerHubHost
-		img.Namespace = dockerHubLibrary
-		img.Image = parts[0]
+		img.Image = dockerHubLibrary + parts[0]
 	case 2:
-		img.Host = dockerHubHost
-		img.Namespace = parts[0]
-		img.Image = parts[1]
-	case 3:
 		// Replace docker.io with index.docker.io (#692)
 		if parts[0] == oldDockerHubHost {
 			parts[0] = dockerHubHost
 		}
 		img.Host = parts[0]
-		img.Namespace = parts[1]
-		img.Image = parts[2]
-	default:
-		return ImageID{}, ErrMalformedImageID
+		img.Image = parts[1]
 	}
 	return img, nil
 }
@@ -105,27 +99,23 @@ func (i *ImageID) UnmarshalJSON(data []byte) (err error) {
 
 // Repository returns the short version of an image's repository (trimming if dockerhub)
 func (i ImageID) Repository() string {
-	r := i.HostNamespaceImage()
+	r := i.HostImage()
 	r = strings.TrimPrefix(r, dockerHubHost+"/")
-	r = strings.TrimPrefix(r, dockerHubLibrary+"/")
+	r = strings.TrimPrefix(r, dockerHubLibrary)
 	return r
 }
 
-// HostNamespaceImage includes all parts of the image, even if it is from dockerhub.
-func (i ImageID) HostNamespaceImage() string {
-	return fmt.Sprintf("%s/%s/%s", i.Host, i.Namespace, i.Image)
-}
-
-func (i ImageID) NamespaceImage() string {
-	return fmt.Sprintf("%s/%s", i.Namespace, i.Image)
+// HostImage includes all parts of the image, even if it is from dockerhub.
+func (i ImageID) HostImage() string {
+	return fmt.Sprintf("%s/%s", i.Host, i.Image)
 }
 
 func (i ImageID) FullID() string {
-	return fmt.Sprintf("%s/%s/%s:%s", i.Host, i.Namespace, i.Image, i.Tag)
+	return fmt.Sprintf("%s/%s:%s", i.Host, i.Image, i.Tag)
 }
 
 func (i ImageID) Components() (host, repo, tag string) {
-	return i.Host, fmt.Sprintf("%s/%s", i.Namespace, i.Image), i.Tag
+	return i.Host, i.Image, i.Tag
 }
 
 // WithNewTag makes a new copy of an ImageID with a new tag

@@ -10,46 +10,60 @@ import (
 	"github.com/weaveworks/flux/update"
 )
 
-type serviceReleaseOpts struct {
+type controllerReleaseOpts struct {
 	*rootOpts
-	services    []string
-	allServices bool
-	image       string
-	allImages   bool
-	exclude     []string
-	dryRun      bool
+	namespace      string
+	controllers    []string
+	allControllers bool
+	image          string
+	allImages      bool
+	exclude        []string
+	dryRun         bool
 	outputOpts
 	cause update.Cause
+
+	// Deprecated
+	services []string
 }
 
-func newServiceRelease(parent *rootOpts) *serviceReleaseOpts {
-	return &serviceReleaseOpts{rootOpts: parent}
+func newControllerRelease(parent *rootOpts) *controllerReleaseOpts {
+	return &controllerReleaseOpts{rootOpts: parent}
 }
 
-func (opts *serviceReleaseOpts) Command() *cobra.Command {
+func (opts *controllerReleaseOpts) Command() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "release",
-		Short: "Release a new version of a service.",
+		Short: "Release a new version of a controller.",
 		Example: makeExample(
-			"fluxctl release --service=default/foo --update-image=library/hello:v2",
+			"fluxctl release -n default --controller=deployment/foo --update-image=library/hello:v2",
 			"fluxctl release --all --update-image=library/hello:v2",
-			"fluxctl release --service=default/foo --update-all-images",
+			"fluxctl release --controller=default:deployment/foo --update-all-images",
 		),
 		RunE: opts.RunE,
 	}
 
 	AddOutputFlags(cmd, &opts.outputOpts)
 	AddCauseFlags(cmd, &opts.cause)
-	cmd.Flags().StringSliceVarP(&opts.services, "service", "s", []string{}, "service to release")
-	cmd.Flags().BoolVar(&opts.allServices, "all", false, "release all services")
+	cmd.Flags().StringVarP(&opts.namespace, "namespace", "n", "default", "controller namespace")
+	cmd.Flags().StringSliceVarP(&opts.controllers, "controller", "c", []string{}, "list of controllers to release <kind>/<name>")
+	cmd.Flags().BoolVar(&opts.allControllers, "all", false, "release all controllers")
 	cmd.Flags().StringVarP(&opts.image, "update-image", "i", "", "update a specific image")
 	cmd.Flags().BoolVar(&opts.allImages, "update-all-images", false, "update all images to latest versions")
-	cmd.Flags().StringSliceVar(&opts.exclude, "exclude", []string{}, "exclude a service")
+	cmd.Flags().StringSliceVar(&opts.exclude, "exclude", []string{}, "exclude a controller")
 	cmd.Flags().BoolVar(&opts.dryRun, "dry-run", false, "do not release anything; just report back what would have been done")
+
+	// Deprecated
+	cmd.Flags().StringSliceVarP(&opts.services, "service", "s", []string{}, "service to release")
+	cmd.Flags().MarkHidden("service")
+
 	return cmd
 }
 
-func (opts *serviceReleaseOpts) RunE(cmd *cobra.Command, args []string) error {
+func (opts *controllerReleaseOpts) RunE(cmd *cobra.Command, args []string) error {
+	if len(opts.services) > 0 {
+		return errorServiceFlagDeprecated
+	}
+
 	if len(args) != 0 {
 		return errorWantedNoArgs
 	}
@@ -58,19 +72,20 @@ func (opts *serviceReleaseOpts) RunE(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if len(opts.services) <= 0 && !opts.allServices {
-		return newUsageError("please supply either --all, or at least one --service=<service>")
+	if len(opts.controllers) <= 0 && !opts.allControllers {
+		return newUsageError("please supply either --all, or at least one --controller=<controller>")
 	}
 
-	var services []update.ServiceSpec
-	if opts.allServices {
-		services = []update.ServiceSpec{update.ServiceSpecAll}
+	var controllers []update.ResourceSpec
+	if opts.allControllers {
+		controllers = []update.ResourceSpec{update.ResourceSpecAll}
 	} else {
-		for _, service := range opts.services {
-			if _, err := flux.ParseResourceID(service); err != nil {
+		for _, controller := range opts.controllers {
+			id, err := flux.ParseResourceIDOptionalNamespace(opts.namespace, controller)
+			if err != nil {
 				return err
 			}
-			services = append(services, update.ServiceSpec(service))
+			controllers = append(controllers, update.MakeResourceSpec(id))
 		}
 	}
 
@@ -95,7 +110,7 @@ func (opts *serviceReleaseOpts) RunE(cmd *cobra.Command, args []string) error {
 
 	var excludes []flux.ResourceID
 	for _, exclude := range opts.exclude {
-		s, err := flux.ParseResourceID(exclude)
+		s, err := flux.ParseResourceIDOptionalNamespace(opts.namespace, exclude)
 		if err != nil {
 			return err
 		}
@@ -111,7 +126,7 @@ func (opts *serviceReleaseOpts) RunE(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
 
 	jobID, err := opts.API.UpdateImages(ctx, update.ReleaseSpec{
-		ServiceSpecs: services,
+		ServiceSpecs: controllers,
 		ImageSpec:    image,
 		Kind:         kind,
 		Excludes:     excludes,

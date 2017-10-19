@@ -17,9 +17,9 @@ import (
 	"github.com/weaveworks/flux/cluster"
 	"github.com/weaveworks/flux/cluster/kubernetes"
 	kresource "github.com/weaveworks/flux/cluster/kubernetes/resource"
+	"github.com/weaveworks/flux/event"
 	"github.com/weaveworks/flux/git"
 	"github.com/weaveworks/flux/git/gittest"
-	"github.com/weaveworks/flux/history"
 	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/registry"
 	"github.com/weaveworks/flux/resource"
@@ -34,7 +34,7 @@ const (
 
 var (
 	k8s    *cluster.Mock
-	events history.EventReadWriter
+	events *mockEventWriter
 )
 
 func daemon(t *testing.T) (*Daemon, func()) {
@@ -58,7 +58,7 @@ func daemon(t *testing.T) (*Daemon, func()) {
 	k8s.FindDefinedServicesFunc = (&kubernetes.Manifests{}).FindDefinedServices
 	k8s.ServicesWithPoliciesFunc = (&kubernetes.Manifests{}).ServicesWithPolicies
 
-	events = history.NewMock()
+	events = &mockEventWriter{}
 
 	wg := &sync.WaitGroup{}
 	shutdown := make(chan struct{})
@@ -91,7 +91,7 @@ func TestPullAndSync_InitialSync(t *testing.T) {
 
 	syncCalled := 0
 	var syncDef *cluster.SyncDef
-	expectedServiceIDs := flux.ServiceIDs{
+	expectedServiceIDs := flux.ResourceIDs{
 		flux.MustParseResourceID("default:deployment/locked-service"),
 		flux.MustParseResourceID("default:deployment/test-service"),
 		flux.MustParseResourceID("default:deployment/helloworld")}
@@ -119,11 +119,11 @@ func TestPullAndSync_InitialSync(t *testing.T) {
 		t.Error(err)
 	} else if len(es) != 1 {
 		t.Errorf("Unexpected events: %#v", es)
-	} else if es[0].Type != history.EventSync {
+	} else if es[0].Type != event.EventSync {
 		t.Errorf("Unexpected event type: %#v", es[0])
 	} else {
 		gotServiceIDs := es[0].ServiceIDs
-		flux.ServiceIDs(gotServiceIDs).Sort()
+		flux.ResourceIDs(gotServiceIDs).Sort()
 		if !reflect.DeepEqual(gotServiceIDs, []flux.ResourceID(expectedServiceIDs)) {
 			t.Errorf("Unexpected event service ids: %#v, expected: %#v", gotServiceIDs, expectedServiceIDs)
 		}
@@ -148,7 +148,7 @@ func TestDoSync_NoNewCommits(t *testing.T) {
 
 	syncCalled := 0
 	var syncDef *cluster.SyncDef
-	expectedServiceIDs := flux.ServiceIDs{
+	expectedServiceIDs := flux.ResourceIDs{
 		flux.MustParseResourceID("default:deployment/locked-service"),
 		flux.MustParseResourceID("default:deployment/test-service"),
 		flux.MustParseResourceID("default:deployment/helloworld")}
@@ -223,7 +223,7 @@ func TestDoSync_WithNewCommit(t *testing.T) {
 
 	syncCalled := 0
 	var syncDef *cluster.SyncDef
-	expectedServiceIDs := flux.ServiceIDs{
+	expectedServiceIDs := flux.ResourceIDs{
 		flux.MustParseResourceID("default:deployment/locked-service"),
 		flux.MustParseResourceID("default:deployment/test-service"),
 		flux.MustParseResourceID("default:deployment/helloworld")}
@@ -251,11 +251,11 @@ func TestDoSync_WithNewCommit(t *testing.T) {
 		t.Error(err)
 	} else if len(es) != 1 {
 		t.Errorf("Unexpected events: %#v", es)
-	} else if es[0].Type != history.EventSync {
+	} else if es[0].Type != event.EventSync {
 		t.Errorf("Unexpected event type: %#v", es[0])
 	} else {
 		gotServiceIDs := es[0].ServiceIDs
-		flux.ServiceIDs(gotServiceIDs).Sort()
+		flux.ResourceIDs(gotServiceIDs).Sort()
 		// Event should only have changed service ids
 		if !reflect.DeepEqual(gotServiceIDs, []flux.ResourceID{flux.MustParseResourceID("default:deployment/helloworld")}) {
 			t.Errorf("Unexpected event service ids: %#v, expected: %#v", gotServiceIDs, []flux.ResourceID{flux.MustParseResourceID("default/helloworld")})

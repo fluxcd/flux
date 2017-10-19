@@ -11,30 +11,34 @@ import (
 	"github.com/weaveworks/flux/update"
 )
 
-type servicePolicyOpts struct {
+type controllerPolicyOpts struct {
 	*rootOpts
 	outputOpts
 
-	service string
-	tagAll  string
-	tags    []string
+	namespace  string
+	controller string
+	tagAll     string
+	tags       []string
 
 	automate, deautomate bool
 	lock, unlock         bool
 
 	cause update.Cause
+
+	// Deprecated
+	service string
 }
 
-func newServicePolicy(parent *rootOpts) *servicePolicyOpts {
-	return &servicePolicyOpts{rootOpts: parent}
+func newControllerPolicy(parent *rootOpts) *controllerPolicyOpts {
+	return &controllerPolicyOpts{rootOpts: parent}
 }
 
-func (opts *servicePolicyOpts) Command() *cobra.Command {
+func (opts *controllerPolicyOpts) Command() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "policy",
-		Short: "Manage policies for a service.",
+		Short: "Manage policies for a controller.",
 		Long: `
-Manage policies for a service.
+Manage policies for a controller.
 
 Tag filter patterns must be specified as 'container=pattern', such as 'foo=1.*'
 where an asterisk means 'match anything'.
@@ -44,10 +48,10 @@ If both --tag-all and --tag are specified, --tag-all will apply to all
 containers which aren't explicitly named.
         `,
 		Example: makeExample(
-			"fluxctl policy --service=foo --automate",
-			"fluxctl policy --service=foo --lock",
-			"fluxctl policy --service=foo --tag='bar=1.*' --tag='baz=2.*'",
-			"fluxctl policy --service=foo --tag-all='master-*' --tag='bar=1.*'",
+			"fluxctl policy --controller=deployment/foo --automate",
+			"fluxctl policy --controller=deployment/foo --lock",
+			"fluxctl policy --controller=deployment/foo --tag='bar=1.*' --tag='baz=2.*'",
+			"fluxctl policy --controller=deployment/foo --tag-all='master-*' --tag='bar=1.*'",
 		),
 		RunE: opts.RunE,
 	}
@@ -55,23 +59,31 @@ containers which aren't explicitly named.
 	AddOutputFlags(cmd, &opts.outputOpts)
 	AddCauseFlags(cmd, &opts.cause)
 	flags := cmd.Flags()
-	flags.StringVarP(&opts.service, "service", "s", "", "Service to modify")
+	flags.StringVarP(&opts.namespace, "namespace", "n", "default", "Controller namespace")
+	flags.StringVarP(&opts.controller, "controller", "c", "", "Controller to modify")
 	flags.StringVar(&opts.tagAll, "tag-all", "", "Tag filter pattern to apply to all containers")
 	flags.StringSliceVar(&opts.tags, "tag", nil, "Tag filter container/pattern pairs")
-	flags.BoolVar(&opts.automate, "automate", false, "Automate service")
-	flags.BoolVar(&opts.deautomate, "deautomate", false, "Deautomate for service")
-	flags.BoolVar(&opts.lock, "lock", false, "Lock service")
-	flags.BoolVar(&opts.unlock, "unlock", false, "Unlock service")
+	flags.BoolVar(&opts.automate, "automate", false, "Automate controller")
+	flags.BoolVar(&opts.deautomate, "deautomate", false, "Deautomate controller")
+	flags.BoolVar(&opts.lock, "lock", false, "Lock controller")
+	flags.BoolVar(&opts.unlock, "unlock", false, "Unlock controller")
+
+	// Deprecated
+	flags.StringVarP(&opts.service, "service", "s", "", "Service to modify")
+	flags.MarkHidden("service")
 
 	return cmd
 }
 
-func (opts *servicePolicyOpts) RunE(cmd *cobra.Command, args []string) error {
+func (opts *controllerPolicyOpts) RunE(cmd *cobra.Command, args []string) error {
+	if len(opts.service) > 0 {
+		return errorServiceFlagDeprecated
+	}
 	if len(args) > 0 {
 		return errorWantedNoArgs
 	}
-	if opts.service == "" {
-		return newUsageError("-s, --service is required")
+	if opts.controller == "" {
+		return newUsageError("-c, --controller is required")
 	}
 	if opts.automate && opts.deautomate {
 		return newUsageError("automate and deautomate both specified")
@@ -80,7 +92,7 @@ func (opts *servicePolicyOpts) RunE(cmd *cobra.Command, args []string) error {
 		return newUsageError("lock and unlock both specified")
 	}
 
-	serviceID, err := flux.ParseResourceID(opts.service)
+	resourceID, err := flux.ParseResourceIDOptionalNamespace(opts.namespace, opts.controller)
 	if err != nil {
 		return err
 	}
@@ -93,7 +105,7 @@ func (opts *servicePolicyOpts) RunE(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
 
 	jobID, err := opts.API.UpdatePolicies(ctx, policy.Updates{
-		serviceID: update,
+		resourceID: update,
 	}, opts.cause)
 	if err != nil {
 		return err
@@ -101,7 +113,7 @@ func (opts *servicePolicyOpts) RunE(cmd *cobra.Command, args []string) error {
 	return await(ctx, cmd.OutOrStdout(), cmd.OutOrStderr(), opts.API, jobID, false, opts.verbose)
 }
 
-func calculatePolicyChanges(opts *servicePolicyOpts) (policy.Update, error) {
+func calculatePolicyChanges(opts *controllerPolicyOpts) (policy.Update, error) {
 	add := policy.Set{}
 	if opts.automate {
 		add = add.Add(policy.Automated)

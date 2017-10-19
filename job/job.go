@@ -5,7 +5,7 @@ import (
 
 	"github.com/go-kit/kit/log"
 
-	"github.com/weaveworks/flux/history"
+	"github.com/weaveworks/flux/event"
 )
 
 type ID string
@@ -31,7 +31,7 @@ const (
 //  2. succeeded with a job-specific result
 //  3. failed, resulting in an error and possibly a job-specific result
 type Status struct {
-	Result       history.CommitEventMetadata
+	Result       event.CommitEventMetadata
 	Err          string
 	StatusString StatusString
 }

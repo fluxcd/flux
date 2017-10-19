@@ -4,9 +4,9 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
 
-	"github.com/weaveworks/flux/history"
 	"github.com/weaveworks/flux/service"
 	"github.com/weaveworks/flux/service/bus"
+	"github.com/weaveworks/flux/service/history"
 )
 
 type MultitenantInstancer struct {
@@ -24,7 +24,7 @@ func (m *MultitenantInstancer) Get(instanceID service.InstanceID) (*Instance, er
 	}
 
 	// Logger specialised to this instance
-	instanceLogger := log.NewContext(m.Logger).With("instanceID", instanceID)
+	instanceLogger := log.With(m.Logger, "instanceID", instanceID)
 
 	// Events for this instance
 	eventRW := EventReadWriter{instanceID, m.History}

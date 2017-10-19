@@ -19,9 +19,8 @@ import (
 	"github.com/weaveworks/common/middleware"
 
 	"github.com/weaveworks/flux"
-	"github.com/weaveworks/flux/api"
 	fluxerr "github.com/weaveworks/flux/errors"
-	"github.com/weaveworks/flux/history"
+	"github.com/weaveworks/flux/event"
 	transport "github.com/weaveworks/flux/http"
 	"github.com/weaveworks/flux/http/httperror"
 	"github.com/weaveworks/flux/http/websocket"
@@ -31,6 +30,7 @@ import (
 	"github.com/weaveworks/flux/remote"
 	"github.com/weaveworks/flux/remote/rpc"
 	"github.com/weaveworks/flux/service"
+	"github.com/weaveworks/flux/service/api"
 	"github.com/weaveworks/flux/update"
 )
 
@@ -113,7 +113,7 @@ func NewHandler(s api.Service, r *mux.Router, logger log.Logger) http.Handler {
 		"GetPublicSSHKey":          handle.GetPublicSSHKey,
 		"RegeneratePublicSSHKey":   handle.RegeneratePublicSSHKey,
 	} {
-		handler := logging(handlerMethod, log.NewContext(logger).With("method", method))
+		handler := logging(handlerMethod, log.With(logger, "method", method))
 		r.Get(method).Handler(handler)
 	}
 
@@ -141,7 +141,7 @@ func (s HTTPService) ListServices(w http.ResponseWriter, r *http.Request) {
 func (s HTTPService) ListImages(w http.ResponseWriter, r *http.Request) {
 	ctx := getRequestContext(r)
 	service := mux.Vars(r)["service"]
-	spec, err := update.ParseServiceSpec(service)
+	spec, err := update.ParseResourceSpec(service)
 	if err != nil {
 		transport.WriteError(w, r, http.StatusBadRequest, errors.Wrapf(err, "parsing service spec %q", service))
 		return
@@ -167,9 +167,9 @@ func (s HTTPService) UpdateImages(w http.ResponseWriter, r *http.Request) {
 		transport.WriteError(w, r, http.StatusBadRequest, errors.Wrapf(err, "parsing form"))
 		return
 	}
-	var serviceSpecs []update.ServiceSpec
+	var serviceSpecs []update.ResourceSpec
 	for _, service := range r.Form["service"] {
-		serviceSpec, err := update.ParseServiceSpec(service)
+		serviceSpec, err := update.ParseResourceSpec(service)
 		if err != nil {
 			transport.WriteError(w, r, http.StatusBadRequest, errors.Wrapf(err, "parsing service spec %q", service))
 			return
@@ -270,7 +270,7 @@ func (s HTTPService) UpdatePolicies(w http.ResponseWriter, r *http.Request) {
 func (s HTTPService) LogEvent(w http.ResponseWriter, r *http.Request) {
 	ctx := getRequestContext(r)
 
-	var event history.Event
+	var event event.Event
 	if err := json.NewDecoder(r.Body).Decode(&event); err != nil {
 		transport.WriteError(w, r, http.StatusBadRequest, err)
 		return
@@ -288,7 +288,7 @@ func (s HTTPService) LogEvent(w http.ResponseWriter, r *http.Request) {
 func (s HTTPService) History(w http.ResponseWriter, r *http.Request) {
 	ctx := getRequestContext(r)
 	service := mux.Vars(r)["service"]
-	spec, err := update.ParseServiceSpec(service)
+	spec, err := update.ParseResourceSpec(service)
 	if err != nil {
 		transport.WriteError(w, r, http.StatusBadRequest, errors.Wrapf(err, "parsing service spec %q", spec))
 		return
@@ -562,13 +562,14 @@ func logging(next http.Handler, logger log.Logger) http.Handler {
 
 		next.ServeHTTP(tw, r)
 
-		requestLogger := log.NewContext(logger).With(
+		requestLogger := log.With(
+			logger,
 			"url", mustUnescape(r.URL.String()),
 			"took", time.Since(begin).String(),
 			"status_code", cw.code,
 		)
 		if cw.code != http.StatusOK {
-			requestLogger = requestLogger.With("error", strings.TrimSpace(tw.buf.String()))
+			requestLogger = log.With(requestLogger, "error", strings.TrimSpace(tw.buf.String()))
 		}
 		requestLogger.Log()
 	})

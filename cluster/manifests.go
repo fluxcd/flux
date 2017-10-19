@@ -26,7 +26,7 @@ type Manifests interface {
 	// UpdatePolicies modifies a manifest to apply the policy update specified
 	UpdatePolicies([]byte, policy.Update) ([]byte, error)
 	// ServicesWithPolicies returns all services with their associated policies
-	ServicesWithPolicies(path string) (policy.ServiceMap, error)
+	ServicesWithPolicies(path string) (policy.ResourceMap, error)
 }
 
 // UpdateManifest looks for the manifest for a given service, reads

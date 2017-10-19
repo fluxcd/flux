@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/weaveworks/flux"
-	"github.com/weaveworks/flux/history"
+	"github.com/weaveworks/flux/event"
 	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/policy"
 	"github.com/weaveworks/flux/remote"
@@ -14,8 +14,8 @@ import (
 
 // API for clients connecting to the service
 type Client interface {
-	ListServices(ctx context.Context, namespace string) ([]flux.ServiceStatus, error)
-	ListImages(context.Context, update.ServiceSpec) ([]flux.ImageStatus, error)
+	ListServices(ctx context.Context, namespace string) ([]flux.ControllerStatus, error)
+	ListImages(context.Context, update.ResourceSpec) ([]flux.ImageStatus, error)
 	UpdateImages(context.Context, update.ReleaseSpec, update.Cause) (job.ID, error)
 	SyncNotify(context.Context) error
 	JobStatus(context.Context, job.ID) (job.Status, error)
@@ -29,5 +29,5 @@ type Client interface {
 type Upstream interface {
 	RegisterDaemon(context.Context, remote.Platform) error
 	IsDaemonConnected(context.Context) error
-	LogEvent(context.Context, history.Event) error
+	LogEvent(context.Context, event.Event) error
 }

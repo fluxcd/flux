@@ -2,6 +2,8 @@ package history
 
 import (
 	"time"
+
+	"github.com/weaveworks/flux/event"
 )
 
 // Entry is the serializable format of an event. It's a
@@ -10,5 +12,5 @@ type Entry struct {
 	Stamp *time.Time `json:",omitempty"`
 	Type  string
 	Data  string
-	Event *Event `json:",omitempty"`
+	Event *event.Event `json:",omitempty"`
 }

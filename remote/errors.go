@@ -56,15 +56,16 @@ func UnsupportedResourceKind(err error) error {
 		Type: fluxerr.User,
 		Help: err.Error() + `
 
-The version of the agent running in your cluster (fluxd) can only
-release updates to named deployments. The ability to release to other
-kinds of pod controllers (such as daemon sets and stateful sets) will
-be added in a future version of flux.
+The version of the agent running in your cluster (fluxd) can release updates to
+the following kinds of pod controller: Deployments, DaemonSets, StatefulSets
+and CronJobs. When new kinds are added to Kubernetes, we try to support them as
+quickly as possible - check here to see if a new version of flux is available:
 
-Important - releasing by service name is no longer supported - if
-you're using an old version of fluxctl that does not let you specify
-a kind other than 'service', you will need to upgrade it.
+	https://github.com/weaveworks/flux/releases
 
+Releasing by Service is not supported - if you're using an old version of
+fluxctl that accepts the '--service' argument you will need to get a new one
+that matches your agent.
 `,
 		Err: err,
 	}

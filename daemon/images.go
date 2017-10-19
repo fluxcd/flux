@@ -43,7 +43,7 @@ func (d *Daemon) pollForNewImages(logger log.Logger) {
 	changes := &update.Automated{}
 	for _, service := range services {
 		for _, container := range service.ContainersOrNil() {
-			logger := log.NewContext(logger).With("service", service.ID, "container", container.Name, "currentimage", container.Image)
+			logger := log.With(logger, "service", service.ID, "container", container.Name, "currentimage", container.Image)
 
 			currentImageID, err := flux.ParseImageID(container.Image)
 			if err != nil {
@@ -67,7 +67,7 @@ func (d *Daemon) pollForNewImages(logger log.Logger) {
 	}
 }
 
-func getTagPattern(services policy.ServiceMap, service flux.ResourceID, container string) string {
+func getTagPattern(services policy.ResourceMap, service flux.ResourceID, container string) string {
 	policies := services[service]
 	if pattern, ok := policies.Get(policy.TagPrefix(container)); ok {
 		return strings.TrimPrefix(pattern, "glob:")
@@ -75,7 +75,7 @@ func getTagPattern(services policy.ServiceMap, service flux.ResourceID, containe
 	return "*"
 }
 
-func (d *Daemon) unlockedAutomatedServices() (policy.ServiceMap, error) {
+func (d *Daemon) unlockedAutomatedServices() (policy.ResourceMap, error) {
 	services, err := d.Manifests.ServicesWithPolicies(d.Checkout.ManifestDir())
 	if err != nil {
 		return nil, err

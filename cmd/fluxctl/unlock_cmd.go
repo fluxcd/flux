@@ -6,37 +6,51 @@ import (
 	"github.com/weaveworks/flux/update"
 )
 
-type serviceUnlockOpts struct {
+type controllerUnlockOpts struct {
 	*rootOpts
-	service string
+	namespace  string
+	controller string
 	outputOpts
 	cause update.Cause
+
+	// Deprecated
+	service string
 }
 
-func newServiceUnlock(parent *rootOpts) *serviceUnlockOpts {
-	return &serviceUnlockOpts{rootOpts: parent}
+func newControllerUnlock(parent *rootOpts) *controllerUnlockOpts {
+	return &controllerUnlockOpts{rootOpts: parent}
 }
 
-func (opts *serviceUnlockOpts) Command() *cobra.Command {
+func (opts *controllerUnlockOpts) Command() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "unlock",
-		Short: "Unlock a service, so it can be deployed.",
+		Short: "Unlock a controller, so it can be deployed.",
 		Example: makeExample(
-			"fluxctl unlock --service=helloworld",
+			"fluxctl unlock --controller=deployment/helloworld",
 		),
 		RunE: opts.RunE,
 	}
 	AddOutputFlags(cmd, &opts.outputOpts)
 	AddCauseFlags(cmd, &opts.cause)
+	cmd.Flags().StringVarP(&opts.namespace, "namespace", "n", "default", "Controller namespace")
+	cmd.Flags().StringVarP(&opts.controller, "controller", "c", "", "Controller to unlock")
+
+	// Deprecate
 	cmd.Flags().StringVarP(&opts.service, "service", "s", "", "Service to unlock")
+	cmd.Flags().MarkHidden("service")
+
 	return cmd
 }
 
-func (opts *serviceUnlockOpts) RunE(cmd *cobra.Command, args []string) error {
-	policyOpts := &servicePolicyOpts{
+func (opts *controllerUnlockOpts) RunE(cmd *cobra.Command, args []string) error {
+	if len(opts.service) > 0 {
+		return errorServiceFlagDeprecated
+	}
+	policyOpts := &controllerPolicyOpts{
 		rootOpts:   opts.rootOpts,
 		outputOpts: opts.outputOpts,
-		service:    opts.service,
+		namespace:  opts.namespace,
+		controller: opts.controller,
 		cause:      opts.cause,
 		unlock:     true,
 	}

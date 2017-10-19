@@ -18,9 +18,9 @@ import (
 	"github.com/weaveworks/flux/cluster/kubernetes"
 	kresource "github.com/weaveworks/flux/cluster/kubernetes/resource"
 	"github.com/weaveworks/flux/cluster/kubernetes/testfiles"
+	"github.com/weaveworks/flux/event"
 	"github.com/weaveworks/flux/git"
 	"github.com/weaveworks/flux/git/gittest"
-	"github.com/weaveworks/flux/history"
 	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/policy"
 	"github.com/weaveworks/flux/registry"
@@ -129,7 +129,7 @@ func TestDaemon_ListImages(t *testing.T) {
 	ctx := context.Background()
 
 	// List all images for services
-	ss := update.ServiceSpec(update.ServiceSpecAll)
+	ss := update.ResourceSpec(update.ResourceSpecAll)
 	is, err := d.ListImages(ctx, ss)
 	if err != nil {
 		t.Fatalf("Error: %s", err.Error())
@@ -140,7 +140,7 @@ func TestDaemon_ListImages(t *testing.T) {
 	}
 
 	// List images for specific service
-	ss = update.ServiceSpec(svc)
+	ss = update.ResourceSpec(svc)
 	is, err = d.ListImages(ctx, ss)
 	if err != nil {
 		t.Fatalf("Error: %s", err.Error())
@@ -189,15 +189,15 @@ func TestDaemon_SyncNotify(t *testing.T) {
 	}
 
 	// Check that history was written to
-	var e []history.Event
+	var e []event.Event
 	w.Eventually(func() bool {
 		e, _ = events.AllEvents(time.Time{}, -1, time.Time{})
 		return len(e) > 0
 	}, "Waiting for new events")
 	if 1 != len(e) {
 		t.Fatal("Expected one log event from the sync, but got", len(e))
-	} else if history.EventSync != e[0].Type {
-		t.Fatalf("Expected event with type %s but got %s", history.EventSync, e[0].Type)
+	} else if event.EventSync != e[0].Type {
+		t.Fatalf("Expected event with type %s but got %s", event.EventSync, e[0].Type)
 	}
 }
 
@@ -319,7 +319,7 @@ func TestDaemon_JobStatusWithNoCache(t *testing.T) {
 	w.ForJobSucceeded(d, id)
 }
 
-func mockDaemon(t *testing.T) (*Daemon, func(), *cluster.Mock, history.EventReadWriter) {
+func mockDaemon(t *testing.T) (*Daemon, func(), *cluster.Mock, *mockEventWriter) {
 	logger := log.NewNopLogger()
 
 	singleService := cluster.Controller{
@@ -405,7 +405,7 @@ func mockDaemon(t *testing.T) (*Daemon, func(), *cluster.Mock, history.EventRead
 		}, nil)
 	}
 
-	events := history.NewMock()
+	events := &mockEventWriter{}
 
 	// Shutdown chans and waitgroups
 	shutdown := make(chan struct{})
@@ -437,6 +437,24 @@ func mockDaemon(t *testing.T) (*Daemon, func(), *cluster.Mock, history.EventRead
 		wg.Wait() // Wait for it to close, it might take a while
 		repoCleanup()
 	}, k8s, events
+}
+
+type mockEventWriter struct {
+	events []event.Event
+	sync.Mutex
+}
+
+func (w *mockEventWriter) LogEvent(e event.Event) error {
+	w.Lock()
+	defer w.Unlock()
+	w.events = append(w.events, e)
+	return nil
+}
+
+func (w *mockEventWriter) AllEvents(_ time.Time, _ int64, _ time.Time) ([]event.Event, error) {
+	w.Lock()
+	defer w.Unlock()
+	return w.events, nil
 }
 
 // DAEMON TEST HELPERS
@@ -503,7 +521,7 @@ func updateImage(ctx context.Context, d *Daemon, t *testing.T) job.ID {
 		Type: update.Images,
 		Spec: update.ReleaseSpec{
 			Kind:         update.ReleaseKindExecute,
-			ServiceSpecs: []update.ServiceSpec{update.ServiceSpecAll},
+			ServiceSpecs: []update.ResourceSpec{update.ResourceSpecAll},
 			ImageSpec:    newHelloImage,
 		},
 	})

@@ -8,6 +8,7 @@ import (
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 
 	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/event"
 	"github.com/weaveworks/flux/service"
 )
 
@@ -34,7 +35,7 @@ func InstrumentedDB(db DB) DB {
 	return &instrumentedDB{db}
 }
 
-func (i *instrumentedDB) LogEvent(inst service.InstanceID, e Event) (err error) {
+func (i *instrumentedDB) LogEvent(inst service.InstanceID, e event.Event) (err error) {
 	defer func(begin time.Time) {
 		requestDuration.With(
 			LabelMethod, "LogEvent",
@@ -44,7 +45,7 @@ func (i *instrumentedDB) LogEvent(inst service.InstanceID, e Event) (err error) 
 	return i.db.LogEvent(inst, e)
 }
 
-func (i *instrumentedDB) AllEvents(inst service.InstanceID, before time.Time, limit int64, after time.Time) (e []Event, err error) {
+func (i *instrumentedDB) AllEvents(inst service.InstanceID, before time.Time, limit int64, after time.Time) (e []event.Event, err error) {
 	defer func(begin time.Time) {
 		requestDuration.With(
 			LabelMethod, "AllEvents",
@@ -54,7 +55,7 @@ func (i *instrumentedDB) AllEvents(inst service.InstanceID, before time.Time, li
 	return i.db.AllEvents(inst, before, limit, after)
 }
 
-func (i *instrumentedDB) EventsForService(inst service.InstanceID, s flux.ResourceID, before time.Time, limit int64, after time.Time) (e []Event, err error) {
+func (i *instrumentedDB) EventsForService(inst service.InstanceID, s flux.ResourceID, before time.Time, limit int64, after time.Time) (e []event.Event, err error) {
 	defer func(begin time.Time) {
 		requestDuration.With(
 			LabelMethod, "EventsForService",
@@ -64,7 +65,7 @@ func (i *instrumentedDB) EventsForService(inst service.InstanceID, s flux.Resour
 	return i.db.EventsForService(inst, s, before, limit, after)
 }
 
-func (i *instrumentedDB) GetEvent(id EventID) (e Event, err error) {
+func (i *instrumentedDB) GetEvent(id event.EventID) (e event.Event, err error) {
 	defer func(begin time.Time) {
 		requestDuration.With(
 			LabelMethod, "GetEvent",

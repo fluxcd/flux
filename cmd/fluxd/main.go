@@ -25,8 +25,8 @@ import (
 	"github.com/weaveworks/flux/cluster"
 	"github.com/weaveworks/flux/cluster/kubernetes"
 	"github.com/weaveworks/flux/daemon"
+	"github.com/weaveworks/flux/event"
 	"github.com/weaveworks/flux/git"
-	"github.com/weaveworks/flux/history"
 	transport "github.com/weaveworks/flux/http"
 	daemonhttp "github.com/weaveworks/flux/http/daemon"
 	"github.com/weaveworks/flux/job"
@@ -124,8 +124,8 @@ func main() {
 	var logger log.Logger
 	{
 		logger = log.NewLogfmtLogger(os.Stderr)
-		logger = log.NewContext(logger).With("ts", log.DefaultTimestampUTC)
-		logger = log.NewContext(logger).With("caller", log.DefaultCaller)
+		logger = log.With(logger, "ts", log.DefaultTimestampUTC)
+		logger = log.With(logger, "caller", log.DefaultCaller)
 	}
 
 	// Sort out values for the git tag and notes ref. There are
@@ -191,7 +191,7 @@ func main() {
 
 		publicKey, privateKeyPath := sshKeyRing.KeyPair()
 
-		logger := log.NewContext(logger).With("component", "platform")
+		logger := log.With(logger, "component", "platform")
 		logger.Log("identity", privateKeyPath)
 		logger.Log("identity.pub", publicKey.Key)
 		logger.Log("host", restClientConfig.Host, "version", clusterVersion)
@@ -240,7 +240,7 @@ func main() {
 				Service:        *memcachedService,
 				Timeout:        *memcachedTimeout,
 				UpdateInterval: 1 * time.Minute,
-				Logger:         log.NewContext(logger).With("component", "memcached"),
+				Logger:         log.With(logger, "component", "memcached"),
 				MaxIdleConns:   defaultMemcacheConnections,
 			})
 			memcacheRegistry = registryMemcache.InstrumentMemcacheClient(memcacheRegistry)
@@ -253,14 +253,14 @@ func main() {
 				Service:        *memcachedService,
 				Timeout:        *memcachedTimeout,
 				UpdateInterval: 1 * time.Minute,
-				Logger:         log.NewContext(logger).With("component", "memcached"),
+				Logger:         log.With(logger, "component", "memcached"),
 				MaxIdleConns:   *registryBurst,
 			})
 			memcacheWarmer = registryMemcache.InstrumentMemcacheClient(memcacheWarmer)
 			defer memcacheWarmer.Stop()
 		}
 
-		cacheLogger := log.NewContext(logger).With("component", "cache")
+		cacheLogger := log.With(logger, "component", "cache")
 		cache = registry.NewRegistry(
 			registry.NewCacheClientFactory(cacheLogger, memcacheRegistry, *registryCacheExpiry),
 			cacheLogger,
@@ -269,14 +269,14 @@ func main() {
 		cache = registry.NewInstrumentedRegistry(cache)
 
 		// Remote
-		registryLogger := log.NewContext(logger).With("component", "registry")
+		registryLogger := log.With(logger, "component", "registry")
 		remoteFactory := registry.NewRemoteClientFactory(registryLogger, registryMiddleware.RateLimiterConfig{
 			RPS:   *registryRPS,
 			Burst: *registryBurst,
 		})
 
 		// Warmer
-		warmerLogger := log.NewContext(logger).With("component", "warmer")
+		warmerLogger := log.With(logger, "component", "warmer")
 		cacheWarmer = registry.Warmer{
 			Logger:        warmerLogger,
 			ClientFactory: remoteFactory,
@@ -298,11 +298,11 @@ func main() {
 
 	daemonRef := daemon.NewRef(notReadyDaemon)
 
-	var eventWriter history.EventWriter
+	var eventWriter event.EventWriter
 	{
 		// Connect to fluxsvc if given an upstream address
 		if *upstreamURL != "" {
-			upstreamLogger := log.NewContext(logger).With("component", "upstream")
+			upstreamLogger := log.With(logger, "component", "upstream")
 			upstreamLogger.Log("URL", *upstreamURL)
 			upstream, err := daemonhttp.NewUpstream(
 				&http.Client{Timeout: 10 * time.Second},
@@ -348,7 +348,7 @@ func main() {
 	// report anything before seeing if it works. So, don't start
 	// until we have failed or succeeded.
 	var checker *checkpoint.Checker
-	updateCheckLogger := log.NewContext(logger).With("component", "checkpoint")
+	updateCheckLogger := log.With(logger, "component", "checkpoint")
 
 	var repo git.Repo
 	var checkout *git.Checkout
@@ -410,14 +410,14 @@ func main() {
 		JobStatusCache: &job.StatusCache{Size: 100},
 
 		EventWriter: eventWriter,
-		Logger:      log.NewContext(logger).With("component", "daemon"), LoopVars: &daemon.LoopVars{
+		Logger:      log.With(logger, "component", "daemon"), LoopVars: &daemon.LoopVars{
 			GitPollInterval:      *gitPollInterval,
 			RegistryPollInterval: *registryPollInterval,
 		},
 	}
 
 	shutdownWg.Add(1)
-	go daemon.GitPollLoop(shutdown, shutdownWg, log.NewContext(logger).With("component", "sync-loop"))
+	go daemon.GitPollLoop(shutdown, shutdownWg, log.With(logger, "component", "sync-loop"))
 
 	shutdownWg.Add(1)
 	go cacheWarmer.Loop(shutdown, shutdownWg, image_creds)

@@ -15,10 +15,8 @@ import (
 	"io/ioutil"
 
 	"github.com/weaveworks/flux"
-	"github.com/weaveworks/flux/db"
+	"github.com/weaveworks/flux/event"
 	"github.com/weaveworks/flux/guid"
-	"github.com/weaveworks/flux/history"
-	historysql "github.com/weaveworks/flux/history/sql"
 	transport "github.com/weaveworks/flux/http"
 	"github.com/weaveworks/flux/http/client"
 	httpdaemon "github.com/weaveworks/flux/http/daemon"
@@ -27,6 +25,9 @@ import (
 	"github.com/weaveworks/flux/service"
 	"github.com/weaveworks/flux/service/bus"
 	"github.com/weaveworks/flux/service/bus/nats"
+	"github.com/weaveworks/flux/service/db"
+	"github.com/weaveworks/flux/service/history"
+	historysql "github.com/weaveworks/flux/service/history/sql"
 	httpserver "github.com/weaveworks/flux/service/http"
 	"github.com/weaveworks/flux/service/instance"
 	instancedb "github.com/weaveworks/flux/service/instance/sql"
@@ -59,7 +60,7 @@ const (
 
 func setup(t *testing.T) {
 	databaseSource := "file://fluxy.db"
-	databaseMigrationsDir, _ := filepath.Abs("../../db/migrations")
+	databaseMigrationsDir, _ := filepath.Abs("../../service/db/migrations")
 	var dbDriver string
 	{
 		db.Migrate(databaseSource, databaseMigrationsDir)
@@ -74,8 +75,8 @@ func setup(t *testing.T) {
 
 	imageID, _ := flux.ParseImageID("quay.io/weaveworks/helloworld:v1")
 	mockPlatform = &remote.MockPlatform{
-		ListServicesAnswer: []flux.ServiceStatus{
-			flux.ServiceStatus{
+		ListServicesAnswer: []flux.ControllerStatus{
+			flux.ControllerStatus{
 				ID:     flux.MustParseResourceID(helloWorldSvc),
 				Status: "ok",
 				Containers: []flux.Container{
@@ -87,7 +88,7 @@ func setup(t *testing.T) {
 					},
 				},
 			},
-			flux.ServiceStatus{},
+			flux.ControllerStatus{},
 		},
 		ListImagesAnswer: []flux.ImageStatus{
 			flux.ImageStatus{
@@ -202,7 +203,7 @@ func TestFluxsvc_ListImages(t *testing.T) {
 	ctx := context.Background()
 
 	// Test ListImages
-	imgs, err := apiClient.ListImages(ctx, update.ServiceSpecAll)
+	imgs, err := apiClient.ListImages(ctx, update.ResourceSpecAll)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -255,7 +256,7 @@ func TestFluxsvc_Release(t *testing.T) {
 	r, err := apiClient.UpdateImages(ctx, update.ReleaseSpec{
 		ImageSpec:    "alpine:latest",
 		Kind:         "execute",
-		ServiceSpecs: []update.ServiceSpec{helloWorldSvc},
+		ServiceSpecs: []update.ResourceSpec{helloWorldSvc},
 	}, update.Cause{})
 	if err != nil {
 		t.Fatal(err)
@@ -291,8 +292,8 @@ func TestFluxsvc_History(t *testing.T) {
 
 	ctx := context.Background()
 
-	err := apiClient.LogEvent(ctx, history.Event{
-		Type: history.EventLock,
+	err := apiClient.LogEvent(ctx, event.Event{
+		Type: event.EventLock,
 		ServiceIDs: []flux.ResourceID{
 			flux.MustParseResourceID(helloWorldSvc),
 		},

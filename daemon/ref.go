@@ -46,11 +46,11 @@ func (pr *Ref) Export(ctx context.Context) ([]byte, error) {
 	return pr.Platform().Export(ctx)
 }
 
-func (pr *Ref) ListServices(ctx context.Context, namespace string) ([]flux.ServiceStatus, error) {
+func (pr *Ref) ListServices(ctx context.Context, namespace string) ([]flux.ControllerStatus, error) {
 	return pr.Platform().ListServices(ctx, namespace)
 }
 
-func (pr *Ref) ListImages(ctx context.Context, spec update.ServiceSpec) ([]flux.ImageStatus, error) {
+func (pr *Ref) ListImages(ctx context.Context, spec update.ResourceSpec) ([]flux.ImageStatus, error) {
 	return pr.Platform().ListImages(ctx, spec)
 }
 

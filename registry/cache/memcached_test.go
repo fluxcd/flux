@@ -30,7 +30,7 @@ func TestMemcache_ExpiryReadWrite(t *testing.T) {
 	mc := NewFixedServerMemcacheClient(MemcacheConfig{
 		Timeout:        time.Second,
 		UpdateInterval: 1 * time.Minute,
-		Logger:         log.NewContext(log.NewLogfmtLogger(os.Stderr)).With("component", "memcached"),
+		Logger:         log.With(log.NewLogfmtLogger(os.Stderr), "component", "memcached"),
 	}, strings.Fields(*memcachedIPs)...)
 
 	// Set some dummy data
@@ -57,7 +57,7 @@ func TestMemcache_ReadWrite(t *testing.T) {
 	mc := NewFixedServerMemcacheClient(MemcacheConfig{
 		Timeout:        time.Second,
 		UpdateInterval: 1 * time.Minute,
-		Logger:         log.NewContext(log.NewLogfmtLogger(os.Stderr)).With("component", "memcached"),
+		Logger:         log.With(log.NewLogfmtLogger(os.Stderr), "component", "memcached"),
 	}, strings.Fields(*memcachedIPs)...)
 
 	// Set some dummy data

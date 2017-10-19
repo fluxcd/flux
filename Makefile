@@ -16,7 +16,7 @@ FLUXD_DEPS:=$(call godeps,./cmd/fluxd)
 FLUXSVC_DEPS:=$(call godeps,./cmd/fluxsvc)
 FLUXCTL_DEPS:=$(call godeps,./cmd/fluxctl)
 
-MIGRATIONS:=$(shell find db/migrations -type f)
+MIGRATIONS:=$(shell find service/db/migrations -type f)
 
 IMAGE_TAG:=$(shell ./docker/image-tag)
 
@@ -41,7 +41,7 @@ test:
 	go test ${TEST_FLAGS} $(shell go list ./... | grep -v "^github.com/weaveworks/flux/vendor" | sort -u)
 
 build/migrations.tar: $(MIGRATIONS)
-	tar cf $@ db/migrations
+	tar cf $@ service/db/migrations
 
 build/.%.done: docker/Dockerfile.%
 	mkdir -p ./build/docker/$*
@@ -62,6 +62,7 @@ build/fluxsvc: cmd/fluxsvc/*.go
 
 build/kubectl: cache/kubectl-$(KUBECTL_VERSION) docker/kubectl.version
 	cp cache/kubectl-$(KUBECTL_VERSION) $@
+	strip $@
 	chmod a+x $@
 
 cache/kubectl-$(KUBECTL_VERSION):

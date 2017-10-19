@@ -1,4 +1,4 @@
-package history
+package event
 
 import (
 	"fmt"
@@ -68,6 +68,11 @@ type Event struct {
 	Metadata EventMetadata `json:"metadata,omitempty"`
 }
 
+type EventWriter interface {
+	// LogEvent records a message in the history.
+	LogEvent(Event) error
+}
+
 func (e Event) ServiceIDStrings() []string {
 	var strServiceIDs []string
 	for _, serviceID := range e.ServiceIDs {
@@ -91,7 +96,7 @@ func (e Event) String() string {
 			strImageIDs = []string{"no image changes"}
 		}
 		for _, spec := range metadata.Spec.ServiceSpecs {
-			if spec == update.ServiceSpecAll {
+			if spec == update.ResourceSpecAll {
 				strServiceIDs = []string{"all services"}
 				break
 			}
