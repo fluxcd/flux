@@ -1,3 +1,9 @@
+## 1.0.2 (2017-10-18)
+
+### Improvements
+
+- Implemented support for v2 registry manifests.
+
 ## 1.0.1 (2017-09-19)
 
 ### Improvements
