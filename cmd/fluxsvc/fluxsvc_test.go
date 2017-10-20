@@ -142,7 +142,7 @@ func setup(t *testing.T) {
 	}
 
 	// Server
-	apiServer := server.New(ver, instancer, instanceDB, messageBus, log.NewNopLogger())
+	apiServer := server.New(ver, instancer, instanceDB, messageBus, log.NewNopLogger(), nil)
 	router = httpserver.NewServiceRouter()
 	handler := httpserver.NewHandler(apiServer, router, log.NewNopLogger())
 	handler = addInstanceIDHandler(handler)

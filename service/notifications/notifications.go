@@ -5,7 +5,7 @@ import (
 	"github.com/weaveworks/flux/service/instance"
 )
 
-var DefaultNotifyEvents = []string{"release", "autorelease"}
+var DefaultNotifyEvents = []string{event.EventRelease, event.EventAutoRelease}
 
 func Event(cfg instance.Config, e event.Event) error {
 	// If this is a release
