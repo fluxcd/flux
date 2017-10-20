@@ -1,5 +1,6 @@
-// Monitoring middlewares for registry interfaces
 package registry
+
+// Monitoring middlewares for registry interfaces
 
 import (
 	"strconv"

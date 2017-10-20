@@ -1,5 +1,3 @@
-package rpc
-
 /*
 
 This is a `net/rpc`-compatible implementation of a client and server
@@ -48,3 +46,4 @@ we must ignore the contexts passed in. If we change the RPC mechanism,
 we may be able to address this.
 
 */
+package rpc

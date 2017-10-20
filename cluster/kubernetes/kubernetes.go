@@ -1,7 +1,3 @@
-// Package kubernetes provides abstractions for the Kubernetes platform. At the
-// moment, Kubernetes is the only supported platform, so we are directly
-// returning Kubernetes objects. As we add more platforms, we will create
-// abstractions and common data types in package platform.
 package kubernetes
 
 import (
