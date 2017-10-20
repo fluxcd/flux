@@ -24,13 +24,13 @@ import (
 	transport "github.com/weaveworks/flux/http"
 	"github.com/weaveworks/flux/http/httperror"
 	"github.com/weaveworks/flux/http/websocket"
-	"github.com/weaveworks/flux/integrations/github"
 	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/policy"
 	"github.com/weaveworks/flux/remote"
 	"github.com/weaveworks/flux/remote/rpc"
 	"github.com/weaveworks/flux/service"
 	"github.com/weaveworks/flux/service/api"
+	"github.com/weaveworks/flux/service/integrations/github"
 	"github.com/weaveworks/flux/update"
 )
 
