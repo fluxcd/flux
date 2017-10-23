@@ -1,8 +1,6 @@
 package sync
 
 import (
-	"fmt"
-
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/policy"
 )
@@ -61,7 +59,6 @@ func (ri rscIgnorePolicy) ResourceID() flux.ResourceID {
 func (ri rscIgnorePolicy) Policy() policy.Set {
 	p := policy.Set{}
 	p[policy.Ignore] = "true"
-	fmt.Printf("!!! policy = %+v\n", p)
 	return p
 }
 
