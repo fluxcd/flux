@@ -82,8 +82,8 @@ func (opts *controllerShowOpts) RunE(cmd *cobra.Command, args []string) error {
 		}
 
 		controllerName := controller.ID.String()
-		var lineCount int
 		for _, container := range controller.Containers {
+			var lineCount int
 			containerName := container.Name
 			reg, repo, currentTag := container.Current.ID.Components()
 			if reg != "" {
