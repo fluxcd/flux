@@ -50,7 +50,6 @@ func (a *Remote) Manifest(id flux.ImageID) (flux.Image, error) {
 				}
 			}
 		}
-		fmt.Printf("%#v\n", err)
 		return flux.Image{}, err
 	}
 	// The above request will happily return a bogus, empty manifest
