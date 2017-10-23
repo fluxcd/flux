@@ -82,8 +82,8 @@ func (opts *controllerShowOpts) RunE(cmd *cobra.Command, args []string) error {
 		}
 
 		controllerName := controller.ID.String()
-		var lineCount int
 		for _, container := range controller.Containers {
+			var lineCount int
 			containerName := container.Name
 			reg, repo, currentTag := container.Current.ID.Components()
 			if reg != "" {
@@ -113,7 +113,7 @@ func (opts *controllerShowOpts) RunE(cmd *cobra.Command, args []string) error {
 					printEllipsis, printLine = lineCount > (opts.limit+1), true
 				}
 				if printEllipsis {
-					fmt.Fprintf(out, "\t\t%s\t\n", ":")
+					fmt.Fprintf(out, "\t\t%s (%d image(s) omitted)\t\n", ":", lineCount-opts.limit-1)
 				}
 				if printLine {
 					createdAt := ""
