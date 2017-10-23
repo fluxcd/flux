@@ -13,141 +13,124 @@ the command line. The `--help` for `fluxctl` is described below.
 fluxctl helps you deploy your code.
 
 Workflow:
-  fluxctl list-services                                        # Which services are running?
-  fluxctl list-images --service=default/foo                    # Which images are running/available?
-  fluxctl release --service=default/foo --update-image=bar:v2  # Release new version.
+  fluxctl list-controllers                                           # Which controllers are running?
+  fluxctl list-images --controller=deployment/foo                    # Which images are running/available?
+  fluxctl release --controller=deployment/foo --update-image=bar:v2  # Release new version.
 
 Usage:
   fluxctl [command]
 
 Available Commands:
-
-Having no deployment side effect
-
-  version       Output the version of fluxctl
-  identity      Display SSH public key
-  list-images   Show the deployed and available images for a service.
-  list-services List services currently running on the platform.
-  save          save service definitions to local files in platform-native format
-
-With side effect
-
-  automate      Turn on automatic deployment for a service.
-  deautomate    Turn off automatic deployment for a service.
-  lock          Lock a service, so it cannot be deployed.
-  release       Release a new version of a service.
-  unlock        Unlock a service, so it can be deployed.
+  automate         Turn on automatic deployment for a controller.
+  deautomate       Turn off automatic deployment for a controller.
+  help             Help about any command
+  identity         Display SSH public key
+  list-controllers List controllers currently running on the platform.
+  list-images      Show the deployed and available images for a controller.
+  lock             Lock a controller, so it cannot be deployed.
+  policy           Manage policies for a controller.
+  release          Release a new version of a controller.
+  save             save controller definitions to local files in platform-native format
+  unlock           Unlock a controller, so it can be deployed.
+  version          Output the version of fluxctl
 
 Flags:
-  -t, --token string   Weave Cloud service token; you can also set the environment variable FLUX_SERVICE_TOKEN
-  -u, --url string     base URL of the flux service; you can also set the environment variable FLUX_URL (default "https://cloud.weave.works/api/flux")
+  -h, --help           help for fluxctl
+  -t, --token string   Weave Cloud controller token; you can also set the environment variable WEAVE_CLOUD_TOKEN or FLUX_SERVICE_TOKEN
+  -u, --url string     base URL of the flux controller; you can also set the environment variable FLUX_URL (default "https://cloud.weave.works/api/flux")
 
 Use "fluxctl [command] --help" for more information about a command.
-
 ```
 
-# What is a Service?
+# What is a Controller?
 
-The `fluxctl` CLI uses the word "service" a lot. This does not represent
-a Kubernetes service. Instead, it is meant in the sense that this is one
-distinct resource that provides a service to others. In the
-Kubernetes sense, this means a {deployment, service} pairing.
+This term refers to any cluster resource responsible for the creation of
+containers from versioned images - in Kubernetes these are workloads such as
+Deployments, DaemonSets, StatefulSets and CronJobs.
 
-# Viewing Services
+# Viewing Controllers
 
-The first thing to do is to check whether Flux can see any running 
-services. To do this, use the `list-services` subcommand:
+The first thing to do is to check whether Flux can see any running
+controllers. To do this, use the `list-controllers` subcommand:
 
 ```sh
-$ fluxctl list-services                   
-SERVICE             CONTAINER   IMAGE                                         RELEASE  POLICY
-default/flux        fluxd       quay.io/weaveworks/fluxd:latest               ready    
-                    fluxsvc     quay.io/weaveworks/fluxsvc:latest                      
-default/helloworld  helloworld  quay.io/weaveworks/helloworld:master-a000001  ready    
-                    sidecar     quay.io/weaveworks/sidecar:master-a000002              
-default/kubernetes                                                                     
-default/memcached   memcached   memcached:1.4.25                              ready    
-default/nats        nats        nats:0.9.4                                    ready    
+$ fluxctl list-controllers
+CONTROLLER                     CONTAINER   IMAGE                                         RELEASE  POLICY
+default:deployment/helloworld  helloworld  quay.io/weaveworks/helloworld:master-a000001  ready
+                               sidecar     quay.io/weaveworks/sidecar:master-a000002
 ```
 
 Note that the actual images running will depend on your cluster.
 
 # Inspecting the Version of a Container
 
-Once we have a list of services, we can begin to inspect which versions
+Once we have a list of controllers, we can begin to inspect which versions
 of the image are running.
 
 ```sh
-$ fluxctl list-images --service default/helloworld
-                                SERVICE             CONTAINER   IMAGE                          CREATED
-                                default/helloworld  helloworld  quay.io/weaveworks/helloworld  
-                                                                |   master-9a16ff945b9e        20 Jul 16 13:19 UTC
-                                                                |   master-b31c617a0fe3        20 Jul 16 13:19 UTC
-                                                                |   master-a000002             12 Jul 16 17:17 UTC
-                                                                '-> master-a000001             12 Jul 16 17:16 UTC
-                                                    sidecar     quay.io/weaveworks/sidecar     
-                                                                '-> master-a000002             23 Aug 16 10:05 UTC
-                                                                    master-a000001             23 Aug 16 09:53 UTC
-
+$ fluxctl list-images --controller default:deployment/helloworld
+CONTROLLER                     CONTAINER   IMAGE                          CREATED
+default:deployment/helloworld  helloworld  quay.io/weaveworks/helloworld
+                                           |   master-9a16ff945b9e        20 Jul 16 13:19 UTC
+                                           |   master-b31c617a0fe3        20 Jul 16 13:19 UTC
+                                           |   master-a000002             12 Jul 16 17:17 UTC
+                                           '-> master-a000001             12 Jul 16 17:16 UTC
+                               sidecar     quay.io/weaveworks/sidecar
+                                           '-> master-a000002             23 Aug 16 10:05 UTC
+                                               master-a000001             23 Aug 16 09:53 UTC
 ```
 
-The arrows will point to the version that is currently running 
+The arrows will point to the version that is currently running
 alongside a list of other versions and their timestamps.
 
-# Releasing a Service
+# Releasing a Controller
 
-We can now go ahead and update a service with the `release` subcommand. 
-This will check whether each service needs to be updated, and if so, 
+We can now go ahead and update a controller with the `release` subcommand.
+This will check whether each controller needs to be updated, and if so,
 write the new configuration to the repository.
 
 ```sh
-$ fluxctl release --service=default/helloworld --user=phil --message="New version" --update-all-images
+$ fluxctl release --controller=default:deployment/helloworld --user=phil --message="New version" --update-all-images
 Submitting release ...
 Commit pushed: 7dc025c
 Applied 7dc025c61fdbbfc2c32f792ad61e6ff52cf0590a
-SERVICE             STATUS   UPDATES
-default/helloworld  success  helloworld: quay.io/weaveworks/helloworld:master-a000001 -> master-9a16ff945b9e
+CONTROLLER                     STATUS   UPDATES
+default:deployment/helloworld  success  helloworld: quay.io/weaveworks/helloworld:master-a000001 -> master-9a16ff945b9e
 
-$ fluxctl list-images --service default/helloworld    
-SERVICE             CONTAINER   IMAGE                          CREATED
-default/helloworld  helloworld  quay.io/weaveworks/helloworld  
-                                '-> master-9a16ff945b9e        20 Jul 16 13:19 UTC
-                                    master-b31c617a0fe3        20 Jul 16 13:19 UTC
-                                    master-a000002             12 Jul 16 17:17 UTC
-                                    master-a000001             12 Jul 16 17:16 UTC
-                    sidecar     quay.io/weaveworks/sidecar     
-                                '-> master-a000002             23 Aug 16 10:05 UTC
-                                    master-a000001             23 Aug 16 09:53 UTC
-
+$ fluxctl list-images --controller default:deployment/helloworld
+CONTROLLER                     CONTAINER   IMAGE                          CREATED
+default:deployment/helloworld  helloworld  quay.io/weaveworks/helloworld
+                                           '-> master-9a16ff945b9e        20 Jul 16 13:19 UTC
+                                               master-b31c617a0fe3        20 Jul 16 13:19 UTC
+                                               master-a000002             12 Jul 16 17:17 UTC
+                                               master-a000001             12 Jul 16 17:16 UTC
+                               sidecar     quay.io/weaveworks/sidecar
+                                           '-> master-a000002             23 Aug 16 10:05 UTC
+                                               master-a000001             23 Aug 16 09:53 UTC
 ```
 
 # Turning on Automation
 
 Automation can be easily controlled from within
 [Weave Cloud](https://cloud.weave.works) by selecting the "Automate"
-button when inspecting a service. But we can also do this from `fluxctl`
+button when inspecting a controller. But we can also do this from `fluxctl`
 with the `automate` subcommand.
 
 ```sh
-$ fluxctl automate --service=default/helloworld
+$ fluxctl automate --controller=default:deployment/helloworld
 Commit pushed: af4bf73
-SERVICE             STATUS   UPDATES
-default/helloworld  success  
+CONTROLLER                     STATUS   UPDATES
+default:deployment/helloworld  success
 
-$ fluxctl list-services --namespace=default         
-SERVICE             CONTAINER   IMAGE                                              RELEASE  POLICY
-default/flux        fluxd       quay.io/weaveworks/fluxd:latest                    ready    
-                    fluxsvc     quay.io/weaveworks/fluxsvc:latest                           
-default/helloworld  helloworld  quay.io/weaveworks/helloworld:master-9a16ff945b9e  ready    automated
-                    sidecar     quay.io/weaveworks/sidecar:master-a000002                   
-default/kubernetes                                                                          
-default/memcached   memcached   memcached:1.4.25                                   ready    
-default/nats        nats        nats:0.9.4                                         ready    
+$ fluxctl list-controllers --namespace=default
+CONTROLLER                     CONTAINER   IMAGE                                             RELEASE  POLICY
+default:deployment/helloworld  helloworld  quay.io/weaveworks/helloworld:master-9a16ff945b9e ready    automated
+                               sidecar     quay.io/weaveworks/sidecar:master-a000002
 ```
 
-We can see that the `list-services` subcommand reports that the
+We can see that the `list-controllers` subcommand reports that the
 helloworld application is automated. Flux will now automatically
-deploy a new version of a service whenever one is available and commit
+deploy a new version of a controller whenever one is available and commit
 the new configuration to the version control system.
 
 # Turning off Automation
@@ -155,46 +138,41 @@ the new configuration to the version control system.
 Turning off automation is performed with the `deautomate` command:
 
 ```sh
- $ fluxctl deautomate --service=default/helloworld
+ $ fluxctl deautomate --controller=default:deployment/helloworld
 Commit pushed: a54ef2c
-SERVICE             STATUS   UPDATES
-default/helloworld  success  
+CONTROLLER                     STATUS   UPDATES
+default:deployment/helloworld  success
 
- $ fluxctl list-services --namespace=default      
-SERVICE             CONTAINER   IMAGE                                              RELEASE  POLICY
-default/flux        fluxd       quay.io/weaveworks/fluxd:latest                    ready    
-                    fluxsvc     quay.io/weaveworks/fluxsvc:latest                           
-default/helloworld  helloworld  quay.io/weaveworks/helloworld:master-9a16ff945b9e  ready    
-                    sidecar     quay.io/weaveworks/sidecar:master-a000002                   
-default/kubernetes                                                                          
-default/memcached   memcached   memcached:1.4.25                                   ready    
-default/nats        nats        nats:0.9.4                                         ready  
+$ fluxctl list-controllers --namespace=default
+CONTROLLER                     CONTAINER   IMAGE                                             RELEASE  POLICY
+default:deployment/helloworld  helloworld  quay.io/weaveworks/helloworld:master-9a16ff945b9e ready
+                               sidecar     quay.io/weaveworks/sidecar:master-a000002
 ```
 
-We can see that the service is no longer automated.
+We can see that the controller is no longer automated.
 
-# Locking a Service
+# Locking a Controller
 
-Locking a service will stop manual or automated releases to that
-service. Changes made in the file will still be synced.
+Locking a controller will stop manual or automated releases to that
+controller. Changes made in the file will still be synced.
 
 ```sh
-$ fluxctl lock --service=default/helloworld
+$ fluxctl lock --controller=deployment/helloworld
 Commit pushed: d726722
-SERVICE             STATUS   UPDATES
-default/helloworld  success  
+CONTROLLER                     STATUS   UPDATES
+default:deployment/helloworld  success
 ```
 
-# Unlocking a Service
+# Unlocking a Controller
 
-Unlocking a service allows it to have manual or automated releases
+Unlocking a controller allows it to have manual or automated releases
 (again).
 
 ```sh
-$ fluxctl unlock --service=default/helloworld
+$ fluxctl unlock --controller=deployment/helloworld
 Commit pushed: 708b63a
-SERVICE             STATUS   UPDATES
-default/helloworld  success  
+CONTROLLER                     STATUS   UPDATES
+default:deployment/helloworld  success
 ```
 
 # Recording user and message with the triggered action
@@ -212,7 +190,7 @@ information:
 Actions triggered by a user through the Weave Cloud UI or the CLI `fluxctl`
 tool, can have the commit author information customized. This is handy for providing extra context in the
 notifications and history. Whether the customization is possible, depends on the Flux daemon (fluxd)
-`set-git-author` flag. If set, the commit author will be customized in the following way:
+`git-set-author` flag. If set, the commit author will be customized in the following way:
 
 ## Actions triggered through Weave Cloud
 
