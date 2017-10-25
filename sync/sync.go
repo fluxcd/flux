@@ -93,6 +93,10 @@ func prepareSyncDelete(logger log.Logger, repoResources map[string]resource.Reso
 }
 
 func prepareSyncApply(logger log.Logger, clusterResources map[string]resource.Resource, id string, res resource.Resource, sync *cluster.SyncDef) {
+	if len(clusterResources) == 0 {
+		return
+	}
+
 	if res.Policy().Contains(policy.Ignore) {
 		logger.Log("resource", res.ResourceID(), "ignore", "apply")
 		return
