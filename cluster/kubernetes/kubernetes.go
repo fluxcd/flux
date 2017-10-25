@@ -251,6 +251,7 @@ func (c *Cluster) Ping() error {
 	return err
 }
 
+// Export exports cluster resources
 func (c *Cluster) Export() ([]byte, error) {
 	var config bytes.Buffer
 	list, err := c.client.Namespaces().List(meta_v1.ListOptions{})
