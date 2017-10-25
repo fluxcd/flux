@@ -85,7 +85,7 @@ func (dk *deploymentKind) getPodControllers(c *Cluster, namespace string) ([]pod
 	}
 
 	var podControllers []podController
-	for i, _ := range deployments.Items {
+	for i := range deployments.Items {
 		podControllers = append(podControllers, makeDeploymentPodController(&deployments.Items[i]))
 	}
 
@@ -95,6 +95,7 @@ func (dk *deploymentKind) getPodControllers(c *Cluster, namespace string) ([]pod
 func makeDeploymentPodController(deployment *apiext.Deployment) podController {
 	var status string
 	objectMeta, deploymentStatus := deployment.ObjectMeta, deployment.Status
+
 	if deploymentStatus.ObservedGeneration >= objectMeta.Generation {
 		// the definition has been updated; now let's see about the replicas
 		updated, wanted := deploymentStatus.UpdatedReplicas, *deployment.Spec.Replicas

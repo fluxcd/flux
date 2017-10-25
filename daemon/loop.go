@@ -11,6 +11,7 @@ import (
 	"sync"
 
 	"context"
+
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/event"
 	"github.com/weaveworks/flux/git"
