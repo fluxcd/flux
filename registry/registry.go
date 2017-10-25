@@ -50,15 +50,8 @@ func NewRegistry(c ClientFactory, l log.Logger, connections int) Registry {
 }
 
 // GetRepository yields a repository matching the given name, if any exists.
-// Repository may be of various forms, in which case omitted elements take
-// assumed defaults.
-//
-//   helloworld             -> index.docker.io/library/helloworld
-//   foo/helloworld         -> index.docker.io/foo/helloworld
-//   quay.io/foo/helloworld -> quay.io/foo/helloworld
-//
 func (reg *registry) GetRepository(id flux.ImageID) ([]flux.Image, error) {
-	client, err := reg.factory.ClientFor(id.Host, Credentials{})
+	client, err := reg.factory.ClientFor(id.Registry(), Credentials{})
 	if err != nil {
 		return nil, err
 	}
@@ -79,7 +72,7 @@ func (reg *registry) GetRepository(id flux.ImageID) ([]flux.Image, error) {
 
 // Get a single Image from the registry if it exists
 func (reg *registry) GetImage(id flux.ImageID) (flux.Image, error) {
-	client, err := reg.factory.ClientFor(id.Host, Credentials{})
+	client, err := reg.factory.ClientFor(id.Registry(), Credentials{})
 	if err != nil {
 		return flux.Image{}, err
 	}

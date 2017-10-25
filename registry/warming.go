@@ -58,14 +58,14 @@ func (w *Warmer) Loop(stop <-chan struct{}, wg *sync.WaitGroup, imagesToFetchFun
 }
 
 func (w *Warmer) warm(id flux.ImageID, creds Credentials) {
-	client, err := w.ClientFactory.ClientFor(id.Host, creds)
+	client, err := w.ClientFactory.ClientFor(id.Registry(), creds)
 	if err != nil {
 		w.Logger.Log("err", err.Error())
 		return
 	}
 	defer client.Cancel()
 
-	username := w.Creds.credsFor(id.Host).username
+	username := w.Creds.credsFor(id.Registry()).username
 
 	// Refresh tags first
 	// Only, for example, "library/alpine" because we have the host information in the client above.
@@ -126,7 +126,7 @@ func (w *Warmer) warm(id flux.ImageID, creds Credentials) {
 	w.Logger.Log("fetching", id.String(), "to-update", len(toUpdate))
 
 	if expired {
-		w.Logger.Log("expiring", id.HostImage())
+		w.Logger.Log("expiring", id.String())
 	}
 
 	// The upper bound for concurrent fetches against a single host is
@@ -168,7 +168,7 @@ func (w *Warmer) warm(id flux.ImageID, creds Credentials) {
 		}(imID)
 	}
 	awaitFetchers.Wait()
-	w.Logger.Log("updated", id.HostImage())
+	w.Logger.Log("updated", id.String())
 }
 
 func withinExpiryBuffer(expiry time.Time, buffer time.Duration) bool {

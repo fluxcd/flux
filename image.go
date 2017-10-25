@@ -3,6 +3,7 @@ package flux
 import (
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
@@ -22,12 +23,17 @@ var (
 	ErrMalformedImageID = errors.Wrap(ErrInvalidImageID, `expected image name as either <image>:<tag> or just <image>`)
 )
 
-// ImageID is a fully qualified name that refers to a particular Image.
-// It is in the format: host[:port]/Image[:tag]
+// ImageID is a fully qualified name that refers to a particular
+// (tagged) image or image repository.  It is usually found
+// stringified in the format: `[host[:port]]/Image[:tag]`
 type ImageID struct {
-	Host, Image, Tag string
+	Domain, Image, Tag string
 }
 
+// ParseImageID parses a string representation of an image id into an
+// ImageID value. The grammar is shown here:
+// https://github.com/docker/distribution/blob/master/reference/reference.go
+// (but we do not care about all the productions.)
 func ParseImageID(s string) (ImageID, error) {
 	if s == "" {
 		return ImageID{}, ErrBlankImageID
@@ -35,51 +41,65 @@ func ParseImageID(s string) (ImageID, error) {
 	if strings.HasPrefix(s, "/") || strings.HasSuffix(s, "/") {
 		return ImageID{}, ErrMalformedImageID
 	}
-	var img ImageID
-	parts := strings.Split(s, ":")
-	switch len(parts) {
-	case 1:
-		img.Tag = "latest"
-	case 2:
-		img.Tag = parts[1]
-		s = parts[0]
-	case 3: // There might be three parts if there is a host with a custom port
-		img.Tag = parts[2]
-		s = s[:strings.LastIndex(s, ":")]
-	default:
-		return ImageID{}, ErrMalformedImageID
-	}
-	if s == "" {
-		return ImageID{}, ErrBlankImageID
-	}
-	parts = strings.SplitN(s, "/", 2)
-	switch len(parts) {
-	case 0:
-		return ImageID{}, ErrMalformedImageID
-	case 1:
-		img.Host = dockerHubHost
-		img.Image = dockerHubLibrary + parts[0]
-	case 2:
-		// Replace docker.io with index.docker.io (#692)
-		if parts[0] == oldDockerHubHost {
-			parts[0] = dockerHubHost
+
+	var id ImageID
+
+	elements := strings.Split(s, "/")
+	switch len(elements) {
+	case 0: // NB strings.Split will never return []
+		return id, ErrBlankImageID
+	case 1: // no slashes, e.g., "alpine:1.5"; treat as library image
+		id.Image = s
+	case 2: // may have a domain e.g., "localhost/foo", or not e.g., "weaveworks/scope"
+		if domainRegexp.MatchString(elements[0]) {
+			id.Domain = elements[0]
+			id.Image = elements[1]
+		} else {
+			id.Image = s
 		}
-		img.Host = parts[0]
-		img.Image = parts[1]
+	default: // cannot be a library image, so the first element is assumed to be a domain
+		id.Domain = elements[0]
+		id.Image = strings.Join(elements[1:], "/")
 	}
-	return img, nil
+
+	// Figure out if there's a tag
+	imageParts := strings.Split(id.Image, ":")
+	switch len(imageParts) {
+	case 1:
+		break
+	case 2:
+		if imageParts[0] == "" || imageParts[1] == "" {
+			return id, ErrMalformedImageID
+		}
+		id.Image = imageParts[0]
+		id.Tag = imageParts[1]
+	default:
+		return id, ErrMalformedImageID
+	}
+
+	return id, nil
 }
 
-// Fully qualified name
+var (
+	domainComponent = `([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9-]*[a-zA-Z0-9])`
+	domain          = fmt.Sprintf(`localhost|(%s([.]%s)+)(:[0-9]+)?`, domainComponent, domainComponent)
+	domainRegexp    = regexp.MustCompile(domain)
+)
+
+// String returns the ImageID as a string (i.e., unparsed) without canonicalising it.
 func (i ImageID) String() string {
 	if i.Image == "" {
 		return "" // Doesn't make sense to return anything if it doesn't even have an image
 	}
-	var ta string
+	var tag string
 	if i.Tag != "" {
-		ta = fmt.Sprintf(":%s", i.Tag)
+		tag = ":" + i.Tag
 	}
-	return fmt.Sprintf("%s%s", i.Repository(), ta)
+	var host string
+	if i.Domain != "" {
+		host = i.Domain + "/"
+	}
+	return fmt.Sprintf("%s%s%s", host, i.Image, tag)
 }
 
 // ImageID is serialized/deserialized as a string
@@ -97,25 +117,47 @@ func (i *ImageID) UnmarshalJSON(data []byte) (err error) {
 	return err
 }
 
-// Repository returns the short version of an image's repository (trimming if dockerhub)
+// Repository returns the canonicalised path part of an ImageID.
 func (i ImageID) Repository() string {
-	r := i.HostImage()
-	r = strings.TrimPrefix(r, dockerHubHost+"/")
-	r = strings.TrimPrefix(r, dockerHubLibrary)
-	return r
+	switch i.Domain {
+	case "", oldDockerHubHost, dockerHubHost:
+		path := strings.Split(i.Image, "/")
+		if len(path) == 1 {
+			return "library/" + i.Image
+		}
+		return i.Image
+	default:
+		return i.Image
+	}
 }
 
-// HostImage includes all parts of the image, even if it is from dockerhub.
-func (i ImageID) HostImage() string {
-	return fmt.Sprintf("%s/%s", i.Host, i.Image)
+// Registry returns the domain name of the Docker image registry to
+// use to fetch the image or image metadata.
+func (i ImageID) Registry() string {
+	switch i.Domain {
+	case "", oldDockerHubHost:
+		return dockerHubHost
+	default:
+		return i.Domain
+	}
 }
 
-func (i ImageID) FullID() string {
-	return fmt.Sprintf("%s/%s:%s", i.Host, i.Image, i.Tag)
+// CanonicalName returns the canonicalised registry host and image parts
+// of the ID.
+func (i ImageID) CanonicalName() string {
+	return fmt.Sprintf("%s/%s", i.Registry(), i.Repository())
 }
 
-func (i ImageID) Components() (host, repo, tag string) {
-	return i.Host, i.Image, i.Tag
+// CanonicalRef returns the full, canonicalised ID including the tag if present.
+func (i ImageID) CanonicalRef() string {
+	if i.Tag == "" {
+		return fmt.Sprintf("%s/%s", i.Registry(), i.Repository())
+	}
+	return fmt.Sprintf("%s/%s:%s", i.Registry(), i.Repository(), i.Tag)
+}
+
+func (i ImageID) Components() (domain, repo, tag string) {
+	return i.Domain, i.Image, i.Tag
 }
 
 // WithNewTag makes a new copy of an ImageID with a new tag

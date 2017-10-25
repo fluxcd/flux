@@ -25,7 +25,7 @@ func PrintResults(out io.Writer, results Result, verbose bool) {
 			extraLines = append(extraLines, result.Error)
 		}
 		for _, update := range result.PerContainer {
-			extraLines = append(extraLines, fmt.Sprintf("%s: %s -> %s", update.Container, update.Current.FullID(), update.Target.Tag))
+			extraLines = append(extraLines, fmt.Sprintf("%s: %s -> %s", update.Container, update.Current.String(), update.Target.Tag))
 		}
 
 		var inline string
