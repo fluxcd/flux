@@ -35,13 +35,13 @@ type Remote struct {
 
 // Return the tags for this repository.
 func (a *Remote) Tags(id flux.ImageID) ([]string, error) {
-	return a.Registry.Tags(id.Image)
+	return a.Registry.Tags(id.Repository())
 }
 
 // We need to do some adapting here to convert from the return values
 // from dockerregistry to our domain types.
 func (a *Remote) Manifest(id flux.ImageID) (flux.Image, error) {
-	manifestV2, err := a.Registry.ManifestV2(id.Image, id.Tag)
+	manifestV2, err := a.Registry.ManifestV2(id.Repository(), id.Tag)
 	if err != nil {
 		if err, ok := err.(*url.Error); ok {
 			if err, ok := (err.Err).(*dockerregistry.HttpStatusError); ok {
@@ -62,7 +62,7 @@ func (a *Remote) Manifest(id flux.ImageID) (flux.Image, error) {
 	// image config. We have to fetch that in order to get the created
 	// datetime.
 	conf := manifestV2.Config
-	reader, err := a.Registry.DownloadLayer(id.Image, conf.Digest)
+	reader, err := a.Registry.DownloadLayer(id.Repository(), conf.Digest)
 	if err != nil {
 		return flux.Image{}, err
 	}
@@ -86,7 +86,7 @@ func (a *Remote) Manifest(id flux.ImageID) (flux.Image, error) {
 }
 
 func (a *Remote) ManifestFromV1(id flux.ImageID) (flux.Image, error) {
-	history, err := a.Registry.Manifest(id.Image, id.Tag)
+	history, err := a.Registry.Manifest(id.Repository(), id.Tag)
 	if err != nil || history == nil {
 		return flux.Image{}, errors.Wrap(err, "getting remote manifest")
 	}
@@ -142,7 +142,7 @@ func NewCache(creds Credentials, cr cache.Reader, expiry time.Duration, logger l
 }
 
 func (c *Cache) Manifest(id flux.ImageID) (flux.Image, error) {
-	creds := c.creds.credsFor(id.Host)
+	creds := c.creds.credsFor(id.Registry())
 	key, err := cache.NewManifestKey(creds.username, id)
 	if err != nil {
 		return flux.Image{}, err
@@ -161,7 +161,7 @@ func (c *Cache) Manifest(id flux.ImageID) (flux.Image, error) {
 }
 
 func (c *Cache) Tags(id flux.ImageID) ([]string, error) {
-	creds := c.creds.credsFor(id.Host)
+	creds := c.creds.credsFor(id.Registry())
 	key, err := cache.NewTagKey(creds.username, id)
 	if err != nil {
 		return []string{}, err

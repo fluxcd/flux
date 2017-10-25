@@ -237,7 +237,7 @@ type manifestKey struct {
 }
 
 func NewManifestKey(username string, id flux.ImageID) (Keyer, error) {
-	return &manifestKey{username, id.HostImage(), id.Tag}, nil
+	return &manifestKey{username, id.CanonicalName(), id.Tag}, nil
 }
 
 func (k *manifestKey) Key() string {
@@ -257,7 +257,7 @@ type tagKey struct {
 }
 
 func NewTagKey(username string, id flux.ImageID) (Keyer, error) {
-	return &tagKey{username, id.HostImage()}, nil
+	return &tagKey{username, id.CanonicalName()}, nil
 }
 
 func (k *tagKey) Key() string {

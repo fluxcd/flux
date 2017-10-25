@@ -30,7 +30,7 @@ func (f *SpecificImageFilter) Filter(u ControllerUpdate) ControllerResult {
 	for _, c := range u.Controller.Containers.Containers {
 		cID, _ := flux.ParseImageID(c.Image)
 		// If container image == image in update
-		if cID.HostImage() == f.Img.HostImage() {
+		if cID.CanonicalName() == f.Img.CanonicalName() {
 			// We want to update this
 			return ControllerResult{}
 		}

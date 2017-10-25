@@ -95,7 +95,7 @@ func TestRemoteFactory_RawClient(t *testing.T) {
 
 	// Refresh tags first
 	var tags []string
-	client, err := fact.ClientFor(id.Host, Credentials{})
+	client, err := fact.ClientFor(id.Registry(), Credentials{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -109,7 +109,7 @@ func TestRemoteFactory_RawClient(t *testing.T) {
 		t.Fatal("Should have some tags")
 	}
 
-	client, err = fact.ClientFor(id.Host, Credentials{})
+	client, err = fact.ClientFor(id.Registry(), Credentials{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -133,7 +133,7 @@ func TestRemoteFactory_InvalidHost(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	client, err := fact.ClientFor(invalidId.Host, Credentials{})
+	client, err := fact.ClientFor(invalidId.Registry(), Credentials{})
 	if err != nil {
 		return
 	}

@@ -15,26 +15,54 @@ var (
 	testTime, _ = time.Parse(time.RFC3339Nano, constTime)
 )
 
+func TestDomainRegexp(t *testing.T) {
+	for _, d := range []string{
+		"localhost", "localhost:5000",
+		"example.com", "example.com:80",
+		"gcr.io",
+		"index.docker.com",
+	} {
+		if !domainRegexp.MatchString(d) {
+			t.Errorf("domain regexp did not match %q", d)
+		}
+	}
+}
+
 func TestImageID_ParseImageID(t *testing.T) {
 	for _, x := range []struct {
 		test     string
-		expected string
+		registry string
+		canon    string
 	}{
-		{"alpine", "alpine:latest"},
-		{"library/alpine", "alpine:latest"},
-		{"alpine:mytag", "alpine:mytag"},
-		{"quay.io/library/alpine", "quay.io/library/alpine:latest"},
-		{"quay.io/library/alpine:latest", "quay.io/library/alpine:latest"},
-		{"quay.io/library/alpine:mytag", "quay.io/library/alpine:mytag"},
-		{"localhost:5000/library/alpine:mytag", "localhost:5000/library/alpine:mytag"},
-		{"kube-registry.kube-system.svc.cluster.local:31000/secret/repo:latest", "kube-registry.kube-system.svc.cluster.local:31000/secret/repo:latest"},
+		// Library images can have the domain omitted; a
+		// single-element path is understood to be prefixed with "library".
+		{"alpine", dockerHubHost, "index.docker.io/library/alpine"},
+		{"library/alpine", dockerHubHost, "index.docker.io/library/alpine"},
+		{"alpine:mytag", dockerHubHost, "index.docker.io/library/alpine:mytag"},
+		// The old registry path should be replaced with the new one
+		{"docker.io/library/alpine", dockerHubHost, "index.docker.io/library/alpine"},
+		// It's possible to have a domain with a single-element path
+		{"localhost/hello:v1.1", "localhost", "localhost/hello:v1.1"},
+		{"localhost:5000/hello:v1.1", "localhost:5000", "localhost:5000/hello:v1.1"},
+		{"example.com/hello:v1.1", "example.com", "example.com/hello:v1.1"},
+		// The path can have an arbitrary number of elements
+		{"quay.io/library/alpine", "quay.io", "quay.io/library/alpine"},
+		{"quay.io/library/alpine:latest", "quay.io", "quay.io/library/alpine:latest"},
+		{"quay.io/library/alpine:mytag", "quay.io", "quay.io/library/alpine:mytag"},
+		{"localhost:5000/path/to/repo/alpine:mytag", "localhost:5000", "localhost:5000/path/to/repo/alpine:mytag"},
 	} {
 		i, err := ParseImageID(x.test)
 		if err != nil {
-			t.Fatalf("Failed parsing %q, expected %q", x.test, x.expected)
+			t.Errorf("Failed parsing %q: %s", x.test, err)
 		}
-		if i.String() != x.expected {
-			t.Fatalf("%q does not match expected %q", i.String(), x.expected)
+		if i.String() != x.test {
+			t.Errorf("%q does not stringify as itself", x.test)
+		}
+		if i.Registry() != x.registry {
+			t.Errorf("%q registry: expected %q, got %q", x.test, x.registry, i.Registry())
+		}
+		if i.CanonicalRef() != x.canon {
+			t.Errorf("%q full ID: expected %q, got %q", x.test, x.canon, i.CanonicalRef())
 		}
 	}
 }
@@ -68,7 +96,7 @@ func TestImageID_TestComponents(t *testing.T) {
 		test     string
 		expected string
 	}{
-		{i.Host, host},
+		{i.Domain, host},
 		{i.Image, image},
 		{i.Tag, tag},
 		{i.String(), fqn},
@@ -85,23 +113,23 @@ func TestImageID_Serialization(t *testing.T) {
 		test     ImageID
 		expected string
 	}{
-		{ImageID{Host: dockerHubHost, Image: dockerHubLibrary + "alpine", Tag: "a123"}, `"alpine:a123"`},
-		{ImageID{Host: "quay.io", Image: "weaveworks/foobar", Tag: "baz"}, `"quay.io/weaveworks/foobar:baz"`},
+		{ImageID{Image: "alpine", Tag: "a123"}, `"alpine:a123"`},
+		{ImageID{Domain: "quay.io", Image: "weaveworks/foobar", Tag: "baz"}, `"quay.io/weaveworks/foobar:baz"`},
 	} {
 		serialized, err := json.Marshal(x.test)
 		if err != nil {
-			t.Fatalf("Error encoding %v: %v", x.test, err)
+			t.Errorf("Error encoding %v: %v", x.test, err)
 		}
 		if string(serialized) != x.expected {
-			t.Fatalf("Encoded %v as %s, but expected %s", x.test, string(serialized), x.expected)
+			t.Errorf("Encoded %v as %s, but expected %s", x.test, string(serialized), x.expected)
 		}
 
 		var decoded ImageID
 		if err := json.Unmarshal([]byte(x.expected), &decoded); err != nil {
-			t.Fatalf("Error decoding %v: %v", x.expected, err)
+			t.Errorf("Error decoding %v: %v", x.expected, err)
 		}
 		if decoded != x.test {
-			t.Fatalf("Decoded %s as %v, but expected %v", x.expected, decoded, x.test)
+			t.Errorf("Decoded %s as %v, but expected %v", x.expected, decoded, x.test)
 		}
 	}
 }
