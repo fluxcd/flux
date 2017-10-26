@@ -94,11 +94,7 @@ func TestGetCommitAuthor_BothNameAndEmail(t *testing.T) {
 		"core.filemode":                "true",
 		"core.bare":                    "false",
 	}
-	expected := "Jane Doe <jd@j.d>"
-	author := getCommitAuthor(input)
-	if author != expected {
-		t.Fatal("author did not match expected value")
-	}
+	checkAuthor(t, input, "Jane Doe <jd@j.d>")
 }
 
 func TestGetCommitAuthor_OnlyName(t *testing.T) {
@@ -111,11 +107,7 @@ func TestGetCommitAuthor_OnlyName(t *testing.T) {
 		"core.filemode":                "true",
 		"core.bare":                    "false",
 	}
-	expected := "Jane Doe"
-	author := getCommitAuthor(input)
-	if author != expected {
-		t.Fatal("author did not match expected value")
-	}
+	checkAuthor(t, input, "Jane Doe")
 }
 
 func TestGetCommitAuthor_OnlyEmail(t *testing.T) {
@@ -128,11 +120,7 @@ func TestGetCommitAuthor_OnlyEmail(t *testing.T) {
 		"core.filemode":                "true",
 		"core.bare":                    "false",
 	}
-	expected := "jd@j.d"
-	author := getCommitAuthor(input)
-	if author != expected {
-		t.Fatal("author did not match expected value")
-	}
+	checkAuthor(t, input, "jd@j.d")
 }
 
 func TestGetCommitAuthor_NoNameNoEmail(t *testing.T) {
@@ -144,11 +132,7 @@ func TestGetCommitAuthor_NoNameNoEmail(t *testing.T) {
 		"core.filemode":                "true",
 		"core.bare":                    "false",
 	}
-	expected := ""
-	author := getCommitAuthor(input)
-	if author != expected {
-		t.Fatal("author did not match expected value")
-	}
+	checkAuthor(t, input, "")
 }
 
 func TestGetCommitAuthor_NameAndEmptyEmail(t *testing.T) {
@@ -162,11 +146,7 @@ func TestGetCommitAuthor_NameAndEmptyEmail(t *testing.T) {
 		"core.filemode":                "true",
 		"core.bare":                    "false",
 	}
-	expected := "Jane Doe"
-	author := getCommitAuthor(input)
-	if author != expected {
-		t.Fatal("author did not match expected value")
-	}
+	checkAuthor(t, input, "Jane Doe")
 }
 
 func TestGetCommitAuthor_EmailAndEmptyName(t *testing.T) {
@@ -180,7 +160,10 @@ func TestGetCommitAuthor_EmailAndEmptyName(t *testing.T) {
 		"core.filemode":                "true",
 		"core.bare":                    "false",
 	}
-	expected := "jd@j.d"
+	checkAuthor(t, input, "jd@j.d")
+}
+
+func checkAuthor(t *testing.T, input map[string]string, expected string) {
 	author := getCommitAuthor(input)
 	if author != expected {
 		t.Fatal("author did not match expected value")
