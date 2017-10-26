@@ -14,12 +14,7 @@ func TestUserGitconfigMap_EmptyString(t *testing.T) {
 }
 
 func TestUserGitconfigMap(t *testing.T) {
-	d := `push.default=simple
-	merge.conflictstyle=diff3
-	pull.ff=only
-	core.repositoryformatversion=0
-	core.filemode=true
-	core.bare=false`
+	d := gitConfig
 	expected := gitConfigMap(nil)
 
 	userGitconfigInfo := userGitconfigMap(d)
@@ -33,16 +28,10 @@ func TestUserGitconfigMap(t *testing.T) {
 
 func TestUserGitconfigMap_WithEmptyLines(t *testing.T) {
 	d := `
-	user.name=Jane Doe
-	push.default=simple
-	merge.conflictstyle=diff3
-	pull.ff=only
+    user.name=Jane Doe
 
-	core.repositoryformatversion=0
-	core.filemode=true
-	core.bare=false
-
-	`
+    ` + gitConfig + `
+    `
 	expected := gitConfigMap(map[string]string{
 		"user.name": "Jane Doe",
 	})
@@ -119,6 +108,14 @@ func checkAuthor(t *testing.T, input map[string]string, expected string) {
 		t.Fatalf("author %q does not match expected value %q", author, expected)
 	}
 }
+
+var gitConfig = `push.default=simple
+    merge.conflictstyle=diff3
+    pull.ff=only
+    core.repositoryformatversion=0
+    core.filemode=true
+    core.bare=false
+    `
 
 func gitConfigMap(input map[string]string) map[string]string {
 	res := map[string]string{
