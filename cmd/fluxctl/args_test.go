@@ -166,6 +166,6 @@ func TestGetCommitAuthor_EmailAndEmptyName(t *testing.T) {
 func checkAuthor(t *testing.T, input map[string]string, expected string) {
 	author := getCommitAuthor(input)
 	if author != expected {
-		t.Fatal("author did not match expected value")
+		t.Fatalf("author %q does not match expected value %q", author, expected)
 	}
 }
