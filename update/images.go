@@ -57,7 +57,7 @@ func CollectAvailableImages(reg registry.Registry, services []cluster.Controller
 				// container is running an invalid image id? what?
 				return nil, err
 			}
-			images[id.Repository()] = nil
+			images[id.CanonicalName()] = nil
 		}
 	}
 	for repo := range images {
@@ -90,7 +90,7 @@ func exactImages(reg registry.Registry, images []flux.ImageID) (ImageMap, error)
 		if !exist {
 			return m, errors.Wrap(flux.ErrInvalidImageID, fmt.Sprintf("image %q does not exist", id))
 		}
-		m[id.Repository()] = []flux.Image{{ID: id}}
+		m[id.CanonicalName()] = []flux.Image{{ID: id}}
 	}
 	return m, nil
 }

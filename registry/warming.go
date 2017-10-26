@@ -101,8 +101,8 @@ func (w *Warmer) warm(id flux.ImageID, creds Credentials) {
 	for _, tag := range tags {
 		// See if we have the manifest already cached
 		// We don't want to re-download a manifest again.
-		i := id.WithNewTag(tag)
-		key, err := cache.NewManifestKey(username, i)
+		newID := id.WithNewTag(tag)
+		key, err := cache.NewManifestKey(username, newID)
 		if err != nil {
 			w.Logger.Log("err", errors.Wrap(err, "creating key for memcache"))
 			continue
@@ -117,7 +117,7 @@ func (w *Warmer) warm(id flux.ImageID, creds Credentials) {
 			// If we're within the expiry buffer, we need to update quick!
 			expired = true
 		}
-		toUpdate = append(toUpdate, i)
+		toUpdate = append(toUpdate, newID)
 	}
 
 	if len(toUpdate) == 0 {
