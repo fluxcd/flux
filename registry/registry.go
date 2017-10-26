@@ -27,8 +27,8 @@ const (
 
 // The Registry interface is a domain specific API to access container registries.
 type Registry interface {
-	GetRepository(id flux.ImageID) ([]flux.Image, error)
-	GetImage(id flux.ImageID) (flux.Image, error)
+	GetRepository(id flux.ImageName) ([]flux.Image, error)
+	GetImage(id flux.ImageRef) (flux.Image, error)
 }
 
 type registry struct {
@@ -50,7 +50,7 @@ func NewRegistry(c ClientFactory, l log.Logger, connections int) Registry {
 }
 
 // GetRepository yields a repository matching the given name, if any exists.
-func (reg *registry) GetRepository(id flux.ImageID) ([]flux.Image, error) {
+func (reg *registry) GetRepository(id flux.ImageName) ([]flux.Image, error) {
 	client, err := reg.factory.ClientFor(id.Registry(), Credentials{})
 	if err != nil {
 		return nil, err
@@ -71,7 +71,7 @@ func (reg *registry) GetRepository(id flux.ImageID) ([]flux.Image, error) {
 }
 
 // Get a single Image from the registry if it exists
-func (reg *registry) GetImage(id flux.ImageID) (flux.Image, error) {
+func (reg *registry) GetImage(id flux.ImageRef) (flux.Image, error) {
 	client, err := reg.factory.ClientFor(id.Registry(), Credentials{})
 	if err != nil {
 		return flux.Image{}, err
@@ -84,7 +84,7 @@ func (reg *registry) GetImage(id flux.ImageID) (flux.Image, error) {
 	return img, nil
 }
 
-func (reg *registry) tagsToRepository(client Client, id flux.ImageID, tags []string) ([]flux.Image, error) {
+func (reg *registry) tagsToRepository(client Client, id flux.ImageName, tags []string) ([]flux.Image, error) {
 	// one way or another, we'll be finishing all requests
 	defer client.Cancel()
 
@@ -99,7 +99,7 @@ func (reg *registry) tagsToRepository(client Client, id flux.ImageID, tags []str
 	for i := 0; i < reg.connections; i++ {
 		go func() {
 			for tag := range toFetch {
-				image, err := client.Manifest(id.WithNewTag(tag)) // Copy the imageID to avoid races
+				image, err := client.Manifest(id.ToRef(tag))
 				if err != nil {
 					if err != cache.ErrNotCached {
 						reg.logger.Log("registry-metadata-err", err)

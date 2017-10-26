@@ -20,13 +20,13 @@ var (
 	// This must match the value in cluster/kubernetes/testfiles/data.go
 	container = "goodbyeworld"
 
-	oldImage          = "quay.io/weaveworks/helloworld:master-a000001"
-	oldImageID, _     = flux.ParseImageID(oldImage)
-	sidecarImage      = "quay.io/weaveworks/sidecar:master-a000002"
-	sidecarImageID, _ = flux.ParseImageID(sidecarImage)
-	hwSvcID, _        = flux.ParseResourceID("default:deployment/helloworld")
-	hwSvcSpec, _      = update.ParseResourceSpec(hwSvcID.String())
-	hwSvc             = cluster.Controller{
+	oldImage           = "quay.io/weaveworks/helloworld:master-a000001"
+	oldImageRef, _     = flux.ParseImageRef(oldImage)
+	sidecarImage       = "quay.io/weaveworks/sidecar:master-a000002"
+	sidecarImageRef, _ = flux.ParseImageRef(sidecarImage)
+	hwSvcID, _         = flux.ParseResourceID("default:deployment/helloworld")
+	hwSvcSpec, _       = update.ParseResourceSpec(hwSvcID.String())
+	hwSvc              = cluster.Controller{
 		ID: hwSvcID,
 		Containers: cluster.ContainersOrExcuse{
 			Containers: []cluster.Container{
@@ -44,7 +44,7 @@ var (
 
 	oldLockedImg     = "quay.io/weaveworks/locked-service:1"
 	newLockedImg     = "quay.io/weaveworks/locked-service:2"
-	newLockedID, _   = flux.ParseImageID(newLockedImg)
+	newLockedID, _   = flux.ParseImageRef(newLockedImg)
 	lockedSvcID, _   = flux.ParseResourceID("default:deployment/locked-service")
 	lockedSvcSpec, _ = update.ParseResourceSpec(lockedSvcID.String())
 	lockedSvc        = cluster.Controller{
@@ -77,11 +77,11 @@ var (
 		lockedSvc,
 		testSvc,
 	}
-	newImageID, _ = flux.ParseImageID("quay.io/weaveworks/helloworld:master-a000002")
-	timeNow       = time.Now()
-	mockRegistry  = registry.NewMockRegistry([]flux.Image{
+	newImageRef, _ = flux.ParseImageRef("quay.io/weaveworks/helloworld:master-a000002")
+	timeNow        = time.Now()
+	mockRegistry   = registry.NewMockRegistry([]flux.Image{
 		flux.Image{
-			ID:        newImageID,
+			ID:        newImageRef,
 			CreatedAt: timeNow,
 		},
 		flux.Image{
@@ -131,8 +131,8 @@ func Test_FilterLogic(t *testing.T) {
 					PerContainer: []update.ContainerUpdate{
 						update.ContainerUpdate{
 							Container: container,
-							Current:   oldImageID,
-							Target:    newImageID,
+							Current:   oldImageRef,
+							Target:    newImageRef,
 						},
 					},
 				},
@@ -159,8 +159,8 @@ func Test_FilterLogic(t *testing.T) {
 					PerContainer: []update.ContainerUpdate{
 						update.ContainerUpdate{
 							Container: container,
-							Current:   oldImageID,
-							Target:    newImageID,
+							Current:   oldImageRef,
+							Target:    newImageRef,
 						},
 					},
 				},
@@ -177,7 +177,7 @@ func Test_FilterLogic(t *testing.T) {
 			Name: "not image",
 			Spec: update.ReleaseSpec{
 				ServiceSpecs: []update.ResourceSpec{update.ResourceSpecAll},
-				ImageSpec:    update.ImageSpecFromID(newImageID),
+				ImageSpec:    update.ImageSpecFromRef(newImageRef),
 				Kind:         update.ReleaseKindExecute,
 				Excludes:     []flux.ResourceID{},
 			},
@@ -187,8 +187,8 @@ func Test_FilterLogic(t *testing.T) {
 					PerContainer: []update.ContainerUpdate{
 						update.ContainerUpdate{
 							Container: container,
-							Current:   oldImageID,
-							Target:    newImageID,
+							Current:   oldImageRef,
+							Target:    newImageRef,
 						},
 					},
 				},
@@ -218,8 +218,8 @@ func Test_FilterLogic(t *testing.T) {
 					PerContainer: []update.ContainerUpdate{
 						update.ContainerUpdate{
 							Container: container,
-							Current:   oldImageID,
-							Target:    newImageID,
+							Current:   oldImageRef,
+							Target:    newImageRef,
 						},
 					},
 				},
@@ -247,8 +247,8 @@ func Test_FilterLogic(t *testing.T) {
 					PerContainer: []update.ContainerUpdate{
 						update.ContainerUpdate{
 							Container: container,
-							Current:   oldImageID,
-							Target:    newImageID,
+							Current:   oldImageRef,
+							Target:    newImageRef,
 						},
 					},
 				},
@@ -317,11 +317,11 @@ func Test_ImageStatus(t *testing.T) {
 
 	upToDateRegistry := registry.NewMockRegistry([]flux.Image{
 		flux.Image{
-			ID:        oldImageID,
+			ID:        oldImageRef,
 			CreatedAt: timeNow,
 		},
 		flux.Image{
-			ID:        sidecarImageID,
+			ID:        sidecarImageRef,
 			CreatedAt: timeNow,
 		},
 	}, nil)

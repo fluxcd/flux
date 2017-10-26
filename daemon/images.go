@@ -45,14 +45,14 @@ func (d *Daemon) pollForNewImages(logger log.Logger) {
 		for _, container := range service.ContainersOrNil() {
 			logger := log.With(logger, "service", service.ID, "container", container.Name, "currentimage", container.Image)
 
-			currentImageID, err := flux.ParseImageID(container.Image)
+			currentImageID, err := flux.ParseImageRef(container.Image)
 			if err != nil {
 				logger.Log("error", err)
 				continue
 			}
 
 			pattern := getTagPattern(candidateServices, service.ID, container.Name)
-			repo := currentImageID.CanonicalName()
+			repo := currentImageID.Name()
 			logger.Log("repo", repo, "pattern", pattern)
 
 			if latest := imageMap.LatestImage(repo, pattern); latest != nil && latest.ID != currentImageID {

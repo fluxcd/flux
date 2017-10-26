@@ -30,7 +30,7 @@ func (r Result) ServiceIDs() []string {
 }
 
 func (r Result) ImageIDs() []string {
-	images := map[flux.ImageID]struct{}{}
+	images := map[flux.ImageRef]struct{}{}
 	for _, serviceResult := range r {
 		for _, containerResult := range serviceResult.PerContainer {
 			images[containerResult.Target] = struct{}{}
@@ -76,6 +76,6 @@ func (fr ControllerResult) Msg(id flux.ResourceID) string {
 
 type ContainerUpdate struct {
 	Container string
-	Current   flux.ImageID
-	Target    flux.ImageID
+	Current   flux.ImageRef
+	Target    flux.ImageRef
 }

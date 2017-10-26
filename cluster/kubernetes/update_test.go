@@ -18,7 +18,7 @@ type update struct {
 }
 
 func testUpdate(t *testing.T, u update) {
-	id, err := flux.ParseImageID(u.updatedImage)
+	id, err := flux.ParseImageRef(u.updatedImage)
 	if err != nil {
 		t.Fatal(err)
 	}

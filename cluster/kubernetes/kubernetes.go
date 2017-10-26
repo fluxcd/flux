@@ -350,12 +350,12 @@ func mergeCredentials(c *Cluster, namespace string, podTemplate apiv1.PodTemplat
 
 	// Now create the service and attach the credentials
 	for _, container := range podTemplate.Spec.Containers {
-		r, err := flux.ParseImageID(container.Image)
+		r, err := flux.ParseImageRef(container.Image)
 		if err != nil {
 			c.logger.Log("err", err.Error())
 			continue
 		}
-		imageCreds[r] = creds
+		imageCreds[r.Name()] = creds
 	}
 }
 

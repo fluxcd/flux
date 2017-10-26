@@ -22,26 +22,127 @@ var (
 	ErrMalformedImageID = errors.Wrap(ErrInvalidImageID, `expected image name as either <image>:<tag> or just <image>`)
 )
 
-// ImageID is a fully qualified name that refers to a particular
-// (tagged) image or image repository.  It is usually found
-// stringified in the format: `[host[:port]]/Image[:tag]`
-type ImageID struct {
-	Domain, Image, Tag string
+// ImageName represents an unversioned (i.e., untagged) image a.k.a.,
+// an image repo. These sometimes include a domain, e.g., quay.io, and
+// always include a path with at least one element. By convention,
+// images at DockerHub may have the domain omitted; and, if they only
+// have single path element, the prefix `library` is implied.
+//
+// Examples (stringified):
+//   * alpine
+//   * library/alpine
+//   * quay.io/weaveworks/flux
+//   * localhost:5000/arbitrary/path/to/repo
+type ImageName struct {
+	Domain, Image string
 }
 
-// ParseImageID parses a string representation of an image id into an
-// ImageID value. The grammar is shown here:
+// CanonicalName is an image name with none of the fields left to be
+// implied by convention.
+type CanonicalName struct {
+	ImageName
+}
+
+//
+func (i ImageName) String() string {
+	if i.Image == "" {
+		return "" // Doesn't make sense to return anything if it doesn't even have an image
+	}
+	var host string
+	if i.Domain != "" {
+		host = i.Domain + "/"
+	}
+	return fmt.Sprintf("%s%s", host, i.Image)
+}
+
+// Repository returns the canonicalised path part of an ImageName.
+func (i ImageName) Repository() string {
+	switch i.Domain {
+	case "", oldDockerHubHost, dockerHubHost:
+		path := strings.Split(i.Image, "/")
+		if len(path) == 1 {
+			return "library/" + i.Image
+		}
+		return i.Image
+	default:
+		return i.Image
+	}
+}
+
+// Registry returns the domain name of the Docker image registry, to
+// use to fetch the image or image metadata.
+func (i ImageName) Registry() string {
+	switch i.Domain {
+	case "", oldDockerHubHost:
+		return dockerHubHost
+	default:
+		return i.Domain
+	}
+}
+
+// CanonicalName returns the canonicalised registry host and image parts
+// of the ID.
+func (i ImageName) CanonicalName() CanonicalName {
+	return CanonicalName{
+		ImageName: ImageName{
+			Domain: i.Registry(),
+			Image:  i.Repository(),
+		},
+	}
+}
+
+func (i ImageName) ToRef(tag string) ImageRef {
+	return ImageRef{
+		ImageName: i,
+		Tag:       tag,
+	}
+}
+
+// ImageRef represents a versioned (i.e., tagged) image. The tag is
+// allowed to be empty, though it is in general undefined what that
+// means. As such, `ImageRef` also includes all `ImageName` values.
+//
+// Examples (stringified):
+//  * alpine:3.5
+//  * library/alpine:3.5
+//  * quay.io/weaveworks/flux:1.1.0
+//  * localhost:5000/arbitrary/path/to/repo:revision-sha1
+type ImageRef struct {
+	ImageName
+	Tag string
+}
+
+// CanonicalRef is an image ref with none of the fields left to be
+// implied by convention.
+type CanonicalRef struct {
+	ImageRef
+}
+
+// String returns the ImageRef as a string (i.e., unparsed) without canonicalising it.
+func (i ImageRef) String() string {
+	var tag string
+	if i.Tag != "" {
+		tag = ":" + i.Tag
+	}
+	return fmt.Sprintf("%s%s", i.ImageName.String(), tag)
+}
+
+func (i ImageRef) Name() ImageName {
+	return i.ImageName
+}
+
+// ParseImageRef parses a string representation of an image id into an
+// ImageRef value. The grammar is shown here:
 // https://github.com/docker/distribution/blob/master/reference/reference.go
 // (but we do not care about all the productions.)
-func ParseImageID(s string) (ImageID, error) {
+func ParseImageRef(s string) (ImageRef, error) {
+	var id ImageRef
 	if s == "" {
-		return ImageID{}, ErrBlankImageID
+		return id, ErrBlankImageID
 	}
 	if strings.HasPrefix(s, "/") || strings.HasSuffix(s, "/") {
-		return ImageID{}, ErrMalformedImageID
+		return id, ErrMalformedImageID
 	}
-
-	var id ImageID
 
 	elements := strings.Split(s, "/")
 	switch len(elements) {
@@ -85,83 +186,40 @@ var (
 	domainRegexp    = regexp.MustCompile(domain)
 )
 
-// String returns the ImageID as a string (i.e., unparsed) without canonicalising it.
-func (i ImageID) String() string {
-	if i.Image == "" {
-		return "" // Doesn't make sense to return anything if it doesn't even have an image
-	}
-	var tag string
-	if i.Tag != "" {
-		tag = ":" + i.Tag
-	}
-	var host string
-	if i.Domain != "" {
-		host = i.Domain + "/"
-	}
-	return fmt.Sprintf("%s%s%s", host, i.Image, tag)
-}
-
 // ImageID is serialized/deserialized as a string
-func (i ImageID) MarshalJSON() ([]byte, error) {
+func (i ImageRef) MarshalJSON() ([]byte, error) {
 	return json.Marshal(i.String())
 }
 
 // ImageID is serialized/deserialized as a string
-func (i *ImageID) UnmarshalJSON(data []byte) (err error) {
+func (i *ImageRef) UnmarshalJSON(data []byte) (err error) {
 	var str string
 	if err := json.Unmarshal(data, &str); err != nil {
 		return err
 	}
-	*i, err = ParseImageID(string(str))
+	*i, err = ParseImageRef(string(str))
 	return err
 }
 
-// Repository returns the canonicalised path part of an ImageID.
-func (i ImageID) Repository() string {
-	switch i.Domain {
-	case "", oldDockerHubHost, dockerHubHost:
-		path := strings.Split(i.Image, "/")
-		if len(path) == 1 {
-			return "library/" + i.Image
-		}
-		return i.Image
-	default:
-		return i.Image
+// CanonicalRef returns the canonicalised reference including the tag
+// if present.
+func (i ImageRef) CanonicalRef() CanonicalRef {
+	name := i.CanonicalName()
+	return CanonicalRef{
+		ImageRef: ImageRef{
+			ImageName: name.ImageName,
+			Tag:       i.Tag,
+		},
 	}
 }
 
-// Registry returns the domain name of the Docker image registry to
-// use to fetch the image or image metadata.
-func (i ImageID) Registry() string {
-	switch i.Domain {
-	case "", oldDockerHubHost:
-		return dockerHubHost
-	default:
-		return i.Domain
-	}
-}
-
-// CanonicalName returns the canonicalised registry host and image parts
-// of the ID.
-func (i ImageID) CanonicalName() string {
-	return fmt.Sprintf("%s/%s", i.Registry(), i.Repository())
-}
-
-// CanonicalRef returns the full, canonicalised ID including the tag if present.
-func (i ImageID) CanonicalRef() string {
-	if i.Tag == "" {
-		return fmt.Sprintf("%s/%s", i.Registry(), i.Repository())
-	}
-	return fmt.Sprintf("%s/%s:%s", i.Registry(), i.Repository(), i.Tag)
-}
-
-func (i ImageID) Components() (domain, repo, tag string) {
+func (i ImageRef) Components() (domain, repo, tag string) {
 	return i.Domain, i.Image, i.Tag
 }
 
 // WithNewTag makes a new copy of an ImageID with a new tag
-func (i ImageID) WithNewTag(t string) ImageID {
-	var img ImageID
+func (i ImageRef) WithNewTag(t string) ImageRef {
+	var img ImageRef
 	img = i
 	img.Tag = t
 	return img
@@ -170,7 +228,7 @@ func (i ImageID) WithNewTag(t string) ImageID {
 // Image can't really be a primitive string only, because we need to also
 // record information about its creation time. (maybe more in the future)
 type Image struct {
-	ID        ImageID
+	ID        ImageRef
 	CreatedAt time.Time
 }
 
@@ -180,7 +238,7 @@ func (im Image) MarshalJSON() ([]byte, error) {
 		t = im.CreatedAt.UTC().Format(time.RFC3339Nano)
 	}
 	encode := struct {
-		ID        ImageID
+		ID        ImageRef
 		CreatedAt string `json:",omitempty"`
 	}{im.ID, t}
 	return json.Marshal(encode)
@@ -188,7 +246,7 @@ func (im Image) MarshalJSON() ([]byte, error) {
 
 func (im *Image) UnmarshalJSON(b []byte) error {
 	unencode := struct {
-		ID        ImageID
+		ID        ImageRef
 		CreatedAt string `json:",omitempty"`
 	}{}
 	json.Unmarshal(b, &unencode)
@@ -206,7 +264,7 @@ func (im *Image) UnmarshalJSON(b []byte) error {
 }
 
 func ParseImage(s string, createdAt time.Time) (Image, error) {
-	id, err := ParseImageID(s)
+	id, err := ParseImageRef(s)
 	if err != nil {
 		return Image{}, err
 	}

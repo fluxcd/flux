@@ -124,7 +124,7 @@ func (s ReleaseSpec) filters(rc ReleaseContext) ([]ControllerFilter, error) {
 	// Image filter
 	var filtList []ControllerFilter
 	if s.ImageSpec != ImageSpecLatest {
-		id, err := flux.ParseImageID(s.ImageSpec.String())
+		id, err := flux.ParseImageRef(s.ImageSpec.String())
 		if err != nil {
 			return nil, err
 		}
@@ -191,18 +191,18 @@ func (s ReleaseSpec) markSkipped(results Result) {
 func (s ReleaseSpec) calculateImageUpdates(rc ReleaseContext, candidates []*ControllerUpdate, results Result, logger log.Logger) ([]*ControllerUpdate, error) {
 	// Compile an `ImageMap` of all relevant images
 	var images ImageMap
-	var repo string
+	var singleRepo flux.CanonicalName
 	var err error
 
 	switch s.ImageSpec {
 	case ImageSpecLatest:
 		images, err = collectUpdateImages(rc.Registry(), candidates, logger)
 	default:
-		var image flux.ImageID
-		image, err = s.ImageSpec.AsID()
+		var image flux.ImageRef
+		image, err = s.ImageSpec.AsRef()
 		if err == nil {
-			repo = image.CanonicalName()
-			images, err = exactImages(rc.Registry(), []flux.ImageID{image})
+			singleRepo = image.CanonicalName()
+			images, err = exactImages(rc.Registry(), []flux.ImageRef{image})
 		}
 	}
 
@@ -230,16 +230,16 @@ func (s ReleaseSpec) calculateImageUpdates(rc ReleaseContext, candidates []*Cont
 		var containerUpdates []ContainerUpdate
 
 		for _, container := range containers {
-			currentImageID, err := flux.ParseImageID(container.Image)
+			currentImageID, err := flux.ParseImageRef(container.Image)
 			if err != nil {
 				// We may hope never to find a malformed image ID, but
 				// anything is possible.
 				return nil, err
 			}
 
-			latestImage := images.LatestImage(currentImageID.CanonicalName(), "*")
+			latestImage := images.LatestImage(currentImageID.Name(), "*")
 			if latestImage == nil {
-				if currentImageID.CanonicalName() != repo {
+				if currentImageID.CanonicalName() != singleRepo {
 					ignoredOrSkipped = ReleaseStatusIgnored
 				} else {
 					ignoredOrSkipped = ReleaseStatusUnknown
@@ -319,21 +319,21 @@ func (s ResourceSpec) String() string {
 }
 
 // ImageSpec is an ImageID, or "<all latest>" (update all containers
-// to the latest available), or "<no updates>" (do not update any
-// images)
+// to the latest available).
 type ImageSpec string
 
 func ParseImageSpec(s string) (ImageSpec, error) {
 	if s == string(ImageSpecLatest) {
-		return ImageSpec(s), nil
+		return ImageSpecLatest, nil
 	}
 
-	parts := strings.Split(s, ":")
-	if len(parts) != 2 || parts[1] == "" {
+	id, err := flux.ParseImageRef(s)
+	if err != nil {
+		return "", err
+	}
+	if id.Tag == "" {
 		return "", errors.Wrap(flux.ErrInvalidImageID, "blank tag (if you want latest, explicitly state the tag :latest)")
 	}
-
-	id, err := flux.ParseImageID(s)
 	return ImageSpec(id.String()), err
 }
 
@@ -341,10 +341,10 @@ func (s ImageSpec) String() string {
 	return string(s)
 }
 
-func (s ImageSpec) AsID() (flux.ImageID, error) {
-	return flux.ParseImageID(s.String())
+func (s ImageSpec) AsRef() (flux.ImageRef, error) {
+	return flux.ParseImageRef(s.String())
 }
 
-func ImageSpecFromID(id flux.ImageID) ImageSpec {
+func ImageSpecFromRef(id flux.ImageRef) ImageSpec {
 	return ImageSpec(id.String())
 }

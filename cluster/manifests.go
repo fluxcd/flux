@@ -18,7 +18,7 @@ type Manifests interface {
 	FindDefinedServices(path string) (map[flux.ResourceID][]string, error)
 	// Update the definitions in a manifests bytes according to the
 	// spec given.
-	UpdateDefinition(def []byte, container string, newImageID flux.ImageID) ([]byte, error)
+	UpdateDefinition(def []byte, container string, newImageID flux.ImageRef) ([]byte, error)
 	// Load all the resource manifests under the path given
 	LoadManifests(paths ...string) (map[string]resource.Resource, error)
 	// Parse the manifests given in an exported blob

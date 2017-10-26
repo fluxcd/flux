@@ -46,7 +46,7 @@ func NewInstrumentedRegistry(next Registry) InstrumentedRegistry {
 	}
 }
 
-func (m *instrumentedRegistry) GetRepository(id flux.ImageID) (res []flux.Image, err error) {
+func (m *instrumentedRegistry) GetRepository(id flux.ImageName) (res []flux.Image, err error) {
 	start := time.Now()
 	res, err = m.next.GetRepository(id)
 	registryDuration.With(
@@ -55,7 +55,7 @@ func (m *instrumentedRegistry) GetRepository(id flux.ImageID) (res []flux.Image,
 	return
 }
 
-func (m *instrumentedRegistry) GetImage(id flux.ImageID) (res flux.Image, err error) {
+func (m *instrumentedRegistry) GetImage(id flux.ImageRef) (res flux.Image, err error) {
 	start := time.Now()
 	res, err = m.next.GetImage(id)
 	registryDuration.With(
@@ -76,7 +76,7 @@ func NewInstrumentedClient(next Client) Client {
 	}
 }
 
-func (m *instrumentedClient) Manifest(id flux.ImageID) (res flux.Image, err error) {
+func (m *instrumentedClient) Manifest(id flux.ImageRef) (res flux.Image, err error) {
 	start := time.Now()
 	res, err = m.next.Manifest(id)
 	remoteDuration.With(
@@ -86,7 +86,7 @@ func (m *instrumentedClient) Manifest(id flux.ImageID) (res flux.Image, err erro
 	return
 }
 
-func (m *instrumentedClient) Tags(id flux.ImageID) (res []string, err error) {
+func (m *instrumentedClient) Tags(id flux.ImageName) (res []string, err error) {
 	start := time.Now()
 	res, err = m.next.Tags(id)
 	remoteDuration.With(
