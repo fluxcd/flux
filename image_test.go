@@ -32,24 +32,25 @@ func TestImageID_ParseImageID(t *testing.T) {
 	for _, x := range []struct {
 		test     string
 		registry string
+		repo     string
 		canon    string
 	}{
 		// Library images can have the domain omitted; a
 		// single-element path is understood to be prefixed with "library".
-		{"alpine", dockerHubHost, "index.docker.io/library/alpine"},
-		{"library/alpine", dockerHubHost, "index.docker.io/library/alpine"},
-		{"alpine:mytag", dockerHubHost, "index.docker.io/library/alpine:mytag"},
+		{"alpine", dockerHubHost, "library/alpine", "index.docker.io/library/alpine"},
+		{"library/alpine", dockerHubHost, "library/alpine", "index.docker.io/library/alpine"},
+		{"alpine:mytag", dockerHubHost, "library/alpine", "index.docker.io/library/alpine:mytag"},
 		// The old registry path should be replaced with the new one
-		{"docker.io/library/alpine", dockerHubHost, "index.docker.io/library/alpine"},
+		{"docker.io/library/alpine", dockerHubHost, "library/alpine", "index.docker.io/library/alpine"},
 		// It's possible to have a domain with a single-element path
-		{"localhost/hello:v1.1", "localhost", "localhost/hello:v1.1"},
-		{"localhost:5000/hello:v1.1", "localhost:5000", "localhost:5000/hello:v1.1"},
-		{"example.com/hello:v1.1", "example.com", "example.com/hello:v1.1"},
+		{"localhost/hello:v1.1", "localhost", "hello", "localhost/hello:v1.1"},
+		{"localhost:5000/hello:v1.1", "localhost:5000", "hello", "localhost:5000/hello:v1.1"},
+		{"example.com/hello:v1.1", "example.com", "hello", "example.com/hello:v1.1"},
 		// The path can have an arbitrary number of elements
-		{"quay.io/library/alpine", "quay.io", "quay.io/library/alpine"},
-		{"quay.io/library/alpine:latest", "quay.io", "quay.io/library/alpine:latest"},
-		{"quay.io/library/alpine:mytag", "quay.io", "quay.io/library/alpine:mytag"},
-		{"localhost:5000/path/to/repo/alpine:mytag", "localhost:5000", "localhost:5000/path/to/repo/alpine:mytag"},
+		{"quay.io/library/alpine", "quay.io", "library/alpine", "quay.io/library/alpine"},
+		{"quay.io/library/alpine:latest", "quay.io", "library/alpine", "quay.io/library/alpine:latest"},
+		{"quay.io/library/alpine:mytag", "quay.io", "library/alpine", "quay.io/library/alpine:mytag"},
+		{"localhost:5000/path/to/repo/alpine:mytag", "localhost:5000", "path/to/repo/alpine", "localhost:5000/path/to/repo/alpine:mytag"},
 	} {
 		i, err := ParseImageID(x.test)
 		if err != nil {
@@ -60,6 +61,9 @@ func TestImageID_ParseImageID(t *testing.T) {
 		}
 		if i.Registry() != x.registry {
 			t.Errorf("%q registry: expected %q, got %q", x.test, x.registry, i.Registry())
+		}
+		if i.Repository() != x.repo {
+			t.Errorf("%q repo: expected %q, got %q", x.test, x.repo, i.Repository())
 		}
 		if i.CanonicalRef() != x.canon {
 			t.Errorf("%q full ID: expected %q, got %q", x.test, x.canon, i.CanonicalRef())

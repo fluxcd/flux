@@ -52,7 +52,7 @@ func (d *Daemon) pollForNewImages(logger log.Logger) {
 			}
 
 			pattern := getTagPattern(candidateServices, service.ID, container.Name)
-			repo := currentImageID.Repository()
+			repo := currentImageID.CanonicalName()
 			logger.Log("repo", repo, "pattern", pattern)
 
 			if latest := imageMap.LatestImage(repo, pattern); latest != nil && latest.ID != currentImageID {

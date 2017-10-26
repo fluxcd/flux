@@ -201,7 +201,7 @@ func (s ReleaseSpec) calculateImageUpdates(rc ReleaseContext, candidates []*Cont
 		var image flux.ImageID
 		image, err = s.ImageSpec.AsID()
 		if err == nil {
-			repo = image.Repository()
+			repo = image.CanonicalName()
 			images, err = exactImages(rc.Registry(), []flux.ImageID{image})
 		}
 	}
@@ -237,9 +237,9 @@ func (s ReleaseSpec) calculateImageUpdates(rc ReleaseContext, candidates []*Cont
 				return nil, err
 			}
 
-			latestImage := images.LatestImage(currentImageID.Repository(), "*")
+			latestImage := images.LatestImage(currentImageID.CanonicalName(), "*")
 			if latestImage == nil {
-				if currentImageID.Repository() != repo {
+				if currentImageID.CanonicalName() != repo {
 					ignoredOrSkipped = ReleaseStatusIgnored
 				} else {
 					ignoredOrSkipped = ReleaseStatusUnknown

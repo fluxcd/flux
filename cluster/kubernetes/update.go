@@ -99,7 +99,7 @@ func tryUpdate(def []byte, container string, newImage flux.ImageID, out io.Write
 		if err != nil {
 			return fmt.Errorf("could not parse image %s", c.Image)
 		}
-		if currentImage.Repository() == newImage.Repository() {
+		if currentImage.CanonicalName() == newImage.CanonicalName() {
 			matchingContainers[i] = c
 		}
 		_, _, oldImageTag := currentImage.Components()

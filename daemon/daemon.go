@@ -431,7 +431,7 @@ func containers2containers(cs []cluster.Container) []flux.Container {
 func containersWithAvailable(service cluster.Controller, images update.ImageMap) (res []flux.Container) {
 	for _, c := range service.ContainersOrNil() {
 		id, _ := flux.ParseImageID(c.Image)
-		repo := id.Repository()
+		repo := id.CanonicalName()
 		available := images[repo]
 		res = append(res, flux.Container{
 			Name: c.Name,
