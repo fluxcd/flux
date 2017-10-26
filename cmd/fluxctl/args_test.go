@@ -20,14 +20,7 @@ func TestUserGitconfigMap(t *testing.T) {
 	core.repositoryformatversion=0
 	core.filemode=true
 	core.bare=false`
-	expected := map[string]string{
-		"push.default":                 "simple",
-		"merge.conflictstyle":          "diff3",
-		"pull.ff":                      "only",
-		"core.repositoryformatversion": "0",
-		"core.filemode":                "true",
-		"core.bare":                    "false",
-	}
+	expected := gitConfigMap(nil)
 
 	userGitconfigInfo := userGitconfigMap(d)
 	if len(userGitconfigInfo) != 6 {
@@ -50,15 +43,9 @@ func TestUserGitconfigMap_WithEmptyLines(t *testing.T) {
 	core.bare=false
 
 	`
-	expected := map[string]string{
-		"user.name":                    "Jane Doe",
-		"push.default":                 "simple",
-		"merge.conflictstyle":          "diff3",
-		"pull.ff":                      "only",
-		"core.repositoryformatversion": "0",
-		"core.filemode":                "true",
-		"core.bare":                    "false",
-	}
+	expected := gitConfigMap(map[string]string{
+		"user.name": "Jane Doe",
+	})
 	userGitconfigInfo := userGitconfigMap(d)
 
 	if len(userGitconfigInfo) != 7 {
@@ -84,82 +71,45 @@ func TestUserGitconfigMap_WithNoKeys(t *testing.T) {
 }
 
 func TestGetCommitAuthor_BothNameAndEmail(t *testing.T) {
-	input := map[string]string{
-		"user.name":                    "Jane Doe",
-		"user.email":                   "jd@j.d",
-		"push.default":                 "simple",
-		"merge.conflictstyle":          "diff3",
-		"pull.ff":                      "only",
-		"core.repositoryformatversion": "0",
-		"core.filemode":                "true",
-		"core.bare":                    "false",
-	}
+	input := gitConfigMap(map[string]string{
+		"user.name":  "Jane Doe",
+		"user.email": "jd@j.d",
+	})
 	checkAuthor(t, input, "Jane Doe <jd@j.d>")
 }
 
 func TestGetCommitAuthor_OnlyName(t *testing.T) {
-	input := map[string]string{
-		"user.name":                    "Jane Doe",
-		"push.default":                 "simple",
-		"merge.conflictstyle":          "diff3",
-		"pull.ff":                      "only",
-		"core.repositoryformatversion": "0",
-		"core.filemode":                "true",
-		"core.bare":                    "false",
-	}
+	input := gitConfigMap(map[string]string{
+		"user.name": "Jane Doe",
+	})
 	checkAuthor(t, input, "Jane Doe")
 }
 
 func TestGetCommitAuthor_OnlyEmail(t *testing.T) {
-	input := map[string]string{
-		"user.email":                   "jd@j.d",
-		"push.default":                 "simple",
-		"merge.conflictstyle":          "diff3",
-		"pull.ff":                      "only",
-		"core.repositoryformatversion": "0",
-		"core.filemode":                "true",
-		"core.bare":                    "false",
-	}
+	input := gitConfigMap(map[string]string{
+		"user.email": "jd@j.d",
+	})
 	checkAuthor(t, input, "jd@j.d")
 }
 
 func TestGetCommitAuthor_NoNameNoEmail(t *testing.T) {
-	input := map[string]string{
-		"push.default":                 "simple",
-		"merge.conflictstyle":          "diff3",
-		"pull.ff":                      "only",
-		"core.repositoryformatversion": "0",
-		"core.filemode":                "true",
-		"core.bare":                    "false",
-	}
+	input := gitConfigMap(nil)
 	checkAuthor(t, input, "")
 }
 
 func TestGetCommitAuthor_NameAndEmptyEmail(t *testing.T) {
-	input := map[string]string{
-		"user.name":                    "Jane Doe",
-		"user.email":                   "",
-		"push.default":                 "simple",
-		"merge.conflictstyle":          "diff3",
-		"pull.ff":                      "only",
-		"core.repositoryformatversion": "0",
-		"core.filemode":                "true",
-		"core.bare":                    "false",
-	}
+	input := gitConfigMap(map[string]string{
+		"user.name":  "Jane Doe",
+		"user.email": "",
+	})
 	checkAuthor(t, input, "Jane Doe")
 }
 
 func TestGetCommitAuthor_EmailAndEmptyName(t *testing.T) {
-	input := map[string]string{
-		"user.name":                    "",
-		"user.email":                   "jd@j.d",
-		"push.default":                 "simple",
-		"merge.conflictstyle":          "diff3",
-		"pull.ff":                      "only",
-		"core.repositoryformatversion": "0",
-		"core.filemode":                "true",
-		"core.bare":                    "false",
-	}
+	input := gitConfigMap(map[string]string{
+		"user.name":  "",
+		"user.email": "jd@j.d",
+	})
 	checkAuthor(t, input, "jd@j.d")
 }
 
@@ -168,4 +118,19 @@ func checkAuthor(t *testing.T, input map[string]string, expected string) {
 	if author != expected {
 		t.Fatalf("author %q does not match expected value %q", author, expected)
 	}
+}
+
+func gitConfigMap(input map[string]string) map[string]string {
+	res := map[string]string{
+		"push.default":                 "simple",
+		"merge.conflictstyle":          "diff3",
+		"pull.ff":                      "only",
+		"core.repositoryformatversion": "0",
+		"core.filemode":                "true",
+		"core.bare":                    "false",
+	}
+	for k, v := range input {
+		res[k] = v
+	}
+	return res
 }
