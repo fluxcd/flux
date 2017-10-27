@@ -5,6 +5,48 @@ import (
 	"testing"
 )
 
+var gitConfig = `push.default=simple
+    merge.conflictstyle=diff3
+    pull.ff=only
+    core.repositoryformatversion=0
+    core.filemode=true
+    core.bare=false
+    `
+
+func gitConfigMap(input map[string]string) map[string]string {
+	res := map[string]string{
+		"push.default":                 "simple",
+		"merge.conflictstyle":          "diff3",
+		"pull.ff":                      "only",
+		"core.repositoryformatversion": "0",
+		"core.filemode":                "true",
+		"core.bare":                    "false",
+	}
+	for k, v := range input {
+		res[k] = v
+	}
+	return res
+}
+
+func checkUserGitconfigMap(t *testing.T, d string, expected map[string]string) {
+	userGitconfigInfo := userGitconfigMap(d)
+
+	if len(userGitconfigInfo) != len(expected) {
+		t.Fatalf("got map with %d keys instead of expected %d",
+			len(userGitconfigInfo), len(expected))
+	}
+	if !reflect.DeepEqual(userGitconfigInfo, expected) {
+		t.Fatal("result map does not match expected structure")
+	}
+}
+
+func checkAuthor(t *testing.T, input map[string]string, expected string) {
+	author := getCommitAuthor(input)
+	if author != expected {
+		t.Fatalf("author %q does not match expected value %q", author, expected)
+	}
+}
+
 func TestUserGitconfigMap_EmptyString(t *testing.T) {
 	d := ""
 	expected := map[string]string{}
@@ -77,46 +119,4 @@ func TestGetCommitAuthor_EmailAndEmptyName(t *testing.T) {
 		"user.email": "jd@j.d",
 	})
 	checkAuthor(t, input, "jd@j.d")
-}
-
-func checkAuthor(t *testing.T, input map[string]string, expected string) {
-	author := getCommitAuthor(input)
-	if author != expected {
-		t.Fatalf("author %q does not match expected value %q", author, expected)
-	}
-}
-
-var gitConfig = `push.default=simple
-    merge.conflictstyle=diff3
-    pull.ff=only
-    core.repositoryformatversion=0
-    core.filemode=true
-    core.bare=false
-    `
-
-func gitConfigMap(input map[string]string) map[string]string {
-	res := map[string]string{
-		"push.default":                 "simple",
-		"merge.conflictstyle":          "diff3",
-		"pull.ff":                      "only",
-		"core.repositoryformatversion": "0",
-		"core.filemode":                "true",
-		"core.bare":                    "false",
-	}
-	for k, v := range input {
-		res[k] = v
-	}
-	return res
-}
-
-func checkUserGitconfigMap(t *testing.T, d string, expected map[string]string) {
-	userGitconfigInfo := userGitconfigMap(d)
-
-	if len(userGitconfigInfo) != len(expected) {
-		t.Fatalf("got map with %d keys instead of expected %d",
-			len(userGitconfigInfo), len(expected))
-	}
-	if !reflect.DeepEqual(userGitconfigInfo, expected) {
-		t.Fatal("result map does not match expected structure")
-	}
 }
