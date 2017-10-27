@@ -7,23 +7,14 @@ import (
 
 func TestUserGitconfigMap_EmptyString(t *testing.T) {
 	d := ""
-	userGitconfigInfo := userGitconfigMap(d)
-	if len(userGitconfigInfo) != 0 {
-		t.Fatal("expected map with no keys")
-	}
+	expected := map[string]string{}
+	checkUserGitconfigMap(t, d, expected)
 }
 
 func TestUserGitconfigMap(t *testing.T) {
 	d := gitConfig
 	expected := gitConfigMap(nil)
-
-	userGitconfigInfo := userGitconfigMap(d)
-	if len(userGitconfigInfo) != 6 {
-		t.Fatal("got map with unexpected number of keys")
-	}
-	if !reflect.DeepEqual(userGitconfigInfo, expected) {
-		t.Fatal("result does not match expected structure")
-	}
+	checkUserGitconfigMap(t, d, expected)
 }
 
 func TestUserGitconfigMap_WithEmptyLines(t *testing.T) {
@@ -35,28 +26,14 @@ func TestUserGitconfigMap_WithEmptyLines(t *testing.T) {
 	expected := gitConfigMap(map[string]string{
 		"user.name": "Jane Doe",
 	})
-	userGitconfigInfo := userGitconfigMap(d)
-
-	if len(userGitconfigInfo) != 7 {
-		t.Fatal("got map with unexpected number of keys")
-	}
-	if !reflect.DeepEqual(userGitconfigInfo, expected) {
-		t.Fatal("result does not match expected structure")
-	}
+	checkUserGitconfigMap(t, d, expected)
 }
 
 func TestUserGitconfigMap_WithNoKeys(t *testing.T) {
 	d := `
 	`
-	expected := make(map[string]string)
-
-	userGitconfigInfo := userGitconfigMap(d)
-	if len(userGitconfigInfo) != 0 {
-		t.Fatal("expected map with no keys")
-	}
-	if !reflect.DeepEqual(userGitconfigInfo, expected) {
-		t.Fatal("result does not match expected structure")
-	}
+	expected := map[string]string{}
+	checkUserGitconfigMap(t, d, expected)
 }
 
 func TestGetCommitAuthor_BothNameAndEmail(t *testing.T) {
@@ -130,4 +107,16 @@ func gitConfigMap(input map[string]string) map[string]string {
 		res[k] = v
 	}
 	return res
+}
+
+func checkUserGitconfigMap(t *testing.T, d string, expected map[string]string) {
+	userGitconfigInfo := userGitconfigMap(d)
+
+	if len(userGitconfigInfo) != len(expected) {
+		t.Fatalf("got map with %d keys instead of expected %d",
+			len(userGitconfigInfo), len(expected))
+	}
+	if !reflect.DeepEqual(userGitconfigInfo, expected) {
+		t.Fatal("result map does not match expected structure")
+	}
 }
