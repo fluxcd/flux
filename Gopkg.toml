@@ -7,14 +7,6 @@
   version = "4.0.0"
 
 [[constraint]]
-  name = "github.com/google/go-github"
-  revision = "dfd20fd7fa6edec56447fcb049acd5e17a78ec2e"
-
-[[override]]
-  name = "gopkg.in/mattes/migrate.v1"
-  version = "v1.3.2"
-
-[[constraint]]
   name = "github.com/heroku/docker-registry-client"
   source = "github.com/weaveworks/docker-registry-client"
   branch = "master"

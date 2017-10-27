@@ -11,8 +11,7 @@ import (
 )
 
 const (
-	dockerHubHost    = "index.docker.io"
-	dockerHubLibrary = "library/"
+	dockerHubHost = "index.docker.io"
 
 	oldDockerHubHost = "docker.io"
 )

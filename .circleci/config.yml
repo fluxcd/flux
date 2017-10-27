@@ -16,24 +16,20 @@ jobs:
       - run: make all
 
       - deploy:
-          name: Maybe push master images
+          name: Maybe push master image
           command: |
             if [ -z "${CIRCLE_TAG}" -a "${CIRCLE_BRANCH}" == "master" ]; then
               docker login -u "$DOCKER_REGISTRY_USER" -p "$DOCKER_REGISTRY_PASSWORD" quay.io
-              for IMAGE in flux flux-service; do
-                docker push "quay.io/weaveworks/$IMAGE:$(docker/image-tag)"
-              done
+              docker push "quay.io/weaveworks/flux:$(docker/image-tag)"
             fi
 
       - deploy:
-          name: Maybe push release images and upload binaries
+          name: Maybe push release image and upload binaries
           command: |
             if echo "${CIRCLE_TAG}" | grep -Eq "^[0-9]+(\.[0-9]+)*(-[a-z]+)?$"; then
               go get github.com/weaveworks/github-release
               make release-bins
               bin/upload-binaries
               docker login -u "$DOCKER_REGISTRY_USER" -p "$DOCKER_REGISTRY_PASSWORD" quay.io
-              for IMAGE in flux flux-service; do
-                docker push "quay.io/weaveworks/$IMAGE:$(docker/image-tag)"
-              done
+              docker push "quay.io/weaveworks/flux:$(docker/image-tag)"
             fi

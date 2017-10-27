@@ -2,12 +2,6 @@
 
 
 [[projects]]
-  branch = "v1"
-  name = "github.com/Masterminds/squirrel"
-  packages = ["."]
-  revision = "a6b93000bd219143c56c16e6cb1c4b91da3f224b"
-
-[[projects]]
   name = "github.com/PuerkitoBio/purell"
   packages = ["."]
   revision = "0bcb03f4b4d0a9428594752bd2a3b9aa0a9d4bd4"
@@ -38,60 +32,6 @@
   revision = "1952afaa557dc08e8e0d89eafab110fb501c1a2b"
 
 [[projects]]
-  branch = "master"
-  name = "github.com/cznic/b"
-  packages = ["."]
-  revision = "6955404bf550e1eae1bf83121739078b027f4547"
-
-[[projects]]
-  branch = "master"
-  name = "github.com/cznic/fileutil"
-  packages = ["."]
-  revision = "90cf820aafe8f7df39416fdbb932029ff99bd1ab"
-
-[[projects]]
-  name = "github.com/cznic/internal"
-  packages = ["buffer","file","slice"]
-  revision = "cef02a853c3a93623c42eacd574e7ea05f55531b"
-  version = "1.0.0"
-
-[[projects]]
-  name = "github.com/cznic/lldb"
-  packages = ["."]
-  revision = "bea8611dd5c407f3c5eab9f9c68e887a27dc6f0e"
-  version = "v1.1.0"
-
-[[projects]]
-  branch = "master"
-  name = "github.com/cznic/mathutil"
-  packages = ["."]
-  revision = "53c70789c7ff53526fd6c28c5a6881b138413e0c"
-
-[[projects]]
-  name = "github.com/cznic/ql"
-  packages = [".","driver","vendored/github.com/camlistore/go4/lock"]
-  revision = "7a63cd7aa46ecd9f549b96983029576af2178f60"
-  version = "v1.1.0"
-
-[[projects]]
-  branch = "master"
-  name = "github.com/cznic/sortutil"
-  packages = ["."]
-  revision = "4c7342852e65c2088c981288f2c5610d10b9f7f4"
-
-[[projects]]
-  branch = "master"
-  name = "github.com/cznic/strutil"
-  packages = ["."]
-  revision = "43a89592ed56c227c7fdb1fcaf7d1d08be02ec54"
-
-[[projects]]
-  branch = "master"
-  name = "github.com/cznic/zappy"
-  packages = ["."]
-  revision = "2533cb5b45cc6c07421468ce262899ddc9d53fb7"
-
-[[projects]]
   name = "github.com/davecgh/go-spew"
   packages = ["spew"]
   revision = "346938d642f2ec3594ed81d874461961cd0faa76"
@@ -108,12 +48,6 @@
   name = "github.com/docker/libtrust"
   packages = ["."]
   revision = "aabc10ec26b754e797f9028f4589c5b7bd90dc20"
-
-[[projects]]
-  branch = "master"
-  name = "github.com/edsrzf/mmap-go"
-  packages = ["."]
-  revision = "0bce6a6887123b67a60366d2c9fe2dfb74289d2e"
 
 [[projects]]
   name = "github.com/emicklei/go-restful"
@@ -224,17 +158,6 @@
   revision = "130e6b02ab059e7b717a096f397c5b60111cae74"
 
 [[projects]]
-  name = "github.com/google/go-github"
-  packages = ["github"]
-  revision = "dfd20fd7fa6edec56447fcb049acd5e17a78ec2e"
-
-[[projects]]
-  branch = "master"
-  name = "github.com/google/go-querystring"
-  packages = ["query"]
-  revision = "53e6ce116135b80d037921a7fdd5138cf32d7a8a"
-
-[[projects]]
   branch = "master"
   name = "github.com/google/gofuzz"
   packages = ["."]
@@ -278,12 +201,6 @@
 
 [[projects]]
   branch = "master"
-  name = "github.com/jmoiron/sqlx"
-  packages = [".","reflectx"]
-  revision = "d9bd385d68c068f1fabb5057e3dedcbcbb039d0f"
-
-[[projects]]
-  branch = "master"
   name = "github.com/juju/ratelimit"
   packages = ["."]
   revision = "5b9ff866471762aa2ab2dced63c9fb6f53921342"
@@ -293,24 +210,6 @@
   name = "github.com/kr/logfmt"
   packages = ["."]
   revision = "b84e30acd515aadc4b783ad4ff83aff3299bdfe0"
-
-[[projects]]
-  branch = "master"
-  name = "github.com/lann/builder"
-  packages = ["."]
-  revision = "f22ce00fd9394014049dad11c244859432bd6820"
-
-[[projects]]
-  branch = "master"
-  name = "github.com/lann/ps"
-  packages = ["."]
-  revision = "62de8c46ede02a7675c4c79c84883eb164cb71e3"
-
-[[projects]]
-  branch = "master"
-  name = "github.com/lib/pq"
-  packages = [".","oid"]
-  revision = "b77235e3890a962fe8a6f8c4c7198679ca7814e7"
 
 [[projects]]
   branch = "master"
@@ -329,18 +228,6 @@
   name = "github.com/mitchellh/mapstructure"
   packages = ["."]
   revision = "d0303fe809921458f417bcf828397a65db30a7e4"
-
-[[projects]]
-  name = "github.com/nats-io/go-nats"
-  packages = [".","encoders/builtin","util"]
-  revision = "29f9728a183bf3fa7e809e14edac00b33be72088"
-  version = "v1.3.0"
-
-[[projects]]
-  name = "github.com/nats-io/nuid"
-  packages = ["."]
-  revision = "289cccf02c178dc782430d534e3c1f5b72af807f"
-  version = "v1.0.0"
 
 [[projects]]
   name = "github.com/opencontainers/go-digest"
@@ -434,14 +321,8 @@
 [[projects]]
   branch = "master"
   name = "golang.org/x/net"
-  packages = ["context","context/ctxhttp","http2","http2/hpack","idna","internal/timeseries","lex/httplex","publicsuffix","trace"]
+  packages = ["context","http2","http2/hpack","idna","internal/timeseries","lex/httplex","publicsuffix","trace"]
   revision = "0a9397675ba34b2845f758fe3cd68828369c6517"
-
-[[projects]]
-  branch = "master"
-  name = "golang.org/x/oauth2"
-  packages = [".","internal"]
-  revision = "13449ad91cb26cb47661c1b080790392170385fd"
 
 [[projects]]
   branch = "master"
@@ -462,12 +343,6 @@
   revision = "6dc17368e09b0e8634d71cac8168d853e869a0c7"
 
 [[projects]]
-  name = "google.golang.org/appengine"
-  packages = ["internal","internal/base","internal/datastore","internal/log","internal/remote_api","internal/urlfetch","urlfetch"]
-  revision = "150dc57a1b433e64154302bdc40b6bb8aefa313a"
-  version = "v1.0.0"
-
-[[projects]]
   branch = "master"
   name = "google.golang.org/genproto"
   packages = ["googleapis/rpc/status"]
@@ -484,12 +359,6 @@
   packages = ["."]
   revision = "3887ee99ecf07df5b447e9b00d9c0b2adaa9f3e4"
   version = "v0.9.0"
-
-[[projects]]
-  name = "gopkg.in/mattes/migrate.v1"
-  packages = ["driver","driver/postgres","file","migrate","migrate/direction","pipe"]
-  revision = "afc973c4e5a6b746217c2d3950fcd110ed1ba349"
-  version = "v1.3.2"
 
 [[projects]]
   branch = "v2"
@@ -518,6 +387,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "acb592cfe864d6061e477e877382e7746ab70371ab2f0468d0444fd72c646375"
+  inputs-digest = "7afd8c2dc700bde147e92ae63f845dca1b2555a68c948e76aa72e78ff6470b06"
   solver-name = "gps-cdcl"
   solver-version = 1
