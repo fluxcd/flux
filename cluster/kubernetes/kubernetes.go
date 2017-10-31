@@ -21,6 +21,7 @@ import (
 
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster"
+	"github.com/weaveworks/flux/image"
 	"github.com/weaveworks/flux/registry"
 	"github.com/weaveworks/flux/ssh"
 )
@@ -350,12 +351,12 @@ func mergeCredentials(c *Cluster, namespace string, podTemplate apiv1.PodTemplat
 
 	// Now create the service and attach the credentials
 	for _, container := range podTemplate.Spec.Containers {
-		r, err := flux.ParseImageRef(container.Image)
+		r, err := image.ParseRef(container.Image)
 		if err != nil {
 			c.logger.Log("err", err.Error())
 			continue
 		}
-		imageCreds[r.Name()] = creds
+		imageCreds[r.Name] = creds
 	}
 }
 

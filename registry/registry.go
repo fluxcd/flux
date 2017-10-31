@@ -17,7 +17,7 @@ import (
 	"github.com/go-kit/kit/log"
 	dockerregistry "github.com/heroku/docker-registry-client/registry"
 
-	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/image"
 	"github.com/weaveworks/flux/registry/cache"
 )
 
@@ -27,8 +27,8 @@ const (
 
 // The Registry interface is a domain specific API to access container registries.
 type Registry interface {
-	GetRepository(id flux.ImageName) ([]flux.Image, error)
-	GetImage(id flux.ImageRef) (flux.Image, error)
+	GetRepository(id image.Name) ([]image.Info, error)
+	GetImage(id image.Ref) (image.Info, error)
 }
 
 type registry struct {
@@ -50,7 +50,7 @@ func NewRegistry(c ClientFactory, l log.Logger, connections int) Registry {
 }
 
 // GetRepository yields a repository matching the given name, if any exists.
-func (reg *registry) GetRepository(id flux.ImageName) ([]flux.Image, error) {
+func (reg *registry) GetRepository(id image.Name) ([]image.Info, error) {
 	client, err := reg.factory.ClientFor(id.Registry(), Credentials{})
 	if err != nil {
 		return nil, err
@@ -71,25 +71,25 @@ func (reg *registry) GetRepository(id flux.ImageName) ([]flux.Image, error) {
 }
 
 // Get a single Image from the registry if it exists
-func (reg *registry) GetImage(id flux.ImageRef) (flux.Image, error) {
+func (reg *registry) GetImage(id image.Ref) (image.Info, error) {
 	client, err := reg.factory.ClientFor(id.Registry(), Credentials{})
 	if err != nil {
-		return flux.Image{}, err
+		return image.Info{}, err
 	}
 	img, err := client.Manifest(id)
 	if err != nil {
 		client.Cancel()
-		return flux.Image{}, err
+		return image.Info{}, err
 	}
 	return img, nil
 }
 
-func (reg *registry) tagsToRepository(client Client, id flux.ImageName, tags []string) ([]flux.Image, error) {
+func (reg *registry) tagsToRepository(client Client, id image.Name, tags []string) ([]image.Info, error) {
 	// one way or another, we'll be finishing all requests
 	defer client.Cancel()
 
 	type result struct {
-		image flux.Image
+		image image.Info
 		err   error
 	}
 
@@ -114,7 +114,7 @@ func (reg *registry) tagsToRepository(client Client, id flux.ImageName, tags []s
 	}
 	close(toFetch)
 
-	images := make([]flux.Image, cap(fetched))
+	images := make([]image.Info, cap(fetched))
 	for i := 0; i < cap(fetched); i++ {
 		res := <-fetched
 		if res.err != nil {
@@ -123,7 +123,7 @@ func (reg *registry) tagsToRepository(client Client, id flux.ImageName, tags []s
 		images[i] = res.image
 	}
 
-	sort.Sort(flux.ByCreatedDesc(images))
+	sort.Sort(image.ByCreatedDesc(images))
 	return images, nil
 }
 

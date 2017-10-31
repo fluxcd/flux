@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/image"
 )
 
 type update struct {
@@ -18,7 +18,7 @@ type update struct {
 }
 
 func testUpdate(t *testing.T, u update) {
-	id, err := flux.ParseImageRef(u.updatedImage)
+	id, err := image.ParseRef(u.updatedImage)
 	if err != nil {
 		t.Fatal(err)
 	}

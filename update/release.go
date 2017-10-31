@@ -9,6 +9,7 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster"
+	"github.com/weaveworks/flux/image"
 	"github.com/weaveworks/flux/policy"
 	"github.com/weaveworks/flux/registry"
 )
@@ -124,7 +125,7 @@ func (s ReleaseSpec) filters(rc ReleaseContext) ([]ControllerFilter, error) {
 	// Image filter
 	var filtList []ControllerFilter
 	if s.ImageSpec != ImageSpecLatest {
-		id, err := flux.ParseImageRef(s.ImageSpec.String())
+		id, err := image.ParseRef(s.ImageSpec.String())
 		if err != nil {
 			return nil, err
 		}
@@ -191,18 +192,18 @@ func (s ReleaseSpec) markSkipped(results Result) {
 func (s ReleaseSpec) calculateImageUpdates(rc ReleaseContext, candidates []*ControllerUpdate, results Result, logger log.Logger) ([]*ControllerUpdate, error) {
 	// Compile an `ImageMap` of all relevant images
 	var images ImageMap
-	var singleRepo flux.CanonicalName
+	var singleRepo image.CanonicalName
 	var err error
 
 	switch s.ImageSpec {
 	case ImageSpecLatest:
 		images, err = collectUpdateImages(rc.Registry(), candidates, logger)
 	default:
-		var image flux.ImageRef
-		image, err = s.ImageSpec.AsRef()
+		var ref image.Ref
+		ref, err = s.ImageSpec.AsRef()
 		if err == nil {
-			singleRepo = image.CanonicalName()
-			images, err = exactImages(rc.Registry(), []flux.ImageRef{image})
+			singleRepo = ref.CanonicalName()
+			images, err = exactImages(rc.Registry(), []image.Ref{ref})
 		}
 	}
 
@@ -230,14 +231,14 @@ func (s ReleaseSpec) calculateImageUpdates(rc ReleaseContext, candidates []*Cont
 		var containerUpdates []ContainerUpdate
 
 		for _, container := range containers {
-			currentImageID, err := flux.ParseImageRef(container.Image)
+			currentImageID, err := image.ParseRef(container.Image)
 			if err != nil {
 				// We may hope never to find a malformed image ID, but
 				// anything is possible.
 				return nil, err
 			}
 
-			latestImage := images.LatestImage(currentImageID.Name(), "*")
+			latestImage := images.LatestImage(currentImageID.Name, "*")
 			if latestImage == nil {
 				if currentImageID.CanonicalName() != singleRepo {
 					ignoredOrSkipped = ReleaseStatusIgnored
@@ -327,12 +328,12 @@ func ParseImageSpec(s string) (ImageSpec, error) {
 		return ImageSpecLatest, nil
 	}
 
-	id, err := flux.ParseImageRef(s)
+	id, err := image.ParseRef(s)
 	if err != nil {
 		return "", err
 	}
 	if id.Tag == "" {
-		return "", errors.Wrap(flux.ErrInvalidImageID, "blank tag (if you want latest, explicitly state the tag :latest)")
+		return "", errors.Wrap(image.ErrInvalidImageID, "blank tag (if you want latest, explicitly state the tag :latest)")
 	}
 	return ImageSpec(id.String()), err
 }
@@ -341,10 +342,10 @@ func (s ImageSpec) String() string {
 	return string(s)
 }
 
-func (s ImageSpec) AsRef() (flux.ImageRef, error) {
-	return flux.ParseImageRef(s.String())
+func (s ImageSpec) AsRef() (image.Ref, error) {
+	return image.ParseRef(s.String())
 }
 
-func ImageSpecFromRef(id flux.ImageRef) ImageSpec {
+func ImageSpecFromRef(id image.Ref) ImageSpec {
 	return ImageSpec(id.String())
 }

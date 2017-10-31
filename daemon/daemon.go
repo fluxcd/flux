@@ -15,6 +15,7 @@ import (
 	"github.com/weaveworks/flux/event"
 	"github.com/weaveworks/flux/git"
 	"github.com/weaveworks/flux/guid"
+	"github.com/weaveworks/flux/image"
 	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/policy"
 	"github.com/weaveworks/flux/registry"
@@ -417,10 +418,10 @@ func (d *Daemon) LogEvent(ev event.Event) error {
 func containers2containers(cs []cluster.Container) []flux.Container {
 	res := make([]flux.Container, len(cs))
 	for i, c := range cs {
-		id, _ := flux.ParseImageRef(c.Image)
+		id, _ := image.ParseRef(c.Image)
 		res[i] = flux.Container{
 			Name: c.Name,
-			Current: flux.Image{
+			Current: image.Info{
 				ID: id,
 			},
 		}
@@ -430,12 +431,12 @@ func containers2containers(cs []cluster.Container) []flux.Container {
 
 func containersWithAvailable(service cluster.Controller, images update.ImageMap) (res []flux.Container) {
 	for _, c := range service.ContainersOrNil() {
-		id, _ := flux.ParseImageRef(c.Image)
+		id, _ := image.ParseRef(c.Image)
 		repo := id.CanonicalName()
 		available := images[repo]
 		res = append(res, flux.Container{
 			Name: c.Name,
-			Current: flux.Image{
+			Current: image.Info{
 				ID: id,
 			},
 			Available: available,

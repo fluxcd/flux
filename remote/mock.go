@@ -10,6 +10,7 @@ import (
 
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/guid"
+	"github.com/weaveworks/flux/image"
 	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/update"
 )
@@ -106,7 +107,7 @@ func PlatformTestBattery(t *testing.T, wrap func(mock Platform) Platform) {
 
 	now := time.Now().UTC()
 
-	imageID, _ := flux.ParseImageRef("quay.io/example.com/frob:v0.4.5")
+	imageID, _ := image.ParseRef("quay.io/example.com/frob:v0.4.5")
 	serviceAnswer := []flux.ControllerStatus{
 		flux.ControllerStatus{
 			ID:     flux.MustParseResourceID("foobar/hello"),
@@ -114,7 +115,7 @@ func PlatformTestBattery(t *testing.T, wrap func(mock Platform) Platform) {
 			Containers: []flux.Container{
 				flux.Container{
 					Name: "frobnicator",
-					Current: flux.Image{
+					Current: image.Info{
 						ID:        imageID,
 						CreatedAt: now,
 					},
@@ -130,7 +131,7 @@ func PlatformTestBattery(t *testing.T, wrap func(mock Platform) Platform) {
 			Containers: []flux.Container{
 				{
 					Name: "flubnicator",
-					Current: flux.Image{
+					Current: image.Info{
 						ID: imageID,
 					},
 				},

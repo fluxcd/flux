@@ -21,6 +21,7 @@ import (
 	"github.com/weaveworks/flux/event"
 	"github.com/weaveworks/flux/git"
 	"github.com/weaveworks/flux/git/gittest"
+	"github.com/weaveworks/flux/image"
 	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/policy"
 	"github.com/weaveworks/flux/registry"
@@ -395,10 +396,10 @@ func mockDaemon(t *testing.T) (*Daemon, func(), *cluster.Mock, *mockEventWriter)
 
 	var imageRegistry registry.Registry
 	{
-		img1, _ := flux.ParseImage(currentHelloImage, time.Now())
-		img2, _ := flux.ParseImage(newHelloImage, time.Now().Add(1*time.Second))
-		img3, _ := flux.ParseImage("another/service:latest", time.Now().Add(1*time.Second))
-		imageRegistry = registry.NewMockRegistry([]flux.Image{
+		img1, _ := image.ParseInfo(currentHelloImage, time.Now())
+		img2, _ := image.ParseInfo(newHelloImage, time.Now().Add(1*time.Second))
+		img3, _ := image.ParseInfo("another/service:latest", time.Now().Add(1*time.Second))
+		imageRegistry = registry.NewMockRegistry([]image.Info{
 			img1,
 			img2,
 			img3,
@@ -506,8 +507,8 @@ func (w *wait) ForSyncStatus(d *Daemon, rev string, expectedNumCommits int) []st
 	return revs
 }
 
-func imageIDs(status []flux.ImageStatus) []flux.Image {
-	var availableImgs []flux.Image
+func imageIDs(status []flux.ImageStatus) []image.Info {
+	var availableImgs []image.Info
 	for _, i := range status {
 		for _, c := range i.Containers {
 			availableImgs = append(availableImgs, c.Available...)

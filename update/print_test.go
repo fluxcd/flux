@@ -5,10 +5,11 @@ import (
 	"testing"
 
 	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/image"
 )
 
-func mustParseImageRef(s string) flux.ImageRef {
-	ref, err := flux.ParseImageRef(s)
+func mustParseRef(s string) image.Ref {
+	ref, err := image.ParseRef(s)
 	if err != nil {
 		panic(err)
 	}
@@ -31,8 +32,8 @@ func TestPrintResults(t *testing.T) {
 					PerContainer: []ContainerUpdate{
 						{
 							Container: "helloworld",
-							Current:   mustParseImageRef("quay.io/weaveworks/helloworld:master-a000002"),
-							Target:    mustParseImageRef("quay.io/weaveworks/helloworld:master-a000001"),
+							Current:   mustParseRef("quay.io/weaveworks/helloworld:master-a000002"),
+							Target:    mustParseRef("quay.io/weaveworks/helloworld:master-a000001"),
 						},
 					},
 				},
@@ -52,8 +53,8 @@ default/helloworld  success  helloworld: quay.io/weaveworks/helloworld:master-a0
 					PerContainer: []ContainerUpdate{
 						{
 							Container: "helloworld",
-							Current:   mustParseImageRef("quay.io/weaveworks/helloworld:master-a000002"),
-							Target:    mustParseImageRef("quay.io/weaveworks/helloworld:master-a000001"),
+							Current:   mustParseRef("quay.io/weaveworks/helloworld:master-a000002"),
+							Target:    mustParseRef("quay.io/weaveworks/helloworld:master-a000001"),
 						},
 					},
 				},

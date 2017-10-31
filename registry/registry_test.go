@@ -8,8 +8,8 @@ import (
 	"github.com/docker/distribution/manifest/schema1"
 	"github.com/go-kit/kit/log"
 
-	"github.com/weaveworks/flux"
 	fluxerr "github.com/weaveworks/flux/errors"
+	"github.com/weaveworks/flux/image"
 	"github.com/weaveworks/flux/registry/cache"
 	"github.com/weaveworks/flux/registry/middleware"
 )
@@ -19,7 +19,7 @@ const testImageStr = "alpine:" + testTagStr
 const constTime = "2017-01-13T16:22:58.009923189Z"
 
 var (
-	id, _ = flux.ParseImageRef(testImageStr)
+	id, _ = image.ParseRef(testImageStr)
 	man   = schema1.SignedManifest{
 		Manifest: schema1.Manifest{
 			History: []schema1.History{
@@ -34,11 +34,11 @@ var (
 var (
 	testTags = []string{testTagStr, "anotherTag"}
 	mClient  = NewMockClient(
-		func(repository flux.ImageRef) (flux.Image, error) {
-			img, _ := flux.ParseImage(testImageStr, time.Time{})
+		func(repository image.Ref) (image.Info, error) {
+			img, _ := image.ParseInfo(testImageStr, time.Time{})
 			return img, nil
 		},
-		func(repository flux.ImageName) ([]string, error) {
+		func(repository image.Name) ([]string, error) {
 			return testTags, nil
 		},
 	)
@@ -47,7 +47,7 @@ var (
 func TestRegistry_GetRepository(t *testing.T) {
 	fact := NewMockClientFactory(mClient, nil)
 	reg := NewRegistry(fact, log.NewNopLogger(), 512)
-	imgs, err := reg.GetRepository(id.Name())
+	imgs, err := reg.GetRepository(id.Name)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -61,7 +61,7 @@ func TestRegistry_GetRepository(t *testing.T) {
 func TestRegistry_GetRepositoryFactoryError(t *testing.T) {
 	errFact := NewMockClientFactory(mClient, errors.New(""))
 	reg := NewRegistry(errFact, nil, 512)
-	_, err := reg.GetRepository(id.Name())
+	_, err := reg.GetRepository(id.Name)
 	if err == nil {
 		t.Fatal("Expecting error")
 	}
@@ -69,16 +69,16 @@ func TestRegistry_GetRepositoryFactoryError(t *testing.T) {
 
 func TestRegistry_GetRepositoryManifestError(t *testing.T) {
 	errClient := NewMockClient(
-		func(repository flux.ImageRef) (flux.Image, error) {
-			return flux.Image{}, errors.New("")
+		func(repository image.Ref) (image.Info, error) {
+			return image.Info{}, errors.New("")
 		},
-		func(repository flux.ImageName) ([]string, error) {
+		func(repository image.Name) ([]string, error) {
 			return testTags, nil
 		},
 	)
 	errFact := NewMockClientFactory(errClient, nil)
 	reg := NewRegistry(errFact, log.NewNopLogger(), 512)
-	_, err := reg.GetRepository(id.Name())
+	_, err := reg.GetRepository(id.Name)
 	if err == nil {
 		t.Fatal("Expecting error")
 	}
@@ -100,7 +100,7 @@ func TestRemoteFactory_RawClient(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	tags, err = client.Tags(id.Name())
+	tags, err = client.Tags(id.Name)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -129,7 +129,7 @@ func TestRemoteFactory_RawClient(t *testing.T) {
 
 func TestRemoteFactory_InvalidHost(t *testing.T) {
 	fact := NewRemoteClientFactory(log.NewNopLogger(), middleware.RateLimiterConfig{})
-	invalidId, err := flux.ParseImageRef("invalid.host/library/alpine:latest")
+	invalidId, err := image.ParseRef("invalid.host/library/alpine:latest")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -145,17 +145,17 @@ func TestRemoteFactory_InvalidHost(t *testing.T) {
 
 func TestRemote_BetterError(t *testing.T) {
 	errClient := NewMockClient(
-		func(repository flux.ImageRef) (flux.Image, error) {
-			return flux.Image{}, cache.ErrNotCached
+		func(repository image.Ref) (image.Info, error) {
+			return image.Info{}, cache.ErrNotCached
 		},
-		func(repository flux.ImageName) ([]string, error) {
+		func(repository image.Name) ([]string, error) {
 			return []string{}, cache.ErrNotCached
 		},
 	)
 
 	fact := NewMockClientFactory(errClient, nil)
 	reg := NewRegistry(fact, log.NewNopLogger(), 512)
-	_, err := reg.GetRepository(id.Name())
+	_, err := reg.GetRepository(id.Name)
 	if err == nil {
 		t.Fatal("Should have errored")
 	}

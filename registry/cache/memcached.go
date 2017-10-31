@@ -13,8 +13,8 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
 
-	"github.com/weaveworks/flux"
 	fluxerr "github.com/weaveworks/flux/errors"
+	"github.com/weaveworks/flux/image"
 )
 
 const (
@@ -236,7 +236,7 @@ type manifestKey struct {
 	username, fullRepositoryPath, reference string
 }
 
-func NewManifestKey(username string, image flux.CanonicalRef) (Keyer, error) {
+func NewManifestKey(username string, image image.CanonicalRef) (Keyer, error) {
 	return &manifestKey{username, image.CanonicalName().String(), image.Tag}, nil
 }
 
@@ -256,7 +256,7 @@ type tagKey struct {
 	username, fullRepositoryPath string
 }
 
-func NewTagKey(username string, id flux.CanonicalName) (Keyer, error) {
+func NewTagKey(username string, id image.CanonicalName) (Keyer, error) {
 	return &tagKey{username, id.String()}, nil
 }
 
