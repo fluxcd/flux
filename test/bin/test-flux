@@ -3,7 +3,7 @@
 set -e
 set -o pipefail
 
-BASEDIR="$(readlink -f "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd )/..")"
+BASEDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && cd .. && pwd)"
 PROFILE="flux-test"
 PROFILE_DIR="$BASEDIR/profiles/$PROFILE"
 KNOWN_HOSTS="$PROFILE_DIR/.known_hosts"
@@ -18,7 +18,7 @@ SSH_PRIVATE_KEY="$HOME/.minikube/machines/$PROFILE/id_rsa"
 rm -rf "$PROFILE_DIR"
 mkdir -p "$PROFILE_DIR"
 minikube delete --profile "$PROFILE" || true
-minikube start --profile "$PROFILE"
+minikube start --profile "$PROFILE" --keep-context
 MINIKUBE_IP=$(minikube --profile "$PROFILE" ip)
 
 # Copy the latest flux image into the minikube VM
@@ -108,7 +108,7 @@ assert_controller_container() {
 cp "$BASEDIR/helloworld-deployment.yaml" "$CONFIG_REPO"
 git -C "$CONFIG_REPO" add helloworld-deployment.yaml
 git -C "$CONFIG_REPO" commit -m 'Deploy helloworld'
-git -C "$CONFIG_REPO" push
+git -C "$CONFIG_REPO" push -u origin master
 
 # Wait two minutes for flux-sync tag to point to local HEAD
 wait_for_sync 120
