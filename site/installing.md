@@ -26,7 +26,7 @@ benefits:
 All you need is a Kubernetes cluster and a git repo. The git repo
 contains [manifests][k8s-manifests] (as YAML files) describing what
 should run in the cluster. Flux imposes
-[some limitations](/site/requirements.md) on these files.
+[some requirements](/site/requirements.md) on these files.
 
 # Installing via Weave Cloud
 
