@@ -108,7 +108,7 @@ assert_controller_container() {
 cp "$BASEDIR/helloworld-deployment.yaml" "$CONFIG_REPO"
 git -C "$CONFIG_REPO" add helloworld-deployment.yaml
 git -C "$CONFIG_REPO" commit -m 'Deploy helloworld'
-git -C "$CONFIG_REPO" push
+git -C "$CONFIG_REPO" push -u origin master
 
 # Wait two minutes for flux-sync tag to point to local HEAD
 wait_for_sync 120
