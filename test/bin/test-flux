@@ -18,7 +18,7 @@ SSH_PRIVATE_KEY="$HOME/.minikube/machines/$PROFILE/id_rsa"
 rm -rf "$PROFILE_DIR"
 mkdir -p "$PROFILE_DIR"
 minikube delete --profile "$PROFILE" || true
-minikube start --profile "$PROFILE"
+minikube start --profile "$PROFILE" --keep-context
 MINIKUBE_IP=$(minikube --profile "$PROFILE" ip)
 
 # Copy the latest flux image into the minikube VM
