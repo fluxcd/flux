@@ -1,5 +1,5 @@
 .DEFAULT: all
-.PHONY: all release-bins clean realclean test
+.PHONY: all release-bins clean realclean test integration-test
 
 DOCKER?=docker
 TEST_FLAGS?=
@@ -64,3 +64,6 @@ $(GOPATH)/bin/fluxctl: ./cmd/fluxctl/*.go
 $(GOPATH)/bin/fluxd: $(FLUXD_DEPS)
 $(GOPATH)/bin/fluxd: cmd/fluxd/*.go
 	go install ./cmd/fluxd
+
+integration-test: all
+	test/bin/test-flux
