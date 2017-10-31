@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/image"
 )
 
 type ControllerUpdateStatus string
@@ -30,7 +31,7 @@ func (r Result) ServiceIDs() []string {
 }
 
 func (r Result) ImageIDs() []string {
-	images := map[flux.ImageID]struct{}{}
+	images := map[image.Ref]struct{}{}
 	for _, serviceResult := range r {
 		for _, containerResult := range serviceResult.PerContainer {
 			images[containerResult.Target] = struct{}{}
@@ -76,6 +77,6 @@ func (fr ControllerResult) Msg(id flux.ResourceID) string {
 
 type ContainerUpdate struct {
 	Container string
-	Current   flux.ImageID
-	Target    flux.ImageID
+	Current   image.Ref
+	Target    image.Ref
 }

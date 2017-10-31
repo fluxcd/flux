@@ -1,6 +1,9 @@
 package update
 
-import "github.com/weaveworks/flux"
+import (
+	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/image"
+)
 
 const (
 	Locked          = "locked"
@@ -15,7 +18,7 @@ const (
 )
 
 type SpecificImageFilter struct {
-	Img flux.ImageID
+	Img image.Ref
 }
 
 func (f *SpecificImageFilter) Filter(u ControllerUpdate) ControllerResult {
@@ -28,7 +31,7 @@ func (f *SpecificImageFilter) Filter(u ControllerUpdate) ControllerResult {
 	}
 	// For each container in update
 	for _, c := range u.Controller.Containers.Containers {
-		cID, _ := flux.ParseImageID(c.Image)
+		cID, _ := image.ParseRef(c.Image)
 		// If container image == image in update
 		if cID.CanonicalName() == f.Img.CanonicalName() {
 			// We want to update this

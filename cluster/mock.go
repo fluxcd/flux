@@ -2,6 +2,7 @@ package cluster
 
 import (
 	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/image"
 	"github.com/weaveworks/flux/policy"
 	"github.com/weaveworks/flux/resource"
 	"github.com/weaveworks/flux/ssh"
@@ -16,7 +17,7 @@ type Mock struct {
 	SyncFunc                 func(SyncDef) error
 	PublicSSHKeyFunc         func(regenerate bool) (ssh.PublicKey, error)
 	FindDefinedServicesFunc  func(path string) (map[flux.ResourceID][]string, error)
-	UpdateDefinitionFunc     func(def []byte, container string, newImageID flux.ImageID) ([]byte, error)
+	UpdateDefinitionFunc     func(def []byte, container string, newImageID image.Ref) ([]byte, error)
 	LoadManifestsFunc        func(paths ...string) (map[string]resource.Resource, error)
 	ParseManifestsFunc       func([]byte) (map[string]resource.Resource, error)
 	UpdateManifestFunc       func(path, resourceID string, f func(def []byte) ([]byte, error)) error
@@ -52,7 +53,7 @@ func (m *Mock) FindDefinedServices(path string) (map[flux.ResourceID][]string, e
 	return m.FindDefinedServicesFunc(path)
 }
 
-func (m *Mock) UpdateDefinition(def []byte, container string, newImageID flux.ImageID) ([]byte, error) {
+func (m *Mock) UpdateDefinition(def []byte, container string, newImageID image.Ref) ([]byte, error) {
 	return m.UpdateDefinitionFunc(def, container, newImageID)
 }
 

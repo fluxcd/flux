@@ -1,4 +1,4 @@
-package flux
+package image
 
 import (
 	"encoding/json"
@@ -28,7 +28,7 @@ func TestDomainRegexp(t *testing.T) {
 	}
 }
 
-func TestImageID_ParseImageID(t *testing.T) {
+func TestParseRef(t *testing.T) {
 	for _, x := range []struct {
 		test     string
 		registry string
@@ -52,12 +52,12 @@ func TestImageID_ParseImageID(t *testing.T) {
 		{"quay.io/library/alpine:mytag", "quay.io", "library/alpine", "quay.io/library/alpine:mytag"},
 		{"localhost:5000/path/to/repo/alpine:mytag", "localhost:5000", "path/to/repo/alpine", "localhost:5000/path/to/repo/alpine:mytag"},
 	} {
-		i, err := ParseImageID(x.test)
+		i, err := ParseRef(x.test)
 		if err != nil {
 			t.Errorf("Failed parsing %q: %s", x.test, err)
 		}
 		if i.String() != x.test {
-			t.Errorf("%q does not stringify as itself", x.test)
+			t.Errorf("%q does not stringify as itself; got %q", x.test, i.String())
 		}
 		if i.Registry() != x.registry {
 			t.Errorf("%q registry: expected %q, got %q", x.test, x.registry, i.Registry())
@@ -65,13 +65,13 @@ func TestImageID_ParseImageID(t *testing.T) {
 		if i.Repository() != x.repo {
 			t.Errorf("%q repo: expected %q, got %q", x.test, x.repo, i.Repository())
 		}
-		if i.CanonicalRef() != x.canon {
-			t.Errorf("%q full ID: expected %q, got %q", x.test, x.canon, i.CanonicalRef())
+		if i.CanonicalRef().String() != x.canon {
+			t.Errorf("%q full ID: expected %q, got %q", x.test, x.canon, i.CanonicalRef().String())
 		}
 	}
 }
 
-func TestImageID_ParseImageIDErrorCases(t *testing.T) {
+func TestParseRefErrorCases(t *testing.T) {
 	for _, x := range []struct {
 		test string
 	}{
@@ -80,19 +80,19 @@ func TestImageID_ParseImageIDErrorCases(t *testing.T) {
 		{"/leading/slash"},
 		{"trailing/slash/"},
 	} {
-		_, err := ParseImageID(x.test)
+		_, err := ParseRef(x.test)
 		if err == nil {
 			t.Fatalf("Expected parse failure for %q", x.test)
 		}
 	}
 }
 
-func TestImageID_TestComponents(t *testing.T) {
+func TestComponents(t *testing.T) {
 	host := "quay.io"
 	image := "my/repo"
 	tag := "mytag"
 	fqn := fmt.Sprintf("%v/%v:%v", host, image, tag)
-	i, err := ParseImageID(fqn)
+	i, err := ParseRef(fqn)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -109,16 +109,15 @@ func TestImageID_TestComponents(t *testing.T) {
 			t.Fatalf("Expected %v, but got %v", x.expected, x.test)
 		}
 	}
-
 }
 
-func TestImageID_Serialization(t *testing.T) {
+func TestRefSerialization(t *testing.T) {
 	for _, x := range []struct {
-		test     ImageID
+		test     Ref
 		expected string
 	}{
-		{ImageID{Image: "alpine", Tag: "a123"}, `"alpine:a123"`},
-		{ImageID{Domain: "quay.io", Image: "weaveworks/foobar", Tag: "baz"}, `"quay.io/weaveworks/foobar:baz"`},
+		{Ref{Name: Name{Image: "alpine"}, Tag: "a123"}, `"alpine:a123"`},
+		{Ref{Name: Name{Domain: "quay.io", Image: "weaveworks/foobar"}, Tag: "baz"}, `"quay.io/weaveworks/foobar:baz"`},
 	} {
 		serialized, err := json.Marshal(x.test)
 		if err != nil {
@@ -128,7 +127,7 @@ func TestImageID_Serialization(t *testing.T) {
 			t.Errorf("Encoded %v as %s, but expected %s", x.test, string(serialized), x.expected)
 		}
 
-		var decoded ImageID
+		var decoded Ref
 		if err := json.Unmarshal([]byte(x.expected), &decoded); err != nil {
 			t.Errorf("Error decoding %v: %v", x.expected, err)
 		}
@@ -142,12 +141,12 @@ func TestImage_OrderByCreationDate(t *testing.T) {
 	fmt.Printf("testTime: %s\n", testTime)
 	time0 := testTime.Add(time.Second)
 	time2 := testTime.Add(-time.Second)
-	imA, _ := ParseImage("my/Image:3", testTime)
-	imB, _ := ParseImage("my/Image:1", time0)
-	imC, _ := ParseImage("my/Image:4", time2)
-	imD, _ := ParseImage("my/Image:0", time.Time{}) // test nil
-	imE, _ := ParseImage("my/Image:2", testTime)    // test equal
-	imgs := []Image{imA, imB, imC, imD, imE}
+	imA, _ := ParseInfo("my/Image:3", testTime)
+	imB, _ := ParseInfo("my/Image:1", time0)
+	imC, _ := ParseInfo("my/Image:4", time2)
+	imD, _ := ParseInfo("my/Image:0", time.Time{}) // test nil
+	imE, _ := ParseInfo("my/Image:2", testTime)    // test equal
+	imgs := []Info{imA, imB, imC, imD, imE}
 	sort.Sort(ByCreatedDesc(imgs))
 	for i, im := range imgs {
 		if strconv.Itoa(i) != im.ID.Tag {

@@ -12,15 +12,15 @@ import (
 	dockerregistry "github.com/heroku/docker-registry-client/registry"
 	"github.com/pkg/errors"
 
-	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/image"
 	"github.com/weaveworks/flux/registry/cache"
 )
 
 // A client represents an entity that returns manifest and tags
 // information.  It might be a cache, it might be a real registry.
 type Client interface {
-	Tags(id flux.ImageID) ([]string, error)
-	Manifest(id flux.ImageID) (flux.Image, error)
+	Tags(name image.Name) ([]string, error)
+	Manifest(name image.Ref) (image.Info, error)
 	Cancel()
 }
 
@@ -34,13 +34,13 @@ type Remote struct {
 }
 
 // Return the tags for this repository.
-func (a *Remote) Tags(id flux.ImageID) ([]string, error) {
+func (a *Remote) Tags(id image.Name) ([]string, error) {
 	return a.Registry.Tags(id.Repository())
 }
 
 // We need to do some adapting here to convert from the return values
 // from dockerregistry to our domain types.
-func (a *Remote) Manifest(id flux.ImageID) (flux.Image, error) {
+func (a *Remote) Manifest(id image.Ref) (image.Info, error) {
 	manifestV2, err := a.Registry.ManifestV2(id.Repository(), id.Tag)
 	if err != nil {
 		if err, ok := err.(*url.Error); ok {
@@ -50,7 +50,7 @@ func (a *Remote) Manifest(id flux.ImageID) (flux.Image, error) {
 				}
 			}
 		}
-		return flux.Image{}, err
+		return image.Info{}, err
 	}
 	// The above request will happily return a bogus, empty manifest
 	// if handed something other than a schema2 manifest.
@@ -64,10 +64,10 @@ func (a *Remote) Manifest(id flux.ImageID) (flux.Image, error) {
 	conf := manifestV2.Config
 	reader, err := a.Registry.DownloadLayer(id.Repository(), conf.Digest)
 	if err != nil {
-		return flux.Image{}, err
+		return image.Info{}, err
 	}
 	if reader == nil {
-		return flux.Image{}, fmt.Errorf("nil reader from DownloadLayer")
+		return image.Info{}, fmt.Errorf("nil reader from DownloadLayer")
 	}
 
 	type config struct {
@@ -77,18 +77,18 @@ func (a *Remote) Manifest(id flux.ImageID) (flux.Image, error) {
 
 	err = json.NewDecoder(reader).Decode(&imageConf)
 	if err != nil {
-		return flux.Image{}, err
+		return image.Info{}, err
 	}
-	return flux.Image{
+	return image.Info{
 		ID:        id,
 		CreatedAt: imageConf.Created,
 	}, nil
 }
 
-func (a *Remote) ManifestFromV1(id flux.ImageID) (flux.Image, error) {
+func (a *Remote) ManifestFromV1(id image.Ref) (image.Info, error) {
 	history, err := a.Registry.Manifest(id.Repository(), id.Tag)
 	if err != nil || history == nil {
-		return flux.Image{}, errors.Wrap(err, "getting remote manifest")
+		return image.Info{}, errors.Wrap(err, "getting remote manifest")
 	}
 
 	// the manifest includes some v1-backwards-compatibility data,
@@ -100,7 +100,7 @@ func (a *Remote) ManifestFromV1(id flux.ImageID) (flux.Image, error) {
 		Created time.Time `json:"created"`
 	}
 	var topmost v1image
-	var img flux.Image
+	var img image.Info
 	img.ID = id
 	if len(history) > 0 {
 		if err = json.Unmarshal([]byte(history[0].V1Compatibility), &topmost); err == nil {
@@ -141,28 +141,28 @@ func NewCache(creds Credentials, cr cache.Reader, expiry time.Duration, logger l
 	}
 }
 
-func (c *Cache) Manifest(id flux.ImageID) (flux.Image, error) {
+func (c *Cache) Manifest(id image.Ref) (image.Info, error) {
 	creds := c.creds.credsFor(id.Registry())
-	key, err := cache.NewManifestKey(creds.username, id)
+	key, err := cache.NewManifestKey(creds.username, id.CanonicalRef())
 	if err != nil {
-		return flux.Image{}, err
+		return image.Info{}, err
 	}
 	val, err := c.cr.GetKey(key)
 	if err != nil {
-		return flux.Image{}, err
+		return image.Info{}, err
 	}
-	var img flux.Image
+	var img image.Info
 	err = json.Unmarshal(val, &img)
 	if err != nil {
 		c.logger.Log("err", err.Error)
-		return flux.Image{}, err
+		return image.Info{}, err
 	}
 	return img, nil
 }
 
-func (c *Cache) Tags(id flux.ImageID) ([]string, error) {
+func (c *Cache) Tags(id image.Name) ([]string, error) {
 	creds := c.creds.credsFor(id.Registry())
-	key, err := cache.NewTagKey(creds.username, id)
+	key, err := cache.NewTagKey(creds.username, id.CanonicalName())
 	if err != nil {
 		return []string{}, err
 	}

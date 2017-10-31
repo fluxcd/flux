@@ -12,6 +12,7 @@ import (
 	"github.com/weaveworks/flux/cluster/kubernetes"
 	"github.com/weaveworks/flux/git"
 	"github.com/weaveworks/flux/git/gittest"
+	"github.com/weaveworks/flux/image"
 	"github.com/weaveworks/flux/registry"
 	"github.com/weaveworks/flux/update"
 )
@@ -20,13 +21,13 @@ var (
 	// This must match the value in cluster/kubernetes/testfiles/data.go
 	container = "goodbyeworld"
 
-	oldImage          = "quay.io/weaveworks/helloworld:master-a000001"
-	oldImageID, _     = flux.ParseImageID(oldImage)
-	sidecarImage      = "quay.io/weaveworks/sidecar:master-a000002"
-	sidecarImageID, _ = flux.ParseImageID(sidecarImage)
-	hwSvcID, _        = flux.ParseResourceID("default:deployment/helloworld")
-	hwSvcSpec, _      = update.ParseResourceSpec(hwSvcID.String())
-	hwSvc             = cluster.Controller{
+	oldImage      = "quay.io/weaveworks/helloworld:master-a000001"
+	oldRef, _     = image.ParseRef(oldImage)
+	sidecarImage  = "quay.io/weaveworks/sidecar:master-a000002"
+	sidecarRef, _ = image.ParseRef(sidecarImage)
+	hwSvcID, _    = flux.ParseResourceID("default:deployment/helloworld")
+	hwSvcSpec, _  = update.ParseResourceSpec(hwSvcID.String())
+	hwSvc         = cluster.Controller{
 		ID: hwSvcID,
 		Containers: cluster.ContainersOrExcuse{
 			Containers: []cluster.Container{
@@ -44,7 +45,7 @@ var (
 
 	oldLockedImg     = "quay.io/weaveworks/locked-service:1"
 	newLockedImg     = "quay.io/weaveworks/locked-service:2"
-	newLockedID, _   = flux.ParseImageID(newLockedImg)
+	newLockedID, _   = image.ParseRef(newLockedImg)
 	lockedSvcID, _   = flux.ParseResourceID("default:deployment/locked-service")
 	lockedSvcSpec, _ = update.ParseResourceSpec(lockedSvcID.String())
 	lockedSvc        = cluster.Controller{
@@ -77,14 +78,14 @@ var (
 		lockedSvc,
 		testSvc,
 	}
-	newImageID, _ = flux.ParseImageID("quay.io/weaveworks/helloworld:master-a000002")
-	timeNow       = time.Now()
-	mockRegistry  = registry.NewMockRegistry([]flux.Image{
-		flux.Image{
-			ID:        newImageID,
+	newRef, _    = image.ParseRef("quay.io/weaveworks/helloworld:master-a000002")
+	timeNow      = time.Now()
+	mockRegistry = registry.NewMockRegistry([]image.Info{
+		image.Info{
+			ID:        newRef,
 			CreatedAt: timeNow,
 		},
-		flux.Image{
+		image.Info{
 			ID:        newLockedID,
 			CreatedAt: timeNow,
 		},
@@ -131,8 +132,8 @@ func Test_FilterLogic(t *testing.T) {
 					PerContainer: []update.ContainerUpdate{
 						update.ContainerUpdate{
 							Container: container,
-							Current:   oldImageID,
-							Target:    newImageID,
+							Current:   oldRef,
+							Target:    newRef,
 						},
 					},
 				},
@@ -159,8 +160,8 @@ func Test_FilterLogic(t *testing.T) {
 					PerContainer: []update.ContainerUpdate{
 						update.ContainerUpdate{
 							Container: container,
-							Current:   oldImageID,
-							Target:    newImageID,
+							Current:   oldRef,
+							Target:    newRef,
 						},
 					},
 				},
@@ -177,7 +178,7 @@ func Test_FilterLogic(t *testing.T) {
 			Name: "not image",
 			Spec: update.ReleaseSpec{
 				ServiceSpecs: []update.ResourceSpec{update.ResourceSpecAll},
-				ImageSpec:    update.ImageSpecFromID(newImageID),
+				ImageSpec:    update.ImageSpecFromRef(newRef),
 				Kind:         update.ReleaseKindExecute,
 				Excludes:     []flux.ResourceID{},
 			},
@@ -187,8 +188,8 @@ func Test_FilterLogic(t *testing.T) {
 					PerContainer: []update.ContainerUpdate{
 						update.ContainerUpdate{
 							Container: container,
-							Current:   oldImageID,
-							Target:    newImageID,
+							Current:   oldRef,
+							Target:    newRef,
 						},
 					},
 				},
@@ -218,8 +219,8 @@ func Test_FilterLogic(t *testing.T) {
 					PerContainer: []update.ContainerUpdate{
 						update.ContainerUpdate{
 							Container: container,
-							Current:   oldImageID,
-							Target:    newImageID,
+							Current:   oldRef,
+							Target:    newRef,
 						},
 					},
 				},
@@ -247,8 +248,8 @@ func Test_FilterLogic(t *testing.T) {
 					PerContainer: []update.ContainerUpdate{
 						update.ContainerUpdate{
 							Container: container,
-							Current:   oldImageID,
-							Target:    newImageID,
+							Current:   oldRef,
+							Target:    newRef,
 						},
 					},
 				},
@@ -315,13 +316,13 @@ func Test_ImageStatus(t *testing.T) {
 		},
 	}
 
-	upToDateRegistry := registry.NewMockRegistry([]flux.Image{
-		flux.Image{
-			ID:        oldImageID,
+	upToDateRegistry := registry.NewMockRegistry([]image.Info{
+		image.Info{
+			ID:        oldRef,
 			CreatedAt: timeNow,
 		},
-		flux.Image{
-			ID:        sidecarImageID,
+		image.Info{
+			ID:        sidecarRef,
 			CreatedAt: timeNow,
 		},
 	}, nil)

@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
+	"github.com/weaveworks/flux/image"
 	"github.com/weaveworks/flux/ssh"
 )
 
@@ -263,8 +264,8 @@ type ControllerStatus struct {
 
 type Container struct {
 	Name      string
-	Current   Image
-	Available []Image
+	Current   image.Info
+	Available []image.Info
 }
 
 // --- config types
