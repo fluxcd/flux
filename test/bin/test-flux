@@ -3,7 +3,7 @@
 set -e
 set -o pipefail
 
-BASEDIR="$(readlink -f "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd )/..")"
+BASEDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && cd .. && pwd)"
 PROFILE="flux-test"
 PROFILE_DIR="$BASEDIR/profiles/$PROFILE"
 KNOWN_HOSTS="$PROFILE_DIR/.known_hosts"
