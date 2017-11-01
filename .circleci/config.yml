@@ -33,3 +33,12 @@ jobs:
               docker login -u "$DOCKER_REGISTRY_USER" -p "$DOCKER_REGISTRY_PASSWORD" quay.io
               docker push "quay.io/weaveworks/flux:$(docker/image-tag)"
             fi
+
+workflows:
+  version: 2
+  build-and-push:
+    jobs:
+      - build:
+          filters:
+            tags:  
+              only: /[0-9]+(\.[0-9]+)*(-[a-z]+)?/
