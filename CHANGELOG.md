@@ -1,3 +1,11 @@
+## 1.1.0 (2017-11-01)
+
+### Improvements
+
+- Flux can now release updates to DaemonSets, StatefulSets and
+  CronJobs in addition to Deployments. Matching Service resources are
+  no longer required.
+
 ## 1.0.2 (2017-10-18)
 
 ### Improvements
