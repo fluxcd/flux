@@ -52,6 +52,8 @@ func Load(roots ...string) (map[string]resource.Resource, error) {
 func ParseMultidoc(multidoc []byte, source string) (map[string]resource.Resource, error) {
 	objs := map[string]resource.Resource{}
 	chunks := bufio.NewScanner(bytes.NewReader(multidoc))
+	initialBuffer := make([]byte, 4096)     // Matches startBufSize in bufio/scan.go
+	chunks.Buffer(initialBuffer, 1024*1024) // Allow growth to 1MB
 	chunks.Split(splitYAMLDocument)
 
 	var obj resource.Resource
