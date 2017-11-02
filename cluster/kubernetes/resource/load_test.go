@@ -1,6 +1,7 @@
 package resource
 
 import (
+	"bytes"
 	"reflect"
 	"testing"
 
@@ -93,6 +94,26 @@ metadata:
 		if !reflect.DeepEqual(obj, debyte(objs[id])) {
 			t.Errorf("At %+v expected:\n%#v\ngot:\n%#v", id, obj, objs[id])
 		}
+	}
+}
+
+func TestParseSomeLong(t *testing.T) {
+	doc := `---
+kind: ConfigMap
+metadata:
+  name: bigmap
+data:
+  bigdata: |
+`
+	buffer := bytes.NewBufferString(doc)
+	line := "    The quick brown fox jumps over the lazy dog.\n"
+	for buffer.Len()+len(line) < 1024*1024 {
+		buffer.WriteString(line)
+	}
+
+	_, err := ParseMultidoc(buffer.Bytes(), "test")
+	if err != nil {
+		t.Error(err)
 	}
 }
 
