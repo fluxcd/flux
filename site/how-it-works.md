@@ -72,7 +72,7 @@ In order to access private registries, credentials may be required.
 
 Flux will only deploy different images. It will not re-deploy images 
 with the same tag.
- 
+
 Once a list of new images have been established, it will alter the 
 configuration of the cluster to deploy the new images.
 

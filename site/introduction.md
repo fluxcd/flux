@@ -42,7 +42,7 @@ Another feature is the automated deployment of containers. It will
 continuously monitor a range of container registries and deploy new
 versions where applicable.
 
-This is really useful for keeping the repository and therefor the
+This is really useful for keeping the repository and therefore the
 cluster up to date. It allows separate teams to have their own
 deployment pipelines then flux is able to see the new image and update
 the cluster accordingly.
