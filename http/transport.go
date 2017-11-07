@@ -67,7 +67,7 @@ func MakeURL(endpoint string, router *mux.Router, routeName string, urlParams ..
 		return nil, errors.Wrapf(err, "parsing endpoint %s", endpoint)
 	}
 
-	routeURL, err := router.Get(routeName).URL()
+	routeURL, err := router.Get(routeName).URLPath()
 	if err != nil {
 		return nil, errors.Wrapf(err, "retrieving route path %s", routeName)
 	}
