@@ -86,15 +86,41 @@ flux` in the file `fluxd-deployment.yaml` before applying it.
 ## Flux API service
 
 To make the pod accessible to the command-line client `fluxctl`, you
-can create a service for Flux. The example in `flux-service.yaml`
-exposes the service as a
+will need to expose the API outside the cluster.
+
+A simple way to do this is to piggy-back on `kubectl port-forward`,
+assuming you can access the Kubernetes API:
+
+```
+fluxpod=$(kubectl get pod -l name=flux -o name | awk -F / '{ print $2; }')
+kubectl port-forward "$fluxpod" 10080:3030 &
+FLUX_URL="http://localhost:10080/api/flux"
+fluxctl list-controllers --all-namespaces
+```
+
+### Local endpoint
+
+**Beware**: this exposes the Flux API, unauthenticated, over an
+insecure channel. Do not do this _unless_ you are operating Flux
+entirely locally; and arguably, only to try it out.
+
+If you are running Flux locally, e.g., in minikube, you can use a
+service with a
 [`NodePort`](http://kubernetes.io/docs/user-guide/services/#type-nodeport).
 
+An example manifest is given in
+[flux-nodeport.yaml](../../deploy/flux-nodeport.yaml).
+
+Then you can access the API on the `NodePort`, by retrieving the port
+number (this example assumes you are using minikube):
+
 ```
-kubectl create -f flux-service.yaml
+fluxport=$(kubectl get svc flux --template '{{ index .spec.ports 0 "nodePort" }}')
+FLUX_URL="http://$(minikube ip):$fluxport/api/flux"
+fluxctl list-controllers --all-namespaces
 ```
 
-## Fluxctl
+## fluxctl
 
 This allows you to control Flux from the command line, and if you're
 not connecting it to Weave Cloud, is the only way of working with
