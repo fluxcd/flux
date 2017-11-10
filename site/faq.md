@@ -24,31 +24,68 @@ The amount of functionality contained within Flux warrants a dedicated
 application/service. An equivalent script could easily get too large
 to maintain and reuse.
 
-This also forms a base to add features like Slack integration.
+Anyway, we've already done it for you!
 
 ### Why should I automate deployment?
 
-Automation is a principle of lean development. It reduces waste, to 
+Automation is a principle of lean development. It reduces waste, to
 provide efficiency gains. It empowers employees by removing dull
 tasks. It mitigates against failure by avoiding silly mistakes.
+
+### I thought Flux was about service routing?
+
+That's [where we started a while
+ago](https://www.weave.works/blog/flux-service-routing/). But we
+discovered that automating deployments was more urgent for our own
+purposes.
+
+Staging deployments with clever routing is useful, but it's a later
+level of operational maturity.
+
+There are some pretty good solutions for service routing:
+[Envoy](https://www.envoyproxy.io/), [Istio](https://istio.io) for
+example. We may return to the matter of staged deployments.
 
 ## Technical questions
 
 ### Why does Flux need a deploy key?
 
 Flux needs a deploy key to be allowed to push to the version control
-system in order to read from and update the manifests.
+system in order to read and update the manifests.
 
 ### How do I give Flux access to a private registry?
 
-Provide Flux with the registry credentials. See 
-[an example here](/site/using.md).
+Flux transparently looks at the image pull secret that you give for a
+controller, and thereby uses the same credentials that Kubernetes uses
+for pulling each image. If your pods are running, Kubernetes has
+pulled the images, and Flux should be able to access them.
+
+There are exceptions: in some environments, authorisation provided by
+the platform is used instead of image pull secrets. Google Container
+Registry works this way, for example (and we have introduced a special
+case for it so Flux will work there too).
 
 ### How often does Flux check for new images?
 
-Flux polls image registries every 5 minutes by default. You can change
-this, but beware that registries may throttle and even blacklist
-over-eager clients (like Flux in this scenario).
+Short answer: every five minutes.
+
+You can set this to be more often, to try and be responsive in
+deploying new images. Be aware that there are some other things going
+on:
+
+ * Requests to image registries are rate limited, and _discovering_
+   new images has some lag in itself, which depends on how many images
+   you are using in total (since we go and check them one by one as
+   fast as rate limiting allows).
+
+ * Operations on the git repo are more or less
+   serialised, so while you are checking for new images to deploy, you
+   are not doing something else (like syncing).
+
+Having said that, the defaults are pretty conservative, so try it and
+see. Please don't increase the rate limiting numbers (`--registry-rps`
+and `--registry-burst`) -- it's possible to get blacklisted by image
+registries if you spam them with requests.
 
 ### How do I use my own deploy key?
 

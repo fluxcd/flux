@@ -20,6 +20,8 @@ Get started by browsing through the documentation below.
 
 [Introduction to Flux](/site/introduction.md)
 
+[FAQ](/site/faq.md)
+
 [How it works](/site/how-it-works.md)
 
 [Installing Flux](/site/installing.md)
@@ -27,8 +29,6 @@ Get started by browsing through the documentation below.
 [Using Flux](/site/using.md)
 
 [Upgrading to Flux v1](/site/upgrading-to-1.0.md)
-
-[FAQ](/site/faq.md)
 
 [Troubleshooting](/site/troubleshooting.md)
 
