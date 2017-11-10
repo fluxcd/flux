@@ -45,7 +45,7 @@ cd deploy
 Flux uses memcache to cache docker registry requests.
 
 ```
-kubectl create -f memcache-dep.yaml memcache-svc.yaml
+kubectl create -f memcache-dep.yaml -f memcache-svc.yaml
 ```
 
 ## Flux deployment
