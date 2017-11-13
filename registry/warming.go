@@ -31,7 +31,14 @@ type Warmer struct {
 	Notify        func()
 }
 
+// This is what we get from the callback handed to us
 type ImageCreds map[image.Name]Credentials
+
+// .. and this is what we keep in the backlog
+type backlogItem struct {
+	image.Name
+	Credentials
+}
 
 // Continuously get the images to populate the cache with, and
 // populate the cache with them.
@@ -42,14 +49,9 @@ func (w *Warmer) Loop(stop <-chan struct{}, wg *sync.WaitGroup, imagesToFetchFun
 		panic("registry.Warmer fields are nil")
 	}
 
-	type imageCred struct {
-		image.Name
-		Credentials
-	}
-
 	refresh := time.Tick(askForNewImagesInterval)
 	imageCreds := imagesToFetchFunc()
-	backlog := []imageCred{}
+	backlog := imageCredsToBacklog(imageCreds)
 
 	// This loop acts keeps a kind of priority queue, whereby image
 	// names coming in on the `Priority` channel are looked up first.
@@ -84,13 +86,21 @@ func (w *Warmer) Loop(stop <-chan struct{}, wg *sync.WaitGroup, imagesToFetchFun
 			select {
 			case <-refresh:
 				imageCreds = imagesToFetchFunc()
-				for name, cred := range imageCreds {
-					backlog = append(backlog, imageCred{name, cred})
-				}
+				backlog = imageCredsToBacklog(imageCreds)
 			default:
 			}
 		}
 	}
+}
+
+func imageCredsToBacklog(imageCreds ImageCreds) []backlogItem {
+	backlog := make([]backlogItem, len(imageCreds))
+	var i int
+	for name, cred := range imageCreds {
+		backlog[i] = backlogItem{name, cred}
+		i++
+	}
+	return backlog
 }
 
 func (w *Warmer) warm(id image.Name, creds Credentials) {
