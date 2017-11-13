@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"net"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -21,12 +22,13 @@ const askForNewImagesInterval = time.Minute
 type Warmer struct {
 	Logger        log.Logger
 	ClientFactory ClientFactory
-	Creds         Credentials
+	Creds         Credentials // FIXME: never supplied!
 	Expiry        time.Duration
 	Writer        cache.Writer
 	Reader        cache.Reader
 	Burst         int
 	Priority      chan image.Name
+	Notify        func()
 }
 
 type ImageCreds map[image.Name]Credentials
@@ -99,10 +101,27 @@ func (w *Warmer) warm(id image.Name, creds Credentials) {
 	}
 	defer client.Cancel()
 
+	// FIXME This can only return an empty string, because w.Creds is
+	// always empty. In other words, keys never include a username
+	// (need they?)
 	username := w.Creds.credsFor(id.Registry()).username
 
-	// Refresh tags first
-	// Only, for example, "library/alpine" because we have the host information in the client above.
+	key, err := cache.NewTagKey(username, id.CanonicalName())
+	if err != nil {
+		w.Logger.Log("err", errors.Wrap(err, "creating key for cache"))
+		return
+	}
+
+	var cacheTags []string
+	cacheTagsVal, err := w.Reader.GetKey(key)
+	if err == nil {
+		err = json.Unmarshal(cacheTagsVal, &cacheTags)
+		if err != nil {
+			w.Logger.Log("err", errors.Wrap(err, "deserializing cached tags"))
+			return
+		}
+	} // else assume we have no cached tags
+
 	tags, err := client.Tags(id)
 	if err != nil {
 		if !strings.Contains(err.Error(), context.DeadlineExceeded.Error()) && !strings.Contains(err.Error(), "net/http: request canceled") {
@@ -114,12 +133,6 @@ func (w *Warmer) warm(id image.Name, creds Credentials) {
 	val, err := json.Marshal(tags)
 	if err != nil {
 		w.Logger.Log("err", errors.Wrap(err, "serializing tags to store in cache"))
-		return
-	}
-
-	key, err := cache.NewTagKey(username, id.CanonicalName())
-	if err != nil {
-		w.Logger.Log("err", errors.Wrap(err, "creating key for cache"))
 		return
 	}
 
@@ -203,6 +216,36 @@ func (w *Warmer) warm(id image.Name, creds Credentials) {
 	}
 	awaitFetchers.Wait()
 	w.Logger.Log("updated", id.String())
+
+	if w.Notify != nil {
+		// If there's more tags than there used to be, there must be
+		// at least one new tag.
+		if len(cacheTags) < len(tags) {
+			w.Notify()
+			return
+		}
+		// Otherwise, check whether there are any entries in the
+		// fetched tags that aren't in the cached tags, ignoring any
+		// in the cached tags that aren't in fetched tags.
+		sort.Strings(cacheTags)
+		sort.Strings(tags)
+		var i, j int
+		for i < len(tags) && j < len(cacheTags) {
+			switch strings.Compare(tags[i], cacheTags[j]) {
+			case 0:
+				i++
+				j++
+			case -1:
+				w.Notify()
+				return
+			case 1:
+				j++
+			}
+		}
+		if i < len(tags)-1 {
+			w.Notify()
+		}
+	}
 }
 
 func withinExpiryBuffer(expiry time.Time, buffer time.Duration) bool {

@@ -264,11 +264,11 @@ func (d *Daemon) updatePolicy(spec update.Spec, updates policy.Updates) DaemonJo
 			// On the chance pushing failed because it was not
 			// possible to fast-forward, ask for a sync so the
 			// next attempt is more likely to succeed.
-			d.askForSync()
+			d.AskForSync()
 			return nil, err
 		}
 		if anythingAutomated {
-			d.askForImagePoll()
+			d.AskForImagePoll()
 		}
 
 		var err error
@@ -303,7 +303,7 @@ func (d *Daemon) release(spec update.Spec, c release.Changes) DaemonJobFunc {
 				// On the chance pushing failed because it was not
 				// possible to fast-forward, ask for a sync so the
 				// next attempt is more likely to succeed.
-				d.askForSync()
+				d.AskForSync()
 				return nil, err
 			}
 			revision, err = working.HeadRevision(ctx)
@@ -324,7 +324,7 @@ func (d *Daemon) release(spec update.Spec, c release.Changes) DaemonJobFunc {
 // may be comms difficulties or other sources of problems; here, we
 // always succeed because it's just bookkeeping.
 func (d *Daemon) SyncNotify(ctx context.Context) error {
-	d.askForSync()
+	d.AskForSync()
 	return nil
 }
 
