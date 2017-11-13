@@ -26,6 +26,7 @@ type Warmer struct {
 	Writer        cache.Writer
 	Reader        cache.Reader
 	Burst         int
+	Priority      chan image.Name
 }
 
 type ImageCreds map[image.Name]Credentials
@@ -39,19 +40,52 @@ func (w *Warmer) Loop(stop <-chan struct{}, wg *sync.WaitGroup, imagesToFetchFun
 		panic("registry.Warmer fields are nil")
 	}
 
-	for k, v := range imagesToFetchFunc() {
-		w.warm(k, v)
+	type imageCred struct {
+		image.Name
+		Credentials
 	}
 
-	newImages := time.Tick(askForNewImagesInterval)
+	refresh := time.Tick(askForNewImagesInterval)
+	imageCreds := imagesToFetchFunc()
+	backlog := []imageCred{}
+
+	// This loop acts keeps a kind of priority queue, whereby image
+	// names coming in on the `Priority` channel are looked up first.
+	// If there are none, images used in the cluster are refreshed;
+	// but no more often than once every `askForNewImagesInterval`,
+	// since there is no effective back-pressure on cache refreshes
+	// and it would spin freely otherwise).
 	for {
 		select {
 		case <-stop:
 			w.Logger.Log("stopping", "true")
 			return
-		case <-newImages:
-			for k, v := range imagesToFetchFunc() {
-				w.warm(k, v)
+		case name := <-w.Priority:
+			w.Logger.Log("priority", name.String())
+			// NB the implicit contract here is that the prioritised
+			// image has to have been running the last time we
+			// requested the credentials.
+			if creds, ok := imageCreds[name]; ok {
+				w.warm(name, creds)
+			} else {
+				w.Logger.Log("priority", name.String(), "err", "no creds available")
+			}
+			continue
+		default:
+		}
+
+		if len(backlog) > 0 {
+			im := backlog[0]
+			backlog = backlog[1:]
+			w.warm(im.Name, im.Credentials)
+		} else {
+			select {
+			case <-refresh:
+				imageCreds = imagesToFetchFunc()
+				for name, cred := range imageCreds {
+					backlog = append(backlog, imageCred{name, cred})
+				}
+			default:
 			}
 		}
 	}
