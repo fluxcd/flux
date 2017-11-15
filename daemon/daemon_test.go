@@ -25,6 +25,7 @@ import (
 	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/policy"
 	"github.com/weaveworks/flux/registry"
+	"github.com/weaveworks/flux/remote"
 	"github.com/weaveworks/flux/resource"
 	"github.com/weaveworks/flux/update"
 )
@@ -152,8 +153,8 @@ func TestDaemon_ListImages(t *testing.T) {
 	}
 }
 
-// When I call sync notify, it should cause a sync
-func TestDaemon_SyncNotify(t *testing.T) {
+// When I call notify, it should cause a sync
+func TestDaemon_NotifyChange(t *testing.T) {
 	d, clean, mockK8s, events := mockDaemon(t)
 	defer clean()
 	w := newWait(t)
@@ -171,7 +172,7 @@ func TestDaemon_SyncNotify(t *testing.T) {
 		return nil
 	}
 
-	d.SyncNotify(ctx)
+	d.NotifyChange(ctx, remote.Change{Kind: remote.GitChange, Source: remote.GitUpdate{}})
 	w.Eventually(func() bool {
 		syncMu.Lock()
 		defer syncMu.Unlock()
