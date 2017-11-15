@@ -29,6 +29,7 @@ import (
 	"github.com/weaveworks/flux/git"
 	transport "github.com/weaveworks/flux/http"
 	daemonhttp "github.com/weaveworks/flux/http/daemon"
+	"github.com/weaveworks/flux/image"
 	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/registry"
 	registryMemcache "github.com/weaveworks/flux/registry/cache"
@@ -401,11 +402,12 @@ func main() {
 	}
 
 	daemon := &daemon.Daemon{
-		V:         version,
-		Cluster:   k8s,
-		Manifests: k8sManifests,
-		Registry:  cache,
-		Repo:      repo, Checkout: checkout,
+		V:            version,
+		Cluster:      k8s,
+		Manifests:    k8sManifests,
+		Registry:     cache,
+		ImageRefresh: make(chan image.Name, 100), // size chosen by fair dice roll
+		Repo:         repo, Checkout: checkout,
 		Jobs:           jobs,
 		JobStatusCache: &job.StatusCache{Size: 100},
 
@@ -420,6 +422,7 @@ func main() {
 	go daemon.GitPollLoop(shutdown, shutdownWg, log.With(logger, "component", "sync-loop"))
 
 	cacheWarmer.Notify = daemon.AskForImagePoll
+	cacheWarmer.Priority = daemon.ImageRefresh
 	shutdownWg.Add(1)
 	go cacheWarmer.Loop(shutdown, shutdownWg, image_creds)
 
