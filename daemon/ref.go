@@ -58,8 +58,8 @@ func (pr *Ref) UpdateManifests(ctx context.Context, spec update.Spec) (job.ID, e
 	return pr.Platform().UpdateManifests(ctx, spec)
 }
 
-func (pr *Ref) SyncNotify(ctx context.Context) error {
-	return pr.Platform().SyncNotify(ctx)
+func (pr *Ref) NotifyChange(ctx context.Context, change remote.Change) error {
+	return pr.Platform().NotifyChange(ctx, change)
 }
 
 func (pr *Ref) JobStatus(ctx context.Context, id job.ID) (job.Status, error) {

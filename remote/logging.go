@@ -61,13 +61,13 @@ func (p *ErrorLoggingPlatform) ListImages(ctx context.Context, spec update.Resou
 	return p.Platform.ListImages(ctx, spec)
 }
 
-func (p *ErrorLoggingPlatform) SyncNotify(ctx context.Context) (err error) {
+func (p *ErrorLoggingPlatform) NotifyChange(ctx context.Context, change Change) (err error) {
 	defer func() {
 		if err != nil {
-			p.Logger.Log("method", "SyncNotify", "error", err)
+			p.Logger.Log("method", "NotifyChange", "error", err)
 		}
 	}()
-	return p.Platform.SyncNotify(ctx)
+	return p.Platform.NotifyChange(ctx, change)
 }
 
 func (p *ErrorLoggingPlatform) JobStatus(ctx context.Context, jobID job.ID) (_ job.Status, err error) {

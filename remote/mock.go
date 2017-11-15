@@ -34,7 +34,7 @@ type MockPlatform struct {
 	UpdateManifestsAnswer  job.ID
 	UpdateManifestsError   error
 
-	SyncNotifyError error
+	NotifyChangeError error
 
 	SyncStatusAnswer []string
 	SyncStatusError  error
@@ -75,8 +75,8 @@ func (p *MockPlatform) UpdateManifests(ctx context.Context, s update.Spec) (job.
 	return p.UpdateManifestsAnswer, p.UpdateManifestsError
 }
 
-func (p *MockPlatform) SyncNotify(ctx context.Context) error {
-	return p.SyncNotifyError
+func (p *MockPlatform) NotifyChange(ctx context.Context, change Change) error {
+	return p.NotifyChangeError
 }
 
 func (p *MockPlatform) SyncStatus(context.Context, string) ([]string, error) {
@@ -215,7 +215,8 @@ func PlatformTestBattery(t *testing.T, wrap func(mock Platform) Platform) {
 		t.Error("expected error from UpdateManifests, got nil")
 	}
 
-	if err := client.SyncNotify(ctx); err != nil {
+	change := Change{Kind: GitChange, Source: GitUpdate{URL: "git@example.com:foo/bar"}}
+	if err := client.NotifyChange(ctx, change); err != nil {
 		t.Error(err)
 	}
 

@@ -6,6 +6,7 @@ import (
 	"net/rpc"
 
 	"github.com/weaveworks/flux"
+	fluxerr "github.com/weaveworks/flux/errors"
 	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/remote"
 	"github.com/weaveworks/flux/update"
@@ -87,6 +88,10 @@ func (p *RPCClientV7) UpdateManifests(ctx context.Context, u update.Spec) (job.I
 		err = resp.ApplicationError
 	}
 	return resp.Result, err
+}
+
+type SyncNotifyResponse struct {
+	ApplicationError *fluxerr.Error
 }
 
 func (p *RPCClientV7) SyncNotify(ctx context.Context) error {

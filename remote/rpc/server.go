@@ -117,12 +117,12 @@ func (p *RPCServer) UpdateManifests(spec update.Spec, resp *UpdateManifestsRespo
 	return err
 }
 
-type SyncNotifyResponse struct {
+type NotifyChangeResponse struct {
 	ApplicationError *fluxerr.Error
 }
 
-func (p *RPCServer) SyncNotify(_ struct{}, resp *SyncNotifyResponse) error {
-	err := p.p.SyncNotify(context.Background())
+func (p *RPCServer) NotifyChange(c remote.Change, resp *NotifyChangeResponse) error {
+	err := p.p.NotifyChange(context.Background(), c)
 	if err != nil {
 		if err, ok := errors.Cause(err).(*fluxerr.Error); ok {
 			resp.ApplicationError = err

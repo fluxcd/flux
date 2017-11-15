@@ -40,8 +40,8 @@ func (bc baseClient) UpdateManifests(context.Context, update.Spec) (job.ID, erro
 	return id, remote.UpgradeNeededError(errors.New("UpdateManifests method not implemented"))
 }
 
-func (bc baseClient) SyncNotify(context.Context) error {
-	return remote.UpgradeNeededError(errors.New("SyncNotify method not implemented"))
+func (bc baseClient) NotifyChange(context.Context, remote.Change) error {
+	return remote.UpgradeNeededError(errors.New("NotifyChange method not implemented"))
 }
 
 func (bc baseClient) JobStatus(context.Context, job.ID) (job.Status, error) {
