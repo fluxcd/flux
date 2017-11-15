@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"net"
-	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -235,27 +234,37 @@ func (w *Warmer) warm(id image.Name, creds Credentials) {
 			return
 		}
 		// Otherwise, check whether there are any entries in the
-		// fetched tags that aren't in the cached tags, ignoring any
-		// in the cached tags that aren't in fetched tags.
-		sort.Strings(cacheTags)
-		sort.Strings(tags)
-		var i, j int
-		for i < len(tags) && j < len(cacheTags) {
-			switch strings.Compare(tags[i], cacheTags[j]) {
-			case 0:
-				i++
-				j++
-			case -1:
-				w.Notify()
-				return
-			case 1:
-				j++
-			}
-		}
-		if i < len(tags)-1 {
+		// fetched tags that aren't in the cached tags.
+		tagSet := NewStringSet(tags)
+		cacheTagSet := NewStringSet(cacheTags)
+		if !tagSet.Subset(cacheTagSet) {
 			w.Notify()
 		}
 	}
+}
+
+// StringSet is a set of strings.
+type StringSet map[string]struct{}
+
+// NewStringSet returns a StringSet containing exactly the strings
+// given as arguments.
+func NewStringSet(ss []string) StringSet {
+	res := StringSet{}
+	for _, s := range ss {
+		res[s] = struct{}{}
+	}
+	return res
+}
+
+// Subset returns true if `s` is a subset of `t` (including the case
+// of having the same members).
+func (s StringSet) Subset(t StringSet) bool {
+	for k := range s {
+		if _, ok := t[k]; !ok {
+			return false
+		}
+	}
+	return true
 }
 
 func withinExpiryBuffer(expiry time.Time, buffer time.Duration) bool {
