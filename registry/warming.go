@@ -21,14 +21,23 @@ const askForNewImagesInterval = time.Minute
 type Warmer struct {
 	Logger        log.Logger
 	ClientFactory ClientFactory
-	Creds         Credentials
+	Creds         Credentials // FIXME: never supplied!
 	Expiry        time.Duration
 	Writer        cache.Writer
 	Reader        cache.Reader
 	Burst         int
+	Priority      chan image.Name
+	Notify        func()
 }
 
+// This is what we get from the callback handed to us
 type ImageCreds map[image.Name]Credentials
+
+// .. and this is what we keep in the backlog
+type backlogItem struct {
+	image.Name
+	Credentials
+}
 
 // Continuously get the images to populate the cache with, and
 // populate the cache with them.
@@ -39,22 +48,58 @@ func (w *Warmer) Loop(stop <-chan struct{}, wg *sync.WaitGroup, imagesToFetchFun
 		panic("registry.Warmer fields are nil")
 	}
 
-	for k, v := range imagesToFetchFunc() {
-		w.warm(k, v)
-	}
+	refresh := time.Tick(askForNewImagesInterval)
+	imageCreds := imagesToFetchFunc()
+	backlog := imageCredsToBacklog(imageCreds)
 
-	newImages := time.Tick(askForNewImagesInterval)
+	// This loop acts keeps a kind of priority queue, whereby image
+	// names coming in on the `Priority` channel are looked up first.
+	// If there are none, images used in the cluster are refreshed;
+	// but no more often than once every `askForNewImagesInterval`,
+	// since there is no effective back-pressure on cache refreshes
+	// and it would spin freely otherwise).
 	for {
 		select {
 		case <-stop:
 			w.Logger.Log("stopping", "true")
 			return
-		case <-newImages:
-			for k, v := range imagesToFetchFunc() {
-				w.warm(k, v)
+		case name := <-w.Priority:
+			w.Logger.Log("priority", name.String())
+			// NB the implicit contract here is that the prioritised
+			// image has to have been running the last time we
+			// requested the credentials.
+			if creds, ok := imageCreds[name]; ok {
+				w.warm(name, creds)
+			} else {
+				w.Logger.Log("priority", name.String(), "err", "no creds available")
+			}
+			continue
+		default:
+		}
+
+		if len(backlog) > 0 {
+			im := backlog[0]
+			backlog = backlog[1:]
+			w.warm(im.Name, im.Credentials)
+		} else {
+			select {
+			case <-refresh:
+				imageCreds = imagesToFetchFunc()
+				backlog = imageCredsToBacklog(imageCreds)
+			default:
 			}
 		}
 	}
+}
+
+func imageCredsToBacklog(imageCreds ImageCreds) []backlogItem {
+	backlog := make([]backlogItem, len(imageCreds))
+	var i int
+	for name, cred := range imageCreds {
+		backlog[i] = backlogItem{name, cred}
+		i++
+	}
+	return backlog
 }
 
 func (w *Warmer) warm(id image.Name, creds Credentials) {
@@ -65,10 +110,27 @@ func (w *Warmer) warm(id image.Name, creds Credentials) {
 	}
 	defer client.Cancel()
 
+	// FIXME This can only return an empty string, because w.Creds is
+	// always empty. In other words, keys never include a username
+	// (need they?)
 	username := w.Creds.credsFor(id.Registry()).username
 
-	// Refresh tags first
-	// Only, for example, "library/alpine" because we have the host information in the client above.
+	key, err := cache.NewTagKey(username, id.CanonicalName())
+	if err != nil {
+		w.Logger.Log("err", errors.Wrap(err, "creating key for cache"))
+		return
+	}
+
+	var cacheTags []string
+	cacheTagsVal, err := w.Reader.GetKey(key)
+	if err == nil {
+		err = json.Unmarshal(cacheTagsVal, &cacheTags)
+		if err != nil {
+			w.Logger.Log("err", errors.Wrap(err, "deserializing cached tags"))
+			return
+		}
+	} // else assume we have no cached tags
+
 	tags, err := client.Tags(id)
 	if err != nil {
 		if !strings.Contains(err.Error(), context.DeadlineExceeded.Error()) && !strings.Contains(err.Error(), "net/http: request canceled") {
@@ -80,12 +142,6 @@ func (w *Warmer) warm(id image.Name, creds Credentials) {
 	val, err := json.Marshal(tags)
 	if err != nil {
 		w.Logger.Log("err", errors.Wrap(err, "serializing tags to store in cache"))
-		return
-	}
-
-	key, err := cache.NewTagKey(username, id.CanonicalName())
-	if err != nil {
-		w.Logger.Log("err", errors.Wrap(err, "creating key for cache"))
 		return
 	}
 
@@ -169,6 +225,46 @@ func (w *Warmer) warm(id image.Name, creds Credentials) {
 	}
 	awaitFetchers.Wait()
 	w.Logger.Log("updated", id.String())
+
+	if w.Notify != nil {
+		// If there's more tags than there used to be, there must be
+		// at least one new tag.
+		if len(cacheTags) < len(tags) {
+			w.Notify()
+			return
+		}
+		// Otherwise, check whether there are any entries in the
+		// fetched tags that aren't in the cached tags.
+		tagSet := NewStringSet(tags)
+		cacheTagSet := NewStringSet(cacheTags)
+		if !tagSet.Subset(cacheTagSet) {
+			w.Notify()
+		}
+	}
+}
+
+// StringSet is a set of strings.
+type StringSet map[string]struct{}
+
+// NewStringSet returns a StringSet containing exactly the strings
+// given as arguments.
+func NewStringSet(ss []string) StringSet {
+	res := StringSet{}
+	for _, s := range ss {
+		res[s] = struct{}{}
+	}
+	return res
+}
+
+// Subset returns true if `s` is a subset of `t` (including the case
+// of having the same members).
+func (s StringSet) Subset(t StringSet) bool {
+	for k := range s {
+		if _, ok := t[k]; !ok {
+			return false
+		}
+	}
+	return true
 }
 
 func withinExpiryBuffer(expiry time.Time, buffer time.Duration) bool {

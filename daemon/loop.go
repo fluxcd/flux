@@ -66,8 +66,8 @@ func (d *Daemon) GitPollLoop(stop chan struct{}, wg *sync.WaitGroup, logger log.
 	imagePollTimer := time.NewTimer(d.RegistryPollInterval)
 
 	// Ask for a sync, and to poll images, straight away
-	d.askForSync()
-	d.askForImagePoll()
+	d.AskForSync()
+	d.AskForImagePoll()
 	for {
 		select {
 		case <-stop:
@@ -78,13 +78,13 @@ func (d *Daemon) GitPollLoop(stop chan struct{}, wg *sync.WaitGroup, logger log.
 			imagePollTimer.Stop()
 			imagePollTimer = time.NewTimer(d.RegistryPollInterval)
 		case <-imagePollTimer.C:
-			d.askForImagePoll()
+			d.AskForImagePoll()
 		case <-d.syncSoon:
 			pullThen(d.doSync)
 		case <-gitPollTimer.C:
 			// Time to poll for new commits (unless we're already
 			// about to do that)
-			d.askForSync()
+			d.AskForSync()
 		case job := <-d.Jobs.Ready():
 			queueLength.Set(float64(d.Jobs.Len()))
 			jobLogger := log.With(logger, "jobID", job.ID)
@@ -108,7 +108,7 @@ func (d *Daemon) GitPollLoop(stop chan struct{}, wg *sync.WaitGroup, logger log.
 }
 
 // Ask for a sync, or if there's one waiting, let that happen.
-func (d *LoopVars) askForSync() {
+func (d *LoopVars) AskForSync() {
 	d.ensureInit()
 	select {
 	case d.syncSoon <- struct{}{}:
@@ -117,7 +117,7 @@ func (d *LoopVars) askForSync() {
 }
 
 // Ask for an image poll, or if there's one waiting, let that happen.
-func (d *LoopVars) askForImagePoll() {
+func (d *LoopVars) AskForImagePoll() {
 	d.ensureInit()
 	select {
 	case d.pollImagesSoon <- struct{}{}:

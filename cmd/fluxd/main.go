@@ -419,6 +419,7 @@ func main() {
 	shutdownWg.Add(1)
 	go daemon.GitPollLoop(shutdown, shutdownWg, log.With(logger, "component", "sync-loop"))
 
+	cacheWarmer.Notify = daemon.AskForImagePoll
 	shutdownWg.Add(1)
 	go cacheWarmer.Loop(shutdown, shutdownWg, image_creds)
 
