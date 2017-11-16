@@ -92,14 +92,14 @@ func (i *instrumentedPlatform) UpdateManifests(ctx context.Context, spec update.
 	return i.p.UpdateManifests(ctx, spec)
 }
 
-func (i *instrumentedPlatform) SyncNotify(ctx context.Context) (err error) {
+func (i *instrumentedPlatform) NotifyChange(ctx context.Context, change Change) (err error) {
 	defer func(begin time.Time) {
 		requestDuration.With(
-			fluxmetrics.LabelMethod, "SyncNotify",
+			fluxmetrics.LabelMethod, "NotifyChange",
 			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
 	}(time.Now())
-	return i.p.SyncNotify(ctx)
+	return i.p.NotifyChange(ctx, change)
 }
 
 func (i *instrumentedPlatform) JobStatus(ctx context.Context, id job.ID) (_ job.Status, err error) {

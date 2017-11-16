@@ -40,6 +40,7 @@ type Daemon struct {
 	Cluster        cluster.Cluster
 	Manifests      cluster.Manifests
 	Registry       registry.Registry
+	ImageRefresh   chan image.Name
 	Repo           git.Repo
 	Checkout       *git.Checkout
 	Jobs           *job.Queue
@@ -323,8 +324,18 @@ func (d *Daemon) release(spec update.Spec, c release.Changes) DaemonJobFunc {
 // the git repo. This has an error return value because upstream there
 // may be comms difficulties or other sources of problems; here, we
 // always succeed because it's just bookkeeping.
-func (d *Daemon) SyncNotify(ctx context.Context) error {
-	d.AskForSync()
+func (d *Daemon) NotifyChange(ctx context.Context, change remote.Change) error {
+	switch change.Kind {
+	case remote.GitChange:
+		// TODO: check if it's actually our repo
+		d.AskForSync()
+	case remote.ImageChange:
+		if imageUp, ok := change.Source.(remote.ImageUpdate); ok {
+			if d.ImageRefresh != nil {
+				d.ImageRefresh <- imageUp.Name
+			}
+		}
+	}
 	return nil
 }
 

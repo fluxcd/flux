@@ -11,6 +11,7 @@ import (
 
 	"github.com/weaveworks/flux"
 	transport "github.com/weaveworks/flux/http"
+	"github.com/weaveworks/flux/image"
 	"github.com/weaveworks/flux/job"
 	fluxmetrics "github.com/weaveworks/flux/metrics"
 	"github.com/weaveworks/flux/policy"
@@ -30,6 +31,10 @@ var (
 // An API server for the daemon
 func NewRouter() *mux.Router {
 	r := transport.NewAPIRouter()
+
+	r.NewRoute().Methods("POST").Name("GitPushHook").Path("/v9/hook/git").Queries("repo", "{repo}")
+	r.NewRoute().Methods("POST").Name("ImagePushHook").Path("/v9/hook/image").Queries("name", "{name}")
+
 	// All old versions are deprecated in the daemon. Use an up to
 	// date client!
 	transport.DeprecateVersions(r, "v1", "v2", "v3", "v4", "v5")
@@ -44,7 +49,6 @@ func NewRouter() *mux.Router {
 
 func NewHandler(d remote.Platform, r *mux.Router) http.Handler {
 	handle := HTTPServer{d}
-	r.Get("SyncNotify").HandlerFunc(handle.SyncNotify)
 	r.Get("JobStatus").HandlerFunc(handle.JobStatus)
 	r.Get("SyncStatus").HandlerFunc(handle.SyncStatus)
 	r.Get("UpdateImages").HandlerFunc(handle.UpdateImages)
@@ -54,6 +58,9 @@ func NewHandler(d remote.Platform, r *mux.Router) http.Handler {
 	r.Get("Export").HandlerFunc(handle.Export)
 	r.Get("GetPublicSSHKey").HandlerFunc(handle.GetPublicSSHKey)
 	r.Get("RegeneratePublicSSHKey").HandlerFunc(handle.RegeneratePublicSSHKey)
+
+	r.Get("GitPushHook").HandlerFunc(handle.GitPushHook)
+	r.Get("ImagePushHook").HandlerFunc(handle.ImagePushHook)
 
 	return middleware.Instrument{
 		RouteMatcher: r,
@@ -65,13 +72,35 @@ type HTTPServer struct {
 	daemon remote.Platform
 }
 
-func (s HTTPServer) SyncNotify(w http.ResponseWriter, r *http.Request) {
-	err := s.daemon.SyncNotify(r.Context())
+func (s HTTPServer) GitPushHook(w http.ResponseWriter, r *http.Request) {
+	repo := mux.Vars(r)["repo"]
+	err := s.daemon.NotifyChange(r.Context(), remote.Change{
+		Kind:   remote.GitChange,
+		Source: remote.GitUpdate{URL: repo},
+	})
 	if err != nil {
 		transport.ErrorResponse(w, r, err)
 		return
 	}
-	w.WriteHeader(http.StatusAccepted)
+	w.WriteHeader(http.StatusNoContent)
+	return
+}
+
+func (s HTTPServer) ImagePushHook(w http.ResponseWriter, r *http.Request) {
+	nameString := mux.Vars(r)["name"]
+	ref, err := image.ParseRef(nameString)
+	if err == nil {
+		err = s.daemon.NotifyChange(r.Context(), remote.Change{
+			Kind:   remote.ImageChange,
+			Source: remote.ImageUpdate{Name: ref.Name},
+		})
+	}
+	if err != nil {
+		transport.ErrorResponse(w, r, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+	return
 }
 
 func (s HTTPServer) JobStatus(w http.ResponseWriter, r *http.Request) {

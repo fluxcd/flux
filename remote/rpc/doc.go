@@ -18,9 +18,9 @@ transmission).
 To send application errors, we construct response values that are
 effectively a union of the actual response type, and the error type.
 
-At the client end, we also need to transmission errors -- e.g., a
-response timing out, or the connection closing abruptly. These are
-treated as "Fatal" errors; that is, they should result in a
+At the client end, we also need to deal with transmission errors --
+e.g., a response timing out, or the connection closing abruptly. These
+are treated as "Fatal" errors; that is, they should result in a
 disconnection of the daemon as well as being returned to the caller.
 
 On versions:
