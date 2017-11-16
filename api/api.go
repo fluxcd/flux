@@ -29,4 +29,5 @@ type Upstream interface {
 	RegisterDaemon(context.Context, remote.Platform) error
 	IsDaemonConnected(context.Context) error
 	LogEvent(context.Context, event.Event) error
+	NotifyChange(context.Context, remote.Change) error
 }
