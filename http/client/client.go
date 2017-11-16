@@ -70,13 +70,6 @@ func (c *Client) UpdateImages(ctx context.Context, s update.ReleaseSpec, cause u
 	return res, err
 }
 
-func (c *Client) SyncNotify(ctx context.Context) error {
-	if err := c.Post(ctx, "SyncNotify"); err != nil {
-		return err
-	}
-	return nil
-}
-
 func (c *Client) JobStatus(ctx context.Context, jobID job.ID) (job.Status, error) {
 	var res job.Status
 	err := c.Get(ctx, &res, "JobStatus", "id", string(jobID))
