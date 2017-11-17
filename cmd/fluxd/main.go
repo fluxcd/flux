@@ -262,19 +262,22 @@ func main() {
 		}
 
 		cacheLogger := log.With(logger, "component", "cache")
-		cache = registry.NewRegistry(
-			registry.NewCacheClientFactory(cacheLogger, memcacheRegistry, *registryCacheExpiry),
-			cacheLogger,
-			defaultMemcacheConnections,
-		)
+		cache = &registry.ClientRegistry{
+			Factory: registry.NewCacheClientFactory(cacheLogger, memcacheRegistry, *registryCacheExpiry),
+			Logger:  cacheLogger,
+		}
 		cache = registry.NewInstrumentedRegistry(cache)
 
 		// Remote
 		registryLogger := log.With(logger, "component", "registry")
-		remoteFactory := registry.NewRemoteClientFactory(registryLogger, registryMiddleware.RateLimiterConfig{
+		registryLimits := &registryMiddleware.RateLimiters{
 			RPS:   *registryRPS,
 			Burst: *registryBurst,
-		})
+		}
+		remoteFactory := &registry.RemoteClientFactory{
+			Logger:   registryLogger,
+			Limiters: registryLimits,
+		}
 
 		// Warmer
 		warmerLogger := log.With(logger, "component", "warmer")
