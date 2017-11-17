@@ -1,12 +1,3 @@
-// Package registry provides domain abstractions over container registries.
-// The aim is that the user only ever sees the registry information that
-// has been cached. A separate process is responsible for ensuring the
-// cache is up to date. The benefit of this is that we can rate limit
-// the requests to prevent rate limiting on the remote side without
-// affecting the UX. To the user, repository information will appear to
-// be returned "quickly"
-//
-// This means that the cache is now a flux requirement.
 package registry
 
 import (
@@ -25,33 +16,20 @@ const (
 	requestTimeout = 10 * time.Second
 )
 
-// The Registry interface is a domain specific API to access container registries.
 type Registry interface {
-	GetRepository(id image.Name) ([]image.Info, error)
-	GetImage(id image.Ref) (image.Info, error)
+	GetRepository(image.Name) ([]image.Info, error)
+	GetImage(image.Ref) (image.Info, error)
 }
 
-type registry struct {
-	factory     ClientFactory
-	logger      log.Logger
-	connections int
+type ClientRegistry struct {
+	Factory ClientFactory
+	Logger  log.Logger
 }
 
-// NewRegistry creates a new registry, to use when fetching repositories.
-// Behind the scenes the registry will call ClientFactory.ClientFor(...)
-// when requesting an image. This will generate a Client to access the
-// backend.
-func NewRegistry(c ClientFactory, l log.Logger, connections int) Registry {
-	return &registry{
-		factory:     c,
-		logger:      l,
-		connections: connections,
-	}
-}
-
-// GetRepository yields a repository matching the given name, if any exists.
-func (reg *registry) GetRepository(id image.Name) ([]image.Info, error) {
-	client, err := reg.factory.ClientFor(id.Registry(), Credentials{})
+// GetRepository returns the list of image manifests in an image
+// repository (e.g,. at "quay.io/weaveworks/flux")
+func (reg *ClientRegistry) GetRepository(id image.Name) ([]image.Info, error) {
+	client, err := reg.Factory.ClientFor(id.Registry(), Credentials{})
 	if err != nil {
 		return nil, err
 	}
@@ -61,18 +39,13 @@ func (reg *registry) GetRepository(id image.Name) ([]image.Info, error) {
 		client.Cancel()
 		return nil, err
 	}
-
-	// the hostlessImageName is canonicalised, in the sense that it
-	// includes "library" as the org, if unqualified -- e.g.,
-	// `library/nats`. We need that to fetch the tags etc. However, we
-	// want the results to use the *actual* name of the images to be
-	// as supplied, e.g., `nats`.
 	return reg.tagsToRepository(client, id, tags)
 }
 
-// Get a single Image from the registry if it exists
-func (reg *registry) GetImage(id image.Ref) (image.Info, error) {
-	client, err := reg.factory.ClientFor(id.Registry(), Credentials{})
+// GetImage gets the manifest of a specific image ref, from its
+// registry.
+func (reg *ClientRegistry) GetImage(id image.Ref) (image.Info, error) {
+	client, err := reg.Factory.ClientFor(id.Registry(), Credentials{})
 	if err != nil {
 		return image.Info{}, err
 	}
@@ -84,7 +57,7 @@ func (reg *registry) GetImage(id image.Ref) (image.Info, error) {
 	return img, nil
 }
 
-func (reg *registry) tagsToRepository(client Client, id image.Name, tags []string) ([]image.Info, error) {
+func (reg *ClientRegistry) tagsToRepository(client Client, id image.Name, tags []string) ([]image.Info, error) {
 	// one way or another, we'll be finishing all requests
 	defer client.Cancel()
 
@@ -96,13 +69,13 @@ func (reg *registry) tagsToRepository(client Client, id image.Name, tags []strin
 	toFetch := make(chan string, len(tags))
 	fetched := make(chan result, len(tags))
 
-	for i := 0; i < reg.connections; i++ {
+	for i := 0; i < 100; i++ {
 		go func() {
 			for tag := range toFetch {
 				image, err := client.Manifest(id.ToRef(tag))
 				if err != nil {
 					if err != cache.ErrNotCached {
-						reg.logger.Log("registry-metadata-err", err)
+						reg.Logger.Log("registry-metadata-err", err)
 					}
 				}
 				fetched <- result{image, err}

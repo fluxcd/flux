@@ -26,21 +26,12 @@ type ClientFactory interface {
 	ClientFor(host string, creds Credentials) (client Client, err error)
 }
 
-// ---
-// A new ClientFactory for a Remote.
-func NewRemoteClientFactory(l log.Logger, rlc middleware.RateLimiterConfig) ClientFactory {
-	return &remoteClientFactory{
-		Logger: l,
-		rlConf: rlc,
-	}
+type RemoteClientFactory struct {
+	Logger   log.Logger
+	Limiters *middleware.RateLimiters
 }
 
-type remoteClientFactory struct {
-	Logger log.Logger
-	rlConf middleware.RateLimiterConfig
-}
-
-func (f *remoteClientFactory) ClientFor(host string, creds Credentials) (Client, error) {
+func (f *RemoteClientFactory) ClientFor(host string, creds Credentials) (Client, error) {
 	httphost := "https://" + host
 
 	// quay.io wants us to use cookies for authorisation, so we have
@@ -53,10 +44,7 @@ func (f *remoteClientFactory) ClientFor(host string, creds Credentials) (Client,
 	}
 	auth := creds.credsFor(host)
 
-	// A context we'll use to cancel requests on error
-	ctx, cancel := context.WithCancel(context.Background())
-	// Add a timeout to the request
-	ctx, cancel = context.WithTimeout(ctx, requestTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
 
 	// Use the wrapper to fix headers for quay.io, and remember bearer tokens
 	var transport http.RoundTripper
@@ -67,7 +55,7 @@ func (f *remoteClientFactory) ClientFor(host string, creds Credentials) (Client,
 		// Add timeout context
 		transport = &middleware.ContextRoundTripper{Transport: transport, Ctx: ctx}
 		// Rate limit
-		transport = middleware.RateLimitedRoundTripper(transport, f.rlConf, host)
+		transport = f.Limiters.RoundTripper(transport, host)
 	}
 
 	herokuRegistry := herokuManifestAdaptor{
