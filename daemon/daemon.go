@@ -12,6 +12,7 @@ import (
 
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster"
+	fluxerr "github.com/weaveworks/flux/errors"
 	"github.com/weaveworks/flux/event"
 	"github.com/weaveworks/flux/git"
 	"github.com/weaveworks/flux/guid"
@@ -412,7 +413,29 @@ func (d *Daemon) GitRepoConfig(ctx context.Context, regenerate bool) (flux.GitCo
 // Non-remote.Platform methods
 
 func unknownJobError(id job.ID) error {
-	return fmt.Errorf("unknown job %q", string(id))
+	return &fluxerr.Error{
+		Type: fluxerr.Missing,
+		Err:  fmt.Errorf("unknown job %q", string(id)),
+		Help: `Job not found
+
+This is often because the job did not result in committing changes,
+and therefore had no lasting effect. A release dry-run is an example
+of a job that does not result in a commit.
+
+If you were expecting changes to be committed, this may mean that the
+job failed, but its status was lost.
+
+In both of the above cases it is OK to retry the operation that
+resulted in this error.
+
+If you get this error repeatedly, it's probably a bug. Please log an
+issue describing what you were attempting, and posting logs from the
+daemon if possible:
+
+    https://github.com/weaveworks/flux/issues
+
+`,
+	}
 }
 
 func (d *Daemon) LogEvent(ev event.Event) error {
