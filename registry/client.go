@@ -65,14 +65,16 @@ func (a *Remote) Manifest(ctx context.Context, ref string) (image.Info, error) {
 	if err != nil {
 		return image.Info{}, err
 	}
-	manifest, fetchErr := manifests.Get(ctx, digest.Digest(ref), distribution.WithTagOption{ref})
+	var manifestDigest digest.Digest
+	digestOpt := client.ReturnContentDigest(&manifestDigest)
+	manifest, fetchErr := manifests.Get(ctx, digest.Digest(ref), digestOpt, distribution.WithTagOption{ref})
 
 interpret:
 	if fetchErr != nil {
 		return image.Info{}, err
 	}
 
-	info := image.Info{ID: a.repo.ToRef(ref)}
+	info := image.Info{ID: a.repo.ToRef(ref), Digest: manifestDigest.String()}
 
 	// TODO(michael): can we type switch? Not sure how dependable the
 	// underlying types are.
@@ -90,6 +92,9 @@ interpret:
 		if err = json.Unmarshal([]byte(man.History[0].V1Compatibility), &v1); err != nil {
 			return image.Info{}, err
 		}
+		// This is not the ImageID that Docker uses, but assumed to
+		// identify the image as it's the topmost layer.
+		info.ImageID = v1.ID
 		info.CreatedAt = v1.Created
 	case *schema2.DeserializedManifest:
 		var man schema2.Manifest = deserialised.Manifest
@@ -106,13 +111,15 @@ interpret:
 		if err = json.Unmarshal(configBytes, &config); err != nil {
 			return image.Info{}, err
 		}
+		// This _is_ what Docker uses as its Image ID.
+		info.ImageID = man.Config.Digest.String()
 		info.CreatedAt = config.Created
 	case *manifestlist.DeserializedManifestList:
 		var list manifestlist.ManifestList = deserialised.ManifestList
 		// TODO(michael): is it valid to just pick the first one that matches?
 		for _, m := range list.Manifests {
 			if m.Platform.OS == "linux" && m.Platform.Architecture == "amd64" {
-				manifest, fetchErr = manifests.Get(ctx, m.Digest)
+				manifest, fetchErr = manifests.Get(ctx, m.Digest, digestOpt)
 				goto interpret
 			}
 		}

@@ -221,32 +221,49 @@ func (i Ref) WithNewTag(t string) Ref {
 	return img
 }
 
-// Info has the metadata we are able to determine about an image, from
-// its registry.
+// Info has the metadata we are able to determine about an image ref,
+// from its registry.
 type Info struct {
-	ID        Ref
+	// the reference to this image; probably a tagged image name
+	ID Ref
+	// the digest we got when fetching the metadata, which will be
+	// different each time a manifest is uploaded for the reference
+	Digest string
+	// an identifier for the *image* this reference points to; this
+	// will be the same for references that point at the same image
+	// (but does not necessarily equal Docker's image ID)
+	ImageID string
+	// the time at which the image pointed at was created
 	CreatedAt time.Time
 }
 
+// MarshalJSON returns the Info value in JSON (as bytes). It is
+// implemented so that we can omit the `CreatedAt` value when it's
+// zero, which would otherwise be tricky for e.g., JavaScript to
+// detect.
 func (im Info) MarshalJSON() ([]byte, error) {
+	type InfoAlias Info // alias to shed existing MarshalJSON implementation
 	var t string
 	if !im.CreatedAt.IsZero() {
 		t = im.CreatedAt.UTC().Format(time.RFC3339Nano)
 	}
 	encode := struct {
-		ID        Ref
+		InfoAlias
 		CreatedAt string `json:",omitempty"`
-	}{im.ID, t}
+	}{InfoAlias(im), t}
 	return json.Marshal(encode)
 }
 
+// UnmarshalJSON populates an Info from JSON (as bytes). It's the
+// companion to MarshalJSON above.
 func (im *Info) UnmarshalJSON(b []byte) error {
+	type InfoAlias Info
 	unencode := struct {
-		ID        Ref
+		InfoAlias
 		CreatedAt string `json:",omitempty"`
 	}{}
 	json.Unmarshal(b, &unencode)
-	im.ID = unencode.ID
+	*im = Info(unencode.InfoAlias)
 	if unencode.CreatedAt == "" {
 		im.CreatedAt = time.Time{}
 	} else {
@@ -257,17 +274,6 @@ func (im *Info) UnmarshalJSON(b []byte) error {
 		im.CreatedAt = t.UTC()
 	}
 	return nil
-}
-
-func ParseInfo(s string, createdAt time.Time) (Info, error) {
-	id, err := ParseRef(s)
-	if err != nil {
-		return Info{}, err
-	}
-	return Info{
-		ID:        id,
-		CreatedAt: createdAt,
-	}, nil
 }
 
 // ByCreatedDesc is a shim used to sort image info by creation date
