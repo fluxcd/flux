@@ -221,10 +221,11 @@ func (i Ref) WithNewTag(t string) Ref {
 	return img
 }
 
-// Info has the metadata we are able to determine about an image, from
-// its registry.
+// Info has the metadata we are able to determine about an image ref,
+// from its registry.
 type Info struct {
 	ID        Ref
+	Digest    string
 	CreatedAt time.Time
 }
 
@@ -235,18 +236,21 @@ func (im Info) MarshalJSON() ([]byte, error) {
 	}
 	encode := struct {
 		ID        Ref
+		Digest    string `json:"digest"`
 		CreatedAt string `json:",omitempty"`
-	}{im.ID, t}
+	}{im.ID, im.Digest, t}
 	return json.Marshal(encode)
 }
 
 func (im *Info) UnmarshalJSON(b []byte) error {
 	unencode := struct {
 		ID        Ref
+		Digest    string `json:"digest"`
 		CreatedAt string `json:",omitempty"`
 	}{}
 	json.Unmarshal(b, &unencode)
 	im.ID = unencode.ID
+	im.Digest = unencode.Digest
 	if unencode.CreatedAt == "" {
 		im.CreatedAt = time.Time{}
 	} else {
@@ -257,17 +261,6 @@ func (im *Info) UnmarshalJSON(b []byte) error {
 		im.CreatedAt = t.UTC()
 	}
 	return nil
-}
-
-func ParseInfo(s string, createdAt time.Time) (Info, error) {
-	id, err := ParseRef(s)
-	if err != nil {
-		return Info{}, err
-	}
-	return Info{
-		ID:        id,
-		CreatedAt: createdAt,
-	}, nil
 }
 
 // ByCreatedDesc is a shim used to sort image info by creation date

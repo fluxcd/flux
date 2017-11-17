@@ -321,6 +321,11 @@ func TestDaemon_JobStatusWithNoCache(t *testing.T) {
 	w.ForJobSucceeded(d, id)
 }
 
+func makeImageInfo(ref string, t time.Time) image.Info {
+	r, _ := image.ParseRef(ref)
+	return image.Info{ID: r, CreatedAt: t}
+}
+
 func mockDaemon(t *testing.T) (*Daemon, func(), *cluster.Mock, *mockEventWriter) {
 	logger := log.NewNopLogger()
 
@@ -397,9 +402,9 @@ func mockDaemon(t *testing.T) (*Daemon, func(), *cluster.Mock, *mockEventWriter)
 
 	var imageRegistry registry.Registry
 	{
-		img1, _ := image.ParseInfo(currentHelloImage, time.Now())
-		img2, _ := image.ParseInfo(newHelloImage, time.Now().Add(1*time.Second))
-		img3, _ := image.ParseInfo("another/service:latest", time.Now().Add(1*time.Second))
+		img1 := makeImageInfo(currentHelloImage, time.Now())
+		img2 := makeImageInfo(newHelloImage, time.Now().Add(1*time.Second))
+		img3 := makeImageInfo("another/service:latest", time.Now().Add(1*time.Second))
 		imageRegistry = registry.NewMockRegistry([]image.Info{
 			img1,
 			img2,

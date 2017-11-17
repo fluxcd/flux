@@ -137,15 +137,23 @@ func TestRefSerialization(t *testing.T) {
 	}
 }
 
+func mustMakeInfo(ref string, created time.Time) Info {
+	r, err := ParseRef(ref)
+	if err != nil {
+		panic(err)
+	}
+	return Info{ID: r, CreatedAt: created}
+}
+
 func TestImage_OrderByCreationDate(t *testing.T) {
 	fmt.Printf("testTime: %s\n", testTime)
 	time0 := testTime.Add(time.Second)
 	time2 := testTime.Add(-time.Second)
-	imA, _ := ParseInfo("my/Image:3", testTime)
-	imB, _ := ParseInfo("my/Image:1", time0)
-	imC, _ := ParseInfo("my/Image:4", time2)
-	imD, _ := ParseInfo("my/Image:0", time.Time{}) // test nil
-	imE, _ := ParseInfo("my/Image:2", testTime)    // test equal
+	imA := mustMakeInfo("my/Image:3", testTime)
+	imB := mustMakeInfo("my/Image:1", time0)
+	imC := mustMakeInfo("my/Image:4", time2)
+	imD := mustMakeInfo("my/Image:0", time.Time{}) // test nil
+	imE := mustMakeInfo("my/Image:2", testTime)    // test equal
 	imgs := []Info{imA, imB, imC, imD, imE}
 	sort.Sort(ByCreatedDesc(imgs))
 	for i, im := range imgs {

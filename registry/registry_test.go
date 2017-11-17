@@ -34,9 +34,8 @@ var (
 var (
 	testTags = []string{testTagStr, "anotherTag"}
 	mClient  = NewMockClient(
-		func(repository image.Ref) (image.Info, error) {
-			img, _ := image.ParseInfo(testImageStr, time.Time{})
-			return img, nil
+		func(_ image.Ref) (image.Info, error) {
+			return image.Info{ID: id, CreatedAt: time.Time{}}, nil
 		},
 		func(repository image.Name) ([]string, error) {
 			return testTags, nil
