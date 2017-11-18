@@ -22,8 +22,7 @@ type Warmer struct {
 	Logger        log.Logger
 	ClientFactory *RemoteClientFactory
 	Expiry        time.Duration
-	Writer        cache.Writer
-	Reader        cache.Reader
+	Cache         cache.Client
 	Burst         int
 	Priority      chan image.Name
 	Notify        func()
@@ -43,7 +42,7 @@ type backlogItem struct {
 func (w *Warmer) Loop(stop <-chan struct{}, wg *sync.WaitGroup, imagesToFetchFunc func() ImageCreds) {
 	defer wg.Done()
 
-	if w.Logger == nil || w.ClientFactory == nil || w.Expiry == 0 || w.Writer == nil || w.Reader == nil {
+	if w.Logger == nil || w.ClientFactory == nil || w.Expiry == 0 || w.Cache == nil {
 		panic("registry.Warmer fields are nil")
 	}
 
@@ -116,7 +115,7 @@ func (w *Warmer) warm(id image.Name, creds Credentials) {
 	}
 
 	var cacheTags []string
-	cacheTagsVal, err := w.Reader.GetKey(key)
+	cacheTagsVal, err := w.Cache.GetKey(key)
 	if err == nil {
 		err = json.Unmarshal(cacheTagsVal, &cacheTags)
 		if err != nil {
@@ -139,7 +138,7 @@ func (w *Warmer) warm(id image.Name, creds Credentials) {
 		return
 	}
 
-	err = w.Writer.SetKey(key, val)
+	err = w.Cache.SetKey(key, val)
 	if err != nil {
 		w.Logger.Log("err", errors.Wrap(err, "storing tags in cache"))
 		return
@@ -157,7 +156,7 @@ func (w *Warmer) warm(id image.Name, creds Credentials) {
 			w.Logger.Log("err", errors.Wrap(err, "creating key for memcache"))
 			continue
 		}
-		expiry, err := w.Reader.GetExpiration(key)
+		expiry, err := w.Cache.GetExpiration(key)
 		// If err, then we don't have it yet. Update.
 		if err == nil { // If no error, we've already got it
 			// If we're outside of the expiry buffer, skip, no need to update.
@@ -210,7 +209,7 @@ func (w *Warmer) warm(id image.Name, creds Credentials) {
 				w.Logger.Log("err", errors.Wrap(err, "serializing tag to store in cache"))
 				return
 			}
-			err = w.Writer.SetKey(key, val)
+			err = w.Cache.SetKey(key, val)
 			if err != nil {
 				w.Logger.Log("err", errors.Wrap(err, "storing manifests in cache"))
 				return

@@ -282,8 +282,7 @@ func main() {
 			Logger:        warmerLogger,
 			ClientFactory: remoteFactory,
 			Expiry:        *registryCacheExpiry,
-			Reader:        memcacheWarmer,
-			Writer:        memcacheWarmer,
+			Cache:         memcacheWarmer,
 			Burst:         *registryBurst,
 		}
 	}
