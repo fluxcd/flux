@@ -48,13 +48,6 @@ type mockRemoteFactory struct {
 	err error
 }
 
-func NewMockClientFactory(c Client, err error) ClientFactory {
-	return &mockRemoteFactory{
-		c:   c,
-		err: err,
-	}
-}
-
 func (m *mockRemoteFactory) ClientFor(repository string, creds Credentials) (Client, error) {
 	return m.c, m.err
 }
