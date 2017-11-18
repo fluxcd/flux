@@ -29,7 +29,7 @@ type Client interface {
 // An implementation of Client that represents a Remote registry.
 // E.g. docker hub.
 type Remote struct {
-	Registry   *herokuManifestAdaptor
+	Registry   *dockerregistry.Registry
 	CancelFunc context.CancelFunc
 }
 
@@ -86,8 +86,8 @@ func (a *Remote) Manifest(id image.Ref) (image.Info, error) {
 }
 
 func (a *Remote) ManifestFromV1(id image.Ref) (image.Info, error) {
-	history, err := a.Registry.Manifest(id.Repository(), id.Tag)
-	if err != nil || history == nil {
+	manifest, err := a.Registry.Manifest(id.Repository(), id.Tag)
+	if err != nil || manifest == nil {
 		return image.Info{}, errors.Wrap(err, "getting remote manifest")
 	}
 
@@ -102,8 +102,8 @@ func (a *Remote) ManifestFromV1(id image.Ref) (image.Info, error) {
 	var topmost v1image
 	var img image.Info
 	img.ID = id
-	if len(history) > 0 {
-		if err = json.Unmarshal([]byte(history[0].V1Compatibility), &topmost); err == nil {
+	if len(manifest.History) > 0 {
+		if err = json.Unmarshal([]byte(manifest.History[0].V1Compatibility), &topmost); err == nil {
 			if !topmost.Created.IsZero() {
 				img.CreatedAt = topmost.Created
 			}

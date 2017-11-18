@@ -44,19 +44,17 @@ func (f *RemoteClientFactory) ClientFor(host string, creds Credentials) (Client,
 		transport = f.Limiters.RoundTripper(transport, host)
 	}
 
-	herokuRegistry := herokuManifestAdaptor{
-		&dockerregistry.Registry{
-			URL: httphost,
-			Client: &http.Client{
-				Transport: transport,
-				Jar:       jar,
-				Timeout:   requestTimeout,
-			},
-			Logf: dockerregistry.Quiet,
+	registry := &dockerregistry.Registry{
+		URL: httphost,
+		Client: &http.Client{
+			Transport: transport,
+			Jar:       jar,
+			Timeout:   requestTimeout,
 		},
+		Logf: dockerregistry.Quiet,
 	}
 	client := &Remote{
-		Registry:   &herokuRegistry,
+		Registry:   registry,
 		CancelFunc: cancel,
 	}
 	return NewInstrumentedClient(client), nil
