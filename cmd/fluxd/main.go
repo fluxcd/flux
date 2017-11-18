@@ -261,10 +261,8 @@ func main() {
 			defer memcacheWarmer.Stop()
 		}
 
-		cacheLogger := log.With(logger, "component", "cache")
-		cache = &registry.ClientRegistry{
-			Factory: registry.NewCacheClientFactory(cacheLogger, memcacheRegistry, *registryCacheExpiry),
-			Logger:  cacheLogger,
+		cache = &registry.Cache{
+			Reader: memcacheRegistry,
 		}
 		cache = registry.NewInstrumentedRegistry(cache)
 

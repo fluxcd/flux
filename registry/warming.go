@@ -20,8 +20,7 @@ const askForNewImagesInterval = time.Minute
 
 type Warmer struct {
 	Logger        log.Logger
-	ClientFactory ClientFactory
-	Creds         Credentials // FIXME: never supplied!
+	ClientFactory *RemoteClientFactory
 	Expiry        time.Duration
 	Writer        cache.Writer
 	Reader        cache.Reader
@@ -110,12 +109,7 @@ func (w *Warmer) warm(id image.Name, creds Credentials) {
 	}
 	defer client.Cancel()
 
-	// FIXME This can only return an empty string, because w.Creds is
-	// always empty. In other words, keys never include a username
-	// (need they?)
-	username := w.Creds.credsFor(id.Registry()).username
-
-	key, err := cache.NewTagKey(username, id.CanonicalName())
+	key, err := cache.NewTagKey(id.CanonicalName())
 	if err != nil {
 		w.Logger.Log("err", errors.Wrap(err, "creating key for cache"))
 		return
@@ -158,7 +152,7 @@ func (w *Warmer) warm(id image.Name, creds Credentials) {
 		// See if we have the manifest already cached
 		// We don't want to re-download a manifest again.
 		newID := id.ToRef(tag)
-		key, err := cache.NewManifestKey(username, newID.CanonicalRef())
+		key, err := cache.NewManifestKey(newID.CanonicalRef())
 		if err != nil {
 			w.Logger.Log("err", errors.Wrap(err, "creating key for memcache"))
 			continue
@@ -205,7 +199,7 @@ func (w *Warmer) warm(id image.Name, creds Credentials) {
 				return
 			}
 
-			key, err := cache.NewManifestKey(username, img.ID.CanonicalRef())
+			key, err := cache.NewManifestKey(img.ID.CanonicalRef())
 			if err != nil {
 				w.Logger.Log("err", errors.Wrap(err, "creating key for memcache"))
 				return

@@ -233,40 +233,32 @@ type Keyer interface {
 }
 
 type manifestKey struct {
-	username, fullRepositoryPath, reference string
+	fullRepositoryPath, reference string
 }
 
-func NewManifestKey(username string, image image.CanonicalRef) (Keyer, error) {
-	return &manifestKey{username, image.CanonicalName().String(), image.Tag}, nil
+func NewManifestKey(image image.CanonicalRef) (Keyer, error) {
+	return &manifestKey{image.CanonicalName().String(), image.Tag}, nil
 }
 
 func (k *manifestKey) Key() string {
 	return strings.Join([]string{
-		"registryhistoryv2", // Just to version in case we need to change format later.
-		// Just the username here means we won't invalidate the cache when user
-		// changes password, but that should be rare. And, it also means we're not
-		// putting user passwords in plaintext into memcache.
-		k.username,
+		"registryhistoryv3", // Just to version in case we need to change format later.
 		k.fullRepositoryPath,
 		k.reference,
 	}, "|")
 }
 
 type tagKey struct {
-	username, fullRepositoryPath string
+	fullRepositoryPath string
 }
 
-func NewTagKey(username string, id image.CanonicalName) (Keyer, error) {
-	return &tagKey{username, id.String()}, nil
+func NewTagKey(id image.CanonicalName) (Keyer, error) {
+	return &tagKey{id.String()}, nil
 }
 
 func (k *tagKey) Key() string {
 	return strings.Join([]string{
-		"registrytagsv2", // Just to version in case we need to change format later.
-		// Just the username here means we won't invalidate the cache when user
-		// changes password, but that should be rare. And, it also means we're not
-		// putting user passwords in plaintext into memcache.
-		k.username,
+		"registrytagsv3", // Just to version in case we need to change format later.
 		k.fullRepositoryPath,
 	}, "|")
 }

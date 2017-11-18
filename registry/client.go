@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"sort"
 	"time"
 
-	"github.com/go-kit/kit/log"
 	dockerregistry "github.com/heroku/docker-registry-client/registry"
 	"github.com/pkg/errors"
 
@@ -16,15 +16,15 @@ import (
 	"github.com/weaveworks/flux/registry/cache"
 )
 
-// A client represents an entity that returns manifest and tags
-// information.  It might be a cache, it might be a real registry.
+// ---
+
+// Client is a registry client. It is an interface so we can wrap it
+// in instrumentation, write fake implementations, and so on.
 type Client interface {
 	Tags(name image.Name) ([]string, error)
 	Manifest(name image.Ref) (image.Info, error)
 	Cancel()
 }
-
-// ---
 
 // An implementation of Client that represents a Remote registry.
 // E.g. docker hub.
@@ -120,60 +120,95 @@ func (a *Remote) Cancel() {
 
 // ---
 
-// An implementation of Client backed by Memcache
+// Cache is a local cache of image metadata.
 type Cache struct {
-	creds  Credentials
-	expiry time.Duration
-	cr     cache.Reader
-	logger log.Logger
+	Reader cache.Reader
 }
 
-func (*Cache) Cancel() {
-	return
-}
-
-func NewCache(creds Credentials, cr cache.Reader, expiry time.Duration, logger log.Logger) Client {
-	return &Cache{
-		creds:  creds,
-		expiry: expiry,
-		cr:     cr,
-		logger: logger,
+// GetRepository returns the list of image manifests in an image
+// repository (e.g,. at "quay.io/weaveworks/flux")
+func (c *Cache) GetRepository(id image.Name) ([]image.Info, error) {
+	tags, err := c.Tags(id)
+	if err != nil {
+		return nil, err
 	}
+	return c.tagsToRepository(id, tags)
 }
 
-func (c *Cache) Manifest(id image.Ref) (image.Info, error) {
-	creds := c.creds.credsFor(id.Registry())
-	key, err := cache.NewManifestKey(creds.username, id.CanonicalRef())
+// GetImage gets the manifest of a specific image ref, from its
+// registry.
+func (c *Cache) GetImage(id image.Ref) (image.Info, error) {
+	img, err := c.Manifest(id)
 	if err != nil {
 		return image.Info{}, err
 	}
-	val, err := c.cr.GetKey(key)
+	return img, nil
+}
+
+func (c *Cache) tagsToRepository(id image.Name, tags []string) ([]image.Info, error) {
+	type result struct {
+		image image.Info
+		err   error
+	}
+
+	toFetch := make(chan string, len(tags))
+	fetched := make(chan result, len(tags))
+
+	for i := 0; i < 100; i++ {
+		go func() {
+			for tag := range toFetch {
+				image, err := c.Manifest(id.ToRef(tag))
+				fetched <- result{image, err}
+			}
+		}()
+	}
+	for _, tag := range tags {
+		toFetch <- tag
+	}
+	close(toFetch)
+
+	images := make([]image.Info, cap(fetched))
+	for i := 0; i < cap(fetched); i++ {
+		res := <-fetched
+		if res.err != nil {
+			return nil, res.err
+		}
+		images[i] = res.image
+	}
+
+	sort.Sort(image.ByCreatedDesc(images))
+	return images, nil
+}
+
+func (c *Cache) Manifest(id image.Ref) (image.Info, error) {
+	key, err := cache.NewManifestKey(id.CanonicalRef())
+	if err != nil {
+		return image.Info{}, err
+	}
+	val, err := c.Reader.GetKey(key)
 	if err != nil {
 		return image.Info{}, err
 	}
 	var img image.Info
 	err = json.Unmarshal(val, &img)
 	if err != nil {
-		c.logger.Log("err", err.Error)
 		return image.Info{}, err
 	}
 	return img, nil
 }
 
 func (c *Cache) Tags(id image.Name) ([]string, error) {
-	creds := c.creds.credsFor(id.Registry())
-	key, err := cache.NewTagKey(creds.username, id.CanonicalName())
+	key, err := cache.NewTagKey(id.CanonicalName())
 	if err != nil {
 		return []string{}, err
 	}
-	val, err := c.cr.GetKey(key)
+	val, err := c.Reader.GetKey(key)
 	if err != nil {
 		return []string{}, err
 	}
 	var tags []string
 	err = json.Unmarshal(val, &tags)
 	if err != nil {
-		c.logger.Log("err", err.Error)
 		return []string{}, err
 	}
 	return tags, nil

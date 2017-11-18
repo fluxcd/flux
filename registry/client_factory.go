@@ -2,29 +2,15 @@ package registry
 
 import (
 	"context"
-	"errors"
 	"net/http"
 	"net/http/cookiejar"
-	"time"
 
 	"github.com/go-kit/kit/log"
 	dockerregistry "github.com/heroku/docker-registry-client/registry"
 	"golang.org/x/net/publicsuffix"
 
-	"github.com/weaveworks/flux/registry/cache"
 	"github.com/weaveworks/flux/registry/middleware"
 )
-
-var (
-	ErrNoMemcache = errors.New("no memcached")
-)
-
-// ClientFactory creates a new client for the given host.
-// Each request might require a new client. E.g. when retrieving docker
-// images from docker hub, then a second from quay.io
-type ClientFactory interface {
-	ClientFor(host string, creds Credentials) (client Client, err error)
-}
 
 type RemoteClientFactory struct {
 	Logger   log.Logger
@@ -74,28 +60,4 @@ func (f *RemoteClientFactory) ClientFor(host string, creds Credentials) (Client,
 		CancelFunc: cancel,
 	}
 	return NewInstrumentedClient(client), nil
-}
-
-// ---
-// A new ClientFactory implementation for a Cache
-func NewCacheClientFactory(l log.Logger, cache cache.Reader, cacheExpiry time.Duration) ClientFactory {
-	return &cacheClientFactory{
-		Logger:      l,
-		cache:       cache,
-		CacheExpiry: cacheExpiry,
-	}
-}
-
-type cacheClientFactory struct {
-	Logger      log.Logger
-	cache       cache.Reader
-	CacheExpiry time.Duration
-}
-
-func (f *cacheClientFactory) ClientFor(host string, creds Credentials) (Client, error) {
-	if f.cache == nil {
-		return nil, ErrNoMemcache
-	}
-	client := NewCache(creds, f.cache, f.CacheExpiry, f.Logger)
-	return client, nil
 }
