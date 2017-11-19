@@ -1,7 +1,6 @@
 package registry
 
 import (
-	"context"
 	"net/http"
 	"net/http/cookiejar"
 
@@ -30,16 +29,12 @@ func (f *RemoteClientFactory) ClientFor(host string, creds Credentials) (Client,
 	}
 	auth := creds.credsFor(host)
 
-	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
-
 	// Use the wrapper to fix headers for quay.io, and remember bearer tokens
 	var transport http.RoundTripper
 	{
 		transport = &middleware.WWWAuthenticateFixer{Transport: http.DefaultTransport}
 		// Now the auth-handling wrappers that come with the library
 		transport = dockerregistry.WrapTransport(transport, httphost, auth.username, auth.password)
-		// Add timeout context
-		transport = &middleware.ContextRoundTripper{Transport: transport, Ctx: ctx}
 		// Rate limit
 		transport = f.Limiters.RoundTripper(transport, host)
 	}
@@ -54,8 +49,7 @@ func (f *RemoteClientFactory) ClientFor(host string, creds Credentials) (Client,
 		Logf: dockerregistry.Quiet,
 	}
 	client := &Remote{
-		Registry:   registry,
-		CancelFunc: cancel,
+		Registry: registry,
 	}
 	return NewInstrumentedClient(client), nil
 }

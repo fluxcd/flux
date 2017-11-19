@@ -96,7 +96,3 @@ func (m *instrumentedClient) Tags(id image.Name) (res []string, err error) {
 	).Observe(time.Since(start).Seconds())
 	return
 }
-
-func (m *instrumentedClient) Cancel() {
-	m.next.Cancel()
-}

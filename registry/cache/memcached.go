@@ -1,7 +1,7 @@
 package cache
 
 import (
-	"encoding/json"
+	"encoding/binary"
 	"fmt"
 	"net"
 	"sort"
@@ -37,8 +37,7 @@ repository.
 )
 
 type Reader interface {
-	GetKey(k Keyer) ([]byte, error)
-	GetExpiration(k Keyer) (time.Time, error)
+	GetKey(k Keyer) ([]byte, time.Time, error)
 }
 
 type Writer interface {
@@ -49,11 +48,6 @@ type Client interface {
 	Reader
 	Writer
 	Stop()
-}
-
-type expiryData struct {
-	Data   []byte
-	Expiry int32
 }
 
 // MemcacheClient is a memcache client that gets its server list from SRV
@@ -124,60 +118,29 @@ func NewFixedServerMemcacheClient(config MemcacheConfig, addresses ...string) Cl
 	return newClient
 }
 
-func (c *memcacheClient) GetKey(k Keyer) ([]byte, error) {
+func (c *memcacheClient) GetKey(k Keyer) ([]byte, time.Time, error) {
 	cacheItem, err := c.Get(k.Key())
 	if err != nil {
 		if err == memcache.ErrCacheMiss {
 			// Don't log on cache miss
-			return []byte{}, ErrNotCached
+			return []byte{}, time.Time{}, ErrNotCached
 		} else {
 			c.logger.Log("err", errors.Wrap(err, "Fetching tag from memcache"))
-			return []byte{}, err
+			return []byte{}, time.Time{}, err
 		}
 	}
-	var data expiryData
-	err = json.Unmarshal(cacheItem.Value, &data)
-	if err != nil {
-		return []byte{}, err
-	}
-	return data.Data, nil
-}
-
-// GetExpiration returns the expiry time of the key
-func (c *memcacheClient) GetExpiration(k Keyer) (time.Time, error) {
-	cacheItem, err := c.Get(k.Key())
-	if err != nil {
-		if err == memcache.ErrCacheMiss {
-			// Don't log on cache miss
-			return time.Time{}, ErrNotCached
-		} else {
-			c.logger.Log("err", errors.Wrap(err, "Fetching tag from memcache"))
-			return time.Time{}, err
-		}
-	}
-
-	var data expiryData
-	err = json.Unmarshal(cacheItem.Value, &data)
-	if err != nil {
-		return time.Time{}, err
-	}
-	return time.Unix(int64(data.Expiry), 0), nil
+	expiry := binary.BigEndian.Uint32(cacheItem.Value)
+	return cacheItem.Value[4:], time.Unix(int64(expiry), 0), nil
 }
 
 func (c *memcacheClient) SetKey(k Keyer, v []byte) error {
-	expiry := int32(time.Now().Add(expiry).Unix())
-	data := expiryData{
-		Expiry: expiry,
-		Data:   v,
-	}
-	val, err := json.Marshal(&data)
-	if err != nil {
-		return err
-	}
+	expiry := time.Now().Add(expiry).Unix()
+	expiryBytes := make([]byte, 4, 4)
+	binary.BigEndian.PutUint32(expiryBytes, uint32(expiry))
 	if err := c.Set(&memcache.Item{
 		Key:        k.Key(),
-		Value:      val,
-		Expiration: expiry,
+		Value:      append(expiryBytes, v...),
+		Expiration: int32(expiry),
 	}); err != nil {
 		c.logger.Log("err", errors.Wrap(err, "storing in memcache"))
 		return err
@@ -236,8 +199,8 @@ type manifestKey struct {
 	fullRepositoryPath, reference string
 }
 
-func NewManifestKey(image image.CanonicalRef) (Keyer, error) {
-	return &manifestKey{image.CanonicalName().String(), image.Tag}, nil
+func NewManifestKey(image image.CanonicalRef) Keyer {
+	return &manifestKey{image.CanonicalName().String(), image.Tag}
 }
 
 func (k *manifestKey) Key() string {
@@ -252,13 +215,28 @@ type tagKey struct {
 	fullRepositoryPath string
 }
 
-func NewTagKey(id image.CanonicalName) (Keyer, error) {
-	return &tagKey{id.String()}, nil
+func NewTagKey(id image.CanonicalName) Keyer {
+	return &tagKey{id.String()}
 }
 
 func (k *tagKey) Key() string {
 	return strings.Join([]string{
 		"registrytagsv3", // Just to version in case we need to change format later.
+		k.fullRepositoryPath,
+	}, "|")
+}
+
+type repoKey struct {
+	fullRepositoryPath string
+}
+
+func NewRepositoryKey(repo image.CanonicalName) Keyer {
+	return &repoKey{repo.String()}
+}
+
+func (k *repoKey) Key() string {
+	return strings.Join([]string{
+		"registryrepov3",
 		k.fullRepositoryPath,
 	}, "|")
 }
