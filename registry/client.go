@@ -1,7 +1,6 @@
 package registry
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -23,14 +22,12 @@ import (
 type Client interface {
 	Tags(name image.Name) ([]string, error)
 	Manifest(name image.Ref) (image.Info, error)
-	Cancel()
 }
 
 // An implementation of Client that represents a Remote registry.
 // E.g. docker hub.
 type Remote struct {
-	Registry   *dockerregistry.Registry
-	CancelFunc context.CancelFunc
+	Registry *dockerregistry.Registry
 }
 
 // Return the tags for this repository.
@@ -113,11 +110,6 @@ func (a *Remote) ManifestFromV1(id image.Ref) (image.Info, error) {
 	return img, nil
 }
 
-// Cancel the remote request
-func (a *Remote) Cancel() {
-	a.CancelFunc()
-}
-
 // ---
 
 // Cache is a local cache of image metadata.
@@ -181,11 +173,9 @@ func (c *Cache) tagsToRepository(id image.Name, tags []string) ([]image.Info, er
 }
 
 func (c *Cache) Manifest(id image.Ref) (image.Info, error) {
-	key, err := cache.NewManifestKey(id.CanonicalRef())
-	if err != nil {
-		return image.Info{}, err
-	}
-	val, err := c.Reader.GetKey(key)
+	key := cache.NewManifestKey(id.CanonicalRef())
+
+	val, _, err := c.Reader.GetKey(key)
 	if err != nil {
 		return image.Info{}, err
 	}
@@ -198,11 +188,8 @@ func (c *Cache) Manifest(id image.Ref) (image.Info, error) {
 }
 
 func (c *Cache) Tags(id image.Name) ([]string, error) {
-	key, err := cache.NewTagKey(id.CanonicalName())
-	if err != nil {
-		return []string{}, err
-	}
-	val, err := c.Reader.GetKey(key)
+	key := cache.NewTagKey(id.CanonicalName())
+	val, _, err := c.Reader.GetKey(key)
 	if err != nil {
 		return []string{}, err
 	}

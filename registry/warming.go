@@ -106,16 +106,11 @@ func (w *Warmer) warm(id image.Name, creds Credentials) {
 		w.Logger.Log("err", err.Error())
 		return
 	}
-	defer client.Cancel()
 
-	key, err := cache.NewTagKey(id.CanonicalName())
-	if err != nil {
-		w.Logger.Log("err", errors.Wrap(err, "creating key for cache"))
-		return
-	}
+	key := cache.NewTagKey(id.CanonicalName())
 
 	var cacheTags []string
-	cacheTagsVal, err := w.Cache.GetKey(key)
+	cacheTagsVal, _, err := w.Cache.GetKey(key)
 	if err == nil {
 		err = json.Unmarshal(cacheTagsVal, &cacheTags)
 		if err != nil {
@@ -151,12 +146,12 @@ func (w *Warmer) warm(id image.Name, creds Credentials) {
 		// See if we have the manifest already cached
 		// We don't want to re-download a manifest again.
 		newID := id.ToRef(tag)
-		key, err := cache.NewManifestKey(newID.CanonicalRef())
+		key := cache.NewManifestKey(newID.CanonicalRef())
 		if err != nil {
 			w.Logger.Log("err", errors.Wrap(err, "creating key for memcache"))
 			continue
 		}
-		expiry, err := w.Cache.GetExpiration(key)
+		_, expiry, err := w.Cache.GetKey(key)
 		// If err, then we don't have it yet. Update.
 		if err == nil { // If no error, we've already got it
 			// If we're outside of the expiry buffer, skip, no need to update.
@@ -198,11 +193,7 @@ func (w *Warmer) warm(id image.Name, creds Credentials) {
 				return
 			}
 
-			key, err := cache.NewManifestKey(img.ID.CanonicalRef())
-			if err != nil {
-				w.Logger.Log("err", errors.Wrap(err, "creating key for memcache"))
-				return
-			}
+			key := cache.NewManifestKey(img.ID.CanonicalRef())
 			// Write back to memcache
 			val, err := json.Marshal(img)
 			if err != nil {
