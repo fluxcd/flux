@@ -100,6 +100,28 @@ func imageCredsToBacklog(imageCreds ImageCreds) []backlogItem {
 	return backlog
 }
 
+// ImageRepository holds the last good information on an image
+// repository.
+//
+// Whenever we successfully fetch a full set of image info,
+// `LastUpdate` and `Images` shall each be assigned a value, and
+// `LastError` will be cleared.
+//
+// If we cannot for any reason obtain a full set of image info,
+// `LastError` shall be assigned a value, and the other fields left
+// alone.
+//
+// It's possible to have all fields populated: this means at some
+// point it was successfully fetched, but since then, there's been an
+// error. It's then up to the caller to decide what to do with the
+// value (show the images, but also indicate there's a problem, for
+// example).
+type ImageRepository struct {
+	LastError  string
+	LastUpdate time.Time
+	Images     map[string]image.Info
+}
+
 func (w *Warmer) warm(id image.Name, creds Credentials) {
 	client, err := w.ClientFactory.ClientFor(id.Registry(), creds)
 	if err != nil {
@@ -107,110 +129,140 @@ func (w *Warmer) warm(id image.Name, creds Credentials) {
 		return
 	}
 
-	key := cache.NewTagKey(id.CanonicalName())
-
-	var cacheTags []string
-	cacheTagsVal, _, err := w.Cache.GetKey(key)
+	// This is what we're going to write back to the cache
+	var repo ImageRepository
+	repoKey := cache.NewRepositoryKey(id.CanonicalName())
+	bytes, _, err := w.Cache.GetKey(repoKey)
 	if err == nil {
-		err = json.Unmarshal(cacheTagsVal, &cacheTags)
-		if err != nil {
-			w.Logger.Log("err", errors.Wrap(err, "deserializing cached tags"))
-			return
+		err = json.Unmarshal(bytes, &repo)
+	} else if err == cache.ErrNotCached {
+		err = nil
+	}
+
+	if err != nil {
+		w.Logger.Log("err", errors.Wrap(err, "fetching previous result from cache"))
+		return
+	}
+
+	// Save for comparison later
+	oldImages := repo.Images
+
+	// Now we have the previous result; everything after will be
+	// attempting to refresh that value. Whatever happens, at the end
+	// we'll write something back.
+	defer func() {
+		bytes, err := json.Marshal(repo)
+		if err == nil {
+			err = w.Cache.SetKey(repoKey, bytes)
 		}
-	} // else assume we have no cached tags
+		if err != nil {
+			w.Logger.Log("err", errors.Wrap(err, "writing result to cache"))
+		}
+	}()
 
 	tags, err := client.Tags(id)
 	if err != nil {
 		if !strings.Contains(err.Error(), context.DeadlineExceeded.Error()) && !strings.Contains(err.Error(), "net/http: request canceled") {
 			w.Logger.Log("err", errors.Wrap(err, "requesting tags"))
+			repo.LastError = err.Error()
 		}
 		return
 	}
 
-	val, err := json.Marshal(tags)
-	if err != nil {
-		w.Logger.Log("err", errors.Wrap(err, "serializing tags to store in cache"))
-		return
-	}
-
-	err = w.Cache.SetKey(key, val)
-	if err != nil {
-		w.Logger.Log("err", errors.Wrap(err, "storing tags in cache"))
-		return
-	}
+	newImages := map[string]image.Info{}
 
 	// Create a list of manifests that need updating
 	var toUpdate []image.Ref
-	var expired bool
+	var missing, expired int
 	for _, tag := range tags {
 		// See if we have the manifest already cached
-		// We don't want to re-download a manifest again.
 		newID := id.ToRef(tag)
 		key := cache.NewManifestKey(newID.CanonicalRef())
 		if err != nil {
 			w.Logger.Log("err", errors.Wrap(err, "creating key for memcache"))
 			continue
 		}
-		_, expiry, err := w.Cache.GetKey(key)
+		bytes, expiry, err := w.Cache.GetKey(key)
 		// If err, then we don't have it yet. Update.
-		if err == nil { // If no error, we've already got it
-			// If we're outside of the expiry buffer, skip, no need to update.
-			if !withinExpiryBuffer(expiry, refreshWhenExpiryWithin) {
+		switch {
+		case err != nil:
+			missing++
+		case time.Until(expiry) < refreshWhenExpiryWithin:
+			expired++
+		default:
+			var image image.Info
+			if err := json.Unmarshal(bytes, &image); err == nil {
+				newImages[tag] = image
 				continue
 			}
-			// If we're within the expiry buffer, we need to update quick!
-			expired = true
+			missing++
 		}
 		toUpdate = append(toUpdate, newID)
 	}
 
-	if len(toUpdate) == 0 {
-		return
-	}
-	w.Logger.Log("fetching", id.String(), "to-update", len(toUpdate))
+	var successCount int
 
-	if expired {
-		w.Logger.Log("expiring", id.String())
-	}
+	if len(toUpdate) > 0 {
+		w.Logger.Log("fetching", id.String(), "total", len(toUpdate), "expired", expired, "missing", missing)
+		var successMx sync.Mutex
 
-	// The upper bound for concurrent fetches against a single host is
-	// w.Burst, so limit the number of fetching goroutines to that.
-	fetchers := make(chan struct{}, w.Burst)
-	awaitFetchers := &sync.WaitGroup{}
-	for _, imID := range toUpdate {
-		awaitFetchers.Add(1)
-		fetchers <- struct{}{}
-		go func(imageID image.Ref) {
-			defer func() { awaitFetchers.Done(); <-fetchers }()
-			// Get the image from the remote
-			img, err := client.Manifest(imageID)
-			if err != nil {
-				if err, ok := errors.Cause(err).(net.Error); ok && err.Timeout() {
-					// This was due to a context timeout, don't bother logging
+		// The upper bound for concurrent fetches against a single host is
+		// w.Burst, so limit the number of fetching goroutines to that.
+		fetchers := make(chan struct{}, w.Burst)
+		awaitFetchers := &sync.WaitGroup{}
+		for _, imID := range toUpdate {
+			awaitFetchers.Add(1)
+			fetchers <- struct{}{}
+			go func(imageID image.Ref) {
+				defer func() { awaitFetchers.Done(); <-fetchers }()
+				// Get the image from the remote
+				img, err := client.Manifest(imageID)
+				if err != nil {
+					if err, ok := errors.Cause(err).(net.Error); ok && err.Timeout() {
+						// This was due to a context timeout, don't bother logging
+						return
+					}
+					w.Logger.Log("err", errors.Wrap(err, "requesting manifests"))
 					return
 				}
-				w.Logger.Log("err", errors.Wrap(err, "requesting manifests"))
-				return
-			}
 
-			key := cache.NewManifestKey(img.ID.CanonicalRef())
-			// Write back to memcache
-			val, err := json.Marshal(img)
-			if err != nil {
-				w.Logger.Log("err", errors.Wrap(err, "serializing tag to store in cache"))
-				return
-			}
-			err = w.Cache.SetKey(key, val)
-			if err != nil {
-				w.Logger.Log("err", errors.Wrap(err, "storing manifests in cache"))
-				return
-			}
-		}(imID)
+				key := cache.NewManifestKey(img.ID.CanonicalRef())
+				// Write back to memcached
+				val, err := json.Marshal(img)
+				if err != nil {
+					w.Logger.Log("err", errors.Wrap(err, "serializing tag to store in cache"))
+					return
+				}
+				err = w.Cache.SetKey(key, val)
+				if err != nil {
+					w.Logger.Log("err", errors.Wrap(err, "storing manifests in cache"))
+					return
+				}
+				successMx.Lock()
+				successCount++
+				newImages[imageID.Tag] = img
+				successMx.Unlock()
+			}(imID)
+		}
+		awaitFetchers.Wait()
+		w.Logger.Log("updated", id.String(), "count", successCount)
 	}
-	awaitFetchers.Wait()
-	w.Logger.Log("updated", id.String())
+
+	// We managed to fetch new metadata for everything we were missing
+	// (if anything). Ratchet the result forward.
+	if successCount == len(toUpdate) {
+		repo = ImageRepository{
+			LastUpdate: time.Now(),
+			Images:     newImages,
+		}
+	}
 
 	if w.Notify != nil {
+		cacheTags := StringSet{}
+		for t := range oldImages {
+			cacheTags[t] = struct{}{}
+		}
+
 		// If there's more tags than there used to be, there must be
 		// at least one new tag.
 		if len(cacheTags) < len(tags) {
@@ -220,8 +272,7 @@ func (w *Warmer) warm(id image.Name, creds Credentials) {
 		// Otherwise, check whether there are any entries in the
 		// fetched tags that aren't in the cached tags.
 		tagSet := NewStringSet(tags)
-		cacheTagSet := NewStringSet(cacheTags)
-		if !tagSet.Subset(cacheTagSet) {
+		if !tagSet.Subset(cacheTags) {
 			w.Notify()
 		}
 	}
@@ -249,13 +300,4 @@ func (s StringSet) Subset(t StringSet) bool {
 		}
 	}
 	return true
-}
-
-func withinExpiryBuffer(expiry time.Time, buffer time.Duration) bool {
-	// if the `time.Now() + buffer  > expiry`,
-	// then we're within the expiry buffer
-	if time.Now().Add(buffer).After(expiry) {
-		return true
-	}
-	return false
 }
