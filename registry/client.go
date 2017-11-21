@@ -120,59 +120,38 @@ type Cache struct {
 // GetRepository returns the list of image manifests in an image
 // repository (e.g,. at "quay.io/weaveworks/flux")
 func (c *Cache) GetRepository(id image.Name) ([]image.Info, error) {
-	tags, err := c.Tags(id)
+	repoKey := cache.NewRepositoryKey(id.CanonicalName())
+	bytes, _, err := c.Reader.GetKey(repoKey)
 	if err != nil {
 		return nil, err
 	}
-	return c.tagsToRepository(id, tags)
+	var repo ImageRepository
+	if err = json.Unmarshal(bytes, &repo); err != nil {
+		return nil, err
+	}
+
+	// We only care about the error if we've never successfully
+	// updated the result.
+	if repo.LastUpdate.IsZero() {
+		if repo.LastError != "" {
+			return nil, errors.New(repo.LastError)
+		}
+		return nil, errors.New("image metadata not fetched yet")
+	}
+
+	images := make([]image.Info, len(repo.Images))
+	var i int
+	for _, im := range repo.Images {
+		images[i] = im
+		i++
+	}
+	sort.Sort(image.ByCreatedDesc(images))
+	return images, nil
 }
 
 // GetImage gets the manifest of a specific image ref, from its
 // registry.
 func (c *Cache) GetImage(id image.Ref) (image.Info, error) {
-	img, err := c.Manifest(id)
-	if err != nil {
-		return image.Info{}, err
-	}
-	return img, nil
-}
-
-func (c *Cache) tagsToRepository(id image.Name, tags []string) ([]image.Info, error) {
-	type result struct {
-		image image.Info
-		err   error
-	}
-
-	toFetch := make(chan string, len(tags))
-	fetched := make(chan result, len(tags))
-
-	for i := 0; i < 100; i++ {
-		go func() {
-			for tag := range toFetch {
-				image, err := c.Manifest(id.ToRef(tag))
-				fetched <- result{image, err}
-			}
-		}()
-	}
-	for _, tag := range tags {
-		toFetch <- tag
-	}
-	close(toFetch)
-
-	images := make([]image.Info, cap(fetched))
-	for i := 0; i < cap(fetched); i++ {
-		res := <-fetched
-		if res.err != nil {
-			return nil, res.err
-		}
-		images[i] = res.image
-	}
-
-	sort.Sort(image.ByCreatedDesc(images))
-	return images, nil
-}
-
-func (c *Cache) Manifest(id image.Ref) (image.Info, error) {
 	key := cache.NewManifestKey(id.CanonicalRef())
 
 	val, _, err := c.Reader.GetKey(key)
@@ -185,18 +164,4 @@ func (c *Cache) Manifest(id image.Ref) (image.Info, error) {
 		return image.Info{}, err
 	}
 	return img, nil
-}
-
-func (c *Cache) Tags(id image.Name) ([]string, error) {
-	key := cache.NewTagKey(id.CanonicalName())
-	val, _, err := c.Reader.GetKey(key)
-	if err != nil {
-		return []string{}, err
-	}
-	var tags []string
-	err = json.Unmarshal(val, &tags)
-	if err != nil {
-		return []string{}, err
-	}
-	return tags, nil
 }
