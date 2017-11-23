@@ -27,6 +27,34 @@ func (x exact) Key() string {
 	return x.k
 }
 
+type reporter interface {
+	Report()
+}
+
+type imageReport struct {
+	image.Info
+}
+
+func (im imageReport) Report() {
+	fmt.Printf("%s %s\n", im.ID.String(), im.CreatedAt)
+}
+
+type repoReport struct {
+	name image.Name
+	registry.ImageRepository
+}
+
+func (r repoReport) Report() {
+	if r.LastUpdate.IsZero() {
+		fmt.Printf("%s not yet fetched\n", r.name)
+		return
+	}
+	fmt.Printf("%s last updated: %s tags: %d\n", r.name, r.LastUpdate, len(r.Images))
+	if r.LastError != "" {
+		fmt.Println("Error: " + r.LastError)
+	}
+}
+
 func main() {
 	var memcachedAddr = flag.String("memcached", "localhost:11211", "address for connecting to memcached")
 	var raw = flag.Bool("raw", false, "show raw memcached entry")
@@ -49,15 +77,16 @@ func main() {
 	}, *memcachedAddr)
 
 	var (
+		k      cache.Keyer
 		bytes  []byte
 		expiry time.Time
 		err    error
-		entry  interface{}
+		entry  reporter
 		ref    image.Ref
 	)
 
 	if *key {
-		k := exact{args[0]}
+		k = exact{args[0]}
 		bytes, expiry, err = client.GetKey(k)
 		goto display
 	}
@@ -68,7 +97,7 @@ func main() {
 	}
 
 	if ref.Tag != "" {
-		k := cache.NewManifestKey(ref.CanonicalRef())
+		k = cache.NewManifestKey(ref.CanonicalRef())
 		fmt.Fprintf(os.Stderr, "Key: %s\n", k.Key())
 		bytes, expiry, err = client.GetKey(k)
 		if !*raw && err == nil {
@@ -76,25 +105,26 @@ func main() {
 			if err = json.Unmarshal(bytes, &im); err != nil {
 				bail(err)
 			}
-			entry = im
+			entry = imageReport{im}
 		}
 	} else {
-		k := cache.NewRepositoryKey(ref.CanonicalName())
+		k = cache.NewRepositoryKey(ref.CanonicalName())
 		bytes, expiry, err = client.GetKey(k)
 		if !*raw && err == nil {
 			var repo registry.ImageRepository
 			if err = json.Unmarshal(bytes, &repo); err != nil {
 				bail(err)
 			}
-			entry = repo
+			entry = repoReport{ref.CanonicalName().Name, repo}
 		}
 	}
 
 display:
+	fmt.Printf("%s expiring %s\n", k.Key(), expiry)
 	if *raw {
-		fmt.Printf("%s %s\n", expiry, string(bytes))
+		fmt.Println(string(bytes))
 	} else {
-		fmt.Printf("%s %#v\n", expiry, entry)
+		entry.Report()
 	}
 	return
 }
