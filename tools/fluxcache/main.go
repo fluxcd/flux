@@ -98,7 +98,6 @@ func main() {
 
 	if ref.Tag != "" {
 		k = cache.NewManifestKey(ref.CanonicalRef())
-		fmt.Fprintf(os.Stderr, "Key: %s\n", k.Key())
 		bytes, expiry, err = client.GetKey(k)
 		if !*raw && err == nil {
 			var im image.Info
@@ -120,7 +119,7 @@ func main() {
 	}
 
 display:
-	fmt.Printf("%s expiring %s\n", k.Key(), expiry)
+	fmt.Printf("Entry at %q expiring %s\n\n", k.Key(), expiry)
 	if *raw {
 		fmt.Println(string(bytes))
 	} else {
