@@ -1,80 +1,100 @@
 package main
 
 import (
-	"os"
+	"encoding/json"
+	"flag"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/go-kit/kit/log"
 
-	"github.com/weaveworks/flux/registry/cache"
 	"github.com/weaveworks/flux/image"
+	"github.com/weaveworks/flux/registry"
+	"github.com/weaveworks/flux/registry/cache"
 )
 
-
 func bail(e error) {
-	fmt.Fprintln(os.Stderr, "ERROR " + e.Error())
+	fmt.Fprintln(os.Stderr, "ERROR "+e.Error())
 	os.Exit(1)
 }
 
 type exact struct {
 	k string
 }
+
 func (x exact) Key() string {
 	return x.k
 }
 
 func main() {
-	memcachedAddr := os.Getenv("MEMCACHED")
-	if memcachedAddr == "" {
-		memcachedAddr = "localhost:11211"
+	var memcachedAddr = flag.String("memcached", "localhost:11211", "address for connecting to memcached")
+	var raw = flag.Bool("raw", false, "show raw memcached entry")
+	var key = flag.Bool("key", false, "argument is an exact key (implies -raw)")
+
+	flag.Parse()
+	if *key {
+		*raw = true
 	}
+
+	args := flag.Args()
+	if len(args) != 1 {
+		flag.Usage()
+		os.Exit(1)
+	}
+
 	client := cache.NewFixedServerMemcacheClient(cache.MemcacheConfig{
-		Logger: log.NewLogfmtLogger(log.NewSyncWriter(os.Stderr)),
+		Logger:  log.NewLogfmtLogger(log.NewSyncWriter(os.Stderr)),
 		Timeout: 5 * time.Second,
-	}, memcachedAddr)
+	}, *memcachedAddr)
 
 	var (
-		bytes []byte
+		bytes  []byte
 		expiry time.Time
-		err error
+		err    error
+		entry  interface{}
+		ref    image.Ref
 	)
 
-	switch os.Args[1] {
-	case "exact":
-		fmt.Println("Exact key: "+ os.Args[2])
-		k := exact{os.Args[2]}
+	if *key {
+		k := exact{args[0]}
 		bytes, expiry, err = client.GetKey(k)
-	case "repo":
-		ref, parseErr := image.ParseRef(os.Args[2])
-		if parseErr != nil {
-			bail(parseErr)
-		}
-
-		tagsKey := cache.NewTagKey(ref.CanonicalName())
-		fmt.Printf("Key: %s\n", tagsKey.Key())
-		client.GetKey(tagsKey)
-		bytes, expiry, err = client.GetKey(tagsKey)
-
-		//// repoKey := cache.NewRepositoryKey(ref.CanonicalName())
-		//// _, expiry, err = client.GetKey(repoKey)
-		//// if err != nil {
-		//// 	bail(err)
-		//// }
-		//// fmt.Printf("%s %s\n", expiry, ref.Name)
-	case "tag":
-		ref, parseErr := image.ParseRef(os.Args[2])
-		if parseErr != nil {
-			bail(parseErr)
-		}
-		k := cache.NewManifestKey(ref.CanonicalRef())
-		fmt.Printf("Key: %s\n", k.Key())
-
-		bytes, expiry, err = client.GetKey(k)
+		goto display
 	}
 
+	ref, err = image.ParseRef(args[0])
 	if err != nil {
 		bail(err)
 	}
-	fmt.Printf("%s %s\n", expiry, string(bytes))
+
+	if ref.Tag != "" {
+		k := cache.NewManifestKey(ref.CanonicalRef())
+		fmt.Fprintf(os.Stderr, "Key: %s\n", k.Key())
+		bytes, expiry, err = client.GetKey(k)
+		if !*raw && err == nil {
+			var im image.Info
+			if err = json.Unmarshal(bytes, &im); err != nil {
+				bail(err)
+			}
+			entry = im
+		}
+	} else {
+		k := cache.NewRepositoryKey(ref.CanonicalName())
+		bytes, expiry, err = client.GetKey(k)
+		if !*raw && err == nil {
+			var repo registry.ImageRepository
+			if err = json.Unmarshal(bytes, &repo); err != nil {
+				bail(err)
+			}
+			entry = repo
+		}
+	}
+
+display:
+	if *raw {
+		fmt.Printf("%s %s\n", expiry, string(bytes))
+	} else {
+		fmt.Printf("%s %#v\n", expiry, entry)
+	}
+	return
 }
