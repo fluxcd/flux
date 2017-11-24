@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 	"text/tabwriter"
 	"time"
 
@@ -48,7 +49,11 @@ func main() {
 	if err != nil {
 		bail(err)
 	}
-	req.Header.Set("Accept", "application/vnd.docker.distribution.manifest.v2+json")
+	req.Header.Set("Accept", strings.Join([]string{
+		schema2.MediaTypeManifest,
+		schema1.MediaTypeSignedManifest,
+		schema1.MediaTypeManifest,
+	}, ","))
 	fmt.Println("GET ", req.URL.String())
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
