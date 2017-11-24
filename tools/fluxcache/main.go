@@ -101,9 +101,7 @@ func main() {
 		bytes, expiry, err = client.GetKey(k)
 		if !*raw && err == nil {
 			var im image.Info
-			if err = json.Unmarshal(bytes, &im); err != nil {
-				bail(err)
-			}
+			err = json.Unmarshal(bytes, &im)
 			entry = imageReport{im}
 		}
 	} else {
@@ -111,11 +109,13 @@ func main() {
 		bytes, expiry, err = client.GetKey(k)
 		if !*raw && err == nil {
 			var repo registry.ImageRepository
-			if err = json.Unmarshal(bytes, &repo); err != nil {
-				bail(err)
-			}
+			err = json.Unmarshal(bytes, &repo)
 			entry = repoReport{ref.CanonicalName().Name, repo}
 		}
+	}
+
+	if err != nil {
+		bail(err)
 	}
 
 display:
