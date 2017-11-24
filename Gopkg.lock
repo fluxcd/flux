@@ -40,7 +40,7 @@
 [[projects]]
   branch = "master"
   name = "github.com/docker/distribution"
-  packages = [".","digestset","manifest","manifest/schema1","manifest/schema2","reference"]
+  packages = [".","digestset","manifest","manifest/schema1","manifest/schema2","reference","registry/client/auth/challenge"]
   revision = "7484e51bf6af0d3b1a849644cdaced3cfcf13617"
 
 [[projects]]
@@ -388,6 +388,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "7afd8c2dc700bde147e92ae63f845dca1b2555a68c948e76aa72e78ff6470b06"
+  inputs-digest = "be0e76971628d81f8e5029405e1763688a4f3ce401c59112099823ec0ce39c96"
   solver-name = "gps-cdcl"
   solver-version = 1
