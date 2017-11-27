@@ -1,6 +1,5 @@
 // +build integration
-
-package cache
+package memcached
 
 import (
 	"flag"
