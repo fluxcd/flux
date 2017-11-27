@@ -4,9 +4,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pkg/errors"
-
-	fluxerr "github.com/weaveworks/flux/errors"
 	"github.com/weaveworks/flux/image"
 )
 
@@ -21,7 +18,6 @@ type Writer interface {
 type Client interface {
 	Reader
 	Writer
-	Stop()
 }
 
 // An interface to provide the key under which to store the data

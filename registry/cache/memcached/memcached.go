@@ -21,8 +21,8 @@ const (
 
 // MemcacheClient is a memcache client that gets its server list from SRV
 // records, and periodically updates that ServerList.
-type memcacheClient struct {
-	*memcache.Client
+type MemcacheClient struct {
+	client     *memcache.Client
 	serverList *memcache.ServerList
 	hostname   string
 	service    string
@@ -42,14 +42,14 @@ type MemcacheConfig struct {
 	MaxIdleConns   int
 }
 
-func NewMemcacheClient(config MemcacheConfig) cache.Client {
+func NewMemcacheClient(config MemcacheConfig) *MemcacheClient {
 	var servers memcache.ServerList
 	client := memcache.NewFromSelector(&servers)
 	client.Timeout = config.Timeout
 	client.MaxIdleConns = config.MaxIdleConns
 
-	newClient := &memcacheClient{
-		Client:     client,
+	newClient := &MemcacheClient{
+		client:     client,
 		serverList: &servers,
 		hostname:   config.Host,
 		service:    config.Service,
@@ -68,14 +68,14 @@ func NewMemcacheClient(config MemcacheConfig) cache.Client {
 }
 
 // Does not use DNS, accepts static list of servers.
-func NewFixedServerMemcacheClient(config MemcacheConfig, addresses ...string) cache.Client {
+func NewFixedServerMemcacheClient(config MemcacheConfig, addresses ...string) *MemcacheClient {
 	var servers memcache.ServerList
 	servers.SetServers(addresses...)
 	client := memcache.NewFromSelector(&servers)
 	client.Timeout = config.Timeout
 
-	newClient := &memcacheClient{
-		Client:     client,
+	newClient := &MemcacheClient{
+		client:     client,
 		serverList: &servers,
 		hostname:   config.Host,
 		service:    config.Service,
@@ -86,8 +86,15 @@ func NewFixedServerMemcacheClient(config MemcacheConfig, addresses ...string) ca
 	return newClient
 }
 
-func (c *memcacheClient) GetKey(k cache.Keyer) ([]byte, time.Time, error) {
-	cacheItem, err := c.Get(k.Key())
+// The memcached client does not report the expiry when you GET a
+// value, but we do want to know it, so we can refresh items that are
+// soon to expire (and ignore items that are not). For that reason, we
+// prepend the expiry to the value when setting, and read it back when
+// getting.
+
+// GetKey gets the value and its expiry time from the cache.
+func (c *MemcacheClient) GetKey(k cache.Keyer) ([]byte, time.Time, error) {
+	cacheItem, err := c.client.Get(k.Key())
 	if err != nil {
 		if err == memcache.ErrCacheMiss {
 			// Don't log on cache miss
@@ -101,11 +108,12 @@ func (c *memcacheClient) GetKey(k cache.Keyer) ([]byte, time.Time, error) {
 	return cacheItem.Value[4:], time.Unix(int64(expiry), 0), nil
 }
 
-func (c *memcacheClient) SetKey(k cache.Keyer, v []byte) error {
+// SetKey sets the value at a key.
+func (c *MemcacheClient) SetKey(k cache.Keyer, v []byte) error {
 	expiry := time.Now().Add(expiry).Unix()
 	expiryBytes := make([]byte, 4, 4)
 	binary.BigEndian.PutUint32(expiryBytes, uint32(expiry))
-	if err := c.Set(&memcache.Item{
+	if err := c.client.Set(&memcache.Item{
 		Key:        k.Key(),
 		Value:      append(expiryBytes, v...),
 		Expiration: int32(expiry),
@@ -117,12 +125,12 @@ func (c *memcacheClient) SetKey(k cache.Keyer, v []byte) error {
 }
 
 // Stop the memcache client.
-func (c *memcacheClient) Stop() {
+func (c *MemcacheClient) Stop() {
 	close(c.quit)
 	c.wait.Wait()
 }
 
-func (c *memcacheClient) updateLoop(updateInterval time.Duration) {
+func (c *MemcacheClient) updateLoop(updateInterval time.Duration) {
 	defer c.wait.Done()
 	ticker := time.NewTicker(updateInterval)
 	defer ticker.Stop()
@@ -140,7 +148,7 @@ func (c *memcacheClient) updateLoop(updateInterval time.Duration) {
 
 // updateMemcacheServers sets a memcache server list from SRV records. SRV
 // priority & weight are ignored.
-func (c *memcacheClient) updateMemcacheServers() error {
+func (c *MemcacheClient) updateMemcacheServers() error {
 	_, addrs, err := net.LookupSRV(c.service, "tcp", c.hostname)
 	if err != nil {
 		return err
