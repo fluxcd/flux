@@ -10,8 +10,8 @@ import (
 	"github.com/go-kit/kit/log"
 
 	"github.com/weaveworks/flux/image"
-	"github.com/weaveworks/flux/registry"
 	"github.com/weaveworks/flux/registry/cache"
+	"github.com/weaveworks/flux/registry/cache/memcached"
 )
 
 func bail(e error) {
@@ -41,7 +41,7 @@ func (im imageReport) Report() {
 
 type repoReport struct {
 	name image.Name
-	registry.ImageRepository
+	cache.ImageRepository
 }
 
 func (r repoReport) Report() {
@@ -71,7 +71,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	client := cache.NewFixedServerMemcacheClient(cache.MemcacheConfig{
+	client := memcached.NewFixedServerMemcacheClient(memcached.MemcacheConfig{
 		Logger:  log.NewLogfmtLogger(log.NewSyncWriter(os.Stderr)),
 		Timeout: 5 * time.Second,
 	}, *memcachedAddr)
@@ -108,7 +108,7 @@ func main() {
 		k = cache.NewRepositoryKey(ref.CanonicalName())
 		bytes, expiry, err = client.GetKey(k)
 		if !*raw && err == nil {
-			var repo registry.ImageRepository
+			var repo cache.ImageRepository
 			err = json.Unmarshal(bytes, &repo)
 			entry = repoReport{ref.CanonicalName().Name, repo}
 		}
