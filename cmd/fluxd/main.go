@@ -237,7 +237,7 @@ func main() {
 		// Cache client, for use by registry and cache warmer
 		var cacheClient cache.Client
 		if *memcachedHostname != "" {
-			cacheClient = registryMemcache.NewMemcacheClient(registryMemcache.MemcacheConfig{
+			memcacheClient := registryMemcache.NewMemcacheClient(registryMemcache.MemcacheConfig{
 				Host:           *memcachedHostname,
 				Service:        *memcachedService,
 				Timeout:        *memcachedTimeout,
@@ -245,8 +245,8 @@ func main() {
 				Logger:         log.With(logger, "component", "memcached"),
 				MaxIdleConns:   *registryBurst,
 			})
-			cacheClient = cache.InstrumentClient(cacheClient)
-			defer cacheClient.Stop()
+			defer memcacheClient.Stop()
+			cacheClient = cache.InstrumentClient(memcacheClient)
 		}
 
 		cacheRegistry = &cache.Cache{

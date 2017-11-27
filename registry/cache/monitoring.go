@@ -49,13 +49,3 @@ func (i *instrumentedClient) SetKey(k Keyer, v []byte) (err error) {
 	}(time.Now())
 	return i.next.SetKey(k, v)
 }
-
-func (i *instrumentedClient) Stop() {
-	defer func(begin time.Time) {
-		cacheRequestDuration.With(
-			fluxmetrics.LabelMethod, "Stop",
-			fluxmetrics.LabelSuccess, "true",
-		).Observe(time.Since(begin).Seconds())
-	}(time.Now())
-	i.next.Stop()
-}

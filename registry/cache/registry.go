@@ -3,9 +3,11 @@ package cache
 import (
 	"encoding/json"
 	"sort"
+	"time"
 
 	"github.com/pkg/errors"
 
+	fluxerr "github.com/weaveworks/flux/errors"
 	"github.com/weaveworks/flux/image"
 )
 
@@ -48,7 +50,7 @@ func (c *Cache) GetRepository(id image.Name) ([]image.Info, error) {
 		if repo.LastError != "" {
 			return nil, errors.New(repo.LastError)
 		}
-		return nil, ErNotCached
+		return nil, ErrNotCached
 	}
 
 	images := make([]image.Info, len(repo.Images))
