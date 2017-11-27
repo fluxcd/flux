@@ -5,24 +5,13 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"sort"
 	"time"
 
 	dockerregistry "github.com/heroku/docker-registry-client/registry"
 	"github.com/pkg/errors"
 
 	"github.com/weaveworks/flux/image"
-	"github.com/weaveworks/flux/registry/cache"
 )
-
-// ---
-
-// Client is a registry client. It is an interface so we can wrap it
-// in instrumentation, write fake implementations, and so on.
-type Client interface {
-	Tags(name image.Name) ([]string, error)
-	Manifest(name image.Ref) (image.Info, error)
-}
 
 // An implementation of Client that represents a Remote registry.
 // E.g. docker hub.
@@ -107,61 +96,5 @@ func (a *Remote) ManifestFromV1(id image.Ref) (image.Info, error) {
 		}
 	}
 
-	return img, nil
-}
-
-// ---
-
-// Cache is a local cache of image metadata.
-type Cache struct {
-	Reader cache.Reader
-}
-
-// GetRepository returns the list of image manifests in an image
-// repository (e.g,. at "quay.io/weaveworks/flux")
-func (c *Cache) GetRepository(id image.Name) ([]image.Info, error) {
-	repoKey := cache.NewRepositoryKey(id.CanonicalName())
-	bytes, _, err := c.Reader.GetKey(repoKey)
-	if err != nil {
-		return nil, err
-	}
-	var repo ImageRepository
-	if err = json.Unmarshal(bytes, &repo); err != nil {
-		return nil, err
-	}
-
-	// We only care about the error if we've never successfully
-	// updated the result.
-	if repo.LastUpdate.IsZero() {
-		if repo.LastError != "" {
-			return nil, errors.New(repo.LastError)
-		}
-		return nil, errors.New("image metadata not fetched yet")
-	}
-
-	images := make([]image.Info, len(repo.Images))
-	var i int
-	for _, im := range repo.Images {
-		images[i] = im
-		i++
-	}
-	sort.Sort(image.ByCreatedDesc(images))
-	return images, nil
-}
-
-// GetImage gets the manifest of a specific image ref, from its
-// registry.
-func (c *Cache) GetImage(id image.Ref) (image.Info, error) {
-	key := cache.NewManifestKey(id.CanonicalRef())
-
-	val, _, err := c.Reader.GetKey(key)
-	if err != nil {
-		return image.Info{}, err
-	}
-	var img image.Info
-	err = json.Unmarshal(val, &img)
-	if err != nil {
-		return image.Info{}, err
-	}
 	return img, nil
 }

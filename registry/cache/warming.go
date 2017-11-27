@@ -1,5 +1,4 @@
-// Runs a daemon to continuously warm the registry cache.
-package registry
+package cache
 
 import (
 	"context"
@@ -12,34 +11,33 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
 	"github.com/weaveworks/flux/image"
-	"github.com/weaveworks/flux/registry/cache"
+	"github.com/weaveworks/flux/registry"
 )
 
 const refreshWhenExpiryWithin = time.Minute
 const askForNewImagesInterval = time.Minute
 
+// Warmer refreshes the information kept in the cache from remote
+// registries.
 type Warmer struct {
 	Logger        log.Logger
-	ClientFactory *RemoteClientFactory
+	ClientFactory *registry.RemoteClientFactory
 	Expiry        time.Duration
-	Cache         cache.Client
+	Cache         Client
 	Burst         int
 	Priority      chan image.Name
 	Notify        func()
 }
 
-// This is what we get from the callback handed to us
-type ImageCreds map[image.Name]Credentials
-
 // .. and this is what we keep in the backlog
 type backlogItem struct {
 	image.Name
-	Credentials
+	registry.Credentials
 }
 
 // Continuously get the images to populate the cache with, and
 // populate the cache with them.
-func (w *Warmer) Loop(stop <-chan struct{}, wg *sync.WaitGroup, imagesToFetchFunc func() ImageCreds) {
+func (w *Warmer) Loop(stop <-chan struct{}, wg *sync.WaitGroup, imagesToFetchFunc func() registry.ImageCreds) {
 	defer wg.Done()
 
 	if w.Logger == nil || w.ClientFactory == nil || w.Expiry == 0 || w.Cache == nil {
@@ -90,7 +88,7 @@ func (w *Warmer) Loop(stop <-chan struct{}, wg *sync.WaitGroup, imagesToFetchFun
 	}
 }
 
-func imageCredsToBacklog(imageCreds ImageCreds) []backlogItem {
+func imageCredsToBacklog(imageCreds registry.ImageCreds) []backlogItem {
 	backlog := make([]backlogItem, len(imageCreds))
 	var i int
 	for name, cred := range imageCreds {
@@ -100,29 +98,7 @@ func imageCredsToBacklog(imageCreds ImageCreds) []backlogItem {
 	return backlog
 }
 
-// ImageRepository holds the last good information on an image
-// repository.
-//
-// Whenever we successfully fetch a full set of image info,
-// `LastUpdate` and `Images` shall each be assigned a value, and
-// `LastError` will be cleared.
-//
-// If we cannot for any reason obtain a full set of image info,
-// `LastError` shall be assigned a value, and the other fields left
-// alone.
-//
-// It's possible to have all fields populated: this means at some
-// point it was successfully fetched, but since then, there's been an
-// error. It's then up to the caller to decide what to do with the
-// value (show the images, but also indicate there's a problem, for
-// example).
-type ImageRepository struct {
-	LastError  string
-	LastUpdate time.Time
-	Images     map[string]image.Info
-}
-
-func (w *Warmer) warm(id image.Name, creds Credentials) {
+func (w *Warmer) warm(id image.Name, creds registry.Credentials) {
 	client, err := w.ClientFactory.ClientFor(id.Registry(), creds)
 	if err != nil {
 		w.Logger.Log("err", err.Error())
@@ -131,11 +107,11 @@ func (w *Warmer) warm(id image.Name, creds Credentials) {
 
 	// This is what we're going to write back to the cache
 	var repo ImageRepository
-	repoKey := cache.NewRepositoryKey(id.CanonicalName())
+	repoKey := NewRepositoryKey(id.CanonicalName())
 	bytes, _, err := w.Cache.GetKey(repoKey)
 	if err == nil {
 		err = json.Unmarshal(bytes, &repo)
-	} else if err == cache.ErrNotCached {
+	} else if err == ErrNotCached {
 		err = nil
 	}
 
@@ -177,7 +153,7 @@ func (w *Warmer) warm(id image.Name, creds Credentials) {
 	for _, tag := range tags {
 		// See if we have the manifest already cached
 		newID := id.ToRef(tag)
-		key := cache.NewManifestKey(newID.CanonicalRef())
+		key := NewManifestKey(newID.CanonicalRef())
 		if err != nil {
 			w.Logger.Log("err", errors.Wrap(err, "creating key for memcache"))
 			continue
@@ -226,7 +202,7 @@ func (w *Warmer) warm(id image.Name, creds Credentials) {
 					return
 				}
 
-				key := cache.NewManifestKey(img.ID.CanonicalRef())
+				key := NewManifestKey(img.ID.CanonicalRef())
 				// Write back to memcached
 				val, err := json.Marshal(img)
 				if err != nil {

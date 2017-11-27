@@ -11,28 +11,28 @@ import (
 )
 
 var (
-	memcacheRequestDuration = prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
+	cacheRequestDuration = prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
 		Namespace: "flux",
-		Subsystem: "memcache",
+		Subsystem: "cache",
 		Name:      "request_duration_seconds",
-		Help:      "Duration of memcache requests, in seconds.",
+		Help:      "Duration of cache requests, in seconds.",
 		Buckets:   stdprometheus.DefBuckets,
 	}, []string{fluxmetrics.LabelMethod, fluxmetrics.LabelSuccess})
 )
 
-type instrumentedMemcacheClient struct {
+type instrumentedClient struct {
 	next Client
 }
 
-func InstrumentMemcacheClient(c Client) Client {
-	return &instrumentedMemcacheClient{
+func InstrumentClient(c Client) Client {
+	return &instrumentedClient{
 		next: c,
 	}
 }
 
-func (i *instrumentedMemcacheClient) GetKey(k Keyer) (_ []byte, ex time.Time, err error) {
+func (i *instrumentedClient) GetKey(k Keyer) (_ []byte, ex time.Time, err error) {
 	defer func(begin time.Time) {
-		memcacheRequestDuration.With(
+		cacheRequestDuration.With(
 			fluxmetrics.LabelMethod, "GetKey",
 			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
@@ -40,9 +40,9 @@ func (i *instrumentedMemcacheClient) GetKey(k Keyer) (_ []byte, ex time.Time, er
 	return i.next.GetKey(k)
 }
 
-func (i *instrumentedMemcacheClient) SetKey(k Keyer, v []byte) (err error) {
+func (i *instrumentedClient) SetKey(k Keyer, v []byte) (err error) {
 	defer func(begin time.Time) {
-		memcacheRequestDuration.With(
+		cacheRequestDuration.With(
 			fluxmetrics.LabelMethod, "SetKey",
 			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
@@ -50,9 +50,9 @@ func (i *instrumentedMemcacheClient) SetKey(k Keyer, v []byte) (err error) {
 	return i.next.SetKey(k, v)
 }
 
-func (i *instrumentedMemcacheClient) Stop() {
+func (i *instrumentedClient) Stop() {
 	defer func(begin time.Time) {
-		memcacheRequestDuration.With(
+		cacheRequestDuration.With(
 			fluxmetrics.LabelMethod, "Stop",
 			fluxmetrics.LabelSuccess, "true",
 		).Observe(time.Since(begin).Seconds())

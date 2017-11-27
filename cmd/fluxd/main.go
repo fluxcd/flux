@@ -32,7 +32,8 @@ import (
 	"github.com/weaveworks/flux/image"
 	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/registry"
-	registryMemcache "github.com/weaveworks/flux/registry/cache"
+	"github.com/weaveworks/flux/registry/cache"
+	registryMemcache "github.com/weaveworks/flux/registry/cache/memcached"
 	registryMiddleware "github.com/weaveworks/flux/registry/middleware"
 	"github.com/weaveworks/flux/remote"
 	"github.com/weaveworks/flux/ssh"
@@ -230,26 +231,13 @@ func main() {
 	}
 
 	// Registry components
-	var cache registry.Registry
-	var cacheWarmer registry.Warmer
+	var cacheRegistry registry.Registry
+	var cacheWarmer *cache.Warmer
 	{
-		// Cache
-		var memcacheRegistry registryMemcache.Client
+		// Cache client, for use by registry and cache warmer
+		var cacheClient cache.Client
 		if *memcachedHostname != "" {
-			memcacheRegistry = registryMemcache.NewMemcacheClient(registryMemcache.MemcacheConfig{
-				Host:           *memcachedHostname,
-				Service:        *memcachedService,
-				Timeout:        *memcachedTimeout,
-				UpdateInterval: 1 * time.Minute,
-				Logger:         log.With(logger, "component", "memcached"),
-				MaxIdleConns:   defaultMemcacheConnections,
-			})
-			memcacheRegistry = registryMemcache.InstrumentMemcacheClient(memcacheRegistry)
-			defer memcacheRegistry.Stop()
-		}
-		var memcacheWarmer registryMemcache.Client
-		if *memcachedHostname != "" {
-			memcacheWarmer = registryMemcache.NewMemcacheClient(registryMemcache.MemcacheConfig{
+			cacheClient = registryMemcache.NewMemcacheClient(registryMemcache.MemcacheConfig{
 				Host:           *memcachedHostname,
 				Service:        *memcachedService,
 				Timeout:        *memcachedTimeout,
@@ -257,16 +245,16 @@ func main() {
 				Logger:         log.With(logger, "component", "memcached"),
 				MaxIdleConns:   *registryBurst,
 			})
-			memcacheWarmer = registryMemcache.InstrumentMemcacheClient(memcacheWarmer)
-			defer memcacheWarmer.Stop()
+			cacheClient = cache.InstrumentClient(cacheClient)
+			defer cacheClient.Stop()
 		}
 
-		cache = &registry.Cache{
-			Reader: memcacheRegistry,
+		cacheRegistry = &cache.Cache{
+			Reader: cacheClient,
 		}
-		cache = registry.NewInstrumentedRegistry(cache)
+		cacheRegistry = registry.NewInstrumentedRegistry(cacheRegistry)
 
-		// Remote
+		// Remote client, for warmer to refresh entries
 		registryLogger := log.With(logger, "component", "registry")
 		registryLimits := &registryMiddleware.RateLimiters{
 			RPS:   *registryRPS,
@@ -279,11 +267,11 @@ func main() {
 
 		// Warmer
 		warmerLogger := log.With(logger, "component", "warmer")
-		cacheWarmer = registry.Warmer{
+		cacheWarmer = &cache.Warmer{
 			Logger:        warmerLogger,
 			ClientFactory: remoteFactory,
 			Expiry:        *registryCacheExpiry,
-			Cache:         memcacheWarmer,
+			Cache:         cacheClient,
 			Burst:         *registryBurst,
 		}
 	}
@@ -405,7 +393,7 @@ func main() {
 		V:            version,
 		Cluster:      k8s,
 		Manifests:    k8sManifests,
-		Registry:     cache,
+		Registry:     cacheRegistry,
 		ImageRefresh: make(chan image.Name, 100), // size chosen by fair dice roll
 		Repo:         repo, Checkout: checkout,
 		Jobs:           jobs,
