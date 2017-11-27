@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -18,6 +19,7 @@ import (
 	//	"github.com/docker/distribution/registry/client/transport"
 	"github.com/docker/distribution/registry/client/auth/challenge"
 	//	"github.com/docker/distribution"
+	"github.com/docker/distribution/manifest/manifestlist"
 	"github.com/docker/distribution/manifest/schema1"
 	"github.com/docker/distribution/manifest/schema2"
 )
@@ -27,8 +29,11 @@ func bail(err error) {
 	os.Exit(1)
 }
 
+var (
+	raw bool
+)
+
 func main() {
-	var raw bool
 	flag.BoolVar(&raw, "raw", false, "show raw response body")
 	flag.Parse()
 
@@ -45,23 +50,35 @@ func main() {
 
 	repo := im.CanonicalName()
 	urlStr := fmt.Sprintf("https://%s/v2/%s/manifests/%s", repo.Domain, repo.Image, im.Tag)
+	out := tabwriter.NewWriter(os.Stdout, 4, 4, 1, ' ', 0)
+	fmt.Fprintf(out, "Tag\t%s\n", im.Tag)
+	GetManifest(urlStr, "", repo, out)
+	out.Flush()
+}
+
+func GetManifest(urlStr, token string, repo image.CanonicalName, out io.Writer) {
 	req, err := http.NewRequest("GET", urlStr, nil)
 	if err != nil {
 		bail(err)
+	}
+	if token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
 	}
 	req.Header.Set("Accept", strings.Join([]string{
 		schema2.MediaTypeManifest,
 		schema1.MediaTypeSignedManifest,
 		schema1.MediaTypeManifest,
+		manifestlist.MediaTypeManifestList,
 	}, ","))
-	fmt.Println("GET ", req.URL.String())
+	fmt.Fprintf(os.Stderr, "GET %s\n", req.URL.String())
+
+request:
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
 		bail(err)
 	}
 	defer res.Body.Close()
 
-	var token string
 	if res.StatusCode == http.StatusUnauthorized {
 		res.Body.Close()
 		challenges := challenge.ResponseChallenges(res)
@@ -74,14 +91,11 @@ func main() {
 			}
 		}
 		if token == "" {
-			fmt.Fprintln(os.Stderr, "Unable to authorise against repo", repo.String())
+			fmt.Fprintln(os.Stderr, "Unable to authorise against repo")
 			os.Exit(1)
 		}
 		req.Header.Set("Authorization", "Bearer "+token)
-		res, err = http.DefaultClient.Do(req)
-		if err != nil {
-			bail(err)
-		}
+		goto request
 	}
 
 	schemaType := res.Header.Get("Content-Type")
@@ -94,9 +108,6 @@ func main() {
 		if raw {
 			goto raw
 		}
-
-		out := tabwriter.NewWriter(os.Stdout, 4, 4, 1, ' ', 0)
-		fmt.Fprintf(out, "Tag\t%s\n", im.Tag)
 
 		var (
 			schema, imageID string
@@ -146,7 +157,8 @@ func main() {
 				bail(err)
 			}
 			imageID = man.Config.Digest.String()
-			req, err := http.NewRequest("GET", fmt.Sprintf("https://%s/v2/%s/blobs/%s", repo.Domain, repo.Image, imageID), nil)
+			urlStr = fmt.Sprintf("https://%s/v2/%s/blobs/%s", repo.Domain, repo.Image, imageID)
+			req, err := http.NewRequest("GET", urlStr, nil)
 			if err != nil {
 				bail(err)
 			}
@@ -171,15 +183,27 @@ func main() {
 			created = config.Created
 			os = config.OS
 			arch = config.Arch
+		case manifestlist.MediaTypeManifestList:
+			var list manifestlist.ManifestList
+			if err = decoder.Decode(&list); err != nil {
+				bail(err)
+			}
+			for _, manifest := range list.Manifests {
+				urlStr = fmt.Sprintf("https://%s/v2/%s/manifests/%s", repo.Domain, repo.Image, manifest.Digest.String())
+				GetManifest(urlStr, token, repo, out)
+				fmt.Fprintln(out, "---\t---\n")
+			}
+			return
 		}
+
 		fmt.Fprintf(out, "Schema\t%s\n", schema)
 		fmt.Fprintf(out, "Digest\t%s\n", digest)
 		fmt.Fprintf(out, "ImageID\t%s\n", imageID)
 		fmt.Fprintf(out, "Arch\t%s\n", arch)
 		fmt.Fprintf(out, "OS\t%s\n", os)
 		fmt.Fprintf(out, "Created\t%s\n", created)
-		out.Flush()
 	}
+
 raw:
 	if !raw {
 		return
