@@ -138,7 +138,7 @@ the new configuration to the version control system.
 Turning off automation is performed with the `deautomate` command:
 
 ```sh
- $ fluxctl deautomate --controller=default:deployment/helloworld
+$ fluxctl deautomate --controller=default:deployment/helloworld
 Commit pushed: a54ef2c
 CONTROLLER                     STATUS   UPDATES
 default:deployment/helloworld  success
@@ -150,6 +150,28 @@ default:deployment/helloworld  helloworld  quay.io/weaveworks/helloworld:master-
 ```
 
 We can see that the controller is no longer automated.
+
+# Rolling back a Controller
+
+Rolling back can be achieved by combining:
+
+- [`deautomate`](#turning-off-automation) to prevent Flux from automatically updating to newer versions, and
+- [`release`](#releasing-a-controller) to deploy the version you want to roll back to.
+
+```sh
+$ fluxctl deautomate --controller=default:deployment/helloworld
+Commit pushed: c07f317
+CONTROLLER                     STATUS   UPDATES
+default:deployment/helloworld  success
+
+$ fluxctl release --controller=default:deployment/helloworld --update-image=quay.io/weaveworks/helloworld:master-a000001
+Submitting release ...
+Commit pushed: 33ce4e3
+Applied 33ce4e38048f4b787c583e64505485a13c8a7836
+CONTROLLER                     STATUS   UPDATES
+default:deployment/helloworld  success  helloworld: quay.io/weaveworks/helloworld:master-9a16ff945b9e -> master-a000001
+
+```
 
 # Locking a Controller
 
