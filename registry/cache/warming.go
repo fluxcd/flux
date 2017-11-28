@@ -99,7 +99,7 @@ func imageCredsToBacklog(imageCreds registry.ImageCreds) []backlogItem {
 }
 
 func (w *Warmer) warm(id image.Name, creds registry.Credentials) {
-	client, err := w.ClientFactory.ClientFor(id.Registry(), creds)
+	client, err := w.ClientFactory.ClientFor(id.CanonicalName(), creds)
 	if err != nil {
 		w.Logger.Log("err", err.Error())
 		return
@@ -136,7 +136,7 @@ func (w *Warmer) warm(id image.Name, creds registry.Credentials) {
 		}
 	}()
 
-	tags, err := client.Tags(id)
+	tags, err := client.Tags()
 	if err != nil {
 		if !strings.Contains(err.Error(), context.DeadlineExceeded.Error()) && !strings.Contains(err.Error(), "net/http: request canceled") {
 			w.Logger.Log("err", errors.Wrap(err, "requesting tags"))
@@ -188,7 +188,7 @@ func (w *Warmer) warm(id image.Name, creds registry.Credentials) {
 			go func(imageID image.Ref) {
 				defer func() { awaitFetchers.Done(); <-fetchers }()
 				// Get the image from the remote
-				img, err := client.Manifest(imageID)
+				img, err := client.Manifest(imageID.Tag)
 				if err != nil {
 					if err, ok := errors.Cause(err).(net.Error); ok && err.Timeout() {
 						// This was due to a context timeout, don't bother logging

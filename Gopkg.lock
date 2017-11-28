@@ -40,8 +40,8 @@
 [[projects]]
   branch = "master"
   name = "github.com/docker/distribution"
-  packages = [".","digestset","manifest","manifest/schema1","manifest/schema2","reference"]
-  revision = "7484e51bf6af0d3b1a849644cdaced3cfcf13617"
+  packages = [".","digestset","manifest","manifest/manifestlist","manifest/schema1","manifest/schema2","reference","registry/api/errcode","registry/api/v2","registry/client","registry/client/auth","registry/client/auth/challenge","registry/client/transport","registry/storage/cache","registry/storage/cache/memory"]
+  revision = "bc3c7b0525e59d3ecfab3e1568350895fd4a462f"
 
 [[projects]]
   branch = "master"
@@ -188,13 +188,6 @@
   revision = "3573b8b52aa7b37b9358d966a898feb387f62437"
 
 [[projects]]
-  branch = "master"
-  name = "github.com/heroku/docker-registry-client"
-  packages = ["registry"]
-  revision = "2e2f1c58a06fae38b08307d1a834ae9c971a2467"
-  source = "github.com/weaveworks/docker-registry-client"
-
-[[projects]]
   name = "github.com/inconshreveable/mousetrap"
   packages = ["."]
   revision = "76626ae9c91c4f2a10f34cad8ce83ea42c93bb75"
@@ -299,7 +292,7 @@
   branch = "master"
   name = "github.com/weaveworks/common"
   packages = ["errors","httpgrpc","logging","middleware","user"]
-  revision = "1df6402aaf7232feadf798b64c6a0cae847e84d8"
+  revision = "57600de7028ee2b8070f1696250887ad243b786c"
 
 [[projects]]
   branch = "master"
@@ -322,7 +315,7 @@
 [[projects]]
   branch = "master"
   name = "golang.org/x/net"
-  packages = ["context","http2","http2/hpack","idna","internal/timeseries","lex/httplex","publicsuffix","trace"]
+  packages = ["context","http2","http2/hpack","idna","internal/timeseries","lex/httplex","trace"]
   revision = "0a9397675ba34b2845f758fe3cd68828369c6517"
 
 [[projects]]
@@ -388,6 +381,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "7afd8c2dc700bde147e92ae63f845dca1b2555a68c948e76aa72e78ff6470b06"
+  inputs-digest = "9a246cacb3ba700c40f1d9dddaddb45729b77be85a810753503c096b2a9c70d4"
   solver-name = "gps-cdcl"
   solver-version = 1

@@ -17,8 +17,8 @@ type mockRemote struct {
 	err  error
 }
 
-type ManifestFunc func(id image.Ref) (image.Info, error)
-type TagsFunc func(id image.Name) ([]string, error)
+type ManifestFunc func(ref string) (image.Info, error)
+type TagsFunc func() ([]string, error)
 type mockDockerClient struct {
 	manifest ManifestFunc
 	tags     TagsFunc
@@ -31,12 +31,12 @@ func NewMockClient(manifest ManifestFunc, tags TagsFunc) Client {
 	}
 }
 
-func (m *mockDockerClient) Manifest(id image.Ref) (image.Info, error) {
-	return m.manifest(id)
+func (m *mockDockerClient) Manifest(tag string) (image.Info, error) {
+	return m.manifest(tag)
 }
 
-func (m *mockDockerClient) Tags(id image.Name) ([]string, error) {
-	return m.tags(id)
+func (m *mockDockerClient) Tags() ([]string, error) {
+	return m.tags()
 }
 
 func (*mockDockerClient) Cancel() {
@@ -48,7 +48,7 @@ type mockRemoteFactory struct {
 	err error
 }
 
-func (m *mockRemoteFactory) ClientFor(repository string, creds Credentials) (Client, error) {
+func (m *mockRemoteFactory) ClientFor(repository image.CanonicalName, creds Credentials) (Client, error) {
 	return m.c, m.err
 }
 

@@ -1,100 +1,139 @@
 package registry
 
 import (
+	"context"
 	"encoding/json"
-	"fmt"
+	"errors"
 	"net/http"
-	"net/url"
 	"time"
 
-	dockerregistry "github.com/heroku/docker-registry-client/registry"
-	"github.com/pkg/errors"
+	"github.com/docker/distribution"
+	"github.com/docker/distribution/manifest/manifestlist"
+	"github.com/docker/distribution/manifest/schema1"
+	"github.com/docker/distribution/manifest/schema2"
+	"github.com/docker/distribution/registry/client"
+	"github.com/opencontainers/go-digest"
 
 	"github.com/weaveworks/flux/image"
 )
 
-// An implementation of Client that represents a Remote registry.
-// E.g. docker hub.
 type Remote struct {
-	Registry *dockerregistry.Registry
+	transport http.RoundTripper
+	repo      image.CanonicalName
+}
+
+// Adapt to docker distribution reference.Named
+type named struct {
+	image.CanonicalName
+}
+
+func (n named) Name() string {
+	return n.Image
+}
+
+func (n named) String() string {
+	return n.String()
 }
 
 // Return the tags for this repository.
-func (a *Remote) Tags(id image.Name) ([]string, error) {
-	return a.Registry.Tags(id.Repository())
+func (a *Remote) Tags() ([]string, error) {
+	ctx := context.TODO()
+	repository, err := client.NewRepository(named{a.repo}, "https://"+a.repo.Domain, a.transport)
+	if err != nil {
+		return nil, err
+	}
+	return repository.Tags(ctx).All(ctx)
 }
 
-// We need to do some adapting here to convert from the return values
-// from dockerregistry to our domain types.
-func (a *Remote) Manifest(id image.Ref) (image.Info, error) {
-	manifestV2, err := a.Registry.ManifestV2(id.Repository(), id.Tag)
-	if err != nil {
-		if err, ok := err.(*url.Error); ok {
-			if err, ok := (err.Err).(*dockerregistry.HttpStatusError); ok {
-				if err.Response.StatusCode == http.StatusNotFound {
-					return a.ManifestFromV1(id)
-				}
-			}
-		}
-		return image.Info{}, err
-	}
-	// The above request will happily return a bogus, empty manifest
-	// if handed something other than a schema2 manifest.
-	if manifestV2.Config.Digest == "" {
-		return a.ManifestFromV1(id)
-	}
-
-	// schema2 manifests have a reference to a blog that contains the
-	// image config. We have to fetch that in order to get the created
-	// datetime.
-	conf := manifestV2.Config
-	reader, err := a.Registry.DownloadLayer(id.Repository(), conf.Digest)
+// Manifest fetches the metadata for an image reference; currently
+// assumed to be in the same repo as that provided to `NewRemote(...)`
+func (a *Remote) Manifest(ref string) (image.Info, error) {
+	ctx := context.TODO()
+	repository, err := client.NewRepository(named{a.repo}, "https://"+a.repo.Domain, a.transport)
 	if err != nil {
 		return image.Info{}, err
 	}
-	if reader == nil {
-		return image.Info{}, fmt.Errorf("nil reader from DownloadLayer")
-	}
-
-	type config struct {
-		Created time.Time `json:created`
-	}
-	var imageConf config
-
-	err = json.NewDecoder(reader).Decode(&imageConf)
+	manifests, err := repository.Manifests(ctx)
 	if err != nil {
 		return image.Info{}, err
 	}
-	return image.Info{
-		ID:        id,
-		CreatedAt: imageConf.Created,
-	}, nil
-}
+	manifest, fetchErr := manifests.Get(ctx, digest.Digest(ref), distribution.WithTagOption{ref})
 
-func (a *Remote) ManifestFromV1(id image.Ref) (image.Info, error) {
-	manifest, err := a.Registry.Manifest(id.Repository(), id.Tag)
-	if err != nil || manifest == nil {
-		return image.Info{}, errors.Wrap(err, "getting remote manifest")
+interpret:
+	if fetchErr != nil {
+		return image.Info{}, err
 	}
 
-	// the manifest includes some v1-backwards-compatibility data,
-	// oddly called "History", which are layer metadata as JSON
-	// strings; these appear most-recent (i.e., topmost layer) first,
-	// so happily we can just decode the first entry to get a created
-	// time.
-	type v1image struct {
+	mt, bytes, err := manifest.Payload()
+	if err != nil {
+		return image.Info{}, err
+	}
+
+	info := image.Info{ID: a.repo.ToRef(ref)}
+
+	// for decoding the v1-compatibility entry in schema1 manifests
+	var v1 struct {
+		ID      string    `json:"id"`
 		Created time.Time `json:"created"`
-	}
-	var topmost v1image
-	var img image.Info
-	img.ID = id
-	if len(manifest.History) > 0 {
-		if err = json.Unmarshal([]byte(manifest.History[0].V1Compatibility), &topmost); err == nil {
-			if !topmost.Created.IsZero() {
-				img.CreatedAt = topmost.Created
-			}
-		}
+		OS      string    `json:"os"`
+		Arch    string    `json:"architecture"`
 	}
 
-	return img, nil
+	// TODO(michael): can we type switch? Not sure how dependable the
+	// underlying types are.
+	switch mt {
+	case schema1.MediaTypeManifest:
+		// TODO: can this be fallthrough? Find something to check on...
+		var man schema1.Manifest
+		if err = json.Unmarshal(bytes, &man); err != nil {
+			return image.Info{}, err
+		}
+		if err = json.Unmarshal([]byte(man.History[0].V1Compatibility), &v1); err != nil {
+			return image.Info{}, err
+		}
+		info.CreatedAt = v1.Created
+	case schema1.MediaTypeSignedManifest:
+		var man schema1.SignedManifest
+		if err = json.Unmarshal(bytes, &man); err != nil {
+			return image.Info{}, err
+		}
+		if err = json.Unmarshal([]byte(man.History[0].V1Compatibility), &v1); err != nil {
+			return image.Info{}, err
+		}
+		info.CreatedAt = v1.Created
+	case schema2.MediaTypeManifest:
+		var man schema2.Manifest
+		if err = json.Unmarshal(bytes, &man); err != nil {
+			return image.Info{}, err
+		}
+
+		configBytes, err := repository.Blobs(ctx).Get(ctx, man.Config.Digest)
+		if err != nil {
+			return image.Info{}, err
+		}
+
+		var config struct {
+			Arch    string    `json:"architecture"`
+			Created time.Time `json:"created"`
+			OS      string    `json:"os"`
+		}
+		if err = json.Unmarshal(configBytes, &config); err != nil {
+			return image.Info{}, err
+		}
+		info.CreatedAt = config.Created
+	case manifestlist.MediaTypeManifestList:
+		var list manifestlist.ManifestList
+		if err = json.Unmarshal(bytes, &list); err != nil {
+			return image.Info{}, err
+		}
+		// TODO(michael): can we just pick the first one that matches?
+		for _, m := range list.Manifests {
+			if m.Platform.OS == "linux" && m.Platform.Architecture == "amd64" {
+				manifest, fetchErr = manifests.Get(ctx, m.Digest)
+				goto interpret
+			}
+		}
+		return image.Info{}, errors.New("no suitable manifest (linux amd64) in manifestlist")
+	}
+	return info, nil
 }

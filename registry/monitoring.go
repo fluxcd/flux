@@ -77,9 +77,9 @@ func NewInstrumentedClient(next Client) Client {
 	}
 }
 
-func (m *instrumentedClient) Manifest(id image.Ref) (res image.Info, err error) {
+func (m *instrumentedClient) Manifest(ref string) (res image.Info, err error) {
 	start := time.Now()
-	res, err = m.next.Manifest(id)
+	res, err = m.next.Manifest(ref)
 	remoteDuration.With(
 		LabelRequestKind, RequestKindMetadata,
 		fluxmetrics.LabelSuccess, strconv.FormatBool(err == nil),
@@ -87,9 +87,9 @@ func (m *instrumentedClient) Manifest(id image.Ref) (res image.Info, err error) 
 	return
 }
 
-func (m *instrumentedClient) Tags(id image.Name) (res []string, err error) {
+func (m *instrumentedClient) Tags() (res []string, err error) {
 	start := time.Now()
-	res, err = m.next.Tags(id)
+	res, err = m.next.Tags()
 	remoteDuration.With(
 		LabelRequestKind, RequestKindTags,
 		fluxmetrics.LabelSuccess, strconv.FormatBool(err == nil),
