@@ -1,9 +1,8 @@
 // +build integration
 
-package registry
+package memcached
 
 import (
-	"flag"
 	"os"
 	"strings"
 	"sync"
@@ -13,20 +12,19 @@ import (
 	"github.com/go-kit/kit/log"
 
 	"github.com/weaveworks/flux/image"
+	"github.com/weaveworks/flux/registry"
 	"github.com/weaveworks/flux/registry/cache"
 	"github.com/weaveworks/flux/registry/middleware"
 )
 
-var (
-	memcachedIPs = flag.String("memcached-ips", "127.0.0.1:11211", "space-separated host:port values for memcached to connect to")
-)
+// memcachedIPs flag from memcached_test.go
 
-// This tests a real memcache cache and a request to a real docker
-// repository.  It is intended to be an end-to-end integration test
-// for the warmer since I had a few bugs introduced when
-// refactoring. This should cover against these bugs.
+// This tests a real memcached cache and a request to a real docker
+// repository. It is intended to be an end-to-end integration test for
+// the warmer since I had a few bugs introduced when refactoring. This
+// should cover against these bugs.
 func TestWarming_WarmerWriteCacheRead(t *testing.T) {
-	mc := cache.NewFixedServerMemcacheClient(cache.MemcacheConfig{
+	mc := NewFixedServerMemcacheClient(MemcacheConfig{
 		Timeout:        time.Second,
 		UpdateInterval: 1 * time.Minute,
 		Logger:         log.With(log.NewLogfmtLogger(os.Stderr), "component", "memcached"),
@@ -36,30 +34,18 @@ func TestWarming_WarmerWriteCacheRead(t *testing.T) {
 
 	logger := log.NewLogfmtLogger(os.Stderr)
 
-	remote := NewRemoteClientFactory(
-		log.With(logger, "component", "client"),
-		middleware.RateLimiterConfig{200, 10},
-	)
+	remote := &registry.RemoteClientFactory{
+		Logger:   log.With(logger, "component", "client"),
+		Limiters: &middleware.RateLimiters{RPS: 200, Burst: 10},
+		Trace:    true,
+	}
 
-	cache := NewCacheClientFactory(
-		log.With(logger, "component", "cache"),
-		mc,
-		time.Hour,
-	)
+	r := &cache.Cache{mc}
 
-	r := NewRegistry(
-		cache,
-		log.With(logger, "component", "registry"),
-		512,
-	)
-
-	w := Warmer{
+	w := &cache.Warmer{
 		Logger:        log.With(logger, "component", "warmer"),
 		ClientFactory: remote,
-		Creds:         NoCredentials(),
-		Expiry:        time.Hour,
-		Reader:        mc,
-		Writer:        mc,
+		Cache:         mc,
 		Burst:         125,
 	}
 
@@ -71,9 +57,9 @@ func TestWarming_WarmerWriteCacheRead(t *testing.T) {
 	}()
 
 	shutdownWg.Add(1)
-	go w.Loop(shutdown, shutdownWg, func() ImageCreds {
-		return ImageCreds{
-			id.Name: NoCredentials(),
+	go w.Loop(shutdown, shutdownWg, func() registry.ImageCreds {
+		return registry.ImageCreds{
+			id.Name: registry.NoCredentials(),
 		}
 	})
 

@@ -21,8 +21,7 @@ const askForNewImagesInterval = time.Minute
 // registries.
 type Warmer struct {
 	Logger        log.Logger
-	ClientFactory *registry.RemoteClientFactory
-	Expiry        time.Duration
+	ClientFactory registry.ClientFactory
 	Cache         Client
 	Burst         int
 	Priority      chan image.Name
@@ -40,7 +39,7 @@ type backlogItem struct {
 func (w *Warmer) Loop(stop <-chan struct{}, wg *sync.WaitGroup, imagesToFetchFunc func() registry.ImageCreds) {
 	defer wg.Done()
 
-	if w.Logger == nil || w.ClientFactory == nil || w.Expiry == 0 || w.Cache == nil {
+	if w.Logger == nil || w.ClientFactory == nil || w.Cache == nil {
 		panic("registry.Warmer fields are nil")
 	}
 

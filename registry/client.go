@@ -27,6 +27,13 @@ type Client interface {
 	Manifest(ctx context.Context, ref string) (image.Info, error)
 }
 
+// ClientFactory supplies Client implementations for a given repo,
+// with credentials. This is an interface so we can provide fake
+// implementations.
+type ClientFactory interface {
+	ClientFor(image.CanonicalName, Credentials) (Client, error)
+}
+
 type Remote struct {
 	transport http.RoundTripper
 	repo      image.CanonicalName

@@ -25,6 +25,7 @@ import (
 	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/policy"
 	"github.com/weaveworks/flux/registry"
+	registryMock "github.com/weaveworks/flux/registry/mock"
 	"github.com/weaveworks/flux/remote"
 	"github.com/weaveworks/flux/resource"
 	"github.com/weaveworks/flux/update"
@@ -405,11 +406,13 @@ func mockDaemon(t *testing.T) (*Daemon, func(), *cluster.Mock, *mockEventWriter)
 		img1 := makeImageInfo(currentHelloImage, time.Now())
 		img2 := makeImageInfo(newHelloImage, time.Now().Add(1*time.Second))
 		img3 := makeImageInfo("another/service:latest", time.Now().Add(1*time.Second))
-		imageRegistry = registry.NewMockRegistry([]image.Info{
-			img1,
-			img2,
-			img3,
-		}, nil)
+		imageRegistry = &registryMock.Registry{
+			Images: []image.Info{
+				img1,
+				img2,
+				img3,
+			},
+		}
 	}
 
 	events := &mockEventWriter{}

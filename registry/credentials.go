@@ -55,7 +55,7 @@ func ParseCredentials(b []byte) (Credentials, error) {
 
 		// Some users were passing in credentials in the form of
 		// http://docker.io and http://docker.io/v1/, etc.
-		// So strip everything down to it's base host.
+		// So strip everything down to the host.
 		// Also, the registry might be local and on a different port.
 		// So we need to check for that because url.Parse won't parse the ip:port format very well.
 		u, err := url.Parse(host)

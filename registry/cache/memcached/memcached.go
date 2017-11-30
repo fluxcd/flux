@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	expiry = time.Hour
+	DefaultExpiry = time.Hour
 )
 
 // MemcacheClient is a memcache client that gets its server list from SRV
@@ -26,6 +26,7 @@ type MemcacheClient struct {
 	serverList *memcache.ServerList
 	hostname   string
 	service    string
+	ttl        time.Duration
 	logger     log.Logger
 
 	quit chan struct{}
@@ -36,6 +37,7 @@ type MemcacheClient struct {
 type MemcacheConfig struct {
 	Host           string
 	Service        string
+	Expiry         time.Duration
 	Timeout        time.Duration
 	UpdateInterval time.Duration
 	Logger         log.Logger
@@ -53,8 +55,13 @@ func NewMemcacheClient(config MemcacheConfig) *MemcacheClient {
 		serverList: &servers,
 		hostname:   config.Host,
 		service:    config.Service,
+		ttl:        config.Expiry,
 		logger:     config.Logger,
 		quit:       make(chan struct{}),
+	}
+
+	if newClient.ttl == 0 {
+		newClient.ttl = DefaultExpiry
 	}
 
 	err := newClient.updateMemcacheServers()
@@ -79,8 +86,13 @@ func NewFixedServerMemcacheClient(config MemcacheConfig, addresses ...string) *M
 		serverList: &servers,
 		hostname:   config.Host,
 		service:    config.Service,
+		ttl:        config.Expiry,
 		logger:     config.Logger,
 		quit:       make(chan struct{}),
+	}
+
+	if newClient.ttl == 0 {
+		newClient.ttl = DefaultExpiry
 	}
 
 	return newClient
@@ -104,19 +116,19 @@ func (c *MemcacheClient) GetKey(k cache.Keyer) ([]byte, time.Time, error) {
 			return []byte{}, time.Time{}, err
 		}
 	}
-	expiry := binary.BigEndian.Uint32(cacheItem.Value)
-	return cacheItem.Value[4:], time.Unix(int64(expiry), 0), nil
+	exTime := binary.BigEndian.Uint32(cacheItem.Value)
+	return cacheItem.Value[4:], time.Unix(int64(exTime), 0), nil
 }
 
 // SetKey sets the value at a key.
 func (c *MemcacheClient) SetKey(k cache.Keyer, v []byte) error {
-	expiry := time.Now().Add(expiry).Unix()
-	expiryBytes := make([]byte, 4, 4)
-	binary.BigEndian.PutUint32(expiryBytes, uint32(expiry))
+	exTime := time.Now().Add(c.ttl).Unix()
+	exBytes := make([]byte, 4, 4)
+	binary.BigEndian.PutUint32(exBytes, uint32(exTime))
 	if err := c.client.Set(&memcache.Item{
 		Key:        k.Key(),
-		Value:      append(expiryBytes, v...),
-		Expiration: int32(expiry),
+		Value:      append(exBytes, v...),
+		Expiration: int32(exTime),
 	}); err != nil {
 		c.logger.Log("err", errors.Wrap(err, "storing in memcache"))
 		return err

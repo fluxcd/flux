@@ -89,8 +89,8 @@ func main() {
 		memcachedHostname    = fs.String("memcached-hostname", "", "Hostname for memcached service to use when caching chunks. If empty, no memcached will be used.")
 		memcachedTimeout     = fs.Duration("memcached-timeout", time.Second, "Maximum time to wait before giving up on memcached requests.")
 		memcachedService     = fs.String("memcached-service", "memcached", "SRV service used to discover memcache servers.")
-		registryCacheExpiry  = fs.Duration("registry-cache-expiry", 20*time.Minute, "Duration to keep cached registry tag info. Must be < 1 month.")
-		registryPollInterval = fs.Duration("registry-poll-interval", 5*time.Minute, "period at which to poll registry for new images")
+		registryCacheExpiry  = fs.Duration("registry-cache-expiry", 1*time.Hour, "Duration to keep cached image info. Must be < 1 month.")
+		registryPollInterval = fs.Duration("registry-poll-interval", 5*time.Minute, "period at which to check for updated images")
 		registryRPS          = fs.Int("registry-rps", 200, "maximum registry requests per second per host")
 		registryBurst        = fs.Int("registry-burst", defaultRemoteConnections, "maximum number of warmer connections to remote and memcache")
 
@@ -239,6 +239,7 @@ func main() {
 			memcacheClient := registryMemcache.NewMemcacheClient(registryMemcache.MemcacheConfig{
 				Host:           *memcachedHostname,
 				Service:        *memcachedService,
+				Expiry:         *registryCacheExpiry,
 				Timeout:        *memcachedTimeout,
 				UpdateInterval: 1 * time.Minute,
 				Logger:         log.With(logger, "component", "memcached"),
@@ -269,7 +270,6 @@ func main() {
 		cacheWarmer = &cache.Warmer{
 			Logger:        warmerLogger,
 			ClientFactory: remoteFactory,
-			Expiry:        *registryCacheExpiry,
 			Cache:         cacheClient,
 			Burst:         *registryBurst,
 		}
