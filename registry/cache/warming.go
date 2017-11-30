@@ -48,6 +48,11 @@ func (w *Warmer) Loop(stop <-chan struct{}, wg *sync.WaitGroup, imagesToFetchFun
 	imageCreds := imagesToFetchFunc()
 	backlog := imageCredsToBacklog(imageCreds)
 
+	// We have some fine control over how long to spend on each fetch
+	// operation, since they are given a `context`. For now though,
+	// just rattle through them one by one, however long they take.
+	ctx := context.Background()
+
 	// This loop acts keeps a kind of priority queue, whereby image
 	// names coming in on the `Priority` channel are looked up first.
 	// If there are none, images used in the cluster are refreshed;
@@ -65,7 +70,7 @@ func (w *Warmer) Loop(stop <-chan struct{}, wg *sync.WaitGroup, imagesToFetchFun
 			// image has to have been running the last time we
 			// requested the credentials.
 			if creds, ok := imageCreds[name]; ok {
-				w.warm(name, creds)
+				w.warm(ctx, name, creds)
 			} else {
 				w.Logger.Log("priority", name.String(), "err", "no creds available")
 			}
@@ -76,7 +81,7 @@ func (w *Warmer) Loop(stop <-chan struct{}, wg *sync.WaitGroup, imagesToFetchFun
 		if len(backlog) > 0 {
 			im := backlog[0]
 			backlog = backlog[1:]
-			w.warm(im.Name, im.Credentials)
+			w.warm(ctx, im.Name, im.Credentials)
 		} else {
 			select {
 			case <-refresh:
@@ -98,7 +103,7 @@ func imageCredsToBacklog(imageCreds registry.ImageCreds) []backlogItem {
 	return backlog
 }
 
-func (w *Warmer) warm(id image.Name, creds registry.Credentials) {
+func (w *Warmer) warm(ctx context.Context, id image.Name, creds registry.Credentials) {
 	client, err := w.ClientFactory.ClientFor(id.CanonicalName(), creds)
 	if err != nil {
 		w.Logger.Log("err", err.Error())
@@ -136,7 +141,7 @@ func (w *Warmer) warm(id image.Name, creds registry.Credentials) {
 		}
 	}()
 
-	tags, err := client.Tags()
+	tags, err := client.Tags(ctx)
 	if err != nil {
 		if !strings.Contains(err.Error(), context.DeadlineExceeded.Error()) && !strings.Contains(err.Error(), "net/http: request canceled") {
 			w.Logger.Log("err", errors.Wrap(err, "requesting tags"))
@@ -182,13 +187,19 @@ func (w *Warmer) warm(id image.Name, creds registry.Credentials) {
 		// w.Burst, so limit the number of fetching goroutines to that.
 		fetchers := make(chan struct{}, w.Burst)
 		awaitFetchers := &sync.WaitGroup{}
+	updates:
 		for _, imID := range toUpdate {
+			select {
+			case <-ctx.Done():
+				break updates
+			case fetchers <- struct{}{}:
+			}
+
 			awaitFetchers.Add(1)
-			fetchers <- struct{}{}
 			go func(imageID image.Ref) {
 				defer func() { awaitFetchers.Done(); <-fetchers }()
 				// Get the image from the remote
-				img, err := client.Manifest(imageID.Tag)
+				img, err := client.Manifest(ctx, imageID.Tag)
 				if err != nil {
 					if err, ok := errors.Cause(err).(net.Error); ok && err.Timeout() {
 						// This was due to a context timeout, don't bother logging

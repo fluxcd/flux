@@ -1,6 +1,8 @@
 package registry
 
 import (
+	"context"
+
 	"github.com/pkg/errors"
 
 	"github.com/weaveworks/flux/image"
@@ -31,11 +33,11 @@ func NewMockClient(manifest ManifestFunc, tags TagsFunc) Client {
 	}
 }
 
-func (m *mockDockerClient) Manifest(tag string) (image.Info, error) {
+func (m *mockDockerClient) Manifest(ctx context.Context, tag string) (image.Info, error) {
 	return m.manifest(tag)
 }
 
-func (m *mockDockerClient) Tags() ([]string, error) {
+func (m *mockDockerClient) Tags(context.Context) ([]string, error) {
 	return m.tags()
 }
 
