@@ -482,12 +482,17 @@ func containersWithAvailable(service cluster.Controller, images update.ImageMap)
 	for _, c := range service.ContainersOrNil() {
 		im, _ := image.ParseRef(c.Image)
 		available := images.Available(im.Name)
+		availableErr := ""
+		if available == nil {
+			availableErr = registry.ErrNoImageData.Error()
+		}
 		res = append(res, flux.Container{
 			Name: c.Name,
 			Current: image.Info{
 				ID: im,
 			},
-			Available: available,
+			Available:      available,
+			AvailableError: availableErr,
 		})
 	}
 	return res
