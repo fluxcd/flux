@@ -134,7 +134,29 @@ func (d *Daemon) ListImages(ctx context.Context, spec update.ResourceSpec) ([]fl
 // run), leave the revision field empty.
 type DaemonJobFunc func(ctx context.Context, jobID job.ID, working *git.Checkout, logger log.Logger) (*event.CommitEventMetadata, error)
 
-// Must cancel the context once this job is complete
+// executeJob runs a job func in a cloned working directory, keeping track of its status.
+func (d *Daemon) executeJob(id job.ID, do DaemonJobFunc, logger log.Logger) (*event.CommitEventMetadata, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), defaultJobTimeout)
+	defer cancel()
+	d.JobStatusCache.SetStatus(id, job.Status{StatusString: job.StatusRunning})
+	// make a working clone so we don't mess with files we
+	// will be reading from elsewhere
+	working, err := d.Checkout.WorkingClone(ctx)
+	if err != nil {
+		d.JobStatusCache.SetStatus(id, job.Status{StatusString: job.StatusFailed, Err: err.Error()})
+		return nil, err
+	}
+	defer working.Clean()
+	metadata, err := do(ctx, id, working, logger)
+	if err != nil {
+		d.JobStatusCache.SetStatus(id, job.Status{StatusString: job.StatusFailed, Err: err.Error()})
+		return metadata, err
+	}
+	d.JobStatusCache.SetStatus(id, job.Status{StatusString: job.StatusSucceeded, Result: *metadata})
+	return metadata, nil
+}
+
+// queueJob queues a job func to be executed.
 func (d *Daemon) queueJob(do DaemonJobFunc) job.ID {
 	id := job.ID(guid.New())
 	enqueuedAt := time.Now()
@@ -143,23 +165,10 @@ func (d *Daemon) queueJob(do DaemonJobFunc) job.ID {
 		Do: func(logger log.Logger) error {
 			queueDuration.Observe(time.Since(enqueuedAt).Seconds())
 			started := time.Now().UTC()
-			ctx, cancel := context.WithTimeout(context.Background(), defaultJobTimeout)
-			defer cancel()
-			d.JobStatusCache.SetStatus(id, job.Status{StatusString: job.StatusRunning})
-			// make a working clone so we don't mess with files we
-			// will be reading from elsewhere
-			working, err := d.Checkout.WorkingClone(ctx)
+			metadata, err := d.executeJob(id, do, logger)
 			if err != nil {
-				d.JobStatusCache.SetStatus(id, job.Status{StatusString: job.StatusFailed, Err: err.Error()})
 				return err
 			}
-			defer working.Clean()
-			metadata, err := do(ctx, id, working, logger)
-			if err != nil {
-				d.JobStatusCache.SetStatus(id, job.Status{StatusString: job.StatusFailed, Err: err.Error()})
-				return err
-			}
-			d.JobStatusCache.SetStatus(id, job.Status{StatusString: job.StatusSucceeded, Result: *metadata})
 			logger.Log("revision", metadata.Revision)
 			if metadata.Revision != "" {
 				var serviceIDs []flux.ResourceID
@@ -193,6 +202,11 @@ func (d *Daemon) UpdateManifests(ctx context.Context, spec update.Spec) (job.ID,
 	}
 	switch s := spec.Spec.(type) {
 	case release.Changes:
+		if s.ReleaseKind() == update.ReleaseKindPlan {
+			id := job.ID(guid.New())
+			_, err := d.executeJob(id, d.release(spec, s), d.Logger)
+			return id, err
+		}
 		return d.queueJob(d.release(spec, s)), nil
 	case policy.Updates:
 		return d.queueJob(d.updatePolicy(spec, s)), nil
