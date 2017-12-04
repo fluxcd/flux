@@ -148,7 +148,10 @@ func (c *Checkout) ManifestDir() string {
 func (c *Checkout) CheckOriginWritable(ctx context.Context) error {
 	c.Lock()
 	defer c.Unlock()
-	return checkPush(ctx, c.repo.KeyRing, c.Dir, c.repo.URL)
+	if err := checkPush(ctx, c.repo.KeyRing, c.Dir, c.repo.URL); err != nil {
+		return ErrUpstreamNotWritable(c.repo.URL, err)
+	}
+	return nil
 }
 
 // CommitAndPush commits changes made in this checkout, along with any
