@@ -370,6 +370,11 @@ func main() {
 			ctx, cancel := context.WithTimeout(context.Background(), git.DefaultCloneTimeout)
 			working, err := repo.Clone(ctx, gitConfig)
 			cancel()
+			if err == nil {
+				ctx, cancel = context.WithTimeout(context.Background(), git.DefaultCloneTimeout)
+				err = working.CheckOriginWritable(ctx)
+				cancel()
+			}
 			if err != nil {
 				if checker == nil {
 					checker = checkForUpdates(clusterVersion, "false", updateCheckLogger)

@@ -16,6 +16,7 @@ import (
 
 const (
 	DefaultCloneTimeout = 2 * time.Minute
+	CheckPushTag        = "flux-write-check"
 )
 
 var (
@@ -139,6 +140,15 @@ func (c *Checkout) Clean() {
 // ManifestDir returns a path to where the files are
 func (c *Checkout) ManifestDir() string {
 	return filepath.Join(c.Dir, c.repo.Path)
+}
+
+// CheckOriginWritable tests that we can write to the origin
+// repository; we need to be able to do this to push the sync tag, for
+// example.
+func (c *Checkout) CheckOriginWritable(ctx context.Context) error {
+	c.Lock()
+	defer c.Unlock()
+	return checkPush(ctx, c.repo.KeyRing, c.Dir, c.repo.URL)
 }
 
 // CommitAndPush commits changes made in this checkout, along with any
