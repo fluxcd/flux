@@ -10,6 +10,10 @@ import (
 	"github.com/weaveworks/flux/update"
 )
 
+// Ref is a cell containing a platform implementation, that we can
+// update atomically. The point of this is to be able to have a
+// platform in use (e.g., answering RPCs), and swap it later when the
+// state changes.
 type Ref struct {
 	sync.RWMutex
 	platform remote.Platform

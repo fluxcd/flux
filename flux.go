@@ -287,7 +287,20 @@ type GitRemoteConfig struct {
 	Path   string `json:"path"`
 }
 
+// GitRepoStatus represents the progress made synchronising with a git
+// repo. These are given below in expected order, but the status may
+// go backwards if e.g., a deploy key is deleted.
+type GitRepoStatus string
+
+const (
+	RepoNoConfig GitRepoStatus = "unconfigured" // configuration is empty
+	RepoNew                    = "new"          // no attempt made to clone it yet
+	RepoCloned                 = "cloned"       // has been read (cloned); no attempt made to write
+	RepoReady                  = "ready"        // has been written to, so ready to sync
+)
+
 type GitConfig struct {
 	Remote       GitRemoteConfig `json:"remote"`
 	PublicSSHKey ssh.PublicKey   `json:"publicSSHKey"`
+	Status       GitRepoStatus   `json:"status"`
 }
