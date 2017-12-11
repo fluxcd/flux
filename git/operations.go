@@ -42,6 +42,20 @@ func clone(ctx context.Context, workingDir string, keyRing ssh.KeyRing, repoURL,
 	return repoPath, nil
 }
 
+// checkPush sanity-checks that we can write to the upstream repo with
+// the given keyring (being able to `clone` is an adequate check that
+// we can read the upstream).
+func checkPush(ctx context.Context, keyRing ssh.KeyRing, workingDir, upstream string) error {
+	// --force just in case we fetched the tag from upstream when cloning
+	if err := execGitCmd(ctx, workingDir, nil, nil, "tag", "--force", CheckPushTag); err != nil {
+		return errors.Wrap(err, "tag for write check")
+	}
+	if err := execGitCmd(ctx, workingDir, keyRing, nil, "push", "--force", upstream, "tag", CheckPushTag); err != nil {
+		return errors.Wrap(err, "attempt to push tag")
+	}
+	return execGitCmd(ctx, workingDir, keyRing, nil, "push", "-d", upstream, "tag", CheckPushTag)
+}
+
 func commit(ctx context.Context, workingDir string, commitAction *CommitAction) error {
 	commitAuthor := commitAction.Author
 	if commitAuthor != "" {
