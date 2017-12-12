@@ -34,8 +34,8 @@ const (
 	defaultJobTimeout = 60 * time.Second
 )
 
-// Combine these things to form Devasta^Wan implementation of
-// Platform.
+// Daemon is the fully-functional state of a daemon (compare to
+// `NotReadyDaemon`).
 type Daemon struct {
 	V              string
 	Cluster        cluster.Cluster
@@ -421,6 +421,7 @@ func (d *Daemon) GitRepoConfig(ctx context.Context, regenerate bool) (flux.GitCo
 	return flux.GitConfig{
 		Remote:       d.Repo.GitRemoteConfig,
 		PublicSSHKey: publicSSHKey,
+		Status:       flux.RepoReady,
 	}, nil
 }
 

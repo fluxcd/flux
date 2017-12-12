@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -294,9 +293,7 @@ func main() {
 		os.Exit(1)
 	}
 	// Indirect reference to a daemon, initially of the NotReady variety
-	notReadyDaemon := daemon.NewNotReadyDaemon(
-		version, k8s, gitRemoteConfig, errors.New("waiting to clone repo"))
-
+	notReadyDaemon := daemon.NewNotReadyDaemon(version, k8s, gitRemoteConfig)
 	daemonRef := daemon.NewRef(notReadyDaemon)
 
 	var eventWriter event.EventWriter
@@ -326,11 +323,28 @@ func main() {
 	}
 
 	// Mechanical components.
+
+	// When we can receive from this channel, it indicates that we
+	// are ready to shut down.
 	errc := make(chan error)
+	// This signals other routines to shut down;
+	shutdown := make(chan struct{})
+	// .. and this is to wait for other routines to shut down cleanly.
+	shutdownWg := &sync.WaitGroup{}
+
 	go func() {
 		c := make(chan os.Signal)
 		signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
 		errc <- fmt.Errorf("%s", <-c)
+	}()
+
+	// This means we can return, and it will use the shutdown
+	// protocol.
+	defer func() {
+		// wait here until stopping.
+		logger.Log("exiting", <-errc)
+		close(shutdown)
+		shutdownWg.Wait()
 	}()
 
 	// HTTP transport component, for metrics
@@ -366,23 +380,25 @@ func main() {
 			SetAuthor: *gitSetAuthor,
 		}
 
+		// If there's no URL here, we will not be able to do anything else.
+		if gitRemoteConfig.URL == "" {
+			checker = checkForUpdates(clusterVersion, "false", updateCheckLogger)
+			return
+		}
+
 		for checkout == nil {
+			var stage flux.GitRepoStatus = flux.RepoNew
 			ctx, cancel := context.WithTimeout(context.Background(), git.DefaultCloneTimeout)
 			working, err := repo.Clone(ctx, gitConfig)
 			cancel()
 			if err == nil {
+				stage = flux.RepoCloned
 				ctx, cancel = context.WithTimeout(context.Background(), git.DefaultCloneTimeout)
 				err = working.CheckOriginWritable(ctx)
 				cancel()
 			}
-			if err != nil {
-				if checker == nil {
-					checker = checkForUpdates(clusterVersion, "false", updateCheckLogger)
-				}
-				logger.Log("component", "git", "err", err.Error())
-				notReadyDaemon.UpdateReason(err)
-				time.Sleep(10 * time.Second)
-			} else {
+			if err == nil {
+				notReadyDaemon.UpdateStatus(flux.RepoReady, nil)
 				if checker != nil {
 					checker.Stop()
 				}
@@ -394,12 +410,25 @@ func main() {
 					"notes-ref", *gitNotesRef,
 					"set-author", *gitSetAuthor)
 				checkout = working
+				break
+			}
+
+			notReadyDaemon.UpdateStatus(stage, err)
+			if checker == nil {
+				checker = checkForUpdates(clusterVersion, "false", updateCheckLogger)
+			}
+			logger.Log("component", "git", "err", err.Error())
+
+			tryAgain := time.NewTimer(10 * time.Second)
+			select {
+			case err := <-errc:
+				go func() { errc <- err }()
+				return
+			case <-tryAgain.C:
+				continue
 			}
 		}
 	}
-
-	shutdown := make(chan struct{})
-	shutdownWg := &sync.WaitGroup{}
 
 	var jobs *job.Queue
 	{
@@ -434,8 +463,5 @@ func main() {
 	// Update daemonRef so that upstream and handlers point to fully working daemon
 	daemonRef.UpdatePlatform(daemon)
 
-	// Go!
-	logger.Log("exiting", <-errc)
-	close(shutdown)
-	shutdownWg.Wait()
+	// Fall off the end, into the waiting procedure.
 }

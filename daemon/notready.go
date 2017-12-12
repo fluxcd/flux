@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"context"
+	"errors"
 	"sync"
 
 	"github.com/weaveworks/flux"
@@ -18,15 +19,21 @@ type NotReadyDaemon struct {
 	version   string
 	cluster   cluster.Cluster
 	gitRemote flux.GitRemoteConfig
+	gitStatus flux.GitRepoStatus
 	reason    error
 }
 
-func NewNotReadyDaemon(version string, cluster cluster.Cluster, gitRemote flux.GitRemoteConfig, reason error) (nrd *NotReadyDaemon) {
+// NotReadyDaemon is a state of the daemon that has not proceeded past
+// getting the git repo set up. Since this typically needs some
+// actions on the part of the user, this state can last indefinitely;
+// so, it has its own code.
+func NewNotReadyDaemon(version string, cluster cluster.Cluster, gitRemote flux.GitRemoteConfig) (nrd *NotReadyDaemon) {
 	return &NotReadyDaemon{
 		version:   version,
 		cluster:   cluster,
 		gitRemote: gitRemote,
-		reason:    reason,
+		gitStatus: flux.RepoNoConfig,
+		reason:    errors.New("git repo is not configured"),
 	}
 }
 
@@ -36,8 +43,9 @@ func (nrd *NotReadyDaemon) Reason() error {
 	return nrd.reason
 }
 
-func (nrd *NotReadyDaemon) UpdateReason(reason error) {
+func (nrd *NotReadyDaemon) UpdateStatus(status flux.GitRepoStatus, reason error) {
 	nrd.Lock()
+	nrd.gitStatus = status
 	nrd.reason = reason
 	nrd.Unlock()
 }
@@ -86,8 +94,11 @@ func (nrd *NotReadyDaemon) GitRepoConfig(ctx context.Context, regenerate bool) (
 	if err != nil {
 		return flux.GitConfig{}, err
 	}
+	nrd.RLock()
+	defer nrd.RUnlock()
 	return flux.GitConfig{
 		Remote:       nrd.gitRemote,
 		PublicSSHKey: publicSSHKey,
+		Status:       nrd.gitStatus,
 	}, nil
 }
