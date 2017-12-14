@@ -50,13 +50,6 @@ type apiObject struct {
 	} `yaml:"metadata"`
 }
 
-func (obj *apiObject) namespaceOrDefault() string {
-	if obj.Metadata.Namespace == "" {
-		return "default"
-	}
-	return obj.Metadata.Namespace
-}
-
 // --- add-ons
 
 // Kubernetes has a mechanism of "Add-ons", whereby manifest files

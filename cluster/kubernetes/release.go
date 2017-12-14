@@ -75,9 +75,9 @@ func (c *Kubectl) doCommand(logger log.Logger, newDefinition []byte, args ...str
 }
 
 func (c *Kubectl) Delete(logger log.Logger, obj *apiObject) error {
-	return c.doCommand(logger, obj.bytes, "--namespace", obj.namespaceOrDefault(), "delete", "-f", "-")
+	return c.doCommand(logger, obj.bytes, "delete", "-f", "-")
 }
 
 func (c *Kubectl) Apply(logger log.Logger, obj *apiObject) error {
-	return c.doCommand(logger, obj.bytes, "--namespace", obj.namespaceOrDefault(), "apply", "-f", "-")
+	return c.doCommand(logger, obj.bytes, "apply", "-f", "-")
 }
