@@ -14,6 +14,7 @@ import (
 type WWWAuthenticateFixer struct {
 	Transport   http.RoundTripper
 	tokenHeader string
+	tokenDomain string
 }
 
 func (t *WWWAuthenticateFixer) RoundTrip(req *http.Request) (*http.Response, error) {
@@ -52,11 +53,12 @@ func (t *WWWAuthenticateFixer) maybeAddToken(req *http.Request) {
 		if strings.EqualFold(h[:7], "bearer ") {
 			if t.tokenHeader == "" {
 				t.tokenHeader = h
+				t.tokenDomain = req.URL.Host
 			}
 			return
 		}
 	}
-	if t.tokenHeader != "" {
+	if req.URL.Host == t.tokenDomain && t.tokenHeader != "" {
 		req.Header.Set("Authorization", t.tokenHeader)
 	}
 }
