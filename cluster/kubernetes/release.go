@@ -9,16 +9,23 @@ import (
 
 	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
+	"github.com/weaveworks/flux/cluster"
 	rest "k8s.io/client-go/rest"
 )
-
-func NewKubectl(exe string, config *rest.Config) *Kubectl {
-	return &Kubectl{exe, config}
-}
 
 type Kubectl struct {
 	exe    string
 	config *rest.Config
+
+	*changeSet
+}
+
+func NewKubectl(exe string, config *rest.Config) *Kubectl {
+	return &Kubectl{
+		exe:       exe,
+		config:    config,
+		changeSet: newChangeSet(),
+	}
 }
 
 func (c *Kubectl) connectArgs() []string {
@@ -47,8 +54,32 @@ func (c *Kubectl) connectArgs() []string {
 	return args
 }
 
-func (c *Kubectl) kubectlCommand(args ...string) *exec.Cmd {
-	return exec.Command(c.exe, append(c.connectArgs(), args...)...)
+func (c *Kubectl) execute(logger log.Logger, errs cluster.SyncError) error {
+	for id, obj := range c.deleteObjs {
+		logger := log.With(logger, "resource", id)
+		if err := c.delete(logger, obj); err != nil {
+			errs[id] = err
+		}
+	}
+	for id, obj := range c.applyObjs {
+		logger := log.With(logger, "resource", id)
+		if err := c.apply(logger, obj); err != nil {
+			errs[id] = err
+		}
+	}
+	c.changeSet = newChangeSet()
+	if len(errs) != 0 {
+		return errs
+	}
+	return nil
+}
+
+func (c *Kubectl) delete(logger log.Logger, obj *apiObject) error {
+	return c.doCommand(logger, obj.bytes, "delete", "-f", "-")
+}
+
+func (c *Kubectl) apply(logger log.Logger, obj *apiObject) error {
+	return c.doCommand(logger, obj.bytes, "apply", "-f", "-")
 }
 
 func (c *Kubectl) doCommand(logger log.Logger, newDefinition []byte, args ...string) error {
@@ -69,10 +100,24 @@ func (c *Kubectl) doCommand(logger log.Logger, newDefinition []byte, args ...str
 	return err
 }
 
-func (c *Kubectl) Delete(logger log.Logger, obj *apiObject) error {
-	return c.doCommand(logger, obj.bytes, "delete", "-f", "-")
+func (c *Kubectl) kubectlCommand(args ...string) *exec.Cmd {
+	return exec.Command(c.exe, append(c.connectArgs(), args...)...)
 }
 
-func (c *Kubectl) Apply(logger log.Logger, obj *apiObject) error {
-	return c.doCommand(logger, obj.bytes, "apply", "-f", "-")
+type changeSet struct {
+	deleteObjs, applyObjs map[string]*apiObject
+}
+
+func newChangeSet() *changeSet {
+	return &changeSet{
+		deleteObjs: make(map[string]*apiObject),
+		applyObjs:  make(map[string]*apiObject),
+	}
+}
+func (c *changeSet) stageDelete(id string, obj *apiObject) {
+	c.deleteObjs[id] = obj
+}
+
+func (c *changeSet) stageApply(id string, obj *apiObject) {
+	c.applyObjs[id] = obj
 }

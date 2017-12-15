@@ -80,8 +80,11 @@ func isAddon(obj namespacedLabeled) bool {
 // --- /add ons
 
 type Applier interface {
-	Delete(logger log.Logger, def *apiObject) error
-	Apply(logger log.Logger, def *apiObject) error
+	delete(log.Logger, *apiObject) error
+	apply(log.Logger, *apiObject) error
+	stageDelete(string, *apiObject)
+	stageApply(string, *apiObject)
+	execute(log.Logger, cluster.SyncError) error
 }
 
 // Cluster is a handle to a Kubernetes API server.
@@ -204,11 +207,10 @@ func (c *Cluster) Sync(spec cluster.SyncDef) error {
 	c.actionc <- func() {
 		errs := cluster.SyncError{}
 		for _, action := range spec.Actions {
-			logger := log.With(logger, "resource", action.ResourceID)
 			if len(action.Delete) > 0 {
 				obj, err := definitionObj(action.Delete)
 				if err == nil {
-					err = c.applier.Delete(logger, obj)
+					c.applier.stageDelete(action.ResourceID, obj)
 				}
 				if err != nil {
 					errs[action.ResourceID] = err
@@ -218,7 +220,7 @@ func (c *Cluster) Sync(spec cluster.SyncDef) error {
 			if len(action.Apply) > 0 {
 				obj, err := definitionObj(action.Apply)
 				if err == nil {
-					err = c.applier.Apply(logger, obj)
+					c.applier.stageApply(action.ResourceID, obj)
 				}
 				if err != nil {
 					errs[action.ResourceID] = err
@@ -226,11 +228,7 @@ func (c *Cluster) Sync(spec cluster.SyncDef) error {
 				}
 			}
 		}
-		if len(errs) > 0 {
-			errc <- errs
-		} else {
-			errc <- nil
-		}
+		errc <- c.applier.execute(logger, errs)
 	}
 	return <-errc
 }
