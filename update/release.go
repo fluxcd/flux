@@ -46,7 +46,7 @@ func ParseReleaseKind(s string) (ReleaseKind, error) {
 const UserAutomated = "<automated>"
 
 type ReleaseContext interface {
-	SelectServices(Result, ...ControllerFilter) ([]*ControllerUpdate, error)
+	SelectServices(Result, []ControllerFilter, []ControllerFilter) ([]*ControllerUpdate, error)
 	ServicesWithPolicies() (policy.ResourceMap, error)
 	Registry() registry.Registry
 	Manifests() cluster.Manifests
@@ -109,30 +109,17 @@ func (s ReleaseSpec) CommitMessage() string {
 // repo. Fill in the release results along the way.
 func (s ReleaseSpec) selectServices(rc ReleaseContext, results Result) ([]*ControllerUpdate, error) {
 	// Build list of filters
-	filtList, err := s.filters(rc)
+	prefilters, postfilters, err := s.filters(rc)
 	if err != nil {
 		return nil, err
 	}
 	// Find and filter services
-	return rc.SelectServices(
-		results,
-		filtList...,
-	)
+	return rc.SelectServices(results, prefilters, postfilters)
 }
 
-// filters converts a ReleaseSpec (and Lock config) into ServiceFilters
-func (s ReleaseSpec) filters(rc ReleaseContext) ([]ControllerFilter, error) {
-	// Image filter
-	var filtList []ControllerFilter
-	if s.ImageSpec != ImageSpecLatest {
-		id, err := image.ParseRef(s.ImageSpec.String())
-		if err != nil {
-			return nil, err
-		}
-		filtList = append(filtList, &SpecificImageFilter{id})
-	}
+func (s ReleaseSpec) filters(rc ReleaseContext) ([]ControllerFilter, []ControllerFilter, error) {
+	var prefilters, postfilters []ControllerFilter
 
-	// Service filter
 	ids := []flux.ResourceID{}
 	for _, s := range s.ServiceSpecs {
 		if s == ResourceSpecAll {
@@ -142,27 +129,37 @@ func (s ReleaseSpec) filters(rc ReleaseContext) ([]ControllerFilter, error) {
 		}
 		id, err := flux.ParseResourceID(string(s))
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		ids = append(ids, id)
 	}
 	if len(ids) > 0 {
-		filtList = append(filtList, &IncludeFilter{ids})
+		prefilters = append(prefilters, &IncludeFilter{ids})
 	}
 
 	// Exclude filter
 	if len(s.Excludes) > 0 {
-		filtList = append(filtList, &ExcludeFilter{s.Excludes})
+		prefilters = append(prefilters, &ExcludeFilter{s.Excludes})
+	}
+
+	// Image filter
+	if s.ImageSpec != ImageSpecLatest {
+		id, err := image.ParseRef(s.ImageSpec.String())
+		if err != nil {
+			return nil, nil, err
+		}
+		postfilters = append(postfilters, &SpecificImageFilter{id})
 	}
 
 	// Locked filter
 	services, err := rc.ServicesWithPolicies()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	lockedSet := services.OnlyWithPolicy(policy.Locked)
-	filtList = append(filtList, &LockedFilter{lockedSet.ToSlice()})
-	return filtList, nil
+	postfilters = append(postfilters, &LockedFilter{lockedSet.ToSlice()})
+
+	return prefilters, postfilters, nil
 }
 
 func (s ReleaseSpec) markSkipped(results Result) {

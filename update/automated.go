@@ -25,13 +25,12 @@ func (a *Automated) Add(service flux.ResourceID, container cluster.Container, im
 }
 
 func (a *Automated) CalculateRelease(rc ReleaseContext, logger log.Logger) ([]*ControllerUpdate, Result, error) {
-	filters, err := a.filters(rc)
-	if err != nil {
-		return nil, nil, err
+	prefilters := []ControllerFilter{
+		&IncludeFilter{a.serviceIDs()},
 	}
 
 	result := Result{}
-	updates, err := rc.SelectServices(result, filters...)
+	updates, err := rc.SelectServices(result, prefilters, nil)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -71,12 +70,6 @@ func (a *Automated) Images() []image.Ref {
 		images = append(images, image)
 	}
 	return images
-}
-
-func (a *Automated) filters(rc ReleaseContext) ([]ControllerFilter, error) {
-	return []ControllerFilter{
-		&IncludeFilter{a.serviceIDs()},
-	}, nil
 }
 
 func (a *Automated) markSkipped(results Result) {
