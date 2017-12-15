@@ -42,11 +42,9 @@ type extendedClient struct {
 
 type apiObject struct {
 	bytes    []byte
-	Version  string `yaml:"apiVersion"`
 	Kind     string `yaml:"kind"`
 	Metadata struct {
-		Name      string `yaml:"name"`
-		Namespace string `yaml:"namespace"`
+		Name string `yaml:"name"`
 	} `yaml:"metadata"`
 }
 
@@ -110,7 +108,8 @@ func NewCluster(clientset k8sclient.Interface,
 			clientset.Core(),
 			clientset.Extensions(),
 			clientset.AppsV1beta1(),
-			clientset.BatchV2alpha1()},
+			clientset.BatchV2alpha1(),
+		},
 		applier:    applier,
 		actionc:    make(chan func()),
 		logger:     logger,
