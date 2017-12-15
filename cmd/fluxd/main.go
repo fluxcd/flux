@@ -209,7 +209,7 @@ func main() {
 		}
 		logger.Log("kubectl", kubectl)
 
-		kubectlApplier := kubernetes.NewKubectl(kubectl, restClientConfig, os.Stdout, os.Stderr)
+		kubectlApplier := kubernetes.NewKubectl(kubectl, restClientConfig)
 		k8s_inst, err := kubernetes.NewCluster(clientset, kubectlApplier, sshKeyRing, logger)
 		if err != nil {
 			logger.Log("err", err)
