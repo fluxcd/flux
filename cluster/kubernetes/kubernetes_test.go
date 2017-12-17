@@ -33,11 +33,6 @@ import (
 	"github.com/weaveworks/flux/cluster"
 )
 
-type command struct {
-	action string
-	def    string
-}
-
 type mockClientset struct {
 }
 
@@ -182,7 +177,7 @@ func (m *mockClientset) Storage() storagev1.StorageV1Interface {
 }
 
 type mockApplier struct {
-	commands  []command
+	commands  []string
 	applyErr  error
 	createErr error
 	deleteErr error
@@ -190,30 +185,27 @@ type mockApplier struct {
 	*changeSet
 }
 
-func (m *mockApplier) apply(logger log.Logger, obj *apiObject) error {
-	m.commands = append(m.commands, command{"apply", string(obj.Metadata.Name)})
+func (m *mockApplier) apply(_ log.Logger, _ []byte) error {
+	m.commands = append(m.commands, "apply")
 	return m.applyErr
 }
 
-func (m *mockApplier) delete(logger log.Logger, obj *apiObject) error {
-	m.commands = append(m.commands, command{"delete", string(obj.Metadata.Name)})
+func (m *mockApplier) delete(_ log.Logger, _ []byte) error {
+	m.commands = append(m.commands, "delete")
 	return m.deleteErr
 }
 
-func (m *mockApplier) execute(logger log.Logger, errs cluster.SyncError) error {
-	for id, obj := range m.deleteObjs {
-		logger := log.With(logger, "resource", id)
-		if err := m.delete(logger, obj); err != nil {
+func (m *mockApplier) execute(_ log.Logger, errs cluster.SyncError) error {
+	for id, _ := range m.deleteObjs {
+		if err := m.delete(nil, nil); err != nil {
 			errs[id] = err
 		}
 	}
-	for id, obj := range m.applyObjs {
-		logger := log.With(logger, "resource", id)
-		if err := m.apply(logger, obj); err != nil {
+	for id, _ := range m.applyObjs {
+		if err := m.apply(nil, nil); err != nil {
 			errs[id] = err
 		}
 	}
-	m.changeSet = newChangeSet()
 	if len(errs) != 0 {
 		return errs
 	}
@@ -224,9 +216,7 @@ func deploymentDef(name string) []byte {
 	return []byte(`---
 kind: Deployment
 metadata:
-  name: ` + name + `
-  namespace: test-ns
-`)
+  name: ` + name)
 }
 
 // ---
@@ -285,9 +275,9 @@ func TestSyncOrder(t *testing.T) {
 		t.Error(err)
 	}
 
-	expected := []command{
-		command{"delete", "delete first"},
-		command{"apply", "apply last"},
+	expected := []string{
+		"delete",
+		"apply",
 	}
 	if !reflect.DeepEqual(expected, mock.commands) {
 		t.Errorf("expected commands:\n%#v\ngot:\n%#v", expected, mock.commands)

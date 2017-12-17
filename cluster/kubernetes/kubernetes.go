@@ -80,8 +80,8 @@ func isAddon(obj namespacedLabeled) bool {
 // --- /add ons
 
 type Applier interface {
-	delete(log.Logger, *apiObject) error
-	apply(log.Logger, *apiObject) error
+	delete(log.Logger, []byte) error
+	apply(log.Logger, []byte) error
 	stageDelete(string, *apiObject)
 	stageApply(string, *apiObject)
 	execute(log.Logger, cluster.SyncError) error

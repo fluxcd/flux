@@ -57,13 +57,13 @@ func (c *Kubectl) connectArgs() []string {
 func (c *Kubectl) execute(logger log.Logger, errs cluster.SyncError) error {
 	for id, obj := range c.deleteObjs {
 		logger := log.With(logger, "resource", id)
-		if err := c.delete(logger, obj); err != nil {
+		if err := c.delete(logger, obj.bytes); err != nil {
 			errs[id] = err
 		}
 	}
 	for id, obj := range c.applyObjs {
 		logger := log.With(logger, "resource", id)
-		if err := c.apply(logger, obj); err != nil {
+		if err := c.apply(logger, obj.bytes); err != nil {
 			errs[id] = err
 		}
 	}
@@ -74,12 +74,12 @@ func (c *Kubectl) execute(logger log.Logger, errs cluster.SyncError) error {
 	return nil
 }
 
-func (c *Kubectl) delete(logger log.Logger, obj *apiObject) error {
-	return c.doCommand(logger, obj.bytes, "delete", "-f", "-")
+func (c *Kubectl) delete(logger log.Logger, b []byte) error {
+	return c.doCommand(logger, b, "delete", "-f", "-")
 }
 
-func (c *Kubectl) apply(logger log.Logger, obj *apiObject) error {
-	return c.doCommand(logger, obj.bytes, "apply", "-f", "-")
+func (c *Kubectl) apply(logger log.Logger, b []byte) error {
+	return c.doCommand(logger, b, "apply", "-f", "-")
 }
 
 func (c *Kubectl) doCommand(logger log.Logger, newDefinition []byte, args ...string) error {
