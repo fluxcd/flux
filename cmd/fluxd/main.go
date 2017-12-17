@@ -146,7 +146,7 @@ func main() {
 	var clusterVersion string
 	var sshKeyRing ssh.KeyRing
 	var k8s cluster.Cluster
-	var image_creds func() registry.ImageCreds
+	var imageCreds func() registry.ImageCreds
 	var k8sManifests cluster.Manifests
 	{
 		restClientConfig, err := rest.InClusterConfig()
@@ -218,7 +218,7 @@ func main() {
 			logger.Log("ping", true)
 		}
 
-		image_creds = k8sInst.ImagesToFetch
+		imageCreds = k8sInst.ImagesToFetch
 		k8s = k8sInst
 		// There is only one way we currently interpret a repo of
 		// files as manifests, and that's as Kubernetes yamels.
@@ -439,7 +439,7 @@ func main() {
 	cacheWarmer.Notify = daemon.AskForImagePoll
 	cacheWarmer.Priority = daemon.ImageRefresh
 	shutdownWg.Add(1)
-	go cacheWarmer.Loop(log.With(logger, "component", "warmer"), shutdown, shutdownWg, image_creds)
+	go cacheWarmer.Loop(log.With(logger, "component", "warmer"), shutdown, shutdownWg, imageCreds)
 
 	// Update daemonRef so that upstream and handlers point to fully working daemon
 	daemonRef.UpdatePlatform(daemon)
