@@ -99,12 +99,11 @@ type Cluster struct {
 	mu sync.Mutex
 }
 
-// NewCluster returns a usable cluster. Host should be of the form
-// "http://hostname:8080".
+// NewCluster returns a usable cluster.
 func NewCluster(clientset k8sclient.Interface,
 	applier Applier,
 	sshKeyRing ssh.KeyRing,
-	logger log.Logger) (*Cluster, error) {
+	logger log.Logger) *Cluster {
 
 	c := &Cluster{
 		client: extendedClient{
@@ -119,7 +118,7 @@ func NewCluster(clientset k8sclient.Interface,
 		sshKeyRing: sshKeyRing,
 	}
 
-	return c, nil
+	return c
 }
 
 // --- cluster.Cluster

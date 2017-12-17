@@ -210,20 +210,16 @@ func main() {
 		logger.Log("kubectl", kubectl)
 
 		kubectlApplier := kubernetes.NewKubectl(kubectl, restClientConfig)
-		k8s_inst, err := kubernetes.NewCluster(clientset, kubectlApplier, sshKeyRing, logger)
-		if err != nil {
-			logger.Log("err", err)
-			os.Exit(1)
-		}
+		k8sInst := kubernetes.NewCluster(clientset, kubectlApplier, sshKeyRing, logger)
 
-		if err := k8s_inst.Ping(); err != nil {
+		if err := k8sInst.Ping(); err != nil {
 			logger.Log("ping", err)
 		} else {
 			logger.Log("ping", true)
 		}
 
-		image_creds = k8s_inst.ImagesToFetch
-		k8s = k8s_inst
+		image_creds = k8sInst.ImagesToFetch
+		k8s = k8sInst
 		// There is only one way we currently interpret a repo of
 		// files as manifests, and that's as Kubernetes yamels.
 		k8sManifests = &kubernetes.Manifests{}
