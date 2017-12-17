@@ -5,7 +5,6 @@ package kubernetes
 
 import (
 	"io"
-	"reflect"
 	"testing"
 
 	"github.com/go-kit/kit/log"
@@ -178,15 +177,15 @@ func (m *mockClientset) Storage() storagev1.StorageV1Interface {
 }
 
 type mockApplier struct {
-	commands  []string
-	applyErr  error
-	deleteErr error
+	commandRun bool
+	applyErr   error
+	deleteErr  error
 
 	changeSet
 }
 
 func (m *mockApplier) doCommand(_ log.Logger, command string, _ io.Reader) error {
-	m.commands = append(m.commands, command)
+	m.commandRun = true
 	switch command {
 	case "apply":
 		return m.applyErr
@@ -235,8 +234,8 @@ func TestSyncNop(t *testing.T) {
 	if err := kube.Sync(cluster.SyncDef{}); err != nil {
 		t.Error(err)
 	}
-	if len(mock.commands) > 0 {
-		t.Errorf("expected no commands run, but got %#v", mock.commands)
+	if mock.commandRun {
+		t.Error("expected no commands run")
 	}
 }
 
@@ -253,30 +252,7 @@ func TestSyncMalformed(t *testing.T) {
 	if err == nil {
 		t.Error("expected error because malformed resource def, but got nil")
 	}
-	if len(mock.commands) > 0 {
-		t.Errorf("expected no commands run, but got %#v", mock.commands)
-	}
-}
-
-func TestSyncOrder(t *testing.T) {
-	kube, mock := setup(t)
-	if err := kube.Sync(cluster.SyncDef{
-		Actions: []cluster.SyncAction{
-			cluster.SyncAction{
-				ResourceID: "foobar",
-				Delete:     deploymentDef("delete first"),
-				Apply:      deploymentDef("apply last"),
-			},
-		},
-	}); err != nil {
-		t.Error(err)
-	}
-
-	expected := []string{
-		"delete",
-		"apply",
-	}
-	if !reflect.DeepEqual(expected, mock.commands) {
-		t.Errorf("expected commands:\n%#v\ngot:\n%#v", expected, mock.commands)
+	if mock.commandRun {
+		t.Error("expected no commands run")
 	}
 }
