@@ -14,6 +14,10 @@ import (
 	rest "k8s.io/client-go/rest"
 )
 
+var (
+	cmds = []string{"delete", "apply"}
+)
+
 type Kubectl struct {
 	exe    string
 	config *rest.Config
@@ -57,24 +61,17 @@ func (c *Kubectl) connectArgs() []string {
 func (c *Kubectl) execute(logger log.Logger, errs cluster.SyncError) error {
 	defer c.changeSet.clear()
 
-	deleteBuf := &bytes.Buffer{}
-	for _, obj := range c.deleteObjs {
-		fmt.Fprintln(deleteBuf, "---")
-		fmt.Fprintln(deleteBuf, string(obj.bytes))
-	}
+	for _, cmd := range cmds {
+		buf := &bytes.Buffer{}
+		for _, obj := range c.objs[cmd] {
+			fmt.Fprintln(buf, "---")
+			fmt.Fprintln(buf, string(obj.bytes))
+		}
 
-	if err := c.doCommand(logger, "delete", deleteBuf); err != nil {
-		errs["deleting"] = err
-	}
-
-	applyBuf := &bytes.Buffer{}
-	for _, obj := range c.applyObjs {
-		fmt.Fprintln(applyBuf, "---")
-		fmt.Fprintln(applyBuf, string(obj.bytes))
-	}
-
-	if err := c.doCommand(logger, "apply", applyBuf); err != nil {
-		errs["applying"] = err
+		if err := c.doCommand(logger, cmd, buf); err != nil {
+			// TODO: fallback to one-by-one applying
+			errs[cmd] = err
+		}
 	}
 
 	if len(errs) != 0 {
@@ -107,18 +104,22 @@ func (c *Kubectl) kubectlCommand(args ...string) *exec.Cmd {
 }
 
 type changeSet struct {
-	deleteObjs, applyObjs []*apiObject
+	objs map[string][]*apiObject
 }
 
-func (c *changeSet) stageDelete(obj *apiObject) {
-	c.deleteObjs = append(c.deleteObjs, obj)
-}
-
-func (c *changeSet) stageApply(obj *apiObject) {
-	c.applyObjs = append(c.applyObjs, obj)
+func (c *changeSet) stage(cmd string, obj *apiObject) {
+	if c.objs == nil {
+		c.objs = make(map[string][]*apiObject)
+	}
+	c.objs[cmd] = append(c.objs[cmd], obj)
 }
 
 func (c *changeSet) clear() {
-	c.deleteObjs = nil
-	c.applyObjs = nil
+	if c.objs == nil {
+		c.objs = make(map[string][]*apiObject)
+		return
+	}
+	for cmd, _ := range c.objs {
+		c.objs[cmd] = nil
+	}
 }

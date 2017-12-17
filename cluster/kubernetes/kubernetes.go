@@ -83,8 +83,7 @@ func isAddon(obj namespacedLabeled) bool {
 
 type Applier interface {
 	doCommand(log.Logger, string, io.Reader) error
-	stageDelete(*apiObject)
-	stageApply(*apiObject)
+	stage(string, *apiObject)
 	execute(log.Logger, cluster.SyncError) error
 }
 
@@ -199,7 +198,7 @@ func (c *Cluster) Sync(spec cluster.SyncDef) error {
 		if len(action.Delete) > 0 {
 			obj, err := definitionObj(action.Delete)
 			if err == nil {
-				c.applier.stageDelete(obj)
+				c.applier.stage("delete", obj)
 			} else {
 				errs[action.ResourceID] = err
 				continue
@@ -208,7 +207,7 @@ func (c *Cluster) Sync(spec cluster.SyncDef) error {
 		if len(action.Apply) > 0 {
 			obj, err := definitionObj(action.Apply)
 			if err == nil {
-				c.applier.stageApply(obj)
+				c.applier.stage("apply", obj)
 			} else {
 				errs[action.ResourceID] = err
 				continue
