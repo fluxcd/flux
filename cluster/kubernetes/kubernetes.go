@@ -83,8 +83,8 @@ func isAddon(obj namespacedLabeled) bool {
 
 type Applier interface {
 	doCommand(log.Logger, string, io.Reader) error
-	stage(string, *apiObject)
-	execute(log.Logger, cluster.SyncError) error
+	stage(string, string, *apiObject)
+	execute(log.Logger, cluster.SyncError)
 }
 
 // Cluster is a handle to a Kubernetes API server.
@@ -195,26 +195,32 @@ func (c *Cluster) Sync(spec cluster.SyncDef) error {
 
 	errs := cluster.SyncError{}
 	for _, action := range spec.Actions {
-		if len(action.Delete) > 0 {
-			obj, err := definitionObj(action.Delete)
-			if err == nil {
-				c.applier.stage("delete", obj)
-			} else {
-				errs[action.ResourceID] = err
+		stages := []struct {
+			b   []byte
+			cmd string
+		}{
+			{action.Delete, "delete"},
+			{action.Apply, "apply"},
+		}
+		for _, stage := range stages {
+			if len(stage.b) == 0 {
 				continue
 			}
-		}
-		if len(action.Apply) > 0 {
-			obj, err := definitionObj(action.Apply)
+			obj, err := definitionObj(stage.b)
+			id := action.ResourceID
 			if err == nil {
-				c.applier.stage("apply", obj)
+				c.applier.stage(stage.cmd, id, obj)
 			} else {
-				errs[action.ResourceID] = err
-				continue
+				errs[id] = err
+				break
 			}
 		}
 	}
-	return c.applier.execute(logger, errs)
+	c.applier.execute(logger, errs)
+	if len(errs) != 0 {
+		return errs
+	}
+	return nil
 }
 
 func (c *Cluster) Ping() error {

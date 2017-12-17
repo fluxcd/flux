@@ -58,7 +58,7 @@ func (c *Kubectl) connectArgs() []string {
 	return args
 }
 
-func (c *Kubectl) execute(logger log.Logger, errs cluster.SyncError) error {
+func (c *Kubectl) execute(logger log.Logger, errs cluster.SyncError) {
 	defer c.changeSet.clear()
 
 	for _, cmd := range cmds {
@@ -69,15 +69,14 @@ func (c *Kubectl) execute(logger log.Logger, errs cluster.SyncError) error {
 		}
 
 		if err := c.doCommand(logger, cmd, buf); err != nil {
-			// TODO: fallback to one-by-one applying
-			errs[cmd] = err
+			for _, obj := range c.objs[cmd] {
+				r := bytes.NewReader(obj.bytes)
+				if err := c.doCommand(logger, cmd, r); err != nil {
+					errs[obj.Metadata.Name] = err
+				}
+			}
 		}
 	}
-
-	if len(errs) != 0 {
-		return errs
-	}
-	return nil
 }
 
 func (c *Kubectl) doCommand(logger log.Logger, command string, r io.Reader) error {
@@ -104,22 +103,27 @@ func (c *Kubectl) kubectlCommand(args ...string) *exec.Cmd {
 }
 
 type changeSet struct {
-	objs map[string][]*apiObject
+	objs map[string][]obj
 }
 
-func (c *changeSet) stage(cmd string, obj *apiObject) {
+func (c *changeSet) stage(cmd, id string, o *apiObject) {
 	if c.objs == nil {
-		c.objs = make(map[string][]*apiObject)
+		c.objs = make(map[string][]obj)
 	}
-	c.objs[cmd] = append(c.objs[cmd], obj)
+	c.objs[cmd] = append(c.objs[cmd], obj{id, o})
 }
 
 func (c *changeSet) clear() {
 	if c.objs == nil {
-		c.objs = make(map[string][]*apiObject)
+		c.objs = make(map[string][]obj)
 		return
 	}
-	for cmd, _ := range c.objs {
+	for cmd := range c.objs {
 		c.objs[cmd] = nil
 	}
+}
+
+type obj struct {
+	id string
+	*apiObject
 }

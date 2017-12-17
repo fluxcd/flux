@@ -196,18 +196,14 @@ func (m *mockApplier) doCommand(_ log.Logger, command string, _ io.Reader) error
 	}
 }
 
-func (m *mockApplier) execute(_ log.Logger, errs cluster.SyncError) error {
+func (m *mockApplier) execute(_ log.Logger, errs cluster.SyncError) {
 	for _, cmd := range cmds {
 		if len(m.objs[cmd]) > 0 {
 			if err := m.doCommand(nil, cmd, nil); err != nil {
-				return err
+				errs[cmd] = err
 			}
 		}
 	}
-	if len(errs) != 0 {
-		return errs
-	}
-	return nil
 }
 
 func deploymentDef(name string) []byte {
