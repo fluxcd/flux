@@ -182,7 +182,7 @@ type mockApplier struct {
 	createErr error
 	deleteErr error
 
-	*changeSet
+	changeSet
 }
 
 func (m *mockApplier) apply(_ log.Logger, _ []byte) error {
@@ -196,14 +196,14 @@ func (m *mockApplier) delete(_ log.Logger, _ []byte) error {
 }
 
 func (m *mockApplier) execute(_ log.Logger, errs cluster.SyncError) error {
-	for id, _ := range m.deleteObjs {
+	if len(m.deleteObjs) > 0 {
 		if err := m.delete(nil, nil); err != nil {
-			errs[id] = err
+			return err
 		}
 	}
-	for id, _ := range m.applyObjs {
+	if len(m.applyObjs) > 0 {
 		if err := m.apply(nil, nil); err != nil {
-			errs[id] = err
+			return err
 		}
 	}
 	if len(errs) != 0 {
@@ -223,9 +223,7 @@ metadata:
 
 func setup(t *testing.T) (*Cluster, *mockApplier) {
 	clientset := &mockClientset{}
-	applier := &mockApplier{
-		changeSet: newChangeSet(),
-	}
+	applier := &mockApplier{}
 	kube, err := NewCluster(clientset, applier, nil, log.NewNopLogger())
 	if err != nil {
 		t.Fatal(err)

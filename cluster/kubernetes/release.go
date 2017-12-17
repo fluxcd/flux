@@ -17,14 +17,13 @@ type Kubectl struct {
 	exe    string
 	config *rest.Config
 
-	*changeSet
+	changeSet
 }
 
 func NewKubectl(exe string, config *rest.Config) *Kubectl {
 	return &Kubectl{
-		exe:       exe,
-		config:    config,
-		changeSet: newChangeSet(),
+		exe:    exe,
+		config: config,
 	}
 }
 
@@ -55,19 +54,28 @@ func (c *Kubectl) connectArgs() []string {
 }
 
 func (c *Kubectl) execute(logger log.Logger, errs cluster.SyncError) error {
-	for id, obj := range c.deleteObjs {
-		logger := log.With(logger, "resource", id)
-		if err := c.delete(logger, obj.bytes); err != nil {
-			errs[id] = err
-		}
+	defer c.changeSet.clear()
+
+	var deleteBuf bytes.Buffer
+	for _, obj := range c.deleteObjs {
+		fmt.Fprintln(&deleteBuf, "---")
+		fmt.Fprintln(&deleteBuf, string(obj.bytes))
 	}
-	for id, obj := range c.applyObjs {
-		logger := log.With(logger, "resource", id)
-		if err := c.apply(logger, obj.bytes); err != nil {
-			errs[id] = err
-		}
+
+	if err := c.delete(logger, deleteBuf.Bytes()); err != nil {
+		errs["deleting"] = err
 	}
-	c.changeSet = newChangeSet()
+
+	var applyBuf bytes.Buffer
+	for _, obj := range c.applyObjs {
+		fmt.Fprintln(&applyBuf, "---")
+		fmt.Fprintln(&applyBuf, string(obj.bytes))
+	}
+
+	if err := c.apply(logger, applyBuf.Bytes()); err != nil {
+		errs["applying"] = err
+	}
+
 	if len(errs) != 0 {
 		return errs
 	}
@@ -105,19 +113,18 @@ func (c *Kubectl) kubectlCommand(args ...string) *exec.Cmd {
 }
 
 type changeSet struct {
-	deleteObjs, applyObjs map[string]*apiObject
+	deleteObjs, applyObjs []*apiObject
 }
 
-func newChangeSet() *changeSet {
-	return &changeSet{
-		deleteObjs: make(map[string]*apiObject),
-		applyObjs:  make(map[string]*apiObject),
-	}
-}
-func (c *changeSet) stageDelete(id string, obj *apiObject) {
-	c.deleteObjs[id] = obj
+func (c *changeSet) stageDelete(obj *apiObject) {
+	c.deleteObjs = append(c.deleteObjs, obj)
 }
 
-func (c *changeSet) stageApply(id string, obj *apiObject) {
-	c.applyObjs[id] = obj
+func (c *changeSet) stageApply(obj *apiObject) {
+	c.applyObjs = append(c.applyObjs, obj)
+}
+
+func (c *changeSet) clear() {
+	c.deleteObjs = nil
+	c.applyObjs = nil
 }
