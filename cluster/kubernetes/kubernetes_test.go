@@ -4,6 +4,7 @@ package kubernetes
 // adequate. Starting with Sync.
 
 import (
+	"io"
 	"reflect"
 	"testing"
 
@@ -179,30 +180,31 @@ func (m *mockClientset) Storage() storagev1.StorageV1Interface {
 type mockApplier struct {
 	commands  []string
 	applyErr  error
-	createErr error
 	deleteErr error
 
 	changeSet
 }
 
-func (m *mockApplier) apply(_ log.Logger, _ []byte) error {
-	m.commands = append(m.commands, "apply")
-	return m.applyErr
-}
-
-func (m *mockApplier) delete(_ log.Logger, _ []byte) error {
-	m.commands = append(m.commands, "delete")
-	return m.deleteErr
+func (m *mockApplier) doCommand(_ log.Logger, command string, _ io.Reader) error {
+	m.commands = append(m.commands, command)
+	switch command {
+	case "apply":
+		return m.applyErr
+	case "delete":
+		return m.deleteErr
+	default:
+		return nil
+	}
 }
 
 func (m *mockApplier) execute(_ log.Logger, errs cluster.SyncError) error {
 	if len(m.deleteObjs) > 0 {
-		if err := m.delete(nil, nil); err != nil {
+		if err := m.doCommand(nil, "delete", nil); err != nil {
 			return err
 		}
 	}
 	if len(m.applyObjs) > 0 {
-		if err := m.apply(nil, nil); err != nil {
+		if err := m.doCommand(nil, "apply", nil); err != nil {
 			return err
 		}
 	}

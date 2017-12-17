@@ -3,6 +3,7 @@ package kubernetes
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"sync"
 
 	k8syaml "github.com/ghodss/yaml"
@@ -81,8 +82,7 @@ func isAddon(obj namespacedLabeled) bool {
 // --- /add ons
 
 type Applier interface {
-	delete(log.Logger, []byte) error
-	apply(log.Logger, []byte) error
+	doCommand(log.Logger, string, io.Reader) error
 	stageDelete(*apiObject)
 	stageApply(*apiObject)
 	execute(log.Logger, cluster.SyncError) error

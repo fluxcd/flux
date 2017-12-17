@@ -3,6 +3,7 @@ package kubernetes
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"os/exec"
 	"strings"
 	"time"
@@ -56,23 +57,23 @@ func (c *Kubectl) connectArgs() []string {
 func (c *Kubectl) execute(logger log.Logger, errs cluster.SyncError) error {
 	defer c.changeSet.clear()
 
-	var deleteBuf bytes.Buffer
+	deleteBuf := &bytes.Buffer{}
 	for _, obj := range c.deleteObjs {
-		fmt.Fprintln(&deleteBuf, "---")
-		fmt.Fprintln(&deleteBuf, string(obj.bytes))
+		fmt.Fprintln(deleteBuf, "---")
+		fmt.Fprintln(deleteBuf, string(obj.bytes))
 	}
 
-	if err := c.delete(logger, deleteBuf.Bytes()); err != nil {
+	if err := c.doCommand(logger, "delete", deleteBuf); err != nil {
 		errs["deleting"] = err
 	}
 
-	var applyBuf bytes.Buffer
+	applyBuf := &bytes.Buffer{}
 	for _, obj := range c.applyObjs {
-		fmt.Fprintln(&applyBuf, "---")
-		fmt.Fprintln(&applyBuf, string(obj.bytes))
+		fmt.Fprintln(applyBuf, "---")
+		fmt.Fprintln(applyBuf, string(obj.bytes))
 	}
 
-	if err := c.apply(logger, applyBuf.Bytes()); err != nil {
+	if err := c.doCommand(logger, "apply", applyBuf); err != nil {
 		errs["applying"] = err
 	}
 
@@ -82,17 +83,10 @@ func (c *Kubectl) execute(logger log.Logger, errs cluster.SyncError) error {
 	return nil
 }
 
-func (c *Kubectl) delete(logger log.Logger, b []byte) error {
-	return c.doCommand(logger, b, "delete", "-f", "-")
-}
-
-func (c *Kubectl) apply(logger log.Logger, b []byte) error {
-	return c.doCommand(logger, b, "apply", "-f", "-")
-}
-
-func (c *Kubectl) doCommand(logger log.Logger, newDefinition []byte, args ...string) error {
+func (c *Kubectl) doCommand(logger log.Logger, command string, r io.Reader) error {
+	args := []string{command, "-f", "-"}
 	cmd := c.kubectlCommand(args...)
-	cmd.Stdin = bytes.NewReader(newDefinition)
+	cmd.Stdin = r
 	stderr := &bytes.Buffer{}
 	cmd.Stderr = stderr
 	stdout := &bytes.Buffer{}
