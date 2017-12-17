@@ -3,6 +3,7 @@ package kubernetes
 import (
 	"bytes"
 	"fmt"
+	"sync"
 
 	k8syaml "github.com/ghodss/yaml"
 	"github.com/go-kit/kit/log"
@@ -92,10 +93,11 @@ type Applier interface {
 type Cluster struct {
 	client     extendedClient
 	applier    Applier
-	actionc    chan func()
 	version    string // string response for the version command.
 	logger     log.Logger
 	sshKeyRing ssh.KeyRing
+
+	mu sync.Mutex
 }
 
 // NewCluster returns a usable cluster. Host should be of the form
@@ -114,25 +116,11 @@ func NewCluster(clientset k8sclient.Interface,
 			clientset.BatchV2alpha1(),
 		},
 		applier:    applier,
-		actionc:    make(chan func()),
 		logger:     logger,
 		sshKeyRing: sshKeyRing,
 	}
 
-	go c.loop()
 	return c, nil
-}
-
-// Stop terminates the goroutine that serializes and executes requests against
-// the cluster. A stopped cluster cannot be restarted.
-func (c *Cluster) Stop() {
-	close(c.actionc)
-}
-
-func (c *Cluster) loop() {
-	for f := range c.actionc {
-		f()
-	}
 }
 
 // --- cluster.Cluster
@@ -202,35 +190,32 @@ func (c *Cluster) AllControllers(namespace string) (res []cluster.Controller, er
 // Sync performs the given actions on resources. Operations are
 // asynchronous, but serialised.
 func (c *Cluster) Sync(spec cluster.SyncDef) error {
-	errc := make(chan error)
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	logger := log.With(c.logger, "method", "Sync")
-	c.actionc <- func() {
-		errs := cluster.SyncError{}
-		for _, action := range spec.Actions {
-			if len(action.Delete) > 0 {
-				obj, err := definitionObj(action.Delete)
-				if err == nil {
-					c.applier.stageDelete(action.ResourceID, obj)
-				}
-				if err != nil {
-					errs[action.ResourceID] = err
-					continue
-				}
-			}
-			if len(action.Apply) > 0 {
-				obj, err := definitionObj(action.Apply)
-				if err == nil {
-					c.applier.stageApply(action.ResourceID, obj)
-				}
-				if err != nil {
-					errs[action.ResourceID] = err
-					continue
-				}
+
+	errs := cluster.SyncError{}
+	for _, action := range spec.Actions {
+		if len(action.Delete) > 0 {
+			obj, err := definitionObj(action.Delete)
+			if err == nil {
+				c.applier.stageDelete(action.ResourceID, obj)
+			} else {
+				errs[action.ResourceID] = err
+				continue
 			}
 		}
-		errc <- c.applier.execute(logger, errs)
+		if len(action.Apply) > 0 {
+			obj, err := definitionObj(action.Apply)
+			if err == nil {
+				c.applier.stageApply(action.ResourceID, obj)
+			} else {
+				errs[action.ResourceID] = err
+				continue
+			}
+		}
 	}
-	return <-errc
+	return c.applier.execute(logger, errs)
 }
 
 func (c *Cluster) Ping() error {
