@@ -86,7 +86,7 @@ func main() {
 
 		gitPollInterval = fs.Duration("git-poll-interval", 5*time.Minute, "period at which to poll git repo for new commits")
 		// registry
-		memcachedHostname    = fs.String("memcached-hostname", "", "Hostname for memcached service to use when caching chunks. If empty, no memcached will be used.")
+		memcachedHostname    = fs.String("memcached-hostname", "memcached", "Hostname for memcached service.")
 		memcachedTimeout     = fs.Duration("memcached-timeout", time.Second, "Maximum time to wait before giving up on memcached requests.")
 		memcachedService     = fs.String("memcached-service", "memcached", "SRV service used to discover memcache servers.")
 		registryCacheExpiry  = fs.Duration("registry-cache-expiry", 1*time.Hour, "Duration to keep cached image info. Must be < 1 month.")
@@ -235,19 +235,17 @@ func main() {
 	{
 		// Cache client, for use by registry and cache warmer
 		var cacheClient cache.Client
-		if *memcachedHostname != "" {
-			memcacheClient := registryMemcache.NewMemcacheClient(registryMemcache.MemcacheConfig{
-				Host:           *memcachedHostname,
-				Service:        *memcachedService,
-				Expiry:         *registryCacheExpiry,
-				Timeout:        *memcachedTimeout,
-				UpdateInterval: 1 * time.Minute,
-				Logger:         log.With(logger, "component", "memcached"),
-				MaxIdleConns:   *registryBurst,
-			})
-			defer memcacheClient.Stop()
-			cacheClient = cache.InstrumentClient(memcacheClient)
-		}
+		memcacheClient := registryMemcache.NewMemcacheClient(registryMemcache.MemcacheConfig{
+			Host:           *memcachedHostname,
+			Service:        *memcachedService,
+			Expiry:         *registryCacheExpiry,
+			Timeout:        *memcachedTimeout,
+			UpdateInterval: 1 * time.Minute,
+			Logger:         log.With(logger, "component", "memcached"),
+			MaxIdleConns:   *registryBurst,
+		})
+		defer memcacheClient.Stop()
+		cacheClient = cache.InstrumentClient(memcacheClient)
 
 		cacheRegistry = &cache.Cache{
 			Reader: cacheClient,
@@ -266,12 +264,11 @@ func main() {
 		}
 
 		// Warmer
-		warmerLogger := log.With(logger, "component", "warmer")
-		cacheWarmer = &cache.Warmer{
-			Logger:        warmerLogger,
-			ClientFactory: remoteFactory,
-			Cache:         cacheClient,
-			Burst:         *registryBurst,
+		var err error
+		cacheWarmer, err = cache.NewWarmer(remoteFactory, cacheClient, *registryBurst)
+		if err != nil {
+			logger.Log("err", err)
+			os.Exit(1)
 		}
 	}
 
@@ -446,7 +443,7 @@ func main() {
 	cacheWarmer.Notify = daemon.AskForImagePoll
 	cacheWarmer.Priority = daemon.ImageRefresh
 	shutdownWg.Add(1)
-	go cacheWarmer.Loop(shutdown, shutdownWg, image_creds)
+	go cacheWarmer.Loop(log.With(logger, "component", "warmer"), shutdown, shutdownWg, image_creds)
 
 	// Update daemonRef so that upstream and handlers point to fully working daemon
 	daemonRef.UpdatePlatform(daemon)

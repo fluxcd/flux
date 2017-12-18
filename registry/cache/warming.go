@@ -20,12 +20,24 @@ const askForNewImagesInterval = time.Minute
 // Warmer refreshes the information kept in the cache from remote
 // registries.
 type Warmer struct {
-	Logger        log.Logger
-	ClientFactory registry.ClientFactory
-	Cache         Client
-	Burst         int
+	clientFactory registry.ClientFactory
+	cache         Client
+	burst         int
 	Priority      chan image.Name
 	Notify        func()
+}
+
+// NewWarmer creates cache warmer that (when Loop is invoked) will
+// periodically refresh the values kept in the cache.
+func NewWarmer(cf registry.ClientFactory, cacheClient Client, burst int) (*Warmer, error) {
+	if cf == nil || cacheClient == nil || burst <= 0 {
+		return nil, errors.New("arguments must be non-nil (or > 0 in the case of burst)")
+	}
+	return &Warmer{
+		clientFactory: cf,
+		cache:         cacheClient,
+		burst:         burst,
+	}, nil
 }
 
 // .. and this is what we keep in the backlog
@@ -36,12 +48,8 @@ type backlogItem struct {
 
 // Continuously get the images to populate the cache with, and
 // populate the cache with them.
-func (w *Warmer) Loop(stop <-chan struct{}, wg *sync.WaitGroup, imagesToFetchFunc func() registry.ImageCreds) {
+func (w *Warmer) Loop(logger log.Logger, stop <-chan struct{}, wg *sync.WaitGroup, imagesToFetchFunc func() registry.ImageCreds) {
 	defer wg.Done()
-
-	if w.Logger == nil || w.ClientFactory == nil || w.Cache == nil {
-		panic("registry.Warmer fields are nil")
-	}
 
 	refresh := time.Tick(askForNewImagesInterval)
 	imageCreds := imagesToFetchFunc()
@@ -61,17 +69,17 @@ func (w *Warmer) Loop(stop <-chan struct{}, wg *sync.WaitGroup, imagesToFetchFun
 	for {
 		select {
 		case <-stop:
-			w.Logger.Log("stopping", "true")
+			logger.Log("stopping", "true")
 			return
 		case name := <-w.Priority:
-			w.Logger.Log("priority", name.String())
+			logger.Log("priority", name.String())
 			// NB the implicit contract here is that the prioritised
 			// image has to have been running the last time we
 			// requested the credentials.
 			if creds, ok := imageCreds[name]; ok {
-				w.warm(ctx, name, creds)
+				w.warm(ctx, logger, name, creds)
 			} else {
-				w.Logger.Log("priority", name.String(), "err", "no creds available")
+				logger.Log("priority", name.String(), "err", "no creds available")
 			}
 			continue
 		default:
@@ -80,7 +88,7 @@ func (w *Warmer) Loop(stop <-chan struct{}, wg *sync.WaitGroup, imagesToFetchFun
 		if len(backlog) > 0 {
 			im := backlog[0]
 			backlog = backlog[1:]
-			w.warm(ctx, im.Name, im.Credentials)
+			w.warm(ctx, logger, im.Name, im.Credentials)
 		} else {
 			select {
 			case <-refresh:
@@ -102,17 +110,17 @@ func imageCredsToBacklog(imageCreds registry.ImageCreds) []backlogItem {
 	return backlog
 }
 
-func (w *Warmer) warm(ctx context.Context, id image.Name, creds registry.Credentials) {
-	client, err := w.ClientFactory.ClientFor(id.CanonicalName(), creds)
+func (w *Warmer) warm(ctx context.Context, logger log.Logger, id image.Name, creds registry.Credentials) {
+	client, err := w.clientFactory.ClientFor(id.CanonicalName(), creds)
 	if err != nil {
-		w.Logger.Log("err", err.Error())
+		logger.Log("err", err.Error())
 		return
 	}
 
 	// This is what we're going to write back to the cache
 	var repo ImageRepository
 	repoKey := NewRepositoryKey(id.CanonicalName())
-	bytes, _, err := w.Cache.GetKey(repoKey)
+	bytes, _, err := w.cache.GetKey(repoKey)
 	if err == nil {
 		err = json.Unmarshal(bytes, &repo)
 	} else if err == ErrNotCached {
@@ -120,7 +128,7 @@ func (w *Warmer) warm(ctx context.Context, id image.Name, creds registry.Credent
 	}
 
 	if err != nil {
-		w.Logger.Log("err", errors.Wrap(err, "fetching previous result from cache"))
+		logger.Log("err", errors.Wrap(err, "fetching previous result from cache"))
 		return
 	}
 
@@ -133,17 +141,17 @@ func (w *Warmer) warm(ctx context.Context, id image.Name, creds registry.Credent
 	defer func() {
 		bytes, err := json.Marshal(repo)
 		if err == nil {
-			err = w.Cache.SetKey(repoKey, bytes)
+			err = w.cache.SetKey(repoKey, bytes)
 		}
 		if err != nil {
-			w.Logger.Log("err", errors.Wrap(err, "writing result to cache"))
+			logger.Log("err", errors.Wrap(err, "writing result to cache"))
 		}
 	}()
 
 	tags, err := client.Tags(ctx)
 	if err != nil {
 		if !strings.Contains(err.Error(), context.DeadlineExceeded.Error()) && !strings.Contains(err.Error(), "net/http: request canceled") {
-			w.Logger.Log("err", errors.Wrap(err, "requesting tags"))
+			logger.Log("err", errors.Wrap(err, "requesting tags"))
 			repo.LastError = err.Error()
 		}
 		return
@@ -158,7 +166,7 @@ func (w *Warmer) warm(ctx context.Context, id image.Name, creds registry.Credent
 		// See if we have the manifest already cached
 		newID := id.ToRef(tag)
 		key := NewManifestKey(newID.CanonicalRef())
-		bytes, expiry, err := w.Cache.GetKey(key)
+		bytes, expiry, err := w.cache.GetKey(key)
 		// If err, then we don't have it yet. Update.
 		switch {
 		case err != nil:
@@ -179,12 +187,12 @@ func (w *Warmer) warm(ctx context.Context, id image.Name, creds registry.Credent
 	var successCount int
 
 	if len(toUpdate) > 0 {
-		w.Logger.Log("fetching", id.String(), "total", len(toUpdate), "expired", expired, "missing", missing)
+		logger.Log("fetching", id.String(), "total", len(toUpdate), "expired", expired, "missing", missing)
 		var successMx sync.Mutex
 
 		// The upper bound for concurrent fetches against a single host is
 		// w.Burst, so limit the number of fetching goroutines to that.
-		fetchers := make(chan struct{}, w.Burst)
+		fetchers := make(chan struct{}, w.burst)
 		awaitFetchers := &sync.WaitGroup{}
 	updates:
 		for _, imID := range toUpdate {
@@ -204,7 +212,7 @@ func (w *Warmer) warm(ctx context.Context, id image.Name, creds registry.Credent
 						// This was due to a context timeout, don't bother logging
 						return
 					}
-					w.Logger.Log("err", errors.Wrap(err, "requesting manifests"))
+					logger.Log("err", errors.Wrap(err, "requesting manifests"))
 					return
 				}
 
@@ -212,12 +220,12 @@ func (w *Warmer) warm(ctx context.Context, id image.Name, creds registry.Credent
 				// Write back to memcached
 				val, err := json.Marshal(img)
 				if err != nil {
-					w.Logger.Log("err", errors.Wrap(err, "serializing tag to store in cache"))
+					logger.Log("err", errors.Wrap(err, "serializing tag to store in cache"))
 					return
 				}
-				err = w.Cache.SetKey(key, val)
+				err = w.cache.SetKey(key, val)
 				if err != nil {
-					w.Logger.Log("err", errors.Wrap(err, "storing manifests in cache"))
+					logger.Log("err", errors.Wrap(err, "storing manifests in cache"))
 					return
 				}
 				successMx.Lock()
@@ -227,7 +235,7 @@ func (w *Warmer) warm(ctx context.Context, id image.Name, creds registry.Credent
 			}(imID)
 		}
 		awaitFetchers.Wait()
-		w.Logger.Log("updated", id.String(), "count", successCount)
+		logger.Log("updated", id.String(), "count", successCount)
 	}
 
 	// We managed to fetch new metadata for everything we were missing

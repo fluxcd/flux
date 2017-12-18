@@ -49,6 +49,8 @@ func TestWarm(t *testing.T) {
 	ref, _ := image.ParseRef("example.com/path/image:tag")
 	repo := ref.Name
 
+	logger := log.NewNopLogger()
+
 	client := &mock.Client{
 		TagsFn: func() ([]string, error) {
 			return []string{"tag"}, nil
@@ -65,8 +67,8 @@ func TestWarm(t *testing.T) {
 	}
 	factory := &mock.ClientFactory{Client: client}
 	c := &mem{}
-	warmer := &Warmer{Logger: log.NewNopLogger(), ClientFactory: factory, Cache: c, Burst: 10}
-	warmer.warm(context.TODO(), repo, registry.NoCredentials())
+	warmer := &Warmer{clientFactory: factory, cache: c, burst: 10}
+	warmer.warm(context.TODO(), logger, repo, registry.NoCredentials())
 
 	registry := &Cache{Reader: c}
 	repoInfo, err := registry.GetRepository(ref.Name)

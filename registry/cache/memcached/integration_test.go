@@ -42,13 +42,7 @@ func TestWarming_WarmerWriteCacheRead(t *testing.T) {
 
 	r := &cache.Cache{mc}
 
-	w := &cache.Warmer{
-		Logger:        log.With(logger, "component", "warmer"),
-		ClientFactory: remote,
-		Cache:         mc,
-		Burst:         125,
-	}
-
+	w, _ := cache.NewWarmer(remote, mc, 125)
 	shutdown := make(chan struct{})
 	shutdownWg := &sync.WaitGroup{}
 	defer func() {
@@ -57,7 +51,7 @@ func TestWarming_WarmerWriteCacheRead(t *testing.T) {
 	}()
 
 	shutdownWg.Add(1)
-	go w.Loop(shutdown, shutdownWg, func() registry.ImageCreds {
+	go w.Loop(log.With(logger, "component", "warmer"), shutdown, shutdownWg, func() registry.ImageCreds {
 		return registry.ImageCreds{
 			id.Name: registry.NoCredentials(),
 		}
