@@ -9,16 +9,15 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
+	apiv1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/discovery"
 	k8sclient "k8s.io/client-go/kubernetes"
 	v1beta1apps "k8s.io/client-go/kubernetes/typed/apps/v1beta1"
-	v2alpha1batch "k8s.io/client-go/kubernetes/typed/batch/v2alpha1"
+	v1beta1batch "k8s.io/client-go/kubernetes/typed/batch/v1beta1"
 	v1core "k8s.io/client-go/kubernetes/typed/core/v1"
 	v1beta1extensions "k8s.io/client-go/kubernetes/typed/extensions/v1beta1"
-	"k8s.io/client-go/pkg/api"
-	apiv1 "k8s.io/client-go/pkg/api/v1"
 
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster"
@@ -38,7 +37,7 @@ type extendedClient struct {
 	v1core.CoreV1Interface
 	v1beta1extensions.ExtensionsV1beta1Interface
 	v1beta1apps.StatefulSetsGetter
-	v2alpha1batch.CronJobsGetter
+	v1beta1batch.CronJobsGetter
 }
 
 type apiObject struct {
@@ -138,7 +137,7 @@ func NewCluster(clientset k8sclient.Interface,
 			clientset.Core(),
 			clientset.Extensions(),
 			clientset.AppsV1beta1(),
-			clientset.BatchV2alpha1(),
+			clientset.BatchV1beta1(),
 		},
 		applier:    applier,
 		logger:     logger,
@@ -331,11 +330,11 @@ func mergeCredentials(c *Cluster, namespace string, podTemplate apiv1.PodTemplat
 		var ok bool
 		// These differ in format; but, ParseCredentials will
 		// handle either.
-		switch api.SecretType(secret.Type) {
-		case api.SecretTypeDockercfg:
-			decoded, ok = secret.Data[api.DockerConfigKey]
-		case api.SecretTypeDockerConfigJson:
-			decoded, ok = secret.Data[api.DockerConfigJsonKey]
+		switch apiv1.SecretType(secret.Type) {
+		case apiv1.SecretTypeDockercfg:
+			decoded, ok = secret.Data[apiv1.DockerConfigKey]
+		case apiv1.SecretTypeDockerConfigJson:
+			decoded, ok = secret.Data[apiv1.DockerConfigJsonKey]
 		default:
 			c.logger.Log("skip", "unknown type", "secret", namespace+"/"+secret.Name, "type", secret.Type)
 			continue

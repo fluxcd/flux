@@ -3,11 +3,11 @@ package kubernetes
 import (
 	"fmt"
 
+	apiapps "k8s.io/api/apps/v1beta1"
+	apibatch "k8s.io/api/batch/v1beta1"
+	apiv1 "k8s.io/api/core/v1"
+	apiext "k8s.io/api/extensions/v1beta1"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	apiv1 "k8s.io/client-go/pkg/api/v1"
-	apiapps "k8s.io/client-go/pkg/apis/apps/v1beta1"
-	apibatch "k8s.io/client-go/pkg/apis/batch/v2alpha1"
-	apiext "k8s.io/client-go/pkg/apis/extensions/v1beta1"
 
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster"
@@ -222,7 +222,7 @@ func makeStatefulSetPodController(statefulSet *apiapps.StatefulSet) podControlle
 }
 
 /////////////////////////////////////////////////////////////////////////////
-// batch/v2alpha1 CronJob
+// batch/v1beta1 CronJob
 
 type cronJobKind struct{}
 
@@ -251,7 +251,7 @@ func (dk *cronJobKind) getPodControllers(c *Cluster, namespace string) ([]podCon
 
 func makeCronJobPodController(cronJob *apibatch.CronJob) podController {
 	return podController{
-		apiVersion:  "batch/v2alpha1",
+		apiVersion:  "batch/v1beta1",
 		kind:        "CronJob",
 		name:        cronJob.ObjectMeta.Name,
 		status:      StatusReady,
