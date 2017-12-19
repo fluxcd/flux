@@ -34,7 +34,7 @@ import (
 const (
 	// These have to match the values in cluster/kubernetes/testfiles/data.go
 	svc               = "default:deployment/helloworld"
-	container         = "goodbyeworld"
+	container         = "greeter"
 	ns                = "default"
 	newHelloImage     = "quay.io/weaveworks/helloworld:2"
 	currentHelloImage = "quay.io/weaveworks/helloworld:master-a000001"
@@ -497,10 +497,21 @@ func (w *wait) ForJobSucceeded(d *Daemon, jobID job.ID) job.Status {
 	var stat job.Status
 	var err error
 
+	ctx := context.Background()
 	w.Eventually(func() bool {
-		ctx := context.Background()
 		stat, err = d.JobStatus(ctx, jobID)
-		return err == nil && stat.StatusString == job.StatusSucceeded
+		if err != nil {
+			return false
+		}
+		switch stat.StatusString {
+		case job.StatusSucceeded:
+			return true
+		case job.StatusFailed:
+			w.t.Fatal(stat.Err)
+			return true
+		default:
+			return false
+		}
 	}, "Waiting for job to succeed")
 	return stat
 }

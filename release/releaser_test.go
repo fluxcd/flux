@@ -19,11 +19,12 @@ import (
 
 var (
 	// This must match the value in cluster/kubernetes/testfiles/data.go
-	container = "goodbyeworld"
+	helloContainer   = "greeter"
+	sidecarContainer = "sidecar"
 
 	oldImage      = "quay.io/weaveworks/helloworld:master-a000001"
 	oldRef, _     = image.ParseRef(oldImage)
-	sidecarImage  = "quay.io/weaveworks/sidecar:master-a000002"
+	sidecarImage  = "weaveworks/sidecar:master-a000001"
 	sidecarRef, _ = image.ParseRef(sidecarImage)
 	hwSvcID, _    = flux.ParseResourceID("default:deployment/helloworld")
 	hwSvcSpec, _  = update.ParseResourceSpec(hwSvcID.String())
@@ -32,12 +33,12 @@ var (
 		Containers: cluster.ContainersOrExcuse{
 			Containers: []cluster.Container{
 				cluster.Container{
-					Name:  container,
+					Name:  helloContainer,
 					Image: oldImage,
 				},
 				cluster.Container{
-					Name:  "sidecar",
-					Image: "quay.io/weaveworks/sidecar:master-a000002",
+					Name:  sidecarContainer,
+					Image: sidecarImage,
 				},
 			},
 		},
@@ -78,12 +79,22 @@ var (
 		lockedSvc,
 		testSvc,
 	}
-	newRef, _    = image.ParseRef("quay.io/weaveworks/helloworld:master-a000002")
-	timeNow      = time.Now()
+	newHwRef, _ = image.ParseRef("quay.io/weaveworks/helloworld:master-a000002")
+	// this is what we expect things to be updated to
+	newSidecarRef, _ = image.ParseRef("weaveworks/sidecar:master-a000002")
+	// this is what we store in the registry cache
+	canonSidecarRef, _ = image.ParseRef("index.docker.io/weaveworks/sidecar:master-a000002")
+
+	timeNow = time.Now()
+
 	mockRegistry = &registryMock.Registry{
 		Images: []image.Info{
 			{
-				ID:        newRef,
+				ID:        newHwRef,
+				CreatedAt: timeNow,
+			},
+			{
+				ID:        canonSidecarRef,
 				CreatedAt: timeNow,
 			},
 			{
@@ -133,9 +144,14 @@ func Test_FilterLogic(t *testing.T) {
 					Status: update.ReleaseStatusSuccess,
 					PerContainer: []update.ContainerUpdate{
 						update.ContainerUpdate{
-							Container: container,
+							Container: helloContainer,
 							Current:   oldRef,
-							Target:    newRef,
+							Target:    newHwRef,
+						},
+						update.ContainerUpdate{
+							Container: sidecarContainer,
+							Current:   sidecarRef,
+							Target:    newSidecarRef,
 						},
 					},
 				},
@@ -161,9 +177,14 @@ func Test_FilterLogic(t *testing.T) {
 					Status: update.ReleaseStatusSuccess,
 					PerContainer: []update.ContainerUpdate{
 						update.ContainerUpdate{
-							Container: container,
+							Container: helloContainer,
 							Current:   oldRef,
-							Target:    newRef,
+							Target:    newHwRef,
+						},
+						update.ContainerUpdate{
+							Container: sidecarContainer,
+							Current:   sidecarRef,
+							Target:    newSidecarRef,
 						},
 					},
 				},
@@ -180,7 +201,7 @@ func Test_FilterLogic(t *testing.T) {
 			Name: "not image",
 			Spec: update.ReleaseSpec{
 				ServiceSpecs: []update.ResourceSpec{update.ResourceSpecAll},
-				ImageSpec:    update.ImageSpecFromRef(newRef),
+				ImageSpec:    update.ImageSpecFromRef(newHwRef),
 				Kind:         update.ReleaseKindExecute,
 				Excludes:     []flux.ResourceID{},
 			},
@@ -189,9 +210,9 @@ func Test_FilterLogic(t *testing.T) {
 					Status: update.ReleaseStatusSuccess,
 					PerContainer: []update.ContainerUpdate{
 						update.ContainerUpdate{
-							Container: container,
+							Container: helloContainer,
 							Current:   oldRef,
-							Target:    newRef,
+							Target:    newHwRef,
 						},
 					},
 				},
@@ -220,9 +241,14 @@ func Test_FilterLogic(t *testing.T) {
 					Status: update.ReleaseStatusSuccess,
 					PerContainer: []update.ContainerUpdate{
 						update.ContainerUpdate{
-							Container: container,
+							Container: helloContainer,
 							Current:   oldRef,
-							Target:    newRef,
+							Target:    newHwRef,
+						},
+						update.ContainerUpdate{
+							Container: sidecarContainer,
+							Current:   sidecarRef,
+							Target:    newSidecarRef,
 						},
 					},
 				},
@@ -249,9 +275,14 @@ func Test_FilterLogic(t *testing.T) {
 					Status: update.ReleaseStatusSuccess,
 					PerContainer: []update.ContainerUpdate{
 						update.ContainerUpdate{
-							Container: container,
+							Container: helloContainer,
 							Current:   oldRef,
-							Target:    newRef,
+							Target:    newHwRef,
+						},
+						update.ContainerUpdate{
+							Container: sidecarContainer,
+							Current:   sidecarRef,
+							Target:    newSidecarRef,
 						},
 					},
 				},

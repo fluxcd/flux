@@ -117,7 +117,8 @@ func (a *Automated) calculateImageUpdates(rc ReleaseContext, candidates []*Contr
 					continue
 				}
 
-				u.ManifestBytes, err = rc.Manifests().UpdateDefinition(u.ManifestBytes, container.Name, change.ImageID)
+				newImageID := currentImageID.WithNewTag(change.ImageID.Tag)
+				u.ManifestBytes, err = rc.Manifests().UpdateDefinition(u.ManifestBytes, container.Name, newImageID)
 				if err != nil {
 					return nil, err
 				}
@@ -125,7 +126,7 @@ func (a *Automated) calculateImageUpdates(rc ReleaseContext, candidates []*Contr
 				containerUpdates = append(containerUpdates, ContainerUpdate{
 					Container: container.Name,
 					Current:   currentImageID,
-					Target:    change.ImageID,
+					Target:    newImageID,
 				})
 			}
 		}

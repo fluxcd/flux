@@ -63,14 +63,14 @@ spec:
         name: helloworld
     spec:
       containers:
-      - name: goodbyeworld
+      - name: greeter
         image: quay.io/weaveworks/helloworld:master-a000001
         args:
         - -msg=Ahoy
         ports:
         - containerPort: 80
       - name: sidecar
-        image: quay.io/weaveworks/sidecar:master-a000002
+        image: weaveworks/sidecar:master-a000001
         args:
         - -addr=:8080
         ports:
@@ -134,14 +134,14 @@ spec:
         name: helloworld
     spec:
       containers:
-      - name: goodbyeworld
+      - name: greeter
         image: quay.io/weaveworks/helloworld:master-a000001
         args:
         - -msg=Ahoy2
         ports:
         - containerPort: 80
       - name: sidecar
-        image: quay.io/weaveworks/sidecar:master-a000002
+        image: weaveworks/sidecar:master-a000002
         args:
         - -addr=:8080
         ports:
