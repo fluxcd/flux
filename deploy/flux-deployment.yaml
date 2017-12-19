@@ -32,13 +32,13 @@ spec:
         - name: git-key
           mountPath: /etc/fluxd/ssh
         args:
-        # if you deployed memcached, you can supply these arguments to
-        # tell fluxd to use it. You may need to change the namespace
-        # (`default`) if you run fluxd in another namespace.
-        - --memcached-hostname=memcached.default.svc.cluster.local
-        - --memcached-timeout=100ms
-        - --memcached-service=memcached
-        - --registry-cache-expiry=20m
+
+        # if you deployed memcached in a different namespace to flux,
+        # or with a different service name, you can supply these
+        # following two arguments to tell fluxd how to connect to it.
+        # - --memcached-hostname=memcached.default.svc.cluster.local
+        # - --memcached-service=memcached
+
         # replace (at least) the following URL
         - --git-url=git@github.com:weaveworks/flux-example
         - --git-branch=master
@@ -46,6 +46,3 @@ spec:
         # (e.g., Weave Cloud). The token is particular to the service.
         # - --connect=wss://cloud.weave.works/api/flux
         # - --token=abc123abc123abc123abc123
-        # override -b and -t arguments to ssh-keygen
-        # - --ssh-keygen-bits=2048
-        - --ssh-keygen-type=ed25519

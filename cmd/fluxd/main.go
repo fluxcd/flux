@@ -31,7 +31,8 @@ import (
 	"github.com/weaveworks/flux/image"
 	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/registry"
-	registryMemcache "github.com/weaveworks/flux/registry/cache"
+	"github.com/weaveworks/flux/registry/cache"
+	registryMemcache "github.com/weaveworks/flux/registry/cache/memcached"
 	registryMiddleware "github.com/weaveworks/flux/registry/middleware"
 	"github.com/weaveworks/flux/remote"
 	"github.com/weaveworks/flux/ssh"
@@ -85,11 +86,11 @@ func main() {
 
 		gitPollInterval = fs.Duration("git-poll-interval", 5*time.Minute, "period at which to poll git repo for new commits")
 		// registry
-		memcachedHostname    = fs.String("memcached-hostname", "", "Hostname for memcached service to use when caching chunks. If empty, no memcached will be used.")
+		memcachedHostname    = fs.String("memcached-hostname", "memcached", "Hostname for memcached service.")
 		memcachedTimeout     = fs.Duration("memcached-timeout", time.Second, "Maximum time to wait before giving up on memcached requests.")
 		memcachedService     = fs.String("memcached-service", "memcached", "SRV service used to discover memcache servers.")
-		registryCacheExpiry  = fs.Duration("registry-cache-expiry", 20*time.Minute, "Duration to keep cached registry tag info. Must be < 1 month.")
-		registryPollInterval = fs.Duration("registry-poll-interval", 5*time.Minute, "period at which to poll registry for new images")
+		registryCacheExpiry  = fs.Duration("registry-cache-expiry", 1*time.Hour, "Duration to keep cached image info. Must be < 1 month.")
+		registryPollInterval = fs.Duration("registry-poll-interval", 5*time.Minute, "period at which to check for updated images")
 		registryRPS          = fs.Int("registry-rps", 200, "maximum registry requests per second per host")
 		registryBurst        = fs.Int("registry-burst", defaultRemoteConnections, "maximum number of warmer connections to remote and memcache")
 
@@ -229,61 +230,45 @@ func main() {
 	}
 
 	// Registry components
-	var cache registry.Registry
-	var cacheWarmer registry.Warmer
+	var cacheRegistry registry.Registry
+	var cacheWarmer *cache.Warmer
 	{
-		// Cache
-		var memcacheRegistry registryMemcache.Client
-		if *memcachedHostname != "" {
-			memcacheRegistry = registryMemcache.NewMemcacheClient(registryMemcache.MemcacheConfig{
-				Host:           *memcachedHostname,
-				Service:        *memcachedService,
-				Timeout:        *memcachedTimeout,
-				UpdateInterval: 1 * time.Minute,
-				Logger:         log.With(logger, "component", "memcached"),
-				MaxIdleConns:   defaultMemcacheConnections,
-			})
-			memcacheRegistry = registryMemcache.InstrumentMemcacheClient(memcacheRegistry)
-			defer memcacheRegistry.Stop()
-		}
-		var memcacheWarmer registryMemcache.Client
-		if *memcachedHostname != "" {
-			memcacheWarmer = registryMemcache.NewMemcacheClient(registryMemcache.MemcacheConfig{
-				Host:           *memcachedHostname,
-				Service:        *memcachedService,
-				Timeout:        *memcachedTimeout,
-				UpdateInterval: 1 * time.Minute,
-				Logger:         log.With(logger, "component", "memcached"),
-				MaxIdleConns:   *registryBurst,
-			})
-			memcacheWarmer = registryMemcache.InstrumentMemcacheClient(memcacheWarmer)
-			defer memcacheWarmer.Stop()
-		}
+		// Cache client, for use by registry and cache warmer
+		var cacheClient cache.Client
+		memcacheClient := registryMemcache.NewMemcacheClient(registryMemcache.MemcacheConfig{
+			Host:           *memcachedHostname,
+			Service:        *memcachedService,
+			Expiry:         *registryCacheExpiry,
+			Timeout:        *memcachedTimeout,
+			UpdateInterval: 1 * time.Minute,
+			Logger:         log.With(logger, "component", "memcached"),
+			MaxIdleConns:   *registryBurst,
+		})
+		defer memcacheClient.Stop()
+		cacheClient = cache.InstrumentClient(memcacheClient)
 
-		cacheLogger := log.With(logger, "component", "cache")
-		cache = registry.NewRegistry(
-			registry.NewCacheClientFactory(cacheLogger, memcacheRegistry, *registryCacheExpiry),
-			cacheLogger,
-			defaultMemcacheConnections,
-		)
-		cache = registry.NewInstrumentedRegistry(cache)
+		cacheRegistry = &cache.Cache{
+			Reader: cacheClient,
+		}
+		cacheRegistry = registry.NewInstrumentedRegistry(cacheRegistry)
 
-		// Remote
+		// Remote client, for warmer to refresh entries
 		registryLogger := log.With(logger, "component", "registry")
-		remoteFactory := registry.NewRemoteClientFactory(registryLogger, registryMiddleware.RateLimiterConfig{
+		registryLimits := &registryMiddleware.RateLimiters{
 			RPS:   *registryRPS,
 			Burst: *registryBurst,
-		})
+		}
+		remoteFactory := &registry.RemoteClientFactory{
+			Logger:   registryLogger,
+			Limiters: registryLimits,
+		}
 
 		// Warmer
-		warmerLogger := log.With(logger, "component", "warmer")
-		cacheWarmer = registry.Warmer{
-			Logger:        warmerLogger,
-			ClientFactory: remoteFactory,
-			Expiry:        *registryCacheExpiry,
-			Reader:        memcacheWarmer,
-			Writer:        memcacheWarmer,
-			Burst:         *registryBurst,
+		var err error
+		cacheWarmer, err = cache.NewWarmer(remoteFactory, cacheClient, *registryBurst)
+		if err != nil {
+			logger.Log("err", err)
+			os.Exit(1)
 		}
 	}
 
@@ -439,7 +424,7 @@ func main() {
 		V:            version,
 		Cluster:      k8s,
 		Manifests:    k8sManifests,
-		Registry:     cache,
+		Registry:     cacheRegistry,
 		ImageRefresh: make(chan image.Name, 100), // size chosen by fair dice roll
 		Repo:         repo, Checkout: checkout,
 		Jobs:           jobs,
@@ -458,7 +443,7 @@ func main() {
 	cacheWarmer.Notify = daemon.AskForImagePoll
 	cacheWarmer.Priority = daemon.ImageRefresh
 	shutdownWg.Add(1)
-	go cacheWarmer.Loop(shutdown, shutdownWg, image_creds)
+	go cacheWarmer.Loop(log.With(logger, "component", "warmer"), shutdown, shutdownWg, image_creds)
 
 	// Update daemonRef so that upstream and handlers point to fully working daemon
 	daemonRef.UpdatePlatform(daemon)

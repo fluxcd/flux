@@ -21,7 +21,7 @@ import (
 	"github.com/weaveworks/flux/git"
 	"github.com/weaveworks/flux/git/gittest"
 	"github.com/weaveworks/flux/job"
-	"github.com/weaveworks/flux/registry"
+	registryMock "github.com/weaveworks/flux/registry/mock"
 	"github.com/weaveworks/flux/resource"
 )
 
@@ -66,7 +66,7 @@ func daemon(t *testing.T) (*Daemon, func()) {
 	d := &Daemon{
 		Cluster:        k8s,
 		Manifests:      k8s,
-		Registry:       registry.NewMockRegistry(nil, nil),
+		Registry:       &registryMock.Registry{},
 		Checkout:       working,
 		Jobs:           jobs,
 		JobStatusCache: &job.StatusCache{Size: 100},

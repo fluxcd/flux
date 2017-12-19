@@ -13,7 +13,7 @@ import (
 	"github.com/weaveworks/flux/git"
 	"github.com/weaveworks/flux/git/gittest"
 	"github.com/weaveworks/flux/image"
-	"github.com/weaveworks/flux/registry"
+	registryMock "github.com/weaveworks/flux/registry/mock"
 	"github.com/weaveworks/flux/update"
 )
 
@@ -80,16 +80,18 @@ var (
 	}
 	newRef, _    = image.ParseRef("quay.io/weaveworks/helloworld:master-a000002")
 	timeNow      = time.Now()
-	mockRegistry = registry.NewMockRegistry([]image.Info{
-		image.Info{
-			ID:        newRef,
-			CreatedAt: timeNow,
+	mockRegistry = &registryMock.Registry{
+		Images: []image.Info{
+			{
+				ID:        newRef,
+				CreatedAt: timeNow,
+			},
+			{
+				ID:        newLockedID,
+				CreatedAt: timeNow,
+			},
 		},
-		image.Info{
-			ID:        newLockedID,
-			CreatedAt: timeNow,
-		},
-	}, nil)
+	}
 	mockManifests = &kubernetes.Manifests{}
 )
 
@@ -316,16 +318,18 @@ func Test_ImageStatus(t *testing.T) {
 		},
 	}
 
-	upToDateRegistry := registry.NewMockRegistry([]image.Info{
-		image.Info{
-			ID:        oldRef,
-			CreatedAt: timeNow,
+	upToDateRegistry := &registryMock.Registry{
+		Images: []image.Info{
+			{
+				ID:        oldRef,
+				CreatedAt: timeNow,
+			},
+			{
+				ID:        sidecarRef,
+				CreatedAt: timeNow,
+			},
 		},
-		image.Info{
-			ID:        sidecarRef,
-			CreatedAt: timeNow,
-		},
-	}, nil)
+	}
 
 	testSvcSpec, _ := update.ParseResourceSpec(testSvc.ID.String())
 	for _, tst := range []struct {

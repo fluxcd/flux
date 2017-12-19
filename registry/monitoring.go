@@ -3,6 +3,7 @@ package registry
 // Monitoring middlewares for registry interfaces
 
 import (
+	"context"
 	"strconv"
 	"time"
 
@@ -35,13 +36,11 @@ var (
 	}, []string{LabelRequestKind, fluxmetrics.LabelSuccess})
 )
 
-type InstrumentedRegistry Registry
-
 type instrumentedRegistry struct {
 	next Registry
 }
 
-func NewInstrumentedRegistry(next Registry) InstrumentedRegistry {
+func NewInstrumentedRegistry(next Registry) Registry {
 	return &instrumentedRegistry{
 		next: next,
 	}
@@ -65,8 +64,6 @@ func (m *instrumentedRegistry) GetImage(id image.Ref) (res image.Info, err error
 	return
 }
 
-type InstrumentedClient Client
-
 type instrumentedClient struct {
 	next Client
 }
@@ -77,9 +74,9 @@ func NewInstrumentedClient(next Client) Client {
 	}
 }
 
-func (m *instrumentedClient) Manifest(id image.Ref) (res image.Info, err error) {
+func (m *instrumentedClient) Manifest(ctx context.Context, ref string) (res image.Info, err error) {
 	start := time.Now()
-	res, err = m.next.Manifest(id)
+	res, err = m.next.Manifest(ctx, ref)
 	remoteDuration.With(
 		LabelRequestKind, RequestKindMetadata,
 		fluxmetrics.LabelSuccess, strconv.FormatBool(err == nil),
@@ -87,16 +84,12 @@ func (m *instrumentedClient) Manifest(id image.Ref) (res image.Info, err error) 
 	return
 }
 
-func (m *instrumentedClient) Tags(id image.Name) (res []string, err error) {
+func (m *instrumentedClient) Tags(ctx context.Context) (res []string, err error) {
 	start := time.Now()
-	res, err = m.next.Tags(id)
+	res, err = m.next.Tags(ctx)
 	remoteDuration.With(
 		LabelRequestKind, RequestKindTags,
 		fluxmetrics.LabelSuccess, strconv.FormatBool(err == nil),
 	).Observe(time.Since(start).Seconds())
 	return
-}
-
-func (m *instrumentedClient) Cancel() {
-	m.next.Cancel()
 }

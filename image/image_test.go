@@ -3,6 +3,7 @@ package image
 import (
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"sort"
 	"strconv"
 	"testing"
@@ -137,15 +138,56 @@ func TestRefSerialization(t *testing.T) {
 	}
 }
 
+func mustMakeInfo(ref string, created time.Time) Info {
+	r, err := ParseRef(ref)
+	if err != nil {
+		panic(err)
+	}
+	return Info{ID: r, CreatedAt: created}
+}
+
+func TestImageInfoSerialisation(t *testing.T) {
+	t0 := time.Now().UTC() // UTC so it has nil location, otherwise it won't compare
+	info := mustMakeInfo("my/image:tag", t0)
+	info.Digest = "sha256:digest"
+	info.ImageID = "sha256:layerID"
+	bytes, err := json.Marshal(info)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var info1 Info
+	if err = json.Unmarshal(bytes, &info1); err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(info, info1) {
+		t.Errorf("roundtrip serialisation failed:\n original: %#v\nroundtripped: %#v", info, info1)
+	}
+}
+
+func TestImageInfoCreatedAtZero(t *testing.T) {
+	info := mustMakeInfo("my/image:tag", time.Now())
+	info = Info{ID: info.ID}
+	bytes, err := json.Marshal(info)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var info1 map[string]interface{}
+	if err = json.Unmarshal(bytes, &info1); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := info1["CreatedAt"]; ok {
+		t.Errorf("serialised Info included zero time field; expected it to be omitted\n%s", string(bytes))
+	}
+}
+
 func TestImage_OrderByCreationDate(t *testing.T) {
-	fmt.Printf("testTime: %s\n", testTime)
 	time0 := testTime.Add(time.Second)
 	time2 := testTime.Add(-time.Second)
-	imA, _ := ParseInfo("my/Image:3", testTime)
-	imB, _ := ParseInfo("my/Image:1", time0)
-	imC, _ := ParseInfo("my/Image:4", time2)
-	imD, _ := ParseInfo("my/Image:0", time.Time{}) // test nil
-	imE, _ := ParseInfo("my/Image:2", testTime)    // test equal
+	imA := mustMakeInfo("my/Image:3", testTime)
+	imB := mustMakeInfo("my/Image:1", time0)
+	imC := mustMakeInfo("my/Image:4", time2)
+	imD := mustMakeInfo("my/Image:0", time.Time{}) // test nil
+	imE := mustMakeInfo("my/Image:2", testTime)    // test equal
 	imgs := []Info{imA, imB, imC, imD, imE}
 	sort.Sort(ByCreatedDesc(imgs))
 	for i, im := range imgs {
