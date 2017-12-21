@@ -61,26 +61,26 @@ func (c *Kubectl) connectArgs() []string {
 func (c *Kubectl) execute(logger log.Logger, errs cluster.SyncError) {
 	defer c.changeSet.clear()
 
+	f := func(objs []obj, cmd ...string) {
+		if len(objs) == 0 {
+			return
+		}
+		if err := c.doCommand(logger, makeMultidoc(objs), cmd...); err != nil {
+			for _, obj := range objs {
+				r := bytes.NewReader(obj.bytes)
+				if err := c.doCommand(logger, r, cmd...); err != nil {
+					errs[obj.id] = err
+				}
+			}
+		}
+	}
+
 	for _, cmd := range cmds {
 		noNsObjs := c.noNsObjs[cmd]
 		nsObjs := c.nsObjs[cmd]
 
-		if err := c.doCommand(logger, makeMultidoc(noNsObjs), cmd, "--namespace", "default"); err != nil {
-			for _, obj := range noNsObjs {
-				r := bytes.NewReader(obj.bytes)
-				if err := c.doCommand(logger, r, cmd, "--namespace", "default"); err != nil {
-					errs[obj.id] = err
-				}
-			}
-		}
-		if err := c.doCommand(logger, makeMultidoc(nsObjs), cmd); err != nil {
-			for _, obj := range nsObjs {
-				r := bytes.NewReader(obj.bytes)
-				if err := c.doCommand(logger, r, cmd); err != nil {
-					errs[obj.id] = err
-				}
-			}
-		}
+		f(noNsObjs, cmd, "--namespace", "default")
+		f(nsObjs, cmd)
 	}
 }
 
@@ -106,8 +106,7 @@ func (c *Kubectl) doCommand(logger log.Logger, r io.Reader, args ...string) erro
 func makeMultidoc(objs []obj) *bytes.Buffer {
 	buf := &bytes.Buffer{}
 	for _, obj := range objs {
-		fmt.Fprintln(buf, "---")
-		fmt.Fprintln(buf, obj.bytes)
+		buf.WriteString("---\n" + string(obj.bytes))
 	}
 	return buf
 }
