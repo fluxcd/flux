@@ -62,25 +62,30 @@ func (c *Kubectl) execute(logger log.Logger, errs cluster.SyncError) {
 	defer c.changeSet.clear()
 
 	for _, cmd := range cmds {
-		buf := &bytes.Buffer{}
-		for _, obj := range c.objs[cmd] {
-			fmt.Fprintln(buf, "---")
-			fmt.Fprintln(buf, string(obj.bytes))
-		}
+		noNsObjs := c.noNsObjs[cmd]
+		nsObjs := c.nsObjs[cmd]
 
-		if err := c.doCommand(logger, cmd, buf); err != nil {
-			for _, obj := range c.objs[cmd] {
+		if err := c.doCommand(logger, makeMultidoc(noNsObjs), cmd, "--namespace", "default"); err != nil {
+			for _, obj := range noNsObjs {
 				r := bytes.NewReader(obj.bytes)
-				if err := c.doCommand(logger, cmd, r); err != nil {
-					errs[obj.Metadata.Name] = err
+				if err := c.doCommand(logger, r, cmd, "--namespace", "default"); err != nil {
+					errs[obj.id] = err
+				}
+			}
+		}
+		if err := c.doCommand(logger, makeMultidoc(nsObjs), cmd); err != nil {
+			for _, obj := range nsObjs {
+				r := bytes.NewReader(obj.bytes)
+				if err := c.doCommand(logger, r, cmd); err != nil {
+					errs[obj.id] = err
 				}
 			}
 		}
 	}
 }
 
-func (c *Kubectl) doCommand(logger log.Logger, command string, r io.Reader) error {
-	args := []string{command, "-f", "-"}
+func (c *Kubectl) doCommand(logger log.Logger, r io.Reader, args ...string) error {
+	args = append(args, "-f", "-")
 	cmd := c.kubectlCommand(args...)
 	cmd.Stdin = r
 	stderr := &bytes.Buffer{}
@@ -98,29 +103,46 @@ func (c *Kubectl) doCommand(logger log.Logger, command string, r io.Reader) erro
 	return err
 }
 
+func makeMultidoc(objs []obj) *bytes.Buffer {
+	buf := &bytes.Buffer{}
+	for _, obj := range objs {
+		fmt.Fprintln(buf, "---")
+		fmt.Fprintln(buf, obj.bytes)
+	}
+	return buf
+}
+
 func (c *Kubectl) kubectlCommand(args ...string) *exec.Cmd {
 	return exec.Command(c.exe, append(c.connectArgs(), args...)...)
 }
 
 type changeSet struct {
-	objs map[string][]obj
+	nsObjs   map[string][]obj
+	noNsObjs map[string][]obj
+}
+
+func (c *changeSet) init() {
+	if c.nsObjs == nil {
+		c.nsObjs = make(map[string][]obj)
+	}
+	if c.noNsObjs == nil {
+		c.noNsObjs = make(map[string][]obj)
+	}
 }
 
 func (c *changeSet) stage(cmd, id string, o *apiObject) {
-	if c.objs == nil {
-		c.objs = make(map[string][]obj)
+	c.init()
+	if o.hasNamespace() {
+		c.nsObjs[cmd] = append(c.nsObjs[cmd], obj{id, o})
+	} else {
+		c.noNsObjs[cmd] = append(c.noNsObjs[cmd], obj{id, o})
 	}
-	c.objs[cmd] = append(c.objs[cmd], obj{id, o})
 }
 
 func (c *changeSet) clear() {
-	if c.objs == nil {
-		c.objs = make(map[string][]obj)
-		return
-	}
-	for cmd := range c.objs {
-		c.objs[cmd] = nil
-	}
+	c.nsObjs = nil
+	c.noNsObjs = nil
+	c.init()
 }
 
 type obj struct {

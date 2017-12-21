@@ -4,7 +4,6 @@ package kubernetes
 // adequate. Starting with Sync.
 
 import (
-	"io"
 	"testing"
 
 	"github.com/go-kit/kit/log"
@@ -14,30 +13,14 @@ import (
 
 type mockApplier struct {
 	commandRun bool
-	applyErr   error
-	deleteErr  error
 
 	changeSet
 }
 
-func (m *mockApplier) doCommand(_ log.Logger, command string, _ io.Reader) error {
-	m.commandRun = true
-	switch command {
-	case "apply":
-		return m.applyErr
-	case "delete":
-		return m.deleteErr
-	default:
-		return nil
-	}
-}
-
-func (m *mockApplier) execute(_ log.Logger, errs cluster.SyncError) {
+func (m *mockApplier) execute(_ log.Logger, _ cluster.SyncError) {
 	for _, cmd := range cmds {
-		if len(m.objs[cmd]) > 0 {
-			if err := m.doCommand(nil, cmd, nil); err != nil {
-				errs[cmd] = err
-			}
+		if len(m.nsObjs[cmd]) != 0 || len(m.noNsObjs[cmd]) != 0 {
+			m.commandRun = true
 		}
 	}
 }
