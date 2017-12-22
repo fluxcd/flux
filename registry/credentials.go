@@ -90,7 +90,7 @@ func (cs Credentials) credsFor(host string) creds {
 	if cred, found := cs.m[host]; found {
 		return cred
 	}
-	if host == "gcr.io" {
+	if host == "gcr.io" || strings.HasSuffix(host, ".gcr.io") {
 		if cred, err := GetGCPOauthToken(); err == nil {
 			return cred
 		}
