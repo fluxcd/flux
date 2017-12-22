@@ -238,8 +238,8 @@ func (s ReleaseSpec) calculateImageUpdates(rc ReleaseContext, candidates []*Cont
 				return nil, err
 			}
 
-			latestImage := images.LatestImage(currentImageID.Name, "*")
-			if latestImage == nil {
+			latestImage, ok := images.LatestImage(currentImageID.Name, "*")
+			if !ok {
 				if currentImageID.CanonicalName() != singleRepo {
 					ignoredOrSkipped = ReleaseStatusIgnored
 				} else {
