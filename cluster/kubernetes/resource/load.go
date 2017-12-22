@@ -59,7 +59,13 @@ func ParseMultidoc(multidoc []byte, source string) (map[string]resource.Resource
 	var obj resource.Resource
 	var err error
 	for chunks.Scan() {
-		if obj, err = unmarshalObject(source, chunks.Bytes()); err != nil {
+		// It's not guaranteed that the return value of Bytes() will not be mutated later:
+		// https://golang.org/pkg/bufio/#Scanner.Bytes
+		// But we will be snaffling it away, so make a copy.
+		bytes := chunks.Bytes()
+		bytes2 := make([]byte, len(bytes), cap(bytes))
+		copy(bytes2, bytes)
+		if obj, err = unmarshalObject(source, bytes2); err != nil {
 			return nil, errors.Wrapf(err, "parsing YAML doc from %q", source)
 		}
 		if obj == nil {
