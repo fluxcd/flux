@@ -135,5 +135,5 @@ func (opts *controllerReleaseOpts) RunE(cmd *cobra.Command, args []string) error
 		return err
 	}
 
-	return await(ctx, cmd.OutOrStdout(), cmd.OutOrStderr(), opts.API, jobID, !opts.dryRun, opts.verbose)
+	return await(ctx, cmd.OutOrStdout(), cmd.OutOrStderr(), opts.API, jobID, !opts.dryRun, opts.verbosity)
 }

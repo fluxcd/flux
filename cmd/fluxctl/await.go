@@ -18,13 +18,13 @@ var ErrTimeout = errors.New("timeout")
 
 // await polls for a job to complete, then for the resulting commit to
 // be applied
-func await(ctx context.Context, stdout, stderr io.Writer, client api.Client, jobID job.ID, apply, verbose bool) error {
+func await(ctx context.Context, stdout, stderr io.Writer, client api.Client, jobID job.ID, apply bool, verbosity int) error {
 	metadata, err := awaitJob(ctx, client, jobID)
 	if err != nil && err.Error() != git.ErrNoChanges.Error() {
 		return err
 	}
 	if metadata.Result != nil {
-		update.PrintResults(stdout, metadata.Result, verbose)
+		update.PrintResults(stdout, metadata.Result, verbosity)
 	}
 	if metadata.Revision != "" {
 		fmt.Fprintf(stderr, "Commit pushed:\t%s\n", metadata.ShortRevision())

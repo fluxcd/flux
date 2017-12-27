@@ -18,10 +18,10 @@ func mustParseRef(s string) image.Ref {
 
 func TestPrintResults(t *testing.T) {
 	for _, example := range []struct {
-		name     string
-		result   Result
-		verbose  bool
-		expected string
+		name      string
+		result    Result
+		verbosity int
+		expected  string
 	}{
 		{
 			name: "basic, just results",
@@ -85,13 +85,13 @@ default/d    success
 	} {
 		out := &bytes.Buffer{}
 		out.WriteString("\n") // All our "expected" values start with a newline, to make maintaining them easier.
-		PrintResults(out, example.result, example.verbose)
+		PrintResults(out, example.result, example.verbosity)
 		if out.String() != example.expected {
 			t.Errorf(
 				"Name: %s\nPrintResults(out, %#v, %v)\nExpected\n-------%s-------\nGot\n-------%s-------",
 				example.name,
 				example.result,
-				example.verbose,
+				example.verbosity,
 				example.expected,
 				out.String(),
 			)

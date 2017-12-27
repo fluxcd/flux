@@ -8,14 +8,23 @@ import (
 	"github.com/weaveworks/flux"
 )
 
-func PrintResults(out io.Writer, results Result, verbose bool) {
+// PrintResults outputs a result set to the `io.Writer` provided, at
+// the given level of verbosity:
+//  - 2 = include skipped and ignored resources
+//  - 1 = include skipped resources, exclude ignored resources
+//  - 0 = exclude skipped and ignored resources
+func PrintResults(out io.Writer, results Result, verbosity int) {
 	w := tabwriter.NewWriter(out, 0, 2, 2, ' ', 0)
 	fmt.Fprintln(w, "CONTROLLER \tSTATUS \tUPDATES")
 	for _, serviceID := range results.ServiceIDs() {
 		result := results[flux.MustParseResourceID(serviceID)]
 		switch result.Status {
 		case ReleaseStatusIgnored:
-			if !verbose {
+			if verbosity < 2 {
+				continue
+			}
+		case ReleaseStatusSkipped:
+			if verbosity < 1 {
 				continue
 			}
 		}

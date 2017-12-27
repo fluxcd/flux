@@ -110,7 +110,7 @@ func (opts *controllerPolicyOpts) RunE(cmd *cobra.Command, args []string) error 
 	if err != nil {
 		return err
 	}
-	return await(ctx, cmd.OutOrStdout(), cmd.OutOrStderr(), opts.API, jobID, false, opts.verbose)
+	return await(ctx, cmd.OutOrStdout(), cmd.OutOrStderr(), opts.API, jobID, false, opts.verbosity)
 }
 
 func calculatePolicyChanges(opts *controllerPolicyOpts) (policy.Update, error) {
