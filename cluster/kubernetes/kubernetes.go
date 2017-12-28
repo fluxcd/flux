@@ -85,9 +85,33 @@ func isAddon(obj namespacedLabeled) bool {
 
 // --- /add ons
 
+type changeSet struct {
+	nsObjs   map[string][]obj
+	noNsObjs map[string][]obj
+}
+
+func makeChangeSet() changeSet {
+	return changeSet{
+		nsObjs:   make(map[string][]obj),
+		noNsObjs: make(map[string][]obj),
+	}
+}
+
+func (c *changeSet) stage(cmd, id string, o *apiObject) {
+	if o.hasNamespace() {
+		c.nsObjs[cmd] = append(c.nsObjs[cmd], obj{id, o})
+	} else {
+		c.noNsObjs[cmd] = append(c.noNsObjs[cmd], obj{id, o})
+	}
+}
+
+type obj struct {
+	id string
+	*apiObject
+}
+
 type Applier interface {
-	stage(id, cmd string, obj *apiObject)
-	execute(log.Logger, cluster.SyncError)
+	apply(log.Logger, changeSet, cluster.SyncError)
 }
 
 // Cluster is a handle to a Kubernetes API server.
@@ -195,6 +219,7 @@ func (c *Cluster) Sync(spec cluster.SyncDef) error {
 	defer c.mu.Unlock()
 	logger := log.With(c.logger, "method", "Sync")
 
+	cs := makeChangeSet()
 	errs := cluster.SyncError{}
 	for _, action := range spec.Actions {
 		stages := []struct {
@@ -211,14 +236,14 @@ func (c *Cluster) Sync(spec cluster.SyncDef) error {
 			obj, err := definitionObj(stage.b)
 			id := action.ResourceID
 			if err == nil {
-				c.applier.stage(stage.cmd, id, obj)
+				cs.stage(stage.cmd, id, obj)
 			} else {
 				errs[id] = err
 				break
 			}
 		}
 	}
-	c.applier.execute(logger, errs)
+	c.applier.apply(logger, cs, errs)
 	if len(errs) != 0 {
 		return errs
 	}

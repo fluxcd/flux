@@ -17,8 +17,6 @@ import (
 type Kubectl struct {
 	exe    string
 	config *rest.Config
-
-	changeSet
 }
 
 func NewKubectl(exe string, config *rest.Config) *Kubectl {
@@ -54,9 +52,7 @@ func (c *Kubectl) connectArgs() []string {
 	return args
 }
 
-func (c *Kubectl) execute(logger log.Logger, errs cluster.SyncError) {
-	defer c.changeSet.clear()
-
+func (c *Kubectl) apply(logger log.Logger, cs changeSet, errs cluster.SyncError) {
 	f := func(m map[string][]obj, cmd string, args ...string) {
 		objs := m[cmd]
 		if len(objs) == 0 {
@@ -76,12 +72,12 @@ func (c *Kubectl) execute(logger log.Logger, errs cluster.SyncError) {
 	// When deleting resources we must ensure any resource in a non-default
 	// namespace is deleted before the namespace that it is in. Since namespace
 	// resources don't specify a namespace, this ordering guarantees that.
-	f(c.nsObjs, "delete")
-	f(c.noNsObjs, "delete", "--namespace", "default")
+	f(cs.nsObjs, "delete")
+	f(cs.noNsObjs, "delete", "--namespace", "default")
 	// Likewise, when applying resources we must ensure the namespace is applied
 	// first, so we run the commands the other way round.
-	f(c.noNsObjs, "apply", "--namespace", "default")
-	f(c.nsObjs, "apply")
+	f(cs.noNsObjs, "apply", "--namespace", "default")
+	f(cs.nsObjs, "apply")
 
 }
 
@@ -114,38 +110,4 @@ func makeMultidoc(objs []obj) *bytes.Buffer {
 
 func (c *Kubectl) kubectlCommand(args ...string) *exec.Cmd {
 	return exec.Command(c.exe, append(c.connectArgs(), args...)...)
-}
-
-type changeSet struct {
-	nsObjs   map[string][]obj
-	noNsObjs map[string][]obj
-}
-
-func (c *changeSet) init() {
-	if c.nsObjs == nil {
-		c.nsObjs = make(map[string][]obj)
-	}
-	if c.noNsObjs == nil {
-		c.noNsObjs = make(map[string][]obj)
-	}
-}
-
-func (c *changeSet) stage(cmd, id string, o *apiObject) {
-	c.init()
-	if o.hasNamespace() {
-		c.nsObjs[cmd] = append(c.nsObjs[cmd], obj{id, o})
-	} else {
-		c.noNsObjs[cmd] = append(c.noNsObjs[cmd], obj{id, o})
-	}
-}
-
-func (c *changeSet) clear() {
-	c.nsObjs = nil
-	c.noNsObjs = nil
-	c.init()
-}
-
-type obj struct {
-	id string
-	*apiObject
 }

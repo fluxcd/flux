@@ -13,15 +13,11 @@ import (
 
 type mockApplier struct {
 	commandRun bool
-
-	changeSet
 }
 
-func (m *mockApplier) execute(_ log.Logger, _ cluster.SyncError) {
-	for _, cmd := range []string{"apply", "delete"} {
-		if len(m.nsObjs[cmd]) != 0 || len(m.noNsObjs[cmd]) != 0 {
-			m.commandRun = true
-		}
+func (m *mockApplier) apply(_ log.Logger, c changeSet, _ cluster.SyncError) {
+	if len(c.nsObjs) != 0 || len(c.noNsObjs) != 0 {
+		m.commandRun = true
 	}
 }
 
