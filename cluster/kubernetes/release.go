@@ -14,10 +14,6 @@ import (
 	rest "k8s.io/client-go/rest"
 )
 
-var (
-	cmds = []string{"delete", "apply"}
-)
-
 type Kubectl struct {
 	exe    string
 	config *rest.Config
@@ -61,27 +57,32 @@ func (c *Kubectl) connectArgs() []string {
 func (c *Kubectl) execute(logger log.Logger, errs cluster.SyncError) {
 	defer c.changeSet.clear()
 
-	f := func(objs []obj, cmd ...string) {
+	f := func(m map[string][]obj, cmd string, args ...string) {
+		objs := m[cmd]
 		if len(objs) == 0 {
 			return
 		}
-		if err := c.doCommand(logger, makeMultidoc(objs), cmd...); err != nil {
+		args = append(args, cmd)
+		if err := c.doCommand(logger, makeMultidoc(objs), args...); err != nil {
 			for _, obj := range objs {
 				r := bytes.NewReader(obj.bytes)
-				if err := c.doCommand(logger, r, cmd...); err != nil {
+				if err := c.doCommand(logger, r, args...); err != nil {
 					errs[obj.id] = err
 				}
 			}
 		}
 	}
 
-	for _, cmd := range cmds {
-		noNsObjs := c.noNsObjs[cmd]
-		nsObjs := c.nsObjs[cmd]
+	// When deleting resources we must ensure any resource in a non-default
+	// namespace is deleted before the namespace that it is in. Since namespace
+	// resources don't specify a namespace, this ordering guarantees that.
+	f(c.nsObjs, "delete")
+	f(c.noNsObjs, "delete", "--namespace", "default")
+	// Likewise, when applying resources we must ensure the namespace is applied
+	// first, so we run the commands the other way round.
+	f(c.noNsObjs, "apply", "--namespace", "default")
+	f(c.nsObjs, "apply")
 
-		f(noNsObjs, cmd, "--namespace", "default")
-		f(nsObjs, cmd)
-	}
 }
 
 func (c *Kubectl) doCommand(logger log.Logger, r io.Reader, args ...string) error {

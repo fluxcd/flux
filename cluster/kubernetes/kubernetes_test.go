@@ -18,7 +18,7 @@ type mockApplier struct {
 }
 
 func (m *mockApplier) execute(_ log.Logger, _ cluster.SyncError) {
-	for _, cmd := range cmds {
+	for _, cmd := range []string{"apply", "delete"} {
 		if len(m.nsObjs[cmd]) != 0 || len(m.noNsObjs[cmd]) != 0 {
 			m.commandRun = true
 		}
