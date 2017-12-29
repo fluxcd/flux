@@ -94,7 +94,7 @@ assuming you can access the Kubernetes API:
 ```
 fluxpod=$(kubectl get pod -l name=flux -o name | awk -F / '{ print $2; }')
 kubectl port-forward "$fluxpod" 10080:3030 &
-FLUX_URL="http://localhost:10080/api/flux"
+export FLUX_URL="http://localhost:10080/api/flux"
 fluxctl list-controllers --all-namespaces
 ```
 
@@ -116,7 +116,7 @@ number (this example assumes you are using minikube):
 
 ```
 fluxport=$(kubectl get svc flux --template '{{ index .spec.ports 0 "nodePort" }}')
-FLUX_URL="http://$(minikube ip):$fluxport/api/flux"
+export FLUX_URL="http://$(minikube ip):$fluxport/api/flux"
 fluxctl list-controllers --all-namespaces
 ```
 
