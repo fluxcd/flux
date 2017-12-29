@@ -20,12 +20,13 @@ type ImageMap struct {
 	images infoMap
 }
 
-// LatestImage returns the latest releasable image for a repository for
-// which the tag matches a given pattern. A releasable image is one that
-// is not tagged "latest". (Assumes the available images are in
-// descending order of latestness.) If no such image exists, returns nil,
-// and the caller can decide whether that's an error or not.
-func (m ImageMap) LatestImage(repo image.Name, tagGlob string) *image.Info {
+// LatestImage returns the latest releasable image for a repository
+// for which the tag matches a given pattern. A releasable image is
+// one that is not tagged "latest". (Assumes the available images are
+// in descending order of latestness.) If no such image exists,
+// returns a zero value and `false`, and the caller can decide whether
+// that's an error or not.
+func (m ImageMap) LatestImage(repo image.Name, tagGlob string) (image.Info, bool) {
 	for _, available := range m.images[repo.CanonicalName()] {
 		tag := available.ID.Tag
 		// Ignore latest if and only if it's not what the user wants.
@@ -36,10 +37,10 @@ func (m ImageMap) LatestImage(repo image.Name, tagGlob string) *image.Info {
 			var im image.Info
 			im = available
 			im.ID = repo.ToRef(tag)
-			return &im
+			return im, true
 		}
 	}
-	return nil
+	return image.Info{}, false
 }
 
 // Available returns image.Info entries for all the images in the
