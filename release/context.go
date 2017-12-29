@@ -59,74 +59,68 @@ func (rc *ReleaseContext) WriteUpdates(updates []*update.ControllerUpdate) error
 // ---
 
 // SelectServices finds the services that exist both in the definition
-// files and the running platform.
-//
-// `ServiceFilter`s can be provided to filter the found services.
-// Be careful about the ordering of the filters. Filters that are earlier
-// in the slice will have higher priority (they are run first).
-func (rc *ReleaseContext) SelectServices(results update.Result, filters ...update.ControllerFilter) ([]*update.ControllerUpdate, error) {
-	defined, err := rc.FindDefinedServices()
+// files and the running platform. `ControllerFilter`s can be provided
+// to filter the controllers so found, either before (`prefilters`) or
+// after (`postfilters`) consulting the cluster.
+func (rc *ReleaseContext) SelectServices(results update.Result, prefilters, postfilters []update.ControllerFilter) ([]*update.ControllerUpdate, error) {
+
+	// Start with all the controllers that are defined in the repo.
+	allDefined, err := rc.FindDefinedServices()
 	if err != nil {
 		return nil, err
 	}
 
-	var ids []flux.ResourceID
-	definedMap := map[flux.ResourceID]*update.ControllerUpdate{}
-	for _, s := range defined {
-		ids = append(ids, s.ResourceID)
-		definedMap[s.ResourceID] = s
+	// Apply prefilters to select the controllers that we'll ask the
+	// cluster about.
+	var toAskClusterAbout []flux.ResourceID
+	for _, s := range allDefined {
+		res := s.Filter(prefilters...)
+		if res.Error == "" {
+			// Give these a default value, in case we don't find them
+			// in the cluster.
+			results[s.ResourceID] = update.ControllerResult{
+				Status: update.ReleaseStatusSkipped,
+				Error:  update.NotInCluster,
+			}
+			toAskClusterAbout = append(toAskClusterAbout, s.ResourceID)
+		} else {
+			results[s.ResourceID] = res
+		}
 	}
 
-	// Correlate with services in running system.
-	services, err := rc.cluster.SomeControllers(ids)
+	// Ask the cluster about those that we're still interested in
+	definedAndRunning, err := rc.cluster.SomeControllers(toAskClusterAbout)
 	if err != nil {
 		return nil, err
 	}
 
+	var forPostFiltering []*update.ControllerUpdate
 	// Compare defined vs running
-	var updates []*update.ControllerUpdate
-	for _, s := range services {
-		update, ok := definedMap[s.ID]
+	for _, s := range definedAndRunning {
+		update, ok := allDefined[s.ID]
 		if !ok {
-			// Found running service, but not defined...
-			continue
+			// A contradiction: we asked only about defined
+			// controllers, and got a controller that is not
+			// defined.
+			return nil, fmt.Errorf("controller %s was requested and is running, but is not defined", s.ID)
 		}
 		update.Controller = s
-		updates = append(updates, update)
-		delete(definedMap, s.ID)
+		forPostFiltering = append(forPostFiltering, update)
 	}
 
-	// Filter both updates ...
 	var filteredUpdates []*update.ControllerUpdate
-	for _, s := range updates {
-		fr := s.Filter(filters...)
+	for _, s := range forPostFiltering {
+		fr := s.Filter(postfilters...)
 		results[s.ResourceID] = fr
 		if fr.Status == update.ReleaseStatusSuccess || fr.Status == "" {
 			filteredUpdates = append(filteredUpdates, s)
 		}
 	}
 
-	// ... and missing services
-	filteredDefined := map[flux.ResourceID]*update.ControllerUpdate{}
-	for k, s := range definedMap {
-		fr := s.Filter(filters...)
-		results[s.ResourceID] = fr
-		if fr.Status != update.ReleaseStatusIgnored {
-			filteredDefined[k] = s
-		}
-	}
-
-	// Mark anything left over as skipped
-	for id, _ := range filteredDefined {
-		results[id] = update.ControllerResult{
-			Status: update.ReleaseStatusSkipped,
-			Error:  update.NotInCluster,
-		}
-	}
 	return filteredUpdates, nil
 }
 
-func (rc *ReleaseContext) FindDefinedServices() ([]*update.ControllerUpdate, error) {
+func (rc *ReleaseContext) FindDefinedServices() (map[flux.ResourceID]*update.ControllerUpdate, error) {
 	rc.repo.RLock()
 	defer rc.repo.RUnlock()
 	services, err := rc.manifests.FindDefinedServices(rc.repo.ManifestDir())
@@ -134,7 +128,7 @@ func (rc *ReleaseContext) FindDefinedServices() ([]*update.ControllerUpdate, err
 		return nil, err
 	}
 
-	var defined []*update.ControllerUpdate
+	var defined = map[flux.ResourceID]*update.ControllerUpdate{}
 	for id, paths := range services {
 		switch len(paths) {
 		case 1:
@@ -142,11 +136,11 @@ func (rc *ReleaseContext) FindDefinedServices() ([]*update.ControllerUpdate, err
 			if err != nil {
 				return nil, err
 			}
-			defined = append(defined, &update.ControllerUpdate{
+			defined[id] = &update.ControllerUpdate{
 				ResourceID:    id,
 				ManifestPath:  paths[0],
 				ManifestBytes: def,
-			})
+			}
 		default:
 			return nil, fmt.Errorf("multiple resource files found for service %s: %s", id, strings.Join(paths, ", "))
 		}
