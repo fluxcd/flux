@@ -29,51 +29,20 @@ func Sync(m cluster.Manifests, repoResources map[string]resource.Resource, clus 
 	// no-op.
 	sync := cluster.SyncDef{}
 
-	nsClusterResources, otherClusterResources := separateResourcesByType(clusterResources)
-	nsRepoResources, otherRepoResources := separateResourcesByType(repoResources)
-
-	// First tackle resources that are not Namespace kind, in case we are deleting the Namespace as well
-	// Deleting a Namespace first, then a resource in this namespace causes an error
-
 	// DANGER ZONE (tamara) This works and is dangerous. At the moment will delete Flux and
 	// other pods unless the relevant manifests are part of the user repo. Needs a lot of thought
 	// before this cleanup cluster feature can be unleashed on the world.
 	if deletes {
-		for id, res := range otherClusterResources {
-			prepareSyncDelete(logger, repoResources, id, res, &sync)
-		}
-		for id, res := range nsClusterResources {
+		for id, res := range clusterResources {
 			prepareSyncDelete(logger, repoResources, id, res, &sync)
 		}
 	}
 
-	// To avoid errors due to a non existent namespace if a resource in that namespace is created first,
-	// create Namespace objects first
-	for id, res := range nsRepoResources {
-		prepareSyncApply(logger, clusterResources, id, res, &sync)
-	}
-	for id, res := range otherRepoResources {
+	for id, res := range repoResources {
 		prepareSyncApply(logger, clusterResources, id, res, &sync)
 	}
 
 	return clus.Sync(sync)
-}
-
-func separateResourcesByType(resources map[string]resource.Resource) (map[string]resource.Resource, map[string]resource.Resource) {
-	if len(resources) == 0 {
-		return nil, nil
-	}
-	nsResources := make(map[string]resource.Resource)
-	otherResources := make(map[string]resource.Resource)
-	for id, res := range resources {
-		_, kind, _ := res.ResourceID().Components()
-		if kind == "namespace" {
-			nsResources[id] = res
-		} else {
-			otherResources[id] = res
-		}
-	}
-	return nsResources, otherResources
 }
 
 func prepareSyncDelete(logger log.Logger, repoResources map[string]resource.Resource, id string, res resource.Resource, sync *cluster.SyncDef) {

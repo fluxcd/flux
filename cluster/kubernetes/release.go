@@ -10,17 +10,20 @@ import (
 
 	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
+	"github.com/weaveworks/flux/cluster"
 	rest "k8s.io/client-go/rest"
 )
 
-func NewKubectl(exe string, config *rest.Config, stdout, stderr io.Writer) *Kubectl {
-	return &Kubectl{exe, config, stdout, stderr}
+type Kubectl struct {
+	exe    string
+	config *rest.Config
 }
 
-type Kubectl struct {
-	exe            string
-	config         *rest.Config
-	stdout, stderr io.Writer
+func NewKubectl(exe string, config *rest.Config) *Kubectl {
+	return &Kubectl{
+		exe:    exe,
+		config: config,
+	}
 }
 
 func (c *Kubectl) connectArgs() []string {
@@ -49,16 +52,39 @@ func (c *Kubectl) connectArgs() []string {
 	return args
 }
 
-func (c *Kubectl) kubectlCommand(args ...string) *exec.Cmd {
-	cmd := exec.Command(c.exe, append(c.connectArgs(), args...)...)
-	cmd.Stdout = c.stdout
-	cmd.Stderr = c.stderr
-	return cmd
+func (c *Kubectl) apply(logger log.Logger, cs changeSet, errs cluster.SyncError) {
+	f := func(m map[string][]obj, cmd string, args ...string) {
+		objs := m[cmd]
+		if len(objs) == 0 {
+			return
+		}
+		args = append(args, cmd)
+		if err := c.doCommand(logger, makeMultidoc(objs), args...); err != nil {
+			for _, obj := range objs {
+				r := bytes.NewReader(obj.bytes)
+				if err := c.doCommand(logger, r, args...); err != nil {
+					errs[obj.id] = err
+				}
+			}
+		}
+	}
+
+	// When deleting resources we must ensure any resource in a non-default
+	// namespace is deleted before the namespace that it is in. Since namespace
+	// resources don't specify a namespace, this ordering guarantees that.
+	f(cs.nsObjs, "delete")
+	f(cs.noNsObjs, "delete", "--namespace", "default")
+	// Likewise, when applying resources we must ensure the namespace is applied
+	// first, so we run the commands the other way round.
+	f(cs.noNsObjs, "apply", "--namespace", "default")
+	f(cs.nsObjs, "apply")
+
 }
 
-func (c *Kubectl) doCommand(logger log.Logger, newDefinition []byte, args ...string) error {
+func (c *Kubectl) doCommand(logger log.Logger, r io.Reader, args ...string) error {
+	args = append(args, "-f", "-")
 	cmd := c.kubectlCommand(args...)
-	cmd.Stdin = bytes.NewReader(newDefinition)
+	cmd.Stdin = r
 	stderr := &bytes.Buffer{}
 	cmd.Stderr = stderr
 	stdout := &bytes.Buffer{}
@@ -74,10 +100,14 @@ func (c *Kubectl) doCommand(logger log.Logger, newDefinition []byte, args ...str
 	return err
 }
 
-func (c *Kubectl) Delete(logger log.Logger, obj *apiObject) error {
-	return c.doCommand(logger, obj.bytes, "--namespace", obj.namespaceOrDefault(), "delete", "-f", "-")
+func makeMultidoc(objs []obj) *bytes.Buffer {
+	buf := &bytes.Buffer{}
+	for _, obj := range objs {
+		buf.WriteString("---\n" + string(obj.bytes))
+	}
+	return buf
 }
 
-func (c *Kubectl) Apply(logger log.Logger, obj *apiObject) error {
-	return c.doCommand(logger, obj.bytes, "--namespace", obj.namespaceOrDefault(), "apply", "-f", "-")
+func (c *Kubectl) kubectlCommand(args ...string) *exec.Cmd {
+	return exec.Command(c.exe, append(c.connectArgs(), args...)...)
 }
