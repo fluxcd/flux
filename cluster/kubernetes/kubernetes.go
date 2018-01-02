@@ -215,8 +215,6 @@ func (c *Cluster) AllControllers(namespace string) (res []cluster.Controller, er
 // Sync performs the given actions on resources. Operations are
 // asynchronous, but serialised.
 func (c *Cluster) Sync(spec cluster.SyncDef) error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
 	logger := log.With(c.logger, "method", "Sync")
 
 	cs := makeChangeSet()
@@ -243,6 +241,9 @@ func (c *Cluster) Sync(spec cluster.SyncDef) error {
 			}
 		}
 	}
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	c.applier.apply(logger, cs, errs)
 	if len(errs) != 0 {
 		return errs
