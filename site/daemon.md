@@ -53,13 +53,13 @@ fluxd requires setup and offers customization though a multitude of flags.
 |--git-sync-tag          | `flux-sync`             | tag to use to mark sync progress for this cluster (old config, still used if --git-label is not supplied)|
 |--git-notes-ref         | `flux`            | ref to use for keeping commit annotations in git notes|
 |--git-poll-interval     | `5 minutes`                 | period at which to poll git repo for new commits|
-|**registry**            |                               | |
-|--memcached-hostname    |                               | hostname for memcached service to use when caching chunks; if empty, no memcached will be used|
+|**registry cache**      |                               | (none of these need overriding, usually) |
+|--memcached-hostname    | `memcached` | hostname for memcached service to use for caching image metadata|
 |--memcached-timeout     | `1 second`                   | maximum time to wait before giving up on memcached requests|
 |--memcached-service     | `memcached`                     | SRV service used to discover memcache servers|
-|--registry-cache-expiry | `20 minutes`                  | Duration to keep cached registry tag info. Must be < 1 month.|
+|--registry-cache-expiry | `1 hour`                  | Duration to keep cached registry tag info. Must be < 1 month.|
 |--registry-poll-interval| `5 minutes`                   | period at which to poll registry for new images|
-|--registry-rps          | 200                           | maximum registry requests per second per host|
+|--registry-rps          | `200`                           | maximum registry requests per second per host|
 |--registry-burst        | `125`      | maximum number of warmer connections to remote and memcache|
 |**k8s-secret backed ssh keyring configuration**      |  | |
 |--k8s-secret-name       | `flux-git-deploy`               | name of the k8s secret used to store the private SSH key|
