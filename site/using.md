@@ -220,9 +220,9 @@ default:deployment/helloworld  success
 
 # Recording user and message with the triggered action
 
-Issuing a deployment change results in a version control change/git commit, keeping the
-history of the actions. Flux daemon can be started with several flags that impact the commit
-information:
+Issuing a deployment change results in a version control change/git
+commit, keeping the history of the actions. The Flux daemon can be
+started with several flags that impact the commit information:
 
 | flag              | purpose                       | default |
 |-------------------|-------------------------------|------------|
@@ -296,4 +296,3 @@ for b) and c):
 
 git commit: fatal: --author 'unknown' is not 'Name <email>' and matches
 no existing author
-
