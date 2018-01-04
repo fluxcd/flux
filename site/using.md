@@ -228,7 +228,7 @@ started with several flags that impact the commit information:
 |-------------------|-------------------------------|------------|
 | git-user          | committer name                | Weave Flux |
 | git-email         | committer name                | support@weave.works |
-| set-git-author    | override of the commit author | false |
+| git-set-author    | override the commit author    | false |
 
 Actions triggered by a user through the Weave Cloud UI or the CLI `fluxctl`
 tool, can have the commit author information customized. This is handy for providing extra context in the
