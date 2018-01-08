@@ -351,8 +351,9 @@ func main() {
 	{
 		repo = git.Repo{
 			GitRemoteConfig: gitRemoteConfig,
-			KeyRing:         sshKeyRing,
 		}
+		// TODO: should not need to supply all of this -- maybe just
+		// on clone?
 		gitConfig := git.Config{
 			SyncTag:   *gitSyncTag,
 			NotesRef:  *gitNotesRef,

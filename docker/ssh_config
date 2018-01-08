@@ -1,0 +1,4 @@
+Host *
+StrictHostKeyChecking yes
+IdentityFile /etc/fluxd/ssh/identity
+LogLevel error
