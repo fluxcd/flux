@@ -188,12 +188,6 @@
   revision = "5b9ff866471762aa2ab2dced63c9fb6f53921342"
 
 [[projects]]
-  name = "github.com/kevinburke/ssh_config"
-  packages = ["."]
-  revision = "fa48d7ff1cfb9f26c514b80d520880394293bf08"
-  version = "0.2"
-
-[[projects]]
   branch = "master"
   name = "github.com/kr/logfmt"
   packages = ["."]
@@ -216,12 +210,6 @@
   packages = ["."]
   revision = "279bed98673dd5bef374d3b6e4b09e2af76183bf"
   version = "v1.0.0-rc1"
-
-[[projects]]
-  name = "github.com/pelletier/go-buffruneio"
-  packages = ["."]
-  revision = "c37440a7cf42ac63b919c752ca73a85067e05992"
-  version = "v0.2.0"
 
 [[projects]]
   branch = "master"
@@ -388,6 +376,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "ec725965d5d758e435fde23508d9ffa5984f312e7d99466cea5530461f71a7da"
+  inputs-digest = "34df08675550de897967373573c4c8d6d515afb8184badc4e3e44dcec32a2561"
   solver-name = "gps-cdcl"
   solver-version = 1

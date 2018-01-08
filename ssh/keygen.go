@@ -9,7 +9,6 @@ import (
 	"regexp"
 	"strconv"
 
-	sshconfig "github.com/kevinburke/ssh_config"
 	"github.com/spf13/pflag"
 )
 
@@ -113,27 +112,6 @@ func KeyGen(keyBits, keyType OptionalValue, tmpfsPath string) (privateKeyPath st
 	}
 
 	return privateKeyPath, privateKey, publicKey, nil
-}
-
-func WriteSSHConfig(privateKeyPath string) error {
-	star, err := sshconfig.NewPattern("*")
-	if err != nil {
-		return err
-	}
-	sshconf := &sshconfig.Config{
-		Hosts: []*sshconfig.Host{
-			&sshconfig.Host{
-				Patterns: []*sshconfig.Pattern{star},
-				Nodes: []sshconfig.Node{
-					&sshconfig.KV{Key: "StrictHostKeyChecking", Value: "yes"},
-					&sshconfig.KV{Key: "IdentityFile", Value: privateKeyPath},
-					&sshconfig.KV{Key: "LogLevel", Value: "error"},
-				},
-			},
-		},
-	}
-	println("Output SSH config ", sshconf.String())
-	return ioutil.WriteFile("/etc/ssh/ssh_config", []byte(sshconf.String()), 0644)
 }
 
 type Fingerprint struct {

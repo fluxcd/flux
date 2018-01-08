@@ -42,7 +42,7 @@ build/.%.done: docker/Dockerfile.%
 	${DOCKER} build -t quay.io/weaveworks/$* -t quay.io/weaveworks/$*:$(IMAGE_TAG) -f build/docker/$*/Dockerfile.$* ./build/docker/$*
 	touch $@
 
-build/.flux.done: build/fluxd build/kubectl
+build/.flux.done: build/fluxd build/kubectl docker/ssh_config
 
 build/fluxd: $(FLUXD_DEPS)
 build/fluxd: cmd/fluxd/*.go
