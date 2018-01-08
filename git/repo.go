@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/weaveworks/flux"
-	"github.com/weaveworks/flux/ssh"
 )
 
 const (
@@ -26,7 +25,6 @@ var (
 // Repo represents a (remote) git repo.
 type Repo struct {
 	flux.GitRemoteConfig
-	KeyRing ssh.KeyRing
 }
 
 // Checkout is a local clone of the remote repo.
@@ -70,7 +68,7 @@ func (r Repo) Clone(ctx context.Context, c Config) (*Checkout, error) {
 		return nil, err
 	}
 
-	repoDir, err := clone(ctx, workingDir, r.KeyRing, r.URL, r.Branch)
+	repoDir, err := clone(ctx, workingDir, r.URL, r.Branch)
 	if err != nil {
 		return nil, CloningError(r.URL, err)
 	}
@@ -85,7 +83,7 @@ func (r Repo) Clone(ctx context.Context, c Config) (*Checkout, error) {
 	}
 
 	// this fetches and updates the local ref, so we'll see notes
-	if err := fetch(ctx, r.KeyRing, repoDir, r.URL, notesRef+":"+notesRef); err != nil {
+	if err := fetch(ctx, repoDir, r.URL, notesRef+":"+notesRef); err != nil {
 		return nil, err
 	}
 
@@ -108,7 +106,7 @@ func (c *Checkout) WorkingClone(ctx context.Context) (*Checkout, error) {
 		return nil, err
 	}
 
-	repoDir, err := clone(ctx, workingDir, nil, c.Dir, c.repo.Branch)
+	repoDir, err := clone(ctx, workingDir, c.Dir, c.repo.Branch)
 	if err != nil {
 		return nil, err
 	}
@@ -118,7 +116,7 @@ func (c *Checkout) WorkingClone(ctx context.Context) (*Checkout, error) {
 	}
 
 	// this fetches and updates the local ref, so we'll see notes
-	if err := fetch(ctx, nil, repoDir, c.Dir, c.realNotesRef+":"+c.realNotesRef); err != nil {
+	if err := fetch(ctx, repoDir, c.Dir, c.realNotesRef+":"+c.realNotesRef); err != nil {
 		return nil, err
 	}
 
@@ -148,7 +146,7 @@ func (c *Checkout) ManifestDir() string {
 func (c *Checkout) CheckOriginWritable(ctx context.Context) error {
 	c.Lock()
 	defer c.Unlock()
-	if err := checkPush(ctx, c.repo.KeyRing, c.Dir, c.repo.URL); err != nil {
+	if err := checkPush(ctx, c.Dir, c.repo.URL); err != nil {
 		return ErrUpstreamNotWritable(c.repo.URL, err)
 	}
 	return nil
@@ -184,7 +182,7 @@ func (c *Checkout) CommitAndPush(ctx context.Context, commitAction *CommitAction
 		return err
 	}
 
-	if err := push(ctx, c.repo.KeyRing, c.Dir, c.repo.URL, refs); err != nil {
+	if err := push(ctx, c.Dir, c.repo.URL, refs); err != nil {
 		return PushError(c.repo.URL, err)
 	}
 	return nil
@@ -201,7 +199,7 @@ func (c *Checkout) GetNote(ctx context.Context, rev string) (*Note, error) {
 func (c *Checkout) Pull(ctx context.Context) error {
 	c.Lock()
 	defer c.Unlock()
-	if err := pull(ctx, c.repo.KeyRing, c.Dir, c.repo.URL, c.repo.Branch); err != nil {
+	if err := pull(ctx, c.Dir, c.repo.URL, c.repo.Branch); err != nil {
 		return err
 	}
 	for _, ref := range []string{
@@ -211,7 +209,7 @@ func (c *Checkout) Pull(ctx context.Context) error {
 		// this fetches and updates the local ref, so we'll see the new
 		// notes; but it's possible that the upstream doesn't have this
 		// ref.
-		if err := fetch(ctx, c.repo.KeyRing, c.Dir, c.repo.URL, ref); err != nil {
+		if err := fetch(ctx, c.Dir, c.repo.URL, ref); err != nil {
 			return err
 		}
 	}
@@ -245,7 +243,7 @@ func (c *Checkout) CommitsBefore(ctx context.Context, ref string) ([]Commit, err
 func (c *Checkout) MoveTagAndPush(ctx context.Context, ref, msg string) error {
 	c.Lock()
 	defer c.Unlock()
-	return moveTagAndPush(ctx, c.Dir, c.repo.KeyRing, c.SyncTag, ref, msg, c.repo.URL)
+	return moveTagAndPush(ctx, c.Dir, c.SyncTag, ref, msg, c.repo.URL)
 }
 
 // ChangedFiles does a git diff listing changed files

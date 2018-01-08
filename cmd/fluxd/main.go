@@ -191,6 +191,12 @@ func main() {
 		}
 
 		publicKey, privateKeyPath := sshKeyRing.KeyPair()
+		// NB this assumes that the private key path will be stable,
+		// which is fair since it's mounted from a secret.
+		if err = ssh.WriteSSHConfig(privateKeyPath); err != nil {
+			logger.Log("err", err)
+			os.Exit(1)
+		}
 
 		logger := log.With(logger, "component", "platform")
 		logger.Log("identity", privateKeyPath)
@@ -351,8 +357,9 @@ func main() {
 	{
 		repo = git.Repo{
 			GitRemoteConfig: gitRemoteConfig,
-			KeyRing:         sshKeyRing,
 		}
+		// TODO: should not need to supply all of this -- maybe just
+		// on clone?
 		gitConfig := git.Config{
 			SyncTag:   *gitSyncTag,
 			NotesRef:  *gitNotesRef,

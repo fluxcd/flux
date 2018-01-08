@@ -14,7 +14,6 @@ import (
 	"context"
 
 	"github.com/pkg/errors"
-	"github.com/weaveworks/flux/ssh"
 )
 
 func config(ctx context.Context, workingDir, user, email string) error {
@@ -22,21 +21,21 @@ func config(ctx context.Context, workingDir, user, email string) error {
 		"user.name":  user,
 		"user.email": email,
 	} {
-		if err := execGitCmd(ctx, workingDir, nil, nil, "config", k, v); err != nil {
+		if err := execGitCmd(ctx, workingDir, nil, "config", k, v); err != nil {
 			return errors.Wrap(err, "setting git config")
 		}
 	}
 	return nil
 }
 
-func clone(ctx context.Context, workingDir string, keyRing ssh.KeyRing, repoURL, repoBranch string) (path string, err error) {
+func clone(ctx context.Context, workingDir string, repoURL, repoBranch string) (path string, err error) {
 	repoPath := filepath.Join(workingDir, "repo")
 	args := []string{"clone"}
 	if repoBranch != "" {
 		args = append(args, "--branch", repoBranch)
 	}
 	args = append(args, repoURL, repoPath)
-	if err := execGitCmd(ctx, workingDir, keyRing, nil, args...); err != nil {
+	if err := execGitCmd(ctx, workingDir, nil, args...); err != nil {
 		return "", errors.Wrap(err, "git clone")
 	}
 	return repoPath, nil
@@ -45,22 +44,22 @@ func clone(ctx context.Context, workingDir string, keyRing ssh.KeyRing, repoURL,
 // checkPush sanity-checks that we can write to the upstream repo with
 // the given keyring (being able to `clone` is an adequate check that
 // we can read the upstream).
-func checkPush(ctx context.Context, keyRing ssh.KeyRing, workingDir, upstream string) error {
+func checkPush(ctx context.Context, workingDir, upstream string) error {
 	// --force just in case we fetched the tag from upstream when cloning
-	if err := execGitCmd(ctx, workingDir, nil, nil, "tag", "--force", CheckPushTag); err != nil {
+	if err := execGitCmd(ctx, workingDir, nil, "tag", "--force", CheckPushTag); err != nil {
 		return errors.Wrap(err, "tag for write check")
 	}
-	if err := execGitCmd(ctx, workingDir, keyRing, nil, "push", "--force", upstream, "tag", CheckPushTag); err != nil {
+	if err := execGitCmd(ctx, workingDir, nil, "push", "--force", upstream, "tag", CheckPushTag); err != nil {
 		return errors.Wrap(err, "attempt to push tag")
 	}
-	return execGitCmd(ctx, workingDir, keyRing, nil, "push", "-d", upstream, "tag", CheckPushTag)
+	return execGitCmd(ctx, workingDir, nil, "push", "-d", upstream, "tag", CheckPushTag)
 }
 
 func commit(ctx context.Context, workingDir string, commitAction *CommitAction) error {
 	commitAuthor := commitAction.Author
 	if commitAuthor != "" {
 		if err := execGitCmd(ctx,
-			workingDir, nil, nil,
+			workingDir, nil,
 			"commit",
 			"--no-verify", "-a", "--author", commitAuthor, "-m", commitAction.Message,
 		); err != nil {
@@ -69,7 +68,7 @@ func commit(ctx context.Context, workingDir string, commitAction *CommitAction) 
 		return nil
 	}
 	if err := execGitCmd(ctx,
-		workingDir, nil, nil,
+		workingDir, nil,
 		"commit",
 		"--no-verify", "-a", "-m", commitAction.Message,
 	); err != nil {
@@ -79,24 +78,24 @@ func commit(ctx context.Context, workingDir string, commitAction *CommitAction) 
 }
 
 // push the refs given to the upstream repo
-func push(ctx context.Context, keyRing ssh.KeyRing, workingDir, upstream string, refs []string) error {
+func push(ctx context.Context, workingDir, upstream string, refs []string) error {
 	args := append([]string{"push", upstream}, refs...)
-	if err := execGitCmd(ctx, workingDir, keyRing, nil, args...); err != nil {
+	if err := execGitCmd(ctx, workingDir, nil, args...); err != nil {
 		return errors.Wrap(err, fmt.Sprintf("git push %s %s", upstream, refs))
 	}
 	return nil
 }
 
 // pull the specific ref from upstream
-func pull(ctx context.Context, keyRing ssh.KeyRing, workingDir, upstream, ref string) error {
-	if err := execGitCmd(ctx, workingDir, keyRing, nil, "pull", "--ff-only", upstream, ref); err != nil {
+func pull(ctx context.Context, workingDir, upstream, ref string) error {
+	if err := execGitCmd(ctx, workingDir, nil, "pull", "--ff-only", upstream, ref); err != nil {
 		return errors.Wrap(err, fmt.Sprintf("git pull --ff-only %s %s", upstream, ref))
 	}
 	return nil
 }
 
-func fetch(ctx context.Context, keyRing ssh.KeyRing, workingDir, upstream, refspec string) error {
-	if err := execGitCmd(ctx, workingDir, keyRing, nil, "fetch", "--tags", upstream, refspec); err != nil &&
+func fetch(ctx context.Context, workingDir, upstream, refspec string) error {
+	if err := execGitCmd(ctx, workingDir, nil, "fetch", "--tags", upstream, refspec); err != nil &&
 		!strings.Contains(err.Error(), "Couldn't find remote ref") {
 		return errors.Wrap(err, fmt.Sprintf("git fetch --tags %s %s", upstream, refspec))
 	}
@@ -104,7 +103,7 @@ func fetch(ctx context.Context, keyRing ssh.KeyRing, workingDir, upstream, refsp
 }
 
 func refExists(ctx context.Context, workingDir, ref string) (bool, error) {
-	if err := execGitCmd(ctx, workingDir, nil, nil, "rev-list", ref); err != nil {
+	if err := execGitCmd(ctx, workingDir, nil, "rev-list", ref); err != nil {
 		if strings.Contains(err.Error(), "unknown revision") {
 			return false, nil
 		}
@@ -116,7 +115,7 @@ func refExists(ctx context.Context, workingDir, ref string) (bool, error) {
 // Get the full ref for a shorthand notes ref.
 func getNotesRef(ctx context.Context, workingDir, ref string) (string, error) {
 	out := &bytes.Buffer{}
-	if err := execGitCmd(ctx, workingDir, nil, out, "notes", "--ref", ref, "get-ref"); err != nil {
+	if err := execGitCmd(ctx, workingDir, out, "notes", "--ref", ref, "get-ref"); err != nil {
 		return "", err
 	}
 	return strings.TrimSpace(out.String()), nil
@@ -127,13 +126,13 @@ func addNote(ctx context.Context, workingDir, rev, notesRef string, note *Note) 
 	if err != nil {
 		return err
 	}
-	return execGitCmd(ctx, workingDir, nil, nil, "notes", "--ref", notesRef, "add", "-m", string(b), rev)
+	return execGitCmd(ctx, workingDir, nil, "notes", "--ref", notesRef, "add", "-m", string(b), rev)
 }
 
 // NB return values (*Note, nil), (nil, error), (nil, nil)
 func getNote(ctx context.Context, workingDir, notesRef, rev string) (*Note, error) {
 	out := &bytes.Buffer{}
-	if err := execGitCmd(ctx, workingDir, nil, out, "notes", "--ref", notesRef, "show", rev); err != nil {
+	if err := execGitCmd(ctx, workingDir, out, "notes", "--ref", notesRef, "show", rev); err != nil {
 		if strings.Contains(strings.ToLower(err.Error()), "no note found for object") {
 			return nil, nil
 		}
@@ -151,7 +150,7 @@ func getNote(ctx context.Context, workingDir, notesRef, rev string) (*Note, erro
 // Return a map to make it easier to do "if in" type queries.
 func noteRevList(ctx context.Context, workingDir, notesRef string) (map[string]struct{}, error) {
 	out := &bytes.Buffer{}
-	if err := execGitCmd(ctx, workingDir, nil, out, "notes", "--ref", notesRef, "list"); err != nil {
+	if err := execGitCmd(ctx, workingDir, out, "notes", "--ref", notesRef, "list"); err != nil {
 		return nil, err
 	}
 	noteList := splitList(out.String())
@@ -168,7 +167,7 @@ func noteRevList(ctx context.Context, workingDir, notesRef string) (map[string]s
 // Get the commit hash for a reference
 func refRevision(ctx context.Context, path, ref string) (string, error) {
 	out := &bytes.Buffer{}
-	if err := execGitCmd(ctx, path, nil, out, "rev-list", "--max-count", "1", ref); err != nil {
+	if err := execGitCmd(ctx, path, out, "rev-list", "--max-count", "1", ref); err != nil {
 		return "", err
 	}
 	return strings.TrimSpace(out.String()), nil
@@ -176,7 +175,7 @@ func refRevision(ctx context.Context, path, ref string) (string, error) {
 
 func revlist(ctx context.Context, path, ref string) ([]string, error) {
 	out := &bytes.Buffer{}
-	if err := execGitCmd(ctx, path, nil, out, "rev-list", ref); err != nil {
+	if err := execGitCmd(ctx, path, out, "rev-list", ref); err != nil {
 		return nil, err
 	}
 	return splitList(out.String()), nil
@@ -191,13 +190,13 @@ func onelinelog(ctx context.Context, path, refspec, subdir string) ([]Commit, er
 	// because supplying an empty string to execGitCmd results in git complaining about
 	// >> ambiguous argument '' <<
 	if subdir != "" {
-		if err := execGitCmd(ctx, path, nil, out, "log", "--oneline", "--no-abbrev-commit", refspec, subdir); err != nil {
+		if err := execGitCmd(ctx, path, out, "log", "--oneline", "--no-abbrev-commit", refspec, subdir); err != nil {
 			return nil, err
 		}
 		return splitLog(out.String())
 	}
 
-	if err := execGitCmd(ctx, path, nil, out, "log", "--oneline", "--no-abbrev-commit", refspec); err != nil {
+	if err := execGitCmd(ctx, path, out, "log", "--oneline", "--no-abbrev-commit", refspec); err != nil {
 		return nil, err
 	}
 
@@ -224,11 +223,11 @@ func splitList(s string) []string {
 }
 
 // Move the tag to the ref given and push that tag upstream
-func moveTagAndPush(ctx context.Context, path string, keyRing ssh.KeyRing, tag, ref, msg, upstream string) error {
-	if err := execGitCmd(ctx, path, nil, nil, "tag", "--force", "-a", "-m", msg, tag, ref); err != nil {
+func moveTagAndPush(ctx context.Context, path string, tag, ref, msg, upstream string) error {
+	if err := execGitCmd(ctx, path, nil, "tag", "--force", "-a", "-m", msg, tag, ref); err != nil {
 		return errors.Wrap(err, "moving tag "+tag)
 	}
-	if err := execGitCmd(ctx, path, keyRing, nil, "push", "--force", upstream, "tag", tag); err != nil {
+	if err := execGitCmd(ctx, path, nil, "push", "--force", upstream, "tag", tag); err != nil {
 		return errors.Wrap(err, "pushing tag to origin")
 	}
 	return nil
@@ -243,19 +242,19 @@ func changedFiles(ctx context.Context, path, subPath, ref string) ([]string, err
 	// This uses --diff-filter to only look at changes for file _in
 	// the working dir_; i.e, we do not report on things that no
 	// longer appear.
-	if err := execGitCmd(ctx, path, nil, out, "diff", "--name-only", "--diff-filter=ACMRT", ref, "--", subPath); err != nil {
+	if err := execGitCmd(ctx, path, out, "diff", "--name-only", "--diff-filter=ACMRT", ref, "--", subPath); err != nil {
 		return nil, err
 	}
 	return splitList(out.String()), nil
 }
 
-func execGitCmd(ctx context.Context, dir string, keyRing ssh.KeyRing, out io.Writer, args ...string) error {
+func execGitCmd(ctx context.Context, dir string, out io.Writer, args ...string) error {
 	c := exec.CommandContext(ctx, "git", args...)
 
 	if dir != "" {
 		c.Dir = dir
 	}
-	c.Env = env(keyRing)
+	c.Env = env()
 	c.Stdout = ioutil.Discard
 	if out != nil {
 		c.Stdout = out
@@ -278,19 +277,14 @@ func execGitCmd(ctx context.Context, dir string, keyRing ssh.KeyRing, out io.Wri
 	return err
 }
 
-func env(keyRing ssh.KeyRing) []string {
-	base := `GIT_SSH_COMMAND=ssh -o LogLevel=error`
-	if keyRing == nil {
-		return []string{base}
-	}
-	_, privateKeyPath := keyRing.KeyPair()
-	return []string{fmt.Sprintf("%s -i %q", base, privateKeyPath), "GIT_TERMINAL_PROMPT=0"}
+func env() []string {
+	return []string{"GIT_TERMINAL_PROMPT=0"}
 }
 
 // check returns true if there are changes locally.
 func check(ctx context.Context, workingDir, subdir string) bool {
 	// `--quiet` means "exit with 1 if there are changes"
-	return execGitCmd(ctx, workingDir, nil, nil, "diff", "--quiet", "--", subdir) != nil
+	return execGitCmd(ctx, workingDir, nil, "diff", "--quiet", "--", subdir) != nil
 }
 
 func findErrorMessage(output io.Reader) string {
