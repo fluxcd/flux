@@ -23,11 +23,3 @@ type Client interface {
 	Export(context.Context) ([]byte, error)
 	PublicSSHKey(ctx context.Context, regenerate bool) (ssh.PublicKey, error)
 }
-
-// API for daemons connecting to an upstream service
-type Upstream interface {
-	RegisterDaemon(context.Context, remote.Platform) error
-	IsDaemonConnected(context.Context) error
-	LogEvent(context.Context, event.Event) error
-	NotifyChange(context.Context, remote.Change) error
-}
