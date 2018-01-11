@@ -46,8 +46,8 @@ type backlogItem struct {
 	registry.Credentials
 }
 
-// Continuously get the images to populate the cache with, and
-// populate the cache with them.
+// Loop continuously gets the images to populate the cache with,
+// and populate the cache with them.
 func (w *Warmer) Loop(logger log.Logger, stop <-chan struct{}, wg *sync.WaitGroup, imagesToFetchFunc func() registry.ImageCreds) {
 	defer wg.Done()
 
