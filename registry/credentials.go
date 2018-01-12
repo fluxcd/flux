@@ -123,3 +123,7 @@ func (cs Credentials) Merge(c Credentials) {
 		cs.m[k] = v
 	}
 }
+
+func (cs Credentials) String() string {
+	return fmt.Sprintf("{%v}", cs.m)
+}
