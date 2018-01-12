@@ -93,6 +93,7 @@ func main() {
 		registryPollInterval = fs.Duration("registry-poll-interval", 5*time.Minute, "period at which to check for updated images")
 		registryRPS          = fs.Int("registry-rps", 200, "maximum registry requests per second per host")
 		registryBurst        = fs.Int("registry-burst", defaultRemoteConnections, "maximum number of warmer connections to remote and memcache")
+		registryTrace        = fs.Bool("registry-trace", false, "output trace of image registry requests to log")
 
 		// k8s-secret backed ssh keyring configuration
 		k8sSecretName            = fs.String("k8s-secret-name", "flux-git-deploy", "Name of the k8s secret used to store the private SSH key")
@@ -257,6 +258,7 @@ func main() {
 		remoteFactory := &registry.RemoteClientFactory{
 			Logger:   registryLogger,
 			Limiters: registryLimits,
+			Trace:    *registryTrace,
 		}
 
 		// Warmer
