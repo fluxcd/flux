@@ -4,14 +4,23 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"github.com/pkg/errors"
 	"net/url"
 	"strings"
+
+	"github.com/pkg/errors"
 )
 
 // Registry Credentials
 type creds struct {
-	username, password string
+	username, password   string
+	registry, provenance string
+}
+
+func (c creds) String() string {
+	if (creds{}) == c {
+		return "<zero creds>"
+	}
+	return fmt.Sprintf("<registry creds for %s@%s, from %s>", c.username, c.registry, c.provenance)
 }
 
 // Credentials to a (Docker) registry.
@@ -26,7 +35,7 @@ func NoCredentials() Credentials {
 	}
 }
 
-func ParseCredentials(b []byte) (Credentials, error) {
+func ParseCredentials(from string, b []byte) (Credentials, error) {
 	var config struct {
 		Auths map[string]struct {
 			Auth string
@@ -78,8 +87,10 @@ func ParseCredentials(b []byte) (Credentials, error) {
 		host = u.Host
 
 		m[host] = creds{
-			username: authParts[0],
-			password: authParts[1],
+			registry:   host,
+			provenance: from,
+			username:   authParts[0],
+			password:   authParts[1],
 		}
 	}
 	return Credentials{m: m}, nil
@@ -91,7 +102,7 @@ func (cs Credentials) credsFor(host string) creds {
 		return cred
 	}
 	if host == "gcr.io" || strings.HasSuffix(host, ".gcr.io") {
-		if cred, err := GetGCPOauthToken(); err == nil {
+		if cred, err := GetGCPOauthToken(host); err == nil {
 			return cred
 		}
 	}

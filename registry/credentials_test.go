@@ -83,7 +83,7 @@ func TestRemoteFactory_ParseHost(t *testing.T) {
 		},
 	} {
 		stringCreds := fmt.Sprintf(tmpl, v.host, okCreds)
-		creds, err := ParseCredentials([]byte(stringCreds))
+		creds, err := ParseCredentials("test", []byte(stringCreds))
 		time.Sleep(100 * time.Millisecond)
 		if (err != nil) != v.error {
 			t.Fatalf("For test %q, expected error = %v but got %v", v.host, v.error, err != nil)
@@ -99,7 +99,7 @@ func TestRemoteFactory_ParseHost(t *testing.T) {
 
 func TestParseCreds_k8s(t *testing.T) {
 	k8sCreds := []byte(`{"localhost:5000":{"username":"testuser","password":"testpassword","email":"foo@bar.com","auth":"dGVzdHVzZXI6dGVzdHBhc3N3b3Jk"}}`)
-	c, err := ParseCredentials(k8sCreds)
+	c, err := ParseCredentials("test", k8sCreds)
 	if err != nil {
 		t.Fatal(err)
 	}

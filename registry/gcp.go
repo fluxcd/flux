@@ -16,7 +16,7 @@ type gceToken struct {
 	TokenType   string `json:"token_type"`
 }
 
-func GetGCPOauthToken() (creds, error) {
+func GetGCPOauthToken(host string) (creds, error) {
 	request, err := http.NewRequest("GET", gcpDefaultTokenURL, nil)
 	if err != nil {
 		return creds{}, err
@@ -44,5 +44,9 @@ func GetGCPOauthToken() (creds, error) {
 		return creds{}, err
 	}
 
-	return creds{"oauth2accesstoken", token.AccessToken}, nil
+	return creds{
+		registry:   host,
+		provenance: "",
+		username:   "oauth2accesstoken",
+		password:   token.AccessToken}, nil
 }

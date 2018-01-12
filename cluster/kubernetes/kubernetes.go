@@ -346,7 +346,7 @@ func mergeCredentials(c *Cluster, namespace string, podTemplate apiv1.PodTemplat
 		}
 
 		// Parse secret
-		crd, err := registry.ParseCredentials(decoded)
+		crd, err := registry.ParseCredentials(fmt.Sprintf("%s:secret/%s", namespace, imagePullSecret.Name), decoded)
 		if err != nil {
 			c.logger.Log("err", err.Error())
 			continue
