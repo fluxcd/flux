@@ -28,7 +28,7 @@ func config(ctx context.Context, workingDir, user, email string) error {
 	return nil
 }
 
-func clone(ctx context.Context, workingDir string, repoURL, repoBranch string) (path string, err error) {
+func clone(ctx context.Context, workingDir, repoURL, repoBranch string) (path string, err error) {
 	repoPath := filepath.Join(workingDir, "repo")
 	args := []string{"clone"}
 	if repoBranch != "" {
@@ -41,9 +41,19 @@ func clone(ctx context.Context, workingDir string, repoURL, repoBranch string) (
 	return repoPath, nil
 }
 
-// checkPush sanity-checks that we can write to the upstream repo with
-// the given keyring (being able to `clone` is an adequate check that
-// we can read the upstream).
+func mirror(ctx context.Context, workingDir, repoURL string) (path string, err error) {
+	repoPath := filepath.Join(workingDir, "repo")
+	args := []string{"clone", "--mirror"}
+	args = append(args, repoURL, repoPath)
+	if err := execGitCmd(ctx, workingDir, nil, args...); err != nil {
+		return "", errors.Wrap(err, "git clone --mirror")
+	}
+	return repoPath, nil
+}
+
+// checkPush sanity-checks that we can write to the upstream repo
+// (being able to `clone` is an adequate check that we can read the
+// upstream).
 func checkPush(ctx context.Context, workingDir, upstream string) error {
 	// --force just in case we fetched the tag from upstream when cloning
 	if err := execGitCmd(ctx, workingDir, nil, "tag", "--force", CheckPushTag); err != nil {
@@ -86,16 +96,10 @@ func push(ctx context.Context, workingDir, upstream string, refs []string) error
 	return nil
 }
 
-// pull the specific ref from upstream
-func pull(ctx context.Context, workingDir, upstream, ref string) error {
-	if err := execGitCmd(ctx, workingDir, nil, "pull", "--ff-only", upstream, ref); err != nil {
-		return errors.Wrap(err, fmt.Sprintf("git pull --ff-only %s %s", upstream, ref))
-	}
-	return nil
-}
-
-func fetch(ctx context.Context, workingDir, upstream, refspec string) error {
-	if err := execGitCmd(ctx, workingDir, nil, "fetch", "--tags", upstream, refspec); err != nil &&
+// fetch updates refs from the upstream.
+func fetch(ctx context.Context, workingDir, upstream string, refspec ...string) error {
+	args := append([]string{"fetch", "--tags", upstream}, refspec...)
+	if err := execGitCmd(ctx, workingDir, nil, args...); err != nil &&
 		!strings.Contains(err.Error(), "Couldn't find remote ref") {
 		return errors.Wrap(err, fmt.Sprintf("git fetch --tags %s %s", upstream, refspec))
 	}

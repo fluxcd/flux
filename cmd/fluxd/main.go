@@ -19,8 +19,6 @@ import (
 	k8sclient "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 
-	"context"
-
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster"
 	"github.com/weaveworks/flux/cluster/kubernetes"
@@ -144,6 +142,11 @@ func main() {
 				logger.Log("overridden", f, "value", *gitLabel)
 			}
 		}
+	}
+
+	if len(*gitPath) > 0 && (*gitPath)[0] == '/' {
+		logger.Log("err", "git subdirectory (--git-path) should not have leading forward slash")
+		os.Exit(1)
 	}
 
 	// Cluster component.
@@ -274,13 +277,12 @@ func main() {
 		}
 	}
 
-	gitRemoteConfig, err := flux.NewGitRemoteConfig(*gitURL, *gitBranch, *gitPath)
-	if err != nil {
-		logger.Log("err", err)
-		os.Exit(1)
-	}
 	// Indirect reference to a daemon, initially of the NotReady variety
-	notReadyDaemon := daemon.NewNotReadyDaemon(version, k8s, gitRemoteConfig)
+	notReadyDaemon := daemon.NewNotReadyDaemon(version, k8s, flux.GitRemoteConfig{
+		URL:    *gitURL,
+		Branch: *gitBranch,
+		Path:   *gitPath,
+	})
 	daemonRef := daemon.NewRef(notReadyDaemon)
 
 	var eventWriter event.EventWriter
@@ -352,60 +354,49 @@ func main() {
 	var checker *checkpoint.Checker
 	updateCheckLogger := log.With(logger, "component", "checkpoint")
 
-	var repo git.Repo
-	var checkout *git.Checkout
+	gitRemote := git.Remote{URL: *gitURL}
+	gitConfig := git.Config{
+		Path:      *gitPath,
+		Branch:    *gitBranch,
+		SyncTag:   *gitSyncTag,
+		NotesRef:  *gitNotesRef,
+		UserName:  *gitUser,
+		UserEmail: *gitEmail,
+		SetAuthor: *gitSetAuthor,
+	}
+
+	repo := git.NewRepo(gitRemote)
 	{
-		repo = git.Repo{
-			GitRemoteConfig: gitRemoteConfig,
-		}
-		// TODO: should not need to supply all of this -- maybe just
-		// on clone?
-		gitConfig := git.Config{
-			SyncTag:   *gitSyncTag,
-			NotesRef:  *gitNotesRef,
-			UserName:  *gitUser,
-			UserEmail: *gitEmail,
-			SetAuthor: *gitSetAuthor,
-		}
 
 		// If there's no URL here, we will not be able to do anything else.
-		if gitRemoteConfig.URL == "" {
+		if gitRemote.URL == "" {
 			checker = checkForUpdates(clusterVersion, "false", updateCheckLogger)
 			return
 		}
 
-		for checkout == nil {
-			var stage flux.GitRepoStatus = flux.RepoNew
-			ctx, cancel := context.WithTimeout(context.Background(), git.DefaultCloneTimeout)
-			working, err := repo.Clone(ctx, gitConfig)
-			cancel()
-			if err == nil {
-				stage = flux.RepoCloned
-				ctx, cancel = context.WithTimeout(context.Background(), git.DefaultCloneTimeout)
-				err = working.CheckOriginWritable(ctx)
-				cancel()
-			}
-			if err == nil {
-				notReadyDaemon.UpdateStatus(flux.RepoReady, nil)
-				if checker != nil {
-					checker.Stop()
-				}
+		shutdownWg.Add(1)
+		go func() {
+			errc <- repo.Start(shutdown, shutdownWg)
+		}()
+		for {
+			status, err := repo.Status()
+			logger.Log("repo", repo.Origin().URL, "status", status, "err", err)
+			notReadyDaemon.UpdateStatus(status, err)
+
+			if status == flux.RepoReady {
 				checker = checkForUpdates(clusterVersion, "true", updateCheckLogger)
-				logger.Log("working-dir", working.Dir,
+				logger.Log("working-dir", repo.Dir(),
 					"user", *gitUser,
 					"email", *gitEmail,
 					"sync-tag", *gitSyncTag,
 					"notes-ref", *gitNotesRef,
 					"set-author", *gitSetAuthor)
-				checkout = working
 				break
 			}
 
-			notReadyDaemon.UpdateStatus(stage, err)
 			if checker == nil {
 				checker = checkForUpdates(clusterVersion, "false", updateCheckLogger)
 			}
-			logger.Log("component", "git", "err", err.Error())
 
 			tryAgain := time.NewTimer(10 * time.Second)
 			select {
@@ -424,24 +415,25 @@ func main() {
 	}
 
 	daemon := &daemon.Daemon{
-		V:            version,
-		Cluster:      k8s,
-		Manifests:    k8sManifests,
-		Registry:     cacheRegistry,
-		ImageRefresh: make(chan image.Name, 100), // size chosen by fair dice roll
-		Repo:         repo, Checkout: checkout,
+		V:              version,
+		Cluster:        k8s,
+		Manifests:      k8sManifests,
+		Registry:       cacheRegistry,
+		ImageRefresh:   make(chan image.Name, 100), // size chosen by fair dice roll
+		Repo:           repo,
+		GitConfig:      gitConfig,
 		Jobs:           jobs,
 		JobStatusCache: &job.StatusCache{Size: 100},
 
 		EventWriter: eventWriter,
 		Logger:      log.With(logger, "component", "daemon"), LoopVars: &daemon.LoopVars{
-			GitPollInterval:      *gitPollInterval,
+			SyncInterval:         *gitPollInterval,
 			RegistryPollInterval: *registryPollInterval,
 		},
 	}
 
 	shutdownWg.Add(1)
-	go daemon.GitPollLoop(shutdown, shutdownWg, log.With(logger, "component", "sync-loop"))
+	go daemon.Loop(shutdown, shutdownWg, log.With(logger, "component", "sync-loop"))
 
 	cacheWarmer.Notify = daemon.AskForImagePoll
 	cacheWarmer.Priority = daemon.ImageRefresh

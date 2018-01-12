@@ -27,11 +27,12 @@ const (
 )
 
 type LoopVars struct {
-	GitPollInterval      time.Duration
+	SyncInterval         time.Duration
 	RegistryPollInterval time.Duration
-	syncSoon             chan struct{}
-	pollImagesSoon       chan struct{}
-	initOnce             sync.Once
+
+	initOnce       sync.Once
+	syncSoon       chan struct{}
+	pollImagesSoon chan struct{}
 }
 
 func (loop *LoopVars) ensureInit() {
@@ -41,29 +42,21 @@ func (loop *LoopVars) ensureInit() {
 	})
 }
 
-func (d *Daemon) GitPollLoop(stop chan struct{}, wg *sync.WaitGroup, logger log.Logger) {
+func (d *Daemon) Loop(stop chan struct{}, wg *sync.WaitGroup, logger log.Logger) {
 	defer wg.Done()
-	// We want to pull the repo and sync at least every
-	// `GitPollInterval`. Being told to sync, or completing a job, may
-	// intervene (in which case, reschedule the next pull-and-sync)
-	gitPollTimer := time.NewTimer(d.GitPollInterval)
-	pullThen := func(k func(logger log.Logger) error) {
-		defer func() {
-			gitPollTimer.Stop()
-			gitPollTimer = time.NewTimer(d.GitPollInterval)
-		}()
-		ctx, cancel := context.WithTimeout(context.Background(), gitOpTimeout)
-		defer cancel()
-		if err := d.Checkout.Pull(ctx); err != nil {
-			logger.Log("operation", "pull", "err", err)
-			return
-		}
-		if err := k(logger); err != nil {
-			logger.Log("operation", "after-pull", "err", err)
-		}
-	}
 
+	// We want to sync at least every `SyncInterval`. Being told to
+	// sync, or completing a job, may intervene (in which case,
+	// reschedule the next sync).
+	syncTimer := time.NewTimer(d.SyncInterval)
+	// Similarly checking to see if any controllers have new images
+	// available.
 	imagePollTimer := time.NewTimer(d.RegistryPollInterval)
+
+	// Keep track of current HEAD, so we can know when to treat a repo
+	// mirror notification as a change. Otherwise, we'll just sync
+	// every timer tick as well as every mirror refresh.
+	syncHead := ""
 
 	// Ask for a sync, and to poll images, straight away
 	d.AskForSync()
@@ -74,17 +67,40 @@ func (d *Daemon) GitPollLoop(stop chan struct{}, wg *sync.WaitGroup, logger log.
 			logger.Log("stopping", "true")
 			return
 		case <-d.pollImagesSoon:
+			if !imagePollTimer.Stop() {
+				select {
+				case <-imagePollTimer.C:
+				default:
+				}
+			}
 			d.pollForNewImages(logger)
-			imagePollTimer.Stop()
-			imagePollTimer = time.NewTimer(d.RegistryPollInterval)
+			imagePollTimer.Reset(d.RegistryPollInterval)
 		case <-imagePollTimer.C:
 			d.AskForImagePoll()
 		case <-d.syncSoon:
-			pullThen(d.doSync)
-		case <-gitPollTimer.C:
-			// Time to poll for new commits (unless we're already
-			// about to do that)
+			if !syncTimer.Stop() {
+				select {
+				case <-syncTimer.C:
+				default:
+				}
+			}
+			d.doSync(logger)
+			syncTimer.Reset(d.SyncInterval)
+		case <-syncTimer.C:
 			d.AskForSync()
+		case <-d.Repo.C:
+			ctx, cancel := context.WithTimeout(context.Background(), gitOpTimeout)
+			newSyncHead, err := d.Repo.Revision(ctx, d.GitConfig.Branch)
+			cancel()
+			if err != nil {
+				logger.Log("url", d.Repo.Origin().URL, "err", err)
+				continue
+			}
+			logger.Log("event", "refreshed", "url", d.Repo.Origin().URL, "branch", d.GitConfig.Branch, "HEAD", newSyncHead)
+			if newSyncHead != syncHead {
+				syncHead = newSyncHead
+				d.AskForSync()
+			}
 		case job := <-d.Jobs.Ready():
 			queueLength.Set(float64(d.Jobs.Len()))
 			jobLogger := log.With(logger, "jobID", job.ID)
@@ -94,15 +110,20 @@ func (d *Daemon) GitPollLoop(stop chan struct{}, wg *sync.WaitGroup, logger log.
 			// pull from there and sync the cluster afterwards.
 			start := time.Now()
 			err := job.Do(jobLogger)
+			jobDuration.With(
+				fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
+			).Observe(time.Since(start).Seconds())
 			if err != nil {
 				jobLogger.Log("state", "done", "success", "false", "err", err)
 			} else {
 				jobLogger.Log("state", "done", "success", "true")
+				ctx, cancel := context.WithTimeout(context.Background(), gitOpTimeout)
+				err := d.Repo.Refresh(ctx)
+				if err != nil {
+					logger.Log("err", err)
+				}
+				cancel()
 			}
-			jobDuration.With(
-				fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
-			).Observe(time.Since(start).Seconds())
-			pullThen(d.doSync)
 		}
 	}
 }
@@ -145,14 +166,19 @@ func (d *Daemon) doSync(logger log.Logger) (retErr error) {
 		var err error
 		ctx, cancel := context.WithTimeout(ctx, gitOpTimeout)
 		defer cancel()
-		working, err = d.Checkout.WorkingClone(ctx)
+		working, err = d.Repo.Clone(ctx, d.GitConfig)
 		if err != nil {
 			return err
 		}
 		defer working.Clean()
 	}
 
-	// TODO logging, metrics?
+	// For comparison later.
+	oldTagRev, err := working.TagRevision(ctx, working.Config.SyncTag)
+	if err != nil && !isUnknownRevision(err) {
+		return err
+	}
+
 	// Get a map of all resources defined in the repo
 	allResources, err := d.Manifests.LoadManifests(working.ManifestDir())
 	if err != nil {
@@ -178,11 +204,11 @@ func (d *Daemon) doSync(logger log.Logger) (retErr error) {
 	{
 		var err error
 		ctx, cancel := context.WithTimeout(ctx, gitOpTimeout)
-		commits, err = working.CommitsBetween(ctx, working.SyncTag, "HEAD")
+		commits, err = d.Repo.CommitsBetween(ctx, working.SyncTag, "HEAD", d.GitConfig.Path)
 		if isUnknownRevision(err) {
 			// No sync tag, grab all revisions
 			initialSync = true
-			commits, err = working.CommitsBefore(ctx, "HEAD")
+			commits, err = d.Repo.CommitsBefore(ctx, "HEAD", d.GitConfig.Path)
 		}
 		cancel()
 		if err != nil {
@@ -350,33 +376,16 @@ func (d *Daemon) doSync(logger log.Logger) (retErr error) {
 		}
 	}
 
-	// Pull the tag if it has changed
-	{
-		ctx, cancel := context.WithTimeout(ctx, gitOpTimeout)
-		if err := d.pullIfTagMoved(ctx, working, logger); err != nil {
-			logger.Log("err", errors.Wrap(err, "updating tag"))
-		}
-		cancel()
-	}
-
-	return nil
-}
-
-func (d *Daemon) pullIfTagMoved(ctx context.Context, working *git.Checkout, logger log.Logger) error {
-	oldTagRev, err := d.Checkout.TagRevision(ctx, d.Checkout.SyncTag)
-	if err != nil && !strings.Contains(err.Error(), "unknown revision or path not in the working tree") {
-		return err
-	}
 	newTagRev, err := working.TagRevision(ctx, working.SyncTag)
 	if err != nil {
 		return err
 	}
-
 	if oldTagRev != newTagRev {
-		logger.Log("tag", d.Checkout.SyncTag, "old", oldTagRev, "new", newTagRev)
-		if err := d.Checkout.Pull(ctx); err != nil {
-			return err
-		}
+		logger.Log("tag", working.SyncTag, "old", oldTagRev, "new", newTagRev)
+		ctx, cancel := context.WithTimeout(ctx, gitOpTimeout)
+		err := d.Repo.Refresh(ctx)
+		cancel()
+		return err
 	}
 
 	return nil
