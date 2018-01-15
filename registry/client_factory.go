@@ -75,22 +75,26 @@ func (f *RemoteClientFactory) ClientFor(repo image.CanonicalName, creds Credenti
 		}
 	}
 
-	handler := auth.NewTokenHandler(tx, &store{creds}, repo.Image, "pull")
+	cred := creds.credsFor(repo.Domain)
+	if f.Trace {
+		f.Logger.Log("repo", repo.String(), "auth", cred.String())
+	}
+
+	handler := auth.NewTokenHandler(tx, &store{cred}, repo.Image, "pull")
 	tx = transport.NewTransport(tx, auth.NewAuthorizer(manager, handler))
 
 	client := &Remote{transport: tx, repo: repo}
 	return NewInstrumentedClient(client), nil
 }
 
-// credentialStore adapts our Credentials type to be an
+// store adapts a set of pre-selected creds to be an
 // auth.CredentialsStore
 type store struct {
-	creds Credentials
+	auth creds
 }
 
 func (s *store) Basic(url *url.URL) (string, string) {
-	auth := s.creds.credsFor(url.Host)
-	return auth.username, auth.password
+	return s.auth.username, s.auth.password
 }
 
 func (s *store) RefreshToken(*url.URL, string) string {
