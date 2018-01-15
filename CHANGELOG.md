@@ -1,3 +1,9 @@
+## 1.2.1 (2018-01-15)
+
+### Fixes
+
+- Fix an issue that prevented fetching tags for private repositories on DockerHub (and self-hosted registries) [weaveworks/flux#897](https://github.com/weaveworks/flux/pull/897)
+
 ## 1.2.0 (2018-01-04)
 
 ### Improvements
