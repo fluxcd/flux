@@ -16,8 +16,6 @@ import (
 	"github.com/weaveworks/flux/event"
 	transport "github.com/weaveworks/flux/http"
 	"github.com/weaveworks/flux/job"
-	"github.com/weaveworks/flux/policy"
-	"github.com/weaveworks/flux/ssh"
 	"github.com/weaveworks/flux/update"
 )
 
@@ -49,27 +47,6 @@ func (c *Client) ListImages(ctx context.Context, s update.ResourceSpec) ([]flux.
 	return res, err
 }
 
-func (c *Client) UpdateImages(ctx context.Context, s update.ReleaseSpec, cause update.Cause) (job.ID, error) {
-	args := []string{
-		"image", string(s.ImageSpec),
-		"kind", string(s.Kind),
-		"user", cause.User,
-	}
-	for _, spec := range s.ServiceSpecs {
-		args = append(args, "service", string(spec))
-	}
-	for _, ex := range s.Excludes {
-		args = append(args, "exclude", ex.String())
-	}
-	if cause.Message != "" {
-		args = append(args, "message", cause.Message)
-	}
-
-	var res job.ID
-	err := c.methodWithResp(ctx, "POST", &res, "UpdateImages", nil, args...)
-	return res, err
-}
-
 func (c *Client) JobStatus(ctx context.Context, jobID job.ID) (job.Status, error) {
 	var res job.Status
 	err := c.Get(ctx, &res, "JobStatus", "id", string(jobID))
@@ -82,13 +59,10 @@ func (c *Client) SyncStatus(ctx context.Context, ref string) ([]string, error) {
 	return res, err
 }
 
-func (c *Client) UpdatePolicies(ctx context.Context, updates policy.Updates, cause update.Cause) (job.ID, error) {
-	args := []string{"user", cause.User}
-	if cause.Message != "" {
-		args = append(args, "message", cause.Message)
-	}
+func (c *Client) UpdateManifests(ctx context.Context, spec update.Spec) (job.ID, error) {
 	var res job.ID
-	return res, c.methodWithResp(ctx, "PATCH", &res, "UpdatePolicies", updates, args...)
+	err := c.methodWithResp(ctx, "POST", &res, "UpdateManifests", spec)
+	return res, err
 }
 
 func (c *Client) LogEvent(ctx context.Context, event event.Event) error {
@@ -101,16 +75,9 @@ func (c *Client) Export(ctx context.Context) ([]byte, error) {
 	return res, err
 }
 
-func (c *Client) PublicSSHKey(ctx context.Context, regenerate bool) (ssh.PublicKey, error) {
-	if regenerate {
-		err := c.Post(ctx, "RegeneratePublicSSHKey")
-		if err != nil {
-			return ssh.PublicKey{}, err
-		}
-	}
-
-	var res ssh.PublicKey
-	err := c.Get(ctx, &res, "GetPublicSSHKey")
+func (c *Client) GitRepoConfig(ctx context.Context, regenerate bool) (flux.GitConfig, error) {
+	var res flux.GitConfig
+	err := c.methodWithResp(ctx, "POST", &res, "GitRepoConfig", regenerate)
 	return res, err
 }
 
