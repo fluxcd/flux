@@ -99,3 +99,13 @@ If you are still stuck, please log an issue:
 		Err: err,
 	}
 }
+
+// Wrap errors in this to indicate that the server should be
+// considered dead, and disconnected.
+type FatalError struct {
+	Err error
+}
+
+func (err FatalError) Error() string {
+	return err.Err.Error()
+}

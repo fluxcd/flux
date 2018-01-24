@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/api"
 	"github.com/weaveworks/flux/guid"
 	"github.com/weaveworks/flux/image"
 	"github.com/weaveworks/flux/job"
@@ -75,7 +76,7 @@ func (p *MockPlatform) UpdateManifests(ctx context.Context, s update.Spec) (job.
 	return p.UpdateManifestsAnswer, p.UpdateManifestsError
 }
 
-func (p *MockPlatform) NotifyChange(ctx context.Context, change Change) error {
+func (p *MockPlatform) NotifyChange(ctx context.Context, change api.Change) error {
 	return p.NotifyChangeError
 }
 
@@ -91,13 +92,13 @@ func (p *MockPlatform) GitRepoConfig(ctx context.Context, regenerate bool) (flux
 	return p.GitRepoConfigAnswer, p.GitRepoConfigError
 }
 
-var _ Platform = &MockPlatform{}
+var _ api.Server = &MockPlatform{}
 
 // -- Battery of tests for a platform mechanism. Since these
 // essentially wrap the platform in various transports, we expect
 // arguments and answers to be preserved.
 
-func PlatformTestBattery(t *testing.T, wrap func(mock Platform) Platform) {
+func PlatformTestBattery(t *testing.T, wrap func(mock api.Server) api.Server) {
 	// set up
 	namespace := "the-space-of-names"
 	serviceID := flux.MustParseResourceID(namespace + "/service")
@@ -215,7 +216,7 @@ func PlatformTestBattery(t *testing.T, wrap func(mock Platform) Platform) {
 		t.Error("expected error from UpdateManifests, got nil")
 	}
 
-	change := Change{Kind: GitChange, Source: GitUpdate{URL: "git@example.com:foo/bar"}}
+	change := api.Change{Kind: api.GitChange, Source: api.GitUpdate{URL: "git@example.com:foo/bar"}}
 	if err := client.NotifyChange(ctx, change); err != nil {
 		t.Error(err)
 	}

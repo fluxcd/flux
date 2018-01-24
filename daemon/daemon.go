@@ -11,6 +11,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/api"
 	"github.com/weaveworks/flux/cluster"
 	fluxerr "github.com/weaveworks/flux/errors"
 	"github.com/weaveworks/flux/event"
@@ -21,7 +22,6 @@ import (
 	"github.com/weaveworks/flux/policy"
 	"github.com/weaveworks/flux/registry"
 	"github.com/weaveworks/flux/release"
-	"github.com/weaveworks/flux/remote"
 	"github.com/weaveworks/flux/update"
 )
 
@@ -53,7 +53,7 @@ type Daemon struct {
 }
 
 // Invariant.
-var _ remote.Platform = &Daemon{}
+var _ api.Server = &Daemon{}
 
 func (d *Daemon) Version(ctx context.Context) (string, error) {
 	return d.V, nil
@@ -339,13 +339,13 @@ func (d *Daemon) release(spec update.Spec, c release.Changes) DaemonJobFunc {
 // the git repo. This has an error return value because upstream there
 // may be comms difficulties or other sources of problems; here, we
 // always succeed because it's just bookkeeping.
-func (d *Daemon) NotifyChange(ctx context.Context, change remote.Change) error {
+func (d *Daemon) NotifyChange(ctx context.Context, change api.Change) error {
 	switch change.Kind {
-	case remote.GitChange:
+	case api.GitChange:
 		// TODO: check if it's actually our repo
 		d.AskForSync()
-	case remote.ImageChange:
-		if imageUp, ok := change.Source.(remote.ImageUpdate); ok {
+	case api.ImageChange:
+		if imageUp, ok := change.Source.(api.ImageUpdate); ok {
 			if d.ImageRefresh != nil {
 				d.ImageRefresh <- imageUp.Name
 			}

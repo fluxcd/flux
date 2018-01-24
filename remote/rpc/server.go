@@ -9,9 +9,9 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/api"
 	fluxerr "github.com/weaveworks/flux/errors"
 	"github.com/weaveworks/flux/job"
-	"github.com/weaveworks/flux/remote"
 	"github.com/weaveworks/flux/update"
 )
 
@@ -21,11 +21,10 @@ type Server struct {
 }
 
 // NewServer instantiates a new RPC server, handling requests on the
-// conn by invoking methods on the underlying (assumed local)
-// platform.
-func NewServer(p remote.Platform) (*Server, error) {
+// conn by invoking methods on the underlying (assumed local) server.
+func NewServer(s api.Server) (*Server, error) {
 	server := rpc.NewServer()
-	if err := server.Register(&RPCServer{p}); err != nil {
+	if err := server.Register(&RPCServer{s}); err != nil {
 		return nil, err
 	}
 	return &Server{server: server}, nil
@@ -36,15 +35,15 @@ func (c *Server) ServeConn(conn io.ReadWriteCloser) {
 }
 
 type RPCServer struct {
-	p remote.Platform
+	s api.Server
 }
 
 func (p *RPCServer) Ping(_ struct{}, _ *struct{}) error {
-	return p.p.Ping(context.Background())
+	return p.s.Ping(context.Background())
 }
 
 func (p *RPCServer) Version(_ struct{}, resp *string) error {
-	v, err := p.p.Version(context.Background())
+	v, err := p.s.Version(context.Background())
 	*resp = v
 	return err
 }
@@ -55,7 +54,7 @@ type ExportResponse struct {
 }
 
 func (p *RPCServer) Export(_ struct{}, resp *ExportResponse) error {
-	v, err := p.p.Export(context.Background())
+	v, err := p.s.Export(context.Background())
 	resp.Result = v
 	if err != nil {
 		if err, ok := errors.Cause(err).(*fluxerr.Error); ok {
@@ -72,7 +71,7 @@ type ListServicesResponse struct {
 }
 
 func (p *RPCServer) ListServices(namespace string, resp *ListServicesResponse) error {
-	v, err := p.p.ListServices(context.Background(), namespace)
+	v, err := p.s.ListServices(context.Background(), namespace)
 	resp.Result = v
 	if err != nil {
 		if err, ok := errors.Cause(err).(*fluxerr.Error); ok {
@@ -89,7 +88,7 @@ type ListImagesResponse struct {
 }
 
 func (p *RPCServer) ListImages(spec update.ResourceSpec, resp *ListImagesResponse) error {
-	v, err := p.p.ListImages(context.Background(), spec)
+	v, err := p.s.ListImages(context.Background(), spec)
 	resp.Result = v
 	if err != nil {
 		if err, ok := errors.Cause(err).(*fluxerr.Error); ok {
@@ -106,7 +105,7 @@ type UpdateManifestsResponse struct {
 }
 
 func (p *RPCServer) UpdateManifests(spec update.Spec, resp *UpdateManifestsResponse) error {
-	v, err := p.p.UpdateManifests(context.Background(), spec)
+	v, err := p.s.UpdateManifests(context.Background(), spec)
 	resp.Result = v
 	if err != nil {
 		if err, ok := errors.Cause(err).(*fluxerr.Error); ok {
@@ -121,8 +120,8 @@ type NotifyChangeResponse struct {
 	ApplicationError *fluxerr.Error
 }
 
-func (p *RPCServer) NotifyChange(c remote.Change, resp *NotifyChangeResponse) error {
-	err := p.p.NotifyChange(context.Background(), c)
+func (p *RPCServer) NotifyChange(c api.Change, resp *NotifyChangeResponse) error {
+	err := p.s.NotifyChange(context.Background(), c)
 	if err != nil {
 		if err, ok := errors.Cause(err).(*fluxerr.Error); ok {
 			resp.ApplicationError = err
@@ -138,7 +137,7 @@ type JobStatusResponse struct {
 }
 
 func (p *RPCServer) JobStatus(jobID job.ID, resp *JobStatusResponse) error {
-	v, err := p.p.JobStatus(context.Background(), jobID)
+	v, err := p.s.JobStatus(context.Background(), jobID)
 	resp.Result = v
 	if err != nil {
 		if err, ok := errors.Cause(err).(*fluxerr.Error); ok {
@@ -155,7 +154,7 @@ type SyncStatusResponse struct {
 }
 
 func (p *RPCServer) SyncStatus(ref string, resp *SyncStatusResponse) error {
-	v, err := p.p.SyncStatus(context.Background(), ref)
+	v, err := p.s.SyncStatus(context.Background(), ref)
 	resp.Result = v
 	if err != nil {
 		if err, ok := errors.Cause(err).(*fluxerr.Error); ok {
@@ -172,7 +171,7 @@ type GitRepoConfigResponse struct {
 }
 
 func (p *RPCServer) GitRepoConfig(regenerate bool, resp *GitRepoConfigResponse) error {
-	v, err := p.p.GitRepoConfig(context.Background(), regenerate)
+	v, err := p.s.GitRepoConfig(context.Background(), regenerate)
 	resp.Result = v
 	if err != nil {
 		if err, ok := errors.Cause(err).(*fluxerr.Error); ok {

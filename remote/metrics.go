@@ -9,6 +9,7 @@ import (
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 
 	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/api"
 	"github.com/weaveworks/flux/job"
 	fluxmetrics "github.com/weaveworks/flux/metrics"
 	"github.com/weaveworks/flux/update"
@@ -25,11 +26,11 @@ var (
 )
 
 type instrumentedPlatform struct {
-	p Platform
+	s api.Server
 }
 
-func Instrument(p Platform) Platform {
-	return &instrumentedPlatform{p}
+func Instrument(s api.Server) api.Server {
+	return &instrumentedPlatform{s}
 }
 
 func (i *instrumentedPlatform) Ping(ctx context.Context) (err error) {
@@ -39,7 +40,7 @@ func (i *instrumentedPlatform) Ping(ctx context.Context) (err error) {
 			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
 	}(time.Now())
-	return i.p.Ping(ctx)
+	return i.s.Ping(ctx)
 }
 
 func (i *instrumentedPlatform) Version(ctx context.Context) (v string, err error) {
@@ -49,7 +50,7 @@ func (i *instrumentedPlatform) Version(ctx context.Context) (v string, err error
 			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
 	}(time.Now())
-	return i.p.Version(ctx)
+	return i.s.Version(ctx)
 }
 
 func (i *instrumentedPlatform) Export(ctx context.Context) (config []byte, err error) {
@@ -59,7 +60,7 @@ func (i *instrumentedPlatform) Export(ctx context.Context) (config []byte, err e
 			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
 	}(time.Now())
-	return i.p.Export(ctx)
+	return i.s.Export(ctx)
 }
 
 func (i *instrumentedPlatform) ListServices(ctx context.Context, namespace string) (_ []flux.ControllerStatus, err error) {
@@ -69,7 +70,7 @@ func (i *instrumentedPlatform) ListServices(ctx context.Context, namespace strin
 			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
 	}(time.Now())
-	return i.p.ListServices(ctx, namespace)
+	return i.s.ListServices(ctx, namespace)
 }
 
 func (i *instrumentedPlatform) ListImages(ctx context.Context, spec update.ResourceSpec) (_ []flux.ImageStatus, err error) {
@@ -79,7 +80,7 @@ func (i *instrumentedPlatform) ListImages(ctx context.Context, spec update.Resou
 			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
 	}(time.Now())
-	return i.p.ListImages(ctx, spec)
+	return i.s.ListImages(ctx, spec)
 }
 
 func (i *instrumentedPlatform) UpdateManifests(ctx context.Context, spec update.Spec) (_ job.ID, err error) {
@@ -89,17 +90,17 @@ func (i *instrumentedPlatform) UpdateManifests(ctx context.Context, spec update.
 			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
 	}(time.Now())
-	return i.p.UpdateManifests(ctx, spec)
+	return i.s.UpdateManifests(ctx, spec)
 }
 
-func (i *instrumentedPlatform) NotifyChange(ctx context.Context, change Change) (err error) {
+func (i *instrumentedPlatform) NotifyChange(ctx context.Context, change api.Change) (err error) {
 	defer func(begin time.Time) {
 		requestDuration.With(
 			fluxmetrics.LabelMethod, "NotifyChange",
 			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
 	}(time.Now())
-	return i.p.NotifyChange(ctx, change)
+	return i.s.NotifyChange(ctx, change)
 }
 
 func (i *instrumentedPlatform) JobStatus(ctx context.Context, id job.ID) (_ job.Status, err error) {
@@ -109,7 +110,7 @@ func (i *instrumentedPlatform) JobStatus(ctx context.Context, id job.ID) (_ job.
 			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
 	}(time.Now())
-	return i.p.JobStatus(ctx, id)
+	return i.s.JobStatus(ctx, id)
 }
 
 func (i *instrumentedPlatform) SyncStatus(ctx context.Context, cursor string) (_ []string, err error) {
@@ -119,7 +120,7 @@ func (i *instrumentedPlatform) SyncStatus(ctx context.Context, cursor string) (_
 			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
 	}(time.Now())
-	return i.p.SyncStatus(ctx, cursor)
+	return i.s.SyncStatus(ctx, cursor)
 }
 
 func (i *instrumentedPlatform) GitRepoConfig(ctx context.Context, regenerate bool) (_ flux.GitConfig, err error) {
@@ -129,5 +130,5 @@ func (i *instrumentedPlatform) GitRepoConfig(ctx context.Context, regenerate boo
 			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
 	}(time.Now())
-	return i.p.GitRepoConfig(ctx, regenerate)
+	return i.s.GitRepoConfig(ctx, regenerate)
 }

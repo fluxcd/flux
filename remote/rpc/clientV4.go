@@ -6,6 +6,7 @@ import (
 	"net/rpc"
 	"net/rpc/jsonrpc"
 
+	"github.com/weaveworks/flux/api"
 	"github.com/weaveworks/flux/remote"
 )
 
@@ -16,7 +17,7 @@ type RPCClientV4 struct {
 	client *rpc.Client
 }
 
-var _ remote.PlatformV4 = &RPCClientV4{}
+var _ api.ServerV4 = &RPCClientV4{}
 
 // NewClient creates a new rpc-backed implementation of the platform.
 func NewClientV4(conn io.ReadWriteCloser) *RPCClientV4 {

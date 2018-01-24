@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/rpc"
 
+	"github.com/weaveworks/flux/api"
 	"github.com/weaveworks/flux/remote"
 )
 
@@ -14,7 +15,7 @@ type RPCClientV5 struct {
 	*RPCClientV4
 }
 
-var _ remote.PlatformV5 = &RPCClientV5{}
+var _ api.ServerV5 = &RPCClientV5{}
 
 // NewClient creates a new rpc-backed implementation of the platform.
 func NewClientV5(conn io.ReadWriteCloser) *RPCClientV5 {

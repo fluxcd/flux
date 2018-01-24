@@ -6,6 +6,7 @@ import (
 	"net/rpc"
 
 	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/api"
 	fluxerr "github.com/weaveworks/flux/errors"
 	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/remote"
@@ -20,7 +21,7 @@ type RPCClientV7 struct {
 	*RPCClientV6
 }
 
-var _ remote.PlatformV6 = &RPCClientV7{}
+var _ api.ServerV6 = &RPCClientV7{}
 
 var supportedKindsV7 = []string{"service"}
 

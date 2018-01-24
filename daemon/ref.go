@@ -5,75 +5,75 @@ import (
 	"sync"
 
 	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/api"
 	"github.com/weaveworks/flux/job"
-	"github.com/weaveworks/flux/remote"
 	"github.com/weaveworks/flux/update"
 )
 
-// Ref is a cell containing a platform implementation, that we can
+// Ref is a cell containing a server implementation, that we can
 // update atomically. The point of this is to be able to have a
-// platform in use (e.g., answering RPCs), and swap it later when the
+// server in use (e.g., answering RPCs), and swap it later when the
 // state changes.
 type Ref struct {
 	sync.RWMutex
-	platform remote.Platform
+	server api.Server
 }
 
-func NewRef(platform remote.Platform) (pr *Ref) {
-	return &Ref{platform: platform}
+func NewRef(server api.Server) *Ref {
+	return &Ref{server: server}
 }
 
-func (pr *Ref) Platform() remote.Platform {
-	pr.RLock()
-	defer pr.RUnlock()
-	return pr.platform
+func (r *Ref) Server() api.Server {
+	r.RLock()
+	defer r.RUnlock()
+	return r.server
 }
 
-func (pr *Ref) UpdatePlatform(platform remote.Platform) {
-	pr.Lock()
-	pr.platform = platform
-	pr.Unlock()
+func (r *Ref) UpdatePlatform(platform api.Server) {
+	r.Lock()
+	r.server = platform
+	r.Unlock()
 }
 
-// remote.Platform implementation so clients don't need to be refactored around
+// api.Server implementation so clients don't need to be refactored around
 // Platform() API
 
-func (pr *Ref) Ping(ctx context.Context) error {
-	return pr.Platform().Ping(ctx)
+func (r *Ref) Ping(ctx context.Context) error {
+	return r.Server().Ping(ctx)
 }
 
-func (pr *Ref) Version(ctx context.Context) (string, error) {
-	return pr.Platform().Version(ctx)
+func (r *Ref) Version(ctx context.Context) (string, error) {
+	return r.Server().Version(ctx)
 }
 
-func (pr *Ref) Export(ctx context.Context) ([]byte, error) {
-	return pr.Platform().Export(ctx)
+func (r *Ref) Export(ctx context.Context) ([]byte, error) {
+	return r.Server().Export(ctx)
 }
 
-func (pr *Ref) ListServices(ctx context.Context, namespace string) ([]flux.ControllerStatus, error) {
-	return pr.Platform().ListServices(ctx, namespace)
+func (r *Ref) ListServices(ctx context.Context, namespace string) ([]flux.ControllerStatus, error) {
+	return r.Server().ListServices(ctx, namespace)
 }
 
-func (pr *Ref) ListImages(ctx context.Context, spec update.ResourceSpec) ([]flux.ImageStatus, error) {
-	return pr.Platform().ListImages(ctx, spec)
+func (r *Ref) ListImages(ctx context.Context, spec update.ResourceSpec) ([]flux.ImageStatus, error) {
+	return r.Server().ListImages(ctx, spec)
 }
 
-func (pr *Ref) UpdateManifests(ctx context.Context, spec update.Spec) (job.ID, error) {
-	return pr.Platform().UpdateManifests(ctx, spec)
+func (r *Ref) UpdateManifests(ctx context.Context, spec update.Spec) (job.ID, error) {
+	return r.Server().UpdateManifests(ctx, spec)
 }
 
-func (pr *Ref) NotifyChange(ctx context.Context, change remote.Change) error {
-	return pr.Platform().NotifyChange(ctx, change)
+func (r *Ref) NotifyChange(ctx context.Context, change api.Change) error {
+	return r.Server().NotifyChange(ctx, change)
 }
 
-func (pr *Ref) JobStatus(ctx context.Context, id job.ID) (job.Status, error) {
-	return pr.Platform().JobStatus(ctx, id)
+func (r *Ref) JobStatus(ctx context.Context, id job.ID) (job.Status, error) {
+	return r.Server().JobStatus(ctx, id)
 }
 
-func (pr *Ref) SyncStatus(ctx context.Context, ref string) ([]string, error) {
-	return pr.Platform().SyncStatus(ctx, ref)
+func (r *Ref) SyncStatus(ctx context.Context, ref string) ([]string, error) {
+	return r.Server().SyncStatus(ctx, ref)
 }
 
-func (pr *Ref) GitRepoConfig(ctx context.Context, regenerate bool) (flux.GitConfig, error) {
-	return pr.Platform().GitRepoConfig(ctx, regenerate)
+func (r *Ref) GitRepoConfig(ctx context.Context, regenerate bool) (flux.GitConfig, error) {
+	return r.Server().GitRepoConfig(ctx, regenerate)
 }

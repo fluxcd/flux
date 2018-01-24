@@ -6,6 +6,7 @@ import (
 	"net/rpc"
 
 	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/api"
 	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/remote"
 	"github.com/weaveworks/flux/update"
@@ -18,7 +19,7 @@ type RPCClientV8 struct {
 	*RPCClientV7
 }
 
-var _ remote.PlatformV6 = &RPCClientV8{}
+var _ api.ServerV6 = &RPCClientV8{}
 
 var supportedKindsV8 = []string{"deployment", "daemonset", "statefulset", "cronjob"}
 

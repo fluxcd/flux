@@ -6,6 +6,7 @@ import (
 	"net/rpc"
 
 	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/api"
 	fluxerr "github.com/weaveworks/flux/errors"
 	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/remote"
@@ -35,7 +36,7 @@ attempting to fulfil your request:
 	}
 }
 
-var _ remote.PlatformV6 = &RPCClientV6{}
+var _ api.ServerV6 = &RPCClientV6{}
 
 var supportedKindsV6 = []string{"service"}
 

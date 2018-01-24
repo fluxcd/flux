@@ -14,11 +14,11 @@ import (
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 
 	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/api"
 	"github.com/weaveworks/flux/event"
 	transport "github.com/weaveworks/flux/http"
 	fluxclient "github.com/weaveworks/flux/http/client"
 	"github.com/weaveworks/flux/http/websocket"
-	"github.com/weaveworks/flux/remote"
 	"github.com/weaveworks/flux/remote/rpc"
 )
 
@@ -30,7 +30,7 @@ type Upstream struct {
 	url       *url.URL
 	endpoint  string
 	apiClient *fluxclient.Client
-	platform  remote.Platform
+	server    api.Server
 	logger    log.Logger
 	quit      chan struct{}
 
@@ -47,7 +47,7 @@ var (
 	}, []string{"target"})
 )
 
-func NewUpstream(client *http.Client, ua string, t flux.Token, router *mux.Router, endpoint string, p remote.Platform, logger log.Logger) (*Upstream, error) {
+func NewUpstream(client *http.Client, ua string, t flux.Token, router *mux.Router, endpoint string, s api.Server, logger log.Logger) (*Upstream, error) {
 	httpEndpoint, wsEndpoint, err := inferEndpoints(endpoint)
 	if err != nil {
 		return nil, errors.Wrap(err, "inferring WS/HTTP endpoints")
@@ -65,7 +65,7 @@ func NewUpstream(client *http.Client, ua string, t flux.Token, router *mux.Route
 		url:       u,
 		endpoint:  wsEndpoint,
 		apiClient: fluxclient.New(client, router, httpEndpoint, t),
-		platform:  p,
+		server:    s,
 		logger:    logger,
 		quit:      make(chan struct{}),
 	}
@@ -162,7 +162,7 @@ func (a *Upstream) connect() error {
 
 	// Hook up the rpc server. We are a websocket _client_, but an RPC
 	// _server_.
-	rpcserver, err := rpc.NewServer(a.platform)
+	rpcserver, err := rpc.NewServer(a.server)
 	if err != nil {
 		return errors.Wrap(err, "initializing rpc client")
 	}
