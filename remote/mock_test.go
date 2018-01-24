@@ -7,6 +7,6 @@ import (
 )
 
 // Just test that the mock does its job.
-func TestPlatformMock(t *testing.T) {
-	PlatformTestBattery(t, func(mock api.Server) api.Server { return mock })
+func TestMock(t *testing.T) {
+	ServerTestBattery(t, func(mock api.Server) api.Server { return mock })
 }

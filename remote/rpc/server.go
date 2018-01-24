@@ -15,7 +15,7 @@ import (
 	"github.com/weaveworks/flux/update"
 )
 
-// Server takes a platform and makes it available over RPC.
+// Server takes an api.Server and makes it available over RPC.
 type Server struct {
 	server *rpc.Server
 }

@@ -25,15 +25,15 @@ var (
 	}, []string{fluxmetrics.LabelMethod, fluxmetrics.LabelSuccess})
 )
 
-type instrumentedPlatform struct {
+type instrumentedServer struct {
 	s api.Server
 }
 
 func Instrument(s api.Server) api.Server {
-	return &instrumentedPlatform{s}
+	return &instrumentedServer{s}
 }
 
-func (i *instrumentedPlatform) Ping(ctx context.Context) (err error) {
+func (i *instrumentedServer) Ping(ctx context.Context) (err error) {
 	defer func(begin time.Time) {
 		requestDuration.With(
 			fluxmetrics.LabelMethod, "Ping",
@@ -43,7 +43,7 @@ func (i *instrumentedPlatform) Ping(ctx context.Context) (err error) {
 	return i.s.Ping(ctx)
 }
 
-func (i *instrumentedPlatform) Version(ctx context.Context) (v string, err error) {
+func (i *instrumentedServer) Version(ctx context.Context) (v string, err error) {
 	defer func(begin time.Time) {
 		requestDuration.With(
 			fluxmetrics.LabelMethod, "Version",
@@ -53,7 +53,7 @@ func (i *instrumentedPlatform) Version(ctx context.Context) (v string, err error
 	return i.s.Version(ctx)
 }
 
-func (i *instrumentedPlatform) Export(ctx context.Context) (config []byte, err error) {
+func (i *instrumentedServer) Export(ctx context.Context) (config []byte, err error) {
 	defer func(begin time.Time) {
 		requestDuration.With(
 			fluxmetrics.LabelMethod, "Export",
@@ -63,7 +63,7 @@ func (i *instrumentedPlatform) Export(ctx context.Context) (config []byte, err e
 	return i.s.Export(ctx)
 }
 
-func (i *instrumentedPlatform) ListServices(ctx context.Context, namespace string) (_ []flux.ControllerStatus, err error) {
+func (i *instrumentedServer) ListServices(ctx context.Context, namespace string) (_ []flux.ControllerStatus, err error) {
 	defer func(begin time.Time) {
 		requestDuration.With(
 			fluxmetrics.LabelMethod, "ListServices",
@@ -73,7 +73,7 @@ func (i *instrumentedPlatform) ListServices(ctx context.Context, namespace strin
 	return i.s.ListServices(ctx, namespace)
 }
 
-func (i *instrumentedPlatform) ListImages(ctx context.Context, spec update.ResourceSpec) (_ []flux.ImageStatus, err error) {
+func (i *instrumentedServer) ListImages(ctx context.Context, spec update.ResourceSpec) (_ []flux.ImageStatus, err error) {
 	defer func(begin time.Time) {
 		requestDuration.With(
 			fluxmetrics.LabelMethod, "ListImages",
@@ -83,7 +83,7 @@ func (i *instrumentedPlatform) ListImages(ctx context.Context, spec update.Resou
 	return i.s.ListImages(ctx, spec)
 }
 
-func (i *instrumentedPlatform) UpdateManifests(ctx context.Context, spec update.Spec) (_ job.ID, err error) {
+func (i *instrumentedServer) UpdateManifests(ctx context.Context, spec update.Spec) (_ job.ID, err error) {
 	defer func(begin time.Time) {
 		requestDuration.With(
 			fluxmetrics.LabelMethod, "UpdateManifests",
@@ -93,7 +93,7 @@ func (i *instrumentedPlatform) UpdateManifests(ctx context.Context, spec update.
 	return i.s.UpdateManifests(ctx, spec)
 }
 
-func (i *instrumentedPlatform) NotifyChange(ctx context.Context, change api.Change) (err error) {
+func (i *instrumentedServer) NotifyChange(ctx context.Context, change api.Change) (err error) {
 	defer func(begin time.Time) {
 		requestDuration.With(
 			fluxmetrics.LabelMethod, "NotifyChange",
@@ -103,7 +103,7 @@ func (i *instrumentedPlatform) NotifyChange(ctx context.Context, change api.Chan
 	return i.s.NotifyChange(ctx, change)
 }
 
-func (i *instrumentedPlatform) JobStatus(ctx context.Context, id job.ID) (_ job.Status, err error) {
+func (i *instrumentedServer) JobStatus(ctx context.Context, id job.ID) (_ job.Status, err error) {
 	defer func(begin time.Time) {
 		requestDuration.With(
 			fluxmetrics.LabelMethod, "JobStatus",
@@ -113,7 +113,7 @@ func (i *instrumentedPlatform) JobStatus(ctx context.Context, id job.ID) (_ job.
 	return i.s.JobStatus(ctx, id)
 }
 
-func (i *instrumentedPlatform) SyncStatus(ctx context.Context, cursor string) (_ []string, err error) {
+func (i *instrumentedServer) SyncStatus(ctx context.Context, cursor string) (_ []string, err error) {
 	defer func(begin time.Time) {
 		requestDuration.With(
 			fluxmetrics.LabelMethod, "SyncStatus",
@@ -123,7 +123,7 @@ func (i *instrumentedPlatform) SyncStatus(ctx context.Context, cursor string) (_
 	return i.s.SyncStatus(ctx, cursor)
 }
 
-func (i *instrumentedPlatform) GitRepoConfig(ctx context.Context, regenerate bool) (_ flux.GitConfig, err error) {
+func (i *instrumentedServer) GitRepoConfig(ctx context.Context, regenerate bool) (_ flux.GitConfig, err error) {
 	defer func(begin time.Time) {
 		requestDuration.With(
 			fluxmetrics.LabelMethod, "GitRepoConfig",

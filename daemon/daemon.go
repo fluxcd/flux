@@ -425,7 +425,7 @@ func (d *Daemon) GitRepoConfig(ctx context.Context, regenerate bool) (flux.GitCo
 	}, nil
 }
 
-// Non-remote.Platform methods
+// Non-api.Server methods
 
 func unknownJobError(id job.ID) error {
 	return &fluxerr.Error{

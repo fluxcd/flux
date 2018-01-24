@@ -1,7 +1,7 @@
 /*
 
 This is a `net/rpc`-compatible implementation of a client and server
-for `flux/remote.Platform`.
+for `flux/api.Server`.
 
 The purpose is to be able to access a daemon from an upstream
 service. The daemon makes an outbound connection (over, say,

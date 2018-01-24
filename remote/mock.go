@@ -16,7 +16,7 @@ import (
 	"github.com/weaveworks/flux/update"
 )
 
-type MockPlatform struct {
+type MockServer struct {
 	PingError error
 
 	VersionAnswer string
@@ -47,27 +47,27 @@ type MockPlatform struct {
 	GitRepoConfigError  error
 }
 
-func (p *MockPlatform) Ping(ctx context.Context) error {
+func (p *MockServer) Ping(ctx context.Context) error {
 	return p.PingError
 }
 
-func (p *MockPlatform) Version(ctx context.Context) (string, error) {
+func (p *MockServer) Version(ctx context.Context) (string, error) {
 	return p.VersionAnswer, p.VersionError
 }
 
-func (p *MockPlatform) Export(ctx context.Context) ([]byte, error) {
+func (p *MockServer) Export(ctx context.Context) ([]byte, error) {
 	return p.ExportAnswer, p.ExportError
 }
 
-func (p *MockPlatform) ListServices(ctx context.Context, ns string) ([]flux.ControllerStatus, error) {
+func (p *MockServer) ListServices(ctx context.Context, ns string) ([]flux.ControllerStatus, error) {
 	return p.ListServicesAnswer, p.ListServicesError
 }
 
-func (p *MockPlatform) ListImages(context.Context, update.ResourceSpec) ([]flux.ImageStatus, error) {
+func (p *MockServer) ListImages(context.Context, update.ResourceSpec) ([]flux.ImageStatus, error) {
 	return p.ListImagesAnswer, p.ListImagesError
 }
 
-func (p *MockPlatform) UpdateManifests(ctx context.Context, s update.Spec) (job.ID, error) {
+func (p *MockServer) UpdateManifests(ctx context.Context, s update.Spec) (job.ID, error) {
 	if p.UpdateManifestsArgTest != nil {
 		if err := p.UpdateManifestsArgTest(s); err != nil {
 			return job.ID(""), err
@@ -76,29 +76,29 @@ func (p *MockPlatform) UpdateManifests(ctx context.Context, s update.Spec) (job.
 	return p.UpdateManifestsAnswer, p.UpdateManifestsError
 }
 
-func (p *MockPlatform) NotifyChange(ctx context.Context, change api.Change) error {
+func (p *MockServer) NotifyChange(ctx context.Context, change api.Change) error {
 	return p.NotifyChangeError
 }
 
-func (p *MockPlatform) SyncStatus(context.Context, string) ([]string, error) {
+func (p *MockServer) SyncStatus(context.Context, string) ([]string, error) {
 	return p.SyncStatusAnswer, p.SyncStatusError
 }
 
-func (p *MockPlatform) JobStatus(context.Context, job.ID) (job.Status, error) {
+func (p *MockServer) JobStatus(context.Context, job.ID) (job.Status, error) {
 	return p.JobStatusAnswer, p.JobStatusError
 }
 
-func (p *MockPlatform) GitRepoConfig(ctx context.Context, regenerate bool) (flux.GitConfig, error) {
+func (p *MockServer) GitRepoConfig(ctx context.Context, regenerate bool) (flux.GitConfig, error) {
 	return p.GitRepoConfigAnswer, p.GitRepoConfigError
 }
 
-var _ api.Server = &MockPlatform{}
+var _ api.Server = &MockServer{}
 
-// -- Battery of tests for a platform mechanism. Since these
-// essentially wrap the platform in various transports, we expect
+// -- Battery of tests for an api.Server implementation. Since these
+// essentially wrap the server in various transports, we expect
 // arguments and answers to be preserved.
 
-func PlatformTestBattery(t *testing.T, wrap func(mock api.Server) api.Server) {
+func ServerTestBattery(t *testing.T, wrap func(mock api.Server) api.Server) {
 	// set up
 	namespace := "the-space-of-names"
 	serviceID := flux.MustParseResourceID(namespace + "/service")
@@ -162,7 +162,7 @@ func PlatformTestBattery(t *testing.T, wrap func(mock api.Server) api.Server) {
 		return nil
 	}
 
-	mock := &MockPlatform{
+	mock := &MockServer{
 		ListServicesAnswer:     serviceAnswer,
 		ListImagesAnswer:       imagesAnswer,
 		UpdateManifestsArgTest: checkUpdateSpec,

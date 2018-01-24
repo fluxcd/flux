@@ -144,7 +144,7 @@ func main() {
 		}
 	}
 
-	// Platform component.
+	// Cluster component.
 	var clusterVersion string
 	var sshKeyRing ssh.KeyRing
 	var k8s cluster.Cluster
@@ -194,7 +194,7 @@ func main() {
 
 		publicKey, privateKeyPath := sshKeyRing.KeyPair()
 
-		logger := log.With(logger, "component", "platform")
+		logger := log.With(logger, "component", "cluster")
 		logger.Log("identity", privateKeyPath)
 		logger.Log("identity.pub", publicKey.Key)
 		logger.Log("host", restClientConfig.Host, "version", clusterVersion)
@@ -292,7 +292,7 @@ func main() {
 				flux.Token(*token),
 				transport.NewUpstreamRouter(),
 				*upstreamURL,
-				remote.NewErrorLoggingPlatform(daemonRef, upstreamLogger),
+				remote.NewErrorLoggingServer(daemonRef, upstreamLogger),
 				upstreamLogger,
 			)
 			if err != nil {
@@ -446,7 +446,7 @@ func main() {
 	go cacheWarmer.Loop(log.With(logger, "component", "warmer"), shutdown, shutdownWg, imageCreds)
 
 	// Update daemonRef so that upstream and handlers point to fully working daemon
-	daemonRef.UpdatePlatform(daemon)
+	daemonRef.UpdateServer(daemon)
 
 	// Fall off the end, into the waiting procedure.
 }

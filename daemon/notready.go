@@ -50,8 +50,6 @@ func (nrd *NotReadyDaemon) UpdateStatus(status flux.GitRepoStatus, reason error)
 	nrd.Unlock()
 }
 
-// 'Not ready' platform implementation
-
 func (nrd *NotReadyDaemon) Ping(ctx context.Context) error {
 	return nrd.cluster.Ping()
 }

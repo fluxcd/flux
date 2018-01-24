@@ -29,14 +29,14 @@ func (r *Ref) Server() api.Server {
 	return r.server
 }
 
-func (r *Ref) UpdatePlatform(platform api.Server) {
+func (r *Ref) UpdateServer(server api.Server) {
 	r.Lock()
-	r.server = platform
+	r.server = server
 	r.Unlock()
 }
 
 // api.Server implementation so clients don't need to be refactored around
-// Platform() API
+// Server() API
 
 func (r *Ref) Ping(ctx context.Context) error {
 	return r.Server().Ping(ctx)

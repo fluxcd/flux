@@ -4,9 +4,9 @@ import (
 	"strings"
 )
 
-// Definitions for use in synchronising a platform with a git repo.
+// Definitions for use in synchronising a cluster with a git repo.
 
-// Yep, resources are defined by opaque bytes. It's up to the platform
+// Yep, resources are defined by opaque bytes. It's up to the cluster
 // at the other end to do the right thing.
 type ResourceDef []byte
 

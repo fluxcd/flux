@@ -13,7 +13,7 @@ import (
 	"github.com/weaveworks/flux/update"
 )
 
-// RPCClient is the rpc-backed implementation of a platform, for
+// RPCClient is the rpc-backed implementation of a server, for
 // talking to remote daemons.
 type RPCClientV6 struct {
 	*RPCClientV5
@@ -40,12 +40,12 @@ var _ api.ServerV6 = &RPCClientV6{}
 
 var supportedKindsV6 = []string{"service"}
 
-// NewClient creates a new rpc-backed implementation of the platform.
+// NewClient creates a new rpc-backed implementation of the server.
 func NewClientV6(conn io.ReadWriteCloser) *RPCClientV6 {
 	return &RPCClientV6{NewClientV5(conn)}
 }
 
-// Export is used to get service configuration in platform-specific format
+// Export is used to get service configuration in cluster-specific format
 func (p *RPCClientV6) Export(ctx context.Context) ([]byte, error) {
 	var config []byte
 	err := p.client.Call("RPCServer.Export", struct{}{}, &config)
@@ -58,7 +58,6 @@ func (p *RPCClientV6) Export(ctx context.Context) ([]byte, error) {
 	return config, err
 }
 
-// Export is used to get service configuration in platform-specific format
 func (p *RPCClientV6) ListServices(ctx context.Context, namespace string) ([]flux.ControllerStatus, error) {
 	var services []flux.ControllerStatus
 	err := p.client.Call("RPCServer.ListServices", namespace, &services)

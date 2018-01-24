@@ -33,7 +33,7 @@ func TestRPC(t *testing.T) {
 		go server.ServeConn(serverConn)
 		return NewClientV9(clientConn)
 	}
-	remote.PlatformTestBattery(t, wrap)
+	remote.ServerTestBattery(t, wrap)
 }
 
 // ---
@@ -59,7 +59,7 @@ func faultyPipes() (io.ReadWriteCloser, io.ReadWriteCloser) {
 
 func TestBadRPC(t *testing.T) {
 	ctx := context.Background()
-	mock := &remote.MockPlatform{}
+	mock := &remote.MockServer{}
 	clientConn, serverConn := faultyPipes()
 	server, err := NewServer(mock)
 	if err != nil {

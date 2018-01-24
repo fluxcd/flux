@@ -1,8 +1,5 @@
 package kubernetes
 
-// Test that the implementation of platform wrt Kubernetes is
-// adequate. Starting with Sync.
-
 import (
 	"testing"
 
