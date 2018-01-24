@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/registry"
 	"github.com/weaveworks/flux/update"
 )
 
@@ -90,7 +91,11 @@ func (opts *controllerShowOpts) RunE(cmd *cobra.Command, args []string) error {
 				reg += "/"
 			}
 			if len(container.Available) == 0 {
-				fmt.Fprintf(out, "%s\t%s\t%s%s\twaiting for cache\n", controllerName, containerName, reg, repo)
+				availableErr := container.AvailableError
+				if availableErr == "" {
+					availableErr = registry.ErrNoImageData.Error()
+				}
+				fmt.Fprintf(out, "%s\t%s\t%s%s\t%s\n", controllerName, containerName, reg, repo, availableErr)
 			} else {
 				fmt.Fprintf(out, "%s\t%s\t%s%s\t\n", controllerName, containerName, reg, repo)
 			}

@@ -1,13 +1,13 @@
 package registry
 
 import (
-	"time"
+	"errors"
 
 	"github.com/weaveworks/flux/image"
 )
 
-const (
-	requestTimeout = 10 * time.Second
+var (
+	ErrNoImageData = errors.New("image data not available")
 )
 
 // Registry is a store of image metadata.

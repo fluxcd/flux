@@ -263,9 +263,10 @@ type ControllerStatus struct {
 }
 
 type Container struct {
-	Name      string
-	Current   image.Info
-	Available []image.Info
+	Name           string
+	Current        image.Info
+	Available      []image.Info
+	AvailableError string `json:",omitempty"`
 }
 
 // --- config types
