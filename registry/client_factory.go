@@ -15,11 +15,13 @@ import (
 )
 
 type RemoteClientFactory struct {
-	Logger           log.Logger
-	Limiters         *middleware.RateLimiters
-	Trace            bool
+	Logger        log.Logger
+	Limiters      *middleware.RateLimiters
+	Trace         bool
+	InsecureHosts []string
+
+	mu               sync.Mutex
 	challengeManager challenge.Manager
-	mx               sync.Mutex
 }
 
 type logging struct {
@@ -43,47 +45,66 @@ func (f *RemoteClientFactory) ClientFor(repo image.CanonicalName, creds Credenti
 		tx = &logging{f.Logger, tx}
 	}
 
-	f.mx.Lock()
+	f.mu.Lock()
 	if f.challengeManager == nil {
 		f.challengeManager = challenge.NewSimpleManager()
 	}
-	f.mx.Unlock()
 	manager := f.challengeManager
+	f.mu.Unlock()
 
-	pingURL := url.URL{
-		Scheme: "https",
+	scheme := "https"
+	for _, h := range f.InsecureHosts {
+		if repo.Domain == h {
+			scheme = "http"
+		}
+	}
+
+	registryURL := url.URL{
+		Scheme: scheme,
 		Host:   repo.Domain,
 		Path:   "/v2/",
 	}
+
 	// Before we know how to authorise, need to establish which
-	// authorisation challenges the host will send.
-	if cs, err := manager.GetChallenges(pingURL); err == nil {
-		if len(cs) == 0 {
-			req, err := http.NewRequest("GET", pingURL.String(), nil)
-			if err != nil {
-				return nil, err
-			}
-			res, err := (&http.Client{
-				Transport: tx,
-			}).Do(req)
-			if err != nil {
-				return nil, err
-			}
-			if err = manager.AddResponse(res); err != nil {
-				return nil, err
-			}
+	// authorisation challenges the host will send. See if we've been
+	// here before.
+	cs, err := manager.GetChallenges(registryURL)
+	if err != nil {
+		return nil, err
+	}
+	if len(cs) == 0 {
+		// No prior challenge; try pinging the registry endpoint to
+		// get a challenge. `http.Client` will follow redirects, so
+		// even if we thought it was an insecure (HTTP) host, we may
+		// end up requesting HTTPS.
+		req, err := http.NewRequest("GET", registryURL.String(), nil)
+		if err != nil {
+			return nil, err
 		}
+		res, err := (&http.Client{
+			Transport: tx,
+		}).Do(req)
+		if err != nil {
+			return nil, err
+		}
+		if err = manager.AddResponse(res); err != nil {
+			return nil, err
+		}
+		registryURL = *res.Request.URL // <- the URL after any redirection
 	}
 
 	cred := creds.credsFor(repo.Domain)
 	if f.Trace {
-		f.Logger.Log("repo", repo.String(), "auth", cred.String())
+		f.Logger.Log("repo", repo.String(), "auth", cred.String(), "api", registryURL.String())
 	}
 
-	handler := auth.NewTokenHandler(tx, &store{cred}, repo.Image, "pull")
-	tx = transport.NewTransport(tx, auth.NewAuthorizer(manager, handler))
+	tokenHandler := auth.NewTokenHandler(tx, &store{cred}, repo.Image, "pull")
+	basicauthHandler := auth.NewBasicHandler(&store{cred})
+	tx = transport.NewTransport(tx, auth.NewAuthorizer(manager, tokenHandler, basicauthHandler))
 
-	client := &Remote{transport: tx, repo: repo}
+	// For the API base we want only the scheme and host.
+	registryURL.Path = ""
+	client := &Remote{transport: tx, repo: repo, base: registryURL.String()}
 	return NewInstrumentedClient(client), nil
 }
 
