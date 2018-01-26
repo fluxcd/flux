@@ -57,8 +57,8 @@ success() {
 }
 
 wait_for_sync() {
-    echo -n "Waiting for sync"
     HEAD_REV=$(git -C "$CONFIG_REPO" rev-list -n 1 HEAD)
+    echo -n "Waiting for sync to $HEAD_REV"
     for i in $(seq 1 $1); do
         git -C "$CONFIG_REPO" fetch --tags > /dev/null 2>&1
         FLUX_SYNC_REV=$(git -C "$CONFIG_REPO" rev-list -n 1 flux-sync 2>/dev/null || true)
@@ -73,11 +73,13 @@ wait_for_sync() {
 }
 
 wait_for_upstream_commits() {
-    echo -n "Waiting for $2 upstream commits"
-    for i in $(seq 1 $1); do
+    echo -n "Waiting for at least $2 upstream commits"
+    for i in $(seq 1 "$1"); do
         git -C "$CONFIG_REPO" fetch --tags > /dev/null 2>&1
-        if [ "$(git -C "$CONFIG_REPO" rev-list --count HEAD..flux-sync)" -eq "2" ]; then
-            echo
+        if [ "$(git -C "$CONFIG_REPO" rev-list --count HEAD..flux-sync)" -ge "$2" ]; then
+            echo New commits:
+            git -C "$CONFIG_REPO" rev-list --format=oneline HEAD..flux-sync
+            git -C "$CONFIG_REPO" pull --tags
             return
         fi
         sleep 1
@@ -95,7 +97,9 @@ controller_container() {
 }
 
 assert_controller_container() {
-    if [ "$(services $1|controller_container $2 $3)" != "$4" ]; then
+    local image="$(services $1|controller_container $2 $3)"
+    if [ "$image" != "$4" ]; then
+        echo "$image != $4"
         fail
     fi
 }
@@ -120,11 +124,15 @@ assert_controller_container default default:deployment/helloworld sidecar quay.i
 # Now enable automation
 fluxctl --url http://$(minikube -p flux-test ip):30080/api/flux automate --controller=default:deployment/helloworld
 
-# Wait two minutes for two (automation and release) commits to appear
+# Wait two minutes for at least two (automation, and one or two
+# release) commits to appear. It takes a while for the local DB to be
+# updated with image versions, then for the automation to be run.
 wait_for_upstream_commits 120 2
+# .. and wait for _those_changes to have been synced.
+wait_for_sync 120
 
-# Examine services via flux API an assert container versions are updated
-assert_controller_container default default:deployment/helloworld helloworld quay.io/weaveworks/helloworld:master-9a16ff945b9e
+# Examine services via flux API and assert container versions are updated
+assert_controller_container default default:deployment/helloworld helloworld quay.io/weaveworks/helloworld:master-07a1b6b
 assert_controller_container default default:deployment/helloworld sidecar quay.io/weaveworks/sidecar:master-a000002
 
 success
