@@ -58,6 +58,7 @@ func (c *Kubectl) apply(logger log.Logger, cs changeSet, errs cluster.SyncError)
 		if len(objs) == 0 {
 			return
 		}
+		logger.Log("cmd", cmd, "args", strings.Join(args, " "), "count", len(objs))
 		args = append(args, cmd)
 		if err := c.doCommand(logger, makeMultidoc(objs), args...); err != nil {
 			for _, obj := range objs {
@@ -103,7 +104,7 @@ func (c *Kubectl) doCommand(logger log.Logger, r io.Reader, args ...string) erro
 func makeMultidoc(objs []obj) *bytes.Buffer {
 	buf := &bytes.Buffer{}
 	for _, obj := range objs {
-		buf.WriteString("---\n" + string(obj.bytes))
+		buf.WriteString("\n---\n" + string(obj.bytes))
 	}
 	return buf
 }
