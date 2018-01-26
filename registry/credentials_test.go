@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
 var (
@@ -91,25 +93,28 @@ func TestRemoteFactory_ParseHost(t *testing.T) {
 		if v.error {
 			continue
 		}
-		if u := creds.credsFor(v.imagePrefix).username; u != user {
-			t.Fatalf("For test %q, expected %q but got %v", v.host, user, u)
-		}
+		actualUser := creds.credsFor(v.imagePrefix).username
+		assert.Equal(t, user, actualUser, "For test %q, expected %q but got %v", v.host, user, actualUser)
+		actualPass := creds.credsFor(v.imagePrefix).password
+		assert.Equal(t, pass, actualPass, "For test %q, expected %q but got %v", v.host, user, actualPass)
 	}
 }
 
 func TestParseCreds_k8s(t *testing.T) {
 	k8sCreds := []byte(`{"localhost:5000":{"username":"testuser","password":"testpassword","email":"foo@bar.com","auth":"dGVzdHVzZXI6dGVzdHBhc3N3b3Jk"}}`)
 	c, err := ParseCredentials("test", k8sCreds)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(c.Hosts()) != 1 {
-		t.Fatal("Invalid number of hosts", len(c.Hosts()))
-	} else if c.Hosts()[0] != "localhost:5000" {
-		t.Fatal("Host is incorrect: ", c.Hosts()[0])
-	} else if c.credsFor("localhost:5000").username != "testuser" {
-		t.Fatal("Invalid user", c.credsFor("localhost:5000").username)
-	} else if c.credsFor("localhost:5000").password != "testpassword" {
-		t.Fatal("Invalid user", c.credsFor("localhost:5000").password)
-	}
+	assert.NoError(t, err)
+	assert.Equal(t, 1, len(c.Hosts()), "Invalid number of hosts")
+	host := c.Hosts()[0]
+	assert.Equal(t, "localhost:5000", host, "Host is incorrect")
+	assert.Equal(t, "testuser", c.credsFor(host).username, "User is incorrect")
+	assert.Equal(t, "testpassword", c.credsFor(host).password, "Password is incorrect")
+}
+
+func TestStringShouldNotLeakPasswords(t *testing.T) {
+	k8sCreds := []byte(`{"localhost:5000":{"username":"testuser","password":"testpassword","email":"foo@bar.com","auth":"dGVzdHVzZXI6dGVzdHBhc3N3b3Jk"}}`)
+	c, err := ParseCredentials("test", k8sCreds)
+	assert.NoError(t, err)
+	assert.Equal(t, "{map[localhost:5000:<registry creds for testuser@localhost:5000, from test>]}", fmt.Sprintf("%v", c)) // In comparison standard String() method typically yields: "{map[localhost:5000:{testuser testpassword localhost:5000 test}]}".
+	assert.Equal(t, "testpassword", c.credsFor("localhost:5000").password, "Password is incorrect")                        // Actual password is left untouched.
 }

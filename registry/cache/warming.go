@@ -46,8 +46,8 @@ type backlogItem struct {
 	registry.Credentials
 }
 
-// Continuously get the images to populate the cache with, and
-// populate the cache with them.
+// Loop continuously gets the images to populate the cache with,
+// and populate the cache with them.
 func (w *Warmer) Loop(logger log.Logger, stop <-chan struct{}, wg *sync.WaitGroup, imagesToFetchFunc func() registry.ImageCreds) {
 	defer wg.Done()
 
@@ -111,9 +111,10 @@ func imageCredsToBacklog(imageCreds registry.ImageCreds) []backlogItem {
 }
 
 func (w *Warmer) warm(ctx context.Context, logger log.Logger, id image.Name, creds registry.Credentials) {
+	errorLogger := log.With(logger, "canonical_name", id.CanonicalName(), "auth", creds)
 	client, err := w.clientFactory.ClientFor(id.CanonicalName(), creds)
 	if err != nil {
-		logger.Log("err", err.Error())
+		errorLogger.Log("err", err.Error())
 		return
 	}
 
@@ -128,10 +129,9 @@ func (w *Warmer) warm(ctx context.Context, logger log.Logger, id image.Name, cre
 	}
 
 	if err != nil {
-		logger.Log("err", errors.Wrap(err, "fetching previous result from cache"))
+		errorLogger.Log("err", errors.Wrap(err, "fetching previous result from cache"))
 		return
 	}
-
 	// Save for comparison later
 	oldImages := repo.Images
 
@@ -144,14 +144,14 @@ func (w *Warmer) warm(ctx context.Context, logger log.Logger, id image.Name, cre
 			err = w.cache.SetKey(repoKey, bytes)
 		}
 		if err != nil {
-			logger.Log("err", errors.Wrap(err, "writing result to cache"))
+			errorLogger.Log("err", errors.Wrap(err, "writing result to cache"))
 		}
 	}()
 
 	tags, err := client.Tags(ctx)
 	if err != nil {
 		if !strings.Contains(err.Error(), context.DeadlineExceeded.Error()) && !strings.Contains(err.Error(), "net/http: request canceled") {
-			logger.Log("err", errors.Wrap(err, "requesting tags"))
+			errorLogger.Log("err", errors.Wrap(err, "requesting tags"))
 			repo.LastError = err.Error()
 		}
 		return
@@ -212,7 +212,7 @@ func (w *Warmer) warm(ctx context.Context, logger log.Logger, id image.Name, cre
 						// This was due to a context timeout, don't bother logging
 						return
 					}
-					logger.Log("err", errors.Wrap(err, "requesting manifests"))
+					errorLogger.Log("err", errors.Wrap(err, "requesting manifests"))
 					return
 				}
 
@@ -220,12 +220,12 @@ func (w *Warmer) warm(ctx context.Context, logger log.Logger, id image.Name, cre
 				// Write back to memcached
 				val, err := json.Marshal(img)
 				if err != nil {
-					logger.Log("err", errors.Wrap(err, "serializing tag to store in cache"))
+					errorLogger.Log("err", errors.Wrap(err, "serializing tag to store in cache"))
 					return
 				}
 				err = w.cache.SetKey(key, val)
 				if err != nil {
-					logger.Log("err", errors.Wrap(err, "storing manifests in cache"))
+					errorLogger.Log("err", errors.Wrap(err, "storing manifests in cache"))
 					return
 				}
 				successMx.Lock()
