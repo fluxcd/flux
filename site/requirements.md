@@ -29,3 +29,11 @@ It is _not_ a requirement that the files are arranged in any
 particular way into directories. Flux will look in subdirectories for
 YAML files recursively, but does not infer any meaning from the
 directory structure.
+
+Flux uses the Docker Registry API to collect metadata about the images
+running in the cluster. This comes with at least one limitation:
+
+ * Since Flux runs in a container in your cluster, it may not be able
+   to resolve all hostnames that you or Kubernetes can resolve. In
+   particular, it won't be able to get image metadata for images in a
+   private image registry that's made available at `localhost`.

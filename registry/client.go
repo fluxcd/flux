@@ -37,6 +37,7 @@ type ClientFactory interface {
 type Remote struct {
 	transport http.RoundTripper
 	repo      image.CanonicalName
+	base      string
 }
 
 // Adapt to docker distribution `reference.Named`.
@@ -44,17 +45,17 @@ type named struct {
 	image.CanonicalName
 }
 
-// Name returns the name of the repository. These values are used to
-// build API URLs, and (it turns out) are _not_ expected to include a
-// domain (e.g., quay.io). Hence, the implementation here just returns
-// the path.
+// Name returns the name of the repository. These values are used by
+// the docker distribution client package to build API URLs, and (it
+// turns out) are _not_ expected to include a domain (e.g.,
+// quay.io). Hence, the implementation here just returns the path.
 func (n named) Name() string {
 	return n.Image
 }
 
 // Return the tags for this repository.
 func (a *Remote) Tags(ctx context.Context) ([]string, error) {
-	repository, err := client.NewRepository(named{a.repo}, "https://"+a.repo.Domain, a.transport)
+	repository, err := client.NewRepository(named{a.repo}, a.base, a.transport)
 	if err != nil {
 		return nil, err
 	}
@@ -64,7 +65,7 @@ func (a *Remote) Tags(ctx context.Context) ([]string, error) {
 // Manifest fetches the metadata for an image reference; currently
 // assumed to be in the same repo as that provided to `NewRemote(...)`
 func (a *Remote) Manifest(ctx context.Context, ref string) (image.Info, error) {
-	repository, err := client.NewRepository(named{a.repo}, "https://"+a.repo.Domain, a.transport)
+	repository, err := client.NewRepository(named{a.repo}, a.base, a.transport)
 	if err != nil {
 		return image.Info{}, err
 	}
