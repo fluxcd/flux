@@ -1,3 +1,24 @@
+## 1.2.2 (2018-01-31)
+
+### Fixes
+
+- Correctly handle YAML files with no trailing newline
+  [weaveworks/flux#916](https://github.com/weaveworks/flux/issues/916)
+
+### Improvements
+
+The following improvements are to help if you are running a private
+registry.
+
+- Support image registries using basic authentication (rather than
+  token-based authentication)
+  [weaveworks/flux#915](https://github.com/weaveworks/flux/issues/915)
+- Introduce the daemon argument `--registry-insecure-host` for marking
+  a registry as accessible via HTTP (rather than HTTPS)
+  [weaveworks/flux#918](https://github.com/weaveworks/flux/pull/918)
+- Better logging of registry fetch failures, for troubleshooting
+  [weaveworks/flux#898](https://github.com/weaveworks/flux/pull/898)
+
 ## 1.2.1 (2018-01-15)
 
 ### Fixes
