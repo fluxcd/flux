@@ -60,6 +60,18 @@ func (w *Warmer) Loop(logger log.Logger, stop <-chan struct{}, wg *sync.WaitGrou
 	// just rattle through them one by one, however long they take.
 	ctx := context.Background()
 
+	// NB the implicit contract here is that the prioritised
+	// image has to have been running the last time we
+	// requested the credentials.
+	priorityWarm := func (name image.Name) {
+		logger.Log("priority", name.String())
+		if creds, ok := imageCreds[name]; ok {
+			w.warm(ctx, logger, name, creds)
+		} else {
+			logger.Log("priority", name.String(), "err", "no creds available")
+		}
+	}
+
 	// This loop acts keeps a kind of priority queue, whereby image
 	// names coming in on the `Priority` channel are looked up first.
 	// If there are none, images used in the cluster are refreshed;
@@ -72,15 +84,7 @@ func (w *Warmer) Loop(logger log.Logger, stop <-chan struct{}, wg *sync.WaitGrou
 			logger.Log("stopping", "true")
 			return
 		case name := <-w.Priority:
-			logger.Log("priority", name.String())
-			// NB the implicit contract here is that the prioritised
-			// image has to have been running the last time we
-			// requested the credentials.
-			if creds, ok := imageCreds[name]; ok {
-				w.warm(ctx, logger, name, creds)
-			} else {
-				logger.Log("priority", name.String(), "err", "no creds available")
-			}
+			priorityWarm(name)
 			continue
 		default:
 		}
@@ -91,14 +95,19 @@ func (w *Warmer) Loop(logger log.Logger, stop <-chan struct{}, wg *sync.WaitGrou
 			w.warm(ctx, logger, im.Name, im.Credentials)
 		} else {
 			select {
+			case <-stop:
+				logger.Log("stopping", "true")
+				return 
 			case <-refresh:
 				imageCreds = imagesToFetchFunc()
 				backlog = imageCredsToBacklog(imageCreds)
-			default:
+			case name := <-w.Priority:
+				priorityWarm(name)
 			}
 		}
 	}
 }
+
 
 func imageCredsToBacklog(imageCreds registry.ImageCreds) []backlogItem {
 	backlog := make([]backlogItem, len(imageCreds))
