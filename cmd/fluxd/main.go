@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -335,7 +336,7 @@ func main() {
 
 	// HTTP transport component, for metrics
 	go func() {
-		mux := http.NewServeMux()
+		mux := http.DefaultServeMux
 		mux.Handle("/metrics", promhttp.Handler())
 		handler := daemonhttp.NewHandler(daemonRef, daemonhttp.NewRouter())
 		mux.Handle("/api/flux/", http.StripPrefix("/api/flux", handler))
