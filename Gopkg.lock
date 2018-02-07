@@ -280,13 +280,13 @@
   version = "v1.0.0"
 
 [[projects]]
+  branch = "master"
   name = "github.com/prometheus/client_golang"
   packages = [
     "prometheus",
     "prometheus/promhttp"
   ]
-  revision = "c5b7fccd204277076155f10851dad72b76a49317"
-  version = "v0.8.0"
+  revision = "9bb6ab929dcbe1c8393cd9ef70387cb69811bd1c"
 
 [[projects]]
   branch = "master"
