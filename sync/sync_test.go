@@ -27,7 +27,7 @@ func TestSync(t *testing.T) {
 	checkout, cleanup := setup(t)
 	defer cleanup()
 
-	// Let's test that platform.Sync gets called with the appropriate
+	// Let's test that cluster.Sync gets called with the appropriate
 	// things when we add and remove resources from the config.
 
 	// Start with nothing running. We should be told to apply all the things.
@@ -212,7 +212,7 @@ func execCommand(cmd string, args ...string) error {
 	return c.Run()
 }
 
-// A platform that keeps track of exactly what it's been told to apply
+// A cluster that keeps track of exactly what it's been told to apply
 // or delete and parrots it back when asked to Export. This is as
 // mechanically simple as possible!
 
@@ -255,7 +255,7 @@ func resourcesToStrings(resources map[string]resource.Resource) map[string]strin
 	return res
 }
 
-// Our invariant is that the model we can export from the platform
+// Our invariant is that the model we can export from the cluster
 // should always reflect what's in git. So, let's check that.
 func checkClusterMatchesFiles(t *testing.T, m cluster.Manifests, c cluster.Cluster, dir string) {
 	conf, err := c.Export()

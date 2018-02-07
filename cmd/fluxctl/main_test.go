@@ -29,7 +29,7 @@ func mockServiceOpts(trip *genericMockRoundTripper) *rootOpts {
 
 type genericMockRoundTripper struct {
 	mockResponses  map[*mux.Route]interface{}
-	requestHistory []mux.RouteMatch
+	requestHistory map[string]*http.Request
 }
 
 func (t *genericMockRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
@@ -42,8 +42,7 @@ func (t *genericMockRoundTripper) RoundTrip(req *http.Request) (*http.Response, 
 			for x, y := range req.URL.Query() {
 				queryParamsWithArrays[x] = strings.Join(y, ",")
 			}
-			matched.Vars = queryParamsWithArrays
-			t.requestHistory = append(t.requestHistory, matched)
+			t.requestHistory[matched.Route.GetName()] = req
 			b, _ = json.Marshal(v)
 			status = 200
 			break
@@ -55,33 +54,12 @@ func (t *genericMockRoundTripper) RoundTrip(req *http.Request) (*http.Response, 
 	}, nil
 }
 
-func assertString(t *testing.T, s1, s2 string) {
-	if s1 != s2 {
-		t.Fatalf("Expected %q but got %q", s1, s2)
-	}
+func (t *genericMockRoundTripper) calledRequest(method string) *http.Request {
+	return t.requestHistory[method]
 }
 
-func calledRequest(method string, calls []mux.RouteMatch) (matched mux.RouteMatch) {
-	for _, r := range calls {
-		if method == r.Route.GetName() {
-			matched = r
-			break
-		}
-	}
-	return
-}
-
-func calledURL(method string, calls []mux.RouteMatch) (u *url.URL) {
-	r := calledRequest(method, calls)
-	var vars []string
-	for ik, iv := range r.Vars {
-		vars = append(vars, ik)
-		vars = append(vars, iv)
-	}
-	if r.Route != nil {
-		u, _ = r.Route.URL(vars...)
-	}
-	return u
+func (t *genericMockRoundTripper) calledURL(method string) (u *url.URL) {
+	return t.calledRequest(method).URL
 }
 
 func testArgs(t *testing.T, args []string, shouldErr bool, errMsg string) *genericMockRoundTripper {
@@ -92,7 +70,6 @@ func testArgs(t *testing.T, args []string, shouldErr bool, errMsg string) *gener
 	cmd := releaseClient.Command()
 	cmd.SetOutput(ioutil.Discard)
 	cmd.SetArgs(args)
-	cmd.SetOutput(ioutil.Discard)
 	if err := cmd.Execute(); (err == nil) == shouldErr {
 		if errMsg != "" {
 			t.Fatal(errMsg)
@@ -107,10 +84,11 @@ func testArgs(t *testing.T, args []string, shouldErr bool, errMsg string) *gener
 func newMockService() *genericMockRoundTripper {
 	return &genericMockRoundTripper{
 		mockResponses: map[*mux.Route]interface{}{
-			transport.NewAPIRouter().Get("UpdateImages"): job.ID("here-is-a-job-id"),
+			transport.NewAPIRouter().Get("UpdateManifests"): job.ID("here-is-a-job-id"),
 			transport.NewAPIRouter().Get("JobStatus"): job.Status{
 				StatusString: job.StatusSucceeded,
 			},
 		},
+		requestHistory: make(map[string]*http.Request),
 	}
 }

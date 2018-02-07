@@ -97,16 +97,20 @@ func (opts *controllerPolicyOpts) RunE(cmd *cobra.Command, args []string) error 
 		return err
 	}
 
-	update, err := calculatePolicyChanges(opts)
+	changes, err := calculatePolicyChanges(opts)
 	if err != nil {
 		return err
 	}
 
 	ctx := context.Background()
-
-	jobID, err := opts.API.UpdatePolicies(ctx, policy.Updates{
-		resourceID: update,
-	}, opts.cause)
+	updates := policy.Updates{
+		resourceID: changes,
+	}
+	jobID, err := opts.API.UpdateManifests(ctx, update.Spec{
+		Type:  update.Policy,
+		Cause: opts.cause,
+		Spec:  updates,
+	})
 	if err != nil {
 		return err
 	}

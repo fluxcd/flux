@@ -6,23 +6,24 @@ import (
 	"net/rpc"
 
 	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/api"
 	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/remote"
 	"github.com/weaveworks/flux/update"
 )
 
-// RPCClient is the rpc-backed implementation of a platform, for
+// RPCClient is the rpc-backed implementation of a server, for
 // talking to remote daemons. Version 8 has the same methods, but
 // supports a different set of resource kinds to earlier versions.
 type RPCClientV8 struct {
 	*RPCClientV7
 }
 
-var _ remote.PlatformV6 = &RPCClientV8{}
+var _ api.ServerV6 = &RPCClientV8{}
 
 var supportedKindsV8 = []string{"deployment", "daemonset", "statefulset", "cronjob"}
 
-// NewClient creates a new rpc-backed implementation of the platform.
+// NewClient creates a new rpc-backed implementation of the server.
 func NewClientV8(conn io.ReadWriteCloser) *RPCClientV8 {
 	return &RPCClientV8{NewClientV7(conn)}
 }

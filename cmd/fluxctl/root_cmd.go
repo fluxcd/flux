@@ -20,7 +20,7 @@ import (
 type rootOpts struct {
 	URL   string
 	Token string
-	API   api.Client
+	API   api.Server
 }
 
 func newRoot() *rootOpts {

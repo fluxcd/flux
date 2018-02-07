@@ -6,13 +6,14 @@ import (
 	"net/rpc"
 
 	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/api"
 	fluxerr "github.com/weaveworks/flux/errors"
 	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/remote"
 	"github.com/weaveworks/flux/update"
 )
 
-// RPCClient is the rpc-backed implementation of a platform, for
+// RPCClient is the rpc-backed implementation of a server, for
 // talking to remote daemons. Version 7 has the same methods, but
 // transmits error data properly. The reason it needs a new version is
 // that the responses must be decoded differently.
@@ -20,16 +21,16 @@ type RPCClientV7 struct {
 	*RPCClientV6
 }
 
-var _ remote.PlatformV6 = &RPCClientV7{}
+var _ api.ServerV6 = &RPCClientV7{}
 
 var supportedKindsV7 = []string{"service"}
 
-// NewClient creates a new rpc-backed implementation of the platform.
+// NewClient creates a new rpc-backed implementation of the server.
 func NewClientV7(conn io.ReadWriteCloser) *RPCClientV7 {
 	return &RPCClientV7{NewClientV6(conn)}
 }
 
-// Export is used to get service configuration in platform-specific format
+// Export is used to get service configuration in cluster-specific format
 func (p *RPCClientV7) Export(ctx context.Context) ([]byte, error) {
 	var resp ExportResponse
 	err := p.client.Call("RPCServer.Export", struct{}{}, &resp)

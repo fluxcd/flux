@@ -37,10 +37,11 @@ func (opts *identityOpts) RunE(_ *cobra.Command, args []string) error {
 
 	ctx := context.Background()
 
-	publicSSHKey, err := opts.API.PublicSSHKey(ctx, opts.regenerate)
+	repoConfig, err := opts.API.GitRepoConfig(ctx, opts.regenerate)
 	if err != nil {
 		return err
 	}
+	publicSSHKey := repoConfig.PublicSSHKey
 
 	if opts.visual {
 		opts.fingerprint = true

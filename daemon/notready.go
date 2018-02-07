@@ -6,9 +6,9 @@ import (
 	"sync"
 
 	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/api"
 	"github.com/weaveworks/flux/cluster"
 	"github.com/weaveworks/flux/job"
-	"github.com/weaveworks/flux/remote"
 	"github.com/weaveworks/flux/update"
 )
 
@@ -50,8 +50,6 @@ func (nrd *NotReadyDaemon) UpdateStatus(status flux.GitRepoStatus, reason error)
 	nrd.Unlock()
 }
 
-// 'Not ready' platform implementation
-
 func (nrd *NotReadyDaemon) Ping(ctx context.Context) error {
 	return nrd.cluster.Ping()
 }
@@ -77,7 +75,7 @@ func (nrd *NotReadyDaemon) UpdateManifests(context.Context, update.Spec) (job.ID
 	return id, nrd.Reason()
 }
 
-func (nrd *NotReadyDaemon) NotifyChange(context.Context, remote.Change) error {
+func (nrd *NotReadyDaemon) NotifyChange(context.Context, api.Change) error {
 	return nrd.Reason()
 }
 

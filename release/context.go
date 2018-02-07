@@ -59,7 +59,7 @@ func (rc *ReleaseContext) WriteUpdates(updates []*update.ControllerUpdate) error
 // ---
 
 // SelectServices finds the services that exist both in the definition
-// files and the running platform. `ControllerFilter`s can be provided
+// files and the running cluster. `ControllerFilter`s can be provided
 // to filter the controllers so found, either before (`prefilters`) or
 // after (`postfilters`) consulting the cluster.
 func (rc *ReleaseContext) SelectServices(results update.Result, prefilters, postfilters []update.ControllerFilter) ([]*update.ControllerUpdate, error) {

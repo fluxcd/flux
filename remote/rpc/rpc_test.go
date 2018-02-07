@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/weaveworks/flux/api"
 	"github.com/weaveworks/flux/remote"
 )
 
@@ -22,7 +23,7 @@ func pipes() (io.ReadWriteCloser, io.ReadWriteCloser) {
 }
 
 func TestRPC(t *testing.T) {
-	wrap := func(mock remote.Platform) remote.Platform {
+	wrap := func(mock api.Server) api.Server {
 		clientConn, serverConn := pipes()
 
 		server, err := NewServer(mock)
@@ -32,7 +33,7 @@ func TestRPC(t *testing.T) {
 		go server.ServeConn(serverConn)
 		return NewClientV9(clientConn)
 	}
-	remote.PlatformTestBattery(t, wrap)
+	remote.ServerTestBattery(t, wrap)
 }
 
 // ---
@@ -58,7 +59,7 @@ func faultyPipes() (io.ReadWriteCloser, io.ReadWriteCloser) {
 
 func TestBadRPC(t *testing.T) {
 	ctx := context.Background()
-	mock := &remote.MockPlatform{}
+	mock := &remote.MockServer{}
 	clientConn, serverConn := faultyPipes()
 	server, err := NewServer(mock)
 	if err != nil {

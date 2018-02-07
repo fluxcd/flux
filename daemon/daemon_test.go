@@ -14,6 +14,7 @@ import (
 	"github.com/go-kit/kit/log"
 
 	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/api"
 	"github.com/weaveworks/flux/cluster"
 	"github.com/weaveworks/flux/cluster/kubernetes"
 	kresource "github.com/weaveworks/flux/cluster/kubernetes/resource"
@@ -26,7 +27,6 @@ import (
 	"github.com/weaveworks/flux/policy"
 	"github.com/weaveworks/flux/registry"
 	registryMock "github.com/weaveworks/flux/registry/mock"
-	"github.com/weaveworks/flux/remote"
 	"github.com/weaveworks/flux/resource"
 	"github.com/weaveworks/flux/update"
 )
@@ -173,7 +173,7 @@ func TestDaemon_NotifyChange(t *testing.T) {
 		return nil
 	}
 
-	d.NotifyChange(ctx, remote.Change{Kind: remote.GitChange, Source: remote.GitUpdate{}})
+	d.NotifyChange(ctx, api.Change{Kind: api.GitChange, Source: api.GitUpdate{}})
 	w.Eventually(func() bool {
 		syncMu.Lock()
 		defer syncMu.Unlock()

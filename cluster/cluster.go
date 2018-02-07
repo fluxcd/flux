@@ -13,7 +13,7 @@ var (
 )
 
 // The things we can get from the running cluster. These used to form
-// the Platform interface; but now we do more in the daemon so they
+// the remote.Platform interface; but now we do more in the daemon so they
 // are distinct interfaces.
 type Cluster interface {
 	// Get all of the services (optionally, from a specific namespace), excluding those
@@ -25,7 +25,7 @@ type Cluster interface {
 	PublicSSHKey(regenerate bool) (ssh.PublicKey, error)
 }
 
-// Controller describes a platform resource that declares versioned images.
+// Controller describes a cluster resource that declares versioned images.
 type Controller struct {
 	ID     flux.ResourceID
 	Status string // A status summary for display
