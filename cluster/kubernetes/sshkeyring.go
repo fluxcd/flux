@@ -4,7 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"os"
-	"path"
+	"path/filepath"
 	"sync"
 
 	"k8s.io/apimachinery/pkg/types"
@@ -35,8 +35,9 @@ type SSHKeyRingConfig struct {
 type sshKeyRing struct {
 	sync.RWMutex
 	SSHKeyRingConfig
-	publicKey      ssh.PublicKey
-	privateKeyPath string
+	publicKey              ssh.PublicKey
+	expectedPrivateKeyPath string
+	realPrivateKeyPath     string
 }
 
 // NewSSHKeyRing constructs an sshKeyRing backed by a kubernetes secret
@@ -45,27 +46,28 @@ type sshKeyRing struct {
 // generated key if none was found.
 func NewSSHKeyRing(config SSHKeyRingConfig) (*sshKeyRing, error) {
 	skr := &sshKeyRing{SSHKeyRingConfig: config}
-	privateKeyPath := path.Join(skr.SecretVolumeMountPath, skr.SecretDataKey)
+	skr.expectedPrivateKeyPath = filepath.Join(skr.SecretVolumeMountPath, skr.SecretDataKey)
 
-	fileInfo, err := os.Stat(privateKeyPath)
+	fileInfo, err := os.Stat(skr.expectedPrivateKeyPath)
 	switch {
 	case os.IsNotExist(err):
 		if err := skr.Regenerate(); err != nil {
 			return nil, err
 		}
+		skr.publicKey, skr.realPrivateKeyPath = skr.KeyPair()
 	case err != nil:
 		return nil, err
 	case fileInfo.Mode() != privateKeyFileMode:
-		if err := os.Chmod(privateKeyPath, privateKeyFileMode); err != nil {
+		if err := os.Chmod(skr.expectedPrivateKeyPath, privateKeyFileMode); err != nil {
 			return nil, err
 		}
 		fallthrough
 	default:
-		publicKey, err := ssh.ExtractPublicKey(privateKeyPath)
+		publicKey, err := ssh.ExtractPublicKey(skr.expectedPrivateKeyPath)
 		if err != nil {
 			return nil, err
 		}
-		skr.privateKeyPath = privateKeyPath
+		skr.realPrivateKeyPath = skr.expectedPrivateKeyPath
 		skr.publicKey = publicKey
 	}
 
@@ -81,7 +83,7 @@ func NewSSHKeyRing(config SSHKeyRingConfig) (*sshKeyRing, error) {
 func (skr *sshKeyRing) KeyPair() (publicKey ssh.PublicKey, privateKeyPath string) {
 	skr.RLock()
 	defer skr.RUnlock()
-	return skr.publicKey, skr.privateKeyPath
+	return skr.publicKey, skr.expectedPrivateKeyPath
 }
 
 // regenerate creates a new keypair in the configured SecretVolumeMountPath and
@@ -97,6 +99,15 @@ func (skr *sshKeyRing) KeyPair() (publicKey ssh.PublicKey, privateKeyPath string
 func (skr *sshKeyRing) Regenerate() error {
 	privateKeyPath, privateKey, publicKey, err := ssh.KeyGen(skr.KeyBits, skr.KeyType, skr.SecretVolumeMountPath)
 	if err != nil {
+		return err
+	}
+
+	// Prepare a symlink pointing at the new key, to be moved later.
+	tmpSymlinkPath := filepath.Join(filepath.Dir(privateKeyPath), "tmp-identity")
+	if err = os.Symlink(privateKeyPath, tmpSymlinkPath); err != nil {
+		return err
+	}
+	if err = os.Chmod(tmpSymlinkPath, privateKeyFileMode); err != nil {
 		return err
 	}
 
@@ -116,8 +127,16 @@ func (skr *sshKeyRing) Regenerate() error {
 		return err
 	}
 
+	// The secret is updated, and Kubernetes will eventually make sure
+	// it's mounted and that `identity` points at it. In the meantime,
+	// change the symlink to point to our copy of it.
+	if err = os.Rename(tmpSymlinkPath, skr.expectedPrivateKeyPath); err != nil {
+		os.Remove(tmpSymlinkPath)
+		return err
+	}
+
 	skr.Lock()
-	skr.privateKeyPath = privateKeyPath
+	skr.realPrivateKeyPath = privateKeyPath
 	skr.publicKey = publicKey
 	skr.Unlock()
 
