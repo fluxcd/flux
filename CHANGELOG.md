@@ -1,3 +1,9 @@
+## 1.2.3 (2018-02-07)
+
+### Fixes
+
+- Fix a spin loop in the registry cache [weaveworks/flux#928](https://github.com/weaveworks/flux/pull/928)
+
 ## 1.2.2 (2018-01-31)
 
 ### Fixes
