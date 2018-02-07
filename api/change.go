@@ -57,5 +57,5 @@ type ImageUpdate struct {
 }
 
 type GitUpdate struct {
-	URL string
+	URL, Branch string
 }
