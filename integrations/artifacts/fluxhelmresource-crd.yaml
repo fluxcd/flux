@@ -1,0 +1,12 @@
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: fluxhelmresources.integrations.flux
+spec:
+  group: integrations.flux
+  names:
+    kind: FluxHelmResource
+    listKind: FluxHelmResourceList
+    plural: fluxhelmresources
+  scope: Namespaced
+  version: v1

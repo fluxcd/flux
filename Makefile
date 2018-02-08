@@ -14,10 +14,11 @@ godeps=$(shell go list -f '{{join .Deps "\n"}}' $1 | grep -v /vendor/ | xargs go
 
 FLUXD_DEPS:=$(call godeps,./cmd/fluxd)
 FLUXCTL_DEPS:=$(call godeps,./cmd/fluxctl)
+HELM_OPERATOR_DEPS:=$(call godeps,./cmd/helm-operator)
 
 IMAGE_TAG:=$(shell ./docker/image-tag)
 
-all: $(GOPATH)/bin/fluxctl $(GOPATH)/bin/fluxd build/.flux.done
+all: $(GOPATH)/bin/fluxctl $(GOPATH)/bin/fluxd $(GOPATH)/bin/helm-operator build/.flux.done build/.helm-operator.done
 
 release-bins:
 	for arch in amd64; do \
@@ -43,10 +44,15 @@ build/.%.done: docker/Dockerfile.%
 	touch $@
 
 build/.flux.done: build/fluxd build/kubectl docker/ssh_config
+build/.helm-operator.done: build/helm-operator build/kubectl docker/ssh_config
 
 build/fluxd: $(FLUXD_DEPS)
 build/fluxd: cmd/fluxd/*.go
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o $@ $(LDFLAGS) -ldflags "-X main.version=$(shell ./docker/image-tag)" ./cmd/fluxd
+
+build/helm-operator: $(HELM_OPERATOR_DEPS)
+build/helm-operator: cmd/helm-operator/*.go
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o $@ $(LDFLAGS) -ldflags "-X main.version=$(shell ./docker/image-tag)" ./cmd/helm-operator
 
 build/kubectl: cache/kubectl-$(KUBECTL_VERSION) docker/kubectl.version
 	cp cache/kubectl-$(KUBECTL_VERSION) $@
@@ -64,6 +70,10 @@ $(GOPATH)/bin/fluxctl: ./cmd/fluxctl/*.go
 $(GOPATH)/bin/fluxd: $(FLUXD_DEPS)
 $(GOPATH)/bin/fluxd: cmd/fluxd/*.go
 	go install ./cmd/fluxd
+
+$(GOPATH)/bin/helm-operator: $(HELM_OPERATOR_DEPS)
+$(GOPATH)/bin/help-operator: cmd/helm-operator/*.go
+	go install ./cmd/helm-operator
 
 integration-test: all
 	test/bin/test-flux
