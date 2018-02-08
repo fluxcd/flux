@@ -67,14 +67,14 @@ func GetReleaseName(fhr ifv1.FluxHelmResource) string {
 	return releaseName
 }
 
-// Get ... detects if a particular Chart release exists
+// Exists ... detects if a particular Chart release exists
 // 		release name must match regex ^(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])+$
 // Get ... detects if a particular Chart release exists
 // 		release name must match regex ^(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])+$
 func (r *Release) Exists(name string) (bool, error) {
 	rls, err := r.HelmClient.ReleaseContent(name)
 	if err != nil {
-		r.logger.Log("error", fmt.Sprintf("Error getting release (%s): %v", name, err))
+		r.logger.Log("info", fmt.Sprintf("Getting release (%s): %v", name, err))
 		return false, err
 	}
 	/*
@@ -99,13 +99,6 @@ func (r *Release) Exists(name string) (bool, error) {
 }
 
 func (r *Release) canDelete(name string) (bool, error) {
-	rl, err := r.HelmClient.ReleaseContent(name)
-	r.logger.Log("info", fmt.Sprintf("+++  1 release = %#v", rl))
-	if err != nil {
-		r.logger.Log("error", fmt.Sprintf("Error finding  release (%s): %v", name, err))
-		return false, err
-	}
-
 	rls, err := r.HelmClient.ReleaseStatus(name)
 	r.logger.Log("info", fmt.Sprintf("+++  2 release status = %#v", rls))
 	if err != nil {
@@ -124,17 +117,18 @@ func (r *Release) canDelete(name string) (bool, error) {
 		"PENDING_ROLLBACK": 8,
 	*/
 	status := rls.GetInfo().GetStatus()
-	r.logger.Log("error", fmt.Sprintf("Release [%s] status: %#v", name, status.String()))
-	if status.Code != 1 {
-		if status.Code == 2 {
-			r.logger.Log("info", fmt.Sprintf("release (%s) already deleted", name))
-			return false, nil
-		}
-		r.logger.Log("info", fmt.Sprintf("release status (%s): %v", name, status.String()))
+	r.logger.Log("info", fmt.Sprintf("Release [%s] status: %#v", name, status.Code.String()))
+	switch status.Code {
+	case 1, 4:
+		r.logger.Log("info", fmt.Sprintf("Deleting release (%s)", name))
 		return true, nil
+	case 2:
+		r.logger.Log("info", fmt.Sprintf("Release (%s) already deleted", name))
+		return false, nil
+	default:
+		r.logger.Log("info", fmt.Sprintf("Release (%s) with status %s cannot be deleted", name, status.Code.String()))
+		return false, fmt.Errorf("Release (%s) with status %s cannot be deleted", name, status.Code.String())
 	}
-
-	return true, nil
 }
 
 // Install ... performs Chart release. Depending on the release type, this is either a new release,
@@ -143,7 +137,7 @@ func (r *Release) Install(releaseName string, fhr ifv1.FluxHelmResource, release
 	r.Lock()
 	defer r.Unlock()
 
-	r.logger.Log("info", fmt.Sprintf("     input: releaseName= %s, releaseType=%s", releaseName, releaseType))
+	r.logger.Log("info", fmt.Sprintf("releaseName= %s, releaseType=%s", releaseName, releaseType))
 
 	chartPath := fhr.Spec.ChartGitPath
 	if chartPath == "" {
