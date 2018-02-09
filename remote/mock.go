@@ -92,13 +92,13 @@ func (p *MockServer) GitRepoConfig(ctx context.Context, regenerate bool) (flux.G
 	return p.GitRepoConfigAnswer, p.GitRepoConfigError
 }
 
-var _ api.Server = &MockServer{}
+var _ api.UpstreamServer = &MockServer{}
 
 // -- Battery of tests for an api.Server implementation. Since these
 // essentially wrap the server in various transports, we expect
 // arguments and answers to be preserved.
 
-func ServerTestBattery(t *testing.T, wrap func(mock api.Server) api.Server) {
+func ServerTestBattery(t *testing.T, wrap func(mock api.UpstreamServer) api.UpstreamServer) {
 	// set up
 	namespace := "the-space-of-names"
 	serviceID := flux.MustParseResourceID(namespace + "/service")

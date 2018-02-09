@@ -30,7 +30,7 @@ type Upstream struct {
 	url       *url.URL
 	endpoint  string
 	apiClient *fluxclient.Client
-	server    api.Server
+	server    api.UpstreamServer
 	logger    log.Logger
 	quit      chan struct{}
 
@@ -47,7 +47,7 @@ var (
 	}, []string{"target"})
 )
 
-func NewUpstream(client *http.Client, ua string, t flux.Token, router *mux.Router, endpoint string, s api.Server, logger log.Logger) (*Upstream, error) {
+func NewUpstream(client *http.Client, ua string, t flux.Token, router *mux.Router, endpoint string, s api.UpstreamServer, logger log.Logger) (*Upstream, error) {
 	httpEndpoint, wsEndpoint, err := inferEndpoints(endpoint)
 	if err != nil {
 		return nil, errors.Wrap(err, "inferring WS/HTTP endpoints")

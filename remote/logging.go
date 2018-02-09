@@ -11,6 +11,9 @@ import (
 	"github.com/weaveworks/flux/update"
 )
 
+var _ api.Server = &ErrorLoggingServer{}
+var _ api.UpstreamServer = &ErrorLoggingUpstreamServer{}
+
 type ErrorLoggingServer struct {
 	server api.Server
 	logger log.Logger
@@ -18,24 +21,6 @@ type ErrorLoggingServer struct {
 
 func NewErrorLoggingServer(s api.Server, l log.Logger) *ErrorLoggingServer {
 	return &ErrorLoggingServer{s, l}
-}
-
-func (p *ErrorLoggingServer) Ping(ctx context.Context) (err error) {
-	defer func() {
-		if err != nil {
-			p.logger.Log("method", "Ping", "error", err)
-		}
-	}()
-	return p.server.Ping(ctx)
-}
-
-func (p *ErrorLoggingServer) Version(ctx context.Context) (v string, err error) {
-	defer func() {
-		if err != nil {
-			p.logger.Log("method", "Version", "error", err, "version", v)
-		}
-	}()
-	return p.server.Version(ctx)
 }
 
 func (p *ErrorLoggingServer) Export(ctx context.Context) (config []byte, err error) {
@@ -64,15 +49,6 @@ func (p *ErrorLoggingServer) ListImages(ctx context.Context, spec update.Resourc
 		}
 	}()
 	return p.server.ListImages(ctx, spec)
-}
-
-func (p *ErrorLoggingServer) NotifyChange(ctx context.Context, change api.Change) (err error) {
-	defer func() {
-		if err != nil {
-			p.logger.Log("method", "NotifyChange", "error", err)
-		}
-	}()
-	return p.server.NotifyChange(ctx, change)
 }
 
 func (p *ErrorLoggingServer) JobStatus(ctx context.Context, jobID job.ID) (_ job.Status, err error) {
@@ -109,4 +85,43 @@ func (p *ErrorLoggingServer) GitRepoConfig(ctx context.Context, regenerate bool)
 		}
 	}()
 	return p.server.GitRepoConfig(ctx, regenerate)
+}
+
+type ErrorLoggingUpstreamServer struct {
+	*ErrorLoggingServer
+	server api.UpstreamServer
+}
+
+func NewErrorLoggingUpstreamServer(s api.UpstreamServer, l log.Logger) *ErrorLoggingUpstreamServer {
+	return &ErrorLoggingUpstreamServer{
+		NewErrorLoggingServer(s, l),
+		s,
+	}
+}
+
+func (p *ErrorLoggingUpstreamServer) Ping(ctx context.Context) (err error) {
+	defer func() {
+		if err != nil {
+			p.logger.Log("method", "Ping", "error", err)
+		}
+	}()
+	return p.server.Ping(ctx)
+}
+
+func (p *ErrorLoggingUpstreamServer) Version(ctx context.Context) (v string, err error) {
+	defer func() {
+		if err != nil {
+			p.logger.Log("method", "Version", "error", err, "version", v)
+		}
+	}()
+	return p.server.Version(ctx)
+}
+
+func (p *ErrorLoggingUpstreamServer) NotifyChange(ctx context.Context, change api.Change) (err error) {
+	defer func() {
+		if err != nil {
+			p.logger.Log("method", "NotifyChange", "error", err)
+		}
+	}()
+	return p.server.NotifyChange(ctx, change)
 }

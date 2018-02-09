@@ -19,7 +19,12 @@ type RPCClientV8 struct {
 	*RPCClientV7
 }
 
-var _ api.ServerV6 = &RPCClientV8{}
+type clientV8 interface {
+	api.ServerV6
+	api.UpstreamV4
+}
+
+var _ clientV8 = &RPCClientV8{}
 
 var supportedKindsV8 = []string{"deployment", "daemonset", "statefulset", "cronjob"}
 

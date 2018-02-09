@@ -14,7 +14,7 @@ import (
 
 type baseClient struct{}
 
-var _ api.Server = baseClient{}
+var _ api.UpstreamServer = baseClient{}
 
 func (bc baseClient) Version(context.Context) (string, error) {
 	return "", remote.UpgradeNeededError(errors.New("Version method not implemented"))

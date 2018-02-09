@@ -13,6 +13,11 @@ type RPCClientV9 struct {
 	*RPCClientV8
 }
 
+type clientV9 interface {
+	api.ServerV9
+	api.UpstreamV9
+}
+
 func NewClientV9(conn io.ReadWriteCloser) *RPCClientV9 {
 	return &RPCClientV9{NewClientV8(conn)}
 }
