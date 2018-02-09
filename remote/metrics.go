@@ -25,32 +25,14 @@ var (
 	}, []string{fluxmetrics.LabelMethod, fluxmetrics.LabelSuccess})
 )
 
+var _ api.Server = &instrumentedServer{}
+
 type instrumentedServer struct {
 	s api.Server
 }
 
-func Instrument(s api.Server) api.Server {
+func Instrument(s api.Server) *instrumentedServer {
 	return &instrumentedServer{s}
-}
-
-func (i *instrumentedServer) Ping(ctx context.Context) (err error) {
-	defer func(begin time.Time) {
-		requestDuration.With(
-			fluxmetrics.LabelMethod, "Ping",
-			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
-		).Observe(time.Since(begin).Seconds())
-	}(time.Now())
-	return i.s.Ping(ctx)
-}
-
-func (i *instrumentedServer) Version(ctx context.Context) (v string, err error) {
-	defer func(begin time.Time) {
-		requestDuration.With(
-			fluxmetrics.LabelMethod, "Version",
-			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
-		).Observe(time.Since(begin).Seconds())
-	}(time.Now())
-	return i.s.Version(ctx)
 }
 
 func (i *instrumentedServer) Export(ctx context.Context) (config []byte, err error) {
@@ -93,16 +75,6 @@ func (i *instrumentedServer) UpdateManifests(ctx context.Context, spec update.Sp
 	return i.s.UpdateManifests(ctx, spec)
 }
 
-func (i *instrumentedServer) NotifyChange(ctx context.Context, change api.Change) (err error) {
-	defer func(begin time.Time) {
-		requestDuration.With(
-			fluxmetrics.LabelMethod, "NotifyChange",
-			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
-		).Observe(time.Since(begin).Seconds())
-	}(time.Now())
-	return i.s.NotifyChange(ctx, change)
-}
-
 func (i *instrumentedServer) JobStatus(ctx context.Context, id job.ID) (_ job.Status, err error) {
 	defer func(begin time.Time) {
 		requestDuration.With(
@@ -131,4 +103,48 @@ func (i *instrumentedServer) GitRepoConfig(ctx context.Context, regenerate bool)
 		).Observe(time.Since(begin).Seconds())
 	}(time.Now())
 	return i.s.GitRepoConfig(ctx, regenerate)
+}
+
+var _ api.UpstreamServer = &instrumentedUpstreamServer{}
+
+type instrumentedUpstreamServer struct {
+	*instrumentedServer
+	s api.UpstreamServer
+}
+
+func InstrumentUpstream(s api.UpstreamServer) *instrumentedUpstreamServer {
+	return &instrumentedUpstreamServer{
+		Instrument(s),
+		s,
+	}
+}
+
+func (i *instrumentedUpstreamServer) Ping(ctx context.Context) (err error) {
+	defer func(begin time.Time) {
+		requestDuration.With(
+			fluxmetrics.LabelMethod, "Ping",
+			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
+		).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+	return i.s.Ping(ctx)
+}
+
+func (i *instrumentedUpstreamServer) Version(ctx context.Context) (v string, err error) {
+	defer func(begin time.Time) {
+		requestDuration.With(
+			fluxmetrics.LabelMethod, "Version",
+			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
+		).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+	return i.s.Version(ctx)
+}
+
+func (i *instrumentedUpstreamServer) NotifyChange(ctx context.Context, change api.Change) (err error) {
+	defer func(begin time.Time) {
+		requestDuration.With(
+			fluxmetrics.LabelMethod, "NotifyChange",
+			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
+		).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+	return i.s.NotifyChange(ctx, change)
 }

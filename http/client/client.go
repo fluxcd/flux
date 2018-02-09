@@ -12,7 +12,6 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/weaveworks/flux"
-	"github.com/weaveworks/flux/api"
 	fluxerr "github.com/weaveworks/flux/errors"
 	"github.com/weaveworks/flux/event"
 	transport "github.com/weaveworks/flux/http"
@@ -84,18 +83,6 @@ func (c *Client) GitRepoConfig(ctx context.Context, regenerate bool) (flux.GitCo
 	var res flux.GitConfig
 	err := c.methodWithResp(ctx, "POST", &res, "GitRepoConfig", regenerate)
 	return res, err
-}
-
-func (c *Client) Ping(context.Context) error {
-	return errNotImplemented
-}
-
-func (c *Client) Version(context.Context) (string, error) {
-	return "", errNotImplemented
-}
-
-func (c *Client) NotifyChange(context.Context, api.Change) error {
-	return errNotImplemented
 }
 
 // --- Request helpers

@@ -16,20 +16,20 @@ import (
 // state changes.
 type Ref struct {
 	sync.RWMutex
-	server api.Server
+	server api.UpstreamServer
 }
 
-func NewRef(server api.Server) *Ref {
+func NewRef(server api.UpstreamServer) *Ref {
 	return &Ref{server: server}
 }
 
-func (r *Ref) Server() api.Server {
+func (r *Ref) Server() api.UpstreamServer {
 	r.RLock()
 	defer r.RUnlock()
 	return r.server
 }
 
-func (r *Ref) UpdateServer(server api.Server) {
+func (r *Ref) UpdateServer(server api.UpstreamServer) {
 	r.Lock()
 	r.server = server
 	r.Unlock()

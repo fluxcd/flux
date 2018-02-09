@@ -294,7 +294,7 @@ func main() {
 				flux.Token(*token),
 				transport.NewUpstreamRouter(),
 				*upstreamURL,
-				remote.NewErrorLoggingServer(daemonRef, upstreamLogger),
+				remote.NewErrorLoggingUpstreamServer(daemonRef, upstreamLogger),
 				upstreamLogger,
 			)
 			if err != nil {

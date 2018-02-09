@@ -21,7 +21,12 @@ type RPCClientV7 struct {
 	*RPCClientV6
 }
 
-var _ api.ServerV6 = &RPCClientV7{}
+type clientV7 interface {
+	api.ServerV6
+	api.UpstreamV4
+}
+
+var _ clientV7 = &RPCClientV7{}
 
 var supportedKindsV7 = []string{"service"}
 

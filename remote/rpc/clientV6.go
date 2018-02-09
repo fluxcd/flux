@@ -19,6 +19,11 @@ type RPCClientV6 struct {
 	*RPCClientV5
 }
 
+type clientV6 interface {
+	api.ServerV6
+	api.UpstreamV4
+}
+
 // We don't get proper application error structs back from v6, but we
 // do know that anything that's not considered a fatal error can be
 // translated into an application error.
@@ -36,7 +41,7 @@ attempting to fulfil your request:
 	}
 }
 
-var _ api.ServerV6 = &RPCClientV6{}
+var _ clientV6 = &RPCClientV6{}
 
 var supportedKindsV6 = []string{"service"}
 

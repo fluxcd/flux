@@ -15,7 +15,12 @@ type RPCClientV5 struct {
 	*RPCClientV4
 }
 
-var _ api.ServerV5 = &RPCClientV5{}
+type clientV5 interface {
+	api.ServerV5
+	api.UpstreamV4
+}
+
+var _ clientV5 = &RPCClientV5{}
 
 // NewClient creates a new rpc-backed implementation of the server.
 func NewClientV5(conn io.ReadWriteCloser) *RPCClientV5 {

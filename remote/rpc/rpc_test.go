@@ -23,7 +23,7 @@ func pipes() (io.ReadWriteCloser, io.ReadWriteCloser) {
 }
 
 func TestRPC(t *testing.T) {
-	wrap := func(mock api.Server) api.Server {
+	wrap := func(mock api.UpstreamServer) api.UpstreamServer {
 		clientConn, serverConn := pipes()
 
 		server, err := NewServer(mock)

@@ -17,7 +17,11 @@ type RPCClientV4 struct {
 	client *rpc.Client
 }
 
-var _ api.ServerV4 = &RPCClientV4{}
+type clientV4 interface {
+	api.UpstreamV4
+}
+
+var _ clientV4 = &RPCClientV4{}
 
 // NewClient creates a new rpc-backed implementation of the server.
 func NewClientV4(conn io.ReadWriteCloser) *RPCClientV4 {
