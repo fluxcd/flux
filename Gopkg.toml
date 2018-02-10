@@ -6,3 +6,9 @@
 [[constraint]]
   name = "github.com/docker/distribution"
   branch = "master"
+
+# Pin to master branch until there is a more recent stable release:
+#   https://github.com/prometheus/client_golang/issues/375
+[[constraint]]
+  name = "github.com/prometheus/client_golang"
+  branch = "master"
