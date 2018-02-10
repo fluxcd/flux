@@ -12,6 +12,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/api"
 	fluxerr "github.com/weaveworks/flux/errors"
 	"github.com/weaveworks/flux/event"
 	transport "github.com/weaveworks/flux/http"
@@ -29,6 +30,8 @@ type Client struct {
 	router   *mux.Router
 	endpoint string
 }
+
+var _ api.Server = &Client{}
 
 func New(c *http.Client, router *mux.Router, endpoint string, t flux.Token) *Client {
 	return &Client{
