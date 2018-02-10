@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/go-kit/kit/log"
+	"github.com/weaveworks/flux/integrations/helm/release"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -30,7 +31,6 @@ func NewClient(kubeClient *kubernetes.Clientset, opts TillerOptions) (*k8shelm.C
 	if err != nil {
 		return &k8shelm.Client{}, err
 	}
-	fmt.Printf("Tiller host = %q\n", host)
 
 	return k8shelm.NewClient(k8shelm.Host(host)), nil
 }
@@ -43,9 +43,17 @@ func GetTillerVersion(cl k8shelm.Client, h string) (string, error) {
 	if v, err = cl.GetVersion(voption); err == nil {
 		return "", fmt.Errorf("error getting tiller version: %v", err)
 	}
-	fmt.Printf("Tiller version is: [%#v]\n", v.GetVersion())
 
 	return v.GetVersion().String(), nil
+}
+
+func Run(rl *release.Release, alertCh chan struct{}, helmClCh *k8shelm.Client) {
+	for {
+		select {
+		case <-alertCh:
+		default:
+		}
+	}
 }
 
 // TODO ... set up based on the tiller existing in the cluster, if no ops given
@@ -54,8 +62,6 @@ func tillerHost(kubeClient *kubernetes.Clientset, opts TillerOptions) (string, e
 	var err error
 	var ip string
 	var port string
-
-	fmt.Printf("Tiller Options = : %#v\n", opts)
 
 	if opts.IP == "" {
 		ts, err = kubeClient.CoreV1().Services(opts.Namespace).Get("tiller-deploy", metav1.GetOptions{})

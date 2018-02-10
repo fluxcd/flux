@@ -22,7 +22,7 @@ import (
 	integrations_flux_v1 "github.com/weaveworks/flux/apis/integrations.flux/v1"
 	versioned "github.com/weaveworks/flux/integrations/client/clientset/versioned"
 	internalinterfaces "github.com/weaveworks/flux/integrations/client/informers/externalversions/internalinterfaces"
-	v1 "github.com/weaveworks/flux/integrations/client/listers/integrations.flux/v1"
+	v1 "github.com/weaveworks/flux/integrations/client/listers/integrations/v1"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"
@@ -38,34 +38,19 @@ type FluxHelmResourceInformer interface {
 }
 
 type fluxHelmResourceInformer struct {
-	factory          internalinterfaces.SharedInformerFactory
-	tweakListOptions internalinterfaces.TweakListOptionsFunc
-	namespace        string
+	factory internalinterfaces.SharedInformerFactory
 }
 
 // NewFluxHelmResourceInformer constructs a new informer for FluxHelmResource type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
 func NewFluxHelmResourceInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
-	return NewFilteredFluxHelmResourceInformer(client, namespace, resyncPeriod, indexers, nil)
-}
-
-// NewFilteredFluxHelmResourceInformer constructs a new informer for FluxHelmResource type.
-// Always prefer using an informer factory to get a shared informer instead of getting an independent
-// one. This reduces memory footprint and number of connections to the server.
-func NewFilteredFluxHelmResourceInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
 	return cache.NewSharedIndexInformer(
 		&cache.ListWatch{
 			ListFunc: func(options meta_v1.ListOptions) (runtime.Object, error) {
-				if tweakListOptions != nil {
-					tweakListOptions(&options)
-				}
 				return client.IntegrationsV1().FluxHelmResources(namespace).List(options)
 			},
 			WatchFunc: func(options meta_v1.ListOptions) (watch.Interface, error) {
-				if tweakListOptions != nil {
-					tweakListOptions(&options)
-				}
 				return client.IntegrationsV1().FluxHelmResources(namespace).Watch(options)
 			},
 		},
@@ -75,12 +60,12 @@ func NewFilteredFluxHelmResourceInformer(client versioned.Interface, namespace s
 	)
 }
 
-func (f *fluxHelmResourceInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewFilteredFluxHelmResourceInformer(client, f.namespace, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
+func defaultFluxHelmResourceInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
+	return NewFluxHelmResourceInformer(client, meta_v1.NamespaceAll, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
 }
 
 func (f *fluxHelmResourceInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&integrations_flux_v1.FluxHelmResource{}, f.defaultInformer)
+	return f.factory.InformerFor(&integrations_flux_v1.FluxHelmResource{}, defaultFluxHelmResourceInformer)
 }
 
 func (f *fluxHelmResourceInformer) Lister() v1.FluxHelmResourceLister {
