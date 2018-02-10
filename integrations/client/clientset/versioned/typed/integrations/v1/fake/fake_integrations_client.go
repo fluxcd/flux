@@ -14,5 +14,25 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package fake has the automatically generated clients.
 package fake
+
+import (
+	v1 "github.com/weaveworks/flux/integrations/client/clientset/versioned/typed/integrations/v1"
+	rest "k8s.io/client-go/rest"
+	testing "k8s.io/client-go/testing"
+)
+
+type FakeIntegrationsV1 struct {
+	*testing.Fake
+}
+
+func (c *FakeIntegrationsV1) FluxHelmResources(namespace string) v1.FluxHelmResourceInterface {
+	return &FakeFluxHelmResources{c, namespace}
+}
+
+// RESTClient returns a RESTClient that is used to communicate
+// with API server by this client implementation.
+func (c *FakeIntegrationsV1) RESTClient() rest.Interface {
+	var ret *rest.RESTClient
+	return ret
+}

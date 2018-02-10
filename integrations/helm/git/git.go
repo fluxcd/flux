@@ -19,7 +19,9 @@ import (
 
 const (
 	DefaultCloneTimeout = 2 * time.Minute
+	DefaultPullTimeout  = 2 * time.Minute
 	privateKeyFileMode  = os.FileMode(0400)
+	FhrsChangesClone    = "fhrs_sync_gitclone"
 	ChartsChangesClone  = "charts_sync_gitclone"
 )
 
@@ -38,12 +40,11 @@ type GitRemoteConfig struct {
 
 // Checkout is a local clone of the remote repo.
 type Checkout struct {
-	Logger log.Logger
-	Config GitRemoteConfig // remote repo info provided by the user
-	//	privateKeyPath string
+	Logger   log.Logger
+	Config   GitRemoteConfig // remote repo info provided by the user
 	auth     *gitssh.PublicKeys
-	Dir      string            // directory where the repo was cloned
-	repo     *gogit.Repository // cloned repo info
+	Dir      string            // directory where the repo was cloned (repo root)
+	Repo     *gogit.Repository // cloned repo info
 	worktree *gogit.Worktree
 	sync.RWMutex
 }
@@ -73,8 +74,7 @@ func NewCheckout(logger log.Logger, config GitRemoteConfig, auth *gitssh.PublicK
 	return &Checkout{
 		Logger: logger,
 		Config: config,
-		//	privateKeyPath: privateKeyPath,
-		auth: auth,
+		auth:   auth,
 	}
 }
 
@@ -84,40 +84,36 @@ func NewCheckout(logger log.Logger, config GitRemoteConfig, auth *gitssh.PublicK
 //																		* acting on Charts changes (syncing the cluster when there were only commits
 //																		  in the Charts parts of the repo which did not trigger Custom Resource changes)
 func (ch *Checkout) Clone(ctx context.Context, cloneSubdir string) error {
+	fmt.Println("*** cloning")
 	ch.Lock()
 	defer ch.Unlock()
 
 	if ch.Config.URL == "" {
 		return ErrNoRepo
 	}
-
-	fmt.Println("\t\tstage 1")
+	//fmt.Println("\t\tstage 1")
 
 	repoDir, err := ioutil.TempDir(os.TempDir(), cloneSubdir)
 	if err != nil {
 		return err
 	}
 	ch.Dir = repoDir
-
-	fmt.Println("\t\tstage 2")
+	//fmt.Println("\t\tstage 2")
 
 	repo, err := gogit.PlainClone(repoDir, false, &gogit.CloneOptions{
 		URL:  ch.Config.URL,
 		Auth: ch.auth,
 	})
-	//if err != nil && err != gogit.ErrRepositoryAlreadyExists {
 	if err != nil {
 		return err
 	}
-
-	fmt.Println("\t\tstage 3")
+	//fmt.Println("\t\tstage 3")
 
 	wt, err := repo.Worktree()
 	if err != nil {
 		return err
 	}
-
-	fmt.Println("\t\tstage 4")
+	//fmt.Println("\t\tstage 4")
 
 	br := ch.Config.Branch
 	err = wt.Checkout(&gogit.CheckoutOptions{
@@ -126,17 +122,19 @@ func (ch *Checkout) Clone(ctx context.Context, cloneSubdir string) error {
 	if err != nil {
 		return err
 	}
+	//fmt.Println("\t\tstage 5")
 
-	fmt.Println("\t\tstage 5")
-
-	ch.repo = repo
+	ch.Repo = repo
 	ch.worktree = wt
+
+	ch.Logger.Log("debug", fmt.Sprintf("repo cloned in into %s", ch.Dir))
 
 	return nil
 }
 
 // Cleanup ... removes the temp repo directory
 func (ch *Checkout) Cleanup() {
+	fmt.Println("*** cleanup")
 	ch.Lock()
 	defer ch.Unlock()
 
@@ -147,49 +145,8 @@ func (ch *Checkout) Cleanup() {
 		}
 	}
 	ch.Dir = ""
-	ch.repo = nil
+	ch.Repo = nil
 	ch.worktree = nil
-}
-
-/*
-// ChangedCharts makes a new git pull and determines which charts changed
-// ChangedCharts method does a git pull and finds the latest revisison
-// Among suppplied custom resources it finds the ones whose revision is different
-// Charts related to these custom resources need to be released
-func (ch *Checkout) ChangedCharts(crs []ifv1.FluxHelmResource) ([]ifv1.FluxHelmResource, error) {
-	ch.Lock()
-	defer ch.Unlock()
-
-	rev, err := ch.getRevision()
-	if err != nil {
-		return nil, err
-	}
-
-	if err := ch.pull(); err != nil {
-		return nil, err
-	}
-
-		rev, err := ch.getRevision()
-		if err != nil {
-			return nil, err
-		}
-
-		var crForUpdate []ifv1.FluxHelmResource
-		for _, cr := range crs {
-				crstatus := cr.Status.Revision
-				// When a new Custom Resource is created, Status.Revision
-				if crstatus != "" && crstatus != rev {
-					crForUpdate = append(crForUpdate, cr)
-				}
-		}
-
-	return []ifv1.FluxHelmResource{}, nil
-}
-*/
-
-// CloneLoop ... tries until the repo is cloned
-func (ch *Checkout) CloneLoop(cloneSubdir string, chanDone chan struct{}) {
-	return
 }
 
 // GetRepoAuth ... provides git repo authentication based on private ssh key
@@ -221,7 +178,12 @@ func GetRepoAuth(k8sSecretVolumeMountPath, k8sSecretDataKey string) (*gitssh.Pub
 	return auth, nil
 }
 
-func (ch *Checkout) Pull() error {
+// Pull ... makes a git pull
+func (ch *Checkout) Pull(ctx context.Context) error {
+	fmt.Println("*** pulling")
+	ch.Lock()
+	defer ch.Unlock()
+
 	w := ch.worktree
 	if w == nil {
 		return ErrNoRepoCloned
@@ -236,17 +198,15 @@ func (ch *Checkout) Pull() error {
 	return nil
 }
 
-/*
-// getRevision returns string representation of the revision hash
-func (ch *Checkout) getRevision() (string, error) {
-	if ch.repo == nil {
-		return "", ErrNoRepoCloned
+// GetRevision returns string representation of the revision hash
+func (ch *Checkout) GetRevision() (plumbing.Hash, error) {
+	if ch.Repo == nil {
+		return plumbing.Hash{}, ErrNoRepoCloned
 	}
-	ref, err := ch.repo.Head()
+	ref, err := ch.Repo.Head()
 	if err != nil {
-		return "", err
+		return plumbing.Hash{}, err
 	}
-	rev := ref.Hash().String()
+	rev := ref.Hash()
 	return rev, nil
 }
-*/

@@ -3,6 +3,7 @@ package operator
 import (
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/golang/glog"
@@ -24,7 +25,8 @@ import (
 	clientset "github.com/weaveworks/flux/integrations/client/clientset/versioned"
 	ifscheme "github.com/weaveworks/flux/integrations/client/clientset/versioned/scheme"
 	ifinformers "github.com/weaveworks/flux/integrations/client/informers/externalversions"
-	iflister "github.com/weaveworks/flux/integrations/client/listers/integrations.flux/v1"
+	iflister "github.com/weaveworks/flux/integrations/client/listers/integrations.flux/v1" // kubernetes 1.9
+	//iflister "github.com/weaveworks/flux/integrations/client/listers/integrations/v1" // kubernetes 1.8
 	chartrelease "github.com/weaveworks/flux/integrations/helm/release"
 )
 
@@ -43,19 +45,15 @@ const (
 
 	// MessageChartSynced - the message used for Events when a resource
 	// fails to sync due to failing to release the Chart
-	MessageChartSynced = "Chart managed by FluxHelmResource released/updated successfully"
+	MessageChartSynced = "Chart managed by FluxHelmResource processed successfully"
 	// MessageErrChartSync - the message used for an Event fired when a FluxHelmResource
 	// is synced successfully
-	MessageErrChartSync = "Chart %s managed by FluxHelmResource failed to be released/updated"
+	MessageErrChartSync = "Chart %s managed by FluxHelmResource failed to be processed"
 )
 
 // Controller is the operator implementation for FluxHelmResource resources
 type Controller struct {
 	logger log.Logger
-	// 		kubeclientset is a standard kubernetes clientset
-	// kubeclientset kubernetes.Interface
-	// 		fhrclientset is a clientset for our own API group
-	// fhrclientset clientset.Interface
 
 	fhrLister iflister.FluxHelmResourceLister
 	fhrSynced cache.InformerSynced
@@ -104,34 +102,30 @@ func New(
 		recorder:         recorder,
 	}
 
-	fmt.Println("===> Setting up event handlers")
 	controller.logger.Log("info", "Setting up event handlers")
-	fmt.Println("===> still setting up event handlers")
 
 	// --------------------------------------------------------------------
 	// ----- EVENT HANDLERS for FluxHelmResource resources change ---------
 	fhrInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(new interface{}) {
-			fmt.Println("\n\t>>> ADDING release\n")
+			controller.logger.Log("info", "ADDING release")
 			_, ok := checkCustomResourceType(controller.logger, new)
 			if ok {
 				controller.enqueueJob(new)
 			}
 		},
 		UpdateFunc: func(old, new interface{}) {
-			fmt.Printf("\n>>> in UpdateFunc\n")
 			controller.enqueueUpateJob(old, new)
 
 		},
 		DeleteFunc: func(old interface{}) {
-			fmt.Printf("\n\t>>> in DeleteFunc\n")
 			fhr, ok := checkCustomResourceType(controller.logger, old)
 			if ok {
 				controller.deleteRelease(fhr)
 			}
 		},
 	})
-	fmt.Println("===> event handlers are set up")
+	controller.logger.Log("info", "Event handlers are set up")
 
 	return controller
 }
@@ -140,9 +134,10 @@ func New(
 // as syncing informer caches and starting workers. It will block until stopCh
 // is closed, at which point it will shutdown the workqueue and wait for
 // workers to finish processing their current work items.
-func (c *Controller) Run(threadiness int, stopCh <-chan struct{}) error {
+func (c *Controller) Run(threadiness int, stopCh <-chan struct{}, wg *sync.WaitGroup) error {
 	defer runtime.HandleCrash()
 	defer c.releaseWorkqueue.ShutDown()
+	defer wg.Done()
 
 	c.logger.Log("info", "Starting operator")
 	// Wait for the caches to be synced before starting workers
@@ -154,13 +149,13 @@ func (c *Controller) Run(threadiness int, stopCh <-chan struct{}) error {
 	}
 	c.logger.Log("info", "Informer caches synced")
 
-	c.logger.Log("info", "=== Starting workers ===")
+	c.logger.Log("info", "Starting workers")
 	for i := 0; i < threadiness; i++ {
 		go wait.Until(c.runWorker, time.Second, stopCh)
 	}
 
 	<-stopCh
-	c.logger.Log("info", "=== Stopping workers ===")
+	c.logger.Log("info", "Stopping workers")
 
 	return nil
 }
@@ -179,7 +174,7 @@ func (c *Controller) processNextWorkItem() bool {
 	c.logger.Log("debug", "Processing next work queue job ...")
 
 	obj, shutdown := c.releaseWorkqueue.Get()
-	c.logger.Log("debug", fmt.Sprintf("---> PROCESSING item [%#v]", obj))
+	c.logger.Log("debug", fmt.Sprintf("PROCESSING item [%#v]", obj))
 
 	if shutdown {
 		return false
@@ -237,7 +232,7 @@ func (c *Controller) processNextWorkItem() bool {
 // 		Deletes/creates or updates a Chart release
 //------------------------------------------------------------------------
 func (c *Controller) syncHandler(key string) error {
-	c.logger.Log("debug", "starting to sync ...")
+	c.logger.Log("debug", fmt.Sprintf("Starting to sync cache key %s", key))
 
 	// Retrieve namespace and Custom Resource name from the key
 	namespace, name, err := cache.SplitMetaNamespaceKey(key)
@@ -275,7 +270,7 @@ func (c *Controller) syncHandler(key string) error {
 	}
 
 	// Chart installation of the appropriate type
-	_, err = c.release.Install(releaseName, *fhr, syncType)
+	_, err = c.release.Install(c.release.Repo.ChartsSync, releaseName, *fhr, syncType, false)
 	if err != nil {
 		return err
 	}
@@ -309,8 +304,6 @@ func getCacheKey(obj interface{}) (string, error) {
 // string which is then put onto the work queue. This method should not be
 // passed resources of any type other than FluxHelmResource.
 func (c *Controller) enqueueJob(obj interface{}) {
-	fmt.Println("=== in enqueueJob")
-
 	var key string
 	var err error
 	if key, err = getCacheKey(obj); err != nil {
@@ -321,8 +314,6 @@ func (c *Controller) enqueueJob(obj interface{}) {
 
 // enqueueUpdateJob decides if there is a genuine resource update
 func (c *Controller) enqueueUpateJob(old, new interface{}) {
-	fmt.Println("=== in enqueueUpdateJob")
-
 	oldFhr, ok := checkCustomResourceType(c.logger, old)
 	if !ok {
 		return
@@ -337,14 +328,13 @@ func (c *Controller) enqueueUpateJob(old, new interface{}) {
 	if newResVer != oldResVer {
 		fmt.Printf("*** old resource version ... %#v\n", oldResVer)
 		fmt.Printf("*** new resource version ... %#v\n", newResVer)
-
-		fmt.Println("\n\t>>> UPDATING release\n")
+		c.logger.Log("info", "UPDATING release")
 		c.enqueueJob(new)
 	}
 }
 
 func (c *Controller) deleteRelease(fhr ifv1.FluxHelmResource) {
-	fmt.Printf("\n\t>>> DELETING release\n")
+	c.logger.Log("info", "DELETING release")
 	name := chartrelease.GetReleaseName(fhr)
 	err := c.release.Delete(name)
 	if err != nil {
