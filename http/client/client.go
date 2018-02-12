@@ -12,6 +12,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/api"
 	fluxerr "github.com/weaveworks/flux/errors"
 	"github.com/weaveworks/flux/event"
 	transport "github.com/weaveworks/flux/http"
@@ -30,6 +31,8 @@ type Client struct {
 	endpoint string
 }
 
+var _ api.Server = &Client{}
+
 func New(c *http.Client, router *mux.Router, endpoint string, t flux.Token) *Client {
 	return &Client{
 		client:   c,
@@ -41,47 +44,47 @@ func New(c *http.Client, router *mux.Router, endpoint string, t flux.Token) *Cli
 
 func (c *Client) ListServices(ctx context.Context, namespace string) ([]flux.ControllerStatus, error) {
 	var res []flux.ControllerStatus
-	err := c.Get(ctx, &res, "ListServices", "namespace", namespace)
+	err := c.Get(ctx, &res, transport.ListServices, "namespace", namespace)
 	return res, err
 }
 
 func (c *Client) ListImages(ctx context.Context, s update.ResourceSpec) ([]flux.ImageStatus, error) {
 	var res []flux.ImageStatus
-	err := c.Get(ctx, &res, "ListImages", "service", string(s))
+	err := c.Get(ctx, &res, transport.ListImages, "service", string(s))
 	return res, err
 }
 
 func (c *Client) JobStatus(ctx context.Context, jobID job.ID) (job.Status, error) {
 	var res job.Status
-	err := c.Get(ctx, &res, "JobStatus", "id", string(jobID))
+	err := c.Get(ctx, &res, transport.JobStatus, "id", string(jobID))
 	return res, err
 }
 
 func (c *Client) SyncStatus(ctx context.Context, ref string) ([]string, error) {
 	var res []string
-	err := c.Get(ctx, &res, "SyncStatus", "ref", ref)
+	err := c.Get(ctx, &res, transport.SyncStatus, "ref", ref)
 	return res, err
 }
 
 func (c *Client) UpdateManifests(ctx context.Context, spec update.Spec) (job.ID, error) {
 	var res job.ID
-	err := c.methodWithResp(ctx, "POST", &res, "UpdateManifests", spec)
+	err := c.methodWithResp(ctx, "POST", &res, transport.UpdateManifests, spec)
 	return res, err
 }
 
 func (c *Client) LogEvent(ctx context.Context, event event.Event) error {
-	return c.PostWithBody(ctx, "LogEvent", event)
+	return c.PostWithBody(ctx, transport.LogEvent, event)
 }
 
 func (c *Client) Export(ctx context.Context) ([]byte, error) {
 	var res []byte
-	err := c.Get(ctx, &res, "Export")
+	err := c.Get(ctx, &res, transport.Export)
 	return res, err
 }
 
 func (c *Client) GitRepoConfig(ctx context.Context, regenerate bool) (flux.GitConfig, error) {
 	var res flux.GitConfig
-	err := c.methodWithResp(ctx, "POST", &res, "GitRepoConfig", regenerate)
+	err := c.methodWithResp(ctx, "POST", &res, transport.GitRepoConfig, regenerate)
 	return res, err
 }
 
