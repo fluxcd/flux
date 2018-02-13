@@ -1,5 +1,5 @@
 /*
-Copyright 2018 The Kubernetes Authors.
+Copyright 2018 Weaveworks Ltd.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -13,12 +13,11 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-
 package versioned
 
 import (
 	glog "github.com/golang/glog"
-	integrationsv1 "github.com/weaveworks/flux/integrations/client/clientset/versioned/typed/integrations.flux/v1"
+	helmv1alpha "github.com/weaveworks/flux/integrations/client/clientset/versioned/typed/helm.integrations.flux.weave.works/v1alpha"
 	discovery "k8s.io/client-go/discovery"
 	rest "k8s.io/client-go/rest"
 	flowcontrol "k8s.io/client-go/util/flowcontrol"
@@ -26,27 +25,27 @@ import (
 
 type Interface interface {
 	Discovery() discovery.DiscoveryInterface
-	IntegrationsV1() integrationsv1.IntegrationsV1Interface
+	HelmV1alpha() helmv1alpha.HelmV1alphaInterface
 	// Deprecated: please explicitly pick a version if possible.
-	Integrations() integrationsv1.IntegrationsV1Interface
+	Helm() helmv1alpha.HelmV1alphaInterface
 }
 
 // Clientset contains the clients for groups. Each group has exactly one
 // version included in a Clientset.
 type Clientset struct {
 	*discovery.DiscoveryClient
-	integrationsV1 *integrationsv1.IntegrationsV1Client
+	helmV1alpha *helmv1alpha.HelmV1alphaClient
 }
 
-// IntegrationsV1 retrieves the IntegrationsV1Client
-func (c *Clientset) IntegrationsV1() integrationsv1.IntegrationsV1Interface {
-	return c.integrationsV1
+// HelmV1alpha retrieves the HelmV1alphaClient
+func (c *Clientset) HelmV1alpha() helmv1alpha.HelmV1alphaInterface {
+	return c.helmV1alpha
 }
 
-// Deprecated: Integrations retrieves the default version of IntegrationsClient.
+// Deprecated: Helm retrieves the default version of HelmClient.
 // Please explicitly pick a version.
-func (c *Clientset) Integrations() integrationsv1.IntegrationsV1Interface {
-	return c.integrationsV1
+func (c *Clientset) Helm() helmv1alpha.HelmV1alphaInterface {
+	return c.helmV1alpha
 }
 
 // Discovery retrieves the DiscoveryClient
@@ -65,7 +64,7 @@ func NewForConfig(c *rest.Config) (*Clientset, error) {
 	}
 	var cs Clientset
 	var err error
-	cs.integrationsV1, err = integrationsv1.NewForConfig(&configShallowCopy)
+	cs.helmV1alpha, err = helmv1alpha.NewForConfig(&configShallowCopy)
 	if err != nil {
 		return nil, err
 	}
@@ -82,7 +81,7 @@ func NewForConfig(c *rest.Config) (*Clientset, error) {
 // panics if there is an error in the config.
 func NewForConfigOrDie(c *rest.Config) *Clientset {
 	var cs Clientset
-	cs.integrationsV1 = integrationsv1.NewForConfigOrDie(c)
+	cs.helmV1alpha = helmv1alpha.NewForConfigOrDie(c)
 
 	cs.DiscoveryClient = discovery.NewDiscoveryClientForConfigOrDie(c)
 	return &cs
@@ -91,7 +90,7 @@ func NewForConfigOrDie(c *rest.Config) *Clientset {
 // New creates a new Clientset for the given RESTClient.
 func New(c rest.Interface) *Clientset {
 	var cs Clientset
-	cs.integrationsV1 = integrationsv1.New(c)
+	cs.helmV1alpha = helmv1alpha.New(c)
 
 	cs.DiscoveryClient = discovery.NewDiscoveryClient(c)
 	return &cs

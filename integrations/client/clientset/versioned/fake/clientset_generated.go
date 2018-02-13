@@ -1,5 +1,5 @@
 /*
-Copyright 2018 The Kubernetes Authors.
+Copyright 2018 Weaveworks Ltd.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -13,13 +13,12 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-
 package fake
 
 import (
 	clientset "github.com/weaveworks/flux/integrations/client/clientset/versioned"
-	integrationsv1 "github.com/weaveworks/flux/integrations/client/clientset/versioned/typed/integrations.flux/v1"
-	fakeintegrationsv1 "github.com/weaveworks/flux/integrations/client/clientset/versioned/typed/integrations.flux/v1/fake"
+	helmv1alpha "github.com/weaveworks/flux/integrations/client/clientset/versioned/typed/helm.integrations.flux.weave.works/v1alpha"
+	fakehelmv1alpha "github.com/weaveworks/flux/integrations/client/clientset/versioned/typed/helm.integrations.flux.weave.works/v1alpha/fake"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/discovery"
@@ -60,12 +59,12 @@ func (c *Clientset) Discovery() discovery.DiscoveryInterface {
 
 var _ clientset.Interface = &Clientset{}
 
-// IntegrationsV1 retrieves the IntegrationsV1Client
-func (c *Clientset) IntegrationsV1() integrationsv1.IntegrationsV1Interface {
-	return &fakeintegrationsv1.FakeIntegrationsV1{Fake: &c.Fake}
+// HelmV1alpha retrieves the HelmV1alphaClient
+func (c *Clientset) HelmV1alpha() helmv1alpha.HelmV1alphaInterface {
+	return &fakehelmv1alpha.FakeHelmV1alpha{Fake: &c.Fake}
 }
 
-// Integrations retrieves the IntegrationsV1Client
-func (c *Clientset) Integrations() integrationsv1.IntegrationsV1Interface {
-	return &fakeintegrationsv1.FakeIntegrationsV1{Fake: &c.Fake}
+// Helm retrieves the HelmV1alphaClient
+func (c *Clientset) Helm() helmv1alpha.HelmV1alphaInterface {
+	return &fakehelmv1alpha.FakeHelmV1alpha{Fake: &c.Fake}
 }
