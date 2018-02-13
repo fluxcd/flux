@@ -2,15 +2,15 @@
   apiVersion: apiextensions.k8s.io/v1beta1
   kind: CustomResourceDefinition
   metadata:
-    name: fluxhelmresources.integrations.flux
+    name: fluxhelmreleases.helm.integrations.flux.weave.works
   spec:
-    group: integrations.flux
+    group: helm.integrations.flux.weave.works
     names:
-      kind: FluxHelmResource
-      listKind: FluxHelmResourceList
-      plural: fluxhelmresources
+      kind: FluxHelmRelease
+      listKind: FluxHelmReleaseList
+      plural: fluxhelmreleases
     scope: Namespaced
-    version: v1   
+    version: v1alpha
 ---
   apiVersion: extensions/v1beta1
   kind: Deployment
@@ -37,18 +37,13 @@
           # There are no ":latest" images for helm-operator. Find the most recent
           # release or image version at https://quay.io/weaveworks/flux (both have the same latest tag)
           # and replace the tag here.
-          image: quay.io/weaveworks/helm-operator:flux-helm-operator2-53d5187
+          image: quay.io/weaveworks/helm-operator:alpha
           imagePullPolicy: IfNotPresent
           volumeMounts:
           - name: git-key
             mountPath: /etc/fluxd/ssh
           args:
-  
           # replace (at least) the following URL
-          - --git-url=git@github.com:weaveworks/helm-fhr-test
+          - --git-url=git@github.com:weaveworks/flux-helm-test
           - --git-branch=master
           - --git-charts-path=charts
-          # include these next two to connect to an "upstream" service
-          # (e.g., Weave Cloud). The token is particular to the service.
-          # - --connect=wss://cloud.weave.works/api/flux
-          # - --token=abc123abc123abc123abc123

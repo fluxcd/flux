@@ -1,5 +1,5 @@
 /*
-Copyright 2018 The Kubernetes Authors.
+Copyright 2018 Weaveworks Ltd.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,7 +20,7 @@ package externalversions
 
 import (
 	"fmt"
-	v1 "github.com/weaveworks/flux/apis/integrations.flux/v1"
+	v1alpha "github.com/weaveworks/flux/apis/helm.integrations.flux.weave.works/v1alpha"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	cache "k8s.io/client-go/tools/cache"
 )
@@ -51,9 +51,9 @@ func (f *genericInformer) Lister() cache.GenericLister {
 // TODO extend this to unknown resources with a client pool
 func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource) (GenericInformer, error) {
 	switch resource {
-	// Group=integrations.flux, Version=v1
-	case v1.SchemeGroupVersion.WithResource("fluxhelmresources"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Integrations().V1().FluxHelmResources().Informer()}, nil
+	// Group=helm.integrations.flux.weave.works, Version=v1alpha
+	case v1alpha.SchemeGroupVersion.WithResource("fluxhelmreleases"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Helm().V1alpha().FluxHelmReleases().Informer()}, nil
 
 	}
 
