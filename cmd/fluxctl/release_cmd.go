@@ -45,11 +45,11 @@ func (opts *controllerReleaseOpts) Command() *cobra.Command {
 	AddOutputFlags(cmd, &opts.outputOpts)
 	AddCauseFlags(cmd, &opts.cause)
 	cmd.Flags().StringVarP(&opts.namespace, "namespace", "n", "default", "controller namespace")
-	cmd.Flags().StringSliceVarP(&opts.controllers, "controller", "c", []string{}, "list of controllers to release <kind>/<name>")
+	cmd.Flags().StringSliceVarP(&opts.controllers, "controller", "c", []string{}, "list of controllers to release <namespace>:<kind>/<name>")
 	cmd.Flags().BoolVar(&opts.allControllers, "all", false, "release all controllers")
 	cmd.Flags().StringVarP(&opts.image, "update-image", "i", "", "update a specific image")
 	cmd.Flags().BoolVar(&opts.allImages, "update-all-images", false, "update all images to latest versions")
-	cmd.Flags().StringSliceVar(&opts.exclude, "exclude", []string{}, "exclude a controller")
+	cmd.Flags().StringSliceVar(&opts.exclude, "exclude", []string{}, "list of controllers to exclude <namespace>:<kind>/<name>")
 	cmd.Flags().BoolVar(&opts.dryRun, "dry-run", false, "do not release anything; just report back what would have been done")
 
 	// Deprecated

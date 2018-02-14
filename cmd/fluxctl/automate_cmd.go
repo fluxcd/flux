@@ -26,7 +26,7 @@ func (opts *controllerAutomateOpts) Command() *cobra.Command {
 		Use:   "automate",
 		Short: "Turn on automatic deployment for a controller.",
 		Example: makeExample(
-			"fluxctl automate --controller=deployment/helloworld",
+			"fluxctl automate --controller=default:deployment/helloworld",
 		),
 		RunE: opts.RunE,
 	}

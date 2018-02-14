@@ -31,9 +31,9 @@ var rootLongHelp = strings.TrimSpace(`
 fluxctl helps you deploy your code.
 
 Workflow:
-  fluxctl list-controllers                                           # Which controllers are running?
-  fluxctl list-images --controller=deployment/foo                    # Which images are running/available?
-  fluxctl release --controller=deployment/foo --update-image=bar:v2  # Release new version.
+  fluxctl list-controllers                                                   # Which controllers are running?
+  fluxctl list-images --controller=default:deployment/foo                    # Which images are running/available?
+  fluxctl release --controller=default:deployment/foo --update-image=bar:v2  # Release new version.
 `)
 
 const (

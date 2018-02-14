@@ -26,7 +26,7 @@ func (opts *controllerDeautomateOpts) Command() *cobra.Command {
 		Use:   "deautomate",
 		Short: "Turn off automatic deployment for a controller.",
 		Example: makeExample(
-			"fluxctl deautomate --controller=deployment/helloworld",
+			"fluxctl deautomate --controller=default:deployment/helloworld",
 		),
 		RunE: opts.RunE,
 	}

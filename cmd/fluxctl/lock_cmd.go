@@ -26,7 +26,7 @@ func (opts *controllerLockOpts) Command() *cobra.Command {
 		Use:   "lock",
 		Short: "Lock a controller, so it cannot be deployed.",
 		Example: makeExample(
-			"fluxctl lock --controller=deployment/helloworld",
+			"fluxctl lock --controller=default:deployment/helloworld",
 		),
 		RunE: opts.RunE,
 	}
