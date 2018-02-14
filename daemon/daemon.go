@@ -342,14 +342,19 @@ func (d *Daemon) release(spec update.Spec, c release.Changes) DaemonJobFunc {
 func (d *Daemon) NotifyChange(ctx context.Context, change api.Change) error {
 	switch change.Kind {
 	case api.GitChange:
-		// TODO: check if it's actually our repo
+		gitUpdate := change.Source.(api.GitUpdate)
+		if gitUpdate.URL != d.Repo.URL && gitUpdate.Branch != d.Repo.Branch {
+			// It isn't strictly an _error_ to be notified about a repo/branch pair
+			// that isn't ours, but it's worth logging anyway for debugging.
+			d.Logger.Log("msg", "notified about unrelated change",
+				"url", gitUpdate.URL,
+				"branch", gitUpdate.Branch)
+			break
+		}
 		d.AskForSync()
 	case api.ImageChange:
-		if imageUp, ok := change.Source.(api.ImageUpdate); ok {
-			if d.ImageRefresh != nil {
-				d.ImageRefresh <- imageUp.Name
-			}
-		}
+		imageUpdate := change.Source.(api.ImageUpdate)
+		d.ImageRefresh <- imageUpdate.Name
 	}
 	return nil
 }
