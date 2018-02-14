@@ -32,7 +32,7 @@ func (opts *saveOpts) Command() *cobra.Command {
 		),
 		RunE: opts.RunE,
 	}
-	cmd.Flags().StringVarP(&opts.path, "out", "o", "-", "output path for exported config; the default. '-' indicates stdout; if a directory is given, each item will be saved in a file under the directory")
+	cmd.Flags().StringVarP(&opts.path, "out", "o", "-", "Output path for exported config; the default. '-' indicates stdout; if a directory is given, each item will be saved in a file under the directory")
 	return cmd
 }
 
