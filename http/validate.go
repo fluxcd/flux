@@ -30,7 +30,7 @@ func makeWalkFunc(router *mux.Router) mux.WalkFunc {
 		if route == nil {
 			return fmt.Errorf("no route by name %q in router", r.GetName())
 		}
-		// Goes the route have a handler?
+		// Does the route have a handler?
 		handler := route.GetHandler()
 		if handler == nil {
 			return fmt.Errorf("no handler for route %q in router", r.GetName())
