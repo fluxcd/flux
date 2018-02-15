@@ -78,9 +78,9 @@ func (e *Error) UnmarshalJSON(data []byte) error {
 
 func CoverAllError(err error) *Error {
 	return &Error{
-		Type: Server,
+		Type: User,
 		Err:  err,
-		Help: `Internal error: ` + err.Error() + `
+		Help: `Error: ` + err.Error() + `
 
 We don't have a specific help message for the error above.
 
