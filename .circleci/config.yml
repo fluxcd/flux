@@ -4,14 +4,13 @@ jobs:
     working_directory: /go/src/github.com/weaveworks/flux
     docker:
       - image: circleci/golang:1.8
-      - image: nats
       - image: memcached
     steps:
       - checkout
       - setup_remote_docker
 
       - run: go get github.com/golang/dep/cmd/dep
-      - run: dep ensure
+      - run: dep ensure -vendor-only
       - run: make test TEST_FLAGS="-race -tags integration -timeout 30s"
       - run: make all
 
