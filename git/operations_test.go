@@ -206,6 +206,24 @@ func TestOnelinelog_WithGitpath(t *testing.T) {
 	}
 }
 
+func TestCheckPush(t *testing.T) {
+	upstreamDir, upstreamCleanup := testfiles.TempDir(t)
+	defer upstreamCleanup()
+	err := createRepo(upstreamDir, []string{"config"})
+
+	cloneDir, cloneCleanup := testfiles.TempDir(t)
+	defer cloneCleanup()
+
+	working, err := clone(context.Background(), cloneDir, upstreamDir, "master")
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = checkPush(context.Background(), working, upstreamDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 func createRepo(dir string, subdirs []string) error {
 	var (
 		err      error

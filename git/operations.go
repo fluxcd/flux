@@ -52,7 +52,7 @@ func checkPush(ctx context.Context, workingDir, upstream string) error {
 	if err := execGitCmd(ctx, workingDir, nil, "push", "--force", upstream, "tag", CheckPushTag); err != nil {
 		return errors.Wrap(err, "attempt to push tag")
 	}
-	return execGitCmd(ctx, workingDir, nil, "push", "-d", upstream, "tag", CheckPushTag)
+	return execGitCmd(ctx, workingDir, nil, "push", "--delete", upstream, "tag", CheckPushTag)
 }
 
 func commit(ctx context.Context, workingDir string, commitAction *CommitAction) error {
