@@ -48,10 +48,10 @@ If both --tag-all and --tag are specified, --tag-all will apply to all
 containers which aren't explicitly named.
         `,
 		Example: makeExample(
-			"fluxctl policy --controller=deployment/foo --automate",
-			"fluxctl policy --controller=deployment/foo --lock",
-			"fluxctl policy --controller=deployment/foo --tag='bar=1.*' --tag='baz=2.*'",
-			"fluxctl policy --controller=deployment/foo --tag-all='master-*' --tag='bar=1.*'",
+			"fluxctl policy --controller=default:deployment/foo --automate",
+			"fluxctl policy --controller=default:deployment/foo --lock",
+			"fluxctl policy --controller=default:deployment/foo --tag='bar=1.*' --tag='baz=2.*'",
+			"fluxctl policy --controller=default:deployment/foo --tag-all='master-*' --tag='bar=1.*'",
 		),
 		RunE: opts.RunE,
 	}

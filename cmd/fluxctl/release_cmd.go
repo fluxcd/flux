@@ -44,16 +44,16 @@ func (opts *controllerReleaseOpts) Command() *cobra.Command {
 
 	AddOutputFlags(cmd, &opts.outputOpts)
 	AddCauseFlags(cmd, &opts.cause)
-	cmd.Flags().StringVarP(&opts.namespace, "namespace", "n", "default", "controller namespace")
-	cmd.Flags().StringSliceVarP(&opts.controllers, "controller", "c", []string{}, "list of controllers to release <kind>/<name>")
-	cmd.Flags().BoolVar(&opts.allControllers, "all", false, "release all controllers")
-	cmd.Flags().StringVarP(&opts.image, "update-image", "i", "", "update a specific image")
-	cmd.Flags().BoolVar(&opts.allImages, "update-all-images", false, "update all images to latest versions")
-	cmd.Flags().StringSliceVar(&opts.exclude, "exclude", []string{}, "exclude a controller")
-	cmd.Flags().BoolVar(&opts.dryRun, "dry-run", false, "do not release anything; just report back what would have been done")
+	cmd.Flags().StringVarP(&opts.namespace, "namespace", "n", "default", "Controller namespace")
+	cmd.Flags().StringSliceVarP(&opts.controllers, "controller", "c", []string{}, "List of controllers to release <namespace>:<kind>/<name>")
+	cmd.Flags().BoolVar(&opts.allControllers, "all", false, "Release all controllers")
+	cmd.Flags().StringVarP(&opts.image, "update-image", "i", "", "Update a specific image")
+	cmd.Flags().BoolVar(&opts.allImages, "update-all-images", false, "Update all images to latest versions")
+	cmd.Flags().StringSliceVar(&opts.exclude, "exclude", []string{}, "List of controllers to exclude")
+	cmd.Flags().BoolVar(&opts.dryRun, "dry-run", false, "Do not release anything; just report back what would have been done")
 
 	// Deprecated
-	cmd.Flags().StringSliceVarP(&opts.services, "service", "s", []string{}, "service to release")
+	cmd.Flags().StringSliceVarP(&opts.services, "service", "s", []string{}, "Service to release")
 	cmd.Flags().MarkHidden("service")
 
 	return cmd

@@ -31,9 +31,9 @@ var rootLongHelp = strings.TrimSpace(`
 fluxctl helps you deploy your code.
 
 Workflow:
-  fluxctl list-controllers                                           # Which controllers are running?
-  fluxctl list-images --controller=deployment/foo                    # Which images are running/available?
-  fluxctl release --controller=deployment/foo --update-image=bar:v2  # Release new version.
+  fluxctl list-controllers                                                   # Which controllers are running?
+  fluxctl list-images --controller=default:deployment/foo                    # Which images are running/available?
+  fluxctl release --controller=default:deployment/foo --update-image=bar:v2  # Release new version.
 `)
 
 const (
@@ -51,7 +51,7 @@ func (opts *rootOpts) Command() *cobra.Command {
 		PersistentPreRunE: opts.PersistentPreRunE,
 	}
 	cmd.PersistentFlags().StringVarP(&opts.URL, "url", "u", "https://cloud.weave.works/api/flux",
-		fmt.Sprintf("base URL of the flux service; you can also set the environment variable %s", envVariableURL))
+		fmt.Sprintf("Base URL of the flux service; you can also set the environment variable %s", envVariableURL))
 	cmd.PersistentFlags().StringVarP(&opts.Token, "token", "t", "",
 		fmt.Sprintf("Weave Cloud service token; you can also set the environment variable %s or %s", envVariableCloudToken, envVariableToken))
 

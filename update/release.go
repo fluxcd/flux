@@ -29,7 +29,7 @@ type ReleaseType string
 
 const (
 	ReleaseKindPlan    ReleaseKind = "plan"
-	ReleaseKindExecute             = "execute"
+	ReleaseKindExecute ReleaseKind = "execute"
 )
 
 func ParseReleaseKind(s string) (ReleaseKind, error) {

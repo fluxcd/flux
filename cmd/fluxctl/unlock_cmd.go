@@ -26,7 +26,7 @@ func (opts *controllerUnlockOpts) Command() *cobra.Command {
 		Use:   "unlock",
 		Short: "Unlock a controller, so it can be deployed.",
 		Example: makeExample(
-			"fluxctl unlock --controller=deployment/helloworld",
+			"fluxctl unlock --controller=default:deployment/helloworld",
 		),
 		RunE: opts.RunE,
 	}
