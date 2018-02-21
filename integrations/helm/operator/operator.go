@@ -275,9 +275,6 @@ func (c *Controller) syncHandler(key string) error {
 		return err
 	}
 
-	// TODO : bring the  ChartsChangesCloneCurr uptodate
-	//		needs locking because of chart syncing possibly kicking in simultaneously
-
 	c.recorder.Event(fhr, corev1.EventTypeNormal, ChartSynced, MessageChartSynced)
 	return nil
 }

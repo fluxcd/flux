@@ -33,18 +33,13 @@ type Release struct {
 	sync.RWMutex
 }
 
-type ChartsSync struct {
-	Curr *helmgit.Checkout
-	New  *helmgit.Checkout
-}
-
 type repo struct {
 	ConfigSync *helmgit.Checkout
-	ChartsSync *ChartsSync
+	ChartsSync *helmgit.Checkout
 }
 
 // New creates a new Release instance
-func New(logger log.Logger, helmClient *k8shelm.Client, configCheckout *helmgit.Checkout, chartsSync *ChartsSync) *Release {
+func New(logger log.Logger, helmClient *k8shelm.Client, configCheckout *helmgit.Checkout, chartsSync *helmgit.Checkout) *Release {
 	repo := repo{
 		ConfigSync: configCheckout,
 		ChartsSync: chartsSync,

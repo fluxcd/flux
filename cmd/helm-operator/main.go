@@ -228,33 +228,14 @@ func main() {
 	mainLogger.Log("info", "Repo cloned")
 
 	// 		Chart releases sync due to pure Charts changes ------------------------------------
-	//			the two repos are used to establish which charts may have changed in between the syncs
-	checkoutChCurr := git.NewCheckout(log.With(logger, "component", "git"), gitRemoteConfigCh, gitAuth)
-	defer checkoutChCurr.Cleanup()
+	checkoutCh := git.NewCheckout(log.With(logger, "component", "git"), gitRemoteConfigCh, gitAuth)
+	defer checkoutCh.Cleanup()
 
 	// If cloning not immediately possible, we wait until it is -----------------------------
 	for {
 		mainLogger.Log("info", "Cloning repo ...")
 		ctx, cancel := context.WithTimeout(context.Background(), git.DefaultCloneTimeout)
-		err = checkoutChCurr.Clone(ctx, git.ChartsChangesCloneCurr)
-		cancel()
-		if err == nil {
-			break
-		}
-		mainLogger.Log("error", fmt.Sprintf("Failed to clone git repo [%s, %s, %s]: %v", gitRemoteConfigCh.URL, gitRemoteConfigCh.Branch, gitRemoteConfigCh.Path, err))
-		time.Sleep(10 * time.Second)
-	}
-	mainLogger.Log("info", "Repo cloned")
-
-	// 		Chart releases sync due to pure Charts changes ------------------------------------
-	checkoutChNew := git.NewCheckout(log.With(logger, "component", "git"), gitRemoteConfigCh, gitAuth)
-	defer checkoutChNew.Cleanup()
-
-	// If cloning not immediately possible, we wait until it is -----------------------------
-	for {
-		mainLogger.Log("info", "Cloning repo ...")
-		ctx, cancel := context.WithTimeout(context.Background(), git.DefaultCloneTimeout)
-		err = checkoutChNew.Clone(ctx, git.ChartsChangesCloneNew)
+		err = checkoutCh.Clone(ctx, git.ChartsChangesClone)
 		cancel()
 		if err == nil {
 			break
@@ -272,11 +253,7 @@ func main() {
 	// 				Obtain reference to shared index informers for the FluxHelmRelease
 	fhrInformer := ifInformerFactory.Helm().V1alpha().FluxHelmReleases()
 
-	checkoutChartsSync := &release.ChartsSync{
-		Curr: checkoutChCurr,
-		New:  checkoutChNew,
-	}
-	rel := release.New(log.With(logger, "component", "release"), helmClient, checkoutFhr, checkoutChartsSync)
+	rel := release.New(log.With(logger, "component", "release"), helmClient, checkoutFhr, checkoutCh)
 
 	// CHARTS CHANGES SYNC -----------------------------------------------------------------------------
 	chartSync := chartsync.New(log.With(logger, "component", "chartsync"), *chartsSyncInterval, *chartsSyncTimeout, *kubeClient, *ifClient, fhrInformer, rel)
