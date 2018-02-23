@@ -224,7 +224,7 @@ func main() {
 	mainLogger.Log("info", "*** Cloned repos")
 
 	// OPERATOR -----------------------------------------------------------------------------
-	ifInformerFactory := ifinformers.NewSharedInformerFactory(ifClient, 30*time.Second)
+	ifInformerFactory := ifinformers.NewSharedInformerFactory(ifClient, time.Second*30)
 	rel := release.New(log.With(logger, "component", "release"), helmClient, checkoutCh)
 	opr := operator.New(log.With(logger, "component", "operator"), kubeClient, ifClient, ifInformerFactory, rel)
 

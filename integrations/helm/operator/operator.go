@@ -113,10 +113,7 @@ func New(
 	fhrInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(new interface{}) {
 			fmt.Println("\n\t>>> ADDING release\n")
-			_, ok := checkCustomResourceType(controller.logger, new)
-			if ok {
-				controller.enqueueJob(new)
-			}
+			controller.enqueueJob(new)
 		},
 		UpdateFunc: func(old, new interface{}) {
 			fmt.Printf("\n>>> in UpdateFunc\n")
@@ -125,10 +122,7 @@ func New(
 		},
 		DeleteFunc: func(old interface{}) {
 			fmt.Printf("\n\t>>> in DeleteFunc\n")
-			fhr, ok := checkCustomResourceType(controller.logger, old)
-			if ok {
-				controller.deleteRelease(fhr)
-			}
+			controller.deleteRelease(old)
 		},
 	})
 	fmt.Println("===> event handlers are set up")
@@ -173,13 +167,26 @@ func (c *Controller) runWorker() {
 	}
 }
 
+// discardJob unconditionally removes an item from the workqueue
+// this should never happen, but is a safety catch for a situation
+// the workqueue receives an incorrect item
+func (c *Controller) discardJob() {
+	obj, shutdown := c.releaseWorkqueue.Get()
+	c.logger.Log("info", fmt.Sprintf("\t\t\t---> discarding item\n\n[%#v]\n\n", obj))
+	if shutdown {
+		return
+	}
+	c.releaseWorkqueue.Forget(obj)
+	c.releaseWorkqueue.Done(obj)
+}
+
 // processNextWorkItem will read a single work item off the workqueue and
 // attempt to process it, by calling the syncHandler.
 func (c *Controller) processNextWorkItem() bool {
-	c.logger.Log("debug", "Processing next work queue job ...")
+	c.logger.Log("info", "*** in processNextWorkItem")
 
 	obj, shutdown := c.releaseWorkqueue.Get()
-	c.logger.Log("debug", fmt.Sprintf("---> PROCESSING item [%#v]", obj))
+	c.logger.Log("info", fmt.Sprintf("---> PROCESSING item [%#v]", obj))
 
 	if shutdown {
 		return false
@@ -207,7 +214,7 @@ func (c *Controller) processNextWorkItem() bool {
 			// Forget not to get into a loop of attempting to
 			// process a work item that is invalid.
 			c.releaseWorkqueue.Forget(obj)
-			runtime.HandleError(fmt.Errorf("Expected string in workqueue but got %#v", obj))
+			runtime.HandleError(fmt.Errorf("expected string in workqueue but got %#v", obj))
 
 			return nil
 		}
@@ -221,12 +228,13 @@ func (c *Controller) processNextWorkItem() bool {
 		// get queued again until another change happens.
 		c.releaseWorkqueue.Forget(obj)
 
-		c.logger.Log("info", fmt.Sprintf("Successfully synced '%s'", key))
+		c.logger.Log("info", fmt.Sprintf("\t\t *** Successfully synced '%s'", key))
 
 		return nil
 	}(obj)
 
 	if err != nil {
+		c.logger.Log("info", fmt.Sprintf("Caught runtime error: %#v", err))
 		runtime.HandleError(err)
 		return true
 	}
@@ -237,7 +245,7 @@ func (c *Controller) processNextWorkItem() bool {
 // 		Deletes/creates or updates a Chart release
 //------------------------------------------------------------------------
 func (c *Controller) syncHandler(key string) error {
-	c.logger.Log("debug", "starting to sync ...")
+	c.logger.Log("info", "*** in syncHandler")
 
 	// Retrieve namespace and Custom Resource name from the key
 	namespace, name, err := cache.SplitMetaNamespaceKey(key)
@@ -284,13 +292,13 @@ func (c *Controller) syncHandler(key string) error {
 	return nil
 }
 
-func checkCustomResourceType(logger log.Logger, obj interface{}) (ifv1.FluxHelmResource, bool) {
+func checkCustomResourceType(obj interface{}) (ifv1.FluxHelmResource, bool) {
 	var fhr *ifv1.FluxHelmResource
 	var ok bool
 	if fhr, ok = obj.(*ifv1.FluxHelmResource); !ok {
-		logger.Log("error", fmt.Sprintf("FluxHelmResource Event Watch received an invalid object: %#v", obj))
 		return ifv1.FluxHelmResource{}, false
 	}
+
 	return *fhr, true
 }
 
@@ -299,6 +307,7 @@ func getCacheKey(obj interface{}) (string, error) {
 	var err error
 
 	if key, err = cache.MetaNamespaceKeyFunc(obj); err != nil {
+		fmt.Printf("*** caught runtime ERROR: %#v\n", err)
 		runtime.HandleError(err)
 		return "", err
 	}
@@ -323,17 +332,12 @@ func (c *Controller) enqueueJob(obj interface{}) {
 func (c *Controller) enqueueUpateJob(old, new interface{}) {
 	fmt.Println("=== in enqueueUpdateJob")
 
-	oldFhr, ok := checkCustomResourceType(c.logger, old)
-	if !ok {
-		return
-	}
-	newFhr, ok := checkCustomResourceType(c.logger, new)
-	if !ok {
-		return
-	}
+	newFhr := new.(*ifv1.FluxHelmResource)
+	oldFhr := old.(*ifv1.FluxHelmResource)
 
 	oldResVer := oldFhr.ResourceVersion
 	newResVer := newFhr.ResourceVersion
+
 	if newResVer != oldResVer {
 		fmt.Printf("*** old resource version ... %#v\n", oldResVer)
 		fmt.Printf("*** new resource version ... %#v\n", newResVer)
@@ -343,12 +347,19 @@ func (c *Controller) enqueueUpateJob(old, new interface{}) {
 	}
 }
 
-func (c *Controller) deleteRelease(fhr ifv1.FluxHelmResource) {
+func (c *Controller) deleteRelease(old interface{}) error {
+	fhr, ok := checkCustomResourceType(old)
+	if !ok {
+		err := fmt.Errorf("FluxHelmResource Event Watch received an invalid object: %#v", old)
+		c.logger.Log("error", err.Error())
+		return err
+	}
 	fmt.Printf("\n\t>>> DELETING release\n")
 	name := chartrelease.GetReleaseName(fhr)
 	err := c.release.Delete(name)
 	if err != nil {
 		c.logger.Log("error", fmt.Sprintf("Chart release [%s] not deleted: %#v", name, err))
+		return err
 	}
-	return
+	return nil
 }
