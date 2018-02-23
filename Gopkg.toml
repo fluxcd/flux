@@ -1,8 +1,3 @@
-# See usage of https://github.com/kubernetes/code-generator if regeneration of the following is required:
-#       apis/integrations.flux/zz_generated.deepcopy.go
-#       integrations/client/*
-#
-required = ["k8s.io/code-generator/cmd/client-gen"]
 
 [[override]]
   name = "github.com/ugorji/go"
@@ -17,22 +12,3 @@ required = ["k8s.io/code-generator/cmd/client-gen"]
 [[constraint]]
   name = "github.com/prometheus/client_golang"
   branch = "master"
-
-[[constraint]]
-  name = "k8s.io/code-generator"
-  branch = "release-1.9"
-
-# goland/dep does not follow k8s.io/code-generator's Godeps.json and gengo's master
-# version does not work with release-1.8 k8s.io/code-generator. So we have to
-# override it.
-[[override]]
-  name = "k8s.io/gengo"
-  revision = "b58fc7edb82e0c6ffc9b8aef61813c7261b785d4"
-
-[[constraint]]
-  name = "k8s.io/helm"
-  version = "v2.8.0"
-
-[[constraint]]
-  name = "google.golang.org/grpc"
-  revision = "b610ffd3f8786563002bd5b6a9951d56f64a4921"
