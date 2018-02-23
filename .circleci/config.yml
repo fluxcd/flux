@@ -20,7 +20,6 @@ jobs:
             if [ -z "${CIRCLE_TAG}" -a "${CIRCLE_BRANCH}" == "master" ]; then
               docker login -u "$DOCKER_REGISTRY_USER" -p "$DOCKER_REGISTRY_PASSWORD" quay.io
               docker push "quay.io/weaveworks/flux:$(docker/image-tag)"
-              docker push "quay.io/weaveworks/helm-operator:$(docker/image-tag)"
             fi
 
       - deploy:
@@ -32,7 +31,6 @@ jobs:
               bin/upload-binaries
               docker login -u "$DOCKER_REGISTRY_USER" -p "$DOCKER_REGISTRY_PASSWORD" quay.io
               docker push "quay.io/weaveworks/flux:$(docker/image-tag)"
-              docker push "quay.io/weaveworks/helm-operator:$(docker/image-tag)"
             fi
 
 workflows:

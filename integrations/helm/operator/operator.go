@@ -14,16 +14,19 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
+	//appslisters "k8s.io/client-go/listers/apps/v1beta2"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
 
 	"github.com/go-kit/kit/log"
 
-	ifv1 "github.com/weaveworks/flux/apis/helm.integrations.flux.weave.works/v1alpha"
+	ifv1 "github.com/weaveworks/flux/apis/integrations.flux/v1"
+	clientset "github.com/weaveworks/flux/integrations/client/clientset/versioned"
 	ifscheme "github.com/weaveworks/flux/integrations/client/clientset/versioned/scheme"
-	fhrv1 "github.com/weaveworks/flux/integrations/client/informers/externalversions/helm.integrations.flux.weave.works/v1alpha"
-	iflister "github.com/weaveworks/flux/integrations/client/listers/helm.integrations.flux.weave.works/v1alpha" // kubernetes 1.9
+	ifinformers "github.com/weaveworks/flux/integrations/client/informers/externalversions"
+	iflister "github.com/weaveworks/flux/integrations/client/listers/integrations.flux/v1" // kubernetes 1.9
+	//iflister "github.com/weaveworks/flux/integrations/client/listers/integrations/v1" // kubernetes 1.8
 	chartrelease "github.com/weaveworks/flux/integrations/helm/release"
 )
 
@@ -34,25 +37,25 @@ const (
 
 const (
 	// ChartSynced is used as part of the Event 'reason' when the Chart related to the
-	// a FluxHelmRelease gets released/updated
+	// a FluxHelmResource gets released/updated
 	ChartSynced = "ChartSynced"
 	// ErrChartSync is used as part of the Event 'reason' when the related Chart related to the
-	// a FluxHelmRelease fails to be released/updated
+	// a FluxHelmResource fails to be released/updated
 	ErrChartSync = "ErrChartSync"
 
 	// MessageChartSynced - the message used for Events when a resource
 	// fails to sync due to failing to release the Chart
-	MessageChartSynced = "Chart managed by FluxHelmRelease processed successfully"
-	// MessageErrChartSync - the message used for an Event fired when a FluxHelmRelease
+	MessageChartSynced = "Chart managed by FluxHelmResource processed successfully"
+	// MessageErrChartSync - the message used for an Event fired when a FluxHelmResource
 	// is synced successfully
-	MessageErrChartSync = "Chart %s managed by FluxHelmRelease failed to be processed"
+	MessageErrChartSync = "Chart %s managed by FluxHelmResource failed to be processed"
 )
 
-// Controller is the operator implementation for FluxHelmRelease resources
+// Controller is the operator implementation for FluxHelmResource resources
 type Controller struct {
 	logger log.Logger
 
-	fhrLister iflister.FluxHelmReleaseLister
+	fhrLister iflister.FluxHelmResourceLister
 	fhrSynced cache.InformerSynced
 
 	release *chartrelease.Release
@@ -73,13 +76,12 @@ type Controller struct {
 func New(
 	logger log.Logger,
 	kubeclientset kubernetes.Interface,
-	//fhrclientset clientset.Interface,
-	//fhrInformerFactory ifinformers.SharedInformerFactory,
-	fhrInformer fhrv1.FluxHelmReleaseInformer,
+	fhrclientset clientset.Interface,
+	fhrInformerFactory ifinformers.SharedInformerFactory,
 	release *chartrelease.Release) *Controller {
 
-	// Obtain reference to shared index informers for the FluxHelmRelease
-	//fhrInformer := fhrInformerFactory.Integrations().V1().FluxHelmReleases()
+	// Obtain reference to shared index informers for the FluxHelmResource
+	fhrInformer := fhrInformerFactory.Integrations().V1().FluxHelmResources()
 
 	// Add helm-operator types to the default Kubernetes Scheme so Events can be
 	// logged for helm-operator types.
@@ -103,7 +105,7 @@ func New(
 	controller.logger.Log("info", "Setting up event handlers")
 
 	// --------------------------------------------------------------------
-	// ----- EVENT HANDLERS for FluxHelmRelease resources change ---------
+	// ----- EVENT HANDLERS for FluxHelmResource resources change ---------
 	fhrInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(new interface{}) {
 			controller.logger.Log("info", "ADDING release")
@@ -114,6 +116,7 @@ func New(
 		},
 		UpdateFunc: func(old, new interface{}) {
 			controller.enqueueUpateJob(old, new)
+
 		},
 		DeleteFunc: func(old interface{}) {
 			fhr, ok := checkCustomResourceType(controller.logger, old)
@@ -134,6 +137,7 @@ func New(
 func (c *Controller) Run(threadiness int, stopCh <-chan struct{}, wg *sync.WaitGroup) error {
 	defer runtime.HandleCrash()
 	defer c.releaseWorkqueue.ShutDown()
+	defer wg.Done()
 
 	c.logger.Log("info", "Starting operator")
 	// Wait for the caches to be synced before starting workers
@@ -147,14 +151,10 @@ func (c *Controller) Run(threadiness int, stopCh <-chan struct{}, wg *sync.WaitG
 
 	c.logger.Log("info", "Starting workers")
 	for i := 0; i < threadiness; i++ {
-		wg.Add(1)
 		go wait.Until(c.runWorker, time.Second, stopCh)
 	}
 
 	<-stopCh
-	for i := 0; i < threadiness; i++ {
-		wg.Done()
-	}
 	c.logger.Log("info", "Stopping workers")
 
 	return nil
@@ -207,7 +207,7 @@ func (c *Controller) processNextWorkItem() bool {
 			return nil
 		}
 		// Run the syncHandler, passing it the namespace/name string of the
-		// FluxHelmRelease resource to sync the corresponding Chart release.
+		// FluxHelmResource resource to sync the corresponding Chart release.
 		// If the sync failed, then we return while the item will get requeued
 		if err := c.syncHandler(key); err != nil {
 			return fmt.Errorf("error syncing '%s': %s", key, err.Error())
@@ -243,11 +243,11 @@ func (c *Controller) syncHandler(key string) error {
 	}
 
 	// Custom Resource fhr contains all information we need to know about the Chart release
-	fhr, err := c.fhrLister.FluxHelmReleases(namespace).Get(name)
+	fhr, err := c.fhrLister.FluxHelmResources(namespace).Get(name)
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
-			c.logger.Log("info", fmt.Sprintf("FluxHelmRelease '%s' referred to in work queue no longer exists", key))
-			runtime.HandleError(fmt.Errorf("FluxHelmRelease '%s' referred to in work queue no longer exists", key))
+			c.logger.Log("info", fmt.Sprintf("Fluxhelmresource '%s' referred to in work queue no longer exists", key))
+			runtime.HandleError(fmt.Errorf("Fluxhelmresource '%s' referred to in work queue no longer exists", key))
 			return nil
 		}
 		c.logger.Log("error", err.Error())
@@ -270,24 +270,21 @@ func (c *Controller) syncHandler(key string) error {
 	}
 
 	// Chart installation of the appropriate type
-	_, err = c.release.Install(c.release.Repo.ConfigSync, releaseName, *fhr, syncType, false)
+	_, err = c.release.Install(c.release.Repo.ChartsSync, releaseName, *fhr, syncType, false)
 	if err != nil {
 		return err
 	}
-
-	// TODO : bring the  ChartsChangesCloneCurr uptodate
-	//		needs locking because of chart syncing possibly kicking in simultaneously
 
 	c.recorder.Event(fhr, corev1.EventTypeNormal, ChartSynced, MessageChartSynced)
 	return nil
 }
 
-func checkCustomResourceType(logger log.Logger, obj interface{}) (ifv1.FluxHelmRelease, bool) {
-	var fhr *ifv1.FluxHelmRelease
+func checkCustomResourceType(logger log.Logger, obj interface{}) (ifv1.FluxHelmResource, bool) {
+	var fhr *ifv1.FluxHelmResource
 	var ok bool
-	if fhr, ok = obj.(*ifv1.FluxHelmRelease); !ok {
-		logger.Log("error", fmt.Sprintf("FluxHelmRelease Event Watch received an invalid object: %#v", obj))
-		return ifv1.FluxHelmRelease{}, false
+	if fhr, ok = obj.(*ifv1.FluxHelmResource); !ok {
+		logger.Log("error", fmt.Sprintf("FluxHelmResource Event Watch received an invalid object: %#v", obj))
+		return ifv1.FluxHelmResource{}, false
 	}
 	return *fhr, true
 }
@@ -303,9 +300,9 @@ func getCacheKey(obj interface{}) (string, error) {
 	return key, nil
 }
 
-// enqueueJob takes a FluxHelmRelease resource and converts it into a namespace/name
+// enqueueJob takes a FluxHelmResource resource and converts it into a namespace/name
 // string which is then put onto the work queue. This method should not be
-// passed resources of any type other than FluxHelmRelease.
+// passed resources of any type other than FluxHelmResource.
 func (c *Controller) enqueueJob(obj interface{}) {
 	var key string
 	var err error
@@ -336,7 +333,7 @@ func (c *Controller) enqueueUpateJob(old, new interface{}) {
 	}
 }
 
-func (c *Controller) deleteRelease(fhr ifv1.FluxHelmRelease) {
+func (c *Controller) deleteRelease(fhr ifv1.FluxHelmResource) {
 	c.logger.Log("info", "DELETING release")
 	name := chartrelease.GetReleaseName(fhr)
 	err := c.release.Delete(name)

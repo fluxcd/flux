@@ -18,12 +18,11 @@ import (
 )
 
 const (
-	DefaultCloneTimeout    = 2 * time.Minute
-	DefaultPullTimeout     = 2 * time.Minute
-	privateKeyFileMode     = os.FileMode(0400)
-	FhrsChangesClone       = "fhrs_sync_clone"
-	ChartsChangesCloneCurr = "charts_sync_clone_old"
-	ChartsChangesCloneNew  = "charts_sync_clone_new"
+	DefaultCloneTimeout = 2 * time.Minute
+	DefaultPullTimeout  = 2 * time.Minute
+	privateKeyFileMode  = os.FileMode(0400)
+	FhrsChangesClone    = "fhrs_sync_gitclone"
+	ChartsChangesClone  = "charts_sync_gitclone"
 )
 
 var (
@@ -85,18 +84,21 @@ func NewCheckout(logger log.Logger, config GitRemoteConfig, auth *gitssh.PublicK
 //																		* acting on Charts changes (syncing the cluster when there were only commits
 //																		  in the Charts parts of the repo which did not trigger Custom Resource changes)
 func (ch *Checkout) Clone(ctx context.Context, cloneSubdir string) error {
+	fmt.Println("*** cloning")
 	ch.Lock()
 	defer ch.Unlock()
 
 	if ch.Config.URL == "" {
 		return ErrNoRepo
 	}
+	//fmt.Println("\t\tstage 1")
 
 	repoDir, err := ioutil.TempDir(os.TempDir(), cloneSubdir)
 	if err != nil {
 		return err
 	}
 	ch.Dir = repoDir
+	//fmt.Println("\t\tstage 2")
 
 	repo, err := gogit.PlainClone(repoDir, false, &gogit.CloneOptions{
 		URL:  ch.Config.URL,
@@ -105,11 +107,13 @@ func (ch *Checkout) Clone(ctx context.Context, cloneSubdir string) error {
 	if err != nil {
 		return err
 	}
+	//fmt.Println("\t\tstage 3")
 
 	wt, err := repo.Worktree()
 	if err != nil {
 		return err
 	}
+	//fmt.Println("\t\tstage 4")
 
 	br := ch.Config.Branch
 	err = wt.Checkout(&gogit.CheckoutOptions{
@@ -118,6 +122,7 @@ func (ch *Checkout) Clone(ctx context.Context, cloneSubdir string) error {
 	if err != nil {
 		return err
 	}
+	//fmt.Println("\t\tstage 5")
 
 	ch.Repo = repo
 	ch.worktree = wt
@@ -129,6 +134,7 @@ func (ch *Checkout) Clone(ctx context.Context, cloneSubdir string) error {
 
 // Cleanup ... removes the temp repo directory
 func (ch *Checkout) Cleanup() {
+	fmt.Println("*** cleanup")
 	ch.Lock()
 	defer ch.Unlock()
 
@@ -174,6 +180,7 @@ func GetRepoAuth(k8sSecretVolumeMountPath, k8sSecretDataKey string) (*gitssh.Pub
 
 // Pull ... makes a git pull
 func (ch *Checkout) Pull(ctx context.Context) error {
+	fmt.Println("*** pulling")
 	ch.Lock()
 	defer ch.Unlock()
 
