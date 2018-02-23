@@ -1,7 +1,6 @@
 package release
 
 import (
-	"context"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -34,21 +33,20 @@ type Release struct {
 }
 
 type repo struct {
-	ConfigSync *helmgit.Checkout
-	ChartsSync *helmgit.Checkout
+	charts *helmgit.Checkout
 }
 
 // New creates a new Release instance
-func New(logger log.Logger, helmClient *k8shelm.Client, configCheckout *helmgit.Checkout, chartsCheckout *helmgit.Checkout) *Release {
+func New(logger log.Logger, helmClient *k8shelm.Client, chartsCheckout *helmgit.Checkout) *Release {
 	repo := repo{
-		ConfigSync: configCheckout,
-		ChartsSync: chartsCheckout,
+		charts: chartsCheckout,
 	}
 	r := &Release{
-		logger:     logger,
+		logger:     log.With(logger, "component", "release"),
 		HelmClient: helmClient,
 		Repo:       repo,
 	}
+
 	return r
 }
 
@@ -60,9 +58,11 @@ func GetReleaseName(fhr ifv1.FluxHelmResource) string {
 		namespace = "default"
 	}
 	releaseName := fhr.Spec.ReleaseName
+	fmt.Printf("---> release name from fhr.Spec.ReleaseName: %s\n", releaseName)
 	if releaseName == "" {
 		releaseName = fmt.Sprintf("%s-%s", namespace, fhr.Name)
 	}
+	fmt.Printf("---> final release name: %s\n", releaseName)
 
 	return releaseName
 }
@@ -74,7 +74,7 @@ func GetReleaseName(fhr ifv1.FluxHelmResource) string {
 func (r *Release) Exists(name string) (bool, error) {
 	rls, err := r.HelmClient.ReleaseContent(name)
 	if err != nil {
-		//r.logger.Log("debug", fmt.Sprintf("Getting release (%s): %v", name, err))
+		r.logger.Log("info", fmt.Sprintf("Getting release (%s): %v", name, err))
 		return false, err
 	}
 	/*
@@ -89,9 +89,10 @@ func (r *Release) Exists(name string) (bool, error) {
 		"PENDING_ROLLBACK": 8,
 	*/
 	rst := rls.Release.Info.Status.GetCode()
-	r.logger.Log("info", fmt.Sprintf("Found release [%s] with status %s", name, rst.String()))
+	r.logger.Log("info", fmt.Sprintf("Release [%s] status: %#v", name, rst.String()))
 
 	if rst == 1 || rst == 4 {
+		r.logger.Log("info", fmt.Sprintf("Release [%s] status: %#v", name, rst.String()))
 		return true, nil
 	}
 	return true, fmt.Errorf("Release [%s] exists with status: %s", name, rst.String())
@@ -99,8 +100,9 @@ func (r *Release) Exists(name string) (bool, error) {
 
 func (r *Release) canDelete(name string) (bool, error) {
 	rls, err := r.HelmClient.ReleaseStatus(name)
+	r.logger.Log("info", fmt.Sprintf("+++  2 release status = %#v", rls))
 	if err != nil {
-		r.logger.Log("error", fmt.Sprintf("Error finding status for release (%s): %#v", name, err))
+		r.logger.Log("error", fmt.Sprintf("Error finding status for release (%s): %v", name, err))
 		return false, err
 	}
 	/*
@@ -115,7 +117,7 @@ func (r *Release) canDelete(name string) (bool, error) {
 		"PENDING_ROLLBACK": 8,
 	*/
 	status := rls.GetInfo().GetStatus()
-	r.logger.Log("info", fmt.Sprintf("Release [%s] status: %s", name, status.Code.String()))
+	r.logger.Log("info", fmt.Sprintf("Release [%s] status: %#v", name, status.Code.String()))
 	switch status.Code {
 	case 1, 4:
 		r.logger.Log("info", fmt.Sprintf("Deleting release (%s)", name))
@@ -131,7 +133,7 @@ func (r *Release) canDelete(name string) (bool, error) {
 
 // Install ... performs Chart release. Depending on the release type, this is either a new release,
 // or an upgrade of an existing one
-func (r *Release) Install(checkout *helmgit.Checkout, releaseName string, fhr ifv1.FluxHelmResource, releaseType ReleaseType, dryRun bool) (hapi_release.Release, error) {
+func (r *Release) Install(releaseName string, fhr ifv1.FluxHelmResource, releaseType ReleaseType) (hapi_release.Release, error) {
 	r.Lock()
 	defer r.Unlock()
 
@@ -148,16 +150,13 @@ func (r *Release) Install(checkout *helmgit.Checkout, releaseName string, fhr if
 		namespace = "default"
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), helmgit.DefaultCloneTimeout)
-	err := checkout.Pull(ctx)
-	cancel()
+	err := r.Repo.charts.Pull()
 	if err != nil {
-		errm := fmt.Errorf("Failure to do git pull: %#v", err)
-		r.logger.Log("error", errm.Error())
-		return hapi_release.Release{}, errm
+		r.logger.Log("error", fmt.Sprintf("Failure to do git pull: %#v", err))
+		return hapi_release.Release{}, err
 	}
 
-	chartDir := filepath.Join(checkout.Dir, chartPath)
+	chartDir := filepath.Join(r.Repo.charts.Dir, chartPath)
 
 	rawVals, err := collectValues(fhr.Spec.Customizations)
 	if err != nil {
@@ -173,8 +172,8 @@ func (r *Release) Install(checkout *helmgit.Checkout, releaseName string, fhr if
 			namespace,
 			k8shelm.ValueOverrides(rawVals),
 			k8shelm.ReleaseName(releaseName),
-			k8shelm.InstallDryRun(dryRun),
 			/*
+				helm.InstallDryRun(i.dryRun),
 				helm.InstallReuseName(i.replace),
 				helm.InstallDisableHooks(i.disableHooks),
 				helm.InstallTimeout(i.timeout),
@@ -227,7 +226,12 @@ func (r *Release) Delete(name string) error {
 		return nil
 	}
 
-	_, err = r.HelmClient.DeleteRelease(name)
+	res, err := r.HelmClient.DeleteRelease(name)
+	fmt.Sprintf("===> res: %#v\n\n", res)
+	if res != nil {
+		fmt.Sprintf("===> res.GetRelease: %#v\n\n", res.GetRelease())
+	}
+
 	if err != nil {
 		r.logger.Log("error", fmt.Sprintf("Release deletion error: %#v", err))
 		return err
@@ -268,5 +272,12 @@ func collectValues(params []ifv1.HelmChartParam) ([]byte, error) {
 		base[k] = v
 	}
 
+	fmt.Printf("Values string slice ... %#v\n\n", base)
 	return yaml.Marshal(base)
+}
+
+func (r *Release) tillerCheck(err error) {
+	//if _, ok := err.(context.deadlineExceededError; ok {
+
+	//}
 }
