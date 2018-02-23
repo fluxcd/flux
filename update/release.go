@@ -127,6 +127,10 @@ func (s ReleaseSpec) filters(rc ReleaseContext) ([]ControllerFilter, []Controlle
 			ids = []flux.ResourceID{}
 			break
 		}
+		if ns := ParseResourceSpecNamespace(string(s)); ns != "" {
+			prefilters = append(prefilters, &NamespaceFilter{Namespace: ns})
+			break
+		}
 		id, err := flux.ParseResourceID(string(s))
 		if err != nil {
 			return nil, nil, err
@@ -297,6 +301,18 @@ func (s ReleaseSpec) calculateImageUpdates(rc ReleaseContext, candidates []*Cont
 }
 
 type ResourceSpec string // ResourceID or "<all>"
+
+func MakeResourceSpecNamespace(namespace string) ResourceSpec {
+	return ResourceSpec(fmt.Sprintf("%s/*", namespace))
+}
+
+func ParseResourceSpecNamespace(s string) string {
+	if strings.HasSuffix(s, "/*") {
+		return s[0 : len(s)-2]
+	}
+
+	return ""
+}
 
 func ParseResourceSpec(s string) (ResourceSpec, error) {
 	if s == string(ResourceSpecAll) {

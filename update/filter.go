@@ -8,6 +8,7 @@ import (
 const (
 	Locked          = "locked"
 	NotIncluded     = "not included"
+	OtherNamespace  = "other namespace"
 	Excluded        = "excluded"
 	DifferentImage  = "a different image"
 	NotInCluster    = "not running in cluster"
@@ -90,4 +91,19 @@ func (f *LockedFilter) Filter(u ControllerUpdate) ControllerResult {
 		}
 	}
 	return ControllerResult{}
+}
+
+type NamespaceFilter struct {
+	Namespace string
+}
+
+func (f *NamespaceFilter) Filter(u ControllerUpdate) ControllerResult {
+	ns, _, _ := u.ResourceID.Components()
+	if ns == f.Namespace {
+		return ControllerResult{}
+	}
+	return ControllerResult{
+		Status: ReleaseStatusIgnored,
+		Error:  OtherNamespace,
+	}
 }
