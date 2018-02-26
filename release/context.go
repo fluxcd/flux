@@ -39,8 +39,6 @@ func (rc *ReleaseContext) Manifests() cluster.Manifests {
 }
 
 func (rc *ReleaseContext) WriteUpdates(updates []*update.ControllerUpdate) error {
-	rc.repo.Lock()
-	defer rc.repo.Unlock()
 	err := func() error {
 		for _, update := range updates {
 			fi, err := os.Stat(update.ManifestPath)
@@ -121,8 +119,6 @@ func (rc *ReleaseContext) SelectServices(results update.Result, prefilters, post
 }
 
 func (rc *ReleaseContext) FindDefinedServices() (map[flux.ResourceID]*update.ControllerUpdate, error) {
-	rc.repo.RLock()
-	defer rc.repo.RUnlock()
 	services, err := rc.manifests.FindDefinedServices(rc.repo.ManifestDir())
 	if err != nil {
 		return nil, err
@@ -150,7 +146,5 @@ func (rc *ReleaseContext) FindDefinedServices() (map[flux.ResourceID]*update.Con
 
 // Shortcut for this
 func (rc *ReleaseContext) ServicesWithPolicies() (policy.ResourceMap, error) {
-	rc.repo.RLock()
-	defer rc.repo.RUnlock()
 	return rc.manifests.ServicesWithPolicies(rc.repo.ManifestDir())
 }

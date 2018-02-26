@@ -229,7 +229,7 @@ func (d *Daemon) doSync(logger log.Logger) (retErr error) {
 		changedResources = allResources
 	} else {
 		ctx, cancel := context.WithTimeout(ctx, gitOpTimeout)
-		changedFiles, err := working.ChangedFiles(ctx, working.SyncTag)
+		changedFiles, err := working.ChangedFiles(ctx, oldTagRev)
 		if err == nil {
 			// We had some changed files, we're syncing a diff
 			changedResources, err = d.Manifests.LoadManifests(changedFiles...)
@@ -374,7 +374,7 @@ func (d *Daemon) doSync(logger log.Logger) (retErr error) {
 	// Move the tag and push it so we know how far we've gotten.
 	{
 		ctx, cancel := context.WithTimeout(ctx, gitOpTimeout)
-		err := working.MoveTagAndPush(ctx, "HEAD", "Sync pointer")
+		err := working.MoveSyncTagAndPush(ctx, newTagRev, "Sync pointer")
 		cancel()
 		if err != nil {
 			return err
@@ -382,7 +382,7 @@ func (d *Daemon) doSync(logger log.Logger) (retErr error) {
 	}
 
 	if oldTagRev != newTagRev {
-		logger.Log("tag", working.SyncTag, "old", oldTagRev, "new", newTagRev)
+		logger.Log("tag", d.GitConfig.SyncTag, "old", oldTagRev, "new", newTagRev)
 		ctx, cancel := context.WithTimeout(ctx, gitOpTimeout)
 		err := d.Repo.Refresh(ctx)
 		cancel()

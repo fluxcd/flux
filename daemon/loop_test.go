@@ -152,7 +152,7 @@ func TestDoSync_NoNewCommits(t *testing.T) {
 	err := d.WithClone(ctx, func(co *git.Checkout) error {
 		ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 		defer cancel()
-		return co.MoveTagAndPush(ctx, "HEAD", "Sync pointer")
+		return co.MoveSyncTagAndPush(ctx, "HEAD", "Sync pointer")
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -223,7 +223,7 @@ func TestDoSync_WithNewCommit(t *testing.T) {
 		defer cancel()
 
 		var err error
-		err = checkout.MoveTagAndPush(ctx, "HEAD", "Sync pointer")
+		err = checkout.MoveSyncTagAndPush(ctx, "HEAD", "Sync pointer")
 		if err != nil {
 			return err
 		}
