@@ -45,7 +45,7 @@ func (r *Repo) Clone(ctx context.Context, conf Config) (*Checkout, error) {
 	upstream := r.Origin()
 	repoDir, err := r.workingClone(ctx, conf.Branch)
 	if err != nil {
-		return nil, CloningError(upstream.URL, err)
+		return nil, err
 	}
 
 	if err := config(ctx, repoDir, conf.UserName, conf.UserEmail); err != nil {
