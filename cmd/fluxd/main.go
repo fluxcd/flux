@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"strconv"
 	"sync"
 	"syscall"
 	"time"
@@ -15,15 +16,12 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/pflag"
-	"github.com/weaveworks/go-checkpoint"
 	k8sclient "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 
-	"github.com/weaveworks/flux/api/v6"
 	"github.com/weaveworks/flux/cluster"
 	"github.com/weaveworks/flux/cluster/kubernetes"
 	"github.com/weaveworks/flux/daemon"
-	"github.com/weaveworks/flux/event"
 	"github.com/weaveworks/flux/git"
 	transport "github.com/weaveworks/flux/http"
 	"github.com/weaveworks/flux/http/client"
@@ -278,40 +276,6 @@ func main() {
 		}
 	}
 
-	// Indirect reference to a daemon, initially of the NotReady variety
-	notReadyDaemon := daemon.NewNotReadyDaemon(version, k8s, v6.GitRemoteConfig{
-		URL:    *gitURL,
-		Branch: *gitBranch,
-		Path:   *gitPath,
-	})
-	daemonRef := daemon.NewRef(notReadyDaemon)
-
-	var eventWriter event.EventWriter
-	{
-		// Connect to fluxsvc if given an upstream address
-		if *upstreamURL != "" {
-			upstreamLogger := log.With(logger, "component", "upstream")
-			upstreamLogger.Log("URL", *upstreamURL)
-			upstream, err := daemonhttp.NewUpstream(
-				&http.Client{Timeout: 10 * time.Second},
-				fmt.Sprintf("fluxd/%v", version),
-				client.Token(*token),
-				transport.NewUpstreamRouter(),
-				*upstreamURL,
-				remote.NewErrorLoggingUpstreamServer(daemonRef, upstreamLogger),
-				upstreamLogger,
-			)
-			if err != nil {
-				logger.Log("err", err)
-				os.Exit(1)
-			}
-			eventWriter = upstream
-			defer upstream.Close()
-		} else {
-			logger.Log("upstream", "no upstream URL given")
-		}
-	}
-
 	// Mechanical components.
 
 	// When we can receive from this channel, it indicates that we
@@ -337,23 +301,13 @@ func main() {
 		shutdownWg.Wait()
 	}()
 
-	// HTTP transport component, for metrics
-	go func() {
-		mux := http.DefaultServeMux
-		mux.Handle("/metrics", promhttp.Handler())
-		handler := daemonhttp.NewHandler(daemonRef, daemonhttp.NewRouter())
-		mux.Handle("/api/flux/", http.StripPrefix("/api/flux", handler))
-		logger.Log("addr", *listenAddr)
-		errc <- http.ListenAndServe(*listenAddr, mux)
-	}()
-
 	// Checkpoint: we want to include the fact of whether the daemon
 	// was given a Git repo it could clone; but the expected scenario
 	// is that it will have been set up already, and we don't want to
 	// report anything before seeing if it works. So, don't start
 	// until we have failed or succeeded.
-	var checker *checkpoint.Checker
 	updateCheckLogger := log.With(logger, "component", "checkpoint")
+	checkForUpdates(clusterVersion, strconv.FormatBool(*gitURL != ""), updateCheckLogger)
 
 	gitRemote := git.Remote{URL: *gitURL}
 	gitConfig := git.Config{
@@ -368,47 +322,23 @@ func main() {
 
 	repo := git.NewRepo(gitRemote)
 	{
-
-		// If there's no URL here, we will not be able to do anything else.
-		if gitRemote.URL == "" {
-			checker = checkForUpdates(clusterVersion, "false", updateCheckLogger)
-			return
-		}
-
 		shutdownWg.Add(1)
 		go func() {
-			errc <- repo.Start(shutdown, shutdownWg)
+			err := repo.Start(shutdown, shutdownWg)
+			if err != nil {
+				errc <- err
+			}
 		}()
-		for {
-			status, err := repo.Status()
-			logger.Log("repo", repo.Origin().URL, "status", status, "err", err)
-			notReadyDaemon.UpdateStatus(status, err)
-
-			if status == git.RepoReady {
-				checker = checkForUpdates(clusterVersion, "true", updateCheckLogger)
-				logger.Log("working-dir", repo.Dir(),
-					"user", *gitUser,
-					"email", *gitEmail,
-					"sync-tag", *gitSyncTag,
-					"notes-ref", *gitNotesRef,
-					"set-author", *gitSetAuthor)
-				break
-			}
-
-			if checker == nil {
-				checker = checkForUpdates(clusterVersion, "false", updateCheckLogger)
-			}
-
-			tryAgain := time.NewTimer(10 * time.Second)
-			select {
-			case err := <-errc:
-				go func() { errc <- err }()
-				return
-			case <-tryAgain.C:
-				continue
-			}
-		}
 	}
+
+	logger.Log(
+		"url", *gitURL,
+		"user", *gitUser,
+		"email", *gitEmail,
+		"sync-tag", *gitSyncTag,
+		"notes-ref", *gitNotesRef,
+		"set-author", *gitSetAuthor,
+	)
 
 	var jobs *job.Queue
 	{
@@ -425,12 +355,36 @@ func main() {
 		GitConfig:      gitConfig,
 		Jobs:           jobs,
 		JobStatusCache: &job.StatusCache{Size: 100},
-
-		EventWriter: eventWriter,
-		Logger:      log.With(logger, "component", "daemon"), LoopVars: &daemon.LoopVars{
+		Logger:         log.With(logger, "component", "daemon"),
+		LoopVars: &daemon.LoopVars{
 			SyncInterval:         *gitPollInterval,
 			RegistryPollInterval: *registryPollInterval,
 		},
+	}
+
+	{
+		// Connect to fluxsvc if given an upstream address
+		if *upstreamURL != "" {
+			upstreamLogger := log.With(logger, "component", "upstream")
+			upstreamLogger.Log("URL", *upstreamURL)
+			upstream, err := daemonhttp.NewUpstream(
+				&http.Client{Timeout: 10 * time.Second},
+				fmt.Sprintf("fluxd/%v", version),
+				client.Token(*token),
+				transport.NewUpstreamRouter(),
+				*upstreamURL,
+				remote.NewErrorLoggingUpstreamServer(daemon, upstreamLogger),
+				upstreamLogger,
+			)
+			if err != nil {
+				logger.Log("err", err)
+				os.Exit(1)
+			}
+			daemon.EventWriter = upstream
+			defer upstream.Close()
+		} else {
+			logger.Log("upstream", "no upstream URL given")
+		}
 	}
 
 	shutdownWg.Add(1)
@@ -441,8 +395,14 @@ func main() {
 	shutdownWg.Add(1)
 	go cacheWarmer.Loop(log.With(logger, "component", "warmer"), shutdown, shutdownWg, imageCreds)
 
-	// Update daemonRef so that upstream and handlers point to fully working daemon
-	daemonRef.UpdateServer(daemon)
+	go func() {
+		mux := http.DefaultServeMux
+		mux.Handle("/metrics", promhttp.Handler())
+		handler := daemonhttp.NewHandler(daemon, daemonhttp.NewRouter())
+		mux.Handle("/api/flux/", http.StripPrefix("/api/flux", handler))
+		logger.Log("addr", *listenAddr)
+		errc <- http.ListenAndServe(*listenAddr, mux)
+	}()
 
 	// Fall off the end, into the waiting procedure.
 }

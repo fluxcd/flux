@@ -21,7 +21,7 @@ const (
 var (
 	ErrNoChanges = errors.New("no changes made in repo")
 	ErrNotReady  = errors.New("git repo not ready")
-	ErrNoConfig  = errors.New("git repo has not valid config")
+	ErrNoConfig  = errors.New("git repo does not have valid config")
 )
 
 // GitRepoStatus represents the progress made synchronising with a git
@@ -114,7 +114,7 @@ func (r *Repo) Revision(ctx context.Context, ref string) (string, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	if r.dir == "" {
-		return "", errors.New("git repo not initialised")
+		return "", ErrNotReady
 	}
 	return refRevision(ctx, r.dir, ref)
 }
@@ -122,12 +122,18 @@ func (r *Repo) Revision(ctx context.Context, ref string) (string, error) {
 func (r *Repo) CommitsBefore(ctx context.Context, ref, path string) ([]Commit, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
+	if r.dir == "" {
+		return nil, ErrNotReady
+	}
 	return onelinelog(ctx, r.dir, ref, path)
 }
 
 func (r *Repo) CommitsBetween(ctx context.Context, ref1, ref2, path string) ([]Commit, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
+	if r.dir == "" {
+		return nil, ErrNotReady
+	}
 	return onelinelog(ctx, r.dir, ref1+".."+ref2, path)
 }
 
@@ -270,6 +276,9 @@ func (r *Repo) fetch(ctx context.Context) error {
 func (r *Repo) workingClone(ctx context.Context, ref string) (string, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
+	if r.dir == "" {
+		return "", ErrNotReady
+	}
 	working, err := ioutil.TempDir(os.TempDir(), "flux-working")
 	if err != nil {
 		return "", err
