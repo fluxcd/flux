@@ -174,8 +174,13 @@ func (d *Daemon) doSync(logger log.Logger) (retErr error) {
 	}
 
 	// For comparison later.
-	oldTagRev, err := working.TagRevision(ctx, working.Config.SyncTag)
+	oldTagRev, err := working.SyncRevision(ctx)
 	if err != nil && !isUnknownRevision(err) {
+		return err
+	}
+
+	newTagRev, err := working.HeadRevision(ctx)
+	if err != nil {
 		return err
 	}
 
@@ -204,11 +209,11 @@ func (d *Daemon) doSync(logger log.Logger) (retErr error) {
 	{
 		var err error
 		ctx, cancel := context.WithTimeout(ctx, gitOpTimeout)
-		commits, err = d.Repo.CommitsBetween(ctx, working.SyncTag, "HEAD", d.GitConfig.Path)
-		if isUnknownRevision(err) {
-			// No sync tag, grab all revisions
+		if oldTagRev != "" {
+			commits, err = d.Repo.CommitsBetween(ctx, oldTagRev, newTagRev, d.GitConfig.Path)
+		} else {
 			initialSync = true
-			commits, err = d.Repo.CommitsBefore(ctx, "HEAD", d.GitConfig.Path)
+			commits, err = d.Repo.CommitsBefore(ctx, newTagRev, d.GitConfig.Path)
 		}
 		cancel()
 		if err != nil {
@@ -376,10 +381,6 @@ func (d *Daemon) doSync(logger log.Logger) (retErr error) {
 		}
 	}
 
-	newTagRev, err := working.TagRevision(ctx, working.SyncTag)
-	if err != nil {
-		return err
-	}
 	if oldTagRev != newTagRev {
 		logger.Log("tag", working.SyncTag, "old", oldTagRev, "new", newTagRev)
 		ctx, cancel := context.WithTimeout(ctx, gitOpTimeout)

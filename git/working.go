@@ -139,16 +139,16 @@ func (c *Checkout) HeadRevision(ctx context.Context) (string, error) {
 	return refRevision(ctx, c.Dir, "HEAD")
 }
 
-func (c *Checkout) TagRevision(ctx context.Context, tag string) (string, error) {
+func (c *Checkout) SyncRevision(ctx context.Context) (string, error) {
 	c.RLock()
 	defer c.RUnlock()
-	return refRevision(ctx, c.Dir, tag)
+	return refRevision(ctx, c.Dir, c.SyncTag)
 }
 
 func (c *Checkout) MoveTagAndPush(ctx context.Context, ref, msg string) error {
 	c.Lock()
 	defer c.Unlock()
-	return moveTagAndPush(ctx, c.Dir, c.Config.SyncTag, ref, msg, c.upstream.URL)
+	return moveTagAndPush(ctx, c.Dir, c.SyncTag, ref, msg, c.upstream.URL)
 }
 
 // ChangedFiles does a git diff listing changed files
