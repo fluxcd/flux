@@ -188,20 +188,7 @@ var gitconf = git.Config{
 }
 
 func setup(t *testing.T) (*git.Checkout, func()) {
-	// All the mocks, mockity mock.
-	repo, cleanupRepo := gittest.Repo(t)
-
-	// Clone the repo so we can mess with the files
-	working, err := repo.Clone(context.Background(), gitconf)
-	if err != nil {
-		t.Fatal(err)
-	}
-	cleanup := func() {
-		cleanupRepo()
-		working.Clean()
-	}
-
-	return working, cleanup
+	return gittest.Checkout(t)
 }
 
 func execCommand(cmd string, args ...string) error {

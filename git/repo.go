@@ -4,7 +4,6 @@ import (
 	"errors"
 	"io/ioutil"
 	"os"
-	"path/filepath"
 	"sync"
 
 	"context"
@@ -14,253 +13,256 @@ import (
 )
 
 const (
+	interval  = 5 * time.Minute
+	opTimeout = 20 * time.Second
+
 	DefaultCloneTimeout = 2 * time.Minute
 	CheckPushTag        = "flux-write-check"
 )
 
 var (
 	ErrNoChanges = errors.New("no changes made in repo")
+	ErrNotReady  = errors.New("git repo not ready")
+	ErrNoConfig  = errors.New("git repo has not valid config")
 )
 
-// Repo represents a (remote) git repo.
+// Remote points at a git repo somewhere.
+type Remote struct {
+	URL string // clone from here
+}
+
 type Repo struct {
-	flux.GitRemoteConfig
+	// As supplied to constructor
+	origin Remote
+
+	// State
+	mu     sync.RWMutex
+	status flux.GitRepoStatus
+	err    error
+	dir    string
+
+	notify chan struct{}
+	C      chan struct{}
 }
 
-// Checkout is a local clone of the remote repo.
-type Checkout struct {
-	repo Repo
-	Dir  string
-	Config
-	realNotesRef string
-	sync.RWMutex
+// NewRepo constructs a repo mirror which will sync itself.
+func NewRepo(origin Remote) *Repo {
+	r := &Repo{
+		origin: origin,
+		status: flux.RepoNew,
+		err:    nil,
+		notify: make(chan struct{}, 1), // `1` so that Notify doesn't block
+		C:      make(chan struct{}, 1), // `1` so we don't block on completing a refresh
+	}
+	return r
 }
 
-// Config holds some values we use when working in the local copy of
-// the repo
-type Config struct {
-	SyncTag   string
-	NotesRef  string
-	UserName  string
-	UserEmail string
-	SetAuthor bool
+// Origin returns the Remote with which the Repo was constructed.
+func (r *Repo) Origin() Remote {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return r.origin
 }
 
-type Commit struct {
-	Revision string
-	Message  string
+// Dir returns the local directory into which the repo has been
+// cloned, if it has been cloned.
+func (r *Repo) Dir() string {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return r.dir
 }
 
-// CommitAction - struct holding commit information
-type CommitAction struct {
-	Author  string
-	Message string
+// Status reports that readiness status of this Git repo: whether it
+// has been cloned, whether it is writable, and if not, the error
+// stopping it getting to the next state.
+func (r *Repo) Status() (flux.GitRepoStatus, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return r.status, r.err
 }
 
-// Get a local clone of the upstream repo, and use the config given.
-func (r Repo) Clone(ctx context.Context, c Config) (*Checkout, error) {
-	if r.URL == "" {
-		return nil, NoRepoError
-	}
-
-	workingDir, err := ioutil.TempDir(os.TempDir(), "flux-gitclone")
-	if err != nil {
-		return nil, err
-	}
-
-	repoDir, err := clone(ctx, workingDir, r.URL, r.Branch)
-	if err != nil {
-		return nil, CloningError(r.URL, err)
-	}
-
-	if err := config(ctx, repoDir, c.UserName, c.UserEmail); err != nil {
-		return nil, err
-	}
-
-	notesRef, err := getNotesRef(ctx, repoDir, c.NotesRef)
-	if err != nil {
-		return nil, err
-	}
-
-	// this fetches and updates the local ref, so we'll see notes
-	if err := fetch(ctx, repoDir, r.URL, notesRef+":"+notesRef); err != nil {
-		return nil, err
-	}
-
-	return &Checkout{
-		repo:         r,
-		Dir:          repoDir,
-		Config:       c,
-		realNotesRef: notesRef,
-	}, nil
+func (r *Repo) setStatus(s flux.GitRepoStatus, err error) {
+	r.mu.Lock()
+	r.status = s
+	r.err = err
+	r.mu.Unlock()
 }
 
-// WorkingClone makes a(nother) clone of the repository to use for
-// e.g., rewriting files, so we can keep a pristine clone for reading
-// out of.
-func (c *Checkout) WorkingClone(ctx context.Context) (*Checkout, error) {
-	c.Lock()
-	defer c.Unlock()
-	workingDir, err := ioutil.TempDir(os.TempDir(), "flux-working")
-	if err != nil {
-		return nil, err
-	}
-
-	repoDir, err := clone(ctx, workingDir, c.Dir, c.repo.Branch)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := config(ctx, repoDir, c.UserName, c.UserEmail); err != nil {
-		return nil, err
-	}
-
-	// this fetches and updates the local ref, so we'll see notes
-	if err := fetch(ctx, repoDir, c.Dir, c.realNotesRef+":"+c.realNotesRef); err != nil {
-		return nil, err
-	}
-
-	return &Checkout{
-		repo:         c.repo,
-		Dir:          repoDir,
-		Config:       c.Config,
-		realNotesRef: c.realNotesRef,
-	}, nil
-}
-
-// Clean a Checkout up (remove the clone)
-func (c *Checkout) Clean() {
-	if c.Dir != "" {
-		os.RemoveAll(c.Dir)
+// Notify tells the repo that it should fetch from the origin as soon
+// as possible. It does not block.
+func (r *Repo) Notify() {
+	select {
+	case r.notify <- struct{}{}:
+		// duly notified
+	default:
+		// notification already pending
 	}
 }
 
-// ManifestDir returns a path to where the files are
-func (c *Checkout) ManifestDir() string {
-	return filepath.Join(c.Dir, c.repo.Path)
+// Revision returns the revision (SHA1) of the ref passed in
+func (r *Repo) Revision(ctx context.Context, ref string) (string, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	if r.dir == "" {
+		return "", errors.New("git repo not initialised")
+	}
+	return refRevision(ctx, r.dir, ref)
 }
 
-// CheckOriginWritable tests that we can write to the origin
-// repository; we need to be able to do this to push the sync tag, for
-// example.
-func (c *Checkout) CheckOriginWritable(ctx context.Context) error {
-	c.Lock()
-	defer c.Unlock()
-	if err := checkPush(ctx, c.Dir, c.repo.URL); err != nil {
-		return ErrUpstreamNotWritable(c.repo.URL, err)
+func (r *Repo) CommitsBefore(ctx context.Context, ref, path string) ([]Commit, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return onelinelog(ctx, r.dir, ref, path)
+}
+
+func (r *Repo) CommitsBetween(ctx context.Context, ref1, ref2, path string) ([]Commit, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return onelinelog(ctx, r.dir, ref1+".."+ref2, path)
+}
+
+// Start begins synchronising the repo by cloning it, then fetching
+// the required tags and so on.
+func (r *Repo) Start(shutdown <-chan struct{}, done *sync.WaitGroup) error {
+	defer done.Done()
+
+	for {
+
+		r.mu.RLock()
+		url := r.origin.URL
+		dir := r.dir
+		status := r.status
+		r.mu.RUnlock()
+
+		bg := context.Background()
+
+		switch status {
+
+		// TODO(michael): I don't think this is a real status; perhaps
+		// have a no-op repo instead.
+		case flux.RepoNoConfig:
+			// this is not going to change in the lifetime of this
+			// process
+			return ErrNoConfig
+		case flux.RepoNew:
+
+			rootdir, err := ioutil.TempDir(os.TempDir(), "flux-gitclone")
+			if err != nil {
+				return err
+			}
+
+			ctx, cancel := context.WithTimeout(bg, opTimeout)
+			dir, err = mirror(ctx, rootdir, url)
+			cancel()
+			if err == nil {
+				r.mu.Lock()
+				r.dir = dir
+				ctx, cancel := context.WithTimeout(bg, opTimeout)
+				err = r.fetch(ctx)
+				cancel()
+				r.mu.Unlock()
+			}
+			if err == nil {
+				r.setStatus(flux.RepoCloned, nil)
+				continue // with new status, skipping timer
+			}
+			dir = ""
+			os.RemoveAll(rootdir)
+			r.setStatus(flux.RepoNew, err)
+
+		case flux.RepoCloned:
+			ctx, cancel := context.WithTimeout(bg, opTimeout)
+			err := checkPush(ctx, dir, url)
+			cancel()
+			if err == nil {
+				r.setStatus(flux.RepoReady, nil)
+				continue // with new status, skipping timer
+			}
+			r.setStatus(flux.RepoCloned, err)
+
+		case flux.RepoReady:
+			if err := r.refreshLoop(shutdown); err != nil {
+				r.setStatus(flux.RepoNew, err)
+				continue // with new status, skipping timer
+			}
+		}
+
+		tryAgain := time.NewTimer(10 * time.Second)
+		select {
+		case <-shutdown:
+			if !tryAgain.Stop() {
+				<-tryAgain.C
+			}
+			return nil
+		case <-tryAgain.C:
+			continue
+		}
+	}
+}
+
+func (r *Repo) Refresh(ctx context.Context) error {
+	// the lock here and below is difficult to avoid; possibly we
+	// could clone to another repo and pull there, then swap when complete.
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.status != flux.RepoReady {
+		return ErrNotReady
+	}
+	if err := r.fetch(ctx); err != nil {
+		return err
+	}
+	select {
+	case r.C <- struct{}{}:
+	default:
 	}
 	return nil
 }
 
-// CommitAndPush commits changes made in this checkout, along with any
-// extra data as a note, and pushes the commit and note to the remote repo.
-func (c *Checkout) CommitAndPush(ctx context.Context, commitAction *CommitAction, note *Note) error {
-	c.Lock()
-	defer c.Unlock()
-	if !check(ctx, c.Dir, c.repo.Path) {
-		return ErrNoChanges
-	}
-	if err := commit(ctx, c.Dir, commitAction); err != nil {
-		return err
-	}
-
-	if note != nil {
-		rev, err := refRevision(ctx, c.Dir, "HEAD")
-		if err != nil {
-			return err
+func (r *Repo) refreshLoop(shutdown <-chan struct{}) error {
+	gitPoll := time.NewTimer(interval)
+	for {
+		select {
+		case <-shutdown:
+			if !gitPoll.Stop() {
+				<-gitPoll.C
+			}
+			return nil
+		case <-gitPoll.C:
+			r.Notify()
+		case <-r.notify:
+			if !gitPoll.Stop() {
+				select {
+				case <-gitPoll.C:
+				default:
+				}
+			}
+			ctx, cancel := context.WithTimeout(context.Background(), interval)
+			err := r.Refresh(ctx)
+			cancel()
+			if err != nil {
+				return err
+			}
+			gitPoll.Reset(interval)
 		}
-		if err := addNote(ctx, c.Dir, rev, c.realNotesRef, note); err != nil {
-			return err
-		}
 	}
+}
 
-	refs := []string{c.repo.Branch}
-	ok, err := refExists(ctx, c.Dir, c.realNotesRef)
-	if ok {
-		refs = append(refs, c.realNotesRef)
-	} else if err != nil {
+// fetch gets updated refs, and associated objects, from the upstream.
+func (r *Repo) fetch(ctx context.Context) error {
+	if err := fetch(ctx, r.dir, "origin"); err != nil {
 		return err
-	}
-
-	if err := push(ctx, c.Dir, c.repo.URL, refs); err != nil {
-		return PushError(c.repo.URL, err)
 	}
 	return nil
 }
 
-// GetNote gets a note for the revision specified, or nil if there is no such note.
-func (c *Checkout) GetNote(ctx context.Context, rev string) (*Note, error) {
-	c.RLock()
-	defer c.RUnlock()
-	return getNote(ctx, c.Dir, c.realNotesRef, rev)
-}
-
-// Pull fetches the latest commits on the branch we're using, and the latest notes
-func (c *Checkout) Pull(ctx context.Context) error {
-	c.Lock()
-	defer c.Unlock()
-	if err := pull(ctx, c.Dir, c.repo.URL, c.repo.Branch); err != nil {
-		return err
+// workingClone makes a non-bare clone, at `ref` (probably a branch),
+// and returns the filesystem path to it.
+func (r *Repo) workingClone(ctx context.Context, ref string) (string, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	working, err := ioutil.TempDir(os.TempDir(), "flux-working")
+	if err != nil {
+		return "", err
 	}
-	for _, ref := range []string{
-		c.realNotesRef + ":" + c.realNotesRef,
-		c.SyncTag,
-	} {
-		// this fetches and updates the local ref, so we'll see the new
-		// notes; but it's possible that the upstream doesn't have this
-		// ref.
-		if err := fetch(ctx, c.Dir, c.repo.URL, ref); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (c *Checkout) HeadRevision(ctx context.Context) (string, error) {
-	c.RLock()
-	defer c.RUnlock()
-	return refRevision(ctx, c.Dir, "HEAD")
-}
-
-func (c *Checkout) TagRevision(ctx context.Context, tag string) (string, error) {
-	c.RLock()
-	defer c.RUnlock()
-	return refRevision(ctx, c.Dir, tag)
-}
-
-func (c *Checkout) CommitsBetween(ctx context.Context, ref1, ref2 string) ([]Commit, error) {
-	c.RLock()
-	defer c.RUnlock()
-	return onelinelog(ctx, c.Dir, ref1+".."+ref2, c.repo.GitRemoteConfig.Path)
-}
-
-func (c *Checkout) CommitsBefore(ctx context.Context, ref string) ([]Commit, error) {
-	c.RLock()
-	defer c.RUnlock()
-	return onelinelog(ctx, c.Dir, ref, c.repo.GitRemoteConfig.Path)
-}
-
-func (c *Checkout) MoveTagAndPush(ctx context.Context, ref, msg string) error {
-	c.Lock()
-	defer c.Unlock()
-	return moveTagAndPush(ctx, c.Dir, c.SyncTag, ref, msg, c.repo.URL)
-}
-
-// ChangedFiles does a git diff listing changed files
-func (c *Checkout) ChangedFiles(ctx context.Context, ref string) ([]string, error) {
-	c.Lock()
-	defer c.Unlock()
-	list, err := changedFiles(ctx, c.Dir, c.repo.Path, ref)
-	if err == nil {
-		for i, file := range list {
-			list[i] = filepath.Join(c.Dir, file)
-		}
-	}
-	return list, err
-}
-
-func (c *Checkout) NoteRevList(ctx context.Context) (map[string]struct{}, error) {
-	c.Lock()
-	defer c.Unlock()
-	return noteRevList(ctx, c.Dir, c.realNotesRef)
+	return clone(ctx, working, r.dir, ref)
 }

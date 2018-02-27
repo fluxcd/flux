@@ -26,6 +26,7 @@ import (
 )
 
 const (
+	gitPath     = ""
 	gitSyncTag  = "flux-sync"
 	gitNotesRef = "flux"
 	gitUser     = "Weave Flux"
@@ -39,15 +40,6 @@ var (
 
 func daemon(t *testing.T) (*Daemon, func()) {
 	repo, repoCleanup := gittest.Repo(t)
-	working, err := repo.Clone(context.Background(), git.Config{
-		SyncTag:   gitSyncTag,
-		NotesRef:  gitNotesRef,
-		UserName:  gitUser,
-		UserEmail: gitEmail,
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
 
 	k8s = &cluster.Mock{}
 	k8s.LoadManifestsFunc = kresource.Load
@@ -62,12 +54,26 @@ func daemon(t *testing.T) (*Daemon, func()) {
 
 	wg := &sync.WaitGroup{}
 	shutdown := make(chan struct{})
+
+	wg.Add(1)
+	go repo.Start(shutdown, wg)
+	gittest.WaitForRepoReady(repo, t)
+
+	gitConfig := git.Config{
+		Branch:    "master",
+		SyncTag:   gitSyncTag,
+		NotesRef:  gitNotesRef,
+		UserName:  gitUser,
+		UserEmail: gitEmail,
+	}
+
 	jobs := job.NewQueue(shutdown, wg)
 	d := &Daemon{
 		Cluster:        k8s,
 		Manifests:      k8s,
 		Registry:       &registryMock.Registry{},
-		Checkout:       working,
+		Repo:           repo,
+		GitConfig:      gitConfig,
 		Jobs:           jobs,
 		JobStatusCache: &job.StatusCache{Size: 100},
 		EventWriter:    events,
@@ -129,9 +135,9 @@ func TestPullAndSync_InitialSync(t *testing.T) {
 		}
 	}
 	// It creates the tag at HEAD
-	if err := d.Checkout.Pull(context.Background()); err != nil {
+	if err := d.Repo.Refresh(context.Background()); err != nil {
 		t.Errorf("pulling sync tag: %v", err)
-	} else if revs, err := d.Checkout.CommitsBefore(context.Background(), gitSyncTag); err != nil {
+	} else if revs, err := d.Repo.CommitsBefore(context.Background(), gitSyncTag, gitPath); err != nil {
 		t.Errorf("finding revisions before sync tag: %v", err)
 	} else if len(revs) <= 0 {
 		t.Errorf("Found no revisions before the sync tag")
@@ -139,11 +145,23 @@ func TestPullAndSync_InitialSync(t *testing.T) {
 }
 
 func TestDoSync_NoNewCommits(t *testing.T) {
-	// Tag exists
 	d, cleanup := daemon(t)
 	defer cleanup()
-	if err := d.Checkout.MoveTagAndPush(context.Background(), "HEAD", "Sync pointer"); err != nil {
+
+	ctx := context.Background()
+	err := d.WithClone(ctx, func(co *git.Checkout) error {
+		ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		defer cancel()
+		return co.MoveSyncTagAndPush(ctx, "HEAD", "Sync pointer")
+	})
+	if err != nil {
 		t.Fatal(err)
+	}
+
+	// NB this would usually trigger a sync in a running loop; but we
+	// have not run the loop.
+	if err = d.Repo.Refresh(ctx); err != nil {
+		t.Error(err)
 	}
 
 	syncCalled := 0
@@ -159,7 +177,9 @@ func TestDoSync_NoNewCommits(t *testing.T) {
 		return nil
 	}
 
-	d.doSync(log.NewLogfmtLogger(ioutil.Discard))
+	if err := d.doSync(log.NewLogfmtLogger(ioutil.Discard)); err != nil {
+		t.Error(err)
+	}
 
 	// It applies everything
 	if syncCalled != 1 {
@@ -179,13 +199,12 @@ func TestDoSync_NoNewCommits(t *testing.T) {
 	}
 
 	// It doesn't move the tag
-	oldRevs, err := d.Checkout.CommitsBefore(context.Background(), gitSyncTag)
+	oldRevs, err := d.Repo.CommitsBefore(ctx, gitSyncTag, gitPath)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := d.Checkout.Pull(context.Background()); err != nil {
-		t.Errorf("pulling sync tag: %v", err)
-	} else if revs, err := d.Checkout.CommitsBefore(context.Background(), gitSyncTag); err != nil {
+
+	if revs, err := d.Repo.CommitsBefore(ctx, gitSyncTag, gitPath); err != nil {
 		t.Errorf("finding revisions before sync tag: %v", err)
 	} else if !reflect.DeepEqual(revs, oldRevs) {
 		t.Errorf("Should have kept the sync tag at HEAD")
@@ -193,32 +212,49 @@ func TestDoSync_NoNewCommits(t *testing.T) {
 }
 
 func TestDoSync_WithNewCommit(t *testing.T) {
-	// Tag exists
 	d, cleanup := daemon(t)
 	defer cleanup()
+
+	ctx := context.Background()
 	// Set the sync tag to head
-	if err := d.Checkout.MoveTagAndPush(context.Background(), "HEAD", "Sync pointer"); err != nil {
-		t.Fatal(err)
-	}
-	oldRevision, err := d.Checkout.HeadRevision(context.Background())
+	var oldRevision, newRevision string
+	err := d.WithClone(ctx, func(checkout *git.Checkout) error {
+		ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		defer cancel()
+
+		var err error
+		err = checkout.MoveSyncTagAndPush(ctx, "HEAD", "Sync pointer")
+		if err != nil {
+			return err
+		}
+		oldRevision, err = checkout.HeadRevision(ctx)
+		if err != nil {
+			return err
+		}
+		// Push some new changes
+		err = cluster.UpdateManifest(k8s, checkout.ManifestDir(), flux.MustParseResourceID("default:deployment/helloworld"), func(def []byte) ([]byte, error) {
+			// A simple modification so we have changes to push
+			return []byte(strings.Replace(string(def), "replicas: 5", "replicas: 4", -1)), nil
+		})
+		if err != nil {
+			return err
+		}
+
+		commitAction := &git.CommitAction{Author: "", Message: "test commit"}
+		err = checkout.CommitAndPush(ctx, commitAction, nil)
+		if err != nil {
+			return err
+		}
+		newRevision, err = checkout.HeadRevision(ctx)
+		return err
+	})
 	if err != nil {
-		t.Fatal(err)
-	}
-	// Push some new changes
-	if err := cluster.UpdateManifest(k8s, d.Checkout.ManifestDir(), flux.MustParseResourceID("default:deployment/helloworld"), func(def []byte) ([]byte, error) {
-		// A simple modification so we have changes to push
-		return []byte(strings.Replace(string(def), "replicas: 5", "replicas: 4", -1)), nil
-	}); err != nil {
 		t.Fatal(err)
 	}
 
-	commitAction := &git.CommitAction{Author: "", Message: "test commit"}
-	if err := d.Checkout.CommitAndPush(context.Background(), commitAction, nil); err != nil {
-		t.Fatal(err)
-	}
-	newRevision, err := d.Checkout.HeadRevision(context.Background())
+	err = d.Repo.Refresh(ctx)
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err)
 	}
 
 	syncCalled := 0
@@ -262,9 +298,11 @@ func TestDoSync_WithNewCommit(t *testing.T) {
 		}
 	}
 	// It moves the tag
-	if err := d.Checkout.Pull(context.Background()); err != nil {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	if err := d.Repo.Refresh(ctx); err != nil {
 		t.Errorf("pulling sync tag: %v", err)
-	} else if revs, err := d.Checkout.CommitsBetween(context.Background(), oldRevision, gitSyncTag); err != nil {
+	} else if revs, err := d.Repo.CommitsBetween(ctx, oldRevision, gitSyncTag, gitPath); err != nil {
 		t.Errorf("finding revisions before sync tag: %v", err)
 	} else if len(revs) <= 0 {
 		t.Errorf("Should have moved sync tag forward")

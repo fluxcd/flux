@@ -4,6 +4,7 @@ import (
 	"io/ioutil"
 	"path/filepath"
 	"reflect"
+	"sync"
 	"testing"
 
 	"context"
@@ -19,9 +20,16 @@ func TestCheckout(t *testing.T) {
 	repo, cleanup := Repo(t)
 	defer cleanup()
 
+	sd, sg := make(chan struct{}), &sync.WaitGroup{}
+
+	sg.Add(1)
+	go repo.Start(sd, sg)
+	WaitForRepoReady(repo, t)
+
 	ctx := context.Background()
 
 	params := git.Config{
+		Branch:    "master",
 		UserName:  "example",
 		UserEmail: "example@example.com",
 		SyncTag:   "flux-test",
@@ -47,17 +55,9 @@ func TestCheckout(t *testing.T) {
 		t.Errorf("Expected no note on head revision; got %#v", note)
 	}
 
-	// Make a working clone and push changes back; then make sure they
-	// are visible in the original repo
-	working, err := checkout.WorkingClone(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer working.Clean()
-
 	changedFile := ""
 	for file, _ := range testfiles.Files {
-		path := filepath.Join(working.ManifestDir(), file)
+		path := filepath.Join(checkout.ManifestDir(), file)
 		if err := ioutil.WriteFile(path, []byte("FIRST CHANGE"), 0666); err != nil {
 			t.Fatal(err)
 		}
@@ -65,11 +65,11 @@ func TestCheckout(t *testing.T) {
 		break
 	}
 	commitAction := &git.CommitAction{Author: "", Message: "Changed file"}
-	if err := working.CommitAndPush(ctx, commitAction, nil); err != nil {
+	if err := checkout.CommitAndPush(ctx, commitAction, nil); err != nil {
 		t.Fatal(err)
 	}
 
-	path := filepath.Join(working.ManifestDir(), changedFile)
+	path := filepath.Join(checkout.ManifestDir(), changedFile)
 	if err := ioutil.WriteFile(path, []byte("SECOND CHANGE"), 0666); err != nil {
 		t.Fatal(err)
 	}
@@ -89,7 +89,7 @@ func TestCheckout(t *testing.T) {
 		},
 	}
 	commitAction = &git.CommitAction{Author: "", Message: "Changed file again"}
-	if err := working.CommitAndPush(ctx, commitAction, &expectedNote); err != nil {
+	if err := checkout.CommitAndPush(ctx, commitAction, &expectedNote); err != nil {
 		t.Fatal(err)
 	}
 
@@ -114,17 +114,18 @@ func TestCheckout(t *testing.T) {
 		}
 	}
 
-	// Do we see the changes if we pull into the original checkout?
-	if err := checkout.Pull(ctx); err != nil {
-		t.Fatal(err)
+	// Do we see the changes if we make another working checkout?
+	if err := repo.Refresh(ctx); err != nil {
+		t.Error(err)
 	}
-	check(checkout)
 
-	// Do we see the changes if we clone again?
-	anotherCheckout, err := repo.Clone(ctx, params)
+	another, err := repo.Clone(ctx, params)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer anotherCheckout.Clean()
-	check(checkout)
+	defer another.Clean()
+	check(another)
+
+	close(sd)
+	sg.Wait()
 }

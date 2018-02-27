@@ -42,8 +42,8 @@ type Daemon struct {
 	Manifests      cluster.Manifests
 	Registry       registry.Registry
 	ImageRefresh   chan image.Name
-	Repo           git.Repo
-	Checkout       *git.Checkout
+	Repo           *git.Repo
+	GitConfig      git.Config
 	Jobs           *job.Queue
 	JobStatusCache *job.StatusCache
 	EventWriter    event.EventWriter
@@ -73,10 +73,12 @@ func (d *Daemon) ListServices(ctx context.Context, namespace string) ([]flux.Con
 		return nil, errors.Wrap(err, "getting services from cluster")
 	}
 
-	d.Checkout.RLock()
-	defer d.Checkout.RUnlock()
-
-	services, err := d.Manifests.ServicesWithPolicies(d.Checkout.ManifestDir())
+	var services policy.ResourceMap
+	err = d.WithClone(ctx, func(checkout *git.Checkout) error {
+		var err error
+		services, err = d.Manifests.ServicesWithPolicies(checkout.ManifestDir())
+		return err
+	})
 	if err != nil {
 		return nil, errors.Wrap(err, "getting service policies")
 	}
@@ -141,16 +143,18 @@ func (d *Daemon) executeJob(id job.ID, do DaemonJobFunc, logger log.Logger) (*ev
 	d.JobStatusCache.SetStatus(id, job.Status{StatusString: job.StatusRunning})
 	// make a working clone so we don't mess with files we
 	// will be reading from elsewhere
-	working, err := d.Checkout.WorkingClone(ctx)
+	var metadata *event.CommitEventMetadata
+	err := d.WithClone(ctx, func(working *git.Checkout) error {
+		var err error
+		metadata, err = do(ctx, id, working, logger)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
 	if err != nil {
 		d.JobStatusCache.SetStatus(id, job.Status{StatusString: job.StatusFailed, Err: err.Error()})
 		return nil, err
-	}
-	defer working.Clean()
-	metadata, err := do(ctx, id, working, logger)
-	if err != nil {
-		d.JobStatusCache.SetStatus(id, job.Status{StatusString: job.StatusFailed, Err: err.Error()})
-		return metadata, err
 	}
 	d.JobStatusCache.SetStatus(id, job.Status{StatusString: job.StatusSucceeded, Result: *metadata})
 	return metadata, nil
@@ -272,7 +276,7 @@ func (d *Daemon) updatePolicy(spec update.Spec, updates policy.Updates) DaemonJo
 		}
 
 		commitAuthor := ""
-		if d.Checkout.Config.SetAuthor {
+		if d.GitConfig.SetAuthor {
 			commitAuthor = spec.Cause.User
 		}
 		commitAction := &git.CommitAction{Author: commitAuthor, Message: policyCommitMessage(updates, spec.Cause)}
@@ -311,15 +315,16 @@ func (d *Daemon) release(spec update.Spec, c release.Changes) DaemonJobFunc {
 				commitMsg = c.CommitMessage()
 			}
 			commitAuthor := ""
-			if d.Checkout.Config.SetAuthor {
+			if d.GitConfig.SetAuthor {
 				commitAuthor = spec.Cause.User
 			}
 			commitAction := &git.CommitAction{Author: commitAuthor, Message: commitMsg}
 			if err := working.CommitAndPush(ctx, commitAction, &git.Note{JobID: jobID, Spec: spec, Result: result}); err != nil {
 				// On the chance pushing failed because it was not
-				// possible to fast-forward, ask for a sync so the
-				// next attempt is more likely to succeed.
-				d.AskForSync()
+				// possible to fast-forward, ask the repo to fetch
+				// from upstream ASAP, so the next attempt is more
+				// likely to succeed.
+				d.Repo.Notify()
 				return nil, err
 			}
 			revision, err = working.HeadRevision(ctx)
@@ -343,7 +348,7 @@ func (d *Daemon) NotifyChange(ctx context.Context, change api.Change) error {
 	switch change.Kind {
 	case api.GitChange:
 		gitUpdate := change.Source.(api.GitUpdate)
-		if gitUpdate.URL != d.Repo.URL && gitUpdate.Branch != d.Repo.Branch {
+		if gitUpdate.URL != d.Repo.Origin().URL && gitUpdate.Branch != d.GitConfig.Branch {
 			// It isn't strictly an _error_ to be notified about a repo/branch pair
 			// that isn't ours, but it's worth logging anyway for debugging.
 			d.Logger.Log("msg", "notified about unrelated change",
@@ -351,7 +356,7 @@ func (d *Daemon) NotifyChange(ctx context.Context, change api.Change) error {
 				"branch", gitUpdate.Branch)
 			break
 		}
-		d.AskForSync()
+		d.Repo.Notify()
 	case api.ImageChange:
 		imageUpdate := change.Source.(api.ImageUpdate)
 		d.ImageRefresh <- imageUpdate.Name
@@ -371,41 +376,45 @@ func (d *Daemon) JobStatus(ctx context.Context, jobID job.ID) (job.Status, error
 	// Look through the commits for a note referencing this job.  This
 	// means that even if fluxd restarts, we will at least remember
 	// jobs which have pushed a commit.
-	notes, err := d.Checkout.NoteRevList(ctx)
-	if err != nil {
-		return job.Status{}, errors.Wrap(err, "enumerating commit notes")
-	}
-	commits, err := d.Checkout.CommitsBefore(ctx, "HEAD")
-	if err != nil {
-		return job.Status{}, errors.Wrap(err, "checking revisions for status")
-	}
+	// FIXME(michael): consider looking at the repo for this, since read op
+	err := d.WithClone(ctx, func(working *git.Checkout) error {
+		notes, err := working.NoteRevList(ctx)
+		if err != nil {
+			return errors.Wrap(err, "enumerating commit notes")
+		}
+		commits, err := d.Repo.CommitsBefore(ctx, "HEAD", d.GitConfig.Path)
+		if err != nil {
+			return errors.Wrap(err, "checking revisions for status")
+		}
 
-	for _, commit := range commits {
-		if _, ok := notes[commit.Revision]; ok {
-			note, _ := d.Checkout.GetNote(ctx, commit.Revision)
-			if note != nil && note.JobID == jobID {
-				return job.Status{
-					StatusString: job.StatusSucceeded,
-					Result: event.CommitEventMetadata{
-						Revision: commit.Revision,
-						Spec:     &note.Spec,
-						Result:   note.Result,
-					},
-				}, nil
+		for _, commit := range commits {
+			if _, ok := notes[commit.Revision]; ok {
+				note, _ := working.GetNote(ctx, commit.Revision)
+				if note != nil && note.JobID == jobID {
+					status = job.Status{
+						StatusString: job.StatusSucceeded,
+						Result: event.CommitEventMetadata{
+							Revision: commit.Revision,
+							Spec:     &note.Spec,
+							Result:   note.Result,
+						},
+					}
+					return nil
+				}
 			}
 		}
-	}
-
-	return job.Status{}, unknownJobError(jobID)
+		return unknownJobError(jobID)
+	})
+	return status, err
 }
 
 // Ask the daemon how far it's got applying things; in particular, is it
-// past the supplied release? Return the list of commits between where
-// we have applied and the ref given, inclusive. E.g., if you send HEAD,
+// past the given commit? Return the list of commits between where
+// we have applied (the sync tag) and the ref given, inclusive. E.g., if you send HEAD,
 // you'll get all the commits yet to be applied. If you send a hash
-// and it's applied _past_ it, you'll get an empty list.
+// and it's applied at or _past_ it, you'll get an empty list.
 func (d *Daemon) SyncStatus(ctx context.Context, commitRef string) ([]string, error) {
-	commits, err := d.Checkout.CommitsBetween(ctx, d.Checkout.SyncTag, commitRef)
+	commits, err := d.Repo.CommitsBetween(ctx, d.GitConfig.SyncTag, commitRef, d.GitConfig.Path)
 	if err != nil {
 		return nil, err
 	}
@@ -423,14 +432,30 @@ func (d *Daemon) GitRepoConfig(ctx context.Context, regenerate bool) (flux.GitCo
 	if err != nil {
 		return flux.GitConfig{}, err
 	}
+
+	origin := d.Repo.Origin()
+	status, _ := d.Repo.Status()
 	return flux.GitConfig{
-		Remote:       d.Repo.GitRemoteConfig,
+		Remote: flux.GitRemoteConfig{
+			URL:    origin.URL,
+			Branch: d.GitConfig.Branch,
+			Path:   d.GitConfig.Path,
+		},
 		PublicSSHKey: publicSSHKey,
-		Status:       flux.RepoReady,
+		Status:       status,
 	}, nil
 }
 
 // Non-api.Server methods
+
+func (d *Daemon) WithClone(ctx context.Context, fn func(*git.Checkout) error) error {
+	co, err := d.Repo.Clone(ctx, d.GitConfig)
+	if err != nil {
+		return err
+	}
+	defer co.Clean()
+	return fn(co)
+}
 
 func unknownJobError(id job.ID) error {
 	return &fluxerr.Error{

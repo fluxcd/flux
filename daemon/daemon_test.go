@@ -50,7 +50,8 @@ var (
 
 // When I ping, I should get a response
 func TestDaemon_Ping(t *testing.T) {
-	d, clean, _, _ := mockDaemon(t)
+	d, start, clean, _, _ := mockDaemon(t)
+	start()
 	defer clean()
 	ctx := context.Background()
 	if d.Ping(ctx) != nil {
@@ -60,7 +61,8 @@ func TestDaemon_Ping(t *testing.T) {
 
 // When I ask a version, I should get a version
 func TestDaemon_Version(t *testing.T) {
-	d, clean, _, _ := mockDaemon(t)
+	d, start, clean, _, _ := mockDaemon(t)
+	start()
 	defer clean()
 
 	ctx := context.Background()
@@ -75,7 +77,8 @@ func TestDaemon_Version(t *testing.T) {
 
 // When I export it should export the current (mocked) k8s cluster
 func TestDaemon_Export(t *testing.T) {
-	d, clean, _, _ := mockDaemon(t)
+	d, start, clean, _, _ := mockDaemon(t)
+	start()
 	defer clean()
 
 	ctx := context.Background()
@@ -91,7 +94,8 @@ func TestDaemon_Export(t *testing.T) {
 
 // When I call list services, it should list all the services
 func TestDaemon_ListServices(t *testing.T) {
-	d, clean, _, _ := mockDaemon(t)
+	d, start, clean, _, _ := mockDaemon(t)
+	start()
 	defer clean()
 
 	ctx := context.Background()
@@ -126,7 +130,8 @@ func TestDaemon_ListServices(t *testing.T) {
 
 // When I call list images for a service, it should return images
 func TestDaemon_ListImages(t *testing.T) {
-	d, clean, _, _ := mockDaemon(t)
+	d, start, clean, _, _ := mockDaemon(t)
+	start()
 	defer clean()
 
 	ctx := context.Background()
@@ -156,10 +161,9 @@ func TestDaemon_ListImages(t *testing.T) {
 
 // When I call notify, it should cause a sync
 func TestDaemon_NotifyChange(t *testing.T) {
-	d, clean, mockK8s, events := mockDaemon(t)
-	defer clean()
-	w := newWait(t)
+	d, start, clean, mockK8s, events := mockDaemon(t)
 
+	w := newWait(t)
 	ctx := context.Background()
 
 	var syncCalled int
@@ -172,6 +176,9 @@ func TestDaemon_NotifyChange(t *testing.T) {
 		syncMu.Unlock()
 		return nil
 	}
+
+	start()
+	defer clean()
 
 	d.NotifyChange(ctx, api.Change{Kind: api.GitChange, Source: api.GitUpdate{}})
 	w.Eventually(func() bool {
@@ -208,7 +215,8 @@ func TestDaemon_NotifyChange(t *testing.T) {
 // When I ask about a Job, it should tell me about a job
 // When I perform a release, it should update the git repo
 func TestDaemon_Release(t *testing.T) {
-	d, clean, _, _ := mockDaemon(t)
+	d, start, clean, _, _ := mockDaemon(t)
+	start()
 	defer clean()
 	w := newWait(t)
 
@@ -232,8 +240,13 @@ func TestDaemon_Release(t *testing.T) {
 
 	// Wait and check that the git manifest has been altered
 	w.Eventually(func() bool {
+		co, err := d.Repo.Clone(ctx, d.GitConfig)
+		if err != nil {
+			return false
+		}
+		defer co.Clean()
 		// open a file
-		if file, err := os.Open(filepath.Join(d.Checkout.ManifestDir(), "helloworld-deploy.yaml")); err == nil {
+		if file, err := os.Open(filepath.Join(co.ManifestDir(), "helloworld-deploy.yaml")); err == nil {
 
 			// make sure it gets closed
 			defer file.Close()
@@ -257,7 +270,8 @@ func TestDaemon_Release(t *testing.T) {
 // When I update a policy, I expect it to add to the queue
 // When I update a policy, it should add an annotation to the manifest
 func TestDaemon_PolicyUpdate(t *testing.T) {
-	d, clean, _, _ := mockDaemon(t)
+	d, start, clean, _, _ := mockDaemon(t)
+	start()
 	defer clean()
 	w := newWait(t)
 
@@ -270,12 +284,16 @@ func TestDaemon_PolicyUpdate(t *testing.T) {
 
 	// Wait and check for new annotation
 	w.Eventually(func() bool {
-		d.Checkout.Lock()
-		m, err := d.Manifests.LoadManifests(d.Checkout.ManifestDir())
+		co, err := d.Repo.Clone(ctx, d.GitConfig)
+		if err != nil {
+			t.Error(err)
+			return false
+		}
+		defer co.Clean()
+		m, err := d.Manifests.LoadManifests(co.ManifestDir())
 		if err != nil {
 			t.Fatalf("Error: %s", err.Error())
 		}
-		d.Checkout.Unlock()
 		return len(m[svc].Policy()) > 0
 	}, "Waiting for new annotation")
 }
@@ -284,7 +302,8 @@ func TestDaemon_PolicyUpdate(t *testing.T) {
 // that is about to take place. Then it should return empty once it is
 // complete
 func TestDaemon_SyncStatus(t *testing.T) {
-	d, clean, _, _ := mockDaemon(t)
+	d, start, clean, _, _ := mockDaemon(t)
+	start()
 	defer clean()
 	w := newWait(t)
 
@@ -304,7 +323,8 @@ func TestDaemon_SyncStatus(t *testing.T) {
 
 // When I restart fluxd, there won't be any jobs in the cache
 func TestDaemon_JobStatusWithNoCache(t *testing.T) {
-	d, clean, _, _ := mockDaemon(t)
+	d, start, clean, _, _ := mockDaemon(t)
+	start()
 	defer clean()
 	w := newWait(t)
 
@@ -327,7 +347,7 @@ func makeImageInfo(ref string, t time.Time) image.Info {
 	return image.Info{ID: r, CreatedAt: t}
 }
 
-func mockDaemon(t *testing.T) (*Daemon, func(), *cluster.Mock, *mockEventWriter) {
+func mockDaemon(t *testing.T) (*Daemon, func(), func(), *cluster.Mock, *mockEventWriter) {
 	logger := log.NewNopLogger()
 
 	singleService := cluster.Controller{
@@ -358,16 +378,11 @@ func mockDaemon(t *testing.T) (*Daemon, func(), *cluster.Mock, *mockEventWriter)
 
 	repo, repoCleanup := gittest.Repo(t)
 	params := git.Config{
+		Branch:    "master",
 		UserName:  "example",
 		UserEmail: "example@example.com",
 		SyncTag:   "flux-test",
 		NotesRef:  "fluxtest",
-	}
-
-	ctx := context.Background()
-	checkout, err := repo.Clone(ctx, params)
-	if err != nil {
-		t.Fatal(err)
 	}
 
 	var k8s *cluster.Mock
@@ -417,16 +432,17 @@ func mockDaemon(t *testing.T) (*Daemon, func(), *cluster.Mock, *mockEventWriter)
 
 	events := &mockEventWriter{}
 
-	// Shutdown chans and waitgroups
+	// Shutdown chan and waitgroups
 	shutdown := make(chan struct{})
 	wg := &sync.WaitGroup{}
 
-	// Jobs queue
+	// Jobs queue (starts itself)
 	jobs := job.NewQueue(shutdown, wg)
 
 	// Finally, the daemon
 	d := &Daemon{
-		Checkout:       checkout,
+		Repo:           repo,
+		GitConfig:      params,
 		Cluster:        k8s,
 		Manifests:      &kubernetes.Manifests{},
 		Registry:       imageRegistry,
@@ -438,15 +454,22 @@ func mockDaemon(t *testing.T) (*Daemon, func(), *cluster.Mock, *mockEventWriter)
 		LoopVars:       &LoopVars{},
 	}
 
-	wg.Add(1)
-	go d.GitPollLoop(shutdown, wg, logger)
+	start := func() {
+		wg.Add(1)
+		go repo.Start(shutdown, wg)
+		gittest.WaitForRepoReady(repo, t)
 
-	return d, func() {
+		wg.Add(1)
+		go d.Loop(shutdown, wg, logger)
+	}
+
+	stop := func() {
 		// Close daemon first so we don't get errors if the queue closes before the daemon
 		close(shutdown)
-		wg.Wait() // Wait for it to close, it might take a while
+		wg.Wait()
 		repoCleanup()
-	}, k8s, events
+	}
+	return d, start, stop, k8s, events
 }
 
 type mockEventWriter struct {

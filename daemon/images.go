@@ -8,6 +8,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/git"
 	"github.com/weaveworks/flux/image"
 	"github.com/weaveworks/flux/policy"
 	"github.com/weaveworks/flux/update"
@@ -16,10 +17,9 @@ import (
 func (d *Daemon) pollForNewImages(logger log.Logger) {
 	logger.Log("msg", "polling images")
 
-	// One day we may use this for operations other than the call at the end
 	ctx := context.Background()
 
-	candidateServices, err := d.unlockedAutomatedServices()
+	candidateServices, err := d.unlockedAutomatedServices(ctx)
 	if err != nil {
 		logger.Log("error", errors.Wrap(err, "getting unlocked automated services"))
 		return
@@ -77,8 +77,13 @@ func getTagPattern(services policy.ResourceMap, service flux.ResourceID, contain
 	return "*"
 }
 
-func (d *Daemon) unlockedAutomatedServices() (policy.ResourceMap, error) {
-	services, err := d.Manifests.ServicesWithPolicies(d.Checkout.ManifestDir())
+func (d *Daemon) unlockedAutomatedServices(ctx context.Context) (policy.ResourceMap, error) {
+	var services policy.ResourceMap
+	err := d.WithClone(ctx, func(checkout *git.Checkout) error {
+		var err error
+		services, err = d.Manifests.ServicesWithPolicies(checkout.ManifestDir())
+		return err
+	})
 	if err != nil {
 		return nil, err
 	}

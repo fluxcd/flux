@@ -271,17 +271,6 @@ type Container struct {
 
 // --- config types
 
-func NewGitRemoteConfig(url, branch, path string) (GitRemoteConfig, error) {
-	if len(path) > 0 && path[0] == '/' {
-		return GitRemoteConfig{}, errors.New("git subdirectory (--git-path) should not have leading forward slash")
-	}
-	return GitRemoteConfig{
-		URL:    url,
-		Branch: branch,
-		Path:   path,
-	}, nil
-}
-
 type GitRemoteConfig struct {
 	URL    string `json:"url"`
 	Branch string `json:"branch"`
