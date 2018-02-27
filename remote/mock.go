@@ -226,6 +226,6 @@ func ServerTestBattery(t *testing.T, wrap func(mock api.UpstreamServer) api.Upst
 		t.Error(err)
 	}
 	if !reflect.DeepEqual(mock.SyncStatusAnswer, syncSt) {
-		t.Error(fmt.Errorf("expected: %#v\ngot: %#v"), mock.SyncStatusAnswer, syncSt)
+		t.Errorf("expected: %#v\ngot: %#v", mock.SyncStatusAnswer, syncSt)
 	}
 }

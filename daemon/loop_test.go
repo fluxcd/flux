@@ -307,6 +307,6 @@ func TestDoSync_WithNewCommit(t *testing.T) {
 	} else if len(revs) <= 0 {
 		t.Errorf("Should have moved sync tag forward")
 	} else if revs[len(revs)-1].Revision != newRevision {
-		t.Errorf("Should have moved sync tag to HEAD (%s), but was moved to: %s")
+		t.Errorf("Should have moved sync tag to HEAD (%s), but was moved to: %s", newRevision, revs[len(revs)-1].Revision)
 	}
 }
