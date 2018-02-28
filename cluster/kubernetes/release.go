@@ -52,8 +52,8 @@ func (c *Kubectl) connectArgs() []string {
 	return args
 }
 
-func (c *Kubectl) apply(logger log.Logger, cs changeSet, errs cluster.SyncError) {
-	f := func(m map[string][]obj, cmd string, args ...string) {
+func (c *Kubectl) apply(logger log.Logger, cs changeSet) (errs cluster.SyncErrors) {
+	f := func(m map[string][]*apiObject, cmd string, args ...string) {
 		objs := m[cmd]
 		if len(objs) == 0 {
 			return
@@ -62,9 +62,9 @@ func (c *Kubectl) apply(logger log.Logger, cs changeSet, errs cluster.SyncError)
 		args = append(args, cmd)
 		if err := c.doCommand(logger, makeMultidoc(objs), args...); err != nil {
 			for _, obj := range objs {
-				r := bytes.NewReader(obj.bytes)
+				r := bytes.NewReader(obj.Bytes())
 				if err := c.doCommand(logger, r, args...); err != nil {
-					errs[obj.id] = err
+					errs = append(errs, cluster.SyncError{obj.Resource, err})
 				}
 			}
 		}
@@ -79,7 +79,7 @@ func (c *Kubectl) apply(logger log.Logger, cs changeSet, errs cluster.SyncError)
 	// first, so we run the commands the other way round.
 	f(cs.noNsObjs, "apply", "--namespace", "default")
 	f(cs.nsObjs, "apply")
-
+	return errs
 }
 
 func (c *Kubectl) doCommand(logger log.Logger, r io.Reader, args ...string) error {
@@ -101,10 +101,11 @@ func (c *Kubectl) doCommand(logger log.Logger, r io.Reader, args ...string) erro
 	return err
 }
 
-func makeMultidoc(objs []obj) *bytes.Buffer {
+func makeMultidoc(objs []*apiObject) *bytes.Buffer {
 	buf := &bytes.Buffer{}
 	for _, obj := range objs {
-		buf.WriteString("\n---\n" + string(obj.bytes))
+		buf.WriteString("\n---\n")
+		buf.Write(obj.Bytes())
 	}
 	return buf
 }

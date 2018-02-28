@@ -69,14 +69,12 @@ func TestPrepareSyncDelete(t *testing.T) {
 	var tests = []struct {
 		msg      string
 		repoRes  map[string]resource.Resource
-		id       string
 		res      resource.Resource
 		expected *cluster.SyncDef
 	}{
 		{
 			msg:      "No repo resources provided during sync delete",
 			repoRes:  map[string]resource.Resource{},
-			id:       "res7",
 			res:      mockResourceWithIgnorePolicy("service", "ns1", "s2"),
 			expected: &cluster.SyncDef{},
 		},
@@ -90,7 +88,6 @@ func TestPrepareSyncDelete(t *testing.T) {
 				"res5": mockResourceWithoutIgnorePolicy("deployment", "ns2", "d2"),
 				"res6": mockResourceWithoutIgnorePolicy("service", "ns3", "s1"),
 			},
-			id:       "res7",
 			res:      mockResourceWithIgnorePolicy("service", "ns1", "s2"),
 			expected: &cluster.SyncDef{},
 		},
@@ -104,16 +101,15 @@ func TestPrepareSyncDelete(t *testing.T) {
 				"res5": mockResourceWithoutIgnorePolicy("deployment", "ns2", "d2"),
 				"res6": mockResourceWithoutIgnorePolicy("service", "ns3", "s1"),
 			},
-			id:       "res7",
 			res:      mockResourceWithoutIgnorePolicy("service", "ns1", "s2"),
-			expected: &cluster.SyncDef{Actions: []cluster.SyncAction{cluster.SyncAction{ResourceID: "res7", Delete: cluster.ResourceDef{}, Apply: cluster.ResourceDef(nil)}}},
+			expected: &cluster.SyncDef{Actions: []cluster.SyncAction{cluster.SyncAction{Delete: mockResourceWithoutIgnorePolicy("service", "ns1", "s2")}}},
 		},
 	}
 
 	logger := log.NewNopLogger()
 	for _, sc := range tests {
 		sync := &cluster.SyncDef{}
-		prepareSyncDelete(logger, sc.repoRes, sc.id, sc.res, sync)
+		prepareSyncDelete(logger, sc.repoRes, sc.res.ResourceID().String(), sc.res, sync)
 
 		if !reflect.DeepEqual(sc.expected, sync) {
 			t.Errorf("%s: expected %+v, got %+v\n", sc.msg, sc.expected, sync)
@@ -125,14 +121,12 @@ func TestPrepareSyncApply(t *testing.T) {
 	var tests = []struct {
 		msg      string
 		clusRes  map[string]resource.Resource
-		id       string
 		res      resource.Resource
 		expected *cluster.SyncDef
 	}{
 		{
 			msg:      "No repo resources provided during sync apply",
 			clusRes:  map[string]resource.Resource{},
-			id:       "res1",
 			res:      mockResourceWithIgnorePolicy("service", "ns1", "s2"),
 			expected: &cluster.SyncDef{},
 		},
@@ -146,7 +140,6 @@ func TestPrepareSyncApply(t *testing.T) {
 				"res5": mockResourceWithoutIgnorePolicy("deployment", "ns2", "d2"),
 				"res6": mockResourceWithoutIgnorePolicy("service", "ns3", "s1"),
 			},
-			id:       "res7",
 			res:      mockResourceWithIgnorePolicy("service", "ns1", "s2"),
 			expected: &cluster.SyncDef{},
 		},
@@ -160,16 +153,15 @@ func TestPrepareSyncApply(t *testing.T) {
 				"res5": mockResourceWithoutIgnorePolicy("deployment", "ns2", "d2"),
 				"res6": mockResourceWithoutIgnorePolicy("service", "ns3", "s1"),
 			},
-			id:       "res7",
 			res:      mockResourceWithoutIgnorePolicy("service", "ns1", "s2"),
-			expected: &cluster.SyncDef{Actions: []cluster.SyncAction{cluster.SyncAction{ResourceID: "res7", Apply: cluster.ResourceDef{}, Delete: cluster.ResourceDef(nil)}}},
+			expected: &cluster.SyncDef{Actions: []cluster.SyncAction{cluster.SyncAction{Apply: mockResourceWithoutIgnorePolicy("service", "ns1", "s2")}}},
 		},
 	}
 
 	logger := log.NewNopLogger()
 	for _, sc := range tests {
 		sync := &cluster.SyncDef{}
-		prepareSyncApply(logger, sc.clusRes, sc.id, sc.res, sync)
+		prepareSyncApply(logger, sc.clusRes, sc.res.ResourceID().String(), sc.res, sync)
 
 		if !reflect.DeepEqual(sc.expected, sync) {
 			t.Errorf("%s: expected %+v, got %+v\n", sc.msg, sc.expected, sync)
@@ -211,12 +203,12 @@ func (p *syncCluster) Sync(def cluster.SyncDef) error {
 	println("=== Syncing ===")
 	for _, action := range def.Actions {
 		if action.Delete != nil {
-			println("Deleting " + action.ResourceID)
-			delete(p.resources, action.ResourceID)
+			println("Deleting " + action.Delete.ResourceID().String())
+			delete(p.resources, action.Delete.ResourceID().String())
 		}
 		if action.Apply != nil {
-			println("Applying " + action.ResourceID)
-			p.resources[action.ResourceID] = action.Apply
+			println("Applying " + action.Apply.ResourceID().String())
+			p.resources[action.Apply.ResourceID().String()] = action.Apply.Bytes()
 		}
 	}
 	println("=== Done syncing ===")

@@ -2,24 +2,17 @@ package cluster
 
 import (
 	"strings"
+
+	"github.com/weaveworks/flux/resource"
 )
 
 // Definitions for use in synchronising a cluster with a git repo.
 
-// Yep, resources are defined by opaque bytes. It's up to the cluster
-// at the other end to do the right thing.
-type ResourceDef []byte
-
-// The action(s) to take on a particular resource.
-// This should just be done in order, i.e.,:
-//  1. delete if something in Delete
-//  2. apply if something in Apply
+// SyncAction represents either the deletion or application (create or
+// update) of a resource.
 type SyncAction struct {
-	// The ID is just a handle for labeling any error. No other
-	// meaning is attached to it.
-	ResourceID string
-	Delete     ResourceDef
-	Apply      ResourceDef
+	Delete     resource.Resource // ) one of these
+	Apply      resource.Resource // )
 }
 
 type SyncDef struct {
@@ -27,12 +20,17 @@ type SyncDef struct {
 	Actions []SyncAction
 }
 
-type SyncError map[string]error
+type SyncError struct {
+	resource.Resource
+	Error error
+}
 
-func (err SyncError) Error() string {
+type SyncErrors []SyncError
+
+func (err SyncErrors) Error() string {
 	var errs []string
-	for id, e := range err {
-		errs = append(errs, id+": "+e.Error())
+	for _, e := range err {
+		errs = append(errs, e.ResourceID().String()+": "+e.Error.Error())
 	}
 	return strings.Join(errs, "; ")
 }

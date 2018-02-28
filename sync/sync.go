@@ -55,8 +55,7 @@ func prepareSyncDelete(logger log.Logger, repoResources map[string]resource.Reso
 	}
 	if _, ok := repoResources[id]; !ok {
 		sync.Actions = append(sync.Actions, cluster.SyncAction{
-			ResourceID: id,
-			Delete:     res.Bytes(),
+			Delete:     res,
 		})
 	}
 }
@@ -73,7 +72,6 @@ func prepareSyncApply(logger log.Logger, clusterResources map[string]resource.Re
 		}
 	}
 	sync.Actions = append(sync.Actions, cluster.SyncAction{
-		ResourceID: id,
-		Apply:      res.Bytes(),
+		Apply:      res,
 	})
 }
