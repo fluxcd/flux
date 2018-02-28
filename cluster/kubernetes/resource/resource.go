@@ -155,6 +155,56 @@ func unmarshalKind(base BaseObject, bytes []byte) (resource.Resource, error) {
 	}
 }
 
+func unmarshalList(source string, base *BaseObject, collection map[string]resource.Resource) error {
+	// Keep each List item in this generic type.
+	// We need to preserve this to be able to pass through arbitrary objects, such as Services, for Sync jobs.
+	list := map[string]interface{}{}
+	err := yaml.Unmarshal(base.Bytes(), &list)
+
+	if err != nil {
+		return err
+	}
+
+	for _, item := range list["items"].([]interface{}) {
+		// Re-marshal this snippet. We need this item represented in byte form.
+		// This will eventually be used to generate an update here:
+		// https://github.com/weaveworks/flux/blob/master/cluster/sync.go#L9
+		itemBytes, err := yaml.Marshal(item)
+
+		if err != nil {
+			return makeUnmarshalObjectErr(source, err)
+		}
+
+		i := BaseObject{}
+		err = yaml.Unmarshal(itemBytes, &i)
+
+		if err != nil {
+			return makeUnmarshalObjectErr(source, err)
+		}
+
+		i.source = source
+		i.bytes = itemBytes
+		r, err := unmarshalKind(i, itemBytes)
+
+		if err != nil {
+			return makeUnmarshalObjectErr(source, err)
+		}
+
+		if r == nil {
+			continue
+		}
+
+		// Catch if a resource is defined already, either via a List or a file
+		if resourceAlreadyExists(collection, r) {
+			return cluster.ErrMultipleResourceDefinitionsFoundForService
+		}
+
+		collection[r.ResourceID().String()] = r
+	}
+
+	return nil
+}
+
 func makeUnmarshalObjectErr(source string, err error) *fluxerr.Error {
 	return &fluxerr.Error{
 		Type: fluxerr.User,

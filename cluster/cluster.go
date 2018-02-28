@@ -8,8 +8,9 @@ import (
 )
 
 var (
-	ErrNoResourceFilesFoundForService       = errors.New("no resource file found for service")
-	ErrMultipleResourceFilesFoundForService = errors.New("multiple resource files found for service")
+	ErrNoResourceFilesFoundForService             = errors.New("no resource file found for service")
+	ErrMultipleResourceFilesFoundForService       = errors.New("multiple resource files found for service")
+	ErrMultipleResourceDefinitionsFoundForService = errors.New("multiple resource definitions found for service")
 )
 
 // The things we can get from the running cluster. These used to form
