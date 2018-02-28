@@ -104,6 +104,18 @@ assert_controller_container() {
     fi
 }
 
+get_object() {
+    kubectl --context flux-test get $1 -o json | jq --raw-output ".items[].metadata|select(.name == \"$2\")"
+}
+
+assert_object_exists() {
+    if [ "$(get_object $1 a-service | jq --raw-output .name)" != $2 ]; then
+      echo "want $2"
+      echo "have $(get_object services a-service | jq --raw-output .name)"
+      fail "arbitrary object check failed"
+    fi
+}
+
 #############################################################################
 # Tests
 #############################################################################
@@ -143,6 +155,9 @@ wait_for_sync 120
 # Deployments specified in a List
 assert_controller_container default default:deployment/a-deployment a-container quay.io/weaveworks/helloworld:master-a000001
 assert_controller_container default default:deployment/b-deployment b-container quay.io/weaveworks/helloworld:master-a000001
+
+# Make sure an arbitrary object gets created from a List
+assert_object_exists services a-service
 
 # Automate a single deployment in a List to see if the container image gets updated
 fluxctl --url http://$(minikube -p flux-test ip):30080/api/flux automate --controller=default:deployment/a-deployment
