@@ -84,7 +84,9 @@ func (d *Daemon) Loop(stop chan struct{}, wg *sync.WaitGroup, logger log.Logger)
 				default:
 				}
 			}
-			d.doSync(logger)
+			if err := d.doSync(logger); err != nil {
+				logger.Log("err", err)
+			}
 			syncTimer.Reset(d.SyncInterval)
 		case <-syncTimer.C:
 			d.AskForSync()
