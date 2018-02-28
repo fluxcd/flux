@@ -1,7 +1,7 @@
 package resource
 
 type StatefulSet struct {
-	baseObject
+	BaseObject
 	Spec StatefulSetSpec
 }
 
