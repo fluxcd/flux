@@ -16,6 +16,9 @@ import (
 	"github.com/pkg/errors"
 )
 
+// If true, every git invocation will be echoed to stdout
+const trace = false
+
 func config(ctx context.Context, workingDir, user, email string) error {
 	for k, v := range map[string]string{
 		"user.name":  user,
@@ -194,7 +197,7 @@ func onelinelog(ctx context.Context, path, refspec, subdir string) ([]Commit, er
 	// because supplying an empty string to execGitCmd results in git complaining about
 	// >> ambiguous argument '' <<
 	if subdir != "" {
-		if err := execGitCmd(ctx, path, out, "log", "--oneline", "--no-abbrev-commit", refspec, subdir); err != nil {
+		if err := execGitCmd(ctx, path, out, "log", "--oneline", "--no-abbrev-commit", refspec, "--", subdir); err != nil {
 			return nil, err
 		}
 		return splitLog(out.String())
@@ -253,6 +256,13 @@ func changedFiles(ctx context.Context, path, subPath, ref string) ([]string, err
 }
 
 func execGitCmd(ctx context.Context, dir string, out io.Writer, args ...string) error {
+	if trace {
+		print("TRACE: git")
+		for _, arg := range args {
+			print(` "`, arg, `"`)
+		}
+		println()
+	}
 	c := exec.CommandContext(ctx, "git", args...)
 
 	if dir != "" {
