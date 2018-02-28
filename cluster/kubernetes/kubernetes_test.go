@@ -14,7 +14,7 @@ type mockApplier struct {
 	commandRun bool
 }
 
-func (m *mockApplier) apply(_ log.Logger, c changeSet) cluster.SyncErrors {
+func (m *mockApplier) apply(_ log.Logger, c changeSet) cluster.SyncError {
 	if len(c.nsObjs) != 0 || len(c.noNsObjs) != 0 {
 		m.commandRun = true
 	}

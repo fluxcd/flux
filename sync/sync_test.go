@@ -34,7 +34,7 @@ func TestSync(t *testing.T) {
 	manifests := &kubernetes.Manifests{}
 	var clus cluster.Cluster = &syncCluster{mockCluster, map[string][]byte{}}
 
-	resources, err := manifests.LoadManifests(checkout.ManifestDir())
+	resources, err := manifests.LoadManifests(checkout.Dir(), checkout.ManifestDir())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -55,7 +55,7 @@ func TestSync(t *testing.T) {
 		break
 	}
 
-	resources, err = manifests.LoadManifests(checkout.ManifestDir())
+	resources, err = manifests.LoadManifests(checkout.Dir(), checkout.ManifestDir())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -244,7 +244,7 @@ func checkClusterMatchesFiles(t *testing.T, m cluster.Manifests, c cluster.Clust
 	if err != nil {
 		t.Fatal(err)
 	}
-	files, err := m.LoadManifests(dir)
+	files, err := m.LoadManifests(dir, dir)
 	if err != nil {
 		t.Fatal(err)
 	}

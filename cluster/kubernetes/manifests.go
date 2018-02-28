@@ -11,8 +11,8 @@ type Manifests struct {
 
 // FindDefinedServices implementation in files.go
 
-func (c *Manifests) LoadManifests(paths ...string) (map[string]resource.Resource, error) {
-	return kresource.Load(paths...)
+func (c *Manifests) LoadManifests(base, first string, rest ...string) (map[string]resource.Resource, error) {
+	return kresource.Load(base, first, rest...)
 }
 
 func (c *Manifests) ParseManifests(allDefs []byte) (map[string]resource.Resource, error) {

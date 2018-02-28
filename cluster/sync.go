@@ -11,8 +11,8 @@ import (
 // SyncAction represents either the deletion or application (create or
 // update) of a resource.
 type SyncAction struct {
-	Delete     resource.Resource // ) one of these
-	Apply      resource.Resource // )
+	Delete resource.Resource // ) one of these
+	Apply  resource.Resource // )
 }
 
 type SyncDef struct {
@@ -20,14 +20,14 @@ type SyncDef struct {
 	Actions []SyncAction
 }
 
-type SyncError struct {
+type ResourceError struct {
 	resource.Resource
 	Error error
 }
 
-type SyncErrors []SyncError
+type SyncError []ResourceError
 
-func (err SyncErrors) Error() string {
+func (err SyncError) Error() string {
 	var errs []string
 	for _, e := range err {
 		errs = append(errs, e.ResourceID().String()+": "+e.Error.Error())

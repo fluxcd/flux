@@ -18,7 +18,7 @@ type Mock struct {
 	PublicSSHKeyFunc         func(regenerate bool) (ssh.PublicKey, error)
 	FindDefinedServicesFunc  func(path string) (map[flux.ResourceID][]string, error)
 	UpdateDefinitionFunc     func(def []byte, container string, newImageID image.Ref) ([]byte, error)
-	LoadManifestsFunc        func(paths ...string) (map[string]resource.Resource, error)
+	LoadManifestsFunc        func(base, first string, rest ...string) (map[string]resource.Resource, error)
 	ParseManifestsFunc       func([]byte) (map[string]resource.Resource, error)
 	UpdateManifestFunc       func(path, resourceID string, f func(def []byte) ([]byte, error)) error
 	UpdatePoliciesFunc       func([]byte, policy.Update) ([]byte, error)
@@ -57,8 +57,8 @@ func (m *Mock) UpdateDefinition(def []byte, container string, newImageID image.R
 	return m.UpdateDefinitionFunc(def, container, newImageID)
 }
 
-func (m *Mock) LoadManifests(paths ...string) (map[string]resource.Resource, error) {
-	return m.LoadManifestsFunc(paths...)
+func (m *Mock) LoadManifests(base, first string, rest ...string) (map[string]resource.Resource, error) {
+	return m.LoadManifestsFunc(base, first, rest...)
 }
 
 func (m *Mock) ParseManifests(def []byte) (map[string]resource.Resource, error) {

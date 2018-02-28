@@ -1,10 +1,11 @@
 package kubernetes
 
 import (
+	"path/filepath"
+
 	"github.com/pkg/errors"
 
 	"github.com/weaveworks/flux"
-
 	"github.com/weaveworks/flux/cluster/kubernetes/resource"
 )
 
@@ -13,7 +14,7 @@ import (
 // specified namespace and name) to the paths of resource definition
 // files.
 func (c *Manifests) FindDefinedServices(path string) (map[flux.ResourceID][]string, error) {
-	objects, err := resource.Load(path)
+	objects, err := resource.Load(path, path)
 	if err != nil {
 		return nil, errors.Wrap(err, "loading resources")
 	}
@@ -23,7 +24,7 @@ func (c *Manifests) FindDefinedServices(path string) (map[flux.ResourceID][]stri
 		id := obj.ResourceID()
 		_, kind, _ := id.Components()
 		if _, ok := resourceKinds[kind]; ok {
-			result[id] = append(result[id], obj.Source())
+			result[id] = append(result[id], filepath.Join(path, obj.Source()))
 		}
 	}
 	return result, nil

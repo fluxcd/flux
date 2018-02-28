@@ -291,7 +291,7 @@ func TestDaemon_PolicyUpdate(t *testing.T) {
 			return false
 		}
 		defer co.Clean()
-		m, err := d.Manifests.LoadManifests(co.ManifestDir())
+		m, err := d.Manifests.LoadManifests(co.Dir(), co.ManifestDir())
 		if err != nil {
 			t.Fatalf("Error: %s", err.Error())
 		}

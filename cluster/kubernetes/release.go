@@ -52,7 +52,7 @@ func (c *Kubectl) connectArgs() []string {
 	return args
 }
 
-func (c *Kubectl) apply(logger log.Logger, cs changeSet) (errs cluster.SyncErrors) {
+func (c *Kubectl) apply(logger log.Logger, cs changeSet) (errs cluster.SyncError) {
 	f := func(m map[string][]*apiObject, cmd string, args ...string) {
 		objs := m[cmd]
 		if len(objs) == 0 {
@@ -64,7 +64,7 @@ func (c *Kubectl) apply(logger log.Logger, cs changeSet) (errs cluster.SyncError
 			for _, obj := range objs {
 				r := bytes.NewReader(obj.Bytes())
 				if err := c.doCommand(logger, r, args...); err != nil {
-					errs = append(errs, cluster.SyncError{obj.Resource, err})
+					errs = append(errs, cluster.ResourceError{obj.Resource, err})
 				}
 			}
 		}

@@ -114,7 +114,7 @@ func (c *changeSet) stage(cmd string, o *apiObject) {
 }
 
 type Applier interface {
-	apply(log.Logger, changeSet) cluster.SyncErrors
+	apply(log.Logger, changeSet) cluster.SyncError
 }
 
 // Cluster is a handle to a Kubernetes API server.
@@ -221,7 +221,7 @@ func (c *Cluster) Sync(spec cluster.SyncDef) error {
 	logger := log.With(c.logger, "method", "Sync")
 
 	cs := makeChangeSet()
-	var errs cluster.SyncErrors
+	var errs cluster.SyncError
 	for _, action := range spec.Actions {
 		stages := []struct {
 			res resource.Resource
@@ -239,7 +239,7 @@ func (c *Cluster) Sync(spec cluster.SyncDef) error {
 				obj.Resource = stage.res
 				cs.stage(stage.cmd, obj)
 			} else {
-				errs = append(errs, cluster.SyncError{Resource: stage.res, Error: err})
+				errs = append(errs, cluster.ResourceError{Resource: stage.res, Error: err})
 				break
 			}
 		}

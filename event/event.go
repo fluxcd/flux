@@ -204,6 +204,8 @@ type SyncEventMetadata struct {
 	// policy changes, and "other" (meaning things we didn't commit
 	// ourselves)
 	Includes map[string]bool `json:"includes,omitempty"`
+	// Per-resource errors
+	Errors map[string]string `json:"errors,omitempty"`
 	// `true` if we have no record of having synced before
 	InitialSync bool `json:"initialSync,omitempty"`
 }
