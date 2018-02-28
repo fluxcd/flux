@@ -1,0 +1,43 @@
+---
+apiVersion: v1
+kind: List
+items:
+  - apiVersion: extensions/v1beta1
+    kind: Deployment
+    metadata:
+      name: a-deployment
+    spec:
+      template:
+        metadata:
+          labels:
+            name: a-deployment
+        spec:
+          containers:
+          - name: a-container
+            image: quay.io/weaveworks/helloworld:master-a000001
+  - apiVersion: v1
+    kind: Service
+    metadata:
+      name: a-service
+    spec:
+      type: NodePort
+      ports:
+        - protocol: "TCP"
+          port: 30062
+          targetPort: 80
+          nodePort: 30062
+      selector:
+        name: a-service
+  - apiVersion: extensions/v1beta1
+    kind: Deployment
+    metadata:
+      name: b-deployment
+    spec:
+      template:
+        metadata:
+          labels:
+            name: b-deployment
+        spec:
+          containers:
+          - name: b-container
+            image: quay.io/weaveworks/helloworld:master-a000001
