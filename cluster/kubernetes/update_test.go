@@ -54,6 +54,14 @@ func TestUpdates(t *testing.T) {
 	}
 }
 
+func TestUpdateList(t *testing.T) {
+	for _, c := range []update{
+		{"single list", listImageContainer, listImageA, singleList, singleListOut},
+	} {
+		testUpdate(t, c)
+	}
+}
+
 // Unusual but still valid indentation between containers: and the
 // next line
 const case1 = `---
@@ -533,4 +541,66 @@ spec:
         env:
         - name: FLUENTD_CONF
           value: fluent.conf
+`
+
+const listImageA = "quay.io/weaveworks/my-deployment:master-456"
+
+var listImageContainer = []string{"my-deployment"}
+
+const singleList = `---
+apiVersion: v1
+kind: List
+items:
+  - apiVersion: extensions/v1beta1
+    kind: Deployment
+    metadata:
+      name: my-deployment
+      labels:
+        name: my-deployment
+    spec:
+      replicas: 1
+      template:
+        metadata:
+          labels:
+            name: my-deployment
+        spec:
+          containers:
+            - name: my-deployment
+              args:
+                - '-m 64'
+                - '-p 11211'
+              image: quay.io/weaveworks/my-deployment:master-123
+              imagePullPolicy: IfNotPresent
+              ports:
+                - name: clients
+                  containerPort: 11211
+`
+
+const singleListOut = `---
+apiVersion: v1
+kind: List
+items:
+  - apiVersion: extensions/v1beta1
+    kind: Deployment
+    metadata:
+      name: my-deployment
+      labels:
+        name: my-deployment
+    spec:
+      replicas: 1
+      template:
+        metadata:
+          labels:
+            name: my-deployment
+        spec:
+          containers:
+            - name: my-deployment
+              args:
+                - '-m 64'
+                - '-p 11211'
+              image: quay.io/weaveworks/my-deployment:master-456
+              imagePullPolicy: IfNotPresent
+              ports:
+                - name: clients
+                  containerPort: 11211
 `

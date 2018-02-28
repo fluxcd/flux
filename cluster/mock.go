@@ -21,7 +21,7 @@ type Mock struct {
 	LoadManifestsFunc        func(paths ...string) (map[string]resource.Resource, error)
 	ParseManifestsFunc       func([]byte) (map[string]resource.Resource, error)
 	UpdateManifestFunc       func(path, resourceID string, f func(def []byte) ([]byte, error)) error
-	UpdatePoliciesFunc       func([]byte, policy.Update) ([]byte, error)
+	UpdatePoliciesFunc       func([]byte, flux.ResourceID, policy.Update) ([]byte, error)
 	ServicesWithPoliciesFunc func(path string) (policy.ResourceMap, error)
 }
 
@@ -69,8 +69,8 @@ func (m *Mock) UpdateManifest(path string, resourceID string, f func(def []byte)
 	return m.UpdateManifestFunc(path, resourceID, f)
 }
 
-func (m *Mock) UpdatePolicies(def []byte, p policy.Update) ([]byte, error) {
-	return m.UpdatePoliciesFunc(def, p)
+func (m *Mock) UpdatePolicies(def []byte, id flux.ResourceID, p policy.Update) ([]byte, error) {
+	return m.UpdatePoliciesFunc(def, id, p)
 }
 
 func (m *Mock) ServicesWithPolicies(path string) (policy.ResourceMap, error) {

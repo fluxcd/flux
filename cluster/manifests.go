@@ -25,7 +25,7 @@ type Manifests interface {
 	// Parse the manifests given in an exported blob
 	ParseManifests([]byte) (map[string]resource.Resource, error)
 	// UpdatePolicies modifies a manifest to apply the policy update specified
-	UpdatePolicies([]byte, policy.Update) ([]byte, error)
+	UpdatePolicies(def []byte, serviceID flux.ResourceID, update policy.Update) ([]byte, error)
 	// ServicesWithPolicies returns all services with their associated policies
 	ServicesWithPolicies(path string) (policy.ResourceMap, error)
 }
@@ -52,6 +52,7 @@ func UpdateManifest(m Manifests, root string, serviceID flux.ResourceID, f func(
 	}
 
 	newDef, err := f(def)
+
 	if err != nil {
 		return err
 	}

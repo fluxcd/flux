@@ -1,7 +1,6 @@
 package kubernetes
 
 import (
-	"io/ioutil"
 	"regexp"
 	"strings"
 
@@ -13,9 +12,10 @@ import (
 	"github.com/weaveworks/flux/policy"
 )
 
-func (m *Manifests) UpdatePolicies(in []byte, update policy.Update) ([]byte, error) {
+func (m *Manifests) UpdatePolicies(in []byte, serviceID flux.ResourceID, update policy.Update) ([]byte, error) {
 	tagAll, _ := update.Add.Get(policy.TagAll)
-	return updateAnnotations(in, tagAll, func(a map[string]string) map[string]string {
+
+	return updateAnnotations(in, serviceID, tagAll, func(a map[string]string) map[string]string {
 		for p, v := range update.Add {
 			if p == policy.TagAll {
 				continue
@@ -29,14 +29,48 @@ func (m *Manifests) UpdatePolicies(in []byte, update policy.Update) ([]byte, err
 	})
 }
 
-func updateAnnotations(def []byte, tagAll string, f func(map[string]string) map[string]string) ([]byte, error) {
+func updateAnnotations(def []byte, serviceID flux.ResourceID, tagAll string, f func(map[string]string) map[string]string) ([]byte, error) {
 	manifest, err := parseManifest(def)
 	if err != nil {
 		return nil, err
 	}
-	annotations := manifest.Metadata.AnnotationsOrNil()
+
+	str := string(def)
+	isList := manifest.Kind == "List"
+	var annotations map[string]string
+	var containers []resource.Container
+	var annotationsExpression string
+	var metadataExpression string
+
+	if isList {
+		var l resource.List
+		err := yaml.Unmarshal(def, &l)
+
+		if err != nil {
+			return nil, err
+		}
+
+		// find the item we are trying to update in the List
+		for _, item := range l.Items {
+			if item.ResourceID().String() == serviceID.String() {
+				annotations = item.Metadata.AnnotationsOrNil()
+				containers = item.Spec.Template.Spec.Containers
+				break
+			}
+		}
+		// Grab the annotations from the metadata block.
+		annotationsExpression = `(?m:\n\s{6}annotations:\s*(?:#.*)*(?:\n\s{8}.*)*$)`
+		// Grab the entire metadata block.
+		// We need to know the name of the resource to decide whether or not to update its annotations
+		metadataExpression = `(?m:\n\s{4}kind:(?:.*)\n\s{4}metadata:(?:.*)*\s*(?:#.*)*(?:\n\s{6}.*)*$)`
+	} else {
+		annotationsExpression = `(?m:\n  annotations:\s*(?:#.*)*(?:\n    .*)*$)`
+		metadataExpression = `(?m:^(metadata:\s*(?:#.*)*)$)`
+		annotations = manifest.Metadata.AnnotationsOrNil()
+		containers = manifest.Spec.Template.Spec.Containers
+	}
+
 	if tagAll != "" {
-		containers := manifest.Spec.Template.Spec.Containers
 		for _, c := range containers {
 			p := resource.PolicyPrefix + string(policy.TagPrefix(c.Name))
 			if tagAll != "glob:*" {
@@ -47,7 +81,6 @@ func updateAnnotations(def []byte, tagAll string, f func(map[string]string) map[
 		}
 	}
 	newAnnotations := f(annotations)
-
 	// Write the new annotations back into the manifest
 	// Generate a fragment of the new annotations.
 	var fragment string
@@ -65,7 +98,7 @@ func updateAnnotations(def []byte, tagAll string, f func(map[string]string) map[
 		fragment = strings.TrimSuffix(fragment, "\n")
 
 		// indent the fragment 2 spaces
-		fragment = regexp.MustCompile(`(.+)`).ReplaceAllString(fragment, "  $1")
+		fragment = indent(fragment)
 
 		// Add a newline if it's not blank
 		if len(fragment) > 0 {
@@ -77,25 +110,49 @@ func updateAnnotations(def []byte, tagAll string, f func(map[string]string) map[
 	// TODO: This should handle potentially different indentation.
 	// TODO: There's probably a more elegant regex-ey way to do this in one pass.
 	replaced := false
-	annotationsRE := regexp.MustCompile(`(?m:\n  annotations:\s*(?:#.*)*(?:\n    .*)*$)`)
-	newDef := annotationsRE.ReplaceAllStringFunc(string(def), func(found string) string {
-		if !replaced {
-			replaced = true
-			return fragment
-		}
-		return found
-	})
-	if !replaced {
-		metadataRE := multilineRE(`(metadata:\s*(?:#.*)*)`)
-		newDef = metadataRE.ReplaceAllStringFunc(string(def), func(found string) string {
+	annotationsRE := regexp.MustCompile(annotationsExpression)
+
+	var newDef string
+	if !isList {
+		// Don't try to handle List stuff here. The metadataRE will take care of it.
+		newDef = annotationsRE.ReplaceAllStringFunc(str, func(found string) string {
 			if !replaced {
 				replaced = true
-				f := found + fragment
-				return f
+				return fragment
 			}
 			return found
 		})
 	}
+
+	if !replaced {
+		metadataRE := regexp.MustCompile(metadataExpression)
+		newDef = metadataRE.ReplaceAllStringFunc(str, func(found string) string {
+			// `found` contains the entire metadata block.
+			if !replaced {
+				// If not a list, it is safe to do a straight replace
+				if !isList {
+					replaced = true
+					return found + fragment
+				} else if shouldUpdateAnnotations(found, serviceID) {
+					// Doing List stuff here
+					// The metadata must contain the right serviceID in order to replace the annotations
+					// Find and replace only the annotations block within the metadata block
+					// List item annotations have a little more indentation than regular files
+					indented := indent(indent(fragment))
+					f := found + indented
+					// If annotations already exist, replace them.
+					// If not, just return the metadata block with the new annotations
+					if annotationsRE.MatchString(found) {
+						f = annotationsRE.ReplaceAllString(found, indented)
+					}
+					replaced = true
+					return f
+				}
+			}
+			return found
+		})
+	}
+
 	if !replaced {
 		return nil, errors.New("Could not update resource annotations")
 	}
@@ -103,45 +160,8 @@ func updateAnnotations(def []byte, tagAll string, f func(map[string]string) map[
 	return []byte(newDef), err
 }
 
-type Manifest struct {
-	Metadata Metadata `yaml:"metadata"`
-	Spec     struct {
-		Template struct {
-			Spec struct {
-				Containers []Container `yaml:"containers"`
-			} `yaml:"spec"`
-		} `yaml:"template"`
-		JobTemplate struct {
-			Spec struct {
-				Template struct {
-					Spec struct {
-						Containers []Container `yaml:"containers"`
-					} `yaml:"spec"`
-				} `yaml:"template"`
-			} `yaml:"spec"`
-		} `yaml:"jobTemplate"`
-	} `yaml:"spec"`
-}
-
-func (m Metadata) AnnotationsOrNil() map[string]string {
-	if m.Annotations == nil {
-		return map[string]string{}
-	}
-	return m.Annotations
-}
-
-type Metadata struct {
-	Name        string            `yaml:"name"`
-	Annotations map[string]string `yaml:"annotations"`
-}
-
-type Container struct {
-	Name  string `yaml:"name"`
-	Image string `yaml:"image"`
-}
-
-func parseManifest(def []byte) (Manifest, error) {
-	var m Manifest
+func parseManifest(def []byte) (resource.BaseObject, error) {
+	var m resource.BaseObject
 	if err := yaml.Unmarshal(def, &m); err != nil {
 		return m, errors.Wrap(err, "decoding annotations")
 	}
@@ -149,63 +169,39 @@ func parseManifest(def []byte) (Manifest, error) {
 }
 
 func (m *Manifests) ServicesWithPolicies(root string) (policy.ResourceMap, error) {
-	all, err := m.FindDefinedServices(root)
+	manifests, err := m.LoadManifests(root)
+
 	if err != nil {
 		return nil, err
 	}
 
 	result := map[flux.ResourceID]policy.Set{}
-	err = iterateManifests(all, func(s flux.ResourceID, m Manifest) error {
-		ps, err := policiesFrom(m)
+	for name, r := range manifests {
+		resourceID, err := flux.ParseResourceID(name)
 		if err != nil {
-			return err
+			return nil, err
 		}
-		result[s] = ps
-		return nil
-	})
-	if err != nil {
-		return nil, err
+		result[resourceID] = r.Policy()
 	}
+
 	return result, nil
 }
 
-func iterateManifests(services map[flux.ResourceID][]string, f func(flux.ResourceID, Manifest) error) error {
-	for serviceID, paths := range services {
-		if len(paths) != 1 {
-			continue
-		}
-
-		def, err := ioutil.ReadFile(paths[0])
-		if err != nil {
-			return err
-		}
-		manifest, err := parseManifest(def)
-		if err != nil {
-			return err
-		}
-
-		if err = f(serviceID, manifest); err != nil {
-			return err
-		}
-	}
-	return nil
+func indent(str string) string {
+	return regexp.MustCompile(`(.+)`).ReplaceAllString(str, "  $1")
 }
 
-func policiesFrom(m Manifest) (policy.Set, error) {
-	var policies policy.Set
-	for k, v := range m.Metadata.AnnotationsOrNil() {
-		if !strings.HasPrefix(k, resource.PolicyPrefix) {
-			continue
-		}
-		p := policy.Policy(strings.TrimPrefix(k, resource.PolicyPrefix))
-		if policy.Boolean(p) {
-			if v != "true" {
-				continue
-			}
-			policies = policies.Add(p)
-		} else {
-			policies = policies.Set(p, v)
-		}
+func contains(target, substring string) bool {
+	return strings.Contains(strings.ToLower(target), substring)
+}
+
+func shouldUpdateAnnotations(found string, r flux.ResourceID) bool {
+	// Avoid updating resources with the same name, ie a Deployment named 'foo' AND a Service named 'foo'
+	namespace, kind, name := r.Components()
+	if namespace == "default" {
+		// No namespace specified, only match Kind and name
+		return contains(found, "kind: "+kind) && contains(found, "name: "+name)
 	}
-	return policies, nil
+	// Avoid updating two deployments with the same name in different namespaces (defined in the same List)
+	return contains(found, "namespace: "+namespace) && contains(found, "kind: "+kind) && contains(found, "name: "+name)
 }

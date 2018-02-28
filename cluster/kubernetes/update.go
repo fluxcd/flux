@@ -7,6 +7,9 @@ import (
 	"regexp"
 	"strings"
 
+	yaml "gopkg.in/yaml.v2"
+
+	"github.com/weaveworks/flux/cluster/kubernetes/resource"
 	"github.com/weaveworks/flux/image"
 )
 
@@ -25,13 +28,29 @@ func updatePodController(def []byte, container string, newImageID image.Ref) ([]
 		return nil, err
 	}
 
-	if _, ok := resourceKinds[strings.ToLower(obj.Kind)]; !ok {
+	_, supported := resourceKinds[strings.ToLower(obj.Kind)]
+
+	// Lists are okay; we handle those downstream
+	if obj.Kind != "List" && !supported {
 		return nil, UpdateNotSupportedError(obj.Kind)
 	}
 
 	var buf bytes.Buffer
 	err = tryUpdate(def, container, newImageID, &buf)
 	return buf.Bytes(), err
+}
+
+func findContainersInList(l resource.List) []resource.Container {
+	var containers []resource.Container
+
+	for _, item := range l.Items {
+		containers = append(containers, getContainersFromManifest(item)...)
+	}
+	return containers
+}
+
+func getContainersFromManifest(manifest resource.BaseObject) []resource.Container {
+	return manifest.Spec.Template.Spec.Containers
 }
 
 // Attempt to update an RC or Deployment config. This makes several assumptions
@@ -79,10 +98,12 @@ func updatePodController(def []byte, container string, newImageID image.Ref) ([]
 // ```
 func tryUpdate(def []byte, container string, newImage image.Ref, out io.Writer) error {
 	manifest, err := parseManifest(def)
+
 	if err != nil {
 		return err
 	}
-	if manifest.Metadata.Name == "" {
+
+	if manifest.Metadata.Name == "" && manifest.Kind != "List" {
 		return fmt.Errorf("could not find resource name")
 	}
 
@@ -90,8 +111,23 @@ func tryUpdate(def []byte, container string, newImage image.Ref, out io.Writer) 
 	// new manifest name, in case it includes the image tag (as in replication
 	// controllers).
 	newDefName := manifest.Metadata.Name
-	matchingContainers := map[int]Container{}
-	for i, c := range append(manifest.Spec.Template.Spec.Containers, manifest.Spec.JobTemplate.Spec.Template.Spec.Containers...) {
+	matchingContainers := map[int]resource.Container{}
+	var manifestContainers []resource.Container
+
+	if manifest.Kind == "List" {
+		list := resource.List{}
+		err := yaml.Unmarshal(def, &list)
+
+		if err != nil {
+			return err
+		}
+
+		manifestContainers = findContainersInList(list)
+	} else {
+		manifestContainers = getContainersFromManifest(manifest)
+	}
+
+	for i, c := range manifestContainers {
 		if c.Name != container {
 			continue
 		}
