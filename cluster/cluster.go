@@ -29,6 +29,10 @@ type Cluster interface {
 type Controller struct {
 	ID     flux.ResourceID
 	Status string // A status summary for display
+	// Is the controller considered read-only because it's under the
+	// control of the platform. In the case of Kubernetes, we simply
+	// omit these controllers; but this may not always be the case.
+	IsSystem bool
 
 	Containers ContainersOrExcuse
 }

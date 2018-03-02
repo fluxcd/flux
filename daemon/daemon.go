@@ -76,6 +76,7 @@ func (d *Daemon) ListServices(ctx context.Context, namespace string) ([]v6.Contr
 	}
 
 	var services policy.ResourceMap
+	var noRepo bool
 	err = d.WithClone(ctx, func(checkout *git.Checkout) error {
 		var err error
 		services, err = d.Manifests.ServicesWithPolicies(checkout.ManifestDir())
@@ -83,17 +84,27 @@ func (d *Daemon) ListServices(ctx context.Context, namespace string) ([]v6.Contr
 	})
 	switch {
 	case err == git.ErrNotReady:
-		services = policy.ResourceMap{}
+		noRepo = true
 	case err != nil:
 		return nil, errors.Wrap(err, "getting service policies")
 	}
 
 	var res []v6.ControllerStatus
 	for _, service := range clusterServices {
-		policies := services[service.ID]
+		var readonly v6.ReadOnlyReason
+		policies, ok := services[service.ID]
+		switch {
+		case noRepo:
+			readonly = v6.ReadOnlyNoRepo
+		case !ok:
+			readonly = v6.ReadOnlyMissing
+		case service.IsSystem:
+			readonly = v6.ReadOnlySystem
+		}
 		res = append(res, v6.ControllerStatus{
 			ID:         service.ID,
 			Containers: containers2containers(service.ContainersOrNil()),
+			ReadOnly:   readonly,
 			Status:     service.Status,
 			Automated:  policies.Contains(policy.Automated),
 			Locked:     policies.Contains(policy.Locked),
