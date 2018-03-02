@@ -20,6 +20,7 @@ import (
 	"k8s.io/client-go/rest"
 
 	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/api/v6"
 	"github.com/weaveworks/flux/cluster"
 	"github.com/weaveworks/flux/cluster/kubernetes"
 	"github.com/weaveworks/flux/daemon"
@@ -278,7 +279,7 @@ func main() {
 	}
 
 	// Indirect reference to a daemon, initially of the NotReady variety
-	notReadyDaemon := daemon.NewNotReadyDaemon(version, k8s, flux.GitRemoteConfig{
+	notReadyDaemon := daemon.NewNotReadyDaemon(version, k8s, v6.GitRemoteConfig{
 		URL:    *gitURL,
 		Branch: *gitBranch,
 		Path:   *gitPath,
@@ -383,7 +384,7 @@ func main() {
 			logger.Log("repo", repo.Origin().URL, "status", status, "err", err)
 			notReadyDaemon.UpdateStatus(status, err)
 
-			if status == flux.RepoReady {
+			if status == git.RepoReady {
 				checker = checkForUpdates(clusterVersion, "true", updateCheckLogger)
 				logger.Log("working-dir", repo.Dir(),
 					"user", *gitUser,

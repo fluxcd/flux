@@ -4,8 +4,8 @@ import (
 	"context"
 	"sync"
 
-	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/api"
+	"github.com/weaveworks/flux/api/v6"
 	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/update"
 )
@@ -50,11 +50,11 @@ func (r *Ref) Export(ctx context.Context) ([]byte, error) {
 	return r.Server().Export(ctx)
 }
 
-func (r *Ref) ListServices(ctx context.Context, namespace string) ([]flux.ControllerStatus, error) {
+func (r *Ref) ListServices(ctx context.Context, namespace string) ([]v6.ControllerStatus, error) {
 	return r.Server().ListServices(ctx, namespace)
 }
 
-func (r *Ref) ListImages(ctx context.Context, spec update.ResourceSpec) ([]flux.ImageStatus, error) {
+func (r *Ref) ListImages(ctx context.Context, spec update.ResourceSpec) ([]v6.ImageStatus, error) {
 	return r.Server().ListImages(ctx, spec)
 }
 
@@ -74,6 +74,6 @@ func (r *Ref) SyncStatus(ctx context.Context, ref string) ([]string, error) {
 	return r.Server().SyncStatus(ctx, ref)
 }
 
-func (r *Ref) GitRepoConfig(ctx context.Context, regenerate bool) (flux.GitConfig, error) {
+func (r *Ref) GitRepoConfig(ctx context.Context, regenerate bool) (v6.GitConfig, error) {
 	return r.Server().GitRepoConfig(ctx, regenerate)
 }

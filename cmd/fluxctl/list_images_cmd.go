@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/api/v6"
 	"github.com/weaveworks/flux/registry"
 	"github.com/weaveworks/flux/update"
 )
@@ -135,7 +136,7 @@ func (opts *controllerShowOpts) RunE(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-type imageStatusByName []flux.ImageStatus
+type imageStatusByName []v6.ImageStatus
 
 func (s imageStatusByName) Len() int {
 	return len(s)

@@ -4,9 +4,9 @@ import (
 	"context"
 	"io"
 	"net/rpc"
+	"net/rpc/jsonrpc"
 
-	"github.com/weaveworks/flux"
-	"github.com/weaveworks/flux/api"
+	"github.com/weaveworks/flux/api/v6"
 	fluxerr "github.com/weaveworks/flux/errors"
 	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/remote"
@@ -16,12 +16,13 @@ import (
 // RPCClient is the rpc-backed implementation of a server, for
 // talking to remote daemons.
 type RPCClientV6 struct {
-	*RPCClientV5
+	*baseClient
+	client *rpc.Client
 }
 
 type clientV6 interface {
-	api.ServerV6
-	api.UpstreamV4
+	v6.Server
+	v6.Upstream
 }
 
 // We don't get proper application error structs back from v6, but we
@@ -47,7 +48,30 @@ var supportedKindsV6 = []string{"service"}
 
 // NewClient creates a new rpc-backed implementation of the server.
 func NewClientV6(conn io.ReadWriteCloser) *RPCClientV6 {
-	return &RPCClientV6{NewClientV5(conn)}
+	return &RPCClientV6{&baseClient{}, jsonrpc.NewClient(conn)}
+}
+
+// Ping is used to check if the remote server is available.
+func (p *RPCClientV6) Ping(ctx context.Context) error {
+	err := p.client.Call("RPCServer.Ping", struct{}{}, nil)
+	if _, ok := err.(rpc.ServerError); !ok && err != nil {
+		return remote.FatalError{err}
+	}
+	return err
+}
+
+// Version is used to check the version of the remote server.
+func (p *RPCClientV6) Version(ctx context.Context) (string, error) {
+	var version string
+	err := p.client.Call("RPCServer.Version", struct{}{}, &version)
+	if _, ok := err.(rpc.ServerError); !ok && err != nil {
+		return "", remote.FatalError{err}
+	} else if err != nil && err.Error() == "rpc: can't find method RPCServer.Version" {
+		// "Version" is not supported by this version of fluxd (it is old). Fail
+		// gracefully.
+		return "unknown", nil
+	}
+	return version, err
 }
 
 // Export is used to get service configuration in cluster-specific format
@@ -63,8 +87,8 @@ func (p *RPCClientV6) Export(ctx context.Context) ([]byte, error) {
 	return config, err
 }
 
-func (p *RPCClientV6) ListServices(ctx context.Context, namespace string) ([]flux.ControllerStatus, error) {
-	var services []flux.ControllerStatus
+func (p *RPCClientV6) ListServices(ctx context.Context, namespace string) ([]v6.ControllerStatus, error) {
+	var services []v6.ControllerStatus
 	err := p.client.Call("RPCServer.ListServices", namespace, &services)
 	if _, ok := err.(rpc.ServerError); !ok && err != nil {
 		return nil, remote.FatalError{err}
@@ -75,8 +99,8 @@ func (p *RPCClientV6) ListServices(ctx context.Context, namespace string) ([]flu
 	return services, err
 }
 
-func (p *RPCClientV6) ListImages(ctx context.Context, spec update.ResourceSpec) ([]flux.ImageStatus, error) {
-	var images []flux.ImageStatus
+func (p *RPCClientV6) ListImages(ctx context.Context, spec update.ResourceSpec) ([]v6.ImageStatus, error) {
+	var images []v6.ImageStatus
 	if err := requireServiceSpecKinds(spec, supportedKindsV6); err != nil {
 		return images, remote.UpgradeNeededError(err)
 	}
@@ -143,11 +167,11 @@ func (p *RPCClientV6) SyncStatus(ctx context.Context, ref string) ([]string, err
 	return result, err
 }
 
-func (p *RPCClientV6) GitRepoConfig(ctx context.Context, regenerate bool) (flux.GitConfig, error) {
-	var result flux.GitConfig
+func (p *RPCClientV6) GitRepoConfig(ctx context.Context, regenerate bool) (v6.GitConfig, error) {
+	var result v6.GitConfig
 	err := p.client.Call("RPCServer.GitRepoConfig", regenerate, &result)
 	if _, ok := err.(rpc.ServerError); !ok && err != nil {
-		return flux.GitConfig{}, remote.FatalError{err}
+		return v6.GitConfig{}, remote.FatalError{err}
 	}
 	if err != nil {
 		err = remoteApplicationError(err)

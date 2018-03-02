@@ -5,8 +5,8 @@ import (
 
 	"github.com/go-kit/kit/log"
 
-	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/api"
+	"github.com/weaveworks/flux/api/v6"
 	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/update"
 )
@@ -33,7 +33,7 @@ func (p *ErrorLoggingServer) Export(ctx context.Context) (config []byte, err err
 	return p.server.Export(ctx)
 }
 
-func (p *ErrorLoggingServer) ListServices(ctx context.Context, maybeNamespace string) (_ []flux.ControllerStatus, err error) {
+func (p *ErrorLoggingServer) ListServices(ctx context.Context, maybeNamespace string) (_ []v6.ControllerStatus, err error) {
 	defer func() {
 		if err != nil {
 			p.logger.Log("method", "ListServices", "error", err)
@@ -42,7 +42,7 @@ func (p *ErrorLoggingServer) ListServices(ctx context.Context, maybeNamespace st
 	return p.server.ListServices(ctx, maybeNamespace)
 }
 
-func (p *ErrorLoggingServer) ListImages(ctx context.Context, spec update.ResourceSpec) (_ []flux.ImageStatus, err error) {
+func (p *ErrorLoggingServer) ListImages(ctx context.Context, spec update.ResourceSpec) (_ []v6.ImageStatus, err error) {
 	defer func() {
 		if err != nil {
 			p.logger.Log("method", "ListImages", "error", err)
@@ -78,7 +78,7 @@ func (p *ErrorLoggingServer) UpdateManifests(ctx context.Context, u update.Spec)
 	return p.server.UpdateManifests(ctx, u)
 }
 
-func (p *ErrorLoggingServer) GitRepoConfig(ctx context.Context, regenerate bool) (_ flux.GitConfig, err error) {
+func (p *ErrorLoggingServer) GitRepoConfig(ctx context.Context, regenerate bool) (_ v6.GitConfig, err error) {
 	defer func() {
 		if err != nil {
 			p.logger.Log("method", "GitRepoConfig", "error", err)

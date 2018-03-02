@@ -8,8 +8,8 @@ import (
 	"github.com/go-kit/kit/metrics/prometheus"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 
-	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/api"
+	"github.com/weaveworks/flux/api/v6"
 	"github.com/weaveworks/flux/job"
 	fluxmetrics "github.com/weaveworks/flux/metrics"
 	"github.com/weaveworks/flux/update"
@@ -45,7 +45,7 @@ func (i *instrumentedServer) Export(ctx context.Context) (config []byte, err err
 	return i.s.Export(ctx)
 }
 
-func (i *instrumentedServer) ListServices(ctx context.Context, namespace string) (_ []flux.ControllerStatus, err error) {
+func (i *instrumentedServer) ListServices(ctx context.Context, namespace string) (_ []v6.ControllerStatus, err error) {
 	defer func(begin time.Time) {
 		requestDuration.With(
 			fluxmetrics.LabelMethod, "ListServices",
@@ -55,7 +55,7 @@ func (i *instrumentedServer) ListServices(ctx context.Context, namespace string)
 	return i.s.ListServices(ctx, namespace)
 }
 
-func (i *instrumentedServer) ListImages(ctx context.Context, spec update.ResourceSpec) (_ []flux.ImageStatus, err error) {
+func (i *instrumentedServer) ListImages(ctx context.Context, spec update.ResourceSpec) (_ []v6.ImageStatus, err error) {
 	defer func(begin time.Time) {
 		requestDuration.With(
 			fluxmetrics.LabelMethod, "ListImages",
@@ -95,7 +95,7 @@ func (i *instrumentedServer) SyncStatus(ctx context.Context, cursor string) (_ [
 	return i.s.SyncStatus(ctx, cursor)
 }
 
-func (i *instrumentedServer) GitRepoConfig(ctx context.Context, regenerate bool) (_ flux.GitConfig, err error) {
+func (i *instrumentedServer) GitRepoConfig(ctx context.Context, regenerate bool) (_ v6.GitConfig, err error) {
 	defer func(begin time.Time) {
 		requestDuration.With(
 			fluxmetrics.LabelMethod, "GitRepoConfig",

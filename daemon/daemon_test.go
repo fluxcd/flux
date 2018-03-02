@@ -15,6 +15,7 @@ import (
 
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/api"
+	"github.com/weaveworks/flux/api/v6"
 	"github.com/weaveworks/flux/cluster"
 	"github.com/weaveworks/flux/cluster/kubernetes"
 	kresource "github.com/weaveworks/flux/cluster/kubernetes/resource"
@@ -550,7 +551,7 @@ func (w *wait) ForSyncStatus(d *Daemon, rev string, expectedNumCommits int) []st
 	return revs
 }
 
-func imageIDs(status []flux.ImageStatus) []image.Info {
+func imageIDs(status []v6.ImageStatus) []image.Info {
 	var availableImgs []image.Info
 	for _, i := range status {
 		for _, c := range i.Containers {

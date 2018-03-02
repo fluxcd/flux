@@ -5,8 +5,7 @@ import (
 	"io"
 	"net/rpc"
 
-	"github.com/weaveworks/flux"
-	"github.com/weaveworks/flux/api"
+	"github.com/weaveworks/flux/api/v6"
 	fluxerr "github.com/weaveworks/flux/errors"
 	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/remote"
@@ -22,8 +21,8 @@ type RPCClientV7 struct {
 }
 
 type clientV7 interface {
-	api.ServerV6
-	api.UpstreamV4
+	v6.Server
+	v6.Upstream
 }
 
 var _ clientV7 = &RPCClientV7{}
@@ -49,7 +48,7 @@ func (p *RPCClientV7) Export(ctx context.Context) ([]byte, error) {
 	return resp.Result, err
 }
 
-func (p *RPCClientV7) ListServices(ctx context.Context, namespace string) ([]flux.ControllerStatus, error) {
+func (p *RPCClientV7) ListServices(ctx context.Context, namespace string) ([]v6.ControllerStatus, error) {
 	var resp ListServicesResponse
 	err := p.client.Call("RPCServer.ListServices", namespace, &resp)
 	if err != nil {
@@ -63,7 +62,7 @@ func (p *RPCClientV7) ListServices(ctx context.Context, namespace string) ([]flu
 	return resp.Result, err
 }
 
-func (p *RPCClientV7) ListImages(ctx context.Context, spec update.ResourceSpec) ([]flux.ImageStatus, error) {
+func (p *RPCClientV7) ListImages(ctx context.Context, spec update.ResourceSpec) ([]v6.ImageStatus, error) {
 	var resp ListImagesResponse
 	if err := requireServiceSpecKinds(spec, supportedKindsV7); err != nil {
 		return resp.Result, remote.UpgradeNeededError(err)
@@ -139,7 +138,7 @@ func (p *RPCClientV7) SyncStatus(ctx context.Context, ref string) ([]string, err
 	return resp.Result, err
 }
 
-func (p *RPCClientV7) GitRepoConfig(ctx context.Context, regenerate bool) (flux.GitConfig, error) {
+func (p *RPCClientV7) GitRepoConfig(ctx context.Context, regenerate bool) (v6.GitConfig, error) {
 	var resp GitRepoConfigResponse
 	err := p.client.Call("RPCServer.GitRepoConfig", regenerate, &resp)
 	if err != nil {

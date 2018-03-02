@@ -13,6 +13,7 @@ import (
 
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/api"
+	"github.com/weaveworks/flux/api/v6"
 	fluxerr "github.com/weaveworks/flux/errors"
 	"github.com/weaveworks/flux/event"
 	transport "github.com/weaveworks/flux/http"
@@ -42,14 +43,14 @@ func New(c *http.Client, router *mux.Router, endpoint string, t flux.Token) *Cli
 	}
 }
 
-func (c *Client) ListServices(ctx context.Context, namespace string) ([]flux.ControllerStatus, error) {
-	var res []flux.ControllerStatus
+func (c *Client) ListServices(ctx context.Context, namespace string) ([]v6.ControllerStatus, error) {
+	var res []v6.ControllerStatus
 	err := c.Get(ctx, &res, transport.ListServices, "namespace", namespace)
 	return res, err
 }
 
-func (c *Client) ListImages(ctx context.Context, s update.ResourceSpec) ([]flux.ImageStatus, error) {
-	var res []flux.ImageStatus
+func (c *Client) ListImages(ctx context.Context, s update.ResourceSpec) ([]v6.ImageStatus, error) {
+	var res []v6.ImageStatus
 	err := c.Get(ctx, &res, transport.ListImages, "service", string(s))
 	return res, err
 }
@@ -82,8 +83,8 @@ func (c *Client) Export(ctx context.Context) ([]byte, error) {
 	return res, err
 }
 
-func (c *Client) GitRepoConfig(ctx context.Context, regenerate bool) (flux.GitConfig, error) {
-	var res flux.GitConfig
+func (c *Client) GitRepoConfig(ctx context.Context, regenerate bool) (v6.GitConfig, error) {
+	var res v6.GitConfig
 	err := c.methodWithResp(ctx, "POST", &res, transport.GitRepoConfig, regenerate)
 	return res, err
 }

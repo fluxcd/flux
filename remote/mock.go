@@ -10,6 +10,7 @@ import (
 
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/api"
+	"github.com/weaveworks/flux/api/v6"
 	"github.com/weaveworks/flux/guid"
 	"github.com/weaveworks/flux/image"
 	"github.com/weaveworks/flux/job"
@@ -25,10 +26,10 @@ type MockServer struct {
 	ExportAnswer []byte
 	ExportError  error
 
-	ListServicesAnswer []flux.ControllerStatus
+	ListServicesAnswer []v6.ControllerStatus
 	ListServicesError  error
 
-	ListImagesAnswer []flux.ImageStatus
+	ListImagesAnswer []v6.ImageStatus
 	ListImagesError  error
 
 	UpdateManifestsArgTest func(update.Spec) error
@@ -43,7 +44,7 @@ type MockServer struct {
 	JobStatusAnswer job.Status
 	JobStatusError  error
 
-	GitRepoConfigAnswer flux.GitConfig
+	GitRepoConfigAnswer v6.GitConfig
 	GitRepoConfigError  error
 }
 
@@ -59,11 +60,11 @@ func (p *MockServer) Export(ctx context.Context) ([]byte, error) {
 	return p.ExportAnswer, p.ExportError
 }
 
-func (p *MockServer) ListServices(ctx context.Context, ns string) ([]flux.ControllerStatus, error) {
+func (p *MockServer) ListServices(ctx context.Context, ns string) ([]v6.ControllerStatus, error) {
 	return p.ListServicesAnswer, p.ListServicesError
 }
 
-func (p *MockServer) ListImages(context.Context, update.ResourceSpec) ([]flux.ImageStatus, error) {
+func (p *MockServer) ListImages(context.Context, update.ResourceSpec) ([]v6.ImageStatus, error) {
 	return p.ListImagesAnswer, p.ListImagesError
 }
 
@@ -88,7 +89,7 @@ func (p *MockServer) JobStatus(context.Context, job.ID) (job.Status, error) {
 	return p.JobStatusAnswer, p.JobStatusError
 }
 
-func (p *MockServer) GitRepoConfig(ctx context.Context, regenerate bool) (flux.GitConfig, error) {
+func (p *MockServer) GitRepoConfig(ctx context.Context, regenerate bool) (v6.GitConfig, error) {
 	return p.GitRepoConfigAnswer, p.GitRepoConfigError
 }
 
@@ -109,12 +110,12 @@ func ServerTestBattery(t *testing.T, wrap func(mock api.UpstreamServer) api.Upst
 	now := time.Now().UTC()
 
 	imageID, _ := image.ParseRef("quay.io/example.com/frob:v0.4.5")
-	serviceAnswer := []flux.ControllerStatus{
-		flux.ControllerStatus{
+	serviceAnswer := []v6.ControllerStatus{
+		v6.ControllerStatus{
 			ID:     flux.MustParseResourceID("foobar/hello"),
 			Status: "ok",
-			Containers: []flux.Container{
-				flux.Container{
+			Containers: []v6.Container{
+				v6.Container{
 					Name: "frobnicator",
 					Current: image.Info{
 						ID:        imageID,
@@ -123,13 +124,13 @@ func ServerTestBattery(t *testing.T, wrap func(mock api.UpstreamServer) api.Upst
 				},
 			},
 		},
-		flux.ControllerStatus{},
+		v6.ControllerStatus{},
 	}
 
-	imagesAnswer := []flux.ImageStatus{
-		flux.ImageStatus{
+	imagesAnswer := []v6.ImageStatus{
+		v6.ImageStatus{
 			ID: flux.MustParseResourceID("barfoo/yello"),
-			Containers: []flux.Container{
+			Containers: []v6.Container{
 				{
 					Name: "flubnicator",
 					Current: image.Info{

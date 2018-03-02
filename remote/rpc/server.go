@@ -8,8 +8,8 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/api"
+	"github.com/weaveworks/flux/api/v6"
 	fluxerr "github.com/weaveworks/flux/errors"
 	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/update"
@@ -66,7 +66,7 @@ func (p *RPCServer) Export(_ struct{}, resp *ExportResponse) error {
 }
 
 type ListServicesResponse struct {
-	Result           []flux.ControllerStatus
+	Result           []v6.ControllerStatus
 	ApplicationError *fluxerr.Error
 }
 
@@ -83,7 +83,7 @@ func (p *RPCServer) ListServices(namespace string, resp *ListServicesResponse) e
 }
 
 type ListImagesResponse struct {
-	Result           []flux.ImageStatus
+	Result           []v6.ImageStatus
 	ApplicationError *fluxerr.Error
 }
 
@@ -166,7 +166,7 @@ func (p *RPCServer) SyncStatus(ref string, resp *SyncStatusResponse) error {
 }
 
 type GitRepoConfigResponse struct {
-	Result           flux.GitConfig
+	Result           v6.GitConfig
 	ApplicationError *fluxerr.Error
 }
 
