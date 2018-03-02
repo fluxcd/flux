@@ -362,11 +362,15 @@ func (d *Daemon) doSync(logger log.Logger) (retErr error) {
 			},
 		}); err != nil {
 			logger.Log("err", err)
+			// Abort early to ensure at least once delivery of events
+			return err
 		}
 
 		for _, event := range noteEvents {
 			if err = d.LogEvent(event); err != nil {
 				logger.Log("err", err)
+				// Abort early to ensure at least once delivery of events
+				return err
 			}
 		}
 	}
