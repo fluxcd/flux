@@ -25,9 +25,7 @@
         labels:
           name: helm-operator
       spec:
-        # The serviceAccount is only needed for Kubernetes with RBAC.
-        # You will also need to create the resources in flux-account.yaml.
-        # serviceAccount: flux
+        serviceAccount: flux
         volumes:
         - name: git-key
           secret:
