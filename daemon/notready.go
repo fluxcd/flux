@@ -5,8 +5,8 @@ import (
 	"errors"
 	"sync"
 
-	"github.com/weaveworks/flux/api"
 	"github.com/weaveworks/flux/api/v6"
+	"github.com/weaveworks/flux/api/v9"
 	"github.com/weaveworks/flux/cluster"
 	"github.com/weaveworks/flux/git"
 	"github.com/weaveworks/flux/job"
@@ -76,7 +76,7 @@ func (nrd *NotReadyDaemon) UpdateManifests(context.Context, update.Spec) (job.ID
 	return id, nrd.Reason()
 }
 
-func (nrd *NotReadyDaemon) NotifyChange(context.Context, api.Change) error {
+func (nrd *NotReadyDaemon) NotifyChange(context.Context, v9.Change) error {
 	return nrd.Reason()
 }
 

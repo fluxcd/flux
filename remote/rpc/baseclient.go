@@ -7,6 +7,7 @@ import (
 
 	"github.com/weaveworks/flux/api"
 	"github.com/weaveworks/flux/api/v6"
+	"github.com/weaveworks/flux/api/v9"
 	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/remote"
 	"github.com/weaveworks/flux/update"
@@ -41,7 +42,7 @@ func (bc baseClient) UpdateManifests(context.Context, update.Spec) (job.ID, erro
 	return id, remote.UpgradeNeededError(errors.New("UpdateManifests method not implemented"))
 }
 
-func (bc baseClient) NotifyChange(context.Context, api.Change) error {
+func (bc baseClient) NotifyChange(context.Context, v9.Change) error {
 	return remote.UpgradeNeededError(errors.New("NotifyChange method not implemented"))
 }
 

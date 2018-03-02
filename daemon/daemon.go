@@ -13,6 +13,7 @@ import (
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/api"
 	"github.com/weaveworks/flux/api/v6"
+	"github.com/weaveworks/flux/api/v9"
 	"github.com/weaveworks/flux/cluster"
 	fluxerr "github.com/weaveworks/flux/errors"
 	"github.com/weaveworks/flux/event"
@@ -345,10 +346,10 @@ func (d *Daemon) release(spec update.Spec, c release.Changes) DaemonJobFunc {
 // the git repo. This has an error return value because upstream there
 // may be comms difficulties or other sources of problems; here, we
 // always succeed because it's just bookkeeping.
-func (d *Daemon) NotifyChange(ctx context.Context, change api.Change) error {
+func (d *Daemon) NotifyChange(ctx context.Context, change v9.Change) error {
 	switch change.Kind {
-	case api.GitChange:
-		gitUpdate := change.Source.(api.GitUpdate)
+	case v9.GitChange:
+		gitUpdate := change.Source.(v9.GitUpdate)
 		if gitUpdate.URL != d.Repo.Origin().URL && gitUpdate.Branch != d.GitConfig.Branch {
 			// It isn't strictly an _error_ to be notified about a repo/branch pair
 			// that isn't ours, but it's worth logging anyway for debugging.
@@ -358,8 +359,8 @@ func (d *Daemon) NotifyChange(ctx context.Context, change api.Change) error {
 			break
 		}
 		d.Repo.Notify()
-	case api.ImageChange:
-		imageUpdate := change.Source.(api.ImageUpdate)
+	case v9.ImageChange:
+		imageUpdate := change.Source.(v9.ImageUpdate)
 		d.ImageRefresh <- imageUpdate.Name
 	}
 	return nil

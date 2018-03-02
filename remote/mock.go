@@ -11,6 +11,7 @@ import (
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/api"
 	"github.com/weaveworks/flux/api/v6"
+	"github.com/weaveworks/flux/api/v9"
 	"github.com/weaveworks/flux/guid"
 	"github.com/weaveworks/flux/image"
 	"github.com/weaveworks/flux/job"
@@ -77,7 +78,7 @@ func (p *MockServer) UpdateManifests(ctx context.Context, s update.Spec) (job.ID
 	return p.UpdateManifestsAnswer, p.UpdateManifestsError
 }
 
-func (p *MockServer) NotifyChange(ctx context.Context, change api.Change) error {
+func (p *MockServer) NotifyChange(ctx context.Context, change v9.Change) error {
 	return p.NotifyChangeError
 }
 
@@ -217,7 +218,7 @@ func ServerTestBattery(t *testing.T, wrap func(mock api.UpstreamServer) api.Upst
 		t.Error("expected error from UpdateManifests, got nil")
 	}
 
-	change := api.Change{Kind: api.GitChange, Source: api.GitUpdate{URL: "git@example.com:foo/bar"}}
+	change := v9.Change{Kind: v9.GitChange, Source: v9.GitUpdate{URL: "git@example.com:foo/bar"}}
 	if err := client.NotifyChange(ctx, change); err != nil {
 		t.Error(err)
 	}

@@ -7,6 +7,7 @@ import (
 
 	"github.com/weaveworks/flux/api"
 	"github.com/weaveworks/flux/api/v6"
+	"github.com/weaveworks/flux/api/v9"
 	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/update"
 )
@@ -117,7 +118,7 @@ func (p *ErrorLoggingUpstreamServer) Version(ctx context.Context) (v string, err
 	return p.server.Version(ctx)
 }
 
-func (p *ErrorLoggingUpstreamServer) NotifyChange(ctx context.Context, change api.Change) (err error) {
+func (p *ErrorLoggingUpstreamServer) NotifyChange(ctx context.Context, change v9.Change) (err error) {
 	defer func() {
 		if err != nil {
 			p.logger.Log("method", "NotifyChange", "error", err)

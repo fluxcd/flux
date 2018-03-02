@@ -10,6 +10,7 @@ import (
 
 	"github.com/weaveworks/flux/api"
 	"github.com/weaveworks/flux/api/v6"
+	"github.com/weaveworks/flux/api/v9"
 	"github.com/weaveworks/flux/job"
 	fluxmetrics "github.com/weaveworks/flux/metrics"
 	"github.com/weaveworks/flux/update"
@@ -139,7 +140,7 @@ func (i *instrumentedUpstreamServer) Version(ctx context.Context) (v string, err
 	return i.s.Version(ctx)
 }
 
-func (i *instrumentedUpstreamServer) NotifyChange(ctx context.Context, change api.Change) (err error) {
+func (i *instrumentedUpstreamServer) NotifyChange(ctx context.Context, change v9.Change) (err error) {
 	defer func(begin time.Time) {
 		requestDuration.With(
 			fluxmetrics.LabelMethod, "NotifyChange",

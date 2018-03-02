@@ -6,6 +6,7 @@ import (
 
 	"github.com/weaveworks/flux/api"
 	"github.com/weaveworks/flux/api/v6"
+	"github.com/weaveworks/flux/api/v9"
 	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/update"
 )
@@ -62,7 +63,7 @@ func (r *Ref) UpdateManifests(ctx context.Context, spec update.Spec) (job.ID, er
 	return r.Server().UpdateManifests(ctx, spec)
 }
 
-func (r *Ref) NotifyChange(ctx context.Context, change api.Change) error {
+func (r *Ref) NotifyChange(ctx context.Context, change v9.Change) error {
 	return r.Server().NotifyChange(ctx, change)
 }
 

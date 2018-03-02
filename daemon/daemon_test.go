@@ -14,8 +14,8 @@ import (
 	"github.com/go-kit/kit/log"
 
 	"github.com/weaveworks/flux"
-	"github.com/weaveworks/flux/api"
 	"github.com/weaveworks/flux/api/v6"
+	"github.com/weaveworks/flux/api/v9"
 	"github.com/weaveworks/flux/cluster"
 	"github.com/weaveworks/flux/cluster/kubernetes"
 	kresource "github.com/weaveworks/flux/cluster/kubernetes/resource"
@@ -181,7 +181,7 @@ func TestDaemon_NotifyChange(t *testing.T) {
 	start()
 	defer clean()
 
-	d.NotifyChange(ctx, api.Change{Kind: api.GitChange, Source: api.GitUpdate{}})
+	d.NotifyChange(ctx, v9.Change{Kind: v9.GitChange, Source: v9.GitUpdate{}})
 	w.Eventually(func() bool {
 		syncMu.Lock()
 		defer syncMu.Unlock()

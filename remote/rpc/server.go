@@ -10,6 +10,7 @@ import (
 
 	"github.com/weaveworks/flux/api"
 	"github.com/weaveworks/flux/api/v6"
+	"github.com/weaveworks/flux/api/v9"
 	fluxerr "github.com/weaveworks/flux/errors"
 	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/update"
@@ -120,7 +121,7 @@ type NotifyChangeResponse struct {
 	ApplicationError *fluxerr.Error
 }
 
-func (p *RPCServer) NotifyChange(c api.Change, resp *NotifyChangeResponse) error {
+func (p *RPCServer) NotifyChange(c v9.Change, resp *NotifyChangeResponse) error {
 	err := p.s.NotifyChange(context.Background(), c)
 	if err != nil {
 		if err, ok := errors.Cause(err).(*fluxerr.Error); ok {
