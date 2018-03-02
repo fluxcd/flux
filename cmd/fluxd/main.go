@@ -19,7 +19,6 @@ import (
 	k8sclient "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 
-	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/api/v6"
 	"github.com/weaveworks/flux/cluster"
 	"github.com/weaveworks/flux/cluster/kubernetes"
@@ -27,6 +26,7 @@ import (
 	"github.com/weaveworks/flux/event"
 	"github.com/weaveworks/flux/git"
 	transport "github.com/weaveworks/flux/http"
+	"github.com/weaveworks/flux/http/client"
 	daemonhttp "github.com/weaveworks/flux/http/daemon"
 	"github.com/weaveworks/flux/image"
 	"github.com/weaveworks/flux/job"
@@ -295,7 +295,7 @@ func main() {
 			upstream, err := daemonhttp.NewUpstream(
 				&http.Client{Timeout: 10 * time.Second},
 				fmt.Sprintf("fluxd/%v", version),
-				flux.Token(*token),
+				client.Token(*token),
 				transport.NewUpstreamRouter(),
 				*upstreamURL,
 				remote.NewErrorLoggingUpstreamServer(daemonRef, upstreamLogger),

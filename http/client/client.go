@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"strings"
@@ -11,7 +12,6 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 
-	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/api"
 	"github.com/weaveworks/flux/api/v6"
 	fluxerr "github.com/weaveworks/flux/errors"
@@ -25,16 +25,24 @@ var (
 	errNotImplemented = errors.New("not implemented")
 )
 
+type Token string
+
+func (t Token) Set(req *http.Request) {
+	if string(t) != "" {
+		req.Header.Set("Authorization", fmt.Sprintf("Scope-Probe token=%s", t))
+	}
+}
+
 type Client struct {
 	client   *http.Client
-	token    flux.Token
+	token    Token
 	router   *mux.Router
 	endpoint string
 }
 
 var _ api.Server = &Client{}
 
-func New(c *http.Client, router *mux.Router, endpoint string, t flux.Token) *Client {
+func New(c *http.Client, router *mux.Router, endpoint string, t Token) *Client {
 	return &Client{
 		client:   c,
 		token:    t,

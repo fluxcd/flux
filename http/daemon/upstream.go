@@ -13,7 +13,6 @@ import (
 	"github.com/pkg/errors"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 
-	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/api"
 	"github.com/weaveworks/flux/event"
 	transport "github.com/weaveworks/flux/http"
@@ -26,7 +25,7 @@ import (
 type Upstream struct {
 	client    *http.Client
 	ua        string
-	token     flux.Token
+	token     fluxclient.Token
 	url       *url.URL
 	endpoint  string
 	apiClient *fluxclient.Client
@@ -47,7 +46,7 @@ var (
 	}, []string{"target"})
 )
 
-func NewUpstream(client *http.Client, ua string, t flux.Token, router *mux.Router, endpoint string, s api.UpstreamServer, logger log.Logger) (*Upstream, error) {
+func NewUpstream(client *http.Client, ua string, t fluxclient.Token, router *mux.Router, endpoint string, s api.UpstreamServer, logger log.Logger) (*Upstream, error) {
 	httpEndpoint, wsEndpoint, err := inferEndpoints(endpoint)
 	if err != nil {
 		return nil, errors.Wrap(err, "inferring WS/HTTP endpoints")

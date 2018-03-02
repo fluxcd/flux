@@ -11,7 +11,6 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
-	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/api"
 	transport "github.com/weaveworks/flux/http"
 	"github.com/weaveworks/flux/http/client"
@@ -79,7 +78,7 @@ func (opts *rootOpts) PersistentPreRunE(cmd *cobra.Command, _ []string) error {
 		return errors.Wrapf(err, "parsing URL")
 	}
 	opts.Token = getFromEnvIfNotSet(cmd.Flags(), "token", opts.Token, envVariableToken, envVariableCloudToken)
-	opts.API = client.New(http.DefaultClient, transport.NewAPIRouter(), opts.URL, flux.Token(opts.Token))
+	opts.API = client.New(http.DefaultClient, transport.NewAPIRouter(), opts.URL, client.Token(opts.Token))
 	return nil
 }
 

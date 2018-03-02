@@ -3,7 +3,6 @@ package flux
 import (
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"regexp"
 	"sort"
 	"strings"
@@ -18,14 +17,6 @@ var (
 	ResourceIDRegexp            = regexp.MustCompile("^([a-zA-Z0-9_-]+):([a-zA-Z0-9_-]+)/([a-zA-Z0-9_-]+)$")
 	UnqualifiedResourceIDRegexp = regexp.MustCompile("^([a-zA-Z0-9_-]+)/([a-zA-Z0-9_-]+)$")
 )
-
-type Token string
-
-func (t Token) Set(req *http.Request) {
-	if string(t) != "" {
-		req.Header.Set("Authorization", fmt.Sprintf("Scope-Probe token=%s", t))
-	}
-}
 
 // ResourceID is an opaque type which uniquely identifies a resource in an
 // orchestrator.
