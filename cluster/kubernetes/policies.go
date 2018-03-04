@@ -153,3 +153,7 @@ func (m *Manifests) ServicesWithPolicies(root string) (policy.ResourceMap, error
 	}
 	return result, nil
 }
+
+func multilineRE(lines ...string) *regexp.Regexp {
+	return regexp.MustCompile(`(?m:^` + strings.Join(lines, "\n") + `$)`)
+}
