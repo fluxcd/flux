@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster/kubernetes/testfiles"
 	"github.com/weaveworks/flux/resource"
 )
@@ -115,6 +116,39 @@ data:
 	_, err := ParseMultidoc(buffer.Bytes(), "test")
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestUnmarshalList(t *testing.T) {
+	doc := `---
+kind: List
+metadata:
+  name: list
+items:
+- kind: Deployment
+  metadata:
+    name: foo
+- kind: Service
+  metadata:
+    name: bar
+`
+	res, err := unmarshalObject("", []byte(doc))
+	if err != nil {
+		t.Fatal(err)
+	}
+	list, ok := res.(*List)
+	if !ok {
+		t.Fatal("did not parse as a list")
+	}
+	if len(list.Items) != 2 {
+		t.Fatalf("expected two items, got %+v", list.Items)
+	}
+	for i, id := range []flux.ResourceID{
+		flux.MustParseResourceID("default:deployment/foo"),
+		flux.MustParseResourceID("default:service/bar")} {
+		if list.Items[i].ResourceID() != id {
+			t.Errorf("At %d, expected %q, got %q", i, id, list.Items[i].ResourceID())
+		}
 	}
 }
 

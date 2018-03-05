@@ -146,7 +146,15 @@ func ParseMultidoc(multidoc []byte, source string) (map[string]resource.Resource
 		if obj == nil {
 			continue
 		}
-		objs[obj.ResourceID().String()] = obj
+		// Lists must be treated specially, since it's the
+		// contained resources we are after.
+		if list, ok := obj.(*List); ok {
+			for _, item := range list.Items {
+				objs[item.ResourceID().String()] = item
+			}
+		} else {
+			objs[obj.ResourceID().String()] = obj
+		}
 	}
 
 	if err := chunks.Err(); err != nil {
