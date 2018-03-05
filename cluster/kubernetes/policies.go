@@ -4,12 +4,12 @@ import (
 	"regexp"
 	"strings"
 
+	"fmt"
 	"github.com/pkg/errors"
-	yaml "gopkg.in/yaml.v2"
-
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster/kubernetes/resource"
 	"github.com/weaveworks/flux/policy"
+	yaml "gopkg.in/yaml.v2"
 )
 
 func (m *Manifests) UpdatePolicies(in []byte, serviceID flux.ResourceID, update policy.Update) ([]byte, error) {
@@ -41,6 +41,7 @@ func updateAnnotations(def []byte, serviceID flux.ResourceID, tagAll string, f f
 	var containers []resource.Container
 	var annotationsExpression string
 	var metadataExpression string
+	annotationsIndent := []string{"2", "4"}
 
 	if isList {
 		var l resource.List
@@ -59,16 +60,18 @@ func updateAnnotations(def []byte, serviceID flux.ResourceID, tagAll string, f f
 			}
 		}
 		// Grab the annotations from the metadata block.
-		annotationsExpression = `(?m:\n\s{6}annotations:\s*(?:#.*)*(?:\n\s{8}.*)*$)`
+		annotationsIndent[0] = "6"
+		annotationsIndent[1] = "8"
 		// Grab the entire metadata block.
-		// We need to know the name of the resource to decide whether or not to update its annotations
+		// We need to know the "Kind" and name of the resource to decide whether or not to update its annotations
 		metadataExpression = `(?m:\n\s{4}kind:(?:.*)\n\s{4}metadata:(?:.*)*\s*(?:#.*)*(?:\n\s{6}.*)*$)`
 	} else {
-		annotationsExpression = `(?m:\n  annotations:\s*(?:#.*)*(?:\n    .*)*$)`
 		metadataExpression = `(?m:^(metadata:\s*(?:#.*)*)$)`
 		annotations = manifest.Metadata.AnnotationsOrNil()
 		containers = manifest.Spec.Template.Spec.Containers
 	}
+
+	annotationsExpression = fmt.Sprintf(`(?m:\n\s{%v}annotations:\s*(?:#.*)*(?:\n\s{%v}.*)*$)`, annotationsIndent[0], annotationsIndent[1])
 
 	if tagAll != "" {
 		for _, c := range containers {
