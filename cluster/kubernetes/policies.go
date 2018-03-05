@@ -128,26 +128,26 @@ func updateAnnotations(def []byte, serviceID flux.ResourceID, tagAll string, f f
 		metadataRE := regexp.MustCompile(metadataExpression)
 		newDef = metadataRE.ReplaceAllStringFunc(str, func(found string) string {
 			// `found` contains the entire metadata block.
-			if !replaced {
-				// If not a list, it is safe to do a straight replace
-				if !isList {
-					replaced = true
-					return found + fragment
-				} else if shouldUpdateAnnotations(found, serviceID) {
-					// Doing List stuff here
-					// The metadata must contain the right serviceID in order to replace the annotations
-					// Find and replace only the annotations block within the metadata block
-					// List item annotations have a little more indentation than regular files
-					indented := indent(indent(fragment))
-					f := found + indented
-					// If annotations already exist, replace them.
-					// If not, just return the metadata block with the new annotations
-					if annotationsRE.MatchString(found) {
-						f = annotationsRE.ReplaceAllString(found, indented)
-					}
-					replaced = true
-					return f
+			switch {
+			case replaced:
+				return found
+			case !isList:
+				replaced = true
+				return found + fragment
+			case shouldUpdateAnnotations(found, serviceID):
+				// Doing List stuff here
+				// The metadata must contain the right serviceID in order to replace the annotations
+				// Find and replace only the annotations block within the metadata block
+				// List item annotations have a little more indentation than regular files
+				indented := indent(indent(fragment))
+				f := found + indented
+				// If annotations already exist, replace them.
+				// If not, just return the metadata block with the new annotations
+				if annotationsRE.MatchString(found) {
+					f = annotationsRE.ReplaceAllString(found, indented)
 				}
+				replaced = true
+				return f
 			}
 			return found
 		})
