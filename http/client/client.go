@@ -138,6 +138,7 @@ func (c *Client) methodWithResp(ctx context.Context, method string, dest interfa
 	defer resp.Body.Close()
 
 	respBytes, err := ioutil.ReadAll(resp.Body)
+
 	if err != nil {
 		return errors.Wrap(err, "decoding response from server")
 	}
@@ -189,18 +190,22 @@ func (c *Client) executeRequest(req *http.Request) (*http.Response, error) {
 	case http.StatusUnauthorized:
 		return resp, transport.ErrorUnauthorized
 	default:
+		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return resp, errors.Wrap(err, "reading response body of error")
+		}
 		// Use the content type to discriminate between `fluxerr.Error`,
 		// and the previous "any old error"
 		if strings.HasPrefix(resp.Header.Get(http.CanonicalHeaderKey("Content-Type")), "application/json") {
 			var niceError fluxerr.Error
-			if err := json.NewDecoder(resp.Body).Decode(&niceError); err != nil {
-				return resp, errors.Wrap(err, "decoding error in response body")
+			if err := json.Unmarshal(body, &niceError); err != nil {
+				return resp, errors.Wrap(err, "decoding response body of error")
 			}
-			return resp, &niceError
-		}
-		body, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			return resp, errors.Wrap(err, "reading assumed plaintext response body")
+			 // just in case it's JSON but not one of our own errors
+			if niceError.Err != nil {
+				return resp, &niceError
+			}
+			// fallthrough
 		}
 		return resp, errors.New(resp.Status + " " + string(body))
 	}
