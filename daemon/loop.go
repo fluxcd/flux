@@ -193,15 +193,18 @@ func (d *Daemon) doSync(logger log.Logger) (retErr error) {
 		return errors.Wrap(err, "loading resources from repo")
 	}
 
-	var syncErrors map[string]string
+	var syncErrors []event.ResourceError
 	// TODO supply deletes argument from somewhere (command-line?)
 	if err := fluxsync.Sync(d.Manifests, allResources, d.Cluster, false, logger); err != nil {
 		logger.Log("err", err)
 		switch syncerr := err.(type) {
 		case cluster.SyncError:
-			syncErrors = map[string]string{}
 			for _, e := range syncerr {
-				syncErrors[fmt.Sprintf("%s (%s)", e.ResourceID(), e.Source())] = e.Error.Error()
+				syncErrors = append(syncErrors, event.ResourceError{
+					ID:    e.ResourceID(),
+					Path:  e.Source(),
+					Error: e.Error.Error(),
+				})
 			}
 		default:
 			return err

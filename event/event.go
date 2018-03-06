@@ -195,6 +195,12 @@ type Commit struct {
 	Message  string `json:"message"`
 }
 
+type ResourceError struct {
+	ID    flux.ResourceID
+	Path  string
+	Error string
+}
+
 // SyncEventMetadata is the metadata for when new a commit is synced to the cluster
 type SyncEventMetadata struct {
 	// for parsing old events; Commits is now used in preference
@@ -205,7 +211,7 @@ type SyncEventMetadata struct {
 	// ourselves)
 	Includes map[string]bool `json:"includes,omitempty"`
 	// Per-resource errors
-	Errors map[string]string `json:"errors,omitempty"`
+	Errors []ResourceError `json:"errors,omitempty"`
 	// `true` if we have no record of having synced before
 	InitialSync bool `json:"initialSync,omitempty"`
 }
