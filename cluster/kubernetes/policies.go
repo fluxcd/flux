@@ -77,7 +77,7 @@ func updateAnnotations(def []byte, tagAll string, f func(map[string]string) map[
 	// TODO: This should handle potentially different indentation.
 	// TODO: There's probably a more elegant regex-ey way to do this in one pass.
 	replaced := false
-	annotationsRE := regexp.MustCompile(`(?m:\n  annotations:\s*(?:#.*)*(?:\n    .*)*$)`)
+	annotationsRE := regexp.MustCompile(`(?m:\n  annotations:\s*(?:#.*)*(?:\n    .*|\n)*$)`)
 	newDef := annotationsRE.ReplaceAllStringFunc(string(def), func(found string) string {
 		if !replaced {
 			replaced = true
