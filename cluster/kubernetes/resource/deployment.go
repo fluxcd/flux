@@ -1,7 +1,7 @@
 package resource
 
 type Deployment struct {
-	baseObject
+	BaseObject
 	Spec DeploymentSpec
 }
 

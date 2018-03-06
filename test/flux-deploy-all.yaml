@@ -84,12 +84,9 @@ spec:
         - name: git-key
           mountPath: /etc/fluxd/ssh
         - name: ssh-known-hosts
-          mountPath: /root/.ssh
+          mountPath: /root/.ssh/known_hosts
+          subPath: known_hosts
         args:
-        - --memcached-hostname=memcached
-        - --memcached-timeout=100ms
-        - --memcached-service=memcached
-        - --registry-cache-expiry=20m
         # Access minikube hosted config repo by ssh
         - --git-url=ssh://docker@MINIKUBE_IP:/home/docker/flux.git
         - --git-branch=master

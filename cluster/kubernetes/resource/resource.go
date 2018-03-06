@@ -6,6 +6,7 @@ import (
 	yaml "gopkg.in/yaml.v2"
 
 	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/cluster"
 	fluxerr "github.com/weaveworks/flux/errors"
 	"github.com/weaveworks/flux/policy"
 	"github.com/weaveworks/flux/resource"
@@ -18,34 +19,67 @@ const (
 // -- unmarshaling code for specific object and field types
 
 // struct to embed in objects, to provide default implementation
-type baseObject struct {
-	source string
-	bytes  []byte
-	Kind   string `yaml:"kind"`
-	Meta   struct {
-		Namespace   string            `yaml:"namespace"`
-		Name        string            `yaml:"name"`
-		Annotations map[string]string `yaml:"annotations,omitempty"`
-	} `yaml:"metadata"`
+type BaseObject struct {
+	source     string
+	bytes      []byte
+	APIVersion string   `yaml:"apiVersion,omitempty"`
+	Metadata   Metadata `yaml:"metadata,omitempty"`
+	Kind       string   `yaml:"kind"`
+	Spec       struct {
+		Template struct {
+			Metadata Metadata
+			Spec     struct {
+				Containers []Container `yaml:"containers"`
+			} `yaml:"spec"`
+		} `yaml:"template"`
+		JobTemplate struct {
+			Spec struct {
+				Template struct {
+					Spec struct {
+						Containers []Container `yaml:"containers"`
+					} `yaml:"spec"`
+				} `yaml:"template"`
+			} `yaml:"spec"`
+		} `yaml:"jobTemplate,omitempty"`
+	} `yaml:"spec,omitempty"`
 }
 
-func (o baseObject) ResourceID() flux.ResourceID {
-	ns := o.Meta.Namespace
+type Metadata struct {
+	Name        string            `yaml:"name,omitempty"`
+	Annotations map[string]string `yaml:"annotations,omitempty"`
+	Namespace   string            `yaml:"namespace,omitempty"`
+	Labels      map[string]string `yaml:"labels,omitempty"`
+}
+
+type Container struct {
+	Name  string `yaml:"name"`
+	Image string `yaml:"image"`
+}
+
+func (m Metadata) AnnotationsOrNil() map[string]string {
+	if m.Annotations == nil {
+		return map[string]string{}
+	}
+	return m.Annotations
+}
+
+func (o BaseObject) ResourceID() flux.ResourceID {
+	ns := o.Metadata.Namespace
 	if ns == "" {
 		ns = "default"
 	}
-	return flux.MakeResourceID(ns, o.Kind, o.Meta.Name)
+	return flux.MakeResourceID(ns, o.Kind, o.Metadata.Name)
 }
 
 // It's useful for comparisons in tests to be able to remove the
 // record of bytes
-func (o *baseObject) debyte() {
+func (o *BaseObject) debyte() {
 	o.bytes = nil
 }
 
-func (o baseObject) Policy() policy.Set {
+func (o BaseObject) Policy() policy.Set {
 	set := policy.Set{}
-	for k, v := range o.Meta.Annotations {
+	for k, v := range o.Metadata.Annotations {
 		if strings.HasPrefix(k, PolicyPrefix) {
 			p := strings.TrimPrefix(k, PolicyPrefix)
 			if v == "true" {
@@ -58,54 +92,51 @@ func (o baseObject) Policy() policy.Set {
 	return set
 }
 
-func (o baseObject) Source() string {
+func (o BaseObject) Source() string {
 	return o.source
 }
 
-func (o baseObject) Bytes() []byte {
+func (o BaseObject) Bytes() []byte {
 	return o.bytes
 }
 
-func unmarshalObject(source string, bytes []byte) (resource.Resource, error) {
-	var base = baseObject{source: source, bytes: bytes}
+func unmarshalObject(source string, bytes []byte) (*BaseObject, error) {
+	var base = BaseObject{source: source, bytes: bytes}
 	if err := yaml.Unmarshal(bytes, &base); err != nil {
 		return nil, err
 	}
-	r, err := unmarshalKind(base, bytes)
-	if err != nil {
-		return nil, makeUnmarshalObjectErr(source, err)
-	}
-	return r, nil
+
+	return &base, nil
 }
 
-func unmarshalKind(base baseObject, bytes []byte) (resource.Resource, error) {
+func unmarshalKind(base BaseObject, bytes []byte) (resource.Resource, error) {
 	switch base.Kind {
 	case "CronJob":
-		var cj = CronJob{baseObject: base}
+		var cj = CronJob{BaseObject: base}
 		if err := yaml.Unmarshal(bytes, &cj); err != nil {
 			return nil, err
 		}
 		return &cj, nil
 	case "DaemonSet":
-		var ds = DaemonSet{baseObject: base}
+		var ds = DaemonSet{BaseObject: base}
 		if err := yaml.Unmarshal(bytes, &ds); err != nil {
 			return nil, err
 		}
 		return &ds, nil
 	case "Deployment":
-		var dep = Deployment{baseObject: base}
+		var dep = Deployment{BaseObject: base}
 		if err := yaml.Unmarshal(bytes, &dep); err != nil {
 			return nil, err
 		}
 		return &dep, nil
 	case "Namespace":
-		var ns = Namespace{baseObject: base}
+		var ns = Namespace{BaseObject: base}
 		if err := yaml.Unmarshal(bytes, &ns); err != nil {
 			return nil, err
 		}
 		return &ns, nil
 	case "StatefulSet":
-		var ss = StatefulSet{baseObject: base}
+		var ss = StatefulSet{BaseObject: base}
 		if err := yaml.Unmarshal(bytes, &ss); err != nil {
 			return nil, err
 		}
@@ -122,6 +153,56 @@ func unmarshalKind(base baseObject, bytes []byte) (resource.Resource, error) {
 	default:
 		return &base, nil
 	}
+}
+
+func unmarshalList(source string, base *BaseObject, collection map[string]resource.Resource) error {
+	// Keep each List item in this generic type.
+	// We need to preserve this to be able to pass through arbitrary objects, such as Services, for Sync jobs.
+	list := map[string]interface{}{}
+	err := yaml.Unmarshal(base.Bytes(), &list)
+
+	if err != nil {
+		return err
+	}
+
+	for _, item := range list["items"].([]interface{}) {
+		// Re-marshal this snippet. We need this item represented in byte form.
+		// This will eventually be used to generate an update here:
+		// https://github.com/weaveworks/flux/blob/master/cluster/sync.go#L9
+		itemBytes, err := yaml.Marshal(item)
+
+		if err != nil {
+			return makeUnmarshalObjectErr(source, err)
+		}
+
+		i := BaseObject{}
+		err = yaml.Unmarshal(itemBytes, &i)
+
+		if err != nil {
+			return makeUnmarshalObjectErr(source, err)
+		}
+
+		i.source = source
+		i.bytes = itemBytes
+		r, err := unmarshalKind(i, itemBytes)
+
+		if err != nil {
+			return makeUnmarshalObjectErr(source, err)
+		}
+
+		if r == nil {
+			continue
+		}
+
+		// Catch if a resource is defined already, either via a List or a file
+		if resourceAlreadyExists(collection, r) {
+			return cluster.ErrMultipleResourceDefinitionsFoundForService
+		}
+
+		collection[r.ResourceID().String()] = r
+	}
+
+	return nil
 }
 
 func makeUnmarshalObjectErr(source string, err error) *fluxerr.Error {
