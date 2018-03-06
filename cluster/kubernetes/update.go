@@ -27,7 +27,7 @@ func updatePodController(file []byte, resource flux.ResourceID, container string
 		return nil, UpdateNotSupportedError(kind)
 	}
 
-	args := []string{"--namespace", namespace, "--kind", kind, "--name", name}
+	args := []string{"image", "--namespace", namespace, "--kind", kind, "--name", name}
 	args = append(args, "--container", container, "--image", newImageID.String())
 
 	println("TRACE:", "kubeyaml", strings.Join(args, " "))
@@ -38,7 +38,7 @@ func updatePodController(file []byte, resource flux.ResourceID, container string
 	cmd.Stdout = out
 	cmd.Stderr = errOut
 	if err := cmd.Run(); err != nil {
-		return nil, errors.Wrap(err, errOut.String())
+		return nil, errors.New(strings.TrimSpace(errOut.String()))
 	}
 	return out.Bytes(), nil
 }
