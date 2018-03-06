@@ -17,6 +17,8 @@ FLUXCTL_DEPS:=$(call godeps,./cmd/fluxctl)
 HELM_OPERATOR_DEPS:=$(call godeps,./cmd/helm-operator)
 
 IMAGE_TAG:=$(shell ./docker/image-tag)
+VCS_REF:=$(shell git rev-parse HEAD)
+BUILD_DATE:=$(shell date -u +'%Y-%m-%dT%H:%M:%SZ')
 
 all: $(GOPATH)/bin/fluxctl $(GOPATH)/bin/fluxd $(GOPATH)/bin/helm-operator build/.flux.done build/.helm-operator.done
 
@@ -40,7 +42,10 @@ test:
 build/.%.done: docker/Dockerfile.%
 	mkdir -p ./build/docker/$*
 	cp $^ ./build/docker/$*/
-	${DOCKER} build -t quay.io/weaveworks/$* -t quay.io/weaveworks/$*:$(IMAGE_TAG) -f build/docker/$*/Dockerfile.$* ./build/docker/$*
+	${DOCKER} build -t quay.io/weaveworks/$* -t quay.io/weaveworks/$*:$(IMAGE_TAG) \
+		--build-arg VCS_REF="$(VCS_REF)" \
+		--build-arg BUILD_DATE="$(BUILD_DATE)" \
+		-f build/docker/$*/Dockerfile.$* ./build/docker/$*
 	touch $@
 
 build/.flux.done: build/fluxd build/kubectl docker/ssh_config
