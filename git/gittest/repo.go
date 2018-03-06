@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"context"
-	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster/kubernetes/testfiles"
 	"github.com/weaveworks/flux/git"
 )
@@ -101,7 +100,7 @@ func WaitForRepoReady(r *git.Repo, t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if s == flux.RepoReady {
+		if s == git.RepoReady {
 			return
 		}
 		if retries == 0 {

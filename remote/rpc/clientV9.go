@@ -5,7 +5,7 @@ import (
 	"io"
 	"net/rpc"
 
-	"github.com/weaveworks/flux/api"
+	"github.com/weaveworks/flux/api/v9"
 	"github.com/weaveworks/flux/remote"
 )
 
@@ -14,15 +14,15 @@ type RPCClientV9 struct {
 }
 
 type clientV9 interface {
-	api.ServerV9
-	api.UpstreamV9
+	v9.Server
+	v9.Upstream
 }
 
 func NewClientV9(conn io.ReadWriteCloser) *RPCClientV9 {
 	return &RPCClientV9{NewClientV8(conn)}
 }
 
-func (p *RPCClientV9) NotifyChange(ctx context.Context, c api.Change) error {
+func (p *RPCClientV9) NotifyChange(ctx context.Context, c v9.Change) error {
 	var resp NotifyChangeResponse
 	err := p.client.Call("RPCServer.NotifyChange", c, &resp)
 	if err != nil {

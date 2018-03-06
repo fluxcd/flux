@@ -8,8 +8,6 @@ import (
 
 	"context"
 	"time"
-
-	"github.com/weaveworks/flux"
 )
 
 const (
@@ -26,6 +24,18 @@ var (
 	ErrNoConfig  = errors.New("git repo has not valid config")
 )
 
+// GitRepoStatus represents the progress made synchronising with a git
+// repo. These are given below in expected order, but the status may
+// go backwards if e.g., a deploy key is deleted.
+type GitRepoStatus string
+
+const (
+	RepoNoConfig GitRepoStatus = "unconfigured" // configuration is empty
+	RepoNew                    = "new"          // no attempt made to clone it yet
+	RepoCloned                 = "cloned"       // has been read (cloned); no attempt made to write
+	RepoReady                  = "ready"        // has been written to, so ready to sync
+)
+
 // Remote points at a git repo somewhere.
 type Remote struct {
 	URL string // clone from here
@@ -37,7 +47,7 @@ type Repo struct {
 
 	// State
 	mu     sync.RWMutex
-	status flux.GitRepoStatus
+	status GitRepoStatus
 	err    error
 	dir    string
 
@@ -49,7 +59,7 @@ type Repo struct {
 func NewRepo(origin Remote) *Repo {
 	r := &Repo{
 		origin: origin,
-		status: flux.RepoNew,
+		status: RepoNew,
 		err:    nil,
 		notify: make(chan struct{}, 1), // `1` so that Notify doesn't block
 		C:      make(chan struct{}, 1), // `1` so we don't block on completing a refresh
@@ -75,13 +85,13 @@ func (r *Repo) Dir() string {
 // Status reports that readiness status of this Git repo: whether it
 // has been cloned, whether it is writable, and if not, the error
 // stopping it getting to the next state.
-func (r *Repo) Status() (flux.GitRepoStatus, error) {
+func (r *Repo) Status() (GitRepoStatus, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	return r.status, r.err
 }
 
-func (r *Repo) setStatus(s flux.GitRepoStatus, err error) {
+func (r *Repo) setStatus(s GitRepoStatus, err error) {
 	r.mu.Lock()
 	r.status = s
 	r.err = err
@@ -140,11 +150,11 @@ func (r *Repo) Start(shutdown <-chan struct{}, done *sync.WaitGroup) error {
 
 		// TODO(michael): I don't think this is a real status; perhaps
 		// have a no-op repo instead.
-		case flux.RepoNoConfig:
+		case RepoNoConfig:
 			// this is not going to change in the lifetime of this
 			// process
 			return ErrNoConfig
-		case flux.RepoNew:
+		case RepoNew:
 
 			rootdir, err := ioutil.TempDir(os.TempDir(), "flux-gitclone")
 			if err != nil {
@@ -163,26 +173,26 @@ func (r *Repo) Start(shutdown <-chan struct{}, done *sync.WaitGroup) error {
 				r.mu.Unlock()
 			}
 			if err == nil {
-				r.setStatus(flux.RepoCloned, nil)
+				r.setStatus(RepoCloned, nil)
 				continue // with new status, skipping timer
 			}
 			dir = ""
 			os.RemoveAll(rootdir)
-			r.setStatus(flux.RepoNew, err)
+			r.setStatus(RepoNew, err)
 
-		case flux.RepoCloned:
+		case RepoCloned:
 			ctx, cancel := context.WithTimeout(bg, opTimeout)
 			err := checkPush(ctx, dir, url)
 			cancel()
 			if err == nil {
-				r.setStatus(flux.RepoReady, nil)
+				r.setStatus(RepoReady, nil)
 				continue // with new status, skipping timer
 			}
-			r.setStatus(flux.RepoCloned, err)
+			r.setStatus(RepoCloned, err)
 
-		case flux.RepoReady:
+		case RepoReady:
 			if err := r.refreshLoop(shutdown); err != nil {
-				r.setStatus(flux.RepoNew, err)
+				r.setStatus(RepoNew, err)
 				continue // with new status, skipping timer
 			}
 		}
@@ -205,7 +215,7 @@ func (r *Repo) Refresh(ctx context.Context) error {
 	// could clone to another repo and pull there, then swap when complete.
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if r.status != flux.RepoReady {
+	if r.status != RepoReady {
 		return ErrNotReady
 	}
 	if err := r.fetch(ctx); err != nil {

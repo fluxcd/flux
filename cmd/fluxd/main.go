@@ -19,13 +19,14 @@ import (
 	k8sclient "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 
-	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/api/v6"
 	"github.com/weaveworks/flux/cluster"
 	"github.com/weaveworks/flux/cluster/kubernetes"
 	"github.com/weaveworks/flux/daemon"
 	"github.com/weaveworks/flux/event"
 	"github.com/weaveworks/flux/git"
 	transport "github.com/weaveworks/flux/http"
+	"github.com/weaveworks/flux/http/client"
 	daemonhttp "github.com/weaveworks/flux/http/daemon"
 	"github.com/weaveworks/flux/image"
 	"github.com/weaveworks/flux/job"
@@ -278,7 +279,7 @@ func main() {
 	}
 
 	// Indirect reference to a daemon, initially of the NotReady variety
-	notReadyDaemon := daemon.NewNotReadyDaemon(version, k8s, flux.GitRemoteConfig{
+	notReadyDaemon := daemon.NewNotReadyDaemon(version, k8s, v6.GitRemoteConfig{
 		URL:    *gitURL,
 		Branch: *gitBranch,
 		Path:   *gitPath,
@@ -294,7 +295,7 @@ func main() {
 			upstream, err := daemonhttp.NewUpstream(
 				&http.Client{Timeout: 10 * time.Second},
 				fmt.Sprintf("fluxd/%v", version),
-				flux.Token(*token),
+				client.Token(*token),
 				transport.NewUpstreamRouter(),
 				*upstreamURL,
 				remote.NewErrorLoggingUpstreamServer(daemonRef, upstreamLogger),
@@ -383,7 +384,7 @@ func main() {
 			logger.Log("repo", repo.Origin().URL, "status", status, "err", err)
 			notReadyDaemon.UpdateStatus(status, err)
 
-			if status == flux.RepoReady {
+			if status == git.RepoReady {
 				checker = checkForUpdates(clusterVersion, "true", updateCheckLogger)
 				logger.Log("working-dir", repo.Dir(),
 					"user", *gitUser,

@@ -5,8 +5,7 @@ import (
 	"io"
 	"net/rpc"
 
-	"github.com/weaveworks/flux"
-	"github.com/weaveworks/flux/api"
+	"github.com/weaveworks/flux/api/v6"
 	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/remote"
 	"github.com/weaveworks/flux/update"
@@ -20,8 +19,8 @@ type RPCClientV8 struct {
 }
 
 type clientV8 interface {
-	api.ServerV6
-	api.UpstreamV4
+	v6.Server
+	v6.Upstream
 }
 
 var _ clientV8 = &RPCClientV8{}
@@ -33,7 +32,7 @@ func NewClientV8(conn io.ReadWriteCloser) *RPCClientV8 {
 	return &RPCClientV8{NewClientV7(conn)}
 }
 
-func (p *RPCClientV8) ListImages(ctx context.Context, spec update.ResourceSpec) ([]flux.ImageStatus, error) {
+func (p *RPCClientV8) ListImages(ctx context.Context, spec update.ResourceSpec) ([]v6.ImageStatus, error) {
 	var resp ListImagesResponse
 	if err := requireServiceSpecKinds(spec, supportedKindsV8); err != nil {
 		return resp.Result, remote.UnsupportedResourceKind(err)

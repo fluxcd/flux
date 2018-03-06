@@ -12,6 +12,8 @@ import (
 
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/api"
+	"github.com/weaveworks/flux/api/v6"
+	"github.com/weaveworks/flux/api/v9"
 	"github.com/weaveworks/flux/cluster"
 	fluxerr "github.com/weaveworks/flux/errors"
 	"github.com/weaveworks/flux/event"
@@ -67,7 +69,7 @@ func (d *Daemon) Export(ctx context.Context) ([]byte, error) {
 	return d.Cluster.Export()
 }
 
-func (d *Daemon) ListServices(ctx context.Context, namespace string) ([]flux.ControllerStatus, error) {
+func (d *Daemon) ListServices(ctx context.Context, namespace string) ([]v6.ControllerStatus, error) {
 	clusterServices, err := d.Cluster.AllControllers(namespace)
 	if err != nil {
 		return nil, errors.Wrap(err, "getting services from cluster")
@@ -83,10 +85,10 @@ func (d *Daemon) ListServices(ctx context.Context, namespace string) ([]flux.Con
 		return nil, errors.Wrap(err, "getting service policies")
 	}
 
-	var res []flux.ControllerStatus
+	var res []v6.ControllerStatus
 	for _, service := range clusterServices {
 		policies := services[service.ID]
-		res = append(res, flux.ControllerStatus{
+		res = append(res, v6.ControllerStatus{
 			ID:         service.ID,
 			Containers: containers2containers(service.ContainersOrNil()),
 			Status:     service.Status,
@@ -101,7 +103,7 @@ func (d *Daemon) ListServices(ctx context.Context, namespace string) ([]flux.Con
 }
 
 // List the images available for set of services
-func (d *Daemon) ListImages(ctx context.Context, spec update.ResourceSpec) ([]flux.ImageStatus, error) {
+func (d *Daemon) ListImages(ctx context.Context, spec update.ResourceSpec) ([]v6.ImageStatus, error) {
 	var services []cluster.Controller
 	var err error
 	if spec == update.ResourceSpecAll {
@@ -119,10 +121,10 @@ func (d *Daemon) ListImages(ctx context.Context, spec update.ResourceSpec) ([]fl
 		return nil, errors.Wrap(err, "getting images for services")
 	}
 
-	var res []flux.ImageStatus
+	var res []v6.ImageStatus
 	for _, service := range services {
 		containers := containersWithAvailable(service, images)
-		res = append(res, flux.ImageStatus{
+		res = append(res, v6.ImageStatus{
 			ID:         service.ID,
 			Containers: containers,
 		})
@@ -344,10 +346,10 @@ func (d *Daemon) release(spec update.Spec, c release.Changes) DaemonJobFunc {
 // the git repo. This has an error return value because upstream there
 // may be comms difficulties or other sources of problems; here, we
 // always succeed because it's just bookkeeping.
-func (d *Daemon) NotifyChange(ctx context.Context, change api.Change) error {
+func (d *Daemon) NotifyChange(ctx context.Context, change v9.Change) error {
 	switch change.Kind {
-	case api.GitChange:
-		gitUpdate := change.Source.(api.GitUpdate)
+	case v9.GitChange:
+		gitUpdate := change.Source.(v9.GitUpdate)
 		if gitUpdate.URL != d.Repo.Origin().URL && gitUpdate.Branch != d.GitConfig.Branch {
 			// It isn't strictly an _error_ to be notified about a repo/branch pair
 			// that isn't ours, but it's worth logging anyway for debugging.
@@ -357,8 +359,8 @@ func (d *Daemon) NotifyChange(ctx context.Context, change api.Change) error {
 			break
 		}
 		d.Repo.Notify()
-	case api.ImageChange:
-		imageUpdate := change.Source.(api.ImageUpdate)
+	case v9.ImageChange:
+		imageUpdate := change.Source.(v9.ImageUpdate)
 		d.ImageRefresh <- imageUpdate.Name
 	}
 	return nil
@@ -427,16 +429,16 @@ func (d *Daemon) SyncStatus(ctx context.Context, commitRef string) ([]string, er
 	return revs, nil
 }
 
-func (d *Daemon) GitRepoConfig(ctx context.Context, regenerate bool) (flux.GitConfig, error) {
+func (d *Daemon) GitRepoConfig(ctx context.Context, regenerate bool) (v6.GitConfig, error) {
 	publicSSHKey, err := d.Cluster.PublicSSHKey(regenerate)
 	if err != nil {
-		return flux.GitConfig{}, err
+		return v6.GitConfig{}, err
 	}
 
 	origin := d.Repo.Origin()
 	status, _ := d.Repo.Status()
-	return flux.GitConfig{
-		Remote: flux.GitRemoteConfig{
+	return v6.GitConfig{
+		Remote: v6.GitRemoteConfig{
 			URL:    origin.URL,
 			Branch: d.GitConfig.Branch,
 			Path:   d.GitConfig.Path,
@@ -494,11 +496,11 @@ func (d *Daemon) LogEvent(ev event.Event) error {
 
 // vvv helpers vvv
 
-func containers2containers(cs []cluster.Container) []flux.Container {
-	res := make([]flux.Container, len(cs))
+func containers2containers(cs []cluster.Container) []v6.Container {
+	res := make([]v6.Container, len(cs))
 	for i, c := range cs {
 		id, _ := image.ParseRef(c.Image)
-		res[i] = flux.Container{
+		res[i] = v6.Container{
 			Name: c.Name,
 			Current: image.Info{
 				ID: id,
@@ -508,7 +510,7 @@ func containers2containers(cs []cluster.Container) []flux.Container {
 	return res
 }
 
-func containersWithAvailable(service cluster.Controller, images update.ImageMap) (res []flux.Container) {
+func containersWithAvailable(service cluster.Controller, images update.ImageMap) (res []v6.Container) {
 	for _, c := range service.ContainersOrNil() {
 		im, _ := image.ParseRef(c.Image)
 		available := images.Available(im.Name)
@@ -516,7 +518,7 @@ func containersWithAvailable(service cluster.Controller, images update.ImageMap)
 		if available == nil {
 			availableErr = registry.ErrNoImageData.Error()
 		}
-		res = append(res, flux.Container{
+		res = append(res, v6.Container{
 			Name: c.Name,
 			Current: image.Info{
 				ID: im,

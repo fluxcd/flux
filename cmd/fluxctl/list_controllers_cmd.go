@@ -8,7 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/api/v6"
 	"github.com/weaveworks/flux/policy"
 )
 
@@ -69,7 +69,7 @@ func (opts *controllerListOpts) RunE(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-type controllerStatusByName []flux.ControllerStatus
+type controllerStatusByName []v6.ControllerStatus
 
 func (s controllerStatusByName) Len() int {
 	return len(s)
@@ -83,7 +83,7 @@ func (s controllerStatusByName) Swap(a, b int) {
 	s[a], s[b] = s[b], s[a]
 }
 
-func policies(s flux.ControllerStatus) string {
+func policies(s v6.ControllerStatus) string {
 	var ps []string
 	if s.Automated {
 		ps = append(ps, string(policy.Automated))
