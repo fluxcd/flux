@@ -82,10 +82,8 @@ func (chs *ChartChangeSync) Run(stopCh <-chan struct{}, errc chan error, wg *syn
 		defer runtime.HandleCrash()
 		defer wg.Done()
 
-		chartsSyncCurr := chs.release.Repo.ChartsSync.Curr
-		chartsSyncNew := chs.release.Repo.ChartsSync.New
-		defer chartsSyncCurr.Cleanup()
-		defer chartsSyncNew.Cleanup()
+		chartsSync := chs.release.Repo.ChartsSync
+		defer chartsSync.Cleanup()
 
 		var exist bool
 		var newRev string
@@ -98,16 +96,15 @@ func (chs *ChartChangeSync) Run(stopCh <-chan struct{}, errc chan error, wg *syn
 			select {
 			// ------------------------------------------------------------------------------------
 			case <-ticker.C:
-				fmt.Printf("\n\t... TICK at %s\n\n", time.Now().String())
+				fmt.Printf("\n\t... CHARTSYNC at %s\n\n", time.Now().String())
 				// new commits?
 				if exist, newRev, err = chs.newCommits(); err != nil {
 					chs.logger.Log("error", fmt.Sprintf("Failure during retrieving commits: %#v", err))
-					fmt.Printf("\n\t... TICK work FINISHED at %s\n\n", time.Now().String())
+					fmt.Printf("\n\t... CHARTSYNC work FINISHED at %s\n\n", time.Now().String())
 					continue
 				}
-				// continue if not
 				if !exist {
-					fmt.Printf("\n\t... TICK work FINISHED at %s\n\n", time.Now().String())
+					fmt.Printf("\n\t... CHARTSYNC work FINISHED at %s\n\n", time.Now().String())
 					continue
 				}
 				// get namespaces
@@ -115,68 +112,60 @@ func (chs *ChartChangeSync) Run(stopCh <-chan struct{}, errc chan error, wg *syn
 				if err != nil {
 					errc <- err
 				}
-
-				// get chart dirs
-				chartDirsCurr, err := getChartDirs(chs.logger, chs.release.Repo.ChartsSync.Curr)
+				// get charts
+				chartDirs, err := getChartDirs(chs.logger, chs.release.Repo.ChartsSync)
 				if err != nil {
 					chs.logger.Log("error", fmt.Sprintf("Failure to get charts under the charts path: %#v", err))
-					fmt.Printf("\n\t... TICK work FINISHED at %s\n\n", time.Now().String())
+					fmt.Printf("\n\t... CHARTSYNC work FINISHED at %s\n\n", time.Now().String())
 					continue
 				}
-				chartDirsNew, err := getChartDirs(chs.logger, chs.release.Repo.ChartsSync.New)
-				if err != nil {
-					chs.logger.Log("error", fmt.Sprintf("Failure to get charts under the charts path: %#v", err))
-					fmt.Printf("\n\t... TICK work FINISHED at %s\n\n", time.Now().String())
-					continue
-				}
-
 				// get fhrs
 				chartFhrs := make(map[string][]ifv1.FluxHelmRelease)
-				for chart := range chartDirsNew {
+				for _, chart := range chartDirs {
 					err = chs.getCustomResources(ns, chart, chartFhrs)
 					if err != nil {
 						chs.logger.Log("error", fmt.Sprintf("Failure during retrieving Custom Resources related to Chart [%s]: %#v", chart, err))
-						fmt.Printf("\n\t... TICK work FINISHED at %s\n\n", time.Now().String())
+						fmt.Printf("\n\t... CHARTSYNC work FINISHED at %s\n\n", time.Now().String())
 						continue
 					}
 				}
-				//fmt.Printf("\n\tFound these CS chartFhrs %+v\n\n", chartFhrs)
 
 				// compare manifests and release if required
 				ctx, cancel := context.WithTimeout(context.Background(), helmgit.DefaultCloneTimeout)
-				chartToRelease, err := chs.releaseNeeded(ctx, chartDirsCurr, chartDirsNew, chartFhrs)
+				chartsToRelease, err := chs.releaseNeeded(ctx, newRev, chartDirs, chartFhrs)
 				cancel()
 				if err != nil {
 					chs.logger.Log("error", fmt.Sprintf("Error while establishing upgrade need of releases: %s", err.Error()))
-					fmt.Printf("\n\t... TICK work FINISHED at %s\n\n", time.Now().String())
+					fmt.Printf("\n\t... CHARTSYNC work FINISHED at %s\n\n", time.Now().String())
 					continue
 				}
-				// No new commits found
-				if len(chartToRelease) == 0 {
-					fmt.Printf("\n\t... TICK work FINISHED at %s\n\n", time.Now().String())
+				// Nothimg to release
+				if len(chartsToRelease) == 0 {
+					chs.lastCheckedRevision = newRev
+					fmt.Printf("\n\t... CHARTSYNC work FINISHED at %s\n\n", time.Now().String())
 					continue
 				}
 
-				if err = chs.releaseCharts(chartToRelease, chartFhrs); err != nil {
+				if err = chs.releaseCharts(chartsToRelease, chartFhrs); err != nil {
 					chs.logger.Log("error", fmt.Sprintf("Failure to release Chart(s): %#v", err))
-					fmt.Printf("\n\t... TICK work FINISHED at %s\n\n", time.Now().String())
+					fmt.Printf("\n\t... CHARTSYNC work FINISHED at %s\n\n", time.Now().String())
 					continue
 				}
 				// All went well, so we shall make the repo with the last checked commit up to date
 				// and update the lastCheckedRevision property
-				chc := chs.release.Repo.ChartsSync.Curr
+				chc := chs.release.Repo.ChartsSync
 				ctx, cancel = context.WithTimeout(context.Background(), helmgit.DefaultCloneTimeout)
 				err = chc.Pull(ctx)
 				cancel()
 				if err != nil {
 					errm := fmt.Errorf("Failure while pulling repo: %#v", err)
 					chs.logger.Log("error", errm.Error())
-					fmt.Printf("\n\t... TICK work FINISHED at %s\n\n", time.Now().String())
+					fmt.Printf("\n\t... CHARTSYNC work FINISHED at %s\n\n", time.Now().String())
 					continue
 				}
 				chs.logger.Log("info", "Pulled repo")
 				chs.lastCheckedRevision = newRev
-				fmt.Printf("\n\t... TICK work FINISHED at %s\n\n", time.Now().String())
+				fmt.Printf("\n\t... CHARTSYNC work FINISHED at %s\n\n", time.Now().String())
 			// ------------------------------------------------------------------------------------
 			case <-stopCh:
 				chs.logger.Log("stopping", "true")
@@ -207,8 +196,8 @@ func GetNamespaces(logger log.Logger, kubeClient kubernetes.Clientset) ([]string
 // getChartDirs ... retrieves charts under the charts directory (under the repo root)
 //		go-git(.v4) does not implement finding commits under a specific path. This means
 //		the individual chart paths cannor be currently used with "git log"
-func getChartDirs(logger log.Logger, checkout *helmgit.Checkout) (map[string]string, error) {
-	chartD := make(map[string]string)
+func getChartDirs(logger log.Logger, checkout *helmgit.Checkout) ([]string, error) {
+	chartDirs := []string{}
 
 	repoRoot := checkout.Dir
 	if repoRoot == "" {
@@ -231,11 +220,11 @@ func getChartDirs(logger log.Logger, checkout *helmgit.Checkout) (map[string]str
 			if _, err := os.Stat(chartMeta); os.IsNotExist(err) {
 				continue
 			}
-			chartD[f.Name()] = chartDir
+			chartDirs = append(chartDirs, f.Name())
 		}
 	}
 
-	return chartD, nil
+	return chartDirs, nil
 }
 
 // newCommits ... determines if charts need to be released
@@ -244,13 +233,13 @@ func getChartDirs(logger log.Logger, checkout *helmgit.Checkout) (map[string]str
 func (chs *ChartChangeSync) newCommits() (bool, string, error) {
 	chs.logger.Log("info", "Getting new commits")
 
-	checkout := chs.release.Repo.ChartsSync.New
+	checkout := chs.release.Repo.ChartsSync
 
 	chs.logger.Log("info", fmt.Sprintf("Repo dir = %s", checkout.Dir))
 
 	if checkout.Dir == "" {
 		ctx, cancel := context.WithTimeout(context.Background(), helmgit.DefaultCloneTimeout)
-		err := checkout.Clone(ctx, helmgit.ChartsChangesCloneNew)
+		err := checkout.Clone(ctx, helmgit.ChartsChangesClone)
 		cancel()
 		if err != nil {
 			errm := fmt.Errorf("Failure while cloning repo : %#v", err)
@@ -327,11 +316,11 @@ func (chs *ChartChangeSync) getCustomResources(namespaces []string, chart string
 //					chartD ... provides chart name and its directory information
 //					fhr ...... provides chart name and all Custom Resources associated with this chart
 //		does a dry run and compares the manifests (and value file?) If differences => release)
-func (chs *ChartChangeSync) releaseCharts(chartToRelease map[string]string, chartFhrs map[string][]ifv1.FluxHelmRelease) error {
-	checkout := chs.release.Repo.ChartsSync.New
+func (chs *ChartChangeSync) releaseCharts(chartsToRelease []string, chartFhrs map[string][]ifv1.FluxHelmRelease) error {
+	checkout := chs.release.Repo.ChartsSync
 
-	for chart := range chartToRelease {
-		fmt.Printf("\t... chart %s...chartDirs = %s\n", chart, chartToRelease[chart])
+	for _, chart := range chartsToRelease {
+		fmt.Printf("\t... chart %s\n", chart)
 
 		var err error
 		fhrs := chartFhrs[chart]
@@ -355,32 +344,33 @@ func (chs *ChartChangeSync) releaseCharts(chartToRelease map[string]string, char
 // releaseNeeded ... finds if there were commits in the repo since the last charts sync
 //	returns maps keys on chart name with value corresponding to the chart path
 // (go-git.v4 does not provide a possibility to find commit for a particular path.)
-func (chs *ChartChangeSync) releaseNeeded(ctx context.Context, chartDirsCurr map[string]string, chartDirsNew map[string]string, chartFhr map[string][]ifv1.FluxHelmRelease) (map[string]string, error) {
-	chartToRelease := make(map[string]string)
-	var changed bool
+func (chs *ChartChangeSync) releaseNeeded(ctx context.Context, newRev string, charts []string, chartFhrs map[string][]ifv1.FluxHelmRelease) ([]string, error) {
+	chartsToRelease := []string{}
+	var changed, ok bool
 	var err error
 	var fhrs []ifv1.FluxHelmRelease
 
-	for chart, dirN := range chartDirsNew {
+	revRange := fmt.Sprintf("%s..%s", chs.lastCheckedRevision, newRev)
+	dir := fmt.Sprintf("%s/%s", chs.release.Repo.ChartsSync.Dir, chs.release.Repo.ChartsSync.Config.Path)
+
+	for _, chart := range charts {
 		chs.logger.Log("debug", fmt.Sprintf("Testing if release needed for Chart [%s]", chart))
 
-		if dirO, ok := chartDirsCurr[chart]; ok {
-			if fhrs, ok = chartFhr[chart]; !ok {
-				continue
-			}
-			if len(fhrs) < 1 {
-				continue
-			}
-
-			if changed, err = chs.chartChanged(ctx, dirO, dirN); err != nil {
-				chs.logger.Log("error", fmt.Sprintf("Failure to determine chart change for [%s]: %s", chart, err.Error()))
-				continue
-			}
-			if !changed {
-				continue
-			}
-			chartToRelease[chart] = dirN
+		if fhrs, ok = chartFhrs[chart]; !ok {
+			continue
 		}
+		if len(fhrs) < 1 {
+			continue
+		}
+
+		if changed, err = chs.chartChanged(ctx, dir, revRange, chart); err != nil {
+			chs.logger.Log("error", fmt.Sprintf("Failure to determine chart change for [%s]: %s", chart, err.Error()))
+			continue
+		}
+		if !changed {
+			continue
+		}
+		chartsToRelease = append(chartsToRelease, chart)
 	}
-	return chartToRelease, nil
+	return chartsToRelease, nil
 }

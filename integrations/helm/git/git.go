@@ -18,12 +18,11 @@ import (
 )
 
 const (
-	DefaultCloneTimeout    = 2 * time.Minute
-	DefaultPullTimeout     = 2 * time.Minute
-	privateKeyFileMode     = os.FileMode(0400)
-	FhrsChangesClone       = "fhrs_sync_clone"
-	ChartsChangesCloneCurr = "charts_sync_clone_old"
-	ChartsChangesCloneNew  = "charts_sync_clone_new"
+	DefaultCloneTimeout = 2 * time.Minute
+	DefaultPullTimeout  = 2 * time.Minute
+	privateKeyFileMode  = os.FileMode(0400)
+	FhrsChangesClone    = "fhrs_sync_clone"
+	ChartsChangesClone  = "charts_sync_clone"
 )
 
 var (

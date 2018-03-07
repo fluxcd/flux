@@ -10,22 +10,19 @@ import (
 	"strings"
 )
 
-// ComparePaths ... used to establish which Chart has changed since last sync
-func (chs *ChartChangeSync) chartChanged(ctx context.Context, path1, path2 string) (bool, error) {
-	chs.release.Repo.ChartsSync.Curr.Lock()
-	defer chs.release.Repo.ChartsSync.Curr.Unlock()
-	chs.release.Repo.ChartsSync.New.Lock()
-	defer chs.release.Repo.ChartsSync.New.Unlock()
+func (chs *ChartChangeSync) chartChanged(ctx context.Context, dir, revRange, chart string) (bool, error) {
+	chs.release.Repo.ChartsSync.Lock()
+	defer chs.release.Repo.ChartsSync.Unlock()
 
-	if len(path1) == 0 || path1[0] != '/' {
-		return false, fmt.Errorf("path [%s] must provided and must be absolute", path1)
+	if len(dir) == 0 || dir[0] != '/' {
+		return false, fmt.Errorf("directory must provided and must be absolute: [%s]", dir)
 	}
-	if len(path2) == 0 || path2[0] != '/' {
-		return false, fmt.Errorf("path [%s] must provided and must be absolute", path2)
+	if len(chart) == 0 {
+		return false, fmt.Errorf("chart must provided: [%s]", chart)
 	}
 
 	out := &bytes.Buffer{}
-	if err := chs.execDiffCmd(ctx, out, path1, path2); err != nil {
+	if err := chs.execDiffCmd(ctx, dir, out, revRange, chart); err != nil {
 		return false, err
 	}
 
@@ -48,11 +45,19 @@ func splitList(s string) []string {
 	return lines
 }
 
-func (chs *ChartChangeSync) execDiffCmd(ctx context.Context, out io.Writer, args ...string) error {
-	args = append([]string{"-r"}, args...)
-	c := exec.CommandContext(ctx, "diff", args...)
+// execDiffCmd ... find if there is a change in a particular chart
+//		git diff revCurr..revNew chart
+//		(runs in the /repoRoot/charts dir)
+//		input:
+//					dir  (/repoRoot/charts)
+//					args (revCurr..revNew,  chart)
+func (chs *ChartChangeSync) execDiffCmd(ctx context.Context, dir string, out io.Writer, args ...string) error {
+	args = append([]string{"diff"}, args...)
+	c := exec.CommandContext(ctx, "git", args...)
 
-	chs.logger.Log("info", fmt.Sprintf("Running command: diff %v", args))
+	chs.logger.Log("info", fmt.Sprintf("Running command: git %v", args))
+
+	c.Dir = dir
 
 	c.Stdout = ioutil.Discard
 	if out != nil {
@@ -63,23 +68,17 @@ func (chs *ChartChangeSync) execDiffCmd(ctx context.Context, out io.Writer, args
 
 	err := c.Run()
 	if err != nil {
-
-		// TODO/DEBUG: investigate and fix
-		// Getting an &exec.ExitError when there is a diff result
-		// 	This works with ls command and its output. Comparing both outputs,
-		//	I can see diff output is more complicated.
 		if exitError, ok := err.(*exec.ExitError); ok {
-			chs.logger.Log("error", fmt.Sprintf("Failure while diffing: %#v", exitError.Error()))
+			chs.logger.Log("error", fmt.Sprintf("Failure while running git diff: %#v", exitError.Error()))
 			return err
 		}
 	}
 
 	if ctx.Err() == context.DeadlineExceeded {
-		return fmt.Errorf("running diff command: %s %v", "diff", args)
+		return fmt.Errorf("running git diff command: %s %v", "git", args)
 	} else if ctx.Err() == context.Canceled {
-		return fmt.Errorf("context was unexpectedly cancelled when running command: %s %v", "diff", args)
+		return fmt.Errorf("context was unexpectedly cancelled when running command: %s %v", "gitt", args)
 	}
 
-	//fmt.Printf("* error while diffing = %+v\n\n", err)
 	return err
 }
