@@ -2,6 +2,8 @@ package kubernetes
 
 import (
 	"bytes"
+	"fmt"
+	"strings"
 	"testing"
 	"text/template"
 
@@ -96,6 +98,22 @@ func TestUpdatePolicies(t *testing.T) {
 				Remove: policy.Set{policy.Automated: "true"},
 			},
 		},
+		{
+			name: "multiline",
+			in:   map[string]string{"flux.weave.works/locked_msg": "|-\n      first\n      second"},
+			out:  nil,
+			update: policy.Update{
+				Remove: policy.Set{policy.LockedMsg: "foo"},
+			},
+		},
+		{
+			name: "multiline with empty line",
+			in:   map[string]string{"flux.weave.works/locked_msg": "|-\n      first\n\n      third"},
+			out:  nil,
+			update: policy.Update{
+				Remove: policy.Set{policy.LockedMsg: "foo"},
+			},
+		},
 	} {
 		caseIn := templToString(t, annotationsTemplate, c.in)
 		caseOut := templToString(t, annotationsTemplate, c.out)
@@ -113,7 +131,7 @@ apiVersion: extensions/v1beta1
 kind: Deployment
 metadata: # comment really close to the war zone
   {{with .}}annotations:{{range $k, $v := .}}
-    {{$k}}: {{printf "%q" $v}}{{end}}
+    {{$k}}: {{printf "%s" $v}}{{end}}
   {{end}}name: nginx
 spec:
   replicas: 1
@@ -129,9 +147,15 @@ spec:
         - containerPort: 80
 `))
 
-func templToString(t *testing.T, templ *template.Template, data interface{}) string {
+func templToString(t *testing.T, templ *template.Template, annotations map[string]string) string {
+	for k, v := range annotations {
+		// Don't wrap multilines
+		if !strings.HasPrefix(v, "|") {
+			annotations[k] = fmt.Sprintf("%q", v)
+		}
+	}
 	out := &bytes.Buffer{}
-	err := templ.Execute(out, data)
+	err := templ.Execute(out, annotations)
 	if err != nil {
 		t.Fatal(err)
 	}
