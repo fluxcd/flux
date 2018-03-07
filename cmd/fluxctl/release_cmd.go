@@ -81,8 +81,8 @@ func (opts *controllerReleaseOpts) RunE(cmd *cobra.Command, args []string) error
 		controllers = []update.ResourceSpec{update.ResourceSpecAll}
 	} else {
 		for _, controller := range opts.controllers {
-			if ns := update.ParseResourceSpecNamespace(controller); ns != "" {
-				controllers = append(controllers, update.MakeResourceSpecNamespace(ns))
+			if ns, kind := update.ParseResourceSpecNamespace(controller); ns != "" {
+				controllers = append(controllers, update.MakeResourceSpecNamespace(ns, kind))
 			} else {
 				id, err := flux.ParseResourceIDOptionalNamespace(opts.namespace, controller)
 				if err != nil {

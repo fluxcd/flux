@@ -2,6 +2,7 @@ package update
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -21,6 +22,8 @@ const (
 
 var (
 	ErrInvalidReleaseKind = errors.New("invalid release kind")
+
+	resourceSpecNamespaceRegexp = regexp.MustCompile("^([a-zA-Z0-9_-]+):([a-zA-Z0-9_-]+)/\\*$")
 )
 
 // ReleaseKind says whether a release is to be planned only, or planned then executed
@@ -121,14 +124,15 @@ func (s ReleaseSpec) filters(rc ReleaseContext) ([]ControllerFilter, []Controlle
 	var prefilters, postfilters []ControllerFilter
 
 	ids := []flux.ResourceID{}
+	nsfilter := &NamespacesFilter{}
 	for _, s := range s.ServiceSpecs {
 		if s == ResourceSpecAll {
 			// "<all>" Overrides any other filters
 			ids = []flux.ResourceID{}
 			break
 		}
-		if ns := ParseResourceSpecNamespace(string(s)); ns != "" {
-			prefilters = append(prefilters, &NamespaceFilter{Namespace: ns})
+		if ns, kind := ParseResourceSpecNamespace(string(s)); ns != "" {
+			nsfilter.Add(ns, kind)
 			break
 		}
 		id, err := flux.ParseResourceID(string(s))
@@ -137,6 +141,7 @@ func (s ReleaseSpec) filters(rc ReleaseContext) ([]ControllerFilter, []Controlle
 		}
 		ids = append(ids, id)
 	}
+	prefilters = append(prefilters, nsfilter)
 	if len(ids) > 0 {
 		prefilters = append(prefilters, &IncludeFilter{ids})
 	}
@@ -302,16 +307,16 @@ func (s ReleaseSpec) calculateImageUpdates(rc ReleaseContext, candidates []*Cont
 
 type ResourceSpec string // ResourceID or "<all>"
 
-func MakeResourceSpecNamespace(namespace string) ResourceSpec {
-	return ResourceSpec(fmt.Sprintf("%s/*", namespace))
+func MakeResourceSpecNamespace(namespace, kind string) ResourceSpec {
+	return ResourceSpec(fmt.Sprintf("%s:%s/*", namespace, kind))
 }
 
-func ParseResourceSpecNamespace(s string) string {
-	if strings.HasSuffix(s, "/*") {
-		return s[0 : len(s)-2]
+func ParseResourceSpecNamespace(s string) (namespace string, kind string) {
+	if m := resourceSpecNamespaceRegexp.FindStringSubmatch(s); m != nil {
+		namespace = m[1]
+		kind =  m[2]
 	}
-
-	return ""
+	return
 }
 
 func ParseResourceSpec(s string) (ResourceSpec, error) {

@@ -8,7 +8,6 @@ import (
 const (
 	Locked          = "locked"
 	NotIncluded     = "not included"
-	OtherNamespace  = "other namespace"
 	Excluded        = "excluded"
 	DifferentImage  = "a different image"
 	NotInCluster    = "not running in cluster"
@@ -93,17 +92,37 @@ func (f *LockedFilter) Filter(u ControllerUpdate) ControllerResult {
 	return ControllerResult{}
 }
 
-type NamespaceFilter struct {
+type namespace struct {
 	Namespace string
+	Kind      string
 }
 
-func (f *NamespaceFilter) Filter(u ControllerUpdate) ControllerResult {
-	ns, _, _ := u.ResourceID.Components()
-	if ns == f.Namespace {
+type NamespacesFilter struct {
+	namespaces []namespace
+}
+
+func (f *NamespacesFilter) Filter(u ControllerUpdate) ControllerResult {
+	if len(f.namespaces) == 0 {
 		return ControllerResult{}
+	}
+
+	ns, kind, _ := u.ResourceID.Components()
+	for _, n := range f.namespaces {
+		if n.Namespace == ns && n.Kind == kind {
+			return ControllerResult{}
+		}
 	}
 	return ControllerResult{
 		Status: ReleaseStatusIgnored,
-		Error:  OtherNamespace,
+		Error:  NotIncluded,
 	}
 }
+
+func (f *NamespacesFilter) Add(ns, kind string) {
+	f.namespaces = append(f.namespaces, namespace{Namespace: ns, Kind: kind})
+}
+
+func (f *NamespacesFilter) Length() int {
+	return len(f.namespaces)
+}
+
