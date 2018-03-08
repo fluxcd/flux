@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -45,11 +44,11 @@ func TestSync(t *testing.T) {
 	}
 	checkClusterMatchesFiles(t, manifests, clus, checkout.ManifestDir())
 
-	for file := range testfiles.Files {
-		if err := execCommand("rm", filepath.Join(checkout.ManifestDir(), file)); err != nil {
+	for _, res := range testfiles.ServiceMap(checkout.ManifestDir()) {
+		if err := execCommand("rm", res[0]); err != nil {
 			t.Fatal(err)
 		}
-		commitAction := &git.CommitAction{Author: "", Message: "deleted " + file}
+		commitAction := &git.CommitAction{Author: "", Message: "deleted " + res[0]}
 		if err := checkout.CommitAndPush(context.Background(), commitAction, nil); err != nil {
 			t.Fatal(err)
 		}
