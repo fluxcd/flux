@@ -30,6 +30,9 @@ func TempDir(t *testing.T) (string, func()) {
 func WriteTestFiles(dir string) error {
 	for name, content := range Files {
 		path := filepath.Join(dir, name)
+		if err := os.MkdirAll(filepath.Dir(path), 0777); err != nil {
+			return err
+		}
 		if err := ioutil.WriteFile(path, []byte(content), 0666); err != nil {
 			return err
 		}
@@ -45,11 +48,12 @@ func ServiceMap(dir string) map[flux.ResourceID][]string {
 	return map[flux.ResourceID][]string{
 		flux.MustParseResourceID("default:deployment/helloworld"):     []string{filepath.Join(dir, "helloworld-deploy.yaml")},
 		flux.MustParseResourceID("default:deployment/locked-service"): []string{filepath.Join(dir, "locked-service-deploy.yaml")},
-		flux.MustParseResourceID("default:deployment/test-service"):   []string{filepath.Join(dir, "test-service-deploy.yaml")},
+		flux.MustParseResourceID("default:deployment/test-service"):   []string{filepath.Join(dir, "test/test-service-deploy.yaml")},
 	}
 }
 
 var Files = map[string]string{
+	"garbage": "This should just be ignored, since it is not YAML",
 	"helloworld-deploy.yaml": `apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
@@ -98,7 +102,7 @@ spec:
         ports:
         - containerPort: 80
 `,
-	"test-service-deploy.yaml": `apiVersion: extensions/v1beta1
+	"test/test-service-deploy.yaml": `apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
   name: test-service
