@@ -16,8 +16,7 @@
   kind: Deployment
   metadata:
     name: flux-helm-operator
-    # helm-operator should be created in the same namespace
-    # as flux agent
+    namespace: weave
   spec:
     replicas: 1
     strategy:
@@ -27,11 +26,15 @@
         labels:
           name: flux-helm-operator
       spec:
-        serviceAccount: flux
         volumes:
         - name: git-key
           secret:
             secretName: flux-git-deploy
+        serviceAccountName: weave-flux
+        volumes:
+          - name: git-key
+            secret:
+              secretName: flux-git-deploy
         containers:
         - name: flux-helm-operator
           # There are no ":latest" images for helm-operator. Find the most recent
