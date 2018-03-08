@@ -97,23 +97,16 @@ func (ch *Checkout) Clone(ctx context.Context, cloneSubdir string) error {
 	}
 	ch.Dir = repoDir
 
-	repo, err := gogit.PlainClone(repoDir, false, &gogit.CloneOptions{
-		URL:  ch.Config.URL,
-		Auth: ch.auth,
+	repo, err := gogit.PlainCloneContext(ctx, repoDir, false, &gogit.CloneOptions{
+		URL:           ch.Config.URL,
+		Auth:          ch.auth,
+		ReferenceName: plumbing.ReferenceName(fmt.Sprintf("refs/heads/%s", ch.Config.Branch)),
 	})
 	if err != nil {
 		return err
 	}
 
 	wt, err := repo.Worktree()
-	if err != nil {
-		return err
-	}
-
-	br := ch.Config.Branch
-	err = wt.Checkout(&gogit.CheckoutOptions{
-		Branch: plumbing.ReferenceName(fmt.Sprintf("refs/heads/%s", br)),
-	})
 	if err != nil {
 		return err
 	}
@@ -181,8 +174,9 @@ func (ch *Checkout) Pull(ctx context.Context) error {
 		return ErrNoRepoCloned
 	}
 	err := w.Pull(&gogit.PullOptions{
-		RemoteName: "origin",
-		Auth:       ch.auth,
+		RemoteName:    "origin",
+		Auth:          ch.auth,
+		ReferenceName: plumbing.ReferenceName(fmt.Sprintf("refs/heads/%s", ch.Config.Branch)),
 	})
 	if err != nil && err != gogit.NoErrAlreadyUpToDate {
 		return err
