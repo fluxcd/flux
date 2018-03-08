@@ -12,9 +12,11 @@ import (
 
 	"github.com/go-kit/kit/log"
 	"golang.org/x/crypto/ssh"
+	"gopkg.in/src-d/go-billy.v4/osfs"
 	gogit "gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	gitssh "gopkg.in/src-d/go-git.v4/plumbing/transport/ssh"
+	"gopkg.in/src-d/go-git.v4/storage/memory"
 )
 
 const (
@@ -97,9 +99,10 @@ func (ch *Checkout) Clone(ctx context.Context, cloneSubdir string) error {
 	}
 	ch.Dir = repoDir
 
-	repo, err := gogit.PlainClone(repoDir, false, &gogit.CloneOptions{
-		URL:  ch.Config.URL,
-		Auth: ch.auth,
+	repo, err := gogit.CloneContext(ctx, memory.NewStorage(), osfs.New(repoDir), &gogit.CloneOptions{
+		URL:           ch.Config.URL,
+		Auth:          ch.auth,
+		ReferenceName: plumbing.ReferenceName(fmt.Sprintf("refs/heads/%s", ch.Config.Branch)),
 	})
 	if err != nil {
 		return err
