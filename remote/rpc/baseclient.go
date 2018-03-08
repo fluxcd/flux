@@ -24,47 +24,61 @@ type completeServer interface {
 
 var _ completeServer = baseClient{}
 
-func (bc baseClient) Version(context.Context) (string, error) {
-	return "", remote.UpgradeNeededError(errors.New("Version method not implemented"))
+func (bc baseClient) Version(context.Context) (_ string, err error) {
+	err = upgradeError("Version")
+	return
 }
 
-func (bc baseClient) Ping(context.Context) error {
-	return remote.UpgradeNeededError(errors.New("Ping method not implemented"))
+func (bc baseClient) Ping(context.Context) (err error) {
+	err = upgradeError("Ping")
+	return
 }
 
-func (bc baseClient) Export(context.Context) ([]byte, error) {
-	return nil, remote.UpgradeNeededError(errors.New("Export method not implemented"))
+func (bc baseClient) Export(context.Context) (_ []byte, err error) {
+	err = upgradeError("Export")
+	return
 }
 
-func (bc baseClient) ListServices(context.Context, string) ([]v6.ControllerStatus, error) {
-	return nil, remote.UpgradeNeededError(errors.New("ListServices method not implemented"))
+func (bc baseClient) ListServices(context.Context, string) (_ []v6.ControllerStatus, err error) {
+	err = upgradeError("ListServices")
+	return
 }
 
-func (bc baseClient) ListImages(context.Context, update.ResourceSpec) ([]v6.ImageStatus, error) {
-	return nil, remote.UpgradeNeededError(errors.New("ListImages method not implemented"))
+func (bc baseClient) ListImages(context.Context, update.ResourceSpec) (_ []v6.ImageStatus, err error) {
+	err = upgradeError("ListImages")
+	return
 }
 
-func (bc baseClient) UpdateManifests(context.Context, update.Spec) (job.ID, error) {
-	var id job.ID
-	return id, remote.UpgradeNeededError(errors.New("UpdateManifests method not implemented"))
+func (bc baseClient) UpdateManifests(context.Context, update.Spec) (_ job.ID, err error) {
+	err = upgradeError("UpdateManifests")
+	return
 }
 
-func (bc baseClient) NotifyChange(context.Context, v9.Change) error {
-	return remote.UpgradeNeededError(errors.New("NotifyChange method not implemented"))
+func (bc baseClient) NotifyChange(context.Context, v9.Change) (err error) {
+	err = upgradeError("NotifyChange")
+	return
 }
 
-func (bc baseClient) JobStatus(context.Context, job.ID) (job.Status, error) {
-	return job.Status{}, remote.UpgradeNeededError(errors.New("JobStatus method not implemented"))
+func (bc baseClient) JobStatus(context.Context, job.ID) (_ job.Status, err error) {
+	err = upgradeError("JobStatus")
+	return
 }
 
-func (bc baseClient) SyncStatus(context.Context, string) ([]string, error) {
-	return nil, remote.UpgradeNeededError(errors.New("SyncStatus method not implemented"))
+func (bc baseClient) SyncStatus(context.Context, string) (_ []string, err error) {
+	err = upgradeError("SyncStatus")
+	return
 }
 
-func (bc baseClient) GitRepoConfig(context.Context, bool) (v6.GitConfig, error) {
-	return v6.GitConfig{}, remote.UpgradeNeededError(errors.New("GitRepoConfig method not implemented"))
+func (bc baseClient) GitRepoConfig(context.Context, bool) (_ v6.GitConfig, err error) {
+	err = upgradeError("SyncStatus")
+	return
 }
 
-func (bc baseClient) Close() error {
-	return remote.UpgradeNeededError(errors.New("Close method not implemented"))
+func (bc baseClient) Close() (err error) {
+	err = upgradeError("Close")
+	return
+}
+
+func upgradeError(method string) error {
+	return remote.UpgradeNeededError(errors.New(method + " method not implemented"))
 }
