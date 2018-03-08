@@ -13,7 +13,7 @@ menu_order: 20
  - Release state information in the form of Custom Resources manifests is located under a particular path ("releaseconfig" by default; can be overriden)
  - Charts are colocated under another path ("charts" by default; can be overriden). Charts are subdirectories under the charts path.
  - Custom Resource namespace reflects where the release should be done. Both the Helm application and its corresponding Custom Resource will live in this namespace.
- - example of a test repo: https://github.com/tamarakaufler/flux-helm-test
+ - example of a test repo: https://github.com/weaveworks/flux-helm-test
 
 # Custom Resource manifest content
 ## Example of manifest content
