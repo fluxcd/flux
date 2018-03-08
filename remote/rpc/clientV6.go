@@ -17,7 +17,7 @@ import (
 // talking to remote daemons.
 type RPCClientV6 struct {
 	client *rpc.Client
-	baseClient
+	fallback
 }
 
 type clientV6 interface {

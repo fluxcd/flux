@@ -14,7 +14,9 @@ import (
 	"github.com/weaveworks/flux/update"
 )
 
-type baseClient struct{}
+// fallback is, as the name suggests, a fallback api.UpstreamServer implementation.
+// Any method not implemented in a given RPC client will terminate here.
+type fallback struct{}
 
 type completeServer interface {
 	api.UpstreamServer
@@ -22,59 +24,59 @@ type completeServer interface {
 	io.Closer
 }
 
-var _ completeServer = baseClient{}
+var _ completeServer = fallback{}
 
-func (bc baseClient) Version(context.Context) (_ string, err error) {
+func (fallback) Version(context.Context) (_ string, err error) {
 	err = upgradeError("Version")
 	return
 }
 
-func (bc baseClient) Ping(context.Context) (err error) {
+func (fallback) Ping(context.Context) (err error) {
 	err = upgradeError("Ping")
 	return
 }
 
-func (bc baseClient) Export(context.Context) (_ []byte, err error) {
+func (fallback) Export(context.Context) (_ []byte, err error) {
 	err = upgradeError("Export")
 	return
 }
 
-func (bc baseClient) ListServices(context.Context, string) (_ []v6.ControllerStatus, err error) {
+func (fallback) ListServices(context.Context, string) (_ []v6.ControllerStatus, err error) {
 	err = upgradeError("ListServices")
 	return
 }
 
-func (bc baseClient) ListImages(context.Context, update.ResourceSpec) (_ []v6.ImageStatus, err error) {
+func (fallback) ListImages(context.Context, update.ResourceSpec) (_ []v6.ImageStatus, err error) {
 	err = upgradeError("ListImages")
 	return
 }
 
-func (bc baseClient) UpdateManifests(context.Context, update.Spec) (_ job.ID, err error) {
+func (fallback) UpdateManifests(context.Context, update.Spec) (_ job.ID, err error) {
 	err = upgradeError("UpdateManifests")
 	return
 }
 
-func (bc baseClient) NotifyChange(context.Context, v9.Change) (err error) {
+func (fallback) NotifyChange(context.Context, v9.Change) (err error) {
 	err = upgradeError("NotifyChange")
 	return
 }
 
-func (bc baseClient) JobStatus(context.Context, job.ID) (_ job.Status, err error) {
+func (fallback) JobStatus(context.Context, job.ID) (_ job.Status, err error) {
 	err = upgradeError("JobStatus")
 	return
 }
 
-func (bc baseClient) SyncStatus(context.Context, string) (_ []string, err error) {
+func (fallback) SyncStatus(context.Context, string) (_ []string, err error) {
 	err = upgradeError("SyncStatus")
 	return
 }
 
-func (bc baseClient) GitRepoConfig(context.Context, bool) (_ v6.GitConfig, err error) {
+func (fallback) GitRepoConfig(context.Context, bool) (_ v6.GitConfig, err error) {
 	err = upgradeError("SyncStatus")
 	return
 }
 
-func (bc baseClient) Close() (err error) {
+func (fallback) Close() (err error) {
 	err = upgradeError("Close")
 	return
 }
