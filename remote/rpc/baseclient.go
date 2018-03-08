@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"context"
+	"io"
 
 	"github.com/pkg/errors"
 
@@ -15,7 +16,13 @@ import (
 
 type baseClient struct{}
 
-var _ api.UpstreamServer = baseClient{}
+type completeServer interface {
+	api.UpstreamServer
+	// An RPC server implementation must closeable by the client.
+	io.Closer
+}
+
+var _ completeServer = baseClient{}
 
 func (bc baseClient) Version(context.Context) (string, error) {
 	return "", remote.UpgradeNeededError(errors.New("Version method not implemented"))
@@ -56,4 +63,8 @@ func (bc baseClient) SyncStatus(context.Context, string) ([]string, error) {
 
 func (bc baseClient) GitRepoConfig(context.Context, bool) (v6.GitConfig, error) {
 	return v6.GitConfig{}, remote.UpgradeNeededError(errors.New("GitRepoConfig method not implemented"))
+}
+
+func (bc baseClient) Close() error {
+	return remote.UpgradeNeededError(errors.New("Close method not implemented"))
 }

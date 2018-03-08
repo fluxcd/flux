@@ -16,8 +16,8 @@ import (
 // RPCClient is the rpc-backed implementation of a server, for
 // talking to remote daemons.
 type RPCClientV6 struct {
-	*baseClient
 	client *rpc.Client
+	baseClient
 }
 
 type clientV6 interface {
@@ -48,7 +48,7 @@ var supportedKindsV6 = []string{"service"}
 
 // NewClient creates a new rpc-backed implementation of the server.
 func NewClientV6(conn io.ReadWriteCloser) *RPCClientV6 {
-	return &RPCClientV6{&baseClient{}, jsonrpc.NewClient(conn)}
+	return &RPCClientV6{client: jsonrpc.NewClient(conn)}
 }
 
 // Ping is used to check if the remote server is available.
@@ -177,4 +177,8 @@ func (p *RPCClientV6) GitRepoConfig(ctx context.Context, regenerate bool) (v6.Gi
 		err = remoteApplicationError(err)
 	}
 	return result, err
+}
+
+func (p *RPCClientV6) Close() error {
+	return p.client.Close()
 }
