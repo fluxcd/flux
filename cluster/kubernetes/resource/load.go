@@ -22,6 +22,11 @@ func Load(roots ...string) (map[string]resource.Resource, error) {
 			if err != nil {
 				return errors.Wrapf(err, "walking %q for yamels", path)
 			}
+
+			if info.IsDir() && looksLikeChart(path) {
+				return filepath.SkipDir
+			}
+
 			if !info.IsDir() && filepath.Ext(path) == ".yaml" || filepath.Ext(path) == ".yml" {
 				bytes, err := ioutil.ReadFile(path)
 				if err != nil {
@@ -45,6 +50,24 @@ func Load(roots ...string) (map[string]resource.Resource, error) {
 		}
 	}
 	return objs, nil
+}
+
+// looksLikeChart returns `true` if the path `dir` (assumed to be a
+// directory) looks like it contains a Helm chart, rather than
+// manifest files.
+func looksLikeChart(dir string) bool {
+	// These are the two mandatory parts of a chart. If they both
+	// exist, chances are it's a chart. See
+	// https://github.com/kubernetes/helm/blob/master/docs/charts.md#the-chart-file-structure
+	chartpath := filepath.Join(dir, "Chart.yaml")
+	valuespath := filepath.Join(dir, "values.yaml")
+	if _, err := os.Stat(chartpath); err != nil && os.IsNotExist(err) {
+		return false
+	}
+	if _, err := os.Stat(valuespath); err != nil && os.IsNotExist(err) {
+		return false
+	}
+	return true
 }
 
 // ParseMultidoc takes a dump of config (a multidoc YAML) and

@@ -136,8 +136,7 @@ func TestLoadSome(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	// assume it's one per file for the minute
-	if len(objs) != len(testfiles.Files) {
-		t.Errorf("expected %d objects from %d files, got result:\n%#v", len(testfiles.Files), len(testfiles.Files), objs)
+	if len(objs) != len(testfiles.ServiceMap(dir)) {
+		t.Errorf("expected %d objects from %d files, got result:\n%#v", len(testfiles.ServiceMap(dir)), len(testfiles.Files), objs)
 	}
 }
