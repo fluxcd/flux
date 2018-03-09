@@ -25,6 +25,11 @@ Flux has some requirements of the files it finds in your git repo.
    namespace in which you want them to run. Otherwise, the
    conventional default (`"default"`) will be assumed.
 
+ * Flux will ignore directories that look like Helm charts, to avoid
+   applying templated YAML manifests. A directory will be skipped if
+   its contents include the files `Chart.yaml` and `values.yaml`, as
+   these are the (only) mandatory components of a Helm chart.
+
 It is _not_ a requirement that the files are arranged in any
 particular way into directories. Flux will look in subdirectories for
 YAML files recursively, but does not infer any meaning from the
