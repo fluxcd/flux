@@ -24,9 +24,18 @@ time.
 ## Connect flux to a repository
 
 First, you need to connect flux to the repository with Kubernetes
-manifests. This is achieved by settings the `--git-url` and
+manifests. This is achieved by setting the `--git-url` and
 `--git-branch` arguments in the
 [`flux-deployment.yaml`](../../deploy/flux-deployment.yaml) manifest.
+
+### Helm users
+
+You need to connect the helm-operator to the same repository, pointing
+the helm-operator to the git path containing Charts. This is achieved by
+setting the `--git-url` and `--git-branch` arguments to the same values
+as for flux and setting the `--git-charts-path` argument in the
+[`helm-operator-deployment.yaml`](../../deploy-helm/helm-operator-deployment.yaml)
+manifest.
 
 ## Add an SSH deploy key to the repository
 

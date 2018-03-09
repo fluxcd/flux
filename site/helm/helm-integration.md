@@ -18,7 +18,7 @@ Flux-Helm Integration implementation consists of two parts:
 
 1. *Flux agent* monitors user git repo containing deployment configuration for applications/services, ie Custom Resource manifests. On detecting changes it applies the manifests, resulting in creation or update of Custom Resources.
 
-2. *Helm operator* deals with Helm Chart releases. The operator watches for changes of Custom Resources of kind FluxHelmResource. It receives Kubernetes Events and acts accordingly, installing, upgrading or deleting a Chart release.
+2. *Helm operator* deals with Helm Chart releases. The operator watches for changes of Custom Resources of kind FluxHelmRelease. It receives Kubernetes Events and acts accordingly, installing, upgrading or deleting a Chart release.
 
 ## More detail
 

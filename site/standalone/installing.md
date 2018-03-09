@@ -25,6 +25,16 @@ $EDITOR ./deploy/flux-deployment.yaml
 kubectl apply -f ./deploy
 ```
 
+```
+Helm users
+
+Create all resources defined in the
+[deploy-helm directory](../../deploy-helm/):
+
+    $EDITOR ./deploy-helm/helm-operator-deployment.yaml
+    kubectl apply -f ./deploy-helm
+```
+
 Next, download the latest version of the fluxctl client [from github](https://github.com/weaveworks/flux/releases).
 
 Continue to [setup flux](./setup.md)
@@ -35,6 +45,10 @@ Continue to [setup flux](./setup.md)
 
 The deployment installs Flux and its dependencies. First, change to
 the directory with the examples configuration.
+
+### Note
+
+Helm users also need content of the deploy-helm directory.
 
 ```
 cd deploy
@@ -128,6 +142,19 @@ Flux.
 
 Download the latest version of the fluxctl client
 [from github](https://github.com/weaveworks/flux/releases).
+
+## Helm operator (Helm users only)
+
+The Kubernetes deployment configuration file
+[helm-operator-deployment.yaml](../../deploy-helm/helm-operator-deployment.yaml) runs the
+helm operator, but you'll need to edit it first, at least to supply your
+own configuration repo (the `--git-repo` as for flux and the `--git-charts-path`
+argument).
+
+```
+$EDITOR helm-operator-deployment.yaml
+kubectl create -f flux-helm-release-crd.yaml -f helm-operator-deployment.yaml
+```
 
 # Next
 
