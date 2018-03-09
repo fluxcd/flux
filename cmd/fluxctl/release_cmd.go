@@ -38,6 +38,7 @@ func (opts *controllerReleaseOpts) Command() *cobra.Command {
 			"fluxctl release -n default --controller=deployment/foo --update-image=library/hello:v2",
 			"fluxctl release --all --update-image=library/hello:v2",
 			"fluxctl release --controller=default:deployment/foo --update-all-images",
+			"fluxctl release --controller=default:deployment/*,other:deployment/* --update--all-images",
 		),
 		RunE: opts.RunE,
 	}
@@ -122,9 +123,9 @@ func (opts *controllerReleaseOpts) RunE(cmd *cobra.Command, args []string) error
 	}
 
 	if opts.dryRun {
-		fmt.Fprintf(cmd.OutOrStderr(), "Submitting dry-run release...\n")
+		fmt.Fprint(cmd.OutOrStderr(), "Submitting dry-run release...\n")
 	} else {
-		fmt.Fprintf(cmd.OutOrStderr(), "Submitting release ...\n")
+		fmt.Fprint(cmd.OutOrStderr(), "Submitting release ...\n")
 	}
 
 	ctx := context.Background()
