@@ -84,7 +84,12 @@ func (c *Checkout) Clean() {
 	}
 }
 
-// ManifestDir returns a path to where the files are
+// Dir returns the path to the repo
+func (c *Checkout) Dir() string {
+	return c.dir
+}
+
+// ManifestDir returns the path to the manifests files
 func (c *Checkout) ManifestDir() string {
 	return filepath.Join(c.dir, c.config.Path)
 }

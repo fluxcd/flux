@@ -23,6 +23,7 @@ import (
 	"github.com/weaveworks/flux/cluster"
 	"github.com/weaveworks/flux/image"
 	"github.com/weaveworks/flux/registry"
+	"github.com/weaveworks/flux/resource"
 	"github.com/weaveworks/flux/ssh"
 )
 
@@ -40,13 +41,21 @@ type extendedClient struct {
 	v1beta1batch.CronJobsGetter
 }
 
+// --- internal types for keeping track of syncing
+
 type apiObject struct {
-	bytes    []byte
+	resource.Resource
 	Kind     string `yaml:"kind"`
 	Metadata struct {
 		Name      string `yaml:"name"`
 		Namespace string `yaml:"namespace"`
 	} `yaml:"metadata"`
+}
+
+// A convenience for getting an minimal object from some bytes.
+func parseObj(def []byte) (*apiObject, error) {
+	obj := apiObject{}
+	return &obj, yaml.Unmarshal(def, &obj)
 }
 
 func (o *apiObject) hasNamespace() bool {
@@ -85,32 +94,27 @@ func isAddon(obj namespacedLabeled) bool {
 // --- /add ons
 
 type changeSet struct {
-	nsObjs   map[string][]obj
-	noNsObjs map[string][]obj
+	nsObjs   map[string][]*apiObject
+	noNsObjs map[string][]*apiObject
 }
 
 func makeChangeSet() changeSet {
 	return changeSet{
-		nsObjs:   make(map[string][]obj),
-		noNsObjs: make(map[string][]obj),
+		nsObjs:   make(map[string][]*apiObject),
+		noNsObjs: make(map[string][]*apiObject),
 	}
 }
 
-func (c *changeSet) stage(cmd, id string, o *apiObject) {
+func (c *changeSet) stage(cmd string, o *apiObject) {
 	if o.hasNamespace() {
-		c.nsObjs[cmd] = append(c.nsObjs[cmd], obj{id, o})
+		c.nsObjs[cmd] = append(c.nsObjs[cmd], o)
 	} else {
-		c.noNsObjs[cmd] = append(c.noNsObjs[cmd], obj{id, o})
+		c.noNsObjs[cmd] = append(c.noNsObjs[cmd], o)
 	}
-}
-
-type obj struct {
-	id string
-	*apiObject
 }
 
 type Applier interface {
-	apply(log.Logger, changeSet, cluster.SyncError)
+	apply(log.Logger, changeSet) cluster.SyncError
 }
 
 // Cluster is a handle to a Kubernetes API server.
@@ -217,25 +221,25 @@ func (c *Cluster) Sync(spec cluster.SyncDef) error {
 	logger := log.With(c.logger, "method", "Sync")
 
 	cs := makeChangeSet()
-	errs := cluster.SyncError{}
+	var errs cluster.SyncError
 	for _, action := range spec.Actions {
 		stages := []struct {
-			b   []byte
+			res resource.Resource
 			cmd string
 		}{
 			{action.Delete, "delete"},
 			{action.Apply, "apply"},
 		}
 		for _, stage := range stages {
-			if len(stage.b) == 0 {
+			if stage.res == nil {
 				continue
 			}
-			obj, err := definitionObj(stage.b)
-			id := action.ResourceID
+			obj, err := parseObj(stage.res.Bytes())
 			if err == nil {
-				cs.stage(stage.cmd, id, obj)
+				obj.Resource = stage.res
+				cs.stage(stage.cmd, obj)
 			} else {
-				errs[id] = err
+				errs = append(errs, cluster.ResourceError{Resource: stage.res, Error: err})
 				break
 			}
 		}
@@ -243,8 +247,12 @@ func (c *Cluster) Sync(spec cluster.SyncDef) error {
 
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	c.applier.apply(logger, cs, errs)
-	if len(errs) != 0 {
+	if applyErrs := c.applier.apply(logger, cs); len(applyErrs) > 0 {
+		errs = append(errs, applyErrs...)
+	}
+
+	// If `nil`, errs is a cluster.SyncError(nil) rather than error(nil)
+	if errs != nil {
 		return errs
 	}
 	return nil
@@ -407,12 +415,4 @@ func (c *Cluster) ImagesToFetch() registry.ImageCreds {
 	}
 
 	return allImageCreds
-}
-
-// --- end cluster.Cluster
-
-// A convenience for getting an minimal object from some bytes.
-func definitionObj(bytes []byte) (*apiObject, error) {
-	obj := apiObject{bytes: bytes}
-	return &obj, yaml.Unmarshal(bytes, &obj)
 }

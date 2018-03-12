@@ -13,6 +13,7 @@ import (
 	"context"
 
 	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/cluster"
 	"github.com/weaveworks/flux/event"
 	"github.com/weaveworks/flux/git"
 	fluxmetrics "github.com/weaveworks/flux/metrics"
@@ -187,21 +188,27 @@ func (d *Daemon) doSync(logger log.Logger) (retErr error) {
 	}
 
 	// Get a map of all resources defined in the repo
-	allResources, err := d.Manifests.LoadManifests(working.ManifestDir())
+	allResources, err := d.Manifests.LoadManifests(working.Dir(), working.ManifestDir())
 	if err != nil {
 		return errors.Wrap(err, "loading resources from repo")
 	}
 
+	var syncErrors []event.ResourceError
 	// TODO supply deletes argument from somewhere (command-line?)
 	if err := fluxsync.Sync(d.Manifests, allResources, d.Cluster, false, logger); err != nil {
 		logger.Log("err", err)
-		// TODO(michael): we should distinguish between "fully mostly
-		// succeeded" and "failed utterly", since we want to abandon
-		// this and not move the tag (and send a SyncFail event
-		// upstream?), if the latter. For now, it's presumed that any
-		// error returned is at worst a minor, partial failure (e.g.,
-		// a small number of resources failed to sync, for unimportant
-		// reasons)
+		switch syncerr := err.(type) {
+		case cluster.SyncError:
+			for _, e := range syncerr {
+				syncErrors = append(syncErrors, event.ResourceError{
+					ID:    e.ResourceID(),
+					Path:  e.Source(),
+					Error: e.Error.Error(),
+				})
+			}
+		default:
+			return err
+		}
 	}
 
 	// update notes and emit events for applied commits
@@ -232,9 +239,9 @@ func (d *Daemon) doSync(logger log.Logger) (retErr error) {
 	} else {
 		ctx, cancel := context.WithTimeout(ctx, gitOpTimeout)
 		changedFiles, err := working.ChangedFiles(ctx, oldTagRev)
-		if err == nil {
+		if err == nil && len(changedFiles) > 0 {
 			// We had some changed files, we're syncing a diff
-			changedResources, err = d.Manifests.LoadManifests(changedFiles...)
+			changedResources, err = d.Manifests.LoadManifests(working.Dir(), changedFiles[0], changedFiles[1:]...)
 		}
 		cancel()
 		if err != nil {
@@ -361,6 +368,7 @@ func (d *Daemon) doSync(logger log.Logger) (retErr error) {
 				Commits:     cs,
 				InitialSync: initialSync,
 				Includes:    includes,
+				Errors:      syncErrors,
 			},
 		}); err != nil {
 			logger.Log("err", err)

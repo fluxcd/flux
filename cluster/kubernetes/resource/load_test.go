@@ -132,7 +132,7 @@ func TestLoadSome(t *testing.T) {
 	if err := testfiles.WriteTestFiles(dir); err != nil {
 		t.Fatal(err)
 	}
-	objs, err := Load(dir)
+	objs, err := Load(dir, dir)
 	if err != nil {
 		t.Error(err)
 	}

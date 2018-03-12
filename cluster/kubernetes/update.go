@@ -20,7 +20,7 @@ import (
 // the source to learn about them.
 func updatePodController(def []byte, container string, newImageID image.Ref) ([]byte, error) {
 	// Sanity check
-	obj, err := definitionObj(def)
+	obj, err := parseObj(def)
 	if err != nil {
 		return nil, err
 	}

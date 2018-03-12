@@ -15,7 +15,8 @@ import (
 // Load takes paths to directories or files, and creates an object set
 // based on the file(s) therein. Resources are named according to the
 // file content, rather than the file name of directory structure.
-func Load(roots ...string) (map[string]resource.Resource, error) {
+func Load(base, atLeastOne string, more ...string) (map[string]resource.Resource, error) {
+	roots := append([]string{atLeastOne}, more...)
 	objs := map[string]resource.Resource{}
 	for _, root := range roots {
 		err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
@@ -32,13 +33,17 @@ func Load(roots ...string) (map[string]resource.Resource, error) {
 				if err != nil {
 					return errors.Wrapf(err, "reading file at %q", path)
 				}
-				docsInFile, err := ParseMultidoc(bytes, path)
+				source, err := filepath.Rel(base, path)
+				if err != nil {
+					return errors.Wrapf(err, "finding relative path for %q", path)
+				}
+				docsInFile, err := ParseMultidoc(bytes, source)
 				if err != nil {
 					return errors.Wrapf(err, "parsing file at %q", path)
 				}
 				for id, obj := range docsInFile {
 					if alreadyDefined, ok := objs[id]; ok {
-						return fmt.Errorf(`resource '%s' defined more than once (in %s and %s)`, id, alreadyDefined.Source(), path)
+						return fmt.Errorf(`resource '%s' defined more than once (in %s and %s)`, id, alreadyDefined.Source(), source)
 					}
 					objs[id] = obj
 				}
