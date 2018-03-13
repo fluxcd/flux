@@ -23,10 +23,11 @@ type ImageStatus struct {
 type ReadOnlyReason string
 
 const (
-	ReadOnlyOK      ReadOnlyReason = ""
-	ReadOnlyMissing ReadOnlyReason = "NotInRepo"
-	ReadOnlySystem  ReadOnlyReason = "System"
-	ReadOnlyNoRepo  ReadOnlyReason = "NoRepo"
+	ReadOnlyOK       ReadOnlyReason = ""
+	ReadOnlyMissing  ReadOnlyReason = "NotInRepo"
+	ReadOnlySystem   ReadOnlyReason = "System"
+	ReadOnlyNoRepo   ReadOnlyReason = "NoRepo"
+	ReadOnlyNotReady ReadOnlyReason = "NotReady"
 )
 
 type ControllerStatus struct {
