@@ -1,8 +1,12 @@
 package release
 
 import (
+	"encoding/json"
+	"fmt"
+	"regexp"
 	"strings"
 
+	"github.com/go-kit/kit/log"
 	ifv1 "github.com/weaveworks/flux/apis/helm.integrations.flux.weave.works/v1alpha"
 	yaml "gopkg.in/yaml.v2"
 )
@@ -12,11 +16,15 @@ import (
 // Parameters with names containing "." will result in nested maps.
 // Maps from all parameters are merged together, with a possible overwriting
 // if a parameter is provided twice with different values.
-func collectValues(params []ifv1.HelmChartParam) ([]byte, error) {
+func collectValues(logger log.Logger, params []ifv1.HelmChartParam) ([]byte, error) {
 	base := map[string]interface{}{}
 	if params == nil || len(params) == 0 {
 		return yaml.Marshal(base)
 	}
+
+	var vu interface{}
+	var err error
+	regx := regexp.MustCompile(`^\[.*\]$`)
 
 	for _, p := range params {
 		k, v := cleanup(p.Name, p.Value)
@@ -24,9 +32,21 @@ func collectValues(params []ifv1.HelmChartParam) ([]byte, error) {
 			continue
 		}
 
-		pMap := mappifyValueOverride(k, v)
+		vu = v
+		if match := regx.Match([]byte(v)); match {
+			vu, err = unwrap(v)
+			if err != nil {
+				return nil, err
+			}
+		}
+		pMap, err := mappifyValueOverride(k, vu)
+		if err != nil {
+			return nil, err
+		}
 		base = mergeValues(base, pMap)
 	}
+
+	logger.Log("debug", fmt.Sprintf("override parameters in a data structure: %#v", base))
 
 	return yaml.Marshal(base)
 }
@@ -51,7 +71,7 @@ func reverse(s []string) []string {
 // mappifyValueOverride ... takes a parameter and its value, and creates
 // a corresponding map suitable for passing to helm client API
 // to override default values
-func mappifyValueOverride(k, v string) map[string]interface{} {
+func mappifyValueOverride(k string, v interface{}) (map[string]interface{}, error) {
 	nests := reverse(strings.Split(k, "."))
 
 	inner := map[string]interface{}{}
@@ -68,7 +88,7 @@ func mappifyValueOverride(k, v string) map[string]interface{} {
 		}
 
 	}
-	return inner
+	return inner, nil
 }
 
 // mergeValues ... merges two, possibly nested, maps
@@ -102,4 +122,13 @@ func mergeValues(dest map[string]interface{}, src map[string]interface{}) map[st
 		dest[k] = mergeValues(destMap, nextMap)
 	}
 	return dest
+}
+
+func unwrap(v string) (interface{}, error) {
+	out := []interface{}{""}
+	err := json.Unmarshal([]byte(v), &out)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }

@@ -157,7 +157,7 @@ func (r *Release) Install(checkout *helmgit.Checkout, releaseName string, fhr if
 
 	chartDir := filepath.Join(checkout.Dir, checkout.Config.Path, chartPath)
 
-	rawVals, err := collectValues(fhr.Spec.Values)
+	rawVals, err := collectValues(r.logger, fhr.Spec.Values)
 	if err != nil {
 		r.logger.Log("error", fmt.Sprintf("Problem with supplied customizations for Chart release [%s]: %#v", releaseName, err))
 		return hapi_release.Release{}, err
