@@ -101,8 +101,9 @@ func main() {
 		k8sSecretVolumeMountPath = fs.String("k8s-secret-volume-mount-path", "/etc/fluxd/ssh", "Mount location of the k8s secret storing the private SSH key")
 		k8sSecretDataKey         = fs.String("k8s-secret-data-key", "identity", "Data key holding the private SSH key within the k8s secret")
 		// SSH key generation
-		sshKeyBits = optionalVar(fs, &ssh.KeyBitsValue{}, "ssh-keygen-bits", "-b argument to ssh-keygen (default unspecified)")
-		sshKeyType = optionalVar(fs, &ssh.KeyTypeValue{}, "ssh-keygen-type", "-t argument to ssh-keygen (default unspecified)")
+		sshKeyBits   = optionalVar(fs, &ssh.KeyBitsValue{}, "ssh-keygen-bits", "-b argument to ssh-keygen (default unspecified)")
+		sshKeyType   = optionalVar(fs, &ssh.KeyTypeValue{}, "ssh-keygen-type", "-t argument to ssh-keygen (default unspecified)")
+		sshKeygenDir = fs.String("ssh-keygen-dir", "", "directory, ideally on a tmpfs volume, in which to generate new SSH keys when necessary")
 
 		upstreamURL = fs.String("connect", "", "Connect to an upstream service e.g., Weave Cloud, at this base address")
 		token       = fs.String("token", "", "Authentication token for upstream service")
@@ -132,6 +133,8 @@ func main() {
 	}
 	logger.Log("started", true)
 
+	// Argument validation
+
 	// Sort out values for the git tag and notes ref. There are
 	// running deployments that assume the defaults as given, so don't
 	// mess with those unless explicitly told.
@@ -147,6 +150,15 @@ func main() {
 
 	if len(*gitPath) > 0 && (*gitPath)[0] == '/' {
 		logger.Log("err", "git subdirectory (--git-path) should not have leading forward slash")
+		os.Exit(1)
+	}
+
+	if *sshKeygenDir == "" {
+		logger.Log("err", "SSH keygen dir (--ssh-keygen-dir) missing; this is a directory in which to generate SSH keys (ideally mounted from a tmpfs volume)")
+		os.Exit(1)
+	}
+	if _, err := os.Stat(*sshKeygenDir); err != nil && os.IsNotExist(err) {
+		logger.Log("err", "SSH keygen dir (supplied as argument --ssh-keygen-dir) does not exist. This should be a directory mounted from a tmpfs volume.")
 		os.Exit(1)
 	}
 
@@ -192,6 +204,7 @@ func main() {
 			SecretDataKey:         *k8sSecretDataKey,
 			KeyBits:               sshKeyBits,
 			KeyType:               sshKeyType,
+			KeyGenDir:             *sshKeygenDir,
 		})
 		if err != nil {
 			logger.Log("err", err)

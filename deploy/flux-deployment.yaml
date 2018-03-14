@@ -15,8 +15,12 @@ spec:
       serviceAccount: flux
       volumes:
       - name: git-key
+        defaultMode: 0400 # when mounted read-only, we won't be able to chmod
         secret:
           secretName: flux-git-deploy
+      - name: git-keygen
+        emptyDir:
+          medium: Memory
       containers:
       - name: flux
         # There are no ":latest" images for flux. Find the most recent
@@ -28,7 +32,10 @@ spec:
         - containerPort: 3030 # informational
         volumeMounts:
         - name: git-key
-          mountPath: /etc/fluxd/ssh
+          mountPath: /etc/fluxd/ssh # to match image's ~/.ssh/config
+          readOnly: true # this will be the case perforce in K8s >=1.10
+        - name: git-keygen
+          mountPath: /var/fluxd/keygen # to match image's ~/.ssh/config
         args:
 
         # if you deployed memcached in a different namespace to flux,
@@ -36,6 +43,9 @@ spec:
         # following two arguments to tell fluxd how to connect to it.
         # - --memcached-hostname=memcached.default.svc.cluster.local
         # - --memcached-service=memcached
+
+        # this must be supplied, and be in the tmpfs (emptyDir) mounted above
+        --ssh-keygen-dir=/var/fluxd/keygen
 
         # replace (at least) the following URL
         - --git-url=git@github.com:weaveworks/flux-example
