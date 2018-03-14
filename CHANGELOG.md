@@ -1,3 +1,23 @@
+## 1.2.4 (2018-03-14)
+
+### Fixes
+
+- CLI help examples updated with new resource ID format [weaveworks/flux#945](https://github.com/weaveworks/flux/pull/945)
+- Fix a panic caused by accessing a `nil` map when logging events [weaveworks/flux#975](https://github.com/weaveworks/flux/pull/975)
+- Properly support multi-line lock messages [weaveworks/flux#978](https://github.com/weaveworks/flux/pull/978)
+- Ignore Helm charts when looking for Kubernetes manifests [weaveworks/flux#993](https://github.com/weaveworks/flux/pull/9993)
+
+### Improvements
+
+- Enable pprof [weaveworks/flux#927](https://github.com/weaveworks/flux/pull/927/files)
+- Use a Kubernetes serviceAccount when deploying Flux standalone [weaveworks/flux#972](https://github.com/weaveworks/flux/pull/972)
+- Ensure at-least-once delivery of events to Weave Cloud [weaveworks/flux#973](https://github.com/weaveworks/flux/pull/973)
+- Include resource sync errors when logging a sync event [weaveworks/flux#970](https://github.com/weaveworks/flux/pull/970)
+
+### Experimental
+
+- Alpha release of [helm-operator](https://github.com/weaveworks/flux/blob/master/site/helm/helm-integration.md)
+
 ## 1.2.3 (2018-02-07)
 
 ### Fixes
