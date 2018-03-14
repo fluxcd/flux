@@ -8,23 +8,22 @@ import (
 
 	"github.com/go-kit/kit/log"
 	ifv1 "github.com/weaveworks/flux/apis/helm.integrations.flux.weave.works/v1alpha"
-	yaml "gopkg.in/yaml.v2"
 )
 
 // collectValues ... assembles overriding parameters and outputs a
-// serialised map suitable for passing to helm client API.
+// map suitable for passing to helm client API.
 // Parameters with names containing "." will result in nested maps.
 // Maps from all parameters are merged together, with a possible overwriting
 // if a parameter is provided twice with different values.
-func collectValues(logger log.Logger, params []ifv1.HelmChartParam) ([]byte, error) {
+func collectValues(logger log.Logger, params []ifv1.HelmChartParam) (map[string]interface{}, error) {
 	base := map[string]interface{}{}
-	if params == nil || len(params) == 0 {
-		return yaml.Marshal(base)
+	if len(params) == 0 {
+		return base, nil
 	}
 
 	var vu interface{}
 	var err error
-	regx := regexp.MustCompile(`^\[.*\]$`)
+	listRegex := regexp.MustCompile(`^\[.*\]$`)
 
 	for _, p := range params {
 		k, v := cleanup(p.Name, p.Value)
@@ -33,46 +32,39 @@ func collectValues(logger log.Logger, params []ifv1.HelmChartParam) ([]byte, err
 		}
 
 		vu = v
-		if match := regx.Match([]byte(v)); match {
+		if match := listRegex.Match([]byte(v)); match {
 			vu, err = unwrap(v)
 			if err != nil {
 				return nil, err
 			}
 		}
-		pMap, err := mappifyValueOverride(k, vu)
-		if err != nil {
-			return nil, err
-		}
-		base = mergeValues(base, pMap)
+		pMap := mappifyValueOverride(k, vu)
+		base = mergeMaps(base, pMap)
 	}
 
 	logger.Log("debug", fmt.Sprintf("override parameters in a data structure: %#v", base))
 
-	return yaml.Marshal(base)
+	return base, nil
 }
 
 func cleanup(k, v string) (string, string) {
 	k = strings.TrimSpace(k)
-	k = strings.Trim(k, "\n")
-
 	v = strings.TrimSpace(v)
-	v = strings.Trim(v, "\n")
-
 	return k, v
 }
 
-func reverse(s []string) []string {
+func reverse(s []string) {
 	for i, j := 0, len(s)-1; i < j; i, j = i+1, j-1 {
 		s[i], s[j] = s[j], s[i]
 	}
-	return s
 }
 
 // mappifyValueOverride ... takes a parameter and its value, and creates
 // a corresponding map suitable for passing to helm client API
 // to override default values
-func mappifyValueOverride(k string, v interface{}) (map[string]interface{}, error) {
-	nests := reverse(strings.Split(k, "."))
+func mappifyValueOverride(k string, v interface{}) map[string]interface{} {
+	nests := strings.Split(k, ".")
+	reverse(nests)
 
 	inner := map[string]interface{}{}
 	outer := map[string]interface{}{}
@@ -88,12 +80,12 @@ func mappifyValueOverride(k string, v interface{}) (map[string]interface{}, erro
 		}
 
 	}
-	return inner, nil
+	return inner
 }
 
-// mergeValues ... merges two, possibly nested, maps
-// (copied from kubernetes/helm/cmd/helm/install.go)
-func mergeValues(dest map[string]interface{}, src map[string]interface{}) map[string]interface{} {
+// mergeMaps ... merges two, possibly nested, maps
+// (copied from kubernetes/helm/cmd/helm/install.go (mergeValues function))
+func mergeMaps(dest map[string]interface{}, src map[string]interface{}) map[string]interface{} {
 	for k, v := range src {
 		// If the key doesn't exist already, then just set the key to that value
 		if _, exists := dest[k]; !exists {
@@ -119,13 +111,15 @@ func mergeValues(dest map[string]interface{}, src map[string]interface{}) map[st
 			continue
 		}
 		// If we got to this point, it is a map in both, so merge them
-		dest[k] = mergeValues(destMap, nextMap)
+		dest[k] = mergeMaps(destMap, nextMap)
 	}
 	return dest
 }
 
+// unwrap ... unmarshals a string that is a serialised list
 func unwrap(v string) (interface{}, error) {
-	out := []interface{}{""}
+	//out := []interface{}{""}
+	var out []interface{}
 	err := json.Unmarshal([]byte(v), &out)
 	if err != nil {
 		return nil, err

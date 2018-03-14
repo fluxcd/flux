@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"sync"
 
+	yaml "gopkg.in/yaml.v2"
 	k8shelm "k8s.io/helm/pkg/helm"
 	hapi_release "k8s.io/helm/pkg/proto/hapi/release"
 
@@ -157,7 +158,13 @@ func (r *Release) Install(checkout *helmgit.Checkout, releaseName string, fhr if
 
 	chartDir := filepath.Join(checkout.Dir, checkout.Config.Path, chartPath)
 
-	rawVals, err := collectValues(r.logger, fhr.Spec.Values)
+	rv, err := collectValues(r.logger, fhr.Spec.Values)
+	if err != nil {
+		r.logger.Log("error", fmt.Sprintf("Problem with supplied customizations for Chart release [%s]: %#v", releaseName, err))
+		return hapi_release.Release{}, err
+	}
+
+	rawVals, err := yaml.Marshal(rv)
 	if err != nil {
 		r.logger.Log("error", fmt.Sprintf("Problem with supplied customizations for Chart release [%s]: %#v", releaseName, err))
 		return hapi_release.Release{}, err
