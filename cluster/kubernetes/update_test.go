@@ -36,7 +36,6 @@ func testUpdate(t *testing.T, u update) {
 		fmt.Fprintln(os.Stderr, "Failed:", u.name)
 		t.Fatalf("Did not get expected result:\n\n%s\n\nInstead got:\n\n%s", u.caseOut, manifest)
 	}
-
 }
 
 func TestUpdates(t *testing.T) {
@@ -49,6 +48,7 @@ func TestUpdates(t *testing.T) {
 		{"minimal dockerhub image name", case5container, case5image, case5, case5out},
 		{"reordered keys", case6containers, case6image, case6, case6out},
 		{"from prod", case7containers, case7image, case7, case7out},
+		{"single quotes", case8containers, case8image, case8, case8out},
 	} {
 		testUpdate(t, c)
 	}
@@ -533,4 +533,42 @@ spec:
         env:
         - name: FLUENTD_CONF
           value: fluent.conf
+`
+
+const case8 = `---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: weave
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        name: weave
+    spec:
+      containers:
+      - name: weave
+        image: 'weaveworks/weave-kube:2.2.0'
+`
+
+const case8image = "weaveworks/weave-kube:2.2.1"
+
+var case8containers = []string{"weave"}
+
+const case8out = `---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: weave
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        name: weave
+    spec:
+      containers:
+      - name: weave
+        image: weaveworks/weave-kube:2.2.1
 `
