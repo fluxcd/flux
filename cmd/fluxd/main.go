@@ -154,12 +154,8 @@ func main() {
 	}
 
 	if *sshKeygenDir == "" {
-		logger.Log("err", "SSH keygen dir (--ssh-keygen-dir) missing; this is a directory in which to generate SSH keys (ideally mounted from a tmpfs volume)")
-		os.Exit(1)
-	}
-	if _, err := os.Stat(*sshKeygenDir); err != nil && os.IsNotExist(err) {
-		logger.Log("err", "SSH keygen dir (supplied as argument --ssh-keygen-dir) does not exist. This should be a directory mounted from a tmpfs volume.")
-		os.Exit(1)
+		logger.Log("info", fmt.Sprintf("SSH keygen dir (--ssh-keygen-dir) not provided, so using the deploy key volume (--k8s-secret-volume-mount-path=%s); this may cause problems if the deploy key volume is mounted read-only", *k8sSecretVolumeMountPath))
+		*sshKeygenDir = *k8sSecretVolumeMountPath
 	}
 
 	// Cluster component.
