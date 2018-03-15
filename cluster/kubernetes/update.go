@@ -126,13 +126,14 @@ func tryUpdate(def []byte, container string, newImage image.Ref, out io.Writer) 
 	}
 	indent := matches[1]
 
+	optq :=`["']?` // An optional single or double quote
 	// Replace the container images
 	// Parse out all the container blocks
 	containersRE := regexp.MustCompile(`(?m:^` + indent + `containers:\s*(?:#.*)*$(?:\n(?:` + indent + `[-\s#].*)?)*)`)
 	// Parse out an individual container blog
 	containerRE := regexp.MustCompile(`(?m:` + indent + `-.*(?:\n(?:` + indent + `\s+.*)?)*)`)
 	// Parse out the image ID
-	imageRE := regexp.MustCompile(`(` + indent + `[-\s]\s*"?image"?:\s*)"?(?:[\w\.\-/:]+\s*?)*"?([\t\f #]+.*)?`)
+	imageRE := regexp.MustCompile(`(` + indent + `[-\s]\s*` + optq + `image` + optq + `:\s*)` + optq + `(?:[\w\.\-/:]+\s*?)*` + optq + `([\t\f #]+.*)?`)
 	imageReplacement := fmt.Sprintf("${1}%s${2}", maybeQuote(newImage.String()))
 	// Find the block of container specs
 	newDef = containersRE.ReplaceAllStringFunc(newDef, func(containers string) string {
@@ -159,7 +160,7 @@ func tryUpdate(def []byte, container string, newImage image.Ref, out io.Writer) 
 
 	// The name we want is that under `metadata:`, which will *probably* be the first one
 	replacedName := false
-	replaceRCNameRE := regexp.MustCompile(`(\s+"?name"?:\s*)"?(?:[\w\.\-/:]+\s*?)"?([\t\f #]+.*)`)
+	replaceRCNameRE := regexp.MustCompile(`(\s+` + optq + `name` + optq + `:\s*)` + optq + `(?:[\w\.\-/:]+\s*?)` + optq + `([\t\f #]+.*)`)
 	replaceRCNameRE.ReplaceAllStringFunc(newDef, func(found string) string {
 		if replacedName {
 			return found
@@ -175,7 +176,7 @@ func tryUpdate(def []byte, container string, newImage image.Ref, out io.Writer) 
 	replaceLabelsRE := multilineRE(
 		`((?:  selector|      labels):.*)`,
 		`((?:  ){2,4}name:.*)`,
-		`((?:  ){2,4}version:\s*) (?:"?[-\w]+"?)(\s.*)`,
+		`((?:  ){2,4}version:\s*) (?:` + optq + `[-\w]+` + optq + `)(\s.*)`,
 	)
 	replaceLabels := fmt.Sprintf("$1\n$2\n$3 %s$4", maybeQuote(newImage.Tag))
 	newDef = replaceLabelsRE.ReplaceAllString(newDef, replaceLabels)
