@@ -53,7 +53,6 @@ func testMappify(t *testing.T, c mappifyTestCase) {
 }
 
 // ---------------------------------------------------------------------------
-
 // collectValues tests
 type collectTestCase struct {
 	desc     string
@@ -142,7 +141,6 @@ func testCollect(t *testing.T, c collectTestCase) {
 }
 
 // ---------------------------------------------------------------------------
-
 // unwrap tests
 type unwrapTestCase struct {
 	desc     string
@@ -166,5 +164,88 @@ func testUnwrap(t *testing.T, c unwrapTestCase) {
 	}
 	if !reflect.DeepEqual(c.expected, result) {
 		t.Fatalf("\n%s [%s]\nDid not get the expected result:\n\n{%v}\n\nInstead got:\n\n{%v}", c.desc, c.value, c.expected, result)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// mergeOverrides tests
+type mergeTestCase struct {
+	desc     string
+	dest     map[string]interface{}
+	src      map[string]interface{}
+	expected map[string]interface{}
+}
+
+func TestMergeOverrides(t *testing.T) {
+	for _, c := range []mergeTestCase{
+		{"dest = empty and src = map",
+			map[string]interface{}{},
+			map[string]interface{}{"AAA": map[string]interface{}{"aaa": "111"}},
+			map[string]interface{}{"AAA": map[string]interface{}{"aaa": "111"}},
+		},
+		{"dest = empty and src != map",
+			map[string]interface{}{},
+			map[string]interface{}{"AAA": "333"},
+			map[string]interface{}{"AAA": "333"},
+		},
+		{"dest = empty and src = list",
+			map[string]interface{}{},
+			map[string]interface{}{"AAA": []interface{}{"111", "222"}},
+			map[string]interface{}{"AAA": []interface{}{"111", "222"}},
+		},
+		{"dest = map and src = primitive",
+			map[string]interface{}{"AAA": map[string]interface{}{"aaa": "111"}},
+			map[string]interface{}{"AAA": "222"},
+			map[string]interface{}{"AAA": "222"},
+		},
+		{"dest = map and src = list",
+			map[string]interface{}{"AAA": map[string]interface{}{"aaa": "111"}},
+			map[string]interface{}{"AAA": []interface{}{"111", "222"}},
+			map[string]interface{}{"AAA": []interface{}{"111", "222"}}},
+		{"dest != map and src = map",
+			map[string]interface{}{"AAA": "222"},
+			map[string]interface{}{"AAA": map[string]interface{}{"aaa": "111"}},
+			map[string]interface{}{"AAA": map[string]interface{}{"aaa": "111"}},
+		},
+		{"both dest and src are maps - different keys",
+			map[string]interface{}{"AAA": map[string]interface{}{"aaa": "111"}},
+			map[string]interface{}{"BBB": map[string]interface{}{"bbb": "222"}},
+			map[string]interface{}{"AAA": map[string]interface{}{"aaa": "111"}, "BBB": map[string]interface{}{"bbb": "222"}},
+		},
+		{"both dest and src are maps - overlapping keys a)",
+			map[string]interface{}{"AAA": map[string]interface{}{"aaa": "111"}},
+			map[string]interface{}{"AAA": map[string]interface{}{"bbb": "222"}, "BBB": map[string]interface{}{"bbb": "222"}},
+			map[string]interface{}{"AAA": map[string]interface{}{"aaa": "111", "bbb": "222"}, "BBB": map[string]interface{}{"bbb": "222"}},
+		},
+		{"both dest and src are maps - overlapping keys b)",
+			map[string]interface{}{"AAA": map[string]interface{}{"aaa": "111"}, "CCC": "333"},
+			map[string]interface{}{"AAA": map[string]interface{}{"bbb": "222"}, "BBB": map[string]interface{}{"bbb": "222"}},
+			map[string]interface{}{"AAA": map[string]interface{}{"aaa": "111", "bbb": "222"}, "BBB": map[string]interface{}{"bbb": "222"}, "CCC": "333"},
+		},
+		{"both dest and src are maps - overlapping keys c)",
+			map[string]interface{}{"AAA": map[string]interface{}{"aaa": "111"}},
+			map[string]interface{}{"AAA": map[string]interface{}{"bbb": "222", "ccc": "333"}, "BBB": map[string]interface{}{"bbb": "222"}},
+			map[string]interface{}{"AAA": map[string]interface{}{"aaa": "111", "bbb": "222", "ccc": "333"}, "BBB": map[string]interface{}{"bbb": "222"}},
+		},
+		{"both dest and src are maps - overlapping keys d)",
+			map[string]interface{}{"AAA": []interface{}{"aaa", "bbb"}},
+			map[string]interface{}{"AAA": map[string]interface{}{"bbb": "222", "ccc": "333"}, "BBB": map[string]interface{}{"bbb": "222"}},
+			map[string]interface{}{"AAA": map[string]interface{}{"bbb": "222", "ccc": "333"}, "BBB": map[string]interface{}{"bbb": "222"}},
+		},
+		{"both dest and src are maps - overlapping keys e)",
+			map[string]interface{}{"AAA": map[string]interface{}{"aaa": "111"}},
+			map[string]interface{}{"AAA": []interface{}{"aaa", "bbb"}, "BBB": map[string]interface{}{"bbb": "222"}},
+			map[string]interface{}{"AAA": []interface{}{"aaa", "bbb"}, "BBB": map[string]interface{}{"bbb": "222"}},
+		},
+	} {
+		testMergeOverrides(t, c)
+	}
+}
+
+func testMergeOverrides(t *testing.T, c mergeTestCase) {
+	result := mergeOverrides(c.dest, c.src)
+
+	if !reflect.DeepEqual(c.expected, result) {
+		t.Fatalf("\n%s \n[%v\n%v\n]\nDid not get the expected result:\n\n{%#v}\n\nInstead got:\n\n{%#v}", c.desc, c.dest, c.src, c.expected, result)
 	}
 }

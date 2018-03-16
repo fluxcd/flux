@@ -39,7 +39,7 @@ func collectValues(logger log.Logger, params []ifv1.HelmChartParam) (map[string]
 			}
 		}
 		pMap := mappifyValueOverride(k, vu)
-		base = mergeMaps(base, pMap)
+		base = mergeOverrides(base, pMap)
 	}
 
 	logger.Log("debug", fmt.Sprintf("override parameters in a data structure: %#v", base))
@@ -83,42 +83,42 @@ func mappifyValueOverride(k string, v interface{}) map[string]interface{} {
 	return inner
 }
 
-// mergeMaps ... merges two, possibly nested, maps
-// (copied from kubernetes/helm/cmd/helm/install.go (mergeValues function))
-func mergeMaps(dest map[string]interface{}, src map[string]interface{}) map[string]interface{} {
+// mergeOverrides ... merges two, possibly nested, maps
+// (copied from kubernetes/helm/cmd/helm/install.go (mergeValues function)
+// with redundant code removed)
+// mergeOverrides merges map related to one parameter override
+//
+//		- if a key k in the dest map exists:
+//				- if the value src[k] is not a map => the destMap value is overridden by the srcMap value
+//				- if the value src[k] is a map and value dest[k] is not a map => prefer the src[k] map
+//				- if both src[k] and value dest[k] are maps => merge the two maps
+func mergeOverrides(dest map[string]interface{}, src map[string]interface{}) map[string]interface{} {
 	for k, v := range src {
-		// If the key doesn't exist already, then just set the key to that value
 		if _, exists := dest[k]; !exists {
 			dest[k] = v
 			continue
 		}
 		nextMap, ok := v.(map[string]interface{})
-		// If it isn't another map, overwrite the value
+		// If the new value is not another map, overwrite the current value with it
 		if !ok {
 			dest[k] = v
 			continue
 		}
-		// If the key doesn't exist already, then just set the key to that value
-		if _, exists := dest[k]; !exists {
-			dest[k] = nextMap
-			continue
-		}
-		// Edge case: If the key exists in the destination, but isn't a map
+		// Edge case: If the key exists in the destination, but the corresponding value
+		// isn't  a map => overwrite with the new value
 		destMap, isMap := dest[k].(map[string]interface{})
-		// If the source map has a map for this key, prefer it
 		if !isMap {
 			dest[k] = v
 			continue
 		}
-		// If we got to this point, it is a map in both, so merge them
-		dest[k] = mergeMaps(destMap, nextMap)
+		// maps present in both the source and the destination => merge them
+		dest[k] = mergeOverrides(destMap, nextMap)
 	}
 	return dest
 }
 
 // unwrap ... unmarshals a string that is a serialised list
 func unwrap(v string) (interface{}, error) {
-	//out := []interface{}{""}
 	var out []interface{}
 	err := json.Unmarshal([]byte(v), &out)
 	if err != nil {
