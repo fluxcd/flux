@@ -48,8 +48,9 @@ const (
 
 	// There are running systems that assume these defaults (by not
 	// supplying a value for one or both). Don't change them.
-	defaultGitSyncTag  = "flux-sync"
-	defaultGitNotesRef = "flux"
+	defaultGitSyncTag     = "flux-sync"
+	defaultGitNotesRef    = "flux"
+	defaultGitSkipMessage = "\n\n[ci skip]"
 )
 
 func optionalVar(fs *pflag.FlagSet, value ssh.OptionalValue, name, usage string) ssh.OptionalValue {
@@ -81,8 +82,10 @@ func main() {
 		gitSetAuthor = fs.Bool("git-set-author", false, "If set, the author of git commits will reflect the user who initiated the commit and will differ from the git committer.")
 		gitLabel     = fs.String("git-label", "", "label to keep track of sync progress; overrides both --git-sync-tag and --git-notes-ref")
 		// Old git config; still used if --git-label is not supplied, but --git-label is preferred.
-		gitSyncTag  = fs.String("git-sync-tag", defaultGitSyncTag, "tag to use to mark sync progress for this cluster")
-		gitNotesRef = fs.String("git-notes-ref", defaultGitNotesRef, "ref to use for keeping commit annotations in git notes")
+		gitSyncTag     = fs.String("git-sync-tag", defaultGitSyncTag, "tag to use to mark sync progress for this cluster")
+		gitNotesRef    = fs.String("git-notes-ref", defaultGitNotesRef, "ref to use for keeping commit annotations in git notes")
+		gitSkip        = fs.Bool("git-ci-skip", false, `append "[ci skip]" to commit messages so that CI will skip builds`)
+		gitSkipMessage = fs.String("git-ci-skip-message", "", "additional text for commit messages, useful for skipping builds in CI. Use this to supply specific text, or set --git-ci-skip")
 
 		gitPollInterval = fs.Duration("git-poll-interval", 5*time.Minute, "period at which to poll git repo for new commits")
 		// registry
@@ -143,6 +146,10 @@ func main() {
 				logger.Log("overridden", f, "value", *gitLabel)
 			}
 		}
+	}
+
+	if *gitSkipMessage == "" && *gitSkip {
+		*gitSkipMessage = defaultGitSkipMessage
 	}
 
 	if len(*gitPath) > 0 && (*gitPath)[0] == '/' {
@@ -357,13 +364,14 @@ func main() {
 
 	gitRemote := git.Remote{URL: *gitURL}
 	gitConfig := git.Config{
-		Path:      *gitPath,
-		Branch:    *gitBranch,
-		SyncTag:   *gitSyncTag,
-		NotesRef:  *gitNotesRef,
-		UserName:  *gitUser,
-		UserEmail: *gitEmail,
-		SetAuthor: *gitSetAuthor,
+		Path:        *gitPath,
+		Branch:      *gitBranch,
+		SyncTag:     *gitSyncTag,
+		NotesRef:    *gitNotesRef,
+		UserName:    *gitUser,
+		UserEmail:   *gitEmail,
+		SetAuthor:   *gitSetAuthor,
+		SkipMessage: *gitSkipMessage,
 	}
 
 	repo := git.NewRepo(gitRemote)

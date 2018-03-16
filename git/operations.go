@@ -68,7 +68,7 @@ func checkPush(ctx context.Context, workingDir, upstream string) error {
 	return execGitCmd(ctx, workingDir, nil, "push", "--delete", upstream, "tag", CheckPushTag)
 }
 
-func commit(ctx context.Context, workingDir string, commitAction *CommitAction) error {
+func commit(ctx context.Context, workingDir string, commitAction CommitAction) error {
 	commitAuthor := commitAction.Author
 	if commitAuthor != "" {
 		if err := execGitCmd(ctx,

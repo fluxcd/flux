@@ -45,6 +45,8 @@ fluxd requires setup and offers customization though a multitude of flags.
 |**Git repo & key etc.** |                              ||
 |--git-url               |                               | URL of git repo with Kubernetes manifests; e.g., `git@github.com:weaveworks/flux-example`|
 |--git-branch            | `master`                        | branch of git repo to use for Kubernetes manifests|
+|--git-ci-skip           | false   | when set, fluxd will append `\n\n[ci skip]` to its commit messages |
+|--git-ci-skip-message   | `""`    | if provided, fluxd will append this to commit messages (overrides --git-ci-skip`) |
 |--git-path              |                               | path within git repo to locate Kubernetes manifests (relative path)|
 |--git-user              | `Weave Flux`                    | username to use as git committer|
 |--git-email             | `support@weave.works`           | email to use as git committer|

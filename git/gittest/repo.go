@@ -59,31 +59,41 @@ func Repo(t *testing.T) (*git.Repo, func()) {
 	}), cleanup
 }
 
-func Checkout(t *testing.T) (*git.Checkout, func()) {
+// CheckoutWithConfig makes a standard repo, clones it, and returns
+// the clone, the original repo, and a cleanup function.
+func CheckoutWithConfig(t *testing.T, config git.Config) (*git.Checkout, *git.Repo, func()) {
 	repo, cleanup := Repo(t)
 	shutdown, wg := make(chan struct{}), &sync.WaitGroup{}
 	wg.Add(1)
 	go repo.Start(shutdown, wg)
 	WaitForRepoReady(repo, t)
 
-	config := git.Config{
-		Branch:    "master",
-		UserName:  "example",
-		UserEmail: "example@example.com",
-		SyncTag:   "flux-test",
-		NotesRef:  "fluxtest",
-	}
 	co, err := repo.Clone(context.Background(), config)
 	if err != nil {
 		close(shutdown)
 		cleanup()
 		t.Fatal(err)
 	}
-	return co, func() {
+	return co, repo, func() {
 		close(shutdown)
 		co.Clean()
 		cleanup()
 	}
+}
+
+var TestConfig git.Config = git.Config{
+	Branch:    "master",
+	UserName:  "example",
+	UserEmail: "example@example.com",
+	SyncTag:   "flux-test",
+	NotesRef:  "fluxtest",
+}
+
+// Checkout makes a standard repo, clones it, and returns the clone
+// with a cleanup function.
+func Checkout(t *testing.T) (*git.Checkout, func()) {
+	checkout, _, cleanup := CheckoutWithConfig(t, TestConfig)
+	return checkout, cleanup
 }
 
 func execCommand(cmd string, args ...string) error {
