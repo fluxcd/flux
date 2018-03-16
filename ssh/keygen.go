@@ -2,6 +2,7 @@ package ssh
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os/exec"
@@ -156,9 +157,9 @@ type PublicKey struct {
 // ExtractPublicKey extracts and returns the public key from the specified
 // private key, along with its fingerprint hashes.
 func ExtractPublicKey(privateKeyPath string) (PublicKey, error) {
-	keyBytes, err := exec.Command("ssh-keygen", "-y", "-f", privateKeyPath).Output()
+	keyBytes, err := exec.Command("ssh-keygen", "-y", "-f", privateKeyPath).CombinedOutput()
 	if err != nil {
-		return PublicKey{}, err
+		return PublicKey{}, errors.New(string(keyBytes))
 	}
 
 	md5Print, err := ExtractFingerprint(privateKeyPath, "md5")
