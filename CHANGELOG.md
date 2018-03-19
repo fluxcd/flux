@@ -1,3 +1,13 @@
+## 1.2.5 (2018-03-19)
+
+### Fixes
+
+- Handle single-quoted image values in manifests [weaveworks/flux#1008](https://github.com/weaveworks/flux/pull/1008)
+
+### Improvements
+
+- Use a writable tmpfs volume for generating keys, since Kubernetes >=1.10 and GKE (as of March 13 2018) mount secrets as read-only [weaveworks/flux#1007](https://github.com/weaveworks/flux/pull/1007)
+
 ## 1.2.4 (2018-03-14)
 
 ### Fixes
