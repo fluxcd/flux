@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"sync"
 	"testing"
+	"time"
 
 	"context"
 
@@ -15,6 +16,53 @@ import (
 	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/update"
 )
+
+func TestCommit(t *testing.T) {
+	config := TestConfig
+	config.SkipMessage = " **SKIP**"
+	checkout, repo, cleanup := CheckoutWithConfig(t, config)
+	defer cleanup()
+
+	for file, _ := range testfiles.Files {
+		path := filepath.Join(checkout.ManifestDir(), file)
+		if err := ioutil.WriteFile(path, []byte("FIRST CHANGE"), 0666); err != nil {
+			t.Fatal(err)
+		}
+		break
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	commitAction := git.CommitAction{Message: "Changed file"}
+	if err := checkout.CommitAndPush(ctx, commitAction, nil); err != nil {
+		t.Fatal(err)
+	}
+
+	err := repo.Refresh(ctx)
+	if err != nil {
+		t.Error(err)
+	}
+
+	commits, err := repo.CommitsBefore(ctx, "HEAD", "")
+
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(commits) < 1 {
+		t.Fatal("expected at least one commit")
+	}
+	if msg := commits[0].Message; msg != commitAction.Message+config.SkipMessage {
+		t.Errorf(`expected commit message to be:
+
+%s
+
+    but it was
+
+%s
+`, commitAction.Message+config.SkipMessage, msg)
+	}
+}
 
 func TestCheckout(t *testing.T) {
 	repo, cleanup := Repo(t)
@@ -64,7 +112,7 @@ func TestCheckout(t *testing.T) {
 		changedFile = file
 		break
 	}
-	commitAction := &git.CommitAction{Author: "", Message: "Changed file"}
+	commitAction := git.CommitAction{Author: "", Message: "Changed file"}
 	if err := checkout.CommitAndPush(ctx, commitAction, nil); err != nil {
 		t.Fatal(err)
 	}
@@ -88,7 +136,7 @@ func TestCheckout(t *testing.T) {
 			},
 		},
 	}
-	commitAction = &git.CommitAction{Author: "", Message: "Changed file again"}
+	commitAction = git.CommitAction{Author: "", Message: "Changed file again"}
 	if err := checkout.CommitAndPush(ctx, commitAction, &expectedNote); err != nil {
 		t.Fatal(err)
 	}

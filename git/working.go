@@ -9,13 +9,14 @@ import (
 // Config holds some values we use when working in the working clone of
 // a repo.
 type Config struct {
-	Branch    string // branch we're syncing to
-	Path      string // path within the repo containing files we care about
-	SyncTag   string
-	NotesRef  string
-	UserName  string
-	UserEmail string
-	SetAuthor bool
+	Branch      string // branch we're syncing to
+	Path        string // path within the repo containing files we care about
+	SyncTag     string
+	NotesRef    string
+	UserName    string
+	UserEmail   string
+	SetAuthor   bool
+	SkipMessage string
 }
 
 // Checkout is a local working clone of the remote repo. It is
@@ -96,10 +97,13 @@ func (c *Checkout) ManifestDir() string {
 
 // CommitAndPush commits changes made in this checkout, along with any
 // extra data as a note, and pushes the commit and note to the remote repo.
-func (c *Checkout) CommitAndPush(ctx context.Context, commitAction *CommitAction, note *Note) error {
+func (c *Checkout) CommitAndPush(ctx context.Context, commitAction CommitAction, note *Note) error {
 	if !check(ctx, c.dir, c.config.Path) {
 		return ErrNoChanges
 	}
+
+	commitAction.Message += c.config.SkipMessage
+
 	if err := commit(ctx, c.dir, commitAction); err != nil {
 		return err
 	}

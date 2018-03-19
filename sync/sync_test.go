@@ -48,7 +48,7 @@ func TestSync(t *testing.T) {
 		if err := execCommand("rm", res[0]); err != nil {
 			t.Fatal(err)
 		}
-		commitAction := &git.CommitAction{Author: "", Message: "deleted " + res[0]}
+		commitAction := git.CommitAction{Author: "", Message: "deleted " + res[0]}
 		if err := checkout.CommitAndPush(context.Background(), commitAction, nil); err != nil {
 			t.Fatal(err)
 		}
