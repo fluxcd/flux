@@ -16,9 +16,24 @@ type ImageStatus struct {
 	Containers []Container
 }
 
+// ReadOnlyReason enumerates the reasons that a controller is
+// considered read-only. The zero value is considered "OK", since the
+// zero value is what prior versions of the daemon will effectively
+// send.
+type ReadOnlyReason string
+
+const (
+	ReadOnlyOK       ReadOnlyReason = ""
+	ReadOnlyMissing  ReadOnlyReason = "NotInRepo"
+	ReadOnlySystem   ReadOnlyReason = "System"
+	ReadOnlyNoRepo   ReadOnlyReason = "NoRepo"
+	ReadOnlyNotReady ReadOnlyReason = "NotReady"
+)
+
 type ControllerStatus struct {
 	ID         flux.ResourceID
 	Containers []Container
+	ReadOnly   ReadOnlyReason
 	Status     string
 	Automated  bool
 	Locked     bool
