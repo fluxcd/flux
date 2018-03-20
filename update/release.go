@@ -59,6 +59,7 @@ type ReleaseSpec struct {
 	ImageSpec    ImageSpec
 	Kind         ReleaseKind
 	Excludes     []flux.ResourceID
+	Force        bool
 }
 
 // ReleaseType gives a one-word description of the release, mainly
