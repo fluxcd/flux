@@ -398,7 +398,10 @@ func main() {
 				os.Exit(1)
 			}
 			daemon.EventWriter = upstream
-			defer upstream.Close()
+			go func() {
+				<-shutdown
+				upstream.Close()
+			}()
 		} else {
 			logger.Log("upstream", "no upstream URL given")
 		}
