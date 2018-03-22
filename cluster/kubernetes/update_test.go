@@ -49,6 +49,7 @@ func TestUpdates(t *testing.T) {
 		{"reordered keys", case6containers, case6image, case6, case6out},
 		{"from prod", case7containers, case7image, case7, case7out},
 		{"single quotes", case8containers, case8image, case8, case8out},
+		{"init container", case9containers, case9image, case9, case9out},
 	} {
 		testUpdate(t, c)
 	}
@@ -571,4 +572,72 @@ spec:
       containers:
       - name: weave
         image: weaveworks/weave-kube:2.2.1
+`
+
+const case9 = `---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: www
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        name: www
+    spec:
+      initContainers:
+      - name: init-www
+        image: quay.io/stefanprodan/podinfo:0.2.0
+        imagePullPolicy: IfNotPresent
+        command:
+        - nc
+        - memcached
+        - 11211
+      - name: init-www2
+        image: quay.io/stefanprodan/podinfo:0.2.0
+        imagePullPolicy: IfNotPresent
+        command:
+        - nc
+        - memcached
+        - 11211
+      containers:
+      - name: nginx
+        image: quay.io/stefanprodan/nginx:0.0.14
+`
+
+const case9image = "quay.io/stefanprodan/podinfo:0.2.1"
+
+var case9containers = []string{"init-www", "init-www2"}
+
+const case9out = `---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: www
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        name: www
+    spec:
+      initContainers:
+      - name: init-www
+        image: quay.io/stefanprodan/podinfo:0.2.1
+        imagePullPolicy: IfNotPresent
+        command:
+        - nc
+        - memcached
+        - 11211
+      - name: init-www2
+        image: quay.io/stefanprodan/podinfo:0.2.1
+        imagePullPolicy: IfNotPresent
+        command:
+        - nc
+        - memcached
+        - 11211
+      containers:
+      - name: nginx
+        image: quay.io/stefanprodan/nginx:0.0.14
 `

@@ -108,6 +108,7 @@ type Manifest struct {
 	Spec     struct {
 		Template struct {
 			Spec struct {
+				InitContainers []Container `yaml:"initContainers"`
 				Containers []Container `yaml:"containers"`
 			} `yaml:"spec"`
 		} `yaml:"template"`
