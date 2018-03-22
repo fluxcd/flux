@@ -16,6 +16,7 @@ type PodTemplate struct {
 type PodSpec struct {
 	ImagePullSecrets []struct{ Name string }
 	Volumes          []Volume
+	InitContainers   []ContainerSpec
 	Containers       []ContainerSpec
 }
 

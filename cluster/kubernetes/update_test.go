@@ -49,6 +49,7 @@ func TestUpdates(t *testing.T) {
 		{"reordered keys", case6containers, case6image, case6, case6out},
 		{"from prod", case7containers, case7image, case7, case7out},
 		{"single quotes", case8containers, case8image, case8, case8out},
+		{"init container", case9containers, case9image, case9, case9out},
 	} {
 		testUpdate(t, c)
 	}
@@ -571,4 +572,98 @@ spec:
       containers:
       - name: weave
         image: weaveworks/weave-kube:2.2.1
+`
+
+const case9 = `---
+apiVersion: apps/v1beta2
+kind: Deployment
+metadata:
+  name: caddy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: caddy
+  template:
+    metadata:
+      labels:
+        app: caddy
+    spec:
+      initContainers:
+      - name: init-www
+        image: quay.io/stefanprodan/podinfo:0.2.0
+        imagePullPolicy: IfNotPresent
+        command:
+        - nc
+        - memcached
+        - 11211
+      - name: init-www2
+        image: quay.io/stefanprodan/podinfo:0.2.0
+        imagePullPolicy: IfNotPresent
+        command: ["echo", "test"]
+      containers:
+      - name: caddy
+        image: stefanprodan/caddy:0.10.9
+        imagePullPolicy: Always
+        command: ["caddy", "-agree", "--conf", "/etc/caddy/Caddyfile"]
+        env:
+        - name: ADMIN_USER
+          value: admin
+        - name: ADMIN_PASSWORD
+          value: admin
+        ports:
+        - containerPort: 80
+          protocol: TCP
+        resources:
+          limits:
+            memory: 128Mi
+`
+
+const case9image = "quay.io/stefanprodan/podinfo:0.2.1"
+
+var case9containers = []string{"init-www", "init-www2"}
+
+const case9out = `---
+apiVersion: apps/v1beta2
+kind: Deployment
+metadata:
+  name: caddy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: caddy
+  template:
+    metadata:
+      labels:
+        app: caddy
+    spec:
+      initContainers:
+      - name: init-www
+        image: quay.io/stefanprodan/podinfo:0.2.1
+        imagePullPolicy: IfNotPresent
+        command:
+        - nc
+        - memcached
+        - 11211
+      - name: init-www2
+        image: quay.io/stefanprodan/podinfo:0.2.1
+        imagePullPolicy: IfNotPresent
+        command: ["echo", "test"]
+      containers:
+      - name: caddy
+        image: stefanprodan/caddy:0.10.9
+        imagePullPolicy: Always
+        command: ["caddy", "-agree", "--conf", "/etc/caddy/Caddyfile"]
+        env:
+        - name: ADMIN_USER
+          value: admin
+        - name: ADMIN_PASSWORD
+          value: admin
+        ports:
+        - containerPort: 80
+          protocol: TCP
+        resources:
+          limits:
+            memory: 128Mi
 `
