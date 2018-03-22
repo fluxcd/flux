@@ -575,16 +575,19 @@ spec:
 `
 
 const case9 = `---
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1beta2
 kind: Deployment
 metadata:
-  name: www
+  name: caddy
 spec:
   replicas: 1
+  selector:
+    matchLabels:
+      app: caddy
   template:
     metadata:
       labels:
-        name: www
+        app: caddy
     spec:
       initContainers:
       - name: init-www
@@ -597,13 +600,23 @@ spec:
       - name: init-www2
         image: quay.io/stefanprodan/podinfo:0.2.0
         imagePullPolicy: IfNotPresent
-        command:
-        - nc
-        - memcached
-        - 11211
+        command: ["echo", "test"]
       containers:
-      - name: nginx
-        image: quay.io/stefanprodan/nginx:0.0.14
+      - name: caddy
+        image: stefanprodan/caddy:0.10.9
+        imagePullPolicy: Always
+        command: ["caddy", "-agree", "--conf", "/etc/caddy/Caddyfile"]
+        env:
+        - name: ADMIN_USER
+          value: admin
+        - name: ADMIN_PASSWORD
+          value: admin
+        ports:
+        - containerPort: 80
+          protocol: TCP
+        resources:
+          limits:
+            memory: 128Mi
 `
 
 const case9image = "quay.io/stefanprodan/podinfo:0.2.1"
@@ -611,16 +624,19 @@ const case9image = "quay.io/stefanprodan/podinfo:0.2.1"
 var case9containers = []string{"init-www", "init-www2"}
 
 const case9out = `---
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1beta2
 kind: Deployment
 metadata:
-  name: www
+  name: caddy
 spec:
   replicas: 1
+  selector:
+    matchLabels:
+      app: caddy
   template:
     metadata:
       labels:
-        name: www
+        app: caddy
     spec:
       initContainers:
       - name: init-www
@@ -633,11 +649,21 @@ spec:
       - name: init-www2
         image: quay.io/stefanprodan/podinfo:0.2.1
         imagePullPolicy: IfNotPresent
-        command:
-        - nc
-        - memcached
-        - 11211
+        command: ["echo", "test"]
       containers:
-      - name: nginx
-        image: quay.io/stefanprodan/nginx:0.0.14
+      - name: caddy
+        image: stefanprodan/caddy:0.10.9
+        imagePullPolicy: Always
+        command: ["caddy", "-agree", "--conf", "/etc/caddy/Caddyfile"]
+        env:
+        - name: ADMIN_USER
+          value: admin
+        - name: ADMIN_PASSWORD
+          value: admin
+        ports:
+        - containerPort: 80
+          protocol: TCP
+        resources:
+          limits:
+            memory: 128Mi
 `

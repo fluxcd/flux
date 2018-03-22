@@ -249,14 +249,14 @@ func tryUpdateInitContainers(def []byte, container string, newImage image.Ref, o
 	newDefName = maybeQuote(newDefName)
 
 	if len(matchingContainers) == 0 {
-		return fmt.Errorf("could not find container using image: %s", newImage.Repository())
+		return fmt.Errorf("could not find init container using image: %s", newImage.Repository())
 	}
 
 	// Detect how indented the "containers" block is.
 	newDef := string(def)
 	matches := regexp.MustCompile(`( +)initContainers:.*`).FindStringSubmatch(newDef)
 	if len(matches) != 2 {
-		return fmt.Errorf("could not find container specs")
+		return fmt.Errorf("could not find init container specs")
 	}
 	indent := matches[1]
 
@@ -289,7 +289,7 @@ func tryUpdateInitContainers(def []byte, container string, newImage image.Ref, o
 		for _, c := range matchingContainers {
 			missed = append(missed, c.Name)
 		}
-		return fmt.Errorf("did not update expected containers: %s", strings.Join(missed, ", "))
+		return fmt.Errorf("did not update expected init containers: %s", strings.Join(missed, ", "))
 	}
 
 	// The name we want is that under `metadata:`, which will *probably* be the first one
