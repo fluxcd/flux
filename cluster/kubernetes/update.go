@@ -119,6 +119,8 @@ func tryUpdate(def []byte, container string, newImage image.Ref, out io.Writer) 
 	}
 
 	// Detect how indented the "containers" block is.
+	// TODO: delete all regular expressions which are used to modify YAML.
+	// See #1019. Modifying this is not recommended.
 	newDef := string(def)
 	matches := regexp.MustCompile(`( +)containers:.*`).FindStringSubmatch(newDef)
 	if len(matches) != 2 {
@@ -126,7 +128,9 @@ func tryUpdate(def []byte, container string, newImage image.Ref, out io.Writer) 
 	}
 	indent := matches[1]
 
-	optq :=`["']?` // An optional single or double quote
+	// TODO: delete all regular expressions which are used to modify YAML.
+	// See #1019. Modifying this is not recommended.
+	optq := `["']?` // An optional single or double quote
 	// Replace the container images
 	// Parse out all the container blocks
 	containersRE := regexp.MustCompile(`(?m:^` + indent + `containers:\s*(?:#.*)*$(?:\n(?:` + indent + `[-\s#].*)?)*)`)
@@ -158,6 +162,8 @@ func tryUpdate(def []byte, container string, newImage image.Ref, out io.Writer) 
 		return fmt.Errorf("did not update expected containers: %s", strings.Join(missed, ", "))
 	}
 
+	// TODO: delete all regular expressions which are used to modify YAML.
+	// See #1019. Modifying this is not recommended.
 	// The name we want is that under `metadata:`, which will *probably* be the first one
 	replacedName := false
 	replaceRCNameRE := regexp.MustCompile(`(\s+` + optq + `name` + optq + `:\s*)` + optq + `(?:[\w\.\-/:]+\s*?)` + optq + `([\t\f #]+.*)`)
@@ -169,6 +175,8 @@ func tryUpdate(def []byte, container string, newImage image.Ref, out io.Writer) 
 		return replaceRCNameRE.ReplaceAllString(found, fmt.Sprintf(`${1}%s${2}`, newDefName))
 	})
 
+	// TODO: delete all regular expressions which are used to modify YAML.
+	// See #1019. Modifying this is not recommended.
 	// Replacing labels: these are in two places, the container template and the selector
 	// TODO: This doesn't handle # comments
 	// TODO: This encodes an expectation of map keys being ordered (i.e. name *then* version)
@@ -176,7 +184,7 @@ func tryUpdate(def []byte, container string, newImage image.Ref, out io.Writer) 
 	replaceLabelsRE := multilineRE(
 		`((?:  selector|      labels):.*)`,
 		`((?:  ){2,4}name:.*)`,
-		`((?:  ){2,4}version:\s*) (?:` + optq + `[-\w]+` + optq + `)(\s.*)`,
+		`((?:  ){2,4}version:\s*) (?:`+optq+`[-\w]+`+optq+`)(\s.*)`,
 	)
 	replaceLabels := fmt.Sprintf("$1\n$2\n$3 %s$4", maybeQuote(newImage.Tag))
 	newDef = replaceLabelsRE.ReplaceAllString(newDef, replaceLabels)
@@ -189,6 +197,8 @@ func multilineRE(lines ...string) *regexp.Regexp {
 	return regexp.MustCompile(`(?m:^` + strings.Join(lines, "\n") + `$)`)
 }
 
+// TODO: delete all regular expressions which are used to modify YAML.
+// See #1019. Modifying this is not recommended.
 var looksLikeNumber *regexp.Regexp = regexp.MustCompile("^(" + strings.Join([]string{
 	`(-?[1-9](\.[0-9]*[1-9])?(e[-+][1-9][0-9]*)?)`,
 	`(-?(0|[1-9][0-9]*))`,
