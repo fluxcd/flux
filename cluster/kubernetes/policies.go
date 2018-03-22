@@ -65,6 +65,8 @@ func updateAnnotations(def []byte, tagAll string, f func(map[string]string) map[
 		fragment = strings.TrimSuffix(fragment, "\n")
 
 		// indent the fragment 2 spaces
+		// TODO: delete all regular expressions which are used to modify YAML.
+		// See #1019. Modifying this is not recommended.
 		fragment = regexp.MustCompile(`(.+)`).ReplaceAllString(fragment, "  $1")
 
 		// Add a newline if it's not blank
@@ -74,8 +76,8 @@ func updateAnnotations(def []byte, tagAll string, f func(map[string]string) map[
 	}
 
 	// Find where to insert the fragment.
-	// TODO: This should handle potentially different indentation.
-	// TODO: There's probably a more elegant regex-ey way to do this in one pass.
+	// TODO: delete all regular expressions which are used to modify YAML.
+	// See #1019. Modifying this is not recommended.
 	replaced := false
 	annotationsRE := regexp.MustCompile(`(?m:\n  annotations:\s*(?:#.*)*(?:\n    .*|\n)*$)`)
 	newDef := annotationsRE.ReplaceAllStringFunc(string(def), func(found string) string {
