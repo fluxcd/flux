@@ -32,15 +32,17 @@ type Release struct {
 }
 
 type repo struct {
-	ConfigSync *helmgit.Checkout
-	ChartsSync *helmgit.Checkout
+	ConfigSync   *helmgit.Checkout
+	ChartsSync   *helmgit.Checkout
+	ReleasesSync *helmgit.Checkout
 }
 
 // New creates a new Release instance
-func New(logger log.Logger, helmClient *k8shelm.Client, configCheckout *helmgit.Checkout, chartsSync *helmgit.Checkout) *Release {
+func New(logger log.Logger, helmClient *k8shelm.Client, configCheckout *helmgit.Checkout, chartsSync *helmgit.Checkout, releasesSync *helmgit.Checkout) *Release {
 	repo := repo{
-		ConfigSync: configCheckout,
-		ChartsSync: chartsSync,
+		ConfigSync:   configCheckout,
+		ChartsSync:   chartsSync,
+		ReleasesSync: releasesSync,
 	}
 	r := &Release{
 		logger:     logger,
@@ -243,17 +245,23 @@ func (r *Release) Delete(name string) error {
 	return nil
 }
 
-// GetAll provides Chart releases (stored in tiller ConfigMaps)
-func (r *Release) GetAll() ([]*hapi_release.Release, error) {
+// GetCurrentWithDate provides Chart releases (stored in tiller ConfigMaps)
+//		output:
+//						map[namespace][release name] = time.Unix() [int64]
+func (r *Release) GetCurrentWithDate() (map[string]map[string]int64, error) {
+	var relsM map[string]map[string]int64
+
 	response, err := r.HelmClient.ListReleases()
 	if err != nil {
 		return nil, r.logger.Log("error", err)
 	}
-	fmt.Printf("Number of helm releases is %d\n", response.GetCount())
+	r.logger.Log("info", fmt.Sprintf("Number of Chart releases: %d\n", response.GetCount()))
 
 	for i, r := range response.GetReleases() {
 		fmt.Printf("\t==> %d : %#v\n\n\t\t\tin namespace %#v\n\n\t\tChartMetadata: %v\n\n\n", i, r.Name, r.Namespace, r.GetChart().GetMetadata())
-	}
 
-	return response.GetReleases(), nil
+		secs := r.Info.GetLastDeployed().Seconds
+		relsM[r.Namespace] = map[string]int64{r.Name: secs}
+	}
+	return relsM, nil
 }

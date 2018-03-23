@@ -155,6 +155,12 @@ func main() {
 		os.Exit(1)
 	}
 	fmt.Printf("%#v", gitRemoteConfigCh)
+	gitRemoteReleaseCh, err := git.NewGitRemoteConfig(*gitURL, *gitBranch, *gitChartsPath)
+	if err != nil {
+		mainLogger.Log("err", err)
+		os.Exit(1)
+	}
+	fmt.Printf("%#v", gitRemoteReleaseCh)
 	mainLogger.Log("info", "Finished setting up git repo configs")
 
 	// CLUSTER ACCESS -----------------------------------------------------------------------
@@ -245,6 +251,23 @@ func main() {
 	}
 	mainLogger.Log("info", "Repo cloned")
 
+	// 		Chart releases sync due to manual chart release changes ------------------------------------
+	checkoutR := git.NewCheckout(log.With(logger, "component", "git"), gitRemoteReleaseCh, gitAuth)
+	defer checkoutR.Cleanup()
+	// If cloning not immediately possible, we wait until it is -----------------------------
+	for {
+		mainLogger.Log("info", "Cloning repo ...")
+		ctx, cancel := context.WithTimeout(context.Background(), git.DefaultCloneTimeout)
+		err = checkoutR.Clone(ctx, git.ReleasesChangesClone)
+		cancel()
+		if err == nil {
+			break
+		}
+		mainLogger.Log("error", fmt.Sprintf("Failed to clone git repo [%s, %s, %s]: %v", gitRemoteConfigCh.URL, gitRemoteConfigCh.Branch, gitRemoteConfigCh.Path, err))
+		time.Sleep(10 * time.Second)
+	}
+	mainLogger.Log("info", "Repo cloned")
+
 	//=======================================================================================
 	// CUSTOM RESOURCES CACHING SETUP -------------------------------------------------------
 	//				SharedInformerFactory sets up informer, that maps resource type to a cache shared informer.
@@ -253,7 +276,7 @@ func main() {
 	// 				Obtain reference to shared index informers for the FluxHelmRelease
 	fhrInformer := ifInformerFactory.Helm().V1alpha().FluxHelmReleases()
 
-	rel := release.New(log.With(logger, "component", "release"), helmClient, checkoutFhr, checkoutCh)
+	rel := release.New(log.With(logger, "component", "release"), helmClient, checkoutFhr, checkoutCh, checkoutR)
 
 	// CHARTS CHANGES SYNC -----------------------------------------------------------------------------
 	chartSync := chartsync.New(log.With(logger, "component", "chartsync"), *chartsSyncInterval, *chartsSyncTimeout, *kubeClient, *ifClient, fhrInformer, rel)

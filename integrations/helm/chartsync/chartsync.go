@@ -27,8 +27,7 @@ import (
 
 	ifv1 "github.com/weaveworks/flux/apis/helm.integrations.flux.weave.works/v1alpha"
 	ifclientset "github.com/weaveworks/flux/integrations/client/clientset/versioned"
-	fhrv1 "github.com/weaveworks/flux/integrations/client/informers/externalversions/helm.integrations.flux.weave.works/v1alpha"
-	iflister "github.com/weaveworks/flux/integrations/client/listers/helm.integrations.flux.weave.works/v1alpha" // kubernetes 1.9
+	fhrv1 "github.com/weaveworks/flux/integrations/client/informers/externalversions/helm.integrations.flux.weave.works/v1alpha" // kubernetes 1.9
 	helmgit "github.com/weaveworks/flux/integrations/helm/git"
 	chartrelease "github.com/weaveworks/flux/integrations/helm/release"
 )
@@ -43,7 +42,6 @@ type ChartChangeSync struct {
 	Polling
 	kubeClient          kubernetes.Clientset
 	ifClient            ifclientset.Clientset
-	fhrLister           iflister.FluxHelmReleaseLister
 	release             *chartrelease.Release
 	lastCheckedRevision string
 	//sync.RWMutex
@@ -67,7 +65,6 @@ func New(
 		Polling:             Polling{Interval: syncInterval, Timeout: syncTimeout},
 		kubeClient:          kubeClient,
 		ifClient:            ifClient,
-		fhrLister:           fhrInformer.Lister(),
 		release:             release,
 		lastCheckedRevision: lastCheckedRevision,
 	}
