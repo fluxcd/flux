@@ -36,7 +36,7 @@ import (
 	"github.com/weaveworks/flux/ssh"
 )
 
-var version string
+var version = "unversioned"
 
 const (
 	// The number of connections chosen for memcache and remote GETs should match for best performance (hence the single hardcoded value)
@@ -117,9 +117,6 @@ func main() {
 
 	fs.Parse(os.Args)
 
-	if version == "" {
-		version = "unversioned"
-	}
 	if *versionFlag {
 		fmt.Println(version)
 		os.Exit(0)
@@ -132,7 +129,7 @@ func main() {
 		logger = log.With(logger, "ts", log.DefaultTimestampUTC)
 		logger = log.With(logger, "caller", log.DefaultCaller)
 	}
-	logger.Log("started", true)
+	logger.Log("version", version)
 
 	// Argument validation
 

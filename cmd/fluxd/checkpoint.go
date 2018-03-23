@@ -18,10 +18,10 @@ func checkForUpdates(clusterString string, gitString string, logger log.Logger) 
 			return
 		}
 		if r.Outdated {
-			logger.Log("msg", "update available", "version", r.CurrentVersion, "URL", r.CurrentDownloadURL)
+			logger.Log("msg", "update available", "latest", r.CurrentVersion, "URL", r.CurrentDownloadURL)
 			return
 		}
-		logger.Log("msg", "up to date", "version", r.CurrentVersion)
+		logger.Log("msg", "up to date", "latest", r.CurrentVersion)
 	}
 
 	flags := map[string]string{
