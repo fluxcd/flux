@@ -15,10 +15,10 @@ spec:
       serviceAccount: flux
       volumes:
       - name: git-key
-        defaultMode: 0400 # when mounted read-only, we won't be able to chmod
         secret:
           secretName: flux-git-deploy
-
+          defaultMode: 0400 # when mounted read-only, we won't be able to chmod
+        
       # This is a tmpfs used for generating SSH keys. In K8s >= 1.10,
       # mounted secrets are read-only, so we need a separate volume we
       # can write to.
