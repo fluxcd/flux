@@ -45,20 +45,20 @@ func NewRouter() *mux.Router {
 
 func NewHandler(s api.Server, r *mux.Router) http.Handler {
 	handle := HTTPServer{s}
-	r.Get("JobStatus").HandlerFunc(handle.JobStatus)
-	r.Get("SyncStatus").HandlerFunc(handle.SyncStatus)
-	r.Get("UpdateManifests").HandlerFunc(handle.UpdateManifests)
-	r.Get("ListServices").HandlerFunc(handle.ListServices)
-	r.Get("ListImages").HandlerFunc(handle.ListImages)
-	r.Get("Export").HandlerFunc(handle.Export)
-	r.Get("GitRepoConfig").HandlerFunc(handle.GitRepoConfig)
+	r.Get(transport.ListServices).HandlerFunc(handle.ListServices)
+	r.Get(transport.ListImages).HandlerFunc(handle.ListImages)
+	r.Get(transport.UpdateManifests).HandlerFunc(handle.UpdateManifests)
+	r.Get(transport.JobStatus).HandlerFunc(handle.JobStatus)
+	r.Get(transport.SyncStatus).HandlerFunc(handle.SyncStatus)
+	r.Get(transport.Export).HandlerFunc(handle.Export)
+	r.Get(transport.GitRepoConfig).HandlerFunc(handle.GitRepoConfig)
 
 	// These handlers persist to support requests from older fluxctls. In general we
 	// should avoid adding references to them so that they can eventually be removed.
-	r.Get("UpdateImages").HandlerFunc(handle.UpdateImages)
-	r.Get("UpdatePolicies").HandlerFunc(handle.UpdatePolicies)
-	r.Get("GetPublicSSHKey").HandlerFunc(handle.GetPublicSSHKey)
-	r.Get("RegeneratePublicSSHKey").HandlerFunc(handle.RegeneratePublicSSHKey)
+	r.Get(transport.UpdateImages).HandlerFunc(handle.UpdateImages)
+	r.Get(transport.UpdatePolicies).HandlerFunc(handle.UpdatePolicies)
+	r.Get(transport.GetPublicSSHKey).HandlerFunc(handle.GetPublicSSHKey)
+	r.Get(transport.RegeneratePublicSSHKey).HandlerFunc(handle.RegeneratePublicSSHKey)
 
 	return middleware.Instrument{
 		RouteMatcher: r,
