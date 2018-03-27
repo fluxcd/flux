@@ -1,11 +1,11 @@
-package git
+package daemon
 
 import (
 	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/update"
 )
 
-type Note struct {
+type note struct {
 	JobID  job.ID        `json:"jobID"`
 	Spec   update.Spec   `json:"spec"`
 	Result update.Result `json:"result"`

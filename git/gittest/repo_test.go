@@ -10,12 +10,13 @@ import (
 
 	"context"
 
-	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster/kubernetes/testfiles"
 	"github.com/weaveworks/flux/git"
-	"github.com/weaveworks/flux/job"
-	"github.com/weaveworks/flux/update"
 )
+
+type Note struct {
+	Comment string
+}
 
 func TestCommit(t *testing.T) {
 	config := TestConfig
@@ -95,11 +96,13 @@ func TestCheckout(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	note, err := checkout.GetNote(ctx, head)
+
+	var note Note
+	ok, err := checkout.GetNote(ctx, head, &note)
 	if err != nil {
 		t.Error(err)
 	}
-	if note != nil {
+	if ok {
 		t.Errorf("Expected no note on head revision; got %#v", note)
 	}
 
@@ -123,18 +126,8 @@ func TestCheckout(t *testing.T) {
 	}
 	// An example note with some of the fields filled in, so we can test
 	// serialization a bit.
-	expectedNote := git.Note{
-		JobID: job.ID("jobID1234"),
-		Spec: update.Spec{
-			Type: update.Images,
-			Spec: update.ReleaseSpec{},
-		},
-		Result: update.Result{
-			flux.MustParseResourceID("default/service1"): update.ControllerResult{
-				Status: update.ReleaseStatusFailed,
-				Error:  "failed the frobulator",
-			},
-		},
+	expectedNote := Note{
+		Comment: "Expected comment",
 	}
 	commitAction = git.CommitAction{Author: "", Message: "Changed file again"}
 	if err := checkout.CommitAndPush(ctx, commitAction, &expectedNote); err != nil {
@@ -153,11 +146,16 @@ func TestCheckout(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		note, err := c.GetNote(ctx, rev)
+
+		var note Note
+		ok, err := c.GetNote(ctx, rev, &note)
+		if !ok {
+			t.Error("note not found")
+		}
 		if err != nil {
 			t.Error(err)
 		}
-		if !reflect.DeepEqual(*note, expectedNote) {
+		if !reflect.DeepEqual(note, expectedNote) {
 			t.Errorf("note is not what we supplied when committing: %#v", note)
 		}
 	}

@@ -10,8 +10,6 @@ import (
 	"testing"
 
 	"github.com/weaveworks/flux/cluster/kubernetes/testfiles"
-	"github.com/weaveworks/flux/job"
-	"github.com/weaveworks/flux/update"
 )
 
 const (
@@ -21,6 +19,10 @@ const (
 var (
 	noteIdCounter = 1
 )
+
+type Note struct {
+	ID string
+}
 
 func TestListNotes_2Notes(t *testing.T) {
 	newDir, cleanup := testfiles.TempDir(t)
@@ -49,16 +51,17 @@ func TestListNotes_2Notes(t *testing.T) {
 	if len(notes) != 2 {
 		t.Fatal("expected two notes")
 	}
-	for n := range notes {
-		note, err := getNote(context.Background(), newDir, testNoteRef, n)
+	for rev := range notes {
+		var note Note
+		ok, err := getNote(context.Background(), newDir, testNoteRef, rev, &note)
 		if err != nil {
-			t.Fatal(err)
+			t.Error(err)
 		}
-		if note == nil {
-			t.Fatal("note is nil")
+		if !ok {
+			t.Error("note not found for commit:", rev)
 		}
-		if note.JobID != idHEAD_1 && note.JobID != idHEAD {
-			t.Fatal("Note id didn't match expected", note.JobID)
+		if note.ID != idHEAD_1 && note.ID != idHEAD {
+			t.Error("Note contents not expected:", note.ID)
 		}
 	}
 }
@@ -82,21 +85,10 @@ func TestListNotes_0Notes(t *testing.T) {
 	}
 }
 
-func testNote(dir, rev string) (job.ID, error) {
-	id := job.ID(fmt.Sprintf("%v", noteIdCounter))
+func testNote(dir, rev string) (string, error) {
+	id := fmt.Sprintf("%v", noteIdCounter)
 	noteIdCounter += 1
-	err := addNote(context.Background(), dir, rev, testNoteRef, &Note{
-		id,
-		update.Spec{
-			update.Auto,
-			update.Cause{
-				"message",
-				"user",
-			},
-			update.Automated{},
-		},
-		update.Result{},
-	})
+	err := addNote(context.Background(), dir, rev, testNoteRef, &Note{ID: id})
 	return id, err
 }
 

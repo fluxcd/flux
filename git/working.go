@@ -97,7 +97,7 @@ func (c *Checkout) ManifestDir() string {
 
 // CommitAndPush commits changes made in this checkout, along with any
 // extra data as a note, and pushes the commit and note to the remote repo.
-func (c *Checkout) CommitAndPush(ctx context.Context, commitAction CommitAction, note *Note) error {
+func (c *Checkout) CommitAndPush(ctx context.Context, commitAction CommitAction, note interface{}) error {
 	if !check(ctx, c.dir, c.config.Path) {
 		return ErrNoChanges
 	}
@@ -133,8 +133,8 @@ func (c *Checkout) CommitAndPush(ctx context.Context, commitAction CommitAction,
 }
 
 // GetNote gets a note for the revision specified, or nil if there is no such note.
-func (c *Checkout) GetNote(ctx context.Context, rev string) (*Note, error) {
-	return getNote(ctx, c.dir, c.realNotesRef, rev)
+func (c *Checkout) GetNote(ctx context.Context, rev string, note interface{}) (bool, error) {
+	return getNote(ctx, c.dir, c.realNotesRef, rev, note)
 }
 
 func (c *Checkout) HeadRevision(ctx context.Context) (string, error) {

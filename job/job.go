@@ -5,7 +5,7 @@ import (
 
 	"github.com/go-kit/kit/log"
 
-	"github.com/weaveworks/flux/event"
+	"github.com/weaveworks/flux/update"
 )
 
 type ID string
@@ -26,12 +26,21 @@ const (
 	StatusSucceeded StatusString = "succeeded"
 )
 
+// Result looks like CommitEventMetadata, because that's what we
+// used to send. But in the interest of breaking cycles before
+// they happen, it's (almost) duplicated here.
+type Result struct {
+	Revision string        `json:"revision,omitempty"`
+	Spec     *update.Spec  `json:"spec,omitempty"`
+	Result   update.Result `json:"result,omitempty"`
+}
+
 // Status holds the possible states of a job; either,
 //  1. queued or otherwise pending
 //  2. succeeded with a job-specific result
 //  3. failed, resulting in an error and possibly a job-specific result
 type Status struct {
-	Result       event.CommitEventMetadata
+	Result       Result
 	Err          string
 	StatusString StatusString
 }

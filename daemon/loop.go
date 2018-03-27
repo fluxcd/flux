@@ -280,12 +280,13 @@ func (d *Daemon) doSync(logger log.Logger) (retErr error) {
 				continue
 			}
 			ctx, cancel := context.WithTimeout(ctx, gitOpTimeout)
-			n, err := working.GetNote(ctx, commits[i].Revision)
+			var n note
+			ok, err := working.GetNote(ctx, commits[i].Revision, &n)
 			cancel()
 			if err != nil {
 				return errors.Wrap(err, "loading notes from repo")
 			}
-			if n == nil {
+			if !ok {
 				includes[event.NoneOfTheAbove] = true
 				continue
 			}
