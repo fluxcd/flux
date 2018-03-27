@@ -304,6 +304,7 @@ func (rs *ReleaseChangeSync) releasesToSync(ctx context.Context) (map[string][]c
 func (rs *ReleaseChangeSync) sync(ctx context.Context, releases map[string][]chartRelease) error {
 
 	checkout := rs.release.Repo.ReleasesSync
+	opts := chartrelease.InstallOptions{DryRun: false}
 	for ns, relsToProcess := range releases {
 		for _, chr := range relsToProcess {
 			relName := chr.releaseName
@@ -316,13 +317,13 @@ func (rs *ReleaseChangeSync) sync(ctx context.Context, releases map[string][]cha
 				}
 			case upgradeAction:
 				rs.logger.Log("info", fmt.Sprintf("Resyncing manually upgraded Chart release %s (namespace %s)", relName, ns))
-				_, err := rs.release.Install(checkout, relName, chr.desiredState, chartrelease.ReleaseType("UPDATE"), false)
+				_, err := rs.release.Install(checkout, relName, chr.desiredState, chartrelease.ReleaseType("UPDATE"), opts)
 				if err != nil {
 					return err
 				}
 			case installAction:
 				rs.logger.Log("info", fmt.Sprintf("Installing manually deleted Chart release %s (namespace %s)", relName, ns))
-				_, err := rs.release.Install(checkout, relName, chr.desiredState, chartrelease.ReleaseType("CREATE"), false)
+				_, err := rs.release.Install(checkout, relName, chr.desiredState, chartrelease.ReleaseType("CREATE"), opts)
 				if err != nil {
 					return err
 				}

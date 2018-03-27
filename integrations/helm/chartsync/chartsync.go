@@ -324,7 +324,8 @@ func (chs *ChartChangeSync) releaseCharts(chartsToRelease []string, chartFhrs ma
 			rlsName := chartrelease.GetReleaseName(fhr)
 
 			chs.logger.Log("info", "INSTALLING")
-			_, err = chs.release.Install(checkout, rlsName, fhr, "UPDATE", false)
+			opts := chartrelease.InstallOptions{DryRun: false}
+			_, err = chs.release.Install(checkout, rlsName, fhr, "UPDATE", opts)
 			if err != nil {
 				chs.logger.Log("info", fmt.Sprintf("Error during dry run upgrade of release of [%s]: %s. Skipping.", rlsName, err.Error()))
 				// TODO: collect errors and return them after looping through all - ?

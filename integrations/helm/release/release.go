@@ -42,6 +42,11 @@ type DeployInfo struct {
 	Deployed int64
 }
 
+type InstallOptions struct {
+	DryRun    bool
+	ReuseName bool
+}
+
 // New creates a new Release instance
 func New(logger log.Logger, helmClient *k8shelm.Client, configCheckout *helmgit.Checkout, chartsSync *helmgit.Checkout, releasesSync *helmgit.Checkout) *Release {
 	repo := repo{
@@ -142,7 +147,7 @@ func (r *Release) canDelete(name string) (bool, error) {
 
 // Install ... performs Chart release. Depending on the release type, this is either a new release,
 // or an upgrade of an existing one
-func (r *Release) Install(checkout *helmgit.Checkout, releaseName string, fhr ifv1.FluxHelmRelease, releaseType ReleaseType, dryRun bool) (hapi_release.Release, error) {
+func (r *Release) Install(checkout *helmgit.Checkout, releaseName string, fhr ifv1.FluxHelmRelease, releaseType ReleaseType, opts InstallOptions) (hapi_release.Release, error) {
 	r.logger.Log("info", fmt.Sprintf("releaseName= %s, releaseType=%s", releaseName, releaseType))
 
 	chartPath := fhr.Spec.ChartGitPath
@@ -183,7 +188,8 @@ func (r *Release) Install(checkout *helmgit.Checkout, releaseName string, fhr if
 			namespace,
 			k8shelm.ValueOverrides(rawVals),
 			k8shelm.ReleaseName(releaseName),
-			k8shelm.InstallDryRun(dryRun),
+			k8shelm.InstallDryRun(opts.DryRun),
+			k8shelm.InstallReuseName(opts.ReuseName),
 			/*
 				helm.InstallReuseName(i.replace),
 				helm.InstallDisableHooks(i.disableHooks),
@@ -204,8 +210,8 @@ func (r *Release) Install(checkout *helmgit.Checkout, releaseName string, fhr if
 			releaseName,
 			chartDir,
 			k8shelm.UpdateValueOverrides(rawVals),
+			k8shelm.UpgradeDryRun(opts.DryRun),
 			/*
-				helm.UpgradeDryRun(u.dryRun),
 				helm.UpgradeRecreate(u.recreate),
 				helm.UpgradeForce(u.force),
 				helm.UpgradeDisableHooks(u.disableHooks),

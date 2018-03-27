@@ -270,7 +270,8 @@ func (c *Controller) syncHandler(key string) error {
 	}
 
 	// Chart installation of the appropriate type
-	_, err = c.release.Install(c.release.Repo.ConfigSync, releaseName, *fhr, syncType, false)
+	opts := chartrelease.InstallOptions{DryRun: false}
+	_, err = c.release.Install(c.release.Repo.ConfigSync, releaseName, *fhr, syncType, opts)
 	if err != nil {
 		return err
 	}
