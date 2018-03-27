@@ -79,8 +79,7 @@ func (chs *ChartChangeSync) Run(stopCh <-chan struct{}, errc chan error, wg *syn
 		defer runtime.HandleCrash()
 		defer wg.Done()
 
-		chartsSync := chs.release.Repo.ChartsSync
-		defer chartsSync.Cleanup()
+		defer chs.release.Repo.ChartsSync.Cleanup()
 
 		var exist bool
 		var newRev string
@@ -136,7 +135,7 @@ func (chs *ChartChangeSync) Run(stopCh <-chan struct{}, errc chan error, wg *syn
 					fmt.Printf("\n\t... CHARTSYNC work FINISHED at %s\n\n", time.Now().String())
 					continue
 				}
-				// Nothimg to release
+				// Nothing to release
 				if len(chartsToRelease) == 0 {
 					chs.lastCheckedRevision = newRev
 					fmt.Printf("\n\t... CHARTSYNC work FINISHED at %s\n\n", time.Now().String())

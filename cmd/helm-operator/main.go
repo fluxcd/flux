@@ -21,6 +21,7 @@ import (
 	"github.com/weaveworks/flux/integrations/helm/git"
 	"github.com/weaveworks/flux/integrations/helm/operator"
 	"github.com/weaveworks/flux/integrations/helm/release"
+	"github.com/weaveworks/flux/integrations/helm/releasesync"
 	"github.com/weaveworks/flux/ssh"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
@@ -278,9 +279,16 @@ func main() {
 
 	rel := release.New(log.With(logger, "component", "release"), helmClient, checkoutFhr, checkoutCh, checkoutR)
 
+	//---------------------------------------------------------------------------------------
+
 	// CHARTS CHANGES SYNC -----------------------------------------------------------------------------
 	chartSync := chartsync.New(log.With(logger, "component", "chartsync"), *chartsSyncInterval, *chartsSyncTimeout, *kubeClient, *ifClient, fhrInformer, rel)
 	chartSync.Run(shutdown, errc, shutdownWg)
+	//---------------------------------------------------------------------------------------
+
+	// MANUAL CHART RELEASES SYNC -----------------------------------------------------------------------------
+	releaseSync := releasesync.New(log.With(logger, "component", "releasesync"), *chartsSyncInterval, *chartsSyncTimeout, *kubeClient, *ifClient, rel)
+	releaseSync.Run(shutdown, errc, shutdownWg)
 	//---------------------------------------------------------------------------------------
 
 	// OPERATOR - CUSTOM RRESOURCES CHANGE SYNC ----------------------------------------------
