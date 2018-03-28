@@ -11,8 +11,8 @@ import (
 )
 
 const (
-	interval  = 5 * time.Minute
-	opTimeout = 20 * time.Second
+	defaultInterval = 5 * time.Minute
+	opTimeout       = 20 * time.Second
 
 	DefaultCloneTimeout = 2 * time.Minute
 	CheckPushTag        = "flux-write-check"
@@ -43,7 +43,8 @@ type Remote struct {
 
 type Repo struct {
 	// As supplied to constructor
-	origin Remote
+	origin   Remote
+	interval time.Duration
 
 	// State
 	mu     sync.RWMutex
@@ -55,18 +56,32 @@ type Repo struct {
 	C      chan struct{}
 }
 
+type Option interface {
+	apply(*Repo)
+}
+
+type PollInterval time.Duration
+
+func (p PollInterval) apply(r *Repo) {
+	r.interval = time.Duration(p)
+}
+
 // NewRepo constructs a repo mirror which will sync itself.
-func NewRepo(origin Remote) *Repo {
+func NewRepo(origin Remote, opts ...Option) *Repo {
 	status := RepoNew
 	if origin.URL == "" {
 		status = RepoNoConfig
 	}
 	r := &Repo{
-		origin: origin,
-		status: status,
-		err:    nil,
-		notify: make(chan struct{}, 1), // `1` so that Notify doesn't block
-		C:      make(chan struct{}, 1), // `1` so we don't block on completing a refresh
+		origin:   origin,
+		status:   status,
+		interval: defaultInterval,
+		err:      nil,
+		notify:   make(chan struct{}, 1), // `1` so that Notify doesn't block
+		C:        make(chan struct{}, 1), // `1` so we don't block on completing a refresh
+	}
+	for _, opt := range opts {
+		opt.apply(r)
 	}
 	return r
 }
@@ -250,7 +265,7 @@ func (r *Repo) Refresh(ctx context.Context) error {
 }
 
 func (r *Repo) refreshLoop(shutdown <-chan struct{}) error {
-	gitPoll := time.NewTimer(interval)
+	gitPoll := time.NewTimer(r.interval)
 	for {
 		select {
 		case <-shutdown:
@@ -267,13 +282,13 @@ func (r *Repo) refreshLoop(shutdown <-chan struct{}) error {
 				default:
 				}
 			}
-			ctx, cancel := context.WithTimeout(context.Background(), interval)
+			ctx, cancel := context.WithTimeout(context.Background(), opTimeout)
 			err := r.Refresh(ctx)
 			cancel()
 			if err != nil {
 				return err
 			}
-			gitPoll.Reset(interval)
+			gitPoll.Reset(r.interval)
 		}
 	}
 }

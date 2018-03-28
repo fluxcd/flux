@@ -39,9 +39,9 @@ fluxd requires setup and offers customization though a multitude of flags.
 
 |flag                    | default                       | purpose |
 |------------------------|-------------------------------|---------|
-|--listen -l             | `:3030`                         | Listen address where /metrics and API will be served|
-|--kubernetes-kubectl    |                               | Optional, explicit path to kubectl tool|
-|--version               | false                         | Get version number|
+|--listen -l             | `:3030`                         | listen address where /metrics and API will be served|
+|--kubernetes-kubectl    |                               | optional, explicit path to kubectl tool|
+|--version               | false                         | output the version number and exit |
 |**Git repo & key etc.** |                              ||
 |--git-url               |                               | URL of git repo with Kubernetes manifests; e.g., `git@github.com:weaveworks/flux-example`|
 |--git-branch            | `master`                        | branch of git repo to use for Kubernetes manifests|
@@ -54,7 +54,9 @@ fluxd requires setup and offers customization though a multitude of flags.
 |--git-label             |                               | label to keep track of sync progress; overrides both --git-sync-tag and --git-notes-ref|
 |--git-sync-tag          | `flux-sync`             | tag to use to mark sync progress for this cluster (old config, still used if --git-label is not supplied)|
 |--git-notes-ref         | `flux`            | ref to use for keeping commit annotations in git notes|
-|--git-poll-interval     | `5 minutes`                 | period at which to poll git repo for new commits|
+|--git-poll-interval     | `5 minutes`                 | period at which to fetch any new commits from the git repo |
+|**syncing**             |                             | control over how config is applied to the cluster |
+|--sync-interval         | `5 minutes`                 | apply the git config to the cluster at least this often. New commits may provoke more frequent syncs |
 |**registry cache**      |                               | (none of these need overriding, usually) |
 |--memcached-hostname    | `memcached` | hostname for memcached service to use for caching image metadata|
 |--memcached-timeout     | `1 second`                   | maximum time to wait before giving up on memcached requests|
