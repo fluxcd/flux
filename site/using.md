@@ -235,6 +235,30 @@ tool, can have the commit author information customized. This is handy for provi
 notifications and history. Whether the customization is possible, depends on the Flux daemon (fluxd)
 `git-set-author` flag. If set, the commit author will be customized in the following way:
 
+# Image Tag Filtering
+
+When building images it is often useful to tag build images by the branch that they were built against for example:
+
+```
+quay.io/weaveworks/helloworld:master-9a16ff945b9e
+```
+
+Indicates that the "helloworld" image was built against master commit "9a16ff945b9e". 
+
+When automation is turned on flux will, by default, use whatever is the latest image on a given repository. If you want to only auto-update your image against a certain subset of tags then you can do that using tag filtering.
+
+So for example, if you want to only update the "helloworld" image to tags that were built against the "prod" branch then you could do the following:
+
+```
+fluxctl policy --controller=default:deployment/helloworld --tag-all='prod-*'
+```
+
+If your pod contains multiple containers then you tag each container individually:
+
+```
+fluxctl policy --controller=default:deployment/helloworld --tag='helloworld=prod-*' --tag='sidecar=prod-*'
+``` 
+
 ## Actions triggered through Weave Cloud
 
 Weave Cloud UI sends user parameter, value of which is the username (email) of the user logged into
