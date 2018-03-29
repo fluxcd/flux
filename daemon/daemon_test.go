@@ -563,7 +563,7 @@ func imageIDs(status []v6.ImageStatus) []image.Info {
 
 func updateImage(ctx context.Context, d *Daemon, t *testing.T) job.ID {
 	return updateManifest(ctx, t, d, update.Spec{
-		Type: update.Images,
+		Type: update.SpecImages,
 		Spec: update.ReleaseSpec{
 			Kind:         update.ReleaseKindExecute,
 			ServiceSpecs: []update.ResourceSpec{update.ResourceSpecAll},
@@ -574,8 +574,8 @@ func updateImage(ctx context.Context, d *Daemon, t *testing.T) job.ID {
 
 func updatePolicy(ctx context.Context, t *testing.T, d *Daemon) job.ID {
 	return updateManifest(ctx, t, d, update.Spec{
-		Type: update.Policy,
-		Spec: policy.Updates{
+		Type: update.SpecPolicy,
+		Spec: update.Policy{
 			flux.MustParseResourceID("default:deployment/helloworld"): {
 				Add: policy.Set{
 					policy.Locked: "true",

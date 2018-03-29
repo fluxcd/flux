@@ -13,16 +13,16 @@ import (
 	"github.com/weaveworks/flux/policy"
 )
 
-func (m *Manifests) UpdatePolicies(in []byte, update policy.Update) ([]byte, error) {
-	tagAll, _ := update.Add.Get(policy.TagAll)
+func (m *Manifests) UpdatePolicies(in []byte, add policy.Set, remove policy.Set) ([]byte, error) {
+	tagAll, _ := add.Get(policy.TagAll)
 	return updateAnnotations(in, tagAll, func(a map[string]string) map[string]string {
-		for p, v := range update.Add {
+		for p, v := range add {
 			if p == policy.TagAll {
 				continue
 			}
 			a[resource.PolicyPrefix+string(p)] = v
 		}
-		for p, _ := range update.Remove {
+		for p, _ := range remove {
 			delete(a, resource.PolicyPrefix+string(p))
 		}
 		return a

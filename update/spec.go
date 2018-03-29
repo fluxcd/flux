@@ -3,14 +3,12 @@ package update
 import (
 	"encoding/json"
 	"errors"
-
-	"github.com/weaveworks/flux/policy"
 )
 
 const (
-	Images = "image"
-	Policy = "policy"
-	Auto   = "auto"
+	SpecImages = "image"
+	SpecPolicy = "policy"
+	SpecAuto   = "auto"
 )
 
 // How did this update get triggered?
@@ -40,19 +38,19 @@ func (spec *Spec) UnmarshalJSON(in []byte) error {
 	spec.Type = wire.Type
 	spec.Cause = wire.Cause
 	switch wire.Type {
-	case Policy:
-		var update policy.Updates
+	case SpecPolicy:
+		var update Policy
 		if err := json.Unmarshal(wire.SpecBytes, &update); err != nil {
 			return err
 		}
 		spec.Spec = update
-	case Images:
+	case SpecImages:
 		var update ReleaseSpec
 		if err := json.Unmarshal(wire.SpecBytes, &update); err != nil {
 			return err
 		}
 		spec.Spec = update
-	case Auto:
+	case SpecAuto:
 		var update Automated
 		if err := json.Unmarshal(wire.SpecBytes, &update); err != nil {
 			return err

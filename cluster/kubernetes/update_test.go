@@ -10,14 +10,14 @@ import (
 	"github.com/weaveworks/flux/image"
 )
 
-type update struct {
+type testCase struct {
 	name            string
 	containers      []string
 	updatedImage    string
 	caseIn, caseOut string
 }
 
-func testUpdate(t *testing.T, u update) {
+func testUpdate(t *testing.T, u testCase) {
 	id, err := image.ParseRef(u.updatedImage)
 	if err != nil {
 		t.Fatal(err)
@@ -39,7 +39,7 @@ func testUpdate(t *testing.T, u update) {
 }
 
 func TestUpdates(t *testing.T) {
-	for _, c := range []update{
+	for _, c := range []testCase{
 		{"common case", case1container, case1image, case1, case1out},
 		{"new version like number", case2container, case2image, case2, case2out},
 		{"old version like number", case2container, case2reverseImage, case2out, case2},

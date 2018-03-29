@@ -15,14 +15,13 @@ import (
 
 // These are all the types of events.
 const (
-	EventCommit       = "commit"
-	EventSync         = "sync"
-	EventRelease      = "release"
-	EventAutoRelease  = "autorelease"
-	EventAutomate     = "automate"
-	EventDeautomate   = "deautomate"
-	EventLock         = "lock"
-	EventUnlock       = "unlock"
+	EventCommit      = "commit"
+	EventSync        = "sync"
+	EventRelease     = "release"
+	EventAutoRelease = "autorelease"
+	// This is not used as a Type of event, but _is_ used in Sync
+	// events to indicate that the commits just synced included
+	// changing policy.
 	EventUpdatePolicy = "update_policy"
 
 	// This is used to label e.g., commits that we _don't_ consider an event in themselves.
@@ -153,16 +152,6 @@ func (e Event) String() string {
 			svcStr = strings.Join(strServiceIDs, ", ")
 		}
 		return fmt.Sprintf("Sync: %s, %s", revStr, svcStr)
-	case EventAutomate:
-		return fmt.Sprintf("Automated: %s", strings.Join(strServiceIDs, ", "))
-	case EventDeautomate:
-		return fmt.Sprintf("Deautomated: %s", strings.Join(strServiceIDs, ", "))
-	case EventLock:
-		return fmt.Sprintf("Locked: %s", strings.Join(strServiceIDs, ", "))
-	case EventUnlock:
-		return fmt.Sprintf("Unlocked: %s", strings.Join(strServiceIDs, ", "))
-	case EventUpdatePolicy:
-		return fmt.Sprintf("Updated policies: %s", strings.Join(strServiceIDs, ", "))
 	default:
 		return fmt.Sprintf("Unknown event: %s", e.Type)
 	}

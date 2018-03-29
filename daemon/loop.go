@@ -307,7 +307,7 @@ func (d *Daemon) doSync(logger log.Logger) (retErr error) {
 
 			// Interpret some notes as events to send to the upstream
 			switch n.Spec.Type {
-			case update.Images:
+			case update.SpecImages:
 				spec := n.Spec.Spec.(update.ReleaseSpec)
 				noteEvents = append(noteEvents, event.Event{
 					ServiceIDs: serviceIDs.ToSlice(),
@@ -326,7 +326,7 @@ func (d *Daemon) doSync(logger log.Logger) (retErr error) {
 					},
 				})
 				includes[event.EventRelease] = true
-			case update.Auto:
+			case update.SpecAuto:
 				spec := n.Spec.Spec.(update.Automated)
 				noteEvents = append(noteEvents, event.Event{
 					ServiceIDs: serviceIDs.ToSlice(),
@@ -344,7 +344,7 @@ func (d *Daemon) doSync(logger log.Logger) (retErr error) {
 					},
 				})
 				includes[event.EventAutoRelease] = true
-			case update.Policy:
+			case update.SpecPolicy:
 				// Use this to mean any change to policy
 				includes[event.EventUpdatePolicy] = true
 			default:

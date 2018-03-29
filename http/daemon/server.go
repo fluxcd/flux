@@ -14,7 +14,6 @@ import (
 	transport "github.com/weaveworks/flux/http"
 	"github.com/weaveworks/flux/job"
 	fluxmetrics "github.com/weaveworks/flux/metrics"
-	"github.com/weaveworks/flux/policy"
 	"github.com/weaveworks/flux/update"
 )
 
@@ -205,7 +204,7 @@ func (s HTTPServer) UpdateImages(w http.ResponseWriter, r *http.Request) {
 		User:    r.FormValue("user"),
 		Message: r.FormValue("message"),
 	}
-	result, err := s.server.UpdateManifests(r.Context(), update.Spec{Type: update.Images, Cause: cause, Spec: spec})
+	result, err := s.server.UpdateManifests(r.Context(), update.Spec{Type: update.SpecImages, Cause: cause, Spec: spec})
 	if err != nil {
 		transport.ErrorResponse(w, r, err)
 		return
@@ -214,7 +213,7 @@ func (s HTTPServer) UpdateImages(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s HTTPServer) UpdatePolicies(w http.ResponseWriter, r *http.Request) {
-	var updates policy.Updates
+	var updates update.Policy
 	if err := json.NewDecoder(r.Body).Decode(&updates); err != nil {
 		transport.WriteError(w, r, http.StatusBadRequest, err)
 		return
@@ -225,7 +224,7 @@ func (s HTTPServer) UpdatePolicies(w http.ResponseWriter, r *http.Request) {
 		Message: r.FormValue("message"),
 	}
 
-	jobID, err := s.server.UpdateManifests(r.Context(), update.Spec{Type: update.Policy, Cause: cause, Spec: updates})
+	jobID, err := s.server.UpdateManifests(r.Context(), update.Spec{Type: update.SpecPolicy, Cause: cause, Spec: updates})
 	if err != nil {
 		transport.ErrorResponse(w, r, err)
 		return

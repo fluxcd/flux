@@ -131,7 +131,7 @@ func (opts *controllerReleaseOpts) RunE(cmd *cobra.Command, args []string) error
 		Excludes:     excludes,
 	}
 	jobID, err := opts.API.UpdateManifests(ctx, update.Spec{
-		Type:  update.Images,
+		Type:  update.SpecImages,
 		Cause: opts.cause,
 		Spec:  spec,
 	})

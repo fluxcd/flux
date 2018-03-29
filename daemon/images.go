@@ -65,7 +65,7 @@ func (d *Daemon) pollForNewImages(logger log.Logger) {
 	}
 
 	if len(changes.Changes) > 0 {
-		d.UpdateManifests(ctx, update.Spec{Type: update.Auto, Spec: changes})
+		d.UpdateManifests(ctx, update.Spec{Type: update.SpecAuto, Spec: changes})
 	}
 }
 

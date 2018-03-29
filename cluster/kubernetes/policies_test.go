@@ -8,19 +8,20 @@ import (
 	"text/template"
 
 	"github.com/weaveworks/flux/policy"
+	"github.com/weaveworks/flux/update"
 )
 
 func TestUpdatePolicies(t *testing.T) {
 	for _, c := range []struct {
 		name    string
 		in, out map[string]string
-		update  policy.Update
+		change  update.PolicyChange
 	}{
 		{
 			name: "adding annotation with others existing",
 			in:   map[string]string{"prometheus.io.scrape": "false"},
 			out:  map[string]string{"flux.weave.works/automated": "true", "prometheus.io.scrape": "false"},
-			update: policy.Update{
+			change: update.PolicyChange{
 				Add: policy.Set{policy.Automated: "true"},
 			},
 		},
@@ -28,7 +29,7 @@ func TestUpdatePolicies(t *testing.T) {
 			name: "adding annotation when already has annotation",
 			in:   map[string]string{"flux.weave.works/automated": "true"},
 			out:  map[string]string{"flux.weave.works/automated": "true"},
-			update: policy.Update{
+			change: update.PolicyChange{
 				Add: policy.Set{policy.Automated: "true"},
 			},
 		},
@@ -36,7 +37,7 @@ func TestUpdatePolicies(t *testing.T) {
 			name: "adding annotation when already has annotation and others",
 			in:   map[string]string{"flux.weave.works/automated": "true", "prometheus.io.scrape": "false"},
 			out:  map[string]string{"flux.weave.works/automated": "true", "prometheus.io.scrape": "false"},
-			update: policy.Update{
+			change: update.PolicyChange{
 				Add: policy.Set{policy.Automated: "true"},
 			},
 		},
@@ -44,7 +45,7 @@ func TestUpdatePolicies(t *testing.T) {
 			name: "adding first annotation",
 			in:   nil,
 			out:  map[string]string{"flux.weave.works/automated": "true"},
-			update: policy.Update{
+			change: update.PolicyChange{
 				Add: policy.Set{policy.Automated: "true"},
 			},
 		},
@@ -52,7 +53,7 @@ func TestUpdatePolicies(t *testing.T) {
 			name: "add and remove different annotations at the same time",
 			in:   map[string]string{"flux.weave.works/automated": "true", "prometheus.io.scrape": "false"},
 			out:  map[string]string{"flux.weave.works/locked": "true", "prometheus.io.scrape": "false"},
-			update: policy.Update{
+			change: update.PolicyChange{
 				Add:    policy.Set{policy.Locked: "true"},
 				Remove: policy.Set{policy.Automated: "true"},
 			},
@@ -61,7 +62,7 @@ func TestUpdatePolicies(t *testing.T) {
 			name: "remove overrides add for same key",
 			in:   nil,
 			out:  nil,
-			update: policy.Update{
+			change: update.PolicyChange{
 				Add:    policy.Set{policy.Locked: "true"},
 				Remove: policy.Set{policy.Locked: "true"},
 			},
@@ -70,7 +71,7 @@ func TestUpdatePolicies(t *testing.T) {
 			name: "remove annotation with others existing",
 			in:   map[string]string{"flux.weave.works/automated": "true", "prometheus.io.scrape": "false"},
 			out:  map[string]string{"prometheus.io.scrape": "false"},
-			update: policy.Update{
+			change: update.PolicyChange{
 				Remove: policy.Set{policy.Automated: "true"},
 			},
 		},
@@ -78,7 +79,7 @@ func TestUpdatePolicies(t *testing.T) {
 			name: "remove last annotation",
 			in:   map[string]string{"flux.weave.works/automated": "true"},
 			out:  nil,
-			update: policy.Update{
+			change: update.PolicyChange{
 				Remove: policy.Set{policy.Automated: "true"},
 			},
 		},
@@ -86,7 +87,7 @@ func TestUpdatePolicies(t *testing.T) {
 			name: "remove annotation with no annotations",
 			in:   nil,
 			out:  nil,
-			update: policy.Update{
+			change: update.PolicyChange{
 				Remove: policy.Set{policy.Automated: "true"},
 			},
 		},
@@ -94,7 +95,7 @@ func TestUpdatePolicies(t *testing.T) {
 			name: "remove annotation with only others",
 			in:   map[string]string{"prometheus.io.scrape": "false"},
 			out:  map[string]string{"prometheus.io.scrape": "false"},
-			update: policy.Update{
+			change: update.PolicyChange{
 				Remove: policy.Set{policy.Automated: "true"},
 			},
 		},
@@ -102,7 +103,7 @@ func TestUpdatePolicies(t *testing.T) {
 			name: "multiline",
 			in:   map[string]string{"flux.weave.works/locked_msg": "|-\n      first\n      second"},
 			out:  nil,
-			update: policy.Update{
+			change: update.PolicyChange{
 				Remove: policy.Set{policy.LockedMsg: "foo"},
 			},
 		},
@@ -110,14 +111,14 @@ func TestUpdatePolicies(t *testing.T) {
 			name: "multiline with empty line",
 			in:   map[string]string{"flux.weave.works/locked_msg": "|-\n      first\n\n      third"},
 			out:  nil,
-			update: policy.Update{
+			change: update.PolicyChange{
 				Remove: policy.Set{policy.LockedMsg: "foo"},
 			},
 		},
 	} {
 		caseIn := templToString(t, annotationsTemplate, c.in)
 		caseOut := templToString(t, annotationsTemplate, c.out)
-		out, err := (&Manifests{}).UpdatePolicies([]byte(caseIn), c.update)
+		out, err := (&Manifests{}).UpdatePolicies([]byte(caseIn), c.change.Add, c.change.Remove)
 		if err != nil {
 			t.Errorf("[%s] %v", c.name, err)
 		} else if string(out) != caseOut {

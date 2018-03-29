@@ -1,10 +1,8 @@
 package daemon
 
 import (
-	"bytes"
 	"context"
 	"fmt"
-	"sort"
 	"time"
 
 	"github.com/go-kit/kit/log"
@@ -234,91 +232,56 @@ func (d *Daemon) UpdateManifests(ctx context.Context, spec update.Spec) (job.ID,
 			return id, err
 		}
 		return d.queueJob(d.release(spec, s)), nil
-	case policy.Updates:
+	case update.Policy:
 		return d.queueJob(d.updatePolicy(spec, s)), nil
 	default:
 		return id, fmt.Errorf(`unknown update type "%s"`, spec.Type)
 	}
 }
 
-func (d *Daemon) updatePolicy(spec update.Spec, updates policy.Updates) daemonJobFunc {
+func (d *Daemon) updatePolicy(spec update.Spec, updates update.Policy) daemonJobFunc {
 	return func(ctx context.Context, jobID job.ID, working *git.Checkout, logger log.Logger) (job.Result, error) {
-		// For each update
-		var serviceIDs []flux.ResourceID
-		result := job.Result{
-			Spec:   &spec,
-			Result: update.Result{},
-		}
+		rc := release.NewReleaseContext(d.Cluster, d.Manifests, d.Registry, working)
+		result, err := release.ApplyPolicy(rc, updates, logger)
+
+		zero := job.Result{}
 
 		// A shortcut to make things more responsive: if anything
 		// was (probably) set to automated, we will ask for an
 		// automation run straight ASAP.
 		var anythingAutomated bool
-
-		for serviceID, u := range updates {
-			if policy.Set(u.Add).Contains(policy.Automated) {
+		for _, u := range updates {
+			if u.Add.Contains(policy.Automated) {
 				anythingAutomated = true
 			}
-			// find the service manifest
-			err := cluster.UpdateManifest(d.Manifests, working.ManifestDir(), serviceID, func(def []byte) ([]byte, error) {
-				newDef, err := d.Manifests.UpdatePolicies(def, u)
-				if err != nil {
-					result.Result[serviceID] = update.ControllerResult{
-						Status: update.ReleaseStatusFailed,
-						Error:  err.Error(),
-					}
-					return nil, err
-				}
-				if string(newDef) == string(def) {
-					result.Result[serviceID] = update.ControllerResult{
-						Status: update.ReleaseStatusSkipped,
-					}
-				} else {
-					serviceIDs = append(serviceIDs, serviceID)
-					result.Result[serviceID] = update.ControllerResult{
-						Status: update.ReleaseStatusSuccess,
-					}
-				}
-				return newDef, nil
-			})
-			switch err {
-			case cluster.ErrNoResourceFilesFoundForService, cluster.ErrMultipleResourceFilesFoundForService:
-				result.Result[serviceID] = update.ControllerResult{
-					Status: update.ReleaseStatusFailed,
-					Error:  err.Error(),
-				}
-			case nil:
-				// continue
-			default:
-				return result, err
-			}
-		}
-		if len(serviceIDs) == 0 {
-			return result, nil
 		}
 
 		commitAuthor := ""
 		if d.GitConfig.SetAuthor {
 			commitAuthor = spec.Cause.User
 		}
-		commitAction := git.CommitAction{Author: commitAuthor, Message: policyCommitMessage(updates, spec.Cause)}
+
+		commitAction := git.CommitAction{Author: commitAuthor, Message: updates.CommitMessage(spec.Cause)}
 		if err := working.CommitAndPush(ctx, commitAction, &note{JobID: jobID, Spec: spec}); err != nil {
 			// On the chance pushing failed because it was not
 			// possible to fast-forward, ask for a sync so the
 			// next attempt is more likely to succeed.
 			d.AskForSync()
-			return result, err
+			return zero, err
 		}
 		if anythingAutomated {
 			d.AskForImagePoll()
 		}
 
-		var err error
-		result.Revision, err = working.HeadRevision(ctx)
+		revision, err := working.HeadRevision(ctx)
 		if err != nil {
-			return result, err
+			return zero, err
 		}
-		return result, nil
+		return job.Result{
+			Revision: revision,
+			Spec:     &spec,
+			Result:   result,
+		}, nil
 	}
 }
 
@@ -552,80 +515,4 @@ func containersWithAvailable(service cluster.Controller, images update.ImageMap)
 		})
 	}
 	return res
-}
-
-func policyCommitMessage(us policy.Updates, cause update.Cause) string {
-	// shortcut, since we want roughly the same information
-	events := policyEvents(us, time.Now())
-	commitMsg := &bytes.Buffer{}
-	prefix := "- "
-	switch {
-	case cause.Message != "":
-		fmt.Fprintf(commitMsg, "%s\n\n", cause.Message)
-	case len(events) > 1:
-		fmt.Fprintf(commitMsg, "Updated service policies\n\n")
-	default:
-		prefix = ""
-	}
-
-	for _, event := range events {
-		fmt.Fprintf(commitMsg, "%s%v\n", prefix, event)
-	}
-	return commitMsg.String()
-}
-
-// policyEvents builds a map of events (by type), for all the events in this set of
-// updates. There will be one event per type, containing all service ids
-// affected by that event. e.g. all automated services will share an event.
-func policyEvents(us policy.Updates, now time.Time) map[string]event.Event {
-	eventsByType := map[string]event.Event{}
-	for serviceID, update := range us {
-		for _, eventType := range policyEventTypes(update) {
-			e, ok := eventsByType[eventType]
-			if !ok {
-				e = event.Event{
-					ServiceIDs: []flux.ResourceID{},
-					Type:       eventType,
-					StartedAt:  now,
-					EndedAt:    now,
-					LogLevel:   event.LogLevelInfo,
-				}
-			}
-			e.ServiceIDs = append(e.ServiceIDs, serviceID)
-			eventsByType[eventType] = e
-		}
-	}
-	return eventsByType
-}
-
-// policyEventTypes is a deduped list of all event types this update contains
-func policyEventTypes(u policy.Update) []string {
-	types := map[string]struct{}{}
-	for p, _ := range u.Add {
-		switch {
-		case p == policy.Automated:
-			types[event.EventAutomate] = struct{}{}
-		case p == policy.Locked:
-			types[event.EventLock] = struct{}{}
-		default:
-			types[event.EventUpdatePolicy] = struct{}{}
-		}
-	}
-
-	for p, _ := range u.Remove {
-		switch {
-		case p == policy.Automated:
-			types[event.EventDeautomate] = struct{}{}
-		case p == policy.Locked:
-			types[event.EventUnlock] = struct{}{}
-		default:
-			types[event.EventUpdatePolicy] = struct{}{}
-		}
-	}
-	var result []string
-	for t := range types {
-		result = append(result, t)
-	}
-	sort.Strings(result)
-	return result
 }

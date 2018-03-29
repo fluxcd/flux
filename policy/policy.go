@@ -36,13 +36,6 @@ func Tag(policy Policy) bool {
 	return strings.HasPrefix(string(policy), "tag.")
 }
 
-type Updates map[flux.ResourceID]Update
-
-type Update struct {
-	Add    Set `json:"add"`
-	Remove Set `json:"remove"`
-}
-
 type Set map[Policy]string
 
 // We used to specify a set of policies as []Policy, and in some places

@@ -3,7 +3,6 @@ package rpc
 import (
 	"fmt"
 
-	"github.com/weaveworks/flux/policy"
 	"github.com/weaveworks/flux/update"
 )
 
@@ -23,7 +22,7 @@ func requireServiceSpecKinds(ss update.ResourceSpec, kinds []string) error {
 
 func requireSpecKinds(s update.Spec, kinds []string) error {
 	switch s := s.Spec.(type) {
-	case policy.Updates:
+	case update.Policy:
 		for id, _ := range s {
 			_, kind, _ := id.Components()
 			if !contains(kinds, kind) {

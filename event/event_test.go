@@ -46,7 +46,7 @@ func TestEvent_ParseReleaseMetaData(t *testing.T) {
 
 func TestEvent_ParseNoMetadata(t *testing.T) {
 	origEvent := Event{
-		Type: EventLock,
+		Type: EventUpdatePolicy,
 	}
 
 	bytes, _ := json.Marshal(origEvent)

@@ -145,6 +145,12 @@ func (id *ResourceID) UnmarshalText(text []byte) error {
 
 type ResourceIDSet map[ResourceID]struct{}
 
+func ResourceIDSetOf(ids ...ResourceID) ResourceIDSet {
+	s := ResourceIDSet{}
+	s.Add(ids)
+	return s
+}
+
 func (s ResourceIDSet) String() string {
 	var ids []string
 	for id := range s {
@@ -157,6 +163,20 @@ func (s ResourceIDSet) Add(ids []ResourceID) {
 	for _, id := range ids {
 		s[id] = struct{}{}
 	}
+}
+
+func (s ResourceIDSet) With(others ResourceIDSet) ResourceIDSet {
+	if len(others) == 0 {
+		return s
+	}
+	newSet := ResourceIDSet{}
+	for id := range s {
+		newSet[id] = struct{}{}
+	}
+	for id := range others {
+		newSet[id] = struct{}{}
+	}
+	return newSet
 }
 
 func (s ResourceIDSet) Without(others ResourceIDSet) ResourceIDSet {
@@ -201,6 +221,16 @@ func (s ResourceIDSet) ToSlice() ResourceIDs {
 	keys := make(ResourceIDs, len(s))
 	for k := range s {
 		keys[i] = k
+		i++
+	}
+	return keys
+}
+
+func (s ResourceIDSet) ToStringSlice() []string {
+	i := 0
+	keys := make([]string, len(s))
+	for k := range s {
+		keys[i] = k.String()
 		i++
 	}
 	return keys

@@ -103,11 +103,10 @@ func (opts *controllerPolicyOpts) RunE(cmd *cobra.Command, args []string) error 
 	}
 
 	ctx := context.Background()
-	updates := policy.Updates{
-		resourceID: changes,
-	}
+	updates := update.Policy{}
+	updates[resourceID] = changes
 	jobID, err := opts.API.UpdateManifests(ctx, update.Spec{
-		Type:  update.Policy,
+		Type:  update.SpecPolicy,
 		Cause: opts.cause,
 		Spec:  updates,
 	})
@@ -117,7 +116,7 @@ func (opts *controllerPolicyOpts) RunE(cmd *cobra.Command, args []string) error 
 	return await(ctx, cmd.OutOrStdout(), cmd.OutOrStderr(), opts.API, jobID, false, opts.verbosity)
 }
 
-func calculatePolicyChanges(opts *controllerPolicyOpts) (policy.Update, error) {
+func calculatePolicyChanges(opts *controllerPolicyOpts) (update.PolicyChange, error) {
 	add := policy.Set{}
 	if opts.automate {
 		add = add.Add(policy.Automated)
@@ -148,7 +147,7 @@ func calculatePolicyChanges(opts *controllerPolicyOpts) (policy.Update, error) {
 	for _, tagPair := range opts.tags {
 		parts := strings.Split(tagPair, "=")
 		if len(parts) != 2 {
-			return policy.Update{}, fmt.Errorf("invalid container/tag pair: %q. Expected format is 'container=filter'", tagPair)
+			return update.PolicyChange{}, fmt.Errorf("invalid container/tag pair: %q. Expected format is 'container=filter'", tagPair)
 		}
 
 		container, tag := parts[0], parts[1]
@@ -159,7 +158,7 @@ func calculatePolicyChanges(opts *controllerPolicyOpts) (policy.Update, error) {
 		}
 	}
 
-	return policy.Update{
+	return update.PolicyChange{
 		Add:    add,
 		Remove: remove,
 	}, nil
