@@ -17,6 +17,7 @@ spec:
       - name: git-key
         secret:
           secretName: flux-git-deploy
+          defaultMode: 0400 # when mounted read-only, we won't be able to chmod
       containers:
       - name: flux-helm-operator
         # There are no ":latest" images for helm-operator. Find the most recent
@@ -27,6 +28,7 @@ spec:
         volumeMounts:
         - name: git-key
           mountPath: /etc/fluxd/ssh
+          readOnly: true # this will be the case perforce in K8s >=1.10
         args:
         # replace (at least) the following URL
         - --git-url=git@github.com:weaveworks/flux-helm-test
