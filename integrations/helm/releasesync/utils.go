@@ -5,13 +5,13 @@ import (
 	"github.com/weaveworks/flux/integrations/helm/release"
 )
 
-func MappifyDeployInfo(releases map[string][]release.DeployInfo) map[string]map[string]int64 {
-	deployM := make(map[string]map[string]int64)
+func MappifyDeployInfo(releases map[string][]release.DeployInfo) map[string]map[string]struct{} {
+	deployM := make(map[string]map[string]struct{})
 
 	for ns, nsRels := range releases {
-		nsDeployM := make(map[string]int64)
+		nsDeployM := make(map[string]struct{})
 		for _, r := range nsRels {
-			nsDeployM[r.Name] = r.Deployed
+			nsDeployM[r.Name] = struct{}{}
 		}
 		deployM[ns] = nsDeployM
 	}

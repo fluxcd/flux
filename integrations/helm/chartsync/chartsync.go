@@ -23,11 +23,9 @@ import (
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
 
-	//"gopkg.in/src-d/go-git.v4/plumbing"
-
 	ifv1 "github.com/weaveworks/flux/apis/helm.integrations.flux.weave.works/v1alpha"
 	ifclientset "github.com/weaveworks/flux/integrations/client/clientset/versioned"
-	fhrv1 "github.com/weaveworks/flux/integrations/client/informers/externalversions/helm.integrations.flux.weave.works/v1alpha" // kubernetes 1.9
+	fhrv1 "github.com/weaveworks/flux/integrations/client/informers/externalversions/helm.integrations.flux.weave.works/v1alpha"
 	helmgit "github.com/weaveworks/flux/integrations/helm/git"
 	chartrelease "github.com/weaveworks/flux/integrations/helm/release"
 )
@@ -44,7 +42,6 @@ type ChartChangeSync struct {
 	ifClient            ifclientset.Clientset
 	release             *chartrelease.Release
 	lastCheckedRevision string
-	//sync.RWMutex
 }
 
 func New(
@@ -70,7 +67,7 @@ func New(
 	}
 }
 
-//  Run ... creates a syncing loop monitoring repo chart changes
+//  Run creates a syncing loop monitoring repo chart changes
 func (chs *ChartChangeSync) Run(stopCh <-chan struct{}, errc chan error, wg *sync.WaitGroup) {
 	chs.logger.Log("info", "Starting repo charts sync loop")
 
@@ -90,29 +87,27 @@ func (chs *ChartChangeSync) Run(stopCh <-chan struct{}, errc chan error, wg *syn
 
 		for {
 			select {
-			// ------------------------------------------------------------------------------------
 			case <-ticker.C:
-				fmt.Printf("\n\t... CHARTSYNC at %s\n\n", time.Now().String())
+				chs.logger.Log("info", fmt.Sprint("Start of chartsync"))
 				// new commits?
 				if exist, newRev, err = chs.newCommits(); err != nil {
 					chs.logger.Log("error", fmt.Sprintf("Failure during retrieving commits: %#v", err))
-					fmt.Printf("\n\t... CHARTSYNC work FINISHED at %s\n\n", time.Now().String())
+					chs.logger.Log("info", fmt.Sprint("End of chartsync"))
 					continue
 				}
 				if !exist {
-					fmt.Printf("\n\t... CHARTSYNC work FINISHED at %s\n\n", time.Now().String())
+					chs.logger.Log("info", fmt.Sprint("End of chartsync"))
 					continue
 				}
-				// get namespaces
+
 				ns, err := GetNamespaces(chs.logger, chs.kubeClient)
 				if err != nil {
 					errc <- err
 				}
-				// get charts
 				chartDirs, err := getChartDirs(chs.logger, chs.release.Repo.ChartsSync)
 				if err != nil {
 					chs.logger.Log("error", fmt.Sprintf("Failure to get charts under the charts path: %#v", err))
-					fmt.Printf("\n\t... CHARTSYNC work FINISHED at %s\n\n", time.Now().String())
+					chs.logger.Log("info", fmt.Sprint("End of chartsync"))
 					continue
 				}
 				// get fhrs
@@ -121,7 +116,7 @@ func (chs *ChartChangeSync) Run(stopCh <-chan struct{}, errc chan error, wg *syn
 					err = chs.getCustomResources(ns, chart, chartFhrs)
 					if err != nil {
 						chs.logger.Log("error", fmt.Sprintf("Failure during retrieving Custom Resources related to Chart [%s]: %#v", chart, err))
-						fmt.Printf("\n\t... CHARTSYNC work FINISHED at %s\n\n", time.Now().String())
+						chs.logger.Log("info", fmt.Sprint("End of chartsync"))
 						continue
 					}
 				}
@@ -132,19 +127,19 @@ func (chs *ChartChangeSync) Run(stopCh <-chan struct{}, errc chan error, wg *syn
 				cancel()
 				if err != nil {
 					chs.logger.Log("error", fmt.Sprintf("Error while establishing upgrade need of releases: %s", err.Error()))
-					fmt.Printf("\n\t... CHARTSYNC work FINISHED at %s\n\n", time.Now().String())
+					chs.logger.Log("info", fmt.Sprint("End of chartsync"))
 					continue
 				}
 				// Nothing to release
 				if len(chartsToRelease) == 0 {
 					chs.lastCheckedRevision = newRev
-					fmt.Printf("\n\t... CHARTSYNC work FINISHED at %s\n\n", time.Now().String())
+					chs.logger.Log("info", fmt.Sprint("End of chartsync"))
 					continue
 				}
 
 				if err = chs.releaseCharts(chartsToRelease, chartFhrs); err != nil {
 					chs.logger.Log("error", fmt.Sprintf("Failure to release Chart(s): %#v", err))
-					fmt.Printf("\n\t... CHARTSYNC work FINISHED at %s\n\n", time.Now().String())
+					chs.logger.Log("info", fmt.Sprint("End of chartsync"))
 					continue
 				}
 				// All went well, so we shall make the repo with the last checked commit up to date
@@ -156,13 +151,12 @@ func (chs *ChartChangeSync) Run(stopCh <-chan struct{}, errc chan error, wg *syn
 				if err != nil {
 					errm := fmt.Errorf("Failure while pulling repo: %#v", err)
 					chs.logger.Log("error", errm.Error())
-					fmt.Printf("\n\t... CHARTSYNC work FINISHED at %s\n\n", time.Now().String())
+					chs.logger.Log("info", fmt.Sprint("End of chartsync"))
 					continue
 				}
 				chs.logger.Log("info", "Pulled repo")
 				chs.lastCheckedRevision = newRev
-				fmt.Printf("\n\t... CHARTSYNC work FINISHED at %s\n\n", time.Now().String())
-			// ------------------------------------------------------------------------------------
+				chs.logger.Log("info", fmt.Sprint("End of chartsync"))
 			case <-stopCh:
 				chs.logger.Log("stopping", "true")
 				break
@@ -171,7 +165,7 @@ func (chs *ChartChangeSync) Run(stopCh <-chan struct{}, errc chan error, wg *syn
 	}()
 }
 
-// GetNamespaces ... gets current kubernetes cluster namespaces
+// GetNamespaces gets current kubernetes cluster namespaces
 func GetNamespaces(logger log.Logger, kubeClient kubernetes.Clientset) ([]string, error) {
 	ns := []string{}
 
@@ -189,7 +183,7 @@ func GetNamespaces(logger log.Logger, kubeClient kubernetes.Clientset) ([]string
 	return ns, nil
 }
 
-// getChartDirs ... retrieves charts under the charts directory (under the repo root)
+// getChartDirs retrieves charts under the charts directory (under the repo root)
 //		go-git(.v4) does not implement finding commits under a specific path. This means
 //		the individual chart paths cannor be currently used with "git log"
 func getChartDirs(logger log.Logger, checkout *helmgit.Checkout) ([]string, error) {
@@ -223,7 +217,7 @@ func getChartDirs(logger log.Logger, checkout *helmgit.Checkout) ([]string, erro
 	return chartDirs, nil
 }
 
-// newCommits ... determines if charts need to be released
+// newCommits determines if charts need to be released
 //		go-git.v4 does not provide a possibility to find commit for a particular path.
 // 		So we find if there are any commits at all sice last time
 func (chs *ChartChangeSync) newCommits() (bool, string, error) {
@@ -281,7 +275,7 @@ func (chs *ChartChangeSync) newCommits() (bool, string, error) {
 	return false, "", nil
 }
 
-// getCustomResources ... assembles custom resources referencing a particular chart
+// getCustomResources assembles custom resources referencing a particular chart
 func (chs *ChartChangeSync) getCustomResources(namespaces []string, chart string, chartFhrs map[string][]ifv1.FluxHelmRelease) error {
 	chartSelector := map[string]string{
 		"chart": chart,
@@ -307,7 +301,7 @@ func (chs *ChartChangeSync) getCustomResources(namespaces []string, chart string
 	return nil
 }
 
-// releaseCharts ... release a Chart if required
+// releaseCharts release a Chart if required
 //		input:
 //					chartD ... provides chart name and its directory information
 //					fhr ...... provides chart name and all Custom Resources associated with this chart
@@ -316,14 +310,11 @@ func (chs *ChartChangeSync) releaseCharts(chartsToRelease []string, chartFhrs ma
 	checkout := chs.release.Repo.ChartsSync
 
 	for _, chart := range chartsToRelease {
-		fmt.Printf("\t... chart %s\n", chart)
-
 		var err error
 		fhrs := chartFhrs[chart]
 		for _, fhr := range fhrs {
 			rlsName := chartrelease.GetReleaseName(fhr)
 
-			chs.logger.Log("info", "INSTALLING")
 			opts := chartrelease.InstallOptions{DryRun: false}
 			_, err = chs.release.Install(checkout, rlsName, fhr, "UPDATE", opts)
 			if err != nil {
@@ -338,7 +329,7 @@ func (chs *ChartChangeSync) releaseCharts(chartsToRelease []string, chartFhrs ma
 	return nil
 }
 
-// releaseNeeded ... finds if there were commits in the repo since the last charts sync
+// releaseNeeded finds if there were commits in the repo since the last charts sync
 //	returns maps keys on chart name with value corresponding to the chart path
 // (go-git.v4 does not provide a possibility to find commit for a particular path.)
 func (chs *ChartChangeSync) releaseNeeded(ctx context.Context, newRev string, charts []string, chartFhrs map[string][]ifv1.FluxHelmRelease) ([]string, error) {

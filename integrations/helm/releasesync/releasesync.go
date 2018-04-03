@@ -1,12 +1,14 @@
 /*
-When a Chart release is deleted/upgraded/created manually, the cluster gets out of sync
-with the prescribed state defined in the get repo.
+When a Chart release is manually deleted/upgraded/created, the cluster gets out of sync
+with the prescribed state defined by FluxHelmRelease custom resources. The releasesync package
+attemps to bring the cluster back to the prescribed state.
 */
 package releasesync
 
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -17,24 +19,19 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
+	hapi_release "k8s.io/helm/pkg/proto/hapi/release"
 
 	"github.com/go-kit/kit/log"
 
-	//"gopkg.in/src-d/go-git.v4/plumbing"
 	ifv1 "github.com/weaveworks/flux/apis/helm.integrations.flux.weave.works/v1alpha"
-	ifclientset "github.com/weaveworks/flux/integrations/client/clientset/versioned" // kubernetes 1.9
+	ifclientset "github.com/weaveworks/flux/integrations/client/clientset/versioned"
 	helmgit "github.com/weaveworks/flux/integrations/helm/git"
 	chartrelease "github.com/weaveworks/flux/integrations/helm/release"
 )
 
-type action string
-
 const (
-	CustomResourceKind        = "FluxHelmRelease"
-	releaseLagTime            = 30
-	deleteAction       action = "DELETE"
-	installAction      action = "CREATE"
-	upgradeAction      action = "UPDATE"
+	CustomResourceKind = "FluxHelmRelease"
+	syncDelay          = 60
 )
 
 type ReleaseFhr struct {
@@ -43,16 +40,12 @@ type ReleaseFhr struct {
 	Fhr     ifv1.FluxHelmRelease
 }
 
-// ReleaseChangeSync will become a receiver, that contains
-//
 type ReleaseChangeSync struct {
 	logger log.Logger
 	chartsync.Polling
 	kubeClient kubernetes.Clientset
-	//chartSync  chartsync.ChartChangeSync
-	ifClient ifclientset.Clientset
-	//fhrLister iflister.FluxHelmReleaseLister
-	release *chartrelease.Release
+	ifClient   ifclientset.Clientset
+	release    *chartrelease.Release
 }
 
 func New(
@@ -77,11 +70,11 @@ type customResourceInfo struct {
 
 type chartRelease struct {
 	releaseName  string
-	action       action
+	action       chartrelease.Action
 	desiredState ifv1.FluxHelmRelease
 }
 
-// Run ... creates a syncing loop monitoring repo chart changes
+// Run creates a syncing loop monitoring repo chart changes
 func (rs *ReleaseChangeSync) Run(stopCh <-chan struct{}, errc chan error, wg *sync.WaitGroup) {
 	rs.logger.Log("info", "Starting repo charts sync loop")
 
@@ -91,29 +84,27 @@ func (rs *ReleaseChangeSync) Run(stopCh <-chan struct{}, errc chan error, wg *sy
 		defer wg.Done()
 		defer rs.release.Repo.ReleasesSync.Cleanup()
 
-		time.Sleep(30 * time.Second)
+		time.Sleep(syncDelay * time.Second)
 
 		ticker := time.NewTicker(rs.Polling.Interval)
 		defer ticker.Stop()
 
 		for {
 			select {
-			// ------------------------------------------------------------------------------------
 			case <-ticker.C:
-				fmt.Printf("\n\t... RELEASESYNC at %s\n\n", time.Now().String())
+				rs.logger.Log("info", fmt.Sprint("Start of releasesync"))
 				ctx, cancel := context.WithTimeout(context.Background(), helmgit.DefaultCloneTimeout)
 				relsToSync, err := rs.releasesToSync(ctx)
 				cancel()
 				if err != nil {
 					rs.logger.Log("error", fmt.Sprintf("Failure to get info about manual chart release changes: %#v", err))
-					fmt.Printf("\n\t... RELEASESYNC work FINISHED at %s\n\n", time.Now().String())
+					rs.logger.Log("info", fmt.Sprint("End of releasesync"))
 					continue
 				}
 
-				// manual chart release changes?
 				if len(relsToSync) == 0 {
-					rs.logger.Log("info", fmt.Sprintln("No manual changes of Chart releases"))
-					fmt.Printf("\n\t... RELEASESYNC work FINISHED at %s\n\n", time.Now().String())
+					rs.logger.Log("info", fmt.Sprint("No manual changes of Chart releases"))
+					rs.logger.Log("info", fmt.Sprint("End of releasesync"))
 					continue
 				}
 
@@ -124,8 +115,7 @@ func (rs *ReleaseChangeSync) Run(stopCh <-chan struct{}, errc chan error, wg *sy
 				if err != nil {
 					rs.logger.Log("error", fmt.Sprintf("Failure to sync cluster after manual chart release changes: %#v", err))
 				}
-				fmt.Printf("\n\t... RELEASESYNC work FINISHED at %s\n\n", time.Now().String())
-			// ------------------------------------------------------------------------------------
+				rs.logger.Log("info", fmt.Sprint("End of releasesync"))
 			case <-stopCh:
 				rs.logger.Log("stopping", "true")
 				break
@@ -148,7 +138,6 @@ func (rs *ReleaseChangeSync) getNSEvents(ns string) (*v1.EventList, error) {
 func (rs *ReleaseChangeSync) getCustomResources(namespaces []string) (map[string][]ReleaseFhr, error) {
 	relInfo := make(map[string][]ReleaseFhr)
 
-	fmt.Println("\nGETTING CUSTOM RESOURCES")
 	for _, ns := range namespaces {
 		list, err := rs.getNSCustomResources(ns)
 		if err != nil {
@@ -159,7 +148,6 @@ func (rs *ReleaseChangeSync) getCustomResources(namespaces []string) (map[string
 		for _, fhr := range list.Items {
 			relName := release.GetReleaseName(fhr)
 			rf = append(rf, ReleaseFhr{RelName: relName, Fhr: fhr})
-			//fmt.Printf(">>> existing FHRs    ns: %s ... relName: %s\n", ns, relName)
 		}
 		if len(rf) > 0 {
 			relInfo[ns] = rf
@@ -168,61 +156,79 @@ func (rs *ReleaseChangeSync) getCustomResources(namespaces []string) (map[string
 	return relInfo, nil
 }
 
-// getReleaseEvents retrieves and stores last event timestamp for FluxHelmRelease resources (FHR)
-//		output:
-//						map[namespace][FHR name] = int64
-func (rs *ReleaseChangeSync) getEventsLastTimestamp(namespaces []string) (map[string]map[string]int64, error) {
-	relEventsTime := make(map[string]map[string]int64)
-
-	fmt.Println("\nGETTING CUSTOM RESOURCE EVENTS")
-	for _, ns := range namespaces {
-		eventList, err := rs.getNSEvents(ns)
-		if err != nil {
-			return relEventsTime, err
-		}
-		fhrD := make(map[string]int64)
-		for _, e := range eventList.Items {
-			if e.InvolvedObject.Kind == CustomResourceKind {
-				secs := e.LastTimestamp.Unix()
-				fhrD[e.InvolvedObject.Name] = secs
-
-				//fmt.Printf("<<< existing FHR Events    ns: %s ... fhrName: %s ... %d (%s)\n", ns, e.InvolvedObject.Name, secs, e.LastTimestamp.String())
-				//fmt.Printf("\t<<< map of existing FHR Events    ns: %s \n\n\t%+v\n\n", ns, fhrD)
-			}
-		}
-		relEventsTime[ns] = fhrD
+func (rs *ReleaseChangeSync) shouldUpgrade(currRel *hapi_release.Release, fhr ifv1.FluxHelmRelease) (bool, error) {
+	if currRel == nil {
+		return false, fmt.Errorf("No Chart release provided for %v", fhr.GetName())
 	}
-	return relEventsTime, nil
+
+	currVals := currRel.GetConfig().GetRaw()
+	currChart := currRel.GetChart().String()
+
+	// Get the desired release state
+	opts := chartrelease.InstallOptions{DryRun: true}
+	tempRelName := strings.Join([]string{currRel.GetName(), "temp"}, "-")
+	desRel, err := rs.release.Install(rs.release.Repo.ReleasesSync, tempRelName, fhr, "CREATE", opts)
+	if err != nil {
+		return false, err
+	}
+	desVals := desRel.GetConfig().GetRaw()
+	desChart := desRel.GetChart().String()
+
+	// compare values && Chart
+	if currVals != desVals {
+		rs.logger.Log("error", fmt.Sprintf("Release %s: values have diverged due to manual Chart release", currRel.GetName()))
+		return true, nil
+	}
+	if currChart != desChart {
+		rs.logger.Log("error", fmt.Sprintf("Release %s: Chart has diverged due to manual Chart release", currRel.GetName()))
+		return true, nil
+	}
+
+	return false, nil
 }
 
 // existingReleasesToSync determines which Chart releases need to be deleted/upgraded
 // to bring the cluster to the desired state
-func (rs *ReleaseChangeSync) existingReleasesToSync(
-	currentReleases map[string]map[string]int64,
-	customResources map[string]map[string]ifv1.FluxHelmRelease,
-	events map[string]map[string]int64,
-	relsToSync map[string][]chartRelease) error {
+func (rs *ReleaseChangeSync) addExistingReleasesToSync(
+	relsToSync map[string][]chartRelease,
+	currentReleases map[string]map[string]struct{},
+	customResources map[string]map[string]ifv1.FluxHelmRelease) error {
 
 	var chRels []chartRelease
 	for ns, nsRelsM := range currentReleases {
 		chRels = relsToSync[ns]
-		for relName, relUpdated := range nsRelsM {
+		for relName := range nsRelsM {
+			if customResources[ns] == nil {
+				chr := chartRelease{
+					releaseName:  relName,
+					action:       chartrelease.DeleteAction,
+					desiredState: ifv1.FluxHelmRelease{},
+				}
+				chRels = append(chRels, chr)
+				continue
+			}
 			fhr, ok := customResources[ns][relName]
 			if !ok {
 				chr := chartRelease{
 					releaseName:  relName,
-					action:       deleteAction,
+					action:       chartrelease.DeleteAction,
 					desiredState: fhr,
 				}
 				chRels = append(chRels, chr)
-			} else {
-				fhrUpdated := events[ns][fhr.Name]
-				rs.logger.Log("info", fmt.Sprintf("release last deploy: %d ... FHR last deploy: %d => relUpdated - fhrUpdated: %d secs\n\n", relUpdated, fhrUpdated, relUpdated-fhrUpdated))
 
-				if (relUpdated - fhrUpdated) > releaseLagTime {
+			} else {
+				rel, err := rs.release.GetDeployedRelease(relName)
+				if err != nil {
+					return err
+				}
+				doUpgrade, err := rs.shouldUpgrade(rel, fhr)
+				if err != nil {
+					return err
+				}
+				if doUpgrade {
 					chr := chartRelease{
 						releaseName:  relName,
-						action:       upgradeAction,
+						action:       chartrelease.UpgradeAction,
 						desiredState: fhr,
 					}
 					chRels = append(chRels, chr)
@@ -238,10 +244,10 @@ func (rs *ReleaseChangeSync) existingReleasesToSync(
 
 // deletedReleasesToSync determines which Chart releases need to be installed
 // to bring the cluster to the desired state
-func (rs *ReleaseChangeSync) deletedReleasesToSync(
-	customResources map[string]map[string]ifv1.FluxHelmRelease,
-	currentReleases map[string]map[string]int64,
-	relsToSync map[string][]chartRelease) error {
+func (rs *ReleaseChangeSync) addDeletedReleasesToSync(
+	relsToSync map[string][]chartRelease,
+	currentReleases map[string]map[string]struct{},
+	customResources map[string]map[string]ifv1.FluxHelmRelease) error {
 
 	var chRels []chartRelease
 	for ns, nsFhrs := range customResources {
@@ -250,10 +256,19 @@ func (rs *ReleaseChangeSync) deletedReleasesToSync(
 		for relName, fhr := range nsFhrs {
 			// there are Custom Resources (CRs) in this namespace
 			// missing Chart release even though there is a CR
+			if currentReleases[ns] == nil {
+				chr := chartRelease{
+					releaseName:  relName,
+					action:       chartrelease.InstallAction,
+					desiredState: fhr,
+				}
+				chRels = append(chRels, chr)
+				continue
+			}
 			if _, ok := currentReleases[ns][relName]; !ok {
 				chr := chartRelease{
 					releaseName:  relName,
-					action:       installAction,
+					action:       chartrelease.InstallAction,
 					desiredState: fhr,
 				}
 				chRels = append(chRels, chr)
@@ -266,41 +281,31 @@ func (rs *ReleaseChangeSync) deletedReleasesToSync(
 	return nil
 }
 
-// releasesToSync gathers all releases that need syncing
 func (rs *ReleaseChangeSync) releasesToSync(ctx context.Context) (map[string][]chartRelease, error) {
 	ns, err := chartsync.GetNamespaces(rs.logger, rs.kubeClient)
 	if err != nil {
 		return nil, err
 	}
-	relDepl, err := rs.release.GetCurrentWithDate()
+	relDepl, err := rs.release.GetCurrent()
 	if err != nil {
 		return nil, err
 	}
 	curRels := MappifyDeployInfo(relDepl)
-	//rs.logger.Log("info", fmt.Sprintf("+++ curRels:\n\n%#v\n\n", curRels))
-	//fmt.Sprintf("*** curRels:\n\n%+v\n\n", curRels)
 
 	relCrs, err := rs.getCustomResources(ns)
 	if err != nil {
 		return nil, err
 	}
 	crs := MappifyReleaseFhrInfo(relCrs)
-	//rs.logger.Log("info", fmt.Sprintf("+++ crs:\n\n%#v\n\n", crs))
-	//fmt.Sprintf("*** crs:\n\n%+v\n\n", crs)
-
-	evs, err := rs.getEventsLastTimestamp(ns)
-	if err != nil {
-		return nil, err
-	}
 
 	relsToSync := make(map[string][]chartRelease)
-	rs.deletedReleasesToSync(crs, curRels, relsToSync)
-	rs.existingReleasesToSync(curRels, crs, evs, relsToSync)
+	rs.addDeletedReleasesToSync(relsToSync, curRels, crs)
+	rs.addExistingReleasesToSync(relsToSync, curRels, crs)
 
 	return relsToSync, nil
 }
 
-// sync deletes/upgrades a Chart release
+// sync deletes/upgrades/installs a Chart release
 func (rs *ReleaseChangeSync) sync(ctx context.Context, releases map[string][]chartRelease) error {
 
 	checkout := rs.release.Repo.ReleasesSync
@@ -309,21 +314,21 @@ func (rs *ReleaseChangeSync) sync(ctx context.Context, releases map[string][]cha
 		for _, chr := range relsToProcess {
 			relName := chr.releaseName
 			switch chr.action {
-			case deleteAction:
+			case chartrelease.DeleteAction:
 				rs.logger.Log("info", fmt.Sprintf("Deleting manually installed Chart release %s (namespace %s)", relName, ns))
 				err := rs.release.Delete(relName)
 				if err != nil {
 					return err
 				}
-			case upgradeAction:
+			case chartrelease.UpgradeAction:
 				rs.logger.Log("info", fmt.Sprintf("Resyncing manually upgraded Chart release %s (namespace %s)", relName, ns))
-				_, err := rs.release.Install(checkout, relName, chr.desiredState, chartrelease.ReleaseType("UPDATE"), opts)
+				_, err := rs.release.Install(checkout, relName, chr.desiredState, chartrelease.UpgradeAction, opts)
 				if err != nil {
 					return err
 				}
-			case installAction:
+			case chartrelease.InstallAction:
 				rs.logger.Log("info", fmt.Sprintf("Installing manually deleted Chart release %s (namespace %s)", relName, ns))
-				_, err := rs.release.Install(checkout, relName, chr.desiredState, chartrelease.ReleaseType("CREATE"), opts)
+				_, err := rs.release.Install(checkout, relName, chr.desiredState, chartrelease.InstallAction, opts)
 				if err != nil {
 					return err
 				}

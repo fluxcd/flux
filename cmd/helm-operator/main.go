@@ -117,7 +117,6 @@ func main() {
 		logger = log.With(logger, "ts", log.DefaultTimestampUTC)
 		logger = log.With(logger, "caller", log.DefaultCaller)
 	}
-	// ----------------------------------------------------------------------
 
 	// SHUTDOWN  ----------------------------------------------------------------------------
 	errc := make(chan error)
@@ -137,7 +136,6 @@ func main() {
 		close(shutdown)
 		shutdownWg.Wait()
 	}()
-	// ----------------------------------------------------------------------
 
 	mainLogger := log.With(logger, "component", "helm-operator")
 
@@ -197,7 +195,6 @@ func main() {
 		mainLogger.Log("info", "Set up Helm client")
 		break
 	}
-	//---------------------------------------------------------------------------------------
 
 	// GIT REPO CLONING ---------------------------------------------------------------------
 	mainLogger.Log("info", "Starting to clone repo ...")
@@ -269,7 +266,6 @@ func main() {
 	}
 	mainLogger.Log("info", "Repo cloned")
 
-	//=======================================================================================
 	// CUSTOM RESOURCES CACHING SETUP -------------------------------------------------------
 	//				SharedInformerFactory sets up informer, that maps resource type to a cache shared informer.
 	//				operator attaches event handler to the informer and syncs the informer cache
@@ -279,19 +275,15 @@ func main() {
 
 	rel := release.New(log.With(logger, "component", "release"), helmClient, checkoutFhr, checkoutCh, checkoutR)
 
-	//---------------------------------------------------------------------------------------
-
 	// CHARTS CHANGES SYNC -----------------------------------------------------------------------------
 	chartSync := chartsync.New(log.With(logger, "component", "chartsync"), *chartsSyncInterval, *chartsSyncTimeout, *kubeClient, *ifClient, fhrInformer, rel)
 	chartSync.Run(shutdown, errc, shutdownWg)
-	//---------------------------------------------------------------------------------------
 
 	// MANUAL CHART RELEASES SYNC -----------------------------------------------------------------------------
 	releaseSync := releasesync.New(log.With(logger, "component", "releasesync"), *chartsSyncInterval, *chartsSyncTimeout, *kubeClient, *ifClient, rel)
 	releaseSync.Run(shutdown, errc, shutdownWg)
-	//---------------------------------------------------------------------------------------
 
-	// OPERATOR - CUSTOM RRESOURCES CHANGE SYNC ----------------------------------------------
+	// OPERATOR - CUSTOM RESOURCES CHANGE SYNC ----------------------------------------------
 	opr := operator.New(log.With(logger, "component", "operator"), kubeClient, fhrInformer, rel)
 	// Starts handling k8s events related to the given resource kind
 	go ifInformerFactory.Start(shutdown)
@@ -300,7 +292,6 @@ func main() {
 		logger.Log("error", msg)
 		errc <- fmt.Errorf(ErrOperatorFailure, err)
 	}
-	//=======================================================================================
 }
 
 // Helper functions

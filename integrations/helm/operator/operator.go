@@ -90,9 +90,7 @@ func New(
 	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: controllerAgentName})
 
 	controller := &Controller{
-		logger: logger,
-		// kubeclientset:    kubeclientset,
-		// fhrclientset:     fhrclientset,
+		logger:           logger,
 		fhrLister:        fhrInformer.Lister(),
 		fhrSynced:        fhrInformer.Informer().HasSynced,
 		release:          release,
@@ -102,7 +100,6 @@ func New(
 
 	controller.logger.Log("info", "Setting up event handlers")
 
-	// --------------------------------------------------------------------
 	// ----- EVENT HANDLERS for FluxHelmRelease resources change ---------
 	fhrInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(new interface{}) {
@@ -139,7 +136,6 @@ func (c *Controller) Run(threadiness int, stopCh <-chan struct{}, wg *sync.WaitG
 	// Wait for the caches to be synced before starting workers
 	c.logger.Log("info", "Waiting for informer caches to sync")
 
-	// ORIGINAL implementation
 	if ok := cache.WaitForCacheSync(stopCh, c.fhrSynced); !ok {
 		return errors.New("failed to wait for caches to sync")
 	}
@@ -230,7 +226,6 @@ func (c *Controller) processNextWorkItem() bool {
 
 // syncHandler acts according to the action
 // 		Deletes/creates or updates a Chart release
-//------------------------------------------------------------------------
 func (c *Controller) syncHandler(key string) error {
 	c.logger.Log("debug", fmt.Sprintf("Starting to sync cache key %s", key))
 
@@ -254,7 +249,7 @@ func (c *Controller) syncHandler(key string) error {
 		return err
 	}
 
-	var syncType chartrelease.ReleaseType
+	var syncType chartrelease.Action
 
 	releaseName := chartrelease.GetReleaseName(*fhr)
 	ok, err := c.release.Exists(releaseName)
@@ -263,10 +258,10 @@ func (c *Controller) syncHandler(key string) error {
 			c.logger.Log("error", fmt.Sprintf("Failure to do Chart release [%s]: %#v", releaseName, err))
 			return err
 		}
-		syncType = chartrelease.ReleaseType("UPDATE")
+		syncType = chartrelease.UpgradeAction
 	}
 	if !ok {
-		syncType = chartrelease.ReleaseType("CREATE")
+		syncType = chartrelease.InstallAction
 	}
 
 	// Chart installation of the appropriate type
@@ -327,8 +322,6 @@ func (c *Controller) enqueueUpateJob(old, new interface{}) {
 	oldResVer := oldFhr.ResourceVersion
 	newResVer := newFhr.ResourceVersion
 	if newResVer != oldResVer {
-		fmt.Printf("*** old resource version ... %#v\n", oldResVer)
-		fmt.Printf("*** new resource version ... %#v\n", newResVer)
 		c.logger.Log("info", "UPDATING release")
 		c.enqueueJob(new)
 	}
