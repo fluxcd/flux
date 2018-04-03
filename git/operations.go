@@ -128,7 +128,7 @@ func getNotesRef(ctx context.Context, workingDir, ref string) (string, error) {
 	return strings.TrimSpace(out.String()), nil
 }
 
-func addNote(ctx context.Context, workingDir, rev, notesRef string, note *Note) error {
+func addNote(ctx context.Context, workingDir, rev, notesRef string, note interface{}) error {
 	b, err := json.Marshal(note)
 	if err != nil {
 		return err
@@ -136,20 +136,18 @@ func addNote(ctx context.Context, workingDir, rev, notesRef string, note *Note) 
 	return execGitCmd(ctx, workingDir, nil, "notes", "--ref", notesRef, "add", "-m", string(b), rev)
 }
 
-// NB return values (*Note, nil), (nil, error), (nil, nil)
-func getNote(ctx context.Context, workingDir, notesRef, rev string) (*Note, error) {
+func getNote(ctx context.Context, workingDir, notesRef, rev string, note interface{}) (ok bool, err error) {
 	out := &bytes.Buffer{}
 	if err := execGitCmd(ctx, workingDir, out, "notes", "--ref", notesRef, "show", rev); err != nil {
 		if strings.Contains(strings.ToLower(err.Error()), "no note found for object") {
-			return nil, nil
+			return false, nil
 		}
-		return nil, err
+		return false, err
 	}
-	var note Note
-	if err := json.NewDecoder(out).Decode(&note); err != nil {
-		return nil, err
+	if err := json.NewDecoder(out).Decode(note); err != nil {
+		return false, err
 	}
-	return &note, nil
+	return true, nil
 }
 
 // Get all revisions with a note (NB: DO NOT RELY ON THE ORDERING)

@@ -149,22 +149,19 @@ func (d *Daemon) ListImages(ctx context.Context, spec update.ResourceSpec) ([]v6
 	return res, nil
 }
 
-// Let's use the CommitEventMetadata as a convenient transport for the
-// results of a job; if no commit was made (e.g., if it was a dry
-// run), leave the revision field empty.
-type DaemonJobFunc func(ctx context.Context, jobID job.ID, working *git.Checkout, logger log.Logger) (*event.CommitEventMetadata, error)
+type daemonJobFunc func(ctx context.Context, jobID job.ID, working *git.Checkout, logger log.Logger) (job.Result, error)
 
 // executeJob runs a job func in a cloned working directory, keeping track of its status.
-func (d *Daemon) executeJob(id job.ID, do DaemonJobFunc, logger log.Logger) (*event.CommitEventMetadata, error) {
+func (d *Daemon) executeJob(id job.ID, do daemonJobFunc, logger log.Logger) (job.Result, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultJobTimeout)
 	defer cancel()
 	d.JobStatusCache.SetStatus(id, job.Status{StatusString: job.StatusRunning})
 	// make a working clone so we don't mess with files we
 	// will be reading from elsewhere
-	var metadata *event.CommitEventMetadata
+	var result job.Result
 	err := d.WithClone(ctx, func(working *git.Checkout) error {
 		var err error
-		metadata, err = do(ctx, id, working, logger)
+		result, err = do(ctx, id, working, logger)
 		if err != nil {
 			return err
 		}
@@ -172,14 +169,14 @@ func (d *Daemon) executeJob(id job.ID, do DaemonJobFunc, logger log.Logger) (*ev
 	})
 	if err != nil {
 		d.JobStatusCache.SetStatus(id, job.Status{StatusString: job.StatusFailed, Err: err.Error()})
-		return nil, err
+		return result, err
 	}
-	d.JobStatusCache.SetStatus(id, job.Status{StatusString: job.StatusSucceeded, Result: *metadata})
-	return metadata, nil
+	d.JobStatusCache.SetStatus(id, job.Status{StatusString: job.StatusSucceeded, Result: result})
+	return result, nil
 }
 
 // queueJob queues a job func to be executed.
-func (d *Daemon) queueJob(do DaemonJobFunc) job.ID {
+func (d *Daemon) queueJob(do daemonJobFunc) job.ID {
 	id := job.ID(guid.New())
 	enqueuedAt := time.Now()
 	d.Jobs.Enqueue(&job.Job{
@@ -187,18 +184,25 @@ func (d *Daemon) queueJob(do DaemonJobFunc) job.ID {
 		Do: func(logger log.Logger) error {
 			queueDuration.Observe(time.Since(enqueuedAt).Seconds())
 			started := time.Now().UTC()
-			metadata, err := d.executeJob(id, do, logger)
+			result, err := d.executeJob(id, do, logger)
 			if err != nil {
 				return err
 			}
-			logger.Log("revision", metadata.Revision)
-			if metadata.Revision != "" {
+			logger.Log("revision", result.Revision)
+			if result.Revision != "" {
 				var serviceIDs []flux.ResourceID
-				for id, result := range metadata.Result {
+				for id, result := range result.Result {
 					if result.Status == update.ReleaseStatusSuccess {
 						serviceIDs = append(serviceIDs, id)
 					}
 				}
+
+				metadata := &event.CommitEventMetadata{
+					Revision: result.Revision,
+					Spec:     result.Spec,
+					Result:   result.Result,
+				}
+
 				return d.LogEvent(event.Event{
 					ServiceIDs: serviceIDs,
 					Type:       event.EventCommit,
@@ -237,11 +241,11 @@ func (d *Daemon) UpdateManifests(ctx context.Context, spec update.Spec) (job.ID,
 	}
 }
 
-func (d *Daemon) updatePolicy(spec update.Spec, updates policy.Updates) DaemonJobFunc {
-	return func(ctx context.Context, jobID job.ID, working *git.Checkout, logger log.Logger) (*event.CommitEventMetadata, error) {
+func (d *Daemon) updatePolicy(spec update.Spec, updates policy.Updates) daemonJobFunc {
+	return func(ctx context.Context, jobID job.ID, working *git.Checkout, logger log.Logger) (job.Result, error) {
 		// For each update
 		var serviceIDs []flux.ResourceID
-		metadata := &event.CommitEventMetadata{
+		result := job.Result{
 			Spec:   &spec,
 			Result: update.Result{},
 		}
@@ -259,19 +263,19 @@ func (d *Daemon) updatePolicy(spec update.Spec, updates policy.Updates) DaemonJo
 			err := cluster.UpdateManifest(d.Manifests, working.ManifestDir(), serviceID, func(def []byte) ([]byte, error) {
 				newDef, err := d.Manifests.UpdatePolicies(def, u)
 				if err != nil {
-					metadata.Result[serviceID] = update.ControllerResult{
+					result.Result[serviceID] = update.ControllerResult{
 						Status: update.ReleaseStatusFailed,
 						Error:  err.Error(),
 					}
 					return nil, err
 				}
 				if string(newDef) == string(def) {
-					metadata.Result[serviceID] = update.ControllerResult{
+					result.Result[serviceID] = update.ControllerResult{
 						Status: update.ReleaseStatusSkipped,
 					}
 				} else {
 					serviceIDs = append(serviceIDs, serviceID)
-					metadata.Result[serviceID] = update.ControllerResult{
+					result.Result[serviceID] = update.ControllerResult{
 						Status: update.ReleaseStatusSuccess,
 					}
 				}
@@ -279,18 +283,18 @@ func (d *Daemon) updatePolicy(spec update.Spec, updates policy.Updates) DaemonJo
 			})
 			switch err {
 			case cluster.ErrNoResourceFilesFoundForService, cluster.ErrMultipleResourceFilesFoundForService:
-				metadata.Result[serviceID] = update.ControllerResult{
+				result.Result[serviceID] = update.ControllerResult{
 					Status: update.ReleaseStatusFailed,
 					Error:  err.Error(),
 				}
 			case nil:
 				// continue
 			default:
-				return nil, err
+				return result, err
 			}
 		}
 		if len(serviceIDs) == 0 {
-			return metadata, nil
+			return result, nil
 		}
 
 		commitAuthor := ""
@@ -298,35 +302,38 @@ func (d *Daemon) updatePolicy(spec update.Spec, updates policy.Updates) DaemonJo
 			commitAuthor = spec.Cause.User
 		}
 		commitAction := git.CommitAction{Author: commitAuthor, Message: policyCommitMessage(updates, spec.Cause)}
-		if err := working.CommitAndPush(ctx, commitAction, &git.Note{JobID: jobID, Spec: spec}); err != nil {
+		if err := working.CommitAndPush(ctx, commitAction, &note{JobID: jobID, Spec: spec}); err != nil {
 			// On the chance pushing failed because it was not
 			// possible to fast-forward, ask for a sync so the
 			// next attempt is more likely to succeed.
 			d.AskForSync()
-			return nil, err
+			return result, err
 		}
 		if anythingAutomated {
 			d.AskForImagePoll()
 		}
 
 		var err error
-		metadata.Revision, err = working.HeadRevision(ctx)
+		result.Revision, err = working.HeadRevision(ctx)
 		if err != nil {
-			return nil, err
+			return result, err
 		}
-		return metadata, nil
+		return result, nil
 	}
 }
 
-func (d *Daemon) release(spec update.Spec, c release.Changes) DaemonJobFunc {
-	return func(ctx context.Context, jobID job.ID, working *git.Checkout, logger log.Logger) (*event.CommitEventMetadata, error) {
+func (d *Daemon) release(spec update.Spec, c release.Changes) daemonJobFunc {
+	return func(ctx context.Context, jobID job.ID, working *git.Checkout, logger log.Logger) (job.Result, error) {
 		rc := release.NewReleaseContext(d.Cluster, d.Manifests, d.Registry, working)
 		result, err := release.Release(rc, c, logger)
+
+		var zero job.Result
 		if err != nil {
-			return nil, err
+			return zero, err
 		}
 
 		var revision string
+
 		if c.ReleaseKind() == update.ReleaseKindExecute {
 			commitMsg := spec.Cause.Message
 			if commitMsg == "" {
@@ -337,20 +344,20 @@ func (d *Daemon) release(spec update.Spec, c release.Changes) DaemonJobFunc {
 				commitAuthor = spec.Cause.User
 			}
 			commitAction := git.CommitAction{Author: commitAuthor, Message: commitMsg}
-			if err := working.CommitAndPush(ctx, commitAction, &git.Note{JobID: jobID, Spec: spec, Result: result}); err != nil {
+			if err := working.CommitAndPush(ctx, commitAction, &note{JobID: jobID, Spec: spec, Result: result}); err != nil {
 				// On the chance pushing failed because it was not
 				// possible to fast-forward, ask the repo to fetch
 				// from upstream ASAP, so the next attempt is more
 				// likely to succeed.
 				d.Repo.Notify()
-				return nil, err
+				return zero, err
 			}
 			revision, err = working.HeadRevision(ctx)
 			if err != nil {
-				return nil, err
+				return zero, err
 			}
 		}
-		return &event.CommitEventMetadata{
+		return job.Result{
 			Revision: revision,
 			Spec:     &spec,
 			Result:   result,
@@ -407,14 +414,15 @@ func (d *Daemon) JobStatus(ctx context.Context, jobID job.ID) (job.Status, error
 
 		for _, commit := range commits {
 			if _, ok := notes[commit.Revision]; ok {
-				note, _ := working.GetNote(ctx, commit.Revision)
-				if note != nil && note.JobID == jobID {
+				var n note
+				ok, err := working.GetNote(ctx, commit.Revision, &n)
+				if ok && err == nil && n.JobID == jobID {
 					status = job.Status{
 						StatusString: job.StatusSucceeded,
-						Result: event.CommitEventMetadata{
+						Result: job.Result{
 							Revision: commit.Revision,
-							Spec:     &note.Spec,
-							Result:   note.Result,
+							Spec:     &n.Spec,
+							Result:   n.Result,
 						},
 					}
 					return nil

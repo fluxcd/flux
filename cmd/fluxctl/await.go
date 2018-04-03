@@ -8,8 +8,6 @@ import (
 	"time"
 
 	"github.com/weaveworks/flux/api"
-	"github.com/weaveworks/flux/event"
-	"github.com/weaveworks/flux/git"
 	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/update"
 )
@@ -19,35 +17,35 @@ var ErrTimeout = errors.New("timeout")
 // await polls for a job to complete, then for the resulting commit to
 // be applied
 func await(ctx context.Context, stdout, stderr io.Writer, client api.Server, jobID job.ID, apply bool, verbosity int) error {
-	metadata, err := awaitJob(ctx, client, jobID)
-	if err != nil && err.Error() != git.ErrNoChanges.Error() {
+	result, err := awaitJob(ctx, client, jobID)
+	if err != nil {
 		return err
 	}
-	if metadata.Result != nil {
-		update.PrintResults(stdout, metadata.Result, verbosity)
+	if result.Result != nil {
+		update.PrintResults(stdout, result.Result, verbosity)
 	}
-	if metadata.Revision != "" {
-		fmt.Fprintf(stderr, "Commit pushed:\t%s\n", metadata.ShortRevision())
+	if result.Revision != "" {
+		fmt.Fprintf(stderr, "Commit pushed:\t%s\n", result.Revision[:7])
 	}
-	if metadata.Result == nil {
+	if result.Result == nil {
 		fmt.Fprintf(stderr, "Nothing to do\n")
 		return nil
 	}
 
-	if apply && metadata.Revision != "" {
-		if err := awaitSync(ctx, client, metadata.Revision); err != nil {
+	if apply && result.Revision != "" {
+		if err := awaitSync(ctx, client, result.Revision); err != nil {
 			return err
 		}
 
-		fmt.Fprintf(stderr, "Commit applied:\t%s\n", metadata.ShortRevision())
+		fmt.Fprintf(stderr, "Commit applied:\t%s\n", result.Revision[:7])
 	}
 
 	return nil
 }
 
 // await polls for a job to have been completed, with exponential backoff.
-func awaitJob(ctx context.Context, client api.Server, jobID job.ID) (event.CommitEventMetadata, error) {
-	var result event.CommitEventMetadata
+func awaitJob(ctx context.Context, client api.Server, jobID job.ID) (job.Result, error) {
+	var result job.Result
 	err := backoff(100*time.Millisecond, 2, 50, 1*time.Minute, func() (bool, error) {
 		j, err := client.JobStatus(ctx, jobID)
 		if err != nil {
