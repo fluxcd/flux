@@ -86,6 +86,8 @@ func main() {
 		gitSkipMessage = fs.String("git-ci-skip-message", "", "additional text for commit messages, useful for skipping builds in CI. Use this to supply specific text, or set --git-ci-skip")
 
 		gitPollInterval = fs.Duration("git-poll-interval", 5*time.Minute, "period at which to poll git repo for new commits")
+		// syncing
+		syncInterval = fs.Duration("sync-interval", 5*time.Minute, "apply config in git to cluster at least this often, even if there are no new commits")
 		// registry
 		memcachedHostname    = fs.String("memcached-hostname", "memcached", "Hostname for memcached service.")
 		memcachedTimeout     = fs.Duration("memcached-timeout", time.Second, "Maximum time to wait before giving up on memcached requests.")
@@ -334,7 +336,7 @@ func main() {
 		SkipMessage: *gitSkipMessage,
 	}
 
-	repo := git.NewRepo(gitRemote)
+	repo := git.NewRepo(gitRemote, git.PollInterval(*gitPollInterval))
 	{
 		shutdownWg.Add(1)
 		go func() {
@@ -371,7 +373,7 @@ func main() {
 		JobStatusCache: &job.StatusCache{Size: 100},
 		Logger:         log.With(logger, "component", "daemon"),
 		LoopVars: &daemon.LoopVars{
-			SyncInterval:         *gitPollInterval,
+			SyncInterval:         *syncInterval,
 			RegistryPollInterval: *registryPollInterval,
 		},
 	}
