@@ -73,12 +73,7 @@ func CollectAvailableImages(reg registry.Registry, services []cluster.Controller
 	images := infoMap{}
 	for _, service := range services {
 		for _, container := range service.ContainersOrNil() {
-			id, err := image.ParseRef(container.Image)
-			if err != nil {
-				// container is running an invalid image id? what?
-				return ImageMap{}, err
-			}
-			images[id.CanonicalName()] = nil
+			images[container.Image.CanonicalName()] = nil
 		}
 	}
 	for name := range images {

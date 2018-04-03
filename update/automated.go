@@ -6,8 +6,8 @@ import (
 
 	"github.com/go-kit/kit/log"
 	"github.com/weaveworks/flux"
-	"github.com/weaveworks/flux/cluster"
 	"github.com/weaveworks/flux/image"
+	"github.com/weaveworks/flux/resource"
 )
 
 type Automated struct {
@@ -16,11 +16,11 @@ type Automated struct {
 
 type Change struct {
 	ServiceID flux.ResourceID
-	Container cluster.Container
+	Container resource.Container
 	ImageID   image.Ref
 }
 
-func (a *Automated) Add(service flux.ResourceID, container cluster.Container, image image.Ref) {
+func (a *Automated) Add(service flux.ResourceID, container resource.Container, image image.Ref) {
 	a.Changes = append(a.Changes, Change{service, container, image})
 }
 
@@ -100,11 +100,7 @@ func (a *Automated) calculateImageUpdates(rc ReleaseContext, candidates []*Contr
 		changes := serviceMap[u.ResourceID]
 		containerUpdates := []ContainerUpdate{}
 		for _, container := range containers {
-			currentImageID, err := image.ParseRef(container.Image)
-			if err != nil {
-				return nil, err
-			}
-
+			currentImageID := container.Image
 			for _, change := range changes {
 				if change.Container.Name != container.Name {
 					continue

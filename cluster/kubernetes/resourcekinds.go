@@ -11,6 +11,8 @@ import (
 
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster"
+	"github.com/weaveworks/flux/image"
+	"github.com/weaveworks/flux/resource"
 )
 
 /////////////////////////////////////////////////////////////////////////////
@@ -42,15 +44,22 @@ type podController struct {
 }
 
 func (pc podController) toClusterController(resourceID flux.ResourceID) cluster.Controller {
-	var clusterContainers []cluster.Container
+	var clusterContainers []resource.Container
+	var excuse string
 	for _, container := range pc.podTemplate.Spec.Containers {
-		clusterContainers = append(clusterContainers, cluster.Container{Name: container.Name, Image: container.Image})
+		ref, err := image.ParseRef(container.Image)
+		if err != nil {
+			clusterContainers = nil
+			excuse = err.Error()
+			break
+		}
+		clusterContainers = append(clusterContainers, resource.Container{Name: container.Name, Image: ref})
 	}
 
 	return cluster.Controller{
 		ID:         resourceID,
 		Status:     pc.status,
-		Containers: cluster.ContainersOrExcuse{Containers: clusterContainers},
+		Containers: cluster.ContainersOrExcuse{Containers: clusterContainers, Excuse: excuse},
 	}
 }
 

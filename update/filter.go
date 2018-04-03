@@ -31,9 +31,7 @@ func (f *SpecificImageFilter) Filter(u ControllerUpdate) ControllerResult {
 	}
 	// For each container in update
 	for _, c := range u.Controller.Containers.Containers {
-		cID, _ := image.ParseRef(c.Image)
-		// If container image == image in update
-		if cID.CanonicalName() == f.Img.CanonicalName() {
+		if c.Image.CanonicalName() == f.Img.CanonicalName() {
 			// We want to update this
 			return ControllerResult{}
 		}

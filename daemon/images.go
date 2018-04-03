@@ -9,7 +9,6 @@ import (
 
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/git"
-	"github.com/weaveworks/flux/image"
 	"github.com/weaveworks/flux/policy"
 	"github.com/weaveworks/flux/update"
 )
@@ -46,7 +45,7 @@ func (d *Daemon) pollForNewImages(logger log.Logger) {
 		for _, container := range service.ContainersOrNil() {
 			logger := log.With(logger, "service", service.ID, "container", container.Name, "currentimage", container.Image)
 
-			currentImageID, err := image.ParseRef(container.Image)
+			currentImageID := container.Image
 			if err != nil {
 				logger.Log("error", err)
 				continue

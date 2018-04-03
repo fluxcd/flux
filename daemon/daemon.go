@@ -24,6 +24,7 @@ import (
 	"github.com/weaveworks/flux/policy"
 	"github.com/weaveworks/flux/registry"
 	"github.com/weaveworks/flux/release"
+	"github.com/weaveworks/flux/resource"
 	"github.com/weaveworks/flux/update"
 )
 
@@ -520,14 +521,13 @@ func (d *Daemon) LogEvent(ev event.Event) error {
 
 // vvv helpers vvv
 
-func containers2containers(cs []cluster.Container) []v6.Container {
+func containers2containers(cs []resource.Container) []v6.Container {
 	res := make([]v6.Container, len(cs))
 	for i, c := range cs {
-		id, _ := image.ParseRef(c.Image)
 		res[i] = v6.Container{
 			Name: c.Name,
 			Current: image.Info{
-				ID: id,
+				ID: c.Image,
 			},
 		}
 	}
@@ -536,8 +536,7 @@ func containers2containers(cs []cluster.Container) []v6.Container {
 
 func containersWithAvailable(service cluster.Controller, images update.ImageMap) (res []v6.Container) {
 	for _, c := range service.ContainersOrNil() {
-		im, _ := image.ParseRef(c.Image)
-		available := images.Available(im.Name)
+		available := images.Available(c.Image.Name)
 		availableErr := ""
 		if available == nil {
 			availableErr = registry.ErrNoImageData.Error()
@@ -545,7 +544,7 @@ func containersWithAvailable(service cluster.Controller, images update.ImageMap)
 		res = append(res, v6.Container{
 			Name: c.Name,
 			Current: image.Info{
-				ID: im,
+				ID: c.Image,
 			},
 			Available:      available,
 			AvailableError: availableErr,
