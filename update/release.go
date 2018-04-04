@@ -96,7 +96,7 @@ func (s ReleaseSpec) ReleaseKind() ReleaseKind {
 	return s.Kind
 }
 
-func (s ReleaseSpec) CommitMessage() string {
+func (s ReleaseSpec) CommitMessage(result Result) string {
 	image := strings.Trim(s.ImageSpec.String(), "<>")
 	var services []string
 	for _, spec := range s.ServiceSpecs {

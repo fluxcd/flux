@@ -30,9 +30,12 @@ func (r Result) ServiceIDs() []string {
 	return result
 }
 
-func (r Result) ImageIDs() []string {
+func (r Result) ChangedImages() []string {
 	images := map[image.Ref]struct{}{}
 	for _, serviceResult := range r {
+		if serviceResult.Status != ReleaseStatusSuccess {
+			continue
+		}
 		for _, containerResult := range serviceResult.PerContainer {
 			images[containerResult.Target] = struct{}{}
 		}

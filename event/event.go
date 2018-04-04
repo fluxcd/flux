@@ -91,7 +91,7 @@ func (e Event) String() string {
 	switch e.Type {
 	case EventRelease:
 		metadata := e.Metadata.(*ReleaseEventMetadata)
-		strImageIDs := metadata.Result.ImageIDs()
+		strImageIDs := metadata.Result.ChangedImages()
 		if len(strImageIDs) == 0 {
 			strImageIDs = []string{"no image changes"}
 		}
@@ -121,7 +121,7 @@ func (e Event) String() string {
 		)
 	case EventAutoRelease:
 		metadata := e.Metadata.(*AutoReleaseEventMetadata)
-		strImageIDs := metadata.Result.ImageIDs()
+		strImageIDs := metadata.Result.ChangedImages()
 		if len(strImageIDs) == 0 {
 			strImageIDs = []string{"no image changes"}
 		}

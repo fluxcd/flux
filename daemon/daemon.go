@@ -348,7 +348,7 @@ func (d *Daemon) release(spec update.Spec, c release.Changes) daemonJobFunc {
 		if c.ReleaseKind() == update.ReleaseKindExecute {
 			commitMsg := spec.Cause.Message
 			if commitMsg == "" {
-				commitMsg = c.CommitMessage()
+				commitMsg = c.CommitMessage(result)
 			}
 			commitAuthor := ""
 			if d.GitConfig.SetAuthor {
