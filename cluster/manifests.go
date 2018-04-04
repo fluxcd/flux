@@ -16,6 +16,7 @@ import (
 type Manifests interface {
 	// Given a directory with manifest files, find which files define
 	// which services.
+	// FIXME(michael): remove when redundant
 	FindDefinedServices(path string) (map[flux.ResourceID][]string, error)
 	// Update the definitions in a manifests bytes according to the
 	// spec given.

@@ -18,3 +18,8 @@ type Container struct {
 	Name  string
 	Image image.Ref
 }
+
+type Workload interface {
+	Resource
+	Containers() []Container
+}
