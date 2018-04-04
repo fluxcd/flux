@@ -4,12 +4,10 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
-	"strings"
 	"sync"
 
 	//	"k8s.io/client-go/kubernetes"
 
-	yaml "gopkg.in/yaml.v2"
 	k8shelm "k8s.io/helm/pkg/helm"
 	hapi_release "k8s.io/helm/pkg/proto/hapi/release"
 
@@ -162,11 +160,12 @@ func (r *Release) Install(checkout *helmgit.Checkout, releaseName string, fhr if
 
 	chartDir := filepath.Join(checkout.Dir, checkout.Config.Path, chartPath)
 
-	rawVals, err := collectValues(fhr.Spec.Values)
+	strVals, err := fhr.Spec.Values.YAML()
 	if err != nil {
 		r.logger.Log("error", fmt.Sprintf("Problem with supplied customizations for Chart release [%s]: %#v", releaseName, err))
 		return hapi_release.Release{}, err
 	}
+	rawVals := []byte(strVals)
 
 	// INSTALLATION ----------------------------------------------------------------------
 	switch releaseType {
@@ -257,24 +256,4 @@ func (r *Release) GetAll() ([]*hapi_release.Release, error) {
 	}
 
 	return response.GetReleases(), nil
-}
-
-func collectValues(params []ifv1.HelmChartParam) ([]byte, error) {
-	base := map[string]interface{}{}
-	if params == nil || len(params) == 0 {
-		return yaml.Marshal(base)
-	}
-
-	for _, p := range params {
-		k := strings.TrimSpace(p.Name)
-		k = strings.Trim(k, "\n")
-		if k == "" {
-			continue
-		}
-		v := strings.TrimSpace(p.Value)
-		v = strings.Trim(v, "\n")
-		base[k] = v
-	}
-
-	return yaml.Marshal(base)
 }

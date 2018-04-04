@@ -1,8 +1,11 @@
 package v1alpha
 
 import (
+	"bytes"
+	"encoding/gob"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	//"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/helm/pkg/chartutil"
 )
 
 // +genclient
@@ -20,20 +23,30 @@ type FluxHelmRelease struct {
 // FluxHelmReleaseSpec is the spec for a FluxHelmRelease resource
 // FluxHelmReleaseSpec
 type FluxHelmReleaseSpec struct {
-	ChartGitPath string           `json:"chartGitPath"`
-	ReleaseName  string           `json:"releaseName,omitempty"`
-	Values       []HelmChartParam `json:"values,omitempty"`
+	ChartGitPath string `json:"chartGitPath"`
+	ReleaseName  string `json:"releaseName,omitempty"`
+	Values       Values `json:"values,omitempty"`
 }
 
-// HelmChartParam represents Helm Chart customization
-// 	it will be applied to override the values.yaml and/or the Chart itself
-//		Name  ... parameter name; if missing this parameter will be discarded
-//		Value ...
+// Values embeds chartutil.Values so we can implement deepcopy on map[string]interface{}
+// +k8s:deepcopy-gen=false
+type Values struct {
+	chartutil.Values
+}
 
-// HelmChartParam ... user customization of Chart parameterized values
-type HelmChartParam struct {
-	Name  string `json:"name"`
-	Value string `json:"value"`
+// DeepCopyInto implements deepcopy-gen method for use in generated code
+func (v Values) DeepCopyInto(out *Values) {
+	var buf bytes.Buffer
+	enc := gob.NewEncoder(&buf)
+	dec := gob.NewDecoder(&buf)
+	err := enc.Encode(v)
+	if err != nil {
+		return
+	}
+	err = dec.Decode(&out)
+	if err != nil {
+		return
+	}
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
