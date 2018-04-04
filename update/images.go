@@ -8,10 +8,10 @@ import (
 	"github.com/pkg/errors"
 	glob "github.com/ryanuber/go-glob"
 
-	"github.com/weaveworks/flux/cluster"
 	fluxerr "github.com/weaveworks/flux/errors"
 	"github.com/weaveworks/flux/image"
 	"github.com/weaveworks/flux/registry"
+	"github.com/weaveworks/flux/resource"
 )
 
 type infoMap map[image.CanonicalName][]image.Info
@@ -57,22 +57,34 @@ func (m ImageMap) Available(repo image.Name) []image.Info {
 	return nil
 }
 
+// containers represents a collection of things that have containers
+type containers interface {
+	Len() int
+	Containers(i int) []resource.Container
+}
+
+type controllerContainers []*ControllerUpdate
+
+func (cs controllerContainers) Len() int {
+	return len(cs)
+}
+
+func (cs controllerContainers) Containers(i int) []resource.Container {
+	return cs[i].Controller.ContainersOrNil()
+}
+
 // collectUpdateImages is a convenient shim to
 // `CollectAvailableImages`.
 func collectUpdateImages(registry registry.Registry, updateable []*ControllerUpdate, logger log.Logger) (ImageMap, error) {
-	var servicesToCheck []cluster.Controller
-	for _, update := range updateable {
-		servicesToCheck = append(servicesToCheck, update.Controller)
-	}
-	return CollectAvailableImages(registry, servicesToCheck, logger)
+	return CollectAvailableImages(registry, controllerContainers(updateable), logger)
 }
 
 // CollectAvailableImages finds all the known image metadata for
 // containers in the controllers given.
-func CollectAvailableImages(reg registry.Registry, services []cluster.Controller, logger log.Logger) (ImageMap, error) {
+func CollectAvailableImages(reg registry.Registry, cs containers, logger log.Logger) (ImageMap, error) {
 	images := infoMap{}
-	for _, service := range services {
-		for _, container := range service.ContainersOrNil() {
+	for i := 0; i < cs.Len(); i++ {
+		for _, container := range cs.Containers(i) {
 			images[container.Image.CanonicalName()] = nil
 		}
 	}

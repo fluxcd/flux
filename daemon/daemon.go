@@ -119,6 +119,16 @@ func (d *Daemon) ListServices(ctx context.Context, namespace string) ([]v6.Contr
 	return res, nil
 }
 
+type clusterContainers []cluster.Controller
+
+func (cs clusterContainers) Len() int {
+	return len(cs)
+}
+
+func (cs clusterContainers) Containers(i int) []resource.Container {
+	return cs[i].ContainersOrNil()
+}
+
 // List the images available for set of services
 func (d *Daemon) ListImages(ctx context.Context, spec update.ResourceSpec) ([]v6.ImageStatus, error) {
 	var services []cluster.Controller
@@ -133,7 +143,7 @@ func (d *Daemon) ListImages(ctx context.Context, spec update.ResourceSpec) ([]v6
 		services, err = d.Cluster.SomeControllers([]flux.ResourceID{id})
 	}
 
-	images, err := update.CollectAvailableImages(d.Registry, services, d.Logger)
+	images, err := update.CollectAvailableImages(d.Registry, clusterContainers(services), d.Logger)
 	if err != nil {
 		return nil, errors.Wrap(err, "getting images for services")
 	}
