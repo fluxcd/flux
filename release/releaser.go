@@ -12,7 +12,7 @@ type Changes interface {
 	CalculateRelease(update.ReleaseContext, log.Logger) ([]*update.ControllerUpdate, update.Result, error)
 	ReleaseKind() update.ReleaseKind
 	ReleaseType() update.ReleaseType
-	CommitMessage() string
+	CommitMessage(update.Result) string
 }
 
 func Release(rc *ReleaseContext, changes Changes, logger log.Logger) (results update.Result, err error) {

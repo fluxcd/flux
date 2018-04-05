@@ -3,11 +3,13 @@ package update
 import (
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster"
+	"github.com/weaveworks/flux/resource"
 )
 
 type ControllerUpdate struct {
 	ResourceID    flux.ResourceID
 	Controller    cluster.Controller
+	Resource      resource.Workload
 	ManifestPath  string
 	ManifestBytes []byte
 	Updates       []ContainerUpdate

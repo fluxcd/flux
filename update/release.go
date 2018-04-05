@@ -96,7 +96,7 @@ func (s ReleaseSpec) ReleaseKind() ReleaseKind {
 	return s.Kind
 }
 
-func (s ReleaseSpec) CommitMessage() string {
+func (s ReleaseSpec) CommitMessage(result Result) string {
 	image := strings.Trim(s.ImageSpec.String(), "<>")
 	var services []string
 	for _, spec := range s.ServiceSpecs {
@@ -229,12 +229,7 @@ func (s ReleaseSpec) calculateImageUpdates(rc ReleaseContext, candidates []*Cont
 		var containerUpdates []ContainerUpdate
 
 		for _, container := range containers {
-			currentImageID, err := image.ParseRef(container.Image)
-			if err != nil {
-				// We may hope never to find a malformed image ID, but
-				// anything is possible.
-				return nil, err
-			}
+			currentImageID := container.Image
 
 			latestImage, ok := images.LatestImage(currentImageID.Name, "*")
 			if !ok {

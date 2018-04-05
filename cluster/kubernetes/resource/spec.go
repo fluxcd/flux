@@ -1,5 +1,10 @@
 package resource
 
+import (
+	"github.com/weaveworks/flux/image"
+	"github.com/weaveworks/flux/resource"
+)
+
 // Types that daemonsets, deployments, and other things have in
 // common.
 
@@ -11,6 +16,16 @@ type ObjectMeta struct {
 type PodTemplate struct {
 	Metadata ObjectMeta
 	Spec     PodSpec
+}
+
+func (t PodTemplate) Containers() []resource.Container {
+	var result []resource.Container
+	for _, c := range t.Spec.Containers {
+		// FIXME(michael): account for possible errors here
+		im, _ := image.ParseRef(c.Image)
+		result = append(result, resource.Container{Name: c.Name, Image: im})
+	}
+	return result
 }
 
 type PodSpec struct {

@@ -344,8 +344,15 @@ func TestDaemon_JobStatusWithNoCache(t *testing.T) {
 }
 
 func makeImageInfo(ref string, t time.Time) image.Info {
-	r, _ := image.ParseRef(ref)
-	return image.Info{ID: r, CreatedAt: t}
+	return image.Info{ID: mustParseImageRef(ref), CreatedAt: t}
+}
+
+func mustParseImageRef(ref string) image.Ref {
+	r, err := image.ParseRef(ref)
+	if err != nil {
+		panic(err)
+	}
+	return r
 }
 
 func mockDaemon(t *testing.T) (*Daemon, func(), func(), *cluster.Mock, *mockEventWriter) {
@@ -354,10 +361,10 @@ func mockDaemon(t *testing.T) (*Daemon, func(), func(), *cluster.Mock, *mockEven
 	singleService := cluster.Controller{
 		ID: flux.MustParseResourceID(svc),
 		Containers: cluster.ContainersOrExcuse{
-			Containers: []cluster.Container{
+			Containers: []resource.Container{
 				{
 					Name:  container,
-					Image: currentHelloImage,
+					Image: mustParseImageRef(currentHelloImage),
 				},
 			},
 		},
@@ -367,10 +374,10 @@ func mockDaemon(t *testing.T) (*Daemon, func(), func(), *cluster.Mock, *mockEven
 		cluster.Controller{
 			ID: flux.MakeResourceID("another", "deployment", "service"),
 			Containers: cluster.ContainersOrExcuse{
-				Containers: []cluster.Container{
+				Containers: []resource.Container{
 					{
-						Name:  "it doesn't matter",
-						Image: "another/service:latest",
+						Name:  "it-doesn't-matter",
+						Image: mustParseImageRef("another/service:latest"),
 					},
 				},
 			},

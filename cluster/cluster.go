@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/resource"
 	"github.com/weaveworks/flux/ssh"
 )
 
@@ -37,26 +38,18 @@ type Controller struct {
 	Containers ContainersOrExcuse
 }
 
-// A Container represents a container specification in a pod. The Name
-// identifies it within the pod, and the Image says which image it's
-// configured to run.
-type Container struct {
-	Name  string
-	Image string
-}
-
 // Sometimes we care if we can't find the containers for a service,
 // sometimes we just want the information we can get.
 type ContainersOrExcuse struct {
 	Excuse     string
-	Containers []Container
+	Containers []resource.Container
 }
 
-func (s Controller) ContainersOrNil() []Container {
+func (s Controller) ContainersOrNil() []resource.Container {
 	return s.Containers.Containers
 }
 
-func (s Controller) ContainersOrError() ([]Container, error) {
+func (s Controller) ContainersOrError() ([]resource.Container, error) {
 	var err error
 	if s.Containers.Excuse != "" {
 		err = errors.New(s.Containers.Excuse)

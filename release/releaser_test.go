@@ -15,6 +15,7 @@ import (
 	"github.com/weaveworks/flux/git/gittest"
 	"github.com/weaveworks/flux/image"
 	registryMock "github.com/weaveworks/flux/registry/mock"
+	"github.com/weaveworks/flux/resource"
 	"github.com/weaveworks/flux/update"
 )
 
@@ -32,20 +33,24 @@ var (
 	hwSvc         = cluster.Controller{
 		ID: hwSvcID,
 		Containers: cluster.ContainersOrExcuse{
-			Containers: []cluster.Container{
-				cluster.Container{
+			Containers: []resource.Container{
+				{
 					Name:  helloContainer,
-					Image: oldImage,
+					Image: oldRef,
 				},
-				cluster.Container{
+				{
 					Name:  sidecarContainer,
-					Image: sidecarImage,
+					Image: sidecarRef,
 				},
 			},
 		},
 	}
 
-	oldLockedImg     = "quay.io/weaveworks/locked-service:1"
+	testServiceRef, _ = image.ParseRef("quay.io/weaveworks/test-service:1")
+
+	oldLockedImg    = "quay.io/weaveworks/locked-service:1"
+	oldLockedRef, _ = image.ParseRef(oldLockedImg)
+
 	newLockedImg     = "quay.io/weaveworks/locked-service:2"
 	newLockedID, _   = image.ParseRef(newLockedImg)
 	lockedSvcID, _   = flux.ParseResourceID("default:deployment/locked-service")
@@ -53,10 +58,10 @@ var (
 	lockedSvc        = cluster.Controller{
 		ID: lockedSvcID,
 		Containers: cluster.ContainersOrExcuse{
-			Containers: []cluster.Container{
-				cluster.Container{
+			Containers: []resource.Container{
+				{
 					Name:  "locked-service",
-					Image: oldLockedImg,
+					Image: oldLockedRef,
 				},
 			},
 		},
@@ -65,10 +70,10 @@ var (
 	testSvc = cluster.Controller{
 		ID: flux.MustParseResourceID("default:deployment/test-service"),
 		Containers: cluster.ContainersOrExcuse{
-			Containers: []cluster.Container{
-				cluster.Container{
+			Containers: []resource.Container{
+				{
 					Name:  "test-service",
-					Image: "quay.io/weaveworks/test-service:1",
+					Image: testServiceRef,
 				},
 			},
 		},

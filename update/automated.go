@@ -1,13 +1,13 @@
 package update
 
 import (
+	"bytes"
 	"fmt"
-	"strings"
 
 	"github.com/go-kit/kit/log"
 	"github.com/weaveworks/flux"
-	"github.com/weaveworks/flux/cluster"
 	"github.com/weaveworks/flux/image"
+	"github.com/weaveworks/flux/resource"
 )
 
 type Automated struct {
@@ -16,11 +16,11 @@ type Automated struct {
 
 type Change struct {
 	ServiceID flux.ResourceID
-	Container cluster.Container
+	Container resource.Container
 	ImageID   image.Ref
 }
 
-func (a *Automated) Add(service flux.ResourceID, container cluster.Container, image image.Ref) {
+func (a *Automated) Add(service flux.ResourceID, container resource.Container, image image.Ref) {
 	a.Changes = append(a.Changes, Change{service, container, image})
 }
 
@@ -52,24 +52,24 @@ func (a *Automated) ReleaseKind() ReleaseKind {
 	return ReleaseKindExecute
 }
 
-func (a *Automated) CommitMessage() string {
-	var images []string
-	for _, image := range a.Images() {
-		images = append(images, image.String())
+func (a *Automated) CommitMessage(result Result) string {
+	images := result.ChangedImages()
+	buf := &bytes.Buffer{}
+	prefix := ""
+	switch len(images) {
+	case 0: // FIXME(michael): can we get here?
+		fmt.Fprintln(buf, "Auto-release (no images)")
+	case 1:
+		fmt.Fprint(buf, "Auto-release ")
+	default:
+		fmt.Fprintln(buf, "Auto-release multiple images")
+		fmt.Fprintln(buf)
+		prefix = " - "
 	}
-	return fmt.Sprintf("Release %s to automated", strings.Join(images, ", "))
-}
-
-func (a *Automated) Images() []image.Ref {
-	imageMap := map[image.Ref]struct{}{}
-	for _, change := range a.Changes {
-		imageMap[change.ImageID] = struct{}{}
+	for _, im := range images {
+		fmt.Fprintf(buf, "%s%s\n", prefix, im)
 	}
-	var images []image.Ref
-	for image, _ := range imageMap {
-		images = append(images, image)
-	}
-	return images
+	return buf.String()
 }
 
 func (a *Automated) markSkipped(results Result) {
@@ -88,29 +88,26 @@ func (a *Automated) calculateImageUpdates(rc ReleaseContext, candidates []*Contr
 
 	serviceMap := a.serviceMap()
 	for _, u := range candidates {
-		containers, err := u.Controller.ContainersOrError()
-		if err != nil {
-			result[u.ResourceID] = ControllerResult{
-				Status: ReleaseStatusFailed,
-				Error:  err.Error(),
-			}
-			continue
-		}
-
+		containers := u.Resource.Containers()
 		changes := serviceMap[u.ResourceID]
 		containerUpdates := []ContainerUpdate{}
 		for _, container := range containers {
-			currentImageID, err := image.ParseRef(container.Image)
-			if err != nil {
-				return nil, err
-			}
-
+			currentImageID := container.Image
 			for _, change := range changes {
 				if change.Container.Name != container.Name {
 					continue
 				}
 
+				// It turns out this isn't a change after all; skip this container
+				if change.ImageID.CanonicalRef() == container.Image.CanonicalRef() {
+					continue
+				}
+
+				// We transplant the tag here, to make sure we keep
+				// the format of the image name as it is in the
+				// resource (e.g., to avoid canonicalising it)
 				newImageID := currentImageID.WithNewTag(change.ImageID.Tag)
+				var err error
 				u.ManifestBytes, err = rc.Manifests().UpdateDefinition(u.ManifestBytes, container.Name, newImageID)
 				if err != nil {
 					return nil, err
@@ -133,8 +130,8 @@ func (a *Automated) calculateImageUpdates(rc ReleaseContext, candidates []*Contr
 			}
 		} else {
 			result[u.ResourceID] = ControllerResult{
-				Status: ReleaseStatusIgnored,
-				Error:  DoesNotUseImage,
+				Status: ReleaseStatusSkipped,
+				Error:  ImageUpToDate,
 			}
 		}
 	}
@@ -142,6 +139,7 @@ func (a *Automated) calculateImageUpdates(rc ReleaseContext, candidates []*Contr
 	return updates, nil
 }
 
+// serviceMap transposes the changes so they can be looked up by ID
 func (a *Automated) serviceMap() map[flux.ResourceID][]Change {
 	set := map[flux.ResourceID][]Change{}
 	for _, change := range a.Changes {

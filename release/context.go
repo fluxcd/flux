@@ -4,13 +4,14 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"strings"
+	"path/filepath"
 
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster"
 	"github.com/weaveworks/flux/git"
 	"github.com/weaveworks/flux/policy"
 	"github.com/weaveworks/flux/registry"
+	"github.com/weaveworks/flux/resource"
 	"github.com/weaveworks/flux/update"
 )
 
@@ -63,7 +64,7 @@ func (rc *ReleaseContext) WriteUpdates(updates []*update.ControllerUpdate) error
 func (rc *ReleaseContext) SelectServices(results update.Result, prefilters, postfilters []update.ControllerFilter) ([]*update.ControllerUpdate, error) {
 
 	// Start with all the controllers that are defined in the repo.
-	allDefined, err := rc.FindDefinedServices()
+	allDefined, err := rc.WorkloadsForUpdate()
 	if err != nil {
 		return nil, err
 	}
@@ -118,27 +119,21 @@ func (rc *ReleaseContext) SelectServices(results update.Result, prefilters, post
 	return filteredUpdates, nil
 }
 
-func (rc *ReleaseContext) FindDefinedServices() (map[flux.ResourceID]*update.ControllerUpdate, error) {
-	services, err := rc.manifests.FindDefinedServices(rc.repo.ManifestDir())
+func (rc *ReleaseContext) WorkloadsForUpdate() (map[flux.ResourceID]*update.ControllerUpdate, error) {
+	resources, err := rc.manifests.LoadManifests(rc.repo.Dir(), rc.repo.ManifestDir())
 	if err != nil {
 		return nil, err
 	}
 
 	var defined = map[flux.ResourceID]*update.ControllerUpdate{}
-	for id, paths := range services {
-		switch len(paths) {
-		case 1:
-			def, err := ioutil.ReadFile(paths[0])
-			if err != nil {
-				return nil, err
+	for _, res := range resources {
+		if wl, ok := res.(resource.Workload); ok {
+			defined[res.ResourceID()] = &update.ControllerUpdate{
+				ResourceID:    res.ResourceID(),
+				Resource:      wl,
+				ManifestPath:  filepath.Join(rc.repo.Dir(), res.Source()),
+				ManifestBytes: res.Bytes(),
 			}
-			defined[id] = &update.ControllerUpdate{
-				ResourceID:    id,
-				ManifestPath:  paths[0],
-				ManifestBytes: def,
-			}
-		default:
-			return nil, fmt.Errorf("multiple resource files found for service %s: %s", id, strings.Join(paths, ", "))
 		}
 	}
 	return defined, nil
