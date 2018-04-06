@@ -4,10 +4,7 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
-	"strings"
 	"sync"
-
-	//	"k8s.io/client-go/kubernetes"
 
 	yaml "gopkg.in/yaml.v2"
 	k8shelm "k8s.io/helm/pkg/helm"
@@ -77,7 +74,6 @@ func (r *Release) Exists(name string) (bool, error) {
 	r.Unlock()
 
 	if err != nil {
-		//r.logger.Log("debug", fmt.Sprintf("Getting release (%s): %v", name, err))
 		return false, err
 	}
 	/*
@@ -162,7 +158,13 @@ func (r *Release) Install(checkout *helmgit.Checkout, releaseName string, fhr if
 
 	chartDir := filepath.Join(checkout.Dir, checkout.Config.Path, chartPath)
 
-	rawVals, err := collectValues(fhr.Spec.Values)
+	rv, err := collectValues(r.logger, fhr.Spec.Values)
+	if err != nil {
+		r.logger.Log("error", fmt.Sprintf("Problem with supplied customizations for Chart release [%s]: %#v", releaseName, err))
+		return hapi_release.Release{}, err
+	}
+
+	rawVals, err := yaml.Marshal(rv)
 	if err != nil {
 		r.logger.Log("error", fmt.Sprintf("Problem with supplied customizations for Chart release [%s]: %#v", releaseName, err))
 		return hapi_release.Release{}, err
@@ -250,31 +252,11 @@ func (r *Release) GetAll() ([]*hapi_release.Release, error) {
 	if err != nil {
 		return nil, r.logger.Log("error", err)
 	}
-	fmt.Printf("Number of helm releases is %d\n", response.GetCount())
 
-	for i, r := range response.GetReleases() {
-		fmt.Printf("\t==> %d : %#v\n\n\t\t\tin namespace %#v\n\n\t\tChartMetadata: %v\n\n\n", i, r.Name, r.Namespace, r.GetChart().GetMetadata())
+	r.logger.Log("info", fmt.Sprintf("Number of helm releases is %d", response.GetCount()))
+	for i, rls := range response.GetReleases() {
+		r.logger.Log("info", fmt.Sprintf("%d : %#v\n\n\t\t\tin namespace %#v\n\n\t\tChartMetadata: %v", i, rls.Name, rls.Namespace, rls.GetChart().GetMetadata()))
 	}
 
 	return response.GetReleases(), nil
-}
-
-func collectValues(params []ifv1.HelmChartParam) ([]byte, error) {
-	base := map[string]interface{}{}
-	if params == nil || len(params) == 0 {
-		return yaml.Marshal(base)
-	}
-
-	for _, p := range params {
-		k := strings.TrimSpace(p.Name)
-		k = strings.Trim(k, "\n")
-		if k == "" {
-			continue
-		}
-		v := strings.TrimSpace(p.Value)
-		v = strings.Trim(v, "\n")
-		base[k] = v
-	}
-
-	return yaml.Marshal(base)
 }
