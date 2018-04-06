@@ -9,29 +9,22 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"sync"
-	"time"
 
 	protobuf "github.com/golang/protobuf/ptypes/timestamp"
-	"github.com/weaveworks/flux/integrations/helm/chartsync"
-	"github.com/weaveworks/flux/integrations/helm/release"
-	"k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/runtime"
-	"k8s.io/client-go/kubernetes"
 	hapi_release "k8s.io/helm/pkg/proto/hapi/release"
 
 	"github.com/go-kit/kit/log"
 
 	ifv1 "github.com/weaveworks/flux/apis/helm.integrations.flux.weave.works/v1alpha"
 	ifclientset "github.com/weaveworks/flux/integrations/client/clientset/versioned"
+	"github.com/weaveworks/flux/integrations/helm/customresource"
 	helmgit "github.com/weaveworks/flux/integrations/helm/git"
 	chartrelease "github.com/weaveworks/flux/integrations/helm/release"
 )
 
 const (
 	CustomResourceKind = "FluxHelmRelease"
-	syncDelay          = 60
+	syncDelay          = 90
 )
 
 type ReleaseFhr struct {
@@ -41,24 +34,17 @@ type ReleaseFhr struct {
 }
 
 type ReleaseChangeSync struct {
-	logger log.Logger
-	chartsync.Polling
-	kubeClient kubernetes.Clientset
-	ifClient   ifclientset.Clientset
-	release    *chartrelease.Release
+	logger  log.Logger
+	release *chartrelease.Release
 }
 
 func New(
-	logger log.Logger, syncInterval time.Duration, syncTimeout time.Duration,
-	kubeClient kubernetes.Clientset, ifClient ifclientset.Clientset,
+	logger log.Logger,
 	release *chartrelease.Release) *ReleaseChangeSync {
 
 	return &ReleaseChangeSync{
-		logger:     logger,
-		Polling:    chartsync.Polling{Interval: syncInterval, Timeout: syncTimeout},
-		kubeClient: kubeClient,
-		ifClient:   ifClient,
-		release:    release,
+		logger:  logger,
+		release: release,
 	}
 }
 
@@ -74,79 +60,53 @@ type chartRelease struct {
 	desiredState ifv1.FluxHelmRelease
 }
 
-// Run creates a syncing loop monitoring repo chart changes
-func (rs *ReleaseChangeSync) Run(stopCh <-chan struct{}, errc chan error, wg *sync.WaitGroup) {
-	rs.logger.Log("info", "Starting repo charts sync loop")
+// DoReleaseChangeSync returns the cluster to the state dictated by Custom Resources
+// after manual Chart release(s)
+func (rs *ReleaseChangeSync) DoReleaseChangeSync(ifClient ifclientset.Clientset, ns []string) (bool, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), helmgit.DefaultCloneTimeout)
+	relsToSync, err := rs.releasesToSync(ctx, ifClient, ns)
+	cancel()
+	if err != nil {
+		err := fmt.Errorf("Failure to get info about manual chart release changes: %#v", err)
+		return false, err
+	}
+	if len(relsToSync) == 0 {
+		return false, nil
+	}
+	// sync Chart releases
+	ctx, cancel = context.WithTimeout(context.Background(), helmgit.DefaultPullTimeout)
+	err = rs.release.Repo.ChartSync.Pull(ctx)
+	cancel()
+	if err != nil {
+		return false, fmt.Errorf("Failure while pulling repo: %#v", err)
+	}
 
-	wg.Add(1)
-	go func() {
-		defer runtime.HandleCrash()
-		defer wg.Done()
-		defer rs.release.Repo.ReleasesSync.Cleanup()
+	ctx, cancel = context.WithTimeout(context.Background(), helmgit.DefaultCloneTimeout)
+	err = rs.sync(ctx, relsToSync)
+	cancel()
+	if err != nil {
+		err := fmt.Errorf("Failure to sync cluster after manual chart release changes: %#v", err)
+		return false, err
+	}
 
-		time.Sleep(syncDelay * time.Second)
-
-		ticker := time.NewTicker(rs.Polling.Interval)
-		defer ticker.Stop()
-
-		for {
-			select {
-			case <-ticker.C:
-				rs.logger.Log("info", fmt.Sprint("Start of releasesync"))
-				ctx, cancel := context.WithTimeout(context.Background(), helmgit.DefaultCloneTimeout)
-				relsToSync, err := rs.releasesToSync(ctx)
-				cancel()
-				if err != nil {
-					rs.logger.Log("error", fmt.Sprintf("Failure to get info about manual chart release changes: %#v", err))
-					rs.logger.Log("info", fmt.Sprint("End of releasesync"))
-					continue
-				}
-
-				if len(relsToSync) == 0 {
-					rs.logger.Log("info", fmt.Sprint("No manual changes of Chart releases"))
-					rs.logger.Log("info", fmt.Sprint("End of releasesync"))
-					continue
-				}
-
-				// sync Chart releases
-				ctx, cancel = context.WithTimeout(context.Background(), helmgit.DefaultCloneTimeout)
-				err = rs.sync(ctx, relsToSync)
-				cancel()
-				if err != nil {
-					rs.logger.Log("error", fmt.Sprintf("Failure to sync cluster after manual chart release changes: %#v", err))
-				}
-				rs.logger.Log("info", fmt.Sprint("End of releasesync"))
-			case <-stopCh:
-				rs.logger.Log("stopping", "true")
-				break
-			}
-		}
-	}()
-}
-
-func (rs *ReleaseChangeSync) getNSCustomResources(ns string) (*ifv1.FluxHelmReleaseList, error) {
-	return rs.ifClient.HelmV1alpha().FluxHelmReleases(ns).List(metav1.ListOptions{})
-}
-
-func (rs *ReleaseChangeSync) getNSEvents(ns string) (*v1.EventList, error) {
-	return rs.kubeClient.CoreV1().Events(ns).List(metav1.ListOptions{})
+	return true, nil
 }
 
 // getCustomResources retrieves FluxHelmRelease resources
 //		and outputs them organised by namespace and: Chart release name or Custom Resource name
 //						map[namespace] = []ReleaseFhr
-func (rs *ReleaseChangeSync) getCustomResources(namespaces []string) (map[string][]ReleaseFhr, error) {
+func (rs *ReleaseChangeSync) getCustomResources(ifClient ifclientset.Clientset, namespaces []string) (map[string][]ReleaseFhr, error) {
 	relInfo := make(map[string][]ReleaseFhr)
 
 	for _, ns := range namespaces {
-		list, err := rs.getNSCustomResources(ns)
+		list, err := customresource.GetNSCustomResources(ifClient, ns)
 		if err != nil {
 			rs.logger.Log("error", fmt.Errorf("Failure while retrieving FluxHelmReleases in namespace %s: %v", ns, err))
 			return nil, err
 		}
 		rf := []ReleaseFhr{}
 		for _, fhr := range list.Items {
-			relName := release.GetReleaseName(fhr)
+			relName := chartrelease.GetReleaseName(fhr)
 			rf = append(rf, ReleaseFhr{RelName: relName, Fhr: fhr})
 		}
 		if len(rf) > 0 {
@@ -167,7 +127,7 @@ func (rs *ReleaseChangeSync) shouldUpgrade(currRel *hapi_release.Release, fhr if
 	// Get the desired release state
 	opts := chartrelease.InstallOptions{DryRun: true}
 	tempRelName := strings.Join([]string{currRel.GetName(), "temp"}, "-")
-	desRel, err := rs.release.Install(rs.release.Repo.ReleasesSync, tempRelName, fhr, "CREATE", opts)
+	desRel, err := rs.release.Install(rs.release.Repo.ChartSync, tempRelName, fhr, "CREATE", opts)
 	if err != nil {
 		return false, err
 	}
@@ -281,18 +241,14 @@ func (rs *ReleaseChangeSync) addDeletedReleasesToSync(
 	return nil
 }
 
-func (rs *ReleaseChangeSync) releasesToSync(ctx context.Context) (map[string][]chartRelease, error) {
-	ns, err := chartsync.GetNamespaces(rs.logger, rs.kubeClient)
-	if err != nil {
-		return nil, err
-	}
+func (rs *ReleaseChangeSync) releasesToSync(ctx context.Context, ifClient ifclientset.Clientset, ns []string) (map[string][]chartRelease, error) {
 	relDepl, err := rs.release.GetCurrent()
 	if err != nil {
 		return nil, err
 	}
 	curRels := MappifyDeployInfo(relDepl)
 
-	relCrs, err := rs.getCustomResources(ns)
+	relCrs, err := rs.getCustomResources(ifClient, ns)
 	if err != nil {
 		return nil, err
 	}
@@ -305,10 +261,9 @@ func (rs *ReleaseChangeSync) releasesToSync(ctx context.Context) (map[string][]c
 	return relsToSync, nil
 }
 
-// sync deletes/upgrades/installs a Chart release
 func (rs *ReleaseChangeSync) sync(ctx context.Context, releases map[string][]chartRelease) error {
 
-	checkout := rs.release.Repo.ReleasesSync
+	checkout := rs.release.Repo.ChartSync
 	opts := chartrelease.InstallOptions{DryRun: false}
 	for ns, relsToProcess := range releases {
 		for _, chr := range relsToProcess {

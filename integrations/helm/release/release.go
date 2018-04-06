@@ -1,7 +1,6 @@
 package release
 
 import (
-	"context"
 	"fmt"
 	"path/filepath"
 	"sync"
@@ -37,9 +36,8 @@ type Release struct {
 }
 
 type repo struct {
-	ConfigSync   *helmgit.Checkout
-	ChartsSync   *helmgit.Checkout
-	ReleasesSync *helmgit.Checkout
+	ConfigSync *helmgit.Checkout
+	ChartSync  *helmgit.Checkout
 }
 
 type DeployInfo struct {
@@ -52,11 +50,10 @@ type InstallOptions struct {
 }
 
 // New creates a new Release instance
-func New(logger log.Logger, helmClient *k8shelm.Client, configCheckout *helmgit.Checkout, chartsSync *helmgit.Checkout, releasesSync *helmgit.Checkout) *Release {
+func New(logger log.Logger, helmClient *k8shelm.Client, configCheckout *helmgit.Checkout, chartsCheckout *helmgit.Checkout) *Release {
 	repo := repo{
-		ConfigSync:   configCheckout,
-		ChartsSync:   chartsSync,
-		ReleasesSync: releasesSync,
+		ConfigSync: configCheckout,
+		ChartSync:  chartsCheckout,
 	}
 	r := &Release{
 		logger:     logger,
@@ -173,15 +170,6 @@ func (r *Release) Install(checkout *helmgit.Checkout, releaseName string, fhr if
 		namespace = "default"
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), helmgit.DefaultCloneTimeout)
-	err := checkout.Pull(ctx)
-	cancel()
-	if err != nil {
-		errm := fmt.Errorf("Failure to do git pull: %#v", err)
-		r.logger.Log("error", errm.Error())
-		return hapi_release.Release{}, errm
-	}
-
 	chartDir := filepath.Join(checkout.Dir, checkout.Config.Path, chartPath)
 
 	strVals, err := fhr.Spec.Values.YAML()
@@ -268,7 +256,6 @@ func (r *Release) Delete(name string) error {
 }
 
 // GetCurrentWithDate provides Chart releases (stored in tiller ConfigMaps)
-// (Tamara: The method is not currently used. I am leaving it here as it will come handy for display on the UI)
 //		output:
 //						map[namespace][release name] = nil
 func (r *Release) GetCurrent() (map[string][]DeployInfo, error) {

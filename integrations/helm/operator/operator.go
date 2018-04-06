@@ -1,6 +1,7 @@
 package operator
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"sync"
@@ -24,6 +25,7 @@ import (
 	ifscheme "github.com/weaveworks/flux/integrations/client/clientset/versioned/scheme"
 	fhrv1 "github.com/weaveworks/flux/integrations/client/informers/externalversions/helm.integrations.flux.weave.works/v1alpha"
 	iflister "github.com/weaveworks/flux/integrations/client/listers/helm.integrations.flux.weave.works/v1alpha" // kubernetes 1.9
+	helmgit "github.com/weaveworks/flux/integrations/helm/git"
 	chartrelease "github.com/weaveworks/flux/integrations/helm/release"
 )
 
@@ -103,7 +105,7 @@ func New(
 	// ----- EVENT HANDLERS for FluxHelmRelease resources change ---------
 	fhrInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(new interface{}) {
-			controller.logger.Log("info", "ADDING release")
+			controller.logger.Log("info", "Custom Resource driven release install")
 			_, ok := checkCustomResourceType(controller.logger, new)
 			if ok {
 				controller.enqueueJob(new)
@@ -265,6 +267,13 @@ func (c *Controller) syncHandler(key string) error {
 	}
 
 	// Chart installation of the appropriate type
+	ctx, cancel := context.WithTimeout(context.Background(), helmgit.DefaultCloneTimeout)
+	err = c.release.Repo.ConfigSync.Pull(ctx)
+	cancel()
+	if err != nil {
+		return fmt.Errorf("Failure to do git pull: %s", err.Error())
+	}
+
 	opts := chartrelease.InstallOptions{DryRun: false}
 	_, err = c.release.Install(c.release.Repo.ConfigSync, releaseName, *fhr, syncType, opts)
 	if err != nil {
@@ -322,13 +331,14 @@ func (c *Controller) enqueueUpateJob(old, new interface{}) {
 	oldResVer := oldFhr.ResourceVersion
 	newResVer := newFhr.ResourceVersion
 	if newResVer != oldResVer {
-		c.logger.Log("info", "UPDATING release")
+		c.logger.Log("info", "Custom Resource driven release upgrade")
 		c.enqueueJob(new)
 	}
 }
 
 func (c *Controller) deleteRelease(fhr ifv1.FluxHelmRelease) {
 	c.logger.Log("info", "DELETING release")
+	c.logger.Log("info", "Custom Resource driven release deletion")
 	name := chartrelease.GetReleaseName(fhr)
 	err := c.release.Delete(name)
 	if err != nil {
