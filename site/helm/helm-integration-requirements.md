@@ -49,10 +49,14 @@ menu_order: 20
   - if a release already exists and Flux should start managing it, then releasename must be provided
   - if releasename is not provided, Flux will construct a release name based on the namespace and the Custom Resource name (ie $namespace-$CR_name)
 
+```
   - values:
-    key1: value
-    key2: value
+      foo: value1
+      bar:
+        baz: value2
+```
 
-  a list of name and value couples for overriding Chart parameters. Examples of parameter names:
+  a dictionary of key value pairs (which can be nested) for overriding Chart parameters. Examples of parameter names:
+
   - image
-  - resources.requests.memory
+  - resources -> requests -> memory (nested)

@@ -45,6 +45,9 @@ Flux-Helm Integration implementation consists of two parts:
     releaseName: mongo-database
     values:
       image: bitnami/mongodb:3.7.1-r1
+      resources:
+        requests:
+          memory: 1024m
  ```
 
   - name of the resource must be unique across all namespaces
