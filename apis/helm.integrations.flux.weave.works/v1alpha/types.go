@@ -1,9 +1,7 @@
 package v1alpha
 
 import (
-	"bytes"
-	"encoding/gob"
-
+	"github.com/ghodss/yaml"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/helm/pkg/chartutil"
 )
@@ -35,18 +33,21 @@ type FluxHelmValues struct {
 }
 
 // DeepCopyInto implements deepcopy-gen method for use in generated code
-func (v FluxHelmValues) DeepCopyInto(out *FluxHelmValues) {
-	var buf bytes.Buffer
-	enc := gob.NewEncoder(&buf)
-	dec := gob.NewDecoder(&buf)
-	err := enc.Encode(v)
+func (in *FluxHelmValues) DeepCopyInto(out *FluxHelmValues) {
+	if in == nil {
+		return
+	}
+
+	b, err := yaml.Marshal(in.Values)
 	if err != nil {
 		return
 	}
-	err = dec.Decode(&out)
+	var values chartutil.Values
+	err = yaml.Unmarshal(b, &values)
 	if err != nil {
 		return
 	}
+	out.Values = values
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
