@@ -54,6 +54,9 @@ menu_order: 20
       foo: value1
       bar:
         baz: value2
+      oof:
+        - item1
+        - item2
 ```
 
   a dictionary of key value pairs (which can be nested) for overriding Chart parameters. Examples of parameter names:
