@@ -21,15 +21,15 @@ type FluxHelmRelease struct {
 // FluxHelmReleaseSpec is the spec for a FluxHelmRelease resource
 // FluxHelmReleaseSpec
 type FluxHelmReleaseSpec struct {
-	ChartGitPath string         `json:"chartGitPath"`
-	ReleaseName  string         `json:"releaseName,omitempty"`
-	Values       FluxHelmValues `json:"values,omitempty"`
+	ChartGitPath   string `json:"chartGitPath"`
+	ReleaseName    string `json:"releaseName,omitempty"`
+	FluxHelmValues `json:",inline"`
 }
 
 // FluxHelmValues embeds chartutil.Values so we can implement deepcopy on map[string]interface{}
 // +k8s:deepcopy-gen=false
 type FluxHelmValues struct {
-	chartutil.Values
+	chartutil.Values `json:"values,omitempty"`
 }
 
 // DeepCopyInto implements deepcopy-gen method for use in generated code
