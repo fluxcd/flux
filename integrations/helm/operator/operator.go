@@ -105,6 +105,7 @@ func New(
 	// ----- EVENT HANDLERS for FluxHelmRelease resources change ---------
 	fhrInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(new interface{}) {
+			controller.logger.Log("info", "CREATING release")
 			controller.logger.Log("info", "Custom Resource driven release install")
 			_, ok := checkCustomResourceType(controller.logger, new)
 			if ok {
@@ -331,6 +332,7 @@ func (c *Controller) enqueueUpateJob(old, new interface{}) {
 	oldResVer := oldFhr.ResourceVersion
 	newResVer := newFhr.ResourceVersion
 	if newResVer != oldResVer {
+		c.logger.Log("info", "UPGRADING release")
 		c.logger.Log("info", "Custom Resource driven release upgrade")
 		c.enqueueJob(new)
 	}

@@ -69,14 +69,29 @@ func NewGitRemoteConfig(url, branch, path string) (GitRemoteConfig, error) {
 	}, nil
 }
 
-// NewCheckout ... creates a Checkout instance
-//		populates also private fields relating to ssh authentication
-func NewCheckout(logger log.Logger, config GitRemoteConfig, auth *gitssh.PublicKeys) *Checkout {
-	return &Checkout{
+// SetupRepo creates a new checkout and clones repo until ready
+func RepoSetup(logger log.Logger, auth *gitssh.PublicKeys, config GitRemoteConfig, cloneSubdir string) *Checkout {
+	checkout := &Checkout{
 		Logger: logger,
 		Config: config,
 		auth:   auth,
 	}
+	// If cloning not immediately possible, we wait until it is -----------------------------
+	var err error
+	for {
+		logger.Log("info", "Cloning repo ...")
+		ctx, cancel := context.WithTimeout(context.Background(), DefaultCloneTimeout)
+		err = checkout.Clone(ctx, cloneSubdir)
+		cancel()
+		if err == nil {
+			break
+		}
+		logger.Log("error", fmt.Sprintf("Failed to clone git repo [%s, %s, %s]: %v", config.URL, config.Path, config.Branch, err))
+		time.Sleep(10 * time.Second)
+	}
+	logger.Log("info", "Repo cloned")
+
+	return checkout
 }
 
 // Clone creates a local clone of a remote repo and
