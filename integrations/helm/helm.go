@@ -2,6 +2,7 @@ package helm
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/go-kit/kit/log"
 	"github.com/weaveworks/flux/integrations/helm/release"
@@ -26,13 +27,29 @@ type Helm struct {
 }
 
 // NewClient creates a new helm client
-func NewClient(kubeClient *kubernetes.Clientset, opts TillerOptions) (*k8shelm.Client, error) {
+func newClient(kubeClient *kubernetes.Clientset, opts TillerOptions) (*k8shelm.Client, error) {
 	host, err := tillerHost(kubeClient, opts)
 	if err != nil {
 		return &k8shelm.Client{}, err
 	}
 
 	return k8shelm.NewClient(k8shelm.Host(host)), nil
+}
+
+func ClientSetup(logger log.Logger, kubeClient *kubernetes.Clientset, tillerOpts TillerOptions) *k8shelm.Client {
+	var helmClient *k8shelm.Client
+	var err error
+	for {
+		helmClient, err = newClient(kubeClient, tillerOpts)
+		if err != nil {
+			logger.Log("error", fmt.Sprintf("Error creating helm client: %v", err))
+			time.Sleep(20 * time.Second)
+			continue
+		}
+		logger.Log("info", "Helm client set up")
+		break
+	}
+	return helmClient
 }
 
 // GetTillerVersion retrieves tiller version

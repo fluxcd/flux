@@ -122,7 +122,7 @@ func New(
 			}
 		},
 	})
-	controller.logger.Log("info", "Event handlers are set up")
+	controller.logger.Log("info", "Event handlers set up")
 
 	return controller
 }

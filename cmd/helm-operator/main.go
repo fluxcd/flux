@@ -25,8 +25,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 
-	k8shelm "k8s.io/helm/pkg/helm"
-
 	gitssh "gopkg.in/src-d/go-git.v4/plumbing/transport/ssh"
 )
 
@@ -151,7 +149,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	// CUSTOM RESOURCES ----------------------------------------------------------------------
+	// CUSTOM RESOURCES CLIENT --------------------------------------------------------------
 	ifClient, err := clientset.NewForConfig(cfg)
 	if err != nil {
 		mainLogger.Log("error", fmt.Sprintf("Error building integrations clientset: %v", err))
@@ -160,17 +158,7 @@ func main() {
 	}
 
 	// HELM ---------------------------------------------------------------------------------
-	var helmClient *k8shelm.Client
-	for {
-		helmClient, err = fluxhelm.NewClient(kubeClient, fluxhelm.TillerOptions{IP: *tillerIP, Port: *tillerPort, Namespace: *tillerNamespace})
-		if err != nil {
-			mainLogger.Log("error", fmt.Sprintf("Error creating helm client: %v", err))
-			time.Sleep(20 * time.Second)
-			continue
-		}
-		mainLogger.Log("info", "Set up Helm client")
-		break
-	}
+	helmClient := fluxhelm.ClientSetup(log.With(logger, "component", "helm"), kubeClient, fluxhelm.TillerOptions{IP: *tillerIP, Port: *tillerPort, Namespace: *tillerNamespace})
 
 	// GIT REPO SETUP ---------------------------------------------------------------------
 	var gitAuth *gitssh.PublicKeys
@@ -205,7 +193,7 @@ func main() {
 	defer checkoutCh.Cleanup()
 	mainLogger.Log("info", "Repo for chartsync cloned")
 
-	// release instance needed during the sync of Charts changes and during syncing of FluxHelRelease changes
+	// release instance is needed during the sync of Charts changes and during the sync of FluxHelRelease changes
 	rel := release.New(log.With(logger, "component", "release"), helmClient, checkoutFhr, checkoutCh)
 	relsync := releasesync.New(log.With(logger, "component", "releasesync"), rel)
 

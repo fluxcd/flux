@@ -79,7 +79,6 @@ func RepoSetup(logger log.Logger, auth *gitssh.PublicKeys, config GitRemoteConfi
 	// If cloning not immediately possible, we wait until it is -----------------------------
 	var err error
 	for {
-		logger.Log("info", "Cloning repo ...")
 		ctx, cancel := context.WithTimeout(context.Background(), DefaultCloneTimeout)
 		err = checkout.Clone(ctx, cloneSubdir)
 		cancel()
@@ -89,7 +88,6 @@ func RepoSetup(logger log.Logger, auth *gitssh.PublicKeys, config GitRemoteConfi
 		logger.Log("error", fmt.Sprintf("Failed to clone git repo [%s, %s, %s]: %v", config.URL, config.Path, config.Branch, err))
 		time.Sleep(10 * time.Second)
 	}
-	logger.Log("info", "Repo cloned")
 
 	return checkout
 }
