@@ -25,8 +25,8 @@ Flux-Helm Integration implementation consists of two parts:
  - Kubernetes Custom Resource (CR) manifests contain all the information needed to do a Chart release. There is 1-2-1 releationship between a Helm Chart and a Custom Resource.
 
  - Custom resource manifests can be provided several/all in one file, or in individual files.
- 
- - Flux works, at the moment, with one git repo. For Helm integration this repo will initially contain both the desired Chart release information (CR manifests) and Chart directories for each application/service. 
+
+ - Flux works, at the moment, with one git repo. For Helm integration this repo will initially contain both the desired Chart release information (CR manifests) and Chart directories for each application/service.
 
  - All Chart release configuration is located under one git path. All Chart directories are located under one git path. The git paths must be subdirectories under the repo root.
 
@@ -44,8 +44,10 @@ Flux-Helm Integration implementation consists of two parts:
     chartGitPath: mongodb
     releaseName: mongo-database
     values:
-      - name: image
-        value: bitnami/mongodb:3.7.1-r1
+      image: bitnami/mongodb:3.7.1-r1
+      resources:
+        requests:
+          memory: 1024m
  ```
 
   - name of the resource must be unique across all namespaces
