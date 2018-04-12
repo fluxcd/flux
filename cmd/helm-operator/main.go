@@ -182,19 +182,13 @@ func main() {
 	gitLogger := log.With(logger, "component", "git")
 
 	// 		Chart releases sync due to Custom Resources changes -------------------------------
-	mainLogger.Log("info", "Starting to clone repo for fhrs changes ...")
-	checkoutFhr := git.RepoSetup(gitLogger, gitAuth, gitRemoteConfig, git.FhrsChangesClone)
-	defer checkoutFhr.Cleanup()
-	mainLogger.Log("info", "Repo for fhrs changes cloned")
-
-	// 		Chart releases sync due to Custom Resources changes -------------------------------
-	mainLogger.Log("info", "Starting to clone repo for chartsync ...")
-	checkoutCh := git.RepoSetup(gitLogger, gitAuth, gitRemoteConfig, git.ChartsChangesClone)
-	defer checkoutCh.Cleanup()
-	mainLogger.Log("info", "Repo for chartsync cloned")
+	mainLogger.Log("info", "Starting to clone repo ...")
+	checkout := git.RepoSetup(gitLogger, gitAuth, gitRemoteConfig, git.ChangesClone)
+	defer checkout.Cleanup()
+	mainLogger.Log("info", "Repo cloned")
 
 	// release instance is needed during the sync of Charts changes and during the sync of FluxHelRelease changes
-	rel := release.New(log.With(logger, "component", "release"), helmClient, checkoutFhr, checkoutCh)
+	rel := release.New(log.With(logger, "component", "release"), helmClient, checkout)
 	relsync := releasesync.New(log.With(logger, "component", "releasesync"), rel)
 
 	// CHARTS CHANGES SYNC ------------------------------------------------------------------

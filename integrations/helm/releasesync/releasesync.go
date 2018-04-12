@@ -8,6 +8,8 @@ package releasesync
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 
 	protobuf "github.com/golang/protobuf/ptypes/timestamp"
@@ -73,13 +75,6 @@ func (rs *ReleaseChangeSync) DoReleaseChangeSync(ifClient ifclientset.Clientset,
 	if len(relsToSync) == 0 {
 		return false, nil
 	}
-	// sync Chart releases
-	ctx, cancel = context.WithTimeout(context.Background(), helmgit.DefaultPullTimeout)
-	err = rs.release.Repo.ChartSync.Pull(ctx)
-	cancel()
-	if err != nil {
-		return false, fmt.Errorf("Failure while pulling repo: %#v", err)
-	}
 
 	ctx, cancel = context.WithTimeout(context.Background(), helmgit.DefaultCloneTimeout)
 	err = rs.sync(ctx, relsToSync)
@@ -127,7 +122,7 @@ func (rs *ReleaseChangeSync) shouldUpgrade(currRel *hapi_release.Release, fhr if
 	// Get the desired release state
 	opts := chartrelease.InstallOptions{DryRun: true}
 	tempRelName := strings.Join([]string{currRel.GetName(), "temp"}, "-")
-	desRel, err := rs.release.Install(rs.release.Repo.ChartSync, tempRelName, fhr, "CREATE", opts)
+	desRel, err := rs.release.Install(rs.release.Repo.ConfigSync, tempRelName, fhr, "CREATE", opts)
 	if err != nil {
 		return false, err
 	}
@@ -262,11 +257,29 @@ func (rs *ReleaseChangeSync) releasesToSync(ctx context.Context, ifClient ifclie
 }
 
 func (rs *ReleaseChangeSync) sync(ctx context.Context, releases map[string][]chartRelease) error {
+	ctx, cancel := context.WithTimeout(ctx, helmgit.DefaultPullTimeout)
+	err := rs.release.Repo.ConfigSync.Pull(ctx)
+	cancel()
+	if err != nil {
+		return fmt.Errorf("Failure while pulling repo: %#v", err)
+	}
 
-	checkout := rs.release.Repo.ChartSync
+	checkout := rs.release.Repo.ConfigSync
+	chartPathBase := filepath.Join(checkout.Dir, checkout.Config.Path)
+
 	opts := chartrelease.InstallOptions{DryRun: false}
+
 	for ns, relsToProcess := range releases {
+
 		for _, chr := range relsToProcess {
+
+			// sanity check
+			chartPath := filepath.Join(chartPathBase, chr.desiredState.Spec.ChartGitPath)
+			if _, err := os.Stat(chartPath); os.IsNotExist(err) {
+				rs.logger.Log("error", fmt.Sprintf("Missing Chart %s. No release can happen.", chartPath))
+				continue
+			}
+
 			relName := chr.releaseName
 			switch chr.action {
 			case chartrelease.DeleteAction:
