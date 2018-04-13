@@ -21,8 +21,7 @@ const (
 	DefaultCloneTimeout = 2 * time.Minute
 	DefaultPullTimeout  = 2 * time.Minute
 	privateKeyFileMode  = os.FileMode(0400)
-	FhrsChangesClone    = "fhrs_sync_clone"
-	ChartsChangesClone  = "charts_sync_clone"
+	ChangesClone        = "sync_clone"
 )
 
 var (
@@ -68,14 +67,27 @@ func NewGitRemoteConfig(url, branch, path string) (GitRemoteConfig, error) {
 	}, nil
 }
 
-// NewCheckout ... creates a Checkout instance
-//		populates also private fields relating to ssh authentication
-func NewCheckout(logger log.Logger, config GitRemoteConfig, auth *gitssh.PublicKeys) *Checkout {
-	return &Checkout{
+// SetupRepo creates a new checkout and clones repo until ready
+func RepoSetup(logger log.Logger, auth *gitssh.PublicKeys, config GitRemoteConfig, cloneSubdir string) *Checkout {
+	checkout := &Checkout{
 		Logger: logger,
 		Config: config,
 		auth:   auth,
 	}
+	// If cloning not immediately possible, we wait until it is -----------------------------
+	var err error
+	for {
+		ctx, cancel := context.WithTimeout(context.Background(), DefaultCloneTimeout)
+		err = checkout.Clone(ctx, cloneSubdir)
+		cancel()
+		if err == nil {
+			break
+		}
+		logger.Log("error", fmt.Sprintf("Failed to clone git repo [%s, %s, %s]: %v", config.URL, config.Path, config.Branch, err))
+		time.Sleep(10 * time.Second)
+	}
+
+	return checkout
 }
 
 // Clone creates a local clone of a remote repo and

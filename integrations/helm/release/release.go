@@ -1,7 +1,6 @@
 package release
 
 import (
-	"context"
 	"fmt"
 	"path/filepath"
 	"sync"
@@ -20,8 +19,13 @@ var (
 	ErrChartGitPathMissing = "Chart deploy configuration (%s) has empty Chart git path"
 )
 
-// ReleaseType determines whether we are making a new Chart release or updating an existing one
-type ReleaseType string
+type Action string
+
+const (
+	DeleteAction  Action = "DELETE"
+	InstallAction Action = "CREATE"
+	UpgradeAction Action = "UPDATE"
+)
 
 // Release contains clients needed to provide functionality related to helm releases
 type Release struct {
@@ -33,14 +37,21 @@ type Release struct {
 
 type repo struct {
 	ConfigSync *helmgit.Checkout
-	ChartsSync *helmgit.Checkout
+}
+
+type DeployInfo struct {
+	Name string
+}
+
+type InstallOptions struct {
+	DryRun    bool
+	ReuseName bool
 }
 
 // New creates a new Release instance
-func New(logger log.Logger, helmClient *k8shelm.Client, configCheckout *helmgit.Checkout, chartsSync *helmgit.Checkout) *Release {
+func New(logger log.Logger, helmClient *k8shelm.Client, configCheckout *helmgit.Checkout) *Release {
 	repo := repo{
 		ConfigSync: configCheckout,
-		ChartsSync: chartsSync,
 	}
 	r := &Release{
 		logger:     logger,
@@ -65,17 +76,25 @@ func GetReleaseName(fhr ifv1.FluxHelmRelease) string {
 	return releaseName
 }
 
-// Exists ... detects if a particular Chart release exists
-// 		release name must match regex ^(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])+$
-// Get ... detects if a particular Chart release exists
+// GetDeployedRelease returns a release with Deployed status
+func (r *Release) GetDeployedRelease(name string) (*hapi_release.Release, error) {
+
+	rls, err := r.HelmClient.ReleaseContent(name)
+	if err != nil {
+		return nil, err
+	}
+	if rls.Release.Info.Status.GetCode() == hapi_release.Status_DEPLOYED {
+		return rls.GetRelease(), nil
+	}
+	return nil, nil
+}
+
+// Exists detects if a particular Chart release exists
 // 		release name must match regex ^(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])+$
 func (r *Release) Exists(name string) (bool, error) {
-	r.Lock()
 	rls, err := r.HelmClient.ReleaseContent(name)
-	r.Unlock()
 
 	if err != nil {
-		//r.logger.Log("debug", fmt.Sprintf("Getting release (%s): %v", name, err))
 		return false, err
 	}
 	/*
@@ -92,7 +111,7 @@ func (r *Release) Exists(name string) (bool, error) {
 	rst := rls.Release.Info.Status.GetCode()
 	r.logger.Log("info", fmt.Sprintf("Found release [%s] with status %s", name, rst.String()))
 
-	if rst == 1 || rst == 4 {
+	if rst == hapi_release.Status_DEPLOYED || rst == hapi_release.Status_FAILED {
 		return true, nil
 	}
 	return true, fmt.Errorf("Release [%s] exists with status: %s", name, rst.String())
@@ -133,10 +152,10 @@ func (r *Release) canDelete(name string) (bool, error) {
 	}
 }
 
-// Install ... performs Chart release. Depending on the release type, this is either a new release,
+// Install performs Chart release. Depending on the release type, this is either a new release,
 // or an upgrade of an existing one
-func (r *Release) Install(checkout *helmgit.Checkout, releaseName string, fhr ifv1.FluxHelmRelease, releaseType ReleaseType, dryRun bool) (hapi_release.Release, error) {
-	r.logger.Log("info", fmt.Sprintf("releaseName= %s, releaseType=%s", releaseName, releaseType))
+func (r *Release) Install(checkout *helmgit.Checkout, releaseName string, fhr ifv1.FluxHelmRelease, action Action, opts InstallOptions) (hapi_release.Release, error) {
+	r.logger.Log("info", fmt.Sprintf("releaseName= %s, action=%s, install options: %+v", releaseName, action, opts))
 
 	chartPath := fhr.Spec.ChartGitPath
 	if chartPath == "" {
@@ -149,15 +168,6 @@ func (r *Release) Install(checkout *helmgit.Checkout, releaseName string, fhr if
 		namespace = "default"
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), helmgit.DefaultCloneTimeout)
-	err := checkout.Pull(ctx)
-	cancel()
-	if err != nil {
-		errm := fmt.Errorf("Failure to do git pull: %#v", err)
-		r.logger.Log("error", errm.Error())
-		return hapi_release.Release{}, errm
-	}
-
 	chartDir := filepath.Join(checkout.Dir, checkout.Config.Path, chartPath)
 
 	strVals, err := fhr.Spec.Values.YAML()
@@ -167,16 +177,16 @@ func (r *Release) Install(checkout *helmgit.Checkout, releaseName string, fhr if
 	}
 	rawVals := []byte(strVals)
 
-	// INSTALLATION ----------------------------------------------------------------------
-	switch releaseType {
-	case "CREATE":
+	switch action {
+	case InstallAction:
 		r.Lock()
 		res, err := r.HelmClient.InstallRelease(
 			chartDir,
 			namespace,
 			k8shelm.ValueOverrides(rawVals),
 			k8shelm.ReleaseName(releaseName),
-			k8shelm.InstallDryRun(dryRun),
+			k8shelm.InstallDryRun(opts.DryRun),
+			k8shelm.InstallReuseName(opts.ReuseName),
 			/*
 				helm.InstallReuseName(i.replace),
 				helm.InstallDisableHooks(i.disableHooks),
@@ -191,14 +201,14 @@ func (r *Release) Install(checkout *helmgit.Checkout, releaseName string, fhr if
 			return hapi_release.Release{}, err
 		}
 		return *res.Release, nil
-	case "UPDATE":
+	case UpgradeAction:
 		r.Lock()
 		res, err := r.HelmClient.UpdateRelease(
 			releaseName,
 			chartDir,
 			k8shelm.UpdateValueOverrides(rawVals),
+			k8shelm.UpgradeDryRun(opts.DryRun),
 			/*
-				helm.UpgradeDryRun(u.dryRun),
 				helm.UpgradeRecreate(u.recreate),
 				helm.UpgradeForce(u.force),
 				helm.UpgradeDisableHooks(u.disableHooks),
@@ -216,13 +226,13 @@ func (r *Release) Install(checkout *helmgit.Checkout, releaseName string, fhr if
 		}
 		return *res.Release, nil
 	default:
-		err = fmt.Errorf("Valid ReleaseType options: CREATE, UPDATE. Provided: %s", releaseType)
+		err = fmt.Errorf("Valid install options: CREATE, UPDATE. Provided: %s", action)
 		r.logger.Log("error", err.Error())
 		return hapi_release.Release{}, err
 	}
 }
 
-// Delete ... deletes Chart release
+// Delete deletes Chart release
 func (r *Release) Delete(name string) error {
 	ok, err := r.canDelete(name)
 	if !ok {
@@ -243,17 +253,25 @@ func (r *Release) Delete(name string) error {
 	return nil
 }
 
-// GetAll provides Chart releases (stored in tiller ConfigMaps)
-func (r *Release) GetAll() ([]*hapi_release.Release, error) {
+// GetCurrentWithDate provides Chart releases (stored in tiller ConfigMaps)
+//		output:
+//						map[namespace][release name] = nil
+func (r *Release) GetCurrent() (map[string][]DeployInfo, error) {
 	response, err := r.HelmClient.ListReleases()
 	if err != nil {
 		return nil, r.logger.Log("error", err)
 	}
-	fmt.Printf("Number of helm releases is %d\n", response.GetCount())
+	r.logger.Log("info", fmt.Sprintf("Number of Chart releases: %d\n", response.GetCount()))
 
-	for i, r := range response.GetReleases() {
-		fmt.Printf("\t==> %d : %#v\n\n\t\t\tin namespace %#v\n\n\t\tChartMetadata: %v\n\n\n", i, r.Name, r.Namespace, r.GetChart().GetMetadata())
+	relsM := make(map[string][]DeployInfo)
+	var depl []DeployInfo
+
+	for _, r := range response.GetReleases() {
+		ns := r.Namespace
+		depl = relsM[ns]
+
+		depl = append(depl, DeployInfo{Name: r.Name})
+		relsM[ns] = depl
 	}
-
-	return response.GetReleases(), nil
+	return relsM, nil
 }

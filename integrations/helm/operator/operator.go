@@ -1,6 +1,7 @@
 package operator
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"sync"
@@ -24,6 +25,7 @@ import (
 	ifscheme "github.com/weaveworks/flux/integrations/client/clientset/versioned/scheme"
 	fhrv1 "github.com/weaveworks/flux/integrations/client/informers/externalversions/helm.integrations.flux.weave.works/v1alpha"
 	iflister "github.com/weaveworks/flux/integrations/client/listers/helm.integrations.flux.weave.works/v1alpha" // kubernetes 1.9
+	helmgit "github.com/weaveworks/flux/integrations/helm/git"
 	chartrelease "github.com/weaveworks/flux/integrations/helm/release"
 )
 
@@ -90,9 +92,7 @@ func New(
 	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: controllerAgentName})
 
 	controller := &Controller{
-		logger: logger,
-		// kubeclientset:    kubeclientset,
-		// fhrclientset:     fhrclientset,
+		logger:           logger,
 		fhrLister:        fhrInformer.Lister(),
 		fhrSynced:        fhrInformer.Informer().HasSynced,
 		release:          release,
@@ -102,11 +102,11 @@ func New(
 
 	controller.logger.Log("info", "Setting up event handlers")
 
-	// --------------------------------------------------------------------
 	// ----- EVENT HANDLERS for FluxHelmRelease resources change ---------
 	fhrInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(new interface{}) {
-			controller.logger.Log("info", "ADDING release")
+			controller.logger.Log("info", "CREATING release")
+			controller.logger.Log("info", "Custom Resource driven release install")
 			_, ok := checkCustomResourceType(controller.logger, new)
 			if ok {
 				controller.enqueueJob(new)
@@ -122,7 +122,7 @@ func New(
 			}
 		},
 	})
-	controller.logger.Log("info", "Event handlers are set up")
+	controller.logger.Log("info", "Event handlers set up")
 
 	return controller
 }
@@ -139,7 +139,6 @@ func (c *Controller) Run(threadiness int, stopCh <-chan struct{}, wg *sync.WaitG
 	// Wait for the caches to be synced before starting workers
 	c.logger.Log("info", "Waiting for informer caches to sync")
 
-	// ORIGINAL implementation
 	if ok := cache.WaitForCacheSync(stopCh, c.fhrSynced); !ok {
 		return errors.New("failed to wait for caches to sync")
 	}
@@ -230,7 +229,6 @@ func (c *Controller) processNextWorkItem() bool {
 
 // syncHandler acts according to the action
 // 		Deletes/creates or updates a Chart release
-//------------------------------------------------------------------------
 func (c *Controller) syncHandler(key string) error {
 	c.logger.Log("debug", fmt.Sprintf("Starting to sync cache key %s", key))
 
@@ -254,7 +252,7 @@ func (c *Controller) syncHandler(key string) error {
 		return err
 	}
 
-	var syncType chartrelease.ReleaseType
+	var syncType chartrelease.Action
 
 	releaseName := chartrelease.GetReleaseName(*fhr)
 	ok, err := c.release.Exists(releaseName)
@@ -263,14 +261,22 @@ func (c *Controller) syncHandler(key string) error {
 			c.logger.Log("error", fmt.Sprintf("Failure to do Chart release [%s]: %#v", releaseName, err))
 			return err
 		}
-		syncType = chartrelease.ReleaseType("UPDATE")
+		syncType = chartrelease.UpgradeAction
 	}
 	if !ok {
-		syncType = chartrelease.ReleaseType("CREATE")
+		syncType = chartrelease.InstallAction
 	}
 
 	// Chart installation of the appropriate type
-	_, err = c.release.Install(c.release.Repo.ConfigSync, releaseName, *fhr, syncType, false)
+	ctx, cancel := context.WithTimeout(context.Background(), helmgit.DefaultCloneTimeout)
+	err = c.release.Repo.ConfigSync.Pull(ctx)
+	cancel()
+	if err != nil {
+		return fmt.Errorf("Failure to do git pull: %s", err.Error())
+	}
+
+	opts := chartrelease.InstallOptions{DryRun: false}
+	_, err = c.release.Install(c.release.Repo.ConfigSync, releaseName, *fhr, syncType, opts)
 	if err != nil {
 		return err
 	}
@@ -326,15 +332,15 @@ func (c *Controller) enqueueUpateJob(old, new interface{}) {
 	oldResVer := oldFhr.ResourceVersion
 	newResVer := newFhr.ResourceVersion
 	if newResVer != oldResVer {
-		fmt.Printf("*** old resource version ... %#v\n", oldResVer)
-		fmt.Printf("*** new resource version ... %#v\n", newResVer)
-		c.logger.Log("info", "UPDATING release")
+		c.logger.Log("info", "UPGRADING release")
+		c.logger.Log("info", "Custom Resource driven release upgrade")
 		c.enqueueJob(new)
 	}
 }
 
 func (c *Controller) deleteRelease(fhr ifv1.FluxHelmRelease) {
 	c.logger.Log("info", "DELETING release")
+	c.logger.Log("info", "Custom Resource driven release deletion")
 	name := chartrelease.GetReleaseName(fhr)
 	err := c.release.Delete(name)
 	if err != nil {

@@ -11,8 +11,8 @@ import (
 )
 
 func (chs *ChartChangeSync) chartChanged(ctx context.Context, dir, revRange, chart string) (bool, error) {
-	chs.release.Repo.ChartsSync.Lock()
-	defer chs.release.Repo.ChartsSync.Unlock()
+	chs.release.Repo.ConfigSync.Lock()
+	defer chs.release.Repo.ConfigSync.Unlock()
 
 	if len(dir) == 0 || dir[0] != '/' {
 		return false, fmt.Errorf("directory must provided and must be absolute: [%s]", dir)
