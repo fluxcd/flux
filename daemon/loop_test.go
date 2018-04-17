@@ -49,6 +49,7 @@ func daemon(t *testing.T) (*Daemon, func()) {
 	k8s.ExportFunc = func() ([]byte, error) { return nil, nil }
 	k8s.FindDefinedServicesFunc = (&kubernetes.Manifests{}).FindDefinedServices
 	k8s.ServicesWithPoliciesFunc = (&kubernetes.Manifests{}).ServicesWithPolicies
+	k8s.NamespacesWithPoliciesFunc = (&kubernetes.Manifests{}).NamespacesWithPolicies
 
 	events = &mockEventWriter{}
 

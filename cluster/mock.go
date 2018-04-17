@@ -10,19 +10,20 @@ import (
 
 // Doubles as a cluster.Cluster and cluster.Manifests implementation
 type Mock struct {
-	AllServicesFunc          func(maybeNamespace string) ([]Controller, error)
-	SomeServicesFunc         func([]flux.ResourceID) ([]Controller, error)
-	PingFunc                 func() error
-	ExportFunc               func() ([]byte, error)
-	SyncFunc                 func(SyncDef) error
-	PublicSSHKeyFunc         func(regenerate bool) (ssh.PublicKey, error)
-	FindDefinedServicesFunc  func(path string) (map[flux.ResourceID][]string, error)
-	UpdateDefinitionFunc     func(def []byte, container string, newImageID image.Ref) ([]byte, error)
-	LoadManifestsFunc        func(base, first string, rest ...string) (map[string]resource.Resource, error)
-	ParseManifestsFunc       func([]byte) (map[string]resource.Resource, error)
-	UpdateManifestFunc       func(path, resourceID string, f func(def []byte) ([]byte, error)) error
-	UpdatePoliciesFunc       func([]byte, policy.Update) ([]byte, error)
-	ServicesWithPoliciesFunc func(path string) (policy.ResourceMap, error)
+	AllServicesFunc            func(maybeNamespace string) ([]Controller, error)
+	SomeServicesFunc           func([]flux.ResourceID) ([]Controller, error)
+	PingFunc                   func() error
+	ExportFunc                 func() ([]byte, error)
+	SyncFunc                   func(SyncDef) error
+	PublicSSHKeyFunc           func(regenerate bool) (ssh.PublicKey, error)
+	FindDefinedServicesFunc    func(path string) (map[flux.ResourceID][]string, error)
+	UpdateDefinitionFunc       func(def []byte, container string, newImageID image.Ref) ([]byte, error)
+	LoadManifestsFunc          func(base, first string, rest ...string) (map[string]resource.Resource, error)
+	ParseManifestsFunc         func([]byte) (map[string]resource.Resource, error)
+	UpdateManifestFunc         func(path, resourceID string, f func(def []byte) ([]byte, error)) error
+	UpdatePoliciesFunc         func([]byte, policy.Update) ([]byte, error)
+	ServicesWithPoliciesFunc   func(path string) (policy.ResourceMap, error)
+	NamespacesWithPoliciesFunc func(path string) (policy.ResourceMap, error)
 }
 
 func (m *Mock) AllControllers(maybeNamespace string) ([]Controller, error) {
@@ -75,4 +76,8 @@ func (m *Mock) UpdatePolicies(def []byte, p policy.Update) ([]byte, error) {
 
 func (m *Mock) ServicesWithPolicies(path string) (policy.ResourceMap, error) {
 	return m.ServicesWithPoliciesFunc(path)
+}
+
+func (m *Mock) NamespacesWithPolicies(path string) (policy.ResourceMap, error) {
+	return m.NamespacesWithPoliciesFunc(path)
 }

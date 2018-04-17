@@ -52,9 +52,22 @@ func ServiceMap(dir string) map[flux.ResourceID][]string {
 	}
 }
 
+// NamespaceMap ... given a base path, construct the map representing the
+// namespaces given in the test data.
+func NamespaceMap(dir string) map[flux.ResourceID][]string {
+	return map[flux.ResourceID][]string{
+		flux.MustParseResourceID("default:namespace/helloworld"): []string{filepath.Join(dir, "helloworld-namespace.yaml")},
+	}
+}
+
 var Files = map[string]string{
 	"garbage": "This should just be ignored, since it is not YAML",
 	// Some genuine manifests
+	"helloworld-namespace.yaml": `apiVersion: v1
+kind: Namespace
+metadata:
+  name: helloworld
+  `,
 	"helloworld-deploy.yaml": `apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:

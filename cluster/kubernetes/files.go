@@ -29,3 +29,23 @@ func (c *Manifests) FindDefinedServices(path string) (map[flux.ResourceID][]stri
 	}
 	return result, nil
 }
+
+// FindNamespaces finds all the namespaces defined under the directory
+// given, and returns a map of namespace IDs (default:namespace:<namespace>)
+// to the paths of the namespace defintion files.
+func (c *Manifests) FindNamespaces(path string) (map[flux.ResourceID][]string, error) {
+	objects, err := resource.Load(path, path)
+	if err != nil {
+		return nil, errors.Wrap(err, "loading resources")
+	}
+
+	var result = map[flux.ResourceID][]string{}
+	for _, obj := range objects {
+		id := obj.ResourceID()
+		_, kind, _ := id.Components()
+		if kind == "namespace" {
+			result[id] = append(result[id], filepath.Join(path, obj.Source()))
+		}
+	}
+	return result, nil
+}

@@ -40,6 +40,12 @@ func (d *Daemon) pollForNewImages(logger log.Logger) {
 		return
 	}
 
+	namespaces, err := d.namespaces(ctx)
+	if err != nil {
+		logger.Log("error", errors.Wrap(err, "getting namespaces"))
+		return
+	}
+
 	changes := &update.Automated{}
 	for _, service := range services {
 		for _, container := range service.ContainersOrNil() {
@@ -51,7 +57,7 @@ func (d *Daemon) pollForNewImages(logger log.Logger) {
 				continue
 			}
 
-			pattern := getTagPattern(candidateServices, service.ID, container.Name)
+			pattern := getTagPattern(namespaces, candidateServices, service.ID, container.Name)
 			repo := currentImageID.Name
 			logger.Log("repo", repo, "pattern", pattern)
 
@@ -68,11 +74,20 @@ func (d *Daemon) pollForNewImages(logger log.Logger) {
 	}
 }
 
-func getTagPattern(services policy.ResourceMap, service flux.ResourceID, container string) string {
+func getTagPattern(namespaces policy.ResourceMap, services policy.ResourceMap, service flux.ResourceID, container string) string {
 	policies := services[service]
 	if pattern, ok := policies.Get(policy.TagPrefix(container)); ok {
 		return strings.TrimPrefix(pattern, "glob:")
 	}
+
+	// Fallback to namespace policy if one exists.
+	ns, _, _ := service.Components()
+	nsID := flux.MakeNamespaceID(ns)
+	namespacePolicies := namespaces[nsID]
+	if pattern, ok := namespacePolicies.Get(policy.TagPrefix(ns)); ok {
+		return strings.TrimPrefix(pattern, "glob:")
+	}
+
 	return "*"
 }
 
@@ -89,4 +104,17 @@ func (d *Daemon) unlockedAutomatedServices(ctx context.Context) (policy.Resource
 	automatedServices := services.OnlyWithPolicy(policy.Automated)
 	lockedServices := services.OnlyWithPolicy(policy.Locked)
 	return automatedServices.Without(lockedServices), nil
+}
+
+func (d *Daemon) namespaces(ctx context.Context) (policy.ResourceMap, error) {
+	var namespaces policy.ResourceMap
+	err := d.WithClone(ctx, func(checkout *git.Checkout) error {
+		var err error
+		namespaces, err = d.Manifests.NamespacesWithPolicies(checkout.ManifestDir())
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+	return namespaces, nil
 }
