@@ -241,6 +241,7 @@ func (d *Daemon) doSync(logger log.Logger) (retErr error) {
 		changedFiles, err := working.ChangedFiles(ctx, oldTagRev)
 		if err == nil && len(changedFiles) > 0 {
 			// We had some changed files, we're syncing a diff
+			// FIXME(michael): this won't be accurate when a file can have more than one resource
 			changedResources, err = d.Manifests.LoadManifests(working.Dir(), changedFiles[0], changedFiles[1:]...)
 		}
 		cancel()
@@ -310,7 +311,7 @@ func (d *Daemon) doSync(logger log.Logger) (retErr error) {
 			case update.Images:
 				spec := n.Spec.Spec.(update.ReleaseSpec)
 				noteEvents = append(noteEvents, event.Event{
-					ServiceIDs: serviceIDs.ToSlice(),
+					ServiceIDs: n.Result.AffectedResources(),
 					Type:       event.EventRelease,
 					StartedAt:  started,
 					EndedAt:    time.Now().UTC(),
@@ -329,7 +330,7 @@ func (d *Daemon) doSync(logger log.Logger) (retErr error) {
 			case update.Auto:
 				spec := n.Spec.Spec.(update.Automated)
 				noteEvents = append(noteEvents, event.Event{
-					ServiceIDs: serviceIDs.ToSlice(),
+					ServiceIDs: n.Result.AffectedResources(),
 					Type:       event.EventAutoRelease,
 					StartedAt:  started,
 					EndedAt:    time.Now().UTC(),
