@@ -22,7 +22,6 @@ var (
 type Action string
 
 const (
-	DeleteAction  Action = "DELETE"
 	InstallAction Action = "CREATE"
 	UpgradeAction Action = "UPDATE"
 )

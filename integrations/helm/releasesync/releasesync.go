@@ -154,40 +154,28 @@ func (rs *ReleaseChangeSync) addExistingReleasesToSync(
 		chRels = relsToSync[ns]
 		for relName := range nsRelsM {
 			if customResources[ns] == nil {
-				chr := chartRelease{
-					releaseName:  relName,
-					action:       chartrelease.DeleteAction,
-					desiredState: ifv1.FluxHelmRelease{},
-				}
-				chRels = append(chRels, chr)
 				continue
 			}
+			// We are ignoring Charts that are not under flux/helm-operator control
 			fhr, ok := customResources[ns][relName]
 			if !ok {
+				continue
+			}
+			rel, err := rs.release.GetDeployedRelease(relName)
+			if err != nil {
+				return err
+			}
+			doUpgrade, err := rs.shouldUpgrade(rel, fhr)
+			if err != nil {
+				return err
+			}
+			if doUpgrade {
 				chr := chartRelease{
 					releaseName:  relName,
-					action:       chartrelease.DeleteAction,
+					action:       chartrelease.UpgradeAction,
 					desiredState: fhr,
 				}
 				chRels = append(chRels, chr)
-
-			} else {
-				rel, err := rs.release.GetDeployedRelease(relName)
-				if err != nil {
-					return err
-				}
-				doUpgrade, err := rs.shouldUpgrade(rel, fhr)
-				if err != nil {
-					return err
-				}
-				if doUpgrade {
-					chr := chartRelease{
-						releaseName:  relName,
-						action:       chartrelease.UpgradeAction,
-						desiredState: fhr,
-					}
-					chRels = append(chRels, chr)
-				}
 			}
 		}
 		if len(chRels) > 0 {
@@ -282,12 +270,6 @@ func (rs *ReleaseChangeSync) sync(ctx context.Context, releases map[string][]cha
 
 			relName := chr.releaseName
 			switch chr.action {
-			case chartrelease.DeleteAction:
-				rs.logger.Log("info", fmt.Sprintf("Deleting manually installed Chart release %s (namespace %s)", relName, ns))
-				err := rs.release.Delete(relName)
-				if err != nil {
-					return err
-				}
 			case chartrelease.UpgradeAction:
 				rs.logger.Log("info", fmt.Sprintf("Resyncing manually upgraded Chart release %s (namespace %s)", relName, ns))
 				_, err := rs.release.Install(checkout, relName, chr.desiredState, chartrelease.UpgradeAction, opts)
