@@ -30,6 +30,16 @@ func (r Result) ServiceIDs() []string {
 	return result
 }
 
+func (r Result) AffectedResources() flux.ResourceIDs {
+	ids := flux.ResourceIDs{}
+	for id, result := range r {
+		if result.Status == ReleaseStatusSuccess {
+			ids = append(ids, id)
+		}
+	}
+	return ids
+}
+
 func (r Result) ChangedImages() []string {
 	images := map[image.Ref]struct{}{}
 	for _, serviceResult := range r {
@@ -72,10 +82,6 @@ type ControllerResult struct {
 	Status       ControllerUpdateStatus // summary of what happened, e.g., "incomplete", "ignored", "success"
 	Error        string                 `json:",omitempty"` // error if there was one finding the service (e.g., it doesn't exist in repo)
 	PerContainer []ContainerUpdate      // what happened with each container
-}
-
-func (fr ControllerResult) Msg(id flux.ResourceID) string {
-	return fmt.Sprintf("%s service %s as it is %s", fr.Status, id.String(), fr.Error)
 }
 
 type ContainerUpdate struct {
