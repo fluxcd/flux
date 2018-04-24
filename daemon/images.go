@@ -56,6 +56,10 @@ func (d *Daemon) pollForNewImages(logger log.Logger) {
 			logger.Log("repo", repo, "pattern", pattern)
 
 			if latest, ok := imageMap.LatestImage(repo, pattern); ok && latest.ID != currentImageID {
+				if latest.ID.Tag == "" {
+					logger.Log("msg", "untagged image in available images", "action", "skip", "available", repo)
+					continue
+				}
 				newImage := currentImageID.WithNewTag(latest.ID.Tag)
 				changes.Add(service.ID, container, newImage)
 				logger.Log("msg", "added image to changes", "newimage", newImage)

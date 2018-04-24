@@ -120,7 +120,8 @@ func exactImages(reg registry.Registry, images []image.Ref) (ImageMap, error) {
 }
 
 // Checks whether the given image exists in the repository.
-// Return true if exist, false otherwise
+// Return true if exist, false otherwise.
+// FIXME(michael): never returns an error; should it?
 func imageExists(reg registry.Registry, imageID image.Ref) (bool, error) {
 	_, err := reg.GetImage(imageID)
 	if err != nil {

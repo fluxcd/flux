@@ -63,7 +63,7 @@ func (w *Warmer) Loop(logger log.Logger, stop <-chan struct{}, wg *sync.WaitGrou
 	// NB the implicit contract here is that the prioritised
 	// image has to have been running the last time we
 	// requested the credentials.
-	priorityWarm := func (name image.Name) {
+	priorityWarm := func(name image.Name) {
 		logger.Log("priority", name.String())
 		if creds, ok := imageCreds[name]; ok {
 			w.warm(ctx, logger, name, creds)
@@ -97,7 +97,7 @@ func (w *Warmer) Loop(logger log.Logger, stop <-chan struct{}, wg *sync.WaitGrou
 			select {
 			case <-stop:
 				logger.Log("stopping", "true")
-				return 
+				return
 			case <-refresh:
 				imageCreds = imagesToFetchFunc()
 				backlog = imageCredsToBacklog(imageCreds)
@@ -107,7 +107,6 @@ func (w *Warmer) Loop(logger log.Logger, stop <-chan struct{}, wg *sync.WaitGrou
 		}
 	}
 }
-
 
 func imageCredsToBacklog(imageCreds registry.ImageCreds) []backlogItem {
 	backlog := make([]backlogItem, len(imageCreds))
@@ -178,15 +177,22 @@ func (w *Warmer) warm(ctx context.Context, logger log.Logger, id image.Name, cre
 		bytes, expiry, err := w.cache.GetKey(key)
 		// If err, then we don't have it yet. Update.
 		switch {
+		case tag == "":
+			errorLogger.Log("err", "empty tag in fetched tags", "tags", tags)
+			repo.LastError = "empty tag in fetched tags"
+			return // abort and let the error be written
 		case err != nil:
 			missing++
 		case time.Until(expiry) < refreshWhenExpiryWithin:
 			expired++
+		case len(bytes) == 0:
+			errorLogger.Log("err", "empty byte array from cache", "tag", tag)
+			missing++
 		default:
 			var image image.Info
 			if err := json.Unmarshal(bytes, &image); err == nil {
 				newImages[tag] = image
-				continue
+				continue // i.e., no need to update this one
 			}
 			missing++
 		}
