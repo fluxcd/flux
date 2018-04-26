@@ -19,6 +19,7 @@ RUN mkdir ~/.ssh && touch ~/.ssh/known_hosts && \
     chmod 600 ~/.ssh/known_hosts
 # Add default SSH config, which points at the private key we'll mount
 COPY ./ssh_config /root/.ssh/config
+RUN chmod 600 /root/.ssh/config
 
 COPY ./kubectl /usr/local/bin/
 COPY ./fluxd /usr/local/bin/
