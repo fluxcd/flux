@@ -16,7 +16,7 @@ limitations under the License.
 package fake
 
 import (
-	helmv1alpha "github.com/weaveworks/flux/apis/helm.integrations.flux.weave.works/v1alpha"
+	helmv1alpha2 "github.com/weaveworks/flux/apis/helm.integrations.flux.weave.works/v1alpha2"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
@@ -47,6 +47,6 @@ func init() {
 // After this, RawExtensions in Kubernetes types will serialize kube-aggregator types
 // correctly.
 func AddToScheme(scheme *runtime.Scheme) {
-	helmv1alpha.AddToScheme(scheme)
+	helmv1alpha2.AddToScheme(scheme)
 
 }

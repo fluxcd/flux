@@ -25,7 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
 
-	ifv1 "github.com/weaveworks/flux/apis/helm.integrations.flux.weave.works/v1alpha"
+	ifv1 "github.com/weaveworks/flux/apis/helm.integrations.flux.weave.works/v1alpha2"
 	ifclientset "github.com/weaveworks/flux/integrations/client/clientset/versioned"
 	helmgit "github.com/weaveworks/flux/integrations/helm/git"
 	chartrelease "github.com/weaveworks/flux/integrations/helm/release"
@@ -287,7 +287,7 @@ func (chs *ChartChangeSync) getCustomResources(namespaces []string, chart string
 
 	fhrs := []ifv1.FluxHelmRelease{}
 	for _, ns := range namespaces {
-		list, err := chs.ifClient.HelmV1alpha().FluxHelmReleases(ns).List(listOptions)
+		list, err := chs.ifClient.HelmV1alpha2().FluxHelmReleases(ns).List(listOptions)
 		if err != nil {
 			chs.logger.Log("error", fmt.Errorf("Failure while retrieving FluxHelmReleases: %#v", err))
 			continue

@@ -17,8 +17,8 @@ package fake
 
 import (
 	clientset "github.com/weaveworks/flux/integrations/client/clientset/versioned"
-	helmv1alpha "github.com/weaveworks/flux/integrations/client/clientset/versioned/typed/helm.integrations.flux.weave.works/v1alpha"
-	fakehelmv1alpha "github.com/weaveworks/flux/integrations/client/clientset/versioned/typed/helm.integrations.flux.weave.works/v1alpha/fake"
+	helmv1alpha2 "github.com/weaveworks/flux/integrations/client/clientset/versioned/typed/helm.integrations.flux.weave.works/v1alpha2"
+	fakehelmv1alpha2 "github.com/weaveworks/flux/integrations/client/clientset/versioned/typed/helm.integrations.flux.weave.works/v1alpha2/fake"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/discovery"
@@ -59,12 +59,12 @@ func (c *Clientset) Discovery() discovery.DiscoveryInterface {
 
 var _ clientset.Interface = &Clientset{}
 
-// HelmV1alpha retrieves the HelmV1alphaClient
-func (c *Clientset) HelmV1alpha() helmv1alpha.HelmV1alphaInterface {
-	return &fakehelmv1alpha.FakeHelmV1alpha{Fake: &c.Fake}
+// HelmV1alpha2 retrieves the HelmV1alpha2Client
+func (c *Clientset) HelmV1alpha2() helmv1alpha2.HelmV1alpha2Interface {
+	return &fakehelmv1alpha2.FakeHelmV1alpha2{Fake: &c.Fake}
 }
 
-// Helm retrieves the HelmV1alphaClient
-func (c *Clientset) Helm() helmv1alpha.HelmV1alphaInterface {
-	return &fakehelmv1alpha.FakeHelmV1alpha{Fake: &c.Fake}
+// Helm retrieves the HelmV1alpha2Client
+func (c *Clientset) Helm() helmv1alpha2.HelmV1alpha2Interface {
+	return &fakehelmv1alpha2.FakeHelmV1alpha2{Fake: &c.Fake}
 }

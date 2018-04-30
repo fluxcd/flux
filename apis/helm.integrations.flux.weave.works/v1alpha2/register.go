@@ -1,4 +1,4 @@
-package v1alpha
+package v1alpha2
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -9,7 +9,7 @@ import (
 )
 
 // SchemeGroupVersion is group version used to register these objects
-var SchemeGroupVersion = schema.GroupVersion{Group: fluxintegrations.GroupName, Version: "v1alpha"}
+var SchemeGroupVersion = schema.GroupVersion{Group: fluxintegrations.GroupName, Version: "v1alpha2"}
 
 // Resource takes an unqualified resource and returns a Group qualified GroupResource
 func Resource(resource string) schema.GroupResource {

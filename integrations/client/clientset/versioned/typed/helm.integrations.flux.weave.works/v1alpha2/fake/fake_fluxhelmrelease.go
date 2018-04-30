@@ -16,7 +16,7 @@ limitations under the License.
 package fake
 
 import (
-	v1alpha "github.com/weaveworks/flux/apis/helm.integrations.flux.weave.works/v1alpha"
+	v1alpha2 "github.com/weaveworks/flux/apis/helm.integrations.flux.weave.works/v1alpha2"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
@@ -27,29 +27,29 @@ import (
 
 // FakeFluxHelmReleases implements FluxHelmReleaseInterface
 type FakeFluxHelmReleases struct {
-	Fake *FakeHelmV1alpha
+	Fake *FakeHelmV1alpha2
 	ns   string
 }
 
-var fluxhelmreleasesResource = schema.GroupVersionResource{Group: "helm.integrations.flux.weave.works", Version: "v1alpha", Resource: "fluxhelmreleases"}
+var fluxhelmreleasesResource = schema.GroupVersionResource{Group: "helm.integrations.flux.weave.works", Version: "v1alpha2", Resource: "fluxhelmreleases"}
 
-var fluxhelmreleasesKind = schema.GroupVersionKind{Group: "helm.integrations.flux.weave.works", Version: "v1alpha", Kind: "FluxHelmRelease"}
+var fluxhelmreleasesKind = schema.GroupVersionKind{Group: "helm.integrations.flux.weave.works", Version: "v1alpha2", Kind: "FluxHelmRelease"}
 
 // Get takes name of the fluxHelmRelease, and returns the corresponding fluxHelmRelease object, and an error if there is any.
-func (c *FakeFluxHelmReleases) Get(name string, options v1.GetOptions) (result *v1alpha.FluxHelmRelease, err error) {
+func (c *FakeFluxHelmReleases) Get(name string, options v1.GetOptions) (result *v1alpha2.FluxHelmRelease, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewGetAction(fluxhelmreleasesResource, c.ns, name), &v1alpha.FluxHelmRelease{})
+		Invokes(testing.NewGetAction(fluxhelmreleasesResource, c.ns, name), &v1alpha2.FluxHelmRelease{})
 
 	if obj == nil {
 		return nil, err
 	}
-	return obj.(*v1alpha.FluxHelmRelease), err
+	return obj.(*v1alpha2.FluxHelmRelease), err
 }
 
 // List takes label and field selectors, and returns the list of FluxHelmReleases that match those selectors.
-func (c *FakeFluxHelmReleases) List(opts v1.ListOptions) (result *v1alpha.FluxHelmReleaseList, err error) {
+func (c *FakeFluxHelmReleases) List(opts v1.ListOptions) (result *v1alpha2.FluxHelmReleaseList, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewListAction(fluxhelmreleasesResource, fluxhelmreleasesKind, c.ns, opts), &v1alpha.FluxHelmReleaseList{})
+		Invokes(testing.NewListAction(fluxhelmreleasesResource, fluxhelmreleasesKind, c.ns, opts), &v1alpha2.FluxHelmReleaseList{})
 
 	if obj == nil {
 		return nil, err
@@ -59,8 +59,8 @@ func (c *FakeFluxHelmReleases) List(opts v1.ListOptions) (result *v1alpha.FluxHe
 	if label == nil {
 		label = labels.Everything()
 	}
-	list := &v1alpha.FluxHelmReleaseList{}
-	for _, item := range obj.(*v1alpha.FluxHelmReleaseList).Items {
+	list := &v1alpha2.FluxHelmReleaseList{}
+	for _, item := range obj.(*v1alpha2.FluxHelmReleaseList).Items {
 		if label.Matches(labels.Set(item.Labels)) {
 			list.Items = append(list.Items, item)
 		}
@@ -76,31 +76,31 @@ func (c *FakeFluxHelmReleases) Watch(opts v1.ListOptions) (watch.Interface, erro
 }
 
 // Create takes the representation of a fluxHelmRelease and creates it.  Returns the server's representation of the fluxHelmRelease, and an error, if there is any.
-func (c *FakeFluxHelmReleases) Create(fluxHelmRelease *v1alpha.FluxHelmRelease) (result *v1alpha.FluxHelmRelease, err error) {
+func (c *FakeFluxHelmReleases) Create(fluxHelmRelease *v1alpha2.FluxHelmRelease) (result *v1alpha2.FluxHelmRelease, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewCreateAction(fluxhelmreleasesResource, c.ns, fluxHelmRelease), &v1alpha.FluxHelmRelease{})
+		Invokes(testing.NewCreateAction(fluxhelmreleasesResource, c.ns, fluxHelmRelease), &v1alpha2.FluxHelmRelease{})
 
 	if obj == nil {
 		return nil, err
 	}
-	return obj.(*v1alpha.FluxHelmRelease), err
+	return obj.(*v1alpha2.FluxHelmRelease), err
 }
 
 // Update takes the representation of a fluxHelmRelease and updates it. Returns the server's representation of the fluxHelmRelease, and an error, if there is any.
-func (c *FakeFluxHelmReleases) Update(fluxHelmRelease *v1alpha.FluxHelmRelease) (result *v1alpha.FluxHelmRelease, err error) {
+func (c *FakeFluxHelmReleases) Update(fluxHelmRelease *v1alpha2.FluxHelmRelease) (result *v1alpha2.FluxHelmRelease, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewUpdateAction(fluxhelmreleasesResource, c.ns, fluxHelmRelease), &v1alpha.FluxHelmRelease{})
+		Invokes(testing.NewUpdateAction(fluxhelmreleasesResource, c.ns, fluxHelmRelease), &v1alpha2.FluxHelmRelease{})
 
 	if obj == nil {
 		return nil, err
 	}
-	return obj.(*v1alpha.FluxHelmRelease), err
+	return obj.(*v1alpha2.FluxHelmRelease), err
 }
 
 // Delete takes name of the fluxHelmRelease and deletes it. Returns an error if one occurs.
 func (c *FakeFluxHelmReleases) Delete(name string, options *v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewDeleteAction(fluxhelmreleasesResource, c.ns, name), &v1alpha.FluxHelmRelease{})
+		Invokes(testing.NewDeleteAction(fluxhelmreleasesResource, c.ns, name), &v1alpha2.FluxHelmRelease{})
 
 	return err
 }
@@ -109,17 +109,17 @@ func (c *FakeFluxHelmReleases) Delete(name string, options *v1.DeleteOptions) er
 func (c *FakeFluxHelmReleases) DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error {
 	action := testing.NewDeleteCollectionAction(fluxhelmreleasesResource, c.ns, listOptions)
 
-	_, err := c.Fake.Invokes(action, &v1alpha.FluxHelmReleaseList{})
+	_, err := c.Fake.Invokes(action, &v1alpha2.FluxHelmReleaseList{})
 	return err
 }
 
 // Patch applies the patch and returns the patched fluxHelmRelease.
-func (c *FakeFluxHelmReleases) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1alpha.FluxHelmRelease, err error) {
+func (c *FakeFluxHelmReleases) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1alpha2.FluxHelmRelease, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceAction(fluxhelmreleasesResource, c.ns, name, data, subresources...), &v1alpha.FluxHelmRelease{})
+		Invokes(testing.NewPatchSubresourceAction(fluxhelmreleasesResource, c.ns, name, data, subresources...), &v1alpha2.FluxHelmRelease{})
 
 	if obj == nil {
 		return nil, err
 	}
-	return obj.(*v1alpha.FluxHelmRelease), err
+	return obj.(*v1alpha2.FluxHelmRelease), err
 }
