@@ -17,7 +17,7 @@ import (
 
 	"github.com/go-kit/kit/log"
 
-	ifv1 "github.com/weaveworks/flux/apis/helm.integrations.flux.weave.works/v1alpha"
+	ifv1 "github.com/weaveworks/flux/apis/helm.integrations.flux.weave.works/v1alpha2"
 	ifclientset "github.com/weaveworks/flux/integrations/client/clientset/versioned"
 	"github.com/weaveworks/flux/integrations/helm/customresource"
 	helmgit "github.com/weaveworks/flux/integrations/helm/git"

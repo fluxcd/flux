@@ -20,7 +20,7 @@ package externalversions
 
 import (
 	"fmt"
-	v1alpha "github.com/weaveworks/flux/apis/helm.integrations.flux.weave.works/v1alpha"
+	v1alpha2 "github.com/weaveworks/flux/apis/helm.integrations.flux.weave.works/v1alpha2"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	cache "k8s.io/client-go/tools/cache"
 )
@@ -51,9 +51,9 @@ func (f *genericInformer) Lister() cache.GenericLister {
 // TODO extend this to unknown resources with a client pool
 func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource) (GenericInformer, error) {
 	switch resource {
-	// Group=helm.integrations.flux.weave.works, Version=v1alpha
-	case v1alpha.SchemeGroupVersion.WithResource("fluxhelmreleases"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Helm().V1alpha().FluxHelmReleases().Informer()}, nil
+	// Group=helm.integrations.flux.weave.works, Version=v1alpha2
+	case v1alpha2.SchemeGroupVersion.WithResource("fluxhelmreleases"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Helm().V1alpha2().FluxHelmReleases().Informer()}, nil
 
 	}
 

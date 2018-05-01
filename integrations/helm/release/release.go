@@ -11,7 +11,7 @@ import (
 	hapi_release "k8s.io/helm/pkg/proto/hapi/release"
 
 	"github.com/go-kit/kit/log"
-	ifv1 "github.com/weaveworks/flux/apis/helm.integrations.flux.weave.works/v1alpha"
+	ifv1 "github.com/weaveworks/flux/apis/helm.integrations.flux.weave.works/v1alpha2"
 	helmgit "github.com/weaveworks/flux/integrations/helm/git"
 )
 

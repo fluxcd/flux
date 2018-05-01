@@ -19,14 +19,14 @@ limitations under the License.
 package helm
 
 import (
-	v1alpha "github.com/weaveworks/flux/integrations/client/informers/externalversions/helm.integrations.flux.weave.works/v1alpha"
+	v1alpha2 "github.com/weaveworks/flux/integrations/client/informers/externalversions/helm.integrations.flux.weave.works/v1alpha2"
 	internalinterfaces "github.com/weaveworks/flux/integrations/client/informers/externalversions/internalinterfaces"
 )
 
 // Interface provides access to each of this group's versions.
 type Interface interface {
-	// V1alpha provides access to shared informers for resources in V1alpha.
-	V1alpha() v1alpha.Interface
+	// V1alpha2 provides access to shared informers for resources in V1alpha2.
+	V1alpha2() v1alpha2.Interface
 }
 
 type group struct {
@@ -40,7 +40,7 @@ func New(f internalinterfaces.SharedInformerFactory, namespace string, tweakList
 	return &group{factory: f, namespace: namespace, tweakListOptions: tweakListOptions}
 }
 
-// V1alpha returns a new v1alpha.Interface.
-func (g *group) V1alpha() v1alpha.Interface {
-	return v1alpha.New(g.factory, g.namespace, g.tweakListOptions)
+// V1alpha2 returns a new v1alpha2.Interface.
+func (g *group) V1alpha2() v1alpha2.Interface {
+	return v1alpha2.New(g.factory, g.namespace, g.tweakListOptions)
 }

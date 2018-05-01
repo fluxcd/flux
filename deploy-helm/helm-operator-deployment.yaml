@@ -23,7 +23,7 @@ spec:
         # There are no ":latest" images for helm-operator. Find the most recent
         # release or image version at https://quay.io/weaveworks/helm-operator
         # and replace the tag here.
-        image: quay.io/weaveworks/helm-operator:alpha
+        image: quay.io/weaveworks/helm-operator:0.1.0-alpha
         imagePullPolicy: IfNotPresent
         volumeMounts:
         - name: git-key

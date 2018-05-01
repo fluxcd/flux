@@ -20,7 +20,7 @@ menu_order: 20
 
 ```
 ---
-  apiVersion: helm.integrations.flux.weave.works/v1alpha
+  apiVersion: helm.integrations.flux.weave.works/v1alpha2
   kind: FluxHelmRelease
   metadata:
     name: mongodb

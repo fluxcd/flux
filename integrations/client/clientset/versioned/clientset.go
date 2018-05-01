@@ -17,7 +17,7 @@ package versioned
 
 import (
 	glog "github.com/golang/glog"
-	helmv1alpha "github.com/weaveworks/flux/integrations/client/clientset/versioned/typed/helm.integrations.flux.weave.works/v1alpha"
+	helmv1alpha2 "github.com/weaveworks/flux/integrations/client/clientset/versioned/typed/helm.integrations.flux.weave.works/v1alpha2"
 	discovery "k8s.io/client-go/discovery"
 	rest "k8s.io/client-go/rest"
 	flowcontrol "k8s.io/client-go/util/flowcontrol"
@@ -25,27 +25,27 @@ import (
 
 type Interface interface {
 	Discovery() discovery.DiscoveryInterface
-	HelmV1alpha() helmv1alpha.HelmV1alphaInterface
+	HelmV1alpha2() helmv1alpha2.HelmV1alpha2Interface
 	// Deprecated: please explicitly pick a version if possible.
-	Helm() helmv1alpha.HelmV1alphaInterface
+	Helm() helmv1alpha2.HelmV1alpha2Interface
 }
 
 // Clientset contains the clients for groups. Each group has exactly one
 // version included in a Clientset.
 type Clientset struct {
 	*discovery.DiscoveryClient
-	helmV1alpha *helmv1alpha.HelmV1alphaClient
+	helmV1alpha2 *helmv1alpha2.HelmV1alpha2Client
 }
 
-// HelmV1alpha retrieves the HelmV1alphaClient
-func (c *Clientset) HelmV1alpha() helmv1alpha.HelmV1alphaInterface {
-	return c.helmV1alpha
+// HelmV1alpha2 retrieves the HelmV1alpha2Client
+func (c *Clientset) HelmV1alpha2() helmv1alpha2.HelmV1alpha2Interface {
+	return c.helmV1alpha2
 }
 
 // Deprecated: Helm retrieves the default version of HelmClient.
 // Please explicitly pick a version.
-func (c *Clientset) Helm() helmv1alpha.HelmV1alphaInterface {
-	return c.helmV1alpha
+func (c *Clientset) Helm() helmv1alpha2.HelmV1alpha2Interface {
+	return c.helmV1alpha2
 }
 
 // Discovery retrieves the DiscoveryClient
@@ -64,7 +64,7 @@ func NewForConfig(c *rest.Config) (*Clientset, error) {
 	}
 	var cs Clientset
 	var err error
-	cs.helmV1alpha, err = helmv1alpha.NewForConfig(&configShallowCopy)
+	cs.helmV1alpha2, err = helmv1alpha2.NewForConfig(&configShallowCopy)
 	if err != nil {
 		return nil, err
 	}
@@ -81,7 +81,7 @@ func NewForConfig(c *rest.Config) (*Clientset, error) {
 // panics if there is an error in the config.
 func NewForConfigOrDie(c *rest.Config) *Clientset {
 	var cs Clientset
-	cs.helmV1alpha = helmv1alpha.NewForConfigOrDie(c)
+	cs.helmV1alpha2 = helmv1alpha2.NewForConfigOrDie(c)
 
 	cs.DiscoveryClient = discovery.NewDiscoveryClientForConfigOrDie(c)
 	return &cs
@@ -90,7 +90,7 @@ func NewForConfigOrDie(c *rest.Config) *Clientset {
 // New creates a new Clientset for the given RESTClient.
 func New(c rest.Interface) *Clientset {
 	var cs Clientset
-	cs.helmV1alpha = helmv1alpha.New(c)
+	cs.helmV1alpha2 = helmv1alpha2.New(c)
 
 	cs.DiscoveryClient = discovery.NewDiscoveryClient(c)
 	return &cs

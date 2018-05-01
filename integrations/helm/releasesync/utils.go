@@ -1,7 +1,7 @@
 package releasesync
 
 import (
-	ifv1 "github.com/weaveworks/flux/apis/helm.integrations.flux.weave.works/v1alpha"
+	ifv1 "github.com/weaveworks/flux/apis/helm.integrations.flux.weave.works/v1alpha2"
 	"github.com/weaveworks/flux/integrations/helm/release"
 )
 
