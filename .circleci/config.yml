@@ -35,7 +35,9 @@ jobs:
             fi
             if echo "${CIRCLE_TAG}" | grep -Eq "helm-[0-9]+(\.[0-9]+)*(-[a-z]+)?$"; then
               docker login -u "$DOCKER_REGISTRY_USER" -p "$DOCKER_REGISTRY_PASSWORD" quay.io
-              docker push "quay.io/weaveworks/helm-operator:$(echo "$CIRCLE_TAG" | cut -c 6-)"
+              RELEASE_TAG=$(echo "$CIRCLE_TAG" | cut -c 6-)
+              docker tag "quay.io/weaveworks/helm-operator:${CIRCLE_TAG}" "quay.io/weaveworks/helm-operator:${RELEASE_TAG}"
+              docker push "quay.io/weaveworks/helm-operator:${RELEASE_TAG}"
             fi
 
 workflows:
