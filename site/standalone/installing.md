@@ -25,14 +25,13 @@ $EDITOR ./deploy/flux-deployment.yaml
 kubectl apply -f ./deploy
 ```
 
-```
-Helm users
+### Helm users
 
 Create all resources defined in the
 [deploy-helm directory](../../deploy-helm/):
-
-    $EDITOR ./deploy-helm/helm-operator-deployment.yaml
-    kubectl apply -f ./deploy-helm
+```
+$EDITOR ./deploy-helm/helm-operator-deployment.yaml
+kubectl apply -f ./deploy-helm
 ```
 
 Next, download the latest version of the fluxctl client [from github](https://github.com/weaveworks/flux/releases).
