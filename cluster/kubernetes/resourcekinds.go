@@ -209,7 +209,8 @@ func (dk *statefulSetKind) getPodControllers(c *Cluster, namespace string) ([]po
 func makeStatefulSetPodController(statefulSet *apiapps.StatefulSet) podController {
 	var status string
 	objectMeta, statefulSetStatus := statefulSet.ObjectMeta, statefulSet.Status
-	if *statefulSetStatus.ObservedGeneration >= objectMeta.Generation {
+	// The type of ObservedGeneration is *int64, unlike other controllers.
+	if statefulSetStatus.ObservedGeneration != nil && *statefulSetStatus.ObservedGeneration >= objectMeta.Generation {
 		// the definition has been updated; now let's see about the replicas
 		updated, wanted := statefulSetStatus.UpdatedReplicas, *statefulSet.Spec.Replicas
 		if updated == wanted {
