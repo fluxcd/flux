@@ -210,7 +210,7 @@ func (c *Client) executeRequest(req *http.Request) (*http.Response, error) {
 			if err := json.Unmarshal(body, &niceError); err != nil {
 				return resp, errors.Wrap(err, "decoding response body of error")
 			}
-			 // just in case it's JSON but not one of our own errors
+			// just in case it's JSON but not one of our own errors
 			if niceError.Err != nil {
 				return resp, &niceError
 			}

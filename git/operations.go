@@ -17,7 +17,7 @@ import (
 )
 
 // If true, every git invocation will be echoed to stdout
-const trace = false
+const trace = true
 
 func config(ctx context.Context, workingDir, user, email string) error {
 	for k, v := range map[string]string{

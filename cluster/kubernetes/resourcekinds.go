@@ -3,6 +3,7 @@ package kubernetes
 import (
 	"fmt"
 
+	ifv1 "github.com/weaveworks/flux/apis/helm.integrations.flux.weave.works/v1alpha2"
 	apiapps "k8s.io/api/apps/v1beta1"
 	apibatch "k8s.io/api/batch/v1beta1"
 	apiv1 "k8s.io/api/core/v1"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster"
+	k8sresource "github.com/weaveworks/flux/cluster/kubernetes/resource"
 	"github.com/weaveworks/flux/image"
 	"github.com/weaveworks/flux/resource"
 )
@@ -32,6 +34,7 @@ func init() {
 	resourceKinds["daemonset"] = &daemonSetKind{}
 	resourceKinds["deployment"] = &deploymentKind{}
 	resourceKinds["statefulset"] = &statefulSetKind{}
+	resourceKinds["fluxhelmrelease"] = &fluxHelmReleaseKind{}
 }
 
 type podController struct {
@@ -270,4 +273,52 @@ func makeCronJobPodController(cronJob *apibatch.CronJob) podController {
 }
 
 /////////////////////////////////////////////////////////////////////////////
-//
+// helm.integrations.flux.weave.works/v1alpha2 FluxHelmRelease
+
+type fluxHelmReleaseKind struct{}
+
+func (fhr *fluxHelmReleaseKind) getPodController(c *Cluster, namespace, name string) (podController, error) {
+	fluxHelmRelease, err := c.client.HelmV1alpha2().FluxHelmReleases(namespace).Get(name, meta_v1.GetOptions{})
+	if err != nil {
+		return podController{}, err
+	}
+
+	return makeFluxHelmReleasePodController(fluxHelmRelease), nil
+}
+
+func (fhr *fluxHelmReleaseKind) getPodControllers(c *Cluster, namespace string) ([]podController, error) {
+	fluxHelmReleases, err := c.client.HelmV1alpha2().FluxHelmReleases(namespace).List(meta_v1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	var podControllers []podController
+	for _, f := range fluxHelmReleases.Items {
+		podControllers = append(podControllers, makeFluxHelmReleasePodController(&f))
+	}
+
+	return podControllers, nil
+}
+
+func makeFluxHelmReleasePodController(fluxHelmRelease *ifv1.FluxHelmRelease) podController {
+	if fluxHelmRelease == nil {
+		return podController{}
+	}
+	containers := k8sresource.CreateK8sContainers(fluxHelmRelease.Spec)
+
+	podTemplate := apiv1.PodTemplateSpec{
+		ObjectMeta: fluxHelmRelease.ObjectMeta,
+		Spec: apiv1.PodSpec{
+			Containers:       containers,
+			ImagePullSecrets: []apiv1.LocalObjectReference{},
+		},
+	}
+
+	return podController{
+		apiVersion:  "helm.integrations.flux.weave.works/v1alpha2",
+		kind:        "FluxHelmRelase",
+		name:        fluxHelmRelease.ObjectMeta.Name,
+		status:      StatusReady,
+		podTemplate: podTemplate,
+		apiObject:   fluxHelmRelease}
+}

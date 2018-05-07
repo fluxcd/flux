@@ -8,6 +8,8 @@ import (
 	"strings"
 
 	"github.com/weaveworks/flux"
+	k8sresource "github.com/weaveworks/flux/cluster/kubernetes/resource"
+
 	"github.com/weaveworks/flux/image"
 	"github.com/weaveworks/flux/resource"
 )
@@ -34,7 +36,12 @@ func updatePodController(def []byte, resourceID flux.ResourceID, container strin
 	}
 
 	var buf bytes.Buffer
-	err = tryUpdate(def, resourceID, container, newImageID, &buf)
+
+	if obj.Kind == "FluxHelmRelease" {
+		err = k8sresource.TryFHRUpdate(def, resourceID, container, newImageID, &buf)
+	} else {
+		err = tryUpdate(def, resourceID, container, newImageID, &buf)
+	}
 	return buf.Bytes(), err
 }
 

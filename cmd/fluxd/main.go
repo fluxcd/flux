@@ -16,6 +16,7 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/pflag"
+	k8sifclient "github.com/weaveworks/flux/integrations/client/clientset/versioned"
 	k8sclient "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 
@@ -184,6 +185,12 @@ func main() {
 			os.Exit(1)
 		}
 
+		ifclientset, err := k8sifclient.NewForConfig(restClientConfig)
+		if err != nil {
+			logger.Log("error", fmt.Sprintf("Error building integrations clientset: %v", err))
+			os.Exit(1)
+		}
+
 		serverVersion, err := clientset.ServerVersion()
 		if err != nil {
 			logger.Log("err", err)
@@ -231,7 +238,7 @@ func main() {
 		logger.Log("kubectl", kubectl)
 
 		kubectlApplier := kubernetes.NewKubectl(kubectl, restClientConfig)
-		k8sInst := kubernetes.NewCluster(clientset, kubectlApplier, sshKeyRing, logger)
+		k8sInst := kubernetes.NewCluster(clientset, ifclientset, kubectlApplier, sshKeyRing, logger)
 
 		if err := k8sInst.Ping(); err != nil {
 			logger.Log("ping", err)
