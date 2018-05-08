@@ -188,20 +188,20 @@ func (s ReleaseSpec) markSkipped(results Result) {
 // if not, it indicates there's likely some problem with the running
 // system vs the definitions given in the repo.)
 func (s ReleaseSpec) calculateImageUpdates(rc ReleaseContext, candidates []*ControllerUpdate, results Result, logger log.Logger) ([]*ControllerUpdate, error) {
-	// Compile an `ImageMap` of all relevant images
-	var images ImageMap
+	// Compile an `ImageRepos` of all relevant images
+	var imageRepos ImageRepos
 	var singleRepo image.CanonicalName
 	var err error
 
 	switch s.ImageSpec {
 	case ImageSpecLatest:
-		images, err = collectUpdateImages(rc.Registry(), candidates, logger)
+		imageRepos, err = fetchUpdatableImageRepos(rc.Registry(), candidates, logger)
 	default:
 		var ref image.Ref
 		ref, err = s.ImageSpec.AsRef()
 		if err == nil {
 			singleRepo = ref.CanonicalName()
-			images, err = exactImages(rc.Registry(), []image.Ref{ref})
+			imageRepos, err = exactImageRepos(rc.Registry(), []image.Ref{ref})
 		}
 	}
 
@@ -231,7 +231,7 @@ func (s ReleaseSpec) calculateImageUpdates(rc ReleaseContext, candidates []*Cont
 		for _, container := range containers {
 			currentImageID := container.Image
 
-			latestImage, ok := images.LatestImage(currentImageID.Name, "*")
+			latestImage, ok := imageRepos.LatestImage(currentImageID.Name, "*")
 			if !ok {
 				if currentImageID.CanonicalName() != singleRepo {
 					ignoredOrSkipped = ReleaseStatusIgnored

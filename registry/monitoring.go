@@ -46,9 +46,9 @@ func NewInstrumentedRegistry(next Registry) Registry {
 	}
 }
 
-func (m *instrumentedRegistry) GetRepository(id image.Name) (res []image.Info, err error) {
+func (m *instrumentedRegistry) GetSortedRepositoryImages(id image.Name) (res []image.Info, err error) {
 	start := time.Now()
-	res, err = m.next.GetRepository(id)
+	res, err = m.next.GetSortedRepositoryImages(id)
 	registryDuration.With(
 		fluxmetrics.LabelSuccess, strconv.FormatBool(err == nil),
 	).Observe(time.Since(start).Seconds())

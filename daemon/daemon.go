@@ -143,17 +143,17 @@ func (d *Daemon) ListImages(ctx context.Context, spec update.ResourceSpec) ([]v6
 		services, err = d.Cluster.SomeControllers([]flux.ResourceID{id})
 	}
 
-	images, err := update.CollectAvailableImages(d.Registry, clusterContainers(services), d.Logger)
+	imageRepos, err := update.FetchImageRepos(d.Registry, clusterContainers(services), d.Logger)
 	if err != nil {
 		return nil, errors.Wrap(err, "getting images for services")
 	}
 
 	var res []v6.ImageStatus
 	for _, service := range services {
-		containers := containersWithAvailable(service, images)
+		serviceContainers := getServiceContainers(service, imageRepos)
 		res = append(res, v6.ImageStatus{
 			ID:         service.ID,
-			Containers: containers,
+			Containers: serviceContainers,
 		})
 	}
 
@@ -544,9 +544,9 @@ func containers2containers(cs []resource.Container) []v6.Container {
 	return res
 }
 
-func containersWithAvailable(service cluster.Controller, images update.ImageMap) (res []v6.Container) {
+func getServiceContainers(service cluster.Controller, imageRepos update.ImageRepos) (res []v6.Container) {
 	for _, c := range service.ContainersOrNil() {
-		available := images.Available(c.Image.Name)
+		available := imageRepos.Available(c.Image.Name)
 		availableErr := ""
 		if available == nil {
 			availableErr = registry.ErrNoImageData.Error()

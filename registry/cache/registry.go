@@ -31,9 +31,9 @@ type Cache struct {
 	Reader Reader
 }
 
-// GetRepository returns the list of image manifests in an image
+// GetSortedRepositoryImages returns the list of image manifests in an image
 // repository (e.g,. at "quay.io/weaveworks/flux")
-func (c *Cache) GetRepository(id image.Name) ([]image.Info, error) {
+func (c *Cache) GetSortedRepositoryImages(id image.Name) ([]image.Info, error) {
 	repoKey := NewRepositoryKey(id.CanonicalName())
 	bytes, _, err := c.Reader.GetKey(repoKey)
 	if err != nil {

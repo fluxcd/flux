@@ -34,7 +34,7 @@ func (d *Daemon) pollForNewImages(logger log.Logger) {
 		return
 	}
 	// Check the latest available image(s) for each service
-	imageMap, err := update.CollectAvailableImages(d.Registry, clusterContainers(services), logger)
+	imageRepos, err := update.FetchImageRepos(d.Registry, clusterContainers(services), logger)
 	if err != nil {
 		logger.Log("error", errors.Wrap(err, "fetching image updates"))
 		return
@@ -55,7 +55,7 @@ func (d *Daemon) pollForNewImages(logger log.Logger) {
 			repo := currentImageID.Name
 			logger.Log("repo", repo, "pattern", pattern)
 
-			if latest, ok := imageMap.LatestImage(repo, pattern); ok && latest.ID != currentImageID {
+			if latest, ok := imageRepos.LatestImage(repo, pattern); ok && latest.ID != currentImageID {
 				if latest.ID.Tag == "" {
 					logger.Log("msg", "untagged image in available images", "action", "skip", "available", repo)
 					continue
