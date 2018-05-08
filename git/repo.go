@@ -128,6 +128,14 @@ func (r *Repo) Notify() {
 	}
 }
 
+// refreshed indicates that the repo has successfully fetched from upstream.
+func (r *Repo) refreshed() {
+	select {
+	case r.C <- struct{}{}:
+	default:
+	}
+}
+
 // errorIfNotReady returns the appropriate error if the repo is not
 // ready, and `nil` otherwise.
 func (r *Repo) errorIfNotReady() error {
@@ -222,6 +230,9 @@ func (r *Repo) Start(shutdown <-chan struct{}, done *sync.WaitGroup) error {
 			cancel()
 			if err == nil {
 				r.setStatus(RepoReady, nil)
+				// Treat every transition to ready as a refresh, so
+				// that any listeners can respond in the same way.
+				r.refreshed()
 				continue // with new status, skipping timer
 			}
 			r.setStatus(RepoCloned, err)
@@ -257,10 +268,7 @@ func (r *Repo) Refresh(ctx context.Context) error {
 	if err := r.fetch(ctx); err != nil {
 		return err
 	}
-	select {
-	case r.C <- struct{}{}:
-	default:
-	}
+	r.refreshed()
 	return nil
 }
 
