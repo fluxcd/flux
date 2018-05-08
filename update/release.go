@@ -231,7 +231,7 @@ func (s ReleaseSpec) calculateImageUpdates(rc ReleaseContext, candidates []*Cont
 		for _, container := range containers {
 			currentImageID := container.Image
 
-			latestImage, ok := imageRepos.LatestImage(currentImageID.Name, "*")
+			latestImage, ok := imageRepos.LatestFilteredImage(currentImageID.Name, "*")
 			if !ok {
 				if currentImageID.CanonicalName() != singleRepo {
 					ignoredOrSkipped = ReleaseStatusIgnored

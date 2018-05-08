@@ -44,8 +44,17 @@ type ControllerStatus struct {
 type Container struct {
 	Name           string
 	Current        image.Info
-	Available      []image.Info
-	AvailableError string `json:",omitempty"`
+	LatestFiltered image.Info
+
+	// All available images (ignoring tag filters)
+	Available               []image.Info
+	AvailableError          string `json:",omitempty"`
+	AvailableImagesCount    int
+	NewAvailableImagesCount int
+
+	// Filtered available images (matching tag filters)
+	FilteredImagesCount    int
+	NewFilteredImagesCount int
 }
 
 // --- config types

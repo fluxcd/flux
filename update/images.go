@@ -21,14 +21,40 @@ type ImageRepos struct {
 	imageRepos imageReposMap
 }
 
-// LatestImage returns the latest releasable image for a repository
+// FindImageInfo retruns image.Info given an image ref. If the image cannot be
+// found, return the image.Info with only rhe ID.
+func (r ImageRepos) FindImageInfo(repo image.Name, ref image.Ref) image.Info {
+	images, ok := r.imageRepos[ref.CanonicalName()]
+	if !ok {
+		return image.Info{ID: ref}
+	}
+	for _, img := range images {
+		if img.ID == ref {
+			return img
+		}
+	}
+	return image.Info{ID: ref}
+}
+
+// LatestFilteredImage returns the latest releasable image for a repository
 // for which the tag matches a given pattern. A releasable image is
 // one that is not tagged "latest". (Assumes the available images are
 // in descending order of latestness.) If no such image exists,
 // returns a zero value and `false`, and the caller can decide whether
 // that's an error or not.
-func (r ImageRepos) LatestImage(repo image.Name, tagGlob string) (image.Info, bool) {
-	for _, available := range r.imageRepos[repo.CanonicalName()] {
+func (r ImageRepos) LatestFilteredImage(repo image.Name, tagGlob string) (image.Info, bool) {
+	filtered := r.FilteredAvailable(repo, tagGlob)
+	if len(filtered) > 0 {
+		return filtered[0], true
+	}
+	return image.Info{}, false
+}
+
+// FilteredAvailable returns image.Info engtries for all the images in the
+// names image repository which match the tagGlob.
+func (r ImageRepos) FilteredAvailable(repo image.Name, tagGlob string) []image.Info {
+	var filtered []image.Info
+	for _, available := range r.Available(repo) {
 		tag := available.ID.Tag
 		// Ignore latest if and only if it's not what the user wants.
 		if !strings.EqualFold(tagGlob, "latest") && strings.EqualFold(tag, "latest") {
@@ -38,10 +64,10 @@ func (r ImageRepos) LatestImage(repo image.Name, tagGlob string) (image.Info, bo
 			var im image.Info
 			im = available
 			im.ID = repo.ToRef(tag)
-			return im, true
+			filtered = append(filtered, im)
 		}
 	}
-	return image.Info{}, false
+	return filtered
 }
 
 // Available returns image.Info entries for all the images in the

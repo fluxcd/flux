@@ -70,35 +70,43 @@ func (d *Daemon) Export(ctx context.Context) ([]byte, error) {
 	return d.Cluster.Export()
 }
 
-func (d *Daemon) ListServices(ctx context.Context, namespace string) ([]v6.ControllerStatus, error) {
-	clusterServices, err := d.Cluster.AllControllers(namespace)
-	if err != nil {
-		return nil, errors.Wrap(err, "getting services from cluster")
-	}
-
+func (d *Daemon) getPolicyResourceMap(ctx context.Context) (policy.ResourceMap, v6.ReadOnlyReason, error) {
 	var services policy.ResourceMap
 	var globalReadOnly v6.ReadOnlyReason
-	err = d.WithClone(ctx, func(checkout *git.Checkout) error {
+	err := d.WithClone(ctx, func(checkout *git.Checkout) error {
 		var err error
 		services, err = d.Manifests.ServicesWithPolicies(checkout.ManifestDir())
 		return err
 	})
+
+	// Capture errors related to read-only repositories
 	switch {
 	case err == git.ErrNotReady:
 		globalReadOnly = v6.ReadOnlyNotReady
 	case err == git.ErrNoConfig:
 		globalReadOnly = v6.ReadOnlyNoRepo
 	case err != nil:
-		return nil, errors.Wrap(err, "getting service policies")
+		return nil, globalReadOnly, errors.Wrap(err, "getting service policies")
+	}
+
+	return services, globalReadOnly, nil
+}
+
+func (d *Daemon) ListServices(ctx context.Context, namespace string) ([]v6.ControllerStatus, error) {
+	clusterServices, err := d.Cluster.AllControllers(namespace)
+	if err != nil {
+		return nil, errors.Wrap(err, "getting services from cluster")
+	}
+
+	policyResourceMap, readOnly, err := d.getPolicyResourceMap(ctx)
+	if err != nil {
+		return nil, err
 	}
 
 	var res []v6.ControllerStatus
 	for _, service := range clusterServices {
-		var readOnly v6.ReadOnlyReason
-		policies, ok := services[service.ID]
+		policies, ok := policyResourceMap[service.ID]
 		switch {
-		case globalReadOnly != "":
-			readOnly = globalReadOnly
 		case !ok:
 			readOnly = v6.ReadOnlyMissing
 		case service.IsSystem:
@@ -148,9 +156,14 @@ func (d *Daemon) ListImages(ctx context.Context, spec update.ResourceSpec) ([]v6
 		return nil, errors.Wrap(err, "getting images for services")
 	}
 
+	policyResourceMap, _, err := d.getPolicyResourceMap(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	var res []v6.ImageStatus
 	for _, service := range services {
-		serviceContainers := getServiceContainers(service, imageRepos)
+		serviceContainers := getServiceContainers(service, imageRepos, policyResourceMap)
 		res = append(res, v6.ImageStatus{
 			ID:         service.ID,
 			Containers: serviceContainers,
@@ -544,20 +557,52 @@ func containers2containers(cs []resource.Container) []v6.Container {
 	return res
 }
 
-func getServiceContainers(service cluster.Controller, imageRepos update.ImageRepos) (res []v6.Container) {
+func getServiceContainers(service cluster.Controller, imageRepos update.ImageRepos, policyResourceMap policy.ResourceMap) (res []v6.Container) {
 	for _, c := range service.ContainersOrNil() {
-		available := imageRepos.Available(c.Image.Name)
-		availableErr := ""
-		if available == nil {
-			availableErr = registry.ErrNoImageData.Error()
+		imageRepo := c.Image.Name
+		tagPattern := getTagPattern(policyResourceMap, service.ID, c.Name)
+
+		currentImage := imageRepos.FindImageInfo(imageRepo, c.Image)
+		latestFilteredImage, _ := imageRepos.LatestFilteredImage(imageRepo, tagPattern)
+
+		// All available images
+		availableImages := imageRepos.Available(imageRepo)
+		availableImagesCount := len(availableImages)
+		availableImagesErr := ""
+		if availableImages == nil {
+			availableImagesErr = registry.ErrNoImageData.Error()
 		}
+		var newAvailableImages []image.Info
+		for _, img := range availableImages {
+			if img.CreatedAt.After(currentImage.CreatedAt) {
+				newAvailableImages = append(newAvailableImages, img)
+			}
+		}
+		newAvailableImagesCount := len(newAvailableImages)
+
+		// Filtered available images
+		filteredImages := imageRepos.FilteredAvailable(imageRepo, tagPattern)
+		filteredImagesCount := len(filteredImages)
+		var newFilteredImages []image.Info
+		for _, img := range filteredImages {
+			if img.CreatedAt.After(currentImage.CreatedAt) {
+				newFilteredImages = append(newFilteredImages, img)
+			}
+		}
+		newFilteredImagesCount := len(newFilteredImages)
+
 		res = append(res, v6.Container{
-			Name: c.Name,
-			Current: image.Info{
-				ID: c.Image,
-			},
-			Available:      available,
-			AvailableError: availableErr,
+			Name:           c.Name,
+			Current:        currentImage,
+			LatestFiltered: latestFilteredImage,
+
+			Available:               availableImages,
+			AvailableError:          availableImagesErr,
+			AvailableImagesCount:    availableImagesCount,
+			NewAvailableImagesCount: newAvailableImagesCount,
+
+			FilteredImagesCount:    filteredImagesCount,
+			NewFilteredImagesCount: newFilteredImagesCount,
 		})
 	}
 	return res
