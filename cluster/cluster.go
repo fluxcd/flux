@@ -2,6 +2,7 @@ package cluster
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/resource"
@@ -50,6 +51,7 @@ func (s Controller) ContainersOrNil() []resource.Container {
 }
 
 func (s Controller) ContainersOrError() ([]resource.Container, error) {
+	fmt.Printf("\t\t>>> ContainersOrError: %+v\n\n", s)
 	var err error
 	if s.Containers.Excuse != "" {
 		err = errors.New(s.Containers.Excuse)

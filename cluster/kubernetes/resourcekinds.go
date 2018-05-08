@@ -304,7 +304,7 @@ func makeFluxHelmReleasePodController(fluxHelmRelease *ifv1.FluxHelmRelease) pod
 	if fluxHelmRelease == nil {
 		return podController{}
 	}
-	containers := k8sresource.CreateK8sContainers(fluxHelmRelease.Spec)
+	containers := k8sresource.CreateK8sContainers(fluxHelmRelease.GetName(), fluxHelmRelease.Spec)
 
 	podTemplate := apiv1.PodTemplateSpec{
 		ObjectMeta: fluxHelmRelease.ObjectMeta,

@@ -117,6 +117,7 @@ type manifest struct {
 
 func extractAnnotations(def []byte) (map[string]string, error) {
 	var m manifest
+
 	if err := yaml.Unmarshal(def, &m); err != nil {
 		return nil, errors.Wrap(err, "decoding manifest for annotations")
 	}

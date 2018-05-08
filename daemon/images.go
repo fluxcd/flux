@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	"github.com/go-kit/kit/log"
@@ -81,10 +82,13 @@ func getTagPattern(services policy.ResourceMap, service flux.ResourceID, contain
 }
 
 func (d *Daemon) unlockedAutomatedServices(ctx context.Context) (policy.ResourceMap, error) {
+	fmt.Println(">>> unlockedAutomatedServices ----------------------------------------")
 	var services policy.ResourceMap
 	err := d.WithClone(ctx, func(checkout *git.Checkout) error {
 		var err error
 		services, err = d.Manifests.ServicesWithPolicies(checkout.ManifestDir())
+		fmt.Printf("\t\tservices ... %+v\n", services)
+		fmt.Printf("\t\terr ... %+v\n", err)
 		return err
 	})
 	if err != nil {

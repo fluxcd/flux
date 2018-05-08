@@ -25,12 +25,13 @@ func (fhr FluxHelmRelease) Containers() []resource.Container {
 }
 
 // CreateK8sContainers creates a list of k8s containers as
-func CreateK8sContainers(spec ifv1.FluxHelmReleaseSpec) []apiv1.Container {
+func CreateK8sContainers(fhrName string, spec ifv1.FluxHelmReleaseSpec) []apiv1.Container {
+	containers := []apiv1.Container{}
+
 	values := spec.Values
 	if len(values) == 0 {
-		return []apiv1.Container{}
+		return containers
 	}
-	containers := []apiv1.Container{}
 
 	imgInfo, ok := values["image"]
 
@@ -38,9 +39,9 @@ func CreateK8sContainers(spec ifv1.FluxHelmReleaseSpec) []apiv1.Container {
 	if ok {
 		imgInfoStr, ok := imgInfo.(string)
 		if !ok {
-			return []apiv1.Container{}
+			return containers
 		}
-		containers = append(containers, apiv1.Container{Name: spec.ChartGitPath, Image: imgInfoStr})
+		containers = append(containers, apiv1.Container{Name: fhrName, Image: imgInfoStr})
 		return containers
 	}
 	return []apiv1.Container{}
@@ -48,6 +49,129 @@ func CreateK8sContainers(spec ifv1.FluxHelmReleaseSpec) []apiv1.Container {
 
 func TryFHRUpdate(def []byte, resourceID flux.ResourceID, container string, newImage image.Ref, out io.Writer) error {
 	fmt.Println("FAKE Updating image tag info for FHR special")
+	fmt.Println("=========================================")
+	fmt.Println("\t\t*** in tryFHRUpdate")
+	fmt.Printf("\t\t*** container: %s\n", container)
+	fmt.Printf("\t\t*** newImage: %+v\n", newImage)
+
+	fmt.Println("Updating image tag info for FHR special")
+	fmt.Println("=========================================")
+
+	//--------------------------------------
+	// manifest, err := parseManifest(def)
+	// if err != nil {
+	// 	return err
+	// }
+	// if manifest.Metadata.Name == "" {
+	// 	return fmt.Errorf("could not find resource name")
+	// }
+
+	// // Check if any containers need updating. As we go through, we calculate the
+	// // new manifest name, in case it includes the image tag (as in replication
+	// // controllers).
+	// newDefName := manifest.Metadata.Name
+	// matchingContainers := map[int]Container{}
+	// for i, c := range append(manifest.Spec.Template.Spec.Containers, manifest.Spec.JobTemplate.Spec.Template.Spec.Containers...) {
+	// 	if c.Name != container {
+	// 		continue
+	// 	}
+	// 	currentImage, err := image.ParseRef(c.Image)
+	// 	if err != nil {
+	// 		return fmt.Errorf("could not parse image %s", c.Image)
+	// 	}
+	// 	if currentImage.CanonicalName() == newImage.CanonicalName() {
+	// 		matchingContainers[i] = c
+	// 	}
+	// 	_, _, oldImageTag := currentImage.Components()
+	// 	if strings.HasSuffix(manifest.Metadata.Name, oldImageTag) {
+	// 		newDefName = manifest.Metadata.Name[:len(manifest.Metadata.Name)-len(oldImageTag)] + newImage.Tag
+	// 	}
+	// }
+
+	// // Some values (most likely the version) will be interpreted as a
+	// // number if unquoted; while, on the other hand, it is apparently
+	// // not OK to quote things that don't look like numbers. So: we
+	// // extract values *without* quotes, and add them if necessary.
+	// newDefName = maybeQuote(newDefName)
+
+	// if len(matchingContainers) == 0 {
+	// 	return fmt.Errorf("could not find container using image: %s", newImage.Repository())
+	// }
+
+	// // Detect how indented the "containers" block is.
+	// // TODO: delete all regular expressions which are used to modify YAML.
+	// // See #1019. Modifying this is not recommended.
+	// newDef := string(def)
+	// matches := regexp.MustCompile(`( +)containers:.*`).FindStringSubmatch(newDef)
+	// if len(matches) != 2 {
+	// 	return fmt.Errorf("could not find container specs")
+	// }
+	// indent := matches[1]
+
+	// // TODO: delete all regular expressions which are used to modify YAML.
+	// // See #1019. Modifying this is not recommended.
+	// optq := `["']?` // An optional single or double quote
+	// // Replace the container images
+	// // Parse out all the container blocks
+	// containersRE := regexp.MustCompile(`(?m:^` + indent + `containers:\s*(?:#.*)*$(?:\n(?:` + indent + `[-\s#].*)?)*)`)
+	// // Parse out an individual container blog
+	// containerRE := regexp.MustCompile(`(?m:` + indent + `-.*(?:\n(?:` + indent + `\s+.*)?)*)`)
+	// // Parse out the image ID
+	// imageRE := regexp.MustCompile(`(` + indent + `[-\s]\s*` + optq + `image` + optq + `:\s*)` + optq + `(?:[\w\.\-/:]+\s*?)*` + optq + `([\t\f #]+.*)?`)
+	// imageReplacement := fmt.Sprintf("${1}%s${2}", maybeQuote(newImage.String()))
+	// // Find the block of container specs
+	// newDef = containersRE.ReplaceAllStringFunc(newDef, func(containers string) string {
+	// 	i := 0
+	// 	// Find each container spec
+	// 	return containerRE.ReplaceAllStringFunc(containers, func(spec string) string {
+	// 		if _, ok := matchingContainers[i]; ok {
+	// 			// container matches, let's replace the image
+	// 			spec = imageRE.ReplaceAllString(spec, imageReplacement)
+	// 			delete(matchingContainers, i)
+	// 		}
+	// 		i++
+	// 		return spec
+	// 	})
+	// })
+
+	// if len(matchingContainers) > 0 {
+	// 	missed := []string{}
+	// 	for _, c := range matchingContainers {
+	// 		missed = append(missed, c.Name)
+	// 	}
+	// 	return fmt.Errorf("did not update expected containers: %s", strings.Join(missed, ", "))
+	// }
+
+	// // TODO: delete all regular expressions which are used to modify YAML.
+	// // See #1019. Modifying this is not recommended.
+	// // The name we want is that under `metadata:`, which will *probably* be the first one
+	// replacedName := false
+	// replaceRCNameRE := regexp.MustCompile(`(\s+` + optq + `name` + optq + `:\s*)` + optq + `(?:[\w\.\-/:]+\s*?)` + optq + `([\t\f #]+.*)`)
+	// replaceRCNameRE.ReplaceAllStringFunc(newDef, func(found string) string {
+	// 	if replacedName {
+	// 		return found
+	// 	}
+	// 	replacedName = true
+	// 	return replaceRCNameRE.ReplaceAllString(found, fmt.Sprintf(`${1}%s${2}`, newDefName))
+	// })
+
+	// // TODO: delete all regular expressions which are used to modify YAML.
+	// // See #1019. Modifying this is not recommended.
+	// // Replacing labels: these are in two places, the container template and the selector
+	// // TODO: This doesn't handle # comments
+	// // TODO: This encodes an expectation of map keys being ordered (i.e. name *then* version)
+	// // TODO: This assumes that these are indented by exactly 2 spaces (which may not be true)
+	// replaceLabelsRE := multilineRE(
+	// 	`((?:  selector|      labels):.*)`,
+	// 	`((?:  ){2,4}name:.*)`,
+	// 	`((?:  ){2,4}version:\s*) (?:`+optq+`[-\w]+`+optq+`)(\s.*)`,
+	// )
+	// replaceLabels := fmt.Sprintf("$1\n$2\n$3 %s$4", maybeQuote(newImage.Tag))
+	// newDef = replaceLabelsRE.ReplaceAllString(newDef, replaceLabels)
+
+	// fmt.Fprint(out, newDef)
+	// return nil
+	//--------------------------------------
 	return nil
 }
 
