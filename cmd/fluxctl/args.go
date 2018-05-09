@@ -3,8 +3,9 @@ package main
 import (
 	"bytes"
 	"fmt"
+        "io/ioutil"
 	"os/exec"
-	"strings"
+        "strings"
 
 	"github.com/spf13/cobra"
 
@@ -12,16 +13,15 @@ import (
 )
 
 func AddCauseFlags(cmd *cobra.Command, opts *update.Cause) {
-	authorInfo := getUserGitconfig()
-	username := getCommitAuthor(authorInfo)
+	username := getCommitAuthor()
 
 	cmd.Flags().StringVarP(&opts.Message, "message", "m", "", "attach a message to the update")
 	cmd.Flags().StringVar(&opts.User, "user", username, "override the user reported as initiating the update")
 }
 
-func getCommitAuthor(authorInfo map[string]string) string {
-	userName := authorInfo["user.name"]
-	userEmail := authorInfo["user.email"]
+func getCommitAuthor() string {
+	userName := getUserGitConfigValue("user.name")
+	userEmail := getUserGitConfigValue("user.email")
 
 	switch {
 	case userName != "" && userEmail != "":
@@ -34,39 +34,17 @@ func getCommitAuthor(authorInfo map[string]string) string {
 	return ""
 }
 
-func getUserGitconfig() map[string]string {
+var execCommand = exec.Command
+func getUserGitConfigValue(arg string) string {
 	var out bytes.Buffer
-	userGitconfig := make(map[string]string)
-	cmd := exec.Command("git", "config", "--list")
+	cmd := execCommand("git", "config", "--get", "--null", arg)
 	cmd.Stdout = &out
+	cmd.Stderr = ioutil.Discard
 
 	err := cmd.Run()
 	if err != nil {
-		return userGitconfig
+		return ""
 	}
 	res := out.String()
-	return userGitconfigMap(res)
-}
-
-func userGitconfigMap(s string) map[string]string {
-	c := make(map[string]string)
-	lines := splitList(s)
-	for _, l := range lines {
-		if l == "" {
-			continue
-		}
-		prop := strings.SplitN(l, "=", 2)
-		p := strings.TrimSpace(prop[0])
-		v := strings.TrimSpace(prop[1])
-		c[p] = v
-	}
-	return c
-}
-
-func splitList(s string) []string {
-	outStr := strings.TrimSpace(s)
-	if outStr == "" {
-		return []string{}
-	}
-	return strings.Split(outStr, "\n")
+	return strings.Trim(res, "\x00")
 }
