@@ -1,7 +1,6 @@
 package kubernetes
 
 import (
-	"io/ioutil"
 	"regexp"
 	"strings"
 
@@ -9,51 +8,56 @@ import (
 	yaml "gopkg.in/yaml.v2"
 
 	"github.com/weaveworks/flux"
-	"github.com/weaveworks/flux/cluster/kubernetes/resource"
+	kresource "github.com/weaveworks/flux/cluster/kubernetes/resource"
 	"github.com/weaveworks/flux/policy"
+	"github.com/weaveworks/flux/resource"
 )
 
-func (m *Manifests) UpdatePolicies(in []byte, update policy.Update) ([]byte, error) {
-	tagAll, _ := update.Add.Get(policy.TagAll)
-	return updateAnnotations(in, tagAll, func(a map[string]string) map[string]string {
-		for p, v := range update.Add {
-			if p == policy.TagAll {
-				continue
+func (m *Manifests) UpdatePolicies(def []byte, id flux.ResourceID, update policy.Update) ([]byte, error) {
+	add, del := update.Add, update.Remove
+
+	// We may be sent the pseudo-policy `policy.TagAll`, which means
+	// apply this filter to all containers. To do so, we need to know
+	// what all the containers are.
+	if tagAll, ok := update.Add.Get(policy.TagAll); ok {
+		add = add.Without(policy.TagAll)
+		containers, err := extractContainers(def, id)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, container := range containers {
+			if tagAll == "glob:*" {
+				del = del.Add(policy.TagPrefix(container.Name))
+			} else {
+				add = add.Set(policy.TagPrefix(container.Name), tagAll)
 			}
-			a[resource.PolicyPrefix+string(p)] = v
 		}
-		for p, _ := range update.Remove {
-			delete(a, resource.PolicyPrefix+string(p))
+	}
+
+	return updateAnnotations(def, id, func(old map[string]string) {
+		for k, v := range add {
+			old[kresource.PolicyPrefix+string(k)] = v
 		}
-		return a
+		for k := range del {
+			delete(old, kresource.PolicyPrefix+string(k))
+		}
 	})
 }
 
-func updateAnnotations(def []byte, tagAll string, f func(map[string]string) map[string]string) ([]byte, error) {
-	manifest, err := parseManifest(def)
+func updateAnnotations(def []byte, id flux.ResourceID, f func(map[string]string)) ([]byte, error) {
+	annotations, err := extractAnnotations(def)
 	if err != nil {
 		return nil, err
 	}
-	annotations := manifest.Metadata.AnnotationsOrNil()
-	if tagAll != "" {
-		containers := manifest.Spec.Template.Spec.Containers
-		for _, c := range containers {
-			p := resource.PolicyPrefix + string(policy.TagPrefix(c.Name))
-			if tagAll != "glob:*" {
-				annotations[p] = tagAll
-			} else {
-				delete(annotations, p)
-			}
-		}
-	}
-	newAnnotations := f(annotations)
+	f(annotations)
 
 	// Write the new annotations back into the manifest
 	// Generate a fragment of the new annotations.
 	var fragment string
-	if len(newAnnotations) > 0 {
+	if len(annotations) > 0 {
 		fragmentB, err := yaml.Marshal(map[string]map[string]string{
-			"annotations": newAnnotations,
+			"annotations": annotations,
 		})
 		if err != nil {
 			return nil, err
@@ -105,109 +109,47 @@ func updateAnnotations(def []byte, tagAll string, f func(map[string]string) map[
 	return []byte(newDef), err
 }
 
-type Manifest struct {
-	Metadata Metadata `yaml:"metadata"`
-	Spec     struct {
-		Template struct {
-			Spec struct {
-				Containers []Container `yaml:"containers"`
-			} `yaml:"spec"`
-		} `yaml:"template"`
-		JobTemplate struct {
-			Spec struct {
-				Template struct {
-					Spec struct {
-						Containers []Container `yaml:"containers"`
-					} `yaml:"spec"`
-				} `yaml:"template"`
-			} `yaml:"spec"`
-		} `yaml:"jobTemplate"`
-	} `yaml:"spec"`
+type manifest struct {
+	Metadata struct {
+		Annotations map[string]string `yaml:"annotations"`
+	} `yaml:"metadata"`
 }
 
-func (m Metadata) AnnotationsOrNil() map[string]string {
-	if m.Annotations == nil {
-		return map[string]string{}
-	}
-	return m.Annotations
-}
-
-type Metadata struct {
-	Name        string            `yaml:"name"`
-	Annotations map[string]string `yaml:"annotations"`
-}
-
-type Container struct {
-	Name  string `yaml:"name"`
-	Image string `yaml:"image"`
-}
-
-func parseManifest(def []byte) (Manifest, error) {
-	var m Manifest
+func extractAnnotations(def []byte) (map[string]string, error) {
+	var m manifest
 	if err := yaml.Unmarshal(def, &m); err != nil {
-		return m, errors.Wrap(err, "decoding annotations")
+		return nil, errors.Wrap(err, "decoding manifest for annotations")
 	}
-	return m, nil
+	if m.Metadata.Annotations == nil {
+		return map[string]string{}, nil
+	}
+	return m.Metadata.Annotations, nil
+}
+
+func extractContainers(def []byte, id flux.ResourceID) ([]resource.Container, error) {
+	resources, err := kresource.ParseMultidoc(def, "stdin")
+	if err != nil {
+		return nil, err
+	}
+	res, ok := resources[id.String()]
+	if !ok {
+		return nil, errors.New("resource " + id.String() + " not found")
+	}
+	workload, ok := res.(resource.Workload)
+	if !ok {
+		return nil, errors.New("resource " + id.String() + " does not have containers")
+	}
+	return workload.Containers(), nil
 }
 
 func (m *Manifests) ServicesWithPolicies(root string) (policy.ResourceMap, error) {
-	all, err := m.FindDefinedServices(root)
+	resources, err := m.LoadManifests(root, root)
 	if err != nil {
 		return nil, err
 	}
-
-	result := map[flux.ResourceID]policy.Set{}
-	err = iterateManifests(all, func(s flux.ResourceID, m Manifest) error {
-		ps, err := policiesFrom(m)
-		if err != nil {
-			return err
-		}
-		result[s] = ps
-		return nil
-	})
-	if err != nil {
-		return nil, err
+	result := policy.ResourceMap{}
+	for _, res := range resources {
+		result[res.ResourceID()] = res.Policy()
 	}
 	return result, nil
-}
-
-func iterateManifests(services map[flux.ResourceID][]string, f func(flux.ResourceID, Manifest) error) error {
-	for serviceID, paths := range services {
-		if len(paths) != 1 {
-			continue
-		}
-
-		def, err := ioutil.ReadFile(paths[0])
-		if err != nil {
-			return err
-		}
-		manifest, err := parseManifest(def)
-		if err != nil {
-			return err
-		}
-
-		if err = f(serviceID, manifest); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func policiesFrom(m Manifest) (policy.Set, error) {
-	var policies policy.Set
-	for k, v := range m.Metadata.AnnotationsOrNil() {
-		if !strings.HasPrefix(k, resource.PolicyPrefix) {
-			continue
-		}
-		p := policy.Policy(strings.TrimPrefix(k, resource.PolicyPrefix))
-		if policy.Boolean(p) {
-			if v != "true" {
-				continue
-			}
-			policies = policies.Add(p)
-		} else {
-			policies = policies.Set(p, v)
-		}
-	}
-	return policies, nil
 }

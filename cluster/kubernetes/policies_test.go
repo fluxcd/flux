@@ -7,6 +7,7 @@ import (
 	"testing"
 	"text/template"
 
+	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/policy"
 )
 
@@ -117,7 +118,8 @@ func TestUpdatePolicies(t *testing.T) {
 	} {
 		caseIn := templToString(t, annotationsTemplate, c.in)
 		caseOut := templToString(t, annotationsTemplate, c.out)
-		out, err := (&Manifests{}).UpdatePolicies([]byte(caseIn), c.update)
+		id := flux.MustParseResourceID("default:deplot/nginx")
+		out, err := (&Manifests{}).UpdatePolicies([]byte(caseIn), id, c.update)
 		if err != nil {
 			t.Errorf("[%s] %v", c.name, err)
 		} else if string(out) != caseOut {
