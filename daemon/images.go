@@ -15,11 +15,15 @@ import (
 )
 
 func (d *Daemon) pollForNewImages(logger log.Logger) {
+	fmt.Println("\n--------------- in pollForNewImages")
+
 	logger.Log("msg", "polling images")
 
 	ctx := context.Background()
 
 	candidateServices, err := d.unlockedAutomatedServices(ctx)
+	fmt.Printf("\t\t automatedServicesWithout (candidateServices) ... %+v\n", candidateServices)
+
 	if err != nil {
 		logger.Log("error", errors.Wrap(err, "getting unlocked automated services"))
 		return
@@ -30,6 +34,8 @@ func (d *Daemon) pollForNewImages(logger log.Logger) {
 	}
 	// Find images to check
 	services, err := d.Cluster.SomeControllers(candidateServices.ToSlice())
+	fmt.Printf("\n==========\t\tservices from SomeControllers ... %+v\n==========\n", services)
+
 	if err != nil {
 		logger.Log("error", errors.Wrap(err, "checking services for new images"))
 		return
@@ -57,6 +63,7 @@ func (d *Daemon) pollForNewImages(logger log.Logger) {
 			logger.Log("repo", repo, "pattern", pattern)
 
 			if latest, ok := imageMap.LatestImage(repo, pattern); ok && latest.ID != currentImageID {
+				fmt.Printf("\n\t\t\t latest image = %+v\n========\n", latest)
 				if latest.ID.Tag == "" {
 					logger.Log("msg", "untagged image in available images", "action", "skip", "available", repo)
 					continue
@@ -68,7 +75,10 @@ func (d *Daemon) pollForNewImages(logger log.Logger) {
 		}
 	}
 
+	fmt.Printf("\n========\t\t\tdaemon/images.go, pollForNewImages: changes = %+v\n========\n", changes.Changes)
+
 	if len(changes.Changes) > 0 {
+		fmt.Println("\t\t >>> There should be AUTOMATED changes!!!")
 		d.UpdateManifests(ctx, update.Spec{Type: update.Auto, Spec: changes})
 	}
 }
@@ -82,7 +92,7 @@ func getTagPattern(services policy.ResourceMap, service flux.ResourceID, contain
 }
 
 func (d *Daemon) unlockedAutomatedServices(ctx context.Context) (policy.ResourceMap, error) {
-	fmt.Println(">>> unlockedAutomatedServices ----------------------------------------")
+	fmt.Println("\n-------------- unlockedAutomatedServices -----------------\n")
 	var services policy.ResourceMap
 	err := d.WithClone(ctx, func(checkout *git.Checkout) error {
 		var err error
@@ -95,6 +105,11 @@ func (d *Daemon) unlockedAutomatedServices(ctx context.Context) (policy.Resource
 		return nil, err
 	}
 	automatedServices := services.OnlyWithPolicy(policy.Automated)
+	fmt.Printf("\t\tautomated services ... %+v\n", automatedServices)
 	lockedServices := services.OnlyWithPolicy(policy.Locked)
+	fmt.Printf("\t\tlocked services ... %+v\n", lockedServices)
+
+	fmt.Println("\n-------------- END unlockedAutomatedServices -----------------\n")
+
 	return automatedServices.Without(lockedServices), nil
 }

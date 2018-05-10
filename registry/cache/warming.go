@@ -3,6 +3,7 @@ package cache
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net"
 	"strings"
 	"sync"
@@ -119,9 +120,11 @@ func imageCredsToBacklog(imageCreds registry.ImageCreds) []backlogItem {
 }
 
 func (w *Warmer) warm(ctx context.Context, logger log.Logger, id image.Name, creds registry.Credentials) {
+	fmt.Println("\t\t-----------in warming.warm")
 	errorLogger := log.With(logger, "canonical_name", id.CanonicalName(), "auth", creds)
 	client, err := w.clientFactory.ClientFor(id.CanonicalName(), creds)
 	if err != nil {
+		fmt.Printf("\t\t\t ERROR: %+v\n", err)
 		errorLogger.Log("err", err.Error())
 		return
 	}
@@ -129,6 +132,8 @@ func (w *Warmer) warm(ctx context.Context, logger log.Logger, id image.Name, cre
 	// This is what we're going to write back to the cache
 	var repo ImageRepository
 	repoKey := NewRepositoryKey(id.CanonicalName())
+	fmt.Printf("\t\t\t repoKey: %+v\n", repoKey)
+
 	bytes, _, err := w.cache.GetKey(repoKey)
 	if err == nil {
 		err = json.Unmarshal(bytes, &repo)
@@ -157,6 +162,10 @@ func (w *Warmer) warm(ctx context.Context, logger log.Logger, id image.Name, cre
 	}()
 
 	tags, err := client.Tags(ctx)
+	fmt.Printf("\t\t\t image Name: %+v\n", id.Image)
+	if strings.HasSuffix(id.Image, "mongodb") {
+		fmt.Printf("\t\t\t TAGS: %+v\n", tags)
+	}
 	if err != nil {
 		if !strings.Contains(err.Error(), context.DeadlineExceeded.Error()) && !strings.Contains(err.Error(), "net/http: request canceled") {
 			errorLogger.Log("err", errors.Wrap(err, "requesting tags"))
@@ -197,6 +206,10 @@ func (w *Warmer) warm(ctx context.Context, logger log.Logger, id image.Name, cre
 			missing++
 		}
 		toUpdate = append(toUpdate, newID)
+
+		if id.Image == "docker.io/bitnami/mongodb" {
+			fmt.Printf("\t\t\t toUpdate: %+v\n", toUpdate)
+		}
 	}
 
 	var successCount int

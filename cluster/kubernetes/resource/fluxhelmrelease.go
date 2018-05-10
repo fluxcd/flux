@@ -175,6 +175,7 @@ func TryFHRUpdate(def []byte, resourceID flux.ResourceID, container string, newI
 	return nil
 }
 
+// assumes only one image in the Spec.Values
 func CreateFHRContainers(spec ifv1.FluxHelmReleaseSpec) ([]resource.Container, error) {
 	values := spec.Values
 	if len(values) == 0 {

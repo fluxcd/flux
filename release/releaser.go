@@ -1,6 +1,7 @@
 package release
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/go-kit/kit/log"
@@ -16,6 +17,7 @@ type Changes interface {
 }
 
 func Release(rc *ReleaseContext, changes Changes, logger log.Logger) (results update.Result, err error) {
+	fmt.Println("\t\t\trelease.Changes ...")
 	defer func(start time.Time) {
 		update.ObserveRelease(
 			start,

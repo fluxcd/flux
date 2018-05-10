@@ -27,16 +27,26 @@ type ImageMap struct {
 // returns a zero value and `false`, and the caller can decide whether
 // that's an error or not.
 func (m ImageMap) LatestImage(repo image.Name, tagGlob string) (image.Info, bool) {
+	fmt.Println("\n======== in LatestImage ========\n\n")
 	for _, available := range m.images[repo.CanonicalName()] {
+		if repo.Image == "bitnami/mongodb" {
+			fmt.Printf("\t\t tagGlob = %s\n========\n", tagGlob)
+			fmt.Printf("\t\t available = %+v\n========\n", available)
+			fmt.Printf("\t\t available ID = %+v\n========\n", available.ID)
+			fmt.Printf("\t\t available tag = %s\n========\n", available.ID.Tag)
+		}
 		tag := available.ID.Tag
 		// Ignore latest if and only if it's not what the user wants.
 		if !strings.EqualFold(tagGlob, "latest") && strings.EqualFold(tag, "latest") {
 			continue
 		}
 		if glob.Glob(tagGlob, tag) {
+			fmt.Printf("\t\ttagGlob=%v, tag=%v\n\n", tagGlob, tag)
+
 			var im image.Info
 			im = available
 			im.ID = repo.ToRef(tag)
+			fmt.Printf("\t\tim=%v\n\n", im)
 			return im, true
 		}
 	}
@@ -82,12 +92,15 @@ func collectUpdateImages(registry registry.Registry, updateable []*ControllerUpd
 // CollectAvailableImages finds all the known image metadata for
 // containers in the controllers given.
 func CollectAvailableImages(reg registry.Registry, cs containers, logger log.Logger) (ImageMap, error) {
+	fmt.Println("\n============ CollectAvailableImages\n")
 	images := infoMap{}
 	for i := 0; i < cs.Len(); i++ {
 		for _, container := range cs.Containers(i) {
 			images[container.Image.CanonicalName()] = nil
 		}
 	}
+	fmt.Printf("\n---\n images before ... %v\n---\n", images)
+
 	for name := range images {
 		imageRepo, err := reg.GetRepository(name.Name)
 		if err != nil {
@@ -99,6 +112,9 @@ func CollectAvailableImages(reg registry.Registry, cs containers, logger log.Log
 		}
 		images[name] = imageRepo
 	}
+	fmt.Printf("\n---\n images after ... %v\n---\n", images)
+	fmt.Println("\n============ END of CollectAvailableImages\n")
+
 	return ImageMap{images}, nil
 }
 

@@ -115,6 +115,10 @@ type manifest struct {
 	} `yaml:"metadata"`
 }
 
+type Typemeta struct {
+	Kind string `yaml:"kind,omitempty"`
+}
+
 func extractAnnotations(def []byte) (map[string]string, error) {
 	var m manifest
 
@@ -125,6 +129,17 @@ func extractAnnotations(def []byte) (map[string]string, error) {
 		return map[string]string{}, nil
 	}
 	return m.Metadata.Annotations, nil
+}
+
+func createFluxK8sContainers(containerName string, image interface{}) []Container {
+	imageStr, ok := image.(string)
+
+	containers := []Container{}
+	if !ok || containerName == "" || image == "" {
+		return containers
+	}
+	containers = append(containers, Container{Name: containerName, Image: imageStr})
+	return containers
 }
 
 func extractContainers(def []byte, id flux.ResourceID) ([]resource.Container, error) {
@@ -147,6 +162,7 @@ func (m *Manifests) ServicesWithPolicies(root string) (policy.ResourceMap, error
 	resources, err := m.LoadManifests(root, root)
 	if err != nil {
 		return nil, err
+
 	}
 	result := policy.ResourceMap{}
 	for _, res := range resources {

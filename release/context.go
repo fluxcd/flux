@@ -62,9 +62,14 @@ func (rc *ReleaseContext) WriteUpdates(updates []*update.ControllerUpdate) error
 // to filter the controllers so found, either before (`prefilters`) or
 // after (`postfilters`) consulting the cluster.
 func (rc *ReleaseContext) SelectServices(results update.Result, prefilters, postfilters []update.ControllerFilter) ([]*update.ControllerUpdate, error) {
+	fmt.Println("\n\t\t\t================== context.SelectServices")
+	fmt.Printf("\t\t\t\t----rc.Manifests: [ %+v ]\n----\n", rc.Manifests())
+	fmt.Printf("\t\t\t\t----results: [ %+v ]\n----\n", results)
 
 	// Start with all the controllers that are defined in the repo.
 	allDefined, err := rc.WorkloadsForUpdate()
+	fmt.Printf("\t\t\t\t----allDefined: [ %+v ]\n----\n", allDefined)
+	fmt.Printf("\t\t\t\t----err: [ %+v ]\n----\n", err)
 	if err != nil {
 		return nil, err
 	}
@@ -89,6 +94,8 @@ func (rc *ReleaseContext) SelectServices(results update.Result, prefilters, post
 
 	// Ask the cluster about those that we're still interested in
 	definedAndRunning, err := rc.cluster.SomeControllers(toAskClusterAbout)
+	fmt.Printf("\t\t\t\t----definedAndRunning: %+v\n----\n", definedAndRunning)
+	fmt.Printf("\t\t\t\t----err: [ %+v ]\n----\n", err)
 	if err != nil {
 		return nil, err
 	}
@@ -116,11 +123,17 @@ func (rc *ReleaseContext) SelectServices(results update.Result, prefilters, post
 		}
 	}
 
+	fmt.Printf("\t\t\t\t----filteredUpdates: [ %+v ]\n----\n\n", filteredUpdates)
+
 	return filteredUpdates, nil
 }
 
 func (rc *ReleaseContext) WorkloadsForUpdate() (map[flux.ResourceID]*update.ControllerUpdate, error) {
 	resources, err := rc.manifests.LoadManifests(rc.repo.Dir(), rc.repo.ManifestDir())
+	for k, v := range resources {
+		fmt.Printf("\t\t\tWorkloadsForUpdate: resourceID: %s ... \n\n-----\nupdate.ControllerUpdate%+v\n-----\n\n", k, v)
+	}
+	fmt.Printf("\t\t\tWorkloadsForUpdate: err ... %+v\n", err)
 	if err != nil {
 		return nil, err
 	}
@@ -136,6 +149,9 @@ func (rc *ReleaseContext) WorkloadsForUpdate() (map[flux.ResourceID]*update.Cont
 			}
 		}
 	}
+
+	fmt.Printf("\t\t\tWorkloadsForUpdate: defined ... %+v\n", defined)
+
 	return defined, nil
 }
 

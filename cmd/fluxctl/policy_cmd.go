@@ -102,6 +102,8 @@ func (opts *controllerPolicyOpts) RunE(cmd *cobra.Command, args []string) error 
 		return err
 	}
 
+	fmt.Printf("\t\t\tpolicy_cmd RunE: changes = %+v\n", changes)
+
 	ctx := context.Background()
 	updates := policy.Updates{
 		resourceID: changes,

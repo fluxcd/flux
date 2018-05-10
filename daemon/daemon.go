@@ -164,6 +164,7 @@ type daemonJobFunc func(ctx context.Context, jobID job.ID, working *git.Checkout
 
 // executeJob runs a job func in a cloned working directory, keeping track of its status.
 func (d *Daemon) executeJob(id job.ID, do daemonJobFunc, logger log.Logger) (job.Result, error) {
+	fmt.Println("\t\t\t\t\texecuteJob ...")
 	ctx, cancel := context.WithTimeout(context.Background(), defaultJobTimeout)
 	defer cancel()
 	d.JobStatusCache.SetStatus(id, job.Status{StatusString: job.StatusRunning})
@@ -233,19 +234,24 @@ func (d *Daemon) queueJob(do daemonJobFunc) job.ID {
 
 // Apply the desired changes to the config files
 func (d *Daemon) UpdateManifests(ctx context.Context, spec update.Spec) (job.ID, error) {
+	fmt.Printf("\t\tUpdateManifests: spec.Spec = %#v\n", spec.Spec)
+
 	var id job.ID
 	if spec.Type == "" {
 		return id, errors.New("no type in update spec")
 	}
 	switch s := spec.Spec.(type) {
 	case release.Changes:
+		fmt.Println("\t\t\trelease.Changes ...")
 		if s.ReleaseKind() == update.ReleaseKindPlan {
+			fmt.Println("\t\t\t\tDOING")
 			id := job.ID(guid.New())
 			_, err := d.executeJob(id, d.release(spec, s), d.Logger)
 			return id, err
 		}
 		return d.queueJob(d.release(spec, s)), nil
 	case policy.Updates:
+		fmt.Println("\t\t\tpolicy.Changes ...")
 		return d.queueJob(d.updatePolicy(spec, s)), nil
 	default:
 		return id, fmt.Errorf(`unknown update type "%s"`, spec.Type)
@@ -334,6 +340,8 @@ func (d *Daemon) updatePolicy(spec update.Spec, updates policy.Updates) daemonJo
 }
 
 func (d *Daemon) release(spec update.Spec, c release.Changes) daemonJobFunc {
+	fmt.Println("\t\t\tn daemon release ...")
+
 	return func(ctx context.Context, jobID job.ID, working *git.Checkout, logger log.Logger) (job.Result, error) {
 		rc := release.NewReleaseContext(d.Cluster, d.Manifests, d.Registry, working)
 		result, err := release.Release(rc, c, logger)
@@ -346,6 +354,7 @@ func (d *Daemon) release(spec update.Spec, c release.Changes) daemonJobFunc {
 		var revision string
 
 		if c.ReleaseKind() == update.ReleaseKindExecute {
+			fmt.Println("\t\trelease daemon method: we should be committing")
 			commitMsg := spec.Cause.Message
 			if commitMsg == "" {
 				commitMsg = c.CommitMessage(result)

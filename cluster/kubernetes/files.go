@@ -15,7 +15,7 @@ import (
 // specified namespace and name) to the paths of resource definition
 // files.
 func (c *Manifests) FindDefinedServices(path string) (map[flux.ResourceID][]string, error) {
-	fmt.Println("\t\t>>> FindDefinedServices")
+	fmt.Println("\n\t\t\t\t\t\t\t>>> FindDefinedServices")
 
 	objects, err := resource.Load(path, path)
 	if err != nil {
@@ -30,7 +30,7 @@ func (c *Manifests) FindDefinedServices(path string) (map[flux.ResourceID][]stri
 			result[id] = append(result[id], filepath.Join(path, obj.Source()))
 		}
 	}
-	fmt.Printf("\t\t!!! FindDefinedServices: %v\n", result)
+	fmt.Printf("\t\t\t\t\t\tfound services: %v\n\n", result)
 
 	return result, nil
 }

@@ -316,7 +316,7 @@ func makeFluxHelmReleasePodController(fluxHelmRelease *ifv1.FluxHelmRelease) pod
 
 	return podController{
 		apiVersion:  "helm.integrations.flux.weave.works/v1alpha2",
-		kind:        "FluxHelmRelase",
+		kind:        "FluxHelmRelease",
 		name:        fluxHelmRelease.ObjectMeta.Name,
 		status:      StatusReady,
 		podTemplate: podTemplate,

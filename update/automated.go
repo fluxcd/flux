@@ -25,22 +25,26 @@ func (a *Automated) Add(service flux.ResourceID, container resource.Container, i
 }
 
 func (a *Automated) CalculateRelease(rc ReleaseContext, logger log.Logger) ([]*ControllerUpdate, Result, error) {
+	fmt.Println("\n\t\t++++++++++++++++ automated.CalculateRelease")
 	prefilters := []ControllerFilter{
 		&IncludeFilter{a.serviceIDs()},
 	}
 
 	result := Result{}
 	updates, err := rc.SelectServices(result, prefilters, nil)
+	fmt.Printf("\t\t\t1 updates(after SelectServices): %#v\n", updates)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	a.markSkipped(result)
 	updates, err = a.calculateImageUpdates(rc, updates, result, logger)
+	fmt.Printf("\t\t\t2 updates(after calculateImageUpdates): %#v\n", updates)
 	if err != nil {
 		return nil, nil, err
 	}
 
+	fmt.Println("\n\t\t++++++++++++++++ END automated.CalculateRelease\n")
 	return updates, result, err
 }
 
@@ -84,6 +88,9 @@ func (a *Automated) markSkipped(results Result) {
 }
 
 func (a *Automated) calculateImageUpdates(rc ReleaseContext, candidates []*ControllerUpdate, result Result, logger log.Logger) ([]*ControllerUpdate, error) {
+	fmt.Println("\t\t============ calculateImageUpdates\n")
+	fmt.Printf("\t\t\tcandidates ... %+v\n", candidates)
+
 	updates := []*ControllerUpdate{}
 
 	serviceMap := a.serviceMap()
@@ -92,13 +99,18 @@ func (a *Automated) calculateImageUpdates(rc ReleaseContext, candidates []*Contr
 		changes := serviceMap[u.ResourceID]
 		containerUpdates := []ContainerUpdate{}
 		for _, container := range containers {
+			fmt.Printf("\t\t\t container ... %+v\n", container)
+
 			currentImageID := container.Image
 			for _, change := range changes {
+				fmt.Printf("\n\t\t\t\t change.Container.Name=%s vs container.Name=%s\n", change.Container.Name, container.Name)
 				if change.Container.Name != container.Name {
 					continue
 				}
 
 				// It turns out this isn't a change after all; skip this container
+				fmt.Printf("\n\t\t\t\t change.ImageID.CanonicalRef=%s vs container.Image.CanonicalRe=%s\n", change.ImageID.CanonicalRef(), container.Image.CanonicalRef())
+
 				if change.ImageID.CanonicalRef() == container.Image.CanonicalRef() {
 					continue
 				}
