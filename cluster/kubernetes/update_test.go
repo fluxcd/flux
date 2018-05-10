@@ -1,17 +1,15 @@
 package kubernetes
 
 import (
-	"bytes"
 	"testing"
 
-	"fmt"
-	"os"
-
+	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/image"
 )
 
 type update struct {
 	name            string
+	resourceID      string
 	containers      []string
 	updatedImage    string
 	caseIn, caseOut string
@@ -25,30 +23,30 @@ func testUpdate(t *testing.T, u update) {
 
 	manifest := u.caseIn
 	for _, container := range u.containers {
-		var out bytes.Buffer
-		if err := tryUpdate([]byte(manifest), container, id, &out); err != nil {
-			fmt.Fprintln(os.Stderr, "Failed:", u.name)
-			t.Fatal(err)
+		var out []byte
+		var err error
+		if out, err = updatePodController([]byte(manifest), flux.MustParseResourceID(u.resourceID), container, id); err != nil {
+			t.Errorf("Failed %s: %s", u.name, err.Error())
+			return
 		}
-		manifest = out.String()
+		manifest = string(out)
 	}
 	if manifest != u.caseOut {
-		fmt.Fprintln(os.Stderr, "Failed:", u.name)
-		t.Fatalf("Did not get expected result:\n\n%s\n\nInstead got:\n\n%s", u.caseOut, manifest)
+		t.Errorf("%s: id not get expected result:\n\n%s\n\nInstead got:\n\n%s", u.name, u.caseOut, manifest)
 	}
 }
 
 func TestUpdates(t *testing.T) {
 	for _, c := range []update{
-		{"common case", case1container, case1image, case1, case1out},
-		{"new version like number", case2container, case2image, case2, case2out},
-		{"old version like number", case2container, case2reverseImage, case2out, case2},
-		{"name label out of order", case3container, case3image, case3, case3out},
-		{"version (tag) with dots", case4container, case4image, case4, case4out},
-		{"minimal dockerhub image name", case5container, case5image, case5, case5out},
-		{"reordered keys", case6containers, case6image, case6, case6out},
-		{"from prod", case7containers, case7image, case7, case7out},
-		{"single quotes", case8containers, case8image, case8, case8out},
+		{"common case", case1resource, case1container, case1image, case1, case1out},
+		{"new version like number", case2resource, case2container, case2image, case2, case2out},
+		{"old version like number", case2resource, case2container, case2reverseImage, case2out, case2},
+		{"name label out of order", case3resource, case3container, case3image, case3, case3out},
+		{"version (tag) with dots", case4resource, case4container, case4image, case4, case4out},
+		{"minimal dockerhub image name", case5resource, case5container, case5image, case5, case5out},
+		{"reordered keys", case6resource, case6containers, case6image, case6, case6out},
+		{"from prod", case7resource, case7containers, case7image, case7, case7out},
+		{"single quotes", case8resource, case8containers, case8image, case8, case8out},
 	} {
 		testUpdate(t, c)
 	}
@@ -95,6 +93,7 @@ spec:
                 path: pr-assigner.json
 `
 
+const case1resource = "extra:deployment/pr-assigner"
 const case1image = "quay.io/weaveworks/pr-assigner:master-1234567"
 
 var case1container = []string{"pr-assigner"}
@@ -179,6 +178,7 @@ spec:
         - --repo-path=testdata
 `
 
+const case2resource = "default:deployment/fluxy"
 const case2image = "weaveworks/fluxy:1234567"
 
 var case2container = []string{"fluxy"}
@@ -253,6 +253,7 @@ spec:
         - http://prometheus.monitoring.svc.cluster.local/admin/prometheus
 `
 
+const case3resource = "monitoring:deployment/grafana"
 const case3image = "quay.io/weaveworks/grafana:master-37aaf67"
 
 var case3container = []string{"grafana"}
@@ -316,6 +317,7 @@ spec:
           readOnlyRootFilesystem: true
 `
 
+const case4resource = "sock-shop:deployment/front-end"
 const case4image = "weaveworksdemos/front-end:7f511af2d21fd601b86b3bed7baa6adfa9c8c669"
 
 var case4container = []string{"front-end"}
@@ -370,6 +372,7 @@ spec:
         - containerPort: 80
 `
 
+const case5resource = "default:deployment/nginx"
 const case5image = "nginx:1.10-alpine"
 
 var case5container = []string{"nginx"}
@@ -414,6 +417,7 @@ spec:
         name: nginx2
 `
 
+const case6resource = "default:deployment/nginx"
 const case6image = "nginx:1.10-alpine"
 
 var case6containers = []string{"nginx", "nginx2"}
@@ -485,6 +489,7 @@ spec:
           value: fluent.conf
 `
 
+const case7resource = "default:deployment/authfe"
 const case7image = "quay.io/weaveworks/logging:master-123456"
 
 var case7containers = []string{"logging"}
@@ -552,6 +557,7 @@ spec:
         image: 'weaveworks/weave-kube:2.2.0'
 `
 
+const case8resource = "default:deployment/weave"
 const case8image = "weaveworks/weave-kube:2.2.1"
 
 var case8containers = []string{"weave"}
