@@ -24,7 +24,7 @@ func Load(base, atLeastOne string, more ...string) (map[string]resource.Resource
 				return errors.Wrapf(err, "walking %q for yamels", path)
 			}
 
-			if info.IsDir() && looksLikeChart(path) {
+			if info.IsDir() && LooksLikeChart(path) {
 				return filepath.SkipDir
 			}
 
@@ -60,7 +60,7 @@ func Load(base, atLeastOne string, more ...string) (map[string]resource.Resource
 // looksLikeChart returns `true` if the path `dir` (assumed to be a
 // directory) looks like it contains a Helm chart, rather than
 // manifest files.
-func looksLikeChart(dir string) bool {
+func LooksLikeChart(dir string) bool {
 	// These are the two mandatory parts of a chart. If they both
 	// exist, chances are it's a chart. See
 	// https://github.com/kubernetes/helm/blob/master/docs/charts.md#the-chart-file-structure
