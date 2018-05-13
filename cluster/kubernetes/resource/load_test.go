@@ -136,7 +136,7 @@ func TestLoadSome(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if len(objs) != len(testfiles.ServiceMap(dir)) {
+	if len(objs) != len(testfiles.ServiceMap(dir))+len(testfiles.NamespaceMap(dir)) {
 		t.Errorf("expected %d objects from %d files, got result:\n%#v", len(testfiles.ServiceMap(dir)), len(testfiles.Files), objs)
 	}
 }

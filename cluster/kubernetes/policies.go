@@ -171,6 +171,27 @@ func (m *Manifests) ServicesWithPolicies(root string) (policy.ResourceMap, error
 	return result, nil
 }
 
+func (m *Manifests) NamespacesWithPolicies(root string) (policy.ResourceMap, error) {
+	all, err := m.FindNamespaces(root)
+	if err != nil {
+		return nil, err
+	}
+
+	result := map[flux.ResourceID]policy.Set{}
+	err = iterateManifests(all, func(ns flux.ResourceID, m Manifest) error {
+		ps, err := policiesFrom(m)
+		if err != nil {
+			return err
+		}
+		result[ns] = ps
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
 func iterateManifests(services map[flux.ResourceID][]string, f func(flux.ResourceID, Manifest) error) error {
 	for serviceID, paths := range services {
 		if len(paths) != 1 {

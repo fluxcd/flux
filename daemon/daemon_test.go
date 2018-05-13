@@ -414,6 +414,7 @@ func mockDaemon(t *testing.T) (*Daemon, func(), func(), *cluster.Mock, *mockEven
 		}
 		k8s.PingFunc = func() error { return nil }
 		k8s.ServicesWithPoliciesFunc = (&kubernetes.Manifests{}).ServicesWithPolicies
+		k8s.NamespacesWithPoliciesFunc = (&kubernetes.Manifests{}).NamespacesWithPolicies
 		k8s.SomeServicesFunc = func([]flux.ResourceID) ([]cluster.Controller, error) {
 			return []cluster.Controller{
 				singleService,

@@ -86,6 +86,11 @@ func MakeResourceID(namespace, kind, name string) ResourceID {
 	return ResourceID{resourceID{namespace, strings.ToLower(kind), name}}
 }
 
+// MakeNamespaceID constructs a ResourceID for a namespace.
+func MakeNamespaceID(namespace string) ResourceID {
+	return MakeResourceID("default", "namespace", namespace)
+}
+
 // Components returns the constituent components of a ResourceID
 func (id ResourceID) Components() (namespace, kind, name string) {
 	switch impl := id.resourceIDImpl.(type) {

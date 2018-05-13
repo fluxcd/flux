@@ -32,6 +32,7 @@ type Manifests interface {
 	UpdatePolicies([]byte, policy.Update) ([]byte, error)
 	// ServicesWithPolicies returns all services with their associated policies
 	ServicesWithPolicies(path string) (policy.ResourceMap, error)
+	NamespacesWithPolicies(path string) (policy.ResourceMap, error)
 }
 
 // UpdateManifest looks for the manifest for a given service, reads
