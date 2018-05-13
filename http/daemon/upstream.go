@@ -163,7 +163,7 @@ func (a *Upstream) connect() error {
 	// _server_.
 	rpcserver, err := rpc.NewServer(a.server)
 	if err != nil {
-		return errors.Wrap(err, "initializing rpc client")
+		return errors.Wrap(err, "initializing rpc server")
 	}
 	rpcserver.ServeConn(ws)
 	a.logger.Log("disconnected", true)
