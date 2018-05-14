@@ -1,6 +1,7 @@
 package kubernetes
 
 import (
+	"fmt"
 	"regexp"
 	"strings"
 
@@ -125,25 +126,15 @@ func extractAnnotations(def []byte) (map[string]string, error) {
 	if err := yaml.Unmarshal(def, &m); err != nil {
 		return nil, errors.Wrap(err, "decoding manifest for annotations")
 	}
-	if m.Metadata.Annotations == nil {
-		return map[string]string{}, nil
-	}
 	return m.Metadata.Annotations, nil
 }
 
-func createFluxK8sContainers(containerName string, image interface{}) []Container {
-	imageStr, ok := image.(string)
-
-	containers := []Container{}
-	if !ok || containerName == "" || image == "" {
-		return containers
-	}
-	containers = append(containers, Container{Name: containerName, Image: imageStr})
-	return containers
-}
-
 func extractContainers(def []byte, id flux.ResourceID) ([]resource.Container, error) {
+	fmt.Println("==> in extractContainers")
+
 	resources, err := kresource.ParseMultidoc(def, "stdin")
+	fmt.Printf("\tresources: %+v\n", resources)
+
 	if err != nil {
 		return nil, err
 	}
@@ -155,6 +146,10 @@ func extractContainers(def []byte, id flux.ResourceID) ([]resource.Container, er
 	if !ok {
 		return nil, errors.New("resource " + id.String() + " does not have containers")
 	}
+
+	fmt.Printf("\tcontainers: %+v\n", workload.Containers())
+	fmt.Println("==> END in extractContainers")
+
 	return workload.Containers(), nil
 }
 
@@ -162,7 +157,6 @@ func (m *Manifests) ServicesWithPolicies(root string) (policy.ResourceMap, error
 	resources, err := m.LoadManifests(root, root)
 	if err != nil {
 		return nil, err
-
 	}
 	result := policy.ResourceMap{}
 	for _, res := range resources {

@@ -188,6 +188,8 @@ func (s ReleaseSpec) markSkipped(results Result) {
 // if not, it indicates there's likely some problem with the running
 // system vs the definitions given in the repo.)
 func (s ReleaseSpec) calculateImageUpdates(rc ReleaseContext, candidates []*ControllerUpdate, results Result, logger log.Logger) ([]*ControllerUpdate, error) {
+
+	fmt.Println("===> in calculateImageUpdates")
 	// Compile an `ImageMap` of all relevant images
 	var images ImageMap
 	var singleRepo image.CanonicalName
@@ -213,6 +215,9 @@ func (s ReleaseSpec) calculateImageUpdates(rc ReleaseContext, candidates []*Cont
 	// image that could be updated.
 	var updates []*ControllerUpdate
 	for _, u := range candidates {
+		fmt.Printf("\t\t... ControllerUpdate candidate ResourceID = %v\n", u.ResourceID)
+		fmt.Printf("\t\t... ControllerUpdate candidate Updates = %v\n", u.Updates)
+
 		containers, err := u.Controller.ContainersOrError()
 		if err != nil {
 			results[u.ResourceID] = ControllerResult{
@@ -251,7 +256,8 @@ func (s ReleaseSpec) calculateImageUpdates(rc ReleaseContext, candidates []*Cont
 			// canonical form.
 			newImageID := currentImageID.WithNewTag(latestImage.ID.Tag)
 
-			fmt.Printf("\t\t>>> UpdateImage: %s ... %s - %+v\n\n", u.ResourceID, container.Name, newImageID)
+			fmt.Printf("\t\t\t... UpdateImage: %s ... %s - %+v\n\n", u.ResourceID, container.Name, newImageID)
+
 			u.ManifestBytes, err = rc.Manifests().UpdateImage(u.ManifestBytes, u.ResourceID, container.Name, newImageID)
 			if err != nil {
 				return nil, err
@@ -262,6 +268,8 @@ func (s ReleaseSpec) calculateImageUpdates(rc ReleaseContext, candidates []*Cont
 				Current:   currentImageID,
 				Target:    newImageID,
 			})
+
+			fmt.Printf("\t\t\t\t... containerUpdates: %+v\n\n", containerUpdates)
 		}
 
 		switch {

@@ -16,7 +16,7 @@ import (
 // based on the file(s) therein. Resources are named according to the
 // file content, rather than the file name of directory structure.
 func Load(base, atLeastOne string, more ...string) (map[string]resource.Resource, error) {
-	fmt.Println("\t\t\t\t\t\t\t\t===== load.Load ======\n")
+	fmt.Println("\t\t\t\t\t\t\t\t===== LoadManifests => load.Load ======\n")
 
 	roots := append([]string{atLeastOne}, more...)
 	objs := map[string]resource.Resource{}
@@ -57,11 +57,12 @@ func Load(base, atLeastOne string, more ...string) (map[string]resource.Resource
 		}
 	}
 
-	for k, v := range objs {
-		fmt.Printf("\t\t\t>>> k: %s\n", k)
-		fmt.Printf("\t\t\t\t<<< ResourceID: %#v\n", v.ResourceID())
-		fmt.Printf("\t\t\t\t<<< Policy: %#v\n", v.Policy())
-	}
+	// for k, v := range objs {
+	// 	fmt.Printf("\t\t\t>>> k: %s\n", k)
+	// 	fmt.Printf("\t\t\t\t<<< ResourceID: %#v\n", v.ResourceID())
+	// 	fmt.Printf("\t\t\t\t<<< Policy: %#v\n", v.Policy())
+	// 	fmt.Printf("\t\t\t\t<<< obj TYPE: %T\n", v)
+	// }
 
 	return objs, nil
 }

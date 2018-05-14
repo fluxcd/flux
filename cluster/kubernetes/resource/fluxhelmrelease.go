@@ -17,7 +17,8 @@ type FluxHelmRelease struct {
 }
 
 func (fhr FluxHelmRelease) Containers() []resource.Container {
-	containers, err := CreateFHRContainers(fhr.Spec)
+	fmt.Println("### calling fhr.Containers()")
+	containers, err := CreateFluxFHRContainers(fhr.Spec)
 	if err != nil {
 		// log ?
 	}
@@ -25,10 +26,14 @@ func (fhr FluxHelmRelease) Containers() []resource.Container {
 }
 
 // CreateK8sContainers creates a list of k8s containers as
-func CreateK8sContainers(fhrName string, spec ifv1.FluxHelmReleaseSpec) []apiv1.Container {
+func CreateK8sFHRContainers(fhrName string, spec ifv1.FluxHelmReleaseSpec) []apiv1.Container {
+	fmt.Println("\n+++ CreateK8sFHRContainers +++\n")
 	containers := []apiv1.Container{}
 
 	values := spec.Values
+	fmt.Printf("\t\tvalues = %+v\n", values)
+	fmt.Printf("\t\tlen(values) = %d\n", len(values))
+
 	if len(values) == 0 {
 		return containers
 	}
@@ -41,7 +46,12 @@ func CreateK8sContainers(fhrName string, spec ifv1.FluxHelmReleaseSpec) []apiv1.
 		if !ok {
 			return containers
 		}
-		containers = append(containers, apiv1.Container{Name: fhrName, Image: imgInfoStr})
+
+		cont := apiv1.Container{Name: fhrName, Image: imgInfoStr}
+		fmt.Printf("\t\t+++ containers : %+v\n\n", cont)
+
+		containers = append(containers, cont)
+
 		return containers
 	}
 	return []apiv1.Container{}
@@ -176,25 +186,41 @@ func TryFHRUpdate(def []byte, resourceID flux.ResourceID, container string, newI
 }
 
 // assumes only one image in the Spec.Values
-func CreateFHRContainers(spec ifv1.FluxHelmReleaseSpec) ([]resource.Container, error) {
-	values := spec.Values
-	if len(values) == 0 {
-		return nil, nil
-	}
+func CreateFluxFHRContainers(spec ifv1.FluxHelmReleaseSpec) ([]resource.Container, error) {
+	fmt.Println("\n+++ CreateFluxFHRContainers +++\n")
+
 	containers := []resource.Container{}
+
+	values := spec.Values
+	fmt.Printf("\t\tvalues = %+v\n", values)
+	fmt.Printf("\t\tlen(values) = %d\n", len(values))
+
+	if len(values) == 0 {
+		return containers, nil
+	}
 
 	imgInfo, ok := values["image"]
 
 	// image info appears on the top level, so is associated directly with the chart
 	if ok {
 		imgInfoStr := imgInfo.(string)
+
+		fmt.Printf("\t\t+++ imgInfo=%s\n", imgInfoStr)
+
 		imageRef, err := image.ParseRef(imgInfoStr)
+		fmt.Printf("\t\t+++ imageRef=%s\n", imageRef)
+		fmt.Printf("\t\t+++ err = %v\n", err)
+
 		if err != nil {
-			return nil, err
+			return containers, err
 		}
 		containers = append(containers, resource.Container{Name: spec.ChartGitPath, Image: imageRef})
+		fmt.Printf("\t\t+++++ containers : %+v\n\n", containers[0])
+
 		return containers, nil
 	}
+
+	fmt.Println("\t\tvalues[image] not a string")
 
 	return []resource.Container{}, nil
 }

@@ -62,23 +62,35 @@ func (rc *ReleaseContext) WriteUpdates(updates []*update.ControllerUpdate) error
 // to filter the controllers so found, either before (`prefilters`) or
 // after (`postfilters`) consulting the cluster.
 func (rc *ReleaseContext) SelectServices(results update.Result, prefilters, postfilters []update.ControllerFilter) ([]*update.ControllerUpdate, error) {
-	fmt.Println("\n\t\t\t================== context.SelectServices")
-	fmt.Printf("\t\t\t\t----rc.Manifests: [ %+v ]\n----\n", rc.Manifests())
-	fmt.Printf("\t\t\t\t----results: [ %+v ]\n----\n", results)
+	fmt.Println("\n\t\t\t================== in context.SelectServices")
+	fmt.Printf("\t\t\t\t---- 1 results: [ %+v ] \n", results)
+	fmt.Printf("\t\t\t\t---- 1 prefilters: [ %+v ] \n", prefilters)
+	fmt.Printf("\t\t\t\t---- 1 postfilters: [ %+v ] \n", postfilters)
 
 	// Start with all the controllers that are defined in the repo.
 	allDefined, err := rc.WorkloadsForUpdate()
-	fmt.Printf("\t\t\t\t----allDefined: [ %+v ]\n----\n", allDefined)
-	fmt.Printf("\t\t\t\t----err: [ %+v ]\n----\n", err)
 	if err != nil {
 		return nil, err
 	}
 
+	fmt.Println("\tvvvv--------- allDefined (workloads for upgrade)")
+	for k, v := range allDefined {
+		fmt.Printf("\t\t\t\t*** ResourceID: %v [ %+v ]\n----\n", k, v.ResourceID)
+		fmt.Printf("\t\t\t\t*** Policy: %v [ %+v ]\n----\n", k, v.Resource.Policy())
+		fmt.Printf("\t\t\t\t*** Containers: %v [ %+v ]\n----\n", k, v.Resource.Containers())
+	}
+	fmt.Println("\t^^^^--------- allDefined ----------------")
+
 	// Apply prefilters to select the controllers that we'll ask the
 	// cluster about.
 	var toAskClusterAbout []flux.ResourceID
+
+	fmt.Println("Loop through allDefined ...")
 	for _, s := range allDefined {
 		res := s.Filter(prefilters...)
+
+		fmt.Printf("\t*** : ResourceId = %v [ Status: %+v ][ Error: %+v ]\n----\n", s.ResourceID, res.Status, res.Error)
+
 		if res.Error == "" {
 			// Give these a default value, in case we don't find them
 			// in the cluster.
@@ -92,17 +104,26 @@ func (rc *ReleaseContext) SelectServices(results update.Result, prefilters, post
 		}
 	}
 
+	fmt.Println("\tvvvv--------- results")
+	for k, v := range results {
+		fmt.Printf("\t\t\t\tResourceID: %v [ %+v ]\n----\n", k, v.Status)
+		fmt.Printf("\t\t\t\tPolicy: %v [ %+v ]\n----\n", k, v.PerContainer)
+	}
+	fmt.Println("\t^^^^--------- allDefined")
+
 	// Ask the cluster about those that we're still interested in
 	definedAndRunning, err := rc.cluster.SomeControllers(toAskClusterAbout)
-	fmt.Printf("\t\t\t\t----definedAndRunning: %+v\n----\n", definedAndRunning)
-	fmt.Printf("\t\t\t\t----err: [ %+v ]\n----\n", err)
 	if err != nil {
 		return nil, err
 	}
 
 	var forPostFiltering []*update.ControllerUpdate
 	// Compare defined vs running
+	fmt.Println("\tvvvv----------- definedAndRunning")
 	for _, s := range definedAndRunning {
+		fmt.Printf("\t\t\t\tID: %+v\n", s.ID)
+		fmt.Printf("\t\t\t\tContainers: %+v\n", s.Containers)
+
 		update, ok := allDefined[s.ID]
 		if !ok {
 			// A contradiction: we asked only about defined
@@ -113,6 +134,7 @@ func (rc *ReleaseContext) SelectServices(results update.Result, prefilters, post
 		update.Controller = s
 		forPostFiltering = append(forPostFiltering, update)
 	}
+	fmt.Println("\t^^^^----------- definedAndRunning")
 
 	var filteredUpdates []*update.ControllerUpdate
 	for _, s := range forPostFiltering {
@@ -122,25 +144,32 @@ func (rc *ReleaseContext) SelectServices(results update.Result, prefilters, post
 			filteredUpdates = append(filteredUpdates, s)
 		}
 	}
+	fmt.Printf("\t\t\t\t---- 3 results: [ %+v ] \n", results)
 
-	fmt.Printf("\t\t\t\t----filteredUpdates: [ %+v ]\n----\n\n", filteredUpdates)
+	fmt.Println("\t\t\t\t---- definedAndRunning")
+	for _, v := range definedAndRunning {
+		fmt.Printf("\t\t\t\tID: [ %+v ]\n----\n", v.ID)
+		fmt.Printf("\t\t\t\tContainers: [ %+v ]\n----\n", v.Containers)
+	}
+
+	fmt.Println("\n\t\t\t================== END of context.SelectServices")
 
 	return filteredUpdates, nil
 }
 
 func (rc *ReleaseContext) WorkloadsForUpdate() (map[flux.ResourceID]*update.ControllerUpdate, error) {
 	resources, err := rc.manifests.LoadManifests(rc.repo.Dir(), rc.repo.ManifestDir())
-	for k, v := range resources {
-		fmt.Printf("\t\t\tWorkloadsForUpdate: resourceID: %s ... \n\n-----\nupdate.ControllerUpdate%+v\n-----\n\n", k, v)
-	}
-	fmt.Printf("\t\t\tWorkloadsForUpdate: err ... %+v\n", err)
+
+	fmt.Printf("\t\t\t*** In WorkloadsForUpdate: err after getting resources ... %+v, len of resources: %d\n", err, len(resources))
 	if err != nil {
 		return nil, err
 	}
 
 	var defined = map[flux.ResourceID]*update.ControllerUpdate{}
+	// PROBLEM IS HERE - DEBUG
 	for _, res := range resources {
 		if wl, ok := res.(resource.Workload); ok {
+			fmt.Printf("\t\t\t---> ResourceID %v\n", wl.ResourceID())
 			defined[res.ResourceID()] = &update.ControllerUpdate{
 				ResourceID:    res.ResourceID(),
 				Resource:      wl,

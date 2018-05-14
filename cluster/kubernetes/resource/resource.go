@@ -117,8 +117,14 @@ func unmarshalKind(base baseObject, bytes []byte) (resource.Resource, error) {
 		// reporting an error for invalid non-resource yamls on the
 		// assumption it is unlikely to happen.
 		return nil, nil
-	// The remainder are things we have to care about, but not
-	// treat specially
+		// The remainder are things we have to care about, but not
+		// treat specially
+	case "FluxHelmRelease":
+		var fhr = FluxHelmRelease{baseObject: base}
+		if err := yaml.Unmarshal(bytes, &fhr); err != nil {
+			return nil, err
+		}
+		return &fhr, nil
 	default:
 		return &base, nil
 	}

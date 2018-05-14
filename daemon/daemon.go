@@ -234,7 +234,7 @@ func (d *Daemon) queueJob(do daemonJobFunc) job.ID {
 
 // Apply the desired changes to the config files
 func (d *Daemon) UpdateManifests(ctx context.Context, spec update.Spec) (job.ID, error) {
-	fmt.Printf("\t\tUpdateManifests: spec.Spec = %#v\n", spec.Spec)
+	fmt.Printf("\t\t!!!!!!!!!!!! UpdateManifests: spec.Spec = %#v\n", spec.Spec)
 
 	var id job.ID
 	if spec.Type == "" {
@@ -243,6 +243,7 @@ func (d *Daemon) UpdateManifests(ctx context.Context, spec update.Spec) (job.ID,
 	switch s := spec.Spec.(type) {
 	case release.Changes:
 		fmt.Println("\t\t\trelease.Changes ...")
+		fmt.Printf("\t\t\t ... ReleaseKind ... %v\n", s.ReleaseKind())
 		if s.ReleaseKind() == update.ReleaseKindPlan {
 			fmt.Println("\t\t\t\tDOING")
 			id := job.ID(guid.New())
@@ -259,6 +260,8 @@ func (d *Daemon) UpdateManifests(ctx context.Context, spec update.Spec) (job.ID,
 }
 
 func (d *Daemon) updatePolicy(spec update.Spec, updates policy.Updates) daemonJobFunc {
+	fmt.Println(">>> in updatePolicy")
+
 	return func(ctx context.Context, jobID job.ID, working *git.Checkout, logger log.Logger) (job.Result, error) {
 		// For each update
 		var serviceIDs []flux.ResourceID
@@ -340,7 +343,7 @@ func (d *Daemon) updatePolicy(spec update.Spec, updates policy.Updates) daemonJo
 }
 
 func (d *Daemon) release(spec update.Spec, c release.Changes) daemonJobFunc {
-	fmt.Println("\t\t\tn daemon release ...")
+	fmt.Println("\t\t\t\t .... daemon release ...")
 
 	return func(ctx context.Context, jobID job.ID, working *git.Checkout, logger log.Logger) (job.Result, error) {
 		rc := release.NewReleaseContext(d.Cluster, d.Manifests, d.Registry, working)

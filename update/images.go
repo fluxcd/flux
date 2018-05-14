@@ -99,7 +99,7 @@ func CollectAvailableImages(reg registry.Registry, cs containers, logger log.Log
 			images[container.Image.CanonicalName()] = nil
 		}
 	}
-	fmt.Printf("\n---\n images before ... %v\n---\n", images)
+	//fmt.Printf("\n---\n images before ... %v\n---\n", images)
 
 	for name := range images {
 		imageRepo, err := reg.GetRepository(name.Name)
@@ -112,8 +112,7 @@ func CollectAvailableImages(reg registry.Registry, cs containers, logger log.Log
 		}
 		images[name] = imageRepo
 	}
-	fmt.Printf("\n---\n images after ... %v\n---\n", images)
-	fmt.Println("\n============ END of CollectAvailableImages\n")
+	//fmt.Println("\n============ END of CollectAvailableImages\n")
 
 	return ImageMap{images}, nil
 }
