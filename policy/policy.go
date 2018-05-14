@@ -105,6 +105,16 @@ func (s Set) Get(p Policy) (string, bool) {
 	return v, ok
 }
 
+func (s Set) Without(omit Policy) Set {
+	newMap := Set{}
+	for p, v := range s {
+		if p != omit {
+			newMap[p] = v
+		}
+	}
+	return newMap
+}
+
 func (s Set) ToStringMap() map[string]string {
 	m := map[string]string{}
 	for p, v := range s {

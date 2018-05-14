@@ -421,7 +421,7 @@ func mockDaemon(t *testing.T) (*Daemon, func(), func(), *cluster.Mock, *mockEven
 		}
 		k8s.SyncFunc = func(def cluster.SyncDef) error { return nil }
 		k8s.UpdatePoliciesFunc = (&kubernetes.Manifests{}).UpdatePolicies
-		k8s.UpdateDefinitionFunc = (&kubernetes.Manifests{}).UpdateDefinition
+		k8s.UpdateImageFunc = (&kubernetes.Manifests{}).UpdateImage
 	}
 
 	var imageRegistry registry.Registry

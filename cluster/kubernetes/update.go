@@ -7,18 +7,22 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/image"
+	"github.com/weaveworks/flux/resource"
 )
 
-// updatePodController takes the body of a Deployment resource definition
-// (specified in YAML) and the name of the new image that should be put in the
-// definition (in the format "repo.org/group/name:tag"). It returns a new
-// resource definition body where all references to the old image have been
-// replaced with the new one.
+// updatePodController takes the body of a resource definition
+// (specified in YAML), the ID of a particular resource and container
+// therein, and the name of the new image that should be put in the
+// definition (in the format "repo.org/group/name:tag") for that
+// resource and container. It returns a new resource definition body
+// where all references to the old image have been replaced with the
+// new one.
 //
-// This function has many additional requirements that are likely in flux. Read
-// the source to learn about them.
-func updatePodController(def []byte, container string, newImageID image.Ref) ([]byte, error) {
+// This function has some requirements of the YAML structure. Read the
+// source and comments below to learn about them.
+func updatePodController(def []byte, resourceID flux.ResourceID, container string, newImageID image.Ref) ([]byte, error) {
 	// Sanity check
 	obj, err := parseObj(def)
 	if err != nil {
@@ -30,7 +34,7 @@ func updatePodController(def []byte, container string, newImageID image.Ref) ([]
 	}
 
 	var buf bytes.Buffer
-	err = tryUpdate(def, container, newImageID, &buf)
+	err = tryUpdate(def, resourceID, container, newImageID, &buf)
 	return buf.Bytes(), err
 }
 
@@ -77,42 +81,22 @@ func updatePodController(def []byte, container string, newImageID image.Ref) ([]
 //         ports:
 //         - containerPort: 80
 // ```
-func tryUpdate(def []byte, container string, newImage image.Ref, out io.Writer) error {
-	manifest, err := parseManifest(def)
-	if err != nil {
-		return err
-	}
-	if manifest.Metadata.Name == "" {
-		return fmt.Errorf("could not find resource name")
-	}
+func tryUpdate(def []byte, id flux.ResourceID, container string, newImage image.Ref, out io.Writer) error {
+	containers, err := extractContainers(def, id)
 
-	// Check if any containers need updating. As we go through, we calculate the
-	// new manifest name, in case it includes the image tag (as in replication
-	// controllers).
-	newDefName := manifest.Metadata.Name
-	matchingContainers := map[int]Container{}
-	for i, c := range append(manifest.Spec.Template.Spec.Containers, manifest.Spec.JobTemplate.Spec.Template.Spec.Containers...) {
+	matchingContainers := map[int]resource.Container{}
+	for i, c := range containers {
 		if c.Name != container {
 			continue
 		}
-		currentImage, err := image.ParseRef(c.Image)
+		currentImage := c.Image
 		if err != nil {
 			return fmt.Errorf("could not parse image %s", c.Image)
 		}
 		if currentImage.CanonicalName() == newImage.CanonicalName() {
 			matchingContainers[i] = c
 		}
-		_, _, oldImageTag := currentImage.Components()
-		if strings.HasSuffix(manifest.Metadata.Name, oldImageTag) {
-			newDefName = manifest.Metadata.Name[:len(manifest.Metadata.Name)-len(oldImageTag)] + newImage.Tag
-		}
 	}
-
-	// Some values (most likely the version) will be interpreted as a
-	// number if unquoted; while, on the other hand, it is apparently
-	// not OK to quote things that don't look like numbers. So: we
-	// extract values *without* quotes, and add them if necessary.
-	newDefName = maybeQuote(newDefName)
 
 	if len(matchingContainers) == 0 {
 		return fmt.Errorf("could not find container using image: %s", newImage.Repository())
@@ -161,19 +145,6 @@ func tryUpdate(def []byte, container string, newImage image.Ref, out io.Writer) 
 		}
 		return fmt.Errorf("did not update expected containers: %s", strings.Join(missed, ", "))
 	}
-
-	// TODO: delete all regular expressions which are used to modify YAML.
-	// See #1019. Modifying this is not recommended.
-	// The name we want is that under `metadata:`, which will *probably* be the first one
-	replacedName := false
-	replaceRCNameRE := regexp.MustCompile(`(\s+` + optq + `name` + optq + `:\s*)` + optq + `(?:[\w\.\-/:]+\s*?)` + optq + `([\t\f #]+.*)`)
-	replaceRCNameRE.ReplaceAllStringFunc(newDef, func(found string) string {
-		if replacedName {
-			return found
-		}
-		replacedName = true
-		return replaceRCNameRE.ReplaceAllString(found, fmt.Sprintf(`${1}%s${2}`, newDefName))
-	})
 
 	// TODO: delete all regular expressions which are used to modify YAML.
 	// See #1019. Modifying this is not recommended.

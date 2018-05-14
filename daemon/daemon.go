@@ -272,7 +272,7 @@ func (d *Daemon) updatePolicy(spec update.Spec, updates policy.Updates) daemonJo
 			}
 			// find the service manifest
 			err := cluster.UpdateManifest(d.Manifests, working.ManifestDir(), serviceID, func(def []byte) ([]byte, error) {
-				newDef, err := d.Manifests.UpdatePolicies(def, u)
+				newDef, err := d.Manifests.UpdatePolicies(def, serviceID, u)
 				if err != nil {
 					result.Result[serviceID] = update.ControllerResult{
 						Status: update.ReleaseStatusFailed,
