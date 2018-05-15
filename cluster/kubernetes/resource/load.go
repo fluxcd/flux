@@ -18,14 +18,22 @@ import (
 func Load(base, atLeastOne string, more ...string) (map[string]resource.Resource, error) {
 	roots := append([]string{atLeastOne}, more...)
 	objs := map[string]resource.Resource{}
+	charts, err := newChartTracker(base)
+	if err != nil {
+		return nil, errors.Wrapf(err, "walking %q for chartdirs", base)
+	}
 	for _, root := range roots {
 		err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 			if err != nil {
 				return errors.Wrapf(err, "walking %q for yamels", path)
 			}
 
-			if info.IsDir() && LooksLikeChart(path) {
+			if charts.isChart(path) {
 				return filepath.SkipDir
+			}
+
+			if charts.inChart(path) {
+				return nil
 			}
 
 			if !info.IsDir() && filepath.Ext(path) == ".yaml" || filepath.Ext(path) == ".yml" {
@@ -57,10 +65,49 @@ func Load(base, atLeastOne string, more ...string) (map[string]resource.Resource
 	return objs, nil
 }
 
+type chartTracker map[string]bool
+
+func newChartTracker(root string) (chartTracker, error) {
+	var chartdirs = make(map[string]bool)
+	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return errors.Wrapf(err, "walking %q for charts", path)
+		}
+
+		if info.IsDir() && looksLikeChart(path) {
+			chartdirs[path] = true
+			return filepath.SkipDir
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return chartTracker(chartdirs), nil
+}
+
+func (c chartTracker) isChart(path string) bool {
+	return c[path]
+}
+
+func (c chartTracker) inChart(path string) bool {
+	p := path
+	root := fmt.Sprintf("%c", filepath.Separator)
+	for p != root {
+		if c[p] {
+			return true
+		}
+		p = filepath.Dir(p)
+	}
+	return false
+}
+
 // looksLikeChart returns `true` if the path `dir` (assumed to be a
 // directory) looks like it contains a Helm chart, rather than
 // manifest files.
-func LooksLikeChart(dir string) bool {
+func looksLikeChart(dir string) bool {
 	// These are the two mandatory parts of a chart. If they both
 	// exist, chances are it's a chart. See
 	// https://github.com/kubernetes/helm/blob/master/docs/charts.md#the-chart-file-structure

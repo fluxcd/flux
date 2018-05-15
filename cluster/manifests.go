@@ -32,8 +32,6 @@ type Manifests interface {
 	UpdatePolicies([]byte, policy.Update) ([]byte, error)
 	// ServicesWithPolicies returns all services with their associated policies
 	ServicesWithPolicies(path string) (policy.ResourceMap, error)
-	// LooksLikeChart returns true if the given directory path appears to be a Helm chart.
-	LooksLikeChart(path string) bool
 }
 
 // UpdateManifest looks for the manifest for a given service, reads

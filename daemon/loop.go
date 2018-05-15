@@ -2,8 +2,6 @@ package daemon
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -244,10 +242,6 @@ func (d *Daemon) doSync(logger log.Logger) (retErr error) {
 		if err == nil && len(changedFiles) > 0 {
 			// We had some changed files, we're syncing a diff
 			// FIXME(michael): this won't be accurate when a file can have more than one resource
-			filtered, err := d.filterOutChartDirs(working.Dir(), changedFiles)
-			if err == nil && len(filtered) > 0 {
-				changedResources, err = d.Manifests.LoadManifests(working.Dir(), filtered[0], filtered[1:]...)
-			}
 			changedResources, err = d.Manifests.LoadManifests(working.Dir(), changedFiles[0], changedFiles[1:]...)
 		}
 		cancel()
@@ -418,32 +412,4 @@ func isUnknownRevision(err error) bool {
 	return err != nil &&
 		(strings.Contains(err.Error(), "unknown revision or path not in the working tree.") ||
 			strings.Contains(err.Error(), "bad revision"))
-}
-
-func (d *Daemon) filterOutChartDirs(root string, changedFiles []string) ([]string, error) {
-	var chartdirs = make(map[string]bool)
-	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return errors.Wrapf(err, "walking %q for charts", path)
-		}
-
-		if info.IsDir() && d.Manifests.LooksLikeChart(path) {
-			chartdirs[path] = true
-			return filepath.SkipDir
-		}
-
-		return nil
-	})
-	if err != nil {
-		return []string{}, err
-	}
-
-	var filtered []string
-	for _, f := range changedFiles {
-		dirname := filepath.Dir(f)
-		if !chartdirs[dirname] && !chartdirs[filepath.Dir(dirname)] {
-			filtered = append(filtered, f)
-		}
-	}
-	return filtered, nil
 }

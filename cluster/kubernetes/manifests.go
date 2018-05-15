@@ -23,8 +23,4 @@ func (c *Manifests) UpdateDefinition(def []byte, container string, image image.R
 	return updatePodController(def, container, image)
 }
 
-func (c *Manifests) LooksLikeChart(path string) bool {
-	return kresource.LooksLikeChart(path)
-}
-
 // UpdatePolicies and ServicesWithPolicies in policies.go
