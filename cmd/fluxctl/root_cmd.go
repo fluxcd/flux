@@ -67,6 +67,7 @@ func (opts *rootOpts) Command() *cobra.Command {
 		newControllerPolicy(opts).Command(),
 		newSave(opts).Command(),
 		newIdentity(opts).Command(),
+		newSync(opts).Command(),
 	)
 
 	return cmd

@@ -160,24 +160,39 @@ func (d *Daemon) ListImages(ctx context.Context, spec update.ResourceSpec) ([]v6
 	return res, nil
 }
 
-type daemonJobFunc func(ctx context.Context, jobID job.ID, working *git.Checkout, logger log.Logger) (job.Result, error)
+// jobFunc is a type for procedures that the daemon will execute in a job
+type jobFunc func(ctx context.Context, jobID job.ID, logger log.Logger) (job.Result, error)
 
-// executeJob runs a job func in a cloned working directory, keeping track of its status.
-func (d *Daemon) executeJob(id job.ID, do daemonJobFunc, logger log.Logger) (job.Result, error) {
+// updateFunc is a type for procedures that operate on a git checkout, to be run in a job
+type updateFunc func(ctx context.Context, jobID job.ID, working *git.Checkout, logger log.Logger) (job.Result, error)
+
+// makeJobFromUpdate turns an updateFunc into a jobFunc that will run
+// the update with a fresh clone, and log the result as an event.
+func (d *Daemon) makeJobFromUpdate(update updateFunc) jobFunc {
+	return func(ctx context.Context, jobID job.ID, logger log.Logger) (job.Result, error) {
+		var result job.Result
+		err := d.WithClone(ctx, func(working *git.Checkout) error {
+			var err error
+			result, err = update(ctx, jobID, working, logger)
+			if err != nil {
+				return err
+			}
+			return nil
+		})
+		if err != nil {
+			return result, err
+		}
+		return result, nil
+	}
+}
+
+// executeJob runs a job func and keeps track of its status, so the
+// daemon can report it when asked.
+func (d *Daemon) executeJob(id job.ID, do jobFunc, logger log.Logger) (job.Result, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultJobTimeout)
 	defer cancel()
 	d.JobStatusCache.SetStatus(id, job.Status{StatusString: job.StatusRunning})
-	// make a working clone so we don't mess with files we
-	// will be reading from elsewhere
-	var result job.Result
-	err := d.WithClone(ctx, func(working *git.Checkout) error {
-		var err error
-		result, err = do(ctx, id, working, logger)
-		if err != nil {
-			return err
-		}
-		return nil
-	})
+	result, err := do(ctx, id, logger)
 	if err != nil {
 		d.JobStatusCache.SetStatus(id, job.Status{StatusString: job.StatusFailed, Err: err.Error()})
 		return result, err
@@ -186,42 +201,54 @@ func (d *Daemon) executeJob(id job.ID, do daemonJobFunc, logger log.Logger) (job
 	return result, nil
 }
 
+// makeLoggingFunc takes a jobFunc and returns a jobFunc that will log
+// a commit event with the result.
+func (d *Daemon) makeLoggingJobFunc(f jobFunc) jobFunc {
+	return func(ctx context.Context, id job.ID, logger log.Logger) (job.Result, error) {
+		started := time.Now().UTC()
+		result, err := f(ctx, id, logger)
+		if err != nil {
+			return result, err
+		}
+		logger.Log("revision", result.Revision)
+		if result.Revision != "" {
+			var serviceIDs []flux.ResourceID
+			for id, result := range result.Result {
+				if result.Status == update.ReleaseStatusSuccess {
+					serviceIDs = append(serviceIDs, id)
+				}
+			}
+
+			metadata := &event.CommitEventMetadata{
+				Revision: result.Revision,
+				Spec:     result.Spec,
+				Result:   result.Result,
+			}
+
+			return result, d.LogEvent(event.Event{
+				ServiceIDs: serviceIDs,
+				Type:       event.EventCommit,
+				StartedAt:  started,
+				EndedAt:    started,
+				LogLevel:   event.LogLevelInfo,
+				Metadata:   metadata,
+			})
+		}
+		return result, nil
+	}
+}
+
 // queueJob queues a job func to be executed.
-func (d *Daemon) queueJob(do daemonJobFunc) job.ID {
+func (d *Daemon) queueJob(do jobFunc) job.ID {
 	id := job.ID(guid.New())
 	enqueuedAt := time.Now()
 	d.Jobs.Enqueue(&job.Job{
 		ID: id,
 		Do: func(logger log.Logger) error {
 			queueDuration.Observe(time.Since(enqueuedAt).Seconds())
-			started := time.Now().UTC()
-			result, err := d.executeJob(id, do, logger)
+			_, err := d.executeJob(id, do, logger)
 			if err != nil {
 				return err
-			}
-			logger.Log("revision", result.Revision)
-			if result.Revision != "" {
-				var serviceIDs []flux.ResourceID
-				for id, result := range result.Result {
-					if result.Status == update.ReleaseStatusSuccess {
-						serviceIDs = append(serviceIDs, id)
-					}
-				}
-
-				metadata := &event.CommitEventMetadata{
-					Revision: result.Revision,
-					Spec:     result.Spec,
-					Result:   result.Result,
-				}
-
-				return d.LogEvent(event.Event{
-					ServiceIDs: serviceIDs,
-					Type:       event.EventCommit,
-					StartedAt:  started,
-					EndedAt:    started,
-					LogLevel:   event.LogLevelInfo,
-					Metadata:   metadata,
-				})
 			}
 			return nil
 		},
@@ -241,18 +268,38 @@ func (d *Daemon) UpdateManifests(ctx context.Context, spec update.Spec) (job.ID,
 	case release.Changes:
 		if s.ReleaseKind() == update.ReleaseKindPlan {
 			id := job.ID(guid.New())
-			_, err := d.executeJob(id, d.release(spec, s), d.Logger)
+			_, err := d.executeJob(id, d.makeJobFromUpdate(d.release(spec, s)), d.Logger)
 			return id, err
 		}
-		return d.queueJob(d.release(spec, s)), nil
+		return d.queueJob(d.makeLoggingJobFunc(d.makeJobFromUpdate(d.release(spec, s)))), nil
 	case policy.Updates:
-		return d.queueJob(d.updatePolicy(spec, s)), nil
+		return d.queueJob(d.makeLoggingJobFunc(d.makeJobFromUpdate(d.updatePolicy(spec, s)))), nil
+	case update.ManualSync:
+		return d.queueJob(d.sync()), nil
 	default:
 		return id, fmt.Errorf(`unknown update type "%s"`, spec.Type)
 	}
 }
 
-func (d *Daemon) updatePolicy(spec update.Spec, updates policy.Updates) daemonJobFunc {
+func (d *Daemon) sync() jobFunc {
+	return func(ctx context.Context, jobID job.ID, logger log.Logger) (job.Result, error) {
+		var result job.Result
+		ctx, cancel := context.WithTimeout(ctx, defaultJobTimeout)
+		defer cancel()
+		err := d.Repo.Refresh(ctx)
+		if err != nil {
+			return result, err
+		}
+		head, err := d.Repo.Revision(ctx, d.GitConfig.Branch)
+		if err != nil {
+			return result, err
+		}
+		result.Revision = head
+		return result, nil
+	}
+}
+
+func (d *Daemon) updatePolicy(spec update.Spec, updates policy.Updates) updateFunc {
 	return func(ctx context.Context, jobID job.ID, working *git.Checkout, logger log.Logger) (job.Result, error) {
 		// For each update
 		var serviceIDs []flux.ResourceID
@@ -333,7 +380,7 @@ func (d *Daemon) updatePolicy(spec update.Spec, updates policy.Updates) daemonJo
 	}
 }
 
-func (d *Daemon) release(spec update.Spec, c release.Changes) daemonJobFunc {
+func (d *Daemon) release(spec update.Spec, c release.Changes) updateFunc {
 	return func(ctx context.Context, jobID job.ID, working *git.Checkout, logger log.Logger) (job.Result, error) {
 		rc := release.NewReleaseContext(d.Cluster, d.Manifests, d.Registry, working)
 		result, err := release.Release(rc, c, logger)

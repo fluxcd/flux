@@ -11,6 +11,7 @@ const (
 	Images = "image"
 	Policy = "policy"
 	Auto   = "auto"
+	Sync   = "sync"
 )
 
 // How did this update get triggered?
@@ -56,6 +57,11 @@ func (spec *Spec) UnmarshalJSON(in []byte) error {
 		var update Automated
 		if err := json.Unmarshal(wire.SpecBytes, &update); err != nil {
 			return err
+		}
+		spec.Spec = update
+	case Sync:
+		var update ManualSync
+		if err := json.Unmarshal(wire.SpecBytes, &update); err != nil {
 		}
 		spec.Spec = update
 	default:
