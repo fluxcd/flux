@@ -164,7 +164,7 @@ func (a *Automated) calculateImageUpdates(rc ReleaseContext, candidates []*Contr
 		}
 
 		if len(containerUpdates) > 0 {
-			fmt.Println("\n[[[ There ARE containerUpdates\n")
+			fmt.Printf("\n[[[ There ARE containerUpdates for %s\n", u.ResourceID)
 
 			u.Updates = containerUpdates
 			updates = append(updates, u)
@@ -173,7 +173,7 @@ func (a *Automated) calculateImageUpdates(rc ReleaseContext, candidates []*Contr
 				PerContainer: containerUpdates,
 			}
 		} else {
-			fmt.Println("\n[[[ There are NO containerUpdates\n")
+			fmt.Printf("\n[[[ There are NO containerUpdates for %s\n", u.ResourceID)
 
 			result[u.ResourceID] = ControllerResult{
 				Status: ReleaseStatusSkipped,

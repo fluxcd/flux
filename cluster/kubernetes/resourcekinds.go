@@ -307,9 +307,8 @@ func makeFluxHelmReleasePodController(fluxHelmRelease *ifv1.FluxHelmRelease) pod
 
 	fmt.Println(">>> in makeFluxHelmReleasePodController")
 	fmt.Printf("\tfluxHelmRelease = %+v\n", fluxHelmRelease)
-	fmt.Printf("\tfluxHelmRelease = %+v\n", fluxHelmRelease)
 
-	containers := k8sresource.CreateK8sFHRContainers(fluxHelmRelease.GetName(), fluxHelmRelease.Spec)
+	containers := k8sresource.CreateK8sFHRContainers(fluxHelmRelease.Spec)
 
 	podTemplate := apiv1.PodTemplateSpec{
 		ObjectMeta: fluxHelmRelease.ObjectMeta,

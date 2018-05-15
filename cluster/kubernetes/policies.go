@@ -116,15 +116,14 @@ type manifest struct {
 	} `yaml:"metadata"`
 }
 
-type Typemeta struct {
-	Kind string `yaml:"kind,omitempty"`
-}
-
 func extractAnnotations(def []byte) (map[string]string, error) {
 	var m manifest
 
 	if err := yaml.Unmarshal(def, &m); err != nil {
 		return nil, errors.Wrap(err, "decoding manifest for annotations")
+	}
+	if m.Metadata.Annotations == nil {
+		return map[string]string{}, nil
 	}
 	return m.Metadata.Annotations, nil
 }

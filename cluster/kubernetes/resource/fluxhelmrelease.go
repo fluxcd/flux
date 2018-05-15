@@ -17,8 +17,8 @@ type FluxHelmRelease struct {
 }
 
 func (fhr FluxHelmRelease) Containers() []resource.Container {
-	fmt.Println("### calling fhr.Containers()")
-	containers, err := CreateFluxFHRContainers(fhr.Spec)
+	fmt.Println("### FHR CONTAINERS (calling fhr.Containers())")
+	containers, err := fhr.createFluxFHRContainers()
 	if err != nil {
 		// log ?
 	}
@@ -26,11 +26,13 @@ func (fhr FluxHelmRelease) Containers() []resource.Container {
 }
 
 // CreateK8sContainers creates a list of k8s containers as
-func CreateK8sFHRContainers(fhrName string, spec ifv1.FluxHelmReleaseSpec) []apiv1.Container {
+func CreateK8sFHRContainers(spec ifv1.FluxHelmReleaseSpec) []apiv1.Container {
 	fmt.Println("\n+++ CreateK8sFHRContainers +++\n")
-	containers := []apiv1.Container{}
 
 	values := spec.Values
+
+	containers := []apiv1.Container{}
+
 	fmt.Printf("\t\tvalues = %+v\n", values)
 	fmt.Printf("\t\tlen(values) = %d\n", len(values))
 
@@ -47,13 +49,14 @@ func CreateK8sFHRContainers(fhrName string, spec ifv1.FluxHelmReleaseSpec) []api
 			return containers
 		}
 
-		cont := apiv1.Container{Name: fhrName, Image: imgInfoStr}
+		cont := apiv1.Container{Name: spec.ChartGitPath, Image: imgInfoStr}
 		fmt.Printf("\t\t+++ containers : %+v\n\n", cont)
 
 		containers = append(containers, cont)
 
 		return containers
 	}
+
 	return []apiv1.Container{}
 }
 
@@ -186,13 +189,15 @@ func TryFHRUpdate(def []byte, resourceID flux.ResourceID, container string, newI
 }
 
 // assumes only one image in the Spec.Values
-func CreateFluxFHRContainers(spec ifv1.FluxHelmReleaseSpec) ([]resource.Container, error) {
-	fmt.Println("\n+++ CreateFluxFHRContainers +++\n")
+func (fhr FluxHelmRelease) createFluxFHRContainers() ([]resource.Container, error) {
+	fmt.Println("\n+++ createFluxFHRContainers +++\n")
 
+	fmt.Printf("\t\tSPEC: %+v\n", fhr.Spec)
+
+	values := fhr.Spec.Values
 	containers := []resource.Container{}
 
-	values := spec.Values
-	fmt.Printf("\t\tvalues = %+v\n", values)
+	fmt.Printf("\t\tvalues for chart %s = %+v\n", fhr.Spec.ChartGitPath, values)
 	fmt.Printf("\t\tlen(values) = %d\n", len(values))
 
 	if len(values) == 0 {
@@ -214,13 +219,14 @@ func CreateFluxFHRContainers(spec ifv1.FluxHelmReleaseSpec) ([]resource.Containe
 		if err != nil {
 			return containers, err
 		}
-		containers = append(containers, resource.Container{Name: spec.ChartGitPath, Image: imageRef})
-		fmt.Printf("\t\t+++++ containers : %+v\n\n", containers[0])
+		containers = append(containers, resource.Container{Name: fhr.Spec.ChartGitPath, Image: imageRef})
+		fmt.Printf("\t\t+++++ containers for chart %s: %+v\n\n", fhr.Spec.ChartGitPath, containers[0])
 
 		return containers, nil
 	}
 
 	fmt.Println("\t\tvalues[image] not a string")
+	fmt.Println("\n+++ END createFluxFHRContainers +++\n")
 
 	return []resource.Container{}, nil
 }
