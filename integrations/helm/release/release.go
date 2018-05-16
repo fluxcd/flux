@@ -34,6 +34,21 @@ type Release struct {
 	sync.RWMutex
 }
 
+func (r *Release) ConfigSync() *helmgit.Checkout {
+	return r.Repo.ConfigSync
+}
+
+type Releaser interface {
+	GetCurrent() (map[string][]DeployInfo, error)
+	GetDeployedRelease(name string) (*hapi_release.Release, error)
+	Install(checkout *helmgit.Checkout,
+		releaseName string,
+		fhr ifv1.FluxHelmRelease,
+		action Action,
+		opts InstallOptions) (hapi_release.Release, error)
+	ConfigSync() *helmgit.Checkout
+}
+
 type repo struct {
 	ConfigSync *helmgit.Checkout
 }

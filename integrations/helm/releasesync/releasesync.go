@@ -12,6 +12,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/pkg/errors"
+
 	protobuf "github.com/golang/protobuf/ptypes/timestamp"
 	hapi_release "k8s.io/helm/pkg/proto/hapi/release"
 
@@ -25,28 +27,29 @@ import (
 )
 
 const (
-	CustomResourceKind = "FluxHelmRelease"
-	syncDelay          = 90
+	syncDelay = 90
 )
 
-type ReleaseFhr struct {
+type releaseFhr struct {
 	RelName string
-	FhrName string
 	Fhr     ifv1.FluxHelmRelease
 }
 
+// ReleaseChangeSync implements DoReleaseChangeSync to return the cluster to the
+// state dictated by Custom Resources after manual Chart release(s).
 type ReleaseChangeSync struct {
 	logger  log.Logger
-	release *chartrelease.Release
+	release chartrelease.Releaser
 }
 
+// New creates a ReleaseChangeSync.
 func New(
 	logger log.Logger,
-	release *chartrelease.Release) *ReleaseChangeSync {
+	releaser chartrelease.Releaser) *ReleaseChangeSync {
 
 	return &ReleaseChangeSync{
 		logger:  logger,
-		release: release,
+		release: releaser,
 	}
 }
 
@@ -63,13 +66,14 @@ type chartRelease struct {
 }
 
 // DoReleaseChangeSync returns the cluster to the state dictated by Custom Resources
-// after manual Chart release(s)
+// after manual Chart release(s).
 func (rs *ReleaseChangeSync) DoReleaseChangeSync(ifClient ifclientset.Clientset, ns []string) (bool, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), helmgit.DefaultCloneTimeout)
 	relsToSync, err := rs.releasesToSync(ctx, ifClient, ns)
 	cancel()
 	if err != nil {
-		err := fmt.Errorf("Failure to get info about manual chart release changes: %#v", err)
+		err = errors.Wrap(err, "getting info about manual chart release changes")
+		rs.logger.Log("error", err)
 		return false, err
 	}
 	if len(relsToSync) == 0 {
@@ -80,29 +84,32 @@ func (rs *ReleaseChangeSync) DoReleaseChangeSync(ifClient ifclientset.Clientset,
 	err = rs.sync(ctx, relsToSync)
 	cancel()
 	if err != nil {
-		err := fmt.Errorf("Failure to sync cluster after manual chart release changes: %#v", err)
-		return false, err
+		return false, errors.Wrap(err, "syncing cluster after manual chart release changes")
 	}
 
 	return true, nil
 }
 
 // getCustomResources retrieves FluxHelmRelease resources
-//		and outputs them organised by namespace and: Chart release name or Custom Resource name
-//						map[namespace] = []ReleaseFhr
-func (rs *ReleaseChangeSync) getCustomResources(ifClient ifclientset.Clientset, namespaces []string) (map[string][]ReleaseFhr, error) {
-	relInfo := make(map[string][]ReleaseFhr)
+// and returns them organised by namespace and chart release name.
+// map[namespace] = []releaseFhr.
+func (rs *ReleaseChangeSync) getCustomResources(
+	ifClient ifclientset.Clientset,
+	namespaces []string) (map[string][]releaseFhr, error) {
+
+	relInfo := make(map[string][]releaseFhr)
 
 	for _, ns := range namespaces {
 		list, err := customresource.GetNSCustomResources(ifClient, ns)
 		if err != nil {
-			rs.logger.Log("error", fmt.Errorf("Failure while retrieving FluxHelmReleases in namespace %s: %v", ns, err))
-			return nil, err
+			return nil, errors.Wrap(err,
+				fmt.Sprintf("retrieving FluxHelmReleases in namespace %s", ns))
 		}
-		rf := []ReleaseFhr{}
+
+		rf := []releaseFhr{}
 		for _, fhr := range list.Items {
 			relName := chartrelease.GetReleaseName(fhr)
-			rf = append(rf, ReleaseFhr{RelName: relName, Fhr: fhr})
+			rf = append(rf, releaseFhr{RelName: relName, Fhr: fhr})
 		}
 		if len(rf) > 0 {
 			relInfo[ns] = rf
@@ -111,7 +118,13 @@ func (rs *ReleaseChangeSync) getCustomResources(ifClient ifclientset.Clientset, 
 	return relInfo, nil
 }
 
-func (rs *ReleaseChangeSync) shouldUpgrade(currRel *hapi_release.Release, fhr ifv1.FluxHelmRelease) (bool, error) {
+// shouldUpgrade returns true if the current running values or chart
+// don't match what the repo says we ought to be running, based on
+// doing a dry run install from the chart in the git repo.
+func (rs *ReleaseChangeSync) shouldUpgrade(
+	currRel *hapi_release.Release,
+	fhr ifv1.FluxHelmRelease) (bool, error) {
+
 	if currRel == nil {
 		return false, fmt.Errorf("No Chart release provided for %v", fhr.GetName())
 	}
@@ -122,7 +135,7 @@ func (rs *ReleaseChangeSync) shouldUpgrade(currRel *hapi_release.Release, fhr if
 	// Get the desired release state
 	opts := chartrelease.InstallOptions{DryRun: true}
 	tempRelName := strings.Join([]string{currRel.GetName(), "temp"}, "-")
-	desRel, err := rs.release.Install(rs.release.Repo.ConfigSync, tempRelName, fhr, "CREATE", opts)
+	desRel, err := rs.release.Install(rs.release.ConfigSync(), tempRelName, fhr, "CREATE", opts)
 	if err != nil {
 		return false, err
 	}
@@ -142,8 +155,10 @@ func (rs *ReleaseChangeSync) shouldUpgrade(currRel *hapi_release.Release, fhr if
 	return false, nil
 }
 
-// existingReleasesToSync determines which Chart releases need to be deleted/upgraded
-// to bring the cluster to the desired state
+// addExistingReleasesToSync populates relsToSync (map from namespace
+// to chartRelease) with the members of currentReleases that need
+// updating because they're diverged from the desired state.  Desired
+// state is specified by customResources and what's in our git checkout.
 func (rs *ReleaseChangeSync) addExistingReleasesToSync(
 	relsToSync map[string][]chartRelease,
 	currentReleases map[string]map[string]struct{},
@@ -185,8 +200,9 @@ func (rs *ReleaseChangeSync) addExistingReleasesToSync(
 	return nil
 }
 
-// deletedReleasesToSync determines which Chart releases need to be installed
-// to bring the cluster to the desired state
+// addDeletedReleasesToSync populates relsToSync (map from namespace
+// to chartRelease) with chartReleases based on the charts referenced
+// in customResources that are absent from currentReleases.
 func (rs *ReleaseChangeSync) addDeletedReleasesToSync(
 	relsToSync map[string][]chartRelease,
 	currentReleases map[string]map[string]struct{},
@@ -224,35 +240,53 @@ func (rs *ReleaseChangeSync) addDeletedReleasesToSync(
 	return nil
 }
 
-func (rs *ReleaseChangeSync) releasesToSync(ctx context.Context, ifClient ifclientset.Clientset, ns []string) (map[string][]chartRelease, error) {
+// releasesToSync queries Tiller to get all current Helm releases, queries k8s
+// custom resources to get all FluxHelmRelease(s), and returns a map from
+// namespace to chartRelease(s) that need to be synced.
+func (rs *ReleaseChangeSync) releasesToSync(
+	ctx context.Context,
+	ifClient ifclientset.Clientset,
+	ns []string) (map[string][]chartRelease, error) {
+
 	relDepl, err := rs.release.GetCurrent()
 	if err != nil {
 		return nil, err
 	}
-	curRels := MappifyDeployInfo(relDepl)
+	curRels := mappifyDeployInfo(relDepl)
 
 	relCrs, err := rs.getCustomResources(ifClient, ns)
 	if err != nil {
 		return nil, err
 	}
-	crs := MappifyReleaseFhrInfo(relCrs)
+	crs := mappifyReleaseFhrInfo(relCrs)
 
 	relsToSync := make(map[string][]chartRelease)
-	rs.addDeletedReleasesToSync(relsToSync, curRels, crs)
-	rs.addExistingReleasesToSync(relsToSync, curRels, crs)
+
+	// Make explicit that we're throwing away errors
+	_ = rs.addDeletedReleasesToSync(relsToSync, curRels, crs)
+	_ = rs.addExistingReleasesToSync(relsToSync, curRels, crs)
 
 	return relsToSync, nil
 }
 
-func (rs *ReleaseChangeSync) sync(ctx context.Context, releases map[string][]chartRelease) error {
+// sync takes a map from namespace to list of chartRelease(s)
+// that need to be applied, and attempts to apply them.
+// It returns the first error encountered.  A chart missing
+// from the repo doesn't count as an error, but will be logged.
+func (rs *ReleaseChangeSync) sync(
+	ctx context.Context,
+	releases map[string][]chartRelease) error {
+
+	// TODO it's weird that we do a pull here, after we've already decided
+	// what to do.  Ask why.
 	ctx, cancel := context.WithTimeout(ctx, helmgit.DefaultPullTimeout)
-	err := rs.release.Repo.ConfigSync.Pull(ctx)
+	err := rs.release.ConfigSync().Pull(ctx)
 	cancel()
 	if err != nil {
 		return fmt.Errorf("Failure while pulling repo: %#v", err)
 	}
 
-	checkout := rs.release.Repo.ConfigSync
+	checkout := rs.release.ConfigSync()
 	chartPathBase := filepath.Join(checkout.Dir, checkout.Config.Path)
 
 	opts := chartrelease.InstallOptions{DryRun: false}
@@ -282,6 +316,8 @@ func (rs *ReleaseChangeSync) sync(ctx context.Context, releases map[string][]cha
 				if err != nil {
 					return err
 				}
+			default:
+				panic(fmt.Sprintf("invalid action %q", chr.action))
 			}
 		}
 	}
