@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/go-kit/kit/log"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/api/v6"
@@ -39,6 +40,10 @@ const (
 	ns                = "default"
 	newHelloImage     = "quay.io/weaveworks/helloworld:2"
 	currentHelloImage = "quay.io/weaveworks/helloworld:master-a000001"
+
+	anotherSvc       = "another:deployment/service"
+	anotherContainer = "it-doesn't-matter"
+	anotherImage     = "another/service:latest"
 
 	invalidNS   = "adsajkfldsa"
 	testVersion = "test"
@@ -137,26 +142,155 @@ func TestDaemon_ListImages(t *testing.T) {
 
 	ctx := context.Background()
 
-	// List all images for services
-	ss := update.ResourceSpec(update.ResourceSpecAll)
-	is, err := d.ListImages(ctx, ss, v6.ListImagesOptions{})
-	if err != nil {
-		t.Fatalf("Error: %s", err.Error())
-	}
-	ids := imageIDs(is)
-	if 3 != len(ids) {
-		t.Fatalf("Expected %v but got %v", 3, len(ids))
+	specAll := update.ResourceSpec(update.ResourceSpecAll)
+
+	// Service 1
+	svcID, err := flux.ParseResourceID(svc)
+	assert.NoError(t, err)
+	currentImageRef, err := image.ParseRef(currentHelloImage)
+	assert.NoError(t, err)
+	newImageRef, err := image.ParseRef(newHelloImage)
+	assert.NoError(t, err)
+
+	// Service 2
+	anotherSvcID, err := flux.ParseResourceID(anotherSvc)
+	assert.NoError(t, err)
+	anotherImageRef, err := image.ParseRef(anotherImage)
+	assert.NoError(t, err)
+
+	tests := []struct {
+		name string
+		spec update.ResourceSpec
+		opts v6.ListImagesOptions
+
+		expectedImages    []v6.ImageStatus
+		expectedNumImages int
+		shouldError       bool
+	}{
+		{
+			name: "All services",
+			spec: specAll,
+			opts: v6.ListImagesOptions{},
+			expectedImages: []v6.ImageStatus{
+				{
+					ID: svcID,
+					Containers: []v6.Container{
+						{
+							Name:           container,
+							Current:        image.Info{ID: currentImageRef},
+							LatestFiltered: image.Info{ID: currentImageRef},
+							Available: []image.Info{
+								{ID: currentImageRef},
+								{ID: newImageRef},
+							},
+							AvailableImagesCount:    2,
+							NewAvailableImagesCount: 1,
+							FilteredImagesCount:     2,
+							NewFilteredImagesCount:  1,
+						},
+					},
+				},
+				{
+					ID: anotherSvcID,
+					Containers: []v6.Container{
+						{
+							Name:           anotherContainer,
+							Current:        image.Info{ID: anotherImageRef},
+							LatestFiltered: image.Info{},
+							Available: []image.Info{
+								{ID: anotherImageRef},
+							},
+							AvailableImagesCount:    1,
+							NewAvailableImagesCount: 0,
+							FilteredImagesCount:     0, // Excludes latest
+							NewFilteredImagesCount:  0,
+						},
+					},
+				},
+			},
+			shouldError: false,
+		},
+		{
+			name: "Specific service",
+			spec: update.ResourceSpec(svc),
+			opts: v6.ListImagesOptions{},
+			expectedImages: []v6.ImageStatus{
+				{
+					ID: svcID,
+					Containers: []v6.Container{
+						{
+							Name:           container,
+							Current:        image.Info{ID: currentImageRef},
+							LatestFiltered: image.Info{ID: currentImageRef},
+							Available: []image.Info{
+								{ID: currentImageRef},
+								{ID: newImageRef},
+							},
+							AvailableImagesCount:    2,
+							NewAvailableImagesCount: 1,
+							FilteredImagesCount:     2,
+							NewFilteredImagesCount:  1,
+						},
+					},
+				},
+			},
+			shouldError: false,
+		},
+		{
+			name: "Override container field selection",
+			spec: specAll,
+			opts: v6.ListImagesOptions{OverrideContainerFields: []string{"Name", "Current", "NewAvailableImagesCount"}},
+			expectedImages: []v6.ImageStatus{
+				{
+					ID: svcID,
+					Containers: []v6.Container{
+						{
+							Name:                    container,
+							Current:                 image.Info{ID: currentImageRef},
+							NewAvailableImagesCount: 1,
+						},
+					},
+				},
+				{
+					ID: anotherSvcID,
+					Containers: []v6.Container{
+						{
+							Name:                    anotherContainer,
+							Current:                 image.Info{ID: anotherImageRef},
+							NewAvailableImagesCount: 0,
+						},
+					},
+				},
+			},
+			shouldError: false,
+		},
+		{
+			name:           "Override container field selection with invalid field",
+			spec:           specAll,
+			opts:           v6.ListImagesOptions{OverrideContainerFields: []string{"InvalidField"}},
+			expectedImages: nil,
+			shouldError:    true,
+		},
 	}
 
-	// List images for specific service
-	ss = update.ResourceSpec(svc)
-	is, err = d.ListImages(ctx, ss, v6.ListImagesOptions{})
-	if err != nil {
-		t.Fatalf("Error: %s", err.Error())
-	}
-	ids = imageIDs(is)
-	if 2 != len(ids) {
-		t.Fatalf("Expected %v but got %v", 2, len(ids))
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			is, err := d.ListImages(ctx, tt.spec, tt.opts)
+			assert.Equal(t, tt.shouldError, err != nil)
+
+			// Clear CreatedAt fields for testing
+			for ri, r := range is {
+				for ci, c := range r.Containers {
+					is[ri].Containers[ci].Current.CreatedAt = time.Time{}
+					is[ri].Containers[ci].LatestFiltered.CreatedAt = time.Time{}
+					for ai := range c.Available {
+						is[ri].Containers[ci].Available[ai].CreatedAt = time.Time{}
+					}
+				}
+			}
+
+			assert.Equal(t, tt.expectedImages, is)
+		})
 	}
 }
 
@@ -556,16 +690,6 @@ func (w *wait) ForSyncStatus(d *Daemon, rev string, expectedNumCommits int) []st
 		return err == nil && len(revs) == expectedNumCommits
 	}, fmt.Sprintf("Waiting for sync status to have %d commits", expectedNumCommits))
 	return revs
-}
-
-func imageIDs(status []v6.ImageStatus) []image.Info {
-	var availableImgs []image.Info
-	for _, i := range status {
-		for _, c := range i.Containers {
-			availableImgs = append(availableImgs, c.Available...)
-		}
-	}
-	return availableImgs
 }
 
 func updateImage(ctx context.Context, d *Daemon, t *testing.T) job.ID {
