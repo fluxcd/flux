@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/url"
 	"strings"
 
@@ -96,7 +97,30 @@ func ParseCredentials(from string, b []byte) (Credentials, error) {
 	return Credentials{m: m}, nil
 }
 
-// For yields an authenticator for a specific host.
+func ImageCredsWithDefaults(lookup func() ImageCreds, configPath string) (func() ImageCreds, error) {
+	var defaults Credentials
+	bs, err := ioutil.ReadFile(configPath)
+	if err == nil {
+		defaults, err = ParseCredentials(configPath, bs)
+	}
+	if err != nil {
+		return nil, err
+	}
+	return func() ImageCreds {
+		imageCreds := lookup()
+		for k, v := range imageCreds {
+			newCreds := NoCredentials()
+			newCreds.Merge(defaults)
+			newCreds.Merge(v)
+			imageCreds[k] = newCreds
+		}
+		return imageCreds
+	}, nil
+}
+
+// ---
+
+// credsFor yields an authenticator for a specific host.
 func (cs Credentials) credsFor(host string) creds {
 	if cred, found := cs.m[host]; found {
 		return cred

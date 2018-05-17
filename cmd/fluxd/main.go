@@ -111,11 +111,8 @@ func main() {
 		upstreamURL = fs.String("connect", "", "Connect to an upstream service e.g., Weave Cloud, at this base address")
 		token       = fs.String("token", "", "Authentication token for upstream service")
 
-		// Deprecated
-		_ = fs.String("docker-config", "", "path to a docker config to use for credentials")
+		dockerConfig = fs.String("docker-config", "", "path to a docker config to use for image registry credentials")
 	)
-
-	fs.MarkDeprecated("docker-config", "credentials are taken from imagePullSecrets now")
 
 	fs.Parse(os.Args)
 
@@ -240,6 +237,14 @@ func main() {
 		}
 
 		imageCreds = k8sInst.ImagesToFetch
+		if *dockerConfig != "" {
+			credsWithDefaults, err := registry.ImageCredsWithDefaults(imageCreds, *dockerConfig)
+			if err != nil {
+				logger.Log("msg", "--docker-config not used", "err", err)
+			} else {
+				imageCreds = credsWithDefaults
+			}
+		}
 		k8s = k8sInst
 		// There is only one way we currently interpret a repo of
 		// files as manifests, and that's as Kubernetes yamels.
