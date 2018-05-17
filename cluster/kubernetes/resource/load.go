@@ -28,11 +28,11 @@ func Load(base, atLeastOne string, more ...string) (map[string]resource.Resource
 				return errors.Wrapf(err, "walking %q for yamels", path)
 			}
 
-			if charts.isChart(path) {
+			if charts.isDirChart(path) {
 				return filepath.SkipDir
 			}
 
-			if charts.inChart(path) {
+			if charts.isPathInChart(path) {
 				return nil
 			}
 
@@ -88,11 +88,11 @@ func newChartTracker(root string) (chartTracker, error) {
 	return chartTracker(chartdirs), nil
 }
 
-func (c chartTracker) isChart(path string) bool {
+func (c chartTracker) isDirChart(path string) bool {
 	return c[path]
 }
 
-func (c chartTracker) inChart(path string) bool {
+func (c chartTracker) isPathInChart(path string) bool {
 	p := path
 	root := fmt.Sprintf("%c", filepath.Separator)
 	for p != root {

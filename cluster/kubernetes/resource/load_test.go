@@ -158,7 +158,7 @@ func TestChartTracker(t *testing.T) {
 		"test", "test/test-service-deploy.yaml"}
 	for _, f := range noncharts {
 		fq := filepath.Join(dir, f)
-		if ct.isChart(fq) {
+		if ct.isDirChart(fq) {
 			t.Errorf("%q thought to be a chart", f)
 		}
 		if f == "garbage" {
@@ -168,10 +168,10 @@ func TestChartTracker(t *testing.T) {
 			t.Errorf("Load returned 0 objs, err=%v", err)
 		}
 	}
-	if !ct.isChart(filepath.Join(dir, "charts/nginx")) {
+	if !ct.isDirChart(filepath.Join(dir, "charts/nginx")) {
 		t.Errorf("charts/nginx not recognized as chart")
 	}
-	if !ct.inChart(filepath.Join(dir, "charts/nginx/Chart.yaml")) {
+	if !ct.isPathInChart(filepath.Join(dir, "charts/nginx/Chart.yaml")) {
 		t.Errorf("charts/nginx/Chart.yaml not recognized as in chart")
 	}
 
