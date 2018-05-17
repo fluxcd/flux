@@ -65,7 +65,7 @@ func (p *MockServer) ListServices(ctx context.Context, ns string) ([]v6.Controll
 	return p.ListServicesAnswer, p.ListServicesError
 }
 
-func (p *MockServer) ListImages(context.Context, update.ResourceSpec) ([]v6.ImageStatus, error) {
+func (p *MockServer) ListImages(context.Context, update.ResourceSpec, v6.ListImagesOptions) ([]v6.ImageStatus, error) {
 	return p.ListImagesAnswer, p.ListImagesError
 }
 
@@ -194,7 +194,7 @@ func ServerTestBattery(t *testing.T, wrap func(mock api.UpstreamServer) api.Upst
 		t.Error("expected error from ListServices, got nil")
 	}
 
-	ims, err := client.ListImages(ctx, update.ResourceSpecAll)
+	ims, err := client.ListImages(ctx, update.ResourceSpecAll, v6.ListImagesOptions{})
 	if err != nil {
 		t.Error(err)
 	}
@@ -202,7 +202,7 @@ func ServerTestBattery(t *testing.T, wrap func(mock api.UpstreamServer) api.Upst
 		t.Error(fmt.Errorf("expected:\n%#v\ngot:\n%#v", mock.ListImagesAnswer, ims))
 	}
 	mock.ListImagesError = fmt.Errorf("list images error")
-	if _, err = client.ListImages(ctx, update.ResourceSpecAll); err == nil {
+	if _, err = client.ListImages(ctx, update.ResourceSpecAll, v6.ListImagesOptions{}); err == nil {
 		t.Error("expected error from ListImages, got nil")
 	}
 

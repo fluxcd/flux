@@ -225,16 +225,16 @@ func (i Ref) WithNewTag(t string) Ref {
 // from its registry.
 type Info struct {
 	// the reference to this image; probably a tagged image name
-	ID Ref
+	ID Ref `json:",omitempty"`
 	// the digest we got when fetching the metadata, which will be
 	// different each time a manifest is uploaded for the reference
-	Digest string
+	Digest string `json:",omitempty"`
 	// an identifier for the *image* this reference points to; this
 	// will be the same for references that point at the same image
 	// (but does not necessarily equal Docker's image ID)
-	ImageID string
+	ImageID string `json:",omitempty"`
 	// the time at which the image pointed at was created
-	CreatedAt time.Time
+	CreatedAt time.Time `json:",omitempty"`
 }
 
 // MarshalJSON returns the Info value in JSON (as bytes). It is

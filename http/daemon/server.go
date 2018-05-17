@@ -3,6 +3,7 @@ package daemon
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
@@ -11,6 +12,7 @@ import (
 	"github.com/weaveworks/flux"
 
 	"github.com/weaveworks/flux/api"
+	"github.com/weaveworks/flux/api/v6"
 	transport "github.com/weaveworks/flux/http"
 	"github.com/weaveworks/flux/job"
 	fluxmetrics "github.com/weaveworks/flux/metrics"
@@ -91,14 +93,27 @@ func (s HTTPServer) SyncStatus(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s HTTPServer) ListImages(w http.ResponseWriter, r *http.Request) {
-	service := mux.Vars(r)["service"]
+	queryValues := r.URL.Query()
+
+	// service - Select services to update.
+	service := queryValues.Get("service")
+	if service == "" {
+		service = string(update.ResourceSpecAll)
+	}
 	spec, err := update.ParseResourceSpec(service)
 	if err != nil {
 		transport.WriteError(w, r, http.StatusBadRequest, errors.Wrapf(err, "parsing service spec %q", service))
 		return
 	}
 
-	d, err := s.server.ListImages(r.Context(), spec)
+	// containerFields - Override which fields to return in the container struct.
+	var opts v6.ListImagesOptions
+	containerFields := queryValues.Get("containerFields")
+	if containerFields != "" {
+		opts.OverrideContainerFields = strings.Split(containerFields, ",")
+	}
+
+	d, err := s.server.ListImages(r.Context(), spec, opts)
 	if err != nil {
 		transport.ErrorResponse(w, r, err)
 		return
@@ -122,7 +137,7 @@ func (s HTTPServer) UpdateManifests(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s HTTPServer) ListServices(w http.ResponseWriter, r *http.Request) {
-	namespace := mux.Vars(r)["namespace"]
+	namespace := r.URL.Query().Get("namespace")
 	res, err := s.server.ListServices(r.Context(), namespace)
 	if err != nil {
 		transport.ErrorResponse(w, r, err)

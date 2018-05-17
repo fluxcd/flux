@@ -138,7 +138,7 @@ func (cs clusterContainers) Containers(i int) []resource.Container {
 }
 
 // List the images available for set of services
-func (d *Daemon) ListImages(ctx context.Context, spec update.ResourceSpec) ([]v6.ImageStatus, error) {
+func (d *Daemon) ListImages(ctx context.Context, spec update.ResourceSpec, opts v6.ListImagesOptions) ([]v6.ImageStatus, error) {
 	var services []cluster.Controller
 	var err error
 	if spec == update.ResourceSpecAll {
@@ -163,7 +163,10 @@ func (d *Daemon) ListImages(ctx context.Context, spec update.ResourceSpec) ([]v6
 
 	var res []v6.ImageStatus
 	for _, service := range services {
-		serviceContainers := getServiceContainers(service, imageRepos, policyResourceMap)
+		serviceContainers, err := getServiceContainers(service, imageRepos, policyResourceMap, opts.OverrideContainerFields)
+		if err != nil {
+			return nil, err
+		}
 		res = append(res, v6.ImageStatus{
 			ID:         service.ID,
 			Containers: serviceContainers,
@@ -557,13 +560,37 @@ func containers2containers(cs []resource.Container) []v6.Container {
 	return res
 }
 
-func getServiceContainers(service cluster.Controller, imageRepos update.ImageRepos, policyResourceMap policy.ResourceMap) (res []v6.Container) {
+func getServiceContainers(service cluster.Controller, imageRepos update.ImageRepos, policyResourceMap policy.ResourceMap, overrideFields []string) (res []v6.Container, err error) {
+	fields := map[string]struct{}{
+		"Name":                    struct{}{},
+		"Current":                 struct{}{},
+		"LatestFiltered":          struct{}{},
+		"Available":               struct{}{},
+		"AvailableError":          struct{}{},
+		"AvailableImagesCount":    struct{}{},
+		"NewAvailableImagesCount": struct{}{},
+		"FilteredImagesCount":     struct{}{},
+		"NewFilteredImagesCount":  struct{}{},
+	}
+
+	// If overrideFields is provided, override the default fields to return
+	if len(overrideFields) > 0 {
+		newFieldsMap := make(map[string]struct{})
+		for _, f := range overrideFields {
+			if _, ok := fields[f]; !ok {
+				return nil, errors.Errorf("%s is an invalid field", f)
+			}
+			newFieldsMap[f] = struct{}{}
+		}
+		fields = newFieldsMap
+	}
+
 	for _, c := range service.ContainersOrNil() {
+		var container v6.Container
+
 		imageRepo := c.Image.Name
 		tagPattern := getTagPattern(policyResourceMap, service.ID, c.Name)
-
 		currentImage := imageRepos.FindImageInfo(imageRepo, c.Image)
-		latestFilteredImage, _ := imageRepos.LatestFilteredImage(imageRepo, tagPattern)
 
 		// All available images
 		availableImages := imageRepos.Available(imageRepo)
@@ -591,21 +618,37 @@ func getServiceContainers(service cluster.Controller, imageRepos update.ImageRep
 		}
 		newFilteredImagesCount := len(newFilteredImages)
 
-		res = append(res, v6.Container{
-			Name:           c.Name,
-			Current:        currentImage,
-			LatestFiltered: latestFilteredImage,
-
-			Available:               availableImages,
-			AvailableError:          availableImagesErr,
-			AvailableImagesCount:    availableImagesCount,
-			NewAvailableImagesCount: newAvailableImagesCount,
-
-			FilteredImagesCount:    filteredImagesCount,
-			NewFilteredImagesCount: newFilteredImagesCount,
-		})
+		if _, ok := fields["Name"]; ok {
+			container.Name = c.Name
+		}
+		if _, ok := fields["Current"]; ok {
+			container.Current = currentImage
+		}
+		if _, ok := fields["LatestFiltered"]; ok {
+			container.LatestFiltered, _ = imageRepos.LatestFilteredImage(imageRepo, tagPattern)
+		}
+		if _, ok := fields["Available"]; ok {
+			container.Available = availableImages
+		}
+		if _, ok := fields["AvailableError"]; ok {
+			container.AvailableError = availableImagesErr
+		}
+		if _, ok := fields["AvailableImagesCount"]; ok {
+			container.AvailableImagesCount = availableImagesCount
+		}
+		if _, ok := fields["NewAvailableImagesCount"]; ok {
+			container.NewAvailableImagesCount = newAvailableImagesCount
+		}
+		if _, ok := fields["FilteredImagesCount"]; ok {
+			container.FilteredImagesCount = filteredImagesCount
+		}
+		if _, ok := fields["NewFilteredImagesCount"]; ok {
+			container.NewFilteredImagesCount = newFilteredImagesCount
+		}
+		res = append(res, container)
 	}
-	return res
+
+	return res, nil
 }
 
 func policyCommitMessage(us policy.Updates, cause update.Cause) string {

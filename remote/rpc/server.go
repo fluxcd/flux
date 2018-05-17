@@ -89,7 +89,7 @@ type ListImagesResponse struct {
 }
 
 func (p *RPCServer) ListImages(spec update.ResourceSpec, resp *ListImagesResponse) error {
-	v, err := p.s.ListImages(context.Background(), spec)
+	v, err := p.s.ListImages(context.Background(), spec, v6.ListImagesOptions{})
 	resp.Result = v
 	if err != nil {
 		if err, ok := errors.Cause(err).(*fluxerr.Error); ok {

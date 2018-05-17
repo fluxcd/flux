@@ -139,7 +139,7 @@ func TestDaemon_ListImages(t *testing.T) {
 
 	// List all images for services
 	ss := update.ResourceSpec(update.ResourceSpecAll)
-	is, err := d.ListImages(ctx, ss)
+	is, err := d.ListImages(ctx, ss, v6.ListImagesOptions{})
 	if err != nil {
 		t.Fatalf("Error: %s", err.Error())
 	}
@@ -150,7 +150,7 @@ func TestDaemon_ListImages(t *testing.T) {
 
 	// List images for specific service
 	ss = update.ResourceSpec(svc)
-	is, err = d.ListImages(ctx, ss)
+	is, err = d.ListImages(ctx, ss, v6.ListImagesOptions{})
 	if err != nil {
 		t.Fatalf("Error: %s", err.Error())
 	}

@@ -33,7 +33,7 @@ func (bc baseClient) ListServices(context.Context, string) ([]v6.ControllerStatu
 	return nil, remote.UpgradeNeededError(errors.New("ListServices method not implemented"))
 }
 
-func (bc baseClient) ListImages(context.Context, update.ResourceSpec) ([]v6.ImageStatus, error) {
+func (bc baseClient) ListImages(context.Context, update.ResourceSpec, v6.ListImagesOptions) ([]v6.ImageStatus, error) {
 	return nil, remote.UpgradeNeededError(errors.New("ListImages method not implemented"))
 }
 

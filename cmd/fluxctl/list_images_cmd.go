@@ -67,7 +67,7 @@ func (opts *controllerShowOpts) RunE(cmd *cobra.Command, args []string) error {
 
 	ctx := context.Background()
 
-	controllers, err := opts.API.ListImages(ctx, resourceSpec)
+	controllers, err := opts.API.ListImages(ctx, resourceSpec, v6.ListImagesOptions{})
 	if err != nil {
 		return err
 	}

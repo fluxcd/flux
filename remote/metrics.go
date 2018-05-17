@@ -56,14 +56,14 @@ func (i *instrumentedServer) ListServices(ctx context.Context, namespace string)
 	return i.s.ListServices(ctx, namespace)
 }
 
-func (i *instrumentedServer) ListImages(ctx context.Context, spec update.ResourceSpec) (_ []v6.ImageStatus, err error) {
+func (i *instrumentedServer) ListImages(ctx context.Context, spec update.ResourceSpec, opts v6.ListImagesOptions) (_ []v6.ImageStatus, err error) {
 	defer func(begin time.Time) {
 		requestDuration.With(
 			fluxmetrics.LabelMethod, "ListImages",
 			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
 	}(time.Now())
-	return i.s.ListImages(ctx, spec)
+	return i.s.ListImages(ctx, spec, opts)
 }
 
 func (i *instrumentedServer) UpdateManifests(ctx context.Context, spec update.Spec) (_ job.ID, err error) {
