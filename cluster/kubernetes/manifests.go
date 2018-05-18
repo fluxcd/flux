@@ -1,6 +1,7 @@
 package kubernetes
 
 import (
+	"io"
 	"io/ioutil"
 	"os"
 
@@ -23,31 +24,8 @@ func (m *Manifests) ParseManifests(allDefs []byte) (map[string]resource.Resource
 	return kresource.ParseMultidoc(allDefs, "exported")
 }
 
-func (m *Manifests) UpdateImage(path string, id flux.ResourceID, container string, image image.Ref) error {
-	return updatePodController(path, id, container, image)
+func (m *Manifests) UpdateImage(original io.Reader, id flux.ResourceID, container string, image image.Ref) (io.Reader, error) {
+	return updatePodController(original, id, container, image)
 }
 
 // UpdatePolicies and ServicesWithPolicies in policies.go
-
-// ---
-
-// updateManifest reads the contents at the path given, applies
-// f(contents), and writes the results back to the file.
-func updateManifest(path string, serviceID flux.ResourceID, f func(manifest []byte) ([]byte, error)) error {
-	fi, err := os.Stat(path)
-	if err != nil {
-		return err
-	}
-
-	def, err := ioutil.ReadFile(path)
-	if err != nil {
-		return err
-	}
-
-	newDef, err := f(def)
-	if err != nil {
-		return err
-	}
-
-	return ioutil.WriteFile(path, newDef, fi.Mode())
-}

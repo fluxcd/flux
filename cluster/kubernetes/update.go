@@ -22,22 +22,22 @@ import (
 //
 // This function has some requirements of the YAML structure. Read the
 // source and comments below to learn about them.
-func updatePodController(path string, resourceID flux.ResourceID, container string, newImageID image.Ref) error {
-	return updateManifest(path, resourceID, func(def []byte) ([]byte, error) {
-		// Sanity check
-		obj, err := parseObj(def)
-		if err != nil {
-			return nil, err
-		}
+func updatePodController(original io.Reader, resourceID flux.ResourceID, container string, newImageID image.Ref) (io.Reader, error) {
+	copy := &bytes.Buffer{}
+	tee := io.TeeReader(original, copy)
+	// Sanity check
+	obj, err := parseObj(tee)
+	if err != nil {
+		return nil, err
+	}
 
-		if _, ok := resourceKinds[strings.ToLower(obj.Kind)]; !ok {
-			return nil, UpdateNotSupportedError(obj.Kind)
-		}
+	if _, ok := resourceKinds[strings.ToLower(obj.Kind)]; !ok {
+		return nil, UpdateNotSupportedError(obj.Kind)
+	}
 
-		var buf bytes.Buffer
-		err = tryUpdate(def, resourceID, container, newImageID, &buf)
-		return buf.Bytes(), err
-	})
+	var buf bytes.Buffer
+	err = tryUpdate(copy, resourceID, container, newImageID, &buf)
+	return &buf, err
 }
 
 // Attempt to update an RC or Deployment config. This makes several assumptions
@@ -83,8 +83,10 @@ func updatePodController(path string, resourceID flux.ResourceID, container stri
 //         ports:
 //         - containerPort: 80
 // ```
-func tryUpdate(def []byte, id flux.ResourceID, container string, newImage image.Ref, out io.Writer) error {
-	containers, err := extractContainers(def, id)
+func tryUpdate(def io.Reader, id flux.ResourceID, container string, newImage image.Ref, out io.Writer) error {
+	copy := &bytes.Buffer{}
+	tee := io.TeeReader(def, copy)
+	containers, err := extractContainers(tee, id)
 
 	matchingContainers := map[int]resource.Container{}
 	for i, c := range containers {
@@ -107,7 +109,7 @@ func tryUpdate(def []byte, id flux.ResourceID, container string, newImage image.
 	// Detect how indented the "containers" block is.
 	// TODO: delete all regular expressions which are used to modify YAML.
 	// See #1019. Modifying this is not recommended.
-	newDef := string(def)
+	newDef := string(copy.String())
 	matches := regexp.MustCompile(`( +)containers:.*`).FindStringSubmatch(newDef)
 	if len(matches) != 2 {
 		return fmt.Errorf("could not find container specs")

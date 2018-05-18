@@ -20,13 +20,13 @@ type Manifests interface {
 	// however, the path is supplied explicitly, rather than obtained
 	// from the resource, so that we can transplant changes from one
 	// place to another.
-	UpdateImage(abspath string, resourceID flux.ResourceID, container string, newImageID image.Ref) error
+	UpdateImage(original io.Reader, resourceID flux.ResourceID, container string, newImageID image.Ref) (io.Reader, error)
 	// UpdatePolicies modifies a manifest to apply the policy update
 	// specified. The path to the manifest file is given explicitly so
 	// that changes may be applied to an arbitrary file (with the
 	// expectation that the file has been determined to contain the
 	// manifest somehow).
-	UpdatePolicies(abspath string, id flux.ResourceID, update policy.Update) error
+	UpdatePolicies(original io.Reader, id flux.ResourceID, update policy.Update) (io.Reader, error)
 	// Load all the resource manifests under the path given. `baseDir`
 	// is used to relativise the paths, which are supplied as absolute
 	// paths to directories or files; at least one path must be

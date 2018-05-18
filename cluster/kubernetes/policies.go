@@ -13,42 +13,45 @@ import (
 	"github.com/weaveworks/flux/resource"
 )
 
-func (m *Manifests) UpdatePolicies(path string, id flux.ResourceID, update policy.Update) error {
-	return updateManifest(path, id, func(def []byte) ([]byte, error) {
-		add, del := update.Add, update.Remove
+func (m *Manifests) UpdatePolicies(original io.Reader, id flux.ResourceID, update policy.Update) (io.Reader, error) {
+	add, del := update.Add, update.Remove
 
-		// We may be sent the pseudo-policy `policy.TagAll`, which means
-		// apply this filter to all containers. To do so, we need to know
-		// what all the containers are.
-		if tagAll, ok := update.Add.Get(policy.TagAll); ok {
-			add = add.Without(policy.TagAll)
-			containers, err := extractContainers(def, id)
-			if err != nil {
-				return nil, err
-			}
-
-			for _, container := range containers {
-				if tagAll == "glob:*" {
-					del = del.Add(policy.TagPrefix(container.Name))
-				} else {
-					add = add.Set(policy.TagPrefix(container.Name), tagAll)
-				}
-			}
+	// We may be sent the pseudo-policy `policy.TagAll`, which means
+	// apply this filter to all containers. To do so, we need to know
+	// what all the containers are.
+	if tagAll, ok := update.Add.Get(policy.TagAll); ok {
+		add = add.Without(policy.TagAll)
+		copy := &bytes.Buffer{}
+		tee := io.TeeReader(original, copy)
+		containers, err := extractContainers(tee, id)
+		if err != nil {
+			return nil, err
 		}
 
-		return updateAnnotations(def, id, func(old map[string]string) {
-			for k, v := range add {
-				old[kresource.PolicyPrefix+string(k)] = v
+		for _, container := range containers {
+			if tagAll == "glob:*" {
+				del = del.Add(policy.TagPrefix(container.Name))
+			} else {
+				add = add.Set(policy.TagPrefix(container.Name), tagAll)
 			}
-			for k := range del {
-				delete(old, kresource.PolicyPrefix+string(k))
-			}
-		})
+		}
+		original = copy
+	}
+
+	return updateAnnotations(original, id, func(old map[string]string) {
+		for k, v := range add {
+			old[kresource.PolicyPrefix+string(k)] = v
+		}
+		for k := range del {
+			delete(old, kresource.PolicyPrefix+string(k))
+		}
 	})
 }
 
-func updateAnnotations(def []byte, id flux.ResourceID, f func(map[string]string)) ([]byte, error) {
-	annotations, err := extractAnnotations(def)
+func updateAnnotations(original io.Reader, id flux.ResourceID, f func(map[string]string)) (io.Reader, error) {
+	copy := &bytes.Buffer{}
+	tee := io.TeeReader(original, copy)
+	annotations, err := extractAnnotations(tee)
 	if err != nil {
 		return nil, err
 	}
@@ -86,19 +89,24 @@ func updateAnnotations(def []byte, id flux.ResourceID, f func(map[string]string)
 	// See #1019. Modifying this is not recommended.
 	replaced := false
 	annotationsRE := regexp.MustCompile(`(?m:\n  annotations:\s*(?:#.*)*(?:\n    .*|\n)*$)`)
-	newDef := annotationsRE.ReplaceAllStringFunc(string(def), func(found string) string {
+
+	def, err := ioutil.ReadAll(copy)
+	if err != nil {
+		return nil, err
+	}
+	newDef := annotationsRE.ReplaceAllFunc(def, func(found []byte) []byte {
 		if !replaced {
 			replaced = true
-			return fragment
+			return []byte(fragment)
 		}
 		return found
 	})
 	if !replaced {
 		metadataRE := multilineRE(`(metadata:\s*(?:#.*)*)`)
-		newDef = metadataRE.ReplaceAllStringFunc(string(def), func(found string) string {
+		newDef = metadataRE.ReplaceAllFunc(def, func(found []byte) []byte {
 			if !replaced {
 				replaced = true
-				f := found + fragment
+				f := append(found, []byte(fragment)...)
 				return f
 			}
 			return found
@@ -108,7 +116,7 @@ func updateAnnotations(def []byte, id flux.ResourceID, f func(map[string]string)
 		return nil, errors.New("Could not update resource annotations")
 	}
 
-	return []byte(newDef), err
+	return bytes.NewBuffer(newDef), nil
 }
 
 type manifest struct {
@@ -117,9 +125,9 @@ type manifest struct {
 	} `yaml:"metadata"`
 }
 
-func extractAnnotations(def []byte) (map[string]string, error) {
+func extractAnnotations(def io.Reader) (map[string]string, error) {
 	var m manifest
-	if err := yaml.Unmarshal(def, &m); err != nil {
+	if err := yaml.NewDecoder(def).Decode(&m); err != nil {
 		return nil, errors.Wrap(err, "decoding manifest for annotations")
 	}
 	if m.Metadata.Annotations == nil {
@@ -128,7 +136,7 @@ func extractAnnotations(def []byte) (map[string]string, error) {
 	return m.Metadata.Annotations, nil
 }
 
-func extractContainers(def []byte, id flux.ResourceID) ([]resource.Container, error) {
+func extractContainers(def io.Reader, id flux.ResourceID) ([]resource.Container, error) {
 	resources, err := kresource.ParseMultidoc(def, "stdin")
 	if err != nil {
 		return nil, err
