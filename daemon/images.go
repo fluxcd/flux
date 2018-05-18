@@ -55,7 +55,9 @@ func (d *Daemon) pollForNewImages(logger log.Logger) {
 			repo := currentImageID.Name
 			logger.Log("repo", repo, "pattern", pattern)
 
-			if latest, ok := imageRepos.LatestFilteredImage(repo, pattern); ok && latest.ID != currentImageID {
+			filteredImages := imageRepos.GetRepoImages(repo).Filter(pattern)
+
+			if latest, ok := filteredImages.Latest(); ok && latest.ID != currentImageID {
 				if latest.ID.Tag == "" {
 					logger.Log("msg", "untagged image in available images", "action", "skip", "available", repo)
 					continue

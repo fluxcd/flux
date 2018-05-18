@@ -14,65 +14,16 @@ import (
 	"github.com/weaveworks/flux/resource"
 )
 
-type imageReposMap map[image.CanonicalName][]image.Info
+type imageReposMap map[image.CanonicalName]ImageInfos
 
 // ImageRepos contains a map of image repositories to their images
 type ImageRepos struct {
 	imageRepos imageReposMap
 }
 
-// FindImageInfo returns image.Info given an image ref. If the image cannot be
-// found, return the image.Info with only the ID.
-func (r ImageRepos) FindImageInfo(repo image.Name, ref image.Ref) image.Info {
-	images, ok := r.imageRepos[ref.CanonicalName()]
-	if !ok {
-		return image.Info{ID: ref}
-	}
-	for _, img := range images {
-		if img.ID == ref {
-			return img
-		}
-	}
-	return image.Info{ID: ref}
-}
-
-// LatestFilteredImage returns the latest releasable image for a repository
-// for which the tag matches a given pattern. A releasable image is
-// one that is not tagged "latest". (Assumes the available images are
-// in descending order of latestness.) If no such image exists,
-// returns a zero value and `false`, and the caller can decide whether
-// that's an error or not.
-func (r ImageRepos) LatestFilteredImage(repo image.Name, tagGlob string) (image.Info, bool) {
-	filtered := r.FilteredAvailable(repo, tagGlob)
-	if len(filtered) > 0 {
-		return filtered[0], true
-	}
-	return image.Info{}, false
-}
-
-// FilteredAvailable returns image.Info entries for all the images in the
-// named image repository which match the tagGlob.
-func (r ImageRepos) FilteredAvailable(repo image.Name, tagGlob string) []image.Info {
-	var filtered []image.Info
-	for _, available := range r.Available(repo) {
-		tag := available.ID.Tag
-		// Ignore latest if and only if it's not what the user wants.
-		if !strings.EqualFold(tagGlob, "latest") && strings.EqualFold(tag, "latest") {
-			continue
-		}
-		if glob.Glob(tagGlob, tag) {
-			var im image.Info
-			im = available
-			im.ID = repo.ToRef(tag)
-			filtered = append(filtered, im)
-		}
-	}
-	return filtered
-}
-
-// Available returns image.Info entries for all the images in the
+// GetRepoImages returns image.Info entries for all the images in the
 // named image repository.
-func (r ImageRepos) Available(repo image.Name) []image.Info {
+func (r ImageRepos) GetRepoImages(repo image.Name) ImageInfos {
 	if canon, ok := r.imageRepos[repo.CanonicalName()]; ok {
 		infos := make([]image.Info, len(canon))
 		for i := range canon {
@@ -82,6 +33,48 @@ func (r ImageRepos) Available(repo image.Name) []image.Info {
 		return infos
 	}
 	return nil
+}
+
+// ImageInfos is a list of image.Info which can be filtered.
+type ImageInfos []image.Info
+
+// Filter returns only the images which match the tagGlob.
+func (ii ImageInfos) Filter(tagGlob string) ImageInfos {
+	var filtered ImageInfos
+	for _, i := range ii {
+		tag := i.ID.Tag
+		// Ignore latest if and only if it's not what the user wants.
+		if !strings.EqualFold(tagGlob, "latest") && strings.EqualFold(tag, "latest") {
+			continue
+		}
+		if glob.Glob(tagGlob, tag) {
+			var im image.Info
+			im = i
+			filtered = append(filtered, im)
+		}
+	}
+	return filtered
+}
+
+// Latest returns the latest image from ImageInfos. If no such image exists,
+// returns a zero value and `false`, and the caller can decide whether
+// that's an error or not.
+func (ii ImageInfos) Latest() (image.Info, bool) {
+	if len(ii) > 0 {
+		return ii[0], true
+	}
+	return image.Info{}, false
+}
+
+// FindWithRef returns image.Info given an image ref. If the image cannot be
+// found, it returns the image.Info with the ID provided.
+func (ii ImageInfos) FindWithRef(ref image.Ref) image.Info {
+	for _, img := range ii {
+		if img.ID == ref {
+			return img
+		}
+	}
+	return image.Info{ID: ref}
 }
 
 // containers represents a collection of things that have containers

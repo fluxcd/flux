@@ -580,25 +580,26 @@ func getServiceContainers(service cluster.Controller, imageRepos update.ImageRep
 
 		imageRepo := c.Image.Name
 		tagPattern := getTagPattern(policyResourceMap, service.ID, c.Name)
-		currentImage := imageRepos.FindImageInfo(imageRepo, c.Image)
 
-		// All available images
-		availableImages := imageRepos.Available(imageRepo)
-		availableImagesCount := len(availableImages)
-		availableImagesErr := ""
-		if availableImages == nil {
-			availableImagesErr = registry.ErrNoImageData.Error()
+		images := imageRepos.GetRepoImages(imageRepo)
+		currentImage := images.FindWithRef(c.Image)
+
+		// All images
+		imagesCount := len(images)
+		imagesErr := ""
+		if images == nil {
+			imagesErr = registry.ErrNoImageData.Error()
 		}
-		var newAvailableImages []image.Info
-		for _, img := range availableImages {
+		var newImages []image.Info
+		for _, img := range images {
 			if img.CreatedAt.After(currentImage.CreatedAt) {
-				newAvailableImages = append(newAvailableImages, img)
+				newImages = append(newImages, img)
 			}
 		}
-		newAvailableImagesCount := len(newAvailableImages)
+		newImagesCount := len(newImages)
 
-		// Filtered available images
-		filteredImages := imageRepos.FilteredAvailable(imageRepo, tagPattern)
+		// Filtered images
+		filteredImages := images.Filter(tagPattern)
 		filteredImagesCount := len(filteredImages)
 		var newFilteredImages []image.Info
 		for _, img := range filteredImages {
@@ -615,15 +616,15 @@ func getServiceContainers(service cluster.Controller, imageRepos update.ImageRep
 			case "Current":
 				container.Current = currentImage
 			case "LatestFiltered":
-				container.LatestFiltered, _ = imageRepos.LatestFilteredImage(imageRepo, tagPattern)
+				container.LatestFiltered, _ = filteredImages.Latest()
 			case "Available":
-				container.Available = availableImages
+				container.Available = images
 			case "AvailableError":
-				container.AvailableError = availableImagesErr
+				container.AvailableError = imagesErr
 			case "AvailableImagesCount":
-				container.AvailableImagesCount = availableImagesCount
+				container.AvailableImagesCount = imagesCount
 			case "NewAvailableImagesCount":
-				container.NewAvailableImagesCount = newAvailableImagesCount
+				container.NewAvailableImagesCount = newImagesCount
 			case "FilteredImagesCount":
 				container.FilteredImagesCount = filteredImagesCount
 			case "NewFilteredImagesCount":
