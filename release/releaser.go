@@ -5,6 +5,7 @@ import (
 
 	"github.com/go-kit/kit/log"
 
+	"github.com/weaveworks/flux/resource"
 	"github.com/weaveworks/flux/update"
 )
 
@@ -27,12 +28,20 @@ func Release(rc *ReleaseContext, changes Changes, logger log.Logger) (results up
 
 	logger = log.With(logger, "type", "release")
 
+	before, err := rc.manifests.LoadManifests(rc.repo.Dir(), rc.repo.ManifestDir())
 	updates, results, err := changes.CalculateRelease(rc, logger)
 	if err != nil {
 		return nil, err
 	}
 
 	err = ApplyChanges(rc, updates, logger)
+	if err == nil {
+		var after map[string]resource.Resource
+		after, err = rc.manifests.LoadManifests(rc.repo.Dir(), rc.repo.ManifestDir())
+		if err == nil {
+			err = VerifyChanges(before, updates, after)
+		}
+	}
 	return results, err
 }
 
@@ -47,4 +56,8 @@ func ApplyChanges(rc *ReleaseContext, updates []*update.ControllerUpdate, logger
 	err := rc.WriteUpdates(updates)
 	timer.ObserveDuration()
 	return err
+}
+
+func VerifyChanges(before map[string]resource.Resource, updates []*update.ControllerUpdate, after map[string]resource.Resource) error {
+	return nil
 }
