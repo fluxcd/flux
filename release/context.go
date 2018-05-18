@@ -2,8 +2,6 @@ package release
 
 import (
 	"fmt"
-	"io/ioutil"
-	"os"
 	"path/filepath"
 
 	"github.com/weaveworks/flux"
@@ -40,19 +38,15 @@ func (rc *ReleaseContext) Manifests() cluster.Manifests {
 }
 
 func (rc *ReleaseContext) WriteUpdates(updates []*update.ControllerUpdate) error {
-	err := func() error {
-		for _, update := range updates {
-			fi, err := os.Stat(update.ManifestPath)
+	for _, controllerUpdate := range updates {
+		for _, containerUpdate := range controllerUpdate.Updates {
+			err := rc.Manifests().UpdateImage(controllerUpdate.ManifestPath, controllerUpdate.ResourceID, containerUpdate.Container, containerUpdate.Target)
 			if err != nil {
 				return err
 			}
-			if err = ioutil.WriteFile(update.ManifestPath, update.ManifestBytes, fi.Mode()); err != nil {
-				return err
-			}
 		}
-		return nil
-	}()
-	return err
+	}
+	return nil
 }
 
 // ---
@@ -129,10 +123,9 @@ func (rc *ReleaseContext) WorkloadsForUpdate() (map[flux.ResourceID]*update.Cont
 	for _, res := range resources {
 		if wl, ok := res.(resource.Workload); ok {
 			defined[res.ResourceID()] = &update.ControllerUpdate{
-				ResourceID:    res.ResourceID(),
-				Resource:      wl,
-				ManifestPath:  filepath.Join(rc.repo.Dir(), res.Source()),
-				ManifestBytes: res.Bytes(),
+				ResourceID:   res.ResourceID(),
+				Resource:     wl,
+				ManifestPath: filepath.Join(rc.repo.Dir(), res.Source()),
 			}
 		}
 	}

@@ -3,6 +3,7 @@ package daemon
 import (
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"sync"
@@ -211,6 +212,15 @@ func TestDoSync_NoNewCommits(t *testing.T) {
 	}
 }
 
+func replaceInFile(path, src, target string) error {
+	bytes, err := ioutil.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	replaced := strings.Replace(string(bytes), src, target, -1)
+	return ioutil.WriteFile(path, []byte(replaced), os.FileMode(0666))
+}
+
 func TestDoSync_WithNewCommit(t *testing.T) {
 	d, cleanup := daemon(t)
 	defer cleanup()
@@ -232,11 +242,17 @@ func TestDoSync_WithNewCommit(t *testing.T) {
 			return err
 		}
 		// Push some new changes
-		err = cluster.UpdateManifest(k8s, checkout.ManifestDir(), flux.MustParseResourceID("default:deployment/helloworld"), func(def []byte) ([]byte, error) {
-			// A simple modification so we have changes to push
-			return []byte(strings.Replace(string(def), "replicas: 5", "replicas: 4", -1)), nil
-		})
+
+		id := flux.MustParseResourceID("default:deployment/helloworld")
+		resources, err := k8s.LoadManifests(checkout.ManifestDir(), checkout.ManifestDir())
 		if err != nil {
+			t.Fatal(err)
+		}
+		hello, ok := resources[id.String()]
+		if !ok {
+			t.Fatal("Did not find expected resource " + id.String())
+		}
+		if err = replaceInFile(filepath.Join(checkout.ManifestDir(), hello.Source()), "replicas: 5", "replicas: 4"); err != nil {
 			return err
 		}
 

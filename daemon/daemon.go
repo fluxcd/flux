@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"path/filepath"
 	"sort"
 	"time"
 
@@ -282,44 +283,31 @@ func (d *Daemon) updatePolicy(spec update.Spec, updates policy.Updates) daemonJo
 		// automation run straight ASAP.
 		var anythingAutomated bool
 
+		resources, err := d.Manifests.LoadManifests(working.Dir(), working.ManifestDir())
+		if err != nil {
+			return result, err
+		}
+
 		for serviceID, u := range updates {
 			if policy.Set(u.Add).Contains(policy.Automated) {
 				anythingAutomated = true
 			}
-			// find the service manifest
-			err := cluster.UpdateManifest(d.Manifests, working.ManifestDir(), serviceID, func(def []byte) ([]byte, error) {
-				newDef, err := d.Manifests.UpdatePolicies(def, serviceID, u)
+			if res, ok := resources[serviceID.String()]; ok {
+				err := d.Manifests.UpdatePolicies(filepath.Join(working.Dir(), res.Source()), serviceID, u)
 				if err != nil {
 					result.Result[serviceID] = update.ControllerResult{
 						Status: update.ReleaseStatusFailed,
 						Error:  err.Error(),
 					}
-					return nil, err
+					return result, err
 				}
-				if string(newDef) == string(def) {
-					result.Result[serviceID] = update.ControllerResult{
-						Status: update.ReleaseStatusSkipped,
-					}
-				} else {
-					serviceIDs = append(serviceIDs, serviceID)
-					result.Result[serviceID] = update.ControllerResult{
-						Status: update.ReleaseStatusSuccess,
-					}
-				}
-				return newDef, nil
-			})
-			switch err {
-			case cluster.ErrNoResourceFilesFoundForService, cluster.ErrMultipleResourceFilesFoundForService:
+				serviceIDs = append(serviceIDs, serviceID)
 				result.Result[serviceID] = update.ControllerResult{
-					Status: update.ReleaseStatusFailed,
-					Error:  err.Error(),
+					Status: update.ReleaseStatusSuccess,
 				}
-			case nil:
-				// continue
-			default:
-				return result, err
 			}
 		}
+
 		if len(serviceIDs) == 0 {
 			return result, nil
 		}
@@ -340,7 +328,6 @@ func (d *Daemon) updatePolicy(spec update.Spec, updates policy.Updates) daemonJo
 			d.AskForImagePoll()
 		}
 
-		var err error
 		result.Revision, err = working.HeadRevision(ctx)
 		if err != nil {
 			return result, err

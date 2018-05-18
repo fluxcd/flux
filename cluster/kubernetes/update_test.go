@@ -1,6 +1,7 @@
 package kubernetes
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/weaveworks/flux"
@@ -23,10 +24,14 @@ func testUpdate(t *testing.T, u update) {
 
 	manifest := u.caseIn
 	for _, container := range u.containers {
-		var out []byte
-		var err error
-		if out, err = updatePodController([]byte(manifest), flux.MustParseResourceID(u.resourceID), container, id); err != nil {
-			t.Errorf("Failed %s: %s", u.name, err.Error())
+		out, err := withFile([]byte(manifest), func(path string) error {
+			if err := updatePodController(path, flux.MustParseResourceID(u.resourceID), container, id); err != nil {
+				return fmt.Errorf("Failed %s: %s", u.name, err.Error())
+			}
+			return nil
+		})
+		if err != nil {
+			t.Error(err)
 			return
 		}
 		manifest = string(out)

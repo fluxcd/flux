@@ -13,35 +13,37 @@ import (
 	"github.com/weaveworks/flux/resource"
 )
 
-func (m *Manifests) UpdatePolicies(def []byte, id flux.ResourceID, update policy.Update) ([]byte, error) {
-	add, del := update.Add, update.Remove
+func (m *Manifests) UpdatePolicies(path string, id flux.ResourceID, update policy.Update) error {
+	return updateManifest(path, id, func(def []byte) ([]byte, error) {
+		add, del := update.Add, update.Remove
 
-	// We may be sent the pseudo-policy `policy.TagAll`, which means
-	// apply this filter to all containers. To do so, we need to know
-	// what all the containers are.
-	if tagAll, ok := update.Add.Get(policy.TagAll); ok {
-		add = add.Without(policy.TagAll)
-		containers, err := extractContainers(def, id)
-		if err != nil {
-			return nil, err
-		}
+		// We may be sent the pseudo-policy `policy.TagAll`, which means
+		// apply this filter to all containers. To do so, we need to know
+		// what all the containers are.
+		if tagAll, ok := update.Add.Get(policy.TagAll); ok {
+			add = add.Without(policy.TagAll)
+			containers, err := extractContainers(def, id)
+			if err != nil {
+				return nil, err
+			}
 
-		for _, container := range containers {
-			if tagAll == "glob:*" {
-				del = del.Add(policy.TagPrefix(container.Name))
-			} else {
-				add = add.Set(policy.TagPrefix(container.Name), tagAll)
+			for _, container := range containers {
+				if tagAll == "glob:*" {
+					del = del.Add(policy.TagPrefix(container.Name))
+				} else {
+					add = add.Set(policy.TagPrefix(container.Name), tagAll)
+				}
 			}
 		}
-	}
 
-	return updateAnnotations(def, id, func(old map[string]string) {
-		for k, v := range add {
-			old[kresource.PolicyPrefix+string(k)] = v
-		}
-		for k := range del {
-			delete(old, kresource.PolicyPrefix+string(k))
-		}
+		return updateAnnotations(def, id, func(old map[string]string) {
+			for k, v := range add {
+				old[kresource.PolicyPrefix+string(k)] = v
+			}
+			for k := range del {
+				delete(old, kresource.PolicyPrefix+string(k))
+			}
+		})
 	})
 }
 

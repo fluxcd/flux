@@ -22,20 +22,22 @@ import (
 //
 // This function has some requirements of the YAML structure. Read the
 // source and comments below to learn about them.
-func updatePodController(def []byte, resourceID flux.ResourceID, container string, newImageID image.Ref) ([]byte, error) {
-	// Sanity check
-	obj, err := parseObj(def)
-	if err != nil {
-		return nil, err
-	}
+func updatePodController(path string, resourceID flux.ResourceID, container string, newImageID image.Ref) error {
+	return updateManifest(path, resourceID, func(def []byte) ([]byte, error) {
+		// Sanity check
+		obj, err := parseObj(def)
+		if err != nil {
+			return nil, err
+		}
 
-	if _, ok := resourceKinds[strings.ToLower(obj.Kind)]; !ok {
-		return nil, UpdateNotSupportedError(obj.Kind)
-	}
+		if _, ok := resourceKinds[strings.ToLower(obj.Kind)]; !ok {
+			return nil, UpdateNotSupportedError(obj.Kind)
+		}
 
-	var buf bytes.Buffer
-	err = tryUpdate(def, resourceID, container, newImageID, &buf)
-	return buf.Bytes(), err
+		var buf bytes.Buffer
+		err = tryUpdate(def, resourceID, container, newImageID, &buf)
+		return buf.Bytes(), err
+	})
 }
 
 // Attempt to update an RC or Deployment config. This makes several assumptions

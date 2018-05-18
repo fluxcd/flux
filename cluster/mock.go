@@ -17,11 +17,10 @@ type Mock struct {
 	SyncFunc                 func(SyncDef) error
 	PublicSSHKeyFunc         func(regenerate bool) (ssh.PublicKey, error)
 	FindDefinedServicesFunc  func(path string) (map[flux.ResourceID][]string, error)
-	UpdateImageFunc          func(def []byte, id flux.ResourceID, container string, newImageID image.Ref) ([]byte, error)
+	UpdateImageFunc          func(path string, id flux.ResourceID, container string, newImageID image.Ref) error
 	LoadManifestsFunc        func(base, first string, rest ...string) (map[string]resource.Resource, error)
 	ParseManifestsFunc       func([]byte) (map[string]resource.Resource, error)
-	UpdateManifestFunc       func(path, resourceID string, f func(def []byte) ([]byte, error)) error
-	UpdatePoliciesFunc       func([]byte, flux.ResourceID, policy.Update) ([]byte, error)
+	UpdatePoliciesFunc       func(path string, id flux.ResourceID, update policy.Update) error
 	ServicesWithPoliciesFunc func(path string) (policy.ResourceMap, error)
 }
 
@@ -53,8 +52,8 @@ func (m *Mock) FindDefinedServices(path string) (map[flux.ResourceID][]string, e
 	return m.FindDefinedServicesFunc(path)
 }
 
-func (m *Mock) UpdateImage(def []byte, id flux.ResourceID, container string, newImageID image.Ref) ([]byte, error) {
-	return m.UpdateImageFunc(def, id, container, newImageID)
+func (m *Mock) UpdateImage(path string, id flux.ResourceID, container string, newImageID image.Ref) error {
+	return m.UpdateImageFunc(path, id, container, newImageID)
 }
 
 func (m *Mock) LoadManifests(base, first string, rest ...string) (map[string]resource.Resource, error) {
@@ -65,12 +64,8 @@ func (m *Mock) ParseManifests(def []byte) (map[string]resource.Resource, error) 
 	return m.ParseManifestsFunc(def)
 }
 
-func (m *Mock) UpdateManifest(path string, resourceID string, f func(def []byte) ([]byte, error)) error {
-	return m.UpdateManifestFunc(path, resourceID, f)
-}
-
-func (m *Mock) UpdatePolicies(def []byte, id flux.ResourceID, p policy.Update) ([]byte, error) {
-	return m.UpdatePoliciesFunc(def, id, p)
+func (m *Mock) UpdatePolicies(path string, id flux.ResourceID, p policy.Update) error {
+	return m.UpdatePoliciesFunc(path, id, p)
 }
 
 func (m *Mock) ServicesWithPolicies(path string) (policy.ResourceMap, error) {

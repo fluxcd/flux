@@ -7,12 +7,11 @@ import (
 )
 
 type ControllerUpdate struct {
-	ResourceID    flux.ResourceID
-	Controller    cluster.Controller
-	Resource      resource.Workload
-	ManifestPath  string
-	ManifestBytes []byte
-	Updates       []ContainerUpdate
+	ManifestPath string
+	ResourceID   flux.ResourceID
+	Controller   cluster.Controller
+	Resource     resource.Workload
+	Updates      []ContainerUpdate
 }
 
 type ControllerFilter interface {

@@ -3,6 +3,8 @@ package kubernetes
 import (
 	"bytes"
 	"fmt"
+	"io/ioutil"
+	"os"
 	"strings"
 	"testing"
 	"text/template"
@@ -119,13 +121,31 @@ func TestUpdatePolicies(t *testing.T) {
 		caseIn := templToString(t, annotationsTemplate, c.in)
 		caseOut := templToString(t, annotationsTemplate, c.out)
 		id := flux.MustParseResourceID("default:deplot/nginx")
-		out, err := (&Manifests{}).UpdatePolicies([]byte(caseIn), id, c.update)
+		out, err := withFile([]byte(caseIn), func(path string) error {
+			return (&Manifests{}).UpdatePolicies(path, id, c.update)
+		})
 		if err != nil {
 			t.Errorf("[%s] %v", c.name, err)
 		} else if string(out) != caseOut {
 			t.Errorf("[%s] Did not get expected result:\n\n%s\n\nInstead got:\n\n%s", c.name, caseOut, string(out))
 		}
 	}
+}
+
+func withFile(content []byte, rewrite func(path string) error) ([]byte, error) {
+	tmp, err := ioutil.TempFile("", "fluxtest")
+	if err != nil {
+		return nil, err
+	}
+	tmp.Close() // we don't want this handle
+	defer os.Remove(tmp.Name())
+	if err = ioutil.WriteFile(tmp.Name(), content, os.FileMode(0666)); err != nil {
+		return nil, err
+	}
+	if err = rewrite(tmp.Name()); err != nil {
+		return nil, err
+	}
+	return ioutil.ReadFile(tmp.Name())
 }
 
 var annotationsTemplate = template.Must(template.New("").Parse(`---
