@@ -560,29 +560,19 @@ func containers2containers(cs []resource.Container) []v6.Container {
 	return res
 }
 
-func getServiceContainers(service cluster.Controller, imageRepos update.ImageRepos, policyResourceMap policy.ResourceMap, overrideFields []string) (res []v6.Container, err error) {
-	fields := map[string]struct{}{
-		"Name":                    struct{}{},
-		"Current":                 struct{}{},
-		"LatestFiltered":          struct{}{},
-		"Available":               struct{}{},
-		"AvailableError":          struct{}{},
-		"AvailableImagesCount":    struct{}{},
-		"NewAvailableImagesCount": struct{}{},
-		"FilteredImagesCount":     struct{}{},
-		"NewFilteredImagesCount":  struct{}{},
-	}
-
-	// If overrideFields is provided, override the default fields to return
-	if len(overrideFields) > 0 {
-		newFieldsMap := make(map[string]struct{})
-		for _, f := range overrideFields {
-			if _, ok := fields[f]; !ok {
-				return nil, errors.Errorf("%s is an invalid field", f)
-			}
-			newFieldsMap[f] = struct{}{}
+func getServiceContainers(service cluster.Controller, imageRepos update.ImageRepos, policyResourceMap policy.ResourceMap, fields []string) (res []v6.Container, err error) {
+	if len(fields) == 0 {
+		fields = []string{
+			"Name",
+			"Current",
+			"LatestFiltered",
+			"Available",
+			"AvailableError",
+			"AvailableImagesCount",
+			"NewAvailableImagesCount",
+			"FilteredImagesCount",
+			"NewFilteredImagesCount",
 		}
-		fields = newFieldsMap
 	}
 
 	for _, c := range service.ContainersOrNil() {
@@ -618,32 +608,29 @@ func getServiceContainers(service cluster.Controller, imageRepos update.ImageRep
 		}
 		newFilteredImagesCount := len(newFilteredImages)
 
-		if _, ok := fields["Name"]; ok {
-			container.Name = c.Name
-		}
-		if _, ok := fields["Current"]; ok {
-			container.Current = currentImage
-		}
-		if _, ok := fields["LatestFiltered"]; ok {
-			container.LatestFiltered, _ = imageRepos.LatestFilteredImage(imageRepo, tagPattern)
-		}
-		if _, ok := fields["Available"]; ok {
-			container.Available = availableImages
-		}
-		if _, ok := fields["AvailableError"]; ok {
-			container.AvailableError = availableImagesErr
-		}
-		if _, ok := fields["AvailableImagesCount"]; ok {
-			container.AvailableImagesCount = availableImagesCount
-		}
-		if _, ok := fields["NewAvailableImagesCount"]; ok {
-			container.NewAvailableImagesCount = newAvailableImagesCount
-		}
-		if _, ok := fields["FilteredImagesCount"]; ok {
-			container.FilteredImagesCount = filteredImagesCount
-		}
-		if _, ok := fields["NewFilteredImagesCount"]; ok {
-			container.NewFilteredImagesCount = newFilteredImagesCount
+		for _, field := range fields {
+			switch field {
+			case "Name":
+				container.Name = c.Name
+			case "Current":
+				container.Current = currentImage
+			case "LatestFiltered":
+				container.LatestFiltered, _ = imageRepos.LatestFilteredImage(imageRepo, tagPattern)
+			case "Available":
+				container.Available = availableImages
+			case "AvailableError":
+				container.AvailableError = availableImagesErr
+			case "AvailableImagesCount":
+				container.AvailableImagesCount = availableImagesCount
+			case "NewAvailableImagesCount":
+				container.NewAvailableImagesCount = newAvailableImagesCount
+			case "FilteredImagesCount":
+				container.FilteredImagesCount = filteredImagesCount
+			case "NewFilteredImagesCount":
+				container.NewFilteredImagesCount = newFilteredImagesCount
+			default:
+				return nil, errors.Errorf("%s is an invalid field", field)
+			}
 		}
 		res = append(res, container)
 	}
