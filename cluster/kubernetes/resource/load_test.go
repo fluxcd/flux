@@ -2,6 +2,7 @@ package resource
 
 import (
 	"bytes"
+	"path/filepath"
 	"reflect"
 	"testing"
 
@@ -139,4 +140,52 @@ func TestLoadSome(t *testing.T) {
 	if len(objs) != len(testfiles.ServiceMap(dir)) {
 		t.Errorf("expected %d objects from %d files, got result:\n%#v", len(testfiles.ServiceMap(dir)), len(testfiles.Files), objs)
 	}
+}
+
+func TestChartTracker(t *testing.T) {
+	dir, cleanup := testfiles.TempDir(t)
+	defer cleanup()
+	if err := testfiles.WriteTestFiles(dir); err != nil {
+		t.Fatal(err)
+	}
+
+	ct, err := newChartTracker(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	noncharts := []string{"garbage", "locked-service-deploy.yaml",
+		"test", "test/test-service-deploy.yaml"}
+	for _, f := range noncharts {
+		fq := filepath.Join(dir, f)
+		if ct.isDirChart(fq) {
+			t.Errorf("%q thought to be a chart", f)
+		}
+		if f == "garbage" {
+			continue
+		}
+		if m, err := Load(dir, fq); err != nil || len(m) == 0 {
+			t.Errorf("Load returned 0 objs, err=%v", err)
+		}
+	}
+	if !ct.isDirChart(filepath.Join(dir, "charts/nginx")) {
+		t.Errorf("charts/nginx not recognized as chart")
+	}
+	if !ct.isPathInChart(filepath.Join(dir, "charts/nginx/Chart.yaml")) {
+		t.Errorf("charts/nginx/Chart.yaml not recognized as in chart")
+	}
+
+	chartfiles := []string{"charts",
+		"charts/nginx",
+		"charts/nginx/Chart.yaml",
+		"charts/nginx/values.yaml",
+		"charts/nginx/templates/deployment.yaml",
+	}
+	for _, f := range chartfiles {
+		fq := filepath.Join(dir, f)
+		if m, err := Load(dir, fq); err != nil || len(m) != 0 {
+			t.Errorf("%q not ignored as a chart should be", f)
+		}
+	}
+
 }
