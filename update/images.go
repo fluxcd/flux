@@ -21,8 +21,8 @@ type ImageRepos struct {
 	imageRepos imageReposMap
 }
 
-// FindImageInfo retruns image.Info given an image ref. If the image cannot be
-// found, return the image.Info with only rhe ID.
+// FindImageInfo returns image.Info given an image ref. If the image cannot be
+// found, return the image.Info with only the ID.
 func (r ImageRepos) FindImageInfo(repo image.Name, ref image.Ref) image.Info {
 	images, ok := r.imageRepos[ref.CanonicalName()]
 	if !ok {
@@ -50,8 +50,8 @@ func (r ImageRepos) LatestFilteredImage(repo image.Name, tagGlob string) (image.
 	return image.Info{}, false
 }
 
-// FilteredAvailable returns image.Info engtries for all the images in the
-// names image repository which match the tagGlob.
+// FilteredAvailable returns image.Info entries for all the images in the
+// named image repository which match the tagGlob.
 func (r ImageRepos) FilteredAvailable(repo image.Name, tagGlob string) []image.Info {
 	var filtered []image.Info
 	for _, available := range r.Available(repo) {
