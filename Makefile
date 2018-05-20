@@ -1,7 +1,7 @@
 .DEFAULT: all
 .PHONY: all release-bins clean realclean test integration-test
 
-DOCKER?=docker
+SUDO := $(shell docker info > /dev/null 2> /dev/null || echo "sudo")
 TEST_FLAGS?=
 
 include docker/kubectl.version
@@ -42,7 +42,7 @@ test:
 build/.%.done: docker/Dockerfile.%
 	mkdir -p ./build/docker/$*
 	cp $^ ./build/docker/$*/
-	${DOCKER} build -t quay.io/weaveworks/$* -t quay.io/weaveworks/$*:$(IMAGE_TAG) \
+	$(SUDO) docker build -t quay.io/weaveworks/$* -t quay.io/weaveworks/$*:$(IMAGE_TAG) \
 		--build-arg VCS_REF="$(VCS_REF)" \
 		--build-arg BUILD_DATE="$(BUILD_DATE)" \
 		-f build/docker/$*/Dockerfile.$* ./build/docker/$*
