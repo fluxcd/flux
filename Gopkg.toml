@@ -32,7 +32,3 @@ required = ["k8s.io/code-generator/cmd/client-gen"]
 [[constraint]]
   name = "k8s.io/helm"
   version = "v2.8.1"
-
-[[constraint]]
-  name = "google.golang.org/grpc"
-  revision = "b610ffd3f8786563002bd5b6a9951d56f64a4921"
