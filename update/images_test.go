@@ -20,25 +20,27 @@ var (
 // names (e.g., `index.docker.io/library/alpine`), but we ask
 // questions in terms of everyday names (e.g., `alpine`).
 func TestDecanon(t *testing.T) {
-	m := ImageMap{infoMap{
+	m := ImageRepos{imageReposMap{
 		name: infos,
 	}}
 
-	latest, ok := m.LatestImage(mustParseName("weaveworks/helloworld"), "*")
+	filteredImages := m.GetRepoImages(mustParseName("weaveworks/helloworld")).Filter("*")
+	latest, ok := filteredImages.Latest()
 	if !ok {
 		t.Error("did not find latest image")
 	} else if latest.ID.Name != mustParseName("weaveworks/helloworld") {
 		t.Error("name did not match what was asked")
 	}
 
-	latest, ok = m.LatestImage(mustParseName("index.docker.io/weaveworks/helloworld"), "*")
+	filteredImages = m.GetRepoImages(mustParseName("index.docker.io/weaveworks/helloworld")).Filter("*")
+	latest, ok = filteredImages.Latest()
 	if !ok {
 		t.Error("did not find latest image")
 	} else if latest.ID.Name != mustParseName("index.docker.io/weaveworks/helloworld") {
 		t.Error("name did not match what was asked")
 	}
 
-	avail := m.Available(mustParseName("weaveworks/helloworld"))
+	avail := m.GetRepoImages(mustParseName("weaveworks/helloworld"))
 	if len(avail) != len(infos) {
 		t.Errorf("expected %d available images, got %d", len(infos), len(avail))
 	}
@@ -50,8 +52,8 @@ func TestDecanon(t *testing.T) {
 }
 
 func TestAvail(t *testing.T) {
-	m := ImageMap{infoMap{name: infos}}
-	avail := m.Available(mustParseName("weaveworks/goodbyeworld"))
+	m := ImageRepos{imageReposMap{name: infos}}
+	avail := m.GetRepoImages(mustParseName("weaveworks/goodbyeworld"))
 	if len(avail) > 0 {
 		t.Errorf("did not expect available images, but got %#v", avail)
 	}

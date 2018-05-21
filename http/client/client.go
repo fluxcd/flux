@@ -57,9 +57,9 @@ func (c *Client) ListServices(ctx context.Context, namespace string) ([]v6.Contr
 	return res, err
 }
 
-func (c *Client) ListImages(ctx context.Context, s update.ResourceSpec) ([]v6.ImageStatus, error) {
+func (c *Client) ListImages(ctx context.Context, s update.ResourceSpec, opts v6.ListImagesOptions) ([]v6.ImageStatus, error) {
 	var res []v6.ImageStatus
-	err := c.Get(ctx, &res, transport.ListImages, "service", string(s))
+	err := c.Get(ctx, &res, transport.ListImages, "service", string(s), "containerFields", strings.Join(opts.OverrideContainerFields, ","))
 	return res, err
 }
 
@@ -210,7 +210,7 @@ func (c *Client) executeRequest(req *http.Request) (*http.Response, error) {
 			if err := json.Unmarshal(body, &niceError); err != nil {
 				return resp, errors.Wrap(err, "decoding response body of error")
 			}
-			 // just in case it's JSON but not one of our own errors
+			// just in case it's JSON but not one of our own errors
 			if niceError.Err != nil {
 				return resp, &niceError
 			}

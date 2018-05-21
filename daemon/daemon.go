@@ -70,35 +70,43 @@ func (d *Daemon) Export(ctx context.Context) ([]byte, error) {
 	return d.Cluster.Export()
 }
 
-func (d *Daemon) ListServices(ctx context.Context, namespace string) ([]v6.ControllerStatus, error) {
-	clusterServices, err := d.Cluster.AllControllers(namespace)
-	if err != nil {
-		return nil, errors.Wrap(err, "getting services from cluster")
-	}
-
+func (d *Daemon) getPolicyResourceMap(ctx context.Context) (policy.ResourceMap, v6.ReadOnlyReason, error) {
 	var services policy.ResourceMap
 	var globalReadOnly v6.ReadOnlyReason
-	err = d.WithClone(ctx, func(checkout *git.Checkout) error {
+	err := d.WithClone(ctx, func(checkout *git.Checkout) error {
 		var err error
 		services, err = d.Manifests.ServicesWithPolicies(checkout.ManifestDir())
 		return err
 	})
+
+	// Capture errors related to read-only repositories
 	switch {
 	case err == git.ErrNotReady:
 		globalReadOnly = v6.ReadOnlyNotReady
 	case err == git.ErrNoConfig:
 		globalReadOnly = v6.ReadOnlyNoRepo
 	case err != nil:
-		return nil, errors.Wrap(err, "getting service policies")
+		return nil, globalReadOnly, errors.Wrap(err, "getting service policies")
+	}
+
+	return services, globalReadOnly, nil
+}
+
+func (d *Daemon) ListServices(ctx context.Context, namespace string) ([]v6.ControllerStatus, error) {
+	clusterServices, err := d.Cluster.AllControllers(namespace)
+	if err != nil {
+		return nil, errors.Wrap(err, "getting services from cluster")
+	}
+
+	policyResourceMap, readOnly, err := d.getPolicyResourceMap(ctx)
+	if err != nil {
+		return nil, err
 	}
 
 	var res []v6.ControllerStatus
 	for _, service := range clusterServices {
-		var readOnly v6.ReadOnlyReason
-		policies, ok := services[service.ID]
+		policies, ok := policyResourceMap[service.ID]
 		switch {
-		case globalReadOnly != "":
-			readOnly = globalReadOnly
 		case !ok:
 			readOnly = v6.ReadOnlyMissing
 		case service.IsSystem:
@@ -130,7 +138,7 @@ func (cs clusterContainers) Containers(i int) []resource.Container {
 }
 
 // List the images available for set of services
-func (d *Daemon) ListImages(ctx context.Context, spec update.ResourceSpec) ([]v6.ImageStatus, error) {
+func (d *Daemon) ListImages(ctx context.Context, spec update.ResourceSpec, opts v6.ListImagesOptions) ([]v6.ImageStatus, error) {
 	var services []cluster.Controller
 	var err error
 	if spec == update.ResourceSpecAll {
@@ -143,17 +151,25 @@ func (d *Daemon) ListImages(ctx context.Context, spec update.ResourceSpec) ([]v6
 		services, err = d.Cluster.SomeControllers([]flux.ResourceID{id})
 	}
 
-	images, err := update.CollectAvailableImages(d.Registry, clusterContainers(services), d.Logger)
+	imageRepos, err := update.FetchImageRepos(d.Registry, clusterContainers(services), d.Logger)
 	if err != nil {
 		return nil, errors.Wrap(err, "getting images for services")
 	}
 
+	policyResourceMap, _, err := d.getPolicyResourceMap(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	var res []v6.ImageStatus
 	for _, service := range services {
-		containers := containersWithAvailable(service, images)
+		serviceContainers, err := getServiceContainers(service, imageRepos, policyResourceMap, opts.OverrideContainerFields)
+		if err != nil {
+			return nil, err
+		}
 		res = append(res, v6.ImageStatus{
 			ID:         service.ID,
-			Containers: containers,
+			Containers: serviceContainers,
 		})
 	}
 
@@ -544,23 +560,83 @@ func containers2containers(cs []resource.Container) []v6.Container {
 	return res
 }
 
-func containersWithAvailable(service cluster.Controller, images update.ImageMap) (res []v6.Container) {
-	for _, c := range service.ContainersOrNil() {
-		available := images.Available(c.Image.Name)
-		availableErr := ""
-		if available == nil {
-			availableErr = registry.ErrNoImageData.Error()
+func getServiceContainers(service cluster.Controller, imageRepos update.ImageRepos, policyResourceMap policy.ResourceMap, fields []string) (res []v6.Container, err error) {
+	if len(fields) == 0 {
+		fields = []string{
+			"Name",
+			"Current",
+			"LatestFiltered",
+			"Available",
+			"AvailableError",
+			"AvailableImagesCount",
+			"NewAvailableImagesCount",
+			"FilteredImagesCount",
+			"NewFilteredImagesCount",
 		}
-		res = append(res, v6.Container{
-			Name: c.Name,
-			Current: image.Info{
-				ID: c.Image,
-			},
-			Available:      available,
-			AvailableError: availableErr,
-		})
 	}
-	return res
+
+	for _, c := range service.ContainersOrNil() {
+		var container v6.Container
+
+		imageRepo := c.Image.Name
+		tagPattern := getTagPattern(policyResourceMap, service.ID, c.Name)
+
+		images := imageRepos.GetRepoImages(imageRepo)
+		currentImage := images.FindWithRef(c.Image)
+
+		// All images
+		imagesCount := len(images)
+		imagesErr := ""
+		if images == nil {
+			imagesErr = registry.ErrNoImageData.Error()
+		}
+		var newImages []image.Info
+		for _, img := range images {
+			if img.CreatedAt.After(currentImage.CreatedAt) {
+				newImages = append(newImages, img)
+			}
+		}
+		newImagesCount := len(newImages)
+
+		// Filtered images
+		filteredImages := images.Filter(tagPattern)
+		filteredImagesCount := len(filteredImages)
+		var newFilteredImages []image.Info
+		for _, img := range filteredImages {
+			if img.CreatedAt.After(currentImage.CreatedAt) {
+				newFilteredImages = append(newFilteredImages, img)
+			}
+		}
+		newFilteredImagesCount := len(newFilteredImages)
+
+		for _, field := range fields {
+			switch field {
+			case "Name":
+				container.Name = c.Name
+			case "Current":
+				container.Current = currentImage
+			case "LatestFiltered":
+				container.LatestFiltered, _ = filteredImages.Latest()
+			case "Available":
+				container.Available = images
+			case "AvailableError":
+				container.AvailableError = imagesErr
+			case "AvailableImagesCount":
+				container.AvailableImagesCount = imagesCount
+			case "NewAvailableImagesCount":
+				container.NewAvailableImagesCount = newImagesCount
+			case "FilteredImagesCount":
+				container.FilteredImagesCount = filteredImagesCount
+			case "NewFilteredImagesCount":
+				container.NewFilteredImagesCount = newFilteredImagesCount
+			default:
+				return nil, errors.Errorf("%s is an invalid field", field)
+			}
+		}
+		res = append(res, container)
+	}
+
+	return res, nil
 }
 
 func policyCommitMessage(us policy.Updates, cause update.Cause) string {

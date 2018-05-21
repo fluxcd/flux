@@ -29,8 +29,8 @@ func DeprecateVersions(r *mux.Router, versions ...string) {
 func NewAPIRouter() *mux.Router {
 	r := mux.NewRouter()
 
-	r.NewRoute().Name(ListServices).Methods("GET").Path("/v6/services").Queries("namespace", "{namespace}") // optional namespace!
-	r.NewRoute().Name(ListImages).Methods("GET").Path("/v6/images").Queries("service", "{service}")
+	r.NewRoute().Name(ListServices).Methods("GET").Path("/v6/services")
+	r.NewRoute().Name(ListImages).Methods("GET").Path("/v6/images")
 
 	r.NewRoute().Name(UpdateManifests).Methods("POST").Path("/v9/update-manifests")
 	r.NewRoute().Name(JobStatus).Methods("GET").Path("/v6/jobs").Queries("id", "{id}")

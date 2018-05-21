@@ -18,23 +18,23 @@ func (d *Daemon) pollForNewImages(logger log.Logger) {
 
 	ctx := context.Background()
 
-	candidateServices, err := d.unlockedAutomatedServices(ctx)
+	candidateServicesPolicyMap, err := d.getUnlockedAutomatedServicesPolicyMap(ctx)
 	if err != nil {
 		logger.Log("error", errors.Wrap(err, "getting unlocked automated services"))
 		return
 	}
-	if len(candidateServices) == 0 {
+	if len(candidateServicesPolicyMap) == 0 {
 		logger.Log("msg", "no automated services")
 		return
 	}
 	// Find images to check
-	services, err := d.Cluster.SomeControllers(candidateServices.ToSlice())
+	services, err := d.Cluster.SomeControllers(candidateServicesPolicyMap.ToSlice())
 	if err != nil {
 		logger.Log("error", errors.Wrap(err, "checking services for new images"))
 		return
 	}
 	// Check the latest available image(s) for each service
-	imageMap, err := update.CollectAvailableImages(d.Registry, clusterContainers(services), logger)
+	imageRepos, err := update.FetchImageRepos(d.Registry, clusterContainers(services), logger)
 	if err != nil {
 		logger.Log("error", errors.Wrap(err, "fetching image updates"))
 		return
@@ -51,11 +51,13 @@ func (d *Daemon) pollForNewImages(logger log.Logger) {
 				continue
 			}
 
-			pattern := getTagPattern(candidateServices, service.ID, container.Name)
+			pattern := getTagPattern(candidateServicesPolicyMap, service.ID, container.Name)
 			repo := currentImageID.Name
 			logger.Log("repo", repo, "pattern", pattern)
 
-			if latest, ok := imageMap.LatestImage(repo, pattern); ok && latest.ID != currentImageID {
+			filteredImages := imageRepos.GetRepoImages(repo).Filter(pattern)
+
+			if latest, ok := filteredImages.Latest(); ok && latest.ID != currentImageID {
 				if latest.ID.Tag == "" {
 					logger.Log("msg", "untagged image in available images", "action", "skip", "available", repo)
 					continue
@@ -73,6 +75,9 @@ func (d *Daemon) pollForNewImages(logger log.Logger) {
 }
 
 func getTagPattern(services policy.ResourceMap, service flux.ResourceID, container string) string {
+	if services == nil {
+		return "*"
+	}
 	policies := services[service]
 	if pattern, ok := policies.Get(policy.TagPrefix(container)); ok {
 		return strings.TrimPrefix(pattern, "glob:")
@@ -80,7 +85,8 @@ func getTagPattern(services policy.ResourceMap, service flux.ResourceID, contain
 	return "*"
 }
 
-func (d *Daemon) unlockedAutomatedServices(ctx context.Context) (policy.ResourceMap, error) {
+// getUnlockedAutomatedServicesPolicyMap returns a resource policy map for all unlocked automated services
+func (d *Daemon) getUnlockedAutomatedServicesPolicyMap(ctx context.Context) (policy.ResourceMap, error) {
 	var services policy.ResourceMap
 	err := d.WithClone(ctx, func(checkout *git.Checkout) error {
 		var err error

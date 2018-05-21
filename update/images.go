@@ -14,39 +14,17 @@ import (
 	"github.com/weaveworks/flux/resource"
 )
 
-type infoMap map[image.CanonicalName][]image.Info
+type imageReposMap map[image.CanonicalName]ImageInfos
 
-type ImageMap struct {
-	images infoMap
+// ImageRepos contains a map of image repositories to their images
+type ImageRepos struct {
+	imageRepos imageReposMap
 }
 
-// LatestImage returns the latest releasable image for a repository
-// for which the tag matches a given pattern. A releasable image is
-// one that is not tagged "latest". (Assumes the available images are
-// in descending order of latestness.) If no such image exists,
-// returns a zero value and `false`, and the caller can decide whether
-// that's an error or not.
-func (m ImageMap) LatestImage(repo image.Name, tagGlob string) (image.Info, bool) {
-	for _, available := range m.images[repo.CanonicalName()] {
-		tag := available.ID.Tag
-		// Ignore latest if and only if it's not what the user wants.
-		if !strings.EqualFold(tagGlob, "latest") && strings.EqualFold(tag, "latest") {
-			continue
-		}
-		if glob.Glob(tagGlob, tag) {
-			var im image.Info
-			im = available
-			im.ID = repo.ToRef(tag)
-			return im, true
-		}
-	}
-	return image.Info{}, false
-}
-
-// Available returns image.Info entries for all the images in the
+// GetRepoImages returns image.Info entries for all the images in the
 // named image repository.
-func (m ImageMap) Available(repo image.Name) []image.Info {
-	if canon, ok := m.images[repo.CanonicalName()]; ok {
+func (r ImageRepos) GetRepoImages(repo image.Name) ImageInfos {
+	if canon, ok := r.imageRepos[repo.CanonicalName()]; ok {
 		infos := make([]image.Info, len(canon))
 		for i := range canon {
 			infos[i] = canon[i]
@@ -55,6 +33,48 @@ func (m ImageMap) Available(repo image.Name) []image.Info {
 		return infos
 	}
 	return nil
+}
+
+// ImageInfos is a list of image.Info which can be filtered.
+type ImageInfos []image.Info
+
+// Filter returns only the images which match the tagGlob.
+func (ii ImageInfos) Filter(tagGlob string) ImageInfos {
+	var filtered ImageInfos
+	for _, i := range ii {
+		tag := i.ID.Tag
+		// Ignore latest if and only if it's not what the user wants.
+		if !strings.EqualFold(tagGlob, "latest") && strings.EqualFold(tag, "latest") {
+			continue
+		}
+		if glob.Glob(tagGlob, tag) {
+			var im image.Info
+			im = i
+			filtered = append(filtered, im)
+		}
+	}
+	return filtered
+}
+
+// Latest returns the latest image from ImageInfos. If no such image exists,
+// returns a zero value and `false`, and the caller can decide whether
+// that's an error or not.
+func (ii ImageInfos) Latest() (image.Info, bool) {
+	if len(ii) > 0 {
+		return ii[0], true
+	}
+	return image.Info{}, false
+}
+
+// FindWithRef returns image.Info given an image ref. If the image cannot be
+// found, it returns the image.Info with the ID provided.
+func (ii ImageInfos) FindWithRef(ref image.Ref) image.Info {
+	for _, img := range ii {
+		if img.ID == ref {
+			return img
+		}
+	}
+	return image.Info{ID: ref}
 }
 
 // containers represents a collection of things that have containers
@@ -73,50 +93,50 @@ func (cs controllerContainers) Containers(i int) []resource.Container {
 	return cs[i].Controller.ContainersOrNil()
 }
 
-// collectUpdateImages is a convenient shim to
-// `CollectAvailableImages`.
-func collectUpdateImages(registry registry.Registry, updateable []*ControllerUpdate, logger log.Logger) (ImageMap, error) {
-	return CollectAvailableImages(registry, controllerContainers(updateable), logger)
+// fetchUpdatableImageRepos is a convenient shim to
+// `FetchImageRepos`.
+func fetchUpdatableImageRepos(registry registry.Registry, updateable []*ControllerUpdate, logger log.Logger) (ImageRepos, error) {
+	return FetchImageRepos(registry, controllerContainers(updateable), logger)
 }
 
-// CollectAvailableImages finds all the known image metadata for
+// FetchImageRepos finds all the known image metadata for
 // containers in the controllers given.
-func CollectAvailableImages(reg registry.Registry, cs containers, logger log.Logger) (ImageMap, error) {
-	images := infoMap{}
+func FetchImageRepos(reg registry.Registry, cs containers, logger log.Logger) (ImageRepos, error) {
+	imageRepos := imageReposMap{}
 	for i := 0; i < cs.Len(); i++ {
 		for _, container := range cs.Containers(i) {
-			images[container.Image.CanonicalName()] = nil
+			imageRepos[container.Image.CanonicalName()] = nil
 		}
 	}
-	for name := range images {
-		imageRepo, err := reg.GetRepository(name.Name)
+	for repo := range imageRepos {
+		sortedRepoImages, err := reg.GetSortedRepositoryImages(repo.Name)
 		if err != nil {
 			// Not an error if missing. Use empty images.
 			if !fluxerr.IsMissing(err) {
-				logger.Log("err", errors.Wrapf(err, "fetching image metadata for %s", name))
+				logger.Log("err", errors.Wrapf(err, "fetching image metadata for %s", repo))
 				continue
 			}
 		}
-		images[name] = imageRepo
+		imageRepos[repo] = sortedRepoImages
 	}
-	return ImageMap{images}, nil
+	return ImageRepos{imageRepos}, nil
 }
 
-// Create a map of images. It will check that each image exists.
-func exactImages(reg registry.Registry, images []image.Ref) (ImageMap, error) {
-	m := infoMap{}
+// Create a map of image repos to images. It will check that each image exists.
+func exactImageRepos(reg registry.Registry, images []image.Ref) (ImageRepos, error) {
+	m := imageReposMap{}
 	for _, id := range images {
 		// We must check that the exact images requested actually exist. Otherwise we risk pushing invalid images to git.
 		exist, err := imageExists(reg, id)
 		if err != nil {
-			return ImageMap{}, errors.Wrap(image.ErrInvalidImageID, err.Error())
+			return ImageRepos{}, errors.Wrap(image.ErrInvalidImageID, err.Error())
 		}
 		if !exist {
-			return ImageMap{}, errors.Wrap(image.ErrInvalidImageID, fmt.Sprintf("image %q does not exist", id))
+			return ImageRepos{}, errors.Wrap(image.ErrInvalidImageID, fmt.Sprintf("image %q does not exist", id))
 		}
 		m[id.CanonicalName()] = []image.Info{{ID: id}}
 	}
-	return ImageMap{m}, nil
+	return ImageRepos{m}, nil
 }
 
 // Checks whether the given image exists in the repository.

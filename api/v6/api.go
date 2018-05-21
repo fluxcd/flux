@@ -42,10 +42,19 @@ type ControllerStatus struct {
 }
 
 type Container struct {
-	Name           string
-	Current        image.Info
-	Available      []image.Info
-	AvailableError string `json:",omitempty"`
+	Name           string     `json:",omitempty"`
+	Current        image.Info `json:",omitempty"`
+	LatestFiltered image.Info `json:",omitempty"`
+
+	// All available images (ignoring tag filters)
+	Available               []image.Info `json:",omitempty"`
+	AvailableError          string       `json:",omitempty"`
+	AvailableImagesCount    int          `json:",omitempty"`
+	NewAvailableImagesCount int          `json:",omitempty"`
+
+	// Filtered available images (matching tag filters)
+	FilteredImagesCount    int `json:",omitempty"`
+	NewFilteredImagesCount int `json:",omitempty"`
 }
 
 // --- config types
@@ -66,13 +75,17 @@ type Deprecated interface {
 	SyncNotify(context.Context) error
 }
 
+type ListImagesOptions struct {
+	OverrideContainerFields []string
+}
+
 type NotDeprecated interface {
 	// from v5
 	Export(context.Context) ([]byte, error)
 
 	// v6
 	ListServices(ctx context.Context, namespace string) ([]ControllerStatus, error)
-	ListImages(context.Context, update.ResourceSpec) ([]ImageStatus, error)
+	ListImages(ctx context.Context, spec update.ResourceSpec, opts ListImagesOptions) ([]ImageStatus, error)
 	UpdateManifests(context.Context, update.Spec) (job.ID, error)
 	SyncStatus(ctx context.Context, ref string) ([]string, error)
 	JobStatus(context.Context, job.ID) (job.Status, error)
