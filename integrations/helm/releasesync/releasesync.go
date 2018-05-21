@@ -262,7 +262,7 @@ func (rs *ReleaseChangeSync) releasesToSync(
 
 	relsToSync := make(map[string][]chartRelease)
 
-	// Make explicit that we're throwing away errors
+	// FIXME: we probably shouldn't be throwing away errors
 	_ = rs.addDeletedReleasesToSync(relsToSync, curRels, crs)
 	_ = rs.addExistingReleasesToSync(relsToSync, curRels, crs)
 
