@@ -108,10 +108,10 @@ func VerifyChanges(before map[string]resource.Resource, updates []*update.Contro
 		}
 		for i := range afterContainers {
 			if beforeContainers[i].Name != afterContainers[i].Name {
-				return fmt.Errorf("Container [%d] has a different name after update: was %q, now %q", i, beforeContainers[i].Name, afterContainers[i].Name)
+				return fmt.Errorf("Container in position %d of resource %q has a different name after update: was %q, now %q", i, id, beforeContainers[i].Name, afterContainers[i].Name)
 			}
 			if beforeContainers[i].Image != afterContainers[i].Image {
-				return fmt.Errorf("The image for container %q in resource %q was changed (to %q) and should not have been", beforeContainers[i].Name, id, afterContainers[i].Image.String())
+				return fmt.Errorf("The image for container %q in resource %q should be %q, but is %q", beforeContainers[i].Name, id, beforeContainers[i].Image.String(), afterContainers[i].Image.String())
 			}
 		}
 

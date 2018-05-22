@@ -439,3 +439,51 @@ func testRelease(t *testing.T, name string, ctx *ReleaseContext, spec update.Rel
 		t.Errorf("%s\n--- expected ---\n%s\n--- got ---\n%s\n", name, string(exp), string(got))
 	}
 }
+
+// --- test verification
+
+// A Manifests implementation that does updates incorrectly, so they should fail verification.
+type badManifests struct {
+	kubernetes.Manifests
+}
+
+func (m *badManifests) UpdateImage(def []byte, resourceID flux.ResourceID, container string, newImageID image.Ref) ([]byte, error) {
+	return def, nil
+}
+
+func TestBadRelease(t *testing.T) {
+	cluster := mockCluster(hwSvc)
+	spec := update.ReleaseSpec{
+		ServiceSpecs: []update.ResourceSpec{update.ResourceSpecAll},
+		ImageSpec:    update.ImageSpecFromRef(newHwRef),
+		Kind:         update.ReleaseKindExecute,
+		Excludes:     []flux.ResourceID{},
+	}
+	checkout1, cleanup1 := setup(t)
+	defer cleanup1()
+
+	ctx := &ReleaseContext{
+		cluster:   cluster,
+		manifests: &kubernetes.Manifests{},
+		repo:      checkout1,
+		registry:  mockRegistry,
+	}
+	_, err := Release(ctx, spec, log.NewNopLogger())
+	if err != nil {
+		t.Fatal("release with 'good' Manifests should succeed, but errored:", err)
+	}
+
+	checkout2, cleanup2 := setup(t)
+	defer cleanup2()
+
+	ctx = &ReleaseContext{
+		cluster:   cluster,
+		manifests: &badManifests{Manifests: kubernetes.Manifests{}},
+		repo:      checkout2,
+		registry:  mockRegistry,
+	}
+	_, err = Release(ctx, spec, log.NewNopLogger())
+	if err == nil {
+		t.Fatal("did not return an error, but was expected to fail verification")
+	}
+}
