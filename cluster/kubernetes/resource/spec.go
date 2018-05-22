@@ -1,6 +1,8 @@
 package resource
 
 import (
+	"fmt"
+
 	"github.com/weaveworks/flux/image"
 	"github.com/weaveworks/flux/resource"
 )
@@ -26,6 +28,16 @@ func (t PodTemplate) Containers() []resource.Container {
 		result = append(result, resource.Container{Name: c.Name, Image: im})
 	}
 	return result
+}
+
+func (t PodTemplate) SetContainerImage(container string, ref image.Ref) error {
+	for i, c := range t.Spec.Containers {
+		if c.Name == container {
+			t.Spec.Containers[i].Image = ref.String()
+			return nil
+		}
+	}
+	return fmt.Errorf("container %q not found in workload", container)
 }
 
 type PodSpec struct {

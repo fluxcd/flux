@@ -22,4 +22,8 @@ type Container struct {
 type Workload interface {
 	Resource
 	Containers() []Container
+	// SetContainerImage mutates this workload so that the container
+	// named has the image given. This is not expected to have an
+	// effect on any underlying file or cluster resource.
+	SetContainerImage(container string, ref image.Ref) error
 }

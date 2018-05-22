@@ -1,6 +1,7 @@
 package resource
 
 import (
+	"github.com/weaveworks/flux/image"
 	"github.com/weaveworks/flux/resource"
 )
 
@@ -20,3 +21,9 @@ type CronJobSpec struct {
 func (c CronJob) Containers() []resource.Container {
 	return c.Spec.JobTemplate.Spec.Template.Containers()
 }
+
+func (c CronJob) SetContainerImage(container string, ref image.Ref) error {
+	return c.Spec.JobTemplate.Spec.Template.SetContainerImage(container, ref)
+}
+
+var _ resource.Workload = CronJob{}
