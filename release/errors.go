@@ -19,7 +19,7 @@ deal with. See
 for those limitations.
 
 If your files appear to meet the requirements, it may simply be a bug
-in Flux. PLease report it at
+in Flux. Please report it at
 
     https://github.com/weaveworks/flux/issues
 
