@@ -32,3 +32,7 @@ required = ["k8s.io/code-generator/cmd/client-gen"]
 [[constraint]]
   name = "k8s.io/helm"
   version = "v2.8.1"
+
+[[constraint]]
+  name = "github.com/google/go-cmp"
+  version = "0.2.0"
