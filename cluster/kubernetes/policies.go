@@ -1,6 +1,9 @@
 package kubernetes
 
 import (
+	"bytes"
+	"io"
+	"io/ioutil"
 	"regexp"
 	"strings"
 

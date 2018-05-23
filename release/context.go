@@ -2,6 +2,8 @@ package release
 
 import (
 	"fmt"
+	"io"
+	"os"
 	"path/filepath"
 
 	"github.com/weaveworks/flux"
@@ -40,11 +42,35 @@ func (rc *ReleaseContext) Manifests() cluster.Manifests {
 func (rc *ReleaseContext) WriteUpdates(updates []*update.ControllerUpdate) error {
 	for _, controllerUpdate := range updates {
 		for _, containerUpdate := range controllerUpdate.Updates {
-			err := rc.Manifests().UpdateImage(controllerUpdate.ManifestPath, controllerUpdate.ResourceID, containerUpdate.Container, containerUpdate.Target)
-			if err != nil {
+			if err := UpdateFile(controllerUpdate.ManifestPath, func(in io.Reader) (io.Reader, error) {
+				return rc.Manifests().UpdateImage(in, controllerUpdate.ResourceID, containerUpdate.Container, containerUpdate.Target)
+			}); err != nil {
 				return err
 			}
 		}
+	}
+	return nil
+}
+
+func UpdateFile(path string, f func(io.Reader) (io.Reader, error)) error {
+	fileIn, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	out, err := f(fileIn)
+	fileIn.Close()
+	if err != nil {
+		return err
+	}
+	// TODO make this atomic by writing to a tmp file and renaming it
+	// over the top of the path.
+	fileOut, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer fileOut.Close()
+	if _, err = io.Copy(fileOut, out); err != nil {
+		return err
 	}
 	return nil
 }

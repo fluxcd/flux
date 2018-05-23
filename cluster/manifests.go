@@ -1,6 +1,8 @@
 package cluster
 
 import (
+	"io"
+
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/image"
 	"github.com/weaveworks/flux/policy"

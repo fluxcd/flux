@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"path/filepath"
 	"sort"
 	"time"
@@ -293,7 +294,9 @@ func (d *Daemon) updatePolicy(spec update.Spec, updates policy.Updates) daemonJo
 				anythingAutomated = true
 			}
 			if res, ok := resources[serviceID.String()]; ok {
-				err := d.Manifests.UpdatePolicies(filepath.Join(working.Dir(), res.Source()), serviceID, u)
+				err := release.UpdateFile(filepath.Join(working.Dir(), res.Source()), func(in io.Reader) (io.Reader, error) {
+					return d.Manifests.UpdatePolicies(in, serviceID, u)
+				})
 				if err != nil {
 					result.Result[serviceID] = update.ControllerResult{
 						Status: update.ReleaseStatusFailed,

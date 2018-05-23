@@ -2,8 +2,6 @@ package kubernetes
 
 import (
 	"io"
-	"io/ioutil"
-	"os"
 
 	"github.com/weaveworks/flux"
 	kresource "github.com/weaveworks/flux/cluster/kubernetes/resource"
