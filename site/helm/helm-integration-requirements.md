@@ -3,6 +3,14 @@ title: Requirements for Helm Integration with Flux (alpha stage)
 menu_order: 20
 ---
 
+# Kubernetes
+
+ - Kubernetes >=v1.9 is recommended. Kubernetes v1.8 (the first to
+   support Custom Resources) appears to have problems with repeated
+   application of custom resources (see
+   https://github.com/kubernetes/kubernetes/issues/53379). This means
+   fluxd can fail to apply changes to FluxHelmRelease resources.
+
 # Helm
 
  - tiller should be running in the cluster, though helm-operator will wait until it can find one.
