@@ -5,6 +5,8 @@ import (
 	"syscall"
 	"time"
 
+	"net/url"
+
 	"github.com/spf13/pflag"
 
 	"fmt"
@@ -160,10 +162,16 @@ func main() {
 	// HELM ---------------------------------------------------------------------------------
 	helmClient := fluxhelm.ClientSetup(log.With(logger, "component", "helm"), kubeClient, fluxhelm.TillerOptions{IP: *tillerIP, Port: *tillerPort, Namespace: *tillerNamespace})
 
+	gitURLParsed, err := url.Parse(*gitURL)
+	if err != nil {
+		mainLogger.Log("error", fmt.Sprintf("Error parsing -git-url %q: %v", *gitURL, err))
+		os.Exit(1)
+	}
+
 	// GIT REPO SETUP ---------------------------------------------------------------------
 	var gitAuth *gitssh.PublicKeys
 	for {
-		gitAuth, err = git.GetRepoAuth(*k8sSecretVolumeMountPath, *k8sSecretDataKey)
+		gitAuth, err = git.GetRepoAuth(gitURLParsed.User.Username(), *k8sSecretVolumeMountPath, *k8sSecretDataKey)
 		if err != nil {
 			mainLogger.Log("error", fmt.Sprintf("Failed to set up git authorization : %#v", err))
 			time.Sleep(20 * time.Second)
