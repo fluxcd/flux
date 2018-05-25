@@ -47,6 +47,8 @@ func TestUpdates(t *testing.T) {
 		{"reordered keys", case6resource, case6containers, case6image, case6, case6out},
 		{"from prod", case7resource, case7containers, case7image, case7, case7out},
 		{"single quotes", case8resource, case8containers, case8image, case8, case8out},
+		{"in multidoc", case9resource, case9containers, case9image, case9, case9out},
+		{"in kubernetes List resource", case10resource, case10containers, case10image, case10, case10out},
 	} {
 		testUpdate(t, c)
 	}
@@ -575,4 +577,208 @@ spec:
       containers:
       - name: weave
         image: weaveworks/weave-kube:2.2.1
+`
+
+const case9 = `---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: hello
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  annotations:
+    some.other.com/foo: bar
+  name: helloworld
+  namespace: hello
+spec:
+  minReadySeconds: 1
+  replicas: 5
+  template:
+    metadata:
+      labels:
+        name: helloworld
+    spec:
+      containers:
+      - name: helloworld
+        image: quay.io/weaveworks/helloworld:master-07a1b6b
+        args:
+        - -msg=Bilbo Baggins
+        ports:
+        - containerPort: 80
+      - name: sidecar
+        image: quay.io/weaveworks/sidecar:master-a000002
+        args:
+        - -addr=:8080
+        ports:
+        - containerPort: 8080
+      restartPolicy: Always
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: helloworld
+  namespace: hello
+spec:
+  ports:
+  - port: 80
+  selector:
+    name: helloworld
+`
+
+const case9resource = "hello:deployment/helloworld"
+const case9image = "quay.io/weaveworks/helloworld:master-a000001"
+
+var case9containers = []string{"helloworld"}
+
+const case9out = `---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: hello
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  annotations:
+    some.other.com/foo: bar
+  name: helloworld
+  namespace: hello
+spec:
+  minReadySeconds: 1
+  replicas: 5
+  template:
+    metadata:
+      labels:
+        name: helloworld
+    spec:
+      containers:
+      - name: helloworld
+        image: quay.io/weaveworks/helloworld:master-a000001
+        args:
+        - -msg=Bilbo Baggins
+        ports:
+        - containerPort: 80
+      - name: sidecar
+        image: quay.io/weaveworks/sidecar:master-a000002
+        args:
+        - -addr=:8080
+        ports:
+        - containerPort: 8080
+      restartPolicy: Always
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: helloworld
+  namespace: hello
+spec:
+  ports:
+  - port: 80
+  selector:
+    name: helloworld
+`
+
+const case10 = `---
+apiVersion: v1
+kind: List
+items:
+- apiVersion: v1
+  kind: Namespace
+  metadata:
+    name: hello
+- apiVersion: extensions/v1beta1
+  kind: Deployment
+  metadata:
+    annotations:
+      some.other.com/foo: bar
+    name: helloworld
+    namespace: hello
+  spec:
+    minReadySeconds: 1
+    replicas: 5
+    template:
+      metadata:
+        labels:
+          name: helloworld
+      spec:
+        containers:
+        - name: helloworld
+          image: quay.io/weaveworks/helloworld:master-07a1b6b
+          args:
+          - -msg=Bilbo Baggins
+          ports:
+          - containerPort: 80
+        - name: sidecar
+          image: quay.io/weaveworks/sidecar:master-a000002
+          args:
+          - -addr=:8080
+          ports:
+          - containerPort: 8080
+        restartPolicy: Always
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: helloworld
+    namespace: hello
+  spec:
+    ports:
+    - port: 80
+    selector:
+      name: helloworld
+`
+
+const case10resource = "hello:deployment/helloworld"
+const case10image = "quay.io/weaveworks/helloworld:master-a000001"
+
+var case10containers = []string{"helloworld"}
+
+const case10out = `---
+apiVersion: v1
+kind: List
+items:
+- apiVersion: v1
+  kind: Namespace
+  metadata:
+    name: hello
+- apiVersion: extensions/v1beta1
+  kind: Deployment
+  metadata:
+    annotations:
+      some.other.com/foo: bar
+    name: helloworld
+    namespace: hello
+  spec:
+    minReadySeconds: 1
+    replicas: 5
+    template:
+      metadata:
+        labels:
+          name: helloworld
+      spec:
+        containers:
+        - name: helloworld
+          image: quay.io/weaveworks/helloworld:master-a000001
+          args:
+          - -msg=Bilbo Baggins
+          ports:
+          - containerPort: 80
+        - name: sidecar
+          image: quay.io/weaveworks/sidecar:master-a000002
+          args:
+          - -addr=:8080
+          ports:
+          - containerPort: 8080
+        restartPolicy: Always
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: helloworld
+    namespace: hello
+  spec:
+    ports:
+    - port: 80
+    selector:
+      name: helloworld
 `
