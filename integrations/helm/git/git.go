@@ -148,7 +148,7 @@ func (ch *Checkout) Cleanup() {
 }
 
 // GetRepoAuth ... provides git repo authentication based on private ssh key
-func GetRepoAuth(k8sSecretVolumeMountPath, k8sSecretDataKey string) (*gitssh.PublicKeys, error) {
+func GetRepoAuth(sshUsername, k8sSecretVolumeMountPath, k8sSecretDataKey string) (*gitssh.PublicKeys, error) {
 	privateKeyPath := path.Join(k8sSecretVolumeMountPath, k8sSecretDataKey)
 	fileInfo, err := os.Stat(privateKeyPath)
 	switch {
@@ -171,7 +171,7 @@ func GetRepoAuth(k8sSecretVolumeMountPath, k8sSecretDataKey string) (*gitssh.Pub
 	if err != nil {
 		return nil, err
 	}
-	auth := &gitssh.PublicKeys{User: "git", Signer: signer}
+	auth := &gitssh.PublicKeys{User: sshUsername, Signer: signer}
 
 	return auth, nil
 }
