@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ template "weave-flux.fullname" . }}
+  labels:
+    app: {{ template "weave-flux.name" . }}
+    chart: {{ template "weave-flux.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - port: {{ .Values.service.port }}
+      targetPort: http
+      nodePort: {{ .Values.service.nodePort }}
+      protocol: TCP
+      name: http
+  selector:
+    app: {{ template "weave-flux.name" . }}
+    release: {{ .Release.Name }}

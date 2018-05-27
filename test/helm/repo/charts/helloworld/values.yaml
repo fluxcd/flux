@@ -1,0 +1,18 @@
+# Default values for helloworld.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+replicaCount: 2
+
+image:
+  helloworldtag: "master-a000001"
+  sidecartag: "master-a000001"
+  
+service:
+  helloworld:
+    port: 30030
+  sidecar:
+    port: 30031
+
+hellomessage: Ahoy
+

@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ template "helloworld.fullname" . }}
+  labels:
+    app: {{ template "helloworld.name" . }}
+    chart: {{ template "helloworld.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+spec:
+  type: NodePort
+  ports:
+    - port: {{ .Values.service.helloworld.port }}
+      nodePort: {{ .Values.service.helloworld.port }}
+      targetPort: 80
+      protocol: TCP
+      name: hello
+    - port: {{ .Values.service.sidecar.port }}
+      nodePort: {{ .Values.service.sidecar.port }}
+      targetPort: 8080
+      protocol: TCP
+      name: side
+  selector:
+    app: {{ template "helloworld.name" . }}
+    release: {{ .Release.Name }}

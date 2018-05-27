@@ -1,0 +1,34 @@
+apiVersion: apps/v1beta2
+kind: Deployment
+metadata:
+  name: {{ template "helloworld.fullname" . }}
+  labels:
+    app: {{ template "helloworld.name" . }}
+    chart: {{ template "helloworld.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ template "helloworld.name" . }}
+      release: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app: {{ template "helloworld.name" . }}
+        release: {{ .Release.Name }}
+    spec:
+      containers:
+        - name: helloworld
+          image: "quay.io/weaveworks/helloworld:{{ .Values.image.helloworldtag }}"
+          args:
+            - "-msg={{ .Values.hellomessage }}"
+          ports:
+            - containerPort: 80
+        - name: sidecar
+          image: "quay.io/weaveworks/sidecar:{{ .Values.image.sidecartag }}"
+          args:
+            - -addr=:8080
+          ports:
+            - containerPort: 8080

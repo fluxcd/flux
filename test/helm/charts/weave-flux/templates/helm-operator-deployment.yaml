@@ -1,0 +1,52 @@
+{{- if .Values.helmOperator.create -}}
+apiVersion: apps/v1beta2
+kind: Deployment
+metadata:
+  name: {{ template "weave-flux.fullname" . }}-helm-operator
+  labels:
+    app: {{ template "weave-flux.name" . }}-helm-operator
+    chart: {{ template "weave-flux.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ template "weave-flux.name" . }}-helm-operator
+      release: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app: {{ template "weave-flux.name" . }}-helm-operator
+        release: {{ .Release.Name }}
+    spec:
+      {{- if .Values.serviceAccount.create }}
+      serviceAccountName: {{ template "weave-flux.serviceAccountName" . }}
+      {{- end }}
+      volumes:
+      - name: git-key
+        secret:
+          secretName: flux-git-deploy
+          defaultMode: 0400
+      - name: ssh-known-hosts
+        configMap:
+          name: ssh-known-hosts
+          items:
+          - key: known_hosts
+            path: known_hosts
+      containers:
+      - name: flux-helm-operator
+        image: "{{ .Values.helmOperator.repository }}:{{ .Values.helmOperator.tag }}"
+        imagePullPolicy: {{ .Values.helmOperator.pullPolicy }}
+        volumeMounts:
+        - name: git-key
+          mountPath: /etc/fluxd/ssh
+          readOnly: true
+        - name: ssh-known-hosts
+          mountPath: /root/.ssh/known_hosts
+          subPath: known_hosts
+        args:
+        - --git-url={{ .Values.git.url }}
+        - --git-branch={{ .Values.git.branch }}
+        - --git-charts-path={{ .Values.git.chartsPath }}
+{{- end -}}
