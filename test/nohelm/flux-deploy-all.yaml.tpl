@@ -1,0 +1,97 @@
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: memcached
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        name: memcached
+    spec:
+      containers:
+      - name: memcached
+        image: memcached:1.4.25
+        imagePullPolicy: IfNotPresent
+        args:
+        - -m 64    # Maximum memory to use, in megabytes. 64MB is default.
+        - -p 11211    # Default port, but being explicit is nice.
+        - -vv    # This gets us to the level of request logs.
+        ports:
+        - name: clients
+          containerPort: 11211
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: memcached
+spec:
+  # The memcache client uses DNS to get a list of memcached servers and then
+  # uses a consistent hash of the key to determine which server to pick.
+  clusterIP: None
+  ports:
+    - name: memcached
+      port: 11211
+  selector:
+    name: memcached
+---
+# Expose flux to fluxctl
+apiVersion: v1
+kind: Service
+metadata:
+  name: flux
+spec:
+  type: NodePort
+  ports:
+    - port: 80
+      targetPort: 3030
+      nodePort: {{ .FluxPort }} # Hardwired for test harness access
+  selector:
+    name: flux
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: flux
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        name: flux
+    spec:
+      volumes:
+      - name: git-key
+        secret:
+          secretName: flux-git-deploy
+          defaultMode: 256
+      - name: ssh-known-hosts
+        configMap:
+          name: ssh-known-hosts
+          items:
+          - key: known_hosts
+            path: known_hosts
+      containers:
+      - name: flux
+        # Require locally built image
+        image: {{ .FluxImage }}
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 3030 # informational
+        volumeMounts:
+        - name: git-key
+          mountPath: /etc/fluxd/ssh
+        - name: ssh-known-hosts
+          mountPath: /root/.ssh/known_hosts
+          subPath: known_hosts
+
+        args:
+        # Access minikube hosted config repo by ssh
+        - --git-url={{ .GitURL }}
+        - --git-branch=master
+        # Tune up to make tests run quicker
+        - --registry-poll-interval=10s
+        - --git-poll-interval=10s
