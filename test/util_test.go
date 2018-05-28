@@ -109,7 +109,11 @@ func fluxServices(ctx context.Context, fluxURL string, t *testing.T, namespace s
 }
 
 func httpGet(ctx context.Context, url string) (string, error) {
-	resp, err := http.Get(url)
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return "", err
+	}
+	resp, err := http.DefaultClient.Do(req.WithContext(ctx))
 	if err != nil {
 		return "", err
 	}

@@ -130,7 +130,7 @@ func TestChartUpdateViaGit(t *testing.T) {
 
 	// obviously this should work if the above works, it's just to
 	// contrast with the Dial invocation below
-	_, err := net.Dial("tcp", fmt.Sprintf("%s:%d", h.clusterIP, defaultSidecarPort))
+	_, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%d", h.clusterIP, defaultSidecarPort), 5*time.Second)
 	h.must(err)
 
 	newMessage := "salut"
@@ -144,7 +144,7 @@ func TestChartUpdateViaGit(t *testing.T) {
 	h.must(httpGetReturns(h.clusterIP, defaultHelloworldPort, newMessage+"\n"))
 	h.must(httpGetReturns(h.clusterIP, newSidecarPort, "I am a sidecar\n"))
 
-	_, err = net.Dial("tcp", fmt.Sprintf("%s:%d", h.clusterIP, defaultSidecarPort))
+	_, err = net.DialTimeout("tcp", fmt.Sprintf("%s:%d", h.clusterIP, defaultSidecarPort), 5*time.Second)
 	if err == nil {
 		t.Errorf("old sidecar port %d still open", defaultSidecarPort)
 	}

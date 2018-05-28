@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 const (
@@ -123,6 +124,9 @@ func TestMain(m *testing.M) {
 	if *flagStartMinikube {
 		minikube.delete()
 		minikube.start()
+		// This sleep is a hack until we find a better way to determine
+		// when the cluster is stable.
+		time.Sleep(60 * time.Second)
 	}
 
 	global.clusterAPI = minikube
