@@ -36,7 +36,7 @@ This is a simple, but dramatic improvement on current state of the art.
 - End to end, code to production pipelines become not only possible, but
   easy.
 
-## Automated deployment of new containers
+## Automated deployment of new container images
 
 Another feature is the automated deployment of containers. It will
 continuously monitor a range of container registries and deploy new

@@ -7,47 +7,32 @@ We believe in GitOps:
   monitoring and everything else.
 - **What can be described can be automated.** Use YAMLs to enforce
   conformance of the system. You don't need to run `kubectl`, all changes go
-  through git. This allows you to diff against the observed
-  state.
+  through git. Use diff tools to detect divergence between observed and
+  desired state and get notifications.
 - **You push code not containers.** Everything is controlled through
-  pull requests. Instant deployments. No learning curve for new devs, just
-  use git. This allows you to recover from any snapshot as you have
-  an atomic sequence of transactions.
+  pull requests. There is no learning curve for new devs, they just use
+  your standard git PR process. The history in git allows you to recover
+  from any snapshot as you have an sequence of transactions. It is much
+  more transparent to make operational changes by pull request, e.g.
+  fix a production issue via a pull request instead of making changes to
+  the running system.
 
 Flux is a tool that automatically ensures that the state of a cluster
 matches the config in git. It uses an operator in the cluster to trigger
-deployments inside Kubernetes, which means you don't need a separate CD tool,
-because it's cloud-native. It monitors all relevant image repositories, detects
-new images, triggers deployments and updates the desired running configuration
-based on that (and a configurable policy).
+deployments inside Kubernetes, which means you don't need a separate CD tool.
+It monitors all relevant image repositories, detects new images, triggers
+deployments and updates the desired running configuration based on that
+(and a configurable policy).
 
 The benefits are: you don't need to grant your CI access to the cluster, every
 change is atomic and transactional, git has your audit log. Each transaction
-either fails or succeeds cleanly. You're entirely code centric and don't new
-infrastructure.
+either fails or succeeds cleanly. You're entirely code centric and don't need
+new infrastructure.
 
 ![Deployment Pipeline](site/images/deployment-pipeline.png)
 
 [![CircleCI](https://circleci.com/gh/weaveworks/flux.svg?style=svg)](https://circleci.com/gh/weaveworks/flux)
 [![GoDoc](https://godoc.org/github.com/weaveworks/flux?status.svg)](https://godoc.org/github.com/weaveworks/flux)
-
-## GitOps
-
-Git has moved the state of the art forward in development. A decade
-of best practices says that config is code, and code should be stored
-in version control. Now it is paying that benefit forward to Ops. It
-is much more transparent to fix a production issue via a pull request,
-than to make changes to the running system.
-
-At its core the GitOps pattern encourages you to
-
-- Make all provisioning and deployment configuration declarative
-- Keep the entire system state under version control and described in
-  a single Git repository
-- Make operational changes by pull request (plus build & release pipelines)
-- Let diff tools detect any divergence and notify you; and use
-  sync tools enable convergence
-- Get audit logs via Git
 
 ## What Flux does
 
@@ -58,7 +43,7 @@ container images and config changes are propagated to the cluster.
 Among its features are:
 
 - [Automated git → cluster synchronisation](/site/introduction.md#automated-git-cluster-synchronisation)
-- [Automated deployment of new containers](/site/introduction.md#automated-deployment-of-new-containers)
+- [Automated deployment of new container images](/site/introduction.md#automated-deployment-of-new-container-images)
 - [Integrations with other devops tools](/site/introduction.md#integrations-with-other-devops-tools) ([Helm](site/helm/helm-integration.md) and more)
 - No additional service or infrastructure needed - Flux lives inside your
   cluster
