@@ -1,5 +1,0 @@
-Host *
-StrictHostKeyChecking yes
-IdentityFile /etc/fluxd/ssh/identity
-IdentityFile /var/fluxd/keygen/identity
-LogLevel error
