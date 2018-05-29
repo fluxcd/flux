@@ -85,12 +85,12 @@ The following tables lists the configurable parameters of the Weave Flux chart a
 | ------------------------------- | ------------------------------------------ | ---------------------------------------------------------- |
 | `image.repository` | Image repository | `quay.io/weaveworks/flux` 
 | `image.tag` | Image tag | `1.3.1` 
-| `image.pullPoliwell cy` | Image pull policy | `IfNotPresent` 
+| `image.pullPolicy` | Image pull policy | `IfNotPresent` 
 | `resources` | CPU/memory resource requests/limits | None 
 | `rbac.create` | If `true`, create and use RBAC resources | `true`
 | `serviceAccount.create` | If `true`, create a new service account | `true`
 | `serviceAccount.name` | Service account to be used | `flux`
-| `service.type` | Service type to be used | `ClusterIP`
+| `service.type` | Service type to be used (exposing Flux API outside of th cluster is not advise) | `ClusterIP`
 | `service.port` | Service port to be used | `3030`
 | `git.url` | URL of git repo with Kubernetes manifests | None
 | `git.branch` | Branch of git repo to use for Kubernetes manifests | `master`
