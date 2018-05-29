@@ -1,36 +1,64 @@
 # Flux
 
-We believe that environments should be entirely version
-controlled. This is an anti-fragile measure to ensure stability
-through visibility. If anything fails, you can simply reapply the
-current state of the repository.
+We believe in GitOps:
+
+- **You declaratively describe the entire desired state of your
+  system in git.** This includes the apps, config, dashboards,
+  monitoring and everything else.
+- **What can be described can be automated.** Use YAMLs to enforce
+  conformance of the system. You don't need to run `kubectl`, all changes go
+  through git. Use diff tools to detect divergence between observed and
+  desired state and get notifications.
+- **You push code not containers.** Everything is controlled through
+  pull requests. There is no learning curve for new devs, they just use
+  your standard git PR process. The history in git allows you to recover
+  from any snapshot as you have an sequence of transactions. It is much
+  more transparent to make operational changes by pull request, e.g.
+  fix a production issue via a pull request instead of making changes to
+  the running system.
 
 Flux is a tool that automatically ensures that the state of a cluster
-matches what is specified in version control (along with a few
-[extra features](/site/how-it-works.md)).
+matches the config in git. It uses an operator in the cluster to trigger
+deployments inside Kubernetes, which means you don't need a separate CD tool.
+It monitors all relevant image repositories, detects new images, triggers
+deployments and updates the desired running configuration based on that
+(and a configurable policy).
 
-It is most useful when used as a deployment tool at the end of a
-Continuous Delivery pipeline. Flux will make sure that your new
-container images and config changes are propagated to the cluster.
+The benefits are: you don't need to grant your CI access to the cluster, every
+change is atomic and transactional, git has your audit log. Each transaction
+either fails or succeeds cleanly. You're entirely code centric and don't need
+new infrastructure.
+
+![Deployment Pipeline](site/images/deployment-pipeline.png)
 
 [![CircleCI](https://circleci.com/gh/weaveworks/flux.svg?style=svg)](https://circleci.com/gh/weaveworks/flux)
 [![GoDoc](https://godoc.org/github.com/weaveworks/flux?status.svg)](https://godoc.org/github.com/weaveworks/flux)
 
-Get started by browsing through the documentation below.
+## What Flux does
 
-[Introduction to Flux](/site/introduction.md)
+Flux is most useful when used as a deployment tool at the end of a
+Continuous Delivery pipeline. Flux will make sure that your new
+container images and config changes are propagated to the cluster.
 
-[FAQ](/site/faq.md)
+Among its features are:
 
-[How it works](/site/how-it-works.md)
+- [Automated git → cluster synchronisation](/site/introduction.md#automated-git-cluster-synchronisation)
+- [Automated deployment of new container images](/site/introduction.md#automated-deployment-of-new-container-images)
+- [Integrations with other devops tools](/site/introduction.md#integrations-with-other-devops-tools) ([Helm](site/helm/helm-integration.md) and more)
+- No additional service or infrastructure needed - Flux lives inside your
+  cluster
 
-[Installing Flux](/site/installing.md)
+## Get started with Flux
 
-[Using Flux](/site/using.md)
+Get started by browsing through the documentation below:
 
-[Upgrading to Flux v1](/site/upgrading-to-1.0.md)
-
-[Troubleshooting](/site/troubleshooting.md)
+- [Introduction to Flux](/site/introduction.md)
+- [FAQ](/site/faq.md)
+- [How it works](/site/how-it-works.md)
+- [Installing Flux](/site/installing.md)
+- [Using Flux](/site/using.md)
+- [Upgrading to Flux v1](/site/upgrading-to-1.0.md)
+- [Troubleshooting](/site/troubleshooting.md)
 
 ## Developer information
 
@@ -57,8 +85,9 @@ See [the lint script](/lint) for details.
 
 If you have any questions about Flux and continuous delivery:
 
-- Invite yourself to the <a href="https://weaveworks.github.io/community-slack/" target="_blank"> #weave-community </a> slack channel.
-- Ask a question on the <a href="https://weave-community.slack.com/messages/general/"> #weave-community</a> slack channel.
+- Read [the Weave Flux docs](https://github.com/weaveworks/flux/tree/master/site).
+- Invite yourself to the <a href="https://weaveworks.github.io/community-slack/" target="_blank">Weave community</a> slack.
+- Ask a question on the [#flux](https://weave-community.slack.com/messages/flux/) slack channel.
 - Join the <a href="https://www.meetup.com/pro/Weave/"> Weave User Group </a> and get invited to online talks, hands-on training and meetups in your area.
 - Send an email to <a href="mailto:weave-users@weave.works">weave-users@weave.works</a>
 - <a href="https://github.com/weaveworks/flux/issues/new">File an issue.</a>
