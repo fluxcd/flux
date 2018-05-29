@@ -18,8 +18,8 @@ a [Kubernetes](http://kubernetes.io) cluster using the [Helm](https://helm.sh) p
 
 Add the weaveworks repo:
 
-```
-helm repo add weaveworks https://weaveworks.github.io/flux
+```console
+$ helm repo add weaveworks https://weaveworks.github.io/flux
 ```
 
 To install the chart with the release name `flux`:
@@ -34,7 +34,7 @@ weaveworks/flux
 To connect Flux to a Weave Cloud instance:
 
 ```console
-helm install --name flux \
+$ helm install --name flux \
 --set token=YOUR_WEAVE_CLOUD_SERVICE_TOKEN \
 --namespace flux \
 weaveworks/flux
@@ -57,8 +57,8 @@ The [configuration](#configuration) section lists the parameters that can be con
 At startup Flux generates a SSH key and logs the public key. 
 Find the SSH public key with:
 
-```bash
-kubectl -n flux logs deployment/flux | grep identity.pub
+```console
+$ kubectl -n flux logs deployment/flux | grep identity.pub
 ```
 
 In order to sync your cluster state with GitHub you need to copy the public key and 
@@ -120,7 +120,7 @@ weaveworks/flux
 Update Weave Flux version with:
 
 ```console
-helm upgrade --reuse-values flux \
+$ helm upgrade --reuse-values flux \
 --set image.tag=1.3.2 \
 weaveworks/flux
 ```
