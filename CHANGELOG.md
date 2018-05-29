@@ -1,3 +1,18 @@
+## 1.3.1 (2018-05-29)
+
+### Fixes
+
+- Correct filtering of Helm charts when loading manifests from the git repo [weaveworks/flux#1076](https://github.com/weaveworks/flux/pull/1076)
+- Sync with cluster as soon as the git repository is ready [weaveworks/flux#1060](https://github.com/weaveworks/flux/pull/1060)
+- Avoid panic when reporting on `StatefulSet` status [weaveworks/flux#1062](https://github.com/weaveworks/flux/pull/1062)
+
+### Improvements
+
+- Changes made to the git repo when releasing new images are now verified, meaning less chance of erroneous changes being committed [weaveworks/flux#1094](https://github.com/weaveworks/flux/pull/1094)
+- The ListImages API method now accepts an argument saying which fields to include for each container. This is intended to cut down the amount of data sent over the wire, since you don't always need the full list of available images [weaveworks/flux#1084](https://github.com/weaveworks/flux/pull/1084)
+- Add (back) the fluxd flag `--docker-config` so that image registry credentials can be supplied in a file mounted into the container [weaveworks/flux#1065](https://github.com/weaveworks/flux/pull/1065). This should make it easier to work around situations in which you don't want to use imagePullSecrets on each resource.
+- Label `flux` and `helm-operator` images with [Open Containers Initiative (OCI) metadata](https://github.com/opencontainers/image-spec/blob/master/annotations.md) [weaveworks/flux#1075](https://github.com/weaveworks/flux/pull/1075)
+
 ## 1.3.0 (2018-04-26)
 
 ### Fixes
