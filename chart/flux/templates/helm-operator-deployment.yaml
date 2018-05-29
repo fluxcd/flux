@@ -1,0 +1,43 @@
+{{- if .Values.helmOperator.create -}}
+apiVersion: apps/v1beta2
+kind: Deployment
+metadata:
+  name: {{ template "flux.fullname" . }}-helm-operator
+  labels:
+    app: {{ template "flux.name" . }}-helm-operator
+    chart: {{ template "flux.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ template "flux.name" . }}-helm-operator
+      release: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app: {{ template "flux.name" . }}-helm-operator
+        release: {{ .Release.Name }}
+    spec:
+      {{- if .Values.serviceAccount.create }}
+      serviceAccountName: {{ template "flux.serviceAccountName" . }}
+      {{- end }}
+      volumes:
+      - name: git-key
+        secret:
+          secretName: {{ template "flux.fullname" . }}-git-deploy
+          defaultMode: 0400
+      containers:
+      - name: flux-helm-operator
+        image: "{{ .Values.helmOperator.repository }}:{{ .Values.helmOperator.tag }}"
+        imagePullPolicy: {{ .Values.helmOperator.pullPolicy }}
+        volumeMounts:
+        - name: git-key
+          mountPath: /etc/fluxd/ssh
+          readOnly: true
+        args:
+        - --git-url={{ .Values.git.url }}
+        - --git-branch={{ .Values.git.branch }}
+        - --git-charts-path={{ .Values.git.chartsPath }}
+{{- end -}}
