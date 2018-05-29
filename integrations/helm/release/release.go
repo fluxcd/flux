@@ -246,7 +246,7 @@ func (r *Release) Install(checkout *helmgit.Checkout, releaseName string, fhr if
 	}
 }
 
-// Delete deletes Chart release
+// Delete purges a Chart release
 func (r *Release) Delete(name string) error {
 	ok, err := r.canDelete(name)
 	if !ok {
@@ -257,7 +257,7 @@ func (r *Release) Delete(name string) error {
 	}
 
 	r.Lock()
-	_, err = r.HelmClient.DeleteRelease(name)
+	_, err = r.HelmClient.DeleteRelease(name, k8shelm.DeletePurge(true))
 	r.Unlock()
 	if err != nil {
 		r.logger.Log("error", fmt.Sprintf("Release deletion error: %#v", err))
