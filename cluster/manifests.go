@@ -35,7 +35,7 @@ type Manifests interface {
 	// supplied.
 	LoadManifests(baseDir, first string, rest ...string) (map[string]resource.Resource, error)
 	// Parse the manifests given in an exported blob
-	ParseManifests([]byte) (map[string]resource.Resource, error)
+	ParseManifests(io.Reader) (map[string]resource.Resource, error)
 	// ServicesWithPolicies returns all services with their associated policies
 	ServicesWithPolicies(path string) (policy.ResourceMap, error)
 }

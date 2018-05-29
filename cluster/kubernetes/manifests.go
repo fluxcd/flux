@@ -18,7 +18,7 @@ func (m *Manifests) LoadManifests(base, first string, rest ...string) (map[strin
 	return kresource.Load(base, first, rest...)
 }
 
-func (m *Manifests) ParseManifests(allDefs []byte) (map[string]resource.Resource, error) {
+func (m *Manifests) ParseManifests(allDefs io.Reader) (map[string]resource.Resource, error) {
 	return kresource.ParseMultidoc(allDefs, "exported")
 }
 

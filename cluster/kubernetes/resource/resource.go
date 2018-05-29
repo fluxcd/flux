@@ -37,12 +37,6 @@ func (o baseObject) ResourceID() flux.ResourceID {
 	return flux.MakeResourceID(ns, o.Kind, o.Meta.Name)
 }
 
-// It's useful for comparisons in tests to be able to remove the
-// record of bytes
-func (o *baseObject) debyte() {
-	o.bytes = nil
-}
-
 func (o baseObject) Policy() policy.Set {
 	set := policy.Set{}
 	for k, v := range o.Meta.Annotations {
@@ -60,10 +54,6 @@ func (o baseObject) Policy() policy.Set {
 
 func (o baseObject) Source() string {
 	return o.source
-}
-
-func (o baseObject) Bytes() []byte {
-	return o.bytes
 }
 
 func unmarshalObject(source string, bytes []byte) (resource.Resource, error) {
