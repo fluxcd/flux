@@ -50,15 +50,17 @@ func (h *harness) initHelmTest(pollinterval time.Duration) {
 	h.pushNewHelmFluxRepo(context.Background())
 }
 
-func (h *harness) lastHelmRelease(releaseName string) helmHistory {
+func (h *harness) lastHelmRelease(releaseName string) (helmHistory, error) {
 	// There may be one or two history entries, depending on timing.  It
 	// seems there's an unnecessary upgrade happening, but only once.
-	hist := h.helmAPI.mustHistory(releaseName)
-	if len(hist) == 0 {
-		h.t.Errorf("error getting last helm history entry, none found")
-		return helmHistory{}
+	hist, err := h.helmAPI.history(releaseName)
+	if err != nil {
+		return helmHistory{}, err
 	}
-	return hist[len(hist)-1]
+	if len(hist) == 0 {
+		return helmHistory{}, fmt.Errorf("error getting last helm history entry, none found")
+	}
+	return hist[len(hist)-1], nil
 }
 
 func (h *harness) helmReleaseDeployed(hist helmHistory, releaseName string, minRevision int) error {
@@ -72,7 +74,10 @@ func (h *harness) helmReleaseDeployed(hist helmHistory, releaseName string, minR
 }
 
 func (h *harness) helmReleaseHasValue(releaseName string, minRevision int, key, val string) error {
-	hist := h.lastHelmRelease(releaseName)
+	hist, err := h.lastHelmRelease(releaseName)
+	if err != nil {
+		return err
+	}
 	if err := h.helmReleaseDeployed(hist, releaseName, minRevision); err != nil {
 		return err
 	}
@@ -91,7 +96,11 @@ func (h *harness) assertHelmReleaseDeployed(releaseName string, minRevision int)
 	ctx, cancel := context.WithTimeout(context.Background(), releaseTimeout)
 	defer cancel()
 	h.must(until(ctx, func(ictx context.Context) error {
-		hist = h.lastHelmRelease(releaseName)
+		var err error
+		hist, err = h.lastHelmRelease(releaseName)
+		if err != nil {
+			return err
+		}
 		return h.helmReleaseDeployed(hist, releaseName, minRevision)
 	}))
 	return hist.Revision

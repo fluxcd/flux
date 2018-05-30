@@ -22,7 +22,7 @@ helm_dl=$dldir/$helm_relname
 helm_bin=$bindir/helm
 
 curl -s -L -o $helm_dl -z $helm_dl $helm_base/$helm_relname
-test -f $helm_bin -o $helm_bin -ot $helm_dl || tar -z -x -f $helm_dl -C $bindir --strip-components 1 linux-$arch/helm
+test -f $helm_bin || test $helm_bin -ot $helm_dl || tar -z -x -f $helm_dl -C $bindir --strip-components 1 linux-$arch/helm
 
 # kubectl
 kubectl_base=https://storage.googleapis.com/kubernetes-release/release
