@@ -28,7 +28,7 @@ func (kt kubectlTool) common() []string {
 }
 
 func (kt kubectlTool) versionCmd() []string {
-	return []string{"kubectl", "version"}
+	return append(kt.common(), []string{"version"}...)
 }
 
 func (kt kubectlTool) createCmd(namespace string) []string {

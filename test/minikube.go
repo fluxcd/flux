@@ -96,7 +96,7 @@ func (m minikube) version() string {
 }
 
 func (m minikube) delete() {
-	m.cli().must(context.Background(), m.mt.deleteCmd()...)
+	m.cli().run(context.Background(), m.mt.deleteCmd()...)
 }
 
 func (m minikube) start() {

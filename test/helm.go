@@ -26,7 +26,7 @@ type (
 	helmAPI interface {
 		tillerVersion() (string, error)
 		delete(releaseName string, purge bool) error
-		mustHistory(releaseName string) []helmHistory
+		history(releaseName string) ([]helmHistory, error)
 		mustGetValues(releaseName string, revision int) string
 		mustUpgrade(releaseName string, chartpath string, reuseValues bool,
 			valueSettings ...string)
@@ -187,15 +187,18 @@ func (h helm) delete(releaseName string, purge bool) error {
 	return err
 }
 
-func (h helm) mustHistory(releaseName string) []helmHistory {
-	out := h.cli().must(context.Background(), h.ht.historyCmd(releaseName)...)
+func (h helm) history(releaseName string) ([]helmHistory, error) {
+	out, err := h.cli().run(context.Background(), h.ht.historyCmd(releaseName)...)
+	if err != nil {
+		return nil, err
+	}
 
 	var hist []helmHistory
 	if err := json.Unmarshal([]byte(out), &hist); err != nil {
 		h.lg.Fatalf("Unable to parse helm history (error=%v): %q", err, out)
 	}
 
-	return hist
+	return hist, nil
 }
 
 func (h helm) mustGetValues(releaseName string, revision int) string {
