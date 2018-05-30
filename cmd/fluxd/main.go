@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"strconv"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -212,7 +213,7 @@ func main() {
 
 		logger := log.With(logger, "component", "cluster")
 		logger.Log("identity", privateKeyPath)
-		logger.Log("identity.pub", publicKey.Key)
+		logger.Log("identity.pub", strings.TrimSpace(publicKey.Key))
 		logger.Log("host", restClientConfig.Host, "version", clusterVersion)
 
 		kubectl := *kubernetesKubectl
