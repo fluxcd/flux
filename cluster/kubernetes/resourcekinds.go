@@ -12,7 +12,6 @@ import (
 
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster"
-	k8sresource "github.com/weaveworks/flux/cluster/kubernetes/resource"
 	"github.com/weaveworks/flux/image"
 	"github.com/weaveworks/flux/resource"
 )
@@ -301,7 +300,7 @@ func (fhr *fluxHelmReleaseKind) getPodControllers(c *Cluster, namespace string) 
 }
 
 func makeFluxHelmReleasePodController(fluxHelmRelease *ifv1.FluxHelmRelease) podController {
-	containers := k8sresource.CreateK8sFHRContainers(fluxHelmRelease.Spec)
+	containers := createK8sFHRContainers(fluxHelmRelease.Spec)
 
 	podTemplate := apiv1.PodTemplateSpec{
 		ObjectMeta: fluxHelmRelease.ObjectMeta,
@@ -318,4 +317,19 @@ func makeFluxHelmReleasePodController(fluxHelmRelease *ifv1.FluxHelmRelease) pod
 		status:      StatusReady,
 		podTemplate: podTemplate,
 		apiObject:   fluxHelmRelease}
+}
+
+// createK8sContainers creates a list of k8s containers by
+// interpreting the FluxHelmRelease resource. The interpretation is
+// analogous to that in cluster/kubernetes/resource/fluxhelmrelease.go
+func createK8sFHRContainers(spec ifv1.FluxHelmReleaseSpec) []apiv1.Container {
+	values := spec.Values
+	if imgInfo, ok := values["image"]; ok {
+		if imgInfoStr, ok := imgInfo.(string); ok {
+			return []apiv1.Container{
+				{Name: spec.ChartGitPath, Image: imgInfoStr},
+			}
+		}
+	}
+	return nil
 }
