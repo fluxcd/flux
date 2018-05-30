@@ -175,7 +175,6 @@ func (a *Upstream) setConnectionDuration(duration float64) {
 }
 
 func (a *Upstream) LogEvent(event event.Event) error {
-	// Instance ID is set via token here, so we can leave it blank.
 	return a.apiClient.LogEvent(context.TODO(), event)
 }
 

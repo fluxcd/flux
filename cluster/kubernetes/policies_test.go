@@ -2,8 +2,6 @@ package kubernetes
 
 import (
 	"bytes"
-	"fmt"
-	"strings"
 	"testing"
 	"text/template"
 
@@ -14,29 +12,29 @@ import (
 func TestUpdatePolicies(t *testing.T) {
 	for _, c := range []struct {
 		name    string
-		in, out map[string]string
+		in, out []string
 		update  policy.Update
 	}{
 		{
 			name: "adding annotation with others existing",
-			in:   map[string]string{"prometheus.io.scrape": "false"},
-			out:  map[string]string{"flux.weave.works/automated": "true", "prometheus.io.scrape": "false"},
+			in:   []string{"prometheus.io.scrape", "'false'"},
+			out:  []string{"prometheus.io.scrape", "'false'", "flux.weave.works/automated", "'true'"},
 			update: policy.Update{
 				Add: policy.Set{policy.Automated: "true"},
 			},
 		},
 		{
 			name: "adding annotation when already has annotation",
-			in:   map[string]string{"flux.weave.works/automated": "true"},
-			out:  map[string]string{"flux.weave.works/automated": "true"},
+			in:   []string{"flux.weave.works/automated", "'true'"},
+			out:  []string{"flux.weave.works/automated", "'true'"},
 			update: policy.Update{
 				Add: policy.Set{policy.Automated: "true"},
 			},
 		},
 		{
 			name: "adding annotation when already has annotation and others",
-			in:   map[string]string{"flux.weave.works/automated": "true", "prometheus.io.scrape": "false"},
-			out:  map[string]string{"flux.weave.works/automated": "true", "prometheus.io.scrape": "false"},
+			in:   []string{"flux.weave.works/automated", "'true'", "prometheus.io.scrape", "'false'"},
+			out:  []string{"flux.weave.works/automated", "'true'", "prometheus.io.scrape", "'false'"},
 			update: policy.Update{
 				Add: policy.Set{policy.Automated: "true"},
 			},
@@ -44,15 +42,15 @@ func TestUpdatePolicies(t *testing.T) {
 		{
 			name: "adding first annotation",
 			in:   nil,
-			out:  map[string]string{"flux.weave.works/automated": "true"},
+			out:  []string{"flux.weave.works/automated", "'true'"},
 			update: policy.Update{
 				Add: policy.Set{policy.Automated: "true"},
 			},
 		},
 		{
 			name: "add and remove different annotations at the same time",
-			in:   map[string]string{"flux.weave.works/automated": "true", "prometheus.io.scrape": "false"},
-			out:  map[string]string{"flux.weave.works/locked": "true", "prometheus.io.scrape": "false"},
+			in:   []string{"flux.weave.works/automated", "'true'", "prometheus.io.scrape", "'false'"},
+			out:  []string{"prometheus.io.scrape", "'false'", "flux.weave.works/locked", "'true'"},
 			update: policy.Update{
 				Add:    policy.Set{policy.Locked: "true"},
 				Remove: policy.Set{policy.Automated: "true"},
@@ -69,15 +67,15 @@ func TestUpdatePolicies(t *testing.T) {
 		},
 		{
 			name: "remove annotation with others existing",
-			in:   map[string]string{"flux.weave.works/automated": "true", "prometheus.io.scrape": "false"},
-			out:  map[string]string{"prometheus.io.scrape": "false"},
+			in:   []string{"flux.weave.works/automated", "true", "prometheus.io.scrape", "false"},
+			out:  []string{"prometheus.io.scrape", "false"},
 			update: policy.Update{
 				Remove: policy.Set{policy.Automated: "true"},
 			},
 		},
 		{
 			name: "remove last annotation",
-			in:   map[string]string{"flux.weave.works/automated": "true"},
+			in:   []string{"flux.weave.works/automated", "true"},
 			out:  nil,
 			update: policy.Update{
 				Remove: policy.Set{policy.Automated: "true"},
@@ -93,15 +91,15 @@ func TestUpdatePolicies(t *testing.T) {
 		},
 		{
 			name: "remove annotation with only others",
-			in:   map[string]string{"prometheus.io.scrape": "false"},
-			out:  map[string]string{"prometheus.io.scrape": "false"},
+			in:   []string{"prometheus.io.scrape", "false"},
+			out:  []string{"prometheus.io.scrape", "false"},
 			update: policy.Update{
 				Remove: policy.Set{policy.Automated: "true"},
 			},
 		},
 		{
 			name: "multiline",
-			in:   map[string]string{"flux.weave.works/locked_msg": "|-\n      first\n      second"},
+			in:   []string{"flux.weave.works/locked_msg", "|-\n      first\n      second"},
 			out:  nil,
 			update: policy.Update{
 				Remove: policy.Set{policy.LockedMsg: "foo"},
@@ -109,7 +107,7 @@ func TestUpdatePolicies(t *testing.T) {
 		},
 		{
 			name: "multiline with empty line",
-			in:   map[string]string{"flux.weave.works/locked_msg": "|-\n      first\n\n      third"},
+			in:   []string{"flux.weave.works/locked_msg", "|-\n      first\n\n      third"},
 			out:  nil,
 			update: policy.Update{
 				Remove: policy.Set{policy.LockedMsg: "foo"},
@@ -118,8 +116,8 @@ func TestUpdatePolicies(t *testing.T) {
 	} {
 		caseIn := templToString(t, annotationsTemplate, c.in)
 		caseOut := templToString(t, annotationsTemplate, c.out)
-		id := flux.MustParseResourceID("default:deplot/nginx")
-		out, err := (&Manifests{}).UpdatePolicies([]byte(caseIn), id, c.update)
+		resourceID := flux.MustParseResourceID("default:deployment/nginx")
+		out, err := (&Manifests{}).UpdatePolicies([]byte(caseIn), resourceID, c.update)
 		if err != nil {
 			t.Errorf("[%s] %v", c.name, err)
 		} else if string(out) != caseOut {
@@ -132,9 +130,9 @@ var annotationsTemplate = template.Must(template.New("").Parse(`---
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata: # comment really close to the war zone
-  {{with .}}annotations:{{range $k, $v := .}}
-    {{$k}}: {{printf "%s" $v}}{{end}}
-  {{end}}name: nginx
+  name: nginx{{with .}}
+  annotations:{{range .}}
+    {{index . 0}}: {{printf "%s" (index . 1)}}{{end}}{{end}}
 spec:
   replicas: 1
   template:
@@ -149,15 +147,13 @@ spec:
         - containerPort: 80
 `))
 
-func templToString(t *testing.T, templ *template.Template, annotations map[string]string) string {
-	for k, v := range annotations {
-		// Don't wrap multilines
-		if !strings.HasPrefix(v, "|") {
-			annotations[k] = fmt.Sprintf("%q", v)
-		}
+func templToString(t *testing.T, templ *template.Template, data []string) string {
+	var pairs [][]string
+	for i := 0; i < len(data); i += 2 {
+		pairs = append(pairs, []string{data[i], data[i+1]})
 	}
 	out := &bytes.Buffer{}
-	err := templ.Execute(out, annotations)
+	err := templ.Execute(out, pairs)
 	if err != nil {
 		t.Fatal(err)
 	}

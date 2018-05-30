@@ -47,6 +47,8 @@ func TestUpdates(t *testing.T) {
 		{"reordered keys", case6resource, case6containers, case6image, case6, case6out},
 		{"from prod", case7resource, case7containers, case7image, case7, case7out},
 		{"single quotes", case8resource, case8containers, case8image, case8, case8out},
+		{"in multidoc", case9resource, case9containers, case9image, case9, case9out},
+		{"in kubernetes List resource", case10resource, case10containers, case10image, case10, case10out},
 	} {
 		testUpdate(t, c)
 	}
@@ -70,27 +72,27 @@ spec:
       imagePullSecrets:
       - name: quay-secret
       containers:
-        - name: pr-assigner
-          image: quay.io/weaveworks/pr-assigner:master-6f5e816
-          imagePullPolicy: IfNotPresent
-          args:
-            - --conf_path=/config/pr-assigner.json
-          env:
-            - name: GITHUB_TOKEN
-              valueFrom:
-                secretKeyRef:
-                  name: pr-assigner
-                  key: githubtoken
-          volumeMounts:
-            - name: config-volume
-              mountPath: /config
-      volumes:
+      - name: pr-assigner
+        image: quay.io/weaveworks/pr-assigner:master-6f5e816
+        imagePullPolicy: IfNotPresent
+        args:
+        - --conf_path=/config/pr-assigner.json
+        env:
+        - name: GITHUB_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: pr-assigner
+              key: githubtoken
+        volumeMounts:
         - name: config-volume
-          configMap:
-            name: pr-assigner
-            items:
-              - key: conffile
-                path: pr-assigner.json
+          mountPath: /config
+      volumes:
+      - name: config-volume
+        configMap:
+          name: pr-assigner
+          items:
+          - key: conffile
+            path: pr-assigner.json
 `
 
 const case1resource = "extra:deployment/pr-assigner"
@@ -114,27 +116,27 @@ spec:
       imagePullSecrets:
       - name: quay-secret
       containers:
-        - name: pr-assigner
-          image: quay.io/weaveworks/pr-assigner:master-1234567
-          imagePullPolicy: IfNotPresent
-          args:
-            - --conf_path=/config/pr-assigner.json
-          env:
-            - name: GITHUB_TOKEN
-              valueFrom:
-                secretKeyRef:
-                  name: pr-assigner
-                  key: githubtoken
-          volumeMounts:
-            - name: config-volume
-              mountPath: /config
-      volumes:
+      - name: pr-assigner
+        image: quay.io/weaveworks/pr-assigner:master-1234567
+        imagePullPolicy: IfNotPresent
+        args:
+        - --conf_path=/config/pr-assigner.json
+        env:
+        - name: GITHUB_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: pr-assigner
+              key: githubtoken
+        volumeMounts:
         - name: config-volume
-          configMap:
-            name: pr-assigner
-            items:
-              - key: conffile
-                path: pr-assigner.json
+          mountPath: /config
+      volumes:
+      - name: config-volume
+        configMap:
+          name: pr-assigner
+          items:
+          - key: conffile
+            path: pr-assigner.json
 `
 
 // Version looks like a number
@@ -149,7 +151,6 @@ spec:
     metadata:
       labels:
         name: fluxy
-        version: master-a000001
     spec:
       volumes:
       - name: key
@@ -194,7 +195,6 @@ spec:
     metadata:
       labels:
         name: fluxy
-        version: "1234567"
     spec:
       volumes:
       - name: key
@@ -230,7 +230,7 @@ apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
  namespace: monitoring
- name: grafana # comment, and only one space
+ name: grafana # comment, and only one space indent
 spec:
   replicas: 1
   template:
@@ -262,8 +262,8 @@ const case3out = `---
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
- namespace: monitoring
- name: grafana # comment, and only one space
+  namespace: monitoring
+  name: grafana # comment, and only one space indent
 spec:
   replicas: 1
   template:
@@ -313,7 +313,7 @@ spec:
           runAsUser: 10001
           capabilities:
             drop:
-              - all
+            - all
           readOnlyRootFilesystem: true
 `
 
@@ -349,7 +349,7 @@ spec:
           runAsUser: 10001
           capabilities:
             drop:
-              - all
+            - all
           readOnlyRootFilesystem: true
 `
 
@@ -439,7 +439,7 @@ spec:
         - containerPort: 80
         image: nginx:1.10-alpine
         name: nginx
-      - image: nginx:1.10-alpine # testing comments, and this image is on the first line.
+      - image: nginx:1.10-alpine    # testing comments, and this image is on the first line.
         name: nginx2
 `
 
@@ -515,7 +515,7 @@ spec:
       labels:
         name: authfe
       annotations:
-        prometheus.io.port: "8080"
+        prometheus.io.port: '8080'
     spec:
       # blank comment spacers in the following
       containers:
@@ -577,4 +577,208 @@ spec:
       containers:
       - name: weave
         image: weaveworks/weave-kube:2.2.1
+`
+
+const case9 = `---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: hello
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  annotations:
+    some.other.com/foo: bar
+  name: helloworld
+  namespace: hello
+spec:
+  minReadySeconds: 1
+  replicas: 5
+  template:
+    metadata:
+      labels:
+        name: helloworld
+    spec:
+      containers:
+      - name: helloworld
+        image: quay.io/weaveworks/helloworld:master-07a1b6b
+        args:
+        - -msg=Bilbo Baggins
+        ports:
+        - containerPort: 80
+      - name: sidecar
+        image: quay.io/weaveworks/sidecar:master-a000002
+        args:
+        - -addr=:8080
+        ports:
+        - containerPort: 8080
+      restartPolicy: Always
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: helloworld
+  namespace: hello
+spec:
+  ports:
+  - port: 80
+  selector:
+    name: helloworld
+`
+
+const case9resource = "hello:deployment/helloworld"
+const case9image = "quay.io/weaveworks/helloworld:master-a000001"
+
+var case9containers = []string{"helloworld"}
+
+const case9out = `---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: hello
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  annotations:
+    some.other.com/foo: bar
+  name: helloworld
+  namespace: hello
+spec:
+  minReadySeconds: 1
+  replicas: 5
+  template:
+    metadata:
+      labels:
+        name: helloworld
+    spec:
+      containers:
+      - name: helloworld
+        image: quay.io/weaveworks/helloworld:master-a000001
+        args:
+        - -msg=Bilbo Baggins
+        ports:
+        - containerPort: 80
+      - name: sidecar
+        image: quay.io/weaveworks/sidecar:master-a000002
+        args:
+        - -addr=:8080
+        ports:
+        - containerPort: 8080
+      restartPolicy: Always
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: helloworld
+  namespace: hello
+spec:
+  ports:
+  - port: 80
+  selector:
+    name: helloworld
+`
+
+const case10 = `---
+apiVersion: v1
+kind: List
+items:
+- apiVersion: v1
+  kind: Namespace
+  metadata:
+    name: hello
+- apiVersion: extensions/v1beta1
+  kind: Deployment
+  metadata:
+    annotations:
+      some.other.com/foo: bar
+    name: helloworld
+    namespace: hello
+  spec:
+    minReadySeconds: 1
+    replicas: 5
+    template:
+      metadata:
+        labels:
+          name: helloworld
+      spec:
+        containers:
+        - name: helloworld
+          image: quay.io/weaveworks/helloworld:master-07a1b6b
+          args:
+          - -msg=Bilbo Baggins
+          ports:
+          - containerPort: 80
+        - name: sidecar
+          image: quay.io/weaveworks/sidecar:master-a000002
+          args:
+          - -addr=:8080
+          ports:
+          - containerPort: 8080
+        restartPolicy: Always
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: helloworld
+    namespace: hello
+  spec:
+    ports:
+    - port: 80
+    selector:
+      name: helloworld
+`
+
+const case10resource = "hello:deployment/helloworld"
+const case10image = "quay.io/weaveworks/helloworld:master-a000001"
+
+var case10containers = []string{"helloworld"}
+
+const case10out = `---
+apiVersion: v1
+kind: List
+items:
+- apiVersion: v1
+  kind: Namespace
+  metadata:
+    name: hello
+- apiVersion: extensions/v1beta1
+  kind: Deployment
+  metadata:
+    annotations:
+      some.other.com/foo: bar
+    name: helloworld
+    namespace: hello
+  spec:
+    minReadySeconds: 1
+    replicas: 5
+    template:
+      metadata:
+        labels:
+          name: helloworld
+      spec:
+        containers:
+        - name: helloworld
+          image: quay.io/weaveworks/helloworld:master-a000001
+          args:
+          - -msg=Bilbo Baggins
+          ports:
+          - containerPort: 80
+        - name: sidecar
+          image: quay.io/weaveworks/sidecar:master-a000002
+          args:
+          - -addr=:8080
+          ports:
+          - containerPort: 8080
+        restartPolicy: Always
+- apiVersion: v1
+  kind: Service
+  metadata:
+    name: helloworld
+    namespace: hello
+  spec:
+    ports:
+    - port: 80
+    selector:
+      name: helloworld
 `

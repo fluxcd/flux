@@ -1,8 +1,7 @@
 package kubernetes
 
 import (
-	"regexp"
-	"strings"
+	"fmt"
 
 	"github.com/pkg/errors"
 	yaml "gopkg.in/yaml.v2"
@@ -14,6 +13,7 @@ import (
 )
 
 func (m *Manifests) UpdatePolicies(def []byte, id flux.ResourceID, update policy.Update) ([]byte, error) {
+	ns, kind, name := id.Components()
 	add, del := update.Add, update.Remove
 
 	// We may be sent the pseudo-policy `policy.TagAll`, which means
@@ -35,78 +35,15 @@ func (m *Manifests) UpdatePolicies(def []byte, id flux.ResourceID, update policy
 		}
 	}
 
-	return updateAnnotations(def, id, func(old map[string]string) {
-		for k, v := range add {
-			old[kresource.PolicyPrefix+string(k)] = v
-		}
-		for k := range del {
-			delete(old, kresource.PolicyPrefix+string(k))
-		}
-	})
-}
-
-func updateAnnotations(def []byte, id flux.ResourceID, f func(map[string]string)) ([]byte, error) {
-	annotations, err := extractAnnotations(def)
-	if err != nil {
-		return nil, err
+	args := []string{}
+	for pol, val := range add {
+		args = append(args, fmt.Sprintf("%s%s=%s", kresource.PolicyPrefix, pol, val))
 	}
-	f(annotations)
-
-	// Write the new annotations back into the manifest
-	// Generate a fragment of the new annotations.
-	var fragment string
-	if len(annotations) > 0 {
-		fragmentB, err := yaml.Marshal(map[string]map[string]string{
-			"annotations": annotations,
-		})
-		if err != nil {
-			return nil, err
-		}
-
-		fragment = string(fragmentB)
-
-		// Remove the last newline, so it fits in better
-		fragment = strings.TrimSuffix(fragment, "\n")
-
-		// indent the fragment 2 spaces
-		// TODO: delete all regular expressions which are used to modify YAML.
-		// See #1019. Modifying this is not recommended.
-		fragment = regexp.MustCompile(`(.+)`).ReplaceAllString(fragment, "  $1")
-
-		// Add a newline if it's not blank
-		if len(fragment) > 0 {
-			fragment = "\n" + fragment
-		}
+	for pol, _ := range del {
+		args = append(args, fmt.Sprintf("%s%s=", kresource.PolicyPrefix, pol))
 	}
 
-	// Find where to insert the fragment.
-	// TODO: delete all regular expressions which are used to modify YAML.
-	// See #1019. Modifying this is not recommended.
-	replaced := false
-	annotationsRE := regexp.MustCompile(`(?m:\n  annotations:\s*(?:#.*)*(?:\n    .*|\n)*$)`)
-	newDef := annotationsRE.ReplaceAllStringFunc(string(def), func(found string) string {
-		if !replaced {
-			replaced = true
-			return fragment
-		}
-		return found
-	})
-	if !replaced {
-		metadataRE := multilineRE(`(metadata:\s*(?:#.*)*)`)
-		newDef = metadataRE.ReplaceAllStringFunc(string(def), func(found string) string {
-			if !replaced {
-				replaced = true
-				f := found + fragment
-				return f
-			}
-			return found
-		})
-	}
-	if !replaced {
-		return nil, errors.New("Could not update resource annotations")
-	}
-
-	return []byte(newDef), err
+	return (KubeYAML{}).Annotate(def, ns, kind, name, args...)
 }
 
 type manifest struct {

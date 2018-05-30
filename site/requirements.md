@@ -8,18 +8,9 @@ Flux has some requirements of the files it finds in your git repo.
  * Flux can only deal with one such repo at a time. This limitation is
    technical and may go away.
 
- * Flux only deals with YAML files at present. It preserves comments
-   and whitespace in YAMLs when updating them.
-
- * A controller resource (e.g., Deployment, DaemonSet, CronJob, or
-   StatefulSet) you want to automate must be in its own file. This is
-   again a technical limitation, that comes from how the file update
-   code works, and may at some point be improved upon.
-
- * Flux doesn't understand Kubernetes List resources. This is yet
-   again a technical limitation and should get fixed at some point. In
-   the meantime, you can just put the resources in the list into their
-   own documents (or files, if you want them automated, as above).
+ * Flux only deals with YAML files at present. It tries to preserve
+   comments and whitespace in YAMLs when updating them. You may see
+   updates with incidental, harmless changes, like reindented blocks.
 
  * All Kubernetes resource manifests should explicitly specify the
    namespace in which you want them to run. Otherwise, the

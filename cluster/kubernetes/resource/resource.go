@@ -110,6 +110,14 @@ func unmarshalKind(base baseObject, bytes []byte) (resource.Resource, error) {
 			return nil, err
 		}
 		return &ss, nil
+	case "List":
+		var raw rawList
+		if err := yaml.Unmarshal(bytes, &raw); err != nil {
+			return nil, err
+		}
+		var list List
+		unmarshalList(base, &raw, &list)
+		return &list, nil
 	case "":
 		// If there is an empty resource (due to eg an introduced comment),
 		// we are returning nil for the resource and nil for an error
@@ -122,6 +130,27 @@ func unmarshalKind(base baseObject, bytes []byte) (resource.Resource, error) {
 	default:
 		return &base, nil
 	}
+}
+
+type rawList struct {
+	Items []map[string]interface{}
+}
+
+func unmarshalList(base baseObject, raw *rawList, list *List) error {
+	list.baseObject = base
+	list.Items = make([]resource.Resource, len(raw.Items), len(raw.Items))
+	for i, item := range raw.Items {
+		bytes, err := yaml.Marshal(item)
+		if err != nil {
+			return err
+		}
+		res, err := unmarshalObject(base.source, bytes)
+		if err != nil {
+			return err
+		}
+		list.Items[i] = res
+	}
+	return nil
 }
 
 func makeUnmarshalObjectErr(source string, err error) *fluxerr.Error {
