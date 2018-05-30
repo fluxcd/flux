@@ -90,7 +90,7 @@ The following tables lists the configurable parameters of the Weave Flux chart a
 | `rbac.create` | If `true`, create and use RBAC resources | `true`
 | `serviceAccount.create` | If `true`, create a new service account | `true`
 | `serviceAccount.name` | Service account to be used | `flux`
-| `service.type` | Service type to be used (exposing Flux API outside of th cluster is not advise) | `ClusterIP`
+| `service.type` | Service type to be used (exposing the Flux API outside of the cluster is not advised) | `ClusterIP`
 | `service.port` | Service port to be used | `3030`
 | `git.url` | URL of git repo with Kubernetes manifests | None
 | `git.branch` | Branch of git repo to use for Kubernetes manifests | `master`
