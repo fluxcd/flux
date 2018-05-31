@@ -26,6 +26,14 @@ spec:
         emptyDir:
           medium: Memory
 
+      # The following volume is for using a customised known_hosts
+      # file file, which you will need to do if you host your own git
+      # repo rather than using github or the like. You'll also need to
+      # mount it into the container, below.
+
+      # - name: ssh-config
+      #   configMap: flux-ssh-config
+
       containers:
       - name: flux
         # There are no ":latest" images for flux. Find the most recent
@@ -37,10 +45,16 @@ spec:
         - containerPort: 3030 # informational
         volumeMounts:
         - name: git-key
-          mountPath: /etc/fluxd/ssh # to match image's ~/.ssh/config
+          mountPath: /etc/fluxd/ssh # to match location given in image's /etc/ssh/config
           readOnly: true # this will be the case perforce in K8s >=1.10
         - name: git-keygen
-          mountPath: /var/fluxd/keygen # to match image's ~/.ssh/config
+          mountPath: /var/fluxd/keygen # to match location given in image's /etc/ssh/config
+
+        # Include this if you need to mount a customised known_hosts
+        # file; you'll also need the volume declared above.
+        # - name: ssh-config
+        #   mountPath: /root/.ssh
+
         args:
 
         # if you deployed memcached in a different namespace to flux,
@@ -53,7 +67,7 @@ spec:
         # mounted above, for K8s >= 1.10
         - --ssh-keygen-dir=/var/fluxd/keygen
 
-        # replace (at least) the following URL
+        # replace or remove the following URL
         - --git-url=git@github.com:weaveworks/flux-example
         - --git-branch=master
 
