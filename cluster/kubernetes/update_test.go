@@ -49,6 +49,7 @@ func TestUpdates(t *testing.T) {
 		{"single quotes", case8resource, case8containers, case8image, case8, case8out},
 		{"in multidoc", case9resource, case9containers, case9image, case9, case9out},
 		{"in kubernetes List resource", case10resource, case10containers, case10image, case10, case10out},
+		{"FluxHelmRelease (simple image encoding)", case11resource, case11containers, case11image, case11, case11out},
 	} {
 		testUpdate(t, c)
 	}
@@ -515,7 +516,7 @@ spec:
       labels:
         name: authfe
       annotations:
-        prometheus.io.port: '8080'
+        prometheus.io.port: "8080"
     spec:
       # blank comment spacers in the following
       containers:
@@ -576,7 +577,7 @@ spec:
     spec:
       containers:
       - name: weave
-        image: weaveworks/weave-kube:2.2.1
+        image: 'weaveworks/weave-kube:2.2.1'
 `
 
 const case9 = `---
@@ -781,4 +782,41 @@ items:
     - port: 80
     selector:
       name: helloworld
+`
+
+const case11 = `---
+apiVersion: helm.integrations.flux.weave.works/v1alpha2
+kind: FluxHelmRelease
+metadata:
+  name: mariadb
+  namespace: maria
+  labels:
+    chart: mariadb
+spec:
+  chartGitPath: mariadb
+  values:
+    image: bitnami/mariadb:10.1.30-r1
+    persistence:
+      enabled: false
+`
+
+const case11resource = "maria:fluxhelmrelease/mariadb"
+const case11image = "bitnami/mariadb:10.1.33"
+
+var case11containers = []string{"mariadb"}
+
+const case11out = `---
+apiVersion: helm.integrations.flux.weave.works/v1alpha2
+kind: FluxHelmRelease
+metadata:
+  name: mariadb
+  namespace: maria
+  labels:
+    chart: mariadb
+spec:
+  chartGitPath: mariadb
+  values:
+    image: bitnami/mariadb:10.1.33
+    persistence:
+      enabled: false
 `
