@@ -3,7 +3,6 @@ package kubernetes
 import (
 	"fmt"
 
-	ifv1 "github.com/weaveworks/flux/apis/helm.integrations.flux.weave.works/v1alpha2"
 	apiapps "k8s.io/api/apps/v1beta1"
 	apibatch "k8s.io/api/batch/v1beta1"
 	apiv1 "k8s.io/api/core/v1"
@@ -11,7 +10,9 @@ import (
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/weaveworks/flux"
+	fhr_v1alpha2 "github.com/weaveworks/flux/apis/helm.integrations.flux.weave.works/v1alpha2"
 	"github.com/weaveworks/flux/cluster"
+	kresource "github.com/weaveworks/flux/cluster/kubernetes/resource"
 	"github.com/weaveworks/flux/image"
 	"github.com/weaveworks/flux/resource"
 )
@@ -299,7 +300,7 @@ func (fhr *fluxHelmReleaseKind) getPodControllers(c *Cluster, namespace string) 
 	return podControllers, nil
 }
 
-func makeFluxHelmReleasePodController(fluxHelmRelease *ifv1.FluxHelmRelease) podController {
+func makeFluxHelmReleasePodController(fluxHelmRelease *fhr_v1alpha2.FluxHelmRelease) podController {
 	containers := createK8sFHRContainers(fluxHelmRelease.Spec)
 
 	podTemplate := apiv1.PodTemplateSpec{
@@ -316,18 +317,19 @@ func makeFluxHelmReleasePodController(fluxHelmRelease *ifv1.FluxHelmRelease) pod
 		name:        fluxHelmRelease.ObjectMeta.Name,
 		status:      StatusReady,
 		podTemplate: podTemplate,
-		apiObject:   fluxHelmRelease}
+		apiObject:   fluxHelmRelease,
+	}
 }
 
 // createK8sContainers creates a list of k8s containers by
 // interpreting the FluxHelmRelease resource. The interpretation is
 // analogous to that in cluster/kubernetes/resource/fluxhelmrelease.go
-func createK8sFHRContainers(spec ifv1.FluxHelmReleaseSpec) []apiv1.Container {
+func createK8sFHRContainers(spec fhr_v1alpha2.FluxHelmReleaseSpec) []apiv1.Container {
 	values := spec.Values
 	if imgInfo, ok := values["image"]; ok {
 		if imgInfoStr, ok := imgInfo.(string); ok {
 			return []apiv1.Container{
-				{Name: spec.ChartGitPath, Image: imgInfoStr},
+				{Name: kresource.ReleaseContainerName, Image: imgInfoStr},
 			}
 		}
 	}

@@ -7,6 +7,18 @@ import (
 	"github.com/weaveworks/flux/resource"
 )
 
+// ReleaseContainerName is the name used when flux interprets a
+// FluxHelmRelease as having a container with an image, by virtue of
+// having a `values` stanza with an image field:
+//
+// spec:
+//   ...
+//   values:
+//     image: some/image:version
+//
+// The name refers to the source of the image value.
+const ReleaseContainerName = "chart-image"
+
 // FluxHelmRelease echoes the generated type for the custom resource
 // definition. It's here so we can 1. get `baseObject` in there, and
 // 3. control the YAML serialisation of fields, which we can't do
@@ -14,8 +26,7 @@ import (
 type FluxHelmRelease struct {
 	baseObject
 	Spec struct {
-		ChartGitPath string `yaml:"chartGitPath"`
-		Values       map[string]interface{}
+		Values map[string]interface{}
 	}
 }
 
@@ -27,16 +38,15 @@ type FluxHelmRelease struct {
 func (fhr FluxHelmRelease) Containers() []resource.Container {
 	values := fhr.Spec.Values
 	if imgInfo, ok := values["image"]; ok {
-		imgInfoStr := imgInfo.(string)
-		imageRef, err := image.ParseRef(imgInfoStr)
-		if err != nil {
-			return nil
-		}
-		return []resource.Container{
-			{Name: fhr.Spec.ChartGitPath, Image: imageRef},
+		if imgInfoStr, ok := imgInfo.(string); ok {
+			imageRef, err := image.ParseRef(imgInfoStr)
+			if err == nil {
+				return []resource.Container{
+					{Name: ReleaseContainerName, Image: imageRef},
+				}
+			}
 		}
 	}
-
 	return nil
 }
 
@@ -45,11 +55,11 @@ func (fhr FluxHelmRelease) Containers() []resource.Container {
 // we can get away with a value-typed receiver because we set a map
 // entry.
 func (fhr FluxHelmRelease) SetContainerImage(container string, ref image.Ref) error {
-	if container != fhr.Spec.ChartGitPath {
-		return fmt.Errorf("container %q not in resource; found only container %q", container, fhr.Spec.ChartGitPath)
+	if container != ReleaseContainerName {
+		return fmt.Errorf("container %q not in resource; expected %q by convention", container, ReleaseContainerName)
 	}
 	values := fhr.Spec.Values
-	if _, ok := values["image"]; ok { // minor shortcut -- assume it's a string
+	if _, ok := values["image"]; ok { // NB assume it's OK to replace whatever's there with a string
 		values["image"] = ref.String()
 		return nil
 	}

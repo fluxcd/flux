@@ -803,7 +803,7 @@ spec:
 const case11resource = "maria:fluxhelmrelease/mariadb"
 const case11image = "bitnami/mariadb:10.1.33"
 
-var case11containers = []string{"mariadb"}
+var case11containers = []string{"chart-image"}
 
 const case11out = `---
 apiVersion: helm.integrations.flux.weave.works/v1alpha2
