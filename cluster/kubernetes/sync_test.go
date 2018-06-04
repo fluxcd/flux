@@ -1,6 +1,7 @@
 package kubernetes
 
 import (
+	"sort"
 	"testing"
 
 	"github.com/go-kit/kit/log"
@@ -15,7 +16,7 @@ type mockApplier struct {
 }
 
 func (m *mockApplier) apply(_ log.Logger, c changeSet) cluster.SyncError {
-	if len(c.nsObjs) != 0 || len(c.noNsObjs) != 0 {
+	if len(c.objs) != 0 {
 		m.commandRun = true
 	}
 	return nil
@@ -77,5 +78,35 @@ func TestSyncMalformed(t *testing.T) {
 	}
 	if mock.commandRun {
 		t.Error("expected no commands run")
+	}
+}
+
+// TestApplyOrder checks that applyOrder works as expected.
+func TestApplyOrder(t *testing.T) {
+	objs := []*apiObject{
+		{
+			Kind: "Deployment",
+			Metadata: metadata{
+				Name: "deploy",
+			},
+		},
+		{
+			Kind: "Secret",
+			Metadata: metadata{
+				Name: "secret",
+			},
+		},
+		{
+			Kind: "Namespace",
+			Metadata: metadata{
+				Name: "namespace",
+			},
+		},
+	}
+	sort.Sort(applyOrder(objs))
+	for i, name := range []string{"namespace", "secret", "deploy"} {
+		if objs[i].Metadata.Name != name {
+			t.Errorf("Expected %q at position %d, got %q", name, i, objs[i].Metadata.Name)
+		}
 	}
 }

@@ -43,13 +43,15 @@ type extendedClient struct {
 
 // --- internal types for keeping track of syncing
 
+type metadata struct {
+	Name      string `yaml:"name"`
+	Namespace string `yaml:"namespace"`
+}
+
 type apiObject struct {
 	resource.Resource
-	Kind     string `yaml:"kind"`
-	Metadata struct {
-		Name      string `yaml:"name"`
-		Namespace string `yaml:"namespace"`
-	} `yaml:"metadata"`
+	Kind     string   `yaml:"kind"`
+	Metadata metadata `yaml:"metadata"`
 }
 
 // A convenience for getting an minimal object from some bytes.
