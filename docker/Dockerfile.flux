@@ -31,6 +31,7 @@ RUN mkdir ~/.ssh && touch ~/.ssh/known_hosts && \
 COPY ./ssh_config /root/.ssh/config
 RUN chmod 600 /root/.ssh/config
 
+COPY ./kubeconfig /root/.kube/config
 COPY ./kubectl /usr/local/bin/
 COPY ./fluxd /usr/local/bin/
 
