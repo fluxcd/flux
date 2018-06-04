@@ -79,7 +79,8 @@ func (d *Daemon) getPolicyResourceMap(ctx context.Context) (policy.ResourceMap, 
 		return err
 	})
 
-	// Capture errors related to read-only repositories
+	// The reason something is missing from the map differs depending
+	// on the state of the git repo.
 	switch {
 	case err == git.ErrNotReady:
 		globalReadOnly = v6.ReadOnlyNotReady
@@ -87,6 +88,8 @@ func (d *Daemon) getPolicyResourceMap(ctx context.Context) (policy.ResourceMap, 
 		globalReadOnly = v6.ReadOnlyNoRepo
 	case err != nil:
 		return nil, globalReadOnly, errors.Wrap(err, "getting service policies")
+	default:
+		globalReadOnly = v6.ReadOnlyMissing
 	}
 
 	return services, globalReadOnly, nil
@@ -98,17 +101,18 @@ func (d *Daemon) ListServices(ctx context.Context, namespace string) ([]v6.Contr
 		return nil, errors.Wrap(err, "getting services from cluster")
 	}
 
-	policyResourceMap, readOnly, err := d.getPolicyResourceMap(ctx)
+	policyResourceMap, missingReason, err := d.getPolicyResourceMap(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	var res []v6.ControllerStatus
 	for _, service := range clusterServices {
+		readOnly := v6.ReadOnlyOK
 		policies, ok := policyResourceMap[service.ID]
 		switch {
 		case !ok:
-			readOnly = v6.ReadOnlyMissing
+			readOnly = missingReason
 		case service.IsSystem:
 			readOnly = v6.ReadOnlySystem
 		}
