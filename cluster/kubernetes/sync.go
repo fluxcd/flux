@@ -8,11 +8,37 @@ import (
 	"strings"
 	"time"
 
+	rest "k8s.io/client-go/rest"
+
 	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
 	"github.com/weaveworks/flux/cluster"
-	rest "k8s.io/client-go/rest"
 )
+
+type changeSet struct {
+	nsObjs   map[string][]*apiObject
+	noNsObjs map[string][]*apiObject
+}
+
+func makeChangeSet() changeSet {
+	return changeSet{
+		nsObjs:   make(map[string][]*apiObject),
+		noNsObjs: make(map[string][]*apiObject),
+	}
+}
+
+func (c *changeSet) stage(cmd string, o *apiObject) {
+	if o.hasNamespace() {
+		c.nsObjs[cmd] = append(c.nsObjs[cmd], o)
+	} else {
+		c.noNsObjs[cmd] = append(c.noNsObjs[cmd], o)
+	}
+}
+
+// Applier is something that will apply a changeset to the cluster.
+type Applier interface {
+	apply(log.Logger, changeSet) cluster.SyncError
+}
 
 type Kubectl struct {
 	exe    string
