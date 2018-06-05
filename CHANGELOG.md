@@ -1,3 +1,36 @@
+## 1.4.0 (2018-06-05)
+
+This release includes a rewrite of the YAML updating code, removing
+the restrictions on using List resources and files with multiple YAML
+documents, as well as fixing various bugs (like being confused by the
+indentation of `container` blocks).
+
+See https://github.com/weaveworks/flux/blob/1.4.0/site/requirements.md
+for remaining constraints.
+
+The YAML parser preserves comments and literal quoting, but may
+reindent blocks the first time it changes a file.
+
+### Fixes
+
+- Correct an issue the led to Flux incorrectly reporting resources as
+  read-only [weaveworks/flux#1119](https://github.com/weaveworks/flux/pull/1119)
+- Some YAML update problems were fixed by the rewrite, the most egregious being:
+  - botched releases when a YAML has indented container blocks
+    [weaveworks/flux#1082](https://github.com/weaveworks/flux/issues/1082)
+  - mangled annotations when using multidoc YAML files
+    [weaveworks/flux#1044](https://github.com/weaveworks/flux/issues/1044)
+
+### Improvements
+
+- Rewrite the YAML update code to use a round-tripping parser, rather
+  than regular expressions
+  [weaveworks/flux#976](https://github.com/weaveworks/flux/pull/976). This
+  removes the restrictions on how YAMLs are formatted, though there
+  are still going to be corner cases in the parser
+  ([verifying changes](https://github.com/weaveworks/flux/pull/1094)
+  will mitigate those by failing updates that would corrupt files).
+
 ## 1.3.1 (2018-05-29)
 
 ### Fixes
