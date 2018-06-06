@@ -35,6 +35,7 @@ type ControllerStatus struct {
 	Containers []Container
 	ReadOnly   ReadOnlyReason
 	Status     string
+	Labels     map[string]string
 	Automated  bool
 	Locked     bool
 	Ignore     bool

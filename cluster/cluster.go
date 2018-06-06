@@ -34,6 +34,7 @@ type Controller struct {
 	// control of the platform. In the case of Kubernetes, we simply
 	// omit these controllers; but this may not always be the case.
 	IsSystem bool
+	Labels   map[string]string
 
 	Containers ContainersOrExcuse
 }

@@ -62,6 +62,7 @@ func (pc podController) toClusterController(resourceID flux.ResourceID) cluster.
 	return cluster.Controller{
 		ID:         resourceID,
 		Status:     pc.status,
+		Labels:     pc.GetLabels(),
 		Containers: cluster.ContainersOrExcuse{Containers: clusterContainers, Excuse: excuse},
 	}
 }
