@@ -118,6 +118,12 @@ func unmarshalKind(base baseObject, bytes []byte) (resource.Resource, error) {
 		var list List
 		unmarshalList(base, &raw, &list)
 		return &list, nil
+	case "FluxHelmRelease":
+		var fhr = FluxHelmRelease{baseObject: base}
+		if err := yaml.Unmarshal(bytes, &fhr); err != nil {
+			return nil, err
+		}
+		return &fhr, nil
 	case "":
 		// If there is an empty resource (due to eg an introduced comment),
 		// we are returning nil for the resource and nil for an error

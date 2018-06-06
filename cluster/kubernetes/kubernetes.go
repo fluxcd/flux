@@ -8,6 +8,7 @@ import (
 	k8syaml "github.com/ghodss/yaml"
 	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
+	ifclient "github.com/weaveworks/flux/integrations/client/clientset/versioned"
 	"gopkg.in/yaml.v2"
 	apiv1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -39,6 +40,7 @@ type extendedClient struct {
 	v1beta1extensions.ExtensionsV1beta1Interface
 	v1beta1apps.StatefulSetsGetter
 	v1beta1batch.CronJobsGetter
+	ifclient.Interface
 }
 
 // --- internal types for keeping track of syncing
@@ -131,6 +133,7 @@ type Cluster struct {
 
 // NewCluster returns a usable cluster.
 func NewCluster(clientset k8sclient.Interface,
+	ifclientset ifclient.Interface,
 	applier Applier,
 	sshKeyRing ssh.KeyRing,
 	logger log.Logger) *Cluster {
@@ -142,6 +145,7 @@ func NewCluster(clientset k8sclient.Interface,
 			clientset.Extensions(),
 			clientset.AppsV1beta1(),
 			clientset.BatchV1beta1(),
+			ifclientset,
 		},
 		applier:    applier,
 		logger:     logger,

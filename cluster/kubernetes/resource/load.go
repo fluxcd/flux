@@ -62,6 +62,7 @@ func Load(base, atLeastOne string, more ...string) (map[string]resource.Resource
 			return objs, err
 		}
 	}
+
 	return objs, nil
 }
 

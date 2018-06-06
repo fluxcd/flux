@@ -88,7 +88,9 @@ func VerifyChanges(before map[string]resource.Resource, updates []*update.Contro
 			return verificationError("resource %q mentioned in update is not a workload", update.ResourceID.String())
 		}
 		for _, containerUpdate := range update.Updates {
-			wl.SetContainerImage(containerUpdate.Container, containerUpdate.Target)
+			if err := wl.SetContainerImage(containerUpdate.Container, containerUpdate.Target); err != nil {
+				return verificationError("updating container %q in resource %q failed: %s", containerUpdate.Container, update.ResourceID.String(), err.Error())
+			}
 		}
 	}
 

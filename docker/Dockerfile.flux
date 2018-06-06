@@ -19,7 +19,7 @@ ENTRYPOINT [ "/sbin/tini", "--", "fluxd" ]
 RUN apk add --no-cache openssh ca-certificates tini 'git>=2.3.0'
 
 # Get the kubeyaml binary (files) and put them on the path
-COPY --from=quay.io/squaremo/kubeyaml:0.2.1 /usr/lib/kubeyaml /usr/lib/kubeyaml/
+COPY --from=quay.io/squaremo/kubeyaml:0.3.1 /usr/lib/kubeyaml /usr/lib/kubeyaml/
 ENV PATH=/bin:/usr/bin:/usr/local/bin:/usr/lib/kubeyaml
 
 # Add git hosts to known hosts file so when git ssh's using the deploy
