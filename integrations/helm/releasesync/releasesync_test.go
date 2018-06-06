@@ -65,7 +65,7 @@ func (r *mockReleaser) Install(checkout *helmgit.Checkout,
 	releaseName string,
 	fhr ifv1.FluxHelmRelease,
 	action chartrelease.Action,
-	opts chartrelease.InstallOptions) (hapi_release.Release, error) {
+	opts chartrelease.InstallOptions) (*hapi_release.Release, error) {
 	req := installReq{
 		checkoutDir: checkout.Dir,
 		releaseName: releaseName,
@@ -75,10 +75,10 @@ func (r *mockReleaser) Install(checkout *helmgit.Checkout,
 	cmpopts := cmp.AllowUnexported(installReq{})
 	for _, i := range r.installs {
 		if cmp.Equal(i.installReq, req, cmpopts) {
-			return i.installResult.release, i.installResult.err
+			return &i.installResult.release, i.installResult.err
 		}
 	}
-	return hapi_release.Release{}, fmt.Errorf("unexpected request: %+v", req)
+	return nil, fmt.Errorf("unexpected request: %+v", req)
 }
 
 func makeCurRel(ns string, relNames ...string) map[string]map[string]struct{} {

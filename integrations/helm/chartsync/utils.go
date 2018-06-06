@@ -26,23 +26,19 @@ func (chs *ChartChangeSync) chartChanged(ctx context.Context, dir, revRange, cha
 		return false, err
 	}
 
-	lines := splitList(out.String())
+	lines := splitLines(out.String())
 	if len(lines) < 1 {
 		return false, nil
 	}
 	return true, nil
 }
 
-func splitList(s string) []string {
+func splitLines(s string) []string {
 	outStr := strings.TrimSpace(s)
 	if outStr == "" {
-		return []string{}
+		return nil
 	}
-
-	lines := []string{}
-	lines = strings.Split(outStr, "\n")
-
-	return lines
+	return strings.Split(outStr, "\n")
 }
 
 // execDiffCmd ... find if there is a change in a particular chart
