@@ -61,11 +61,6 @@ Clear visibility of the state of a cluster is key for maintaining
 operational systems. Developers can be confident in their changes by
 observing a predictable series of deployment events.
 
-## Weave Cloud
-
-These features, and more, integrate tightly with the rest of [Weave 
-Cloud](https://cloud.weave.works).
-
 ## Next
 
 _Find out more about [Flux's features](/site/how-it-works.md)._
