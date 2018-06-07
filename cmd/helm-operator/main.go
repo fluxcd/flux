@@ -23,7 +23,9 @@ import (
 	"github.com/weaveworks/flux/integrations/helm/operator"
 	"github.com/weaveworks/flux/integrations/helm/release"
 	"github.com/weaveworks/flux/integrations/helm/releasesync"
+	"github.com/weaveworks/flux/integrations/helm/status"
 	"github.com/weaveworks/flux/ssh"
+
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 
@@ -161,6 +163,11 @@ func main() {
 
 	// HELM ---------------------------------------------------------------------------------
 	helmClient := fluxhelm.ClientSetup(log.With(logger, "component", "helm"), kubeClient, fluxhelm.TillerOptions{IP: *tillerIP, Port: *tillerPort, Namespace: *tillerNamespace})
+
+	// The status updater, to keep track the release status for each
+	// FluxHelmRelease. It runs as a separate loop for now.
+	statusUpdater := status.New(ifClient, kubeClient, helmClient)
+	go statusUpdater.Loop(shutdown, log.With(logger, "component", "annotator"))
 
 	gitURLParsed, err := url.Parse(*gitURL)
 	if err != nil {
