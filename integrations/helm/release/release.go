@@ -1,17 +1,21 @@
 package release
 
 import (
+	"bytes"
+	"context"
 	"fmt"
+	"os/exec"
 	"path/filepath"
 	"sync"
+	"time"
 
-	//	"k8s.io/client-go/kubernetes"
-
+	"github.com/go-kit/kit/log"
 	k8shelm "k8s.io/helm/pkg/helm"
 	hapi_release "k8s.io/helm/pkg/proto/hapi/release"
 
-	"github.com/go-kit/kit/log"
+	"github.com/weaveworks/flux"
 	ifv1 "github.com/weaveworks/flux/apis/helm.integrations.flux.weave.works/v1alpha2"
+	kresource "github.com/weaveworks/flux/cluster/kubernetes/resource"
 	helmgit "github.com/weaveworks/flux/integrations/helm/git"
 )
 
@@ -192,7 +196,10 @@ func (r *Release) Install(checkout *helmgit.Checkout, releaseName string, fhr if
 			r.logger.Log("error", fmt.Sprintf("Chart release failed: %s: %#v", releaseName, err))
 			return nil, err
 		}
-		return res.Release, nil
+		if !opts.DryRun {
+			err = r.annotateResources(res.Release, fhr)
+		}
+		return res.Release, err
 	case UpgradeAction:
 		r.Lock()
 		res, err := r.HelmClient.UpdateRelease(
@@ -216,7 +223,10 @@ func (r *Release) Install(checkout *helmgit.Checkout, releaseName string, fhr if
 			r.logger.Log("error", fmt.Sprintf("Chart upgrade release failed: %s: %#v", releaseName, err))
 			return nil, err
 		}
-		return res.Release, nil
+		if !opts.DryRun {
+			err = r.annotateResources(res.Release, fhr)
+		}
+		return res.Release, err
 	default:
 		err = fmt.Errorf("Valid install options: CREATE, UPDATE. Provided: %s", action)
 		r.logger.Log("error", err.Error())
@@ -266,4 +276,30 @@ func (r *Release) GetCurrent() (map[string][]DeployInfo, error) {
 		relsM[ns] = depl
 	}
 	return relsM, nil
+}
+
+// markResources annotates each of the resources created (or updated)
+// by the release so that we can spot them.
+func (r *Release) annotateResources(release *hapi_release.Release, fhr ifv1.FluxHelmRelease) error {
+	args := []string{"annotate", "--overwrite"}
+	args = append(args, "--namespace", release.Namespace)
+	args = append(args, "-f", "-")
+	args = append(args, kresource.CauseAnnotation+"="+fhrResourceID(fhr).String())
+
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "kubectl", args...)
+	cmd.Stdin = bytes.NewBufferString(release.Manifest)
+
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		r.logger.Log("output", string(output), "err", err)
+	}
+	return err
+}
+
+// fhrResourceID constructs a flux.ResourceID for a FluxHelmRelease
+// resource.
+func fhrResourceID(fhr ifv1.FluxHelmRelease) flux.ResourceID {
+	return flux.MakeResourceID(fhr.Namespace, "FluxHelmRelease", fhr.Name)
 }
