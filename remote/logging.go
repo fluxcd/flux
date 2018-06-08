@@ -56,7 +56,7 @@ func (p *ErrorLoggingServer) ListImages(ctx context.Context, spec update.Resourc
 func (p *ErrorLoggingServer) ListImagesWithOptions(ctx context.Context, opts v10.ListImagesOptions) (_ []v6.ImageStatus, err error) {
 	defer func() {
 		if err != nil {
-			p.logger.Log("method", "ListImages", "error", err)
+			p.logger.Log("method", "ListImagesWithOptions", "error", err)
 		}
 	}()
 	return p.server.ListImagesWithOptions(ctx, opts)

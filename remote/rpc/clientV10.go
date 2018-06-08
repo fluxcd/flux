@@ -11,8 +11,8 @@ import (
 )
 
 // RPCClientV10 is the rpc-backed implementation of a server, for
-// talking to remote daemons. Version 8 has the same methods, but
-// supports a different set of resource kinds to earlier versions.
+// talking to remote daemons. This version introduces methods which accept an
+// options struct as the first argument. e.g. ListImagesWithOptions
 type RPCClientV10 struct {
 	*RPCClientV9
 }

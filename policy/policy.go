@@ -36,6 +36,17 @@ func Tag(policy Policy) bool {
 	return strings.HasPrefix(string(policy), "tag.")
 }
 
+func GetTagPattern(services ResourceMap, service flux.ResourceID, container string) string {
+	if services == nil {
+		return "*"
+	}
+	policies := services[service]
+	if pattern, ok := policies.Get(TagPrefix(container)); ok {
+		return strings.TrimPrefix(pattern, "glob:")
+	}
+	return "*"
+}
+
 type Updates map[flux.ResourceID]Update
 
 type Update struct {

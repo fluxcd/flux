@@ -5,7 +5,6 @@ import (
 
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/git"
-	"github.com/weaveworks/flux/image"
 	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/ssh"
 	"github.com/weaveworks/flux/update"
@@ -40,22 +39,6 @@ type ControllerStatus struct {
 	Locked     bool
 	Ignore     bool
 	Policies   map[string]string
-}
-
-type Container struct {
-	Name           string     `json:",omitempty"`
-	Current        image.Info `json:",omitempty"`
-	LatestFiltered image.Info `json:",omitempty"`
-
-	// All available images (ignoring tag filters)
-	Available               []image.Info `json:",omitempty"`
-	AvailableError          string       `json:",omitempty"`
-	AvailableImagesCount    int          `json:",omitempty"`
-	NewAvailableImagesCount int          `json:",omitempty"`
-
-	// Filtered available images (matching tag filters)
-	FilteredImagesCount    int `json:",omitempty"`
-	NewFilteredImagesCount int `json:",omitempty"`
 }
 
 // --- config types

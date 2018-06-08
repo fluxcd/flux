@@ -1,4 +1,4 @@
-// This package defines the types for Flux API version 9.
+// This package defines the types for Flux API version 10.
 package v10
 
 import (
