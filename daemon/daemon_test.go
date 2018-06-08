@@ -15,6 +15,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/api/v10"
 	"github.com/weaveworks/flux/api/v6"
 	"github.com/weaveworks/flux/api/v9"
 	"github.com/weaveworks/flux/cluster"
@@ -135,7 +136,7 @@ func TestDaemon_ListServices(t *testing.T) {
 }
 
 // When I call list images for a service, it should return images
-func TestDaemon_ListImages(t *testing.T) {
+func TestDaemon_ListImagesWithOptions(t *testing.T) {
 	d, start, clean, _, _ := mockDaemon(t)
 	start()
 	defer clean()
@@ -160,8 +161,7 @@ func TestDaemon_ListImages(t *testing.T) {
 
 	tests := []struct {
 		name string
-		spec update.ResourceSpec
-		opts v6.ListImagesOptions
+		opts v10.ListImagesOptions
 
 		expectedImages    []v6.ImageStatus
 		expectedNumImages int
@@ -169,8 +169,7 @@ func TestDaemon_ListImages(t *testing.T) {
 	}{
 		{
 			name: "All services",
-			spec: specAll,
-			opts: v6.ListImagesOptions{},
+			opts: v10.ListImagesOptions{Spec: specAll},
 			expectedImages: []v6.ImageStatus{
 				{
 					ID: svcID,
@@ -212,8 +211,7 @@ func TestDaemon_ListImages(t *testing.T) {
 		},
 		{
 			name: "Specific service",
-			spec: update.ResourceSpec(svc),
-			opts: v6.ListImagesOptions{},
+			opts: v10.ListImagesOptions{Spec: update.ResourceSpec(svc)},
 			expectedImages: []v6.ImageStatus{
 				{
 					ID: svcID,
@@ -238,8 +236,10 @@ func TestDaemon_ListImages(t *testing.T) {
 		},
 		{
 			name: "Override container field selection",
-			spec: specAll,
-			opts: v6.ListImagesOptions{OverrideContainerFields: []string{"Name", "Current", "NewAvailableImagesCount"}},
+			opts: v10.ListImagesOptions{
+				Spec: specAll,
+				OverrideContainerFields: []string{"Name", "Current", "NewAvailableImagesCount"},
+			},
 			expectedImages: []v6.ImageStatus{
 				{
 					ID: svcID,
@@ -265,9 +265,11 @@ func TestDaemon_ListImages(t *testing.T) {
 			shouldError: false,
 		},
 		{
-			name:           "Override container field selection with invalid field",
-			spec:           specAll,
-			opts:           v6.ListImagesOptions{OverrideContainerFields: []string{"InvalidField"}},
+			name: "Override container field selection with invalid field",
+			opts: v10.ListImagesOptions{
+				Spec: specAll,
+				OverrideContainerFields: []string{"InvalidField"},
+			},
 			expectedImages: nil,
 			shouldError:    true,
 		},
@@ -275,7 +277,7 @@ func TestDaemon_ListImages(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			is, err := d.ListImages(ctx, tt.spec, tt.opts)
+			is, err := d.ListImagesWithOptions(ctx, tt.opts)
 			assert.Equal(t, tt.shouldError, err != nil)
 
 			// Clear CreatedAt fields for testing

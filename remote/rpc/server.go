@@ -6,6 +6,8 @@ import (
 	"net/rpc"
 	"net/rpc/jsonrpc"
 
+	"github.com/weaveworks/flux/api/v10"
+
 	"github.com/pkg/errors"
 
 	"github.com/weaveworks/flux/api"
@@ -89,7 +91,19 @@ type ListImagesResponse struct {
 }
 
 func (p *RPCServer) ListImages(spec update.ResourceSpec, resp *ListImagesResponse) error {
-	v, err := p.s.ListImages(context.Background(), spec, v6.ListImagesOptions{})
+	v, err := p.s.ListImages(context.Background(), spec)
+	resp.Result = v
+	if err != nil {
+		if err, ok := errors.Cause(err).(*fluxerr.Error); ok {
+			resp.ApplicationError = err
+			return nil
+		}
+	}
+	return err
+}
+
+func (p *RPCServer) ListImagesWithOptions(opts v10.ListImagesOptions, resp *ListImagesResponse) error {
+	v, err := p.s.ListImagesWithOptions(context.Background(), opts)
 	resp.Result = v
 	if err != nil {
 		if err, ok := errors.Cause(err).(*fluxerr.Error); ok {

@@ -76,17 +76,13 @@ type Deprecated interface {
 	SyncNotify(context.Context) error
 }
 
-type ListImagesOptions struct {
-	OverrideContainerFields []string
-}
-
 type NotDeprecated interface {
 	// from v5
 	Export(context.Context) ([]byte, error)
 
 	// v6
 	ListServices(ctx context.Context, namespace string) ([]ControllerStatus, error)
-	ListImages(ctx context.Context, spec update.ResourceSpec, opts ListImagesOptions) ([]ImageStatus, error)
+	ListImages(ctx context.Context, spec update.ResourceSpec) ([]ImageStatus, error)
 	UpdateManifests(context.Context, update.Spec) (job.ID, error)
 	SyncStatus(ctx context.Context, ref string) ([]string, error)
 	JobStatus(context.Context, job.ID) (job.Status, error)

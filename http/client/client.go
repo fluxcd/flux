@@ -13,6 +13,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/weaveworks/flux/api"
+	"github.com/weaveworks/flux/api/v10"
 	"github.com/weaveworks/flux/api/v6"
 	fluxerr "github.com/weaveworks/flux/errors"
 	"github.com/weaveworks/flux/event"
@@ -57,9 +58,15 @@ func (c *Client) ListServices(ctx context.Context, namespace string) ([]v6.Contr
 	return res, err
 }
 
-func (c *Client) ListImages(ctx context.Context, s update.ResourceSpec, opts v6.ListImagesOptions) ([]v6.ImageStatus, error) {
+func (c *Client) ListImages(ctx context.Context, s update.ResourceSpec) ([]v6.ImageStatus, error) {
 	var res []v6.ImageStatus
-	err := c.Get(ctx, &res, transport.ListImages, "service", string(s), "containerFields", strings.Join(opts.OverrideContainerFields, ","))
+	err := c.Get(ctx, &res, transport.ListImages, "service", string(s))
+	return res, err
+}
+
+func (c *Client) ListImagesWithOptions(ctx context.Context, opts v10.ListImagesOptions) ([]v6.ImageStatus, error) {
+	var res []v6.ImageStatus
+	err := c.Get(ctx, &res, transport.ListImagesWithOptions, "service", string(opts.Spec), "containerFields", strings.Join(opts.OverrideContainerFields, ","))
 	return res, err
 }
 

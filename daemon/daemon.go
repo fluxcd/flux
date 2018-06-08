@@ -12,6 +12,7 @@ import (
 
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/api"
+	"github.com/weaveworks/flux/api/v10"
 	"github.com/weaveworks/flux/api/v6"
 	"github.com/weaveworks/flux/api/v9"
 	"github.com/weaveworks/flux/cluster"
@@ -142,14 +143,19 @@ func (cs clusterContainers) Containers(i int) []resource.Container {
 	return cs[i].ContainersOrNil()
 }
 
-// List the images available for set of services
-func (d *Daemon) ListImages(ctx context.Context, spec update.ResourceSpec, opts v6.ListImagesOptions) ([]v6.ImageStatus, error) {
+// ListImages - deprecated from v10, lists the images available for set of services
+func (d *Daemon) ListImages(ctx context.Context, spec update.ResourceSpec) ([]v6.ImageStatus, error) {
+	return d.ListImagesWithOptions(ctx, v10.ListImagesOptions{Spec: spec})
+}
+
+// ListImagesWithOptions lists the images available for set of services
+func (d *Daemon) ListImagesWithOptions(ctx context.Context, opts v10.ListImagesOptions) ([]v6.ImageStatus, error) {
 	var services []cluster.Controller
 	var err error
-	if spec == update.ResourceSpecAll {
+	if opts.Spec == update.ResourceSpecAll {
 		services, err = d.Cluster.AllControllers("")
 	} else {
-		id, err := spec.AsID()
+		id, err := opts.Spec.AsID()
 		if err != nil {
 			return nil, errors.Wrap(err, "treating service spec as ID")
 		}

@@ -6,6 +6,8 @@ import (
 	"net/rpc"
 	"net/rpc/jsonrpc"
 
+	"github.com/weaveworks/flux/api/v10"
+
 	"github.com/weaveworks/flux/api/v6"
 	fluxerr "github.com/weaveworks/flux/errors"
 	"github.com/weaveworks/flux/job"
@@ -99,7 +101,7 @@ func (p *RPCClientV6) ListServices(ctx context.Context, namespace string) ([]v6.
 	return services, err
 }
 
-func (p *RPCClientV6) ListImages(ctx context.Context, spec update.ResourceSpec, opts v6.ListImagesOptions) ([]v6.ImageStatus, error) {
+func (p *RPCClientV6) ListImages(ctx context.Context, spec update.ResourceSpec) ([]v6.ImageStatus, error) {
 	var images []v6.ImageStatus
 	if err := requireServiceSpecKinds(spec, supportedKindsV6); err != nil {
 		return images, remote.UpgradeNeededError(err)
@@ -113,6 +115,11 @@ func (p *RPCClientV6) ListImages(ctx context.Context, spec update.ResourceSpec, 
 		err = remoteApplicationError(err)
 	}
 	return images, err
+}
+
+func (p *RPCClientV6) ListImagesWithOptions(ctx context.Context, opts v10.ListImagesOptions) ([]v6.ImageStatus, error) {
+	// TODO: Backfill list image summary fields from v10
+	return p.ListImages(ctx, opts.Spec)
 }
 
 func (p *RPCClientV6) UpdateManifests(ctx context.Context, u update.Spec) (job.ID, error) {
