@@ -6,6 +6,8 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster/kubernetes/testfiles"
 	"github.com/weaveworks/flux/resource"
@@ -116,6 +118,37 @@ data:
 	_, err := ParseMultidoc(buffer.Bytes(), "test")
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestParseCronJob(t *testing.T) {
+	doc := `---
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  namespace: default
+  name: weekly-curl-homepage
+spec:
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: weekly-curl-homepage
+            image: centos:7 # Has curl installed by default
+`
+	objs, err := ParseMultidoc([]byte(doc), "test")
+	assert.NoError(t, err)
+
+	obj, ok := objs["default:cronjob/weekly-curl-homepage"]
+	assert.True(t, ok)
+	cj, ok := obj.(*CronJob)
+	assert.True(t, ok)
+
+	containers := cj.Spec.JobTemplate.Spec.Template.Spec.Containers
+	if assert.Len(t, containers, 1) {
+		assert.Equal(t, "centos:7", containers[0].Image)
+		assert.Equal(t, "weekly-curl-homepage", containers[0].Name)
 	}
 }
 
