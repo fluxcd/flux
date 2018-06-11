@@ -15,7 +15,7 @@ import (
 
 	"github.com/weaveworks/flux"
 	ifv1 "github.com/weaveworks/flux/apis/helm.integrations.flux.weave.works/v1alpha2"
-	kresource "github.com/weaveworks/flux/cluster/kubernetes/resource"
+	fluxk8s "github.com/weaveworks/flux/cluster/kubernetes"
 	helmgit "github.com/weaveworks/flux/integrations/helm/git"
 )
 
@@ -278,13 +278,13 @@ func (r *Release) GetCurrent() (map[string][]DeployInfo, error) {
 	return relsM, nil
 }
 
-// markResources annotates each of the resources created (or updated)
+// annotateResources annotates each of the resources created (or updated)
 // by the release so that we can spot them.
 func (r *Release) annotateResources(release *hapi_release.Release, fhr ifv1.FluxHelmRelease) error {
 	args := []string{"annotate", "--overwrite"}
 	args = append(args, "--namespace", release.Namespace)
 	args = append(args, "-f", "-")
-	args = append(args, kresource.CauseAnnotation+"="+fhrResourceID(fhr).String())
+	args = append(args, fluxk8s.AntecedentAnnotation+"="+fhrResourceID(fhr).String())
 
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()

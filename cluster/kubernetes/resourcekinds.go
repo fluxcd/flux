@@ -17,6 +17,14 @@ import (
 	"github.com/weaveworks/flux/resource"
 )
 
+// AntecedentAnnotation is an annotation on a resource indicating that
+// the cause of that resource (indirectly, via a Helm release) is a
+// FluxHelmRelease. We use this rather than the `OwnerReference` type
+// built into Kubernetes so that there are no garbage-collection
+// implications. The value is expected to be a serialised
+// `flux.ResourceID`.
+const AntecedentAnnotation = "flux.weave.works/antecedent"
+
 /////////////////////////////////////////////////////////////////////////////
 // Kind registry
 
@@ -38,12 +46,12 @@ func init() {
 }
 
 type podController struct {
+	k8sObject
 	apiVersion  string
 	kind        string
 	name        string
 	status      string
 	podTemplate apiv1.PodTemplateSpec
-	apiObject   interface{}
 }
 
 func (pc podController) toClusterController(resourceID flux.ResourceID) cluster.Controller {
@@ -59,22 +67,21 @@ func (pc podController) toClusterController(resourceID flux.ResourceID) cluster.
 		clusterContainers = append(clusterContainers, resource.Container{Name: container.Name, Image: ref})
 	}
 
+	var antecedent flux.ResourceID
+	if ante, ok := pc.GetAnnotations()[AntecedentAnnotation]; ok {
+		id, err := flux.ParseResourceID(ante)
+		if err == nil {
+			antecedent = id
+		}
+	}
+
 	return cluster.Controller{
 		ID:         resourceID,
 		Status:     pc.status,
+		Antecedent: antecedent,
 		Labels:     pc.GetLabels(),
 		Containers: cluster.ContainersOrExcuse{Containers: clusterContainers, Excuse: excuse},
 	}
-}
-
-func (pc podController) GetNamespace() string {
-	objectMeta := pc.apiObject.(namespacedLabeled)
-	return objectMeta.GetNamespace()
-}
-
-func (pc podController) GetLabels() map[string]string {
-	objectMeta := pc.apiObject.(namespacedLabeled)
-	return objectMeta.GetLabels()
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -127,7 +134,7 @@ func makeDeploymentPodController(deployment *apiext.Deployment) podController {
 		name:        deployment.ObjectMeta.Name,
 		status:      status,
 		podTemplate: deployment.Spec.Template,
-		apiObject:   deployment}
+		k8sObject:   deployment}
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -179,7 +186,7 @@ func makeDaemonSetPodController(daemonSet *apiext.DaemonSet) podController {
 		name:        daemonSet.ObjectMeta.Name,
 		status:      status,
 		podTemplate: daemonSet.Spec.Template,
-		apiObject:   daemonSet}
+		k8sObject:   daemonSet}
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -232,7 +239,7 @@ func makeStatefulSetPodController(statefulSet *apiapps.StatefulSet) podControlle
 		name:        statefulSet.ObjectMeta.Name,
 		status:      status,
 		podTemplate: statefulSet.Spec.Template,
-		apiObject:   statefulSet}
+		k8sObject:   statefulSet}
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -270,7 +277,7 @@ func makeCronJobPodController(cronJob *apibatch.CronJob) podController {
 		name:        cronJob.ObjectMeta.Name,
 		status:      StatusReady,
 		podTemplate: cronJob.Spec.JobTemplate.Spec.Template,
-		apiObject:   cronJob}
+		k8sObject:   cronJob}
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -318,7 +325,7 @@ func makeFluxHelmReleasePodController(fluxHelmRelease *fhr_v1alpha2.FluxHelmRele
 		name:        fluxHelmRelease.ObjectMeta.Name,
 		status:      fluxHelmRelease.Status.ReleaseStatus,
 		podTemplate: podTemplate,
-		apiObject:   fluxHelmRelease,
+		k8sObject:   fluxHelmRelease,
 	}
 }
 

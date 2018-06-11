@@ -121,6 +121,7 @@ func (d *Daemon) ListServices(ctx context.Context, namespace string) ([]v6.Contr
 			Containers: containers2containers(service.ContainersOrNil()),
 			ReadOnly:   readOnly,
 			Status:     service.Status,
+			Antecedent: service.Antecedent,
 			Labels:     service.Labels,
 			Automated:  policies.Contains(policy.Automated),
 			Locked:     policies.Contains(policy.Locked),

@@ -29,7 +29,12 @@ type Controller struct {
 	// control of the platform. In the case of Kubernetes, we simply
 	// omit these controllers; but this may not always be the case.
 	IsSystem bool
-	Labels   map[string]string
+	// If this workload was created _because_ of another, antecedent
+	// resource through some mechanism (like an operator, or custom
+	// resource controller), we try to record the ID of that resource
+	// in this field.
+	Antecedent flux.ResourceID
+	Labels     map[string]string
 
 	Containers ContainersOrExcuse
 }

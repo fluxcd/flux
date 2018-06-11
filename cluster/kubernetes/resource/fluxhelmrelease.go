@@ -19,14 +19,6 @@ import (
 // The name refers to the source of the image value.
 const ReleaseContainerName = "chart-image"
 
-// CauseAnnotation is an annotation on a resource indicating that the
-// cause of that resource (indirectly, via a Helm release) is a
-// FluxHelmRelease. We use this rather than the `OwnerReference` type
-// built into Kubernetes so that there are no garbage-collection
-// implications. The value is expected to be a serialised
-// `flux.ResourceID`.
-const CauseAnnotation = "flux.weave.works/cause"
-
 // FluxHelmRelease echoes the generated type for the custom resource
 // definition. It's here so we can 1. get `baseObject` in there, and
 // 3. control the YAML serialisation of fields, which we can't do

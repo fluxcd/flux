@@ -34,6 +34,7 @@ type ControllerStatus struct {
 	Containers []Container
 	ReadOnly   ReadOnlyReason
 	Status     string
+	Antecedent flux.ResourceID
 	Labels     map[string]string
 	Automated  bool
 	Locked     bool
