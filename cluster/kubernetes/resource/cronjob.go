@@ -15,7 +15,7 @@ type CronJobSpec struct {
 		Spec struct {
 			Template PodTemplate
 		}
-	}
+	} `yaml:"jobTemplate"`
 }
 
 func (c CronJob) Containers() []resource.Container {
