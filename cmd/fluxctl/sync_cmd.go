@@ -58,17 +58,19 @@ func (opts *syncOpts) RunE(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(cmd.OutOrStderr(), "Job ID %s\n", string(jobID))
 	result, err := awaitJob(ctx, opts.API, jobID)
 	if err != nil {
+		fmt.Fprintf(cmd.OutOrStderr(), "Failed to complete sync job (ID %q)\n", jobID)
 		return err
 	}
-	fmt.Fprintf(cmd.OutOrStderr(), "HEAD of %s is %s\n", gitConfig.Remote.Branch, result.Revision)
-	err = awaitSync(ctx, opts.API, result.Revision)
+
+	rev := result.Revision[:7]
+	fmt.Fprintf(cmd.OutOrStderr(), "HEAD of %s is %s\n", gitConfig.Remote.Branch, rev)
+	fmt.Fprintf(cmd.OutOrStderr(), "Waiting for %s to be applied ...\n", rev)
+	err = awaitSync(ctx, opts.API, rev)
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(cmd.OutOrStderr(), "Applied %s\n", result.Revision)
 	fmt.Fprintln(cmd.OutOrStderr(), "Done.")
 	return nil
 }
