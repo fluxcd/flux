@@ -345,14 +345,16 @@ func Test_FilterLogic(t *testing.T) {
 			},
 		},
 	} {
-		checkout, cleanup := setup(t)
-		defer cleanup()
-		testRelease(t, tst.Name, &ReleaseContext{
-			cluster:   cluster,
-			manifests: mockManifests,
-			registry:  mockRegistry,
-			repo:      checkout,
-		}, tst.Spec, tst.Expected)
+		t.Run(tst.Name, func(t *testing.T) {
+			checkout, cleanup := setup(t)
+			defer cleanup()
+			testRelease(t, &ReleaseContext{
+				cluster:   cluster,
+				manifests: mockManifests,
+				registry:  mockRegistry,
+				repo:      checkout,
+			}, tst.Spec, tst.Expected)
+		})
 	}
 }
 
@@ -413,19 +415,21 @@ func Test_ImageStatus(t *testing.T) {
 			},
 		},
 	} {
-		checkout, cleanup := setup(t)
-		defer cleanup()
-		ctx := &ReleaseContext{
-			cluster:   cluster,
-			manifests: mockManifests,
-			repo:      checkout,
-			registry:  upToDateRegistry,
-		}
-		testRelease(t, tst.Name, ctx, tst.Spec, tst.Expected)
+		t.Run(tst.Name, func(t *testing.T) {
+			checkout, cleanup := setup(t)
+			defer cleanup()
+			ctx := &ReleaseContext{
+				cluster:   cluster,
+				manifests: mockManifests,
+				repo:      checkout,
+				registry:  upToDateRegistry,
+			}
+			testRelease(t, ctx, tst.Spec, tst.Expected)
+		})
 	}
 }
 
-func testRelease(t *testing.T, name string, ctx *ReleaseContext, spec update.ReleaseSpec, expected update.Result) {
+func testRelease(t *testing.T, ctx *ReleaseContext, spec update.ReleaseSpec, expected update.Result) {
 	results, err := Release(ctx, spec, log.NewNopLogger())
 	if err != nil {
 		t.Fatal(err)
@@ -433,7 +437,7 @@ func testRelease(t *testing.T, name string, ctx *ReleaseContext, spec update.Rel
 	if !reflect.DeepEqual(expected, results) {
 		exp, _ := json.Marshal(expected)
 		got, _ := json.Marshal(results)
-		t.Errorf("%s\n--- expected ---\n%s\n--- got ---\n%s\n", name, string(exp), string(got))
+		t.Errorf("--- expected ---\n%s\n--- got ---\n%s\n", string(exp), string(got))
 	}
 }
 
