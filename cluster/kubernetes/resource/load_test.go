@@ -204,8 +204,8 @@ func TestLoadSome(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if len(objs) != len(testfiles.ServiceMap(dir)) {
-		t.Errorf("expected %d objects from %d files, got result:\n%#v", len(testfiles.ServiceMap(dir)), len(testfiles.Files), objs)
+	if len(objs) != len(testfiles.ResourceMap) {
+		t.Errorf("expected %d objects from %d files, got result:\n%#v", len(testfiles.ResourceMap), len(testfiles.Files), objs)
 	}
 }
 

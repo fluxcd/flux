@@ -135,6 +135,31 @@ func setup(t *testing.T) (*git.Checkout, func()) {
 	return gittest.Checkout(t)
 }
 
+var ignoredNotIncluded = update.ControllerResult{
+	Status: update.ReleaseStatusIgnored,
+	Error:  update.NotIncluded,
+}
+
+var ignoredNotInRepo = update.ControllerResult{
+	Status: update.ReleaseStatusIgnored,
+	Error:  update.NotInRepo,
+}
+
+var ignoredNotInCluster = update.ControllerResult{
+	Status: update.ReleaseStatusIgnored,
+	Error:  update.NotInCluster,
+}
+
+var skippedNotInCluster = update.ControllerResult{
+	Status: update.ReleaseStatusSkipped,
+	Error:  update.NotInCluster,
+}
+
+var skippedNotInRepo = update.ControllerResult{
+	Status: update.ReleaseStatusSkipped,
+	Error:  update.NotInRepo,
+}
+
 func Test_FilterLogic(t *testing.T) {
 	cluster := mockCluster(hwSvc, lockedSvc) // no testsvc in cluster, but it _is_ in repo
 	notInRepoService := "default:deployment/notInRepo"
@@ -169,14 +194,9 @@ func Test_FilterLogic(t *testing.T) {
 						},
 					},
 				},
-				flux.MustParseResourceID("default:deployment/locked-service"): update.ControllerResult{
-					Status: update.ReleaseStatusIgnored,
-					Error:  update.NotIncluded,
-				},
-				flux.MustParseResourceID("default:deployment/test-service"): update.ControllerResult{
-					Status: update.ReleaseStatusIgnored,
-					Error:  update.NotIncluded,
-				},
+				flux.MustParseResourceID("default:deployment/locked-service"): ignoredNotIncluded,
+				flux.MustParseResourceID("default:deployment/test-service"):   ignoredNotIncluded,
+				flux.MustParseResourceID("default:deployment/www-example-io"): ignoredNotIncluded,
 			},
 		}, {
 			Name: "exclude specific service",
@@ -206,10 +226,8 @@ func Test_FilterLogic(t *testing.T) {
 					Status: update.ReleaseStatusIgnored,
 					Error:  update.Excluded,
 				},
-				flux.MustParseResourceID("default:deployment/test-service"): update.ControllerResult{
-					Status: update.ReleaseStatusSkipped,
-					Error:  update.NotInCluster,
-				},
+				flux.MustParseResourceID("default:deployment/test-service"):   skippedNotInCluster,
+				flux.MustParseResourceID("default:deployment/www-example-io"): skippedNotInCluster,
 			},
 		}, {
 			Name: "update specific image",
@@ -235,6 +253,10 @@ func Test_FilterLogic(t *testing.T) {
 					Error:  update.DifferentImage,
 				},
 				flux.MustParseResourceID("default:deployment/test-service"): update.ControllerResult{
+					Status: update.ReleaseStatusSkipped,
+					Error:  update.NotInCluster,
+				},
+				flux.MustParseResourceID("default:deployment/www-example-io"): update.ControllerResult{
 					Status: update.ReleaseStatusSkipped,
 					Error:  update.NotInCluster,
 				},
@@ -270,10 +292,8 @@ func Test_FilterLogic(t *testing.T) {
 					Status: update.ReleaseStatusSkipped,
 					Error:  update.Locked,
 				},
-				flux.MustParseResourceID("default:deployment/test-service"): update.ControllerResult{
-					Status: update.ReleaseStatusSkipped,
-					Error:  update.NotInCluster,
-				},
+				flux.MustParseResourceID("default:deployment/test-service"):   skippedNotInCluster,
+				flux.MustParseResourceID("default:deployment/www-example-io"): skippedNotInCluster,
 			},
 		},
 		{
@@ -304,10 +324,8 @@ func Test_FilterLogic(t *testing.T) {
 					Status: update.ReleaseStatusSkipped,
 					Error:  update.Locked,
 				},
-				flux.MustParseResourceID("default:deployment/test-service"): update.ControllerResult{
-					Status: update.ReleaseStatusSkipped,
-					Error:  update.NotInCluster,
-				},
+				flux.MustParseResourceID("default:deployment/test-service"):   skippedNotInCluster,
+				flux.MustParseResourceID("default:deployment/www-example-io"): skippedNotInCluster,
 			},
 		},
 		{
@@ -319,22 +337,11 @@ func Test_FilterLogic(t *testing.T) {
 				Excludes:     []flux.ResourceID{},
 			},
 			Expected: update.Result{
-				flux.MustParseResourceID("default:deployment/helloworld"): update.ControllerResult{
-					Status: update.ReleaseStatusIgnored,
-					Error:  update.NotIncluded,
-				},
-				flux.MustParseResourceID("default:deployment/locked-service"): update.ControllerResult{
-					Status: update.ReleaseStatusIgnored,
-					Error:  update.NotIncluded,
-				},
-				flux.MustParseResourceID("default:deployment/test-service"): update.ControllerResult{
-					Status: update.ReleaseStatusIgnored,
-					Error:  update.NotIncluded,
-				},
-				flux.MustParseResourceID(notInRepoService): update.ControllerResult{
-					Status: update.ReleaseStatusSkipped,
-					Error:  update.NotInRepo,
-				},
+				flux.MustParseResourceID("default:deployment/helloworld"):     ignoredNotIncluded,
+				flux.MustParseResourceID("default:deployment/locked-service"): ignoredNotIncluded,
+				flux.MustParseResourceID("default:deployment/test-service"):   ignoredNotIncluded,
+				flux.MustParseResourceID("default:deployment/www-example-io"): ignoredNotIncluded,
+				flux.MustParseResourceID(notInRepoService):                    skippedNotInRepo,
 			},
 		},
 	} {
@@ -379,14 +386,9 @@ func Test_ImageStatus(t *testing.T) {
 				Excludes:     []flux.ResourceID{},
 			},
 			Expected: update.Result{
-				flux.MustParseResourceID("default:deployment/helloworld"): update.ControllerResult{
-					Status: update.ReleaseStatusIgnored,
-					Error:  update.NotIncluded,
-				},
-				flux.MustParseResourceID("default:deployment/locked-service"): update.ControllerResult{
-					Status: update.ReleaseStatusIgnored,
-					Error:  update.NotIncluded,
-				},
+				flux.MustParseResourceID("default:deployment/helloworld"):     ignoredNotIncluded,
+				flux.MustParseResourceID("default:deployment/locked-service"): ignoredNotIncluded,
+				flux.MustParseResourceID("default:deployment/www-example-io"): ignoredNotIncluded,
 				flux.MustParseResourceID("default:deployment/test-service"): update.ControllerResult{
 					Status: update.ReleaseStatusIgnored,
 					Error:  update.DoesNotUseImage,
@@ -405,14 +407,9 @@ func Test_ImageStatus(t *testing.T) {
 					Status: update.ReleaseStatusSkipped,
 					Error:  update.ImageUpToDate,
 				},
-				flux.MustParseResourceID("default:deployment/locked-service"): update.ControllerResult{
-					Status: update.ReleaseStatusIgnored,
-					Error:  update.NotIncluded,
-				},
-				flux.MustParseResourceID("default:deployment/test-service"): update.ControllerResult{
-					Status: update.ReleaseStatusIgnored,
-					Error:  update.NotIncluded,
-				},
+				flux.MustParseResourceID("default:deployment/locked-service"): ignoredNotIncluded,
+				flux.MustParseResourceID("default:deployment/test-service"):   ignoredNotIncluded,
+				flux.MustParseResourceID("default:deployment/www-example-io"): ignoredNotIncluded,
 			},
 		},
 	} {

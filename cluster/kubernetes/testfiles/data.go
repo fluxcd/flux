@@ -42,13 +42,25 @@ func WriteTestFiles(dir string) error {
 
 // ----- DATA
 
-// ServiceMap ... given a base path, construct the map representing the services
-// given in the test data.
+// ResourceMap is the map of resource names to relative paths, which
+// must correspond with `Files` below.
+var ResourceMap = map[flux.ResourceID]string{
+	flux.MustParseResourceID("default:deployment/helloworld"):       "helloworld-deploy.yaml",
+	flux.MustParseResourceID("default:deployment/locked-service"):   "locked-service-deploy.yaml",
+	flux.MustParseResourceID("default:deployment/test-service"):     "test/test-service-deploy.yaml",
+	flux.MustParseResourceID("default:deployment/www-example-io"):   "multi.yaml",
+	flux.MustParseResourceID("default:service/www-example-service"): "multi.yaml",
+}
+
+// ServiceMap ... given a base path, construct the map representing
+// the services given in the test data. Must be kept in sync with
+// `Files` below. TODO(michael): derive from ResourceMap, or similar.
 func ServiceMap(dir string) map[flux.ResourceID][]string {
 	return map[flux.ResourceID][]string{
 		flux.MustParseResourceID("default:deployment/helloworld"):     []string{filepath.Join(dir, "helloworld-deploy.yaml")},
 		flux.MustParseResourceID("default:deployment/locked-service"): []string{filepath.Join(dir, "locked-service-deploy.yaml")},
 		flux.MustParseResourceID("default:deployment/test-service"):   []string{filepath.Join(dir, "test/test-service-deploy.yaml")},
+		flux.MustParseResourceID("default:deployment/www-example-io"): []string{filepath.Join(dir, "multi.yaml")},
 	}
 }
 
@@ -122,6 +134,44 @@ spec:
         - -msg=Ahoy
         ports:
         - containerPort: 80
+`,
+	// A multidoc, since we support those now
+	"multi.yaml": `apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  annotations:
+    flux.weave.works/automated: "true"
+  name: www-example-io
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app : www-example-io
+    spec:
+      containers:
+        - name: www-example-io
+          image: quay.io/weaveworks/helloworld:master-a000001
+          imagePullPolicy: Always
+          ports:
+          - containerPort: 80
+      imagePullSecrets:
+      - name: imagesecret
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: www-example-io
+  name: www-example-service
+spec:
+  type: NodePort
+  ports:
+  - name: www-example-io
+    port: 80
+    protocol: TCP
+  selector:
+    app: www-example-io
 `,
 
 	// A tricksy chart directory, which should be skipped entirely. Adapted from
