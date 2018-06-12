@@ -2,12 +2,10 @@ package daemon
 
 import (
 	"context"
-	"strings"
 
 	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
 
-	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/git"
 	"github.com/weaveworks/flux/policy"
 	"github.com/weaveworks/flux/update"
@@ -51,7 +49,7 @@ func (d *Daemon) pollForNewImages(logger log.Logger) {
 				continue
 			}
 
-			pattern := getTagPattern(candidateServicesPolicyMap, service.ID, container.Name)
+			pattern := policy.GetTagPattern(candidateServicesPolicyMap, service.ID, container.Name)
 			repo := currentImageID.Name
 			logger.Log("repo", repo, "pattern", pattern)
 
@@ -72,17 +70,6 @@ func (d *Daemon) pollForNewImages(logger log.Logger) {
 	if len(changes.Changes) > 0 {
 		d.UpdateManifests(ctx, update.Spec{Type: update.Auto, Spec: changes})
 	}
-}
-
-func getTagPattern(services policy.ResourceMap, service flux.ResourceID, container string) string {
-	if services == nil {
-		return "*"
-	}
-	policies := services[service]
-	if pattern, ok := policies.Get(policy.TagPrefix(container)); ok {
-		return strings.TrimPrefix(pattern, "glob:")
-	}
-	return "*"
 }
 
 // getUnlockedAutomatedServicesPolicyMap returns a resource policy map for all unlocked automated services

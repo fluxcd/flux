@@ -2,8 +2,12 @@ package policy
 
 import (
 	"encoding/json"
+	"fmt"
 	"reflect"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/weaveworks/flux"
 )
 
 func TestJSON(t *testing.T) {
@@ -43,5 +47,53 @@ func TestJSON(t *testing.T) {
 	}
 	if !reflect.DeepEqual(boolPolicy, policy2) {
 		t.Errorf("Parsing equivalent list did not preserve policy. Expected:\n%#v\nGot:\n%#v\n", policy, policy2)
+	}
+}
+
+func Test_GetTagPattern(t *testing.T) {
+	resourceID, err := flux.ParseResourceID("default:deployment/helloworld")
+	assert.NoError(t, err)
+	container := "helloContainer"
+
+	type args struct {
+		services  ResourceMap
+		service   flux.ResourceID
+		container string
+	}
+	tests := []struct {
+		name string
+		args args
+		want string
+	}{
+		{
+			name: "Nil policies",
+			args: args{services: nil},
+			want: "*",
+		},
+		{
+			name: "No match",
+			args: args{services: ResourceMap{}},
+			want: "*",
+		},
+		{
+			name: "Match",
+			args: args{
+				services: ResourceMap{
+					resourceID: Set{
+						Policy(fmt.Sprintf("tag.%s", container)): "glob:master-*",
+					},
+				},
+				service:   resourceID,
+				container: container,
+			},
+			want: "master-*",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := GetTagPattern(tt.args.services, tt.args.service, tt.args.container); got != tt.want {
+				t.Errorf("GetTagPattern() = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }

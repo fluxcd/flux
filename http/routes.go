@@ -1,13 +1,14 @@
 package http
 
 const (
-	ListServices    = "ListServices"
-	ListImages      = "ListImages"
-	UpdateManifests = "UpdateManifests"
-	JobStatus       = "JobStatus"
-	SyncStatus      = "SyncStatus"
-	Export          = "Export"
-	GitRepoConfig   = "GitRepoConfig"
+	ListServices          = "ListServices"
+	ListImages            = "ListImages"
+	ListImagesWithOptions = "ListImagesWithOptions"
+	UpdateManifests       = "UpdateManifests"
+	JobStatus             = "JobStatus"
+	SyncStatus            = "SyncStatus"
+	Export                = "Export"
+	GitRepoConfig         = "GitRepoConfig"
 
 	UpdateImages           = "UpdateImages"
 	UpdatePolicies         = "UpdatePolicies"

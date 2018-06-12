@@ -10,6 +10,7 @@ import (
 
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/api"
+	"github.com/weaveworks/flux/api/v10"
 	"github.com/weaveworks/flux/api/v6"
 	"github.com/weaveworks/flux/api/v9"
 	"github.com/weaveworks/flux/guid"
@@ -65,7 +66,11 @@ func (p *MockServer) ListServices(ctx context.Context, ns string) ([]v6.Controll
 	return p.ListServicesAnswer, p.ListServicesError
 }
 
-func (p *MockServer) ListImages(context.Context, update.ResourceSpec, v6.ListImagesOptions) ([]v6.ImageStatus, error) {
+func (p *MockServer) ListImages(context.Context, update.ResourceSpec) ([]v6.ImageStatus, error) {
+	return p.ListImagesAnswer, p.ListImagesError
+}
+
+func (p *MockServer) ListImagesWithOptions(context.Context, v10.ListImagesOptions) ([]v6.ImageStatus, error) {
 	return p.ListImagesAnswer, p.ListImagesError
 }
 
@@ -194,7 +199,9 @@ func ServerTestBattery(t *testing.T, wrap func(mock api.UpstreamServer) api.Upst
 		t.Error("expected error from ListServices, got nil")
 	}
 
-	ims, err := client.ListImages(ctx, update.ResourceSpecAll, v6.ListImagesOptions{})
+	ims, err := client.ListImagesWithOptions(ctx, v10.ListImagesOptions{
+		Spec: update.ResourceSpecAll,
+	})
 	if err != nil {
 		t.Error(err)
 	}
@@ -202,7 +209,9 @@ func ServerTestBattery(t *testing.T, wrap func(mock api.UpstreamServer) api.Upst
 		t.Error(fmt.Errorf("expected:\n%#v\ngot:\n%#v", mock.ListImagesAnswer, ims))
 	}
 	mock.ListImagesError = fmt.Errorf("list images error")
-	if _, err = client.ListImages(ctx, update.ResourceSpecAll, v6.ListImagesOptions{}); err == nil {
+	if _, err = client.ListImagesWithOptions(ctx, v10.ListImagesOptions{
+		Spec: update.ResourceSpecAll,
+	}); err == nil {
 		t.Error("expected error from ListImages, got nil")
 	}
 

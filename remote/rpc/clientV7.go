@@ -62,7 +62,7 @@ func (p *RPCClientV7) ListServices(ctx context.Context, namespace string) ([]v6.
 	return resp.Result, err
 }
 
-func (p *RPCClientV7) ListImages(ctx context.Context, spec update.ResourceSpec, opts v6.ListImagesOptions) ([]v6.ImageStatus, error) {
+func (p *RPCClientV7) ListImages(ctx context.Context, spec update.ResourceSpec) ([]v6.ImageStatus, error) {
 	var resp ListImagesResponse
 	if err := requireServiceSpecKinds(spec, supportedKindsV7); err != nil {
 		return resp.Result, remote.UpgradeNeededError(err)

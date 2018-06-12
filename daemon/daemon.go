@@ -12,6 +12,7 @@ import (
 
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/api"
+	"github.com/weaveworks/flux/api/v10"
 	"github.com/weaveworks/flux/api/v6"
 	"github.com/weaveworks/flux/api/v9"
 	"github.com/weaveworks/flux/cluster"
@@ -142,14 +143,19 @@ func (cs clusterContainers) Containers(i int) []resource.Container {
 	return cs[i].ContainersOrNil()
 }
 
-// List the images available for set of services
-func (d *Daemon) ListImages(ctx context.Context, spec update.ResourceSpec, opts v6.ListImagesOptions) ([]v6.ImageStatus, error) {
+// ListImages - deprecated from v10, lists the images available for set of services
+func (d *Daemon) ListImages(ctx context.Context, spec update.ResourceSpec) ([]v6.ImageStatus, error) {
+	return d.ListImagesWithOptions(ctx, v10.ListImagesOptions{Spec: spec})
+}
+
+// ListImagesWithOptions lists the images available for set of services
+func (d *Daemon) ListImagesWithOptions(ctx context.Context, opts v10.ListImagesOptions) ([]v6.ImageStatus, error) {
 	var services []cluster.Controller
 	var err error
-	if spec == update.ResourceSpecAll {
+	if opts.Spec == update.ResourceSpecAll {
 		services, err = d.Cluster.AllControllers("")
 	} else {
-		id, err := spec.AsID()
+		id, err := opts.Spec.AsID()
 		if err != nil {
 			return nil, errors.Wrap(err, "treating service spec as ID")
 		}
@@ -613,77 +619,16 @@ func containers2containers(cs []resource.Container) []v6.Container {
 }
 
 func getServiceContainers(service cluster.Controller, imageRepos update.ImageRepos, policyResourceMap policy.ResourceMap, fields []string) (res []v6.Container, err error) {
-	if len(fields) == 0 {
-		fields = []string{
-			"Name",
-			"Current",
-			"LatestFiltered",
-			"Available",
-			"AvailableError",
-			"AvailableImagesCount",
-			"NewAvailableImagesCount",
-			"FilteredImagesCount",
-			"NewFilteredImagesCount",
-		}
-	}
-
 	for _, c := range service.ContainersOrNil() {
-		var container v6.Container
-
 		imageRepo := c.Image.Name
-		tagPattern := getTagPattern(policyResourceMap, service.ID, c.Name)
+		tagPattern := policy.GetTagPattern(policyResourceMap, service.ID, c.Name)
 
 		images := imageRepos.GetRepoImages(imageRepo)
 		currentImage := images.FindWithRef(c.Image)
 
-		// All images
-		imagesCount := len(images)
-		imagesErr := ""
-		if images == nil {
-			imagesErr = registry.ErrNoImageData.Error()
-		}
-		var newImages []image.Info
-		for _, img := range images {
-			if img.CreatedAt.After(currentImage.CreatedAt) {
-				newImages = append(newImages, img)
-			}
-		}
-		newImagesCount := len(newImages)
-
-		// Filtered images
-		filteredImages := images.Filter(tagPattern)
-		filteredImagesCount := len(filteredImages)
-		var newFilteredImages []image.Info
-		for _, img := range filteredImages {
-			if img.CreatedAt.After(currentImage.CreatedAt) {
-				newFilteredImages = append(newFilteredImages, img)
-			}
-		}
-		newFilteredImagesCount := len(newFilteredImages)
-
-		for _, field := range fields {
-			switch field {
-			case "Name":
-				container.Name = c.Name
-			case "Current":
-				container.Current = currentImage
-			case "LatestFiltered":
-				container.LatestFiltered, _ = filteredImages.Latest()
-			case "Available":
-				container.Available = images
-			case "AvailableError":
-				container.AvailableError = imagesErr
-			case "AvailableImagesCount":
-				container.AvailableImagesCount = imagesCount
-			case "NewAvailableImagesCount":
-				container.NewAvailableImagesCount = newImagesCount
-			case "FilteredImagesCount":
-				container.FilteredImagesCount = filteredImagesCount
-			case "NewFilteredImagesCount":
-				container.NewFilteredImagesCount = newFilteredImagesCount
-			default:
-				return nil, errors.Errorf("%s is an invalid field", field)
-			}
+		container, err := v6.NewContainer(c.Name, images, currentImage, tagPattern, fields)
+		if err != nil {
+			return res, err
 		}
 		res = append(res, container)
 	}

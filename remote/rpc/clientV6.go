@@ -6,6 +6,9 @@ import (
 	"net/rpc"
 	"net/rpc/jsonrpc"
 
+	"github.com/weaveworks/flux/api/v10"
+	"github.com/weaveworks/flux/policy"
+
 	"github.com/weaveworks/flux/api/v6"
 	fluxerr "github.com/weaveworks/flux/errors"
 	"github.com/weaveworks/flux/job"
@@ -99,7 +102,7 @@ func (p *RPCClientV6) ListServices(ctx context.Context, namespace string) ([]v6.
 	return services, err
 }
 
-func (p *RPCClientV6) ListImages(ctx context.Context, spec update.ResourceSpec, opts v6.ListImagesOptions) ([]v6.ImageStatus, error) {
+func (p *RPCClientV6) ListImages(ctx context.Context, spec update.ResourceSpec) ([]v6.ImageStatus, error) {
 	var images []v6.ImageStatus
 	if err := requireServiceSpecKinds(spec, supportedKindsV6); err != nil {
 		return images, remote.UpgradeNeededError(err)
@@ -113,6 +116,47 @@ func (p *RPCClientV6) ListImages(ctx context.Context, spec update.ResourceSpec, 
 		err = remoteApplicationError(err)
 	}
 	return images, err
+}
+
+func (p *RPCClientV6) ListImagesWithOptions(ctx context.Context, opts v10.ListImagesOptions) ([]v6.ImageStatus, error) {
+	images, err := p.ListImages(ctx, opts.Spec)
+	if err != nil {
+		return images, err
+	}
+
+	var ns string
+	if opts.Spec != update.ResourceSpecAll {
+		resourceID, err := opts.Spec.AsID()
+		if err != nil {
+			return images, err
+		}
+		ns, _, _ = resourceID.Components()
+	}
+	services, err := p.ListServices(ctx, ns)
+
+	policyMap := make(policy.ResourceMap)
+	for _, service := range services {
+		var s policy.Set
+		for k, v := range service.Policies {
+			s[policy.Policy(k)] = v
+		}
+		policyMap[service.ID] = s
+	}
+
+	// Polyfill container fields from v10
+	for i, image := range images {
+		for j, container := range image.Containers {
+			tagPattern := policy.GetTagPattern(policyMap, image.ID, container.Name)
+			// Create a new container using the same function used in v10
+			newContainer, err := v6.NewContainer(container.Name, container.Available, container.Current, tagPattern, opts.OverrideContainerFields)
+			if err != nil {
+				return images, err
+			}
+			images[i].Containers[j] = newContainer
+		}
+	}
+
+	return images, nil
 }
 
 func (p *RPCClientV6) UpdateManifests(ctx context.Context, u update.Spec) (job.ID, error) {
