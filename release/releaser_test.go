@@ -196,7 +196,8 @@ func Test_FilterLogic(t *testing.T) {
 				},
 				flux.MustParseResourceID("default:deployment/locked-service"): ignoredNotIncluded,
 				flux.MustParseResourceID("default:deployment/test-service"):   ignoredNotIncluded,
-				flux.MustParseResourceID("default:deployment/www-example-io"): ignoredNotIncluded,
+				flux.MustParseResourceID("default:deployment/multi-deploy"):   ignoredNotIncluded,
+				flux.MustParseResourceID("default:deployment/list-deploy"):    ignoredNotIncluded,
 			},
 		}, {
 			Name: "exclude specific service",
@@ -226,8 +227,9 @@ func Test_FilterLogic(t *testing.T) {
 					Status: update.ReleaseStatusIgnored,
 					Error:  update.Excluded,
 				},
-				flux.MustParseResourceID("default:deployment/test-service"):   skippedNotInCluster,
-				flux.MustParseResourceID("default:deployment/www-example-io"): skippedNotInCluster,
+				flux.MustParseResourceID("default:deployment/test-service"): skippedNotInCluster,
+				flux.MustParseResourceID("default:deployment/multi-deploy"): skippedNotInCluster,
+				flux.MustParseResourceID("default:deployment/list-deploy"):  skippedNotInCluster,
 			},
 		}, {
 			Name: "update specific image",
@@ -252,14 +254,9 @@ func Test_FilterLogic(t *testing.T) {
 					Status: update.ReleaseStatusIgnored,
 					Error:  update.DifferentImage,
 				},
-				flux.MustParseResourceID("default:deployment/test-service"): update.ControllerResult{
-					Status: update.ReleaseStatusSkipped,
-					Error:  update.NotInCluster,
-				},
-				flux.MustParseResourceID("default:deployment/www-example-io"): update.ControllerResult{
-					Status: update.ReleaseStatusSkipped,
-					Error:  update.NotInCluster,
-				},
+				flux.MustParseResourceID("default:deployment/test-service"): skippedNotInCluster,
+				flux.MustParseResourceID("default:deployment/multi-deploy"): skippedNotInCluster,
+				flux.MustParseResourceID("default:deployment/list-deploy"):  skippedNotInCluster,
 			},
 		},
 		// skipped if: not ignored AND (locked or not found in cluster)
@@ -292,8 +289,9 @@ func Test_FilterLogic(t *testing.T) {
 					Status: update.ReleaseStatusSkipped,
 					Error:  update.Locked,
 				},
-				flux.MustParseResourceID("default:deployment/test-service"):   skippedNotInCluster,
-				flux.MustParseResourceID("default:deployment/www-example-io"): skippedNotInCluster,
+				flux.MustParseResourceID("default:deployment/test-service"): skippedNotInCluster,
+				flux.MustParseResourceID("default:deployment/multi-deploy"): skippedNotInCluster,
+				flux.MustParseResourceID("default:deployment/list-deploy"):  skippedNotInCluster,
 			},
 		},
 		{
@@ -324,8 +322,9 @@ func Test_FilterLogic(t *testing.T) {
 					Status: update.ReleaseStatusSkipped,
 					Error:  update.Locked,
 				},
-				flux.MustParseResourceID("default:deployment/test-service"):   skippedNotInCluster,
-				flux.MustParseResourceID("default:deployment/www-example-io"): skippedNotInCluster,
+				flux.MustParseResourceID("default:deployment/test-service"): skippedNotInCluster,
+				flux.MustParseResourceID("default:deployment/multi-deploy"): skippedNotInCluster,
+				flux.MustParseResourceID("default:deployment/list-deploy"):  skippedNotInCluster,
 			},
 		},
 		{
@@ -340,7 +339,8 @@ func Test_FilterLogic(t *testing.T) {
 				flux.MustParseResourceID("default:deployment/helloworld"):     ignoredNotIncluded,
 				flux.MustParseResourceID("default:deployment/locked-service"): ignoredNotIncluded,
 				flux.MustParseResourceID("default:deployment/test-service"):   ignoredNotIncluded,
-				flux.MustParseResourceID("default:deployment/www-example-io"): ignoredNotIncluded,
+				flux.MustParseResourceID("default:deployment/multi-deploy"):   ignoredNotIncluded,
+				flux.MustParseResourceID("default:deployment/list-deploy"):    ignoredNotIncluded,
 				flux.MustParseResourceID(notInRepoService):                    skippedNotInRepo,
 			},
 		},
@@ -390,7 +390,8 @@ func Test_ImageStatus(t *testing.T) {
 			Expected: update.Result{
 				flux.MustParseResourceID("default:deployment/helloworld"):     ignoredNotIncluded,
 				flux.MustParseResourceID("default:deployment/locked-service"): ignoredNotIncluded,
-				flux.MustParseResourceID("default:deployment/www-example-io"): ignoredNotIncluded,
+				flux.MustParseResourceID("default:deployment/multi-deploy"):   ignoredNotIncluded,
+				flux.MustParseResourceID("default:deployment/list-deploy"):    ignoredNotIncluded,
 				flux.MustParseResourceID("default:deployment/test-service"): update.ControllerResult{
 					Status: update.ReleaseStatusIgnored,
 					Error:  update.DoesNotUseImage,
@@ -411,7 +412,8 @@ func Test_ImageStatus(t *testing.T) {
 				},
 				flux.MustParseResourceID("default:deployment/locked-service"): ignoredNotIncluded,
 				flux.MustParseResourceID("default:deployment/test-service"):   ignoredNotIncluded,
-				flux.MustParseResourceID("default:deployment/www-example-io"): ignoredNotIncluded,
+				flux.MustParseResourceID("default:deployment/multi-deploy"):   ignoredNotIncluded,
+				flux.MustParseResourceID("default:deployment/list-deploy"):    ignoredNotIncluded,
 			},
 		},
 	} {
@@ -426,6 +428,102 @@ func Test_ImageStatus(t *testing.T) {
 			}
 			testRelease(t, ctx, tst.Spec, tst.Expected)
 		})
+	}
+}
+
+func Test_UpdateMultidoc(t *testing.T) {
+	egID := flux.MustParseResourceID("default:deployment/multi-deploy")
+	egSvc := cluster.Controller{
+		ID: egID,
+		Containers: cluster.ContainersOrExcuse{
+			Containers: []resource.Container{
+				{
+					Name:  "hello",
+					Image: oldRef,
+				},
+			},
+		},
+	}
+
+	cluster := mockCluster(hwSvc, lockedSvc, egSvc) // no testsvc in cluster, but it _is_ in repo
+	checkout, cleanup := setup(t)
+	defer cleanup()
+	ctx := &ReleaseContext{
+		cluster:   cluster,
+		manifests: mockManifests,
+		repo:      checkout,
+		registry:  mockRegistry,
+	}
+	spec := update.ReleaseSpec{
+		ServiceSpecs: []update.ResourceSpec{"default:deployment/multi-deploy"},
+		ImageSpec:    update.ImageSpecLatest,
+		Kind:         update.ReleaseKindExecute,
+	}
+	results, err := Release(ctx, spec, log.NewNopLogger())
+	if err != nil {
+		t.Error(err)
+	}
+	controllerResult, ok := results[egID]
+	if !ok {
+		t.Fatal("controller not found after update")
+	}
+	if !reflect.DeepEqual(update.ControllerResult{
+		Status: update.ReleaseStatusSuccess,
+		PerContainer: []update.ContainerUpdate{{
+			Container: "hello",
+			Current:   oldRef,
+			Target:    newHwRef,
+		}},
+	}, controllerResult) {
+		t.Errorf("did not get expected controller result (see test code), got %#v", controllerResult)
+	}
+}
+
+func Test_UpdateList(t *testing.T) {
+	egID := flux.MustParseResourceID("default:deployment/list-deploy")
+	egSvc := cluster.Controller{
+		ID: egID,
+		Containers: cluster.ContainersOrExcuse{
+			Containers: []resource.Container{
+				{
+					Name:  "hello",
+					Image: oldRef,
+				},
+			},
+		},
+	}
+
+	cluster := mockCluster(hwSvc, lockedSvc, egSvc) // no testsvc in cluster, but it _is_ in repo
+	checkout, cleanup := setup(t)
+	defer cleanup()
+	ctx := &ReleaseContext{
+		cluster:   cluster,
+		manifests: mockManifests,
+		repo:      checkout,
+		registry:  mockRegistry,
+	}
+	spec := update.ReleaseSpec{
+		ServiceSpecs: []update.ResourceSpec{"default:deployment/list-deploy"},
+		ImageSpec:    update.ImageSpecLatest,
+		Kind:         update.ReleaseKindExecute,
+	}
+	results, err := Release(ctx, spec, log.NewNopLogger())
+	if err != nil {
+		t.Error(err)
+	}
+	controllerResult, ok := results[egID]
+	if !ok {
+		t.Fatal("controller not found after update")
+	}
+	if !reflect.DeepEqual(update.ControllerResult{
+		Status: update.ReleaseStatusSuccess,
+		PerContainer: []update.ContainerUpdate{{
+			Container: "hello",
+			Current:   oldRef,
+			Target:    newHwRef,
+		}},
+	}, controllerResult) {
+		t.Errorf("did not get expected controller result (see test code), got %#v", controllerResult)
 	}
 }
 
@@ -452,7 +550,7 @@ func (m *badManifests) UpdateImage(def []byte, resourceID flux.ResourceID, conta
 	return def, nil
 }
 
-func TestBadRelease(t *testing.T) {
+func Test_BadRelease(t *testing.T) {
 	cluster := mockCluster(hwSvc)
 	spec := update.ReleaseSpec{
 		ServiceSpecs: []update.ResourceSpec{update.ResourceSpecAll},

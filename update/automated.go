@@ -107,12 +107,6 @@ func (a *Automated) calculateImageUpdates(rc ReleaseContext, candidates []*Contr
 				// the format of the image name as it is in the
 				// resource (e.g., to avoid canonicalising it)
 				newImageID := currentImageID.WithNewTag(change.ImageID.Tag)
-				var err error
-				u.ManifestBytes, err = rc.Manifests().UpdateImage(u.ManifestBytes, u.ResourceID, container.Name, newImageID)
-				if err != nil {
-					return nil, err
-				}
-
 				containerUpdates = append(containerUpdates, ContainerUpdate{
 					Container: container.Name,
 					Current:   currentImageID,

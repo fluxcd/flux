@@ -42,11 +42,17 @@ func (rc *ReleaseContext) Manifests() cluster.Manifests {
 func (rc *ReleaseContext) WriteUpdates(updates []*update.ControllerUpdate) error {
 	err := func() error {
 		for _, update := range updates {
-			fi, err := os.Stat(update.ManifestPath)
+			manifestBytes, err := ioutil.ReadFile(update.ManifestPath)
 			if err != nil {
 				return err
 			}
-			if err = ioutil.WriteFile(update.ManifestPath, update.ManifestBytes, fi.Mode()); err != nil {
+			for _, container := range update.Updates {
+				manifestBytes, err = rc.manifests.UpdateImage(manifestBytes, update.ResourceID, container.Container, container.Target)
+				if err != nil {
+					return err
+				}
+			}
+			if err = ioutil.WriteFile(update.ManifestPath, manifestBytes, os.FileMode(0600)); err != nil {
 				return err
 			}
 		}
@@ -129,10 +135,9 @@ func (rc *ReleaseContext) WorkloadsForUpdate() (map[flux.ResourceID]*update.Cont
 	for _, res := range resources {
 		if wl, ok := res.(resource.Workload); ok {
 			defined[res.ResourceID()] = &update.ControllerUpdate{
-				ResourceID:    res.ResourceID(),
-				Resource:      wl,
-				ManifestPath:  filepath.Join(rc.repo.Dir(), res.Source()),
-				ManifestBytes: res.Bytes(),
+				ResourceID:   res.ResourceID(),
+				Resource:     wl,
+				ManifestPath: filepath.Join(rc.repo.Dir(), res.Source()),
 			}
 		}
 	}
