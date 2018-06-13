@@ -16,7 +16,6 @@ import (
 	"github.com/weaveworks/flux/api/v6"
 	"github.com/weaveworks/flux/api/v9"
 	"github.com/weaveworks/flux/cluster"
-	fluxerr "github.com/weaveworks/flux/errors"
 	"github.com/weaveworks/flux/event"
 	"github.com/weaveworks/flux/git"
 	"github.com/weaveworks/flux/guid"
@@ -69,34 +68,6 @@ func (d *Daemon) Ping(ctx context.Context) error {
 
 func (d *Daemon) Export(ctx context.Context) ([]byte, error) {
 	return d.Cluster.Export()
-}
-
-func manifestLoadError(reason error) error {
-	return &fluxerr.Error{
-		Type: fluxerr.User,
-		Err:  reason,
-		Help: `Unable to parse files as manifests
-
-Flux was unable to parse the files in the git repo as manifests,
-giving this error:
-
-    ` + reason.Error() + `
-
-Check that any files mentioned are well-formed, and resources are not
-defined more than once. It's also worth reviewing
-
-    https://github.com/weaveworks/flux/blob/master/site/requirements.md
-
-to make sure you're not running into any corner cases.
-
-If you think your files are all OK and you are still getting this
-message, please log an issue at
-
-    https://github.com/weaveworks/flux/issues
-
-and include the problematic file, if possible.
-`,
-	}
 }
 
 func (d *Daemon) getPolicyResourceMap(ctx context.Context) (policy.ResourceMap, v6.ReadOnlyReason, error) {
@@ -594,32 +565,6 @@ func (d *Daemon) WithClone(ctx context.Context, fn func(*git.Checkout) error) er
 	}
 	defer co.Clean()
 	return fn(co)
-}
-
-func unknownJobError(id job.ID) error {
-	return &fluxerr.Error{
-		Type: fluxerr.Missing,
-		Err:  fmt.Errorf("unknown job %q", string(id)),
-		Help: `Job not found
-
-This is often because the job did not result in committing changes,
-and therefore had no lasting effect. A release dry-run is an example
-of a job that does not result in a commit.
-
-If you were expecting changes to be committed, this may mean that the
-job failed, but its status was lost.
-
-In both of the above cases it is OK to retry the operation that
-resulted in this error.
-
-If you get this error repeatedly, it's probably a bug. Please log an
-issue describing what you were attempting, and posting logs from the
-daemon if possible:
-
-    https://github.com/weaveworks/flux/issues
-
-`,
-	}
 }
 
 func (d *Daemon) LogEvent(ev event.Event) error {
