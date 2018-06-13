@@ -20,10 +20,6 @@ func ErrResourceNotFound(name string) error {
 	return ManifestError{fmt.Errorf("manifest for resource %s not found under manifests path", name)}
 }
 
-func ErrDuplicateManifests(resID, pathA, pathB string) error {
-	return ManifestError{fmt.Errorf("duplicate manifests for resource %s found at %s and %s", resID, pathA, pathB)}
-}
-
 // Manifests represents how a set of files are used as definitions of
 // resources, e.g., in Kubernetes, YAML files describing Kubernetes
 // resources.

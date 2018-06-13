@@ -71,6 +71,34 @@ func (d *Daemon) Export(ctx context.Context) ([]byte, error) {
 	return d.Cluster.Export()
 }
 
+func manifestLoadError(reason error) error {
+	return &fluxerr.Error{
+		Type: fluxerr.User,
+		Err:  reason,
+		Help: `Unable to parse files as manifests
+
+Flux was unable to parse the files in the git repo as manifests,
+giving this error:
+
+    ` + reason.Error() + `
+
+Check that any files mentioned are well-formed, and resources are not
+defined more than once. It's also worth reviewing
+
+    https://github.com/weaveworks/flux/blob/master/site/requirements.md
+
+to make sure you're not running into any corner cases.
+
+If you think your files are all OK and you are still getting this
+message, please log an issue at
+
+    https://github.com/weaveworks/flux/issues
+
+and include the problematic file, if possible.
+`,
+	}
+}
+
 func (d *Daemon) getPolicyResourceMap(ctx context.Context) (policy.ResourceMap, v6.ReadOnlyReason, error) {
 	var services policy.ResourceMap
 	var globalReadOnly v6.ReadOnlyReason
@@ -88,7 +116,7 @@ func (d *Daemon) getPolicyResourceMap(ctx context.Context) (policy.ResourceMap, 
 	case err == git.ErrNoConfig:
 		globalReadOnly = v6.ReadOnlyNoRepo
 	case err != nil:
-		return nil, globalReadOnly, errors.Wrap(err, "getting service policies")
+		return nil, globalReadOnly, manifestLoadError(err)
 	default:
 		globalReadOnly = v6.ReadOnlyMissing
 	}
