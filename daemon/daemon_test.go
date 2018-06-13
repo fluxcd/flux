@@ -330,8 +330,8 @@ func TestDaemon_NotifyChange(t *testing.T) {
 		t.Errorf("Sync was not called once, was called %d times", syncCalled)
 	} else if syncDef == nil {
 		t.Errorf("Sync was called with a nil syncDef")
-	} else if len(syncDef.Actions) != len(testfiles.ServiceMap("unimportant")) {
-		t.Errorf("Sync was not called with the %d actions, was called with: %d", len(testfiles.Files), len(syncDef.Actions))
+	} else if len(syncDef.Actions) != len(testfiles.ResourceMap) {
+		t.Errorf("Expected Sync called with %d actions (resources), was called with %d", len(testfiles.ResourceMap), len(syncDef.Actions))
 	}
 
 	// Check that history was written to

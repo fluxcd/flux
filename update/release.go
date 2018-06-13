@@ -251,12 +251,6 @@ func (s ReleaseSpec) calculateImageUpdates(rc ReleaseContext, candidates []*Cont
 			// appears in the manifest, whereas what we have is the
 			// canonical form.
 			newImageID := currentImageID.WithNewTag(latestImage.ID.Tag)
-
-			u.ManifestBytes, err = rc.Manifests().UpdateImage(u.ManifestBytes, u.ResourceID, container.Name, newImageID)
-			if err != nil {
-				return nil, err
-			}
-
 			containerUpdates = append(containerUpdates, ContainerUpdate{
 				Container: container.Name,
 				Current:   currentImageID,

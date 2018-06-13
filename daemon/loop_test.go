@@ -17,6 +17,7 @@ import (
 	"github.com/weaveworks/flux/cluster"
 	"github.com/weaveworks/flux/cluster/kubernetes"
 	kresource "github.com/weaveworks/flux/cluster/kubernetes/resource"
+	"github.com/weaveworks/flux/cluster/kubernetes/testfiles"
 	"github.com/weaveworks/flux/event"
 	"github.com/weaveworks/flux/git"
 	"github.com/weaveworks/flux/git/gittest"
@@ -97,11 +98,11 @@ func TestPullAndSync_InitialSync(t *testing.T) {
 
 	syncCalled := 0
 	var syncDef *cluster.SyncDef
-	expectedServiceIDs := flux.ResourceIDs{
-		flux.MustParseResourceID("default:deployment/locked-service"),
-		flux.MustParseResourceID("default:deployment/test-service"),
-		flux.MustParseResourceID("default:deployment/helloworld")}
-	expectedServiceIDs.Sort()
+	expectedResourceIDs := flux.ResourceIDs{}
+	for id, _ := range testfiles.ResourceMap {
+		expectedResourceIDs = append(expectedResourceIDs, id)
+	}
+	expectedResourceIDs.Sort()
 	k8s.SyncFunc = func(def cluster.SyncDef) error {
 		syncCalled++
 		syncDef = &def
@@ -115,8 +116,8 @@ func TestPullAndSync_InitialSync(t *testing.T) {
 		t.Errorf("Sync was not called once, was called %d times", syncCalled)
 	} else if syncDef == nil {
 		t.Errorf("Sync was called with a nil syncDef")
-	} else if len(syncDef.Actions) != len(expectedServiceIDs) {
-		t.Errorf("Sync was not called with the %d actions, was called with: %d", len(expectedServiceIDs)*2, len(syncDef.Actions))
+	} else if len(syncDef.Actions) != len(expectedResourceIDs) {
+		t.Errorf("Sync was not called with %d actions (resources), was called with %d", len(expectedResourceIDs), len(syncDef.Actions))
 	}
 
 	// The emitted event has all service ids
@@ -128,10 +129,10 @@ func TestPullAndSync_InitialSync(t *testing.T) {
 	} else if es[0].Type != event.EventSync {
 		t.Errorf("Unexpected event type: %#v", es[0])
 	} else {
-		gotServiceIDs := es[0].ServiceIDs
-		flux.ResourceIDs(gotServiceIDs).Sort()
-		if !reflect.DeepEqual(gotServiceIDs, []flux.ResourceID(expectedServiceIDs)) {
-			t.Errorf("Unexpected event service ids: %#v, expected: %#v", gotServiceIDs, expectedServiceIDs)
+		gotResourceIDs := es[0].ServiceIDs
+		flux.ResourceIDs(gotResourceIDs).Sort()
+		if !reflect.DeepEqual(gotResourceIDs, []flux.ResourceID(expectedResourceIDs)) {
+			t.Errorf("Unexpected event service ids: %#v, expected: %#v", gotResourceIDs, expectedResourceIDs)
 		}
 	}
 	// It creates the tag at HEAD
@@ -166,11 +167,11 @@ func TestDoSync_NoNewCommits(t *testing.T) {
 
 	syncCalled := 0
 	var syncDef *cluster.SyncDef
-	expectedServiceIDs := flux.ResourceIDs{
-		flux.MustParseResourceID("default:deployment/locked-service"),
-		flux.MustParseResourceID("default:deployment/test-service"),
-		flux.MustParseResourceID("default:deployment/helloworld")}
-	expectedServiceIDs.Sort()
+	expectedResourceIDs := flux.ResourceIDs{}
+	for id, _ := range testfiles.ResourceMap {
+		expectedResourceIDs = append(expectedResourceIDs, id)
+	}
+	expectedResourceIDs.Sort()
 	k8s.SyncFunc = func(def cluster.SyncDef) error {
 		syncCalled++
 		syncDef = &def
@@ -186,8 +187,8 @@ func TestDoSync_NoNewCommits(t *testing.T) {
 		t.Errorf("Sync was not called once, was called %d times", syncCalled)
 	} else if syncDef == nil {
 		t.Errorf("Sync was called with a nil syncDef")
-	} else if len(syncDef.Actions) != len(expectedServiceIDs) {
-		t.Errorf("Sync was not called with the %d actions, was called with: %d", len(expectedServiceIDs)*2, len(syncDef.Actions))
+	} else if len(syncDef.Actions) != len(expectedResourceIDs) {
+		t.Errorf("Sync was not called with %d actions, was called with: %d", len(expectedResourceIDs), len(syncDef.Actions))
 	}
 
 	// The emitted event has no service ids
@@ -259,11 +260,11 @@ func TestDoSync_WithNewCommit(t *testing.T) {
 
 	syncCalled := 0
 	var syncDef *cluster.SyncDef
-	expectedServiceIDs := flux.ResourceIDs{
-		flux.MustParseResourceID("default:deployment/locked-service"),
-		flux.MustParseResourceID("default:deployment/test-service"),
-		flux.MustParseResourceID("default:deployment/helloworld")}
-	expectedServiceIDs.Sort()
+	expectedResourceIDs := flux.ResourceIDs{}
+	for id, _ := range testfiles.ResourceMap {
+		expectedResourceIDs = append(expectedResourceIDs, id)
+	}
+	expectedResourceIDs.Sort()
 	k8s.SyncFunc = func(def cluster.SyncDef) error {
 		syncCalled++
 		syncDef = &def
@@ -277,8 +278,8 @@ func TestDoSync_WithNewCommit(t *testing.T) {
 		t.Errorf("Sync was not called once, was called %d times", syncCalled)
 	} else if syncDef == nil {
 		t.Errorf("Sync was called with a nil syncDef")
-	} else if len(syncDef.Actions) != len(expectedServiceIDs) {
-		t.Errorf("Sync was not called with the %d actions, was called with: %d", len(expectedServiceIDs)*2, len(syncDef.Actions))
+	} else if len(syncDef.Actions) != len(expectedResourceIDs) {
+		t.Errorf("Sync was not called with %d actions, was called with %d", len(expectedResourceIDs), len(syncDef.Actions))
 	}
 
 	// The emitted event has no service ids
@@ -290,11 +291,11 @@ func TestDoSync_WithNewCommit(t *testing.T) {
 	} else if es[0].Type != event.EventSync {
 		t.Errorf("Unexpected event type: %#v", es[0])
 	} else {
-		gotServiceIDs := es[0].ServiceIDs
-		flux.ResourceIDs(gotServiceIDs).Sort()
+		gotResourceIDs := es[0].ServiceIDs
+		flux.ResourceIDs(gotResourceIDs).Sort()
 		// Event should only have changed service ids
-		if !reflect.DeepEqual(gotServiceIDs, []flux.ResourceID{flux.MustParseResourceID("default:deployment/helloworld")}) {
-			t.Errorf("Unexpected event service ids: %#v, expected: %#v", gotServiceIDs, []flux.ResourceID{flux.MustParseResourceID("default/helloworld")})
+		if !reflect.DeepEqual(gotResourceIDs, []flux.ResourceID{flux.MustParseResourceID("default:deployment/helloworld")}) {
+			t.Errorf("Unexpected event service ids: %#v, expected: %#v", gotResourceIDs, []flux.ResourceID{flux.MustParseResourceID("default:deployment/helloworld")})
 		}
 	}
 	// It moves the tag
