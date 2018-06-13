@@ -23,6 +23,10 @@ spec:
       serviceAccountName: {{ template "flux.serviceAccountName" . }}
       {{- end }}
       volumes:
+      - name: sshdir
+        configMap:
+          name: {{ template "flux.fullname" . }}-ssh-config
+          defaultMode: 0600
       - name: git-key
         secret:
           secretName: {{ template "flux.fullname" . }}-git-deploy
@@ -39,6 +43,9 @@ spec:
             containerPort: 3030
             protocol: TCP
           volumeMounts:
+          - name: sshdir
+            mountPath: /root/.ssh
+            readOnly: true
           - name: git-key
             mountPath: /etc/fluxd/ssh
             readOnly: true

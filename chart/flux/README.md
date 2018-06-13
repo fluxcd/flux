@@ -99,6 +99,7 @@ The following tables lists the configurable parameters of the Weave Flux chart a
 | `git.email` | Email to use as git committer | `support@weave.works`
 | `git.chartsPath` | Path within git repo to locate Helm charts (relative path) | `charts`
 | `git.pollInterval` | Period at which to poll git repo for new commits | `30s`
+| `ssh.known_hosts`  | The contents of an SSH `known_hosts` file, if you need to supply host key(s) |
 | `helmOperator.create` | If `true`, install the Helm operator | `false`
 | `helmOperator.repository` | Helm operator image repository | `quay.io/weaveworks/helm-operator` 
 | `helmOperator.tag` | Helm operator image tag | `0.1.0-alpha` 

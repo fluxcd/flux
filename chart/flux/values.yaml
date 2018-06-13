@@ -62,3 +62,8 @@ git:
   chartsPath: "charts"
   # Period at which to poll git repo for new commits
   pollInterval: "30s"
+
+ssh:
+  # Overrides for git over SSH. If you use your own git server, you
+  # will likely need to provide a host key for it in this field.
+  known_hosts: ""
