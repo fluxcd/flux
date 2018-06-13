@@ -366,16 +366,16 @@ func (d *Daemon) updatePolicy(spec update.Spec, updates policy.Updates) updateFu
 				}
 				return newDef, nil
 			})
-			switch err {
-			case cluster.ErrNoResourceFilesFoundForService, cluster.ErrMultipleResourceFilesFoundForService:
-				result.Result[serviceID] = update.ControllerResult{
-					Status: update.ReleaseStatusFailed,
-					Error:  err.Error(),
+			if err != nil {
+				switch err := err.(type) {
+				case cluster.ManifestError:
+					result.Result[serviceID] = update.ControllerResult{
+						Status: update.ReleaseStatusFailed,
+						Error:  err.Error(),
+					}
+				default:
+					return result, err
 				}
-			case nil:
-				// continue
-			default:
-				return result, err
 			}
 		}
 		if len(serviceIDs) == 0 {

@@ -1,8 +1,10 @@
 package cluster
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/image"
@@ -10,14 +12,22 @@ import (
 	"github.com/weaveworks/flux/resource"
 )
 
+type ManifestError struct {
+	error
+}
+
+func ErrResourceNotFound(name string) error {
+	return ManifestError{fmt.Errorf("manifest for resource %s not found under manifests path", name)}
+}
+
+func ErrDuplicateManifests(resID, pathA, pathB string) error {
+	return ManifestError{fmt.Errorf("duplicate manifests for resource %s found at %s and %s", resID, pathA, pathB)}
+}
+
 // Manifests represents how a set of files are used as definitions of
 // resources, e.g., in Kubernetes, YAML files describing Kubernetes
 // resources.
 type Manifests interface {
-	// Given a directory with manifest files, find which files define
-	// which services.
-	// FIXME(michael): remove when redundant
-	FindDefinedServices(path string) (map[flux.ResourceID][]string, error)
 	// Update the image in a manifest's bytes to that given
 	UpdateImage(def []byte, resourceID flux.ResourceID, container string, newImageID image.Ref) ([]byte, error)
 	// Load all the resource manifests under the path given. `baseDir`
@@ -33,23 +43,22 @@ type Manifests interface {
 	ServicesWithPolicies(path string) (policy.ResourceMap, error)
 }
 
-// UpdateManifest looks for the manifest for a given service, reads
-// its contents, applies f(contents), and writes the results back to
-// the file.
-func UpdateManifest(m Manifests, root string, serviceID flux.ResourceID, f func(manifest []byte) ([]byte, error)) error {
-	services, err := m.FindDefinedServices(root)
+// UpdateManifest looks for the manifest for the identified resource,
+// reads its contents, applies f(contents), and writes the results
+// back to the file.
+func UpdateManifest(m Manifests, root string, id flux.ResourceID, f func(manifest []byte) ([]byte, error)) error {
+	resources, err := m.LoadManifests(root, root)
 	if err != nil {
 		return err
 	}
-	paths := services[serviceID]
-	if len(paths) == 0 {
-		return ErrNoResourceFilesFoundForService
-	}
-	if len(paths) > 1 {
-		return ErrMultipleResourceFilesFoundForService
+
+	resource, ok := resources[id.String()]
+	if !ok {
+		return ErrResourceNotFound(id.String())
 	}
 
-	def, err := ioutil.ReadFile(paths[0])
+	path := filepath.Join(root, resource.Source())
+	def, err := ioutil.ReadFile(path)
 	if err != nil {
 		return err
 	}
@@ -59,9 +68,9 @@ func UpdateManifest(m Manifests, root string, serviceID flux.ResourceID, f func(
 		return err
 	}
 
-	fi, err := os.Stat(paths[0])
+	fi, err := os.Stat(path)
 	if err != nil {
 		return err
 	}
-	return ioutil.WriteFile(paths[0], newDef, fi.Mode())
+	return ioutil.WriteFile(path, newDef, fi.Mode())
 }
