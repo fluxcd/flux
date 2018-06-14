@@ -81,7 +81,7 @@ can restart `flux` and it will continue to use the same key.
 Create a Kubernetes Secret from a private key:
 
 ```
-kubectl create secret generic flux-git-deploy --from-file /path/to/identity
+kubectl create secret generic flux-git-deploy --from-file=identity=/path/to/private_key
 ```
 
 Now add the secret to the `flux-deployment.yaml` manifest:
