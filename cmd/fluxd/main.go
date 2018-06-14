@@ -60,7 +60,7 @@ func optionalVar(fs *pflag.FlagSet, value ssh.OptionalValue, name, usage string)
 
 func main() {
 	// Flag domain.
-	fs := pflag.NewFlagSet("default", pflag.ExitOnError)
+	fs := pflag.NewFlagSet("default", pflag.ContinueOnError)
 	fs.Usage = func() {
 		fmt.Fprintf(os.Stderr, "DESCRIPTION\n")
 		fmt.Fprintf(os.Stderr, "  fluxd is the agent of flux.\n")
@@ -116,7 +116,12 @@ func main() {
 		dockerConfig = fs.String("docker-config", "", "path to a docker config to use for image registry credentials")
 	)
 
-	fs.Parse(os.Args)
+	if err := fs.Parse(os.Args[1:]); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %s\n\n", err.Error())
+		fmt.Fprintf(os.Stderr, "Usage of %s:\n", os.Args[0])
+		fs.PrintDefaults()
+		os.Exit(2)
+	}
 
 	if *versionFlag {
 		fmt.Println(version)
