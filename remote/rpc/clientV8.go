@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/rpc"
 
+	"github.com/weaveworks/flux/api/v10"
 	"github.com/weaveworks/flux/api/v6"
 	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/remote"
@@ -47,6 +48,10 @@ func (p *RPCClientV8) ListImages(ctx context.Context, spec update.ResourceSpec) 
 		err = resp.ApplicationError
 	}
 	return resp.Result, err
+}
+
+func (p *RPCClientV8) ListImagesWithOptions(ctx context.Context, opts v10.ListImagesOptions) ([]v6.ImageStatus, error) {
+	return listImagesWithOptions(ctx, p, opts)
 }
 
 func (p *RPCClientV8) UpdateManifests(ctx context.Context, u update.Spec) (job.ID, error) {
