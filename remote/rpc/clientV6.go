@@ -127,6 +127,9 @@ type listImagesWithOptionsClient interface {
 	ListImages(ctx context.Context, spec update.ResourceSpec) ([]v6.ImageStatus, error)
 }
 
+// listImagesWithOptions is called by ListImagesWithOptions so we can use an
+// interface to dispatch .ListImages() and .ListServices() to the correct
+// API version.
 func listImagesWithOptions(ctx context.Context, client listImagesWithOptionsClient, opts v10.ListImagesOptions) ([]v6.ImageStatus, error) {
 	images, err := client.ListImages(ctx, opts.Spec)
 	if err != nil {
