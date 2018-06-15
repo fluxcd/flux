@@ -17,9 +17,10 @@ const (
 )
 
 var (
-	RegisterDaemonV6 = "RegisterDaemonV6"
-	RegisterDaemonV7 = "RegisterDaemonV7"
-	RegisterDaemonV8 = "RegisterDaemonV8"
-	RegisterDaemonV9 = "RegisterDaemonV9"
-	LogEvent         = "LogEvent"
+	RegisterDaemonV6  = "RegisterDaemonV6"
+	RegisterDaemonV7  = "RegisterDaemonV7"
+	RegisterDaemonV8  = "RegisterDaemonV8"
+	RegisterDaemonV9  = "RegisterDaemonV9"
+	RegisterDaemonV10 = "RegisterDaemonV10"
+	LogEvent          = "LogEvent"
 )
