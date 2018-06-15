@@ -119,7 +119,19 @@ func (p *RPCClientV6) ListImages(ctx context.Context, spec update.ResourceSpec) 
 }
 
 func (p *RPCClientV6) ListImagesWithOptions(ctx context.Context, opts v10.ListImagesOptions) ([]v6.ImageStatus, error) {
-	images, err := p.ListImages(ctx, opts.Spec)
+	return listImagesWithOptions(ctx, p, opts)
+}
+
+type listImagesWithOptionsClient interface {
+	ListServices(ctx context.Context, namespace string) ([]v6.ControllerStatus, error)
+	ListImages(ctx context.Context, spec update.ResourceSpec) ([]v6.ImageStatus, error)
+}
+
+// listImagesWithOptions is called by ListImagesWithOptions so we can use an
+// interface to dispatch .ListImages() and .ListServices() to the correct
+// API version.
+func listImagesWithOptions(ctx context.Context, client listImagesWithOptionsClient, opts v10.ListImagesOptions) ([]v6.ImageStatus, error) {
+	images, err := client.ListImages(ctx, opts.Spec)
 	if err != nil {
 		return images, err
 	}
@@ -132,7 +144,7 @@ func (p *RPCClientV6) ListImagesWithOptions(ctx context.Context, opts v10.ListIm
 		}
 		ns, _, _ = resourceID.Components()
 	}
-	services, err := p.ListServices(ctx, ns)
+	services, err := client.ListServices(ctx, ns)
 
 	policyMap := make(policy.ResourceMap)
 	for _, service := range services {

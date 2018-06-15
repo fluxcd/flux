@@ -54,6 +54,7 @@ func UpstreamRoutes(r *mux.Router) {
 	r.NewRoute().Name(RegisterDaemonV7).Methods("GET").Path("/v7/daemon")
 	r.NewRoute().Name(RegisterDaemonV8).Methods("GET").Path("/v8/daemon")
 	r.NewRoute().Name(RegisterDaemonV9).Methods("GET").Path("/v9/daemon")
+	r.NewRoute().Name(RegisterDaemonV10).Methods("GET").Path("/v10/daemon")
 	r.NewRoute().Name(LogEvent).Methods("POST").Path("/v6/events")
 }
 
