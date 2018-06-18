@@ -54,9 +54,13 @@ func Repo(t *testing.T) (*git.Repo, func()) {
 		t.Fatal(err)
 	}
 
-	return git.NewRepo(git.Remote{
+	mirror := git.NewRepo(git.Remote{
 		URL: "file://" + gitDir,
-	}), cleanup
+	})
+	return mirror, func() {
+		mirror.Clean()
+		cleanup()
+	}
 }
 
 // CheckoutWithConfig makes a standard repo, clones it, and returns
