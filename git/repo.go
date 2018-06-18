@@ -101,18 +101,6 @@ func (r *Repo) Dir() string {
 	return r.dir
 }
 
-// Clean removes the mirrored repo. Syncing may continue with a new
-// directory, so you may need to stop that first.
-func (r *Repo) Clean() {
-	r.mu.Lock()
-	if r.dir != "" {
-		os.RemoveAll(r.dir)
-	}
-	r.dir = ""
-	r.status = RepoNew
-	r.mu.Unlock()
-}
-
 // Status reports that readiness status of this Git repo: whether it
 // has been cloned, whether it is writable, and if not, the error
 // stopping it getting to the next state.
