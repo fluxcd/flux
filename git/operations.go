@@ -8,7 +8,6 @@ import (
 	"io"
 	"io/ioutil"
 	"os/exec"
-	"path/filepath"
 	"strings"
 
 	"context"
@@ -32,7 +31,7 @@ func config(ctx context.Context, workingDir, user, email string) error {
 }
 
 func clone(ctx context.Context, workingDir, repoURL, repoBranch string) (path string, err error) {
-	repoPath := filepath.Join(workingDir, "repo")
+	repoPath := workingDir
 	args := []string{"clone"}
 	if repoBranch != "" {
 		args = append(args, "--branch", repoBranch)
@@ -45,7 +44,7 @@ func clone(ctx context.Context, workingDir, repoURL, repoBranch string) (path st
 }
 
 func mirror(ctx context.Context, workingDir, repoURL string) (path string, err error) {
-	repoPath := filepath.Join(workingDir, "repo")
+	repoPath := workingDir
 	args := []string{"clone", "--mirror"}
 	args = append(args, repoURL, repoPath)
 	if err := execGitCmd(ctx, workingDir, nil, args...); err != nil {
