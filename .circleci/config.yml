@@ -3,7 +3,7 @@ jobs:
   build:
     working_directory: /go/src/github.com/weaveworks/flux
     docker:
-      - image: circleci/golang:1.8
+      - image: circleci/golang:1.10
       - image: memcached
     steps:
       - checkout
