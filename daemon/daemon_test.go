@@ -542,7 +542,6 @@ func mockDaemon(t *testing.T) (*Daemon, func(), func(), *cluster.Mock, *mockEven
 			return []cluster.Controller{}, nil
 		}
 		k8s.ExportFunc = func() ([]byte, error) { return testBytes, nil }
-		k8s.FindDefinedServicesFunc = (&kubernetes.Manifests{}).FindDefinedServices
 		k8s.LoadManifestsFunc = kresource.Load
 		k8s.ParseManifestsFunc = func(allDefs []byte) (map[string]resource.Resource, error) {
 			return kresource.ParseMultidoc(allDefs, "test")

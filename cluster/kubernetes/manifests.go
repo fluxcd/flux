@@ -10,8 +10,6 @@ import (
 type Manifests struct {
 }
 
-// FindDefinedServices implementation in files.go
-
 func (c *Manifests) LoadManifests(base, first string, rest ...string) (map[string]resource.Resource, error) {
 	return kresource.Load(base, first, rest...)
 }

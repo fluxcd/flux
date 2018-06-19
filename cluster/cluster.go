@@ -8,11 +8,6 @@ import (
 	"github.com/weaveworks/flux/ssh"
 )
 
-var (
-	ErrNoResourceFilesFoundForService       = errors.New("no resource file found for service")
-	ErrMultipleResourceFilesFoundForService = errors.New("multiple resource files found for service")
-)
-
 // The things we can get from the running cluster. These used to form
 // the remote.Platform interface; but now we do more in the daemon so they
 // are distinct interfaces.

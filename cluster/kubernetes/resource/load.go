@@ -39,19 +39,19 @@ func Load(base, atLeastOne string, more ...string) (map[string]resource.Resource
 			if !info.IsDir() && filepath.Ext(path) == ".yaml" || filepath.Ext(path) == ".yml" {
 				bytes, err := ioutil.ReadFile(path)
 				if err != nil {
-					return errors.Wrapf(err, "reading file at %q", path)
+					return errors.Wrapf(err, "unable to read file at %q", path)
 				}
 				source, err := filepath.Rel(base, path)
 				if err != nil {
-					return errors.Wrapf(err, "finding relative path for %q", path)
+					return errors.Wrapf(err, "path to scan %q is not under base %q", path, base)
 				}
 				docsInFile, err := ParseMultidoc(bytes, source)
 				if err != nil {
-					return errors.Wrapf(err, "parsing file at %q", path)
+					return err
 				}
 				for id, obj := range docsInFile {
 					if alreadyDefined, ok := objs[id]; ok {
-						return fmt.Errorf(`resource '%s' defined more than once (in %s and %s)`, id, alreadyDefined.Source(), source)
+						return fmt.Errorf(`duplicate definition of '%s' (in %s and %s)`, id, alreadyDefined.Source(), source)
 					}
 					objs[id] = obj
 				}

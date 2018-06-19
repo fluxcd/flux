@@ -48,7 +48,6 @@ func daemon(t *testing.T) (*Daemon, func()) {
 		return kresource.ParseMultidoc(allDefs, "exported")
 	}
 	k8s.ExportFunc = func() ([]byte, error) { return nil, nil }
-	k8s.FindDefinedServicesFunc = (&kubernetes.Manifests{}).FindDefinedServices
 	k8s.ServicesWithPoliciesFunc = (&kubernetes.Manifests{}).ServicesWithPolicies
 
 	events = &mockEventWriter{}
