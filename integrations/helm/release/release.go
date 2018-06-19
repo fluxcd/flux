@@ -1,17 +1,21 @@
 package release
 
 import (
+	"bytes"
+	"context"
 	"fmt"
+	"os/exec"
 	"path/filepath"
 	"sync"
+	"time"
 
-	//	"k8s.io/client-go/kubernetes"
-
+	"github.com/go-kit/kit/log"
 	k8shelm "k8s.io/helm/pkg/helm"
 	hapi_release "k8s.io/helm/pkg/proto/hapi/release"
 
-	"github.com/go-kit/kit/log"
+	"github.com/weaveworks/flux"
 	ifv1 "github.com/weaveworks/flux/apis/helm.integrations.flux.weave.works/v1alpha2"
+	fluxk8s "github.com/weaveworks/flux/cluster/kubernetes"
 	helmgit "github.com/weaveworks/flux/integrations/helm/git"
 )
 
@@ -45,7 +49,7 @@ type Releaser interface {
 		releaseName string,
 		fhr ifv1.FluxHelmRelease,
 		action Action,
-		opts InstallOptions) (hapi_release.Release, error)
+		opts InstallOptions) (*hapi_release.Release, error)
 	ConfigSync() *helmgit.Checkout
 }
 
@@ -92,7 +96,6 @@ func GetReleaseName(fhr ifv1.FluxHelmRelease) string {
 
 // GetDeployedRelease returns a release with Deployed status
 func (r *Release) GetDeployedRelease(name string) (*hapi_release.Release, error) {
-
 	rls, err := r.HelmClient.ReleaseContent(name)
 	if err != nil {
 		return nil, err
@@ -106,29 +109,8 @@ func (r *Release) GetDeployedRelease(name string) (*hapi_release.Release, error)
 // Exists detects if a particular Chart release exists
 // 		release name must match regex ^(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])+$
 func (r *Release) Exists(name string) (bool, error) {
-	rls, err := r.HelmClient.ReleaseContent(name)
-
-	if err != nil {
-		return false, err
-	}
-	/*
-		"UNKNOWN":          0,
-		"DEPLOYED":         1,
-		"DELETED":          2,
-		"SUPERSEDED":       3,
-		"FAILED":           4,
-		"DELETING":         5,
-		"PENDING_INSTALL":  6,
-		"PENDING_UPGRADE":  7,
-		"PENDING_ROLLBACK": 8,
-	*/
-	rst := rls.Release.Info.Status.GetCode()
-	r.logger.Log("info", fmt.Sprintf("Found release [%s] with status %s", name, rst.String()))
-
-	if rst == hapi_release.Status_DEPLOYED || rst == hapi_release.Status_FAILED {
-		return true, nil
-	}
-	return true, fmt.Errorf("Release [%s] exists with status: %s", name, rst.String())
+	rls, err := r.GetDeployedRelease(name)
+	return rls != nil, err
 }
 
 func (r *Release) canDelete(name string) (bool, error) {
@@ -168,13 +150,13 @@ func (r *Release) canDelete(name string) (bool, error) {
 
 // Install performs Chart release. Depending on the release type, this is either a new release,
 // or an upgrade of an existing one
-func (r *Release) Install(checkout *helmgit.Checkout, releaseName string, fhr ifv1.FluxHelmRelease, action Action, opts InstallOptions) (hapi_release.Release, error) {
+func (r *Release) Install(checkout *helmgit.Checkout, releaseName string, fhr ifv1.FluxHelmRelease, action Action, opts InstallOptions) (*hapi_release.Release, error) {
 	r.logger.Log("info", fmt.Sprintf("releaseName= %s, action=%s, install options: %+v", releaseName, action, opts))
 
 	chartPath := fhr.Spec.ChartGitPath
 	if chartPath == "" {
 		r.logger.Log("error", fmt.Sprintf(ErrChartGitPathMissing, fhr.GetName()))
-		return hapi_release.Release{}, fmt.Errorf(ErrChartGitPathMissing, fhr.GetName())
+		return nil, fmt.Errorf(ErrChartGitPathMissing, fhr.GetName())
 	}
 
 	namespace := fhr.GetNamespace()
@@ -187,7 +169,7 @@ func (r *Release) Install(checkout *helmgit.Checkout, releaseName string, fhr if
 	strVals, err := fhr.Spec.Values.YAML()
 	if err != nil {
 		r.logger.Log("error", fmt.Sprintf("Problem with supplied customizations for Chart release [%s]: %#v", releaseName, err))
-		return hapi_release.Release{}, err
+		return nil, err
 	}
 	rawVals := []byte(strVals)
 
@@ -212,9 +194,12 @@ func (r *Release) Install(checkout *helmgit.Checkout, releaseName string, fhr if
 
 		if err != nil {
 			r.logger.Log("error", fmt.Sprintf("Chart release failed: %s: %#v", releaseName, err))
-			return hapi_release.Release{}, err
+			return nil, err
 		}
-		return *res.Release, nil
+		if !opts.DryRun {
+			err = r.annotateResources(res.Release, fhr)
+		}
+		return res.Release, err
 	case UpgradeAction:
 		r.Lock()
 		res, err := r.HelmClient.UpdateRelease(
@@ -236,13 +221,16 @@ func (r *Release) Install(checkout *helmgit.Checkout, releaseName string, fhr if
 
 		if err != nil {
 			r.logger.Log("error", fmt.Sprintf("Chart upgrade release failed: %s: %#v", releaseName, err))
-			return hapi_release.Release{}, err
+			return nil, err
 		}
-		return *res.Release, nil
+		if !opts.DryRun {
+			err = r.annotateResources(res.Release, fhr)
+		}
+		return res.Release, err
 	default:
 		err = fmt.Errorf("Valid install options: CREATE, UPDATE. Provided: %s", action)
 		r.logger.Log("error", err.Error())
-		return hapi_release.Release{}, err
+		return nil, err
 	}
 }
 
@@ -288,4 +276,30 @@ func (r *Release) GetCurrent() (map[string][]DeployInfo, error) {
 		relsM[ns] = depl
 	}
 	return relsM, nil
+}
+
+// annotateResources annotates each of the resources created (or updated)
+// by the release so that we can spot them.
+func (r *Release) annotateResources(release *hapi_release.Release, fhr ifv1.FluxHelmRelease) error {
+	args := []string{"annotate", "--overwrite"}
+	args = append(args, "--namespace", release.Namespace)
+	args = append(args, "-f", "-")
+	args = append(args, fluxk8s.AntecedentAnnotation+"="+fhrResourceID(fhr).String())
+
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "kubectl", args...)
+	cmd.Stdin = bytes.NewBufferString(release.Manifest)
+
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		r.logger.Log("output", string(output), "err", err)
+	}
+	return err
+}
+
+// fhrResourceID constructs a flux.ResourceID for a FluxHelmRelease
+// resource.
+func fhrResourceID(fhr ifv1.FluxHelmRelease) flux.ResourceID {
+	return flux.MakeResourceID(fhr.Namespace, "FluxHelmRelease", fhr.Name)
 }

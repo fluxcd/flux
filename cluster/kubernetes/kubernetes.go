@@ -75,12 +75,16 @@ func (o *apiObject) hasNamespace() bool {
 // We want to ignore add-ons, since they are managed by the add-on
 // manager, and attempts to control them via other means will fail.
 
-type namespacedLabeled interface {
+// k8sObject represents an value from which you can obtain typical
+// Kubernetes metadata. These methods are implemented by the
+// Kubernetes API resource types.
+type k8sObject interface {
 	GetNamespace() string
 	GetLabels() map[string]string
+	GetAnnotations() map[string]string
 }
 
-func isAddon(obj namespacedLabeled) bool {
+func isAddon(obj k8sObject) bool {
 	if obj.GetNamespace() != "kube-system" {
 		return false
 	}
@@ -293,7 +297,7 @@ func (c *Cluster) Export() ([]byte, error) {
 
 			for _, pc := range podControllers {
 				if !isAddon(pc) {
-					if err := appendYAML(&config, pc.apiVersion, pc.kind, pc.apiObject); err != nil {
+					if err := appendYAML(&config, pc.apiVersion, pc.kind, pc.k8sObject); err != nil {
 						return nil, err
 					}
 				}

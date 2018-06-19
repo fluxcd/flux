@@ -15,7 +15,8 @@ type FluxHelmRelease struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata"`
 
-	Spec FluxHelmReleaseSpec `json:"spec"`
+	Spec   FluxHelmReleaseSpec   `json:"spec"`
+	Status FluxHelmReleaseStatus `json:"status"`
 }
 
 // FluxHelmReleaseSpec is the spec for a FluxHelmRelease resource
@@ -24,6 +25,10 @@ type FluxHelmReleaseSpec struct {
 	ChartGitPath   string `json:"chartGitPath"`
 	ReleaseName    string `json:"releaseName,omitempty"`
 	FluxHelmValues `json:",inline"`
+}
+
+type FluxHelmReleaseStatus struct {
+	ReleaseStatus string `json:"releaseStatus"`
 }
 
 // FluxHelmValues embeds chartutil.Values so we can implement deepcopy on map[string]interface{}

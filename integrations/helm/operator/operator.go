@@ -75,13 +75,8 @@ type Controller struct {
 func New(
 	logger log.Logger,
 	kubeclientset kubernetes.Interface,
-	//fhrclientset clientset.Interface,
-	//fhrInformerFactory ifinformers.SharedInformerFactory,
 	fhrInformer fhrv1.FluxHelmReleaseInformer,
 	release *chartrelease.Release) *Controller {
-
-	// Obtain reference to shared index informers for the FluxHelmRelease
-	//fhrInformer := fhrInformerFactory.Integrations().V1().FluxHelmReleases()
 
 	// Add helm-operator types to the default Kubernetes Scheme so Events can be
 	// logged for helm-operator types.
@@ -182,10 +177,10 @@ func (c *Controller) processNextWorkItem() bool {
 	// wrapping block in a func to defer c.workqueue.Done
 	err := func(obj interface{}) error {
 		// We call Done here so the workqueue knows we have finished
-		// processing this item. We must call Forget if we
-		// do not want this work item being re-queued. If a transient error occurs, , we do
-		// not call Forget. Instead the item is
-		// put back on the workqueue and attempted again after a back-off
+		// processing this item. We must call Forget if we do not want
+		// this work item being re-queued. If a transient error
+		// occurs, we do not call Forget. Instead the item is put back
+		// on the workqueue and attempted again after a back-off
 		// period.
 		defer c.releaseWorkqueue.Done(obj)
 

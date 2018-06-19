@@ -179,7 +179,7 @@ func GetNamespaces(logger log.Logger, kubeClient kubernetes.Clientset) ([]string
 
 	nso, err := kubeClient.CoreV1().Namespaces().List(metav1.ListOptions{})
 	if err != nil {
-		errm := fmt.Errorf("Failure while retrieving kybernetes namespaces: %#v", err)
+		errm := fmt.Errorf("Failure while retrieving kubernetes namespaces: %#v", err)
 		logger.Log("error", errm.Error())
 		return nil, errm
 	}
