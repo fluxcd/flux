@@ -148,7 +148,7 @@ func listImagesWithOptions(ctx context.Context, client listImagesWithOptionsClie
 
 	policyMap := make(policy.ResourceMap)
 	for _, service := range services {
-		var s policy.Set
+		s := policy.Set{}
 		for k, v := range service.Policies {
 			s[policy.Policy(k)] = v
 		}
