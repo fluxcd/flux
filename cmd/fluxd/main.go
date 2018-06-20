@@ -20,6 +20,7 @@ import (
 	k8sifclient "github.com/weaveworks/flux/integrations/client/clientset/versioned"
 	k8sclient "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/weaveworks/flux/checkpoint"
 	"github.com/weaveworks/flux/cluster"
@@ -127,6 +128,7 @@ func main() {
 		upstreamURL = fs.String("connect", "", "connect to an upstream service e.g., Weave Cloud, at this base address")
 		token       = fs.String("token", "", "authentication token for upstream service")
 
+		kubeConfig   = fs.String("kube-config", "", "path to kube config, for running locally")
 		dockerConfig = fs.String("docker-config", "", "path to a docker config to use for image registry credentials")
 
 		_ = fs.Duration("registry-cache-expiry", 0, "")
@@ -193,7 +195,13 @@ func main() {
 	var k8sManifests cluster.Manifests
 	var imageCreds func() registry.ImageCreds
 	{
-		restClientConfig, err := rest.InClusterConfig()
+		var restClientConfig *rest.Config
+		var err error
+		if *kubeConfig != "" {
+			restClientConfig, err = clientcmd.BuildConfigFromFlags("", *kubeConfig)
+		} else {
+			restClientConfig, err = rest.InClusterConfig()
+		}
 		if err != nil {
 			logger.Log("err", err)
 			os.Exit(1)
