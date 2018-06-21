@@ -22,14 +22,11 @@ RUN apk add --no-cache openssh ca-certificates tini 'git>=2.3.0'
 COPY --from=quay.io/squaremo/kubeyaml:0.3.1 /usr/lib/kubeyaml /usr/lib/kubeyaml/
 ENV PATH=/bin:/usr/bin:/usr/local/bin:/usr/lib/kubeyaml
 
-# Add git hosts to known hosts file so when git ssh's using the deploy
-# key we don't get an unknown host warning.
-RUN mkdir ~/.ssh && touch ~/.ssh/known_hosts && \
-    ssh-keyscan github.com gitlab.com bitbucket.org >> ~/.ssh/known_hosts && \
-    chmod 600 ~/.ssh/known_hosts
+# Add git hosts to known hosts file so we can use
+# StrickHostKeyChecking with git+ssh
+RUN ssh-keyscan github.com gitlab.com bitbucket.org >> /etc/ssh/ssh_known_hosts
 # Add default SSH config, which points at the private key we'll mount
-COPY ./ssh_config /root/.ssh/config
-RUN chmod 600 /root/.ssh/config
+COPY ./ssh_config /etc/ssh/ssh_config
 
 COPY ./kubectl /usr/local/bin/
 COPY ./fluxd /usr/local/bin/
