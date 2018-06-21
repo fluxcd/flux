@@ -34,9 +34,18 @@ func await(ctx context.Context, stdout, stderr io.Writer, client api.Server, job
 
 	if apply && result.Revision != "" {
 		if err := awaitSync(ctx, client, result.Revision); err != nil {
+			if err == ErrTimeout {
+				fmt.Fprintln(stderr, `
+The operation succeeded, but we timed out waiting for the commit to be
+applied. This does not necessarily mean there is a problem. Use
+
+    fluxctl sync
+
+to run a sync interactively.`)
+				return nil
+			}
 			return err
 		}
-
 		fmt.Fprintf(stderr, "Commit applied:\t%s\n", result.Revision[:7])
 	}
 
