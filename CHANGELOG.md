@@ -1,3 +1,34 @@
+## 1.4.1 (2018-06-21)
+
+This release fixes some wrinkles in the new YAML updating code, so
+that YAML multidocs and kubernetes List resources are fully
+supported.
+
+It also introduces the `fluxctl sync` command, which tells Flux to
+update from git and apply to Kubernetes -- as requested in
+[TGI Kubernetes](https://www.youtube.com/watch?v=aQz3H9bIH8Y)!
+
+### Fixes
+
+- Write whole files back after updates, so that multidocs and Lists
+  aren't overwritten. A symptom of the problem was that a release
+  would return an error something like "Verification failed: resources
+  {...} were present before update and not after"
+  [weaveworks/flux#1137](https://github.com/weaveworks/flux/pull/1137)
+- Interpret and update CronJob manifests correctly
+  [weaveworks/flux#1133](https://github.com/weaveworks/flux/pull/1133)
+
+### Improvements
+
+- Return a more helpful message when Flux can't parse YAML files
+  [weaveworks/flux#1141](https://github.com/weaveworks/flux/pull/1141)
+- Bake SSH config into the global location (`/etc/ssh`), so that it's
+  easier to override it by mounting a ConfigMap into `/root/.ssh/`
+  [weaveworks/flux#1154](https://github.com/weaveworks/flux/pull/1154)
+- Reduce the size of list-images API/RPC responses by sending only the
+  image metadata that's requested
+  [weaveworks/flux#913](https://github.com/weaveworks/flux/issues/913)
+
 ## 1.4.0 (2018-06-05)
 
 This release includes a rewrite of the YAML updating code, removing
