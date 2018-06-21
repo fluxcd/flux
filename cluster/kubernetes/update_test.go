@@ -26,13 +26,13 @@ func testUpdate(t *testing.T, u update) {
 		var out []byte
 		var err error
 		if out, err = updatePodController([]byte(manifest), flux.MustParseResourceID(u.resourceID), container, id); err != nil {
-			t.Errorf("Failed %s: %s", u.name, err.Error())
+			t.Errorf("Failed: %s", err.Error())
 			return
 		}
 		manifest = string(out)
 	}
 	if manifest != u.caseOut {
-		t.Errorf("%s: id not get expected result:\n\n%s\n\nInstead got:\n\n%s", u.name, u.caseOut, manifest)
+		t.Errorf("id not get expected result:\n\n%s\n\nInstead got:\n\n%s", u.caseOut, manifest)
 	}
 }
 
@@ -51,7 +51,9 @@ func TestUpdates(t *testing.T) {
 		{"in kubernetes List resource", case10resource, case10containers, case10image, case10, case10out},
 		{"FluxHelmRelease (simple image encoding)", case11resource, case11containers, case11image, case11, case11out},
 	} {
-		testUpdate(t, c)
+		t.Run(c.name, func(t *testing.T) {
+			testUpdate(t, c)
+		})
 	}
 }
 
