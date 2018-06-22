@@ -112,3 +112,24 @@ setting. Flux will read this value and parse the Kubernetes secret.
 
 For a guide showing how to do this, see the
 [Kubernetes documentation](https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/).
+
+### How do I use a private git host (or one that's not github.com, gitlab.com, or bitbucket.org)?
+
+As part of using git+ssh securely from the Flux daemon, we make sure
+`StrictHostKeyChecking` is on in the
+[SSH config](http://man7.org/linux/man-pages/man5/ssh_config.5.html). This
+mitigates against man-in-the-middle attacks.
+
+We bake host keys for `github.com`, `gitlab.com`, and `bitbucket.org`
+into the image to cover some common cases. If you're using another
+service, or running your own git host, you need to supply your own
+host key(s).
+
+How to do this is documented in
+[setup.md](/site/standalone/setup.md#using-a-private-git-host).
+
+### Will Flux delete resources that are no longer in the git repository?
+
+Not at present. It's tricky to come up with a safe and unsurprising
+way for this to work. There's discussion of some possibilities in
+[weaveworks/flux#738](https://github.com/weaveworks/flux/issues/738).
