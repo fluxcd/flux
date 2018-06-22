@@ -20,6 +20,13 @@ This means Flux can't read from and write to the git repo. Check that
    repository. To get the deploy key Flux is using, use `fluxctl
    identity`.
 
+ - ... that the host where your git repo lives is in
+   `~/.ssh/known_hosts` in the fluxd container. We prime the container
+   _image_ with host keys for `github.com`, `gitlab.com` and
+   `bitbucket.org`, but if you're using your own git server, you'll
+   need to add its host key. See
+   [./standalone/setup.md](./standalone/setup.md#using-a-private-git-host).
+
 ### "The request failed authentication"
 
 If you're using [Weave Cloud](https://cloud.weave.works/), this

@@ -115,3 +115,54 @@ arguments (examples with defaults): `--k8s-secret-name=flux-git-deploy`,
 Using an SSH key allows you to maintain control of the repository. You
 can revoke permission for `flux` to access the repository at any time
 by removing the deploy key.
+
+## Using a private git host
+
+If you're using your own git host -- e.g., your own installation of
+gitlab, or bitbucket server -- you will need to add its host key to
+`~/.ssh/known_hosts` in the flux daemon container.
+
+First, run a check that you can clone the repo. The following assumes
+that your git server's hostname (e.g., `githost`) is in `$GITHOST` and
+the URL you'll use to access the repository (e.g.,
+`user@githost:path/to/repo`) is in `$GITREPO`.
+
+```sh
+$ # Find the fluxd daemon pod:
+$ kubectl get pods --all-namespaces -l name=flux
+NAMESPACE   NAME                    READY     STATUS    RESTARTS   AGE
+weave       flux-85cdc6cdfc-n2tgf   1/1       Running   0          1h
+
+$ kubectl exec -n weave flux-85cdc6cdfc-n2tgf -ti -- \
+    env GITHOST="$GITHOST" GITREPO="$GITREPO" PS1="container$ " /bin/sh
+
+container$ git clone $GITREPO
+fatal: Could not read from remote repository
+
+container$ # ^ that was expected. Now we'll try with a modified known_hosts
+container$ ssh-keyscan $GITHOST >> ~/.ssh/known_hosts
+container$ git clone $GITREPO
+Cloning into '...'
+...
+```
+
+If `git clone` doesn't succeed, you'll need to check that the SSH key
+has been installed properly first, then come back. `ssh -vv $GITHOST`
+from within the container may help debug it.
+
+If it _did_ work, you will need to make it a more permanent
+arrangement. Back in that shell:
+
+```sh
+container$ kubectl create configmap flux-ssh-config --from-file=$HOME/.ssh/known_hosts
+configmap "flux-ssh-config" created
+```
+
+It will be created in the same namespace as the flux daemon, since
+you're creating it from within the flux daemon pod.
+
+To use the ConfigMap every time the Flux daemon restarts, you'll need
+to mount it into the container. The example deployment manifest
+includes an example of doing this, commented out. Uncomment that (it
+assumes you used the name above for the ConfigMap) and reapply the
+manifest.
