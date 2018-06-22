@@ -48,6 +48,26 @@ example. We may return to the matter of staged deployments.
 
 ## Technical questions
 
+### Does it work only with one git repository?
+
+At present, yes it works only with a single git repository containing
+Kubernetes manifests. You can have as many git repositories with
+application code as you like, to be clear -- see
+[below](#do-i-have-to-have-my-application-code-and-config-in-the-same-git-repo).
+
+There's no principled reason for this, it's just
+a consequence of time and effort being in finite supply. If you have a
+use for multiple git repo support, please comment in
+https://github.com/weaveworks/flux/issues/1164.
+
+In the meantime, for some use cases you can run more than one Flux
+daemon and point them at different repos. If you do this, consider
+trimming the RBAC permissions you give each daemon's service account.
+
+This
+[flux (daemon) operator](https://github.com/justinbarrick/flux-operator)
+project may be of use for managing multiple daemons.
+
 ### Why does Flux need a deploy key?
 
 Flux needs a deploy key to be allowed to push to the version control
