@@ -19,10 +19,19 @@ const (
 )
 
 var (
-	ErrNoChanges = errors.New("no changes made in repo")
-	ErrNotReady  = errors.New("git repo not ready")
-	ErrNoConfig  = errors.New("git repo does not have valid config")
+	ErrNoChanges  = errors.New("no changes made in repo")
+	ErrNoConfig   = errors.New("git repo does not have valid config")
+	ErrNotCloned  = errors.New("git repo has not been cloned yet")
+	ErrClonedOnly = errors.New("git repo has been cloned but not yet checked for write access")
 )
+
+type NotReadyError struct {
+	underlying error
+}
+
+func (err NotReadyError) Error() string {
+	return "git repo not ready: " + err.underlying.Error()
+}
 
 // GitRepoStatus represents the progress made synchronising with a git
 // repo. These are given below in expected order, but the status may
@@ -76,7 +85,7 @@ func NewRepo(origin Remote, opts ...Option) *Repo {
 		origin:   origin,
 		status:   status,
 		interval: defaultInterval,
-		err:      nil,
+		err:      ErrNotCloned,
 		notify:   make(chan struct{}, 1), // `1` so that Notify doesn't block
 		C:        make(chan struct{}, 1), // `1` so we don't block on completing a refresh
 	}
@@ -122,10 +131,17 @@ func (r *Repo) Status() (GitRepoStatus, error) {
 	return r.status, r.err
 }
 
-func (r *Repo) setStatus(s GitRepoStatus, err error) {
+func (r *Repo) setUnready(s GitRepoStatus, err error) {
 	r.mu.Lock()
 	r.status = s
 	r.err = err
+	r.mu.Unlock()
+}
+
+func (r *Repo) setReady() {
+	r.mu.Lock()
+	r.status = RepoReady
+	r.err = nil
 	r.mu.Unlock()
 }
 
@@ -157,7 +173,7 @@ func (r *Repo) errorIfNotReady() error {
 	case RepoNoConfig:
 		return ErrNoConfig
 	default:
-		return ErrNotReady
+		return NotReadyError{r.err}
 	}
 }
 
@@ -229,29 +245,29 @@ func (r *Repo) Start(shutdown <-chan struct{}, done *sync.WaitGroup) error {
 				r.mu.Unlock()
 			}
 			if err == nil {
-				r.setStatus(RepoCloned, nil)
+				r.setUnready(RepoCloned, ErrClonedOnly)
 				continue // with new status, skipping timer
 			}
 			dir = ""
 			os.RemoveAll(rootdir)
-			r.setStatus(RepoNew, err)
+			r.setUnready(RepoNew, err)
 
 		case RepoCloned:
 			ctx, cancel := context.WithTimeout(bg, opTimeout)
 			err := checkPush(ctx, dir, url)
 			cancel()
 			if err == nil {
-				r.setStatus(RepoReady, nil)
+				r.setReady()
 				// Treat every transition to ready as a refresh, so
 				// that any listeners can respond in the same way.
 				r.refreshed()
 				continue // with new status, skipping timer
 			}
-			r.setStatus(RepoCloned, err)
+			r.setUnready(RepoCloned, err)
 
 		case RepoReady:
 			if err := r.refreshLoop(shutdown); err != nil {
-				r.setStatus(RepoNew, err)
+				r.setUnready(RepoNew, err)
 				continue // with new status, skipping timer
 			}
 		}
