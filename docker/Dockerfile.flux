@@ -28,6 +28,7 @@ RUN ssh-keyscan github.com gitlab.com bitbucket.org >> /etc/ssh/ssh_known_hosts
 # Add default SSH config, which points at the private key we'll mount
 COPY ./ssh_config /etc/ssh/ssh_config
 
+COPY ./kubeconfig /root/.kube/config
 COPY ./kubectl /usr/local/bin/
 COPY ./fluxd /usr/local/bin/
 

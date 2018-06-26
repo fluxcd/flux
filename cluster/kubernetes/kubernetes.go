@@ -45,13 +45,15 @@ type extendedClient struct {
 
 // --- internal types for keeping track of syncing
 
+type metadata struct {
+	Name      string `yaml:"name"`
+	Namespace string `yaml:"namespace"`
+}
+
 type apiObject struct {
 	resource.Resource
-	Kind     string `yaml:"kind"`
-	Metadata struct {
-		Name      string `yaml:"name"`
-		Namespace string `yaml:"namespace"`
-	} `yaml:"metadata"`
+	Kind     string   `yaml:"kind"`
+	Metadata metadata `yaml:"metadata"`
 }
 
 // A convenience for getting an minimal object from some bytes.
@@ -98,30 +100,6 @@ func isAddon(obj k8sObject) bool {
 }
 
 // --- /add ons
-
-type changeSet struct {
-	nsObjs   map[string][]*apiObject
-	noNsObjs map[string][]*apiObject
-}
-
-func makeChangeSet() changeSet {
-	return changeSet{
-		nsObjs:   make(map[string][]*apiObject),
-		noNsObjs: make(map[string][]*apiObject),
-	}
-}
-
-func (c *changeSet) stage(cmd string, o *apiObject) {
-	if o.hasNamespace() {
-		c.nsObjs[cmd] = append(c.nsObjs[cmd], o)
-	} else {
-		c.noNsObjs[cmd] = append(c.noNsObjs[cmd], o)
-	}
-}
-
-type Applier interface {
-	apply(log.Logger, changeSet) cluster.SyncError
-}
 
 // Cluster is a handle to a Kubernetes API server.
 // (Typically, this code is deployed into the same cluster.)
