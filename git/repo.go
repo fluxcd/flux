@@ -123,8 +123,8 @@ func (r *Repo) Clean() {
 }
 
 // Status reports that readiness status of this Git repo: whether it
-// has been cloned, whether it is writable, and if not, the error
-// stopping it getting to the next state.
+// has been cloned and is writable, and if not, the error stopping it
+// getting to the next state.
 func (r *Repo) Status() (GitRepoStatus, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
