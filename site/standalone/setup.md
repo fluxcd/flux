@@ -39,8 +39,12 @@ manifest.
 
 ## Add an SSH deploy key to the repository
 
-Flux connects to the repository using an SSH key. You have two
-options:
+Flux connects to the repository using an SSH key.
+
+***The SSH key must be configured to have R/W access to the repository*** because flux writes tags to the repository on
+sync.
+ 
+You have two options:
 
 ### 1. Allow flux to generate a key for you.
 
