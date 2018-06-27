@@ -41,8 +41,7 @@ manifest.
 
 Flux connects to the repository using an SSH key.
 
-***The SSH key must be configured to have R/W access to the repository*** because flux writes tags to the repository on
-sync.
+***The SSH key must be configured to have R/W access to the repository***.
  
 You have two options:
 
