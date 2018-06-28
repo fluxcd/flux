@@ -44,7 +44,7 @@ the public key through fluxctl:
 
 Create a Kubernetes Secret from a private key:
 
-```
+```sh
 kubectl create secret generic flux-git-deploy --from-file=identity=/path/to/private_key
 ```
 
