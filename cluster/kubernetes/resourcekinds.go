@@ -333,13 +333,13 @@ func makeFluxHelmReleasePodController(fluxHelmRelease *fhr_v1alpha2.FluxHelmRele
 // interpreting the FluxHelmRelease resource. The interpretation is
 // analogous to that in cluster/kubernetes/resource/fluxhelmrelease.go
 func createK8sFHRContainers(spec fhr_v1alpha2.FluxHelmReleaseSpec) []apiv1.Container {
-	values := spec.Values
-	if imgInfo, ok := values["image"]; ok {
-		if imgInfoStr, ok := imgInfo.(string); ok {
-			return []apiv1.Container{
-				{Name: kresource.ReleaseContainerName, Image: imgInfoStr},
-			}
-		}
-	}
-	return nil
+	var containers []apiv1.Container
+	_ = kresource.FindFluxHelmReleaseContainers(spec.Values, func(name string, image image.Ref, _ kresource.ImageSetter) error {
+		containers = append(containers, apiv1.Container{
+			Name:  kresource.ReleaseContainerName,
+			Image: image.String(),
+		})
+		return nil
+	})
+	return containers
 }
