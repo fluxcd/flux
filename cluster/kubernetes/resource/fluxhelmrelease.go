@@ -37,6 +37,11 @@ type FluxHelmRelease struct {
 // returned.
 func (fhr FluxHelmRelease) Containers() []resource.Container {
 	values := fhr.Spec.Values
+	// Try the simplest format first:
+	// ```
+	// values:
+	//   image: 'repo/image:tag'
+	// ```
 	if imgInfo, ok := values["image"]; ok {
 		if imgInfoStr, ok := imgInfo.(string); ok {
 			imageRef, err := image.ParseRef(imgInfoStr)
@@ -47,7 +52,31 @@ func (fhr FluxHelmRelease) Containers() []resource.Container {
 			}
 		}
 	}
-	return nil
+	// Second most simple format:
+	// ```
+	// values:
+	//   foo:
+	//     image: repo/foo:tag
+	//   bar:
+	//     image: repo/bar:tag
+	// ```
+	var containers []resource.Container
+	for k, v := range values {
+		if v, ok := v.(map[interface{}]interface{}); ok {
+			if imgInfo, ok := v["image"]; ok {
+				if imgInfoStr, ok := imgInfo.(string); ok {
+					imageRef, err := image.ParseRef(imgInfoStr)
+					if err == nil {
+						containers = append(containers, resource.Container{
+							Name:  k,
+							Image: imageRef,
+						})
+					}
+				}
+			}
+		}
+	}
+	return containers
 }
 
 // SetContainerImage mutates this resource by setting the `image`
@@ -55,13 +84,30 @@ func (fhr FluxHelmRelease) Containers() []resource.Container {
 // we can get away with a value-typed receiver because we set a map
 // entry.
 func (fhr FluxHelmRelease) SetContainerImage(container string, ref image.Ref) error {
-	if container != ReleaseContainerName {
-		return fmt.Errorf("container %q not in resource; expected %q by convention", container, ReleaseContainerName)
-	}
 	values := fhr.Spec.Values
-	if _, ok := values["image"]; ok { // NB assume it's OK to replace whatever's there with a string
-		values["image"] = ref.String()
-		return nil
+	if container == ReleaseContainerName {
+		if existing, ok := values["image"]; ok {
+			if _, ok := existing.(string); ok {
+				values["image"] = ref.String()
+				return nil
+			}
+			return fmt.Errorf("expected string value at .image, but it was not a string")
+		}
+		// if it isn't there, maybe it's the second format, and there
+		// just happens to be an entry named the same as
+		// `ReleaseContainerName`; so, fall through.
 	}
-	return fmt.Errorf("did not find 'image' field in resource")
+	for k, v := range values {
+		if k == container {
+			if v, ok := v.(map[interface{}]interface{}); ok {
+				if existing, ok := v["image"]; ok {
+					if _, ok := existing.(string); ok {
+						v["image"] = ref.String()
+						return nil
+					}
+				}
+			}
+		}
+	}
+	return fmt.Errorf("expected string value at %s.image, but it is not present, or not a string", container)
 }
