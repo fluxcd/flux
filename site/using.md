@@ -29,8 +29,8 @@ kubectl port-forward "$fluxpod" 10080:3030 &
 export FLUX_URL="http://localhost:10080/api/flux"
 ```
 
-After that, exporting `FLUX_URL` is enough for `fluxctl` to know how
-to contact the daemon. You could alternatively supply the `--url` argument
+Exporting `FLUX_URL` is enough for `fluxctl` to know how to contact
+the daemon. You could alternatively supply the `--url` argument
 each time.
 
 ## Flux API service
