@@ -83,8 +83,8 @@ Get started by browsing through the documentation below:
   - [Flux using Helm](/site/helm/installing.md)
 - Operating Flux
   - [Using Flux](/site/using.md)
-  - [Upgrading to Flux v1](/site/upgrading-to-1.0.md)
   - [Troubleshooting](/site/troubleshooting.md)
+  - [Upgrading to Flux v1](/site/upgrading-to-1.0.md)
 
 ## Developer information
 
