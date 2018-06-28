@@ -103,9 +103,13 @@ In order to sync your cluster state with git you need to copy the
 public key and create a deploy key with write access on your GitHub
 repository.
 
-Open GitHub, navigate to your fork, go to **Setting > Deploy keys**(`https://github.com/YOURUSER/flux-example/settings/keys/new`),
-click on **Add deploy key**, check **Allow write access**, paste
-the Flux public key and click **Add key**.
+Open GitHub, navigate to your fork, go to **Setting > Deploy keys**,
+click on **Add deploy key**, give it a name, check **Allow write
+access**, paste the Flux public key and click **Add key**.
+
+(Or replace `YOURUSER` with your Github ID in this url:
+`https://github.com/YOURUSER/flux-helm-test/settings/keys/new` and
+paste the key there.)
 
 Once Flux has confirmed access to the repository, it will start
 deploying the workloads of `flux-helm-test`. After a while you
