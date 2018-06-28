@@ -72,7 +72,6 @@ and create a service account in whichever namespace you put fluxd
 in. You may need to alter the `namespace: default` lines, if you adapt
 the example.
 
-<<<<<<< HEAD
 Using an SSH key allows you to maintain control of the repository. You
 can revoke permission for `flux` to access the repository at any time
 by removing the deploy key.
@@ -127,8 +126,6 @@ to mount it into the container. The example deployment manifest
 includes an example of doing this, commented out. Uncomment that (it
 assumes you used the name above for the ConfigMap) and reapply the
 manifest.
-=======
 You will need to explicitly tell fluxd to use that service account by
 uncommenting and possible adapting the line `# serviceAccountName:
 flux` in the file `fluxd-deployment.yaml` before applying it.
->>>>>>> 8ed16de... add self-contained get-started standalone guide
