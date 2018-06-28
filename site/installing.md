@@ -16,7 +16,7 @@ Here are the instructions to [install Flux on your own
 cluster](./standalone/installing.md).
 
 If you are using Helm, we have a [separate section about
-this](./helm/liinstalling.md).
+this](./helm/installing.md).
 
 # Next
 
