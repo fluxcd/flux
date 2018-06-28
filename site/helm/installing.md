@@ -54,9 +54,7 @@ Add the Flux repository of Weaveworks:
 helm repo add weaveworks https://weaveworks.github.io/flux
 ```
 
-In this next step you install Weave Flux using `helm`. All you need
-to do is specify your fork of
-[flux-helm-test](https://github.com/weaveworks/flux-helm-test).
+In this next step you install Weave Flux using `helm`. Simply:
 
  1. Fork [flux-helm-test](https://github.com/weaveworks/flux-helm-test)
     on Github and
