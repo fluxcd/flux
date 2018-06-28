@@ -58,7 +58,7 @@ At startup Flux generates a SSH key and logs the public key.
 Find the SSH public key with:
 
 ```bash
-kubectl -n flux logs deployment/flux | grep identity.pub
+kubectl -n flux logs deployment/flux | grep identity.pub | cut -d '"' -f2
 ```
 
 In order to sync your cluster state with GitHub you need to copy the public key and 
