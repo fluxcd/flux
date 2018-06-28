@@ -10,22 +10,7 @@ the directory with the examples configuration.
 
 ## Memcache
 
-<<<<<<< HEAD
-## Add an SSH deploy key to the repository
-
-Flux connects to the repository using an SSH key.
-
-***The SSH key must be configured to have R/W access to the repository***.
- 
-You have two options:
-
-### 1. Allow flux to generate a key for you.
-
-If you don't specify a key to use, Flux will create one for you. Obtain
-the public key through fluxctl:
-=======
 Flux uses memcache to cache docker registry requests.
->>>>>>> a0e4ec3... add self-contained get-started standalone guide
 
 ```sh
 kubectl create -f memcache-dep.yaml -f memcache-svc.yaml
@@ -41,6 +26,19 @@ repository and synchronised the cluster.
 
 When using Kubernetes, this key is stored as a Kubernetes secret. You
 can restart `flux` and it will continue to use the same key.
+
+## Add an SSH deploy key to the repository
+
+Flux connects to the repository using an SSH key.
+
+***The SSH key must be configured to have R/W access to the repository***.
+ 
+You have two options:
+
+### 1. Allow flux to generate a key for you.
+
+If you don't specify a key to use, Flux will create one for you. Obtain
+the public key through fluxctl:
 
 ### 2. Specify a key to use
 
