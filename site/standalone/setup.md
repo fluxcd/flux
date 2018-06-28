@@ -1,9 +1,9 @@
 ---
-title: Setup Weave Flux Manually
+title: Customising the deployment
 menu_order: 20
 ---
 
-# Detailed Description
+# Customising the deployment
 
 The deployment installs Flux and its dependencies. First, change to
 the directory with the examples configuration.
