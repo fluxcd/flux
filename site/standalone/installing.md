@@ -108,40 +108,7 @@ kubectl port-forward deployment/helloworld 8080:80 &
 curl localhost:8080
 ```
 
-<<<<<<< HEAD
-### Remote endpoint
-
-```
-export POD_NAME=$(kubectl get pods --namespace default -l "name=flux" -o jsonpath="{.items[0].metadata.name}")
-kubectl port-forward $POD_NAME 3030:3030
-export FLUX_URL="http://127.0.0.1:3030/api/flux"
-fluxctl list-controllers --all-namespaces
-```
-
-## fluxctl
-
-This allows you to control Flux from the command line, and if you're
-not connecting it to Weave Cloud, is the only way of working with
-Flux.
-
-Download the latest version of the fluxctl client
-[from github](https://github.com/weaveworks/flux/releases).
-
-## Helm operator (Helm users only)
-
-The Kubernetes deployment configuration file
-[helm-operator-deployment.yaml](../../deploy-helm/helm-operator-deployment.yaml) runs the
-helm operator, but you'll need to edit it first, at least to supply your
-own configuration repo (the `--git-repo` as for flux and the `--git-charts-path`
-argument).
-
-```
-$EDITOR helm-operator-deployment.yaml
-kubectl create -f flux-helm-release-crd.yaml -f helm-operator-deployment.yaml
-```
-=======
 ## Conclusion
->>>>>>> a0e4ec3... add self-contained get-started standalone guide
 
 As you can see, the actual steps to set up Flux, get our app
 deployed, give Flux access to it and see modifications land are
