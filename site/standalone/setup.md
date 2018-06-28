@@ -8,6 +8,15 @@ menu_order: 20
 The deployment installs Flux and its dependencies. First, change to
 the directory with the examples configuration.
 
+# Customising the daemon configuration
+
+## Connect flux to a repository
+
+First, you need to connect flux to the repository with Kubernetes
+manifests. This is achieved by setting the `--git-url` and
+`--git-branch` arguments in the
+[`flux-deployment.yaml`](../../deploy/flux-deployment.yaml) manifest.
+
 ## Memcache
 
 Flux uses memcache to cache docker registry requests.

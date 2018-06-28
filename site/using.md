@@ -63,15 +63,6 @@ export FLUX_URL="http://$(minikube ip):$fluxport/api/flux"
 fluxctl list-controllers --all-namespaces
 ```
 
-# Customising the daemon configuration
-
-## Connect flux to a repository
-
-First, you need to connect flux to the repository with Kubernetes
-manifests. This is achieved by setting the `--git-url` and
-`--git-branch` arguments in the
-[`flux-deployment.yaml`](../../deploy/flux-deployment.yaml) manifest.
-
 ## Add an SSH deploy key to the repository
 
 Flux connects to the repository using an SSH key. You have two
@@ -400,11 +391,6 @@ If your pod contains multiple containers then you tag each container individuall
 ```
 fluxctl policy --controller=default:deployment/helloworld --tag='helloworld=prod-*' --tag='sidecar=prod-*'
 ``` 
-
-## Actions triggered through Weave Cloud
-
-Weave Cloud UI sends user parameter, value of which is the username (email) of the user logged into
-Weave Cloud.
 
 ## Actions triggered through `fluxctl`
 
