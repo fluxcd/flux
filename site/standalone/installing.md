@@ -28,7 +28,7 @@ git clone https://github.com/weaveworks/flux
 cd flux
 ```
 
-Now you can go ahead and edit Flux's deployment manifes. At the very
+Now you can go ahead and edit Flux's deployment manifest. At the very
 least you will have to change the `--git-url` parameter to point to
 the config repository for the workloads you want Flux to deploy for
 you. You are going to need access to this repository.
