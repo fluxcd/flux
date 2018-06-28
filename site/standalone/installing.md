@@ -133,6 +133,15 @@ export FLUX_URL="http://$(minikube ip):$fluxport/api/flux"
 fluxctl list-controllers --all-namespaces
 ```
 
+### Remote endpoint
+
+```
+export POD_NAME=$(kubectl get pods --namespace default -l "name=flux" -o jsonpath="{.items[0].metadata.name}")
+kubectl port-forward $POD_NAME 3030:3030
+export FLUX_URL="http://127.0.0.1:3030/api/flux"
+fluxctl list-controllers --all-namespaces
+```
+
 ## fluxctl
 
 This allows you to control Flux from the command line, and if you're
