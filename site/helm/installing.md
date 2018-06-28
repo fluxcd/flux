@@ -95,7 +95,7 @@ This is pretty straight-forward as Flux generates a SSH key and
 logs the public key at startup. Find the SSH public key with:
 
 ```sh
-export FLUX_POD=$(kubectl get pods --namespace flux -l "app=flux,release=flux" -o jsonpath="{.items[0].metadata.name}")
+FLUX_POD=$(kubectl get pods --namespace flux -l "app=flux,release=flux" -o jsonpath="{.items[0].metadata.name}")
 kubectl -n flux logs $FLUX_POD | grep identity.pub | cut -d '"' -f2
 ```
 
