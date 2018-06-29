@@ -57,17 +57,45 @@ Its major features are:
 
 ### Relation to Weave Cloud
 
-Weave Cloud is a SaaS product by Weaveworks that includes Flux, as well
-as:
+Weave Cloud builds on top of the great work in Flux and is a SaaS product
+by Weaveworks that along with a UI and alerts for deployments, gives you
+full observability and insights into your cluster as well. It simplifies
+deployment, monitoring and management for containers and microservices.
+Here is an overview of their feature sets:
 
- - a UI and alerts for deployments: nicely integrated overview, all flux
-   operations just a click away.
- - full observability and insights into your cluster: Instantly start using
-   monitoring dashboards for your cluster, hosted 13 months of history, use
-   a realtime map of your cluster to debug and analyse its state.
+|                                                                                                  | OSS Flux | Weave Cloud |
+| ------------------------------------------------------------------------------------------------ |:--------:|:-----------:|
+| &#x026AB; Continuously deploy any workload into Kubernetes                                       | x        | x           |
+| &#x026AB; Automated (or one-click manual) deployments and rollbacks                              | x        | x           |
+| &#x026AB; Audit trail (who did what when) of deployments/commits/alerts/notifications            | x        | x           |
+| &#x026AB; Batch operations (control workloads and their deployment strategies easily)            | x        | x           |
+| &#x026AB; Ensures that the cluster state matches the config in git                               | x        | x           |
+| &#x026AB; Interrupt automatic deployments and document why                                       | x        | x           |
+| &#x026AB; Helm support for deployments (alpha)                                                   | x        | x           |
+| &#x026AB; Dashboard + Overview of the deployment state (version, automation status, locks, etc). |          | x           |
+| &#x026AB; Web UI with one-click ops, set up deployment config easily                             |          | x           |
+| &#x026AB; Custom alerts (Route deployment notifications to slack, email, browser)                |          | x           |
+| &#x026AA; Automated monitoring and dashboards for workloads and nodes right after install        |          | x           |
+| &#x026AA; Many built-in metrics*, including [RED metrics] (error rate/latency of requests)       |          | x           |
+| &#x026AA; Jupyter-style notebooks + dashboards                                                   |          | x           |
+| &#x026AA; Learn from 13 months of hosted Prometheus-based metrics and cluster state              |          | x           |
+| &#x026AA; Use GCP Stackdriver and get logs and events aggregated                                 |          | x           |
+| &#x026AA; Debug and explore the state of your cluster in real-time                               |          | x           |
+| &#x026AA; Many more [observability features in Weave Cloud]                                      |          | x           |
+| &#x026AA; Many more [monitoring features in Weave Cloud]                                         |          | x           |
+
+| Legend                                                                                             |
+| -------------------------------------------------------------------------------------------------- |
+| &#x026AB; GitOps feature                                                                           |
+| &#x026AA; Observability feature                                                                    |
+| <sup>* this includes many language- and framework-specific metrics, e.g. go, jvm, http, etc.</sup> |
 
 If you want to learn more about Weave Cloud, you can see it in action on
 [its homepage](https://www.weave.works/product/cloud/).
+
+[RED metrics]: https://www.weave.works/blog/the-red-method-key-metrics-for-microservices-architecture/
+[observability features in Weave Cloud]: https://bit.ly/2MvFOmi
+[monitoring features in Weave Cloud]: https://bit.ly/2MxQCAv
 
 ## Get started with Flux
 
