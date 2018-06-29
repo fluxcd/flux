@@ -116,14 +116,15 @@ func main() {
 		dockerConfig = fs.String("docker-config", "", "path to a docker config to use for image registry credentials")
 	)
 
-	if err := fs.Parse(os.Args[1:]); err != nil {
+	err := fs.Parse(os.Args[1:])
+	switch {
+	case err == pflag.ErrHelp:
+		os.Exit(0)
+	case err != nil:
 		fmt.Fprintf(os.Stderr, "Error: %s\n\n", err.Error())
-		fmt.Fprintf(os.Stderr, "Usage of %s:\n", os.Args[0])
-		fs.PrintDefaults()
+		fs.Usage()
 		os.Exit(2)
-	}
-
-	if *versionFlag {
+	case *versionFlag:
 		fmt.Println(version)
 		os.Exit(0)
 	}
