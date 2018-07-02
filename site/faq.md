@@ -162,6 +162,10 @@ setting. Flux will read this value and parse the Kubernetes secret.
 For a guide showing how to do this, see the
 [Kubernetes documentation](https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/).
 
+### Why are my images not showing up in the list of images?
+
+
+
 ### How do I use a private git host (or one that's not github.com, gitlab.com, or bitbucket.com)?
 
 As part of using git+ssh securely from the Flux daemon, we make sure
