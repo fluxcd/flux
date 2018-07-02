@@ -30,19 +30,51 @@ type FluxHelmRelease struct {
 	}
 }
 
-// Containers returns the containers that are defined in the
-// FluxHelmRelease. At present, this assumes only one image in the
-// Spec.Values, which is then named for the chart. If there is no such
-// field, or it is not parseable as an image ref, no containers are
-// returned.
-func (fhr FluxHelmRelease) Containers() []resource.Container {
-	values := fhr.Spec.Values
+type ImageSetter func(image.Ref)
+
+// FindFluxHelmReleaseContainers examines the Values from a
+// FluxHelmRelease (manifest, or cluster resource, or otherwise) and
+// calls visit with each container name and image it finds, as well as
+// procedure for changing the image value. It will return an error if
+// it cannot interpret the values as specifying images, or if the
+// `visit` function itself returns an error.
+func FindFluxHelmReleaseContainers(values map[string]interface{}, visit func(string, image.Ref, ImageSetter) error) error {
+	// Try the simplest format first:
+	// ```
+	// values:
+	//   image: 'repo/image:tag'
+	// ```
 	if imgInfo, ok := values["image"]; ok {
 		if imgInfoStr, ok := imgInfo.(string); ok {
 			imageRef, err := image.ParseRef(imgInfoStr)
 			if err == nil {
-				return []resource.Container{
-					{Name: ReleaseContainerName, Image: imageRef},
+				return visit(ReleaseContainerName, imageRef, func(ref image.Ref) {
+					values["image"] = ref.String()
+				})
+			}
+		}
+	}
+	// Second most simple format:
+	// ```
+	// values:
+	//   foo:
+	//     image: repo/foo:tag
+	//   bar:
+	//     image: repo/bar:tag
+	// ```
+	for k, v := range values {
+		if v, ok := v.(map[interface{}]interface{}); ok {
+			if imgInfo, ok := v["image"]; ok {
+				if imgInfoStr, ok := imgInfo.(string); ok {
+					imageRef, err := image.ParseRef(imgInfoStr)
+					if err == nil {
+						err = visit(k, imageRef, func(ref image.Ref) {
+							v["image"] = ref.String()
+						})
+					}
+					if err != nil {
+						return err
+					}
 				}
 			}
 		}
@@ -50,18 +82,38 @@ func (fhr FluxHelmRelease) Containers() []resource.Container {
 	return nil
 }
 
-// SetContainerImage mutates this resource by setting the `image`
-// field of `values`, per the interpretation in `Containers` above. NB
-// we can get away with a value-typed receiver because we set a map
-// entry.
-func (fhr FluxHelmRelease) SetContainerImage(container string, ref image.Ref) error {
-	if container != ReleaseContainerName {
-		return fmt.Errorf("container %q not in resource; expected %q by convention", container, ReleaseContainerName)
-	}
-	values := fhr.Spec.Values
-	if _, ok := values["image"]; ok { // NB assume it's OK to replace whatever's there with a string
-		values["image"] = ref.String()
+// Containers returns the containers that are defined in the
+// FluxHelmRelease.
+func (fhr FluxHelmRelease) Containers() []resource.Container {
+	var containers []resource.Container
+	// If there's an error in interpreting, return what we have.
+	_ = FindFluxHelmReleaseContainers(fhr.Spec.Values, func(container string, image image.Ref, _ ImageSetter) error {
+		containers = append(containers, resource.Container{
+			Name:  container,
+			Image: image,
+		})
 		return nil
+	})
+	return containers
+}
+
+// SetContainerImage mutates this resource by setting the `image`
+// field of `values`, or a subvalue therein, per one of the
+// interpretations in `FindFluxHelmReleaseContainers` above. NB we can
+// get away with a value-typed receiver because we set a map entry.
+func (fhr FluxHelmRelease) SetContainerImage(container string, ref image.Ref) error {
+	found := false
+	if err := FindFluxHelmReleaseContainers(fhr.Spec.Values, func(name string, image image.Ref, setter ImageSetter) error {
+		if container == name {
+			setter(ref)
+			found = true
+		}
+		return nil
+	}); err != nil {
+		return err
 	}
-	return fmt.Errorf("did not find 'image' field in resource")
+	if !found {
+		return fmt.Errorf("did not find container %s in FluxHelmRelease", container)
+	}
+	return nil
 }
