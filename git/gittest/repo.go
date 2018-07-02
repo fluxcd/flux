@@ -108,17 +108,14 @@ func execCommand(cmd string, args ...string) error {
 }
 
 func WaitForRepoReady(r *git.Repo, t *testing.T) {
-	retries := 5
+	retries := 30
 	for {
-		s, err := r.Status()
-		if err != nil {
-			t.Fatal(err)
-		}
+		s, _ := r.Status()
 		if s == git.RepoReady {
 			return
 		}
 		if retries == 0 {
-			t.Fatalf("repo was not ready after 5 seconds")
+			t.Fatalf("repo was not ready after 3 seconds")
 			return
 		}
 		retries--
