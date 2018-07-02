@@ -119,4 +119,4 @@ very straight-forward and are a quite natural work-flow.
 
 As a next step, you might want to dive deeper into [how to control
 Flux](/site/using.md) or check out [more sophisticated
-setups](/site/setup.md).
+setups](/site/standalone/setup.md).
