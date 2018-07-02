@@ -37,8 +37,8 @@ spec:
         # Include this if you need to mount a customised known_hosts
         # file; you'll also need the volume declared above.
         # - name: sshdir
-        # mountPath: /root/.ssh/known_hosts
-        # subPath: known_hosts
+        # mountPath: /etc/ssh/ssh_known_hosts
+        # subPath: ssh_known_hosts
         # readOnly: true
         - name: git-key
           mountPath: /etc/fluxd/ssh
