@@ -186,3 +186,45 @@ How to do this is documented in
 Not at present. It's tricky to come up with a safe and unsurprising
 way for this to work. There's discussion of some possibilities in
 [weaveworks/flux#738](https://github.com/weaveworks/flux/issues/738).
+
+### Why does my CI pipeline keep getting triggered?
+
+There's a couple of reasons this can happen.
+
+The first is that Flux pushes commits to your git repo, and if that
+repo is configured to go through CI, usually those commits will
+trigger a build. You can avoid this by supplying the flag `--ci-skip`
+so that Flux's commit will append `[ci skip]` to its commit
+messages. Many CI system will treat that as meaning they should not
+run a build for that commit. You can use `--ci-skip-message`, if you
+need a different piece of text appened to commit messages.
+
+The other thing that can trigger CI is that Flux pushes a tag to the
+upstream git repo whenever it has applied new commits. This acts as a
+"high water mark" for Flux to know which commits have already been
+seen. The default name for this tag is `flux-sync`, but it can be
+changed with the flags `--git-sync-tag` and `--git-label`. The
+simplest way to avoid triggering builds is to exclude this tag from
+builds -- how to do that will depend on how your CI system is
+configured.
+
+Here's the relevant docs for some common CI systems:
+
+ - [CircleCI](https://circleci.com/docs/2.0/workflows/#git-tag-job-execution)
+ - [TravisCI](https://docs.travis-ci.com/user/customizing-the-build#Building-Specific-Branches)
+ - [GitLab](https://docs.gitlab.com/ee/ci/yaml/#only-and-except-simplified)
+
+### Can I restrict the namespaces that Flux can see or operate on?
+
+Yes, though support for this is experimental at the minute.
+
+Flux will only operate on the namespaces that its service account has
+access to; so the most effective way to restrict it to certain
+namespaces is to use Kubernetes' role-based access control (RBAC) to
+make a service account that has restricted access itself. You may need
+to experiment to find the most restrictive permissions that work for
+your case.
+
+You will need to use the (experimental) command-line flag
+`--k8s-namespace-whitelist` to enumerate the namespaces that Flux
+attempts to scan for workloads.
