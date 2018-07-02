@@ -73,7 +73,7 @@ helm-operator requires setup and offers customization though a multitude of flag
 |--tillerPort            |                               | Tiller port.|
 |--tillerNamespace       |                               | Tiller namespace. If not provided, the default is kube-system.|
 |                        |                               | **Git repo & key etc.**|
-|--git-url               |                               | URL of git repo with Helm Charts; e.g., `git@github.com:weaveworks/flux-example`|
+|--git-url               |                               | URL of git repo with Helm Charts; e.g., `ssh://git@github.com/weaveworks/flux-example`|
 |--git-branch            | `master`                      | Branch of git repo to use for Kubernetes manifests|
 |--git-charts-path       | `charts`                      | Path within git repo to locate Kubernetes Charts (relative path)|
 |                        |                               | **repo chart changes** (none of these need overriding, usually) |

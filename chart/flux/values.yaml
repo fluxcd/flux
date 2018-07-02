@@ -48,7 +48,7 @@ tolerations: []
 affinity: {}
 
 git:
-  # URL of git repo with Kubernetes manifests; e.g. git@github.com:weaveworks/flux-example
+  # URL of git repo with Kubernetes manifests; e.g. git.url=ssh://git@github.com/weaveworks/flux-example
   url: ""
   # Branch of git repo to use for Kubernetes manifests
   branch: "master"

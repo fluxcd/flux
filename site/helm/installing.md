@@ -27,8 +27,9 @@ Download Helm:
   ```
 
 - On Linux:
-  - Download the [latest release](https://github.com/kubernetes/helm/releases/latest), unpack the
-    tarball and put the binary in your `$PATH`.
+  - Download the [latest
+    release](https://github.com/kubernetes/helm/releases/latest),
+    unpack the tarball and put the binary in your `$PATH`.
 
 Now create a service account and a cluster role binding for Tiller:
 
@@ -59,19 +60,18 @@ In this next step you install Weave Flux using `helm`. Simply:
  1. Fork [flux-helm-test](https://github.com/weaveworks/flux-helm-test)
     on Github and
  1. install Weave Flux and its Helm Operator by specifying your fork
-    URL.
+    URL:
 
-*Just make sure you replace `YOURUSER` with your GitHub username in
-the command below:*
-
-```sh
-helm install --name flux \
---set helmOperator.create=true \
---set git.url=git@github.com:YOURUSER/flux-helm-test \
---set git.chartsPath=charts \
---namespace flux \
-weaveworks/flux
-```
+    *Just make sure you replace `YOURUSER` with your GitHub username
+    in the command below:*
+    ```sh
+    helm install --name flux \
+    --set helmOperator.create=true \
+    --set git.url=ssh://git@github.com/YOURUSER/flux-helm-test \
+    --set git.chartsPath=charts \
+    --namespace flux \
+    weaveworks/flux
+    ```
 
 Allow some time for all containers to get up and running. If you're
 impatient, run the following command and see the pod creation
