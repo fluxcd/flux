@@ -26,7 +26,7 @@ To install the chart with the release name `flux`:
 
 ```console
 $ helm install --name flux \
---set git.url=git@github.com:weaveworks/flux-example \
+--set git.url=ssh://git@github.com/weaveworks/flux-example \
 --namespace flux \
 weaveworks/flux
 ```
@@ -44,7 +44,7 @@ To install Flux with the Helm operator (alpha version):
 
 ```console
 $ helm install --name flux \
---set git.url=git@github.com:weaveworks/flux-helm-test \
+--set git.url=ssh://git@github.com/weaveworks/flux-helm-test \
 --set helmOperator.create=true \
 --namespace flux \
 weaveworks/flux
@@ -110,7 +110,7 @@ Specify each parameter using the `--set key=value[,key=value]` argument to `helm
 
 ```console
 $ helm upgrade --install --wait flux \
---set git.url=git@github.com:stefanprodan/podinfo \
+--set git.url=ssh://git@github.com/stefanprodan/podinfo \
 --set git.path=deploy/auto-scaling \
 --namespace flux \
 weaveworks/flux
