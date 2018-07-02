@@ -114,6 +114,7 @@ func main() {
 		token       = fs.String("token", "", "Authentication token for upstream service")
 
 		dockerConfig = fs.String("docker-config", "", "path to a docker config to use for image registry credentials")
+		k8sNamespaceWhitelist = fs.StringSlice("k8s-namespace-whitelist", []string{}, "Optional, comma separated list of namespaces to monitor for workloads")
 	)
 
 	if err := fs.Parse(os.Args[1:]); err != nil {
@@ -241,7 +242,7 @@ func main() {
 		logger.Log("kubectl", kubectl)
 
 		kubectlApplier := kubernetes.NewKubectl(kubectl, restClientConfig)
-		k8sInst := kubernetes.NewCluster(clientset, ifclientset, kubectlApplier, sshKeyRing, logger)
+		k8sInst := kubernetes.NewCluster(clientset, ifclientset, kubectlApplier, sshKeyRing, logger, *k8sNamespaceWhitelist)
 
 		if err := k8sInst.Ping(); err != nil {
 			logger.Log("ping", err)
