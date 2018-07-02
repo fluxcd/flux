@@ -118,5 +118,5 @@ deployed, give Flux access to it and see modifications land are
 very straight-forward and are a quite natural work-flow.
 
 As a next step, you might want to dive deeper into [how to control
-Flux](/site/using.md) or check out [more sophisticated
-setups](/site/standalone/setup.md).
+Flux](../using.md) or check out [more sophisticated
+setups](./setup.md).
