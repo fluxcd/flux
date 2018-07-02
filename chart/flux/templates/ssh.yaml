@@ -3,4 +3,4 @@ kind: ConfigMap
 metadata:
   name: {{ template "flux.fullname" . }}-ssh-config
 data:
-  known_hosts: {{ .Values.ssh.known_hosts }}
+  ssh_known_hosts: {{ .Values.ssh.known_hosts }}

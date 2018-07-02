@@ -38,8 +38,8 @@ spec:
         imagePullPolicy: {{ .Values.helmOperator.pullPolicy }}
         volumeMounts:
         - name: sshdir
-          mountPath: /root/.ssh/known_hosts
-          subPath: known_hosts
+          mountPath: /etc/ssh/ssh_known_hosts
+          subPath: ssh_known_hosts
           readOnly: true
         - name: git-key
           mountPath: /etc/fluxd/ssh
