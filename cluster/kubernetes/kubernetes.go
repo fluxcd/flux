@@ -104,11 +104,12 @@ func isAddon(obj k8sObject) bool {
 // Cluster is a handle to a Kubernetes API server.
 // (Typically, this code is deployed into the same cluster.)
 type Cluster struct {
-	client     extendedClient
-	applier    Applier
-	version    string // string response for the version command.
-	logger     log.Logger
-	sshKeyRing ssh.KeyRing
+	client      extendedClient
+	applier     Applier
+	version     string // string response for the version command.
+	logger      log.Logger
+	sshKeyRing  ssh.KeyRing
+	nsWhitelist []string // list of valid namespaces to export, empty for all namespaces
 
 	mu sync.Mutex
 }
@@ -118,7 +119,8 @@ func NewCluster(clientset k8sclient.Interface,
 	ifclientset ifclient.Interface,
 	applier Applier,
 	sshKeyRing ssh.KeyRing,
-	logger log.Logger) *Cluster {
+	logger log.Logger,
+	nsWhitelist []string) *Cluster {
 
 	c := &Cluster{
 		client: extendedClient{
@@ -132,6 +134,7 @@ func NewCluster(clientset k8sclient.Interface,
 		applier:    applier,
 		logger:     logger,
 		sshKeyRing: sshKeyRing,
+		nsWhitelist: nsWhitelist,
 	}
 
 	return c
@@ -171,6 +174,7 @@ func (c *Cluster) AllControllers(namespace string) (res []cluster.Controller, er
 	if err != nil {
 		return nil, errors.Wrap(err, "getting namespaces")
 	}
+	c.filterNamespaces(namespaces)
 
 	var allControllers []cluster.Controller
 	for _, ns := range namespaces.Items {
@@ -256,6 +260,7 @@ func (c *Cluster) Export() ([]byte, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "getting namespaces")
 	}
+	c.filterNamespaces(list)
 	for _, ns := range list.Items {
 		err := appendYAML(&config, "v1", "Namespace", ns)
 		if err != nil {
@@ -370,6 +375,7 @@ func (c *Cluster) ImagesToFetch() registry.ImageCreds {
 		c.logger.Log("err", errors.Wrap(err, "getting namespaces"))
 		return allImageCreds
 	}
+	c.filterNamespaces(namespaces)
 
 	for _, ns := range namespaces.Items {
 		for kind, resourceKind := range resourceKinds {
@@ -401,4 +407,24 @@ func (c *Cluster) ImagesToFetch() registry.ImageCreds {
 	}
 
 	return allImageCreds
+}
+
+// filterNamespaces in-place filters the total list of namespaces based on command line arguments, if present
+func (c *Cluster) filterNamespaces(namespaces *apiv1.NamespaceList) (err error) {
+	if err != nil {
+		return errors.Wrap(err, "getting namespaces")
+	}
+	if len(c.nsWhitelist) > 0 {
+		// In-place removal of non whitelisted namespaces from the namespace list
+		filteredList := namespaces.Items[:0]
+		for _, ns := range namespaces.Items {
+			for _, nsFilter := range c.nsWhitelist {
+				if ns.Name == nsFilter {
+					filteredList = append(filteredList, ns)
+				}
+			}
+		}
+		namespaces.Items = filteredList
+	}
+	return nil
 }
