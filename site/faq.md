@@ -68,6 +68,13 @@ This
 [flux (daemon) operator](https://github.com/justinbarrick/flux-operator)
 project may be of use for managing multiple daemons.
 
+### Do I have to have my application code and config in the same git repo?
+
+Nope, but they can be if you want to keep them together. Flux doesn't
+need to know about your application code, since it deals with
+container images (i.e., once your application code has already been
+built).
+
 ### Why does Flux need a deploy key?
 
 Flux needs a deploy key to be allowed to push to the version control
@@ -106,6 +113,32 @@ Having said that, the defaults are pretty conservative, so try it and
 see. Please don't increase the rate limiting numbers (`--registry-rps`
 and `--registry-burst`) -- it's possible to get blacklisted by image
 registries if you spam them with requests.
+
+### How often does Flux check for new git commits (and can I make it sync faster)?
+
+Short answer: every five minutes; and yes.
+
+There are two flags that control how often Flux syncs the cluster with
+git. They are
+
+ * `--git-poll-interval`, which controls how often it looks for new
+   commits
+
+ * `--sync-interval`, which controls how often it will apply what's in
+   git, to the cluster, absent changes.
+
+Both of these have five minutes as the default. If there are new
+commits, then it will run a sync then and there, so in practice syncs
+happen more often than `--sync-interval`.
+
+If you want to be more responsive to new commits, then give a shorter
+duration for `--git-poll-interval`, so it will check more often.
+
+It is less useful to shorten the duration for `--sync-interval`, since
+that just controls how often it will sync _without_ there being new
+commits. Reducing it below a minute or so may hinder Flux, since syncs
+can take tens of seconds, leaving not much time to do other
+operations.
 
 ### How do I use my own deploy key?
 
