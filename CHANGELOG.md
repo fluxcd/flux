@@ -1,3 +1,6 @@
+This is the changelog for the Flux daemon; the changelog for the Helm
+operator is in [./CHANGELOG-helmop.md](./CHANGELOG-helmop.md).
+
 ## 1.4.1 (2018-06-21)
 
 This release fixes some wrinkles in the new YAML updating code, so
@@ -120,7 +123,9 @@ reindent blocks the first time it changes a file.
 
 ### Experimental
 
-- Alpha release of [helm-operator](https://github.com/weaveworks/flux/blob/master/site/helm/helm-integration.md)
+- Alpha release of
+  [helm-operator](https://github.com/weaveworks/flux/blob/master/site/helm/helm-integration.md). See
+  [./CHANGELOG-helmop.md](./CHANGELOG-helmop.md) for future releases.
 
 ## 1.2.3 (2018-02-07)
 
