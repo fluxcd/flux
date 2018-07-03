@@ -324,9 +324,7 @@ func (c *Controller) enqueueUpateJob(old, new interface{}) {
 		return
 	}
 
-	oldResVer := oldFhr.ResourceVersion
-	newResVer := newFhr.ResourceVersion
-	if newResVer != oldResVer {
+	if needsUpdate(oldFhr, newFhr) {
 		c.logger.Log("info", "UPGRADING release")
 		c.logger.Log("info", "Custom Resource driven release upgrade")
 		c.enqueueJob(new)
@@ -342,4 +340,32 @@ func (c *Controller) deleteRelease(fhr ifv1.FluxHelmRelease) {
 		c.logger.Log("error", fmt.Sprintf("Chart release [%s] not deleted: %#v", name, err))
 	}
 	return
+}
+
+// needsUpdate compares two FluxHelmRelease and determines if any changes occurred
+func needsUpdate(old, new ifv1.FluxHelmRelease) bool {
+
+	oldValues, err := old.Spec.Values.YAML()
+	if err != nil {
+		return false
+	}
+
+	newValues, err := new.Spec.Values.YAML()
+	if err != nil {
+		return false
+	}
+
+	if oldValues != newValues {
+		return true
+	}
+
+	if old.Spec.ReleaseName != new.Spec.ReleaseName {
+		return true
+	}
+
+	if old.Spec.ChartGitPath != new.Spec.ChartGitPath {
+		return true
+	}
+
+	return false
 }

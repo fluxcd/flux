@@ -59,7 +59,7 @@ func (c *FakeFluxHelmReleases) List(opts v1.ListOptions) (result *v1alpha2.FluxH
 	if label == nil {
 		label = labels.Everything()
 	}
-	list := &v1alpha2.FluxHelmReleaseList{}
+	list := &v1alpha2.FluxHelmReleaseList{ListMeta: obj.(*v1alpha2.FluxHelmReleaseList).ListMeta}
 	for _, item := range obj.(*v1alpha2.FluxHelmReleaseList).Items {
 		if label.Matches(labels.Set(item.Labels)) {
 			list.Items = append(list.Items, item)
