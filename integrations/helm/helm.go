@@ -10,12 +10,18 @@ import (
 	"k8s.io/client-go/kubernetes"
 	k8shelm "k8s.io/helm/pkg/helm"
 	rls "k8s.io/helm/pkg/proto/hapi/services"
+	"k8s.io/helm/pkg/tlsutil"
 )
 
 type TillerOptions struct {
 	IP        string
 	Port      string
 	Namespace string
+	TLSVerify bool
+	TLSEnable bool
+	TLSKey    string
+	TLSCert   string
+	TLSCACert string
 }
 
 // Helm struct provides access to helm client
@@ -32,7 +38,22 @@ func newClient(kubeClient *kubernetes.Clientset, opts TillerOptions) (*k8shelm.C
 		return &k8shelm.Client{}, err
 	}
 
-	return k8shelm.NewClient(k8shelm.Host(host)), nil
+	options := []k8shelm.Option{k8shelm.Host(host)}
+	if opts.TLSVerify || opts.TLSEnable {
+		tlscfg, err := tlsutil.ClientConfig(tlsutil.Options{
+			KeyFile:            opts.TLSKey,
+			CertFile:           opts.TLSCert,
+			InsecureSkipVerify: !opts.TLSVerify,
+			CaCertFile:         opts.TLSCACert,
+		})
+
+		if err != nil {
+			return &k8shelm.Client{}, err
+		}
+		options = append(options, k8shelm.WithTLS(tlscfg))
+	}
+
+	return k8shelm.NewClient(options...), nil
 }
 
 func ClientSetup(logger log.Logger, kubeClient *kubernetes.Clientset, tillerOpts TillerOptions) *k8shelm.Client {

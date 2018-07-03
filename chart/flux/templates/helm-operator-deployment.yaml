@@ -32,6 +32,18 @@ spec:
         secret:
           secretName: {{ template "flux.fullname" . }}-git-deploy
           defaultMode: 0400
+      {{- if .Values.helmOperator.tls.enable }}
+      - name: helm-tls-certs
+        secret:
+          secretName: {{ .Values.helmOperator.tls.secretName }}
+          defaultMode: 0400
+      {{- if .Values.helmOperator.tls.verify }}
+      - name: helm-tls-ca
+        configMap:
+          name: {{ template "flux.fullname" . }}-helm-tls-ca-config
+          defaultMode: 0600
+      {{- end }}
+      {{- end }}
       containers:
       - name: flux-helm-operator
         image: "{{ .Values.helmOperator.repository }}:{{ .Values.helmOperator.tag }}"
@@ -44,8 +56,28 @@ spec:
         - name: git-key
           mountPath: /etc/fluxd/ssh
           readOnly: true
+        {{- if .Values.helmOperator.tls.enable }}
+        - name: helm-tls-certs
+          mountPath: /etc/fluxd/helm
+          readOnly: true
+        {{- if .Values.helmOperator.tls.verify }}
+        - name: helm-tls-ca
+          mountPath: /etc/fluxd/helm-ca
+          readOnly: true
+        {{- end }}
+        {{- end }}
         args:
         - --git-url={{ .Values.git.url }}
         - --git-branch={{ .Values.git.branch }}
         - --git-charts-path={{ .Values.git.chartsPath }}
+        - --tiller-namespace={{ .Values.helmOperator.tillerNamespace }}
+        {{- if .Values.helmOperator.tls.enable }}
+        - --tiller-tls-enable={{ .Values.helmOperator.tls.enable }}
+        - --tiller-tls-key-path={{ .Values.helmOperator.tls.keyPath }}
+        - --tiller-tls-cert-path={{ .Values.helmOperator.tls.certPath }}
+        {{- if .Values.helmOperator.tls.verify }}
+        - --tiller-tls-verify={{ .Values.helmOperator.tls.verify }}
+        - --tiller-tls-ca-cert-path=/etc/fluxd/helm-ca/ca.crt
+        {{- end }}
+        {{- end }}
 {{- end -}}

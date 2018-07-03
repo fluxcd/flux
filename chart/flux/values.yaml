@@ -19,6 +19,14 @@ helmOperator:
   repository: quay.io/weaveworks/helm-operator
   tag: 0.1.0-alpha
   pullPolicy: IfNotPresent
+  tillerNamespace: kube-system
+  tls:
+    secretName: 'helm-client-certs'
+    verify: false
+    enable: false
+    keyPath: '/etc/fluxd/helm/tls.key'
+    certPath: '/etc/fluxd/helm/tls.crt'
+    caContent: ''
 
 rbac:
   # Specifies whether RBAC resources should be created

@@ -45,6 +45,12 @@ var (
 	tillerPort      *string
 	tillerNamespace *string
 
+	tillerTLSVerify *bool
+	tillerTLSEnable *bool
+	tillerTLSKey    *string
+	tillerTLSCert   *string
+	tillerTLSCACert *string
+
 	chartsSyncInterval  *time.Duration
 	chartsSyncTimeout   *time.Duration
 	eventHandlerWorkers *uint
@@ -90,6 +96,12 @@ func init() {
 	tillerIP = fs.String("tiller-ip", "", "Tiller IP address. Only required if out-of-cluster.")
 	tillerPort = fs.String("tiller-port", "", "Tiller port.")
 	tillerNamespace = fs.String("tiller-namespace", "kube-system", "Tiller namespace. If not provided, the default is kube-system.")
+
+	tillerTLSVerify = fs.Bool("tiller-tls-verify", false, "Verify TLS certificate from Tiller. Will enable TLS communication when provided.")
+	tillerTLSEnable = fs.Bool("tiller-tls-enable", false, "Enable TLS communication with Tiller. If provided, requires TLSKey and TLSCert to be provided as well.")
+	tillerTLSKey = fs.String("tiller-tls-key-path", "/etc/fluxd/helm/tls.key", "Path to private key file used to communicate with the Tiller server.")
+	tillerTLSCert = fs.String("tiller-tls-cert-path", "/etc/fluxd/helm/tls.crt", "Path to certificate file used to communicate with the Tiller server.")
+	tillerTLSCACert = fs.String("tiller-tls-ca-cert-path", "", "Path to CA certificate file used to validate the Tiller server. Required if tiller-tls-verify is enabled.")
 
 	chartsSyncInterval = fs.Duration("charts-sync-interval", 3*time.Minute, "Interval at which to check for changed charts")
 	chartsSyncTimeout = fs.Duration("charts-sync-timeout", 1*time.Minute, "Timeout when checking for changed charts")
@@ -162,7 +174,17 @@ func main() {
 	}
 
 	// HELM ---------------------------------------------------------------------------------
-	helmClient := fluxhelm.ClientSetup(log.With(logger, "component", "helm"), kubeClient, fluxhelm.TillerOptions{IP: *tillerIP, Port: *tillerPort, Namespace: *tillerNamespace})
+	helmClient := fluxhelm.ClientSetup(log.With(logger, "component", "helm"), kubeClient, fluxhelm.TillerOptions{
+		IP:        *tillerIP,
+		Port:      *tillerPort,
+		Namespace: *tillerNamespace,
+
+		TLSVerify: *tillerTLSVerify,
+		TLSEnable: *tillerTLSEnable,
+		TLSKey:    *tillerTLSKey,
+		TLSCert:   *tillerTLSCert,
+		TLSCACert: *tillerTLSCACert,
+	})
 
 	// The status updater, to keep track the release status for each
 	// FluxHelmRelease. It runs as a separate loop for now.
