@@ -109,7 +109,7 @@ type Cluster struct {
 	version     string // string response for the version command.
 	logger      log.Logger
 	sshKeyRing  ssh.KeyRing
-	nsWhitelist []string
+	nsWhitelist map[string]bool
 
 	mu sync.Mutex
 }
@@ -121,6 +121,11 @@ func NewCluster(clientset k8sclient.Interface,
 	sshKeyRing ssh.KeyRing,
 	logger log.Logger,
 	nsWhitelist []string) *Cluster {
+
+	nsWhitelistMap := map[string]bool{}
+	for _, namespace := range nsWhitelist {
+		nsWhitelistMap[namespace] = true
+	}
 
 	c := &Cluster{
 		client: extendedClient{
@@ -134,7 +139,7 @@ func NewCluster(clientset k8sclient.Interface,
 		applier:    applier,
 		logger:     logger,
 		sshKeyRing: sshKeyRing,
-		nsWhitelist: nsWhitelist,
+		nsWhitelist: nsWhitelistMap,
 	}
 
 	return c
@@ -415,19 +420,14 @@ func (c *Cluster) ImagesToFetch() registry.ImageCreds {
 // that exist in the cluster.
 func (c *Cluster) getNamespaces() ([]apiv1.Namespace, error) {
 	nsList := []apiv1.Namespace{}
-	validNamespaces := map[string]bool{}
 
 	namespaces, err := c.client.Namespaces().List(meta_v1.ListOptions{})
 	if err != nil {
 		return nsList, err
 	}
 
-	for _, namespace := range c.nsWhitelist {
-		validNamespaces[namespace] = true
-	}
-
 	for _, namespace := range namespaces.Items {
-		if len(validNamespaces) > 0 && ! validNamespaces[namespace.ObjectMeta.Name] {
+		if len(c.nsWhitelist) > 0 && ! c.nsWhitelist[namespace.ObjectMeta.Name] {
 			continue
 		}
 
