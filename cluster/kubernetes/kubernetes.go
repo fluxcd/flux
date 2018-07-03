@@ -170,13 +170,13 @@ func (c *Cluster) SomeControllers(ids []flux.ResourceID) (res []cluster.Controll
 // AllControllers returns all controllers matching the criteria; that is, in
 // the namespace (or any namespace if that argument is empty)
 func (c *Cluster) AllControllers(namespace string) (res []cluster.Controller, err error) {
-	namespaces, err := c.client.Namespaces().List(meta_v1.ListOptions{})
+	namespaces, err := c.getNamespaces()
 	if err != nil {
 		return nil, errors.Wrap(err, "getting namespaces")
 	}
 
 	var allControllers []cluster.Controller
-	for _, ns := range namespaces.Items {
+	for _, ns := range namespaces {
 		if namespace != "" && ns.Name != namespace {
 			continue
 		}
