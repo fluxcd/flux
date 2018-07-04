@@ -20,13 +20,13 @@ func newNamespace(name string) *apiv1.Namespace {
 	}
 }
 
-func testGetNamespaces(t *testing.T, namespace []string, expected []string) {
+func testGetAllowedNamespaces(t *testing.T, namespace []string, expected []string) {
 	clientset := fakekubernetes.NewSimpleClientset(newNamespace("default"),
 		newNamespace("kube-system"))
 
 	c := NewCluster(clientset, nil, nil, nil, nil, namespace)
 
-	namespaces, err := c.getNamespaces()
+	namespaces, err := c.getAllowedNamespaces()
 	if err != nil {
 		t.Errorf("The error should be nil, not: %s", err)
 	}
@@ -41,22 +41,22 @@ func testGetNamespaces(t *testing.T, namespace []string, expected []string) {
 	}
 }
 
-func TestGetNamespacesDefault(t *testing.T) {
-	testGetNamespaces(t, []string{}, []string{"default","kube-system",})
+func TestGetAllowedNamespacesDefault(t *testing.T) {
+	testGetAllowedNamespaces(t, []string{}, []string{"default","kube-system",})
 }
 
-func TestGetNamespacesNamespacesIsNil(t *testing.T) {
-	testGetNamespaces(t, nil, []string{"default","kube-system",})
+func TestGetAllowedNamespacesNamespacesIsNil(t *testing.T) {
+	testGetAllowedNamespaces(t, nil, []string{"default","kube-system",})
 }
 
-func TestGetNamespacesNamespacesSet(t *testing.T) {
-	testGetNamespaces(t, []string{"default"}, []string{"default",})
+func TestGetAllowedNamespacesNamespacesSet(t *testing.T) {
+	testGetAllowedNamespaces(t, []string{"default"}, []string{"default",})
 }
 
-func TestGetNamespacesNamespacesSetDoesNotExist(t *testing.T) {
-	testGetNamespaces(t, []string{"hello"}, []string{})
+func TestGetAllowedNamespacesNamespacesSetDoesNotExist(t *testing.T) {
+	testGetAllowedNamespaces(t, []string{"hello"}, []string{})
 }
 
-func TestGetNamespacesNamespacesMultiple(t *testing.T) {
-	testGetNamespaces(t, []string{"default","hello","kube-system"}, []string{"default","kube-system"})
+func TestGetAllowedNamespacesNamespacesMultiple(t *testing.T) {
+	testGetAllowedNamespaces(t, []string{"default","hello","kube-system"}, []string{"default","kube-system"})
 }
