@@ -14,8 +14,8 @@ var (
 	ErrInvalidServiceID = errors.New("invalid service ID")
 
 	LegacyServiceIDRegexp       = regexp.MustCompile("^([a-zA-Z0-9_-]+)/([a-zA-Z0-9_-]+)$")
-	ResourceIDRegexp            = regexp.MustCompile("^([a-zA-Z0-9_-]+):([a-zA-Z0-9_-]+)/([a-zA-Z0-9_-]+)$")
-	UnqualifiedResourceIDRegexp = regexp.MustCompile("^([a-zA-Z0-9_-]+)/([a-zA-Z0-9_-]+)$")
+	ResourceIDRegexp            = regexp.MustCompile("^([a-zA-Z0-9_-]+):([a-zA-Z0-9_-]+)/([a-zA-Z0-9._-]+)$")
+	UnqualifiedResourceIDRegexp = regexp.MustCompile("^([a-zA-Z0-9_-]+)/([a-zA-Z0-9._-]+)$")
 )
 
 // ResourceID is an opaque type which uniquely identifies a resource in an
