@@ -63,18 +63,32 @@ func FindFluxHelmReleaseContainers(values map[string]interface{}, visit func(str
 	//     image: repo/bar:tag
 	// ```
 	for k, v := range values {
-		if v, ok := v.(map[interface{}]interface{}); ok {
-			if imgInfo, ok := v["image"]; ok {
-				if imgInfoStr, ok := imgInfo.(string); ok {
-					imageRef, err := image.ParseRef(imgInfoStr)
-					if err == nil {
-						err = visit(k, imageRef, func(ref image.Ref) {
-							v["image"] = ref.String()
-						})
-					}
-					if err != nil {
-						return err
-					}
+		var imgInfo interface{}
+		var ok bool
+		var setter ImageSetter
+		// From a YAML (i.e., a file), it's a
+		// `map[interface{}]interface{}`, and from JSON (i.e.,
+		// Kubernetes API) it's a `map[string]interface{}`.
+		switch m := v.(type) {
+		case map[string]interface{}:
+			imgInfo, ok = m["image"]
+			setter = func(ref image.Ref) {
+				m["image"] = ref.String()
+			}
+		case map[interface{}]interface{}:
+			imgInfo, ok = m["image"]
+			setter = func(ref image.Ref) {
+				m["image"] = ref.String()
+			}
+		}
+		if ok {
+			if imgInfoStr, ok := imgInfo.(string); ok {
+				imageRef, err := image.ParseRef(imgInfoStr)
+				if err == nil {
+					err = visit(k, imageRef, setter)
+				}
+				if err != nil {
+					return err
 				}
 			}
 		}

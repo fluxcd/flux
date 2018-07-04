@@ -336,7 +336,7 @@ func createK8sFHRContainers(spec fhr_v1alpha2.FluxHelmReleaseSpec) []apiv1.Conta
 	var containers []apiv1.Container
 	_ = kresource.FindFluxHelmReleaseContainers(spec.Values, func(name string, image image.Ref, _ kresource.ImageSetter) error {
 		containers = append(containers, apiv1.Container{
-			Name:  kresource.ReleaseContainerName,
+			Name:  name,
 			Image: image.String(),
 		})
 		return nil
