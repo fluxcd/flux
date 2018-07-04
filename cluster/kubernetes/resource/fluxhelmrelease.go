@@ -2,6 +2,7 @@ package resource
 
 import (
 	"fmt"
+	"sort"
 
 	"github.com/weaveworks/flux/image"
 	"github.com/weaveworks/flux/resource"
@@ -31,6 +32,20 @@ type FluxHelmRelease struct {
 }
 
 type ImageSetter func(image.Ref)
+
+// The type we have to interpret as containers is a
+// `map[string]interface{}`; and, we want a stable order to the
+// containers we output, since things will jump around in API calls,
+// or fail to verify, otherwise. Since we can't get them in the order
+// they appear in the document, sort them.
+func sorted_keys(values map[string]interface{}) []string {
+	var keys []string
+	for k := range values {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
+}
 
 // FindFluxHelmReleaseContainers examines the Values from a
 // FluxHelmRelease (manifest, or cluster resource, or otherwise) and
@@ -62,14 +77,14 @@ func FindFluxHelmReleaseContainers(values map[string]interface{}, visit func(str
 	//   bar:
 	//     image: repo/bar:tag
 	// ```
-	for k, v := range values {
+	for _, k := range sorted_keys(values) {
 		var imgInfo interface{}
 		var ok bool
 		var setter ImageSetter
 		// From a YAML (i.e., a file), it's a
 		// `map[interface{}]interface{}`, and from JSON (i.e.,
 		// Kubernetes API) it's a `map[string]interface{}`.
-		switch m := v.(type) {
+		switch m := values[k].(type) {
 		case map[string]interface{}:
 			imgInfo, ok = m["image"]
 			setter = func(ref image.Ref) {
