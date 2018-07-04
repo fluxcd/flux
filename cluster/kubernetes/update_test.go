@@ -839,6 +839,7 @@ spec:
       image: bitnami/mariadb:10.1.30-r1
       persistence:
         enabled: false
+    workProperly: true
     sidecar:
       image: sidecar:v1
 `
@@ -863,6 +864,7 @@ spec:
       image: bitnami/mariadb:10.1.33
       persistence:
         enabled: false
+    workProperly: true
     sidecar:
       image: sidecar:v1
 `
