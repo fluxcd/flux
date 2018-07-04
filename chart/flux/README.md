@@ -104,6 +104,13 @@ The following tables lists the configurable parameters of the Weave Flux chart a
 | `helmOperator.repository` | Helm operator image repository | `quay.io/weaveworks/helm-operator` 
 | `helmOperator.tag` | Helm operator image tag | `0.1.0-alpha` 
 | `helmOperator.pullPolicy` | Helm operator image pull policy | `IfNotPresent` 
+| `helmOperator.tillerNamespace` | Namespace in which the Tiller server can be found | `kube-system`
+| `helmOperator.tls.enable` | Enable TLS for communicating with Tiller | `false`
+| `helmOperator.tls.verify` | Verify the Tiller certificate, also enables TLS when set to true | `false`
+| `helmOperator.tls.secretName` | Name of the secret containing the TLS client certificates for communicating with Tiller | `helm-client-certs`
+| `helmOperator.tls.keyFile` | Name of the key file within the k8s secret | `tls.key`
+| `helmOperator.tls.certFile` | Name of the certificate file within the k8s secret | `tls.crt`
+| `helmOperator.tls.caContent` | Certificate Authority content used to validate the Tiller server certificate | None
 | `token` | Weave Cloud service token | None 
 
 Specify each parameter using the `--set key=value[,key=value]` argument to `helm install`. For example:

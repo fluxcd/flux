@@ -73,8 +73,8 @@ spec:
         - --tiller-namespace={{ .Values.helmOperator.tillerNamespace }}
         {{- if .Values.helmOperator.tls.enable }}
         - --tiller-tls-enable={{ .Values.helmOperator.tls.enable }}
-        - --tiller-tls-key-path={{ .Values.helmOperator.tls.keyPath }}
-        - --tiller-tls-cert-path={{ .Values.helmOperator.tls.certPath }}
+        - --tiller-tls-key-path=/etc/fluxd/helm/{{ .Values.helmOperator.tls.keyFile }}
+        - --tiller-tls-cert-path=/etc/fluxd/helm/{{ .Values.helmOperator.tls.certFile }}
         {{- if .Values.helmOperator.tls.verify }}
         - --tiller-tls-verify={{ .Values.helmOperator.tls.verify }}
         - --tiller-tls-ca-cert-path=/etc/fluxd/helm-ca/ca.crt

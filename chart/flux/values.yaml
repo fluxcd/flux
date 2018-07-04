@@ -24,8 +24,8 @@ helmOperator:
     secretName: 'helm-client-certs'
     verify: false
     enable: false
-    keyPath: '/etc/fluxd/helm/tls.key'
-    certPath: '/etc/fluxd/helm/tls.crt'
+    keyFile: 'tls.key'
+    certFile: 'tls.crt'
     caContent: ''
 
 rbac:
