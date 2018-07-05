@@ -1,8 +1,10 @@
+# Installing Flux using Helm
+
 ## Installing the Chart
 
 Add the weaveworks repo:
 
-```
+```sh
 helm repo add weaveworks https://weaveworks.github.io/flux
 ```
 
@@ -36,18 +38,18 @@ weaveworks/flux
 
 The [configuration](#configuration) section lists the parameters that can be configured during installation.
 
-### Setup Git deploy 
+### Setup Git deploy
 
-At startup Flux generates a SSH key and logs the public key. 
+At startup Flux generates a SSH key and logs the public key.
 Find the SSH public key with:
 
 ```bash
 kubectl -n flux logs deployment/flux | grep identity.pub | cut -d '"' -f2
 ```
 
-In order to sync your cluster state with GitHub you need to copy the public key and 
+In order to sync your cluster state with GitHub you need to copy the public key and
 create a deploy key with write access on your GitHub repository.
-Go to _Settings > Deploy keys_ click on _Add deploy key_, check 
+Go to _Settings > Deploy keys_ click on _Add deploy key_, check
 _Allow write access_, paste the Flux public key and click _Add key_.
 
 ## Uninstalling the Chart
@@ -55,10 +57,10 @@ _Allow write access_, paste the Flux public key and click _Add key_.
 To uninstall/delete the `flux` deployment:
 
 ```console
-$ helm delete --purge flux
+helm delete --purge flux
 ```
 
-The command removes all the Kubernetes components associated with the chart and deletes the release. 
+The command removes all the Kubernetes components associated with the chart and deletes the release.
 You should also remove the deploy key from your GitHub repository.
 
 ## Configuration
@@ -67,10 +69,10 @@ The following tables lists the configurable parameters of the Weave Flux chart a
 
 | Parameter                       | Description                                | Default                                                    |
 | ------------------------------- | ------------------------------------------ | ---------------------------------------------------------- |
-| `image.repository` | Image repository | `quay.io/weaveworks/flux` 
-| `image.tag` | Image tag | `1.3.1` 
-| `image.pullPolicy` | Image pull policy | `IfNotPresent` 
-| `resources` | CPU/memory resource requests/limits | None 
+| `image.repository` | Image repository | `quay.io/weaveworks/flux`
+| `image.tag` | Image tag | `1.3.1`
+| `image.pullPolicy` | Image pull policy | `IfNotPresent`
+| `resources` | CPU/memory resource requests/limits | None
 | `rbac.create` | If `true`, create and use RBAC resources | `true`
 | `serviceAccount.create` | If `true`, create a new service account | `true`
 | `serviceAccount.name` | Service account to be used | `flux`
@@ -85,9 +87,9 @@ The following tables lists the configurable parameters of the Weave Flux chart a
 | `git.pollInterval` | Period at which to poll git repo for new commits | `30s`
 | `ssh.known_hosts`  | The contents of an SSH `known_hosts` file, if you need to supply host key(s) |
 | `helmOperator.create` | If `true`, install the Helm operator | `false`
-| `helmOperator.repository` | Helm operator image repository | `quay.io/weaveworks/helm-operator` 
-| `helmOperator.tag` | Helm operator image tag | `0.1.0-alpha` 
-| `helmOperator.pullPolicy` | Helm operator image pull policy | `IfNotPresent` 
+| `helmOperator.repository` | Helm operator image repository | `quay.io/weaveworks/helm-operator`
+| `helmOperator.tag` | Helm operator image tag | `0.1.0-alpha`
+| `helmOperator.pullPolicy` | Helm operator image pull policy | `IfNotPresent`
 | `helmOperator.tillerNamespace` | Namespace in which the Tiller server can be found | `kube-system`
 | `helmOperator.tls.enable` | Enable TLS for communicating with Tiller | `false`
 | `helmOperator.tls.verify` | Verify the Tiller certificate, also enables TLS when set to true | `false`
@@ -95,7 +97,7 @@ The following tables lists the configurable parameters of the Weave Flux chart a
 | `helmOperator.tls.keyFile` | Name of the key file within the k8s secret | `tls.key`
 | `helmOperator.tls.certFile` | Name of the certificate file within the k8s secret | `tls.crt`
 | `helmOperator.tls.caContent` | Certificate Authority content used to validate the Tiller server certificate | None
-| `token` | Weave Cloud service token | None 
+| `token` | Weave Cloud service token | None
 
 Specify each parameter using the `--set key=value[,key=value]` argument to `helm install`. For example:
 
@@ -121,7 +123,7 @@ weaveworks/flux
 
 ### Installing Helm / Tiller
 
-Generate certificates for Tiller and Flux. This will provide a CA, server certs for tiller and client certs for helm / weave flux. 
+Generate certificates for Tiller and Flux. This will provide a CA, server certs for tiller and client certs for helm / weave flux.
 
 The following script can be used for that (requires [cfssl](https://github.com/cloudflare/cfssl)):
 
@@ -151,10 +153,10 @@ echo '{"CN":"'$USER_NAME'","hosts":[""],"key":{"algo":"rsa","size":4096}}' | cfs
 
 Alternatively, you can follow the [Helm documentation for configuring TLS](https://docs.helm.sh/using_helm/#using-ssl-between-helm-and-tiller).
 
-
-Next deploy Helm with TLS and RBAC enabled; 
+Next deploy Helm with TLS and RBAC enabled;
 
 Create a file called `helm-rbac.yaml`. This contains all the RBAC configuration for Tiller:
+
 ```yaml
 apiVersion: v1
 kind: ServiceAccount
@@ -269,7 +271,7 @@ helm upgrade --install \
     --set helmOperator.create=true \
     --set git.url=$YOUR_GIT_REPO \
     --set helmOperator.tls.enable=true \
-    --set helmOperator.tls.verify=true \    
+    --set helmOperator.tls.verify=true \
     --set helmOperator.tls.secretName=helm-client \
     --set helmOperator.tls.caContent="$(cat ./tls/ca.pem)" \
     flux \
