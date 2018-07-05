@@ -1,0 +1,11 @@
+{{- if .Values.helmOperator.tls.enable -}}
+{{- if .Values.helmOperator.tls.verify -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ template "flux.fullname" . }}-helm-tls-ca-config
+data:
+  ca.crt: |
+    {{ .Values.helmOperator.tls.caContent | indent 4 }}
+{{- end -}}
+{{- end -}}
