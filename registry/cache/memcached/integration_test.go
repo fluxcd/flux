@@ -30,7 +30,7 @@ func TestWarming_WarmerWriteCacheRead(t *testing.T) {
 		Logger:         log.With(log.NewLogfmtLogger(os.Stderr), "component", "memcached"),
 	}, strings.Fields(*memcachedIPs)...)
 
-	id, _ := image.ParseRef("alpine")
+	id, _ := image.ParseRef("busybox")
 
 	logger := log.NewLogfmtLogger(os.Stderr)
 
