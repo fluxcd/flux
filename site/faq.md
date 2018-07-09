@@ -46,6 +46,13 @@ There are some pretty good solutions for service routing:
 [Envoy](https://www.envoyproxy.io/), [Istio](https://istio.io) for
 example. We may return to the matter of staged deployments.
 
+### Are there nightly builds I can run?
+
+There are builds from CI for each merge to master branch. See
+[quay.io/weaveworks/flux](https://quay.io/repository/weaveworks/flux?tab=tags)
+and
+[quay.io/weaveworks/helm-operator](https://quay.io/repository/weaveworks/helm-operator?tag=latest&tab=tags).
+
 ## Technical questions
 
 ### Does it work only with one git repository?
