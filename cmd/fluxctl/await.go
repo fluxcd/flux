@@ -19,6 +19,14 @@ var ErrTimeout = errors.New("timeout")
 func await(ctx context.Context, stdout, stderr io.Writer, client api.Server, jobID job.ID, apply bool, verbosity int) error {
 	result, err := awaitJob(ctx, client, jobID)
 	if err != nil {
+		if err == ErrTimeout {
+			fmt.Fprintln(stderr, `
+We timed out waiting for the result of the operation. This does not
+necessarily mean it has failed. You can check the state of the
+cluster, or commit logs, to see if there was a result. In general, it
+is safe to retry operations.`)
+			// because the outcome is unknown, still return the err to indicate an exceptional exit
+		}
 		return err
 	}
 	if result.Result != nil {
@@ -34,9 +42,18 @@ func await(ctx context.Context, stdout, stderr io.Writer, client api.Server, job
 
 	if apply && result.Revision != "" {
 		if err := awaitSync(ctx, client, result.Revision); err != nil {
+			if err == ErrTimeout {
+				fmt.Fprintln(stderr, `
+The operation succeeded, but we timed out waiting for the commit to be
+applied. This does not necessarily mean there is a problem. Use
+
+    fluxctl sync
+
+to run a sync interactively.`)
+				return nil
+			}
 			return err
 		}
-
 		fmt.Fprintf(stderr, "Commit applied:\t%s\n", result.Revision[:7])
 	}
 

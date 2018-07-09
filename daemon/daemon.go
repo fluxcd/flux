@@ -81,8 +81,9 @@ func (d *Daemon) getPolicyResourceMap(ctx context.Context) (policy.ResourceMap, 
 
 	// The reason something is missing from the map differs depending
 	// on the state of the git repo.
+	_, notReady := err.(git.NotReadyError)
 	switch {
-	case err == git.ErrNotReady:
+	case notReady:
 		globalReadOnly = v6.ReadOnlyNotReady
 	case err == git.ErrNoConfig:
 		globalReadOnly = v6.ReadOnlyNoRepo

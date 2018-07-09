@@ -45,13 +45,15 @@ type extendedClient struct {
 
 // --- internal types for keeping track of syncing
 
+type metadata struct {
+	Name      string `yaml:"name"`
+	Namespace string `yaml:"namespace"`
+}
+
 type apiObject struct {
 	resource.Resource
-	Kind     string `yaml:"kind"`
-	Metadata struct {
-		Name      string `yaml:"name"`
-		Namespace string `yaml:"namespace"`
-	} `yaml:"metadata"`
+	Kind     string   `yaml:"kind"`
+	Metadata metadata `yaml:"metadata"`
 }
 
 // A convenience for getting an minimal object from some bytes.
@@ -99,38 +101,15 @@ func isAddon(obj k8sObject) bool {
 
 // --- /add ons
 
-type changeSet struct {
-	nsObjs   map[string][]*apiObject
-	noNsObjs map[string][]*apiObject
-}
-
-func makeChangeSet() changeSet {
-	return changeSet{
-		nsObjs:   make(map[string][]*apiObject),
-		noNsObjs: make(map[string][]*apiObject),
-	}
-}
-
-func (c *changeSet) stage(cmd string, o *apiObject) {
-	if o.hasNamespace() {
-		c.nsObjs[cmd] = append(c.nsObjs[cmd], o)
-	} else {
-		c.noNsObjs[cmd] = append(c.noNsObjs[cmd], o)
-	}
-}
-
-type Applier interface {
-	apply(log.Logger, changeSet) cluster.SyncError
-}
-
 // Cluster is a handle to a Kubernetes API server.
 // (Typically, this code is deployed into the same cluster.)
 type Cluster struct {
-	client     extendedClient
-	applier    Applier
-	version    string // string response for the version command.
-	logger     log.Logger
-	sshKeyRing ssh.KeyRing
+	client      extendedClient
+	applier     Applier
+	version     string // string response for the version command.
+	logger      log.Logger
+	sshKeyRing  ssh.KeyRing
+	nsWhitelist map[string]bool
 
 	mu sync.Mutex
 }
@@ -140,7 +119,13 @@ func NewCluster(clientset k8sclient.Interface,
 	ifclientset ifclient.Interface,
 	applier Applier,
 	sshKeyRing ssh.KeyRing,
-	logger log.Logger) *Cluster {
+	logger log.Logger,
+	nsWhitelist []string) *Cluster {
+
+	nsWhitelistMap := map[string]bool{}
+	for _, namespace := range nsWhitelist {
+		nsWhitelistMap[namespace] = true
+	}
 
 	c := &Cluster{
 		client: extendedClient{
@@ -154,6 +139,7 @@ func NewCluster(clientset k8sclient.Interface,
 		applier:    applier,
 		logger:     logger,
 		sshKeyRing: sshKeyRing,
+		nsWhitelist: nsWhitelistMap,
 	}
 
 	return c
@@ -189,13 +175,13 @@ func (c *Cluster) SomeControllers(ids []flux.ResourceID) (res []cluster.Controll
 // AllControllers returns all controllers matching the criteria; that is, in
 // the namespace (or any namespace if that argument is empty)
 func (c *Cluster) AllControllers(namespace string) (res []cluster.Controller, err error) {
-	namespaces, err := c.client.Namespaces().List(meta_v1.ListOptions{})
+	namespaces, err := c.getAllowedNamespaces()
 	if err != nil {
 		return nil, errors.Wrap(err, "getting namespaces")
 	}
 
 	var allControllers []cluster.Controller
-	for _, ns := range namespaces.Items {
+	for _, ns := range namespaces {
 		if namespace != "" && ns.Name != namespace {
 			continue
 		}
@@ -274,11 +260,13 @@ func (c *Cluster) Ping() error {
 // Export exports cluster resources
 func (c *Cluster) Export() ([]byte, error) {
 	var config bytes.Buffer
-	list, err := c.client.Namespaces().List(meta_v1.ListOptions{})
+
+	namespaces, err := c.getAllowedNamespaces()
 	if err != nil {
 		return nil, errors.Wrap(err, "getting namespaces")
 	}
-	for _, ns := range list.Items {
+
+	for _, ns := range namespaces {
 		err := appendYAML(&config, "v1", "Namespace", ns)
 		if err != nil {
 			return nil, errors.Wrap(err, "marshalling namespace to YAML")
@@ -387,13 +375,13 @@ func mergeCredentials(c *Cluster, namespace string, podTemplate apiv1.PodTemplat
 func (c *Cluster) ImagesToFetch() registry.ImageCreds {
 	allImageCreds := make(registry.ImageCreds)
 
-	namespaces, err := c.client.Namespaces().List(meta_v1.ListOptions{})
+	namespaces, err := c.getAllowedNamespaces()
 	if err != nil {
 		c.logger.Log("err", errors.Wrap(err, "getting namespaces"))
 		return allImageCreds
 	}
 
-	for _, ns := range namespaces.Items {
+	for _, ns := range namespaces {
 		for kind, resourceKind := range resourceKinds {
 			podControllers, err := resourceKind.getPodControllers(c, ns.Name)
 			if err != nil {
@@ -423,4 +411,28 @@ func (c *Cluster) ImagesToFetch() registry.ImageCreds {
 	}
 
 	return allImageCreds
+}
+
+// getAllowedNamespaces returns a list of namespaces that the Flux instance is expected
+// to have access to and can look for resources inside of.
+// It returns a list of all namespaces unless a namespace whitelist has been set on the Cluster
+// instance, in which case it returns a list containing the namespaces from the whitelist
+// that exist in the cluster.
+func (c *Cluster) getAllowedNamespaces() ([]apiv1.Namespace, error) {
+	nsList := []apiv1.Namespace{}
+
+	namespaces, err := c.client.Namespaces().List(meta_v1.ListOptions{})
+	if err != nil {
+		return nsList, err
+	}
+
+	for _, namespace := range namespaces.Items {
+		if len(c.nsWhitelist) > 0 && ! c.nsWhitelist[namespace.ObjectMeta.Name] {
+			continue
+		}
+
+		nsList = append(nsList, namespace)
+  }
+
+	return nsList, nil
 }

@@ -3,158 +3,120 @@ title: Installing Weave Flux Manually
 menu_order: 10
 ---
 
-Flux comes in several parts:
+# Get started with Flux
 
--   the command-line client **fluxctl**
--   the daemon, **flux** which maintains the state of the cluster
--   a service, which runs in Weave Cloud
+This short guide shows a self-contained example of Flux and just
+takes a couple of minutes to get set up. By the end you will
+have Flux running in your cluster and it will be deploying any
+code changes for you.
 
-But you don't need the last to use Flux; you can just run the daemon
-and connect to it with the command line client. This page describes
-how.
+_Note:_ If you would like to install Flux using Helm, refer to the
+[Helm section](../helm/installing.md).
 
-# Quick Install
+## Prerequisites
 
-Clone the Flux repo and edit the example configuration in
-[deploy/flux-deployment.yaml](../../deploy/flux-deployment.yaml). Then
-create all the resources defined in the
-[deploy directory](../../deploy/).
+You will need to have Kubernetes set up. For a quick local test,
+you can use `minikube` or `kubeadm`. Any other Kubernetes setup
+will work as well though.
 
-```
-$EDITOR ./deploy/flux-deployment.yaml
-kubectl apply -f ./deploy
-```
+## Set up Flux
 
-### Helm users
+Get Flux:
 
-Create all resources defined in the
-[deploy-helm directory](../../deploy-helm/):
-```
-$EDITOR ./deploy-helm/helm-operator-deployment.yaml
-kubectl apply -f ./deploy-helm
+```sh
+git clone https://github.com/weaveworks/flux
+cd flux
 ```
 
-Next, download the latest version of the fluxctl client [from github](https://github.com/weaveworks/flux/releases).
+Now you can go ahead and edit Flux's deployment manifest. At the very
+least you will have to change the `--git-url` parameter to point to
+the config repository for the workloads you want Flux to deploy for
+you. You are going to need access to this repository.
 
-Continue to [setup flux](./setup.md)
-
----
-
-# Detailed Description
-
-The deployment installs Flux and its dependencies. First, change to
-the directory with the examples configuration.
-
-### Note
-
-Helm users also need content of the deploy-helm directory.
-
-```
-cd deploy
+```sh
+$EDITOR deploy/flux-deployment.yaml
 ```
 
-## Memcache
+In our example we are going to use
+[flux-example](https://github.com/weaveworks/flux-example). If you
+want to use that too, be sure to create a fork of it on Github and
+add the git URL to the config file above.
 
-Flux uses memcache to cache docker registry requests.
+In the next step, deploy Flux to the cluster:
 
-```
-kubectl create -f memcache-dep.yaml -f memcache-svc.yaml
-```
-
-## Flux deployment
-
-You will need to create a secret in which Flux will store its SSH
-key. The daemon won't start without this present.
-
-```
-kubectl create -f flux-secret.yaml
+```sh
+kubectl apply -f deploy
 ```
 
-The Kubernetes deployment configuration file
-[flux-deployment.yaml](../../deploy/flux-deployment.yaml) runs the
-Flux daemon, but you'll need to edit it first, at least to supply your
-own configuration repo (the `--git-repo` argument).
+Allow some time for all containers to get up and running. If you're
+impatient, run the following command and see the pod creation
+process.
 
-```
-$EDITOR flux-deployment.yaml
-kubectl create -f flux-deployment.yaml
+```sh
+watch kubectl get pods --all-namespaces
 ```
 
-### Note for Kubernetes >=1.6 with role-based access control (RBAC)
+## Giving write access
 
-You will need to provide fluxd with a service account which can access
-the namespaces you want to use Flux with. To do this, consult the
-example service account given in
-[flux-account.yaml](../../deploy/flux-account.yaml) (which
-puts essentially no constraints on the account) and the
-[RBAC documentation](https://kubernetes.io/docs/admin/authorization/rbac/),
-and create a service account in whichever namespace you put fluxd
-in. You may need to alter the `namespace: default` lines, if you adapt
-the example.
+At startup Flux generates a SSH key and logs the public key. Find
+the SSH public key with:
 
-You will need to explicitly tell fluxd to use that service account by
-uncommenting and possible adapting the line `# serviceAccountName:
-flux` in the file `fluxd-deployment.yaml` before applying it.
-
-## Flux API service
-
-To make the pod accessible to the command-line client `fluxctl`, you
-will need to expose the API outside the cluster.
-
-A simple way to do this is to piggy-back on `kubectl port-forward`,
-assuming you can access the Kubernetes API:
-
-```
-fluxpod=$(kubectl get pod -l name=flux -o name | awk -F / '{ print $2; }')
-kubectl port-forward "$fluxpod" 10080:3030 &
-export FLUX_URL="http://localhost:10080/api/flux"
-fluxctl list-controllers --all-namespaces
+```sh
+kubectl logs deployment/flux | grep identity.pub | cut -d '"' -f2
 ```
 
-### Local endpoint
+*Note:* If you have downloaded [fluxctl](../using.md) already, you can use
+`fluxctl identity` as well.
 
-**Beware**: this exposes the Flux API, unauthenticated, over an
-insecure channel. Do not do this _unless_ you are operating Flux
-entirely locally; and arguably, only to try it out.
+In order to sync your cluster state with git you need to copy the
+public key and create a deploy key with write access on your GitHub
+repository.
 
-If you are running Flux locally, e.g., in minikube, you can use a
-service with a
-[`NodePort`](http://kubernetes.io/docs/user-guide/services/#type-nodeport).
+Open GitHub, navigate to your fork, go to **Setting > Deploy keys**,
+click on **Add deploy key**, give it a name, check **Allow write
+access**, paste the Flux public key and click **Add key**.
 
-An example manifest is given in
-[flux-nodeport.yaml](../../deploy/flux-nodeport.yaml).
+(Or replace `YOURUSER` with your Github ID in this url:
+`https://github.com/YOURUSER/flux-example/settings/keys/new` and
+paste the key there.)
 
-Then you can access the API on the `NodePort`, by retrieving the port
-number (this example assumes you are using minikube):
+## Committing a small change
 
-```
-fluxport=$(kubectl get svc flux --template '{{ index .spec.ports 0 "nodePort" }}')
-export FLUX_URL="http://$(minikube ip):$fluxport/api/flux"
-fluxctl list-controllers --all-namespaces
-```
+In this example we are using a simple example of a webservice and
+change its configuration to use a different message. The easiest
+way is to your fork of `flux-example` and change the `msg` argument.
 
-## fluxctl
+Replace `YOURUSER` in
+`https://github.com/YOURUSER/flux-example/blob/master/helloworld-deploy.yaml`
+with your Github ID), open the URL in your browser, edit the file,
+change the argument value and commit the file.
 
-This allows you to control Flux from the command line, and if you're
-not connecting it to Weave Cloud, is the only way of working with
-Flux.
+You can check out the Flux logs with:
 
-Download the latest version of the fluxctl client
-[from github](https://github.com/weaveworks/flux/releases).
-
-## Helm operator (Helm users only)
-
-The Kubernetes deployment configuration file
-[helm-operator-deployment.yaml](../../deploy-helm/helm-operator-deployment.yaml) runs the
-helm operator, but you'll need to edit it first, at least to supply your
-own configuration repo (the `--git-repo` as for flux and the `--git-charts-path`
-argument).
-
-```
-$EDITOR helm-operator-deployment.yaml
-kubectl create -f flux-helm-release-crd.yaml -f helm-operator-deployment.yaml
+```sh
+kubectl -n default logs deployment/flux -f
 ```
 
-# Next
+The default sync frequency is 5 minutes. This can be tweaked easily.
+By observing the logs you can see when the change landed in in the
+cluster.
 
-Continue to [setup flux](./setup.md)
+## Confirm the change landed
+
+To access our webservice and check out its welcome message, simply
+run:
+
+```sh
+kubectl port-forward deployment/helloworld 8080:80 &
+curl localhost:8080
+```
+
+## Conclusion
+
+As you can see, the actual steps to set up Flux, get our app
+deployed, give Flux access to it and see modifications land are
+very straight-forward and are a quite natural work-flow.
+
+As a next step, you might want to dive deeper into [how to control
+Flux](../using.md) or check out [more sophisticated
+setups](./setup.md).

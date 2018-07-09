@@ -19,15 +19,24 @@ required = ["k8s.io/code-generator/cmd/client-gen"]
   branch = "master"
 
 [[constraint]]
-  name = "k8s.io/code-generator"
-  branch = "release-1.9"
+  name = "k8s.io/api"
+  version = "kubernetes-1.11.0"
 
-# goland/dep does not follow k8s.io/code-generator's Godeps.json and gengo's master
-# version does not work with release-1.8 k8s.io/code-generator. So we have to
-# override it.
+[[constraint]]
+  name = "k8s.io/apimachinery"
+  version = "kubernetes-1.11.0"
+
+[[constraint]]
+  name = "k8s.io/client-go"
+  version = "8.0.0"
+
+[[constraint]]
+  name = "k8s.io/code-generator"
+  branch = "release-1.11"
+
 [[override]]
-  name = "k8s.io/gengo"
-  revision = "b58fc7edb82e0c6ffc9b8aef61813c7261b785d4"
+  name = "github.com/json-iterator/go"
+  revision = "f2b4162afba35581b6d4a50d3b8f34e33c144682"
 
 [[constraint]]
   name = "k8s.io/helm"

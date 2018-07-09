@@ -5,14 +5,33 @@ import (
 	"fmt"
 	"io"
 	"os/exec"
+	"sort"
 	"strings"
 	"time"
+
+	rest "k8s.io/client-go/rest"
 
 	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
 	"github.com/weaveworks/flux/cluster"
-	rest "k8s.io/client-go/rest"
 )
+
+type changeSet struct {
+	objs map[string][]*apiObject
+}
+
+func makeChangeSet() changeSet {
+	return changeSet{objs: make(map[string][]*apiObject)}
+}
+
+func (c *changeSet) stage(cmd string, o *apiObject) {
+	c.objs[cmd] = append(c.objs[cmd], o)
+}
+
+// Applier is something that will apply a changeset to the cluster.
+type Applier interface {
+	apply(log.Logger, changeSet) cluster.SyncError
+}
 
 type Kubectl struct {
 	exe    string
@@ -52,9 +71,50 @@ func (c *Kubectl) connectArgs() []string {
 	return args
 }
 
+// rankOfKind returns an int denoting the position of the given kind
+// in the partial ordering of Kubernetes resources, according to which
+// kinds depend on which (derived by hand).
+func rankOfKind(kind string) int {
+	switch kind {
+	// Namespaces answer to NOONE
+	case "Namespace":
+		return 0
+	// These don't go in namespaces; or do, but don't depend on anything else
+	case "ServiceAccount", "ClusterRole", "Role", "PersistentVolume", "Service":
+		return 1
+	// These depend on something above, but not each other
+	case "ResourceQuota", "LimitRange", "Secret", "ConfigMap", "RoleBinding", "ClusterRoleBinding", "PersistentVolumeClaim", "Ingress":
+		return 2
+	// Same deal, next layer
+	case "DaemonSet", "Deployment", "ReplicationController", "ReplicaSet", "Job", "CronJob", "StatefulSet":
+		return 3
+	// Assumption: anything not mentioned isn't depended _upon_, so
+	// can come last.
+	default:
+		return 4
+	}
+}
+
+type applyOrder []*apiObject
+
+func (objs applyOrder) Len() int {
+	return len(objs)
+}
+
+func (objs applyOrder) Swap(i, j int) {
+	objs[i], objs[j] = objs[j], objs[i]
+}
+
+func (objs applyOrder) Less(i, j int) bool {
+	ranki, rankj := rankOfKind(objs[i].Kind), rankOfKind(objs[j].Kind)
+	if ranki == rankj {
+		return objs[i].Metadata.Name < objs[j].Metadata.Name
+	}
+	return ranki < rankj
+}
+
 func (c *Kubectl) apply(logger log.Logger, cs changeSet) (errs cluster.SyncError) {
-	f := func(m map[string][]*apiObject, cmd string, args ...string) {
-		objs := m[cmd]
+	f := func(objs []*apiObject, cmd string, args ...string) {
 		if len(objs) == 0 {
 			return
 		}
@@ -70,15 +130,19 @@ func (c *Kubectl) apply(logger log.Logger, cs changeSet) (errs cluster.SyncError
 		}
 	}
 
-	// When deleting resources we must ensure any resource in a non-default
-	// namespace is deleted before the namespace that it is in. Since namespace
-	// resources don't specify a namespace, this ordering guarantees that.
-	f(cs.nsObjs, "delete")
-	f(cs.noNsObjs, "delete", "--namespace", "default")
-	// Likewise, when applying resources we must ensure the namespace is applied
-	// first, so we run the commands the other way round.
-	f(cs.noNsObjs, "apply", "--namespace", "default")
-	f(cs.nsObjs, "apply")
+	// When deleting objects, the only real concern is that we don't
+	// try to delete things that have already been deleted by
+	// Kubernete's GC -- most notably, resources in a namespace which
+	// is also being deleted. GC does not have the dependency ranking,
+	// but we can use it as a shortcut to avoid the above problem at
+	// least.
+	objs := cs.objs["delete"]
+	sort.Sort(sort.Reverse(applyOrder(objs)))
+	f(objs, "delete")
+
+	objs = cs.objs["apply"]
+	sort.Sort(applyOrder(objs))
+	f(objs, "apply")
 	return errs
 }
 

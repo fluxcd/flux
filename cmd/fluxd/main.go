@@ -105,6 +105,7 @@ func main() {
 		k8sSecretName            = fs.String("k8s-secret-name", "flux-git-deploy", "Name of the k8s secret used to store the private SSH key")
 		k8sSecretVolumeMountPath = fs.String("k8s-secret-volume-mount-path", "/etc/fluxd/ssh", "Mount location of the k8s secret storing the private SSH key")
 		k8sSecretDataKey         = fs.String("k8s-secret-data-key", "identity", "Data key holding the private SSH key within the k8s secret")
+		k8sNamespaceWhitelist = fs.StringSlice("k8s-namespace-whitelist", []string{}, "Experimental, optional: restrict the view of the cluster to the namespaces listed. All namespaces are included if this is not set.")
 		// SSH key generation
 		sshKeyBits   = optionalVar(fs, &ssh.KeyBitsValue{}, "ssh-keygen-bits", "-b argument to ssh-keygen (default unspecified)")
 		sshKeyType   = optionalVar(fs, &ssh.KeyTypeValue{}, "ssh-keygen-type", "-t argument to ssh-keygen (default unspecified)")
@@ -116,14 +117,15 @@ func main() {
 		dockerConfig = fs.String("docker-config", "", "path to a docker config to use for image registry credentials")
 	)
 
-	if err := fs.Parse(os.Args[1:]); err != nil {
+	err := fs.Parse(os.Args[1:])
+	switch {
+	case err == pflag.ErrHelp:
+		os.Exit(0)
+	case err != nil:
 		fmt.Fprintf(os.Stderr, "Error: %s\n\n", err.Error())
-		fmt.Fprintf(os.Stderr, "Usage of %s:\n", os.Args[0])
-		fs.PrintDefaults()
+		fs.Usage()
 		os.Exit(2)
-	}
-
-	if *versionFlag {
+	case *versionFlag:
 		fmt.Println(version)
 		os.Exit(0)
 	}
@@ -241,7 +243,7 @@ func main() {
 		logger.Log("kubectl", kubectl)
 
 		kubectlApplier := kubernetes.NewKubectl(kubectl, restClientConfig)
-		k8sInst := kubernetes.NewCluster(clientset, ifclientset, kubectlApplier, sshKeyRing, logger)
+		k8sInst := kubernetes.NewCluster(clientset, ifclientset, kubectlApplier, sshKeyRing, logger, *k8sNamespaceWhitelist)
 
 		if err := k8sInst.Ping(); err != nil {
 			logger.Log("ping", err)

@@ -73,13 +73,18 @@ If you want to learn more about Weave Cloud, you can see it in action on
 
 Get started by browsing through the documentation below:
 
-- [Introduction to Flux](/site/introduction.md)
-- [FAQ](/site/faq.md)
-- [How it works](/site/how-it-works.md)
-- [Installing Flux](/site/installing.md)
-- [Using Flux](/site/using.md)
-- [Upgrading to Flux v1](/site/upgrading-to-1.0.md)
-- [Troubleshooting](/site/troubleshooting.md)
+- Background about Flux
+  - [Introduction to Flux](/site/introduction.md)
+  - [FAQ](/site/faq.md)
+  - [How it works](/site/how-it-works.md)
+  - [Considerations regarding installing Flux](/site/installing.md)
+- Get Started with Flux
+  - [Standalone Flux](/site/standalone/installing.md)
+  - [Flux using Helm](/site/helm/installing.md)
+- Operating Flux
+  - [Using Flux](/site/using.md)
+  - [Troubleshooting](/site/troubleshooting.md)
+  - [Upgrading to Flux v1](/site/upgrading-to-1.0.md)
 
 ## Developer information
 
