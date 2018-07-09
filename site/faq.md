@@ -265,6 +265,20 @@ Here's the relevant docs for some common CI systems:
  - [TravisCI](https://docs.travis-ci.com/user/customizing-the-build#Building-Specific-Branches)
  - [GitLab](https://docs.gitlab.com/ee/ci/yaml/#only-and-except-simplified)
 
+### What is the "sync tag"; or, why do I see a `flux-sync` tag in my git repo?
+
+Flux keeps track of the last commit that it's applied to the cluster,
+by pushing a tag (controlled by the command-line flags
+`--git-sync-tag` and `--git-label`) to the git repository. This gives
+it a persistent high water mark, so even if it is restarted from
+scratch, it will be able to tell where it got to.
+
+Technically, it only needs this to be able to determine which image
+releases (including automated upgrades) it has applied, and that only
+matters if it has been asked to report those with the `--connect`
+flag. Future versions of Flux may be more sparing in use of the sync
+tag.
+
 ### Can I restrict the namespaces that Flux can see or operate on?
 
 Yes, though support for this is experimental at the minute.
