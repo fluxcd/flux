@@ -212,3 +212,28 @@ namespaces is to use Kubernetes' role-based access control (RBAC) to
 make a service account that has restricted access itself. You may need
 to experiment to find the most restrictive permissions that work for
 your case.
+
+### Can I temporarily make flux ignore a deployment?
+
+Yes. The easiest way to do that is to use the following annotation:
+
+```yaml
+    flux.weave.works/ignore: true
+```
+
+A live example of this can be seen
+[here](https://github.com/stefanprodan/openfaas-flux/blob/master/secrets/openfaas-token.yaml).
+
+Please note that [flux#749](https://github.com/weaveworks/flux/issues/749)
+limits this currently to resources of the type `namespace`, `service`
+and `deployment`.
+
+To stop ignoring deployments, you currently need to make sure
+the annotations are removed on the cluster level as well. This is
+Because of a current [limitation in
+Flux](https://github.com/weaveworks/flux/issues/1211). The easiest
+way to do this is to run:
+
+```sh
+    kubectl annotate <resource> "flux.weave.works/ignore"-
+```
