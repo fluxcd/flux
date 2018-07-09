@@ -3,4 +3,13 @@ kind: ConfigMap
 metadata:
   name: {{ template "flux.fullname" . }}-ssh-config
 data:
-  known_hosts: {{ .Values.ssh.known_hosts }}
+  known_hosts: |
+    {{- if .Values.ssh.known_hosts }}
+      {{- if contains "\n" .Values.ssh.known_hosts }}
+        {{- range $value := .Values.ssh.known_hosts | splitList "\n" }}
+          {{ print $value }}
+        {{- end }}
+      {{- else }}
+        {{- .Values.ssh.known_hosts }}
+      {{- end }}
+    {{- end }}
