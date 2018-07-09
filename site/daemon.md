@@ -66,6 +66,7 @@ fluxd requires setup and offers customization though a multitude of flags.
 |--registry-rps          | `200`                           | maximum registry requests per second per host|
 |--registry-burst        | `125`      | maximum number of warmer connections to remote and memcache|
 |--registry-insecure-host| []         | registry hosts to use HTTP for (instead of HTTPS) |
+|--docker-config         | `""`       | path to a Docker config file with default image registry credentials |
 |**k8s-secret backed ssh keyring configuration**      |  | |
 |--k8s-secret-name       | `flux-git-deploy`               | name of the k8s secret used to store the private SSH key|
 |--k8s-secret-volume-mount-path | `/etc/fluxd/ssh`         | mount location of the k8s secret storing the private SSH key|
