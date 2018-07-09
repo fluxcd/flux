@@ -10,7 +10,8 @@ you will have Helm installing Flux in the cluster and deploying
 any code changes for you.
 
 If you are looking for more generic notes for how to install Flux
-using Helm, we collected them [here](installation.md).
+using Helm, we collected them [in the chart's
+README](../../chart/flux/README.md).
 
 ## Prerequisites
 
