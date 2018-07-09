@@ -131,10 +131,10 @@ git. They are
    commits
 
  * `--sync-interval`, which controls how often it will apply what's in
-   git, to the cluster, absent changes.
+   git, to the cluster, absent new commits.
 
-Both of these have five minutes as the default. If there are new
-commits, then it will run a sync then and there, so in practice syncs
+Both of these have five minutes as the default. When there are new
+commits, it will run a sync then and there, so in practice syncs
 happen more often than `--sync-interval`.
 
 If you want to be more responsive to new commits, then give a shorter
@@ -148,8 +148,8 @@ operations.
 
 ### How do I use my own deploy key?
 
-Flux uses a k8s secret to hold the git ssh deploy key. It is possible to
-provide your own.
+Flux uses a k8s secret to hold the git ssh deploy key. It is possible
+to provide your own.
 
 First delete the secret (if it exists):
 
