@@ -76,39 +76,45 @@ built).
 Flux needs a deploy key to be allowed to push to the version control
 system in order to read and update the manifests.
 
-### How do I give Flux access to a private registry?
+### How do I give Flux access to an image registry?
 
 Flux transparently looks at the image pull secret that you give for a
-controller, and thereby uses the same credentials that Kubernetes uses
+workload, and thereby uses the same credentials that Kubernetes uses
 for pulling each image. If your pods are running, Kubernetes has
 pulled the images, and Flux should be able to access them.
 
-There are exceptions: in some environments, authorisation provided by
-the platform is used instead of image pull secrets. Google Container
-Registry works this way, for example (and we have introduced a special
-case for it so Flux will work there too).
+There are exceptions:
+
+ - In some environments, authorisation provided by the platform is
+   used instead of image pull secrets. Google Container Registry works
+   this way, for example (and we have introduced a special case for it
+   so Flux will work there too).
+ - You can also attach image pull secrets to service accounts; Flux
+   does not at present try to obtain credentials via service accounts
+   (see
+   [weaveworks/flux#1043](https://github.com/weaveworks/flux/issues/1043)).
+
+See also
+[Why are my images not showing up in the list of images?](#why-are-my-images-not-showing-up-in-the-list-of-images)
 
 ### How often does Flux check for new images?
 
-Short answer: every five minutes.
+ - Flux scans image registries for metadata as quickly as it can,
+   given rate limiting; and,
+ - checks if any automated workloads needs updates every five minutes,
+   by default.
 
-You can set this to be more often, to try and be responsive in
-deploying new images. Be aware that there are some other things going
-on:
+The latter default is quite conservative, so try it and see (it's set
+with the flag `--registry-poll-interval`).
 
- * Requests to image registries are rate limited, and _discovering_
-   new images has some lag in itself, which depends on how many images
-   you are using in total (since we go and check them one by one as
-   fast as rate limiting allows).
-
- * Operations on the git repo are more or less
-   serialised, so while you are checking for new images to deploy, you
-   are not doing something else (like syncing).
-
-Having said that, the defaults are pretty conservative, so try it and
-see. Please don't increase the rate limiting numbers (`--registry-rps`
+Please don't _increase_ the rate limiting numbers (`--registry-rps`
 and `--registry-burst`) -- it's possible to get blacklisted by image
 registries if you spam them with requests.
+
+If you are using GCP/GKE/GCR, you will likely want much lower rate
+limits. Please see
+[weaveworks/flux#1016](https://github.com/weaveworks/flux/issues/1016)
+for specific advice.
 
 ### How often does Flux check for new git commits (and can I make it sync faster)?
 
@@ -153,18 +159,59 @@ Now restart fluxd to re-read the k8s secret (if it is running):
 
 `kubectl delete $(kubectl get pod -o name -l name=flux)`
 
-### How do I use a private docker registry?
-
-Create a Kubernetes Secret with your docker credentials then add the
-name of this secret to your Pod manifest under the `imagePullSecrets`
-setting. Flux will read this value and parse the Kubernetes secret.
-
-For a guide showing how to do this, see the
-[Kubernetes documentation](https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/).
-
 ### Why are my images not showing up in the list of images?
 
+Sometimes, instead of seeing the various images and their tags, the
+output of `fluxctl list-images` (or the UI in Weave Cloud, if you're
+using that) shows nothing. There's a number of reasons this can
+happen:
 
+ - Flux just hasn't fetched the image metadata yet. This may be the case
+   if you've only just started using a particular image in a workload.
+ - Flux can't get suitable credentials for the image repository. At
+   present, it looks at `imagePullSecret`s attached to workloads (but
+   not to service accounts; see
+   [weaveworks/flux#1043](https://github.com/weaveworks/flux/issues/1043)),
+   and a Docker config file if you mount one into the fluxd container
+   (see the [command-line usage](./daemon.md)).
+ - Flux doesn't know how to obtain registry credentials for ECR. A
+   workaround is described in
+   [weaveworks/flux#539](https://github.com/weaveworks/flux/issues/539#issuecomment-394588423)
+ - Flux doesn't yet understand what to do with image repositories that
+   have images for more than one architecture; see
+   [weaveworks/flux#741](https://github.com/weaveworks/flux/issues/741). At
+   present there's no workaround for this, if you are not in control
+   of the image repository in question (or you are, but you need to
+   have multi-arch manifests).
+ - Flux doesn't yet examine `initContainer`s when cataloguing the
+   images used by workloads. See
+   [weaveworks/flux#702](https://github.com/weaveworks/flux/issues/702)
+ - Flux doesn't yet understand image refs that use digests instead of
+   tags; see
+   [weaveworks/flux#885](https://github.com/weaveworks/flux/issues/885).
+
+If none of these explanations seem to apply, please
+[file an issue](https://github.com/weaveworks/flux/issues/new).
+
+### Why do my image tags appear out of order?
+
+You may notice that the ordering given to image tags does not always
+correspond with the order in which you pushed the images. That's
+because Flux sorts them by the image creation time; and, if you have
+retagged an older image, the creation time won't correspond to when
+you pushed the image. (Why does Flux look at the image creation time?
+In general there is no way for Flux to retrieve the time at which a
+tag was pushed from an image registry.)
+
+This can happen if you explicitly tag an image that already
+exists. Because of the way Docker shares image layers, it can also
+happen _implicitly_ if you happen to build an image that is identical
+to an existing image.
+
+If this appears to be a problem for you, one way to ensure each image
+build has its own creation time is to label it with a build time;
+e.g., using
+[OpenContainers pre-defined annotations](https://github.com/opencontainers/image-spec/blob/master/annotations.md#pre-defined-annotation-keys).
 
 ### How do I use a private git host (or one that's not github.com, gitlab.com, or bitbucket.com)?
 
