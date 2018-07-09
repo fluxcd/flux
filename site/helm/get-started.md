@@ -9,6 +9,9 @@ If you are using Helm already, this guide is for you. By the end
 you will have Helm installing Flux in the cluster and deploying
 any code changes for you.
 
+If you are looking for more generic notes for how to install Flux
+using Helm, we collected them [here](installation.md).
+
 ## Prerequisites
 
 You will need to have Kubernetes set up. To get up and running fast,
