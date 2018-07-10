@@ -57,7 +57,7 @@ func NewGitRemoteConfig(url, branch, path string) (GitRemoteConfig, error) {
 		branch = "master"
 	}
 	if len(path) == 0 || (len(path) != 0 && path[0] == '/') {
-		return GitRemoteConfig{}, errors.New("git subdirectory (--git-charts-path) must be probided and cannot have leading forward slash")
+		return GitRemoteConfig{}, errors.New("git subdirectory (--git-charts-path) must be provided and cannot have leading forward slash")
 	}
 
 	return GitRemoteConfig{
