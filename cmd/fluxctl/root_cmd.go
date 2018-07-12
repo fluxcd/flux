@@ -55,7 +55,7 @@ func (opts *rootOpts) Command() *cobra.Command {
 		PersistentPreRunE: opts.PersistentPreRunE,
 	}
 
-	cmd.PersistentFlags().StringVarP(&opts.Namespace, "k8s-forward-namespace", "f", "default",
+	cmd.PersistentFlags().StringVar(&opts.Namespace, "k8s-fwd-ns", "default",
 		fmt.Sprintf("Namespace that flux is in for creating a port forward; you can also set the environment variable %s", envVariableNamespace))
 	cmd.PersistentFlags().StringVarP(&opts.URL, "url", "u", "",
 		fmt.Sprintf("Base URL of the flux service; you can also set the environment variable %s", envVariableURL))
@@ -82,13 +82,15 @@ func (opts *rootOpts) Command() *cobra.Command {
 }
 
 func (opts *rootOpts) PersistentPreRunE(cmd *cobra.Command, _ []string) error {
-	opts.Namespace = getFromEnvIfNotSet(cmd.Flags(), "k8s-forward-namespace", opts.Namespace, envVariableNamespace)
+	opts.Namespace = getFromEnvIfNotSet(cmd.Flags(), "k8s-fwd-ns", opts.Namespace, envVariableNamespace)
 	opts.Token = getFromEnvIfNotSet(cmd.Flags(), "token", opts.Token, envVariableToken, envVariableCloudToken)
 	opts.URL = getFromEnvIfNotSet(cmd.Flags(), "url", opts.URL, envVariableURL)
 
-	if opts.Token != "" {
+	if opts.Token != "" && opts.URL == "" {
 		opts.URL = "https://cloud.weave.works/api/flux"
-	} else if opts.URL == "" {
+	}
+
+	if opts.URL == "" {
 		portforwarder, err := portforward.NewPortForwarder(opts.Namespace, metav1.LabelSelector{
 			MatchExpressions: []metav1.LabelSelectorRequirement{
 				metav1.LabelSelectorRequirement{

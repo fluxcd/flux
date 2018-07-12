@@ -30,8 +30,9 @@ fluxctl -f default list-controllers
 
 This setting can also be set in an environment variable (`FLUX_FORWARD_NAMESPACE`).
 
-If you are not able to use the port forward to connect, you can connect by URL with
-`--url` or `FLUX_URL`:
+If you are not able to use the port forward to connect, you will need some way of
+connecting to Flux directly (NodePort, LoadBalancer, VPN, etc). Once that is set up,
+you can connect by URL with `--url` or `FLUX_URL`:
 
 ```
 fluxctl --url http://127.0.0.1:3030/ list-controllers
