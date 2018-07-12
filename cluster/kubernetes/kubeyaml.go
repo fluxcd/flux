@@ -36,6 +36,9 @@ func execKubeyaml(in []byte, args []string) ([]byte, error) {
 
 	err := cmd.Run()
 	if err != nil {
+		if errOut.Len() == 0 {
+			return nil, err
+		}
 		return nil, errors.New(strings.TrimSpace(errOut.String()))
 	}
 	return out.Bytes(), nil

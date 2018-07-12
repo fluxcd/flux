@@ -2,12 +2,14 @@ package release
 
 import (
 	"encoding/json"
+	"fmt"
 	"reflect"
 	"testing"
 	"time"
 
 	"github.com/go-kit/kit/log"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster"
 	"github.com/weaveworks/flux/cluster/kubernetes"
@@ -23,6 +25,8 @@ var (
 	// This must match the value in cluster/kubernetes/testfiles/data.go
 	helloContainer   = "greeter"
 	sidecarContainer = "sidecar"
+	lockedContainer  = "locked-service"
+	testContainer    = "test-service"
 
 	oldImage      = "quay.io/weaveworks/helloworld:master-a000001"
 	oldRef, _     = image.ParseRef(oldImage)
@@ -52,7 +56,7 @@ var (
 	oldLockedRef, _ = image.ParseRef(oldLockedImg)
 
 	newLockedImg     = "quay.io/weaveworks/locked-service:2"
-	newLockedID, _   = image.ParseRef(newLockedImg)
+	newLockedRef, _  = image.ParseRef(newLockedImg)
 	lockedSvcID, _   = flux.ParseResourceID("default:deployment/locked-service")
 	lockedSvcSpec, _ = update.ParseResourceSpec(lockedSvcID.String())
 	lockedSvc        = cluster.Controller{
@@ -60,19 +64,20 @@ var (
 		Containers: cluster.ContainersOrExcuse{
 			Containers: []resource.Container{
 				{
-					Name:  "locked-service",
+					Name:  lockedContainer,
 					Image: oldLockedRef,
 				},
 			},
 		},
 	}
 
-	testSvc = cluster.Controller{
-		ID: flux.MustParseResourceID("default:deployment/test-service"),
+	testSvcID = flux.MustParseResourceID("default:deployment/test-service")
+	testSvc   = cluster.Controller{
+		ID: testSvcID,
 		Containers: cluster.ContainersOrExcuse{
 			Containers: []resource.Container{
 				{
-					Name:  "test-service",
+					Name:  testContainer,
 					Image: testServiceRef,
 				},
 			},
@@ -104,7 +109,7 @@ var (
 				CreatedAt: timeNow,
 			},
 			{
-				ID:        newLockedID,
+				ID:        newLockedRef,
 				CreatedAt: timeNow,
 			},
 		},
@@ -524,6 +529,158 @@ func Test_UpdateList(t *testing.T) {
 		}},
 	}, controllerResult) {
 		t.Errorf("did not get expected controller result (see test code), got %#v", controllerResult)
+	}
+}
+
+func Test_UpdateContainers(t *testing.T) {
+	cluster := mockCluster(hwSvc, lockedSvc)
+	checkout, cleanup := setup(t)
+	defer cleanup()
+	ctx := &ReleaseContext{
+		cluster:   cluster,
+		manifests: mockManifests,
+		repo:      checkout,
+		registry:  mockRegistry,
+	}
+	for _, tst := range []struct {
+		Name string
+		Spec []update.ContainerUpdate
+
+		// true|false for `SkipMismatches`
+		Commit   map[bool]string
+		Expected map[bool]update.ControllerResult
+		Err      map[bool]error
+	}{
+		{
+			Name: "multiple containers",
+			Spec: []update.ContainerUpdate{
+				{
+					Container: helloContainer,
+					Current:   oldRef,
+					Target:    newHwRef,
+				},
+				{
+					Container: sidecarContainer,
+					Current:   sidecarRef,
+					Target:    newSidecarRef,
+				},
+			},
+			Expected: map[bool]update.ControllerResult{
+				true: {
+					Status: update.ReleaseStatusSuccess,
+					PerContainer: []update.ContainerUpdate{{
+						Container: helloContainer,
+						Current:   oldRef,
+						Target:    newHwRef,
+					}, {
+						Container: sidecarContainer,
+						Current:   sidecarRef,
+						Target:    newSidecarRef,
+					}},
+				},
+				false: {
+					Status: update.ReleaseStatusSuccess,
+					PerContainer: []update.ContainerUpdate{{
+						Container: helloContainer,
+						Current:   oldRef,
+						Target:    newHwRef,
+					}, {
+						Container: sidecarContainer,
+						Current:   sidecarRef,
+						Target:    newSidecarRef,
+					}},
+				},
+			},
+			Commit: map[bool]string{
+				true:  "Release containers\n\ndefault:deployment/helloworld\n- quay.io/weaveworks/helloworld:master-a000002\n- weaveworks/sidecar:master-a000002\n",
+				false: "Release containers\n\ndefault:deployment/helloworld\n- quay.io/weaveworks/helloworld:master-a000002\n- weaveworks/sidecar:master-a000002\n",
+			},
+		},
+		{
+			Name: "container tag mismatch",
+			Spec: []update.ContainerUpdate{
+				{
+					Container: helloContainer,
+					Current:   newHwRef, // mismatch
+					Target:    oldRef,
+				},
+				{
+					Container: sidecarContainer,
+					Current:   sidecarRef,
+					Target:    newSidecarRef,
+				},
+			},
+			Expected: map[bool]update.ControllerResult{
+				true: {
+					Status: update.ReleaseStatusSuccess,
+					Error:  fmt.Sprintf(update.ContainerTagMismatch, helloContainer),
+					PerContainer: []update.ContainerUpdate{
+						{
+							Container: sidecarContainer,
+							Current:   sidecarRef,
+							Target:    newSidecarRef,
+						},
+					},
+				},
+				false: {}, // Errors.
+			},
+			Commit: map[bool]string{
+				true: "Release containers\n\ndefault:deployment/helloworld\n- weaveworks/sidecar:master-a000002\n",
+			},
+		},
+		{
+			Name: "container not found",
+			Spec: []update.ContainerUpdate{
+				{
+					Container: helloContainer,
+					Current:   oldRef,
+					Target:    newHwRef,
+				},
+				{
+					Container: "foo", // not found
+					Current:   oldRef,
+					Target:    newHwRef,
+				},
+			},
+			Expected: map[bool]update.ControllerResult{
+				true:  {}, // Errors.
+				false: {}, // Errors.
+			},
+		},
+		{
+			Name: "no changes",
+			Spec: []update.ContainerUpdate{
+				{
+					Container: helloContainer,
+					Current:   newHwRef, // mismatch
+					Target:    newHwRef,
+				},
+			},
+			Expected: map[bool]update.ControllerResult{
+				true:  {},
+				false: {},
+			},
+		},
+	} {
+		specs := update.ContainerSpecs{
+			ContainerSpecs: map[flux.ResourceID][]update.ContainerUpdate{hwSvcID: tst.Spec},
+			Kind:           update.ReleaseKindExecute,
+		}
+
+		for _, ignoreMismatches := range []bool{true, false} {
+			name := tst.Name
+			if ignoreMismatches {
+				name += " (SkipMismatches)"
+			}
+			specs.SkipMismatches = ignoreMismatches
+			results, err := Release(ctx, specs, log.NewNopLogger())
+			if tst.Expected[ignoreMismatches].Status != "" {
+				assert.Equal(t, tst.Expected[ignoreMismatches], results[hwSvcID], name)
+				assert.Equal(t, tst.Commit[ignoreMismatches], specs.CommitMessage(results), name)
+			} else {
+				assert.Error(t, err, name)
+			}
+		}
 	}
 }
 

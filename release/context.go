@@ -125,6 +125,8 @@ func (rc *ReleaseContext) SelectServices(results update.Result, prefilters, post
 	return filteredUpdates, nil
 }
 
+// WorkloadsForUpdate collects all workloads defined in manifests and prepares a list of
+// controller updates for each of them.  It does not consider updatability.
 func (rc *ReleaseContext) WorkloadsForUpdate() (map[flux.ResourceID]*update.ControllerUpdate, error) {
 	resources, err := rc.manifests.LoadManifests(rc.repo.Dir(), rc.repo.ManifestDir())
 	if err != nil {
