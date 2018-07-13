@@ -329,6 +329,15 @@
   version = "v0.8.0"
 
 [[projects]]
+  branch = "master"
+  name = "github.com/pkg/term"
+  packages = [
+    ".",
+    "termios"
+  ]
+  revision = "cda20d4ac917ad418d86e151eff439648b06185b"
+
+[[projects]]
   name = "github.com/pmezard/go-difflib"
   packages = ["difflib"]
   revision = "792786c7400a136282c1664665ae0a8db921c6c2"
