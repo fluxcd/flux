@@ -3,10 +3,12 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
 
 	"github.com/spf13/cobra"
 
 	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/update"
 )
 
@@ -19,6 +21,7 @@ type controllerReleaseOpts struct {
 	allImages      bool
 	exclude        []string
 	dryRun         bool
+	interactive    bool
 	outputOpts
 	cause update.Cause
 
@@ -51,6 +54,7 @@ func (opts *controllerReleaseOpts) Command() *cobra.Command {
 	cmd.Flags().BoolVar(&opts.allImages, "update-all-images", false, "Update all images to latest versions")
 	cmd.Flags().StringSliceVar(&opts.exclude, "exclude", []string{}, "List of controllers to exclude")
 	cmd.Flags().BoolVar(&opts.dryRun, "dry-run", false, "Do not release anything; just report back what would have been done")
+	cmd.Flags().BoolVar(&opts.interactive, "interactive", false, "Select interactively which containers to update")
 
 	// Deprecated
 	cmd.Flags().StringSliceVarP(&opts.services, "service", "s", []string{}, "Service to release")
@@ -104,7 +108,7 @@ func (opts *controllerReleaseOpts) RunE(cmd *cobra.Command, args []string) error
 	}
 
 	var kind update.ReleaseKind = update.ReleaseKindExecute
-	if opts.dryRun {
+	if opts.dryRun || opts.interactive {
 		kind = update.ReleaseKindPlan
 	}
 
@@ -117,7 +121,7 @@ func (opts *controllerReleaseOpts) RunE(cmd *cobra.Command, args []string) error
 		excludes = append(excludes, s)
 	}
 
-	if opts.dryRun {
+	if kind == update.ReleaseKindPlan {
 		fmt.Fprintf(cmd.OutOrStderr(), "Submitting dry-run release...\n")
 	} else {
 		fmt.Fprintf(cmd.OutOrStderr(), "Submitting release ...\n")
@@ -139,5 +143,36 @@ func (opts *controllerReleaseOpts) RunE(cmd *cobra.Command, args []string) error
 		return err
 	}
 
+	if opts.interactive {
+		result, err := awaitJob(ctx, opts.API, jobID)
+		if err != nil {
+			return err
+		}
+
+		spec, err := promptSpec(cmd.OutOrStdout(), result, opts.verbosity)
+		if err != nil {
+			fmt.Fprintln(cmd.OutOrStderr(), err.Error())
+			return nil
+		}
+
+		fmt.Fprintf(cmd.OutOrStderr(), "Submitting selected release...\n")
+		jobID, err = opts.API.UpdateManifests(ctx, update.Spec{
+			Type:  update.Containers,
+			Cause: opts.cause,
+			Spec:  spec,
+		})
+
+		opts.dryRun = false
+	}
 	return await(ctx, cmd.OutOrStdout(), cmd.OutOrStderr(), opts.API, jobID, !opts.dryRun, opts.verbosity)
+}
+
+func promptSpec(out io.Writer, result job.Result, verbosity int) (update.ContainerSpecs, error) {
+	menu := update.NewMenu(out, result.Result, verbosity)
+	containerSpecs, err := menu.Run()
+	return update.ContainerSpecs{
+		Kind: update.ReleaseKindExecute,
+		ContainerSpecs: containerSpecs,
+		SkipMismatches: false,
+	}, err
 }
