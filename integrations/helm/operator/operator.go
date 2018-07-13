@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/go-kit/kit/log"
 	"github.com/golang/glog"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -19,13 +20,11 @@ import (
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
 
-	"github.com/go-kit/kit/log"
-
 	ifv1 "github.com/weaveworks/flux/apis/helm.integrations.flux.weave.works/v1alpha2"
 	ifscheme "github.com/weaveworks/flux/integrations/client/clientset/versioned/scheme"
 	fhrv1 "github.com/weaveworks/flux/integrations/client/informers/externalversions/helm.integrations.flux.weave.works/v1alpha2"
 	iflister "github.com/weaveworks/flux/integrations/client/listers/helm.integrations.flux.weave.works/v1alpha2"
-	helmgit "github.com/weaveworks/flux/integrations/helm/git"
+	helmop "github.com/weaveworks/flux/integrations/helm"
 	chartrelease "github.com/weaveworks/flux/integrations/helm/release"
 )
 
@@ -58,6 +57,7 @@ type Controller struct {
 	fhrSynced cache.InformerSynced
 
 	release *chartrelease.Release
+	config  helmop.RepoConfig
 
 	// workqueue is a rate limited work queue. This is used to queue work to be
 	// processed instead of performing it as soon as a change happens. This
@@ -76,7 +76,8 @@ func New(
 	logger log.Logger,
 	kubeclientset kubernetes.Interface,
 	fhrInformer fhrv1.FluxHelmReleaseInformer,
-	release *chartrelease.Release) *Controller {
+	release *chartrelease.Release,
+	config helmop.RepoConfig) *Controller {
 
 	// Add helm-operator types to the default Kubernetes Scheme so Events can be
 	// logged for helm-operator types.
@@ -93,6 +94,7 @@ func New(
 		release:          release,
 		releaseWorkqueue: workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "ChartRelease"),
 		recorder:         recorder,
+		config:           config,
 	}
 
 	controller.logger.Log("info", "Setting up event handlers")
@@ -263,15 +265,16 @@ func (c *Controller) syncHandler(key string) error {
 	}
 
 	// Chart installation of the appropriate type
-	ctx, cancel := context.WithTimeout(context.Background(), helmgit.DefaultCloneTimeout)
-	err = c.release.Repo.ConfigSync.Pull(ctx)
+	ctx, cancel := context.WithTimeout(context.Background(), helmop.GitOperationTimeout)
+	clone, err := c.config.Repo.Export(ctx, c.config.Branch)
 	cancel()
 	if err != nil {
-		return fmt.Errorf("Failure to do git pull: %s", err.Error())
+		return fmt.Errorf("Failure to clone repo: %s", err.Error())
 	}
+	defer clone.Clean()
 
 	opts := chartrelease.InstallOptions{DryRun: false}
-	_, err = c.release.Install(c.release.Repo.ConfigSync, releaseName, *fhr, syncType, opts)
+	_, err = c.release.Install(clone.Dir(), releaseName, *fhr, syncType, opts)
 	if err != nil {
 		return err
 	}
@@ -344,7 +347,6 @@ func (c *Controller) deleteRelease(fhr ifv1.FluxHelmRelease) {
 
 // needsUpdate compares two FluxHelmRelease and determines if any changes occurred
 func needsUpdate(old, new ifv1.FluxHelmRelease) bool {
-
 	oldValues, err := old.Spec.Values.YAML()
 	if err != nil {
 		return false

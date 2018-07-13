@@ -43,10 +43,6 @@ required = ["k8s.io/code-generator/cmd/client-gen"]
   version = "v2.8.1"
 
 [[constraint]]
-  name = "github.com/google/go-cmp"
-  version = "0.2.0"
-
-[[constraint]]
 	name = "github.com/justinbarrick/go-k8s-portforward"
 	version = "v1.0.0"
 
