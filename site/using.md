@@ -16,23 +16,30 @@ The `--help` for `fluxctl` is described below.
 
 # Connecting fluxctl to the daemon
 
-You need to tell `fluxctl` where to find the Flux API and to make
-the pod accessible to the command-line client `fluxctl`, you
-will need to expose the API outside the cluster.
-
-By default, fluxctl will attempt to forward to your Flux instance in the `default`
-namespace. You can also specify the namespace that your Flux instance lives in with the
-`-f` or `--k8s-forward-namespace` flag:
+By default, fluxctl will attempt to port-forward to your Flux
+instance, assuming it runs in the `"default"` namespace. You can
+specify a different namespace with the `--k8s-fwd-ns` flag:
 
 ```
-fluxctl -f default list-controllers
+fluxctl --k8s-fwd-ns=weave list-controllers
 ```
 
-This setting can also be set in an environment variable (`FLUX_FORWARD_NAMESPACE`).
+The namespace can also be given in the environment variable
+`FLUX_FORWARD_NAMESPACE`:
 
-If you are not able to use the port forward to connect, you will need some way of
-connecting to Flux directly (NodePort, LoadBalancer, VPN, etc). Once that is set up,
-you can connect by URL with `--url` or `FLUX_URL`:
+```
+export FLUX_FORWARD_NAMESPACE=weave
+fluxctl list-controllers
+```
+
+If you are not able to use the port forward to connect, you will need
+some way of connecting to the Flux API directly (NodePort,
+LoadBalancer, VPN, etc). **Be aware that exposing the Flux API in this
+way is a security hole, because it can be accessed without
+authentication.**
+
+Once that is set up, you can specify an API URL with `--url` or the
+environment variable `FLUX_URL`:
 
 ```
 fluxctl --url http://127.0.0.1:3030/ list-controllers

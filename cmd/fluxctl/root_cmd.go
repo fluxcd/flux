@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/justinbarrick/go-k8s-portforward"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -14,16 +15,15 @@ import (
 	"github.com/weaveworks/flux/api"
 	transport "github.com/weaveworks/flux/http"
 	"github.com/weaveworks/flux/http/client"
-	"github.com/justinbarrick/go-k8s-portforward"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type rootOpts struct {
-	URL   string
-	Token string
+	URL       string
+	Token     string
 	Namespace string
-	API   api.Server
+	API       api.Server
 }
 
 func newRoot() *rootOpts {
@@ -32,6 +32,17 @@ func newRoot() *rootOpts {
 
 var rootLongHelp = strings.TrimSpace(`
 fluxctl helps you deploy your code.
+
+Connecting:
+
+  # To a fluxd running in namespace "default" in your current kubectl context
+  fluxctl list-controllers
+
+  # To a fluxd running in namespace "weave" in your current kubectl context
+  fluxctl --k8s-fwd-ns=weave list-controllers
+
+  # To a Weave Cloud instance, with your instance token in $TOKEN
+  fluxctl --token $TOKEN list-controllers
 
 Workflow:
   fluxctl list-controllers                                                   # Which controllers are running?
@@ -44,6 +55,7 @@ const (
 	envVariableNamespace  = "FLUX_FORWARD_NAMESPACE"
 	envVariableToken      = "FLUX_SERVICE_TOKEN"
 	envVariableCloudToken = "WEAVE_CLOUD_TOKEN"
+	defaultURLGivenToken  = "https://cloud.weave.works/api/flux"
 )
 
 func (opts *rootOpts) Command() *cobra.Command {
@@ -56,11 +68,11 @@ func (opts *rootOpts) Command() *cobra.Command {
 	}
 
 	cmd.PersistentFlags().StringVar(&opts.Namespace, "k8s-fwd-ns", "default",
-		fmt.Sprintf("Namespace that flux is in for creating a port forward; you can also set the environment variable %s", envVariableNamespace))
+		fmt.Sprintf("Namespace in which fluxd is running, for creating a port forward to access the API. No port forward will be created if a URL or token is given. You can also set the environment variable %s", envVariableNamespace))
 	cmd.PersistentFlags().StringVarP(&opts.URL, "url", "u", "",
-		fmt.Sprintf("Base URL of the flux service; you can also set the environment variable %s", envVariableURL))
+		fmt.Sprintf("Base URL of the flux API (defaults to %q if a token is provided); you can also set the environment variable %s", defaultURLGivenToken, envVariableURL))
 	cmd.PersistentFlags().StringVarP(&opts.Token, "token", "t", "",
-		fmt.Sprintf("Weave Cloud service token; you can also set the environment variable %s or %s", envVariableCloudToken, envVariableToken))
+		fmt.Sprintf("Weave Cloud authentication token; you can also set the environment variable %s or %s", envVariableCloudToken, envVariableToken))
 
 	cmd.AddCommand(
 		newVersionCommand(),
@@ -87,7 +99,7 @@ func (opts *rootOpts) PersistentPreRunE(cmd *cobra.Command, _ []string) error {
 	opts.URL = getFromEnvIfNotSet(cmd.Flags(), "url", opts.URL, envVariableURL)
 
 	if opts.Token != "" && opts.URL == "" {
-		opts.URL = "https://cloud.weave.works/api/flux"
+		opts.URL = defaultURLGivenToken
 	}
 
 	if opts.URL == "" {
