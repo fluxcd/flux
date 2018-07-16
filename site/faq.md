@@ -300,3 +300,43 @@ your case.
 You will need to use the (experimental) command-line flag
 `--k8s-namespace-whitelist` to enumerate the namespaces that Flux
 attempts to scan for workloads.
+
+### Can I temporarily make flux ignore a deployment?
+
+Yes. The easiest way to do that is to use the following annotation
+*in the manifest files*:
+
+```yaml
+    flux.weave.works/ignore: true
+```
+
+To stop ignoring these annotated resources, you simply remove the
+annotation from the manifests in git. A live example can be seen
+[here](https://github.com/stefanprodan/openfaas-flux/blob/master/secrets/openfaas-token.yaml).
+This will work for any type of resource.
+
+Sometimes it might be easier to annotate a *running resource in
+the cluster* as opposed to committing a change to git. Please note
+that this will only work with resources of the type `namespace`
+and the set of controllers in
+[resourcekinds.go](https://github.com/weaveworks/flux/blob/master/cluster/kubernetes/resourcekinds.go),
+namely `deployment`, `daemonset`, `cronjob`, `statefulset` and
+`fluxhelmrelease`).
+
+If the annotation is just carried in the cluster, the easiest way
+to remove it is to run:
+
+```sh
+kubectl annotate <resource> "flux.weave.works/ignore"-
+```
+
+Mixing both kinds of annotations (in-git and in-cluster), can make
+it a bit hard to figure out how/where to undo the change (cf
+[flux#1211](https://github.com/weaveworks/flux/issues/1211)).
+
+The full story is this: flux looks at the files and the running
+resources when deciding whether what to apply. But it gets the
+running resources by exporting them from the cluster, and that
+only returns the kinds of resource mentioned above. So,
+annotating a running resource only works if it's one of those
+kinds; putting the annotation in the file always works.
