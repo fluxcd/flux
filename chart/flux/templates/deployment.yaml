@@ -66,6 +66,9 @@ spec:
           - --connect=wss://cloud.weave.works/api/flux
           - --token={{ .Values.token }}
           {{- end }}
+          {{- if .Values.additionalArgs }}
+          {{ toYaml .Values.additionalArgs }}
+          {{- end }}
           resources:
 {{ toYaml .Values.resources | indent 12 }}
     {{- with .Values.nodeSelector }}
