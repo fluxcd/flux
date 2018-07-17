@@ -2,8 +2,26 @@ apiVersion: v1
 entries:
   flux:
   - apiVersion: v1
+    appVersion: 1.3.1
+    created: 2018-07-17T14:18:34.523125423+01:00
+    description: Flux is a tool that automatically ensures that the state of a cluster
+      matches what is specified in version control
+    digest: f09856325904810a4a174ee5ab97f60c1cb3c7b55c330872608c12cf2d17ee69
+    engine: gotpl
+    home: https://weave.works
+    icon: https://landscape.cncf.io/logos/flux.svg
+    maintainers:
+    - email: stefan@weave.works
+      name: stefanprodan
+    name: flux
+    sources:
+    - https://github.com/weaveworks/flux
+    urls:
+    - https://weaveworks.github.io/flux/flux-0.2.0.tgz
+    version: 0.2.0
+  - apiVersion: v1
     appVersion: 1.4.1
-    created: 2018-07-02T16:38:12.409221338+03:00
+    created: 2018-07-17T14:18:34.521304176+01:00
     description: Flux is a tool that automatically ensures that the state of a cluster
       matches what is specified in version control
     digest: ca7ef8d0f06e3cf431aa68f8f59fdf98ed4a053402145c3cc2a35af990fcd4df
@@ -21,7 +39,7 @@ entries:
     version: 0.1.1
   - apiVersion: v1
     appVersion: 1.3.1
-    created: 2018-07-02T16:38:12.408376731+03:00
+    created: 2018-07-17T14:18:34.520444702+01:00
     description: Flux is a tool that automatically ensures that the state of a cluster
       matches what is specified in version control
     digest: 76524354dc20384546044336560f3fd3efe59ab56f39b64ed34e808e65fb50a0
@@ -37,4 +55,4 @@ entries:
     urls:
     - https://weaveworks.github.io/flux/flux-0.1.0.tgz
     version: 0.1.0
-generated: 2018-07-02T16:38:12.406492622+03:00
+generated: 2018-07-17T14:18:34.51927924+01:00
