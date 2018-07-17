@@ -7,7 +7,7 @@ replicaCount: 1
 
 image:
   repository: quay.io/weaveworks/flux
-  tag: 1.4.1
+  tag: 1.4.2
   pullPolicy: IfNotPresent
 
 service:
@@ -17,7 +17,7 @@ service:
 helmOperator:
   create: false
   repository: quay.io/weaveworks/helm-operator
-  tag: 0.1.0-alpha
+  tag: 0.1.1-alpha
   pullPolicy: IfNotPresent
   tillerNamespace: kube-system
   tls:
