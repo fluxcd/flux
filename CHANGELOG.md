@@ -1,3 +1,38 @@
+This is the changelog for the Flux daemon; the changelog for the Helm
+operator is in [./CHANGELOG-helmop.md](./CHANGELOG-helmop.md).
+
+## 1.4.2 (2018-07-05)
+
+This release includes a number of usability improvements, the majority
+of which were suggested or contributed by community members. Thanks
+everyone!
+
+### Fixes
+
+- Don't output fluxd usage text twice
+  [weaveworks/flux#1183](https://github.com/weaveworks/flux/pull/1183)
+- Allow dots in resource IDs; e.g., `default:deployment/foo.db`, which
+  is closer to what Kubernetes allows
+  [weaveworks/flux#1197](https://github.com/weaveworks/flux/pull/1197)
+- Log more about why git mirroring fails
+  [weaveworks/flux#1171](https://github.com/weaveworks/flux/pull/1171)
+
+### Improvements
+
+- Interpret FluxHelmRelease resources that specify multiple images to
+  use in a chart
+  [weaveworks/flux#1175](https://github.com/weaveworks/flux/issues/1175)
+  (and several PRs that can be tracked down from there)
+- Add an experimental flag for restricting the view fluxd has of the
+  cluster, reducing Kubernetes API usage: `--k8s-namespace-whitelist`
+  [weaveworks/flux#1184](https://github.com/weaveworks/flux/pull/1184)
+- Share more image layers between quay.io/weaveworks/flux and
+  quay.io/weaveworks/helm-operator images
+  [weaveworks/flux#1192](https://github.com/weaveworks/flux/pull/1192)
+- Apply resources in "dependency order" so that e.g., namespaces are
+  created before things in the namespaces
+  [weaveworks/flux#1117](https://github.com/weaveworks/flux/pull/1117)
+
 ## 1.4.1 (2018-06-21)
 
 This release fixes some wrinkles in the new YAML updating code, so
@@ -120,7 +155,9 @@ reindent blocks the first time it changes a file.
 
 ### Experimental
 
-- Alpha release of [helm-operator](https://github.com/weaveworks/flux/blob/master/site/helm/helm-integration.md)
+- Alpha release of
+  [helm-operator](https://github.com/weaveworks/flux/blob/master/site/helm/helm-integration.md). See
+  [./CHANGELOG-helmop.md](./CHANGELOG-helmop.md) for future releases.
 
 ## 1.2.3 (2018-02-07)
 

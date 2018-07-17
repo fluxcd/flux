@@ -50,6 +50,7 @@ func TestUpdates(t *testing.T) {
 		{"in multidoc", case9resource, case9containers, case9image, case9, case9out},
 		{"in kubernetes List resource", case10resource, case10containers, case10image, case10, case10out},
 		{"FluxHelmRelease (simple image encoding)", case11resource, case11containers, case11image, case11, case11out},
+		{"FluxHelmRelease (multi image encoding)", case12resource, case12containers, case12image, case12, case12out},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			testUpdate(t, c)
@@ -821,4 +822,49 @@ spec:
     image: bitnami/mariadb:10.1.33
     persistence:
       enabled: false
+`
+
+const case12 = `---
+apiVersion: helm.integrations.flux.weave.works/v1alpha2
+kind: FluxHelmRelease
+metadata:
+  name: mariadb
+  namespace: maria
+  labels:
+    chart: mariadb
+spec:
+  chartGitPath: mariadb
+  values:
+    mariadb:
+      image: bitnami/mariadb:10.1.30-r1
+      persistence:
+        enabled: false
+    workProperly: true
+    sidecar:
+      image: sidecar:v1
+`
+
+const case12resource = "maria:fluxhelmrelease/mariadb"
+const case12image = "bitnami/mariadb:10.1.33"
+
+var case12containers = []string{"mariadb"}
+
+const case12out = `---
+apiVersion: helm.integrations.flux.weave.works/v1alpha2
+kind: FluxHelmRelease
+metadata:
+  name: mariadb
+  namespace: maria
+  labels:
+    chart: mariadb
+spec:
+  chartGitPath: mariadb
+  values:
+    mariadb:
+      image: bitnami/mariadb:10.1.33
+      persistence:
+        enabled: false
+    workProperly: true
+    sidecar:
+      image: sidecar:v1
 `

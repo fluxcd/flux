@@ -136,3 +136,21 @@ manifest.
 You will need to explicitly tell fluxd to use that service account by
 uncommenting and possible adapting the line `# serviceAccountName:
 flux` in the file `fluxd-deployment.yaml` before applying it.
+
+It is also possible to create the known_hosts keys at the same time 
+as doing a `helm install` of `flux` and the `flux-helm-operator`. Line
+breaks can be used to separate one key from the next. See example below:
+
+```bash
+KNOWN_HOSTS='domain ssh-rsa line1
+domain ecdsa-sha2-line2
+domain ssh-ed25519 line3'
+
+helm install \
+--name flux \
+--set helmOperator.create=true \
+--set git.url="ssh://git@github.com:weaveworks/flux-helm-test.git" \
+--set-string ssh.known_hosts="${KNOWN_HOSTS}" \
+--namespace flux \
+chart/flux
+```

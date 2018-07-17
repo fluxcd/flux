@@ -19,6 +19,14 @@ helmOperator:
   repository: quay.io/weaveworks/helm-operator
   tag: 0.1.1-alpha
   pullPolicy: IfNotPresent
+  tillerNamespace: kube-system
+  tls:
+    secretName: 'helm-client-certs'
+    verify: false
+    enable: false
+    keyFile: 'tls.key'
+    certFile: 'tls.crt'
+    caContent: ''
 
 rbac:
   # Specifies whether RBAC resources should be created
@@ -48,7 +56,7 @@ tolerations: []
 affinity: {}
 
 git:
-  # URL of git repo with Kubernetes manifests; e.g. git@github.com:weaveworks/flux-example
+  # URL of git repo with Kubernetes manifests; e.g. git.url=ssh://git@github.com/weaveworks/flux-example
   url: ""
   # Branch of git repo to use for Kubernetes manifests
   branch: "master"
@@ -67,3 +75,7 @@ ssh:
   # Overrides for git over SSH. If you use your own git server, you
   # will likely need to provide a host key for it in this field.
   known_hosts: ""
+
+#for https://github.com/justinbarrick/fluxcloud/
+#additionalArgs:
+# - --connect=ws://fluxcloud

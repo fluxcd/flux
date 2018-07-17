@@ -11,7 +11,7 @@ have Flux running in your cluster and it will be deploying any
 code changes for you.
 
 _Note:_ If you would like to install Flux using Helm, refer to the
-[Helm section](../helm/installing.md).
+[Helm section](../helm/get-started.md).
 
 ## Prerequisites
 

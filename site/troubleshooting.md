@@ -39,3 +39,10 @@ If you have set Flux up standalone (as in the instructions in
 probably means Flux is defaulting to using Weave Cloud because you've
 not set the environment variable `FLUX_URL` to point at the
 daemon. See [./standalone/setup.md](./standalone/setup.md).
+
+### I'm using GCR/GKE and I keep seeing "Quota exceeded" in logs
+
+GCP (in general) has quite conservative API rate limiting, and Flux's
+default settings can bump API usage over the limits. See
+[weaveworks/flux#1016](https://github.com/weaveworks/flux/issues/1016)
+for advice.
