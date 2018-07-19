@@ -597,9 +597,9 @@ func mockDaemon(t *testing.T) (*Daemon, func(), func(), *cluster.Mock, *mockEven
 	}
 
 	start := func() {
-		wg.Add(1)
-		go repo.Start(shutdown, wg)
-		gittest.WaitForRepoReady(repo, t)
+		if err := repo.Ready(context.Background()); err != nil {
+			t.Fatal(err)
+		}
 
 		wg.Add(1)
 		go d.Loop(shutdown, wg, logger)

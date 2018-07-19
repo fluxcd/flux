@@ -55,9 +55,9 @@ func daemon(t *testing.T) (*Daemon, func()) {
 	wg := &sync.WaitGroup{}
 	shutdown := make(chan struct{})
 
-	wg.Add(1)
-	go repo.Start(shutdown, wg)
-	gittest.WaitForRepoReady(repo, t)
+	if err := repo.Ready(context.Background()); err != nil {
+		t.Fatal(err)
+	}
 
 	gitConfig := git.Config{
 		Branch:    "master",

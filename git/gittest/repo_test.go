@@ -71,9 +71,9 @@ func TestCheckout(t *testing.T) {
 
 	sd, sg := make(chan struct{}), &sync.WaitGroup{}
 
-	sg.Add(1)
-	go repo.Start(sd, sg)
-	WaitForRepoReady(repo, t)
+	if err := repo.Ready(context.Background()); err != nil {
+		t.Fatal(err)
+	}
 
 	ctx := context.Background()
 
