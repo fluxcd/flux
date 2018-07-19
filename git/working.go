@@ -2,8 +2,13 @@ package git
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
+)
+
+var (
+	ErrReadOnly = errors.New("cannot make a working clone of a read-only git repo")
 )
 
 // Config holds some values we use when working in the working clone of
@@ -43,6 +48,10 @@ type CommitAction struct {
 // Clone returns a local working clone of the sync'ed `*Repo`, using
 // the config given.
 func (r *Repo) Clone(ctx context.Context, conf Config) (*Checkout, error) {
+	if r.readonly {
+		return nil, ErrReadOnly
+	}
+
 	upstream := r.Origin()
 	repoDir, err := r.workingClone(ctx, conf.Branch)
 	if err != nil {

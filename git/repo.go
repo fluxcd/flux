@@ -54,6 +54,7 @@ type Repo struct {
 	// As supplied to constructor
 	origin   Remote
 	interval time.Duration
+	readonly bool
 
 	// State
 	mu     sync.RWMutex
@@ -69,10 +70,20 @@ type Option interface {
 	apply(*Repo)
 }
 
+type optionFunc func(*Repo)
+
+func (f optionFunc) apply(r *Repo) {
+	f(r)
+}
+
 type PollInterval time.Duration
 
 func (p PollInterval) apply(r *Repo) {
 	r.interval = time.Duration(p)
+}
+
+var ReadOnly optionFunc = func(r *Repo) {
+	r.readonly = true
 }
 
 // NewRepo constructs a repo mirror which will sync itself.
@@ -253,17 +264,21 @@ func (r *Repo) Start(shutdown <-chan struct{}, done *sync.WaitGroup) error {
 			r.setUnready(RepoNew, err)
 
 		case RepoCloned:
-			ctx, cancel := context.WithTimeout(bg, opTimeout)
-			err := checkPush(ctx, dir, url)
-			cancel()
-			if err == nil {
-				r.setReady()
-				// Treat every transition to ready as a refresh, so
-				// that any listeners can respond in the same way.
-				r.refreshed()
-				continue // with new status, skipping timer
+			if !r.readonly {
+				ctx, cancel := context.WithTimeout(bg, opTimeout)
+				err := checkPush(ctx, dir, url)
+				cancel()
+				if err != nil {
+					r.setUnready(RepoCloned, err)
+					break
+				}
 			}
-			r.setUnready(RepoCloned, err)
+
+			r.setReady()
+			// Treat every transition to ready as a refresh, so
+			// that any listeners can respond in the same way.
+			r.refreshed()
+			continue // with new status, skipping timer
 
 		case RepoReady:
 			if err := r.refreshLoop(shutdown); err != nil {
