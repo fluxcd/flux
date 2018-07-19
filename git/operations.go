@@ -246,7 +246,12 @@ func changedFiles(ctx context.Context, path, subPath, ref string) ([]string, err
 	// This uses --diff-filter to only look at changes for file _in
 	// the working dir_; i.e, we do not report on things that no
 	// longer appear.
-	if err := execGitCmd(ctx, path, out, "diff", "--name-only", "--diff-filter=ACMRT", ref, "--", subPath); err != nil {
+	args := []string{"diff", "--name-only", "--diff-filter=ACMRT", ref}
+	if subPath != "" {
+		args = append(args, "--", subPath)
+	}
+
+	if err := execGitCmd(ctx, path, out, args...); err != nil {
 		return nil, err
 	}
 	return splitList(out.String()), nil
