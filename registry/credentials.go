@@ -98,15 +98,21 @@ func ParseCredentials(from string, b []byte) (Credentials, error) {
 }
 
 func ImageCredsWithDefaults(lookup func() ImageCreds, configPath string) (func() ImageCreds, error) {
-	var defaults Credentials
+	// pre-flight check
 	bs, err := ioutil.ReadFile(configPath)
 	if err == nil {
-		defaults, err = ParseCredentials(configPath, bs)
+		_, err = ParseCredentials(configPath, bs)
 	}
 	if err != nil {
 		return nil, err
 	}
+
 	return func() ImageCreds {
+		var defaults Credentials
+		bs, err := ioutil.ReadFile(configPath)
+		if err == nil {
+			defaults, _ = ParseCredentials(configPath, bs)
+		}
 		imageCreds := lookup()
 		for k, v := range imageCreds {
 			newCreds := NoCredentials()
