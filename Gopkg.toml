@@ -49,3 +49,7 @@ required = ["k8s.io/code-generator/cmd/client-gen"]
 [[constraint]]
 	name = "github.com/justinbarrick/go-k8s-portforward"
 	version = "v1.0.0"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/pkg/term"
