@@ -7,8 +7,8 @@ import (
 )
 
 const (
-	minikubeProfile = "minikube"
-	minikubeVersion = "v0.27.0"
+	minikubeProfile = "flux-test"
+	minikubeVersion = "v0.28.1"
 	k8sVersion      = "v1.9.6" // need post-1.9.4 due to https://github.com/kubernetes/kubernetes/issues/61076
 )
 
@@ -65,10 +65,6 @@ func (mt minikubeTool) dockerEnvCmd() []string {
 }
 
 func newMinikubeTool(profile string) (*minikubeTool, error) {
-	if profile != minikubeProfile {
-		return nil, fmt.Errorf("Profiles other than %q broken, see https://github.com/kubernetes/minikube/issues/2717", minikubeProfile)
-	}
-
 	return &minikubeTool{profile: profile}, nil
 }
 

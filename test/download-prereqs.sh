@@ -37,7 +37,7 @@ ln -f $kubectl_dl $kubectl_bin
 
 # minikube
 minikube_base=https://github.com/kubernetes/minikube/releases/download
-minikube_version=v0.27.0
+minikube_version=v0.28.1
 minikube_relname=minikube-linux-$arch
 minikube_dl=$dldir/$minikube_relname-$minikube_version 
 minikube_bin=$bindir/minikube
