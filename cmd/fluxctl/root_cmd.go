@@ -7,7 +7,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/justinbarrick/go-k8s-portforward"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -15,7 +14,6 @@ import (
 	"github.com/weaveworks/flux/api"
 	transport "github.com/weaveworks/flux/http"
 	"github.com/weaveworks/flux/http/client"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -103,7 +101,7 @@ func (opts *rootOpts) PersistentPreRunE(cmd *cobra.Command, _ []string) error {
 	}
 
 	if opts.URL == "" {
-		portforwarder, err := portforward.NewPortForwarder(opts.Namespace, metav1.LabelSelector{
+		portforwarder, err := tryPortforwards(opts.Namespace, metav1.LabelSelector{
 			MatchExpressions: []metav1.LabelSelectorRequirement{
 				metav1.LabelSelectorRequirement{
 					Key:      "name",
@@ -111,14 +109,13 @@ func (opts *rootOpts) PersistentPreRunE(cmd *cobra.Command, _ []string) error {
 					Values:   []string{"flux", "fluxd", "weave-flux-agent"},
 				},
 			},
-		}, 3030)
+		}, metav1.LabelSelector{
+			MatchLabels: map[string]string{
+				"app": "flux",
+			},
+		})
 		if err != nil {
-			return errors.Wrap(err, "initializing port forwarder")
-		}
-
-		err = portforwarder.Start()
-		if err != nil {
-			return errors.Wrap(err, "creating port forward")
+			return err
 		}
 
 		opts.URL = fmt.Sprintf("http://127.0.0.1:%d/api/flux", portforwarder.ListenPort)
