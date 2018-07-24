@@ -132,7 +132,7 @@ $ helm upgrade --install --wait flux \
 weaveworks/flux
 ```
 
-## #Upgrade
+### Upgrade
 
 Update Weave Flux version with:
 
