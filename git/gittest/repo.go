@@ -4,9 +4,7 @@ import (
 	"io/ioutil"
 	"os/exec"
 	"path/filepath"
-	"sync"
 	"testing"
-	"time"
 
 	"context"
 	"github.com/weaveworks/flux/cluster/kubernetes/testfiles"
@@ -67,19 +65,17 @@ func Repo(t *testing.T) (*git.Repo, func()) {
 // the clone, the original repo, and a cleanup function.
 func CheckoutWithConfig(t *testing.T, config git.Config) (*git.Checkout, *git.Repo, func()) {
 	repo, cleanup := Repo(t)
-	shutdown, wg := make(chan struct{}), &sync.WaitGroup{}
-	wg.Add(1)
-	go repo.Start(shutdown, wg)
-	WaitForRepoReady(repo, t)
+	if err := repo.Ready(context.Background()); err != nil {
+		cleanup()
+		t.Fatal(err)
+	}
 
 	co, err := repo.Clone(context.Background(), config)
 	if err != nil {
-		close(shutdown)
 		cleanup()
 		t.Fatal(err)
 	}
 	return co, repo, func() {
-		close(shutdown)
 		co.Clean()
 		cleanup()
 	}
@@ -105,20 +101,4 @@ func execCommand(cmd string, args ...string) error {
 	c.Stderr = ioutil.Discard
 	c.Stdout = ioutil.Discard
 	return c.Run()
-}
-
-func WaitForRepoReady(r *git.Repo, t *testing.T) {
-	retries := 30
-	for {
-		s, _ := r.Status()
-		if s == git.RepoReady {
-			return
-		}
-		if retries == 0 {
-			t.Fatalf("repo was not ready after 3 seconds")
-			return
-		}
-		retries--
-		time.Sleep(100 * time.Millisecond)
-	}
 }
