@@ -41,6 +41,7 @@ func (d *Daemon) pollForNewImages(logger log.Logger) {
 
 	changes := &update.Automated{}
 	for _, service := range services {
+	containers:
 		for _, container := range service.ContainersOrNil() {
 			currentImageID := container.Image
 			pattern := policy.GetTagPattern(candidateServicesPolicyMap, service.ID, container.Name)
@@ -51,24 +52,24 @@ func (d *Daemon) pollForNewImages(logger log.Logger) {
 
 			if latest, ok := filteredImages.Latest(); ok && latest.ID != currentImageID {
 				if latest.ID.Tag == "" {
-					logger.Log("warning", "untagged image in available images", "action", "skip")
-					continue
-				}
-				if latest.CreatedAt.IsZero() {
-					logger.Log("warning", "image with zero created timestamp", "action", "skip")
-					continue
+					logger.Log("warning", "untagged image in available images", "action", "skip container")
+					continue containers
 				}
 				newImage := currentImageID.WithNewTag(latest.ID.Tag)
 				changes.Add(service.ID, container, newImage)
 				currentCreatedAt := ""
 				for _, info := range filteredImages {
+					if info.CreatedAt.IsZero() {
+						logger.Log("warning", "image with zero created timestamp", "image", info.ID, "action", "skip container")
+						continue containers
+					}
 					if info.ID == currentImageID {
 						currentCreatedAt = info.CreatedAt.String()
 					}
 				}
 				if currentCreatedAt == "" {
 					currentCreatedAt = "filtered out or missing"
-					logger.Log("warning", "current image not in filtered images", "action", "add")
+					logger.Log("warning", "current image not in filtered images", "action", "proceed anyway")
 				}
 				logger.Log("info", "added update to automation run", "new", newImage, "reason", fmt.Sprintf("latest %s (%s) > current %s (%s)", latest.ID.Tag, latest.CreatedAt, currentImageID.Tag, currentCreatedAt))
 			}
