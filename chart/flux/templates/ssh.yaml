@@ -10,6 +10,6 @@ data:
           {{ print $value }}
         {{- end }}
       {{- else }}
-        {{- .Values.ssh.known_hosts }}
+        {{ .Values.ssh.known_hosts }}
       {{- end }}
     {{- end }}
