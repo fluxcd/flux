@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
@@ -40,29 +41,37 @@ func (d *Daemon) pollForNewImages(logger log.Logger) {
 
 	changes := &update.Automated{}
 	for _, service := range services {
+	containers:
 		for _, container := range service.ContainersOrNil() {
-			logger := log.With(logger, "service", service.ID, "container", container.Name, "currentimage", container.Image)
-
 			currentImageID := container.Image
-			if err != nil {
-				logger.Log("error", err)
-				continue
-			}
-
 			pattern := policy.GetTagPattern(candidateServicesPolicyMap, service.ID, container.Name)
 			repo := currentImageID.Name
-			logger.Log("repo", repo, "pattern", pattern)
+			logger := log.With(logger, "service", service.ID, "container", container.Name, "repo", repo, "pattern", pattern, "current", currentImageID)
 
 			filteredImages := imageRepos.GetRepoImages(repo).Filter(pattern)
 
 			if latest, ok := filteredImages.Latest(); ok && latest.ID != currentImageID {
 				if latest.ID.Tag == "" {
-					logger.Log("msg", "untagged image in available images", "action", "skip", "available", repo)
-					continue
+					logger.Log("warning", "untagged image in available images", "action", "skip container")
+					continue containers
 				}
 				newImage := currentImageID.WithNewTag(latest.ID.Tag)
 				changes.Add(service.ID, container, newImage)
-				logger.Log("msg", "added image to changes", "newimage", newImage)
+				currentCreatedAt := ""
+				for _, info := range filteredImages {
+					if info.CreatedAt.IsZero() {
+						logger.Log("warning", "image with zero created timestamp", "image", info.ID, "action", "skip container")
+						continue containers
+					}
+					if info.ID == currentImageID {
+						currentCreatedAt = info.CreatedAt.String()
+					}
+				}
+				if currentCreatedAt == "" {
+					currentCreatedAt = "filtered out or missing"
+					logger.Log("warning", "current image not in filtered images", "action", "proceed anyway")
+				}
+				logger.Log("info", "added update to automation run", "new", newImage, "reason", fmt.Sprintf("latest %s (%s) > current %s (%s)", latest.ID.Tag, latest.CreatedAt, currentImageID.Tag, currentCreatedAt))
 			}
 		}
 	}
