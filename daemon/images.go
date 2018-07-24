@@ -55,8 +55,6 @@ func (d *Daemon) pollForNewImages(logger log.Logger) {
 					logger.Log("warning", "untagged image in available images", "action", "skip container")
 					continue containers
 				}
-				newImage := currentImageID.WithNewTag(latest.ID.Tag)
-				changes.Add(service.ID, container, newImage)
 				currentCreatedAt := ""
 				for _, info := range filteredImages {
 					if info.CreatedAt.IsZero() {
@@ -71,6 +69,8 @@ func (d *Daemon) pollForNewImages(logger log.Logger) {
 					currentCreatedAt = "filtered out or missing"
 					logger.Log("warning", "current image not in filtered images", "action", "proceed anyway")
 				}
+				newImage := currentImageID.WithNewTag(latest.ID.Tag)
+				changes.Add(service.ID, container, newImage)
 				logger.Log("info", "added update to automation run", "new", newImage, "reason", fmt.Sprintf("latest %s (%s) > current %s (%s)", latest.ID.Tag, latest.CreatedAt, currentImageID.Tag, currentCreatedAt))
 			}
 		}
