@@ -183,13 +183,28 @@ func TestImageInfoCreatedAtZero(t *testing.T) {
 func TestImage_OrderByCreationDate(t *testing.T) {
 	time0 := testTime.Add(time.Second)
 	time2 := testTime.Add(-time.Second)
-	imA := mustMakeInfo("my/Image:3", testTime)
-	imB := mustMakeInfo("my/Image:1", time0)
-	imC := mustMakeInfo("my/Image:4", time2)
-	imD := mustMakeInfo("my/Image:0", time.Time{}) // test nil
-	imE := mustMakeInfo("my/Image:2", testTime)    // test equal
-	imgs := []Info{imA, imB, imC, imD, imE}
+	imA := mustMakeInfo("my/Image:2", testTime)
+	imB := mustMakeInfo("my/Image:0", time0)
+	imC := mustMakeInfo("my/Image:3", time2)
+	imD := mustMakeInfo("my/Image:4", time.Time{}) // test nil
+	imE := mustMakeInfo("my/Image:1", testTime)    // test equal
+	imF := mustMakeInfo("my/Image:5", time.Time{}) // test nil equal
+	imgs := []Info{imA, imB, imC, imD, imE, imF}
 	sort.Sort(ByCreatedDesc(imgs))
+	checkSorted(t, imgs)
+	// now check stability
+	sort.Sort(ByCreatedDesc(imgs))
+	checkSorted(t, imgs)
+	// more stability checks
+	for i := len(imgs)/2 - 1; i >= 0; i-- {
+		opp := len(imgs) - 1 - i
+		imgs[i], imgs[opp] = imgs[opp], imgs[i]
+	}
+	sort.Sort(ByCreatedDesc(imgs))
+	checkSorted(t, imgs)
+}
+
+func checkSorted(t *testing.T, imgs []Info) {
 	for i, im := range imgs {
 		if strconv.Itoa(i) != im.ID.Tag {
 			for j, jim := range imgs {
