@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os/exec"
 	"path/filepath"
-	"sync"
 	"time"
 
 	"github.com/go-kit/kit/log"
@@ -16,7 +15,6 @@ import (
 	"github.com/weaveworks/flux"
 	ifv1 "github.com/weaveworks/flux/apis/helm.integrations.flux.weave.works/v1alpha2"
 	fluxk8s "github.com/weaveworks/flux/cluster/kubernetes"
-	helmgit "github.com/weaveworks/flux/integrations/helm/git"
 )
 
 var (
@@ -30,31 +28,23 @@ const (
 	UpgradeAction Action = "UPDATE"
 )
 
-// Release contains clients needed to provide functionality related to helm releases
-type Release struct {
-	logger     log.Logger
-	HelmClient *k8shelm.Client
-	Repo       repo
-	sync.RWMutex
+type Config struct {
+	ChartsPath string
 }
 
-func (r *Release) ConfigSync() *helmgit.Checkout {
-	return r.Repo.ConfigSync
+// Release contains clients needed to provide functionality related to helm releases
+type Release struct {
+	logger log.Logger
+
+	HelmClient *k8shelm.Client
+
+	config Config
 }
 
 type Releaser interface {
 	GetCurrent() (map[string][]DeployInfo, error)
 	GetDeployedRelease(name string) (*hapi_release.Release, error)
-	Install(checkout *helmgit.Checkout,
-		releaseName string,
-		fhr ifv1.FluxHelmRelease,
-		action Action,
-		opts InstallOptions) (*hapi_release.Release, error)
-	ConfigSync() *helmgit.Checkout
-}
-
-type repo struct {
-	ConfigSync *helmgit.Checkout
+	Install(dir string, releaseName string, fhr ifv1.FluxHelmRelease, action Action, opts InstallOptions) (*hapi_release.Release, error)
 }
 
 type DeployInfo struct {
@@ -66,15 +56,13 @@ type InstallOptions struct {
 	ReuseName bool
 }
 
-// New creates a new Release instance
-func New(logger log.Logger, helmClient *k8shelm.Client, configCheckout *helmgit.Checkout) *Release {
-	repo := repo{
-		ConfigSync: configCheckout,
-	}
+// New creates a new Release instance.
+func New(logger log.Logger, helmClient *k8shelm.Client, config Config) *Release {
+	// TODO(michael): check we don't have nil values in the config
 	r := &Release{
 		logger:     logger,
 		HelmClient: helmClient,
-		Repo:       repo,
+		config:     config,
 	}
 	return r
 }
@@ -114,9 +102,7 @@ func (r *Release) Exists(name string) (bool, error) {
 }
 
 func (r *Release) canDelete(name string) (bool, error) {
-	r.Lock()
 	rls, err := r.HelmClient.ReleaseStatus(name)
-	r.Unlock()
 
 	if err != nil {
 		r.logger.Log("error", fmt.Sprintf("Error finding status for release (%s): %#v", name, err))
@@ -148,9 +134,11 @@ func (r *Release) canDelete(name string) (bool, error) {
 	}
 }
 
-// Install performs Chart release. Depending on the release type, this is either a new release,
-// or an upgrade of an existing one
-func (r *Release) Install(checkout *helmgit.Checkout, releaseName string, fhr ifv1.FluxHelmRelease, action Action, opts InstallOptions) (*hapi_release.Release, error) {
+// Install performs a Chart release given the directory containing the
+// charts, and the FluxHelmRelease specifying the release. Depending
+// on the release type, this is either a new release, or an upgrade of
+// an existing one.
+func (r *Release) Install(repoDir, releaseName string, fhr ifv1.FluxHelmRelease, action Action, opts InstallOptions) (*hapi_release.Release, error) {
 	r.logger.Log("info", fmt.Sprintf("releaseName= %s, action=%s, install options: %+v", releaseName, action, opts))
 
 	chartPath := fhr.Spec.ChartGitPath
@@ -164,7 +152,7 @@ func (r *Release) Install(checkout *helmgit.Checkout, releaseName string, fhr if
 		namespace = "default"
 	}
 
-	chartDir := filepath.Join(checkout.Dir, checkout.Config.Path, chartPath)
+	chartDir := filepath.Join(repoDir, r.config.ChartsPath, chartPath)
 
 	strVals, err := fhr.Spec.Values.YAML()
 	if err != nil {
@@ -175,7 +163,6 @@ func (r *Release) Install(checkout *helmgit.Checkout, releaseName string, fhr if
 
 	switch action {
 	case InstallAction:
-		r.Lock()
 		res, err := r.HelmClient.InstallRelease(
 			chartDir,
 			namespace,
@@ -190,7 +177,6 @@ func (r *Release) Install(checkout *helmgit.Checkout, releaseName string, fhr if
 				helm.InstallWait(i.wait)
 			*/
 		)
-		r.Unlock()
 
 		if err != nil {
 			r.logger.Log("error", fmt.Sprintf("Chart release failed: %s: %#v", releaseName, err))
@@ -201,7 +187,6 @@ func (r *Release) Install(checkout *helmgit.Checkout, releaseName string, fhr if
 		}
 		return res.Release, err
 	case UpgradeAction:
-		r.Lock()
 		res, err := r.HelmClient.UpdateRelease(
 			releaseName,
 			chartDir,
@@ -217,7 +202,6 @@ func (r *Release) Install(checkout *helmgit.Checkout, releaseName string, fhr if
 				helm.UpgradeWait(u.wait))
 			*/
 		)
-		r.Unlock()
 
 		if err != nil {
 			r.logger.Log("error", fmt.Sprintf("Chart upgrade release failed: %s: %#v", releaseName, err))
@@ -244,9 +228,7 @@ func (r *Release) Delete(name string) error {
 		return nil
 	}
 
-	r.Lock()
 	_, err = r.HelmClient.DeleteRelease(name, k8shelm.DeletePurge(true))
-	r.Unlock()
 	if err != nil {
 		r.logger.Log("error", fmt.Sprintf("Release deletion error: %#v", err))
 		return err
@@ -255,7 +237,7 @@ func (r *Release) Delete(name string) error {
 	return nil
 }
 
-// GetCurrentWithDate provides Chart releases (stored in tiller ConfigMaps)
+// GetCurrent provides Chart releases (stored in tiller ConfigMaps)
 //		output:
 //						map[namespace][release name] = nil
 func (r *Release) GetCurrent() (map[string][]DeployInfo, error) {

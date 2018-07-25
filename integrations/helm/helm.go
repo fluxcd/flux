@@ -11,7 +11,19 @@ import (
 	k8shelm "k8s.io/helm/pkg/helm"
 	rls "k8s.io/helm/pkg/proto/hapi/services"
 	"k8s.io/helm/pkg/tlsutil"
+
+	"github.com/weaveworks/flux/git"
 )
+
+const (
+	GitOperationTimeout = 30 * time.Second
+)
+
+type RepoConfig struct {
+	Repo       *git.Repo
+	Branch     string
+	ChartsPath string
+}
 
 type TillerOptions struct {
 	IP        string

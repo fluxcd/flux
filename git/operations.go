@@ -53,6 +53,10 @@ func mirror(ctx context.Context, workingDir, repoURL string) (path string, err e
 	return repoPath, nil
 }
 
+func checkout(ctx context.Context, workingDir, ref string) error {
+	return execGitCmd(ctx, workingDir, nil, "checkout", ref)
+}
+
 // checkPush sanity-checks that we can write to the upstream repo
 // (being able to `clone` is an adequate check that we can read the
 // upstream).

@@ -216,6 +216,8 @@ func TestCheckPush(t *testing.T) {
 	}
 }
 
+// ---
+
 func createRepo(dir string, subdirs []string) error {
 	var (
 		err      error
