@@ -22,7 +22,6 @@ spec:
       properties:
         spec:
           required:
-            - releaseName
             - chartGitPath
             - values
           properties:
