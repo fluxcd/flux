@@ -79,7 +79,7 @@ func (a *Remote) Manifest(ctx context.Context, ref string) (image.Info, error) {
 
 interpret:
 	if fetchErr != nil {
-		return image.Info{}, err
+		return image.Info{}, fetchErr
 	}
 
 	info := image.Info{ID: a.repo.ToRef(ref), Digest: manifestDigest.String()}
