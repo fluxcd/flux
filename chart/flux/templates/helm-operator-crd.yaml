@@ -3,17 +3,34 @@ apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
   name: fluxhelmreleases.helm.integrations.flux.weave.works
-  labels:
-    app: {{ template "flux.name" . }}
-    chart: {{ template "flux.chart" . }}
-    release: {{ .Release.Name }}
-    heritage: {{ .Release.Service }}
 spec:
   group: helm.integrations.flux.weave.works
   names:
     kind: FluxHelmRelease
     listKind: FluxHelmReleaseList
     plural: fluxhelmreleases
+    shortNames:
+    - fhr
   scope: Namespaced
   version: v1alpha2
+  versions:
+    - name: v1alpha2
+      served: true
+      storage: true
+  validation:
+    openAPIV3Schema:
+      properties:
+        spec:
+          required:
+            - releaseName
+            - chartGitPath
+            - values
+          properties:
+            releaseName:
+              type: string
+              pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
+            chartGitPath:
+              type: string
+            values:
+              type: object
 {{- end -}}
