@@ -26,7 +26,7 @@ import (
 	fhrv1 "github.com/weaveworks/flux/integrations/client/informers/externalversions/helm.integrations.flux.weave.works/v1alpha2"
 	iflister "github.com/weaveworks/flux/integrations/client/listers/helm.integrations.flux.weave.works/v1alpha2"
 	helmop "github.com/weaveworks/flux/integrations/helm"
-	chartrelease "github.com/weaveworks/flux/integrations/helm/release"
+	"github.com/weaveworks/flux/integrations/helm/chartsync"
 )
 
 const (
@@ -58,8 +58,8 @@ type Controller struct {
 	fhrLister iflister.FluxHelmReleaseLister
 	fhrSynced cache.InformerSynced
 
-	release *chartrelease.Release
-	config  helmop.RepoConfig
+	sync   *chartsync.ChartChangeSync
+	config helmop.RepoConfig
 
 	// workqueue is a rate limited work queue. This is used to queue work to be
 	// processed instead of performing it as soon as a change happens. This
@@ -79,7 +79,7 @@ func New(
 	logReleaseDiffs bool,
 	kubeclientset kubernetes.Interface,
 	fhrInformer fhrv1.FluxHelmReleaseInformer,
-	release *chartrelease.Release,
+	sync *chartsync.ChartChangeSync,
 	config helmop.RepoConfig) *Controller {
 
 	// Add helm-operator types to the default Kubernetes Scheme so Events can be
@@ -95,9 +95,9 @@ func New(
 		logDiffs:         logReleaseDiffs,
 		fhrLister:        fhrInformer.Lister(),
 		fhrSynced:        fhrInformer.Informer().HasSynced,
-		release:          release,
 		releaseWorkqueue: workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "ChartRelease"),
 		recorder:         recorder,
+		sync:             sync,
 		config:           config,
 	}
 
@@ -253,21 +253,6 @@ func (c *Controller) syncHandler(key string) error {
 		return err
 	}
 
-	var syncType chartrelease.Action
-
-	releaseName := chartrelease.GetReleaseName(*fhr)
-	ok, err := c.release.Exists(releaseName)
-	if ok {
-		if err != nil {
-			c.logger.Log("error", fmt.Sprintf("Failure to do Chart release [%s]: %#v", releaseName, err))
-			return err
-		}
-		syncType = chartrelease.UpgradeAction
-	}
-	if !ok {
-		syncType = chartrelease.InstallAction
-	}
-
 	// Chart installation of the appropriate type
 	ctx, cancel := context.WithTimeout(context.Background(), helmop.GitOperationTimeout)
 	clone, err := c.config.Repo.Export(ctx, c.config.Branch)
@@ -277,11 +262,7 @@ func (c *Controller) syncHandler(key string) error {
 	}
 	defer clone.Clean()
 
-	opts := chartrelease.InstallOptions{DryRun: false}
-	_, err = c.release.Install(clone.Dir(), releaseName, *fhr, syncType, opts)
-	if err != nil {
-		return err
-	}
+	c.sync.ReconcileReleaseDef(*fhr, clone)
 
 	c.recorder.Event(fhr, corev1.EventTypeNormal, ChartSynced, MessageChartSynced)
 	return nil
@@ -345,10 +326,5 @@ func (c *Controller) enqueueUpateJob(old, new interface{}) {
 func (c *Controller) deleteRelease(fhr ifv1.FluxHelmRelease) {
 	c.logger.Log("info", "DELETING release")
 	c.logger.Log("info", "Custom Resource driven release deletion")
-	name := chartrelease.GetReleaseName(fhr)
-	err := c.release.Delete(name)
-	if err != nil {
-		c.logger.Log("error", fmt.Sprintf("Chart release [%s] not deleted: %#v", name, err))
-	}
-	return
+	c.sync.DeleteRelease(fhr)
 }

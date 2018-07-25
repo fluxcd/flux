@@ -216,12 +216,52 @@ func (chs *ChartChangeSync) ApplyChartChanges(prevRef, head string) error {
 	return nil
 }
 
+// ReconcileReleaseDef looks up the helm release associated with a
+// FluxHelmRelease resource, and either installs, upgrades, or does
+// nothing, depending on the state (or absence) of the release.
+func (chs *ChartChangeSync) ReconcileReleaseDef(fhr ifv1.FluxHelmRelease, clone *git.Export) {
+	releaseName := release.GetReleaseName(fhr)
+	rel, err := chs.release.GetDeployedRelease(releaseName)
+	if err != nil {
+		chs.logger.Log("warning", "failed to get release from Tiller", "release", releaseName, "error", err)
+		return
+	}
+
+	opts := release.InstallOptions{DryRun: false}
+	if rel == nil {
+		_, err := chs.release.Install(clone.Dir(), releaseName, fhr, release.InstallAction, opts)
+		if err != nil {
+			chs.logger.Log("warning", "Failed to install chart", "namespace", fhr.Namespace, "name", fhr.Name, "error", err)
+		}
+		return
+	}
+
+	changed, err := chs.shouldUpgrade(clone.Dir(), rel, fhr)
+	if err != nil {
+		chs.logger.Log("warning", "Unable to determine if release has changed", "namespace", fhr.Namespace, "name", fhr.Name, "error", err)
+		return
+	}
+	if changed {
+		_, err := chs.release.Install(clone.Dir(), releaseName, fhr, release.UpgradeAction, opts)
+		if err != nil {
+			chs.logger.Log("warning", "Failed to upgrade chart", "namespace", fhr.Namespace, "name", fhr.Name, "error", err)
+		}
+	}
+}
+
+// ReapplyReleaseDefs goes through the resource definitions and
+// reconciles them with Helm releases. This is a "backstop" for the
+// other sync processes, to cover the case of a release being changed
+// out-of-band (e.g., by someone using `helm upgrade`).
 func (chs *ChartChangeSync) ReapplyReleaseDefs(ref string) error {
 	var clone *git.Export
+	// At this point, one way or another, we are going to need a clone of the repo.
+	clone, err := chs.exportAtRef(ref)
+	if err != nil {
+		return err
+	}
 	defer func() {
-		if clone != nil {
-			clone.Clean()
-		}
+		clone.Clean()
 	}()
 
 	resources, err := chs.getCustomResources()
@@ -230,42 +270,20 @@ func (chs *ChartChangeSync) ReapplyReleaseDefs(ref string) error {
 	}
 
 	for _, fhr := range resources {
-		releaseName := release.GetReleaseName(fhr)
-		rel, err := chs.release.GetDeployedRelease(releaseName)
-		if err != nil {
-			return fmt.Errorf("failed to get release %q: %s", releaseName, err)
-		}
-
-		// At this point, one way or another, we are going to need a clone of the repo.
-		if clone == nil {
-			clone, err = chs.exportAtRef(ref)
-			if err != nil {
-				return err
-			}
-		}
-
-		opts := release.InstallOptions{DryRun: false}
-		if rel == nil {
-			_, err := chs.release.Install(clone.Dir(), releaseName, fhr, release.InstallAction, opts)
-			if err != nil {
-				chs.logger.Log("warning", "Failed to install chart", "namespace", fhr.Namespace, "name", fhr.Name, "error", err)
-			}
-			continue
-		}
-
-		changed, err := chs.shouldUpgrade(clone.Dir(), rel, fhr)
-		if err != nil {
-			chs.logger.Log("warning", "Unable to determine if release has changed", "namespace", fhr.Namespace, "name", fhr.Name, "error", err)
-			continue
-		}
-		if changed {
-			_, err := chs.release.Install(clone.Dir(), releaseName, fhr, release.UpgradeAction, opts)
-			if err != nil {
-				chs.logger.Log("warning", "Failed to upgrade chart", "namespace", fhr.Namespace, "name", fhr.Name, "error", err)
-			}
-		}
+		chs.ReconcileReleaseDef(fhr, clone)
 	}
 	return nil
+}
+
+// DeleteRelease deletes the helm release associated with a
+// FluxHelmRelease. This exists mainly so that the operator code can
+// call it when it is handling a resource deletion.
+func (chs *ChartChangeSync) DeleteRelease(fhr ifv1.FluxHelmRelease) {
+	name := release.GetReleaseName(fhr)
+	err := chs.release.Delete(name)
+	if err != nil {
+		chs.logger.Log("warning", "Chart release not deleted", "release", name, "error", err)
+	}
 }
 
 //---
