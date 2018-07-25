@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"os"
 	"os/signal"
@@ -111,7 +112,9 @@ func init() {
 }
 
 func main() {
-
+	// Stop glog complaining
+	flag.CommandLine.Parse([]string{"-logtostderr"})
+	// Now do our own
 	fs.Parse(os.Args)
 
 	if *versionFlag {
