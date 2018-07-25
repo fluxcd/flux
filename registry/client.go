@@ -75,9 +75,10 @@ func (a *Remote) Manifest(ctx context.Context, ref string) (image.Info, error) {
 	}
 	var manifestDigest digest.Digest
 	digestOpt := client.ReturnContentDigest(&manifestDigest)
-	manifest, fetchErr := manifests.Get(ctx, digest.Digest(ref), digestOpt, distribution.WithTagOption{ref})
+	dgst := digest.Digest(ref)
 
-interpret:
+fetch:
+	manifest, fetchErr := manifests.Get(ctx, dgst, digestOpt, distribution.WithTagOption{ref})
 	if fetchErr != nil {
 		return image.Info{}, fetchErr
 	}
@@ -127,8 +128,8 @@ interpret:
 		// TODO(michael): is it valid to just pick the first one that matches?
 		for _, m := range list.Manifests {
 			if m.Platform.OS == "linux" && m.Platform.Architecture == "amd64" {
-				manifest, fetchErr = manifests.Get(ctx, m.Digest, digestOpt)
-				goto interpret
+				dgst = m.Digest
+				goto fetch
 			}
 		}
 		return image.Info{}, errors.New("no suitable manifest (linux amd64) in manifestlist")
