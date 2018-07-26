@@ -31,7 +31,7 @@ Add the weaveworks repo:
 helm repo add weaveworks https://weaveworks.github.io/flux
 ```
 
-To install the chart with the release name `flux`:
+#### To install the chart with the release name `flux`:
 
 ```console
 $ helm install --name flux \
@@ -40,7 +40,7 @@ $ helm install --name flux \
 weaveworks/flux
 ```
 
-To connect Flux to a Weave Cloud instance:
+#### To connect Flux to a Weave Cloud instance:
 
 ```console
 helm install --name flux \
@@ -49,7 +49,7 @@ helm install --name flux \
 weaveworks/flux
 ```
 
-To install Flux with the Helm operator (alpha version):
+#### To install Flux with the Helm operator (alpha version):
 
 ```console
 $ helm install --name flux \
@@ -59,7 +59,62 @@ $ helm install --name flux \
 weaveworks/flux
 ```
 
-The [configuration](#configuration) section lists the parameters that can be configured during installation.
+#### To install Flux with a private git host:
+
+When using a private git host, setting the `ssh.known_hosts` variable 
+is required for enabling successful key matches because `StrictHostKeyChecking` 
+is enabled during flux git daemon operations.
+
+By setting the `ssh.known_hosts` variable, a configmap will be created
+called `flux-ssh-config` which in turn will be mounted into a volume named
+`sshdir` at `/root/.ssh/known_hosts`.
+
+* Get the `ssh.known_hosts` keys by running the following command:
+
+```bash
+ssh-keyscan <your_git_host_domain>
+```
+
+To prevent a potential man-in-the-middle attack, one should
+verify the ssh keys acquired through the `ssh-keyscan` match expectations
+using an alternate mechanism.
+
+* Start flux and flux helm operator:
+
+  - Using a string for setting `known_hosts`
+  
+    ```sh
+    YOUR_GIT_HOST=your_git_host.example.com
+    KNOWN_HOSTS='domain ssh-rsa line1
+    domain ecdsa-sha2-line2
+    domain ssh-ed25519 line3'
+    
+    helm install \
+    --name flux \
+    --set helmOperator.create=true \
+    --set git.url="ssh://git@${YOUR_GIT_HOST}:weaveworks/flux-helm-test.git" \
+    --set-string ssh.known_hosts="${KNOWN_HOSTS}" \
+    --namespace flux \
+    chart/flux 
+    ```
+    
+  - Using a file for setting `known_hosts`
+  
+    Copy known_hosts keys into a temporary file `/tmp/flux_known_hosts`
+    
+    ```sh
+    YOUR_GIT_HOST=your_git_host.example.com
+    
+    helm install \
+    --name flux \
+    --set helmOperator.create=true \
+    --set git.url="ssh://git@${YOUR_GIT_HOST}:weaveworks/flux-helm-test.git" \
+    --set-file ssh.known_hosts=/tmp/flux_known_hosts \
+    --namespace flux \
+    chart/flux 
+    ```
+
+The [configuration](#configuration) section lists all the parameters that can be configured during installation.
 
 #### Setup Git deploy
 
