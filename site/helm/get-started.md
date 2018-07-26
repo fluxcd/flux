@@ -59,23 +59,33 @@ Add the Flux repository of Weaveworks:
 helm repo add weaveworks https://weaveworks.github.io/flux
 ```
 
-In this next step you install Weave Flux using `helm`. Simply:
+In this next step you install Weave Flux using `helm`. Simply
 
  1. Fork [flux-helm-test](https://github.com/weaveworks/flux-helm-test)
     on Github and
- 1. install Weave Flux and its Helm Operator by specifying your fork
+ 1. Install Weave Flux and its Helm Operator by specifying your fork
     URL:
 
-    *Just make sure you replace `YOURUSER` with your GitHub username
-    in the command below:*
-    ```sh
-    helm install --name flux \
-    --set helmOperator.create=true \
-    --set git.url=ssh://git@github.com/YOURUSER/flux-helm-test \
-    --set git.chartsPath=charts \
-    --namespace flux \
-    weaveworks/flux
-    ```
+      *Just make sure you replace `YOURUSER` with your GitHub username
+      in the command below:*
+      
+    - Using a public git server from `bitbucket.com`, `github.com` or `gitlab.com`:
+    
+      ```sh
+      helm install --name flux \
+      --set helmOperator.create=true \
+      --set git.url=ssh://git@github.com/YOURUSER/flux-helm-test \
+      --set git.chartsPath=charts \
+      --namespace flux \
+      weaveworks/flux
+      ```
+      
+    - Using a private git server:
+       
+      When deploying from a private repo, the known_hosts of the git server needs 
+      to be configured into a kubernetes configmap so that `StrictHostKeyChecking` is respected.
+      See [chart/flux/README.md](https://github.com/weaveworks/flux/blob/master/chart/flux/README.md#to-install-flux-with-the-helm-operator-and-a-private-git-repository)
+      for further installation instructions in this case.
 
 Allow some time for all containers to get up and running. If you're
 impatient, run the following command and see the pod creation
