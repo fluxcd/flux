@@ -66,7 +66,7 @@ func (pc podController) toClusterController(resourceID flux.ResourceID) cluster.
 		}
 		clusterContainers = append(clusterContainers, resource.Container{Name: container.Name, Image: ref})
 	}
-	for _, container := range pc.podTemplate.Spec.Containers {
+	for _, container := range pc.podTemplate.Spec.InitContainers {
 		ref, err := image.ParseRef(container.Image)
 		if err != nil {
 			clusterContainers = nil

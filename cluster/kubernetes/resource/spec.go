@@ -27,11 +27,22 @@ func (t PodTemplate) Containers() []resource.Container {
 		im, _ := image.ParseRef(c.Image)
 		result = append(result, resource.Container{Name: c.Name, Image: im})
 	}
+	for _, c := range t.Spec.InitContainers {
+		// FIXME(michael): account for possible errors here
+		im, _ := image.ParseRef(c.Image)
+		result = append(result, resource.Container{Name: c.Name, Image: im})
+	}
 	return result
 }
 
 func (t PodTemplate) SetContainerImage(container string, ref image.Ref) error {
 	for i, c := range t.Spec.Containers {
+		if c.Name == container {
+			t.Spec.Containers[i].Image = ref.String()
+			return nil
+		}
+	}
+	for i, c := range t.Spec.InitContainers {
 		if c.Name == container {
 			t.Spec.Containers[i].Image = ref.String()
 			return nil
@@ -44,6 +55,7 @@ type PodSpec struct {
 	ImagePullSecrets []struct{ Name string }
 	Volumes          []Volume
 	Containers       []ContainerSpec
+	InitContainers   []ContainerSpec `yaml:"initContainers"`
 }
 
 type Volume struct {
