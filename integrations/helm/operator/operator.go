@@ -253,17 +253,12 @@ func (c *Controller) syncHandler(key string) error {
 		return err
 	}
 
-	// Chart installation of the appropriate type
-	ctx, cancel := context.WithTimeout(context.Background(), helmop.GitOperationTimeout)
-	clone, err := c.config.Repo.Export(ctx, c.config.Branch)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	err = c.sync.ReconcileReleaseDef(ctx, *fhr)
 	cancel()
 	if err != nil {
-		return fmt.Errorf("Failure to clone repo: %s", err.Error())
+		return err
 	}
-	defer clone.Clean()
-
-	c.sync.ReconcileReleaseDef(*fhr, clone)
-
 	c.recorder.Event(fhr, corev1.EventTypeNormal, ChartSynced, MessageChartSynced)
 	return nil
 }
