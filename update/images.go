@@ -6,10 +6,10 @@ import (
 
 	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
-	glob "github.com/ryanuber/go-glob"
 
 	fluxerr "github.com/weaveworks/flux/errors"
 	"github.com/weaveworks/flux/image"
+	"github.com/weaveworks/flux/policy"
 	"github.com/weaveworks/flux/registry"
 	"github.com/weaveworks/flux/resource"
 )
@@ -38,22 +38,26 @@ func (r ImageRepos) GetRepoImages(repo image.Name) ImageInfos {
 // ImageInfos is a list of image.Info which can be filtered.
 type ImageInfos []image.Info
 
-// Filter returns only the images which match the tagGlob.
-func (ii ImageInfos) Filter(tagGlob string) ImageInfos {
+// Filter returns only the images that match the pattern, in a new list.
+// It also sorts the images according to the pattern's order.
+func (ii ImageInfos) Filter(pattern policy.Pattern) ImageInfos {
 	var filtered ImageInfos
 	for _, i := range ii {
 		tag := i.ID.Tag
 		// Ignore latest if and only if it's not what the user wants.
-		if !strings.EqualFold(tagGlob, "latest") && strings.EqualFold(tag, "latest") {
+		if pattern != policy.PatternLatest && strings.EqualFold(tag, "latest") {
 			continue
 		}
-		if glob.Glob(tagGlob, tag) {
-			var im image.Info
-			im = i
-			filtered = append(filtered, im)
+		if pattern.Matches(tag) {
+			filtered = append(filtered, i)
 		}
 	}
+	filtered.Sort(pattern)
 	return filtered
+}
+
+func (ii ImageInfos) Sort(pattern policy.Pattern) {
+	image.Sort(ii, pattern.Newer)
 }
 
 // Latest returns the latest image from ImageInfos. If no such image exists,
@@ -109,7 +113,7 @@ func FetchImageRepos(reg registry.Registry, cs containers, logger log.Logger) (I
 		}
 	}
 	for repo := range imageRepos {
-		sortedRepoImages, err := reg.GetSortedRepositoryImages(repo.Name)
+		images, err := reg.GetRepositoryImages(repo.Name)
 		if err != nil {
 			// Not an error if missing. Use empty images.
 			if !fluxerr.IsMissing(err) {
@@ -117,7 +121,7 @@ func FetchImageRepos(reg registry.Registry, cs containers, logger log.Logger) (I
 				continue
 			}
 		}
-		imageRepos[repo] = sortedRepoImages
+		imageRepos[repo] = images
 	}
 	return ImageRepos{imageRepos}, nil
 }

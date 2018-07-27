@@ -2,8 +2,6 @@ package mock
 
 import (
 	"context"
-	"sort"
-
 	"github.com/pkg/errors"
 
 	"github.com/weaveworks/flux/image"
@@ -41,7 +39,7 @@ type Registry struct {
 	Err    error
 }
 
-func (m *Registry) GetSortedRepositoryImages(id image.Name) ([]image.Info, error) {
+func (m *Registry) GetRepositoryImages(id image.Name) ([]image.Info, error) {
 	var imgs []image.Info
 	for _, i := range m.Images {
 		// include only if it's the same repository in the same place
@@ -49,7 +47,6 @@ func (m *Registry) GetSortedRepositoryImages(id image.Name) ([]image.Info, error
 			imgs = append(imgs, i)
 		}
 	}
-	sort.Sort(image.ByCreatedDesc(imgs))
 	return imgs, m.Err
 }
 

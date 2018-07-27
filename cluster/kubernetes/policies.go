@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/pkg/errors"
-	yaml "gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v2"
 
 	"github.com/weaveworks/flux"
 	kresource "github.com/weaveworks/flux/cluster/kubernetes/resource"
@@ -27,7 +27,7 @@ func (m *Manifests) UpdatePolicies(def []byte, id flux.ResourceID, update policy
 		}
 
 		for _, container := range containers {
-			if tagAll == "glob:*" {
+			if tagAll == policy.PatternAll.String() {
 				del = del.Add(policy.TagPrefix(container.Name))
 			} else {
 				add = add.Set(policy.TagPrefix(container.Name), tagAll)
@@ -35,8 +35,11 @@ func (m *Manifests) UpdatePolicies(def []byte, id flux.ResourceID, update policy
 		}
 	}
 
-	args := []string{}
+	var args []string
 	for pol, val := range add {
+		if policy.Tag(pol) && !policy.NewPattern(val).Valid() {
+			return nil, fmt.Errorf("invalid tag pattern: %q", val)
+		}
 		args = append(args, fmt.Sprintf("%s%s=%s", kresource.PolicyPrefix, pol, val))
 	}
 	for pol, _ := range del {

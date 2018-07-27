@@ -400,8 +400,8 @@ or only release images that have a stable semantic version tag (X.Y.Z):
 fluxctl policy --controller=default:deployment/helloworld --tag-all='semver:*'
 ```
 
-This will also affect the way flux determines the newest image tag
-by looking at the newest version instead of image creation date.
+Using a semver filter will also affect how flux sorts images, so
+that the higher versions will be considered newer.
 
 ## Actions triggered through `fluxctl`
 

@@ -142,7 +142,7 @@ func calculatePolicyChanges(opts *controllerPolicyOpts) (policy.Update, error) {
 			Add(policy.LockedUser)
 	}
 	if opts.tagAll != "" {
-		add = add.Set(policy.TagAll, "glob:"+opts.tagAll)
+		add = add.Set(policy.TagAll, policy.NewPattern(opts.tagAll).String())
 	}
 
 	for _, tagPair := range opts.tags {
@@ -153,7 +153,7 @@ func calculatePolicyChanges(opts *controllerPolicyOpts) (policy.Update, error) {
 
 		container, tag := parts[0], parts[1]
 		if tag != "*" {
-			add = add.Set(policy.TagPrefix(container), "glob:"+tag)
+			add = add.Set(policy.TagPrefix(container), policy.NewPattern(tag).String())
 		} else {
 			remove = remove.Add(policy.TagPrefix(container))
 		}

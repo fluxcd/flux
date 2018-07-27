@@ -1,16 +1,14 @@
 package daemon
 
 import (
+	"context"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
-
-	"sync"
-
-	"context"
 
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster"

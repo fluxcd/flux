@@ -163,14 +163,14 @@ func (d *Daemon) ListImagesWithOptions(ctx context.Context, opts v10.ListImagesO
 		services, err = d.Cluster.SomeControllers([]flux.ResourceID{id})
 	}
 
-	imageRepos, err := update.FetchImageRepos(d.Registry, clusterContainers(services), d.Logger)
-	if err != nil {
-		return nil, errors.Wrap(err, "getting images for services")
-	}
-
 	policyResourceMap, _, err := d.getPolicyResourceMap(ctx)
 	if err != nil {
 		return nil, err
+	}
+
+	imageRepos, err := update.FetchImageRepos(d.Registry, clusterContainers(services), d.Logger)
+	if err != nil {
+		return nil, errors.Wrap(err, "getting images for services")
 	}
 
 	var res []v6.ImageStatus

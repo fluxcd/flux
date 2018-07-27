@@ -1,7 +1,6 @@
 package release
 
 import (
-	"encoding/json"
 	"fmt"
 	"reflect"
 	"testing"
@@ -203,6 +202,7 @@ func Test_FilterLogic(t *testing.T) {
 				flux.MustParseResourceID("default:deployment/test-service"):   ignoredNotIncluded,
 				flux.MustParseResourceID("default:deployment/multi-deploy"):   ignoredNotIncluded,
 				flux.MustParseResourceID("default:deployment/list-deploy"):    ignoredNotIncluded,
+				flux.MustParseResourceID("default:deployment/semver"):         ignoredNotIncluded,
 			},
 		}, {
 			Name: "exclude specific service",
@@ -235,6 +235,7 @@ func Test_FilterLogic(t *testing.T) {
 				flux.MustParseResourceID("default:deployment/test-service"): skippedNotInCluster,
 				flux.MustParseResourceID("default:deployment/multi-deploy"): skippedNotInCluster,
 				flux.MustParseResourceID("default:deployment/list-deploy"):  skippedNotInCluster,
+				flux.MustParseResourceID("default:deployment/semver"):       skippedNotInCluster,
 			},
 		}, {
 			Name: "update specific image",
@@ -262,6 +263,7 @@ func Test_FilterLogic(t *testing.T) {
 				flux.MustParseResourceID("default:deployment/test-service"): skippedNotInCluster,
 				flux.MustParseResourceID("default:deployment/multi-deploy"): skippedNotInCluster,
 				flux.MustParseResourceID("default:deployment/list-deploy"):  skippedNotInCluster,
+				flux.MustParseResourceID("default:deployment/semver"):       skippedNotInCluster,
 			},
 		},
 		// skipped if: not ignored AND (locked or not found in cluster)
@@ -297,6 +299,7 @@ func Test_FilterLogic(t *testing.T) {
 				flux.MustParseResourceID("default:deployment/test-service"): skippedNotInCluster,
 				flux.MustParseResourceID("default:deployment/multi-deploy"): skippedNotInCluster,
 				flux.MustParseResourceID("default:deployment/list-deploy"):  skippedNotInCluster,
+				flux.MustParseResourceID("default:deployment/semver"):       skippedNotInCluster,
 			},
 		},
 		{
@@ -330,6 +333,7 @@ func Test_FilterLogic(t *testing.T) {
 				flux.MustParseResourceID("default:deployment/test-service"): skippedNotInCluster,
 				flux.MustParseResourceID("default:deployment/multi-deploy"): skippedNotInCluster,
 				flux.MustParseResourceID("default:deployment/list-deploy"):  skippedNotInCluster,
+				flux.MustParseResourceID("default:deployment/semver"):       skippedNotInCluster,
 			},
 		},
 		{
@@ -346,6 +350,7 @@ func Test_FilterLogic(t *testing.T) {
 				flux.MustParseResourceID("default:deployment/test-service"):   ignoredNotIncluded,
 				flux.MustParseResourceID("default:deployment/multi-deploy"):   ignoredNotIncluded,
 				flux.MustParseResourceID("default:deployment/list-deploy"):    ignoredNotIncluded,
+				flux.MustParseResourceID("default:deployment/semver"):         ignoredNotIncluded,
 				flux.MustParseResourceID(notInRepoService):                    skippedNotInRepo,
 			},
 		},
@@ -397,6 +402,7 @@ func Test_ImageStatus(t *testing.T) {
 				flux.MustParseResourceID("default:deployment/locked-service"): ignoredNotIncluded,
 				flux.MustParseResourceID("default:deployment/multi-deploy"):   ignoredNotIncluded,
 				flux.MustParseResourceID("default:deployment/list-deploy"):    ignoredNotIncluded,
+				flux.MustParseResourceID("default:deployment/semver"):         ignoredNotIncluded,
 				flux.MustParseResourceID("default:deployment/test-service"): update.ControllerResult{
 					Status: update.ReleaseStatusIgnored,
 					Error:  update.DoesNotUseImage,
@@ -419,6 +425,7 @@ func Test_ImageStatus(t *testing.T) {
 				flux.MustParseResourceID("default:deployment/test-service"):   ignoredNotIncluded,
 				flux.MustParseResourceID("default:deployment/multi-deploy"):   ignoredNotIncluded,
 				flux.MustParseResourceID("default:deployment/list-deploy"):    ignoredNotIncluded,
+				flux.MustParseResourceID("default:deployment/semver"):         ignoredNotIncluded,
 			},
 		},
 	} {
@@ -686,14 +693,8 @@ func Test_UpdateContainers(t *testing.T) {
 
 func testRelease(t *testing.T, ctx *ReleaseContext, spec update.ReleaseSpec, expected update.Result) {
 	results, err := Release(ctx, spec, log.NewNopLogger())
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !reflect.DeepEqual(expected, results) {
-		exp, _ := json.Marshal(expected)
-		got, _ := json.Marshal(results)
-		t.Errorf("--- expected ---\n%s\n--- got ---\n%s\n", string(exp), string(got))
-	}
+	assert.NoError(t, err)
+	assert.Equal(t, expected, results)
 }
 
 // --- test verification
