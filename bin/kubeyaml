@@ -1,2 +1,2 @@
 #!/bin/sh
-docker run --rm -i quay.io/squaremo/kubeyaml:0.4.0 "$@"
+docker run --rm -i quay.io/squaremo/kubeyaml:0.4.1 "$@"

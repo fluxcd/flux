@@ -29,7 +29,7 @@ LABEL maintainer="Weaveworks <help@weave.works>" \
 ENTRYPOINT [ "/sbin/tini", "--", "fluxd" ]
 
 # Get the kubeyaml binary (files) and put them on the path
-COPY --from=quay.io/squaremo/kubeyaml:0.4.0 /usr/lib/kubeyaml /usr/lib/kubeyaml/
+COPY --from=quay.io/squaremo/kubeyaml:0.4.1 /usr/lib/kubeyaml /usr/lib/kubeyaml/
 ENV PATH=/bin:/usr/bin:/usr/local/bin:/usr/lib/kubeyaml
 
 COPY ./kubeconfig /root/.kube/config
