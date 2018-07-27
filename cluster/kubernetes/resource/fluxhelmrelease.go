@@ -54,94 +54,123 @@ func sorted_keys(values map[string]interface{}) []string {
 // it cannot interpret the values as specifying images, or if the
 // `visit` function itself returns an error.
 func FindFluxHelmReleaseContainers(values map[string]interface{}, visit func(string, image.Ref, ImageSetter) error) error {
-	// Try the simplest format first:
-	// ```
-	// values:
-	//   image: 'repo/image:tag'
-	// ```
-	if image, setter, ok := interpret_stringmap(values); ok {
+	// an image defined at the top-level is given a standard container name:
+	if image, setter, ok := interpretAsContainer(stringMap(values)); ok {
 		visit(ReleaseContainerName, image, setter)
 		return nil
 	}
 
-	// Second most simple format:
-	// ```
-	// values:
-	//   foo:
-	//     image: repo/foo:v1
-	//   bar:
-	//     image: repo/bar:v2
-	// ```
-	// with the variation that there may also be a `tag` field:
-	// ```
-	// values:
-	//   foo:
-	//     image: repo/foo
-	//     tag: v1
+	// an image as part of a field is treated as a "container" spec
+	// named for the field:
 	for _, k := range sorted_keys(values) {
-		// From a YAML (i.e., a file), it's a
-		// `map[interface{}]interface{}`, and from JSON (i.e.,
-		// Kubernetes API) it's a `map[string]interface{}`.
-		switch m := values[k].(type) {
-		case map[string]interface{}:
-			if image, setter, ok := interpret_stringmap(m); ok {
-				visit(k, image, setter)
-			}
-		case map[interface{}]interface{}:
-			if image, setter, ok := interpret_anymap(m); ok {
-				visit(k, image, setter)
-			}
+		if image, setter, ok := interpret(values[k]); ok {
+			visit(k, image, setter)
 		}
 	}
 	return nil
 }
 
-func interpret_stringmap(m map[string]interface{}) (image.Ref, ImageSetter, bool) {
-	if img, ok := m["image"]; ok {
-		if imgStr, ok := img.(string); ok {
-			imageRef, err := image.ParseRef(imgStr)
-			if err == nil {
-				var taggy bool
-				if tag, ok := m["tag"]; ok {
-					if tagStr, ok := tag.(string); ok {
-						taggy = true
-						imageRef.Tag = tagStr
-					}
-				}
-				return imageRef, func(ref image.Ref) {
-					if taggy {
-						m["image"] = ref.Name.String()
-						m["tag"] = ref.Tag
-						return
-					}
-					m["image"] = ref.String()
-				}, true
-			}
-		}
+// The following is some machinery for interpreting a
+// FluxHelmRelease's `values` field as defining images to be
+// interpolated into the chart templates.
+//
+// The top-level value is a map[string]interface{}, but beneath that,
+// we get maps in two varieties: from a YAML (i.e., a file), they are
+// `map[interface{}]interface{}`, and from JSON (i.e., Kubernetes API)
+// they are a `map[string]interface{}`. To conflate them, here's an
+// interface for maps:
+
+type mapper interface {
+	get(string) (interface{}, bool)
+	set(string, interface{})
+}
+
+type stringMap map[string]interface{}
+type anyMap map[interface{}]interface{}
+
+func (m stringMap) get(k string) (interface{}, bool) { v, ok := m[k]; return v, ok }
+func (m stringMap) set(k string, v interface{})      { m[k] = v }
+
+func (m anyMap) get(k string) (interface{}, bool) { v, ok := m[k]; return v, ok }
+func (m anyMap) set(k string, v interface{})      { m[k] = v }
+
+// interpret gets a value which may contain a description of an image.
+func interpret(values interface{}) (image.Ref, ImageSetter, bool) {
+	switch m := values.(type) {
+	case map[string]interface{}:
+		return interpretAsContainer(stringMap(m))
+	case map[interface{}]interface{}:
+		return interpretAsContainer(anyMap(m))
 	}
 	return image.Ref{}, nil, false
 }
 
-// Exactly the same code, lexically. just a different type, because go.
-func interpret_anymap(m map[interface{}]interface{}) (image.Ref, ImageSetter, bool) {
-	if img, ok := m["image"]; ok {
-		if imgStr, ok := img.(string); ok {
-			imageRef, err := image.ParseRef(imgStr)
-			if err == nil {
-				var taggy bool
-				if tag, ok := m["tag"]; ok {
-					if tagStr, ok := tag.(string); ok {
-						taggy = true
-						imageRef.Tag = tagStr
-					}
+// interpretAsContainer takes a `mapper` value that may _contain_ an
+// image, and attempts to interpret it.
+func interpretAsContainer(m mapper) (image.Ref, ImageSetter, bool) {
+	imageValue, ok := m.get("image")
+	if !ok {
+		return image.Ref{}, nil, false
+	}
+	switch img := imageValue.(type) {
+	case string:
+		// ```
+		// container:
+		//   image: 'repo/image:tag'
+		// ```
+		imageRef, err := image.ParseRef(img)
+		if err == nil {
+			var taggy bool
+			if tag, ok := m.get("tag"); ok {
+				//   conatainer:
+				//     image: repo/foo
+				//     tag: v1
+				if tagStr, ok := tag.(string); ok {
+					taggy = true
+					imageRef.Tag = tagStr
 				}
-				return imageRef, func(ref image.Ref) {
-					if taggy {
-						m["image"] = ref.Name.String()
-						m["tag"] = ref.Tag
-						return
-					}
-					m["image"] = ref.String()
+			}
+			return imageRef, func(ref image.Ref) {
+				if taggy {
+					m.set("image", ref.Name.String())
+					m.set("tag", ref.Tag)
+					return
+				}
+				m.set("image", ref.String())
+			}, true
+		}
+	case map[string]interface{}:
+		return interpretAsImage(stringMap(img))
+	case map[interface{}]interface{}:
+		return interpretAsImage(anyMap(img))
+	}
+	return image.Ref{}, nil, false
+}
+
+// interpretAsImage takes a `mapper` value that may represent an
+// image, and attempts to interpret it.
+func interpretAsImage(m mapper) (image.Ref, ImageSetter, bool) {
+	var imgRepo, imgTag interface{}
+	var ok bool
+	if imgRepo, ok = m.get("repository"); !ok {
+		return image.Ref{}, nil, false
+	}
+
+	if imgTag, ok = m.get("tag"); !ok {
+		return image.Ref{}, nil, false
+	}
+
+	if imgStr, ok := imgRepo.(string); ok {
+		if tagStr, ok := imgTag.(string); ok {
+			//    container:
+			//      image:
+			//        repository: repo/bar
+			//        tag: v1
+			imgRef, err := image.ParseRef(imgStr + ":" + tagStr)
+			if err == nil {
+				return imgRef, func(ref image.Ref) {
+					m.set("repository", ref.Name.String())
+					m.set("tag", ref.Tag)
 				}, true
 			}
 		}
