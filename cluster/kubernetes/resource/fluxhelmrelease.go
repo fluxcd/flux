@@ -57,7 +57,6 @@ func FindFluxHelmReleaseContainers(values map[string]interface{}, visit func(str
 	// an image defined at the top-level is given a standard container name:
 	if image, setter, ok := interpretAsContainer(stringMap(values)); ok {
 		visit(ReleaseContainerName, image, setter)
-		return nil
 	}
 
 	// an image as part of a field is treated as a "container" spec
