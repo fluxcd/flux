@@ -2,6 +2,7 @@ package mock
 
 import (
 	"context"
+	"sort"
 
 	"github.com/pkg/errors"
 
@@ -48,6 +49,7 @@ func (m *Registry) GetSortedRepositoryImages(id image.Name) ([]image.Info, error
 			imgs = append(imgs, i)
 		}
 	}
+	sort.Sort(image.ByCreatedDesc(imgs))
 	return imgs, m.Err
 }
 
