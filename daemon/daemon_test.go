@@ -176,10 +176,10 @@ func TestDaemon_ListImagesWithOptions(t *testing.T) {
 						{
 							Name:           container,
 							Current:        image.Info{ID: currentImageRef},
-							LatestFiltered: image.Info{ID: currentImageRef},
+							LatestFiltered: image.Info{ID: newImageRef},
 							Available: []image.Info{
-								{ID: currentImageRef},
 								{ID: newImageRef},
+								{ID: currentImageRef},
 							},
 							AvailableImagesCount:    2,
 							NewAvailableImagesCount: 1,
@@ -218,10 +218,10 @@ func TestDaemon_ListImagesWithOptions(t *testing.T) {
 						{
 							Name:           container,
 							Current:        image.Info{ID: currentImageRef},
-							LatestFiltered: image.Info{ID: currentImageRef},
+							LatestFiltered: image.Info{ID: newImageRef},
 							Available: []image.Info{
-								{ID: currentImageRef},
 								{ID: newImageRef},
+								{ID: currentImageRef},
 							},
 							AvailableImagesCount:    2,
 							NewAvailableImagesCount: 1,
@@ -575,11 +575,13 @@ func mockDaemon(t *testing.T) (*Daemon, func(), func(), *cluster.Mock, *mockEven
 	events := &mockEventWriter{}
 
 	// Shutdown chan and waitgroups
-	shutdown := make(chan struct{})
-	wg := &sync.WaitGroup{}
+	jshutdown := make(chan struct{})
+	dshutdown := make(chan struct{})
+	jwg := &sync.WaitGroup{}
+	dwg := &sync.WaitGroup{}
 
 	// Jobs queue (starts itself)
-	jobs := job.NewQueue(shutdown, wg)
+	jobs := job.NewQueue(jshutdown, jwg)
 
 	// Finally, the daemon
 	d := &Daemon{
@@ -601,14 +603,18 @@ func mockDaemon(t *testing.T) (*Daemon, func(), func(), *cluster.Mock, *mockEven
 			t.Fatal(err)
 		}
 
-		wg.Add(1)
-		go d.Loop(shutdown, wg, logger)
+		dwg.Add(1)
+		go d.Loop(dshutdown, dwg, logger)
 	}
 
 	stop := func() {
-		// Close daemon first so we don't get errors if the queue closes before the daemon
-		close(shutdown)
-		wg.Wait()
+		// Close daemon first so any outstanding jobs are picked up by the queue, otherwise
+		// calls to Queue#Enqueue() will block forever. Jobs may be enqueued if the daemon's
+		// image polling picks up automated updates.
+		close(dshutdown)
+		dwg.Wait()
+		close(jshutdown)
+		jwg.Wait()
 		repoCleanup()
 	}
 	return d, start, stop, k8s, events
