@@ -77,7 +77,7 @@ func (w *Warmer) Loop(logger log.Logger, stop <-chan struct{}, wg *sync.WaitGrou
 	// If there are none, images used in the cluster are refreshed;
 	// but no more often than once every `askForNewImagesInterval`,
 	// since there is no effective back-pressure on cache refreshes
-	// and it would spin freely otherwise).
+	// and it would spin freely otherwise.
 	for {
 		select {
 		case <-stop:
@@ -230,6 +230,9 @@ func (w *Warmer) warm(ctx context.Context, logger log.Logger, id image.Name, cre
 					errorLogger.Log("err", errors.Wrap(err, "requesting manifests"))
 					return
 				}
+				if img.ExcludedReason != "" {
+					errorLogger.Log("excluded", img.ExcludedReason)
+				}
 
 				key := NewManifestKey(img.ID.CanonicalRef())
 				// Write back to memcached
@@ -245,7 +248,9 @@ func (w *Warmer) warm(ctx context.Context, logger log.Logger, id image.Name, cre
 				}
 				successMx.Lock()
 				successCount++
-				newImages[imageID.Tag] = img
+				if img.ExcludedReason == "" {
+					newImages[imageID.Tag] = img.Info
+				}
 				successMx.Unlock()
 			}(imID)
 		}

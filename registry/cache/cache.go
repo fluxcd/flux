@@ -47,17 +47,6 @@ type tagKey struct {
 	fullRepositoryPath string
 }
 
-func NewTagKey(id image.CanonicalName) Keyer {
-	return &tagKey{id.String()}
-}
-
-func (k *tagKey) Key() string {
-	return strings.Join([]string{
-		"registrytagsv3", // Just to version in case we need to change format later.
-		k.fullRepositoryPath,
-	}, "|")
-}
-
 type repoKey struct {
 	fullRepositoryPath string
 }

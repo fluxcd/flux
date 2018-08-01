@@ -55,13 +55,15 @@ func TestWarm(t *testing.T) {
 		TagsFn: func() ([]string, error) {
 			return []string{"tag"}, nil
 		},
-		ManifestFn: func(tag string) (image.Info, error) {
+		ManifestFn: func(tag string) (registry.ImageEntry, error) {
 			if tag != "tag" {
 				t.Errorf("remote client was asked for %q instead of %q", tag, "tag")
 			}
-			return image.Info{
-				ID:        ref,
-				CreatedAt: time.Now(),
+			return registry.ImageEntry{
+				Info: image.Info{
+					ID:        ref,
+					CreatedAt: time.Now(),
+				},
 			}, nil
 		},
 	}

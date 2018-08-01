@@ -10,11 +10,11 @@ import (
 )
 
 type Client struct {
-	ManifestFn func(ref string) (image.Info, error)
+	ManifestFn func(ref string) (registry.ImageEntry, error)
 	TagsFn     func() ([]string, error)
 }
 
-func (m *Client) Manifest(ctx context.Context, tag string) (image.Info, error) {
+func (m *Client) Manifest(ctx context.Context, tag string) (registry.ImageEntry, error) {
 	return m.ManifestFn(tag)
 }
 
