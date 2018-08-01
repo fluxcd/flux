@@ -16,7 +16,7 @@ func TestJSON(t *testing.T) {
 	boolPolicy = boolPolicy.Add(Locked)
 	policy := boolPolicy.Set(LockedUser, "user@example.com")
 
-	if !(policy.Contains(Ignore) && policy.Contains(Locked)) {
+	if !(policy.Has(Ignore) && policy.Has(Locked)) {
 		t.Errorf("Policy did not include those added")
 	}
 	if val, ok := policy.Get(LockedUser); !ok || val != "user@example.com" {

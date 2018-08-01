@@ -49,29 +49,29 @@ func prepareSyncDelete(logger log.Logger, repoResources map[string]resource.Reso
 	if len(repoResources) == 0 {
 		return
 	}
-	if res.Policy().Contains(policy.Ignore) {
+	if res.Policy().Has(policy.Ignore) {
 		logger.Log("resource", res.ResourceID(), "ignore", "delete")
 		return
 	}
 	if _, ok := repoResources[id]; !ok {
 		sync.Actions = append(sync.Actions, cluster.SyncAction{
-			Delete:     res,
+			Delete: res,
 		})
 	}
 }
 
 func prepareSyncApply(logger log.Logger, clusterResources map[string]resource.Resource, id string, res resource.Resource, sync *cluster.SyncDef) {
-	if res.Policy().Contains(policy.Ignore) {
+	if res.Policy().Has(policy.Ignore) {
 		logger.Log("resource", res.ResourceID(), "ignore", "apply")
 		return
 	}
 	if cres, ok := clusterResources[id]; ok {
-		if cres.Policy().Contains(policy.Ignore) {
+		if cres.Policy().Has(policy.Ignore) {
 			logger.Log("resource", res.ResourceID(), "ignore", "apply")
 			return
 		}
 	}
 	sync.Actions = append(sync.Actions, cluster.SyncAction{
-		Apply:      res,
+		Apply: res,
 	})
 }

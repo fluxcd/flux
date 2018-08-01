@@ -124,9 +124,9 @@ func (d *Daemon) ListServices(ctx context.Context, namespace string) ([]v6.Contr
 			Status:     service.Status,
 			Antecedent: service.Antecedent,
 			Labels:     service.Labels,
-			Automated:  policies.Contains(policy.Automated),
-			Locked:     policies.Contains(policy.Locked),
-			Ignore:     policies.Contains(policy.Ignore),
+			Automated:  policies.Has(policy.Automated),
+			Locked:     policies.Has(policy.Locked),
+			Ignore:     policies.Has(policy.Ignore),
 			Policies:   policies.ToStringMap(),
 		})
 	}
@@ -342,7 +342,7 @@ func (d *Daemon) updatePolicy(spec update.Spec, updates policy.Updates) updateFu
 		var anythingAutomated bool
 
 		for serviceID, u := range updates {
-			if policy.Set(u.Add).Contains(policy.Automated) {
+			if policy.Set(u.Add).Has(policy.Automated) {
 				anythingAutomated = true
 			}
 			// find the service manifest

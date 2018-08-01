@@ -101,10 +101,14 @@ func clone(s Set) Set {
 	return newMap
 }
 
-// Contains method determines if a resource has a particular policy present
-func (s Set) Contains(needle Policy) bool {
-	for p := range s {
+// Has returns true if a resource has a particular policy present, and
+// for boolean policies, if it is set to true.
+func (s Set) Has(needle Policy) bool {
+	for p, v := range s {
 		if p == needle {
+			if Boolean(needle) {
+				return v == "true"
+			}
 			return true
 		}
 	}
@@ -162,7 +166,7 @@ func (s ResourceMap) Without(other ResourceMap) ResourceMap {
 func (s ResourceMap) OnlyWithPolicy(p Policy) ResourceMap {
 	newMap := ResourceMap{}
 	for k, v := range s {
-		if _, ok := v[p]; ok {
+		if v.Has(p) {
 			newMap[k] = v
 		}
 	}
