@@ -42,7 +42,7 @@ Once that is set up, you can specify an API URL with `--url` or the
 environment variable `FLUX_URL`:
 
 ```
-fluxctl --url http://127.0.0.1:3030/ list-controllers
+fluxctl --url http://127.0.0.1:3030/api/flux list-controllers
 ```
 
 ## Flux API service

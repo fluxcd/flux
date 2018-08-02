@@ -60,7 +60,7 @@ and
 At present, yes it works only with a single git repository containing
 Kubernetes manifests. You can have as many git repositories with
 application code as you like, to be clear -- see
-[below](#do-i-have-to-have-my-application-code-and-config-in-the-same-git-repo).
+[below](#do-i-have-to-put-my-application-code-and-config-in-the-same-git-repo).
 
 There's no principled reason for this, it's just
 a consequence of time and effort being in finite supply. If you have a
@@ -75,12 +75,24 @@ This
 [flux (daemon) operator](https://github.com/justinbarrick/flux-operator)
 project may be of use for managing multiple daemons.
 
-### Do I have to have my application code and config in the same git repo?
+### Do I have to put my application code and config in the same git repo?
 
 Nope, but they can be if you want to keep them together. Flux doesn't
 need to know about your application code, since it deals with
 container images (i.e., once your application code has already been
 built).
+
+### Is there any special directory layout I need in my git repo?
+
+Nope. Flux doesn't place any significance on the directory structure,
+and will descend into subdirectories in search of YAMLs. It avoids
+directories that look like Helm charts.
+
+If you have YAML files in the repo that _aren't_ for applying to
+Kubernetes, use `--git-path` to constrain where Flux starts looking.
+
+See also [requirements.md](./requirements.md) for a little more
+explanation.
 
 ### Why does Flux need a deploy key?
 
