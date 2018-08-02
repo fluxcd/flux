@@ -122,13 +122,13 @@ func (s ReleaseSpec) filters(rc ReleaseContext) ([]ControllerFilter, []Controlle
 	var prefilters, postfilters []ControllerFilter
 
 	ids := []flux.ResourceID{}
-	for _, s := range s.ServiceSpecs {
-		if s == ResourceSpecAll {
+	for _, ss := range s.ServiceSpecs {
+		if ss == ResourceSpecAll {
 			// "<all>" Overrides any other filters
 			ids = []flux.ResourceID{}
 			break
 		}
-		id, err := flux.ParseResourceID(string(s))
+		id, err := flux.ParseResourceID(string(ss))
 		if err != nil {
 			return nil, nil, err
 		}

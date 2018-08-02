@@ -171,7 +171,7 @@ func promptSpec(out io.Writer, result job.Result, verbosity int) (update.Contain
 	menu := update.NewMenu(out, result.Result, verbosity)
 	containerSpecs, err := menu.Run()
 	return update.ContainerSpecs{
-		Kind: update.ReleaseKindExecute,
+		Kind:           update.ReleaseKindExecute,
 		ContainerSpecs: containerSpecs,
 		SkipMismatches: false,
 	}, err
