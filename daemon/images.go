@@ -48,7 +48,7 @@ func (d *Daemon) pollForNewImages(logger log.Logger) {
 			repo := currentImageID.Name
 			logger := log.With(logger, "service", service.ID, "container", container.Name, "repo", repo, "pattern", pattern, "current", currentImageID)
 
-			filteredImages := imageRepos.GetRepoImages(repo).Filter(pattern)
+			filteredImages := imageRepos.GetRepoImages(repo).FilterAndSort(pattern)
 
 			if latest, ok := filteredImages.Latest(); ok && latest.ID != currentImageID {
 				if latest.ID.Tag == "" {
