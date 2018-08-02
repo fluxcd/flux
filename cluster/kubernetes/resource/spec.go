@@ -22,13 +22,12 @@ type PodTemplate struct {
 
 func (t PodTemplate) Containers() []resource.Container {
 	var result []resource.Container
+	// FIXME(https://github.com/weaveworks/flux/issues/1269): account for possible errors (x2)
 	for _, c := range t.Spec.Containers {
-		// FIXME(michael): account for possible errors here
 		im, _ := image.ParseRef(c.Image)
 		result = append(result, resource.Container{Name: c.Name, Image: im})
 	}
 	for _, c := range t.Spec.InitContainers {
-		// FIXME(michael): account for possible errors here
 		im, _ := image.ParseRef(c.Image)
 		result = append(result, resource.Container{Name: c.Name, Image: im})
 	}
