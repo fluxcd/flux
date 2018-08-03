@@ -152,13 +152,16 @@ func (s ReleaseSpec) filters(rc ReleaseContext) ([]ControllerFilter, []Controlle
 		postfilters = append(postfilters, &SpecificImageFilter{id})
 	}
 
-	// Locked filter
-	services, err := rc.ServicesWithPolicies()
-	if err != nil {
-		return nil, nil, err
+	// Filter out locked controllers unless given a specific controller(s) and forced
+	if !(len(ids) > 0 && s.Force) {
+		// Locked filter
+		services, err := rc.ServicesWithPolicies()
+		if err != nil {
+			return nil, nil, err
+		}
+		lockedSet := services.OnlyWithPolicy(policy.Locked)
+		postfilters = append(postfilters, &LockedFilter{lockedSet.ToSlice()})
 	}
-	lockedSet := services.OnlyWithPolicy(policy.Locked)
-	postfilters = append(postfilters, &LockedFilter{lockedSet.ToSlice()})
 
 	return prefilters, postfilters, nil
 }
@@ -232,8 +235,12 @@ func (s ReleaseSpec) calculateImageUpdates(rc ReleaseContext, candidates []*Cont
 			currentImageID := container.Image
 
 			tagPattern := policy.PatternAll
-			if pattern, ok := u.Resource.Policy().Get(policy.TagPrefix(container.Name)); ok {
-				tagPattern = policy.NewPattern(pattern)
+			// Use the container's filter if the spec does not want to force release, or
+			// all images requested
+			if !s.Force || s.ImageSpec == ImageSpecLatest {
+				if pattern, ok := u.Resource.Policy().Get(policy.TagPrefix(container.Name)); ok {
+					tagPattern = policy.NewPattern(pattern)
+				}
 			}
 
 			filteredImages := imageRepos.GetRepoImages(currentImageID.Name).FilterAndSort(tagPattern)
