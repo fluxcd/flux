@@ -231,7 +231,12 @@ func (s ReleaseSpec) calculateImageUpdates(rc ReleaseContext, candidates []*Cont
 		for _, container := range containers {
 			currentImageID := container.Image
 
-			filteredImages := imageRepos.GetRepoImages(currentImageID.Name).FilterAndSort(policy.PatternAll)
+			tagPattern := policy.PatternAll
+			if pattern, ok := u.Resource.Policy().Get(policy.TagPrefix(container.Name)); ok {
+				tagPattern = policy.NewPattern(pattern)
+			}
+
+			filteredImages := imageRepos.GetRepoImages(currentImageID.Name).FilterAndSort(tagPattern)
 			latestImage, ok := filteredImages.Latest()
 			if !ok {
 				if currentImageID.CanonicalName() != singleRepo {
