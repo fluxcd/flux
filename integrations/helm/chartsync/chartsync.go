@@ -40,13 +40,17 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
+	"sort"
 	"sync"
 	"time"
 
 	"github.com/go-kit/kit/log"
+	google_protobuf "github.com/golang/protobuf/ptypes/any"
+	"github.com/google/go-cmp/cmp"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
+	hapi_chart "k8s.io/helm/pkg/proto/hapi/chart"
 	hapi_release "k8s.io/helm/pkg/proto/hapi/release"
 
 	ifv1 "github.com/weaveworks/flux/apis/helm.integrations.flux.weave.works/v1alpha2"
@@ -54,6 +58,8 @@ import (
 	ifclientset "github.com/weaveworks/flux/integrations/client/clientset/versioned"
 	helmop "github.com/weaveworks/flux/integrations/helm"
 	"github.com/weaveworks/flux/integrations/helm/release"
+
+	"github.com/ncabatoff/go-seq/seq"
 )
 
 type Polling struct {
@@ -309,6 +315,72 @@ func (chs *ChartChangeSync) getCustomResources() ([]ifv1.FluxHelmRelease, error)
 	return fhrs, nil
 }
 
+func sortStrings(ss []string) []string {
+	ret := append([]string{}, ss...)
+	sort.Strings(ret)
+	return ret
+}
+
+type anySlice []*google_protobuf.Any
+
+func (a anySlice) Less(i, j int) bool {
+	return seq.Compare(a[i], a[j]) < 0
+}
+func (a anySlice) Len() int      { return len(a) }
+func (a anySlice) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
+
+type templateSlice []*hapi_chart.Template
+
+func (t templateSlice) Less(i, j int) bool {
+	return seq.Compare(t[i], t[j]) < 0
+}
+func (t templateSlice) Len() int      { return len(t) }
+func (t templateSlice) Swap(i, j int) { t[i], t[j] = t[j], t[i] }
+
+type maintainerSlice []*hapi_chart.Maintainer
+
+func (m maintainerSlice) Less(i, j int) bool {
+	return seq.Compare(m[i], m[j]) < 0
+}
+func (m maintainerSlice) Len() int      { return len(m) }
+func (m maintainerSlice) Swap(i, j int) { m[i], m[j] = m[j], m[i] }
+
+type chartSlice []*hapi_chart.Chart
+
+func (a chartSlice) Less(i, j int) bool {
+	return seq.Compare(a[i], a[j]) < 0
+}
+func (a chartSlice) Len() int      { return len(a) }
+func (a chartSlice) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
+
+func sortChartFields(c *hapi_chart.Chart) *hapi_chart.Chart {
+	nc := hapi_chart.Chart{
+		Metadata:  &(*c.Metadata),
+		Templates: append([]*hapi_chart.Template{}, c.Templates...),
+		Files:     append([]*google_protobuf.Any{}, c.Files...),
+	}
+
+	if c.Values != nil {
+		nc.Values = &(*c.Values)
+	}
+
+	sort.Sort(anySlice(nc.Files))
+	sort.Sort(templateSlice(nc.Templates))
+
+	nc.Metadata.Sources = sortStrings(nc.Metadata.Sources)
+	nc.Metadata.Keywords = sortStrings(nc.Metadata.Keywords)
+	nc.Metadata.Maintainers = append([]*hapi_chart.Maintainer{}, nc.Metadata.Maintainers...)
+	sort.Sort(maintainerSlice(nc.Metadata.Maintainers))
+
+	nc.Dependencies = make([]*hapi_chart.Chart, len(c.Dependencies))
+	for i := range c.Dependencies {
+		nc.Dependencies[i] = sortChartFields(c.Dependencies[i])
+	}
+	sort.Sort(chartSlice(nc.Dependencies))
+
+	return &nc
+}
+
 // shouldUpgrade returns true if the current running values or chart
 // don't match what the repo says we ought to be running, based on
 // doing a dry run install from the chart in the git repo.
@@ -317,8 +389,8 @@ func (chs *ChartChangeSync) shouldUpgrade(chartsRepo string, currRel *hapi_relea
 		return false, fmt.Errorf("No Chart release provided for %v", fhr.GetName())
 	}
 
-	currVals := currRel.GetConfig().GetRaw()
-	currChart := currRel.GetChart().String()
+	currVals := currRel.GetConfig()
+	currChart := currRel.GetChart()
 
 	// Get the desired release state
 	opts := release.InstallOptions{DryRun: true}
@@ -327,16 +399,17 @@ func (chs *ChartChangeSync) shouldUpgrade(chartsRepo string, currRel *hapi_relea
 	if err != nil {
 		return false, err
 	}
-	desVals := desRel.GetConfig().GetRaw()
-	desChart := desRel.GetChart().String()
+	desVals := desRel.GetConfig()
+	desChart := desRel.GetChart()
 
 	// compare values && Chart
-	if currVals != desVals {
-		chs.logger.Log("error", fmt.Sprintf("Release %s: values have diverged due to manual Chart release", currRel.GetName()))
+	if diff := cmp.Diff(currVals, desVals); diff != "" {
+		chs.logger.Log("error", fmt.Sprintf("Release %s: values have diverged due to manual Chart release, diff: %s", currRel.GetName(), diff))
 		return true, nil
 	}
-	if currChart != desChart {
-		chs.logger.Log("error", fmt.Sprintf("Release %s: Chart has diverged due to manual Chart release", currRel.GetName()))
+
+	if diff := cmp.Diff(sortChartFields(currChart), sortChartFields(desChart)); diff != "" {
+		chs.logger.Log("error", fmt.Sprintf("Release %s: Chart has diverged due to manual Chart release, diff: %s", currRel.GetName(), diff))
 		return true, nil
 	}
 
