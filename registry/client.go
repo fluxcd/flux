@@ -18,13 +18,18 @@ import (
 	"github.com/weaveworks/flux/image"
 )
 
+type ImageEntry struct {
+	image.Info     `json:",inline"`
+	ExcludedReason string `json:",omitempty"`
+}
+
 // Client is a remote registry client for a particular image
 // repository (e.g., for quay.io/weaveworks/flux). It is an interface
 // so we can wrap it in instrumentation, write fake implementations,
 // and so on.
 type Client interface {
 	Tags(context.Context) ([]string, error)
-	Manifest(ctx context.Context, ref string) (image.Info, error)
+	Manifest(ctx context.Context, ref string) (ImageEntry, error)
 }
 
 // ClientFactory supplies Client implementations for a given repo,
@@ -64,14 +69,14 @@ func (a *Remote) Tags(ctx context.Context) ([]string, error) {
 
 // Manifest fetches the metadata for an image reference; currently
 // assumed to be in the same repo as that provided to `NewRemote(...)`
-func (a *Remote) Manifest(ctx context.Context, ref string) (image.Info, error) {
+func (a *Remote) Manifest(ctx context.Context, ref string) (ImageEntry, error) {
 	repository, err := client.NewRepository(named{a.repo}, a.base, a.transport)
 	if err != nil {
-		return image.Info{}, err
+		return ImageEntry{}, err
 	}
 	manifests, err := repository.Manifests(ctx)
 	if err != nil {
-		return image.Info{}, err
+		return ImageEntry{}, err
 	}
 	var manifestDigest digest.Digest
 	digestOpt := client.ReturnContentDigest(&manifestDigest)
@@ -79,7 +84,7 @@ func (a *Remote) Manifest(ctx context.Context, ref string) (image.Info, error) {
 
 interpret:
 	if fetchErr != nil {
-		return image.Info{}, fetchErr
+		return ImageEntry{}, fetchErr
 	}
 
 	info := image.Info{ID: a.repo.ToRef(ref), Digest: manifestDigest.String()}
@@ -98,7 +103,7 @@ interpret:
 		}
 
 		if err = json.Unmarshal([]byte(man.History[0].V1Compatibility), &v1); err != nil {
-			return image.Info{}, err
+			return ImageEntry{}, err
 		}
 		// This is not the ImageID that Docker uses, but assumed to
 		// identify the image as it's the topmost layer.
@@ -108,7 +113,7 @@ interpret:
 		var man schema2.Manifest = deserialised.Manifest
 		configBytes, err := repository.Blobs(ctx).Get(ctx, man.Config.Digest)
 		if err != nil {
-			return image.Info{}, err
+			return ImageEntry{}, err
 		}
 
 		var config struct {
@@ -117,7 +122,7 @@ interpret:
 			OS      string    `json:"os"`
 		}
 		if err = json.Unmarshal(configBytes, &config); err != nil {
-			return image.Info{}, err
+			return ImageEntry{}, err
 		}
 		// This _is_ what Docker uses as its Image ID.
 		info.ImageID = man.Config.Digest.String()
@@ -131,10 +136,10 @@ interpret:
 				goto interpret
 			}
 		}
-		return image.Info{}, errors.New("no suitable manifest (linux amd64) in manifestlist")
+		return ImageEntry{ExcludedReason: "no suitable manifest (linux amd64) in manifestlist"}, nil
 	default:
 		t := reflect.TypeOf(manifest)
-		return image.Info{}, errors.New("unknown manifest type: " + t.String())
+		return ImageEntry{}, errors.New("unknown manifest type: " + t.String())
 	}
-	return info, nil
+	return ImageEntry{Info: info}, nil
 }

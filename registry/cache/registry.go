@@ -9,6 +9,7 @@ import (
 
 	fluxerr "github.com/weaveworks/flux/errors"
 	"github.com/weaveworks/flux/image"
+	"github.com/weaveworks/flux/registry"
 )
 
 var (
@@ -72,12 +73,15 @@ func (c *Cache) GetImage(id image.Ref) (image.Info, error) {
 	if err != nil {
 		return image.Info{}, err
 	}
-	var img image.Info
+	var img registry.ImageEntry
 	err = json.Unmarshal(val, &img)
 	if err != nil {
 		return image.Info{}, err
 	}
-	return img, nil
+	if img.ExcludedReason != "" {
+		return image.Info{}, errors.New(img.ExcludedReason)
+	}
+	return img.Info, nil
 }
 
 // ImageRepository holds the last good information on an image

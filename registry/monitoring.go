@@ -74,7 +74,7 @@ func NewInstrumentedClient(next Client) Client {
 	}
 }
 
-func (m *instrumentedClient) Manifest(ctx context.Context, ref string) (res image.Info, err error) {
+func (m *instrumentedClient) Manifest(ctx context.Context, ref string) (res ImageEntry, err error) {
 	start := time.Now()
 	res, err = m.next.Manifest(ctx, ref)
 	remoteDuration.With(
