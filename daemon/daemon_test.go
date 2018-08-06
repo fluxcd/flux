@@ -56,7 +56,7 @@ var (
 
 // When I ping, I should get a response
 func TestDaemon_Ping(t *testing.T) {
-	d, start, clean, _, _ := mockDaemon(t)
+	d, start, clean, _, _, _ := mockDaemon(t)
 	start()
 	defer clean()
 	ctx := context.Background()
@@ -67,7 +67,7 @@ func TestDaemon_Ping(t *testing.T) {
 
 // When I ask a version, I should get a version
 func TestDaemon_Version(t *testing.T) {
-	d, start, clean, _, _ := mockDaemon(t)
+	d, start, clean, _, _, _ := mockDaemon(t)
 	start()
 	defer clean()
 
@@ -83,7 +83,7 @@ func TestDaemon_Version(t *testing.T) {
 
 // When I export it should export the current (mocked) k8s cluster
 func TestDaemon_Export(t *testing.T) {
-	d, start, clean, _, _ := mockDaemon(t)
+	d, start, clean, _, _, _ := mockDaemon(t)
 	start()
 	defer clean()
 
@@ -100,7 +100,7 @@ func TestDaemon_Export(t *testing.T) {
 
 // When I call list services, it should list all the services
 func TestDaemon_ListServices(t *testing.T) {
-	d, start, clean, _, _ := mockDaemon(t)
+	d, start, clean, _, _, _ := mockDaemon(t)
 	start()
 	defer clean()
 
@@ -136,7 +136,7 @@ func TestDaemon_ListServices(t *testing.T) {
 
 // When I call list images for a service, it should return images
 func TestDaemon_ListImagesWithOptions(t *testing.T) {
-	d, start, clean, _, _ := mockDaemon(t)
+	d, start, clean, _, _, _ := mockDaemon(t)
 	start()
 	defer clean()
 
@@ -297,7 +297,7 @@ func TestDaemon_ListImagesWithOptions(t *testing.T) {
 
 // When I call notify, it should cause a sync
 func TestDaemon_NotifyChange(t *testing.T) {
-	d, start, clean, mockK8s, events := mockDaemon(t)
+	d, start, clean, mockK8s, events, _ := mockDaemon(t)
 
 	w := newWait(t)
 	ctx := context.Background()
@@ -351,7 +351,7 @@ func TestDaemon_NotifyChange(t *testing.T) {
 // When I ask about a Job, it should tell me about a job
 // When I perform a release, it should update the git repo
 func TestDaemon_Release(t *testing.T) {
-	d, start, clean, _, _ := mockDaemon(t)
+	d, start, clean, _, _, _ := mockDaemon(t)
 	start()
 	defer clean()
 	w := newWait(t)
@@ -406,7 +406,7 @@ func TestDaemon_Release(t *testing.T) {
 // When I update a policy, I expect it to add to the queue
 // When I update a policy, it should add an annotation to the manifest
 func TestDaemon_PolicyUpdate(t *testing.T) {
-	d, start, clean, _, _ := mockDaemon(t)
+	d, start, clean, _, _, _ := mockDaemon(t)
 	start()
 	defer clean()
 	w := newWait(t)
@@ -438,7 +438,7 @@ func TestDaemon_PolicyUpdate(t *testing.T) {
 // that is about to take place. Then it should return empty once it is
 // complete
 func TestDaemon_SyncStatus(t *testing.T) {
-	d, start, clean, _, _ := mockDaemon(t)
+	d, start, clean, _, _, _ := mockDaemon(t)
 	start()
 	defer clean()
 	w := newWait(t)
@@ -459,7 +459,7 @@ func TestDaemon_SyncStatus(t *testing.T) {
 
 // When I restart fluxd, there won't be any jobs in the cache
 func TestDaemon_JobStatusWithNoCache(t *testing.T) {
-	d, start, clean, _, _ := mockDaemon(t)
+	d, start, clean, _, _, restart := mockDaemon(t)
 	start()
 	defer clean()
 	w := newWait(t)
@@ -472,7 +472,9 @@ func TestDaemon_JobStatusWithNoCache(t *testing.T) {
 	w.ForJobSucceeded(d, id)
 
 	// Clear the cache like we've just restarted
-	d.JobStatusCache = &job.StatusCache{Size: 100}
+	restart(func() {
+		d.JobStatusCache = &job.StatusCache{Size: 100}
+	})
 
 	// Now check if we can get the job status from the commit
 	w.ForJobSucceeded(d, id)
@@ -490,7 +492,7 @@ func mustParseImageRef(ref string) image.Ref {
 	return r
 }
 
-func mockDaemon(t *testing.T) (*Daemon, func(), func(), *cluster.Mock, *mockEventWriter) {
+func mockDaemon(t *testing.T) (*Daemon, func(), func(), *cluster.Mock, *mockEventWriter, func(func())) {
 	logger := log.NewNopLogger()
 
 	singleService := cluster.Controller{
@@ -617,7 +619,17 @@ func mockDaemon(t *testing.T) (*Daemon, func(), func(), *cluster.Mock, *mockEven
 		jwg.Wait()
 		repoCleanup()
 	}
-	return d, start, stop, k8s, events
+
+	restart := func(f func()) {
+		close(dshutdown)
+		dwg.Wait()
+
+		f()
+
+		dshutdown = make(chan struct{})
+		start()
+	}
+	return d, start, stop, k8s, events, restart
 }
 
 type mockEventWriter struct {
