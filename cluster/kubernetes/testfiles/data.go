@@ -52,6 +52,7 @@ var ResourceMap = map[flux.ResourceID]string{
 	flux.MustParseResourceID("default:service/multi-service"):     "multi.yaml",
 	flux.MustParseResourceID("default:deployment/list-deploy"):    "list.yaml",
 	flux.MustParseResourceID("default:service/list-service"):      "list.yaml",
+	flux.MustParseResourceID("default:deployment/semver"):         "semver-deploy.yaml",
 }
 
 // ServiceMap ... given a base path, construct the map representing
@@ -64,6 +65,7 @@ func ServiceMap(dir string) map[flux.ResourceID][]string {
 		flux.MustParseResourceID("default:deployment/test-service"):   []string{filepath.Join(dir, "test/test-service-deploy.yaml")},
 		flux.MustParseResourceID("default:deployment/multi-deploy"):   []string{filepath.Join(dir, "multi.yaml")},
 		flux.MustParseResourceID("default:deployment/list-deploy"):    []string{filepath.Join(dir, "list.yaml")},
+		flux.MustParseResourceID("default:deployment/semver"):         []string{filepath.Join(dir, "semver-deploy.yaml")},
 	}
 }
 
@@ -96,6 +98,31 @@ spec:
         - -addr=:8080
         ports:
         - containerPort: 8080
+`,
+	// Automated deployment with semver enabled
+	"semver-deploy.yaml": `---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: semver
+  annotations:
+    flux.weave.works/automated: "true"
+    flux.weave.works/tag.greeter: semver:*
+spec:
+  minReadySeconds: 1
+  replicas: 5
+  template:
+    metadata:
+      labels:
+        name: semver
+    spec:
+      containers:
+      - name: greeter
+        image: quay.io/weaveworks/helloworld:master-a000001
+        args:
+        - -msg=Ahoy
+        ports:
+        - containerPort: 80
 `,
 	"locked-service-deploy.yaml": `apiVersion: extensions/v1beta1
 kind: Deployment

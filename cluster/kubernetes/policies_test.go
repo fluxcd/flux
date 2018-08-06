@@ -5,6 +5,8 @@ import (
 	"testing"
 	"text/template"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/policy"
 )
@@ -14,6 +16,7 @@ func TestUpdatePolicies(t *testing.T) {
 		name    string
 		in, out []string
 		update  policy.Update
+		wantErr bool
 	}{
 		{
 			name: "adding annotation with others existing",
@@ -113,17 +116,60 @@ func TestUpdatePolicies(t *testing.T) {
 				Remove: policy.Set{policy.LockedMsg: "foo"},
 			},
 		},
+		{
+			name: "add tag policy",
+			in:   nil,
+			out:  []string{"flux.weave.works/tag.nginx", "glob:*"},
+			update: policy.Update{
+				Add: policy.Set{policy.TagPrefix("nginx"): "glob:*"},
+			},
+		},
+		{
+			name: "add non-glob tag policy",
+			in:   nil,
+			out:  []string{"flux.weave.works/tag.nginx", "foo"},
+			update: policy.Update{
+				Add: policy.Set{policy.TagPrefix("nginx"): "foo"},
+			},
+		},
+		{
+			name: "add semver tag policy",
+			in:   nil,
+			out:  []string{"flux.weave.works/tag.nginx", "semver:*"},
+			update: policy.Update{
+				Add: policy.Set{policy.TagPrefix("nginx"): "semver:*"},
+			},
+		},
+		{
+			name: "add invalid semver tag policy",
+			in:   nil,
+			out:  []string{"flux.weave.works/tag.nginx", "semver:*"},
+			update: policy.Update{
+				Add: policy.Set{policy.TagPrefix("nginx"): "semver:invalid"},
+			},
+			wantErr: true,
+		},
 	} {
-		caseIn := templToString(t, annotationsTemplate, c.in)
-		caseOut := templToString(t, annotationsTemplate, c.out)
-		resourceID := flux.MustParseResourceID("default:deployment/nginx")
-		out, err := (&Manifests{}).UpdatePolicies([]byte(caseIn), resourceID, c.update)
-		if err != nil {
-			t.Errorf("[%s] %v", c.name, err)
-		} else if string(out) != caseOut {
-			t.Errorf("[%s] Did not get expected result:\n\n%s\n\nInstead got:\n\n%s", c.name, caseOut, string(out))
-		}
+		t.Run(c.name, func(t *testing.T) {
+			caseIn := templToString(t, annotationsTemplate, c.in)
+			caseOut := templToString(t, annotationsTemplate, c.out)
+			resourceID := flux.MustParseResourceID("default:deployment/nginx")
+			out, err := (&Manifests{}).UpdatePolicies([]byte(caseIn), resourceID, c.update)
+			assert.Equal(t, c.wantErr, err != nil)
+			if !c.wantErr {
+				assert.Equal(t, string(out), caseOut)
+			}
+		})
 	}
+}
+
+func TestUpdatePolicies_invalidTagPattern(t *testing.T) {
+	resourceID := flux.MustParseResourceID("default:deployment/nginx")
+	update := policy.Update{
+		Add: policy.Set{policy.TagPrefix("nginx"): "semver:invalid"},
+	}
+	_, err := (&Manifests{}).UpdatePolicies(nil, resourceID, update)
+	assert.Error(t, err)
 }
 
 var annotationsTemplate = template.Must(template.New("").Parse(`---

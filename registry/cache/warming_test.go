@@ -73,7 +73,7 @@ func TestWarm(t *testing.T) {
 	warmer.warm(context.TODO(), logger, repo, registry.NoCredentials())
 
 	registry := &Cache{Reader: c}
-	repoInfo, err := registry.GetSortedRepositoryImages(ref.Name)
+	repoInfo, err := registry.GetRepositoryImages(ref.Name)
 	if err != nil {
 		t.Error(err)
 	}

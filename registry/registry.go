@@ -12,7 +12,7 @@ var (
 
 // Registry is a store of image metadata.
 type Registry interface {
-	GetSortedRepositoryImages(image.Name) ([]image.Info, error)
+	GetRepositoryImages(image.Name) ([]image.Info, error)
 	GetImage(image.Ref) (image.Info, error)
 }
 

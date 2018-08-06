@@ -63,17 +63,17 @@ func Test_GetTagPattern(t *testing.T) {
 	tests := []struct {
 		name string
 		args args
-		want string
+		want Pattern
 	}{
 		{
 			name: "Nil policies",
 			args: args{services: nil},
-			want: "*",
+			want: PatternAll,
 		},
 		{
 			name: "No match",
 			args: args{services: ResourceMap{}},
-			want: "*",
+			want: PatternAll,
 		},
 		{
 			name: "Match",
@@ -86,13 +86,14 @@ func Test_GetTagPattern(t *testing.T) {
 				service:   resourceID,
 				container: container,
 			},
-			want: "master-*",
+			want: NewPattern("master-*"),
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := GetTagPattern(tt.args.services, tt.args.service, tt.args.container); got != tt.want {
 				t.Errorf("GetTagPattern() = %v, want %v", got, tt.want)
+
 			}
 		})
 	}

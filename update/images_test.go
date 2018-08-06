@@ -4,7 +4,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/weaveworks/flux/image"
+	"github.com/weaveworks/flux/policy"
 )
 
 var (
@@ -24,7 +27,7 @@ func TestDecanon(t *testing.T) {
 		name: infos,
 	}}
 
-	filteredImages := m.GetRepoImages(mustParseName("weaveworks/helloworld")).Filter("*")
+	filteredImages := m.GetRepoImages(mustParseName("weaveworks/helloworld")).FilterAndSort(policy.PatternAll)
 	latest, ok := filteredImages.Latest()
 	if !ok {
 		t.Error("did not find latest image")
@@ -32,7 +35,7 @@ func TestDecanon(t *testing.T) {
 		t.Error("name did not match what was asked")
 	}
 
-	filteredImages = m.GetRepoImages(mustParseName("index.docker.io/weaveworks/helloworld")).Filter("*")
+	filteredImages = m.GetRepoImages(mustParseName("index.docker.io/weaveworks/helloworld")).FilterAndSort(policy.PatternAll)
 	latest, ok = filteredImages.Latest()
 	if !ok {
 		t.Error("did not find latest image")
@@ -49,6 +52,30 @@ func TestDecanon(t *testing.T) {
 			t.Errorf("got image with name %q", im.ID.String())
 		}
 	}
+}
+
+func TestImageInfos_Filter_latest(t *testing.T) {
+	latest := image.Info{
+		ID: image.Ref{Name: image.Name{Image: "flux"}, Tag: "latest"},
+	}
+	other := image.Info{
+		ID: image.Ref{Name: image.Name{Image: "moon"}, Tag: "v0"},
+	}
+	ii := ImageInfos{latest, other}
+	assert.Equal(t, SortedImageInfos{latest}, ii.FilterAndSort(policy.PatternLatest))
+	assert.Equal(t, SortedImageInfos{latest}, ii.FilterAndSort(policy.NewPattern("latest")))
+	assert.Equal(t, SortedImageInfos{other}, ii.FilterAndSort(policy.PatternAll))
+	assert.Equal(t, SortedImageInfos{other}, ii.FilterAndSort(policy.NewPattern("*")))
+}
+
+func TestImageInfos_Filter_semver(t *testing.T) {
+	latest := image.Info{ID: image.Ref{Name: image.Name{Image: "flux"}, Tag: "latest"}}
+	semver0 := image.Info{ID: image.Ref{Name: image.Name{Image: "moon"}, Tag: "v0.0.1"}}
+	semver1 := image.Info{ID: image.Ref{Name: image.Name{Image: "earth"}, Tag: "1.0.0"}}
+
+	ii := ImageInfos{latest, semver0, semver1}
+	assert.Equal(t, SortedImageInfos{semver1, semver0}, ii.FilterAndSort(policy.NewPattern("semver:*")))
+	assert.Equal(t, SortedImageInfos{semver1}, ii.FilterAndSort(policy.NewPattern("semver:~1")))
 }
 
 func TestAvail(t *testing.T) {

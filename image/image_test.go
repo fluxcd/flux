@@ -4,10 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
-	"sort"
 	"strconv"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
 const constTime = "2017-01-13T16:22:58.009923189Z"
@@ -190,17 +191,13 @@ func TestImage_OrderByCreationDate(t *testing.T) {
 	imE := mustMakeInfo("my/Image:1", testTime)    // test equal
 	imF := mustMakeInfo("my/Image:5", time.Time{}) // test nil equal
 	imgs := []Info{imA, imB, imC, imD, imE, imF}
-	sort.Sort(ByCreatedDesc(imgs))
+	Sort(imgs, NewerByCreated)
 	checkSorted(t, imgs)
 	// now check stability
-	sort.Sort(ByCreatedDesc(imgs))
+	Sort(imgs, NewerByCreated)
 	checkSorted(t, imgs)
-	// more stability checks
-	for i := len(imgs)/2 - 1; i >= 0; i-- {
-		opp := len(imgs) - 1 - i
-		imgs[i], imgs[opp] = imgs[opp], imgs[i]
-	}
-	sort.Sort(ByCreatedDesc(imgs))
+	reverse(imgs)
+	Sort(imgs, NewerByCreated)
 	checkSorted(t, imgs)
 }
 
@@ -214,3 +211,41 @@ func checkSorted(t *testing.T, imgs []Info) {
 		}
 	}
 }
+
+func TestImage_OrderBySemverTagDesc(t *testing.T) {
+	ti := time.Time{}
+	aa := mustMakeInfo("my/image:3", ti)
+	bb := mustMakeInfo("my/image:v1", ti)
+	cc := mustMakeInfo("my/image:1.10", ti)
+	dd := mustMakeInfo("my/image:1.2.30", ti)
+	ee := mustMakeInfo("my/image:1.10.0", ti) // same as 1.10 but should be considered newer
+	ff := mustMakeInfo("my/image:bbb-not-semver", ti)
+	gg := mustMakeInfo("my/image:aaa-not-semver", ti)
+
+	imgs := []Info{aa, bb, cc, dd, ee, ff, gg}
+	Sort(imgs, NewerBySemver)
+
+	expected := []Info{aa, ee, cc, dd, bb, gg, ff}
+	assert.Equal(t, tags(expected), tags(imgs))
+
+	// stable?
+	reverse(imgs)
+	Sort(imgs, NewerBySemver)
+	assert.Equal(t, tags(expected), tags(imgs))
+}
+
+func tags(imgs []Info) []string {
+	var vs []string
+	for _, i := range imgs {
+		vs = append(vs, i.ID.Tag)
+	}
+	return vs
+}
+
+func reverse(imgs []Info) {
+	for i := len(imgs)/2 - 1; i >= 0; i-- {
+		opp := len(imgs) - 1 - i
+		imgs[i], imgs[opp] = imgs[opp], imgs[i]
+	}
+}
+

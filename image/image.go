@@ -4,9 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 
+	"github.com/Masterminds/semver"
 	"github.com/pkg/errors"
 )
 
@@ -276,14 +278,59 @@ func (im *Info) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
-// ByCreatedDesc is a shim used to sort image info by creation date
-type ByCreatedDesc []Info
-
-func (is ByCreatedDesc) Len() int      { return len(is) }
-func (is ByCreatedDesc) Swap(i, j int) { is[i], is[j] = is[j], is[i] }
-func (is ByCreatedDesc) Less(i, j int) bool {
-	if is[i].CreatedAt.Equal(is[j].CreatedAt) {
-		return is[i].ID.String() < is[j].ID.String()
+// NewerByCreated returns true if lhs image should be sorted
+// before rhs with regard to their creation date descending.
+func NewerByCreated(lhs, rhs *Info) bool {
+	if lhs.CreatedAt.Equal(rhs.CreatedAt) {
+		return lhs.ID.String() < rhs.ID.String()
 	}
-	return is[i].CreatedAt.After(is[j].CreatedAt)
+	return lhs.CreatedAt.After(rhs.CreatedAt)
+}
+
+// NewerBySemver returns true if lhs image should be sorted
+// before rhs with regard to their semver order descending.
+func NewerBySemver(lhs, rhs *Info) bool {
+	lv, lerr := semver.NewVersion(lhs.ID.Tag)
+	rv, rerr := semver.NewVersion(rhs.ID.Tag)
+	if (lerr != nil && rerr != nil) || (lv == rv) {
+		return lhs.ID.String() < rhs.ID.String()
+	}
+	if lerr != nil {
+		return false
+	}
+	if rerr != nil {
+		return true
+	}
+	cmp := lv.Compare(rv)
+	// In semver, `1.10` and `1.10.0` is the same but in favor of explicitness
+	// we should consider the latter newer.
+	if cmp == 0 {
+		return lhs.ID.String() > rhs.ID.String()
+	}
+	return cmp > 0
+}
+
+// Sort orders the given image infos according to `newer` func.
+func Sort(infos []Info, newer func (a, b *Info) bool) {
+	if newer == nil {
+		newer = NewerByCreated
+	}
+	sort.Sort(&infoSort{infos: infos, newer: newer})
+}
+
+type infoSort struct {
+	infos []Info
+	newer func(a, b *Info) bool
+}
+
+func (s *infoSort) Len() int {
+	return len(s.infos)
+}
+
+func (s *infoSort) Swap(i, j int) {
+	s.infos[i], s.infos[j] = s.infos[j], s.infos[i]
+}
+
+func (s *infoSort) Less(i, j int) bool {
+	return s.newer(&s.infos[i], &s.infos[j])
 }

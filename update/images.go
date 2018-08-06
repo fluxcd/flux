@@ -6,10 +6,10 @@ import (
 
 	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
-	glob "github.com/ryanuber/go-glob"
 
 	fluxerr "github.com/weaveworks/flux/errors"
 	"github.com/weaveworks/flux/image"
+	"github.com/weaveworks/flux/policy"
 	"github.com/weaveworks/flux/registry"
 	"github.com/weaveworks/flux/resource"
 )
@@ -38,32 +38,26 @@ func (r ImageRepos) GetRepoImages(repo image.Name) ImageInfos {
 // ImageInfos is a list of image.Info which can be filtered.
 type ImageInfos []image.Info
 
-// Filter returns only the images which match the tagGlob.
-func (ii ImageInfos) Filter(tagGlob string) ImageInfos {
-	var filtered ImageInfos
-	for _, i := range ii {
-		tag := i.ID.Tag
-		// Ignore latest if and only if it's not what the user wants.
-		if !strings.EqualFold(tagGlob, "latest") && strings.EqualFold(tag, "latest") {
-			continue
-		}
-		if glob.Glob(tagGlob, tag) {
-			var im image.Info
-			im = i
-			filtered = append(filtered, im)
-		}
-	}
-	return filtered
+// SortedImageInfos is a list of sorted image.Info
+type SortedImageInfos []image.Info
+
+// Filter returns only the images that match the pattern, in a new list.
+func (ii ImageInfos) Filter(pattern policy.Pattern) ImageInfos {
+	return filterImages(ii, pattern)
 }
 
-// Latest returns the latest image from ImageInfos. If no such image exists,
-// returns a zero value and `false`, and the caller can decide whether
-// that's an error or not.
-func (ii ImageInfos) Latest() (image.Info, bool) {
-	if len(ii) > 0 {
-		return ii[0], true
-	}
-	return image.Info{}, false
+// Sort orders the images according to the pattern order in a new list.
+func (ii ImageInfos) Sort(pattern policy.Pattern) SortedImageInfos {
+	return sortImages(ii, pattern)
+}
+
+// FilterAndSort is an optimized helper function to compose filtering and sorting.
+func (ii ImageInfos) FilterAndSort(pattern policy.Pattern) SortedImageInfos {
+	filtered := ii.Filter(pattern)
+	// Do not call sortImages() here which will clone the list that we already
+	// cloned in ImageInfos.Filter()
+	image.Sort(filtered, pattern.Newer)
+	return SortedImageInfos(filtered)
 }
 
 // FindWithRef returns image.Info given an image ref. If the image cannot be
@@ -75,6 +69,51 @@ func (ii ImageInfos) FindWithRef(ref image.Ref) image.Info {
 		}
 	}
 	return image.Info{ID: ref}
+}
+
+// Latest returns the latest image from SortedImageInfos. If no such image exists,
+// returns a zero value and `false`, and the caller can decide whether
+// that's an error or not.
+func (is SortedImageInfos) Latest() (image.Info, bool) {
+	if len(is) > 0 {
+		return is[0], true
+	}
+	return image.Info{}, false
+}
+
+// Filter returns only the images that match the pattern, in a new list.
+func (is SortedImageInfos) Filter(pattern policy.Pattern) SortedImageInfos {
+	return SortedImageInfos(filterImages(is, pattern))
+}
+
+// Sort orders the images according to the pattern order in a new list.
+func (is SortedImageInfos) Sort(pattern policy.Pattern) SortedImageInfos {
+	return sortImages(is, pattern)
+}
+
+func sortImages(images []image.Info, pattern policy.Pattern) SortedImageInfos {
+	var sorted SortedImageInfos
+	for _, i := range images {
+		sorted = append(sorted, i)
+	}
+	image.Sort(sorted, pattern.Newer)
+	return sorted
+}
+
+// filterImages keeps the sort order pristine.
+func filterImages(images []image.Info, pattern policy.Pattern) ImageInfos {
+	var filtered ImageInfos
+	for _, i := range images {
+		tag := i.ID.Tag
+		// Ignore latest if and only if it's not what the user wants.
+		if pattern != policy.PatternLatest && strings.EqualFold(tag, "latest") {
+			continue
+		}
+		if pattern.Matches(tag) {
+			filtered = append(filtered, i)
+		}
+	}
+	return filtered
 }
 
 // containers represents a collection of things that have containers
@@ -109,7 +148,7 @@ func FetchImageRepos(reg registry.Registry, cs containers, logger log.Logger) (I
 		}
 	}
 	for repo := range imageRepos {
-		sortedRepoImages, err := reg.GetSortedRepositoryImages(repo.Name)
+		images, err := reg.GetRepositoryImages(repo.Name)
 		if err != nil {
 			// Not an error if missing. Use empty images.
 			if !fluxerr.IsMissing(err) {
@@ -117,7 +156,7 @@ func FetchImageRepos(reg registry.Registry, cs containers, logger log.Logger) (I
 				continue
 			}
 		}
-		imageRepos[repo] = sortedRepoImages
+		imageRepos[repo] = images
 	}
 	return ImageRepos{imageRepos}, nil
 }

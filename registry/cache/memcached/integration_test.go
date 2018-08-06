@@ -66,14 +66,14 @@ Loop:
 		case <-timeout.C:
 			t.Fatal("Cache timeout")
 		case <-tick.C:
-			_, err := r.GetSortedRepositoryImages(id.Name)
+			_, err := r.GetRepositoryImages(id.Name)
 			if err == nil {
 				break Loop
 			}
 		}
 	}
 
-	img, err := r.GetSortedRepositoryImages(id.Name)
+	img, err := r.GetRepositoryImages(id.Name)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -3,6 +3,7 @@ package v6
 import (
 	"github.com/pkg/errors"
 	"github.com/weaveworks/flux/image"
+	"github.com/weaveworks/flux/policy"
 	"github.com/weaveworks/flux/registry"
 	"github.com/weaveworks/flux/update"
 )
@@ -15,10 +16,10 @@ type Container struct {
 	LatestFiltered image.Info `json:",omitempty"`
 
 	// All available images (ignoring tag filters)
-	Available               []image.Info `json:",omitempty"`
-	AvailableError          string       `json:",omitempty"`
-	AvailableImagesCount    int          `json:",omitempty"`
-	NewAvailableImagesCount int          `json:",omitempty"`
+	Available               update.SortedImageInfos `json:",omitempty"`
+	AvailableError          string                  `json:",omitempty"`
+	AvailableImagesCount    int                     `json:",omitempty"`
+	NewAvailableImagesCount int                     `json:",omitempty"`
 
 	// Filtered available images (matching tag filters)
 	FilteredImagesCount    int `json:",omitempty"`
@@ -26,27 +27,29 @@ type Container struct {
 }
 
 // NewContainer creates a Container given a list of images and the current image
-func NewContainer(name string, images update.ImageInfos, currentImage image.Info, tagPattern string, fields []string) (Container, error) {
+func NewContainer(name string, images update.ImageInfos, currentImage image.Info, tagPattern policy.Pattern, fields []string) (Container, error) {
+	sorted := images.Sort(tagPattern)
+
 	// All images
-	imagesCount := len(images)
+	imagesCount := len(sorted)
 	imagesErr := ""
-	if images == nil {
+	if sorted == nil {
 		imagesErr = registry.ErrNoImageData.Error()
 	}
-	var newImages []image.Info
-	for _, img := range images {
-		if img.CreatedAt.After(currentImage.CreatedAt) {
+	var newImages update.SortedImageInfos
+	for _, img := range sorted {
+		if tagPattern.Newer(&img, &currentImage) {
 			newImages = append(newImages, img)
 		}
 	}
 	newImagesCount := len(newImages)
 
 	// Filtered images
-	filteredImages := images.Filter(tagPattern)
+	filteredImages := sorted.Filter(tagPattern)
 	filteredImagesCount := len(filteredImages)
-	var newFilteredImages []image.Info
+	var newFilteredImages update.SortedImageInfos
 	for _, img := range filteredImages {
-		if img.CreatedAt.After(currentImage.CreatedAt) {
+		if tagPattern.Newer(&img, &currentImage) {
 			newFilteredImages = append(newFilteredImages, img)
 		}
 	}
@@ -58,7 +61,7 @@ func NewContainer(name string, images update.ImageInfos, currentImage image.Info
 		Current:        currentImage,
 		LatestFiltered: latestFiltered,
 
-		Available:               images,
+		Available:               sorted,
 		AvailableError:          imagesErr,
 		AvailableImagesCount:    imagesCount,
 		NewAvailableImagesCount: newImagesCount,

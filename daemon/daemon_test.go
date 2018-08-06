@@ -38,6 +38,7 @@ const (
 	svc               = "default:deployment/helloworld"
 	container         = "greeter"
 	ns                = "default"
+	oldHelloImage     = "quay.io/weaveworks/helloworld:3" // older in time but newer version!
 	newHelloImage     = "quay.io/weaveworks/helloworld:2"
 	currentHelloImage = "quay.io/weaveworks/helloworld:master-a000001"
 
@@ -151,6 +152,8 @@ func TestDaemon_ListImagesWithOptions(t *testing.T) {
 	assert.NoError(t, err)
 	newImageRef, err := image.ParseRef(newHelloImage)
 	assert.NoError(t, err)
+	oldImageRef, err := image.ParseRef(oldHelloImage)
+	assert.NoError(t, err)
 
 	// Service 2
 	anotherSvcID, err := flux.ParseResourceID(anotherSvc)
@@ -180,10 +183,11 @@ func TestDaemon_ListImagesWithOptions(t *testing.T) {
 							Available: []image.Info{
 								{ID: newImageRef},
 								{ID: currentImageRef},
+								{ID: oldImageRef},
 							},
-							AvailableImagesCount:    2,
+							AvailableImagesCount:    3,
 							NewAvailableImagesCount: 1,
-							FilteredImagesCount:     2,
+							FilteredImagesCount:     3,
 							NewFilteredImagesCount:  1,
 						},
 					},
@@ -222,10 +226,11 @@ func TestDaemon_ListImagesWithOptions(t *testing.T) {
 							Available: []image.Info{
 								{ID: newImageRef},
 								{ID: currentImageRef},
+								{ID: oldImageRef},
 							},
-							AvailableImagesCount:    2,
+							AvailableImagesCount:    3,
 							NewAvailableImagesCount: 1,
-							FilteredImagesCount:     2,
+							FilteredImagesCount:     3,
 							NewFilteredImagesCount:  1,
 						},
 					},
@@ -480,6 +485,57 @@ func TestDaemon_JobStatusWithNoCache(t *testing.T) {
 	w.ForJobSucceeded(d, id)
 }
 
+func TestDaemon_Automated(t *testing.T) {
+	d, start, clean, k8s, _ := mockDaemon(t)
+	start()
+	defer clean()
+	w := newWait(t)
+
+	service := cluster.Controller{
+		ID: flux.MakeResourceID(ns, "deployment", "helloworld"),
+		Containers: cluster.ContainersOrExcuse{
+			Containers: []resource.Container{
+				{
+					Name:  container,
+					Image: mustParseImageRef(currentHelloImage),
+				},
+			},
+		},
+	}
+	k8s.SomeServicesFunc = func([]flux.ResourceID) ([]cluster.Controller, error) {
+		return []cluster.Controller{service}, nil
+	}
+
+	// updates from helloworld:master-xxx to helloworld:2
+	w.ForImageTag(t, d, svc, container, "2")
+}
+
+func TestDaemon_Automated_semver(t *testing.T) {
+	d, start, clean, k8s, _ := mockDaemon(t)
+	start()
+	defer clean()
+	w := newWait(t)
+
+	resid := flux.MustParseResourceID("default:deployment/semver")
+	service := cluster.Controller{
+		ID: resid,
+		Containers: cluster.ContainersOrExcuse{
+			Containers: []resource.Container{
+				{
+					Name:  container,
+					Image: mustParseImageRef(currentHelloImage),
+				},
+			},
+		},
+	}
+	k8s.SomeServicesFunc = func([]flux.ResourceID) ([]cluster.Controller, error) {
+		return []cluster.Controller{service}, nil
+	}
+
+	// helloworld:3 is older than helloworld:2 but semver orders by version
+	w.ForImageTag(t, d, resid.String(), container, "3")
+}
+
 func makeImageInfo(ref string, t time.Time) image.Info {
 	return image.Info{ID: mustParseImageRef(ref), CreatedAt: t}
 }
@@ -508,13 +564,13 @@ func mockDaemon(t *testing.T) (*Daemon, func(), func(), *cluster.Mock, *mockEven
 	}
 	multiService := []cluster.Controller{
 		singleService,
-		cluster.Controller{
+		{
 			ID: flux.MakeResourceID("another", "deployment", "service"),
 			Containers: cluster.ContainersOrExcuse{
 				Containers: []resource.Container{
 					{
-						Name:  "it-doesn't-matter",
-						Image: mustParseImageRef("another/service:latest"),
+						Name:  anotherContainer,
+						Image: mustParseImageRef(anotherImage),
 					},
 				},
 			},
@@ -562,6 +618,7 @@ func mockDaemon(t *testing.T) (*Daemon, func(), func(), *cluster.Mock, *mockEven
 
 	var imageRegistry registry.Registry
 	{
+		img0 := makeImageInfo(oldHelloImage, time.Now().Add(-1*time.Second))
 		img1 := makeImageInfo(currentHelloImage, time.Now())
 		img2 := makeImageInfo(newHelloImage, time.Now().Add(1*time.Second))
 		img3 := makeImageInfo("another/service:latest", time.Now().Add(1*time.Second))
@@ -570,6 +627,7 @@ func mockDaemon(t *testing.T) (*Daemon, func(), func(), *cluster.Mock, *mockEven
 				img1,
 				img2,
 				img3,
+				img0,
 			},
 		}
 	}
@@ -708,6 +766,32 @@ func (w *wait) ForSyncStatus(d *Daemon, rev string, expectedNumCommits int) []st
 		return err == nil && len(revs) == expectedNumCommits
 	}, fmt.Sprintf("Waiting for sync status to have %d commits", expectedNumCommits))
 	return revs
+}
+
+func (w *wait) ForImageTag(t *testing.T, d *Daemon, service, container, tag string) {
+	w.Eventually(func() bool {
+		co, err := d.Repo.Clone(context.TODO(), d.GitConfig)
+		if err != nil {
+			return false
+		}
+		defer co.Clean()
+
+		m, err := d.Manifests.LoadManifests(co.Dir(), co.ManifestDir())
+		assert.NoError(t, err)
+
+		resources, err := d.Manifests.ParseManifests(m[service].Bytes())
+		assert.NoError(t, err)
+
+		workload, ok := resources[service].(resource.Workload)
+		assert.True(t, ok)
+		for _, c := range workload.Containers() {
+			if c.Name == container && c.Image.Tag == tag {
+				return true
+			}
+		}
+		return false
+	}, fmt.Sprintf("Waiting for image tag: %q", tag))
+
 }
 
 func updateImage(ctx context.Context, d *Daemon, t *testing.T) job.ID {

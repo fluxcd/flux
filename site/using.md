@@ -366,21 +366,42 @@ When building images it is often useful to tag build images by the branch that t
 quay.io/weaveworks/helloworld:master-9a16ff945b9e
 ```
 
-Indicates that the "helloworld" image was built against master commit "9a16ff945b9e". 
+Indicates that the "helloworld" image was built against master
+commit "9a16ff945b9e".
 
-When automation is turned on flux will, by default, use whatever is the latest image on a given repository. If you want to only auto-update your image against a certain subset of tags then you can do that using tag filtering.
+When automation is turned on flux will, by default, use whatever
+is the latest image on a given repository. If you want to only
+auto-update your image against a certain subset of tags then you
+can do that using tag filtering.
 
-So for example, if you want to only update the "helloworld" image to tags that were built against the "prod" branch then you could do the following:
+So for example, if you want to only update the "helloworld" image
+to tags that were built against the "prod" branch then you could
+do the following:
 
 ```
 fluxctl policy --controller=default:deployment/helloworld --tag-all='prod-*'
 ```
 
-If your pod contains multiple containers then you tag each container individually:
+If your pod contains multiple containers then you tag each container
+individually:
 
 ```
 fluxctl policy --controller=default:deployment/helloworld --tag='helloworld=prod-*' --tag='sidecar=prod-*'
 ``` 
+
+If your images use [semantic versioning](https://semver.org) you can filter by image tags
+that adhere to certain constraints:
+```
+fluxctl policy --controller=default:deployment/helloworld --tag-all='semver:~1'
+```
+
+or only release images that have a stable semantic version tag (X.Y.Z):
+```
+fluxctl policy --controller=default:deployment/helloworld --tag-all='semver:*'
+```
+
+Using a semver filter will also affect how flux sorts images, so
+that the higher versions will be considered newer.
 
 ## Actions triggered through `fluxctl`
 
