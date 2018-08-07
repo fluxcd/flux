@@ -486,7 +486,7 @@ func TestDaemon_JobStatusWithNoCache(t *testing.T) {
 }
 
 func TestDaemon_Automated(t *testing.T) {
-	d, start, clean, k8s, _ := mockDaemon(t)
+	d, start, clean, k8s, _, _ := mockDaemon(t)
 	start()
 	defer clean()
 	w := newWait(t)
@@ -511,7 +511,7 @@ func TestDaemon_Automated(t *testing.T) {
 }
 
 func TestDaemon_Automated_semver(t *testing.T) {
-	d, start, clean, k8s, _ := mockDaemon(t)
+	d, start, clean, k8s, _, _ := mockDaemon(t)
 	start()
 	defer clean()
 	w := newWait(t)
