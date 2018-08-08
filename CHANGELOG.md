@@ -1,6 +1,61 @@
 This is the changelog for the Flux daemon; the changelog for the Helm
 operator is in [./CHANGELOG-helmop.md](./CHANGELOG-helmop.md).
 
+## 1.5.0 (2018-08-08)
+
+This release adds semver image filters, makes it easier to use
+`fluxctl` securely, and has an experimental interactive mode for
+`fluxctl release`. It also fixes some long-standing problems with
+image metadata DB, including no longer being bamboozled by Windows
+images.
+
+### Fixes
+
+- Read the fallback image credentials every time, so they can be
+  updated. This makes it feasible to mount them from a ConfigMap, or
+  update them with a sidecar
+  [weaveworks/flux#1230](https://github.com/weaveworks/flux/pull/1230)
+- Take some measures to prevent spurious image updates caused by bugs
+  in image metadata fetching:
+  - Sort images with zero timestamps correctly
+     [weaveworks/flux#1247](https://github.com/weaveworks/flux/pull/1247)
+  - Skip any updates where there's suspicious-looking image metadata
+    [weaveworks/flux#1249](https://github.com/weaveworks/flux/pull/1249)
+    (then [weaveworks/flux#1250](https://github.com/weaveworks/flux/pull/1250))
+  - Fix the bug that resulted in zero timestamps in the first place
+    [weaveworks/flux#1251](https://github.com/weaveworks/flux/pull/1251)
+- Respect `'false'` value for automation annotation
+  [weaveworks/flux#1264](https://github.com/weaveworks/flux/pull/1264)
+- Cope with images that have a Windows (or other) flavour, by omitting
+  the unsupported image rather than failing entirely
+  [weaveworks/flux#1265](https://github.com/weaveworks/flux/pull/1265)
+
+### Improvements
+
+- `fluxctl` will now transparently port-forward to the Flux pod,
+  making it easier to connect securely to the Flux API
+  [weaveworks/flux#1212](https://github.com/weaveworks/flux/pull/1212)
+- `fluxctl release` gained an experimental flag `--interactive` that
+  lets you toggle each image update on or off, then apply exactly the
+  updates you have chosen
+  [weaveworks/flux#1231](https://github.com/weaveworks/flux/pull/1231)
+- Flux can now report and update `initContainers`, and a wider variety
+  of Helm charts (as used in `FluxHelmRelease` resources)
+  [weaveworks/flux#1258](https://github.com/weaveworks/flux/pull/1258)
+- You can use [semver (Semantic Versioning)](https://semver.org/) filters
+  for automation, rather than having to rely on glob patterns
+  [weaveworks/flux#1266](https://github.com/weaveworks/flux/pull/1266)
+
+### Thanks
+
+Thanks to @ariefrahmansyah, @chy168, @cliveseldon, @davidkarlsen,
+@dholbach, @errordeveloper, @geofflamrock, @grantbachman, @grimesjm,
+@hiddeco, @jlewi, @JoeyX-u, @justinbarrick, @konfiot, @malvex,
+@marccampbell, @marctc, @mt-inside, @mwhittington21, @ncabatoff,
+@rade, @rndstr, @squaremo, @srikantheee84, @stefanprodan,
+@stephenmoloney, @TheJaySmith (and anyone I've missed!) for their
+contributions.
+
 ## 1.4.2 (2018-07-05)
 
 This release includes a number of usability improvements, the majority
