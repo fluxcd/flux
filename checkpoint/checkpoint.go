@@ -1,4 +1,4 @@
-package main
+package checkpoint
 
 import (
 	"time"
@@ -11,7 +11,7 @@ const (
 	versionCheckPeriod = 6 * time.Hour
 )
 
-func checkForUpdates(clusterString string, gitString string, logger log.Logger) *checkpoint.Checker {
+func CheckForUpdates(version, clusterString, gitString string, logger log.Logger) *checkpoint.Checker {
 	handleResponse := func(r *checkpoint.CheckResponse, err error) {
 		if err != nil {
 			logger.Log("err", err)
