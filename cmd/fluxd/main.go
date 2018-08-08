@@ -42,6 +42,8 @@ import (
 var version = "unversioned"
 
 const (
+	product = "weave-flux"
+
 	// The number of connections chosen for memcache and remote GETs should match for best performance (hence the single hardcoded value)
 	// Value chosen through performance tests on sock-shop. I was unable to get higher performance than this.
 	defaultRemoteConnections   = 125 // Chosen performance tests on sock-shop. Unable to get higher performance than this.
@@ -343,7 +345,11 @@ func main() {
 	// report anything before seeing if it works. So, don't start
 	// until we have failed or succeeded.
 	updateCheckLogger := log.With(logger, "component", "checkpoint")
-	checkpoint.CheckForUpdates(version, clusterVersion, strconv.FormatBool(*gitURL != ""), updateCheckLogger)
+	checkpointFlags := map[string]string{
+		"cluster-version": clusterVersion,
+		"git-configured":  strconv.FormatBool(*gitURL != ""),
+	}
+	checkpoint.CheckForUpdates(product, version, checkpointFlags, updateCheckLogger)
 
 	gitRemote := git.Remote{URL: *gitURL}
 	gitConfig := git.Config{
