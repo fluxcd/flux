@@ -47,6 +47,7 @@ import (
 	"github.com/go-kit/kit/log"
 	google_protobuf "github.com/golang/protobuf/ptypes/any"
 	"github.com/google/go-cmp/cmp"
+	"github.com/ncabatoff/go-seq/seq"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
@@ -58,8 +59,6 @@ import (
 	ifclientset "github.com/weaveworks/flux/integrations/client/clientset/versioned"
 	helmop "github.com/weaveworks/flux/integrations/helm"
 	"github.com/weaveworks/flux/integrations/helm/release"
-
-	"github.com/ncabatoff/go-seq/seq"
 )
 
 type Polling struct {
@@ -321,38 +320,6 @@ func sortStrings(ss []string) []string {
 	return ret
 }
 
-type anySlice []*google_protobuf.Any
-
-func (a anySlice) Less(i, j int) bool {
-	return seq.Compare(a[i], a[j]) < 0
-}
-func (a anySlice) Len() int      { return len(a) }
-func (a anySlice) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
-
-type templateSlice []*hapi_chart.Template
-
-func (t templateSlice) Less(i, j int) bool {
-	return seq.Compare(t[i], t[j]) < 0
-}
-func (t templateSlice) Len() int      { return len(t) }
-func (t templateSlice) Swap(i, j int) { t[i], t[j] = t[j], t[i] }
-
-type maintainerSlice []*hapi_chart.Maintainer
-
-func (m maintainerSlice) Less(i, j int) bool {
-	return seq.Compare(m[i], m[j]) < 0
-}
-func (m maintainerSlice) Len() int      { return len(m) }
-func (m maintainerSlice) Swap(i, j int) { m[i], m[j] = m[j], m[i] }
-
-type chartSlice []*hapi_chart.Chart
-
-func (a chartSlice) Less(i, j int) bool {
-	return seq.Compare(a[i], a[j]) < 0
-}
-func (a chartSlice) Len() int      { return len(a) }
-func (a chartSlice) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
-
 func sortChartFields(c *hapi_chart.Chart) *hapi_chart.Chart {
 	nc := hapi_chart.Chart{
 		Metadata:  &(*c.Metadata),
@@ -364,19 +331,27 @@ func sortChartFields(c *hapi_chart.Chart) *hapi_chart.Chart {
 		nc.Values = &(*c.Values)
 	}
 
-	sort.Sort(anySlice(nc.Files))
-	sort.Sort(templateSlice(nc.Templates))
+	sort.SliceStable(nc.Files, func(i, j int) bool {
+		return seq.Compare(nc.Files[i], nc.Files[j]) < 0
+	})
+	sort.SliceStable(nc.Templates, func(i, j int) bool {
+		return seq.Compare(nc.Templates[i], nc.Templates[j]) < 0
+	})
 
 	nc.Metadata.Sources = sortStrings(nc.Metadata.Sources)
 	nc.Metadata.Keywords = sortStrings(nc.Metadata.Keywords)
 	nc.Metadata.Maintainers = append([]*hapi_chart.Maintainer{}, nc.Metadata.Maintainers...)
-	sort.Sort(maintainerSlice(nc.Metadata.Maintainers))
+	sort.SliceStable(nc.Metadata.Maintainers, func(i, j int) bool {
+		return seq.Compare(nc.Metadata.Maintainers[i], nc.Metadata.Maintainers[j]) < 0
+	})
 
 	nc.Dependencies = make([]*hapi_chart.Chart, len(c.Dependencies))
 	for i := range c.Dependencies {
 		nc.Dependencies[i] = sortChartFields(c.Dependencies[i])
 	}
-	sort.Sort(chartSlice(nc.Dependencies))
+	sort.SliceStable(nc.Dependencies, func(i, j int) bool {
+		return seq.Compare(nc.Dependencies[i], nc.Dependencies[j]) < 0
+	})
 
 	return &nc
 }
