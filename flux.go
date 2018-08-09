@@ -13,9 +13,14 @@ import (
 var (
 	ErrInvalidServiceID = errors.New("invalid service ID")
 
-	LegacyServiceIDRegexp       = regexp.MustCompile("^([a-zA-Z0-9_-]+)/([a-zA-Z0-9_-]+)$")
-	ResourceIDRegexp            = regexp.MustCompile("^([a-zA-Z0-9_-]+):([a-zA-Z0-9_-]+)/([a-zA-Z0-9_.-]+)$")
-	UnqualifiedResourceIDRegexp = regexp.MustCompile("^([a-zA-Z0-9_-]+)/([a-zA-Z0-9_.-]+)$")
+	LegacyServiceIDRegexp = regexp.MustCompile("^([a-zA-Z0-9_-]+)/([a-zA-Z0-9_-]+)$")
+	// The namespace and name commponents are (apparently
+	// non-normatively) defined in
+	// https://github.com/kubernetes/community/blob/master/contributors/design-proposals/architecture/identifiers.md
+	// In practice, more punctuation is used than allowed there;
+	// specifically, people use underscores as well as dashes and dots, and in names, colons.
+	ResourceIDRegexp            = regexp.MustCompile("^([a-zA-Z0-9_-]+):([a-zA-Z0-9_-]+)/([a-zA-Z0-9_.:-]+)$")
+	UnqualifiedResourceIDRegexp = regexp.MustCompile("^([a-zA-Z0-9_-]+)/([a-zA-Z0-9_.:-]+)$")
 )
 
 // ResourceID is an opaque type which uniquely identifies a resource in an
