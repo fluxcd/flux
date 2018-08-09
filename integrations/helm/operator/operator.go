@@ -52,7 +52,8 @@ const (
 
 // Controller is the operator implementation for FluxHelmRelease resources
 type Controller struct {
-	logger log.Logger
+	logger   log.Logger
+	logDiffs bool
 
 	fhrLister iflister.FluxHelmReleaseLister
 	fhrSynced cache.InformerSynced
@@ -75,6 +76,7 @@ type Controller struct {
 // New returns a new helm-operator
 func New(
 	logger log.Logger,
+	logReleaseDiffs bool,
 	kubeclientset kubernetes.Interface,
 	fhrInformer fhrv1.FluxHelmReleaseInformer,
 	release *chartrelease.Release,
@@ -90,6 +92,7 @@ func New(
 
 	controller := &Controller{
 		logger:           logger,
+		logDiffs:         logReleaseDiffs,
 		fhrLister:        fhrInformer.Lister(),
 		fhrSynced:        fhrInformer.Informer().HasSynced,
 		release:          release,
@@ -330,7 +333,11 @@ func (c *Controller) enqueueUpateJob(old, new interface{}) {
 
 	if diff := cmp.Diff(oldFhr.Spec, newFhr.Spec); diff != "" {
 		c.logger.Log("info", "UPGRADING release")
-		c.logger.Log("info", fmt.Sprintf("Custom Resource driven release upgrade, diff:\n%s", diff))
+		if c.logDiffs {
+			c.logger.Log("info", fmt.Sprintf("Custom Resource driven release upgrade, diff:\n%s", diff))
+		} else {
+			c.logger.Log("info", fmt.Sprintf("Custom Resource driven release upgrade"))
+		}
 		c.enqueueJob(new)
 	}
 }

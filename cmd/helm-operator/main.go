@@ -46,6 +46,7 @@ var (
 
 	chartsSyncInterval *time.Duration
 	chartsSyncTimeout  *time.Duration
+	logReleaseDiffs    *bool
 
 	gitURL          *string
 	gitBranch       *string
@@ -91,6 +92,7 @@ func init() {
 
 	chartsSyncInterval = fs.Duration("charts-sync-interval", 3*time.Minute, "Interval at which to check for changed charts")
 	chartsSyncTimeout = fs.Duration("charts-sync-timeout", 1*time.Minute, "Timeout when checking for changed charts")
+	logReleaseDiffs = fs.Bool("log-release-diffs", false, "Log the diff when a chart release diverges; potentially insecure")
 
 	gitURL = fs.String("git-url", "", "URL of git repo with Helm Charts; e.g., git@github.com:weaveworks/flux-example")
 	gitBranch = fs.String("git-branch", "master", "branch of git repo")
@@ -207,7 +209,7 @@ func main() {
 	chartSync := chartsync.New(log.With(logger, "component", "chartsync"),
 		chartsync.Polling{Interval: *chartsSyncInterval, Timeout: *chartsSyncTimeout},
 		chartsync.Clients{KubeClient: *kubeClient, IfClient: *ifClient},
-		rel, repoConfig)
+		rel, repoConfig, *logReleaseDiffs)
 	chartSync.Run(shutdown, errc, shutdownWg)
 
 	// OPERATOR - CUSTOM RESOURCE CHANGE SYNC -----------------------------------------------
@@ -218,7 +220,8 @@ func main() {
 	// Reference to shared index informers for the FluxHelmRelease
 	fhrInformer := ifInformerFactory.Helm().V1alpha2().FluxHelmReleases()
 
-	opr := operator.New(log.With(logger, "component", "operator"), kubeClient, fhrInformer, rel, repoConfig)
+	opr := operator.New(log.With(logger, "component", "operator"), *logReleaseDiffs,
+		kubeClient, fhrInformer, rel, repoConfig)
 	// Starts handling k8s events related to the given resource kind
 	go ifInformerFactory.Start(shutdown)
 

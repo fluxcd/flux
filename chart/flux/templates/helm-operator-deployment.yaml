@@ -70,6 +70,7 @@ spec:
         - --git-url={{ .Values.git.url }}
         - --git-branch={{ .Values.git.branch }}
         - --git-charts-path={{ .Values.git.chartsPath }}
+        - --log-release-diffs={{ .Values.helmOperator.logReleaseDiffs }}
         - --tiller-namespace={{ .Values.helmOperator.tillerNamespace }}
         {{- if .Values.helmOperator.tls.enable }}
         - --tiller-tls-enable={{ .Values.helmOperator.tls.enable }}

@@ -78,9 +78,10 @@ type ChartChangeSync struct {
 	ifClient   ifclientset.Clientset
 	release    *release.Release
 	config     helmop.RepoConfig
+	logDiffs   bool
 }
 
-func New(logger log.Logger, polling Polling, clients Clients, release *release.Release, config helmop.RepoConfig) *ChartChangeSync {
+func New(logger log.Logger, polling Polling, clients Clients, release *release.Release, config helmop.RepoConfig, logReleaseDiffs bool) *ChartChangeSync {
 	return &ChartChangeSync{
 		logger:     logger,
 		Polling:    polling,
@@ -88,6 +89,7 @@ func New(logger log.Logger, polling Polling, clients Clients, release *release.R
 		ifClient:   clients.IfClient,
 		release:    release,
 		config:     config,
+		logDiffs:   logReleaseDiffs,
 	}
 }
 
@@ -379,12 +381,20 @@ func (chs *ChartChangeSync) shouldUpgrade(chartsRepo string, currRel *hapi_relea
 
 	// compare values && Chart
 	if diff := cmp.Diff(currVals, desVals); diff != "" {
-		chs.logger.Log("error", fmt.Sprintf("Release %s: values have diverged due to manual Chart release, diff: %s", currRel.GetName(), diff))
+		if chs.logDiffs {
+			chs.logger.Log("error", fmt.Sprintf("Release %s: values have diverged due to manual Chart release, diff: %s", currRel.GetName(), diff))
+		} else {
+			chs.logger.Log("error", fmt.Sprintf("Release %s: values have diverged due to manual Chart release", currRel.GetName()))
+		}
 		return true, nil
 	}
 
 	if diff := cmp.Diff(sortChartFields(currChart), sortChartFields(desChart)); diff != "" {
-		chs.logger.Log("error", fmt.Sprintf("Release %s: Chart has diverged due to manual Chart release, diff: %s", currRel.GetName(), diff))
+		if chs.logDiffs {
+			chs.logger.Log("error", fmt.Sprintf("Release %s: Chart has diverged due to manual Chart release, diff: %s", currRel.GetName(), diff))
+		} else {
+			chs.logger.Log("error", fmt.Sprintf("Release %s: Chart has diverged due to manual Chart release", currRel.GetName()))
+		}
 		return true, nil
 	}
 
