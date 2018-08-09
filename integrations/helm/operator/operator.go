@@ -334,9 +334,9 @@ func (c *Controller) enqueueUpateJob(old, new interface{}) {
 	if diff := cmp.Diff(oldFhr.Spec, newFhr.Spec); diff != "" {
 		c.logger.Log("info", "UPGRADING release")
 		if c.logDiffs {
-			c.logger.Log("info", fmt.Sprintf("Custom Resource driven release upgrade, diff:\n%s", diff))
+			c.logger.Log("info", "Custom Resource driven release upgrade", "diff", diff)
 		} else {
-			c.logger.Log("info", fmt.Sprintf("Custom Resource driven release upgrade"))
+			c.logger.Log("info", "Custom Resource driven release upgrade")
 		}
 		c.enqueueJob(new)
 	}

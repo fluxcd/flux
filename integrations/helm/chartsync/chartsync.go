@@ -382,7 +382,7 @@ func (chs *ChartChangeSync) shouldUpgrade(chartsRepo string, currRel *hapi_relea
 	// compare values && Chart
 	if diff := cmp.Diff(currVals, desVals); diff != "" {
 		if chs.logDiffs {
-			chs.logger.Log("error", fmt.Sprintf("Release %s: values have diverged due to manual Chart release, diff: %s", currRel.GetName(), diff))
+			chs.logger.Log("error", fmt.Sprintf("Release %s: values have diverged due to manual Chart release", currRel.GetName()), "diff", diff)
 		} else {
 			chs.logger.Log("error", fmt.Sprintf("Release %s: values have diverged due to manual Chart release", currRel.GetName()))
 		}
@@ -391,7 +391,7 @@ func (chs *ChartChangeSync) shouldUpgrade(chartsRepo string, currRel *hapi_relea
 
 	if diff := cmp.Diff(sortChartFields(currChart), sortChartFields(desChart)); diff != "" {
 		if chs.logDiffs {
-			chs.logger.Log("error", fmt.Sprintf("Release %s: Chart has diverged due to manual Chart release, diff: %s", currRel.GetName(), diff))
+			chs.logger.Log("error", fmt.Sprintf("Release %s: Chart has diverged due to manual Chart release", currRel.GetName()), "diff", diff)
 		} else {
 			chs.logger.Log("error", fmt.Sprintf("Release %s: Chart has diverged due to manual Chart release", currRel.GetName()))
 		}
