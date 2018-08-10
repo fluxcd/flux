@@ -20,6 +20,7 @@ helmOperator:
   tag: 0.1.1-alpha
   pullPolicy: IfNotPresent
   tillerNamespace: kube-system
+  logReleaseDiffs: false
   tls:
     secretName: 'helm-client-certs'
     verify: false

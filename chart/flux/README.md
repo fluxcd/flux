@@ -113,6 +113,7 @@ The following tables lists the configurable parameters of the Weave Flux chart a
 | `helmOperator.repository` | Helm operator image repository | `quay.io/weaveworks/helm-operator`
 | `helmOperator.tag` | Helm operator image tag | `0.1.0-alpha`
 | `helmOperator.pullPolicy` | Helm operator image pull policy | `IfNotPresent`
+| `helmOperator.logReleaseDiffs` | Helm operator should log the diff when a chart release diverges (possibly insecure) | `false`
 | `helmOperator.tillerNamespace` | Namespace in which the Tiller server can be found | `kube-system`
 | `helmOperator.tls.enable` | Enable TLS for communicating with Tiller | `false`
 | `helmOperator.tls.verify` | Verify the Tiller certificate, also enables TLS when set to true | `false`

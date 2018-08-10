@@ -9,6 +9,7 @@ import (
 
 	"github.com/go-kit/kit/log"
 	"github.com/golang/glog"
+	"github.com/google/go-cmp/cmp"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/util/runtime"
@@ -51,7 +52,8 @@ const (
 
 // Controller is the operator implementation for FluxHelmRelease resources
 type Controller struct {
-	logger log.Logger
+	logger   log.Logger
+	logDiffs bool
 
 	fhrLister iflister.FluxHelmReleaseLister
 	fhrSynced cache.InformerSynced
@@ -74,6 +76,7 @@ type Controller struct {
 // New returns a new helm-operator
 func New(
 	logger log.Logger,
+	logReleaseDiffs bool,
 	kubeclientset kubernetes.Interface,
 	fhrInformer fhrv1.FluxHelmReleaseInformer,
 	release *chartrelease.Release,
@@ -89,6 +92,7 @@ func New(
 
 	controller := &Controller{
 		logger:           logger,
+		logDiffs:         logReleaseDiffs,
 		fhrLister:        fhrInformer.Lister(),
 		fhrSynced:        fhrInformer.Informer().HasSynced,
 		release:          release,
@@ -327,9 +331,13 @@ func (c *Controller) enqueueUpateJob(old, new interface{}) {
 		return
 	}
 
-	if needsUpdate(oldFhr, newFhr) {
+	if diff := cmp.Diff(oldFhr.Spec, newFhr.Spec); diff != "" {
 		c.logger.Log("info", "UPGRADING release")
-		c.logger.Log("info", "Custom Resource driven release upgrade")
+		if c.logDiffs {
+			c.logger.Log("info", "Custom Resource driven release upgrade", "diff", diff)
+		} else {
+			c.logger.Log("info", "Custom Resource driven release upgrade")
+		}
 		c.enqueueJob(new)
 	}
 }
@@ -343,31 +351,4 @@ func (c *Controller) deleteRelease(fhr ifv1.FluxHelmRelease) {
 		c.logger.Log("error", fmt.Sprintf("Chart release [%s] not deleted: %#v", name, err))
 	}
 	return
-}
-
-// needsUpdate compares two FluxHelmRelease and determines if any changes occurred
-func needsUpdate(old, new ifv1.FluxHelmRelease) bool {
-	oldValues, err := old.Spec.Values.YAML()
-	if err != nil {
-		return false
-	}
-
-	newValues, err := new.Spec.Values.YAML()
-	if err != nil {
-		return false
-	}
-
-	if oldValues != newValues {
-		return true
-	}
-
-	if old.Spec.ReleaseName != new.Spec.ReleaseName {
-		return true
-	}
-
-	if old.Spec.ChartGitPath != new.Spec.ChartGitPath {
-		return true
-	}
-
-	return false
 }
