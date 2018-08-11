@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+
+set -e
+
+known_hosts_file=${1}
+known_hosts_file=${known_hosts_file:-/etc/ssh/ssh_known_hosts}
+
+# Verify github ssh keys
+github_rsa_fingerprint=$(sed "1q;d" < "${known_hosts_file}" | ssh-keygen -l -f -| cut -d " " -f 2)
+
+if [[ "${github_rsa_fingerprint}" != "SHA256:nThbg6kXUpJWGl7E1IGOCspRomTxdCARLviKw6E5SY8" ]]; then
+  echo "The github ssh key fingerprint ${github_rsa_fingerprint} does not match expectations" && \
+  echo "Aborting build" && \
+  exit 1;
+fi
+
+# Verify gitlab ssh keys
+gitlab_rsa_fingerprint=$(sed "2q;d" < "${known_hosts_file}" | ssh-keygen -l -f -| cut -d " " -f 2) && \
+gitlab_ecdsa_fingerprint=$(sed "3q;d" < "${known_hosts_file}" | ssh-keygen -l -f -| cut -d " " -f 2) && \
+gitlab_ed25519_fingerprint=$(sed "4q;d" < "${known_hosts_file}" | ssh-keygen -l -f -| cut -d " " -f 2)
+
+if [[ "${gitlab_rsa_fingerprint}" != "SHA256:ROQFvPThGrW4RuWLoL9tq9I9zJ42fK4XywyRtbOz/EQ" ]]; then
+  echo "The gitlab ssh key fingerprint ${gitlab_rsa_fingerprint} does not match expectations" && \
+  echo "Aborting build" && \
+  exit 1;
+fi
+
+if [[ "${gitlab_ecdsa_fingerprint}" != "SHA256:HbW3g8zUjNSksFbqTiUWPWg2Bq1x8xdGUrliXFzSnUw" ]]; then
+  echo "The gitlab ssh key fingerprint ${gitlab_ecdsa_fingerprint} does not match expectations" && \
+  echo "Aborting build" && \
+  exit 1;
+fi
+
+if [[ "${gitlab_ed25519_fingerprint}" != "SHA256:eUXGGm1YGsMAS7vkcx6JOJdOGHPem5gQp4taiCfCLB8" ]]; then
+  echo "The gitlab ssh key fingerprint ${gitlab_ed25519_fingerprint} does not match expectations" && \
+  echo "Aborting build" && \
+  exit 1;
+fi
+
+# Verify bitbucket ssh keys
+bitbucket_rsa_fingerprint=$(sed "5q;d" < "${known_hosts_file}" | ssh-keygen -l -f -| cut -d " " -f 2)
+
+if [[ "${bitbucket_rsa_fingerprint}" != "SHA256:zzXQOXSRBEiUtuE8AikJYKwbHaxvSc0ojez9YXaGp1A" ]]; then
+  echo "The bitbucket ssh key fingerprint ${bitbucket_rsa_fingerprint} does not match expectations" && \
+  echo "Aborting build" && \
+  exit 1;
+fi
