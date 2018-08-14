@@ -42,6 +42,17 @@ In our example we are going to use
 want to use that too, be sure to create a fork of it on Github and
 add the git URL to the config file above.
 
+If working on e.g. GKE with RBAC enabled, you will need to add a clusterrolebinding:
+
+```sh
+kubectl create clusterrolebinding "cluster-admin-$(whoami)" --clusterrole=cluster-admin --user="$(gcloud config get-value core/account)"
+```
+to avoid an error along the lines of
+
+`Error from server (Forbidden): error when creating "deploy/flux-account.yaml":
+clusterroles.rbac.authorization.k8s.io "flux" is forbidden: attempt to grant
+extra privileges:`
+
 In the next step, deploy Flux to the cluster:
 
 ```sh
