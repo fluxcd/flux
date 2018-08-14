@@ -11,8 +11,8 @@ RUN ssh-keyscan github.com gitlab.com bitbucket.org >> /etc/ssh/ssh_known_hosts
 COPY ./ssh_config /etc/ssh/ssh_config
 
 # Verify newly added known_hosts (man-in-middle mitigation)
-ADD ./verify_known_hosts /home/flux/verify_known_hosts
-RUN sh /home/flux/verify_known_hosts /etc/ssh/ssh_known_hosts && rm /home/flux/verify_known_hosts
+ADD ./verify_known_hosts.sh /home/flux/verify_known_hosts.sh
+RUN sh /home/flux/verify_known_hosts.sh /etc/ssh/ssh_known_hosts && rm /home/flux/verify_known_hosts.sh
 
 COPY ./kubectl /usr/local/bin/
 
