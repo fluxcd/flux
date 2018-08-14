@@ -48,8 +48,8 @@ build/.%.done: docker/Dockerfile.%
 		-f build/docker/$*/Dockerfile.$* ./build/docker/$*
 	touch $@
 
-build/.flux.done: build/fluxd build/kubectl docker/ssh_config docker/kubeconfig
-build/.helm-operator.done: build/helm-operator build/kubectl docker/ssh_config
+build/.flux.done: build/fluxd build/kubectl docker/ssh_config docker/kubeconfig docker/verify_known_hosts
+build/.helm-operator.done: build/helm-operator build/kubectl docker/ssh_config docker/verify_known_hosts
 
 build/fluxd: $(FLUXD_DEPS)
 build/fluxd: cmd/fluxd/*.go
