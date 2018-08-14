@@ -21,6 +21,7 @@ import (
 	k8sclient "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 
+	"github.com/weaveworks/flux/checkpoint"
 	"github.com/weaveworks/flux/cluster"
 	"github.com/weaveworks/flux/cluster/kubernetes"
 	"github.com/weaveworks/flux/daemon"
@@ -41,6 +42,8 @@ import (
 var version = "unversioned"
 
 const (
+	product = "weave-flux"
+
 	// The number of connections chosen for memcache and remote GETs should match for best performance (hence the single hardcoded value)
 	// Value chosen through performance tests on sock-shop. I was unable to get higher performance than this.
 	defaultRemoteConnections   = 125 // Chosen performance tests on sock-shop. Unable to get higher performance than this.
@@ -105,7 +108,7 @@ func main() {
 		k8sSecretName            = fs.String("k8s-secret-name", "flux-git-deploy", "Name of the k8s secret used to store the private SSH key")
 		k8sSecretVolumeMountPath = fs.String("k8s-secret-volume-mount-path", "/etc/fluxd/ssh", "Mount location of the k8s secret storing the private SSH key")
 		k8sSecretDataKey         = fs.String("k8s-secret-data-key", "identity", "Data key holding the private SSH key within the k8s secret")
-		k8sNamespaceWhitelist = fs.StringSlice("k8s-namespace-whitelist", []string{}, "Experimental, optional: restrict the view of the cluster to the namespaces listed. All namespaces are included if this is not set.")
+		k8sNamespaceWhitelist    = fs.StringSlice("k8s-namespace-whitelist", []string{}, "Experimental, optional: restrict the view of the cluster to the namespaces listed. All namespaces are included if this is not set.")
 		// SSH key generation
 		sshKeyBits   = optionalVar(fs, &ssh.KeyBitsValue{}, "ssh-keygen-bits", "-b argument to ssh-keygen (default unspecified)")
 		sshKeyType   = optionalVar(fs, &ssh.KeyTypeValue{}, "ssh-keygen-type", "-t argument to ssh-keygen (default unspecified)")
@@ -342,7 +345,11 @@ func main() {
 	// report anything before seeing if it works. So, don't start
 	// until we have failed or succeeded.
 	updateCheckLogger := log.With(logger, "component", "checkpoint")
-	checkForUpdates(clusterVersion, strconv.FormatBool(*gitURL != ""), updateCheckLogger)
+	checkpointFlags := map[string]string{
+		"cluster-version": clusterVersion,
+		"git-configured":  strconv.FormatBool(*gitURL != ""),
+	}
+	checkpoint.CheckForUpdates(product, version, checkpointFlags, updateCheckLogger)
 
 	gitRemote := git.Remote{URL: *gitURL}
 	gitConfig := git.Config{

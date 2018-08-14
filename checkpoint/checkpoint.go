@@ -1,4 +1,4 @@
-package main
+package checkpoint
 
 import (
 	"time"
@@ -11,7 +11,7 @@ const (
 	versionCheckPeriod = 6 * time.Hour
 )
 
-func checkForUpdates(clusterString string, gitString string, logger log.Logger) *checkpoint.Checker {
+func CheckForUpdates(product, version string, extra map[string]string, logger log.Logger) *checkpoint.Checker {
 	handleResponse := func(r *checkpoint.CheckResponse, err error) {
 		if err != nil {
 			logger.Log("err", err)
@@ -25,12 +25,14 @@ func checkForUpdates(clusterString string, gitString string, logger log.Logger) 
 	}
 
 	flags := map[string]string{
-		"kernel-version":  getKernelVersion(),
-		"cluster-version": clusterString,
-		"git-configured":  gitString,
+		"kernel-version": getKernelVersion(),
 	}
+	for k, v := range extra {
+		flags[k] = v
+	}
+
 	params := checkpoint.CheckParams{
-		Product:       "weave-flux",
+		Product:       product,
 		Version:       version,
 		SignatureFile: "",
 		Flags:         flags,
