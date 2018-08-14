@@ -19,6 +19,19 @@ You will need to have Kubernetes set up. For a quick local test,
 you can use `minikube` or `kubeadm`. Any other Kubernetes setup
 will work as well though.
 
+When running on cloud (e.g. GKE), use nodes with at least 2 cpu's.
+When using nodes of only 1 cpu (like `n1-standard-1`), an upgrade
+may be stuck with not enough CPU resources. This is seen by pods
+hanging in PENDING state and with:
+
+```
+$ kubectl describe pod/helloworld-... | tail -3
+Events:
+  Type     Reason            Age                From               Message
+  ----     ------            ----               ----               -------
+  Warning  FailedScheduling  3m (x37 over 13m)  default-scheduler  0/2 nodes are available: 2 Insufficient cpu.
+```
+
 ## Set up Flux
 
 Get Flux:
