@@ -340,16 +340,15 @@ func TestDaemon_NotifyChange(t *testing.T) {
 	}
 
 	// Check that history was written to
-	var e []event.Event
 	w.Eventually(func() bool {
-		e, _ = events.AllEvents(time.Time{}, -1, time.Time{})
-		return len(e) > 0
-	}, "Waiting for new events")
-	if 1 != len(e) {
-		t.Fatal("Expected one log event from the sync, but got", len(e))
-	} else if event.EventSync != e[0].Type {
-		t.Fatalf("Expected event with type %s but got %s", event.EventSync, e[0].Type)
-	}
+		es, _ := events.AllEvents(time.Time{}, -1, time.Time{})
+		for _, e := range es {
+			if e.Type == event.EventSync {
+				return true
+			}
+		}
+		return false
+	}, "Waiting for new sync events")
 }
 
 // When I perform a release, it should add a job to update git to the queue

@@ -22,6 +22,7 @@ type controllerReleaseOpts struct {
 	exclude        []string
 	dryRun         bool
 	interactive    bool
+	force          bool
 	outputOpts
 	cause update.Cause
 
@@ -55,6 +56,7 @@ func (opts *controllerReleaseOpts) Command() *cobra.Command {
 	cmd.Flags().StringSliceVar(&opts.exclude, "exclude", []string{}, "List of controllers to exclude")
 	cmd.Flags().BoolVar(&opts.dryRun, "dry-run", false, "Do not release anything; just report back what would have been done")
 	cmd.Flags().BoolVar(&opts.interactive, "interactive", false, "Select interactively which containers to update")
+	cmd.Flags().BoolVarP(&opts.force, "force", "f", false, "Disregard locks and container image filters (has no effect when used with --all or --update-all-images)")
 
 	// Deprecated
 	cmd.Flags().StringSliceVarP(&opts.services, "service", "s", []string{}, "Service to release")
@@ -76,8 +78,16 @@ func (opts *controllerReleaseOpts) RunE(cmd *cobra.Command, args []string) error
 		return err
 	}
 
-	if len(opts.controllers) <= 0 && !opts.allControllers {
+
+	switch {
+	case len(opts.controllers) <= 0 && !opts.allControllers:
 		return newUsageError("please supply either --all, or at least one --controller=<controller>")
+	case opts.force && opts.allControllers && opts.allImages:
+		return newUsageError("--force has no effect when used with --all and --update-all-images")
+	case opts.force && opts.allControllers:
+		fmt.Fprintf(cmd.OutOrStderr(), "Warning: --force will not ignore locked controllers when used with --all\n")
+	case opts.force && opts.allImages:
+		fmt.Fprintf(cmd.OutOrStderr(), "Warning: --force will not ignore container image tags when used with --update-all-images\n")
 	}
 
 	var controllers []update.ResourceSpec
@@ -133,6 +143,7 @@ func (opts *controllerReleaseOpts) RunE(cmd *cobra.Command, args []string) error
 		ImageSpec:    image,
 		Kind:         kind,
 		Excludes:     excludes,
+		Force:        opts.force,
 	}
 	jobID, err := opts.API.UpdateManifests(ctx, update.Spec{
 		Type:  update.Images,
@@ -171,7 +182,7 @@ func promptSpec(out io.Writer, result job.Result, verbosity int) (update.Contain
 	menu := update.NewMenu(out, result.Result, verbosity)
 	containerSpecs, err := menu.Run()
 	return update.ContainerSpecs{
-		Kind: update.ReleaseKindExecute,
+		Kind:           update.ReleaseKindExecute,
 		ContainerSpecs: containerSpecs,
 		SkipMismatches: false,
 	}, err

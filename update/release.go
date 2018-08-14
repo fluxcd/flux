@@ -122,13 +122,13 @@ func (s ReleaseSpec) filters(rc ReleaseContext) ([]ControllerFilter, []Controlle
 	var prefilters, postfilters []ControllerFilter
 
 	ids := []flux.ResourceID{}
-	for _, s := range s.ServiceSpecs {
-		if s == ResourceSpecAll {
+	for _, ss := range s.ServiceSpecs {
+		if ss == ResourceSpecAll {
 			// "<all>" Overrides any other filters
 			ids = []flux.ResourceID{}
 			break
 		}
-		id, err := flux.ParseResourceID(string(s))
+		id, err := flux.ParseResourceID(string(ss))
 		if err != nil {
 			return nil, nil, err
 		}
@@ -152,13 +152,16 @@ func (s ReleaseSpec) filters(rc ReleaseContext) ([]ControllerFilter, []Controlle
 		postfilters = append(postfilters, &SpecificImageFilter{id})
 	}
 
-	// Locked filter
-	services, err := rc.ServicesWithPolicies()
-	if err != nil {
-		return nil, nil, err
+	// Filter out locked controllers unless given a specific controller(s) and forced
+	if !(len(ids) > 0 && s.Force) {
+		// Locked filter
+		services, err := rc.ServicesWithPolicies()
+		if err != nil {
+			return nil, nil, err
+		}
+		lockedSet := services.OnlyWithPolicy(policy.Locked)
+		postfilters = append(postfilters, &LockedFilter{lockedSet.ToSlice()})
 	}
-	lockedSet := services.OnlyWithPolicy(policy.Locked)
-	postfilters = append(postfilters, &LockedFilter{lockedSet.ToSlice()})
 
 	return prefilters, postfilters, nil
 }
@@ -231,7 +234,16 @@ func (s ReleaseSpec) calculateImageUpdates(rc ReleaseContext, candidates []*Cont
 		for _, container := range containers {
 			currentImageID := container.Image
 
-			filteredImages := imageRepos.GetRepoImages(currentImageID.Name).FilterAndSort(policy.PatternAll)
+			tagPattern := policy.PatternAll
+			// Use the container's filter if the spec does not want to force release, or
+			// all images requested
+			if !s.Force || s.ImageSpec == ImageSpecLatest {
+				if pattern, ok := u.Resource.Policy().Get(policy.TagPrefix(container.Name)); ok {
+					tagPattern = policy.NewPattern(pattern)
+				}
+			}
+
+			filteredImages := imageRepos.GetRepoImages(currentImageID.Name).FilterAndSort(tagPattern)
 			latestImage, ok := filteredImages.Latest()
 			if !ok {
 				if currentImageID.CanonicalName() != singleRepo {
