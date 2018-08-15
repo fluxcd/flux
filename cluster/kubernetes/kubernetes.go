@@ -321,7 +321,7 @@ func (c *Cluster) PublicSSHKey(regenerate bool) (ssh.PublicKey, error) {
 	return publicKey, nil
 }
 
-func mergeCredentials(c *Cluster, namespace string, podTemplate apiv1.PodTemplateSpec, imageCreds registry.ImageCreds) {
+func mergeCredentials(c *Cluster, namespace string, podTemplate apiv1.PodTemplateSpec, imageCreds registry.ImageCreds, seenCreds map[string]registry.Credentials) {
 	creds := registry.NoCredentials()
 	var imagePullSecrets []string
 
@@ -341,9 +341,15 @@ func mergeCredentials(c *Cluster, namespace string, podTemplate apiv1.PodTemplat
 	}
 
 	for _, name := range imagePullSecrets {
+		if seen, ok := seenCreds[name]; ok {
+			creds.Merge(seen)
+			continue
+		}
+
 		secret, err := c.client.Secrets(namespace).Get(name, meta_v1.GetOptions{})
 		if err != nil {
 			c.logger.Log("err", errors.Wrapf(err, "getting secret %q from namespace %q", name, namespace))
+			seenCreds[name] = registry.NoCredentials()
 			continue
 		}
 
@@ -358,11 +364,13 @@ func mergeCredentials(c *Cluster, namespace string, podTemplate apiv1.PodTemplat
 			decoded, ok = secret.Data[apiv1.DockerConfigJsonKey]
 		default:
 			c.logger.Log("skip", "unknown type", "secret", namespace+"/"+secret.Name, "type", secret.Type)
+			seenCreds[name] = registry.NoCredentials()
 			continue
 		}
 
 		if !ok {
 			c.logger.Log("err", errors.Wrapf(err, "retrieving pod secret %q", secret.Name))
+			seenCreds[name] = registry.NoCredentials()
 			continue
 		}
 
@@ -370,8 +378,10 @@ func mergeCredentials(c *Cluster, namespace string, podTemplate apiv1.PodTemplat
 		crd, err := registry.ParseCredentials(fmt.Sprintf("%s:secret/%s", namespace, name), decoded)
 		if err != nil {
 			c.logger.Log("err", err.Error())
+			seenCreds[name] = registry.NoCredentials()
 			continue
 		}
+		seenCreds[name] = crd
 
 		// Merge into the credentials for this PodSpec
 		creds.Merge(crd)
@@ -399,6 +409,7 @@ func (c *Cluster) ImagesToFetch() registry.ImageCreds {
 	}
 
 	for _, ns := range namespaces {
+		seenCreds := make(map[string]registry.Credentials)
 		for kind, resourceKind := range resourceKinds {
 			podControllers, err := resourceKind.getPodControllers(c, ns.Name)
 			if err != nil {
@@ -412,7 +423,7 @@ func (c *Cluster) ImagesToFetch() registry.ImageCreds {
 
 			imageCreds := make(registry.ImageCreds)
 			for _, podController := range podControllers {
-				mergeCredentials(c, ns.Name, podController.podTemplate, imageCreds)
+				mergeCredentials(c, ns.Name, podController.podTemplate, imageCreds, seenCreds)
 			}
 
 			// Merge creds
