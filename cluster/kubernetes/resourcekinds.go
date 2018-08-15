@@ -3,10 +3,9 @@ package kubernetes
 import (
 	"fmt"
 
-	apiapps "k8s.io/api/apps/v1beta1"
+	apiapps "k8s.io/api/apps/v1"
 	apibatch "k8s.io/api/batch/v1beta1"
 	apiv1 "k8s.io/api/core/v1"
-	apiext "k8s.io/api/extensions/v1beta1"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/weaveworks/flux"
@@ -99,7 +98,7 @@ func (pc podController) toClusterController(resourceID flux.ResourceID) cluster.
 type deploymentKind struct{}
 
 func (dk *deploymentKind) getPodController(c *Cluster, namespace, name string) (podController, error) {
-	deployment, err := c.client.Deployments(namespace).Get(name, meta_v1.GetOptions{})
+	deployment, err := c.client.AppsV1().Deployments(namespace).Get(name, meta_v1.GetOptions{})
 	if err != nil {
 		return podController{}, err
 	}
@@ -108,7 +107,7 @@ func (dk *deploymentKind) getPodController(c *Cluster, namespace, name string) (
 }
 
 func (dk *deploymentKind) getPodControllers(c *Cluster, namespace string) ([]podController, error) {
-	deployments, err := c.client.Deployments(namespace).List(meta_v1.ListOptions{})
+	deployments, err := c.client.AppsV1().Deployments(namespace).List(meta_v1.ListOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -121,7 +120,7 @@ func (dk *deploymentKind) getPodControllers(c *Cluster, namespace string) ([]pod
 	return podControllers, nil
 }
 
-func makeDeploymentPodController(deployment *apiext.Deployment) podController {
+func makeDeploymentPodController(deployment *apiapps.Deployment) podController {
 	var status string
 	objectMeta, deploymentStatus := deployment.ObjectMeta, deployment.Status
 
@@ -138,7 +137,7 @@ func makeDeploymentPodController(deployment *apiext.Deployment) podController {
 	}
 
 	return podController{
-		apiVersion:  "extensions/v1beta1",
+		apiVersion:  "apps/v1",
 		kind:        "Deployment",
 		name:        deployment.ObjectMeta.Name,
 		status:      status,
@@ -152,7 +151,7 @@ func makeDeploymentPodController(deployment *apiext.Deployment) podController {
 type daemonSetKind struct{}
 
 func (dk *daemonSetKind) getPodController(c *Cluster, namespace, name string) (podController, error) {
-	daemonSet, err := c.client.DaemonSets(namespace).Get(name, meta_v1.GetOptions{})
+	daemonSet, err := c.client.AppsV1().DaemonSets(namespace).Get(name, meta_v1.GetOptions{})
 	if err != nil {
 		return podController{}, err
 	}
@@ -161,7 +160,7 @@ func (dk *daemonSetKind) getPodController(c *Cluster, namespace, name string) (p
 }
 
 func (dk *daemonSetKind) getPodControllers(c *Cluster, namespace string) ([]podController, error) {
-	daemonSets, err := c.client.DaemonSets(namespace).List(meta_v1.ListOptions{})
+	daemonSets, err := c.client.AppsV1().DaemonSets(namespace).List(meta_v1.ListOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -174,7 +173,7 @@ func (dk *daemonSetKind) getPodControllers(c *Cluster, namespace string) ([]podC
 	return podControllers, nil
 }
 
-func makeDaemonSetPodController(daemonSet *apiext.DaemonSet) podController {
+func makeDaemonSetPodController(daemonSet *apiapps.DaemonSet) podController {
 	var status string
 	objectMeta, daemonSetStatus := daemonSet.ObjectMeta, daemonSet.Status
 	if daemonSetStatus.ObservedGeneration >= objectMeta.Generation {
@@ -190,7 +189,7 @@ func makeDaemonSetPodController(daemonSet *apiext.DaemonSet) podController {
 	}
 
 	return podController{
-		apiVersion:  "extensions/v1beta1",
+		apiVersion:  "apps/v1",
 		kind:        "DaemonSet",
 		name:        daemonSet.ObjectMeta.Name,
 		status:      status,
@@ -204,7 +203,7 @@ func makeDaemonSetPodController(daemonSet *apiext.DaemonSet) podController {
 type statefulSetKind struct{}
 
 func (dk *statefulSetKind) getPodController(c *Cluster, namespace, name string) (podController, error) {
-	statefulSet, err := c.client.StatefulSets(namespace).Get(name, meta_v1.GetOptions{})
+	statefulSet, err := c.client.AppsV1().StatefulSets(namespace).Get(name, meta_v1.GetOptions{})
 	if err != nil {
 		return podController{}, err
 	}
@@ -213,7 +212,7 @@ func (dk *statefulSetKind) getPodController(c *Cluster, namespace, name string) 
 }
 
 func (dk *statefulSetKind) getPodControllers(c *Cluster, namespace string) ([]podController, error) {
-	statefulSets, err := c.client.StatefulSets(namespace).List(meta_v1.ListOptions{})
+	statefulSets, err := c.client.AppsV1().StatefulSets(namespace).List(meta_v1.ListOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -230,7 +229,7 @@ func makeStatefulSetPodController(statefulSet *apiapps.StatefulSet) podControlle
 	var status string
 	objectMeta, statefulSetStatus := statefulSet.ObjectMeta, statefulSet.Status
 	// The type of ObservedGeneration is *int64, unlike other controllers.
-	if statefulSetStatus.ObservedGeneration != nil && *statefulSetStatus.ObservedGeneration >= objectMeta.Generation {
+	if statefulSetStatus.ObservedGeneration >= objectMeta.Generation {
 		// the definition has been updated; now let's see about the replicas
 		updated, wanted := statefulSetStatus.UpdatedReplicas, *statefulSet.Spec.Replicas
 		if updated == wanted {
@@ -243,7 +242,7 @@ func makeStatefulSetPodController(statefulSet *apiapps.StatefulSet) podControlle
 	}
 
 	return podController{
-		apiVersion:  "apps/v1beta1",
+		apiVersion:  "apps/v1",
 		kind:        "StatefulSet",
 		name:        statefulSet.ObjectMeta.Name,
 		status:      status,
@@ -257,7 +256,7 @@ func makeStatefulSetPodController(statefulSet *apiapps.StatefulSet) podControlle
 type cronJobKind struct{}
 
 func (dk *cronJobKind) getPodController(c *Cluster, namespace, name string) (podController, error) {
-	cronJob, err := c.client.CronJobs(namespace).Get(name, meta_v1.GetOptions{})
+	cronJob, err := c.client.BatchV1beta1().CronJobs(namespace).Get(name, meta_v1.GetOptions{})
 	if err != nil {
 		return podController{}, err
 	}
@@ -266,7 +265,7 @@ func (dk *cronJobKind) getPodController(c *Cluster, namespace, name string) (pod
 }
 
 func (dk *cronJobKind) getPodControllers(c *Cluster, namespace string) ([]podController, error) {
-	cronJobs, err := c.client.CronJobs(namespace).List(meta_v1.ListOptions{})
+	cronJobs, err := c.client.BatchV1beta1().CronJobs(namespace).List(meta_v1.ListOptions{})
 	if err != nil {
 		return nil, err
 	}

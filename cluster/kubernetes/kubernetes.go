@@ -8,17 +8,12 @@ import (
 	k8syaml "github.com/ghodss/yaml"
 	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
-	ifclient "github.com/weaveworks/flux/integrations/client/clientset/versioned"
+	fhrclient "github.com/weaveworks/flux/integrations/client/clientset/versioned"
 	"gopkg.in/yaml.v2"
 	apiv1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/discovery"
 	k8sclient "k8s.io/client-go/kubernetes"
-	v1beta1apps "k8s.io/client-go/kubernetes/typed/apps/v1beta1"
-	v1beta1batch "k8s.io/client-go/kubernetes/typed/batch/v1beta1"
-	v1core "k8s.io/client-go/kubernetes/typed/core/v1"
-	v1beta1extensions "k8s.io/client-go/kubernetes/typed/extensions/v1beta1"
 
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster"
@@ -32,13 +27,12 @@ const (
 	StatusUpdating = "updating"
 )
 
+type coreClient k8sclient.Interface
+type fluxHelmClient fhrclient.Interface
+
 type extendedClient struct {
-	discovery.DiscoveryInterface
-	v1core.CoreV1Interface
-	v1beta1extensions.ExtensionsV1beta1Interface
-	v1beta1apps.StatefulSetsGetter
-	v1beta1batch.CronJobsGetter
-	ifclient.Interface
+	coreClient
+	fluxHelmClient
 }
 
 // --- internal types for keeping track of syncing
@@ -114,7 +108,7 @@ type Cluster struct {
 
 // NewCluster returns a usable cluster.
 func NewCluster(clientset k8sclient.Interface,
-	ifclientset ifclient.Interface,
+	fluxHelmClientset fhrclient.Interface,
 	applier Applier,
 	sshKeyRing ssh.KeyRing,
 	logger log.Logger,
@@ -127,12 +121,8 @@ func NewCluster(clientset k8sclient.Interface,
 
 	c := &Cluster{
 		client: extendedClient{
-			clientset.Discovery(),
-			clientset.Core(),
-			clientset.Extensions(),
-			clientset.AppsV1beta1(),
-			clientset.BatchV1beta1(),
-			ifclientset,
+			clientset,
+			fluxHelmClientset,
 		},
 		applier:     applier,
 		logger:      logger,
@@ -251,7 +241,7 @@ func (c *Cluster) Sync(spec cluster.SyncDef) error {
 }
 
 func (c *Cluster) Ping() error {
-	_, err := c.client.ServerVersion()
+	_, err := c.client.coreClient.Discovery().ServerVersion()
 	return err
 }
 
@@ -327,7 +317,7 @@ func (c *Cluster) PublicSSHKey(regenerate bool) (ssh.PublicKey, error) {
 func (c *Cluster) getAllowedNamespaces() ([]apiv1.Namespace, error) {
 	nsList := []apiv1.Namespace{}
 
-	namespaces, err := c.client.Namespaces().List(meta_v1.ListOptions{})
+	namespaces, err := c.client.CoreV1().Namespaces().List(meta_v1.ListOptions{})
 	if err != nil {
 		return nsList, err
 	}

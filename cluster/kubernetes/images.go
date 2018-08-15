@@ -19,7 +19,8 @@ func mergeCredentials(log func(...interface{}) error, client extendedClient, nam
 	if saName == "" {
 		saName = "default"
 	}
-	sa, err := client.ServiceAccounts(namespace).Get(saName, meta_v1.GetOptions{})
+
+	sa, err := client.CoreV1().ServiceAccounts(namespace).Get(saName, meta_v1.GetOptions{})
 	if err == nil {
 		for _, ips := range sa.ImagePullSecrets {
 			imagePullSecrets = append(imagePullSecrets, ips.Name)
@@ -36,7 +37,7 @@ func mergeCredentials(log func(...interface{}) error, client extendedClient, nam
 			continue
 		}
 
-		secret, err := client.Secrets(namespace).Get(name, meta_v1.GetOptions{})
+		secret, err := client.CoreV1().Secrets(namespace).Get(name, meta_v1.GetOptions{})
 		if err != nil {
 			log("err", errors.Wrapf(err, "getting secret %q from namespace %q", name, namespace))
 			seenCreds[name] = registry.NoCredentials()
