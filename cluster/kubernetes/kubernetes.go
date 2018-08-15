@@ -136,9 +136,9 @@ func NewCluster(clientset k8sclient.Interface,
 			clientset.BatchV1beta1(),
 			ifclientset,
 		},
-		applier:    applier,
-		logger:     logger,
-		sshKeyRing: sshKeyRing,
+		applier:     applier,
+		logger:      logger,
+		sshKeyRing:  sshKeyRing,
 		nsWhitelist: nsWhitelistMap,
 	}
 
@@ -323,10 +323,27 @@ func (c *Cluster) PublicSSHKey(regenerate bool) (ssh.PublicKey, error) {
 
 func mergeCredentials(c *Cluster, namespace string, podTemplate apiv1.PodTemplateSpec, imageCreds registry.ImageCreds) {
 	creds := registry.NoCredentials()
+	var imagePullSecrets []string
+
+	saName := podTemplate.Spec.ServiceAccountName
+	if saName == "" {
+		saName = "default"
+	}
+	sa, err := c.client.ServiceAccounts(namespace).Get(saName, meta_v1.GetOptions{})
+	if err == nil {
+		for _, ips := range sa.ImagePullSecrets {
+			imagePullSecrets = append(imagePullSecrets, ips.Name)
+		}
+	}
+
 	for _, imagePullSecret := range podTemplate.Spec.ImagePullSecrets {
-		secret, err := c.client.Secrets(namespace).Get(imagePullSecret.Name, meta_v1.GetOptions{})
+		imagePullSecrets = append(imagePullSecrets, imagePullSecret.Name)
+	}
+
+	for _, name := range imagePullSecrets {
+		secret, err := c.client.Secrets(namespace).Get(name, meta_v1.GetOptions{})
 		if err != nil {
-			c.logger.Log("err", errors.Wrapf(err, "getting secret %q from namespace %q", secret.Name, namespace))
+			c.logger.Log("err", errors.Wrapf(err, "getting secret %q from namespace %q", name, namespace))
 			continue
 		}
 
@@ -350,7 +367,7 @@ func mergeCredentials(c *Cluster, namespace string, podTemplate apiv1.PodTemplat
 		}
 
 		// Parse secret
-		crd, err := registry.ParseCredentials(fmt.Sprintf("%s:secret/%s", namespace, imagePullSecret.Name), decoded)
+		crd, err := registry.ParseCredentials(fmt.Sprintf("%s:secret/%s", namespace, name), decoded)
 		if err != nil {
 			c.logger.Log("err", err.Error())
 			continue
@@ -427,12 +444,12 @@ func (c *Cluster) getAllowedNamespaces() ([]apiv1.Namespace, error) {
 	}
 
 	for _, namespace := range namespaces.Items {
-		if len(c.nsWhitelist) > 0 && ! c.nsWhitelist[namespace.ObjectMeta.Name] {
+		if len(c.nsWhitelist) > 0 && !c.nsWhitelist[namespace.ObjectMeta.Name] {
 			continue
 		}
 
 		nsList = append(nsList, namespace)
-  }
+	}
 
 	return nsList, nil
 }
