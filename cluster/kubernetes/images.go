@@ -3,11 +3,13 @@ package kubernetes
 import (
 	"fmt"
 
+	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
 	apiv1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/image"
 	"github.com/weaveworks/flux/registry"
 )
@@ -114,7 +116,8 @@ func (c *Cluster) ImagesToFetch() registry.ImageCreds {
 
 			imageCreds := make(registry.ImageCreds)
 			for _, podController := range podControllers {
-				mergeCredentials(c.logger.Log, c.client, ns.Name, podController.podTemplate, imageCreds, seenCreds)
+				logger := log.With(c.logger, "resource", flux.MakeResourceID(ns.Name, kind, podController.name))
+				mergeCredentials(logger.Log, c.client, ns.Name, podController.podTemplate, imageCreds, seenCreds)
 			}
 
 			// Merge creds
