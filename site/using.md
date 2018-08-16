@@ -329,6 +329,15 @@ CONTROLLER                     STATUS   UPDATES
 default:deployment/helloworld  success
 ```
 
+# Releasing an image to a locked controller
+
+It may be desirable to release an image to a locked controller while
+maintaining the lock afterwards. In order to not having to modify the
+lock policy (which includes author and reason), one may use `--force`:
+```
+fluxctl release --controller=default:deployment/helloworld --update-all-images --force
+```
+
 # Unlocking a Controller
 
 Unlocking a controller allows it to have manual or automated releases
@@ -388,6 +397,24 @@ individually:
 ```
 fluxctl policy --controller=default:deployment/helloworld --tag='helloworld=prod-*' --tag='sidecar=prod-*'
 ``` 
+
+Manual releases without explicit mention of the target image will
+also adhere to tag filters.
+This will only release the newest image matching the tag filter:
+```
+fluxctl release --controller=default:deployment/helloworld --update-all-images
+```
+
+To release an image outside of tag filters, either specify the image:
+```
+fluxctl release --controller=default:deployment/helloworld --update-image=helloworld:dev-abc123
+```
+or use `--force`:
+```
+fluxctl release --controller=default:deployment/helloworld --update-all-images --force
+```
+
+Please note that automation might immediately undo this.
 
 If your images use [semantic versioning](https://semver.org) you can filter by image tags
 that adhere to certain constraints:
