@@ -149,6 +149,23 @@ func TestUpdatePolicies(t *testing.T) {
 			},
 			wantErr: true,
 		},
+		{
+			name: "add regexp tag policy",
+			in:   nil,
+			out:  []string{"flux.weave.works/tag.nginx", "regexp:(.*?)"},
+			update: policy.Update{
+				Add: policy.Set{policy.TagPrefix("nginx"): "regexp:(.*?)"},
+			},
+		},
+		{
+			name: "add invalid regexp tag policy",
+			in:   nil,
+			out:  []string{"flux.weave.works/tag.nginx", "regexp:(.*?)"},
+			update: policy.Update{
+				Add: policy.Set{policy.TagPrefix("nginx"): "regexp:*"},
+			},
+			wantErr: true,
+		},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			caseIn := templToString(t, annotationsTemplate, c.in)

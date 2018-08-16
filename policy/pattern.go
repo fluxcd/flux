@@ -5,11 +5,13 @@ import (
 	"github.com/ryanuber/go-glob"
 	"github.com/weaveworks/flux/image"
 	"strings"
+	"regexp"
 )
 
 const (
 	globPrefix   = "glob:"
 	semverPrefix = "semver:"
+	regexpPrefix = "regexp:"
 )
 
 var (
@@ -39,17 +41,28 @@ type SemverPattern struct {
 	constraints *semver.Constraints
 }
 
-// NewPattern instantiates a Pattern according to the prefix
-// it finds. The prefix can be either `glob:` (default if omitted)
-// or `semver:`.
+// RegexpPattern matches by regular expression.
+type RegexpPattern struct {
+	pattern	string // pattern without prefix
+	regexp	*regexp.Regexp
+}
 
+// NewPattern instantiates a Pattern according to the prefix
+// it finds. The prefix can be either `glob:` (default if omitted),
+// `semver:` or `regexp:`.
 func NewPattern(pattern string) Pattern {
-	if strings.HasPrefix(pattern, semverPrefix) {
+	switch {
+	case strings.HasPrefix(pattern, semverPrefix):
 		pattern = strings.TrimPrefix(pattern, semverPrefix)
 		c, _ := semver.NewConstraint(pattern)
 		return SemverPattern{pattern, c}
+	case strings.HasPrefix(pattern, regexpPrefix):
+		pattern = strings.TrimPrefix(pattern, regexpPrefix)
+		r, _ := regexp.Compile(pattern)
+		return RegexpPattern{pattern, r}
+	default:
+		return GlobPattern(strings.TrimPrefix(pattern, globPrefix))
 	}
-	return GlobPattern(strings.TrimPrefix(pattern, globPrefix))
 }
 
 func (g GlobPattern) Matches(tag string) bool {
@@ -90,4 +103,24 @@ func (s SemverPattern) Newer(a, b *image.Info) bool {
 
 func (s SemverPattern) Valid() bool {
 	return s.constraints != nil
+}
+
+func (r RegexpPattern) Matches(tag string) bool {
+	if r.regexp == nil {
+		// Invalid regexp match anything
+		return true
+	}
+	return r.regexp.MatchString(tag)
+}
+
+func (r RegexpPattern) String() string {
+	return regexpPrefix + r.pattern
+}
+
+func (r RegexpPattern) Newer(a, b *image.Info) bool {
+	return image.NewerByCreated(a, b)
+}
+
+func (r RegexpPattern) Valid() bool {
+	return r.regexp != nil
 }
