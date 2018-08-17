@@ -1,7 +1,6 @@
 package operator
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"sync"
@@ -253,12 +252,7 @@ func (c *Controller) syncHandler(key string) error {
 		return err
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	err = c.sync.ReconcileReleaseDef(ctx, *fhr)
-	cancel()
-	if err != nil {
-		return err
-	}
+	c.sync.ReconcileReleaseDef(*fhr)
 	c.recorder.Event(fhr, corev1.EventTypeNormal, ChartSynced, MessageChartSynced)
 	return nil
 }

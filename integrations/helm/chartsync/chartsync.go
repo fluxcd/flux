@@ -79,7 +79,9 @@ type ChartChangeSync struct {
 	release    *release.Release
 	config     helmop.RepoConfig
 	logDiffs   bool
-	reconcile  chan ifv1.FluxHelmRelease
+
+	mu    sync.RWMutex
+	clone *git.Export
 }
 
 func New(logger log.Logger, polling Polling, clients Clients, release *release.Release, config helmop.RepoConfig, logReleaseDiffs bool) *ChartChangeSync {
@@ -91,7 +93,6 @@ func New(logger log.Logger, polling Polling, clients Clients, release *release.R
 		release:    release,
 		config:     config,
 		logDiffs:   logReleaseDiffs,
-		reconcile:  make(chan ifv1.FluxHelmRelease),
 	}
 }
 
@@ -110,26 +111,23 @@ func (chs *ChartChangeSync) Run(stopCh <-chan struct{}, errc chan error, wg *syn
 
 		ctx, cancel := context.WithTimeout(context.Background(), helmop.GitOperationTimeout)
 		currentRevision, err := chs.config.Repo.Revision(ctx, chs.config.Branch)
-		var currentClone *git.Export
 		if err == nil {
-			currentClone, err = chs.config.Repo.Export(ctx, currentRevision)
+			chs.mu.Lock()
+			chs.clone, err = chs.config.Repo.Export(ctx, currentRevision)
+			chs.mu.Unlock()
 		}
 		cancel()
 		if err != nil {
 			errc <- err
 			return
 		}
-
-		// From now, currentClone shall not revert to nil
-		defer currentClone.Clean()
+		defer chs.clone.Clean()
 
 		ticker := time.NewTicker(chs.Polling.Interval)
 		defer ticker.Stop()
 
 		for {
 			select {
-			case fhr := <-chs.reconcile:
-				chs.reconcileReleaseDef(fhr, currentClone)
 			case <-chs.config.Repo.C:
 				ctx, cancel := context.WithTimeout(context.Background(), helmop.GitOperationTimeout)
 				head, err := chs.config.Repo.Revision(ctx, chs.config.Branch)
@@ -151,11 +149,13 @@ func (chs *ChartChangeSync) Run(stopCh <-chan struct{}, errc chan error, wg *syn
 					chs.logger.Log("warning", "failure to clone git repo", "error", err)
 					continue
 				}
-				currentClone.Clean()
-				currentClone = newClone
+				chs.mu.Lock()
+				chs.clone.Clean()
+				chs.clone = newClone
+				chs.mu.Unlock()
 
 				chs.logger.Log("info", fmt.Sprint("Start of chartsync"))
-				err = chs.applyChartChanges(currentRevision, head, currentClone)
+				err = chs.applyChartChanges(currentRevision, head)
 				if err != nil {
 					chs.logger.Log("error", fmt.Sprintf("Failure to do chart sync: %s", err))
 				}
@@ -166,7 +166,7 @@ func (chs *ChartChangeSync) Run(stopCh <-chan struct{}, errc chan error, wg *syn
 				// Re-release any chart releases that have apparently
 				// changed in the cluster.
 				chs.logger.Log("info", fmt.Sprint("Start of releasesync"))
-				err = chs.reapplyReleaseDefs(currentClone)
+				err = chs.reapplyReleaseDefs()
 				if err != nil {
 					chs.logger.Log("error", fmt.Sprintf("Failure to do manual release sync: %s", err))
 				}
@@ -186,19 +186,14 @@ func (chs *ChartChangeSync) Run(stopCh <-chan struct{}, errc chan error, wg *syn
 // block indefinitely, so the caller provides a context which it can
 // cancel if it gets tired of waiting. Returns an error if the context
 // timed out or was canceled before the operation was started.
-func (chs *ChartChangeSync) ReconcileReleaseDef(ctx context.Context, fhr ifv1.FluxHelmRelease) error {
-	select {
-	case chs.reconcile <- fhr:
-		return nil
-	case <-ctx.Done():
-		return ctx.Err()
-	}
+func (chs *ChartChangeSync) ReconcileReleaseDef(fhr ifv1.FluxHelmRelease) {
+	chs.reconcileReleaseDef(fhr)
 }
 
 // ApplyChartChanges looks at the FluxHelmRelease resources in the
 // cluster, figures out which refer to charts that have changed since
 // the last commit, then re-releases those that have.
-func (chs *ChartChangeSync) applyChartChanges(prevRef, head string, clone *git.Export) error {
+func (chs *ChartChangeSync) applyChartChanges(prevRef, head string) error {
 	resources, err := chs.getCustomResources()
 	if err != nil {
 		return fmt.Errorf("Failure getting FHR custom resources: %s", err.Error())
@@ -226,10 +221,12 @@ func (chs *ChartChangeSync) applyChartChanges(prevRef, head string, clone *git.E
 		if changed {
 			rlsName := release.GetReleaseName(fhr)
 			opts := release.InstallOptions{DryRun: false}
-			if _, err = chs.release.Install(clone.Dir(), rlsName, fhr, release.UpgradeAction, opts); err != nil {
+			chs.mu.RLock()
+			if _, err = chs.release.Install(chs.clone.Dir(), rlsName, fhr, release.UpgradeAction, opts); err != nil {
 				// NB in this step, failure to release is considered non-fatal, i.e,. we move on to the next rather than giving up entirely.
 				chs.logger.Log("warning", "failure to release chart with changes in git", "error", err, "chart", chartPath, "release", rlsName)
 			}
+			chs.mu.RUnlock()
 		}
 	}
 
@@ -239,7 +236,7 @@ func (chs *ChartChangeSync) applyChartChanges(prevRef, head string, clone *git.E
 // reconcileReleaseDef looks up the helm release associated with a
 // FluxHelmRelease resource, and either installs, upgrades, or does
 // nothing, depending on the state (or absence) of the release.
-func (chs *ChartChangeSync) reconcileReleaseDef(fhr ifv1.FluxHelmRelease, clone *git.Export) {
+func (chs *ChartChangeSync) reconcileReleaseDef(fhr ifv1.FluxHelmRelease) {
 	releaseName := release.GetReleaseName(fhr)
 
 	// There's no exact way in the Helm API to test whether a release
@@ -248,22 +245,25 @@ func (chs *ChartChangeSync) reconcileReleaseDef(fhr ifv1.FluxHelmRelease, clone 
 	// something else).
 	rel, _ := chs.release.GetDeployedRelease(releaseName)
 
+	chs.mu.RLock()
+	defer chs.mu.RUnlock()
+
 	opts := release.InstallOptions{DryRun: false}
 	if rel == nil {
-		_, err := chs.release.Install(clone.Dir(), releaseName, fhr, release.InstallAction, opts)
+		_, err := chs.release.Install(chs.clone.Dir(), releaseName, fhr, release.InstallAction, opts)
 		if err != nil {
 			chs.logger.Log("warning", "Failed to install chart", "namespace", fhr.Namespace, "name", fhr.Name, "error", err)
 		}
 		return
 	}
 
-	changed, err := chs.shouldUpgrade(clone.Dir(), rel, fhr)
+	changed, err := chs.shouldUpgrade(chs.clone.Dir(), rel, fhr)
 	if err != nil {
 		chs.logger.Log("warning", "Unable to determine if release has changed", "namespace", fhr.Namespace, "name", fhr.Name, "error", err)
 		return
 	}
 	if changed {
-		_, err := chs.release.Install(clone.Dir(), releaseName, fhr, release.UpgradeAction, opts)
+		_, err := chs.release.Install(chs.clone.Dir(), releaseName, fhr, release.UpgradeAction, opts)
 		if err != nil {
 			chs.logger.Log("warning", "Failed to upgrade chart", "namespace", fhr.Namespace, "name", fhr.Name, "error", err)
 		}
@@ -274,14 +274,14 @@ func (chs *ChartChangeSync) reconcileReleaseDef(fhr ifv1.FluxHelmRelease, clone 
 // reconciles them with Helm releases. This is a "backstop" for the
 // other sync processes, to cover the case of a release being changed
 // out-of-band (e.g., by someone using `helm upgrade`).
-func (chs *ChartChangeSync) reapplyReleaseDefs(clone *git.Export) error {
+func (chs *ChartChangeSync) reapplyReleaseDefs() error {
 	resources, err := chs.getCustomResources()
 	if err != nil {
 		return fmt.Errorf("failed to get FluxHelmRelease resources from the API server: %s", err.Error())
 	}
 
 	for _, fhr := range resources {
-		chs.reconcileReleaseDef(fhr, clone)
+		chs.reconcileReleaseDef(fhr)
 	}
 	return nil
 }
