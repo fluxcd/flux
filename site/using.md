@@ -430,6 +430,11 @@ fluxctl policy --controller=default:deployment/helloworld --tag-all='semver:*'
 Using a semver filter will also affect how flux sorts images, so
 that the higher versions will be considered newer.
 
+If your images have complex tags you can filter by regular expression:
+```
+fluxctl policy --controller=default:deployment/helloworld --tag-all='regexp:^([a-zA-Z]+)$'
+```
+
 ## Actions triggered through `fluxctl`
 
 `fluxctl` provides the following flags for the message and author customization:
