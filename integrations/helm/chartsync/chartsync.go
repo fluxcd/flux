@@ -241,11 +241,12 @@ func (chs *ChartChangeSync) applyChartChanges(prevRef, head string, clone *git.E
 // nothing, depending on the state (or absence) of the release.
 func (chs *ChartChangeSync) reconcileReleaseDef(fhr ifv1.FluxHelmRelease, clone *git.Export) {
 	releaseName := release.GetReleaseName(fhr)
-	rel, err := chs.release.GetDeployedRelease(releaseName)
-	if err != nil {
-		chs.logger.Log("warning", "failed to get release from Tiller", "release", releaseName, "error", err)
-		return
-	}
+
+	// There's no exact way in the Helm API to test whether a release
+	// exists or not. Instead, try to fetch it, and treat an error as
+	// not existing (and possibly fail further below, if it meant
+	// something else).
+	rel, _ := chs.release.GetDeployedRelease(releaseName)
 
 	opts := release.InstallOptions{DryRun: false}
 	if rel == nil {
