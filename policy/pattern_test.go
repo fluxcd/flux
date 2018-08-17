@@ -86,3 +86,38 @@ func TestSemverPattern_Matches(t *testing.T) {
 		}
 	}
 }
+
+func TestRegexpPattern_Matches(t *testing.T) {
+	for _, tt := range []struct {
+		name    string
+		pattern string
+		true    []string
+		false   []string
+	}{
+		{
+			name:    "all prefixed",
+			pattern: "regexp:(.*?)",
+			true:    []string{"", "1", "foo"},
+			false:   nil,
+		},
+		{
+			name:    "regexp",
+			pattern: "regexp:^([a-zA-Z]+)$",
+			true:    []string{"foo", "BAR", "fooBAR"},
+			false:   []string{"1", "foo-1"},
+		},
+	} {
+		pattern := NewPattern(tt.pattern)
+		assert.IsType(t, RegexpPattern{}, pattern)
+		for _, tag := range tt.true {
+			t.Run(fmt.Sprintf("%s[%q]", tt.name, tag), func(t *testing.T) {
+				assert.True(t, pattern.Matches(tag))
+			})
+		}
+		for _, tag := range tt.false {
+			t.Run(fmt.Sprintf("%s[%q]", tt.name, tag), func(t *testing.T) {
+				assert.False(t, pattern.Matches(tag))
+			})
+		}
+	}
+}

@@ -416,6 +416,20 @@ fluxctl release --controller=default:deployment/helloworld --update-all-images -
 
 Please note that automation might immediately undo this.
 
+## Filter pattern types
+
+Flux currently offers support for `glob`, `semver` and `regexp` based filtering.
+
+### Glob
+
+The glob (`*`) filter is the simplest filter Flux supports, a filter can contain
+multiple globs:
+```
+fluxctl policy --controller=default:deployment/helloworld --tag-all='glob:master-v1.*.*'
+```
+
+### Semver
+
 If your images use [semantic versioning](https://semver.org) you can filter by image tags
 that adhere to certain constraints:
 ```
@@ -429,6 +443,16 @@ fluxctl policy --controller=default:deployment/helloworld --tag-all='semver:*'
 
 Using a semver filter will also affect how flux sorts images, so
 that the higher versions will be considered newer.
+
+### Regexp
+
+If your images have complex tags you can filter by regular expression:
+```
+fluxctl policy --controller=default:deployment/helloworld --tag-all='regexp:^([a-zA-Z]+)$'
+```
+
+Please bear in mind that if you want to match the whole tag,
+you must bookend your pattern with `^` and `$`.
 
 ## Actions triggered through `fluxctl`
 
