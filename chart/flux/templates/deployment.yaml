@@ -34,6 +34,10 @@ spec:
       - name: git-keygen
         emptyDir:
           medium: Memory
+      - name: docker-creds   
+        secret:
+          secretName: {{ template "flux.fullname" . }}-docker-creds
+          defaultMode: 0400
       containers:
         - name: {{ .Chart.Name }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
@@ -51,6 +55,9 @@ spec:
             readOnly: true
           - name: git-keygen
             mountPath: /var/fluxd/keygen
+          - name: docker-creds
+            mountPath: /docker-creds
+            readOnly: true
           args:
           - --ssh-keygen-dir=/var/fluxd/keygen
           - --k8s-secret-name={{ template "flux.fullname" . }}-git-deploy
