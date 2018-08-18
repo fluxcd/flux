@@ -51,6 +51,7 @@ type podController struct {
 	kind        string
 	name        string
 	status      string
+	podStatus   cluster.ControllerPodStatus
 	podTemplate apiv1.PodTemplateSpec
 }
 
@@ -87,6 +88,7 @@ func (pc podController) toClusterController(resourceID flux.ResourceID) cluster.
 	return cluster.Controller{
 		ID:         resourceID,
 		Status:     pc.status,
+		PodStatus:  pc.podStatus,
 		Antecedent: antecedent,
 		Labels:     pc.GetLabels(),
 		Containers: cluster.ContainersOrExcuse{Containers: clusterContainers, Excuse: excuse},
@@ -125,9 +127,9 @@ func makeDeploymentPodController(deployment *apiext.Deployment) podController {
 	var status string
 	objectMeta, deploymentStatus := deployment.ObjectMeta, deployment.Status
 
+	updated, wanted := deploymentStatus.UpdatedReplicas, *deployment.Spec.Replicas
 	if deploymentStatus.ObservedGeneration >= objectMeta.Generation {
 		// the definition has been updated; now let's see about the replicas
-		updated, wanted := deploymentStatus.UpdatedReplicas, *deployment.Spec.Replicas
 		if updated == wanted {
 			status = StatusReady
 		} else {
@@ -138,10 +140,16 @@ func makeDeploymentPodController(deployment *apiext.Deployment) podController {
 	}
 
 	return podController{
-		apiVersion:  "extensions/v1beta1",
-		kind:        "Deployment",
-		name:        deployment.ObjectMeta.Name,
-		status:      status,
+		apiVersion: "extensions/v1beta1",
+		kind:       "Deployment",
+		name:       deployment.ObjectMeta.Name,
+		status:     status,
+		podStatus: cluster.ControllerPodStatus{
+			Desired:      *deployment.Spec.Replicas,
+			Updated:      deploymentStatus.UpdatedReplicas,
+			UpdatedReady: wanted - deploymentStatus.UnavailableReplicas,
+			Outdated:     deploymentStatus.Replicas - deploymentStatus.UpdatedReplicas,
+		},
 		podTemplate: deployment.Spec.Template,
 		k8sObject:   deployment}
 }

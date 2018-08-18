@@ -122,6 +122,7 @@ func (d *Daemon) ListServices(ctx context.Context, namespace string) ([]v6.Contr
 			Containers: containers2containers(service.ContainersOrNil()),
 			ReadOnly:   readOnly,
 			Status:     service.Status,
+			PodStatus:  service.PodStatus,
 			Antecedent: service.Antecedent,
 			Labels:     service.Labels,
 			Automated:  policies.Has(policy.Automated),

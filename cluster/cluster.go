@@ -21,10 +21,22 @@ type Cluster interface {
 	PublicSSHKey(regenerate bool) (ssh.PublicKey, error)
 }
 
+type ControllerPodStatus struct {
+	// Desired number of pods as defined in spec.
+	Desired int32
+	// Updated number of pods that are on the desired pod spec.
+	Updated int32
+	// Updated number of pods that are on the desired pod spec and ready.
+	UpdatedReady int32
+	// Outdated number of pods that are on a different pod spec.
+	Outdated int32
+}
+
 // Controller describes a cluster resource that declares versioned images.
 type Controller struct {
-	ID     flux.ResourceID
-	Status string // A status summary for display
+	ID        flux.ResourceID
+	Status    string // A status summary for display
+	PodStatus ControllerPodStatus
 	// Is the controller considered read-only because it's under the
 	// control of the platform. In the case of Kubernetes, we simply
 	// omit these controllers; but this may not always be the case.
