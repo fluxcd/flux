@@ -9,7 +9,6 @@ import (
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster"
 	"github.com/weaveworks/flux/git"
-	"github.com/weaveworks/flux/policy"
 	"github.com/weaveworks/flux/registry"
 	"github.com/weaveworks/flux/resource"
 	"github.com/weaveworks/flux/update"
@@ -144,9 +143,4 @@ func (rc *ReleaseContext) WorkloadsForUpdate() (map[flux.ResourceID]*update.Cont
 		}
 	}
 	return defined, nil
-}
-
-// Shortcut for this
-func (rc *ReleaseContext) ServicesWithPolicies() (policy.ResourceMap, error) {
-	return rc.manifests.ServicesWithPolicies(rc.repo.ManifestDir())
 }

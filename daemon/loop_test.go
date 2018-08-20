@@ -15,7 +15,6 @@ import (
 
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster"
-	"github.com/weaveworks/flux/cluster/kubernetes"
 	kresource "github.com/weaveworks/flux/cluster/kubernetes/resource"
 	"github.com/weaveworks/flux/cluster/kubernetes/testfiles"
 	"github.com/weaveworks/flux/event"
@@ -48,7 +47,6 @@ func daemon(t *testing.T) (*Daemon, func()) {
 		return kresource.ParseMultidoc(allDefs, "exported")
 	}
 	k8s.ExportFunc = func() ([]byte, error) { return nil, nil }
-	k8s.ServicesWithPoliciesFunc = (&kubernetes.Manifests{}).ServicesWithPolicies
 
 	events = &mockEventWriter{}
 
