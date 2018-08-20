@@ -34,7 +34,8 @@ func TestSync(t *testing.T) {
 	manifests := &kubernetes.Manifests{}
 	var clus cluster.Cluster = &syncCluster{mockCluster, map[string][]byte{}}
 
-	resources, err := manifests.LoadManifests(checkout.Dir(), checkout.ManifestDir())
+	dirs := checkout.ManifestDirs()
+	resources, err := manifests.LoadManifests(checkout.Dir(), dirs)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -42,9 +43,9 @@ func TestSync(t *testing.T) {
 	if err := Sync(manifests, resources, clus, true, log.NewNopLogger()); err != nil {
 		t.Fatal(err)
 	}
-	checkClusterMatchesFiles(t, manifests, clus, checkout.ManifestDir())
+	checkClusterMatchesFiles(t, manifests, clus, checkout.Dir(), dirs)
 
-	for _, res := range testfiles.ServiceMap(checkout.ManifestDir()) {
+	for _, res := range testfiles.ServiceMap(checkout.Dir()) {
 		if err := execCommand("rm", res[0]); err != nil {
 			t.Fatal(err)
 		}
@@ -55,14 +56,14 @@ func TestSync(t *testing.T) {
 		break
 	}
 
-	resources, err = manifests.LoadManifests(checkout.Dir(), checkout.ManifestDir())
+	resources, err = manifests.LoadManifests(checkout.Dir(), dirs)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if err := Sync(manifests, resources, clus, true, log.NewNopLogger()); err != nil {
 		t.Fatal(err)
 	}
-	checkClusterMatchesFiles(t, manifests, clus, checkout.ManifestDir())
+	checkClusterMatchesFiles(t, manifests, clus, checkout.Dir(), dirs)
 }
 
 func TestPrepareSyncDelete(t *testing.T) {
@@ -235,7 +236,7 @@ func resourcesToStrings(resources map[string]resource.Resource) map[string]strin
 
 // Our invariant is that the model we can export from the cluster
 // should always reflect what's in git. So, let's check that.
-func checkClusterMatchesFiles(t *testing.T, m cluster.Manifests, c cluster.Cluster, dir string) {
+func checkClusterMatchesFiles(t *testing.T, m cluster.Manifests, c cluster.Cluster, base string, dirs []string) {
 	conf, err := c.Export()
 	if err != nil {
 		t.Fatal(err)
@@ -244,7 +245,7 @@ func checkClusterMatchesFiles(t *testing.T, m cluster.Manifests, c cluster.Clust
 	if err != nil {
 		t.Fatal(err)
 	}
-	files, err := m.LoadManifests(dir, dir)
+	files, err := m.LoadManifests(base, dirs)
 	if err != nil {
 		t.Fatal(err)
 	}

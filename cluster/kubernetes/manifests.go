@@ -10,8 +10,8 @@ import (
 type Manifests struct {
 }
 
-func (c *Manifests) LoadManifests(base, first string, rest ...string) (map[string]resource.Resource, error) {
-	return kresource.Load(base, first, rest...)
+func (c *Manifests) LoadManifests(base string, paths []string) (map[string]resource.Resource, error) {
+	return kresource.Load(base, paths)
 }
 
 func (c *Manifests) ParseManifests(allDefs []byte) (map[string]resource.Resource, error) {

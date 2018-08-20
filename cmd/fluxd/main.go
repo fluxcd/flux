@@ -79,7 +79,7 @@ func main() {
 		// Git repo & key etc.
 		gitURL       = fs.String("git-url", "", "URL of git repo with Kubernetes manifests; e.g., git@github.com:weaveworks/flux-example")
 		gitBranch    = fs.String("git-branch", "master", "branch of git repo to use for Kubernetes manifests")
-		gitPath      = fs.String("git-path", "", "path within git repo to locate Kubernetes manifests (relative path)")
+		gitPath      = fs.StringSlice("git-path", []string{}, "relative paths within the git repo to locate Kubernetes manifests")
 		gitUser      = fs.String("git-user", "Weave Flux", "username to use as git committer")
 		gitEmail     = fs.String("git-email", "support@weave.works", "email to use as git committer")
 		gitSetAuthor = fs.Bool("git-set-author", false, "If set, the author of git commits will reflect the user who initiated the commit and will differ from the git committer.")
@@ -161,9 +161,11 @@ func main() {
 		*gitSkipMessage = defaultGitSkipMessage
 	}
 
-	if len(*gitPath) > 0 && (*gitPath)[0] == '/' {
-		logger.Log("err", "git subdirectory (--git-path) should not have leading forward slash")
-		os.Exit(1)
+	for _, path := range *gitPath {
+		if len(path) > 0 && path[0] == '/' {
+			logger.Log("err", "subdirectory given as --git-path should not have leading forward slash")
+			os.Exit(1)
+		}
 	}
 
 	if *sshKeygenDir == "" {
@@ -353,7 +355,7 @@ func main() {
 
 	gitRemote := git.Remote{URL: *gitURL}
 	gitConfig := git.Config{
-		Path:        *gitPath,
+		Paths:       *gitPath,
 		Branch:      *gitBranch,
 		SyncTag:     *gitSyncTag,
 		NotesRef:    *gitNotesRef,

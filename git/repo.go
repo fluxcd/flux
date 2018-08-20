@@ -198,22 +198,22 @@ func (r *Repo) Revision(ctx context.Context, ref string) (string, error) {
 	return refRevision(ctx, r.dir, ref)
 }
 
-func (r *Repo) CommitsBefore(ctx context.Context, ref, path string) ([]Commit, error) {
+func (r *Repo) CommitsBefore(ctx context.Context, ref string, paths ...string) ([]Commit, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	if err := r.errorIfNotReady(); err != nil {
 		return nil, err
 	}
-	return onelinelog(ctx, r.dir, ref, path)
+	return onelinelog(ctx, r.dir, ref, paths)
 }
 
-func (r *Repo) CommitsBetween(ctx context.Context, ref1, ref2, path string) ([]Commit, error) {
+func (r *Repo) CommitsBetween(ctx context.Context, ref1, ref2 string, paths ...string) ([]Commit, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	if err := r.errorIfNotReady(); err != nil {
 		return nil, err
 	}
-	return onelinelog(ctx, r.dir, ref1+".."+ref2, path)
+	return onelinelog(ctx, r.dir, ref1+".."+ref2, paths)
 }
 
 // step attempts to advance the repo state machine, and returns `true`

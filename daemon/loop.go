@@ -186,7 +186,7 @@ func (d *Daemon) doSync(logger log.Logger) (retErr error) {
 	}
 
 	// Get a map of all resources defined in the repo
-	allResources, err := d.Manifests.LoadManifests(working.Dir(), working.ManifestDir())
+	allResources, err := d.Manifests.LoadManifests(working.Dir(), working.ManifestDirs())
 	if err != nil {
 		return errors.Wrap(err, "loading resources from repo")
 	}
@@ -217,10 +217,10 @@ func (d *Daemon) doSync(logger log.Logger) (retErr error) {
 		var err error
 		ctx, cancel := context.WithTimeout(ctx, gitOpTimeout)
 		if oldTagRev != "" {
-			commits, err = d.Repo.CommitsBetween(ctx, oldTagRev, newTagRev, d.GitConfig.Path)
+			commits, err = d.Repo.CommitsBetween(ctx, oldTagRev, newTagRev, d.GitConfig.Paths...)
 		} else {
 			initialSync = true
-			commits, err = d.Repo.CommitsBefore(ctx, newTagRev, d.GitConfig.Path)
+			commits, err = d.Repo.CommitsBefore(ctx, newTagRev, d.GitConfig.Paths...)
 		}
 		cancel()
 		if err != nil {
@@ -240,7 +240,7 @@ func (d *Daemon) doSync(logger log.Logger) (retErr error) {
 		if err == nil && len(changedFiles) > 0 {
 			// We had some changed files, we're syncing a diff
 			// FIXME(michael): this won't be accurate when a file can have more than one resource
-			changedResources, err = d.Manifests.LoadManifests(working.Dir(), changedFiles[0], changedFiles[1:]...)
+			changedResources, err = d.Manifests.LoadManifests(working.Dir(), changedFiles)
 		}
 		cancel()
 		if err != nil {

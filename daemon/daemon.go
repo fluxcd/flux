@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/go-kit/kit/log"
@@ -75,7 +76,7 @@ func (d *Daemon) getResources(ctx context.Context) (map[string]resource.Resource
 	var globalReadOnly v6.ReadOnlyReason
 	err := d.WithClone(ctx, func(checkout *git.Checkout) error {
 		var err error
-		resources, err = d.Manifests.LoadManifests(checkout.Dir(), checkout.ManifestDir())
+		resources, err = d.Manifests.LoadManifests(checkout.Dir(), checkout.ManifestDirs())
 		return err
 	})
 
@@ -349,7 +350,7 @@ func (d *Daemon) updatePolicy(spec update.Spec, updates policy.Updates) updateFu
 				anythingAutomated = true
 			}
 			// find the service manifest
-			err := cluster.UpdateManifest(d.Manifests, working.ManifestDir(), serviceID, func(def []byte) ([]byte, error) {
+			err := cluster.UpdateManifest(d.Manifests, working.Dir(), working.ManifestDirs(), serviceID, func(def []byte) ([]byte, error) {
 				newDef, err := d.Manifests.UpdatePolicies(def, serviceID, u)
 				if err != nil {
 					result.Result[serviceID] = update.ControllerResult{
@@ -496,7 +497,7 @@ func (d *Daemon) JobStatus(ctx context.Context, jobID job.ID) (job.Status, error
 		if err != nil {
 			return errors.Wrap(err, "enumerating commit notes")
 		}
-		commits, err := d.Repo.CommitsBefore(ctx, "HEAD", d.GitConfig.Path)
+		commits, err := d.Repo.CommitsBefore(ctx, "HEAD", d.GitConfig.Paths...)
 		if err != nil {
 			return errors.Wrap(err, "checking revisions for status")
 		}
@@ -529,7 +530,7 @@ func (d *Daemon) JobStatus(ctx context.Context, jobID job.ID) (job.Status, error
 // you'll get all the commits yet to be applied. If you send a hash
 // and it's applied at or _past_ it, you'll get an empty list.
 func (d *Daemon) SyncStatus(ctx context.Context, commitRef string) ([]string, error) {
-	commits, err := d.Repo.CommitsBetween(ctx, d.GitConfig.SyncTag, commitRef, d.GitConfig.Path)
+	commits, err := d.Repo.CommitsBetween(ctx, d.GitConfig.SyncTag, commitRef, d.GitConfig.Paths...)
 	if err != nil {
 		return nil, err
 	}
@@ -550,11 +551,15 @@ func (d *Daemon) GitRepoConfig(ctx context.Context, regenerate bool) (v6.GitConf
 
 	origin := d.Repo.Origin()
 	status, _ := d.Repo.Status()
+	path := ""
+	if len(d.GitConfig.Paths) > 0 {
+		path = strings.Join(d.GitConfig.Paths, ",")
+	}
 	return v6.GitConfig{
 		Remote: v6.GitRemoteConfig{
 			URL:    origin.URL,
 			Branch: d.GitConfig.Branch,
-			Path:   d.GitConfig.Path,
+			Path:   path,
 		},
 		PublicSSHKey: publicSSHKey,
 		Status:       status,
