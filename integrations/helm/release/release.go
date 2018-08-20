@@ -94,13 +94,6 @@ func (r *Release) GetDeployedRelease(name string) (*hapi_release.Release, error)
 	return nil, nil
 }
 
-// Exists detects if a particular Chart release exists
-// 		release name must match regex ^(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])+$
-func (r *Release) Exists(name string) (bool, error) {
-	rls, err := r.GetDeployedRelease(name)
-	return rls != nil, err
-}
-
 func (r *Release) canDelete(name string) (bool, error) {
 	rls, err := r.HelmClient.ReleaseStatus(name)
 
