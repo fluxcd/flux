@@ -101,7 +101,7 @@ type Cluster struct {
 	version     string // string response for the version command.
 	logger      log.Logger
 	sshKeyRing  ssh.KeyRing
-	nsWhitelist map[string]bool
+	nsWhitelist []string
 
 	mu sync.Mutex
 }
@@ -114,11 +114,6 @@ func NewCluster(clientset k8sclient.Interface,
 	logger log.Logger,
 	nsWhitelist []string) *Cluster {
 
-	nsWhitelistMap := map[string]bool{}
-	for _, namespace := range nsWhitelist {
-		nsWhitelistMap[namespace] = true
-	}
-
 	c := &Cluster{
 		client: extendedClient{
 			clientset,
@@ -127,7 +122,7 @@ func NewCluster(clientset k8sclient.Interface,
 		applier:     applier,
 		logger:      logger,
 		sshKeyRing:  sshKeyRing,
-		nsWhitelist: nsWhitelistMap,
+		nsWhitelist: nsWhitelist,
 	}
 
 	return c
@@ -315,20 +310,21 @@ func (c *Cluster) PublicSSHKey(regenerate bool) (ssh.PublicKey, error) {
 // instance, in which case it returns a list containing the namespaces from the whitelist
 // that exist in the cluster.
 func (c *Cluster) getAllowedNamespaces() ([]apiv1.Namespace, error) {
-	nsList := []apiv1.Namespace{}
+	if len(c.nsWhitelist) > 0 {
+		nsList := []apiv1.Namespace{}
+		for _, name := range c.nsWhitelist {
+			if ns, err := c.client.CoreV1().Namespaces().Get(name, meta_v1.GetOptions{}); err == nil {
+				nsList = append(nsList, *ns)
+			} else if !(apierrors.IsNotFound(err) || apierrors.IsUnauthorized(err) || apierrors.IsForbidden(err)) {
+				return nil, err
+			}
+		}
+		return nsList, nil
+	}
 
 	namespaces, err := c.client.CoreV1().Namespaces().List(meta_v1.ListOptions{})
 	if err != nil {
-		return nsList, err
+		return nil, err
 	}
-
-	for _, namespace := range namespaces.Items {
-		if len(c.nsWhitelist) > 0 && !c.nsWhitelist[namespace.ObjectMeta.Name] {
-			continue
-		}
-
-		nsList = append(nsList, namespace)
-	}
-
-	return nsList, nil
+	return namespaces.Items, nil
 }
