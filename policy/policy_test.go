@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/weaveworks/flux"
 )
 
 func TestJSON(t *testing.T) {
@@ -51,13 +50,10 @@ func TestJSON(t *testing.T) {
 }
 
 func Test_GetTagPattern(t *testing.T) {
-	resourceID, err := flux.ParseResourceID("default:deployment/helloworld")
-	assert.NoError(t, err)
 	container := "helloContainer"
 
 	type args struct {
-		services  ResourceMap
-		service   flux.ResourceID
+		policies  Set
 		container string
 	}
 	tests := []struct {
@@ -67,23 +63,20 @@ func Test_GetTagPattern(t *testing.T) {
 	}{
 		{
 			name: "Nil policies",
-			args: args{services: nil},
+			args: args{policies: nil},
 			want: PatternAll,
 		},
 		{
 			name: "No match",
-			args: args{services: ResourceMap{}},
+			args: args{policies: Set{}},
 			want: PatternAll,
 		},
 		{
 			name: "Match",
 			args: args{
-				services: ResourceMap{
-					resourceID: Set{
-						Policy(fmt.Sprintf("tag.%s", container)): "glob:master-*",
-					},
+				policies: Set{
+					Policy(fmt.Sprintf("tag.%s", container)): "glob:master-*",
 				},
-				service:   resourceID,
 				container: container,
 			},
 			want: NewPattern("master-*"),
@@ -91,10 +84,7 @@ func Test_GetTagPattern(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := GetTagPattern(tt.args.services, tt.args.service, tt.args.container); got != tt.want {
-				t.Errorf("GetTagPattern() = %v, want %v", got, tt.want)
-
-			}
+			assert.Equal(t, tt.want, GetTagPattern(tt.args.policies, tt.args.container))
 		})
 	}
 }

@@ -8,7 +8,6 @@ import (
 
 	"github.com/go-kit/kit/log"
 	"github.com/weaveworks/flux"
-	"github.com/weaveworks/flux/cluster"
 	"github.com/weaveworks/flux/image"
 	"github.com/weaveworks/flux/policy"
 	"github.com/weaveworks/flux/registry"
@@ -47,9 +46,7 @@ const UserAutomated = "<automated>"
 
 type ReleaseContext interface {
 	SelectServices(Result, []ControllerFilter, []ControllerFilter) ([]*ControllerUpdate, error)
-	ServicesWithPolicies() (policy.ResourceMap, error)
 	Registry() registry.Registry
-	Manifests() cluster.Manifests
 }
 
 // NB: these get sent from fluxctl, so we have to maintain the json format of
@@ -154,13 +151,7 @@ func (s ReleaseSpec) filters(rc ReleaseContext) ([]ControllerFilter, []Controlle
 
 	// Filter out locked controllers unless given a specific controller(s) and forced
 	if !(len(ids) > 0 && s.Force) {
-		// Locked filter
-		services, err := rc.ServicesWithPolicies()
-		if err != nil {
-			return nil, nil, err
-		}
-		lockedSet := services.OnlyWithPolicy(policy.Locked)
-		postfilters = append(postfilters, &LockedFilter{lockedSet.ToSlice()})
+		postfilters = append(postfilters, &LockedFilter{})
 	}
 
 	return prefilters, postfilters, nil
