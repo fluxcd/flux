@@ -33,9 +33,9 @@ helmOperator:
     url: ""
     branch: ""
     chartsPath: ""
-    # generate a SSH key named identity: ssh-keygen -q -N "" -f /tmp/identity
-    # create a Kubernetes secret: kubectl -n flux create secret generic helm-ssh --from-file=/tmp/identity
-    # add /tmp/identity.pub as a read-only deployment key in your GitHub repo where the charts are
+    # generate a SSH key named identity: ssh-keygen -q -N "" -f $HOME/.ssh/identity
+    # create a Kubernetes secret: kubectl -n flux create secret generic helm-ssh --from-file=$HOME/.ssh/identity
+    # add $HOME/.ssh/identity.pub as a read-only deployment key in your GitHub repo where the charts are
     # set the secret name (helm-ssh) below
     secretName: ""
 rbac:
