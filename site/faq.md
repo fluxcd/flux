@@ -352,3 +352,85 @@ running resources by exporting them from the cluster, and that
 only returns the kinds of resource mentioned above. So,
 annotating a running resource only works if it's one of those
 kinds; putting the annotation in the file always works.
+
+## Flux Helm Operator questions
+
+### My Helm charts have more than one container image. How can I automate the image tag update for all my containers?
+
+A container image list must have the following format:
+
+```yaml
+container_name_1:
+  image: repo/app1:tag
+container_name_2:
+  image: quay.io/repo/app2:tag
+```
+
+or 
+
+```yaml
+container_name_1:
+  image:
+    repository: repo/app1
+    tag: tag
+container_name_2:
+  image:
+    repository: repo/app2
+    tag: tag
+```
+
+Here is an example with semver and glob automation policies:
+
+```yaml
+apiVersion: helm.integrations.flux.weave.works/v1alpha2
+kind: FluxHelmRelease
+metadata:
+  name: openfaas
+  namespace: openfaas
+  annotations:
+    flux.weave.works/automated: "true"
+    flux.weave.works/tag.gatway: semver:~0.8
+    flux.weave.works/tag.operator: glob:v0.8.*
+spec:
+  chartGitPath: openfaas
+  releaseName: openfaas
+  values:
+    gateway:
+      image: openfaas/gateway:0.8.5
+    operator:
+      image: openfaas/openfaas-operator:0.8.0
+```
+
+### I'm using SSL between Helm and Tiller. How can I configure Flux to use the certificate?
+
+When installing Flux, you can supply the CA and client-side certificate using the `helmOperator.tls` options, 
+more details [here](https://github.com/weaveworks/flux/blob/master/chart/flux/README.md#installing-weave-flux-helm-operator-and-helm-with-tls-enabled).  
+
+### I've deleted a FluxHelmRelease file from Git. Why is the Helm release still running on my cluster?
+
+Flux doesn't delete resources, there is an [issue](https://github.com/weaveworks/flux/issues/738) opened about this topic on GitHub. 
+In order to delete a Helm release first remove the file from Git and afterwards run:
+
+```yaml
+kubectl delete fluxhelmrelease/my-release
+```
+
+The Flux Helm operator will receive the delete event and will purge the Helm release.
+
+### I've manually deleted a Helm release. Why is Flux not able to restore it?
+
+If you delete a Helm release with `helm delete my-release`, the release name can't be reused. 
+You need to use the `helm delete --purge` option only then Flux will be able reinstall a release.
+
+### I've uninstalled Flux and all my Helm releases are gone. Why is that?
+
+On `FluxHelmRelease` CRD deletion, Kubernetes will remove all `FluxHelmRelease` CRs triggering a Helm purge for each release created by Flux.
+To avoid this you have to manually delete the Flux Helm Operator with `kubectl -n flux delete deployment/flux-helm-operator` before running `helm delete flux`.
+
+### I have a dedicated Kubernetes cluster per environment and I want to use the same Git repo for all. How can I do that?
+
+For each cluster create a Git branch in your config repo. When installing Flux set the Git branch using `--set git.branch=cluster-name`.
+
+### I have a dedicated Git repo for my Helm charts. How can I point Flux Helm Operator to it?
+
+When installing Flux with Helm you can override the Operator Git settings using `--set helmOperator.git.url=`.
