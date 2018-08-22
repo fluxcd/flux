@@ -313,9 +313,13 @@ func (c *Cluster) getAllowedNamespaces() ([]apiv1.Namespace, error) {
 	if len(c.nsWhitelist) > 0 {
 		nsList := []apiv1.Namespace{}
 		for _, name := range c.nsWhitelist {
-			if ns, err := c.client.CoreV1().Namespaces().Get(name, meta_v1.GetOptions{}); err == nil {
+			ns, err := c.client.CoreV1().Namespaces().Get(name, meta_v1.GetOptions{})
+			switch {
+			case err == nil:
 				nsList = append(nsList, *ns)
-			} else if !(apierrors.IsNotFound(err) || apierrors.IsUnauthorized(err) || apierrors.IsForbidden(err)) {
+			case apierrors.IsUnauthorized(err) || apierrors.IsForbidden(err) || apierrors.IsNotFound(err):
+				c.logger.Log("warning", "whitelisted namespace unauthorized, forbidden, or not found", "namespace", name)
+			default:
 				return nil, err
 			}
 		}
