@@ -1,3 +1,6 @@
+{{- $gitURL := default .Values.git.url .Values.helmOperator.git.url }}
+{{- $gitBranch := default .Values.git.branch .Values.helmOperator.git.branch }}
+{{- $gitChartsPath := default .Values.git.chartsPath .Values.helmOperator.git.chartsPath }}
 {{- if .Values.helmOperator.create -}}
 apiVersion: apps/v1beta2
 kind: Deployment
@@ -67,9 +70,9 @@ spec:
         {{- end }}
         {{- end }}
         args:
-        - --git-url={{ .Values.git.url }}
-        - --git-branch={{ .Values.git.branch }}
-        - --git-charts-path={{ .Values.git.chartsPath }}
+        - --git-url={{ $gitURL }}
+        - --git-branch={{ $gitBranch }}
+        - --git-charts-path={{ $gitChartsPath }}
         - --log-release-diffs={{ .Values.helmOperator.logReleaseDiffs }}
         - --tiller-namespace={{ .Values.helmOperator.tillerNamespace }}
         {{- if .Values.helmOperator.tls.enable }}

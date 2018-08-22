@@ -22,13 +22,17 @@ helmOperator:
   tillerNamespace: kube-system
   logReleaseDiffs: false
   tls:
-    secretName: 'helm-client-certs'
+    secretName: "helm-client-certs"
     verify: false
     enable: false
-    keyFile: 'tls.key'
-    certFile: 'tls.crt'
-    caContent: ''
-
+    keyFile: "tls.key"
+    certFile: "tls.crt"
+    caContent: ""
+  # override Flux git settings
+  git:
+    url: ""
+    branch: ""
+    chartsPath: ""
 rbac:
   # Specifies whether RBAC resources should be created
   create: true
