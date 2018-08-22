@@ -75,7 +75,7 @@ Get started by browsing through the documentation below:
 
 - Background about Flux
   - [Introduction to Flux](/site/introduction.md)
-  - [FAQ](/site/faq.md)
+  - [FAQ](/site/faq.md) and [frequently encountered issues](https://github.com/weaveworks/flux/labels/FAQ)
   - [How it works](/site/how-it-works.md)
   - [Considerations regarding installing Flux](/site/installing.md)
 - Get Started with Flux
@@ -84,6 +84,7 @@ Get started by browsing through the documentation below:
 - Operating Flux
   - [Using Flux](/site/using.md)
   - [Troubleshooting](/site/troubleshooting.md)
+  - [Frequently encountered issues](https://github.com/weaveworks/flux/labels/FAQ)
   - [Upgrading to Flux v1](/site/upgrading-to-1.0.md)
 
 ## Developer information
