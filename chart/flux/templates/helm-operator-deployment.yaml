@@ -33,7 +33,11 @@ spec:
           defaultMode: 0600
       - name: git-key
         secret:
+          {{- if .Values.helmOperator.git.secretName }}
+          secretName: {{ .Values.helmOperator.git.secretName }}
+          {{- else }}
           secretName: {{ template "flux.fullname" . }}-git-deploy
+          {{- end }}
           defaultMode: 0400
       {{- if .Values.helmOperator.tls.enable }}
       - name: helm-tls-certs

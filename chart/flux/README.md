@@ -171,6 +171,7 @@ The following tables lists the configurable parameters of the Weave Flux chart a
 | `helmOperator.git.url` | URL of git repo with Helm charts | `git.url`
 | `helmOperator.git.branch` | Branch of git repo to use for Helm charts | `master`
 | `helmOperator.git.chartsPath` | Path within git repo to locate Helm charts (relative path) | `charts`
+| `helmOperator.git.secretName` | Kubernetes secret with the SSH private key | None
 | `helmOperator.logReleaseDiffs` | Helm operator should log the diff when a chart release diverges (possibly insecure) | `false`
 | `helmOperator.tillerNamespace` | Namespace in which the Tiller server can be found | `kube-system`
 | `helmOperator.tls.enable` | Enable TLS for communicating with Tiller | `false`
