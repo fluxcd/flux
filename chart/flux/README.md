@@ -168,6 +168,13 @@ The following tables lists the configurable parameters of the Weave Flux chart a
 | `helmOperator.repository` | Helm operator image repository | `quay.io/weaveworks/helm-operator`
 | `helmOperator.tag` | Helm operator image tag | `0.1.0-alpha`
 | `helmOperator.pullPolicy` | Helm operator image pull policy | `IfNotPresent`
+| `helmOperator.chartsSyncInterval` | Interval at which to check for changed charts | `3m`
+| `helmOperator.chartsSyncTimeout` | Timeout when checking for changed charts | `1m`
+| `helmOperator.git.url` | URL of git repo with Helm charts | `git.url`
+| `helmOperator.git.branch` | Branch of git repo to use for Helm charts | `master`
+| `helmOperator.git.chartsPath` | Path within git repo to locate Helm charts (relative path) | `charts`
+| `helmOperator.git.pollInterval` | Period at which to poll git repo for new commits | `git.pollInterval`
+| `helmOperator.git.secretName` | Kubernetes secret with the SSH private key | None
 | `helmOperator.logReleaseDiffs` | Helm operator should log the diff when a chart release diverges (possibly insecure) | `false`
 | `helmOperator.tillerNamespace` | Namespace in which the Tiller server can be found | `kube-system`
 | `helmOperator.tls.enable` | Enable TLS for communicating with Tiller | `false`

@@ -19,15 +19,33 @@ helmOperator:
   repository: quay.io/weaveworks/helm-operator
   tag: 0.1.1-alpha
   pullPolicy: IfNotPresent
-  tillerNamespace: kube-system
+  # Log the diff when a chart release diverges
   logReleaseDiffs: false
+  # Interval at which to check for changed charts
+  chartsSyncInterval: "3m"
+  # Timeout when checking for changed charts
+  chartsSyncTimeout: "1m"
+  # Tiller settings
+  tillerNamespace: kube-system
   tls:
-    secretName: 'helm-client-certs'
+    secretName: "helm-client-certs"
     verify: false
     enable: false
-    keyFile: 'tls.key'
-    certFile: 'tls.crt'
-    caContent: ''
+    keyFile: "tls.key"
+    certFile: "tls.crt"
+    caContent: ""
+  # Override Flux git settings
+  git:
+    url: ""
+    branch: ""
+    chartsPath: ""
+    pollInterval: ""
+    # generate a SSH key named identity: ssh-keygen -q -N "" -f ./identity
+    # create a Kubernetes secret: kubectl -n flux create secret generic helm-ssh --from-file=./identity
+    # delete the private key: rm ./identity
+    # add ./identity.pub as a read-only deployment key in your GitHub repo where the charts are
+    # set the secret name (helm-ssh) below
+    secretName: ""
 
 rbac:
   # Specifies whether RBAC resources should be created
