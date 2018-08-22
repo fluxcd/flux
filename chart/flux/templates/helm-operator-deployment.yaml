@@ -1,6 +1,7 @@
 {{- $gitURL := default .Values.git.url .Values.helmOperator.git.url }}
 {{- $gitBranch := default .Values.git.branch .Values.helmOperator.git.branch }}
 {{- $gitChartsPath := default .Values.git.chartsPath .Values.helmOperator.git.chartsPath }}
+{{- $gitPollInterval := default .Values.git.pollInterval .Values.helmOperator.git.pollInterval }}
 {{- if .Values.helmOperator.create -}}
 apiVersion: apps/v1beta2
 kind: Deployment
@@ -77,6 +78,9 @@ spec:
         - --git-url={{ $gitURL }}
         - --git-branch={{ $gitBranch }}
         - --git-charts-path={{ $gitChartsPath }}
+        - --git-poll-interval={{ $gitPollInterval }}
+        - --charts-sync-interval={{ .Values.helmOperator.chartsSyncInterval }}
+        - --charts-sync-timeout={{ .Values.helmOperator.chartsSyncTimeout }}
         - --log-release-diffs={{ .Values.helmOperator.logReleaseDiffs }}
         - --tiller-namespace={{ .Values.helmOperator.tillerNamespace }}
         {{- if .Values.helmOperator.tls.enable }}
