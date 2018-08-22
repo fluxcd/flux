@@ -96,6 +96,7 @@ func (r resources) IDs() (ids []flux.ResourceID) {
 }
 
 // getUnlockedAutomatedServices returns all the resources that are
+// both automated, and not locked.
 func (d *Daemon) getUnlockedAutomatedResources(ctx context.Context) (resources, error) {
 	resources, _, err := d.getResources(ctx)
 	if err != nil {

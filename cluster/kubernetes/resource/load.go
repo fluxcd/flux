@@ -15,14 +15,13 @@ import (
 // Load takes paths to directories or files, and creates an object set
 // based on the file(s) therein. Resources are named according to the
 // file content, rather than the file name of directory structure.
-func Load(base, atLeastOne string, more ...string) (map[string]resource.Resource, error) {
-	roots := append([]string{atLeastOne}, more...)
+func Load(base string, paths []string) (map[string]resource.Resource, error) {
 	objs := map[string]resource.Resource{}
 	charts, err := newChartTracker(base)
 	if err != nil {
 		return nil, errors.Wrapf(err, "walking %q for chartdirs", base)
 	}
-	for _, root := range roots {
+	for _, root := range paths {
 		err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 			if err != nil {
 				return errors.Wrapf(err, "walking %q for yamels", path)

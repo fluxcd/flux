@@ -14,8 +14,8 @@ var (
 // Config holds some values we use when working in the working clone of
 // a repo.
 type Config struct {
-	Branch      string // branch we're syncing to
-	Path        string // path within the repo containing files we care about
+	Branch      string   // branch we're syncing to
+	Paths       []string // paths within the repo containing files we care about
 	SyncTag     string
 	NotesRef    string
 	UserName    string
@@ -99,15 +99,25 @@ func (c *Checkout) Dir() string {
 	return c.dir
 }
 
-// ManifestDir returns the path to the manifests files
-func (c *Checkout) ManifestDir() string {
-	return filepath.Join(c.dir, c.config.Path)
+// ManifestDirs returns the paths to the manifests files. It ensures
+// that at least one path is returned, so that it can be used with
+// `Manifest.LoadManifests`.
+func (c *Checkout) ManifestDirs() []string {
+	if len(c.config.Paths) == 0 {
+		return []string{c.dir}
+	}
+
+	paths := make([]string, len(c.config.Paths), len(c.config.Paths))
+	for i, p := range c.config.Paths {
+		paths[i] = filepath.Join(c.dir, p)
+	}
+	return paths
 }
 
 // CommitAndPush commits changes made in this checkout, along with any
 // extra data as a note, and pushes the commit and note to the remote repo.
 func (c *Checkout) CommitAndPush(ctx context.Context, commitAction CommitAction, note interface{}) error {
-	if !check(ctx, c.dir, c.config.Path) {
+	if !check(ctx, c.dir, c.config.Paths) {
 		return ErrNoChanges
 	}
 
@@ -160,7 +170,7 @@ func (c *Checkout) MoveSyncTagAndPush(ctx context.Context, ref, msg string) erro
 
 // ChangedFiles does a git diff listing changed files
 func (c *Checkout) ChangedFiles(ctx context.Context, ref string) ([]string, error) {
-	list, err := changedFiles(ctx, c.dir, c.config.Path, ref)
+	list, err := changed(ctx, c.dir, ref, c.config.Paths)
 	if err == nil {
 		for i, file := range list {
 			list[i] = filepath.Join(c.dir, file)

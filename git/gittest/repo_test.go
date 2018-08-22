@@ -25,7 +25,8 @@ func TestCommit(t *testing.T) {
 	defer cleanup()
 
 	for file, _ := range testfiles.Files {
-		path := filepath.Join(checkout.ManifestDir(), file)
+		dirs := checkout.ManifestDirs()
+		path := filepath.Join(dirs[0], file)
 		if err := ioutil.WriteFile(path, []byte("FIRST CHANGE"), 0666); err != nil {
 			t.Fatal(err)
 		}
@@ -45,7 +46,7 @@ func TestCommit(t *testing.T) {
 		t.Error(err)
 	}
 
-	commits, err := repo.CommitsBefore(ctx, "HEAD", "")
+	commits, err := repo.CommitsBefore(ctx, "HEAD")
 
 	if err != nil {
 		t.Fatal(err)
@@ -107,8 +108,9 @@ func TestCheckout(t *testing.T) {
 	}
 
 	changedFile := ""
+	dirs := checkout.ManifestDirs()
 	for file, _ := range testfiles.Files {
-		path := filepath.Join(checkout.ManifestDir(), file)
+		path := filepath.Join(dirs[0], file)
 		if err := ioutil.WriteFile(path, []byte("FIRST CHANGE"), 0666); err != nil {
 			t.Fatal(err)
 		}
@@ -120,7 +122,7 @@ func TestCheckout(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	path := filepath.Join(checkout.ManifestDir(), changedFile)
+	path := filepath.Join(dirs[0], changedFile)
 	if err := ioutil.WriteFile(path, []byte("SECOND CHANGE"), 0666); err != nil {
 		t.Fatal(err)
 	}
@@ -135,7 +137,7 @@ func TestCheckout(t *testing.T) {
 	}
 
 	check := func(c *git.Checkout) {
-		contents, err := ioutil.ReadFile(filepath.Join(c.ManifestDir(), changedFile))
+		contents, err := ioutil.ReadFile(filepath.Join(dirs[0], changedFile))
 		if err != nil {
 			t.Fatal(err)
 		}
