@@ -3,6 +3,10 @@ title: Troubleshooting Weave Flux
 menu_order: 50
 ---
 
+Also see the [issues labeled with
+`FAQ`](https://github.com/weaveworks/flux/labels/FAQ), which often
+explain workarounds.
+
 ### `fluxctl` returns a 500 Internal Server Error
 
 This usually indicates there's a bug in the flux daemon somewhere -- in which case please [tell us about it](https://github.com/weaveworks/flux/issues/new)!
