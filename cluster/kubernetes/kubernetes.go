@@ -96,12 +96,14 @@ func isAddon(obj k8sObject) bool {
 // Cluster is a handle to a Kubernetes API server.
 // (Typically, this code is deployed into the same cluster.)
 type Cluster struct {
-	client      extendedClient
-	applier     Applier
-	version     string // string response for the version command.
-	logger      log.Logger
-	sshKeyRing  ssh.KeyRing
-	nsWhitelist map[string]bool
+	client     extendedClient
+	applier    Applier
+	version    string // string response for the version command.
+	logger     log.Logger
+	sshKeyRing ssh.KeyRing
+
+	nsWhitelist       []string
+	nsWhitelistLogged map[string]bool // to keep track of whether we've logged a problem with seeing a whitelisted ns
 
 	mu sync.Mutex
 }
@@ -114,20 +116,16 @@ func NewCluster(clientset k8sclient.Interface,
 	logger log.Logger,
 	nsWhitelist []string) *Cluster {
 
-	nsWhitelistMap := map[string]bool{}
-	for _, namespace := range nsWhitelist {
-		nsWhitelistMap[namespace] = true
-	}
-
 	c := &Cluster{
 		client: extendedClient{
 			clientset,
 			fluxHelmClientset,
 		},
-		applier:     applier,
-		logger:      logger,
-		sshKeyRing:  sshKeyRing,
-		nsWhitelist: nsWhitelistMap,
+		applier:           applier,
+		logger:            logger,
+		sshKeyRing:        sshKeyRing,
+		nsWhitelist:       nsWhitelist,
+		nsWhitelistLogged: map[string]bool{},
 	}
 
 	return c
@@ -315,20 +313,29 @@ func (c *Cluster) PublicSSHKey(regenerate bool) (ssh.PublicKey, error) {
 // instance, in which case it returns a list containing the namespaces from the whitelist
 // that exist in the cluster.
 func (c *Cluster) getAllowedNamespaces() ([]apiv1.Namespace, error) {
-	nsList := []apiv1.Namespace{}
+	if len(c.nsWhitelist) > 0 {
+		nsList := []apiv1.Namespace{}
+		for _, name := range c.nsWhitelist {
+			ns, err := c.client.CoreV1().Namespaces().Get(name, meta_v1.GetOptions{})
+			switch {
+			case err == nil:
+				c.nsWhitelistLogged[name] = false // reset, so if the namespace goes away we'll log it again
+				nsList = append(nsList, *ns)
+			case apierrors.IsUnauthorized(err) || apierrors.IsForbidden(err) || apierrors.IsNotFound(err):
+				if !c.nsWhitelistLogged[name] {
+					c.logger.Log("warning", "whitelisted namespace inaccessible", "namespace", name, "err", err)
+					c.nsWhitelistLogged[name] = true
+				}
+			default:
+				return nil, err
+			}
+		}
+		return nsList, nil
+	}
 
 	namespaces, err := c.client.CoreV1().Namespaces().List(meta_v1.ListOptions{})
 	if err != nil {
-		return nsList, err
+		return nil, err
 	}
-
-	for _, namespace := range namespaces.Items {
-		if len(c.nsWhitelist) > 0 && !c.nsWhitelist[namespace.ObjectMeta.Name] {
-			continue
-		}
-
-		nsList = append(nsList, namespace)
-	}
-
-	return nsList, nil
+	return namespaces.Items, nil
 }
