@@ -41,7 +41,7 @@ can restart `flux` and it will continue to use the same key.
 Flux connects to the repository using an SSH key.
 
 ***The SSH key must be configured to have R/W access to the repository***.
- 
+
 You have two options:
 
 ### 1. Allow flux to generate a key for you.
@@ -104,6 +104,9 @@ $ kubectl exec -n weave flux-85cdc6cdfc-n2tgf -ti -- \
     env GITHOST="$GITHOST" GITREPO="$GITREPO" PS1="container$ " /bin/sh
 
 container$ git clone $GITREPO
+Cloning into <repository name>...
+No ECDSA host key is known for  <GITHOST> and you have requested strict checking.
+Host key verification failed.
 fatal: Could not read from remote repository
 
 container$ # ^ that was expected. Now we'll try with a modified known_hosts
