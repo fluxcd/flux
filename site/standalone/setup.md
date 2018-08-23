@@ -136,9 +136,18 @@ configmap "flux-ssh-config" created
 
 To use the ConfigMap every time the Flux daemon restarts, you'll need
 to mount it into the container. The example deployment manifest
-includes an example of doing this, commented out. Uncomment that:
-* an ssh-config volume
-* an ssh-config volumeMount
+includes an example of doing this, commented out. Uncomment those two blocks:
+
+```
+      - name: ssh-config
+        configMap:
+          name: flux-ssh-config
+```
+
+```
+        - name: ssh-config
+          mountPath: /root/.ssh
+```
 
 It assumes you used `flux-ssh-config` as name of the ConfigMap and then reapply the
 manifest.
