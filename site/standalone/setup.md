@@ -121,21 +121,24 @@ has been installed properly first, then come back. `ssh -vv $GITHOST`
 from within the container may help debug it.
 
 If it _did_ work, you will need to make it a more permanent
-arrangement. Back in that shell:
+arrangement. Back in that shell, create a configmap for the cluster. To make
+sure the configmap is created in the namespace of the flux or weave deployment,
+the namespace is set explicitly:
 
 ```sh
-container$ kubectl create configmap flux-ssh-config --from-file=$HOME/.ssh/known_hosts
+container$ kubectl create configmap flux-ssh-config --from-file=$HOME/.ssh/known_hosts -n $(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace)
 configmap "flux-ssh-config" created
 ```
 
-It will be created in the same namespace as the flux daemon, since
-you're creating it from within the flux daemon pod.
-
 To use the ConfigMap every time the Flux daemon restarts, you'll need
 to mount it into the container. The example deployment manifest
-includes an example of doing this, commented out. Uncomment that (it
-assumes you used the name above for the ConfigMap) and reapply the
+includes an example of doing this, commented out. Uncomment that:
+* an ssh-config volume
+* an ssh-config volumeMount
+
+It assumes you used `flux-ssh-config` as name of the ConfigMap and then reapply the
 manifest.
+
 You will need to explicitly tell fluxd to use that service account by
 uncommenting and possible adapting the line `# serviceAccountName:
 flux` in the file `fluxd-deployment.yaml` before applying it.
