@@ -1,3 +1,30 @@
+## 0.2.0 (2018-08-23)
+
+In large part this release simplifies and improves the Helm operator
+machinery, without changing its effect.
+
+This release drops the `-alpha` suffix, but remains <1.0 and should
+(still) be considered unready for production use.
+
+- Use the same git implementation as fluxd, fixing a number of
+  problems with SSH known_hosts and git URLs and so on
+  [weaveworks/flux#1240](https://github.com/weaveworks/flux/pull/1240)
+- Always check that a chart release will be a change, before releasing
+  [weaveworks/flux#1254](https://github.com/weaveworks/flux/pull/1254)
+- Add validation to the FluxHelmRelease custom resource definition,
+  giving the kind the short name `fhr`
+  [weaveworks/flux#1253](https://github.com/weaveworks/flux/pull/1253)
+- Detect chart release differences more reliably
+  [weaveworks/flux#1272](https://github.com/weaveworks/flux/pull/1272)
+- Check for more recent versions and report in logs when out of date
+  [weaveworks/flux#1276](https://github.com/weaveworks/flux/pull/1276)
+
+See [getting started with
+Helm](https://github.com/weaveworks/flux/blob/master/site/helm/get-started.md)
+and the [Helm chart
+instructions](https://github.com/weaveworks/flux/blob/master/chart/flux/README.md)
+for information on installing the Flux with the Helm operator.
+
 ## 0.1.1-alpha (2018-07-16)
 
 - Support using TLS connections to Tiller
