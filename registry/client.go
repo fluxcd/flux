@@ -18,9 +18,41 @@ import (
 	"github.com/weaveworks/flux/image"
 )
 
-type ImageEntry struct {
-	image.Info     `json:",inline"`
+type Excluded struct {
 	ExcludedReason string `json:",omitempty"`
+}
+
+// ImageEntry represents a result from looking up an image ref in an
+// image registry. It's an either-or: either you get an image.Info, or
+// you get a reason that the image should be treated as unusable
+// (e.g., it's for the wrong architecture).
+type ImageEntry struct {
+	image.Info `json:",omitempty"`
+	Excluded
+}
+
+// MarshalJSON does custom JSON marshalling for ImageEntry values. We
+// need this because the struct embeds the image.Info type, which has
+// its own custom marshaling, which would get used otherwise.
+func (entry ImageEntry) MarshalJSON() ([]byte, error) {
+	// We can only do it this way because it's explicitly an either-or
+	// -- I don't know of a way to inline all the fields when one of
+	// the things you're inlining defines its own MarshalJSON.
+	if entry.ExcludedReason != "" {
+		return json.Marshal(entry.Excluded)
+	}
+	return json.Marshal(entry.Info)
+}
+
+// UnmarshalJSON does custom JSON unmarshalling for ImageEntry values.
+func (entry *ImageEntry) UnmarshalJSON(bytes []byte) error {
+	if err := json.Unmarshal(bytes, &entry.Info); err != nil {
+		return err
+	}
+	if err := json.Unmarshal(bytes, &entry.Excluded); err != nil {
+		return err
+	}
+	return nil
 }
 
 // Client is a remote registry client for a particular image
@@ -136,7 +168,9 @@ interpret:
 				goto interpret
 			}
 		}
-		return ImageEntry{ExcludedReason: "no suitable manifest (linux amd64) in manifestlist"}, nil
+		entry := ImageEntry{}
+		entry.ExcludedReason = "no suitable manifest (linux amd64) in manifestlist"
+		return entry, nil
 	default:
 		t := reflect.TypeOf(manifest)
 		return ImageEntry{}, errors.New("unknown manifest type: " + t.String())
