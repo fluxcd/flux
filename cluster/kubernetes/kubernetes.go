@@ -96,12 +96,14 @@ func isAddon(obj k8sObject) bool {
 // Cluster is a handle to a Kubernetes API server.
 // (Typically, this code is deployed into the same cluster.)
 type Cluster struct {
-	client      extendedClient
-	applier     Applier
-	version     string // string response for the version command.
-	logger      log.Logger
-	sshKeyRing  ssh.KeyRing
-	nsWhitelist []string
+	client     extendedClient
+	applier    Applier
+	version    string // string response for the version command.
+	logger     log.Logger
+	sshKeyRing ssh.KeyRing
+
+	nsWhitelist       []string
+	nsWhitelistLogged map[string]bool // to keep track of whether we've logged a problem with seeing a whitelisted ns
 
 	mu sync.Mutex
 }
@@ -119,10 +121,11 @@ func NewCluster(clientset k8sclient.Interface,
 			clientset,
 			fluxHelmClientset,
 		},
-		applier:     applier,
-		logger:      logger,
-		sshKeyRing:  sshKeyRing,
-		nsWhitelist: nsWhitelist,
+		applier:           applier,
+		logger:            logger,
+		sshKeyRing:        sshKeyRing,
+		nsWhitelist:       nsWhitelist,
+		nsWhitelistLogged: map[string]bool{},
 	}
 
 	return c
@@ -316,9 +319,13 @@ func (c *Cluster) getAllowedNamespaces() ([]apiv1.Namespace, error) {
 			ns, err := c.client.CoreV1().Namespaces().Get(name, meta_v1.GetOptions{})
 			switch {
 			case err == nil:
+				c.nsWhitelistLogged[name] = false // reset, so if the namespace goes away we'll log it again
 				nsList = append(nsList, *ns)
 			case apierrors.IsUnauthorized(err) || apierrors.IsForbidden(err) || apierrors.IsNotFound(err):
-				c.logger.Log("warning", "whitelisted namespace unauthorized, forbidden, or not found", "namespace", name)
+				if !c.nsWhitelistLogged[name] {
+					c.logger.Log("warning", "whitelisted namespace inaccessible", "namespace", name, "err", err)
+					c.nsWhitelistLogged[name] = true
+				}
 			default:
 				return nil, err
 			}
