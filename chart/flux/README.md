@@ -161,9 +161,17 @@ The following tables lists the configurable parameters of the Weave Flux chart a
 | `git.path` | Path within git repo to locate Kubernetes manifests (relative path) | None
 | `git.user` | Username to use as git committer | `Weave Flux`
 | `git.email` | Email to use as git committer | `support@weave.works`
-| `git.chartsPath` | Path within git repo to locate Helm charts (relative path) | `charts`
-| `git.pollInterval` | Period at which to poll git repo for new commits | `30s`
-| `ssh.known_hosts`  | The contents of an SSH `known_hosts` file, if you need to supply host key(s) |
+| `git.setAuthor` | If set, the author of git commits will reflect the user who initiated the commit and will differ from the git committer. | `false`
+| `git.label` | Label to keep track of sync progress, used to tag the Git branch | `flux-sync`
+| `git.ciSkip` | Append "[ci skip]" to commit messages so that CI will skip builds | `false`
+| `git.pollInterval` | Period at which to poll git repo for new commits | `5m`
+| `ssh.known_hosts`  | The contents of an SSH `known_hosts` file, if you need to supply host key(s) | None
+| `registry.cacheExpiry` | Duration to keep cached image info in memcached | `1h`
+| `registry.pollInterval` | Period at which to check for updated images | `5m`
+| `registry.rps` | Maximum registry requests per second per host | `200`
+| `registry.burst` | Maximum number of warmer connections to remote and memcache | `125`
+| `registry.trace` |  Output trace of image registry requests to log | `false`
+| `registry.insecureHosts` | Use HTTP rather than HTTPS for these image registry domains | None
 | `helmOperator.create` | If `true`, install the Helm operator | `false`
 | `helmOperator.repository` | Helm operator image repository | `quay.io/weaveworks/helm-operator`
 | `helmOperator.tag` | Helm operator image tag | `0.1.0-alpha`

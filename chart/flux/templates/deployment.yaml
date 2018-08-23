@@ -60,8 +60,21 @@ spec:
           - --git-path={{ .Values.git.path }}
           - --git-user={{ .Values.git.user }}
           - --git-email={{ .Values.git.email }}
+          - --git-set-author={{ .Values.git.setAuthor }}
           - --git-poll-interval={{ .Values.git.pollInterval }}
           - --sync-interval={{ .Values.git.pollInterval }}
+          - --git-ci-skip={{ .Values.git.ciSkip }}
+          {{- if .Values.git.label }}
+          - --git-label={{ .Values.git.label }}
+          {{- end }}
+          - --registry-cache-expiry={{ .Values.registry.cacheExpiry }}
+          - --registry-poll-interval={{ .Values.registry.pollInterval }}
+          - --registry-rps={{ .Values.registry.rps }}
+          - --registry-burst={{ .Values.registry.burst }}
+          - --registry-trace={{ .Values.registry.trace }}
+          {{- if .Values.registry.insecureHosts }}
+          - --registry-insecure-host={{ .Values.registry.insecureHosts }}
+          {{- end }}
           {{- if .Values.token }}
           - --connect=wss://cloud.weave.works/api/flux
           - --token={{ .Values.token }}
