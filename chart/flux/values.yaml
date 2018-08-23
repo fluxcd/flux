@@ -38,7 +38,7 @@ helmOperator:
   git:
     url: ""
     branch: ""
-    chartsPath: ""
+    chartsPath: "charts"
     pollInterval: ""
     # generate a SSH key named identity: ssh-keygen -q -N "" -f ./identity
     # create a Kubernetes secret: kubectl -n flux create secret generic helm-ssh --from-file=./identity
@@ -87,14 +87,12 @@ git:
   email: "support@weave.works"
   # If set, the author of git commits will reflect the user who initiated the commit and will differ from the git committer.
   setAuthor: false
-  # label to keep track of sync progress
+  # Label to keep track of sync progress
   label:
-  # append "[ci skip]" to commit messages so that CI will skip builds
+  # Append "[ci skip]" to commit messages so that CI will skip builds
   ciSkip: false
-  # Path within git repo to locate Helm charts (relative path)
-  chartsPath: "charts"
   # Period at which to poll git repo for new commits
-  pollInterval: "30s"
+  pollInterval: "5m"
 
 registry:
   # Duration to keep cached image info. Must be < 1 month.
@@ -107,7 +105,7 @@ registry:
   burst: 125
   # Output trace of image registry requests to log
   trace: false
-  # Use HTTP for this domains eg --set registry.insecureHosts="registry1.cluster.local,registry2.cluster.local"
+  # Use HTTP rather than HTTPS for these image registry domains eg --set registry.insecureHosts="registry1.cluster.local,registry2.cluster.local"
   insecureHosts:
 
 ssh:
