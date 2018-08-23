@@ -163,7 +163,7 @@ The following tables lists the configurable parameters of the Weave Flux chart a
 | `git.email` | Email to use as git committer | `support@weave.works`
 | `git.setAuthor` | If set, the author of git commits will reflect the user who initiated the commit and will differ from the git committer. | `false`
 | `git.label` | Label to keep track of sync progress, used to tag the Git branch | `flux-sync`
-| `git.ciSkip` | Append "[ci skip]" to commit messages so that CI will skip builds | `true`
+| `git.ciSkip` | Append "[ci skip]" to commit messages so that CI will skip builds | `false`
 | `git.chartsPath` | Path within git repo to locate Helm charts (relative path) | `charts`
 | `git.pollInterval` | Period at which to poll git repo for new commits | `30s`
 | `ssh.known_hosts`  | The contents of an SSH `known_hosts` file, if you need to supply host key(s) | None

@@ -90,7 +90,7 @@ git:
   # label to keep track of sync progress
   label:
   # append "[ci skip]" to commit messages so that CI will skip builds
-  ciSkip: true
+  ciSkip: false
   # Path within git repo to locate Helm charts (relative path)
   chartsPath: "charts"
   # Period at which to poll git repo for new commits
