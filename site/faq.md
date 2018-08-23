@@ -355,52 +355,6 @@ kinds; putting the annotation in the file always works.
 
 ## Flux Helm Operator questions
 
-### My Helm charts have more than one container image. How can I automate the image tag update for all my containers?
-
-A container image list must have the following format:
-
-```yaml
-container_name_1:
-  image: repo/app1:tag
-container_name_2:
-  image: quay.io/repo/app2:tag
-```
-
-or 
-
-```yaml
-container_name_1:
-  image:
-    repository: repo/app1
-    tag: tag
-container_name_2:
-  image:
-    repository: repo/app2
-    tag: tag
-```
-
-Here is an example with semver and glob automation policies:
-
-```yaml
-apiVersion: helm.integrations.flux.weave.works/v1alpha2
-kind: FluxHelmRelease
-metadata:
-  name: openfaas
-  namespace: openfaas
-  annotations:
-    flux.weave.works/automated: "true"
-    flux.weave.works/tag.gatway: semver:~0.8
-    flux.weave.works/tag.operator: glob:v0.8.*
-spec:
-  chartGitPath: openfaas
-  releaseName: openfaas
-  values:
-    gateway:
-      image: openfaas/gateway:0.8.5
-    operator:
-      image: openfaas/openfaas-operator:0.8.0
-```
-
 ### I'm using SSL between Helm and Tiller. How can I configure Flux to use the certificate?
 
 When installing Flux, you can supply the CA and client-side certificate using the `helmOperator.tls` options, 
@@ -429,8 +383,17 @@ To avoid this you have to manually delete the Flux Helm Operator with `kubectl -
 
 ### I have a dedicated Kubernetes cluster per environment and I want to use the same Git repo for all. How can I do that?
 
-For each cluster create a Git branch in your config repo. When installing Flux set the Git branch using `--set git.branch=cluster-name`.
+For each cluster create a Git branch in your config repo. When installing Flux set the Git branch using `--set git.branch=cluster-name` 
+and set a unique label for each cluster `--set git.label=cluster-name`.
 
 ### I have a dedicated Git repo for my Helm charts. How can I point Flux Helm Operator to it?
 
 When installing Flux with Helm you can override the Operator Git settings using `--set helmOperator.git.url=`.
+
+If you are using GitHub you need to create a SSH key for Helm Operator:
+
+* generate a SSH key named identity: `ssh-keygen -q -N "" -f ./identity`
+* create a Kubernetes secret: `kubectl -n flux create secret generic helm-ssh --from-file=./identity`
+* delete the private key: `rm ./identity`
+* add `./identity.pub` as a read-only deployment key in your GitHub repo where the charts are
+* set the secret name with `--set helmOperator.git.secretName=helm-ssh`
