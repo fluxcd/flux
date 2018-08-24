@@ -16,6 +16,7 @@ service:
 
 helmOperator:
   create: false
+  createCRD: true
   repository: quay.io/weaveworks/helm-operator
   tag: 0.2.0
   pullPolicy: IfNotPresent
