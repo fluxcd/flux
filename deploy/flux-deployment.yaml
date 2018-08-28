@@ -25,6 +25,11 @@ spec:
       - name: git-keygen
         emptyDir:
           medium: Memory
+       
+      # This is holding the reference to docker-credentials if provided from the outside 
+      - name: docker-creds
+        configMap:
+          name: docker-creds
 
       # The following volume is for using a customised known_hosts
       # file file, which you will need to do if you host your own git
@@ -49,6 +54,8 @@ spec:
           readOnly: true # this will be the case perforce in K8s >=1.10
         - name: git-keygen
           mountPath: /var/fluxd/keygen # to match location given in image's /etc/ssh/config
+        - name: docker-creds
+          mountPath: /docker-creds
 
         # Include this if you need to mount a customised known_hosts
         # file; you'll also need the volume declared above.
@@ -70,6 +77,7 @@ spec:
         # replace or remove the following URL
         - --git-url=git@github.com:weaveworks/flux-example
         - --git-branch=master
+        - --docker-config=/docker-creds/config.json
 
         # include these next two to connect to an "upstream" service
         # (e.g., Weave Cloud). The token is particular to the service.
