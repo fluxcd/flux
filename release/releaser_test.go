@@ -791,14 +791,16 @@ func Test_UpdateContainers(t *testing.T) {
 		repo:      checkout,
 		registry:  mockRegistry,
 	}
+	type expected struct {
+		Commit string
+		Result update.ControllerResult
+		Err    error
+	}
 	for _, tst := range []struct {
 		Name string
 		Spec []update.ContainerUpdate
 
-		// true|false for `SkipMismatches`
-		Commit   map[bool]string
-		Expected map[bool]update.ControllerResult
-		Err      map[bool]error
+		SkipMismatches map[bool]expected
 	}{
 		{
 			Name: "multiple containers",
@@ -814,35 +816,37 @@ func Test_UpdateContainers(t *testing.T) {
 					Target:    newSidecarRef,
 				},
 			},
-			Expected: map[bool]update.ControllerResult{
+			SkipMismatches: map[bool]expected{
 				true: {
-					Status: update.ReleaseStatusSuccess,
-					PerContainer: []update.ContainerUpdate{{
-						Container: helloContainer,
-						Current:   oldRef,
-						Target:    newHwRef,
-					}, {
-						Container: sidecarContainer,
-						Current:   sidecarRef,
-						Target:    newSidecarRef,
-					}},
+					Result: update.ControllerResult{
+						Status: update.ReleaseStatusSuccess,
+						PerContainer: []update.ContainerUpdate{{
+							Container: helloContainer,
+							Current:   oldRef,
+							Target:    newHwRef,
+						}, {
+							Container: sidecarContainer,
+							Current:   sidecarRef,
+							Target:    newSidecarRef,
+						}},
+					},
+					Commit: "Release containers\n\ndefault:deployment/helloworld\n- quay.io/weaveworks/helloworld:master-a000002\n- weaveworks/sidecar:master-a000002\n",
 				},
 				false: {
-					Status: update.ReleaseStatusSuccess,
-					PerContainer: []update.ContainerUpdate{{
-						Container: helloContainer,
-						Current:   oldRef,
-						Target:    newHwRef,
-					}, {
-						Container: sidecarContainer,
-						Current:   sidecarRef,
-						Target:    newSidecarRef,
-					}},
+					Result: update.ControllerResult{
+						Status: update.ReleaseStatusSuccess,
+						PerContainer: []update.ContainerUpdate{{
+							Container: helloContainer,
+							Current:   oldRef,
+							Target:    newHwRef,
+						}, {
+							Container: sidecarContainer,
+							Current:   sidecarRef,
+							Target:    newSidecarRef,
+						}},
+					},
+					Commit: "Release containers\n\ndefault:deployment/helloworld\n- quay.io/weaveworks/helloworld:master-a000002\n- weaveworks/sidecar:master-a000002\n",
 				},
-			},
-			Commit: map[bool]string{
-				true:  "Release containers\n\ndefault:deployment/helloworld\n- quay.io/weaveworks/helloworld:master-a000002\n- weaveworks/sidecar:master-a000002\n",
-				false: "Release containers\n\ndefault:deployment/helloworld\n- quay.io/weaveworks/helloworld:master-a000002\n- weaveworks/sidecar:master-a000002\n",
 			},
 		},
 		{
@@ -859,22 +863,24 @@ func Test_UpdateContainers(t *testing.T) {
 					Target:    newSidecarRef,
 				},
 			},
-			Expected: map[bool]update.ControllerResult{
+			SkipMismatches: map[bool]expected{
 				true: {
-					Status: update.ReleaseStatusSuccess,
-					Error:  fmt.Sprintf(update.ContainerTagMismatch, helloContainer),
-					PerContainer: []update.ContainerUpdate{
-						{
-							Container: sidecarContainer,
-							Current:   sidecarRef,
-							Target:    newSidecarRef,
+					Result: update.ControllerResult{
+						Status: update.ReleaseStatusSuccess,
+						Error:  fmt.Sprintf(update.ContainerTagMismatch, helloContainer),
+						PerContainer: []update.ContainerUpdate{
+							{
+								Container: sidecarContainer,
+								Current:   sidecarRef,
+								Target:    newSidecarRef,
+							},
 						},
 					},
+					Commit: "Release containers\n\ndefault:deployment/helloworld\n- weaveworks/sidecar:master-a000002\n",
 				},
-				false: {}, // Errors.
-			},
-			Commit: map[bool]string{
-				true: "Release containers\n\ndefault:deployment/helloworld\n- weaveworks/sidecar:master-a000002\n",
+				false: {
+					Result: update.ControllerResult{},
+				},
 			},
 		},
 		{
@@ -891,9 +897,13 @@ func Test_UpdateContainers(t *testing.T) {
 					Target:    newHwRef,
 				},
 			},
-			Expected: map[bool]update.ControllerResult{
-				true:  {}, // Errors.
-				false: {}, // Errors.
+			SkipMismatches: map[bool]expected{
+				true: {
+					Result: update.ControllerResult{},
+				},
+				false: {
+					Result: update.ControllerResult{},
+				},
 			},
 		},
 		{
@@ -905,9 +915,13 @@ func Test_UpdateContainers(t *testing.T) {
 					Target:    newHwRef,
 				},
 			},
-			Expected: map[bool]update.ControllerResult{
-				true:  {},
-				false: {},
+			SkipMismatches: map[bool]expected{
+				true: {
+					Result: update.ControllerResult{},
+				},
+				false: {
+					Result: update.ControllerResult{},
+				},
 			},
 		},
 	} {
@@ -923,9 +937,10 @@ func Test_UpdateContainers(t *testing.T) {
 			}
 			specs.SkipMismatches = ignoreMismatches
 			results, err := Release(ctx, specs, log.NewNopLogger())
-			if tst.Expected[ignoreMismatches].Status != "" {
-				assert.Equal(t, tst.Expected[ignoreMismatches], results[hwSvcID], name)
-				assert.Equal(t, tst.Commit[ignoreMismatches], specs.CommitMessage(results), name)
+			expected := tst.SkipMismatches[ignoreMismatches]
+			if expected.Result.Status != "" {
+				assert.Equal(t, expected.Result, results[hwSvcID], name)
+				assert.Equal(t, expected.Commit, specs.CommitMessage(results), name)
 			} else {
 				assert.Error(t, err, name)
 			}
