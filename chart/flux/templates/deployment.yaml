@@ -55,9 +55,11 @@ spec:
             readOnly: true
           - name: git-keygen
             mountPath: /var/fluxd/keygen
-          - name: docker-creds
-            mountPath: /docker-creds
+          {{- if .Values.docker.useCredentials }}
+          - name: docker-creds  
+            mountPath: /etc/fluxd/docker
             readOnly: true
+          {{- end }}
           args:
           - --ssh-keygen-dir=/var/fluxd/keygen
           - --k8s-secret-name={{ template "flux.fullname" . }}-git-deploy
@@ -85,6 +87,9 @@ spec:
           {{- if .Values.token }}
           - --connect=wss://cloud.weave.works/api/flux
           - --token={{ .Values.token }}
+          {{- end }}
+          {{- if .Values.docker.useCredentials }}
+          - --docker-config=/etc/fluxd/docker/config.json
           {{- end }}
           {{- if .Values.additionalArgs }}
           {{ toYaml .Values.additionalArgs }}

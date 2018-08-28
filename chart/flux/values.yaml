@@ -109,6 +109,12 @@ registry:
   # Use HTTP rather than HTTPS for these image registry domains eg --set registry.insecureHosts="registry1.cluster.local,registry2.cluster.local"
   insecureHosts:
 
+docker:
+  useCredentials: false
+  registry: ""
+  username: ""
+  password: ""
+
 ssh:
   # Overrides for git over SSH. If you use your own git server, you
   # will likely need to provide a host key for it in this field.
