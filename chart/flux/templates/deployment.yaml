@@ -34,10 +34,12 @@ spec:
       - name: git-keygen
         emptyDir:
           medium: Memory
+      {{- if .Values.docker.useCredentials }}
       - name: docker-creds   
         secret:
           secretName: {{ template "flux.fullname" . }}-docker-creds
           defaultMode: 0400
+      {{- end }}
       containers:
         - name: {{ .Chart.Name }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
