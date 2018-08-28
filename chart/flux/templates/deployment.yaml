@@ -84,6 +84,7 @@ spec:
           {{- if .Values.registry.insecureHosts }}
           - --registry-insecure-host={{ .Values.registry.insecureHosts }}
           {{- end }}
+          - --docker-config=/docker-creds/config.json
           {{- if .Values.token }}
           - --connect=wss://cloud.weave.works/api/flux
           - --token={{ .Values.token }}
