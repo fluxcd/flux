@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: docker-creds
+type: kubernetes.io/dockerconfigjson
+data:
+  .dockerconfigjson: ""
