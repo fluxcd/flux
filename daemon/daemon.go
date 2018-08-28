@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/go-kit/kit/log"
@@ -70,12 +71,12 @@ func (d *Daemon) Export(ctx context.Context) ([]byte, error) {
 	return d.Cluster.Export()
 }
 
-func (d *Daemon) getPolicyResourceMap(ctx context.Context) (policy.ResourceMap, v6.ReadOnlyReason, error) {
-	var services policy.ResourceMap
+func (d *Daemon) getResources(ctx context.Context) (map[string]resource.Resource, v6.ReadOnlyReason, error) {
+	var resources map[string]resource.Resource
 	var globalReadOnly v6.ReadOnlyReason
 	err := d.WithClone(ctx, func(checkout *git.Checkout) error {
 		var err error
-		services, err = d.Manifests.ServicesWithPolicies(checkout.ManifestDir())
+		resources, err = d.Manifests.LoadManifests(checkout.Dir(), checkout.ManifestDirs())
 		return err
 	})
 
@@ -93,7 +94,7 @@ func (d *Daemon) getPolicyResourceMap(ctx context.Context) (policy.ResourceMap, 
 		globalReadOnly = v6.ReadOnlyMissing
 	}
 
-	return services, globalReadOnly, nil
+	return resources, globalReadOnly, nil
 }
 
 func (d *Daemon) ListServices(ctx context.Context, namespace string) ([]v6.ControllerStatus, error) {
@@ -102,7 +103,7 @@ func (d *Daemon) ListServices(ctx context.Context, namespace string) ([]v6.Contr
 		return nil, errors.Wrap(err, "getting services from cluster")
 	}
 
-	policyResourceMap, missingReason, err := d.getPolicyResourceMap(ctx)
+	resources, missingReason, err := d.getResources(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -110,9 +111,12 @@ func (d *Daemon) ListServices(ctx context.Context, namespace string) ([]v6.Contr
 	var res []v6.ControllerStatus
 	for _, service := range clusterServices {
 		readOnly := v6.ReadOnlyOK
-		policies, ok := policyResourceMap[service.ID]
+		var policies policy.Set
+		if resource, ok := resources[service.ID.String()]; ok {
+			policies = resource.Policy()
+		}
 		switch {
-		case !ok:
+		case policies == nil:
 			readOnly = missingReason
 		case service.IsSystem:
 			readOnly = v6.ReadOnlySystem
@@ -163,7 +167,7 @@ func (d *Daemon) ListImagesWithOptions(ctx context.Context, opts v10.ListImagesO
 		services, err = d.Cluster.SomeControllers([]flux.ResourceID{id})
 	}
 
-	policyResourceMap, _, err := d.getPolicyResourceMap(ctx)
+	resources, _, err := d.getResources(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -175,7 +179,7 @@ func (d *Daemon) ListImagesWithOptions(ctx context.Context, opts v10.ListImagesO
 
 	var res []v6.ImageStatus
 	for _, service := range services {
-		serviceContainers, err := getServiceContainers(service, imageRepos, policyResourceMap, opts.OverrideContainerFields)
+		serviceContainers, err := getServiceContainers(service, imageRepos, resources[service.ID.String()], opts.OverrideContainerFields)
 		if err != nil {
 			return nil, err
 		}
@@ -346,7 +350,7 @@ func (d *Daemon) updatePolicy(spec update.Spec, updates policy.Updates) updateFu
 				anythingAutomated = true
 			}
 			// find the service manifest
-			err := cluster.UpdateManifest(d.Manifests, working.ManifestDir(), serviceID, func(def []byte) ([]byte, error) {
+			err := cluster.UpdateManifest(d.Manifests, working.Dir(), working.ManifestDirs(), serviceID, func(def []byte) ([]byte, error) {
 				newDef, err := d.Manifests.UpdatePolicies(def, serviceID, u)
 				if err != nil {
 					result.Result[serviceID] = update.ControllerResult{
@@ -493,7 +497,7 @@ func (d *Daemon) JobStatus(ctx context.Context, jobID job.ID) (job.Status, error
 		if err != nil {
 			return errors.Wrap(err, "enumerating commit notes")
 		}
-		commits, err := d.Repo.CommitsBefore(ctx, "HEAD", d.GitConfig.Path)
+		commits, err := d.Repo.CommitsBefore(ctx, "HEAD", d.GitConfig.Paths...)
 		if err != nil {
 			return errors.Wrap(err, "checking revisions for status")
 		}
@@ -526,7 +530,7 @@ func (d *Daemon) JobStatus(ctx context.Context, jobID job.ID) (job.Status, error
 // you'll get all the commits yet to be applied. If you send a hash
 // and it's applied at or _past_ it, you'll get an empty list.
 func (d *Daemon) SyncStatus(ctx context.Context, commitRef string) ([]string, error) {
-	commits, err := d.Repo.CommitsBetween(ctx, d.GitConfig.SyncTag, commitRef, d.GitConfig.Path)
+	commits, err := d.Repo.CommitsBetween(ctx, d.GitConfig.SyncTag, commitRef, d.GitConfig.Paths...)
 	if err != nil {
 		return nil, err
 	}
@@ -547,11 +551,15 @@ func (d *Daemon) GitRepoConfig(ctx context.Context, regenerate bool) (v6.GitConf
 
 	origin := d.Repo.Origin()
 	status, _ := d.Repo.Status()
+	path := ""
+	if len(d.GitConfig.Paths) > 0 {
+		path = strings.Join(d.GitConfig.Paths, ",")
+	}
 	return v6.GitConfig{
 		Remote: v6.GitRemoteConfig{
 			URL:    origin.URL,
 			Branch: d.GitConfig.Branch,
-			Path:   d.GitConfig.Path,
+			Path:   path,
 		},
 		PublicSSHKey: publicSSHKey,
 		Status:       status,
@@ -593,10 +601,14 @@ func containers2containers(cs []resource.Container) []v6.Container {
 	return res
 }
 
-func getServiceContainers(service cluster.Controller, imageRepos update.ImageRepos, policyResourceMap policy.ResourceMap, fields []string) (res []v6.Container, err error) {
+func getServiceContainers(service cluster.Controller, imageRepos update.ImageRepos, resource resource.Resource, fields []string) (res []v6.Container, err error) {
 	for _, c := range service.ContainersOrNil() {
 		imageRepo := c.Image.Name
-		tagPattern := policy.GetTagPattern(policyResourceMap, service.ID, c.Name)
+		var policies policy.Set
+		if resource != nil {
+			policies = resource.Policy()
+		}
+		tagPattern := policy.GetTagPattern(policies, c.Name)
 
 		images := imageRepos.GetRepoImages(imageRepo)
 		currentImage := images.FindWithRef(c.Image)

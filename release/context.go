@@ -9,7 +9,6 @@ import (
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster"
 	"github.com/weaveworks/flux/git"
-	"github.com/weaveworks/flux/policy"
 	"github.com/weaveworks/flux/registry"
 	"github.com/weaveworks/flux/resource"
 	"github.com/weaveworks/flux/update"
@@ -35,8 +34,8 @@ func (rc *ReleaseContext) Registry() registry.Registry {
 	return rc.registry
 }
 
-func (rc *ReleaseContext) Manifests() cluster.Manifests {
-	return rc.manifests
+func (rc *ReleaseContext) LoadManifests() (map[string]resource.Resource, error) {
+	return rc.manifests.LoadManifests(rc.repo.Dir(), rc.repo.ManifestDirs())
 }
 
 func (rc *ReleaseContext) WriteUpdates(updates []*update.ControllerUpdate) error {
@@ -128,7 +127,7 @@ func (rc *ReleaseContext) SelectServices(results update.Result, prefilters, post
 // WorkloadsForUpdate collects all workloads defined in manifests and prepares a list of
 // controller updates for each of them.  It does not consider updatability.
 func (rc *ReleaseContext) WorkloadsForUpdate() (map[flux.ResourceID]*update.ControllerUpdate, error) {
-	resources, err := rc.manifests.LoadManifests(rc.repo.Dir(), rc.repo.ManifestDir())
+	resources, err := rc.LoadManifests()
 	if err != nil {
 		return nil, err
 	}
@@ -144,9 +143,4 @@ func (rc *ReleaseContext) WorkloadsForUpdate() (map[flux.ResourceID]*update.Cont
 		}
 	}
 	return defined, nil
-}
-
-// Shortcut for this
-func (rc *ReleaseContext) ServicesWithPolicies() (policy.ResourceMap, error) {
-	return rc.manifests.ServicesWithPolicies(rc.repo.ManifestDir())
 }

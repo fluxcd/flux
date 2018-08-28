@@ -45,7 +45,7 @@ interact directly with a cluster (with the inevitable consequences of a
 "fat-finger" mistake) which makes it far more stable and ideally
 immutable.
 
-Flux achieves this by automatically synchronising the the state of the
+Flux achieves this by automatically synchronising the state of the
 cluster to match the code representing the cluster in the repository.
 
 This simple idea then allows for a whole range of tools that can react

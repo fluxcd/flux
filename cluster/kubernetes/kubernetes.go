@@ -8,22 +8,15 @@ import (
 	k8syaml "github.com/ghodss/yaml"
 	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
-	ifclient "github.com/weaveworks/flux/integrations/client/clientset/versioned"
+	fhrclient "github.com/weaveworks/flux/integrations/client/clientset/versioned"
 	"gopkg.in/yaml.v2"
 	apiv1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/discovery"
 	k8sclient "k8s.io/client-go/kubernetes"
-	v1beta1apps "k8s.io/client-go/kubernetes/typed/apps/v1beta1"
-	v1beta1batch "k8s.io/client-go/kubernetes/typed/batch/v1beta1"
-	v1core "k8s.io/client-go/kubernetes/typed/core/v1"
-	v1beta1extensions "k8s.io/client-go/kubernetes/typed/extensions/v1beta1"
 
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster"
-	"github.com/weaveworks/flux/image"
-	"github.com/weaveworks/flux/registry"
 	"github.com/weaveworks/flux/resource"
 	"github.com/weaveworks/flux/ssh"
 )
@@ -34,13 +27,12 @@ const (
 	StatusUpdating = "updating"
 )
 
+type coreClient k8sclient.Interface
+type fluxHelmClient fhrclient.Interface
+
 type extendedClient struct {
-	discovery.DiscoveryInterface
-	v1core.CoreV1Interface
-	v1beta1extensions.ExtensionsV1beta1Interface
-	v1beta1apps.StatefulSetsGetter
-	v1beta1batch.CronJobsGetter
-	ifclient.Interface
+	coreClient
+	fluxHelmClient
 }
 
 // --- internal types for keeping track of syncing
@@ -104,42 +96,36 @@ func isAddon(obj k8sObject) bool {
 // Cluster is a handle to a Kubernetes API server.
 // (Typically, this code is deployed into the same cluster.)
 type Cluster struct {
-	client      extendedClient
-	applier     Applier
-	version     string // string response for the version command.
-	logger      log.Logger
-	sshKeyRing  ssh.KeyRing
-	nsWhitelist map[string]bool
+	client     extendedClient
+	applier    Applier
+	version    string // string response for the version command.
+	logger     log.Logger
+	sshKeyRing ssh.KeyRing
+
+	nsWhitelist       []string
+	nsWhitelistLogged map[string]bool // to keep track of whether we've logged a problem with seeing a whitelisted ns
 
 	mu sync.Mutex
 }
 
 // NewCluster returns a usable cluster.
 func NewCluster(clientset k8sclient.Interface,
-	ifclientset ifclient.Interface,
+	fluxHelmClientset fhrclient.Interface,
 	applier Applier,
 	sshKeyRing ssh.KeyRing,
 	logger log.Logger,
 	nsWhitelist []string) *Cluster {
 
-	nsWhitelistMap := map[string]bool{}
-	for _, namespace := range nsWhitelist {
-		nsWhitelistMap[namespace] = true
-	}
-
 	c := &Cluster{
 		client: extendedClient{
-			clientset.Discovery(),
-			clientset.Core(),
-			clientset.Extensions(),
-			clientset.AppsV1beta1(),
-			clientset.BatchV1beta1(),
-			ifclientset,
+			clientset,
+			fluxHelmClientset,
 		},
-		applier:    applier,
-		logger:     logger,
-		sshKeyRing: sshKeyRing,
-		nsWhitelist: nsWhitelistMap,
+		applier:           applier,
+		logger:            logger,
+		sshKeyRing:        sshKeyRing,
+		nsWhitelist:       nsWhitelist,
+		nsWhitelistLogged: map[string]bool{},
 	}
 
 	return c
@@ -253,7 +239,7 @@ func (c *Cluster) Sync(spec cluster.SyncDef) error {
 }
 
 func (c *Cluster) Ping() error {
-	_, err := c.client.ServerVersion()
+	_, err := c.client.coreClient.Discovery().ServerVersion()
 	return err
 }
 
@@ -321,118 +307,35 @@ func (c *Cluster) PublicSSHKey(regenerate bool) (ssh.PublicKey, error) {
 	return publicKey, nil
 }
 
-func mergeCredentials(c *Cluster, namespace string, podTemplate apiv1.PodTemplateSpec, imageCreds registry.ImageCreds) {
-	creds := registry.NoCredentials()
-	for _, imagePullSecret := range podTemplate.Spec.ImagePullSecrets {
-		secret, err := c.client.Secrets(namespace).Get(imagePullSecret.Name, meta_v1.GetOptions{})
-		if err != nil {
-			c.logger.Log("err", errors.Wrapf(err, "getting secret %q from namespace %q", secret.Name, namespace))
-			continue
-		}
-
-		var decoded []byte
-		var ok bool
-		// These differ in format; but, ParseCredentials will
-		// handle either.
-		switch apiv1.SecretType(secret.Type) {
-		case apiv1.SecretTypeDockercfg:
-			decoded, ok = secret.Data[apiv1.DockerConfigKey]
-		case apiv1.SecretTypeDockerConfigJson:
-			decoded, ok = secret.Data[apiv1.DockerConfigJsonKey]
-		default:
-			c.logger.Log("skip", "unknown type", "secret", namespace+"/"+secret.Name, "type", secret.Type)
-			continue
-		}
-
-		if !ok {
-			c.logger.Log("err", errors.Wrapf(err, "retrieving pod secret %q", secret.Name))
-			continue
-		}
-
-		// Parse secret
-		crd, err := registry.ParseCredentials(fmt.Sprintf("%s:secret/%s", namespace, imagePullSecret.Name), decoded)
-		if err != nil {
-			c.logger.Log("err", err.Error())
-			continue
-		}
-
-		// Merge into the credentials for this PodSpec
-		creds.Merge(crd)
-	}
-
-	// Now create the service and attach the credentials
-	for _, container := range podTemplate.Spec.Containers {
-		r, err := image.ParseRef(container.Image)
-		if err != nil {
-			c.logger.Log("err", err.Error())
-			continue
-		}
-		imageCreds[r.Name] = creds
-	}
-}
-
-// ImagesToFetch is a k8s specific method to get a list of images to update along with their credentials
-func (c *Cluster) ImagesToFetch() registry.ImageCreds {
-	allImageCreds := make(registry.ImageCreds)
-
-	namespaces, err := c.getAllowedNamespaces()
-	if err != nil {
-		c.logger.Log("err", errors.Wrap(err, "getting namespaces"))
-		return allImageCreds
-	}
-
-	for _, ns := range namespaces {
-		for kind, resourceKind := range resourceKinds {
-			podControllers, err := resourceKind.getPodControllers(c, ns.Name)
-			if err != nil {
-				if se, ok := err.(*apierrors.StatusError); ok && se.ErrStatus.Reason == meta_v1.StatusReasonNotFound {
-					// Kind not supported by API server, skip
-				} else {
-					c.logger.Log("err", errors.Wrapf(err, "getting kind %s for namespace %s", kind, ns.Name))
-				}
-				continue
-			}
-
-			imageCreds := make(registry.ImageCreds)
-			for _, podController := range podControllers {
-				mergeCredentials(c, ns.Name, podController.podTemplate, imageCreds)
-			}
-
-			// Merge creds
-			for imageID, creds := range imageCreds {
-				existingCreds, ok := allImageCreds[imageID]
-				if ok {
-					existingCreds.Merge(creds)
-				} else {
-					allImageCreds[imageID] = creds
-				}
-			}
-		}
-	}
-
-	return allImageCreds
-}
-
 // getAllowedNamespaces returns a list of namespaces that the Flux instance is expected
 // to have access to and can look for resources inside of.
 // It returns a list of all namespaces unless a namespace whitelist has been set on the Cluster
 // instance, in which case it returns a list containing the namespaces from the whitelist
 // that exist in the cluster.
 func (c *Cluster) getAllowedNamespaces() ([]apiv1.Namespace, error) {
-	nsList := []apiv1.Namespace{}
-
-	namespaces, err := c.client.Namespaces().List(meta_v1.ListOptions{})
-	if err != nil {
-		return nsList, err
+	if len(c.nsWhitelist) > 0 {
+		nsList := []apiv1.Namespace{}
+		for _, name := range c.nsWhitelist {
+			ns, err := c.client.CoreV1().Namespaces().Get(name, meta_v1.GetOptions{})
+			switch {
+			case err == nil:
+				c.nsWhitelistLogged[name] = false // reset, so if the namespace goes away we'll log it again
+				nsList = append(nsList, *ns)
+			case apierrors.IsUnauthorized(err) || apierrors.IsForbidden(err) || apierrors.IsNotFound(err):
+				if !c.nsWhitelistLogged[name] {
+					c.logger.Log("warning", "whitelisted namespace inaccessible", "namespace", name, "err", err)
+					c.nsWhitelistLogged[name] = true
+				}
+			default:
+				return nil, err
+			}
+		}
+		return nsList, nil
 	}
 
-	for _, namespace := range namespaces.Items {
-		if len(c.nsWhitelist) > 0 && ! c.nsWhitelist[namespace.ObjectMeta.Name] {
-			continue
-		}
-
-		nsList = append(nsList, namespace)
-  }
-
-	return nsList, nil
+	namespaces, err := c.client.CoreV1().Namespaces().List(meta_v1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+	return namespaces.Items, nil
 }

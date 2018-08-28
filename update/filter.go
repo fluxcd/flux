@@ -3,6 +3,7 @@ package update
 import (
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/image"
+	"github.com/weaveworks/flux/policy"
 )
 
 const (
@@ -77,16 +78,13 @@ func (f *IncludeFilter) Filter(u ControllerUpdate) ControllerResult {
 }
 
 type LockedFilter struct {
-	IDs []flux.ResourceID
 }
 
 func (f *LockedFilter) Filter(u ControllerUpdate) ControllerResult {
-	for _, id := range f.IDs {
-		if u.ResourceID == id {
-			return ControllerResult{
-				Status: ReleaseStatusSkipped,
-				Error:  Locked,
-			}
+	if u.Resource.Policy().Has(policy.Locked) {
+		return ControllerResult{
+			Status: ReleaseStatusSkipped,
+			Error:  Locked,
 		}
 	}
 	return ControllerResult{}

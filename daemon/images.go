@@ -7,8 +7,9 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
 
-	"github.com/weaveworks/flux/git"
+	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/policy"
+	"github.com/weaveworks/flux/resource"
 	"github.com/weaveworks/flux/update"
 )
 
@@ -17,17 +18,17 @@ func (d *Daemon) pollForNewImages(logger log.Logger) {
 
 	ctx := context.Background()
 
-	candidateServicesPolicyMap, err := d.getUnlockedAutomatedServicesPolicyMap(ctx)
+	candidateServices, err := d.getUnlockedAutomatedResources(ctx)
 	if err != nil {
-		logger.Log("error", errors.Wrap(err, "getting unlocked automated services"))
+		logger.Log("error", errors.Wrap(err, "getting unlocked automated resources"))
 		return
 	}
-	if len(candidateServicesPolicyMap) == 0 {
+	if len(candidateServices) == 0 {
 		logger.Log("msg", "no automated services")
 		return
 	}
 	// Find images to check
-	services, err := d.Cluster.SomeControllers(candidateServicesPolicyMap.ToSlice())
+	services, err := d.Cluster.SomeControllers(candidateServices.IDs())
 	if err != nil {
 		logger.Log("error", errors.Wrap(err, "checking services for new images"))
 		return
@@ -41,10 +42,14 @@ func (d *Daemon) pollForNewImages(logger log.Logger) {
 
 	changes := &update.Automated{}
 	for _, service := range services {
+		var p policy.Set
+		if resource, ok := candidateServices[service.ID]; ok {
+			p = resource.Policy()
+		}
 	containers:
 		for _, container := range service.ContainersOrNil() {
 			currentImageID := container.Image
-			pattern := policy.GetTagPattern(candidateServicesPolicyMap, service.ID, container.Name)
+			pattern := policy.GetTagPattern(p, container.Name)
 			repo := currentImageID.Name
 			logger := log.With(logger, "service", service.ID, "container", container.Name, "repo", repo, "pattern", pattern, "current", currentImageID)
 
@@ -81,18 +86,29 @@ func (d *Daemon) pollForNewImages(logger log.Logger) {
 	}
 }
 
-// getUnlockedAutomatedServicesPolicyMap returns a resource policy map for all unlocked automated services
-func (d *Daemon) getUnlockedAutomatedServicesPolicyMap(ctx context.Context) (policy.ResourceMap, error) {
-	var services policy.ResourceMap
-	err := d.WithClone(ctx, func(checkout *git.Checkout) error {
-		var err error
-		services, err = d.Manifests.ServicesWithPolicies(checkout.ManifestDir())
-		return err
-	})
+type resources map[flux.ResourceID]resource.Resource
+
+func (r resources) IDs() (ids []flux.ResourceID) {
+	for k, _ := range r {
+		ids = append(ids, k)
+	}
+	return ids
+}
+
+// getUnlockedAutomatedServices returns all the resources that are
+// both automated, and not locked.
+func (d *Daemon) getUnlockedAutomatedResources(ctx context.Context) (resources, error) {
+	resources, _, err := d.getResources(ctx)
 	if err != nil {
 		return nil, err
 	}
-	automatedServices := services.OnlyWithPolicy(policy.Automated)
-	lockedServices := services.OnlyWithPolicy(policy.Locked)
-	return automatedServices.Without(lockedServices), nil
+
+	result := map[flux.ResourceID]resource.Resource{}
+	for _, resource := range resources {
+		policies := resource.Policy()
+		if policies.Has(policy.Automated) && !policies.Has(policy.Locked) {
+			result[resource.ResourceID()] = resource
+		}
+	}
+	return result, nil
 }

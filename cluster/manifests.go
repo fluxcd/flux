@@ -26,24 +26,22 @@ func ErrResourceNotFound(name string) error {
 type Manifests interface {
 	// Update the image in a manifest's bytes to that given
 	UpdateImage(def []byte, resourceID flux.ResourceID, container string, newImageID image.Ref) ([]byte, error)
-	// Load all the resource manifests under the path given. `baseDir`
-	// is used to relativise the paths, which are supplied as absolute
-	// paths to directories or files; at least one path must be
-	// supplied.
-	LoadManifests(baseDir, first string, rest ...string) (map[string]resource.Resource, error)
+	// Load all the resource manifests under the paths
+	// given. `baseDir` is used to relativise the paths, which are
+	// supplied as absolute paths to directories or files; at least
+	// one path should be supplied, even if it is the same as `baseDir`.
+	LoadManifests(baseDir string, paths []string) (map[string]resource.Resource, error)
 	// Parse the manifests given in an exported blob
 	ParseManifests([]byte) (map[string]resource.Resource, error)
 	// UpdatePolicies modifies a manifest to apply the policy update specified
 	UpdatePolicies([]byte, flux.ResourceID, policy.Update) ([]byte, error)
-	// ServicesWithPolicies returns all services with their associated policies
-	ServicesWithPolicies(path string) (policy.ResourceMap, error)
 }
 
 // UpdateManifest looks for the manifest for the identified resource,
 // reads its contents, applies f(contents), and writes the results
 // back to the file.
-func UpdateManifest(m Manifests, root string, id flux.ResourceID, f func(manifest []byte) ([]byte, error)) error {
-	resources, err := m.LoadManifests(root, root)
+func UpdateManifest(m Manifests, root string, paths []string, id flux.ResourceID, f func(manifest []byte) ([]byte, error)) error {
+	resources, err := m.LoadManifests(root, paths)
 	if err != nil {
 		return err
 	}

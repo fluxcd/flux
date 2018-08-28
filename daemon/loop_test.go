@@ -15,7 +15,6 @@ import (
 
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster"
-	"github.com/weaveworks/flux/cluster/kubernetes"
 	kresource "github.com/weaveworks/flux/cluster/kubernetes/resource"
 	"github.com/weaveworks/flux/cluster/kubernetes/testfiles"
 	"github.com/weaveworks/flux/event"
@@ -48,7 +47,6 @@ func daemon(t *testing.T) (*Daemon, func()) {
 		return kresource.ParseMultidoc(allDefs, "exported")
 	}
 	k8s.ExportFunc = func() ([]byte, error) { return nil, nil }
-	k8s.ServicesWithPoliciesFunc = (&kubernetes.Manifests{}).ServicesWithPolicies
 
 	events = &mockEventWriter{}
 
@@ -137,7 +135,7 @@ func TestPullAndSync_InitialSync(t *testing.T) {
 	// It creates the tag at HEAD
 	if err := d.Repo.Refresh(context.Background()); err != nil {
 		t.Errorf("pulling sync tag: %v", err)
-	} else if revs, err := d.Repo.CommitsBefore(context.Background(), gitSyncTag, gitPath); err != nil {
+	} else if revs, err := d.Repo.CommitsBefore(context.Background(), gitSyncTag); err != nil {
 		t.Errorf("finding revisions before sync tag: %v", err)
 	} else if len(revs) <= 0 {
 		t.Errorf("Found no revisions before the sync tag")
@@ -199,12 +197,12 @@ func TestDoSync_NoNewCommits(t *testing.T) {
 	}
 
 	// It doesn't move the tag
-	oldRevs, err := d.Repo.CommitsBefore(ctx, gitSyncTag, gitPath)
+	oldRevs, err := d.Repo.CommitsBefore(ctx, gitSyncTag)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if revs, err := d.Repo.CommitsBefore(ctx, gitSyncTag, gitPath); err != nil {
+	if revs, err := d.Repo.CommitsBefore(ctx, gitSyncTag); err != nil {
 		t.Errorf("finding revisions before sync tag: %v", err)
 	} else if !reflect.DeepEqual(revs, oldRevs) {
 		t.Errorf("Should have kept the sync tag at HEAD")
@@ -232,7 +230,8 @@ func TestDoSync_WithNewCommit(t *testing.T) {
 			return err
 		}
 		// Push some new changes
-		err = cluster.UpdateManifest(k8s, checkout.ManifestDir(), flux.MustParseResourceID("default:deployment/helloworld"), func(def []byte) ([]byte, error) {
+		dirs := checkout.ManifestDirs()
+		err = cluster.UpdateManifest(k8s, checkout.Dir(), dirs, flux.MustParseResourceID("default:deployment/helloworld"), func(def []byte) ([]byte, error) {
 			// A simple modification so we have changes to push
 			return []byte(strings.Replace(string(def), "replicas: 5", "replicas: 4", -1)), nil
 		})
@@ -302,7 +301,7 @@ func TestDoSync_WithNewCommit(t *testing.T) {
 	defer cancel()
 	if err := d.Repo.Refresh(ctx); err != nil {
 		t.Errorf("pulling sync tag: %v", err)
-	} else if revs, err := d.Repo.CommitsBetween(ctx, oldRevision, gitSyncTag, gitPath); err != nil {
+	} else if revs, err := d.Repo.CommitsBetween(ctx, oldRevision, gitSyncTag); err != nil {
 		t.Errorf("finding revisions before sync tag: %v", err)
 	} else if len(revs) <= 0 {
 		t.Errorf("Should have moved sync tag forward")

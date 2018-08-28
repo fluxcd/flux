@@ -103,7 +103,7 @@ func TestChangedFiles_SlashPath(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = changedFiles(context.Background(), newDir, nestedDir, "HEAD")
+	_, err = changed(context.Background(), newDir, "HEAD", []string{nestedDir})
 	if err == nil {
 		t.Fatal("Should have errored")
 	}
@@ -120,7 +120,7 @@ func TestChangedFiles_UnslashPath(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = changedFiles(context.Background(), newDir, nestedDir, "HEAD")
+	_, err = changed(context.Background(), newDir, "HEAD", []string{nestedDir})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -137,7 +137,7 @@ func TestChangedFiles_NoPath(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = changedFiles(context.Background(), newDir, nestedDir, "HEAD")
+	_, err = changed(context.Background(), newDir, "HEAD", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -160,7 +160,7 @@ func TestOnelinelog_NoGitpath(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	commits, err := onelinelog(context.Background(), newDir, "HEAD~2..HEAD", "")
+	commits, err := onelinelog(context.Background(), newDir, "HEAD~2..HEAD", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -188,7 +188,7 @@ func TestOnelinelog_WithGitpath(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	commits, err := onelinelog(context.Background(), newDir, "HEAD~2..HEAD", "dev")
+	commits, err := onelinelog(context.Background(), newDir, "HEAD~2..HEAD", []string{"dev"})
 	if err != nil {
 		t.Fatal(err)
 	}

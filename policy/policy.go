@@ -36,12 +36,8 @@ func Tag(policy Policy) bool {
 	return strings.HasPrefix(string(policy), "tag.")
 }
 
-func GetTagPattern(services ResourceMap, service flux.ResourceID, container string) Pattern {
-	if services == nil {
-		return PatternAll
-	}
-	policies, ok := services[service]
-	if !ok {
+func GetTagPattern(policies Set, container string) Pattern {
+	if policies == nil {
 		return PatternAll
 	}
 	pattern, ok := policies.Get(TagPrefix(container))
@@ -140,39 +136,4 @@ func (s Set) ToStringMap() map[string]string {
 		m[string(p)] = v
 	}
 	return m
-}
-
-type ResourceMap map[flux.ResourceID]Set
-
-func (s ResourceMap) ToSlice() []flux.ResourceID {
-	slice := []flux.ResourceID{}
-	for service, _ := range s {
-		slice = append(slice, service)
-	}
-	return slice
-}
-
-func (s ResourceMap) Contains(id flux.ResourceID) bool {
-	_, ok := s[id]
-	return ok
-}
-
-func (s ResourceMap) Without(other ResourceMap) ResourceMap {
-	newMap := ResourceMap{}
-	for k, v := range s {
-		if !other.Contains(k) {
-			newMap[k] = v
-		}
-	}
-	return newMap
-}
-
-func (s ResourceMap) OnlyWithPolicy(p Policy) ResourceMap {
-	newMap := ResourceMap{}
-	for k, v := range s {
-		if v.Has(p) {
-			newMap[k] = v
-		}
-	}
-	return newMap
 }

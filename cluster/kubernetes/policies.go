@@ -81,15 +81,3 @@ func extractContainers(def []byte, id flux.ResourceID) ([]resource.Container, er
 	}
 	return workload.Containers(), nil
 }
-
-func (m *Manifests) ServicesWithPolicies(root string) (policy.ResourceMap, error) {
-	resources, err := m.LoadManifests(root, root)
-	if err != nil {
-		return nil, err
-	}
-	result := policy.ResourceMap{}
-	for _, res := range resources {
-		result[res.ResourceID()] = res.Policy()
-	}
-	return result, nil
-}

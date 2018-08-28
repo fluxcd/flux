@@ -1,3 +1,6 @@
+{{- $gitURL := default .Values.git.url .Values.helmOperator.git.url }}
+{{- $gitBranch := default .Values.git.branch .Values.helmOperator.git.branch }}
+{{- $gitPollInterval := default .Values.git.pollInterval .Values.helmOperator.git.pollInterval }}
 {{- if .Values.helmOperator.create -}}
 apiVersion: apps/v1beta2
 kind: Deployment
@@ -30,7 +33,11 @@ spec:
           defaultMode: 0600
       - name: git-key
         secret:
+          {{- if .Values.helmOperator.git.secretName }}
+          secretName: {{ .Values.helmOperator.git.secretName }}
+          {{- else }}
           secretName: {{ template "flux.fullname" . }}-git-deploy
+          {{- end }}
           defaultMode: 0400
       {{- if .Values.helmOperator.tls.enable }}
       - name: helm-tls-certs
@@ -67,9 +74,12 @@ spec:
         {{- end }}
         {{- end }}
         args:
-        - --git-url={{ .Values.git.url }}
-        - --git-branch={{ .Values.git.branch }}
-        - --git-charts-path={{ .Values.git.chartsPath }}
+        - --git-url={{ $gitURL }}
+        - --git-branch={{ $gitBranch }}
+        - --git-poll-interval={{ $gitPollInterval }}
+        - --git-charts-path={{ .Values.helmOperator.git.chartsPath }}
+        - --charts-sync-interval={{ .Values.helmOperator.chartsSyncInterval }}
+        - --charts-sync-timeout={{ .Values.helmOperator.chartsSyncTimeout }}
         - --log-release-diffs={{ .Values.helmOperator.logReleaseDiffs }}
         - --tiller-namespace={{ .Values.helmOperator.tillerNamespace }}
         {{- if .Values.helmOperator.tls.enable }}

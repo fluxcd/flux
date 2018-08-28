@@ -1,11 +1,13 @@
 package kubernetes
 
 import (
+	"reflect"
+	"testing"
+
+	"github.com/go-kit/kit/log"
 	apiv1 "k8s.io/api/core/v1"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	fakekubernetes "k8s.io/client-go/kubernetes/fake"
-	"testing"
-	"reflect"
 )
 
 func newNamespace(name string) *apiv1.Namespace {
@@ -15,7 +17,7 @@ func newNamespace(name string) *apiv1.Namespace {
 		},
 		TypeMeta: meta_v1.TypeMeta{
 			APIVersion: "v1",
-			Kind: "Namespace",
+			Kind:       "Namespace",
 		},
 	}
 }
@@ -24,7 +26,7 @@ func testGetAllowedNamespaces(t *testing.T, namespace []string, expected []strin
 	clientset := fakekubernetes.NewSimpleClientset(newNamespace("default"),
 		newNamespace("kube-system"))
 
-	c := NewCluster(clientset, nil, nil, nil, nil, namespace)
+	c := NewCluster(clientset, nil, nil, nil, log.NewNopLogger(), namespace)
 
 	namespaces, err := c.getAllowedNamespaces()
 	if err != nil {
@@ -42,15 +44,15 @@ func testGetAllowedNamespaces(t *testing.T, namespace []string, expected []strin
 }
 
 func TestGetAllowedNamespacesDefault(t *testing.T) {
-	testGetAllowedNamespaces(t, []string{}, []string{"default","kube-system",})
+	testGetAllowedNamespaces(t, []string{}, []string{"default", "kube-system"})
 }
 
 func TestGetAllowedNamespacesNamespacesIsNil(t *testing.T) {
-	testGetAllowedNamespaces(t, nil, []string{"default","kube-system",})
+	testGetAllowedNamespaces(t, nil, []string{"default", "kube-system"})
 }
 
 func TestGetAllowedNamespacesNamespacesSet(t *testing.T) {
-	testGetAllowedNamespaces(t, []string{"default"}, []string{"default",})
+	testGetAllowedNamespaces(t, []string{"default"}, []string{"default"})
 }
 
 func TestGetAllowedNamespacesNamespacesSetDoesNotExist(t *testing.T) {
@@ -58,5 +60,5 @@ func TestGetAllowedNamespacesNamespacesSetDoesNotExist(t *testing.T) {
 }
 
 func TestGetAllowedNamespacesNamespacesMultiple(t *testing.T) {
-	testGetAllowedNamespaces(t, []string{"default","hello","kube-system"}, []string{"default","kube-system"})
+	testGetAllowedNamespaces(t, []string{"default", "hello", "kube-system"}, []string{"default", "kube-system"})
 }

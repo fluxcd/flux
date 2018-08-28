@@ -16,18 +16,37 @@ service:
 
 helmOperator:
   create: false
+  createCRD: true
   repository: quay.io/weaveworks/helm-operator
-  tag: 0.1.1-alpha
+  tag: 0.2.0
   pullPolicy: IfNotPresent
-  tillerNamespace: kube-system
+  # Log the diff when a chart release diverges
   logReleaseDiffs: false
+  # Interval at which to check for changed charts
+  chartsSyncInterval: "3m"
+  # Timeout when checking for changed charts
+  chartsSyncTimeout: "1m"
+  # Tiller settings
+  tillerNamespace: kube-system
   tls:
-    secretName: 'helm-client-certs'
+    secretName: "helm-client-certs"
     verify: false
     enable: false
-    keyFile: 'tls.key'
-    certFile: 'tls.crt'
-    caContent: ''
+    keyFile: "tls.key"
+    certFile: "tls.crt"
+    caContent: ""
+  # Override Flux git settings
+  git:
+    url: ""
+    branch: ""
+    chartsPath: "charts"
+    pollInterval: ""
+    # generate a SSH key named identity: ssh-keygen -q -N "" -f ./identity
+    # create a Kubernetes secret: kubectl -n flux create secret generic helm-ssh --from-file=./identity
+    # delete the private key: rm ./identity
+    # add ./identity.pub as a read-only deployment key in your GitHub repo where the charts are
+    # set the secret name (helm-ssh) below
+    secretName: ""
 
 rbac:
   # Specifies whether RBAC resources should be created
@@ -67,10 +86,28 @@ git:
   user: "Weave Flux"
   # Email to use as git committer
   email: "support@weave.works"
-  # Path within git repo to locate Helm charts (relative path)
-  chartsPath: "charts"
+  # If set, the author of git commits will reflect the user who initiated the commit and will differ from the git committer.
+  setAuthor: false
+  # Label to keep track of sync progress
+  label:
+  # Append "[ci skip]" to commit messages so that CI will skip builds
+  ciSkip: false
   # Period at which to poll git repo for new commits
-  pollInterval: "30s"
+  pollInterval: "5m"
+
+registry:
+  # Duration to keep cached image info. Must be < 1 month.
+  cacheExpiry: "1h"
+  # Period at which to check for updated images
+  pollInterval: "5m"
+  # Maximum registry requests per second per host
+  rps: 200
+  # Maximum number of warmer connections to remote and memcache
+  burst: 125
+  # Output trace of image registry requests to log
+  trace: false
+  # Use HTTP rather than HTTPS for these image registry domains eg --set registry.insecureHosts="registry1.cluster.local,registry2.cluster.local"
+  insecureHosts:
 
 ssh:
   # Overrides for git over SSH. If you use your own git server, you

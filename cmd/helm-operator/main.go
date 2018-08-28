@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"os"
 	"os/signal"
@@ -111,7 +112,9 @@ func init() {
 }
 
 func main() {
-
+	// Stop glog complaining
+	flag.CommandLine.Parse([]string{"-logtostderr"})
+	// Now do our own
 	fs.Parse(os.Args)
 
 	if *versionFlag {
@@ -233,8 +236,7 @@ func main() {
 	// Reference to shared index informers for the FluxHelmRelease
 	fhrInformer := ifInformerFactory.Helm().V1alpha2().FluxHelmReleases()
 
-	opr := operator.New(log.With(logger, "component", "operator"), *logReleaseDiffs,
-		kubeClient, fhrInformer, rel, repoConfig)
+	opr := operator.New(log.With(logger, "component", "operator"), *logReleaseDiffs, kubeClient, fhrInformer, chartSync, repoConfig)
 	// Starts handling k8s events related to the given resource kind
 	go ifInformerFactory.Start(shutdown)
 
