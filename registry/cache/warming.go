@@ -14,8 +14,36 @@ import (
 	"github.com/weaveworks/flux/registry"
 )
 
-const refreshWhenExpiryWithin = time.Minute
 const askForNewImagesInterval = time.Minute
+
+// start off assuming an image will change about an hour from first
+// seeing it
+const initialRefresh = 1 * time.Hour
+
+// never try to refresh a tag faster than this
+const minRefresh = 5 * time.Minute
+
+// never set a refresh deadline longer than this
+const maxRefresh = 7 * 24 * time.Hour
+
+// excluded images get an constant, fairly long refresh deadline; we
+// don't expect them to become usable e.g., change architecture.
+const excludedRefresh = 24 * time.Hour
+
+// the whole set of image manifests for a repo gets a long refresh; in
+// general we write it back every time we go 'round the loop, so this
+// is mainly for the effect of making garbage collection less likely.
+const repoRefresh = maxRefresh
+
+func clipRefresh(r time.Duration) time.Duration {
+	if r > maxRefresh {
+		return maxRefresh
+	}
+	if r < minRefresh {
+		return minRefresh
+	}
+	return r
+}
 
 // Warmer refreshes the information kept in the cache from remote
 // registries.
@@ -66,7 +94,7 @@ func (w *Warmer) Loop(logger log.Logger, stop <-chan struct{}, wg *sync.WaitGrou
 	priorityWarm := func(name image.Name) {
 		logger.Log("priority", name.String())
 		if creds, ok := imageCreds[name]; ok {
-			w.warm(ctx, logger, name, creds)
+			w.warm(ctx, time.Now(), logger, name, creds)
 		} else {
 			logger.Log("priority", name.String(), "err", "no creds available")
 		}
@@ -92,7 +120,7 @@ func (w *Warmer) Loop(logger log.Logger, stop <-chan struct{}, wg *sync.WaitGrou
 		if len(backlog) > 0 {
 			im := backlog[0]
 			backlog = backlog[1:]
-			w.warm(ctx, logger, im.Name, im.Credentials)
+			w.warm(ctx, time.Now(), logger, im.Name, im.Credentials)
 		} else {
 			select {
 			case <-stop:
@@ -118,8 +146,9 @@ func imageCredsToBacklog(imageCreds registry.ImageCreds) []backlogItem {
 	return backlog
 }
 
-func (w *Warmer) warm(ctx context.Context, logger log.Logger, id image.Name, creds registry.Credentials) {
+func (w *Warmer) warm(ctx context.Context, now time.Time, logger log.Logger, id image.Name, creds registry.Credentials) {
 	errorLogger := log.With(logger, "canonical_name", id.CanonicalName(), "auth", creds)
+
 	client, err := w.clientFactory.ClientFor(id.CanonicalName(), creds)
 	if err != nil {
 		errorLogger.Log("err", err.Error())
@@ -149,7 +178,7 @@ func (w *Warmer) warm(ctx context.Context, logger log.Logger, id image.Name, cre
 	defer func() {
 		bytes, err := json.Marshal(repo)
 		if err == nil {
-			err = w.cache.SetKey(repoKey, bytes)
+			err = w.cache.SetKey(repoKey, now.Add(repoRefresh), bytes)
 		}
 		if err != nil {
 			errorLogger.Log("err", errors.Wrap(err, "writing result to cache"))
@@ -167,63 +196,89 @@ func (w *Warmer) warm(ctx context.Context, logger log.Logger, id image.Name, cre
 
 	newImages := map[string]image.Info{}
 
-	// Create a list of manifests that need updating
-	var toUpdate []image.Ref
-	var missing, expired int
+	// Create a list of images that need updating
+	type update struct {
+		ref             image.Ref
+		previousDigest  string
+		previousRefresh time.Duration
+	}
+	var toUpdate []update
+
+	// Counters for reporting what happened
+	var missing, refresh int
 	for _, tag := range tags {
-		// See if we have the manifest already cached
-		newID := id.ToRef(tag)
-		key := NewManifestKey(newID.CanonicalRef())
-		bytes, expiry, err := w.cache.GetKey(key)
-		// If err, then we don't have it yet. Update.
-		switch {
-		case tag == "":
+		if tag == "" {
 			errorLogger.Log("err", "empty tag in fetched tags", "tags", tags)
 			repo.LastError = "empty tag in fetched tags"
 			return // abort and let the error be written
-		case err != nil: // by and large these are cache misses, but any error will do
+		}
+
+		// See if we have the manifest already cached
+		newID := id.ToRef(tag)
+		key := NewManifestKey(newID.CanonicalRef())
+		bytes, deadline, err := w.cache.GetKey(key)
+		// If err, then we don't have it yet. Update.
+		switch {
+		case err != nil: // by and large these are cache misses, but any error shall count as "not found"
+			if err != ErrNotCached {
+				errorLogger.Log("warning", "error from cache", "err", err, "ref", newID)
+			}
 			missing++
-		case time.Until(expiry) < refreshWhenExpiryWithin:
-			expired++
+			toUpdate = append(toUpdate, update{ref: newID, previousRefresh: initialRefresh})
 		case len(bytes) == 0:
-			errorLogger.Log("warning", "empty result from cache", "tag", tag)
+			errorLogger.Log("warning", "empty result from cache", "ref", newID)
 			missing++
+			toUpdate = append(toUpdate, update{ref: newID, previousRefresh: initialRefresh})
 		default:
 			var entry registry.ImageEntry
 			if err := json.Unmarshal(bytes, &entry); err == nil {
 				if entry.ExcludedReason == "" {
 					newImages[tag] = entry.Info
+					if now.After(deadline) {
+						previousRefresh := minRefresh
+						lastFetched := entry.Info.LastFetched
+						if !lastFetched.IsZero() {
+							previousRefresh = deadline.Sub(lastFetched)
+						}
+						toUpdate = append(toUpdate, update{ref: newID, previousRefresh: previousRefresh, previousDigest: entry.Info.Digest})
+						refresh++
+					}
 				} else {
-					logger.Log("info", "excluded in cache", "ref", newID)
+					logger.Log("info", "excluded in cache", "ref", newID, "reason", entry.ExcludedReason)
+					if now.After(deadline) {
+						toUpdate = append(toUpdate, update{ref: newID, previousRefresh: excludedRefresh})
+						refresh++
+					}
 				}
-				continue // i.e., no need to update this one
 			}
-			missing++
 		}
-		toUpdate = append(toUpdate, newID)
 	}
 
+	var fetchMx sync.Mutex // also guards access to newImages
 	var successCount int
 
 	if len(toUpdate) > 0 {
-		logger.Log("fetching", id.String(), "total", len(toUpdate), "expired", expired, "missing", missing)
-		var successMx sync.Mutex
+		logger.Log("fetching", id.String(), "total", len(toUpdate), "refresh", refresh, "missing", missing)
 
 		// The upper bound for concurrent fetches against a single host is
 		// w.Burst, so limit the number of fetching goroutines to that.
 		fetchers := make(chan struct{}, w.burst)
 		awaitFetchers := &sync.WaitGroup{}
+		awaitFetchers.Add(len(toUpdate))
+
 	updates:
-		for _, imID := range toUpdate {
+		for _, up := range toUpdate {
 			select {
 			case <-ctx.Done():
 				break updates
 			case fetchers <- struct{}{}:
 			}
 
-			awaitFetchers.Add(1)
-			go func(imageID image.Ref) {
+			go func(update update) {
 				defer func() { awaitFetchers.Done(); <-fetchers }()
+
+				imageID := update.ref
+
 				// Get the image from the remote
 				entry, err := client.Manifest(ctx, imageID.Tag)
 				if err != nil {
@@ -234,8 +289,18 @@ func (w *Warmer) warm(ctx context.Context, logger log.Logger, id image.Name, cre
 					errorLogger.Log("err", err, "ref", imageID)
 					return
 				}
-				if entry.ExcludedReason != "" {
-					errorLogger.Log("excluded", entry.ExcludedReason, "ref", imageID.Tag)
+
+				refresh := update.previousRefresh
+				switch {
+				case entry.ExcludedReason != "":
+					errorLogger.Log("excluded", entry.ExcludedReason, "ref", imageID)
+					refresh = excludedRefresh
+				case entry.Info.Digest == update.previousDigest:
+					entry.Info.LastFetched = now
+					refresh = clipRefresh(refresh * 2)
+				default: // i.e., not excluded, but the digests differ -> the tag was moved
+					entry.Info.LastFetched = now
+					refresh = clipRefresh(refresh / 2)
 				}
 
 				key := NewManifestKey(imageID.CanonicalRef())
@@ -245,18 +310,18 @@ func (w *Warmer) warm(ctx context.Context, logger log.Logger, id image.Name, cre
 					errorLogger.Log("err", err, "ref", imageID)
 					return
 				}
-				err = w.cache.SetKey(key, val)
+				err = w.cache.SetKey(key, now.Add(refresh), val)
 				if err != nil {
 					errorLogger.Log("err", err, "ref", imageID)
 					return
 				}
-				successMx.Lock()
+				fetchMx.Lock()
 				successCount++
 				if entry.ExcludedReason == "" {
 					newImages[imageID.Tag] = entry.Info
 				}
-				successMx.Unlock()
-			}(imID)
+				fetchMx.Unlock()
+			}(up)
 		}
 		awaitFetchers.Wait()
 		logger.Log("updated", id.String(), "count", successCount)

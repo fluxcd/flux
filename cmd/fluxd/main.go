@@ -98,7 +98,6 @@ func main() {
 		memcachedHostname    = fs.String("memcached-hostname", "memcached", "Hostname for memcached service.")
 		memcachedTimeout     = fs.Duration("memcached-timeout", time.Second, "Maximum time to wait before giving up on memcached requests.")
 		memcachedService     = fs.String("memcached-service", "memcached", "SRV service used to discover memcache servers.")
-		registryCacheExpiry  = fs.Duration("registry-cache-expiry", 1*time.Hour, "Duration to keep cached image info. Must be < 1 month.")
 		registryPollInterval = fs.Duration("registry-poll-interval", 5*time.Minute, "period at which to check for updated images")
 		registryRPS          = fs.Int("registry-rps", 200, "maximum registry requests per second per host")
 		registryBurst        = fs.Int("registry-burst", defaultRemoteConnections, "maximum number of warmer connections to remote and memcache")
@@ -119,7 +118,10 @@ func main() {
 		token       = fs.String("token", "", "Authentication token for upstream service")
 
 		dockerConfig = fs.String("docker-config", "", "path to a docker config to use for image registry credentials")
+
+		_ = fs.Duration("registry-cache-expiry", 0, "")
 	)
+	fs.MarkDeprecated("registry-cache-expiry", "no longer used; cache entries are expired adaptively according to how often they change")
 
 	err := fs.Parse(os.Args[1:])
 	switch {
@@ -281,7 +283,6 @@ func main() {
 		memcacheClient := registryMemcache.NewMemcacheClient(registryMemcache.MemcacheConfig{
 			Host:           *memcachedHostname,
 			Service:        *memcachedService,
-			Expiry:         *registryCacheExpiry,
 			Timeout:        *memcachedTimeout,
 			UpdateInterval: 1 * time.Minute,
 			Logger:         log.With(logger, "component", "memcached"),

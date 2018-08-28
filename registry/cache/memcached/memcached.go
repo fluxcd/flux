@@ -1,3 +1,14 @@
+/* This package implements an image DB cache using memcached.
+
+Items are given an expiry based on their refresh deadline, with a
+minimum duration to try and ensure things will expire well after they
+would have been refreshed (i.e., only if they truly need garbage
+collection).
+
+memcached will still evict things when under memory pressure. We can
+recover from that -- we'll just get a cache miss, and fetch it again.
+
+*/
 package memcached
 
 import (
@@ -16,7 +27,8 @@ import (
 )
 
 const (
-	DefaultExpiry = time.Hour
+	// The minimum expiry given to an entry.
+	MinExpiry = time.Hour
 )
 
 // MemcacheClient is a memcache client that gets its server list from SRV
@@ -26,7 +38,6 @@ type MemcacheClient struct {
 	serverList *memcache.ServerList
 	hostname   string
 	service    string
-	ttl        time.Duration
 	logger     log.Logger
 
 	quit chan struct{}
@@ -37,7 +48,6 @@ type MemcacheClient struct {
 type MemcacheConfig struct {
 	Host           string
 	Service        string
-	Expiry         time.Duration
 	Timeout        time.Duration
 	UpdateInterval time.Duration
 	Logger         log.Logger
@@ -55,13 +65,8 @@ func NewMemcacheClient(config MemcacheConfig) *MemcacheClient {
 		serverList: &servers,
 		hostname:   config.Host,
 		service:    config.Service,
-		ttl:        config.Expiry,
 		logger:     config.Logger,
 		quit:       make(chan struct{}),
-	}
-
-	if newClient.ttl == 0 {
-		newClient.ttl = DefaultExpiry
 	}
 
 	err := newClient.updateMemcacheServers()
@@ -86,25 +91,14 @@ func NewFixedServerMemcacheClient(config MemcacheConfig, addresses ...string) *M
 		serverList: &servers,
 		hostname:   config.Host,
 		service:    config.Service,
-		ttl:        config.Expiry,
 		logger:     config.Logger,
 		quit:       make(chan struct{}),
-	}
-
-	if newClient.ttl == 0 {
-		newClient.ttl = DefaultExpiry
 	}
 
 	return newClient
 }
 
-// The memcached client does not report the expiry when you GET a
-// value, but we do want to know it, so we can refresh items that are
-// soon to expire (and ignore items that are not). For that reason, we
-// prepend the expiry to the value when setting, and read it back when
-// getting.
-
-// GetKey gets the value and its expiry time from the cache.
+// GetKey gets the value and its refresh deadline from the cache.
 func (c *MemcacheClient) GetKey(k cache.Keyer) ([]byte, time.Time, error) {
 	cacheItem, err := c.client.Get(k.Key())
 	if err != nil {
@@ -116,19 +110,25 @@ func (c *MemcacheClient) GetKey(k cache.Keyer) ([]byte, time.Time, error) {
 			return []byte{}, time.Time{}, err
 		}
 	}
-	exTime := binary.BigEndian.Uint32(cacheItem.Value)
-	return cacheItem.Value[4:], time.Unix(int64(exTime), 0), nil
+	deadlineTime := binary.BigEndian.Uint32(cacheItem.Value)
+	return cacheItem.Value[4:], time.Unix(int64(deadlineTime), 0), nil
 }
 
-// SetKey sets the value at a key.
-func (c *MemcacheClient) SetKey(k cache.Keyer, v []byte) error {
-	exTime := time.Now().Add(c.ttl).Unix()
-	exBytes := make([]byte, 4, 4)
-	binary.BigEndian.PutUint32(exBytes, uint32(exTime))
+// SetKey sets the value and its refresh deadline at a key. NB the key
+// expiry is set _longer_ than the deadline, to give us a grace period
+// in which to refresh the value.
+func (c *MemcacheClient) SetKey(k cache.Keyer, refreshDeadline time.Time, v []byte) error {
+	expiry := refreshDeadline.Sub(time.Now()) * 2
+	if expiry < MinExpiry {
+		expiry = MinExpiry
+	}
+
+	deadlineBytes := make([]byte, 4, 4)
+	binary.BigEndian.PutUint32(deadlineBytes, uint32(refreshDeadline.Unix()))
 	if err := c.client.Set(&memcache.Item{
 		Key:        k.Key(),
-		Value:      append(exBytes, v...),
-		Expiration: int32(exTime),
+		Value:      append(deadlineBytes, v...),
+		Expiration: int32(expiry.Seconds()),
 	}); err != nil {
 		c.logger.Log("err", errors.Wrap(err, "storing in memcache"))
 		return err
