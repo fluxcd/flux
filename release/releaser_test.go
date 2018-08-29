@@ -1,6 +1,7 @@
 package release
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 	"testing"
@@ -792,18 +793,21 @@ func Test_UpdateContainers(t *testing.T) {
 		registry:  mockRegistry,
 	}
 	type expected struct {
-		Commit string
-		Result update.ControllerResult
 		Err    error
+		Result update.ControllerResult
+		Commit string
 	}
 	for _, tst := range []struct {
-		Name string
-		Spec []update.ContainerUpdate
+		Name       string
+		WorkloadID flux.ResourceID
+		Spec       []update.ContainerUpdate
+		Force      bool
 
 		SkipMismatches map[bool]expected
 	}{
 		{
-			Name: "multiple containers",
+			Name:       "multiple containers",
+			WorkloadID: hwSvcID,
 			Spec: []update.ContainerUpdate{
 				{
 					Container: helloContainer,
@@ -850,7 +854,8 @@ func Test_UpdateContainers(t *testing.T) {
 			},
 		},
 		{
-			Name: "container tag mismatch",
+			Name:       "container tag mismatch",
+			WorkloadID: hwSvcID,
 			Spec: []update.ContainerUpdate{
 				{
 					Container: helloContainer,
@@ -878,13 +883,12 @@ func Test_UpdateContainers(t *testing.T) {
 					},
 					Commit: "Release containers\n\ndefault:deployment/helloworld\n- weaveworks/sidecar:master-a000002\n",
 				},
-				false: {
-					Result: update.ControllerResult{},
-				},
+				false: {Err: errors.New("cannot satisfy specs")},
 			},
 		},
 		{
-			Name: "container not found",
+			Name:       "container not found",
+			WorkloadID: hwSvcID,
 			Spec: []update.ContainerUpdate{
 				{
 					Container: helloContainer,
@@ -898,51 +902,101 @@ func Test_UpdateContainers(t *testing.T) {
 				},
 			},
 			SkipMismatches: map[bool]expected{
-				true: {
-					Result: update.ControllerResult{},
-				},
-				false: {
-					Result: update.ControllerResult{},
-				},
+				true:  {Err: errors.New("cannot satisfy specs")},
+				false: {Err: errors.New("cannot satisfy specs")},
 			},
 		},
 		{
-			Name: "no changes",
+			Name:       "no changes",
+			WorkloadID: hwSvcID,
 			Spec: []update.ContainerUpdate{
 				{
 					Container: helloContainer,
-					Current:   newHwRef, // mismatch
-					Target:    newHwRef,
+					Current:   oldRef,
+					Target:    oldRef,
+				},
+			},
+			SkipMismatches: map[bool]expected{
+				true:  {Err: errors.New("no changes found")},
+				false: {Err: errors.New("no changes found")},
+			},
+		},
+		{
+			Name:       "locked workload",
+			WorkloadID: lockedSvcID,
+			Spec: []update.ContainerUpdate{
+				{ // This is valid but as the workload is locked, there won't be any changes.
+					Container: lockedContainer,
+					Current:   oldLockedRef,
+					Target:    newLockedRef,
+				},
+			},
+			SkipMismatches: map[bool]expected{
+				true:  {Err: errors.New("no changes found")},
+				false: {Err: errors.New("no changes found")},
+			},
+		},
+		{
+			Name:       "locked workload with --force",
+			WorkloadID: lockedSvcID,
+			Force:      true,
+			Spec: []update.ContainerUpdate{
+				{ // The workload is locked but lock flag is ignored.
+					Container: lockedContainer,
+					Current:   oldLockedRef,
+					Target:    newLockedRef,
 				},
 			},
 			SkipMismatches: map[bool]expected{
 				true: {
-					Result: update.ControllerResult{},
+					Result: update.ControllerResult{
+						Status: update.ReleaseStatusSuccess,
+						PerContainer: []update.ContainerUpdate{
+							{
+								Container: lockedContainer,
+								Current:   oldLockedRef,
+								Target:    newLockedRef,
+							},
+						},
+					},
+					Commit: "Release containers\n\ndefault:deployment/locked-service\n- quay.io/weaveworks/locked-service:2\n",
 				},
 				false: {
-					Result: update.ControllerResult{},
+					Result: update.ControllerResult{
+						Status: update.ReleaseStatusSuccess,
+						PerContainer: []update.ContainerUpdate{
+							{
+								Container: lockedContainer,
+								Current:   oldLockedRef,
+								Target:    newLockedRef,
+							},
+						},
+					},
+					Commit: "Release containers\n\ndefault:deployment/locked-service\n- quay.io/weaveworks/locked-service:2\n",
 				},
 			},
 		},
 	} {
 		specs := update.ContainerSpecs{
-			ContainerSpecs: map[flux.ResourceID][]update.ContainerUpdate{hwSvcID: tst.Spec},
+			ContainerSpecs: map[flux.ResourceID][]update.ContainerUpdate{tst.WorkloadID: tst.Spec},
 			Kind:           update.ReleaseKindExecute,
 		}
 
-		for _, ignoreMismatches := range []bool{true, false} {
+		for ignoreMismatches, expected := range tst.SkipMismatches {
 			name := tst.Name
 			if ignoreMismatches {
 				name += " (SkipMismatches)"
 			}
 			specs.SkipMismatches = ignoreMismatches
+			specs.Force = tst.Force
+
 			results, err := Release(ctx, specs, log.NewNopLogger())
-			expected := tst.SkipMismatches[ignoreMismatches]
-			if expected.Result.Status != "" {
-				assert.Equal(t, expected.Result, results[hwSvcID], name)
-				assert.Equal(t, expected.Commit, specs.CommitMessage(results), name)
+
+			if expected.Err != nil {
+				assert.Equal(t, expected.Err, err, name)
 			} else {
-				assert.Error(t, err, name)
+				assert.Equal(t, expected.Result, results[tst.WorkloadID], name)
+				assert.Equal(t, expected.Commit, specs.CommitMessage(results), name)
 			}
 		}
 	}

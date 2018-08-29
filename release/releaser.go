@@ -34,7 +34,7 @@ func Release(rc *ReleaseContext, changes Changes, logger log.Logger) (results up
 	before, err := rc.LoadManifests()
 	updates, results, err := changes.CalculateRelease(rc, logger)
 	if err != nil {
-		return nil, err
+		return results, err
 	}
 
 	err = ApplyChanges(rc, updates, logger)
