@@ -1,12 +1,15 @@
 ---
 # You can optionally deploy memcache, for the Flux daemon to cache
 # container image metadata.
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: memcached
 spec:
   replicas: 1
+  selector:
+    matchLabels:
+      name: memcached
   template:
     metadata:
       labels:
