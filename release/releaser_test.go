@@ -987,17 +987,18 @@ func Test_UpdateContainers(t *testing.T) {
 			if ignoreMismatches {
 				name += " (SkipMismatches)"
 			}
-			specs.SkipMismatches = ignoreMismatches
-			specs.Force = tst.Force
+			t.Run(name, func(t *testing.T) {
+				specs.SkipMismatches = ignoreMismatches
+				specs.Force = tst.Force
 
-			results, err := Release(ctx, specs, log.NewNopLogger())
+				results, err := Release(ctx, specs, log.NewNopLogger())
 
-			if expected.Err != nil {
-				assert.Equal(t, expected.Err, err, name)
-			} else {
-				assert.Equal(t, expected.Result, results[tst.WorkloadID], name)
-				assert.Equal(t, expected.Commit, specs.CommitMessage(results), name)
-			}
+				assert.Equal(t, expected.Err, err)
+				if expected.Err == nil {
+					assert.Equal(t, expected.Result, results[tst.WorkloadID])
+					assert.Equal(t, expected.Commit, specs.CommitMessage(results))
+				}
+			})
 		}
 	}
 }

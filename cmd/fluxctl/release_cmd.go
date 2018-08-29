@@ -159,7 +159,8 @@ func (opts *controllerReleaseOpts) RunE(cmd *cobra.Command, args []string) error
 			return err
 		}
 
-		spec, err := promptSpec(cmd.OutOrStdout(), result, opts.verbosity, opts.force)
+		spec, err := promptSpec(cmd.OutOrStdout(), result, opts.verbosity)
+		spec.Force = opts.force
 		if err != nil {
 			fmt.Fprintln(cmd.OutOrStderr(), err.Error())
 			return nil
@@ -177,13 +178,12 @@ func (opts *controllerReleaseOpts) RunE(cmd *cobra.Command, args []string) error
 	return await(ctx, cmd.OutOrStdout(), cmd.OutOrStderr(), opts.API, jobID, !opts.dryRun, opts.verbosity)
 }
 
-func promptSpec(out io.Writer, result job.Result, verbosity int, force bool) (update.ContainerSpecs, error) {
+func promptSpec(out io.Writer, result job.Result, verbosity int) (update.ContainerSpecs, error) {
 	menu := update.NewMenu(out, result.Result, verbosity)
 	containerSpecs, err := menu.Run()
 	return update.ContainerSpecs{
 		Kind:           update.ReleaseKindExecute,
 		ContainerSpecs: containerSpecs,
 		SkipMismatches: false,
-		Force:          force,
 	}, err
 }
