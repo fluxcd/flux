@@ -78,7 +78,6 @@ func (opts *controllerReleaseOpts) RunE(cmd *cobra.Command, args []string) error
 		return err
 	}
 
-
 	switch {
 	case len(opts.controllers) <= 0 && !opts.allControllers:
 		return newUsageError("please supply either --all, or at least one --controller=<controller>")
@@ -161,6 +160,7 @@ func (opts *controllerReleaseOpts) RunE(cmd *cobra.Command, args []string) error
 		}
 
 		spec, err := promptSpec(cmd.OutOrStdout(), result, opts.verbosity)
+		spec.Force = opts.force
 		if err != nil {
 			fmt.Fprintln(cmd.OutOrStderr(), err.Error())
 			return nil

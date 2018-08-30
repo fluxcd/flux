@@ -1,6 +1,7 @@
 package release
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 	"testing"
@@ -791,17 +792,22 @@ func Test_UpdateContainers(t *testing.T) {
 		repo:      checkout,
 		registry:  mockRegistry,
 	}
+	type expected struct {
+		Err    error
+		Result update.ControllerResult
+		Commit string
+	}
 	for _, tst := range []struct {
-		Name string
-		Spec []update.ContainerUpdate
+		Name       string
+		WorkloadID flux.ResourceID
+		Spec       []update.ContainerUpdate
+		Force      bool
 
-		// true|false for `SkipMismatches`
-		Commit   map[bool]string
-		Expected map[bool]update.ControllerResult
-		Err      map[bool]error
+		SkipMismatches map[bool]expected
 	}{
 		{
-			Name: "multiple containers",
+			Name:       "multiple containers",
+			WorkloadID: hwSvcID,
 			Spec: []update.ContainerUpdate{
 				{
 					Container: helloContainer,
@@ -814,39 +820,42 @@ func Test_UpdateContainers(t *testing.T) {
 					Target:    newSidecarRef,
 				},
 			},
-			Expected: map[bool]update.ControllerResult{
+			SkipMismatches: map[bool]expected{
 				true: {
-					Status: update.ReleaseStatusSuccess,
-					PerContainer: []update.ContainerUpdate{{
-						Container: helloContainer,
-						Current:   oldRef,
-						Target:    newHwRef,
-					}, {
-						Container: sidecarContainer,
-						Current:   sidecarRef,
-						Target:    newSidecarRef,
-					}},
+					Result: update.ControllerResult{
+						Status: update.ReleaseStatusSuccess,
+						PerContainer: []update.ContainerUpdate{{
+							Container: helloContainer,
+							Current:   oldRef,
+							Target:    newHwRef,
+						}, {
+							Container: sidecarContainer,
+							Current:   sidecarRef,
+							Target:    newSidecarRef,
+						}},
+					},
+					Commit: "Release containers\n\ndefault:deployment/helloworld\n- quay.io/weaveworks/helloworld:master-a000002\n- weaveworks/sidecar:master-a000002\n",
 				},
 				false: {
-					Status: update.ReleaseStatusSuccess,
-					PerContainer: []update.ContainerUpdate{{
-						Container: helloContainer,
-						Current:   oldRef,
-						Target:    newHwRef,
-					}, {
-						Container: sidecarContainer,
-						Current:   sidecarRef,
-						Target:    newSidecarRef,
-					}},
+					Result: update.ControllerResult{
+						Status: update.ReleaseStatusSuccess,
+						PerContainer: []update.ContainerUpdate{{
+							Container: helloContainer,
+							Current:   oldRef,
+							Target:    newHwRef,
+						}, {
+							Container: sidecarContainer,
+							Current:   sidecarRef,
+							Target:    newSidecarRef,
+						}},
+					},
+					Commit: "Release containers\n\ndefault:deployment/helloworld\n- quay.io/weaveworks/helloworld:master-a000002\n- weaveworks/sidecar:master-a000002\n",
 				},
-			},
-			Commit: map[bool]string{
-				true:  "Release containers\n\ndefault:deployment/helloworld\n- quay.io/weaveworks/helloworld:master-a000002\n- weaveworks/sidecar:master-a000002\n",
-				false: "Release containers\n\ndefault:deployment/helloworld\n- quay.io/weaveworks/helloworld:master-a000002\n- weaveworks/sidecar:master-a000002\n",
 			},
 		},
 		{
-			Name: "container tag mismatch",
+			Name:       "container tag mismatch",
+			WorkloadID: hwSvcID,
 			Spec: []update.ContainerUpdate{
 				{
 					Container: helloContainer,
@@ -859,26 +868,27 @@ func Test_UpdateContainers(t *testing.T) {
 					Target:    newSidecarRef,
 				},
 			},
-			Expected: map[bool]update.ControllerResult{
+			SkipMismatches: map[bool]expected{
 				true: {
-					Status: update.ReleaseStatusSuccess,
-					Error:  fmt.Sprintf(update.ContainerTagMismatch, helloContainer),
-					PerContainer: []update.ContainerUpdate{
-						{
-							Container: sidecarContainer,
-							Current:   sidecarRef,
-							Target:    newSidecarRef,
+					Result: update.ControllerResult{
+						Status: update.ReleaseStatusSuccess,
+						Error:  fmt.Sprintf(update.ContainerTagMismatch, helloContainer),
+						PerContainer: []update.ContainerUpdate{
+							{
+								Container: sidecarContainer,
+								Current:   sidecarRef,
+								Target:    newSidecarRef,
+							},
 						},
 					},
+					Commit: "Release containers\n\ndefault:deployment/helloworld\n- weaveworks/sidecar:master-a000002\n",
 				},
-				false: {}, // Errors.
-			},
-			Commit: map[bool]string{
-				true: "Release containers\n\ndefault:deployment/helloworld\n- weaveworks/sidecar:master-a000002\n",
+				false: {Err: errors.New("cannot satisfy specs")},
 			},
 		},
 		{
-			Name: "container not found",
+			Name:       "container not found",
+			WorkloadID: hwSvcID,
 			Spec: []update.ContainerUpdate{
 				{
 					Container: helloContainer,
@@ -891,44 +901,104 @@ func Test_UpdateContainers(t *testing.T) {
 					Target:    newHwRef,
 				},
 			},
-			Expected: map[bool]update.ControllerResult{
-				true:  {}, // Errors.
-				false: {}, // Errors.
+			SkipMismatches: map[bool]expected{
+				true:  {Err: errors.New("cannot satisfy specs")},
+				false: {Err: errors.New("cannot satisfy specs")},
 			},
 		},
 		{
-			Name: "no changes",
+			Name:       "no changes",
+			WorkloadID: hwSvcID,
 			Spec: []update.ContainerUpdate{
 				{
 					Container: helloContainer,
-					Current:   newHwRef, // mismatch
-					Target:    newHwRef,
+					Current:   oldRef,
+					Target:    oldRef,
 				},
 			},
-			Expected: map[bool]update.ControllerResult{
-				true:  {},
-				false: {},
+			SkipMismatches: map[bool]expected{
+				true:  {Err: errors.New("no changes found")},
+				false: {Err: errors.New("no changes found")},
+			},
+		},
+		{
+			Name:       "locked workload",
+			WorkloadID: lockedSvcID,
+			Spec: []update.ContainerUpdate{
+				{ // This is valid but as the workload is locked, there won't be any changes.
+					Container: lockedContainer,
+					Current:   oldLockedRef,
+					Target:    newLockedRef,
+				},
+			},
+			SkipMismatches: map[bool]expected{
+				true:  {Err: errors.New("no changes found")},
+				false: {Err: errors.New("no changes found")},
+			},
+		},
+		{
+			Name:       "locked workload with --force",
+			WorkloadID: lockedSvcID,
+			Force:      true,
+			Spec: []update.ContainerUpdate{
+				{ // The workload is locked but lock flag is ignored.
+					Container: lockedContainer,
+					Current:   oldLockedRef,
+					Target:    newLockedRef,
+				},
+			},
+			SkipMismatches: map[bool]expected{
+				true: {
+					Result: update.ControllerResult{
+						Status: update.ReleaseStatusSuccess,
+						PerContainer: []update.ContainerUpdate{
+							{
+								Container: lockedContainer,
+								Current:   oldLockedRef,
+								Target:    newLockedRef,
+							},
+						},
+					},
+					Commit: "Release containers\n\ndefault:deployment/locked-service\n- quay.io/weaveworks/locked-service:2\n",
+				},
+				false: {
+					Result: update.ControllerResult{
+						Status: update.ReleaseStatusSuccess,
+						PerContainer: []update.ContainerUpdate{
+							{
+								Container: lockedContainer,
+								Current:   oldLockedRef,
+								Target:    newLockedRef,
+							},
+						},
+					},
+					Commit: "Release containers\n\ndefault:deployment/locked-service\n- quay.io/weaveworks/locked-service:2\n",
+				},
 			},
 		},
 	} {
 		specs := update.ContainerSpecs{
-			ContainerSpecs: map[flux.ResourceID][]update.ContainerUpdate{hwSvcID: tst.Spec},
+			ContainerSpecs: map[flux.ResourceID][]update.ContainerUpdate{tst.WorkloadID: tst.Spec},
 			Kind:           update.ReleaseKindExecute,
 		}
 
-		for _, ignoreMismatches := range []bool{true, false} {
+		for ignoreMismatches, expected := range tst.SkipMismatches {
 			name := tst.Name
 			if ignoreMismatches {
 				name += " (SkipMismatches)"
 			}
-			specs.SkipMismatches = ignoreMismatches
-			results, err := Release(ctx, specs, log.NewNopLogger())
-			if tst.Expected[ignoreMismatches].Status != "" {
-				assert.Equal(t, tst.Expected[ignoreMismatches], results[hwSvcID], name)
-				assert.Equal(t, tst.Commit[ignoreMismatches], specs.CommitMessage(results), name)
-			} else {
-				assert.Error(t, err, name)
-			}
+			t.Run(name, func(t *testing.T) {
+				specs.SkipMismatches = ignoreMismatches
+				specs.Force = tst.Force
+
+				results, err := Release(ctx, specs, log.NewNopLogger())
+
+				assert.Equal(t, expected.Err, err)
+				if expected.Err == nil {
+					assert.Equal(t, expected.Result, results[tst.WorkloadID])
+					assert.Equal(t, expected.Commit, specs.CommitMessage(results))
+				}
+			})
 		}
 	}
 }

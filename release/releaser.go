@@ -39,19 +39,19 @@ func Release(rc *ReleaseContext, changes Changes, logger log.Logger) (results up
 
 	err = ApplyChanges(rc, updates, logger)
 	if err != nil {
-		return results, MakeReleaseError(errors.Wrap(err, "applying changes"))
+		return nil, MakeReleaseError(errors.Wrap(err, "applying changes"))
 	}
 
 	after, err := rc.LoadManifests()
 	if err != nil {
-		return results, MakeReleaseError(errors.Wrap(err, "loading resources after updates"))
+		return nil, MakeReleaseError(errors.Wrap(err, "loading resources after updates"))
 	}
 
 	err = VerifyChanges(before, updates, after)
 	if err != nil {
-		return results, MakeReleaseError(errors.Wrap(err, "verifying changes"))
+		return nil, MakeReleaseError(errors.Wrap(err, "verifying changes"))
 	}
-	return results, err
+	return results, nil
 }
 
 func ApplyChanges(rc *ReleaseContext, updates []*update.ControllerUpdate, logger log.Logger) error {

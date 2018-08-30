@@ -20,17 +20,23 @@ type ContainerSpecs struct {
 	Kind           ReleaseKind
 	ContainerSpecs map[flux.ResourceID][]ContainerUpdate
 	SkipMismatches bool
+	Force          bool
 }
 
 // CalculateRelease computes required controller updates to satisfy this specification.
 // It returns an error if any spec calculation fails unless `SkipMismatches` is true.
 func (s ContainerSpecs) CalculateRelease(rc ReleaseContext, logger log.Logger) ([]*ControllerUpdate, Result, error) {
-	all, results, err := s.selectServices(rc)
+	results := Result{}
+	prefilter, postfilter := s.filters()
+	all, err := rc.SelectServices(results, prefilter, postfilter)
 	if err != nil {
 		return nil, results, err
 	}
 	updates := s.controllerUpdates(results, all)
+	return updates, results, s.resultsError(results)
+}
 
+func (s ContainerSpecs) resultsError(results Result) error {
 	failures := 0
 	successes := 0
 	for _, res := range results {
@@ -42,26 +48,25 @@ func (s ContainerSpecs) CalculateRelease(rc ReleaseContext, logger log.Logger) (
 		}
 	}
 	if failures > 0 {
-		return updates, results, errors.New("cannot satisfy specs")
+		return errors.New("cannot satisfy specs")
 	}
 	if successes == 0 {
-		return updates, results, errors.New("no changes found")
+		return errors.New("no changes found")
 	}
-
-	return updates, results, nil
+	return nil
 }
 
-func (s ContainerSpecs) selectServices(rc ReleaseContext) ([]*ControllerUpdate, Result, error) {
-	results := Result{}
+func (s ContainerSpecs) filters() ([]ControllerFilter, []ControllerFilter) {
 	var rids []flux.ResourceID
 	for rid := range s.ContainerSpecs {
 		rids = append(rids, rid)
 	}
-	all, err := rc.SelectServices(results, []ControllerFilter{&IncludeFilter{IDs: rids}}, nil)
-	if err != nil {
-		return nil, results, err
+	pre := []ControllerFilter{&IncludeFilter{IDs: rids}}
+
+	if !s.Force {
+		return pre, []ControllerFilter{&LockedFilter{}}
 	}
-	return all, results, nil
+	return pre, []ControllerFilter{}
 }
 
 func (s ContainerSpecs) controllerUpdates(results Result, all []*ControllerUpdate) []*ControllerUpdate {
