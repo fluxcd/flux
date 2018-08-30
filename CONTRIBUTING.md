@@ -71,8 +71,7 @@ These things will make a PR more likely to be accepted:
 In addition, several mechanical checks are enforced.
 See [the lint script](/lint) for details.
 
-In general, we will merge a PR once two maintainers have endorsed it.
-Trivial changes (e.g., corrections to spelling) may get waved through.
+In general, we will merge a PR once one maintainer has endorsed it.
 For substantial changes, more people may become involved, and you might
 get asked to resubmit the PR or divide the changes into more than one PR.
 
