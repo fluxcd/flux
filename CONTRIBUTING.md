@@ -66,7 +66,8 @@ These things will make a PR more likely to be accepted:
 - All code must abide [Go Code Review Comments](https://github.com/golang/go/wiki/CodeReviewComments)
 - Names should abide [What's in a name](https://talks.golang.org/2014/names.slide#1)
 - Code must build on both Linux and Darwin, via plain `go build`
-- Code should have appropriate test coverage, invoked via plain `go test`
+- Code should have appropriate test coverage and tests should be written
+  to work with `go test`
 
 In general, we will merge a PR once one maintainer has endorsed it.
 For substantial changes, more people may become involved, and you might
