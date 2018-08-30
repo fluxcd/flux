@@ -68,9 +68,6 @@ These things will make a PR more likely to be accepted:
 - Code must build on both Linux and Darwin, via plain `go build`
 - Code should have appropriate test coverage, invoked via plain `go test`
 
-In addition, several mechanical checks are enforced.
-See [the lint script](/lint) for details.
-
 In general, we will merge a PR once one maintainer has endorsed it.
 For substantial changes, more people may become involved, and you might
 get asked to resubmit the PR or divide the changes into more than one PR.
