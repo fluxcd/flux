@@ -24,7 +24,8 @@ The project uses Slack: To join the conversation, simply join the
 ## Getting Started
 
 - Fork the repository on GitHub
-- Read the [README](README.md) for getting started as a user and learn how/where to ask for help
+- Read the [README](README.md#get-started-with-flux) for getting started as
+  a user and learn how/where to ask for help
 - If you want to contribute as a developer, continue reading this document for further instructions
 - Play with the project, submit bugs, submit pull requests!
 
