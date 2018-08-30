@@ -87,26 +87,24 @@ Get started by browsing through the documentation below:
   - [Frequently encountered issues](https://github.com/weaveworks/flux/labels/FAQ)
   - [Upgrading to Flux v1](/site/upgrading-to-1.0.md)
 
-## Developer information
+## Community & Developer information
 
-[Build documentation](/site/building.md)
+We welcome all kinds of contributions to Flux, be it code, issues you found,
+documentation, external tools, help and support or anything else really.
 
-[Release documentation](/internal_docs/releasing.md)
+Flux follows the [CNCF Code of
+Conduct](https://github.com/cncf/foundation/blob/master/code-of-conduct.md).
 
-### Contribution
+Instances of abusive, harassing, or otherwise unacceptable behavior
+may be reported by contacting a *flux* project maintainer, or Alexis Richardson
+`<alexis@weave.works>`.
 
-Flux follows a typical PR workflow.
-All contributions should be made as PRs that satisfy the guidelines below.
+To familiarise yourself with the project and how things work, you might
+be interested in the following:
 
-### Guidelines
-
-- All code must abide [Go Code Review Comments](https://github.com/golang/go/wiki/CodeReviewComments)
-- Names should abide [What's in a name](https://talks.golang.org/2014/names.slide#1)
-- Code must build on both Linux and Darwin, via plain `go build`
-- Code should have appropriate test coverage, invoked via plain `go test`
-
-In addition, several mechanical checks are enforced.
-See [the lint script](/lint) for details.
+- [Our contributions guidelines](CONTRIBUTING.md)
+- [Build documentation](/site/building.md)
+- [Release documentation](/internal_docs/releasing.md)
 
 ## <a name="help"></a>Getting Help
 
