@@ -60,11 +60,11 @@ Its major features are:
 Weave Cloud is a SaaS product by Weaveworks that includes Flux, as well
 as:
 
- - a UI and alerts for deployments: nicely integrated overview, all flux
-   operations just a click away.
- - full observability and insights into your cluster: Instantly start using
-   monitoring dashboards for your cluster, hosted 13 months of history, use
-   a realtime map of your cluster to debug and analyse its state.
+- a UI and alerts for deployments: nicely integrated overview, all flux
+  operations just a click away.
+ full observability and insights into your cluster: Instantly start using
+  monitoring dashboards for your cluster, hosted 13 months of history, use
+  a realtime map of your cluster to debug and analyse its state.
 
 If you want to learn more about Weave Cloud, you can see it in action on
 [its homepage](https://www.weave.works/product/cloud/).
@@ -96,8 +96,8 @@ Flux follows the [CNCF Code of
 Conduct](https://github.com/cncf/foundation/blob/master/code-of-conduct.md).
 
 Instances of abusive, harassing, or otherwise unacceptable behavior
-may be reported by contacting a *flux* project maintainer, or Alexis Richardson
-`<alexis@weave.works>`.
+may be reported by contacting a *flux* project maintainer, or Alexis
+Richardson `<alexis@weave.works>`.
 
 To familiarise yourself with the project and how things work, you might
 be interested in the following:
@@ -111,10 +111,11 @@ be interested in the following:
 If you have any questions about Flux and continuous delivery:
 
 - Read [the Weave Flux docs](https://github.com/weaveworks/flux/tree/master/site).
-- Invite yourself to the <a href="https://weaveworks.github.io/community-slack/" target="_blank">Weave community</a> slack.
+- Invite yourself to the <a href="https://slack.weave.works/" target="_blank">Weave community</a> slack.
 - Ask a question on the [#flux](https://weave-community.slack.com/messages/flux/) slack channel.
-- Join the <a href="https://www.meetup.com/pro/Weave/"> Weave User Group </a> and get invited to online talks, hands-on training and meetups in your area.
+- Join the [Weave User Group](https://www.meetup.com/pro/Weave/) and get
+  invited to online talks, hands-on training and meetups in your area.
 - Send an email to <a href="mailto:weave-users@weave.works">weave-users@weave.works</a>
-- <a href="https://github.com/weaveworks/flux/issues/new">File an issue.</a>
+- [File an issue.](https://github.com/weaveworks/flux/issues/new)
 
 Your feedback is always welcome!
