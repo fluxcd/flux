@@ -1,7 +1,6 @@
 package middleware
 
 import (
-	"context"
 	"net/http"
 	"sync"
 
@@ -47,13 +46,4 @@ func (t *RoundTripRateLimiter) RoundTrip(r *http.Request) (*http.Response, error
 		return nil, errors.Wrap(err, "rate limited")
 	}
 	return t.tx.RoundTrip(r)
-}
-
-type ContextRoundTripper struct {
-	Transport http.RoundTripper
-	Ctx       context.Context
-}
-
-func (rt *ContextRoundTripper) RoundTrip(r *http.Request) (*http.Response, error) {
-	return rt.Transport.RoundTrip(r.WithContext(rt.Ctx))
 }
