@@ -12,6 +12,10 @@ fi
 # If a tagged version, just print that tag
 HEAD_TAGS=$(git tag --points-at HEAD)
 if [ -n "${HEAD_TAGS}" ] ; then
+    # remove helm- prefix from helm-op release name
+    if echo "${HEAD_TAGS}" | grep -Eq "helm-[0-9]+(\.[0-9]+)*(-[a-z]+)?$"; then
+      HEAD_TAGS=$(echo "$HEAD_TAGS" | cut -c 6-)
+    fi
 	echo ${HEAD_TAGS}
 	exit 0
 fi
