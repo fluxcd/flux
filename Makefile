@@ -24,7 +24,7 @@ all: $(GOPATH)/bin/fluxctl $(GOPATH)/bin/fluxd $(GOPATH)/bin/helm-operator build
 
 release-bins:
 	for arch in amd64; do \
-		for os in linux darwin; do \
+		for os in linux darwin windows; do \
 			CGO_ENABLED=0 GOOS=$$os GOARCH=$$arch go build -o "build/fluxctl_"$$os"_$$arch" $(LDFLAGS) -ldflags "-X main.version=$(shell ./docker/image-tag)" ./cmd/fluxctl/; \
 		done; \
 	done
@@ -67,7 +67,6 @@ build/kubectl: cache/kubectl-$(KUBECTL_VERSION) docker/kubectl.version
 cache/kubectl-$(KUBECTL_VERSION):
 	mkdir -p cache
 	curl -L -o $@ "https://storage.googleapis.com/kubernetes-release/release/$(KUBECTL_VERSION)/bin/linux/amd64/kubectl"
-
 $(GOPATH)/bin/fluxctl: $(FLUXCTL_DEPS)
 $(GOPATH)/bin/fluxctl: ./cmd/fluxctl/*.go
 	go install ./cmd/fluxctl
