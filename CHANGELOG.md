@@ -1,6 +1,50 @@
 This is the changelog for the Flux daemon; the changelog for the Helm
 operator is in [./CHANGELOG-helmop.md](./CHANGELOG-helmop.md).
 
+## 1.6.0 (2018-08-31)
+
+This release improves existing features, and has some new goodies like
+regexp tag filtering and multiple sync paths. Have fun!
+
+We also have a [new contributing guide](./CONTRIBUTING.md).
+
+### Fixes
+
+- Update example manifests to Kubernetes 1.9+ API versions
+  [weaveworks/flux#1322](https://github.com/weaveworks/flux/pull/1322)
+- Operate with more restricted RBAC permissions
+  [weaveworks/flux#1298](https://github.com/weaveworks/flux/pull/1298)
+- Verify baked-in host keys (against known good fingerprints) during
+  build
+  [weaveworks/flux#1283](https://github.com/weaveworks/flux/pull/1283)
+- Support authentication for GKE, AWS, etc., when `fluxctl` does
+  automatic port forwarding
+  [weaveworks/flux#1284](https://github.com/weaveworks/flux/pull/1284)
+- Respect tag filters in `fluxctl release ...`, unless `--force` is
+  given
+  [weaveworks/flux#1270](https://github.com/weaveworks/flux/pull/1270)
+
+### Improvements
+
+- Cope with `':'` characters in resource names
+  [weaveworks/flux#1282](https://github.com/weaveworks/flux/pull/1282)
+- Accept multiple `--git-path` arguments; sync (and update) files in
+  all the paths given
+  [weaveworks/flux#1297](https://github.com/weaveworks/flux/pull/1297)
+- Use image pull secrets attached to service accounts, as well as
+  those attached to workloads themselves
+  [weaveworks/flux#1291](https://github.com/weaveworks/flux/pull/1291)
+- You can now filter images using regular expressions (in addition to
+  semantic version ranges, and glob patterns)
+  [weaveworks/flux#1292](https://github.com/weaveworks/flux/pull/1292)
+
+### Thanks
+
+Thank you to the following for contributions: @Alien2150,
+@ariefrahmansyah, @brandon-bethke-neudesic, @bzon, @dholbach,
+@dkerwin, @hartmut-pq, @hiddeco, @justinbarrick, @petervandenabeele,
+@nicolerenee, @rndstr, @squaremo, @stefanprodan, @stephenmoloney.
+
 ## 1.5.0 (2018-08-08)
 
 This release adds semver image filters, makes it easier to use
