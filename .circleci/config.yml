@@ -11,7 +11,7 @@ jobs:
 
       - run: go get github.com/golang/dep/cmd/dep
       - run: dep ensure -vendor-only
-      - run: make test TEST_FLAGS="-race -tags integration -timeout 40s"
+      - run: make test TEST_FLAGS="-race -tags integration -timeout 60s"
       - run: make all
 
       - deploy:
