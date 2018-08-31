@@ -49,7 +49,7 @@ helm install --name flux \
 weaveworks/flux
 ```
 
-#### To install Flux with the Helm operator (alpha version):
+#### To install Flux with the Helm operator:
 
 ```console
 $ helm install --name flux \
@@ -148,7 +148,7 @@ The following tables lists the configurable parameters of the Weave Flux chart a
 | Parameter                       | Description                                | Default                                                    |
 | ------------------------------- | ------------------------------------------ | ---------------------------------------------------------- |
 | `image.repository` | Image repository | `quay.io/weaveworks/flux`
-| `image.tag` | Image tag | `1.3.1`
+| `image.tag` | Image tag | `1.6.0`
 | `image.pullPolicy` | Image pull policy | `IfNotPresent`
 | `resources` | CPU/memory resource requests/limits | None
 | `rbac.create` | If `true`, create and use RBAC resources | `true`
@@ -174,7 +174,7 @@ The following tables lists the configurable parameters of the Weave Flux chart a
 | `registry.insecureHosts` | Use HTTP rather than HTTPS for these image registry domains | None
 | `helmOperator.create` | If `true`, install the Helm operator | `false`
 | `helmOperator.repository` | Helm operator image repository | `quay.io/weaveworks/helm-operator`
-| `helmOperator.tag` | Helm operator image tag | `0.1.0-alpha`
+| `helmOperator.tag` | Helm operator image tag | `0.2.0`
 | `helmOperator.pullPolicy` | Helm operator image pull policy | `IfNotPresent`
 | `helmOperator.chartsSyncInterval` | Interval at which to check for changed charts | `3m`
 | `helmOperator.chartsSyncTimeout` | Timeout when checking for changed charts | `1m`
@@ -198,7 +198,7 @@ Specify each parameter using the `--set key=value[,key=value]` argument to `helm
 ```console
 $ helm upgrade --install --wait flux \
 --set git.url=ssh://git@github.com/stefanprodan/podinfo \
---set git.path=deploy/auto-scaling \
+--set git.path=deploy/auto-scaling,deploy/local-storage \
 --namespace flux \
 weaveworks/flux
 ```
