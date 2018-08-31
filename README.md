@@ -60,11 +60,11 @@ Its major features are:
 Weave Cloud is a SaaS product by Weaveworks that includes Flux, as well
 as:
 
- - a UI and alerts for deployments: nicely integrated overview, all flux
-   operations just a click away.
- - full observability and insights into your cluster: Instantly start using
-   monitoring dashboards for your cluster, hosted 13 months of history, use
-   a realtime map of your cluster to debug and analyse its state.
+- a UI and alerts for deployments: nicely integrated overview, all flux
+  operations just a click away.
+ full observability and insights into your cluster: Instantly start using
+  monitoring dashboards for your cluster, hosted 13 months of history, use
+  a realtime map of your cluster to debug and analyse its state.
 
 If you want to learn more about Weave Cloud, you can see it in action on
 [its homepage](https://www.weave.works/product/cloud/).
@@ -87,36 +87,35 @@ Get started by browsing through the documentation below:
   - [Frequently encountered issues](https://github.com/weaveworks/flux/labels/FAQ)
   - [Upgrading to Flux v1](/site/upgrading-to-1.0.md)
 
-## Developer information
+## Community & Developer information
 
-[Build documentation](/site/building.md)
+We welcome all kinds of contributions to Flux, be it code, issues you found,
+documentation, external tools, help and support or anything else really.
 
-[Release documentation](/internal_docs/releasing.md)
+Flux follows the [CNCF Code of
+Conduct](https://github.com/cncf/foundation/blob/master/code-of-conduct.md).
 
-### Contribution
+Instances of abusive, harassing, or otherwise unacceptable behavior
+may be reported by contacting a *flux* project maintainer, or Alexis
+Richardson `<alexis@weave.works>`.
 
-Flux follows a typical PR workflow.
-All contributions should be made as PRs that satisfy the guidelines below.
+To familiarise yourself with the project and how things work, you might
+be interested in the following:
 
-### Guidelines
-
-- All code must abide [Go Code Review Comments](https://github.com/golang/go/wiki/CodeReviewComments)
-- Names should abide [What's in a name](https://talks.golang.org/2014/names.slide#1)
-- Code must build on both Linux and Darwin, via plain `go build`
-- Code should have appropriate test coverage, invoked via plain `go test`
-
-In addition, several mechanical checks are enforced.
-See [the lint script](/lint) for details.
+- [Our contributions guidelines](CONTRIBUTING.md)
+- [Build documentation](/site/building.md)
+- [Release documentation](/internal_docs/releasing.md)
 
 ## <a name="help"></a>Getting Help
 
 If you have any questions about Flux and continuous delivery:
 
 - Read [the Weave Flux docs](https://github.com/weaveworks/flux/tree/master/site).
-- Invite yourself to the <a href="https://weaveworks.github.io/community-slack/" target="_blank">Weave community</a> slack.
+- Invite yourself to the <a href="https://slack.weave.works/" target="_blank">Weave community</a> slack.
 - Ask a question on the [#flux](https://weave-community.slack.com/messages/flux/) slack channel.
-- Join the <a href="https://www.meetup.com/pro/Weave/"> Weave User Group </a> and get invited to online talks, hands-on training and meetups in your area.
+- Join the [Weave User Group](https://www.meetup.com/pro/Weave/) and get
+  invited to online talks, hands-on training and meetups in your area.
 - Send an email to <a href="mailto:weave-users@weave.works">weave-users@weave.works</a>
-- <a href="https://github.com/weaveworks/flux/issues/new">File an issue.</a>
+- [File an issue.](https://github.com/weaveworks/flux/issues/new)
 
 Your feedback is always welcome!

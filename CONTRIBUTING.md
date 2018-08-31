@@ -7,7 +7,7 @@ it easier to get your contribution accepted.
 
 We gratefully welcome improvements to documentation as well as to code.
 
-# Certificate of Origin
+## Certificate of Origin
 
 By contributing to this project you agree to the Developer Certificate of
 Origin (DCO). This document was created by the Linux Kernel community and is a
@@ -15,7 +15,7 @@ simple statement that you, as a contributor, have the legal right to make the
 contribution. No action from you is required, but it's a good idea to see the
 [DCO](DCO) file for details before you start contributing code to Flux.
 
-# Chat
+## Chat
 
 The project uses Slack: To join the conversation, simply join the
 [Weave community](https://slack.weave.works/) Slack workspace and use the
@@ -24,7 +24,8 @@ The project uses Slack: To join the conversation, simply join the
 ## Getting Started
 
 - Fork the repository on GitHub
-- Read the [README](README.md) for getting started as a user and learn how/where to ask for help 
+- Read the [README](README.md#get-started-with-flux) for getting started as
+  a user and learn how/where to ask for help
 - If you want to contribute as a developer, continue reading this document for further instructions
 - Play with the project, submit bugs, submit pull requests!
 
@@ -37,15 +38,15 @@ This is a rough outline of how to prepare a contribution:
 - Make sure your commit messages are in the proper format (see below).
 - Push your changes to a topic branch in your fork of the repository.
 - If you changed code:
-   - add automated tests to cover your changes
+  - add automated tests to cover your changes
 - Submit a pull request to the original repository.
 
-## How to build and run the project
+### How to build and run the project
 
 Refer to the [building doc](site/building.md) to find out how to build from
 source.
 
-## How to run the test suite
+### How to run the test suite
 
 You can run the linting and unit tests by simply doing
 
@@ -53,18 +54,22 @@ You can run the linting and unit tests by simply doing
 make test
 ```
 
-# Acceptance policy
+## Acceptance policy
 
 These things will make a PR more likely to be accepted:
 
- * a well-described requirement
- * tests for new code
- * tests for old code!
- * new code and tests follow the conventions in old code and tests
- * a good commit message (see below)
+- a well-described requirement
+- tests for new code
+- tests for old code!
+- new code and tests follow the conventions in old code and tests
+- a good commit message (see below)
+- All code must abide [Go Code Review Comments](https://github.com/golang/go/wiki/CodeReviewComments)
+- Names should abide [What's in a name](https://talks.golang.org/2014/names.slide#1)
+- Code must build on both Linux and Darwin, via plain `go build`
+- Code should have appropriate test coverage and tests should be written
+  to work with `go test`
 
-In general, we will merge a PR once two maintainers have endorsed it.
-Trivial changes (e.g., corrections to spelling) may get waved through.
+In general, we will merge a PR once one maintainer has endorsed it.
 For substantial changes, more people may become involved, and you might
 get asked to resubmit the PR or divide the changes into more than one PR.
 
