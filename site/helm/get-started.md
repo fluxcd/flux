@@ -75,7 +75,7 @@ In this next step you install Weave Flux using `helm`. Simply
       helm install --name flux \
       --set helmOperator.create=true \
       --set git.url=ssh://git@github.com/YOURUSER/flux-helm-test \
-      --set git.chartsPath=charts \
+      --set helmOperator.git.chartsPath=charts \
       --namespace flux \
       weaveworks/flux
       ```
