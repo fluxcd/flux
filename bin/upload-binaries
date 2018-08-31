@@ -9,7 +9,7 @@ GITHUB_REPO=${GITHUB_REPO:-"${CIRCLE_PROJECT_REPONAME}"}
 GITHUB_TAG=${GITHUB_TAG:-"${CIRCLE_TAG}"}
 
 for arch in amd64; do
-	for os in linux darwin; do
+	for os in linux darwin windows; do
 		echo "= Uploading fluxctl_${os}_${arch} to GH release ${GITHUB_TAG}"
 		github-release upload \
 			--user ${GITHUB_USER} \
