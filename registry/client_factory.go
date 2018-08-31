@@ -108,6 +108,13 @@ func (f *RemoteClientFactory) ClientFor(repo image.CanonicalName, creds Credenti
 	return NewInstrumentedClient(client), nil
 }
 
+// Succeed exists merely so that the user of the ClientFactory can
+// bump rate limits up if a repo's metadata has successfully been
+// fetched.
+func (f *RemoteClientFactory) Succeed(repo image.CanonicalName) {
+	f.Limiters.Recover(repo.Domain)
+}
+
 // store adapts a set of pre-selected creds to be an
 // auth.CredentialsStore
 type store struct {

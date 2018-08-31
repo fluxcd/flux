@@ -44,10 +44,11 @@ var version = "unversioned"
 const (
 	product = "weave-flux"
 
-	// The number of connections chosen for memcache and remote GETs should match for best performance (hence the single hardcoded value)
-	// Value chosen through performance tests on sock-shop. I was unable to get higher performance than this.
-	defaultRemoteConnections   = 125 // Chosen performance tests on sock-shop. Unable to get higher performance than this.
-	defaultMemcacheConnections = 10  // This doesn't need to be high. The user is only requesting one tag/image at a time.
+	// This is used as the "burst" value for rate limiting, and
+	// therefore also as the limit to the number of concurrent fetches
+	// and memcached connections, since these in general can't do any
+	// more work than is allowed by the burst amount.
+	defaultRemoteConnections = 10
 
 	// There are running systems that assume these defaults (by not
 	// supplying a value for one or both). Don't change them.
@@ -99,7 +100,7 @@ func main() {
 		memcachedTimeout     = fs.Duration("memcached-timeout", time.Second, "Maximum time to wait before giving up on memcached requests.")
 		memcachedService     = fs.String("memcached-service", "memcached", "SRV service used to discover memcache servers.")
 		registryPollInterval = fs.Duration("registry-poll-interval", 5*time.Minute, "period at which to check for updated images")
-		registryRPS          = fs.Int("registry-rps", 200, "maximum registry requests per second per host")
+		registryRPS          = fs.Float64("registry-rps", 50, "maximum registry requests per second per host")
 		registryBurst        = fs.Int("registry-burst", defaultRemoteConnections, "maximum number of warmer connections to remote and memcache")
 		registryTrace        = fs.Bool("registry-trace", false, "output trace of image registry requests to log")
 		registryInsecure     = fs.StringSlice("registry-insecure-host", []string{}, "use HTTP for this image registry domain (e.g., registry.cluster.local), instead of HTTPS")
@@ -299,8 +300,9 @@ func main() {
 		// Remote client, for warmer to refresh entries
 		registryLogger := log.With(logger, "component", "registry")
 		registryLimits := &registryMiddleware.RateLimiters{
-			RPS:   *registryRPS,
-			Burst: *registryBurst,
+			RPS:    *registryRPS,
+			Burst:  *registryBurst,
+			Logger: log.With(logger, "component", "ratelimiter"),
 		}
 		remoteFactory := &registry.RemoteClientFactory{
 			Logger:        registryLogger,

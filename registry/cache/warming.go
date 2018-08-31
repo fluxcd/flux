@@ -334,6 +334,10 @@ func (w *Warmer) warm(ctx context.Context, now time.Time, logger log.Logger, id 
 			LastUpdate: time.Now(),
 			Images:     newImages,
 		}
+		// If we got through all that without bumping into `HTTP 429
+		// Too Many Requests` (or other problems), we can potentially
+		// creep the rate limit up
+		w.clientFactory.Succeed(id.CanonicalName())
 	}
 
 	if w.Notify != nil {
