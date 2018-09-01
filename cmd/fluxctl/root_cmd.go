@@ -92,6 +92,12 @@ func (opts *rootOpts) Command() *cobra.Command {
 }
 
 func (opts *rootOpts) PersistentPreRunE(cmd *cobra.Command, _ []string) error {
+	// skip port forward for version command
+	switch cmd.Use {
+	case "version":
+		return nil
+	}
+
 	opts.Namespace = getFromEnvIfNotSet(cmd.Flags(), "k8s-fwd-ns", opts.Namespace, envVariableNamespace)
 	opts.Token = getFromEnvIfNotSet(cmd.Flags(), "token", opts.Token, envVariableToken, envVariableCloudToken)
 	opts.URL = getFromEnvIfNotSet(cmd.Flags(), "url", opts.URL, envVariableURL)
