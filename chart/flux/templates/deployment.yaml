@@ -23,6 +23,9 @@ spec:
       serviceAccountName: {{ template "flux.serviceAccountName" . }}
       {{- end }}
       volumes:
+      - name: kubedir
+        configMap:
+          name: {{ template "flux.fullname" . }}-kube-config
       - name: sshdir
         configMap:
           name: {{ template "flux.fullname" . }}-ssh-config
@@ -43,6 +46,8 @@ spec:
             containerPort: 3030
             protocol: TCP
           volumeMounts:
+          - name: kubedir
+            mountPath: /root/.kube
           - name: sshdir
             mountPath: /root/.ssh
             readOnly: true
