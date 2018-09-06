@@ -16,6 +16,9 @@ import (
 // based on the file(s) therein. Resources are named according to the
 // file content, rather than the file name of directory structure.
 func Load(base string, paths []string) (map[string]resource.Resource, error) {
+	if _, err := os.Stat(base); os.IsNotExist(err) {
+		return nil, fmt.Errorf("git path %q not found", base)
+	}
 	objs := map[string]resource.Resource{}
 	charts, err := newChartTracker(base)
 	if err != nil {
