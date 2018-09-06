@@ -173,6 +173,13 @@ func (r *Release) Install(repoDir, releaseName string, fhr ifv1.FluxHelmRelease,
 
 		if err != nil {
 			r.logger.Log("error", fmt.Sprintf("Chart release failed: %s: %#v", releaseName, err))
+			// if an install fails, purge the release and keep retrying
+			r.logger.Log("info", fmt.Sprintf("Deleting failed release: [%s]", releaseName))
+			_, err = r.HelmClient.DeleteRelease(releaseName, k8shelm.DeletePurge(true))
+			if err != nil {
+				r.logger.Log("error", fmt.Sprintf("Release deletion error: %#v", err))
+				return nil, err
+			}
 			return nil, err
 		}
 		if !opts.DryRun {
