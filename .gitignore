@@ -38,3 +38,4 @@ testdata/sidecar/sidecar-linux-amd64
 testdata/sidecar/.sidecar
 docker/fluxy-dumbconf.priv
 test/profiles
+.idea
