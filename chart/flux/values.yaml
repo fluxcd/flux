@@ -108,6 +108,9 @@ registry:
   trace: false
   # Use HTTP rather than HTTPS for these image registry domains eg --set registry.insecureHosts="registry1.cluster.local,registry2.cluster.local"
   insecureHosts:
+ 
+memcached:
+  verbose: false
 
 ssh:
   # Overrides for git over SSH. If you use your own git server, you
