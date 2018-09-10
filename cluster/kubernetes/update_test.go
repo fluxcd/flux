@@ -51,8 +51,10 @@ func TestUpdates(t *testing.T) {
 		{"in kubernetes List resource", case10resource, case10containers, case10image, case10, case10out},
 		{"FluxHelmRelease (simple image encoding)", case11resource, case11containers, case11image, case11, case11out},
 		{"FluxHelmRelease (multi image encoding)", case12resource, case12containers, case12image, case12, case12out},
+		{"initContainer", case13resource, case13containers, case13image, case13, case13out},
 	} {
 		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
 			testUpdate(t, c)
 		})
 	}
@@ -867,4 +869,43 @@ spec:
     workProperly: true
     sidecar:
       image: sidecar:v1
+`
+
+const case13 = `---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: weave
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        name: weave
+    spec:
+      initContainers:
+      - name: weave
+        image: 'weaveworks/weave-kube:2.2.0'
+`
+
+const case13resource = "default:deployment/weave"
+const case13image = "weaveworks/weave-kube:2.2.1"
+
+var case13containers = []string{"weave"}
+
+const case13out = `---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: weave
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        name: weave
+    spec:
+      initContainers:
+      - name: weave
+        image: 'weaveworks/weave-kube:2.2.1'
 `
