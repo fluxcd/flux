@@ -12,6 +12,8 @@ spec:
     type: Recreate
   template:
     metadata:
+      annotations:
+        prometheus.io.port: "3031" # tell prometheus to scrape /metrics endpoint's port.
       labels:
         name: flux
     spec:
@@ -34,7 +36,7 @@ spec:
       # repo rather than using github or the like. You'll also need to
       # mount it into the container, below.
       # - name: ssh-config
-      #   configMap: 
+      #   configMap:
       #     name: flux-ssh-config
 
       containers:
@@ -78,3 +80,7 @@ spec:
         # (e.g., Weave Cloud). The token is particular to the service.
         # - --connect=wss://cloud.weave.works/api/flux
         # - --token=abc123abc123abc123abc123
+
+        # serve /metrics endpoint at different port.
+        # make sure to set prometheus' annotation to scrape the port value.
+        - --listen-metrics=:3031

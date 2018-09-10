@@ -74,6 +74,7 @@ func main() {
 	// This mirrors how kubectl extracts information from the environment.
 	var (
 		listenAddr        = fs.StringP("listen", "l", ":3030", "Listen address where /metrics and API will be served")
+		listenMetricsAddr = fs.String("listen-metrics", "", "Listen address for /metrics endpoint")
 		kubernetesKubectl = fs.String("kubernetes-kubectl", "", "Optional, explicit path to kubectl tool")
 		versionFlag       = fs.Bool("version", false, "Get version number")
 		// Git repo & key etc.
@@ -445,12 +446,24 @@ func main() {
 
 	go func() {
 		mux := http.DefaultServeMux
-		mux.Handle("/metrics", promhttp.Handler())
+		// Serve /metrics alongside API
+		if *listenMetricsAddr == "" {
+			mux.Handle("/metrics", promhttp.Handler())
+		}
 		handler := daemonhttp.NewHandler(daemon, daemonhttp.NewRouter())
 		mux.Handle("/api/flux/", http.StripPrefix("/api/flux", handler))
 		logger.Log("addr", *listenAddr)
 		errc <- http.ListenAndServe(*listenAddr, mux)
 	}()
+
+	if *listenMetricsAddr != "" {
+		go func() {
+			mux := http.NewServeMux()
+			mux.Handle("/metrics", promhttp.Handler())
+			logger.Log("metrics-addr", *listenMetricsAddr)
+			errc <- http.ListenAndServe(*listenMetricsAddr, mux)
+		}()
+	}
 
 	// Fall off the end, into the waiting procedure.
 }

@@ -27,12 +27,12 @@ Version controlling of cluster manifests provides reproducibility and a historic
             Deployment happens automatically when a new image tag is detected.
             Deautomated deployment will not proceed until manually released (through
             the UI or the CLI tool fluxctl).
-            
+
         2.
         Lock vs Unlock
             Deployment is pinned to a particular image tag. New deployment will not
             proceed upon triggered release.
-    
+
 # Flags
 
 fluxd requires setup and offers customization though a multitude of flags.
@@ -40,6 +40,7 @@ fluxd requires setup and offers customization though a multitude of flags.
 |flag                    | default                       | purpose |
 |------------------------|-------------------------------|---------|
 |--listen -l             | `:3030`                         | listen address where /metrics and API will be served|
+|--listen-metrics        |                               | listen address for /metrics endpoint |
 |--kubernetes-kubectl    |                               | optional, explicit path to kubectl tool|
 |--version               | false                         | output the version number and exit |
 |**Git repo & key etc.** |                              ||
