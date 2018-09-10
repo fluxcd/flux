@@ -210,6 +210,57 @@ func (x expected) Result() update.Result {
 	return result
 }
 
+func Test_InitContainer(t *testing.T) {
+	initWorkloadID := flux.MustParseResourceID("default:daemonset/init")
+	initSvc := cluster.Controller{
+		ID: initWorkloadID,
+		Containers: cluster.ContainersOrExcuse{
+			Containers: []resource.Container{
+				{
+					Name:  helloContainer,
+					Image: oldRef,
+				},
+			},
+		},
+	}
+
+	cluster := mockCluster(hwSvc, lockedSvc, initSvc)
+
+	expect := expected{
+		Specific: update.Result{
+			initWorkloadID: update.ControllerResult{
+				Status: update.ReleaseStatusSuccess,
+				PerContainer: []update.ContainerUpdate{
+					update.ContainerUpdate{
+						Container: helloContainer,
+						Current:   oldRef,
+						Target:    newHwRef,
+					},
+				},
+			},
+		},
+		Else: ignoredNotIncluded,
+	}
+
+	initSpec, _ := update.ParseResourceSpec(initWorkloadID.String())
+	spec := update.ReleaseSpec{
+		ServiceSpecs: []update.ResourceSpec{initSpec},
+		ImageSpec:    update.ImageSpecLatest,
+		Kind:         update.ReleaseKindExecute,
+	}
+
+	checkout, clean := setup(t)
+	defer clean()
+
+	testRelease(t, &ReleaseContext{
+		cluster:   cluster,
+		manifests: mockManifests,
+		registry:  mockRegistry,
+		repo:      checkout,
+	}, spec, expect.Result())
+
+}
+
 func Test_FilterLogic(t *testing.T) {
 	cluster := mockCluster(hwSvc, lockedSvc) // no testsvc in cluster, but it _is_ in repo
 
