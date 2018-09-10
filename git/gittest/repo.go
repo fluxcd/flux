@@ -1,12 +1,13 @@
 package gittest
 
 import (
+	"context"
 	"io/ioutil"
 	"os/exec"
 	"path/filepath"
 	"testing"
 
-	"context"
+	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster/kubernetes/testfiles"
 	"github.com/weaveworks/flux/git"
 )
@@ -59,6 +60,16 @@ func Repo(t *testing.T) (*git.Repo, func()) {
 		mirror.Clean()
 		cleanup()
 	}
+}
+
+// Workloads is a shortcut to getting the names of the workloads (NB
+// not all resources, just the workloads) represented in the test
+// files.
+func Workloads() (res []flux.ResourceID) {
+	for k, _ := range testfiles.ServiceMap("") {
+		res = append(res, k)
+	}
+	return res
 }
 
 // CheckoutWithConfig makes a standard repo, clones it, and returns
