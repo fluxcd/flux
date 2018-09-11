@@ -43,7 +43,7 @@ func (t PodTemplate) SetContainerImage(container string, ref image.Ref) error {
 	}
 	for i, c := range t.Spec.InitContainers {
 		if c.Name == container {
-			t.Spec.Containers[i].Image = ref.String()
+			t.Spec.InitContainers[i].Image = ref.String()
 			return nil
 		}
 	}

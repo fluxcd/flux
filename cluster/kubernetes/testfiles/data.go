@@ -53,6 +53,7 @@ var ResourceMap = map[flux.ResourceID]string{
 	flux.MustParseResourceID("default:deployment/list-deploy"):    "list.yaml",
 	flux.MustParseResourceID("default:service/list-service"):      "list.yaml",
 	flux.MustParseResourceID("default:deployment/semver"):         "semver-deploy.yaml",
+	flux.MustParseResourceID("default:daemonset/init"):            "init.yaml",
 }
 
 // ServiceMap ... given a base path, construct the map representing
@@ -66,6 +67,7 @@ func ServiceMap(dir string) map[flux.ResourceID][]string {
 		flux.MustParseResourceID("default:deployment/multi-deploy"):   []string{filepath.Join(dir, "multi.yaml")},
 		flux.MustParseResourceID("default:deployment/list-deploy"):    []string{filepath.Join(dir, "list.yaml")},
 		flux.MustParseResourceID("default:deployment/semver"):         []string{filepath.Join(dir, "semver-deploy.yaml")},
+		flux.MustParseResourceID("default:daemonset/init"):            []string{filepath.Join(dir, "init.yaml")},
 	}
 }
 
@@ -236,6 +238,23 @@ items:
       protocol: TCP
     selector:
       app: list-app
+`,
+
+	// A daemonset using initContainers
+	"init.yaml": `---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: init
+spec:
+  template:
+    spec:
+      initContainers:
+      - name: greeter
+        image: quay.io/weaveworks/helloworld:master-a000001
+      containers:
+      - name: unimportant
+        image: alpine:1.0
 `,
 
 	// A tricksy chart directory, which should be skipped entirely. Adapted from
