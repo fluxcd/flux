@@ -117,6 +117,21 @@ ssh:
   # will likely need to provide a host key for it in this field.
   known_hosts: ""
 
+kube:
+  # Override for ./kube/config
+  config: |
+    apiVersion: v1
+    clusters: []
+    contexts:
+    - context:
+        cluster: ""
+        namespace: default
+        user: ""
+      name: default
+    current-context: default
+    kind: Config
+    preferences: {}
+    users: []
 #for https://github.com/justinbarrick/fluxcloud/
 #additionalArgs:
 # - --connect=ws://fluxcloud

@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ template "flux.fullname" . }}-kube-config
+data:
+  config: |
+    {{- if .Values.kube.config }}
+      {{- if contains "\n" .Values.kube.config }}
+        {{- range $value := .Values.kube.config | splitList "\n" }}
+    {{ print $value }}
+        {{- end }}
+      {{- else }}
+    {{ .Values.kube.config }}
+      {{- end }}
+    {{- end }}
