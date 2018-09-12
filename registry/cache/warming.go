@@ -181,17 +181,21 @@ func (w *Warmer) warm(ctx context.Context, logger log.Logger, id image.Name, cre
 			errorLogger.Log("err", "empty tag in fetched tags", "tags", tags)
 			repo.LastError = "empty tag in fetched tags"
 			return // abort and let the error be written
-		case err != nil:
+		case err != nil: // by and large these are cache misses, but any error will do
 			missing++
 		case time.Until(expiry) < refreshWhenExpiryWithin:
 			expired++
 		case len(bytes) == 0:
-			errorLogger.Log("err", "empty byte array from cache", "tag", tag)
+			errorLogger.Log("warning", "empty result from cache", "tag", tag)
 			missing++
 		default:
-			var image image.Info
-			if err := json.Unmarshal(bytes, &image); err == nil {
-				newImages[tag] = image
+			var entry registry.ImageEntry
+			if err := json.Unmarshal(bytes, &entry); err == nil {
+				if entry.ExcludedReason == "" {
+					newImages[tag] = entry.Info
+				} else {
+					logger.Log("info", "excluded in cache", "ref", newID)
+				}
 				continue // i.e., no need to update this one
 			}
 			missing++
@@ -221,35 +225,35 @@ func (w *Warmer) warm(ctx context.Context, logger log.Logger, id image.Name, cre
 			go func(imageID image.Ref) {
 				defer func() { awaitFetchers.Done(); <-fetchers }()
 				// Get the image from the remote
-				img, err := client.Manifest(ctx, imageID.Tag)
+				entry, err := client.Manifest(ctx, imageID.Tag)
 				if err != nil {
 					if err, ok := errors.Cause(err).(net.Error); ok && err.Timeout() {
 						// This was due to a context timeout, don't bother logging
 						return
 					}
-					errorLogger.Log("err", errors.Wrap(err, "requesting manifests"))
+					errorLogger.Log("err", err, "ref", imageID)
 					return
 				}
-				if img.ExcludedReason != "" {
-					errorLogger.Log("excluded", img.ExcludedReason)
+				if entry.ExcludedReason != "" {
+					errorLogger.Log("excluded", entry.ExcludedReason, "ref", imageID.Tag)
 				}
 
-				key := NewManifestKey(img.ID.CanonicalRef())
+				key := NewManifestKey(imageID.CanonicalRef())
 				// Write back to memcached
-				val, err := json.Marshal(img)
+				val, err := json.Marshal(entry)
 				if err != nil {
-					errorLogger.Log("err", errors.Wrap(err, "serializing tag to store in cache"))
+					errorLogger.Log("err", err, "ref", imageID)
 					return
 				}
 				err = w.cache.SetKey(key, val)
 				if err != nil {
-					errorLogger.Log("err", errors.Wrap(err, "storing manifests in cache"))
+					errorLogger.Log("err", err, "ref", imageID)
 					return
 				}
 				successMx.Lock()
 				successCount++
-				if img.ExcludedReason == "" {
-					newImages[imageID.Tag] = img.Info
+				if entry.ExcludedReason == "" {
+					newImages[imageID.Tag] = entry.Info
 				}
 				successMx.Unlock()
 			}(imID)
