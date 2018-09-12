@@ -51,6 +51,7 @@ type Warmer struct {
 	clientFactory registry.ClientFactory
 	cache         Client
 	burst         int
+	Trace         bool
 	Priority      chan image.Name
 	Notify        func()
 }
@@ -232,6 +233,10 @@ func (w *Warmer) warm(ctx context.Context, now time.Time, logger log.Logger, id 
 		default:
 			var entry registry.ImageEntry
 			if err := json.Unmarshal(bytes, &entry); err == nil {
+				if w.Trace {
+					errorLogger.Log("trace", "found cached manifest", "ref", newID, "last_fetched", entry.LastFetched.Format(time.RFC3339), "deadline", deadline.Format(time.RFC3339))
+				}
+
 				if entry.ExcludedReason == "" {
 					newImages[tag] = entry.Info
 					if now.After(deadline) {
@@ -244,7 +249,9 @@ func (w *Warmer) warm(ctx context.Context, now time.Time, logger log.Logger, id 
 						refresh++
 					}
 				} else {
-					logger.Log("info", "excluded in cache", "ref", newID, "reason", entry.ExcludedReason)
+					if w.Trace {
+						logger.Log("trace", "excluded in cache", "ref", newID, "reason", entry.ExcludedReason)
+					}
 					if now.After(deadline) {
 						toUpdate = append(toUpdate, update{ref: newID, previousRefresh: excludedRefresh})
 						refresh++
@@ -258,7 +265,7 @@ func (w *Warmer) warm(ctx context.Context, now time.Time, logger log.Logger, id 
 	var successCount int
 
 	if len(toUpdate) > 0 {
-		logger.Log("fetching", id.String(), "total", len(toUpdate), "refresh", refresh, "missing", missing)
+		logger.Log("info", "refreshing image", "image", id, "tag_count", len(tags), "to_update", len(toUpdate), "of_which_refresh", refresh, "of_which_missing", missing)
 
 		// The upper bound for concurrent fetches against a single host is
 		// w.Burst, so limit the number of fetching goroutines to that.
@@ -279,6 +286,10 @@ func (w *Warmer) warm(ctx context.Context, now time.Time, logger log.Logger, id 
 
 				imageID := update.ref
 
+				if w.Trace {
+					errorLogger.Log("trace", "refreshing manifest", "ref", imageID, "previous_refresh", update.previousRefresh.String())
+				}
+
 				// Get the image from the remote
 				entry, err := client.Manifest(ctx, imageID.Tag)
 				if err != nil {
@@ -291,16 +302,28 @@ func (w *Warmer) warm(ctx context.Context, now time.Time, logger log.Logger, id 
 				}
 
 				refresh := update.previousRefresh
+				reason := ""
 				switch {
 				case entry.ExcludedReason != "":
 					errorLogger.Log("excluded", entry.ExcludedReason, "ref", imageID)
 					refresh = excludedRefresh
+					reason = "image is excluded"
+				case update.previousDigest == "":
+					entry.Info.LastFetched = now
+					refresh = update.previousRefresh
+					reason = "no prior cache entry for image"
 				case entry.Info.Digest == update.previousDigest:
 					entry.Info.LastFetched = now
 					refresh = clipRefresh(refresh * 2)
+					reason = "image digest is same"
 				default: // i.e., not excluded, but the digests differ -> the tag was moved
 					entry.Info.LastFetched = now
 					refresh = clipRefresh(refresh / 2)
+					reason = "image digest is different"
+				}
+
+				if w.Trace {
+					errorLogger.Log("trace", "caching manifest", "ref", imageID, "last_fetched", now.Format(time.RFC3339), "refresh", refresh.String(), "reason", reason)
 				}
 
 				key := NewManifestKey(imageID.CanonicalRef())
@@ -324,7 +347,7 @@ func (w *Warmer) warm(ctx context.Context, now time.Time, logger log.Logger, id 
 			}(up)
 		}
 		awaitFetchers.Wait()
-		logger.Log("updated", id.String(), "count", successCount)
+		logger.Log("updated", id.String(), "successful", successCount, "attempted", len(toUpdate))
 	}
 
 	// We managed to fetch new metadata for everything we were missing

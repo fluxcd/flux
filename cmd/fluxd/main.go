@@ -444,6 +444,7 @@ func main() {
 
 	cacheWarmer.Notify = daemon.AskForImagePoll
 	cacheWarmer.Priority = daemon.ImageRefresh
+	cacheWarmer.Trace = *registryTrace
 	shutdownWg.Add(1)
 	go cacheWarmer.Loop(log.With(logger, "component", "warmer"), shutdown, shutdownWg, imageCreds)
 
