@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/cluster"
 	"github.com/weaveworks/flux/git"
 	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/ssh"
@@ -34,6 +35,7 @@ type ControllerStatus struct {
 	Containers []Container
 	ReadOnly   ReadOnlyReason
 	Status     string
+	PodStatus  cluster.ControllerPodStatus
 	Antecedent flux.ResourceID
 	Labels     map[string]string
 	Automated  bool

@@ -21,10 +21,49 @@ type Cluster interface {
 	PublicSSHKey(regenerate bool) (ssh.PublicKey, error)
 }
 
+// ControllerPodStatus describes detailed controller pod status
+type ControllerPodStatus struct {
+	// Status of controller pod
+	Status string
+	// Desired number of pods as defined in spec.
+	Desired int32
+	// Updated number of pods that are on the desired pod spec.
+	Updated int32
+	// Ready number of pods that are on the desired pod spec and ready.
+	Ready int32
+	// Outdated number of pods that are on a different pod spec.
+	Outdated int32
+	// PodConditions represents the latest available observations of a controller's current state.
+	PodConditions []PodCondition
+}
+
+// PodCondition describes pod condition
+type PodCondition struct {
+	Name string
+	// A human readable message indicating details about why the pod is in this condition.
+	Message string
+	// A brief CamelCase message indicating details about why the pod is in this state.
+	Reason     string
+	Conditions []Condition
+}
+
+// Condition describes the state of a Controller at a certain point.
+type Condition struct {
+	// Type of condition.
+	Type string
+	// Status of the condition, one of True, False, Unknown.
+	Status string
+	// The reason for the condition's last transition.
+	Reason string
+	// A human readable message indicating details about the transition.
+	Message string
+}
+
 // Controller describes a cluster resource that declares versioned images.
 type Controller struct {
-	ID     flux.ResourceID
-	Status string // A status summary for display
+	ID        flux.ResourceID
+	Status    string // A status summary for display
+	PodStatus ControllerPodStatus
 	// Is the controller considered read-only because it's under the
 	// control of the platform. In the case of Kubernetes, we simply
 	// omit these controllers; but this may not always be the case.
