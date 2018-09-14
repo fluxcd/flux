@@ -27,6 +27,13 @@ The project uses Slack: To join the conversation, simply join the
 - Read the [README](README.md#get-started-with-flux) for getting started as
   a user and learn how/where to ask for help
 - If you want to contribute as a developer, continue reading this document for further instructions
+- If you are a new contributor, the following two issue labels might be
+  interesting to you:
+  - [size/small](https://github.com/weaveworks/flux/issues?q=is%3Aissue+is%3Aopen+label%3Asize%2Fsmall)
+  - [help wanted](https://github.com/weaveworks/flux/issues?q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22)
+- If you have questions, concerns, get stuck or need a hand, let us know
+  on the Slack channel. We are happy to help and look forward to having
+  you part of the team. No matter in which capacity.
 - Play with the project, submit bugs, submit pull requests!
 
 ## Contribution workflow
