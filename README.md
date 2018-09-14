@@ -84,7 +84,7 @@ Get started by browsing through the documentation below:
   - [Flux using Helm](/site/helm-get-started.md)
 - Operating Flux
   - [Using Flux](/site/using.md)
-  - [the Helm Operator](/site/helm-operator.md)
+  - [Helm Operator](/site/helm-operator.md)
   - [Troubleshooting](/site/troubleshooting.md)
   - [Frequently encountered issues](https://github.com/weaveworks/flux/labels/FAQ)
   - [Upgrading to Flux v1](/site/upgrading-to-1.0.md)
