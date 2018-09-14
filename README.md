@@ -46,7 +46,7 @@ Its major features are:
 
 - [Automated git → cluster synchronisation](/site/introduction.md#automated-git-cluster-synchronisation)
 - [Automated deployment of new container images](/site/introduction.md#automated-deployment-of-new-container-images)
-- [Integrations with other devops tools](/site/introduction.md#integrations-with-other-devops-tools) ([Helm](/site/helm/helm-integration.md) and more)
+- [Integrations with other devops tools](/site/introduction.md#integrations-with-other-devops-tools) ([Helm](/site/helm-integration.md) and more)
 - No additional service or infrastructure needed - Flux lives inside your
   cluster
 - Straight-forward control over the state of deployments in the
@@ -78,11 +78,13 @@ Get started by browsing through the documentation below:
   - [FAQ](/site/faq.md) and [frequently encountered issues](https://github.com/weaveworks/flux/labels/FAQ)
   - [How it works](/site/how-it-works.md)
   - [Considerations regarding installing Flux](/site/installing.md)
+  - [Flux <-> Helm integration](/site/helm-integration.md)
 - Get Started with Flux
   - [Standalone Flux](/site/standalone/installing.md)
-  - [Flux using Helm](/site/helm/get-started.md)
+  - [Flux using Helm](/site/helm-get-started.md)
 - Operating Flux
   - [Using Flux](/site/using.md)
+  - [Helm Operator](/site/helm-operator.md)
   - [Troubleshooting](/site/troubleshooting.md)
   - [Frequently encountered issues](https://github.com/weaveworks/flux/labels/FAQ)
   - [Upgrading to Flux v1](/site/upgrading-to-1.0.md)
