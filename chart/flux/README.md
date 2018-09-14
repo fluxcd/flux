@@ -21,7 +21,8 @@ This means fluxd can fail to apply changes to FluxHelmRelease resources.
 
 ### Helm
 
-Tiller should be running in the cluster, though helm-operator will wait
+Tiller should be running in the cluster, though
+[helm-operator](../../site/helm-operator.md) will wait
 until it can find one.
 
 # Git repo
