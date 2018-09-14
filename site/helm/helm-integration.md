@@ -1,15 +1,3 @@
----
-title: Helm Integration with Flux
-menu_order: 10
----
-
-# Purpose
-
-Helm integration provides an extension to Flux to be able to deal with Helm Chart releases.
-As Helm has gained prominence among Kubernetes tools, Weave Deploy functionality,
-facilitated by Flux, has been extended to cater for deployments described though Helm
-Charts.
-
 # Design overview
 
 Chart release information is described through Kubernetes Custom Resource (CR) manifests.
@@ -58,36 +46,5 @@ Flux-Helm Integration implementation consists of two parts:
   - customizations section contains user customizations overriding the Chart values
 
  - Helm operator uses (Kubernetes) shared informer caching and a work queue, that is processed by a configurable number of workers.
-# Setup and configuration
-
-helm-operator requires setup and offers customization though a multitude of flags.
-(TODO: change the flags to reflect reality)
-
-|flag                    | default                       | purpose |
-|------------------------|-------------------------------|---------|
-|--kubernetes-kubectl          |                               | Optional, explicit path to kubectl tool.|
-|--kubeconfig                  |                               | Path to a kubeconfig. Only required if out-of-cluster.|
-|--master                      |                               | The address of the Kubernetes API server. Overrides any value in kubeconfig. Only required if out-of-cluster.|
-|                              |                               | **Tiller options**|
-|--tillerIP                    |                               | Tiller IP address. Only required if out-of-cluster.|
-|--tillerPort                  |                               | Tiller port.|
-|--tillerNamespace             |                               | Tiller namespace. If not provided, the default is kube-system.| |
-|--tiller-tls-enable           |`false`                        | Enable TLS communication with Tiller. If provided, requires TLSKey and TLSCert to be provided as well. |
-|--tiller-tls-verify           |`false`                        | Verify TLS certificate from Tiller. Will enable TLS communication when provided. |
-|--tiller-tls-tls-key-path     |`/etc/fluxd/helm/tls.key`      | Path to private key file used to communicate with the Tiller server. |
-|--tiller-tls-tls-cert-path    |`/etc/fluxd/helm/tls.crt`      | Path to certificate file used to communicate with the Tiller server. |
-|--tiller-tls-tls-ca-cert-path |                               | Path to CA certificate file used to validate the Tiller server. Required if tiller-tls-verify is enabled. |
-|                              |                               | **Git repo & key etc.**|
-|--git-url                     |                               | URL of git repo with Helm Charts; e.g., `ssh://git@github.com/weaveworks/flux-example`|
-|--git-branch                  | `master`                      | Branch of git repo to use for Kubernetes manifests|
-|--git-charts-path             | `charts`                      | Path within git repo to locate Kubernetes Charts (relative path)|
-|                              |                               | **repo chart changes** (none of these need overriding, usually) |
-|--git-poll-interval           | `5 minutes`                   | period at which to poll git repo for new commits|
-|--chartsSyncInterval          | 3*time.Minute                 | Interval at which to check for changed charts.|
-|--chartsSyncTimeout           | 1*time.Minute                 | Timeout when checking for changed charts.|
-|                              |                               | **k8s-secret backed ssh keyring configuration**|
-|--k8s-secret-volume-mount-path | `/etc/fluxd/ssh`       | Mount location of the k8s secret storing the private SSH key|
-|--k8s-secret-data-key         | `identity`                    | Data key holding the private SSH key within the k8s secret|
-|--queueWorkerCount            |  2                            | Number of workers to process queue with Chart release jobs.|
 
 [Requirements](./helm-integration-requirements.md)
