@@ -35,7 +35,7 @@ until it can find one.
  - Charts are colocated under another path ("charts" by default; can be
    overriden). Charts are subdirectories under the charts path.
  - Custom Resource namespace reflects where the release should be done.
-   Both the Helm application and its corresponding Custom Resource will
+   Both the Helm release and its corresponding Custom Resource will
    live in this namespace.
  - Example of a test repo: https://github.com/weaveworks/flux-helm-test
 
