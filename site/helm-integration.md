@@ -24,7 +24,6 @@ Flux-Helm Integration implementation consists of two parts:
 
 - name of the resource must be unique across all namespaces
 - namespace is where both the Custom Resource and the Chart, whose deployment state it describes, will live
-- labels.chart must be provided. the label contains this Chart's path within the repo (slash replaced with underscore)
 - chartgitpath ... this Chart's path within the repo
 - releasename is optional. Must be provided if there is already a Chart release in the cluster that Flux should start looking after. Otherwise a new release is created for the application/service when the Custom Resource is created. Can be provided for a brand new release - if it is not, then Flux will create a release names as $namespace-$CR_name
 - customizations section contains user customizations overriding the Chart values
@@ -39,8 +38,6 @@ Flux-Helm Integration implementation consists of two parts:
   metadata:
     name: mongodb
     namespace:  myNamespace
-    labels:
-      chart: mongodb
   spec:
     chartGitPath: mongodb
     releaseName: mongo-database
@@ -52,7 +49,6 @@ Flux-Helm Integration implementation consists of two parts:
 
  - name
  - namespace
- - label.chart  ... the same as chartgitpath, with slash replaced with  an underscore
  - chartGitPath ... path (from repo root) to a Chart subdirectory
 
 
