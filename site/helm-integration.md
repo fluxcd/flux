@@ -31,7 +31,7 @@ Flux-Helm Integration implementation consists of two parts:
 
 ## Example of manifest content
 
-```
+```yaml
 ---
   apiVersion: helm.integrations.flux.weave.works/v1alpha2
   kind: FluxHelmRelease
@@ -51,25 +51,69 @@ Flux-Helm Integration implementation consists of two parts:
  - namespace
  - chartGitPath ... path (from repo root) to a Chart subdirectory
 
-
 ## Optional fields
 
- - releaseName:
+- image
+- resources -> requests -> memory (nested)
+- releaseName:
+  - if a release already exists and Flux should start managing it, then
+    releasename must be provided
+  - if releasename is not provided, Flux will construct a release name
+    based on the namespace and the Custom Resource name (ie
+    $namespace-$CR_name)
 
-  - if a release already exists and Flux should start managing it, then releasename must be provided
-  - if releasename is not provided, Flux will construct a release name based on the namespace and the Custom Resource name (ie $namespace-$CR_name)
+    ```yaml
+    - values:
+        foo: value1
+        bar:
+          baz: value2
+        oof:
+          - item1
+          - item2
+    ```
+- `automated` annotations define which images Flux will automatically
+  deploy on a cluster. You can use glob, semver or regex expressions.
+  Here's an example for a single image:
 
-```
-  - values:
-      foo: value1
-      bar:
-        baz: value2
-      oof:
-        - item1
-        - item2
-```
+  ```yaml
+  apiVersion: helm.integrations.flux.weave.works/v1alpha2
+  kind: FluxHelmRelease
+  metadata:
+    name: podinfo-dev
+    namespace: dev
+    annotations:
+      flux.weave.works/automated: "true"
+      flux.weave.works/tag.chart-image: glob:dev-*
+  spec:
+    chartGitPath: podinfo
+    releaseName: podinfo-dev
+    values:
+      image: stefanprodan/podinfo:dev-kb9lm91e
+  ```
 
-  a dictionary of key value pairs (which can be nested) for overriding Chart parameters. Examples of parameter names:
+  For multiple images:
 
-  - image
-  - resources -> requests -> memory (nested)
+  ```yaml
+  apiVersion: helm.integrations.flux.weave.works/v1alpha2
+  kind: FluxHelmRelease
+  metadata:
+    name: podinfo-prod
+    namespace: prod
+    annotations:
+      flux.weave.works/automated: "true"
+      flux.weave.works/tag.init: semver:~1.0
+      flux.weave.works/tag.app: regex:^1.2.*
+  spec:
+    chartGitPath: podinfo
+    releaseName: podinfo-prod
+    values:
+      init:
+        image: quay.io/stefanprodan/podinfo:1.2.0
+      app:
+        image: quay.io/stefanprodan/podinfo:1.0.0
+  ```
+
+In general a dictionary of key value pairs (which can be nested) for overriding Chart parameters. Examples of parameter names:
+
+- image
+- resources -> requests -> memory (nested)
