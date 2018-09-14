@@ -17,7 +17,7 @@ a [Kubernetes](http://kubernetes.io) cluster using the [Helm](https://helm.sh) p
 ## Installation
 
 We put together a simple [Get Started
-guide](../../site/helm/get-started.md) which takes about 5-10 minutes to follow.
+guide](../../site/helm-get-started.md) which takes about 5-10 minutes to follow.
 You will have a fully working Flux installation deploying workloads to your
 cluster.
 
