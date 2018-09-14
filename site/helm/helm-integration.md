@@ -5,7 +5,7 @@ menu_order: 10
 
 # Purpose
 
-Helm integration provides an extension to Flux to be able to deal with Helm Chart releases.sp
+Helm integration provides an extension to Flux to be able to deal with Helm Chart releases.
 As Helm has gained prominence among Kubernetes tools, Weave Deploy functionality,
 facilitated by Flux, has been extended to cater for deployments described though Helm
 Charts.
