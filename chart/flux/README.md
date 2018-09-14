@@ -12,7 +12,31 @@ a [Kubernetes](http://kubernetes.io) cluster using the [Helm](https://helm.sh) p
 
 ## Prerequisites
 
-- Kubernetes 1.9+
+### Kubernetes
+
+Kubernetes >= v1.9 is recommended. Kubernetes v1.8 (the first to support
+Custom Resources) appears to have problems with repeated application of
+custom resources (see https://github.com/kubernetes/kubernetes/issues/53379).
+This means fluxd can fail to apply changes to FluxHelmRelease resources.
+
+### Helm
+
+Tiller should be running in the cluster, though helm-operator will wait
+until it can find one.
+
+# Git repo
+
+ - One repo containing both desired release state information and Charts
+   themselves.
+ - Release state information in the form of Custom Resources manifests is
+   located under a particular path ("releaseconfig" by default; can be
+   overriden).
+ - Charts are colocated under another path ("charts" by default; can be
+   overriden). Charts are subdirectories under the charts path.
+ - Custom Resource namespace reflects where the release should be done.
+   Both the Helm application and its corresponding Custom Resource will
+   live in this namespace.
+ - Example of a test repo: https://github.com/weaveworks/flux-helm-test
 
 ## Installation
 
