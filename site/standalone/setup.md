@@ -41,7 +41,11 @@ can restart `flux` and it will continue to use the same key.
 Flux connects to the repository using an SSH key.
 
 ***The SSH key must be configured to have R/W access to the repository***.
- 
+
+More specifically, in the case of standalone Flux, the ssh key must be able to
+create and update tags. E.g. in Gitlab, that means it requires `Maintainer`
+permissions. The `Developer` permission can create tags, but not update them.
+
 You have two options:
 
 ### 1. Allow flux to generate a key for you.
@@ -104,6 +108,9 @@ $ kubectl exec -n weave flux-85cdc6cdfc-n2tgf -ti -- \
     env GITHOST="$GITHOST" GITREPO="$GITREPO" PS1="container$ " /bin/sh
 
 container$ git clone $GITREPO
+Cloning into <repository name>...
+No ECDSA host key is known for  <GITHOST> and you have requested strict checking.
+Host key verification failed.
 fatal: Could not read from remote repository
 
 container$ # ^ that was expected. Now we'll try with a modified known_hosts
@@ -118,21 +125,52 @@ has been installed properly first, then come back. `ssh -vv $GITHOST`
 from within the container may help debug it.
 
 If it _did_ work, you will need to make it a more permanent
-arrangement. Back in that shell:
+arrangement. Back in that shell, create a configmap for the cluster. To make
+sure the configmap is created in the namespace of the flux or weave deployment,
+the namespace is set explicitly:
 
 ```sh
-container$ kubectl create configmap flux-ssh-config --from-file=$HOME/.ssh/known_hosts
+container$ kubectl create configmap flux-ssh-config --from-file=$HOME/.ssh/known_hosts -n $(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace)
 configmap "flux-ssh-config" created
 ```
 
-It will be created in the same namespace as the flux daemon, since
-you're creating it from within the flux daemon pod.
-
 To use the ConfigMap every time the Flux daemon restarts, you'll need
 to mount it into the container. The example deployment manifest
-includes an example of doing this, commented out. Uncomment that (it
-assumes you used the name above for the ConfigMap) and reapply the
+includes an example of doing this, commented out. Uncomment those two blocks:
+
+```
+      - name: ssh-config
+        configMap:
+          name: flux-ssh-config
+```
+
+```
+        - name: ssh-config
+          mountPath: /root/.ssh
+```
+
+It assumes you used `flux-ssh-config` as name of the ConfigMap and then reapply the
 manifest.
+
+Another alternative is to create the configmap from a template. This could be
+something like:
+
+```
+apiVersion: v1
+data:
+  known_hosts: |
+    # github
+    192.30.253.112 ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAq2A7hRGmdnm9tUDbO9IDSwBK6TbQa+PXYPCPy6rbTrTtw7PHkccKrpp0yVhp5HdEIcKr6pLlVDBfOLX9QUsyCOV0wzfjIJNlGEYsdlLJizHhbn2mUjvSAHQqZETYP81eFzLQNnPHt4EVVUh7VfDESU84KezmD5QlWpXLmvU31/yMf+Se8xhHTvKSCZIFImWwoG6mbUoWf9nzpIoaSjB+weqqUUmpaaasXVal72J+UX2B+2RPW3RcT0eOzQgqlJL3RKrTJvdsjE3JEAvGq3lGHSZXy28G3skua2SmVi/w4yCE6gbODqnTWlg7+wC604ydGXA8VJiS5ap43JXiUFFAaQ==
+    # github
+    192.30.253.113 ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAq2A7hRGmdnm9tUDbO9IDSwBK6TbQa+PXYPCPy6rbTrTtw7PHkccKrpp0yVhp5HdEIcKr6pLlVDBfOLX9QUsyCOV0wzfjIJNlGEYsdlLJizHhbn2mUjvSAHQqZETYP81eFzLQNnPHt4EVVUh7VfDESU84KezmD5QlWpXLmvU31/yMf+Se8xhHTvKSCZIFImWwoG6mbUoWf9nzpIoaSjB+weqqUUmpaaasXVal72J+UX2B+2RPW3RcT0eOzQgqlJL3RKrTJvdsjE3JEAvGq3lGHSZXy28G3skua2SmVi/w4yCE6gbODqnTWlg7+wC604ydGXA8VJiS5ap43JXiUFFAaQ==
+    # private gitlab
+    gitlab.________ ssh-rsa AAAAB3N...
+kind: ConfigMap
+metadata:
+  name: flux-ssh-config
+  namespace: <OPTIONAL NAMESPACE (if not default)>
+```
+
 You will need to explicitly tell fluxd to use that service account by
 uncommenting and possible adapting the line `# serviceAccountName:
 flux` in the file `fluxd-deployment.yaml` before applying it.
