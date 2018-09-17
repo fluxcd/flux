@@ -1,6 +1,42 @@
 This is the changelog for the Flux daemon; the changelog for the Helm
 operator is in [./CHANGELOG-helmop.md](./CHANGELOG-helmop.md).
 
+## 1.7.0 (2018-09-17)
+
+This release has a soupçon of bug fixes. It gets a minor version bump,
+because it introduces a new flag, `--listen-metrics`.
+
+### Fixes
+
+- Updates to workloads using initContainers can now succeed
+  [weaveworks/flux#1351](https://github.com/weaveworks/flux/pull/1351)
+- Port forwarding to GCP (and possibly others) works as intended
+  [weaveworks/flux#1334](https://github.com/weaveworks/flux/issues/1334)
+- No longer falls over if the directory given as `--git-path` doesn't
+  exist
+  [weaveworks/flux#1341](https://github.com/weaveworks/flux/pull/1341)
+- `fluxctl` doesn't try to connect to the cluster when just reporting
+  its version
+  [weaveworks/flux#1332](https://github.com/weaveworks/flux/pull/1332)
+- Metadata for unusable images (e.g., those for the wrong
+  architecture) are now correctly recorded, so that they don't get
+  fetched continually
+  [weaveworks/flux#1304](https://github.com/weaveworks/flux/pull/1304)
+
+### Improvements
+
+- Prometheus metrics can be exposed on a port different from that of
+  the flux API, using the flag `--listen-metrics`
+  [weaveworks/flux#1325](https://github.com/weaveworks/flux/pull/1325)
+
+### Thanks
+
+Thank you to the following for contributions (along with anyone I've
+missed): @ariefrahmansyah, @brantb, @casibbald, @davidkarlsen,
+@dholbach, @hiddeco, @justinbarrick, @kozejonaz, @lelenanam,
+@petervandenabeele, @rade, @rndstr, @squaremo, @stefanprodan,
+@the-fine.
+
 ## 1.6.0 (2018-08-31)
 
 This release improves existing features, and has some new goodies like
