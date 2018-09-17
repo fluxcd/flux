@@ -19,7 +19,7 @@ import (
 
 // memcachedIPs flag from memcached_test.go
 
-// This tests a real memcached cache and a request to a real docker
+// This tests a real memcached cache and a request to a real Docker
 // repository. It is intended to be an end-to-end integration test for
 // the warmer since I had a few bugs introduced when refactoring. This
 // should cover against these bugs.
@@ -30,13 +30,16 @@ func TestWarming_WarmerWriteCacheRead(t *testing.T) {
 		Logger:         log.With(log.NewLogfmtLogger(os.Stderr), "component", "memcached"),
 	}, strings.Fields(*memcachedIPs)...)
 
-	id, _ := image.ParseRef("busybox")
+	// This repo has a stable number of images in the low tens (just
+	// <20); more than `burst` below, but not so many that timing out
+	// is likely.
+	id, _ := image.ParseRef("quay.io/weaveworks/kured")
 
 	logger := log.NewLogfmtLogger(os.Stderr)
 
 	remote := &registry.RemoteClientFactory{
 		Logger:   log.With(logger, "component", "client"),
-		Limiters: &middleware.RateLimiters{RPS: 200, Burst: 10},
+		Limiters: &middleware.RateLimiters{RPS: 10, Burst: 5},
 		Trace:    true,
 	}
 
