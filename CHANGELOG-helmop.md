@@ -1,3 +1,13 @@
+## 0.2.1 (2018-09-17)
+
+This is a patch release that allows helm-op to recover from a failed release install.
+If a chart is broken, Tiller will reserve the name and mark the release as failed. 
+If at a later time the chart is fixed, helm-op can't install it anymore because the release name is in use. 
+Purging the release after each failed install allows helm-op to keep retrying the install.
+
+- Purge release if install fails
+  [weaveworks/flux#1344](https://github.com/weaveworks/flux/pull/1344)
+
 ## 0.2.0 (2018-08-23)
 
 In large part this release simplifies and improves the Helm operator
