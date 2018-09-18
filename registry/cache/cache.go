@@ -8,11 +8,13 @@ import (
 )
 
 type Reader interface {
+	// GetKey gets the value at a key, along with its refresh deadline
 	GetKey(k Keyer) ([]byte, time.Time, error)
 }
 
 type Writer interface {
-	SetKey(k Keyer, v []byte) error
+	// SetKey sets the value at a key, along with its refresh deadline
+	SetKey(k Keyer, deadline time.Time, v []byte) error
 }
 
 type Client interface {

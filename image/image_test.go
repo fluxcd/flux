@@ -3,7 +3,6 @@ package image
 import (
 	"encoding/json"
 	"fmt"
-	"reflect"
 	"strconv"
 	"testing"
 	"time"
@@ -149,9 +148,11 @@ func mustMakeInfo(ref string, created time.Time) Info {
 
 func TestImageInfoSerialisation(t *testing.T) {
 	t0 := time.Now().UTC() // UTC so it has nil location, otherwise it won't compare
+	t1 := time.Now().Add(5 * time.Minute).UTC()
 	info := mustMakeInfo("my/image:tag", t0)
 	info.Digest = "sha256:digest"
 	info.ImageID = "sha256:layerID"
+	info.LastFetched = t1
 	bytes, err := json.Marshal(info)
 	if err != nil {
 		t.Fatal(err)
@@ -160,9 +161,7 @@ func TestImageInfoSerialisation(t *testing.T) {
 	if err = json.Unmarshal(bytes, &info1); err != nil {
 		t.Fatal(err)
 	}
-	if !reflect.DeepEqual(info, info1) {
-		t.Errorf("roundtrip serialisation failed:\n original: %#v\nroundtripped: %#v", info, info1)
-	}
+	assert.Equal(t, info, info1)
 }
 
 func TestImageInfoCreatedAtZero(t *testing.T) {
@@ -248,4 +247,3 @@ func reverse(imgs []Info) {
 		imgs[i], imgs[opp] = imgs[opp], imgs[i]
 	}
 }
-

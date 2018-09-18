@@ -237,6 +237,8 @@ type Info struct {
 	ImageID string `json:",omitempty"`
 	// the time at which the image pointed at was created
 	CreatedAt time.Time `json:",omitempty"`
+	// the last time this image manifest was fetched
+	LastFetched time.Time `json:",omitempty"`
 }
 
 // MarshalJSON returns the Info value in JSON (as bytes). It is
@@ -245,14 +247,18 @@ type Info struct {
 // detect.
 func (im Info) MarshalJSON() ([]byte, error) {
 	type InfoAlias Info // alias to shed existing MarshalJSON implementation
-	var t string
+	var ca, lf string
 	if !im.CreatedAt.IsZero() {
-		t = im.CreatedAt.UTC().Format(time.RFC3339Nano)
+		ca = im.CreatedAt.UTC().Format(time.RFC3339Nano)
+	}
+	if !im.LastFetched.IsZero() {
+		lf = im.LastFetched.UTC().Format(time.RFC3339Nano)
 	}
 	encode := struct {
 		InfoAlias
-		CreatedAt string `json:",omitempty"`
-	}{InfoAlias(im), t}
+		CreatedAt   string `json:",omitempty"`
+		LastFetched string `json:",omitempty"`
+	}{InfoAlias(im), ca, lf}
 	return json.Marshal(encode)
 }
 
@@ -262,18 +268,28 @@ func (im *Info) UnmarshalJSON(b []byte) error {
 	type InfoAlias Info
 	unencode := struct {
 		InfoAlias
-		CreatedAt string `json:",omitempty"`
+		CreatedAt   string `json:",omitempty"`
+		LastFetched string `json:",omitempty"`
 	}{}
 	json.Unmarshal(b, &unencode)
 	*im = Info(unencode.InfoAlias)
-	if unencode.CreatedAt == "" {
-		im.CreatedAt = time.Time{}
+
+	var err error
+	if err = decodeTime(unencode.CreatedAt, &im.CreatedAt); err == nil {
+		err = decodeTime(unencode.LastFetched, &im.LastFetched)
+	}
+	return err
+}
+
+func decodeTime(s string, t *time.Time) error {
+	if s == "" {
+		*t = time.Time{}
 	} else {
-		t, err := time.Parse(time.RFC3339, unencode.CreatedAt)
+		var err error
+		*t, err = time.Parse(time.RFC3339, s)
 		if err != nil {
 			return err
 		}
-		im.CreatedAt = t.UTC()
 	}
 	return nil
 }
@@ -311,7 +327,7 @@ func NewerBySemver(lhs, rhs *Info) bool {
 }
 
 // Sort orders the given image infos according to `newer` func.
-func Sort(infos []Info, newer func (a, b *Info) bool) {
+func Sort(infos []Info, newer func(a, b *Info) bool) {
 	if newer == nil {
 		newer = NewerByCreated
 	}

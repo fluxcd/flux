@@ -34,20 +34,18 @@ func TestMemcache_ExpiryReadWrite(t *testing.T) {
 	}, strings.Fields(*memcachedIPs)...)
 
 	// Set some dummy data
-	err := mc.SetKey(key, val)
+	now := time.Now().Round(time.Second)
+	err := mc.SetKey(key, now, val)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	cached, expiry, err := mc.GetKey(key)
+	cached, deadline, err := mc.GetKey(key)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if expiry.IsZero() {
-		t.Fatal("Time should not be zero")
-	}
-	if expiry.Before(time.Now()) {
-		t.Fatal("Expiry should be in the future")
+	if !deadline.Equal(now) {
+		t.Fatalf("Deadline should be %s, but is %s", now.String(), deadline.String())
 	}
 
 	if string(cached) != string(val) {

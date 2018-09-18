@@ -69,6 +69,7 @@ type Client interface {
 // implementations.
 type ClientFactory interface {
 	ClientFor(image.CanonicalName, Credentials) (Client, error)
+	Succeed(image.CanonicalName)
 }
 
 type Remote struct {

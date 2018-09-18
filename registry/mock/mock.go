@@ -2,6 +2,7 @@ package mock
 
 import (
 	"context"
+
 	"github.com/pkg/errors"
 
 	"github.com/weaveworks/flux/image"
@@ -30,6 +31,10 @@ type ClientFactory struct {
 
 func (m *ClientFactory) ClientFor(repository image.CanonicalName, creds registry.Credentials) (registry.Client, error) {
 	return m.Client, m.Err
+}
+
+func (_ *ClientFactory) Succeed(_ image.CanonicalName) {
+	return
 }
 
 var _ registry.ClientFactory = &ClientFactory{}

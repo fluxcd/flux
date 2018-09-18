@@ -40,12 +40,12 @@ func (i *instrumentedClient) GetKey(k Keyer) (_ []byte, ex time.Time, err error)
 	return i.next.GetKey(k)
 }
 
-func (i *instrumentedClient) SetKey(k Keyer, v []byte) (err error) {
+func (i *instrumentedClient) SetKey(k Keyer, d time.Time, v []byte) (err error) {
 	defer func(begin time.Time) {
 		cacheRequestDuration.With(
 			fluxmetrics.LabelMethod, "SetKey",
 			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
 	}(time.Now())
-	return i.next.SetKey(k, v)
+	return i.next.SetKey(k, d, v)
 }
