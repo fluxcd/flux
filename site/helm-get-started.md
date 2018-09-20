@@ -182,4 +182,4 @@ very straight-forward and are a quite natural work-flow.
 # Next
 
 As a next step, you might want to dive deeper into [how to control
-Flux](../using.md).
+Flux](using.md).
