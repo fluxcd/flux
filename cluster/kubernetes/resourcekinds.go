@@ -50,6 +50,7 @@ type podController struct {
 	kind        string
 	name        string
 	status      string
+	podStatus   cluster.ControllerPodStatus
 	podTemplate apiv1.PodTemplateSpec
 }
 
@@ -86,9 +87,48 @@ func (pc podController) toClusterController(resourceID flux.ResourceID) cluster.
 	return cluster.Controller{
 		ID:         resourceID,
 		Status:     pc.status,
+		PodStatus:  pc.podStatus,
 		Antecedent: antecedent,
 		Labels:     pc.GetLabels(),
 		Containers: cluster.ContainersOrExcuse{Containers: clusterContainers, Excuse: excuse},
+	}
+}
+
+func getPodsConditions(c *Cluster, namespace string, selector string) ([]cluster.PodCondition, error) {
+	pods, err := c.client.CoreV1().Pods(namespace).List(meta_v1.ListOptions{LabelSelector: selector})
+	if err != nil {
+		return nil, err
+	}
+
+	var podConds []cluster.PodCondition
+	for _, pod := range pods.Items {
+		podConds = append(podConds, failedPodCondition(pod))
+	}
+	return podConds, nil
+}
+
+// failedPodCondition return failed pod condition
+func failedPodCondition(p apiv1.Pod) cluster.PodCondition {
+	var conds []cluster.Condition
+	for _, c := range p.Status.Conditions {
+		switch c.Type {
+		case apiv1.PodScheduled, apiv1.PodInitialized, apiv1.PodReady:
+			if c.Status == apiv1.ConditionFalse {
+				conds = append(conds, cluster.Condition{
+					Type:    string(c.Type),
+					Status:  string(c.Status),
+					Reason:  c.Reason,
+					Message: c.Message,
+				})
+			}
+		}
+	}
+
+	return cluster.PodCondition{
+		Name:       p.Name,
+		Message:    p.Status.Message,
+		Reason:     p.Status.Reason,
+		Conditions: conds,
 	}
 }
 
@@ -103,7 +143,13 @@ func (dk *deploymentKind) getPodController(c *Cluster, namespace, name string) (
 		return podController{}, err
 	}
 
-	return makeDeploymentPodController(deployment), nil
+	selector := meta_v1.FormatLabelSelector(deployment.Spec.Selector)
+	conds, err := getPodsConditions(c, namespace, selector)
+	if err != nil {
+		return podController{}, err
+	}
+
+	return makeDeploymentPodController(deployment, conds), nil
 }
 
 func (dk *deploymentKind) getPodControllers(c *Cluster, namespace string) ([]podController, error) {
@@ -113,27 +159,48 @@ func (dk *deploymentKind) getPodControllers(c *Cluster, namespace string) ([]pod
 	}
 
 	var podControllers []podController
-	for i := range deployments.Items {
-		podControllers = append(podControllers, makeDeploymentPodController(&deployments.Items[i]))
+	for _, item := range deployments.Items {
+		selector := meta_v1.FormatLabelSelector(item.Spec.Selector)
+		conds, err := getPodsConditions(c, namespace, selector)
+		if err != nil {
+			return nil, err
+		}
+		podControllers = append(podControllers, makeDeploymentPodController(&item, conds))
 	}
 
 	return podControllers, nil
 }
 
-func makeDeploymentPodController(deployment *apiapps.Deployment) podController {
+func makeDeploymentPodController(deployment *apiapps.Deployment, conds []cluster.PodCondition) podController {
 	var status string
 	objectMeta, deploymentStatus := deployment.ObjectMeta, deployment.Status
 
+	status = StatusUpdating
+	ps := cluster.ControllerPodStatus{
+		Status:        StatusStarted,
+		Desired:       *deployment.Spec.Replicas,
+		Updated:       deploymentStatus.UpdatedReplicas,
+		Ready:         deploymentStatus.ReadyReplicas,
+		Outdated:      deploymentStatus.Replicas - deploymentStatus.UpdatedReplicas,
+		PodConditions: conds,
+	}
+
 	if deploymentStatus.ObservedGeneration >= objectMeta.Generation {
 		// the definition has been updated; now let's see about the replicas
-		updated, wanted := deploymentStatus.UpdatedReplicas, *deployment.Spec.Replicas
-		if updated == wanted {
+		status = fmt.Sprintf("%d out of %d updated", ps.Ready, ps.Desired)
+		ps.Status = StatusUpdating
+		if ps.Ready == ps.Desired {
 			status = StatusReady
-		} else {
-			status = fmt.Sprintf("%d out of %d updated", updated, wanted)
+			ps.Status = StatusReady
 		}
-	} else {
-		status = StatusUpdating
+	}
+
+	for _, cond := range conds {
+		if len(cond.Conditions) > 0 {
+			// there are some failed conditions for a pod
+			status = StatusError
+			ps.Status = StatusError
+		}
 	}
 
 	return podController{
@@ -141,8 +208,10 @@ func makeDeploymentPodController(deployment *apiapps.Deployment) podController {
 		kind:        "Deployment",
 		name:        deployment.ObjectMeta.Name,
 		status:      status,
+		podStatus:   ps,
 		podTemplate: deployment.Spec.Template,
-		k8sObject:   deployment}
+		k8sObject:   deployment,
+	}
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -156,7 +225,13 @@ func (dk *daemonSetKind) getPodController(c *Cluster, namespace, name string) (p
 		return podController{}, err
 	}
 
-	return makeDaemonSetPodController(daemonSet), nil
+	selector := meta_v1.FormatLabelSelector(daemonSet.Spec.Selector)
+	conds, err := getPodsConditions(c, namespace, selector)
+	if err != nil {
+		return podController{}, err
+	}
+
+	return makeDaemonSetPodController(daemonSet, conds), nil
 }
 
 func (dk *daemonSetKind) getPodControllers(c *Cluster, namespace string) ([]podController, error) {
@@ -166,26 +241,47 @@ func (dk *daemonSetKind) getPodControllers(c *Cluster, namespace string) ([]podC
 	}
 
 	var podControllers []podController
-	for i, _ := range daemonSets.Items {
-		podControllers = append(podControllers, makeDaemonSetPodController(&daemonSets.Items[i]))
+	for i := range daemonSets.Items {
+		selector := meta_v1.FormatLabelSelector(daemonSets.Items[i].Spec.Selector)
+		conds, err := getPodsConditions(c, namespace, selector)
+		if err != nil {
+			return nil, err
+		}
+		podControllers = append(podControllers, makeDaemonSetPodController(&daemonSets.Items[i], conds))
 	}
 
 	return podControllers, nil
 }
 
-func makeDaemonSetPodController(daemonSet *apiapps.DaemonSet) podController {
+func makeDaemonSetPodController(daemonSet *apiapps.DaemonSet, conds []cluster.PodCondition) podController {
 	var status string
 	objectMeta, daemonSetStatus := daemonSet.ObjectMeta, daemonSet.Status
+
+	status = StatusUpdating
+	ps := cluster.ControllerPodStatus{
+		Status:   StatusStarted,
+		Desired:  daemonSetStatus.DesiredNumberScheduled,
+		Updated:  daemonSetStatus.UpdatedNumberScheduled,
+		Ready:    daemonSetStatus.NumberReady,
+		Outdated: daemonSetStatus.CurrentNumberScheduled - daemonSetStatus.UpdatedNumberScheduled,
+	}
+
 	if daemonSetStatus.ObservedGeneration >= objectMeta.Generation {
 		// the definition has been updated; now let's see about the replicas
-		updated, wanted := daemonSetStatus.UpdatedNumberScheduled, daemonSetStatus.DesiredNumberScheduled
-		if updated == wanted {
+		status = fmt.Sprintf("%d out of %d updated", ps.Ready, ps.Desired)
+		ps.Status = StatusUpdating
+		if ps.Ready == ps.Desired {
 			status = StatusReady
-		} else {
-			status = fmt.Sprintf("%d out of %d updated", updated, wanted)
+			ps.Status = StatusReady
 		}
-	} else {
-		status = StatusUpdating
+	}
+
+	for _, cond := range conds {
+		if len(cond.Conditions) > 0 {
+			// there are some failed conditions for a pod
+			status = StatusError
+			ps.Status = StatusError
+		}
 	}
 
 	return podController{
@@ -193,6 +289,7 @@ func makeDaemonSetPodController(daemonSet *apiapps.DaemonSet) podController {
 		kind:        "DaemonSet",
 		name:        daemonSet.ObjectMeta.Name,
 		status:      status,
+		podStatus:   ps,
 		podTemplate: daemonSet.Spec.Template,
 		k8sObject:   daemonSet}
 }
@@ -208,7 +305,13 @@ func (dk *statefulSetKind) getPodController(c *Cluster, namespace, name string) 
 		return podController{}, err
 	}
 
-	return makeStatefulSetPodController(statefulSet), nil
+	selector := meta_v1.FormatLabelSelector(statefulSet.Spec.Selector)
+	conds, err := getPodsConditions(c, namespace, selector)
+	if err != nil {
+		return podController{}, err
+	}
+
+	return makeStatefulSetPodController(statefulSet, conds), nil
 }
 
 func (dk *statefulSetKind) getPodControllers(c *Cluster, namespace string) ([]podController, error) {
@@ -218,27 +321,49 @@ func (dk *statefulSetKind) getPodControllers(c *Cluster, namespace string) ([]po
 	}
 
 	var podControllers []podController
-	for i, _ := range statefulSets.Items {
-		podControllers = append(podControllers, makeStatefulSetPodController(&statefulSets.Items[i]))
+	for i := range statefulSets.Items {
+		selector := meta_v1.FormatLabelSelector(statefulSets.Items[i].Spec.Selector)
+		conds, err := getPodsConditions(c, namespace, selector)
+		if err != nil {
+			return nil, err
+		}
+		podControllers = append(podControllers, makeStatefulSetPodController(&statefulSets.Items[i], conds))
 	}
 
 	return podControllers, nil
 }
 
-func makeStatefulSetPodController(statefulSet *apiapps.StatefulSet) podController {
+func makeStatefulSetPodController(statefulSet *apiapps.StatefulSet, conds []cluster.PodCondition) podController {
 	var status string
 	objectMeta, statefulSetStatus := statefulSet.ObjectMeta, statefulSet.Status
+
+	status = StatusUpdating
+	ps := cluster.ControllerPodStatus{
+		Status:        StatusStarted,
+		Desired:       *statefulSet.Spec.Replicas,
+		Updated:       statefulSetStatus.UpdatedReplicas,
+		Ready:         statefulSetStatus.ReadyReplicas,
+		Outdated:      statefulSetStatus.Replicas - statefulSetStatus.UpdatedReplicas,
+		PodConditions: conds,
+	}
+
 	// The type of ObservedGeneration is *int64, unlike other controllers.
 	if statefulSetStatus.ObservedGeneration >= objectMeta.Generation {
 		// the definition has been updated; now let's see about the replicas
-		updated, wanted := statefulSetStatus.UpdatedReplicas, *statefulSet.Spec.Replicas
-		if updated == wanted {
+		status = fmt.Sprintf("%d out of %d updated", ps.Ready, ps.Desired)
+		ps.Status = StatusUpdating
+		if ps.Ready == ps.Desired {
 			status = StatusReady
-		} else {
-			status = fmt.Sprintf("%d out of %d updated", updated, wanted)
+			ps.Status = StatusReady
 		}
-	} else {
-		status = StatusUpdating
+	}
+
+	for _, cond := range conds {
+		if len(cond.Conditions) > 0 {
+			// there are some failed conditions for a pod
+			status = StatusError
+			ps.Status = StatusError
+		}
 	}
 
 	return podController{
@@ -246,6 +371,7 @@ func makeStatefulSetPodController(statefulSet *apiapps.StatefulSet) podControlle
 		kind:        "StatefulSet",
 		name:        statefulSet.ObjectMeta.Name,
 		status:      status,
+		podStatus:   ps,
 		podTemplate: statefulSet.Spec.Template,
 		k8sObject:   statefulSet}
 }

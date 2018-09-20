@@ -23,8 +23,10 @@ import (
 
 const (
 	StatusUnknown  = "unknown"
+	StatusError    = "error"
 	StatusReady    = "ready"
 	StatusUpdating = "updating"
+	StatusStarted  = "started"
 )
 
 type coreClient k8sclient.Interface
