@@ -27,6 +27,7 @@ import (
 	"github.com/weaveworks/flux/release"
 	"github.com/weaveworks/flux/resource"
 	"github.com/weaveworks/flux/update"
+	"github.com/weaveworks/flux/api/v11"
 )
 
 const (
@@ -98,7 +99,21 @@ func (d *Daemon) getResources(ctx context.Context) (map[string]resource.Resource
 }
 
 func (d *Daemon) ListServices(ctx context.Context, namespace string) ([]v6.ControllerStatus, error) {
-	clusterServices, err := d.Cluster.AllControllers(namespace)
+	return d.ListServicesWithOptions(ctx, v11.ListServicesOptions{Namespace: namespace})
+}
+
+func (d *Daemon) ListServicesWithOptions(ctx context.Context, opts v11.ListServicesOptions) ([]v6.ControllerStatus, error) {
+	if opts.Namespace != "" && len(opts.Services) > 0 {
+		return nil, errors.New("cannot filter by 'namespace' and 'services' at the same time")
+	}
+
+	var clusterServices []cluster.Controller
+	var err error
+	if len(opts.Services) > 0 {
+		clusterServices, err = d.Cluster.SomeControllers(opts.Services)
+	} else {
+		clusterServices, err = d.Cluster.AllControllers(opts.Namespace)
+	}
 	if err != nil {
 		return nil, errors.Wrap(err, "getting services from cluster")
 	}

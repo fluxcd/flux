@@ -1,9 +1,16 @@
 package rpc
 
 import (
+	"context"
+	"errors"
 	"fmt"
 
+	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/api/v10"
+	"github.com/weaveworks/flux/api/v11"
+	"github.com/weaveworks/flux/api/v6"
 	"github.com/weaveworks/flux/policy"
+	"github.com/weaveworks/flux/remote"
 	"github.com/weaveworks/flux/update"
 )
 
@@ -13,6 +20,15 @@ func requireServiceSpecKinds(ss update.ResourceSpec, kinds []string) error {
 		return nil
 	}
 
+	_, kind, _ := id.Components()
+	if !contains(kinds, kind) {
+		return fmt.Errorf("Unsupported resource kind: %s", kind)
+	}
+
+	return nil
+}
+
+func requireServiceIDKinds(id flux.ResourceID, kinds []string) error {
 	_, kind, _ := id.Components()
 	if !contains(kinds, kind) {
 		return fmt.Errorf("Unsupported resource kind: %s", kind)
@@ -53,4 +69,97 @@ func contains(ss []string, s string) bool {
 		}
 	}
 	return false
+}
+
+type listServicesWithoutOptionsClient interface {
+	ListServices(ctx context.Context, namespace string) ([]v6.ControllerStatus, error)
+}
+
+// listServicesWithOptions polyfills the ListServiceWithOptions()
+// introduced in v11 by removing unwanted resources after fetching
+// all the services.
+func listServicesWithOptions(ctx context.Context, p listServicesWithoutOptionsClient, opts v11.ListServicesOptions, supportedKinds []string) ([]v6.ControllerStatus, error) {
+	if opts.Namespace != "" && len(opts.Services) > 0 {
+		return nil, errors.New("cannot filter by 'namespace' and 'services' at the same time")
+	}
+	if len(supportedKinds) > 0 {
+		for _, svc := range opts.Services {
+			if err := requireServiceIDKinds(svc, supportedKinds); err != nil {
+				return nil, remote.UnsupportedResourceKind(err)
+			}
+		}
+	}
+
+	all, err := p.ListServices(ctx, opts.Namespace)
+	if err != nil {
+		return nil, err
+	}
+	if len(opts.Services) == 0 {
+		return all, nil
+	}
+
+	// Polyfill the service IDs filter
+	want := map[flux.ResourceID]struct{}{}
+	for _, svc := range opts.Services {
+		want[svc] = struct{}{}
+	}
+	var controllers []v6.ControllerStatus
+	for _, svc := range all {
+		if _, ok := want[svc.ID]; ok {
+			controllers = append(controllers, svc)
+		}
+	}
+	return controllers, nil
+}
+
+type listImagesWithoutOptionsClient interface {
+	ListServices(ctx context.Context, namespace string) ([]v6.ControllerStatus, error)
+	ListImages(ctx context.Context, spec update.ResourceSpec) ([]v6.ImageStatus, error)
+}
+
+// listImagesWithOptions is called by ListImagesWithOptions so we can use an
+// interface to dispatch .ListImages() and .ListServices() to the correct
+// API version.
+func listImagesWithOptions(ctx context.Context, client listImagesWithoutOptionsClient, opts v10.ListImagesOptions) ([]v6.ImageStatus, error) {
+	statuses, err := client.ListImages(ctx, opts.Spec)
+	if err != nil {
+		return statuses, err
+	}
+
+	var ns string
+	if opts.Spec != update.ResourceSpecAll {
+		resourceID, err := opts.Spec.AsID()
+		if err != nil {
+			return statuses, err
+		}
+		ns, _, _ = resourceID.Components()
+	}
+	services, err := client.ListServices(ctx, ns)
+
+	policyMap := map[flux.ResourceID]map[string]string{}
+	for _, service := range services {
+		policyMap[service.ID] = service.Policies
+	}
+
+	// Polyfill container fields from v10
+	for i, status := range statuses {
+		for j, container := range status.Containers {
+			var p policy.Set
+			if policies, ok := policyMap[status.ID]; ok {
+				p = policy.Set{}
+				for k, v := range policies {
+					p[policy.Policy(k)] = v
+				}
+			}
+			tagPattern := policy.GetTagPattern(p, container.Name)
+			// Create a new container using the same function used in v10
+			newContainer, err := v6.NewContainer(container.Name, update.ImageInfos(container.Available), container.Current, tagPattern, opts.OverrideContainerFields)
+			if err != nil {
+				return statuses, err
+			}
+			statuses[i].Containers[j] = newContainer
+		}
+	}
+
+	return statuses, nil
 }

@@ -11,6 +11,7 @@ import (
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/api"
 	"github.com/weaveworks/flux/api/v10"
+	"github.com/weaveworks/flux/api/v11"
 	"github.com/weaveworks/flux/api/v6"
 	"github.com/weaveworks/flux/api/v9"
 	"github.com/weaveworks/flux/guid"
@@ -63,6 +64,10 @@ func (p *MockServer) Export(ctx context.Context) ([]byte, error) {
 }
 
 func (p *MockServer) ListServices(ctx context.Context, ns string) ([]v6.ControllerStatus, error) {
+	return p.ListServicesAnswer, p.ListServicesError
+}
+
+func (p *MockServer) ListServicesWithOptions(context.Context, v11.ListServicesOptions) ([]v6.ControllerStatus, error) {
 	return p.ListServicesAnswer, p.ListServicesError
 }
 

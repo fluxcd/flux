@@ -6,6 +6,7 @@ import (
 	"net/rpc"
 
 	"github.com/weaveworks/flux/api/v10"
+	"github.com/weaveworks/flux/api/v11"
 	"github.com/weaveworks/flux/api/v6"
 	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/remote"
@@ -31,6 +32,10 @@ var supportedKindsV8 = []string{"deployment", "daemonset", "statefulset", "cronj
 // NewClient creates a new rpc-backed implementation of the server.
 func NewClientV8(conn io.ReadWriteCloser) *RPCClientV8 {
 	return &RPCClientV8{NewClientV7(conn)}
+}
+
+func (p *RPCClientV8) ListServicesWithOptions(ctx context.Context, opts v11.ListServicesOptions) ([]v6.ControllerStatus, error) {
+	return listServicesWithOptions(ctx, p, opts, supportedKindsV8)
 }
 
 func (p *RPCClientV8) ListImages(ctx context.Context, spec update.ResourceSpec) ([]v6.ImageStatus, error) {

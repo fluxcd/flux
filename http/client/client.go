@@ -14,6 +14,7 @@ import (
 
 	"github.com/weaveworks/flux/api"
 	"github.com/weaveworks/flux/api/v10"
+	"github.com/weaveworks/flux/api/v11"
 	"github.com/weaveworks/flux/api/v6"
 	fluxerr "github.com/weaveworks/flux/errors"
 	"github.com/weaveworks/flux/event"
@@ -55,6 +56,16 @@ func New(c *http.Client, router *mux.Router, endpoint string, t Token) *Client {
 func (c *Client) ListServices(ctx context.Context, namespace string) ([]v6.ControllerStatus, error) {
 	var res []v6.ControllerStatus
 	err := c.Get(ctx, &res, transport.ListServices, "namespace", namespace)
+	return res, err
+}
+
+func (c *Client) ListServicesWithOptions(ctx context.Context, opts v11.ListServicesOptions) ([]v6.ControllerStatus, error) {
+	var res []v6.ControllerStatus
+	var services []string
+	for _, svc := range opts.Services {
+		services = append(services, svc.String())
+	}
+	err := c.Get(ctx, &res, transport.ListServicesWithOptions, "namespace", opts.Namespace, "services", strings.Join(services, ","))
 	return res, err
 }
 

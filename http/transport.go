@@ -30,6 +30,7 @@ func NewAPIRouter() *mux.Router {
 	r := mux.NewRouter()
 
 	r.NewRoute().Name(ListServices).Methods("GET").Path("/v6/services")
+	r.NewRoute().Name(ListServicesWithOptions).Methods("GET").Path("/v11/services")
 	r.NewRoute().Name(ListImages).Methods("GET").Path("/v6/images")
 	r.NewRoute().Name(ListImagesWithOptions).Methods("GET").Path("/v10/images")
 
