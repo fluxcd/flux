@@ -49,7 +49,10 @@ Flux-Helm Integration implementation consists of two parts:
 
  - name
  - namespace
- - chartGitPath ... path (from repo root) to a Chart subdirectory
+ - chartGitPath ... path (from repo root) to a Chart subdirectory or url to
+   another git repo containing the chart (ex:
+   https://github.com/weaveworks/flux-helm-test/tree/master/charts/mongodb)
+   Follow issue #1131 for using chart from a Helm repo.
 
 ## Optional fields
 
