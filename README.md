@@ -94,9 +94,6 @@ Get started by browsing through the documentation below:
 We welcome all kinds of contributions to Flux, be it code, issues you found,
 documentation, external tools, help and support or anything else really.
 
-Flux follows the [CNCF Code of
-Conduct](https://github.com/cncf/foundation/blob/master/code-of-conduct.md).
-
 Instances of abusive, harassing, or otherwise unacceptable behavior
 may be reported by contacting a *flux* project maintainer, or Alexis
 Richardson `<alexis@weave.works>`.
