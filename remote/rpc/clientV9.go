@@ -18,6 +18,8 @@ type clientV9 interface {
 	v9.Upstream
 }
 
+var _ clientV9 = &RPCClientV9{}
+
 func NewClientV9(conn io.ReadWriteCloser) *RPCClientV9 {
 	return &RPCClientV9{NewClientV8(conn)}
 }

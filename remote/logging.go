@@ -7,6 +7,7 @@ import (
 
 	"github.com/weaveworks/flux/api"
 	"github.com/weaveworks/flux/api/v10"
+	"github.com/weaveworks/flux/api/v11"
 	"github.com/weaveworks/flux/api/v6"
 	"github.com/weaveworks/flux/api/v9"
 	"github.com/weaveworks/flux/job"
@@ -42,6 +43,15 @@ func (p *ErrorLoggingServer) ListServices(ctx context.Context, maybeNamespace st
 		}
 	}()
 	return p.server.ListServices(ctx, maybeNamespace)
+}
+
+func (p *ErrorLoggingServer) ListServicesWithOptions(ctx context.Context, opts v11.ListServicesOptions) (_ []v6.ControllerStatus, err error) {
+	defer func() {
+		if err != nil {
+			p.logger.Log("method", "ListServicesWithOptions", "error", err)
+		}
+	}()
+	return p.server.ListServicesWithOptions(ctx, opts)
 }
 
 func (p *ErrorLoggingServer) ListImages(ctx context.Context, spec update.ResourceSpec) (_ []v6.ImageStatus, err error) {

@@ -6,6 +6,7 @@ import (
 	"net/rpc"
 
 	"github.com/weaveworks/flux/api/v10"
+	"github.com/weaveworks/flux/api/v11"
 	"github.com/weaveworks/flux/api/v6"
 	fluxerr "github.com/weaveworks/flux/errors"
 	"github.com/weaveworks/flux/job"
@@ -61,6 +62,10 @@ func (p *RPCClientV7) ListServices(ctx context.Context, namespace string) ([]v6.
 		err = resp.ApplicationError
 	}
 	return resp.Result, err
+}
+
+func (p *RPCClientV7) ListServicesWithOptions(ctx context.Context, opts v11.ListServicesOptions) ([]v6.ControllerStatus, error) {
+	return listServicesWithOptions(ctx, p, opts, supportedKindsV7)
 }
 
 func (p *RPCClientV7) ListImages(ctx context.Context, spec update.ResourceSpec) ([]v6.ImageStatus, error) {

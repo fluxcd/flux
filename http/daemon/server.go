@@ -13,6 +13,7 @@ import (
 
 	"github.com/weaveworks/flux/api"
 	"github.com/weaveworks/flux/api/v10"
+	"github.com/weaveworks/flux/api/v11"
 	transport "github.com/weaveworks/flux/http"
 	"github.com/weaveworks/flux/job"
 	fluxmetrics "github.com/weaveworks/flux/metrics"
@@ -47,7 +48,8 @@ func NewRouter() *mux.Router {
 
 func NewHandler(s api.Server, r *mux.Router) http.Handler {
 	handle := HTTPServer{s}
-	r.Get(transport.ListServices).HandlerFunc(handle.ListServices)
+	r.Get(transport.ListServices).HandlerFunc(handle.ListServicesWithOptions)
+	r.Get(transport.ListServicesWithOptions).HandlerFunc(handle.ListServicesWithOptions)
 	r.Get(transport.ListImages).HandlerFunc(handle.ListImagesWithOptions)
 	r.Get(transport.ListImagesWithOptions).HandlerFunc(handle.ListImagesWithOptions)
 	r.Get(transport.UpdateManifests).HandlerFunc(handle.UpdateManifests)
@@ -138,9 +140,20 @@ func (s HTTPServer) UpdateManifests(w http.ResponseWriter, r *http.Request) {
 	transport.JSONResponse(w, r, jobID)
 }
 
-func (s HTTPServer) ListServices(w http.ResponseWriter, r *http.Request) {
-	namespace := r.URL.Query().Get("namespace")
-	res, err := s.server.ListServices(r.Context(), namespace)
+func (s HTTPServer) ListServicesWithOptions(w http.ResponseWriter, r *http.Request) {
+	var opts v11.ListServicesOptions
+	opts.Namespace = r.URL.Query().Get("namespace")
+	services := r.URL.Query().Get("services")
+	for _, svc := range strings.Split(services, ",") {
+		id, err := flux.ParseResourceID(svc)
+		if err != nil {
+			transport.WriteError(w, r, http.StatusBadRequest, errors.Wrapf(err, "parsing service spec %q", svc))
+			return
+		}
+		opts.Services = append(opts.Services, id)
+	}
+
+	res, err := s.server.ListServicesWithOptions(r.Context(), opts)
 	if err != nil {
 		transport.ErrorResponse(w, r, err)
 		return

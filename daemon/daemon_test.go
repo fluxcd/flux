@@ -15,6 +15,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/api/v10"
+	"github.com/weaveworks/flux/api/v11"
 	"github.com/weaveworks/flux/api/v6"
 	"github.com/weaveworks/flux/api/v9"
 	"github.com/weaveworks/flux/cluster"
@@ -134,6 +135,55 @@ func TestDaemon_ListServices(t *testing.T) {
 		t.Fatalf("Expected %v but got %v", 0, len(s))
 	}
 }
+
+// When I call list services with options, it should list all the requested services
+func TestDaemon_ListServicesWithOptions(t *testing.T) {
+	d, start, clean, _, _, _ := mockDaemon(t)
+	start()
+	defer clean()
+
+	ctx := context.Background()
+
+	t.Run("no filter", func (t *testing.T) {
+		s, err := d.ListServicesWithOptions(ctx, v11.ListServicesOptions{})
+		if err != nil {
+			t.Fatalf("Error: %s", err.Error())
+		}
+		if len(s) != 2 {
+			t.Fatalf("Expected %v but got %v", 2, len(s))
+		}
+	})
+	t.Run("filter id", func (t *testing.T) {
+		s, err := d.ListServicesWithOptions(ctx, v11.ListServicesOptions{
+			Namespace: "",
+			Services:  []flux.ResourceID{flux.MustParseResourceID(svc)}})
+		if err != nil {
+			t.Fatalf("Error: %s", err.Error())
+		}
+		if len(s) != 1 {
+			t.Fatalf("Expected %v but got %v", 1, len(s))
+		}
+	})
+
+	t.Run("filter id and namespace", func (t *testing.T) {
+		_, err := d.ListServicesWithOptions(ctx, v11.ListServicesOptions{
+			Namespace: "foo",
+			Services:  []flux.ResourceID{flux.MustParseResourceID(svc)}})
+		if err == nil {
+			t.Fatal("Expected error but got nil")
+		}
+	})
+
+	t.Run("filter unsupported id kind", func (t *testing.T) {
+		_, err := d.ListServicesWithOptions(ctx, v11.ListServicesOptions{
+			Namespace: "foo",
+			Services:  []flux.ResourceID{flux.MustParseResourceID("default:unsupportedkind/goodbyeworld")}})
+		if err == nil {
+			t.Fatal("Expected error but got nil")
+		}
+	})
+}
+
 
 // When I call list images for a service, it should return images
 func TestDaemon_ListImagesWithOptions(t *testing.T) {

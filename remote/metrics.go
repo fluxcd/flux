@@ -10,6 +10,7 @@ import (
 
 	"github.com/weaveworks/flux/api"
 	"github.com/weaveworks/flux/api/v10"
+	"github.com/weaveworks/flux/api/v11"
 	"github.com/weaveworks/flux/api/v6"
 	"github.com/weaveworks/flux/api/v9"
 	"github.com/weaveworks/flux/job"
@@ -55,6 +56,16 @@ func (i *instrumentedServer) ListServices(ctx context.Context, namespace string)
 		).Observe(time.Since(begin).Seconds())
 	}(time.Now())
 	return i.s.ListServices(ctx, namespace)
+}
+
+func (i *instrumentedServer) ListServicesWithOptions(ctx context.Context, opts v11.ListServicesOptions) (_ []v6.ControllerStatus, err error) {
+	defer func(begin time.Time) {
+		requestDuration.With(
+			fluxmetrics.LabelMethod, "ListServicesWithOptions",
+			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
+		).Observe(time.Since(begin).Seconds())
+	}(time.Now())
+	return i.s.ListServicesWithOptions(ctx, opts)
 }
 
 func (i *instrumentedServer) ListImages(ctx context.Context, spec update.ResourceSpec) (_ []v6.ImageStatus, err error) {
