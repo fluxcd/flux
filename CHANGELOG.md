@@ -1,6 +1,16 @@
 This is the changelog for the Flux daemon; the changelog for the Helm
 operator is in [./CHANGELOG-helmop.md](./CHANGELOG-helmop.md).
 
+## 1.x.x (unreleased)
+
+### Fixes
+
+- ..
+
+### Improvements
+
+- ..
+
 ## 1.7.0 (2018-09-17)
 
 This release has a soupçon of bug fixes. It gets a minor version bump,
