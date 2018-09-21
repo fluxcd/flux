@@ -23,7 +23,7 @@ import (
 	kube "k8s.io/client-go/kubernetes"
 	"k8s.io/helm/pkg/helm"
 
-	fluxhelmtypes "github.com/weaveworks/flux/apis/helm.integrations.flux.weave.works/v1alpha2"
+	fluxhelmtypes "github.com/weaveworks/flux/integrations/apis/flux.weave.works/v1beta1"
 	fluxhelm "github.com/weaveworks/flux/integrations/client/clientset/versioned"
 	"github.com/weaveworks/flux/integrations/helm/release"
 )
@@ -62,7 +62,7 @@ bail:
 			break bail
 		}
 		for _, ns := range namespaces.Items {
-			fhrIf := a.fluxhelm.HelmV1alpha2().FluxHelmReleases(ns.Name)
+			fhrIf := a.fluxhelm.FluxV1beta1().FluxHelmReleases(ns.Name)
 			fhrs, err := fhrIf.List(metav1.ListOptions{})
 			if err != nil {
 				logErr = err

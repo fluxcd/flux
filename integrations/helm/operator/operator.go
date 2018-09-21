@@ -9,6 +9,12 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/golang/glog"
 	"github.com/google/go-cmp/cmp"
+	flux_v1beta1 "github.com/weaveworks/flux/integrations/apis/flux.weave.works/v1beta1"
+	ifscheme "github.com/weaveworks/flux/integrations/client/clientset/versioned/scheme"
+	fhrv1 "github.com/weaveworks/flux/integrations/client/informers/externalversions/flux.weave.works/v1beta1"
+	iflister "github.com/weaveworks/flux/integrations/client/listers/flux.weave.works/v1beta1"
+	helmop "github.com/weaveworks/flux/integrations/helm"
+	"github.com/weaveworks/flux/integrations/helm/chartsync"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/util/runtime"
@@ -19,13 +25,6 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
-
-	ifv1 "github.com/weaveworks/flux/apis/helm.integrations.flux.weave.works/v1alpha2"
-	ifscheme "github.com/weaveworks/flux/integrations/client/clientset/versioned/scheme"
-	fhrv1 "github.com/weaveworks/flux/integrations/client/informers/externalversions/helm.integrations.flux.weave.works/v1alpha2"
-	iflister "github.com/weaveworks/flux/integrations/client/listers/helm.integrations.flux.weave.works/v1alpha2"
-	helmop "github.com/weaveworks/flux/integrations/helm"
-	"github.com/weaveworks/flux/integrations/helm/chartsync"
 )
 
 const (
@@ -257,12 +256,12 @@ func (c *Controller) syncHandler(key string) error {
 	return nil
 }
 
-func checkCustomResourceType(logger log.Logger, obj interface{}) (ifv1.FluxHelmRelease, bool) {
-	var fhr *ifv1.FluxHelmRelease
+func checkCustomResourceType(logger log.Logger, obj interface{}) (flux_v1beta1.FluxHelmRelease, bool) {
+	var fhr *flux_v1beta1.FluxHelmRelease
 	var ok bool
-	if fhr, ok = obj.(*ifv1.FluxHelmRelease); !ok {
+	if fhr, ok = obj.(*flux_v1beta1.FluxHelmRelease); !ok {
 		logger.Log("error", fmt.Sprintf("FluxHelmRelease Event Watch received an invalid object: %#v", obj))
-		return ifv1.FluxHelmRelease{}, false
+		return flux_v1beta1.FluxHelmRelease{}, false
 	}
 	return *fhr, true
 }
@@ -312,7 +311,7 @@ func (c *Controller) enqueueUpateJob(old, new interface{}) {
 	}
 }
 
-func (c *Controller) deleteRelease(fhr ifv1.FluxHelmRelease) {
+func (c *Controller) deleteRelease(fhr flux_v1beta1.FluxHelmRelease) {
 	c.logger.Log("info", "DELETING release")
 	c.logger.Log("info", "Custom Resource driven release deletion")
 	c.sync.DeleteRelease(fhr)

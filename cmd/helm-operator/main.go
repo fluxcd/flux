@@ -242,7 +242,7 @@ func main() {
 	//				operator attaches event handler to the informer and syncs the informer cache
 	ifInformerFactory := ifinformers.NewSharedInformerFactory(ifClient, 30*time.Second)
 	// Reference to shared index informers for the FluxHelmRelease
-	fhrInformer := ifInformerFactory.Helm().V1alpha2().FluxHelmReleases()
+	fhrInformer := ifInformerFactory.Flux().V1beta1().FluxHelmReleases()
 
 	opr := operator.New(log.With(logger, "component", "operator"), *logReleaseDiffs, kubeClient, fhrInformer, chartSync, repoConfig)
 	// Starts handling k8s events related to the given resource kind

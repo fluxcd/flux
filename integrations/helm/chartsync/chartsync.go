@@ -54,8 +54,8 @@ import (
 	hapi_chart "k8s.io/helm/pkg/proto/hapi/chart"
 	hapi_release "k8s.io/helm/pkg/proto/hapi/release"
 
-	ifv1 "github.com/weaveworks/flux/apis/helm.integrations.flux.weave.works/v1alpha2"
 	"github.com/weaveworks/flux/git"
+	fhr "github.com/weaveworks/flux/integrations/apis/flux.weave.works/v1beta1"
 	ifclientset "github.com/weaveworks/flux/integrations/client/clientset/versioned"
 	helmop "github.com/weaveworks/flux/integrations/helm"
 	"github.com/weaveworks/flux/integrations/helm/release"
@@ -186,7 +186,7 @@ func (chs *ChartChangeSync) Run(stopCh <-chan struct{}, errc chan error, wg *syn
 // block indefinitely, so the caller provides a context which it can
 // cancel if it gets tired of waiting. Returns an error if the context
 // timed out or was canceled before the operation was started.
-func (chs *ChartChangeSync) ReconcileReleaseDef(fhr ifv1.FluxHelmRelease) {
+func (chs *ChartChangeSync) ReconcileReleaseDef(fhr fhr.FluxHelmRelease) {
 	chs.reconcileReleaseDef(fhr)
 }
 
@@ -206,7 +206,10 @@ func (chs *ChartChangeSync) applyChartChanges(prevRef, head string) error {
 	chartHasChanged := map[string]bool{}
 
 	for _, fhr := range resources {
-		chartPath := filepath.Join(chs.config.ChartsPath, fhr.Spec.ChartGitPath)
+		if fhr.Spec.ChartSource.GitChart == nil {
+			continue
+		}
+		chartPath := filepath.Join(chs.config.ChartsPath, fhr.Spec.ChartSource.GitChart.Path)
 		changed, ok := chartHasChanged[chartPath]
 		if !ok {
 			ctx, cancel := context.WithTimeout(context.Background(), helmop.GitOperationTimeout)
@@ -236,7 +239,7 @@ func (chs *ChartChangeSync) applyChartChanges(prevRef, head string) error {
 // reconcileReleaseDef looks up the helm release associated with a
 // FluxHelmRelease resource, and either installs, upgrades, or does
 // nothing, depending on the state (or absence) of the release.
-func (chs *ChartChangeSync) reconcileReleaseDef(fhr ifv1.FluxHelmRelease) {
+func (chs *ChartChangeSync) reconcileReleaseDef(fhr fhr.FluxHelmRelease) {
 	releaseName := release.GetReleaseName(fhr)
 
 	// There's no exact way in the Helm API to test whether a release
@@ -289,7 +292,7 @@ func (chs *ChartChangeSync) reapplyReleaseDefs() error {
 // DeleteRelease deletes the helm release associated with a
 // FluxHelmRelease. This exists mainly so that the operator code can
 // call it when it is handling a resource deletion.
-func (chs *ChartChangeSync) DeleteRelease(fhr ifv1.FluxHelmRelease) {
+func (chs *ChartChangeSync) DeleteRelease(fhr fhr.FluxHelmRelease) {
 	name := release.GetReleaseName(fhr)
 	err := chs.release.Delete(name)
 	if err != nil {
@@ -315,15 +318,15 @@ func (chs *ChartChangeSync) getNamespaces() ([]string, error) {
 }
 
 // getCustomResources assembles all custom resources in all namespaces
-func (chs *ChartChangeSync) getCustomResources() ([]ifv1.FluxHelmRelease, error) {
+func (chs *ChartChangeSync) getCustomResources() ([]fhr.FluxHelmRelease, error) {
 	namespaces, err := chs.getNamespaces()
 	if err != nil {
 		return nil, err
 	}
 
-	var fhrs []ifv1.FluxHelmRelease
+	var fhrs []fhr.FluxHelmRelease
 	for _, ns := range namespaces {
-		list, err := chs.ifClient.HelmV1alpha2().FluxHelmReleases(ns).List(metav1.ListOptions{})
+		list, err := chs.ifClient.FluxV1beta1().FluxHelmReleases(ns).List(metav1.ListOptions{})
 		if err != nil {
 			return nil, err
 		}
@@ -380,7 +383,7 @@ func sortChartFields(c *hapi_chart.Chart) *hapi_chart.Chart {
 // shouldUpgrade returns true if the current running values or chart
 // don't match what the repo says we ought to be running, based on
 // doing a dry run install from the chart in the git repo.
-func (chs *ChartChangeSync) shouldUpgrade(chartsRepo string, currRel *hapi_release.Release, fhr ifv1.FluxHelmRelease) (bool, error) {
+func (chs *ChartChangeSync) shouldUpgrade(chartsRepo string, currRel *hapi_release.Release, fhr fhr.FluxHelmRelease) (bool, error) {
 	if currRel == nil {
 		return false, fmt.Errorf("No Chart release provided for %v", fhr.GetName())
 	}

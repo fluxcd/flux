@@ -17,8 +17,8 @@ import (
 	hapi_release "k8s.io/helm/pkg/proto/hapi/release"
 
 	"github.com/weaveworks/flux"
-	ifv1 "github.com/weaveworks/flux/apis/helm.integrations.flux.weave.works/v1alpha2"
 	fluxk8s "github.com/weaveworks/flux/cluster/kubernetes"
+	flux_v1beta1 "github.com/weaveworks/flux/integrations/apis/flux.weave.works/v1beta1"
 )
 
 var (
@@ -49,7 +49,7 @@ type Release struct {
 type Releaser interface {
 	GetCurrent() (map[string][]DeployInfo, error)
 	GetDeployedRelease(name string) (*hapi_release.Release, error)
-	Install(dir string, releaseName string, fhr ifv1.FluxHelmRelease, action Action, opts InstallOptions) (*hapi_release.Release, error)
+	Install(dir string, releaseName string, fhr flux_v1beta1.FluxHelmRelease, action Action, opts InstallOptions) (*hapi_release.Release, error)
 }
 
 type DeployInfo struct {
@@ -74,7 +74,7 @@ func New(logger log.Logger, helmClient *k8shelm.Client, config Config) *Release 
 
 // GetReleaseName either retrieves the release name from the Custom Resource or constructs a new one
 //  in the form : $Namespace-$CustomResourceName
-func GetReleaseName(fhr ifv1.FluxHelmRelease) string {
+func GetReleaseName(fhr flux_v1beta1.FluxHelmRelease) string {
 	namespace := fhr.Namespace
 	if namespace == "" {
 		namespace = "default"
@@ -136,10 +136,15 @@ func (r *Release) canDelete(name string) (bool, error) {
 // charts, and the FluxHelmRelease specifying the release. Depending
 // on the release type, this is either a new release, or an upgrade of
 // an existing one.
-func (r *Release) Install(repoDir, releaseName string, fhr ifv1.FluxHelmRelease, action Action, opts InstallOptions, kubeClient *kubernetes.Clientset) (*hapi_release.Release, error) {
+
+func (r *Release) Install(repoDir, releaseName string, fhr flux_v1beta1.FluxHelmRelease, action Action, opts InstallOptions, kubeClient *kubernetes.Clientset) (*hapi_release.Release, error) {
 	r.logger.Log("info", fmt.Sprintf("releaseName= %s, action=%s, install options: %+v", releaseName, action, opts))
 
-	chartPath := fhr.Spec.ChartGitPath
+	if fhr.Spec.ChartSource.GitChart == nil {
+		return nil, fmt.Errorf("FluxHelmRelease resources using anything other than gitChartPath are not supported yet")
+	}
+
+	chartPath := fhr.Spec.ChartSource.GitChart.Path
 	if chartPath == "" {
 		r.logger.Log("error", fmt.Sprintf(ErrChartGitPathMissing, fhr.GetName()))
 		return nil, fmt.Errorf(ErrChartGitPathMissing, fhr.GetName())
@@ -296,7 +301,7 @@ func (r *Release) GetCurrent() (map[string][]DeployInfo, error) {
 
 // annotateResources annotates each of the resources created (or updated)
 // by the release so that we can spot them.
-func (r *Release) annotateResources(release *hapi_release.Release, fhr ifv1.FluxHelmRelease) error {
+func (r *Release) annotateResources(release *hapi_release.Release, fhr flux_v1beta1.FluxHelmRelease) error {
 	args := []string{"annotate", "--overwrite"}
 	args = append(args, "--namespace", release.Namespace)
 	args = append(args, "-f", "-")
@@ -316,7 +321,7 @@ func (r *Release) annotateResources(release *hapi_release.Release, fhr ifv1.Flux
 
 // fhrResourceID constructs a flux.ResourceID for a FluxHelmRelease
 // resource.
-func fhrResourceID(fhr ifv1.FluxHelmRelease) flux.ResourceID {
+func fhrResourceID(fhr flux_v1beta1.FluxHelmRelease) flux.ResourceID {
 	return flux.MakeResourceID(fhr.Namespace, "FluxHelmRelease", fhr.Name)
 }
 

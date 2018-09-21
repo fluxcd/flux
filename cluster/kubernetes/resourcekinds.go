@@ -7,10 +7,10 @@ import (
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/weaveworks/flux"
-	fhr_v1alpha2 "github.com/weaveworks/flux/apis/helm.integrations.flux.weave.works/v1alpha2"
 	"github.com/weaveworks/flux/cluster"
 	kresource "github.com/weaveworks/flux/cluster/kubernetes/resource"
 	"github.com/weaveworks/flux/image"
+	fhr_v1beta1 "github.com/weaveworks/flux/integrations/apis/flux.weave.works/v1beta1"
 	"github.com/weaveworks/flux/resource"
 )
 
@@ -370,7 +370,7 @@ func makeCronJobPodController(cronJob *apibatch.CronJob) podController {
 type fluxHelmReleaseKind struct{}
 
 func (fhr *fluxHelmReleaseKind) getPodController(c *Cluster, namespace, name string) (podController, error) {
-	fluxHelmRelease, err := c.client.HelmV1alpha2().FluxHelmReleases(namespace).Get(name, meta_v1.GetOptions{})
+	fluxHelmRelease, err := c.client.FluxV1beta1().FluxHelmReleases(namespace).Get(name, meta_v1.GetOptions{})
 	if err != nil {
 		return podController{}, err
 	}
@@ -379,7 +379,7 @@ func (fhr *fluxHelmReleaseKind) getPodController(c *Cluster, namespace, name str
 }
 
 func (fhr *fluxHelmReleaseKind) getPodControllers(c *Cluster, namespace string) ([]podController, error) {
-	fluxHelmReleases, err := c.client.HelmV1alpha2().FluxHelmReleases(namespace).List(meta_v1.ListOptions{})
+	fluxHelmReleases, err := c.client.FluxV1beta1().FluxHelmReleases(namespace).List(meta_v1.ListOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -392,7 +392,7 @@ func (fhr *fluxHelmReleaseKind) getPodControllers(c *Cluster, namespace string) 
 	return podControllers, nil
 }
 
-func makeFluxHelmReleasePodController(fluxHelmRelease *fhr_v1alpha2.FluxHelmRelease) podController {
+func makeFluxHelmReleasePodController(fluxHelmRelease *fhr_v1beta1.FluxHelmRelease) podController {
 	containers := createK8sFHRContainers(fluxHelmRelease.Spec)
 
 	podTemplate := apiv1.PodTemplateSpec{
@@ -404,7 +404,7 @@ func makeFluxHelmReleasePodController(fluxHelmRelease *fhr_v1alpha2.FluxHelmRele
 	}
 
 	return podController{
-		apiVersion:  "helm.integrations.flux.weave.works/v1alpha2",
+		apiVersion:  "flux.weave.works/v1beta1",
 		kind:        "FluxHelmRelease",
 		name:        fluxHelmRelease.ObjectMeta.Name,
 		status:      fluxHelmRelease.Status.ReleaseStatus,
@@ -416,7 +416,7 @@ func makeFluxHelmReleasePodController(fluxHelmRelease *fhr_v1alpha2.FluxHelmRele
 // createK8sContainers creates a list of k8s containers by
 // interpreting the FluxHelmRelease resource. The interpretation is
 // analogous to that in cluster/kubernetes/resource/fluxhelmrelease.go
-func createK8sFHRContainers(spec fhr_v1alpha2.FluxHelmReleaseSpec) []apiv1.Container {
+func createK8sFHRContainers(spec fhr_v1beta1.FluxHelmReleaseSpec) []apiv1.Container {
 	var containers []apiv1.Container
 	_ = kresource.FindFluxHelmReleaseContainers(spec.Values, func(name string, image image.Ref, _ kresource.ImageSetter) error {
 		containers = append(containers, apiv1.Container{
