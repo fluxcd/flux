@@ -18,6 +18,10 @@ Please consider adding an entry for either the
  - regular changelog: https://github.com/weaveworks/flux/blob/master/CHANGELOG.md or
  - helm operator changelog: https://github.com/weaveworks/flux/blob/master/CHANGELOG-helmop.md
 
+In your PR, just add a short description of your change with a link to the
+relevant discussion. (You can find CHANGELOG.md and CHANGELOG-helmop.md in the
+top-level directory.)
+
 Particularly for ground-breaking changes and new features, it's important to
 make users and developers aware of what's changing and where those changes
 were documented or discussed.
