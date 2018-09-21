@@ -13,10 +13,10 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package v1alpha2
+package v1beta1
 
 import (
-	v1alpha2 "github.com/weaveworks/flux/integrations/apis/helm.integrations.flux.weave.works/v1alpha2"
+	v1beta1 "github.com/weaveworks/flux/integrations/apis/flux.weave.works/v1beta1"
 	scheme "github.com/weaveworks/flux/integrations/client/clientset/versioned/scheme"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
@@ -32,14 +32,14 @@ type FluxHelmReleasesGetter interface {
 
 // FluxHelmReleaseInterface has methods to work with FluxHelmRelease resources.
 type FluxHelmReleaseInterface interface {
-	Create(*v1alpha2.FluxHelmRelease) (*v1alpha2.FluxHelmRelease, error)
-	Update(*v1alpha2.FluxHelmRelease) (*v1alpha2.FluxHelmRelease, error)
+	Create(*v1beta1.FluxHelmRelease) (*v1beta1.FluxHelmRelease, error)
+	Update(*v1beta1.FluxHelmRelease) (*v1beta1.FluxHelmRelease, error)
 	Delete(name string, options *v1.DeleteOptions) error
 	DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error
-	Get(name string, options v1.GetOptions) (*v1alpha2.FluxHelmRelease, error)
-	List(opts v1.ListOptions) (*v1alpha2.FluxHelmReleaseList, error)
+	Get(name string, options v1.GetOptions) (*v1beta1.FluxHelmRelease, error)
+	List(opts v1.ListOptions) (*v1beta1.FluxHelmReleaseList, error)
 	Watch(opts v1.ListOptions) (watch.Interface, error)
-	Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1alpha2.FluxHelmRelease, err error)
+	Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1beta1.FluxHelmRelease, err error)
 	FluxHelmReleaseExpansion
 }
 
@@ -50,7 +50,7 @@ type fluxHelmReleases struct {
 }
 
 // newFluxHelmReleases returns a FluxHelmReleases
-func newFluxHelmReleases(c *HelmV1alpha2Client, namespace string) *fluxHelmReleases {
+func newFluxHelmReleases(c *FluxV1beta1Client, namespace string) *fluxHelmReleases {
 	return &fluxHelmReleases{
 		client: c.RESTClient(),
 		ns:     namespace,
@@ -58,8 +58,8 @@ func newFluxHelmReleases(c *HelmV1alpha2Client, namespace string) *fluxHelmRelea
 }
 
 // Get takes name of the fluxHelmRelease, and returns the corresponding fluxHelmRelease object, and an error if there is any.
-func (c *fluxHelmReleases) Get(name string, options v1.GetOptions) (result *v1alpha2.FluxHelmRelease, err error) {
-	result = &v1alpha2.FluxHelmRelease{}
+func (c *fluxHelmReleases) Get(name string, options v1.GetOptions) (result *v1beta1.FluxHelmRelease, err error) {
+	result = &v1beta1.FluxHelmRelease{}
 	err = c.client.Get().
 		Namespace(c.ns).
 		Resource("fluxhelmreleases").
@@ -71,8 +71,8 @@ func (c *fluxHelmReleases) Get(name string, options v1.GetOptions) (result *v1al
 }
 
 // List takes label and field selectors, and returns the list of FluxHelmReleases that match those selectors.
-func (c *fluxHelmReleases) List(opts v1.ListOptions) (result *v1alpha2.FluxHelmReleaseList, err error) {
-	result = &v1alpha2.FluxHelmReleaseList{}
+func (c *fluxHelmReleases) List(opts v1.ListOptions) (result *v1beta1.FluxHelmReleaseList, err error) {
+	result = &v1beta1.FluxHelmReleaseList{}
 	err = c.client.Get().
 		Namespace(c.ns).
 		Resource("fluxhelmreleases").
@@ -93,8 +93,8 @@ func (c *fluxHelmReleases) Watch(opts v1.ListOptions) (watch.Interface, error) {
 }
 
 // Create takes the representation of a fluxHelmRelease and creates it.  Returns the server's representation of the fluxHelmRelease, and an error, if there is any.
-func (c *fluxHelmReleases) Create(fluxHelmRelease *v1alpha2.FluxHelmRelease) (result *v1alpha2.FluxHelmRelease, err error) {
-	result = &v1alpha2.FluxHelmRelease{}
+func (c *fluxHelmReleases) Create(fluxHelmRelease *v1beta1.FluxHelmRelease) (result *v1beta1.FluxHelmRelease, err error) {
+	result = &v1beta1.FluxHelmRelease{}
 	err = c.client.Post().
 		Namespace(c.ns).
 		Resource("fluxhelmreleases").
@@ -105,8 +105,8 @@ func (c *fluxHelmReleases) Create(fluxHelmRelease *v1alpha2.FluxHelmRelease) (re
 }
 
 // Update takes the representation of a fluxHelmRelease and updates it. Returns the server's representation of the fluxHelmRelease, and an error, if there is any.
-func (c *fluxHelmReleases) Update(fluxHelmRelease *v1alpha2.FluxHelmRelease) (result *v1alpha2.FluxHelmRelease, err error) {
-	result = &v1alpha2.FluxHelmRelease{}
+func (c *fluxHelmReleases) Update(fluxHelmRelease *v1beta1.FluxHelmRelease) (result *v1beta1.FluxHelmRelease, err error) {
+	result = &v1beta1.FluxHelmRelease{}
 	err = c.client.Put().
 		Namespace(c.ns).
 		Resource("fluxhelmreleases").
@@ -140,8 +140,8 @@ func (c *fluxHelmReleases) DeleteCollection(options *v1.DeleteOptions, listOptio
 }
 
 // Patch applies the patch and returns the patched fluxHelmRelease.
-func (c *fluxHelmReleases) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1alpha2.FluxHelmRelease, err error) {
-	result = &v1alpha2.FluxHelmRelease{}
+func (c *fluxHelmReleases) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1beta1.FluxHelmRelease, err error) {
+	result = &v1beta1.FluxHelmRelease{}
 	err = c.client.Patch(pt).
 		Namespace(c.ns).
 		Resource("fluxhelmreleases").

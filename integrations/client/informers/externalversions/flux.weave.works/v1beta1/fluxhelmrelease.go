@@ -13,13 +13,13 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package v1alpha2
+package v1beta1
 
 import (
-	helm_integrations_flux_weave_works_v1alpha2 "github.com/weaveworks/flux/integrations/apis/helm.integrations.flux.weave.works/v1alpha2"
+	flux_weave_works_v1beta1 "github.com/weaveworks/flux/integrations/apis/flux.weave.works/v1beta1"
 	versioned "github.com/weaveworks/flux/integrations/client/clientset/versioned"
 	internalinterfaces "github.com/weaveworks/flux/integrations/client/informers/externalversions/internalinterfaces"
-	v1alpha2 "github.com/weaveworks/flux/integrations/client/listers/helm.integrations.flux.weave.works/v1alpha2"
+	v1beta1 "github.com/weaveworks/flux/integrations/client/listers/flux.weave.works/v1beta1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"
@@ -31,7 +31,7 @@ import (
 // FluxHelmReleases.
 type FluxHelmReleaseInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() v1alpha2.FluxHelmReleaseLister
+	Lister() v1beta1.FluxHelmReleaseLister
 }
 
 type fluxHelmReleaseInformer struct {
@@ -57,16 +57,16 @@ func NewFilteredFluxHelmReleaseInformer(client versioned.Interface, namespace st
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.HelmV1alpha2().FluxHelmReleases(namespace).List(options)
+				return client.FluxV1beta1().FluxHelmReleases(namespace).List(options)
 			},
 			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.HelmV1alpha2().FluxHelmReleases(namespace).Watch(options)
+				return client.FluxV1beta1().FluxHelmReleases(namespace).Watch(options)
 			},
 		},
-		&helm_integrations_flux_weave_works_v1alpha2.FluxHelmRelease{},
+		&flux_weave_works_v1beta1.FluxHelmRelease{},
 		resyncPeriod,
 		indexers,
 	)
@@ -77,9 +77,9 @@ func (f *fluxHelmReleaseInformer) defaultInformer(client versioned.Interface, re
 }
 
 func (f *fluxHelmReleaseInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&helm_integrations_flux_weave_works_v1alpha2.FluxHelmRelease{}, f.defaultInformer)
+	return f.factory.InformerFor(&flux_weave_works_v1beta1.FluxHelmRelease{}, f.defaultInformer)
 }
 
-func (f *fluxHelmReleaseInformer) Lister() v1alpha2.FluxHelmReleaseLister {
-	return v1alpha2.NewFluxHelmReleaseLister(f.Informer().GetIndexer())
+func (f *fluxHelmReleaseInformer) Lister() v1beta1.FluxHelmReleaseLister {
+	return v1beta1.NewFluxHelmReleaseLister(f.Informer().GetIndexer())
 }

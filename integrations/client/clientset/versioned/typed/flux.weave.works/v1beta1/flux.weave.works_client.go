@@ -13,31 +13,31 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package v1alpha2
+package v1beta1
 
 import (
-	v1alpha2 "github.com/weaveworks/flux/integrations/apis/helm.integrations.flux.weave.works/v1alpha2"
+	v1beta1 "github.com/weaveworks/flux/integrations/apis/flux.weave.works/v1beta1"
 	"github.com/weaveworks/flux/integrations/client/clientset/versioned/scheme"
 	serializer "k8s.io/apimachinery/pkg/runtime/serializer"
 	rest "k8s.io/client-go/rest"
 )
 
-type HelmV1alpha2Interface interface {
+type FluxV1beta1Interface interface {
 	RESTClient() rest.Interface
 	FluxHelmReleasesGetter
 }
 
-// HelmV1alpha2Client is used to interact with features provided by the helm.integrations.flux.weave.works group.
-type HelmV1alpha2Client struct {
+// FluxV1beta1Client is used to interact with features provided by the flux.weave.works group.
+type FluxV1beta1Client struct {
 	restClient rest.Interface
 }
 
-func (c *HelmV1alpha2Client) FluxHelmReleases(namespace string) FluxHelmReleaseInterface {
+func (c *FluxV1beta1Client) FluxHelmReleases(namespace string) FluxHelmReleaseInterface {
 	return newFluxHelmReleases(c, namespace)
 }
 
-// NewForConfig creates a new HelmV1alpha2Client for the given config.
-func NewForConfig(c *rest.Config) (*HelmV1alpha2Client, error) {
+// NewForConfig creates a new FluxV1beta1Client for the given config.
+func NewForConfig(c *rest.Config) (*FluxV1beta1Client, error) {
 	config := *c
 	if err := setConfigDefaults(&config); err != nil {
 		return nil, err
@@ -46,12 +46,12 @@ func NewForConfig(c *rest.Config) (*HelmV1alpha2Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &HelmV1alpha2Client{client}, nil
+	return &FluxV1beta1Client{client}, nil
 }
 
-// NewForConfigOrDie creates a new HelmV1alpha2Client for the given config and
+// NewForConfigOrDie creates a new FluxV1beta1Client for the given config and
 // panics if there is an error in the config.
-func NewForConfigOrDie(c *rest.Config) *HelmV1alpha2Client {
+func NewForConfigOrDie(c *rest.Config) *FluxV1beta1Client {
 	client, err := NewForConfig(c)
 	if err != nil {
 		panic(err)
@@ -59,13 +59,13 @@ func NewForConfigOrDie(c *rest.Config) *HelmV1alpha2Client {
 	return client
 }
 
-// New creates a new HelmV1alpha2Client for the given RESTClient.
-func New(c rest.Interface) *HelmV1alpha2Client {
-	return &HelmV1alpha2Client{c}
+// New creates a new FluxV1beta1Client for the given RESTClient.
+func New(c rest.Interface) *FluxV1beta1Client {
+	return &FluxV1beta1Client{c}
 }
 
 func setConfigDefaults(config *rest.Config) error {
-	gv := v1alpha2.SchemeGroupVersion
+	gv := v1beta1.SchemeGroupVersion
 	config.GroupVersion = &gv
 	config.APIPath = "/apis"
 	config.NegotiatedSerializer = serializer.DirectCodecFactory{CodecFactory: scheme.Codecs}
@@ -79,7 +79,7 @@ func setConfigDefaults(config *rest.Config) error {
 
 // RESTClient returns a RESTClient that is used to communicate
 // with API server by this client implementation.
-func (c *HelmV1alpha2Client) RESTClient() rest.Interface {
+func (c *FluxV1beta1Client) RESTClient() rest.Interface {
 	if c == nil {
 		return nil
 	}

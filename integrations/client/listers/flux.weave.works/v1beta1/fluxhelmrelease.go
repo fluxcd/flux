@@ -13,10 +13,10 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package v1alpha2
+package v1beta1
 
 import (
-	v1alpha2 "github.com/weaveworks/flux/integrations/apis/helm.integrations.flux.weave.works/v1alpha2"
+	v1beta1 "github.com/weaveworks/flux/integrations/apis/flux.weave.works/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/tools/cache"
@@ -25,7 +25,7 @@ import (
 // FluxHelmReleaseLister helps list FluxHelmReleases.
 type FluxHelmReleaseLister interface {
 	// List lists all FluxHelmReleases in the indexer.
-	List(selector labels.Selector) (ret []*v1alpha2.FluxHelmRelease, err error)
+	List(selector labels.Selector) (ret []*v1beta1.FluxHelmRelease, err error)
 	// FluxHelmReleases returns an object that can list and get FluxHelmReleases.
 	FluxHelmReleases(namespace string) FluxHelmReleaseNamespaceLister
 	FluxHelmReleaseListerExpansion
@@ -42,9 +42,9 @@ func NewFluxHelmReleaseLister(indexer cache.Indexer) FluxHelmReleaseLister {
 }
 
 // List lists all FluxHelmReleases in the indexer.
-func (s *fluxHelmReleaseLister) List(selector labels.Selector) (ret []*v1alpha2.FluxHelmRelease, err error) {
+func (s *fluxHelmReleaseLister) List(selector labels.Selector) (ret []*v1beta1.FluxHelmRelease, err error) {
 	err = cache.ListAll(s.indexer, selector, func(m interface{}) {
-		ret = append(ret, m.(*v1alpha2.FluxHelmRelease))
+		ret = append(ret, m.(*v1beta1.FluxHelmRelease))
 	})
 	return ret, err
 }
@@ -57,9 +57,9 @@ func (s *fluxHelmReleaseLister) FluxHelmReleases(namespace string) FluxHelmRelea
 // FluxHelmReleaseNamespaceLister helps list and get FluxHelmReleases.
 type FluxHelmReleaseNamespaceLister interface {
 	// List lists all FluxHelmReleases in the indexer for a given namespace.
-	List(selector labels.Selector) (ret []*v1alpha2.FluxHelmRelease, err error)
+	List(selector labels.Selector) (ret []*v1beta1.FluxHelmRelease, err error)
 	// Get retrieves the FluxHelmRelease from the indexer for a given namespace and name.
-	Get(name string) (*v1alpha2.FluxHelmRelease, error)
+	Get(name string) (*v1beta1.FluxHelmRelease, error)
 	FluxHelmReleaseNamespaceListerExpansion
 }
 
@@ -71,21 +71,21 @@ type fluxHelmReleaseNamespaceLister struct {
 }
 
 // List lists all FluxHelmReleases in the indexer for a given namespace.
-func (s fluxHelmReleaseNamespaceLister) List(selector labels.Selector) (ret []*v1alpha2.FluxHelmRelease, err error) {
+func (s fluxHelmReleaseNamespaceLister) List(selector labels.Selector) (ret []*v1beta1.FluxHelmRelease, err error) {
 	err = cache.ListAllByNamespace(s.indexer, s.namespace, selector, func(m interface{}) {
-		ret = append(ret, m.(*v1alpha2.FluxHelmRelease))
+		ret = append(ret, m.(*v1beta1.FluxHelmRelease))
 	})
 	return ret, err
 }
 
 // Get retrieves the FluxHelmRelease from the indexer for a given namespace and name.
-func (s fluxHelmReleaseNamespaceLister) Get(name string) (*v1alpha2.FluxHelmRelease, error) {
+func (s fluxHelmReleaseNamespaceLister) Get(name string) (*v1beta1.FluxHelmRelease, error) {
 	obj, exists, err := s.indexer.GetByKey(s.namespace + "/" + name)
 	if err != nil {
 		return nil, err
 	}
 	if !exists {
-		return nil, errors.NewNotFound(v1alpha2.Resource("fluxhelmrelease"), name)
+		return nil, errors.NewNotFound(v1beta1.Resource("fluxhelmrelease"), name)
 	}
-	return obj.(*v1alpha2.FluxHelmRelease), nil
+	return obj.(*v1beta1.FluxHelmRelease), nil
 }
