@@ -76,22 +76,14 @@ func checkPush(ctx context.Context, workingDir, upstream string) error {
 }
 
 func commit(ctx context.Context, workingDir string, commitAction CommitAction) error {
-	commitAuthor := commitAction.Author
-	if commitAuthor != "" {
-		if err := execGitCmd(ctx,
-			workingDir, nil,
-			"commit",
-			"--no-verify", "-a", "--author", commitAuthor, "-m", commitAction.Message,
-		); err != nil {
-			return errors.Wrap(err, "git commit")
-		}
-		return nil
+	args := []string{"commit", "--no-verify", "-a", "-m", commitAction.Message}
+	if commitAction.Author != "" {
+		args = append(args, "--author", commitAction.Author)
 	}
-	if err := execGitCmd(ctx,
-		workingDir, nil,
-		"commit",
-		"--no-verify", "-a", "-m", commitAction.Message,
-	); err != nil {
+	if commitAction.SigningKey != "" {
+		args = append(args, fmt.Sprintf("--gpg-sign=%s", commitAction.SigningKey))
+	}
+	if err := execGitCmd(ctx, workingDir, nil, args...); err != nil {
 		return errors.Wrap(err, "git commit")
 	}
 	return nil

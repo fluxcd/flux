@@ -20,6 +20,7 @@ type Config struct {
 	NotesRef    string
 	UserName    string
 	UserEmail   string
+	SigningKey  string
 	SetAuthor   bool
 	SkipMessage string
 }
@@ -41,8 +42,9 @@ type Commit struct {
 
 // CommitAction - struct holding commit information
 type CommitAction struct {
-	Author  string
-	Message string
+	Author     string
+	Message    string
+	SigningKey string
 }
 
 // Clone returns a local working clone of the sync'ed `*Repo`, using
