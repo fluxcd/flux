@@ -52,7 +52,8 @@ build/.%.done: docker/Dockerfile.%
 		-f build/docker/$*/Dockerfile.$* ./build/docker/$*
 	touch $@
 
-build/.flux.done: build/fluxd build/kubectl docker/ssh_config docker/kubeconfig docker/verify_known_hosts.sh
+
+build/.flux.done: build/fluxd build/kubectl docker/ssh_config docker/kubeconfig docker/verify_known_hosts.sh docker/flux-entrypoint.sh
 build/.helm-operator.done: build/helm-operator build/kubectl build/helm docker/ssh_config docker/verify_known_hosts.sh docker/helm-repositories.yaml
 
 build/fluxd: $(FLUXD_DEPS)

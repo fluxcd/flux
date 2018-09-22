@@ -31,7 +31,8 @@ LABEL maintainer="Weaveworks <help@weave.works>" \
       org.label-schema.vcs-url="git@github.com:weaveworks/flux" \
       org.label-schema.vendor="Weaveworks"
 
-ENTRYPOINT [ "/sbin/tini", "--", "fluxd" ]
+COPY ./flux-entrypoint.sh /usr/local/bin/entrypoint.sh
+ENTRYPOINT [ "/sbin/tini", "--", "/usr/local/bin/entrypoint.sh" ]
 
 # Get the kubeyaml binary (files) and put them on the path
 COPY --from=quay.io/squaremo/kubeyaml:0.5.1 /usr/lib/kubeyaml /usr/lib/kubeyaml/
