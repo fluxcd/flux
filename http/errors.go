@@ -18,9 +18,7 @@ If you still have this problem after upgrading, please file an issue at
 
     https://github.com/weaveworks/flux/issues
 
-mentioning what you were attempting to do, and the output of
-
-    fluxctl status
+mentioning what you were attempting to do.
 `,
 	Err: errors.New("API endpoint deprecated"),
 }
@@ -54,11 +52,7 @@ If you still have problems, please file an issue at
 
     https://github.com/weaveworks/flux/issues
 
-mentioning what you were attempting to do, and the output of
-
-    fluxctl status
-
-and include this path:
+mentioning what you were attempting to do, and include this path:
 
     ` + path + `
 `,
