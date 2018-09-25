@@ -140,11 +140,24 @@ func (r *Release) canDelete(name string) (bool, error) {
 func (r *Release) Install(repoDir, releaseName string, fhr flux_v1beta1.FluxHelmRelease, action Action, opts InstallOptions, kubeClient *kubernetes.Clientset) (*hapi_release.Release, error) {
 	r.logger.Log("info", fmt.Sprintf("releaseName= %s, action=%s, install options: %+v", releaseName, action, opts))
 
-	if fhr.Spec.ChartSource.GitChart == nil {
-		return nil, fmt.Errorf("FluxHelmRelease resources using anything other than gitChartPath are not supported yet")
+	var chartPath string
+	var updateDeps bool
+	switch {
+	case fhr.Spec.ChartSource.GitChart != nil:
+		updateDeps = r.config.UpdateDeps
+		chartPath = fhr.Spec.ChartSource.GitChart.Path
+		chartPath = filepath.Join(repoDir, r.config.ChartsPath, chartPath)
+	case fhr.Spec.ChartSource.RepoChart != nil:
+		// FIXME(michael): provide base directory
+		path, err := ensureChartFetched("/tmp", fhr.Spec.ChartSource.RepoChart)
+		if err != nil {
+			return nil, err
+		}
+		chartPath = path
+	default:
+		return nil, fmt.Errorf(`FluxHelmRelease resources must specify either a "git" chart source or a "repo" chart source`)
 	}
 
-	chartPath := fhr.Spec.ChartSource.GitChart.Path
 	if chartPath == "" {
 		r.logger.Log("error", fmt.Sprintf(ErrChartGitPathMissing, fhr.GetName()))
 		return nil, fmt.Errorf(ErrChartGitPathMissing, fhr.GetName())
@@ -155,11 +168,9 @@ func (r *Release) Install(repoDir, releaseName string, fhr flux_v1beta1.FluxHelm
 		namespace = "default"
 	}
 
-	chartDir := filepath.Join(repoDir, r.config.ChartsPath, chartPath)
-
-	if r.config.UpdateDeps {
-		if err := updateDependencies(chartDir); err != nil {
-			r.logger.Log("error", "problem updating dependencies of chart", "releaseName", releaseName, "dir", chartDir, "err", err)
+	if updateDeps {
+		if err := updateDependencies(chartPath); err != nil {
+			r.logger.Log("error", "problem updating dependencies of chart", "releaseName", releaseName, "dir", chartPath, "err", err)
 			return nil, err
 		}
 	}
@@ -196,7 +207,7 @@ func (r *Release) Install(repoDir, releaseName string, fhr flux_v1beta1.FluxHelm
 	switch action {
 	case InstallAction:
 		res, err := r.HelmClient.InstallRelease(
-			chartDir,
+			chartPath,
 			namespace,
 			k8shelm.ValueOverrides(rawVals),
 			k8shelm.ReleaseName(releaseName),
@@ -228,7 +239,7 @@ func (r *Release) Install(repoDir, releaseName string, fhr flux_v1beta1.FluxHelm
 	case UpgradeAction:
 		res, err := r.HelmClient.UpdateRelease(
 			releaseName,
-			chartDir,
+			chartPath,
 			k8shelm.UpdateValueOverrides(rawVals),
 			k8shelm.UpgradeDryRun(opts.DryRun),
 			/*
