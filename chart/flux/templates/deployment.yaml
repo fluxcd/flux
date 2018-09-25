@@ -32,7 +32,11 @@ spec:
           defaultMode: 0600
       - name: git-key
         secret:
+          {{- if .Values.git.secretName }}
+          secretName: {{ .Values.git.secretName }}
+          {{- else }}
           secretName: {{ template "flux.fullname" . }}-git-deploy
+          {{- end }}
           defaultMode: 0400
       - name: git-keygen
         emptyDir:

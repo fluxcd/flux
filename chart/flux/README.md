@@ -190,6 +190,7 @@ The following tables lists the configurable parameters of the Weave Flux chart a
 | `git.label` | Label to keep track of sync progress, used to tag the Git branch | `flux-sync`
 | `git.ciSkip` | Append "[ci skip]" to commit messages so that CI will skip builds | `false`
 | `git.pollInterval` | Period at which to poll git repo for new commits | `5m`
+| `git.secretName` | Kubernetes secret with the SSH private key | None
 | `ssh.known_hosts`  | The contents of an SSH `known_hosts` file, if you need to supply host key(s) | None
 | `registry.cacheExpiry` | Duration to keep cached image info in memcached | `1h`
 | `registry.pollInterval` | Period at which to check for updated images | `5m`
