@@ -153,6 +153,7 @@ func (r *Release) Install(repoDir, releaseName string, fhr flux_v1beta1.FluxHelm
 		if err != nil {
 			return nil, err
 		}
+		r.logger.Log("info", "repo chart cached", "file", path)
 		chartPath = path
 	default:
 		return nil, fmt.Errorf(`FluxHelmRelease resources must specify either a "git" chart source or a "repo" chart source`)
