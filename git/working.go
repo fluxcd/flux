@@ -36,8 +36,9 @@ type Checkout struct {
 }
 
 type Commit struct {
-	Revision string
-	Message  string
+	SigningKey string
+	Revision   string
+	Message    string
 }
 
 // CommitAction - struct holding commit information
