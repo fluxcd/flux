@@ -141,6 +141,7 @@ func (d *Daemon) ListServicesWithOptions(ctx context.Context, opts v11.ListServi
 			Containers: containers2containers(service.ContainersOrNil()),
 			ReadOnly:   readOnly,
 			Status:     service.Status,
+			Rollout:    service.Rollout,
 			Antecedent: service.Antecedent,
 			Labels:     service.Labels,
 			Automated:  policies.Has(policy.Automated),

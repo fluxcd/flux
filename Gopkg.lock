@@ -4,8 +4,8 @@
 [[projects]]
   name = "cloud.google.com/go"
   packages = ["compute/metadata"]
-  revision = "64a2037ec6be8a4b0c1d1f706ed35b428b989239"
-  version = "v0.26.0"
+  revision = "c728a003b238b26cef9ab6753a5dc424b331c3ad"
+  version = "v0.27.0"
 
 [[projects]]
   name = "github.com/Azure/go-autorest"
@@ -228,7 +228,7 @@
     "openstack/utils",
     "pagination"
   ]
-  revision = "07d15af37699505fb5535c0962f49a10379d12ff"
+  revision = "13af1c2a38cfbc60a7a13062338838301035d91d"
 
 [[projects]]
   name = "github.com/gorilla/context"
