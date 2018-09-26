@@ -1,6 +1,26 @@
 This is the changelog for the Flux daemon; the changelog for the Helm
 operator is in [./CHANGELOG-helmop.md](./CHANGELOG-helmop.md).
 
+## 1.7.1 (2018-09-26)
+
+This is a patch release, mainly to include the fix for initContainer
+images (#1372).
+
+### Fixes
+
+- Include initContainers when scanning for images to fetch metadata
+  for, e..g, so there will be "available image" rows for the
+  initContainer in `fluxctl list-images`
+  [weaveworks/flux#1372](https://github.com/weaveworks/flux/pull/1372)
+- Turn memcached's logging verbosity down, in the example deployment
+  YAMLs [weaveworks/flux#1369](https://github.com/weaveworks/flux/pull/1369)
+- Remove mention of an archaic `fluxctl` command from help text
+  [weaveworks/flux#1389](https://github.com/weaveworks/flux/pull/1389)
+
+### Thanks
+
+Thanks for fixes go to @alanjcastonguay, @dholbach, and @squaremo.
+
 ## 1.7.0 (2018-09-17)
 
 This release has a soupçon of bug fixes. It gets a minor version bump,
