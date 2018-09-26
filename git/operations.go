@@ -192,7 +192,7 @@ func revlist(ctx context.Context, path, ref string) ([]string, error) {
 // Return the revisions and one-line log commit messages
 func onelinelog(ctx context.Context, path, refspec string, subdirs []string) ([]Commit, error) {
 	out := &bytes.Buffer{}
-	args := []string{"log", "--oneline", "--no-abbrev-commit", refspec}
+	args := []string{"log", "--pretty=format:%GK|%H|%s", refspec}
 	if len(subdirs) > 0 {
 		args = append(args, "--")
 		args = append(args, subdirs...)
@@ -209,9 +209,10 @@ func splitLog(s string) ([]Commit, error) {
 	lines := splitList(s)
 	commits := make([]Commit, len(lines))
 	for i, m := range lines {
-		revAndMessage := strings.SplitN(m, " ", 2)
-		commits[i].Revision = revAndMessage[0]
-		commits[i].Message = revAndMessage[1]
+		parts := strings.SplitN(m, "|", 3)
+		commits[i].SigningKey = parts[0]
+		commits[i].Revision = parts[1]
+		commits[i].Message = parts[2]
 	}
 	return commits, nil
 }
