@@ -27,7 +27,7 @@ func config(ctx context.Context, workingDir, user, email string) error {
 		"user.name":  user,
 		"user.email": email,
 	} {
-		if err := execGitCmd(ctx, workingDir, nil, "config", k, v); err != nil {
+		if err := execGitCmd(ctx, workingDir, nil, nil, "config", k, v); err != nil {
 			return errors.Wrap(err, "setting git config")
 		}
 	}
@@ -41,7 +41,7 @@ func clone(ctx context.Context, workingDir, repoURL, repoBranch string) (path st
 		args = append(args, "--branch", repoBranch)
 	}
 	args = append(args, repoURL, repoPath)
-	if err := execGitCmd(ctx, workingDir, nil, args...); err != nil {
+	if err := execGitCmd(ctx, workingDir, nil, nil, args...); err != nil {
 		return "", errors.Wrap(err, "git clone")
 	}
 	return repoPath, nil
@@ -51,14 +51,14 @@ func mirror(ctx context.Context, workingDir, repoURL string) (path string, err e
 	repoPath := workingDir
 	args := []string{"clone", "--mirror"}
 	args = append(args, repoURL, repoPath)
-	if err := execGitCmd(ctx, workingDir, nil, args...); err != nil {
+	if err := execGitCmd(ctx, workingDir, nil, nil, args...); err != nil {
 		return "", errors.Wrap(err, "git clone --mirror")
 	}
 	return repoPath, nil
 }
 
 func checkout(ctx context.Context, workingDir, ref string) error {
-	return execGitCmd(ctx, workingDir, nil, "checkout", ref)
+	return execGitCmd(ctx, workingDir, nil, nil, "checkout", ref)
 }
 
 // checkPush sanity-checks that we can write to the upstream repo
@@ -66,13 +66,13 @@ func checkout(ctx context.Context, workingDir, ref string) error {
 // upstream).
 func checkPush(ctx context.Context, workingDir, upstream string) error {
 	// --force just in case we fetched the tag from upstream when cloning
-	if err := execGitCmd(ctx, workingDir, nil, "tag", "--force", CheckPushTag); err != nil {
+	if err := execGitCmd(ctx, workingDir, nil, nil, "tag", "--force", CheckPushTag); err != nil {
 		return errors.Wrap(err, "tag for write check")
 	}
-	if err := execGitCmd(ctx, workingDir, nil, "push", "--force", upstream, "tag", CheckPushTag); err != nil {
+	if err := execGitCmd(ctx, workingDir, nil, nil, "push", "--force", upstream, "tag", CheckPushTag); err != nil {
 		return errors.Wrap(err, "attempt to push tag")
 	}
-	return execGitCmd(ctx, workingDir, nil, "push", "--delete", upstream, "tag", CheckPushTag)
+	return execGitCmd(ctx, workingDir, nil, nil, "push", "--delete", upstream, "tag", CheckPushTag)
 }
 
 func commit(ctx context.Context, workingDir string, commitAction CommitAction) error {
@@ -83,7 +83,7 @@ func commit(ctx context.Context, workingDir string, commitAction CommitAction) e
 	if commitAction.SigningKey != "" {
 		args = append(args, fmt.Sprintf("--gpg-sign=%s", commitAction.SigningKey))
 	}
-	if err := execGitCmd(ctx, workingDir, nil, args...); err != nil {
+	if err := execGitCmd(ctx, workingDir, nil, nil, args...); err != nil {
 		return errors.Wrap(err, "git commit")
 	}
 	return nil
@@ -92,7 +92,7 @@ func commit(ctx context.Context, workingDir string, commitAction CommitAction) e
 // push the refs given to the upstream repo
 func push(ctx context.Context, workingDir, upstream string, refs []string) error {
 	args := append([]string{"push", upstream}, refs...)
-	if err := execGitCmd(ctx, workingDir, nil, args...); err != nil {
+	if err := execGitCmd(ctx, workingDir, nil, nil, args...); err != nil {
 		return errors.Wrap(err, fmt.Sprintf("git push %s %s", upstream, refs))
 	}
 	return nil
@@ -101,7 +101,7 @@ func push(ctx context.Context, workingDir, upstream string, refs []string) error
 // fetch updates refs from the upstream.
 func fetch(ctx context.Context, workingDir, upstream string, refspec ...string) error {
 	args := append([]string{"fetch", "--tags", upstream}, refspec...)
-	if err := execGitCmd(ctx, workingDir, nil, args...); err != nil &&
+	if err := execGitCmd(ctx, workingDir, nil, nil, args...); err != nil &&
 		!strings.Contains(err.Error(), "Couldn't find remote ref") {
 		return errors.Wrap(err, fmt.Sprintf("git fetch --tags %s %s", upstream, refspec))
 	}
@@ -109,7 +109,7 @@ func fetch(ctx context.Context, workingDir, upstream string, refspec ...string) 
 }
 
 func refExists(ctx context.Context, workingDir, ref string) (bool, error) {
-	if err := execGitCmd(ctx, workingDir, nil, "rev-list", ref); err != nil {
+	if err := execGitCmd(ctx, workingDir, nil, nil, "rev-list", ref); err != nil {
 		if strings.Contains(err.Error(), "unknown revision") {
 			return false, nil
 		}
@@ -121,7 +121,7 @@ func refExists(ctx context.Context, workingDir, ref string) (bool, error) {
 // Get the full ref for a shorthand notes ref.
 func getNotesRef(ctx context.Context, workingDir, ref string) (string, error) {
 	out := &bytes.Buffer{}
-	if err := execGitCmd(ctx, workingDir, out, "notes", "--ref", ref, "get-ref"); err != nil {
+	if err := execGitCmd(ctx, workingDir, out, nil, "notes", "--ref", ref, "get-ref"); err != nil {
 		return "", err
 	}
 	return strings.TrimSpace(out.String()), nil
@@ -132,12 +132,12 @@ func addNote(ctx context.Context, workingDir, rev, notesRef string, note interfa
 	if err != nil {
 		return err
 	}
-	return execGitCmd(ctx, workingDir, nil, "notes", "--ref", notesRef, "add", "-m", string(b), rev)
+	return execGitCmd(ctx, workingDir, nil, nil, "notes", "--ref", notesRef, "add", "-m", string(b), rev)
 }
 
 func getNote(ctx context.Context, workingDir, notesRef, rev string, note interface{}) (ok bool, err error) {
 	out := &bytes.Buffer{}
-	if err := execGitCmd(ctx, workingDir, out, "notes", "--ref", notesRef, "show", rev); err != nil {
+	if err := execGitCmd(ctx, workingDir, out, nil, "notes", "--ref", notesRef, "show", rev); err != nil {
 		if strings.Contains(strings.ToLower(err.Error()), "no note found for object") {
 			return false, nil
 		}
@@ -154,7 +154,7 @@ func getNote(ctx context.Context, workingDir, notesRef, rev string, note interfa
 // Return a map to make it easier to do "if in" type queries.
 func noteRevList(ctx context.Context, workingDir, notesRef string) (map[string]struct{}, error) {
 	out := &bytes.Buffer{}
-	if err := execGitCmd(ctx, workingDir, out, "notes", "--ref", notesRef, "list"); err != nil {
+	if err := execGitCmd(ctx, workingDir, out, nil, "notes", "--ref", notesRef, "list"); err != nil {
 		return nil, err
 	}
 	noteList := splitList(out.String())
@@ -171,7 +171,7 @@ func noteRevList(ctx context.Context, workingDir, notesRef string) (map[string]s
 // Get the commit hash for a reference
 func refRevision(ctx context.Context, path, ref string) (string, error) {
 	out := &bytes.Buffer{}
-	if err := execGitCmd(ctx, path, out, "rev-list", "--max-count", "1", ref); err != nil {
+	if err := execGitCmd(ctx, path, out, nil, "rev-list", "--max-count", "1", ref); err != nil {
 		return "", err
 	}
 	return strings.TrimSpace(out.String()), nil
@@ -179,7 +179,7 @@ func refRevision(ctx context.Context, path, ref string) (string, error) {
 
 func revlist(ctx context.Context, path, ref string) ([]string, error) {
 	out := &bytes.Buffer{}
-	if err := execGitCmd(ctx, path, out, "rev-list", ref); err != nil {
+	if err := execGitCmd(ctx, path, out, nil, "rev-list", ref); err != nil {
 		return nil, err
 	}
 	return splitList(out.String()), nil
@@ -194,7 +194,7 @@ func onelinelog(ctx context.Context, path, refspec string, subdirs []string) ([]
 		args = append(args, subdirs...)
 	}
 
-	if err := execGitCmd(ctx, path, out, args...); err != nil {
+	if err := execGitCmd(ctx, path, out, nil, args...); err != nil {
 		return nil, err
 	}
 
@@ -222,10 +222,10 @@ func splitList(s string) []string {
 
 // Move the tag to the ref given and push that tag upstream
 func moveTagAndPush(ctx context.Context, path string, tag, ref, msg, upstream string) error {
-	if err := execGitCmd(ctx, path, nil, "tag", "--force", "-a", "-m", msg, tag, ref); err != nil {
+	if err := execGitCmd(ctx, path, nil, nil, "tag", "--force", "-a", "-m", msg, tag, ref); err != nil {
 		return errors.Wrap(err, "moving tag "+tag)
 	}
-	if err := execGitCmd(ctx, path, nil, "push", "--force", upstream, "tag", tag); err != nil {
+	if err := execGitCmd(ctx, path, nil, nil, "push", "--force", upstream, "tag", tag); err != nil {
 		return errors.Wrap(err, "pushing tag to origin")
 	}
 	return nil
@@ -242,13 +242,13 @@ func changed(ctx context.Context, path, ref string, subPaths []string) ([]string
 		args = append(args, subPaths...)
 	}
 
-	if err := execGitCmd(ctx, path, out, args...); err != nil {
+	if err := execGitCmd(ctx, path, out, nil, args...); err != nil {
 		return nil, err
 	}
 	return splitList(out.String()), nil
 }
 
-func execGitCmd(ctx context.Context, dir string, out io.Writer, args ...string) error {
+func execGitCmd(ctx context.Context, dir string, out io.Writer, extraEnv []string, args ...string) error {
 	if trace {
 		print("TRACE: git")
 		for _, arg := range args {
@@ -261,7 +261,7 @@ func execGitCmd(ctx context.Context, dir string, out io.Writer, args ...string) 
 	if dir != "" {
 		c.Dir = dir
 	}
-	c.Env = env()
+	c.Env = append(env(), extraEnv...)
 	c.Stdout = ioutil.Discard
 	if out != nil {
 		c.Stdout = out
@@ -305,7 +305,7 @@ func check(ctx context.Context, workingDir string, subdirs []string) bool {
 		args = append(args, "--")
 		args = append(args, subdirs...)
 	}
-	return execGitCmd(ctx, workingDir, nil, args...) != nil
+	return execGitCmd(ctx, workingDir, nil, nil, args...) != nil
 }
 
 func findErrorMessage(output io.Reader) string {
