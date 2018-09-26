@@ -28,10 +28,9 @@ import (
 )
 
 var (
-	fs      *pflag.FlagSet
-	err     error
-	logger  log.Logger
-	kubectl string
+	fs     *pflag.FlagSet
+	err    error
+	logger log.Logger
 
 	versionFlag *bool
 
