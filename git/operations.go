@@ -77,13 +77,17 @@ func checkPush(ctx context.Context, workingDir, upstream string) error {
 
 func commit(ctx context.Context, workingDir string, commitAction CommitAction) error {
 	args := []string{"commit", "--no-verify", "-a", "-m", commitAction.Message}
+	var env []string
 	if commitAction.Author != "" {
 		args = append(args, "--author", commitAction.Author)
 	}
 	if commitAction.SigningKey != "" {
 		args = append(args, fmt.Sprintf("--gpg-sign=%s", commitAction.SigningKey))
 	}
-	if err := execGitCmd(ctx, workingDir, nil, nil, args...); err != nil {
+	if commitAction.GPGHomeDir != "" {
+		env = []string{fmt.Sprintf("GNUPGHOME=%s", commitAction.GPGHomeDir)}
+	}
+	if err := execGitCmd(ctx, workingDir, nil, env, args...); err != nil {
 		return errors.Wrap(err, "git commit")
 	}
 	return nil

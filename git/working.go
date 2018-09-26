@@ -45,6 +45,7 @@ type CommitAction struct {
 	Author     string
 	Message    string
 	SigningKey string
+	GPGHomeDir string
 }
 
 // Clone returns a local working clone of the sync'ed `*Repo`, using
