@@ -117,10 +117,6 @@ func TestSignedCommit(t *testing.T) {
 	}
 }
 
-func lastN(s string, n int) string {
-	return s[len(s)-n:]
-}
-
 func TestCheckout(t *testing.T) {
 	repo, cleanup := Repo(t)
 	defer cleanup()
