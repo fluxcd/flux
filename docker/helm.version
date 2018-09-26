@@ -1,0 +1,4 @@
+# NB Helm clients will refuse to play with Tiller that is older. 2.8.2
+# is the first release that had checksums, so it's used.
+HELM_VERSION=2.8.2
+HELM_CHECKSUM=614b5ac79de4336b37c9b26d528c6f2b94ee6ccacb94b0f4b8d9583a8dd122d3
