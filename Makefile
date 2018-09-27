@@ -7,6 +7,9 @@ TEST_FLAGS?=
 include docker/kubectl.version
 include docker/helm.version
 
+HELM_TARGZ=./cache/helm-$(HELM_VERSION).tar.gz
+KUBECTL_TARGZ=./cache/kubectl-$(KUBECTL_VERSION).tar.gz
+
 # NB because this outputs absolute file names, you have to be careful
 # if you're testing out the Makefile with `-W` (pretend a file is
 # new); use the full path to the pretend-new file, e.g.,
@@ -60,27 +63,31 @@ build/helm-operator: $(HELM_OPERATOR_DEPS)
 build/helm-operator: cmd/helm-operator/*.go
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o $@ $(LDFLAGS) -ldflags "-X main.version=$(shell ./docker/image-tag)" ./cmd/helm-operator
 
-build/kubectl: cache/kubectl-$(KUBECTL_VERSION) docker/kubectl.version
+build/kubectl: cache/kubectl-$(KUBECTL_VERSION)
 	cp cache/kubectl-$(KUBECTL_VERSION) $@
 	strip $@
 	chmod a+x $@
 
-build/helm: cache/helm-$(HELM_VERSION) docker/helm.version
+build/helm: cache/helm-$(HELM_VERSION)
 	cp cache/helm-$(HELM_VERSION) $@
 	strip $@
 	chmod a+x $@
 
-cache/kubectl-$(KUBECTL_VERSION):
+cache/kubectl-$(KUBECTL_VERSION): docker/kubectl.version
 	mkdir -p cache
-	curl -L -o $@ "https://storage.googleapis.com/kubernetes-release/release/$(KUBECTL_VERSION)/bin/linux/amd64/kubectl"
+	curl -L -o $(KUBECTL_TARGZ) "https://dl.k8s.io/$(KUBECTL_VERSION)/kubernetes-client-linux-amd64.tar.gz"
+	echo "$(KUBECTL_CHECKSUM) $(KUBECTL_TARGZ)" > "$(KUBECTL_TARGZ).checksum"
+	sha256sum -c $(KUBECTL_TARGZ).checksum
+	tar -C ./cache -xzf $(KUBECTL_TARGZ) kubernetes/client/bin/kubectl
+	cp ./cache/kubernetes/client/bin/kubectl $@
 
-cache/helm-$(HELM_VERSION):
+cache/helm-$(HELM_VERSION): docker/helm.version
 	mkdir -p cache
-	curl -L -o ./cache/helm-$(HELM_VERSION).tar.gz "https://storage.googleapis.com/kubernetes-helm/helm-v$(HELM_VERSION)-linux-amd64.tar.gz"
-	echo "$(HELM_CHECKSUM) ./cache/helm-$(HELM_VERSION).tar.gz" > ./cache/helm-$(HELM_VERSION).checksum
-	sha256sum -c ./cache/helm-$(HELM_VERSION).checksum
-	tar -C ./cache -xzf ./cache/helm-$(HELM_VERSION).tar.gz linux-amd64/helm
-	mv ./cache/linux-amd64/helm $@
+	curl -L -o $(HELM_TARGZ) "https://storage.googleapis.com/kubernetes-helm/helm-v$(HELM_VERSION)-linux-amd64.tar.gz"
+	echo "$(HELM_CHECKSUM) $(HELM_TARGZ)" > "$(HELM_TARGZ).checksum"
+	sha256sum -c "$(HELM_TARGZ).checksum"
+	tar -C ./cache -xzf $(HELM_TARGZ) linux-amd64/helm
+	cp ./cache/linux-amd64/helm $@
 
 $(GOPATH)/bin/fluxctl: $(FLUXCTL_DEPS)
 $(GOPATH)/bin/fluxctl: ./cmd/fluxctl/*.go
