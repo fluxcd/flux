@@ -89,6 +89,14 @@ func mergeCredentials(log func(...interface{}) error, client extendedClient, nam
 		}
 		imageCreds[r.Name] = creds
 	}
+	for _, container := range podTemplate.Spec.InitContainers {
+		r, err := image.ParseRef(container.Image)
+		if err != nil {
+			log("err", err.Error())
+			continue
+		}
+		imageCreds[r.Name] = creds
+	}
 }
 
 // ImagesToFetch is a k8s specific method to get a list of images to update along with their credentials
