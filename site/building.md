@@ -5,11 +5,17 @@ menu_order: 80
 
 # Build
 
+You'll need a working `go` environment, including the
+[`dep`](https://github.com/golang/dep#installation) tool.
+
+It's also expected that you have a Docker daemon for building images.
+
 Ensure the repository is checked out into $GOPATH/src/github.com/weaveworks/flux.
 Then, from the root,
 
 ```
-$ dep ensure && dep prune
+$ 
+$ dep ensure
 # .. time passes ..
 $ make
 ```
@@ -20,15 +26,6 @@ This makes Docker images, and installs binaries to $GOPATH/bin.
 
 ```
 $ make test
-```
-
-Note: In order to run the NATS message bus tests (the message bus that
-connects fluxctl -> fluxsvc -> nats -> fluxsvc -> flux) you need to
-have a running gnatsd instance.
-
-E.g.
-```
-docker run -d -p 4222:4222 -p 6222:6222 --name nats-main nats
 ```
 
 # Dependency management
@@ -42,8 +39,3 @@ To get all the dependencies put in the `vendor/` folder, use
 $ dep ensure
 ```
 
-To add dependencies, use
-
-```
-$ dep ensure -add dependency
-```
