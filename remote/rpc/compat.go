@@ -9,6 +9,7 @@ import (
 	"github.com/weaveworks/flux/api/v10"
 	"github.com/weaveworks/flux/api/v11"
 	"github.com/weaveworks/flux/api/v6"
+	"github.com/weaveworks/flux/cluster/kubernetes"
 	"github.com/weaveworks/flux/policy"
 	"github.com/weaveworks/flux/remote"
 	"github.com/weaveworks/flux/update"
@@ -71,6 +72,25 @@ func contains(ss []string, s string) bool {
 	return false
 }
 
+// listServicesRolloutStatus polyfills the rollout status.
+func listServicesRolloutStatus(ss []v6.ControllerStatus) {
+	for i := range ss {
+		// Polyfill for daemons that list pod information in status ('X out of N updated')
+		if n, _ := fmt.Sscanf(ss[i].Status, "%d out of %d updated", &ss[i].Rollout.Updated, &ss[i].Rollout.Desired); n == 2 {
+			// Daemons on an earlier version determined the workload to be ready if updated == desired.
+			//
+			// Technically, 'updated' does *not* yet mean these pods are ready and accepting traffic. There
+			// can still be outdated pods that serve requests. The new way of determining the end of a rollout
+			// is to make sure the desired count equals to the number of 'available' pods and zero outdated
+			// pods. To make older daemons reach a "rollout is finished" state we set 'available', 'ready',
+			// and 'updated' all to the same count.
+			ss[i].Rollout.Ready = ss[i].Rollout.Updated
+			ss[i].Rollout.Available = ss[i].Rollout.Updated
+			ss[i].Status = kubernetes.StatusUpdating
+		}
+	}
+}
+
 type listServicesWithoutOptionsClient interface {
 	ListServices(ctx context.Context, namespace string) ([]v6.ControllerStatus, error)
 }
@@ -91,6 +111,7 @@ func listServicesWithOptions(ctx context.Context, p listServicesWithoutOptionsCl
 	}
 
 	all, err := p.ListServices(ctx, opts.Namespace)
+	listServicesRolloutStatus(all)
 	if err != nil {
 		return nil, err
 	}
