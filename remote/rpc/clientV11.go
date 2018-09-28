@@ -38,6 +38,7 @@ func (p *RPCClientV11) ListServicesWithOptions(ctx context.Context, opts v11.Lis
 	}
 
 	err := p.client.Call("RPCServer.ListServicesWithOptions", opts, &resp)
+	listServicesRolloutStatus(resp.Result)
 	if err != nil {
 		if _, ok := err.(rpc.ServerError); !ok && err != nil {
 			err = remote.FatalError{err}

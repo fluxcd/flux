@@ -92,6 +92,7 @@ func (p *RPCClientV6) Export(ctx context.Context) ([]byte, error) {
 func (p *RPCClientV6) ListServices(ctx context.Context, namespace string) ([]v6.ControllerStatus, error) {
 	var services []v6.ControllerStatus
 	err := p.client.Call("RPCServer.ListServices", namespace, &services)
+	listServicesRolloutStatus(services)
 	if _, ok := err.(rpc.ServerError); !ok && err != nil {
 		return nil, remote.FatalError{err}
 	}
