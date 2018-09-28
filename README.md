@@ -62,7 +62,7 @@ as:
 
 - a UI and alerts for deployments: nicely integrated overview, all flux
   operations just a click away.
- full observability and insights into your cluster: Instantly start using
+- full observability and insights into your cluster: Instantly start using
   monitoring dashboards for your cluster, hosted 13 months of history, use
   a realtime map of your cluster to debug and analyse its state.
 
