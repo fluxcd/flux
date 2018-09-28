@@ -5,8 +5,8 @@ menu_order: 80
 
 # Build
 
-You'll need a working `go` environment, including the
-[`dep`](https://github.com/golang/dep#installation) tool.
+You'll need a working `go` environment (official releases are build against `1.10`),
+including the [`dep`](https://github.com/golang/dep#installation) tool.
 
 It's also expected that you have a Docker daemon for building images.
 
@@ -39,3 +39,5 @@ To get all the dependencies put in the `vendor/` folder, use
 $ dep ensure
 ```
 
+If you see a big diff or other unexpected output after running `dep ensure`,
+make sure you're using the latest official release of `dep`.
