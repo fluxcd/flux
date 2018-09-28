@@ -48,8 +48,8 @@ helmOperator:
     # set the secret name (helm-ssh) below
     secretName: ""
 
-rbac:
-  # Specifies whether RBAC resources should be created
+deployKeySecret:
+  # Specifies whether the deploy key secret should be created
   create: true
 
 serviceAccount:
