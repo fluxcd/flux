@@ -62,7 +62,7 @@ as:
 
 - a UI and alerts for deployments: nicely integrated overview, all flux
   operations just a click away.
- full observability and insights into your cluster: Instantly start using
+- full observability and insights into your cluster: Instantly start using
   monitoring dashboards for your cluster, hosted 13 months of history, use
   a realtime map of your cluster to debug and analyse its state.
 
@@ -96,7 +96,8 @@ documentation, external tools, help and support or anything else really.
 
 Instances of abusive, harassing, or otherwise unacceptable behavior
 may be reported by contacting a *flux* project maintainer, or Alexis
-Richardson `<alexis@weave.works>`.
+Richardson `<alexis@weave.works>`. Please refer to our [code of
+conduct](CODE_OF_CONDUCT.md) as well.
 
 To familiarise yourself with the project and how things work, you might
 be interested in the following:
