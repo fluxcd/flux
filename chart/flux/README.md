@@ -173,7 +173,7 @@ The following tables lists the configurable parameters of the Weave Flux chart a
 | Parameter                       | Description                                | Default                                                    |
 | ------------------------------- | ------------------------------------------ | ---------------------------------------------------------- |
 | `image.repository` | Image repository | `quay.io/weaveworks/flux`
-| `image.tag` | Image tag | `1.6.0`
+| `image.tag` | Image tag | `<VERSION>`
 | `image.pullPolicy` | Image pull policy | `IfNotPresent`
 | `resources` | CPU/memory resource requests/limits | None
 | `rbac.create` | If `true`, create and use RBAC resources | `true`
@@ -200,7 +200,7 @@ The following tables lists the configurable parameters of the Weave Flux chart a
 | `registry.insecureHosts` | Use HTTP rather than HTTPS for these image registry domains | None
 | `helmOperator.create` | If `true`, install the Helm operator | `false`
 | `helmOperator.repository` | Helm operator image repository | `quay.io/weaveworks/helm-operator`
-| `helmOperator.tag` | Helm operator image tag | `0.2.0`
+| `helmOperator.tag` | Helm operator image tag | `<VERSION>`
 | `helmOperator.pullPolicy` | Helm operator image pull policy | `IfNotPresent`
 | `helmOperator.chartsSyncInterval` | Interval at which to check for changed charts | `3m`
 | `helmOperator.chartsSyncTimeout` | Timeout when checking for changed charts | `1m`
@@ -235,6 +235,6 @@ Update Weave Flux version with:
 
 ```console
 helm upgrade --reuse-values flux \
---set image.tag=1.3.2 \
+--set image.tag=1.7.1 \
 weaveworks/flux
 ```
