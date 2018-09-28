@@ -53,6 +53,10 @@ type Daemon struct {
 	JobStatusCache *job.StatusCache
 	EventWriter    event.EventWriter
 	Logger         log.Logger
+	// syncErrors keeps track of errors during the sync while
+	// applying the Kubernetes YAML. It is currently only collected
+	// and not read anywhere.
+	syncErrors     SyncErrors
 	// bookkeeping
 	*LoopVars
 }

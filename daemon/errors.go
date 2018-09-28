@@ -2,10 +2,17 @@ package daemon
 
 import (
 	"fmt"
+	"sync"
 
+	"github.com/weaveworks/flux"
 	fluxerr "github.com/weaveworks/flux/errors"
 	"github.com/weaveworks/flux/job"
 )
+
+type SyncErrors struct {
+	errs map[flux.ResourceID]error
+	mu   sync.Mutex
+}
 
 func manifestLoadError(reason error) error {
 	return &fluxerr.Error{
