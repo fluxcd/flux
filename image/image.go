@@ -136,16 +136,16 @@ func (i Ref) String() string {
 func ParseRef(s string) (Ref, error) {
 	var id Ref
 	if s == "" {
-		return id, ErrBlankImageID
+		return id, errors.Wrapf(ErrBlankImageID, "parsing %q", s)
 	}
 	if strings.HasPrefix(s, "/") || strings.HasSuffix(s, "/") {
-		return id, ErrMalformedImageID
+		return id, errors.Wrapf(ErrMalformedImageID, "parsing %q", s)
 	}
 
 	elements := strings.Split(s, "/")
 	switch len(elements) {
 	case 0: // NB strings.Split will never return []
-		return id, ErrBlankImageID
+		return id, errors.Wrapf(ErrMalformedImageID, "parsing %q", s)
 	case 1: // no slashes, e.g., "alpine:1.5"; treat as library image
 		id.Image = s
 	case 2: // may have a domain e.g., "localhost/foo", or not e.g., "weaveworks/scope"
@@ -167,7 +167,7 @@ func ParseRef(s string) (Ref, error) {
 		break
 	case 2:
 		if imageParts[0] == "" || imageParts[1] == "" {
-			return id, ErrMalformedImageID
+			return id, errors.Wrapf(ErrMalformedImageID, "parsing %q", s)
 		}
 		id.Image = imageParts[0]
 		id.Tag = imageParts[1]
