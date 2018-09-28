@@ -9,7 +9,7 @@ jobs:
       - checkout
       - setup_remote_docker
 
-      - run: go get github.com/golang/dep/cmd/dep
+      - run: curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
       - run: dep ensure -vendor-only
       - run: make test TEST_FLAGS="-race -tags integration -timeout 60s"
       - run: make all
