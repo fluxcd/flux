@@ -35,6 +35,8 @@ spec:
         secret:
           {{- if .Values.helmOperator.git.secretName }}
           secretName: {{ .Values.helmOperator.git.secretName }}
+          {{- else if .Values.git.secretName }}
+          secretName: {{ .Values.git.secretName }}
           {{- else }}
           secretName: {{ template "flux.fullname" . }}-git-deploy
           {{- end }}
