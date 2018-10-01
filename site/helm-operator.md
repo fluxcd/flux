@@ -28,6 +28,7 @@ helm-operator requires setup and offers customization though a multitude of flag
 |--git-branch                  | `master`                      | Branch of git repo to use for Kubernetes manifests|
 |--git-charts-path             | `charts`                      | Path within git repo to locate Kubernetes Charts (relative path)|
 |                              |                               | **repo chart changes** (none of these need overriding, usually) |
+|--git-time-out                | `20 seconds`                  | duration after which git operations time out |
 |--git-poll-interval           | `5 minutes`                   | period at which to poll git repo for new commits|
 |--chartsSyncInterval          | 3*time.Minute                 | Interval at which to check for changed charts.|
 |--chartsSyncTimeout           | 1*time.Minute                 | Timeout when checking for changed charts.|
