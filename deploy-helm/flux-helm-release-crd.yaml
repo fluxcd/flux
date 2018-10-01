@@ -38,27 +38,21 @@ spec:
               type: object
             chart:
               oneOf:
-              - required: ['git']
+              - required: ['gitPath']
                 properties:
-                  git:
-                    required: ['path']
-                    properties:
-                      path:
-                        type: string
-              - required: ['repo']
+                  gitPath:
+                    type: string
+              - required: ['repository', 'name', 'version']
                 properties:
-                  repo:
-                    required: ['url', 'name', 'version']
+                  repository:
+                    type: string
+                    format: url # not defined by OAS
+                  name:
+                    type: string
+                  version:
+                    type: string
+                    format: semver # not defined by OAS
+                  chartPullSecret:
                     properties:
-                      url:
-                        type: string
-                        format: url # not defined by OAS
                       name:
                         type: string
-                      version:
-                        type: string
-                        format: semver # not defined by OAS
-                      chartPullSecret:
-                        properties:
-                          name:
-                            type: string

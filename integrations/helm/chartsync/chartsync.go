@@ -206,10 +206,10 @@ func (chs *ChartChangeSync) applyChartChanges(prevRef, head string) error {
 	chartHasChanged := map[string]bool{}
 
 	for _, fhr := range resources {
-		if fhr.Spec.ChartSource.GitChart == nil {
+		if fhr.Spec.ChartSource.GitChartSource == nil {
 			continue
 		}
-		chartPath := filepath.Join(chs.config.ChartsPath, fhr.Spec.ChartSource.GitChart.Path)
+		chartPath := filepath.Join(chs.config.ChartsPath, fhr.Spec.ChartSource.GitChartSource.Path)
 		changed, ok := chartHasChanged[chartPath]
 		if !ok {
 			ctx, cancel := context.WithTimeout(context.Background(), helmop.GitOperationTimeout)

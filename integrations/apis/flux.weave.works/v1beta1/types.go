@@ -23,20 +23,21 @@ type FluxHelmRelease struct {
 type ChartSource struct {
 	// one of the following...
 	// +optional
-	GitChart *GitChartSource `json:"git,omitempty"`
+	*GitChartSource
 	// +optional
-	RepoChart *RepoChartSource `json:"repo,omitempty"`
+	*RepoChartSource
 }
 
 type GitChartSource struct {
 	// URL would go here, and possibly SSH key secret; but, not yet.
 
-	// Path to the chart.
-	Path string `json:"path"`
+	// Path to the chart. This has the name `gitPath` because there is
+	// nothing enclosing to disambiguate what the path refers to.
+	Path string `json:"gitPath"`
 }
 
 type RepoChartSource struct {
-	RepoURL string `json:"url"`
+	RepoURL string `json:"repository"`
 	Name    string `json:"name"`
 	Version string `json:"version"`
 	// An authentication secret for accessing the chart repo

@@ -143,13 +143,13 @@ func (r *Release) Install(repoDir, releaseName string, fhr flux_v1beta1.FluxHelm
 	var chartPath string
 	var updateDeps bool
 	switch {
-	case fhr.Spec.ChartSource.GitChart != nil:
+	case fhr.Spec.ChartSource.GitChartSource != nil:
 		updateDeps = r.config.UpdateDeps
-		chartPath = fhr.Spec.ChartSource.GitChart.Path
+		chartPath = fhr.Spec.ChartSource.GitChartSource.Path
 		chartPath = filepath.Join(repoDir, r.config.ChartsPath, chartPath)
-	case fhr.Spec.ChartSource.RepoChart != nil:
+	case fhr.Spec.ChartSource.RepoChartSource != nil:
 		// FIXME(michael): provide base directory
-		path, err := ensureChartFetched("/tmp", fhr.Spec.ChartSource.RepoChart)
+		path, err := ensureChartFetched("/tmp", fhr.Spec.ChartSource.RepoChartSource)
 		if err != nil {
 			return nil, err
 		}
