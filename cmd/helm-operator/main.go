@@ -56,6 +56,7 @@ var (
 	gitBranch       *string
 	gitChartsPath   *string
 	gitPollInterval *time.Duration
+	gitTimeOut      *time.Duration
 
 	queueWorkerCount *int
 
@@ -107,6 +108,7 @@ func init() {
 	gitBranch = fs.String("git-branch", "master", "branch of git repo")
 	gitChartsPath = fs.String("git-charts-path", defaultGitChartsPath, "path within git repo to locate Helm Charts (relative path)")
 	gitPollInterval = fs.Duration("git-poll-interval", 5*time.Minute, "period on which to poll for changes to the git repo")
+	gitTimeOut = fs.Duration("git-time-out", 20*time.Second, "duration after which git operations time out")
 
 	queueWorkerCount = fs.Int("queue-worker-count", 2, "Number of workers to process queue with Chart release jobs. Two by default")
 }
@@ -189,12 +191,12 @@ func main() {
 	go statusUpdater.Loop(shutdown, log.With(logger, "component", "annotator"))
 
 	gitRemote := git.Remote{URL: *gitURL}
-	repo := git.NewRepo(gitRemote, git.PollInterval(*gitPollInterval), git.ReadOnly)
+	repo := git.NewRepo(gitRemote, git.PollInterval(*gitPollInterval), git.TimeOut(*gitTimeOut), git.ReadOnly)
 
 	// 		Chart releases sync due to Custom Resources changes -------------------------------
 	{
 		mainLogger.Log("info", "Attempting to clone repo ...", "url", gitRemote.URL)
-		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
+		ctx, cancel := context.WithCancel(context.Background())
 		err := repo.Ready(ctx)
 		cancel()
 		if err != nil {
