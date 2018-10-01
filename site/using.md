@@ -251,6 +251,9 @@ default:deployment/helloworld  helloworld  quay.io/weaveworks/helloworld:master-
                                sidecar     quay.io/weaveworks/sidecar:master-a000002
 ```
 
+Automation can also be enabled by adding the annotation
+`flux.weave.works/automated: "true"` to the deployment.
+
 We can see that the `list-controllers` subcommand reports that the
 helloworld application is automated. Flux will now automatically
 deploy a new version of a controller whenever one is available and commit
@@ -396,7 +399,7 @@ individually:
 
 ```
 fluxctl policy --controller=default:deployment/helloworld --tag='helloworld=prod-*' --tag='sidecar=prod-*'
-``` 
+```
 
 Manual releases without explicit mention of the target image will
 also adhere to tag filters.
@@ -510,3 +513,15 @@ for b) and c):
 
 git commit: fatal: --author 'unknown' is not 'Name <email>' and matches
 no existing author
+
+# Using Annotations
+
+Automation and image tag filtering can also be managed using annotations
+(fluxctl is using the same mechanism).
+
+Automation can be enabled with `flux.weave.works/automated: "true"`. Image
+filtering annotations take the form
+`flux.weave.works/tag.container-name: filter-type:filter-value`. Values of
+`filter-type` can be [`glob`](#glob), [`semver`](#semver), and
+[`regexp`](#regexp). Filter values use the same syntax as when the filter is
+configured using fluxctl.
