@@ -89,7 +89,7 @@ spec:
           - --token={{ .Values.token }}
           {{- end }}
           {{- if .Values.additionalArgs }}
-          {{ toYaml .Values.additionalArgs }}
+{{ toYaml .Values.additionalArgs | indent 10 }}
           {{- end }}
           resources:
 {{ toYaml .Values.resources | indent 12 }}
