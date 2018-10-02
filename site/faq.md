@@ -101,21 +101,30 @@ system in order to read and update the manifests.
 
 ### How do I give Flux access to an image registry?
 
-Flux transparently looks at the image pull secret that you give for a
-workload, and thereby uses the same credentials that Kubernetes uses
-for pulling each image. If your pods are running, Kubernetes has
-pulled the images, and Flux should be able to access them.
+Flux transparently looks at the image pull secrets that you attach to
+workloads and service accounts, and thereby uses the same credentials
+that Kubernetes uses for pulling each image. In general, if your pods
+are running, then Kubernetes has pulled the images, and Flux should be
+able to access them too.
 
 There are exceptions:
 
+ - One way of supplying credentials in Kubernetes is to put them on each
+   node; Flux does not have access to those credentials.
  - In some environments, authorisation provided by the platform is
    used instead of image pull secrets. Google Container Registry works
    this way, for example (and we have introduced a special case for it
-   so Flux will work there too).
- - You can also attach image pull secrets to service accounts; Flux
-   does not at present try to obtain credentials via service accounts
-   (see
-   [weaveworks/flux#1043](https://github.com/weaveworks/flux/issues/1043)).
+   so Flux will work there too). See below regarding ECR.
+
+To work around the exceptional cases, you can mount a docker config into
+the Flux container. See the argument `--docker-config` in
+[the daemon arguments reference](https://github.com/weaveworks/flux/blob/master/site/daemon.md#flags).
+
+For ECR (Elastic Container Registry), the credentials supplied by the
+environment are rotated, so it's not possible to supply a file with
+credentials ahead of time. See
+[weaveworks/flux#539](https://github.com/weaveworks/flux/issues/539) for
+workarounds.
 
 See also
 [Why are my images not showing up in the list of images?](#why-are-my-images-not-showing-up-in-the-list-of-images)
