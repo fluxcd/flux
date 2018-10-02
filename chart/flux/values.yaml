@@ -41,6 +41,7 @@ helmOperator:
     branch: ""
     chartsPath: "charts"
     pollInterval: ""
+    timeOut: ""
     # generate a SSH key named identity: ssh-keygen -q -N "" -f ./identity
     # create a Kubernetes secret: kubectl -n flux create secret generic helm-ssh --from-file=./identity
     # delete the private key: rm ./identity
@@ -94,6 +95,8 @@ git:
   ciSkip: false
   # Period at which to poll git repo for new commits
   pollInterval: "5m"
+  # Duration after which git operations time out
+  timeOut: "20s"
   # generate a SSH key named identity: ssh-keygen -q -N "" -f ./identity
   # create a Kubernetes secret: kubectl -n flux create secret generic flux-ssh --from-file=./identity
   # delete the private key: rm ./identity
