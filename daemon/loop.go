@@ -194,7 +194,7 @@ func (d *Daemon) doSync(logger log.Logger) (retErr error) {
 	syncErrors := make(map[flux.ResourceID]error)
 	var resourceErrors []event.ResourceError
 	// TODO supply deletes argument from somewhere (command-line?)
-	if err := fluxsync.Sync(logger, d.Manifests, allResources, d.Cluster, false); err != nil {
+	if err := fluxsync.Sync(logger, d.Manifests, allResources, d.Cluster, false, d.syncErrors.errs); err != nil {
 		logger.Log("err", err)
 		switch syncerr := err.(type) {
 		case cluster.SyncError:
@@ -212,7 +212,7 @@ func (d *Daemon) doSync(logger log.Logger) (retErr error) {
 	}
 	// Since fluxsync.Sync() applies *all* resources we replace
 	// all errors here. If there is a recurring issue it will
-	// show up every time when they sync is run.
+	// show up every time when the sync is run.
 	d.syncErrors.mu.Lock()
 	d.syncErrors.errs = syncErrors
 	d.syncErrors.mu.Unlock()

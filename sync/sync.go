@@ -4,13 +4,15 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
 
+	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster"
 	"github.com/weaveworks/flux/policy"
 	"github.com/weaveworks/flux/resource"
 )
 
 // Sync synchronises the cluster to the files in a directory
-func Sync(logger log.Logger, m cluster.Manifests, repoResources map[string]resource.Resource, clus cluster.Cluster, deletes bool) error {
+func Sync(logger log.Logger, m cluster.Manifests, repoResources map[string]resource.Resource, clus cluster.Cluster,
+	deletes bool, errored map[flux.ResourceID]error) error {
 	// Get a map of resources defined in the cluster
 	clusterBytes, err := clus.Export()
 
@@ -42,7 +44,7 @@ func Sync(logger log.Logger, m cluster.Manifests, repoResources map[string]resou
 		prepareSyncApply(logger, clusterResources, id, res, &sync)
 	}
 
-	return clus.Sync(sync)
+	return clus.Sync(sync, errored)
 }
 
 func prepareSyncDelete(logger log.Logger, repoResources map[string]resource.Resource, id string, res resource.Resource, sync *cluster.SyncDef) {

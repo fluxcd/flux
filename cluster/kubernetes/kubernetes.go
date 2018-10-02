@@ -191,7 +191,7 @@ func (c *Cluster) AllControllers(namespace string) (res []cluster.Controller, er
 
 // Sync performs the given actions on resources. Operations are
 // asynchronous, but serialised.
-func (c *Cluster) Sync(spec cluster.SyncDef) error {
+func (c *Cluster) Sync(spec cluster.SyncDef, errored map[flux.ResourceID]error) error {
 	logger := log.With(c.logger, "method", "Sync")
 
 	cs := makeChangeSet()
@@ -221,7 +221,7 @@ func (c *Cluster) Sync(spec cluster.SyncDef) error {
 
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if applyErrs := c.applier.apply(logger, cs); len(applyErrs) > 0 {
+	if applyErrs := c.applier.apply(logger, cs, errored); len(applyErrs) > 0 {
 		errs = append(errs, applyErrs...)
 	}
 

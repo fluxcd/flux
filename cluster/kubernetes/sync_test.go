@@ -15,7 +15,7 @@ type mockApplier struct {
 	commandRun bool
 }
 
-func (m *mockApplier) apply(_ log.Logger, c changeSet) cluster.SyncError {
+func (m *mockApplier) apply(_ log.Logger, c changeSet, errored map[flux.ResourceID]error) cluster.SyncError {
 	if len(c.objs) != 0 {
 		m.commandRun = true
 	}
@@ -56,7 +56,7 @@ func setup(t *testing.T) (*Cluster, *mockApplier) {
 
 func TestSyncNop(t *testing.T) {
 	kube, mock := setup(t)
-	if err := kube.Sync(cluster.SyncDef{}); err != nil {
+	if err := kube.Sync(cluster.SyncDef{}, nil); err != nil {
 		t.Errorf("%#v", err)
 	}
 	if mock.commandRun {
@@ -72,7 +72,7 @@ func TestSyncMalformed(t *testing.T) {
 				Apply: rsc{"id", []byte("garbage")},
 			},
 		},
-	})
+	}, nil)
 	if err == nil {
 		t.Error("expected error because malformed resource def, but got nil")
 	}
