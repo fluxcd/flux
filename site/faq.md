@@ -101,10 +101,11 @@ system in order to read and update the manifests.
 
 ### How do I give Flux access to an image registry?
 
-Flux transparently looks at the image pull secrets that you to
+Flux transparently looks at the image pull secrets that you attach to
 workloads and service accounts, and thereby uses the same credentials
-that Kubernetes uses for pulling each image. If your pods are running,
-Kubernetes has pulled the images, and Flux should be able to access them.
+that Kubernetes uses for pulling each image. In general, if your pods
+are running, then Kubernetes has pulled the images, and Flux should be
+able to access them too.
 
 There are exceptions:
 
@@ -117,7 +118,7 @@ There are exceptions:
 
 To work around the exceptional cases, you can mount a docker config into
 the Flux container. See the argument `--docker-config` in
-[the daemon arguments reference](https://github.com/weaveworks/flux/blob/master/site/daemon.md).
+[the daemon arguments reference](https://github.com/weaveworks/flux/blob/master/site/daemon.md#flags).
 
 For ECR (Elastic Container Registry), the credentials supplied by the
 environment are rotated, so it's not possible to supply a file with
