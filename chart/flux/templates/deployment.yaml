@@ -71,7 +71,7 @@ spec:
           - --git-email={{ .Values.git.email }}
           - --git-set-author={{ .Values.git.setAuthor }}
           - --git-poll-interval={{ .Values.git.pollInterval }}
-          - --git-time-out={{ .Values.git.timeOut }}
+          - --git-timeout={{ .Values.git.timeout }}
           - --sync-interval={{ .Values.git.pollInterval }}
           - --git-ci-skip={{ .Values.git.ciSkip }}
           {{- if .Values.git.label }}

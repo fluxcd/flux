@@ -14,7 +14,7 @@ const (
 	defaultInterval = 5 * time.Minute
 	defaultTimeout  = 20 * time.Second
 
-	CheckPushTag 	= "flux-write-check"
+	CheckPushTag = "flux-write-check"
 )
 
 var (
@@ -82,9 +82,9 @@ func (p PollInterval) apply(r *Repo) {
 	r.interval = time.Duration(p)
 }
 
-type TimeOut time.Duration
+type Timeout time.Duration
 
-func (t TimeOut) apply(r *Repo) {
+func (t Timeout) apply(r *Repo) {
 	r.timeout = time.Duration(t)
 }
 

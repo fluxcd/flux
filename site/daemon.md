@@ -56,7 +56,7 @@ fluxd requires setup and offers customization though a multitude of flags.
 |--git-sync-tag          | `flux-sync`             | tag to use to mark sync progress for this cluster (old config, still used if --git-label is not supplied)|
 |--git-notes-ref         | `flux`            | ref to use for keeping commit annotations in git notes|
 |--git-poll-interval     | `5 minutes`                 | period at which to fetch any new commits from the git repo |
-|--git-time-out          | `20 seconds`                | duration after which git operations time out |
+|--git-timeout           | `20 seconds`                | duration after which git operations time out |
 |**syncing**             |                             | control over how config is applied to the cluster |
 |--sync-interval         | `5 minutes`                 | apply the git config to the cluster at least this often. New commits may provoke more frequent syncs |
 |**registry cache**      |                               | (none of these need overriding, usually) |
