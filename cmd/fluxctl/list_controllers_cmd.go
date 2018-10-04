@@ -25,6 +25,7 @@ func newControllerList(parent *rootOpts) *controllerListOpts {
 func (opts *controllerListOpts) Command() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list-controllers",
+		Aliases: []string{"list-workloads"},
 		Short:   "List controllers currently running in the cluster.",
 		Example: makeExample("fluxctl list-controllers"),
 		RunE:    opts.RunE,
