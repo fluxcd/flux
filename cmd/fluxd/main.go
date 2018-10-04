@@ -93,6 +93,7 @@ func main() {
 		gitSkipMessage = fs.String("git-ci-skip-message", "", "additional text for commit messages, useful for skipping builds in CI. Use this to supply specific text, or set --git-ci-skip")
 
 		gitPollInterval = fs.Duration("git-poll-interval", 5*time.Minute, "period at which to poll git repo for new commits")
+		gitTimeout      = fs.Duration("git-timeout", 20*time.Second, "duration after which git operations time out")
 		// syncing
 		syncInterval = fs.Duration("sync-interval", 5*time.Minute, "apply config in git to cluster at least this often, even if there are no new commits")
 		// registry
@@ -369,7 +370,7 @@ func main() {
 		SkipMessage: *gitSkipMessage,
 	}
 
-	repo := git.NewRepo(gitRemote, git.PollInterval(*gitPollInterval))
+	repo := git.NewRepo(gitRemote, git.PollInterval(*gitPollInterval), git.Timeout(*gitTimeout))
 	{
 		shutdownWg.Add(1)
 		go func() {

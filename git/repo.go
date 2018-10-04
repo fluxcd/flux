@@ -12,10 +12,9 @@ import (
 
 const (
 	defaultInterval = 5 * time.Minute
-	opTimeout       = 20 * time.Second
+	defaultTimeout  = 20 * time.Second
 
-	DefaultCloneTimeout = 2 * time.Minute
-	CheckPushTag        = "flux-write-check"
+	CheckPushTag = "flux-write-check"
 )
 
 var (
@@ -54,6 +53,7 @@ type Repo struct {
 	// As supplied to constructor
 	origin   Remote
 	interval time.Duration
+	timeout  time.Duration
 	readonly bool
 
 	// State
@@ -82,6 +82,12 @@ func (p PollInterval) apply(r *Repo) {
 	r.interval = time.Duration(p)
 }
 
+type Timeout time.Duration
+
+func (t Timeout) apply(r *Repo) {
+	r.timeout = time.Duration(t)
+}
+
 var ReadOnly optionFunc = func(r *Repo) {
 	r.readonly = true
 }
@@ -96,6 +102,7 @@ func NewRepo(origin Remote, opts ...Option) *Repo {
 		origin:   origin,
 		status:   status,
 		interval: defaultInterval,
+		timeout:  defaultTimeout,
 		err:      ErrNotCloned,
 		notify:   make(chan struct{}, 1), // `1` so that Notify doesn't block
 		C:        make(chan struct{}, 1), // `1` so we don't block on completing a refresh
@@ -238,13 +245,13 @@ func (r *Repo) step(bg context.Context) bool {
 			panic(err)
 		}
 
-		ctx, cancel := context.WithTimeout(bg, opTimeout)
+		ctx, cancel := context.WithTimeout(bg, r.timeout)
 		dir, err = mirror(ctx, rootdir, url)
 		cancel()
 		if err == nil {
 			r.mu.Lock()
 			r.dir = dir
-			ctx, cancel := context.WithTimeout(bg, opTimeout)
+			ctx, cancel := context.WithTimeout(bg, r.timeout)
 			err = r.fetch(ctx)
 			cancel()
 			r.mu.Unlock()
@@ -260,7 +267,7 @@ func (r *Repo) step(bg context.Context) bool {
 
 	case RepoCloned:
 		if !r.readonly {
-			ctx, cancel := context.WithTimeout(bg, opTimeout)
+			ctx, cancel := context.WithTimeout(bg, r.timeout)
 			err := checkPush(ctx, dir, url)
 			cancel()
 			if err != nil {
@@ -299,7 +306,7 @@ func (r *Repo) Start(shutdown <-chan struct{}, done *sync.WaitGroup) error {
 	defer done.Done()
 
 	for {
-		ctx, cancel := context.WithTimeout(context.Background(), opTimeout)
+		ctx, cancel := context.WithTimeout(context.Background(), r.timeout)
 		advanced := r.step(ctx)
 		cancel()
 
@@ -364,7 +371,7 @@ func (r *Repo) refreshLoop(shutdown <-chan struct{}) error {
 				default:
 				}
 			}
-			ctx, cancel := context.WithTimeout(context.Background(), opTimeout)
+			ctx, cancel := context.WithTimeout(context.Background(), r.timeout)
 			err := r.Refresh(ctx)
 			cancel()
 			if err != nil {
