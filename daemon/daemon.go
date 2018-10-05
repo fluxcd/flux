@@ -14,6 +14,7 @@ import (
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/api"
 	"github.com/weaveworks/flux/api/v10"
+	"github.com/weaveworks/flux/api/v11"
 	"github.com/weaveworks/flux/api/v6"
 	"github.com/weaveworks/flux/api/v9"
 	"github.com/weaveworks/flux/cluster"
@@ -27,7 +28,6 @@ import (
 	"github.com/weaveworks/flux/release"
 	"github.com/weaveworks/flux/resource"
 	"github.com/weaveworks/flux/update"
-	"github.com/weaveworks/flux/api/v11"
 )
 
 const (
@@ -175,12 +175,18 @@ func (d *Daemon) ListImagesWithOptions(ctx context.Context, opts v10.ListImagesO
 	var err error
 	if opts.Spec == update.ResourceSpecAll {
 		services, err = d.Cluster.AllControllers("")
+		if err != nil {
+			return nil, errors.Wrap(err, "getting all controllers")
+		}
 	} else {
 		id, err := opts.Spec.AsID()
 		if err != nil {
 			return nil, errors.Wrap(err, "treating service spec as ID")
 		}
 		services, err = d.Cluster.SomeControllers([]flux.ResourceID{id})
+		if err != nil {
+			return nil, errors.Wrap(err, "getting some controllers")
+		}
 	}
 
 	resources, _, err := d.getResources(ctx)

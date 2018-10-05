@@ -172,6 +172,10 @@ func (opts *controllerReleaseOpts) RunE(cmd *cobra.Command, args []string) error
 			Cause: opts.cause,
 			Spec:  spec,
 		})
+		if err != nil {
+			fmt.Fprintln(cmd.OutOrStderr(), err.Error())
+			return nil
+		}
 
 		opts.dryRun = false
 	}
