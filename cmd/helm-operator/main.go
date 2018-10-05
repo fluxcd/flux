@@ -49,7 +49,6 @@ var (
 	tillerTLSHostname *string
 
 	chartsSyncInterval *time.Duration
-	chartsSyncTimeout  *time.Duration
 	logReleaseDiffs    *bool
 	updateDependencies *bool
 
@@ -86,34 +85,36 @@ func init() {
 		fs.PrintDefaults()
 	}
 
-	versionFlag = fs.Bool("version", false, "Print version and exit")
+	versionFlag = fs.Bool("version", false, "print version and exit")
 
-	kubeconfig = fs.String("kubeconfig", "", "Path to a kubeconfig. Only required if out-of-cluster.")
-	master = fs.String("master", "", "The address of the Kubernetes API server. Overrides any value in kubeconfig. Only required if out-of-cluster.")
+	kubeconfig = fs.String("kubeconfig", "", "path to a kubeconfig; required if out-of-cluster")
+	master = fs.String("master", "", "address of the Kubernetes API server; overrides any value in kubeconfig; required if out-of-cluster")
 
-	tillerIP = fs.String("tiller-ip", "", "Tiller IP address. Only required if out-of-cluster.")
-	tillerPort = fs.String("tiller-port", "", "Tiller port.")
-	tillerNamespace = fs.String("tiller-namespace", "kube-system", "Tiller namespace. If not provided, the default is kube-system.")
+	tillerIP = fs.String("tiller-ip", "", "Tiller IP address; required if run out-of-cluster")
+	tillerPort = fs.String("tiller-port", "", "Tiller port; required if run out-of-cluster")
+	tillerNamespace = fs.String("tiller-namespace", "kube-system", "Tiller namespace")
 
-	tillerTLSVerify = fs.Bool("tiller-tls-verify", false, "Verify TLS certificate from Tiller. Will enable TLS communication when provided.")
-	tillerTLSEnable = fs.Bool("tiller-tls-enable", false, "Enable TLS communication with Tiller. If provided, requires TLSKey and TLSCert to be provided as well.")
-	tillerTLSKey = fs.String("tiller-tls-key-path", "/etc/fluxd/helm/tls.key", "Path to private key file used to communicate with the Tiller server.")
-	tillerTLSCert = fs.String("tiller-tls-cert-path", "/etc/fluxd/helm/tls.crt", "Path to certificate file used to communicate with the Tiller server.")
-	tillerTLSCACert = fs.String("tiller-tls-ca-cert-path", "", "Path to CA certificate file used to validate the Tiller server. Required if tiller-tls-verify is enabled.")
-	tillerTLSHostname = fs.String("tiller-tls-hostname", "", "The server name used to verify the hostname on the returned certificates from the server.")
+	tillerTLSVerify = fs.Bool("tiller-tls-verify", false, "verify TLS certificate from Tiller; will enable TLS communication when provided")
+	tillerTLSEnable = fs.Bool("tiller-tls-enable", false, "enable TLS communication with Tiller; if provided, requires TLSKey and TLSCert to be provided as well")
+	tillerTLSKey = fs.String("tiller-tls-key-path", "/etc/fluxd/helm/tls.key", "path to private key file used to communicate with the Tiller server")
+	tillerTLSCert = fs.String("tiller-tls-cert-path", "/etc/fluxd/helm/tls.crt", "path to certificate file used to communicate with the Tiller server")
+	tillerTLSCACert = fs.String("tiller-tls-ca-cert-path", "", "path to CA certificate file used to validate the Tiller server; required if tiller-tls-verify is enabled")
+	tillerTLSHostname = fs.String("tiller-tls-hostname", "", "server name used to verify the hostname on the returned certificates from the server")
 
-	chartsSyncInterval = fs.Duration("charts-sync-interval", 3*time.Minute, "Interval at which to check for changed charts")
-	chartsSyncTimeout = fs.Duration("charts-sync-timeout", 1*time.Minute, "Timeout when checking for changed charts")
-	logReleaseDiffs = fs.Bool("log-release-diffs", false, "Log the diff when a chart release diverges; potentially insecure")
+	chartsSyncInterval = fs.Duration("charts-sync-interval", 3*time.Minute, "period on which to reconcile the Helm releases with FluxHelmRelease resources")
+	logReleaseDiffs = fs.Bool("log-release-diffs", false, "log the diff when a chart release diverges; potentially insecure")
 	updateDependencies = fs.Bool("update-chart-deps", true, "Update chart dependencies before installing/upgrading a release")
 
-	gitURL = fs.String("git-url", "", "URL of git repo with Helm Charts; e.g., git@github.com:weaveworks/flux-example")
+	gitURL = fs.String("git-url", "", "URL of git repo with Helm charts; e.g., git@github.com:weaveworks/flux-example")
 	gitBranch = fs.String("git-branch", "master", "branch of git repo")
-	gitChartsPath = fs.String("git-charts-path", defaultGitChartsPath, "path within git repo to locate Helm Charts (relative path)")
+	gitChartsPath = fs.String("git-charts-path", defaultGitChartsPath, "path within git repo to locate Helm Charts")
 	gitPollInterval = fs.Duration("git-poll-interval", 5*time.Minute, "period on which to poll for changes to the git repo")
 	gitTimeout = fs.Duration("git-timeout", 20*time.Second, "duration after which git operations time out")
 
-	queueWorkerCount = fs.Int("queue-worker-count", 2, "Number of workers to process queue with Chart release jobs. Two by default")
+	queueWorkerCount = fs.Int("queue-worker-count", 2, "number of workers for processing releases; unlikely to need changing")
+
+	_ = fs.Duration("charts-sync-timeout", 0, "")
+	fs.MarkDeprecated("charts-sync-timeout", "this flag is ignored")
 }
 
 func main() {
@@ -230,7 +231,7 @@ func main() {
 	rel := release.New(log.With(logger, "component", "release"), helmClient, releaseConfig)
 	// CHARTS CHANGES SYNC ------------------------------------------------------------------
 	chartSync := chartsync.New(log.With(logger, "component", "chartsync"),
-		chartsync.Polling{Interval: *chartsSyncInterval, Timeout: *chartsSyncTimeout},
+		chartsync.Polling{Interval: *chartsSyncInterval},
 		chartsync.Clients{KubeClient: *kubeClient, IfClient: *ifClient},
 		rel, repoConfig, *logReleaseDiffs)
 	chartSync.Run(shutdown, errc, shutdownWg)

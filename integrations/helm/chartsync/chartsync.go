@@ -63,7 +63,6 @@ import (
 
 type Polling struct {
 	Interval time.Duration
-	Timeout  time.Duration
 }
 
 type Clients struct {
