@@ -80,7 +80,7 @@ func rankOfKind(kind string) int {
 	case "Namespace":
 		return 0
 	// These don't go in namespaces; or do, but don't depend on anything else
-	case "ServiceAccount", "ClusterRole", "Role", "PersistentVolume", "Service":
+	case "CustomResourceDefinition", "ServiceAccount", "ClusterRole", "Role", "PersistentVolume", "Service":
 		return 1
 	// These depend on something above, but not each other
 	case "ResourceQuota", "LimitRange", "Secret", "ConfigMap", "RoleBinding", "ClusterRoleBinding", "PersistentVolumeClaim", "Ingress":
