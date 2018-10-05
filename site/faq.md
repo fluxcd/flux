@@ -322,7 +322,7 @@ You will need to use the (experimental) command-line flag
 `--k8s-namespace-whitelist` to enumerate the namespaces that Flux
 attempts to scan for workloads.
 
-### Can I temporarily make flux ignore a deployment?
+### Can I temporarily make Flux ignore a deployment?
 
 Yes. The easiest way to do that is to use the following annotation
 *in the manifest files*:
@@ -355,7 +355,7 @@ Mixing both kinds of annotations (in-git and in-cluster), can make
 it a bit hard to figure out how/where to undo the change (cf
 [flux#1211](https://github.com/weaveworks/flux/issues/1211)).
 
-The full story is this: flux looks at the files and the running
+The full story is this: Flux looks at the files and the running
 resources when deciding whether what to apply. But it gets the
 running resources by exporting them from the cluster, and that
 only returns the kinds of resource mentioned above. So,

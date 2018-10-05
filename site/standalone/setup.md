@@ -10,9 +10,9 @@ the directory with the examples configuration.
 
 # Customising the daemon configuration
 
-## Connect flux to a repository
+## Connect Flux to a repository
 
-First, you need to connect flux to the repository with Kubernetes
+First, you need to connect Flux to the repository with Kubernetes
 manifests. This is achieved by setting the `--git-url` and
 `--git-branch` arguments in the
 [`flux-deployment.yaml`](../../deploy/flux-deployment.yaml) manifest.
@@ -48,7 +48,7 @@ permissions. The `Developer` permission can create tags, but not update them.
 
 You have two options:
 
-### 1. Allow flux to generate a key for you.
+### 1. Allow Flux to generate a key for you.
 
 If you don't specify a key to use, Flux will create one for you. Obtain
 the public key through fluxctl:
@@ -126,7 +126,7 @@ from within the container may help debug it.
 
 If it _did_ work, you will need to make it a more permanent
 arrangement. Back in that shell, create a configmap for the cluster. To make
-sure the configmap is created in the namespace of the flux or weave deployment,
+sure the configmap is created in the namespace of the Flux or weave deployment,
 the namespace is set explicitly:
 
 ```sh
