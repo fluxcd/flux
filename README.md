@@ -60,7 +60,7 @@ Its major features are:
 Weave Cloud is a SaaS product by Weaveworks that includes Flux, as well
 as:
 
-- a UI and alerts for deployments: nicely integrated overview, all flux
+- a UI and alerts for deployments: nicely integrated overview, all Flux
   operations just a click away.
 - full observability and insights into your cluster: Instantly start using
   monitoring dashboards for your cluster, hosted 13 months of history, use
@@ -95,7 +95,7 @@ We welcome all kinds of contributions to Flux, be it code, issues you found,
 documentation, external tools, help and support or anything else really.
 
 Instances of abusive, harassing, or otherwise unacceptable behavior
-may be reported by contacting a *flux* project maintainer, or Alexis
+may be reported by contacting a *Flux* project maintainer, or Alexis
 Richardson `<alexis@weave.works>`. Please refer to our [code of
 conduct](CODE_OF_CONDUCT.md) as well.
 

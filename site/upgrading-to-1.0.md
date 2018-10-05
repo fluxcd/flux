@@ -79,9 +79,9 @@ git (and GitHub) workflows to manage your cluster.
 
 In summary, you will need to:
 
- 1. Remove the old flux resources from your cluster
+ 1. Remove the old Flux resources from your cluster
  2. Delete any deployment keys 
- 3. Run the new flux resources
+ 3. Run the new Flux resources
  4. Install a new deploy key
 
 First, it will help in a few places to have an old fluxctl
@@ -135,7 +135,7 @@ key used by Flux with
 
     ./fluxctl_030 get-config --fingerprint=md5
 
-### Configure and run the new flux resources
+### Configure and run the new Flux resources
 
 > First, it is important to understand that Flux manages more of your
 > cluster resources now. It will automatically apply manifests that
@@ -233,7 +233,7 @@ the setup instructions linked above.
 
 ### The kubectl delete commands didn’t delete anything
 
-It’s possible that the flux resources are in an unusual namespace or
+It’s possible that the Flux resources are in an unusual namespace or
 given a different name. As a last resort, you can hunt down the
 resources by name and delete them. Weave Cloud’s “Explore” tab may
 help; or use kubectl to look for likely suspects.

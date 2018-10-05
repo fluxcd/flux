@@ -44,7 +44,7 @@ versions where applicable.
 
 This is really useful for keeping the repository and therefore the
 cluster up to date. It allows separate teams to have their own
-deployment pipelines then flux is able to see the new image and update
+deployment pipelines then Flux is able to see the new image and update
 the cluster accordingly.
 
 This feature can be disabled and images can be locked to a specific

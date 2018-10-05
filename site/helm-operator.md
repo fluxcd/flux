@@ -180,7 +180,7 @@ kubectl create secret tls helm-client --cert=tls/flux-helm-operator.pem --key=./
 
 > note; this has to be in the same namespace as the helm-operator is deployed in.
 
-Deploy flux with Helm;
+Deploy Flux with Helm;
 
 ```bash
 helm repo add weaveworks https://weaveworks.github.io/flux
