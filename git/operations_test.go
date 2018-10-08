@@ -201,7 +201,9 @@ func TestOnelinelog_WithGitpath(t *testing.T) {
 func TestCheckPush(t *testing.T) {
 	upstreamDir, upstreamCleanup := testfiles.TempDir(t)
 	defer upstreamCleanup()
-	err := createRepo(upstreamDir, []string{"config"})
+	if err := createRepo(upstreamDir, []string{"config"}); err != nil {
+		t.Fatal(err)
+	}
 
 	cloneDir, cloneCleanup := testfiles.TempDir(t)
 	defer cloneCleanup()

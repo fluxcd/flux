@@ -156,6 +156,9 @@ func listImagesWithOptions(ctx context.Context, client listImagesWithoutOptionsC
 		ns, _, _ = resourceID.Components()
 	}
 	services, err := client.ListServices(ctx, ns)
+	if err != nil {
+		return statuses, err
+	}
 
 	policyMap := map[flux.ResourceID]map[string]string{}
 	for _, service := range services {
