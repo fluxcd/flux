@@ -51,7 +51,7 @@ spec:
             protocol: TCP
           volumeMounts:
           - name: kubedir
-            mountPath: /root/.kube
+            mountPath: /root/.kubectl
           - name: sshdir
             mountPath: /root/.ssh
             readOnly: true
@@ -60,6 +60,9 @@ spec:
             readOnly: true
           - name: git-keygen
             mountPath: /var/fluxd/keygen
+          env:
+          - name: KUBECONFIG
+            value: /root/.kubectl/config
           args:
           - --ssh-keygen-dir=/var/fluxd/keygen
           - --k8s-secret-name={{ template "flux.fullname" . }}-git-deploy
