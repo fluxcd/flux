@@ -40,6 +40,15 @@ spec:
       #   configMap:
       #     name: flux-ssh-config
 
+      # The following volume is for using a customised .kube/config,
+      # which you will need to do if you wish to have a different
+      # default namespace. You will also need to provide the configmap
+      # with an entry for `config`, and uncomment the volumeMount and
+      # env entries below.
+      # - name: kubeconfig
+      #   configMap:
+      #     name: flux-kubeconfig
+
       containers:
       - name: flux
         # There are no ":latest" images for flux. Find the most recent
@@ -60,6 +69,19 @@ spec:
         # file; you'll also need the volume declared above.
         # - name: ssh-config
         #   mountPath: /root/.ssh
+
+        # Include this and the volume "kubeconfig" above, and the
+        # environment entry "KUBECONFIG" below, to override the config
+        # used by kuebctl.
+        # - name: kubeconfig
+        #   mountPath: /etc/fluxd/kube
+
+        # Include this to point kubectl at a different config; you
+        # will need to do this if you have mounted an alternate config
+        # from a configmap, as in commented blocks above.
+        # env:
+        # - name: KUBECONFIG
+        #   value: /etc/fluxd/kube/config
 
         args:
 
