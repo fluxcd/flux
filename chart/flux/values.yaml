@@ -127,7 +127,7 @@ ssh:
   known_hosts: ""
 
 kube:
-  # Override for ./kube/config
+  # Override for kubectl default config
   config: |
     apiVersion: v1
     clusters: []
