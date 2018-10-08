@@ -63,6 +63,7 @@ func (spec *Spec) UnmarshalJSON(in []byte) error {
 	case Sync:
 		var update ManualSync
 		if err := json.Unmarshal(wire.SpecBytes, &update); err != nil {
+			return err
 		}
 		spec.Spec = update
 	case Containers:
