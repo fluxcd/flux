@@ -96,9 +96,9 @@ func New(logger log.Logger, polling Polling, clients Clients, release *release.R
 	}
 }
 
-//  Run creates a syncing loop monitoring repo chart changes. It is
-//  assumed that the *git.Repo given to the config is ready to use
-//  before this is invoked.
+// Run creates a syncing loop monitoring repo chart changes. It is
+// assumed that the *git.Repo given to the config is ready to use
+// before this is invoked.
 //
 // The behaviour if the git mirror becomes unavailable while it's
 // running is not defined (this could be tightened up).
@@ -174,7 +174,7 @@ func (chs *ChartChangeSync) Run(stopCh <-chan struct{}, errc chan error, wg *syn
 
 			case <-stopCh:
 				chs.logger.Log("stopping", "true")
-				break
+				return
 			}
 		}
 	}()
