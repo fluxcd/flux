@@ -38,9 +38,14 @@ spec:
               type: object
             chart:
               oneOf:
-              - required: ['gitPath']
+              - required: ['git', 'path']
                 properties:
-                  gitPath:
+                  git:
+                    type: string
+                    format: git # not defined by OAS
+                  path:
+                    type: string
+                  ref:
                     type: string
               - required: ['repository', 'name', 'version']
                 properties:

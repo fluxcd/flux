@@ -29,11 +29,19 @@ type ChartSource struct {
 }
 
 type GitChartSource struct {
-	// URL would go here, and possibly SSH key secret; but, not yet.
+	GitURL string `json:"git"`
+	Ref    string `json:"ref"`
+	Path   string `json:"path"`
+}
 
-	// Path to the chart. This has the name `gitPath` because there is
-	// nothing enclosing to disambiguate what the path refers to.
-	Path string `json:"gitPath"`
+// DefaultGitRef is the ref assumed if the Ref field is not given in a GitChartSource
+const DefaultGitRef = "master"
+
+func (s GitChartSource) RefOrDefault() string {
+	if s.Ref == "" {
+		return DefaultGitRef
+	}
+	return s.Ref
 }
 
 type RepoChartSource struct {
