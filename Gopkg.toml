@@ -57,3 +57,7 @@ required = ["k8s.io/code-generator/cmd/client-gen"]
 [[override]]
   name = "github.com/BurntSushi/toml"
   version = "v0.3.1"
+
+[[constraint]]
+  name = "github.com/imdario/mergo"
+  version = "0.3.2"

@@ -127,7 +127,7 @@ func (c *Kubectl) apply(logger log.Logger, cs changeSet, errored map[flux.Resour
 			multi = objs
 		} else {
 			for _, obj := range objs {
-				if _, ok := errored[obj.ResourceID()]; ok {
+				if _, ok := errored[obj.OriginalResource.ResourceID()]; ok {
 					// Resources that errored before shall be applied separately
 					single = append(single, obj)
 				} else {
@@ -143,9 +143,9 @@ func (c *Kubectl) apply(logger log.Logger, cs changeSet, errored map[flux.Resour
 			}
 		}
 		for _, obj := range single {
-			r := bytes.NewReader(obj.Bytes())
+			r := bytes.NewReader(obj.Payload)
 			if err := c.doCommand(logger, r, args...); err != nil {
-				errs = append(errs, cluster.ResourceError{obj.Resource, err})
+				errs = append(errs, cluster.ResourceError{obj.OriginalResource, err})
 			}
 		}
 	}
@@ -189,7 +189,7 @@ func makeMultidoc(objs []*apiObject) *bytes.Buffer {
 	buf := &bytes.Buffer{}
 	for _, obj := range objs {
 		buf.WriteString("\n---\n")
-		buf.Write(obj.Bytes())
+		buf.Write(obj.Payload)
 	}
 	return buf
 }

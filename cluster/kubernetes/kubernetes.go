@@ -7,8 +7,11 @@ import (
 
 	k8syaml "github.com/ghodss/yaml"
 	"github.com/go-kit/kit/log"
+	"github.com/imdario/mergo"
 	"github.com/pkg/errors"
+	kresource "github.com/weaveworks/flux/cluster/kubernetes/resource"
 	fhrclient "github.com/weaveworks/flux/integrations/client/clientset/versioned"
+	"github.com/weaveworks/flux/policy"
 	"gopkg.in/yaml.v2"
 	apiv1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -37,9 +40,10 @@ type metadata struct {
 }
 
 type apiObject struct {
-	resource.Resource
-	Kind     string   `yaml:"kind"`
-	Metadata metadata `yaml:"metadata"`
+	OriginalResource resource.Resource
+	Payload          []byte
+	Kind             string   `yaml:"kind"`
+	Metadata         metadata `yaml:"metadata"`
 }
 
 // A convenience for getting an minimal object from some bytes.
@@ -212,9 +216,51 @@ func (c *Cluster) AllControllers(namespace string) (res []cluster.Controller, er
 	return allControllers, nil
 }
 
+func applyMetadata(res resource.Resource, resourceLabels map[string]policy.Update, resourcePolicyUpdates map[string]policy.Update) ([]byte, error) {
+	id := res.ResourceID().String()
+
+	definition := make(map[interface{}]interface{})
+	if err := yaml.Unmarshal(res.Bytes(), &definition); err != nil {
+		return nil, errors.Wrap(err, fmt.Sprintf("failed to parse yaml from %s", res.Source()))
+	}
+
+	if update, ok := resourceLabels[id]; ok {
+		mixin := make(map[interface{}]interface{})
+		var mixinBuffer bytes.Buffer
+		mixinBuffer.WriteString("metadata:\n  labels:\n")
+		for key, value := range update.Add.ToStringMap() {
+			mixinBuffer.WriteString(fmt.Sprintf("    %s: %s\n", fmt.Sprintf("%s%s", kresource.PolicyPrefix, key), value))
+		}
+		if err := yaml.Unmarshal(mixinBuffer.Bytes(), &mixin); err != nil {
+			return nil, errors.Wrap(err, "failed to parse yaml for mixin")
+		}
+		mergo.Merge(&definition, mixin)
+	}
+
+	if update, ok := resourcePolicyUpdates[id]; ok {
+		mixin := make(map[interface{}]interface{})
+		var mixinBuffer bytes.Buffer
+		mixinBuffer.WriteString("metadata:\n  annotations:\n")
+		for key, value := range update.Add.ToStringMap() {
+			mixinBuffer.WriteString(fmt.Sprintf("    %s: %s\n", fmt.Sprintf("%s%s", kresource.PolicyPrefix, key), value))
+		}
+		if err := yaml.Unmarshal(mixinBuffer.Bytes(), &mixin); err != nil {
+			return nil, errors.Wrap(err, "failed to parse yaml for mixin")
+		}
+		mergo.Merge(&definition, mixin)
+	}
+
+	bytes, err := yaml.Marshal(definition)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to serialize yaml after applying metadata")
+	}
+
+	return bytes, nil
+}
+
 // Sync performs the given actions on resources. Operations are
 // asynchronous, but serialised.
-func (c *Cluster) Sync(spec cluster.SyncDef) error {
+func (c *Cluster) Sync(spec cluster.SyncDef, resourceLabels map[string]policy.Update, resourcePolicyUpdates map[string]policy.Update) error {
 	logger := log.With(c.logger, "method", "Sync")
 
 	cs := makeChangeSet()
@@ -231,9 +277,15 @@ func (c *Cluster) Sync(spec cluster.SyncDef) error {
 			if stage.res == nil {
 				continue
 			}
-			obj, err := parseObj(stage.res.Bytes())
+
+			var obj *apiObject
+			resBytes, err := applyMetadata(stage.res, resourceLabels, resourcePolicyUpdates)
 			if err == nil {
-				obj.Resource = stage.res
+				obj, err = parseObj(resBytes)
+			}
+			if err == nil {
+				obj.OriginalResource = stage.res
+				obj.Payload = resBytes
 				cs.stage(stage.cmd, obj)
 			} else {
 				errs = append(errs, cluster.ResourceError{Resource: stage.res, Error: err})

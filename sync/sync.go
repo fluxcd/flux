@@ -1,6 +1,10 @@
 package sync
 
 import (
+	"crypto/sha1"
+	"encoding/hex"
+	"sort"
+
 	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
 
@@ -9,9 +13,24 @@ import (
 	"github.com/weaveworks/flux/resource"
 )
 
+// Checksum generates a unique identifier for all apply actions in the stack
+func getStackChecksum(repoResources map[string]resource.Resource) string {
+	checksum := sha1.New()
+
+	sortedKeys := make([]string, 0, len(repoResources))
+	for resourceID := range repoResources {
+		sortedKeys = append(sortedKeys, resourceID)
+	}
+	sort.Strings(sortedKeys)
+	for resourceIDIndex := range sortedKeys {
+		checksum.Write(repoResources[sortedKeys[resourceIDIndex]].Bytes())
+	}
+	return hex.EncodeToString(checksum.Sum(nil))
+}
+
 // Sync synchronises the cluster to the files in a directory
 func Sync(logger log.Logger, m cluster.Manifests, repoResources map[string]resource.Resource, clus cluster.Cluster,
-	deletes bool) error {
+	deletes, tracks bool) error {
 	// Get a map of resources defined in the cluster
 	clusterBytes, err := clus.Export()
 
@@ -30,6 +49,27 @@ func Sync(logger log.Logger, m cluster.Manifests, repoResources map[string]resou
 	// no-op.
 	sync := cluster.SyncDef{}
 
+	resourceLabels := map[string]policy.Update{}
+	resourcePolicyUpdates := map[string]policy.Update{}
+	if tracks {
+		stackName := "default" // TODO: multiple stack support
+		stackChecksum := getStackChecksum(repoResources)
+
+		logger.Log("stack", stackName, "checksum", stackChecksum)
+
+		for id := range repoResources {
+			logger.Log("resource", id, "applying checksum", stackChecksum)
+			resourceLabels[id] = policy.Update{
+				Add: policy.Set{"stack": stackName},
+			}
+			resourcePolicyUpdates[id] = policy.Update{
+				Add: policy.Set{policy.StackChecksum: stackChecksum},
+			}
+		}
+
+		// label flux.weave.works/stack
+	}
+
 	// DANGER ZONE (tamara) This works and is dangerous. At the moment will delete Flux and
 	// other pods unless the relevant manifests are part of the user repo. Needs a lot of thought
 	// before this cleanup cluster feature can be unleashed on the world.
@@ -43,7 +83,7 @@ func Sync(logger log.Logger, m cluster.Manifests, repoResources map[string]resou
 		prepareSyncApply(logger, clusterResources, id, res, &sync)
 	}
 
-	return clus.Sync(sync)
+	return clus.Sync(sync, resourceLabels, resourcePolicyUpdates)
 }
 
 func prepareSyncDelete(logger log.Logger, repoResources map[string]resource.Resource, id string, res resource.Resource, sync *cluster.SyncDef) {

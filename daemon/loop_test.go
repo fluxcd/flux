@@ -21,6 +21,7 @@ import (
 	"github.com/weaveworks/flux/git"
 	"github.com/weaveworks/flux/git/gittest"
 	"github.com/weaveworks/flux/job"
+	"github.com/weaveworks/flux/policy"
 	registryMock "github.com/weaveworks/flux/registry/mock"
 	"github.com/weaveworks/flux/resource"
 )
@@ -100,7 +101,7 @@ func TestPullAndSync_InitialSync(t *testing.T) {
 		expectedResourceIDs = append(expectedResourceIDs, id)
 	}
 	expectedResourceIDs.Sort()
-	k8s.SyncFunc = func(def cluster.SyncDef) error {
+	k8s.SyncFunc = func(def cluster.SyncDef, l map[string]policy.Update, p map[string]policy.Update) error {
 		syncCalled++
 		syncDef = &def
 		return nil
@@ -173,7 +174,7 @@ func TestDoSync_NoNewCommits(t *testing.T) {
 		expectedResourceIDs = append(expectedResourceIDs, id)
 	}
 	expectedResourceIDs.Sort()
-	k8s.SyncFunc = func(def cluster.SyncDef) error {
+	k8s.SyncFunc = func(def cluster.SyncDef, l map[string]policy.Update, p map[string]policy.Update) error {
 		syncCalled++
 		syncDef = &def
 		return nil
@@ -271,7 +272,7 @@ func TestDoSync_WithNewCommit(t *testing.T) {
 		expectedResourceIDs = append(expectedResourceIDs, id)
 	}
 	expectedResourceIDs.Sort()
-	k8s.SyncFunc = func(def cluster.SyncDef) error {
+	k8s.SyncFunc = func(def cluster.SyncDef, l map[string]policy.Update, p map[string]policy.Update) error {
 		syncCalled++
 		syncDef = &def
 		return nil

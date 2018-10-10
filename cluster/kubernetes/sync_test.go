@@ -56,7 +56,7 @@ func setup(t *testing.T) (*Cluster, *mockApplier) {
 
 func TestSyncNop(t *testing.T) {
 	kube, mock := setup(t)
-	if err := kube.Sync(cluster.SyncDef{}); err != nil {
+	if err := kube.Sync(cluster.SyncDef{}, map[string]policy.Update{}, map[string]policy.Update{}); err != nil {
 		t.Errorf("%#v", err)
 	}
 	if mock.commandRun {
@@ -72,7 +72,7 @@ func TestSyncMalformed(t *testing.T) {
 				Apply: rsc{"default:deployment/trash", []byte("garbage")},
 			},
 		},
-	})
+	}, map[string]policy.Update{}, map[string]policy.Update{})
 	if err == nil {
 		t.Error("expected error because malformed resource def, but got nil")
 	}

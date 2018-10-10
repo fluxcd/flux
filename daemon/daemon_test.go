@@ -359,7 +359,7 @@ func TestDaemon_NotifyChange(t *testing.T) {
 	var syncCalled int
 	var syncDef *cluster.SyncDef
 	var syncMu sync.Mutex
-	mockK8s.SyncFunc = func(def cluster.SyncDef) error {
+	mockK8s.SyncFunc = func(def cluster.SyncDef, l map[string]policy.Update, p map[string]policy.Update) error {
 		syncMu.Lock()
 		syncCalled++
 		syncDef = &def
@@ -660,7 +660,7 @@ func mockDaemon(t *testing.T) (*Daemon, func(), func(), *cluster.Mock, *mockEven
 				singleService,
 			}, nil
 		}
-		k8s.SyncFunc = func(def cluster.SyncDef) error { return nil }
+		k8s.SyncFunc = func(def cluster.SyncDef, l map[string]policy.Update, p map[string]policy.Update) error { return nil }
 		k8s.UpdatePoliciesFunc = (&kubernetes.Manifests{}).UpdatePolicies
 		k8s.UpdateImageFunc = (&kubernetes.Manifests{}).UpdateImage
 	}
