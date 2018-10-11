@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"flag"
 	"fmt"
 	"os"
@@ -16,11 +15,9 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/weaveworks/flux/checkpoint"
-	"github.com/weaveworks/flux/git"
 	clientset "github.com/weaveworks/flux/integrations/client/clientset/versioned"
 	ifinformers "github.com/weaveworks/flux/integrations/client/informers/externalversions"
 	fluxhelm "github.com/weaveworks/flux/integrations/helm"
-	helmop "github.com/weaveworks/flux/integrations/helm"
 	"github.com/weaveworks/flux/integrations/helm/chartsync"
 	"github.com/weaveworks/flux/integrations/helm/operator"
 	"github.com/weaveworks/flux/integrations/helm/release"
@@ -52,23 +49,14 @@ var (
 	logReleaseDiffs    *bool
 	updateDependencies *bool
 
-	gitURL          *string
-	gitBranch       *string
-	gitChartsPath   *string
 	gitPollInterval *time.Duration
 	gitTimeout      *time.Duration
 
-	queueWorkerCount *int
-
-	name       *string
 	listenAddr *string
-	gcInterval *time.Duration
 )
 
 const (
-	product              = "weave-flux-helm"
-	defaultGitChartsPath = "charts"
-
+	product            = "weave-flux-helm"
 	ErrOperatorFailure = "Operator failure: %q"
 )
 
@@ -105,16 +93,8 @@ func init() {
 	logReleaseDiffs = fs.Bool("log-release-diffs", false, "log the diff when a chart release diverges; potentially insecure")
 	updateDependencies = fs.Bool("update-chart-deps", true, "Update chart dependencies before installing/upgrading a release")
 
-	gitURL = fs.String("git-url", "", "URL of git repo with Helm charts; e.g., git@github.com:weaveworks/flux-example")
-	gitBranch = fs.String("git-branch", "master", "branch of git repo")
-	gitChartsPath = fs.String("git-charts-path", defaultGitChartsPath, "path within git repo to locate Helm Charts")
 	gitPollInterval = fs.Duration("git-poll-interval", 5*time.Minute, "period on which to poll for changes to the git repo")
 	gitTimeout = fs.Duration("git-timeout", 20*time.Second, "duration after which git operations time out")
-
-	queueWorkerCount = fs.Int("queue-worker-count", 2, "number of workers for processing releases; unlikely to need changing")
-
-	_ = fs.Duration("charts-sync-timeout", 0, "")
-	fs.MarkDeprecated("charts-sync-timeout", "this flag is ignored")
 }
 
 func main() {
@@ -195,36 +175,9 @@ func main() {
 	statusUpdater := status.New(ifClient, kubeClient, helmClient)
 	go statusUpdater.Loop(shutdown, log.With(logger, "component", "annotator"))
 
-	gitRemote := git.Remote{URL: *gitURL}
-	repo := git.NewRepo(gitRemote, git.PollInterval(*gitPollInterval), git.Timeout(*gitTimeout), git.ReadOnly)
-
-	// 		Chart releases sync due to Custom Resources changes -------------------------------
-	{
-		mainLogger.Log("info", "Attempting to clone repo ...", "url", gitRemote.URL)
-		ctx, cancel := context.WithCancel(context.Background())
-		err := repo.Ready(ctx)
-		cancel()
-		if err != nil {
-			mainLogger.Log("error", err)
-			os.Exit(2)
-		}
-		mainLogger.Log("info", "Repo cloned", "url", gitRemote.URL)
-
-		// Start the repo fetching from upstream
-		shutdownWg.Add(1)
-		go func() {
-			errc <- repo.Start(shutdown, shutdownWg)
-		}()
-	}
-
 	releaseConfig := release.Config{
-		ChartsPath: *gitChartsPath,
+		ChartCache: "/tmp",
 		UpdateDeps: *updateDependencies,
-	}
-	repoConfig := helmop.RepoConfig{
-		Repo:       repo,
-		Branch:     *gitBranch,
-		ChartsPath: *gitChartsPath,
 	}
 
 	// release instance is needed during the sync of Charts changes and during the sync of FluxHelmRelease changes
@@ -233,7 +186,7 @@ func main() {
 	chartSync := chartsync.New(log.With(logger, "component", "chartsync"),
 		chartsync.Polling{Interval: *chartsSyncInterval},
 		chartsync.Clients{KubeClient: *kubeClient, IfClient: *ifClient},
-		rel, repoConfig, *logReleaseDiffs)
+		rel, *logReleaseDiffs)
 	chartSync.Run(shutdown, errc, shutdownWg)
 
 	// OPERATOR - CUSTOM RESOURCE CHANGE SYNC -----------------------------------------------
@@ -244,13 +197,13 @@ func main() {
 	// Reference to shared index informers for the FluxHelmRelease
 	fhrInformer := ifInformerFactory.Flux().V1beta1().FluxHelmReleases()
 
-	opr := operator.New(log.With(logger, "component", "operator"), *logReleaseDiffs, kubeClient, fhrInformer, chartSync, repoConfig)
+	opr := operator.New(log.With(logger, "component", "operator"), *logReleaseDiffs, kubeClient, fhrInformer, chartSync)
 	// Starts handling k8s events related to the given resource kind
 	go ifInformerFactory.Start(shutdown)
 
 	checkpoint.CheckForUpdates(product, version, nil, log.With(logger, "component", "checkpoint"))
 
-	if err = opr.Run(*queueWorkerCount, shutdown, shutdownWg); err != nil {
+	if err = opr.Run(1, shutdown, shutdownWg); err != nil {
 		msg := fmt.Sprintf("Failure to run controller: %s", err.Error())
 		logger.Log("error", msg)
 		errc <- fmt.Errorf(ErrOperatorFailure, err)

@@ -9,12 +9,6 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/golang/glog"
 	"github.com/google/go-cmp/cmp"
-	flux_v1beta1 "github.com/weaveworks/flux/integrations/apis/flux.weave.works/v1beta1"
-	ifscheme "github.com/weaveworks/flux/integrations/client/clientset/versioned/scheme"
-	fhrv1 "github.com/weaveworks/flux/integrations/client/informers/externalversions/flux.weave.works/v1beta1"
-	iflister "github.com/weaveworks/flux/integrations/client/listers/flux.weave.works/v1beta1"
-	helmop "github.com/weaveworks/flux/integrations/helm"
-	"github.com/weaveworks/flux/integrations/helm/chartsync"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/util/runtime"
@@ -25,6 +19,12 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
+
+	flux_v1beta1 "github.com/weaveworks/flux/integrations/apis/flux.weave.works/v1beta1"
+	ifscheme "github.com/weaveworks/flux/integrations/client/clientset/versioned/scheme"
+	fhrv1 "github.com/weaveworks/flux/integrations/client/informers/externalversions/flux.weave.works/v1beta1"
+	iflister "github.com/weaveworks/flux/integrations/client/listers/flux.weave.works/v1beta1"
+	"github.com/weaveworks/flux/integrations/helm/chartsync"
 )
 
 const (
@@ -56,8 +56,7 @@ type Controller struct {
 	fhrLister iflister.FluxHelmReleaseLister
 	fhrSynced cache.InformerSynced
 
-	sync   *chartsync.ChartChangeSync
-	config helmop.RepoConfig
+	sync *chartsync.ChartChangeSync
 
 	// workqueue is a rate limited work queue. This is used to queue work to be
 	// processed instead of performing it as soon as a change happens. This
@@ -77,8 +76,7 @@ func New(
 	logReleaseDiffs bool,
 	kubeclientset kubernetes.Interface,
 	fhrInformer fhrv1.FluxHelmReleaseInformer,
-	sync *chartsync.ChartChangeSync,
-	config helmop.RepoConfig) *Controller {
+	sync *chartsync.ChartChangeSync) *Controller {
 
 	// Add helm-operator types to the default Kubernetes Scheme so Events can be
 	// logged for helm-operator types.
@@ -96,7 +94,6 @@ func New(
 		releaseWorkqueue: workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "ChartRelease"),
 		recorder:         recorder,
 		sync:             sync,
-		config:           config,
 	}
 
 	controller.logger.Log("info", "Setting up event handlers")

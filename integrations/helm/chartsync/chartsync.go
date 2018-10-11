@@ -22,7 +22,7 @@ reconciled:
    each chart that's referenced by a FluxHelmRelease, and if it's
    changed since the last seen commit, updating the release.
 
-1a.) and 1b.) run on the same schedule, and 2.) is run when the git
+1a.) and 1b.) run on the same schedule, and 2.) is run when a git
 mirror reports it has fetched from upstream _and_ (upon checking) the
 head of the branch has changed.
 
@@ -30,8 +30,8 @@ Since both 1*.) and 2.) look at the charts in the git repo, but run on
 different schedules (non-deterministically), there's a chance that
 they can fight each other. For example, the git mirror may fetch new
 commits which are used in 1), then treated as changes subsequently by
-2). To keep consistency between the two, the current revision is used
-by 1), and advanced only by 2).
+2). To keep consistency between the two, the current revision of a
+repo is used by 1), and advanced only by 2).
 
 */
 package chartsync
@@ -39,7 +39,6 @@ package chartsync
 import (
 	"context"
 	"fmt"
-	"path/filepath"
 	"sort"
 	"sync"
 	"time"
@@ -70,102 +69,143 @@ type Clients struct {
 	IfClient   ifclientset.Clientset
 }
 
+type clone struct {
+	export *git.Export
+	head   string
+}
+
 type ChartChangeSync struct {
 	logger log.Logger
 	Polling
 	kubeClient kubernetes.Clientset
 	ifClient   ifclientset.Clientset
 	release    *release.Release
-	config     helmop.RepoConfig
 	logDiffs   bool
 
-	mu    sync.RWMutex
-	clone *git.Export
+	mirrors *git.Mirrors
+
+	clonesMu sync.Mutex
+	clones   map[string]clone
 }
 
-func New(logger log.Logger, polling Polling, clients Clients, release *release.Release, config helmop.RepoConfig, logReleaseDiffs bool) *ChartChangeSync {
+func New(logger log.Logger, polling Polling, clients Clients, release *release.Release, logReleaseDiffs bool) *ChartChangeSync {
 	return &ChartChangeSync{
 		logger:     logger,
 		Polling:    polling,
 		kubeClient: clients.KubeClient,
 		ifClient:   clients.IfClient,
 		release:    release,
-		config:     config,
 		logDiffs:   logReleaseDiffs,
+		mirrors:    git.NewMirrors(),
+		clones:     make(map[string]clone),
 	}
 }
 
-// Run creates a syncing loop monitoring repo chart changes. It is
-// assumed that the *git.Repo given to the config is ready to use
-// before this is invoked.
-//
-// The behaviour if the git mirror becomes unavailable while it's
-// running is not defined (this could be tightened up).
+// Run creates a syncing loop that will reconcile differences between
+// Helm releases in the cluster, what FluxHelmRelease declare, and
+// changes in the git repos mentioned by any FluxHelmRelease.
 func (chs *ChartChangeSync) Run(stopCh <-chan struct{}, errc chan error, wg *sync.WaitGroup) {
 	chs.logger.Log("info", "Starting charts sync loop")
 	wg.Add(1)
 	go func() {
 		defer runtime.HandleCrash()
-		defer wg.Done()
-
-		ctx, cancel := context.WithTimeout(context.Background(), helmop.GitOperationTimeout)
-		currentRevision, err := chs.config.Repo.Revision(ctx, chs.config.Branch)
-		if err == nil {
-			chs.mu.Lock()
-			chs.clone, err = chs.config.Repo.Export(ctx, currentRevision)
-			chs.mu.Unlock()
-		}
-		cancel()
-		if err != nil {
-			errc <- err
-			return
-		}
-		defer chs.clone.Clean()
+		defer func() {
+			chs.mirrors.StopAllAndWait()
+			wg.Done()
+		}()
 
 		ticker := time.NewTicker(chs.Polling.Interval)
 		defer ticker.Stop()
 
 		for {
 			select {
-			case <-chs.config.Repo.C:
-				ctx, cancel := context.WithTimeout(context.Background(), helmop.GitOperationTimeout)
-				head, err := chs.config.Repo.Revision(ctx, chs.config.Branch)
-				cancel()
+			case reposChanged := <-chs.mirrors.Changes():
+				// TODO(michael): the inefficient way, for now, until
+				// it's clear how to better optimalise it
+				resources, err := chs.getCustomResources()
 				if err != nil {
-					chs.logger.Log("warning", "failure using git repo", "error", err.Error())
+					chs.logger.Log("warning", "failed to get custom resources", "err", err)
 					continue
 				}
+				for _, fhr := range resources {
+					if fhr.Spec.ChartSource.GitChartSource == nil {
+						continue
+					}
 
-				if head == currentRevision {
-					chs.logger.Log("info", "no new commits on branch", "branch", chs.config.Branch, "head", head)
-					continue
+					repoURL := fhr.Spec.ChartSource.GitChartSource.GitURL
+					repoName := mirrorName(fhr.Spec.ChartSource.GitChartSource)
+
+					if _, ok := reposChanged[repoName]; !ok {
+						continue
+					}
+
+					repo, ok := chs.mirrors.Get(repoName)
+					if !ok {
+						// Then why .. did you say .. it had changed? It may have been removed. Add it back and let it signal again.
+						chs.logger.Log("warning", "mirrored git repo disappeared after signalling change", "repo", repoName)
+						chs.maybeMirror(fhr)
+						continue
+					}
+
+					status, err := repo.Status()
+					if status != git.RepoReady {
+						chs.logger.Log("info", "repo not ready yet, while attempting chart sync", "repo", repoURL, "status", string(status))
+						continue
+					}
+
+					ref := fhr.Spec.ChartSource.GitChartSource.RefOrDefault()
+					path := fhr.Spec.ChartSource.GitChartSource.Path
+					releaseName := release.GetReleaseName(fhr)
+
+					ctx, cancel := context.WithTimeout(context.Background(), helmop.GitOperationTimeout)
+					refHead, err := repo.Revision(ctx, ref)
+					cancel()
+					if err != nil {
+						chs.logger.Log("warning", "could not get revision for ref while checking for changes", "repo", repoURL, "ref", ref, "err", err)
+						continue
+					}
+
+					// This FHR is using a git repo; and, it appears to have had commits since we last saw it.
+					// Check explicitly whether we should update its clone.
+					chs.clonesMu.Lock()
+					cloneForChart, ok := chs.clones[releaseName]
+					chs.clonesMu.Unlock()
+
+					if ok { // found clone
+						ctx, cancel := context.WithTimeout(context.Background(), helmop.GitOperationTimeout)
+						commits, err := repo.CommitsBetween(ctx, cloneForChart.head, refHead, path)
+						cancel()
+						if err != nil {
+							chs.logger.Log("warning", "could not get revision for ref while checking for changes", "repo", repoURL, "ref", ref, "err", err)
+							continue
+						}
+						ok = len(commits) == 0
+					}
+
+					if !ok { // didn't find clone, or it needs updating
+						ctx, cancel := context.WithTimeout(context.Background(), helmop.GitOperationTimeout)
+						newClone, err := repo.Export(ctx, refHead)
+						cancel()
+						if err != nil {
+							chs.logger.Log("warning", "could not clone from mirror while checking for changes", "repo", repoURL, "ref", ref, "err", err)
+							continue
+						}
+						newCloneForChart := clone{head: refHead, export: newClone}
+						chs.clonesMu.Lock()
+						chs.clones[releaseName] = newCloneForChart
+						chs.clonesMu.Unlock()
+						if cloneForChart.export != nil {
+							cloneForChart.export.Clean()
+						}
+					}
+
+					chs.reconcileReleaseDef(fhr)
 				}
-
-				ctx, cancel = context.WithTimeout(context.Background(), helmop.GitOperationTimeout)
-				newClone, err := chs.config.Repo.Export(ctx, head)
-				cancel()
-				if err != nil {
-					chs.logger.Log("warning", "failure to clone git repo", "error", err)
-					continue
-				}
-				chs.mu.Lock()
-				chs.clone.Clean()
-				chs.clone = newClone
-				chs.mu.Unlock()
-
-				chs.logger.Log("info", fmt.Sprint("Start of chartsync"))
-				err = chs.applyChartChanges(currentRevision, head)
-				if err != nil {
-					chs.logger.Log("error", fmt.Sprintf("Failure to do chart sync: %s", err))
-				}
-				currentRevision = head
-				chs.logger.Log("info", fmt.Sprint("End of chartsync"))
-
 			case <-ticker.C:
 				// Re-release any chart releases that have apparently
 				// changed in the cluster.
 				chs.logger.Log("info", fmt.Sprint("Start of releasesync"))
-				err = chs.reapplyReleaseDefs()
+				err := chs.reapplyReleaseDefs()
 				if err != nil {
 					chs.logger.Log("error", fmt.Sprintf("Failure to do manual release sync: %s", err))
 				}
@@ -179,60 +219,26 @@ func (chs *ChartChangeSync) Run(stopCh <-chan struct{}, errc chan error, wg *syn
 	}()
 }
 
-// ReconcileReleaseDef asks the ChartChangeSync to examine the release
-// associated with a FluxHelmRelease, compared to what is in the git
-// repo, and install or upgrade the release if necessary. This may
-// block indefinitely, so the caller provides a context which it can
-// cancel if it gets tired of waiting. Returns an error if the context
-// timed out or was canceled before the operation was started.
-func (chs *ChartChangeSync) ReconcileReleaseDef(fhr fhr.FluxHelmRelease) {
-	chs.reconcileReleaseDef(fhr)
+func mirrorName(chartSource *fhr.GitChartSource) string {
+	return chartSource.GitURL // TODO(michael) this will not always be the case; e.g., per namespace, per auth
 }
 
-// ApplyChartChanges looks at the FluxHelmRelease resources in the
-// cluster, figures out which refer to charts that have changed since
-// the last commit, then re-releases those that have.
-func (chs *ChartChangeSync) applyChartChanges(prevRef, head string) error {
-	resources, err := chs.getCustomResources()
-	if err != nil {
-		return fmt.Errorf("Failure getting FHR custom resources: %s", err.Error())
-	}
-
-	// Release all the resources whose charts have changed. More than
-	// one FluxHelmRelease resource can refer to a given chart, so to
-	// avoid repeated checking, keep track of which charts have
-	// changed or not changed.
-	chartHasChanged := map[string]bool{}
-
-	for _, fhr := range resources {
-		if fhr.Spec.ChartSource.GitChartSource == nil {
-			continue
-		}
-		chartPath := filepath.Join(chs.config.ChartsPath, fhr.Spec.ChartSource.GitChartSource.Path)
-		changed, ok := chartHasChanged[chartPath]
-		if !ok {
-			ctx, cancel := context.WithTimeout(context.Background(), helmop.GitOperationTimeout)
-			commits, err := chs.config.Repo.CommitsBetween(ctx, prevRef, head, chartPath)
-			cancel()
-			if err != nil {
-				return fmt.Errorf("error while checking if chart at %q has changed in %s..%s: %s", chartPath, prevRef, head, err.Error())
-			}
-			changed = len(commits) > 0
-			chartHasChanged[chartPath] = changed
-		}
-		if changed {
-			rlsName := release.GetReleaseName(fhr)
-			opts := release.InstallOptions{DryRun: false}
-			chs.mu.RLock()
-			if _, err = chs.release.Install(chs.clone.Dir(), rlsName, fhr, release.UpgradeAction, opts, &chs.kubeClient); err != nil {
-				// NB in this step, failure to release is considered non-fatal, i.e,. we move on to the next rather than giving up entirely.
-				chs.logger.Log("warning", "failure to release chart with changes in git", "error", err, "chart", chartPath, "release", rlsName)
-			}
-			chs.mu.RUnlock()
+// maybeMirror starts mirroring the repo needed by a FluxHelmRelease,
+// if necessary
+func (chs *ChartChangeSync) maybeMirror(fhr fhr.FluxHelmRelease) {
+	chartSource := fhr.Spec.ChartSource.GitChartSource
+	if chartSource != nil {
+		if ok := chs.mirrors.Mirror(mirrorName(chartSource), git.Remote{chartSource.GitURL}, git.ReadOnly); !ok {
+			chs.logger.Log("info", "started mirroring repo", "repo", chartSource.GitURL)
 		}
 	}
+}
 
-	return nil
+// ReconcileReleaseDef asks the ChartChangeSync to examine the release
+// associated with a FluxHelmRelease, and install or upgrade the
+// release if the chart it refers to has changed.
+func (chs *ChartChangeSync) ReconcileReleaseDef(fhr fhr.FluxHelmRelease) {
+	chs.reconcileReleaseDef(fhr)
 }
 
 // reconcileReleaseDef looks up the helm release associated with a
@@ -247,25 +253,52 @@ func (chs *ChartChangeSync) reconcileReleaseDef(fhr fhr.FluxHelmRelease) {
 	// something else).
 	rel, _ := chs.release.GetDeployedRelease(releaseName)
 
-	chs.mu.RLock()
-	defer chs.mu.RUnlock()
-
 	opts := release.InstallOptions{DryRun: false}
+
+	cloneDir := ""
+	if fhr.Spec.ChartSource.GitChartSource != nil {
+		// We need to hold the lock until after we're done releasing
+		// the chart, so that the clone doesn't get swapped out from
+		// under us. TODO(michael) consider having a lock per clone.
+		chs.clonesMu.Lock()
+		defer chs.clonesMu.Unlock()
+		chartClone, ok := chs.clones[releaseName]
+		// FIXME(michael): if it's not cloned, and it's not going to
+		// be, we might not want to wait around until the next tick
+		// before reporting what's wrong with it. But if we just use
+		// repo.Ready(), we'll force all charts through that blocking
+		// code, rather than waiting for things to sync in good time.
+		if !ok {
+			repo, ok := chs.mirrors.Get(mirrorName(fhr.Spec.ChartSource.GitChartSource))
+			if !ok {
+				chs.maybeMirror(fhr)
+				chs.logger.Log("info", "chart repo not cloned yet", "releaseName", releaseName, "resource", fmt.Sprintf("%s:%s/%s", fhr.Namespace, fhr.Kind, fhr.Name))
+			} else {
+				status, err := repo.Status()
+				if status != git.RepoReady {
+					chs.logger.Log("info", "chart repo not ready yet", "releaseName", releaseName, "resource", fmt.Sprintf("%s:%s/%s", fhr.Namespace, fhr.Kind, fhr.Name), "status", string(status), "err", err)
+				}
+			}
+			return
+		}
+		cloneDir = chartClone.export.Dir()
+	}
+
 	if rel == nil {
-		_, err := chs.release.Install(chs.clone.Dir(), releaseName, fhr, release.InstallAction, opts, &chs.kubeClient)
+		_, err := chs.release.Install(cloneDir, releaseName, fhr, release.InstallAction, opts, &chs.kubeClient)
 		if err != nil {
 			chs.logger.Log("warning", "Failed to install chart", "namespace", fhr.Namespace, "name", fhr.Name, "error", err)
 		}
 		return
 	}
 
-	changed, err := chs.shouldUpgrade(chs.clone.Dir(), rel, fhr)
+	changed, err := chs.shouldUpgrade(cloneDir, rel, fhr)
 	if err != nil {
 		chs.logger.Log("warning", "Unable to determine if release has changed", "namespace", fhr.Namespace, "name", fhr.Name, "error", err)
 		return
 	}
 	if changed {
-		_, err := chs.release.Install(chs.clone.Dir(), releaseName, fhr, release.UpgradeAction, opts, &chs.kubeClient)
+		_, err := chs.release.Install(cloneDir, releaseName, fhr, release.UpgradeAction, opts, &chs.kubeClient)
 		if err != nil {
 			chs.logger.Log("warning", "Failed to upgrade chart", "namespace", fhr.Namespace, "name", fhr.Name, "error", err)
 		}
@@ -292,6 +325,7 @@ func (chs *ChartChangeSync) reapplyReleaseDefs() error {
 // FluxHelmRelease. This exists mainly so that the operator code can
 // call it when it is handling a resource deletion.
 func (chs *ChartChangeSync) DeleteRelease(fhr fhr.FluxHelmRelease) {
+	// FIXME(michael): these may need to stop mirroring a repo.
 	name := release.GetReleaseName(fhr)
 	err := chs.release.Delete(name)
 	if err != nil {

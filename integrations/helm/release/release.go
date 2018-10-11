@@ -33,8 +33,15 @@ const (
 )
 
 type Config struct {
-	ChartsPath string
 	UpdateDeps bool
+	ChartCache string
+}
+
+func (c Config) WithDefaults() Config {
+	if c.ChartCache == "" {
+		c.ChartCache = "/tmp"
+	}
+	return c
 }
 
 // Release contains clients needed to provide functionality related to helm releases
@@ -64,6 +71,7 @@ type InstallOptions struct {
 // New creates a new Release instance.
 func New(logger log.Logger, helmClient *k8shelm.Client, config Config) *Release {
 	// TODO(michael): check we don't have nil values in the config
+	config = config.WithDefaults()
 	r := &Release{
 		logger:     logger,
 		HelmClient: helmClient,
@@ -136,9 +144,12 @@ func (r *Release) canDelete(name string) (bool, error) {
 // charts, and the FluxHelmRelease specifying the release. Depending
 // on the release type, this is either a new release, or an upgrade of
 // an existing one.
-
-func (r *Release) Install(repoDir, releaseName string, fhr flux_v1beta1.FluxHelmRelease, action Action, opts InstallOptions, kubeClient *kubernetes.Clientset) (*hapi_release.Release, error) {
-	r.logger.Log("info", fmt.Sprintf("releaseName= %s, action=%s, install options: %+v", releaseName, action, opts))
+//
+// TODO(michael): cloneDir is only relevant if installing from git;
+// either split this procedure into two varieties, or make it more
+// general and calculate the path to the chart in the caller.
+func (r *Release) Install(cloneDir, releaseName string, fhr flux_v1beta1.FluxHelmRelease, action Action, opts InstallOptions, kubeClient *kubernetes.Clientset) (*hapi_release.Release, error) {
+	r.logger.Log("info", "releaseName", releaseName, "action", action, "options", fmt.Sprintf("%+v", opts))
 
 	var chartPath string
 	var updateDeps bool
@@ -146,10 +157,9 @@ func (r *Release) Install(repoDir, releaseName string, fhr flux_v1beta1.FluxHelm
 	case fhr.Spec.ChartSource.GitChartSource != nil:
 		updateDeps = r.config.UpdateDeps
 		chartPath = fhr.Spec.ChartSource.GitChartSource.Path
-		chartPath = filepath.Join(repoDir, r.config.ChartsPath, chartPath)
+		chartPath = filepath.Join(cloneDir, chartPath)
 	case fhr.Spec.ChartSource.RepoChartSource != nil:
-		// FIXME(michael): provide base directory
-		path, err := ensureChartFetched("/tmp", fhr.Spec.ChartSource.RepoChartSource)
+		path, err := ensureChartFetched(r.config.ChartCache, fhr.Spec.ChartSource.RepoChartSource)
 		if err != nil {
 			return nil, err
 		}
