@@ -30,6 +30,7 @@ type Cluster interface {
 	SomeControllers([]flux.ResourceID) ([]Controller, error)
 	Ping() error
 	Export() ([]byte, error)
+	ExportByLabel(string, string) ([]byte, error)
 	Sync(SyncDef, map[string]policy.Update, map[string]policy.Update) error
 	PublicSSHKey(regenerate bool) (ssh.PublicKey, error)
 }

@@ -18,6 +18,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/pflag"
 	k8sifclient "github.com/weaveworks/flux/integrations/client/clientset/versioned"
+	k8sclientdynamic "k8s.io/client-go/dynamic"
 	k8sclient "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 
@@ -207,6 +208,11 @@ func main() {
 			logger.Log("err", err)
 			os.Exit(1)
 		}
+		dynamicClientset, err := k8sclientdynamic.NewForConfig(restClientConfig)
+		if err != nil {
+			logger.Log("err", err)
+			os.Exit(1)
+		}
 
 		ifclientset, err := k8sifclient.NewForConfig(restClientConfig)
 		if err != nil {
@@ -261,7 +267,7 @@ func main() {
 		logger.Log("kubectl", kubectl)
 
 		kubectlApplier := kubernetes.NewKubectl(kubectl, restClientConfig)
-		k8sInst := kubernetes.NewCluster(clientset, ifclientset, kubectlApplier, sshKeyRing, logger, *k8sNamespaceWhitelist, *registryExcludeImage)
+		k8sInst := kubernetes.NewCluster(clientset, dynamicClientset, ifclientset, kubectlApplier, sshKeyRing, logger, *k8sNamespaceWhitelist, *registryExcludeImage)
 
 		if err := k8sInst.Ping(); err != nil {
 			logger.Log("ping", err)

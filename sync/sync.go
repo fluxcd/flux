@@ -3,12 +3,14 @@ package sync
 import (
 	"crypto/sha1"
 	"encoding/hex"
+	"fmt"
 	"sort"
 
 	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
 
 	"github.com/weaveworks/flux/cluster"
+	kresource "github.com/weaveworks/flux/cluster/kubernetes/resource"
 	"github.com/weaveworks/flux/policy"
 	"github.com/weaveworks/flux/resource"
 )
@@ -49,16 +51,17 @@ func Sync(logger log.Logger, m cluster.Manifests, repoResources map[string]resou
 	// no-op.
 	sync := cluster.SyncDef{}
 
+	var stackName, stackChecksum string
 	resourceLabels := map[string]policy.Update{}
 	resourcePolicyUpdates := map[string]policy.Update{}
 	if tracks {
-		stackName := "default" // TODO: multiple stack support
-		stackChecksum := getStackChecksum(repoResources)
+		stackName = "default" // TODO: multiple stack support
+		stackChecksum = getStackChecksum(repoResources)
 
-		logger.Log("stack", stackName, "checksum", stackChecksum)
+		fmt.Printf("[stack-tracking] stack=%s, checksum=%s\n", stackName, stackChecksum)
 
 		for id := range repoResources {
-			logger.Log("resource", id, "applying checksum", stackChecksum)
+			fmt.Printf("[stack-tracking] resource=%s, applying checksum=%s\n", id, stackChecksum)
 			resourceLabels[id] = policy.Update{
 				Add: policy.Set{"stack": stackName},
 			}
@@ -66,8 +69,6 @@ func Sync(logger log.Logger, m cluster.Manifests, repoResources map[string]resou
 				Add: policy.Set{policy.StackChecksum: stackChecksum},
 			}
 		}
-
-		// label flux.weave.works/stack
 	}
 
 	// DANGER ZONE (tamara) This works and is dangerous. At the moment will delete Flux and
@@ -83,7 +84,35 @@ func Sync(logger log.Logger, m cluster.Manifests, repoResources map[string]resou
 		prepareSyncApply(logger, clusterResources, id, res, &sync)
 	}
 
-	return clus.Sync(sync, resourceLabels, resourcePolicyUpdates)
+	if err := clus.Sync(sync, resourceLabels, resourcePolicyUpdates); err != nil {
+		return err
+	}
+	if tracks {
+		fmt.Printf("[stack-tracking] scanning stack (%s) for orphaned resources\n", stackName)
+		clusterResourceBytes, err := clus.ExportByLabel(fmt.Sprintf("%s%s", kresource.PolicyPrefix, "stack"), stackName)
+		if err != nil {
+			return errors.Wrap(err, "exporting resource defs from cluster post-sync")
+		}
+		clusterResources, err = m.ParseManifests(clusterResourceBytes)
+		if err != nil {
+			return errors.Wrap(err, "parsing exported resources post-sync")
+		}
+
+		for resourceID, res := range clusterResources {
+			if res.Policy().Has(policy.StackChecksum) {
+				val, _ := res.Policy().Get(policy.StackChecksum)
+				if val != stackChecksum {
+					fmt.Printf("[stack-tracking] cluster resource=%s, invalid checksum=%s\n", resourceID, val)
+				} else {
+					fmt.Printf("[stack-tracking] cluster resource ok: %s\n", resourceID)
+				}
+			} else {
+				fmt.Printf("warning: [stack-tracking] cluster resource=%s, missing policy=%s\n", resourceID, policy.StackChecksum)
+			}
+		}
+	}
+
+	return nil
 }
 
 func prepareSyncDelete(logger log.Logger, repoResources map[string]resource.Resource, id string, res resource.Resource, sync *cluster.SyncDef) {

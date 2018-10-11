@@ -3,6 +3,7 @@ package kubernetes
 import (
 	"bytes"
 	"fmt"
+	"strings"
 	"sync"
 
 	k8syaml "github.com/ghodss/yaml"
@@ -16,6 +17,8 @@ import (
 	apiv1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	k8sclientdynamic "k8s.io/client-go/dynamic"
 	k8sclient "k8s.io/client-go/kubernetes"
 
 	"github.com/weaveworks/flux"
@@ -25,10 +28,12 @@ import (
 )
 
 type coreClient k8sclient.Interface
+type dynamicClient k8sclientdynamic.Interface
 type fluxHelmClient fhrclient.Interface
 
 type extendedClient struct {
 	coreClient
+	dynamicClient
 	fluxHelmClient
 }
 
@@ -114,6 +119,7 @@ type Cluster struct {
 
 // NewCluster returns a usable cluster.
 func NewCluster(clientset k8sclient.Interface,
+	dynamicClientset k8sclientdynamic.Interface,
 	fluxHelmClientset fhrclient.Interface,
 	applier Applier,
 	sshKeyRing ssh.KeyRing,
@@ -124,6 +130,7 @@ func NewCluster(clientset k8sclient.Interface,
 	c := &Cluster{
 		client: extendedClient{
 			clientset,
+			dynamicClientset,
 			fluxHelmClientset,
 		},
 		applier:           applier,
@@ -371,6 +378,78 @@ func (c *Cluster) Export() ([]byte, error) {
 			}
 		}
 	}
+	return config.Bytes(), nil
+}
+
+func contains(a []string, x string) bool {
+	for _, n := range a {
+		if x == n {
+			return true
+		}
+	}
+	return false
+}
+
+func (c *Cluster) ExportByLabel(labelName string, labelValue string) ([]byte, error) {
+	var config bytes.Buffer
+
+	resources, err := c.client.coreClient.Discovery().ServerResources()
+	if err != nil {
+		return nil, err
+	}
+	for _, resource := range resources {
+		for _, apiResource := range resource.APIResources {
+			verbs := apiResource.Verbs
+			// skip resources that can't be listed
+			if !contains(verbs, "list") {
+				continue
+			}
+
+			// get group and version
+			var group, version string
+			groupVersion := resource.GroupVersion
+			if strings.Contains(groupVersion, "/") {
+				a := strings.SplitN(groupVersion, "/", 2)
+				group = a[0]
+				version = a[1]
+			} else {
+				group = ""
+				version = groupVersion
+			}
+
+			resourceClient := c.client.dynamicClient.Resource(schema.GroupVersionResource{
+				Group:    group,
+				Version:  version,
+				Resource: apiResource.Name,
+			})
+			data, err := resourceClient.List(meta_v1.ListOptions{
+				LabelSelector: fmt.Sprintf("%s=%s", labelName, labelValue),
+			})
+			if err != nil {
+				return nil, err
+			}
+
+			for _, item := range data.Items {
+				apiVersion := item.GetAPIVersion()
+				kind := item.GetKind()
+
+				itemDesc := fmt.Sprintf("%s:%s", apiVersion, kind)
+				// https://github.com/kontena/k8s-client/blob/6e9a7ba1f03c255bd6f06e8724a1c7286b22e60f/lib/k8s/stack.rb#L17-L22
+				if itemDesc == "v1:ComponentStatus" || itemDesc == "v1:Endpoints" {
+					continue
+				}
+
+				yamlBytes, err := k8syaml.Marshal(item.Object)
+				if err != nil {
+					return nil, err
+				}
+				config.WriteString("---\n")
+				config.Write(yamlBytes)
+				config.WriteString("\n")
+			}
+		}
+	}
+
 	return config.Bytes(), nil
 }
 

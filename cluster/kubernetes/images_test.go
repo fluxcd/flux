@@ -64,7 +64,7 @@ func TestMergeCredentials(t *testing.T) {
 		makeServiceAccount(ns, saName, []string{secretName2}),
 		makeImagePullSecret(ns, secretName1, "docker.io"),
 		makeImagePullSecret(ns, secretName2, "quay.io"))
-	client := extendedClient{clientset, nil}
+	client := extendedClient{coreClient: clientset}
 
 	creds := registry.ImageCreds{}
 
@@ -97,7 +97,7 @@ func TestMergeCredentials_ImageExclusion(t *testing.T) {
 	}
 
 	clientset := fake.NewSimpleClientset()
-	client := extendedClient{clientset, nil}
+	client := extendedClient{coreClient: clientset}
 
 	var includeImage = func(imageName string) bool {
 		for _, exp := range []string{"k8s.gcr.io/*", "*test*"} {
