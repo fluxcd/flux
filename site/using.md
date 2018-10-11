@@ -526,5 +526,5 @@ filtering annotations take the form
 [`regexp`](#regexp). Filter values use the same syntax as when the filter is
 configured using fluxctl.
 
-Annotations can also be used to tell Flux to temporary ignore certain manifests
+Annotations can also be used to tell Flux to temporarily ignore certain manifests
 using `flux.weave.works/ignore: "true"`. Read more about this in the [FAQ](faq.md#can-i-temporarily-make-flux-ignore-a-deployment).
