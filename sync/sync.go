@@ -30,6 +30,22 @@ func getStackChecksum(repoResources map[string]resource.Resource) string {
 	return hex.EncodeToString(checksum.Sum(nil))
 }
 
+func garbageCollect(orphans []string, clusterResources map[string]resource.Resource, clus cluster.Cluster, logger log.Logger) error {
+	garbageCollect := cluster.SyncDef{}
+	emptyResources := map[string]resource.Resource{"noop/noop:noop": nil}
+	for _, id := range orphans {
+		res, ok := clusterResources[id]
+		if !ok {
+			return errors.Errorf("invariant: unable to find resource %s\n", id)
+		}
+		if prepareSyncDelete(logger, emptyResources, id, res, &garbageCollect) {
+			// TODO: use logger
+			fmt.Printf("[stack-tracking] marking resource %s for deletion\n", id)
+		}
+	}
+	return clus.Sync(garbageCollect, map[string]policy.Update{}, map[string]policy.Update{})
+}
+
 // Sync synchronises the cluster to the files in a directory
 func Sync(logger log.Logger, m cluster.Manifests, repoResources map[string]resource.Resource, clus cluster.Cluster,
 	deletes, tracks bool) error {
@@ -88,6 +104,8 @@ func Sync(logger log.Logger, m cluster.Manifests, repoResources map[string]resou
 		return err
 	}
 	if tracks {
+		orphanedResources := make([]string, 0)
+
 		fmt.Printf("[stack-tracking] scanning stack (%s) for orphaned resources\n", stackName)
 		clusterResourceBytes, err := clus.ExportByLabel(fmt.Sprintf("%s%s", kresource.PolicyPrefix, "stack"), stackName)
 		if err != nil {
@@ -103,6 +121,7 @@ func Sync(logger log.Logger, m cluster.Manifests, repoResources map[string]resou
 				val, _ := res.Policy().Get(policy.StackChecksum)
 				if val != stackChecksum {
 					fmt.Printf("[stack-tracking] cluster resource=%s, invalid checksum=%s\n", resourceID, val)
+					orphanedResources = append(orphanedResources, resourceID)
 				} else {
 					fmt.Printf("[stack-tracking] cluster resource ok: %s\n", resourceID)
 				}
@@ -110,24 +129,30 @@ func Sync(logger log.Logger, m cluster.Manifests, repoResources map[string]resou
 				fmt.Printf("warning: [stack-tracking] cluster resource=%s, missing policy=%s\n", resourceID, policy.StackChecksum)
 			}
 		}
+
+		if len(orphanedResources) > 0 {
+			return garbageCollect(orphanedResources, clusterResources, clus, logger)
+		}
 	}
 
 	return nil
 }
 
-func prepareSyncDelete(logger log.Logger, repoResources map[string]resource.Resource, id string, res resource.Resource, sync *cluster.SyncDef) {
+func prepareSyncDelete(logger log.Logger, repoResources map[string]resource.Resource, id string, res resource.Resource, sync *cluster.SyncDef) bool {
 	if len(repoResources) == 0 {
-		return
+		return false
 	}
 	if res.Policy().Has(policy.Ignore) {
 		logger.Log("resource", res.ResourceID(), "ignore", "delete")
-		return
+		return false
 	}
 	if _, ok := repoResources[id]; !ok {
 		sync.Actions = append(sync.Actions, cluster.SyncAction{
 			Delete: res,
 		})
+		return true
 	}
+	return false
 }
 
 func prepareSyncApply(logger log.Logger, clusterResources map[string]resource.Resource, id string, res resource.Resource, sync *cluster.SyncDef) {
