@@ -65,7 +65,7 @@ with a `chart:` section like this:
 ```yaml
 spec:
   chart:
-    gitRepository: git@github.com:weaveworks/flux
+    git: git@github.com:weaveworks/flux
     ref: master
     path: charts/flux
 ```
@@ -74,6 +74,12 @@ In this case, the git repo will be cloned, and the chart will be
 released from the ref given (which defaults to `master`, if not
 supplied). Commits to the git repo may result in releases, if they
 update the chart at the path given.
+
+Note that you will usually need to provide an SSH key to grant access
+to the git repository. The example deployment shows how to mount a
+secret at the expected location of the key (`/etc/fluxd/ssh/`). If you
+need more than one SSH key, you'll need to also mount an adapted
+ssh_config; this is also demonstrated in the example deployment.
 
 ### What the Helm Operator does
 

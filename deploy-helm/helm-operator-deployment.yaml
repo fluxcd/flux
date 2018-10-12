@@ -17,14 +17,18 @@ spec:
     spec:
       serviceAccount: flux
       volumes:
-      # The following volume is for using a customised known_hosts
-      # file file, which you will need to do if you host your own git
-      # repo rather than using github or the like. You'll also need to
-      # mount it into the container, below.
+      # The following volume is for using customised known_hosts file,
+      # which you will need to do if you host your own git repo rather
+      # than using github or the like. You'll also need to mount it
+      # into the container, below.
+      # You may also wish to provide an ssh_config file as well,
+      # mentioning more than one Identity; for instance, if you're
+      # using more than one GitHub repo. NB the entry key should be
+      # "config" if mounted in ~/.ssh/.
       # - name: sshdir
       #   configMap:
       #     name: flux-ssh-config
-      #     defaultMode: 0600
+      #     defaultMode: 0400
       - name: git-key
         secret:
           secretName: flux-git-deploy
@@ -37,17 +41,11 @@ spec:
         image: quay.io/weaveworks/helm-operator:0.2.1
         imagePullPolicy: IfNotPresent
         volumeMounts:
-        # Include this if you need to mount a customised known_hosts
+        # Include this if you need to mount a customised known_hosts or ssh_config
         # file; you'll also need the volume declared above.
         # - name: sshdir
-        # mountPath: /root/.ssh/known_hosts
-        # subPath: known_hosts
-        # readOnly: true
+        #   mountPath: /root/.ssh
+        #   readOnly: true
         - name: git-key
           mountPath: /etc/fluxd/ssh
           readOnly: true # this will be the case perforce in K8s >=1.10
-        args:
-        # replace (at least) the following URL
-        - --git-url=ssh://git@github.com/weaveworks/flux-helm-test
-        - --git-branch=master
-        - --git-charts-path=charts
