@@ -72,7 +72,7 @@ daemon and point them at different repos. If you do this, consider
 trimming the RBAC permissions you give each daemon's service account.
 
 This
-[flux (daemon) operator](https://github.com/justinbarrick/flux-operator)
+[Flux (daemon) operator](https://github.com/justinbarrick/flux-operator)
 project may be of use for managing multiple daemons.
 
 ### Do I have to put my application code and config in the same git repo?
@@ -94,10 +94,22 @@ Kubernetes, use `--git-path` to constrain where Flux starts looking.
 See also [requirements.md](./requirements.md) for a little more
 explanation.
 
-### Why does Flux need a deploy key?
+### Why does Flux need a git ssh key with write access?
 
-Flux needs a deploy key to be allowed to push to the version control
-system in order to read and update the manifests.
+There are a number of Flux commands and API calls which will update the git repo in the course of
+applying the command. This is done to ensure that git remains the single source of truth.
+
+For example, if you use the following `fluxctl` command:
+
+    fluxctl release --controller=deployment/foo --update-image=bar:v2
+
+The image tag will be updated in the git repository upon applying the command.
+
+For more information about Flux commands see [the fluxctl docs](./using.md).
+
+### Does Flux automatically sync changes back to git?
+
+No. It applies changes to git only when a Flux command or API call makes them.
 
 ### How do I give Flux access to an image registry?
 
@@ -394,12 +406,12 @@ kinds; putting the annotation in the file always works.
 
 ### I'm using SSL between Helm and Tiller. How can I configure Flux to use the certificate?
 
-When installing Flux, you can supply the CA and client-side certificate using the `helmOperator.tls` options, 
-more details [here](https://github.com/weaveworks/flux/blob/master/chart/flux/README.md#installing-weave-flux-helm-operator-and-helm-with-tls-enabled).  
+When installing Flux, you can supply the CA and client-side certificate using the `helmOperator.tls` options,
+more details [here](https://github.com/weaveworks/flux/blob/master/chart/flux/README.md#installing-weave-flux-helm-operator-and-helm-with-tls-enabled).
 
 ### I've deleted a FluxHelmRelease file from Git. Why is the Helm release still running on my cluster?
 
-Flux doesn't delete resources, there is an [issue](https://github.com/weaveworks/flux/issues/738) opened about this topic on GitHub. 
+Flux doesn't delete resources, there is an [issue](https://github.com/weaveworks/flux/issues/738) opened about this topic on GitHub.
 In order to delete a Helm release first remove the file from Git and afterwards run:
 
 ```yaml
@@ -410,7 +422,7 @@ The Flux Helm operator will receive the delete event and will purge the Helm rel
 
 ### I've manually deleted a Helm release. Why is Flux not able to restore it?
 
-If you delete a Helm release with `helm delete my-release`, the release name can't be reused. 
+If you delete a Helm release with `helm delete my-release`, the release name can't be reused.
 You need to use the `helm delete --purge` option only then Flux will be able reinstall a release.
 
 ### I've uninstalled Flux and all my Helm releases are gone. Why is that?
@@ -420,7 +432,7 @@ To avoid this you have to manually delete the Flux Helm Operator with `kubectl -
 
 ### I have a dedicated Kubernetes cluster per environment and I want to use the same Git repo for all. How can I do that?
 
-For each cluster create a Git branch in your config repo. When installing Flux set the Git branch using `--set git.branch=cluster-name` 
+For each cluster create a Git branch in your config repo. When installing Flux set the Git branch using `--set git.branch=cluster-name`
 and set a unique label for each cluster `--set git.label=cluster-name`.
 
 ### I have a dedicated Git repo for my Helm charts. How can I point Flux Helm Operator to it?
