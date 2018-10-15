@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"os"
 	"os/exec"
-	"path/filepath"
 	"time"
 
 	"github.com/ghodss/yaml"
@@ -21,10 +21,6 @@ import (
 	flux_v1beta1 "github.com/weaveworks/flux/integrations/apis/flux.weave.works/v1beta1"
 )
 
-var (
-	ErrChartGitPathMissing = "Chart deploy configuration (%s) has empty Chart git path"
-)
-
 type Action string
 
 const (
@@ -32,25 +28,11 @@ const (
 	UpgradeAction Action = "UPDATE"
 )
 
-type Config struct {
-	UpdateDeps bool
-	ChartCache string
-}
-
-func (c Config) WithDefaults() Config {
-	if c.ChartCache == "" {
-		c.ChartCache = "/tmp"
-	}
-	return c
-}
-
 // Release contains clients needed to provide functionality related to helm releases
 type Release struct {
 	logger log.Logger
 
 	HelmClient *k8shelm.Client
-
-	config Config
 }
 
 type Releaser interface {
@@ -69,13 +51,10 @@ type InstallOptions struct {
 }
 
 // New creates a new Release instance.
-func New(logger log.Logger, helmClient *k8shelm.Client, config Config) *Release {
-	// TODO(michael): check we don't have nil values in the config
-	config = config.WithDefaults()
+func New(logger log.Logger, helmClient *k8shelm.Client) *Release {
 	r := &Release{
 		logger:     logger,
 		HelmClient: helmClient,
-		config:     config,
 	}
 	return r
 }
@@ -148,49 +127,25 @@ func (r *Release) canDelete(name string) (bool, error) {
 // TODO(michael): cloneDir is only relevant if installing from git;
 // either split this procedure into two varieties, or make it more
 // general and calculate the path to the chart in the caller.
-func (r *Release) Install(cloneDir, releaseName string, fhr flux_v1beta1.FluxHelmRelease, action Action, opts InstallOptions, kubeClient *kubernetes.Clientset) (*hapi_release.Release, error) {
-	r.logger.Log("info", "releaseName", releaseName, "action", action, "options", fmt.Sprintf("%+v", opts))
-
-	var chartPath string
-	var updateDeps bool
-	switch {
-	case fhr.Spec.ChartSource.GitChartSource != nil:
-		updateDeps = r.config.UpdateDeps
-		chartPath = fhr.Spec.ChartSource.GitChartSource.Path
-		chartPath = filepath.Join(cloneDir, chartPath)
-	case fhr.Spec.ChartSource.RepoChartSource != nil:
-		path, err := ensureChartFetched(r.config.ChartCache, fhr.Spec.ChartSource.RepoChartSource)
-		if err != nil {
-			return nil, err
-		}
-		r.logger.Log("info", "repo chart cached", "file", path)
-		chartPath = path
-	default:
-		return nil, fmt.Errorf(`FluxHelmRelease resources must specify either a "git" chart source or a "repo" chart source`)
-	}
-
+func (r *Release) Install(chartPath, releaseName string, fhr flux_v1beta1.FluxHelmRelease, action Action, opts InstallOptions, kubeClient *kubernetes.Clientset) (*hapi_release.Release, error) {
 	if chartPath == "" {
-		r.logger.Log("error", fmt.Sprintf(ErrChartGitPathMissing, fhr.GetName()))
-		return nil, fmt.Errorf(ErrChartGitPathMissing, fhr.GetName())
+		return nil, fmt.Errorf("empty path to chart supplied for resource %q", fhr.ResourceID().String())
+	}
+	_, err := os.Stat(chartPath)
+	switch {
+	case os.IsNotExist(err):
+		return nil, fmt.Errorf("no file or dir at path to chart: %s", chartPath)
+	case err != nil:
+		return nil, fmt.Errorf("error statting path given for chart %s: %s", chartPath, err.Error())
 	}
 
-	namespace := fhr.GetNamespace()
-	if namespace == "" {
-		namespace = "default"
-	}
-
-	if updateDeps {
-		if err := updateDependencies(chartPath); err != nil {
-			r.logger.Log("error", "problem updating dependencies of chart", "releaseName", releaseName, "dir", chartPath, "err", err)
-			return nil, err
-		}
-	}
+	r.logger.Log("info", "releaseName", releaseName, "action", action, "options", fmt.Sprintf("%+v", opts))
 
 	// Read values from given valueFile paths (configmaps, etc.)
 	mergedValues := chartutil.Values{}
 	for _, valueFileSecret := range fhr.Spec.ValueFileSecrets {
 		// Read the contents of the secret
-		secret, err := kubeClient.CoreV1().Secrets(namespace).Get(valueFileSecret.Name, v1.GetOptions{})
+		secret, err := kubeClient.CoreV1().Secrets(fhr.Namespace).Get(valueFileSecret.Name, v1.GetOptions{})
 		if err != nil {
 			r.logger.Log("error", fmt.Sprintf("Cannot get secret %s for Chart release [%s]: %#v", valueFileSecret.Name, releaseName, err))
 			return nil, err
@@ -219,7 +174,7 @@ func (r *Release) Install(cloneDir, releaseName string, fhr flux_v1beta1.FluxHel
 	case InstallAction:
 		res, err := r.HelmClient.InstallRelease(
 			chartPath,
-			namespace,
+			fhr.GetNamespace(),
 			k8shelm.ValueOverrides(rawVals),
 			k8shelm.ReleaseName(releaseName),
 			k8shelm.InstallDryRun(opts.DryRun),

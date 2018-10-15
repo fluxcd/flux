@@ -175,18 +175,13 @@ func main() {
 	statusUpdater := status.New(ifClient, kubeClient, helmClient)
 	go statusUpdater.Loop(shutdown, log.With(logger, "component", "annotator"))
 
-	releaseConfig := release.Config{
-		ChartCache: "/tmp",
-		UpdateDeps: *updateDependencies,
-	}
-
 	// release instance is needed during the sync of Charts changes and during the sync of FluxHelmRelease changes
-	rel := release.New(log.With(logger, "component", "release"), helmClient, releaseConfig)
+	rel := release.New(log.With(logger, "component", "release"), helmClient)
 	// CHARTS CHANGES SYNC ------------------------------------------------------------------
 	chartSync := chartsync.New(log.With(logger, "component", "chartsync"),
 		chartsync.Polling{Interval: *chartsSyncInterval},
 		chartsync.Clients{KubeClient: *kubeClient, IfClient: *ifClient},
-		rel, *logReleaseDiffs)
+		rel, chartsync.Config{LogDiffs: *logReleaseDiffs, UpdateDeps: *updateDependencies})
 	chartSync.Run(shutdown, errc, shutdownWg)
 
 	// OPERATOR - CUSTOM RESOURCE CHANGE SYNC -----------------------------------------------
