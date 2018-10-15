@@ -48,6 +48,11 @@ helmOperator:
     # add ./identity.pub as a read-only deployment key in your GitHub repo where the charts are
     # set the secret name (helm-ssh) below
     secretName: ""
+  # Additional environment variables to set
+  extraEnvs: []
+  # extraEnvs:
+  #   - name: FOO
+  #     value: bar
 
 rbac:
   # Specifies whether RBAC resources should be created
@@ -144,3 +149,9 @@ kube:
 #for https://github.com/justinbarrick/fluxcloud/
 #additionalArgs:
 # - --connect=ws://fluxcloud
+
+# Additional environment variables to set
+extraEnvs: []
+# extraEnvs:
+#   - name: FOO
+#     value: bar
