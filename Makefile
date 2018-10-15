@@ -1,5 +1,5 @@
 .DEFAULT: all
-.PHONY: all release-bins clean realclean test integration-test
+.PHONY: all release-bins clean realclean test integration-test check-generated
 
 SUDO := $(shell docker info > /dev/null 2> /dev/null || echo "sudo")
 TEST_FLAGS?=
@@ -103,3 +103,7 @@ $(GOPATH)/bin/help-operator: cmd/helm-operator/*.go
 
 integration-test: all
 	test/bin/test-flux
+
+check-generated:
+	./bin/helm/update_codegen.sh
+	git diff --exit-code -- integrations/apis intergrations/client
