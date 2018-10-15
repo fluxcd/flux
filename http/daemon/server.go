@@ -144,13 +144,15 @@ func (s HTTPServer) ListServicesWithOptions(w http.ResponseWriter, r *http.Reque
 	var opts v11.ListServicesOptions
 	opts.Namespace = r.URL.Query().Get("namespace")
 	services := r.URL.Query().Get("services")
-	for _, svc := range strings.Split(services, ",") {
-		id, err := flux.ParseResourceID(svc)
-		if err != nil {
-			transport.WriteError(w, r, http.StatusBadRequest, errors.Wrapf(err, "parsing service spec %q", svc))
-			return
+	if services != "" {
+		for _, svc := range strings.Split(services, ",") {
+			id, err := flux.ParseResourceID(svc)
+			if err != nil {
+				transport.WriteError(w, r, http.StatusBadRequest, errors.Wrapf(err, "parsing service spec %q", svc))
+				return
+			}
+			opts.Services = append(opts.Services, id)
 		}
-		opts.Services = append(opts.Services, id)
 	}
 
 	res, err := s.server.ListServicesWithOptions(r.Context(), opts)
