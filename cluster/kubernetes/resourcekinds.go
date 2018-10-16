@@ -302,7 +302,6 @@ func makeStatefulSetPodController(statefulSet *apiapps.StatefulSet) podControlle
 
 	rollout.Outdated = rollout.Desired - rollout.Updated
 
-	// The type of ObservedGeneration is *int64, unlike other controllers.
 	if statefulSetStatus.ObservedGeneration >= objectMeta.Generation {
 		// the definition has been updated; now let's see about the replicas
 		status = StatusUpdating
