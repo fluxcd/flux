@@ -30,6 +30,7 @@ const (
 
 type Config struct {
 	ChartsPath string
+	UpdateDeps bool
 }
 
 // Release contains clients needed to provide functionality related to helm releases
@@ -146,6 +147,13 @@ func (r *Release) Install(repoDir, releaseName string, fhr ifv1.FluxHelmRelease,
 	}
 
 	chartDir := filepath.Join(repoDir, r.config.ChartsPath, chartPath)
+
+	if r.config.UpdateDeps {
+		if err := updateDependencies(chartDir); err != nil {
+			r.logger.Log("error", "problem updating dependencies of chart", "releaseName", releaseName, "dir", chartDir, "err", err)
+			return nil, err
+		}
+	}
 
 	strVals, err := fhr.Spec.Values.YAML()
 	if err != nil {

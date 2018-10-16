@@ -36,6 +36,7 @@ ENTRYPOINT [ "/sbin/tini", "--", "helm-operator" ]
 
 ENV HELM_HOME=/var/fluxd/helm
 COPY ./helm-repositories.yaml /var/fluxd/helm/repository/repositories.yaml
+RUN mkdir -p /var/fluxd/helm/repository/cache/
 
 COPY ./helm-operator /usr/local/bin/
 
