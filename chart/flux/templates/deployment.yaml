@@ -63,6 +63,9 @@ spec:
           env:
           - name: KUBECONFIG
             value: /root/.kubectl/config
+          {{- if .Values.extraEnvs }}
+{{ toYaml .Values.extraEnvs | indent 10 }}
+          {{- end }}
           args:
           - --ssh-keygen-dir=/var/fluxd/keygen
           - --k8s-secret-name={{ template "flux.fullname" . }}-git-deploy

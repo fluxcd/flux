@@ -205,6 +205,7 @@ The following tables lists the configurable parameters of the Weave Flux chart a
 | `helmOperator.pullPolicy` | Helm operator image pull policy | `IfNotPresent`
 | `helmOperator.chartsSyncInterval` | Interval at which to check for changed charts | `3m`
 | `helmOperator.chartsSyncTimeout` | Timeout when checking for changed charts | `1m`
+| `helmOperator.extraEnvs` | Extra environment variables for the Helm operator pod | `[]`
 | `helmOperator.git.url` | URL of git repo with Helm charts | `git.url`
 | `helmOperator.git.branch` | Branch of git repo to use for Helm charts | `master`
 | `helmOperator.git.chartsPath` | Path within git repo to locate Helm charts (relative path) | `charts`
@@ -220,6 +221,7 @@ The following tables lists the configurable parameters of the Weave Flux chart a
 | `helmOperator.tls.certFile` | Name of the certificate file within the k8s secret | `tls.crt`
 | `helmOperator.tls.caContent` | Certificate Authority content used to validate the Tiller server certificate | None
 | `token` | Weave Cloud service token | None
+| `extraEnvs` | Extra environment variables for the Flux pod | `[]`
 
 Specify each parameter using the `--set key=value[,key=value]` argument to `helm install`. For example:
 
