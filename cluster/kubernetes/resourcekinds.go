@@ -202,7 +202,7 @@ func makeDaemonSetPodController(daemonSet *apiapps.DaemonSet) podController {
 	var status string
 	objectMeta, daemonSetStatus := daemonSet.ObjectMeta, daemonSet.Status
 
-	status = StatusUpdating
+	status = StatusStarted
 	rollout := cluster.RolloutStatus{
 		Desired:   daemonSetStatus.DesiredNumberScheduled,
 		Updated:   daemonSetStatus.UpdatedNumberScheduled,
@@ -263,21 +263,53 @@ func makeStatefulSetPodController(statefulSet *apiapps.StatefulSet) podControlle
 	var status string
 	objectMeta, statefulSetStatus := statefulSet.ObjectMeta, statefulSet.Status
 
-	status = StatusUpdating
+	status = StatusStarted
 	rollout := cluster.RolloutStatus{
-		Desired:  *statefulSet.Spec.Replicas,
-		Updated:  statefulSetStatus.UpdatedReplicas,
-		Ready:    statefulSetStatus.ReadyReplicas,
-		Outdated: statefulSetStatus.CurrentReplicas - statefulSetStatus.UpdatedReplicas,
-		// TODO Add Messages after "ODO: Add valid condition types for Statefulsets." fixed in
+		Ready: statefulSetStatus.ReadyReplicas,
+		// There is no Available parameter for statefulset, so use Ready instead
+		Available: statefulSetStatus.ReadyReplicas,
+		// TODO Add Messages after "TODO: Add valid condition types for Statefulsets." fixed in
 		// https://github.com/kubernetes/kubernetes/blob/7f23a743e8c23ac6489340bbb34fa6f1d392db9d/pkg/apis/apps/types.go#L205
 	}
 
-	// The type of ObservedGeneration is *int64, unlike other controllers.
+	var specDesired int32
+	if statefulSet.Spec.Replicas != nil {
+		rollout.Desired = *statefulSet.Spec.Replicas
+		specDesired = *statefulSet.Spec.Replicas
+	}
+
+	// rolling update
+	if statefulSet.Spec.UpdateStrategy.Type == apiapps.RollingUpdateStatefulSetStrategyType &&
+		statefulSet.Spec.UpdateStrategy.RollingUpdate != nil &&
+		statefulSet.Spec.UpdateStrategy.RollingUpdate.Partition != nil {
+		// Desired for this partition: https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/#partitions
+		desiredPartition := rollout.Desired - *statefulSet.Spec.UpdateStrategy.RollingUpdate.Partition
+		if desiredPartition >= 0 {
+			rollout.Desired = desiredPartition
+		} else {
+			rollout.Desired = 0
+		}
+	}
+
+	if statefulSetStatus.CurrentRevision != statefulSetStatus.UpdateRevision {
+		// rollout in progress
+		rollout.Updated = statefulSetStatus.UpdatedReplicas
+
+	} else {
+		// rollout complete
+		rollout.Updated = statefulSetStatus.CurrentReplicas
+	}
+
+	rollout.Outdated = rollout.Desired - rollout.Updated
+
 	if statefulSetStatus.ObservedGeneration >= objectMeta.Generation {
 		// the definition has been updated; now let's see about the replicas
 		status = StatusUpdating
-		if rollout.Updated == rollout.Desired && rollout.Outdated == 0 {
+		// for partition rolling update rollout.Ready might be >= rollout.Desired
+		// because of rollout.Ready references to all ready pods (updated and outdated ones)
+		// and rollout.Desired references to only desired pods for current partition
+		// we check that all pods (updated and outdated ones) are ready
+		if rollout.Updated == rollout.Desired && rollout.Ready == specDesired && rollout.Outdated == 0 {
 			status = StatusReady
 		}
 	}
