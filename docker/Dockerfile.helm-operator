@@ -32,6 +32,9 @@ LABEL maintainer="Weaveworks <help@weave.works>" \
 
 ENTRYPOINT [ "/sbin/tini", "--", "helm-operator" ]
 
+ENV HELM_HOME=/var/fluxd/helm
+COPY ./helm-repositories.yaml /var/fluxd/helm/repository/repositories.yaml
+
 COPY ./helm-operator /usr/local/bin/
 
 ARG BUILD_DATE

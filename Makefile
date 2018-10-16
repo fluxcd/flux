@@ -49,7 +49,7 @@ build/.%.done: docker/Dockerfile.%
 	touch $@
 
 build/.flux.done: build/fluxd build/kubectl docker/ssh_config docker/kubeconfig docker/verify_known_hosts.sh
-build/.helm-operator.done: build/helm-operator build/kubectl docker/ssh_config docker/verify_known_hosts.sh
+build/.helm-operator.done: build/helm-operator build/kubectl docker/ssh_config docker/verify_known_hosts.sh docker/helm-repositories.yaml
 
 build/fluxd: $(FLUXD_DEPS)
 build/fluxd: cmd/fluxd/*.go
