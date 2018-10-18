@@ -15,18 +15,30 @@ import (
 	"github.com/pkg/errors"
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster"
+	"github.com/weaveworks/flux/resource"
 )
 
+// --- internal types for keeping track of syncing
+
+type applyObject struct {
+	OriginalResource resource.Resource
+	Payload          []byte
+}
+
+func (obj applyObject) Components() (namespace, kind, name string) {
+	return obj.OriginalResource.ResourceID().Components()
+}
+
 type changeSet struct {
-	objs map[string][]*apiObject
+	objs map[string][]applyObject
 }
 
 func makeChangeSet() changeSet {
-	return changeSet{objs: make(map[string][]*apiObject)}
+	return changeSet{objs: make(map[string][]applyObject)}
 }
 
-func (c *changeSet) stage(cmd string, o *apiObject) {
-	c.objs[cmd] = append(c.objs[cmd], o)
+func (c *changeSet) stage(cmd string, res resource.Resource, bytes []byte) {
+	c.objs[cmd] = append(c.objs[cmd], applyObject{res, bytes})
 }
 
 // Applier is something that will apply a changeset to the cluster.
@@ -76,18 +88,18 @@ func (c *Kubectl) connectArgs() []string {
 // in the partial ordering of Kubernetes resources, according to which
 // kinds depend on which (derived by hand).
 func rankOfKind(kind string) int {
-	switch kind {
+	switch strings.ToLower(kind) {
 	// Namespaces answer to NOONE
-	case "Namespace":
+	case "namespace":
 		return 0
 	// These don't go in namespaces; or do, but don't depend on anything else
-	case "CustomResourceDefinition", "ServiceAccount", "ClusterRole", "Role", "PersistentVolume", "Service":
+	case "customresourcedefinition", "serviceaccount", "clusterrole", "role", "persistentvolume", "service":
 		return 1
 	// These depend on something above, but not each other
-	case "ResourceQuota", "LimitRange", "Secret", "ConfigMap", "RoleBinding", "ClusterRoleBinding", "PersistentVolumeClaim", "Ingress":
+	case "resourcequota", "limitrange", "secret", "configmap", "rolebinding", "clusterrolebinding", "persistentvolumeclaim", "ingress":
 		return 2
 	// Same deal, next layer
-	case "DaemonSet", "Deployment", "ReplicationController", "ReplicaSet", "Job", "CronJob", "StatefulSet":
+	case "daemonset", "deployment", "replicationcontroller", "replicaset", "job", "cronjob", "statefulset":
 		return 3
 	// Assumption: anything not mentioned isn't depended _upon_, so
 	// can come last.
@@ -96,7 +108,7 @@ func rankOfKind(kind string) int {
 	}
 }
 
-type applyOrder []*apiObject
+type applyOrder []applyObject
 
 func (objs applyOrder) Len() int {
 	return len(objs)
@@ -107,22 +119,24 @@ func (objs applyOrder) Swap(i, j int) {
 }
 
 func (objs applyOrder) Less(i, j int) bool {
-	ranki, rankj := rankOfKind(objs[i].Kind), rankOfKind(objs[j].Kind)
+	_, ki, ni := objs[i].Components()
+	_, kj, nj := objs[j].Components()
+	ranki, rankj := rankOfKind(ki), rankOfKind(kj)
 	if ranki == rankj {
-		return objs[i].Metadata.Name < objs[j].Metadata.Name
+		return ni < nj
 	}
 	return ranki < rankj
 }
 
 func (c *Kubectl) apply(logger log.Logger, cs changeSet, errored map[flux.ResourceID]error) (errs cluster.SyncError) {
-	f := func(objs []*apiObject, cmd string, args ...string) {
+	f := func(objs []applyObject, cmd string, args ...string) {
 		if len(objs) == 0 {
 			return
 		}
 		logger.Log("cmd", cmd, "args", strings.Join(args, " "), "count", len(objs))
 		args = append(args, cmd)
 
-		var multi, single []*apiObject
+		var multi, single []applyObject
 		if len(errored) == 0 {
 			multi = objs
 		} else {
@@ -185,7 +199,7 @@ func (c *Kubectl) doCommand(logger log.Logger, r io.Reader, args ...string) erro
 	return err
 }
 
-func makeMultidoc(objs []*apiObject) *bytes.Buffer {
+func makeMultidoc(objs []applyObject) *bytes.Buffer {
 	buf := &bytes.Buffer{}
 	for _, obj := range objs {
 		buf.WriteString("\n---\n")

@@ -37,30 +37,6 @@ type extendedClient struct {
 	fluxHelmClient
 }
 
-// --- internal types for keeping track of syncing
-
-type metadata struct {
-	Name      string `yaml:"name"`
-	Namespace string `yaml:"namespace"`
-}
-
-type apiObject struct {
-	OriginalResource resource.Resource
-	Payload          []byte
-	Kind             string   `yaml:"kind"`
-	Metadata         metadata `yaml:"metadata"`
-}
-
-// A convenience for getting an minimal object from some bytes.
-func parseObj(def []byte) (*apiObject, error) {
-	obj := apiObject{}
-	return &obj, yaml.Unmarshal(def, &obj)
-}
-
-func (o *apiObject) hasNamespace() bool {
-	return o.Metadata.Namespace != ""
-}
-
 // --- add-ons
 
 // Kubernetes has a mechanism of "Add-ons", whereby manifest files
@@ -99,6 +75,9 @@ func isAddon(obj k8sObject) bool {
 // Cluster is a handle to a Kubernetes API server.
 // (Typically, this code is deployed into the same cluster.)
 type Cluster struct {
+	// Do garbage collection when syncing resources
+	GC bool
+
 	client     extendedClient
 	applier    Applier
 	version    string // string response for the version command.
@@ -223,79 +202,57 @@ func (c *Cluster) AllControllers(namespace string) (res []cluster.Controller, er
 	return allControllers, nil
 }
 
-func applyMetadata(res resource.Resource, resourceLabels map[string]policy.Update, resourcePolicyUpdates map[string]policy.Update) ([]byte, error) {
-	id := res.ResourceID().String()
-
-	definition := make(map[interface{}]interface{})
+func applyMetadata(res resource.Resource, stack, checksum string) ([]byte, error) {
+	definition := map[interface{}]interface{}{}
 	if err := yaml.Unmarshal(res.Bytes(), &definition); err != nil {
 		return nil, errors.Wrap(err, fmt.Sprintf("failed to parse yaml from %s", res.Source()))
 	}
 
-	if update, ok := resourceLabels[id]; ok {
-		mixin := make(map[interface{}]interface{})
-		var mixinBuffer bytes.Buffer
-		mixinBuffer.WriteString("metadata:\n  labels:\n")
-		for key, value := range update.Add.ToStringMap() {
-			mixinBuffer.WriteString(fmt.Sprintf("    %s: %s\n", fmt.Sprintf("%s%s", kresource.PolicyPrefix, key), value))
-		}
-		if err := yaml.Unmarshal(mixinBuffer.Bytes(), &mixin); err != nil {
-			return nil, errors.Wrap(err, "failed to parse yaml for mixin")
-		}
-		mergo.Merge(&definition, mixin)
+	mixin := map[string]interface{}{}
+
+	if stack != "" {
+		mixinLabels := map[string]string{}
+		mixinLabels[fmt.Sprintf("%s%s", kresource.PolicyPrefix, policy.Stack)] = stack
+		mixin["labels"] = mixinLabels
 	}
 
-	if update, ok := resourcePolicyUpdates[id]; ok {
-		mixin := make(map[interface{}]interface{})
-		var mixinBuffer bytes.Buffer
-		mixinBuffer.WriteString("metadata:\n  annotations:\n")
-		for key, value := range update.Add.ToStringMap() {
-			mixinBuffer.WriteString(fmt.Sprintf("    %s: %s\n", fmt.Sprintf("%s%s", kresource.PolicyPrefix, key), value))
-		}
-		if err := yaml.Unmarshal(mixinBuffer.Bytes(), &mixin); err != nil {
-			return nil, errors.Wrap(err, "failed to parse yaml for mixin")
-		}
-		mergo.Merge(&definition, mixin)
+	if checksum != "" {
+		mixinAnnotations := map[string]string{}
+		mixinAnnotations[fmt.Sprintf("%s%s", kresource.PolicyPrefix, policy.StackChecksum)] = checksum
+		mixin["annotations"] = mixinAnnotations
 	}
+
+	mergo.Merge(&definition, map[interface{}]interface{}{
+		"metadata": mixin,
+	})
 
 	bytes, err := yaml.Marshal(definition)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to serialize yaml after applying metadata")
 	}
-
 	return bytes, nil
 }
 
 // Sync performs the given actions on resources. Operations are
-// asynchronous, but serialised.
-func (c *Cluster) Sync(spec cluster.SyncDef, resourceLabels map[string]policy.Update, resourcePolicyUpdates map[string]policy.Update) error {
+// asynchronous (applications may take a while to be processed), but
+// serialised.
+func (c *Cluster) Sync(spec cluster.SyncDef) error {
 	logger := log.With(c.logger, "method", "Sync")
+
+	// Keep track of the checksum each resource gets, so we can
+	// compare them during garbage collection.
+	checksums := map[string]string{}
 
 	cs := makeChangeSet()
 	var errs cluster.SyncError
-	for _, action := range spec.Actions {
-		stages := []struct {
-			res resource.Resource
-			cmd string
-		}{
-			{action.Delete, "delete"},
-			{action.Apply, "apply"},
-		}
-		for _, stage := range stages {
-			if stage.res == nil {
-				continue
-			}
-
-			var obj *apiObject
-			resBytes, err := applyMetadata(stage.res, resourceLabels, resourcePolicyUpdates)
+	for _, stack := range spec.Stacks {
+		for _, res := range stack.Resources {
+			resBytes, err := applyMetadata(res, stack.Name, stack.Checksum)
 			if err == nil {
-				obj, err = parseObj(resBytes)
-			}
-			if err == nil {
-				obj.OriginalResource = stage.res
-				obj.Payload = resBytes
-				cs.stage(stage.cmd, obj)
+				checksums[res.ResourceID().String()] = stack.Checksum
+				cs.stage("apply", res, resBytes)
 			} else {
-				errs = append(errs, cluster.ResourceError{Resource: stage.res, Error: err})
+				errs = append(errs, cluster.ResourceError{Resource: res, Error: err})
 				break
 			}
 		}
@@ -309,7 +266,39 @@ func (c *Cluster) Sync(spec cluster.SyncDef, resourceLabels map[string]policy.Up
 	}
 	c.muSyncErrors.RUnlock()
 
-	// If `nil`, errs is a cluster.SyncError(nil) rather than error(nil)
+	if c.GC {
+		orphanedResources := makeChangeSet()
+
+		clusterResourceBytes, err := c.exportByLabel(fmt.Sprintf("%s%s", kresource.PolicyPrefix, policy.Stack))
+		if err != nil {
+			return errors.Wrap(err, "exporting resource defs from cluster for garbage collection")
+		}
+		clusterResources, err := kresource.ParseMultidoc(clusterResourceBytes, "exported")
+		if err != nil {
+			return errors.Wrap(err, "parsing exported resources during garbage collection")
+		}
+
+		for resourceID, res := range clusterResources {
+			expected := checksums[resourceID] // shall be "" if no such resource was applied earlier
+			actual, ok := res.Policy().Get(policy.StackChecksum)
+			switch {
+			case !ok:
+				stack, _ := res.Policy().Get(policy.Stack)
+				c.logger.Log("warning", "cluster resource has stack but no checksum; skipping", "resource", resourceID, "stack", stack)
+			case actual != expected: // including if checksum is ""
+				c.logger.Log("info", "cluster resource has out-of-date checksum; deleting", "resource", resourceID, "actual", actual, "expected", expected)
+				orphanedResources.stage("delete", res, res.Bytes())
+			default:
+				// all good; proceed
+			}
+		}
+
+		if deleteErrs := c.applier.apply(logger, orphanedResources, nil); len(deleteErrs) > 0 {
+			errs = append(errs, deleteErrs...)
+		}
+	}
+
+	// If `nil`, errs is a cluster.SyncError(nil) rather than error(nil), so it cannot be returned directly.
 	if errs == nil {
 		return nil
 	}
@@ -390,7 +379,9 @@ func contains(a []string, x string) bool {
 	return false
 }
 
-func (c *Cluster) ExportByLabel(labelName string, labelValue string) ([]byte, error) {
+// exportByLabel collates all the resources that have a particular
+// label (regardless of the value).
+func (c *Cluster) exportByLabel(labelName string) ([]byte, error) {
 	var config bytes.Buffer
 
 	resources, err := c.client.coreClient.Discovery().ServerResources()
@@ -423,7 +414,7 @@ func (c *Cluster) ExportByLabel(labelName string, labelValue string) ([]byte, er
 				Resource: apiResource.Name,
 			})
 			data, err := resourceClient.List(meta_v1.ListOptions{
-				LabelSelector: fmt.Sprintf("%s=%s", labelName, labelValue),
+				LabelSelector: labelName, // exists <<labelName>>
 			})
 			if err != nil {
 				return nil, err
@@ -438,6 +429,7 @@ func (c *Cluster) ExportByLabel(labelName string, labelValue string) ([]byte, er
 				if itemDesc == "v1:ComponentStatus" || itemDesc == "v1:Endpoints" {
 					continue
 				}
+				// TODO(michael) also exclude anything that has an ownerReference (that isn't "standard"?)
 
 				yamlBytes, err := k8syaml.Marshal(item.Object)
 				if err != nil {

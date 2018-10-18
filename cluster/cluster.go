@@ -4,7 +4,6 @@ import (
 	"errors"
 
 	"github.com/weaveworks/flux"
-	"github.com/weaveworks/flux/policy"
 	"github.com/weaveworks/flux/resource"
 	"github.com/weaveworks/flux/ssh"
 	"github.com/weaveworks/flux/policy"
@@ -30,8 +29,7 @@ type Cluster interface {
 	SomeControllers([]flux.ResourceID) ([]Controller, error)
 	Ping() error
 	Export() ([]byte, error)
-	ExportByLabel(string, string) ([]byte, error)
-	Sync(SyncDef, map[string]policy.Update, map[string]policy.Update) error
+	Sync(SyncDef) error
 	PublicSSHKey(regenerate bool) (ssh.PublicKey, error)
 }
 

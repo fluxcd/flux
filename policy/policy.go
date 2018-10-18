@@ -14,6 +14,7 @@ const (
 	LockedMsg     = Policy("locked_msg")
 	Automated     = Policy("automated")
 	TagAll        = Policy("tag_all")
+	Stack         = Policy("stack")
 	StackChecksum = Policy("stack_checksum")
 )
 

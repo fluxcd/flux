@@ -8,16 +8,22 @@ import (
 
 // Definitions for use in synchronising a cluster with a git repo.
 
-// SyncAction represents either the deletion or application (create or
-// update) of a resource.
-type SyncAction struct {
-	Delete resource.Resource // ) one of these
-	Apply  resource.Resource // )
+// SyncStack groups a set of resources to be updated. The purpose of
+// the grouping is to limit the "blast radius" of changes. For
+// example, if we calculate a checksum for each stack and annotate the
+// resources within it, any single change will affect only the
+// resources in the same stack, meaning fewer things to annotate. (So
+// why not do these individually? This, too, can be expensive, since
+// it involves examining each resource individually).
+type SyncStack struct {
+	Name      string
+	Checksum  string
+	Resources []resource.Resource
 }
 
 type SyncDef struct {
-	// The actions to undertake
-	Actions []SyncAction
+	// The applications to undertake
+	Stacks []SyncStack
 }
 
 type ResourceError struct {
