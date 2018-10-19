@@ -125,6 +125,8 @@ registry:
  
 memcached:
   verbose: false
+  max_item_size: 1m
+  max_memory: 64
 
 ssh:
   # Overrides for git over SSH. If you use your own git server, you
