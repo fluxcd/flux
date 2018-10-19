@@ -51,7 +51,7 @@ This means Flux can't read from and write to the git repo. Check that
    _image_ with host keys for `github.com`, `gitlab.com` and
    `bitbucket.org`, but if you're using your own git server, you'll
    need to add its host key. See
-   [./standalone/setup.md](./standalone/setup.md#using-a-private-git-host).
+   [./standalone-setup.md](./standalone-setup.md#using-a-private-git-host).
 
 ### "The request failed authentication"
 
@@ -61,10 +61,10 @@ from the settings in Weave Cloud; set the environment variable
 `FLUX_TOKEN` to the token.
 
 If you have set Flux up standalone (as in the instructions in
-[./standalone/installing.md](./standalone/installing.md)), this
+[./get-started.md](./get-started.md)), this
 probably means Flux is defaulting to using Weave Cloud because you've
 not set the environment variable `FLUX_URL` to point at the
-daemon. See [./standalone/setup.md](./standalone/setup.md).
+daemon. See [./standalone-setup.md](./standalone-setup.md).
 
 ### I'm using GCR/GKE and I keep seeing "Quota exceeded" in logs
 

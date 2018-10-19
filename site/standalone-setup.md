@@ -15,7 +15,7 @@ the directory with the examples configuration.
 First, you need to connect Flux to the repository with Kubernetes
 manifests. This is achieved by setting the `--git-url` and
 `--git-branch` arguments in the
-[`flux-deployment.yaml`](../../deploy/flux-deployment.yaml) manifest.
+[`flux-deployment.yaml`](../deploy/flux-deployment.yaml) manifest.
 
 ## Memcache
 
@@ -62,7 +62,7 @@ kubectl create secret generic flux-git-deploy --from-file=identity=/path/to/priv
 ```
 
 The Kubernetes deployment configuration file
-[flux-deployment.yaml](../../deploy/flux-deployment.yaml) runs the
+[flux-deployment.yaml](../deploy/flux-deployment.yaml) runs the
 Flux daemon, but you'll need to edit it first, at least to supply your
 own configuration repo (the `--git-repo` argument).
 
@@ -76,7 +76,7 @@ kubectl create -f flux-deployment.yaml
 You will need to provide fluxd with a service account which can access
 the namespaces you want to use Flux with. To do this, consult the
 example service account given in
-[flux-account.yaml](../../deploy/flux-account.yaml) (which
+[flux-account.yaml](../deploy/flux-account.yaml) (which
 puts essentially no constraints on the account) and the
 [RBAC documentation](https://kubernetes.io/docs/admin/authorization/rbac/),
 and create a service account in whichever namespace you put fluxd

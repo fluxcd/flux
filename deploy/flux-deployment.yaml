@@ -35,7 +35,7 @@ spec:
       # file, which you will need to do if you host your own git
       # repo rather than using github or the like. You'll also need to
       # mount it into the container, below. See
-      # https://github.com/weaveworks/flux/blob/master/site/standalone/setup.md#using-a-private-git-host
+      # https://github.com/weaveworks/flux/blob/master/site/standalone-setup.md#using-a-private-git-host
       # - name: ssh-config
       #   configMap:
       #     name: flux-ssh-config
