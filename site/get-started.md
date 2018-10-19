@@ -11,7 +11,7 @@ have Flux running in your cluster and it will be deploying any
 code changes for you.
 
 _Note:_ If you would like to install Flux using Helm, refer to the
-[Helm section](../helm-get-started.md).
+[Helm section](./helm-get-started.md).
 
 ## Prerequisites
 
@@ -89,7 +89,7 @@ the SSH public key with:
 kubectl logs deployment/flux | grep identity.pub | cut -d '"' -f2
 ```
 
-*Note:* If you have downloaded [fluxctl](../using.md) already, you can use
+*Note:* If you have downloaded [fluxctl](./using.md) already, you can use
 `fluxctl identity` as well.
 
 In order to sync your cluster state with git you need to copy the
@@ -142,5 +142,5 @@ deployed, give Flux access to it and see modifications land are
 very straight-forward and are a quite natural work-flow.
 
 As a next step, you might want to dive deeper into [how to control
-Flux](../using.md) or check out [more sophisticated
-setups](./setup.md).
+Flux](./using.md) or check out [more sophisticated
+setups](./standalone-setup.md).

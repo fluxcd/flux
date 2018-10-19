@@ -80,7 +80,7 @@ Get started by browsing through the documentation below:
   - [Considerations regarding installing Flux](/site/installing.md)
   - [Flux <-> Helm integration](/site/helm-integration.md)
 - Get Started with Flux
-  - [Standalone Flux](/site/standalone/installing.md)
+  - [Standalone Flux](/site/get-started.md)
   - [Flux using Helm](/site/helm-get-started.md)
 - Operating Flux
   - [Using Flux](/site/using.md)

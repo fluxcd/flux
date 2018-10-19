@@ -270,7 +270,7 @@ service, or running your own git host, you need to supply your own
 host key(s).
 
 How to do this is documented in
-[setup.md](/site/standalone/setup.md#using-a-private-git-host).
+[standalone-setup.md](/site/standalone-setup.md#using-a-private-git-host).
 
 ### Will Flux delete resources that are no longer in the git repository?
 

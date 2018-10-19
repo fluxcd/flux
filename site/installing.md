@@ -13,7 +13,7 @@ should run in the cluster. Flux imposes
 # Installing Weave Flux
 
 Here are the instructions to [install Flux on your own
-cluster](./standalone/installing.md).
+cluster](./get-started.md).
 
 If you are using Helm, we have a [separate section about
 this](./helm-get-started.md).
