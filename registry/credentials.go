@@ -9,16 +9,17 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
+	"github.com/weaveworks/flux/sidecar/aws/ecr"
 )
 
-// Registry Credentials
-type creds struct {
+// credential to a Docker registry.
+type credential struct {
 	username, password   string
 	registry, provenance string
 }
 
-func (c creds) String() string {
-	if (creds{}) == c {
+func (c credential) String() string {
+	if (credential{}) == c {
 		return "<zero creds>"
 	}
 	return fmt.Sprintf("<registry creds for %s@%s, from %s>", c.username, c.registry, c.provenance)
@@ -26,13 +27,13 @@ func (c creds) String() string {
 
 // Credentials to a (Docker) registry.
 type Credentials struct {
-	m map[string]creds
+	m map[string]credential
 }
 
 // NoCredentials returns a usable but empty credentials object.
 func NoCredentials() Credentials {
 	return Credentials{
-		m: map[string]creds{},
+		m: map[string]credential{},
 	}
 }
 
@@ -51,7 +52,7 @@ func ParseCredentials(from string, b []byte) (Credentials, error) {
 			return Credentials{}, err
 		}
 	}
-	m := map[string]creds{}
+	m := map[string]credential{}
 	for host, entry := range config.Auths {
 		decodedAuth, err := base64.StdEncoding.DecodeString(entry.Auth)
 		if err != nil {
@@ -87,7 +88,7 @@ func ParseCredentials(from string, b []byte) (Credentials, error) {
 		}
 		host = u.Host
 
-		m[host] = creds{
+		m[host] = credential{
 			registry:   host,
 			provenance: from,
 			username:   authParts[0],
@@ -127,7 +128,7 @@ func ImageCredsWithDefaults(lookup func() ImageCreds, configPath string) (func()
 // ---
 
 // credsFor yields an authenticator for a specific host.
-func (cs Credentials) credsFor(host string) creds {
+func (cs Credentials) credsFor(host string) credential {
 	if cred, found := cs.m[host]; found {
 		return cred
 	}
@@ -136,7 +137,14 @@ func (cs Credentials) credsFor(host string) creds {
 			return cred
 		}
 	}
-	return creds{}
+	// WIP: Not tested to work successfully yet..
+	// The idea is to fetch the authentication token from the ecr sidecar's http url
+	if strings.HasSuffix(host, "amazonaws.com") {
+		if cred, err := GetECRRegistryCredential(host, ecr.SidecarAWSURL); err == nil {
+			return cred
+		}
+	}
+	return credential{}
 }
 
 // Hosts returns all of the hosts available in these credentials.

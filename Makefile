@@ -14,13 +14,14 @@ godeps=$(shell go list -f '{{join .Deps "\n"}}' $1 | grep -v /vendor/ | xargs go
 
 FLUXD_DEPS:=$(call godeps,./cmd/fluxd)
 FLUXCTL_DEPS:=$(call godeps,./cmd/fluxctl)
+ECR_SIDECAR_DEPS:=$(call godeps,./sidecar/aws/cmd)
 HELM_OPERATOR_DEPS:=$(call godeps,./cmd/helm-operator)
 
 IMAGE_TAG:=$(shell ./docker/image-tag)
 VCS_REF:=$(shell git rev-parse HEAD)
 BUILD_DATE:=$(shell date -u +'%Y-%m-%dT%H:%M:%SZ')
 
-all: $(GOPATH)/bin/fluxctl $(GOPATH)/bin/fluxd $(GOPATH)/bin/helm-operator build/.flux.done build/.helm-operator.done
+all: $(GOPATH)/bin/fluxctl $(GOPATH)/bin/fluxd $(GOPATH)/bin/helm-operator $(GOPATH)/bin/ecr-sidecar build/.flux.done build/.ecr-sidecar.done build/.helm-operator.done
 
 release-bins:
 	for arch in amd64; do \
@@ -48,12 +49,17 @@ build/.%.done: docker/Dockerfile.%
 		-f build/docker/$*/Dockerfile.$* ./build/docker/$*
 	touch $@
 
-build/.flux.done: build/fluxd build/kubectl docker/ssh_config docker/kubeconfig docker/verify_known_hosts.sh
+build/.flux.done: build/fluxd build/ecr-sidecar build/kubectl docker/ssh_config docker/kubeconfig docker/verify_known_hosts.sh
+build/.ecr-sidecar.done: build/ecr-sidecar
 build/.helm-operator.done: build/helm-operator build/kubectl docker/ssh_config docker/verify_known_hosts.sh
 
 build/fluxd: $(FLUXD_DEPS)
 build/fluxd: cmd/fluxd/*.go
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o $@ $(LDFLAGS) -ldflags "-X main.version=$(shell ./docker/image-tag)" ./cmd/fluxd
+
+build/ecr-sidecar: $(ECR_SIDECAR_DEPS)
+build/ecr-sidecar: sidecar/aws/cmd/*.go
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o $@ $(LDFLAGS) -ldflags "-X main.version=$(shell ./docker/image-tag)" ./sidecar/aws/cmd
 
 build/helm-operator: $(HELM_OPERATOR_DEPS)
 build/helm-operator: cmd/helm-operator/*.go
@@ -74,6 +80,10 @@ $(GOPATH)/bin/fluxctl: ./cmd/fluxctl/*.go
 $(GOPATH)/bin/fluxd: $(FLUXD_DEPS)
 $(GOPATH)/bin/fluxd: cmd/fluxd/*.go
 	go install ./cmd/fluxd
+
+$(GOPATH)/bin/ecr-sidecar: $(FLUXD_DEPS)
+$(GOPATH)/bin/ecr-sidecar: sidecar/aws/cmd/*.go
+	go install ./sidecar/aws/cmd
 
 $(GOPATH)/bin/helm-operator: $(HELM_OPERATOR_DEPS)
 $(GOPATH)/bin/help-operator: cmd/helm-operator/*.go

@@ -118,7 +118,7 @@ func (f *RemoteClientFactory) Succeed(repo image.CanonicalName) {
 // store adapts a set of pre-selected creds to be an
 // auth.CredentialsStore
 type store struct {
-	auth creds
+	auth credential
 }
 
 func (s *store) Basic(url *url.URL) (string, string) {
