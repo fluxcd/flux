@@ -18,6 +18,10 @@ spec:
       labels:
         app: {{ template "flux.name" . }}
         release: {{ .Release.Name }}
+    {{- if .Values.podAnnotations }}
+      annotations:
+    {{ toYaml .Values.podAnnotations | indent 8 }}
+    {{- end }}
     spec:
       {{- if .Values.serviceAccount.create }}
       serviceAccountName: {{ template "flux.serviceAccountName" . }}
@@ -42,6 +46,19 @@ spec:
         emptyDir:
           medium: Memory
       containers:
+        {{- if .Values.sidecar.aws.enabled }}
+        - name: aws
+          image: "{{ .Values.sidecar.aws.image.repository }}:{{ .Values.sidecar.aws.image.tag }}"
+          imagePullPolicy: {{ .Values.sidecar.aws.image.pullPolicy }}
+          args:
+          - --registry-ids={{ .Values.sidecar.aws.registryIds }}
+          - --region={{ .Values.sidecar.aws.region }}
+          - --fetch-interval={{ .Values.sidecar.aws.fetchInterval }}
+          ports:
+          - name: http
+            containerPort: 3031
+            protocol: TCP
+        {{- end }}
         - name: {{ .Chart.Name }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}

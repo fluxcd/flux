@@ -222,6 +222,15 @@ The following tables lists the configurable parameters of the Weave Flux chart a
 | `helmOperator.tls.caContent` | Certificate Authority content used to validate the Tiller server certificate | None
 | `token` | Weave Cloud service token | None
 | `extraEnvs` | Extra environment variables for the Flux pod | `[]`
+| `podAnnotations` | Extra pod annotations for the Flux pod | `[]`
+| `sidecar.aws.enabled` | Deploy AWS ECR repository authenticator as a sidecar to flux |`false`
+| `sidecar.aws.registryIds` | The AWS Account IDs of ECR repositories that needs authentication. This is a comma separated value. E.g `1234567890,0987654321` | None
+| `sidecar.aws.region` | The AWS Region of the ECR repositories that needs authentication   | `us-east-1`
+| `sidecar.aws.fetchInterval` | The period at which to fetch for a new token from the AWS Account IDs | `1h`
+| `sidecar.aws.image.repository` | ECR sidecar image repository | `quay.io/weaveworks/ecr-sidecar`
+| `sidecar.aws.image.tag` | ECR sidecar image tag | `latest`
+| `sidecar.aws.image.pullPolicy` | ECR sidecar image pull policy | `IfNotPresent`
+
 
 Specify each parameter using the `--set key=value[,key=value]` argument to `helm install`. For example:
 

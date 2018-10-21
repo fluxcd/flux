@@ -5,6 +5,8 @@ token: ""
 
 replicaCount: 1
 
+podAnnotations: {}
+
 image:
   repository: quay.io/weaveworks/flux
   tag: 1.7.1
@@ -80,6 +82,17 @@ nodeSelector: {}
 tolerations: []
 
 affinity: {}
+
+sidecar:
+  aws:
+    enabled: false
+    image:
+      repository: quay.io/weaveworks/ecr-sidecar
+      tag: latest
+      pullPolicy: IfNotPresent
+    registryIds: ""
+    region: us-east-1
+    fetchInterval: 1h
 
 git:
   # URL of git repo with Kubernetes manifests; e.g. git.url=ssh://git@github.com/weaveworks/flux-example
