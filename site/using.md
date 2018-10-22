@@ -447,6 +447,18 @@ fluxctl policy --controller=default:deployment/helloworld --tag-all='semver:*'
 Using a semver filter will also affect how flux sorts images, so
 that the higher versions will be considered newer.
 
+### GlobSemver
+GlobSemver filter is a combination of Glob and Semver filters.
+This filter is useful when you want to do glob matching and semantic versioning simultaneously.
+Semver part of the filter expects constraints inside curly braces, while Glob part treats curly braces and their contents as a `*`.
+
+For example, if you want to deploy `1.x.x-rc` tags and you want tags to be sorted according to [semantic versioning](https://semver.org),
+use the following filter:
+```
+fluxctl policy --controller=default:deployment/helloworld --tag-all='globsemver:{~1}-rc'
+```
+This will apply semantic versioning according to `~1` pattern and do glob matching according to `*-rc` pattern
+
 ### Regexp
 
 If your images have complex tags you can filter by regular expression:

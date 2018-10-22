@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-
 	"github.com/weaveworks/flux/image"
 	"github.com/weaveworks/flux/policy"
 )
@@ -76,6 +75,16 @@ func TestImageInfos_Filter_semver(t *testing.T) {
 	ii := ImageInfos{latest, semver0, semver1}
 	assert.Equal(t, SortedImageInfos{semver1, semver0}, ii.FilterAndSort(policy.NewPattern("semver:*")))
 	assert.Equal(t, SortedImageInfos{semver1}, ii.FilterAndSort(policy.NewPattern("semver:~1")))
+}
+
+func TestImageInfos_Filter_globsemver(t *testing.T) {
+	globsemver0 := image.Info{ID: image.Ref{Name: image.Name{Image: "flux"}, Tag: "v1.2.3-dev"}}
+	globsemver1 := image.Info{ID: image.Ref{Name: image.Name{Image: "moon"}, Tag: "v1.0.1-dev"}}
+	globsemver2 := image.Info{ID: image.Ref{Name: image.Name{Image: "earth"}, Tag: "v1.2.3"}}
+
+	ii := ImageInfos{globsemver0, globsemver1, globsemver2}
+	assert.Equal(t, SortedImageInfos{globsemver0, globsemver1}, ii.FilterAndSort(policy.NewPattern("globsemver:v{~1}-dev")))
+	assert.Equal(t, SortedImageInfos{globsemver0}, ii.FilterAndSort(policy.NewPattern("globsemver:v{~1.2}-dev")))
 }
 
 func TestAvail(t *testing.T) {
