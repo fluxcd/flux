@@ -21,14 +21,6 @@ import (
 	"github.com/weaveworks/flux/ssh"
 )
 
-const (
-	StatusUnknown  = "unknown"
-	StatusError    = "error"
-	StatusReady    = "ready"
-	StatusUpdating = "updating"
-	StatusStarted  = "started"
-)
-
 type coreClient k8sclient.Interface
 type fluxHelmClient fhrclient.Interface
 
