@@ -9,7 +9,7 @@ operator is in [./CHANGELOG-helmop.md](./CHANGELOG-helmop.md).
 
 ### Improvements
 
-- ..
+- Add `globsemver:` filter which is useful when you want to do glob matching and semantic versioning for image tags simultaneously.
 
 ## 1.7.1 (2018-09-26)
 
@@ -478,4 +478,3 @@ Initial semver release.
 -   Refactored registry code and improved coverage
 
 See https://github.com/weaveworks/flux/milestone/7?closed=1 for full details.
-
