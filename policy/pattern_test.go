@@ -122,7 +122,7 @@ func TestRegexpPattern_Matches(t *testing.T) {
 	}
 }
 
-func Test_extractGlob(t *testing.T) {
+func Test_splitSemVer(t *testing.T) {
 	tests := []struct {
 		name    string
 		pattern string
