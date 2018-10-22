@@ -139,7 +139,7 @@ func makeDeploymentPodController(deployment *apiapps.Deployment) podController {
 	var status string
 	objectMeta, deploymentStatus := deployment.ObjectMeta, deployment.Status
 
-	status = StatusStarted
+	status = cluster.StatusStarted
 	rollout := cluster.RolloutStatus{
 		Desired:   *deployment.Spec.Replicas,
 		Updated:   deploymentStatus.UpdatedReplicas,
@@ -151,12 +151,12 @@ func makeDeploymentPodController(deployment *apiapps.Deployment) podController {
 
 	if deploymentStatus.ObservedGeneration >= objectMeta.Generation {
 		// the definition has been updated; now let's see about the replicas
-		status = StatusUpdating
+		status = cluster.StatusUpdating
 		if rollout.Updated == rollout.Desired && rollout.Available == rollout.Desired && rollout.Outdated == 0 {
-			status = StatusReady
+			status = cluster.StatusReady
 		}
 		if len(rollout.Messages) != 0 {
-			status = StatusError
+			status = cluster.StatusError
 		}
 	}
 
@@ -202,7 +202,7 @@ func makeDaemonSetPodController(daemonSet *apiapps.DaemonSet) podController {
 	var status string
 	objectMeta, daemonSetStatus := daemonSet.ObjectMeta, daemonSet.Status
 
-	status = StatusStarted
+	status = cluster.StatusStarted
 	rollout := cluster.RolloutStatus{
 		Desired:   daemonSetStatus.DesiredNumberScheduled,
 		Updated:   daemonSetStatus.UpdatedNumberScheduled,
@@ -215,9 +215,9 @@ func makeDaemonSetPodController(daemonSet *apiapps.DaemonSet) podController {
 
 	if daemonSetStatus.ObservedGeneration >= objectMeta.Generation {
 		// the definition has been updated; now let's see about the replicas
-		status = StatusUpdating
+		status = cluster.StatusUpdating
 		if rollout.Updated == rollout.Desired && rollout.Available == rollout.Desired && rollout.Outdated == 0 {
-			status = StatusReady
+			status = cluster.StatusReady
 		}
 	}
 
@@ -263,7 +263,7 @@ func makeStatefulSetPodController(statefulSet *apiapps.StatefulSet) podControlle
 	var status string
 	objectMeta, statefulSetStatus := statefulSet.ObjectMeta, statefulSet.Status
 
-	status = StatusStarted
+	status = cluster.StatusStarted
 	rollout := cluster.RolloutStatus{
 		Ready: statefulSetStatus.ReadyReplicas,
 		// There is no Available parameter for statefulset, so use Ready instead
@@ -304,13 +304,13 @@ func makeStatefulSetPodController(statefulSet *apiapps.StatefulSet) podControlle
 
 	if statefulSetStatus.ObservedGeneration >= objectMeta.Generation {
 		// the definition has been updated; now let's see about the replicas
-		status = StatusUpdating
+		status = cluster.StatusUpdating
 		// for partition rolling update rollout.Ready might be >= rollout.Desired
 		// because of rollout.Ready references to all ready pods (updated and outdated ones)
 		// and rollout.Desired references to only desired pods for current partition
 		// we check that all pods (updated and outdated ones) are ready
 		if rollout.Updated == rollout.Desired && rollout.Ready == specDesired && rollout.Outdated == 0 {
-			status = StatusReady
+			status = cluster.StatusReady
 		}
 	}
 
@@ -357,7 +357,7 @@ func makeCronJobPodController(cronJob *apibatch.CronJob) podController {
 		apiVersion:  "batch/v1beta1",
 		kind:        "CronJob",
 		name:        cronJob.ObjectMeta.Name,
-		status:      StatusReady,
+		status:      cluster.StatusReady,
 		podTemplate: cronJob.Spec.JobTemplate.Spec.Template,
 		k8sObject:   cronJob}
 }

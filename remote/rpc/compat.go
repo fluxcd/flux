@@ -9,7 +9,7 @@ import (
 	"github.com/weaveworks/flux/api/v10"
 	"github.com/weaveworks/flux/api/v11"
 	"github.com/weaveworks/flux/api/v6"
-	"github.com/weaveworks/flux/cluster/kubernetes"
+	"github.com/weaveworks/flux/cluster"
 	"github.com/weaveworks/flux/policy"
 	"github.com/weaveworks/flux/remote"
 	"github.com/weaveworks/flux/update"
@@ -86,7 +86,7 @@ func listServicesRolloutStatus(ss []v6.ControllerStatus) {
 			// and 'updated' all to the same count.
 			ss[i].Rollout.Ready = ss[i].Rollout.Updated
 			ss[i].Rollout.Available = ss[i].Rollout.Updated
-			ss[i].Status = kubernetes.StatusUpdating
+			ss[i].Status = cluster.StatusUpdating
 		}
 	}
 }
