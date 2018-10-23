@@ -15,6 +15,8 @@ ADD ./verify_known_hosts.sh /home/flux/verify_known_hosts.sh
 RUN sh /home/flux/verify_known_hosts.sh /etc/ssh/ssh_known_hosts && rm /home/flux/verify_known_hosts.sh
 
 COPY ./kubectl /usr/local/bin/
+# The Helm client is included as a convenience for troubleshooting
+COPY ./helm /usr/local/bin/
 
 # These are pretty static
 LABEL maintainer="Weaveworks <help@weave.works>" \
@@ -31,6 +33,10 @@ LABEL maintainer="Weaveworks <help@weave.works>" \
       org.label-schema.vendor="Weaveworks"
 
 ENTRYPOINT [ "/sbin/tini", "--", "helm-operator" ]
+
+ENV HELM_HOME=/var/fluxd/helm
+COPY ./helm-repositories.yaml /var/fluxd/helm/repository/repositories.yaml
+RUN mkdir -p /var/fluxd/helm/repository/cache/
 
 COPY ./helm-operator /usr/local/bin/
 

@@ -51,6 +51,7 @@ var (
 	chartsSyncInterval *time.Duration
 	chartsSyncTimeout  *time.Duration
 	logReleaseDiffs    *bool
+	updateDependencies *bool
 
 	gitURL          *string
 	gitBranch       *string
@@ -103,6 +104,7 @@ func init() {
 	chartsSyncInterval = fs.Duration("charts-sync-interval", 3*time.Minute, "Interval at which to check for changed charts")
 	chartsSyncTimeout = fs.Duration("charts-sync-timeout", 1*time.Minute, "Timeout when checking for changed charts")
 	logReleaseDiffs = fs.Bool("log-release-diffs", false, "Log the diff when a chart release diverges; potentially insecure")
+	updateDependencies = fs.Bool("update-chart-deps", true, "Update chart dependencies before installing/upgrading a release")
 
 	gitURL = fs.String("git-url", "", "URL of git repo with Helm Charts; e.g., git@github.com:weaveworks/flux-example")
 	gitBranch = fs.String("git-branch", "master", "branch of git repo")
@@ -214,6 +216,7 @@ func main() {
 
 	releaseConfig := release.Config{
 		ChartsPath: *gitChartsPath,
+		UpdateDeps: *updateDependencies,
 	}
 	repoConfig := helmop.RepoConfig{
 		Repo:       repo,

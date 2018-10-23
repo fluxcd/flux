@@ -5,6 +5,7 @@ SUDO := $(shell docker info > /dev/null 2> /dev/null || echo "sudo")
 TEST_FLAGS?=
 
 include docker/kubectl.version
+include docker/helm.version
 
 # NB because this outputs absolute file names, you have to be careful
 # if you're testing out the Makefile with `-W` (pretend a file is
@@ -49,7 +50,7 @@ build/.%.done: docker/Dockerfile.%
 	touch $@
 
 build/.flux.done: build/fluxd build/kubectl docker/ssh_config docker/kubeconfig docker/verify_known_hosts.sh
-build/.helm-operator.done: build/helm-operator build/kubectl docker/ssh_config docker/verify_known_hosts.sh
+build/.helm-operator.done: build/helm-operator build/kubectl build/helm docker/ssh_config docker/verify_known_hosts.sh docker/helm-repositories.yaml
 
 build/fluxd: $(FLUXD_DEPS)
 build/fluxd: cmd/fluxd/*.go
@@ -64,9 +65,23 @@ build/kubectl: cache/kubectl-$(KUBECTL_VERSION) docker/kubectl.version
 	strip $@
 	chmod a+x $@
 
+build/helm: cache/helm-$(HELM_VERSION) docker/helm.version
+	cp cache/helm-$(HELM_VERSION) $@
+	strip $@
+	chmod a+x $@
+
 cache/kubectl-$(KUBECTL_VERSION):
 	mkdir -p cache
 	curl -L -o $@ "https://storage.googleapis.com/kubernetes-release/release/$(KUBECTL_VERSION)/bin/linux/amd64/kubectl"
+
+cache/helm-$(HELM_VERSION):
+	mkdir -p cache
+	curl -L -o ./cache/helm-$(HELM_VERSION).tar.gz "https://storage.googleapis.com/kubernetes-helm/helm-v$(HELM_VERSION)-linux-amd64.tar.gz"
+	echo "$(HELM_CHECKSUM) ./cache/helm-$(HELM_VERSION).tar.gz" > ./cache/helm-$(HELM_VERSION).checksum
+	sha256sum -c ./cache/helm-$(HELM_VERSION).checksum
+	tar -C ./cache -xzf ./cache/helm-$(HELM_VERSION).tar.gz linux-amd64/helm
+	mv ./cache/linux-amd64/helm $@
+
 $(GOPATH)/bin/fluxctl: $(FLUXCTL_DEPS)
 $(GOPATH)/bin/fluxctl: ./cmd/fluxctl/*.go
 	go install ./cmd/fluxctl
