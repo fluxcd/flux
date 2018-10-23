@@ -98,6 +98,8 @@ func ParseCredentials(from string, b []byte) (Credentials, error) {
 	return Credentials{m: m}, nil
 }
 
+// ImageCredsWithDefaults designates the appropriate credential to use for a repository
+// using a docker configuration file supplied by the caller.
 func ImageCredsWithDefaults(lookup func() ImageCreds, configPath string) (func() ImageCreds, error) {
 	// pre-flight check
 	bs, err := ioutil.ReadFile(configPath)
