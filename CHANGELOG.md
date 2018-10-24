@@ -1,15 +1,53 @@
 This is the changelog for the Flux daemon; the changelog for the Helm
 operator is in [./CHANGELOG-helmop.md](./CHANGELOG-helmop.md).
 
-## 1.x.x (unreleased)
+## 1.8.0 (2018-10-24)
+
+This release includes a change to how image registries are scanned for
+metadata, which should reduce the amount of polling, while being
+sensitive to image metadata that changes frequently, as well as
+respecting throttling.
 
 ### Fixes
 
-- ..
+- Better chance of a graceful shutdown on signals
+  [weaveworks/flux#1438](https://github.com/weaveworks/flux/pull/1438)
+- Take more notice of possible errors
+  [weaveworks/flux#1432](https://github.com/weaveworks/flux/pull/1432)
+  and
+  [weaveworks/flux#1433](https://github.com/weaveworks/flux/pull/1433)
+- Report the problematic string when failing to parse an image ref
+  [weaveworks/flux#1407](https://github.com/weaveworks/flux/pull/1433)
 
 ### Improvements
 
-- ..
+- Apply CustomResourceDefinition manifests ahead of (most) other kinds
+  of resource, since there will likely be other things that depend on
+  the definition (e.g., the custom resources themselves)
+  [weaveworks/flux#1429](https://github.com/weaveworks/flux/pull/1429)
+- Add `--git-timeout` flag for setting the default timeout for git
+  operations (useful e.g., if you know `git clone` will take a long
+  time)
+  [weaveworks/flux#1416](https://github.com/weaveworks/flux/pull/1416)
+- `fluxctl list-controllers` now has an alias `fluxctl
+  list-workloads` [weaveworks/flux#1425](https://github.com/weaveworks/flux/pull/1425)
+- Adapt the sampling rate for image metadata, and back off when
+  throttled
+  [weaveworks/flux#1354](https://github.com/weaveworks/flux/pull/1354)
+- The detailed rollout status of workloads is now reported in the API
+  (NB this is not yet used in the command-line tool)
+  [weaveworks/flux#1380](https://github.com/weaveworks/flux/pull/1380)
+
+### Thanks
+
+A warm thank-you to @AugustasV, @MansM, @Morriz, @MrYadro, @Timer,
+@aaron-trout, @bhavin192, @brandon-bethke-neudesic, @brantb, @bzon,
+@dbluxo, @dholbach, @dlespiau, @endrec, @hiddeco, @justdavid,
+@justinbarrick, @kozejonaz, @lelenanam, @leoblanc, @marcemq,
+@marcusolsson, @mellena1, @mt-inside, @ncabatoff, @pcfens, @rade,
+@rndstr, @sc250024, @sfrique, @skurtzemann, @squaremo, @stefanprodan,
+@stephenmoloney, @timthelion, @tlvu, @whereismyjetpack, @white-hat,
+@wstrange for your contributions.
 
 ## 1.7.1 (2018-09-26)
 
