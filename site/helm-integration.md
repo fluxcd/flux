@@ -41,36 +41,68 @@ Flux-Helm Integration implementation consists of two parts:
   spec:
     chartGitPath: mongodb
     releaseName: mongo-database
-    values:
+    valueFiles:
+    - "/opt/my-configmap/cluster-values.yaml"
+    values
       image: bitnami/mongodb:3.7.1-r1
 ```
 
 ## Required fields
 
- - name
- - namespace
- - chartGitPath ... path (from repo root) to a Chart subdirectory
+ - `.metadata.name`
+ - `.metadata.namespace`
+ - `.spec.chartGitPath` - path (relative to `--git-charts-path`) to a Chart subdirectory
 
 ## Optional fields
 
-- image
-- resources -> requests -> memory (nested)
-- releaseName:
+- `.spec.values` - Any values which are passed to tiller in a similar
+  manner to the `--set` flag in the helm CLI. They can be any value
+  like that in a chart's `values.yaml`. For example:
+  ```yaml
+  values:
+    foo: value1
+    bar:
+      baz: value2
+    oof:
+    - item1
+    - item2
+  ```
+
+- `.spec.valueFiles` - An array of paths to files in the helm-operator pod
+  which will be read in a similar way to the `-f/--values` flag in the
+  helm CLI. These values always have a lower priority that those passed
+  via the `.spec.values` parameter.
+
+  This is useful if you want to have cluster defaults such as the
+  `region`, `clustername`, `environment`, a local docker registry URL,
+  etc.
+
+  For example:
+  ```yaml
+  valueFiles:
+  - "/opt/my-configmap/cluster-values.yaml"
+  - "/opt/my-configmap/cluster-values-2.yaml"
+  ```
+  Where `my-configmap` _could_ look something like:
+  ```yaml
+  apiVersion: v1
+  kind: ConfigMap
+    metadata:
+      name: cluster-bootstrap
+      namespace: flux
+  data:
+    cluster-values.yaml: |+
+      cluster_env: prod
+      logLevel: warn
+  ```
+
+- `.spec.releaseName`:
   - if a release already exists and Flux should start managing it, then
     releasename must be provided
   - if releasename is not provided, Flux will construct a release name
     based on the namespace and the Custom Resource name (ie
     $namespace-$CR_name)
 
-    ```yaml
-    - values:
-        foo: value1
-        bar:
-          baz: value2
-        oof:
-          - item1
-          - item2
-    ```
 - `automated` annotations define which images Flux will automatically
   deploy on a cluster. You can use glob, semver or regex expressions.
   Here's an example for a single image:

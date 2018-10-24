@@ -4,12 +4,15 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io/ioutil"
 	"os/exec"
 	"path/filepath"
 	"time"
 
+	"github.com/ghodss/yaml"
 	"github.com/go-kit/kit/log"
 	k8shelm "k8s.io/helm/pkg/helm"
+	"k8s.io/helm/pkg/chartutil"
 	hapi_release "k8s.io/helm/pkg/proto/hapi/release"
 
 	"github.com/weaveworks/flux"
@@ -155,7 +158,26 @@ func (r *Release) Install(repoDir, releaseName string, fhr ifv1.FluxHelmRelease,
 		}
 	}
 
-	strVals, err := fhr.Spec.Values.YAML()
+	// Read values from given valueFile paths (configmaps, etc.)
+	mergedValues := chartutil.Values{}
+	for _, valueFile := range fhr.Spec.ValueFiles {
+		data, err := ioutil.ReadFile(valueFile)
+		if err != nil {
+			r.logger.Log("error", fmt.Sprintf("Cannot read valueFile %s for Chart release [%s]: %#v", valueFile, releaseName, err))
+			return nil, err
+		}
+		var values chartutil.Values
+		err = yaml.Unmarshal(data, &values)
+		if err != nil {
+			r.logger.Log("error", fmt.Sprintf("Cannot yaml.Unmashal valueFile %s for Chart release [%s]: %#v", valueFile, releaseName, err))
+			return nil, err
+		}
+		mergedValues = mergeValues(mergedValues, values)
+	}
+	// Merge in values after valueFiles
+	mergedValues = mergeValues(mergedValues, fhr.Spec.Values)
+
+	strVals, err := mergedValues.YAML()
 	if err != nil {
 		r.logger.Log("error", fmt.Sprintf("Problem with supplied customizations for Chart release [%s]: %#v", releaseName, err))
 		return nil, err
@@ -292,4 +314,32 @@ func (r *Release) annotateResources(release *hapi_release.Release, fhr ifv1.Flux
 // resource.
 func fhrResourceID(fhr ifv1.FluxHelmRelease) flux.ResourceID {
 	return flux.MakeResourceID(fhr.Namespace, "FluxHelmRelease", fhr.Name)
+}
+
+
+// Merges source and destination map, preferring values from the source map
+func mergeValues(dest, src chartutil.Values) chartutil.Values {
+	for k, v := range src {
+		// If the key doesn't exist already, then just set the key to that value
+		if _, exists := dest[k]; !exists {
+			dest[k] = v
+			continue
+		}
+		nextMap, ok := v.(map[string]interface{})
+		// If it isn't another map, overwrite the value
+		if !ok {
+			dest[k] = v
+			continue
+		}
+		// Edge case: If the key exists in the destination, but isn't a map
+		destMap, isMap := dest[k].(map[string]interface{})
+		// If the source map has a map for this key, prefer it
+		if !isMap {
+			dest[k] = v
+			continue
+		}
+		// If we got to this point, it is a map in both, so merge them
+		dest[k] = mergeValues(destMap, nextMap)
+	}
+	return dest
 }

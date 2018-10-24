@@ -24,6 +24,7 @@ type FluxHelmRelease struct {
 type FluxHelmReleaseSpec struct {
 	ChartGitPath   string `json:"chartGitPath"`
 	ReleaseName    string `json:"releaseName,omitempty"`
+	ValueFiles 	 []string `json:"valueFiles,omitempty"`
 	FluxHelmValues `json:",inline"`
 }
 
