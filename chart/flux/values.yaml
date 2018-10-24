@@ -81,11 +81,11 @@ resources: {}
   # If you do want to specify resources, uncomment the following
   # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
   # limits:
-  #  cpu: 100m
-  #  memory: 128Mi
+  #  cpu: 250m
+  #  memory: 300Mi
   # requests:
-  #  cpu: 100m
-  #  memory: 128Mi
+  #  cpu: 150m
+  #  memory: 250Mi
 
 nodeSelector: {}
 

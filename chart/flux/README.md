@@ -176,6 +176,8 @@ The following tables lists the configurable parameters of the Weave Flux chart a
 | `image.tag` | Image tag | `<VERSION>`
 | `image.pullPolicy` | Image pull policy | `IfNotPresent`
 | `resources` | CPU/memory resource requests/limits for Flux | None
+| `token` | Weave Cloud service token | None
+| `extraEnvs` | Extra environment variables for the Flux pod | `[]`
 | `rbac.create` | If `true`, create and use RBAC resources | `true`
 | `serviceAccount.create` | If `true`, create a new service account | `true`
 | `serviceAccount.name` | Service account to be used | `flux`
@@ -199,6 +201,9 @@ The following tables lists the configurable parameters of the Weave Flux chart a
 | `registry.burst` | Maximum number of warmer connections to remote and memcache | `125`
 | `registry.trace` |  Output trace of image registry requests to log | `false`
 | `registry.insecureHosts` | Use HTTP rather than HTTPS for these image registry domains | None
+| `memcached.verbose` | Enable request logging in memcached | `false`
+| `memcached.maxItemSize` | Maximum size for one item | `1m`
+| `memcached.maxMemory` | Maximum memory to use, in megabytes | `64`
 | `memcached.resources` | CPU/memory resource requests/limits for memcached | None
 | `helmOperator.create` | If `true`, install the Helm operator | `false`
 | `helmOperator.repository` | Helm operator image repository | `quay.io/weaveworks/helm-operator`
@@ -221,8 +226,6 @@ The following tables lists the configurable parameters of the Weave Flux chart a
 | `helmOperator.tls.keyFile` | Name of the key file within the k8s secret | `tls.key`
 | `helmOperator.tls.certFile` | Name of the certificate file within the k8s secret | `tls.crt`
 | `helmOperator.tls.caContent` | Certificate Authority content used to validate the Tiller server certificate | None
-| `token` | Weave Cloud service token | None
-| `extraEnvs` | Extra environment variables for the Flux pod | `[]`
 | `helmOperator.resources` | CPU/memory resource requests/limits for Helm operator | None
 
 Specify each parameter using the `--set key=value[,key=value]` argument to `helm install`. For example:
