@@ -1,6 +1,31 @@
-## 0.x.x (unreleased)
+## 0.3.0 (2018-10-24)
 
-- ..
+This release adds dependency handling to the Helm operator.
+
+**NB** The helm operator will now update dependencies for charts _by
+default_, which means you no longer need to vendor them. You can
+switch this behaviour off with the flag `--update-chart-deps=false`.
+
+### Bug fixes
+
+ - Improve chance of graceful shutdown
+   [weaveworks/flux#1439](https://github.com/weaveworks/flux/pull/1439)
+   and
+   [weaveworks/flux#1438](https://github.com/weaveworks/flux/pull/1438)
+ 
+### Improvements
+
+ - The operator now runs `helm dep build` for charts before installing
+   or upgrading releases. This will use a lockfile if present, and
+   update the dependencies according to `requirements.yaml` otherwise
+   [weaveworks/flux#1450](https://github.com/weaveworks/flux/pull/1450)
+ - A new flag `--git-timeout` controls how long the Helm operator will
+   allow for git operations
+   [weaveworks/flux#1416](https://github.com/weaveworks/flux/pull/1416)
+ - The Helm operator image now includes the Helm command-line client,
+   which makes it easier to troubleshoot problems using `kubectl exec`
+   (as part of
+   [weaveworks/flux#1450](https://github.com/weaveworks/flux/pull/1450))
 
 ## 0.2.1 (2018-09-17)
 
