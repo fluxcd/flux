@@ -157,3 +157,6 @@ extraEnvs: []
 # extraEnvs:
 #   - name: FOO
 #     value: bar
+
+prometheus:
+  enabled: false

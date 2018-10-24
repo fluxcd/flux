@@ -20,6 +20,10 @@ spec:
       release: {{ .Release.Name }}
   template:
     metadata:
+      {{- if .Values.prometheus.enabled }}
+      annotations:
+        prometheus.io.scrape: "true"
+      {{- end }}
       labels:
         app: {{ template "flux.name" . }}-helm-operator
         release: {{ .Release.Name }}
