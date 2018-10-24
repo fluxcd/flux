@@ -53,6 +53,18 @@ helmOperator:
   # extraEnvs:
   #   - name: FOO
   #     value: bar
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  resources: {}
+    # If you do want to specify resources, uncomment the following
+    # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+    # limits:
+    #  cpu: 50m
+    #  memory: 150Mi
+    # requests:
+    #  cpu: 20m
+    #  memory: 100Mi
 
 rbac:
   # Specifies whether RBAC resources should be created
@@ -127,6 +139,18 @@ memcached:
   verbose: false
   maxItemSize: 1m
   maxMemory: 64
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  resources: {}
+    # If you do want to specify resources, uncomment the following
+    # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+    # limits:
+    #  cpu: 100m
+    #  memory: 70Mi
+    # requests:
+    #  cpu: 50m
+    #  memory: 64Mi
 
 ssh:
   # Overrides for git over SSH. If you use your own git server, you
