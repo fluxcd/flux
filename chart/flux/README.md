@@ -195,7 +195,6 @@ The following tables lists the configurable parameters of the Weave Flux chart a
 | `git.timeout` | Duration after which git operations time out | `20s`
 | `git.secretName` | Kubernetes secret with the SSH private key | None
 | `ssh.known_hosts`  | The contents of an SSH `known_hosts` file, if you need to supply host key(s) | None
-| `registry.cacheExpiry` | Duration to keep cached image info in memcached | `1h`
 | `registry.pollInterval` | Period at which to check for updated images | `5m`
 | `registry.rps` | Maximum registry requests per second per host | `200`
 | `registry.burst` | Maximum number of warmer connections to remote and memcache | `125`

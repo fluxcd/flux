@@ -124,8 +124,6 @@ git:
   secretName: ""
 
 registry:
-  # Duration to keep cached image info. Must be < 1 month.
-  cacheExpiry: "1h"
   # Period at which to check for updated images
   pollInterval: "5m"
   # Maximum registry requests per second per host
@@ -136,7 +134,9 @@ registry:
   trace: false
   # Use HTTP rather than HTTPS for these image registry domains eg --set registry.insecureHosts="registry1.cluster.local,registry2.cluster.local"
   insecureHosts:
- 
+  # Duration to keep cached image info. Must be < 1 month. (Deprecated)
+  cacheExpiry:
+
 memcached:
   verbose: false
   maxItemSize: 1m
