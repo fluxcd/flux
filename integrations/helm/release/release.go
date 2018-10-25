@@ -11,8 +11,8 @@ import (
 
 	"github.com/ghodss/yaml"
 	"github.com/go-kit/kit/log"
-	k8shelm "k8s.io/helm/pkg/helm"
 	"k8s.io/helm/pkg/chartutil"
+	k8shelm "k8s.io/helm/pkg/helm"
 	hapi_release "k8s.io/helm/pkg/proto/hapi/release"
 
 	"github.com/weaveworks/flux"
@@ -316,8 +316,8 @@ func fhrResourceID(fhr ifv1.FluxHelmRelease) flux.ResourceID {
 	return flux.MakeResourceID(fhr.Namespace, "FluxHelmRelease", fhr.Name)
 }
 
-
-// Merges source and destination map, preferring values from the source map
+// Merges source and destination `chartutils.Values`, preferring values from the source Values
+// This is slightly adapted from https://github.com/helm/helm/blob/master/cmd/helm/install.go#L329
 func mergeValues(dest, src chartutil.Values) chartutil.Values {
 	for k, v := range src {
 		// If the key doesn't exist already, then just set the key to that value
