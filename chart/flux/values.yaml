@@ -18,8 +18,10 @@ helmOperator:
   create: false
   createCRD: true
   repository: quay.io/weaveworks/helm-operator
-  tag: 0.2.1
+  tag: 0.3.0
   pullPolicy: IfNotPresent
+  # Update dependencies for charts
+  updateChartDeps: true
   # Log the diff when a chart release diverges
   logReleaseDiffs: false
   # Interval at which to check for changed charts

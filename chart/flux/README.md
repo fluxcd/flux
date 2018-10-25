@@ -209,6 +209,7 @@ The following tables lists the configurable parameters of the Weave Flux chart a
 | `helmOperator.repository` | Helm operator image repository | `quay.io/weaveworks/helm-operator`
 | `helmOperator.tag` | Helm operator image tag | `<VERSION>`
 | `helmOperator.pullPolicy` | Helm operator image pull policy | `IfNotPresent`
+| `helmOperator.updateChartDeps` | Update dependencies for charts | `true`
 | `helmOperator.chartsSyncInterval` | Interval at which to check for changed charts | `3m`
 | `helmOperator.chartsSyncTimeout` | Timeout when checking for changed charts | `1m`
 | `helmOperator.extraEnvs` | Extra environment variables for the Helm operator pod | `[]`
