@@ -1,7 +1,7 @@
 This is the changelog for the Flux daemon; the changelog for the Helm
 operator is in [./CHANGELOG-helmop.md](./CHANGELOG-helmop.md).
 
-## 1.8.0 (2018-10-24)
+## 1.8.0 (2018-10-25)
 
 This release includes a change to how image registries are scanned for
 metadata, which should reduce the amount of polling, while being
