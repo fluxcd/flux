@@ -58,7 +58,7 @@ helm repo add weaveworks https://weaveworks.github.io/flux
 
 #### To install the chart with the release name `flux`:
 
-```console
+```sh
 $ helm install --name flux \
 --set git.url=ssh://git@github.com/weaveworks/flux-example \
 --namespace flux \
@@ -67,7 +67,7 @@ weaveworks/flux
 
 #### To connect Flux to a Weave Cloud instance:
 
-```console
+```sh
 helm install --name flux \
 --set token=YOUR_WEAVE_CLOUD_SERVICE_TOKEN \
 --namespace flux \
@@ -76,7 +76,7 @@ weaveworks/flux
 
 #### To install Flux with the Helm operator:
 
-```console
+```sh
 $ helm install --name flux \
 --set git.url=ssh://git@github.com/weaveworks/flux-helm-test \
 --set helmOperator.create=true \
@@ -96,7 +96,7 @@ called `flux-ssh-config` which in turn will be mounted into a volume named
 
 * Get the `ssh.known_hosts` keys by running the following command:
 
-```bash
+```sh
 ssh-keyscan <your_git_host_domain>
 ```
 
@@ -107,36 +107,36 @@ using an alternate mechanism.
 * Start flux and flux helm operator:
 
   - Using a string for setting `known_hosts`
-  
+
     ```sh
     YOUR_GIT_HOST=your_git_host.example.com
     KNOWN_HOSTS='domain ssh-rsa line1
     domain ecdsa-sha2-line2
     domain ssh-ed25519 line3'
-    
+
     helm install \
     --name flux \
     --set helmOperator.create=true \
     --set git.url="ssh://git@${YOUR_GIT_HOST}:weaveworks/flux-helm-test.git" \
     --set-string ssh.known_hosts="${KNOWN_HOSTS}" \
     --namespace flux \
-    chart/flux 
+    chart/flux
     ```
-    
+
   - Using a file for setting `known_hosts`
-  
+
     Copy known_hosts keys into a temporary file `/tmp/flux_known_hosts`
-    
+
     ```sh
     YOUR_GIT_HOST=your_git_host.example.com
-    
+
     helm install \
     --name flux \
     --set helmOperator.create=true \
     --set git.url="ssh://git@${YOUR_GIT_HOST}:weaveworks/flux-helm-test.git" \
     --set-file ssh.known_hosts=/tmp/flux_known_hosts \
     --namespace flux \
-    chart/flux 
+    chart/flux
     ```
 
 The [configuration](#configuration) section lists all the parameters that can be configured during installation.
@@ -146,7 +146,7 @@ The [configuration](#configuration) section lists all the parameters that can be
 At startup Flux generates a SSH key and logs the public key.
 Find the SSH public key with:
 
-```bash
+```sh
 kubectl -n flux logs deployment/flux | grep identity.pub | cut -d '"' -f2
 ```
 
@@ -159,7 +159,7 @@ _Allow write access_, paste the Flux public key and click _Add key_.
 
 To uninstall/delete the `flux` deployment:
 
-```console
+```sh
 helm delete --purge flux
 ```
 
@@ -230,7 +230,7 @@ The following tables lists the configurable parameters of the Weave Flux chart a
 
 Specify each parameter using the `--set key=value[,key=value]` argument to `helm install`. For example:
 
-```console
+```sh
 $ helm upgrade --install --wait flux \
 --set git.url=ssh://git@github.com/stefanprodan/podinfo \
 --set git.path=deploy/auto-scaling,deploy/local-storage \
@@ -242,7 +242,7 @@ weaveworks/flux
 
 Update Weave Flux version with:
 
-```console
+```sh
 helm upgrade --reuse-values flux \
 --set image.tag=1.7.1 \
 weaveworks/flux
