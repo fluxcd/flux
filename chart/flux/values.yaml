@@ -7,7 +7,7 @@ replicaCount: 1
 
 image:
   repository: quay.io/weaveworks/flux
-  tag: 1.7.1
+  tag: 1.8.0
   pullPolicy: IfNotPresent
 
 service:
