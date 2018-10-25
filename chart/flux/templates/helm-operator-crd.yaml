@@ -38,5 +38,9 @@ spec:
               type: string
             values:
               type: object
+            valueFiles:
+              type: array
+              items:
+                type: string
 {{- end -}}
 {{- end -}}
