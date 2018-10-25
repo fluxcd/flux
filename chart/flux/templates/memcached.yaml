@@ -35,6 +35,20 @@ spec:
         ports:
         - name: memcached
           containerPort: 11211
+        resources:
+{{ toYaml .Values.memcached.resources | indent 10 }}
+    {{- with .Values.memcached.nodeSelector }}
+      nodeSelector:
+{{ toYaml . | indent 8 }}
+    {{- end }}
+    {{- with .Values.memcached.affinity }}
+      affinity:
+{{ toYaml . | indent 8 }}
+    {{- end }}
+    {{- with .Values.memcached.tolerations }}
+      tolerations:
+{{ toYaml . | indent 8 }}
+    {{- end }}
 ---
 apiVersion: v1
 kind: Service

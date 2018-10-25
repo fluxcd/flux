@@ -103,4 +103,18 @@ spec:
         env:
 {{ toYaml .Values.helmOperator.extraEnvs | indent 8 }}
       {{- end }}
+        resources:
+{{ toYaml .Values.helmOperator.resources | indent 10 }}
+      {{- with .Values.helmOperator.nodeSelector }}
+      nodeSelector:
+{{ toYaml . | indent 8 }}
+      {{- end }}
+      {{- with .Values.helmOperator.affinity }}
+      affinity:
+{{ toYaml . | indent 8 }}
+      {{- end }}
+      {{- with .Values.helmOperator.tolerations }}
+      tolerations:
+{{ toYaml . | indent 8 }}
+      {{- end }}
 {{- end -}}
