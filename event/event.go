@@ -95,10 +95,12 @@ func (e Event) String() string {
 		if len(strImageIDs) == 0 {
 			strImageIDs = []string{"no image changes"}
 		}
-		for _, spec := range metadata.Spec.ServiceSpecs {
-			if spec == update.ResourceSpecAll {
-				strServiceIDs = []string{"all services"}
-				break
+		if metadata.Spec.Type == ReleaseImageSpecType {
+			for _, spec := range metadata.Spec.ReleaseImageSpec.ServiceSpecs {
+				if spec == update.ResourceSpecAll {
+					strServiceIDs = []string{"all services"}
+					break
+				}
 			}
 		}
 		if len(strServiceIDs) == 0 {
@@ -239,11 +241,27 @@ type ReleaseEventCommon struct {
 	Error string `json:"error,omitempty"`
 }
 
+const (
+	// ReleaseImageSpecType is a type of release spec when there are update.Images
+	ReleaseImageSpecType = "releaseImageSpecType"
+	// ReleaseContainerSpecType is a type of release spec when there are update.Containers
+	ReleaseContainerSpecType = "releaseContainerSpecType"
+)
+
+// ReleaseSpec is a spec for images and containers release
+type ReleaseSpec struct {
+	// Type is ReleaseImagesSpecType or ReleaseContainersSpecType
+	// if empty (for previous version), then use ReleaseImagesSpecType
+	Type                 string
+	ReleaseImageSpec     *update.ReleaseImageSpec
+	ReleaseContainerSpec *update.ReleaseContainersSpec
+}
+
 // ReleaseEventMetadata is the metadata for when service(s) are released
 type ReleaseEventMetadata struct {
 	ReleaseEventCommon
-	Spec  update.ReleaseSpec `json:"spec"`
-	Cause update.Cause       `json:"cause"`
+	Spec  ReleaseSpec  `json:"spec"`
+	Cause update.Cause `json:"cause"`
 }
 
 // AutoReleaseEventMetadata is for when service(s) are released

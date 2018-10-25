@@ -306,8 +306,8 @@ func (d *Daemon) doSync(logger log.Logger) (retErr error) {
 
 			// Interpret some notes as events to send to the upstream
 			switch n.Spec.Type {
-			case update.Images:
-				spec := n.Spec.Spec.(update.ReleaseSpec)
+			case update.Containers:
+				spec := n.Spec.Spec.(update.ReleaseContainersSpec)
 				noteEvents = append(noteEvents, event.Event{
 					ServiceIDs: n.Result.AffectedResources(),
 					Type:       event.EventRelease,
@@ -320,7 +320,32 @@ func (d *Daemon) doSync(logger log.Logger) (retErr error) {
 							Result:   n.Result,
 							Error:    n.Result.Error(),
 						},
-						Spec:  spec,
+						Spec: event.ReleaseSpec{
+							Type:                 event.ReleaseContainerSpecType,
+							ReleaseContainerSpec: &spec,
+						},
+						Cause: n.Spec.Cause,
+					},
+				})
+				includes[event.EventRelease] = true
+			case update.Images:
+				spec := n.Spec.Spec.(update.ReleaseImageSpec)
+				noteEvents = append(noteEvents, event.Event{
+					ServiceIDs: n.Result.AffectedResources(),
+					Type:       event.EventRelease,
+					StartedAt:  started,
+					EndedAt:    time.Now().UTC(),
+					LogLevel:   event.LogLevelInfo,
+					Metadata: &event.ReleaseEventMetadata{
+						ReleaseEventCommon: event.ReleaseEventCommon{
+							Revision: commits[i].Revision,
+							Result:   n.Result,
+							Error:    n.Result.Error(),
+						},
+						Spec: event.ReleaseSpec{
+							Type:             event.ReleaseImageSpecType,
+							ReleaseImageSpec: &spec,
+						},
 						Cause: n.Spec.Cause,
 					},
 				})

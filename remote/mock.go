@@ -160,7 +160,7 @@ func ServerTestBattery(t *testing.T, wrap func(mock api.UpstreamServer) api.Upst
 
 	updateSpec := update.Spec{
 		Type: update.Images,
-		Spec: update.ReleaseSpec{
+		Spec: update.ReleaseImageSpec{
 			ServiceSpecs: []update.ResourceSpec{
 				update.ResourceSpecAll,
 			},
