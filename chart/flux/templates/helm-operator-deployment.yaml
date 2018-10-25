@@ -88,6 +88,7 @@ spec:
         - --git-charts-path={{ .Values.helmOperator.git.chartsPath }}
         - --charts-sync-interval={{ .Values.helmOperator.chartsSyncInterval }}
         - --charts-sync-timeout={{ .Values.helmOperator.chartsSyncTimeout }}
+        - --update-chart-deps={{ .Values.helmOperator.updateChartDeps }}
         - --log-release-diffs={{ .Values.helmOperator.logReleaseDiffs }}
         - --tiller-namespace={{ .Values.helmOperator.tillerNamespace }}
         {{- if .Values.helmOperator.tls.enable }}
