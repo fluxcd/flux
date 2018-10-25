@@ -95,7 +95,7 @@ func (e Event) String() string {
 		if len(strImageIDs) == 0 {
 			strImageIDs = []string{"no image changes"}
 		}
-		if metadata.Spec.Type == ReleaseImageSpecType {
+		if metadata.Spec.Type == "" || metadata.Spec.Type == ReleaseImageSpecType {
 			for _, spec := range metadata.Spec.ReleaseImageSpec.ServiceSpecs {
 				if spec == update.ResourceSpecAll {
 					strServiceIDs = []string{"all services"}
@@ -244,17 +244,17 @@ type ReleaseEventCommon struct {
 const (
 	// ReleaseImageSpecType is a type of release spec when there are update.Images
 	ReleaseImageSpecType = "releaseImageSpecType"
-	// ReleaseContainerSpecType is a type of release spec when there are update.Containers
-	ReleaseContainerSpecType = "releaseContainerSpecType"
+	// ReleaseContainersSpecType is a type of release spec when there are update.Containers
+	ReleaseContainersSpecType = "releaseContainersSpecType"
 )
 
 // ReleaseSpec is a spec for images and containers release
 type ReleaseSpec struct {
-	// Type is ReleaseImagesSpecType or ReleaseContainersSpecType
-	// if empty (for previous version), then use ReleaseImagesSpecType
-	Type                 string
-	ReleaseImageSpec     *update.ReleaseImageSpec
-	ReleaseContainerSpec *update.ReleaseContainersSpec
+	// Type is ReleaseImageSpecType or ReleaseContainersSpecType
+	// if empty (for previous version), then use ReleaseImageSpecType
+	Type                  string
+	ReleaseImageSpec      *update.ReleaseImageSpec
+	ReleaseContainersSpec *update.ReleaseContainersSpec
 }
 
 // ReleaseEventMetadata is the metadata for when service(s) are released

@@ -243,7 +243,7 @@ func Test_InitContainer(t *testing.T) {
 	}
 
 	initSpec, _ := update.ParseResourceSpec(initWorkloadID.String())
-	spec := update.ReleaseSpec{
+	spec := update.ReleaseImageSpec{
 		ServiceSpecs: []update.ResourceSpec{initSpec},
 		ImageSpec:    update.ImageSpecLatest,
 		Kind:         update.ReleaseKindExecute,
@@ -268,13 +268,13 @@ func Test_FilterLogic(t *testing.T) {
 	notInRepoSpec, _ := update.ParseResourceSpec(notInRepoService)
 	for _, tst := range []struct {
 		Name     string
-		Spec     update.ReleaseSpec
+		Spec     update.ReleaseImageSpec
 		Expected expected
 	}{
 		// ignored if: excluded OR not included OR not correct image.
 		{
 			Name: "include specific service",
-			Spec: update.ReleaseSpec{
+			Spec: update.ReleaseImageSpec{
 				ServiceSpecs: []update.ResourceSpec{hwSvcSpec},
 				ImageSpec:    update.ImageSpecLatest,
 				Kind:         update.ReleaseKindExecute,
@@ -302,7 +302,7 @@ func Test_FilterLogic(t *testing.T) {
 			},
 		}, {
 			Name: "exclude specific service",
-			Spec: update.ReleaseSpec{
+			Spec: update.ReleaseImageSpec{
 				ServiceSpecs: []update.ResourceSpec{update.ResourceSpecAll},
 				ImageSpec:    update.ImageSpecLatest,
 				Kind:         update.ReleaseKindExecute,
@@ -334,7 +334,7 @@ func Test_FilterLogic(t *testing.T) {
 			},
 		}, {
 			Name: "update specific image",
-			Spec: update.ReleaseSpec{
+			Spec: update.ReleaseImageSpec{
 				ServiceSpecs: []update.ResourceSpec{update.ResourceSpecAll},
 				ImageSpec:    update.ImageSpecFromRef(newHwRef),
 				Kind:         update.ReleaseKindExecute,
@@ -363,7 +363,7 @@ func Test_FilterLogic(t *testing.T) {
 			// skipped if: not ignored AND (locked or not found in cluster)
 			// else: service is pending.
 			Name: "skipped & service is pending",
-			Spec: update.ReleaseSpec{
+			Spec: update.ReleaseImageSpec{
 				ServiceSpecs: []update.ResourceSpec{update.ResourceSpecAll},
 				ImageSpec:    update.ImageSpecLatest,
 				Kind:         update.ReleaseKindExecute,
@@ -395,7 +395,7 @@ func Test_FilterLogic(t *testing.T) {
 			},
 		}, {
 			Name: "all overrides spec",
-			Spec: update.ReleaseSpec{
+			Spec: update.ReleaseImageSpec{
 				ServiceSpecs: []update.ResourceSpec{hwSvcSpec, update.ResourceSpecAll},
 				ImageSpec:    update.ImageSpecLatest,
 				Kind:         update.ReleaseKindExecute,
@@ -427,7 +427,7 @@ func Test_FilterLogic(t *testing.T) {
 			},
 		}, {
 			Name: "service not in repo",
-			Spec: update.ReleaseSpec{
+			Spec: update.ReleaseImageSpec{
 				ServiceSpecs: []update.ResourceSpec{notInRepoSpec},
 				ImageSpec:    update.ImageSpecLatest,
 				Kind:         update.ReleaseKindExecute,
@@ -468,12 +468,12 @@ func Test_Force_lockedController(t *testing.T) {
 	}
 	for _, tst := range []struct {
 		Name     string
-		Spec     update.ReleaseSpec
+		Spec     update.ReleaseImageSpec
 		Expected expected
 	}{
 		{
 			Name: "force ignores service lock (--controller --update-image)",
-			Spec: update.ReleaseSpec{
+			Spec: update.ReleaseImageSpec{
 				ServiceSpecs: []update.ResourceSpec{lockedSvcSpec},
 				ImageSpec:    update.ImageSpecFromRef(newLockedRef),
 				Kind:         update.ReleaseKindExecute,
@@ -488,7 +488,7 @@ func Test_Force_lockedController(t *testing.T) {
 			},
 		}, {
 			Name: "force does not ignore lock if updating all controllers (--all --update-image)",
-			Spec: update.ReleaseSpec{
+			Spec: update.ReleaseImageSpec{
 				ServiceSpecs: []update.ResourceSpec{update.ResourceSpecAll},
 				ImageSpec:    update.ImageSpecFromRef(newLockedRef),
 				Kind:         update.ReleaseKindExecute,
@@ -504,7 +504,7 @@ func Test_Force_lockedController(t *testing.T) {
 		},
 		{
 			Name: "force ignores service lock (--controller --update-all-images)",
-			Spec: update.ReleaseSpec{
+			Spec: update.ReleaseImageSpec{
 				ServiceSpecs: []update.ResourceSpec{lockedSvcSpec},
 				ImageSpec:    update.ImageSpecLatest,
 				Kind:         update.ReleaseKindExecute,
@@ -519,7 +519,7 @@ func Test_Force_lockedController(t *testing.T) {
 			},
 		}, {
 			Name: "force does not ignore lock if updating all controllers (--all --update-all-images)",
-			Spec: update.ReleaseSpec{
+			Spec: update.ReleaseImageSpec{
 				ServiceSpecs: []update.ResourceSpec{update.ResourceSpecAll},
 				ImageSpec:    update.ImageSpecLatest,
 				Kind:         update.ReleaseKindExecute,
@@ -571,12 +571,12 @@ func Test_Force_filteredContainer(t *testing.T) {
 	}
 	for _, tst := range []struct {
 		Name     string
-		Spec     update.ReleaseSpec
+		Spec     update.ReleaseImageSpec
 		Expected expected
 	}{
 		{
 			Name: "force ignores container tag pattern (--controller --update-image)",
-			Spec: update.ReleaseSpec{
+			Spec: update.ReleaseImageSpec{
 				ServiceSpecs: []update.ResourceSpec{semverSvcSpec},
 				ImageSpec:    update.ImageSpecFromRef(newHwRef), // does not match filter
 				Kind:         update.ReleaseKindExecute,
@@ -592,7 +592,7 @@ func Test_Force_filteredContainer(t *testing.T) {
 		},
 		{
 			Name: "force ignores container tag pattern (--all --update-image)",
-			Spec: update.ReleaseSpec{
+			Spec: update.ReleaseImageSpec{
 				ServiceSpecs: []update.ResourceSpec{update.ResourceSpecAll},
 				ImageSpec:    update.ImageSpecFromRef(newHwRef), // does not match filter
 				Kind:         update.ReleaseKindExecute,
@@ -608,7 +608,7 @@ func Test_Force_filteredContainer(t *testing.T) {
 		},
 		{
 			Name: "force complies with semver when updating all images (--controller --update-all-image)",
-			Spec: update.ReleaseSpec{
+			Spec: update.ReleaseImageSpec{
 				ServiceSpecs: []update.ResourceSpec{semverSvcSpec},
 				ImageSpec:    update.ImageSpecLatest, // will filter images by semver and pick newest version
 				Kind:         update.ReleaseKindExecute,
@@ -624,7 +624,7 @@ func Test_Force_filteredContainer(t *testing.T) {
 		},
 		{
 			Name: "force complies with semver when updating all images (--all --update-all-image)",
-			Spec: update.ReleaseSpec{
+			Spec: update.ReleaseImageSpec{
 				ServiceSpecs: []update.ResourceSpec{update.ResourceSpecAll},
 				ImageSpec:    update.ImageSpecLatest,
 				Kind:         update.ReleaseKindExecute,
@@ -670,12 +670,12 @@ func Test_ImageStatus(t *testing.T) {
 	testSvcSpec, _ := update.ParseResourceSpec(testSvc.ID.String())
 	for _, tst := range []struct {
 		Name     string
-		Spec     update.ReleaseSpec
+		Spec     update.ReleaseImageSpec
 		Expected expected
 	}{
 		{
 			Name: "image not found",
-			Spec: update.ReleaseSpec{
+			Spec: update.ReleaseImageSpec{
 				ServiceSpecs: []update.ResourceSpec{testSvcSpec},
 				ImageSpec:    update.ImageSpecLatest,
 				Kind:         update.ReleaseKindExecute,
@@ -692,7 +692,7 @@ func Test_ImageStatus(t *testing.T) {
 			},
 		}, {
 			Name: "image up to date",
-			Spec: update.ReleaseSpec{
+			Spec: update.ReleaseImageSpec{
 				ServiceSpecs: []update.ResourceSpec{hwSvcSpec},
 				ImageSpec:    update.ImageSpecLatest,
 				Kind:         update.ReleaseKindExecute,
@@ -746,7 +746,7 @@ func Test_UpdateMultidoc(t *testing.T) {
 		repo:      checkout,
 		registry:  mockRegistry,
 	}
-	spec := update.ReleaseSpec{
+	spec := update.ReleaseImageSpec{
 		ServiceSpecs: []update.ResourceSpec{"default:deployment/multi-deploy"},
 		ImageSpec:    update.ImageSpecLatest,
 		Kind:         update.ReleaseKindExecute,
@@ -794,7 +794,7 @@ func Test_UpdateList(t *testing.T) {
 		repo:      checkout,
 		registry:  mockRegistry,
 	}
-	spec := update.ReleaseSpec{
+	spec := update.ReleaseImageSpec{
 		ServiceSpecs: []update.ResourceSpec{"default:deployment/list-deploy"},
 		ImageSpec:    update.ImageSpecLatest,
 		Kind:         update.ReleaseKindExecute,
@@ -1014,7 +1014,7 @@ func Test_UpdateContainers(t *testing.T) {
 			},
 		},
 	} {
-		specs := update.ContainerSpecs{
+		specs := update.ReleaseContainersSpec{
 			ContainerSpecs: map[flux.ResourceID][]update.ContainerUpdate{tst.WorkloadID: tst.Spec},
 			Kind:           update.ReleaseKindExecute,
 		}
@@ -1040,7 +1040,7 @@ func Test_UpdateContainers(t *testing.T) {
 	}
 }
 
-func testRelease(t *testing.T, ctx *ReleaseContext, spec update.ReleaseSpec, expected update.Result) {
+func testRelease(t *testing.T, ctx *ReleaseContext, spec update.ReleaseImageSpec, expected update.Result) {
 	results, err := Release(ctx, spec, log.NewNopLogger())
 	assert.NoError(t, err)
 	assert.Equal(t, expected, results)
@@ -1059,7 +1059,7 @@ func (m *badManifests) UpdateImage(def []byte, resourceID flux.ResourceID, conta
 
 func Test_BadRelease(t *testing.T) {
 	cluster := mockCluster(hwSvc)
-	spec := update.ReleaseSpec{
+	spec := update.ReleaseImageSpec{
 		ServiceSpecs: []update.ResourceSpec{update.ResourceSpecAll},
 		ImageSpec:    update.ImageSpecFromRef(newHwRef),
 		Kind:         update.ReleaseKindExecute,

@@ -321,8 +321,8 @@ func (d *Daemon) doSync(logger log.Logger) (retErr error) {
 							Error:    n.Result.Error(),
 						},
 						Spec: event.ReleaseSpec{
-							Type:                 event.ReleaseContainerSpecType,
-							ReleaseContainerSpec: &spec,
+							Type: event.ReleaseContainersSpecType,
+							ReleaseContainersSpec: &spec,
 						},
 						Cause: n.Spec.Cause,
 					},
