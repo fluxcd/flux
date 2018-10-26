@@ -4,13 +4,14 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os/exec"
 	"path/filepath"
 	"time"
 
 	"github.com/ghodss/yaml"
 	"github.com/go-kit/kit/log"
+	"k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/helm/pkg/chartutil"
 	k8shelm "k8s.io/helm/pkg/helm"
 	hapi_release "k8s.io/helm/pkg/proto/hapi/release"
@@ -135,7 +136,7 @@ func (r *Release) canDelete(name string) (bool, error) {
 // charts, and the FluxHelmRelease specifying the release. Depending
 // on the release type, this is either a new release, or an upgrade of
 // an existing one.
-func (r *Release) Install(repoDir, releaseName string, fhr ifv1.FluxHelmRelease, action Action, opts InstallOptions) (*hapi_release.Release, error) {
+func (r *Release) Install(repoDir, releaseName string, fhr ifv1.FluxHelmRelease, action Action, opts InstallOptions, kubeClient *kubernetes.Clientset) (*hapi_release.Release, error) {
 	r.logger.Log("info", fmt.Sprintf("releaseName= %s, action=%s, install options: %+v", releaseName, action, opts))
 
 	chartPath := fhr.Spec.ChartGitPath
@@ -160,16 +161,19 @@ func (r *Release) Install(repoDir, releaseName string, fhr ifv1.FluxHelmRelease,
 
 	// Read values from given valueFile paths (configmaps, etc.)
 	mergedValues := chartutil.Values{}
-	for _, valueFile := range fhr.Spec.ValueFiles {
-		data, err := ioutil.ReadFile(valueFile)
+	for _, valueFileSecret := range fhr.Spec.ValueFileSecrets {
+		// Read the contents of the secret
+		secret, err := kubeClient.CoreV1().Secrets(namespace).Get(valueFileSecret.Name, v1.GetOptions{})
 		if err != nil {
-			r.logger.Log("error", fmt.Sprintf("Cannot read valueFile %s for Chart release [%s]: %#v", valueFile, releaseName, err))
+			r.logger.Log("error", fmt.Sprintf("Cannot get secret %s for Chart release [%s]: %#v", valueFileSecret.Name, releaseName, err))
 			return nil, err
 		}
+
+		// Load values.yaml file and merge
 		var values chartutil.Values
-		err = yaml.Unmarshal(data, &values)
+		err = yaml.Unmarshal(secret.Data["values.yaml"], &values)
 		if err != nil {
-			r.logger.Log("error", fmt.Sprintf("Cannot yaml.Unmashal valueFile %s for Chart release [%s]: %#v", valueFile, releaseName, err))
+			r.logger.Log("error", fmt.Sprintf("Cannot yaml.Unmashal values.yaml in secret %s for Chart release [%s]: %#v", valueFileSecret.Name, releaseName, err))
 			return nil, err
 		}
 		mergedValues = mergeValues(mergedValues, values)

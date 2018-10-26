@@ -37,12 +37,13 @@ Flux-Helm Integration implementation consists of two parts:
   kind: FluxHelmRelease
   metadata:
     name: mongodb
-    namespace:  myNamespace
+    namespace: myNamespace
   spec:
     chartGitPath: mongodb
     releaseName: mongo-database
-    valueFiles:
-    - "/opt/my-configmap/cluster-values.yaml"
+    valueFileSecrets:
+    - name: "my-secret-1"
+    - name: "my-secret-2"
     values
       image: bitnami/mongodb:3.7.1-r1
 ```
@@ -68,32 +69,45 @@ Flux-Helm Integration implementation consists of two parts:
     - item2
   ```
 
-- `.spec.valueFiles` - An array of paths to files in the helm-operator pod
-  which will be read in a similar way to the `-f/--values` flag in the
-  helm CLI. These values always have a lower priority that those passed
-  via the `.spec.values` parameter.
+- `.spec.valueFileSecrets` - Value files read in a similar way to the
+  `-f/--values` flag in the helm CLI. This field is an array of
+  `LocalObjectReference` which reference secrets.
+
+  - A  `LocalObjectReference` is an object with a `name` parameter (see
+    example below).
+  - The secrets must contain a file called `values.yaml`.
+  - The secrets must be in the same namespace as the FluxHelmRelease.
+  - These values always have a lower priority that those passed
+    via the `.spec.values` parameter.
+  - If multiple secret names are passed the last in the list have higher
+    priority.
 
   This is useful if you want to have cluster defaults such as the
   `region`, `clustername`, `environment`, a local docker registry URL,
-  etc.
+  etc. or if you want to have secret values not checked into git.
 
   For example:
   ```yaml
-  valueFiles:
-  - "/opt/my-configmap/cluster-values.yaml"
-  - "/opt/my-configmap/cluster-values-2.yaml"
+  valueFileSecrets:
+  - name: "my-secret-1"
+  - name: "my-secret-2"
   ```
-  Where `my-configmap` _could_ look something like:
+  Where `my-secret-1` _could_ look something like:
   ```yaml
   apiVersion: v1
-  kind: ConfigMap
-    metadata:
-      name: cluster-bootstrap
-      namespace: flux
+  kind: Secret
+  type: Opaque
+  metadata:
+    name: cluster-bootstrap
+    namespace: dev
   data:
-    cluster-values.yaml: |+
-      cluster_env: prod
-      logLevel: warn
+    values.yaml: <base64 encoded values.yaml>
+  ```
+  The contents of values.yaml _could_ look something like:
+  ```yaml
+  clusterName: "my-cluster"
+  dockerRegistry: "registry.local"
+  mySecretValue: "foo"
   ```
 
 - `.spec.releaseName`:
