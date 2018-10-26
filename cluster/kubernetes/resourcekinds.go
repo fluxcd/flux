@@ -49,6 +49,7 @@ type podController struct {
 	name        string
 	status      string
 	rollout     cluster.RolloutStatus
+	syncError   error
 	podTemplate apiv1.PodTemplateSpec
 }
 
@@ -86,6 +87,7 @@ func (pc podController) toClusterController(resourceID flux.ResourceID) cluster.
 		ID:         resourceID,
 		Status:     pc.status,
 		Rollout:    pc.rollout,
+		SyncError:  pc.syncError,
 		Antecedent: antecedent,
 		Labels:     pc.GetLabels(),
 		Containers: cluster.ContainersOrExcuse{Containers: clusterContainers, Excuse: excuse},

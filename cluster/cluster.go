@@ -28,7 +28,7 @@ type Cluster interface {
 	SomeControllers([]flux.ResourceID) ([]Controller, error)
 	Ping() error
 	Export() ([]byte, error)
-	Sync(SyncDef, map[flux.ResourceID]error) error
+	Sync(SyncDef) error
 	PublicSSHKey(regenerate bool) (ssh.PublicKey, error)
 }
 
@@ -70,6 +70,9 @@ type Controller struct {
 	Antecedent flux.ResourceID
 	Labels     map[string]string
 	Rollout    RolloutStatus
+	// Errors during the recurring sync from the Git repository to the
+	// cluster will surface here.
+	SyncError  error
 
 	Containers ContainersOrExcuse
 }

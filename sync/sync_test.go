@@ -14,7 +14,6 @@ import (
 	//	"github.com/weaveworks/flux"
 	"context"
 
-	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster"
 	"github.com/weaveworks/flux/cluster/kubernetes"
 	"github.com/weaveworks/flux/cluster/kubernetes/testfiles"
@@ -41,7 +40,7 @@ func TestSync(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := Sync(log.NewNopLogger(), manifests, resources, clus, true, nil); err != nil {
+	if err := Sync(log.NewNopLogger(), manifests, resources, clus, true); err != nil {
 		t.Fatal(err)
 	}
 	checkClusterMatchesFiles(t, manifests, clus, checkout.Dir(), dirs)
@@ -61,7 +60,7 @@ func TestSync(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := Sync(log.NewNopLogger(), manifests, resources, clus, true, nil); err != nil {
+	if err := Sync(log.NewNopLogger(), manifests, resources, clus, true); err != nil {
 		t.Fatal(err)
 	}
 	checkClusterMatchesFiles(t, manifests, clus, checkout.Dir(), dirs)
@@ -201,7 +200,7 @@ type syncCluster struct {
 	resources map[string][]byte
 }
 
-func (p *syncCluster) Sync(def cluster.SyncDef, errored map[flux.ResourceID]error) error {
+func (p *syncCluster) Sync(def cluster.SyncDef) error {
 	println("=== Syncing ===")
 	for _, action := range def.Actions {
 		if action.Delete != nil {
