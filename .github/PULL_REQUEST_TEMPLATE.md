@@ -3,13 +3,11 @@
 # General contribution criteria
 
 Please have a look at our contribution guidelines: https://github.com/weaveworks/flux/blob/master/CONTRIBUTING.md
-Particularly the sections about the
-
+Particularly the sections about the:
 - DCO
 - contribution workflow and
 - how to get your fix accepted
 
-are important.
 
 # News
 
