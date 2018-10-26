@@ -15,7 +15,7 @@ type mockApplier struct {
 	commandRun bool
 }
 
-func (m *mockApplier) apply(_ log.Logger, c changeSet) cluster.SyncError {
+func (m *mockApplier) apply(_ log.Logger, c changeSet, errored map[flux.ResourceID]error) cluster.SyncError {
 	if len(c.objs) != 0 {
 		m.commandRun = true
 	}
@@ -69,7 +69,7 @@ func TestSyncMalformed(t *testing.T) {
 	err := kube.Sync(cluster.SyncDef{
 		Actions: []cluster.SyncAction{
 			cluster.SyncAction{
-				Apply: rsc{"id", []byte("garbage")},
+				Apply: rsc{"default:deployment/trash", []byte("garbage")},
 			},
 		},
 	})

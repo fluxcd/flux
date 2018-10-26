@@ -96,6 +96,11 @@ type Cluster struct {
 	logger     log.Logger
 	sshKeyRing ssh.KeyRing
 
+	// syncErrors keeps a record of all per-resource errors during
+	// the sync from Git repo to the cluster.
+	syncErrors   map[flux.ResourceID]error
+	muSyncErrors sync.RWMutex
+
 	nsWhitelist       []string
 	nsWhitelistLogged map[string]bool // to keep track of whether we've logged a problem with seeing a whitelisted ns
 
@@ -146,6 +151,9 @@ func (c *Cluster) SomeControllers(ids []flux.ResourceID) (res []cluster.Controll
 		}
 
 		if !isAddon(podController) {
+			c.muSyncErrors.RLock()
+			podController.syncError = c.syncErrors[id]
+			c.muSyncErrors.RUnlock()
 			controllers = append(controllers, podController.toClusterController(id))
 		}
 	}
@@ -180,6 +188,9 @@ func (c *Cluster) AllControllers(namespace string) (res []cluster.Controller, er
 			for _, podController := range podControllers {
 				if !isAddon(podController) {
 					id := flux.MakeResourceID(ns.Name, kind, podController.name)
+					c.muSyncErrors.RLock()
+					podController.syncError = c.syncErrors[id]
+					c.muSyncErrors.RUnlock()
 					allControllers = append(allControllers, podController.toClusterController(id))
 				}
 			}
@@ -221,15 +232,30 @@ func (c *Cluster) Sync(spec cluster.SyncDef) error {
 
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if applyErrs := c.applier.apply(logger, cs); len(applyErrs) > 0 {
+	c.muSyncErrors.RLock()
+	if applyErrs := c.applier.apply(logger, cs, c.syncErrors); len(applyErrs) > 0 {
 		errs = append(errs, applyErrs...)
 	}
+	c.muSyncErrors.RUnlock()
 
 	// If `nil`, errs is a cluster.SyncError(nil) rather than error(nil)
-	if errs != nil {
-		return errs
+	if errs == nil {
+		return nil
 	}
-	return nil
+
+	// It is expected that Cluster.Sync is invoked with *all* resources.
+	// Otherwise it will override previously recorded sync errors.
+	c.setSyncErrors(errs)
+	return errs
+}
+
+func (c *Cluster) setSyncErrors(errs cluster.SyncError) {
+	c.muSyncErrors.Lock()
+	defer c.muSyncErrors.Unlock()
+	c.syncErrors = make(map[flux.ResourceID]error)
+	for _, e := range errs {
+		c.syncErrors[e.ResourceID()] = e.Error
+	}
 }
 
 func (c *Cluster) Ping() error {

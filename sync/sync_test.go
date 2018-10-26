@@ -40,7 +40,7 @@ func TestSync(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := Sync(manifests, resources, clus, true, log.NewNopLogger()); err != nil {
+	if err := Sync(log.NewNopLogger(), manifests, resources, clus, true); err != nil {
 		t.Fatal(err)
 	}
 	checkClusterMatchesFiles(t, manifests, clus, checkout.Dir(), dirs)
@@ -60,7 +60,7 @@ func TestSync(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := Sync(manifests, resources, clus, true, log.NewNopLogger()); err != nil {
+	if err := Sync(log.NewNopLogger(), manifests, resources, clus, true); err != nil {
 		t.Fatal(err)
 	}
 	checkClusterMatchesFiles(t, manifests, clus, checkout.Dir(), dirs)
