@@ -222,7 +222,7 @@ func (chs *ChartChangeSync) applyChartChanges(prevRef, head string) error {
 			rlsName := release.GetReleaseName(fhr)
 			opts := release.InstallOptions{DryRun: false}
 			chs.mu.RLock()
-			if _, err = chs.release.Install(chs.clone.Dir(), rlsName, fhr, release.UpgradeAction, opts); err != nil {
+			if _, err = chs.release.Install(chs.clone.Dir(), rlsName, fhr, release.UpgradeAction, opts, &chs.kubeClient); err != nil {
 				// NB in this step, failure to release is considered non-fatal, i.e,. we move on to the next rather than giving up entirely.
 				chs.logger.Log("warning", "failure to release chart with changes in git", "error", err, "chart", chartPath, "release", rlsName)
 			}
@@ -250,7 +250,7 @@ func (chs *ChartChangeSync) reconcileReleaseDef(fhr ifv1.FluxHelmRelease) {
 
 	opts := release.InstallOptions{DryRun: false}
 	if rel == nil {
-		_, err := chs.release.Install(chs.clone.Dir(), releaseName, fhr, release.InstallAction, opts)
+		_, err := chs.release.Install(chs.clone.Dir(), releaseName, fhr, release.InstallAction, opts, &chs.kubeClient)
 		if err != nil {
 			chs.logger.Log("warning", "Failed to install chart", "namespace", fhr.Namespace, "name", fhr.Name, "error", err)
 		}
@@ -263,7 +263,7 @@ func (chs *ChartChangeSync) reconcileReleaseDef(fhr ifv1.FluxHelmRelease) {
 		return
 	}
 	if changed {
-		_, err := chs.release.Install(chs.clone.Dir(), releaseName, fhr, release.UpgradeAction, opts)
+		_, err := chs.release.Install(chs.clone.Dir(), releaseName, fhr, release.UpgradeAction, opts, &chs.kubeClient)
 		if err != nil {
 			chs.logger.Log("warning", "Failed to upgrade chart", "namespace", fhr.Namespace, "name", fhr.Name, "error", err)
 		}
@@ -391,7 +391,7 @@ func (chs *ChartChangeSync) shouldUpgrade(chartsRepo string, currRel *hapi_relea
 	// Get the desired release state
 	opts := release.InstallOptions{DryRun: true}
 	tempRelName := currRel.GetName() + "-temp"
-	desRel, err := chs.release.Install(chartsRepo, tempRelName, fhr, release.InstallAction, opts)
+	desRel, err := chs.release.Install(chartsRepo, tempRelName, fhr, release.InstallAction, opts, &chs.kubeClient)
 	if err != nil {
 		return false, err
 	}

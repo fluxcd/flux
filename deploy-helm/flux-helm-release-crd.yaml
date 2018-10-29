@@ -32,3 +32,10 @@ spec:
               type: string
             values:
               type: object
+            valueFileSecrets:
+              type: array
+              items:
+                type: object
+                properties:
+                  name:
+                    type: string

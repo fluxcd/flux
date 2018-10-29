@@ -2,6 +2,7 @@ package v1alpha2
 
 import (
 	"github.com/ghodss/yaml"
+	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/helm/pkg/chartutil"
 )
@@ -22,9 +23,10 @@ type FluxHelmRelease struct {
 // FluxHelmReleaseSpec is the spec for a FluxHelmRelease resource
 // FluxHelmReleaseSpec
 type FluxHelmReleaseSpec struct {
-	ChartGitPath   string `json:"chartGitPath"`
-	ReleaseName    string `json:"releaseName,omitempty"`
-	FluxHelmValues `json:",inline"`
+	ChartGitPath     string                    `json:"chartGitPath"`
+	ReleaseName      string                    `json:"releaseName,omitempty"`
+	ValueFileSecrets []v1.LocalObjectReference `json:"valueFileSecrets,omitempty"`
+	FluxHelmValues   `json:",inline"`
 }
 
 type FluxHelmReleaseStatus struct {

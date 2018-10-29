@@ -37,40 +37,86 @@ Flux-Helm Integration implementation consists of two parts:
   kind: FluxHelmRelease
   metadata:
     name: mongodb
-    namespace:  myNamespace
+    namespace: myNamespace
   spec:
     chartGitPath: mongodb
     releaseName: mongo-database
-    values:
+    valueFileSecrets:
+    - name: "my-secret-1"
+    - name: "my-secret-2"
+    values
       image: bitnami/mongodb:3.7.1-r1
 ```
 
 ## Required fields
 
- - name
- - namespace
- - chartGitPath ... path (from repo root) to a Chart subdirectory
+ - `.metadata.name`
+ - `.metadata.namespace`
+ - `.spec.chartGitPath` - path (relative to `--git-charts-path`) to a Chart subdirectory
 
 ## Optional fields
 
-- image
-- resources -> requests -> memory (nested)
-- releaseName:
+- `.spec.values` - Any values which are passed to tiller in a similar
+  manner to the `--set` flag in the helm CLI. They can be any value
+  like that in a chart's `values.yaml`. For example:
+  ```yaml
+  values:
+    foo: value1
+    bar:
+      baz: value2
+    oof:
+    - item1
+    - item2
+  ```
+
+- `.spec.valueFileSecrets` - Value files read in a similar way to the
+  `-f/--values` flag in the helm CLI. This field is an array of
+  `LocalObjectReference` which reference secrets.
+
+  - A  `LocalObjectReference` is an object with a `name` parameter (see
+    example below).
+  - The secrets must contain a file called `values.yaml`.
+  - The secrets must be in the same namespace as the FluxHelmRelease.
+  - These values always have a lower priority that those passed
+    via the `.spec.values` parameter.
+  - If multiple secret names are passed the last in the list have higher
+    priority.
+
+  This is useful if you want to have cluster defaults such as the
+  `region`, `clustername`, `environment`, a local docker registry URL,
+  etc. or if you want to have secret values not checked into git.
+
+  For example:
+  ```yaml
+  valueFileSecrets:
+  - name: "my-secret-1"
+  - name: "my-secret-2"
+  ```
+  Where `my-secret-1` _could_ look something like:
+  ```yaml
+  apiVersion: v1
+  kind: Secret
+  type: Opaque
+  metadata:
+    name: cluster-bootstrap
+    namespace: dev
+  data:
+    values.yaml: <base64 encoded values.yaml>
+  ```
+  The contents of values.yaml _could_ look something like:
+  ```yaml
+  clusterName: "my-cluster"
+  dockerRegistry: "registry.local"
+  mySecretValue: "foo"
+  ```
+
+- `.spec.releaseName`:
   - if a release already exists and Flux should start managing it, then
     releasename must be provided
   - if releasename is not provided, Flux will construct a release name
     based on the namespace and the Custom Resource name (ie
     $namespace-$CR_name)
 
-    ```yaml
-    - values:
-        foo: value1
-        bar:
-          baz: value2
-        oof:
-          - item1
-          - item2
-    ```
 - `automated` annotations define which images Flux will automatically
   deploy on a cluster. You can use glob, semver or regex expressions.
   Here's an example for a single image:

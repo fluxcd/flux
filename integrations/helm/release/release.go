@@ -8,7 +8,11 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/ghodss/yaml"
 	"github.com/go-kit/kit/log"
+	"k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/helm/pkg/chartutil"
 	k8shelm "k8s.io/helm/pkg/helm"
 	hapi_release "k8s.io/helm/pkg/proto/hapi/release"
 
@@ -132,7 +136,7 @@ func (r *Release) canDelete(name string) (bool, error) {
 // charts, and the FluxHelmRelease specifying the release. Depending
 // on the release type, this is either a new release, or an upgrade of
 // an existing one.
-func (r *Release) Install(repoDir, releaseName string, fhr ifv1.FluxHelmRelease, action Action, opts InstallOptions) (*hapi_release.Release, error) {
+func (r *Release) Install(repoDir, releaseName string, fhr ifv1.FluxHelmRelease, action Action, opts InstallOptions, kubeClient *kubernetes.Clientset) (*hapi_release.Release, error) {
 	r.logger.Log("info", fmt.Sprintf("releaseName= %s, action=%s, install options: %+v", releaseName, action, opts))
 
 	chartPath := fhr.Spec.ChartGitPath
@@ -155,7 +159,29 @@ func (r *Release) Install(repoDir, releaseName string, fhr ifv1.FluxHelmRelease,
 		}
 	}
 
-	strVals, err := fhr.Spec.Values.YAML()
+	// Read values from given valueFile paths (configmaps, etc.)
+	mergedValues := chartutil.Values{}
+	for _, valueFileSecret := range fhr.Spec.ValueFileSecrets {
+		// Read the contents of the secret
+		secret, err := kubeClient.CoreV1().Secrets(namespace).Get(valueFileSecret.Name, v1.GetOptions{})
+		if err != nil {
+			r.logger.Log("error", fmt.Sprintf("Cannot get secret %s for Chart release [%s]: %#v", valueFileSecret.Name, releaseName, err))
+			return nil, err
+		}
+
+		// Load values.yaml file and merge
+		var values chartutil.Values
+		err = yaml.Unmarshal(secret.Data["values.yaml"], &values)
+		if err != nil {
+			r.logger.Log("error", fmt.Sprintf("Cannot yaml.Unmashal values.yaml in secret %s for Chart release [%s]: %#v", valueFileSecret.Name, releaseName, err))
+			return nil, err
+		}
+		mergedValues = mergeValues(mergedValues, values)
+	}
+	// Merge in values after valueFiles
+	mergedValues = mergeValues(mergedValues, fhr.Spec.Values)
+
+	strVals, err := mergedValues.YAML()
 	if err != nil {
 		r.logger.Log("error", fmt.Sprintf("Problem with supplied customizations for Chart release [%s]: %#v", releaseName, err))
 		return nil, err
@@ -292,4 +318,32 @@ func (r *Release) annotateResources(release *hapi_release.Release, fhr ifv1.Flux
 // resource.
 func fhrResourceID(fhr ifv1.FluxHelmRelease) flux.ResourceID {
 	return flux.MakeResourceID(fhr.Namespace, "FluxHelmRelease", fhr.Name)
+}
+
+// Merges source and destination `chartutils.Values`, preferring values from the source Values
+// This is slightly adapted from https://github.com/helm/helm/blob/master/cmd/helm/install.go#L329
+func mergeValues(dest, src chartutil.Values) chartutil.Values {
+	for k, v := range src {
+		// If the key doesn't exist already, then just set the key to that value
+		if _, exists := dest[k]; !exists {
+			dest[k] = v
+			continue
+		}
+		nextMap, ok := v.(map[string]interface{})
+		// If it isn't another map, overwrite the value
+		if !ok {
+			dest[k] = v
+			continue
+		}
+		// Edge case: If the key exists in the destination, but isn't a map
+		destMap, isMap := dest[k].(map[string]interface{})
+		// If the source map has a map for this key, prefer it
+		if !isMap {
+			dest[k] = v
+			continue
+		}
+		// If we got to this point, it is a map in both, so merge them
+		dest[k] = mergeValues(destMap, nextMap)
+	}
+	return dest
 }
