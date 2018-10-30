@@ -29,7 +29,7 @@ switch this behaviour off with the flag `--update-chart-deps=false`.
 
 ## 0.2.1 (2018-09-17)
 
-This is a patch release that allows helm-op to recover from a failed release install.
+This is a patch release that allows helm-op to recover from a failed release Install.
 If a chart is broken, Tiller will reserve the name and mark the release as failed. 
 If at a later time the chart is fixed, helm-op can't install it anymore because the release name is in use. 
 Purging the release after each failed install allows helm-op to keep retrying the install.
