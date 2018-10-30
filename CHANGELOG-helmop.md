@@ -8,7 +8,7 @@ switch this behaviour off with the flag `--update-chart-deps=false`.
 
 ### Bug fixes
 
- - Improve chance of graceful Shutdown
+ - Improve chance of Graceful Shutdown
    [weaveworks/flux#1439](https://github.com/weaveworks/flux/pull/1439)
    and
    [weaveworks/flux#1438](https://github.com/weaveworks/flux/pull/1438)
