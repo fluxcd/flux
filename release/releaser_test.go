@@ -871,7 +871,7 @@ func Test_UpdateContainers(t *testing.T) {
 							Target:    newSidecarRef,
 						}},
 					},
-					Commit: "Release containers\n\ndefault:deployment/helloworld\n- quay.io/weaveworks/helloworld:master-a000002\n- weaveworks/sidecar:master-a000002\n",
+					Commit: "Update image refs in default:deployment/helloworld\n\ndefault:deployment/helloworld\n- quay.io/weaveworks/helloworld:master-a000002\n- weaveworks/sidecar:master-a000002\n",
 				},
 				false: {
 					Result: update.ControllerResult{
@@ -886,7 +886,7 @@ func Test_UpdateContainers(t *testing.T) {
 							Target:    newSidecarRef,
 						}},
 					},
-					Commit: "Release containers\n\ndefault:deployment/helloworld\n- quay.io/weaveworks/helloworld:master-a000002\n- weaveworks/sidecar:master-a000002\n",
+					Commit: "Update image refs in default:deployment/helloworld\n\ndefault:deployment/helloworld\n- quay.io/weaveworks/helloworld:master-a000002\n- weaveworks/sidecar:master-a000002\n",
 				},
 			},
 		},
@@ -918,7 +918,7 @@ func Test_UpdateContainers(t *testing.T) {
 							},
 						},
 					},
-					Commit: "Release containers\n\ndefault:deployment/helloworld\n- weaveworks/sidecar:master-a000002\n",
+					Commit: "Update image refs in default:deployment/helloworld\n\ndefault:deployment/helloworld\n- weaveworks/sidecar:master-a000002\n",
 				},
 				false: {Err: errors.New("cannot satisfy specs")},
 			},
@@ -996,7 +996,7 @@ func Test_UpdateContainers(t *testing.T) {
 							},
 						},
 					},
-					Commit: "Release containers\n\ndefault:deployment/locked-service\n- quay.io/weaveworks/locked-service:2\n",
+					Commit: "Update image refs in default:deployment/locked-service\n\ndefault:deployment/locked-service\n- quay.io/weaveworks/locked-service:2\n",
 				},
 				false: {
 					Result: update.ControllerResult{
@@ -1009,7 +1009,7 @@ func Test_UpdateContainers(t *testing.T) {
 							},
 						},
 					},
-					Commit: "Release containers\n\ndefault:deployment/locked-service\n- quay.io/weaveworks/locked-service:2\n",
+					Commit: "Update image refs in default:deployment/locked-service\n\ndefault:deployment/locked-service\n- quay.io/weaveworks/locked-service:2\n",
 				},
 			},
 		},

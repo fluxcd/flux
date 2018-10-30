@@ -166,17 +166,18 @@ func (s ContainerSpecs) ReleaseType() ReleaseType {
 }
 
 func (s ContainerSpecs) CommitMessage(result Result) string {
-	buf := &bytes.Buffer{}
-	fmt.Fprintln(buf, "Release containers")
+	var workloads []string
+	body := &bytes.Buffer{}
 	for _, res := range result.AffectedResources() {
-		fmt.Fprintf(buf, "\n%s", res)
+		workloads = append(workloads, res.String())
+		fmt.Fprintf(body, "\n%s", res)
 		for _, upd := range result[res].PerContainer {
-			fmt.Fprintf(buf, "\n- %s", upd.Target)
+			fmt.Fprintf(body, "\n- %s", upd.Target)
 		}
-		fmt.Fprintln(buf)
+		fmt.Fprintln(body)
 	}
 	if err := result.Error(); err != "" {
-		fmt.Fprintf(buf, "\n%s", result.Error())
+		fmt.Fprintf(body, "\n%s", result.Error())
 	}
-	return buf.String()
+	return fmt.Sprintf("Update image refs in %s\n%s", strings.Join(workloads, ", "), body.String())
 }
