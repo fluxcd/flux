@@ -15,4 +15,4 @@ limitations under the License.
 */
 package v1beta1
 
-type FluxHelmReleaseExpansion interface{}
+type HelmReleaseExpansion interface{}

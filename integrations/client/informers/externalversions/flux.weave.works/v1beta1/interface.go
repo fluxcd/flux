@@ -21,8 +21,8 @@ import (
 
 // Interface provides access to all the informers in this group version.
 type Interface interface {
-	// FluxHelmReleases returns a FluxHelmReleaseInformer.
-	FluxHelmReleases() FluxHelmReleaseInformer
+	// HelmReleases returns a HelmReleaseInformer.
+	HelmReleases() HelmReleaseInformer
 }
 
 type version struct {
@@ -36,7 +36,7 @@ func New(f internalinterfaces.SharedInformerFactory, namespace string, tweakList
 	return &version{factory: f, namespace: namespace, tweakListOptions: tweakListOptions}
 }
 
-// FluxHelmReleases returns a FluxHelmReleaseInformer.
-func (v *version) FluxHelmReleases() FluxHelmReleaseInformer {
-	return &fluxHelmReleaseInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+// HelmReleases returns a HelmReleaseInformer.
+func (v *version) HelmReleases() HelmReleaseInformer {
+	return &helmReleaseInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }

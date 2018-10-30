@@ -15,10 +15,10 @@ limitations under the License.
 */
 package v1beta1
 
-// FluxHelmReleaseListerExpansion allows custom methods to be added to
-// FluxHelmReleaseLister.
-type FluxHelmReleaseListerExpansion interface{}
+// HelmReleaseListerExpansion allows custom methods to be added to
+// HelmReleaseLister.
+type HelmReleaseListerExpansion interface{}
 
-// FluxHelmReleaseNamespaceListerExpansion allows custom methods to be added to
-// FluxHelmReleaseNamespaceLister.
-type FluxHelmReleaseNamespaceListerExpansion interface{}
+// HelmReleaseNamespaceListerExpansion allows custom methods to be added to
+// HelmReleaseNamespaceLister.
+type HelmReleaseNamespaceListerExpansion interface{}

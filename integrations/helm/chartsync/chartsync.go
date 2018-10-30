@@ -1,25 +1,25 @@
 /*
 
 This package has the algorithm for making sure the Helm releases in
-the cluster match what are defined in the FluxHelmRelease resources.
+the cluster match what are defined in the HelmRelease resources.
 
 There are several ways they can be mismatched. Here's how they are
 reconciled:
 
- 1a. There is a FluxHelmRelease resource, but no corresponding
+ 1a. There is a HelmRelease resource, but no corresponding
    release. This can happen when the helm operator is first run, for
    example. The ChartChangeSync periodically checks for this by
    running through the resources and installing any that aren't
    released already.
 
- 1b. The release corresponding to a FluxHelmRelease has been updated by
+ 1b. The release corresponding to a HelmRelease has been updated by
    some other means, perhaps while the operator wasn't running. This
    is also checked periodically, by doing a dry-run release and
    comparing the result to the release.
 
  2. The chart has changed in git, meaning the release is out of
    date. The ChartChangeSync responds to new git commits by looking at
-   each chart that's referenced by a FluxHelmRelease, and if it's
+   each chart that's referenced by a HelmRelease, and if it's
    changed since the last seen commit, updating the release.
 
 1a.) and 1b.) run on the same schedule, and 2.) is run when a git
@@ -132,8 +132,8 @@ func New(logger log.Logger, polling Polling, clients Clients, release *release.R
 }
 
 // Run creates a syncing loop that will reconcile differences between
-// Helm releases in the cluster, what FluxHelmRelease declare, and
-// changes in the git repos mentioned by any FluxHelmRelease.
+// Helm releases in the cluster, what HelmRelease declare, and
+// changes in the git repos mentioned by any HelmRelease.
 func (chs *ChartChangeSync) Run(stopCh <-chan struct{}, errc chan error, wg *sync.WaitGroup) {
 	chs.logger.Log("info", "Starting charts sync loop")
 	wg.Add(1)
@@ -172,7 +172,7 @@ func (chs *ChartChangeSync) Run(stopCh <-chan struct{}, errc chan error, wg *syn
 					repo, ok := chs.mirrors.Get(repoName)
 					if !ok {
 						// Then why .. did you say .. it had changed? It may have been removed. Add it back and let it signal again.
-						chs.setCondition(&fhr, fluxv1beta1.FluxHelmReleaseChartFetched, v1.ConditionUnknown, ReasonGitNotReady, "git mirror missing; starting mirroring again")
+						chs.setCondition(&fhr, fluxv1beta1.HelmReleaseChartFetched, v1.ConditionUnknown, ReasonGitNotReady, "git mirror missing; starting mirroring again")
 						chs.logger.Log("warning", "mirrored git repo disappeared after signalling change", "repo", repoName)
 						chs.maybeMirror(fhr)
 						continue
@@ -182,7 +182,7 @@ func (chs *ChartChangeSync) Run(stopCh <-chan struct{}, errc chan error, wg *syn
 					if status != git.RepoReady {
 						chs.logger.Log("info", "repo not ready yet, while attempting chart sync", "repo", repoURL, "status", string(status))
 						// TODO(michael) log if there's a problem with the following?
-						chs.setCondition(&fhr, fluxv1beta1.FluxHelmReleaseChartFetched, v1.ConditionUnknown, ReasonGitNotReady, err.Error())
+						chs.setCondition(&fhr, fluxv1beta1.HelmReleaseChartFetched, v1.ConditionUnknown, ReasonGitNotReady, err.Error())
 						continue
 					}
 
@@ -194,7 +194,7 @@ func (chs *ChartChangeSync) Run(stopCh <-chan struct{}, errc chan error, wg *syn
 					refHead, err := repo.Revision(ctx, ref)
 					cancel()
 					if err != nil {
-						chs.setCondition(&fhr, fluxv1beta1.FluxHelmReleaseChartFetched, v1.ConditionFalse, ReasonGitNotReady, "problem cloning from local git mirror: "+err.Error())
+						chs.setCondition(&fhr, fluxv1beta1.HelmReleaseChartFetched, v1.ConditionFalse, ReasonGitNotReady, "problem cloning from local git mirror: "+err.Error())
 						chs.logger.Log("warning", "could not get revision for ref while checking for changes", "repo", repoURL, "ref", ref, "err", err)
 						continue
 					}
@@ -210,7 +210,7 @@ func (chs *ChartChangeSync) Run(stopCh <-chan struct{}, errc chan error, wg *syn
 						commits, err := repo.CommitsBetween(ctx, cloneForChart.head, refHead, path)
 						cancel()
 						if err != nil {
-							chs.setCondition(&fhr, fluxv1beta1.FluxHelmReleaseChartFetched, v1.ConditionFalse, ReasonGitNotReady, "problem cloning from local git mirror: "+err.Error())
+							chs.setCondition(&fhr, fluxv1beta1.HelmReleaseChartFetched, v1.ConditionFalse, ReasonGitNotReady, "problem cloning from local git mirror: "+err.Error())
 							chs.logger.Log("warning", "could not get revision for ref while checking for changes", "repo", repoURL, "ref", ref, "err", err)
 							continue
 						}
@@ -222,7 +222,7 @@ func (chs *ChartChangeSync) Run(stopCh <-chan struct{}, errc chan error, wg *syn
 						newClone, err := repo.Export(ctx, refHead)
 						cancel()
 						if err != nil {
-							chs.setCondition(&fhr, fluxv1beta1.FluxHelmReleaseChartFetched, v1.ConditionFalse, ReasonGitNotReady, "problem cloning from local git mirror: "+err.Error())
+							chs.setCondition(&fhr, fluxv1beta1.HelmReleaseChartFetched, v1.ConditionFalse, ReasonGitNotReady, "problem cloning from local git mirror: "+err.Error())
 							chs.logger.Log("warning", "could not clone from mirror while checking for changes", "repo", repoURL, "ref", ref, "err", err)
 							continue
 						}
@@ -259,9 +259,9 @@ func mirrorName(chartSource *fluxv1beta1.GitChartSource) string {
 	return chartSource.GitURL // TODO(michael) this will not always be the case; e.g., per namespace, per auth
 }
 
-// maybeMirror starts mirroring the repo needed by a FluxHelmRelease,
+// maybeMirror starts mirroring the repo needed by a HelmRelease,
 // if necessary
-func (chs *ChartChangeSync) maybeMirror(fhr fluxv1beta1.FluxHelmRelease) {
+func (chs *ChartChangeSync) maybeMirror(fhr fluxv1beta1.HelmRelease) {
 	chartSource := fhr.Spec.ChartSource.GitChartSource
 	if chartSource != nil {
 		if ok := chs.mirrors.Mirror(mirrorName(chartSource), git.Remote{chartSource.GitURL}, git.ReadOnly); !ok {
@@ -271,16 +271,16 @@ func (chs *ChartChangeSync) maybeMirror(fhr fluxv1beta1.FluxHelmRelease) {
 }
 
 // ReconcileReleaseDef asks the ChartChangeSync to examine the release
-// associated with a FluxHelmRelease, and install or upgrade the
+// associated with a HelmRelease, and install or upgrade the
 // release if the chart it refers to has changed.
-func (chs *ChartChangeSync) ReconcileReleaseDef(fhr fluxv1beta1.FluxHelmRelease) {
+func (chs *ChartChangeSync) ReconcileReleaseDef(fhr fluxv1beta1.HelmRelease) {
 	chs.reconcileReleaseDef(fhr)
 }
 
 // reconcileReleaseDef looks up the helm release associated with a
-// FluxHelmRelease resource, and either installs, upgrades, or does
+// HelmRelease resource, and either installs, upgrades, or does
 // nothing, depending on the state (or absence) of the release.
-func (chs *ChartChangeSync) reconcileReleaseDef(fhr fluxv1beta1.FluxHelmRelease) {
+func (chs *ChartChangeSync) reconcileReleaseDef(fhr fluxv1beta1.HelmRelease) {
 	releaseName := release.GetReleaseName(fhr)
 
 	// There's no exact way in the Helm API to test whether a release
@@ -309,23 +309,23 @@ func (chs *ChartChangeSync) reconcileReleaseDef(fhr fluxv1beta1.FluxHelmRelease)
 			repo, ok := chs.mirrors.Get(mirrorName(chartSource))
 			if !ok {
 				chs.maybeMirror(fhr)
-				chs.setCondition(&fhr, fluxv1beta1.FluxHelmReleaseChartFetched, v1.ConditionUnknown, ReasonGitNotReady, "git repo "+chartSource.GitURL+" not mirrored yet")
+				chs.setCondition(&fhr, fluxv1beta1.HelmReleaseChartFetched, v1.ConditionUnknown, ReasonGitNotReady, "git repo "+chartSource.GitURL+" not mirrored yet")
 				chs.logger.Log("info", "chart repo not cloned yet", "releaseName", releaseName, "resource", fmt.Sprintf("%s:%s/%s", fhr.Namespace, fhr.Kind, fhr.Name))
 			} else {
 				status, err := repo.Status()
 				if status != git.RepoReady {
-					chs.setCondition(&fhr, fluxv1beta1.FluxHelmReleaseChartFetched, v1.ConditionUnknown, ReasonGitNotReady, "git repo not mirrored yet: "+err.Error())
+					chs.setCondition(&fhr, fluxv1beta1.HelmReleaseChartFetched, v1.ConditionUnknown, ReasonGitNotReady, "git repo not mirrored yet: "+err.Error())
 					chs.logger.Log("info", "chart repo not ready yet", "releaseName", releaseName, "resource", fmt.Sprintf("%s:%s/%s", fhr.Namespace, fhr.Kind, fhr.Name), "status", string(status), "err", err)
 				}
 			}
 			return
 		}
-		chs.setCondition(&fhr, fluxv1beta1.FluxHelmReleaseChartFetched, v1.ConditionTrue, ReasonCloned, "successfully cloned git repo")
+		chs.setCondition(&fhr, fluxv1beta1.HelmReleaseChartFetched, v1.ConditionTrue, ReasonCloned, "successfully cloned git repo")
 		chartPath = filepath.Join(chartClone.export.Dir(), chartSource.Path)
 
 		if chs.config.UpdateDeps {
 			if err := updateDependencies(chartPath); err != nil {
-				chs.setCondition(&fhr, fluxv1beta1.FluxHelmReleaseReleased, v1.ConditionFalse, ReasonDependencyFailed, err.Error())
+				chs.setCondition(&fhr, fluxv1beta1.HelmReleaseReleased, v1.ConditionFalse, ReasonDependencyFailed, err.Error())
 				chs.logger.Log("warning", "Failed to update chart dependencies", "namespace", fhr.Namespace, "name", fhr.Name, "error", err)
 				return
 			}
@@ -335,22 +335,22 @@ func (chs *ChartChangeSync) reconcileReleaseDef(fhr fluxv1beta1.FluxHelmRelease)
 		chartSource := fhr.Spec.ChartSource.RepoChartSource
 		path, err := ensureChartFetched(chs.config.ChartCache, chartSource)
 		if err != nil {
-			chs.setCondition(&fhr, fluxv1beta1.FluxHelmReleaseChartFetched, v1.ConditionFalse, ReasonDownloadFailed, "chart download failed: "+err.Error())
+			chs.setCondition(&fhr, fluxv1beta1.HelmReleaseChartFetched, v1.ConditionFalse, ReasonDownloadFailed, "chart download failed: "+err.Error())
 			chs.logger.Log("info", "chart download failed", "releaseName", releaseName, "resource", fhr.ResourceID().String(), "err", err)
 			return
 		}
-		chs.setCondition(&fhr, fluxv1beta1.FluxHelmReleaseChartFetched, v1.ConditionTrue, ReasonDownloaded, "chart fetched: "+filepath.Base(path))
+		chs.setCondition(&fhr, fluxv1beta1.HelmReleaseChartFetched, v1.ConditionTrue, ReasonDownloaded, "chart fetched: "+filepath.Base(path))
 		chartPath = path
 	}
 
 	if rel == nil {
 		_, err := chs.release.Install(chartPath, releaseName, fhr, release.InstallAction, opts, &chs.kubeClient)
 		if err != nil {
-			chs.setCondition(&fhr, fluxv1beta1.FluxHelmReleaseReleased, v1.ConditionFalse, ReasonInstallFailed, err.Error())
+			chs.setCondition(&fhr, fluxv1beta1.HelmReleaseReleased, v1.ConditionFalse, ReasonInstallFailed, err.Error())
 			chs.logger.Log("warning", "Failed to install chart", "namespace", fhr.Namespace, "name", fhr.Name, "error", err)
 			return
 		}
-		chs.setCondition(&fhr, fluxv1beta1.FluxHelmReleaseReleased, v1.ConditionTrue, ReasonSuccess, "helm install succeeded")
+		chs.setCondition(&fhr, fluxv1beta1.HelmReleaseReleased, v1.ConditionTrue, ReasonSuccess, "helm install succeeded")
 		return
 	}
 
@@ -362,11 +362,11 @@ func (chs *ChartChangeSync) reconcileReleaseDef(fhr fluxv1beta1.FluxHelmRelease)
 	if changed {
 		_, err := chs.release.Install(chartPath, releaseName, fhr, release.UpgradeAction, opts, &chs.kubeClient)
 		if err != nil {
-			chs.setCondition(&fhr, fluxv1beta1.FluxHelmReleaseReleased, v1.ConditionFalse, ReasonUpgradeFailed, err.Error())
+			chs.setCondition(&fhr, fluxv1beta1.HelmReleaseReleased, v1.ConditionFalse, ReasonUpgradeFailed, err.Error())
 			chs.logger.Log("warning", "Failed to upgrade chart", "namespace", fhr.Namespace, "name", fhr.Name, "error", err)
 			return
 		}
-		chs.setCondition(&fhr, fluxv1beta1.FluxHelmReleaseReleased, v1.ConditionTrue, ReasonSuccess, "helm upgrade succeeded")
+		chs.setCondition(&fhr, fluxv1beta1.HelmReleaseReleased, v1.ConditionTrue, ReasonSuccess, "helm upgrade succeeded")
 	}
 }
 
@@ -377,7 +377,7 @@ func (chs *ChartChangeSync) reconcileReleaseDef(fhr fluxv1beta1.FluxHelmRelease)
 func (chs *ChartChangeSync) reapplyReleaseDefs() error {
 	resources, err := chs.getCustomResources()
 	if err != nil {
-		return fmt.Errorf("failed to get FluxHelmRelease resources from the API server: %s", err.Error())
+		return fmt.Errorf("failed to get HelmRelease resources from the API server: %s", err.Error())
 	}
 
 	for _, fhr := range resources {
@@ -387,9 +387,9 @@ func (chs *ChartChangeSync) reapplyReleaseDefs() error {
 }
 
 // DeleteRelease deletes the helm release associated with a
-// FluxHelmRelease. This exists mainly so that the operator code can
+// HelmRelease. This exists mainly so that the operator code can
 // call it when it is handling a resource deletion.
-func (chs *ChartChangeSync) DeleteRelease(fhr fluxv1beta1.FluxHelmRelease) {
+func (chs *ChartChangeSync) DeleteRelease(fhr fluxv1beta1.HelmRelease) {
 	// FIXME(michael): these may need to stop mirroring a repo.
 	name := release.GetReleaseName(fhr)
 	err := chs.release.Delete(name)
@@ -416,15 +416,15 @@ func (chs *ChartChangeSync) getNamespaces() ([]string, error) {
 }
 
 // getCustomResources assembles all custom resources in all namespaces
-func (chs *ChartChangeSync) getCustomResources() ([]fluxv1beta1.FluxHelmRelease, error) {
+func (chs *ChartChangeSync) getCustomResources() ([]fluxv1beta1.HelmRelease, error) {
 	namespaces, err := chs.getNamespaces()
 	if err != nil {
 		return nil, err
 	}
 
-	var fhrs []fluxv1beta1.FluxHelmRelease
+	var fhrs []fluxv1beta1.HelmRelease
 	for _, ns := range namespaces {
-		list, err := chs.ifClient.FluxV1beta1().FluxHelmReleases(ns).List(metav1.ListOptions{})
+		list, err := chs.ifClient.FluxV1beta1().HelmReleases(ns).List(metav1.ListOptions{})
 		if err != nil {
 			return nil, err
 		}
@@ -440,15 +440,15 @@ func (chs *ChartChangeSync) getCustomResources() ([]fluxv1beta1.FluxHelmRelease,
 // information. New information is something that adds or changes the
 // status, reason or message (i.e., anything but the transition time)
 // for one of the types of condition.
-func (chs *ChartChangeSync) setCondition(fhr *fluxv1beta1.FluxHelmRelease, typ fluxv1beta1.FluxHelmReleaseConditionType, st v1.ConditionStatus, reason, message string) error {
+func (chs *ChartChangeSync) setCondition(fhr *fluxv1beta1.HelmRelease, typ fluxv1beta1.HelmReleaseConditionType, st v1.ConditionStatus, reason, message string) error {
 	for _, c := range fhr.Status.Conditions {
 		if c.Type == typ && c.Status == st && c.Message == message && c.Reason == reason {
 			return nil
 		}
 	}
 
-	fhrClient := chs.ifClient.FluxV1beta1().FluxHelmReleases(fhr.Namespace)
-	cond := fluxv1beta1.FluxHelmReleaseCondition{
+	fhrClient := chs.ifClient.FluxV1beta1().HelmReleases(fhr.Namespace)
+	cond := fluxv1beta1.HelmReleaseCondition{
 		Type:               typ,
 		Status:             st,
 		LastTransitionTime: metav1.Now(),
@@ -503,7 +503,7 @@ func sortChartFields(c *hapi_chart.Chart) *hapi_chart.Chart {
 // shouldUpgrade returns true if the current running values or chart
 // don't match what the repo says we ought to be running, based on
 // doing a dry run install from the chart in the git repo.
-func (chs *ChartChangeSync) shouldUpgrade(chartsRepo string, currRel *hapi_release.Release, fhr fluxv1beta1.FluxHelmRelease) (bool, error) {
+func (chs *ChartChangeSync) shouldUpgrade(chartsRepo string, currRel *hapi_release.Release, fhr fluxv1beta1.HelmRelease) (bool, error) {
 	if currRel == nil {
 		return false, fmt.Errorf("No Chart release provided for %v", fhr.GetName())
 	}

@@ -38,7 +38,7 @@ type Release struct {
 type Releaser interface {
 	GetCurrent() (map[string][]DeployInfo, error)
 	GetDeployedRelease(name string) (*hapi_release.Release, error)
-	Install(dir string, releaseName string, fhr flux_v1beta1.FluxHelmRelease, action Action, opts InstallOptions) (*hapi_release.Release, error)
+	Install(dir string, releaseName string, fhr flux_v1beta1.HelmRelease, action Action, opts InstallOptions) (*hapi_release.Release, error)
 }
 
 type DeployInfo struct {
@@ -61,7 +61,7 @@ func New(logger log.Logger, helmClient *k8shelm.Client) *Release {
 
 // GetReleaseName either retrieves the release name from the Custom Resource or constructs a new one
 //  in the form : $Namespace-$CustomResourceName
-func GetReleaseName(fhr flux_v1beta1.FluxHelmRelease) string {
+func GetReleaseName(fhr flux_v1beta1.HelmRelease) string {
 	namespace := fhr.Namespace
 	if namespace == "" {
 		namespace = "default"
@@ -120,14 +120,14 @@ func (r *Release) canDelete(name string) (bool, error) {
 }
 
 // Install performs a Chart release given the directory containing the
-// charts, and the FluxHelmRelease specifying the release. Depending
+// charts, and the HelmRelease specifying the release. Depending
 // on the release type, this is either a new release, or an upgrade of
 // an existing one.
 //
 // TODO(michael): cloneDir is only relevant if installing from git;
 // either split this procedure into two varieties, or make it more
 // general and calculate the path to the chart in the caller.
-func (r *Release) Install(chartPath, releaseName string, fhr flux_v1beta1.FluxHelmRelease, action Action, opts InstallOptions, kubeClient *kubernetes.Clientset) (*hapi_release.Release, error) {
+func (r *Release) Install(chartPath, releaseName string, fhr flux_v1beta1.HelmRelease, action Action, opts InstallOptions, kubeClient *kubernetes.Clientset) (*hapi_release.Release, error) {
 	if chartPath == "" {
 		return nil, fmt.Errorf("empty path to chart supplied for resource %q", fhr.ResourceID().String())
 	}
@@ -278,7 +278,7 @@ func (r *Release) GetCurrent() (map[string][]DeployInfo, error) {
 
 // annotateResources annotates each of the resources created (or updated)
 // by the release so that we can spot them.
-func (r *Release) annotateResources(release *hapi_release.Release, fhr flux_v1beta1.FluxHelmRelease) error {
+func (r *Release) annotateResources(release *hapi_release.Release, fhr flux_v1beta1.HelmRelease) error {
 	args := []string{"annotate", "--overwrite"}
 	args = append(args, "--namespace", release.Namespace)
 	args = append(args, "-f", "-")
@@ -296,10 +296,10 @@ func (r *Release) annotateResources(release *hapi_release.Release, fhr flux_v1be
 	return err
 }
 
-// fhrResourceID constructs a flux.ResourceID for a FluxHelmRelease
+// fhrResourceID constructs a flux.ResourceID for a HelmRelease
 // resource.
-func fhrResourceID(fhr flux_v1beta1.FluxHelmRelease) flux.ResourceID {
-	return flux.MakeResourceID(fhr.Namespace, "FluxHelmRelease", fhr.Name)
+func fhrResourceID(fhr flux_v1beta1.HelmRelease) flux.ResourceID {
+	return flux.MakeResourceID(fhr.Namespace, "HelmRelease", fhr.Name)
 }
 
 // Merges source and destination `chartutils.Values`, preferring values from the source Values

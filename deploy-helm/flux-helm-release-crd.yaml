@@ -2,15 +2,15 @@
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
-  name: fluxhelmreleases.flux.weave.works
+  name: helmreleases.flux.weave.works
 spec:
   group: flux.weave.works
   names:
-    kind: FluxHelmRelease
-    listKind: FluxHelmReleaseList
-    plural: fluxhelmreleases
+    kind: HelmRelease
+    listKind: HelmReleaseList
+    plural: helmreleases
     shortNames:
-    - fhr
+    - hr
   scope: Namespaced
   version: v1beta1
   versions:

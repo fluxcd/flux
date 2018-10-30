@@ -34,26 +34,26 @@ const (
 
 const (
 	// ChartSynced is used as part of the Event 'reason' when the Chart related to the
-	// a FluxHelmRelease gets released/updated
+	// a HelmRelease gets released/updated
 	ChartSynced = "ChartSynced"
 	// ErrChartSync is used as part of the Event 'reason' when the related Chart related to the
-	// a FluxHelmRelease fails to be released/updated
+	// a HelmRelease fails to be released/updated
 	ErrChartSync = "ErrChartSync"
 
 	// MessageChartSynced - the message used for Events when a resource
 	// fails to sync due to failing to release the Chart
-	MessageChartSynced = "Chart managed by FluxHelmRelease processed successfully"
-	// MessageErrChartSync - the message used for an Event fired when a FluxHelmRelease
+	MessageChartSynced = "Chart managed by HelmRelease processed successfully"
+	// MessageErrChartSync - the message used for an Event fired when a HelmRelease
 	// is synced successfully
-	MessageErrChartSync = "Chart %s managed by FluxHelmRelease failed to be processed"
+	MessageErrChartSync = "Chart %s managed by HelmRelease failed to be processed"
 )
 
-// Controller is the operator implementation for FluxHelmRelease resources
+// Controller is the operator implementation for HelmRelease resources
 type Controller struct {
 	logger   log.Logger
 	logDiffs bool
 
-	fhrLister iflister.FluxHelmReleaseLister
+	fhrLister iflister.HelmReleaseLister
 	fhrSynced cache.InformerSynced
 
 	sync *chartsync.ChartChangeSync
@@ -75,7 +75,7 @@ func New(
 	logger log.Logger,
 	logReleaseDiffs bool,
 	kubeclientset kubernetes.Interface,
-	fhrInformer fhrv1.FluxHelmReleaseInformer,
+	fhrInformer fhrv1.HelmReleaseInformer,
 	sync *chartsync.ChartChangeSync) *Controller {
 
 	// Add helm-operator types to the default Kubernetes Scheme so Events can be
@@ -98,7 +98,7 @@ func New(
 
 	controller.logger.Log("info", "Setting up event handlers")
 
-	// ----- EVENT HANDLERS for FluxHelmRelease resources change ---------
+	// ----- EVENT HANDLERS for HelmRelease resources change ---------
 	fhrInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(new interface{}) {
 			controller.logger.Log("info", "CREATING release")
@@ -202,7 +202,7 @@ func (c *Controller) processNextWorkItem() bool {
 			return nil
 		}
 		// Run the syncHandler, passing it the namespace/name string of the
-		// FluxHelmRelease resource to sync the corresponding Chart release.
+		// HelmRelease resource to sync the corresponding Chart release.
 		// If the sync failed, then we return while the item will get requeued
 		if err := c.syncHandler(key); err != nil {
 			return fmt.Errorf("error syncing '%s': %s", key, err.Error())
@@ -237,11 +237,11 @@ func (c *Controller) syncHandler(key string) error {
 	}
 
 	// Custom Resource fhr contains all information we need to know about the Chart release
-	fhr, err := c.fhrLister.FluxHelmReleases(namespace).Get(name)
+	fhr, err := c.fhrLister.HelmReleases(namespace).Get(name)
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
-			c.logger.Log("info", fmt.Sprintf("FluxHelmRelease '%s' referred to in work queue no longer exists", key))
-			runtime.HandleError(fmt.Errorf("FluxHelmRelease '%s' referred to in work queue no longer exists", key))
+			c.logger.Log("info", fmt.Sprintf("HelmRelease '%s' referred to in work queue no longer exists", key))
+			runtime.HandleError(fmt.Errorf("HelmRelease '%s' referred to in work queue no longer exists", key))
 			return nil
 		}
 		c.logger.Log("error", err.Error())
@@ -253,12 +253,12 @@ func (c *Controller) syncHandler(key string) error {
 	return nil
 }
 
-func checkCustomResourceType(logger log.Logger, obj interface{}) (flux_v1beta1.FluxHelmRelease, bool) {
-	var fhr *flux_v1beta1.FluxHelmRelease
+func checkCustomResourceType(logger log.Logger, obj interface{}) (flux_v1beta1.HelmRelease, bool) {
+	var fhr *flux_v1beta1.HelmRelease
 	var ok bool
-	if fhr, ok = obj.(*flux_v1beta1.FluxHelmRelease); !ok {
-		logger.Log("error", fmt.Sprintf("FluxHelmRelease Event Watch received an invalid object: %#v", obj))
-		return flux_v1beta1.FluxHelmRelease{}, false
+	if fhr, ok = obj.(*flux_v1beta1.HelmRelease); !ok {
+		logger.Log("error", fmt.Sprintf("HelmRelease Event Watch received an invalid object: %#v", obj))
+		return flux_v1beta1.HelmRelease{}, false
 	}
 	return *fhr, true
 }
@@ -274,9 +274,9 @@ func getCacheKey(obj interface{}) (string, error) {
 	return key, nil
 }
 
-// enqueueJob takes a FluxHelmRelease resource and converts it into a namespace/name
+// enqueueJob takes a HelmRelease resource and converts it into a namespace/name
 // string which is then put onto the work queue. This method should not be
-// passed resources of any type other than FluxHelmRelease.
+// passed resources of any type other than HelmRelease.
 func (c *Controller) enqueueJob(obj interface{}) {
 	var key string
 	var err error
@@ -308,7 +308,7 @@ func (c *Controller) enqueueUpateJob(old, new interface{}) {
 	}
 }
 
-func (c *Controller) deleteRelease(fhr flux_v1beta1.FluxHelmRelease) {
+func (c *Controller) deleteRelease(fhr flux_v1beta1.HelmRelease) {
 	c.logger.Log("info", "DELETING release")
 	c.logger.Log("info", "Custom Resource driven release deletion")
 	c.sync.DeleteRelease(fhr)

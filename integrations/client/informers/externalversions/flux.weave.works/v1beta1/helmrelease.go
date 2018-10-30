@@ -27,59 +27,59 @@ import (
 	time "time"
 )
 
-// FluxHelmReleaseInformer provides access to a shared informer and lister for
-// FluxHelmReleases.
-type FluxHelmReleaseInformer interface {
+// HelmReleaseInformer provides access to a shared informer and lister for
+// HelmReleases.
+type HelmReleaseInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() v1beta1.FluxHelmReleaseLister
+	Lister() v1beta1.HelmReleaseLister
 }
 
-type fluxHelmReleaseInformer struct {
+type helmReleaseInformer struct {
 	factory          internalinterfaces.SharedInformerFactory
 	tweakListOptions internalinterfaces.TweakListOptionsFunc
 	namespace        string
 }
 
-// NewFluxHelmReleaseInformer constructs a new informer for FluxHelmRelease type.
+// NewHelmReleaseInformer constructs a new informer for HelmRelease type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewFluxHelmReleaseInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
-	return NewFilteredFluxHelmReleaseInformer(client, namespace, resyncPeriod, indexers, nil)
+func NewHelmReleaseInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
+	return NewFilteredHelmReleaseInformer(client, namespace, resyncPeriod, indexers, nil)
 }
 
-// NewFilteredFluxHelmReleaseInformer constructs a new informer for FluxHelmRelease type.
+// NewFilteredHelmReleaseInformer constructs a new informer for HelmRelease type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewFilteredFluxHelmReleaseInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
+func NewFilteredHelmReleaseInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
 	return cache.NewSharedIndexInformer(
 		&cache.ListWatch{
 			ListFunc: func(options v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.FluxV1beta1().FluxHelmReleases(namespace).List(options)
+				return client.FluxV1beta1().HelmReleases(namespace).List(options)
 			},
 			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.FluxV1beta1().FluxHelmReleases(namespace).Watch(options)
+				return client.FluxV1beta1().HelmReleases(namespace).Watch(options)
 			},
 		},
-		&flux_weave_works_v1beta1.FluxHelmRelease{},
+		&flux_weave_works_v1beta1.HelmRelease{},
 		resyncPeriod,
 		indexers,
 	)
 }
 
-func (f *fluxHelmReleaseInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewFilteredFluxHelmReleaseInformer(client, f.namespace, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
+func (f *helmReleaseInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
+	return NewFilteredHelmReleaseInformer(client, f.namespace, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
 }
 
-func (f *fluxHelmReleaseInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&flux_weave_works_v1beta1.FluxHelmRelease{}, f.defaultInformer)
+func (f *helmReleaseInformer) Informer() cache.SharedIndexInformer {
+	return f.factory.InformerFor(&flux_weave_works_v1beta1.HelmRelease{}, f.defaultInformer)
 }
 
-func (f *fluxHelmReleaseInformer) Lister() v1beta1.FluxHelmReleaseLister {
-	return v1beta1.NewFluxHelmReleaseLister(f.Informer().GetIndexer())
+func (f *helmReleaseInformer) Lister() v1beta1.HelmReleaseLister {
+	return v1beta1.NewHelmReleaseLister(f.Informer().GetIndexer())
 }

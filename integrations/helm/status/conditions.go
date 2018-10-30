@@ -11,8 +11,8 @@ import (
 // We can't rely on having UpdateStatus, or strategic merge patching
 // for custom resources. So we have to create an object which
 // represents the merge path or JSON patch to apply.
-func UpdateConditionsPatch(status *v1beta1.FluxHelmReleaseStatus, updates ...v1beta1.FluxHelmReleaseCondition) (types.PatchType, interface{}) {
-	newConditions := make([]v1beta1.FluxHelmReleaseCondition, len(status.Conditions))
+func UpdateConditionsPatch(status *v1beta1.HelmReleaseStatus, updates ...v1beta1.HelmReleaseCondition) (types.PatchType, interface{}) {
+	newConditions := make([]v1beta1.HelmReleaseCondition, len(status.Conditions))
 	oldConditions := status.Conditions
 	for i, c := range oldConditions {
 		newConditions[i] = c
@@ -35,8 +35,8 @@ updates:
 	}
 }
 
-// UpdateConditions applies the updates to the FluxHelmRelease given, and patches the resource in the cluster.
-func UpdateConditions(client v1beta1client.FluxHelmReleaseInterface, fhr *v1beta1.FluxHelmRelease, updates ...v1beta1.FluxHelmReleaseCondition) error {
+// UpdateConditions applies the updates to the HelmRelease given, and patches the resource in the cluster.
+func UpdateConditions(client v1beta1client.HelmReleaseInterface, fhr *v1beta1.HelmRelease, updates ...v1beta1.HelmReleaseCondition) error {
 	t, obj := UpdateConditionsPatch(&fhr.Status, updates...)
 	bytes, err := json.Marshal(obj)
 	if err != nil {

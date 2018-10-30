@@ -14,19 +14,19 @@ import (
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // FluxHelmRelease represents custom resource associated with a Helm Chart
-type FluxHelmRelease struct {
+type HelmRelease struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata"`
 
-	Spec   FluxHelmReleaseSpec   `json:"spec"`
-	Status FluxHelmReleaseStatus `json:"status"`
+	Spec   HelmReleaseSpec   `json:"spec"`
+	Status HelmReleaseStatus `json:"status"`
 }
 
 // ResourceID returns an ID made from the identifying parts of the
 // resource, as a convenience for Flux, which uses them
 // everywhere.
-func (fhr FluxHelmRelease) ResourceID() flux.ResourceID {
-	return flux.MakeResourceID(fhr.Namespace, "FluxHelmRelease", fhr.Name)
+func (fhr HelmRelease) ResourceID() flux.ResourceID {
+	return flux.MakeResourceID(fhr.Namespace, "HelmRelease", fhr.Name)
 }
 
 type ChartSource struct {
@@ -64,15 +64,15 @@ type RepoChartSource struct {
 
 // FluxHelmReleaseSpec is the spec for a FluxHelmRelease resource
 // FluxHelmReleaseSpec
-type FluxHelmReleaseSpec struct {
+type HelmReleaseSpec struct {
 	ChartSource `json:"chart"`
 	ReleaseName string `json:"releaseName,omitempty"`
 
 	ValueFileSecrets []v1.LocalObjectReference `json:"valueFileSecrets,omitempty"`
-	FluxHelmValues   `json:",inline"`
+	HelmValues       `json:",inline"`
 }
 
-type FluxHelmReleaseStatus struct {
+type HelmReleaseStatus struct {
 	// ReleaseName is the name as either supplied or generated.
 	// +optional
 	ReleaseName string `json:"releaseName"`
@@ -86,12 +86,12 @@ type FluxHelmReleaseStatus struct {
 	// +optional
 	// +patchMergeKey=type
 	// +patchStrategy=merge
-	Conditions []FluxHelmReleaseCondition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type"`
+	Conditions []HelmReleaseCondition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type"`
 }
 
-type FluxHelmReleaseCondition struct {
-	Type   FluxHelmReleaseConditionType `json:"type"`
-	Status v1.ConditionStatus           `json:"status"`
+type HelmReleaseCondition struct {
+	Type   HelmReleaseConditionType `json:"type"`
+	Status v1.ConditionStatus       `json:"status"`
 	// +optional
 	LastTransitionTime metav1.Time `json:"lastTransitionTime,omitempty"`
 	// +optional
@@ -100,25 +100,25 @@ type FluxHelmReleaseCondition struct {
 	Message string `json:"message,omitempty"`
 }
 
-type FluxHelmReleaseConditionType string
+type HelmReleaseConditionType string
 
 const (
-	// ChartFetched means the chart to which the FluxHelmRelease
-	// refers has been fetched successfully
-	FluxHelmReleaseChartFetched FluxHelmReleaseConditionType = "ChartFetched"
+	// ChartFetched means the chart to which the HelmRelease refers
+	// has been fetched successfully
+	HelmReleaseChartFetched HelmReleaseConditionType = "ChartFetched"
 	// Released means the chart release, as specified in this
-	// FluxHelmRelease, has been processed by Helm.
-	FluxHelmReleaseReleased FluxHelmReleaseConditionType = "Released"
+	// HelmRelease, has been processed by Helm.
+	HelmReleaseReleased HelmReleaseConditionType = "Released"
 )
 
 // FluxHelmValues embeds chartutil.Values so we can implement deepcopy on map[string]interface{}
 // +k8s:deepcopy-gen=false
-type FluxHelmValues struct {
+type HelmValues struct {
 	chartutil.Values `json:"values,omitempty"`
 }
 
 // DeepCopyInto implements deepcopy-gen method for use in generated code
-func (in *FluxHelmValues) DeepCopyInto(out *FluxHelmValues) {
+func (in *HelmValues) DeepCopyInto(out *HelmValues) {
 	if in == nil {
 		return
 	}
@@ -137,10 +137,10 @@ func (in *FluxHelmValues) DeepCopyInto(out *FluxHelmValues) {
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// FluxHelmReleaseList is a list of FluxHelmRelease resources
-type FluxHelmReleaseList struct {
+// HelmReleaseList is a list of FluxHelmRelease resources
+type HelmReleaseList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata"`
 
-	Items []FluxHelmRelease `json:"items"`
+	Items []HelmRelease `json:"items"`
 }

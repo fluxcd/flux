@@ -1,14 +1,14 @@
 /*
 
-This package is for maintaining the link between `FluxHelmRelease`
+This package is for maintaining the link between `HelmRelease`
 resources and the Helm releases to which they
 correspond. Specifically,
 
- 1. updating the `FluxHelmRelease` status based on the progress of
+ 1. updating the `HelmRelease` status based on the progress of
    syncing, and the state of the associated Helm release; and,
 
  2. attributing each resource in a Helm release (under our control) to
- the associated `FluxHelmRelease`.
+ the associated `HelmRelease`.
 
 */
 package status
@@ -56,14 +56,14 @@ bail:
 			break bail
 		case <-ticker.C:
 		}
-		// Look up FluxHelmReleases
+		// Look up HelmReleases
 		namespaces, err := a.kube.CoreV1().Namespaces().List(metav1.ListOptions{})
 		if err != nil {
 			logErr = err
 			break bail
 		}
 		for _, ns := range namespaces.Items {
-			fhrClient := a.fluxhelm.FluxV1beta1().FluxHelmReleases(ns.Name)
+			fhrClient := a.fluxhelm.FluxV1beta1().HelmReleases(ns.Name)
 			fhrs, err := fhrClient.List(metav1.ListOptions{})
 			if err != nil {
 				logErr = err
@@ -92,7 +92,7 @@ bail:
 	logger.Log("loop", "stopping", "err", logErr)
 }
 
-func UpdateReleaseStatus(client v1beta1client.FluxHelmReleaseInterface, fhr v1beta1.FluxHelmRelease, releaseName, releaseStatus string) error {
+func UpdateReleaseStatus(client v1beta1client.HelmReleaseInterface, fhr v1beta1.HelmRelease, releaseName, releaseStatus string) error {
 	patchBytes, err := json.Marshal(map[string]interface{}{
 		"status": map[string]interface{}{
 			"releaseName":   releaseName,

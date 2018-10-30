@@ -16,9 +16,9 @@ will apply it to the cluster, and once it's in the cluster, the Helm
 Operator will make sure the release exists by installing or upgrading
 it.
 
-## The `FluxHelmRelease` custom resource
+## The `HelmRelease` custom resource
 
-Each release of a chart is declared by a `FluxHelmRelease`
+Each release of a chart is declared by a `HelmRelease`
 resource. The schema for these resources is given in [the custom
 resource definition](../deploy-helm/flux-helm-release-crd.yaml). They
 look like this:
@@ -26,7 +26,7 @@ look like this:
 ```yaml
 ---
 apiVersion: flux.weave.works/v1beta1
-kind: FluxHelmRelease
+kind: HelmRelease
 metadata:
   name: rabbit
   namespace: default
@@ -83,11 +83,11 @@ ssh_config; this is also demonstrated in the example deployment.
 
 ### What the Helm Operator does
 
-When the Helm Operator sees a `FluxHelmRelease` resource in the
+When the Helm Operator sees a `HelmRelease` resource in the
 cluster, it either installs or upgrades the named Helm release so that
 the chart is released as specified.
 
-It will also notice when a `FluxHelmRelease` resource is updated, and
+It will also notice when a `HelmRelease` resource is updated, and
 take action accordingly.
 
 ## Supplying values to the chart
@@ -98,12 +98,12 @@ two ways.
 ### `.spec.values`
 
 This is a YAML map as you'd put in a file and supply to Helm with `-f
-values.yaml`, but inlined into the FluxHelmRelease manifest. For
+values.yaml`, but inlined into the HelmRelease manifest. For
 example,
 
 ```yaml
 apiVersion: flux.weave.works/v1beta1
-kind: FluxHelmRelease
+kind: HelmRelease
 # metadata: ...
 spec:
   # chart: ...
@@ -119,7 +119,7 @@ spec:
 ### `.spec.valueFileSecrets`
 
 This is a list of secrets (in the same namespace as the
-FluxHelmRelease) from which to take values. The secrets must each
+HelmRelease) from which to take values. The secrets must each
 contain an entry for `values.yaml`.
 
 The values are merged in the order given, with later values
@@ -160,12 +160,12 @@ data:
   values.yaml: <base64 encoded values.yaml>
 ```
 
-Then, you could refer to the secret in a `FluxHelmRelease`, and the
+Then, you could refer to the secret in a `HelmRelease`, and the
 values would be used when the chart was installed:
 
 ```yaml
 apiVersion: flux.weave.works/v1beta1
-kind: FluxHelmRelease
+kind: HelmRelease
 metadata:
   name: uses-secret
   namespace: dev
@@ -196,7 +196,7 @@ included as entries in the secret.
 <a name="cite-why-repo-urls"></a>The names given in
 `repositories.yaml` do not have significance; it's the URLs that will
 be used to find credentials, since it's a repository URL that is given
-in the `FluxHelmRelease`[*](#why-repo-urls).
+in the `HelmRelease`[*](#why-repo-urls).
 
 ### Authentication for Git repos
 
@@ -207,16 +207,16 @@ access.
 
 To provide an SSH key, put the key in a secret under the entry
 `"identity"`, and refer to that secret as the `chartPullSecret` in the
-`FluxHelmRelease`.
+`HelmRelease`.
 
-## Upgrading images in a FluxHelmRelease using Flux
+## Upgrading images in a HelmRelease using Flux
 
-If the chart you're using in a FluxHelmRelease lets you specify the
+If the chart you're using in a HelmRelease lets you specify the
 particular images to run, you will usually be able to update them with
 Flux, the same way you can with Deployments and so on.
 
 Flux interprets certain commonly used structures in the `values`
-section of a `FluxHelmRelease` as referring to images. The following
+section of a `HelmRelease` as referring to images. The following
 are understood (showing just the `values` section):
 
 ```yaml
@@ -258,10 +258,10 @@ values:
     port: 4040
 ```
 
-### Using annotations to control updates to FluxHelmRelease resources
+### Using annotations to control updates to HelmRelease resources
 
 You can use the [same annotations](./using.md#using-annotations) in
-the `FluxHelmRelease` as you would for a Deployment or other workload,
+the `HelmRelease` as you would for a Deployment or other workload,
 to control updates and automation. For the purpose of specifying
 filters, the container name is either `chart-image` (if at the top
 level), or the key under which the image is given (e.g., `"subsystem"`
@@ -271,10 +271,10 @@ from the example above).
 
 <a name="why-repo-urls">**Why use URLs to refer to repositories, rather than names?**</a> [^](#cite-why-repo-urls)
 
-A `FluxHelmRelease` must be able to stand on its own. If we used names
+A `HelmRelease` must be able to stand on its own. If we used names
 in the spec, which were resolved to URLs elsewhere (e.g., in a
 `repositories.yaml` supplied to the operator), it would be possible to
-change the meaning of a `FluxHelmRelease` without altering it. This is
+change the meaning of a `HelmRelease` without altering it. This is
 undesirable because it makes it hard to specify exactly what you want,
 in the one place; or to read exactly what is being specified, in the
 one place. In other words, it's better to be explicit.

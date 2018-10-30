@@ -25,8 +25,8 @@ type FakeFluxV1beta1 struct {
 	*testing.Fake
 }
 
-func (c *FakeFluxV1beta1) FluxHelmReleases(namespace string) v1beta1.FluxHelmReleaseInterface {
-	return &FakeFluxHelmReleases{c, namespace}
+func (c *FakeFluxV1beta1) HelmReleases(namespace string) v1beta1.HelmReleaseInterface {
+	return &FakeHelmReleases{c, namespace}
 }
 
 // RESTClient returns a RESTClient that is used to communicate

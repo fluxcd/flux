@@ -89,7 +89,7 @@ func init() {
 	tillerTLSCACert = fs.String("tiller-tls-ca-cert-path", "", "path to CA certificate file used to validate the Tiller server; required if tiller-tls-verify is enabled")
 	tillerTLSHostname = fs.String("tiller-tls-hostname", "", "server name used to verify the hostname on the returned certificates from the server")
 
-	chartsSyncInterval = fs.Duration("charts-sync-interval", 3*time.Minute, "period on which to reconcile the Helm releases with FluxHelmRelease resources")
+	chartsSyncInterval = fs.Duration("charts-sync-interval", 3*time.Minute, "period on which to reconcile the Helm releases with HelmRelease resources")
 	logReleaseDiffs = fs.Bool("log-release-diffs", false, "log the diff when a chart release diverges; potentially insecure")
 	updateDependencies = fs.Bool("update-chart-deps", true, "Update chart dependencies before installing/upgrading a release")
 
@@ -171,11 +171,11 @@ func main() {
 	})
 
 	// The status updater, to keep track the release status for each
-	// FluxHelmRelease. It runs as a separate loop for now.
+	// HelmRelease. It runs as a separate loop for now.
 	statusUpdater := status.New(ifClient, kubeClient, helmClient)
 	go statusUpdater.Loop(shutdown, log.With(logger, "component", "annotator"))
 
-	// release instance is needed during the sync of Charts changes and during the sync of FluxHelmRelease changes
+	// release instance is needed during the sync of Charts changes and during the sync of HelmRelease changes
 	rel := release.New(log.With(logger, "component", "release"), helmClient)
 	// CHARTS CHANGES SYNC ------------------------------------------------------------------
 	chartSync := chartsync.New(log.With(logger, "component", "chartsync"),
@@ -189,8 +189,8 @@ func main() {
 	//				SharedInformerFactory sets up informer, that maps resource type to a cache shared informer.
 	//				operator attaches event handler to the informer and syncs the informer cache
 	ifInformerFactory := ifinformers.NewSharedInformerFactory(ifClient, 30*time.Second)
-	// Reference to shared index informers for the FluxHelmRelease
-	fhrInformer := ifInformerFactory.Flux().V1beta1().FluxHelmReleases()
+	// Reference to shared index informers for the HelmRelease
+	fhrInformer := ifInformerFactory.Flux().V1beta1().HelmReleases()
 
 	opr := operator.New(log.With(logger, "component", "operator"), *logReleaseDiffs, kubeClient, fhrInformer, chartSync)
 	// Starts handling k8s events related to the given resource kind

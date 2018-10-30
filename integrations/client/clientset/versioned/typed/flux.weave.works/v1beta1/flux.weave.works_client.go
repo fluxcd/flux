@@ -24,7 +24,7 @@ import (
 
 type FluxV1beta1Interface interface {
 	RESTClient() rest.Interface
-	FluxHelmReleasesGetter
+	HelmReleasesGetter
 }
 
 // FluxV1beta1Client is used to interact with features provided by the flux.weave.works group.
@@ -32,8 +32,8 @@ type FluxV1beta1Client struct {
 	restClient rest.Interface
 }
 
-func (c *FluxV1beta1Client) FluxHelmReleases(namespace string) FluxHelmReleaseInterface {
-	return newFluxHelmReleases(c, namespace)
+func (c *FluxV1beta1Client) HelmReleases(namespace string) HelmReleaseInterface {
+	return newHelmReleases(c, namespace)
 }
 
 // NewForConfig creates a new FluxV1beta1Client for the given config.
