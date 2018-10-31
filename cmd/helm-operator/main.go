@@ -177,7 +177,7 @@ func main() {
 
 	// HELM ---------------------------------------------------------------------------------
 	helmClient := fluxhelm.ClientSetup(log.With(logger, "component", "helm"), kubeClient, fluxhelm.TillerOptions{
-		IP:        *tillerIP,
+		Host:      *tillerIP,
 		Port:      *tillerPort,
 		Namespace: *tillerNamespace,
 		TLSVerify: *tillerTLSVerify,
