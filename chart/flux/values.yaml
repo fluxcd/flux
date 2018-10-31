@@ -37,6 +37,7 @@ helmOperator:
     keyFile: "tls.key"
     certFile: "tls.crt"
     caContent: ""
+    hostname: ""
   # Override Flux git settings
   git:
     url: ""

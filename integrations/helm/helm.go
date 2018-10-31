@@ -25,14 +25,15 @@ type RepoConfig struct {
 }
 
 type TillerOptions struct {
-	Host      string
-	Port      string
-	Namespace string
-	TLSVerify bool
-	TLSEnable bool
-	TLSKey    string
-	TLSCert   string
-	TLSCACert string
+	Host        string
+	Port        string
+	Namespace   string
+	TLSVerify   bool
+	TLSEnable   bool
+	TLSKey      string
+	TLSCert     string
+	TLSCACert   string
+	TLSHostname string
 }
 
 // Helm struct provides access to helm client
@@ -51,13 +52,19 @@ func newClient(kubeClient *kubernetes.Clientset, opts TillerOptions) (*k8shelm.C
 
 	options := []k8shelm.Option{k8shelm.Host(host)}
 	if opts.TLSVerify || opts.TLSEnable {
-		tlscfg, err := tlsutil.ClientConfig(tlsutil.Options{
+		tlsopts := tlsutil.Options{
 			KeyFile:            opts.TLSKey,
 			CertFile:           opts.TLSCert,
-			InsecureSkipVerify: !opts.TLSVerify,
-			CaCertFile:         opts.TLSCACert,
-		})
-
+			InsecureSkipVerify: true,
+		}
+		if opts.TLSVerify {
+			tlsopts.CaCertFile = opts.TLSCACert
+			tlsopts.InsecureSkipVerify = false
+		}
+		if opts.TLSHostname != "" {
+			tlsopts.ServerName = opts.TLSHostname
+		}
+		tlscfg, err := tlsutil.ClientConfig(tlsopts)
 		if err != nil {
 			return &k8shelm.Client{}, err
 		}

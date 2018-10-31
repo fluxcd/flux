@@ -42,11 +42,12 @@ var (
 	tillerPort      *string
 	tillerNamespace *string
 
-	tillerTLSVerify *bool
-	tillerTLSEnable *bool
-	tillerTLSKey    *string
-	tillerTLSCert   *string
-	tillerTLSCACert *string
+	tillerTLSVerify   *bool
+	tillerTLSEnable   *bool
+	tillerTLSKey      *string
+	tillerTLSCert     *string
+	tillerTLSCACert   *string
+	tillerTLSHostname *string
 
 	chartsSyncInterval *time.Duration
 	chartsSyncTimeout  *time.Duration
@@ -100,6 +101,7 @@ func init() {
 	tillerTLSKey = fs.String("tiller-tls-key-path", "/etc/fluxd/helm/tls.key", "Path to private key file used to communicate with the Tiller server.")
 	tillerTLSCert = fs.String("tiller-tls-cert-path", "/etc/fluxd/helm/tls.crt", "Path to certificate file used to communicate with the Tiller server.")
 	tillerTLSCACert = fs.String("tiller-tls-ca-cert-path", "", "Path to CA certificate file used to validate the Tiller server. Required if tiller-tls-verify is enabled.")
+	tillerTLSHostname = fs.String("tiller-tls-hostname", "", "The server name used to verify the hostname on the returned certificates from the server.")
 
 	chartsSyncInterval = fs.Duration("charts-sync-interval", 3*time.Minute, "Interval at which to check for changed charts")
 	chartsSyncTimeout = fs.Duration("charts-sync-timeout", 1*time.Minute, "Timeout when checking for changed charts")
@@ -177,14 +179,15 @@ func main() {
 
 	// HELM ---------------------------------------------------------------------------------
 	helmClient := fluxhelm.ClientSetup(log.With(logger, "component", "helm"), kubeClient, fluxhelm.TillerOptions{
-		Host:      *tillerIP,
-		Port:      *tillerPort,
-		Namespace: *tillerNamespace,
-		TLSVerify: *tillerTLSVerify,
-		TLSEnable: *tillerTLSEnable,
-		TLSKey:    *tillerTLSKey,
-		TLSCert:   *tillerTLSCert,
-		TLSCACert: *tillerTLSCACert,
+		Host:        *tillerIP,
+		Port:        *tillerPort,
+		Namespace:   *tillerNamespace,
+		TLSVerify:   *tillerTLSVerify,
+		TLSEnable:   *tillerTLSEnable,
+		TLSKey:      *tillerTLSKey,
+		TLSCert:     *tillerTLSCert,
+		TLSCACert:   *tillerTLSCACert,
+		TLSHostname: *tillerTLSHostname,
 	})
 
 	// The status updater, to keep track the release status for each
