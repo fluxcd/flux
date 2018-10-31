@@ -60,6 +60,10 @@ func (gt gitTool) fetchCmd() []string {
 	return append(gt.common(), []string{"fetch", "--tags"}...)
 }
 
+func (gt gitTool) localConfigCmd(key, value string) []string {
+	return append(gt.common(), "config", "--local", key, value)
+}
+
 func newGitTool(repodir string) (*gitTool, error) {
 	_, err := os.Stat(repodir)
 	if err == nil || !os.IsNotExist(err) {
@@ -77,6 +81,8 @@ func mustNewGit(lg logger, repodir string, sshcmd string, origin string) git {
 	g := git{gt: *gt, lg: lg, gitSSHCommand: sshcmd, gitOriginURL: origin}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	g.cli().must(ctx, gt.cloneCmd(origin)...)
+	g.cli().must(ctx, gt.localConfigCmd("user.email", "testuser@example.com")...)
+	g.cli().must(ctx, gt.localConfigCmd("user.name", "Test User")...)
 	cancel()
 
 	return g

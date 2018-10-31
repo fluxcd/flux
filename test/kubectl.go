@@ -6,6 +6,10 @@ import (
 	"time"
 )
 
+const (
+	k8sVersion = "v1.10.5" // need post-1.9.4 due to https://github.com/kubernetes/kubernetes/issues/61076
+)
+
 type (
 	kubectlTool struct {
 		profile string
@@ -15,6 +19,7 @@ type (
 		kubeVersion() string
 		create(namespace string, args ...string) error
 		delete(namespace string, args ...string) error
+		cli() clicmd
 	}
 
 	kubectl struct {

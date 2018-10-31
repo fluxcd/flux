@@ -9,7 +9,6 @@ import (
 const (
 	minikubeProfile = "flux-test"
 	minikubeVersion = "v0.28.1"
-	k8sVersion      = "v1.9.6" // need post-1.9.4 due to https://github.com/kubernetes/kubernetes/issues/61076
 )
 
 type (

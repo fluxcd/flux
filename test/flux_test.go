@@ -182,8 +182,9 @@ func (h *harness) waitForUpstreamCommits(ctx context.Context, mincount int) {
 func (h *harness) automate() {
 	// In this case, unlike services() we'll invoke fluxctl to enable automation.  From looking at the fluxctl
 	// source there's more going on than a simple API call.  And it's not like we have to parse the output.
-
-	execNoErr(context.TODO(), h.t, "fluxctl", "--url", h.fluxURL(), "automate",
+	ctx, cancel := context.WithTimeout(context.Background(), syncTimeout)
+	defer cancel()
+	execNoErr(ctx, h.t, "fluxctl", "--url", h.fluxURL(), "automate",
 		fmt.Sprintf("--controller=%s:deployment/helloworld", appNamespace))
 }
 
@@ -192,6 +193,7 @@ func (h *harness) applyFlux() {
 	// it complicates things to have to support both that and the install via helm chart, and it
 	// doesn't buy us anything.
 	h.installFluxChart(defaultPollInterval)
+	//	global.kubectlAPI.cli().must(context.TODO(), "kubectl", "expose", "--port", fluxPort, "--target-port", "3030", "deployment/flux")
 
 	// h.kubectlIgnoreErrs(context.TODO(), h.t, fluxNamespace, "delete", "deploy", "flux", "memcached")
 	// out, err := writeFluxDeployment(h.repodir, h.gitURL())
