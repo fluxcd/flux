@@ -4,10 +4,13 @@ import (
 	"context"
 	"regexp"
 	"time"
+
+	"github.com/Masterminds/semver"
 )
 
 const (
-	k8sVersion = "v1.10.5" // need post-1.9.4 due to https://github.com/kubernetes/kubernetes/issues/61076
+	k8sPreferredVersion = "v1.10.5"
+	k8sVersionRange     = ">1.9.4" // need post-1.9.4 due to https://github.com/kubernetes/kubernetes/issues/61076
 )
 
 type (
@@ -56,10 +59,12 @@ func mustNewKubectl(lg logger, profile string) kubectl {
 
 	k := kubectl{kt: *kt, lg: lg}
 	runningVersion := k.kubeVersion()
-	if runningVersion != k8sVersion {
+	versionCheck, _ := semver.NewConstraint(k8sVersionRange)
+	v := semver.MustParse(runningVersion)
+	if !versionCheck.Check(v) {
 		lg.Fatalf("running kubernetes version is %s but only %s is supported"+
 			", see https://github.com/kubernetes/kubernetes/issues/61076",
-			runningVersion, k8sVersion)
+			runningVersion, k8sVersionRange)
 	}
 	return k
 }

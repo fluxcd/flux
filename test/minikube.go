@@ -4,11 +4,13 @@ import (
 	"context"
 	"fmt"
 	"strings"
+
+	"github.com/Masterminds/semver"
 )
 
 const (
-	minikubeProfile = "flux-test"
-	minikubeVersion = "v0.28.1"
+	minikubeProfile      = "flux-test"
+	minikubeVersionRange = ">=0.28.1"
 )
 
 type (
@@ -74,10 +76,17 @@ func mustNewMinikube(lg logger, profile string) minikube {
 	}
 
 	m := minikube{mt: *mt, lg: lg}
-	version := strings.TrimSpace(m.version())
-	if version != fmt.Sprintf("minikube version: %s", minikubeVersion) {
-		lg.Fatalf("`minikube version` returned %q, but these tests only support version %s",
-			version, minikubeVersion)
+	versionMsg := strings.TrimSpace(m.version())
+	var version string
+	if _, err := fmt.Sscanf(versionMsg, "minikube version: %s", &version); err != nil {
+		lg.Fatalf("couldn't scan minikube version response: %q", versionMsg)
+	}
+
+	v := semver.MustParse(version)
+	versionCheck, _ := semver.NewConstraint(minikubeVersionRange)
+	if !versionCheck.Check(v) {
+		lg.Fatalf("`minikube version` returned %q, but these tests only support versions %s",
+			versionMsg, minikubeVersionRange)
 	}
 	return m
 }
@@ -97,7 +106,7 @@ func (m minikube) delete() {
 func (m minikube) start() {
 	m.cli().must(context.Background(), append(m.mt.startCmd(), []string{
 		"--bootstrapper", "kubeadm",
-		"--keep-context", "--kubernetes-version", k8sVersion}...)...)
+		"--keep-context", "--kubernetes-version", k8sPreferredVersion}...)...)
 }
 
 func (m minikube) sshKeyPath() string {
