@@ -257,6 +257,31 @@ type ReleaseSpec struct {
 	ReleaseContainersSpec *update.ReleaseContainersSpec
 }
 
+// UnmarshalJSON for old version of spec (update.ReleaseImageSpec) where Type is empty
+func (s *ReleaseSpec) UnmarshalJSON(b []byte) error {
+	type T ReleaseSpec
+	t := (*T)(s)
+	if err := json.Unmarshal(b, t); err != nil {
+		return err
+	}
+
+	switch t.Type {
+	case "":
+		r := &update.ReleaseImageSpec{}
+		if err := json.Unmarshal(b, r); err != nil {
+			return err
+		}
+		s.Type = ReleaseImageSpecType
+		s.ReleaseImageSpec = r
+
+	case ReleaseImageSpecType, ReleaseContainersSpecType:
+		// all good
+	default:
+		return errors.New("unknown ReleaseSpec type")
+	}
+	return nil
+}
+
 // ReleaseEventMetadata is the metadata for when service(s) are released
 type ReleaseEventMetadata struct {
 	ReleaseEventCommon
