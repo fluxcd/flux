@@ -98,6 +98,9 @@ spec:
         {{- if .Values.helmOperator.tls.verify }}
         - --tiller-tls-verify={{ .Values.helmOperator.tls.verify }}
         - --tiller-tls-ca-cert-path=/etc/fluxd/helm-ca/ca.crt
+        {{- if .Values.helmOperator.tls.hostname }}
+        - --tiller-tls-hostname={{ .Values.helmOperator.tls.hostname }}
+        {{- end }}
         {{- end }}
         {{- end }}
       {{- if .Values.helmOperator.extraEnvs }}

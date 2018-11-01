@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/go-kit/kit/log"
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	k8shelm "k8s.io/helm/pkg/helm"
@@ -26,14 +25,15 @@ type RepoConfig struct {
 }
 
 type TillerOptions struct {
-	IP        string
-	Port      string
-	Namespace string
-	TLSVerify bool
-	TLSEnable bool
-	TLSKey    string
-	TLSCert   string
-	TLSCACert string
+	Host        string
+	Port        string
+	Namespace   string
+	TLSVerify   bool
+	TLSEnable   bool
+	TLSKey      string
+	TLSCert     string
+	TLSCACert   string
+	TLSHostname string
 }
 
 // Helm struct provides access to helm client
@@ -52,13 +52,19 @@ func newClient(kubeClient *kubernetes.Clientset, opts TillerOptions) (*k8shelm.C
 
 	options := []k8shelm.Option{k8shelm.Host(host)}
 	if opts.TLSVerify || opts.TLSEnable {
-		tlscfg, err := tlsutil.ClientConfig(tlsutil.Options{
+		tlsopts := tlsutil.Options{
 			KeyFile:            opts.TLSKey,
 			CertFile:           opts.TLSCert,
-			InsecureSkipVerify: !opts.TLSVerify,
-			CaCertFile:         opts.TLSCACert,
-		})
-
+			InsecureSkipVerify: true,
+		}
+		if opts.TLSVerify {
+			tlsopts.CaCertFile = opts.TLSCACert
+			tlsopts.InsecureSkipVerify = false
+		}
+		if opts.TLSHostname != "" {
+			tlsopts.ServerName = opts.TLSHostname
+		}
+		tlscfg, err := tlsutil.ClientConfig(tlsopts)
 		if err != nil {
 			return &k8shelm.Client{}, err
 		}
@@ -98,26 +104,13 @@ func GetTillerVersion(cl k8shelm.Client, h string) (string, error) {
 
 // TODO ... set up based on the tiller existing in the cluster, if no ops given
 func tillerHost(kubeClient *kubernetes.Clientset, opts TillerOptions) (string, error) {
-	var ts *corev1.Service
-	var err error
-	var ip string
-	var port string
-
-	if opts.IP == "" {
-		ts, err = kubeClient.CoreV1().Services(opts.Namespace).Get("tiller-deploy", metav1.GetOptions{})
+	if opts.Host == "" || opts.Port == "" {
+		ts, err := kubeClient.CoreV1().Services(opts.Namespace).Get("tiller-deploy", metav1.GetOptions{})
 		if err != nil {
 			return "", err
 		}
-		ip = ts.Spec.ClusterIP
-		port = fmt.Sprintf("%v", ts.Spec.Ports[0].Port)
+		return fmt.Sprintf("%s.%s:%v", ts.Name, ts.Namespace, ts.Spec.Ports[0].Port), nil
 	}
 
-	if opts.IP != "" {
-		ip = opts.IP
-	}
-	if opts.Port != "" {
-		port = fmt.Sprintf("%v", opts.Port)
-	}
-
-	return fmt.Sprintf("%s:%s", ip, port), nil
+	return fmt.Sprintf("%s:%s", opts.Host, opts.Port), nil
 }

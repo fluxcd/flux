@@ -701,6 +701,7 @@
     "encoding/proto",
     "grpclb/grpc_lb_v1/messages",
     "grpclog",
+    "health/grpc_health_v1",
     "internal",
     "keepalive",
     "metadata",
@@ -773,6 +774,14 @@
   version = "kubernetes-1.11.0"
 
 [[projects]]
+  branch = "master"
+  digest = "1:0a865e7f317907161f1c2df5f270595b9d7ba09850b7eb39a2b11cc8f9a50d28"
+  name = "k8s.io/apiextensions-apiserver"
+  packages = ["pkg/features"]
+  pruneopts = ""
+  revision = "84f7c7786e298ad1479d00ff314a2cfa0006cd0c"
+
+[[projects]]
   digest = "1:b6b2fb7b4da1ac973b64534ace2299a02504f16bc7820cb48edb8ca4077183e1"
   name = "k8s.io/apimachinery"
   packages = [
@@ -824,6 +833,17 @@
   pruneopts = ""
   revision = "103fd098999dc9c0c88536f5c9ad2e5da39373ae"
   version = "kubernetes-1.11.0"
+
+[[projects]]
+  branch = "master"
+  digest = "1:307114f0d43e1f0b8ce6fba0ca3369b7270504e99fd9125a698b4ef0b6f686c6"
+  name = "k8s.io/apiserver"
+  packages = [
+    "pkg/features",
+    "pkg/util/feature",
+  ]
+  pruneopts = ""
+  revision = "f2e7e4864e403362f09eded9fb122b0f0b622c7c"
 
 [[projects]]
   digest = "1:d04779a8de7d5465e0463bd986506348de5e89677c74777f695d3145a7a8d15e"
@@ -965,7 +985,7 @@
   revision = "b58fc7edb82e0c6ffc9b8aef61813c7261b785d4"
 
 [[projects]]
-  digest = "1:0bb3ef18f8f199bf341cab6b7de16b4b132cca2cfcbf498228a37e4c6a4a732e"
+  digest = "1:ec6534bd79f79351514d62ff48f4f547aeb53ea0c9ee45ca5594fbdfbd2fc258"
   name = "k8s.io/helm"
   packages = [
     "pkg/chartutil",
@@ -975,13 +995,15 @@
     "pkg/proto/hapi/release",
     "pkg/proto/hapi/services",
     "pkg/proto/hapi/version",
+    "pkg/storage/driver",
     "pkg/sympath",
     "pkg/tlsutil",
+    "pkg/urlutil",
     "pkg/version",
   ]
   pruneopts = ""
-  revision = "6af75a8fd72e2aa18a2b278cfe5c7a1c5feca7f2"
-  version = "v2.8.1"
+  revision = "9ad53aac42165a5fadc6c87be0dea6b115f93090"
+  version = "v2.10.0"
 
 [[projects]]
   branch = "master"
@@ -990,6 +1012,88 @@
   packages = ["pkg/util/proto"]
   pruneopts = ""
   revision = "50ae88d24ede7b8bad68e23c805b5d3da5c8abaf"
+
+[[projects]]
+  digest = "1:89eef4670d767c8f3e520d71509f40e77698b4bc898305b6ee0220300840b788"
+  name = "k8s.io/kubernetes"
+  packages = [
+    "pkg/api/legacyscheme",
+    "pkg/api/ref",
+    "pkg/apis/admissionregistration",
+    "pkg/apis/admissionregistration/install",
+    "pkg/apis/admissionregistration/v1alpha1",
+    "pkg/apis/admissionregistration/v1beta1",
+    "pkg/apis/apps",
+    "pkg/apis/apps/install",
+    "pkg/apis/apps/v1",
+    "pkg/apis/apps/v1beta1",
+    "pkg/apis/apps/v1beta2",
+    "pkg/apis/authentication",
+    "pkg/apis/authentication/install",
+    "pkg/apis/authentication/v1",
+    "pkg/apis/authentication/v1beta1",
+    "pkg/apis/authorization",
+    "pkg/apis/authorization/install",
+    "pkg/apis/authorization/v1",
+    "pkg/apis/authorization/v1beta1",
+    "pkg/apis/autoscaling",
+    "pkg/apis/autoscaling/install",
+    "pkg/apis/autoscaling/v1",
+    "pkg/apis/autoscaling/v2beta1",
+    "pkg/apis/batch",
+    "pkg/apis/batch/install",
+    "pkg/apis/batch/v1",
+    "pkg/apis/batch/v1beta1",
+    "pkg/apis/batch/v2alpha1",
+    "pkg/apis/certificates",
+    "pkg/apis/certificates/install",
+    "pkg/apis/certificates/v1beta1",
+    "pkg/apis/componentconfig",
+    "pkg/apis/componentconfig/install",
+    "pkg/apis/componentconfig/v1alpha1",
+    "pkg/apis/core",
+    "pkg/apis/core/install",
+    "pkg/apis/core/v1",
+    "pkg/apis/events",
+    "pkg/apis/events/install",
+    "pkg/apis/events/v1beta1",
+    "pkg/apis/extensions",
+    "pkg/apis/extensions/install",
+    "pkg/apis/extensions/v1beta1",
+    "pkg/apis/networking",
+    "pkg/apis/networking/install",
+    "pkg/apis/networking/v1",
+    "pkg/apis/policy",
+    "pkg/apis/policy/install",
+    "pkg/apis/policy/v1beta1",
+    "pkg/apis/rbac",
+    "pkg/apis/rbac/install",
+    "pkg/apis/rbac/v1",
+    "pkg/apis/rbac/v1alpha1",
+    "pkg/apis/rbac/v1beta1",
+    "pkg/apis/scheduling",
+    "pkg/apis/scheduling/install",
+    "pkg/apis/scheduling/v1alpha1",
+    "pkg/apis/scheduling/v1beta1",
+    "pkg/apis/settings",
+    "pkg/apis/settings/install",
+    "pkg/apis/settings/v1alpha1",
+    "pkg/apis/storage",
+    "pkg/apis/storage/install",
+    "pkg/apis/storage/v1",
+    "pkg/apis/storage/v1alpha1",
+    "pkg/apis/storage/v1beta1",
+    "pkg/client/clientset_generated/internalclientset/scheme",
+    "pkg/client/clientset_generated/internalclientset/typed/core/internalversion",
+    "pkg/features",
+    "pkg/kubelet/apis",
+    "pkg/master/ports",
+    "pkg/util/parsers",
+    "pkg/util/pointer",
+  ]
+  pruneopts = ""
+  revision = "bf9a868e8ea3d3a8fa53cbb22f566771b3f8068b"
+  version = "v1.11.4"
 
 [solve-meta]
   analyzer-name = "dep"
