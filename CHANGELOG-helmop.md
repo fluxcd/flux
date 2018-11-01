@@ -1,3 +1,30 @@
+## 0.4.0 (2018-11-01)
+
+This release improves support for TLS connections to Tiller; in
+particular it makes it much easier to get server certificate
+verification (`--tiller-tls-verify`) to work.
+
+It also adds the ability to supply additional values to
+FluxHelmRelease resources, by attaching Kubernetes secrets. This helps
+with a few use cases:
+ - supplying the same default values to several releases
+ - providing secrets to a chart that expects them as values
+ - using values files in FluxHelmReleases
+
+### Bug fixes
+
+ - Make `--tiller-tls-verify` work as intended, by giving better
+   instructions, and adding the argument `--tiller-tls-hostname` which
+   lets you specify the hostname that TLS should expect in the
+   certificate
+   [weaveworks/flux#1484](https://github.com/weaveworks/flux/pull/1484)
+
+### Improvements
+
+ - You can now create secrets containing a `values.yaml` file, and
+   attach them to a `FluxHelmRelease` as additional values to use
+   [weaveworks/flux#1468](https://github.com/weaveworks/flux/pull/1468)
+
 ## 0.3.0 (2018-10-24)
 
 This release adds dependency handling to the Helm operator.
