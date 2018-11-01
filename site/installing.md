@@ -20,7 +20,7 @@ this](./helm-get-started.md).
 
 # Next
 
-[Setup fluxctl and run the daemon](./using.md)
+[Setup fluxctl and run the daemon](./fluxctl.md)
 
 ----
 [k8s-manifests]: https://kubernetes.io/docs/concepts/configuration/overview/
