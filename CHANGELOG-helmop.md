@@ -5,11 +5,12 @@ particular it makes it much easier to get server certificate
 verification (`--tiller-tls-verify`) to work.
 
 It also adds the ability to supply additional values to
-FluxHelmRelease resources, by attaching Kubernetes secrets. This helps
-with a few use cases:
+`FluxHelmRelease` resources by attaching Kubernetes secrets. This
+helps with a few use cases:
+
  - supplying the same default values to several releases
- - providing secrets to a chart that expects them as values
- - using values files in FluxHelmReleases
+ - providing secrets (e.g., a password) to a chart that expects them as values
+ - using values files without inlining them into FluxHelmReleases
 
 ### Bug fixes
 
@@ -24,6 +25,15 @@ with a few use cases:
  - You can now create secrets containing a `values.yaml` file, and
    attach them to a `FluxHelmRelease` as additional values to use
    [weaveworks/flux#1468](https://github.com/weaveworks/flux/pull/1468)
+
+### Thanks
+
+Thanks to @hiddeco, @Smirl, @stefanprodan, @arthurk, @the-fine,
+@wstrange, @sfitts, @squaremo, @mpareja, @stephenmoloney,
+@justinbarrick, @pcfens for contributions to the PRs and issues
+leading to this release, as well as the inhabitants of
+[#flux](https://slack.weave.works/) for high-quality, helpful
+discussion.
 
 ## 0.3.0 (2018-10-24)
 
