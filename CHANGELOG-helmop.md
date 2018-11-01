@@ -12,6 +12,11 @@ helps with a few use cases:
  - providing secrets (e.g., a password) to a chart that expects them as values
  - using values files without inlining them into FluxHelmReleases
 
+**NB** It is advised that you deploy the operator alongside Tiller
+v2.10 or more recent. To properly support TLS, the operator now
+includes code from Helm v2.10, and this may have difficulty connecting
+to older versions of Tiller.
+
 ### Bug fixes
 
  - Make `--tiller-tls-verify` work as intended, by giving better
