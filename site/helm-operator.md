@@ -23,7 +23,7 @@ helm-operator requires setup and offers customization though a multitude of flag
 |--tiller-tls-tls-key-path     |`/etc/fluxd/helm/tls.key`      | Path to private key file used to communicate with the Tiller server. |
 |--tiller-tls-tls-cert-path    |`/etc/fluxd/helm/tls.crt`      | Path to certificate file used to communicate with the Tiller server. |
 |--tiller-tls-tls-ca-cert-path |                               | Path to CA certificate file used to validate the Tiller server. Required if tiller-tls-verify is enabled. |
-|--tiler-tls-hostname          |                               | The server name used to verify the hostname on the returned certificates from the server. |
+|--tiller-tls-hostname         |                               | The server name used to verify the hostname on the returned certificates from the Tiller server. |
 |                              |                               | **Git repo & key etc.**|
 |--git-url                     |                               | URL of git repo with Helm Charts; e.g., `ssh://git@github.com/weaveworks/flux-example`|
 |--git-branch                  | `master`                      | Branch of git repo to use for Kubernetes manifests|
