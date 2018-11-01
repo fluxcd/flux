@@ -3,7 +3,25 @@ entries:
   flux:
   - apiVersion: v1
     appVersion: 1.8.0
-    created: 2018-10-25T14:51:09.607015+03:00
+    created: 2018-11-01T18:56:31.845244+02:00
+    description: Flux is a tool that automatically ensures that the state of a cluster
+      matches what is specified in version control
+    digest: 02f548019c45543e27cfdf70e8cb3260d93c88891d29d39d166ef03096da3e28
+    engine: gotpl
+    home: https://weave.works
+    icon: https://landscape.cncf.io/logos/flux.svg
+    maintainers:
+    - email: stefan@weave.works
+      name: stefanprodan
+    name: flux
+    sources:
+    - https://github.com/weaveworks/flux
+    urls:
+    - https://weaveworks.github.io/flux/flux-0.4.1.tgz
+    version: 0.4.1
+  - apiVersion: v1
+    appVersion: 1.8.0
+    created: 2018-11-01T18:56:31.844316+02:00
     description: Flux is a tool that automatically ensures that the state of a cluster
       matches what is specified in version control
     digest: c989e3b21bedc426ab6207cd5eeb7d0bfd0adfe6ec11eb11752b4c6ca6aeedfc
@@ -21,7 +39,7 @@ entries:
     version: 0.4.0
   - apiVersion: v1
     appVersion: 1.7.1
-    created: 2018-10-25T14:51:09.606201+03:00
+    created: 2018-11-01T18:56:31.841977+02:00
     description: Flux is a tool that automatically ensures that the state of a cluster
       matches what is specified in version control
     digest: aba6630dd6696ba1561a81c0ace40c15f243c90ef2dd0451689cd01800ec6fb9
@@ -39,7 +57,7 @@ entries:
     version: 0.3.4
   - apiVersion: v1
     appVersion: 1.7.0
-    created: 2018-10-25T14:51:09.604819+03:00
+    created: 2018-11-01T18:56:31.840661+02:00
     description: Flux is a tool that automatically ensures that the state of a cluster
       matches what is specified in version control
     digest: e124471a7b0de2726446215e88a474ee12618a8df4a225c08e3529ff57ee5645
@@ -57,7 +75,7 @@ entries:
     version: 0.3.3
   - apiVersion: v1
     appVersion: 1.6.0
-    created: 2018-10-25T14:51:09.603455+03:00
+    created: 2018-11-01T18:56:31.839494+02:00
     description: Flux is a tool that automatically ensures that the state of a cluster
       matches what is specified in version control
     digest: 8c05bf9b7fd492398465cb93e6ea3d510848d6c07227adee17e160f51b49faa2
@@ -75,7 +93,7 @@ entries:
     version: 0.3.2
   - apiVersion: v1
     appVersion: 1.5.0
-    created: 2018-10-25T14:51:09.602104+03:00
+    created: 2018-11-01T18:56:31.838508+02:00
     description: Flux is a tool that automatically ensures that the state of a cluster
       matches what is specified in version control
     digest: 931e4f28842e41b8fc50b18496d569f7d80f21c19c85e708c0b8caee61beecef
@@ -93,7 +111,7 @@ entries:
     version: 0.3.0
   - apiVersion: v1
     appVersion: 1.5.0
-    created: 2018-10-25T14:51:09.600964+03:00
+    created: 2018-11-01T18:56:31.837638+02:00
     description: Flux is a tool that automatically ensures that the state of a cluster
       matches what is specified in version control
     digest: b472f311397bbafa01906ed1f2db55225350f63c0ed6c469765ad9d1443d1e91
@@ -111,7 +129,7 @@ entries:
     version: 0.2.2
   - apiVersion: v1
     appVersion: 1.4.2
-    created: 2018-10-25T14:51:09.600204+03:00
+    created: 2018-11-01T18:56:31.836842+02:00
     description: Flux is a tool that automatically ensures that the state of a cluster
       matches what is specified in version control
     digest: 7f7e69f6dff20be6eb00126e13ca7541460950d57817bd6e7b5a72ba970e7455
@@ -129,7 +147,7 @@ entries:
     version: 0.2.1
   - apiVersion: v1
     appVersion: 1.3.1
-    created: 2018-10-25T14:51:09.599318+03:00
+    created: 2018-11-01T18:56:31.836171+02:00
     description: Flux is a tool that automatically ensures that the state of a cluster
       matches what is specified in version control
     digest: f09856325904810a4a174ee5ab97f60c1cb3c7b55c330872608c12cf2d17ee69
@@ -147,7 +165,7 @@ entries:
     version: 0.2.0
   - apiVersion: v1
     appVersion: 1.4.1
-    created: 2018-10-25T14:51:09.598284+03:00
+    created: 2018-11-01T18:56:31.835494+02:00
     description: Flux is a tool that automatically ensures that the state of a cluster
       matches what is specified in version control
     digest: ca7ef8d0f06e3cf431aa68f8f59fdf98ed4a053402145c3cc2a35af990fcd4df
@@ -165,7 +183,7 @@ entries:
     version: 0.1.1
   - apiVersion: v1
     appVersion: 1.3.1
-    created: 2018-10-25T14:51:09.597116+03:00
+    created: 2018-11-01T18:56:31.834862+02:00
     description: Flux is a tool that automatically ensures that the state of a cluster
       matches what is specified in version control
     digest: 76524354dc20384546044336560f3fd3efe59ab56f39b64ed34e808e65fb50a0
@@ -181,4 +199,4 @@ entries:
     urls:
     - https://weaveworks.github.io/flux/flux-0.1.0.tgz
     version: 0.1.0
-generated: 2018-10-25T14:51:09.596065+03:00
+generated: 2018-11-01T18:56:31.833881+02:00
