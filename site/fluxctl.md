@@ -9,12 +9,11 @@ All of the features of Flux are accessible from within
 However, `fluxctl` provides an equivalent API that can be used from
 the command line.
 
-Download the latest version of the fluxctl client
-[from github](https://github.com/weaveworks/flux/releases).
-
 The `--help` for `fluxctl` is described below.
 
 # Installing fluxctl
+
+## Mac OS
 
 If you are using a Mac and use Homebrew, you can simply run:
 
@@ -22,8 +21,24 @@ If you are using a Mac and use Homebrew, you can simply run:
 brew install fluxctl
 ```
 
-Everybody else can download the `fluxctl` binaries (Mac, Linux, Windows) from
-the [Flux release page](https://github.com/weaveworks/flux/releases).
+## Linux
+
+### Arch Linux
+
+Install the `fluxctl-bin` package [from the
+AUR](https://aur.archlinux.org/packages/fluxctl-bin/):
+
+```sh
+git clone https://aur.archlinux.org/fluxctl-bin.git
+cd fluxctl-bin
+makepkg -si
+```
+
+## Binary releases
+
+With every release of Flux, we release binaries of `fluxctl` for Mac, Linux
+and Windows. Download them from the [Flux release
+page](https://github.com/weaveworks/flux/releases).
 
 # Connecting fluxctl to the daemon
 
