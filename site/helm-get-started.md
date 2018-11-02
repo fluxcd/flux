@@ -19,9 +19,6 @@ You will need to have Kubernetes set up. To get up and running fast,
 you might want to use `minikube` or `kubeadm`. Any other Kubernetes
 setup will work as well though.
 
-*Note:* If you are using `minikube`, be sure to start the
-cluster with `--bootstrapper=kubeadm` so you are using RBAC.
-
 Download Helm:
 
 - On MacOS:
