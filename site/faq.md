@@ -105,7 +105,7 @@ For example, if you use the following `fluxctl` command:
 
 The image tag will be updated in the git repository upon applying the command.
 
-For more information about Flux commands see [the fluxctl docs](./using.md).
+For more information about Flux commands see [the fluxctl docs](./fluxctl.md).
 
 ### Does Flux automatically sync changes back to git?
 
