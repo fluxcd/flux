@@ -89,7 +89,7 @@ the SSH public key with:
 kubectl logs deployment/flux | grep identity.pub | cut -d '"' -f2
 ```
 
-*Note:* If you have downloaded [fluxctl](./using.md) already, you can use
+*Note:* If you have downloaded [fluxctl](./fluxctl.md) already, you can use
 `fluxctl identity` as well.
 
 In order to sync your cluster state with git you need to copy the
