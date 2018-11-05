@@ -44,7 +44,7 @@ Flux-Helm Integration implementation consists of two parts:
     valueFileSecrets:
     - name: "my-secret-1"
     - name: "my-secret-2"
-    values
+    values:
       image: bitnami/mongodb:3.7.1-r1
 ```
 
@@ -148,7 +148,7 @@ Flux-Helm Integration implementation consists of two parts:
     annotations:
       flux.weave.works/automated: "true"
       flux.weave.works/tag.init: semver:~1.0
-      flux.weave.works/tag.app: regex:^1.2.*
+      flux.weave.works/tag.app: regexp:^1.2.*
   spec:
     chartGitPath: podinfo
     releaseName: podinfo-prod
