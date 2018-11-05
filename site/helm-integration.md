@@ -175,28 +175,45 @@ spec:
   - name: "default-values"
 ```
 
-## Supplying credentials with chartPullSecrets
+## Authentication
+
+At present, per-resource authentication is not implemented. The
+`HelmRelease` definition includes a field `chartPullSecret` for
+attaching a repositories.yaml file, but this is ignored for now.
+
+Instead, you need to provide the operator with credentials and keys --
+see the following for how to do this.
 
 ### Authentication for Helm repos
 
-At some point you will likely need a private Helm repo for your own
-charts, and this will usually require some authentication.
+As a workaround, you can mount a `repositories.yaml` file with
+authentication already configured, into the operator container. To
+prepare a file, add the repo _locally_ as you would normally:
 
-To let the Helm Operator download charts from a private Helm repo, you
-can use the field `chartPullSecret` to refer to a Kubernetes secret
-holding credentials to the chart repository or repositories.
+```
+helm repo add <URL> --username <username> --password <password>
+```
 
-The format of the secret is that it has at least one entry,
-`repositories.yaml`, which has the content of a `repositories.yaml`
-file such as `helm` maintains in
-`$HOME/.helm/repository/repositories.yaml`. If that refers to any
-certificate or key files, those should be in the same directory and
-included as entries in the secret.
+You need to doctor this file a little, since it will likely contain
+absolute paths that will be wrong when mounted inside the
+container. Copy the file and replace all the `cache` entries with just
+the filename.
 
-<a name="cite-why-repo-urls"></a>The names given in
-`repositories.yaml` do not have significance; it's the URLs that will
-be used to find credentials, since it's a repository URL that is given
-in the `HelmRelease`[*](#why-repo-urls).
+```
+cp ~/.helm/repository/repositories.yaml .
+sed -i -e 's/^\( *cache: \).*\/\(.*\.yaml\)/\1\2/g'
+```
+
+Now you can create a secret in the same namespace as you're running
+the Helm operator, from the repositories file:
+
+```
+kubectl create secret generic flux-helm-repositories --from-file=./repositories.yaml
+```
+
+Lastly, mount that secret into the container, as shown in the
+commented-out sections of the [example
+deployment](../deploy-helm/helm-operator-deployment.yaml).
 
 ### Authentication for Git repos
 
@@ -206,8 +223,17 @@ use a chart from git, the Helm Operator needs a key with read-only
 access.
 
 To provide an SSH key, put the key in a secret under the entry
-`"identity"`, and refer to that secret as the `chartPullSecret` in the
-`HelmRelease`.
+`"identity"`, and mount it into the operator container as shown in the
+[example
+deployment](../deploy-helm/helm-operator-deployment.yaml). The default
+ssh_config expects an identity file at `/etc/fluxd/ssh/identity`,
+which is where it'll be if you just uncomment the blocks from the
+example.
+
+If you're using more than one repository, you may need to provide more
+than one SSH key. In that case, you can create a secret with an entry
+for each key, and mount that _as well as_ an ssh_config file
+mentioning each key as an `IdentityFile`.
 
 ## Upgrading images in a HelmRelease using Flux
 

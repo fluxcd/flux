@@ -55,9 +55,9 @@ func downloadChart(destFile string, source *flux_v1beta1.RepoChartSource) error 
 	// Helm's support libs are designed to be driven by the
 	// command-line client, so there are some inevitable CLI-isms,
 	// like getting values from flags and the environment. None of
-	// these things are directly relevant here, _except_ perhaps the
-	// HELM_HOME environment entry. Since there's that possible
-	// exception, we go through the ff (following faff).
+	// these things are directly relevant here, _except_ the HELM_HOME
+	// environment entry. Since there's that exception, we must go
+	// through the ff (following faff).
 	var settings helmenv.EnvSettings
 	// Add the flag definitions ..
 	flags := pflag.NewFlagSet("helm-env", pflag.ContinueOnError)
@@ -69,13 +69,29 @@ func downloadChart(destFile string, source *flux_v1beta1.RepoChartSource) error 
 	getters := getter.All(settings) // <-- aaaand this is the payoff
 
 	// This resolves the repo URL, chart name and chart version to a
-	// URL for the chart.
+	// URL for the chart. To be able to resolve the chart name and
+	// version to a URL, we have to have the index file; and to have
+	// that, we may need to authenticate. The credentials will be in
+	// repositories.yaml.
+	repoFile, err := repo.LoadRepositoriesFile(settings.Home.RepositoryFile())
+	if err != nil {
+		return err
+	}
 
-	// TODO(michael): the cert file, key file, and CA file are left
-	// blank, but could be supplied from the secret. NB these are
-	// different to those used for accessing Tiller (which are in the
-	// EnvSettings I believe).
-	chartUrl, err := repo.FindChartInRepoURL(source.RepoURL, source.Name, source.Version, "", "", "", getters)
+	// Now find the entry for the repository, if there is one. If not,
+	// we'll assume there's no auth needed.
+	repoEntry := &repo.Entry{}
+	for _, entry := range repoFile.Repositories {
+		if entry.URL == source.RepoURL {
+			repoEntry = entry
+			break
+		}
+	}
+
+	// TODO(michael): could look for an existing index file here,
+	// and/or update it. Then we're _pretty_ close to just using
+	// `repo.DownloadTo(...)`.
+	chartUrl, err := repo.FindChartInAuthRepoURL(source.RepoURL, repoEntry.Username, repoEntry.Password, source.Name, source.Version, repoEntry.CertFile, repoEntry.KeyFile, repoEntry.CAFile, getters)
 	if err != nil {
 		return err
 	}
@@ -94,12 +110,11 @@ func downloadChart(destFile string, source *flux_v1beta1.RepoChartSource) error 
 	if err != nil {
 		return err
 	}
-	// TODO(michael): here is where we'd use any cert/key/ca from the secret
-	g, err := getterConstructor(chartUrl, "", "", "")
-	// TODO(michael): here is where we'd use username/passwd from the secret
-	// if t, ok := g.(*getter.HttpGetter); ok {
-	// 	t.SetCredentials(username, passwd)
-	// }
+
+	g, err := getterConstructor(chartUrl, repoEntry.CertFile, repoEntry.KeyFile, repoEntry.CAFile)
+	if t, ok := g.(*getter.HttpGetter); ok {
+		t.SetCredentials(repoEntry.Username, repoEntry.Password)
+	}
 
 	chartBytes, err := g.Get(u.String())
 	if err != nil {
