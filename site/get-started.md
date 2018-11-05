@@ -24,13 +24,26 @@ When using nodes of only 1 cpu (like `n1-standard-1`), an upgrade
 may be stuck with not enough CPU resources. This is seen by pods
 hanging in PENDING state and with:
 
-```
+```sh
 $ kubectl describe pod/helloworld-... | tail -3
 Events:
   Type     Reason            Age                From               Message
   ----     ------            ----               ----               -------
   Warning  FailedScheduling  3m (x37 over 13m)  default-scheduler  0/2 nodes are available: 2 Insufficient cpu.
 ```
+
+### A Note on GKE with RBAC enabled
+
+> If working on e.g. GKE with RBAC enabled, you will need to add a clusterrolebinding:
+>
+> ```sh
+> kubectl create clusterrolebinding "cluster-admin-$(whoami)" --clusterrole=cluster-admin --user="$(gcloud config get-value core/account)"
+> ```
+> to avoid an error along the lines of
+>
+> `Error from server (Forbidden): error when creating "deploy/flux-account.yaml":
+> clusterroles.rbac.authorization.k8s.io "flux" is forbidden: attempt to grant
+> extra privileges:`
 
 ## Set up Flux
 
@@ -55,16 +68,7 @@ In our example we are going to use
 want to use that too, be sure to create a fork of it on Github and
 add the git URL to the config file above.
 
-If working on e.g. GKE with RBAC enabled, you will need to add a clusterrolebinding:
-
-```sh
-kubectl create clusterrolebinding "cluster-admin-$(whoami)" --clusterrole=cluster-admin --user="$(gcloud config get-value core/account)"
-```
-to avoid an error along the lines of
-
-`Error from server (Forbidden): error when creating "deploy/flux-account.yaml":
-clusterroles.rbac.authorization.k8s.io "flux" is forbidden: attempt to grant
-extra privileges:`
+## Deploying Flux to the cluster
 
 In the next step, deploy Flux to the cluster:
 
