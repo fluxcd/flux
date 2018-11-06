@@ -1,5 +1,3 @@
-{{- $gitURL := default .Values.git.url .Values.helmOperator.git.url }}
-{{- $gitBranch := default .Values.git.branch .Values.helmOperator.git.branch }}
 {{- $gitPollInterval := default .Values.git.pollInterval .Values.helmOperator.git.pollInterval }}
 {{- $gitTimeout := default .Values.git.timeout .Values.helmOperator.git.timeout }}
 {{- if .Values.helmOperator.create -}}
@@ -81,13 +79,9 @@ spec:
         {{- end }}
         {{- end }}
         args:
-        - --git-url={{ $gitURL }}
-        - --git-branch={{ $gitBranch }}
         - --git-poll-interval={{ $gitPollInterval }}
         - --git-timeout={{ $gitTimeout }}
-        - --git-charts-path={{ .Values.helmOperator.git.chartsPath }}
         - --charts-sync-interval={{ .Values.helmOperator.chartsSyncInterval }}
-        - --charts-sync-timeout={{ .Values.helmOperator.chartsSyncTimeout }}
         - --update-chart-deps={{ .Values.helmOperator.updateChartDeps }}
         - --log-release-diffs={{ .Values.helmOperator.logReleaseDiffs }}
         - --tiller-namespace={{ .Values.helmOperator.tillerNamespace }}
