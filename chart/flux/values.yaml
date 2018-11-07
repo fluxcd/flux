@@ -26,8 +26,6 @@ helmOperator:
   logReleaseDiffs: false
   # Interval at which to check for changed charts
   chartsSyncInterval: "3m"
-  # Timeout when checking for changed charts
-  chartsSyncTimeout: "1m"
   # Tiller settings
   tillerNamespace: kube-system
   tls:
@@ -40,9 +38,6 @@ helmOperator:
     hostname: ""
   # Override Flux git settings
   git:
-    url: ""
-    branch: ""
-    chartsPath: "charts"
     pollInterval: ""
     timeout: ""
     # generate a SSH key named identity: ssh-keygen -q -N "" -f ./identity

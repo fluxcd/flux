@@ -16,7 +16,7 @@ limitations under the License.
 package v1alpha2
 
 import (
-	helm_integrations_flux_weave_works_v1alpha2 "github.com/weaveworks/flux/apis/helm.integrations.flux.weave.works/v1alpha2"
+	helm_integrations_flux_weave_works_v1alpha2 "github.com/weaveworks/flux/integrations/apis/helm.integrations.flux.weave.works/v1alpha2"
 	versioned "github.com/weaveworks/flux/integrations/client/clientset/versioned"
 	internalinterfaces "github.com/weaveworks/flux/integrations/client/informers/externalversions/internalinterfaces"
 	v1alpha2 "github.com/weaveworks/flux/integrations/client/listers/helm.integrations.flux.weave.works/v1alpha2"

@@ -10,19 +10,11 @@ import (
 	k8shelm "k8s.io/helm/pkg/helm"
 	rls "k8s.io/helm/pkg/proto/hapi/services"
 	"k8s.io/helm/pkg/tlsutil"
-
-	"github.com/weaveworks/flux/git"
 )
 
 const (
 	GitOperationTimeout = 30 * time.Second
 )
-
-type RepoConfig struct {
-	Repo       *git.Repo
-	Branch     string
-	ChartsPath string
-}
 
 type TillerOptions struct {
 	Host        string
@@ -43,12 +35,14 @@ type Helm struct {
 	*k8shelm.Client
 }
 
-// NewClient creates a new helm client
-func newClient(kubeClient *kubernetes.Clientset, opts TillerOptions) (*k8shelm.Client, error) {
+// newClient creates a new helm client
+func newClient(kubeClient *kubernetes.Clientset, opts TillerOptions) (*k8shelm.Client, string, error) {
 	host, err := tillerHost(kubeClient, opts)
 	if err != nil {
-		return &k8shelm.Client{}, err
+		return &k8shelm.Client{}, "", err
 	}
+
+	//host = "tiller-deploy.kube-system:44134"
 
 	options := []k8shelm.Option{k8shelm.Host(host)}
 	if opts.TLSVerify || opts.TLSEnable {
@@ -66,36 +60,43 @@ func newClient(kubeClient *kubernetes.Clientset, opts TillerOptions) (*k8shelm.C
 		}
 		tlscfg, err := tlsutil.ClientConfig(tlsopts)
 		if err != nil {
-			return &k8shelm.Client{}, err
+			return nil, "", err
 		}
 		options = append(options, k8shelm.WithTLS(tlscfg))
 	}
 
-	return k8shelm.NewClient(options...), nil
+	return k8shelm.NewClient(options...), host, nil
 }
 
 func ClientSetup(logger log.Logger, kubeClient *kubernetes.Clientset, tillerOpts TillerOptions) *k8shelm.Client {
 	var helmClient *k8shelm.Client
+	var host string
 	var err error
 	for {
-		helmClient, err = newClient(kubeClient, tillerOpts)
+		helmClient, host, err = newClient(kubeClient, tillerOpts)
 		if err != nil {
-			logger.Log("error", fmt.Sprintf("Error creating helm client: %v", err))
+			logger.Log("error", fmt.Sprintf("Error creating helm client: %s", err.Error()))
 			time.Sleep(20 * time.Second)
 			continue
 		}
-		logger.Log("info", "Helm client set up")
+		version, err := GetTillerVersion(helmClient, host)
+		if err != nil {
+			logger.Log("warning", "unable to connect to Tiller", "err", err, "host", host, "options", fmt.Sprintf("%+v", tillerOpts))
+			time.Sleep(20 * time.Second)
+			continue
+		}
+		logger.Log("info", "connected to Tiller", "version", version, "host", host, "options", fmt.Sprintf("%+v", tillerOpts))
 		break
 	}
 	return helmClient
 }
 
 // GetTillerVersion retrieves tiller version
-func GetTillerVersion(cl k8shelm.Client, h string) (string, error) {
+func GetTillerVersion(cl *k8shelm.Client, h string) (string, error) {
 	var v *rls.GetVersionResponse
 	var err error
 	voption := k8shelm.VersionOption(k8shelm.Host(h))
-	if v, err = cl.GetVersion(voption); err == nil {
+	if v, err = cl.GetVersion(voption); err != nil {
 		return "", fmt.Errorf("error getting tiller version: %v", err)
 	}
 
