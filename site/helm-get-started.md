@@ -159,7 +159,7 @@ kubectl -n flux logs deployment/flux -f
 
 The default sync frequency for Flux using the Helm chart is
 30 seconds. This can be tweaked easily. By observing the logs
-you can see when the change landed in in the cluster.
+you can see when the change landed in the cluster.
 
 ## Confirm the change landed
 
