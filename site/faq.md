@@ -304,6 +304,7 @@ Here's the relevant docs for some common CI systems:
  - [CircleCI](https://circleci.com/docs/2.0/workflows/#git-tag-job-execution)
  - [TravisCI](https://docs.travis-ci.com/user/customizing-the-build#Building-Specific-Branches)
  - [GitLab](https://docs.gitlab.com/ee/ci/yaml/#only-and-except-simplified)
+ - [Bitbucket Pipelines](https://confluence.atlassian.com/bitbucket/configure-bitbucket-pipelines-yml-792298910.html#Configurebitbucket-pipelines.yml-ci_defaultdefault)
 
 ### What is the "sync tag"; or, why do I see a `flux-sync` tag in my git repo?
 
