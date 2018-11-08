@@ -12,29 +12,29 @@ import (
 func TestReleaseCommand_CLIConversion(t *testing.T) {
 	for _, v := range []struct {
 		args         []string
-		expectedSpec update.ReleaseSpec
+		expectedSpec update.ReleaseImageSpec
 	}{
-		{[]string{"--update-all-images", "--all"}, update.ReleaseSpec{
+		{[]string{"--update-all-images", "--all"}, update.ReleaseImageSpec{
 			ServiceSpecs: []update.ResourceSpec{update.ResourceSpecAll},
 			ImageSpec:    update.ImageSpecLatest,
 			Kind:         update.ReleaseKindExecute,
 		}},
-		{[]string{"--update-all-images", "--all", "--dry-run"}, update.ReleaseSpec{
+		{[]string{"--update-all-images", "--all", "--dry-run"}, update.ReleaseImageSpec{
 			ServiceSpecs: []update.ResourceSpec{update.ResourceSpecAll},
 			ImageSpec:    update.ImageSpecLatest,
 			Kind:         update.ReleaseKindPlan,
 		}},
-		{[]string{"--update-image=alpine:latest", "--all"}, update.ReleaseSpec{
+		{[]string{"--update-image=alpine:latest", "--all"}, update.ReleaseImageSpec{
 			ServiceSpecs: []update.ResourceSpec{update.ResourceSpecAll},
 			ImageSpec:    "alpine:latest",
 			Kind:         update.ReleaseKindExecute,
 		}},
-		{[]string{"--update-all-images", "--controller=deployment/flux"}, update.ReleaseSpec{
+		{[]string{"--update-all-images", "--controller=deployment/flux"}, update.ReleaseImageSpec{
 			ServiceSpecs: []update.ResourceSpec{"default:deployment/flux"},
 			ImageSpec:    update.ImageSpecLatest,
 			Kind:         update.ReleaseKindExecute,
 		}},
-		{[]string{"--update-all-images", "--all", "--exclude=deployment/test,deployment/yeah"}, update.ReleaseSpec{
+		{[]string{"--update-all-images", "--all", "--exclude=deployment/test,deployment/yeah"}, update.ReleaseImageSpec{
 			ServiceSpecs: []update.ResourceSpec{update.ResourceSpecAll},
 			ImageSpec:    update.ImageSpecLatest,
 			Kind:         update.ReleaseKindExecute,

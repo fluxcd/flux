@@ -51,7 +51,7 @@ type ReleaseContext interface {
 
 // NB: these get sent from fluxctl, so we have to maintain the json format of
 // this. Eugh.
-type ReleaseSpec struct {
+type ReleaseImageSpec struct {
 	ServiceSpecs []ResourceSpec
 	ImageSpec    ImageSpec
 	Kind         ReleaseKind
@@ -61,7 +61,7 @@ type ReleaseSpec struct {
 
 // ReleaseType gives a one-word description of the release, mainly
 // useful for labelling metrics or log messages.
-func (s ReleaseSpec) ReleaseType() ReleaseType {
+func (s ReleaseImageSpec) ReleaseType() ReleaseType {
 	switch {
 	case s.ImageSpec == ImageSpecLatest:
 		return "latest_images"
@@ -70,7 +70,7 @@ func (s ReleaseSpec) ReleaseType() ReleaseType {
 	}
 }
 
-func (s ReleaseSpec) CalculateRelease(rc ReleaseContext, logger log.Logger) ([]*ControllerUpdate, Result, error) {
+func (s ReleaseImageSpec) CalculateRelease(rc ReleaseContext, logger log.Logger) ([]*ControllerUpdate, Result, error) {
 	results := Result{}
 	timer := NewStageTimer("select_services")
 	updates, err := s.selectServices(rc, results)
@@ -89,11 +89,11 @@ func (s ReleaseSpec) CalculateRelease(rc ReleaseContext, logger log.Logger) ([]*
 	return updates, results, nil
 }
 
-func (s ReleaseSpec) ReleaseKind() ReleaseKind {
+func (s ReleaseImageSpec) ReleaseKind() ReleaseKind {
 	return s.Kind
 }
 
-func (s ReleaseSpec) CommitMessage(result Result) string {
+func (s ReleaseImageSpec) CommitMessage(result Result) string {
 	image := strings.Trim(s.ImageSpec.String(), "<>")
 	var services []string
 	for _, spec := range s.ServiceSpecs {
@@ -105,7 +105,7 @@ func (s ReleaseSpec) CommitMessage(result Result) string {
 // Take the spec given in the job, and figure out which services are
 // in question based on the running services and those defined in the
 // repo. Fill in the release results along the way.
-func (s ReleaseSpec) selectServices(rc ReleaseContext, results Result) ([]*ControllerUpdate, error) {
+func (s ReleaseImageSpec) selectServices(rc ReleaseContext, results Result) ([]*ControllerUpdate, error) {
 	// Build list of filters
 	prefilters, postfilters, err := s.filters(rc)
 	if err != nil {
@@ -115,7 +115,7 @@ func (s ReleaseSpec) selectServices(rc ReleaseContext, results Result) ([]*Contr
 	return rc.SelectServices(results, prefilters, postfilters)
 }
 
-func (s ReleaseSpec) filters(rc ReleaseContext) ([]ControllerFilter, []ControllerFilter, error) {
+func (s ReleaseImageSpec) filters(rc ReleaseContext) ([]ControllerFilter, []ControllerFilter, error) {
 	var prefilters, postfilters []ControllerFilter
 
 	ids := []flux.ResourceID{}
@@ -157,7 +157,7 @@ func (s ReleaseSpec) filters(rc ReleaseContext) ([]ControllerFilter, []Controlle
 	return prefilters, postfilters, nil
 }
 
-func (s ReleaseSpec) markSkipped(results Result) {
+func (s ReleaseImageSpec) markSkipped(results Result) {
 	for _, v := range s.ServiceSpecs {
 		if v == ResourceSpecAll {
 			continue
@@ -181,7 +181,7 @@ func (s ReleaseSpec) markSkipped(results Result) {
 // however we do want to see if we *can* do the replacements, because
 // if not, it indicates there's likely some problem with the running
 // system vs the definitions given in the repo.)
-func (s ReleaseSpec) calculateImageUpdates(rc ReleaseContext, candidates []*ControllerUpdate, results Result, logger log.Logger) ([]*ControllerUpdate, error) {
+func (s ReleaseImageSpec) calculateImageUpdates(rc ReleaseContext, candidates []*ControllerUpdate, results Result, logger log.Logger) ([]*ControllerUpdate, error) {
 	// Compile an `ImageRepos` of all relevant images
 	var imageRepos ImageRepos
 	var singleRepo image.CanonicalName

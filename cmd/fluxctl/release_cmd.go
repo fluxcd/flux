@@ -137,7 +137,7 @@ func (opts *controllerReleaseOpts) RunE(cmd *cobra.Command, args []string) error
 	}
 
 	ctx := context.Background()
-	spec := update.ReleaseSpec{
+	spec := update.ReleaseImageSpec{
 		ServiceSpecs: controllers,
 		ImageSpec:    image,
 		Kind:         kind,
@@ -182,10 +182,10 @@ func (opts *controllerReleaseOpts) RunE(cmd *cobra.Command, args []string) error
 	return await(ctx, cmd.OutOrStdout(), cmd.OutOrStderr(), opts.API, jobID, !opts.dryRun, opts.verbosity)
 }
 
-func promptSpec(out io.Writer, result job.Result, verbosity int) (update.ContainerSpecs, error) {
+func promptSpec(out io.Writer, result job.Result, verbosity int) (update.ReleaseContainersSpec, error) {
 	menu := update.NewMenu(out, result.Result, verbosity)
 	containerSpecs, err := menu.Run()
-	return update.ContainerSpecs{
+	return update.ReleaseContainersSpec{
 		Kind:           update.ReleaseKindExecute,
 		ContainerSpecs: containerSpecs,
 		SkipMismatches: false,

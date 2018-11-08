@@ -144,7 +144,7 @@ func TestDaemon_ListServicesWithOptions(t *testing.T) {
 
 	ctx := context.Background()
 
-	t.Run("no filter", func (t *testing.T) {
+	t.Run("no filter", func(t *testing.T) {
 		s, err := d.ListServicesWithOptions(ctx, v11.ListServicesOptions{})
 		if err != nil {
 			t.Fatalf("Error: %s", err.Error())
@@ -153,7 +153,7 @@ func TestDaemon_ListServicesWithOptions(t *testing.T) {
 			t.Fatalf("Expected %v but got %v", 2, len(s))
 		}
 	})
-	t.Run("filter id", func (t *testing.T) {
+	t.Run("filter id", func(t *testing.T) {
 		s, err := d.ListServicesWithOptions(ctx, v11.ListServicesOptions{
 			Namespace: "",
 			Services:  []flux.ResourceID{flux.MustParseResourceID(svc)}})
@@ -165,7 +165,7 @@ func TestDaemon_ListServicesWithOptions(t *testing.T) {
 		}
 	})
 
-	t.Run("filter id and namespace", func (t *testing.T) {
+	t.Run("filter id and namespace", func(t *testing.T) {
 		_, err := d.ListServicesWithOptions(ctx, v11.ListServicesOptions{
 			Namespace: "foo",
 			Services:  []flux.ResourceID{flux.MustParseResourceID(svc)}})
@@ -174,7 +174,7 @@ func TestDaemon_ListServicesWithOptions(t *testing.T) {
 		}
 	})
 
-	t.Run("filter unsupported id kind", func (t *testing.T) {
+	t.Run("filter unsupported id kind", func(t *testing.T) {
 		_, err := d.ListServicesWithOptions(ctx, v11.ListServicesOptions{
 			Namespace: "foo",
 			Services:  []flux.ResourceID{flux.MustParseResourceID("default:unsupportedkind/goodbyeworld")}})
@@ -183,7 +183,6 @@ func TestDaemon_ListServicesWithOptions(t *testing.T) {
 		}
 	})
 }
-
 
 // When I call list images for a service, it should return images
 func TestDaemon_ListImagesWithOptions(t *testing.T) {
@@ -848,7 +847,7 @@ func (w *wait) ForImageTag(t *testing.T, d *Daemon, service, container, tag stri
 func updateImage(ctx context.Context, d *Daemon, t *testing.T) job.ID {
 	return updateManifest(ctx, t, d, update.Spec{
 		Type: update.Images,
-		Spec: update.ReleaseSpec{
+		Spec: update.ReleaseImageSpec{
 			Kind:         update.ReleaseKindExecute,
 			ServiceSpecs: []update.ResourceSpec{update.ResourceSpecAll},
 			ImageSpec:    newHelloImage,

@@ -95,10 +95,12 @@ func (e Event) String() string {
 		if len(strImageIDs) == 0 {
 			strImageIDs = []string{"no image changes"}
 		}
-		for _, spec := range metadata.Spec.ServiceSpecs {
-			if spec == update.ResourceSpecAll {
-				strServiceIDs = []string{"all services"}
-				break
+		if metadata.Spec.Type == "" || metadata.Spec.Type == ReleaseImageSpecType {
+			for _, spec := range metadata.Spec.ReleaseImageSpec.ServiceSpecs {
+				if spec == update.ResourceSpecAll {
+					strServiceIDs = []string{"all services"}
+					break
+				}
 			}
 		}
 		if len(strServiceIDs) == 0 {
@@ -239,11 +241,52 @@ type ReleaseEventCommon struct {
 	Error string `json:"error,omitempty"`
 }
 
+const (
+	// ReleaseImageSpecType is a type of release spec when there are update.Images
+	ReleaseImageSpecType = "releaseImageSpecType"
+	// ReleaseContainersSpecType is a type of release spec when there are update.Containers
+	ReleaseContainersSpecType = "releaseContainersSpecType"
+)
+
+// ReleaseSpec is a spec for images and containers release
+type ReleaseSpec struct {
+	// Type is ReleaseImageSpecType or ReleaseContainersSpecType
+	// if empty (for previous version), then use ReleaseImageSpecType
+	Type                  string
+	ReleaseImageSpec      *update.ReleaseImageSpec
+	ReleaseContainersSpec *update.ReleaseContainersSpec
+}
+
+// UnmarshalJSON for old version of spec (update.ReleaseImageSpec) where Type is empty
+func (s *ReleaseSpec) UnmarshalJSON(b []byte) error {
+	type T ReleaseSpec
+	t := (*T)(s)
+	if err := json.Unmarshal(b, t); err != nil {
+		return err
+	}
+
+	switch t.Type {
+	case "":
+		r := &update.ReleaseImageSpec{}
+		if err := json.Unmarshal(b, r); err != nil {
+			return err
+		}
+		s.Type = ReleaseImageSpecType
+		s.ReleaseImageSpec = r
+
+	case ReleaseImageSpecType, ReleaseContainersSpecType:
+		// all good
+	default:
+		return errors.New("unknown ReleaseSpec type")
+	}
+	return nil
+}
+
 // ReleaseEventMetadata is the metadata for when service(s) are released
 type ReleaseEventMetadata struct {
 	ReleaseEventCommon
-	Spec  update.ReleaseSpec `json:"spec"`
-	Cause update.Cause       `json:"cause"`
+	Spec  ReleaseSpec  `json:"spec"`
+	Cause update.Cause `json:"cause"`
 }
 
 // AutoReleaseEventMetadata is for when service(s) are released
