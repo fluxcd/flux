@@ -269,7 +269,7 @@ func (c *Cluster) Sync(spec cluster.SyncDef) error {
 	if c.GC {
 		orphanedResources := makeChangeSet()
 
-		clusterResourceBytes, err := c.exportByLabel(fmt.Sprintf("%s%s", kresource.PolicyPrefix, policy.Stack))
+		clusterResourceBytes, err := c.exportResourcesInStack()
 		if err != nil {
 			return errors.Wrap(err, "exporting resource defs from cluster for garbage collection")
 		}
@@ -379,9 +379,10 @@ func contains(a []string, x string) bool {
 	return false
 }
 
-// exportByLabel collates all the resources that have a particular
+// exportResourcesInStack collates all the resources that have a particular
 // label (regardless of the value).
-func (c *Cluster) exportByLabel(labelName string) ([]byte, error) {
+func (c *Cluster) exportResourcesInStack() ([]byte, error) {
+	labelName := fmt.Sprintf("%s%s", kresource.PolicyPrefix, policy.Stack)
 	var config bytes.Buffer
 
 	resources, err := c.client.coreClient.Discovery().ServerResources()

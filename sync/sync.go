@@ -13,8 +13,15 @@ import (
 	"github.com/weaveworks/flux/resource"
 )
 
+// Syncer has the methods we need to be able to compile and run a sync
+type Syncer interface {
+	// TODO(michael) this could be less leaky as `() -> map[string]resource.Resource`
+	Export() ([]byte, error)
+	Sync(cluster.SyncDef) error
+}
+
 // Sync synchronises the cluster to the files under a directory.
-func Sync(logger log.Logger, m cluster.Manifests, repoResources map[string]resource.Resource, clus cluster.Cluster) error {
+func Sync(logger log.Logger, m cluster.Manifests, repoResources map[string]resource.Resource, clus Syncer) error {
 	// Get a map of resources defined in the cluster
 	clusterBytes, err := clus.Export()
 

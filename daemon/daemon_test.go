@@ -21,7 +21,6 @@ import (
 	"github.com/weaveworks/flux/cluster"
 	"github.com/weaveworks/flux/cluster/kubernetes"
 	kresource "github.com/weaveworks/flux/cluster/kubernetes/resource"
-	"github.com/weaveworks/flux/cluster/kubernetes/testfiles"
 	"github.com/weaveworks/flux/event"
 	"github.com/weaveworks/flux/git"
 	"github.com/weaveworks/flux/git/gittest"
@@ -290,7 +289,7 @@ func TestDaemon_ListImagesWithOptions(t *testing.T) {
 		{
 			name: "Override container field selection",
 			opts: v10.ListImagesOptions{
-				Spec:                    specAll,
+				Spec: specAll,
 				OverrideContainerFields: []string{"Name", "Current", "NewAvailableImagesCount"},
 			},
 			expectedImages: []v6.ImageStatus{
@@ -320,7 +319,7 @@ func TestDaemon_ListImagesWithOptions(t *testing.T) {
 		{
 			name: "Override container field selection with invalid field",
 			opts: v10.ListImagesOptions{
-				Spec:                    specAll,
+				Spec: specAll,
 				OverrideContainerFields: []string{"InvalidField"},
 			},
 			expectedImages: nil,
@@ -359,7 +358,7 @@ func TestDaemon_NotifyChange(t *testing.T) {
 	var syncCalled int
 	var syncDef *cluster.SyncDef
 	var syncMu sync.Mutex
-	mockK8s.SyncFunc = func(def cluster.SyncDef, l map[string]policy.Update, p map[string]policy.Update) error {
+	mockK8s.SyncFunc = func(def cluster.SyncDef) error {
 		syncMu.Lock()
 		syncCalled++
 		syncDef = &def
@@ -384,8 +383,6 @@ func TestDaemon_NotifyChange(t *testing.T) {
 		t.Errorf("Sync was not called once, was called %d times", syncCalled)
 	} else if syncDef == nil {
 		t.Errorf("Sync was called with a nil syncDef")
-	} else if len(syncDef.Actions) != len(testfiles.ResourceMap) {
-		t.Errorf("Expected Sync called with %d actions (resources), was called with %d", len(testfiles.ResourceMap), len(syncDef.Actions))
 	}
 
 	// Check that history was written to
@@ -660,7 +657,7 @@ func mockDaemon(t *testing.T) (*Daemon, func(), func(), *cluster.Mock, *mockEven
 				singleService,
 			}, nil
 		}
-		k8s.SyncFunc = func(def cluster.SyncDef, l map[string]policy.Update, p map[string]policy.Update) error { return nil }
+		k8s.SyncFunc = func(def cluster.SyncDef) error { return nil }
 		k8s.UpdatePoliciesFunc = (&kubernetes.Manifests{}).UpdatePolicies
 		k8s.UpdateImageFunc = (&kubernetes.Manifests{}).UpdateImage
 	}

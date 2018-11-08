@@ -14,7 +14,7 @@ type Mock struct {
 	SomeServicesFunc   func([]flux.ResourceID) ([]Controller, error)
 	PingFunc           func() error
 	ExportFunc         func() ([]byte, error)
-	SyncFunc           func(SyncDef, map[string]policy.Update, map[string]policy.Update) error
+	SyncFunc           func(SyncDef) error
 	PublicSSHKeyFunc   func(regenerate bool) (ssh.PublicKey, error)
 	UpdateImageFunc    func(def []byte, id flux.ResourceID, container string, newImageID image.Ref) ([]byte, error)
 	LoadManifestsFunc  func(base string, paths []string) (map[string]resource.Resource, error)
@@ -39,8 +39,8 @@ func (m *Mock) Export() ([]byte, error) {
 	return m.ExportFunc()
 }
 
-func (m *Mock) Sync(c SyncDef, l map[string]policy.Update, p map[string]policy.Update) error {
-	return m.SyncFunc(c, l, p)
+func (m *Mock) Sync(c SyncDef) error {
+	return m.SyncFunc(c)
 }
 
 func (m *Mock) PublicSSHKey(regenerate bool) (ssh.PublicKey, error) {
