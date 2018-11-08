@@ -112,7 +112,7 @@ paste the key there.)
 
 In this example we are using a simple example of a webservice and
 change its configuration to use a different message. The easiest
-way is to your fork of `flux-example` and change the `msg` argument.
+way is to edit your fork of `flux-example` and change the `msg` argument.
 
 Replace `YOURUSER` in
 `https://github.com/YOURUSER/flux-example/blob/master/helloworld-deploy.yaml`
