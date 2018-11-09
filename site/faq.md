@@ -286,9 +286,9 @@ The first is that Flux pushes commits to your git repo, and if that
 repo is configured to go through CI, usually those commits will
 trigger a build. You can avoid this by supplying the flag `--ci-skip`
 so that Flux's commit will append `[ci skip]` to its commit
-messages. Many CI system will treat that as meaning they should not
+messages. Many CI systems will treat that as meaning they should not
 run a build for that commit. You can use `--ci-skip-message`, if you
-need a different piece of text appened to commit messages.
+need a different piece of text appended to commit messages.
 
 The other thing that can trigger CI is that Flux pushes a tag to the
 upstream git repo whenever it has applied new commits. This acts as a
@@ -304,6 +304,7 @@ Here's the relevant docs for some common CI systems:
  - [CircleCI](https://circleci.com/docs/2.0/workflows/#git-tag-job-execution)
  - [TravisCI](https://docs.travis-ci.com/user/customizing-the-build#Building-Specific-Branches)
  - [GitLab](https://docs.gitlab.com/ee/ci/yaml/#only-and-except-simplified)
+ - [Bitbucket Pipelines](https://confluence.atlassian.com/bitbucket/configure-bitbucket-pipelines-yml-792298910.html#Configurebitbucket-pipelines.yml-ci_defaultdefault)
 
 ### What is the "sync tag"; or, why do I see a `flux-sync` tag in my git repo?
 
