@@ -19,6 +19,19 @@ You will need to have Kubernetes set up. To get up and running fast,
 you might want to use `minikube` or `kubeadm`. Any other Kubernetes
 setup will work as well though.
 
+When using a cluster in the cloud (e.g. GKE), use nodes with at least 2 CPU's.
+When using nodes with only 1 CPU (like `n1-standard-1`), an upgrade
+may be stuck with not enough CPU resources. This issue usually manifests itself
+in the form of pods hanging in the PENDING state, which looks something like:
+
+```sh
+$ kubectl describe pod/helloworld-... | tail -3
+Events:
+  Type     Reason            Age                From               Message
+  ----     ------            ----               ----               -------
+  Warning  FailedScheduling  3m (x37 over 13m)  default-scheduler  0/2 nodes are available: 2 Insufficient cpu.
+```
+
 Download Helm:
 
 - On MacOS:
@@ -65,9 +78,9 @@ In this next step you install Weave Flux using `helm`. Simply
 
       *Just make sure you replace `YOURUSER` with your GitHub username
       in the command below:*
-      
+
     - Using a public git server from `bitbucket.com`, `github.com` or `gitlab.com`:
-    
+
       ```sh
       helm install --name flux \
       --set helmOperator.create=true \
@@ -76,10 +89,10 @@ In this next step you install Weave Flux using `helm`. Simply
       --namespace flux \
       weaveworks/flux
       ```
-      
+
     - Using a private git server:
-       
-      When deploying from a private repo, the known_hosts of the git server needs 
+
+      When deploying from a private repo, the known_hosts of the git server needs
       to be configured into a kubernetes configmap so that `StrictHostKeyChecking` is respected.
       See [chart/flux/README.md](https://github.com/weaveworks/flux/blob/master/chart/flux/README.md#to-install-flux-with-the-helm-operator-and-a-private-git-repository)
       for further installation instructions in this case.
