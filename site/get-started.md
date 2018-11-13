@@ -19,10 +19,10 @@ You will need to have Kubernetes set up. For a quick local test,
 you can use `minikube` or `kubeadm`. Any other Kubernetes setup
 will work as well though.
 
-When running on cloud (e.g. GKE), use nodes with at least 2 cpu's.
-When using nodes of only 1 cpu (like `n1-standard-1`), an upgrade
-may be stuck with not enough CPU resources. This is seen by pods
-hanging in PENDING state and with:
+When using a cluster in the cloud (e.g. GKE), use nodes with at least 2 CPU's.
+When using nodes with only 1 CPU (like `n1-standard-1`), an upgrade
+may be stuck with not enough CPU resources. This issue usually manifests itself
+in the form of pods hanging in the PENDING state, which looks something like:
 
 ```sh
 $ kubectl describe pod/helloworld-... | tail -3
