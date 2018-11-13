@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"encoding/json"
-	"errors"
 
+	"github.com/pkg/errors"
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/update"
 )
@@ -255,6 +255,25 @@ type ReleaseSpec struct {
 	Type                  string
 	ReleaseImageSpec      *update.ReleaseImageSpec
 	ReleaseContainersSpec *update.ReleaseContainersSpec
+}
+
+// IsKindExecute reports whether the release spec s has ReleaseImageSpec or ReleaseImageSpec with Kind execute
+// or error if s has invalid Type
+func (s ReleaseSpec) IsKindExecute() (bool, error) {
+	switch s.Type {
+	case ReleaseImageSpecType:
+		if s.ReleaseImageSpec != nil && s.ReleaseImageSpec.Kind == update.ReleaseKindExecute {
+			return true, nil
+		}
+	case ReleaseContainersSpecType:
+		if s.ReleaseContainersSpec != nil && s.ReleaseImageSpec.Kind == update.ReleaseKindExecute {
+			return true, nil
+		}
+
+	default:
+		return false, errors.Errorf("unknown release spec type %s", s.Type)
+	}
+	return false, nil
 }
 
 // UnmarshalJSON for old version of spec (update.ReleaseImageSpec) where Type is empty
