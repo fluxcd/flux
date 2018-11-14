@@ -1,3 +1,39 @@
+## 0.5.0 (2018-11-14)
+
+WARNING: this release of the Helm operator is not backward-compatible:
+
+ - It uses a new custom resource `HelmRelease`, and will ignore
+   `FluxHelmRelease` resources
+ - Some command-line arguments have changed, so the [deployment
+   manifests](./deploy-helm/) must also be updated
+
+To use it, you will need to migrate custom resources to the new format
+supported by this version. See the [upgrade
+guide](./site/helm-upgrading-to-beta.md).
+
+This version of the Helm operator supports HelmRelease custom
+resources, which each specify a chart and values to use in a Helm
+release, as in previous versions. The main improvement is that you are
+now able to specify charts from Helm repos, as well as from git repo,
+per resource (rather than a single git repo, which is supplied to the
+operator).
+
+### Improvements
+
+All of these were added in
+[weaveworks/flux#1382](https://github.com/weaveworks/flux/pull/1382).
+
+See the [Helm operator guide](./site/helm-integration.md) for details.
+
+ - You can now release charts from arbitrary Helm repos
+ - You can now release charts from arbitrary git repos
+
+### Thanks
+
+Thanks to @demikl, @dholbach, @hiddeco, @mellana1, @squaremo,
+@stefanprodan, @stephenmoloney, @whereismyjetpack and others who made
+suggestions, logged problems, and tried out nightly builds.
+
 ## 0.4.0 (2018-11-01)
 
 This release improves support for TLS connections to Tiller; in
