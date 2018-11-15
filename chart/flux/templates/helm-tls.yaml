@@ -6,6 +6,6 @@ metadata:
   name: {{ template "flux.fullname" . }}-helm-tls-ca-config
 data:
   ca.crt: |
-    {{ .Values.helmOperator.tls.caContent | indent 4 }}
+{{ .Values.helmOperator.tls.caContent | indent 4 }}
 {{- end -}}
 {{- end -}}

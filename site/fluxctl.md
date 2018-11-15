@@ -9,10 +9,36 @@ All of the features of Flux are accessible from within
 However, `fluxctl` provides an equivalent API that can be used from
 the command line.
 
-Download the latest version of the fluxctl client
-[from github](https://github.com/weaveworks/flux/releases).
-
 The `--help` for `fluxctl` is described below.
+
+# Installing fluxctl
+
+## Mac OS
+
+If you are using a Mac and use Homebrew, you can simply run:
+
+```sh
+brew install fluxctl
+```
+
+## Linux
+
+### Arch Linux
+
+Install the `fluxctl-bin` package [from the
+AUR](https://aur.archlinux.org/packages/fluxctl-bin/):
+
+```sh
+git clone https://aur.archlinux.org/fluxctl-bin.git
+cd fluxctl-bin
+makepkg -si
+```
+
+## Binary releases
+
+With every release of Flux, we release binaries of `fluxctl` for Mac, Linux
+and Windows. Download them from the [Flux release
+page](https://github.com/weaveworks/flux/releases).
 
 # Connecting fluxctl to the daemon
 
@@ -20,14 +46,14 @@ By default, fluxctl will attempt to port-forward to your Flux
 instance, assuming it runs in the `"default"` namespace. You can
 specify a different namespace with the `--k8s-fwd-ns` flag:
 
-```
+```sh
 fluxctl --k8s-fwd-ns=weave list-controllers
 ```
 
 The namespace can also be given in the environment variable
 `FLUX_FORWARD_NAMESPACE`:
 
-```
+```sh
 export FLUX_FORWARD_NAMESPACE=weave
 fluxctl list-controllers
 ```
@@ -41,7 +67,7 @@ authentication.**
 Once that is set up, you can specify an API URL with `--url` or the
 environment variable `FLUX_URL`:
 
-```
+```sh
 fluxctl --url http://127.0.0.1:3030/api/flux list-controllers
 ```
 
@@ -58,7 +84,7 @@ fluxctl list-controllers --all-namespaces
 Flux connects to the repository using an SSH key. You have two
 options:
 
-### 1. Allow flux to generate a key for you.
+### 1. Allow flux to generate a key for you
 
 If you don't specify a key to use, Flux will create one for you. Obtain
 the public key through fluxctl:
@@ -165,7 +191,7 @@ Flags:
 Use "fluxctl [command] --help" for more information about a command.
 ```
 
-# What is a Controller?
+# What is a Controller
 
 This term refers to any cluster resource responsible for the creation of
 containers from versioned images - in Kubernetes these are workloads such as
@@ -337,7 +363,8 @@ default:deployment/helloworld  success
 It may be desirable to release an image to a locked controller while
 maintaining the lock afterwards. In order to not having to modify the
 lock policy (which includes author and reason), one may use `--force`:
-```
+
+```sh
 fluxctl release --controller=default:deployment/helloworld --update-all-images --force
 ```
 
@@ -390,30 +417,34 @@ So for example, if you want to only update the "helloworld" image
 to tags that were built against the "prod" branch then you could
 do the following:
 
-```
+```sh
 fluxctl policy --controller=default:deployment/helloworld --tag-all='prod-*'
 ```
 
 If your pod contains multiple containers then you tag each container
 individually:
 
-```
+```sh
 fluxctl policy --controller=default:deployment/helloworld --tag='helloworld=prod-*' --tag='sidecar=prod-*'
 ```
 
 Manual releases without explicit mention of the target image will
 also adhere to tag filters.
 This will only release the newest image matching the tag filter:
-```
+
+```sh
 fluxctl release --controller=default:deployment/helloworld --update-all-images
 ```
 
 To release an image outside of tag filters, either specify the image:
-```
+
+```sh
 fluxctl release --controller=default:deployment/helloworld --update-image=helloworld:dev-abc123
 ```
+
 or use `--force`:
-```
+
+```sh
 fluxctl release --controller=default:deployment/helloworld --update-all-images --force
 ```
 
@@ -427,7 +458,8 @@ Flux currently offers support for `glob`, `semver` and `regexp` based filtering.
 
 The glob (`*`) filter is the simplest filter Flux supports, a filter can contain
 multiple globs:
-```
+
+```sh
 fluxctl policy --controller=default:deployment/helloworld --tag-all='glob:master-v1.*.*'
 ```
 
@@ -435,12 +467,14 @@ fluxctl policy --controller=default:deployment/helloworld --tag-all='glob:master
 
 If your images use [semantic versioning](https://semver.org) you can filter by image tags
 that adhere to certain constraints:
-```
+
+```sh
 fluxctl policy --controller=default:deployment/helloworld --tag-all='semver:~1'
 ```
 
 or only release images that have a stable semantic version tag (X.Y.Z):
-```
+
+```sh
 fluxctl policy --controller=default:deployment/helloworld --tag-all='semver:*'
 ```
 
@@ -450,7 +484,8 @@ that the higher versions will be considered newer.
 ### Regexp
 
 If your images have complex tags you can filter by regular expression:
-```
+
+```sh
 fluxctl policy --controller=default:deployment/helloworld --tag-all='regexp:^([a-zA-Z]+)$'
 ```
 
@@ -511,8 +546,10 @@ Commit customization
 In case of no prior commit by the specified author, an error will be reported
 for b) and c):
 
+```sh
 git commit: fatal: --author 'unknown' is not 'Name <email>' and matches
 no existing author
+```
 
 # Using Annotations
 

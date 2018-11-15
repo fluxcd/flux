@@ -70,6 +70,9 @@ type Controller struct {
 	Antecedent flux.ResourceID
 	Labels     map[string]string
 	Rollout    RolloutStatus
+	// Errors during the recurring sync from the Git repository to the
+	// cluster will surface here.
+	SyncError  error
 
 	Containers ContainersOrExcuse
 }

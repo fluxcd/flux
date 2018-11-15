@@ -19,18 +19,31 @@ You will need to have Kubernetes set up. For a quick local test,
 you can use `minikube` or `kubeadm`. Any other Kubernetes setup
 will work as well though.
 
-When running on cloud (e.g. GKE), use nodes with at least 2 cpu's.
-When using nodes of only 1 cpu (like `n1-standard-1`), an upgrade
-may be stuck with not enough CPU resources. This is seen by pods
-hanging in PENDING state and with:
+When using a cluster in the cloud (e.g. GKE), use nodes with at least 2 CPU's.
+When using nodes with only 1 CPU (like `n1-standard-1`), an upgrade
+may be stuck with not enough CPU resources. This issue usually manifests itself
+in the form of pods hanging in the PENDING state, which looks something like:
 
-```
+```sh
 $ kubectl describe pod/helloworld-... | tail -3
 Events:
   Type     Reason            Age                From               Message
   ----     ------            ----               ----               -------
   Warning  FailedScheduling  3m (x37 over 13m)  default-scheduler  0/2 nodes are available: 2 Insufficient cpu.
 ```
+
+### A Note on GKE with RBAC enabled
+
+> If working on e.g. GKE with RBAC enabled, you will need to add a clusterrolebinding:
+>
+> ```sh
+> kubectl create clusterrolebinding "cluster-admin-$(whoami)" --clusterrole=cluster-admin --user="$(gcloud config get-value core/account)"
+> ```
+> to avoid an error along the lines of
+>
+> `Error from server (Forbidden): error when creating "deploy/flux-account.yaml":
+> clusterroles.rbac.authorization.k8s.io "flux" is forbidden: attempt to grant
+> extra privileges:`
 
 ## Set up Flux
 
@@ -55,16 +68,7 @@ In our example we are going to use
 want to use that too, be sure to create a fork of it on Github and
 add the git URL to the config file above.
 
-If working on e.g. GKE with RBAC enabled, you will need to add a clusterrolebinding:
-
-```sh
-kubectl create clusterrolebinding "cluster-admin-$(whoami)" --clusterrole=cluster-admin --user="$(gcloud config get-value core/account)"
-```
-to avoid an error along the lines of
-
-`Error from server (Forbidden): error when creating "deploy/flux-account.yaml":
-clusterroles.rbac.authorization.k8s.io "flux" is forbidden: attempt to grant
-extra privileges:`
+## Deploying Flux to the cluster
 
 In the next step, deploy Flux to the cluster:
 
@@ -89,7 +93,7 @@ the SSH public key with:
 kubectl logs deployment/flux | grep identity.pub | cut -d '"' -f2
 ```
 
-*Note:* If you have downloaded [fluxctl](./using.md) already, you can use
+*Note:* If you have downloaded [fluxctl](./fluxctl.md) already, you can use
 `fluxctl identity` as well.
 
 In order to sync your cluster state with git you need to copy the
@@ -108,7 +112,7 @@ paste the key there.)
 
 In this example we are using a simple example of a webservice and
 change its configuration to use a different message. The easiest
-way is to your fork of `flux-example` and change the `msg` argument.
+way is to edit your fork of `flux-example` and change the `msg` argument.
 
 Replace `YOURUSER` in
 `https://github.com/YOURUSER/flux-example/blob/master/helloworld-deploy.yaml`
@@ -142,5 +146,5 @@ deployed, give Flux access to it and see modifications land are
 very straight-forward and are a quite natural work-flow.
 
 As a next step, you might want to dive deeper into [how to control
-Flux](./using.md) or check out [more sophisticated
+Flux](./fluxctl.md) or check out [more sophisticated
 setups](./standalone-setup.md).

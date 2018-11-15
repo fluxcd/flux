@@ -11,7 +11,7 @@ any code changes for you.
 
 If you are looking for more generic notes for how to install Flux
 using Helm, we collected them [in the chart's
-README](../../chart/flux/README.md).
+README](../chart/flux/README.md).
 
 ## Prerequisites
 
@@ -19,8 +19,18 @@ You will need to have Kubernetes set up. To get up and running fast,
 you might want to use `minikube` or `kubeadm`. Any other Kubernetes
 setup will work as well though.
 
-*Note:* If you are using `minikube`, be sure to start the
-cluster with `--bootstrapper=kubeadm` so you are using RBAC.
+When using a cluster in the cloud (e.g. GKE), use nodes with at least 2 CPU's.
+When using nodes with only 1 CPU (like `n1-standard-1`), an upgrade
+may be stuck with not enough CPU resources. This issue usually manifests itself
+in the form of pods hanging in the PENDING state, which looks something like:
+
+```sh
+$ kubectl describe pod/helloworld-... | tail -3
+Events:
+  Type     Reason            Age                From               Message
+  ----     ------            ----               ----               -------
+  Warning  FailedScheduling  3m (x37 over 13m)  default-scheduler  0/2 nodes are available: 2 Insufficient cpu.
+```
 
 Download Helm:
 
@@ -68,9 +78,9 @@ In this next step you install Weave Flux using `helm`. Simply
 
       *Just make sure you replace `YOURUSER` with your GitHub username
       in the command below:*
-      
+
     - Using a public git server from `bitbucket.com`, `github.com` or `gitlab.com`:
-    
+
       ```sh
       helm install --name flux \
       --set helmOperator.create=true \
@@ -79,10 +89,10 @@ In this next step you install Weave Flux using `helm`. Simply
       --namespace flux \
       weaveworks/flux
       ```
-      
+
     - Using a private git server:
-       
-      When deploying from a private repo, the known_hosts of the git server needs 
+
+      When deploying from a private repo, the known_hosts of the git server needs
       to be configured into a kubernetes configmap so that `StrictHostKeyChecking` is respected.
       See [chart/flux/README.md](https://github.com/weaveworks/flux/blob/master/chart/flux/README.md#to-install-flux-with-the-helm-operator-and-a-private-git-repository)
       for further installation instructions in this case.
@@ -162,7 +172,7 @@ kubectl -n flux logs deployment/flux -f
 
 The default sync frequency for Flux using the Helm chart is
 30 seconds. This can be tweaked easily. By observing the logs
-you can see when the change landed in in the cluster.
+you can see when the change landed in the cluster.
 
 ## Confirm the change landed
 
@@ -182,7 +192,7 @@ very straight-forward and are a quite natural work-flow.
 # Next
 
 As a next step, you might want to dive deeper into [how to control
-Flux](using.md).
+Flux](fluxctl.md).
 
 For a more advanced Helm setup, take a look at the [gitops-helm
 repository](https://github.com/stefanprodan/gitops-helm).

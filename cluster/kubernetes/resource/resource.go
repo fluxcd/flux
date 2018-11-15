@@ -118,7 +118,7 @@ func unmarshalKind(base baseObject, bytes []byte) (resource.Resource, error) {
 		var list List
 		unmarshalList(base, &raw, &list)
 		return &list, nil
-	case "FluxHelmRelease":
+	case "FluxHelmRelease", "HelmRelease":
 		var fhr = FluxHelmRelease{baseObject: base}
 		if err := yaml.Unmarshal(bytes, &fhr); err != nil {
 			return nil, err

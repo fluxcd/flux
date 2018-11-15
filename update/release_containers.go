@@ -15,8 +15,8 @@ import (
 
 var zeroImageRef = image.Ref{}
 
-// ContainerSpecs defines the spec for a `containers` manifest update.
-type ContainerSpecs struct {
+// ReleaseContainersSpec defines the spec for a `containers` manifest update.
+type ReleaseContainersSpec struct {
 	Kind           ReleaseKind
 	ContainerSpecs map[flux.ResourceID][]ContainerUpdate
 	SkipMismatches bool
@@ -25,7 +25,7 @@ type ContainerSpecs struct {
 
 // CalculateRelease computes required controller updates to satisfy this specification.
 // It returns an error if any spec calculation fails unless `SkipMismatches` is true.
-func (s ContainerSpecs) CalculateRelease(rc ReleaseContext, logger log.Logger) ([]*ControllerUpdate, Result, error) {
+func (s ReleaseContainersSpec) CalculateRelease(rc ReleaseContext, logger log.Logger) ([]*ControllerUpdate, Result, error) {
 	results := Result{}
 	prefilter, postfilter := s.filters()
 	all, err := rc.SelectServices(results, prefilter, postfilter)
@@ -36,7 +36,7 @@ func (s ContainerSpecs) CalculateRelease(rc ReleaseContext, logger log.Logger) (
 	return updates, results, s.resultsError(results)
 }
 
-func (s ContainerSpecs) resultsError(results Result) error {
+func (s ReleaseContainersSpec) resultsError(results Result) error {
 	failures := 0
 	successes := 0
 	for _, res := range results {
@@ -56,7 +56,7 @@ func (s ContainerSpecs) resultsError(results Result) error {
 	return nil
 }
 
-func (s ContainerSpecs) filters() ([]ControllerFilter, []ControllerFilter) {
+func (s ReleaseContainersSpec) filters() ([]ControllerFilter, []ControllerFilter) {
 	var rids []flux.ResourceID
 	for rid := range s.ContainerSpecs {
 		rids = append(rids, rid)
@@ -69,7 +69,7 @@ func (s ContainerSpecs) filters() ([]ControllerFilter, []ControllerFilter) {
 	return pre, []ControllerFilter{}
 }
 
-func (s ContainerSpecs) controllerUpdates(results Result, all []*ControllerUpdate) []*ControllerUpdate {
+func (s ReleaseContainersSpec) controllerUpdates(results Result, all []*ControllerUpdate) []*ControllerUpdate {
 	var updates []*ControllerUpdate
 	for _, u := range all {
 		cs, err := u.Controller.ContainersOrError()
@@ -157,26 +157,27 @@ func (s ContainerSpecs) controllerUpdates(results Result, all []*ControllerUpdat
 	return updates
 }
 
-func (s ContainerSpecs) ReleaseKind() ReleaseKind {
+func (s ReleaseContainersSpec) ReleaseKind() ReleaseKind {
 	return s.Kind
 }
 
-func (s ContainerSpecs) ReleaseType() ReleaseType {
+func (s ReleaseContainersSpec) ReleaseType() ReleaseType {
 	return "containers"
 }
 
-func (s ContainerSpecs) CommitMessage(result Result) string {
-	buf := &bytes.Buffer{}
-	fmt.Fprintln(buf, "Release containers")
+func (s ReleaseContainersSpec) CommitMessage(result Result) string {
+	var workloads []string
+	body := &bytes.Buffer{}
 	for _, res := range result.AffectedResources() {
-		fmt.Fprintf(buf, "\n%s", res)
+		workloads = append(workloads, res.String())
+		fmt.Fprintf(body, "\n%s", res)
 		for _, upd := range result[res].PerContainer {
-			fmt.Fprintf(buf, "\n- %s", upd.Target)
+			fmt.Fprintf(body, "\n- %s", upd.Target)
 		}
-		fmt.Fprintln(buf)
+		fmt.Fprintln(body)
 	}
 	if err := result.Error(); err != "" {
-		fmt.Fprintf(buf, "\n%s", result.Error())
+		fmt.Fprintf(body, "\n%s", result.Error())
 	}
-	return buf.String()
+	return fmt.Sprintf("Update image refs in %s\n%s", strings.Join(workloads, ", "), body.String())
 }

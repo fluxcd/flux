@@ -10,7 +10,8 @@ import (
 )
 
 // Sync synchronises the cluster to the files in a directory
-func Sync(m cluster.Manifests, repoResources map[string]resource.Resource, clus cluster.Cluster, deletes bool, logger log.Logger) error {
+func Sync(logger log.Logger, m cluster.Manifests, repoResources map[string]resource.Resource, clus cluster.Cluster,
+	deletes bool) error {
 	// Get a map of resources defined in the cluster
 	clusterBytes, err := clus.Export()
 

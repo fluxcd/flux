@@ -49,13 +49,14 @@ func TestUpdates(t *testing.T) {
 		{"single quotes", case8resource, case8containers, case8image, case8, case8out},
 		{"in multidoc", case9resource, case9containers, case9image, case9, case9out},
 		{"in kubernetes List resource", case10resource, case10containers, case10image, case10, case10out},
-		{"FluxHelmRelease (simple image encoding)", case11resource, case11containers, case11image, case11, case11out},
-		{"FluxHelmRelease (multi image encoding)", case12resource, case12containers, case12image, case12, case12out},
-		{"initContainer", case13resource, case13containers, case13image, case13, case13out},
+		{"FluxHelmRelease (v1alpha2; simple image encoding)", case11resource, case11containers, case11image, case11, case11out},
+		{"FluxHelmRelease (v1alpha2; multi image encoding)", case12resource, case12containers, case12image, case12, case12out},
+		{"HelmRelease (v1beta1; image with port number)", case13resource, case13containers, case13image, case13, case13out},
+		{"initContainer", case14resource, case14containers, case14image, case14, case14out},
 	} {
 		t.Run(c.name, func(t *testing.T) {
-			t.Parallel()
 			testUpdate(t, c)
+			t.Parallel()
 		})
 	}
 }
@@ -872,6 +873,55 @@ spec:
 `
 
 const case13 = `---
+apiVersion: flux.weave.works/v1beta1
+kind: HelmRelease
+metadata:
+  name: mariadb
+  namespace: maria
+spec:
+  chart:
+    repository: https://example.com/charts
+    name: mariadb
+    version: 1.1.2
+  values:
+    mariadb:
+      image: localhost:5000/mariadb
+      tag: 10.1.30-r1
+      persistence:
+        enabled: false
+    workProperly: true
+    sidecar:
+      image: sidecar:v1
+`
+
+const case13resource = "maria:helmrelease/mariadb"
+const case13image = "localhost:5000/mariadb:10.1.33"
+
+var case13containers = []string{"mariadb"}
+
+const case13out = `---
+apiVersion: flux.weave.works/v1beta1
+kind: HelmRelease
+metadata:
+  name: mariadb
+  namespace: maria
+spec:
+  chart:
+    repository: https://example.com/charts
+    name: mariadb
+    version: 1.1.2
+  values:
+    mariadb:
+      image: localhost:5000/mariadb
+      tag: 10.1.33
+      persistence:
+        enabled: false
+    workProperly: true
+    sidecar:
+      image: sidecar:v1
+`
+
+const case14 = `---
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
@@ -888,12 +938,12 @@ spec:
         image: 'weaveworks/weave-kube:2.2.0'
 `
 
-const case13resource = "default:deployment/weave"
-const case13image = "weaveworks/weave-kube:2.2.1"
+const case14resource = "default:deployment/weave"
+const case14image = "weaveworks/weave-kube:2.2.1"
 
-var case13containers = []string{"weave"}
+var case14containers = []string{"weave"}
 
-const case13out = `---
+const case14out = `---
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:

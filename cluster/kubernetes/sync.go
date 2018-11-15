@@ -13,6 +13,7 @@ import (
 
 	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
+	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster"
 )
 
@@ -30,7 +31,7 @@ func (c *changeSet) stage(cmd string, o *apiObject) {
 
 // Applier is something that will apply a changeset to the cluster.
 type Applier interface {
-	apply(log.Logger, changeSet) cluster.SyncError
+	apply(log.Logger, changeSet, map[flux.ResourceID]error) cluster.SyncError
 }
 
 type Kubectl struct {
@@ -113,19 +114,38 @@ func (objs applyOrder) Less(i, j int) bool {
 	return ranki < rankj
 }
 
-func (c *Kubectl) apply(logger log.Logger, cs changeSet) (errs cluster.SyncError) {
+func (c *Kubectl) apply(logger log.Logger, cs changeSet, errored map[flux.ResourceID]error) (errs cluster.SyncError) {
 	f := func(objs []*apiObject, cmd string, args ...string) {
 		if len(objs) == 0 {
 			return
 		}
 		logger.Log("cmd", cmd, "args", strings.Join(args, " "), "count", len(objs))
 		args = append(args, cmd)
-		if err := c.doCommand(logger, makeMultidoc(objs), args...); err != nil {
+
+		var multi, single []*apiObject
+		if len(errored) == 0 {
+			multi = objs
+		} else {
 			for _, obj := range objs {
-				r := bytes.NewReader(obj.Bytes())
-				if err := c.doCommand(logger, r, args...); err != nil {
-					errs = append(errs, cluster.ResourceError{obj.Resource, err})
+				if _, ok := errored[obj.ResourceID()]; ok {
+					// Resources that errored before shall be applied separately
+					single = append(single, obj)
+				} else {
+					// everything else will be tried in a multidoc apply.
+					multi = append(multi, obj)
 				}
+			}
+		}
+
+		if len(multi) > 0 {
+			if err := c.doCommand(logger, makeMultidoc(multi), args...); err != nil {
+				single = append(single, multi...)
+			}
+		}
+		for _, obj := range single {
+			r := bytes.NewReader(obj.Bytes())
+			if err := c.doCommand(logger, r, args...); err != nil {
+				errs = append(errs, cluster.ResourceError{obj.Resource, err})
 			}
 		}
 	}

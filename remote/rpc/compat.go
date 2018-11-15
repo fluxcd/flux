@@ -47,7 +47,7 @@ func requireSpecKinds(s update.Spec, kinds []string) error {
 				return fmt.Errorf("Unsupported resource kind: %s", kind)
 			}
 		}
-	case update.ReleaseSpec:
+	case update.ReleaseImageSpec:
 		for _, ss := range s.ServiceSpecs {
 			if err := requireServiceSpecKinds(ss, kinds); err != nil {
 				return err

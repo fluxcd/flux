@@ -1,15 +1,15 @@
-package v1alpha2
+package v1beta1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	fluxintegrations "github.com/weaveworks/flux/apis/helm.integrations.flux.weave.works"
+	fluxintegrations "github.com/weaveworks/flux/integrations/apis/flux.weave.works"
 )
 
 // SchemeGroupVersion is group version used to register these objects
-var SchemeGroupVersion = schema.GroupVersion{Group: fluxintegrations.GroupName, Version: "v1alpha2"}
+var SchemeGroupVersion = schema.GroupVersion{Group: fluxintegrations.GroupName, Version: "v1beta1"}
 
 // Resource takes an unqualified resource and returns a Group qualified GroupResource
 func Resource(resource string) schema.GroupResource {
@@ -34,8 +34,8 @@ func init() {
 // Adds the list of known types to api.Scheme.
 func addKnownTypes(scheme *runtime.Scheme) error {
 	scheme.AddKnownTypes(SchemeGroupVersion,
-		&FluxHelmRelease{},
-		&FluxHelmReleaseList{},
+		&HelmRelease{},
+		&HelmReleaseList{},
 	)
 	metav1.AddToGroupVersion(scheme, SchemeGroupVersion)
 	return nil

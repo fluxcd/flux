@@ -4,21 +4,21 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"os"
 	"os/exec"
-	"path/filepath"
 	"time"
 
+	"github.com/ghodss/yaml"
 	"github.com/go-kit/kit/log"
+	"k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/helm/pkg/chartutil"
 	k8shelm "k8s.io/helm/pkg/helm"
 	hapi_release "k8s.io/helm/pkg/proto/hapi/release"
 
 	"github.com/weaveworks/flux"
-	ifv1 "github.com/weaveworks/flux/apis/helm.integrations.flux.weave.works/v1alpha2"
 	fluxk8s "github.com/weaveworks/flux/cluster/kubernetes"
-)
-
-var (
-	ErrChartGitPathMissing = "Chart deploy configuration (%s) has empty Chart git path"
+	flux_v1beta1 "github.com/weaveworks/flux/integrations/apis/flux.weave.works/v1beta1"
 )
 
 type Action string
@@ -28,24 +28,17 @@ const (
 	UpgradeAction Action = "UPDATE"
 )
 
-type Config struct {
-	ChartsPath string
-	UpdateDeps bool
-}
-
 // Release contains clients needed to provide functionality related to helm releases
 type Release struct {
 	logger log.Logger
 
 	HelmClient *k8shelm.Client
-
-	config Config
 }
 
 type Releaser interface {
 	GetCurrent() (map[string][]DeployInfo, error)
 	GetDeployedRelease(name string) (*hapi_release.Release, error)
-	Install(dir string, releaseName string, fhr ifv1.FluxHelmRelease, action Action, opts InstallOptions) (*hapi_release.Release, error)
+	Install(dir string, releaseName string, fhr flux_v1beta1.HelmRelease, action Action, opts InstallOptions) (*hapi_release.Release, error)
 }
 
 type DeployInfo struct {
@@ -58,19 +51,17 @@ type InstallOptions struct {
 }
 
 // New creates a new Release instance.
-func New(logger log.Logger, helmClient *k8shelm.Client, config Config) *Release {
-	// TODO(michael): check we don't have nil values in the config
+func New(logger log.Logger, helmClient *k8shelm.Client) *Release {
 	r := &Release{
 		logger:     logger,
 		HelmClient: helmClient,
-		config:     config,
 	}
 	return r
 }
 
 // GetReleaseName either retrieves the release name from the Custom Resource or constructs a new one
 //  in the form : $Namespace-$CustomResourceName
-func GetReleaseName(fhr ifv1.FluxHelmRelease) string {
+func GetReleaseName(fhr flux_v1beta1.HelmRelease) string {
 	namespace := fhr.Namespace
 	if namespace == "" {
 		namespace = "default"
@@ -129,33 +120,50 @@ func (r *Release) canDelete(name string) (bool, error) {
 }
 
 // Install performs a Chart release given the directory containing the
-// charts, and the FluxHelmRelease specifying the release. Depending
+// charts, and the HelmRelease specifying the release. Depending
 // on the release type, this is either a new release, or an upgrade of
 // an existing one.
-func (r *Release) Install(repoDir, releaseName string, fhr ifv1.FluxHelmRelease, action Action, opts InstallOptions) (*hapi_release.Release, error) {
-	r.logger.Log("info", fmt.Sprintf("releaseName= %s, action=%s, install options: %+v", releaseName, action, opts))
-
-	chartPath := fhr.Spec.ChartGitPath
+//
+// TODO(michael): cloneDir is only relevant if installing from git;
+// either split this procedure into two varieties, or make it more
+// general and calculate the path to the chart in the caller.
+func (r *Release) Install(chartPath, releaseName string, fhr flux_v1beta1.HelmRelease, action Action, opts InstallOptions, kubeClient *kubernetes.Clientset) (*hapi_release.Release, error) {
 	if chartPath == "" {
-		r.logger.Log("error", fmt.Sprintf(ErrChartGitPathMissing, fhr.GetName()))
-		return nil, fmt.Errorf(ErrChartGitPathMissing, fhr.GetName())
+		return nil, fmt.Errorf("empty path to chart supplied for resource %q", fhr.ResourceID().String())
+	}
+	_, err := os.Stat(chartPath)
+	switch {
+	case os.IsNotExist(err):
+		return nil, fmt.Errorf("no file or dir at path to chart: %s", chartPath)
+	case err != nil:
+		return nil, fmt.Errorf("error statting path given for chart %s: %s", chartPath, err.Error())
 	}
 
-	namespace := fhr.GetNamespace()
-	if namespace == "" {
-		namespace = "default"
-	}
+	r.logger.Log("info", "releaseName", releaseName, "action", action, "options", fmt.Sprintf("%+v", opts))
 
-	chartDir := filepath.Join(repoDir, r.config.ChartsPath, chartPath)
-
-	if r.config.UpdateDeps {
-		if err := updateDependencies(chartDir); err != nil {
-			r.logger.Log("error", "problem updating dependencies of chart", "releaseName", releaseName, "dir", chartDir, "err", err)
+	// Read values from given valueFile paths (configmaps, etc.)
+	mergedValues := chartutil.Values{}
+	for _, valueFileSecret := range fhr.Spec.ValueFileSecrets {
+		// Read the contents of the secret
+		secret, err := kubeClient.CoreV1().Secrets(fhr.Namespace).Get(valueFileSecret.Name, v1.GetOptions{})
+		if err != nil {
+			r.logger.Log("error", fmt.Sprintf("Cannot get secret %s for Chart release [%s]: %#v", valueFileSecret.Name, releaseName, err))
 			return nil, err
 		}
-	}
 
-	strVals, err := fhr.Spec.Values.YAML()
+		// Load values.yaml file and merge
+		var values chartutil.Values
+		err = yaml.Unmarshal(secret.Data["values.yaml"], &values)
+		if err != nil {
+			r.logger.Log("error", fmt.Sprintf("Cannot yaml.Unmashal values.yaml in secret %s for Chart release [%s]: %#v", valueFileSecret.Name, releaseName, err))
+			return nil, err
+		}
+		mergedValues = mergeValues(mergedValues, values)
+	}
+	// Merge in values after valueFiles
+	mergedValues = mergeValues(mergedValues, fhr.Spec.Values)
+
+	strVals, err := mergedValues.YAML()
 	if err != nil {
 		r.logger.Log("error", fmt.Sprintf("Problem with supplied customizations for Chart release [%s]: %#v", releaseName, err))
 		return nil, err
@@ -165,8 +173,8 @@ func (r *Release) Install(repoDir, releaseName string, fhr ifv1.FluxHelmRelease,
 	switch action {
 	case InstallAction:
 		res, err := r.HelmClient.InstallRelease(
-			chartDir,
-			namespace,
+			chartPath,
+			fhr.GetNamespace(),
 			k8shelm.ValueOverrides(rawVals),
 			k8shelm.ReleaseName(releaseName),
 			k8shelm.InstallDryRun(opts.DryRun),
@@ -197,7 +205,7 @@ func (r *Release) Install(repoDir, releaseName string, fhr ifv1.FluxHelmRelease,
 	case UpgradeAction:
 		res, err := r.HelmClient.UpdateRelease(
 			releaseName,
-			chartDir,
+			chartPath,
 			k8shelm.UpdateValueOverrides(rawVals),
 			k8shelm.UpgradeDryRun(opts.DryRun),
 			/*
@@ -270,7 +278,7 @@ func (r *Release) GetCurrent() (map[string][]DeployInfo, error) {
 
 // annotateResources annotates each of the resources created (or updated)
 // by the release so that we can spot them.
-func (r *Release) annotateResources(release *hapi_release.Release, fhr ifv1.FluxHelmRelease) error {
+func (r *Release) annotateResources(release *hapi_release.Release, fhr flux_v1beta1.HelmRelease) error {
 	args := []string{"annotate", "--overwrite"}
 	args = append(args, "--namespace", release.Namespace)
 	args = append(args, "-f", "-")
@@ -288,8 +296,36 @@ func (r *Release) annotateResources(release *hapi_release.Release, fhr ifv1.Flux
 	return err
 }
 
-// fhrResourceID constructs a flux.ResourceID for a FluxHelmRelease
+// fhrResourceID constructs a flux.ResourceID for a HelmRelease
 // resource.
-func fhrResourceID(fhr ifv1.FluxHelmRelease) flux.ResourceID {
-	return flux.MakeResourceID(fhr.Namespace, "FluxHelmRelease", fhr.Name)
+func fhrResourceID(fhr flux_v1beta1.HelmRelease) flux.ResourceID {
+	return flux.MakeResourceID(fhr.Namespace, "HelmRelease", fhr.Name)
+}
+
+// Merges source and destination `chartutils.Values`, preferring values from the source Values
+// This is slightly adapted from https://github.com/helm/helm/blob/master/cmd/helm/install.go#L329
+func mergeValues(dest, src chartutil.Values) chartutil.Values {
+	for k, v := range src {
+		// If the key doesn't exist already, then just set the key to that value
+		if _, exists := dest[k]; !exists {
+			dest[k] = v
+			continue
+		}
+		nextMap, ok := v.(map[string]interface{})
+		// If it isn't another map, overwrite the value
+		if !ok {
+			dest[k] = v
+			continue
+		}
+		// Edge case: If the key exists in the destination, but isn't a map
+		destMap, isMap := dest[k].(map[string]interface{})
+		// If the source map has a map for this key, prefer it
+		if !isMap {
+			dest[k] = v
+			continue
+		}
+		// If we got to this point, it is a map in both, so merge them
+		dest[k] = mergeValues(destMap, nextMap)
+	}
+	return dest
 }

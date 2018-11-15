@@ -1,3 +1,81 @@
+## 0.5.0 (2018-11-14)
+
+WARNING: this release of the Helm operator is not backward-compatible:
+
+ - It uses a new custom resource `HelmRelease`, and will ignore
+   `FluxHelmRelease` resources
+ - Some command-line arguments have changed, so the [deployment
+   manifests](./deploy-helm/) must also be updated
+
+To use it, you will need to migrate custom resources to the new format
+supported by this version. See the [upgrade
+guide](./site/helm-upgrading-to-beta.md).
+
+This version of the Helm operator supports HelmRelease custom
+resources, which each specify a chart and values to use in a Helm
+release, as in previous versions. The main improvement is that you are
+now able to specify charts from Helm repos, as well as from git repo,
+per resource (rather than a single git repo, which is supplied to the
+operator).
+
+### Improvements
+
+All of these were added in
+[weaveworks/flux#1382](https://github.com/weaveworks/flux/pull/1382).
+
+See the [Helm operator guide](./site/helm-integration.md) for details.
+
+ - You can now release charts from arbitrary Helm repos
+ - You can now release charts from arbitrary git repos
+
+### Thanks
+
+Thanks to @demikl, @dholbach, @hiddeco, @mellana1, @squaremo,
+@stefanprodan, @stephenmoloney, @whereismyjetpack and others who made
+suggestions, logged problems, and tried out nightly builds.
+
+## 0.4.0 (2018-11-01)
+
+This release improves support for TLS connections to Tiller; in
+particular it makes it much easier to get server certificate
+verification (`--tiller-tls-verify`) to work.
+
+It also adds the ability to supply additional values to
+`FluxHelmRelease` resources by attaching Kubernetes secrets. This
+helps with a few use cases:
+
+ - supplying the same default values to several releases
+ - providing secrets (e.g., a password) to a chart that expects them as values
+ - using values files without inlining them into FluxHelmReleases
+
+**NB** It is advised that you deploy the operator alongside Tiller
+v2.10 or more recent. To properly support TLS, the operator now
+includes code from Helm v2.10, and this may have difficulty connecting
+to older versions of Tiller.
+
+### Bug fixes
+
+ - Make `--tiller-tls-verify` work as intended, by giving better
+   instructions, and adding the argument `--tiller-tls-hostname` which
+   lets you specify the hostname that TLS should expect in the
+   certificate
+   [weaveworks/flux#1484](https://github.com/weaveworks/flux/pull/1484)
+
+### Improvements
+
+ - You can now create secrets containing a `values.yaml` file, and
+   attach them to a `FluxHelmRelease` as additional values to use
+   [weaveworks/flux#1468](https://github.com/weaveworks/flux/pull/1468)
+
+### Thanks
+
+Thanks to @hiddeco, @Smirl, @stefanprodan, @arthurk, @the-fine,
+@wstrange, @sfitts, @squaremo, @mpareja, @stephenmoloney,
+@justinbarrick, @pcfens for contributions to the PRs and issues
+leading to this release, as well as the inhabitants of
+[#flux](https://slack.weave.works/) for high-quality, helpful
+discussion.
+
 ## 0.3.0 (2018-10-24)
 
 This release adds dependency handling to the Helm operator.

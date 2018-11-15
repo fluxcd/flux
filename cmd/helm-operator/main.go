@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"flag"
 	"fmt"
 	"os"
@@ -16,11 +15,9 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/weaveworks/flux/checkpoint"
-	"github.com/weaveworks/flux/git"
 	clientset "github.com/weaveworks/flux/integrations/client/clientset/versioned"
 	ifinformers "github.com/weaveworks/flux/integrations/client/informers/externalversions"
 	fluxhelm "github.com/weaveworks/flux/integrations/helm"
-	helmop "github.com/weaveworks/flux/integrations/helm"
 	"github.com/weaveworks/flux/integrations/helm/chartsync"
 	"github.com/weaveworks/flux/integrations/helm/operator"
 	"github.com/weaveworks/flux/integrations/helm/release"
@@ -28,10 +25,9 @@ import (
 )
 
 var (
-	fs      *pflag.FlagSet
-	err     error
-	logger  log.Logger
-	kubectl string
+	fs     *pflag.FlagSet
+	err    error
+	logger log.Logger
 
 	versionFlag *bool
 
@@ -42,34 +38,25 @@ var (
 	tillerPort      *string
 	tillerNamespace *string
 
-	tillerTLSVerify *bool
-	tillerTLSEnable *bool
-	tillerTLSKey    *string
-	tillerTLSCert   *string
-	tillerTLSCACert *string
+	tillerTLSVerify   *bool
+	tillerTLSEnable   *bool
+	tillerTLSKey      *string
+	tillerTLSCert     *string
+	tillerTLSCACert   *string
+	tillerTLSHostname *string
 
 	chartsSyncInterval *time.Duration
-	chartsSyncTimeout  *time.Duration
 	logReleaseDiffs    *bool
 	updateDependencies *bool
 
-	gitURL          *string
-	gitBranch       *string
-	gitChartsPath   *string
 	gitPollInterval *time.Duration
 	gitTimeout      *time.Duration
 
-	queueWorkerCount *int
-
-	name       *string
 	listenAddr *string
-	gcInterval *time.Duration
 )
 
 const (
-	product              = "weave-flux-helm"
-	defaultGitChartsPath = "charts"
-
+	product            = "weave-flux-helm"
 	ErrOperatorFailure = "Operator failure: %q"
 )
 
@@ -86,33 +73,28 @@ func init() {
 		fs.PrintDefaults()
 	}
 
-	versionFlag = fs.Bool("version", false, "Print version and exit")
+	versionFlag = fs.Bool("version", false, "print version and exit")
 
-	kubeconfig = fs.String("kubeconfig", "", "Path to a kubeconfig. Only required if out-of-cluster.")
-	master = fs.String("master", "", "The address of the Kubernetes API server. Overrides any value in kubeconfig. Only required if out-of-cluster.")
+	kubeconfig = fs.String("kubeconfig", "", "path to a kubeconfig; required if out-of-cluster")
+	master = fs.String("master", "", "address of the Kubernetes API server; overrides any value in kubeconfig; required if out-of-cluster")
 
-	tillerIP = fs.String("tiller-ip", "", "Tiller IP address. Only required if out-of-cluster.")
-	tillerPort = fs.String("tiller-port", "", "Tiller port.")
-	tillerNamespace = fs.String("tiller-namespace", "kube-system", "Tiller namespace. If not provided, the default is kube-system.")
+	tillerIP = fs.String("tiller-ip", "", "Tiller IP address; required if run out-of-cluster")
+	tillerPort = fs.String("tiller-port", "", "Tiller port; required if run out-of-cluster")
+	tillerNamespace = fs.String("tiller-namespace", "kube-system", "Tiller namespace")
 
-	tillerTLSVerify = fs.Bool("tiller-tls-verify", false, "Verify TLS certificate from Tiller. Will enable TLS communication when provided.")
-	tillerTLSEnable = fs.Bool("tiller-tls-enable", false, "Enable TLS communication with Tiller. If provided, requires TLSKey and TLSCert to be provided as well.")
-	tillerTLSKey = fs.String("tiller-tls-key-path", "/etc/fluxd/helm/tls.key", "Path to private key file used to communicate with the Tiller server.")
-	tillerTLSCert = fs.String("tiller-tls-cert-path", "/etc/fluxd/helm/tls.crt", "Path to certificate file used to communicate with the Tiller server.")
-	tillerTLSCACert = fs.String("tiller-tls-ca-cert-path", "", "Path to CA certificate file used to validate the Tiller server. Required if tiller-tls-verify is enabled.")
+	tillerTLSVerify = fs.Bool("tiller-tls-verify", false, "verify TLS certificate from Tiller; will enable TLS communication when provided")
+	tillerTLSEnable = fs.Bool("tiller-tls-enable", false, "enable TLS communication with Tiller; if provided, requires TLSKey and TLSCert to be provided as well")
+	tillerTLSKey = fs.String("tiller-tls-key-path", "/etc/fluxd/helm/tls.key", "path to private key file used to communicate with the Tiller server")
+	tillerTLSCert = fs.String("tiller-tls-cert-path", "/etc/fluxd/helm/tls.crt", "path to certificate file used to communicate with the Tiller server")
+	tillerTLSCACert = fs.String("tiller-tls-ca-cert-path", "", "path to CA certificate file used to validate the Tiller server; required if tiller-tls-verify is enabled")
+	tillerTLSHostname = fs.String("tiller-tls-hostname", "", "server name used to verify the hostname on the returned certificates from the server")
 
-	chartsSyncInterval = fs.Duration("charts-sync-interval", 3*time.Minute, "Interval at which to check for changed charts")
-	chartsSyncTimeout = fs.Duration("charts-sync-timeout", 1*time.Minute, "Timeout when checking for changed charts")
-	logReleaseDiffs = fs.Bool("log-release-diffs", false, "Log the diff when a chart release diverges; potentially insecure")
+	chartsSyncInterval = fs.Duration("charts-sync-interval", 3*time.Minute, "period on which to reconcile the Helm releases with HelmRelease resources")
+	logReleaseDiffs = fs.Bool("log-release-diffs", false, "log the diff when a chart release diverges; potentially insecure")
 	updateDependencies = fs.Bool("update-chart-deps", true, "Update chart dependencies before installing/upgrading a release")
 
-	gitURL = fs.String("git-url", "", "URL of git repo with Helm Charts; e.g., git@github.com:weaveworks/flux-example")
-	gitBranch = fs.String("git-branch", "master", "branch of git repo")
-	gitChartsPath = fs.String("git-charts-path", defaultGitChartsPath, "path within git repo to locate Helm Charts (relative path)")
 	gitPollInterval = fs.Duration("git-poll-interval", 5*time.Minute, "period on which to poll for changes to the git repo")
 	gitTimeout = fs.Duration("git-timeout", 20*time.Second, "duration after which git operations time out")
-
-	queueWorkerCount = fs.Int("queue-worker-count", 2, "Number of workers to process queue with Chart release jobs. Two by default")
 }
 
 func main() {
@@ -177,60 +159,29 @@ func main() {
 
 	// HELM ---------------------------------------------------------------------------------
 	helmClient := fluxhelm.ClientSetup(log.With(logger, "component", "helm"), kubeClient, fluxhelm.TillerOptions{
-		IP:        *tillerIP,
-		Port:      *tillerPort,
-		Namespace: *tillerNamespace,
-		TLSVerify: *tillerTLSVerify,
-		TLSEnable: *tillerTLSEnable,
-		TLSKey:    *tillerTLSKey,
-		TLSCert:   *tillerTLSCert,
-		TLSCACert: *tillerTLSCACert,
+		Host:        *tillerIP,
+		Port:        *tillerPort,
+		Namespace:   *tillerNamespace,
+		TLSVerify:   *tillerTLSVerify,
+		TLSEnable:   *tillerTLSEnable,
+		TLSKey:      *tillerTLSKey,
+		TLSCert:     *tillerTLSCert,
+		TLSCACert:   *tillerTLSCACert,
+		TLSHostname: *tillerTLSHostname,
 	})
 
 	// The status updater, to keep track the release status for each
-	// FluxHelmRelease. It runs as a separate loop for now.
+	// HelmRelease. It runs as a separate loop for now.
 	statusUpdater := status.New(ifClient, kubeClient, helmClient)
 	go statusUpdater.Loop(shutdown, log.With(logger, "component", "annotator"))
 
-	gitRemote := git.Remote{URL: *gitURL}
-	repo := git.NewRepo(gitRemote, git.PollInterval(*gitPollInterval), git.Timeout(*gitTimeout), git.ReadOnly)
-
-	// 		Chart releases sync due to Custom Resources changes -------------------------------
-	{
-		mainLogger.Log("info", "Attempting to clone repo ...", "url", gitRemote.URL)
-		ctx, cancel := context.WithCancel(context.Background())
-		err := repo.Ready(ctx)
-		cancel()
-		if err != nil {
-			mainLogger.Log("error", err)
-			os.Exit(2)
-		}
-		mainLogger.Log("info", "Repo cloned", "url", gitRemote.URL)
-
-		// Start the repo fetching from upstream
-		shutdownWg.Add(1)
-		go func() {
-			errc <- repo.Start(shutdown, shutdownWg)
-		}()
-	}
-
-	releaseConfig := release.Config{
-		ChartsPath: *gitChartsPath,
-		UpdateDeps: *updateDependencies,
-	}
-	repoConfig := helmop.RepoConfig{
-		Repo:       repo,
-		Branch:     *gitBranch,
-		ChartsPath: *gitChartsPath,
-	}
-
-	// release instance is needed during the sync of Charts changes and during the sync of FluxHelmRelease changes
-	rel := release.New(log.With(logger, "component", "release"), helmClient, releaseConfig)
+	// release instance is needed during the sync of Charts changes and during the sync of HelmRelease changes
+	rel := release.New(log.With(logger, "component", "release"), helmClient)
 	// CHARTS CHANGES SYNC ------------------------------------------------------------------
 	chartSync := chartsync.New(log.With(logger, "component", "chartsync"),
-		chartsync.Polling{Interval: *chartsSyncInterval, Timeout: *chartsSyncTimeout},
+		chartsync.Polling{Interval: *chartsSyncInterval},
 		chartsync.Clients{KubeClient: *kubeClient, IfClient: *ifClient},
-		rel, repoConfig, *logReleaseDiffs)
+		rel, chartsync.Config{LogDiffs: *logReleaseDiffs, UpdateDeps: *updateDependencies})
 	chartSync.Run(shutdown, errc, shutdownWg)
 
 	// OPERATOR - CUSTOM RESOURCE CHANGE SYNC -----------------------------------------------
@@ -238,16 +189,16 @@ func main() {
 	//				SharedInformerFactory sets up informer, that maps resource type to a cache shared informer.
 	//				operator attaches event handler to the informer and syncs the informer cache
 	ifInformerFactory := ifinformers.NewSharedInformerFactory(ifClient, 30*time.Second)
-	// Reference to shared index informers for the FluxHelmRelease
-	fhrInformer := ifInformerFactory.Helm().V1alpha2().FluxHelmReleases()
+	// Reference to shared index informers for the HelmRelease
+	fhrInformer := ifInformerFactory.Flux().V1beta1().HelmReleases()
 
-	opr := operator.New(log.With(logger, "component", "operator"), *logReleaseDiffs, kubeClient, fhrInformer, chartSync, repoConfig)
+	opr := operator.New(log.With(logger, "component", "operator"), *logReleaseDiffs, kubeClient, fhrInformer, chartSync)
 	// Starts handling k8s events related to the given resource kind
 	go ifInformerFactory.Start(shutdown)
 
 	checkpoint.CheckForUpdates(product, version, nil, log.With(logger, "component", "checkpoint"))
 
-	if err = opr.Run(*queueWorkerCount, shutdown, shutdownWg); err != nil {
+	if err = opr.Run(1, shutdown, shutdownWg); err != nil {
 		msg := fmt.Sprintf("Failure to run controller: %s", err.Error())
 		logger.Log("error", msg)
 		errc <- fmt.Errorf(ErrOperatorFailure, err)

@@ -23,6 +23,7 @@ helm-operator requires setup and offers customization though a multitude of flag
 |--tiller-tls-tls-key-path     |`/etc/fluxd/helm/tls.key`      | Path to private key file used to communicate with the Tiller server. |
 |--tiller-tls-tls-cert-path    |`/etc/fluxd/helm/tls.crt`      | Path to certificate file used to communicate with the Tiller server. |
 |--tiller-tls-tls-ca-cert-path |                               | Path to CA certificate file used to validate the Tiller server. Required if tiller-tls-verify is enabled. |
+|--tiller-tls-hostname         |                               | The server name used to verify the hostname on the returned certificates from the Tiller server. |
 |                              |                               | **Git repo & key etc.**|
 |--git-url                     |                               | URL of git repo with Helm Charts; e.g., `ssh://git@github.com/weaveworks/flux-example`|
 |--git-branch                  | `master`                      | Branch of git repo to use for Kubernetes manifests|
@@ -41,12 +42,15 @@ helm-operator requires setup and offers customization though a multitude of flag
 
 ### Installing Helm / Tiller
 
-Generate certificates for Tiller and Flux. This will provide a CA, servercerts for tiller and client certs for helm / weave flux.
+Generate certificates for Tiller and Flux. This will provide a CA, servercerts for Tiller and client certs for Helm / Weave Flux.
+
+> **Note**: When creating the certificate for Tiller the Common Name should match the hostname you are connecting to from the Helm operator.
 
 The following script can be used for that (requires [cfssl](https://github.com/cloudflare/cfssl)):
 
 ```bash
-export TILLER_HOSTNAME=tiller-server
+# TILLER_HOSTNAME=<service>.<namespace>
+export TILLER_HOSTNAME=tiller-deploy.kube-system
 export TILLER_SERVER=server
 export USER_NAME=flux-helm-operator
 
@@ -163,10 +167,11 @@ Error: transport is closing
 When providing the certificates, it should work correctly:
 
 ```bash
-helm --tls \
+helm --tls --tls-verify \
   --tls-ca-cert ./tls/ca.pem \
   --tls-cert ./tls/flux-helm-operator.pem \
   --tls-key ././tls/flux-helm-operator-key.pem \
+  --tls-hostname tiller-deploy.kube-system \
   ls
 ```
 

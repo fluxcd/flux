@@ -121,7 +121,7 @@ func interpretAsContainer(m mapper) (image.Ref, ImageSetter, bool) {
 		if err == nil {
 			var taggy bool
 			if tag, ok := m.get("tag"); ok {
-				//   conatainer:
+				//   container:
 				//     image: repo/foo
 				//     tag: v1
 				if tagStr, ok := tag.(string); ok {

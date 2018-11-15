@@ -83,7 +83,7 @@ Get started by browsing through the documentation below:
   - [Standalone Flux](/site/get-started.md)
   - [Flux using Helm](/site/helm-get-started.md)
 - Operating Flux
-  - [Using Flux](/site/using.md)
+  - [Using fluxctl to control Flux](/site/fluxctl.md)
   - [Helm Operator](/site/helm-operator.md)
   - [Troubleshooting](/site/troubleshooting.md)
   - [Frequently encountered issues](https://github.com/weaveworks/flux/labels/FAQ)

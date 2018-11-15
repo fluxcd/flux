@@ -1,6 +1,51 @@
 This is the changelog for the Flux daemon; the changelog for the Helm
 operator is in [./CHANGELOG-helmop.md](./CHANGELOG-helmop.md).
 
+## 1.8.1 (2018-10-15)
+
+This release completes the support for `HelmRelease` resources as used
+by the Helm operator from v0.5 onwards.
+
+### Fixes
+
+- Deal correctly with port numbers in images, when updating
+  (Flux)HelmRelease resources
+  [weaveworks/flux#1507](https://github.com/weaveworks/flux/pull/1507)
+- Many corrections and updates to the documentation
+  [weaveworks/flux#1506](https://github.com/weaveworks/flux/pull/1506),
+  [weaveworks/flux#1502](https://github.com/weaveworks/flux/pull/1502),
+  [weaveworks/flux#1501](https://github.com/weaveworks/flux/pull/1501),
+  [weaveworks/flux#1498](https://github.com/weaveworks/flux/pull/1498),
+  [weaveworks/flux#1492](https://github.com/weaveworks/flux/pull/1492),
+  [weaveworks/flux#1490](https://github.com/weaveworks/flux/pull/1490),
+  [weaveworks/flux#1488](https://github.com/weaveworks/flux/pull/1488),
+  [weaveworks/flux#1489](https://github.com/weaveworks/flux/pull/1489)
+- The metrics exported by the Flux daemon are now listed
+  [weaveworks/flux#1483](https://github.com/weaveworks/flux/pull/1483)
+
+### Improvements
+
+- `HelmRelease` resources are treated as workloads, so they can be
+  automated, and updated with `fluxctl release ...`
+  [weaveworks/flux#1382](https://github.com/weaveworks/flux/pull/1382)
+- Container-by-container releases, as used by `fluxctl --interactive`,
+  now post detailed notifications to Weave Cloud
+  [weaveworks/flux#1472](https://github.com/weaveworks/flux/pull/1472)
+  and have better commit messages
+  [weaveworks/flux#1479](https://github.com/weaveworks/flux/pull/1479)
+- Errors encountered when applying manifests are reported in the
+  ListControllers API (and may appear, in the future, in the `fluxctl
+  release` output)
+  [weaveworks/flux#1410](https://github.com/weaveworks/flux/pull/1410)
+
+### Thanks
+
+Thanks goes to @Ashiroq, @JimPruitt, @MansM, @Morriz, @Smirl, @Timer,
+@aytekk, @bzon, @camilb, @claude-leveille, @demikl, @dholbach,
+@endrec, @foot, @hiddeco, @jrcole2884, @lelenanam, @marcusolsson,
+@mellena1, @montyz, @olib963, @rade, @rndstr, @sfitts, @squaremo,
+@stefanprodan, @whereismyjetpack for their contributions.
+
 ## 1.8.0 (2018-10-25)
 
 This release includes a change to how image registries are scanned for
