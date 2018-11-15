@@ -4,10 +4,12 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"time"
 
 	"github.com/spf13/cobra"
 
 	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/api/v11"
 	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/update"
 )
@@ -23,6 +25,7 @@ type controllerReleaseOpts struct {
 	dryRun         bool
 	interactive    bool
 	force          bool
+	watch          bool
 	outputOpts
 	cause update.Cause
 
@@ -57,6 +60,7 @@ func (opts *controllerReleaseOpts) Command() *cobra.Command {
 	cmd.Flags().BoolVar(&opts.dryRun, "dry-run", false, "Do not release anything; just report back what would have been done")
 	cmd.Flags().BoolVar(&opts.interactive, "interactive", false, "Select interactively which containers to update")
 	cmd.Flags().BoolVarP(&opts.force, "force", "f", false, "Disregard locks and container image filters (has no effect when used with --all or --update-all-images)")
+	cmd.Flags().BoolVarP(&opts.watch, "watch", "w", false, "Watch rollout progress during release")
 
 	// Deprecated
 	cmd.Flags().StringSliceVarP(&opts.services, "service", "s", []string{}, "Service to release")
@@ -89,7 +93,10 @@ func (opts *controllerReleaseOpts) RunE(cmd *cobra.Command, args []string) error
 		fmt.Fprintf(cmd.OutOrStderr(), "Warning: --force will not ignore container image tags when used with --update-all-images\n")
 	}
 
-	var controllers []update.ResourceSpec
+	var (
+		controllers   []update.ResourceSpec
+		controllerIds []flux.ResourceID
+	)
 	if opts.allControllers {
 		controllers = []update.ResourceSpec{update.ResourceSpecAll}
 	} else {
@@ -98,6 +105,7 @@ func (opts *controllerReleaseOpts) RunE(cmd *cobra.Command, args []string) error
 			if err != nil {
 				return err
 			}
+			controllerIds = append(controllerIds, id)
 			controllers = append(controllers, update.MakeResourceSpec(id))
 		}
 	}
@@ -178,6 +186,53 @@ func (opts *controllerReleaseOpts) RunE(cmd *cobra.Command, args []string) error
 		}
 
 		opts.dryRun = false
+	}
+	if opts.watch {
+		await(ctx, cmd.OutOrStdout(), cmd.OutOrStderr(), opts.API, jobID, !opts.dryRun, opts.verbosity)
+
+		fmt.Fprintf(cmd.OutOrStderr(), "Monitoring rollout...\n")
+		for {
+			completed := 0
+			services, err := opts.API.ListServicesWithOptions(ctx, v11.ListServicesOptions{Services: controllerIds})
+			if err != nil {
+				return err
+			}
+
+			for _, service := range services {
+				w := newTabwriter()
+				fmt.Fprintf(w, "CONTROLLER\tCONTAINER\tIMAGE\tRELEASE\tDESIRED\tUP-TO-DATE\tAVAILABLE\tOUTDATED\n")
+				if len(service.Containers) > 0 {
+					c := service.Containers[0]
+					fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%d\t%d\t%d\t%d\n", service.ID, c.Name, c.Current.ID, service.Status, service.Rollout.Desired, service.Rollout.Updated, service.Rollout.Ready, service.Rollout.Outdated)
+					for _, c := range service.Containers[1:] {
+						fmt.Fprintf(w, "\t%s\t%s\t\t\t\t\t\n", c.Name, c.Current.ID)
+					}
+				} else {
+					fmt.Fprintf(w, "%s\t\t\t%s\t%d\t%d\t%d\t%d\n", service.ID, service.Status, service.Rollout.Desired, service.Rollout.Updated, service.Rollout.Ready, service.Rollout.Outdated)
+				}
+				fmt.Fprintln(w)
+				w.Flush()
+
+				if service.Rollout.Outdated == 0 {
+					completed++
+				}
+
+				if service.Rollout.Messages != nil {
+					fmt.Fprintf(cmd.OutOrStderr(), "There was a problem releasing %s:\n", service.ID)
+					for _, msg := range service.Rollout.Messages {
+						fmt.Fprintf(cmd.OutOrStderr(), "%s\n", msg)
+					}
+					return nil
+				}
+			}
+
+			if completed == len(services) {
+				fmt.Fprintf(cmd.OutOrStderr(), "All controllers ready.\n")
+				return nil
+			}
+
+			time.Sleep(2000 * time.Millisecond)
+		}
 	}
 	return await(ctx, cmd.OutOrStdout(), cmd.OutOrStderr(), opts.API, jobID, !opts.dryRun, opts.verbosity)
 }
