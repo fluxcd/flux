@@ -563,5 +563,42 @@ filtering annotations take the form
 [`regexp`](#regexp). Filter values use the same syntax as when the filter is
 configured using fluxctl.
 
+Here's a simple but complete deployment file with annotations:
+
+```
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: k8s-mon
+  namespace: admin
+  annotations:
+    flux.weave.works/automated: "true"
+    flux.weave.works/tag.k8s-mon: glob:master-*
+spec:
+  replicas: 1
+  strategy:
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 50%
+  template:
+    metadata:
+      labels:
+        app: k8s-mon
+    spec:
+      containers:
+      - name: k8s-mon
+        image: index.docker.io/larktech/k8s-mon:master-c00edf01
+
+      imagePullSecrets:
+      - name: myregistrykey
+
+```
+
+Things to notice:
+
+1. The annotations are made in `metadata.annotations`, not in `spec.template.metadata`.
+2. The `flux.weave.works/tag.`... references the container name `k8s-mon`--this will change based on your container name. If you have multiple containers you would have multiple lines like that.
+3. The value for the `flux.weave.works/tag.`... annotation should includes the filter pattern type, in this case `glob`.
+
 Annotations can also be used to tell Flux to temporarily ignore certain manifests
 using `flux.weave.works/ignore: "true"`. Read more about this in the [FAQ](faq.md#can-i-temporarily-make-flux-ignore-a-deployment).
