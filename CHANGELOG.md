@@ -6,6 +6,13 @@ operator is in [./CHANGELOG-helmop.md](./CHANGELOG-helmop.md).
 This release completes the support for `HelmRelease` resources as used
 by the Helm operator from v0.5 onwards.
 
+**Note** This release bakes in `kubectl` v.1.11.3, while previous
+releases used v1.9.0. Officially, `kubectl` is compatible with one
+minor version before and one minor version after its own, i.e., now
+v1.10-1.12. In practice, it may work fine for most purposes in a wider
+range. If you run into difficulties relating to the `kubectl` version,
+[contact us](README.md#help).
+
 ### Fixes
 
 - Deal correctly with port numbers in images, when updating
