@@ -37,10 +37,13 @@ since the new operator will ignore them.
 
 ### Using the flux chart
 
-The chart (from v0.5.0-beta, or from this git repo) provides the
+The chart (from v0.5.0, or from this git repo) provides the
 correct arguments to the operator; to upgrade, do
 
-   helm upgrade flux --reuse-values weaveworks/flux --version 0.5.0-beta
+```sh
+helm repo update
+helm upgrade flux --reuse-values weaveworks/flux --version 0.5.0
+```
 
 The chart will leave the old custom resource definition and custom
 resources in place. You will need to replace the individual resources,
