@@ -40,7 +40,7 @@ since the new operator will ignore them.
 The chart (from v0.5.0, or from this git repo) provides the
 correct arguments to the operator; to upgrade, do
 
-```bash
+```sh
 helm repo update
 helm upgrade flux --reuse-values weaveworks/flux --version 0.5.0
 ```
