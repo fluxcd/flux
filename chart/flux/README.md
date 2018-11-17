@@ -14,10 +14,10 @@ a [Kubernetes](http://kubernetes.io) cluster using the [Helm](https://helm.sh) p
 
 ### Kubernetes
 
-Kubernetes >= v1.9 is recommended. Kubernetes v1.8 (the first to support
+Kubernetes >= v1.10 is recommended. Kubernetes v1.8 (the first to support
 Custom Resources) appears to have problems with repeated application of
 custom resources (see https://github.com/kubernetes/kubernetes/issues/53379).
-This means fluxd can fail to apply changes to FluxHelmRelease resources.
+This means fluxd can fail to apply changes to HelmRelease resources.
 
 ### Helm
 
@@ -27,24 +27,20 @@ until it can find one.
 
 # Git repo
 
- - One repo containing both desired release state information and Charts
+ - One repo containing desired release state information and Charts
    themselves.
- - Release state information in the form of Custom Resources manifests is
-   located under a particular path ("releaseconfig" by default; can be
-   overriden).
- - Charts are colocated under another path ("charts" by default; can be
-   overriden). Charts are subdirectories under the charts path.
+ - Charts are collocated under another path ("charts" by default; can be
+   overridden). Charts are subdirectories under the charts path.
  - Custom Resource namespace reflects where the release should be done.
    Both the Helm release and its corresponding Custom Resource will
    live in this namespace.
- - Example of a test repo: https://github.com/weaveworks/flux-helm-test
+ - Example of a test repo: https://github.com/weaveworks/flux-get-started
 
 ## Installation
 
 We put together a simple [Get Started
 guide](../../site/helm-get-started.md) which takes about 5-10 minutes to follow.
-You will have a fully working Flux installation deploying workloads to your
-cluster.
+You will have a fully working Flux installation deploying workloads to your cluster.
 
 ## Installing Flux using Helm
 
@@ -60,7 +56,7 @@ helm repo add weaveworks https://weaveworks.github.io/flux
 
 ```sh
 $ helm install --name flux \
---set git.url=ssh://git@github.com/weaveworks/flux-example \
+--set git.url=git@github.com:weaveworks/flux-get-started \
 --namespace flux \
 weaveworks/flux
 ```
@@ -69,6 +65,7 @@ weaveworks/flux
 
 ```sh
 helm install --name flux \
+--set git.url=git@github.com:weaveworks/flux-get-started \
 --set token=YOUR_WEAVE_CLOUD_SERVICE_TOKEN \
 --namespace flux \
 weaveworks/flux
@@ -78,7 +75,7 @@ weaveworks/flux
 
 ```sh
 $ helm install --name flux \
---set git.url=ssh://git@github.com/weaveworks/flux-helm-test \
+--set git.url=git@github.com:weaveworks/flux-get-started \
 --set helmOperator.create=true \
 --namespace flux \
 weaveworks/flux
@@ -117,7 +114,7 @@ using an alternate mechanism.
     helm install \
     --name flux \
     --set helmOperator.create=true \
-    --set git.url="ssh://git@${YOUR_GIT_HOST}:weaveworks/flux-helm-test.git" \
+    --set git.url="git@${YOUR_GIT_HOST}:weaveworks/flux-get-started" \
     --set-string ssh.known_hosts="${KNOWN_HOSTS}" \
     --namespace flux \
     chart/flux
@@ -133,7 +130,7 @@ using an alternate mechanism.
     helm install \
     --name flux \
     --set helmOperator.create=true \
-    --set git.url="ssh://git@${YOUR_GIT_HOST}:weaveworks/flux-helm-test.git" \
+    --set git.url="git@${YOUR_GIT_HOST}:weaveworks/flux-get-started" \
     --set-file ssh.known_hosts=/tmp/flux_known_hosts \
     --namespace flux \
     chart/flux
@@ -212,12 +209,6 @@ The following tables lists the configurable parameters of the Weave Flux chart a
 | `helmOperator.chartsSyncInterval` | Interval at which to check for changed charts | `3m`
 | `helmOperator.chartsSyncTimeout` | Timeout when checking for changed charts | `1m`
 | `helmOperator.extraEnvs` | Extra environment variables for the Helm operator pod | `[]`
-| `helmOperator.git.url` | URL of git repo with Helm charts | `git.url`
-| `helmOperator.git.branch` | Branch of git repo to use for Helm charts | `master`
-| `helmOperator.git.chartsPath` | Path within git repo to locate Helm charts (relative path) | `charts`
-| `helmOperator.git.pollInterval` | Period at which to poll git repo for new commits | `git.pollInterval`
-| `helmOperator.git.timeout` | Duration after which git operations time out | `git.timeout`
-| `helmOperator.git.secretName` | Kubernetes secret with the SSH private key | None
 | `helmOperator.logReleaseDiffs` | Helm operator should log the diff when a chart release diverges (possibly insecure) | `false`
 | `helmOperator.tillerNamespace` | Namespace in which the Tiller server can be found | `kube-system`
 | `helmOperator.tls.enable` | Enable TLS for communicating with Tiller | `false`
@@ -232,7 +223,7 @@ Specify each parameter using the `--set key=value[,key=value]` argument to `helm
 
 ```sh
 $ helm upgrade --install --wait flux \
---set git.url=ssh://git@github.com/stefanprodan/podinfo \
+--set git.url=git@github.com:stefanprodan/k8s-podinfo \
 --set git.path=deploy/auto-scaling,deploy/local-storage \
 --namespace flux \
 weaveworks/flux
@@ -244,6 +235,6 @@ Update Weave Flux version with:
 
 ```sh
 helm upgrade --reuse-values flux \
---set image.tag=1.7.1 \
+--set image.tag=1.8.1 \
 weaveworks/flux
 ```
