@@ -65,9 +65,9 @@ with a `chart:` section like this:
 ```yaml
 spec:
   chart:
-    git: git@github.com:weaveworks/flux
+    git: git@github.com:weaveworks/flux-get-started
     ref: master
-    path: charts/flux
+    path: charts/ghost
 ```
 
 In this case, the git repo will be cloned, and the chart will be
@@ -286,7 +286,7 @@ values:
 
 ### Using annotations to control updates to HelmRelease resources
 
-You can use the [same annotations](./using.md#using-annotations) in
+You can use the [same annotations](./fluxctl.md#using-annotations) in
 the `HelmRelease` as you would for a Deployment or other workload,
 to control updates and automation. For the purpose of specifying
 filters, the container name is either `chart-image` (if at the top
