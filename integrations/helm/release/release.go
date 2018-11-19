@@ -189,12 +189,15 @@ func (r *Release) Install(chartPath, releaseName string, fhr flux_v1beta1.HelmRe
 
 		if err != nil {
 			r.logger.Log("error", fmt.Sprintf("Chart release failed: %s: %#v", releaseName, err))
-			// if an install fails, purge the release and keep retrying
-			r.logger.Log("info", fmt.Sprintf("Deleting failed release: [%s]", releaseName))
-			_, err = r.HelmClient.DeleteRelease(releaseName, k8shelm.DeletePurge(true))
-			if err != nil {
-				r.logger.Log("error", fmt.Sprintf("Release deletion error: %#v", err))
-				return nil, err
+			// purge the release if the install failed but only if this is the first revision
+			history, err := r.HelmClient.ReleaseHistory(releaseName, k8shelm.WithMaxHistory(2))
+			if err == nil && len(history.Releases) == 1 && history.Releases[0].Info.Status.Code == hapi_release.Status_FAILED {
+				r.logger.Log("info", fmt.Sprintf("Deleting failed release: [%s]", releaseName))
+				_, err = r.HelmClient.DeleteRelease(releaseName, k8shelm.DeletePurge(true))
+				if err != nil {
+					r.logger.Log("error", fmt.Sprintf("Release deletion error: %#v", err))
+					return nil, err
+				}
 			}
 			return nil, err
 		}
