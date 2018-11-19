@@ -213,23 +213,13 @@ happen:
  - Flux just hasn't fetched the image metadata yet. This may be the case
    if you've only just started using a particular image in a workload.
  - Flux can't get suitable credentials for the image repository. At
-   present, it looks at `imagePullSecret`s attached to workloads (but
-   not to service accounts; see
-   [weaveworks/flux#1043](https://github.com/weaveworks/flux/issues/1043)),
-   and a Docker config file if you mount one into the fluxd container
+   present, it looks at `imagePullSecret`s attached to workloads,
+   service accounts and a Docker config file if you mount one into the fluxd container
    (see the [command-line usage](./daemon.md)).
  - Flux doesn't know how to obtain registry credentials for ECR. A
    workaround is described in
    [weaveworks/flux#539](https://github.com/weaveworks/flux/issues/539#issuecomment-394588423)
- - Flux doesn't yet understand what to do with image repositories that
-   have images for more than one architecture; see
-   [weaveworks/flux#741](https://github.com/weaveworks/flux/issues/741). At
-   present there's no workaround for this, if you are not in control
-   of the image repository in question (or you are, but you need to
-   have multi-arch manifests).
- - Flux doesn't yet examine `initContainer`s when cataloguing the
-   images used by workloads. See
-   [weaveworks/flux#702](https://github.com/weaveworks/flux/issues/702)
+ - Flux excludes images with no suitable manifest (linux amd64) in manifestlist
  - Flux doesn't yet understand image refs that use digests instead of
    tags; see
    [weaveworks/flux#885](https://github.com/weaveworks/flux/issues/885).
@@ -416,7 +406,7 @@ Flux doesn't delete resources, there is an [issue](https://github.com/weaveworks
 In order to delete a Helm release first remove the file from Git and afterwards run:
 
 ```yaml
-kubectl delete fluxhelmrelease/my-release
+kubectl delete helmrelease/my-release
 ```
 
 The Flux Helm operator will receive the delete event and will purge the Helm release.
@@ -428,7 +418,7 @@ You need to use the `helm delete --purge` option only then Flux will be able rei
 
 ### I've uninstalled Flux and all my Helm releases are gone. Why is that?
 
-On `FluxHelmRelease` CRD deletion, Kubernetes will remove all `FluxHelmRelease` CRs triggering a Helm purge for each release created by Flux.
+On `HelmRelease` CRD deletion, Kubernetes will remove all `HelmRelease` resources triggering a Helm purge for each release created by Flux.
 To avoid this you have to manually delete the Flux Helm Operator with `kubectl -n flux delete deployment/flux-helm-operator` before running `helm delete flux`.
 
 ### I have a dedicated Kubernetes cluster per environment and I want to use the same Git repo for all. How can I do that?
@@ -436,14 +426,4 @@ To avoid this you have to manually delete the Flux Helm Operator with `kubectl -
 For each cluster create a Git branch in your config repo. When installing Flux set the Git branch using `--set git.branch=cluster-name`
 and set a unique label for each cluster `--set git.label=cluster-name`.
 
-### I have a dedicated Git repo for my Helm charts. How can I point Flux Helm Operator to it?
 
-When installing Flux with Helm you can override the Operator Git settings using `--set helmOperator.git.url=`.
-
-If you are using GitHub you need to create a SSH key for Helm Operator:
-
-* generate a SSH key named identity: `ssh-keygen -q -N "" -f ./identity`
-* create a Kubernetes secret: `kubectl -n flux create secret generic helm-ssh --from-file=./identity`
-* delete the private key: `rm ./identity`
-* add `./identity.pub` as a read-only deployment key in your GitHub repo where the charts are
-* set the secret name with `--set helmOperator.git.secretName=helm-ssh`
