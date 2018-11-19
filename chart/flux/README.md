@@ -27,10 +27,8 @@ until it can find one.
 
 # Git repo
 
- - One repo containing desired release state information and Charts
-   themselves.
- - Charts are collocated under another path ("charts" by default; can be
-   overridden). Charts are subdirectories under the charts path.
+ - One repo containing desired release state information and Charts themselves.
+ - Charts are co-located under another path or can be referenced from Helm repositories.
  - Custom Resource namespace reflects where the release should be done.
    Both the Helm release and its corresponding Custom Resource will
    live in this namespace.
@@ -52,7 +50,9 @@ Add the weaveworks repo:
 helm repo add weaveworks https://weaveworks.github.io/flux
 ```
 
-#### To install the chart with the release name `flux`:
+#### To install the chart with the release name `flux`
+
+Replace `weaveworks/flux-get-started` with your own git repository and run helm install:
 
 ```sh
 $ helm install --name flux \
@@ -107,6 +107,7 @@ using an alternate mechanism.
 
     ```sh
     YOUR_GIT_HOST=your_git_host.example.com
+    YOUR_GIT_USER=your_git_user
     KNOWN_HOSTS='domain ssh-rsa line1
     domain ecdsa-sha2-line2
     domain ssh-ed25519 line3'
@@ -114,7 +115,7 @@ using an alternate mechanism.
     helm install \
     --name flux \
     --set helmOperator.create=true \
-    --set git.url="git@${YOUR_GIT_HOST}:weaveworks/flux-get-started" \
+    --set git.url="git@${YOUR_GIT_HOST}:${YOUR_GIT_USER}/flux-get-started" \
     --set-string ssh.known_hosts="${KNOWN_HOSTS}" \
     --namespace flux \
     chart/flux
@@ -126,11 +127,12 @@ using an alternate mechanism.
 
     ```sh
     YOUR_GIT_HOST=your_git_host.example.com
+    YOUR_GIT_USER=your_git_user
 
     helm install \
     --name flux \
     --set helmOperator.create=true \
-    --set git.url="git@${YOUR_GIT_HOST}:weaveworks/flux-get-started" \
+    --set git.url="git@${YOUR_GIT_HOST}:${YOUR_GIT_USER}/flux-get-started" \
     --set-file ssh.known_hosts=/tmp/flux_known_hosts \
     --namespace flux \
     chart/flux
@@ -206,6 +208,8 @@ The following tables lists the configurable parameters of the Weave Flux chart a
 | `helmOperator.tag` | Helm operator image tag | `<VERSION>`
 | `helmOperator.pullPolicy` | Helm operator image pull policy | `IfNotPresent`
 | `helmOperator.updateChartDeps` | Update dependencies for charts | `true`
+| `helmOperator.git.pollInterval` | Period at which to poll git repo for new commits | `git.pollInterval`
+| `helmOperator.git.timeout` | Duration after which git operations time out | `git.timeout`
 | `helmOperator.chartsSyncInterval` | Interval at which to check for changed charts | `3m`
 | `helmOperator.chartsSyncTimeout` | Timeout when checking for changed charts | `1m`
 | `helmOperator.extraEnvs` | Extra environment variables for the Helm operator pod | `[]`
