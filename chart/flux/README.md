@@ -27,8 +27,8 @@ until it can find one.
 
 # Git repo
 
- - One repo containing desired release state information and Charts themselves.
- - Charts are co-located under another path or can be referenced from Helm repositories.
+ - One repo containing cluster config (i.e., Kubernetes YAMLs) and zero or more git repos containing Charts themselves.
+ - Charts can be co-located with config in the git repo, or be from Helm repositories.
  - Custom Resource namespace reflects where the release should be done.
    Both the Helm release and its corresponding Custom Resource will
    live in this namespace.

@@ -418,7 +418,7 @@ You need to use the `helm delete --purge` option only then Flux will be able rei
 
 ### I've uninstalled Flux and all my Helm releases are gone. Why is that?
 
-On `FluxHelmRelease` CRD deletion, Kubernetes will remove all `HelmRelease` CRs triggering a Helm purge for each release created by Flux.
+On `HelmRelease` CRD deletion, Kubernetes will remove all `HelmRelease` resources triggering a Helm purge for each release created by Flux.
 To avoid this you have to manually delete the Flux Helm Operator with `kubectl -n flux delete deployment/flux-helm-operator` before running `helm delete flux`.
 
 ### I have a dedicated Kubernetes cluster per environment and I want to use the same Git repo for all. How can I do that?
