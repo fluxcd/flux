@@ -73,10 +73,19 @@ weaveworks/flux
 
 #### To install Flux with the Helm operator:
 
+Apply the Helm Release CRD:
+
+```sh
+kubectl apply -f https://raw.githubusercontent.com/weaveworks/flux/master/deploy-helm/flux-helm-release-crd.yaml
+```
+
+Install Flux with Helm:
+
 ```sh
 $ helm install --name flux \
 --set git.url=git@github.com:weaveworks/flux-get-started \
 --set helmOperator.create=true \
+--set helmOperator.createCRD=false \
 --namespace flux \
 weaveworks/flux
 ```
@@ -115,6 +124,7 @@ using an alternate mechanism.
     helm install \
     --name flux \
     --set helmOperator.create=true \
+    --set helmOperator.createCRD=false \
     --set git.url="git@${YOUR_GIT_HOST}:${YOUR_GIT_USER}/flux-get-started" \
     --set-string ssh.known_hosts="${KNOWN_HOSTS}" \
     --namespace flux \
@@ -132,6 +142,7 @@ using an alternate mechanism.
     helm install \
     --name flux \
     --set helmOperator.create=true \
+    --set helmOperator.createCRD=false \
     --set git.url="git@${YOUR_GIT_HOST}:${YOUR_GIT_USER}/flux-get-started" \
     --set-file ssh.known_hosts=/tmp/flux_known_hosts \
     --namespace flux \
