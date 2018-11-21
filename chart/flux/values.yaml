@@ -18,7 +18,7 @@ helmOperator:
   create: false
   createCRD: true
   repository: quay.io/weaveworks/helm-operator
-  tag: 0.5.0
+  tag: 0.5.1
   pullPolicy: IfNotPresent
   # Update dependencies for charts
   updateChartDeps: true
