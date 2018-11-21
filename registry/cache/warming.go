@@ -280,7 +280,7 @@ func (w *Warmer) warm(ctx context.Context, now time.Time, logger log.Logger, id 
 	updates:
 		for _, up := range toUpdate {
 			select {
-			case <-ctxc.Done():
+			case <-ctx.Done():
 				break updates
 			case fetchers <- struct{}{}:
 			}
@@ -306,8 +306,8 @@ func (w *Warmer) warm(ctx context.Context, now time.Time, logger log.Logger, id 
 					if strings.Contains(err.Error(), "429") {
 						once.Do(func() {
 							errorLogger.Log("warn", "aborting image tag fetching due to rate limiting, will try again later")
+							cancel()
 						})
-						cancel()
 					} else {
 						errorLogger.Log("err", err, "ref", imageID)
 					}
