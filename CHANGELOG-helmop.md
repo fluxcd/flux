@@ -1,3 +1,18 @@
+## 0.5.1 (2018-11-21)
+
+### Bug fixes
+
+  - Helm releases will now stay put when an upgrade fails or the
+    Kubernetes API connectivity is flaky, instead of getting purged
+    [weaveworks/flux#1530](https://github.com/weaveworks/flux/pull/1530)
+
+### Thanks
+
+Thanks to @sfrique, @brantb and @squaremo for helping document the
+issues leading to this bug fix, @stefanprodan for actually squashing
+the bug and all others that may have gone unnoticed while writing this
+release note.
+
 ## 0.5.0 (2018-11-14)
 
 WARNING: this release of the Helm operator is not backward-compatible:
