@@ -60,7 +60,7 @@ spec:
         # There are no ":latest" images for helm-operator. Find the most recent
         # release or image version at https://quay.io/weaveworks/helm-operator
         # and replace the tag here.
-        image: quay.io/weaveworks/helm-operator:0.5.0
+        image: quay.io/weaveworks/helm-operator:0.5.1
         imagePullPolicy: IfNotPresent
         volumeMounts:
         # Include this if you need to mount a customised known_hosts or ssh_config
