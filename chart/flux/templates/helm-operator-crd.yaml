@@ -10,8 +10,6 @@ metadata:
     chart: {{ template "flux.chart" . }}
     release: {{ .Release.Name }}
     heritage: {{ .Release.Service }}
-  annotations:
-    "helm.sh/hook": crd-install
 spec:
   group: flux.weave.works
   names:
@@ -80,8 +78,6 @@ metadata:
     chart: {{ template "flux.chart" . }}
     release: {{ .Release.Name }}
     heritage: {{ .Release.Service }}
-  annotations:
-    "helm.sh/hook": crd-install
 spec:
   group: helm.integrations.flux.weave.works
   names:
