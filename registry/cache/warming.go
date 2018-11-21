@@ -273,6 +273,10 @@ func (w *Warmer) warm(ctx context.Context, now time.Time, logger log.Logger, id 
 		awaitFetchers := &sync.WaitGroup{}
 		awaitFetchers.Add(len(toUpdate))
 
+		ctxc, cancel := context.WithCancel(context.Background())
+		var once sync.Once
+		defer cancel()
+
 	updates:
 		for _, up := range toUpdate {
 			select {
@@ -283,6 +287,12 @@ func (w *Warmer) warm(ctx context.Context, now time.Time, logger log.Logger, id 
 
 			go func(update update) {
 				defer func() { awaitFetchers.Done(); <-fetchers }()
+
+				select {
+				case <-ctxc.Done():
+					return // terminate on error
+				default: // avoid blocking
+				}
 
 				imageID := update.ref
 
@@ -297,7 +307,16 @@ func (w *Warmer) warm(ctx context.Context, now time.Time, logger log.Logger, id 
 						// This was due to a context timeout, don't bother logging
 						return
 					}
-					errorLogger.Log("err", err, "ref", imageID)
+
+					// abort the image tags fetching if we've been rate limited
+					if strings.Contains(err.Error(), "429") {
+						once.Do(func() {
+							errorLogger.Log("warn", "aborting image tag fetching due to rate limiting, will try again later")
+						})
+						cancel()
+					} else {
+						errorLogger.Log("err", err, "ref", imageID)
+					}
 					return
 				}
 
