@@ -10,6 +10,8 @@ metadata:
     chart: {{ template "flux.chart" . }}
     release: {{ .Release.Name }}
     heritage: {{ .Release.Service }}
+  annotations:
+    "helm.sh/resource-policy": keep
 spec:
   group: flux.weave.works
   names:
@@ -78,6 +80,8 @@ metadata:
     chart: {{ template "flux.chart" . }}
     release: {{ .Release.Name }}
     heritage: {{ .Release.Service }}
+  annotations:
+    "helm.sh/resource-policy": keep
 spec:
   group: helm.integrations.flux.weave.works
   names:
