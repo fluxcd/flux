@@ -1,3 +1,4 @@
+{{- if .Values.ssh.known_hosts -}}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -13,3 +14,4 @@ data:
         {{ .Values.ssh.known_hosts }}
       {{- end }}
     {{- end }}
+{{- end -}}
