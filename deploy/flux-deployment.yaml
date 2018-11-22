@@ -96,7 +96,7 @@ spec:
         - --ssh-keygen-dir=/var/fluxd/keygen
 
         # replace or remove the following URL
-        - --git-url=git@github.com:weaveworks/flux-example
+        - --git-url=git@github.com:weaveworks/flux-get-started
         - --git-branch=master
 
         # include these next two to connect to an "upstream" service
