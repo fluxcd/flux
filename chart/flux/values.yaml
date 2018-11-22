@@ -54,15 +54,10 @@ helmOperator:
   nodeSelector: {}
   tolerations: []
   affinity: {}
-  resources: {}
-    # If you do want to specify resources, uncomment the following
-    # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
-    # limits:
-    #  cpu: 50m
-    #  memory: 150Mi
-    # requests:
-    #  cpu: 20m
-    #  memory: 100Mi
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
 
 rbac:
   # Specifies whether RBAC resources should be created
@@ -75,15 +70,10 @@ serviceAccount:
   # If not set and create is true, a name is generated using the fullname template
   name:
 
-resources: {}
-  # If you do want to specify resources, uncomment the following
-  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
-  # limits:
-  #  cpu: 250m
-  #  memory: 300Mi
-  # requests:
-  #  cpu: 150m
-  #  memory: 250Mi
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
 
 nodeSelector: {}
 
