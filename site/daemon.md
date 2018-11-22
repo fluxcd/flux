@@ -44,7 +44,7 @@ fluxd requires setup and offers customization though a multitude of flags.
 |--kubernetes-kubectl    |                               | optional, explicit path to kubectl tool|
 |--version               | false                         | output the version number and exit |
 |**Git repo & key etc.** |                              ||
-|--git-url               |                               | URL of git repo with Kubernetes manifests; e.g., `git@github.com:weaveworks/flux-example`|
+|--git-url               |                               | URL of git repo with Kubernetes manifests; e.g., `git@github.com:weaveworks/flux-get-started`|
 |--git-branch            | `master`                        | branch of git repo to use for Kubernetes manifests|
 |--git-ci-skip           | false   | when set, fluxd will append `\n\n[ci skip]` to its commit messages |
 |--git-ci-skip-message   | `""`    | if provided, fluxd will append this to commit messages (overrides --git-ci-skip`) |

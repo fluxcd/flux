@@ -79,7 +79,7 @@ func main() {
 		kubernetesKubectl = fs.String("kubernetes-kubectl", "", "Optional, explicit path to kubectl tool")
 		versionFlag       = fs.Bool("version", false, "Get version number")
 		// Git repo & key etc.
-		gitURL       = fs.String("git-url", "", "URL of git repo with Kubernetes manifests; e.g., git@github.com:weaveworks/flux-example")
+		gitURL       = fs.String("git-url", "", "URL of git repo with Kubernetes manifests; e.g., git@github.com:weaveworks/flux-get-started")
 		gitBranch    = fs.String("git-branch", "master", "branch of git repo to use for Kubernetes manifests")
 		gitPath      = fs.StringSlice("git-path", []string{}, "relative paths within the git repo to locate Kubernetes manifests")
 		gitUser      = fs.String("git-user", "Weave Flux", "username to use as git committer")
