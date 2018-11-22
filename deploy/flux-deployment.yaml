@@ -56,6 +56,10 @@ spec:
         # and replace the tag here.
         image: quay.io/weaveworks/flux:1.8.1
         imagePullPolicy: IfNotPresent
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
         ports:
         - containerPort: 3030 # informational
         volumeMounts:
