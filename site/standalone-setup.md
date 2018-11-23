@@ -51,7 +51,7 @@ You have two options:
 ### 1. Allow Flux to generate a key for you.
 
 If you don't specify a key to use, Flux will create one for you. Obtain
-the public key through `fluxctl`:
+the public key through [fluxctl](./fluxctl.md):
 
 ```sh
 fluxctl identity

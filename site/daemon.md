@@ -33,6 +33,11 @@ Version controlling of cluster manifests provides reproducibility and a historic
             Deployment is pinned to a particular image tag. New deployment will not
             proceed upon triggered release.
 
+# More information
+
+Setting up and configuring fluxd is discussed in our [standalone setup](./standalone-setup.md)
+document.
+
 # Flags
 
 fluxd requires setup and offers customization though a multitude of flags.
@@ -81,4 +86,3 @@ fluxd requires setup and offers customization though a multitude of flags.
 |**SSH key generation**  |                               | |
 |--ssh-keygen-bits       |                               | -b argument to ssh-keygen (default unspecified)|
 |--ssh-keygen-type       |                               | -t argument to ssh-keygen (default unspecified)|
-
