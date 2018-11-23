@@ -74,14 +74,12 @@ watch kubectl get pods --all-namespaces
 ## Giving write access
 
 At startup Flux generates a SSH key and logs the public key. Find
-the SSH public key with:
+the SSH public key by installing [fluxctl](./fluxctl.md) and
+runnning:
 
 ```sh
-kubectl logs deployment/flux | grep identity.pub | cut -d '"' -f2
+fluxctl identity
 ```
-
-*Note:* If you have downloaded [fluxctl](./fluxctl.md) already, you can use
-`fluxctl identity` as well.
 
 In order to sync your cluster state with git you need to copy the
 public key and create a deploy key with write access on your GitHub
