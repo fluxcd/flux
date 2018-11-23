@@ -89,6 +89,16 @@ Get started by browsing through the documentation below:
   - [Frequently encountered issues](https://github.com/weaveworks/flux/labels/FAQ)
   - [Upgrading to Flux v1](/site/upgrading-to-1.0.md)
 
+### Integrations
+
+As Flux is Open Source, integrations are very straight-forward. Here are
+a few popular ones you might want to check out:
+
+- [Managing Helm releases the GitOps way](https://github.com/stefanprodan/gitops-helm)
+- [OpenFaaS GitOps workflow with Flux](https://github.com/stefanprodan/openfaas-flux)
+- [GitOps for Istio Canary deployments](https://github.com/stefanprodan/openfaas-flux)
+- [Fluxcloud to receive events from Flux](https://github.com/justinbarrick/fluxcloud)
+
 ## Community & Developer information
 
 We welcome all kinds of contributions to Flux, be it code, issues you found,
