@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"os"
 	"os/exec"
 	"strings"
 
@@ -17,6 +18,9 @@ import (
 
 // If true, every git invocation will be echoed to stdout
 const trace = false
+
+// Env vars that are allowed to be inherited from the os
+var allowedEnvVars = []string{"HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY"}
 
 func config(ctx context.Context, workingDir, user, email string) error {
 	for k, v := range map[string]string{
@@ -289,7 +293,18 @@ func execGitCmd(ctx context.Context, dir string, out io.Writer, args ...string) 
 }
 
 func env() []string {
-	return []string{"GIT_TERMINAL_PROMPT=0"}
+	env := []string{"GIT_TERMINAL_PROMPT=0"}
+
+	// include allowed env vars from os
+	for _, k := range allowedEnvVars {
+		v, ex := os.LookupEnv(k)
+		if ex == false {
+			continue
+		}
+		env = append(env, k+"="+v)
+	}
+
+	return env
 }
 
 // check returns true if there are changes locally.
