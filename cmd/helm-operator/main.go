@@ -49,9 +49,6 @@ var (
 	logReleaseDiffs    *bool
 	updateDependencies *bool
 
-	gitPollInterval *time.Duration
-	gitTimeout      *time.Duration
-
 	listenAddr *string
 )
 
@@ -92,9 +89,6 @@ func init() {
 	chartsSyncInterval = fs.Duration("charts-sync-interval", 3*time.Minute, "period on which to reconcile the Helm releases with HelmRelease resources")
 	logReleaseDiffs = fs.Bool("log-release-diffs", false, "log the diff when a chart release diverges; potentially insecure")
 	updateDependencies = fs.Bool("update-chart-deps", true, "Update chart dependencies before installing/upgrading a release")
-
-	gitPollInterval = fs.Duration("git-poll-interval", 5*time.Minute, "period on which to poll for changes to the git repo")
-	gitTimeout = fs.Duration("git-timeout", 20*time.Second, "duration after which git operations time out")
 }
 
 func main() {
