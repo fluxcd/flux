@@ -68,12 +68,17 @@ spec:
     git: git@github.com:weaveworks/flux-get-started
     ref: master
     path: charts/ghost
+    timeout: 20
 ```
 
 In this case, the git repo will be cloned, and the chart will be
 released from the ref given (which defaults to `master`, if not
 supplied). Commits to the git repo may result in releases, if they
 update the chart at the path given.
+
+For larger git repositories you may want to increase the timeout (which
+defaults to `20` seconds when omitted) as the cloning process will take
+more time.
 
 Note that you will usually need to provide an SSH key to grant access
 to the git repository. The example deployment shows how to mount a
