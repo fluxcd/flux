@@ -56,6 +56,8 @@ spec:
                     type: string
                   ref:
                     type: string
+                  timeout:
+                    type: int
               - required: ['repository', 'name', 'version']
                 properties:
                   repository:

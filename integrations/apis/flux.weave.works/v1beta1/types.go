@@ -1,6 +1,8 @@
 package v1beta1
 
 import (
+	"time"
+
 	"github.com/ghodss/yaml"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -38,19 +40,30 @@ type ChartSource struct {
 }
 
 type GitChartSource struct {
-	GitURL string `json:"git"`
-	Ref    string `json:"ref"`
-	Path   string `json:"path"`
+	GitURL  string        `json:"git"`
+	Ref     string        `json:"ref"`
+	Path    string        `json:"path"`
+	Timeout time.Duration `json:"timeout"`
 }
 
 // DefaultGitRef is the ref assumed if the Ref field is not given in a GitChartSource
 const DefaultGitRef = "master"
+
+// DefaultGitTimeout is the timeout asssumed if the Timeout field is not given in a GitChartSource
+const DefaultGitTimeout = 20
 
 func (s GitChartSource) RefOrDefault() string {
 	if s.Ref == "" {
 		return DefaultGitRef
 	}
 	return s.Ref
+}
+
+func (s GitChartSource) TimeoutOrDefault() time.Duration {
+	if s.Timeout == 0 {
+		return DefaultGitTimeout
+	}
+	return s.Timeout
 }
 
 type RepoChartSource struct {

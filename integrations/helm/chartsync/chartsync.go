@@ -264,7 +264,7 @@ func mirrorName(chartSource *fluxv1beta1.GitChartSource) string {
 func (chs *ChartChangeSync) maybeMirror(fhr fluxv1beta1.HelmRelease) {
 	chartSource := fhr.Spec.ChartSource.GitChartSource
 	if chartSource != nil {
-		if ok := chs.mirrors.Mirror(mirrorName(chartSource), git.Remote{chartSource.GitURL}, git.ReadOnly); !ok {
+		if ok := chs.mirrors.Mirror(mirrorName(chartSource), git.Remote{chartSource.GitURL}, git.Timeout(chartSource.TimeoutOrDefault()*time.Second), git.ReadOnly); !ok {
 			chs.logger.Log("info", "started mirroring repo", "repo", chartSource.GitURL)
 		}
 	}
