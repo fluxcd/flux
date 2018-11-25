@@ -3,6 +3,36 @@ title: Using Weave Flux
 menu_order: 40
 ---
 
+- [Installing fluxctl](#installing-fluxctl)
+  * [Mac OS](#mac-os)
+  * [Linux](#linux)
+    + [Arch Linux](#arch-linux)
+  * [Binary releases](#binary-releases)
+- [Connecting fluxctl to the daemon](#connecting-fluxctl-to-the-daemon)
+  * [Flux API service](#flux-api-service)
+  * [Add an SSH deploy key to the repository](#add-an-ssh-deploy-key-to-the-repository)
+    + [1. Allow flux to generate a key for you](#1-allow-flux-to-generate-a-key-for-you)
+    + [2. Specify a key to use](#2-specify-a-key-to-use)
+- [What is a Controller](#what-is-a-controller)
+- [Viewing Controllers](#viewing-controllers)
+- [Inspecting the Version of a Container](#inspecting-the-version-of-a-container)
+- [Releasing a Controller](#releasing-a-controller)
+- [Turning on Automation](#turning-on-automation)
+- [Turning off Automation](#turning-off-automation)
+- [Rolling back a Controller](#rolling-back-a-controller)
+- [Locking a Controller](#locking-a-controller)
+- [Releasing an image to a locked controller](#releasing-an-image-to-a-locked-controller)
+- [Unlocking a Controller](#unlocking-a-controller)
+- [Recording user and message with the triggered action](#recording-user-and-message-with-the-triggered-action)
+- [Image Tag Filtering](#image-tag-filtering)
+  * [Filter pattern types](#filter-pattern-types)
+    + [Glob](#glob)
+    + [Semver](#semver)
+    + [Regexp](#regexp)
+  * [Actions triggered through `fluxctl`](#actions-triggered-through-fluxctl)
+  * [Errors due to author customization](#errors-due-to-author-customization)
+- [Using Annotations](#using-annotations)
+
 All of the features of Flux are accessible from within
 [Weave Cloud](https://cloud.weave.works).
 

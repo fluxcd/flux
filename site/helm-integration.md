@@ -3,6 +3,20 @@ title: Using Flux with Helm
 menu_order: 90
 ---
 
+- [Using Flux with Helm](#using-flux-with-helm)
+  * [The `HelmRelease` custom resource](#the-helmrelease-custom-resource)
+    + [Using a chart from a Git repo instead of a Helm repo](#using-a-chart-from-a-git-repo-instead-of-a-helm-repo)
+    + [What the Helm Operator does](#what-the-helm-operator-does)
+  * [Supplying values to the chart](#supplying-values-to-the-chart)
+    + [`.spec.values`](#specvalues)
+    + [`.spec.valueFileSecrets`](#specvaluefilesecrets)
+      - [Example of `spec.valueFileSecrets`](#example-of-specvaluefilesecrets)
+  * [Authentication](#authentication)
+    + [Authentication for Helm repos](#authentication-for-helm-repos)
+    + [Authentication for Git repos](#authentication-for-git-repos)
+  * [Upgrading images in a HelmRelease using Flux](#upgrading-images-in-a-helmrelease-using-flux)
+    + [Using annotations to control updates to HelmRelease resources](#using-annotations-to-control-updates-to-helmrelease-resources)
+
 # Using Flux with Helm
 
 You can release charts to your cluster via "GitOps", by combining Flux
