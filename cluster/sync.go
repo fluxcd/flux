@@ -3,6 +3,7 @@ package cluster
 import (
 	"strings"
 
+	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/resource"
 )
 
@@ -27,8 +28,9 @@ type SyncDef struct {
 }
 
 type ResourceError struct {
-	resource.Resource
-	Error error
+	ResourceID flux.ResourceID
+	Source     string
+	Error      error
 }
 
 type SyncError []ResourceError
@@ -36,7 +38,7 @@ type SyncError []ResourceError
 func (err SyncError) Error() string {
 	var errs []string
 	for _, e := range err {
-		errs = append(errs, e.ResourceID().String()+": "+e.Error.Error())
+		errs = append(errs, e.ResourceID.String()+": "+e.Error.Error())
 	}
 	return strings.Join(errs, "; ")
 }

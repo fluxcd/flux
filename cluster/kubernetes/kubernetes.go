@@ -12,11 +12,11 @@ import (
 	"github.com/pkg/errors"
 	kresource "github.com/weaveworks/flux/cluster/kubernetes/resource"
 	fhrclient "github.com/weaveworks/flux/integrations/client/clientset/versioned"
-	"github.com/weaveworks/flux/policy"
 	"gopkg.in/yaml.v2"
 	apiv1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	k8sclientdynamic "k8s.io/client-go/dynamic"
 	k8sclient "k8s.io/client-go/kubernetes"
@@ -36,6 +36,11 @@ type extendedClient struct {
 	dynamicClient
 	fluxHelmClient
 }
+
+const (
+	stackLabel         = kresource.PolicyPrefix + "stack"
+	checksumAnnotation = kresource.PolicyPrefix + "stack_checksum"
+)
 
 // --- add-ons
 
@@ -212,13 +217,13 @@ func applyMetadata(res resource.Resource, stack, checksum string) ([]byte, error
 
 	if stack != "" {
 		mixinLabels := map[string]string{}
-		mixinLabels[fmt.Sprintf("%s%s", kresource.PolicyPrefix, policy.Stack)] = stack
+		mixinLabels[stackLabel] = stack
 		mixin["labels"] = mixinLabels
 	}
 
 	if checksum != "" {
 		mixinAnnotations := map[string]string{}
-		mixinAnnotations[fmt.Sprintf("%s%s", kresource.PolicyPrefix, policy.StackChecksum)] = checksum
+		mixinAnnotations[checksumAnnotation] = checksum
 		mixin["annotations"] = mixinAnnotations
 	}
 
@@ -233,26 +238,28 @@ func applyMetadata(res resource.Resource, stack, checksum string) ([]byte, error
 	return bytes, nil
 }
 
-// Sync performs the given actions on resources. Operations are
-// asynchronous (applications may take a while to be processed), but
-// serialised.
+// Sync takes a definition of what should be running in the cluster,
+// and attempts to make the cluster conform. An error return does not
+// necessarily indicate complete failure; some resources may succeed
+// in being synced, and some may fail (for example, they may be
+// malformed).
 func (c *Cluster) Sync(spec cluster.SyncDef) error {
 	logger := log.With(c.logger, "method", "Sync")
 
-	// Keep track of the checksum each resource gets, so we can
-	// compare them during garbage collection.
+	// Keep track of the checksum of each stack, so we can compare
+	// them during garbage collection.
 	checksums := map[string]string{}
 
 	cs := makeChangeSet()
 	var errs cluster.SyncError
 	for _, stack := range spec.Stacks {
+		checksums[stack.Name] = stack.Checksum
 		for _, res := range stack.Resources {
 			resBytes, err := applyMetadata(res, stack.Name, stack.Checksum)
 			if err == nil {
-				checksums[res.ResourceID().String()] = stack.Checksum
-				cs.stage("apply", res, resBytes)
+				cs.stage("apply", res.ResourceID(), res.Source(), resBytes)
 			} else {
-				errs = append(errs, cluster.ResourceError{Resource: res, Error: err})
+				errs = append(errs, cluster.ResourceError{ResourceID: res.ResourceID(), Source: res.Source(), Error: err})
 				break
 			}
 		}
@@ -269,27 +276,29 @@ func (c *Cluster) Sync(spec cluster.SyncDef) error {
 	if c.GC {
 		orphanedResources := makeChangeSet()
 
-		clusterResourceBytes, err := c.exportResourcesInStack()
+		clusterResources, err := c.getResourcesInStack()
 		if err != nil {
 			return errors.Wrap(err, "exporting resource defs from cluster for garbage collection")
 		}
-		clusterResources, err := kresource.ParseMultidoc(clusterResourceBytes, "exported")
-		if err != nil {
-			return errors.Wrap(err, "parsing exported resources during garbage collection")
-		}
 
 		for resourceID, res := range clusterResources {
-			expected := checksums[resourceID] // shall be "" if no such resource was applied earlier
-			actual, ok := res.Policy().Get(policy.StackChecksum)
+			stack := res.GetStack()
+			if stack == "" {
+				c.logger.Log("warning", "cluster resource with empty stack label; skipping", "resource", resourceID)
+				continue
+			}
+
+			expected := checksums[stack] // shall be "" if no such resource was applied earlier
+			actual := res.GetChecksum()
 			switch {
-			case !ok:
-				stack, _ := res.Policy().Get(policy.Stack)
-				c.logger.Log("warning", "cluster resource has stack but no checksum; skipping", "resource", resourceID, "stack", stack)
+			case expected == "":
+				c.logger.Log("info", "cluster resource was not applied this sync; deleting", "resource", resourceID, "actual", actual, "stack", stack)
+				orphanedResources.stage("delete", res.ResourceID(), "<cluster>", res.Bytes())
 			case actual != expected: // including if checksum is ""
-				c.logger.Log("info", "cluster resource has out-of-date checksum; deleting", "resource", resourceID, "actual", actual, "expected", expected)
-				orphanedResources.stage("delete", res, res.Bytes())
+				c.logger.Log("warning", "cluster resource has out-of-date checksum; deleting", "resource", resourceID, "actual", actual, "expected", expected)
+				orphanedResources.stage("delete", res.ResourceID(), "<cluster>", res.Bytes())
 			default:
-				// all good; proceed
+				// the checksum is the same, indicating that it was applied earlier. Leave it alone.
 			}
 		}
 
@@ -314,7 +323,7 @@ func (c *Cluster) setSyncErrors(errs cluster.SyncError) {
 	defer c.muSyncErrors.Unlock()
 	c.syncErrors = make(map[flux.ResourceID]error)
 	for _, e := range errs {
-		c.syncErrors[e.ResourceID()] = e.Error
+		c.syncErrors[e.ResourceID] = e.Error
 	}
 }
 
@@ -379,16 +388,48 @@ func contains(a []string, x string) bool {
 	return false
 }
 
-// exportResourcesInStack collates all the resources that have a particular
-// label (regardless of the value).
-func (c *Cluster) exportResourcesInStack() ([]byte, error) {
-	labelName := fmt.Sprintf("%s%s", kresource.PolicyPrefix, policy.Stack)
-	var config bytes.Buffer
+type kuberesource struct {
+	obj *unstructured.Unstructured
+}
 
+func (r *kuberesource) ResourceID() flux.ResourceID {
+	ns, kind, name := r.obj.GetNamespace(), r.obj.GetKind(), r.obj.GetName()
+	return flux.MakeResourceID(ns, kind, name)
+}
+
+// Bytes returns a byte slice description
+func (r *kuberesource) Bytes() []byte {
+	return []byte(fmt.Sprintf(`
+apiVersion: %s
+kind: %s
+metadata:
+  namespace: %q
+  name: %q
+`, r.obj.GetAPIVersion(), r.obj.GetKind(), r.obj.GetNamespace(), r.obj.GetName()))
+}
+
+// GetChecksum returns the checksum recorded on the resource from
+// Kubernetes, or an empty string if it's not present.
+func (r *kuberesource) GetChecksum() string {
+	return r.obj.GetAnnotations()[checksumAnnotation]
+}
+
+// GetStack returns the stack recorded on the the resource from
+// Kubernetes, or an empty string if it's not present.
+func (r *kuberesource) GetStack() string {
+	return r.obj.GetLabels()[stackLabel]
+}
+
+// exportResourcesInStack collates all the resources that belong to a
+// stack, i.e., were applied by flux.
+func (c *Cluster) getResourcesInStack() (map[string]*kuberesource, error) {
 	resources, err := c.client.coreClient.Discovery().ServerResources()
 	if err != nil {
 		return nil, err
 	}
+
+	result := map[string]*kuberesource{}
+
 	for _, resource := range resources {
 		for _, apiResource := range resource.APIResources {
 			verbs := apiResource.Verbs
@@ -415,13 +456,13 @@ func (c *Cluster) exportResourcesInStack() ([]byte, error) {
 				Resource: apiResource.Name,
 			})
 			data, err := resourceClient.List(meta_v1.ListOptions{
-				LabelSelector: labelName, // exists <<labelName>>
+				LabelSelector: stackLabel, // means "has label <<stackLabel>>"
 			})
 			if err != nil {
 				return nil, err
 			}
 
-			for _, item := range data.Items {
+			for i, item := range data.Items {
 				apiVersion := item.GetAPIVersion()
 				kind := item.GetKind()
 
@@ -432,18 +473,13 @@ func (c *Cluster) exportResourcesInStack() ([]byte, error) {
 				}
 				// TODO(michael) also exclude anything that has an ownerReference (that isn't "standard"?)
 
-				yamlBytes, err := k8syaml.Marshal(item.Object)
-				if err != nil {
-					return nil, err
-				}
-				config.WriteString("---\n")
-				config.Write(yamlBytes)
-				config.WriteString("\n")
+				res := &kuberesource{obj: &data.Items[i]}
+				result[res.ResourceID().String()] = res
 			}
 		}
 	}
 
-	return config.Bytes(), nil
+	return result, nil
 }
 
 // kind & apiVersion must be passed separately as the object's TypeMeta is not populated

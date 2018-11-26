@@ -24,7 +24,6 @@ import (
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster"
 	fluxfake "github.com/weaveworks/flux/integrations/client/clientset/versioned/fake"
-	"github.com/weaveworks/flux/policy"
 	"github.com/weaveworks/flux/sync"
 )
 
@@ -54,7 +53,7 @@ func fakeClients() extendedClient {
 
 	// Assigned here, since this is _also_ used by the (fake)
 	// discovery client therein, and ultimately by
-	// exportResourcesInStack since that uses the core clientset to
+	// getResourcesInStack since that uses the core clientset to
 	// enumerate the namespaces.
 	coreClient.Fake.Resources = apiResources
 
@@ -92,7 +91,7 @@ func (a fakeApplier) apply(_ log.Logger, cs changeSet, errored map[flux.Resource
 		a.commandRun = true
 		var unstruct map[string]interface{}
 		if err := yaml.Unmarshal(obj.Payload, &unstruct); err != nil {
-			errs = append(errs, cluster.ResourceError{obj.OriginalResource, err})
+			errs = append(errs, cluster.ResourceError{obj.ResourceID, obj.Source, err})
 			return
 		}
 		res := &unstructured.Unstructured{Object: unstruct}
@@ -114,12 +113,12 @@ func (a fakeApplier) apply(_ log.Logger, cs changeSet, errored map[flux.Resource
 				_, err = dc.Update(res) //, &metav1.UpdateOptions{})
 			}
 			if err != nil {
-				errs = append(errs, cluster.ResourceError{obj.OriginalResource, err})
+				errs = append(errs, cluster.ResourceError{obj.ResourceID, obj.Source, err})
 				return
 			}
 		} else if cmd == "delete" {
 			if err := dc.Delete(name, &metav1.DeleteOptions{}); err != nil {
-				errs = append(errs, cluster.ResourceError{obj.OriginalResource, err})
+				errs = append(errs, cluster.ResourceError{obj.ResourceID, obj.Source, err})
 				return
 			}
 		} else {
@@ -187,9 +186,7 @@ metadata:
   namespace: other
 `
 
-	kube, _ := setup(t)
-
-	test := func(defs, expectedAfterSync string) {
+	test := func(kube *Cluster, defs, expectedAfterSync string) {
 		manifests := &Manifests{}
 		resources, err := manifests.ParseManifests([]byte(defs))
 		if err != nil {
@@ -200,19 +197,15 @@ metadata:
 		if err != nil {
 			t.Error(err)
 		}
-		// Now check that the resources were created
-		exported, err := kube.exportResourcesInStack()
-		if err != nil {
-			t.Fatal(err)
-		}
-
 		resources0, err := manifests.ParseManifests([]byte(expectedAfterSync))
 		if err != nil {
 			panic(err)
 		}
-		resources1, err := manifests.ParseManifests([]byte(exported))
+
+		// Now check that the resources were created
+		resources1, err := kube.getResourcesInStack()
 		if err != nil {
-			panic(err)
+			t.Fatal(err)
 		}
 
 		for id := range resources1 {
@@ -227,54 +220,36 @@ metadata:
 		}
 	}
 
-	// without GC on, resources persist if they are not mentioned in subsequent syncs.
-	test(defs1, defs1)
-	test(defs1+defs2, defs1+defs2)
-	test(defs3, defs1+defs2+defs3)
+	t.Run("sync adds and GCs resources", func(t *testing.T) {
+		kube, _ := setup(t)
 
-	// Now with GC switched on. That means if we don't include a
-	// resource in a sync, it should be deleted.
-	kube.GC = true
-	test(defs2+defs3, defs3+defs2)
+		// without GC on, resources persist if they are not mentioned in subsequent syncs.
+		test(kube, "", "")
+		test(kube, defs1, defs1)
+		test(kube, defs1+defs2, defs1+defs2)
+		test(kube, defs3, defs1+defs2+defs3)
+
+		// Now with GC switched on. That means if we don't include a
+		// resource in a sync, it should be deleted.
+		kube.GC = true
+		test(kube, defs2+defs3, defs3+defs2)
+		test(kube, defs1+defs2, defs1+defs2)
+		test(kube, "", "")
+	})
 }
 
 // ----
 
-type rsc struct {
-	id    string
-	bytes []byte
-}
-
-func (r rsc) ResourceID() flux.ResourceID {
-	return flux.MustParseResourceID(r.id)
-}
-
-func (r rsc) Bytes() []byte {
-	return r.bytes
-}
-
-func (r rsc) Policy() policy.Set {
-	return nil
-}
-
-func (r rsc) Source() string {
-	return "test"
-}
-
-func mkResource(kind, name string) rsc {
-	return rsc{id: "default:" + kind + "/" + name}
-}
-
 // TestApplyOrder checks that applyOrder works as expected.
 func TestApplyOrder(t *testing.T) {
 	objs := []applyObject{
-		{OriginalResource: mkResource("Deployment", "deploy")},
-		{OriginalResource: mkResource("Secret", "secret")},
-		{OriginalResource: mkResource("Namespace", "namespace")},
+		{ResourceID: flux.MakeResourceID("test", "Deployment", "deploy")},
+		{ResourceID: flux.MakeResourceID("test", "Secret", "secret")},
+		{ResourceID: flux.MakeResourceID("", "Namespace", "namespace")},
 	}
 	sort.Sort(applyOrder(objs))
 	for i, name := range []string{"namespace", "secret", "deploy"} {
-		_, _, objName := objs[i].OriginalResource.ResourceID().Components()
+		_, _, objName := objs[i].ResourceID.Components()
 		if objName != name {
 			t.Errorf("Expected %q at position %d, got %q", name, i, objName)
 		}

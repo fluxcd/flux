@@ -8,14 +8,12 @@ import (
 )
 
 const (
-	Ignore        = Policy("ignore")
-	Locked        = Policy("locked")
-	LockedUser    = Policy("locked_user")
-	LockedMsg     = Policy("locked_msg")
-	Automated     = Policy("automated")
-	TagAll        = Policy("tag_all")
-	Stack         = Policy("stack")
-	StackChecksum = Policy("stack_checksum")
+	Ignore     = Policy("ignore")
+	Locked     = Policy("locked")
+	LockedUser = Policy("locked_user")
+	LockedMsg  = Policy("locked_msg")
+	Automated  = Policy("automated")
+	TagAll     = Policy("tag_all")
 )
 
 // Policy is an string, denoting the current deployment policy of a service,

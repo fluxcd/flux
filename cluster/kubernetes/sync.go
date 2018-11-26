@@ -15,18 +15,14 @@ import (
 	"github.com/pkg/errors"
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster"
-	"github.com/weaveworks/flux/resource"
 )
 
 // --- internal types for keeping track of syncing
 
 type applyObject struct {
-	OriginalResource resource.Resource
-	Payload          []byte
-}
-
-func (obj applyObject) Components() (namespace, kind, name string) {
-	return obj.OriginalResource.ResourceID().Components()
+	ResourceID flux.ResourceID
+	Source     string
+	Payload    []byte
 }
 
 type changeSet struct {
@@ -37,8 +33,8 @@ func makeChangeSet() changeSet {
 	return changeSet{objs: make(map[string][]applyObject)}
 }
 
-func (c *changeSet) stage(cmd string, res resource.Resource, bytes []byte) {
-	c.objs[cmd] = append(c.objs[cmd], applyObject{res, bytes})
+func (c *changeSet) stage(cmd string, id flux.ResourceID, source string, bytes []byte) {
+	c.objs[cmd] = append(c.objs[cmd], applyObject{id, source, bytes})
 }
 
 // Applier is something that will apply a changeset to the cluster.
@@ -119,8 +115,8 @@ func (objs applyOrder) Swap(i, j int) {
 }
 
 func (objs applyOrder) Less(i, j int) bool {
-	_, ki, ni := objs[i].Components()
-	_, kj, nj := objs[j].Components()
+	_, ki, ni := objs[i].ResourceID.Components()
+	_, kj, nj := objs[j].ResourceID.Components()
 	ranki, rankj := rankOfKind(ki), rankOfKind(kj)
 	if ranki == rankj {
 		return ni < nj
@@ -141,7 +137,7 @@ func (c *Kubectl) apply(logger log.Logger, cs changeSet, errored map[flux.Resour
 			multi = objs
 		} else {
 			for _, obj := range objs {
-				if _, ok := errored[obj.OriginalResource.ResourceID()]; ok {
+				if _, ok := errored[obj.ResourceID]; ok {
 					// Resources that errored before shall be applied separately
 					single = append(single, obj)
 				} else {
@@ -159,7 +155,11 @@ func (c *Kubectl) apply(logger log.Logger, cs changeSet, errored map[flux.Resour
 		for _, obj := range single {
 			r := bytes.NewReader(obj.Payload)
 			if err := c.doCommand(logger, r, args...); err != nil {
-				errs = append(errs, cluster.ResourceError{obj.OriginalResource, err})
+				errs = append(errs, cluster.ResourceError{
+					ResourceID: obj.ResourceID,
+					Source:     obj.Source,
+					Error:      err,
+				})
 			}
 		}
 	}

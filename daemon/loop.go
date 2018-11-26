@@ -211,8 +211,8 @@ func (d *Daemon) doSync(logger log.Logger, lastKnownSyncTagRev *string, warnedAb
 		case cluster.SyncError:
 			for _, e := range syncerr {
 				resourceErrors = append(resourceErrors, event.ResourceError{
-					ID:    e.ResourceID(),
-					Path:  e.Source(),
+					ID:    e.ResourceID,
+					Path:  e.Source,
 					Error: e.Error.Error(),
 				})
 			}
