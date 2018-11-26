@@ -3,6 +3,14 @@ title: Installing Weave Flux using Helm
 menu_order: 20
 ---
 
+- [Get started with Flux using Helm](#get-started-with-flux-using-helm)
+  * [Prerequisites](#prerequisites)
+  * [Install Weave Flux](#install-weave-flux)
+  * [Giving write access](#giving-write-access)
+  * [Committing a small change](#committing-a-small-change)
+  * [Conclusion](#conclusion)
+- [Next](#next)
+
 # Get started with Flux using Helm
 
 If you are using Helm already, this guide is for you. By the end

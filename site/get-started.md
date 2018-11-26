@@ -3,6 +3,16 @@ title: Installing Weave Flux Manually
 menu_order: 10
 ---
 
+- [Get started with Flux](#get-started-with-flux)
+  * [Prerequisites](#prerequisites)
+    + [A Note on GKE with RBAC enabled](#a-note-on-gke-with-rbac-enabled)
+  * [Set up Flux](#set-up-flux)
+  * [Deploying Flux to the cluster](#deploying-flux-to-the-cluster)
+  * [Giving write access](#giving-write-access)
+  * [Committing a small change](#committing-a-small-change)
+  * [Confirm the change landed](#confirm-the-change-landed)
+  * [Conclusion](#conclusion)
+
 # Get started with Flux
 
 This short guide shows a self-contained example of Flux and just
