@@ -246,17 +246,20 @@ func applyMetadata(res resource.Resource, stack, checksum string) ([]byte, error
 func (c *Cluster) Sync(spec cluster.SyncDef) error {
 	logger := log.With(c.logger, "method", "Sync")
 
+	type checksum struct {
+		stack, sum string
+	}
 	// Keep track of the checksum of each stack, so we can compare
 	// them during garbage collection.
-	checksums := map[string]string{}
+	checksums := map[string]checksum{}
 
 	cs := makeChangeSet()
 	var errs cluster.SyncError
 	for _, stack := range spec.Stacks {
-		checksums[stack.Name] = stack.Checksum
 		for _, res := range stack.Resources {
 			resBytes, err := applyMetadata(res, stack.Name, stack.Checksum)
 			if err == nil {
+				checksums[res.ResourceID().String()] = checksum{stack.Name, stack.Checksum}
 				cs.stage("apply", res.ResourceID(), res.Source(), resBytes)
 			} else {
 				errs = append(errs, cluster.ResourceError{ResourceID: res.ResourceID(), Source: res.Source(), Error: err})
@@ -282,23 +285,21 @@ func (c *Cluster) Sync(spec cluster.SyncDef) error {
 		}
 
 		for resourceID, res := range clusterResources {
-			stack := res.GetStack()
-			if stack == "" {
+			actual := checksum{res.GetStack(), res.GetChecksum()}
+			expected, ok := checksums[resourceID]
+
+			switch {
+			case !ok: // was not recorded as having been staged for application
+				c.logger.Log("info", "cluster resource not in resources to be synced; deleting", "resource", resourceID)
+				orphanedResources.stage("delete", res.ResourceID(), "<cluster>", res.Bytes())
+			case actual.stack == "": // the label has been removed, out of band (or due to a bug). Best to leave it.
 				c.logger.Log("warning", "cluster resource with empty stack label; skipping", "resource", resourceID)
 				continue
-			}
-
-			expected := checksums[stack] // shall be "" if no such resource was applied earlier
-			actual := res.GetChecksum()
-			switch {
-			case expected == "":
-				c.logger.Log("info", "cluster resource was not applied this sync; deleting", "resource", resourceID, "actual", actual, "stack", stack)
-				orphanedResources.stage("delete", res.ResourceID(), "<cluster>", res.Bytes())
-			case actual != expected: // including if checksum is ""
-				c.logger.Log("warning", "cluster resource has out-of-date checksum; deleting", "resource", resourceID, "actual", actual, "expected", expected)
-				orphanedResources.stage("delete", res.ResourceID(), "<cluster>", res.Bytes())
+			case actual != expected:
+				c.logger.Log("warning", "resource to be synced has not been updated; skipping", "resource", resourceID)
+				continue
 			default:
-				// the checksum is the same, indicating that it was applied earlier. Leave it alone.
+				// The stack and checksum are the same, indicating that it was applied earlier. Leave it alone.
 			}
 		}
 

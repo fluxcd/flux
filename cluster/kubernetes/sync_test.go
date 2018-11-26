@@ -1,6 +1,7 @@
 package kubernetes
 
 import (
+	"fmt"
 	"sort"
 	"strings"
 	"testing"
@@ -95,6 +96,14 @@ func (a fakeApplier) apply(_ log.Logger, cs changeSet, errored map[flux.Resource
 			return
 		}
 		res := &unstructured.Unstructured{Object: unstruct}
+
+		// This is a special case trapdoor, for testing failure to
+		// apply a resource.
+		if errStr := res.GetAnnotations()["error"]; errStr != "" {
+			errs = append(errs, cluster.ResourceError{obj.ResourceID, obj.Source, fmt.Errorf(errStr)})
+			return
+		}
+
 		gvk := res.GetObjectKind().GroupVersionKind()
 		gvr := schema.GroupVersionResource{Group: gvk.Group, Version: gvk.Version, Resource: strings.ToLower(gvk.Kind) + "s"}
 		c := a.client.Resource(gvr)
@@ -186,7 +195,7 @@ metadata:
   namespace: other
 `
 
-	test := func(kube *Cluster, defs, expectedAfterSync string) {
+	test := func(t *testing.T, kube *Cluster, defs, expectedAfterSync string, expectErrors bool) {
 		manifests := &Manifests{}
 		resources, err := manifests.ParseManifests([]byte(defs))
 		if err != nil {
@@ -194,7 +203,7 @@ metadata:
 		}
 
 		err = sync.Sync(log.NewNopLogger(), manifests, resources, kube)
-		if err != nil {
+		if !expectErrors && err != nil {
 			t.Error(err)
 		}
 		resources0, err := manifests.ParseManifests([]byte(expectedAfterSync))
@@ -224,17 +233,34 @@ metadata:
 		kube, _ := setup(t)
 
 		// without GC on, resources persist if they are not mentioned in subsequent syncs.
-		test(kube, "", "")
-		test(kube, defs1, defs1)
-		test(kube, defs1+defs2, defs1+defs2)
-		test(kube, defs3, defs1+defs2+defs3)
+		test(t, kube, "", "", false)
+		test(t, kube, defs1, defs1, false)
+		test(t, kube, defs1+defs2, defs1+defs2, false)
+		test(t, kube, defs3, defs1+defs2+defs3, false)
 
 		// Now with GC switched on. That means if we don't include a
 		// resource in a sync, it should be deleted.
 		kube.GC = true
-		test(kube, defs2+defs3, defs3+defs2)
-		test(kube, defs1+defs2, defs1+defs2)
-		test(kube, "", "")
+		test(t, kube, defs2+defs3, defs3+defs2, false)
+		test(t, kube, defs1+defs2, defs1+defs2, false)
+		test(t, kube, "", "", false)
+	})
+
+	t.Run("sync won't doesn't delete if apply failed", func(t *testing.T) {
+		kube, _ := setup(t)
+		kube.GC = true
+
+		const defs1invalid = `
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: foobar
+  name: dep1
+  annotations:
+    error: fail to apply this
+`
+		test(t, kube, defs1, defs1, false)
+		test(t, kube, defs1invalid, defs1, true)
 	})
 }
 
