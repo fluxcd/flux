@@ -108,10 +108,11 @@ that you will need to add a deploy key to your fork of the
 repository.
 
 This is pretty straight-forward as Flux generates a SSH key and
-logs the public key at startup. Find the SSH public key with:
+logs the public key at startup. Find the SSH public key by
+installing [fluxctl](./fluxctl.md) and running:
 
 ```sh
-kubectl -n flux logs deployment/flux | grep identity.pub | cut -d '"' -f2
+fluxctl identity
 ```
 
 In order to sync your cluster state with git you need to copy the

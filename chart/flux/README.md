@@ -154,10 +154,11 @@ The [configuration](#configuration) section lists all the parameters that can be
 #### Setup Git deploy
 
 At startup Flux generates a SSH key and logs the public key.
-Find the SSH public key with:
+Find the SSH public key by installing [fluxctl](../../site/fluxctl.md) and
+running:
 
 ```sh
-kubectl -n flux logs deployment/flux | grep identity.pub | cut -d '"' -f2
+fluxctl identity
 ```
 
 In order to sync your cluster state with GitHub you need to copy the public key and

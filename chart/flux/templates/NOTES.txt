@@ -1,19 +1,10 @@
-1. Get the application URL by running these commands:
-{{- if contains "NodePort" .Values.service.type }}
-  export NODE_PORT=$(kubectl get --namespace {{ .Release.Namespace }} -o jsonpath="{.spec.ports[0].nodePort}" services {{ template "flux.fullname" . }})
-  export NODE_IP=$(kubectl get nodes --namespace {{ .Release.Namespace }} -o jsonpath="{.items[0].status.addresses[0].address}")
-  echo http://$NODE_IP:$NODE_PORT
-{{- else if contains "LoadBalancer" .Values.service.type }}
-     NOTE: It may take a few minutes for the LoadBalancer IP to be available.
-           You can watch the status of by running 'kubectl get svc -w {{ template "flux.fullname" . }}'
-  export SERVICE_IP=$(kubectl get svc --namespace {{ .Release.Namespace }} {{ template "flux.fullname" . }} -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
-  echo http://$SERVICE_IP:{{ .Values.service.port }}
-{{- else if contains "ClusterIP" .Values.service.type }}
-  export POD_NAME=$(kubectl get pods --namespace {{ .Release.Namespace }} -l "app={{ template "flux.name" . }},release={{ .Release.Name }}" -o jsonpath="{.items[0].metadata.name}")
-  kubectl -n {{ .Release.Namespace }} port-forward $POD_NAME 8080:3030 &
-{{- end }}
+Get the Git deploy key by either (a) running
 
-2. Get the Git deploy key by running these commands:
-  export FLUX_POD=$(kubectl get pods --namespace {{ .Release.Namespace }} -l "app={{ template "flux.name" . }},release={{ .Release.Name }}" -o jsonpath="{.items[0].metadata.name}")
-  kubectl -n {{ .Release.Namespace }} logs $FLUX_POD | grep identity.pub | cut -d '"' -f2
+  kubectl -n {{ .Release.Namespace }} logs deployment/{{ .Release.Name }} | grep identity.pub | cut -d '"' -f2
+
+or by (b) installing fluxctl through
+https://github.com/weaveworks/flux/blob/master/site/fluxctl.md#installing-fluxctl
+and running:
+
+  fluxctl identity
 
