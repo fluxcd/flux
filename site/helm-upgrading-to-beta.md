@@ -42,7 +42,12 @@ correct arguments to the operator; to upgrade, do
 
 ```sh
 helm repo update
-helm upgrade flux --reuse-values --namespace=flux weaveworks/flux --version 0.5.1
+
+helm upgrade flux --reuse-values \
+--set image.tag=1.8.1 \
+--set helmOperator.tag=0.5.1 \
+--namespace=flux \
+weaveworks/flux --version 0.5.1
 ```
 
 The chart will leave the old custom resource definition and custom
