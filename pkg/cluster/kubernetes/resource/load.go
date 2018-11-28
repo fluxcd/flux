@@ -8,9 +8,9 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/pkg/errors"
 	sops "go.mozilla.org/sops/v3"
 	"go.mozilla.org/sops/v3/decrypt"
-	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 )
 
@@ -29,37 +29,46 @@ func Load(base string, paths []string, sopsEnabled bool) (map[string]KubeManifes
 	}
 	for _, root := range paths {
 		err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
-			if err != nil {
-				return errors.Wrapf(err, "walking %q for yaml files", path)
+			if info.IsDir() {
+				if charts.isDirChart(path) {
+					return filepath.SkipDir
+				}
+				if err != nil {
+					return errors.Wrapf(err, "walking dir %q for yaml files", path)
+				}
+				return nil
 			}
 
-			if charts.isDirChart(path) {
-				return filepath.SkipDir
+			// No need to check for errors for files we are not interested in anyway.
+			if filepath.Ext(path) != ".yaml" && filepath.Ext(path) != ".yml" {
+				return nil
 			}
-
 			if charts.isPathInChart(path) {
 				return nil
 			}
 
-			if !info.IsDir() && filepath.Ext(path) == ".yaml" || filepath.Ext(path) == ".yml" {
-				bytes, err := loadFile(path, sopsEnabled)
-				if err != nil {
-					return errors.Wrapf(err, "unable to read file at %q", path)
+			if err != nil {
+				return errors.Wrapf(err, "walking file %q for yaml docs", path)
+			}
+
+			// Load file
+			bytes, err := loadFile(path, sopsEnabled)
+			if err != nil {
+				return errors.Wrapf(err, "unable to read file at %q", path)
+			}
+			source, err := filepath.Rel(base, path)
+			if err != nil {
+				return errors.Wrapf(err, "path to scan %q is not under base %q", path, base)
+			}
+			docsInFile, err := ParseMultidoc(bytes, source)
+			if err != nil {
+				return err
+			}
+			for id, obj := range docsInFile {
+				if alreadyDefined, ok := objs[id]; ok {
+					return fmt.Errorf(`duplicate definition of '%s' (in %s and %s)`, id, alreadyDefined.Source(), source)
 				}
-				source, err := filepath.Rel(base, path)
-				if err != nil {
-					return errors.Wrapf(err, "path to scan %q is not under base %q", path, base)
-				}
-				docsInFile, err := ParseMultidoc(bytes, source)
-				if err != nil {
-					return err
-				}
-				for id, obj := range docsInFile {
-					if alreadyDefined, ok := objs[id]; ok {
-						return fmt.Errorf(`duplicate definition of '%s' (in %s and %s)`, id, alreadyDefined.Source(), source)
-					}
-					objs[id] = obj
-				}
+				objs[id] = obj
 			}
 			return nil
 		})
@@ -71,13 +80,19 @@ func Load(base string, paths []string, sopsEnabled bool) (map[string]KubeManifes
 	return objs, nil
 }
 
+// chartTracker keeps track of paths that contain Helm charts in them.
 type chartTracker map[string]bool
 
 func newChartTracker(root string) (chartTracker, error) {
-	var chartdirs = make(map[string]bool)
+	chartdirs := make(chartTracker)
+	// Enumerate directories that contain charts. This will never
+	// return an error since our callback function swallows it.
 	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
-			return errors.Wrapf(err, "walking %q for charts", path)
+			// If a file or directory cannot be walked now we presume it will
+			// also not be available for walking when looking for yamels. If
+			// we do need access to it we can raise the error there.
+			return nil
 		}
 
 		if info.IsDir() && looksLikeChart(path) {
@@ -90,8 +105,7 @@ func newChartTracker(root string) (chartTracker, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	return chartTracker(chartdirs), nil
+	return chartdirs, nil
 }
 
 func (c chartTracker) isDirChart(path string) bool {
@@ -182,7 +196,7 @@ func ParseMultidoc(multidoc []byte, source string) (map[string]KubeManifest, err
 	return objs, nil
 }
 
-// loadFile attempts to load a file from the path supplied. If sopsEnabled is set, 
+// loadFile attempts to load a file from the path supplied. If sopsEnabled is set,
 // it will try to decrypt it before returning the data
 func loadFile(path string, sopsEnabled bool) ([]byte, error) {
 	bytes, err := ioutil.ReadFile(path)
