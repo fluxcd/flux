@@ -10,6 +10,13 @@ import (
 func updateDependencies(chartDir string) error {
 	var hasLockFile bool
 
+	// check if the requirements file exists
+	reqFilePath := filepath.Join(chartDir, "requirements.yaml")
+	reqInfo, err := os.Stat(reqFilePath)
+	if err != nil || reqInfo.IsDir() {
+		return nil
+	}
+
 	// We are going to use `helm dep build`, which tries to update the
 	// dependencies in charts/ by looking at the file
 	// `requirements.lock` in the chart directory. If the lockfile
