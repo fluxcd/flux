@@ -1,6 +1,15 @@
 This is the changelog for the Flux daemon; the changelog for the Helm
 operator is in [./CHANGELOG-helmop.md](./CHANGELOG-helmop.md).
 
+## Unreleased
+
+### Fixes
+
+- Fix race condition with ephemeral Git lock file while loading manifests
+  [weaveworks/flux#1559](https://github.com/weaveworks/flux/pull/1559)
+
+### Improvements
+
 ## 1.8.1 (2018-10-15)
 
 This release completes the support for `HelmRelease` resources as used
