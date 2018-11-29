@@ -297,11 +297,9 @@ func env() []string {
 
 	// include allowed env vars from os
 	for _, k := range allowedEnvVars {
-		v, ex := os.LookupEnv(k)
-		if ex == false {
-			continue
+		if v, ok := os.LookupEnv(k); ok {
+			env = append(env, k+"="+v)
 		}
-		env = append(env, k+"="+v)
 	}
 
 	return env
