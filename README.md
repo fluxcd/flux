@@ -12,7 +12,7 @@ We believe in GitOps:
 - **You push code not containers.** Everything is controlled through
   pull requests. There is no learning curve for new devs, they just use
   your standard git PR process. The history in git allows you to recover
-  from any snapshot as you have an sequence of transactions. It is much
+  from any snapshot as you have a sequence of transactions. It is much
   more transparent to make operational changes by pull request, e.g.
   fix a production issue via a pull request instead of making changes to
   the running system.
