@@ -100,7 +100,7 @@ click on **Add deploy key**, give it a name, check **Allow write
 access**, paste the Flux public key and click **Add key**.
 
 (Or replace `YOURUSER` with your Github ID in this url:
-`https://github.com/YOURUSER/flux-get-started/settings/keys/new` and
+`https://github.com/YOURUSER/flux/settings/keys/new` and
 paste the key there.)
 
 ## Committing a small change
@@ -110,7 +110,7 @@ change its configuration to use a different message. The easiest
 way is to edit your fork of `flux-get-started` and change the `PODINFO_UI_COLOR` env var to `blue`.
 
 Replace `YOURUSER` in
-`https://github.com/YOURUSER/flux-get-started/blob/master/workloads/podinfo-dep.yaml`
+`https://github.com/YOURUSER/flux/blob/master/workloads/podinfo-dep.yaml`
 with your Github ID), open the URL in your browser, edit the file,
 change the env var value and commit the file.
 
