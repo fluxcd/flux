@@ -1,4 +1,3 @@
-{{- $gitPollInterval := default .Values.git.pollInterval .Values.helmOperator.git.pollInterval }}
 {{- $gitTimeout := default .Values.git.timeout .Values.helmOperator.git.timeout }}
 {{- if .Values.helmOperator.create -}}
 apiVersion: apps/v1beta2
@@ -83,7 +82,6 @@ spec:
         {{- end }}
         {{- end }}
         args:
-        - --git-poll-interval={{ $gitPollInterval }}
         - --git-timeout={{ $gitTimeout }}
         - --charts-sync-interval={{ .Values.helmOperator.chartsSyncInterval }}
         - --update-chart-deps={{ .Values.helmOperator.updateChartDeps }}

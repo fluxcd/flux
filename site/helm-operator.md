@@ -25,7 +25,6 @@ helm-operator requires setup and offers customization though a multitude of flag
 |--tiller-tls-hostname         |                               | The server name used to verify the hostname on the returned certificates from the Tiller server. |
 |                              |                               | **repo chart changes** (none of these need overriding, usually) |
 |--git-timeout                 | `20 seconds`                  | duration after which git operations time out |
-|--git-poll-interval           | `5 minutes`                   | period at which to poll git repo for new commits|
 |--chartsSyncInterval          | 3*time.Minute                 | Interval at which to check for changed charts.|
 |                              |                               | **k8s-secret backed ssh keyring configuration**|
 |--k8s-secret-volume-mount-path | `/etc/fluxd/ssh`       | Mount location of the k8s secret storing the private SSH key|
