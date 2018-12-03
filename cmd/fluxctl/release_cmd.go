@@ -10,6 +10,7 @@ import (
 
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/api/v11"
+	"github.com/weaveworks/flux/api/v6"
 	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/update"
 )
@@ -139,7 +140,7 @@ func (opts *controllerReleaseOpts) RunE(cmd *cobra.Command, args []string) error
 	}
 
 	if kind == update.ReleaseKindPlan {
-		fmt.Fprintf(cmd.OutOrStderr(), "Submitting dry-run release...\n")
+		fmt.Fprintf(cmd.OutOrStderr(), "Submitting dry-run release ...\n")
 	} else {
 		fmt.Fprintf(cmd.OutOrStderr(), "Submitting release ...\n")
 	}
@@ -174,7 +175,7 @@ func (opts *controllerReleaseOpts) RunE(cmd *cobra.Command, args []string) error
 			return nil
 		}
 
-		fmt.Fprintf(cmd.OutOrStderr(), "Submitting selected release...\n")
+		fmt.Fprintf(cmd.OutOrStderr(), "Submitting selected release ...\n")
 		jobID, err = opts.API.UpdateManifests(ctx, update.Spec{
 			Type:  update.Containers,
 			Cause: opts.cause,
@@ -187,54 +188,72 @@ func (opts *controllerReleaseOpts) RunE(cmd *cobra.Command, args []string) error
 
 		opts.dryRun = false
 	}
-	if opts.watch {
-		await(ctx, cmd.OutOrStdout(), cmd.OutOrStderr(), opts.API, jobID, !opts.dryRun, opts.verbosity)
 
-		fmt.Fprintf(cmd.OutOrStderr(), "Monitoring rollout...\n")
-		for {
-			completed := 0
-			services, err := opts.API.ListServicesWithOptions(ctx, v11.ListServicesOptions{Services: controllerIds})
-			if err != nil {
-				return err
+	err = await(ctx, cmd.OutOrStdout(), cmd.OutOrStderr(), opts.API, jobID, !opts.dryRun, opts.verbosity)
+	if err != nil {
+		return err
+	}
+
+	if !opts.watch {
+		return nil
+	}
+
+	fmt.Fprintf(cmd.OutOrStderr(), "Monitoring rollout ...\n")
+	for {
+		completed := 0
+		services, err := opts.API.ListServicesWithOptions(ctx, v11.ListServicesOptions{Services: controllerIds})
+		if err != nil {
+			return err
+		}
+
+		for _, service := range services {
+			writeRolloutStatus(service, opts.verbosity)
+
+			if service.Rollout.Outdated == 0 {
+				completed++
 			}
 
-			for _, service := range services {
-				w := newTabwriter()
-				fmt.Fprintf(w, "CONTROLLER\tCONTAINER\tIMAGE\tRELEASE\tDESIRED\tUP-TO-DATE\tAVAILABLE\tOUTDATED\n")
-				if len(service.Containers) > 0 {
-					c := service.Containers[0]
-					fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%d\t%d\t%d\t%d\n", service.ID, c.Name, c.Current.ID, service.Status, service.Rollout.Desired, service.Rollout.Updated, service.Rollout.Ready, service.Rollout.Outdated)
-					for _, c := range service.Containers[1:] {
-						fmt.Fprintf(w, "\t%s\t%s\t\t\t\t\t\n", c.Name, c.Current.ID)
-					}
-				} else {
-					fmt.Fprintf(w, "%s\t\t\t%s\t%d\t%d\t%d\t%d\n", service.ID, service.Status, service.Rollout.Desired, service.Rollout.Updated, service.Rollout.Ready, service.Rollout.Outdated)
+			if service.Rollout.Messages != nil {
+				fmt.Fprintf(cmd.OutOrStderr(), "There was a problem releasing %s:\n", service.ID)
+				for _, msg := range service.Rollout.Messages {
+					fmt.Fprintf(cmd.OutOrStderr(), "%s\n", msg)
 				}
-				fmt.Fprintln(w)
-				w.Flush()
-
-				if service.Rollout.Outdated == 0 {
-					completed++
-				}
-
-				if service.Rollout.Messages != nil {
-					fmt.Fprintf(cmd.OutOrStderr(), "There was a problem releasing %s:\n", service.ID)
-					for _, msg := range service.Rollout.Messages {
-						fmt.Fprintf(cmd.OutOrStderr(), "%s\n", msg)
-					}
-					return nil
-				}
-			}
-
-			if completed == len(services) {
-				fmt.Fprintf(cmd.OutOrStderr(), "All controllers ready.\n")
 				return nil
 			}
-
-			time.Sleep(2000 * time.Millisecond)
 		}
+
+		if completed == len(services) {
+			fmt.Fprintf(cmd.OutOrStderr(), "All controllers ready.\n")
+			return nil
+		}
+
+		time.Sleep(2000 * time.Millisecond)
 	}
-	return await(ctx, cmd.OutOrStdout(), cmd.OutOrStderr(), opts.API, jobID, !opts.dryRun, opts.verbosity)
+}
+
+func writeRolloutStatus(service v6.ControllerStatus, verbosity int) {
+	w := newTabwriter()
+	fmt.Fprintf(w, "CONTROLLER\tCONTAINER\tIMAGE\tRELEASE\tREPLICAS\n")
+
+	if len(service.Containers) > 0 {
+		c := service.Containers[0]
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%d/%d", service.ID, c.Name, c.Current.ID, service.Status, service.Rollout.Desired, service.Rollout.Ready)
+		if verbosity > 0 {
+			fmt.Fprintf(w, " (%d outdated, %d updated)", service.Rollout.Outdated, service.Rollout.Updated)
+		}
+		fmt.Fprintf(w, "\n")
+		for _, c := range service.Containers[1:] {
+			fmt.Fprintf(w, "\t%s\t%s\t\t\n", c.Name, c.Current.ID)
+		}
+	} else {
+		fmt.Fprintf(w, "%s\t\t\t%s\t%d/%d", service.ID, service.Status, service.Rollout.Desired, service.Rollout.Ready)
+		if verbosity > 0 {
+			fmt.Fprintf(w, " (%d outdated, %d updated)", service.Rollout.Outdated, service.Rollout.Updated)
+		}
+		fmt.Fprintf(w, "\n")
+	}
+	fmt.Fprintln(w)
+	w.Flush()
 }
 
 func promptSpec(out io.Writer, result job.Result, verbosity int) (update.ReleaseContainersSpec, error) {
