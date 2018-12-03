@@ -181,7 +181,7 @@ func main() {
 	chartSync := chartsync.New(log.With(logger, "component", "chartsync"),
 		chartsync.Polling{Interval: *chartsSyncInterval},
 		chartsync.Clients{KubeClient: *kubeClient, IfClient: *ifClient},
-		rel, chartsync.Config{LogDiffs: *logReleaseDiffs, UpdateDeps: *updateDependencies})
+		rel, chartsync.Config{LogDiffs: *logReleaseDiffs, UpdateDeps: *updateDependencies, GitTimeout: *gitTimeout})
 	chartSync.Run(shutdown, errc, shutdownWg)
 
 	// OPERATOR - CUSTOM RESOURCE CHANGE SYNC -----------------------------------------------
