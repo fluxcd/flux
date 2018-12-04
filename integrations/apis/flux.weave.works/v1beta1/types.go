@@ -2,7 +2,7 @@ package v1beta1
 
 import (
 	"github.com/ghodss/yaml"
-	v1 "k8s.io/api/core/v1"
+	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/helm/pkg/chartutil"
 
@@ -65,11 +65,21 @@ type RepoChartSource struct {
 // FluxHelmReleaseSpec is the spec for a FluxHelmRelease resource
 // FluxHelmReleaseSpec
 type HelmReleaseSpec struct {
-	ChartSource `json:"chart"`
-	ReleaseName string `json:"releaseName,omitempty"`
-
+	ChartSource      `json:"chart"`
+	ReleaseName      string                    `json:"releaseName,omitempty"`
 	ValueFileSecrets []v1.LocalObjectReference `json:"valueFileSecrets,omitempty"`
 	HelmValues       `json:",inline"`
+	// Install or upgrade timeout in seconds
+	// +optional
+	Timeout *int64 `json:"timeout,omitempty"`
+}
+
+// GetTimeout returns the install or upgrade timeout (defaults to 300s)
+func (r HelmRelease) GetTimeout() int64 {
+	if r.Spec.Timeout == nil {
+		return 300
+	}
+	return *r.Spec.Timeout
 }
 
 type HelmReleaseStatus struct {
