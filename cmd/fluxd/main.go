@@ -28,6 +28,7 @@ import (
 	"github.com/weaveworks/flux/cluster/kubernetes"
 	"github.com/weaveworks/flux/daemon"
 	"github.com/weaveworks/flux/git"
+	"github.com/weaveworks/flux/gpg"
 	transport "github.com/weaveworks/flux/http"
 	"github.com/weaveworks/flux/http/client"
 	daemonhttp "github.com/weaveworks/flux/http/daemon"
@@ -81,14 +82,13 @@ func main() {
 		kubernetesKubectl = fs.String("kubernetes-kubectl", "", "optional, explicit path to kubectl tool")
 		versionFlag       = fs.Bool("version", false, "get version number")
 		// Git repo & key etc.
-		gitURL        = fs.String("git-url", "", "URL of git repo with Kubernetes manifests; e.g., git@github.com:weaveworks/flux-get-started")
-		gitBranch     = fs.String("git-branch", "master", "branch of git repo to use for Kubernetes manifests")
-		gitPath       = fs.StringSlice("git-path", []string{}, "relative paths within the git repo to locate Kubernetes manifests")
-		gitUser       = fs.String("git-user", "Weave Flux", "username to use as git committer")
-		gitEmail      = fs.String("git-email", "support@weave.works", "email to use as git committer")
-		gitSetAuthor  = fs.Bool("git-set-author", false, "if set, the author of git commits will reflect the user who initiated the commit and will differ from the git committer.")
-		gitSigningKey = fs.String("git-signing-key", "", "if set, commits will be signed with this GPG key")
-		gitLabel      = fs.String("git-label", "", "label to keep track of sync progress; overrides both --git-sync-tag and --git-notes-ref")
+		gitURL       = fs.String("git-url", "", "URL of git repo with Kubernetes manifests; e.g., git@github.com:weaveworks/flux-get-started")
+		gitBranch    = fs.String("git-branch", "master", "branch of git repo to use for Kubernetes manifests")
+		gitPath      = fs.StringSlice("git-path", []string{}, "relative paths within the git repo to locate Kubernetes manifests")
+		gitUser      = fs.String("git-user", "Weave Flux", "username to use as git committer")
+		gitEmail     = fs.String("git-email", "support@weave.works", "email to use as git committer")
+		gitSetAuthor = fs.Bool("git-set-author", false, "if set, the author of git commits will reflect the user who initiated the commit and will differ from the git committer.")
+		gitLabel     = fs.String("git-label", "", "label to keep track of sync progress; overrides both --git-sync-tag and --git-notes-ref")
 		// Old git config; still used if --git-label is not supplied, but --git-label is preferred.
 		gitSyncTag     = fs.String("git-sync-tag", defaultGitSyncTag, "tag to use to mark sync progress for this cluster")
 		gitNotesRef    = fs.String("git-notes-ref", defaultGitNotesRef, "ref to use for keeping commit annotations in git notes")
@@ -97,6 +97,10 @@ func main() {
 
 		gitPollInterval = fs.Duration("git-poll-interval", 5*time.Minute, "period at which to poll git repo for new commits")
 		gitTimeout      = fs.Duration("git-timeout", 20*time.Second, "duration after which git operations time out")
+
+		// GPG commit signing
+		gitImportGPG  = fs.String("git-gpg-key-import", "", "keys at the path given (either a file or a directory) will be imported for use in signing commits")
+		gitSigningKey = fs.String("git-signing-key", "", "if set, commits will be signed with this GPG key")
 
 		// syncing
 		syncInterval = fs.Duration("sync-interval", 5*time.Minute, "apply config in git to cluster at least this often, even if there are no new commits")
@@ -189,6 +193,16 @@ func main() {
 	if *sshKeygenDir == "" {
 		logger.Log("info", fmt.Sprintf("SSH keygen dir (--ssh-keygen-dir) not provided, so using the deploy key volume (--k8s-secret-volume-mount-path=%s); this may cause problems if the deploy key volume is mounted read-only", *k8sSecretVolumeMountPath))
 		*sshKeygenDir = *k8sSecretVolumeMountPath
+	}
+
+	// Import GPG keys, if we've been told where to look for them
+	if *gitImportGPG != "" {
+		keyfiles, err := gpg.ImportKeys(*gitImportGPG)
+		if err != nil {
+			logger.Log("error", "failed to import GPG keys", "err", err.Error())
+		} else {
+			logger.Log("info", "imported GPG keys", "files", fmt.Sprintf("%v", keyfiles))
+		}
 	}
 
 	// Mechanical components.
@@ -444,6 +458,7 @@ func main() {
 		"url", *gitURL,
 		"user", *gitUser,
 		"email", *gitEmail,
+		"signing-key", *gitSigningKey,
 		"sync-tag", *gitSyncTag,
 		"notes-ref", *gitNotesRef,
 		"set-author", *gitSetAuthor,

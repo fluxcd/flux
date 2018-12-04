@@ -103,6 +103,7 @@ spec:
           {{- if .Values.gpgKeys.secretName }}
           - name: gpg-keys
             mountPath: /root/gpg-import
+            readOnly: true
           {{- end }}
           env:
           - name: KUBECONFIG
@@ -122,6 +123,9 @@ spec:
           - --git-path={{ .Values.git.path }}
           - --git-user={{ .Values.git.user }}
           - --git-email={{ .Values.git.email }}
+          {{- if .Values.gpgKeys.secretName }}
+          - --git-gpg-key-import=/root/gpg-import
+          {{- end }}
           {{- if .Values.git.signingKey }}
           - --git-signing-key={{ .Values.git.signingKey }}
           {{- end }}
