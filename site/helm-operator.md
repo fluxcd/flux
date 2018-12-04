@@ -24,11 +24,10 @@ helm-operator requires setup and offers customization though a multitude of flag
 |--tiller-tls-tls-ca-cert-path |                               | Path to CA certificate file used to validate the Tiller server. Required if tiller-tls-verify is enabled. |
 |--tiller-tls-hostname         |                               | The server name used to verify the hostname on the returned certificates from the Tiller server. |
 |                              |                               | **repo chart changes** (none of these need overriding, usually) |
-|--git-timeout                 | `20 seconds`                  | duration after which git operations time out |
-|--git-poll-interval           | `5 minutes`                   | period at which to poll git repo for new commits|
-|--chartsSyncInterval          | 3*time.Minute                 | Interval at which to check for changed charts.|
+|--git-timeout                 | `20s`                         | duration after which git operations time out |
+|--chartsSyncInterval          | `3m`                          | Interval at which to check for changed charts.|
 |                              |                               | **k8s-secret backed ssh keyring configuration**|
-|--k8s-secret-volume-mount-path | `/etc/fluxd/ssh`       | Mount location of the k8s secret storing the private SSH key|
+|--k8s-secret-volume-mount-path | `/etc/fluxd/ssh`             | Mount location of the k8s secret storing the private SSH key|
 |--k8s-secret-data-key         | `identity`                    | Data key holding the private SSH key within the k8s secret|
 |--queueWorkerCount            |  2                            | Number of workers to process queue with Chart release jobs.|
 

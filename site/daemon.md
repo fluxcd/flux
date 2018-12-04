@@ -60,16 +60,16 @@ fluxd requires setup and offers customization though a multitude of flags.
 |--git-label             |                               | label to keep track of sync progress; overrides both --git-sync-tag and --git-notes-ref|
 |--git-sync-tag          | `flux-sync`             | tag to use to mark sync progress for this cluster (old config, still used if --git-label is not supplied)|
 |--git-notes-ref         | `flux`            | ref to use for keeping commit annotations in git notes|
-|--git-poll-interval     | `5 minutes`                 | period at which to fetch any new commits from the git repo |
-|--git-timeout           | `20 seconds`                | duration after which git operations time out |
+|--git-poll-interval     | `5m`                 | period at which to fetch any new commits from the git repo |
+|--git-timeout           | `20s`                | duration after which git operations time out |
 |**syncing**             |                             | control over how config is applied to the cluster |
-|--sync-interval         | `5 minutes`                 | apply the git config to the cluster at least this often. New commits may provoke more frequent syncs |
+|--sync-interval         | `5m`                 | apply the git config to the cluster at least this often. New commits may provoke more frequent syncs |
 |**registry cache**      |                               | (none of these need overriding, usually) |
 |--memcached-hostname    | `memcached` | hostname for memcached service to use for caching image metadata|
-|--memcached-timeout     | `1 second`                   | maximum time to wait before giving up on memcached requests|
+|--memcached-timeout     | `1s`                   | maximum time to wait before giving up on memcached requests|
 |--memcached-service     | `memcached`                     | SRV service used to discover memcache servers|
-|--registry-cache-expiry | `1 hour`                  | Duration to keep cached registry tag info. Must be < 1 month.|
-|--registry-poll-interval| `5 minutes`                   | period at which to poll registry for new images|
+|--registry-cache-expiry | `1h`                  | Duration to keep cached registry tag info. Must be < 1 month.|
+|--registry-poll-interval| `5m`                   | period at which to poll registry for new images|
 |--registry-rps          | `200`                           | maximum registry requests per second per host|
 |--registry-burst        | `125`      | maximum number of warmer connections to remote and memcache|
 |--registry-insecure-host| []         | registry hosts to use HTTP for (instead of HTTPS) |
