@@ -23,9 +23,7 @@ spec:
         app: {{ template "flux.name" . }}
         release: {{ .Release.Name }}
     spec:
-      {{- if .Values.serviceAccount.create }}
       serviceAccountName: {{ template "flux.serviceAccountName" . }}
-      {{- end }}
       volumes:
       - name: kubedir
         configMap:

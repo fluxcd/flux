@@ -25,9 +25,7 @@ spec:
         app: {{ template "flux.name" . }}-helm-operator
         release: {{ .Release.Name }}
     spec:
-      {{- if .Values.serviceAccount.create }}
       serviceAccountName: {{ template "flux.serviceAccountName" . }}
-      {{- end }}
       volumes:
       {{- if .Values.ssh.known_hosts }}
       - name: sshdir
