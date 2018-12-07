@@ -124,6 +124,8 @@ registry:
   cacheExpiry:
 
 memcached:
+  repository: memcached
+  tag: 1.4.25
   verbose: false
   maxItemSize: 1m
   maxMemory: 64
