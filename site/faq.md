@@ -159,7 +159,7 @@ There are exceptions:
  - In some environments, authorisation provided by the platform is
    used instead of image pull secrets. Google Container Registry works
    this way, for example (and we have introduced a special case for it
-   so Flux will work there too). See below regarding ECR.
+   so Flux will work there too with image pull secrets). See below regarding ECR.
 
 To work around the exceptional cases, you can mount a docker config into
 the Flux container. See the argument `--docker-config` in
