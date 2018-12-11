@@ -18,10 +18,19 @@ import (
 )
 
 type RemoteClientFactory struct {
-	Logger        log.Logger
-	Limiters      *middleware.RateLimiters
-	Trace         bool
+	Logger   log.Logger
+	Limiters *middleware.RateLimiters
+	Trace    bool
+
+	// hosts with which to use HTTP rather than HTTPS
 	InsecureHosts []string
+	// if `true`, skip TLS verify when the registry host is
+	// insecure. This bears a bit of explanation: in some cases,
+	// private image repos may be set up to redirect or proxy requests
+	// to other servers. In other words, even though the registry API
+	// uses HTTP, manifests or image layers may be stored on a host
+	// using TLS.
+	InsecureHostSkipVerify bool
 
 	mu               sync.Mutex
 	challengeManager challenge.Manager
@@ -54,7 +63,7 @@ func (f *RemoteClientFactory) ClientFor(repo image.CanonicalName, creds Credenti
 	var tr http.RoundTripper
 	if scheme == "http" {
 		tr = &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: f.InsecureHostSkipVerify},
 		}
 	} else {
 		tr = http.DefaultTransport
