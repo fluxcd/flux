@@ -165,6 +165,15 @@ func (in *HelmReleaseSpec) DeepCopyInto(out *HelmReleaseSpec) {
 		copy(*out, *in)
 	}
 	in.HelmValues.DeepCopyInto(&out.HelmValues)
+	if in.Timeout != nil {
+		in, out := &in.Timeout, &out.Timeout
+		if *in == nil {
+			*out = nil
+		} else {
+			*out = new(int64)
+			**out = **in
+		}
+	}
 	return
 }
 

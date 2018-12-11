@@ -26,6 +26,9 @@ spec:
             releaseName:
               type: string
               pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
+            timeout:
+              type: integer
+              format: int64
             valueFileSecrets:
               type: array
               items:
