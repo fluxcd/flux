@@ -87,6 +87,8 @@ func (opts *controllerReleaseOpts) RunE(cmd *cobra.Command, args []string) error
 	switch {
 	case len(opts.controllers) <= 0 && !opts.allControllers:
 		return newUsageError("please supply either --all, or at least one --controller=<controller>")
+	case opts.watch && opts.dryRun:
+		return newUsageError("cannot use --watch with --dry-run")
 	case opts.force && opts.allControllers && opts.allImages:
 		return newUsageError("--force has no effect when used with --all and --update-all-images")
 	case opts.force && opts.allControllers:
@@ -186,8 +188,9 @@ func (opts *controllerReleaseOpts) RunE(cmd *cobra.Command, args []string) error
 		opts.dryRun = false
 	}
 
-	if !opts.watch {
-		return await(ctx, cmd.OutOrStdout(), cmd.OutOrStderr(), opts.API, jobID, !opts.dryRun, opts.verbosity)
+	err = await(ctx, cmd.OutOrStdout(), cmd.OutOrStderr(), opts.API, jobID, !opts.dryRun, opts.verbosity)
+	if !opts.watch || err != nil {
+		return err
 	}
 
 	fmt.Fprintf(cmd.OutOrStderr(), "Monitoring rollout ...\n")
@@ -229,7 +232,7 @@ func writeRolloutStatus(service v6.ControllerStatus, verbosity int) {
 
 	if len(service.Containers) > 0 {
 		c := service.Containers[0]
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%d/%d", service.ID, c.Name, c.Current.ID, service.Status, service.Rollout.Ready, service.Rollout.Desired)
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%d/%d", service.ID, c.Name, c.Current.ID, service.Status, service.Rollout.Updated, service.Rollout.Desired)
 		if verbosity > 0 {
 			fmt.Fprintf(w, " (%d outdated, %d updated)", service.Rollout.Outdated, service.Rollout.Updated)
 		}
