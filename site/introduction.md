@@ -52,14 +52,14 @@ version.
 
 ## Integrations with other devops tools
 
-One final high level feature is that Flux increases visibility of 
-your application. It provides an audit history for
-your deployments and Slack integration for "ChatOps" style 
-development.
+One final high-level feature is that Flux increases visibility of your
+application. Clear visibility of the state of a cluster is key for
+maintaining operational systems. Developers can be confident in their
+changes by observing a predictable series of deployment events.
 
-Clear visibility of the state of a cluster is key for maintaining
-operational systems. Developers can be confident in their changes by
-observing a predictable series of deployment events.
+Flux can send notifications to a service (e.g., [Weave
+Cloud](https://cloud.weave.works/)) to provide integrations with Slack
+and other such media.
 
 ## Next
 
