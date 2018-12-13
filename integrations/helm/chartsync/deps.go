@@ -7,7 +7,8 @@ import (
 	"path/filepath"
 )
 
-func updateDependencies(chartDir string) error {
+// helmHome is optional; if it's "", it's left to default
+func updateDependencies(chartDir, helmhome string) error {
 	var hasLockFile bool
 
 	// We are going to use `helm dep build`, which tries to update the
@@ -29,6 +30,9 @@ func updateDependencies(chartDir string) error {
 	}
 
 	cmd := exec.Command("helm", "repo", "update")
+	if helmhome != "" {
+		cmd.Args = append(cmd.Args, "--home", helmhome)
+	}
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("could not update repo: %s", string(out))
