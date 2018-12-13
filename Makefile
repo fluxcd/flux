@@ -40,8 +40,8 @@ clean:
 realclean: clean
 	rm -rf ./cache
 
-test:
-	PATH=${PATH}:${PWD}/bin go test ${TEST_FLAGS} $(shell go list ./... | grep -v "^github.com/weaveworks/flux/vendor" | sort -u)
+test: build/helm
+	PATH=${PWD}/bin:${PWD}/build:${PATH} go test ${TEST_FLAGS} $(shell go list ./... | grep -v "^github.com/weaveworks/flux/vendor" | sort -u)
 
 build/.%.done: docker/Dockerfile.%
 	mkdir -p ./build/docker/$*
@@ -64,11 +64,13 @@ build/helm-operator: cmd/helm-operator/*.go
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o $@ $(LDFLAGS) -ldflags "-X main.version=$(shell ./docker/image-tag)" ./cmd/helm-operator
 
 build/kubectl: cache/kubectl-$(KUBECTL_VERSION)
+	mkdir -p build
 	cp cache/kubectl-$(KUBECTL_VERSION) $@
 	strip $@
 	chmod a+x $@
 
 build/helm: cache/helm-$(HELM_VERSION)
+	mkdir -p build
 	cp cache/helm-$(HELM_VERSION) $@
 	strip $@
 	chmod a+x $@
