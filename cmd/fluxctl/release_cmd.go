@@ -234,16 +234,16 @@ func writeRolloutStatus(service v6.ControllerStatus, verbosity int) {
 		c := service.Containers[0]
 		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%d/%d", service.ID, c.Name, c.Current.ID, service.Status, service.Rollout.Updated, service.Rollout.Desired)
 		if verbosity > 0 {
-			fmt.Fprintf(w, " (%d outdated, %d updated)", service.Rollout.Outdated, service.Rollout.Updated)
+			fmt.Fprintf(w, " (%d outdated, %d ready)", service.Rollout.Outdated, service.Rollout.Ready)
 		}
 		fmt.Fprintf(w, "\n")
 		for _, c := range service.Containers[1:] {
 			fmt.Fprintf(w, "\t%s\t%s\t\t\n", c.Name, c.Current.ID)
 		}
 	} else {
-		fmt.Fprintf(w, "%s\t\t\t%s\t%d/%d", service.ID, service.Status, service.Rollout.Ready, service.Rollout.Desired)
+		fmt.Fprintf(w, "%s\t\t\t%s\t%d/%d", service.ID, service.Status, service.Rollout.Updated, service.Rollout.Desired)
 		if verbosity > 0 {
-			fmt.Fprintf(w, " (%d outdated, %d updated)", service.Rollout.Outdated, service.Rollout.Updated)
+			fmt.Fprintf(w, " (%d outdated, %d ready)", service.Rollout.Outdated, service.Rollout.Ready)
 		}
 		fmt.Fprintf(w, "\n")
 	}
