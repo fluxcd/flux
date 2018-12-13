@@ -2,6 +2,7 @@
 .PHONY: all release-bins clean realclean test integration-test check-generated
 
 SUDO := $(shell docker info > /dev/null 2> /dev/null || echo "sudo")
+
 TEST_FLAGS?=
 
 include docker/kubectl.version
@@ -76,16 +77,16 @@ build/helm: cache/helm-$(HELM_VERSION)
 cache/kubectl-$(KUBECTL_VERSION): docker/kubectl.version
 	mkdir -p cache
 	curl -L -o $(KUBECTL_TARGZ) "https://dl.k8s.io/$(KUBECTL_VERSION)/kubernetes-client-linux-amd64.tar.gz"
-	echo "$(KUBECTL_CHECKSUM) $(KUBECTL_TARGZ)" > "$(KUBECTL_TARGZ).checksum"
-	sha256sum -c $(KUBECTL_TARGZ).checksum
+	echo "$(KUBECTL_CHECKSUM)  $(KUBECTL_TARGZ)" > "$(KUBECTL_TARGZ).checksum"
+	shasum -a 256 -c $(KUBECTL_TARGZ).checksum
 	tar -C ./cache -xzf $(KUBECTL_TARGZ) kubernetes/client/bin/kubectl
 	cp ./cache/kubernetes/client/bin/kubectl $@
 
 cache/helm-$(HELM_VERSION): docker/helm.version
 	mkdir -p cache
 	curl -L -o $(HELM_TARGZ) "https://storage.googleapis.com/kubernetes-helm/helm-v$(HELM_VERSION)-linux-amd64.tar.gz"
-	echo "$(HELM_CHECKSUM) $(HELM_TARGZ)" > "$(HELM_TARGZ).checksum"
-	sha256sum -c "$(HELM_TARGZ).checksum"
+	echo "$(HELM_CHECKSUM)  $(HELM_TARGZ)" > "$(HELM_TARGZ).checksum"
+	shasum -a 256 -c "$(HELM_TARGZ).checksum"
 	tar -C ./cache -xzf $(HELM_TARGZ) linux-amd64/helm
 	cp ./cache/linux-amd64/helm $@
 
