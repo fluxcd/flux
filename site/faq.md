@@ -14,6 +14,7 @@ menu_order: 60
   * [Does it work only with one git repository?](#does-it-work-only-with-one-git-repository)
   * [Do I have to put my application code and config in the same git repo?](#do-i-have-to-put-my-application-code-and-config-in-the-same-git-repo)
   * [Is there any special directory layout I need in my git repo?](#is-there-any-special-directory-layout-i-need-in-my-git-repo)
+  * [Does Flux work with git over HTTPS?](#does-flux-work-with-git-over-https)
   * [Why does Flux need a git ssh key with write access?](#why-does-flux-need-a-git-ssh-key-with-write-access)
   * [Does Flux automatically sync changes back to git?](#does-flux-automatically-sync-changes-back-to-git)
   * [How do I give Flux access to an image registry?](#how-do-i-give-flux-access-to-an-image-registry)
@@ -127,6 +128,23 @@ Kubernetes, use `--git-path` to constrain where Flux starts looking.
 See also [requirements.md](./requirements.md) for a little more
 explanation.
 
+### Does Flux work with git over HTTPS?
+
+Yes, in principle Flux can use any git protocol, but it's not
+necessarily easy to set up. At present, Flux needs write access to the
+git repo, even if you don't need to commit updates with it.
+
+If you want to use HTTPS, you will need to provide credentials, as
+described in [the git
+documentation](https://git-scm.com/docs/gitcredentials). The simple
+method would be to prepare a git config which included the
+credentials, put it in a secret, and mount the secret into the fluxd
+container at `$HOME/.git`.
+
+If using HTTPS with GitHub, please note [you likely need an access
+token](https://help.github.com/articles/https-cloning-errors/#provide-access-token-if-2fa-enabled). Other
+git hosts may require similar treatment.
+
 ### Why does Flux need a git ssh key with write access?
 
 There are a number of Flux commands and API calls which will update the git repo in the course of
@@ -142,7 +160,8 @@ For more information about Flux commands see [the fluxctl docs](./fluxctl.md).
 
 ### Does Flux automatically sync changes back to git?
 
-No. It applies changes to git only when a Flux command or API call makes them.
+No. It applies changes to git only when a Flux command or API call
+makes them.
 
 ### How do I give Flux access to an image registry?
 
