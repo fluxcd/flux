@@ -11,6 +11,15 @@ import (
 func updateDependencies(chartDir, helmhome string) error {
 	var hasLockFile bool
 
+	// sanity check: does the chart directory exist
+	chartInfo, err := os.Stat(chartDir)
+	switch {
+	case err != nil:
+		return err
+	case !chartInfo.IsDir():
+		return fmt.Errorf("chart path %s is not a directory", chartDir)
+	}
+
 	// check if the requirements file exists
 	reqFilePath := filepath.Join(chartDir, "requirements.yaml")
 	reqInfo, err := os.Stat(reqFilePath)
