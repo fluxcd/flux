@@ -290,7 +290,7 @@ func TestDaemon_ListImagesWithOptions(t *testing.T) {
 		{
 			name: "Override container field selection",
 			opts: v10.ListImagesOptions{
-				Spec: specAll,
+				Spec:                    specAll,
 				OverrideContainerFields: []string{"Name", "Current", "NewAvailableImagesCount"},
 			},
 			expectedImages: []v6.ImageStatus{
@@ -320,7 +320,7 @@ func TestDaemon_ListImagesWithOptions(t *testing.T) {
 		{
 			name: "Override container field selection with invalid field",
 			opts: v10.ListImagesOptions{
-				Spec: specAll,
+				Spec:                    specAll,
 				OverrideContainerFields: []string{"InvalidField"},
 			},
 			expectedImages: nil,
