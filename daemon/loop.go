@@ -321,7 +321,7 @@ func (d *Daemon) doSync(logger log.Logger) (retErr error) {
 							Error:    n.Result.Error(),
 						},
 						Spec: event.ReleaseSpec{
-							Type: event.ReleaseContainersSpecType,
+							Type:                  event.ReleaseContainersSpecType,
 							ReleaseContainersSpec: &spec,
 						},
 						Cause: n.Spec.Cause,
@@ -411,23 +411,23 @@ func (d *Daemon) doSync(logger log.Logger) (retErr error) {
 	}
 
 	// Move the tag and push it so we know how far we've gotten.
-	{
-		ctx, cancel := context.WithTimeout(ctx, gitOpTimeout)
-		err := working.MoveSyncTagAndPush(ctx, newTagRev, "Sync pointer")
-		cancel()
-		if err != nil {
+	if oldTagRev != newTagRev {
+		{
+			ctx, cancel := context.WithTimeout(ctx, gitOpTimeout)
+			err := working.MoveSyncTagAndPush(ctx, newTagRev, "Sync pointer")
+			cancel()
+			if err != nil {
+				return err
+			}
+		}
+		logger.Log("tag", d.GitConfig.SyncTag, "old", oldTagRev, "new", newTagRev)
+		{
+			ctx, cancel := context.WithTimeout(ctx, gitOpTimeout)
+			err := d.Repo.Refresh(ctx)
+			cancel()
 			return err
 		}
 	}
-
-	if oldTagRev != newTagRev {
-		logger.Log("tag", d.GitConfig.SyncTag, "old", oldTagRev, "new", newTagRev)
-		ctx, cancel := context.WithTimeout(ctx, gitOpTimeout)
-		err := d.Repo.Refresh(ctx)
-		cancel()
-		return err
-	}
-
 	return nil
 }
 
