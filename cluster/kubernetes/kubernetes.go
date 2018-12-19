@@ -23,6 +23,7 @@ import (
 
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster"
+	"github.com/weaveworks/flux/policy"
 	"github.com/weaveworks/flux/resource"
 	"github.com/weaveworks/flux/ssh"
 )
@@ -253,13 +254,29 @@ func (c *Cluster) Sync(spec cluster.SyncDef) error {
 	// them during garbage collection.
 	checksums := map[string]checksum{}
 
+	// NB we get all resources, since we care about leaving unsynced,
+	// _ignored_ resources alone.
+	clusterResources, err := c.getResourcesBySelector("")
+	if err != nil {
+		return errors.Wrap(err, "collating resources in cluster for sync")
+	}
+
 	cs := makeChangeSet()
 	var errs cluster.SyncError
 	for _, stack := range spec.Stacks {
 		for _, res := range stack.Resources {
+			id := res.ResourceID().String()
+			// make a record of the checksum, whether we stage it to
+			// be applied or not, so that we don't delete it later.
+			checksums[id] = checksum{stack.Name, stack.Checksum}
+			if res.Policy().Has(policy.Ignore) {
+				continue
+			}
+			if cres, ok := clusterResources[id]; ok && cres.Policy().Has(policy.Ignore) {
+				continue
+			}
 			resBytes, err := applyMetadata(res, stack.Name, stack.Checksum)
 			if err == nil {
-				checksums[res.ResourceID().String()] = checksum{stack.Name, stack.Checksum}
 				cs.stage("apply", res.ResourceID(), res.Source(), resBytes)
 			} else {
 				errs = append(errs, cluster.ResourceError{ResourceID: res.ResourceID(), Source: res.Source(), Error: err})
@@ -281,7 +298,7 @@ func (c *Cluster) Sync(spec cluster.SyncDef) error {
 
 		clusterResources, err := c.getResourcesInStack()
 		if err != nil {
-			return errors.Wrap(err, "exporting resource defs from cluster for garbage collection")
+			return errors.Wrap(err, "collating resources in cluster for calculating garbage collection")
 		}
 
 		for resourceID, res := range clusterResources {
@@ -409,6 +426,10 @@ metadata:
 `, r.obj.GetAPIVersion(), r.obj.GetKind(), r.obj.GetNamespace(), r.obj.GetName()))
 }
 
+func (r *kuberesource) Policy() policy.Set {
+	return kresource.PolicyFromAnnotations(r.obj.GetAnnotations())
+}
+
 // GetChecksum returns the checksum recorded on the resource from
 // Kubernetes, or an empty string if it's not present.
 func (r *kuberesource) GetChecksum() string {
@@ -421,9 +442,12 @@ func (r *kuberesource) GetStack() string {
 	return r.obj.GetLabels()[stackLabel]
 }
 
-// exportResourcesInStack collates all the resources that belong to a
-// stack, i.e., were applied by flux.
-func (c *Cluster) getResourcesInStack() (map[string]*kuberesource, error) {
+func (c *Cluster) getResourcesBySelector(selector string) (map[string]*kuberesource, error) {
+	listOptions := meta_v1.ListOptions{}
+	if selector != "" {
+		listOptions.LabelSelector = selector
+	}
+
 	resources, err := c.client.coreClient.Discovery().ServerResources()
 	if err != nil {
 		return nil, err
@@ -456,9 +480,7 @@ func (c *Cluster) getResourcesInStack() (map[string]*kuberesource, error) {
 				Version:  version,
 				Resource: apiResource.Name,
 			})
-			data, err := resourceClient.List(meta_v1.ListOptions{
-				LabelSelector: stackLabel, // means "has label <<stackLabel>>"
-			})
+			data, err := resourceClient.List(listOptions)
 			if err != nil {
 				return nil, err
 			}
@@ -481,6 +503,12 @@ func (c *Cluster) getResourcesInStack() (map[string]*kuberesource, error) {
 	}
 
 	return result, nil
+}
+
+// exportResourcesInStack collates all the resources that belong to a
+// stack, i.e., were applied by flux.
+func (c *Cluster) getResourcesInStack() (map[string]*kuberesource, error) {
+	return c.getResourcesBySelector(stackLabel) // means "has label <<stackLabel>>"
 }
 
 // kind & apiVersion must be passed separately as the object's TypeMeta is not populated

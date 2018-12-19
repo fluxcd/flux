@@ -43,9 +43,9 @@ func (o *baseObject) debyte() {
 	o.bytes = nil
 }
 
-func (o baseObject) Policy() policy.Set {
+func PolicyFromAnnotations(annotations map[string]string) policy.Set {
 	set := policy.Set{}
-	for k, v := range o.Meta.Annotations {
+	for k, v := range annotations {
 		if strings.HasPrefix(k, PolicyPrefix) {
 			p := strings.TrimPrefix(k, PolicyPrefix)
 			if v == "true" {
@@ -56,6 +56,10 @@ func (o baseObject) Policy() policy.Set {
 		}
 	}
 	return set
+}
+
+func (o baseObject) Policy() policy.Set {
+	return PolicyFromAnnotations(o.Meta.Annotations)
 }
 
 func (o baseObject) Source() string {

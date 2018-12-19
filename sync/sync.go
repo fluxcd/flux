@@ -6,7 +6,6 @@ import (
 	"sort"
 
 	"github.com/go-kit/kit/log"
-	"github.com/pkg/errors"
 
 	"github.com/weaveworks/flux/cluster"
 	"github.com/weaveworks/flux/policy"
@@ -15,28 +14,15 @@ import (
 
 // Syncer has the methods we need to be able to compile and run a sync
 type Syncer interface {
-	// TODO(michael) this could be less leaky as `() -> map[string]resource.Resource`
-	Export() ([]byte, error)
 	Sync(cluster.SyncDef) error
 }
 
 // Sync synchronises the cluster to the files under a directory.
-func Sync(logger log.Logger, m cluster.Manifests, repoResources map[string]resource.Resource, clus Syncer) error {
-	// Get a map of resources defined in the cluster
-	clusterBytes, err := clus.Export()
-
-	if err != nil {
-		return errors.Wrap(err, "exporting resource defs from cluster")
-	}
-	clusterResources, err := m.ParseManifests(clusterBytes)
-	if err != nil {
-		return errors.Wrap(err, "parsing exported resources")
-	}
-
+func Sync(logger log.Logger, repoResources map[string]resource.Resource, clus Syncer) error {
 	// TODO: multiple stack support. This will involve partitioning
 	// the resources into disjoint maps, then passing each to
 	// makeStack.
-	defaultStack := makeStack("default", repoResources, clusterResources, logger)
+	defaultStack := makeStack("default", repoResources, logger)
 
 	sync := cluster.SyncDef{Stacks: []cluster.SyncStack{defaultStack}}
 	if err := clus.Sync(sync); err != nil {
@@ -45,7 +31,7 @@ func Sync(logger log.Logger, m cluster.Manifests, repoResources map[string]resou
 	return nil
 }
 
-func makeStack(name string, repoResources, clusterResources map[string]resource.Resource, logger log.Logger) cluster.SyncStack {
+func makeStack(name string, repoResources map[string]resource.Resource, logger log.Logger) cluster.SyncStack {
 	stack := cluster.SyncStack{Name: name}
 	var resources []resource.Resource
 
@@ -59,22 +45,17 @@ func makeStack(name string, repoResources, clusterResources map[string]resource.
 	checksum := sha1.New()
 	for _, id := range ids {
 		res := repoResources[id]
+		resources = append(resources, res)
 		if res.Policy().Has(policy.Ignore) {
 			logger.Log("resource", res.ResourceID(), "ignore", "apply")
 			continue
 		}
-		// It may be ignored in the cluster, but it isn't in the repo;
-		// and we don't want what happens in the cluster to affect the
-		// checksum.
+		// Ignored resources are not included in the checksum; this
+		// means if you mark something as ignored, the checksum will
+		// come out differently. But the alternative is that adding
+		// ignored resources changes the checksum even though they are
+		// not intended to be created.
 		checksum.Write(res.Bytes())
-
-		if cres, ok := clusterResources[id]; ok {
-			if cres.Policy().Has(policy.Ignore) {
-				logger.Log("resource", res.ResourceID(), "ignore", "apply")
-				continue
-			}
-		}
-		resources = append(resources, res)
 	}
 
 	stack.Resources = resources

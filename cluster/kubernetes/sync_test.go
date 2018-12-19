@@ -19,6 +19,7 @@ import (
 	"k8s.io/client-go/dynamic"
 	//	dynamicfake "k8s.io/client-go/dynamic/fake"
 	//	k8sclient "k8s.io/client-go/kubernetes"
+	"github.com/stretchr/testify/assert"
 	corefake "k8s.io/client-go/kubernetes/fake"
 	k8s_testing "k8s.io/client-go/testing"
 
@@ -62,7 +63,7 @@ func fakeClients() extendedClient {
 		for _, fake := range []*k8s_testing.Fake{&coreClient.Fake, &fluxClient.Fake, &dynamicClient.Fake} {
 			fake.PrependReactor("*", "*", func(action k8s_testing.Action) (bool, runtime.Object, error) {
 				gvr := action.GetResource()
-				println("[DEBUG] action: ", action.GetVerb(), gvr.Group, gvr.Version, gvr.Resource)
+				println("[DEBUG] action:", action.GetVerb(), gvr.Group, gvr.Version, gvr.Resource)
 				return false, nil, nil
 			})
 		}
@@ -85,6 +86,11 @@ type fakeApplier struct {
 	commandRun bool
 }
 
+func groupVersionResource(res *unstructured.Unstructured) schema.GroupVersionResource {
+	gvk := res.GetObjectKind().GroupVersionKind()
+	return schema.GroupVersionResource{Group: gvk.Group, Version: gvk.Version, Resource: strings.ToLower(gvk.Kind) + "s"}
+}
+
 func (a fakeApplier) apply(_ log.Logger, cs changeSet, errored map[flux.ResourceID]error) cluster.SyncError {
 	var errs []cluster.ResourceError
 
@@ -104,8 +110,7 @@ func (a fakeApplier) apply(_ log.Logger, cs changeSet, errored map[flux.Resource
 			return
 		}
 
-		gvk := res.GetObjectKind().GroupVersionKind()
-		gvr := schema.GroupVersionResource{Group: gvk.Group, Version: gvk.Version, Resource: strings.ToLower(gvk.Kind) + "s"}
+		gvr := groupVersionResource(res)
 		c := a.client.Resource(gvr)
 		var dc dynamic.ResourceInterface = c
 		if ns := res.GetNamespace(); ns != "" {
@@ -195,6 +200,21 @@ metadata:
   namespace: other
 `
 
+	// checkSame is a check that a result returned from the cluster is
+	// the same as an expected.  labels and annotations may be altered
+	// by the sync process; we'll look at the "spec" field as an
+	// indication of whether the resources are equivalent or not.
+	checkSame := func(t *testing.T, expected []byte, actual *unstructured.Unstructured) {
+		var expectedSpec struct{ Spec map[string]interface{} }
+		if err := yaml.Unmarshal(expected, &expectedSpec); err != nil {
+			t.Error(err)
+			return
+		}
+		if expectedSpec.Spec != nil {
+			assert.Equal(t, expectedSpec.Spec, actual.Object["spec"])
+		}
+	}
+
 	test := func(t *testing.T, kube *Cluster, defs, expectedAfterSync string, expectErrors bool) {
 		manifests := &Manifests{}
 		resources, err := manifests.ParseManifests([]byte(defs))
@@ -202,30 +222,37 @@ metadata:
 			t.Fatal(err)
 		}
 
-		err = sync.Sync(log.NewNopLogger(), manifests, resources, kube)
+		err = sync.Sync(log.NewNopLogger(), resources, kube)
 		if !expectErrors && err != nil {
 			t.Error(err)
 		}
-		resources0, err := manifests.ParseManifests([]byte(expectedAfterSync))
+		expected, err := manifests.ParseManifests([]byte(expectedAfterSync))
 		if err != nil {
 			panic(err)
 		}
 
 		// Now check that the resources were created
-		resources1, err := kube.getResourcesInStack()
+		actual, err := kube.getResourcesInStack()
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		for id := range resources1 {
-			if _, ok := resources0[id]; !ok {
+		for id := range actual {
+			if _, ok := expected[id]; !ok {
 				t.Errorf("resource present after sync but not in resources applied: %q", id)
+				if j, err := yaml.Marshal(actual[id].obj); err == nil {
+					println(string(j))
+				}
+				continue
 			}
+			checkSame(t, expected[id].Bytes(), actual[id].obj)
 		}
-		for id := range resources0 {
-			if _, ok := resources1[id]; !ok {
+		for id := range expected {
+			if _, ok := actual[id]; !ok {
 				t.Errorf("resource supposed to be synced but not present: %q", id)
 			}
+			// no need to compare values, since we already considered
+			// the intersection of actual and expected above.
 		}
 	}
 
@@ -246,7 +273,7 @@ metadata:
 		test(t, kube, "", "", false)
 	})
 
-	t.Run("sync won't doesn't delete if apply failed", func(t *testing.T) {
+	t.Run("sync won't delete if apply failed", func(t *testing.T) {
 		kube, _ := setup(t)
 		kube.GC = true
 
@@ -261,6 +288,159 @@ metadata:
 `
 		test(t, kube, defs1, defs1, false)
 		test(t, kube, defs1invalid, defs1, true)
+	})
+
+	t.Run("sync doesn't apply or delete manifests marked with ignore", func(t *testing.T) {
+		kube, _ := setup(t)
+		kube.GC = true
+
+		const dep1 = `---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: foobar
+  name: dep1
+spec:
+  metadata:
+    labels: {app: foo}
+`
+
+		const dep2 = `---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: foobar
+  name: dep2
+  annotations: {flux.weave.works/ignore: "true"}
+`
+
+		// dep1 is created, but dep2 is ignored
+		test(t, kube, dep1+dep2, dep1, false)
+
+		const dep1ignored = `---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: foobar
+  name: dep1
+  annotations:
+    flux.weave.works/ignore: "true"
+spec:
+  metadata:
+    labels: {app: bar}
+`
+		// dep1 is not updated, but neither is it deleted
+		test(t, kube, dep1ignored+dep2, dep1, false)
+	})
+
+	t.Run("sync doesn't update a cluster resource marked with ignore", func(t *testing.T) {
+		const dep1 = `
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: foobar
+  name: dep1
+spec:
+  metadata:
+    labels:
+      app: original
+`
+		kube, _ := setup(t)
+		// This just checks the starting assumption: dep1 exists in the cluster
+		test(t, kube, dep1, dep1, false)
+
+		// Now we'll mark it as ignored _in the cluster_ (i.e., the
+		// equivalent of `kubectl annotate`)
+		dc := kube.client.dynamicClient
+		rc := dc.Resource(schema.GroupVersionResource{
+			Group:    "apps",
+			Version:  "v1",
+			Resource: "deployments",
+		})
+		res, err := rc.Namespace("foobar").Get("dep1", metav1.GetOptions{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		annots := res.GetAnnotations()
+		annots["flux.weave.works/ignore"] = "true"
+		res.SetAnnotations(annots)
+		if _, err = rc.Namespace("foobar").Update(res); err != nil {
+			t.Fatal(err)
+		}
+
+		const mod1 = `
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: foobar
+  name: dep1
+spec:
+  metadata:
+    labels:
+      app: modified
+`
+		// Check that dep1, which is marked ignore in the cluster, is
+		// neither updated or deleted
+		test(t, kube, mod1, dep1, false)
+	})
+
+	t.Run("sync doesn't update or delete a pre-existing resource marked with ignore", func(t *testing.T) {
+		kube, _ := setup(t)
+
+		const existing = `---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: foobar
+  name: dep1
+  annotations: {flux.weave.works/ignore: "true"}
+spec:
+  metadata:
+    labels: {foo: original}
+`
+		var dep1obj map[string]interface{}
+		err := yaml.Unmarshal([]byte(existing), &dep1obj)
+		assert.NoError(t, err)
+		dep1res := &unstructured.Unstructured{Object: dep1obj}
+		gvr := groupVersionResource(dep1res)
+		// Put the pre-existing resource in the cluster
+		dc := kube.client.dynamicClient.Resource(gvr).Namespace(dep1res.GetNamespace())
+		_, err = dc.Create(dep1res)
+		assert.NoError(t, err)
+
+		// Check that our resource-getting also sees the pre-existing resource
+		resources, err := kube.getResourcesBySelector("")
+		assert.NoError(t, err)
+		assert.Contains(t, resources, "foobar:deployment/dep1")
+
+		// NB test checks the _synced_ resources, so this just asserts
+		// the precondition, that nothing is synced
+		test(t, kube, "", "", false)
+
+		// .. but, our resource is still there.
+		r, err := dc.Get(dep1res.GetName(), metav1.GetOptions{})
+		assert.NoError(t, err)
+		assert.NotNil(t, r)
+
+		const update = `---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: foobar
+  name: dep1
+spec:
+  metadata:
+    labels: {foo: modified}
+`
+
+		// Check that it's not been synced (i.e., still not included in synced resources)
+		test(t, kube, update, "", false)
+
+		// Check that it still exists, as created
+		r, err = dc.Get(dep1res.GetName(), metav1.GetOptions{})
+		assert.NoError(t, err)
+		assert.NotNil(t, r)
+		checkSame(t, []byte(existing), r)
 	})
 }
 

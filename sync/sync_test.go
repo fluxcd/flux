@@ -30,7 +30,7 @@ func TestSync(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := Sync(log.NewNopLogger(), manifests, resources, clus); err != nil {
+	if err := Sync(log.NewNopLogger(), resources, clus); err != nil {
 		t.Fatal(err)
 	}
 	checkClusterMatchesFiles(t, manifests, clus, checkout.Dir(), dirs)
@@ -85,9 +85,14 @@ func resourcesToStrings(resources map[string]resource.Resource) map[string]strin
 	return res
 }
 
+type SyncExporter interface {
+	Syncer
+	Export() ([]byte, error)
+}
+
 // Our invariant is that the model we can export from the cluster
 // should always reflect what's in git. So, let's check that.
-func checkClusterMatchesFiles(t *testing.T, m cluster.Manifests, c Syncer, base string, dirs []string) {
+func checkClusterMatchesFiles(t *testing.T, m cluster.Manifests, c SyncExporter, base string, dirs []string) {
 	conf, err := c.Export()
 	if err != nil {
 		t.Fatal(err)
