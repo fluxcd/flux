@@ -12,7 +12,7 @@ We believe in GitOps:
 - **You push code not containers.** Everything is controlled through
   pull requests. There is no learning curve for new devs, they just use
   your standard git PR process. The history in git allows you to recover
-  from any snapshot as you have an sequence of transactions. It is much
+  from any snapshot as you have a sequence of transactions. It is much
   more transparent to make operational changes by pull request, e.g.
   fix a production issue via a pull request instead of making changes to
   the running system.
@@ -88,6 +88,16 @@ Get started by browsing through the documentation below:
   - [Troubleshooting](/site/troubleshooting.md)
   - [Frequently encountered issues](https://github.com/weaveworks/flux/labels/FAQ)
   - [Upgrading to Flux v1](/site/upgrading-to-1.0.md)
+
+### Integrations
+
+As Flux is Open Source, integrations are very straight-forward. Here are
+a few popular ones you might want to check out:
+
+- [Managing Helm releases the GitOps way](https://github.com/stefanprodan/gitops-helm)
+- [OpenFaaS GitOps workflow with Flux](https://github.com/stefanprodan/openfaas-flux)
+- [GitOps for Istio Canary deployments](https://github.com/stefanprodan/gitops-istio)
+- [Fluxcloud to receive events from Flux](https://github.com/justinbarrick/fluxcloud)
 
 ## Community & Developer information
 

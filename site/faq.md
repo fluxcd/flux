@@ -3,6 +3,39 @@ title: Weave Flux FAQ
 menu_order: 60
 ---
 
+- [General questions](#general-questions)
+  * [What does Flux do?](#what-does-flux-do)
+  * [How does it automate deployment?](#how-does-it-automate-deployment)
+  * [How is that different from a bash script?](#how-is-that-different-from-a-bash-script)
+  * [Why should I automate deployment?](#why-should-i-automate-deployment)
+  * [I thought Flux was about service routing?](#i-thought-flux-was-about-service-routing)
+  * [Are there nightly builds I can run?](#are-there-nightly-builds-i-can-run)
+- [Technical questions](#technical-questions)
+  * [Does it work only with one git repository?](#does-it-work-only-with-one-git-repository)
+  * [Do I have to put my application code and config in the same git repo?](#do-i-have-to-put-my-application-code-and-config-in-the-same-git-repo)
+  * [Is there any special directory layout I need in my git repo?](#is-there-any-special-directory-layout-i-need-in-my-git-repo)
+  * [Why does Flux need a git ssh key with write access?](#why-does-flux-need-a-git-ssh-key-with-write-access)
+  * [Does Flux automatically sync changes back to git?](#does-flux-automatically-sync-changes-back-to-git)
+  * [How do I give Flux access to an image registry?](#how-do-i-give-flux-access-to-an-image-registry)
+  * [How often does Flux check for new images?](#how-often-does-flux-check-for-new-images)
+  * [How often does Flux check for new git commits (and can I make it sync faster)?](#how-often-does-flux-check-for-new-git-commits-and-can-i-make-it-sync-faster)
+  * [How do I use my own deploy key?](#how-do-i-use-my-own-deploy-key)
+  * [Why are my images not showing up in the list of images?](#why-are-my-images-not-showing-up-in-the-list-of-images)
+  * [Why do my image tags appear out of order?](#why-do-my-image-tags-appear-out-of-order)
+  * [How do I use a private git host (or one that's not github.com, gitlab.com, or bitbucket.org)?](#how-do-i-use-a-private-git-host-or-one-thats-not-githubcom-gitlabcom-or-bitbucketorg)
+  * [Will Flux delete resources that are no longer in the git repository?](#will-flux-delete-resources-that-are-no-longer-in-the-git-repository)
+  * [Why does my CI pipeline keep getting triggered?](#why-does-my-ci-pipeline-keep-getting-triggered)
+  * [What is the "sync tag"; or, why do I see a `flux-sync` tag in my git repo?](#what-is-the-sync-tag-or-why-do-i-see-a-flux-sync-tag-in-my-git-repo)
+  * [Can I restrict the namespaces that Flux can see or operate on?](#can-i-restrict-the-namespaces-that-flux-can-see-or-operate-on)
+  * [Can I change the namespace Flux puts things in by default?](#can-i-change-the-namespace-flux-puts-things-in-by-default)
+  * [Can I temporarily make Flux ignore a deployment?](#can-i-temporarily-make-flux-ignore-a-deployment)
+- [Flux Helm Operator questions](#flux-helm-operator-questions)
+  * [I'm using SSL between Helm and Tiller. How can I configure Flux to use the certificate?](#im-using-ssl-between-helm-and-tiller-how-can-i-configure-flux-to-use-the-certificate)
+  * [I've deleted a FluxHelmRelease file from Git. Why is the Helm release still running on my cluster?](#ive-deleted-a-fluxhelmrelease-file-from-git-why-is-the-helm-release-still-running-on-my-cluster)
+  * [I've manually deleted a Helm release. Why is Flux not able to restore it?](#ive-manually-deleted-a-helm-release-why-is-flux-not-able-to-restore-it)
+  * [I've uninstalled Flux and all my Helm releases are gone. Why is that?](#ive-uninstalled-flux-and-all-my-helm-releases-are-gone-why-is-that)
+  * [I have a dedicated Kubernetes cluster per environment and I want to use the same Git repo for all. How can I do that?](#i-have-a-dedicated-kubernetes-cluster-per-environment-and-i-want-to-use-the-same-git-repo-for-all-how-can-i-do-that)
+
 ## General questions
 
 Also see [the introduction](/site/introduction.md).
@@ -126,7 +159,7 @@ There are exceptions:
  - In some environments, authorisation provided by the platform is
    used instead of image pull secrets. Google Container Registry works
    this way, for example (and we have introduced a special case for it
-   so Flux will work there too). See below regarding ECR.
+   so Flux will work there too with image pull secrets). See below regarding ECR.
 
 To work around the exceptional cases, you can mount a docker config into
 the Flux container. See the argument `--docker-config` in
@@ -213,23 +246,13 @@ happen:
  - Flux just hasn't fetched the image metadata yet. This may be the case
    if you've only just started using a particular image in a workload.
  - Flux can't get suitable credentials for the image repository. At
-   present, it looks at `imagePullSecret`s attached to workloads (but
-   not to service accounts; see
-   [weaveworks/flux#1043](https://github.com/weaveworks/flux/issues/1043)),
-   and a Docker config file if you mount one into the fluxd container
+   present, it looks at `imagePullSecret`s attached to workloads,
+   service accounts and a Docker config file if you mount one into the fluxd container
    (see the [command-line usage](./daemon.md)).
  - Flux doesn't know how to obtain registry credentials for ECR. A
    workaround is described in
    [weaveworks/flux#539](https://github.com/weaveworks/flux/issues/539#issuecomment-394588423)
- - Flux doesn't yet understand what to do with image repositories that
-   have images for more than one architecture; see
-   [weaveworks/flux#741](https://github.com/weaveworks/flux/issues/741). At
-   present there's no workaround for this, if you are not in control
-   of the image repository in question (or you are, but you need to
-   have multi-arch manifests).
- - Flux doesn't yet examine `initContainer`s when cataloguing the
-   images used by workloads. See
-   [weaveworks/flux#702](https://github.com/weaveworks/flux/issues/702)
+ - Flux excludes images with no suitable manifest (linux amd64) in manifestlist
  - Flux doesn't yet understand image refs that use digests instead of
    tags; see
    [weaveworks/flux#885](https://github.com/weaveworks/flux/issues/885).
@@ -416,7 +439,7 @@ Flux doesn't delete resources, there is an [issue](https://github.com/weaveworks
 In order to delete a Helm release first remove the file from Git and afterwards run:
 
 ```yaml
-kubectl delete fluxhelmrelease/my-release
+kubectl delete helmrelease/my-release
 ```
 
 The Flux Helm operator will receive the delete event and will purge the Helm release.
@@ -428,7 +451,7 @@ You need to use the `helm delete --purge` option only then Flux will be able rei
 
 ### I've uninstalled Flux and all my Helm releases are gone. Why is that?
 
-On `FluxHelmRelease` CRD deletion, Kubernetes will remove all `FluxHelmRelease` CRs triggering a Helm purge for each release created by Flux.
+On `HelmRelease` CRD deletion, Kubernetes will remove all `HelmRelease` resources triggering a Helm purge for each release created by Flux.
 To avoid this you have to manually delete the Flux Helm Operator with `kubectl -n flux delete deployment/flux-helm-operator` before running `helm delete flux`.
 
 ### I have a dedicated Kubernetes cluster per environment and I want to use the same Git repo for all. How can I do that?
@@ -436,14 +459,4 @@ To avoid this you have to manually delete the Flux Helm Operator with `kubectl -
 For each cluster create a Git branch in your config repo. When installing Flux set the Git branch using `--set git.branch=cluster-name`
 and set a unique label for each cluster `--set git.label=cluster-name`.
 
-### I have a dedicated Git repo for my Helm charts. How can I point Flux Helm Operator to it?
 
-When installing Flux with Helm you can override the Operator Git settings using `--set helmOperator.git.url=`.
-
-If you are using GitHub you need to create a SSH key for Helm Operator:
-
-* generate a SSH key named identity: `ssh-keygen -q -N "" -f ./identity`
-* create a Kubernetes secret: `kubectl -n flux create secret generic helm-ssh --from-file=./identity`
-* delete the private key: `rm ./identity`
-* add `./identity.pub` as a read-only deployment key in your GitHub repo where the charts are
-* set the secret name with `--set helmOperator.git.secretName=helm-ssh`

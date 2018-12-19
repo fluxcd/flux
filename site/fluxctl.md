@@ -3,6 +3,36 @@ title: Using Weave Flux
 menu_order: 40
 ---
 
+- [Installing fluxctl](#installing-fluxctl)
+  * [Mac OS](#mac-os)
+  * [Linux](#linux)
+    + [Arch Linux](#arch-linux)
+  * [Binary releases](#binary-releases)
+- [Connecting fluxctl to the daemon](#connecting-fluxctl-to-the-daemon)
+  * [Flux API service](#flux-api-service)
+  * [Add an SSH deploy key to the repository](#add-an-ssh-deploy-key-to-the-repository)
+    + [1. Allow flux to generate a key for you](#1-allow-flux-to-generate-a-key-for-you)
+    + [2. Specify a key to use](#2-specify-a-key-to-use)
+- [What is a Controller](#what-is-a-controller)
+- [Viewing Controllers](#viewing-controllers)
+- [Inspecting the Version of a Container](#inspecting-the-version-of-a-container)
+- [Releasing a Controller](#releasing-a-controller)
+- [Turning on Automation](#turning-on-automation)
+- [Turning off Automation](#turning-off-automation)
+- [Rolling back a Controller](#rolling-back-a-controller)
+- [Locking a Controller](#locking-a-controller)
+- [Releasing an image to a locked controller](#releasing-an-image-to-a-locked-controller)
+- [Unlocking a Controller](#unlocking-a-controller)
+- [Recording user and message with the triggered action](#recording-user-and-message-with-the-triggered-action)
+- [Image Tag Filtering](#image-tag-filtering)
+  * [Filter pattern types](#filter-pattern-types)
+    + [Glob](#glob)
+    + [Semver](#semver)
+    + [Regexp](#regexp)
+  * [Actions triggered through `fluxctl`](#actions-triggered-through-fluxctl)
+  * [Errors due to author customization](#errors-due-to-author-customization)
+- [Using Annotations](#using-annotations)
+
 All of the features of Flux are accessible from within
 [Weave Cloud](https://cloud.weave.works).
 
@@ -562,6 +592,45 @@ filtering annotations take the form
 `filter-type` can be [`glob`](#glob), [`semver`](#semver), and
 [`regexp`](#regexp). Filter values use the same syntax as when the filter is
 configured using fluxctl.
+
+Here's a simple but complete deployment file with annotations:
+
+```
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: podinfo
+  namespace: demo
+  labels:
+    app: podinfo
+  annotations:
+    flux.weave.works/automated: "true"
+    flux.weave.works/tag.podinfod: semver:~1.3
+spec:
+  selector:
+    matchLabels:
+      app: podinfo
+  template:
+    metadata:
+      labels:
+        app: podinfo
+    spec:
+      containers:
+      - name: podinfod
+        image: stefanprodan/podinfo:1.3.2
+        ports:
+        - containerPort: 9898
+          name: http
+        command:
+        - ./podinfo
+        - --port=9898
+```
+
+Things to notice:
+
+1. The annotations are made in `metadata.annotations`, not in `spec.template.metadata`.
+2. The `flux.weave.works/tag.`... references the container name `podinfod`, this will change based on your container name. If you have multiple containers you would have multiple lines like that.
+3. The value for the `flux.weave.works/tag.`... annotation should includes the filter pattern type, in this case `semver`.
 
 Annotations can also be used to tell Flux to temporarily ignore certain manifests
 using `flux.weave.works/ignore: "true"`. Read more about this in the [FAQ](faq.md#can-i-temporarily-make-flux-ignore-a-deployment).

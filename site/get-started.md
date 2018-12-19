@@ -3,6 +3,16 @@ title: Installing Weave Flux Manually
 menu_order: 10
 ---
 
+- [Get started with Flux](#get-started-with-flux)
+  * [Prerequisites](#prerequisites)
+    + [A Note on GKE with RBAC enabled](#a-note-on-gke-with-rbac-enabled)
+  * [Set up Flux](#set-up-flux)
+  * [Deploying Flux to the cluster](#deploying-flux-to-the-cluster)
+  * [Giving write access](#giving-write-access)
+  * [Committing a small change](#committing-a-small-change)
+  * [Confirm the change landed](#confirm-the-change-landed)
+  * [Conclusion](#conclusion)
+
 # Get started with Flux
 
 This short guide shows a self-contained example of Flux and just
@@ -18,19 +28,6 @@ _Note:_ If you would like to install Flux using Helm, refer to the
 You will need to have Kubernetes set up. For a quick local test,
 you can use `minikube` or `kubeadm`. Any other Kubernetes setup
 will work as well though.
-
-When using a cluster in the cloud (e.g. GKE), use nodes with at least 2 CPU's.
-When using nodes with only 1 CPU (like `n1-standard-1`), an upgrade
-may be stuck with not enough CPU resources. This issue usually manifests itself
-in the form of pods hanging in the PENDING state, which looks something like:
-
-```sh
-$ kubectl describe pod/helloworld-... | tail -3
-Events:
-  Type     Reason            Age                From               Message
-  ----     ------            ----               ----               -------
-  Warning  FailedScheduling  3m (x37 over 13m)  default-scheduler  0/2 nodes are available: 2 Insufficient cpu.
-```
 
 ### A Note on GKE with RBAC enabled
 
@@ -64,7 +61,7 @@ $EDITOR deploy/flux-deployment.yaml
 ```
 
 In our example we are going to use
-[flux-example](https://github.com/weaveworks/flux-example). If you
+[flux-get-started](https://github.com/weaveworks/flux-get-started). If you
 want to use that too, be sure to create a fork of it on Github and
 add the git URL to the config file above.
 
@@ -87,14 +84,12 @@ watch kubectl get pods --all-namespaces
 ## Giving write access
 
 At startup Flux generates a SSH key and logs the public key. Find
-the SSH public key with:
+the SSH public key by installing [fluxctl](./fluxctl.md) and
+runnning:
 
 ```sh
-kubectl logs deployment/flux | grep identity.pub | cut -d '"' -f2
+fluxctl identity
 ```
-
-*Note:* If you have downloaded [fluxctl](./fluxctl.md) already, you can use
-`fluxctl identity` as well.
 
 In order to sync your cluster state with git you need to copy the
 public key and create a deploy key with write access on your GitHub
@@ -105,19 +100,19 @@ click on **Add deploy key**, give it a name, check **Allow write
 access**, paste the Flux public key and click **Add key**.
 
 (Or replace `YOURUSER` with your Github ID in this url:
-`https://github.com/YOURUSER/flux-example/settings/keys/new` and
+`https://github.com/YOURUSER/flux-get-started/settings/keys/new` and
 paste the key there.)
 
 ## Committing a small change
 
 In this example we are using a simple example of a webservice and
 change its configuration to use a different message. The easiest
-way is to edit your fork of `flux-example` and change the `msg` argument.
+way is to edit your fork of `flux-get-started` and change the `PODINFO_UI_COLOR` env var to `blue`.
 
 Replace `YOURUSER` in
-`https://github.com/YOURUSER/flux-example/blob/master/helloworld-deploy.yaml`
+`https://github.com/YOURUSER/flux-get-started/blob/master/workloads/podinfo-dep.yaml`
 with your Github ID), open the URL in your browser, edit the file,
-change the argument value and commit the file.
+change the env var value and commit the file.
 
 You can check out the Flux logs with:
 
@@ -135,9 +130,10 @@ To access our webservice and check out its welcome message, simply
 run:
 
 ```sh
-kubectl port-forward deployment/helloworld 8080:80 &
-curl localhost:8080
+kubectl -n demo port-forward deployment/podinfo 9898:9898 &
 ```
+
+Open your browser and navigate to `http://localhost:9898`.
 
 ## Conclusion
 

@@ -31,12 +31,10 @@ const (
 // Release contains clients needed to provide functionality related to helm releases
 type Release struct {
 	logger log.Logger
-
 	HelmClient *k8shelm.Client
 }
 
 type Releaser interface {
-	GetCurrent() (map[string][]DeployInfo, error)
 	GetDeployedRelease(name string) (*hapi_release.Release, error)
 	Install(dir string, releaseName string, fhr flux_v1beta1.HelmRelease, action Action, opts InstallOptions) (*hapi_release.Release, error)
 }
@@ -60,7 +58,7 @@ func New(logger log.Logger, helmClient *k8shelm.Client) *Release {
 }
 
 // GetReleaseName either retrieves the release name from the Custom Resource or constructs a new one
-//  in the form : $Namespace-$CustomResourceName
+// in the form : $Namespace-$CustomResourceName
 func GetReleaseName(fhr flux_v1beta1.HelmRelease) string {
 	namespace := fhr.Namespace
 	if namespace == "" {
@@ -105,17 +103,16 @@ func (r *Release) canDelete(name string) (bool, error) {
 		"PENDING_ROLLBACK": 8,
 	*/
 	status := rls.GetInfo().GetStatus()
-	r.logger.Log("info", fmt.Sprintf("Release [%s] status: %s", name, status.Code.String()))
 	switch status.Code {
 	case 1, 4:
-		r.logger.Log("info", fmt.Sprintf("Deleting release (%s)", name))
+		r.logger.Log("info", fmt.Sprintf("Deleting release %s", name))
 		return true, nil
 	case 2:
-		r.logger.Log("info", fmt.Sprintf("Release (%s) already deleted", name))
+		r.logger.Log("info", fmt.Sprintf("Release %s already deleted", name))
 		return false, nil
 	default:
-		r.logger.Log("info", fmt.Sprintf("Release (%s) with status %s cannot be deleted", name, status.Code.String()))
-		return false, fmt.Errorf("Release (%s) with status %s cannot be deleted", name, status.Code.String())
+		r.logger.Log("info", fmt.Sprintf("Release %s with status %s cannot be deleted", name, status.Code.String()))
+		return false, fmt.Errorf("release %s with status %s cannot be deleted", name, status.Code.String())
 	}
 }
 
@@ -139,7 +136,10 @@ func (r *Release) Install(chartPath, releaseName string, fhr flux_v1beta1.HelmRe
 		return nil, fmt.Errorf("error statting path given for chart %s: %s", chartPath, err.Error())
 	}
 
-	r.logger.Log("info", "releaseName", releaseName, "action", action, "options", fmt.Sprintf("%+v", opts))
+	r.logger.Log("info", fmt.Sprintf("processing release %s", releaseName),
+		"action", fmt.Sprintf("%v", action),
+		"options", fmt.Sprintf("%+v", opts),
+		"timeout", fmt.Sprintf("%vs", fhr.GetTimeout()))
 
 	// Read values from given valueFile paths (configmaps, etc.)
 	mergedValues := chartutil.Values{}
@@ -179,22 +179,20 @@ func (r *Release) Install(chartPath, releaseName string, fhr flux_v1beta1.HelmRe
 			k8shelm.ReleaseName(releaseName),
 			k8shelm.InstallDryRun(opts.DryRun),
 			k8shelm.InstallReuseName(opts.ReuseName),
-			/*
-				helm.InstallReuseName(i.replace),
-				helm.InstallDisableHooks(i.disableHooks),
-				helm.InstallTimeout(i.timeout),
-				helm.InstallWait(i.wait)
-			*/
+			k8shelm.InstallTimeout(fhr.GetTimeout()),
 		)
 
 		if err != nil {
 			r.logger.Log("error", fmt.Sprintf("Chart release failed: %s: %#v", releaseName, err))
-			// if an install fails, purge the release and keep retrying
-			r.logger.Log("info", fmt.Sprintf("Deleting failed release: [%s]", releaseName))
-			_, err = r.HelmClient.DeleteRelease(releaseName, k8shelm.DeletePurge(true))
-			if err != nil {
-				r.logger.Log("error", fmt.Sprintf("Release deletion error: %#v", err))
-				return nil, err
+			// purge the release if the install failed but only if this is the first revision
+			history, err := r.HelmClient.ReleaseHistory(releaseName, k8shelm.WithMaxHistory(2))
+			if err == nil && len(history.Releases) == 1 && history.Releases[0].Info.Status.Code == hapi_release.Status_FAILED {
+				r.logger.Log("info", fmt.Sprintf("Deleting failed release: [%s]", releaseName))
+				_, err = r.HelmClient.DeleteRelease(releaseName, k8shelm.DeletePurge(true))
+				if err != nil {
+					r.logger.Log("error", fmt.Sprintf("Release deletion error: %#v", err))
+					return nil, err
+				}
 			}
 			return nil, err
 		}
@@ -208,15 +206,7 @@ func (r *Release) Install(chartPath, releaseName string, fhr flux_v1beta1.HelmRe
 			chartPath,
 			k8shelm.UpdateValueOverrides(rawVals),
 			k8shelm.UpgradeDryRun(opts.DryRun),
-			/*
-				helm.UpgradeRecreate(u.recreate),
-				helm.UpgradeForce(u.force),
-				helm.UpgradeDisableHooks(u.disableHooks),
-				helm.UpgradeTimeout(u.timeout),
-				helm.ResetValues(u.resetValues),
-				helm.ReuseValues(u.reuseValues),
-				helm.UpgradeWait(u.wait))
-			*/
+			k8shelm.UpgradeTimeout(fhr.GetTimeout()),
 		)
 
 		if err != nil {
@@ -253,29 +243,6 @@ func (r *Release) Delete(name string) error {
 	return nil
 }
 
-// GetCurrent provides Chart releases (stored in tiller ConfigMaps)
-//		output:
-//						map[namespace][release name] = nil
-func (r *Release) GetCurrent() (map[string][]DeployInfo, error) {
-	response, err := r.HelmClient.ListReleases()
-	if err != nil {
-		return nil, r.logger.Log("error", err)
-	}
-	r.logger.Log("info", fmt.Sprintf("Number of Chart releases: %d\n", response.GetCount()))
-
-	relsM := make(map[string][]DeployInfo)
-	var depl []DeployInfo
-
-	for _, r := range response.GetReleases() {
-		ns := r.Namespace
-		depl = relsM[ns]
-
-		depl = append(depl, DeployInfo{Name: r.Name})
-		relsM[ns] = depl
-	}
-	return relsM, nil
-}
-
 // annotateResources annotates each of the resources created (or updated)
 // by the release so that we can spot them.
 func (r *Release) annotateResources(release *hapi_release.Release, fhr flux_v1beta1.HelmRelease) error {
@@ -296,8 +263,7 @@ func (r *Release) annotateResources(release *hapi_release.Release, fhr flux_v1be
 	return err
 }
 
-// fhrResourceID constructs a flux.ResourceID for a HelmRelease
-// resource.
+// fhrResourceID constructs a flux.ResourceID for a HelmRelease resource.
 func fhrResourceID(fhr flux_v1beta1.HelmRelease) flux.ResourceID {
 	return flux.MakeResourceID(fhr.Namespace, "HelmRelease", fhr.Name)
 }

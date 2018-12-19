@@ -54,8 +54,12 @@ spec:
         # There are no ":latest" images for flux. Find the most recent
         # release or image version at https://quay.io/weaveworks/flux
         # and replace the tag here.
-        image: quay.io/weaveworks/flux:1.7.0
+        image: quay.io/weaveworks/flux:1.8.1
         imagePullPolicy: IfNotPresent
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
         ports:
         - containerPort: 3030 # informational
         volumeMounts:
@@ -96,7 +100,7 @@ spec:
         - --ssh-keygen-dir=/var/fluxd/keygen
 
         # replace or remove the following URL
-        - --git-url=git@github.com:weaveworks/flux-example
+        - --git-url=git@github.com:weaveworks/flux-get-started
         - --git-branch=master
 
         # include these next two to connect to an "upstream" service

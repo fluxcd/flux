@@ -271,15 +271,20 @@ func (w *Warmer) warm(ctx context.Context, now time.Time, logger log.Logger, id 
 		// w.Burst, so limit the number of fetching goroutines to that.
 		fetchers := make(chan struct{}, w.burst)
 		awaitFetchers := &sync.WaitGroup{}
-		awaitFetchers.Add(len(toUpdate))
+
+		ctxc, cancel := context.WithCancel(ctx)
+		var once sync.Once
+		defer cancel()
 
 	updates:
 		for _, up := range toUpdate {
 			select {
-			case <-ctx.Done():
+			case <-ctxc.Done():
 				break updates
 			case fetchers <- struct{}{}:
 			}
+
+			awaitFetchers.Add(1)
 
 			go func(update update) {
 				defer func() { awaitFetchers.Done(); <-fetchers }()
@@ -291,13 +296,22 @@ func (w *Warmer) warm(ctx context.Context, now time.Time, logger log.Logger, id 
 				}
 
 				// Get the image from the remote
-				entry, err := client.Manifest(ctx, imageID.Tag)
+				entry, err := client.Manifest(ctxc, imageID.Tag)
 				if err != nil {
 					if err, ok := errors.Cause(err).(net.Error); ok && err.Timeout() {
 						// This was due to a context timeout, don't bother logging
 						return
 					}
-					errorLogger.Log("err", err, "ref", imageID)
+
+					// abort the image tags fetching if we've been rate limited
+					if strings.Contains(err.Error(), "429") {
+						once.Do(func() {
+							errorLogger.Log("warn", "aborting image tag fetching due to rate limiting, will try again later")
+							cancel()
+						})
+					} else {
+						errorLogger.Log("err", err, "ref", imageID)
+					}
 					return
 				}
 

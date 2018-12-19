@@ -3,6 +3,14 @@ title: Installing Weave Flux using Helm
 menu_order: 20
 ---
 
+- [Get started with Flux using Helm](#get-started-with-flux-using-helm)
+  * [Prerequisites](#prerequisites)
+  * [Install Weave Flux](#install-weave-flux)
+  * [Giving write access](#giving-write-access)
+  * [Committing a small change](#committing-a-small-change)
+  * [Conclusion](#conclusion)
+- [Next](#next)
+
 # Get started with Flux using Helm
 
 If you are using Helm already, this guide is for you. By the end
@@ -19,19 +27,6 @@ You will need to have Kubernetes set up. To get up and running fast,
 you might want to use `minikube` or `kubeadm`. Any other Kubernetes
 setup will work as well though.
 
-When using a cluster in the cloud (e.g. GKE), use nodes with at least 2 CPU's.
-When using nodes with only 1 CPU (like `n1-standard-1`), an upgrade
-may be stuck with not enough CPU resources. This issue usually manifests itself
-in the form of pods hanging in the PENDING state, which looks something like:
-
-```sh
-$ kubectl describe pod/helloworld-... | tail -3
-Events:
-  Type     Reason            Age                From               Message
-  ----     ------            ----               ----               -------
-  Warning  FailedScheduling  3m (x37 over 13m)  default-scheduler  0/2 nodes are available: 2 Insufficient cpu.
-```
-
 Download Helm:
 
 - On MacOS:
@@ -41,8 +36,7 @@ Download Helm:
   ```
 
 - On Linux:
-  - Download the [latest
-    release](https://github.com/kubernetes/helm/releases/latest),
+  - Download the [latest release](https://github.com/kubernetes/helm/releases/latest),
     unpack the tarball and put the binary in your `$PATH`.
 
 Now create a service account and a cluster role binding for Tiller:
@@ -69,12 +63,18 @@ Add the Flux repository of Weaveworks:
 helm repo add weaveworks https://weaveworks.github.io/flux
 ```
 
+Apply the Helm Release CRD:
+
+```sh
+kubectl apply -f https://raw.githubusercontent.com/weaveworks/flux/master/deploy-helm/flux-helm-release-crd.yaml
+```
+
 In this next step you install Weave Flux using `helm`. Simply
 
- 1. Fork [flux-helm-test](https://github.com/weaveworks/flux-helm-test)
-    on Github and
- 1. Install Weave Flux and its Helm Operator by specifying your fork
-    URL:
+ 1. Fork [flux-get-started](https://github.com/weaveworks/flux-get-started)
+    on Github and replace the `weaveworks` with your GitHub username in 
+    [here](https://github.com/weaveworks/flux-get-started/blob/master/releases/ghost.yaml#L13)
+ 1. Install Weave Flux and its Helm Operator by specifying your fork URL:
 
       *Just make sure you replace `YOURUSER` with your GitHub username
       in the command below:*
@@ -82,10 +82,10 @@ In this next step you install Weave Flux using `helm`. Simply
     - Using a public git server from `bitbucket.com`, `github.com` or `gitlab.com`:
 
       ```sh
-      helm install --name flux \
+      helm upgrade -i flux \
       --set helmOperator.create=true \
-      --set git.url=ssh://git@github.com/YOURUSER/flux-helm-test \
-      --set helmOperator.git.chartsPath=charts \
+      --set helmOperator.createCRD=false \
+      --set git.url=git@github.com:YOURUSER/flux-get-started \
       --namespace flux \
       weaveworks/flux
       ```
@@ -102,7 +102,7 @@ impatient, run the following command and see the pod creation
 process.
 
 ```sh
-watch kubectl get pods --all-namespaces
+watch kubectl -n flux get pods
 ```
 
 You will notice that `flux` and `flux-helm-operator` will start
@@ -110,17 +110,17 @@ turning up in the `flux` namespace.
 
 ## Giving write access
 
-For the real benefits of GitOps, Flux will need acccess to your
+For the real benefits of GitOps, Flux will need access to your
 git repository to update configuration if necessary. To facilitate
 that you will need to add a deploy key to your fork of the
 repository.
 
 This is pretty straight-forward as Flux generates a SSH key and
-logs the public key at startup. Find the SSH public key with:
+logs the public key at startup. Find the SSH public key by
+installing [fluxctl](./fluxctl.md) and running:
 
 ```sh
-FLUX_POD=$(kubectl get pods --namespace flux -l "app=flux,release=flux" -o jsonpath="{.items[0].metadata.name}")
-kubectl -n flux logs $FLUX_POD | grep identity.pub | cut -d '"' -f2
+fluxctl identity
 ```
 
 In order to sync your cluster state with git you need to copy the
@@ -132,33 +132,36 @@ click on **Add deploy key**, give it a name, check **Allow write
 access**, paste the Flux public key and click **Add key**.
 
 (Or replace `YOURUSER` with your Github ID in this url:
-`https://github.com/YOURUSER/flux-helm-test/settings/keys/new` and
+`https://github.com/YOURUSER/flux-get-started/settings/keys/new` and
 paste the key there.)
 
 Once Flux has confirmed access to the repository, it will start
-deploying the workloads of `flux-helm-test`. After a while you
+deploying the workloads of `flux-get-started`. After a while you
 will be able to see the Helm releases listed like so:
 
 ```sh
-helm list --namespace test
+helm list --namespace demo
 ```
 
 ## Committing a small change
 
-`flux-helm-test` is a very simple example in which two services
-(mongodb and mariadb) are deployed. Here we will simply update the
+`flux-get-started` is a simple example in which three services
+(mongodb, redis and ghost) are deployed. Here we will simply update the
 version of mongodb to a newer version to see if Flux will pick this
 up and update our cluster.
 
-The easiest way is to update your fork of `flux-helm-test` and
+The easiest way is to update your fork of `flux-get-started` and
 change the `image` argument.
 
-Replace `YOURUSER` in `https://github.com/YOURUSER/flux-helm-test/edit/master/releases/mongodb_release.yaml`
+Replace `YOURUSER` in `https://github.com/YOURUSER/flux-get-started/edit/master/releases/mongodb.yaml`
 with your Github ID, open the URL in your browser, edit the file,
-change the `image:` line to the following:
+change the `tag:` line to the following:
 
 ```yaml
- image: bitnami/mongodb:3.7.9-r13
+  values:
+    image:
+      repository: bitnami/mongodb
+      tag: 4.0.2
 ```
 
 Commit the change to your `master` branch. It will now get
@@ -171,23 +174,20 @@ kubectl -n flux logs deployment/flux -f
 ```
 
 The default sync frequency for Flux using the Helm chart is
-30 seconds. This can be tweaked easily. By observing the logs
+five minutes. This can be tweaked easily. By observing the logs
 you can see when the change landed in the cluster.
 
-## Confirm the change landed
-
-To access our webservice and check out its welcome message, simply
-run:
+Confirm the change landed with:
 
 ```sh
-kubectl describe -n test deployment.apps/mongodb-database-mongodb | grep Image
+kubectl describe -n demo deployment/mongodb | grep Image
 ```
 
 ## Conclusion
 
 As you can see, the actual steps to set up Flux, get our app
 deployed, give Flux access to it and see modifications land are
-very straight-forward and are a quite natural work-flow.
+very straight-forward and are a quite natural workflow.
 
 # Next
 

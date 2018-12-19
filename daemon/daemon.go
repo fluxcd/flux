@@ -136,12 +136,17 @@ func (d *Daemon) ListServicesWithOptions(ctx context.Context, opts v11.ListServi
 		case service.IsSystem:
 			readOnly = v6.ReadOnlySystem
 		}
+		var syncError string
+		if service.SyncError != nil {
+			syncError = service.SyncError.Error()
+		}
 		res = append(res, v6.ControllerStatus{
 			ID:         service.ID,
 			Containers: containers2containers(service.ContainersOrNil()),
 			ReadOnly:   readOnly,
 			Status:     service.Status,
 			Rollout:    service.Rollout,
+			SyncError:  syncError,
 			Antecedent: service.Antecedent,
 			Labels:     service.Labels,
 			Automated:  policies.Has(policy.Automated),

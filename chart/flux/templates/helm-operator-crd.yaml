@@ -11,7 +11,7 @@ metadata:
     release: {{ .Release.Name }}
     heritage: {{ .Release.Service }}
   annotations:
-    "helm.sh/hook": crd-install
+    "helm.sh/resource-policy": keep
 spec:
   group: flux.weave.works
   names:
@@ -35,6 +35,9 @@ spec:
             releaseName:
               type: string
               pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
+            timeout:
+              type: integer
+              format: int64
             valueFileSecrets:
               type: array
               items:
@@ -81,7 +84,7 @@ metadata:
     release: {{ .Release.Name }}
     heritage: {{ .Release.Service }}
   annotations:
-    "helm.sh/hook": crd-install
+    "helm.sh/resource-policy": keep
 spec:
   group: helm.integrations.flux.weave.works
   names:

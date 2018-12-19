@@ -1,6 +1,68 @@
 This is the changelog for the Flux daemon; the changelog for the Helm
 operator is in [./CHANGELOG-helmop.md](./CHANGELOG-helmop.md).
 
+## 1.8.2 (2018-12-19)
+
+This holiday season release fixes a handful of annoyances, and adds an
+experimental `--watch` flag for following the progress of `fluxctl
+release`.
+
+### Fixes
+
+- Respect proxy env entries for git operations
+  [weaveworks/flux#1556][#1556]
+- Only push the "sync tag" when the synced revision has changed,
+  avoiding spurious notifications [weaveworks/flux#1605][#1605]
+- Return any sync errors for workloads in the ListControllers API
+  [weaveworks/flux#1521][#1521]
+
+### Improvements
+
+- The experimental flag `fluxctl release --watch` shows the rollout
+  progress of workloads in the release [weaveworks/flux#1525][#1525]
+- The example manifests now include resource requests, to help
+  Kubernetes with scheduling [weaveworks/flux#1541][#1541]
+- We have a more comprehensive [example git
+  repo](https://github.com/weaveworks/flux-get-started), which is
+  mentioned consistently throughout the docs
+  [weaveworks/flux#1527][#1527] and [weaveworks/flux#1540][#1540].
+- Many clarifications and better structure in the docs
+  weaveworks/flux{[#1597], [#1595], [#1563], [#1555], [#1548],
+  [#1550], [#1549], [#1547], [#1508], [#1557]}
+- Registry scanning produces far less log spam, and abandons scans as
+  soon as possible on being throttled [weaveworks/flux#1538][#1538]
+
+### Thanks
+
+Thanks to @Alien2150, @batpok, @bboreham, @brantb, @camilb,
+@davidkarlsen, @dbluxo, @demikl, @dholbach, @dpgeekzero, @etos,
+@hiddeco, @iandotmartin, @jakubbujny, @JeremyParker, @JimPruitt,
+@johnraz, @kopachevsky, @kozejonaz, @leoblanc, @marccarre,
+@marcincuber, @mgazza, @michalschott, @montyz, @ncabatoff, @nmaupu,
+@Nogbit, @pdeveltere, @rampreethethiraj, @rndstr, @samisq, @scjudd,
+@sfrique, @Smirl, @songsak2299, @squaremo, @stefanprodan,
+@stephenmoloney, @Timer, @whereismyjetpack, @willnewby for
+contributions in the period up to this release.
+
+[#1508]: https://github.com/weaveworks/flux/pull/1508
+[#1521]: https://github.com/weaveworks/flux/pull/1521
+[#1525]: https://github.com/weaveworks/flux/pull/1525
+[#1527]: https://github.com/weaveworks/flux/pull/1527
+[#1538]: https://github.com/weaveworks/flux/pull/1538
+[#1540]: https://github.com/weaveworks/flux/pull/1540
+[#1541]: https://github.com/weaveworks/flux/pull/1541
+[#1547]: https://github.com/weaveworks/flux/pull/1547
+[#1548]: https://github.com/weaveworks/flux/pull/1548
+[#1549]: https://github.com/weaveworks/flux/pull/1549
+[#1550]: https://github.com/weaveworks/flux/pull/1550
+[#1555]: https://github.com/weaveworks/flux/pull/1555
+[#1556]: https://github.com/weaveworks/flux/pull/1556
+[#1557]: https://github.com/weaveworks/flux/pull/1557
+[#1563]: https://github.com/weaveworks/flux/pull/1563
+[#1595]: https://github.com/weaveworks/flux/pull/1595
+[#1597]: https://github.com/weaveworks/flux/pull/1597
+[#1605]: https://github.com/weaveworks/flux/pull/1605
+
 ## 1.8.1 (2018-10-15)
 
 This release completes the support for `HelmRelease` resources as used
@@ -47,7 +109,7 @@ range. If you run into difficulties relating to the `kubectl` version,
 
 ### Thanks
 
-Thanks goes to @Ashiroq, @JimPruitt, @MansM, @Morriz, @Smirl, @Timer,
+Thanks go to @Ashiroq, @JimPruitt, @MansM, @Morriz, @Smirl, @Timer,
 @aytekk, @bzon, @camilb, @claude-leveille, @demikl, @dholbach,
 @endrec, @foot, @hiddeco, @jrcole2884, @lelenanam, @marcusolsson,
 @mellena1, @montyz, @olib963, @rade, @rndstr, @sfitts, @squaremo,

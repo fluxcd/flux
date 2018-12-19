@@ -1,4 +1,3 @@
-{{- $gitPollInterval := default .Values.git.pollInterval .Values.helmOperator.git.pollInterval }}
 {{- $gitTimeout := default .Values.git.timeout .Values.helmOperator.git.timeout }}
 {{- if .Values.helmOperator.create -}}
 apiVersion: apps/v1beta2
@@ -26,14 +25,14 @@ spec:
         app: {{ template "flux.name" . }}-helm-operator
         release: {{ .Release.Name }}
     spec:
-      {{- if .Values.serviceAccount.create }}
       serviceAccountName: {{ template "flux.serviceAccountName" . }}
-      {{- end }}
       volumes:
+      {{- if .Values.ssh.known_hosts }}
       - name: sshdir
         configMap:
           name: {{ template "flux.fullname" . }}-ssh-config
           defaultMode: 0600
+      {{- end }}
       - name: git-key
         secret:
           {{- if .Values.helmOperator.git.secretName }}
@@ -61,10 +60,12 @@ spec:
         image: "{{ .Values.helmOperator.repository }}:{{ .Values.helmOperator.tag }}"
         imagePullPolicy: {{ .Values.helmOperator.pullPolicy }}
         volumeMounts:
+        {{- if .Values.ssh.known_hosts }}
         - name: sshdir
           mountPath: /root/.ssh/known_hosts
           subPath: known_hosts
           readOnly: true
+        {{- end }}
         - name: git-key
           mountPath: /etc/fluxd/ssh
           readOnly: true
@@ -79,7 +80,6 @@ spec:
         {{- end }}
         {{- end }}
         args:
-        - --git-poll-interval={{ $gitPollInterval }}
         - --git-timeout={{ $gitTimeout }}
         - --charts-sync-interval={{ .Values.helmOperator.chartsSyncInterval }}
         - --update-chart-deps={{ .Values.helmOperator.updateChartDeps }}
