@@ -1,42 +1,32 @@
 # Flux Helm Operator
 
 The Helm operator deals with Helm Chart releases. The operator watches for
-changes of Custom Resources of kind FluxHelmRelease. It receives Kubernetes
+changes of Custom Resources of kind HelmRelease. It receives Kubernetes
 Events and acts accordingly, installing, upgrading or deleting a Chart release.
 
 ## Setup and configuration
 
 helm-operator requires setup and offers customization though a multitude of flags.
-(TODO: change the flags to reflect reality)
 
-|flag                    | default                       | purpose |
-|------------------------|-------------------------------|---------|
-|--kubernetes-kubectl          |                               | Optional, explicit path to kubectl tool.|
-|--kubeconfig                  |                               | Path to a kubeconfig. Only required if out-of-cluster.|
-|--master                      |                               | The address of the Kubernetes API server. Overrides any value in kubeconfig. Only required if out-of-cluster.|
-|                              |                               | **Tiller options**|
-|--tillerIP                    |                               | Tiller IP address. Only required if out-of-cluster.|
-|--tillerPort                  |                               | Tiller port.|
-|--tillerNamespace             |                               | Tiller namespace. If not provided, the default is kube-system.| |
+|flag                          | default                       | purpose |
+|------------------------------|-------------------------------|---------|
+|--kubeconfig                  |                               | Path to a kubeconfig. Only required if out-of-cluster. |
+|--master                      |                               | The address of the Kubernetes API server. Overrides any value in kubeconfig. Only required if out-of-cluster. |
+|                              |                               | **Tiller options** |
+|--tiller-ip                   |                               | Tiller IP address. Only required if out-of-cluster. |
+|--tiller-port                 |                               | Tiller port. |
+|--tiller-namespace            |                               | Tiller namespace. If not provided, the default is kube-system. |
 |--tiller-tls-enable           |`false`                        | Enable TLS communication with Tiller. If provided, requires TLSKey and TLSCert to be provided as well. |
 |--tiller-tls-verify           |`false`                        | Verify TLS certificate from Tiller. Will enable TLS communication when provided. |
-|--tiller-tls-tls-key-path     |`/etc/fluxd/helm/tls.key`      | Path to private key file used to communicate with the Tiller server. |
-|--tiller-tls-tls-cert-path    |`/etc/fluxd/helm/tls.crt`      | Path to certificate file used to communicate with the Tiller server. |
-|--tiller-tls-tls-ca-cert-path |                               | Path to CA certificate file used to validate the Tiller server. Required if tiller-tls-verify is enabled. |
+|--tiller-tls-key-path         |`/etc/fluxd/helm/tls.key`      | Path to private key file used to communicate with the Tiller server. |
+|--tiller-tls-cert-path        |`/etc/fluxd/helm/tls.crt`      | Path to certificate file used to communicate with the Tiller server. |
+|--tiller-tls-ca-cert-path     |                               | Path to CA certificate file used to validate the Tiller server. Required if tiller-tls-verify is enabled. |
 |--tiller-tls-hostname         |                               | The server name used to verify the hostname on the returned certificates from the Tiller server. |
-|                              |                               | **Git repo & key etc.**|
-|--git-url                     |                               | URL of git repo with Helm Charts; e.g., `ssh://git@github.com/weaveworks/flux-example`|
-|--git-branch                  | `master`                      | Branch of git repo to use for Kubernetes manifests|
-|--git-charts-path             | `charts`                      | Path within git repo to locate Kubernetes Charts (relative path)|
 |                              |                               | **repo chart changes** (none of these need overriding, usually) |
-|--git-timeout                 | `20 seconds`                  | duration after which git operations time out |
-|--git-poll-interval           | `5 minutes`                   | period at which to poll git repo for new commits|
-|--chartsSyncInterval          | 3*time.Minute                 | Interval at which to check for changed charts.|
-|--chartsSyncTimeout           | 1*time.Minute                 | Timeout when checking for changed charts.|
-|                              |                               | **k8s-secret backed ssh keyring configuration**|
-|--k8s-secret-volume-mount-path | `/etc/fluxd/ssh`       | Mount location of the k8s secret storing the private SSH key|
-|--k8s-secret-data-key         | `identity`                    | Data key holding the private SSH key within the k8s secret|
-|--queueWorkerCount            |  2                            | Number of workers to process queue with Chart release jobs.|
+|--charts-sync-interval        | `3m`                          | Interval at which to check for changed charts. |
+|--git-timeout                 | `20s`                         | Duration after which git operations time out. |
+|--log-release-diffs           | `false`                       | Log the diff when a chart release diverges. **Potentially insecure.** |
+|--update-chart-deps           | `true`                        | Update chart dependencies before installing or upgrading a release. |
 
 ## Installing Weave Flux helm-operator and Helm with TLS enabled
 

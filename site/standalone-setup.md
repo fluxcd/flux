@@ -3,6 +3,17 @@ title: Customising the deployment
 menu_order: 20
 ---
 
+- [Customising the deployment](#customising-the-deployment)
+- [Customising the daemon configuration](#customising-the-daemon-configuration)
+  * [Connect Flux to a repository](#connect-flux-to-a-repository)
+  * [Memcache](#memcache)
+  * [Flux deployment](#flux-deployment)
+  * [Add an SSH deploy key to the repository](#add-an-ssh-deploy-key-to-the-repository)
+    + [1. Allow Flux to generate a key for you.](#1-allow-flux-to-generate-a-key-for-you)
+    + [2. Specify a key to use](#2-specify-a-key-to-use)
+    + [Note for Kubernetes >=1.6 with role-based access control (RBAC)](#note-for-kubernetes-16-with-role-based-access-control-rbac)
+  * [Using a private git host](#using-a-private-git-host)
+
 # Customising the deployment
 
 The deployment installs Flux and its dependencies. First, change to
@@ -51,7 +62,7 @@ You have two options:
 ### 1. Allow Flux to generate a key for you.
 
 If you don't specify a key to use, Flux will create one for you. Obtain
-the public key through `fluxctl`:
+the public key through [fluxctl](./fluxctl.md):
 
 ```sh
 fluxctl identity

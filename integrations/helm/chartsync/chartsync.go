@@ -88,6 +88,7 @@ type Config struct {
 	ChartCache string
 	LogDiffs   bool
 	UpdateDeps bool
+	GitTimeout time.Duration
 }
 
 func (c Config) WithDefaults() Config {
@@ -264,7 +265,7 @@ func mirrorName(chartSource *fluxv1beta1.GitChartSource) string {
 func (chs *ChartChangeSync) maybeMirror(fhr fluxv1beta1.HelmRelease) {
 	chartSource := fhr.Spec.ChartSource.GitChartSource
 	if chartSource != nil {
-		if ok := chs.mirrors.Mirror(mirrorName(chartSource), git.Remote{chartSource.GitURL}, git.ReadOnly); !ok {
+		if ok := chs.mirrors.Mirror(mirrorName(chartSource), git.Remote{chartSource.GitURL}, git.Timeout(chs.config.GitTimeout), git.ReadOnly); !ok {
 			chs.logger.Log("info", "started mirroring repo", "repo", chartSource.GitURL)
 		}
 	}
@@ -324,7 +325,7 @@ func (chs *ChartChangeSync) reconcileReleaseDef(fhr fluxv1beta1.HelmRelease) {
 		chartPath = filepath.Join(chartClone.export.Dir(), chartSource.Path)
 
 		if chs.config.UpdateDeps {
-			if err := updateDependencies(chartPath); err != nil {
+			if err := updateDependencies(chartPath, ""); err != nil {
 				chs.setCondition(&fhr, fluxv1beta1.HelmReleaseReleased, v1.ConditionFalse, ReasonDependencyFailed, err.Error())
 				chs.logger.Log("warning", "Failed to update chart dependencies", "namespace", fhr.Namespace, "name", fhr.Name, "error", err)
 				return

@@ -1,3 +1,34 @@
+## 0.5.2 (2018-12-20)
+
+### Bug fixes
+
+  - Respect proxy env entries for git operations
+    [weaveworks/flux#1556](https://github.com/weaveworks/flux/pull/1556)
+  - Reimplement git timeout after accidentally removing it in `0.5.0`
+    [weaveworks/flux#1565](https://github.com/weaveworks/flux/pull/1565)
+  - Mark `--git-poll-interval` flag as deprecated
+    [weaveworks/flux#1565](https://github.com/weaveworks/flux/pull/1565)
+  - Only update chart dependencies if a `requirements.yaml` exists
+    weaveworks/flux{[#1561](https://github.com/weaveworks/flux/pull/1561), [#1606](https://github.com/weaveworks/flux/pull/1606)}
+    
+### Improvements
+
+  - `HelmRelease` now has a `timeout` field (defaults to `300s`),
+    giving you control over the amount of time it may take for Helm to
+    install or upgrade your chart
+    [weaveworks/flux#1566](https://github.com/weaveworks/flux/pull/1566)
+  - The Helm operator [flag docs](./site/helm-operator.md#setup-and-configuration)
+    have been updated
+    [weaveworks/flux#1594](https://github.com/weaveworks/flux/pull/1594)
+  - Added tests to ensure Helm dependencies update behaviour is always as
+    expected
+    [weaveworks/flux#1562](https://github.com/weaveworks/flux/pull/1562)
+
+### Thanks
+
+Thanks to @stephenmoloney, @sfrique, @mgazza, @stefanprodan, @squaremo,
+@rade and @hiddeco for their contributions.
+
 ## 0.5.1 (2018-11-21)
 
 ### Bug fixes

@@ -7,7 +7,7 @@ replicaCount: 1
 
 image:
   repository: quay.io/weaveworks/flux
-  tag: 1.8.0
+  tag: 1.8.1
   pullPolicy: IfNotPresent
 
 service:
@@ -18,7 +18,7 @@ helmOperator:
   create: false
   createCRD: true
   repository: quay.io/weaveworks/helm-operator
-  tag: 0.4.0
+  tag: 0.5.1
   pullPolicy: IfNotPresent
   # Update dependencies for charts
   updateChartDeps: true
@@ -54,15 +54,10 @@ helmOperator:
   nodeSelector: {}
   tolerations: []
   affinity: {}
-  resources: {}
-    # If you do want to specify resources, uncomment the following
-    # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
-    # limits:
-    #  cpu: 50m
-    #  memory: 150Mi
-    # requests:
-    #  cpu: 20m
-    #  memory: 100Mi
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
 
 rbac:
   # Specifies whether RBAC resources should be created
@@ -75,15 +70,10 @@ serviceAccount:
   # If not set and create is true, a name is generated using the fullname template
   name:
 
-resources: {}
-  # If you do want to specify resources, uncomment the following
-  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
-  # limits:
-  #  cpu: 250m
-  #  memory: 300Mi
-  # requests:
-  #  cpu: 150m
-  #  memory: 250Mi
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
 
 nodeSelector: {}
 
@@ -92,7 +82,7 @@ tolerations: []
 affinity: {}
 
 git:
-  # URL of git repo with Kubernetes manifests; e.g. git.url=ssh://git@github.com/weaveworks/flux-example
+  # URL of git repo with Kubernetes manifests; e.g. git.url=ssh://git@github.com/weaveworks/flux-get-started
   url: ""
   # Branch of git repo to use for Kubernetes manifests
   branch: "master"
@@ -134,6 +124,8 @@ registry:
   cacheExpiry:
 
 memcached:
+  repository: memcached
+  tag: 1.4.25
   verbose: false
   maxItemSize: 1m
   maxMemory: 64

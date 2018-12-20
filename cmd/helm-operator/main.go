@@ -49,8 +49,7 @@ var (
 	logReleaseDiffs    *bool
 	updateDependencies *bool
 
-	gitPollInterval *time.Duration
-	gitTimeout      *time.Duration
+	gitTimeout *time.Duration
 
 	listenAddr *string
 )
@@ -93,8 +92,10 @@ func init() {
 	logReleaseDiffs = fs.Bool("log-release-diffs", false, "log the diff when a chart release diverges; potentially insecure")
 	updateDependencies = fs.Bool("update-chart-deps", true, "Update chart dependencies before installing/upgrading a release")
 
-	gitPollInterval = fs.Duration("git-poll-interval", 5*time.Minute, "period on which to poll for changes to the git repo")
+	_ = fs.Duration("git-poll-interval", 0, "")
 	gitTimeout = fs.Duration("git-timeout", 20*time.Second, "duration after which git operations time out")
+
+	fs.MarkDeprecated("git-poll-interval", "no longer used; has been replaced by charts-sync-interval")
 }
 
 func main() {
@@ -181,7 +182,7 @@ func main() {
 	chartSync := chartsync.New(log.With(logger, "component", "chartsync"),
 		chartsync.Polling{Interval: *chartsSyncInterval},
 		chartsync.Clients{KubeClient: *kubeClient, IfClient: *ifClient},
-		rel, chartsync.Config{LogDiffs: *logReleaseDiffs, UpdateDeps: *updateDependencies})
+		rel, chartsync.Config{LogDiffs: *logReleaseDiffs, UpdateDeps: *updateDependencies, GitTimeout: *gitTimeout})
 	chartSync.Run(shutdown, errc, shutdownWg)
 
 	// OPERATOR - CUSTOM RESOURCE CHANGE SYNC -----------------------------------------------

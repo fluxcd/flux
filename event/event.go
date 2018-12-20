@@ -266,7 +266,7 @@ func (s ReleaseSpec) IsKindExecute() (bool, error) {
 			return true, nil
 		}
 	case ReleaseContainersSpecType:
-		if s.ReleaseContainersSpec != nil && s.ReleaseImageSpec.Kind == update.ReleaseKindExecute {
+		if s.ReleaseContainersSpec != nil && s.ReleaseContainersSpec.Kind == update.ReleaseKindExecute {
 			return true, nil
 		}
 
