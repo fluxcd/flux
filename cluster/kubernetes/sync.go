@@ -9,13 +9,269 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-kit/kit/log"
+	"github.com/imdario/mergo"
+	"github.com/pkg/errors"
+	"gopkg.in/yaml.v2"
+	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	rest "k8s.io/client-go/rest"
 
-	"github.com/go-kit/kit/log"
-	"github.com/pkg/errors"
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster"
+	kresource "github.com/weaveworks/flux/cluster/kubernetes/resource"
+	"github.com/weaveworks/flux/policy"
+	"github.com/weaveworks/flux/resource"
 )
+
+const (
+	stackLabel         = kresource.PolicyPrefix + "stack"
+	checksumAnnotation = kresource.PolicyPrefix + "stack_checksum"
+)
+
+// Sync takes a definition of what should be running in the cluster,
+// and attempts to make the cluster conform. An error return does not
+// necessarily indicate complete failure; some resources may succeed
+// in being synced, and some may fail (for example, they may be
+// malformed).
+func (c *Cluster) Sync(spec cluster.SyncDef) error {
+	logger := log.With(c.logger, "method", "Sync")
+
+	type checksum struct {
+		stack, sum string
+	}
+	// Keep track of the checksum of each stack, so we can compare
+	// them during garbage collection.
+	checksums := map[string]checksum{}
+
+	// NB we get all resources, since we care about leaving unsynced,
+	// _ignored_ resources alone.
+	clusterResources, err := c.getResourcesBySelector("")
+	if err != nil {
+		return errors.Wrap(err, "collating resources in cluster for sync")
+	}
+
+	cs := makeChangeSet()
+	var errs cluster.SyncError
+	for _, stack := range spec.Stacks {
+		for _, res := range stack.Resources {
+			id := res.ResourceID().String()
+			// make a record of the checksum, whether we stage it to
+			// be applied or not, so that we don't delete it later.
+			checksums[id] = checksum{stack.Name, stack.Checksum}
+			if res.Policy().Has(policy.Ignore) {
+				continue
+			}
+			if cres, ok := clusterResources[id]; ok && cres.Policy().Has(policy.Ignore) {
+				continue
+			}
+			resBytes, err := applyMetadata(res, stack.Name, stack.Checksum)
+			if err == nil {
+				cs.stage("apply", res.ResourceID(), res.Source(), resBytes)
+			} else {
+				errs = append(errs, cluster.ResourceError{ResourceID: res.ResourceID(), Source: res.Source(), Error: err})
+				break
+			}
+		}
+	}
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.muSyncErrors.RLock()
+	if applyErrs := c.applier.apply(logger, cs, c.syncErrors); len(applyErrs) > 0 {
+		errs = append(errs, applyErrs...)
+	}
+	c.muSyncErrors.RUnlock()
+
+	if c.GC {
+		orphanedResources := makeChangeSet()
+
+		clusterResources, err := c.getResourcesInStack()
+		if err != nil {
+			return errors.Wrap(err, "collating resources in cluster for calculating garbage collection")
+		}
+
+		for resourceID, res := range clusterResources {
+			actual := checksum{res.GetStack(), res.GetChecksum()}
+			expected, ok := checksums[resourceID]
+
+			switch {
+			case !ok: // was not recorded as having been staged for application
+				c.logger.Log("info", "cluster resource not in resources to be synced; deleting", "resource", resourceID)
+				orphanedResources.stage("delete", res.ResourceID(), "<cluster>", res.Bytes())
+			case actual.stack == "": // the label has been removed, out of band (or due to a bug). Best to leave it.
+				c.logger.Log("warning", "cluster resource with empty stack label; skipping", "resource", resourceID)
+				continue
+			case actual != expected:
+				c.logger.Log("warning", "resource to be synced has not been updated; skipping", "resource", resourceID)
+				continue
+			default:
+				// The stack and checksum are the same, indicating that it was applied earlier. Leave it alone.
+			}
+		}
+
+		if deleteErrs := c.applier.apply(logger, orphanedResources, nil); len(deleteErrs) > 0 {
+			errs = append(errs, deleteErrs...)
+		}
+	}
+
+	// If `nil`, errs is a cluster.SyncError(nil) rather than error(nil), so it cannot be returned directly.
+	if errs == nil {
+		return nil
+	}
+
+	// It is expected that Cluster.Sync is invoked with *all* resources.
+	// Otherwise it will override previously recorded sync errors.
+	c.setSyncErrors(errs)
+	return errs
+}
+
+// --- internals in support of Sync
+
+type kuberesource struct {
+	obj *unstructured.Unstructured
+}
+
+func (r *kuberesource) ResourceID() flux.ResourceID {
+	ns, kind, name := r.obj.GetNamespace(), r.obj.GetKind(), r.obj.GetName()
+	return flux.MakeResourceID(ns, kind, name)
+}
+
+// Bytes returns a byte slice description
+func (r *kuberesource) Bytes() []byte {
+	return []byte(fmt.Sprintf(`
+apiVersion: %s
+kind: %s
+metadata:
+  namespace: %q
+  name: %q
+`, r.obj.GetAPIVersion(), r.obj.GetKind(), r.obj.GetNamespace(), r.obj.GetName()))
+}
+
+func (r *kuberesource) Policy() policy.Set {
+	return kresource.PolicyFromAnnotations(r.obj.GetAnnotations())
+}
+
+// GetChecksum returns the checksum recorded on the resource from
+// Kubernetes, or an empty string if it's not present.
+func (r *kuberesource) GetChecksum() string {
+	return r.obj.GetAnnotations()[checksumAnnotation]
+}
+
+// GetStack returns the stack recorded on the the resource from
+// Kubernetes, or an empty string if it's not present.
+func (r *kuberesource) GetStack() string {
+	return r.obj.GetLabels()[stackLabel]
+}
+
+func (c *Cluster) getResourcesBySelector(selector string) (map[string]*kuberesource, error) {
+	listOptions := meta_v1.ListOptions{}
+	if selector != "" {
+		listOptions.LabelSelector = selector
+	}
+
+	resources, err := c.client.coreClient.Discovery().ServerResources()
+	if err != nil {
+		return nil, err
+	}
+
+	result := map[string]*kuberesource{}
+
+	contains := func(a []string, x string) bool {
+		for _, n := range a {
+			if x == n {
+				return true
+			}
+		}
+		return false
+	}
+
+	for _, resource := range resources {
+		for _, apiResource := range resource.APIResources {
+			verbs := apiResource.Verbs
+			if !contains(verbs, "list") {
+				continue
+			}
+
+			// get group and version
+			var group, version string
+			groupVersion := resource.GroupVersion
+			if strings.Contains(groupVersion, "/") {
+				a := strings.SplitN(groupVersion, "/", 2)
+				group = a[0]
+				version = a[1]
+			} else {
+				group = ""
+				version = groupVersion
+			}
+
+			resourceClient := c.client.dynamicClient.Resource(schema.GroupVersionResource{
+				Group:    group,
+				Version:  version,
+				Resource: apiResource.Name,
+			})
+			data, err := resourceClient.List(listOptions)
+			if err != nil {
+				return nil, err
+			}
+
+			for i, item := range data.Items {
+				apiVersion := item.GetAPIVersion()
+				kind := item.GetKind()
+
+				itemDesc := fmt.Sprintf("%s:%s", apiVersion, kind)
+				// https://github.com/kontena/k8s-client/blob/6e9a7ba1f03c255bd6f06e8724a1c7286b22e60f/lib/k8s/stack.rb#L17-L22
+				if itemDesc == "v1:ComponentStatus" || itemDesc == "v1:Endpoints" {
+					continue
+				}
+				// TODO(michael) also exclude anything that has an ownerReference (that isn't "standard"?)
+
+				res := &kuberesource{obj: &data.Items[i]}
+				result[res.ResourceID().String()] = res
+			}
+		}
+	}
+
+	return result, nil
+}
+
+// exportResourcesInStack collates all the resources that belong to a
+// stack, i.e., were applied by flux.
+func (c *Cluster) getResourcesInStack() (map[string]*kuberesource, error) {
+	return c.getResourcesBySelector(stackLabel) // means "has label <<stackLabel>>"
+}
+
+func applyMetadata(res resource.Resource, stack, checksum string) ([]byte, error) {
+	definition := map[interface{}]interface{}{}
+	if err := yaml.Unmarshal(res.Bytes(), &definition); err != nil {
+		return nil, errors.Wrap(err, fmt.Sprintf("failed to parse yaml from %s", res.Source()))
+	}
+
+	mixin := map[string]interface{}{}
+
+	if stack != "" {
+		mixinLabels := map[string]string{}
+		mixinLabels[stackLabel] = stack
+		mixin["labels"] = mixinLabels
+	}
+
+	if checksum != "" {
+		mixinAnnotations := map[string]string{}
+		mixinAnnotations[checksumAnnotation] = checksum
+		mixin["annotations"] = mixinAnnotations
+	}
+
+	mergo.Merge(&definition, map[interface{}]interface{}{
+		"metadata": mixin,
+	})
+
+	bytes, err := yaml.Marshal(definition)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to serialize yaml after applying metadata")
+	}
+	return bytes, nil
+}
 
 // --- internal types for keeping track of syncing
 
