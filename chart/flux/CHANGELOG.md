@@ -1,3 +1,21 @@
+## 0.5.2 (2018-12-20)
+
+### Improvements
+
+ - Updated Flux to `v1.8.2` and Helm operator to `v0.5.2`
+   [weaveworks/flux#1612](https://github.com/weaveworks/flux/pull/1612)
+ - Parameterized the memcached image repo
+   [weaveworks/flux#1592](https://github.com/weaveworks/flux/pull/1592)
+ - Allow existing service account to be provided on helm install
+   [weaveworks/flux#1589](https://github.com/weaveworks/flux/pull/1589)
+ - Make SSH known hosts volume optional
+   [weaveworks/flux#1544](https://github.com/weaveworks/flux/pull/1544)
+
+### Thanks
+
+Thanks to @davidkarlsen, @stephenmoloney, @batpok, @squaremo,
+@hiddeco and @stefanprodan for their contributions.
+
 ## 0.5.1 (2018-11-21)
 
 ### Bug fixes
