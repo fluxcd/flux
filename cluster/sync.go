@@ -18,7 +18,6 @@ import (
 // it involves examining each resource individually).
 type SyncStack struct {
 	Name      string
-	Checksum  string
 	Resources []resource.Resource
 }
 

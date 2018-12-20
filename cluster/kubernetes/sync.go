@@ -2,6 +2,8 @@ package kubernetes
 
 import (
 	"bytes"
+	"crypto/sha1"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"os/exec"
@@ -59,14 +61,16 @@ func (c *Cluster) Sync(spec cluster.SyncDef) error {
 			id := res.ResourceID().String()
 			// make a record of the checksum, whether we stage it to
 			// be applied or not, so that we don't delete it later.
-			checksums[id] = checksum{stack.Name, stack.Checksum}
+			csum := sha1.Sum(res.Bytes())
+			checkHex := hex.EncodeToString(csum[:])
+			checksums[id] = checksum{stack.Name, checkHex}
 			if res.Policy().Has(policy.Ignore) {
 				continue
 			}
 			if cres, ok := clusterResources[id]; ok && cres.Policy().Has(policy.Ignore) {
 				continue
 			}
-			resBytes, err := applyMetadata(res, stack.Name, stack.Checksum)
+			resBytes, err := applyMetadata(res, stack.Name, checkHex)
 			if err == nil {
 				cs.stage("apply", res.ResourceID(), res.Source(), resBytes)
 			} else {

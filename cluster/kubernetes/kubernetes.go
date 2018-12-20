@@ -14,11 +14,9 @@ import (
 	k8sclientdynamic "k8s.io/client-go/dynamic"
 	k8sclient "k8s.io/client-go/kubernetes"
 
-	kresource "github.com/weaveworks/flux/cluster/kubernetes/resource"
-	fhrclient "github.com/weaveworks/flux/integrations/client/clientset/versioned"
-
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster"
+	fhrclient "github.com/weaveworks/flux/integrations/client/clientset/versioned"
 	"github.com/weaveworks/flux/ssh"
 )
 
