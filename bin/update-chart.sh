@@ -17,6 +17,6 @@ if [ -z "$REV" ]; then
     exit 1
 fi
 
-git clone -b "$REV" git@github.com:weaveworks/flux "$scratch"
+git clone -b "$REV" https://github.com/weaveworks/flux "$scratch"
 helm package "$scratch/chart/flux/"
 helm repo index . --url https://weaveworks.github.io/flux --merge index.yaml
