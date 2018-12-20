@@ -10,4 +10,4 @@ maintainers:
   - name: stefanprodan
     email: stefan@weave.works
 engine: gotpl
-icon: https://landscape.cncf.io/logos/weave-flux.svg
+icon: https://raw.githubusercontent.com/weaveworks/flux/master/site/images/weave-flux.png
