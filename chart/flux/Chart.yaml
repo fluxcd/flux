@@ -12,3 +12,5 @@ maintainers:
     email: stefan@weave.works
 engine: gotpl
 icon: https://raw.githubusercontent.com/weaveworks/flux/master/site/images/weave-flux.png
+keywords:
+  - gitops
