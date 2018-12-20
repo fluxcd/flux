@@ -7,7 +7,7 @@ replicaCount: 1
 
 image:
   repository: quay.io/weaveworks/flux
-  tag: 1.8.1
+  tag: 1.8.2
   pullPolicy: IfNotPresent
 
 service:
@@ -18,7 +18,7 @@ helmOperator:
   create: false
   createCRD: true
   repository: quay.io/weaveworks/helm-operator
-  tag: 0.5.1
+  tag: 0.5.2
   pullPolicy: IfNotPresent
   # Update dependencies for charts
   updateChartDeps: true
