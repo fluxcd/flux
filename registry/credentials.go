@@ -36,6 +36,22 @@ func NoCredentials() Credentials {
 	}
 }
 
+func parseAuth(auth string) (creds, error) {
+	decodedAuth, err := base64.StdEncoding.DecodeString(auth)
+	if err != nil {
+		return creds{}, err
+	}
+	authParts := strings.SplitN(string(decodedAuth), ":", 2)
+	if len(authParts) != 2 {
+		return creds{},
+			fmt.Errorf("decoded credential has wrong number of fields (expected 2, got %d)", len(authParts))
+	}
+	return creds{
+		username: authParts[0],
+		password: authParts[1],
+	}, nil
+}
+
 func ParseCredentials(from string, b []byte) (Credentials, error) {
 	var config struct {
 		Auths map[string]struct {
@@ -53,14 +69,9 @@ func ParseCredentials(from string, b []byte) (Credentials, error) {
 	}
 	m := map[string]creds{}
 	for host, entry := range config.Auths {
-		decodedAuth, err := base64.StdEncoding.DecodeString(entry.Auth)
+		creds, err := parseAuth(entry.Auth)
 		if err != nil {
 			return Credentials{}, err
-		}
-		authParts := strings.SplitN(string(decodedAuth), ":", 2)
-		if len(authParts) != 2 {
-			return Credentials{},
-				fmt.Errorf("decoded credential for %v has wrong number of fields (expected 2, got %d)", host, len(authParts))
 		}
 
 		// Some users were passing in credentials in the form of
@@ -87,12 +98,9 @@ func ParseCredentials(from string, b []byte) (Credentials, error) {
 		}
 		host = u.Host
 
-		m[host] = creds{
-			registry:   host,
-			provenance: from,
-			username:   authParts[0],
-			password:   authParts[1],
-		}
+		creds.registry = host
+		creds.provenance = from
+		m[host] = creds
 	}
 	return Credentials{m: m}, nil
 }
