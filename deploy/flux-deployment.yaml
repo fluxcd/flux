@@ -17,7 +17,7 @@ spec:
       labels:
         name: flux
     spec:
-      serviceAccount: flux
+      serviceAccountName: flux
       volumes:
       - name: git-key
         secret:
@@ -93,7 +93,10 @@ spec:
         # or with a different service name, you can supply these
         # following two arguments to tell fluxd how to connect to it.
         # - --memcached-hostname=memcached.default.svc.cluster.local
-        # - --memcached-service=memcached
+
+        # use the memcached ClusterIP service name by setting the
+        # memcached-service to string empty
+        - --memcached-service=
 
         # this must be supplied, and be in the tmpfs (emptyDir)
         # mounted above, for K8s >= 1.10

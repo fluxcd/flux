@@ -126,6 +126,7 @@ registry:
 memcached:
   repository: memcached
   tag: 1.4.25
+  createClusterIP: true
   verbose: false
   maxItemSize: 1m
   maxMemory: 64
