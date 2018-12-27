@@ -14,6 +14,8 @@ package memcached
 import (
 	"encoding/binary"
 	"fmt"
+	"net"
+	"sort"
 	"sync"
 	"time"
 
@@ -156,8 +158,20 @@ func (c *MemcacheClient) updateLoop(updateInterval time.Duration) {
 	}
 }
 
-// updateMemcacheServers sets the memcache server address using the K8s service name
+// updateMemcacheServers sets a memcache server list from SRV records. SRV
+// priority & weight are ignored.
 func (c *MemcacheClient) updateMemcacheServers() error {
-	servers := []string{fmt.Sprintf("%s:11211", c.hostname)}
+	_, addrs, err := net.LookupSRV(c.service, "tcp", c.hostname)
+	if err != nil {
+		return err
+	}
+	var servers []string
+	for _, srv := range addrs {
+		servers = append(servers, fmt.Sprintf("%s:%d", srv.Target, srv.Port))
+	}
+	// ServerList deterministically maps keys to _index_ of the server list.
+	// Since DNS returns records in different order each time, we sort to
+	// guarantee best possible match between nodes.
+	sort.Strings(servers)
 	return c.serverList.SetServers(servers...)
 }
