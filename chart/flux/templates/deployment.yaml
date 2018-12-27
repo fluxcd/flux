@@ -76,6 +76,9 @@ spec:
           - --ssh-keygen-dir=/var/fluxd/keygen
           - --k8s-secret-name={{ template "flux.fullname" . }}-git-deploy
           - --memcached-hostname={{ template "flux.fullname" . }}-memcached
+          {{- if .Values.memcached.createClusterIP }}
+          - --memcached-service=
+          {{- end }}
           - --git-url={{ .Values.git.url }}
           - --git-branch={{ .Values.git.branch }}
           - --git-path={{ .Values.git.path }}

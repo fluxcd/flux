@@ -282,14 +282,24 @@ func main() {
 	{
 		// Cache client, for use by registry and cache warmer
 		var cacheClient cache.Client
-		memcacheClient := registryMemcache.NewMemcacheClient(registryMemcache.MemcacheConfig{
+		var memcacheClient *registryMemcache.MemcacheClient
+		memcacheConfig := registryMemcache.MemcacheConfig{
 			Host:           *memcachedHostname,
 			Service:        *memcachedService,
 			Timeout:        *memcachedTimeout,
 			UpdateInterval: 1 * time.Minute,
 			Logger:         log.With(logger, "component", "memcached"),
 			MaxIdleConns:   *registryBurst,
-		})
+		}
+
+		// if no memcached service is specified use the ClusterIP name instead of SRV records
+		if *memcachedService == "" {
+			memcacheClient = registryMemcache.NewFixedServerMemcacheClient(memcacheConfig,
+				fmt.Sprintf("%s:11211", *memcachedHostname))
+		} else {
+			memcacheClient = registryMemcache.NewMemcacheClient(memcacheConfig)
+		}
+
 		defer memcacheClient.Stop()
 		cacheClient = cache.InstrumentClient(memcacheClient)
 

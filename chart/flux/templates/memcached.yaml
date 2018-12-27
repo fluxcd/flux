@@ -60,7 +60,9 @@ metadata:
     release: {{ .Release.Name }}
     heritage: {{ .Release.Service }}
 spec:
+  {{- if eq .Values.memcached.createClusterIP false }}
   clusterIP: None
+  {{- end }}
   ports:
     - port: 11211
       targetPort: memcached

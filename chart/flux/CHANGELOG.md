@@ -1,3 +1,20 @@
+## 0.6.0 (TBA)
+
+**Note** To fix the connectivity problems between Flux and memcached we've changed the 
+memcached service from headless to ClusterIP. This change will make the Helm upgrade fail 
+with `ClusterIP field is immutable`. 
+
+Before upgrading to 0.6.0 you have to delete the memcached headless service:
+
+```bash
+kubectl -n flux delete svc flux-memcached
+```
+
+### Improvements
+
+ - Use ClusterIP service name for connecting to memcached
+   [weaveworks/flux#1618](https://github.com/weaveworks/flux/pull/1618)
+   
 ## 0.5.2 (2018-12-20)
 
 ### Improvements
