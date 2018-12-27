@@ -16,9 +16,10 @@ func run(args []string) int {
 		// so we use the cause instead.
 		if cause, ok := errors.Cause(err).(*fluxerr.Error); ok {
 			cmd.Println("== Error ==\n\n" + cause.Help)
+		} else {
+			cmd.Println("Error: " + err.Error())
+			cmd.Printf("Run '%v --help' for usage.\n", cmd.CommandPath())
 		}
-		cmd.Println("Error: " + err.Error())
-		cmd.Printf("Run '%v --help' for usage.\n", cmd.CommandPath())
 		return 1
 	}
 	return 0
