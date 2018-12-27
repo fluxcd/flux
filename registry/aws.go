@@ -27,7 +27,7 @@ type AWSRegistryConfig struct {
 	RegistryIDs []string
 }
 
-func ImageCredsWithAWS(lookup func() ImageCreds, logger log.Logger, config AWSRegistryConfig) (func() ImageCreds, error) {
+func ImageCredsWithAWSAuth(lookup func() ImageCreds, logger log.Logger, config AWSRegistryConfig) (func() ImageCreds, error) {
 	awsCreds := NoCredentials()
 	var credsExpire time.Time
 

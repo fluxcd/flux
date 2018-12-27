@@ -106,6 +106,10 @@ func main() {
 		registryTrace        = fs.Bool("registry-trace", false, "output trace of image registry requests to log")
 		registryInsecure     = fs.StringSlice("registry-insecure-host", []string{}, "use HTTP for this image registry domain (e.g., registry.cluster.local), instead of HTTPS")
 
+		// AWS authentication
+		awsRegion      = fs.String("aws-region", "", "AWS region to authenticate to, e.g., 'us-east-1'; AWS authorization needs both this, and at least one --aws-registry-id to be supplied")
+		awsRegistryIDs = fs.StringSlice("aws-registry-id", nil, "AWS ECR account ID to authenticate with (multiple values allowed)")
+
 		// k8s-secret backed ssh keyring configuration
 		k8sSecretName            = fs.String("k8s-secret-name", "flux-git-deploy", "Name of the k8s secret used to store the private SSH key")
 		k8sSecretVolumeMountPath = fs.String("k8s-secret-volume-mount-path", "/etc/fluxd/ssh", "Mount location of the k8s secret storing the private SSH key")
@@ -262,10 +266,22 @@ func main() {
 		}
 
 		imageCreds = k8sInst.ImagesToFetch
+		if *awsRegion != "" && len(*awsRegistryIDs) > 0 {
+			awsConf := registry.AWSRegistryConfig{
+				Region:      *awsRegion,
+				RegistryIDs: *awsRegistryIDs,
+			}
+			credsWithAWSAuth, err := registry.ImageCredsWithAWSAuth(imageCreds, log.With(logger, "component", "aws"), awsConf)
+			if err != nil {
+				logger.Log("warning", "AWS authorization not used; pre-flight check failed", "err", err)
+			} else {
+				imageCreds = credsWithAWSAuth
+			}
+		}
 		if *dockerConfig != "" {
 			credsWithDefaults, err := registry.ImageCredsWithDefaults(imageCreds, *dockerConfig)
 			if err != nil {
-				logger.Log("msg", "--docker-config not used", "err", err)
+				logger.Log("warning", "--docker-config not used; pre-flight check failed", "err", err)
 			} else {
 				imageCreds = credsWithDefaults
 			}
