@@ -30,7 +30,7 @@ const (
 
 // Release contains clients needed to provide functionality related to helm releases
 type Release struct {
-	logger log.Logger
+	logger     log.Logger
 	HelmClient *k8shelm.Client
 }
 
@@ -207,6 +207,7 @@ func (r *Release) Install(chartPath, releaseName string, fhr flux_v1beta1.HelmRe
 			k8shelm.UpdateValueOverrides(rawVals),
 			k8shelm.UpgradeDryRun(opts.DryRun),
 			k8shelm.UpgradeTimeout(fhr.GetTimeout()),
+			k8shelm.ResetValues(fhr.Spec.ResetValues),
 		)
 
 		if err != nil {

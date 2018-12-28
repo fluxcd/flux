@@ -72,6 +72,9 @@ type HelmReleaseSpec struct {
 	// Install or upgrade timeout in seconds
 	// +optional
 	Timeout *int64 `json:"timeout,omitempty"`
+	// Reset values on helm upgrade
+	// +optional
+	ResetValues bool `json:"resetValues,omitempty"`
 }
 
 // GetTimeout returns the install or upgrade timeout (defaults to 300s)
