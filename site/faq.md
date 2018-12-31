@@ -157,19 +157,18 @@ There are exceptions:
  - One way of supplying credentials in Kubernetes is to put them on each
    node; Flux does not have access to those credentials.
  - In some environments, authorisation provided by the platform is
-   used instead of image pull secrets. Google Container Registry works
-   this way, for example (and we have introduced a special case for it
-   so Flux will work there too with image pull secrets). See below regarding ECR.
+   used instead of image pull secrets:
+    - Google Container Registry works this way; Flux will
+      automatically attempt to use platform-provided credentials when
+      scanning images in GCR.
+    - (Amazon) Elastic Container Registry has its own authentication
+      using IAM; Flux can scan for images in ECR if you tell it which
+      region and registry ID(s) to use.
 
-To work around the exceptional cases, you can mount a docker config into
-the Flux container. See the argument `--docker-config` in
-[the daemon arguments reference](https://github.com/weaveworks/flux/blob/master/site/daemon.md#flags).
-
-For ECR (Elastic Container Registry), the credentials supplied by the
-environment are rotated, so it's not possible to supply a file with
-credentials ahead of time. See
-[weaveworks/flux#539](https://github.com/weaveworks/flux/issues/539) for
-workarounds.
+To work around exceptional cases, you can mount a docker config into
+the Flux container. See the argument `--docker-config` in [the daemon
+arguments
+reference](https://github.com/weaveworks/flux/blob/master/site/daemon.md#flags).
 
 See also
 [Why are my images not showing up in the list of images?](#why-are-my-images-not-showing-up-in-the-list-of-images)
@@ -247,11 +246,11 @@ happen:
    if you've only just started using a particular image in a workload.
  - Flux can't get suitable credentials for the image repository. At
    present, it looks at `imagePullSecret`s attached to workloads,
-   service accounts and a Docker config file if you mount one into the fluxd container
+   service accounts, and a Docker config file if you mount one into the fluxd container
    (see the [command-line usage](./daemon.md)).
- - Flux doesn't know how to obtain registry credentials for ECR. A
-   workaround is described in
-   [weaveworks/flux#539](https://github.com/weaveworks/flux/issues/539#issuecomment-394588423)
+ - When using images in ECR, from AWS, the IAM account used to run the
+   fluxd container must have permissions to query the ECR registry or
+   registries in question.
  - Flux excludes images with no suitable manifest (linux amd64) in manifestlist
  - Flux doesn't yet understand image refs that use digests instead of
    tags; see
