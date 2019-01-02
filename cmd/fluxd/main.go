@@ -266,7 +266,7 @@ func main() {
 		}
 
 		imageCreds = k8sInst.ImagesToFetch
-		if *awsRegion != "" && len(*awsRegistryIDs) > 0 {
+		{
 			awsConf := registry.AWSRegistryConfig{
 				Region:      *awsRegion,
 				RegistryIDs: *awsRegistryIDs,
@@ -277,15 +277,16 @@ func main() {
 			} else {
 				imageCreds = credsWithAWSAuth
 			}
-		}
-		if *dockerConfig != "" {
-			credsWithDefaults, err := registry.ImageCredsWithDefaults(imageCreds, *dockerConfig)
-			if err != nil {
-				logger.Log("warning", "--docker-config not used; pre-flight check failed", "err", err)
-			} else {
-				imageCreds = credsWithDefaults
+			if *dockerConfig != "" {
+				credsWithDefaults, err := registry.ImageCredsWithDefaults(imageCreds, *dockerConfig)
+				if err != nil {
+					logger.Log("warning", "--docker-config not used; pre-flight check failed", "err", err)
+				} else {
+					imageCreds = credsWithDefaults
+				}
 			}
 		}
+
 		k8s = k8sInst
 		// There is only one way we currently interpret a repo of
 		// files as manifests, and that's as Kubernetes yamels.
