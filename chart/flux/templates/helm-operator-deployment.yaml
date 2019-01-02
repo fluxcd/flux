@@ -10,7 +10,7 @@ metadata:
     release: {{ .Release.Name }}
     heritage: {{ .Release.Service }}
 spec:
-  replicas: {{ .Values.replicaCount }}
+  replicas: {{ .Values.helmOperator.replicaCount }}
   selector:
     matchLabels:
       app: {{ template "flux.name" . }}-helm-operator

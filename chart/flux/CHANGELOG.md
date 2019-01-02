@@ -14,6 +14,13 @@ kubectl -n flux delete svc flux-memcached
 
  - Use ClusterIP service name for connecting to memcached
    [weaveworks/flux#1618](https://github.com/weaveworks/flux/pull/1618)
+ - Increase comprehensiveness of values table in `chart/flux/README.md`
+   [weaveworks/flux#1626](https://github.com/weaveworks/flux/pull/1626)
+    - Rectify error where `resources` are not `None` by default in `chart/flux/values.yaml`
+    - Add more fields that are actually in `chart/flux/values.yaml`
+    - Separate `replicaCount` into a flux one and `helmOperator.replicaCount` one
+
+
    
 ## 0.5.2 (2018-12-20)
 
