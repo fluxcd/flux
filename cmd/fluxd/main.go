@@ -186,8 +186,8 @@ func main() {
 	var clusterVersion string
 	var sshKeyRing ssh.KeyRing
 	var k8s cluster.Cluster
-	var imageCreds func() registry.ImageCreds
 	var k8sManifests cluster.Manifests
+	var imageCreds func() registry.ImageCreds
 	{
 		restClientConfig, err := rest.InClusterConfig()
 		if err != nil {
@@ -265,32 +265,33 @@ func main() {
 			logger.Log("ping", true)
 		}
 
-		imageCreds = k8sInst.ImagesToFetch
-		{
-			awsConf := registry.AWSRegistryConfig{
-				Regions:    *awsRegions,
-				AccountIDs: *awsAccountIDs,
-			}
-			credsWithAWSAuth, err := registry.ImageCredsWithAWSAuth(imageCreds, log.With(logger, "component", "aws"), awsConf)
-			if err != nil {
-				logger.Log("warning", "AWS authorization not used; pre-flight check failed", "err", err)
-			} else {
-				imageCreds = credsWithAWSAuth
-			}
-			if *dockerConfig != "" {
-				credsWithDefaults, err := registry.ImageCredsWithDefaults(imageCreds, *dockerConfig)
-				if err != nil {
-					logger.Log("warning", "--docker-config not used; pre-flight check failed", "err", err)
-				} else {
-					imageCreds = credsWithDefaults
-				}
-			}
-		}
-
 		k8s = k8sInst
+		imageCreds = k8sInst.ImagesToFetch
 		// There is only one way we currently interpret a repo of
 		// files as manifests, and that's as Kubernetes yamels.
 		k8sManifests = &kubernetes.Manifests{}
+	}
+
+	// Wrap the procedure for collecting images to scan
+	{
+		awsConf := registry.AWSRegistryConfig{
+			Regions:    *awsRegions,
+			AccountIDs: *awsAccountIDs,
+		}
+		credsWithAWSAuth, err := registry.ImageCredsWithAWSAuth(imageCreds, log.With(logger, "component", "aws"), awsConf)
+		if err != nil {
+			logger.Log("warning", "AWS authorization not used; pre-flight check failed")
+		} else {
+			imageCreds = credsWithAWSAuth
+		}
+		if *dockerConfig != "" {
+			credsWithDefaults, err := registry.ImageCredsWithDefaults(imageCreds, *dockerConfig)
+			if err != nil {
+				logger.Log("warning", "--docker-config not used; pre-flight check failed", "err", err)
+			} else {
+				imageCreds = credsWithDefaults
+			}
+		}
 	}
 
 	// Registry components
