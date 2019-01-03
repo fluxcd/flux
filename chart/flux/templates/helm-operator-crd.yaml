@@ -38,14 +38,17 @@ spec:
             timeout:
               type: integer
               format: int64
+            resetValues:
+              type: boolean
             valueFileSecrets:
               type: array
-              items:
-                type: object
-                required: ['name']
-                properties:
-                  name:
-                    type: string
+              properties:
+                items:
+                  type: object
+                  required: ['name']
+                  properties:
+                    name:
+                      type: string
             values:
               type: object
             chart:
