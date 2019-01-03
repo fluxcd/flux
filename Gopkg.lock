@@ -1163,6 +1163,7 @@
   input-imports = [
     "github.com/Masterminds/semver",
     "github.com/aws/aws-sdk-go/aws",
+    "github.com/aws/aws-sdk-go/aws/ec2metadata",
     "github.com/aws/aws-sdk-go/aws/session",
     "github.com/aws/aws-sdk-go/service/ecr",
     "github.com/bradfitz/gomemcache/memcache",

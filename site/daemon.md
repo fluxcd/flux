@@ -74,8 +74,8 @@ fluxd requires setup and offers customization though a multitude of flags.
 |--registry-burst        | `125`      | maximum number of warmer connections to remote and memcache|
 |--registry-insecure-host| []         | registry hosts to use HTTP for (instead of HTTPS) |
 |--docker-config         | `""`       | path to a Docker config file with default image registry credentials |
-|--aws-region            | `""`       | AWS region for authentication, when scanning image in ECR |
-|--aws-registry-id       | `[]`       | ECR registry ID(s) for authentication, when scanning images in ECR (multiple values allowed) |
+|--aws-region            | `[]`       | Allow these AWS regions when scanning images from ECR; defaults to the cluster region |
+|--aws-account-id        | `[]`       | Allow these account (registry) ID(s) when scanning images in ECR (multiple values allowed); empty means no restriction |
 |**k8s-secret backed ssh keyring configuration**      |  | |
 |--k8s-secret-name       | `flux-git-deploy`               | name of the k8s secret used to store the private SSH key|
 |--k8s-secret-volume-mount-path | `/etc/fluxd/ssh`         | mount location of the k8s secret storing the private SSH key|

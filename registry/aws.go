@@ -6,11 +6,11 @@ package registry
 //  - https://github.com/weaveworks/flux/pull/1455
 
 import (
-	"fmt"
 	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/ec2metadata"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ecr"
 	"github.com/go-kit/kit/log"
@@ -28,8 +28,17 @@ const (
 )
 
 type AWSRegistryConfig struct {
-	Region      string
-	RegistryIDs []string
+	Regions    []string
+	AccountIDs []string
+}
+
+func contains(strs []string, str string) bool {
+	for _, s := range strs {
+		if s == str {
+			return true
+		}
+	}
+	return false
 }
 
 // ECR registry URLs look like this:
@@ -42,6 +51,31 @@ type AWSRegistryConfig struct {
 
 func ImageCredsWithAWSAuth(lookup func() ImageCreds, logger log.Logger, config AWSRegistryConfig) (func() ImageCreds, error) {
 	awsCreds := NoCredentials()
+
+	if len(config.Regions) == 0 {
+		// this forces the AWS SDK to load config, so we can get the default region
+		sess := session.Must(session.NewSessionWithOptions(session.Options{
+			SharedConfigState: session.SharedConfigEnable,
+		}))
+		clusterRegion := *sess.Config.Region
+		if clusterRegion == "" {
+			// no region set in config; in that case, use the EC2 metadata service to find where we are running.
+			ec2 := ec2metadata.New(sess)
+			instanceRegion, err := ec2.Region()
+			if err != nil {
+				logger.Log("warn", "no AWS region configured, or detected as cluster region", "err", err)
+				return nil, err
+			}
+			clusterRegion = instanceRegion
+		}
+		logger.Log("info", "detected cluster region", "region", clusterRegion)
+		config.Regions = []string{clusterRegion}
+	}
+
+	logger.Log("info", "restricting ECR registry scans",
+		"regions", strings.Join(config.Regions, ", "),
+		"account-ids", strings.Join(config.AccountIDs, ", "))
+
 	// this has the expiry time from the last request made per region. We request new tokens whenever
 	//  - we don't have credentials for the particular registry URL
 	//  - the credentials have expired
@@ -53,14 +87,19 @@ func ImageCredsWithAWSAuth(lookup func() ImageCreds, logger log.Logger, config A
 	// spamming the log, keep track of failed refreshes.
 	regionEmbargo := map[string]time.Time{}
 
-	ensureCreds := func(domain string, now time.Time) error {
-		bits := strings.Split(domain, ".")
-		if len(bits) != 6 {
-			return fmt.Errorf("AWS registry domain not in expected format <account-id>.dkr.ecr.<region>.amazonaws.com: %q", domain)
+	// should this registry be scanned?
+	var shouldScan func(string, string) bool
+	if len(config.AccountIDs) == 0 {
+		shouldScan = func(region, _ string) bool {
+			return contains(config.Regions, region)
 		}
-		accountID := bits[0]
-		region := bits[3]
+	} else {
+		shouldScan = func(region, accountID string) bool {
+			return contains(config.Regions, region) && contains(config.AccountIDs, accountID)
+		}
+	}
 
+	ensureCreds := func(domain, region, accountID string, now time.Time) error {
 		// if we had an error getting a token before, don't try again
 		// until the embargo has passed
 		if embargo, ok := regionEmbargo[region]; ok {
@@ -105,9 +144,22 @@ func ImageCredsWithAWSAuth(lookup func() ImageCreds, logger log.Logger, config A
 		imageCreds := lookup()
 
 		for name, creds := range imageCreds {
-			if strings.HasSuffix(name.Domain, ecrHostSuffix) {
-				if err := ensureCreds(name.Domain, time.Now()); err != nil {
-					logger.Log("warning", "unable to ensure credentials for ECR", "domain", name.Domain, "err", err)
+			domain := name.Domain
+			if strings.HasSuffix(domain, ecrHostSuffix) {
+				bits := strings.Split(domain, ".")
+				if len(bits) != 6 {
+					logger.Log("warning", "AWS registry domain not in expected format <account-id>.dkr.ecr.<region>.amazonaws.com", "domain", domain)
+					continue
+				}
+				accountID := bits[0]
+				region := bits[3]
+
+				if !shouldScan(region, accountID) {
+					delete(imageCreds, name)
+					continue
+				}
+				if err := ensureCreds(domain, region, accountID, time.Now()); err != nil {
+					logger.Log("warning", "unable to ensure credentials for ECR", "domain", domain, "err", err)
 				}
 				newCreds := NoCredentials()
 				newCreds.Merge(awsCreds)

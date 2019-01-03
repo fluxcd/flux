@@ -107,8 +107,8 @@ func main() {
 		registryInsecure     = fs.StringSlice("registry-insecure-host", []string{}, "use HTTP for this image registry domain (e.g., registry.cluster.local), instead of HTTPS")
 
 		// AWS authentication
-		awsRegion      = fs.String("aws-region", "", "AWS region to authenticate to, e.g., 'us-east-1'; AWS authorization needs both this, and at least one --aws-registry-id to be supplied")
-		awsRegistryIDs = fs.StringSlice("aws-registry-id", nil, "AWS ECR account ID to authenticate with (multiple values allowed)")
+		awsRegions    = fs.StringSlice("aws-region", nil, "Restrict ECR scanning to these AWS regions; if empty, ECR only in the cluster's region will be scanned")
+		awsAccountIDs = fs.StringSlice("aws-account-id", nil, "Restrict ECR scanning to these AWS account IDs; if empty, there will be no restriction")
 
 		// k8s-secret backed ssh keyring configuration
 		k8sSecretName            = fs.String("k8s-secret-name", "flux-git-deploy", "Name of the k8s secret used to store the private SSH key")
@@ -268,8 +268,8 @@ func main() {
 		imageCreds = k8sInst.ImagesToFetch
 		{
 			awsConf := registry.AWSRegistryConfig{
-				Region:      *awsRegion,
-				RegistryIDs: *awsRegistryIDs,
+				Regions:    *awsRegions,
+				AccountIDs: *awsAccountIDs,
 			}
 			credsWithAWSAuth, err := registry.ImageCredsWithAWSAuth(imageCreds, log.With(logger, "component", "aws"), awsConf)
 			if err != nil {
