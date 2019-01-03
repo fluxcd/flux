@@ -162,8 +162,8 @@ There are exceptions:
       automatically attempt to use platform-provided credentials when
       scanning images in GCR.
     - (Amazon) Elastic Container Registry has its own authentication
-      using IAM; Flux can scan for images in ECR if you tell it which
-      region and registry ID(s) to use.
+      using IAM; Flux will use AWS credentials to scan for images in
+      ECR, if it detects them.
 
 To work around exceptional cases, you can mount a docker config into
 the Flux container. See the argument `--docker-config` in [the daemon
@@ -246,8 +246,9 @@ happen:
    if you've only just started using a particular image in a workload.
  - Flux can't get suitable credentials for the image repository. At
    present, it looks at `imagePullSecret`s attached to workloads,
-   service accounts, and a Docker config file if you mount one into the fluxd container
-   (see the [command-line usage](./daemon.md)).
+   service accounts, platform-provided credentials on GCP or AWS, and
+   a Docker config file if you mount one into the fluxd container (see
+   the [command-line usage](./daemon.md)).
  - When using images in ECR, from AWS, the IAM account used to run the
    fluxd container must have permissions to query the ECR registry or
    registries in question.
