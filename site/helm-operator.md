@@ -173,7 +173,7 @@ First create a new Kubernetes TLS secret for the client certs;
 kubectl create secret tls helm-client --cert=tls/flux-helm-operator.pem --key=./tls/flux-helm-operator-key.pem
 ```
 
-> note; this has to be in the same namespace as the helm-operator is deployed in.
+> note: this has to be in the same namespace as the flux-helm-operator is deployed in.
 
 Deploy Flux with Helm;
 
@@ -190,6 +190,9 @@ helm upgrade --install \
     flux \
     weaveworks/flux
 ```
+> note:
+> - include --tls flags for `helm` as in the `helm ls` example, if talking to a tiller with TLS
+> - optionally specify target --namespace
 
 #### Check if it worked
 
