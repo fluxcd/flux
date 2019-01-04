@@ -25,12 +25,12 @@
   version = "v10.15.3"
 
 [[projects]]
-  digest = "1:289dd4d7abfb3ad2b5f728fbe9b1d5c1bf7d265a3eb9ef92869af1f7baba4c7a"
+  digest = "1:e4b30804a381d7603b8a344009987c1ba351c26043501b23b8c7ce21f0b67474"
   name = "github.com/BurntSushi/toml"
   packages = ["."]
   pruneopts = ""
-  revision = "b26d9c308763d68093482582cea63d69be07a0f0"
-  version = "v0.3.0"
+  revision = "3012a1dbe2e4bd1391d42b32f0577cb7bbc7f005"
+  version = "v0.3.1"
 
 [[projects]]
   digest = "1:1355ed70fb12d3ae86828e65c35748269d1c8a20ab8c6c2f03107279c1e0bd90"
@@ -39,22 +39,6 @@
   pruneopts = ""
   revision = "15d8430ab86497c5c0da827b748823945e1cf1e1"
   version = "v1.4.0"
-
-[[projects]]
-  digest = "1:aec6720081aad903219cf427bb9acdefc9c440743add4d02df38ff387c69886a"
-  name = "github.com/Masterminds/sprig"
-  packages = ["."]
-  pruneopts = ""
-  revision = "15f9564e7e9cf0da02a48e0d25f12a7b83559aa6"
-  version = "v2.16.0"
-
-[[projects]]
-  digest = "1:24cff84fefa06791f78f9bc6e05c2a3a90710c81ae6b76225280daf33b267d36"
-  name = "github.com/aokoli/goutils"
-  packages = ["."]
-  pruneopts = ""
-  revision = "3391d3790d23d03408670993e957e8f408993c34"
-  version = "v1.0.1"
 
 [[projects]]
   branch = "master"
@@ -273,14 +257,6 @@
   revision = "24818f796faf91cd76ec7bddd72458fbced7a6c1"
 
 [[projects]]
-  digest = "1:5247b135b5492aa232a731acdcb52b08f32b874cb398f21ab460396eadbe866b"
-  name = "github.com/google/uuid"
-  packages = ["."]
-  pruneopts = ""
-  revision = "d460ce9f8df2e77fb1ba55ca87fafed96c607494"
-  version = "v1.0.0"
-
-[[projects]]
   digest = "1:2a131706ff80636629ab6373f2944569b8252ecc018cda8040931b05d32e3c16"
   name = "github.com/googleapis/gnostic"
   packages = [
@@ -361,14 +337,6 @@
   ]
   pruneopts = ""
   revision = "0fb14efe8c47ae851c0034ed7a448854d3d34cf3"
-
-[[projects]]
-  digest = "1:35979179658d20a73693589e67bdc3baf4dc0ef9f524b1dfd3cc55fb5f6ae384"
-  name = "github.com/huandu/xstrings"
-  packages = ["."]
-  pruneopts = ""
-  revision = "f02667b379e2fb5916c3cda2cf31e0eb885d79f8"
-  version = "v1.2.0"
 
 [[projects]]
   digest = "1:23bc0b496ba341c6e3ba24d6358ff4a40a704d9eb5f9a3bd8e8fbd57ad869013"
@@ -1027,7 +995,26 @@
 [[projects]]
   digest = "1:ec6534bd79f79351514d62ff48f4f547aeb53ea0c9ee45ca5594fbdfbd2fc258"
   name = "k8s.io/helm"
-  packages = []
+  packages = [
+    "pkg/chartutil",
+    "pkg/getter",
+    "pkg/helm",
+    "pkg/helm/environment",
+    "pkg/helm/helmpath",
+    "pkg/ignore",
+    "pkg/plugin",
+    "pkg/proto/hapi/chart",
+    "pkg/proto/hapi/release",
+    "pkg/proto/hapi/services",
+    "pkg/proto/hapi/version",
+    "pkg/provenance",
+    "pkg/repo",
+    "pkg/storage/driver",
+    "pkg/sympath",
+    "pkg/tlsutil",
+    "pkg/urlutil",
+    "pkg/version",
+  ]
   pruneopts = ""
   revision = "9ad53aac42165a5fadc6c87be0dea6b115f93090"
   version = "v2.10.0"
