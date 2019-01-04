@@ -53,3 +53,7 @@ required = ["k8s.io/code-generator/cmd/client-gen"]
 [[constraint]]
   name = "github.com/Masterminds/semver"
   version = "1.4.0"
+
+[[override]]
+  name = "github.com/BurntSushi/toml"
+  version = "v0.3.1"
