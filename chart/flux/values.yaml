@@ -15,6 +15,7 @@ service:
   port: 3030
 
 helmOperator:
+  replicaCount: 1
   create: false
   createCRD: true
   repository: quay.io/weaveworks/helm-operator
