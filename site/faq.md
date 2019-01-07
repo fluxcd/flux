@@ -161,9 +161,9 @@ There are exceptions:
     - Google Container Registry works this way; Flux will
       automatically attempt to use platform-provided credentials when
       scanning images in GCR.
-    - (Amazon) Elastic Container Registry has its own authentication
-      using IAM; Flux will use AWS credentials to scan for images in
-      ECR, if it detects them.
+    - Amazon Elastic Container Registry (ECR) has its own
+      authentication using IAM. If your worker nodes can read from
+      ECR, then Flux will be able to access it too.
 
 To work around exceptional cases, you can mount a docker config into
 the Flux container. See the argument `--docker-config` in [the daemon
@@ -249,9 +249,13 @@ happen:
    service accounts, platform-provided credentials on GCP or AWS, and
    a Docker config file if you mount one into the fluxd container (see
    the [command-line usage](./daemon.md)).
- - When using images in ECR, from AWS, the IAM account used to run the
-   fluxd container must have permissions to query the ECR registry or
-   registries in question.
+ - When using images in ECR, from EC2, the `NodeInstanceRole` for the
+   worker node running fluxd must have permissions to query the ECR
+   registry (or registries) in
+   question. [`eksctl`](https://github.com/weaveworks/eksctl) and
+   [`kops`](https://github.com/kubernetes/kops) (with
+   [`.iam.allowContainerRegistry=true`](https://github.com/kubernetes/kops/blob/master/docs/iam_roles.md#iam-roles))
+   both make sure this is the case.
  - Flux excludes images with no suitable manifest (linux amd64) in manifestlist
  - Flux doesn't yet understand image refs that use digests instead of
    tags; see
