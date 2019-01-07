@@ -125,7 +125,6 @@ If you have any questions about Flux and continuous delivery:
 - Ask a question on the [#flux](https://weave-community.slack.com/messages/flux/) slack channel.
 - Join the [Weave User Group](https://www.meetup.com/pro/Weave/) and get
   invited to online talks, hands-on training and meetups in your area.
-- Send an email to <a href="mailto:weave-users@weave.works">weave-users@weave.works</a>
 - [File an issue.](https://github.com/weaveworks/flux/issues/new)
 
 Your feedback is always welcome!
