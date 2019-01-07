@@ -25,11 +25,14 @@ const (
 	defaultTokenValid = 12 * time.Hour
 	// how long to skip refreshing a region after we've failed
 	embargoDuration = 10 * time.Minute
+
+	EKS_SYSTEM_ACCOUNT = "602401143452"
 )
 
 type AWSRegistryConfig struct {
 	Regions    []string
 	AccountIDs []string
+	BlockIDs   []string
 }
 
 func contains(strs []string, str string) bool {
@@ -74,7 +77,8 @@ func ImageCredsWithAWSAuth(lookup func() ImageCreds, logger log.Logger, config A
 
 	logger.Log("info", "restricting ECR registry scans",
 		"regions", strings.Join(config.Regions, ", "),
-		"account-ids", strings.Join(config.AccountIDs, ", "))
+		"include-ids", strings.Join(config.AccountIDs, ", "),
+		"exclude-ids", strings.Join(config.BlockIDs, ", "))
 
 	// this has the expiry time from the last request made per region. We request new tokens whenever
 	//  - we don't have credentials for the particular registry URL
@@ -90,12 +94,14 @@ func ImageCredsWithAWSAuth(lookup func() ImageCreds, logger log.Logger, config A
 	// should this registry be scanned?
 	var shouldScan func(string, string) bool
 	if len(config.AccountIDs) == 0 {
-		shouldScan = func(region, _ string) bool {
-			return contains(config.Regions, region)
+		shouldScan = func(region, accountID string) bool {
+			return contains(config.Regions, region) && !contains(config.BlockIDs, accountID)
 		}
 	} else {
 		shouldScan = func(region, accountID string) bool {
-			return contains(config.Regions, region) && contains(config.AccountIDs, accountID)
+			return contains(config.Regions, region) &&
+				contains(config.AccountIDs, accountID) &&
+				!contains(config.BlockIDs, accountID)
 		}
 	}
 
