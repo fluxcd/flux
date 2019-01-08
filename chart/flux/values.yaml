@@ -119,7 +119,7 @@ registry:
   burst: 125
   # Output trace of image registry requests to log
   trace: false
-  # Use HTTP rather than HTTPS for these image registry domains eg --set registry.insecureHosts="registry1.cluster.local,registry2.cluster.local"
+  # Use HTTP rather than HTTPS for these image registry domains eg --set registry.insecureHosts="registry1.cluster.local\,registry2.cluster.local"
   insecureHosts:
   # Duration to keep cached image info. Must be < 1 month. (Deprecated)
   cacheExpiry:
