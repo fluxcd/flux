@@ -102,13 +102,12 @@ func main() {
 		memcachedTimeout  = fs.Duration("memcached-timeout", time.Second, "maximum time to wait before giving up on memcached requests.")
 		memcachedService  = fs.String("memcached-service", "memcached", "SRV service used to discover memcache servers.")
 
-		registryPollInterval       = fs.Duration("registry-poll-interval", 5*time.Minute, "period at which to check for updated images")
-		registryRPS                = fs.Float64("registry-rps", 50, "maximum registry requests per second per host")
-		registryBurst              = fs.Int("registry-burst", defaultRemoteConnections, "maximum number of warmer connections to remote and memcache")
-		registryTrace              = fs.Bool("registry-trace", false, "output trace of image registry requests to log")
-		registryInsecure           = fs.StringSlice("registry-insecure-host", []string{}, "use HTTP for this image registry domain (e.g., registry.cluster.local), instead of HTTPS")
-		registryInsecureSkipVerify = fs.Bool("registry-tls-insecure-skip-verify", false, "skip TLS host certificate verification when the registry is listed as an insecure host")
-		registryExcludeImage       = fs.StringSlice("registry-exclude-image", []string{"k8s.gcr.io/*"}, "do not scan images that match these glob expressions; the default is to exclude the 'k8s.gcr.io/*' images")
+		registryPollInterval = fs.Duration("registry-poll-interval", 5*time.Minute, "period at which to check for updated images")
+		registryRPS          = fs.Float64("registry-rps", 50, "maximum registry requests per second per host")
+		registryBurst        = fs.Int("registry-burst", defaultRemoteConnections, "maximum number of warmer connections to remote and memcache")
+		registryTrace        = fs.Bool("registry-trace", false, "output trace of image registry requests to log")
+		registryInsecure     = fs.StringSlice("registry-insecure-host", []string{}, "let these registry hosts skip TLS host verification, and fall back to HTTP (without basic auth) instead of HTTPS; this allows man-in-the-middle attacks, so use with extreme caution")
+		registryExcludeImage = fs.StringSlice("registry-exclude-image", []string{"k8s.gcr.io/*"}, "do not scan images that match these glob expressions; the default is to exclude the 'k8s.gcr.io/*' images")
 
 		// AWS authentication
 		registryAWSRegions         = fs.StringSlice("registry-ecr-region", nil, "restrict ECR scanning to these AWS regions; if empty, only the cluster's region will be scanned")
@@ -340,11 +339,10 @@ func main() {
 			Logger: log.With(logger, "component", "ratelimiter"),
 		}
 		remoteFactory := &registry.RemoteClientFactory{
-			Logger:                 registryLogger,
-			Limiters:               registryLimits,
-			Trace:                  *registryTrace,
-			InsecureHosts:          *registryInsecure,
-			InsecureHostSkipVerify: *registryInsecureSkipVerify,
+			Logger:        registryLogger,
+			Limiters:      registryLimits,
+			Trace:         *registryTrace,
+			InsecureHosts: *registryInsecure,
 		}
 
 		// Warmer

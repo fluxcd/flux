@@ -22,15 +22,9 @@ type RemoteClientFactory struct {
 	Limiters *middleware.RateLimiters
 	Trace    bool
 
-	// hosts with which to use HTTP rather than HTTPS
+	// hosts with which to tolerate insecure connections (e.g., with
+	// TLS_INSECURE_SKIP_VERIFY, or as a fallback, using HTTP).
 	InsecureHosts []string
-	// if `true`, skip TLS verify when the registry host is
-	// insecure. This bears a bit of explanation: in some cases,
-	// private image repos may be set up to redirect or proxy requests
-	// to other servers. In other words, even though the registry API
-	// uses HTTP, manifests or image layers may be stored on a host
-	// using TLS.
-	InsecureHostSkipVerify bool
 
 	mu               sync.Mutex
 	challengeManager challenge.Manager
@@ -52,23 +46,26 @@ func (t *logging) RoundTrip(req *http.Request) (*http.Response, error) {
 }
 
 func (f *RemoteClientFactory) ClientFor(repo image.CanonicalName, creds Credentials) (Client, error) {
-	scheme := "https"
+	insecure := false
 	for _, h := range f.InsecureHosts {
 		if repo.Domain == h {
-			scheme = "http"
+			insecure = true
 			break
 		}
 	}
 
-	var tr http.RoundTripper
-	if scheme == "http" {
-		tr = &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: f.InsecureHostSkipVerify},
-		}
-	} else {
-		tr = http.DefaultTransport
+	tlsConfig := &tls.Config{
+		InsecureSkipVerify: insecure,
 	}
-	tx := f.Limiters.RoundTripper(tr, repo.Domain)
+	// Since we construct one of these per scan, be fairly ruthless
+	// about throttling the number, and closing of, idle connections.
+	baseTx := &http.Transport{
+		TLSClientConfig: tlsConfig,
+		MaxIdleConns:    10,
+		IdleConnTimeout: 10 * time.Second,
+		Proxy:           http.ProxyFromEnvironment,
+	}
+	tx := f.Limiters.RoundTripper(baseTx, repo.Domain)
 	if f.Trace {
 		tx = &logging{f.Logger, tx}
 	}
@@ -81,7 +78,7 @@ func (f *RemoteClientFactory) ClientFor(repo image.CanonicalName, creds Credenti
 	f.mu.Unlock()
 
 	registryURL := url.URL{
-		Scheme: scheme,
+		Scheme: "https",
 		Host:   repo.Domain,
 		Path:   "/v2/",
 	}
@@ -89,6 +86,8 @@ func (f *RemoteClientFactory) ClientFor(repo image.CanonicalName, creds Credenti
 	// Before we know how to authorise, need to establish which
 	// authorisation challenges the host will send. See if we've been
 	// here before.
+	attemptInsecureFallback := insecure
+attempt:
 	cs, err := manager.GetChallenges(registryURL)
 	if err != nil {
 		return nil, err
@@ -108,6 +107,11 @@ func (f *RemoteClientFactory) ClientFor(repo image.CanonicalName, creds Credenti
 			Transport: tx,
 		}).Do(req.WithContext(ctx))
 		if err != nil {
+			if attemptInsecureFallback {
+				registryURL.Scheme = "http"
+				attemptInsecureFallback = false
+				goto attempt
+			}
 			return nil, err
 		}
 		defer res.Body.Close()
@@ -122,9 +126,14 @@ func (f *RemoteClientFactory) ClientFor(repo image.CanonicalName, creds Credenti
 		f.Logger.Log("repo", repo.String(), "auth", cred.String(), "api", registryURL.String())
 	}
 
-	tokenHandler := auth.NewTokenHandler(tx, &store{cred}, repo.Image, "pull")
-	basicauthHandler := auth.NewBasicHandler(&store{cred})
-	tx = transport.NewTransport(tx, auth.NewAuthorizer(manager, tokenHandler, basicauthHandler))
+	authHandlers := []auth.AuthenticationHandler{}
+	// only send creds over HTTPS
+	if registryURL.Scheme == "https" {
+		authHandlers = append(authHandlers,
+			auth.NewTokenHandler(tx, &store{cred}, repo.Image, "pull"),
+			auth.NewBasicHandler(&store{cred}))
+	}
+	tx = transport.NewTransport(tx, auth.NewAuthorizer(manager, authHandlers...))
 
 	// For the API base we want only the scheme and host.
 	registryURL.Path = ""
