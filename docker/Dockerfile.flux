@@ -37,6 +37,15 @@ ENTRYPOINT [ "/sbin/tini", "--", "fluxd" ]
 COPY --from=quay.io/squaremo/kubeyaml:0.5.1 /usr/lib/kubeyaml /usr/lib/kubeyaml/
 ENV PATH=/bin:/usr/bin:/usr/local/bin:/usr/lib/kubeyaml
 
+# Create minimal nsswitch.conf file to prioritize the usage of /etc/hosts over DNS queries.
+# This resolves the conflict between:
+# * fluxd using netgo for static compilation. netgo reads nsswitch.conf to mimic glibc,
+#   defaulting to prioritize DNS queries over /etc/hosts if nsswitch.conf is missing:
+#   https://github.com/golang/go/issues/22846
+# * Alpine not including a nsswitch.conf file. Since Alpine doesn't use glibc
+#   (it uses musl), maintainers argue that the need of nsswitch.conf is a Go bug:
+#   https://github.com/gliderlabs/docker-alpine/issues/367#issuecomment-354316460
+RUN [ ! -e /etc/nsswitch.conf ] && echo 'hosts: files dns' > /etc/nsswitch.conf
 COPY ./kubeconfig /root/.kube/config
 COPY ./fluxd /usr/local/bin/
 
