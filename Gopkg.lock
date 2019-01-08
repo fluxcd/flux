@@ -41,6 +41,47 @@
   version = "v1.4.0"
 
 [[projects]]
+  digest = "1:81f300bb8c779b70cdae0285c220ceb21d09b282eb7d1a07a28078dadd305f1a"
+  name = "github.com/aws/aws-sdk-go"
+  packages = [
+    "aws",
+    "aws/awserr",
+    "aws/awsutil",
+    "aws/client",
+    "aws/client/metadata",
+    "aws/corehandlers",
+    "aws/credentials",
+    "aws/credentials/ec2rolecreds",
+    "aws/credentials/endpointcreds",
+    "aws/credentials/processcreds",
+    "aws/credentials/stscreds",
+    "aws/csm",
+    "aws/defaults",
+    "aws/ec2metadata",
+    "aws/endpoints",
+    "aws/request",
+    "aws/session",
+    "aws/signer/v4",
+    "internal/ini",
+    "internal/sdkio",
+    "internal/sdkrand",
+    "internal/sdkuri",
+    "internal/shareddefaults",
+    "private/protocol",
+    "private/protocol/json/jsonutil",
+    "private/protocol/jsonrpc",
+    "private/protocol/query",
+    "private/protocol/query/queryutil",
+    "private/protocol/rest",
+    "private/protocol/xml/xmlutil",
+    "service/ecr",
+    "service/sts",
+  ]
+  pruneopts = ""
+  revision = "fb5f514796fc4fdc6afdcf5a675a5b2baa714b9f"
+  version = "v1.16.14"
+
+[[projects]]
   branch = "master"
   digest = "1:0c5485088ce274fac2e931c1b979f2619345097b39d91af3239977114adf0320"
   name = "github.com/beorn7/perks"
@@ -353,6 +394,13 @@
   pruneopts = ""
   revision = "76626ae9c91c4f2a10f34cad8ce83ea42c93bb75"
   version = "v1.0"
+
+[[projects]]
+  digest = "1:13fe471d0ed891e8544eddfeeb0471fd3c9f2015609a1c000aefdedf52a19d40"
+  name = "github.com/jmespath/go-jmespath"
+  packages = ["."]
+  pruneopts = ""
+  revision = "c2b33e84"
 
 [[projects]]
   digest = "1:31c6f3c4f1e15fcc24fcfc9f5f24603ff3963c56d6fa162116493b4025fb6acc"
@@ -1114,6 +1162,10 @@
   analyzer-version = 1
   input-imports = [
     "github.com/Masterminds/semver",
+    "github.com/aws/aws-sdk-go/aws",
+    "github.com/aws/aws-sdk-go/aws/ec2metadata",
+    "github.com/aws/aws-sdk-go/aws/session",
+    "github.com/aws/aws-sdk-go/service/ecr",
     "github.com/bradfitz/gomemcache/memcache",
     "github.com/docker/distribution",
     "github.com/docker/distribution/manifest/manifestlist",
