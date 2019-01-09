@@ -1,6 +1,44 @@
 This is the changelog for the Flux daemon; the changelog for the Helm
 operator is in [./CHANGELOG-helmop.md](./CHANGELOG-helmop.md).
 
+## 1.9.0 (2019-01-09)
+
+This release adds native support for ECR (Amazon Elastic Container
+Registry) authentication.
+
+### Fixes
+
+- Make sure a `/etc/hosts` mounted into the fluxd container is
+  respected [weaveworks/flux#1630][#1630]
+- Proceed more gracefully when RBAC rules restrict access
+  [weaveworks/flux#1620][#1620]
+- Show more contextual information when `fluxctl` fails
+  [weaveworks/flux#1615][#1615]
+
+### Improvements
+
+- Authenticate to ECR using a token from AWS IAM, when possible
+  [weaveworks/flux#1619][#1619]
+- Make it possible, and the default for new deployments, to configure
+  a ClusterIP for memcached (previously it was only possible to use
+  DNS service discovery) [weaveworks/flux#1618][#1618]
+
+## Thanks
+
+This release was made possible by welcome contributions from
+@2opremio, @agcooke, @cazzoo, @davidkarlsen, @dholbach, @dmarkey,
+@donifer, @ericbarch, @errordeveloper, @florianrusch, @gellweiler,
+@hiddeco, @isindir, @k, @marcincuber, @markbenschop, @Morriz, @rndstr,
+@roffe, @runningman84, @shahbour, @squaremo, @srueg, @stefanprodan,
+@stephenmoloney, @switchboardOp, @tobru, @tux-00, @u-phoria,
+@Viji-Sarathy-Bose.
+
+[#1615]: https://github.com/weaveworks/flux/pull/1615
+[#1618]: https://github.com/weaveworks/flux/pull/1618
+[#1619]: https://github.com/weaveworks/flux/pull/1619
+[#1620]: https://github.com/weaveworks/flux/pull/1620
+[#1630]: https://github.com/weaveworks/flux/pull/1630
+
 ## 1.8.2 (2018-12-19)
 
 This holiday season release fixes a handful of annoyances, and adds an
