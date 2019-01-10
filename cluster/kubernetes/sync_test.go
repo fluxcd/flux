@@ -222,7 +222,7 @@ metadata:
 			t.Fatal(err)
 		}
 
-		err = sync.Sync(log.NewNopLogger(), resources, kube)
+		err = sync.Sync(resources, kube)
 		if !expectErrors && err != nil {
 			t.Error(err)
 		}

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/go-kit/kit/log"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/weaveworks/flux/cluster"
@@ -30,7 +29,7 @@ func TestSync(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := Sync(log.NewNopLogger(), resources, clus); err != nil {
+	if err := Sync(resources, clus); err != nil {
 		t.Fatal(err)
 	}
 	checkClusterMatchesFiles(t, manifests, clus, checkout.Dir(), dirs)

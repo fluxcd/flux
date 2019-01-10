@@ -1,10 +1,7 @@
 package sync
 
 import (
-	"github.com/go-kit/kit/log"
-
 	"github.com/weaveworks/flux/cluster"
-	"github.com/weaveworks/flux/policy"
 	"github.com/weaveworks/flux/resource"
 )
 
@@ -14,11 +11,11 @@ type Syncer interface {
 }
 
 // Sync synchronises the cluster to the files under a directory.
-func Sync(logger log.Logger, repoResources map[string]resource.Resource, clus Syncer) error {
+func Sync(repoResources map[string]resource.Resource, clus Syncer) error {
 	// TODO: multiple stack support. This will involve partitioning
 	// the resources into disjoint maps, then passing each to
 	// makeStack.
-	defaultStack := makeStack("default", repoResources, logger)
+	defaultStack := makeStack("default", repoResources)
 
 	sync := cluster.SyncDef{Stacks: []cluster.SyncStack{defaultStack}}
 	if err := clus.Sync(sync); err != nil {
@@ -27,15 +24,11 @@ func Sync(logger log.Logger, repoResources map[string]resource.Resource, clus Sy
 	return nil
 }
 
-func makeStack(name string, repoResources map[string]resource.Resource, logger log.Logger) cluster.SyncStack {
+func makeStack(name string, repoResources map[string]resource.Resource) cluster.SyncStack {
 	stack := cluster.SyncStack{Name: name}
 	var resources []resource.Resource
 	for _, res := range repoResources {
 		resources = append(resources, res)
-		if res.Policy().Has(policy.Ignore) {
-			logger.Log("resource", res.ResourceID(), "ignore", "apply")
-			continue
-		}
 	}
 
 	stack.Resources = resources

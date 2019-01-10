@@ -65,9 +65,11 @@ func (c *Cluster) Sync(spec cluster.SyncDef) error {
 			checkHex := hex.EncodeToString(csum[:])
 			checksums[id] = checksum{stack.Name, checkHex}
 			if res.Policy().Has(policy.Ignore) {
+				logger.Log("info", "not applying resource; ignore annotation in file", "resource", res.ResourceID(), "source", res.Source())
 				continue
 			}
 			if cres, ok := clusterResources[id]; ok && cres.Policy().Has(policy.Ignore) {
+				logger.Log("info", "not applying resource; ignore annotation in cluster resource", "resource", cres.ResourceID())
 				continue
 			}
 			resBytes, err := applyMetadata(res, stack.Name, checkHex)
