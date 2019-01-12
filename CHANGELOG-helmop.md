@@ -1,3 +1,22 @@
+## Version (Date)
+
+### Bug fixes
+
+  - 
+    
+### Improvements
+
+  - Only create the `flux-helm-tls-ca-config` file if `.Values.helmOperator.tls.caContent` exists.
+    Useful when doing flux upgrades but do not happen to know or want to specify 
+    the `caContent` in `values.yaml`. Otherwise, the existing caContent will be overriden with an
+    empty value. 
+    [weaveworks/flux#1649](https://github.com/weaveworks/flux/pull/1649)
+    
+
+### Thanks
+
+Thanks to
+
 ## 0.5.2 (2018-12-20)
 
 ### Bug fixes
