@@ -21,7 +21,11 @@ kubectl -n flux delete svc flux-memcached
     - Rectify error where `resources` are not `None` by default in `chart/flux/values.yaml`
     - Add more fields that are actually in `chart/flux/values.yaml`
     - Separate `replicaCount` into a flux one and `helmOperator.replicaCount` one
-
+  - Only create the `flux-helm-tls-ca-config` file if `.Values.helmOperator.tls.caContent` exists.
+    Useful when doing flux upgrades but do not happen to know or want to specify
+    the `caContent` in `values.yaml`. Otherwise, the existing caContent will be overriden with an
+    empty value.
+    [weaveworks/flux#1649](https://github.com/weaveworks/flux/pull/1649)
 
    
 ## 0.5.2 (2018-12-20)
