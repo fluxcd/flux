@@ -23,9 +23,9 @@ README](../chart/flux/README.md).
 
 ## Prerequisites
 
-You will need to have Kubernetes set up. To get up and running fast,
-you might want to use `minikube` or `kubeadm`. Any other Kubernetes
-setup will work as well though.
+You will need to have Kubernetes set up. Ensure you have version 1.12 or higher.
+To get up and running fast, you might want to use `minikube` or `kubeadm`.
+Any other Kubernetes setup will work as well though.
 
 Download Helm:
 
