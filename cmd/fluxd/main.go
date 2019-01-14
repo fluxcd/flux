@@ -105,6 +105,7 @@ func main() {
 		registryBurst        = fs.Int("registry-burst", defaultRemoteConnections, "maximum number of warmer connections to remote and memcache")
 		registryTrace        = fs.Bool("registry-trace", false, "output trace of image registry requests to log")
 		registryInsecure     = fs.StringSlice("registry-insecure-host", []string{}, "use HTTP for this image registry domain (e.g., registry.cluster.local), instead of HTTPS")
+		registryExcludeImage = fs.StringSlice("registry-exclude-image", []string{"k8s.gcr.io/*"}, "Do not scan images that match these glob expressions; the default is to exclude the 'k8s.gcr.io/*' images")
 
 		// AWS authentication
 		registryAWSRegions         = fs.StringSlice("registry-ecr-region", nil, "Restrict ECR scanning to these AWS regions; if empty, only the cluster's region will be scanned")
@@ -258,7 +259,7 @@ func main() {
 		logger.Log("kubectl", kubectl)
 
 		kubectlApplier := kubernetes.NewKubectl(kubectl, restClientConfig)
-		k8sInst := kubernetes.NewCluster(clientset, ifclientset, kubectlApplier, sshKeyRing, logger, *k8sNamespaceWhitelist)
+		k8sInst := kubernetes.NewCluster(clientset, ifclientset, kubectlApplier, sshKeyRing, logger, *k8sNamespaceWhitelist, *registryExcludeImage)
 
 		if err := k8sInst.Ping(); err != nil {
 			logger.Log("ping", err)

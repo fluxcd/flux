@@ -2,6 +2,7 @@ package kubernetes
 
 import (
 	"fmt"
+	"github.com/ryanuber/go-glob"
 
 	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
@@ -136,6 +137,17 @@ func (c *Cluster) ImagesToFetch() registry.ImageCreds {
 				} else {
 					allImageCreds[imageID] = creds
 				}
+			}
+		}
+	}
+
+	// remove images based on the glob exclusion list
+	for imageID := range allImageCreds {
+		imageName := imageID.CanonicalName().Name.String()
+		for _, exp := range c.imageExcludeList {
+			if glob.Glob(exp, imageName) {
+				//c.logger.Log("debug", fmt.Sprintf("image %s excluded from scanning by %s", imageName, exp))
+				delete(allImageCreds, imageID)
 			}
 		}
 	}

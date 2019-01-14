@@ -104,7 +104,8 @@ type Cluster struct {
 	nsWhitelist       []string
 	nsWhitelistLogged map[string]bool // to keep track of whether we've logged a problem with seeing a whitelisted ns
 
-	mu sync.Mutex
+	imageExcludeList []string
+	mu               sync.Mutex
 }
 
 // NewCluster returns a usable cluster.
@@ -113,7 +114,8 @@ func NewCluster(clientset k8sclient.Interface,
 	applier Applier,
 	sshKeyRing ssh.KeyRing,
 	logger log.Logger,
-	nsWhitelist []string) *Cluster {
+	nsWhitelist []string,
+	imageExcludeList []string) *Cluster {
 
 	c := &Cluster{
 		client: extendedClient{
@@ -125,6 +127,7 @@ func NewCluster(clientset k8sclient.Interface,
 		sshKeyRing:        sshKeyRing,
 		nsWhitelist:       nsWhitelist,
 		nsWhitelistLogged: map[string]bool{},
+		imageExcludeList:  imageExcludeList,
 	}
 
 	return c
@@ -178,16 +181,16 @@ func (c *Cluster) AllControllers(namespace string) (res []cluster.Controller, er
 			podControllers, err := resourceKind.getPodControllers(c, ns.Name)
 			if err != nil {
 				if se, ok := err.(*apierrors.StatusError); ok {
-					switch (se.ErrStatus.Reason) {
-						case meta_v1.StatusReasonNotFound:
-							// Kind not supported by API server, skip
-							continue
-						case meta_v1.StatusReasonForbidden:
-							// K8s can return forbidden instead of not found for non super admins
-							c.logger.Log("warning", "not allowed to list resources", "err", err)
-							continue
-						default:
-							return nil, err
+					switch se.ErrStatus.Reason {
+					case meta_v1.StatusReasonNotFound:
+						// Kind not supported by API server, skip
+						continue
+					case meta_v1.StatusReasonForbidden:
+						// K8s can return forbidden instead of not found for non super admins
+						c.logger.Log("warning", "not allowed to list resources", "err", err)
+						continue
+					default:
+						return nil, err
 					}
 				} else {
 					return nil, err
@@ -291,16 +294,16 @@ func (c *Cluster) Export() ([]byte, error) {
 			podControllers, err := resourceKind.getPodControllers(c, ns.Name)
 			if err != nil {
 				if se, ok := err.(*apierrors.StatusError); ok {
-					switch (se.ErrStatus.Reason) {
-						case meta_v1.StatusReasonNotFound:
-							// Kind not supported by API server, skip
-							continue
-						case meta_v1.StatusReasonForbidden:
-							// K8s can return forbidden instead of not found for non super admins
-							c.logger.Log("warning", "not allowed to list resources", "err", err)
-							continue
-						default:
-							return nil, err
+					switch se.ErrStatus.Reason {
+					case meta_v1.StatusReasonNotFound:
+						// Kind not supported by API server, skip
+						continue
+					case meta_v1.StatusReasonForbidden:
+						// K8s can return forbidden instead of not found for non super admins
+						c.logger.Log("warning", "not allowed to list resources", "err", err)
+						continue
+					default:
+						return nil, err
 					}
 				} else {
 					return nil, err
