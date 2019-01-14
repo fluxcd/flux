@@ -240,4 +240,4 @@ Check the operator logs with:
 kubectl -n weave logs deployment/flux-helm-operator -f
 ```
 
-Note that the above instructions are assuming that Tiller is deployed in the `kube-system` namespace without TLS.
+**Note:** that the above instructions are assuming that Tiller is deployed in the `kube-system` namespace without TLS.
