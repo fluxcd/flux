@@ -12,6 +12,8 @@ kubectl -n flux delete svc flux-memcached
 
 ### Improvements
 
+ - Updated Flux to `1.9.0` and Helm operator to `0.5.3`
+   [weaveworks/flux#1662](https://github.com/weaveworks/flux/pull/1662)
  - Add resetValues field to HelmRelease CRD
    [weaveworks/flux#1628](https://github.com/weaveworks/flux/pull/1628)
  - Use ClusterIP service name for connecting to memcached
