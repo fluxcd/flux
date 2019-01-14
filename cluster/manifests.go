@@ -31,8 +31,6 @@ type Manifests interface {
 	// supplied as absolute paths to directories or files; at least
 	// one path should be supplied, even if it is the same as `baseDir`.
 	LoadManifests(baseDir string, paths []string) (map[string]resource.Resource, error)
-	// Parse the manifests given in an exported blob
-	ParseManifests([]byte) (map[string]resource.Resource, error)
 	// UpdatePolicies modifies a manifest to apply the policy update specified
 	UpdatePolicies([]byte, flux.ResourceID, policy.Update) ([]byte, error)
 }

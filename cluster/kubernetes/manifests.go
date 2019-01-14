@@ -14,10 +14,6 @@ func (c *Manifests) LoadManifests(base string, paths []string) (map[string]resou
 	return kresource.Load(base, paths)
 }
 
-func (c *Manifests) ParseManifests(allDefs []byte) (map[string]resource.Resource, error) {
-	return kresource.ParseMultidoc(allDefs, "exported")
-}
-
 func (c *Manifests) UpdateImage(def []byte, id flux.ResourceID, container string, image image.Ref) ([]byte, error) {
 	return updatePodController(def, id, container, image)
 }

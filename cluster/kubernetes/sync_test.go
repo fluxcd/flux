@@ -25,6 +25,7 @@ import (
 
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster"
+	kresource "github.com/weaveworks/flux/cluster/kubernetes/resource"
 	fluxfake "github.com/weaveworks/flux/integrations/client/clientset/versioned/fake"
 	"github.com/weaveworks/flux/sync"
 )
@@ -216,8 +217,7 @@ metadata:
 	}
 
 	test := func(t *testing.T, kube *Cluster, defs, expectedAfterSync string, expectErrors bool) {
-		manifests := &Manifests{}
-		resources, err := manifests.ParseManifests([]byte(defs))
+		resources, err := kresource.ParseMultidoc([]byte(defs), "before")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -226,7 +226,7 @@ metadata:
 		if !expectErrors && err != nil {
 			t.Error(err)
 		}
-		expected, err := manifests.ParseManifests([]byte(expectedAfterSync))
+		expected, err := kresource.ParseMultidoc([]byte(expectedAfterSync), "after")
 		if err != nil {
 			panic(err)
 		}

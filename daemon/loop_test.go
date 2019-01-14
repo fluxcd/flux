@@ -22,7 +22,6 @@ import (
 	"github.com/weaveworks/flux/git/gittest"
 	"github.com/weaveworks/flux/job"
 	registryMock "github.com/weaveworks/flux/registry/mock"
-	"github.com/weaveworks/flux/resource"
 )
 
 const (
@@ -43,9 +42,6 @@ func daemon(t *testing.T) (*Daemon, func()) {
 
 	k8s = &cluster.Mock{}
 	k8s.LoadManifestsFunc = kresource.Load
-	k8s.ParseManifestsFunc = func(allDefs []byte) (map[string]resource.Resource, error) {
-		return kresource.ParseMultidoc(allDefs, "exported")
-	}
 	k8s.ExportFunc = func() ([]byte, error) { return nil, nil }
 
 	events = &mockEventWriter{}

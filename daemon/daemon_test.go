@@ -289,7 +289,7 @@ func TestDaemon_ListImagesWithOptions(t *testing.T) {
 		{
 			name: "Override container field selection",
 			opts: v10.ListImagesOptions{
-				Spec: specAll,
+				Spec:                    specAll,
 				OverrideContainerFields: []string{"Name", "Current", "NewAvailableImagesCount"},
 			},
 			expectedImages: []v6.ImageStatus{
@@ -319,7 +319,7 @@ func TestDaemon_ListImagesWithOptions(t *testing.T) {
 		{
 			name: "Override container field selection with invalid field",
 			opts: v10.ListImagesOptions{
-				Spec: specAll,
+				Spec:                    specAll,
 				OverrideContainerFields: []string{"InvalidField"},
 			},
 			expectedImages: nil,
@@ -648,9 +648,6 @@ func mockDaemon(t *testing.T) (*Daemon, func(), func(), *cluster.Mock, *mockEven
 		}
 		k8s.ExportFunc = func() ([]byte, error) { return testBytes, nil }
 		k8s.LoadManifestsFunc = kresource.Load
-		k8s.ParseManifestsFunc = func(allDefs []byte) (map[string]resource.Resource, error) {
-			return kresource.ParseMultidoc(allDefs, "test")
-		}
 		k8s.PingFunc = func() error { return nil }
 		k8s.SomeServicesFunc = func([]flux.ResourceID) ([]cluster.Controller, error) {
 			return []cluster.Controller{
@@ -823,10 +820,7 @@ func (w *wait) ForImageTag(t *testing.T, d *Daemon, service, container, tag stri
 		defer co.Clean()
 
 		dirs := co.ManifestDirs()
-		m, err := d.Manifests.LoadManifests(co.Dir(), dirs)
-		assert.NoError(t, err)
-
-		resources, err := d.Manifests.ParseManifests(m[service].Bytes())
+		resources, err := d.Manifests.LoadManifests(co.Dir(), dirs)
 		assert.NoError(t, err)
 
 		workload, ok := resources[service].(resource.Workload)
