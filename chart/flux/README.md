@@ -218,6 +218,9 @@ The following tables lists the configurable parameters of the Weave Flux chart a
 | `registry.trace` |  Output trace of image registry requests to log | `false`
 | `registry.insecureHosts` | Use HTTP rather than HTTPS for the image registry domains | `None`
 | `registry.cacheExpiry` | Duration to keep cached image info (deprecated) | `None`
+| `registry.ecr.region` | Restrict ECR scanning to these AWS regions; if empty, only the cluster's region will be scanned | `None`
+| `registry.ecr.includeId` | Restrict ECR scanning to these AWS account IDs; if empty, all account IDs that aren't excluded may be scanned | `None`
+| `registry.ecr.excludeId` | Do not scan ECR for images in these AWS account IDs; the default is to exclude the EKS system account | `602401143452`
 | `memcached.verbose` | Enable request logging in memcached | `false`
 | `memcached.maxItemSize` | Maximum size for one item | `1m`
 | `memcached.maxMemory` | Maximum memory to use, in megabytes | `64`
