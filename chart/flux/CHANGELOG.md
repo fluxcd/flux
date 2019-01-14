@@ -1,3 +1,51 @@
+## 0.6.0 (TBA)
+
+**Note** To fix the connectivity problems between Flux and memcached we've changed the 
+memcached service from headless to ClusterIP. This change will make the Helm upgrade fail 
+with `ClusterIP field is immutable`. 
+
+Before upgrading to 0.6.0 you have to delete the memcached headless service:
+
+```bash
+kubectl -n flux delete svc flux-memcached
+```
+
+### Improvements
+
+ - Add resetValues field to HelmRelease CRD
+   [weaveworks/flux#1628](https://github.com/weaveworks/flux/pull/1628)
+ - Use ClusterIP service name for connecting to memcached
+   [weaveworks/flux#1618](https://github.com/weaveworks/flux/pull/1618)
+ - Increase comprehensiveness of values table in `chart/flux/README.md`
+   [weaveworks/flux#1626](https://github.com/weaveworks/flux/pull/1626)
+    - Rectify error where `resources` are not `None` by default in `chart/flux/values.yaml`
+    - Add more fields that are actually in `chart/flux/values.yaml`
+    - Separate `replicaCount` into a flux one and `helmOperator.replicaCount` one
+  - Only create the `flux-helm-tls-ca-config` file if `.Values.helmOperator.tls.caContent` exists.
+    Useful when doing flux upgrades but do not happen to know or want to specify
+    the `caContent` in `values.yaml`. Otherwise, the existing caContent will be overriden with an
+    empty value.
+    [weaveworks/flux#1649](https://github.com/weaveworks/flux/pull/1649)
+
+   
+## 0.5.2 (2018-12-20)
+
+### Improvements
+
+ - Updated Flux to `v1.8.2` and Helm operator to `v0.5.2`
+   [weaveworks/flux#1612](https://github.com/weaveworks/flux/pull/1612)
+ - Parameterized the memcached image repo
+   [weaveworks/flux#1592](https://github.com/weaveworks/flux/pull/1592)
+ - Allow existing service account to be provided on helm install
+   [weaveworks/flux#1589](https://github.com/weaveworks/flux/pull/1589)
+ - Make SSH known hosts volume optional
+   [weaveworks/flux#1544](https://github.com/weaveworks/flux/pull/1544)
+
+### Thanks
+
+Thanks to @davidkarlsen, @stephenmoloney, @batpok, @squaremo,
+@hiddeco and @stefanprodan for their contributions.
+
 ## 0.5.1 (2018-11-21)
 
 ### Bug fixes

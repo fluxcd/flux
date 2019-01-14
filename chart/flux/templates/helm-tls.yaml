@@ -1,5 +1,4 @@
-{{- if .Values.helmOperator.tls.enable -}}
-{{- if .Values.helmOperator.tls.verify -}}
+{{- if and .Values.helmOperator.tls.enable .Values.helmOperator.tls.verify .Values.helmOperator.tls.caContent -}}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -7,5 +6,4 @@ metadata:
 data:
   ca.crt: |
 {{ .Values.helmOperator.tls.caContent | indent 4 }}
-{{- end -}}
 {{- end -}}

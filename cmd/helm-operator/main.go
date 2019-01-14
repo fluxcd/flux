@@ -19,6 +19,7 @@ import (
 	ifinformers "github.com/weaveworks/flux/integrations/client/informers/externalversions"
 	fluxhelm "github.com/weaveworks/flux/integrations/helm"
 	"github.com/weaveworks/flux/integrations/helm/chartsync"
+	daemonhttp "github.com/weaveworks/flux/integrations/helm/http/daemon"
 	"github.com/weaveworks/flux/integrations/helm/operator"
 	"github.com/weaveworks/flux/integrations/helm/release"
 	"github.com/weaveworks/flux/integrations/helm/status"
@@ -26,7 +27,6 @@ import (
 
 var (
 	fs     *pflag.FlagSet
-	err    error
 	logger log.Logger
 
 	versionFlag *bool
@@ -77,6 +77,8 @@ func init() {
 	kubeconfig = fs.String("kubeconfig", "", "path to a kubeconfig; required if out-of-cluster")
 	master = fs.String("master", "", "address of the Kubernetes API server; overrides any value in kubeconfig; required if out-of-cluster")
 
+	listenAddr = fs.StringP("listen", "l", ":3030", "Listen address where /metrics and API will be served")
+
 	tillerIP = fs.String("tiller-ip", "", "Tiller IP address; required if run out-of-cluster")
 	tillerPort = fs.String("tiller-port", "", "Tiller port; required if run out-of-cluster")
 	tillerNamespace = fs.String("tiller-namespace", "kube-system", "Tiller namespace")
@@ -99,9 +101,8 @@ func init() {
 }
 
 func main() {
-	// Stop glog complaining
+	// set glog output to stderr
 	flag.CommandLine.Parse([]string{"-logtostderr"})
-	// Now do our own
 	fs.Parse(os.Args)
 
 	if *versionFlag {
@@ -109,20 +110,21 @@ func main() {
 		os.Exit(0)
 	}
 
-	// LOGGING ------------------------------------------------------------------------------
+	// init go-kit log
 	{
 		logger = log.NewLogfmtLogger(os.Stderr)
 		logger = log.With(logger, "ts", log.DefaultTimestampUTC)
 		logger = log.With(logger, "caller", log.DefaultCaller)
 	}
 
-	// SHUTDOWN  ----------------------------------------------------------------------------
+	// error channel
 	errc := make(chan error)
 
-	// Shutdown trigger for goroutines
+	// shutdown triggers
 	shutdown := make(chan struct{})
 	shutdownWg := &sync.WaitGroup{}
 
+	// wait for SIGTERM
 	go func() {
 		c := make(chan os.Signal, 1)
 		signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
@@ -137,7 +139,6 @@ func main() {
 
 	mainLogger := log.With(logger, "component", "helm-operator")
 
-	// CLUSTER ACCESS -----------------------------------------------------------------------
 	cfg, err := clientcmd.BuildConfigFromFlags(*master, *kubeconfig)
 	if err != nil {
 		mainLogger.Log("error", fmt.Sprintf("Error building kubeconfig: %v", err))
@@ -150,15 +151,12 @@ func main() {
 		os.Exit(1)
 	}
 
-	// CUSTOM RESOURCES CLIENT --------------------------------------------------------------
 	ifClient, err := clientset.NewForConfig(cfg)
 	if err != nil {
 		mainLogger.Log("error", fmt.Sprintf("Error building integrations clientset: %v", err))
-		//errc <- fmt.Errorf("Error building integrations clientset: %v", err)
 		os.Exit(1)
 	}
 
-	// HELM ---------------------------------------------------------------------------------
 	helmClient := fluxhelm.ClientSetup(log.With(logger, "component", "helm"), kubeClient, fluxhelm.TillerOptions{
 		Host:        *tillerIP,
 		Port:        *tillerPort,
@@ -178,27 +176,25 @@ func main() {
 
 	// release instance is needed during the sync of Charts changes and during the sync of HelmRelease changes
 	rel := release.New(log.With(logger, "component", "release"), helmClient)
-	// CHARTS CHANGES SYNC ------------------------------------------------------------------
 	chartSync := chartsync.New(log.With(logger, "component", "chartsync"),
 		chartsync.Polling{Interval: *chartsSyncInterval},
 		chartsync.Clients{KubeClient: *kubeClient, IfClient: *ifClient},
 		rel, chartsync.Config{LogDiffs: *logReleaseDiffs, UpdateDeps: *updateDependencies, GitTimeout: *gitTimeout})
 	chartSync.Run(shutdown, errc, shutdownWg)
 
-	// OPERATOR - CUSTOM RESOURCE CHANGE SYNC -----------------------------------------------
-	// CUSTOM RESOURCES CACHING SETUP -------------------------------------------------------
-	//				SharedInformerFactory sets up informer, that maps resource type to a cache shared informer.
-	//				operator attaches event handler to the informer and syncs the informer cache
 	ifInformerFactory := ifinformers.NewSharedInformerFactory(ifClient, 30*time.Second)
-	// Reference to shared index informers for the HelmRelease
 	fhrInformer := ifInformerFactory.Flux().V1beta1().HelmReleases()
 
+	// start FluxRelease informer
 	opr := operator.New(log.With(logger, "component", "operator"), *logReleaseDiffs, kubeClient, fhrInformer, chartSync)
-	// Starts handling k8s events related to the given resource kind
 	go ifInformerFactory.Start(shutdown)
 
 	checkpoint.CheckForUpdates(product, version, nil, log.With(logger, "component", "checkpoint"))
 
+	// start HTTP server
+	go daemonhttp.ListenAndServe(*listenAddr, log.With(logger, "component", "daemonhttp"), shutdown)
+
+	// start operator
 	if err = opr.Run(1, shutdown, shutdownWg); err != nil {
 		msg := fmt.Sprintf("Failure to run controller: %s", err.Error())
 		logger.Log("error", msg)

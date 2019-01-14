@@ -1,4 +1,4 @@
-apiVersion: apps/v1beta2
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ template "flux.fullname" . }}-memcached
@@ -49,6 +49,10 @@ spec:
       tolerations:
 {{ toYaml . | indent 8 }}
     {{- end }}
+    {{- with .Values.memcached.securityContext }}
+      securityContext:
+{{ toYaml . | indent 8 }}
+    {{- end }}
 ---
 apiVersion: v1
 kind: Service
@@ -60,7 +64,9 @@ metadata:
     release: {{ .Release.Name }}
     heritage: {{ .Release.Service }}
 spec:
+  {{- if eq .Values.memcached.createClusterIP false }}
   clusterIP: None
+  {{- end }}
   ports:
     - port: 11211
       targetPort: memcached

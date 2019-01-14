@@ -106,6 +106,11 @@ func main() {
 		registryTrace        = fs.Bool("registry-trace", false, "output trace of image registry requests to log")
 		registryInsecure     = fs.StringSlice("registry-insecure-host", []string{}, "use HTTP for this image registry domain (e.g., registry.cluster.local), instead of HTTPS")
 
+		// AWS authentication
+		registryAWSRegions         = fs.StringSlice("registry-ecr-region", nil, "Restrict ECR scanning to these AWS regions; if empty, only the cluster's region will be scanned")
+		registryAWSAccountIDs      = fs.StringSlice("registry-ecr-include-id", nil, "Restrict ECR scanning to these AWS account IDs; if empty, all account IDs that aren't excluded may be scanned")
+		registryAWSBlockAccountIDs = fs.StringSlice("registry-ecr-exclude-id", []string{registry.EKS_SYSTEM_ACCOUNT}, "Do not scan ECR for images in these AWS account IDs; the default is to exclude the EKS system account")
+
 		// k8s-secret backed ssh keyring configuration
 		k8sSecretName            = fs.String("k8s-secret-name", "flux-git-deploy", "Name of the k8s secret used to store the private SSH key")
 		k8sSecretVolumeMountPath = fs.String("k8s-secret-volume-mount-path", "/etc/fluxd/ssh", "Mount location of the k8s secret storing the private SSH key")
@@ -182,8 +187,8 @@ func main() {
 	var clusterVersion string
 	var sshKeyRing ssh.KeyRing
 	var k8s cluster.Cluster
-	var imageCreds func() registry.ImageCreds
 	var k8sManifests cluster.Manifests
+	var imageCreds func() registry.ImageCreds
 	{
 		restClientConfig, err := rest.InClusterConfig()
 		if err != nil {
@@ -261,19 +266,34 @@ func main() {
 			logger.Log("ping", true)
 		}
 
+		k8s = k8sInst
 		imageCreds = k8sInst.ImagesToFetch
+		// There is only one way we currently interpret a repo of
+		// files as manifests, and that's as Kubernetes yamels.
+		k8sManifests = &kubernetes.Manifests{}
+	}
+
+	// Wrap the procedure for collecting images to scan
+	{
+		awsConf := registry.AWSRegistryConfig{
+			Regions:    *registryAWSRegions,
+			AccountIDs: *registryAWSAccountIDs,
+			BlockIDs:   *registryAWSBlockAccountIDs,
+		}
+		credsWithAWSAuth, err := registry.ImageCredsWithAWSAuth(imageCreds, log.With(logger, "component", "aws"), awsConf)
+		if err != nil {
+			logger.Log("warning", "AWS authorization not used; pre-flight check failed")
+		} else {
+			imageCreds = credsWithAWSAuth
+		}
 		if *dockerConfig != "" {
 			credsWithDefaults, err := registry.ImageCredsWithDefaults(imageCreds, *dockerConfig)
 			if err != nil {
-				logger.Log("msg", "--docker-config not used", "err", err)
+				logger.Log("warning", "--docker-config not used; pre-flight check failed", "err", err)
 			} else {
 				imageCreds = credsWithDefaults
 			}
 		}
-		k8s = k8sInst
-		// There is only one way we currently interpret a repo of
-		// files as manifests, and that's as Kubernetes yamels.
-		k8sManifests = &kubernetes.Manifests{}
 	}
 
 	// Registry components
@@ -282,14 +302,24 @@ func main() {
 	{
 		// Cache client, for use by registry and cache warmer
 		var cacheClient cache.Client
-		memcacheClient := registryMemcache.NewMemcacheClient(registryMemcache.MemcacheConfig{
+		var memcacheClient *registryMemcache.MemcacheClient
+		memcacheConfig := registryMemcache.MemcacheConfig{
 			Host:           *memcachedHostname,
 			Service:        *memcachedService,
 			Timeout:        *memcachedTimeout,
 			UpdateInterval: 1 * time.Minute,
 			Logger:         log.With(logger, "component", "memcached"),
 			MaxIdleConns:   *registryBurst,
-		})
+		}
+
+		// if no memcached service is specified use the ClusterIP name instead of SRV records
+		if *memcachedService == "" {
+			memcacheClient = registryMemcache.NewFixedServerMemcacheClient(memcacheConfig,
+				fmt.Sprintf("%s:11211", *memcachedHostname))
+		} else {
+			memcacheClient = registryMemcache.NewMemcacheClient(memcacheConfig)
+		}
+
 		defer memcacheClient.Stop()
 		cacheClient = cache.InstrumentClient(memcacheClient)
 

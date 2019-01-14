@@ -1,8 +1,9 @@
 apiVersion: v1
-appVersion: "1.8.1"
-description: Flux is a tool that automatically ensures that the state of a cluster matches what is specified in version control
+appVersion: "1.8.2"
+version: 0.5.2
+kubeVersion: ">=1.9.0-0"
 name: flux
-version: 0.5.3
+description: Flux is a tool that automatically ensures that the state of a cluster matches what is specified in version control
 home: https://weave.works
 sources:
 - https://github.com/weaveworks/flux
@@ -10,4 +11,6 @@ maintainers:
   - name: stefanprodan
     email: stefan@weave.works
 engine: gotpl
-icon: https://landscape.cncf.io/logos/weave-flux.svg
+icon: https://raw.githubusercontent.com/weaveworks/flux/master/site/images/weave-flux.png
+keywords:
+  - gitops

@@ -185,18 +185,24 @@ The following tables lists the configurable parameters of the Weave Flux chart a
 | ------------------------------- | ------------------------------------------ | ---------------------------------------------------------- |
 | `image.repository` | Image repository | `quay.io/weaveworks/flux`
 | `image.tag` | Image tag | `<VERSION>`
+| `replicaCount` | Number of flux pods to deploy, more than one is not desirable. | `1`
 | `image.pullPolicy` | Image pull policy | `IfNotPresent`
-| `resources` | CPU/memory resource requests/limits for Flux | None
-| `token` | Weave Cloud service token | None
-| `extraEnvs` | Extra environment variables for the Flux pod | `[]`
+| `resources.requests.cpu` | CPU resource requests for the flux deployment | `50m`
+| `resources.requests.memory` | Memory resource requests for the flux deployment | `64Mi`
+| `resources.limits` | CPU/memory resource limits for the flux deployment | `None`
+| `nodeSelector` | Node Selector properties for the flux deployment | `{}`
+| `tolerations` | Tolerations properties for the flux deployment | `[]`
+| `affinity` | Affinity properties for the flux deployment | `{}`
+| `token` | Weave Cloud service token | `None`
+| `extraEnvs` | Extra environment variables for the flux pod(s) | `[]`
 | `rbac.create` | If `true`, create and use RBAC resources | `true`
 | `serviceAccount.create` | If `true`, create a new service account | `true`
 | `serviceAccount.name` | Service account to be used | `flux`
 | `service.type` | Service type to be used (exposing the Flux API outside of the cluster is not advised) | `ClusterIP`
 | `service.port` | Service port to be used | `3030`
-| `git.url` | URL of git repo with Kubernetes manifests | None
+| `git.url` | URL of git repo with Kubernetes manifests | `None`
 | `git.branch` | Branch of git repo to use for Kubernetes manifests | `master`
-| `git.path` | Path within git repo to locate Kubernetes manifests (relative path) | None
+| `git.path` | Path within git repo to locate Kubernetes manifests (relative path) | `None`
 | `git.user` | Username to use as git committer | `Weave Flux`
 | `git.email` | Email to use as git committer | `support@weave.works`
 | `git.setAuthor` | If set, the author of git commits will reflect the user who initiated the commit and will differ from the git committer. | `false`
@@ -204,26 +210,32 @@ The following tables lists the configurable parameters of the Weave Flux chart a
 | `git.ciSkip` | Append "[ci skip]" to commit messages so that CI will skip builds | `false`
 | `git.pollInterval` | Period at which to poll git repo for new commits | `5m`
 | `git.timeout` | Duration after which git operations time out | `20s`
-| `git.secretName` | Kubernetes secret with the SSH private key | None
-| `ssh.known_hosts`  | The contents of an SSH `known_hosts` file, if you need to supply host key(s) | None
+| `git.secretName` | Kubernetes secret with the SSH private key. Superceded by `helmOperator.git.secretName` if set. | `None`
+| `ssh.known_hosts`  | The contents of an SSH `known_hosts` file, if you need to supply host key(s) | `None`
 | `registry.pollInterval` | Period at which to check for updated images | `5m`
 | `registry.rps` | Maximum registry requests per second per host | `200`
 | `registry.burst` | Maximum number of warmer connections to remote and memcache | `125`
 | `registry.trace` |  Output trace of image registry requests to log | `false`
-| `registry.insecureHosts` | Use HTTP rather than HTTPS for these image registry domains | None
+| `registry.insecureHosts` | Use HTTP rather than HTTPS for the image registry domains | `None`
+| `registry.cacheExpiry` | Duration to keep cached image info (deprecated) | `None`
+| `registry.ecr.region` | Restrict ECR scanning to these AWS regions; if empty, only the cluster's region will be scanned | `None`
+| `registry.ecr.includeId` | Restrict ECR scanning to these AWS account IDs; if empty, all account IDs that aren't excluded may be scanned | `None`
+| `registry.ecr.excludeId` | Do not scan ECR for images in these AWS account IDs; the default is to exclude the EKS system account | `602401143452`
 | `memcached.verbose` | Enable request logging in memcached | `false`
 | `memcached.maxItemSize` | Maximum size for one item | `1m`
 | `memcached.maxMemory` | Maximum memory to use, in megabytes | `64`
-| `memcached.resources` | CPU/memory resource requests/limits for memcached | None
+| `memcached.resources` | CPU/memory resource requests/limits for memcached | `None`
 | `helmOperator.create` | If `true`, install the Helm operator | `false`
+| `helmOperator.createCRD` | Create the `v1beta1` and `v1alpha2` flux CRDs. Dependent on `helmOperator.create=true` | `true`
 | `helmOperator.repository` | Helm operator image repository | `quay.io/weaveworks/helm-operator`
 | `helmOperator.tag` | Helm operator image tag | `<VERSION>`
+| `helmOperator.replicaCount` | Number of helm operator pods to deploy, more than one is not desirable. | `1`
 | `helmOperator.pullPolicy` | Helm operator image pull policy | `IfNotPresent`
 | `helmOperator.updateChartDeps` | Update dependencies for charts | `true`
 | `helmOperator.git.pollInterval` | Period at which to poll git repo for new commits | `git.pollInterval`
 | `helmOperator.git.timeout` | Duration after which git operations time out | `git.timeout`
+| `helmOperator.git.secretName` | The name of the kubernetes secret with the SSH private key, supercedes `git.secretName` | `None`
 | `helmOperator.chartsSyncInterval` | Interval at which to check for changed charts | `3m`
-| `helmOperator.chartsSyncTimeout` | Timeout when checking for changed charts | `1m`
 | `helmOperator.extraEnvs` | Extra environment variables for the Helm operator pod | `[]`
 | `helmOperator.logReleaseDiffs` | Helm operator should log the diff when a chart release diverges (possibly insecure) | `false`
 | `helmOperator.tillerNamespace` | Namespace in which the Tiller server can be found | `kube-system`
@@ -231,16 +243,25 @@ The following tables lists the configurable parameters of the Weave Flux chart a
 | `helmOperator.tls.verify` | Verify the Tiller certificate, also enables TLS when set to true | `false`
 | `helmOperator.tls.secretName` | Name of the secret containing the TLS client certificates for communicating with Tiller | `helm-client-certs`
 | `helmOperator.tls.keyFile` | Name of the key file within the k8s secret | `tls.key`
+| `helmOperator.tls.keyFile` | Name of the key file within the k8s secret | `tls.key`
 | `helmOperator.tls.certFile` | Name of the certificate file within the k8s secret | `tls.crt`
-| `helmOperator.tls.caContent` | Certificate Authority content used to validate the Tiller server certificate | None
-| `helmOperator.resources` | CPU/memory resource requests/limits for Helm operator | None
+| `helmOperator.tls.caContent` | Certificate Authority content used to validate the Tiller server certificate | `None`
+| `helmOperator.tls.hostname` | The server name used to verify the hostname on the returned certificates from the Tiller server | `None`
+| `helmOperator.resources.requests.cpu` | CPU resource requests for the helmOperator deployment | `50m`
+| `helmOperator.resources.requests.memory` | Memory resource requests for the helmOperator deployment | `64Mi`
+| `helmOperator.resources.limits` | CPU/memory resource limits for the helmOperator deployment | `None`
+| `helmOperator.nodeSelector` | Node Selector properties for the helmOperator deployment | `{}`
+| `helmOperator.tolerations` | Tolerations properties for the helmOperator deployment | `[]`
+| `helmOperator.affinity` | Affinity properties for the helmOperator deployment | `{}`
+| `kube.config` | Override for kubectl default config in the flux pod(s). | [See values.yaml](https://github.com/weaveworks/flux/blob/master/chart/flux/values.yaml#L151-L165)
+| `prometheus.enabled` | If enbaled, adds prometheus annotations to flux and helmOperator pod(s) | `false`
 
 Specify each parameter using the `--set key=value[,key=value]` argument to `helm install`. For example:
 
 ```sh
 $ helm upgrade --install --wait flux \
 --set git.url=git@github.com:stefanprodan/k8s-podinfo \
---set git.path=deploy/auto-scaling,deploy/local-storage \
+--set git.path="deploy/auto-scaling\,deploy/local-storage" \
 --namespace flux \
 weaveworks/flux
 ```

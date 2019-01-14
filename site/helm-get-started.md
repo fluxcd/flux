@@ -120,7 +120,7 @@ logs the public key at startup. Find the SSH public key by
 installing [fluxctl](./fluxctl.md) and running:
 
 ```sh
-fluxctl identity
+fluxctl identity --k8s-fwd-ns flux
 ```
 
 In order to sync your cluster state with git you need to copy the
