@@ -410,12 +410,12 @@
   revision = "f2b4162afba35581b6d4a50d3b8f34e33c144682"
 
 [[projects]]
-  digest = "1:299e9c1586503c6b99458b97a2a53de42502b1f64e71f8ffbd577ad69cf9f82d"
+  digest = "1:3b678937c9a04e39da29326dfb9eee430cb5b889296875bcd5b2be09a9adc9a2"
   name = "github.com/justinbarrick/go-k8s-portforward"
   packages = ["."]
   pruneopts = ""
-  revision = "d39d2092197c730c96523ab78491f481860eaa89"
-  version = "v1.0.1"
+  revision = "805ce918f289eed30719aea9999413c2f95d0f33"
+  version = "v1.0.2"
 
 [[projects]]
   branch = "master"
