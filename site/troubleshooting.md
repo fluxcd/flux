@@ -72,3 +72,14 @@ GCP (in general) has quite conservative API rate limiting, and Flux's
 default settings can bump API usage over the limits. See
 [weaveworks/flux#1016](https://github.com/weaveworks/flux/issues/1016)
 for advice.
+
+### Flux doesn't seem to be able to use my imagePullSecrets
+
+If you're using `kubectl` v1.13.x to create them, then it may be due
+to [this problem](https://github.com/weaveworks/flux/issues/1596). In
+short, there was a breaking change to how `kubectl` creates secrets,
+that found its way into the Kubernetes 1.13.0 release. It has been
+corrected in [kubectl
+v1.13.2](https://github.com/kubernetes/kubernetes/blob/master/CHANGELOG-1.13.md#changelog-since-v1131),
+so using that version or newer to create secrets should fix the
+problem.
