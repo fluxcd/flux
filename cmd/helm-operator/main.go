@@ -3,26 +3,25 @@ package main
 import (
 	"flag"
 	"fmt"
-	"os"
-	"os/signal"
-	"sync"
-	"syscall"
-	"time"
-
 	"github.com/go-kit/kit/log"
 	"github.com/spf13/pflag"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
-
 	"github.com/weaveworks/flux/checkpoint"
 	clientset "github.com/weaveworks/flux/integrations/client/clientset/versioned"
 	ifinformers "github.com/weaveworks/flux/integrations/client/informers/externalversions"
 	fluxhelm "github.com/weaveworks/flux/integrations/helm"
 	"github.com/weaveworks/flux/integrations/helm/chartsync"
 	daemonhttp "github.com/weaveworks/flux/integrations/helm/http/daemon"
+	"github.com/weaveworks/flux/integrations/helm/metrics"
 	"github.com/weaveworks/flux/integrations/helm/operator"
 	"github.com/weaveworks/flux/integrations/helm/release"
 	"github.com/weaveworks/flux/integrations/helm/status"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/clientcmd"
+	"os"
+	"os/signal"
+	"sync"
+	"syscall"
+	"time"
 )
 
 var (
@@ -45,6 +44,7 @@ var (
 	tillerTLSCACert   *string
 	tillerTLSHostname *string
 
+	chartStatsInterval *time.Duration
 	chartsSyncInterval *time.Duration
 	logReleaseDiffs    *bool
 	updateDependencies *bool
@@ -90,6 +90,7 @@ func init() {
 	tillerTLSCACert = fs.String("tiller-tls-ca-cert-path", "", "path to CA certificate file used to validate the Tiller server; required if tiller-tls-verify is enabled")
 	tillerTLSHostname = fs.String("tiller-tls-hostname", "", "server name used to verify the hostname on the returned certificates from the server")
 
+	chartStatsInterval = fs.Duration("charts-stats-interval", 30*time.Second, "period on which to update the Helm release Prometheus metrics; the metrics exporter can be disabled by setting the interval to 0s")
 	chartsSyncInterval = fs.Duration("charts-sync-interval", 3*time.Minute, "period on which to reconcile the Helm releases with HelmRelease resources")
 	logReleaseDiffs = fs.Bool("log-release-diffs", false, "log the diff when a chart release diverges; potentially insecure")
 	updateDependencies = fs.Bool("update-chart-deps", true, "Update chart dependencies before installing/upgrading a release")
@@ -193,6 +194,12 @@ func main() {
 
 	// start HTTP server
 	go daemonhttp.ListenAndServe(*listenAddr, log.With(logger, "component", "daemonhttp"), shutdown)
+
+	// start Prometheus exporter
+	if chartStatsInterval != nil && *chartStatsInterval > time.Second {
+		exporter := metrics.NewExporter(log.With(logger, "component", "operator"), helmClient, true)
+		go exporter.Run(*chartStatsInterval, shutdown)
+	}
 
 	// start operator
 	if err = opr.Run(1, shutdown, shutdownWg); err != nil {
