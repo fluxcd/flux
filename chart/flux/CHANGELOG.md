@@ -27,7 +27,7 @@ kubectl -n flux delete svc flux-memcached
     empty value.
     [weaveworks/flux#1649](https://github.com/weaveworks/flux/pull/1649)
   - Add Flux AWS ECR flags
-   [weaveworks/flux#1655](https://github.com/weaveworks/flux/pull/1655)
+    [weaveworks/flux#1655](https://github.com/weaveworks/flux/pull/1655)
 
    
 ## 0.5.2 (2018-12-20)
