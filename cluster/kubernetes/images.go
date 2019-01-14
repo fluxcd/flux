@@ -2,10 +2,10 @@ package kubernetes
 
 import (
 	"fmt"
-	"github.com/ryanuber/go-glob"
 
 	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
+	"github.com/ryanuber/go-glob"
 	apiv1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -15,7 +15,18 @@ import (
 	"github.com/weaveworks/flux/registry"
 )
 
-func mergeCredentials(log func(...interface{}) error, client extendedClient, namespace string, podTemplate apiv1.PodTemplateSpec, imageCreds registry.ImageCreds, seenCreds map[string]registry.Credentials) {
+func mergeCredentials(log func(...interface{}) error,
+	filterImages func(podTemplate apiv1.PodTemplateSpec) []image.Name,
+	client extendedClient,
+	namespace string, podTemplate apiv1.PodTemplateSpec,
+	imageCreds registry.ImageCreds,
+	seenCreds map[string]registry.Credentials) {
+	// filter the images based on the exclusion list
+	images := filterImages(podTemplate)
+	if len(images) < 1 {
+		return
+	}
+
 	creds := registry.NoCredentials()
 	var imagePullSecrets []string
 	saName := podTemplate.Spec.ServiceAccountName
@@ -82,21 +93,8 @@ func mergeCredentials(log func(...interface{}) error, client extendedClient, nam
 	}
 
 	// Now create the service and attach the credentials
-	for _, container := range podTemplate.Spec.Containers {
-		r, err := image.ParseRef(container.Image)
-		if err != nil {
-			log("err", err.Error())
-			continue
-		}
-		imageCreds[r.Name] = creds
-	}
-	for _, container := range podTemplate.Spec.InitContainers {
-		r, err := image.ParseRef(container.Image)
-		if err != nil {
-			log("err", err.Error())
-			continue
-		}
-		imageCreds[r.Name] = creds
+	for _, image := range images {
+		imageCreds[image] = creds
 	}
 }
 
@@ -126,7 +124,7 @@ func (c *Cluster) ImagesToFetch() registry.ImageCreds {
 			imageCreds := make(registry.ImageCreds)
 			for _, podController := range podControllers {
 				logger := log.With(c.logger, "resource", flux.MakeResourceID(ns.Name, kind, podController.name))
-				mergeCredentials(logger.Log, c.client, ns.Name, podController.podTemplate, imageCreds, seenCreds)
+				mergeCredentials(logger.Log, c.filterImages, c.client, ns.Name, podController.podTemplate, imageCreds, seenCreds)
 			}
 
 			// Merge creds
@@ -141,16 +139,52 @@ func (c *Cluster) ImagesToFetch() registry.ImageCreds {
 		}
 	}
 
-	// remove images based on the glob exclusion list
-	for imageID := range allImageCreds {
+	return allImageCreds
+}
+
+// filterImages returns an image list from a pod spec
+// by removing those matching the exclusion list
+func (c *Cluster) filterImages(podTemplate apiv1.PodTemplateSpec) []image.Name {
+	images := []image.Name{}
+
+	for _, container := range podTemplate.Spec.InitContainers {
+		r, err := image.ParseRef(container.Image)
+		if err != nil {
+			c.logger.Log("err", err.Error())
+			continue
+		}
+		images = append(images, r.Name)
+	}
+
+	for _, container := range podTemplate.Spec.Containers {
+		r, err := image.ParseRef(container.Image)
+		if err != nil {
+			c.logger.Log("err", err.Error())
+			continue
+		}
+
+		images = append(images, r.Name)
+	}
+
+	if len(c.imageExcludeList) < 1 {
+		return images
+	}
+
+	result := []image.Name{}
+	for _, imageID := range images {
 		imageName := imageID.CanonicalName().Name.String()
+		include := true
 		for _, exp := range c.imageExcludeList {
 			if glob.Glob(exp, imageName) {
-				//c.logger.Log("debug", fmt.Sprintf("image %s excluded from scanning by %s", imageName, exp))
-				delete(allImageCreds, imageID)
+				include = false
 			}
+		}
+		if include {
+			result = append(result, imageID)
+		} else {
+			//c.logger.Log("debug", fmt.Sprintf("image %s excluded", imageName))
 		}
 	}
 
-	return allImageCreds
+	return result
 }
