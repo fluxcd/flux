@@ -1,3 +1,20 @@
+## 0.5.3 (2019-01-14)
+
+### Improvements
+
+  - `HelmRelease` now has a `resetValues` field which when set to `true`
+    resets the values to the ones built into the chart
+    [weaveworks/flux#1628](https://github.com/weaveworks/flux/pull/1628)
+  - The operator now exposes a HTTP webserver (by default on port
+    `:3030`) with Prometheus metrics on `/metrics` and a health check
+    endpoint on `/healthz`
+    [weaveworks/flux#1653](https://github.com/weaveworks/flux/pull/1653)
+
+### Thanks
+
+A thousand thanks to @davidkarlsen, @hiddeco, @ncabatoff, @stefanprodan,
+@squaremo and others for their contributions leading to this release.
+
 ## 0.5.2 (2018-12-20)
 
 ### Bug fixes
