@@ -14,8 +14,10 @@ spec:
     metadata:
       labels:
         name: flux-helm-operator
+      annotations:
+        prometheus.io/scrape: "true"
     spec:
-      serviceAccount: flux
+      serviceAccountName: flux
       volumes:
       # The following volume is for using a customised known_hosts file,
       # which you will need to do if you host your own git repo rather
@@ -62,6 +64,9 @@ spec:
         # and replace the tag here.
         image: quay.io/weaveworks/helm-operator:0.5.2
         imagePullPolicy: IfNotPresent
+        ports:
+        - name: http
+          containerPort: 3030
         resources:
           requests:
             cpu: 50m

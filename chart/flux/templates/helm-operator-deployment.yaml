@@ -59,6 +59,9 @@ spec:
       - name: flux-helm-operator
         image: "{{ .Values.helmOperator.repository }}:{{ .Values.helmOperator.tag }}"
         imagePullPolicy: {{ .Values.helmOperator.pullPolicy }}
+        ports:
+        - name: http
+          containerPort: 3030
         volumeMounts:
         {{- if .Values.ssh.known_hosts }}
         - name: sshdir
