@@ -221,3 +221,23 @@ metadata:
   selfLink: /api/v1/namespaces/helm-system/configmaps/flux-helm-tls-ca-config
   uid: c106f866-7f9e-11e8-904a-025000000001
 ```
+
+## Installing Weave Flux helm-operator for Weave Cloud
+
+In order to use the Helm operator with Weave Cloud you have to apply the `HelmRelease` CRD definition and the operator 
+deployment in the `weave` namespace:
+
+```bash
+export REPO=https://raw.githubusercontent.com/weaveworks/flux/master
+
+kubectl apply -f ${REPO}/deploy-helm/flux-helm-release-crd.yaml
+kubectl apply -f ${REPO}/deploy-helm/weave-cloud-helm-operator-deployment.yaml
+```
+
+Check the operator logs with:
+
+```bash
+kubectl -n weave logs deployment/flux-helm-operator -f
+```
+
+**Note:** that the above instructions are assuming that Tiller is deployed in the `kube-system` namespace without TLS.
