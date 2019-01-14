@@ -1,4 +1,4 @@
-## 0.6.0 (TBA)
+## 0.6.0 (2019-01-14)
 
 **Note** To fix the connectivity problems between Flux and memcached we've changed the 
 memcached service from headless to ClusterIP. This change will make the Helm upgrade fail 
@@ -26,6 +26,8 @@ kubectl -n flux delete svc flux-memcached
     the `caContent` in `values.yaml`. Otherwise, the existing caContent will be overriden with an
     empty value.
     [weaveworks/flux#1649](https://github.com/weaveworks/flux/pull/1649)
+  - Add Flux AWS ECR flags
+   [weaveworks/flux#1655](https://github.com/weaveworks/flux/pull/1655)
 
    
 ## 0.5.2 (2018-12-20)
