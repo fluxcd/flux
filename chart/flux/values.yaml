@@ -123,6 +123,11 @@ registry:
   insecureHosts:
   # Duration to keep cached image info. Must be < 1 month. (Deprecated)
   cacheExpiry:
+  # AWS ECR settings
+  ecr:
+    region:
+    includeId:
+    excludeId:
 
 memcached:
   repository: memcached
