@@ -1,6 +1,6 @@
 {{- $gitTimeout := default .Values.git.timeout .Values.helmOperator.git.timeout }}
 {{- if .Values.helmOperator.create -}}
-apiVersion: apps/v1beta2
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ template "flux.fullname" . }}-helm-operator
