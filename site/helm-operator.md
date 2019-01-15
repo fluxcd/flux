@@ -12,6 +12,7 @@ helm-operator requires setup and offers customization though a multitude of flag
 |------------------------------|-------------------------------|---------|
 |--kubeconfig                  |                               | Path to a kubeconfig. Only required if out-of-cluster. |
 |--master                      |                               | The address of the Kubernetes API server. Overrides any value in kubeconfig. Only required if out-of-cluster. |
+|--namespace                   |                               | If set, this limits the scope to a single namespace. if not specified, all namespaces will be watched. |
 |                              |                               | **Tiller options** |
 |--tiller-ip                   |                               | Tiller IP address. Only required if out-of-cluster. |
 |--tiller-port                 |                               | Tiller port. |
