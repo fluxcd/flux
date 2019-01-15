@@ -238,6 +238,7 @@ The following tables lists the configurable parameters of the Weave Flux chart a
 | `helmOperator.chartsSyncInterval` | Interval at which to check for changed charts | `3m`
 | `helmOperator.extraEnvs` | Extra environment variables for the Helm operator pod | `[]`
 | `helmOperator.logReleaseDiffs` | Helm operator should log the diff when a chart release diverges (possibly insecure) | `false`
+| `helmOperator.namespace` | If set, this limits the scope to a single namespace. If not specified, all namespaces will be watched | `None`
 | `helmOperator.tillerNamespace` | Namespace in which the Tiller server can be found | `kube-system`
 | `helmOperator.tls.enable` | Enable TLS for communicating with Tiller | `false`
 | `helmOperator.tls.verify` | Verify the Tiller certificate, also enables TLS when set to true | `false`

@@ -21,6 +21,8 @@ helmOperator:
   repository: quay.io/weaveworks/helm-operator
   tag: 0.5.3
   pullPolicy: IfNotPresent
+  # Limit the operator scope to a single namespace
+  namespace:
   # Update dependencies for charts
   updateChartDeps: true
   # Log the diff when a chart release diverges
