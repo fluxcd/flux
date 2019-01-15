@@ -173,7 +173,7 @@ func main() {
 
 	// The status updater, to keep track the release status for each
 	// HelmRelease. It runs as a separate loop for now.
-	statusUpdater := status.New(ifClient, kubeClient, helmClient)
+	statusUpdater := status.New(ifClient, kubeClient, helmClient, *namespace)
 	go statusUpdater.Loop(shutdown, log.With(logger, "component", "annotator"))
 
 	// release instance is needed during the sync of Charts changes and during the sync of HelmRelease changes
