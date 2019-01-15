@@ -33,6 +33,7 @@ var (
 
 	kubeconfig *string
 	master     *string
+	namespace  *string
 
 	tillerIP        *string
 	tillerPort      *string
@@ -76,6 +77,7 @@ func init() {
 
 	kubeconfig = fs.String("kubeconfig", "", "path to a kubeconfig; required if out-of-cluster")
 	master = fs.String("master", "", "address of the Kubernetes API server; overrides any value in kubeconfig; required if out-of-cluster")
+	namespace = fs.String("namespace", "", "if set, this limits the scope to a single namespace; if not specified, all namespaces will be watched")
 
 	listenAddr = fs.StringP("listen", "l", ":3030", "Listen address where /metrics and API will be served")
 
@@ -92,7 +94,7 @@ func init() {
 
 	chartsSyncInterval = fs.Duration("charts-sync-interval", 3*time.Minute, "period on which to reconcile the Helm releases with HelmRelease resources")
 	logReleaseDiffs = fs.Bool("log-release-diffs", false, "log the diff when a chart release diverges; potentially insecure")
-	updateDependencies = fs.Bool("update-chart-deps", true, "Update chart dependencies before installing/upgrading a release")
+	updateDependencies = fs.Bool("update-chart-deps", true, "update chart dependencies before installing/upgrading a release")
 
 	_ = fs.Duration("git-poll-interval", 0, "")
 	gitTimeout = fs.Duration("git-timeout", 20*time.Second, "duration after which git operations time out")
@@ -179,10 +181,11 @@ func main() {
 	chartSync := chartsync.New(log.With(logger, "component", "chartsync"),
 		chartsync.Polling{Interval: *chartsSyncInterval},
 		chartsync.Clients{KubeClient: *kubeClient, IfClient: *ifClient},
-		rel, chartsync.Config{LogDiffs: *logReleaseDiffs, UpdateDeps: *updateDependencies, GitTimeout: *gitTimeout})
+		rel, chartsync.Config{LogDiffs: *logReleaseDiffs, UpdateDeps: *updateDependencies, GitTimeout: *gitTimeout}, *namespace)
 	chartSync.Run(shutdown, errc, shutdownWg)
 
-	ifInformerFactory := ifinformers.NewSharedInformerFactory(ifClient, 30*time.Second)
+	nsOpt := ifinformers.WithNamespace(*namespace)
+	ifInformerFactory := ifinformers.NewSharedInformerFactoryWithOptions(ifClient, 30*time.Second, nsOpt)
 	fhrInformer := ifInformerFactory.Flux().V1beta1().HelmReleases()
 
 	// start FluxRelease informer

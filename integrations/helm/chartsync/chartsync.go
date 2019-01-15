@@ -106,8 +106,8 @@ type clone struct {
 }
 
 type ChartChangeSync struct {
-	logger log.Logger
 	Polling
+	logger     log.Logger
 	kubeClient kubernetes.Clientset
 	ifClient   ifclientset.Clientset
 	release    *release.Release
@@ -117,9 +117,11 @@ type ChartChangeSync struct {
 
 	clonesMu sync.Mutex
 	clones   map[string]clone
+
+	namespace string
 }
 
-func New(logger log.Logger, polling Polling, clients Clients, release *release.Release, config Config) *ChartChangeSync {
+func New(logger log.Logger, polling Polling, clients Clients, release *release.Release, config Config, namespace string) *ChartChangeSync {
 	return &ChartChangeSync{
 		logger:     logger,
 		Polling:    polling,
@@ -129,6 +131,7 @@ func New(logger log.Logger, polling Polling, clients Clients, release *release.R
 		config:     config.WithDefaults(),
 		mirrors:    git.NewMirrors(),
 		clones:     make(map[string]clone),
+		namespace:  namespace,
 	}
 }
 
@@ -403,6 +406,11 @@ func (chs *ChartChangeSync) DeleteRelease(fhr fluxv1beta1.HelmRelease) {
 
 // getNamespaces gets current kubernetes cluster namespaces
 func (chs *ChartChangeSync) getNamespaces() ([]string, error) {
+	if chs.namespace != "" {
+		return []string{chs.namespace}, nil
+	}
+
+	// if no namespace scope is set then get all namespaces in the cluster
 	var ns []string
 	nso, err := chs.kubeClient.CoreV1().Namespaces().List(metav1.ListOptions{})
 	if err != nil {
