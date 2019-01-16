@@ -67,7 +67,7 @@ func extractAnnotations(def []byte) (map[string]string, error) {
 }
 
 func extractContainers(def []byte, id flux.ResourceID) ([]resource.Container, error) {
-	resources, err := kresource.ParseMultidoc(def, "stdin")
+	resources, err := kresource.ParseMultidoc(def, "", "stdin")
 	if err != nil {
 		return nil, err
 	}

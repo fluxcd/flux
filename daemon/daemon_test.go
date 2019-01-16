@@ -20,7 +20,6 @@ import (
 	"github.com/weaveworks/flux/api/v9"
 	"github.com/weaveworks/flux/cluster"
 	"github.com/weaveworks/flux/cluster/kubernetes"
-	kresource "github.com/weaveworks/flux/cluster/kubernetes/resource"
 	"github.com/weaveworks/flux/event"
 	"github.com/weaveworks/flux/git"
 	"github.com/weaveworks/flux/git/gittest"
@@ -647,7 +646,7 @@ func mockDaemon(t *testing.T) (*Daemon, func(), func(), *cluster.Mock, *mockEven
 			return []cluster.Controller{}, nil
 		}
 		k8s.ExportFunc = func() ([]byte, error) { return testBytes, nil }
-		k8s.LoadManifestsFunc = kresource.Load
+		k8s.LoadManifestsFunc = (&kubernetes.Manifests{}).LoadManifests
 		k8s.PingFunc = func() error { return nil }
 		k8s.SomeServicesFunc = func([]flux.ResourceID) ([]cluster.Controller, error) {
 			return []cluster.Controller{

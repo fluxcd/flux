@@ -14,8 +14,11 @@ import (
 
 // Load takes paths to directories or files, and creates an object set
 // based on the file(s) therein. Resources are named according to the
-// file content, rather than the file name of directory structure.
-func Load(base string, paths []string) (map[string]resource.Resource, error) {
+// file content, rather than the file name of directory structure. The
+// `fallbackNamespace` is assigned to any resource that doesn't
+// specify a namespace; it's only used for identification, and not put
+// in the definition.
+func Load(base, fallbackNamespace string, paths []string) (map[string]resource.Resource, error) {
 	if _, err := os.Stat(base); os.IsNotExist(err) {
 		return nil, fmt.Errorf("git path %q not found", base)
 	}
@@ -47,7 +50,7 @@ func Load(base string, paths []string) (map[string]resource.Resource, error) {
 				if err != nil {
 					return errors.Wrapf(err, "path to scan %q is not under base %q", path, base)
 				}
-				docsInFile, err := ParseMultidoc(bytes, source)
+				docsInFile, err := ParseMultidoc(bytes, source, fallbackNamespace)
 				if err != nil {
 					return err
 				}
@@ -127,7 +130,7 @@ func looksLikeChart(dir string) bool {
 
 // ParseMultidoc takes a dump of config (a multidoc YAML) and
 // constructs an object set from the resources represented therein.
-func ParseMultidoc(multidoc []byte, source string) (map[string]resource.Resource, error) {
+func ParseMultidoc(multidoc []byte, source, fallbackNamespace string) (map[string]resource.Resource, error) {
 	objs := map[string]resource.Resource{}
 	chunks := bufio.NewScanner(bytes.NewReader(multidoc))
 	initialBuffer := make([]byte, 4096)     // Matches startBufSize in bufio/scan.go
@@ -143,7 +146,7 @@ func ParseMultidoc(multidoc []byte, source string) (map[string]resource.Resource
 		bytes := chunks.Bytes()
 		bytes2 := make([]byte, len(bytes), cap(bytes))
 		copy(bytes2, bytes)
-		if obj, err = unmarshalObject(source, bytes2); err != nil {
+		if obj, err = unmarshalObject(source, fallbackNamespace, bytes2); err != nil {
 			return nil, errors.Wrapf(err, "parsing YAML doc from %q", source)
 		}
 		if obj == nil {

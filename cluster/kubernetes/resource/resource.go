@@ -13,16 +13,21 @@ import (
 
 const (
 	PolicyPrefix = "flux.weave.works/"
+	// The namespace to presume if something doesn't have one, and we
+	// haven't been told what to use as a fallback
+	FallbackFallbackNamespace = "default"
 )
 
 // -- unmarshaling code for specific object and field types
 
 // struct to embed in objects, to provide default implementation
 type baseObject struct {
-	source string
-	bytes  []byte
-	Kind   string `yaml:"kind"`
-	Meta   struct {
+	source            string
+	fallbackNamespace string
+
+	bytes []byte
+	Kind  string `yaml:"kind"`
+	Meta  struct {
 		Namespace   string            `yaml:"namespace"`
 		Name        string            `yaml:"name"`
 		Annotations map[string]string `yaml:"annotations,omitempty"`
@@ -32,7 +37,11 @@ type baseObject struct {
 func (o baseObject) ResourceID() flux.ResourceID {
 	ns := o.Meta.Namespace
 	if ns == "" {
-		ns = "default"
+		if o.fallbackNamespace == "" {
+			ns = FallbackFallbackNamespace
+		} else {
+			ns = o.fallbackNamespace
+		}
 	}
 	return flux.MakeResourceID(ns, o.Kind, o.Meta.Name)
 }
@@ -70,8 +79,8 @@ func (o baseObject) Bytes() []byte {
 	return o.bytes
 }
 
-func unmarshalObject(source string, bytes []byte) (resource.Resource, error) {
-	var base = baseObject{source: source, bytes: bytes}
+func unmarshalObject(source, fallbackNamespace string, bytes []byte) (resource.Resource, error) {
+	var base = baseObject{source: source, fallbackNamespace: fallbackNamespace, bytes: bytes}
 	if err := yaml.Unmarshal(bytes, &base); err != nil {
 		return nil, err
 	}
@@ -154,7 +163,7 @@ func unmarshalList(base baseObject, raw *rawList, list *List) error {
 		if err != nil {
 			return err
 		}
-		res, err := unmarshalObject(base.source, bytes)
+		res, err := unmarshalObject(base.source, base.fallbackNamespace, bytes)
 		if err != nil {
 			return err
 		}

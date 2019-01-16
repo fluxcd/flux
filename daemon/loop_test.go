@@ -15,7 +15,7 @@ import (
 
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster"
-	kresource "github.com/weaveworks/flux/cluster/kubernetes/resource"
+	"github.com/weaveworks/flux/cluster/kubernetes"
 	"github.com/weaveworks/flux/cluster/kubernetes/testfiles"
 	"github.com/weaveworks/flux/event"
 	"github.com/weaveworks/flux/git"
@@ -41,7 +41,7 @@ func daemon(t *testing.T) (*Daemon, func()) {
 	repo, repoCleanup := gittest.Repo(t)
 
 	k8s = &cluster.Mock{}
-	k8s.LoadManifestsFunc = kresource.Load
+	k8s.LoadManifestsFunc = (&kubernetes.Manifests{}).LoadManifests
 	k8s.ExportFunc = func() ([]byte, error) { return nil, nil }
 
 	events = &mockEventWriter{}

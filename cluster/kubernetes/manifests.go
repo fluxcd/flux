@@ -8,10 +8,11 @@ import (
 )
 
 type Manifests struct {
+	FallbackNamespace string
 }
 
 func (c *Manifests) LoadManifests(base string, paths []string) (map[string]resource.Resource, error) {
-	return kresource.Load(base, paths)
+	return kresource.Load(base, c.FallbackNamespace, paths)
 }
 
 func (c *Manifests) UpdateImage(def []byte, id flux.ResourceID, container string, image image.Ref) ([]byte, error) {

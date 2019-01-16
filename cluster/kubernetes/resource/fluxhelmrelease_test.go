@@ -26,7 +26,7 @@ spec:
       enabled: false
 `
 
-	resources, err := ParseMultidoc([]byte(doc), "test")
+	resources, err := ParseMultidoc([]byte(doc), "", "test")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -72,7 +72,7 @@ spec:
       enabled: false
 `
 
-	resources, err := ParseMultidoc([]byte(doc), "test")
+	resources, err := ParseMultidoc([]byte(doc), "", "test")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -116,7 +116,7 @@ spec:
         enabled: false
 `
 
-	resources, err := ParseMultidoc([]byte(doc), "test")
+	resources, err := ParseMultidoc([]byte(doc), "", "test")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -186,7 +186,7 @@ spec:
         enabled: false
 `
 
-	resources, err := ParseMultidoc([]byte(doc), "test")
+	resources, err := ParseMultidoc([]byte(doc), "", "test")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -253,7 +253,7 @@ spec:
       enabled: false
 `
 
-	resources, err := ParseMultidoc([]byte(doc), "test")
+	resources, err := ParseMultidoc([]byte(doc), "", "test")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -304,7 +304,7 @@ spec:
         enabled: false
 `
 
-	resources, err := ParseMultidoc([]byte(doc), "test")
+	resources, err := ParseMultidoc([]byte(doc), "", "test")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -391,7 +391,7 @@ spec:
         enabled: false
 `
 
-	resources, err := ParseMultidoc([]byte(doc), "test")
+	resources, err := ParseMultidoc([]byte(doc), "", "test")
 	if err != nil {
 		t.Fatal(err)
 	}

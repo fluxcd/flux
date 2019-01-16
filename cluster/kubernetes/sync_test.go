@@ -20,6 +20,7 @@ import (
 	//	dynamicfake "k8s.io/client-go/dynamic/fake"
 	//	k8sclient "k8s.io/client-go/kubernetes"
 	"github.com/stretchr/testify/assert"
+	"k8s.io/client-go/discovery"
 	corefake "k8s.io/client-go/kubernetes/fake"
 	k8s_testing "k8s.io/client-go/testing"
 
@@ -30,12 +31,16 @@ import (
 	"github.com/weaveworks/flux/sync"
 )
 
+const (
+	defaultNamespace = "unusual-default"
+)
+
 func fakeClients() extendedClient {
 	scheme := runtime.NewScheme()
 
 	// Set this to `true` to output a trace of the API actions called
 	// while running the tests
-	const debug = false
+	const debug = true
 
 	getAndList := metav1.Verbs([]string{"get", "list"})
 	// Adding these means the fake dynamic client will find them, and
@@ -48,9 +53,15 @@ func fakeClients() extendedClient {
 				{Name: "deployments", SingularName: "deployment", Namespaced: true, Kind: "Deployment", Verbs: getAndList},
 			},
 		},
+		{
+			GroupVersion: "v1",
+			APIResources: []metav1.APIResource{
+				{Name: "namespaces", SingularName: "namespace", Namespaced: false, Kind: "Namespace", Verbs: getAndList},
+			},
+		},
 	}
 
-	coreClient := corefake.NewSimpleClientset(&corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "foobar"}})
+	coreClient := corefake.NewSimpleClientset(&corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: defaultNamespace}})
 	fluxClient := fluxfake.NewSimpleClientset()
 	dynamicClient := NewSimpleDynamicClient(scheme) // NB from this package, rather than the official one, since we needed a patched version
 
@@ -64,7 +75,7 @@ func fakeClients() extendedClient {
 		for _, fake := range []*k8s_testing.Fake{&coreClient.Fake, &fluxClient.Fake, &dynamicClient.Fake} {
 			fake.PrependReactor("*", "*", func(action k8s_testing.Action) (bool, runtime.Object, error) {
 				gvr := action.GetResource()
-				println("[DEBUG] action:", action.GetVerb(), gvr.Group, gvr.Version, gvr.Resource)
+				fmt.Printf("[DEBUG] action: %s ns:%s %s/%s %s\n", action.GetVerb(), action.GetNamespace(), gvr.Group, gvr.Version, gvr.Resource)
 				return false, nil, nil
 			})
 		}
@@ -84,7 +95,13 @@ func fakeClients() extendedClient {
 // correct effect, which is either to "upsert", or delete, resources.
 type fakeApplier struct {
 	client     dynamic.Interface
+	discovery  discovery.DiscoveryInterface
+	defaultNS  string
 	commandRun bool
+}
+
+func (a fakeApplier) getDefaultNamespace() string {
+	return defaultNamespace
 }
 
 func groupVersionResource(res *unstructured.Unstructured) schema.GroupVersionResource {
@@ -113,8 +130,22 @@ func (a fakeApplier) apply(_ log.Logger, cs changeSet, errored map[flux.Resource
 
 		gvr := groupVersionResource(res)
 		c := a.client.Resource(gvr)
+		// This is an approximation to what `kubectl` does in filling
+		// in the fallback namespace (from config). In the case of
+		// non-namespaced entities, it will be ignored by the fake
+		// client (FIXME: make sure of this).
+		apiRes := findAPIResource(gvr, a.discovery)
+		if apiRes == nil {
+			panic("no APIResource found for " + gvr.String())
+		}
+
 		var dc dynamic.ResourceInterface = c
-		if ns := res.GetNamespace(); ns != "" {
+		ns := res.GetNamespace()
+		if apiRes.Namespaced {
+			if ns == "" {
+				ns = a.defaultNS
+				res.SetNamespace(ns)
+			}
 			dc = c.Namespace(ns)
 		}
 		name := res.GetName()
@@ -153,11 +184,28 @@ func (a fakeApplier) apply(_ log.Logger, cs changeSet, errored map[flux.Resource
 	return errs
 }
 
+func findAPIResource(gvr schema.GroupVersionResource, disco discovery.DiscoveryInterface) *metav1.APIResource {
+	groupVersion := gvr.Version
+	if gvr.Group != "" {
+		groupVersion = gvr.Group + "/" + groupVersion
+	}
+	reses, err := disco.ServerResourcesForGroupVersion(groupVersion)
+	if err != nil {
+		return nil
+	}
+	for _, res := range reses.APIResources {
+		if res.Name == gvr.Resource {
+			return &res
+		}
+	}
+	return nil
+}
+
 // ---
 
 func setup(t *testing.T) (*Cluster, *fakeApplier) {
 	clients := fakeClients()
-	applier := &fakeApplier{client: clients.dynamicClient}
+	applier := &fakeApplier{client: clients.dynamicClient, discovery: clients.coreClient.Discovery(), defaultNS: defaultNamespace}
 	kube := &Cluster{
 		applier: applier,
 		client:  clients,
@@ -217,7 +265,7 @@ metadata:
 	}
 
 	test := func(t *testing.T, kube *Cluster, defs, expectedAfterSync string, expectErrors bool) {
-		resources, err := kresource.ParseMultidoc([]byte(defs), "before")
+		resources, err := kresource.ParseMultidoc([]byte(defs), "before", defaultNamespace)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -226,20 +274,20 @@ metadata:
 		if !expectErrors && err != nil {
 			t.Error(err)
 		}
-		expected, err := kresource.ParseMultidoc([]byte(expectedAfterSync), "after")
+		expected, err := kresource.ParseMultidoc([]byte(expectedAfterSync), "after", defaultNamespace)
 		if err != nil {
 			panic(err)
 		}
 
 		// Now check that the resources were created
-		actual, err := kube.getResourcesInStack()
+		actual, err := kube.getResourcesInStack(defaultNamespace)
 		if err != nil {
 			t.Fatal(err)
 		}
 
 		for id := range actual {
 			if _, ok := expected[id]; !ok {
-				t.Errorf("resource present after sync but not in resources applied: %q", id)
+				t.Errorf("resource present after sync but not in resources applied: %q (present: %v)", id, actual)
 				if j, err := yaml.Marshal(actual[id].obj); err == nil {
 					println(string(j))
 				}
@@ -249,7 +297,7 @@ metadata:
 		}
 		for id := range expected {
 			if _, ok := actual[id]; !ok {
-				t.Errorf("resource supposed to be synced but not present: %q", id)
+				t.Errorf("resource supposed to be synced but not present: %q (present: %v)", id, actual)
 			}
 			// no need to compare values, since we already considered
 			// the intersection of actual and expected above.
@@ -271,6 +319,44 @@ metadata:
 		test(t, kube, defs2+defs3, defs3+defs2, false)
 		test(t, kube, defs1+defs2, defs1+defs2, false)
 		test(t, kube, "", "", false)
+	})
+
+	t.Run("sync won't delete non-namespaced resources", func(t *testing.T) {
+		kube, _ := setup(t)
+		kube.GC = true
+
+		const nsDef = `
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: bar-ns
+`
+		test(t, kube, nsDef, nsDef, false)
+	})
+
+	t.Run("sync won't delete resources that got the fallback namespace when created", func(t *testing.T) {
+		// NB: this tests the fake client implementation to some
+		// extent as well. It relies on it to reflect the kubectl
+		// behaviour of giving things that need a namespace some
+		// fallback (this would come from kubeconfig usually); and,
+		// for things that _don't_ have a namespace to have it
+		// stripped out.
+		kube, _ := setup(t)
+		kube.GC = true
+		const withoutNS = `
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: depFallbackNS
+`
+		const withNS = `
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: depFallbackNS
+  namespace: ` + defaultNamespace + `
+`
+		test(t, kube, withoutNS, withNS, false)
 	})
 
 	t.Run("sync won't delete if apply failed", func(t *testing.T) {
@@ -409,7 +495,7 @@ spec:
 		assert.NoError(t, err)
 
 		// Check that our resource-getting also sees the pre-existing resource
-		resources, err := kube.getResourcesBySelector("")
+		resources, err := kube.getResourcesBySelector("", defaultNamespace)
 		assert.NoError(t, err)
 		assert.Contains(t, resources, "foobar:deployment/dep1")
 

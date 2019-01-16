@@ -71,8 +71,9 @@ type Cluster struct {
 	// Do garbage collection when syncing resources
 	GC bool
 
-	client     extendedClient
-	applier    Applier
+	client  extendedClient
+	applier Applier
+
 	version    string // string response for the version command.
 	logger     log.Logger
 	sshKeyRing ssh.KeyRing
