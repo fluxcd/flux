@@ -86,7 +86,7 @@ fluxd requires setup and offers customization though a multitude of flags.
 | --k8s-secret-volume-mount-path                   | `/etc/fluxd/ssh`         | mount location of the k8s secret storing the private SSH key
 | --k8s-secret-data-key                            | `identity`               | data key holding the private SSH key within the k8s secret
 | **k8s configuration**
-| --k8s-namespace-whitelist                        |                          | Experimental, optional: restrict the view of the cluster to the namespaces listed. All namespaces are included if this is not set.
+| --k8s-allow-namespace                            |                          | experimental: restrict all operations to the provided namespaces
 | **upstream service**
 | --connect                                        |                          | connect to an upstream service e.g., Weave Cloud, at this base address
 | --token                                          |                          | authentication token for upstream service
