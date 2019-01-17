@@ -55,7 +55,7 @@ source.
 
 ### How to run the test suite
 
-You can run the linting and unit tests by simply doing
+You can run the unit tests by simply doing
 
 ```bash
 make test
