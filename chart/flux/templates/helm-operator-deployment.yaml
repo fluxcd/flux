@@ -55,6 +55,13 @@ spec:
           defaultMode: 0600
       {{- end }}
       {{- end }}
+      {{- if .Values.helmOperator.configureRepositories.enable }}
+      - name: {{ .Values.helmOperator.configureRepositories.volumeName | quote }}
+        secret:
+          secretName: {{ .Values.helmOperator.configureRepositories.secretName | quote }}
+      - name: {{ .Values.helmOperator.configureRepositories.cacheVolumeName | quote }}
+        emptyDir: {}
+      {{- end }}
       containers:
       - name: flux-helm-operator
         image: "{{ .Values.helmOperator.repository }}:{{ .Values.helmOperator.tag }}"
@@ -81,6 +88,12 @@ spec:
           mountPath: /etc/fluxd/helm-ca
           readOnly: true
         {{- end }}
+        {{- end }}
+        {{- if .Values.helmOperator.configureRepositories.enable }}
+        - name: {{ .Values.helmOperator.configureRepositories.volumeName | quote }}
+          mountPath: /var/fluxd/helm/repository
+        - name: {{ .Values.helmOperator.configureRepositories.cacheVolumeName | quote }}
+          mountPath: /var/fluxd/helm/repository/cache
         {{- end }}
         args:
         - --git-timeout={{ $gitTimeout }}

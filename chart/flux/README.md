@@ -247,6 +247,10 @@ The following tables lists the configurable parameters of the Weave Flux chart a
 | `helmOperator.tls.certFile` | Name of the certificate file within the k8s secret | `tls.crt`
 | `helmOperator.tls.caContent` | Certificate Authority content used to validate the Tiller server certificate | `None`
 | `helmOperator.tls.hostname` | The server name used to verify the hostname on the returned certificates from the Tiller server | `None`
+| `helmOperator.configureRepositories.enable` | Enable volume mount for a `repositories.yaml` configuration file and respository cache | `false`
+| `helmOperator.configureRepositories.volumeName` | Name of the volume for the `repositories.yaml` file | `repositories-yaml`
+| `helmOperator.configureRepositories.secretName` | Name of the secret containing the contents of the `repositories.yaml` file | `flux-helm-repositories`
+| `helmOperator.configureRepositories.cacheName` | Name for the repository cache volume | `repositories-cache`
 | `helmOperator.resources.requests.cpu` | CPU resource requests for the helmOperator deployment | `50m`
 | `helmOperator.resources.requests.memory` | Memory resource requests for the helmOperator deployment | `64Mi`
 | `helmOperator.resources.limits` | CPU/memory resource limits for the helmOperator deployment | `None`
