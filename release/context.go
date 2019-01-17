@@ -82,11 +82,11 @@ func (rc *ReleaseContext) SelectWorkloads(results update.Result, prefilters, pos
 	for _, s := range allDefined {
 		res := s.Filter(prefilters...)
 		if res.Error == "" {
-			// Give these a default value, in case we don't find them
+			// Give these a default value, in case we cannot access them
 			// in the cluster.
 			results[s.ResourceID] = update.WorkloadResult{
 				Status: update.ReleaseStatusSkipped,
-				Error:  update.NotInCluster,
+				Error:  update.NotAccessibleInCluster,
 			}
 			toAskClusterAbout = append(toAskClusterAbout, s.ResourceID)
 		} else {

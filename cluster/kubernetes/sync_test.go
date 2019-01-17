@@ -290,8 +290,8 @@ metadata:
 			panic(err)
 		}
 
-		// Now check what resources remain in the sync set
-		actual, err := kube.getGCMarkedResourcesInSyncSet("testset")
+		// Now check that the resources were created
+		actual, err := kube.getAllowedGCMarkedResourcesInSyncSet("testset")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -553,7 +553,7 @@ spec:
 		assert.NoError(t, err)
 
 		// Check that our resource-getting also sees the pre-existing resource
-		resources, err := kube.getResourcesBySelector("")
+		resources, err := kube.getAllowedResourcesBySelector("")
 		assert.NoError(t, err)
 		assert.Contains(t, resources, "foobar:deployment/dep1")
 

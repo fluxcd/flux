@@ -54,7 +54,7 @@ func (c *Cluster) Sync(syncSet cluster.SyncSet) error {
 
 	// NB we get all resources, since we care about leaving unsynced,
 	// _ignored_ resources alone.
-	clusterResources, err := c.getResourcesBySelector("")
+	clusterResources, err := c.getAllowedResourcesBySelector("")
 	if err != nil {
 		return errors.Wrap(err, "collating resources in cluster for sync")
 	}
@@ -62,7 +62,11 @@ func (c *Cluster) Sync(syncSet cluster.SyncSet) error {
 	cs := makeChangeSet()
 	var errs cluster.SyncError
 	for _, res := range syncSet.Resources {
-		id := res.ResourceID().String()
+		resID := res.ResourceID()
+		if !c.IsAllowedResource(resID) {
+			continue
+		}
+		id := resID.String()
 		// make a record of the checksum, whether we stage it to
 		// be applied or not, so that we don't delete it later.
 		csum := sha1.Sum(res.Bytes())
@@ -122,7 +126,7 @@ func (c *Cluster) collectGarbage(
 
 	orphanedResources := makeChangeSet()
 
-	clusterResources, err := c.getGCMarkedResourcesInSyncSet(syncSet.Name)
+	clusterResources, err := c.getAllowedGCMarkedResourcesInSyncSet(syncSet.Name)
 	if err != nil {
 		return nil, errors.Wrap(err, "collating resources in cluster for calculating garbage collection")
 	}
@@ -188,7 +192,7 @@ func (r *kuberesource) GetGCMark() string {
 	return r.obj.GetLabels()[gcMarkLabel]
 }
 
-func (c *Cluster) getResourcesBySelector(selector string) (map[string]*kuberesource, error) {
+func (c *Cluster) getAllowedResourcesBySelector(selector string) (map[string]*kuberesource, error) {
 	listOptions := meta_v1.ListOptions{}
 	if selector != "" {
 		listOptions.LabelSelector = selector
@@ -216,14 +220,12 @@ func (c *Cluster) getResourcesBySelector(selector string) (map[string]*kuberesou
 			if !contains(verbs, "list") {
 				continue
 			}
-
 			groupVersion, err := schema.ParseGroupVersion(resource.GroupVersion)
 			if err != nil {
 				return nil, err
 			}
-
-			resourceClient := c.client.dynamicClient.Resource(groupVersion.WithResource(apiResource.Name))
-			data, err := resourceClient.List(listOptions)
+			gvr := groupVersion.WithResource(apiResource.Name)
+			list, err := c.listAllowedResources(apiResource.Namespaced, gvr, listOptions)
 			if err != nil {
 				if apierrors.IsForbidden(err) {
 					// we are not allowed to list this resource but
@@ -233,7 +235,7 @@ func (c *Cluster) getResourcesBySelector(selector string) (map[string]*kuberesou
 				return nil, err
 			}
 
-			for i, item := range data.Items {
+			for i, item := range list {
 				apiVersion := item.GetAPIVersion()
 				kind := item.GetKind()
 
@@ -244,7 +246,7 @@ func (c *Cluster) getResourcesBySelector(selector string) (map[string]*kuberesou
 				}
 				// TODO(michael) also exclude anything that has an ownerReference (that isn't "standard"?)
 
-				res := &kuberesource{obj: &data.Items[i], namespaced: apiResource.Namespaced}
+				res := &kuberesource{obj: &list[i], namespaced: apiResource.Namespaced}
 				result[res.ResourceID().String()] = res
 			}
 		}
@@ -253,18 +255,48 @@ func (c *Cluster) getResourcesBySelector(selector string) (map[string]*kuberesou
 	return result, nil
 }
 
-func (c *Cluster) getGCMarkedResourcesInSyncSet(syncSetName string) (map[string]*kuberesource, error) {
-	allGCMarkedResources, err := c.getResourcesBySelector(gcMarkLabel) // means "gcMarkLabel exists"
+func (c *Cluster) listAllowedResources(
+	namespaced bool, gvr schema.GroupVersionResource, options meta_v1.ListOptions) ([]unstructured.Unstructured, error) {
+	if !namespaced || len(c.allowedNamespaces) == 0 {
+		// The resource is not namespaced or all the namespaces are allowed
+		resourceClient := c.client.dynamicClient.Resource(gvr)
+		data, err := resourceClient.List(options)
+		if err != nil {
+			return nil, err
+		}
+		return data.Items, nil
+	}
+
+	// List resources only from the allowed namespaces
+	var result []unstructured.Unstructured
+	for _, ns := range c.allowedNamespaces {
+		data, err := c.client.dynamicClient.Resource(gvr).Namespace(ns).List(options)
+		if err != nil {
+			return result, err
+		}
+		result = append(result, data.Items...)
+	}
+	return result, nil
+}
+
+func (c *Cluster) getAllowedGCMarkedResourcesInSyncSet(syncSetName string) (map[string]*kuberesource, error) {
+	allGCMarkedResources, err := c.getAllowedResourcesBySelector(gcMarkLabel) // means "gcMarkLabel exists"
 	if err != nil {
 		return nil, err
 	}
-	syncSetGCMarkedResources := map[string]*kuberesource{}
+	allowedSyncSetGCMarkedResources := map[string]*kuberesource{}
 	for resID, kres := range allGCMarkedResources {
-		if kres.GetGCMark() == makeGCMark(syncSetName, resID) {
-			syncSetGCMarkedResources[resID] = kres
+		// Discard disallowed resources
+		if !c.IsAllowedResource(kres.ResourceID()) {
+			continue
 		}
+		// Discard resources out of the Sync Set
+		if kres.GetGCMark() != makeGCMark(syncSetName, resID) {
+			continue
+		}
+		allowedSyncSetGCMarkedResources[resID] = kres
 	}
-	return syncSetGCMarkedResources, nil
+	return allowedSyncSetGCMarkedResources, nil
 }
 
 func applyMetadata(res resource.Resource, syncSetName, checksum string) ([]byte, error) {

@@ -17,6 +17,7 @@ import (
 
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster"
+	"github.com/weaveworks/flux/cluster/kubernetes/resource"
 	fhrclient "github.com/weaveworks/flux/integrations/client/clientset/versioned"
 	"github.com/weaveworks/flux/ssh"
 )
@@ -119,12 +120,15 @@ func NewCluster(client ExtendedClient, applier Applier, sshKeyRing ssh.KeyRing, 
 
 // --- cluster.Cluster
 
-// SomeWorkloads returns the workloads named, missing out any that aren't
-// accessible in the cluster. They do not necessarily have to be returned
-// in the order requested.
+// SomeWorkloads returns the workloads named, missing out any that don't
+// exist in the cluster or aren't in an allowed namespace.
+// They do not necessarily have to be returned in the order requested.
 func (c *Cluster) SomeWorkloads(ids []flux.ResourceID) (res []cluster.Workload, err error) {
 	var workloads []cluster.Workload
 	for _, id := range ids {
+		if !c.IsAllowedResource(id) {
+			continue
+		}
 		ns, kind, name := id.Components()
 
 		resourceKind, ok := resourceKinds[kind]
@@ -150,7 +154,7 @@ func (c *Cluster) SomeWorkloads(ids []flux.ResourceID) (res []cluster.Workload, 
 	return workloads, nil
 }
 
-// AllWorkloads returns all workloads matching the criteria; that is, in
+// AllWorkloads returns all workloads in allowed namespaces matching the criteria; that is, in
 // the namespace (or any namespace if that argument is empty)
 func (c *Cluster) AllWorkloads(namespace string) (res []cluster.Workload, err error) {
 	namespaces, err := c.getAllowedNamespaces()
@@ -277,7 +281,7 @@ func (c *Cluster) getAllowedNamespaces() ([]apiv1.Namespace, error) {
 				nsList = append(nsList, *ns)
 			case apierrors.IsUnauthorized(err) || apierrors.IsForbidden(err) || apierrors.IsNotFound(err):
 				if !c.loggedAllowedNS[name] {
-					c.logger.Log("warning", "cannot access namespace set as allowed",
+					c.logger.Log("warning", "cannot access allowed namespace",
 						"namespace", name, "err", err)
 					c.loggedAllowedNS[name] = true
 				}
@@ -293,6 +297,32 @@ func (c *Cluster) getAllowedNamespaces() ([]apiv1.Namespace, error) {
 		return nil, err
 	}
 	return namespaces.Items, nil
+}
+
+func (c *Cluster) IsAllowedResource(id flux.ResourceID) bool {
+	if len(c.allowedNamespaces) == 0 {
+		// All resources are allowed when all namespaces are allowed
+		return true
+	}
+
+	namespace, kind, name := id.Components()
+	namespaceToCheck := namespace
+
+	if namespace == resource.ClusterScope {
+		// All cluster-scoped resources (not namespaced) are allowed ...
+		if kind != "namespace" {
+			return true
+		}
+		// ... except namespaces themselves, whose name needs to be explicitly allowed
+		namespaceToCheck = name
+	}
+
+	for _, allowedNS := range c.allowedNamespaces {
+		if namespaceToCheck == allowedNS {
+			return true
+		}
+	}
+	return false
 }
 
 // kind & apiVersion must be passed separately as the object's TypeMeta is not populated

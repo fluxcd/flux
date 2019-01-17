@@ -693,6 +693,7 @@ func mockDaemon(t *testing.T) (*Daemon, func(), func(), *cluster.Mock, *mockEven
 			}
 			return []cluster.Workload{}, nil
 		}
+		k8s.IsAllowedResourceFunc = func(flux.ResourceID) bool { return true }
 		k8s.ExportFunc = func() ([]byte, error) { return testBytes, nil }
 		k8s.PingFunc = func() error { return nil }
 		k8s.SomeWorkloadsFunc = func([]flux.ResourceID) ([]cluster.Workload, error) {
