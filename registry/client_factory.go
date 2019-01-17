@@ -87,6 +87,7 @@ func (f *RemoteClientFactory) ClientFor(repo image.CanonicalName, creds Credenti
 		if err != nil {
 			return nil, err
 		}
+		defer res.Body.Close()
 		if err = manager.AddResponse(res); err != nil {
 			return nil, err
 		}
