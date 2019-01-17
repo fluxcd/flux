@@ -1,9 +1,11 @@
 package registry
 
 import (
+	"context"
 	"net/http"
 	"net/url"
 	"sync"
+	"time"
 
 	"github.com/docker/distribution/registry/client/auth"
 	"github.com/docker/distribution/registry/client/auth/challenge"
@@ -81,12 +83,15 @@ func (f *RemoteClientFactory) ClientFor(repo image.CanonicalName, creds Credenti
 		if err != nil {
 			return nil, err
 		}
+		ctx, cancel := context.WithTimeout(req.Context(), 30*time.Second)
+		defer cancel()
 		res, err := (&http.Client{
 			Transport: tx,
-		}).Do(req)
+		}).Do(req.WithContext(ctx))
 		if err != nil {
 			return nil, err
 		}
+		defer res.Body.Close()
 		if err = manager.AddResponse(res); err != nil {
 			return nil, err
 		}
