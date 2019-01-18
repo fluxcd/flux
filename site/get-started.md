@@ -141,6 +141,7 @@ As you can see, the actual steps to set up Flux, get our app
 deployed, give Flux access to it and see modifications land are
 very straight-forward and are a quite natural work-flow.
 
-As a next step, you might want to dive deeper into [how to control
-Flux](./fluxctl.md) or check out [more sophisticated
-setups](./standalone-setup.md).
+As a next step, you might want to dive deeper into [how to
+control Flux](./fluxctl.md), check out [more sophisticated
+setups](./standalone-setup.md) or go through our hands-on
+tutorial about driving Flux, e.g. [automations, annotations and locks](annotations-tutorial.md).
