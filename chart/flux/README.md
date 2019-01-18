@@ -243,7 +243,6 @@ The following tables lists the configurable parameters of the Weave Flux chart a
 | `helmOperator.tls.verify` | Verify the Tiller certificate, also enables TLS when set to true | `false`
 | `helmOperator.tls.secretName` | Name of the secret containing the TLS client certificates for communicating with Tiller | `helm-client-certs`
 | `helmOperator.tls.keyFile` | Name of the key file within the k8s secret | `tls.key`
-| `helmOperator.tls.keyFile` | Name of the key file within the k8s secret | `tls.key`
 | `helmOperator.tls.certFile` | Name of the certificate file within the k8s secret | `tls.crt`
 | `helmOperator.tls.caContent` | Certificate Authority content used to validate the Tiller server certificate | `None`
 | `helmOperator.tls.hostname` | The server name used to verify the hostname on the returned certificates from the Tiller server | `None`
