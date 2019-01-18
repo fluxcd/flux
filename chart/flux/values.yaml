@@ -22,7 +22,7 @@ helmOperator:
   tag: 0.5.3
   pullPolicy: IfNotPresent
   # Limit the operator scope to a single namespace
-  namespace:
+  allowNamespace:
   # Update dependencies for charts
   updateChartDeps: true
   # Log the diff when a chart release diverges

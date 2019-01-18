@@ -77,7 +77,7 @@ func init() {
 
 	kubeconfig = fs.String("kubeconfig", "", "path to a kubeconfig; required if out-of-cluster")
 	master = fs.String("master", "", "address of the Kubernetes API server; overrides any value in kubeconfig; required if out-of-cluster")
-	namespace = fs.String("namespace", "", "if set, this limits the scope to a single namespace; if not specified, all namespaces will be watched")
+	namespace = fs.String("allow-namespace", "", "if set, this limits the scope to a single namespace; if not specified, all namespaces will be watched")
 
 	listenAddr = fs.StringP("listen", "l", ":3030", "Listen address where /metrics and API will be served")
 

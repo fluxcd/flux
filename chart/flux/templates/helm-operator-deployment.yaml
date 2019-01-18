@@ -88,7 +88,7 @@ spec:
         - --update-chart-deps={{ .Values.helmOperator.updateChartDeps }}
         - --log-release-diffs={{ .Values.helmOperator.logReleaseDiffs }}
         {{- if .Values.helmOperator.namespace }}
-        - --namespace={{ .Values.helmOperator.namespace }}
+        - --allow-namespace={{ .Values.helmOperator.allowNamespace }}
         {{- end }}
         - --tiller-namespace={{ .Values.helmOperator.tillerNamespace }}
         {{- if .Values.helmOperator.tls.enable }}

@@ -58,7 +58,7 @@ bail:
 			break bail
 		case <-ticker.C:
 		}
-		namespaces := []string{}
+		var namespaces []string
 		if a.namespace != "" {
 			namespaces = append(namespaces, a.namespace)
 		} else {
