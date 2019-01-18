@@ -4,6 +4,11 @@ In this tutorial we want to get a better feel for what we can do with Weave
 Flux. We won't spend too much time with getting it up and running, so let's
 get that out of the way first.
 
+In our example we are going to use the `flux-get-started` example deployment.
+So as your first step, please head to [our example
+deployment](https://github.com/weaveworks/flux-get-started) and click on the
+"Fork" button.
+
 ## Setup
 
 Get the source code of Weave Flux:
@@ -13,11 +18,7 @@ git clone https://github.com/weaveworks/flux
 cd flux
 ```
 
-To get a deployment up and running, it's easiest if you head to [our example
-deployment](https://github.com/weaveworks/flux-get-started) we set up. Please
-head to its site on Github and click on the "Fork" button.
-
-In  the next step, let's change the Git URL of Flux to point to our fork:
+In the next step, let's change the Git URL of Flux to point to our fork:
 
 ```sh
 EDITOR deploy/flux-deployment.yaml
@@ -42,6 +43,55 @@ it's time to deploy Flux. Simply run
 ```sh
 kubectl apply -f deploy
 ```
+
+### Alternative: Using Helm for the setup
+
+If you have never used Helm, you first need to
+
+- Download/install Helm
+- Set up Tiller. First create a service account and a cluster role binding
+  for Tiller:
+
+  ```sh
+  kubectl -n kube-system create sa tiller
+  kubectl create clusterrolebinding tiller-cluster-rule \
+    --clusterrole=cluster-admin \
+    --serviceaccount=kube-system:tiller
+  ```
+
+  Deploy Tiller in the `kube-system` namespace:
+
+  ```sh
+  helm init --skip-refresh --upgrade --service-account tiller
+  ```
+
+Now you can take care of the actual installation. First add the Flux
+repository of Weaveworks:
+
+```sh
+helm repo add weaveworks https://weaveworks.github.io/flux
+```
+
+Apply the Helm Release CRD:
+
+```sh
+kubectl apply -f https://raw.githubusercontent.com/weaveworks/flux/master/deploy-helm/flux-helm-release-crd.yaml
+```
+
+Install Weave Flux and its Helm Operator by specifying your fork URL. Just
+make sure you replace `YOURUSER` with your GitHub username in the command
+below:
+
+```sh
+helm upgrade -i flux \
+--set helmOperator.create=true \
+--set helmOperator.createCRD=false \
+--set git.url=git@github.com:YOURUSER/flux-get-started \
+--namespace default \
+weaveworks/flux
+```
+
+### Connecting to your git config
 
 The first step is done. Flux is now and up running (you can confirm by
 running `kubectl get pods --all-namespaces`).
