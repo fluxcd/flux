@@ -131,7 +131,7 @@ func main() {
 		errc <- fmt.Errorf("%s", <-c)
 	}()
 
-	defer func() {
+	go func() {
 		logger.Log("exiting...", <-errc)
 		close(shutdown)
 		shutdownWg.Wait()
