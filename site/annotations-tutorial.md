@@ -101,6 +101,10 @@ interact with the deployments. First, please [install fluxctl](https://github.co
 (It enables you to drive all of Weave Flux, so have a look at the output of
 `fluxctl -h` to get a better idea.)
 
+> **Note:** Another option (without installing `fluxctl` is to take a look
+at the resulting annotation changes and make the changes in Git. This is
+GitOps after all. :-)
+
 To enable Weave Flux to sync your config, you need to add the deployment key
 to your fork.
 
@@ -144,14 +148,40 @@ Now let's change the policy for `podinfo` to target `1.4.*` releases:
 fluxctl policy -c demo:deployment/podinfo --tag-all='1.4.*'
 ```
 
+On the command-line you should see a message just like this one:
+
+```sh
+CONTROLLER               STATUS   UPDATES
+demo:deployment/podinfo  success
+Commit pushed:  4755a3b
+```
+
 If you now go back to `https://github.com/YOUR-USER-ID/flux-get-started` in
 your browser, you will notice that Weave Flux has made a commit on your
 behalf. The policy change is now in Git, which is great for transparency and
 for defining expected state.
 
+It should look a little something like this:
+
+```diff
+--- a/workloads/podinfo-dep.yaml
++++ b/workloads/podinfo-dep.yaml
+@@ -8,8 +8,8 @@ metadata:
+     app: podinfo
+   annotations:
+     flux.weave.works/automated: "true"
+-    flux.weave.works/tag.init: regexp:^3.*
+-    flux.weave.works/tag.podinfod: semver:~1.3
++    flux.weave.works/tag.init: glob:1.4.*
++    flux.weave.works/tag.podinfod: glob:1.4.*
+ spec:
+   strategy:
+     rollingUpdate:
+```
+
 If you have a closer look at the last change which was committed, you'll see
 that the image filtering pattern has been changed. (Our docs explain how to
-use semver, glob, regex filtering.)
+use `semver`, `glob`, `regex` filtering.)
 
 Again, wait for the sync to happen or run
 
@@ -175,10 +205,53 @@ Rollback to `1.4.1`:
 fluxctl release -c demo:deployment/podinfo -i stefanprodan/podinfo:1.4.1
 ```
 
+The response should be
+
+```sh
+Submitting release ...
+CONTROLLER               STATUS   UPDATES
+demo:deployment/podinfo  success  podinfod: stefanprodan/podinfo:1.4.2 -> 1.4.1
+Commit pushed:  426d723
+Commit applied: 426d723
+```
+
+and the diff for this is going to look like this:
+
+```diff
+--- a/workloads/podinfo-dep.yaml
++++ b/workloads/podinfo-dep.yaml
+@@ -33,7 +33,7 @@ spec:
+         - "1"
+       containers:
+       - name: podinfod
+-        image: stefanprodan/podinfo:1.3.2
++        image: stefanprodan/podinfo:1.4.1
+         imagePullPolicy: IfNotPresent
+         ports:
+         - containerPort: 9898
+```
+
 Lock to `1.4.1` with a message describing why:
 
 ```sh
 fluxctl lock -c demo:deployment/podinfo -m "1.4.2 does not work for us"
+```
+
+The resulting diff should look like this
+
+```diff
+--- a/workloads/podinfo-dep.yaml
++++ b/workloads/podinfo-dep.yaml
+@@ -10,6 +10,7 @@ metadata:
+     app: podinfo
+   annotations:
+     flux.weave.works/automated: "true"
+     flux.weave.works/tag.init: glob:1.4.*
+     flux.weave.works/tag.podinfod: glob:1.4.*
++    flux.weave.works/locked: 'true'
+ spec:
+   strategy:
+     rollingUpdate:
 ```
 
 And that's it. At the end of this tutorial, you have automated, locked and
