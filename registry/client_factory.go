@@ -2,6 +2,7 @@ package registry
 
 import (
 	"context"
+	"crypto/tls"
 	"net/http"
 	"net/url"
 	"sync"
@@ -17,9 +18,11 @@ import (
 )
 
 type RemoteClientFactory struct {
-	Logger        log.Logger
-	Limiters      *middleware.RateLimiters
-	Trace         bool
+	Logger   log.Logger
+	Limiters *middleware.RateLimiters
+	Trace    bool
+	// hosts with which to tolerate insecure connections (e.g., with
+	// TLS_INSECURE_SKIP_VERIFY, or as a fallback, using HTTP).
 	InsecureHosts []string
 
 	mu               sync.Mutex
@@ -42,7 +45,27 @@ func (t *logging) RoundTrip(req *http.Request) (*http.Response, error) {
 }
 
 func (f *RemoteClientFactory) ClientFor(repo image.CanonicalName, creds Credentials) (Client, error) {
-	tx := f.Limiters.RoundTripper(http.DefaultTransport, repo.Domain)
+	insecure := false
+	for _, h := range f.InsecureHosts {
+		if repo.Domain == h {
+			insecure = true
+			break
+		}
+	}
+
+	tlsConfig := &tls.Config{
+		InsecureSkipVerify: insecure,
+	}
+
+	// Since we construct one of these per scan, be fairly ruthless
+	// about throttling the number, and closing of, idle connections.
+	baseTx := &http.Transport{
+		TLSClientConfig: tlsConfig,
+		MaxIdleConns:    10,
+		IdleConnTimeout: 10 * time.Second,
+		Proxy:           http.ProxyFromEnvironment,
+	}
+	tx := f.Limiters.RoundTripper(baseTx, repo.Domain)
 	if f.Trace {
 		tx = &logging{f.Logger, tx}
 	}
@@ -54,15 +77,8 @@ func (f *RemoteClientFactory) ClientFor(repo image.CanonicalName, creds Credenti
 	manager := f.challengeManager
 	f.mu.Unlock()
 
-	scheme := "https"
-	for _, h := range f.InsecureHosts {
-		if repo.Domain == h {
-			scheme = "http"
-		}
-	}
-
 	registryURL := url.URL{
-		Scheme: scheme,
+		Scheme: "https",
 		Host:   repo.Domain,
 		Path:   "/v2/",
 	}
@@ -70,8 +86,15 @@ func (f *RemoteClientFactory) ClientFor(repo image.CanonicalName, creds Credenti
 	// Before we know how to authorise, need to establish which
 	// authorisation challenges the host will send. See if we've been
 	// here before.
+	attemptInsecureFallback := insecure
+attempt:
 	cs, err := manager.GetChallenges(registryURL)
 	if err != nil {
+		if attemptInsecureFallback {
+			registryURL.Scheme = "http"
+			attemptInsecureFallback = false
+			goto attempt
+		}
 		return nil, err
 	}
 	if len(cs) == 0 {

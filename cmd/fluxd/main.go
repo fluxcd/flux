@@ -104,7 +104,7 @@ func main() {
 		registryRPS          = fs.Float64("registry-rps", 50, "maximum registry requests per second per host")
 		registryBurst        = fs.Int("registry-burst", defaultRemoteConnections, "maximum number of warmer connections to remote and memcache")
 		registryTrace        = fs.Bool("registry-trace", false, "output trace of image registry requests to log")
-		registryInsecure     = fs.StringSlice("registry-insecure-host", []string{}, "use HTTP for this image registry domain (e.g., registry.cluster.local), instead of HTTPS")
+		registryInsecure     = fs.StringSlice("registry-insecure-host", []string{}, "let these registry hosts skip TLS host verification, and fall back to HTTP (without basic auth) instead of HTTPS; this allows man-in-the-middle attacks, so use with extreme caution")
 
 		// AWS authentication
 		registryAWSRegions         = fs.StringSlice("registry-ecr-region", nil, "Restrict ECR scanning to these AWS regions; if empty, only the cluster's region will be scanned")
