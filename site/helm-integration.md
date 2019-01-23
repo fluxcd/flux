@@ -225,9 +225,10 @@ the Helm operator, from the repositories file:
 kubectl create secret generic flux-helm-repositories --from-file=./repositories.yaml
 ```
 
-Lastly, mount that secret into the container, as shown in the
-commented-out sections of the [example
-deployment](../deploy-helm/helm-operator-deployment.yaml).
+Lastly, mount that secret into the container. This can be done by
+setting `helmOperator.configureRepositories.enable` to `true` for the
+flux Helm release, or as shown in the commented-out sections of the
+[example deployment](../deploy-helm/helm-operator-deployment.yaml).
 
 ### Authentication for Git repos
 
