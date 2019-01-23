@@ -402,33 +402,20 @@ func (chs *ChartChangeSync) DeleteRelease(fhr fluxv1beta1.HelmRelease) {
 	}
 }
 
-// ---
-
-// getNamespaces gets current kubernetes cluster namespaces
-func (chs *ChartChangeSync) getNamespaces() ([]string, error) {
-	if chs.namespace != "" {
-		return []string{chs.namespace}, nil
-	}
-
-	// if no namespace scope is set then get all namespaces in the cluster
-	var ns []string
-	nso, err := chs.kubeClient.CoreV1().Namespaces().List(metav1.ListOptions{})
-	if err != nil {
-		return nil, fmt.Errorf("Failure while retrieving kubernetes namespaces: %s", err)
-	}
-
-	for _, n := range nso.Items {
-		ns = append(ns, n.GetName())
-	}
-
-	return ns, nil
-}
-
 // getCustomResources assembles all custom resources in all namespaces
+// or in the allowed namespace if specified
 func (chs *ChartChangeSync) getCustomResources() ([]fluxv1beta1.HelmRelease, error) {
-	namespaces, err := chs.getNamespaces()
-	if err != nil {
-		return nil, err
+	var namespaces []string
+	if chs.namespace != "" {
+		namespaces = append(namespaces, chs.namespace)
+	} else {
+		nso, err := chs.kubeClient.CoreV1().Namespaces().List(metav1.ListOptions{})
+		if err != nil {
+			return nil, fmt.Errorf("Failure while retrieving kubernetes namespaces: %s", err)
+		}
+		for _, n := range nso.Items {
+			namespaces = append(namespaces, n.GetName())
+		}
 	}
 
 	var fhrs []fluxv1beta1.HelmRelease
