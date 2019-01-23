@@ -8,9 +8,15 @@ action "helm-lint" {
   args = ["lint chart/flux"]
 }
 
-action "helm-gh-pages" {
+action "tag-filter" {
   needs = ["helm-lint"]
+  uses = "actions/bin/filter@master"
+  args = "tag chart-*"
+}
+
+action "helm-gh-pages" {
+  needs = ["tag-filter"]
   uses = "stefanprodan/gh-actions/helm-gh-pages@master"
-  args = ["chart/flux","https://weaveworks.github.io/flux","chart-"]
+  args = ["chart/flux","https://weaveworks.github.io/flux"]
   secrets = ["GITHUB_TOKEN"]
 }
