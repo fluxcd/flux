@@ -145,7 +145,7 @@ func (c *Cluster) ImagesToFetch() registry.ImageCreds {
 // filterImages returns an image list from a pod spec
 // by removing those matching the exclusion list
 func (c *Cluster) filterImages(podTemplate apiv1.PodTemplateSpec) []image.Name {
-	images := []image.Name{}
+	var images []image.Name
 
 	for _, container := range podTemplate.Spec.InitContainers {
 		r, err := image.ParseRef(container.Image)
@@ -177,12 +177,11 @@ func (c *Cluster) filterImages(podTemplate apiv1.PodTemplateSpec) []image.Name {
 		for _, exp := range c.imageExcludeList {
 			if glob.Glob(exp, imageName) {
 				include = false
+				break
 			}
 		}
 		if include {
 			result = append(result, imageID)
-		} else {
-			//c.logger.Log("debug", fmt.Sprintf("image %s excluded", imageName))
 		}
 	}
 
