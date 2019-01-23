@@ -1,0 +1,53 @@
+# This is an example goreleaser.yaml file with some sane defaults.
+# Make sure to check the documentation at http://goreleaser.com
+before:
+  hooks:
+    - dep ensure -vendor-only
+builds:
+- binary: fluxctl
+  main: ./cmd/fluxctl/
+  goos:
+    - linux
+    - darwin
+    - windows
+  env:
+   - CGO_ENABLED=0
+  goarch:
+    - amd64
+    - arm
+- binary: fluxd
+  main: ./cmd/fluxd/
+  goos:
+    - linux
+  env:
+   - CGO_ENABLED=0
+  goarch:
+    - amd64
+    - arm
+- binary: helm-operator
+  main: ./cmd/helm-operator/
+  goos:
+    - linux
+  env:
+   - CGO_ENABLED=0
+  goarch:
+    - amd64
+    - arm
+archive:
+  # format: binary
+  replacements:
+    darwin: Darwin
+    linux: Linux
+    windows: Windows
+    386: i386
+    amd64: x86_64
+checksum:
+  name_template: 'checksums.txt'
+snapshot:
+  name_template: "{{ .Tag }}-next"
+changelog:
+  sort: asc
+  filters:
+    exclude:
+    - '^docs:'
+    - '^test:'
