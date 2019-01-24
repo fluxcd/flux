@@ -460,7 +460,17 @@ To avoid this you have to manually delete the Flux Helm Operator with `kubectl -
 
 ### I have a dedicated Kubernetes cluster per environment and I want to use the same Git repo for all. How can I do that?
 
-For each cluster create a Git branch in your config repo. When installing Flux set the Git branch using `--set git.branch=cluster-name`
+*Option 1*
+For each cluster create a directory in your config repo.
+When installing Flux Helm chart set the Git path using `--set git.path=k8s/cluster-name`
+and set a unique label for each cluster `--set git.label=cluster-name`.
+
+You can have one or more shared dirs between clusters. Assuming your shared dir is located 
+at `k8s/common` set the Git path as `--set git.path="k8s/common\,k8s/cluster-name"`. 
+
+*Option 2*
+For each cluster create a Git branch in your config repo. 
+When installing Flux Helm chart set the Git branch using `--set git.branch=cluster-name`
 and set a unique label for each cluster `--set git.label=cluster-name`.
 
 
