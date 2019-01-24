@@ -87,7 +87,7 @@ func (f *RemoteClientFactory) ClientFor(repo image.CanonicalName, creds Credenti
 	// authorisation challenges the host will send. See if we've been
 	// here before.
 	attemptInsecureFallback := insecure
-attempt:
+attemptChallenge:
 	cs, err := manager.GetChallenges(registryURL)
 	if err != nil {
 		return nil, err
@@ -110,7 +110,7 @@ attempt:
 			if attemptInsecureFallback {
 				registryURL.Scheme = "http"
 				attemptInsecureFallback = false
-				goto attempt
+				goto attemptChallenge
 			}
 			return nil, err
 		}
@@ -126,12 +126,9 @@ attempt:
 		f.Logger.Log("repo", repo.String(), "auth", cred.String(), "api", registryURL.String())
 	}
 
-	authHandlers := []auth.AuthenticationHandler{}
-	// only send creds over HTTPS
-	if registryURL.Scheme == "https" {
-		authHandlers = append(authHandlers,
-			auth.NewTokenHandler(tx, &store{cred}, repo.Image, "pull"),
-			auth.NewBasicHandler(&store{cred}))
+	authHandlers := []auth.AuthenticationHandler{
+		auth.NewTokenHandler(tx, &store{cred}, repo.Image, "pull"),
+		auth.NewBasicHandler(&store{cred}),
 	}
 	tx = transport.NewTransport(tx, auth.NewAuthorizer(manager, authHandlers...))
 

@@ -106,7 +106,7 @@ func main() {
 		registryRPS          = fs.Float64("registry-rps", 50, "maximum registry requests per second per host")
 		registryBurst        = fs.Int("registry-burst", defaultRemoteConnections, "maximum number of warmer connections to remote and memcache")
 		registryTrace        = fs.Bool("registry-trace", false, "output trace of image registry requests to log")
-		registryInsecure     = fs.StringSlice("registry-insecure-host", []string{}, "let these registry hosts skip TLS host verification, and fall back to HTTP (without basic auth) instead of HTTPS; this allows man-in-the-middle attacks, so use with extreme caution")
+		registryInsecure     = fs.StringSlice("registry-insecure-host", []string{}, "let these registry hosts skip TLS host verification and fall back to using HTTP instead of HTTPS; this allows man-in-the-middle attacks, so use with extreme caution")
 		registryExcludeImage = fs.StringSlice("registry-exclude-image", []string{"k8s.gcr.io/*"}, "do not scan images that match these glob expressions; the default is to exclude the 'k8s.gcr.io/*' images")
 
 		// AWS authentication
