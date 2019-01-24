@@ -4,7 +4,7 @@ import (
 	"encoding/base64"
 	"testing"
 
-	"github.com/go-kit/kit/log"
+	"github.com/ryanuber/go-glob"
 	"github.com/stretchr/testify/assert"
 	apiv1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes/fake"
@@ -67,8 +67,9 @@ func TestMergeCredentials(t *testing.T) {
 	client := extendedClient{clientset, nil}
 
 	creds := registry.ImageCreds{}
-	cluster := NewCluster(clientset, nil, nil, nil, log.NewNopLogger(), []string{}, []string{})
-	mergeCredentials(noopLog, cluster.filterImages, client, ns, spec, creds, make(map[string]registry.Credentials))
+
+	mergeCredentials(noopLog, func(imageName string) bool { return true },
+		client, ns, spec, creds, make(map[string]registry.Credentials))
 
 	// check that we accumulated some credentials
 	assert.Contains(t, creds, ref.Name)
@@ -98,12 +99,16 @@ func TestMergeCredentials_ImageExclusion(t *testing.T) {
 	clientset := fake.NewSimpleClientset()
 	client := extendedClient{clientset, nil}
 
-	// set exclusion list
-	cluster := NewCluster(clientset, nil, nil, nil, log.NewNopLogger(), []string{},
-		[]string{"k8s.gcr.io/*", "*test*"})
+	var includeImage = func(imageName string) bool {
+		for _, exp := range []string{"k8s.gcr.io/*", "*test*"} {
+			if glob.Glob(exp, imageName) {
+				return false
+			}
+		}
+		return true
+	}
 
-	// filter images
-	mergeCredentials(noopLog, cluster.filterImages, client, "default", spec, creds,
+	mergeCredentials(noopLog, includeImage, client, "default", spec, creds,
 		make(map[string]registry.Credentials))
 
 	// check test image has been excluded

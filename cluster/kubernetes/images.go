@@ -16,13 +16,34 @@ import (
 )
 
 func mergeCredentials(log func(...interface{}) error,
-	filterImages func(podTemplate apiv1.PodTemplateSpec) []image.Name,
+	includeImage func(imageName string) bool,
 	client extendedClient,
 	namespace string, podTemplate apiv1.PodTemplateSpec,
 	imageCreds registry.ImageCreds,
 	seenCreds map[string]registry.Credentials) {
-	// filter the images based on the exclusion list
-	images := filterImages(podTemplate)
+	var images []image.Name
+	for _, container := range podTemplate.Spec.InitContainers {
+		r, err := image.ParseRef(container.Image)
+		if err != nil {
+			log("err", err.Error())
+			continue
+		}
+		if includeImage(r.CanonicalName().Name.String()) {
+			images = append(images, r.Name)
+		}
+	}
+
+	for _, container := range podTemplate.Spec.Containers {
+		r, err := image.ParseRef(container.Image)
+		if err != nil {
+			log("err", err.Error())
+			continue
+		}
+		if includeImage(r.CanonicalName().Name.String()) {
+			images = append(images, r.Name)
+		}
+	}
+
 	if len(images) < 1 {
 		return
 	}
@@ -124,7 +145,7 @@ func (c *Cluster) ImagesToFetch() registry.ImageCreds {
 			imageCreds := make(registry.ImageCreds)
 			for _, podController := range podControllers {
 				logger := log.With(c.logger, "resource", flux.MakeResourceID(ns.Name, kind, podController.name))
-				mergeCredentials(logger.Log, c.filterImages, c.client, ns.Name, podController.podTemplate, imageCreds, seenCreds)
+				mergeCredentials(logger.Log, c.includeImage, c.client, ns.Name, podController.podTemplate, imageCreds, seenCreds)
 			}
 
 			// Merge creds
@@ -142,48 +163,11 @@ func (c *Cluster) ImagesToFetch() registry.ImageCreds {
 	return allImageCreds
 }
 
-// filterImages returns an image list from a pod spec
-// by removing those matching the exclusion list
-func (c *Cluster) filterImages(podTemplate apiv1.PodTemplateSpec) []image.Name {
-	var images []image.Name
-
-	for _, container := range podTemplate.Spec.InitContainers {
-		r, err := image.ParseRef(container.Image)
-		if err != nil {
-			c.logger.Log("err", err.Error())
-			continue
-		}
-		images = append(images, r.Name)
-	}
-
-	for _, container := range podTemplate.Spec.Containers {
-		r, err := image.ParseRef(container.Image)
-		if err != nil {
-			c.logger.Log("err", err.Error())
-			continue
-		}
-
-		images = append(images, r.Name)
-	}
-
-	if len(c.imageExcludeList) < 1 {
-		return images
-	}
-
-	result := []image.Name{}
-	for _, imageID := range images {
-		imageName := imageID.CanonicalName().Name.String()
-		include := true
-		for _, exp := range c.imageExcludeList {
-			if glob.Glob(exp, imageName) {
-				include = false
-				break
-			}
-		}
-		if include {
-			result = append(result, imageID)
+func (c *Cluster) includeImage(imageName string) bool {
+	for _, exp := range c.imageExcludeList {
+		if glob.Glob(exp, imageName) {
+			return false
 		}
 	}
-
-	return result
+	return true
 }
