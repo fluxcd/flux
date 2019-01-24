@@ -45,6 +45,52 @@ func (t *logging) RoundTrip(req *http.Request) (*http.Response, error) {
 	return res, err
 }
 
+func (f *RemoteClientFactory) doChallenge(manager challenge.Manager, tx http.RoundTripper, domain string, insecureOK bool) (*url.URL, error) {
+	registryURL := url.URL{
+		Scheme: "https",
+		Host:   domain,
+		Path:   "/v2/",
+	}
+
+	// Before we know how to authorise, need to establish which
+	// authorisation challenges the host will send. See if we've been
+	// here before.
+attemptChallenge:
+	cs, err := manager.GetChallenges(registryURL)
+	if err != nil {
+		return nil, err
+	}
+	if len(cs) == 0 {
+		// No prior challenge; try pinging the registry endpoint to
+		// get a challenge. `http.Client` will follow redirects, so
+		// even if we thought it was an insecure (HTTP) host, we may
+		// end up requesting HTTPS.
+		req, err := http.NewRequest("GET", registryURL.String(), nil)
+		if err != nil {
+			return nil, err
+		}
+		ctx, cancel := context.WithTimeout(req.Context(), 30*time.Second)
+		defer cancel()
+		res, err := (&http.Client{
+			Transport: tx,
+		}).Do(req.WithContext(ctx))
+		if err != nil {
+			if insecureOK {
+				registryURL.Scheme = "http"
+				insecureOK = false
+				goto attemptChallenge
+			}
+			return nil, err
+		}
+		defer res.Body.Close()
+		if err = manager.AddResponse(res); err != nil {
+			return nil, err
+		}
+		registryURL = *res.Request.URL // <- the URL after any redirection
+	}
+	return &registryURL, nil
+}
+
 func (f *RemoteClientFactory) ClientFor(repo image.CanonicalName, creds Credentials) (Client, error) {
 	insecure := false
 	for _, h := range f.InsecureHosts {
@@ -77,48 +123,9 @@ func (f *RemoteClientFactory) ClientFor(repo image.CanonicalName, creds Credenti
 	manager := f.challengeManager
 	f.mu.Unlock()
 
-	registryURL := url.URL{
-		Scheme: "https",
-		Host:   repo.Domain,
-		Path:   "/v2/",
-	}
-
-	// Before we know how to authorise, need to establish which
-	// authorisation challenges the host will send. See if we've been
-	// here before.
-	attemptInsecureFallback := insecure
-attemptChallenge:
-	cs, err := manager.GetChallenges(registryURL)
+	registryURL, err := f.doChallenge(manager, tx, repo.Domain, insecure)
 	if err != nil {
 		return nil, err
-	}
-	if len(cs) == 0 {
-		// No prior challenge; try pinging the registry endpoint to
-		// get a challenge. `http.Client` will follow redirects, so
-		// even if we thought it was an insecure (HTTP) host, we may
-		// end up requesting HTTPS.
-		req, err := http.NewRequest("GET", registryURL.String(), nil)
-		if err != nil {
-			return nil, err
-		}
-		ctx, cancel := context.WithTimeout(req.Context(), 30*time.Second)
-		defer cancel()
-		res, err := (&http.Client{
-			Transport: tx,
-		}).Do(req.WithContext(ctx))
-		if err != nil {
-			if attemptInsecureFallback {
-				registryURL.Scheme = "http"
-				attemptInsecureFallback = false
-				goto attemptChallenge
-			}
-			return nil, err
-		}
-		defer res.Body.Close()
-		if err = manager.AddResponse(res); err != nil {
-			return nil, err
-		}
-		registryURL = *res.Request.URL // <- the URL after any redirection
 	}
 
 	cred := creds.credsFor(repo.Domain)
