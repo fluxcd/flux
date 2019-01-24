@@ -106,8 +106,8 @@ type clone struct {
 }
 
 type ChartChangeSync struct {
-	logger log.Logger
 	Polling
+	logger     log.Logger
 	kubeClient kubernetes.Clientset
 	ifClient   ifclientset.Clientset
 	release    *release.Release
@@ -117,9 +117,11 @@ type ChartChangeSync struct {
 
 	clonesMu sync.Mutex
 	clones   map[string]clone
+
+	namespace string
 }
 
-func New(logger log.Logger, polling Polling, clients Clients, release *release.Release, config Config) *ChartChangeSync {
+func New(logger log.Logger, polling Polling, clients Clients, release *release.Release, config Config, namespace string) *ChartChangeSync {
 	return &ChartChangeSync{
 		logger:     logger,
 		Polling:    polling,
@@ -129,6 +131,7 @@ func New(logger log.Logger, polling Polling, clients Clients, release *release.R
 		config:     config.WithDefaults(),
 		mirrors:    git.NewMirrors(),
 		clones:     make(map[string]clone),
+		namespace:  namespace,
 	}
 }
 
@@ -399,28 +402,20 @@ func (chs *ChartChangeSync) DeleteRelease(fhr fluxv1beta1.HelmRelease) {
 	}
 }
 
-// ---
-
-// getNamespaces gets current kubernetes cluster namespaces
-func (chs *ChartChangeSync) getNamespaces() ([]string, error) {
-	var ns []string
-	nso, err := chs.kubeClient.CoreV1().Namespaces().List(metav1.ListOptions{})
-	if err != nil {
-		return nil, fmt.Errorf("Failure while retrieving kubernetes namespaces: %s", err)
-	}
-
-	for _, n := range nso.Items {
-		ns = append(ns, n.GetName())
-	}
-
-	return ns, nil
-}
-
 // getCustomResources assembles all custom resources in all namespaces
+// or in the allowed namespace if specified
 func (chs *ChartChangeSync) getCustomResources() ([]fluxv1beta1.HelmRelease, error) {
-	namespaces, err := chs.getNamespaces()
-	if err != nil {
-		return nil, err
+	var namespaces []string
+	if chs.namespace != "" {
+		namespaces = append(namespaces, chs.namespace)
+	} else {
+		nso, err := chs.kubeClient.CoreV1().Namespaces().List(metav1.ListOptions{})
+		if err != nil {
+			return nil, fmt.Errorf("Failure while retrieving kubernetes namespaces: %s", err)
+		}
+		for _, n := range nso.Items {
+			namespaces = append(namespaces, n.GetName())
+		}
 	}
 
 	var fhrs []fluxv1beta1.HelmRelease

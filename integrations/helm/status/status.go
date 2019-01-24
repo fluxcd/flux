@@ -35,13 +35,15 @@ type Updater struct {
 	fluxhelm   fluxclientset.Interface
 	kube       kube.Interface
 	helmClient *helm.Client
+	namespace  string
 }
 
-func New(fhrClient fluxclientset.Interface, kubeClient kube.Interface, helmClient *helm.Client) *Updater {
+func New(fhrClient fluxclientset.Interface, kubeClient kube.Interface, helmClient *helm.Client, namespace string) *Updater {
 	return &Updater{
 		fluxhelm:   fhrClient,
 		kube:       kubeClient,
 		helmClient: helmClient,
+		namespace:  namespace,
 	}
 }
 
@@ -56,14 +58,23 @@ bail:
 			break bail
 		case <-ticker.C:
 		}
-		// Look up HelmReleases
-		namespaces, err := a.kube.CoreV1().Namespaces().List(metav1.ListOptions{})
-		if err != nil {
-			logErr = err
-			break bail
+		var namespaces []string
+		if a.namespace != "" {
+			namespaces = append(namespaces, a.namespace)
+		} else {
+			all, err := a.kube.CoreV1().Namespaces().List(metav1.ListOptions{})
+			if err != nil {
+				logErr = err
+				break bail
+			}
+			for _, ns := range all.Items {
+				namespaces = append(namespaces, ns.Name)
+			}
 		}
-		for _, ns := range namespaces.Items {
-			fhrClient := a.fluxhelm.FluxV1beta1().HelmReleases(ns.Name)
+
+		// Look up HelmReleases
+		for _, ns := range namespaces {
+			fhrClient := a.fluxhelm.FluxV1beta1().HelmReleases(ns)
 			fhrs, err := fhrClient.List(metav1.ListOptions{})
 			if err != nil {
 				logErr = err
@@ -80,7 +91,7 @@ bail:
 				if status.GetCode().String() != fhr.Status.ReleaseStatus {
 					err := UpdateReleaseStatus(fhrClient, fhr, releaseName, status.GetCode().String())
 					if err != nil {
-						logger.Log("namespace", ns.Name, "resource", fhr.Name, "err", err)
+						logger.Log("namespace", ns, "resource", fhr.Name, "err", err)
 						continue
 					}
 				}

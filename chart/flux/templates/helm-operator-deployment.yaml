@@ -100,6 +100,9 @@ spec:
         - --charts-sync-interval={{ .Values.helmOperator.chartsSyncInterval }}
         - --update-chart-deps={{ .Values.helmOperator.updateChartDeps }}
         - --log-release-diffs={{ .Values.helmOperator.logReleaseDiffs }}
+        {{- if .Values.helmOperator.namespace }}
+        - --allow-namespace={{ .Values.helmOperator.allowNamespace }}
+        {{- end }}
         - --tiller-namespace={{ .Values.helmOperator.tillerNamespace }}
         {{- if .Values.helmOperator.tls.enable }}
         - --tiller-tls-enable={{ .Values.helmOperator.tls.enable }}

@@ -1,3 +1,10 @@
+## 0.6.1 (TBA)
+
+### Improvements
+
+ - Add option to limit the Helm operator to a single namespace
+   [weaveworks/flux#1664](https://github.com/weaveworks/flux/pull/1664)
+
 ## 0.6.0 (2019-01-14)
 
 **Note** To fix the connectivity problems between Flux and memcached we've changed the 
