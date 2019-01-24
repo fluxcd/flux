@@ -1,5 +1,5 @@
 ---
-# You can optionally deploy memcache, for the Flux daemon to cache
+# memcached deployment used by Flux to cache
 # container image metadata.
 apiVersion: apps/v1
 kind: Deployment
