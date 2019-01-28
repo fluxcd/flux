@@ -74,17 +74,17 @@ func main() {
 	}
 	// This mirrors how kubectl extracts information from the environment.
 	var (
-		listenAddr        = fs.StringP("listen", "l", ":3030", "Listen address where /metrics and API will be served")
-		listenMetricsAddr = fs.String("listen-metrics", "", "Listen address for /metrics endpoint")
-		kubernetesKubectl = fs.String("kubernetes-kubectl", "", "Optional, explicit path to kubectl tool")
-		versionFlag       = fs.Bool("version", false, "Get version number")
+		listenAddr        = fs.StringP("listen", "l", ":3030", "listen address where /metrics and API will be served")
+		listenMetricsAddr = fs.String("listen-metrics", "", "listen address for /metrics endpoint")
+		kubernetesKubectl = fs.String("kubernetes-kubectl", "", "optional, explicit path to kubectl tool")
+		versionFlag       = fs.Bool("version", false, "get version number")
 		// Git repo & key etc.
 		gitURL       = fs.String("git-url", "", "URL of git repo with Kubernetes manifests; e.g., git@github.com:weaveworks/flux-get-started")
 		gitBranch    = fs.String("git-branch", "master", "branch of git repo to use for Kubernetes manifests")
 		gitPath      = fs.StringSlice("git-path", []string{}, "relative paths within the git repo to locate Kubernetes manifests")
 		gitUser      = fs.String("git-user", "Weave Flux", "username to use as git committer")
 		gitEmail     = fs.String("git-email", "support@weave.works", "email to use as git committer")
-		gitSetAuthor = fs.Bool("git-set-author", false, "If set, the author of git commits will reflect the user who initiated the commit and will differ from the git committer.")
+		gitSetAuthor = fs.Bool("git-set-author", false, "if set, the author of git commits will reflect the user who initiated the commit and will differ from the git committer.")
 		gitLabel     = fs.String("git-label", "", "label to keep track of sync progress; overrides both --git-sync-tag and --git-notes-ref")
 		// Old git config; still used if --git-label is not supplied, but --git-label is preferred.
 		gitSyncTag     = fs.String("git-sync-tag", defaultGitSyncTag, "tag to use to mark sync progress for this cluster")
@@ -97,32 +97,33 @@ func main() {
 		// syncing
 		syncInterval = fs.Duration("sync-interval", 5*time.Minute, "apply config in git to cluster at least this often, even if there are no new commits")
 		// registry
-		memcachedHostname    = fs.String("memcached-hostname", "memcached", "Hostname for memcached service.")
-		memcachedTimeout     = fs.Duration("memcached-timeout", time.Second, "Maximum time to wait before giving up on memcached requests.")
+		memcachedHostname    = fs.String("memcached-hostname", "memcached", "hostname for memcached service.")
+		memcachedTimeout     = fs.Duration("memcached-timeout", time.Second, "maximum time to wait before giving up on memcached requests.")
 		memcachedService     = fs.String("memcached-service", "memcached", "SRV service used to discover memcache servers.")
 		registryPollInterval = fs.Duration("registry-poll-interval", 5*time.Minute, "period at which to check for updated images")
 		registryRPS          = fs.Float64("registry-rps", 50, "maximum registry requests per second per host")
 		registryBurst        = fs.Int("registry-burst", defaultRemoteConnections, "maximum number of warmer connections to remote and memcache")
 		registryTrace        = fs.Bool("registry-trace", false, "output trace of image registry requests to log")
 		registryInsecure     = fs.StringSlice("registry-insecure-host", []string{}, "use HTTP for this image registry domain (e.g., registry.cluster.local), instead of HTTPS")
+		registryExcludeImage = fs.StringSlice("registry-exclude-image", []string{"k8s.gcr.io/*"}, "do not scan images that match these glob expressions; the default is to exclude the 'k8s.gcr.io/*' images")
 
 		// AWS authentication
-		registryAWSRegions         = fs.StringSlice("registry-ecr-region", nil, "Restrict ECR scanning to these AWS regions; if empty, only the cluster's region will be scanned")
-		registryAWSAccountIDs      = fs.StringSlice("registry-ecr-include-id", nil, "Restrict ECR scanning to these AWS account IDs; if empty, all account IDs that aren't excluded may be scanned")
-		registryAWSBlockAccountIDs = fs.StringSlice("registry-ecr-exclude-id", []string{registry.EKS_SYSTEM_ACCOUNT}, "Do not scan ECR for images in these AWS account IDs; the default is to exclude the EKS system account")
+		registryAWSRegions         = fs.StringSlice("registry-ecr-region", nil, "restrict ECR scanning to these AWS regions; if empty, only the cluster's region will be scanned")
+		registryAWSAccountIDs      = fs.StringSlice("registry-ecr-include-id", nil, "restrict ECR scanning to these AWS account IDs; if empty, all account IDs that aren't excluded may be scanned")
+		registryAWSBlockAccountIDs = fs.StringSlice("registry-ecr-exclude-id", []string{registry.EKS_SYSTEM_ACCOUNT}, "do not scan ECR for images in these AWS account IDs; the default is to exclude the EKS system account")
 
 		// k8s-secret backed ssh keyring configuration
-		k8sSecretName            = fs.String("k8s-secret-name", "flux-git-deploy", "Name of the k8s secret used to store the private SSH key")
-		k8sSecretVolumeMountPath = fs.String("k8s-secret-volume-mount-path", "/etc/fluxd/ssh", "Mount location of the k8s secret storing the private SSH key")
-		k8sSecretDataKey         = fs.String("k8s-secret-data-key", "identity", "Data key holding the private SSH key within the k8s secret")
-		k8sNamespaceWhitelist    = fs.StringSlice("k8s-namespace-whitelist", []string{}, "Experimental, optional: restrict the view of the cluster to the namespaces listed. All namespaces are included if this is not set.")
+		k8sSecretName            = fs.String("k8s-secret-name", "flux-git-deploy", "name of the k8s secret used to store the private SSH key")
+		k8sSecretVolumeMountPath = fs.String("k8s-secret-volume-mount-path", "/etc/fluxd/ssh", "mount location of the k8s secret storing the private SSH key")
+		k8sSecretDataKey         = fs.String("k8s-secret-data-key", "identity", "data key holding the private SSH key within the k8s secret")
+		k8sNamespaceWhitelist    = fs.StringSlice("k8s-namespace-whitelist", []string{}, "experimental, optional: restrict the view of the cluster to the namespaces listed. All namespaces are included if this is not set.")
 		// SSH key generation
 		sshKeyBits   = optionalVar(fs, &ssh.KeyBitsValue{}, "ssh-keygen-bits", "-b argument to ssh-keygen (default unspecified)")
 		sshKeyType   = optionalVar(fs, &ssh.KeyTypeValue{}, "ssh-keygen-type", "-t argument to ssh-keygen (default unspecified)")
 		sshKeygenDir = fs.String("ssh-keygen-dir", "", "directory, ideally on a tmpfs volume, in which to generate new SSH keys when necessary")
 
-		upstreamURL = fs.String("connect", "", "Connect to an upstream service e.g., Weave Cloud, at this base address")
-		token       = fs.String("token", "", "Authentication token for upstream service")
+		upstreamURL = fs.String("connect", "", "connect to an upstream service e.g., Weave Cloud, at this base address")
+		token       = fs.String("token", "", "authentication token for upstream service")
 
 		dockerConfig = fs.String("docker-config", "", "path to a docker config to use for image registry credentials")
 
@@ -258,7 +259,7 @@ func main() {
 		logger.Log("kubectl", kubectl)
 
 		kubectlApplier := kubernetes.NewKubectl(kubectl, restClientConfig)
-		k8sInst := kubernetes.NewCluster(clientset, ifclientset, kubectlApplier, sshKeyRing, logger, *k8sNamespaceWhitelist)
+		k8sInst := kubernetes.NewCluster(clientset, ifclientset, kubectlApplier, sshKeyRing, logger, *k8sNamespaceWhitelist, *registryExcludeImage)
 
 		if err := k8sInst.Ping(); err != nil {
 			logger.Log("ping", err)

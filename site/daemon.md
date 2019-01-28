@@ -73,6 +73,7 @@ fluxd requires setup and offers customization though a multitude of flags.
 |--registry-rps          | `200`                           | maximum registry requests per second per host|
 |--registry-burst        | `125`      | maximum number of warmer connections to remote and memcache|
 |--registry-insecure-host| []         | registry hosts to use HTTP for (instead of HTTPS) |
+|--registry-exclude-image| `["k8s.gcr.io/*"]` | do not scan images that match these glob expressions |
 |--docker-config         | `""`       | path to a Docker config file with default image registry credentials |
 |--registry-ecr-region   | `[]`       | Allow these AWS regions when scanning images from ECR (multiple values allowed); defaults to the detected cluster region |
 |--registry-ecr-include-id | `[]`       | Include these AWS account ID(s) when scanning images in ECR (multiple values allowed); empty means allow all, unless excluded |

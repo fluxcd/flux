@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"testing"
 
+	"github.com/ryanuber/go-glob"
 	"github.com/stretchr/testify/assert"
 	apiv1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes/fake"
@@ -66,11 +67,56 @@ func TestMergeCredentials(t *testing.T) {
 	client := extendedClient{clientset, nil}
 
 	creds := registry.ImageCreds{}
-	mergeCredentials(noopLog, client, ns, spec, creds, make(map[string]registry.Credentials))
+
+	mergeCredentials(noopLog, func(imageName string) bool { return true },
+		client, ns, spec, creds, make(map[string]registry.Credentials))
 
 	// check that we accumulated some credentials
 	assert.Contains(t, creds, ref.Name)
 	c := creds[ref.Name]
 	hosts := c.Hosts()
 	assert.ElementsMatch(t, []string{"docker.io", "quay.io"}, hosts)
+}
+
+func TestMergeCredentials_ImageExclusion(t *testing.T) {
+	creds := registry.ImageCreds{}
+	gcrImage, _ := image.ParseRef("gcr.io/foo/bar:tag")
+	k8sImage, _ := image.ParseRef("k8s.gcr.io/foo/bar:tag")
+	testImage, _ := image.ParseRef("docker.io/test/bar:tag")
+
+	spec := apiv1.PodTemplateSpec{
+		Spec: apiv1.PodSpec{
+			InitContainers: []apiv1.Container{
+				{Name: "container1", Image: testImage.String()},
+			},
+			Containers: []apiv1.Container{
+				{Name: "container1", Image: k8sImage.String()},
+				{Name: "container2", Image: gcrImage.String()},
+			},
+		},
+	}
+
+	clientset := fake.NewSimpleClientset()
+	client := extendedClient{clientset, nil}
+
+	var includeImage = func(imageName string) bool {
+		for _, exp := range []string{"k8s.gcr.io/*", "*test*"} {
+			if glob.Glob(exp, imageName) {
+				return false
+			}
+		}
+		return true
+	}
+
+	mergeCredentials(noopLog, includeImage, client, "default", spec, creds,
+		make(map[string]registry.Credentials))
+
+	// check test image has been excluded
+	assert.NotContains(t, creds, testImage.Name)
+
+	// check k8s.gcr.io image has been excluded
+	assert.NotContains(t, creds, k8sImage.Name)
+
+	// check gcr.io image exists
+	assert.Contains(t, creds, gcrImage.Name)
 }

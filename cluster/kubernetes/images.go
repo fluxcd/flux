@@ -5,6 +5,7 @@ import (
 
 	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
+	"github.com/ryanuber/go-glob"
 	apiv1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -14,7 +15,39 @@ import (
 	"github.com/weaveworks/flux/registry"
 )
 
-func mergeCredentials(log func(...interface{}) error, client extendedClient, namespace string, podTemplate apiv1.PodTemplateSpec, imageCreds registry.ImageCreds, seenCreds map[string]registry.Credentials) {
+func mergeCredentials(log func(...interface{}) error,
+	includeImage func(imageName string) bool,
+	client extendedClient,
+	namespace string, podTemplate apiv1.PodTemplateSpec,
+	imageCreds registry.ImageCreds,
+	seenCreds map[string]registry.Credentials) {
+	var images []image.Name
+	for _, container := range podTemplate.Spec.InitContainers {
+		r, err := image.ParseRef(container.Image)
+		if err != nil {
+			log("err", err.Error())
+			continue
+		}
+		if includeImage(r.CanonicalName().Name.String()) {
+			images = append(images, r.Name)
+		}
+	}
+
+	for _, container := range podTemplate.Spec.Containers {
+		r, err := image.ParseRef(container.Image)
+		if err != nil {
+			log("err", err.Error())
+			continue
+		}
+		if includeImage(r.CanonicalName().Name.String()) {
+			images = append(images, r.Name)
+		}
+	}
+
+	if len(images) < 1 {
+		return
+	}
+
 	creds := registry.NoCredentials()
 	var imagePullSecrets []string
 	saName := podTemplate.Spec.ServiceAccountName
@@ -81,21 +114,8 @@ func mergeCredentials(log func(...interface{}) error, client extendedClient, nam
 	}
 
 	// Now create the service and attach the credentials
-	for _, container := range podTemplate.Spec.Containers {
-		r, err := image.ParseRef(container.Image)
-		if err != nil {
-			log("err", err.Error())
-			continue
-		}
-		imageCreds[r.Name] = creds
-	}
-	for _, container := range podTemplate.Spec.InitContainers {
-		r, err := image.ParseRef(container.Image)
-		if err != nil {
-			log("err", err.Error())
-			continue
-		}
-		imageCreds[r.Name] = creds
+	for _, image := range images {
+		imageCreds[image] = creds
 	}
 }
 
@@ -125,7 +145,7 @@ func (c *Cluster) ImagesToFetch() registry.ImageCreds {
 			imageCreds := make(registry.ImageCreds)
 			for _, podController := range podControllers {
 				logger := log.With(c.logger, "resource", flux.MakeResourceID(ns.Name, kind, podController.name))
-				mergeCredentials(logger.Log, c.client, ns.Name, podController.podTemplate, imageCreds, seenCreds)
+				mergeCredentials(logger.Log, c.includeImage, c.client, ns.Name, podController.podTemplate, imageCreds, seenCreds)
 			}
 
 			// Merge creds
@@ -141,4 +161,13 @@ func (c *Cluster) ImagesToFetch() registry.ImageCreds {
 	}
 
 	return allImageCreds
+}
+
+func (c *Cluster) includeImage(imageName string) bool {
+	for _, exp := range c.imageExcludeList {
+		if glob.Glob(exp, imageName) {
+			return false
+		}
+	}
+	return true
 }
