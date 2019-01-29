@@ -144,6 +144,13 @@ func (cs Credentials) credsFor(host string) creds {
 			return cred
 		}
 	}
+
+    if HostIsAzureContainerRegistry(host) {
+        if cred, err := GetAzureCloudConfigAADToken(host); err == nil {
+            return cred
+        }
+    }
+
 	return creds{}
 }
 
