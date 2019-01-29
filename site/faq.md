@@ -30,6 +30,7 @@ menu_order: 60
   * [Can I change the namespace Flux puts things in by default?](#can-i-change-the-namespace-flux-puts-things-in-by-default)
   * [Can I temporarily make Flux ignore a deployment?](#can-i-temporarily-make-flux-ignore-a-deployment)
   * [How can I prevent Flux overriding the replicas when using HPA?](#how-can-i-prevent-flux-overriding-the-replicas-when-using-hpa)
+  * [Can I disable Flux registry scanning?](#can-i-disable-flux-registry-scanning)
 - [Flux Helm Operator questions](#flux-helm-operator-questions)
   * [I'm using SSL between Helm and Tiller. How can I configure Flux to use the certificate?](#im-using-ssl-between-helm-and-tiller-how-can-i-configure-flux-to-use-the-certificate)
   * [I've deleted a HelmRelease file from Git. Why is the Helm release still running on my cluster?](#ive-deleted-a-helmrelease-file-from-git-why-is-the-helm-release-still-running-on-my-cluster)
@@ -434,6 +435,34 @@ kinds; putting the annotation in the file always works.
 
 When using a horizontal pod autoscaler you have to remove the `spec.replicas` from your deployment definition.
 If the replicas field is not present in Git, Flux will not override the replica count set by the HPA.
+
+### Can I disable Flux registry scanning?
+
+You can exclude images from being scanned by providing a list of glob expressions using the `registry-exclude-image` flag.
+
+Exclude images from Docker Hub and Quay.io:
+
+```
+--registry-exclude-image=docker.io/*,quay.io/*
+```
+
+And the Helm install equivalent (note the `\,` separator):
+
+```
+--set registry.excludeImage="docker.io/*\,quay.io/*"
+```
+
+Exclude images containing `test` in the FQN:
+
+```
+--registry-exclude-image=*test*
+```
+
+Disable image scanning for all images:
+
+```
+--registry-exclude-image=*
+```
 
 ## Flux Helm Operator questions
 

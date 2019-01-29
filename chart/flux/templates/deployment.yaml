@@ -102,6 +102,9 @@ spec:
           {{- if .Values.registry.cacheExpiry }}
           - --registry-cache-expiry={{ .Values.registry.cacheExpiry }}
           {{- end }}
+          {{- if .Values.registry.excludeImage }}
+          - --registry-exclude-image={{ .Values.registry.excludeImage }}
+          {{- end }}
           {{- if .Values.registry.ecr.region }}
           - --registry-ecr-region={{ .Values.registry.ecr.region }}
           {{- end }}

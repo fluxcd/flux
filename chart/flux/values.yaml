@@ -131,6 +131,8 @@ registry:
   insecureHosts:
   # Duration to keep cached image info. Must be < 1 month. (Deprecated)
   cacheExpiry:
+  # Do not scan images that match these glob expressions
+  excludeImage:
   # AWS ECR settings
   ecr:
     region:
