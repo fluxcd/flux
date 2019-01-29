@@ -9,9 +9,6 @@ import (
 const (
     // Mount volume from hostpath.
     azureCloudConfigJsonFile = "/etc/kubernetes/azure.json"
-
-    // List from https://github.com/kubernetes/kubernetes/blob/master/pkg/credentialprovider/azure/azure_credentials.go
-    azureContainerRegistryHosts = []string{".azurecr.io", ".azurecr.cn", ".azurecr.de", ".azurecr.us"};
 )
 
 type azureCloudConfig struct {
@@ -45,8 +42,9 @@ func GetAzureCloudConfigAADToken(host string) (creds, error) {
         password:   token.aadClientSecret}, nil
 }
 
+// List from https://github.com/kubernetes/kubernetes/blob/master/pkg/credentialprovider/azure/azure_credentials.go
 func HostIsAzureContainerRegistry(host string) (bool) {
-    for _, v := range azureContainerRegistryHosts {
+    for _, v := range []string{".azurecr.io", ".azurecr.cn", ".azurecr.de", ".azurecr.us"} {
         if strings.HasSuffix(host, v) {
             return true
         }
