@@ -3,7 +3,7 @@ package registry
 import (
 	"encoding/json"
 	"os"
-	yaml "gopkg.in/yaml.v2"
+	"strings"
 )
 
 const (
