@@ -42,19 +42,17 @@ const (
 // Daemon is the fully-functional state of a daemon (compare to
 // `NotReadyDaemon`).
 type Daemon struct {
-	V                        string
-	Cluster                  cluster.Cluster
-	Manifests                cluster.Manifests
-	Registry                 registry.Registry
-	ImageRefresh             chan image.Name
-	Repo                     *git.Repo
-	GitConfig                git.Config
-	lastKnownSyncTagRev      string
-	warnedAboutSyncTagChange bool
-	Jobs                     *job.Queue
-	JobStatusCache           *job.StatusCache
-	EventWriter              event.EventWriter
-	Logger                   log.Logger
+	V              string
+	Cluster        cluster.Cluster
+	Manifests      cluster.Manifests
+	Registry       registry.Registry
+	ImageRefresh   chan image.Name
+	Repo           *git.Repo
+	GitConfig      git.Config
+	Jobs           *job.Queue
+	JobStatusCache *job.StatusCache
+	EventWriter    event.EventWriter
+	Logger         log.Logger
 	// bookkeeping
 	*LoopVars
 }
