@@ -179,6 +179,14 @@ func (d *Daemon) doSync(logger log.Logger) (retErr error) {
 	if err != nil && !isUnknownRevision(err) {
 		return err
 	}
+	// Check if something other than the current instance of fluxd changed the sync tag.
+	// This is likely to be caused by another fluxd instance using the same tag.
+	// Having multiple instances fighting for the same tag can lead to fluxd missing manifest changes.
+	if d.lastKnownSyncTagRev != "" && oldTagRev != d.lastKnownSyncTagRev && !d.warnedAboutSyncTagChange {
+		logger.Log("warning",
+			"detected external change in git sync tag; the sync tag should not be shared by fluxd instances")
+		d.warnedAboutSyncTagChange = true
+	}
 
 	newTagRev, err := working.HeadRevision(ctx)
 	if err != nil {
@@ -419,6 +427,7 @@ func (d *Daemon) doSync(logger log.Logger) (retErr error) {
 			if err != nil {
 				return err
 			}
+			d.lastKnownSyncTagRev = newTagRev
 		}
 		logger.Log("tag", d.GitConfig.SyncTag, "old", oldTagRev, "new", newTagRev)
 		{
