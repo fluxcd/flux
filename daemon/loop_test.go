@@ -105,8 +105,12 @@ func TestPullAndSync_InitialSync(t *testing.T) {
 		syncDef = &def
 		return nil
 	}
-
-	d.doSync(log.NewLogfmtLogger(ioutil.Discard))
+	var (
+		logger                   = log.NewLogfmtLogger(ioutil.Discard)
+		lastKnownSyncTagRev      string
+		warnedAboutSyncTagChange bool
+	)
+	d.doSync(logger, &lastKnownSyncTagRev, &warnedAboutSyncTagChange)
 
 	// It applies everything
 	if syncCalled != 1 {
@@ -174,8 +178,12 @@ func TestDoSync_NoNewCommits(t *testing.T) {
 		syncDef = &def
 		return nil
 	}
-
-	if err := d.doSync(log.NewLogfmtLogger(ioutil.Discard)); err != nil {
+	var (
+		logger                   = log.NewLogfmtLogger(ioutil.Discard)
+		lastKnownSyncTagRev      string
+		warnedAboutSyncTagChange bool
+	)
+	if err := d.doSync(logger, &lastKnownSyncTagRev, &warnedAboutSyncTagChange); err != nil {
 		t.Error(err)
 	}
 
@@ -268,8 +276,12 @@ func TestDoSync_WithNewCommit(t *testing.T) {
 		syncDef = &def
 		return nil
 	}
-
-	d.doSync(log.NewLogfmtLogger(ioutil.Discard))
+	var (
+		logger                   = log.NewLogfmtLogger(ioutil.Discard)
+		lastKnownSyncTagRev      string
+		warnedAboutSyncTagChange bool
+	)
+	d.doSync(logger, &lastKnownSyncTagRev, &warnedAboutSyncTagChange)
 
 	// It applies everything
 	if syncCalled != 1 {

@@ -62,8 +62,10 @@ func (d *Daemon) Loop(stop chan struct{}, wg *sync.WaitGroup, logger log.Logger)
 	d.AskForImagePoll()
 
 	for {
-		var lastKnownSyncTagRev string
-		var warnedAboutSyncTagChange bool
+		var (
+			lastKnownSyncTagRev      string
+			warnedAboutSyncTagChange bool
+		)
 		select {
 		case <-stop:
 			logger.Log("stopping", "true")
