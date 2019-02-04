@@ -20,6 +20,7 @@ import (
 	"github.com/weaveworks/flux/api/v9"
 	"github.com/weaveworks/flux/cluster"
 	"github.com/weaveworks/flux/cluster/kubernetes"
+	kresource "github.com/weaveworks/flux/cluster/kubernetes/resource"
 	"github.com/weaveworks/flux/event"
 	"github.com/weaveworks/flux/git"
 	"github.com/weaveworks/flux/git/gittest"
@@ -594,6 +595,16 @@ func mustParseImageRef(ref string) image.Ref {
 	return r
 }
 
+type anonNamespacer func(kresource.KubeManifest) string
+
+func (fn anonNamespacer) EffectiveNamespace(m kresource.KubeManifest) (string, error) {
+	return fn(m), nil
+}
+
+var alwaysDefault anonNamespacer = func(kresource.KubeManifest) string {
+	return "default"
+}
+
 func mockDaemon(t *testing.T) (*Daemon, func(), func(), *cluster.Mock, *mockEventWriter, func(func())) {
 	logger := log.NewNopLogger()
 
@@ -646,7 +657,6 @@ func mockDaemon(t *testing.T) (*Daemon, func(), func(), *cluster.Mock, *mockEven
 			return []cluster.Controller{}, nil
 		}
 		k8s.ExportFunc = func() ([]byte, error) { return testBytes, nil }
-		k8s.LoadManifestsFunc = (&kubernetes.Manifests{}).LoadManifests
 		k8s.PingFunc = func() error { return nil }
 		k8s.SomeServicesFunc = func([]flux.ResourceID) ([]cluster.Controller, error) {
 			return []cluster.Controller{
@@ -654,8 +664,6 @@ func mockDaemon(t *testing.T) (*Daemon, func(), func(), *cluster.Mock, *mockEven
 			}, nil
 		}
 		k8s.SyncFunc = func(def cluster.SyncDef) error { return nil }
-		k8s.UpdatePoliciesFunc = (&kubernetes.Manifests{}).UpdatePolicies
-		k8s.UpdateImageFunc = (&kubernetes.Manifests{}).UpdateImage
 	}
 
 	var imageRegistry registry.Registry
@@ -690,7 +698,7 @@ func mockDaemon(t *testing.T) (*Daemon, func(), func(), *cluster.Mock, *mockEven
 		Repo:           repo,
 		GitConfig:      params,
 		Cluster:        k8s,
-		Manifests:      &kubernetes.Manifests{},
+		Manifests:      &kubernetes.Manifests{Namespacer: alwaysDefault},
 		Registry:       imageRegistry,
 		V:              testVersion,
 		Jobs:           jobs,

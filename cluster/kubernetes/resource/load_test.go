@@ -13,13 +13,9 @@ import (
 	"github.com/weaveworks/flux/resource"
 )
 
-const (
-	fallbackNS = "fallback"
-)
-
 // for convenience
 func base(source, kind, namespace, name string) baseObject {
-	b := baseObject{source: source, Kind: kind, fallbackNamespace: fallbackNS}
+	b := baseObject{source: source, Kind: kind}
 	b.Meta.Namespace = namespace
 	b.Meta.Name = name
 	return b
@@ -28,7 +24,7 @@ func base(source, kind, namespace, name string) baseObject {
 func TestParseEmpty(t *testing.T) {
 	doc := ``
 
-	objs, err := ParseMultidoc([]byte(doc), "", "test")
+	objs, err := ParseMultidoc([]byte(doc), "test")
 	if err != nil {
 		t.Error(err)
 	}
@@ -48,7 +44,7 @@ kind: Deployment
 metadata:
   name: a-deployment
 `
-	objs, err := ParseMultidoc([]byte(docs), "test", fallbackNS)
+	objs, err := ParseMultidoc([]byte(docs), "test")
 	if err != nil {
 		t.Error(err)
 	}
@@ -80,7 +76,7 @@ kind: Deployment
 metadata:
   name: a-deployment
 `
-	objs, err := ParseMultidoc([]byte(docs), "test", fallbackNS)
+	objs, err := ParseMultidoc([]byte(docs), "test")
 	if err != nil {
 		t.Error(err)
 	}
@@ -119,7 +115,7 @@ data:
 		buffer.WriteString(line)
 	}
 
-	_, err := ParseMultidoc(buffer.Bytes(), "test", fallbackNS)
+	_, err := ParseMultidoc(buffer.Bytes(), "test")
 	if err != nil {
 		t.Error(err)
 	}
@@ -141,7 +137,7 @@ spec:
           - name: weekly-curl-homepage
             image: centos:7 # Has curl installed by default
 `
-	objs, err := ParseMultidoc([]byte(doc), "test", fallbackNS)
+	objs, err := ParseMultidoc([]byte(doc), "test")
 	assert.NoError(t, err)
 
 	obj, ok := objs["default:cronjob/weekly-curl-homepage"]
@@ -171,7 +167,7 @@ items:
     name: bar
     namespace: ns
 `
-	res, err := unmarshalObject("", fallbackNS, []byte(doc))
+	res, err := unmarshalObject("", []byte(doc))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -206,7 +202,7 @@ func TestLoadSome(t *testing.T) {
 	if err := testfiles.WriteTestFiles(dir); err != nil {
 		t.Fatal(err)
 	}
-	objs, err := Load(dir, fallbackNS, []string{dir})
+	objs, err := Load(dir, []string{dir})
 	if err != nil {
 		t.Error(err)
 	}
@@ -237,7 +233,7 @@ func TestChartTracker(t *testing.T) {
 		if f == "garbage" {
 			continue
 		}
-		if m, err := Load(dir, fallbackNS, []string{fq}); err != nil || len(m) == 0 {
+		if m, err := Load(dir, []string{fq}); err != nil || len(m) == 0 {
 			t.Errorf("Load returned 0 objs, err=%v", err)
 		}
 	}
@@ -256,7 +252,7 @@ func TestChartTracker(t *testing.T) {
 	}
 	for _, f := range chartfiles {
 		fq := filepath.Join(dir, f)
-		if m, err := Load(dir, fallbackNS, []string{fq}); err != nil || len(m) != 0 {
+		if m, err := Load(dir, []string{fq}); err != nil || len(m) != 0 {
 			t.Errorf("%q not ignored as a chart should be", f)
 		}
 	}

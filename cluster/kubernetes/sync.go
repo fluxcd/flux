@@ -31,7 +31,11 @@ const (
 	stackLabel         = kresource.PolicyPrefix + "stack"
 	checksumAnnotation = kresource.PolicyPrefix + "stack_checksum"
 
-	DefaultDefaultNamespace = "default"
+	// The namespace to presume if something doesn't have one, and we
+	// haven't been told what to use as a fallback. This is what
+	// `kubectl` uses when there's no config setting the fallback
+	// namespace.
+	DefaultFallbackNamespace = "default"
 )
 
 // Sync takes a definition of what should be running in the cluster,
@@ -42,8 +46,6 @@ const (
 func (c *Cluster) Sync(spec cluster.SyncDef) error {
 	logger := log.With(c.logger, "method", "Sync")
 
-	fallbackNamespace := c.applier.getDefaultNamespace()
-
 	type checksum struct {
 		stack, sum string
 	}
@@ -53,7 +55,7 @@ func (c *Cluster) Sync(spec cluster.SyncDef) error {
 
 	// NB we get all resources, since we care about leaving unsynced,
 	// _ignored_ resources alone.
-	clusterResources, err := c.getResourcesBySelector("", fallbackNamespace)
+	clusterResources, err := c.getResourcesBySelector("")
 	if err != nil {
 		return errors.Wrap(err, "collating resources in cluster for sync")
 	}
@@ -97,7 +99,7 @@ func (c *Cluster) Sync(spec cluster.SyncDef) error {
 	if c.GC {
 		orphanedResources := makeChangeSet()
 
-		clusterResources, err := c.getResourcesInStack(fallbackNamespace) // <-- FIXME(right now)
+		clusterResources, err := c.getResourcesInStack()
 		if err != nil {
 			return errors.Wrap(err, "collating resources in cluster for calculating garbage collection")
 		}
@@ -140,28 +142,18 @@ func (c *Cluster) Sync(spec cluster.SyncDef) error {
 // --- internals in support of Sync
 
 type kuberesource struct {
-	obj *unstructured.Unstructured
+	obj        *unstructured.Unstructured
+	namespaced bool
 }
 
 // ResourceID returns the ResourceID for this resource loaded from the
 // cluster.
 func (r *kuberesource) ResourceID() flux.ResourceID {
 	ns, kind, name := r.obj.GetNamespace(), r.obj.GetKind(), r.obj.GetName()
-	return flux.MakeResourceID(ns, kind, name)
-}
-
-// AssumedNamespaceResourceID returns a ResourceID which assumes the
-// namespace is fallbackNamespace if it is missing. Resources returned
-// from the cluster that are not namespaced (e.g., ClusterRoles) will
-// have an empty string in the namespace field. To be able to compare
-// them to resources we load from files, we must assume a namespace if
-// none is given.
-func (r *kuberesource) AssumedNamespaceResourceID(fallbackNamespace string) flux.ResourceID {
-	ns := r.obj.GetNamespace()
-	if ns == "" {
-		ns = fallbackNamespace
+	if !r.namespaced {
+		ns = kresource.ClusterScope
 	}
-	return flux.MakeResourceID(ns, r.obj.GetKind(), r.obj.GetName())
+	return flux.MakeResourceID(ns, kind, name)
 }
 
 // Bytes returns a byte slice description
@@ -191,7 +183,7 @@ func (r *kuberesource) GetStack() string {
 	return r.obj.GetLabels()[stackLabel]
 }
 
-func (c *Cluster) getResourcesBySelector(selector, assumedNamespace string) (map[string]*kuberesource, error) {
+func (c *Cluster) getResourcesBySelector(selector string) (map[string]*kuberesource, error) {
 	listOptions := meta_v1.ListOptions{}
 	if selector != "" {
 		listOptions.LabelSelector = selector
@@ -219,6 +211,8 @@ func (c *Cluster) getResourcesBySelector(selector, assumedNamespace string) (map
 			if !contains(verbs, "list") {
 				continue
 			}
+
+			namespaced := apiResource.Namespaced
 
 			// get group and version
 			var group, version string
@@ -253,8 +247,8 @@ func (c *Cluster) getResourcesBySelector(selector, assumedNamespace string) (map
 				}
 				// TODO(michael) also exclude anything that has an ownerReference (that isn't "standard"?)
 
-				res := &kuberesource{obj: &data.Items[i]}
-				result[res.AssumedNamespaceResourceID(assumedNamespace).String()] = res
+				res := &kuberesource{obj: &data.Items[i], namespaced: namespaced}
+				result[res.ResourceID().String()] = res
 			}
 		}
 	}
@@ -264,8 +258,8 @@ func (c *Cluster) getResourcesBySelector(selector, assumedNamespace string) (map
 
 // exportResourcesInStack collates all the resources that belong to a
 // stack, i.e., were applied by flux.
-func (c *Cluster) getResourcesInStack(assumedNamespace string) (map[string]*kuberesource, error) {
-	return c.getResourcesBySelector(stackLabel, assumedNamespace) // means "has label <<stackLabel>>"
+func (c *Cluster) getResourcesInStack() (map[string]*kuberesource, error) {
+	return c.getResourcesBySelector(stackLabel) // means "has label <<stackLabel>>"
 }
 
 func applyMetadata(res resource.Resource, stack, checksum string) ([]byte, error) {
@@ -322,7 +316,6 @@ func (c *changeSet) stage(cmd string, id flux.ResourceID, source string, bytes [
 // Applier is something that will apply a changeset to the cluster.
 type Applier interface {
 	apply(log.Logger, changeSet, map[flux.ResourceID]error) cluster.SyncError
-	getDefaultNamespace() string
 }
 
 type Kubectl struct {
@@ -363,27 +356,27 @@ func (c *Kubectl) connectArgs() []string {
 	return args
 }
 
-// getDefaultNamespace returns the fallback namespace used by the
+// GetDefaultNamespace returns the fallback namespace used by the
 // applied when a namespaced resource doesn't have one specified. This
 // is used when syncing to anticipate the identity of a resource in
 // the cluster given the manifest from a file (which may be missing
 // the namespace).
-func (k *Kubectl) getDefaultNamespace() string {
+func (k *Kubectl) GetDefaultNamespace() (string, error) {
 	cmd := k.kubectlCommand("config", "get-contexts", "--no-headers")
 	out, err := cmd.Output()
 	if err != nil {
-		return DefaultDefaultNamespace
+		return "", err
 	}
 	lines := bytes.Split(out, []byte("\n"))
 	for _, line := range lines {
 		words := bytes.Fields(line)
 		if len(words) > 1 && string(words[0]) == "*" {
 			if len(words) == 5 {
-				return string(words[4])
+				return string(words[4]), nil
 			}
 		}
 	}
-	return DefaultDefaultNamespace
+	return DefaultFallbackNamespace, nil
 }
 
 // rankOfKind returns an int denoting the position of the given kind

@@ -41,7 +41,6 @@ func daemon(t *testing.T) (*Daemon, func()) {
 	repo, repoCleanup := gittest.Repo(t)
 
 	k8s = &cluster.Mock{}
-	k8s.LoadManifestsFunc = (&kubernetes.Manifests{}).LoadManifests
 	k8s.ExportFunc = func() ([]byte, error) { return nil, nil }
 
 	events = &mockEventWriter{}
@@ -64,7 +63,7 @@ func daemon(t *testing.T) (*Daemon, func()) {
 	jobs := job.NewQueue(shutdown, wg)
 	d := &Daemon{
 		Cluster:        k8s,
-		Manifests:      k8s,
+		Manifests:      &kubernetes.Manifests{Namespacer: alwaysDefault},
 		Registry:       &registryMock.Registry{},
 		Repo:           repo,
 		GitConfig:      gitConfig,
@@ -231,7 +230,7 @@ func TestDoSync_WithNewCommit(t *testing.T) {
 		}
 		// Push some new changes
 		dirs := checkout.ManifestDirs()
-		err = cluster.UpdateManifest(k8s, checkout.Dir(), dirs, flux.MustParseResourceID("default:deployment/helloworld"), func(def []byte) ([]byte, error) {
+		err = cluster.UpdateManifest(d.Manifests, checkout.Dir(), dirs, flux.MustParseResourceID("default:deployment/helloworld"), func(def []byte) ([]byte, error) {
 			// A simple modification so we have changes to push
 			return []byte(strings.Replace(string(def), "replicas: 5", "replicas: 4", -1)), nil
 		})

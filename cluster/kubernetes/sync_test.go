@@ -32,7 +32,7 @@ import (
 )
 
 const (
-	defaultNamespace = "unusual-default"
+	defaultTestNamespace = "unusual-default"
 )
 
 func fakeClients() extendedClient {
@@ -61,7 +61,7 @@ func fakeClients() extendedClient {
 		},
 	}
 
-	coreClient := corefake.NewSimpleClientset(&corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: defaultNamespace}})
+	coreClient := corefake.NewSimpleClientset(&corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: defaultTestNamespace}})
 	fluxClient := fluxfake.NewSimpleClientset()
 	dynamicClient := NewSimpleDynamicClient(scheme) // NB from this package, rather than the official one, since we needed a patched version
 
@@ -98,10 +98,6 @@ type fakeApplier struct {
 	discovery  discovery.DiscoveryInterface
 	defaultNS  string
 	commandRun bool
-}
-
-func (a fakeApplier) getDefaultNamespace() string {
-	return defaultNamespace
 }
 
 func groupVersionResource(res *unstructured.Unstructured) schema.GroupVersionResource {
@@ -205,7 +201,7 @@ func findAPIResource(gvr schema.GroupVersionResource, disco discovery.DiscoveryI
 
 func setup(t *testing.T) (*Cluster, *fakeApplier) {
 	clients := fakeClients()
-	applier := &fakeApplier{client: clients.dynamicClient, discovery: clients.coreClient.Discovery(), defaultNS: defaultNamespace}
+	applier := &fakeApplier{client: clients.dynamicClient, discovery: clients.coreClient.Discovery(), defaultNS: defaultTestNamespace}
 	kube := &Cluster{
 		applier: applier,
 		client:  clients,
@@ -265,7 +261,18 @@ metadata:
 	}
 
 	test := func(t *testing.T, kube *Cluster, defs, expectedAfterSync string, expectErrors bool) {
-		resources, err := kresource.ParseMultidoc([]byte(defs), "before", defaultNamespace)
+		namespacer, err := NewNamespacer(namespaceDefaulterFake(defaultTestNamespace), kube.client.coreClient.Discovery())
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		resources0, err := kresource.ParseMultidoc([]byte(defs), "before")
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// Needed to get from KubeManifest to resource.Resource
+		resources, err := postProcess(resources0, namespacer)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -274,13 +281,13 @@ metadata:
 		if !expectErrors && err != nil {
 			t.Error(err)
 		}
-		expected, err := kresource.ParseMultidoc([]byte(expectedAfterSync), "after", defaultNamespace)
+		expected, err := kresource.ParseMultidoc([]byte(expectedAfterSync), "after")
 		if err != nil {
 			panic(err)
 		}
 
 		// Now check that the resources were created
-		actual, err := kube.getResourcesInStack(defaultNamespace)
+		actual, err := kube.getResourcesInStack()
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -354,7 +361,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: depFallbackNS
-  namespace: ` + defaultNamespace + `
+  namespace: ` + defaultTestNamespace + `
 `
 		test(t, kube, withoutNS, withNS, false)
 	})
@@ -495,7 +502,7 @@ spec:
 		assert.NoError(t, err)
 
 		// Check that our resource-getting also sees the pre-existing resource
-		resources, err := kube.getResourcesBySelector("", defaultNamespace)
+		resources, err := kube.getResourcesBySelector("")
 		assert.NoError(t, err)
 		assert.Contains(t, resources, "foobar:deployment/dep1")
 
