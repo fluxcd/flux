@@ -96,15 +96,17 @@ func main() {
 		gitTimeout      = fs.Duration("git-timeout", 20*time.Second, "duration after which git operations time out")
 		// syncing
 		syncInterval = fs.Duration("sync-interval", 5*time.Minute, "apply config in git to cluster at least this often, even if there are no new commits")
+
 		// registry
-		memcachedHostname    = fs.String("memcached-hostname", "memcached", "hostname for memcached service.")
-		memcachedTimeout     = fs.Duration("memcached-timeout", time.Second, "maximum time to wait before giving up on memcached requests.")
-		memcachedService     = fs.String("memcached-service", "memcached", "SRV service used to discover memcache servers.")
+		memcachedHostname = fs.String("memcached-hostname", "memcached", "hostname for memcached service.")
+		memcachedTimeout  = fs.Duration("memcached-timeout", time.Second, "maximum time to wait before giving up on memcached requests.")
+		memcachedService  = fs.String("memcached-service", "memcached", "SRV service used to discover memcache servers.")
+
 		registryPollInterval = fs.Duration("registry-poll-interval", 5*time.Minute, "period at which to check for updated images")
 		registryRPS          = fs.Float64("registry-rps", 50, "maximum registry requests per second per host")
 		registryBurst        = fs.Int("registry-burst", defaultRemoteConnections, "maximum number of warmer connections to remote and memcache")
 		registryTrace        = fs.Bool("registry-trace", false, "output trace of image registry requests to log")
-		registryInsecure     = fs.StringSlice("registry-insecure-host", []string{}, "use HTTP for this image registry domain (e.g., registry.cluster.local), instead of HTTPS")
+		registryInsecure     = fs.StringSlice("registry-insecure-host", []string{}, "let these registry hosts skip TLS host verification and fall back to using HTTP instead of HTTPS; this allows man-in-the-middle attacks, so use with extreme caution")
 		registryExcludeImage = fs.StringSlice("registry-exclude-image", []string{"k8s.gcr.io/*"}, "do not scan images that match these glob expressions; the default is to exclude the 'k8s.gcr.io/*' images")
 
 		// AWS authentication
