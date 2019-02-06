@@ -52,7 +52,7 @@ helmOperator:
     # generate a SSH key named identity: ssh-keygen -q -N "" -f ./identity
     # create a Kubernetes secret: kubectl -n flux create secret generic helm-ssh --from-file=./identity
     # delete the private key: rm ./identity
-    # add ./identity.pub as a read-only deployment key in your GitHub repo where the charts are
+    # add ./identity.pub as a read-only deployment key in your Git repo where the charts are
     # set the secret name (helm-ssh) below
     secretName: ""
   # Additional environment variables to set
@@ -114,7 +114,7 @@ git:
   # generate a SSH key named identity: ssh-keygen -q -N "" -f ./identity
   # create a Kubernetes secret: kubectl -n flux create secret generic flux-ssh --from-file=./identity
   # delete the private key: rm ./identity
-  # add ./identity.pub as a read-only deployment key in your GitHub repo where the charts are
+  # add ./identity.pub as a deployment key with write access in your Git repo
   # set the secret name (flux-ssh) below
   secretName: ""
 
