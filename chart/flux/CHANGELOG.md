@@ -1,9 +1,16 @@
-## 0.6.1 (TBA)
+## 0.6.1 (2019-02-07)
 
 ### Improvements
 
+ - Add option to mount custom `repositories.yaml`
+   [weaveworks/flux#1671](https://github.com/weaveworks/flux/pull/1671)
  - Add option to limit the Helm operator to a single namespace
    [weaveworks/flux#1664](https://github.com/weaveworks/flux/pull/1664)
+
+### Bug fixes
+
+ - Fix custom SSH secret mapping
+   [weaveworks/flux#1710](https://github.com/weaveworks/flux/pull/1710)
 
 ## 0.6.0 (2019-01-14)
 
