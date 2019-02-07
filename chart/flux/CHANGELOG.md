@@ -2,6 +2,8 @@
 
 ### Improvements
 
+ - Add option to exclude container images
+   [weaveworks/flux#1659](https://github.com/weaveworks/flux/pull/1659)
  - Add option to mount custom `repositories.yaml`
    [weaveworks/flux#1671](https://github.com/weaveworks/flux/pull/1671)
  - Add option to limit the Helm operator to a single namespace
