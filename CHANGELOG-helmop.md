@@ -1,9 +1,16 @@
-## 0.5.4 (TBA)
+## 0.6.0 (2019-02-07)
 
 ### Improvements
 
  - Add option to limit the Helm operator to a single namespace
    [weaveworks/flux#1664](https://github.com/weaveworks/flux/pull/1664)
+
+### Thanks
+
+Without the contributions of @brandon-bethke-neudesic, @errordeveloper,
+@ncabatoff, @stefanprodan, @squaremo, and feedback of our
+[#flux](https://slack.weave.works/) inhabitants this release would not
+have been possible -- thanks to all of you!
 
 ## 0.5.3 (2019-01-14)
 
