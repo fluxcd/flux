@@ -2,6 +2,8 @@
 
 ### Improvements
 
+ - Updated Flux to `1.10.0` and Helm operator to `0.6.0`
+   [weaveworks/flux#1713](https://github.com/weaveworks/flux/pull/1713)
  - Add option to exclude container images
    [weaveworks/flux#1659](https://github.com/weaveworks/flux/pull/1659)
  - Add option to mount custom `repositories.yaml`
