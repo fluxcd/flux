@@ -1,6 +1,58 @@
 This is the changelog for the Flux daemon; the changelog for the Helm
 operator is in [./CHANGELOG-helmop.md](./CHANGELOG-helmop.md).
 
+## 1.10.0 (2019-02-07)
+
+This release adds the `--registry-exclude-image` flag for excluding
+images from scanning, allows for registries with self-signed
+certificates, and fixes several bugs.
+
+### Fixes
+
+- Bumped `justinbarrick/go-k8s-portforward` to `1.0.2` to correctly
+  handle multiple paths in the `KUBECONFIG` env variable
+  [weaveworks/flux#1658][#1658]
+- Improved handling of registry challenge requests (preventing memory
+  leaks) [weaveworks/flux#1672][#1672]
+- Altered merging strategy for image credentials, which previously
+  could lead to Flux trying to fetch image details with credentials
+  from a different workload [weaveworks/flux#1702][#1702]
+
+### Improvements
+
+- Allow (potentially all) images to be excluded from scanning
+  [weaveworks/flux#1659][#1659]
+- `--registry-insecure-host` now first tries to skip TLS host
+  host verification before falling back to HTTP, allowing registries
+  with self-signed certificates [weaveworks/flux#1526][#1526]
+- Allow `HOME` env variable when invoking Git which allows for mounting
+  a config file under `$HOME/config/git` [weaveworks/flux#1644][#1644]
+- Several documentation improvements and clarifications
+  weaveworks/flux{[#1656], [#1675], [#1681]}
+- Removed last traces of `linting` [weaveworks/flux#1673][#1673]
+- Warn users about external changes in sync tag
+  [weaveworks/flux#1695][#1695]
+
+### Thanks
+
+Lots of thanks to @2opremio, @alanjcastonguay, @bheesham, @brantb,
+@dananichev, @dholbach, @dmarkey, @hiddeco, @ncabatoff, @rade,
+@squaremo, @switchboardOp, @stefanprodan and @Timer for their
+contributions to this release, and anyone I've missed while writing
+this note.
+
+[#1526]: https://github.com/weaveworks/flux/pull/1526
+[#1644]: https://github.com/weaveworks/flux/pull/1644
+[#1656]: https://github.com/weaveworks/flux/pull/1656
+[#1658]: https://github.com/weaveworks/flux/pull/1658
+[#1659]: https://github.com/weaveworks/flux/pull/1659
+[#1672]: https://github.com/weaveworks/flux/pull/1672
+[#1673]: https://github.com/weaveworks/flux/pull/1673
+[#1675]: https://github.com/weaveworks/flux/pull/1675
+[#1681]: https://github.com/weaveworks/flux/pull/1681
+[#1695]: https://github.com/weaveworks/flux/pull/1695
+[#1702]: https://github.com/weaveworks/flux/pull/1702
+
 ## 1.9.0 (2019-01-09)
 
 This release adds native support for ECR (Amazon Elastic Container
