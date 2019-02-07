@@ -40,7 +40,7 @@ func fakeClients() extendedClient {
 
 	// Set this to `true` to output a trace of the API actions called
 	// while running the tests
-	const debug = true
+	const debug = false
 
 	getAndList := metav1.Verbs([]string{"get", "list"})
 	// Adding these means the fake dynamic client will find them, and

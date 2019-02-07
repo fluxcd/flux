@@ -18,6 +18,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/pflag"
 	k8sifclient "github.com/weaveworks/flux/integrations/client/clientset/versioned"
+	crd "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	k8sclientdynamic "k8s.io/client-go/dynamic"
 	k8sclient "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -189,6 +190,31 @@ func main() {
 		*sshKeygenDir = *k8sSecretVolumeMountPath
 	}
 
+	// Mechanical components.
+
+	// When we can receive from this channel, it indicates that we
+	// are ready to shut down.
+	errc := make(chan error)
+	// This signals other routines to shut down;
+	shutdown := make(chan struct{})
+	// .. and this is to wait for other routines to shut down cleanly.
+	shutdownWg := &sync.WaitGroup{}
+
+	go func() {
+		c := make(chan os.Signal, 1)
+		signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
+		errc <- fmt.Errorf("%s", <-c)
+	}()
+
+	// This means we can return, and it will use the shutdown
+	// protocol.
+	defer func() {
+		// wait here until stopping.
+		logger.Log("exiting", <-errc)
+		close(shutdown)
+		shutdownWg.Wait()
+	}()
+
 	// Cluster component.
 	var clusterVersion string
 	var sshKeyRing ssh.KeyRing
@@ -283,7 +309,14 @@ func main() {
 		// There is only one way we currently interpret a repo of
 		// files as manifests, and that's as Kubernetes yamels.
 		k8sManifests = &kubernetes.Manifests{}
-		k8sManifests.Namespacer, err = kubernetes.NewNamespacer(kubectlApplier, clientset.Discovery())
+
+		crdClient, err := crd.NewForConfig(restClientConfig)
+		if err == nil {
+			disco := kubernetes.MakeCachedDiscovery(clientset.Discovery(), crdClient, shutdown)
+			k8sManifests.Namespacer, err = kubernetes.NewNamespacer(kubectlApplier, disco)
+		}
+		if err == nil {
+		}
 		if err != nil {
 			logger.Log("err", err)
 			os.Exit(1)
@@ -367,31 +400,6 @@ func main() {
 			os.Exit(1)
 		}
 	}
-
-	// Mechanical components.
-
-	// When we can receive from this channel, it indicates that we
-	// are ready to shut down.
-	errc := make(chan error)
-	// This signals other routines to shut down;
-	shutdown := make(chan struct{})
-	// .. and this is to wait for other routines to shut down cleanly.
-	shutdownWg := &sync.WaitGroup{}
-
-	go func() {
-		c := make(chan os.Signal, 1)
-		signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
-		errc <- fmt.Errorf("%s", <-c)
-	}()
-
-	// This means we can return, and it will use the shutdown
-	// protocol.
-	defer func() {
-		// wait here until stopping.
-		logger.Log("exiting", <-errc)
-		close(shutdown)
-		shutdownWg.Wait()
-	}()
 
 	// Checkpoint: we want to include the fact of whether the daemon
 	// was given a Git repo it could clone; but the expected scenario

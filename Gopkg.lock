@@ -830,12 +830,21 @@
   version = "kubernetes-1.11.0"
 
 [[projects]]
-  branch = "master"
-  digest = "1:0a865e7f317907161f1c2df5f270595b9d7ba09850b7eb39a2b11cc8f9a50d28"
+  digest = "1:26842d8ec9a7f675635f1c2248991f190610109c446f8b8f405be916d8241f12"
   name = "k8s.io/apiextensions-apiserver"
-  packages = ["pkg/features"]
+  packages = [
+    "pkg/apis/apiextensions",
+    "pkg/apis/apiextensions/v1beta1",
+    "pkg/client/clientset/clientset",
+    "pkg/client/clientset/clientset/fake",
+    "pkg/client/clientset/clientset/scheme",
+    "pkg/client/clientset/clientset/typed/apiextensions/v1beta1",
+    "pkg/client/clientset/clientset/typed/apiextensions/v1beta1/fake",
+    "pkg/features",
+  ]
   pruneopts = ""
-  revision = "84f7c7786e298ad1479d00ff314a2cfa0006cd0c"
+  revision = "3de98c57bc05a81cf463e0ad7a0af4cec8a5b510"
+  version = "kubernetes-1.11.0"
 
 [[projects]]
   digest = "1:b6b2fb7b4da1ac973b64534ace2299a02504f16bc7820cb48edb8ca4077183e1"
@@ -906,6 +915,7 @@
   name = "k8s.io/client-go"
   packages = [
     "discovery",
+    "discovery/cached",
     "discovery/fake",
     "dynamic",
     "kubernetes",
@@ -1206,6 +1216,9 @@
     "k8s.io/api/apps/v1",
     "k8s.io/api/batch/v1beta1",
     "k8s.io/api/core/v1",
+    "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1",
+    "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset",
+    "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/fake",
     "k8s.io/apimachinery/pkg/api/errors",
     "k8s.io/apimachinery/pkg/api/meta",
     "k8s.io/apimachinery/pkg/apis/meta/v1",
@@ -1219,6 +1232,7 @@
     "k8s.io/apimachinery/pkg/util/wait",
     "k8s.io/apimachinery/pkg/watch",
     "k8s.io/client-go/discovery",
+    "k8s.io/client-go/discovery/cached",
     "k8s.io/client-go/discovery/fake",
     "k8s.io/client-go/dynamic",
     "k8s.io/client-go/kubernetes",
