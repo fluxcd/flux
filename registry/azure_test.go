@@ -6,8 +6,8 @@ import (
 
 func Test_HostIsAzureContainerRegistry(t *testing.T) {
 	for _, v := range []struct {
-		host        string
-		isACR       bool
+		host  string
+		isACR bool
 	}{
 		{
 			host:  "azurecr.io",
