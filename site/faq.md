@@ -246,7 +246,7 @@ happen:
    if you've only just started using a particular image in a workload.
  - Flux can't get suitable credentials for the image repository. At
    present, it looks at `imagePullSecret`s attached to workloads,
-   service accounts, platform-provided credentials on GCP or AWS, and
+   service accounts, platform-provided credentials on GCP, AWS or Azure, and
    a Docker config file if you mount one into the fluxd container (see
    the [command-line usage](./daemon.md)).
  - When using images in ECR, from EC2, the `NodeInstanceRole` for the
@@ -256,6 +256,25 @@ happen:
    [`kops`](https://github.com/kubernetes/kops) (with
    [`.iam.allowContainerRegistry=true`](https://github.com/kubernetes/kops/blob/master/docs/iam_roles.md#iam-roles))
    both make sure this is the case.
+ - When using images from ACR in AKS, the HostPath `/etc/kubernetes/azure.json`
+   should be [mounted](https://kubernetes.io/docs/concepts/storage/volumes/) into the Flux Pod.
+   Set `registry.acr.enabled=True` in the [helm chart](../chart/flux/README.md)
+   or alter the [Deployment](../deploy/flux-deployment.yaml):
+   ```yaml
+    spec:
+      containers:
+        image: quay.io/weaveworks/flux
+        ...
+        volumeMounts:
+        - name: acr-credentials
+          mountPath: /etc/kubernetes/azure.json
+          readOnly: true
+      volumes:
+      - name: acr-credentials
+        hostPath:
+          path: /etc/kubernetes/azure.json
+          type: ""
+   ```
  - Flux excludes images with no suitable manifest (linux amd64) in manifestlist
  - Flux doesn't yet understand image refs that use digests instead of
    tags; see
