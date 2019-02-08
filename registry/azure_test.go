@@ -48,7 +48,7 @@ func Test_HostIsAzureContainerRegistry(t *testing.T) {
 			isACR: true,
 		},
 	} {
-		result := HostIsAzureContainerRegistry(v.host)
+		result := hostIsAzureContainerRegistry(v.host)
 		if result != v.isACR {
 			t.Fatalf("For test %q, expected isACR = %v but got %v", v.host, v.isACR, result)
 		}
