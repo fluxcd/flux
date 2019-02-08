@@ -9,6 +9,7 @@ image:
   repository: quay.io/weaveworks/flux
   tag: 1.10.0
   pullPolicy: IfNotPresent
+  pullSecret:
 
 service:
   type: ClusterIP
@@ -21,6 +22,7 @@ helmOperator:
   repository: quay.io/weaveworks/helm-operator
   tag: 0.6.0
   pullPolicy: IfNotPresent
+  pullSecret:
   # Limit the operator scope to a single namespace
   allowNamespace:
   # Update dependencies for charts
@@ -142,6 +144,7 @@ registry:
 memcached:
   repository: memcached
   tag: 1.4.25
+  pullSecret:
   createClusterIP: true
   verbose: false
   maxItemSize: 1m

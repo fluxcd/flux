@@ -21,6 +21,10 @@ spec:
         app: {{ template "flux.name" . }}-memcached
         release: {{ .Release.Name }}
     spec:
+      {{- if .Values.memcached.pullSecret }}
+      imagePullSecrets:
+        - name: {{ .Values.memcached.pullSecret }}
+      {{- end }}
       containers:
       - name: memcached
         image: {{ .Values.memcached.repository }}:{{ .Values.memcached.tag }}

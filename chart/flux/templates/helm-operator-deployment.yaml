@@ -26,6 +26,10 @@ spec:
         release: {{ .Release.Name }}
     spec:
       serviceAccountName: {{ template "flux.serviceAccountName" . }}
+      {{- if .Values.helmOperator.pullSecret }}
+      imagePullSecrets:
+        - name: {{ .Values.helmOperator.pullSecret }}
+      {{- end }}
       volumes:
       {{- if .Values.ssh.known_hosts }}
       - name: sshdir
