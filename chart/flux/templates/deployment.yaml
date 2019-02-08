@@ -45,6 +45,12 @@ spec:
       - name: git-keygen
         emptyDir:
           medium: Memory
+      {{- if .Values.registry.acr.enabled }}
+      - name: acr-credentials
+        hostPath:
+          path: "{{ .Values.registry.acr.mountPath }}"
+          type: ""
+      {{- end }}
       containers:
         - name: {{ .Chart.Name }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
@@ -66,6 +72,11 @@ spec:
             readOnly: true
           - name: git-keygen
             mountPath: /var/fluxd/keygen
+          {{- if .Values.registry.acr.enabled }}
+          - name: acr-credentials
+            mountPath: /etc/kubernetes/azure.json
+            readOnly: true
+          {{- end }}
           env:
           - name: KUBECONFIG
             value: /root/.kubectl/config
