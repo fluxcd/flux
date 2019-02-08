@@ -24,6 +24,10 @@ spec:
         release: {{ .Release.Name }}
     spec:
       serviceAccountName: {{ template "flux.serviceAccountName" . }}
+      {{- if .Values.image.pullSecret }}
+      imagePullSecrets:
+        - name: {{ .Values.image.pullSecret }}
+      {{- end }}
       volumes:
       - name: kubedir
         configMap:
