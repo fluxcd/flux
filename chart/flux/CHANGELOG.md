@@ -1,9 +1,14 @@
-## Unreleased (TBA)
+## 0.6.2 (2019-02-11)
 
 ### Improvements
 
  - Allow chart images to be pulled from a private container registry
    [weaveworks/flux#1718](https://github.com/weaveworks/flux/pull/1718)
+
+### Bug fixes
+
+ - Fix helm-op allow namespace flag mapping
+   [weaveworks/flux#1724](https://github.com/weaveworks/flux/pull/1724)
 
 ## 0.6.1 (2019-02-07)
 
