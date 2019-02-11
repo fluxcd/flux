@@ -235,6 +235,7 @@ The following tables lists the configurable parameters of the Weave Flux chart a
 | `helmOperator.tag` | Helm operator image tag | `<VERSION>`
 | `helmOperator.replicaCount` | Number of helm operator pods to deploy, more than one is not desirable. | `1`
 | `helmOperator.pullPolicy` | Helm operator image pull policy | `IfNotPresent`
+| `helmOperator.pullSecret` | Image pull secret | `None`
 | `helmOperator.updateChartDeps` | Update dependencies for charts | `true`
 | `helmOperator.git.pollInterval` | Period at which to poll git repo for new commits | `git.pollInterval`
 | `helmOperator.git.timeout` | Duration after which git operations time out | `git.timeout`
