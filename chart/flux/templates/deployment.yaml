@@ -48,7 +48,7 @@ spec:
       {{- if .Values.registry.acr.enabled }}
       - name: acr-credentials
         hostPath:
-          path: "{{ .Values.registry.acr.mountPath }}"
+          path: "{{ .Values.registry.acr.hostPath }}"
           type: ""
       {{- end }}
       containers:
