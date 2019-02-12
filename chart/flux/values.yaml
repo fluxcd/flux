@@ -140,6 +140,10 @@ registry:
     region:
     includeId:
     excludeId:
+  # Azure ACR settings
+  acr:
+    enabled: false
+    hostPath: /etc/kubernetes/azure.json
 
 memcached:
   repository: memcached

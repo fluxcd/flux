@@ -223,6 +223,8 @@ The following tables lists the configurable parameters of the Weave Flux chart a
 | `registry.ecr.region` | Restrict ECR scanning to these AWS regions; if empty, only the cluster's region will be scanned | `None`
 | `registry.ecr.includeId` | Restrict ECR scanning to these AWS account IDs; if empty, all account IDs that aren't excluded may be scanned | `None`
 | `registry.ecr.excludeId` | Do not scan ECR for images in these AWS account IDs; the default is to exclude the EKS system account | `602401143452`
+| `registry.acr.enabled` | Mount `azure.json` via HostPath into the Flux Pod, enabling Flux to use AKS's service principal for ACR authentication | `false`
+| `registry.acr.hostPath` | Alternative location of `azure.json` on the host | `/etc/kubernetes/azure.json`
 | `memcached.verbose` | Enable request logging in memcached | `false`
 | `memcached.maxItemSize` | Maximum size for one item | `1m`
 | `memcached.maxMemory` | Maximum memory to use, in megabytes | `64`
