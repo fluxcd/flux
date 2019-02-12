@@ -207,11 +207,13 @@ The following tables lists the configurable parameters of the Weave Flux chart a
 | `git.user`                                      | `Weave Flux`                                         | Username to use as git committer
 | `git.email`                                     | `support@weave.works`                                | Email to use as git committer
 | `git.setAuthor`                                 | `false`                                              | If set, the author of git commits will reflect the user who initiated the commit and will differ from the git committer.
+| `git.signingKey`                                | `None`                                               | If set, commits will be signed with this GPG key
 | `git.label`                                     | `flux-sync`                                          | Label to keep track of sync progress, used to tag the Git branch
 | `git.ciSkip`                                    | `false`                                              | Append "[ci skip]" to commit messages so that CI will skip builds
 | `git.pollInterval`                              | `5m`                                                 | Period at which to poll git repo for new commits
 | `git.timeout`                                   | `20s`                                                | Duration after which git operations time out
 | `git.secretName`                                | `None`                                               | Kubernetes secret with the SSH private key. Superceded by `helmOperator.git.secretName` if set.
+| `gpgKeys.secretName`                            | `None`                                               | Kubernetes secret with GPG keys the Flux daemon should import
 | `ssh.known_hosts`                               | `None`                                               | The contents of an SSH `known_hosts` file, if you need to supply host key(s)
 | `registry.pollInterval`                         | `5m`                                                 | Period at which to check for updated images
 | `registry.rps`                                  | `200`                                                | Maximum registry requests per second per host
