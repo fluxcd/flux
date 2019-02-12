@@ -22,7 +22,7 @@ menu_order: 60
   * [How do I use my own deploy key?](#how-do-i-use-my-own-deploy-key)
   * [Why are my images not showing up in the list of images?](#why-are-my-images-not-showing-up-in-the-list-of-images)
   * [Why do my image tags appear out of order?](#why-do-my-image-tags-appear-out-of-order)
-  * [How do I use a private git host (or one that's not github.com, gitlab.com, bitbucket.org, or dev.azure.com)?](#how-do-i-use-a-private-git-host-or-one-thats-not-githubcom-gitlabcom-bitbucketorg-or-dev.azure.com)
+  * [How do I use a private git host (or one that's not github.com, gitlab.com, bitbucket.org, or dev.azure.com)?](#how-do-i-use-a-private-git-host-or-one-thats-not-githubcom-gitlabcom-bitbucketorg-or-devazurecom)
   * [Will Flux delete resources that are no longer in the git repository?](#will-flux-delete-resources-that-are-no-longer-in-the-git-repository)
   * [Why does my CI pipeline keep getting triggered?](#why-does-my-ci-pipeline-keep-getting-triggered)
   * [What is the "sync tag"; or, why do I see a `flux-sync` tag in my git repo?](#what-is-the-sync-tag-or-why-do-i-see-a-flux-sync-tag-in-my-git-repo)
