@@ -113,6 +113,8 @@ func (opts *rootOpts) PersistentPreRunE(cmd *cobra.Command, _ []string) error {
 
 	if opts.URL == "" {
 		portforwarder, err := tryPortforwards(opts.Namespace, metav1.LabelSelector{
+			MatchLabels: opts.Labels,
+		}, metav1.LabelSelector{
 			MatchExpressions: []metav1.LabelSelectorRequirement{
 				metav1.LabelSelectorRequirement{
 					Key:      "name",
@@ -120,8 +122,6 @@ func (opts *rootOpts) PersistentPreRunE(cmd *cobra.Command, _ []string) error {
 					Values:   []string{"flux", "fluxd", "weave-flux-agent"},
 				},
 			},
-		}, metav1.LabelSelector{
-			MatchLabels: opts.Labels,
 		})
 		if err != nil {
 			return err
