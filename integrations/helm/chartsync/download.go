@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/spf13/pflag"
 	"k8s.io/helm/pkg/getter"
@@ -23,7 +24,7 @@ func makeChartPath(base string, source *flux_v1beta1.RepoChartSource) string {
 	// We don't need to obscure the location of the charts in the
 	// filesystem; but we do need a stable, filesystem-friendly path
 	// to them that is based on the URL.
-	repoPath := filepath.Join(base, base64.URLEncoding.EncodeToString([]byte(source.RepoURL)))
+	repoPath := filepath.Join(base, base64.URLEncoding.EncodeToString([]byte(source.CleanRepoURL())))
 	if err := os.MkdirAll(repoPath, os.FileMode(os.ModeDir+0660)); err != nil {
 		panic(err)
 	}
@@ -82,7 +83,7 @@ func downloadChart(destFile string, source *flux_v1beta1.RepoChartSource) error 
 	// we'll assume there's no auth needed.
 	repoEntry := &repo.Entry{}
 	for _, entry := range repoFile.Repositories {
-		if entry.URL == source.RepoURL {
+		if urlsMatch(entry.URL, source.CleanRepoURL()) {
 			repoEntry = entry
 			break
 		}
@@ -91,7 +92,7 @@ func downloadChart(destFile string, source *flux_v1beta1.RepoChartSource) error 
 	// TODO(michael): could look for an existing index file here,
 	// and/or update it. Then we're _pretty_ close to just using
 	// `repo.DownloadTo(...)`.
-	chartUrl, err := repo.FindChartInAuthRepoURL(source.RepoURL, repoEntry.Username, repoEntry.Password, source.Name, source.Version, repoEntry.CertFile, repoEntry.KeyFile, repoEntry.CAFile, getters)
+	chartURL, err := repo.FindChartInAuthRepoURL(source.CleanRepoURL(), repoEntry.Username, repoEntry.Password, source.Name, source.Version, repoEntry.CertFile, repoEntry.KeyFile, repoEntry.CAFile, getters)
 	if err != nil {
 		return err
 	}
@@ -102,7 +103,7 @@ func downloadChart(destFile string, source *flux_v1beta1.RepoChartSource) error 
 	// former interacts with Helm's local caching, which would mean
 	// having to maintain the local cache. Since we already have the
 	// information we need, we can just go ahead and get the file.
-	u, err := url.Parse(chartUrl)
+	u, err := url.Parse(chartURL)
 	if err != nil {
 		return err
 	}
@@ -111,7 +112,7 @@ func downloadChart(destFile string, source *flux_v1beta1.RepoChartSource) error 
 		return err
 	}
 
-	g, err := getterConstructor(chartUrl, repoEntry.CertFile, repoEntry.KeyFile, repoEntry.CAFile)
+	g, err := getterConstructor(chartURL, repoEntry.CertFile, repoEntry.KeyFile, repoEntry.CAFile)
 	if t, ok := g.(*getter.HttpGetter); ok {
 		t.SetCredentials(repoEntry.Username, repoEntry.Password)
 	}
@@ -125,4 +126,8 @@ func downloadChart(destFile string, source *flux_v1beta1.RepoChartSource) error 
 	}
 
 	return nil
+}
+
+func urlsMatch(entryURL, sourceURL string) bool {
+	return strings.TrimRight(entryURL, "/") == strings.TrimRight(sourceURL, "/")
 }
