@@ -63,6 +63,7 @@ helmOperator:
   #   - name: FOO
   #     value: bar
   nodeSelector: {}
+  annotations: {}
   tolerations: []
   affinity: {}
   resources:
@@ -87,6 +88,8 @@ resources:
     memory: 64Mi
 
 nodeSelector: {}
+
+annotations: {}
 
 tolerations: []
 
