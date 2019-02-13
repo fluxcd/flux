@@ -7,8 +7,9 @@ replicaCount: 1
 
 image:
   repository: quay.io/weaveworks/flux
-  tag: 1.9.0
+  tag: 1.10.0
   pullPolicy: IfNotPresent
+  pullSecret:
 
 service:
   type: ClusterIP
@@ -19,8 +20,9 @@ helmOperator:
   create: false
   createCRD: true
   repository: quay.io/weaveworks/helm-operator
-  tag: 0.5.3
+  tag: 0.6.0
   pullPolicy: IfNotPresent
+  pullSecret:
   # Limit the operator scope to a single namespace
   allowNamespace:
   # Update dependencies for charts
@@ -52,7 +54,7 @@ helmOperator:
     # generate a SSH key named identity: ssh-keygen -q -N "" -f ./identity
     # create a Kubernetes secret: kubectl -n flux create secret generic helm-ssh --from-file=./identity
     # delete the private key: rm ./identity
-    # add ./identity.pub as a read-only deployment key in your GitHub repo where the charts are
+    # add ./identity.pub as a read-only deployment key in your Git repo where the charts are
     # set the secret name (helm-ssh) below
     secretName: ""
   # Additional environment variables to set
@@ -114,7 +116,7 @@ git:
   # generate a SSH key named identity: ssh-keygen -q -N "" -f ./identity
   # create a Kubernetes secret: kubectl -n flux create secret generic flux-ssh --from-file=./identity
   # delete the private key: rm ./identity
-  # add ./identity.pub as a read-only deployment key in your GitHub repo where the charts are
+  # add ./identity.pub as a deployment key with write access in your Git repo
   # set the secret name (flux-ssh) below
   secretName: ""
 
@@ -138,10 +140,15 @@ registry:
     region:
     includeId:
     excludeId:
+  # Azure ACR settings
+  acr:
+    enabled: false
+    hostPath: /etc/kubernetes/azure.json
 
 memcached:
   repository: memcached
   tag: 1.4.25
+  pullSecret:
   createClusterIP: true
   verbose: false
   maxItemSize: 1m

@@ -75,6 +75,9 @@ type HelmReleaseSpec struct {
 	// Reset values on helm upgrade
 	// +optional
 	ResetValues bool `json:"resetValues,omitempty"`
+	// Do not run 'dep' update (assume requirements.yaml is already fulfilled)
+	// +optional
+	SkipDepUpdate bool `json:"skipDepUpdate,omitempty"`
 }
 
 // GetTimeout returns the install or upgrade timeout (defaults to 300s)

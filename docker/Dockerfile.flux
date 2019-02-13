@@ -6,7 +6,7 @@ RUN apk add --no-cache openssh ca-certificates tini 'git>=2.3.0'
 
 # Add git hosts to known hosts file so we can use
 # StrickHostKeyChecking with git+ssh
-RUN ssh-keyscan github.com gitlab.com bitbucket.org >> /etc/ssh/ssh_known_hosts
+RUN ssh-keyscan github.com gitlab.com bitbucket.org ssh.dev.azure.com >> /etc/ssh/ssh_known_hosts
 
 # Verify newly added known_hosts (man-in-middle mitigation)
 ADD ./verify_known_hosts.sh /home/flux/verify_known_hosts.sh

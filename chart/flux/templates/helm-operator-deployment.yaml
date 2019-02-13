@@ -26,6 +26,10 @@ spec:
         release: {{ .Release.Name }}
     spec:
       serviceAccountName: {{ template "flux.serviceAccountName" . }}
+      {{- if .Values.helmOperator.pullSecret }}
+      imagePullSecrets:
+        - name: {{ .Values.helmOperator.pullSecret }}
+      {{- end }}
       volumes:
       {{- if .Values.ssh.known_hosts }}
       - name: sshdir
@@ -100,7 +104,7 @@ spec:
         - --charts-sync-interval={{ .Values.helmOperator.chartsSyncInterval }}
         - --update-chart-deps={{ .Values.helmOperator.updateChartDeps }}
         - --log-release-diffs={{ .Values.helmOperator.logReleaseDiffs }}
-        {{- if .Values.helmOperator.namespace }}
+        {{- if .Values.helmOperator.allowNamespace }}
         - --allow-namespace={{ .Values.helmOperator.allowNamespace }}
         {{- end }}
         - --tiller-namespace={{ .Values.helmOperator.tillerNamespace }}

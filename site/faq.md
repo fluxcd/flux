@@ -22,7 +22,7 @@ menu_order: 60
   * [How do I use my own deploy key?](#how-do-i-use-my-own-deploy-key)
   * [Why are my images not showing up in the list of images?](#why-are-my-images-not-showing-up-in-the-list-of-images)
   * [Why do my image tags appear out of order?](#why-do-my-image-tags-appear-out-of-order)
-  * [How do I use a private git host (or one that's not github.com, gitlab.com, or bitbucket.org)?](#how-do-i-use-a-private-git-host-or-one-thats-not-githubcom-gitlabcom-or-bitbucketorg)
+  * [How do I use a private git host (or one that's not github.com, gitlab.com, bitbucket.org, or dev.azure.com)?](#how-do-i-use-a-private-git-host-or-one-thats-not-githubcom-gitlabcom-bitbucketorg-or-devazurecom)
   * [Will Flux delete resources that are no longer in the git repository?](#will-flux-delete-resources-that-are-no-longer-in-the-git-repository)
   * [Why does my CI pipeline keep getting triggered?](#why-does-my-ci-pipeline-keep-getting-triggered)
   * [What is the "sync tag"; or, why do I see a `flux-sync` tag in my git repo?](#what-is-the-sync-tag-or-why-do-i-see-a-flux-sync-tag-in-my-git-repo)
@@ -247,7 +247,7 @@ happen:
    if you've only just started using a particular image in a workload.
  - Flux can't get suitable credentials for the image repository. At
    present, it looks at `imagePullSecret`s attached to workloads,
-   service accounts, platform-provided credentials on GCP or AWS, and
+   service accounts, platform-provided credentials on GCP, AWS or Azure, and
    a Docker config file if you mount one into the fluxd container (see
    the [command-line usage](./daemon.md)).
  - When using images in ECR, from EC2, the `NodeInstanceRole` for the
@@ -257,6 +257,25 @@ happen:
    [`kops`](https://github.com/kubernetes/kops) (with
    [`.iam.allowContainerRegistry=true`](https://github.com/kubernetes/kops/blob/master/docs/iam_roles.md#iam-roles))
    both make sure this is the case.
+ - When using images from ACR in AKS, the HostPath `/etc/kubernetes/azure.json`
+   should be [mounted](https://kubernetes.io/docs/concepts/storage/volumes/) into the Flux Pod.
+   Set `registry.acr.enabled=True` in the [helm chart](../chart/flux/README.md)
+   or alter the [Deployment](../deploy/flux-deployment.yaml):
+   ```yaml
+    spec:
+      containers:
+        image: quay.io/weaveworks/flux
+        ...
+        volumeMounts:
+        - name: acr-credentials
+          mountPath: /etc/kubernetes/azure.json
+          readOnly: true
+      volumes:
+      - name: acr-credentials
+        hostPath:
+          path: /etc/kubernetes/azure.json
+          type: ""
+   ```
  - Flux excludes images with no suitable manifest (linux amd64) in manifestlist
  - Flux doesn't yet understand image refs that use digests instead of
    tags; see
@@ -285,14 +304,14 @@ build has its own creation time is to label it with a build time;
 e.g., using
 [OpenContainers pre-defined annotations](https://github.com/opencontainers/image-spec/blob/master/annotations.md#pre-defined-annotation-keys).
 
-### How do I use a private git host (or one that's not github.com, gitlab.com, or bitbucket.org)?
+### How do I use a private git host (or one that's not github.com, gitlab.com, bitbucket.org, or dev.azure.com)?
 
 As part of using git+ssh securely from the Flux daemon, we make sure
 `StrictHostKeyChecking` is on in the
 [SSH config](http://man7.org/linux/man-pages/man5/ssh_config.5.html). This
 mitigates against man-in-the-middle attacks.
 
-We bake host keys for `github.com`, `gitlab.com`, and `bitbucket.org`
+We bake host keys for `github.com`, `gitlab.com`, `bitbucket.org`, and `dev.azure.com`
 into the image to cover some common cases. If you're using another
 service, or running your own git host, you need to supply your own
 host key(s).
@@ -333,6 +352,7 @@ Here's the relevant docs for some common CI systems:
  - [TravisCI](https://docs.travis-ci.com/user/customizing-the-build#Building-Specific-Branches)
  - [GitLab](https://docs.gitlab.com/ee/ci/yaml/#only-and-except-simplified)
  - [Bitbucket Pipelines](https://confluence.atlassian.com/bitbucket/configure-bitbucket-pipelines-yml-792298910.html#Configurebitbucket-pipelines.yml-ci_defaultdefault)
+ - [Azure Pipelines](https://docs.microsoft.com/en-us/azure/devops/pipelines/index?view=azure-devops)
 
 ### What is the "sync tag"; or, why do I see a `flux-sync` tag in my git repo?
 

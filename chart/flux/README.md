@@ -187,6 +187,7 @@ The following tables lists the configurable parameters of the Weave Flux chart a
 | `image.tag` | Image tag | `<VERSION>`
 | `replicaCount` | Number of flux pods to deploy, more than one is not desirable. | `1`
 | `image.pullPolicy` | Image pull policy | `IfNotPresent`
+| `image.pullSecret` | Image pull secret | `None`
 | `resources.requests.cpu` | CPU resource requests for the flux deployment | `50m`
 | `resources.requests.memory` | Memory resource requests for the flux deployment | `64Mi`
 | `resources.limits` | CPU/memory resource limits for the flux deployment | `None`
@@ -222,9 +223,13 @@ The following tables lists the configurable parameters of the Weave Flux chart a
 | `registry.ecr.region` | Restrict ECR scanning to these AWS regions; if empty, only the cluster's region will be scanned | `None`
 | `registry.ecr.includeId` | Restrict ECR scanning to these AWS account IDs; if empty, all account IDs that aren't excluded may be scanned | `None`
 | `registry.ecr.excludeId` | Do not scan ECR for images in these AWS account IDs; the default is to exclude the EKS system account | `602401143452`
+| `registry.acr.enabled` | Mount `azure.json` via HostPath into the Flux Pod, enabling Flux to use AKS's service principal for ACR authentication | `false`
+| `registry.acr.hostPath` | Alternative location of `azure.json` on the host | `/etc/kubernetes/azure.json`
 | `memcached.verbose` | Enable request logging in memcached | `false`
 | `memcached.maxItemSize` | Maximum size for one item | `1m`
 | `memcached.maxMemory` | Maximum memory to use, in megabytes | `64`
+| `memcached.pullSecret` | Image pull secret | `None`
+| `memcached.repository` | Image repository | `memcached`
 | `memcached.resources` | CPU/memory resource requests/limits for memcached | `None`
 | `helmOperator.create` | If `true`, install the Helm operator | `false`
 | `helmOperator.createCRD` | Create the `v1beta1` and `v1alpha2` flux CRDs. Dependent on `helmOperator.create=true` | `true`
@@ -232,6 +237,7 @@ The following tables lists the configurable parameters of the Weave Flux chart a
 | `helmOperator.tag` | Helm operator image tag | `<VERSION>`
 | `helmOperator.replicaCount` | Number of helm operator pods to deploy, more than one is not desirable. | `1`
 | `helmOperator.pullPolicy` | Helm operator image pull policy | `IfNotPresent`
+| `helmOperator.pullSecret` | Image pull secret | `None`
 | `helmOperator.updateChartDeps` | Update dependencies for charts | `true`
 | `helmOperator.git.pollInterval` | Period at which to poll git repo for new commits | `git.pollInterval`
 | `helmOperator.git.timeout` | Duration after which git operations time out | `git.timeout`
