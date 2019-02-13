@@ -1,6 +1,32 @@
 This is the changelog for the Flux daemon; the changelog for the Helm
 operator is in [./CHANGELOG-helmop.md](./CHANGELOG-helmop.md).
 
+## 1.10.1 (2019-02-13)
+
+This release provides a deeper integration with Azure (DevOps Git hosts 
+and ACR) and allows configuring how `fluxctl` finds `fluxd` (useful for 
+clusters with multiple fluxd installations).
+
+### Improvements
+
+- Support Azure DevOps Git hosts
+  [weaveworks/flux#1729][#1729]
+  [weaveworks/flux#1731][#1731]
+- Use AKS credentials for ACR
+  [weaveworks/flux#1694][#1694]
+- Make port forward label selector configurable
+  [weaveworks/flux#1727][#1727]
+
+### Thanks
+
+Lots of thanks to @alanjcastonguay, @hiddeco, and @sarath-p for their 
+contributions to this release.
+
+[#1694]: https://github.com/weaveworks/flux/pull/1694
+[#1727]: https://github.com/weaveworks/flux/pull/1727
+[#1729]: https://github.com/weaveworks/flux/pull/1729
+[#1731]: https://github.com/weaveworks/flux/pull/1731
+
 ## 1.10.0 (2019-02-07)
 
 This release adds the `--registry-exclude-image` flag for excluding
