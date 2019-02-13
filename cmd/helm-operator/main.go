@@ -131,12 +131,6 @@ func main() {
 		errc <- fmt.Errorf("%s", <-c)
 	}()
 
-	go func() {
-		logger.Log("exiting...", <-errc)
-		close(shutdown)
-		shutdownWg.Wait()
-	}()
-
 	mainLogger := log.With(logger, "component", "helm-operator")
 
 	cfg, err := clientcmd.BuildConfigFromFlags(*master, *kubeconfig)
@@ -195,9 +189,14 @@ func main() {
 	go daemonhttp.ListenAndServe(*listenAddr, log.With(logger, "component", "daemonhttp"), shutdown)
 
 	// start operator
-	if err = opr.Run(1, shutdown, shutdownWg); err != nil {
-		msg := fmt.Sprintf("Failure to run controller: %s", err.Error())
-		logger.Log("error", msg)
-		errc <- fmt.Errorf(ErrOperatorFailure, err)
-	}
+	go func() {
+		if err = opr.Run(1, shutdown, shutdownWg); err != nil {
+			errc <- fmt.Errorf(ErrOperatorFailure, err)
+		}
+	}()
+
+	shutdownErr := <-errc
+	logger.Log("exiting...", shutdownErr)
+	close(shutdown)
+	shutdownWg.Wait()
 }
