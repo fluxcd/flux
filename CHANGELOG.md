@@ -1,6 +1,40 @@
 This is the changelog for the Flux daemon; the changelog for the Helm
 operator is in [./CHANGELOG-helmop.md](./CHANGELOG-helmop.md).
 
+## 1.10.1 (2019-02-11)
+
+This release provides a deeper integration with Azure (DevOps Git hosts 
+and ACR) and comes with other minor improvements.
+
+### Improvements
+
+- Support Azure DevOps Git hosts
+  [weaveworks/flux#1729][#1729]
+  [weaveworks/flux#1731][#1731]
+- Use AKS credentials for ACR
+  [weaveworks/flux#1694][#1694]
+- Make port forward label selector configurable
+  [weaveworks/flux#1727][#1727]
+- Add image repo and pull secret to chart readme
+  [weaveworks/flux#1721][#1721]
+- Add "skipDepUpdate" config parameter to HelmRelease
+  [weaveworks/flux#1712][#1712]
+- Add image pull secret options to Helm chart
+  [weaveworks/flux#1718][#1718]
+
+### Thanks
+
+Lots of thanks to @alanjcastonguay, @hiddeco, @jimangel, @sarath-p and 
+@yinzara for their contributions to this release.
+
+[#1694]: https://github.com/weaveworks/flux/pull/1694
+[#1712]: https://github.com/weaveworks/flux/pull/1712
+[#1718]: https://github.com/weaveworks/flux/pull/1718
+[#1721]: https://github.com/weaveworks/flux/pull/1721
+[#1727]: https://github.com/weaveworks/flux/pull/1727
+[#1729]: https://github.com/weaveworks/flux/pull/1729
+[#1731]: https://github.com/weaveworks/flux/pull/1731
+
 ## 1.10.0 (2019-02-07)
 
 This release adds the `--registry-exclude-image` flag for excluding
