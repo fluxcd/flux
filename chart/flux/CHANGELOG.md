@@ -1,3 +1,12 @@
+## 0.6.3 (2019-02-14)
+
+### Improvements
+
+ - Updated Flux to `1.10.1`
+   [weaveworks/flux#1740](https://github.com/weaveworks/flux/pull/1740)
+ - Add option to set pod annotations
+   [weaveworks/flux#1737](https://github.com/weaveworks/flux/pull/1737)
+
 ## 0.6.2 (2019-02-11)
 
 ### Improvements
