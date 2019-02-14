@@ -72,6 +72,7 @@ func TestSignedCommit(t *testing.T) {
 	defer gpgCleanup()
 
 	config := TestConfig
+	config.GPGHomeDir = gpgHome
 	checkout, repo, cleanup := CheckoutWithConfig(t, config)
 	defer cleanup()
 
@@ -87,7 +88,7 @@ func TestSignedCommit(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	commitAction := git.CommitAction{Message: "Changed file", SigningKey: signingKey, GPGHomeDir: gpgHome}
+	commitAction := git.CommitAction{Message: "Changed file", SigningKey: signingKey}
 	if err := checkout.CommitAndPush(ctx, commitAction, nil); err != nil {
 		t.Fatal(err)
 	}
@@ -115,6 +116,28 @@ func TestSignedCommit(t *testing.T) {
 
 %s
 `, expectedKey, foundKey)
+	}
+}
+func TestSignedTag(t *testing.T) {
+	gpgHome, signingKey, gpgCleanup := gpgtest.GPGKey(t)
+	defer gpgCleanup()
+
+	config := TestConfig
+	config.GPGHomeDir = gpgHome
+	checkout, _, cleanup := CheckoutWithConfig(t, config)
+	defer cleanup()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	tagAction := git.TagAction{Revision: "HEAD", Message: "Sync pointer", SigningKey: signingKey}
+	if err := checkout.MoveSyncTagAndPush(ctx, tagAction); err != nil {
+		t.Fatal(err)
+	}
+
+	err := checkout.VerifySyncTag(ctx)
+	if err != nil {
+		t.Fatal(err)
 	}
 }
 

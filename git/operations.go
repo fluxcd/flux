@@ -75,7 +75,7 @@ func checkPush(ctx context.Context, workingDir, upstream string) error {
 	return execGitCmd(ctx, workingDir, nil, nil, "push", "--delete", upstream, "tag", CheckPushTag)
 }
 
-func commit(ctx context.Context, workingDir string, commitAction CommitAction) error {
+func commit(ctx context.Context, workingDir, gpgHome string, commitAction CommitAction) error {
 	args := []string{"commit", "--no-verify", "-a", "-m", commitAction.Message}
 	var env []string
 	if commitAction.Author != "" {
@@ -84,8 +84,8 @@ func commit(ctx context.Context, workingDir string, commitAction CommitAction) e
 	if commitAction.SigningKey != "" {
 		args = append(args, fmt.Sprintf("--gpg-sign=%s", commitAction.SigningKey))
 	}
-	if commitAction.GPGHomeDir != "" {
-		env = []string{fmt.Sprintf("GNUPGHOME=%s", commitAction.GPGHomeDir)}
+	if gpgHome != "" {
+		env = []string{fmt.Sprintf("GNUPGHOME=%s", gpgHome)}
 	}
 	if err := execGitCmd(ctx, workingDir, nil, env, args...); err != nil {
 		return errors.Wrap(err, "git commit")
@@ -226,12 +226,32 @@ func splitList(s string) []string {
 }
 
 // Move the tag to the ref given and push that tag upstream
-func moveTagAndPush(ctx context.Context, path string, tag, ref, msg, upstream string) error {
-	if err := execGitCmd(ctx, path, nil, nil, "tag", "--force", "-a", "-m", msg, tag, ref); err != nil {
+func moveTagAndPush(ctx context.Context, path, tag, upstream, gpgHome string, tagAction TagAction) error {
+	args := []string{"tag", "--force", "-a", "-m", tagAction.Message}
+	var env []string
+	if tagAction.SigningKey != "" {
+		args = append(args, fmt.Sprintf("--local-user=%s", tagAction.SigningKey))
+	}
+	if gpgHome != "" {
+		env = []string{fmt.Sprintf("GNUPGHOME=%s", gpgHome)}
+	}
+	args = append(args, tag, tagAction.Revision)
+	if err := execGitCmd(ctx, path, nil, env, args...); err != nil {
 		return errors.Wrap(err, "moving tag "+tag)
 	}
 	if err := execGitCmd(ctx, path, nil, nil, "push", "--force", upstream, "tag", tag); err != nil {
 		return errors.Wrap(err, "pushing tag to origin")
+	}
+	return nil
+}
+
+func verifyTag(ctx context.Context, path, tag, gpgHome string) error {
+	var env []string
+	if gpgHome != "" {
+		env = []string{fmt.Sprintf("GNUPGHOME=%s", gpgHome)}
+	}
+	if err := execGitCmd(ctx, path, nil, env, "verify-tag", tag); err != nil {
+		return errors.Wrap(err, "verifying tag "+tag)
 	}
 	return nil
 }

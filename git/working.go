@@ -23,6 +23,7 @@ type Config struct {
 	SigningKey  string
 	SetAuthor   bool
 	SkipMessage string
+	GPGHomeDir  string
 }
 
 // Checkout is a local working clone of the remote repo. It is
@@ -46,7 +47,13 @@ type CommitAction struct {
 	Author     string
 	Message    string
 	SigningKey string
-	GPGHomeDir string
+}
+
+// TagAction - struct holding tag information
+type TagAction struct {
+	Revision   string
+	Message    string
+	SigningKey string
 }
 
 // Clone returns a local working clone of the sync'ed `*Repo`, using
@@ -127,7 +134,7 @@ func (c *Checkout) CommitAndPush(ctx context.Context, commitAction CommitAction,
 
 	commitAction.Message += c.config.SkipMessage
 
-	if err := commit(ctx, c.dir, commitAction); err != nil {
+	if err := commit(ctx, c.dir, c.config.GPGHomeDir, commitAction); err != nil {
 		return err
 	}
 
@@ -168,8 +175,15 @@ func (c *Checkout) SyncRevision(ctx context.Context) (string, error) {
 	return refRevision(ctx, c.dir, c.config.SyncTag)
 }
 
-func (c *Checkout) MoveSyncTagAndPush(ctx context.Context, ref, msg string) error {
-	return moveTagAndPush(ctx, c.dir, c.config.SyncTag, ref, msg, c.upstream.URL)
+func (c *Checkout) MoveSyncTagAndPush(ctx context.Context, tagAction TagAction) error {
+	if tagAction.SigningKey == "" {
+		tagAction.SigningKey = c.config.SigningKey
+	}
+	return moveTagAndPush(ctx, c.dir, c.config.SyncTag, c.upstream.URL, c.config.GPGHomeDir, tagAction)
+}
+
+func (c *Checkout) VerifySyncTag(ctx context.Context) error {
+	return verifyTag(ctx, c.dir, c.config.SyncTag, c.config.GPGHomeDir)
 }
 
 // ChangedFiles does a git diff listing changed files
