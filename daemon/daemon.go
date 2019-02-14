@@ -423,9 +423,8 @@ func (d *Daemon) updatePolicy(spec update.Spec, updates policy.Updates) updateFu
 			commitAuthor = spec.Cause.User
 		}
 		commitAction := git.CommitAction{
-			Author:     commitAuthor,
-			Message:    policyCommitMessage(updates, spec.Cause),
-			SigningKey: d.GitConfig.SigningKey,
+			Author:  commitAuthor,
+			Message: policyCommitMessage(updates, spec.Cause),
 		}
 		if err := working.CommitAndPush(ctx, commitAction, &note{JobID: jobID, Spec: spec}); err != nil {
 			// On the chance pushing failed because it was not
@@ -469,9 +468,8 @@ func (d *Daemon) release(spec update.Spec, c release.Changes) updateFunc {
 				commitAuthor = spec.Cause.User
 			}
 			commitAction := git.CommitAction{
-				Author: commitAuthor,
+				Author:  commitAuthor,
 				Message: commitMsg,
-				SigningKey: d.GitConfig.SigningKey,
 			}
 			if err := working.CommitAndPush(ctx, commitAction, &note{JobID: jobID, Spec: spec, Result: result}); err != nil {
 				// On the chance pushing failed because it was not

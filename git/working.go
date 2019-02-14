@@ -133,6 +133,9 @@ func (c *Checkout) CommitAndPush(ctx context.Context, commitAction CommitAction,
 	}
 
 	commitAction.Message += c.config.SkipMessage
+	if commitAction.SigningKey == "" {
+		commitAction.SigningKey = c.config.SigningKey
+	}
 
 	if err := commit(ctx, c.dir, c.config.GPGHomeDir, commitAction); err != nil {
 		return err
