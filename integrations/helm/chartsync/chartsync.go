@@ -48,7 +48,7 @@ import (
 	google_protobuf "github.com/golang/protobuf/ptypes/any"
 	"github.com/google/go-cmp/cmp"
 	"github.com/ncabatoff/go-seq/seq"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
@@ -509,7 +509,7 @@ func (chs *ChartChangeSync) shouldUpgrade(chartsRepo string, currRel *hapi_relea
 
 	// Get the desired release state
 	opts := release.InstallOptions{DryRun: true}
-	tempRelName := currRel.GetName() + "-temp"
+	tempRelName := string(fhr.UID)
 	desRel, err := chs.release.Install(chartsRepo, tempRelName, fhr, release.InstallAction, opts, &chs.kubeClient)
 	if err != nil {
 		return false, err

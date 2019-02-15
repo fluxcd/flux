@@ -10,7 +10,7 @@ import (
 
 	"github.com/ghodss/yaml"
 	"github.com/go-kit/kit/log"
-	"k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/helm/pkg/chartutil"
 	k8shelm "k8s.io/helm/pkg/helm"
@@ -136,7 +136,7 @@ func (r *Release) Install(chartPath, releaseName string, fhr flux_v1beta1.HelmRe
 		return nil, fmt.Errorf("error statting path given for chart %s: %s", chartPath, err.Error())
 	}
 
-	r.logger.Log("info", fmt.Sprintf("processing release %s", releaseName),
+	r.logger.Log("info", fmt.Sprintf("processing release %s (as %s)", fhr.Spec.ReleaseName, releaseName),
 		"action", fmt.Sprintf("%v", action),
 		"options", fmt.Sprintf("%+v", opts),
 		"timeout", fmt.Sprintf("%vs", fhr.GetTimeout()))
