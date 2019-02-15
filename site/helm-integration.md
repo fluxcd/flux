@@ -202,8 +202,14 @@ see the following for how to do this.
 ### Authentication for Helm repos
 
 As a workaround, you can mount a `repositories.yaml` file with
-authentication already configured, into the operator container. To
-prepare a file, add the repo _locally_ as you would normally:
+authentication already configured, into the operator container.
+
+> **Note**: When using a custom `repositories.yaml` the [default](../docker/helm-repositories.yaml)
+that ships with the operator is overwritten. This means that for any
+repository you want to make use of you should manually add an entry to
+your `repositories.yaml` file.
+
+To prepare a file, add the repo _locally_ as you would normally:
 
 ```
 helm repo add <URL> --username <username> --password <password>
