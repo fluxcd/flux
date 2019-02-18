@@ -100,6 +100,7 @@ func main() {
 
 		// registry
 		memcachedHostname = fs.String("memcached-hostname", "memcached", "hostname for memcached service.")
+		memcachedPort     = fs.String("memcached-port", ":11211", "port for memcached service.")
 		memcachedTimeout  = fs.Duration("memcached-timeout", time.Second, "maximum time to wait before giving up on memcached requests.")
 		memcachedService  = fs.String("memcached-service", "memcached", "SRV service used to discover memcache servers.")
 
@@ -323,10 +324,10 @@ func main() {
 			MaxIdleConns:   *registryBurst,
 		}
 
-		// if no memcached service is specified use the ClusterIP name instead of SRV records
+		// if no memcached service is specified use the hostname and port instead of SRV records
 		if *memcachedService == "" {
 			memcacheClient = registryMemcache.NewFixedServerMemcacheClient(memcacheConfig,
-				fmt.Sprintf("%s:11211", *memcachedHostname))
+				fmt.Sprintf("%s%s", *memcachedHostname, *memcachedPort))
 		} else {
 			memcacheClient = registryMemcache.NewMemcacheClient(memcacheConfig)
 		}
