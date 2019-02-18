@@ -118,20 +118,22 @@ type ChartChangeSync struct {
 	clonesMu sync.Mutex
 	clones   map[string]clone
 
-	namespace string
+	namespace     string
+	statusUpdater *status.Updater
 }
 
-func New(logger log.Logger, polling Polling, clients Clients, release *release.Release, config Config, namespace string) *ChartChangeSync {
+func New(logger log.Logger, polling Polling, clients Clients, release *release.Release, config Config, namespace string, statusUpdater *status.Updater) *ChartChangeSync {
 	return &ChartChangeSync{
-		logger:     logger,
-		Polling:    polling,
-		kubeClient: clients.KubeClient,
-		ifClient:   clients.IfClient,
-		release:    release,
-		config:     config.WithDefaults(),
-		mirrors:    git.NewMirrors(),
-		clones:     make(map[string]clone),
-		namespace:  namespace,
+		logger:        logger,
+		Polling:       polling,
+		kubeClient:    clients.KubeClient,
+		ifClient:      clients.IfClient,
+		release:       release,
+		config:        config.WithDefaults(),
+		mirrors:       git.NewMirrors(),
+		clones:        make(map[string]clone),
+		namespace:     namespace,
+		statusUpdater: statusUpdater,
 	}
 }
 
@@ -335,6 +337,11 @@ func (chs *ChartChangeSync) reconcileReleaseDef(fhr fluxv1beta1.HelmRelease) {
 			}
 		}
 
+		err := chs.statusUpdater.UpdateReleaseRevision(fhr, chartClone.head)
+		if err != nil {
+			chs.logger.Log("warning", "could not update the release revision", "namespace", fhr.Namespace, "resource", fhr.Name, "err", err)
+			return
+		}
 	} else if fhr.Spec.ChartSource.RepoChartSource != nil { // TODO(michael): make this dispatch more natural, or factor it out
 		chartSource := fhr.Spec.ChartSource.RepoChartSource
 		path, err := ensureChartFetched(chs.config.ChartCache, chartSource)
@@ -345,6 +352,12 @@ func (chs *ChartChangeSync) reconcileReleaseDef(fhr fluxv1beta1.HelmRelease) {
 		}
 		chs.setCondition(&fhr, fluxv1beta1.HelmReleaseChartFetched, v1.ConditionTrue, ReasonDownloaded, "chart fetched: "+filepath.Base(path))
 		chartPath = path
+
+		err = chs.statusUpdater.UpdateReleaseRevision(fhr, chartSource.Version)
+		if err != nil {
+			chs.logger.Log("warning", "could not update the release revision", "namespace", fhr.Namespace, "resource", fhr.Name, "err", err)
+			return
+		}
 	}
 
 	if rel == nil {

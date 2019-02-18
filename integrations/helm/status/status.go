@@ -119,3 +119,21 @@ func UpdateReleaseStatus(client v1beta1client.HelmReleaseInterface, fhr v1beta1.
 	}
 	return err
 }
+
+func (a *Updater) UpdateReleaseRevision(fhr v1beta1.HelmRelease, revision string) error {
+	client := a.fluxhelm.FluxV1beta1().HelmReleases(fhr.Namespace)
+
+	patchBytes, err := json.Marshal(map[string]interface{}{
+		"status": map[string]interface{}{
+			"revision": revision,
+		},
+	})
+	if err == nil {
+		// CustomResources don't get
+		// StrategicMergePatch, for now, but since we
+		// want to unconditionally set the value, this
+		// is OK.
+		_, err = client.Patch(fhr.Name, types.MergePatchType, patchBytes)
+	}
+	return err
+}

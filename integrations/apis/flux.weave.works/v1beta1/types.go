@@ -105,6 +105,11 @@ type HelmReleaseStatus struct {
 	// managed by this resource.
 	ReleaseStatus string `json:"releaseStatus"`
 
+	// Revision would define what Git hash or Chart version has currently
+	// been deployed.
+	// +optional
+	Revision string `json:"revision,omitempty"`
+
 	// Conditions contains observations of the resource's state, e.g.,
 	// has the chart which it refers to been fetched.
 	// +optional
