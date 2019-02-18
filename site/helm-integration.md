@@ -13,6 +13,7 @@ menu_order: 90
       - [Example of `spec.valueFileSecrets`](#example-of-specvaluefilesecrets)
   * [Authentication](#authentication)
     + [Authentication for Helm repos](#authentication-for-helm-repos)
+      - [Azure ACR repositories](#azure-acr-repositories)
     + [Authentication for Git repos](#authentication-for-git-repos)
   * [Upgrading images in a HelmRelease using Flux](#upgrading-images-in-a-helmrelease-using-flux)
     + [Using annotations to control updates to HelmRelease resources](#using-annotations-to-control-updates-to-helmrelease-resources)
@@ -201,8 +202,14 @@ see the following for how to do this.
 ### Authentication for Helm repos
 
 As a workaround, you can mount a `repositories.yaml` file with
-authentication already configured, into the operator container. To
-prepare a file, add the repo _locally_ as you would normally:
+authentication already configured, into the operator container.
+
+> **Note**: When using a custom `repositories.yaml` the [default](../docker/helm-repositories.yaml)
+that ships with the operator is overwritten. This means that for any
+repository you want to make use of you should manually add an entry to
+your `repositories.yaml` file.
+
+To prepare a file, add the repo _locally_ as you would normally:
 
 ```
 helm repo add <URL> --username <username> --password <password>
@@ -229,6 +236,24 @@ Lastly, mount that secret into the container. This can be done by
 setting `helmOperator.configureRepositories.enable` to `true` for the
 flux Helm release, or as shown in the commented-out sections of the
 [example deployment](../deploy-helm/helm-operator-deployment.yaml).
+
+#### Azure ACR repositories
+
+For Azure ACR repositories, the entry in `repositories.yaml` created by
+running `az acr helm repo add` is unsufficient for the Helm operator.
+Instead you will need to [create a service principal](https://docs.microsoft.com/en-us/azure/container-registry/container-registry-auth-service-principal#create-a-service-principal)
+and use the plain text id and password this gives you. For example:
+
+```yaml
+- caFile: ""
+  cache: <repository>-index.yaml
+  certFile: ""
+  keyFile: ""
+  name: <repository>
+  url: https://<repository>.azurecr.io/helm/v1/repo
+  username: <service principal id>
+  password: <service principal password>
+```
 
 ### Authentication for Git repos
 
