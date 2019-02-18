@@ -10,7 +10,7 @@ import (
 
 	"github.com/ghodss/yaml"
 	"github.com/go-kit/kit/log"
-	"k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/helm/pkg/chartutil"
 	k8shelm "k8s.io/helm/pkg/helm"
@@ -136,7 +136,7 @@ func (r *Release) Install(chartPath, releaseName string, fhr flux_v1beta1.HelmRe
 		return nil, fmt.Errorf("error statting path given for chart %s: %s", chartPath, err.Error())
 	}
 
-	r.logger.Log("info", fmt.Sprintf("processing release %s", releaseName),
+	r.logger.Log("info", fmt.Sprintf("processing release %s (as %s)", fhr.Spec.ReleaseName, releaseName),
 		"action", fmt.Sprintf("%v", action),
 		"options", fmt.Sprintf("%+v", opts),
 		"timeout", fmt.Sprintf("%vs", fhr.GetTimeout()))
@@ -147,7 +147,7 @@ func (r *Release) Install(chartPath, releaseName string, fhr flux_v1beta1.HelmRe
 		// Read the contents of the secret
 		secret, err := kubeClient.CoreV1().Secrets(fhr.Namespace).Get(valueFileSecret.Name, v1.GetOptions{})
 		if err != nil {
-			r.logger.Log("error", fmt.Sprintf("Cannot get secret %s for Chart release [%s]: %#v", valueFileSecret.Name, releaseName, err))
+			r.logger.Log("error", fmt.Sprintf("Cannot get secret %s for Chart release [%s]: %#v", valueFileSecret.Name, fhr.Spec.ReleaseName, err))
 			return nil, err
 		}
 
@@ -155,7 +155,7 @@ func (r *Release) Install(chartPath, releaseName string, fhr flux_v1beta1.HelmRe
 		var values chartutil.Values
 		err = yaml.Unmarshal(secret.Data["values.yaml"], &values)
 		if err != nil {
-			r.logger.Log("error", fmt.Sprintf("Cannot yaml.Unmashal values.yaml in secret %s for Chart release [%s]: %#v", valueFileSecret.Name, releaseName, err))
+			r.logger.Log("error", fmt.Sprintf("Cannot yaml.Unmashal values.yaml in secret %s for Chart release [%s]: %#v", valueFileSecret.Name, fhr.Spec.ReleaseName, err))
 			return nil, err
 		}
 		mergedValues = mergeValues(mergedValues, values)
@@ -165,7 +165,7 @@ func (r *Release) Install(chartPath, releaseName string, fhr flux_v1beta1.HelmRe
 
 	strVals, err := mergedValues.YAML()
 	if err != nil {
-		r.logger.Log("error", fmt.Sprintf("Problem with supplied customizations for Chart release [%s]: %#v", releaseName, err))
+		r.logger.Log("error", fmt.Sprintf("Problem with supplied customizations for Chart release [%s]: %#v", fhr.Spec.ReleaseName, err))
 		return nil, err
 	}
 	rawVals := []byte(strVals)
@@ -183,11 +183,11 @@ func (r *Release) Install(chartPath, releaseName string, fhr flux_v1beta1.HelmRe
 		)
 
 		if err != nil {
-			r.logger.Log("error", fmt.Sprintf("Chart release failed: %s: %#v", releaseName, err))
+			r.logger.Log("error", fmt.Sprintf("Chart release failed: %s: %#v", fhr.Spec.ReleaseName, err))
 			// purge the release if the install failed but only if this is the first revision
 			history, err := r.HelmClient.ReleaseHistory(releaseName, k8shelm.WithMaxHistory(2))
 			if err == nil && len(history.Releases) == 1 && history.Releases[0].Info.Status.Code == hapi_release.Status_FAILED {
-				r.logger.Log("info", fmt.Sprintf("Deleting failed release: [%s]", releaseName))
+				r.logger.Log("info", fmt.Sprintf("Deleting failed release: [%s]", fhr.Spec.ReleaseName))
 				_, err = r.HelmClient.DeleteRelease(releaseName, k8shelm.DeletePurge(true))
 				if err != nil {
 					r.logger.Log("error", fmt.Sprintf("Release deletion error: %#v", err))
@@ -211,7 +211,7 @@ func (r *Release) Install(chartPath, releaseName string, fhr flux_v1beta1.HelmRe
 		)
 
 		if err != nil {
-			r.logger.Log("error", fmt.Sprintf("Chart upgrade release failed: %s: %#v", releaseName, err))
+			r.logger.Log("error", fmt.Sprintf("Chart upgrade release failed: %s: %#v", fhr.Spec.ReleaseName, err))
 			return nil, err
 		}
 		if !opts.DryRun {
