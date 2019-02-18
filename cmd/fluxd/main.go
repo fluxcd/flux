@@ -200,7 +200,8 @@ func main() {
 		keyfiles, err := gpg.ImportKeys(*gitImportGPG)
 		if err != nil {
 			logger.Log("error", "failed to import GPG keys", "err", err.Error())
-		} else {
+		}
+		if keyfiles != nil {
 			logger.Log("info", "imported GPG keys", "files", fmt.Sprintf("%v", keyfiles))
 		}
 	}

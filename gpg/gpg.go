@@ -40,13 +40,18 @@ func ImportKeys(src string) ([]string, error) {
 		files = []string{src}
 	}
 
-
 	var imported []string
+	var failed []string
 	for _, path := range files {
 		if err := gpgImport(path); err != nil {
+			failed = append(failed, filepath.Base(path))
 			continue
 		}
 		imported = append(imported, filepath.Base(path))
+	}
+
+	if failed != nil {
+		return imported, fmt.Errorf("errored importing keys: %v", failed)
 	}
 
 	return imported, nil
