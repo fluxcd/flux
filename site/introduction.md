@@ -28,7 +28,7 @@ This is a simple, but dramatic improvement on current state of the art.
 
 - All configuration is stored within version control and is inherently
   up to date. At any point anyone could completely recreate the cluster
-  in exactly the same state.
+  in exactly the same state of configuration.
 - Changes to the cluster are immediately visible to all interested
   parties.
 - During a postmortem, the git log provides the perfect history for an
