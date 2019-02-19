@@ -13,7 +13,7 @@ menu_order: 40
   * [Add an SSH deploy key to the repository](#add-an-ssh-deploy-key-to-the-repository)
     + [1. Allow flux to generate a key for you](#1-allow-flux-to-generate-a-key-for-you)
     + [2. Specify a key to use](#2-specify-a-key-to-use)
-- [What is a Controller](#what-is-a-controller)
+- [What is a Controller?](#what-is-a-controller)
 - [Viewing Controllers](#viewing-controllers)
 - [Inspecting the Version of a Container](#inspecting-the-version-of-a-container)
 - [Releasing a Controller](#releasing-a-controller)
@@ -235,7 +235,7 @@ Flags:
 Use "fluxctl [command] --help" for more information about a command.
 ```
 
-# What is a Controller
+# What is a Controller?
 
 This term refers to any cluster resource responsible for the creation of
 containers from versioned images - in Kubernetes these are workloads such as
