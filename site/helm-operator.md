@@ -35,7 +35,7 @@ helm-operator requires setup and offers customization though a multitude of flag
 
 Generate certificates for Tiller and Flux. This will provide a CA, servercerts for Tiller and client certs for Helm / Weave Flux.
 
-> **Note**: When creating the certificate for Tiller the Common Name should match the hostname you are connecting to from the Helm operator.
+> **Note:** When creating the certificate for Tiller the Common Name should match the hostname you are connecting to from the Helm operator.
 
 The following script can be used for that (requires [cfssl](https://github.com/cloudflare/cfssl)):
 
@@ -241,4 +241,4 @@ Check the operator logs with:
 kubectl -n weave logs deployment/flux-helm-operator -f
 ```
 
-**Note:** that the above instructions are assuming that Tiller is deployed in the `kube-system` namespace without TLS.
+> **Note:** The above instructions are assuming that Tiller is deployed in the `kube-system` namespace without TLS.

@@ -205,7 +205,7 @@ section for how to do this).
 As a workaround, you can mount a `repositories.yaml` file with
 authentication already configured, into the operator container.
 
-> **Note**: When using a custom `repositories.yaml` the [default](../docker/helm-repositories.yaml)
+> **Note:** When using a custom `repositories.yaml` the [default](../docker/helm-repositories.yaml)
 that ships with the operator is overwritten. This means that for any
 repository you want to make use of you should manually add an entry to
 your `repositories.yaml` file.
