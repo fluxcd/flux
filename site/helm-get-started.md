@@ -161,7 +161,7 @@ change the `tag:` line to the following:
   values:
     image:
       repository: bitnami/mongodb
-      tag: 4.0.2
+      tag: 4.0.6
 ```
 
 Commit the change to your `master` branch. It will now get
