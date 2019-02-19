@@ -17,6 +17,8 @@ known_hosts_file=${known_hosts_file:-/etc/ssh/ssh_known_hosts}
 #  - github.com: https://help.github.com/articles/github-s-ssh-key-fingerprints/
 #  - gitlab.com: https://docs.gitlab.com/ee/user/gitlab_com/#ssh-host-keys-fingerprints
 #  - bitbucket.org: https://confluence.atlassian.com/bitbucket/ssh-keys-935365775.html
+#  - ssh.dev.azure.com: sign in, then go to User settings -> SSH Public Keys
+#    (this is where the public key fingerprint is shown; it's not a setting)
 
 fingerprints=$(mktemp -t)
 cleanup() {
