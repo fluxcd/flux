@@ -6,6 +6,7 @@ import (
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/resource"
 	"github.com/weaveworks/flux/ssh"
+	"github.com/weaveworks/flux/policy"
 )
 
 // Constants for workload ready status. These are defined here so that
@@ -69,6 +70,7 @@ type Controller struct {
 	// in this field.
 	Antecedent flux.ResourceID
 	Labels     map[string]string
+	Policies   policy.Set
 	Rollout    RolloutStatus
 	// Errors during the recurring sync from the Git repository to the
 	// cluster will surface here.
