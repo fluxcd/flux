@@ -187,7 +187,7 @@ metadata:
 spec:
   # chart: ...
   valueFileSecrets:
-  - name: "default-values"
+  - name: default-values
 ```
 
 ## Authentication
