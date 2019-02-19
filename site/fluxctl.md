@@ -122,18 +122,6 @@ the public key through fluxctl:
 ```sh
 $ fluxctl identity
 ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAAAgQDCN2ECqUFMR413CURbLBcG41fLY75SfVZCd3LCsJBClVlEcMk4lwXxA3X4jowpv2v4Jw2qqiWKJepBf2UweBLmbWYicHc6yboj5o297//+ov0qGt/uRuexMN7WUx6c93VFGV7Pjd60Yilb6GSF8B39iEVq7GQUC1OZRgQnKZWLSQ==
-0c:de:7d:47:52:cf:87:61:52:db:e3:b8:d8:1a:b5:ac
-+---[RSA 1024]----+
-|            ..=  |
-|             + B |
-|      .     . +.=|
-|     . + .   oo o|
-|      . S . .o.. |
-|           .=.o  |
-|           o =   |
-|            +    |
-|           E     |
-+------[MD5]------+
 ```
 
 Alternatively, you can see the public key in the `flux` log.
