@@ -194,7 +194,7 @@ spec:
 
 At present, per-resource authentication is not implemented. The
 `HelmRelease` definition includes a field `chartPullSecret` for
-attaching a repositories.yaml file, but this is ignored for now.
+attaching a `repositories.yaml` file, but this is ignored for now.
 
 Instead, you need to provide the operator with credentials and keys --
 see the following for how to do this.
