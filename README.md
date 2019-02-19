@@ -52,8 +52,8 @@ Its major features are:
 - Straight-forward control over the state of deployments in the
   cluster (rollbacks, lock a specific version of a workload, manual
   deployments)
-- Observability: git commits are an audit trail, and you can record
-  e.g., why a given deployment was locked.
+- Observability: git commits are an audit trail, and you can record events that
+  occured, for example: why a given deployment was locked.
 
 ### Relation to Weave Cloud
 
