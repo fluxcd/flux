@@ -437,8 +437,8 @@ When building images it is often useful to tag build images by the branch that t
 quay.io/weaveworks/helloworld:master-9a16ff945b9e
 ```
 
-Indicates that the "helloworld" image was built against master
-commit "9a16ff945b9e".
+Indicates that the `helloworld` image was built against master
+commit `9a16ff945b9e`.
 
 When automation is turned on flux will, by default, use whatever
 is the latest image on a given repository. If you want to only
