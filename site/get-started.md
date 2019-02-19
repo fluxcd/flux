@@ -29,8 +29,8 @@ You will need to have Kubernetes set up. For a quick local test,
 you can use `minikube` or `kubeadm`. Any other Kubernetes setup
 will work as well though.
 
-### A Note on GKE with RBAC enabled
-
+> ### A Note on GKE with RBAC enabled
+>
 > If working on e.g. GKE with RBAC enabled, you will need to add a clusterrolebinding:
 >
 > ```sh
