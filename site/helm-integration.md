@@ -264,12 +264,11 @@ use a chart from git, the Helm Operator needs a key with read-only
 access.
 
 To provide an SSH key, put the key in a secret under the entry
-`"identity"`, and mount it into the operator container as shown in the
-[example
-deployment](../deploy-helm/helm-operator-deployment.yaml). The default
-ssh_config expects an identity file at `/etc/fluxd/ssh/identity`,
-which is where it'll be if you just uncomment the blocks from the
-example.
+`identity`, and mount it into the operator container as shown in the
+[example deployment](../deploy-helm/helm-operator-deployment.yaml).
+The default ssh_config expects an identity file at
+`/etc/fluxd/ssh/identity`, which is where it'll be if you just
+uncomment the blocks from the example.
 
 If you're using more than one repository, you may need to provide more
 than one SSH key. In that case, you can create a secret with an entry
