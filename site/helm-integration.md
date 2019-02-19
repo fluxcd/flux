@@ -15,7 +15,7 @@ menu_order: 90
     + [Authentication for Helm repos](#authentication-for-helm-repos)
       - [Azure ACR repositories](#azure-acr-repositories)
     + [Authentication for Git repos](#authentication-for-git-repos)
-  * [Upgrading images in a HelmRelease using Flux](#upgrading-images-in-a-helmrelease-using-flux)
+  * [Upgrading images in a `HelmRelease` using Flux](#upgrading-images-in-a-helmrelease-using-flux)
     + [Using annotations to control updates to HelmRelease resources](#using-annotations-to-control-updates-to-helmrelease-resources)
 
 # Using Flux with Helm
@@ -113,7 +113,7 @@ two ways.
 ### `.spec.values`
 
 This is a YAML map as you'd put in a file and supply to Helm with `-f
-values.yaml`, but inlined into the HelmRelease manifest. For
+values.yaml`, but inlined into the `HelmRelease` manifest. For
 example,
 
 ```yaml
@@ -134,7 +134,7 @@ spec:
 ### `.spec.valueFileSecrets`
 
 This is a list of secrets (in the same namespace as the
-HelmRelease) from which to take values. The secrets must each
+`HelmRelease`) from which to take values. The secrets must each
 contain an entry for `values.yaml`.
 
 The values are merged in the order given, with later values
@@ -275,9 +275,9 @@ than one SSH key. In that case, you can create a secret with an entry
 for each key, and mount that _as well as_ an ssh_config file
 mentioning each key as an `IdentityFile`.
 
-## Upgrading images in a HelmRelease using Flux
+## Upgrading images in a `HelmRelease` using Flux
 
-If the chart you're using in a HelmRelease lets you specify the
+If the chart you're using in a `HelmRelease` lets you specify the
 particular images to run, you will usually be able to update them with
 Flux, the same way you can with Deployments and so on.
 
@@ -324,7 +324,7 @@ values:
     port: 4040
 ```
 
-### Using annotations to control updates to HelmRelease resources
+### Using annotations to control updates to `HelmRelease` resources
 
 You can use the [same annotations](./fluxctl.md#using-annotations) in
 the `HelmRelease` as you would for a Deployment or other workload,
