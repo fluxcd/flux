@@ -96,8 +96,10 @@ public key and create a deploy key with write access on your GitHub
 repository.
 
 Open GitHub, navigate to your fork, go to **Setting > Deploy keys**,
-click on **Add deploy key**, give it a name, check **Allow write
-access**, paste the Flux public key and click **Add key**.
+click on **Add deploy key**, give it a `Title`, check **Allow write
+access**, paste the Flux public key and click **Add key**.  See the
+(GitHub docs)[https://developer.github.com/v3/guides/managing-deploy-keys/#deploy-keys]
+for more info on how to manage deploy keys.
 
 (Or replace `YOURUSER` with your Github ID in this url:
 `https://github.com/YOURUSER/flux-get-started/settings/keys/new` and
