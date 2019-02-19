@@ -540,8 +540,10 @@ you must bookend your pattern with `^` and `$`.
 
 `fluxctl` provides the following flags for the message and author customization:
 
-  -m, --message string      message associated with the action
-      --user    string      user who triggered the action
+```
+  -m, --message string      attach a message to the update
+      --user    string      override the user reported as initiating the update
+```
 
 Commit customization
 
