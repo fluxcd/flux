@@ -162,7 +162,7 @@ You would create a secret in the cluster by doing this:
 kubectl -n dev create secret generic default-values --from-file=values.yaml
 ```
 
-If you did `kubectl get -n dev default-values` you would get:
+If you did `kubectl get -n dev secret default-values` you would get:
 
 ```yaml
 apiVersion: v1
