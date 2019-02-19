@@ -8,6 +8,7 @@ import (
 
 const (
 	Locked               = "locked"
+	Ignore               = "ignore"
 	NotIncluded          = "not included"
 	Excluded             = "excluded"
 	DifferentImage       = "a different image"
@@ -85,6 +86,19 @@ func (f *LockedFilter) Filter(u ControllerUpdate) ControllerResult {
 		return ControllerResult{
 			Status: ReleaseStatusSkipped,
 			Error:  Locked,
+		}
+	}
+	return ControllerResult{}
+}
+
+type IgnoreFilter struct {
+}
+
+func (f *IgnoreFilter) Filter(u ControllerUpdate) ControllerResult {
+	if u.Controller.Policies.Has(policy.Ignore) {
+		return ControllerResult{
+			Status: ReleaseStatusSkipped,
+			Error:  Ignore,
 		}
 	}
 	return ControllerResult{}

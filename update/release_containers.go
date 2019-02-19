@@ -64,7 +64,7 @@ func (s ReleaseContainersSpec) filters() ([]ControllerFilter, []ControllerFilter
 	pre := []ControllerFilter{&IncludeFilter{IDs: rids}}
 
 	if !s.Force {
-		return pre, []ControllerFilter{&LockedFilter{}}
+		return pre, []ControllerFilter{&LockedFilter{}, &IgnoreFilter{}}
 	}
 	return pre, []ControllerFilter{}
 }

@@ -1,6 +1,8 @@
 package kubernetes
 
 import (
+	"strings"
+
 	apiapps "k8s.io/api/apps/v1"
 	apibatch "k8s.io/api/batch/v1beta1"
 	apiv1 "k8s.io/api/core/v1"
@@ -12,6 +14,7 @@ import (
 	"github.com/weaveworks/flux/image"
 	fhr_v1beta1 "github.com/weaveworks/flux/integrations/apis/flux.weave.works/v1beta1"
 	fhr_v1alpha2 "github.com/weaveworks/flux/integrations/apis/helm.integrations.flux.weave.works/v1alpha2"
+	"github.com/weaveworks/flux/policy"
 	"github.com/weaveworks/flux/resource"
 )
 
@@ -85,6 +88,18 @@ func (pc podController) toClusterController(resourceID flux.ResourceID) cluster.
 		}
 	}
 
+	var policies policy.Set
+	for k, v := range pc.GetAnnotations() {
+		if strings.HasPrefix(k, kresource.PolicyPrefix) {
+			p := strings.TrimPrefix(k, kresource.PolicyPrefix)
+			if v == "true" {
+				policies = policies.Add(policy.Policy(p))
+			} else {
+				policies = policies.Set(policy.Policy(p), v)
+			}
+		}
+	}
+
 	return cluster.Controller{
 		ID:         resourceID,
 		Status:     pc.status,
@@ -92,6 +107,7 @@ func (pc podController) toClusterController(resourceID flux.ResourceID) cluster.
 		SyncError:  pc.syncError,
 		Antecedent: antecedent,
 		Labels:     pc.GetLabels(),
+		Policies:   policies,
 		Containers: cluster.ContainersOrExcuse{Containers: clusterContainers, Excuse: excuse},
 	}
 }

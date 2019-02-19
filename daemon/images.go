@@ -18,7 +18,7 @@ func (d *Daemon) pollForNewImages(logger log.Logger) {
 
 	ctx := context.Background()
 
-	candidateServices, err := d.getUnlockedAutomatedResources(ctx)
+	candidateServices, err := d.getAllowedAutomatedResources(ctx)
 	if err != nil {
 		logger.Log("error", errors.Wrap(err, "getting unlocked automated resources"))
 		return
@@ -95,9 +95,10 @@ func (r resources) IDs() (ids []flux.ResourceID) {
 	return ids
 }
 
-// getUnlockedAutomatedServices returns all the resources that are
-// both automated, and not locked.
-func (d *Daemon) getUnlockedAutomatedResources(ctx context.Context) (resources, error) {
+// getAllowedAutomatedResources returns all the resources that are
+// automated but do not have policies set to restrain them from
+// getting updated.
+func (d *Daemon) getAllowedAutomatedResources(ctx context.Context) (resources, error) {
 	resources, _, err := d.getResources(ctx)
 	if err != nil {
 		return nil, err
@@ -106,7 +107,7 @@ func (d *Daemon) getUnlockedAutomatedResources(ctx context.Context) (resources, 
 	result := map[flux.ResourceID]resource.Resource{}
 	for _, resource := range resources {
 		policies := resource.Policy()
-		if policies.Has(policy.Automated) && !policies.Has(policy.Locked) {
+		if policies.Has(policy.Automated) && !policies.Has(policy.Locked) && !policies.Has(policy.Ignore) {
 			result[resource.ResourceID()] = resource
 		}
 	}

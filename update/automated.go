@@ -28,9 +28,13 @@ func (a *Automated) CalculateRelease(rc ReleaseContext, logger log.Logger) ([]*C
 	prefilters := []ControllerFilter{
 		&IncludeFilter{a.serviceIDs()},
 	}
+	postfilters := []ControllerFilter{
+		&LockedFilter{},
+		&IgnoreFilter{},
+	}
 
 	result := Result{}
-	updates, err := rc.SelectServices(result, prefilters, nil)
+	updates, err := rc.SelectServices(result, prefilters, postfilters)
 	if err != nil {
 		return nil, nil, err
 	}

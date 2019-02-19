@@ -151,7 +151,7 @@ func (s ReleaseImageSpec) filters(rc ReleaseContext) ([]ControllerFilter, []Cont
 
 	// Filter out locked controllers unless given a specific controller(s) and forced
 	if !(len(ids) > 0 && s.Force) {
-		postfilters = append(postfilters, &LockedFilter{})
+		postfilters = append(postfilters, &LockedFilter{}, &IgnoreFilter{})
 	}
 
 	return prefilters, postfilters, nil
