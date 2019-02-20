@@ -135,7 +135,7 @@ var (
 			},
 		},
 	}
-	mockManifests = &kubernetes.Manifests{}
+	mockManifests = &kubernetes.Manifests{Logger: log.NewNopLogger()}
 )
 
 func mockCluster(running ...cluster.Controller) *cluster.Mock {
@@ -1070,7 +1070,7 @@ func Test_BadRelease(t *testing.T) {
 
 	ctx := &ReleaseContext{
 		cluster:   cluster,
-		manifests: &kubernetes.Manifests{},
+		manifests: &kubernetes.Manifests{Logger: log.NewNopLogger()},
 		repo:      checkout1,
 		registry:  mockRegistry,
 	}
@@ -1084,7 +1084,7 @@ func Test_BadRelease(t *testing.T) {
 
 	ctx = &ReleaseContext{
 		cluster:   cluster,
-		manifests: &badManifests{Manifests: kubernetes.Manifests{}},
+		manifests: &badManifests{Manifests: kubernetes.Manifests{Logger: log.NewNopLogger()}},
 		repo:      checkout2,
 		registry:  mockRegistry,
 	}

@@ -1,6 +1,7 @@
 package cluster
 
 import (
+	"github.com/go-kit/kit/log"
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/image"
 	"github.com/weaveworks/flux/policy"
@@ -10,6 +11,7 @@ import (
 
 // Doubles as a cluster.Cluster and cluster.Manifests implementation
 type Mock struct {
+	Logger             log.Logger
 	AllServicesFunc    func(maybeNamespace string) ([]Controller, error)
 	SomeServicesFunc   func([]flux.ResourceID) ([]Controller, error)
 	PingFunc           func() error
@@ -17,7 +19,7 @@ type Mock struct {
 	SyncFunc           func(SyncDef) error
 	PublicSSHKeyFunc   func(regenerate bool) (ssh.PublicKey, error)
 	UpdateImageFunc    func(def []byte, id flux.ResourceID, container string, newImageID image.Ref) ([]byte, error)
-	LoadManifestsFunc  func(base string, paths []string) (map[string]resource.Resource, error)
+	LoadManifestsFunc  func(base string, paths []string, logger log.Logger) (map[string]resource.Resource, error)
 	ParseManifestsFunc func([]byte) (map[string]resource.Resource, error)
 	UpdateManifestFunc func(path, resourceID string, f func(def []byte) ([]byte, error)) error
 	UpdatePoliciesFunc func([]byte, flux.ResourceID, policy.Update) ([]byte, error)
@@ -52,7 +54,7 @@ func (m *Mock) UpdateImage(def []byte, id flux.ResourceID, container string, new
 }
 
 func (m *Mock) LoadManifests(base string, paths []string) (map[string]resource.Resource, error) {
-	return m.LoadManifestsFunc(base, paths)
+	return m.LoadManifestsFunc(base, paths, m.Logger)
 }
 
 func (m *Mock) ParseManifests(def []byte) (map[string]resource.Resource, error) {

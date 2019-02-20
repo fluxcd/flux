@@ -273,7 +273,9 @@ func main() {
 		imageCreds = k8sInst.ImagesToFetch
 		// There is only one way we currently interpret a repo of
 		// files as manifests, and that's as Kubernetes yamels.
-		k8sManifests = &kubernetes.Manifests{}
+		k8sManifests = &kubernetes.Manifests{
+			Logger: logger,
+		}
 	}
 
 	// Wrap the procedure for collecting images to scan

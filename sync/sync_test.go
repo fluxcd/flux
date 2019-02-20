@@ -30,8 +30,8 @@ func TestSync(t *testing.T) {
 	// things when we add and remove resources from the config.
 
 	// Start with nothing running. We should be told to apply all the things.
-	mockCluster := &cluster.Mock{}
-	manifests := &kubernetes.Manifests{}
+	mockCluster := &cluster.Mock{Logger: log.NewNopLogger()}
+	manifests := &kubernetes.Manifests{Logger: log.NewNopLogger()}
 	var clus cluster.Cluster = &syncCluster{mockCluster, map[string][]byte{}}
 
 	dirs := checkout.ManifestDirs()

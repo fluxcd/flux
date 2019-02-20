@@ -14,10 +14,10 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/weaveworks/flux"
-	"github.com/weaveworks/flux/api/v10"
-	"github.com/weaveworks/flux/api/v11"
-	"github.com/weaveworks/flux/api/v6"
-	"github.com/weaveworks/flux/api/v9"
+	v10 "github.com/weaveworks/flux/api/v10"
+	v11 "github.com/weaveworks/flux/api/v11"
+	v6 "github.com/weaveworks/flux/api/v6"
+	v9 "github.com/weaveworks/flux/api/v9"
 	"github.com/weaveworks/flux/cluster"
 	"github.com/weaveworks/flux/cluster/kubernetes"
 	kresource "github.com/weaveworks/flux/cluster/kubernetes/resource"
@@ -638,7 +638,7 @@ func mockDaemon(t *testing.T) (*Daemon, func(), func(), *cluster.Mock, *mockEven
 
 	var k8s *cluster.Mock
 	{
-		k8s = &cluster.Mock{}
+		k8s = &cluster.Mock{Logger: logger}
 		k8s.AllServicesFunc = func(maybeNamespace string) ([]cluster.Controller, error) {
 			if maybeNamespace == ns {
 				return []cluster.Controller{
@@ -697,7 +697,7 @@ func mockDaemon(t *testing.T) (*Daemon, func(), func(), *cluster.Mock, *mockEven
 		Repo:           repo,
 		GitConfig:      params,
 		Cluster:        k8s,
-		Manifests:      &kubernetes.Manifests{},
+		Manifests:      &kubernetes.Manifests{Logger: logger},
 		Registry:       imageRegistry,
 		V:              testVersion,
 		Jobs:           jobs,

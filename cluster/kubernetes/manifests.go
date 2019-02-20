@@ -1,6 +1,7 @@
 package kubernetes
 
 import (
+	"github.com/go-kit/kit/log"
 	"github.com/weaveworks/flux"
 	kresource "github.com/weaveworks/flux/cluster/kubernetes/resource"
 	"github.com/weaveworks/flux/image"
@@ -8,10 +9,11 @@ import (
 )
 
 type Manifests struct {
+	Logger log.Logger
 }
 
 func (c *Manifests) LoadManifests(base string, paths []string) (map[string]resource.Resource, error) {
-	return kresource.Load(base, paths)
+	return kresource.Load(base, paths, c.Logger)
 }
 
 func (c *Manifests) ParseManifests(allDefs []byte) (map[string]resource.Resource, error) {

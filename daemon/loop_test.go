@@ -39,9 +39,10 @@ var (
 )
 
 func daemon(t *testing.T) (*Daemon, func()) {
+	logger := log.NewLogfmtLogger(os.Stdout)
 	repo, repoCleanup := gittest.Repo(t)
 
-	k8s = &cluster.Mock{}
+	k8s = &cluster.Mock{Logger: logger}
 	k8s.LoadManifestsFunc = kresource.Load
 	k8s.ParseManifestsFunc = func(allDefs []byte) (map[string]resource.Resource, error) {
 		return kresource.ParseMultidoc(allDefs, "exported")
@@ -75,7 +76,7 @@ func daemon(t *testing.T) (*Daemon, func()) {
 		Jobs:           jobs,
 		JobStatusCache: &job.StatusCache{Size: 100},
 		EventWriter:    events,
-		Logger:         log.NewLogfmtLogger(os.Stdout),
+		Logger:         logger,
 		LoopVars:       &LoopVars{},
 	}
 	return d, func() {

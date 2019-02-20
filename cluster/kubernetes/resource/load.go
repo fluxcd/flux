@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
 	"github.com/weaveworks/flux/resource"
 )
@@ -15,7 +16,7 @@ import (
 // Load takes paths to directories or files, and creates an object set
 // based on the file(s) therein. Resources are named according to the
 // file content, rather than the file name of directory structure.
-func Load(base string, paths []string) (map[string]resource.Resource, error) {
+func Load(base string, paths []string, logger log.Logger) (map[string]resource.Resource, error) {
 	if _, err := os.Stat(base); os.IsNotExist(err) {
 		return nil, fmt.Errorf("git path %q not found", base)
 	}
@@ -31,6 +32,7 @@ func Load(base string, paths []string) (map[string]resource.Resource, error) {
 			}
 
 			if charts.isDirChart(path) {
+				logger.Log("msg", "skipped potential Chart directory", "path", path)
 				return filepath.SkipDir
 			}
 
