@@ -28,7 +28,7 @@ func TestSync(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := Sync(resources, clus); err != nil {
+	if err := Sync("synctest", resources, clus); err != nil {
 		t.Fatal(err)
 	}
 	checkClusterMatchesFiles(t, manifests, clus.resources, checkout.Dir(), dirs)
@@ -53,13 +53,11 @@ func setup(t *testing.T) (*git.Checkout, func()) {
 
 type syncCluster struct{ resources map[string]string }
 
-func (p *syncCluster) Sync(def cluster.SyncDef) error {
+func (p *syncCluster) Sync(def cluster.SyncSet) error {
 	println("=== Syncing ===")
-	for _, stack := range def.Stacks {
-		for _, resource := range stack.Resources {
-			println("Applying " + resource.ResourceID().String())
-			p.resources[resource.ResourceID().String()] = string(resource.Bytes())
-		}
+	for _, resource := range def.Resources {
+		println("Applying " + resource.ResourceID().String())
+		p.resources[resource.ResourceID().String()] = string(resource.Bytes())
 	}
 	println("=== Done syncing ===")
 	return nil

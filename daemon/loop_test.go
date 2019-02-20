@@ -89,13 +89,13 @@ func TestPullAndSync_InitialSync(t *testing.T) {
 	defer cleanup()
 
 	syncCalled := 0
-	var syncDef *cluster.SyncDef
+	var syncDef *cluster.SyncSet
 	expectedResourceIDs := flux.ResourceIDs{}
 	for id, _ := range testfiles.ResourceMap {
 		expectedResourceIDs = append(expectedResourceIDs, id)
 	}
 	expectedResourceIDs.Sort()
-	k8s.SyncFunc = func(def cluster.SyncDef) error {
+	k8s.SyncFunc = func(def cluster.SyncSet) error {
 		syncCalled++
 		syncDef = &def
 		return nil
@@ -160,13 +160,13 @@ func TestDoSync_NoNewCommits(t *testing.T) {
 	}
 
 	syncCalled := 0
-	var syncDef *cluster.SyncDef
+	var syncDef *cluster.SyncSet
 	expectedResourceIDs := flux.ResourceIDs{}
 	for id, _ := range testfiles.ResourceMap {
 		expectedResourceIDs = append(expectedResourceIDs, id)
 	}
 	expectedResourceIDs.Sort()
-	k8s.SyncFunc = func(def cluster.SyncDef) error {
+	k8s.SyncFunc = func(def cluster.SyncSet) error {
 		syncCalled++
 		syncDef = &def
 		return nil
@@ -256,13 +256,13 @@ func TestDoSync_WithNewCommit(t *testing.T) {
 	}
 
 	syncCalled := 0
-	var syncDef *cluster.SyncDef
+	var syncDef *cluster.SyncSet
 	expectedResourceIDs := flux.ResourceIDs{}
 	for id, _ := range testfiles.ResourceMap {
 		expectedResourceIDs = append(expectedResourceIDs, id)
 	}
 	expectedResourceIDs.Sort()
-	k8s.SyncFunc = func(def cluster.SyncDef) error {
+	k8s.SyncFunc = func(def cluster.SyncSet) error {
 		syncCalled++
 		syncDef = &def
 		return nil

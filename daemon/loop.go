@@ -23,6 +23,7 @@ import (
 const (
 	// Timeout for git operations we're prepared to abandon
 	gitOpTimeout = 15 * time.Second
+	syncSetName  = "git"
 )
 
 type LoopVars struct {
@@ -205,7 +206,7 @@ func (d *Daemon) doSync(logger log.Logger, lastKnownSyncTagRev *string, warnedAb
 	}
 
 	var resourceErrors []event.ResourceError
-	if err := fluxsync.Sync(allResources, d.Cluster); err != nil {
+	if err := fluxsync.Sync(syncSetName, allResources, d.Cluster); err != nil {
 		logger.Log("err", err)
 		switch syncerr := err.(type) {
 		case cluster.SyncError:

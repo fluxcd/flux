@@ -212,7 +212,7 @@ func setup(t *testing.T) (*Cluster, *fakeApplier) {
 
 func TestSyncNop(t *testing.T) {
 	kube, mock := setup(t)
-	if err := kube.Sync(cluster.SyncDef{}); err != nil {
+	if err := kube.Sync(cluster.SyncSet{}); err != nil {
 		t.Errorf("%#v", err)
 	}
 	if mock.commandRun {
@@ -277,7 +277,7 @@ metadata:
 			t.Fatal(err)
 		}
 
-		err = sync.Sync(resources, kube)
+		err = sync.Sync("testset", resources, kube)
 		if !expectErrors && err != nil {
 			t.Error(err)
 		}
@@ -287,7 +287,7 @@ metadata:
 		}
 
 		// Now check that the resources were created
-		actual, err := kube.getResourcesInStack()
+		actual, err := kube.getResourcesInSyncSet("testset")
 		if err != nil {
 			t.Fatal(err)
 		}

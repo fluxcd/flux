@@ -28,8 +28,8 @@ import (
 )
 
 const (
-	stackLabel         = kresource.PolicyPrefix + "stack"
-	checksumAnnotation = kresource.PolicyPrefix + "stack_checksum"
+	syncSetLabel       = kresource.PolicyPrefix + "sync-set"
+	checksumAnnotation = kresource.PolicyPrefix + "sync-checksum"
 
 	// The namespace to presume if something doesn't have one, and we
 	// haven't been told what to use as a fallback. This is what
@@ -43,15 +43,12 @@ const (
 // necessarily indicate complete failure; some resources may succeed
 // in being synced, and some may fail (for example, they may be
 // malformed).
-func (c *Cluster) Sync(spec cluster.SyncDef) error {
+func (c *Cluster) Sync(spec cluster.SyncSet) error {
 	logger := log.With(c.logger, "method", "Sync")
 
-	type checksum struct {
-		stack, sum string
-	}
-	// Keep track of the checksum of each stack, so we can compare
+	// Keep track of the checksum of each resource, so we can compare
 	// them during garbage collection.
-	checksums := map[string]checksum{}
+	checksums := map[string]string{}
 
 	// NB we get all resources, since we care about leaving unsynced,
 	// _ignored_ resources alone.
@@ -62,29 +59,30 @@ func (c *Cluster) Sync(spec cluster.SyncDef) error {
 
 	cs := makeChangeSet()
 	var errs cluster.SyncError
-	for _, stack := range spec.Stacks {
-		for _, res := range stack.Resources {
-			id := res.ResourceID().String()
-			// make a record of the checksum, whether we stage it to
-			// be applied or not, so that we don't delete it later.
-			csum := sha1.Sum(res.Bytes())
-			checkHex := hex.EncodeToString(csum[:])
-			checksums[id] = checksum{stack.Name, checkHex}
-			if res.Policy().Has(policy.Ignore) {
-				logger.Log("info", "not applying resource; ignore annotation in file", "resource", res.ResourceID(), "source", res.Source())
-				continue
-			}
-			if cres, ok := clusterResources[id]; ok && cres.Policy().Has(policy.Ignore) {
-				logger.Log("info", "not applying resource; ignore annotation in cluster resource", "resource", cres.ResourceID())
-				continue
-			}
-			resBytes, err := applyMetadata(res, stack.Name, checkHex)
-			if err == nil {
-				cs.stage("apply", res.ResourceID(), res.Source(), resBytes)
-			} else {
-				errs = append(errs, cluster.ResourceError{ResourceID: res.ResourceID(), Source: res.Source(), Error: err})
-				break
-			}
+	for _, res := range spec.Resources {
+		id := res.ResourceID().String()
+		// make a record of the checksum, whether we stage it to
+		// be applied or not, so that we don't delete it later.
+		csum := sha1.Sum(res.Bytes())
+		checkHex := hex.EncodeToString(csum[:])
+		checksums[id] = checkHex
+		if res.Policy().Has(policy.Ignore) {
+			logger.Log("info", "not applying resource; ignore annotation in file", "resource", res.ResourceID(), "source", res.Source())
+			continue
+		}
+		// It's possible to give a cluster resource the "ignore"
+		// annotation directly -- e.g., with `kubectl annotate` -- so
+		// we need to examine the cluster resource here too.
+		if cres, ok := clusterResources[id]; ok && cres.Policy().Has(policy.Ignore) {
+			logger.Log("info", "not applying resource; ignore annotation in cluster resource", "resource", cres.ResourceID())
+			continue
+		}
+		resBytes, err := applyMetadata(res, spec.Name, checkHex)
+		if err == nil {
+			cs.stage("apply", res.ResourceID(), res.Source(), resBytes)
+		} else {
+			errs = append(errs, cluster.ResourceError{ResourceID: res.ResourceID(), Source: res.Source(), Error: err})
+			break
 		}
 	}
 
@@ -99,27 +97,25 @@ func (c *Cluster) Sync(spec cluster.SyncDef) error {
 	if c.GC {
 		orphanedResources := makeChangeSet()
 
-		clusterResources, err := c.getResourcesInStack()
+		clusterResources, err := c.getResourcesInSyncSet(spec.Name)
 		if err != nil {
 			return errors.Wrap(err, "collating resources in cluster for calculating garbage collection")
 		}
 
 		for resourceID, res := range clusterResources {
-			actual := checksum{res.GetStack(), res.GetChecksum()}
+			actual := res.GetChecksum()
 			expected, ok := checksums[resourceID]
 
 			switch {
 			case !ok: // was not recorded as having been staged for application
 				c.logger.Log("info", "cluster resource not in resources to be synced; deleting", "resource", resourceID)
 				orphanedResources.stage("delete", res.ResourceID(), "<cluster>", res.Bytes())
-			case actual.stack == "": // the label has been removed, out of band (or due to a bug). Best to leave it.
-				c.logger.Log("warning", "cluster resource with empty stack label; skipping", "resource", resourceID)
-				continue
 			case actual != expected:
 				c.logger.Log("warning", "resource to be synced has not been updated; skipping", "resource", resourceID)
 				continue
 			default:
-				// The stack and checksum are the same, indicating that it was applied earlier. Leave it alone.
+				// The checksum is the same, indicating that it was
+				// applied earlier. Leave it alone.
 			}
 		}
 
@@ -177,10 +173,10 @@ func (r *kuberesource) GetChecksum() string {
 	return r.obj.GetAnnotations()[checksumAnnotation]
 }
 
-// GetStack returns the stack recorded on the the resource from
-// Kubernetes, or an empty string if it's not present.
-func (r *kuberesource) GetStack() string {
-	return r.obj.GetLabels()[stackLabel]
+// GetSyncSet returns the sync set name recorded on the the resource
+// from Kubernetes, or an empty string if it's not present.
+func (r *kuberesource) GetSyncSet() string {
+	return r.obj.GetLabels()[syncSetLabel]
 }
 
 func (c *Cluster) getResourcesBySelector(selector string) (map[string]*kuberesource, error) {
@@ -258,11 +254,11 @@ func (c *Cluster) getResourcesBySelector(selector string) (map[string]*kuberesou
 
 // exportResourcesInStack collates all the resources that belong to a
 // stack, i.e., were applied by flux.
-func (c *Cluster) getResourcesInStack() (map[string]*kuberesource, error) {
-	return c.getResourcesBySelector(stackLabel) // means "has label <<stackLabel>>"
+func (c *Cluster) getResourcesInSyncSet(name string) (map[string]*kuberesource, error) {
+	return c.getResourcesBySelector(fmt.Sprintf("%s=%s", syncSetLabel, name)) // means "has label <<stackLabel>>"
 }
 
-func applyMetadata(res resource.Resource, stack, checksum string) ([]byte, error) {
+func applyMetadata(res resource.Resource, set, checksum string) ([]byte, error) {
 	definition := map[interface{}]interface{}{}
 	if err := yaml.Unmarshal(res.Bytes(), &definition); err != nil {
 		return nil, errors.Wrap(err, fmt.Sprintf("failed to parse yaml from %s", res.Source()))
@@ -270,9 +266,9 @@ func applyMetadata(res resource.Resource, stack, checksum string) ([]byte, error
 
 	mixin := map[string]interface{}{}
 
-	if stack != "" {
+	if set != "" {
 		mixinLabels := map[string]string{}
-		mixinLabels[stackLabel] = stack
+		mixinLabels[syncSetLabel] = set
 		mixin["labels"] = mixinLabels
 	}
 

@@ -356,9 +356,9 @@ func TestDaemon_NotifyChange(t *testing.T) {
 	ctx := context.Background()
 
 	var syncCalled int
-	var syncDef *cluster.SyncDef
+	var syncDef *cluster.SyncSet
 	var syncMu sync.Mutex
-	mockK8s.SyncFunc = func(def cluster.SyncDef) error {
+	mockK8s.SyncFunc = func(def cluster.SyncSet) error {
 		syncMu.Lock()
 		syncCalled++
 		syncDef = &def
@@ -663,7 +663,7 @@ func mockDaemon(t *testing.T) (*Daemon, func(), func(), *cluster.Mock, *mockEven
 				singleService,
 			}, nil
 		}
-		k8s.SyncFunc = func(def cluster.SyncDef) error { return nil }
+		k8s.SyncFunc = func(def cluster.SyncSet) error { return nil }
 	}
 
 	var imageRegistry registry.Registry
