@@ -117,6 +117,7 @@ func main() {
 		registryAWSBlockAccountIDs = fs.StringSlice("registry-ecr-exclude-id", []string{registry.EKS_SYSTEM_ACCOUNT}, "do not scan ECR for images in these AWS account IDs; the default is to exclude the EKS system account")
 
 		// k8s-secret backed ssh keyring configuration
+		k8sSecretKeyRing         = fs.Bool("k8s-secret-keyring", true, "if set to false Flux will attempt to make use of the local SSH agent instead of setting up a secret backed keyring in the cluster")
 		k8sSecretName            = fs.String("k8s-secret-name", "flux-git-deploy", "name of the k8s secret used to store the private SSH key")
 		k8sSecretVolumeMountPath = fs.String("k8s-secret-volume-mount-path", "/etc/fluxd/ssh", "mount location of the k8s secret storing the private SSH key")
 		k8sSecretDataKey         = fs.String("k8s-secret-data-key", "identity", "data key holding the private SSH key within the k8s secret")
@@ -230,31 +231,38 @@ func main() {
 		}
 		clusterVersion = "kubernetes-" + serverVersion.GitVersion
 
-		namespace, err := ioutil.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
-		if err != nil {
-			logger.Log("err", err)
-			os.Exit(1)
-		}
-
-		sshKeyRing, err = kubernetes.NewSSHKeyRing(kubernetes.SSHKeyRingConfig{
-			SecretAPI:             clientset.Core().Secrets(string(namespace)),
-			SecretName:            *k8sSecretName,
-			SecretVolumeMountPath: *k8sSecretVolumeMountPath,
-			SecretDataKey:         *k8sSecretDataKey,
-			KeyBits:               sshKeyBits,
-			KeyType:               sshKeyType,
-			KeyGenDir:             *sshKeygenDir,
-		})
-		if err != nil {
-			logger.Log("err", err)
-			os.Exit(1)
-		}
-
-		publicKey, privateKeyPath := sshKeyRing.KeyPair()
-
 		logger := log.With(logger, "component", "cluster")
-		logger.Log("identity", privateKeyPath)
-		logger.Log("identity.pub", strings.TrimSpace(publicKey.Key))
+
+		if *k8sSecretKeyRing == false {
+			namespace, err := ioutil.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
+			if err != nil {
+				logger.Log("err", err)
+				os.Exit(1)
+			}
+
+			sshKeyRing, err = kubernetes.NewSSHKeyRing(kubernetes.SSHKeyRingConfig{
+				SecretAPI:             clientset.Core().Secrets(string(namespace)),
+				SecretName:            *k8sSecretName,
+				SecretVolumeMountPath: *k8sSecretVolumeMountPath,
+				SecretDataKey:         *k8sSecretDataKey,
+				KeyBits:               sshKeyBits,
+				KeyType:               sshKeyType,
+				KeyGenDir:             *sshKeygenDir,
+			})
+
+			if err != nil {
+				logger.Log("err", err)
+				os.Exit(1)
+			}
+
+			publicKey, privateKeyPath := sshKeyRing.KeyPair()
+
+			logger.Log("identity", privateKeyPath)
+			logger.Log("identity.pub", strings.TrimSpace(publicKey.Key))
+		} else {
+			logger.Log("identity", "using local ssh agent")
+		}
+
 		logger.Log("host", restClientConfig.Host, "version", clusterVersion)
 
 		kubectl := *kubernetesKubectl

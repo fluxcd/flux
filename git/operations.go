@@ -20,7 +20,7 @@ import (
 const trace = false
 
 // Env vars that are allowed to be inherited from the os
-var allowedEnvVars = []string{"http_proxy", "https_proxy", "no_proxy", "HOME"}
+var allowedEnvVars = []string{"http_proxy", "https_proxy", "no_proxy", "HOME", "SSH_AUTH_SOCK"}
 
 func config(ctx context.Context, workingDir, user, email string) error {
 	for k, v := range map[string]string{
