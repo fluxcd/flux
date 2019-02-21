@@ -185,7 +185,7 @@ func (c *Cluster) getResourcesBySelector(selector string) (map[string]*kuberesou
 		listOptions.LabelSelector = selector
 	}
 
-	resources, err := c.client.coreClient.Discovery().ServerResources()
+	resources, err := c.client.discoveryClient.ServerResources()
 	if err != nil {
 		return nil, err
 	}

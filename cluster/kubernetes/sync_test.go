@@ -35,7 +35,7 @@ const (
 	defaultTestNamespace = "unusual-default"
 )
 
-func fakeClients() extendedClient {
+func fakeClients() ExtendedClient {
 	scheme := runtime.NewScheme()
 
 	// Set this to `true` to output a trace of the API actions called
@@ -81,10 +81,11 @@ func fakeClients() extendedClient {
 		}
 	}
 
-	return extendedClient{
-		coreClient:     coreClient,
-		fluxHelmClient: fluxClient,
-		dynamicClient:  dynamicClient,
+	return ExtendedClient{
+		coreClient:      coreClient,
+		fluxHelmClient:  fluxClient,
+		dynamicClient:   dynamicClient,
+		discoveryClient: coreClient.Discovery(),
 	}
 }
 

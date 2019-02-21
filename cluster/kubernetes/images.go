@@ -17,7 +17,7 @@ import (
 
 func mergeCredentials(log func(...interface{}) error,
 	includeImage func(imageName string) bool,
-	client extendedClient,
+	client ExtendedClient,
 	namespace string, podTemplate apiv1.PodTemplateSpec,
 	imageCreds registry.ImageCreds,
 	seenCreds map[string]registry.Credentials) {

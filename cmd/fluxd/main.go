@@ -17,7 +17,7 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/pflag"
-	k8sifclient "github.com/weaveworks/flux/integrations/client/clientset/versioned"
+	integrations "github.com/weaveworks/flux/integrations/client/clientset/versioned"
 	crd "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	k8sclientdynamic "k8s.io/client-go/dynamic"
 	k8sclient "k8s.io/client-go/kubernetes"
@@ -242,11 +242,18 @@ func main() {
 			os.Exit(1)
 		}
 
-		ifclientset, err := k8sifclient.NewForConfig(restClientConfig)
+		integrationsClientset, err := integrations.NewForConfig(restClientConfig)
 		if err != nil {
 			logger.Log("error", fmt.Sprintf("Error building integrations clientset: %v", err))
 			os.Exit(1)
 		}
+
+		crdClient, err := crd.NewForConfig(restClientConfig)
+		if err != nil {
+			logger.Log("error", fmt.Sprintf("Error building API extensions (CRD) clientset: %v", err))
+			os.Exit(1)
+		}
+		discoClientset := kubernetes.MakeCachedDiscovery(clientset.Discovery(), crdClient, shutdown)
 
 		serverVersion, err := clientset.ServerVersion()
 		if err != nil {
@@ -295,7 +302,8 @@ func main() {
 		logger.Log("kubectl", kubectl)
 
 		kubectlApplier := kubernetes.NewKubectl(kubectl, restClientConfig)
-		k8sInst := kubernetes.NewCluster(clientset, dynamicClientset, ifclientset, kubectlApplier, sshKeyRing, logger, *k8sNamespaceWhitelist, *registryExcludeImage)
+		client := kubernetes.MakeClusterClientset(clientset, dynamicClientset, integrationsClientset, discoClientset)
+		k8sInst := kubernetes.NewCluster(client, kubectlApplier, sshKeyRing, logger, *k8sNamespaceWhitelist, *registryExcludeImage)
 		k8sInst.GC = *syncGC
 
 		if err := k8sInst.Ping(); err != nil {
@@ -309,14 +317,8 @@ func main() {
 		// There is only one way we currently interpret a repo of
 		// files as manifests, and that's as Kubernetes yamels.
 		k8sManifests = &kubernetes.Manifests{}
+		k8sManifests.Namespacer, err = kubernetes.NewNamespacer(kubectlApplier, discoClientset)
 
-		crdClient, err := crd.NewForConfig(restClientConfig)
-		if err == nil {
-			disco := kubernetes.MakeCachedDiscovery(clientset.Discovery(), crdClient, shutdown)
-			k8sManifests.Namespacer, err = kubernetes.NewNamespacer(kubectlApplier, disco)
-		}
-		if err == nil {
-		}
 		if err != nil {
 			logger.Log("err", err)
 			os.Exit(1)

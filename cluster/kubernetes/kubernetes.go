@@ -11,6 +11,7 @@ import (
 	apiv1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/discovery"
 	k8sclientdynamic "k8s.io/client-go/dynamic"
 	k8sclient "k8s.io/client-go/kubernetes"
 
@@ -23,11 +24,22 @@ import (
 type coreClient k8sclient.Interface
 type dynamicClient k8sclientdynamic.Interface
 type fluxHelmClient fhrclient.Interface
+type discoveryClient discovery.DiscoveryInterface
 
-type extendedClient struct {
+type ExtendedClient struct {
 	coreClient
 	dynamicClient
 	fluxHelmClient
+	discoveryClient
+}
+
+func MakeClusterClientset(core coreClient, dyn dynamicClient, fluxhelm fluxHelmClient, disco discoveryClient) ExtendedClient {
+	return ExtendedClient{
+		coreClient:      core,
+		dynamicClient:   dyn,
+		fluxHelmClient:  fluxhelm,
+		discoveryClient: disco,
+	}
 }
 
 // --- add-ons
@@ -71,7 +83,7 @@ type Cluster struct {
 	// Do garbage collection when syncing resources
 	GC bool
 
-	client  extendedClient
+	client  ExtendedClient
 	applier Applier
 
 	version    string // string response for the version command.
@@ -91,21 +103,9 @@ type Cluster struct {
 }
 
 // NewCluster returns a usable cluster.
-func NewCluster(clientset k8sclient.Interface,
-	dynamicClientset k8sclientdynamic.Interface,
-	fluxHelmClientset fhrclient.Interface,
-	applier Applier,
-	sshKeyRing ssh.KeyRing,
-	logger log.Logger,
-	nsWhitelist []string,
-	imageExcludeList []string) *Cluster {
-
+func NewCluster(client ExtendedClient, applier Applier, sshKeyRing ssh.KeyRing, logger log.Logger, nsWhitelist []string, imageExcludeList []string) *Cluster {
 	c := &Cluster{
-		client: extendedClient{
-			clientset,
-			dynamicClientset,
-			fluxHelmClientset,
-		},
+		client:            client,
 		applier:           applier,
 		logger:            logger,
 		sshKeyRing:        sshKeyRing,
