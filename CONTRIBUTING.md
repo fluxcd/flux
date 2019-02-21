@@ -15,11 +15,16 @@ simple statement that you, as a contributor, have the legal right to make the
 contribution. No action from you is required, but it's a good idea to see the
 [DCO](DCO) file for details before you start contributing code to Flux.
 
-## Chat
+## Communications
 
 The project uses Slack: To join the conversation, simply join the
 [Weave community](https://slack.weave.works/) Slack workspace and use the
 [#flux](https://weave-community.slack.com/messages/flux/) channel.
+
+The Flux developers use a mailing list to discuss development as well.
+Simply subscribe to [flux-dev on Google
+Groups](https://groups.google.com/forum/#!forum/flux-dev) to join the
+conversation.
 
 ## Getting Started
 

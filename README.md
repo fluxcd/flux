@@ -122,8 +122,11 @@ be interested in the following:
 If you have any questions about Flux and continuous delivery:
 
 - Read [the Weave Flux docs](https://github.com/weaveworks/flux/tree/master/site).
-- Invite yourself to the <a href="https://slack.weave.works/" target="_blank">Weave community</a> slack.
-- Ask a question on the [#flux](https://weave-community.slack.com/messages/flux/) slack channel.
+- Invite yourself to the <a href="https://slack.weave.works/" target="_blank">Weave community</a>
+  slack and ask a question on the [#flux](https://weave-community.slack.com/messages/flux/)
+  channel.
+- To be part of the conversation about Flux's development, join the
+  [flux-dev mailing list](https://groups.google.com/forum/#!forum/flux-dev).
 - Join the [Weave User Group](https://www.meetup.com/pro/Weave/) and get
   invited to online talks, hands-on training and meetups in your area.
 - [File an issue.](https://github.com/weaveworks/flux/issues/new)
