@@ -13,23 +13,24 @@ menu_order: 40
   * [Add an SSH deploy key to the repository](#add-an-ssh-deploy-key-to-the-repository)
     + [1. Allow flux to generate a key for you](#1-allow-flux-to-generate-a-key-for-you)
     + [2. Specify a key to use](#2-specify-a-key-to-use)
-- [What is a Controller?](#what-is-a-controller)
-- [Viewing Controllers](#viewing-controllers)
-- [Inspecting the Version of a Container](#inspecting-the-version-of-a-container)
-- [Releasing a Controller](#releasing-a-controller)
-- [Turning on Automation](#turning-on-automation)
-- [Turning off Automation](#turning-off-automation)
-- [Rolling back a Controller](#rolling-back-a-controller)
-- [Locking a Controller](#locking-a-controller)
-- [Releasing an image to a locked controller](#releasing-an-image-to-a-locked-controller)
-- [Unlocking a Controller](#unlocking-a-controller)
-- [Recording user and message with the triggered action](#recording-user-and-message-with-the-triggered-action)
+- [Controllers](#controllers)
+  * [What is a Controller?](#what-is-a-controller)
+  *  [Viewing Controllers](#viewing-controllers)
+  * [Inspecting the Version of a Container](#inspecting-the-version-of-a-container)
+  * [Releasing a Controller](#releasing-a-controller)
+  * [Turning on Automation](#turning-on-automation)
+  * [Turning off Automation](#turning-off-automation)
+  * [Rolling back a Controller](#rolling-back-a-controller)
+  * [Locking a Controller](#locking-a-controller)
+  * [Releasing an image to a locked controller](#releasing-an-image-to-a-locked-controller)
+  * [Unlocking a Controller](#unlocking-a-controller)
+  * [Recording user and message with the triggered action](#recording-user-and-message-with-the-triggered-action)
 - [Image Tag Filtering](#image-tag-filtering)
   * [Filter pattern types](#filter-pattern-types)
-    + [Glob](#glob)
-    + [Semver](#semver)
-    + [Regexp](#regexp)
-  * [Actions triggered through `fluxctl`](#actions-triggered-through-fluxctl)
+  * [Glob](#glob)
+  * [Semver](#semver)
+  *  [Regexp](#regexp)
+- [Actions triggered through `fluxctl`](#actions-triggered-through-fluxctl)
   * [Errors due to author customization](#errors-due-to-author-customization)
 - [Using Annotations](#using-annotations)
 
@@ -223,13 +224,15 @@ Flags:
 Use "fluxctl [command] --help" for more information about a command.
 ```
 
-# What is a Controller?
+# Controllers
+
+## What is a Controller?
 
 This term refers to any cluster resource responsible for the creation of
 containers from versioned images - in Kubernetes these are workloads such as
 Deployments, DaemonSets, StatefulSets and CronJobs.
 
-# Viewing Controllers
+## Viewing Controllers
 
 The first thing to do is to check whether Flux can see any running
 controllers. To do this, use the `list-controllers` subcommand:
@@ -243,7 +246,7 @@ default:deployment/helloworld  helloworld  quay.io/weaveworks/helloworld:master-
 
 Note that the actual images running will depend on your cluster.
 
-# Inspecting the Version of a Container
+## Inspecting the Version of a Container
 
 Once we have a list of controllers, we can begin to inspect which versions
 of the image are running.
@@ -264,7 +267,7 @@ default:deployment/helloworld  helloworld  quay.io/weaveworks/helloworld
 The arrows will point to the version that is currently running
 alongside a list of other versions and their timestamps.
 
-# Releasing a Controller
+## Releasing a Controller
 
 We can now go ahead and update a controller with the `release` subcommand.
 This will check whether each controller needs to be updated, and if so,
@@ -290,7 +293,7 @@ default:deployment/helloworld  helloworld  quay.io/weaveworks/helloworld
                                                master-a000001             23 Aug 16 09:53 UTC
 ```
 
-# Turning on Automation
+## Turning on Automation
 
 Automation can be easily controlled from within
 [Weave Cloud](https://cloud.weave.works) by selecting the "Automate"
@@ -317,7 +320,7 @@ helloworld application is automated. Flux will now automatically
 deploy a new version of a controller whenever one is available and commit
 the new configuration to the version control system.
 
-# Turning off Automation
+## Turning off Automation
 
 Turning off automation is performed with the `deautomate` command:
 
@@ -335,7 +338,7 @@ default:deployment/helloworld  helloworld  quay.io/weaveworks/helloworld:master-
 
 We can see that the controller is no longer automated.
 
-# Rolling back a Controller
+## Rolling back a Controller
 
 Rolling back can be achieved by combining:
 
@@ -378,7 +381,7 @@ default:deployment/helloworld  helloworld  quay.io/weaveworks/helloworld
                                                master-a000001             23 Aug 16 09:53 UTC
 ```
 
-# Locking a Controller
+## Locking a Controller
 
 Locking a controller will stop manual or automated releases to that
 controller. Changes made in the file will still be synced.
@@ -390,7 +393,7 @@ CONTROLLER                     STATUS   UPDATES
 default:deployment/helloworld  success
 ```
 
-# Releasing an image to a locked controller
+## Releasing an image to a locked controller
 
 It may be desirable to release an image to a locked controller while
 maintaining the lock afterwards. In order to not having to modify the
@@ -400,7 +403,7 @@ lock policy (which includes author and reason), one may use `--force`:
 fluxctl release --controller=default:deployment/helloworld --update-all-images --force
 ```
 
-# Unlocking a Controller
+## Unlocking a Controller
 
 Unlocking a controller allows it to have manual or automated releases
 (again).
@@ -412,7 +415,7 @@ CONTROLLER                     STATUS   UPDATES
 default:deployment/helloworld  success
 ```
 
-# Recording user and message with the triggered action
+## Recording user and message with the triggered action
 
 Issuing a deployment change results in a version control change/git
 commit, keeping the history of the actions. The Flux daemon can be
@@ -482,11 +485,11 @@ fluxctl release --controller=default:deployment/helloworld --update-all-images -
 
 Please note that automation might immediately undo this.
 
-## Filter pattern types
+# Filter pattern types
 
 Flux currently offers support for `glob`, `semver` and `regexp` based filtering.
 
-### Glob
+## Glob
 
 The glob (`*`) filter is the simplest filter Flux supports, a filter can contain
 multiple globs:
@@ -495,7 +498,7 @@ multiple globs:
 fluxctl policy --controller=default:deployment/helloworld --tag-all='glob:master-v1.*.*'
 ```
 
-### Semver
+## Semver
 
 If your images use [semantic versioning](https://semver.org) you can filter by image tags
 that adhere to certain constraints:
@@ -513,7 +516,7 @@ fluxctl policy --controller=default:deployment/helloworld --tag-all='semver:*'
 Using a semver filter will also affect how flux sorts images, so
 that the higher versions will be considered newer.
 
-### Regexp
+## Regexp
 
 If your images have complex tags you can filter by regular expression:
 
@@ -524,7 +527,7 @@ fluxctl policy --controller=default:deployment/helloworld --tag-all='regexp:^([a
 Please bear in mind that if you want to match the whole tag,
 you must bookend your pattern with `^` and `$`.
 
-## Actions triggered through `fluxctl`
+# Actions triggered through `fluxctl`
 
 `fluxctl` provides the following flags for the message and author customization:
 
