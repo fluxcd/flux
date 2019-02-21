@@ -109,7 +109,7 @@ func (c *Cluster) Sync(spec cluster.SyncSet) error {
 			switch {
 			case !ok: // was not recorded as having been staged for application
 				c.logger.Log("info", "cluster resource not in resources to be synced; deleting", "resource", resourceID)
-				orphanedResources.stage("delete", res.ResourceID(), "<cluster>", res.Bytes())
+				orphanedResources.stage("delete", res.ResourceID(), "<cluster>", res.IdentifyingBytes())
 			case actual != expected:
 				c.logger.Log("warning", "resource to be synced has not been updated; skipping", "resource", resourceID)
 				continue
@@ -152,8 +152,9 @@ func (r *kuberesource) ResourceID() flux.ResourceID {
 	return flux.MakeResourceID(ns, kind, name)
 }
 
-// Bytes returns a byte slice description
-func (r *kuberesource) Bytes() []byte {
+// Bytes returns a byte slice description, including enough info to
+// identify the resource (but not momre)
+func (r *kuberesource) IdentifyingBytes() []byte {
 	return []byte(fmt.Sprintf(`
 apiVersion: %s
 kind: %s
@@ -171,12 +172,6 @@ func (r *kuberesource) Policy() policy.Set {
 // Kubernetes, or an empty string if it's not present.
 func (r *kuberesource) GetChecksum() string {
 	return r.obj.GetAnnotations()[checksumAnnotation]
-}
-
-// GetSyncSet returns the sync set name recorded on the the resource
-// from Kubernetes, or an empty string if it's not present.
-func (r *kuberesource) GetSyncSet() string {
-	return r.obj.GetLabels()[syncSetLabel]
 }
 
 func (c *Cluster) getResourcesBySelector(selector string) (map[string]*kuberesource, error) {
