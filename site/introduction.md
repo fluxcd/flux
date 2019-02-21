@@ -28,7 +28,7 @@ This is a simple, but dramatic improvement on current state of the art.
 
 - All configuration is stored within version control and is inherently
   up to date. At any point anyone could completely recreate the cluster
-  in exactly the same state.
+  in exactly the same state of configuration.
 - Changes to the cluster are immediately visible to all interested
   parties.
 - During a postmortem, the git log provides the perfect history for an
@@ -44,7 +44,7 @@ versions where applicable.
 
 This is really useful for keeping the repository and therefore the
 cluster up to date. It allows separate teams to have their own
-deployment pipelines then Flux is able to see the new image and update
+deployment pipelines since Flux is able to see the new image and update
 the cluster accordingly.
 
 This feature can be disabled and images can be locked to a specific

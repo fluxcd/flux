@@ -128,7 +128,7 @@ public key and create a deploy key with write access on your GitHub
 repository.
 
 Open GitHub, navigate to your fork, go to **Setting > Deploy keys**,
-click on **Add deploy key**, give it a name, check **Allow write
+click on **Add deploy key**, give it a `Title`, check **Allow write
 access**, paste the Flux public key and click **Add key**.
 
 (Or replace `YOURUSER` with your Github ID in this url:
@@ -161,7 +161,7 @@ change the `tag:` line to the following:
   values:
     image:
       repository: bitnami/mongodb
-      tag: 4.0.2
+      tag: 4.0.6
 ```
 
 Commit the change to your `master` branch. It will now get

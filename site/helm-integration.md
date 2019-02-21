@@ -15,7 +15,7 @@ menu_order: 90
     + [Authentication for Helm repos](#authentication-for-helm-repos)
       - [Azure ACR repositories](#azure-acr-repositories)
     + [Authentication for Git repos](#authentication-for-git-repos)
-  * [Upgrading images in a HelmRelease using Flux](#upgrading-images-in-a-helmrelease-using-flux)
+  * [Upgrading images in a `HelmRelease` using Flux](#upgrading-images-in-a-helmrelease-using-flux)
     + [Using annotations to control updates to HelmRelease resources](#using-annotations-to-control-updates-to-helmrelease-resources)
 
 # Using Flux with Helm
@@ -113,7 +113,7 @@ two ways.
 ### `.spec.values`
 
 This is a YAML map as you'd put in a file and supply to Helm with `-f
-values.yaml`, but inlined into the HelmRelease manifest. For
+values.yaml`, but inlined into the `HelmRelease` manifest. For
 example,
 
 ```yaml
@@ -134,7 +134,7 @@ spec:
 ### `.spec.valueFileSecrets`
 
 This is a list of secrets (in the same namespace as the
-HelmRelease) from which to take values. The secrets must each
+`HelmRelease`) from which to take values. The secrets must each
 contain an entry for `values.yaml`.
 
 The values are merged in the order given, with later values
@@ -162,7 +162,7 @@ You would create a secret in the cluster by doing this:
 kubectl -n dev create secret generic default-values --from-file=values.yaml
 ```
 
-If you did `kubectl get -n dev default-values` you would get:
+If you did `kubectl get -n dev secret default-values` you would get:
 
 ```yaml
 apiVersion: v1
@@ -187,24 +187,25 @@ metadata:
 spec:
   # chart: ...
   valueFileSecrets:
-  - name: "default-values"
+  - name: default-values
 ```
 
 ## Authentication
 
 At present, per-resource authentication is not implemented. The
 `HelmRelease` definition includes a field `chartPullSecret` for
-attaching a repositories.yaml file, but this is ignored for now.
+attaching a `repositories.yaml` file, but this is ignored for now.
 
-Instead, you need to provide the operator with credentials and keys --
-see the following for how to do this.
+Instead, you need to provide the operator with credentials and keys (see the
+following [Authentication for Heml repos](#authentication-for-helm-repos)
+section for how to do this).
 
 ### Authentication for Helm repos
 
 As a workaround, you can mount a `repositories.yaml` file with
 authentication already configured, into the operator container.
 
-> **Note**: When using a custom `repositories.yaml` the [default](../docker/helm-repositories.yaml)
+> **Note:** When using a custom `repositories.yaml` the [default](../docker/helm-repositories.yaml)
 that ships with the operator is overwritten. This means that for any
 repository you want to make use of you should manually add an entry to
 your `repositories.yaml` file.
@@ -263,21 +264,20 @@ use a chart from git, the Helm Operator needs a key with read-only
 access.
 
 To provide an SSH key, put the key in a secret under the entry
-`"identity"`, and mount it into the operator container as shown in the
-[example
-deployment](../deploy-helm/helm-operator-deployment.yaml). The default
-ssh_config expects an identity file at `/etc/fluxd/ssh/identity`,
-which is where it'll be if you just uncomment the blocks from the
-example.
+`identity`, and mount it into the operator container as shown in the
+[example deployment](../deploy-helm/helm-operator-deployment.yaml).
+The default ssh_config expects an identity file at
+`/etc/fluxd/ssh/identity`, which is where it'll be if you just
+uncomment the blocks from the example.
 
 If you're using more than one repository, you may need to provide more
 than one SSH key. In that case, you can create a secret with an entry
 for each key, and mount that _as well as_ an ssh_config file
 mentioning each key as an `IdentityFile`.
 
-## Upgrading images in a HelmRelease using Flux
+## Upgrading images in a `HelmRelease` using Flux
 
-If the chart you're using in a HelmRelease lets you specify the
+If the chart you're using in a `HelmRelease` lets you specify the
 particular images to run, you will usually be able to update them with
 Flux, the same way you can with Deployments and so on.
 
@@ -324,7 +324,7 @@ values:
     port: 4040
 ```
 
-### Using annotations to control updates to HelmRelease resources
+### Using annotations to control updates to `HelmRelease` resources
 
 You can use the [same annotations](./fluxctl.md#using-annotations) in
 the `HelmRelease` as you would for a Deployment or other workload,

@@ -87,10 +87,12 @@ In summary, you will need to:
 First, it will help in a few places to have an old fluxctl
 around. Download it from GitHub:
 
-    curl -o fluxctl_030 https://github.com/weaveworks/flux/releases/download/0.3.0/fluxctl_linux_amd64
-    # or if using macOS,
-    # curl -o fluxctl_030 https://github.com/weaveworks/flux/releases/download/0.3.0/fluxctl_darwin_amd64
-    chmod a+x ./fluxctl_030
+```sh
+curl -o fluxctl_030 https://github.com/weaveworks/flux/releases/download/0.3.0/fluxctl_linux_amd64
+# or if using macOS,
+# curl -o fluxctl_030 https://github.com/weaveworks/flux/releases/download/0.3.0/fluxctl_darwin_amd64
+chmod a+x ./fluxctl_030
+```
 
 The next steps depend on whether you
 
@@ -108,7 +110,9 @@ upgrading).
 Before making changes, get the config so that it can be consulted
 later:
 
-    ./fluxctl_030 get-config --fingerprint=md5 | tee old-config.yaml
+```sh
+./fluxctl_030 get-config --fingerprint=md5 | tee old-config.yaml
+```
 
 ### Remove old Flux resources
 
@@ -121,8 +125,10 @@ later:
 Run Weave Cloud’s launch generator to delete the resources in the
 cluster:
 
-    kubectl delete -n kube-system -f \
-      https://cloud.weave.works/k8s/flux.yaml?flux-version=0.3.0”
+```sh
+kubectl delete -n kube-system -f \
+  https://cloud.weave.works/k8s/flux.yaml?flux-version=0.3.0”
+```
 
 ### Delete deployment keys
 
@@ -133,7 +139,9 @@ pointing Flux at, and delete the key Flux was using.
 To check you are removing the correct key, get the fingerprint of the
 key used by Flux with
 
-    ./fluxctl_030 get-config --fingerprint=md5
+```sh
+./fluxctl_030 get-config --fingerprint=md5
+```
 
 ### Configure and run the new Flux resources
 
@@ -168,7 +176,9 @@ to expose the Flux service.
 
 Before making any changes, get the config so that it can be consulted later:
 
-    ./fluxctl_030 get-config --fingerprint=md5 | tee old-config.yaml
+```
+./fluxctl_030 get-config --fingerprint=md5 | tee old-config.yaml
+```
 
 ### Remove old Flux resources
 
@@ -183,8 +193,10 @@ You can delete the Flux resources by referring to the manifest files
 used to create them. If you don’t have the files on hand, you can try
 using the example deployment as a stand-in:
 
-    git clone --branch 0.3.0 git@github.com:weaveworks/flux flux-0.3.0
-    kubectl delete --ignore-not-found -R -f ./flux-0.3.0/deploy
+```sh
+git clone --branch 0.3.0 git@github.com:weaveworks/flux flux-0.3.0
+kubectl delete --ignore-not-found -R -f ./flux-0.3.0/deploy
+```
 
 That’s something of a sledgehammer! But it should cover most cases.
 
@@ -224,21 +236,25 @@ To see the SSH key created by Flux, download the latest fluxctl from
 [the release page](https://github.com/weaveworks/flux/releases/tag/1.0.1)
 and run:
 
-    fluxctl identity
+```sh
+fluxctl identity
+```
 
 You will need to add this as a deploy key, which is also described in
 the setup instructions linked above.
 
 ## Troubleshooting
 
-### The kubectl delete commands didn’t delete anything
+### The `kubectl delete` commands didn’t delete anything
 
 It’s possible that the Flux resources are in an unusual namespace or
 given a different name. As a last resort, you can hunt down the
 resources by name and delete them. Weave Cloud’s “Explore” tab may
 help; or use kubectl to look for likely suspects.
 
-    kubectl get serviceaccount,service,deployment --all-namespaces
+```sh
+kubectl get serviceaccount,service,deployment --all-namespaces
+```
 
 Have a look for deployments and services with “flux” in the name.
 

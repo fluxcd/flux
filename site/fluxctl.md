@@ -13,7 +13,7 @@ menu_order: 40
   * [Add an SSH deploy key to the repository](#add-an-ssh-deploy-key-to-the-repository)
     + [1. Allow flux to generate a key for you](#1-allow-flux-to-generate-a-key-for-you)
     + [2. Specify a key to use](#2-specify-a-key-to-use)
-- [What is a Controller](#what-is-a-controller)
+- [What is a Controller?](#what-is-a-controller)
 - [Viewing Controllers](#viewing-controllers)
 - [Inspecting the Version of a Container](#inspecting-the-version-of-a-container)
 - [Releasing a Controller](#releasing-a-controller)
@@ -122,18 +122,6 @@ the public key through fluxctl:
 ```sh
 $ fluxctl identity
 ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAAAgQDCN2ECqUFMR413CURbLBcG41fLY75SfVZCd3LCsJBClVlEcMk4lwXxA3X4jowpv2v4Jw2qqiWKJepBf2UweBLmbWYicHc6yboj5o297//+ov0qGt/uRuexMN7WUx6c93VFGV7Pjd60Yilb6GSF8B39iEVq7GQUC1OZRgQnKZWLSQ==
-0c:de:7d:47:52:cf:87:61:52:db:e3:b8:d8:1a:b5:ac
-+---[RSA 1024]----+
-|            ..=  |
-|             + B |
-|      .     . +.=|
-|     . + .   oo o|
-|      . S . .o.. |
-|           .=.o  |
-|           o =   |
-|            +    |
-|           E     |
-+------[MD5]------+
 ```
 
 Alternatively, you can see the public key in the `flux` log.
@@ -188,13 +176,24 @@ Using an SSH key allows you to maintain control of the repository. You
 can revoke permission for `flux` to access the repository at any time
 by removing the deploy key.
 
-```sh
+```
 fluxctl helps you deploy your code.
 
+Connecting:
+
+  # To a fluxd running in namespace "default" in your current kubectl context
+  fluxctl list-controllers
+
+  # To a fluxd running in namespace "weave" in your current kubectl context
+  fluxctl --k8s-fwd-ns=weave list-controllers
+
+  # To a Weave Cloud instance, with your instance token in $TOKEN
+  fluxctl --token $TOKEN list-controllers
+
 Workflow:
-  fluxctl list-controllers                                           # Which controllers are running?
-  fluxctl list-images --controller=deployment/foo                    # Which images are running/available?
-  fluxctl release --controller=deployment/foo --update-image=bar:v2  # Release new version.
+  fluxctl list-controllers                                                   # Which controllers are running?
+  fluxctl list-images --controller=default:deployment/foo                    # Which images are running/available?
+  fluxctl release --controller=default:deployment/foo --update-image=bar:v2  # Release new version.
 
 Usage:
   fluxctl [command]
@@ -204,24 +203,27 @@ Available Commands:
   deautomate       Turn off automatic deployment for a controller.
   help             Help about any command
   identity         Display SSH public key
-  list-controllers List controllers currently running on the platform.
+  list-controllers List controllers currently running in the cluster.
   list-images      Show the deployed and available images for a controller.
   lock             Lock a controller, so it cannot be deployed.
   policy           Manage policies for a controller.
   release          Release a new version of a controller.
-  save             save controller definitions to local files in platform-native format
+  save             save controller definitions to local files in cluster-native format
+  sync             synchronize the cluster with the git repository, now
   unlock           Unlock a controller, so it can be deployed.
   version          Output the version of fluxctl
 
 Flags:
-  -h, --help           help for fluxctl
-  -t, --token string   Weave Cloud controller token; you can also set the environment variable WEAVE_CLOUD_TOKEN or FLUX_SERVICE_TOKEN
-  -u, --url string     base URL of the flux controller; you can also set the environment variable FLUX_URL (default "https://cloud.weave.works/api/flux")
+  -h, --help                            help for fluxctl
+      --k8s-fwd-labels stringToString   Labels used to select the fluxd pod a port forward should be created for. You can also set the environment variable FLUX_FORWARD_LABELS (default [app=flux])
+      --k8s-fwd-ns string               Namespace in which fluxd is running, for creating a port forward to access the API. No port forward will be created if a URL or token is given. You can also set the environment variable FLUX_FORWARD_NAMESPACE (default "default")
+  -t, --token string                    Weave Cloud authentication token; you can also set the environment variable WEAVE_CLOUD_TOKEN or FLUX_SERVICE_TOKEN
+  -u, --url string                      Base URL of the flux API (defaults to "https://cloud.weave.works/api/flux" if a token is provided); you can also set the environment variable FLUX_URL
 
 Use "fluxctl [command] --help" for more information about a command.
 ```
 
-# What is a Controller
+# What is a Controller?
 
 This term refers to any cluster resource responsible for the creation of
 containers from versioned images - in Kubernetes these are workloads such as
@@ -435,8 +437,8 @@ When building images it is often useful to tag build images by the branch that t
 quay.io/weaveworks/helloworld:master-9a16ff945b9e
 ```
 
-Indicates that the "helloworld" image was built against master
-commit "9a16ff945b9e".
+Indicates that the `helloworld` image was built against master
+commit `9a16ff945b9e`.
 
 When automation is turned on flux will, by default, use whatever
 is the latest image on a given repository. If you want to only
@@ -526,8 +528,10 @@ you must bookend your pattern with `^` and `$`.
 
 `fluxctl` provides the following flags for the message and author customization:
 
-  -m, --message string      message associated with the action
-      --user    string      user who triggered the action
+```
+  -m, --message string      attach a message to the update
+      --user    string      override the user reported as initiating the update
+```
 
 Commit customization
 
