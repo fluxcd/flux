@@ -82,3 +82,85 @@ corrected in [kubectl
 v1.13.2](https://github.com/kubernetes/kubernetes/blob/master/CHANGELOG-1.13.md#changelog-since-v1131),
 so using that version or newer to create secrets should fix the
 problem.
+
+### Why are my images not showing up in the list of images?
+
+Sometimes, instead of seeing the various images and their tags, the
+output of `fluxctl list-images` (or the UI in Weave Cloud, if you're
+using that) shows nothing. There's a number of reasons this can
+happen:
+
+ - Flux just hasn't fetched the image metadata yet. This may be the case
+   if you've only just started using a particular image in a workload.
+ - Flux can't get suitable credentials for the image repository. At
+   present, it looks at `imagePullSecret`s attached to workloads,
+   service accounts, platform-provided credentials on GCP, AWS or Azure, and
+   a Docker config file if you mount one into the fluxd container (see
+   the [command-line usage](./daemon.md)).
+ - When using images in ECR, from EC2, the `NodeInstanceRole` for the
+   worker node running fluxd must have permissions to query the ECR
+   registry (or registries) in
+   question. [`eksctl`](https://github.com/weaveworks/eksctl) and
+   [`kops`](https://github.com/kubernetes/kops) (with
+   [`.iam.allowContainerRegistry=true`](https://github.com/kubernetes/kops/blob/master/docs/iam_roles.md#iam-roles))
+   both make sure this is the case.
+ - When using images from ACR in AKS, the HostPath `/etc/kubernetes/azure.json`
+   should be [mounted](https://kubernetes.io/docs/concepts/storage/volumes/) into the Flux Pod.
+   Set `registry.acr.enabled=True` in the [helm chart](../chart/flux/README.md)
+   or alter the [Deployment](../deploy/flux-deployment.yaml):
+   ```yaml
+    spec:
+      containers:
+        image: quay.io/weaveworks/flux
+        ...
+        volumeMounts:
+        - name: acr-credentials
+          mountPath: /etc/kubernetes/azure.json
+          readOnly: true
+      volumes:
+      - name: acr-credentials
+        hostPath:
+          path: /etc/kubernetes/azure.json
+          type: ""
+   ```
+ - Flux excludes images with no suitable manifest (linux amd64) in manifestlist
+ - Flux doesn't yet understand image refs that use digests instead of
+   tags; see
+   [weaveworks/flux#885](https://github.com/weaveworks/flux/issues/885).
+
+If none of these explanations seem to apply, please
+[file an issue](https://github.com/weaveworks/flux/issues/new).
+
+### Why do my image tags appear out of order?
+
+You may notice that the ordering given to image tags does not always
+correspond with the order in which you pushed the images. That's
+because Flux sorts them by the image creation time; and, if you have
+retagged an older image, the creation time won't correspond to when
+you pushed the image. (Why does Flux look at the image creation time?
+In general there is no way for Flux to retrieve the time at which a
+tag was pushed from an image registry.)
+
+This can happen if you explicitly tag an image that already
+exists. Because of the way Docker shares image layers, it can also
+happen _implicitly_ if you happen to build an image that is identical
+to an existing image.
+
+If this appears to be a problem for you, one way to ensure each image
+build has its own creation time is to label it with a build time;
+e.g., using
+[OpenContainers pre-defined annotations](https://github.com/opencontainers/image-spec/blob/master/annotations.md#pre-defined-annotation-keys).
+
+### What is the "sync tag"; or, why do I see a `flux-sync` tag in my git repo?
+
+Flux keeps track of the last commit that it's applied to the cluster,
+by pushing a tag (controlled by the command-line flags
+`--git-sync-tag` and `--git-label`) to the git repository. This gives
+it a persistent high water mark, so even if it is restarted from
+scratch, it will be able to tell where it got to.
+
+Technically, it only needs this to be able to determine which image
+releases (including automated upgrades) it has applied, and that only
+matters if it has been asked to report those with the `--connect`
+flag. Future versions of Flux may be more sparing in use of the sync
+tag.

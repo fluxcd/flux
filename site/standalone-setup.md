@@ -3,23 +3,20 @@ title: Customising the deployment
 menu_order: 20
 ---
 
-- [Customising the deployment](#customising-the-deployment)
 - [Customising the daemon configuration](#customising-the-daemon-configuration)
   * [Connect Flux to a repository](#connect-flux-to-a-repository)
-  * [Memcache](#memcache)
   * [Flux deployment](#flux-deployment)
   * [Add an SSH deploy key to the repository](#add-an-ssh-deploy-key-to-the-repository)
     + [1. Allow Flux to generate a key for you.](#1-allow-flux-to-generate-a-key-for-you)
     + [2. Specify a key to use](#2-specify-a-key-to-use)
     + [Note for Kubernetes >=1.6 with role-based access control (RBAC)](#note-for-kubernetes-16-with-role-based-access-control-rbac)
   * [Using a private git host](#using-a-private-git-host)
+  * [Memcache](#memcache)
 
-# Customising the deployment
+# Customising the daemon configuration
 
 The deployment installs Flux and its dependencies. First, change to
 the directory with the examples configuration.
-
-# Customising the daemon configuration
 
 ## Connect Flux to a repository
 
@@ -27,14 +24,6 @@ First, you need to connect Flux to the repository with Kubernetes
 manifests. This is achieved by setting the `--git-url` and
 `--git-branch` arguments in the
 [`flux-deployment.yaml`](../deploy/flux-deployment.yaml) manifest.
-
-## Memcache
-
-Flux uses memcache to cache docker registry requests.
-
-```sh
-kubectl create -f memcache-dep.yaml -f memcache-svc.yaml
-```
 
 ## Flux deployment
 
@@ -189,3 +178,11 @@ metadata:
 You will need to explicitly tell fluxd to use that service account by
 uncommenting and possible adapting the line `# serviceAccountName:
 flux` in the file `fluxd-deployment.yaml` before applying it.
+
+## Memcache
+
+Flux uses memcache to cache docker registry requests.
+
+```sh
+kubectl create -f memcache-dep.yaml -f memcache-svc.yaml
+```

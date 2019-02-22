@@ -11,12 +11,12 @@ menu_order: 90
     + [`.spec.values`](#specvalues)
     + [`.spec.valueFileSecrets`](#specvaluefilesecrets)
       - [Example of `spec.valueFileSecrets`](#example-of-specvaluefilesecrets)
+  * [Upgrading images in a `HelmRelease` using Flux](#upgrading-images-in-a-helmrelease-using-flux)
+    + [Using annotations to control updates to HelmRelease resources](#using-annotations-to-control-updates-to-helmrelease-resources)
   * [Authentication](#authentication)
     + [Authentication for Helm repos](#authentication-for-helm-repos)
       - [Azure ACR repositories](#azure-acr-repositories)
     + [Authentication for Git repos](#authentication-for-git-repos)
-  * [Upgrading images in a `HelmRelease` using Flux](#upgrading-images-in-a-helmrelease-using-flux)
-    + [Using annotations to control updates to HelmRelease resources](#using-annotations-to-control-updates-to-helmrelease-resources)
 
 # Using Flux with Helm
 
@@ -190,6 +190,76 @@ spec:
   - name: default-values
 ```
 
+## Upgrading images in a `HelmRelease` using Flux
+
+If the chart you're using in a `HelmRelease` lets you specify the
+particular images to run, you will usually be able to update them with
+Flux, the same way you can with Deployments and so on.
+
+Flux interprets certain commonly used structures in the `values`
+section of a `HelmRelease` as referring to images. The following
+are understood (showing just the `values` section):
+
+```yaml
+values:
+  image: repo/image:version
+```
+
+```yaml
+values:
+  image: repo/image
+  tag: version
+```
+
+```yaml
+values:
+  image:
+    repository: repo/image
+    tag: version
+```
+
+These can appear at the top level (immediately under `values:`), or in
+a subsection (under a key, itself under `values:`). Other values
+may be mixed in arbitrarily. Here's an example of a values section
+that specifies two images, along with some other configuration:
+
+```yaml
+values:
+  persistent: true
+
+  # image that will be labeled "chart-image"
+  image: repo/image1:version
+
+  subsystem:
+    # image that will be labeled "subsystem"
+    image:
+      repository: repo/image2
+      tag: version
+      imagePullPolicy: IfNotPresent
+    port: 4040
+```
+
+### Using annotations to control updates to `HelmRelease` resources
+
+You can use the [same annotations](./fluxctl.md#using-annotations) in
+the `HelmRelease` as you would for a Deployment or other workload,
+to control updates and automation. For the purpose of specifying
+filters, the container name is either `chart-image` (if at the top
+level), or the key under which the image is given (e.g., `"subsystem"`
+from the example above).
+
+-------------
+
+<a name="why-repo-urls">**Why use URLs to refer to repositories, rather than names?**</a> [^](#cite-why-repo-urls)
+
+A `HelmRelease` must be able to stand on its own. If we used names
+in the spec, which were resolved to URLs elsewhere (e.g., in a
+`repositories.yaml` supplied to the operator), it would be possible to
+change the meaning of a `HelmRelease` without altering it. This is
+undesirable because it makes it hard to specify exactly what you want,
+in the one place; or to read exactly what is being specified, in the
+one place. In other words, it's better to be explicit.
+
 ## Authentication
 
 At present, per-resource authentication is not implemented. The
@@ -274,73 +344,3 @@ If you're using more than one repository, you may need to provide more
 than one SSH key. In that case, you can create a secret with an entry
 for each key, and mount that _as well as_ an ssh_config file
 mentioning each key as an `IdentityFile`.
-
-## Upgrading images in a `HelmRelease` using Flux
-
-If the chart you're using in a `HelmRelease` lets you specify the
-particular images to run, you will usually be able to update them with
-Flux, the same way you can with Deployments and so on.
-
-Flux interprets certain commonly used structures in the `values`
-section of a `HelmRelease` as referring to images. The following
-are understood (showing just the `values` section):
-
-```yaml
-values:
-  image: repo/image:version
-```
-
-```yaml
-values:
-  image: repo/image
-  tag: version
-```
-
-```yaml
-values:
-  image:
-    repository: repo/image
-    tag: version
-```
-
-These can appear at the top level (immediately under `values:`), or in
-a subsection (under a key, itself under `values:`). Other values
-may be mixed in arbitrarily. Here's an example of a values section
-that specifies two images, along with some other configuration:
-
-```yaml
-values:
-  persistent: true
-
-  # image that will be labeled "chart-image"
-  image: repo/image1:version
-
-  subsystem:
-    # image that will be labeled "subsystem"
-    image:
-      repository: repo/image2
-      tag: version
-      imagePullPolicy: IfNotPresent
-    port: 4040
-```
-
-### Using annotations to control updates to `HelmRelease` resources
-
-You can use the [same annotations](./fluxctl.md#using-annotations) in
-the `HelmRelease` as you would for a Deployment or other workload,
-to control updates and automation. For the purpose of specifying
-filters, the container name is either `chart-image` (if at the top
-level), or the key under which the image is given (e.g., `"subsystem"`
-from the example above).
-
--------------
-
-<a name="why-repo-urls">**Why use URLs to refer to repositories, rather than names?**</a> [^](#cite-why-repo-urls)
-
-A `HelmRelease` must be able to stand on its own. If we used names
-in the spec, which were resolved to URLs elsewhere (e.g., in a
-`repositories.yaml` supplied to the operator), it would be possible to
-change the meaning of a `HelmRelease` without altering it. This is
-undesirable because it makes it hard to specify exactly what you want,
-in the one place; or to read exactly what is being specified, in the
-one place. In other words, it's better to be explicit.
