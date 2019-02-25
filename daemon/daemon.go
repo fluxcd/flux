@@ -176,14 +176,13 @@ func (d *Daemon) ListImages(ctx context.Context, spec update.ResourceSpec) ([]v6
 
 // ListImagesWithOptions lists the images available for set of services
 func (d *Daemon) ListImagesWithOptions(ctx context.Context, opts v10.ListImagesOptions) ([]v6.ImageStatus, error) {
+	if opts.Namespace != "" && opts.Spec != update.ResourceSpecAll {
+		return nil, errors.New("cannot filter by 'namespace' and 'controller' at the same time")
+	}
+
 	var services []cluster.Controller
 	var err error
-	if opts.Spec == update.ResourceSpecAll {
-		services, err = d.Cluster.AllControllers("")
-		if err != nil {
-			return nil, errors.Wrap(err, "getting all controllers")
-		}
-	} else {
+	if opts.Spec != update.ResourceSpecAll {
 		id, err := opts.Spec.AsID()
 		if err != nil {
 			return nil, errors.Wrap(err, "treating service spec as ID")
@@ -191,6 +190,11 @@ func (d *Daemon) ListImagesWithOptions(ctx context.Context, opts v10.ListImagesO
 		services, err = d.Cluster.SomeControllers([]flux.ResourceID{id})
 		if err != nil {
 			return nil, errors.Wrap(err, "getting some controllers")
+		}
+	} else {
+		services, err = d.Cluster.AllControllers(opts.Namespace)
+		if err != nil {
+			return nil, errors.Wrap(err, "getting all controllers")
 		}
 	}
 
