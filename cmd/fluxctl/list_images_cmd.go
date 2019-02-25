@@ -65,6 +65,7 @@ func (opts *controllerShowOpts) RunE(cmd *cobra.Command, args []string) error {
 			return err
 		}
 		imageOpts.Spec = update.MakeResourceSpec(id)
+		imageOpts.Namespace = ""
 	}
 
 	ctx := context.Background()
