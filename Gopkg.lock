@@ -624,6 +624,14 @@
 
 [[projects]]
   branch = "master"
+  digest = "1:2e43242796ee48ff0256eaf784ffaca015614ea5cb284cbc7b6e0fb65c219887"
+  name = "github.com/whilp/git-urls"
+  packages = ["."]
+  pruneopts = ""
+  revision = "31bac0d230fa29f36ed1b3279c2343752e7196c0"
+
+[[projects]]
+  branch = "master"
   digest = "1:2ea6df0f542cc95a5e374e9cdd81eaa599ed0d55366eef92d2f6b9efa2795c07"
   name = "golang.org/x/crypto"
   packages = [
@@ -1210,6 +1218,7 @@
     "github.com/stretchr/testify/assert",
     "github.com/weaveworks/common/middleware",
     "github.com/weaveworks/go-checkpoint",
+    "github.com/whilp/git-urls",
     "golang.org/x/sys/unix",
     "golang.org/x/time/rate",
     "gopkg.in/yaml.v2",

@@ -44,11 +44,6 @@ const (
 	RepoReady    GitRepoStatus = "ready"        // has been written to, so ready to sync
 )
 
-// Remote points at a git repo somewhere.
-type Remote struct {
-	URL string // clone from here
-}
-
 type Repo struct {
 	// As supplied to constructor
 	origin   Remote
