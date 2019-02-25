@@ -8,8 +8,7 @@ TEST_FLAGS?=
 include docker/kubectl.version
 include docker/helm.version
 
-HELM_TARGZ=./cache/helm-$(HELM_VERSION).tar.gz
-KUBECTL_TARGZ=./cache/kubectl-$(KUBECTL_VERSION).tar.gz
+CURRENT_OS_ARCH=$(shell echo `go env GOOS`-`go env GOARCH`)
 
 # NB because this outputs absolute file names, you have to be careful
 # if you're testing out the Makefile with `-W` (pretend a file is
@@ -37,12 +36,13 @@ release-bins:
 clean:
 	go clean
 	rm -rf ./build
+	rm -f test/bin/kubectl test/bin/helm
 
 realclean: clean
 	rm -rf ./cache
 
-test: build/helm
-	PATH="${PWD}/bin:${PWD}/build:${PATH}" go test ${TEST_FLAGS} $(shell go list ./... | grep -v "^github.com/weaveworks/flux/vendor" | sort -u)
+test: test/bin/helm test/bin/kubectl
+	PATH="${PWD}/bin:${PWD}/test/bin:${PATH}" go test ${TEST_FLAGS} $(shell go list ./... | grep -v "^github.com/weaveworks/flux/vendor" | sort -u)
 
 build/.%.done: docker/Dockerfile.%
 	mkdir -p ./build/docker/$*
@@ -64,33 +64,29 @@ build/helm-operator: $(HELM_OPERATOR_DEPS)
 build/helm-operator: cmd/helm-operator/*.go
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o $@ $(LDFLAGS) -ldflags "-X main.version=$(shell ./docker/image-tag)" ./cmd/helm-operator
 
-build/kubectl: cache/kubectl-$(KUBECTL_VERSION)
+build/kubectl: cache/linux-amd64/kubectl-$(KUBECTL_VERSION)
+test/bin/kubectl: cache/$(CURRENT_OS_ARCH)/kubectl-$(KUBECTL_VERSION)
+build/helm: cache/linux-amd64/helm-$(HELM_VERSION)
+test/bin/helm: cache/$(CURRENT_OS_ARCH)/helm-$(HELM_VERSION)
+build/kubectl test/bin/kubectl build/helm test/bin/helm:
 	mkdir -p build
-	cp cache/kubectl-$(KUBECTL_VERSION) $@
-	strip $@
+	cp $< $@
+	if [ `basename $@` = "build" -a $(CURRENT_OS_ARCH) = "linux-amd64" ]; then strip $@; fi
 	chmod a+x $@
 
-build/helm: cache/helm-$(HELM_VERSION)
-	mkdir -p build
-	cp cache/helm-$(HELM_VERSION) $@
-	strip $@
-	chmod a+x $@
+cache/%/kubectl-$(KUBECTL_VERSION): docker/kubectl.version
+	mkdir -p cache/$*
+	curl -L -o cache/$*/kubectl-$(KUBECTL_VERSION).tar.gz "https://dl.k8s.io/$(KUBECTL_VERSION)/kubernetes-client-$*.tar.gz"
+	[ $* != "linux-amd64" ] || echo "$(KUBECTL_CHECKSUM)  cache/$*/kubectl-$(KUBECTL_VERSION).tar.gz" | shasum -a 256 -c
+	tar -m --strip-components 3 -C ./cache/$* -xzf cache/$*/kubectl-$(KUBECTL_VERSION).tar.gz kubernetes/client/bin/kubectl
+	mv ./cache/$*/kubectl $@
 
-cache/kubectl-$(KUBECTL_VERSION): docker/kubectl.version
-	mkdir -p cache
-	curl -L -o $(KUBECTL_TARGZ) "https://dl.k8s.io/$(KUBECTL_VERSION)/kubernetes-client-linux-amd64.tar.gz"
-	echo "$(KUBECTL_CHECKSUM)  $(KUBECTL_TARGZ)" > "$(KUBECTL_TARGZ).checksum"
-	shasum -a 256 -c $(KUBECTL_TARGZ).checksum
-	tar -C ./cache -xzf $(KUBECTL_TARGZ) kubernetes/client/bin/kubectl
-	cp ./cache/kubernetes/client/bin/kubectl $@
-
-cache/helm-$(HELM_VERSION): docker/helm.version
-	mkdir -p cache
-	curl -L -o $(HELM_TARGZ) "https://storage.googleapis.com/kubernetes-helm/helm-v$(HELM_VERSION)-linux-amd64.tar.gz"
-	echo "$(HELM_CHECKSUM)  $(HELM_TARGZ)" > "$(HELM_TARGZ).checksum"
-	shasum -a 256 -c "$(HELM_TARGZ).checksum"
-	tar -C ./cache -xzf $(HELM_TARGZ) linux-amd64/helm
-	cp ./cache/linux-amd64/helm $@
+cache/%/helm-$(HELM_VERSION): docker/helm.version
+	mkdir -p cache/$*
+	curl -L -o cache/$*/helm-$(HELM_VERSION).tar.gz "https://storage.googleapis.com/kubernetes-helm/helm-v$(HELM_VERSION)-$*.tar.gz"
+	[ $* != "linux-amd64" ] || echo "$(HELM_CHECKSUM)  cache/$*/helm-$(HELM_VERSION).tar.gz" | shasum -a 256 -c
+	tar -m -C ./cache -xzf cache/$*/helm-$(HELM_VERSION).tar.gz $*/helm
+	mv cache/$*/helm $@
 
 $(GOPATH)/bin/fluxctl: $(FLUXCTL_DEPS)
 $(GOPATH)/bin/fluxctl: ./cmd/fluxctl/*.go
