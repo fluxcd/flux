@@ -208,6 +208,7 @@ func (r *Release) Install(chartPath, releaseName string, fhr flux_v1beta1.HelmRe
 			k8shelm.UpgradeDryRun(opts.DryRun),
 			k8shelm.UpgradeTimeout(fhr.GetTimeout()),
 			k8shelm.ResetValues(fhr.Spec.ResetValues),
+			k8shelm.UpgradeForce(fhr.Spec.ForceUpgrade),
 		)
 
 		if err != nil {
