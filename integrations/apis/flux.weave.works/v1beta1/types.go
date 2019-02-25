@@ -86,6 +86,9 @@ type HelmReleaseSpec struct {
 	// Do not run 'dep' update (assume requirements.yaml is already fulfilled)
 	// +optional
 	SkipDepUpdate bool `json:"skipDepUpdate,omitempty"`
+	// Force resource update through delete/recreate, allows recovery from a failed state
+	// +optional
+	ForceUpgrade bool `json:"forceUpgrade,omitempty"`
 }
 
 // GetTimeout returns the install or upgrade timeout (defaults to 300s)
