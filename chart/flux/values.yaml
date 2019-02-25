@@ -147,7 +147,9 @@ registry:
   acr:
     enabled: false
     hostPath: /etc/kubernetes/azure.json
-
+  dockercfg:
+    enabled: false
+    secretName: ""
 memcached:
   repository: memcached
   tag: 1.4.25

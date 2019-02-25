@@ -225,6 +225,8 @@ The following tables lists the configurable parameters of the Weave Flux chart a
 | `registry.ecr.excludeId` | Do not scan ECR for images in these AWS account IDs; the default is to exclude the EKS system account | `602401143452`
 | `registry.acr.enabled` | Mount `azure.json` via HostPath into the Flux Pod, enabling Flux to use AKS's service principal for ACR authentication | `false`
 | `registry.acr.hostPath` | Alternative location of `azure.json` on the host | `/etc/kubernetes/azure.json`
+| `registry.dockercfg.enabled` | Mount `.dockerconfigjson` via Secret into the Flux Pod, enabling Flux to use a custom docker config file | `false`
+| `registry.dockercfg.secretName` | Kubernetes secret with the docker/config.json, in imagePullSecret format | `None`
 | `memcached.verbose` | Enable request logging in memcached | `false`
 | `memcached.maxItemSize` | Maximum size for one item | `1m`
 | `memcached.maxMemory` | Maximum memory to use, in megabytes | `64`
