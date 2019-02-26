@@ -203,25 +203,12 @@ func (c *Cluster) getResourcesBySelector(selector string) (map[string]*kuberesou
 				continue
 			}
 
-			namespaced := apiResource.Namespaced
-
-			// get group and version
-			var group, version string
-			groupVersion := resource.GroupVersion
-			if strings.Contains(groupVersion, "/") {
-				a := strings.SplitN(groupVersion, "/", 2)
-				group = a[0]
-				version = a[1]
-			} else {
-				group = ""
-				version = groupVersion
+			groupVersion, err := schema.ParseGroupVersion(resource.GroupVersion)
+			if err != nil {
+				return nil, err
 			}
 
-			resourceClient := c.client.dynamicClient.Resource(schema.GroupVersionResource{
-				Group:    group,
-				Version:  version,
-				Resource: apiResource.Name,
-			})
+			resourceClient := c.client.dynamicClient.Resource(groupVersion.WithResource(apiResource.Name))
 			data, err := resourceClient.List(listOptions)
 			if err != nil {
 				return nil, err
@@ -238,7 +225,7 @@ func (c *Cluster) getResourcesBySelector(selector string) (map[string]*kuberesou
 				}
 				// TODO(michael) also exclude anything that has an ownerReference (that isn't "standard"?)
 
-				res := &kuberesource{obj: &data.Items[i], namespaced: namespaced}
+				res := &kuberesource{obj: &data.Items[i], namespaced: apiResource.Namespaced}
 				result[res.ResourceID().String()] = res
 			}
 		}
