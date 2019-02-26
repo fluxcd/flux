@@ -326,6 +326,44 @@ func TestDaemon_ListImagesWithOptions(t *testing.T) {
 			expectedImages: nil,
 			shouldError:    true,
 		},
+		{
+			name: "Specific namespace",
+			opts: v10.ListImagesOptions{
+				Spec:      specAll,
+				Namespace: ns,
+			},
+			expectedImages: []v6.ImageStatus{
+				{
+					ID: svcID,
+					Containers: []v6.Container{
+						{
+							Name:           container,
+							Current:        image.Info{ID: currentImageRef},
+							LatestFiltered: image.Info{ID: newImageRef},
+							Available: []image.Info{
+								{ID: newImageRef},
+								{ID: currentImageRef},
+								{ID: oldImageRef},
+							},
+							AvailableImagesCount:    3,
+							NewAvailableImagesCount: 1,
+							FilteredImagesCount:     3,
+							NewFilteredImagesCount:  1,
+						},
+					},
+				},
+			},
+			shouldError: false,
+		},
+		{
+			name: "Specific namespace and service",
+			opts: v10.ListImagesOptions{
+				Spec:      update.ResourceSpec(svc),
+				Namespace: ns,
+			},
+			expectedImages: nil,
+			shouldError:    true,
+		},
 	}
 
 	for _, tt := range tests {

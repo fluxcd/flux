@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/api/v10"
 	"github.com/weaveworks/flux/api/v6"
 	"github.com/weaveworks/flux/registry"
 	"github.com/weaveworks/flux/update"
@@ -35,7 +36,7 @@ func (opts *controllerShowOpts) Command() *cobra.Command {
 		Example: makeExample("fluxctl list-images --namespace default --controller=deployment/foo"),
 		RunE:    opts.RunE,
 	}
-	cmd.Flags().StringVarP(&opts.namespace, "namespace", "n", "default", "Controller namespace")
+	cmd.Flags().StringVarP(&opts.namespace, "namespace", "n", "", "Controller namespace")
 	cmd.Flags().StringVarP(&opts.controller, "controller", "c", "", "Show images for this controller")
 	cmd.Flags().IntVarP(&opts.limit, "limit", "l", 10, "Number of images to show (0 for all)")
 
@@ -54,20 +55,22 @@ func (opts *controllerShowOpts) RunE(cmd *cobra.Command, args []string) error {
 		return errorWantedNoArgs
 	}
 
-	var resourceSpec update.ResourceSpec
-	if len(opts.controller) == 0 {
-		resourceSpec = update.ResourceSpecAll
-	} else {
+	imageOpts := v10.ListImagesOptions{
+		Spec:      update.ResourceSpecAll,
+		Namespace: opts.namespace,
+	}
+	if len(opts.controller) > 0 {
 		id, err := flux.ParseResourceIDOptionalNamespace(opts.namespace, opts.controller)
 		if err != nil {
 			return err
 		}
-		resourceSpec = update.MakeResourceSpec(id)
+		imageOpts.Spec = update.MakeResourceSpec(id)
+		imageOpts.Namespace = ""
 	}
 
 	ctx := context.Background()
 
-	controllers, err := opts.API.ListImages(ctx, resourceSpec)
+	controllers, err := opts.API.ListImagesWithOptions(ctx, imageOpts)
 	if err != nil {
 		return err
 	}

@@ -99,7 +99,7 @@ func (s HTTPServer) ListImagesWithOptions(w http.ResponseWriter, r *http.Request
 	var opts v10.ListImagesOptions
 	queryValues := r.URL.Query()
 
-	// service - Select services to update.
+	// service - Select services to list images for.
 	service := queryValues.Get("service")
 	if service == "" {
 		service = string(update.ResourceSpecAll)
@@ -115,6 +115,12 @@ func (s HTTPServer) ListImagesWithOptions(w http.ResponseWriter, r *http.Request
 	containerFields := queryValues.Get("containerFields")
 	if containerFields != "" {
 		opts.OverrideContainerFields = strings.Split(containerFields, ",")
+	}
+
+	// namespace - Select namespace to list images for.
+	namespace := queryValues.Get("namespace")
+	if namespace != "" {
+		opts.Namespace = namespace
 	}
 
 	d, err := s.server.ListImagesWithOptions(r.Context(), opts)

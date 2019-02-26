@@ -12,6 +12,7 @@ import (
 type ListImagesOptions struct {
 	Spec                    update.ResourceSpec
 	OverrideContainerFields []string
+	Namespace               string
 }
 
 type Server interface {
