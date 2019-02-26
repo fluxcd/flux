@@ -89,33 +89,11 @@ func (c *Cluster) Sync(spec cluster.SyncSet) error {
 	c.muSyncErrors.RUnlock()
 
 	if c.GC {
-		orphanedResources := makeChangeSet()
-
-		clusterResources, err := c.getResourcesInSyncSet(spec.Name)
-		if err != nil {
-			return errors.Wrap(err, "collating resources in cluster for calculating garbage collection")
+		deleteErrs, gcFailure := c.collectGarbage(spec, checksums, logger)
+		if gcFailure != nil {
+			return gcFailure
 		}
-
-		for resourceID, res := range clusterResources {
-			actual := res.GetChecksum()
-			expected, ok := checksums[resourceID]
-
-			switch {
-			case !ok: // was not recorded as having been staged for application
-				c.logger.Log("info", "cluster resource not in resources to be synced; deleting", "resource", resourceID)
-				orphanedResources.stage("delete", res.ResourceID(), "<cluster>", res.IdentifyingBytes())
-			case actual != expected:
-				c.logger.Log("warning", "resource to be synced has not been updated; skipping", "resource", resourceID)
-				continue
-			default:
-				// The checksum is the same, indicating that it was
-				// applied earlier. Leave it alone.
-			}
-		}
-
-		if deleteErrs := c.applier.apply(logger, orphanedResources, nil); len(deleteErrs) > 0 {
-			errs = append(errs, deleteErrs...)
-		}
+		errs = append(errs, deleteErrs...)
 	}
 
 	// If `nil`, errs is a cluster.SyncError(nil) rather than error(nil), so it cannot be returned directly.
@@ -127,6 +105,38 @@ func (c *Cluster) Sync(spec cluster.SyncSet) error {
 	// Otherwise it will override previously recorded sync errors.
 	c.setSyncErrors(errs)
 	return errs
+}
+
+func (c *Cluster) collectGarbage(
+	spec cluster.SyncSet,
+	checksums map[string]string,
+	logger log.Logger) (cluster.SyncError, error) {
+
+	orphanedResources := makeChangeSet()
+
+	clusterResources, err := c.getResourcesInSyncSet(spec.Name)
+	if err != nil {
+		return nil, errors.Wrap(err, "collating resources in cluster for calculating garbage collection")
+	}
+
+	for resourceID, res := range clusterResources {
+		actual := res.GetChecksum()
+		expected, ok := checksums[resourceID]
+
+		switch {
+		case !ok: // was not recorded as having been staged for application
+			c.logger.Log("info", "cluster resource not in resources to be synced; deleting", "resource", resourceID)
+			orphanedResources.stage("delete", res.ResourceID(), "<cluster>", res.IdentifyingBytes())
+		case actual != expected:
+			c.logger.Log("warning", "resource to be synced has not been updated; skipping", "resource", resourceID)
+			continue
+		default:
+			// The checksum is the same, indicating that it was
+			// applied earlier. Leave it alone.
+		}
+	}
+
+	return c.applier.apply(logger, orphanedResources, nil), nil
 }
 
 // --- internals in support of Sync
@@ -414,7 +424,7 @@ func (c *Kubectl) apply(logger log.Logger, cs changeSet, errored map[flux.Resour
 
 	// When deleting objects, the only real concern is that we don't
 	// try to delete things that have already been deleted by
-	// Kubernete's GC -- most notably, resources in a namespace which
+	// Kubernetes' GC -- most notably, resources in a namespace which
 	// is also being deleted. GC does not have the dependency ranking,
 	// but we can use it as a shortcut to avoid the above problem at
 	// least.
