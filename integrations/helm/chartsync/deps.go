@@ -1,6 +1,7 @@
 package chartsync
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -12,8 +13,13 @@ func updateDependencies(chartDir, helmhome string) error {
 	var hasLockFile bool
 
 	// sanity check: does the chart directory exist
+	if chartDir == "" {
+		return errors.New("empty path to chart supplied")
+	}
 	chartInfo, err := os.Stat(chartDir)
 	switch {
+	case os.IsNotExist(err):
+		return fmt.Errorf("chart path %s does not exist", chartDir)
 	case err != nil:
 		return err
 	case !chartInfo.IsDir():
