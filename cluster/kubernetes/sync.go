@@ -30,12 +30,6 @@ import (
 const (
 	syncSetLabel       = kresource.PolicyPrefix + "sync-set"
 	checksumAnnotation = kresource.PolicyPrefix + "sync-checksum"
-
-	// The namespace to presume if something doesn't have one, and we
-	// haven't been told what to use as a fallback. This is what
-	// `kubectl` uses when there's no config setting the fallback
-	// namespace.
-	DefaultFallbackNamespace = "default"
 )
 
 // Sync takes a definition of what should be running in the cluster,
@@ -332,29 +326,6 @@ func (c *Kubectl) connectArgs() []string {
 		args = append(args, fmt.Sprintf("--token=%s", c.config.BearerToken))
 	}
 	return args
-}
-
-// GetDefaultNamespace returns the fallback namespace used by the
-// applied when a namespaced resource doesn't have one specified. This
-// is used when syncing to anticipate the identity of a resource in
-// the cluster given the manifest from a file (which may be missing
-// the namespace).
-func (k *Kubectl) GetDefaultNamespace() (string, error) {
-	cmd := k.kubectlCommand("config", "get-contexts", "--no-headers")
-	out, err := cmd.Output()
-	if err != nil {
-		return "", err
-	}
-	lines := bytes.Split(out, []byte("\n"))
-	for _, line := range lines {
-		words := bytes.Fields(line)
-		if len(words) > 1 && string(words[0]) == "*" {
-			if len(words) == 5 {
-				return string(words[4]), nil
-			}
-		}
-	}
-	return DefaultFallbackNamespace, nil
 }
 
 // rankOfKind returns an int denoting the position of the given kind

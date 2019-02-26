@@ -4,26 +4,52 @@ import (
 	"fmt"
 
 	"k8s.io/client-go/discovery"
+	"k8s.io/client-go/tools/clientcmd"
 
 	kresource "github.com/weaveworks/flux/cluster/kubernetes/resource"
 )
+
+// The namespace to presume if something doesn't have one, and we
+// haven't been told what to use as a fallback. This is what
+// `kubectl` uses when there's no config setting the fallback
+// namespace.
+const defaultFallbackNamespace = "default"
 
 type namespaceViaDiscovery struct {
 	fallbackNamespace string
 	disco             discovery.DiscoveryInterface
 }
 
-type namespaceDefaulter interface {
-	GetDefaultNamespace() (string, error)
-}
-
 // NewNamespacer creates an implementation of Namespacer
-func NewNamespacer(ns namespaceDefaulter, d discovery.DiscoveryInterface) (*namespaceViaDiscovery, error) {
-	fallback, err := ns.GetDefaultNamespace()
+func NewNamespacer(d discovery.DiscoveryInterface) (*namespaceViaDiscovery, error) {
+	fallback, err := getDefaultNamespace()
 	if err != nil {
 		return nil, err
 	}
 	return &namespaceViaDiscovery{fallbackNamespace: fallback, disco: d}, nil
+}
+
+// getDefaultNamespace returns the fallback namespace used by the
+// when a namespaced resource doesn't have one specified. This is
+// used when syncing to anticipate the identity of a resource in the
+// cluster given the manifest from a file (which may be missing the
+// namespace).
+// A variable is used for mocking in tests.
+var getDefaultNamespace = func() (string, error) {
+	config, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
+		clientcmd.NewDefaultClientConfigLoadingRules(),
+		&clientcmd.ConfigOverrides{},
+	).RawConfig()
+	if err != nil {
+		return "", err
+	}
+
+	cc := config.CurrentContext
+	if c, ok := config.Contexts[cc]; ok && c.Namespace != "" {
+		return c.Namespace, nil
+	}
+
+	return defaultFallbackNamespace, nil
 }
 
 // effectiveNamespace yields the namespace that would be used for this

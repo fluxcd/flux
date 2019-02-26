@@ -70,7 +70,10 @@ func TestCachedDiscovery(t *testing.T) {
 
 	cachedDisco, store, _ := makeCachedDiscovery(coreClient.Discovery(), crdClient, shutdown, makeHandler)
 
-	namespacer, err := NewNamespacer(namespaceDefaulterFake("bar-ns"), cachedDisco)
+	saved := getDefaultNamespace
+	getDefaultNamespace = func() (string, error) { return "bar-ns", nil }
+	defer func() { getDefaultNamespace = saved }()
+	namespacer, err := NewNamespacer(cachedDisco)
 	if err != nil {
 		t.Fatal(err)
 	}

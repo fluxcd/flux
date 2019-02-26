@@ -1,6 +1,8 @@
 package kubernetes
 
 import (
+	"io/ioutil"
+	"os"
 	"testing"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -8,12 +10,6 @@ import (
 
 	kresource "github.com/weaveworks/flux/cluster/kubernetes/resource"
 )
-
-type namespaceDefaulterFake string
-
-func (ns namespaceDefaulterFake) GetDefaultNamespace() (string, error) {
-	return string(ns), nil
-}
 
 var getAndList = metav1.Verbs([]string{"get", "list"})
 
@@ -39,8 +35,38 @@ func makeFakeClient() *corefake.Clientset {
 }
 
 func TestNamespaceDefaulting(t *testing.T) {
+	testKubeconfig := `apiVersion: v1
+clusters: []
+contexts:
+- context:
+    cluster: cluster
+    namespace: namespace
+    user: user
+  name: context
+current-context: context
+kind: Config
+preferences: {}
+users: []
+`
+	err := ioutil.WriteFile("testkubeconfig", []byte(testKubeconfig), 0600)
+	if err != nil {
+		t.Fatal("cannot create test kubeconfig file")
+	}
+	defer os.Remove("testkubeconfig")
+
+	os.Setenv("KUBECONFIG", "testkubeconfig")
+	defer os.Unsetenv("KUBECONFIG")
 	coreClient := makeFakeClient()
-	nser, err := NewNamespacer(namespaceDefaulterFake("fallback-ns"), coreClient.Discovery())
+
+	ns, err := getDefaultNamespace()
+	if err != nil {
+		t.Fatal("cannot get default namespace")
+	}
+	if ns != "namespace" {
+		t.Fatal("unexpected default namespace", ns)
+	}
+
+	nser, err := NewNamespacer(coreClient.Discovery())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -86,6 +112,6 @@ metadata:
 	}
 
 	assertEffectiveNamespace("foo-ns:deployment/hasNamespace", "foo-ns")
-	assertEffectiveNamespace("<cluster>:deployment/noNamespace", "fallback-ns")
+	assertEffectiveNamespace("<cluster>:deployment/noNamespace", "namespace")
 	assertEffectiveNamespace("spurious:namespace/notNamespaced", "")
 }

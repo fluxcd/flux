@@ -262,7 +262,10 @@ metadata:
 	}
 
 	test := func(t *testing.T, kube *Cluster, defs, expectedAfterSync string, expectErrors bool) {
-		namespacer, err := NewNamespacer(namespaceDefaulterFake(defaultTestNamespace), kube.client.coreClient.Discovery())
+		saved := getDefaultNamespace
+		getDefaultNamespace = func() (string, error) { return defaultTestNamespace, nil }
+		defer func() { getDefaultNamespace = saved }()
+		namespacer, err := NewNamespacer(kube.client.coreClient.Discovery())
 		if err != nil {
 			t.Fatal(err)
 		}

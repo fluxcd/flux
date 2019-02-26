@@ -317,7 +317,7 @@ func main() {
 		// There is only one way we currently interpret a repo of
 		// files as manifests, and that's as Kubernetes yamels.
 		k8sManifests = &kubernetes.Manifests{}
-		k8sManifests.Namespacer, err = kubernetes.NewNamespacer(kubectlApplier, discoClientset)
+		k8sManifests.Namespacer, err = kubernetes.NewNamespacer(discoClientset)
 
 		if err != nil {
 			logger.Log("err", err)
