@@ -442,6 +442,7 @@ func main() {
 		LoopVars: &daemon.LoopVars{
 			SyncInterval:         *syncInterval,
 			RegistryPollInterval: *registryPollInterval,
+			GitOpTimeout:         *gitTimeout,
 		},
 	}
 

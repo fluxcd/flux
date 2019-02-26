@@ -20,14 +20,10 @@ import (
 	"github.com/weaveworks/flux/update"
 )
 
-const (
-	// Timeout for git operations we're prepared to abandon
-	gitOpTimeout = 15 * time.Second
-)
-
 type LoopVars struct {
 	SyncInterval         time.Duration
 	RegistryPollInterval time.Duration
+	GitOpTimeout         time.Duration
 
 	initOnce       sync.Once
 	syncSoon       chan struct{}
@@ -95,7 +91,7 @@ func (d *Daemon) Loop(stop chan struct{}, wg *sync.WaitGroup, logger log.Logger)
 		case <-syncTimer.C:
 			d.AskForSync()
 		case <-d.Repo.C:
-			ctx, cancel := context.WithTimeout(context.Background(), gitOpTimeout)
+			ctx, cancel := context.WithTimeout(context.Background(), d.GitOpTimeout)
 			newSyncHead, err := d.Repo.Revision(ctx, d.GitConfig.Branch)
 			cancel()
 			if err != nil {
@@ -123,7 +119,7 @@ func (d *Daemon) Loop(stop chan struct{}, wg *sync.WaitGroup, logger log.Logger)
 				jobLogger.Log("state", "done", "success", "false", "err", err)
 			} else {
 				jobLogger.Log("state", "done", "success", "true")
-				ctx, cancel := context.WithTimeout(context.Background(), gitOpTimeout)
+				ctx, cancel := context.WithTimeout(context.Background(), d.GitOpTimeout)
 				err := d.Repo.Refresh(ctx)
 				if err != nil {
 					logger.Log("err", err)
@@ -170,7 +166,7 @@ func (d *Daemon) doSync(logger log.Logger, lastKnownSyncTagRev *string, warnedAb
 	var working *git.Checkout
 	{
 		var err error
-		ctx, cancel := context.WithTimeout(ctx, gitOpTimeout)
+		ctx, cancel := context.WithTimeout(ctx, d.GitOpTimeout)
 		defer cancel()
 		working, err = d.Repo.Clone(ctx, d.GitConfig)
 		if err != nil {
@@ -228,7 +224,7 @@ func (d *Daemon) doSync(logger log.Logger, lastKnownSyncTagRev *string, warnedAb
 	var commits []git.Commit
 	{
 		var err error
-		ctx, cancel := context.WithTimeout(ctx, gitOpTimeout)
+		ctx, cancel := context.WithTimeout(ctx, d.GitOpTimeout)
 		if oldTagRev != "" {
 			commits, err = d.Repo.CommitsBetween(ctx, oldTagRev, newTagRev, d.GitConfig.Paths...)
 		} else {
@@ -248,7 +244,7 @@ func (d *Daemon) doSync(logger log.Logger, lastKnownSyncTagRev *string, warnedAb
 		// no synctag, We are syncing everything from scratch
 		changedResources = allResources
 	} else {
-		ctx, cancel := context.WithTimeout(ctx, gitOpTimeout)
+		ctx, cancel := context.WithTimeout(ctx, d.GitOpTimeout)
 		changedFiles, err := working.ChangedFiles(ctx, oldTagRev)
 		if err == nil && len(changedFiles) > 0 {
 			// We had some changed files, we're syncing a diff
@@ -268,7 +264,7 @@ func (d *Daemon) doSync(logger log.Logger, lastKnownSyncTagRev *string, warnedAb
 
 	var notes map[string]struct{}
 	{
-		ctx, cancel := context.WithTimeout(ctx, gitOpTimeout)
+		ctx, cancel := context.WithTimeout(ctx, d.GitOpTimeout)
 		notes, err = working.NoteRevList(ctx)
 		cancel()
 		if err != nil {
@@ -291,7 +287,7 @@ func (d *Daemon) doSync(logger log.Logger, lastKnownSyncTagRev *string, warnedAb
 				includes[event.NoneOfTheAbove] = true
 				continue
 			}
-			ctx, cancel := context.WithTimeout(ctx, gitOpTimeout)
+			ctx, cancel := context.WithTimeout(ctx, d.GitOpTimeout)
 			var n note
 			ok, err := working.GetNote(ctx, commits[i].Revision, &n)
 			cancel()
@@ -426,7 +422,7 @@ func (d *Daemon) doSync(logger log.Logger, lastKnownSyncTagRev *string, warnedAb
 	// Move the tag and push it so we know how far we've gotten.
 	if oldTagRev != newTagRev {
 		{
-			ctx, cancel := context.WithTimeout(ctx, gitOpTimeout)
+			ctx, cancel := context.WithTimeout(ctx, d.GitOpTimeout)
 			err := working.MoveSyncTagAndPush(ctx, newTagRev, "Sync pointer")
 			cancel()
 			if err != nil {
@@ -436,7 +432,7 @@ func (d *Daemon) doSync(logger log.Logger, lastKnownSyncTagRev *string, warnedAb
 		}
 		logger.Log("tag", d.GitConfig.SyncTag, "old", oldTagRev, "new", newTagRev)
 		{
-			ctx, cancel := context.WithTimeout(ctx, gitOpTimeout)
+			ctx, cancel := context.WithTimeout(ctx, d.GitOpTimeout)
 			err := d.Repo.Refresh(ctx)
 			cancel()
 			return err
