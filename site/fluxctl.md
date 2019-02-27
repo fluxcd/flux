@@ -142,7 +142,7 @@ can restart `flux` and it will continue to use the same key.
 Create a Kubernetes Secret from a private key:
 
 ```sh
-kubectl create secret generic flux-git-deploy --from-file=identity=/full/path/to/identity
+kubectl create secret generic flux-git-deploy --from-file=identity=/full/path/to/private_key
 ```
 
 this will result in a secret that has the structure:
