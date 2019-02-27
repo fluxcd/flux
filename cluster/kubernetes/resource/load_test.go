@@ -161,9 +161,11 @@ items:
 - kind: Deployment
   metadata:
     name: foo
+    namespace: ns
 - kind: Service
   metadata:
     name: bar
+    namespace: ns
 `
 	res, err := unmarshalObject("", []byte(doc))
 	if err != nil {
@@ -177,8 +179,8 @@ items:
 		t.Fatalf("expected two items, got %+v", list.Items)
 	}
 	for i, id := range []flux.ResourceID{
-		flux.MustParseResourceID("default:deployment/foo"),
-		flux.MustParseResourceID("default:service/bar")} {
+		flux.MustParseResourceID("ns:deployment/foo"),
+		flux.MustParseResourceID("ns:service/bar")} {
 		if list.Items[i].ResourceID() != id {
 			t.Errorf("At %d, expected %q, got %q", i, id, list.Items[i].ResourceID())
 		}

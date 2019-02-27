@@ -13,7 +13,19 @@ import (
 
 const (
 	PolicyPrefix = "flux.weave.works/"
+	ClusterScope = "<cluster>"
 )
+
+// KubeManifest represents a manifest for a Kubernetes resource. For
+// some Kubernetes-specific purposes we need more information that can
+// be obtained from `resource.Resource`.
+type KubeManifest interface {
+	resource.Resource
+	GroupVersion() string
+	GetKind() string
+	GetNamespace() string
+	SetNamespace(string)
+}
 
 // -- unmarshaling code for specific object and field types
 
@@ -21,20 +33,44 @@ const (
 type baseObject struct {
 	source string
 	bytes  []byte
-	Kind   string `yaml:"kind"`
-	Meta   struct {
+
+	// these are present for unmarshalling into the struct
+	APIVersion string `yaml:"apiVersion"`
+	Kind       string `yaml:"kind"`
+	Meta       struct {
 		Namespace   string            `yaml:"namespace"`
 		Name        string            `yaml:"name"`
 		Annotations map[string]string `yaml:"annotations,omitempty"`
 	} `yaml:"metadata"`
 }
 
+// GroupVersion implements KubeManifest.GroupVersion, so things with baseObject embedded are < KubeManifest
+func (o baseObject) GroupVersion() string {
+	return o.APIVersion
+}
+
+// GetNamespace implements KubeManifest.GetNamespace, so things embedding baseObject are < KubeManifest
+func (o baseObject) GetNamespace() string {
+	return o.Meta.Namespace
+}
+
+// GetKind implements KubeManifest.GetKind
+func (o baseObject) GetKind() string {
+	return o.Kind
+}
+
 func (o baseObject) ResourceID() flux.ResourceID {
 	ns := o.Meta.Namespace
 	if ns == "" {
-		ns = "default"
+		ns = ClusterScope
 	}
 	return flux.MakeResourceID(ns, o.Kind, o.Meta.Name)
+}
+
+// SetNamespace implements KubeManifest.SetNamespace, so things with
+// *baseObject embedded are < KubeManifest. NB pointer receiver.
+func (o *baseObject) SetNamespace(ns string) {
+	o.Meta.Namespace = ns
 }
 
 // It's useful for comparisons in tests to be able to remove the
@@ -43,9 +79,9 @@ func (o *baseObject) debyte() {
 	o.bytes = nil
 }
 
-func (o baseObject) Policy() policy.Set {
+func PolicyFromAnnotations(annotations map[string]string) policy.Set {
 	set := policy.Set{}
-	for k, v := range o.Meta.Annotations {
+	for k, v := range annotations {
 		if strings.HasPrefix(k, PolicyPrefix) {
 			p := strings.TrimPrefix(k, PolicyPrefix)
 			if v == "true" {
@@ -58,6 +94,10 @@ func (o baseObject) Policy() policy.Set {
 	return set
 }
 
+func (o baseObject) Policy() policy.Set {
+	return PolicyFromAnnotations(o.Meta.Annotations)
+}
+
 func (o baseObject) Source() string {
 	return o.source
 }
@@ -66,7 +106,7 @@ func (o baseObject) Bytes() []byte {
 	return o.bytes
 }
 
-func unmarshalObject(source string, bytes []byte) (resource.Resource, error) {
+func unmarshalObject(source string, bytes []byte) (KubeManifest, error) {
 	var base = baseObject{source: source, bytes: bytes}
 	if err := yaml.Unmarshal(bytes, &base); err != nil {
 		return nil, err
@@ -78,7 +118,7 @@ func unmarshalObject(source string, bytes []byte) (resource.Resource, error) {
 	return r, nil
 }
 
-func unmarshalKind(base baseObject, bytes []byte) (resource.Resource, error) {
+func unmarshalKind(base baseObject, bytes []byte) (KubeManifest, error) {
 	switch base.Kind {
 	case "CronJob":
 		var cj = CronJob{baseObject: base}
@@ -144,7 +184,7 @@ type rawList struct {
 
 func unmarshalList(base baseObject, raw *rawList, list *List) error {
 	list.baseObject = base
-	list.Items = make([]resource.Resource, len(raw.Items), len(raw.Items))
+	list.Items = make([]KubeManifest, len(raw.Items), len(raw.Items))
 	for i, item := range raw.Items {
 		bytes, err := yaml.Marshal(item)
 		if err != nil {

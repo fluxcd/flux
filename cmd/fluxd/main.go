@@ -17,7 +17,9 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/pflag"
-	k8sifclient "github.com/weaveworks/flux/integrations/client/clientset/versioned"
+	integrations "github.com/weaveworks/flux/integrations/client/clientset/versioned"
+	crd "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
+	k8sclientdynamic "k8s.io/client-go/dynamic"
 	k8sclient "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 
@@ -94,8 +96,10 @@ func main() {
 
 		gitPollInterval = fs.Duration("git-poll-interval", 5*time.Minute, "period at which to poll git repo for new commits")
 		gitTimeout      = fs.Duration("git-timeout", 20*time.Second, "duration after which git operations time out")
+
 		// syncing
 		syncInterval = fs.Duration("sync-interval", 5*time.Minute, "apply config in git to cluster at least this often, even if there are no new commits")
+		syncGC       = fs.Bool("sync-garbage-collection", false, "experimental; delete resources that were created by fluxd, but are no longer in the git repo")
 
 		// registry
 		memcachedHostname = fs.String("memcached-hostname", "memcached", "hostname for memcached service.")
@@ -186,11 +190,36 @@ func main() {
 		*sshKeygenDir = *k8sSecretVolumeMountPath
 	}
 
+	// Mechanical components.
+
+	// When we can receive from this channel, it indicates that we
+	// are ready to shut down.
+	errc := make(chan error)
+	// This signals other routines to shut down;
+	shutdown := make(chan struct{})
+	// .. and this is to wait for other routines to shut down cleanly.
+	shutdownWg := &sync.WaitGroup{}
+
+	go func() {
+		c := make(chan os.Signal, 1)
+		signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
+		errc <- fmt.Errorf("%s", <-c)
+	}()
+
+	// This means we can return, and it will use the shutdown
+	// protocol.
+	defer func() {
+		// wait here until stopping.
+		logger.Log("exiting", <-errc)
+		close(shutdown)
+		shutdownWg.Wait()
+	}()
+
 	// Cluster component.
 	var clusterVersion string
 	var sshKeyRing ssh.KeyRing
 	var k8s cluster.Cluster
-	var k8sManifests cluster.Manifests
+	var k8sManifests *kubernetes.Manifests
 	var imageCreds func() registry.ImageCreds
 	{
 		restClientConfig, err := rest.InClusterConfig()
@@ -207,12 +236,24 @@ func main() {
 			logger.Log("err", err)
 			os.Exit(1)
 		}
+		dynamicClientset, err := k8sclientdynamic.NewForConfig(restClientConfig)
+		if err != nil {
+			logger.Log("err", err)
+			os.Exit(1)
+		}
 
-		ifclientset, err := k8sifclient.NewForConfig(restClientConfig)
+		integrationsClientset, err := integrations.NewForConfig(restClientConfig)
 		if err != nil {
 			logger.Log("error", fmt.Sprintf("Error building integrations clientset: %v", err))
 			os.Exit(1)
 		}
+
+		crdClient, err := crd.NewForConfig(restClientConfig)
+		if err != nil {
+			logger.Log("error", fmt.Sprintf("Error building API extensions (CRD) clientset: %v", err))
+			os.Exit(1)
+		}
+		discoClientset := kubernetes.MakeCachedDiscovery(clientset.Discovery(), crdClient, shutdown)
 
 		serverVersion, err := clientset.ServerVersion()
 		if err != nil {
@@ -261,7 +302,9 @@ func main() {
 		logger.Log("kubectl", kubectl)
 
 		kubectlApplier := kubernetes.NewKubectl(kubectl, restClientConfig)
-		k8sInst := kubernetes.NewCluster(clientset, ifclientset, kubectlApplier, sshKeyRing, logger, *k8sNamespaceWhitelist, *registryExcludeImage)
+		client := kubernetes.MakeClusterClientset(clientset, dynamicClientset, integrationsClientset, discoClientset)
+		k8sInst := kubernetes.NewCluster(client, kubectlApplier, sshKeyRing, logger, *k8sNamespaceWhitelist, *registryExcludeImage)
+		k8sInst.GC = *syncGC
 
 		if err := k8sInst.Ping(); err != nil {
 			logger.Log("ping", err)
@@ -274,6 +317,12 @@ func main() {
 		// There is only one way we currently interpret a repo of
 		// files as manifests, and that's as Kubernetes yamels.
 		k8sManifests = &kubernetes.Manifests{}
+		k8sManifests.Namespacer, err = kubernetes.NewNamespacer(discoClientset)
+
+		if err != nil {
+			logger.Log("err", err)
+			os.Exit(1)
+		}
 	}
 
 	// Wrap the procedure for collecting images to scan
@@ -353,31 +402,6 @@ func main() {
 			os.Exit(1)
 		}
 	}
-
-	// Mechanical components.
-
-	// When we can receive from this channel, it indicates that we
-	// are ready to shut down.
-	errc := make(chan error)
-	// This signals other routines to shut down;
-	shutdown := make(chan struct{})
-	// .. and this is to wait for other routines to shut down cleanly.
-	shutdownWg := &sync.WaitGroup{}
-
-	go func() {
-		c := make(chan os.Signal, 1)
-		signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
-		errc <- fmt.Errorf("%s", <-c)
-	}()
-
-	// This means we can return, and it will use the shutdown
-	// protocol.
-	defer func() {
-		// wait here until stopping.
-		logger.Log("exiting", <-errc)
-		close(shutdown)
-		shutdownWg.Wait()
-	}()
 
 	// Checkpoint: we want to include the fact of whether the daemon
 	// was given a Git repo it could clone; but the expected scenario

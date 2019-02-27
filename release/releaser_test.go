@@ -13,6 +13,7 @@ import (
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster"
 	"github.com/weaveworks/flux/cluster/kubernetes"
+	kresource "github.com/weaveworks/flux/cluster/kubernetes/resource"
 	"github.com/weaveworks/flux/git"
 	"github.com/weaveworks/flux/git/gittest"
 	"github.com/weaveworks/flux/image"
@@ -20,6 +21,12 @@ import (
 	"github.com/weaveworks/flux/resource"
 	"github.com/weaveworks/flux/update"
 )
+
+type constNamespacer string
+
+func (ns constNamespacer) EffectiveNamespace(kresource.KubeManifest) (string, error) {
+	return string(ns), nil
+}
 
 var (
 	// This must match the value in cluster/kubernetes/testfiles/data.go
@@ -135,7 +142,7 @@ var (
 			},
 		},
 	}
-	mockManifests = &kubernetes.Manifests{}
+	mockManifests = &kubernetes.Manifests{Namespacer: constNamespacer("default")}
 )
 
 func mockCluster(running ...cluster.Controller) *cluster.Mock {
@@ -1084,7 +1091,7 @@ func Test_BadRelease(t *testing.T) {
 
 	ctx = &ReleaseContext{
 		cluster:   cluster,
-		manifests: &badManifests{Manifests: kubernetes.Manifests{}},
+		manifests: &badManifests{Manifests: kubernetes.Manifests{constNamespacer("default")}},
 		repo:      checkout2,
 		registry:  mockRegistry,
 	}

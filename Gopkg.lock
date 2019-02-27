@@ -624,6 +624,14 @@
 
 [[projects]]
   branch = "master"
+  digest = "1:2e43242796ee48ff0256eaf784ffaca015614ea5cb284cbc7b6e0fb65c219887"
+  name = "github.com/whilp/git-urls"
+  packages = ["."]
+  pruneopts = ""
+  revision = "31bac0d230fa29f36ed1b3279c2343752e7196c0"
+
+[[projects]]
+  branch = "master"
   digest = "1:2ea6df0f542cc95a5e374e9cdd81eaa599ed0d55366eef92d2f6b9efa2795c07"
   name = "golang.org/x/crypto"
   packages = [
@@ -830,12 +838,21 @@
   version = "kubernetes-1.11.0"
 
 [[projects]]
-  branch = "master"
-  digest = "1:0a865e7f317907161f1c2df5f270595b9d7ba09850b7eb39a2b11cc8f9a50d28"
+  digest = "1:26842d8ec9a7f675635f1c2248991f190610109c446f8b8f405be916d8241f12"
   name = "k8s.io/apiextensions-apiserver"
-  packages = ["pkg/features"]
+  packages = [
+    "pkg/apis/apiextensions",
+    "pkg/apis/apiextensions/v1beta1",
+    "pkg/client/clientset/clientset",
+    "pkg/client/clientset/clientset/fake",
+    "pkg/client/clientset/clientset/scheme",
+    "pkg/client/clientset/clientset/typed/apiextensions/v1beta1",
+    "pkg/client/clientset/clientset/typed/apiextensions/v1beta1/fake",
+    "pkg/features",
+  ]
   pruneopts = ""
-  revision = "84f7c7786e298ad1479d00ff314a2cfa0006cd0c"
+  revision = "3de98c57bc05a81cf463e0ad7a0af4cec8a5b510"
+  version = "kubernetes-1.11.0"
 
 [[projects]]
   digest = "1:b6b2fb7b4da1ac973b64534ace2299a02504f16bc7820cb48edb8ca4077183e1"
@@ -906,7 +923,9 @@
   name = "k8s.io/client-go"
   packages = [
     "discovery",
+    "discovery/cached",
     "discovery/fake",
+    "dynamic",
     "kubernetes",
     "kubernetes/fake",
     "kubernetes/scheme",
@@ -1185,6 +1204,7 @@
     "github.com/google/go-cmp/cmp",
     "github.com/gorilla/mux",
     "github.com/gorilla/websocket",
+    "github.com/imdario/mergo",
     "github.com/justinbarrick/go-k8s-portforward",
     "github.com/ncabatoff/go-seq/seq",
     "github.com/opencontainers/go-digest",
@@ -1198,14 +1218,20 @@
     "github.com/stretchr/testify/assert",
     "github.com/weaveworks/common/middleware",
     "github.com/weaveworks/go-checkpoint",
+    "github.com/whilp/git-urls",
     "golang.org/x/sys/unix",
     "golang.org/x/time/rate",
     "gopkg.in/yaml.v2",
     "k8s.io/api/apps/v1",
     "k8s.io/api/batch/v1beta1",
     "k8s.io/api/core/v1",
+    "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1",
+    "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset",
+    "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/fake",
     "k8s.io/apimachinery/pkg/api/errors",
+    "k8s.io/apimachinery/pkg/api/meta",
     "k8s.io/apimachinery/pkg/apis/meta/v1",
+    "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured",
     "k8s.io/apimachinery/pkg/labels",
     "k8s.io/apimachinery/pkg/runtime",
     "k8s.io/apimachinery/pkg/runtime/schema",
@@ -1215,7 +1241,9 @@
     "k8s.io/apimachinery/pkg/util/wait",
     "k8s.io/apimachinery/pkg/watch",
     "k8s.io/client-go/discovery",
+    "k8s.io/client-go/discovery/cached",
     "k8s.io/client-go/discovery/fake",
+    "k8s.io/client-go/dynamic",
     "k8s.io/client-go/kubernetes",
     "k8s.io/client-go/kubernetes/fake",
     "k8s.io/client-go/kubernetes/scheme",

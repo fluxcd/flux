@@ -2,6 +2,8 @@ package kubernetes
 
 import (
 	"bytes"
+	"crypto/sha1"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"os/exec"
@@ -9,24 +11,288 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-kit/kit/log"
+	"github.com/imdario/mergo"
+	"github.com/pkg/errors"
+	"gopkg.in/yaml.v2"
+	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	rest "k8s.io/client-go/rest"
 
-	"github.com/go-kit/kit/log"
-	"github.com/pkg/errors"
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster"
+	kresource "github.com/weaveworks/flux/cluster/kubernetes/resource"
+	"github.com/weaveworks/flux/policy"
+	"github.com/weaveworks/flux/resource"
 )
 
+const (
+	syncSetLabel       = kresource.PolicyPrefix + "sync-set"
+	checksumAnnotation = kresource.PolicyPrefix + "sync-checksum"
+)
+
+// Sync takes a definition of what should be running in the cluster,
+// and attempts to make the cluster conform. An error return does not
+// necessarily indicate complete failure; some resources may succeed
+// in being synced, and some may fail (for example, they may be
+// malformed).
+func (c *Cluster) Sync(spec cluster.SyncSet) error {
+	logger := log.With(c.logger, "method", "Sync")
+
+	// Keep track of the checksum of each resource, so we can compare
+	// them during garbage collection.
+	checksums := map[string]string{}
+
+	// NB we get all resources, since we care about leaving unsynced,
+	// _ignored_ resources alone.
+	clusterResources, err := c.getResourcesBySelector("")
+	if err != nil {
+		return errors.Wrap(err, "collating resources in cluster for sync")
+	}
+
+	cs := makeChangeSet()
+	var errs cluster.SyncError
+	for _, res := range spec.Resources {
+		id := res.ResourceID().String()
+		// make a record of the checksum, whether we stage it to
+		// be applied or not, so that we don't delete it later.
+		csum := sha1.Sum(res.Bytes())
+		checkHex := hex.EncodeToString(csum[:])
+		checksums[id] = checkHex
+		if res.Policy().Has(policy.Ignore) {
+			logger.Log("info", "not applying resource; ignore annotation in file", "resource", res.ResourceID(), "source", res.Source())
+			continue
+		}
+		// It's possible to give a cluster resource the "ignore"
+		// annotation directly -- e.g., with `kubectl annotate` -- so
+		// we need to examine the cluster resource here too.
+		if cres, ok := clusterResources[id]; ok && cres.Policy().Has(policy.Ignore) {
+			logger.Log("info", "not applying resource; ignore annotation in cluster resource", "resource", cres.ResourceID())
+			continue
+		}
+		resBytes, err := applyMetadata(res, spec.Name, checkHex)
+		if err == nil {
+			cs.stage("apply", res.ResourceID(), res.Source(), resBytes)
+		} else {
+			errs = append(errs, cluster.ResourceError{ResourceID: res.ResourceID(), Source: res.Source(), Error: err})
+			break
+		}
+	}
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.muSyncErrors.RLock()
+	if applyErrs := c.applier.apply(logger, cs, c.syncErrors); len(applyErrs) > 0 {
+		errs = append(errs, applyErrs...)
+	}
+	c.muSyncErrors.RUnlock()
+
+	if c.GC {
+		deleteErrs, gcFailure := c.collectGarbage(spec, checksums, logger)
+		if gcFailure != nil {
+			return gcFailure
+		}
+		errs = append(errs, deleteErrs...)
+	}
+
+	// If `nil`, errs is a cluster.SyncError(nil) rather than error(nil), so it cannot be returned directly.
+	if errs == nil {
+		return nil
+	}
+
+	// It is expected that Cluster.Sync is invoked with *all* resources.
+	// Otherwise it will override previously recorded sync errors.
+	c.setSyncErrors(errs)
+	return errs
+}
+
+func (c *Cluster) collectGarbage(
+	spec cluster.SyncSet,
+	checksums map[string]string,
+	logger log.Logger) (cluster.SyncError, error) {
+
+	orphanedResources := makeChangeSet()
+
+	clusterResources, err := c.getResourcesInSyncSet(spec.Name)
+	if err != nil {
+		return nil, errors.Wrap(err, "collating resources in cluster for calculating garbage collection")
+	}
+
+	for resourceID, res := range clusterResources {
+		actual := res.GetChecksum()
+		expected, ok := checksums[resourceID]
+
+		switch {
+		case !ok: // was not recorded as having been staged for application
+			c.logger.Log("info", "cluster resource not in resources to be synced; deleting", "resource", resourceID)
+			orphanedResources.stage("delete", res.ResourceID(), "<cluster>", res.IdentifyingBytes())
+		case actual != expected:
+			c.logger.Log("warning", "resource to be synced has not been updated; skipping", "resource", resourceID)
+			continue
+		default:
+			// The checksum is the same, indicating that it was
+			// applied earlier. Leave it alone.
+		}
+	}
+
+	return c.applier.apply(logger, orphanedResources, nil), nil
+}
+
+// --- internals in support of Sync
+
+type kuberesource struct {
+	obj        *unstructured.Unstructured
+	namespaced bool
+}
+
+// ResourceID returns the ResourceID for this resource loaded from the
+// cluster.
+func (r *kuberesource) ResourceID() flux.ResourceID {
+	ns, kind, name := r.obj.GetNamespace(), r.obj.GetKind(), r.obj.GetName()
+	if !r.namespaced {
+		ns = kresource.ClusterScope
+	}
+	return flux.MakeResourceID(ns, kind, name)
+}
+
+// Bytes returns a byte slice description, including enough info to
+// identify the resource (but not momre)
+func (r *kuberesource) IdentifyingBytes() []byte {
+	return []byte(fmt.Sprintf(`
+apiVersion: %s
+kind: %s
+metadata:
+  namespace: %q
+  name: %q
+`, r.obj.GetAPIVersion(), r.obj.GetKind(), r.obj.GetNamespace(), r.obj.GetName()))
+}
+
+func (r *kuberesource) Policy() policy.Set {
+	return kresource.PolicyFromAnnotations(r.obj.GetAnnotations())
+}
+
+// GetChecksum returns the checksum recorded on the resource from
+// Kubernetes, or an empty string if it's not present.
+func (r *kuberesource) GetChecksum() string {
+	return r.obj.GetAnnotations()[checksumAnnotation]
+}
+
+func (c *Cluster) getResourcesBySelector(selector string) (map[string]*kuberesource, error) {
+	listOptions := meta_v1.ListOptions{}
+	if selector != "" {
+		listOptions.LabelSelector = selector
+	}
+
+	resources, err := c.client.discoveryClient.ServerResources()
+	if err != nil {
+		return nil, err
+	}
+
+	result := map[string]*kuberesource{}
+
+	contains := func(a []string, x string) bool {
+		for _, n := range a {
+			if x == n {
+				return true
+			}
+		}
+		return false
+	}
+
+	for _, resource := range resources {
+		for _, apiResource := range resource.APIResources {
+			verbs := apiResource.Verbs
+			if !contains(verbs, "list") {
+				continue
+			}
+
+			groupVersion, err := schema.ParseGroupVersion(resource.GroupVersion)
+			if err != nil {
+				return nil, err
+			}
+
+			resourceClient := c.client.dynamicClient.Resource(groupVersion.WithResource(apiResource.Name))
+			data, err := resourceClient.List(listOptions)
+			if err != nil {
+				return nil, err
+			}
+
+			for i, item := range data.Items {
+				apiVersion := item.GetAPIVersion()
+				kind := item.GetKind()
+
+				itemDesc := fmt.Sprintf("%s:%s", apiVersion, kind)
+				// https://github.com/kontena/k8s-client/blob/6e9a7ba1f03c255bd6f06e8724a1c7286b22e60f/lib/k8s/stack.rb#L17-L22
+				if itemDesc == "v1:ComponentStatus" || itemDesc == "v1:Endpoints" {
+					continue
+				}
+				// TODO(michael) also exclude anything that has an ownerReference (that isn't "standard"?)
+
+				res := &kuberesource{obj: &data.Items[i], namespaced: apiResource.Namespaced}
+				result[res.ResourceID().String()] = res
+			}
+		}
+	}
+
+	return result, nil
+}
+
+// exportResourcesInStack collates all the resources that belong to a
+// stack, i.e., were applied by flux.
+func (c *Cluster) getResourcesInSyncSet(name string) (map[string]*kuberesource, error) {
+	return c.getResourcesBySelector(fmt.Sprintf("%s=%s", syncSetLabel, name)) // means "has label <<stackLabel>>"
+}
+
+func applyMetadata(res resource.Resource, set, checksum string) ([]byte, error) {
+	definition := map[interface{}]interface{}{}
+	if err := yaml.Unmarshal(res.Bytes(), &definition); err != nil {
+		return nil, errors.Wrap(err, fmt.Sprintf("failed to parse yaml from %s", res.Source()))
+	}
+
+	mixin := map[string]interface{}{}
+
+	if set != "" {
+		mixinLabels := map[string]string{}
+		mixinLabels[syncSetLabel] = set
+		mixin["labels"] = mixinLabels
+	}
+
+	if checksum != "" {
+		mixinAnnotations := map[string]string{}
+		mixinAnnotations[checksumAnnotation] = checksum
+		mixin["annotations"] = mixinAnnotations
+	}
+
+	mergo.Merge(&definition, map[interface{}]interface{}{
+		"metadata": mixin,
+	})
+
+	bytes, err := yaml.Marshal(definition)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to serialize yaml after applying metadata")
+	}
+	return bytes, nil
+}
+
+// --- internal types for keeping track of syncing
+
+type applyObject struct {
+	ResourceID flux.ResourceID
+	Source     string
+	Payload    []byte
+}
+
 type changeSet struct {
-	objs map[string][]*apiObject
+	objs map[string][]applyObject
 }
 
 func makeChangeSet() changeSet {
-	return changeSet{objs: make(map[string][]*apiObject)}
+	return changeSet{objs: make(map[string][]applyObject)}
 }
 
-func (c *changeSet) stage(cmd string, o *apiObject) {
-	c.objs[cmd] = append(c.objs[cmd], o)
+func (c *changeSet) stage(cmd string, id flux.ResourceID, source string, bytes []byte) {
+	c.objs[cmd] = append(c.objs[cmd], applyObject{id, source, bytes})
 }
 
 // Applier is something that will apply a changeset to the cluster.
@@ -76,18 +342,18 @@ func (c *Kubectl) connectArgs() []string {
 // in the partial ordering of Kubernetes resources, according to which
 // kinds depend on which (derived by hand).
 func rankOfKind(kind string) int {
-	switch kind {
+	switch strings.ToLower(kind) {
 	// Namespaces answer to NOONE
-	case "Namespace":
+	case "namespace":
 		return 0
 	// These don't go in namespaces; or do, but don't depend on anything else
-	case "CustomResourceDefinition", "ServiceAccount", "ClusterRole", "Role", "PersistentVolume", "Service":
+	case "customresourcedefinition", "serviceaccount", "clusterrole", "role", "persistentvolume", "service":
 		return 1
 	// These depend on something above, but not each other
-	case "ResourceQuota", "LimitRange", "Secret", "ConfigMap", "RoleBinding", "ClusterRoleBinding", "PersistentVolumeClaim", "Ingress":
+	case "resourcequota", "limitrange", "secret", "configmap", "rolebinding", "clusterrolebinding", "persistentvolumeclaim", "ingress":
 		return 2
 	// Same deal, next layer
-	case "DaemonSet", "Deployment", "ReplicationController", "ReplicaSet", "Job", "CronJob", "StatefulSet":
+	case "daemonset", "deployment", "replicationcontroller", "replicaset", "job", "cronjob", "statefulset":
 		return 3
 	// Assumption: anything not mentioned isn't depended _upon_, so
 	// can come last.
@@ -96,7 +362,7 @@ func rankOfKind(kind string) int {
 	}
 }
 
-type applyOrder []*apiObject
+type applyOrder []applyObject
 
 func (objs applyOrder) Len() int {
 	return len(objs)
@@ -107,27 +373,29 @@ func (objs applyOrder) Swap(i, j int) {
 }
 
 func (objs applyOrder) Less(i, j int) bool {
-	ranki, rankj := rankOfKind(objs[i].Kind), rankOfKind(objs[j].Kind)
+	_, ki, ni := objs[i].ResourceID.Components()
+	_, kj, nj := objs[j].ResourceID.Components()
+	ranki, rankj := rankOfKind(ki), rankOfKind(kj)
 	if ranki == rankj {
-		return objs[i].Metadata.Name < objs[j].Metadata.Name
+		return ni < nj
 	}
 	return ranki < rankj
 }
 
 func (c *Kubectl) apply(logger log.Logger, cs changeSet, errored map[flux.ResourceID]error) (errs cluster.SyncError) {
-	f := func(objs []*apiObject, cmd string, args ...string) {
+	f := func(objs []applyObject, cmd string, args ...string) {
 		if len(objs) == 0 {
 			return
 		}
 		logger.Log("cmd", cmd, "args", strings.Join(args, " "), "count", len(objs))
 		args = append(args, cmd)
 
-		var multi, single []*apiObject
+		var multi, single []applyObject
 		if len(errored) == 0 {
 			multi = objs
 		} else {
 			for _, obj := range objs {
-				if _, ok := errored[obj.ResourceID()]; ok {
+				if _, ok := errored[obj.ResourceID]; ok {
 					// Resources that errored before shall be applied separately
 					single = append(single, obj)
 				} else {
@@ -143,16 +411,20 @@ func (c *Kubectl) apply(logger log.Logger, cs changeSet, errored map[flux.Resour
 			}
 		}
 		for _, obj := range single {
-			r := bytes.NewReader(obj.Bytes())
+			r := bytes.NewReader(obj.Payload)
 			if err := c.doCommand(logger, r, args...); err != nil {
-				errs = append(errs, cluster.ResourceError{obj.Resource, err})
+				errs = append(errs, cluster.ResourceError{
+					ResourceID: obj.ResourceID,
+					Source:     obj.Source,
+					Error:      err,
+				})
 			}
 		}
 	}
 
 	// When deleting objects, the only real concern is that we don't
 	// try to delete things that have already been deleted by
-	// Kubernete's GC -- most notably, resources in a namespace which
+	// Kubernetes' GC -- most notably, resources in a namespace which
 	// is also being deleted. GC does not have the dependency ranking,
 	// but we can use it as a shortcut to avoid the above problem at
 	// least.
@@ -185,11 +457,11 @@ func (c *Kubectl) doCommand(logger log.Logger, r io.Reader, args ...string) erro
 	return err
 }
 
-func makeMultidoc(objs []*apiObject) *bytes.Buffer {
+func makeMultidoc(objs []applyObject) *bytes.Buffer {
 	buf := &bytes.Buffer{}
 	for _, obj := range objs {
 		buf.WriteString("\n---\n")
-		buf.Write(obj.Bytes())
+		buf.Write(obj.Payload)
 	}
 	return buf
 }

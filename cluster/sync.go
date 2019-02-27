@@ -3,26 +3,28 @@ package cluster
 import (
 	"strings"
 
+	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/resource"
 )
 
 // Definitions for use in synchronising a cluster with a git repo.
 
-// SyncAction represents either the deletion or application (create or
-// update) of a resource.
-type SyncAction struct {
-	Delete resource.Resource // ) one of these
-	Apply  resource.Resource // )
-}
-
-type SyncDef struct {
-	// The actions to undertake
-	Actions []SyncAction
+// SyncSet groups the set of resources to be updated. Usually this is
+// the set of resources found in a git repo; in any case, it must
+// represent the complete set of resources, as garbage collection will
+// assume missing resources should be deleted. The name is used to
+// distinguish the resources from a set from other resources -- e.g.,
+// cluster resources not marked as belonging to a set will not be
+// deleted by garbage collection.
+type SyncSet struct {
+	Name      string
+	Resources []resource.Resource
 }
 
 type ResourceError struct {
-	resource.Resource
-	Error error
+	ResourceID flux.ResourceID
+	Source     string
+	Error      error
 }
 
 type SyncError []ResourceError
@@ -30,7 +32,7 @@ type SyncError []ResourceError
 func (err SyncError) Error() string {
 	var errs []string
 	for _, e := range err {
-		errs = append(errs, e.ResourceID().String()+": "+e.Error.Error())
+		errs = append(errs, e.ResourceID.String()+": "+e.Error.Error())
 	}
 	return strings.Join(errs, "; ")
 }

@@ -2,6 +2,8 @@ package daemon
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/base64"
 	"fmt"
 	"strings"
 	"sync"
@@ -157,6 +159,9 @@ func (d *Daemon) doSync(logger log.Logger, lastKnownSyncTagRev *string, warnedAb
 			fluxmetrics.LabelSuccess, fmt.Sprint(retErr == nil),
 		).Observe(time.Since(started).Seconds())
 	}()
+
+	syncSetName := makeSyncLabel(d.Repo.Origin(), d.GitConfig)
+
 	// We don't care how long this takes overall, only about not
 	// getting bogged down in certain operations, so use an
 	// undeadlined context in general.
@@ -201,15 +206,14 @@ func (d *Daemon) doSync(logger log.Logger, lastKnownSyncTagRev *string, warnedAb
 	}
 
 	var resourceErrors []event.ResourceError
-	// TODO supply deletes argument from somewhere (command-line?)
-	if err := fluxsync.Sync(logger, d.Manifests, allResources, d.Cluster, false); err != nil {
+	if err := fluxsync.Sync(syncSetName, allResources, d.Cluster); err != nil {
 		logger.Log("err", err)
 		switch syncerr := err.(type) {
 		case cluster.SyncError:
 			for _, e := range syncerr {
 				resourceErrors = append(resourceErrors, event.ResourceError{
-					ID:    e.ResourceID(),
-					Path:  e.Source(),
+					ID:    e.ResourceID,
+					Path:  e.Source,
 					Error: e.Error.Error(),
 				})
 			}
@@ -445,4 +449,17 @@ func isUnknownRevision(err error) bool {
 	return err != nil &&
 		(strings.Contains(err.Error(), "unknown revision or path not in the working tree.") ||
 			strings.Contains(err.Error(), "bad revision"))
+}
+
+func makeSyncLabel(remote git.Remote, conf git.Config) string {
+	urlbit := remote.SafeURL()
+	pathshash := sha256.New()
+	pathshash.Write([]byte(urlbit))
+	pathshash.Write([]byte(conf.Branch))
+	for _, path := range conf.Paths {
+		pathshash.Write([]byte(path))
+	}
+	// the prefix is in part to make sure it's a valid (Kubernetes)
+	// label value -- a modest abstraction leak
+	return "git-" + base64.RawURLEncoding.EncodeToString(pathshash.Sum(nil))
 }

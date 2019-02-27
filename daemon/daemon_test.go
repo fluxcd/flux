@@ -21,7 +21,6 @@ import (
 	"github.com/weaveworks/flux/cluster"
 	"github.com/weaveworks/flux/cluster/kubernetes"
 	kresource "github.com/weaveworks/flux/cluster/kubernetes/resource"
-	"github.com/weaveworks/flux/cluster/kubernetes/testfiles"
 	"github.com/weaveworks/flux/event"
 	"github.com/weaveworks/flux/git"
 	"github.com/weaveworks/flux/git/gittest"
@@ -395,9 +394,9 @@ func TestDaemon_NotifyChange(t *testing.T) {
 	ctx := context.Background()
 
 	var syncCalled int
-	var syncDef *cluster.SyncDef
+	var syncDef *cluster.SyncSet
 	var syncMu sync.Mutex
-	mockK8s.SyncFunc = func(def cluster.SyncDef) error {
+	mockK8s.SyncFunc = func(def cluster.SyncSet) error {
 		syncMu.Lock()
 		syncCalled++
 		syncDef = &def
@@ -422,8 +421,6 @@ func TestDaemon_NotifyChange(t *testing.T) {
 		t.Errorf("Sync was not called once, was called %d times", syncCalled)
 	} else if syncDef == nil {
 		t.Errorf("Sync was called with a nil syncDef")
-	} else if len(syncDef.Actions) != len(testfiles.ResourceMap) {
-		t.Errorf("Expected Sync called with %d actions (resources), was called with %d", len(testfiles.ResourceMap), len(syncDef.Actions))
 	}
 
 	// Check that history was written to
@@ -636,6 +633,16 @@ func mustParseImageRef(ref string) image.Ref {
 	return r
 }
 
+type anonNamespacer func(kresource.KubeManifest) string
+
+func (fn anonNamespacer) EffectiveNamespace(m kresource.KubeManifest) (string, error) {
+	return fn(m), nil
+}
+
+var alwaysDefault anonNamespacer = func(kresource.KubeManifest) string {
+	return "default"
+}
+
 func mockDaemon(t *testing.T) (*Daemon, func(), func(), *cluster.Mock, *mockEventWriter, func(func())) {
 	logger := log.NewNopLogger()
 
@@ -688,19 +695,13 @@ func mockDaemon(t *testing.T) (*Daemon, func(), func(), *cluster.Mock, *mockEven
 			return []cluster.Controller{}, nil
 		}
 		k8s.ExportFunc = func() ([]byte, error) { return testBytes, nil }
-		k8s.LoadManifestsFunc = kresource.Load
-		k8s.ParseManifestsFunc = func(allDefs []byte) (map[string]resource.Resource, error) {
-			return kresource.ParseMultidoc(allDefs, "test")
-		}
 		k8s.PingFunc = func() error { return nil }
 		k8s.SomeServicesFunc = func([]flux.ResourceID) ([]cluster.Controller, error) {
 			return []cluster.Controller{
 				singleService,
 			}, nil
 		}
-		k8s.SyncFunc = func(def cluster.SyncDef) error { return nil }
-		k8s.UpdatePoliciesFunc = (&kubernetes.Manifests{}).UpdatePolicies
-		k8s.UpdateImageFunc = (&kubernetes.Manifests{}).UpdateImage
+		k8s.SyncFunc = func(def cluster.SyncSet) error { return nil }
 	}
 
 	var imageRegistry registry.Registry
@@ -735,7 +736,7 @@ func mockDaemon(t *testing.T) (*Daemon, func(), func(), *cluster.Mock, *mockEven
 		Repo:           repo,
 		GitConfig:      params,
 		Cluster:        k8s,
-		Manifests:      &kubernetes.Manifests{},
+		Manifests:      &kubernetes.Manifests{Namespacer: alwaysDefault},
 		Registry:       imageRegistry,
 		V:              testVersion,
 		Jobs:           jobs,
@@ -864,10 +865,7 @@ func (w *wait) ForImageTag(t *testing.T, d *Daemon, service, container, tag stri
 		defer co.Clean()
 
 		dirs := co.ManifestDirs()
-		m, err := d.Manifests.LoadManifests(co.Dir(), dirs)
-		assert.NoError(t, err)
-
-		resources, err := d.Manifests.ParseManifests(m[service].Bytes())
+		resources, err := d.Manifests.LoadManifests(co.Dir(), dirs)
 		assert.NoError(t, err)
 
 		workload, ok := resources[service].(resource.Workload)

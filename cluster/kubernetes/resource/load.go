@@ -9,17 +9,16 @@ import (
 	"path/filepath"
 
 	"github.com/pkg/errors"
-	"github.com/weaveworks/flux/resource"
 )
 
 // Load takes paths to directories or files, and creates an object set
 // based on the file(s) therein. Resources are named according to the
 // file content, rather than the file name of directory structure.
-func Load(base string, paths []string) (map[string]resource.Resource, error) {
+func Load(base string, paths []string) (map[string]KubeManifest, error) {
 	if _, err := os.Stat(base); os.IsNotExist(err) {
 		return nil, fmt.Errorf("git path %q not found", base)
 	}
-	objs := map[string]resource.Resource{}
+	objs := map[string]KubeManifest{}
 	charts, err := newChartTracker(base)
 	if err != nil {
 		return nil, errors.Wrapf(err, "walking %q for chartdirs", base)
@@ -127,14 +126,14 @@ func looksLikeChart(dir string) bool {
 
 // ParseMultidoc takes a dump of config (a multidoc YAML) and
 // constructs an object set from the resources represented therein.
-func ParseMultidoc(multidoc []byte, source string) (map[string]resource.Resource, error) {
-	objs := map[string]resource.Resource{}
+func ParseMultidoc(multidoc []byte, source string) (map[string]KubeManifest, error) {
+	objs := map[string]KubeManifest{}
 	chunks := bufio.NewScanner(bytes.NewReader(multidoc))
 	initialBuffer := make([]byte, 4096)     // Matches startBufSize in bufio/scan.go
 	chunks.Buffer(initialBuffer, 1024*1024) // Allow growth to 1MB
 	chunks.Split(splitYAMLDocument)
 
-	var obj resource.Resource
+	var obj KubeManifest
 	var err error
 	for chunks.Scan() {
 		// It's not guaranteed that the return value of Bytes() will not be mutated later:

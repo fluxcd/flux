@@ -8,48 +8,38 @@ import (
 	k8syaml "github.com/ghodss/yaml"
 	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
-	fhrclient "github.com/weaveworks/flux/integrations/client/clientset/versioned"
-	"gopkg.in/yaml.v2"
 	apiv1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/discovery"
+	k8sclientdynamic "k8s.io/client-go/dynamic"
 	k8sclient "k8s.io/client-go/kubernetes"
 
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster"
-	"github.com/weaveworks/flux/resource"
+	fhrclient "github.com/weaveworks/flux/integrations/client/clientset/versioned"
 	"github.com/weaveworks/flux/ssh"
 )
 
 type coreClient k8sclient.Interface
+type dynamicClient k8sclientdynamic.Interface
 type fluxHelmClient fhrclient.Interface
+type discoveryClient discovery.DiscoveryInterface
 
-type extendedClient struct {
+type ExtendedClient struct {
 	coreClient
+	dynamicClient
 	fluxHelmClient
+	discoveryClient
 }
 
-// --- internal types for keeping track of syncing
-
-type metadata struct {
-	Name      string `yaml:"name"`
-	Namespace string `yaml:"namespace"`
-}
-
-type apiObject struct {
-	resource.Resource
-	Kind     string   `yaml:"kind"`
-	Metadata metadata `yaml:"metadata"`
-}
-
-// A convenience for getting an minimal object from some bytes.
-func parseObj(def []byte) (*apiObject, error) {
-	obj := apiObject{}
-	return &obj, yaml.Unmarshal(def, &obj)
-}
-
-func (o *apiObject) hasNamespace() bool {
-	return o.Metadata.Namespace != ""
+func MakeClusterClientset(core coreClient, dyn dynamicClient, fluxhelm fluxHelmClient, disco discoveryClient) ExtendedClient {
+	return ExtendedClient{
+		coreClient:      core,
+		dynamicClient:   dyn,
+		fluxHelmClient:  fluxhelm,
+		discoveryClient: disco,
+	}
 }
 
 // --- add-ons
@@ -90,8 +80,12 @@ func isAddon(obj k8sObject) bool {
 // Cluster is a handle to a Kubernetes API server.
 // (Typically, this code is deployed into the same cluster.)
 type Cluster struct {
-	client     extendedClient
-	applier    Applier
+	// Do garbage collection when syncing resources
+	GC bool
+
+	client  ExtendedClient
+	applier Applier
+
 	version    string // string response for the version command.
 	logger     log.Logger
 	sshKeyRing ssh.KeyRing
@@ -109,19 +103,9 @@ type Cluster struct {
 }
 
 // NewCluster returns a usable cluster.
-func NewCluster(clientset k8sclient.Interface,
-	fluxHelmClientset fhrclient.Interface,
-	applier Applier,
-	sshKeyRing ssh.KeyRing,
-	logger log.Logger,
-	nsWhitelist []string,
-	imageExcludeList []string) *Cluster {
-
+func NewCluster(client ExtendedClient, applier Applier, sshKeyRing ssh.KeyRing, logger log.Logger, nsWhitelist []string, imageExcludeList []string) *Cluster {
 	c := &Cluster{
-		client: extendedClient{
-			clientset,
-			fluxHelmClientset,
-		},
+		client:            client,
 		applier:           applier,
 		logger:            logger,
 		sshKeyRing:        sshKeyRing,
@@ -212,61 +196,12 @@ func (c *Cluster) AllControllers(namespace string) (res []cluster.Controller, er
 	return allControllers, nil
 }
 
-// Sync performs the given actions on resources. Operations are
-// asynchronous, but serialised.
-func (c *Cluster) Sync(spec cluster.SyncDef) error {
-	logger := log.With(c.logger, "method", "Sync")
-
-	cs := makeChangeSet()
-	var errs cluster.SyncError
-	for _, action := range spec.Actions {
-		stages := []struct {
-			res resource.Resource
-			cmd string
-		}{
-			{action.Delete, "delete"},
-			{action.Apply, "apply"},
-		}
-		for _, stage := range stages {
-			if stage.res == nil {
-				continue
-			}
-			obj, err := parseObj(stage.res.Bytes())
-			if err == nil {
-				obj.Resource = stage.res
-				cs.stage(stage.cmd, obj)
-			} else {
-				errs = append(errs, cluster.ResourceError{Resource: stage.res, Error: err})
-				break
-			}
-		}
-	}
-
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.muSyncErrors.RLock()
-	if applyErrs := c.applier.apply(logger, cs, c.syncErrors); len(applyErrs) > 0 {
-		errs = append(errs, applyErrs...)
-	}
-	c.muSyncErrors.RUnlock()
-
-	// If `nil`, errs is a cluster.SyncError(nil) rather than error(nil)
-	if errs == nil {
-		return nil
-	}
-
-	// It is expected that Cluster.Sync is invoked with *all* resources.
-	// Otherwise it will override previously recorded sync errors.
-	c.setSyncErrors(errs)
-	return errs
-}
-
 func (c *Cluster) setSyncErrors(errs cluster.SyncError) {
 	c.muSyncErrors.Lock()
 	defer c.muSyncErrors.Unlock()
 	c.syncErrors = make(map[flux.ResourceID]error)
 	for _, e := range errs {
-		c.syncErrors[e.ResourceID()] = e.Error
+		c.syncErrors[e.ResourceID] = e.Error
 	}
 }
 
@@ -322,22 +257,6 @@ func (c *Cluster) Export() ([]byte, error) {
 	return config.Bytes(), nil
 }
 
-// kind & apiVersion must be passed separately as the object's TypeMeta is not populated
-func appendYAML(buffer *bytes.Buffer, apiVersion, kind string, object interface{}) error {
-	yamlBytes, err := k8syaml.Marshal(object)
-	if err != nil {
-		return err
-	}
-	buffer.WriteString("---\n")
-	buffer.WriteString("apiVersion: ")
-	buffer.WriteString(apiVersion)
-	buffer.WriteString("\nkind: ")
-	buffer.WriteString(kind)
-	buffer.WriteString("\n")
-	buffer.Write(yamlBytes)
-	return nil
-}
-
 func (c *Cluster) PublicSSHKey(regenerate bool) (ssh.PublicKey, error) {
 	if regenerate {
 		if err := c.sshKeyRing.Regenerate(); err != nil {
@@ -379,4 +298,20 @@ func (c *Cluster) getAllowedNamespaces() ([]apiv1.Namespace, error) {
 		return nil, err
 	}
 	return namespaces.Items, nil
+}
+
+// kind & apiVersion must be passed separately as the object's TypeMeta is not populated
+func appendYAML(buffer *bytes.Buffer, apiVersion, kind string, object interface{}) error {
+	yamlBytes, err := k8syaml.Marshal(object)
+	if err != nil {
+		return err
+	}
+	buffer.WriteString("---\n")
+	buffer.WriteString("apiVersion: ")
+	buffer.WriteString(apiVersion)
+	buffer.WriteString("\nkind: ")
+	buffer.WriteString(kind)
+	buffer.WriteString("\n")
+	buffer.Write(yamlBytes)
+	return nil
 }
