@@ -44,7 +44,7 @@ func (d *Daemon) pollForNewImages(logger log.Logger) {
 	for _, service := range services {
 		var p policy.Set
 		if resource, ok := candidateServices[service.ID]; ok {
-			p = resource.Policy()
+			p = resource.Policies()
 		}
 	containers:
 		for _, container := range service.ContainersOrNil() {
@@ -106,7 +106,7 @@ func (d *Daemon) getAllowedAutomatedResources(ctx context.Context) (resources, e
 
 	result := map[flux.ResourceID]resource.Resource{}
 	for _, resource := range resources {
-		policies := resource.Policy()
+		policies := resource.Policies()
 		if policies.Has(policy.Automated) && !policies.Has(policy.Locked) && !policies.Has(policy.Ignore) {
 			result[resource.ResourceID()] = resource
 		}
