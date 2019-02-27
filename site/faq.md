@@ -16,6 +16,7 @@ menu_order: 60
   * [Is there any special directory layout I need in my git repo?](#is-there-any-special-directory-layout-i-need-in-my-git-repo)
   * [Why does Flux need a git ssh key with write access?](#why-does-flux-need-a-git-ssh-key-with-write-access)
   * [Does Flux automatically sync changes back to git?](#does-flux-automatically-sync-changes-back-to-git)
+  * [Will Flux delete resources when I remove them from git?](#will-flux-delete-resources-when-i-remove-them-from-git)
   * [How do I give Flux access to an image registry?](#how-do-i-give-flux-access-to-an-image-registry)
   * [How often does Flux check for new images?](#how-often-does-flux-check-for-new-images)
   * [How often does Flux check for new git commits (and can I make it sync faster)?](#how-often-does-flux-check-for-new-git-commits-and-can-i-make-it-sync-faster)
@@ -144,6 +145,18 @@ For more information about Flux commands see [the fluxctl docs](./fluxctl.md).
 ### Does Flux automatically sync changes back to git?
 
 No. It applies changes to git only when a Flux command or API call makes them.
+
+### Will Flux delete resources when I remove them from git?
+
+Flux has an experimental (for now) garbage collection feature,
+enabled by passing the command-line flag `--sync-garbage-collection`
+to fluxd.
+
+The garbage collection is conservative: it is designed to not delete
+resources that were not created by fluxd. This means it will sometimes
+_not_ delete resources that _were_ created by fluxd, when
+reconfigured. Read more about garbage collection
+[here](./garbagecollection.md).
 
 ### How do I give Flux access to an image registry?
 
