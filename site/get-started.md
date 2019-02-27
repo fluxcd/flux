@@ -62,7 +62,7 @@ $EDITOR deploy/flux-deployment.yaml
 
 In our example we are going to use
 [flux-get-started](https://github.com/weaveworks/flux-get-started). If you
-want to use that too, be sure to create a fork of it on Github and
+want to use that too, be sure to create a fork of it on GitHub and
 add the git URL to the config file above.
 
 ## Deploying Flux to the cluster
@@ -101,7 +101,7 @@ access**, paste the Flux public key and click **Add key**.  See the
 (GitHub docs)[https://developer.github.com/v3/guides/managing-deploy-keys/#deploy-keys]
 for more info on how to manage deploy keys.
 
-(Or replace `YOURUSER` with your Github ID in this url:
+(Or replace `YOURUSER` with your GitHub ID in this url:
 `https://github.com/YOURUSER/flux-get-started/settings/keys/new` and
 paste the key there.)
 
@@ -113,7 +113,7 @@ way is to edit your fork of `flux-get-started` and change the `PODINFO_UI_COLOR`
 
 Replace `YOURUSER` in
 `https://github.com/YOURUSER/flux-get-started/blob/master/workloads/podinfo-dep.yaml`
-with your Github ID), open the URL in your browser, edit the file,
+with your GitHub ID), open the URL in your browser, edit the file,
 change the env var value and commit the file.
 
 You can check out the Flux logs with:

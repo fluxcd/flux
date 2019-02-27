@@ -30,7 +30,7 @@ And update the following line
     --git-url=git@github.com:weaveworks/flux-get-started
 ```
 
-to point to your fork, e.g. if your Github Login is `baloothebear`, the line
+to point to your fork, e.g. if your GitHub Login is `baloothebear`, the line
 above should be
 
 ```yaml
