@@ -59,6 +59,7 @@ import (
 	fluxv1beta1 "github.com/weaveworks/flux/integrations/apis/flux.weave.works/v1beta1"
 	ifclientset "github.com/weaveworks/flux/integrations/client/clientset/versioned"
 	helmop "github.com/weaveworks/flux/integrations/helm"
+	"github.com/weaveworks/flux/integrations/helm/api"
 	"github.com/weaveworks/flux/integrations/helm/release"
 	"github.com/weaveworks/flux/integrations/helm/status"
 )
@@ -120,6 +121,8 @@ type ChartChangeSync struct {
 
 	namespace string
 }
+
+var _ api.Server = &ChartChangeSync{}
 
 func New(logger log.Logger, polling Polling, clients Clients, release *release.Release, config Config, namespace string) *ChartChangeSync {
 	return &ChartChangeSync{
@@ -400,6 +403,15 @@ func (chs *ChartChangeSync) DeleteRelease(fhr fluxv1beta1.HelmRelease) {
 	if err != nil {
 		chs.logger.Log("warning", "Chart release not deleted", "release", name, "error", err)
 	}
+}
+
+// SyncMirrors instructs all mirrors to refresh from their upstream.
+func (chs *ChartChangeSync) SyncMirrors() {
+	chs.logger.Log("info", "Starting mirror sync")
+	for _, err := range chs.mirrors.RefreshAll(chs.config.GitTimeout) {
+		chs.logger.Log("error", fmt.Sprintf("Failure while syncing mirror: %s", err))
+	}
+	chs.logger.Log("info", "Finished syncing mirrors")
 }
 
 // getCustomResources assembles all custom resources in all namespaces
