@@ -60,7 +60,7 @@ func (c *Cluster) Sync(spec cluster.SyncSet) error {
 		csum := sha1.Sum(res.Bytes())
 		checkHex := hex.EncodeToString(csum[:])
 		checksums[id] = checkHex
-		if res.Policy().Has(policy.Ignore) {
+		if res.Policies().Has(policy.Ignore) {
 			logger.Log("info", "not applying resource; ignore annotation in file", "resource", res.ResourceID(), "source", res.Source())
 			continue
 		}

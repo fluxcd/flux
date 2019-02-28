@@ -229,7 +229,7 @@ func (s ReleaseImageSpec) calculateImageUpdates(rc ReleaseContext, candidates []
 			// Use the container's filter if the spec does not want to force release, or
 			// all images requested
 			if !s.Force || s.ImageSpec == ImageSpecLatest {
-				if pattern, ok := u.Resource.Policy().Get(policy.TagPrefix(container.Name)); ok {
+				if pattern, ok := u.Resource.Policies().Get(policy.TagPrefix(container.Name)); ok {
 					tagPattern = policy.NewPattern(pattern)
 				}
 			}

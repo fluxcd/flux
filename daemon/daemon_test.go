@@ -520,7 +520,7 @@ func TestDaemon_PolicyUpdate(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Error: %s", err.Error())
 		}
-		return len(m[svc].Policy()) > 0
+		return len(m[svc].Policies()) > 0
 	}, "Waiting for new annotation")
 }
 

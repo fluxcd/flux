@@ -94,7 +94,7 @@ func PolicyFromAnnotations(annotations map[string]string) policy.Set {
 	return set
 }
 
-func (o baseObject) Policy() policy.Set {
+func (o baseObject) Policies() policy.Set {
 	return PolicyFromAnnotations(o.Meta.Annotations)
 }
 

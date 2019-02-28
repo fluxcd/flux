@@ -82,7 +82,7 @@ type LockedFilter struct {
 }
 
 func (f *LockedFilter) Filter(u ControllerUpdate) ControllerResult {
-	if u.Resource.Policy().Has(policy.Locked) {
+	if u.Resource.Policies().Has(policy.Locked) {
 		return ControllerResult{
 			Status: ReleaseStatusSkipped,
 			Error:  Locked,

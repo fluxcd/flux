@@ -128,7 +128,7 @@ func (d *Daemon) ListServicesWithOptions(ctx context.Context, opts v11.ListServi
 		readOnly := v6.ReadOnlyOK
 		var policies policy.Set
 		if resource, ok := resources[service.ID.String()]; ok {
-			policies = resource.Policy()
+			policies = resource.Policies()
 		}
 		switch {
 		case policies == nil:
@@ -637,7 +637,7 @@ func getServiceContainers(service cluster.Controller, imageRepos update.ImageRep
 		imageRepo := c.Image.Name
 		var policies policy.Set
 		if resource != nil {
-			policies = resource.Policy()
+			policies = resource.Policies()
 		}
 		tagPattern := policy.GetTagPattern(policies, c.Name)
 
