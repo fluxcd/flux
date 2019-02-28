@@ -1,7 +1,6 @@
 package release
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"os"
@@ -11,6 +10,7 @@ import (
 	"github.com/ghodss/yaml"
 	"github.com/go-kit/kit/log"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/helm/pkg/chartutil"
 	k8shelm "k8s.io/helm/pkg/helm"
@@ -19,6 +19,7 @@ import (
 	"github.com/weaveworks/flux"
 	fluxk8s "github.com/weaveworks/flux/cluster/kubernetes"
 	flux_v1beta1 "github.com/weaveworks/flux/integrations/apis/flux.weave.works/v1beta1"
+	helmutil "k8s.io/helm/pkg/releaseutil"
 )
 
 type Action string
@@ -197,7 +198,7 @@ func (r *Release) Install(chartPath, releaseName string, fhr flux_v1beta1.HelmRe
 			return nil, err
 		}
 		if !opts.DryRun {
-			err = r.annotateResources(res.Release, fhr)
+			r.annotateResources(res.Release, fhr)
 		}
 		return res.Release, err
 	case UpgradeAction:
@@ -216,7 +217,7 @@ func (r *Release) Install(chartPath, releaseName string, fhr flux_v1beta1.HelmRe
 			return nil, err
 		}
 		if !opts.DryRun {
-			err = r.annotateResources(res.Release, fhr)
+			r.annotateResources(res.Release, fhr)
 		}
 		return res.Release, err
 	default:
@@ -247,22 +248,23 @@ func (r *Release) Delete(name string) error {
 
 // annotateResources annotates each of the resources created (or updated)
 // by the release so that we can spot them.
-func (r *Release) annotateResources(release *hapi_release.Release, fhr flux_v1beta1.HelmRelease) error {
-	args := []string{"annotate", "--overwrite"}
-	args = append(args, "--namespace", release.Namespace)
-	args = append(args, "-f", "-")
-	args = append(args, fluxk8s.AntecedentAnnotation+"="+fhrResourceID(fhr).String())
+func (r *Release) annotateResources(release *hapi_release.Release, fhr flux_v1beta1.HelmRelease) {
+	objs := releaseManifestToUnstructured(release.Manifest, r.logger)
+	for namespace, res := range namespacedResourceMap(objs, release.Namespace) {
+		args := []string{"annotate", "--overwrite"}
+		args = append(args, "--namespace", namespace)
+		args = append(args, res...)
+		args = append(args, fluxk8s.AntecedentAnnotation+"="+fhrResourceID(fhr).String())
 
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
-	defer cancel()
-	cmd := exec.CommandContext(ctx, "kubectl", args...)
-	cmd.Stdin = bytes.NewBufferString(release.Manifest)
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
 
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		r.logger.Log("output", string(output), "err", err)
+		cmd := exec.CommandContext(ctx, "kubectl", args...)
+		output, err := cmd.CombinedOutput()
+		if err != nil {
+			r.logger.Log("output", string(output), "err", err)
+		}
 	}
-	return err
 }
 
 // fhrResourceID constructs a flux.ResourceID for a HelmRelease resource.
@@ -296,4 +298,57 @@ func mergeValues(dest, src chartutil.Values) chartutil.Values {
 		dest[k] = mergeValues(destMap, nextMap)
 	}
 	return dest
+}
+
+// releaseManifestToUnstructured turns a string containing YAML
+// manifests into an array of Unstructured objects.
+func releaseManifestToUnstructured(manifest string, logger log.Logger) []unstructured.Unstructured {
+	manifests := helmutil.SplitManifests(manifest)
+	var objs []unstructured.Unstructured
+	for _, manifest := range manifests {
+		bytes, err := yaml.YAMLToJSON([]byte(manifest))
+		if err != nil {
+			logger.Log("err", err)
+			continue
+		}
+
+		var u unstructured.Unstructured
+		if err := u.UnmarshalJSON(bytes); err != nil {
+			logger.Log("err", err)
+			continue
+		}
+
+		// Helm charts may include list kinds, we are only interested in
+		// the items on those lists.
+		if u.IsList() {
+			l, err := u.ToList()
+			if err != nil {
+				logger.Log("err", err)
+				continue
+			}
+			objs = append(objs, l.Items...)
+			continue
+		}
+
+		objs = append(objs, u)
+	}
+	return objs
+}
+
+// namespacedResourceMap iterates over the given objects and maps the
+// resource identifier against the namespace from the object, if no
+// namespace is present (either because the object kind has no namespace
+// or it belongs to the release namespace) it gets mapped against the
+// given release namespace.
+func namespacedResourceMap(objs []unstructured.Unstructured, releaseNamespace string) map[string][]string {
+	resources := make(map[string][]string)
+	for _, obj := range objs {
+		namespace := obj.GetNamespace()
+		if namespace == "" {
+			namespace = releaseNamespace
+		}
+		resource := obj.GetKind() + "/" + obj.GetName()
+		resources[namespace] = append(resources[namespace], resource)
+	}
+	return resources
 }
