@@ -228,8 +228,8 @@ The following tables lists the configurable parameters of the Weave Flux chart a
 | `registry.dockercfg.enabled` | Mount `config.json` via Secret into the Flux Pod, enabling Flux to use a custom docker config file | `false`
 | `registry.dockercfg.secretName` | Kubernetes secret with the docker config.json | `None`
 | `memcached.verbose` | Enable request logging in memcached | `false`
-| `memcached.maxItemSize` | Maximum size for one item | `1m`
-| `memcached.maxMemory` | Maximum memory to use, in megabytes | `64`
+| `memcached.maxItemSize` | Maximum size for one item | `5m`
+| `memcached.maxMemory` | Maximum memory to use, in megabytes | `128`
 | `memcached.pullSecret` | Image pull secret | `None`
 | `memcached.repository` | Image repository | `memcached`
 | `memcached.resources` | CPU/memory resource requests/limits for memcached | `None`
