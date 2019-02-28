@@ -15,29 +15,29 @@ func TestReleaseCommand_CLIConversion(t *testing.T) {
 		expectedSpec update.ReleaseImageSpec
 	}{
 		{[]string{"--update-all-images", "--all"}, update.ReleaseImageSpec{
-			ServiceSpecs: []update.ResourceSpec{update.ResourceSpecAll},
-			ImageSpec:    update.ImageSpecLatest,
-			Kind:         update.ReleaseKindExecute,
+			WorkloadSpecs: []update.ResourceSpec{update.ResourceSpecAll},
+			ImageSpec:     update.ImageSpecLatest,
+			Kind:          update.ReleaseKindExecute,
 		}},
 		{[]string{"--update-all-images", "--all", "--dry-run"}, update.ReleaseImageSpec{
-			ServiceSpecs: []update.ResourceSpec{update.ResourceSpecAll},
-			ImageSpec:    update.ImageSpecLatest,
-			Kind:         update.ReleaseKindPlan,
+			WorkloadSpecs: []update.ResourceSpec{update.ResourceSpecAll},
+			ImageSpec:     update.ImageSpecLatest,
+			Kind:          update.ReleaseKindPlan,
 		}},
 		{[]string{"--update-image=alpine:latest", "--all"}, update.ReleaseImageSpec{
-			ServiceSpecs: []update.ResourceSpec{update.ResourceSpecAll},
-			ImageSpec:    "alpine:latest",
-			Kind:         update.ReleaseKindExecute,
+			WorkloadSpecs: []update.ResourceSpec{update.ResourceSpecAll},
+			ImageSpec:     "alpine:latest",
+			Kind:          update.ReleaseKindExecute,
 		}},
-		{[]string{"--update-all-images", "--controller=deployment/flux"}, update.ReleaseImageSpec{
-			ServiceSpecs: []update.ResourceSpec{"default:deployment/flux"},
-			ImageSpec:    update.ImageSpecLatest,
-			Kind:         update.ReleaseKindExecute,
+		{[]string{"--update-all-images", "--workload=deployment/flux"}, update.ReleaseImageSpec{
+			WorkloadSpecs: []update.ResourceSpec{"default:deployment/flux"},
+			ImageSpec:     update.ImageSpecLatest,
+			Kind:          update.ReleaseKindExecute,
 		}},
 		{[]string{"--update-all-images", "--all", "--exclude=deployment/test,deployment/yeah"}, update.ReleaseImageSpec{
-			ServiceSpecs: []update.ResourceSpec{update.ResourceSpecAll},
-			ImageSpec:    update.ImageSpecLatest,
-			Kind:         update.ReleaseKindExecute,
+			WorkloadSpecs: []update.ResourceSpec{update.ResourceSpecAll},
+			ImageSpec:     update.ImageSpecLatest,
+			Kind:          update.ReleaseKindExecute,
 			Excludes: []flux.ResourceID{
 				flux.MustParseResourceID("default:deployment/test"),
 				flux.MustParseResourceID("default:deployment/yeah"),
@@ -76,8 +76,8 @@ func TestReleaseCommand_InputFailures(t *testing.T) {
 		{[]string{}, "Should error when no args"},
 		{[]string{"--all"}, "Should error when not specifying image spec"},
 		{[]string{"--all", "--update-image=alpine"}, "Should error with invalid image spec"},
-		{[]string{"--update-all-images"}, "Should error when not specifying controller spec"},
-		{[]string{"--controller=invalid&controller", "--update-all-images"}, "Should error with invalid controller"},
+		{[]string{"--update-all-images"}, "Should error when not specifying workload spec"},
+		{[]string{"--workload=invalid&workload", "--update-all-images"}, "Should error with invalid workload"},
 		{[]string{"subcommand"}, "Should error when given subcommand"},
 	} {
 		testArgs(t, v.args, true, v.msg)

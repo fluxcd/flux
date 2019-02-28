@@ -25,22 +25,22 @@ type SpecificImageFilter struct {
 	Img image.Ref
 }
 
-func (f *SpecificImageFilter) Filter(u ControllerUpdate) ControllerResult {
+func (f *SpecificImageFilter) Filter(u WorkloadUpdate) WorkloadResult {
 	// If there are no containers, then we can't check the image.
-	if len(u.Controller.Containers.Containers) == 0 {
-		return ControllerResult{
+	if len(u.Workload.Containers.Containers) == 0 {
+		return WorkloadResult{
 			Status: ReleaseStatusIgnored,
 			Error:  NotInCluster,
 		}
 	}
 	// For each container in update
-	for _, c := range u.Controller.Containers.Containers {
+	for _, c := range u.Workload.Containers.Containers {
 		if c.Image.CanonicalName() == f.Img.CanonicalName() {
 			// We want to update this
-			return ControllerResult{}
+			return WorkloadResult{}
 		}
 	}
-	return ControllerResult{
+	return WorkloadResult{
 		Status: ReleaseStatusIgnored,
 		Error:  DifferentImage,
 	}
@@ -50,29 +50,29 @@ type ExcludeFilter struct {
 	IDs []flux.ResourceID
 }
 
-func (f *ExcludeFilter) Filter(u ControllerUpdate) ControllerResult {
+func (f *ExcludeFilter) Filter(u WorkloadUpdate) WorkloadResult {
 	for _, id := range f.IDs {
 		if u.ResourceID == id {
-			return ControllerResult{
+			return WorkloadResult{
 				Status: ReleaseStatusIgnored,
 				Error:  Excluded,
 			}
 		}
 	}
-	return ControllerResult{}
+	return WorkloadResult{}
 }
 
 type IncludeFilter struct {
 	IDs []flux.ResourceID
 }
 
-func (f *IncludeFilter) Filter(u ControllerUpdate) ControllerResult {
+func (f *IncludeFilter) Filter(u WorkloadUpdate) WorkloadResult {
 	for _, id := range f.IDs {
 		if u.ResourceID == id {
-			return ControllerResult{}
+			return WorkloadResult{}
 		}
 	}
-	return ControllerResult{
+	return WorkloadResult{
 		Status: ReleaseStatusIgnored,
 		Error:  NotIncluded,
 	}
@@ -81,25 +81,25 @@ func (f *IncludeFilter) Filter(u ControllerUpdate) ControllerResult {
 type LockedFilter struct {
 }
 
-func (f *LockedFilter) Filter(u ControllerUpdate) ControllerResult {
+func (f *LockedFilter) Filter(u WorkloadUpdate) WorkloadResult {
 	if u.Resource.Policies().Has(policy.Locked) {
-		return ControllerResult{
+		return WorkloadResult{
 			Status: ReleaseStatusSkipped,
 			Error:  Locked,
 		}
 	}
-	return ControllerResult{}
+	return WorkloadResult{}
 }
 
 type IgnoreFilter struct {
 }
 
-func (f *IgnoreFilter) Filter(u ControllerUpdate) ControllerResult {
-	if u.Controller.Policies.Has(policy.Ignore) {
-		return ControllerResult{
+func (f *IgnoreFilter) Filter(u WorkloadUpdate) WorkloadResult {
+	if u.Workload.Policies.Has(policy.Ignore) {
+		return WorkloadResult{
 			Status: ReleaseStatusSkipped,
 			Error:  Ignore,
 		}
 	}
-	return ControllerResult{}
+	return WorkloadResult{}
 }

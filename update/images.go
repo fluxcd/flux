@@ -122,20 +122,20 @@ type containers interface {
 	Containers(i int) []resource.Container
 }
 
-type controllerContainers []*ControllerUpdate
+type workloadContainers []*WorkloadUpdate
 
-func (cs controllerContainers) Len() int {
+func (cs workloadContainers) Len() int {
 	return len(cs)
 }
 
-func (cs controllerContainers) Containers(i int) []resource.Container {
-	return cs[i].Controller.ContainersOrNil()
+func (cs workloadContainers) Containers(i int) []resource.Container {
+	return cs[i].Workload.ContainersOrNil()
 }
 
 // fetchUpdatableImageRepos is a convenient shim to
 // `FetchImageRepos`.
-func fetchUpdatableImageRepos(registry registry.Registry, updateable []*ControllerUpdate, logger log.Logger) (ImageRepos, error) {
-	return FetchImageRepos(registry, controllerContainers(updateable), logger)
+func fetchUpdatableImageRepos(registry registry.Registry, updateable []*WorkloadUpdate, logger log.Logger) (ImageRepos, error) {
+	return FetchImageRepos(registry, workloadContainers(updateable), logger)
 }
 
 // FetchImageRepos finds all the known image metadata for

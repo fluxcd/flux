@@ -18,7 +18,7 @@ func newServiceList(parent *rootOpts) *serviceListOpts {
 func (opts *serviceListOpts) Command() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:    "list-services",
-		Short:  "Deprecated - use list-controllers instead",
+		Short:  "Deprecated - use list-workloads instead",
 		Hidden: true,
 		RunE:   opts.RunE,
 	}
@@ -27,5 +27,5 @@ func (opts *serviceListOpts) Command() *cobra.Command {
 }
 
 func (opts *serviceListOpts) RunE(cmd *cobra.Command, args []string) error {
-	return errors.New("list-services is deprecated, use list-controllers instead")
+	return errors.New("list-services is deprecated, use list-workloads instead")
 }

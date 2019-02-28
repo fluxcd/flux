@@ -13,17 +13,17 @@ menu_order: 40
   * [Add an SSH deploy key to the repository](#add-an-ssh-deploy-key-to-the-repository)
     + [1. Allow Flux to generate a key for you](#1-allow-flux-to-generate-a-key-for-you)
     + [2. Specify a key to use](#2-specify-a-key-to-use)
-- [Controllers](#controllers)
-  * [What is a Controller?](#what-is-a-controller)
-  *  [Viewing Controllers](#viewing-controllers)
+- [Workloads](#workloads)
+  * [What is a Workload?](#what-is-a-workload)
+  *  [Viewing Workloads](#viewing-workloads)
   * [Inspecting the Version of a Container](#inspecting-the-version-of-a-container)
-  * [Releasing a Controller](#releasing-a-controller)
+  * [Releasing a Workload](#releasing-a-workload)
   * [Turning on Automation](#turning-on-automation)
   * [Turning off Automation](#turning-off-automation)
-  * [Rolling back a Controller](#rolling-back-a-controller)
-  * [Locking a Controller](#locking-a-controller)
-  * [Releasing an image to a locked controller](#releasing-an-image-to-a-locked-controller)
-  * [Unlocking a Controller](#unlocking-a-controller)
+  * [Rolling back a Workload](#rolling-back-a-workload)
+  * [Locking a Workload](#locking-a-workload)
+  * [Releasing an image to a locked workload](#releasing-an-image-to-a-locked-workload)
+  * [Unlocking a Workload](#unlocking-a-workload)
   * [Recording user and message with the triggered action](#recording-user-and-message-with-the-triggered-action)
 - [Image Tag Filtering](#image-tag-filtering)
   * [Filter pattern types](#filter-pattern-types)
@@ -78,7 +78,7 @@ instance, assuming it runs in the `"default"` namespace. You can
 specify a different namespace with the `--k8s-fwd-ns` flag:
 
 ```sh
-fluxctl --k8s-fwd-ns=weave list-controllers
+fluxctl --k8s-fwd-ns=weave list-workloads
 ```
 
 The namespace can also be given in the environment variable
@@ -86,7 +86,7 @@ The namespace can also be given in the environment variable
 
 ```sh
 export FLUX_FORWARD_NAMESPACE=weave
-fluxctl list-controllers
+fluxctl list-workloads
 ```
 
 If you are not able to use the port forward to connect, you will need
@@ -99,7 +99,7 @@ Once that is set up, you can specify an API URL with `--url` or the
 environment variable `FLUX_URL`:
 
 ```sh
-fluxctl --url http://127.0.0.1:3030/api/flux list-controllers
+fluxctl --url http://127.0.0.1:3030/api/flux list-workloads
 ```
 
 ## Flux API service
@@ -107,7 +107,7 @@ fluxctl --url http://127.0.0.1:3030/api/flux list-controllers
 Now you can easily query the Flux API:
 
 ```sh
-fluxctl list-controllers --all-namespaces
+fluxctl list-workloads --all-namespaces
 ```
 
 ## Add an SSH deploy key to the repository
@@ -195,35 +195,35 @@ fluxctl helps you deploy your code.
 Connecting:
 
   # To a fluxd running in namespace "default" in your current kubectl context
-  fluxctl list-controllers
+  fluxctl list-workloads
 
   # To a fluxd running in namespace "weave" in your current kubectl context
-  fluxctl --k8s-fwd-ns=weave list-controllers
+  fluxctl --k8s-fwd-ns=weave list-workloads
 
   # To a Weave Cloud instance, with your instance token in $TOKEN
-  fluxctl --token $TOKEN list-controllers
+  fluxctl --token $TOKEN list-workloads
 
 Workflow:
-  fluxctl list-controllers                                                   # Which controllers are running?
-  fluxctl list-images --controller=default:deployment/foo                    # Which images are running/available?
-  fluxctl release --controller=default:deployment/foo --update-image=bar:v2  # Release new version.
+  fluxctl list-workloads                                                   # Which workloads are running?
+  fluxctl list-images --workload=default:deployment/foo                    # Which images are running/available?
+  fluxctl release --workload=default:deployment/foo --update-image=bar:v2  # Release new version.
 
 Usage:
   fluxctl [command]
 
 Available Commands:
-  automate         Turn on automatic deployment for a controller.
-  deautomate       Turn off automatic deployment for a controller.
+  automate         Turn on automatic deployment for a workload.
+  deautomate       Turn off automatic deployment for a workload.
   help             Help about any command
   identity         Display SSH public key
-  list-controllers List controllers currently running in the cluster.
-  list-images      Show the deployed and available images for a controller.
-  lock             Lock a controller, so it cannot be deployed.
-  policy           Manage policies for a controller.
-  release          Release a new version of a controller.
-  save             save controller definitions to local files in cluster-native format
+  list-workloads   List workloads currently running in the cluster.
+  list-images      Show the deployed and available images.
+  lock             Lock a workload, so it cannot be deployed.
+  policy           Manage policies for a workload.
+  release          Release a new version of a workload.
+  save             save workload definitions to local files in cluster-native format
   sync             synchronize the cluster with the git repository, now
-  unlock           Unlock a controller, so it can be deployed.
+  unlock           Unlock a workload, so it can be deployed.
   version          Output the version of fluxctl
 
 Flags:
@@ -236,22 +236,22 @@ Flags:
 Use "fluxctl [command] --help" for more information about a command.
 ```
 
-# Controllers
+# Workloads
 
-## What is a Controller?
+## What is a Workload?
 
 This term refers to any cluster resource responsible for the creation of
-containers from versioned images - in Kubernetes these are workloads such as
+containers from versioned images - in Kubernetes these are objects such as
 Deployments, DaemonSets, StatefulSets and CronJobs.
 
-## Viewing Controllers
+## Viewing Workloads
 
 The first thing to do is to check whether Flux can see any running
-controllers. To do this, use the `list-controllers` subcommand:
+workloads. To do this, use the `list-workloads` subcommand:
 
 ```sh
-$ fluxctl list-controllers
-CONTROLLER                     CONTAINER   IMAGE                                         RELEASE  POLICY
+$ fluxctl list-workloads
+WORKLOAD                       CONTAINER   IMAGE                                         RELEASE  POLICY
 default:deployment/helloworld  helloworld  quay.io/weaveworks/helloworld:master-a000001  ready
                                sidecar     quay.io/weaveworks/sidecar:master-a000002
 ```
@@ -260,12 +260,12 @@ Note that the actual images running will depend on your cluster.
 
 ## Inspecting the Version of a Container
 
-Once we have a list of controllers, we can begin to inspect which versions
+Once we have a list of workloads, we can begin to inspect which versions
 of the image are running.
 
 ```sh
-$ fluxctl list-images --controller default:deployment/helloworld
-CONTROLLER                     CONTAINER   IMAGE                          CREATED
+$ fluxctl list-images --workload default:deployment/helloworld
+WORKLOAD                       CONTAINER   IMAGE                          CREATED
 default:deployment/helloworld  helloworld  quay.io/weaveworks/helloworld
                                            |   master-9a16ff945b9e        20 Jul 16 13:19 UTC
                                            |   master-b31c617a0fe3        20 Jul 16 13:19 UTC
@@ -279,22 +279,22 @@ default:deployment/helloworld  helloworld  quay.io/weaveworks/helloworld
 The arrows will point to the version that is currently running
 alongside a list of other versions and their timestamps.
 
-## Releasing a Controller
+## Releasing a Workload
 
-We can now go ahead and update a controller with the `release` subcommand.
-This will check whether each controller needs to be updated, and if so,
+We can now go ahead and update a workload with the `release` subcommand.
+This will check whether each workload needs to be updated, and if so,
 write the new configuration to the repository.
 
 ```sh
-$ fluxctl release --controller=default:deployment/helloworld --user=phil --message="New version" --update-all-images
+$ fluxctl release --workload=default:deployment/helloworld --user=phil --message="New version" --update-all-images
 Submitting release ...
 Commit pushed: 7dc025c
 Applied 7dc025c61fdbbfc2c32f792ad61e6ff52cf0590a
-CONTROLLER                     STATUS   UPDATES
+WORKLOAD                     STATUS   UPDATES
 default:deployment/helloworld  success  helloworld: quay.io/weaveworks/helloworld:master-a000001 -> master-9a16ff945b9e
 
-$ fluxctl list-images --controller default:deployment/helloworld
-CONTROLLER                     CONTAINER   IMAGE                          CREATED
+$ fluxctl list-images --workload default:deployment/helloworld
+WORKLOAD                       CONTAINER   IMAGE                          CREATED
 default:deployment/helloworld  helloworld  quay.io/weaveworks/helloworld
                                            '-> master-9a16ff945b9e        20 Jul 16 13:19 UTC
                                                master-b31c617a0fe3        20 Jul 16 13:19 UTC
@@ -309,17 +309,17 @@ default:deployment/helloworld  helloworld  quay.io/weaveworks/helloworld
 
 Automation can be easily controlled from within
 [Weave Cloud](https://cloud.weave.works) by selecting the "Automate"
-button when inspecting a controller. But we can also do this from `fluxctl`
+button when inspecting a workload. But we can also do this from `fluxctl`
 with the `automate` subcommand.
 
 ```sh
-$ fluxctl automate --controller=default:deployment/helloworld
+$ fluxctl automate --workload=default:deployment/helloworld
 Commit pushed: af4bf73
-CONTROLLER                     STATUS   UPDATES
+WORKLOAD                     STATUS   UPDATES
 default:deployment/helloworld  success
 
-$ fluxctl list-controllers --namespace=default
-CONTROLLER                     CONTAINER   IMAGE                                             RELEASE  POLICY
+$ fluxctl list-workloads --namespace=default
+WORKLOAD                       CONTAINER   IMAGE                                             RELEASE  POLICY
 default:deployment/helloworld  helloworld  quay.io/weaveworks/helloworld:master-9a16ff945b9e ready    automated
                                sidecar     quay.io/weaveworks/sidecar:master-a000002
 ```
@@ -327,9 +327,9 @@ default:deployment/helloworld  helloworld  quay.io/weaveworks/helloworld:master-
 Automation can also be enabled by adding the annotation
 `flux.weave.works/automated: "true"` to the deployment.
 
-We can see that the `list-controllers` subcommand reports that the
+We can see that the `list-workloads` subcommand reports that the
 helloworld application is automated. Flux will now automatically
-deploy a new version of a controller whenever one is available and commit
+deploy a new version of a workload whenever one is available and commit
 the new configuration to the version control system.
 
 ## Turning off Automation
@@ -337,29 +337,29 @@ the new configuration to the version control system.
 Turning off automation is performed with the `deautomate` command:
 
 ```sh
-$ fluxctl deautomate --controller=default:deployment/helloworld
+$ fluxctl deautomate --workload=default:deployment/helloworld
 Commit pushed: a54ef2c
-CONTROLLER                     STATUS   UPDATES
+WORKLOAD                     STATUS   UPDATES
 default:deployment/helloworld  success
 
-$ fluxctl list-controllers --namespace=default
-CONTROLLER                     CONTAINER   IMAGE                                             RELEASE  POLICY
+$ fluxctl list-workloads --namespace=default
+WORKLOAD                       CONTAINER   IMAGE                                             RELEASE  POLICY
 default:deployment/helloworld  helloworld  quay.io/weaveworks/helloworld:master-9a16ff945b9e ready
                                sidecar     quay.io/weaveworks/sidecar:master-a000002
 ```
 
-We can see that the controller is no longer automated.
+We can see that the workload is no longer automated.
 
-## Rolling back a Controller
+## Rolling back a Workload
 
 Rolling back can be achieved by combining:
 
 - [`deautomate`](#turning-off-automation) to prevent Flux from automatically updating to newer versions, and
-- [`release`](#releasing-a-controller) to deploy the version you want to roll back to.
+- [`release`](#releasing-a-workload) to deploy the version you want to roll back to.
 
 ```sh
-$ fluxctl list-images --controller default:deployment/helloworld
-CONTROLLER                     CONTAINER   IMAGE                          CREATED
+$ fluxctl list-images --workload default:deployment/helloworld
+WORKLOAD                       CONTAINER   IMAGE                          CREATED
 default:deployment/helloworld  helloworld  quay.io/weaveworks/helloworld
                                            '-> master-9a16ff945b9e        20 Jul 16 13:19 UTC
                                                master-b31c617a0fe3        20 Jul 16 13:19 UTC
@@ -369,20 +369,20 @@ default:deployment/helloworld  helloworld  quay.io/weaveworks/helloworld
                                            '-> master-a000002             23 Aug 16 10:05 UTC
                                                master-a000001             23 Aug 16 09:53 UTC
 
-$ fluxctl deautomate --controller=default:deployment/helloworld
+$ fluxctl deautomate --workload=default:deployment/helloworld
 Commit pushed: c07f317
-CONTROLLER                     STATUS   UPDATES
+WORKLOAD                       STATUS   UPDATES
 default:deployment/helloworld  success
 
-$ fluxctl release --controller=default:deployment/helloworld --update-image=quay.io/weaveworks/helloworld:master-a000001
+$ fluxctl release --workload=default:deployment/helloworld --update-image=quay.io/weaveworks/helloworld:master-a000001
 Submitting release ...
 Commit pushed: 33ce4e3
 Applied 33ce4e38048f4b787c583e64505485a13c8a7836
-CONTROLLER                     STATUS   UPDATES
+WORKLOAD                     STATUS   UPDATES
 default:deployment/helloworld  success  helloworld: quay.io/weaveworks/helloworld:master-9a16ff945b9e -> master-a000001
 
-$ fluxctl list-images --controller default:deployment/helloworld
-CONTROLLER                     CONTAINER   IMAGE                          CREATED
+$ fluxctl list-images --workload default:deployment/helloworld
+WORKLOAD                     CONTAINER   IMAGE                          CREATED
 default:deployment/helloworld  helloworld  quay.io/weaveworks/helloworld
                                            |   master-9a16ff945b9e        20 Jul 16 13:19 UTC
                                            |   master-b31c617a0fe3        20 Jul 16 13:19 UTC
@@ -393,37 +393,37 @@ default:deployment/helloworld  helloworld  quay.io/weaveworks/helloworld
                                                master-a000001             23 Aug 16 09:53 UTC
 ```
 
-## Locking a Controller
+## Locking a Workload
 
-Locking a controller will stop manual or automated releases to that
-controller. Changes made in the file will still be synced.
+Locking a workload will stop manual or automated releases to that
+workload. Changes made in the file will still be synced.
 
 ```sh
-$ fluxctl lock --controller=deployment/helloworld
+$ fluxctl lock --workload=deployment/helloworld
 Commit pushed: d726722
-CONTROLLER                     STATUS   UPDATES
+WORKLOAD                       STATUS   UPDATES
 default:deployment/helloworld  success
 ```
 
-## Releasing an image to a locked controller
+## Releasing an image to a locked workload
 
-It may be desirable to release an image to a locked controller while
+It may be desirable to release an image to a locked workload while
 maintaining the lock afterwards. In order to not having to modify the
 lock policy (which includes author and reason), one may use `--force`:
 
 ```sh
-fluxctl release --controller=default:deployment/helloworld --update-all-images --force
+fluxctl release --workload=default:deployment/helloworld --update-all-images --force
 ```
 
-## Unlocking a Controller
+## Unlocking a Workload
 
-Unlocking a controller allows it to have manual or automated releases
+Unlocking a workload allows it to have manual or automated releases
 (again).
 
 ```sh
-$ fluxctl unlock --controller=deployment/helloworld
+$ fluxctl unlock --workload=deployment/helloworld
 Commit pushed: 708b63a
-CONTROLLER                     STATUS   UPDATES
+WORKLOAD                       STATUS   UPDATES
 default:deployment/helloworld  success
 ```
 
@@ -465,14 +465,14 @@ to tags that were built against the "prod" branch then you could
 do the following:
 
 ```sh
-fluxctl policy --controller=default:deployment/helloworld --tag-all='prod-*'
+fluxctl policy --workload=default:deployment/helloworld --tag-all='prod-*'
 ```
 
 If your pod contains multiple containers then you tag each container
 individually:
 
 ```sh
-fluxctl policy --controller=default:deployment/helloworld --tag='helloworld=prod-*' --tag='sidecar=prod-*'
+fluxctl policy --workload=default:deployment/helloworld --tag='helloworld=prod-*' --tag='sidecar=prod-*'
 ```
 
 Manual releases without explicit mention of the target image will
@@ -480,19 +480,19 @@ also adhere to tag filters.
 This will only release the newest image matching the tag filter:
 
 ```sh
-fluxctl release --controller=default:deployment/helloworld --update-all-images
+fluxctl release --workload=default:deployment/helloworld --update-all-images
 ```
 
 To release an image outside of tag filters, either specify the image:
 
 ```sh
-fluxctl release --controller=default:deployment/helloworld --update-image=helloworld:dev-abc123
+fluxctl release --workload=default:deployment/helloworld --update-image=helloworld:dev-abc123
 ```
 
 or use `--force`:
 
 ```sh
-fluxctl release --controller=default:deployment/helloworld --update-all-images --force
+fluxctl release --workload=default:deployment/helloworld --update-all-images --force
 ```
 
 Please note that automation might immediately undo this.
@@ -507,7 +507,7 @@ The glob (`*`) filter is the simplest filter Flux supports, a filter can contain
 multiple globs:
 
 ```sh
-fluxctl policy --controller=default:deployment/helloworld --tag-all='glob:master-v1.*.*'
+fluxctl policy --workload=default:deployment/helloworld --tag-all='glob:master-v1.*.*'
 ```
 
 ## Semver
@@ -516,13 +516,13 @@ If your images use [semantic versioning](https://semver.org) you can filter by i
 that adhere to certain constraints:
 
 ```sh
-fluxctl policy --controller=default:deployment/helloworld --tag-all='semver:~1'
+fluxctl policy --workload=default:deployment/helloworld --tag-all='semver:~1'
 ```
 
 or only release images that have a stable semantic version tag (X.Y.Z):
 
 ```sh
-fluxctl policy --controller=default:deployment/helloworld --tag-all='semver:*'
+fluxctl policy --workload=default:deployment/helloworld --tag-all='semver:*'
 ```
 
 Using a semver filter will also affect how Flux sorts images, so
@@ -533,7 +533,7 @@ that the higher versions will be considered newer.
 If your images have complex tags you can filter by regular expression:
 
 ```sh
-fluxctl policy --controller=default:deployment/helloworld --tag-all='regexp:^([a-zA-Z]+)$'
+fluxctl policy --workload=default:deployment/helloworld --tag-all='regexp:^([a-zA-Z]+)$'
 ```
 
 Please bear in mind that if you want to match the whole tag,

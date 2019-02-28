@@ -66,7 +66,7 @@ func Repo(t *testing.T) (*git.Repo, func()) {
 // not all resources, just the workloads) represented in the test
 // files.
 func Workloads() (res []flux.ResourceID) {
-	for k, _ := range testfiles.ServiceMap("") {
+	for k, _ := range testfiles.WorkloadMap("") {
 		res = append(res, k)
 	}
 	return res

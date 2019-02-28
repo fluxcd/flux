@@ -64,7 +64,7 @@ func (t *genericMockRoundTripper) calledURL(method string) (u *url.URL) {
 
 func testArgs(t *testing.T, args []string, shouldErr bool, errMsg string) *genericMockRoundTripper {
 	svc := newMockService()
-	releaseClient := newControllerRelease(mockServiceOpts(svc))
+	releaseClient := newWorkloadRelease(mockServiceOpts(svc))
 
 	// Run fluxctl release
 	cmd := releaseClient.Command()

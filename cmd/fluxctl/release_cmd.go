@@ -16,46 +16,49 @@ import (
 	"github.com/weaveworks/flux/update"
 )
 
-type controllerReleaseOpts struct {
+type workloadReleaseOpts struct {
 	*rootOpts
-	namespace      string
-	controllers    []string
-	allControllers bool
-	image          string
-	allImages      bool
-	exclude        []string
-	dryRun         bool
-	interactive    bool
-	force          bool
-	watch          bool
+	namespace    string
+	workloads    []string
+	allWorkloads bool
+	image        string
+	allImages    bool
+	exclude      []string
+	dryRun       bool
+	interactive  bool
+	force        bool
+	watch        bool
 	outputOpts
 	cause update.Cause
 
 	// Deprecated
 	services []string
+	// Deprecated
+	controllers []string
 }
 
-func newControllerRelease(parent *rootOpts) *controllerReleaseOpts {
-	return &controllerReleaseOpts{rootOpts: parent}
+func newWorkloadRelease(parent *rootOpts) *workloadReleaseOpts {
+	return &workloadReleaseOpts{rootOpts: parent}
 }
 
-func (opts *controllerReleaseOpts) Command() *cobra.Command {
+func (opts *workloadReleaseOpts) Command() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "release",
 		Short: "Release a new version of a controller.",
 		Example: makeExample(
-			"fluxctl release -n default --controller=deployment/foo --update-image=library/hello:v2",
+			"fluxctl release -n default --workload=deployment/foo --update-image=library/hello:v2",
 			"fluxctl release --all --update-image=library/hello:v2",
-			"fluxctl release --controller=default:deployment/foo --update-all-images",
+			"fluxctl release --workload=default:deployment/foo --update-all-images",
 		),
 		RunE: opts.RunE,
 	}
 
 	AddOutputFlags(cmd, &opts.outputOpts)
 	AddCauseFlags(cmd, &opts.cause)
-	cmd.Flags().StringVarP(&opts.namespace, "namespace", "n", "default", "Controller namespace")
-	cmd.Flags().StringSliceVarP(&opts.controllers, "controller", "c", []string{}, "List of controllers to release <namespace>:<kind>/<name>")
-	cmd.Flags().BoolVar(&opts.allControllers, "all", false, "Release all controllers")
+	cmd.Flags().StringVarP(&opts.namespace, "namespace", "n", "default", "Workload namespace")
+	// Note: we cannot define a shorthand for --workload since it clashes with the shorthand of --watch
+	cmd.Flags().StringSliceVarP(&opts.workloads, "workload", "", []string{}, "List of workloads to release <namespace>:<kind>/<name>")
+	cmd.Flags().BoolVar(&opts.allWorkloads, "all", false, "Release all controllers")
 	cmd.Flags().StringVarP(&opts.image, "update-image", "i", "", "Update a specific image")
 	cmd.Flags().BoolVar(&opts.allImages, "update-all-images", false, "Update all images to latest versions")
 	cmd.Flags().StringSliceVar(&opts.exclude, "exclude", []string{}, "List of controllers to exclude")
@@ -67,11 +70,14 @@ func (opts *controllerReleaseOpts) Command() *cobra.Command {
 	// Deprecated
 	cmd.Flags().StringSliceVarP(&opts.services, "service", "s", []string{}, "Service to release")
 	cmd.Flags().MarkHidden("service")
+	// Deprecated
+	cmd.Flags().StringSliceVarP(&opts.controllers, "controller", "c", []string{}, "List of controllers to release <namespace>:<kind>/<name>")
+	cmd.Flags().MarkDeprecated("controller", "changed to --workspace, use that instead")
 
 	return cmd
 }
 
-func (opts *controllerReleaseOpts) RunE(cmd *cobra.Command, args []string) error {
+func (opts *workloadReleaseOpts) RunE(cmd *cobra.Command, args []string) error {
 	if len(opts.services) > 0 {
 		return errorServiceFlagDeprecated
 	}
@@ -84,30 +90,33 @@ func (opts *controllerReleaseOpts) RunE(cmd *cobra.Command, args []string) error
 		return err
 	}
 
+	// Backwards compatibility with --controller until we remove it
+	opts.workloads = append(opts.workloads, opts.controllers...)
+
 	switch {
-	case len(opts.controllers) <= 0 && !opts.allControllers:
-		return newUsageError("please supply either --all, or at least one --controller=<controller>")
+	case len(opts.workloads) <= 0 && !opts.allWorkloads:
+		return newUsageError("please supply either --all, or at least one --workload=<workload>")
 	case opts.watch && opts.dryRun:
 		return newUsageError("cannot use --watch with --dry-run")
-	case opts.force && opts.allControllers && opts.allImages:
+	case opts.force && opts.allWorkloads && opts.allImages:
 		return newUsageError("--force has no effect when used with --all and --update-all-images")
-	case opts.force && opts.allControllers:
-		fmt.Fprintf(cmd.OutOrStderr(), "Warning: --force will not ignore locked controllers when used with --all\n")
+	case opts.force && opts.allWorkloads:
+		fmt.Fprintf(cmd.OutOrStderr(), "Warning: --force will not ignore locked workloads when used with --all\n")
 	case opts.force && opts.allImages:
 		fmt.Fprintf(cmd.OutOrStderr(), "Warning: --force will not ignore container image tags when used with --update-all-images\n")
 	}
 
-	var controllers []update.ResourceSpec
+	var workloads []update.ResourceSpec
 
-	if opts.allControllers {
-		controllers = []update.ResourceSpec{update.ResourceSpecAll}
+	if opts.allWorkloads {
+		workloads = []update.ResourceSpec{update.ResourceSpecAll}
 	} else {
-		for _, controller := range opts.controllers {
-			id, err := flux.ParseResourceIDOptionalNamespace(opts.namespace, controller)
+		for _, workload := range opts.workloads {
+			id, err := flux.ParseResourceIDOptionalNamespace(opts.namespace, workload)
 			if err != nil {
 				return err
 			}
-			controllers = append(controllers, update.MakeResourceSpec(id))
+			workloads = append(workloads, update.MakeResourceSpec(id))
 		}
 	}
 
@@ -147,11 +156,11 @@ func (opts *controllerReleaseOpts) RunE(cmd *cobra.Command, args []string) error
 
 	ctx := context.Background()
 	spec := update.ReleaseImageSpec{
-		ServiceSpecs: controllers,
-		ImageSpec:    image,
-		Kind:         kind,
-		Excludes:     excludes,
-		Force:        opts.force,
+		WorkloadSpecs: workloads,
+		ImageSpec:     image,
+		Kind:          kind,
+		Excludes:      excludes,
+		Force:         opts.force,
 	}
 	jobID, err := opts.API.UpdateManifests(ctx, update.Spec{
 		Type:  update.Images,
@@ -196,29 +205,29 @@ func (opts *controllerReleaseOpts) RunE(cmd *cobra.Command, args []string) error
 	fmt.Fprintf(cmd.OutOrStderr(), "Monitoring rollout ...\n")
 	for {
 		completed := 0
-		services, err := opts.API.ListServicesWithOptions(ctx, v11.ListServicesOptions{Services: result.Result.AffectedResources()})
+		workloads, err := opts.API.ListWorkloadsWithOptions(ctx, v11.ListWorkloadsOptions{Workloads: result.Result.AffectedResources()})
 		if err != nil {
 			return err
 		}
 
-		for _, service := range services {
-			writeRolloutStatus(service, opts.verbosity)
+		for _, workload := range workloads {
+			writeRolloutStatus(workload, opts.verbosity)
 
-			if service.Status == cluster.StatusReady {
+			if workload.Status == cluster.StatusReady {
 				completed++
 			}
 
-			if service.Rollout.Messages != nil {
-				fmt.Fprintf(cmd.OutOrStderr(), "There was a problem releasing %s:\n", service.ID)
-				for _, msg := range service.Rollout.Messages {
+			if workload.Rollout.Messages != nil {
+				fmt.Fprintf(cmd.OutOrStderr(), "There was a problem releasing %s:\n", workload.ID)
+				for _, msg := range workload.Rollout.Messages {
 					fmt.Fprintf(cmd.OutOrStderr(), "%s\n", msg)
 				}
 				return nil
 			}
 		}
 
-		if completed == len(services) {
-			fmt.Fprintf(cmd.OutOrStderr(), "All controllers ready.\n")
+		if completed == len(workloads) {
+			fmt.Fprintf(cmd.OutOrStderr(), "All workloads ready.\n")
 			return nil
 		}
 
@@ -226,24 +235,24 @@ func (opts *controllerReleaseOpts) RunE(cmd *cobra.Command, args []string) error
 	}
 }
 
-func writeRolloutStatus(service v6.ControllerStatus, verbosity int) {
+func writeRolloutStatus(workload v6.WorkloadStatus, verbosity int) {
 	w := newTabwriter()
-	fmt.Fprintf(w, "CONTROLLER\tCONTAINER\tIMAGE\tRELEASE\tREPLICAS\n")
+	fmt.Fprintf(w, "WORKLOAD\tCONTAINER\tIMAGE\tRELEASE\tREPLICAS\n")
 
-	if len(service.Containers) > 0 {
-		c := service.Containers[0]
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%d/%d", service.ID, c.Name, c.Current.ID, service.Status, service.Rollout.Updated, service.Rollout.Desired)
+	if len(workload.Containers) > 0 {
+		c := workload.Containers[0]
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%d/%d", workload.ID, c.Name, c.Current.ID, workload.Status, workload.Rollout.Updated, workload.Rollout.Desired)
 		if verbosity > 0 {
-			fmt.Fprintf(w, " (%d outdated, %d ready)", service.Rollout.Outdated, service.Rollout.Ready)
+			fmt.Fprintf(w, " (%d outdated, %d ready)", workload.Rollout.Outdated, workload.Rollout.Ready)
 		}
 		fmt.Fprintf(w, "\n")
-		for _, c := range service.Containers[1:] {
+		for _, c := range workload.Containers[1:] {
 			fmt.Fprintf(w, "\t%s\t%s\t\t\n", c.Name, c.Current.ID)
 		}
 	} else {
-		fmt.Fprintf(w, "%s\t\t\t%s\t%d/%d", service.ID, service.Status, service.Rollout.Updated, service.Rollout.Desired)
+		fmt.Fprintf(w, "%s\t\t\t%s\t%d/%d", workload.ID, workload.Status, workload.Rollout.Updated, workload.Rollout.Desired)
 		if verbosity > 0 {
-			fmt.Fprintf(w, " (%d outdated, %d ready)", service.Rollout.Outdated, service.Rollout.Ready)
+			fmt.Fprintf(w, " (%d outdated, %d ready)", workload.Rollout.Outdated, workload.Rollout.Ready)
 		}
 		fmt.Fprintf(w, "\n")
 	}

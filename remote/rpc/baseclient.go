@@ -31,12 +31,12 @@ func (bc baseClient) Export(context.Context) ([]byte, error) {
 	return nil, remote.UpgradeNeededError(errors.New("Export method not implemented"))
 }
 
-func (bc baseClient) ListServices(context.Context, string) ([]v6.ControllerStatus, error) {
-	return nil, remote.UpgradeNeededError(errors.New("ListServices method not implemented"))
+func (bc baseClient) ListWorkloads(context.Context, string) ([]v6.WorkloadStatus, error) {
+	return nil, remote.UpgradeNeededError(errors.New("ListWorkloads method not implemented"))
 }
 
-func (bc baseClient) ListServicesWithOptions(context.Context, v11.ListServicesOptions) ([]v6.ControllerStatus, error) {
-	return nil, remote.UpgradeNeededError(errors.New("ListServicesWithOptions method not implemented"))
+func (bc baseClient) ListWorkloadsWithOptions(context.Context, v11.ListWorkloadsOptions) ([]v6.WorkloadStatus, error) {
+	return nil, remote.UpgradeNeededError(errors.New("ListWorkloadsWithOptions method not implemented"))
 }
 
 func (bc baseClient) ListImages(context.Context, update.ResourceSpec) ([]v6.ImageStatus, error) {

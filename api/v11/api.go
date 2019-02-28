@@ -9,15 +9,15 @@ import (
 	"github.com/weaveworks/flux/api/v6"
 )
 
-type ListServicesOptions struct {
+type ListWorkloadsOptions struct {
 	Namespace string
-	Services  []flux.ResourceID
+	Workloads []flux.ResourceID
 }
 
 type Server interface {
 	v10.Server
 
-	ListServicesWithOptions(ctx context.Context, opts ListServicesOptions) ([]v6.ControllerStatus, error)
+	ListWorkloadsWithOptions(ctx context.Context, opts ListWorkloadsOptions) ([]v6.WorkloadStatus, error)
 }
 
 type Upstream interface {

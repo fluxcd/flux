@@ -35,18 +35,18 @@ fluxctl helps you deploy your code.
 Connecting:
 
   # To a fluxd running in namespace "default" in your current kubectl context
-  fluxctl list-controllers
+  fluxctl list-workloads
 
   # To a fluxd running in namespace "weave" in your current kubectl context
-  fluxctl --k8s-fwd-ns=weave list-controllers
+  fluxctl --k8s-fwd-ns=weave list-workloads
 
   # To a Weave Cloud instance, with your instance token in $TOKEN
-  fluxctl --token $TOKEN list-controllers
+  fluxctl --token $TOKEN list-workloads
 
 Workflow:
-  fluxctl list-controllers                                                   # Which controllers are running?
-  fluxctl list-images --controller=default:deployment/foo                    # Which images are running/available?
-  fluxctl release --controller=default:deployment/foo --update-image=bar:v2  # Release new version.
+  fluxctl list-workloads                                                   # Which workloads are running?
+  fluxctl list-images --workload=default:deployment/foo                    # Which images are running/available?
+  fluxctl release --workload=default:deployment/foo --update-image=bar:v2  # Release new version.
 `)
 
 const (
@@ -79,14 +79,14 @@ func (opts *rootOpts) Command() *cobra.Command {
 	cmd.AddCommand(
 		newVersionCommand(),
 		newServiceList(opts).Command(),
-		newControllerShow(opts).Command(),
-		newControllerList(opts).Command(),
-		newControllerRelease(opts).Command(),
-		newServiceAutomate(opts).Command(),
-		newControllerDeautomate(opts).Command(),
-		newControllerLock(opts).Command(),
-		newControllerUnlock(opts).Command(),
-		newControllerPolicy(opts).Command(),
+		newImageList(opts).Command(),
+		newWorkloadList(opts).Command(),
+		newWorkloadRelease(opts).Command(),
+		newWorkloadAutomate(opts).Command(),
+		newWorkloadDeautomate(opts).Command(),
+		newWorkloadLock(opts).Command(),
+		newWorkloadUnlock(opts).Command(),
+		newWorkloadPolicy(opts).Command(),
 		newSave(opts).Command(),
 		newIdentity(opts).Command(),
 		newSync(opts).Command(),

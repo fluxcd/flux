@@ -4,9 +4,9 @@ import (
 	"errors"
 
 	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/policy"
 	"github.com/weaveworks/flux/resource"
 	"github.com/weaveworks/flux/ssh"
-	"github.com/weaveworks/flux/policy"
 )
 
 // Constants for workload ready status. These are defined here so that
@@ -25,8 +25,8 @@ const (
 // are distinct interfaces.
 type Cluster interface {
 	// Get all of the services (optionally, from a specific namespace), excluding those
-	AllControllers(maybeNamespace string) ([]Controller, error)
-	SomeControllers([]flux.ResourceID) ([]Controller, error)
+	AllWorkloads(maybeNamespace string) ([]Workload, error)
+	SomeWorkloads([]flux.ResourceID) ([]Workload, error)
 	Ping() error
 	Export() ([]byte, error)
 	Sync(SyncSet) error
@@ -56,8 +56,8 @@ type RolloutStatus struct {
 	Messages []string
 }
 
-// Controller describes a cluster resource that declares versioned images.
-type Controller struct {
+// Workload describes a cluster resource that declares versioned images.
+type Workload struct {
 	ID     flux.ResourceID
 	Status string // A status summary for display
 	// Is the controller considered read-only because it's under the
@@ -86,11 +86,11 @@ type ContainersOrExcuse struct {
 	Containers []resource.Container
 }
 
-func (s Controller) ContainersOrNil() []resource.Container {
+func (s Workload) ContainersOrNil() []resource.Container {
 	return s.Containers.Containers
 }
 
-func (s Controller) ContainersOrError() ([]resource.Container, error) {
+func (s Workload) ContainersOrError() ([]resource.Container, error) {
 	var err error
 	if s.Containers.Excuse != "" {
 		err = errors.New(s.Containers.Excuse)
@@ -100,13 +100,13 @@ func (s Controller) ContainersOrError() ([]resource.Container, error) {
 
 // These errors all represent logical problems with cluster
 // configuration, and may be recoverable; e.g., it might be fine if a
-// service does not have a matching RC/deployment.
+// workload does not have a matching RC/deployment.
 var (
-	ErrEmptySelector        = errors.New("empty selector")
-	ErrWrongResourceKind    = errors.New("new definition does not match existing resource")
-	ErrNoMatchingService    = errors.New("no matching service")
-	ErrServiceHasNoSelector = errors.New("service has no selector")
-	ErrNoMatching           = errors.New("no matching replication controllers or deployments")
-	ErrMultipleMatching     = errors.New("multiple matching replication controllers or deployments")
-	ErrNoMatchingImages     = errors.New("no matching images")
+	ErrEmptySelector         = errors.New("empty selector")
+	ErrWrongResourceKind     = errors.New("new definition does not match existing resource")
+	ErrNoMatchingWorkload    = errors.New("no matching workload")
+	ErrWorkloadHasNoSelector = errors.New("workload has no selector")
+	ErrNoMatching            = errors.New("no matching replication workloads or deployments")
+	ErrMultipleMatching      = errors.New("multiple matching replication workloads or deployments")
+	ErrNoMatchingImages      = errors.New("no matching images")
 )

@@ -91,7 +91,7 @@ func TestEvent_ParseOldReleaseMetaData(t *testing.T) {
 	if eventData.Spec.ReleaseContainersSpec != nil {
 		t.Error("unexpectedly set .ReleaseContainersSpec")
 	}
-	if len(eventData.Spec.ReleaseImageSpec.ServiceSpecs) != 1 {
+	if len(eventData.Spec.ReleaseImageSpec.WorkloadSpecs) != 1 {
 		t.Error("expected service specs of len 1")
 	}
 }

@@ -31,7 +31,7 @@ func NewClientV10(conn io.ReadWriteCloser) *RPCClientV10 {
 
 func (p *RPCClientV10) ListImagesWithOptions(ctx context.Context, opts v10.ListImagesOptions) ([]v6.ImageStatus, error) {
 	var resp ListImagesResponse
-	if err := requireServiceSpecKinds(opts.Spec, supportedKindsV8); err != nil {
+	if err := requireWorkloadSpecKinds(opts.Spec, supportedKindsV8); err != nil {
 		return resp.Result, remote.UnsupportedResourceKind(err)
 	}
 

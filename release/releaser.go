@@ -13,7 +13,7 @@ import (
 )
 
 type Changes interface {
-	CalculateRelease(update.ReleaseContext, log.Logger) ([]*update.ControllerUpdate, update.Result, error)
+	CalculateRelease(update.ReleaseContext, log.Logger) ([]*update.WorkloadUpdate, update.Result, error)
 	ReleaseKind() update.ReleaseKind
 	ReleaseType() update.ReleaseType
 	CommitMessage(update.Result) string
@@ -54,7 +54,7 @@ func Release(rc *ReleaseContext, changes Changes, logger log.Logger) (results up
 	return results, nil
 }
 
-func ApplyChanges(rc *ReleaseContext, updates []*update.ControllerUpdate, logger log.Logger) error {
+func ApplyChanges(rc *ReleaseContext, updates []*update.WorkloadUpdate, logger log.Logger) error {
 	logger.Log("updates", len(updates))
 	if len(updates) == 0 {
 		logger.Log("exit", "no images to update for services given")
@@ -70,7 +70,7 @@ func ApplyChanges(rc *ReleaseContext, updates []*update.ControllerUpdate, logger
 // VerifyChanges checks that the `after` resources are exactly the
 // `before` resources with the updates applied. It destructively
 // updates `before`.
-func VerifyChanges(before map[string]resource.Resource, updates []*update.ControllerUpdate, after map[string]resource.Resource) error {
+func VerifyChanges(before map[string]resource.Resource, updates []*update.WorkloadUpdate, after map[string]resource.Resource) error {
 	timer := update.NewStageTimer("verify_changes")
 	defer timer.ObserveDuration()
 

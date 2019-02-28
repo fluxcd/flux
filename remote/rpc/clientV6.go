@@ -89,10 +89,10 @@ func (p *RPCClientV6) Export(ctx context.Context) ([]byte, error) {
 	return config, err
 }
 
-func (p *RPCClientV6) ListServices(ctx context.Context, namespace string) ([]v6.ControllerStatus, error) {
-	var services []v6.ControllerStatus
-	err := p.client.Call("RPCServer.ListServices", namespace, &services)
-	listServicesRolloutStatus(services)
+func (p *RPCClientV6) ListWorkloads(ctx context.Context, namespace string) ([]v6.WorkloadStatus, error) {
+	var services []v6.WorkloadStatus
+	err := p.client.Call("RPCServer.ListWorkloads", namespace, &services)
+	listWorkloadsRolloutStatus(services)
 	if _, ok := err.(rpc.ServerError); !ok && err != nil {
 		return nil, remote.FatalError{err}
 	}
@@ -102,13 +102,13 @@ func (p *RPCClientV6) ListServices(ctx context.Context, namespace string) ([]v6.
 	return services, err
 }
 
-func (p *RPCClientV6) ListServicesWithOptions(ctx context.Context, opts v11.ListServicesOptions) ([]v6.ControllerStatus, error) {
-	return listServicesWithOptions(ctx, p, opts, supportedKindsV6)
+func (p *RPCClientV6) ListWorkloadsWithOptions(ctx context.Context, opts v11.ListWorkloadsOptions) ([]v6.WorkloadStatus, error) {
+	return listWorkloadsWithOptions(ctx, p, opts, supportedKindsV6)
 }
 
 func (p *RPCClientV6) ListImages(ctx context.Context, spec update.ResourceSpec) ([]v6.ImageStatus, error) {
 	var images []v6.ImageStatus
-	if err := requireServiceSpecKinds(spec, supportedKindsV6); err != nil {
+	if err := requireWorkloadSpecKinds(spec, supportedKindsV6); err != nil {
 		return images, remote.UpgradeNeededError(err)
 	}
 

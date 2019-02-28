@@ -6,51 +6,63 @@ import (
 	"github.com/weaveworks/flux/update"
 )
 
-type controllerAutomateOpts struct {
+type workloadAutomateOpts struct {
 	*rootOpts
-	namespace  string
-	controller string
+	namespace string
+	workload  string
 	outputOpts
 	cause update.Cause
 
 	// Deprecated
 	service string
+	// Deprecated
+	controller string
 }
 
-func newServiceAutomate(parent *rootOpts) *controllerAutomateOpts {
-	return &controllerAutomateOpts{rootOpts: parent}
+func newWorkloadAutomate(parent *rootOpts) *workloadAutomateOpts {
+	return &workloadAutomateOpts{rootOpts: parent}
 }
 
-func (opts *controllerAutomateOpts) Command() *cobra.Command {
+func (opts *workloadAutomateOpts) Command() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "automate",
-		Short: "Turn on automatic deployment for a controller.",
+		Short: "Turn on automatic deployment for a workload.",
 		Example: makeExample(
-			"fluxctl automate --controller=default:deployment/helloworld",
+			"fluxctl automate --workload=default:deployment/helloworld",
 		),
 		RunE: opts.RunE,
 	}
 	AddOutputFlags(cmd, &opts.outputOpts)
 	AddCauseFlags(cmd, &opts.cause)
-	cmd.Flags().StringVarP(&opts.namespace, "namespace", "n", "default", "Controller namespace")
-	cmd.Flags().StringVarP(&opts.controller, "controller", "c", "", "Controller to automate")
+	cmd.Flags().StringVarP(&opts.namespace, "namespace", "n", "default", "Workload namespace")
+	cmd.Flags().StringVarP(&opts.workload, "workload", "w", "", "Workload to automate")
 
 	// Deprecated
 	cmd.Flags().StringVarP(&opts.service, "service", "s", "", "Service to automate")
 	cmd.Flags().MarkHidden("service")
+	// Deprecated
+	cmd.Flags().StringVarP(&opts.controller, "controller", "c", "", "Controller to automate")
+	cmd.Flags().MarkDeprecated("controller", "changed to --workspace, use that instead")
 
 	return cmd
 }
 
-func (opts *controllerAutomateOpts) RunE(cmd *cobra.Command, args []string) error {
+func (opts *workloadAutomateOpts) RunE(cmd *cobra.Command, args []string) error {
 	if len(opts.service) > 0 {
 		return errorServiceFlagDeprecated
 	}
-	policyOpts := &controllerPolicyOpts{
+	// Backwards compatibility with --controller until we remove it
+	switch {
+	case opts.workload != "" && opts.controller != "":
+		return newUsageError("can't specify both the controller and workload")
+	case opts.controller != "":
+		opts.workload = opts.controller
+	}
+	policyOpts := &workloadPolicyOpts{
 		rootOpts:   opts.rootOpts,
 		outputOpts: opts.outputOpts,
 		namespace:  opts.namespace,
-		controller: opts.controller,
+		workload:   opts.workload,
 		cause:      opts.cause,
 		automate:   true,
 	}

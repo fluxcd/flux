@@ -15,7 +15,7 @@ import (
 	"github.com/weaveworks/flux/update"
 )
 
-func requireServiceSpecKinds(ss update.ResourceSpec, kinds []string) error {
+func requireWorkloadSpecKinds(ss update.ResourceSpec, kinds []string) error {
 	id, err := ss.AsID()
 	if err != nil {
 		return nil
@@ -29,7 +29,7 @@ func requireServiceSpecKinds(ss update.ResourceSpec, kinds []string) error {
 	return nil
 }
 
-func requireServiceIDKinds(id flux.ResourceID, kinds []string) error {
+func requireWorkloadIDKinds(id flux.ResourceID, kinds []string) error {
 	_, kind, _ := id.Components()
 	if !contains(kinds, kind) {
 		return fmt.Errorf("Unsupported resource kind: %s", kind)
@@ -48,8 +48,8 @@ func requireSpecKinds(s update.Spec, kinds []string) error {
 			}
 		}
 	case update.ReleaseImageSpec:
-		for _, ss := range s.ServiceSpecs {
-			if err := requireServiceSpecKinds(ss, kinds); err != nil {
+		for _, ss := range s.WorkloadSpecs {
+			if err := requireWorkloadSpecKinds(ss, kinds); err != nil {
 				return err
 			}
 		}
@@ -72,8 +72,8 @@ func contains(ss []string, s string) bool {
 	return false
 }
 
-// listServicesRolloutStatus polyfills the rollout status.
-func listServicesRolloutStatus(ss []v6.ControllerStatus) {
+// listWorkloadsRolloutStatus polyfills the rollout status.
+func listWorkloadsRolloutStatus(ss []v6.WorkloadStatus) {
 	for i := range ss {
 		// Polyfill for daemons that list pod information in status ('X out of N updated')
 		if n, _ := fmt.Sscanf(ss[i].Status, "%d out of %d updated", &ss[i].Rollout.Updated, &ss[i].Rollout.Desired); n == 2 {
@@ -91,55 +91,55 @@ func listServicesRolloutStatus(ss []v6.ControllerStatus) {
 	}
 }
 
-type listServicesWithoutOptionsClient interface {
-	ListServices(ctx context.Context, namespace string) ([]v6.ControllerStatus, error)
+type listWorkloadsWithoutOptionsClient interface {
+	ListWorkloads(ctx context.Context, namespace string) ([]v6.WorkloadStatus, error)
 }
 
-// listServicesWithOptions polyfills the ListServiceWithOptions()
+// listWorkloadsWithOptions polyfills the ListWorkloadsWithOptions()
 // introduced in v11 by removing unwanted resources after fetching
-// all the services.
-func listServicesWithOptions(ctx context.Context, p listServicesWithoutOptionsClient, opts v11.ListServicesOptions, supportedKinds []string) ([]v6.ControllerStatus, error) {
-	if opts.Namespace != "" && len(opts.Services) > 0 {
-		return nil, errors.New("cannot filter by 'namespace' and 'services' at the same time")
+// all the workloads.
+func listWorkloadsWithOptions(ctx context.Context, p listWorkloadsWithoutOptionsClient, opts v11.ListWorkloadsOptions, supportedKinds []string) ([]v6.WorkloadStatus, error) {
+	if opts.Namespace != "" && len(opts.Workloads) > 0 {
+		return nil, errors.New("cannot filter by 'namespace' and 'workloads' at the same time")
 	}
 	if len(supportedKinds) > 0 {
-		for _, svc := range opts.Services {
-			if err := requireServiceIDKinds(svc, supportedKinds); err != nil {
+		for _, svc := range opts.Workloads {
+			if err := requireWorkloadIDKinds(svc, supportedKinds); err != nil {
 				return nil, remote.UnsupportedResourceKind(err)
 			}
 		}
 	}
 
-	all, err := p.ListServices(ctx, opts.Namespace)
-	listServicesRolloutStatus(all)
+	all, err := p.ListWorkloads(ctx, opts.Namespace)
+	listWorkloadsRolloutStatus(all)
 	if err != nil {
 		return nil, err
 	}
-	if len(opts.Services) == 0 {
+	if len(opts.Workloads) == 0 {
 		return all, nil
 	}
 
-	// Polyfill the service IDs filter
+	// Polyfill the workload IDs filter
 	want := map[flux.ResourceID]struct{}{}
-	for _, svc := range opts.Services {
+	for _, svc := range opts.Workloads {
 		want[svc] = struct{}{}
 	}
-	var controllers []v6.ControllerStatus
+	var workloads []v6.WorkloadStatus
 	for _, svc := range all {
 		if _, ok := want[svc.ID]; ok {
-			controllers = append(controllers, svc)
+			workloads = append(workloads, svc)
 		}
 	}
-	return controllers, nil
+	return workloads, nil
 }
 
 type listImagesWithoutOptionsClient interface {
-	ListServices(ctx context.Context, namespace string) ([]v6.ControllerStatus, error)
+	ListWorkloads(ctx context.Context, namespace string) ([]v6.WorkloadStatus, error)
 	ListImages(ctx context.Context, spec update.ResourceSpec) ([]v6.ImageStatus, error)
 }
 
 // listImagesWithOptions is called by ListImagesWithOptions so we can use an
-// interface to dispatch .ListImages() and .ListServices() to the correct
+// interface to dispatch .ListImages() and .ListWorkloads() to the correct
 // API version.
 func listImagesWithOptions(ctx context.Context, client listImagesWithoutOptionsClient, opts v10.ListImagesOptions) ([]v6.ImageStatus, error) {
 	statuses, err := client.ListImages(ctx, opts.Spec)
@@ -155,14 +155,14 @@ func listImagesWithOptions(ctx context.Context, client listImagesWithoutOptionsC
 		}
 		ns, _, _ = resourceID.Components()
 	}
-	services, err := client.ListServices(ctx, ns)
+	workloads, err := client.ListWorkloads(ctx, ns)
 	if err != nil {
 		return statuses, err
 	}
 
 	policyMap := map[flux.ResourceID]map[string]string{}
-	for _, service := range services {
-		policyMap[service.ID] = service.Policies
+	for _, workload := range workloads {
+		policyMap[workload.ID] = workload.Policies
 	}
 
 	// Polyfill container fields from v10

@@ -11,14 +11,14 @@ import (
 	"github.com/weaveworks/flux/update"
 )
 
-type controllerPolicyOpts struct {
+type workloadPolicyOpts struct {
 	*rootOpts
 	outputOpts
 
-	namespace  string
-	controller string
-	tagAll     string
-	tags       []string
+	namespace string
+	workload  string
+	tagAll    string
+	tags      []string
 
 	automate, deautomate bool
 	lock, unlock         bool
@@ -27,18 +27,20 @@ type controllerPolicyOpts struct {
 
 	// Deprecated
 	service string
+	// Deprecated
+	controller string
 }
 
-func newControllerPolicy(parent *rootOpts) *controllerPolicyOpts {
-	return &controllerPolicyOpts{rootOpts: parent}
+func newWorkloadPolicy(parent *rootOpts) *workloadPolicyOpts {
+	return &workloadPolicyOpts{rootOpts: parent}
 }
 
-func (opts *controllerPolicyOpts) Command() *cobra.Command {
+func (opts *workloadPolicyOpts) Command() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "policy",
-		Short: "Manage policies for a controller.",
+		Short: "Manage policies for a workload.",
 		Long: `
-Manage policies for a controller.
+Manage policies for a workload.
 
 Tag filter patterns must be specified as 'container=pattern', such as 'foo=1.*'
 where an asterisk means 'match anything'.
@@ -48,10 +50,10 @@ If both --tag-all and --tag are specified, --tag-all will apply to all
 containers which aren't explicitly named.
         `,
 		Example: makeExample(
-			"fluxctl policy --controller=default:deployment/foo --automate",
-			"fluxctl policy --controller=default:deployment/foo --lock",
-			"fluxctl policy --controller=default:deployment/foo --tag='bar=1.*' --tag='baz=2.*'",
-			"fluxctl policy --controller=default:deployment/foo --tag-all='master-*' --tag='bar=1.*'",
+			"fluxctl policy --workload=default:deployment/foo --automate",
+			"fluxctl policy --workload=default:deployment/foo --lock",
+			"fluxctl policy --workload=default:deployment/foo --tag='bar=1.*' --tag='baz=2.*'",
+			"fluxctl policy --workload=default:deployment/foo --tag-all='master-*' --tag='bar=1.*'",
 		),
 		RunE: opts.RunE,
 	}
@@ -59,32 +61,43 @@ containers which aren't explicitly named.
 	AddOutputFlags(cmd, &opts.outputOpts)
 	AddCauseFlags(cmd, &opts.cause)
 	flags := cmd.Flags()
-	flags.StringVarP(&opts.namespace, "namespace", "n", "default", "Controller namespace")
-	flags.StringVarP(&opts.controller, "controller", "c", "", "Controller to modify")
+	flags.StringVarP(&opts.namespace, "namespace", "n", "default", "Workload namespace")
+	flags.StringVarP(&opts.workload, "workload", "w", "", "Workload to modify")
 	flags.StringVar(&opts.tagAll, "tag-all", "", "Tag filter pattern to apply to all containers")
 	flags.StringSliceVar(&opts.tags, "tag", nil, "Tag filter container/pattern pairs")
-	flags.BoolVar(&opts.automate, "automate", false, "Automate controller")
-	flags.BoolVar(&opts.deautomate, "deautomate", false, "Deautomate controller")
-	flags.BoolVar(&opts.lock, "lock", false, "Lock controller")
-	flags.BoolVar(&opts.unlock, "unlock", false, "Unlock controller")
+	flags.BoolVar(&opts.automate, "automate", false, "Automate workload")
+	flags.BoolVar(&opts.deautomate, "deautomate", false, "Deautomate workload")
+	flags.BoolVar(&opts.lock, "lock", false, "Lock workload")
+	flags.BoolVar(&opts.unlock, "unlock", false, "Unlock workload")
 
 	// Deprecated
 	flags.StringVarP(&opts.service, "service", "s", "", "Service to modify")
 	flags.MarkHidden("service")
+	// Deprecated
+	flags.StringVarP(&opts.controller, "controller", "c", "", "Controller to modify")
+	flags.MarkDeprecated("controller", "changed to --workspace, use that instead")
 
 	return cmd
 }
 
-func (opts *controllerPolicyOpts) RunE(cmd *cobra.Command, args []string) error {
+func (opts *workloadPolicyOpts) RunE(cmd *cobra.Command, args []string) error {
 	if len(opts.service) > 0 {
 		return errorServiceFlagDeprecated
 	}
 	if len(args) > 0 {
 		return errorWantedNoArgs
 	}
-	if opts.controller == "" {
-		return newUsageError("-c, --controller is required")
+
+	// Backwards compatibility with --controller until we remove it
+	switch {
+	case opts.workload == "" && opts.controller == "":
+		return newUsageError("-w, --workload is required")
+	case opts.workload != "" && opts.controller != "":
+		return newUsageError("can't specify both the controller and workload")
+	case opts.controller != "":
+		opts.workload = opts.controller
 	}
+
 	if opts.automate && opts.deautomate {
 		return newUsageError("automate and deautomate both specified")
 	}
@@ -92,7 +105,7 @@ func (opts *controllerPolicyOpts) RunE(cmd *cobra.Command, args []string) error 
 		return newUsageError("lock and unlock both specified")
 	}
 
-	resourceID, err := flux.ParseResourceIDOptionalNamespace(opts.namespace, opts.controller)
+	resourceID, err := flux.ParseResourceIDOptionalNamespace(opts.namespace, opts.workload)
 	if err != nil {
 		return err
 	}
@@ -117,7 +130,7 @@ func (opts *controllerPolicyOpts) RunE(cmd *cobra.Command, args []string) error 
 	return await(ctx, cmd.OutOrStdout(), cmd.OutOrStderr(), opts.API, jobID, false, opts.verbosity)
 }
 
-func calculatePolicyChanges(opts *controllerPolicyOpts) (policy.Update, error) {
+func calculatePolicyChanges(opts *workloadPolicyOpts) (policy.Update, error) {
 	add := policy.Set{}
 	if opts.automate {
 		add = add.Add(policy.Automated)

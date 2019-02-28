@@ -48,24 +48,24 @@ func (i *instrumentedServer) Export(ctx context.Context) (config []byte, err err
 	return i.s.Export(ctx)
 }
 
-func (i *instrumentedServer) ListServices(ctx context.Context, namespace string) (_ []v6.ControllerStatus, err error) {
+func (i *instrumentedServer) ListWorkloads(ctx context.Context, namespace string) (_ []v6.WorkloadStatus, err error) {
 	defer func(begin time.Time) {
 		requestDuration.With(
-			fluxmetrics.LabelMethod, "ListServices",
+			fluxmetrics.LabelMethod, "ListWorkloads",
 			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
 	}(time.Now())
-	return i.s.ListServices(ctx, namespace)
+	return i.s.ListWorkloads(ctx, namespace)
 }
 
-func (i *instrumentedServer) ListServicesWithOptions(ctx context.Context, opts v11.ListServicesOptions) (_ []v6.ControllerStatus, err error) {
+func (i *instrumentedServer) ListWorkloadsWithOptions(ctx context.Context, opts v11.ListWorkloadsOptions) (_ []v6.WorkloadStatus, err error) {
 	defer func(begin time.Time) {
 		requestDuration.With(
-			fluxmetrics.LabelMethod, "ListServicesWithOptions",
+			fluxmetrics.LabelMethod, "ListWorkloadsWithOptions",
 			fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
 		).Observe(time.Since(begin).Seconds())
 	}(time.Now())
-	return i.s.ListServicesWithOptions(ctx, opts)
+	return i.s.ListWorkloadsWithOptions(ctx, opts)
 }
 
 func (i *instrumentedServer) ListImages(ctx context.Context, spec update.ResourceSpec) (_ []v6.ImageStatus, err error) {

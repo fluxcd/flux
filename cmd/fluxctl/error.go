@@ -30,5 +30,5 @@ func checkExactlyOne(optsDescription string, supplied ...bool) error {
 
 var (
 	errorWantedNoArgs          = newUsageError("expected no (non-flag) arguments")
-	errorServiceFlagDeprecated = newUsageError("--service is deprecated, use --controller instead")
+	errorServiceFlagDeprecated = newUsageError("--service is deprecated, use --workload instead")
 )

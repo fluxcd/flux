@@ -21,7 +21,7 @@ const (
 	glyphChecked   = "\u25c9"
 	glyphUnchecked = "\u25ef"
 
-	tableHeading = "CONTROLLER \tSTATUS \tUPDATES"
+	tableHeading = "WORKLOAD \tSTATUS \tUPDATES"
 )
 
 type writer struct {
@@ -70,7 +70,7 @@ func (c *writer) flush() error {
 
 type menuItem struct {
 	id     flux.ResourceID
-	status ControllerUpdateStatus
+	status WorkloadUpdateStatus
 	error  string
 	update ContainerUpdate
 
@@ -100,8 +100,8 @@ func NewMenu(out io.Writer, results Result, verbosity int) *Menu {
 }
 
 func (m *Menu) fromResults(results Result, verbosity int) {
-	for _, serviceID := range results.ServiceIDs() {
-		resourceID := flux.MustParseResourceID(serviceID)
+	for _, workloadID := range results.WorkloadIDs() {
+		resourceID := flux.MustParseResourceID(workloadID)
 		result := results[resourceID]
 		switch result.Status {
 		case ReleaseStatusIgnored:

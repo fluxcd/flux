@@ -45,18 +45,18 @@ func ParseReleaseKind(s string) (ReleaseKind, error) {
 const UserAutomated = "<automated>"
 
 type ReleaseContext interface {
-	SelectServices(Result, []ControllerFilter, []ControllerFilter) ([]*ControllerUpdate, error)
+	SelectWorkloads(Result, []WorkloadFilter, []WorkloadFilter) ([]*WorkloadUpdate, error)
 	Registry() registry.Registry
 }
 
 // NB: these get sent from fluxctl, so we have to maintain the json format of
 // this. Eugh.
 type ReleaseImageSpec struct {
-	ServiceSpecs []ResourceSpec
-	ImageSpec    ImageSpec
-	Kind         ReleaseKind
-	Excludes     []flux.ResourceID
-	Force        bool
+	WorkloadSpecs []ResourceSpec `json:"serviceSpecs"`
+	ImageSpec     ImageSpec
+	Kind          ReleaseKind
+	Excludes      []flux.ResourceID
+	Force         bool
 }
 
 // ReleaseType gives a one-word description of the release, mainly
@@ -70,10 +70,10 @@ func (s ReleaseImageSpec) ReleaseType() ReleaseType {
 	}
 }
 
-func (s ReleaseImageSpec) CalculateRelease(rc ReleaseContext, logger log.Logger) ([]*ControllerUpdate, Result, error) {
+func (s ReleaseImageSpec) CalculateRelease(rc ReleaseContext, logger log.Logger) ([]*WorkloadUpdate, Result, error) {
 	results := Result{}
-	timer := NewStageTimer("select_services")
-	updates, err := s.selectServices(rc, results)
+	timer := NewStageTimer("select_workloads")
+	updates, err := s.selectWorkloads(rc, results)
 	timer.ObserveDuration()
 	if err != nil {
 		return nil, nil, err
@@ -95,31 +95,31 @@ func (s ReleaseImageSpec) ReleaseKind() ReleaseKind {
 
 func (s ReleaseImageSpec) CommitMessage(result Result) string {
 	image := strings.Trim(s.ImageSpec.String(), "<>")
-	var services []string
-	for _, spec := range s.ServiceSpecs {
-		services = append(services, strings.Trim(spec.String(), "<>"))
+	var workloads []string
+	for _, spec := range s.WorkloadSpecs {
+		workloads = append(workloads, strings.Trim(spec.String(), "<>"))
 	}
-	return fmt.Sprintf("Release %s to %s", image, strings.Join(services, ", "))
+	return fmt.Sprintf("Release %s to %s", image, strings.Join(workloads, ", "))
 }
 
-// Take the spec given in the job, and figure out which services are
-// in question based on the running services and those defined in the
+// Take the spec given in the job, and figure out which workloads are
+// in question based on the running workloads and those defined in the
 // repo. Fill in the release results along the way.
-func (s ReleaseImageSpec) selectServices(rc ReleaseContext, results Result) ([]*ControllerUpdate, error) {
+func (s ReleaseImageSpec) selectWorkloads(rc ReleaseContext, results Result) ([]*WorkloadUpdate, error) {
 	// Build list of filters
 	prefilters, postfilters, err := s.filters(rc)
 	if err != nil {
 		return nil, err
 	}
-	// Find and filter services
-	return rc.SelectServices(results, prefilters, postfilters)
+	// Find and filter workloads
+	return rc.SelectWorkloads(results, prefilters, postfilters)
 }
 
-func (s ReleaseImageSpec) filters(rc ReleaseContext) ([]ControllerFilter, []ControllerFilter, error) {
-	var prefilters, postfilters []ControllerFilter
+func (s ReleaseImageSpec) filters(rc ReleaseContext) ([]WorkloadFilter, []WorkloadFilter, error) {
+	var prefilters, postfilters []WorkloadFilter
 
 	ids := []flux.ResourceID{}
-	for _, ss := range s.ServiceSpecs {
+	for _, ss := range s.WorkloadSpecs {
 		if ss == ResourceSpecAll {
 			// "<all>" Overrides any other filters
 			ids = []flux.ResourceID{}
@@ -158,7 +158,7 @@ func (s ReleaseImageSpec) filters(rc ReleaseContext) ([]ControllerFilter, []Cont
 }
 
 func (s ReleaseImageSpec) markSkipped(results Result) {
-	for _, v := range s.ServiceSpecs {
+	for _, v := range s.WorkloadSpecs {
 		if v == ResourceSpecAll {
 			continue
 		}
@@ -167,7 +167,7 @@ func (s ReleaseImageSpec) markSkipped(results Result) {
 			continue
 		}
 		if _, ok := results[id]; !ok {
-			results[id] = ControllerResult{
+			results[id] = WorkloadResult{
 				Status: ReleaseStatusSkipped,
 				Error:  NotInRepo,
 			}
@@ -181,7 +181,7 @@ func (s ReleaseImageSpec) markSkipped(results Result) {
 // however we do want to see if we *can* do the replacements, because
 // if not, it indicates there's likely some problem with the running
 // system vs the definitions given in the repo.)
-func (s ReleaseImageSpec) calculateImageUpdates(rc ReleaseContext, candidates []*ControllerUpdate, results Result, logger log.Logger) ([]*ControllerUpdate, error) {
+func (s ReleaseImageSpec) calculateImageUpdates(rc ReleaseContext, candidates []*WorkloadUpdate, results Result, logger log.Logger) ([]*WorkloadUpdate, error) {
 	// Compile an `ImageRepos` of all relevant images
 	var imageRepos ImageRepos
 	var singleRepo image.CanonicalName
@@ -203,13 +203,13 @@ func (s ReleaseImageSpec) calculateImageUpdates(rc ReleaseContext, candidates []
 		return nil, err
 	}
 
-	// Look through all the services' containers to see which have an
+	// Look through all the workloads' containers to see which have an
 	// image that could be updated.
-	var updates []*ControllerUpdate
+	var updates []*WorkloadUpdate
 	for _, u := range candidates {
-		containers, err := u.Controller.ContainersOrError()
+		containers, err := u.Workload.ContainersOrError()
 		if err != nil {
-			results[u.ResourceID] = ControllerResult{
+			results[u.ResourceID] = WorkloadResult{
 				Status: ReleaseStatusFailed,
 				Error:  err.Error(),
 			}
@@ -265,22 +265,22 @@ func (s ReleaseImageSpec) calculateImageUpdates(rc ReleaseContext, candidates []
 		case len(containerUpdates) > 0:
 			u.Updates = containerUpdates
 			updates = append(updates, u)
-			results[u.ResourceID] = ControllerResult{
+			results[u.ResourceID] = WorkloadResult{
 				Status:       ReleaseStatusSuccess,
 				PerContainer: containerUpdates,
 			}
 		case ignoredOrSkipped == ReleaseStatusSkipped:
-			results[u.ResourceID] = ControllerResult{
+			results[u.ResourceID] = WorkloadResult{
 				Status: ReleaseStatusSkipped,
 				Error:  ImageUpToDate,
 			}
 		case ignoredOrSkipped == ReleaseStatusIgnored:
-			results[u.ResourceID] = ControllerResult{
+			results[u.ResourceID] = WorkloadResult{
 				Status: ReleaseStatusIgnored,
 				Error:  DoesNotUseImage,
 			}
 		case ignoredOrSkipped == ReleaseStatusUnknown:
-			results[u.ResourceID] = ControllerResult{
+			results[u.ResourceID] = WorkloadResult{
 				Status: ReleaseStatusSkipped,
 				Error:  ImageNotFound,
 			}
@@ -298,7 +298,7 @@ func ParseResourceSpec(s string) (ResourceSpec, error) {
 	}
 	id, err := flux.ParseResourceID(s)
 	if err != nil {
-		return "", errors.Wrap(err, "invalid service spec")
+		return "", errors.Wrap(err, "invalid workload spec")
 	}
 	return ResourceSpec(id.String()), nil
 }

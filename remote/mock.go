@@ -29,8 +29,8 @@ type MockServer struct {
 	ExportAnswer []byte
 	ExportError  error
 
-	ListServicesAnswer []v6.ControllerStatus
-	ListServicesError  error
+	ListWorkloadsAnswer []v6.WorkloadStatus
+	ListWorkloadsError  error
 
 	ListImagesAnswer []v6.ImageStatus
 	ListImagesError  error
@@ -63,12 +63,12 @@ func (p *MockServer) Export(ctx context.Context) ([]byte, error) {
 	return p.ExportAnswer, p.ExportError
 }
 
-func (p *MockServer) ListServices(ctx context.Context, ns string) ([]v6.ControllerStatus, error) {
-	return p.ListServicesAnswer, p.ListServicesError
+func (p *MockServer) ListWorkloads(ctx context.Context, ns string) ([]v6.WorkloadStatus, error) {
+	return p.ListWorkloadsAnswer, p.ListWorkloadsError
 }
 
-func (p *MockServer) ListServicesWithOptions(context.Context, v11.ListServicesOptions) ([]v6.ControllerStatus, error) {
-	return p.ListServicesAnswer, p.ListServicesError
+func (p *MockServer) ListWorkloadsWithOptions(context.Context, v11.ListWorkloadsOptions) ([]v6.WorkloadStatus, error) {
+	return p.ListWorkloadsAnswer, p.ListWorkloadsError
 }
 
 func (p *MockServer) ListImages(context.Context, update.ResourceSpec) ([]v6.ImageStatus, error) {
@@ -114,15 +114,15 @@ func ServerTestBattery(t *testing.T, wrap func(mock api.UpstreamServer) api.Upst
 	// set up
 	namespace := "the-space-of-names"
 	serviceID := flux.MustParseResourceID(namespace + "/service")
-	serviceList := []flux.ResourceID{serviceID}
-	services := flux.ResourceIDSet{}
-	services.Add(serviceList)
+	workloadsList := []flux.ResourceID{serviceID}
+	workloads := flux.ResourceIDSet{}
+	workloads.Add(workloadsList)
 
 	now := time.Now().UTC()
 
 	imageID, _ := image.ParseRef("quay.io/example.com/frob:v0.4.5")
-	serviceAnswer := []v6.ControllerStatus{
-		v6.ControllerStatus{
+	workloadAnswer := []v6.WorkloadStatus{
+		v6.WorkloadStatus{
 			ID:     flux.MustParseResourceID("foobar/hello"),
 			Status: "ok",
 			Containers: []v6.Container{
@@ -135,7 +135,7 @@ func ServerTestBattery(t *testing.T, wrap func(mock api.UpstreamServer) api.Upst
 				},
 			},
 		},
-		v6.ControllerStatus{},
+		v6.WorkloadStatus{},
 	}
 
 	imagesAnswer := []v6.ImageStatus{
@@ -161,7 +161,7 @@ func ServerTestBattery(t *testing.T, wrap func(mock api.UpstreamServer) api.Upst
 	updateSpec := update.Spec{
 		Type: update.Images,
 		Spec: update.ReleaseImageSpec{
-			ServiceSpecs: []update.ResourceSpec{
+			WorkloadSpecs: []update.ResourceSpec{
 				update.ResourceSpecAll,
 			},
 			ImageSpec: update.ImageSpecLatest,
@@ -175,7 +175,7 @@ func ServerTestBattery(t *testing.T, wrap func(mock api.UpstreamServer) api.Upst
 	}
 
 	mock := &MockServer{
-		ListServicesAnswer:     serviceAnswer,
+		ListWorkloadsAnswer:    workloadAnswer,
 		ListImagesAnswer:       imagesAnswer,
 		UpdateManifestsArgTest: checkUpdateSpec,
 		UpdateManifestsAnswer:  job.ID(guid.New()),
@@ -191,17 +191,17 @@ func ServerTestBattery(t *testing.T, wrap func(mock api.UpstreamServer) api.Upst
 		t.Fatal(err)
 	}
 
-	ss, err := client.ListServices(ctx, namespace)
+	ss, err := client.ListWorkloads(ctx, namespace)
 	if err != nil {
 		t.Error(err)
 	}
-	if !reflect.DeepEqual(ss, mock.ListServicesAnswer) {
-		t.Error(fmt.Errorf("expected:\n%#v\ngot:\n%#v", mock.ListServicesAnswer, ss))
+	if !reflect.DeepEqual(ss, mock.ListWorkloadsAnswer) {
+		t.Error(fmt.Errorf("expected:\n%#v\ngot:\n%#v", mock.ListWorkloadsAnswer, ss))
 	}
-	mock.ListServicesError = fmt.Errorf("list services query failure")
-	ss, err = client.ListServices(ctx, namespace)
+	mock.ListWorkloadsError = fmt.Errorf("list workloads query failure")
+	ss, err = client.ListWorkloads(ctx, namespace)
 	if err == nil {
-		t.Error("expected error from ListServices, got nil")
+		t.Error("expected error from ListWorkloads, got nil")
 	}
 
 	ims, err := client.ListImagesWithOptions(ctx, v10.ListImagesOptions{

@@ -6,24 +6,24 @@ import (
 	"github.com/weaveworks/flux/resource"
 )
 
-type ControllerUpdate struct {
+type WorkloadUpdate struct {
 	ResourceID   flux.ResourceID
-	Controller   cluster.Controller
+	Workload     cluster.Workload
 	Resource     resource.Workload
 	ManifestPath string
 	Updates      []ContainerUpdate
 }
 
-type ControllerFilter interface {
-	Filter(ControllerUpdate) ControllerResult
+type WorkloadFilter interface {
+	Filter(WorkloadUpdate) WorkloadResult
 }
 
-func (s *ControllerUpdate) Filter(filters ...ControllerFilter) ControllerResult {
+func (s *WorkloadUpdate) Filter(filters ...WorkloadFilter) WorkloadResult {
 	for _, f := range filters {
 		fr := f.Filter(*s)
 		if fr.Error != "" {
 			return fr
 		}
 	}
-	return ControllerResult{}
+	return WorkloadResult{}
 }

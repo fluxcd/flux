@@ -6,51 +6,64 @@ import (
 	"github.com/weaveworks/flux/update"
 )
 
-type controllerUnlockOpts struct {
+type workloadUnlockOpts struct {
 	*rootOpts
-	namespace  string
-	controller string
+	namespace string
+	workload  string
 	outputOpts
 	cause update.Cause
 
 	// Deprecated
 	service string
+	// Deprecated
+	controller string
 }
 
-func newControllerUnlock(parent *rootOpts) *controllerUnlockOpts {
-	return &controllerUnlockOpts{rootOpts: parent}
+func newWorkloadUnlock(parent *rootOpts) *workloadUnlockOpts {
+	return &workloadUnlockOpts{rootOpts: parent}
 }
 
-func (opts *controllerUnlockOpts) Command() *cobra.Command {
+func (opts *workloadUnlockOpts) Command() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "unlock",
-		Short: "Unlock a controller, so it can be deployed.",
+		Short: "Unlock a workload, so it can be deployed.",
 		Example: makeExample(
-			"fluxctl unlock --controller=default:deployment/helloworld",
+			"fluxctl unlock --workload=default:deployment/helloworld",
 		),
 		RunE: opts.RunE,
 	}
 	AddOutputFlags(cmd, &opts.outputOpts)
 	AddCauseFlags(cmd, &opts.cause)
 	cmd.Flags().StringVarP(&opts.namespace, "namespace", "n", "default", "Controller namespace")
-	cmd.Flags().StringVarP(&opts.controller, "controller", "c", "", "Controller to unlock")
+	cmd.Flags().StringVarP(&opts.workload, "workload", "w", "", "Controller to unlock")
 
-	// Deprecate
+	// Deprecated
 	cmd.Flags().StringVarP(&opts.service, "service", "s", "", "Service to unlock")
 	cmd.Flags().MarkHidden("service")
+	// Deprecated
+	cmd.Flags().StringVarP(&opts.controller, "controller", "c", "", "Controller to unlock")
+	cmd.Flags().MarkDeprecated("controller", "changed to --workload, use that instead")
 
 	return cmd
 }
 
-func (opts *controllerUnlockOpts) RunE(cmd *cobra.Command, args []string) error {
+func (opts *workloadUnlockOpts) RunE(cmd *cobra.Command, args []string) error {
 	if len(opts.service) > 0 {
 		return errorServiceFlagDeprecated
 	}
-	policyOpts := &controllerPolicyOpts{
+
+	// Backwards compatibility with --controller until we remove it
+	switch {
+	case opts.workload != "" && opts.controller != "":
+		return newUsageError("can't specify both a controller and workload")
+	case opts.controller != "":
+		opts.workload = opts.controller
+	}
+	policyOpts := &workloadPolicyOpts{
 		rootOpts:   opts.rootOpts,
 		outputOpts: opts.outputOpts,
 		namespace:  opts.namespace,
-		controller: opts.controller,
+		workload:   opts.workload,
 		cause:      opts.cause,
 		unlock:     true,
 	}

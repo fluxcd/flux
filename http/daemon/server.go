@@ -48,8 +48,8 @@ func NewRouter() *mux.Router {
 
 func NewHandler(s api.Server, r *mux.Router) http.Handler {
 	handle := HTTPServer{s}
-	r.Get(transport.ListServices).HandlerFunc(handle.ListServicesWithOptions)
-	r.Get(transport.ListServicesWithOptions).HandlerFunc(handle.ListServicesWithOptions)
+	r.Get(transport.ListWorkloads).HandlerFunc(handle.ListWorkloadsWithOptions)
+	r.Get(transport.ListWorkloadsWithOptions).HandlerFunc(handle.ListWorkloadsWithOptions)
 	r.Get(transport.ListImages).HandlerFunc(handle.ListImagesWithOptions)
 	r.Get(transport.ListImagesWithOptions).HandlerFunc(handle.ListImagesWithOptions)
 	r.Get(transport.UpdateManifests).HandlerFunc(handle.UpdateManifests)
@@ -146,8 +146,8 @@ func (s HTTPServer) UpdateManifests(w http.ResponseWriter, r *http.Request) {
 	transport.JSONResponse(w, r, jobID)
 }
 
-func (s HTTPServer) ListServicesWithOptions(w http.ResponseWriter, r *http.Request) {
-	var opts v11.ListServicesOptions
+func (s HTTPServer) ListWorkloadsWithOptions(w http.ResponseWriter, r *http.Request) {
+	var opts v11.ListWorkloadsOptions
 	opts.Namespace = r.URL.Query().Get("namespace")
 	services := r.URL.Query().Get("services")
 	if services != "" {
@@ -157,11 +157,11 @@ func (s HTTPServer) ListServicesWithOptions(w http.ResponseWriter, r *http.Reque
 				transport.WriteError(w, r, http.StatusBadRequest, errors.Wrapf(err, "parsing service spec %q", svc))
 				return
 			}
-			opts.Services = append(opts.Services, id)
+			opts.Workloads = append(opts.Workloads, id)
 		}
 	}
 
-	res, err := s.server.ListServicesWithOptions(r.Context(), opts)
+	res, err := s.server.ListWorkloadsWithOptions(r.Context(), opts)
 	if err != nil {
 		transport.ErrorResponse(w, r, err)
 		return
@@ -234,10 +234,10 @@ func (s HTTPServer) UpdateImages(w http.ResponseWriter, r *http.Request) {
 	}
 
 	spec := update.ReleaseImageSpec{
-		ServiceSpecs: serviceSpecs,
-		ImageSpec:    imageSpec,
-		Kind:         releaseKind,
-		Excludes:     excludes,
+		WorkloadSpecs: serviceSpecs,
+		ImageSpec:     imageSpec,
+		Kind:          releaseKind,
+		Excludes:      excludes,
 	}
 	cause := update.Cause{
 		User:    r.FormValue("user"),

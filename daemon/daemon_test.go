@@ -35,14 +35,14 @@ import (
 
 const (
 	// These have to match the values in cluster/kubernetes/testfiles/data.go
-	svc               = "default:deployment/helloworld"
+	wl                = "default:deployment/helloworld"
 	container         = "greeter"
 	ns                = "default"
 	oldHelloImage     = "quay.io/weaveworks/helloworld:3" // older in time but newer version!
 	newHelloImage     = "quay.io/weaveworks/helloworld:2"
 	currentHelloImage = "quay.io/weaveworks/helloworld:master-a000001"
 
-	anotherSvc       = "another:deployment/service"
+	anotherWl        = "another:deployment/service"
 	anotherContainer = "it-doesn't-matter"
 	anotherImage     = "another/service:latest"
 
@@ -98,8 +98,8 @@ func TestDaemon_Export(t *testing.T) {
 	}
 }
 
-// When I call list services, it should list all the services
-func TestDaemon_ListServices(t *testing.T) {
+// When I call list workloads, it should list all the workloads
+func TestDaemon_ListWorkloads(t *testing.T) {
 	d, start, clean, _, _, _ := mockDaemon(t)
 	start()
 	defer clean()
@@ -107,7 +107,7 @@ func TestDaemon_ListServices(t *testing.T) {
 	ctx := context.Background()
 
 	// No namespace
-	s, err := d.ListServices(ctx, "")
+	s, err := d.ListWorkloads(ctx, "")
 	if err != nil {
 		t.Fatalf("Error: %s", err.Error())
 	}
@@ -116,7 +116,7 @@ func TestDaemon_ListServices(t *testing.T) {
 	}
 
 	// Just namespace
-	s, err = d.ListServices(ctx, ns)
+	s, err = d.ListWorkloads(ctx, ns)
 	if err != nil {
 		t.Fatalf("Error: %s", err.Error())
 	}
@@ -125,7 +125,7 @@ func TestDaemon_ListServices(t *testing.T) {
 	}
 
 	// Invalid NS
-	s, err = d.ListServices(ctx, invalidNS)
+	s, err = d.ListWorkloads(ctx, invalidNS)
 	if err != nil {
 		t.Fatalf("Error: %s", err.Error())
 	}
@@ -134,8 +134,8 @@ func TestDaemon_ListServices(t *testing.T) {
 	}
 }
 
-// When I call list services with options, it should list all the requested services
-func TestDaemon_ListServicesWithOptions(t *testing.T) {
+// When I call list workloads with options, it should list all the requested workloads
+func TestDaemon_ListWorkloadsWithOptions(t *testing.T) {
 	d, start, clean, _, _, _ := mockDaemon(t)
 	start()
 	defer clean()
@@ -143,7 +143,7 @@ func TestDaemon_ListServicesWithOptions(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("no filter", func(t *testing.T) {
-		s, err := d.ListServicesWithOptions(ctx, v11.ListServicesOptions{})
+		s, err := d.ListWorkloadsWithOptions(ctx, v11.ListWorkloadsOptions{})
 		if err != nil {
 			t.Fatalf("Error: %s", err.Error())
 		}
@@ -152,9 +152,9 @@ func TestDaemon_ListServicesWithOptions(t *testing.T) {
 		}
 	})
 	t.Run("filter id", func(t *testing.T) {
-		s, err := d.ListServicesWithOptions(ctx, v11.ListServicesOptions{
+		s, err := d.ListWorkloadsWithOptions(ctx, v11.ListWorkloadsOptions{
 			Namespace: "",
-			Services:  []flux.ResourceID{flux.MustParseResourceID(svc)}})
+			Services:  []flux.ResourceID{flux.MustParseResourceID(wl)}})
 		if err != nil {
 			t.Fatalf("Error: %s", err.Error())
 		}
@@ -164,16 +164,16 @@ func TestDaemon_ListServicesWithOptions(t *testing.T) {
 	})
 
 	t.Run("filter id and namespace", func(t *testing.T) {
-		_, err := d.ListServicesWithOptions(ctx, v11.ListServicesOptions{
+		_, err := d.ListWorkloadsWithOptions(ctx, v11.ListWorkloadsOptions{
 			Namespace: "foo",
-			Services:  []flux.ResourceID{flux.MustParseResourceID(svc)}})
+			Services:  []flux.ResourceID{flux.MustParseResourceID(wl)}})
 		if err == nil {
 			t.Fatal("Expected error but got nil")
 		}
 	})
 
 	t.Run("filter unsupported id kind", func(t *testing.T) {
-		_, err := d.ListServicesWithOptions(ctx, v11.ListServicesOptions{
+		_, err := d.ListWorkloadsWithOptions(ctx, v11.ListWorkloadsOptions{
 			Namespace: "foo",
 			Services:  []flux.ResourceID{flux.MustParseResourceID("default:unsupportedkind/goodbyeworld")}})
 		if err == nil {
@@ -182,7 +182,7 @@ func TestDaemon_ListServicesWithOptions(t *testing.T) {
 	})
 }
 
-// When I call list images for a service, it should return images
+// When I call list images for a workload, it should return images
 func TestDaemon_ListImagesWithOptions(t *testing.T) {
 	d, start, clean, _, _, _ := mockDaemon(t)
 	start()
@@ -193,7 +193,7 @@ func TestDaemon_ListImagesWithOptions(t *testing.T) {
 	specAll := update.ResourceSpec(update.ResourceSpecAll)
 
 	// Service 1
-	svcID, err := flux.ParseResourceID(svc)
+	svcID, err := flux.ParseResourceID(wl)
 	assert.NoError(t, err)
 	currentImageRef, err := image.ParseRef(currentHelloImage)
 	assert.NoError(t, err)
@@ -203,7 +203,7 @@ func TestDaemon_ListImagesWithOptions(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Service 2
-	anotherSvcID, err := flux.ParseResourceID(anotherSvc)
+	anotherSvcID, err := flux.ParseResourceID(anotherWl)
 	assert.NoError(t, err)
 	anotherImageRef, err := image.ParseRef(anotherImage)
 	assert.NoError(t, err)
@@ -261,7 +261,7 @@ func TestDaemon_ListImagesWithOptions(t *testing.T) {
 		},
 		{
 			name: "Specific service",
-			opts: v10.ListImagesOptions{Spec: update.ResourceSpec(svc)},
+			opts: v10.ListImagesOptions{Spec: update.ResourceSpec(wl)},
 			expectedImages: []v6.ImageStatus{
 				{
 					ID: svcID,
@@ -356,7 +356,7 @@ func TestDaemon_ListImagesWithOptions(t *testing.T) {
 		{
 			name: "Specific namespace and service",
 			opts: v10.ListImagesOptions{
-				Spec:      update.ResourceSpec(svc),
+				Spec:      update.ResourceSpec(wl),
 				Namespace: ns,
 			},
 			expectedImages: nil,
@@ -519,7 +519,7 @@ func TestDaemon_PolicyUpdate(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Error: %s", err.Error())
 		}
-		return len(m[svc].Policies()) > 0
+		return len(m[wl].Policies()) > 0
 	}, "Waiting for new annotation")
 }
 
@@ -575,7 +575,7 @@ func TestDaemon_Automated(t *testing.T) {
 	defer clean()
 	w := newWait(t)
 
-	service := cluster.Controller{
+	workload := cluster.Workload{
 		ID: flux.MakeResourceID(ns, "deployment", "helloworld"),
 		Containers: cluster.ContainersOrExcuse{
 			Containers: []resource.Container{
@@ -586,12 +586,12 @@ func TestDaemon_Automated(t *testing.T) {
 			},
 		},
 	}
-	k8s.SomeServicesFunc = func([]flux.ResourceID) ([]cluster.Controller, error) {
-		return []cluster.Controller{service}, nil
+	k8s.SomeWorkloadsFunc = func([]flux.ResourceID) ([]cluster.Workload, error) {
+		return []cluster.Workload{workload}, nil
 	}
 
 	// updates from helloworld:master-xxx to helloworld:2
-	w.ForImageTag(t, d, svc, container, "2")
+	w.ForImageTag(t, d, wl, container, "2")
 }
 
 func TestDaemon_Automated_semver(t *testing.T) {
@@ -601,7 +601,7 @@ func TestDaemon_Automated_semver(t *testing.T) {
 	w := newWait(t)
 
 	resid := flux.MustParseResourceID("default:deployment/semver")
-	service := cluster.Controller{
+	service := cluster.Workload{
 		ID: resid,
 		Containers: cluster.ContainersOrExcuse{
 			Containers: []resource.Container{
@@ -612,8 +612,8 @@ func TestDaemon_Automated_semver(t *testing.T) {
 			},
 		},
 	}
-	k8s.SomeServicesFunc = func([]flux.ResourceID) ([]cluster.Controller, error) {
-		return []cluster.Controller{service}, nil
+	k8s.SomeWorkloadsFunc = func([]flux.ResourceID) ([]cluster.Workload, error) {
+		return []cluster.Workload{service}, nil
 	}
 
 	// helloworld:3 is older than helloworld:2 but semver orders by version
@@ -645,8 +645,8 @@ var alwaysDefault anonNamespacer = func(kresource.KubeManifest) string {
 func mockDaemon(t *testing.T) (*Daemon, func(), func(), *cluster.Mock, *mockEventWriter, func(func())) {
 	logger := log.NewNopLogger()
 
-	singleService := cluster.Controller{
-		ID: flux.MustParseResourceID(svc),
+	singleService := cluster.Workload{
+		ID: flux.MustParseResourceID(wl),
 		Containers: cluster.ContainersOrExcuse{
 			Containers: []resource.Container{
 				{
@@ -656,7 +656,7 @@ func mockDaemon(t *testing.T) (*Daemon, func(), func(), *cluster.Mock, *mockEven
 			},
 		},
 	}
-	multiService := []cluster.Controller{
+	multiService := []cluster.Workload{
 		singleService,
 		{
 			ID: flux.MakeResourceID("another", "deployment", "service"),
@@ -683,20 +683,20 @@ func mockDaemon(t *testing.T) (*Daemon, func(), func(), *cluster.Mock, *mockEven
 	var k8s *cluster.Mock
 	{
 		k8s = &cluster.Mock{}
-		k8s.AllServicesFunc = func(maybeNamespace string) ([]cluster.Controller, error) {
+		k8s.AllWorkloadsFunc = func(maybeNamespace string) ([]cluster.Workload, error) {
 			if maybeNamespace == ns {
-				return []cluster.Controller{
+				return []cluster.Workload{
 					singleService,
 				}, nil
 			} else if maybeNamespace == "" {
 				return multiService, nil
 			}
-			return []cluster.Controller{}, nil
+			return []cluster.Workload{}, nil
 		}
 		k8s.ExportFunc = func() ([]byte, error) { return testBytes, nil }
 		k8s.PingFunc = func() error { return nil }
-		k8s.SomeServicesFunc = func([]flux.ResourceID) ([]cluster.Controller, error) {
-			return []cluster.Controller{
+		k8s.SomeWorkloadsFunc = func([]flux.ResourceID) ([]cluster.Workload, error) {
+			return []cluster.Workload{
 				singleService,
 			}, nil
 		}
@@ -855,7 +855,7 @@ func (w *wait) ForSyncStatus(d *Daemon, rev string, expectedNumCommits int) []st
 	return revs
 }
 
-func (w *wait) ForImageTag(t *testing.T, d *Daemon, service, container, tag string) {
+func (w *wait) ForImageTag(t *testing.T, d *Daemon, workload, container, tag string) {
 	w.Eventually(func() bool {
 		co, err := d.Repo.Clone(context.TODO(), d.GitConfig)
 		if err != nil {
@@ -867,7 +867,7 @@ func (w *wait) ForImageTag(t *testing.T, d *Daemon, service, container, tag stri
 		resources, err := d.Manifests.LoadManifests(co.Dir(), dirs)
 		assert.NoError(t, err)
 
-		workload, ok := resources[service].(resource.Workload)
+		workload, ok := resources[workload].(resource.Workload)
 		assert.True(t, ok)
 		for _, c := range workload.Containers() {
 			if c.Name == container && c.Image.Tag == tag {
@@ -883,9 +883,9 @@ func updateImage(ctx context.Context, d *Daemon, t *testing.T) job.ID {
 	return updateManifest(ctx, t, d, update.Spec{
 		Type: update.Images,
 		Spec: update.ReleaseImageSpec{
-			Kind:         update.ReleaseKindExecute,
-			ServiceSpecs: []update.ResourceSpec{update.ResourceSpecAll},
-			ImageSpec:    newHelloImage,
+			Kind:          update.ReleaseKindExecute,
+			WorkloadSpecs: []update.ResourceSpec{update.ResourceSpecAll},
+			ImageSpec:     newHelloImage,
 		},
 	})
 }

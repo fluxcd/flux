@@ -132,7 +132,7 @@ func (c *Cluster) ImagesToFetch() registry.ImageCreds {
 	for _, ns := range namespaces {
 		seenCreds := make(map[string]registry.Credentials)
 		for kind, resourceKind := range resourceKinds {
-			podControllers, err := resourceKind.getPodControllers(c, ns.Name)
+			workloads, err := resourceKind.getWorkloads(c, ns.Name)
 			if err != nil {
 				if se, ok := err.(*apierrors.StatusError); ok && se.ErrStatus.Reason == meta_v1.StatusReasonNotFound {
 					// Kind not supported by API server, skip
@@ -143,9 +143,9 @@ func (c *Cluster) ImagesToFetch() registry.ImageCreds {
 			}
 
 			imageCreds := make(registry.ImageCreds)
-			for _, podController := range podControllers {
-				logger := log.With(c.logger, "resource", flux.MakeResourceID(ns.Name, kind, podController.name))
-				mergeCredentials(logger.Log, c.includeImage, c.client, ns.Name, podController.podTemplate, imageCreds, seenCreds)
+			for _, workload := range workloads {
+				logger := log.With(c.logger, "resource", flux.MakeResourceID(ns.Name, kind, workload.name))
+				mergeCredentials(logger.Log, c.includeImage, c.client, ns.Name, workload.podTemplate, imageCreds, seenCreds)
 			}
 
 			// Merge creds

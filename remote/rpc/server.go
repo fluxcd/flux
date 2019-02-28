@@ -68,13 +68,13 @@ func (p *RPCServer) Export(_ struct{}, resp *ExportResponse) error {
 	return err
 }
 
-type ListServicesResponse struct {
-	Result           []v6.ControllerStatus
+type ListWorkloadsResponse struct {
+	Result           []v6.WorkloadStatus
 	ApplicationError *fluxerr.Error
 }
 
-func (p *RPCServer) ListServices(namespace string, resp *ListServicesResponse) error {
-	v, err := p.s.ListServices(context.Background(), namespace)
+func (p *RPCServer) ListWorkloads(namespace string, resp *ListWorkloadsResponse) error {
+	v, err := p.s.ListWorkloads(context.Background(), namespace)
 	resp.Result = v
 	if err != nil {
 		if err, ok := errors.Cause(err).(*fluxerr.Error); ok {

@@ -53,19 +53,19 @@ func New(c *http.Client, router *mux.Router, endpoint string, t Token) *Client {
 	}
 }
 
-func (c *Client) ListServices(ctx context.Context, namespace string) ([]v6.ControllerStatus, error) {
-	var res []v6.ControllerStatus
-	err := c.Get(ctx, &res, transport.ListServices, "namespace", namespace)
+func (c *Client) ListWorkloads(ctx context.Context, namespace string) ([]v6.WorkloadStatus, error) {
+	var res []v6.WorkloadStatus
+	err := c.Get(ctx, &res, transport.ListWorkloads, "namespace", namespace)
 	return res, err
 }
 
-func (c *Client) ListServicesWithOptions(ctx context.Context, opts v11.ListServicesOptions) ([]v6.ControllerStatus, error) {
-	var res []v6.ControllerStatus
+func (c *Client) ListWorkloadsWithOptions(ctx context.Context, opts v11.ListWorkloadsOptions) ([]v6.WorkloadStatus, error) {
+	var res []v6.WorkloadStatus
 	var services []string
-	for _, svc := range opts.Services {
+	for _, svc := range opts.Workloads {
 		services = append(services, svc.String())
 	}
-	err := c.Get(ctx, &res, transport.ListServicesWithOptions, "namespace", opts.Namespace, "services", strings.Join(services, ","))
+	err := c.Get(ctx, &res, transport.ListWorkloadsWithOptions, "namespace", opts.Namespace, "services", strings.Join(services, ","))
 	return res, err
 }
 

@@ -34,13 +34,13 @@ func NewClientV8(conn io.ReadWriteCloser) *RPCClientV8 {
 	return &RPCClientV8{NewClientV7(conn)}
 }
 
-func (p *RPCClientV8) ListServicesWithOptions(ctx context.Context, opts v11.ListServicesOptions) ([]v6.ControllerStatus, error) {
-	return listServicesWithOptions(ctx, p, opts, supportedKindsV8)
+func (p *RPCClientV8) ListWorkloadsWithOptions(ctx context.Context, opts v11.ListWorkloadsOptions) ([]v6.WorkloadStatus, error) {
+	return listWorkloadsWithOptions(ctx, p, opts, supportedKindsV8)
 }
 
 func (p *RPCClientV8) ListImages(ctx context.Context, spec update.ResourceSpec) ([]v6.ImageStatus, error) {
 	var resp ListImagesResponse
-	if err := requireServiceSpecKinds(spec, supportedKindsV8); err != nil {
+	if err := requireWorkloadSpecKinds(spec, supportedKindsV8); err != nil {
 		return resp.Result, remote.UnsupportedResourceKind(err)
 	}
 

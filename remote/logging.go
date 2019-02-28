@@ -36,22 +36,22 @@ func (p *ErrorLoggingServer) Export(ctx context.Context) (config []byte, err err
 	return p.server.Export(ctx)
 }
 
-func (p *ErrorLoggingServer) ListServices(ctx context.Context, maybeNamespace string) (_ []v6.ControllerStatus, err error) {
+func (p *ErrorLoggingServer) ListWorkloads(ctx context.Context, maybeNamespace string) (_ []v6.WorkloadStatus, err error) {
 	defer func() {
 		if err != nil {
-			p.logger.Log("method", "ListServices", "error", err)
+			p.logger.Log("method", "ListWorkloads", "error", err)
 		}
 	}()
-	return p.server.ListServices(ctx, maybeNamespace)
+	return p.server.ListWorkloads(ctx, maybeNamespace)
 }
 
-func (p *ErrorLoggingServer) ListServicesWithOptions(ctx context.Context, opts v11.ListServicesOptions) (_ []v6.ControllerStatus, err error) {
+func (p *ErrorLoggingServer) ListWorkloadsWithOptions(ctx context.Context, opts v11.ListWorkloadsOptions) (_ []v6.WorkloadStatus, err error) {
 	defer func() {
 		if err != nil {
-			p.logger.Log("method", "ListServicesWithOptions", "error", err)
+			p.logger.Log("method", "ListWorkloadsWithOptions", "error", err)
 		}
 	}()
-	return p.server.ListServicesWithOptions(ctx, opts)
+	return p.server.ListWorkloadsWithOptions(ctx, opts)
 }
 
 func (p *ErrorLoggingServer) ListImages(ctx context.Context, spec update.ResourceSpec) (_ []v6.ImageStatus, err error) {

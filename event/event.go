@@ -40,8 +40,8 @@ type Event struct {
 	// ID is a UUID for this event. Will be auto-set when saving if blank.
 	ID EventID `json:"id"`
 
-	// ServiceIDs affected by this event.
-	ServiceIDs []flux.ResourceID `json:"serviceIDs"`
+	// WorkloadIDs affected by this event.
+	WorkloadIDs []flux.ResourceID `json:"serviceIDs"`
 
 	// Type is the type of event, usually "release" for now, but could be other
 	// things later
@@ -73,13 +73,13 @@ type EventWriter interface {
 	LogEvent(Event) error
 }
 
-func (e Event) ServiceIDStrings() []string {
-	var strServiceIDs []string
-	for _, serviceID := range e.ServiceIDs {
-		strServiceIDs = append(strServiceIDs, serviceID.String())
+func (e Event) WorkloadIDStrings() []string {
+	var strWorkloadIDs []string
+	for _, workloadID := range e.WorkloadIDs {
+		strWorkloadIDs = append(strWorkloadIDs, workloadID.String())
 	}
-	sort.Strings(strServiceIDs)
-	return strServiceIDs
+	sort.Strings(strWorkloadIDs)
+	return strWorkloadIDs
 }
 
 func (e Event) String() string {
@@ -87,7 +87,7 @@ func (e Event) String() string {
 		return e.Message
 	}
 
-	strServiceIDs := e.ServiceIDStrings()
+	strWorkloadIDs := e.WorkloadIDStrings()
 	switch e.Type {
 	case EventRelease:
 		metadata := e.Metadata.(*ReleaseEventMetadata)
@@ -96,15 +96,15 @@ func (e Event) String() string {
 			strImageIDs = []string{"no image changes"}
 		}
 		if metadata.Spec.Type == "" || metadata.Spec.Type == ReleaseImageSpecType {
-			for _, spec := range metadata.Spec.ReleaseImageSpec.ServiceSpecs {
+			for _, spec := range metadata.Spec.ReleaseImageSpec.WorkloadSpecs {
 				if spec == update.ResourceSpecAll {
-					strServiceIDs = []string{"all services"}
+					strWorkloadIDs = []string{"all workloads"}
 					break
 				}
 			}
 		}
-		if len(strServiceIDs) == 0 {
-			strServiceIDs = []string{"no services"}
+		if len(strWorkloadIDs) == 0 {
+			strWorkloadIDs = []string{"no workloads"}
 		}
 		var user string
 		if metadata.Cause.User != "" {
@@ -117,7 +117,7 @@ func (e Event) String() string {
 		return fmt.Sprintf(
 			"Released: %s to %s%s%s",
 			strings.Join(strImageIDs, ", "),
-			strings.Join(strServiceIDs, ", "),
+			strings.Join(strWorkloadIDs, ", "),
 			user,
 			msg,
 		)
@@ -134,8 +134,8 @@ func (e Event) String() string {
 	case EventCommit:
 		metadata := e.Metadata.(*CommitEventMetadata)
 		svcStr := "<no changes>"
-		if len(strServiceIDs) > 0 {
-			svcStr = strings.Join(strServiceIDs, ", ")
+		if len(strWorkloadIDs) > 0 {
+			svcStr = strings.Join(strWorkloadIDs, ", ")
 		}
 		return fmt.Sprintf("Commit: %s, %s", shortRevision(metadata.Revision), svcStr)
 	case EventSync:
@@ -150,21 +150,21 @@ func (e Event) String() string {
 				shortRevision(metadata.Commits[0].Revision),
 			)
 		}
-		svcStr := "no services changed"
-		if len(strServiceIDs) > 0 {
-			svcStr = strings.Join(strServiceIDs, ", ")
+		svcStr := "no workloads changed"
+		if len(strWorkloadIDs) > 0 {
+			svcStr = strings.Join(strWorkloadIDs, ", ")
 		}
 		return fmt.Sprintf("Sync: %s, %s", revStr, svcStr)
 	case EventAutomate:
-		return fmt.Sprintf("Automated: %s", strings.Join(strServiceIDs, ", "))
+		return fmt.Sprintf("Automated: %s", strings.Join(strWorkloadIDs, ", "))
 	case EventDeautomate:
-		return fmt.Sprintf("Deautomated: %s", strings.Join(strServiceIDs, ", "))
+		return fmt.Sprintf("Deautomated: %s", strings.Join(strWorkloadIDs, ", "))
 	case EventLock:
-		return fmt.Sprintf("Locked: %s", strings.Join(strServiceIDs, ", "))
+		return fmt.Sprintf("Locked: %s", strings.Join(strWorkloadIDs, ", "))
 	case EventUnlock:
-		return fmt.Sprintf("Unlocked: %s", strings.Join(strServiceIDs, ", "))
+		return fmt.Sprintf("Unlocked: %s", strings.Join(strWorkloadIDs, ", "))
 	case EventUpdatePolicy:
-		return fmt.Sprintf("Updated policies: %s", strings.Join(strServiceIDs, ", "))
+		return fmt.Sprintf("Updated policies: %s", strings.Join(strWorkloadIDs, ", "))
 	default:
 		return fmt.Sprintf("Unknown event: %s", e.Type)
 	}
@@ -301,14 +301,14 @@ func (s *ReleaseSpec) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
-// ReleaseEventMetadata is the metadata for when service(s) are released
+// ReleaseEventMetadata is the metadata for when workloads(s) are released
 type ReleaseEventMetadata struct {
 	ReleaseEventCommon
 	Spec  ReleaseSpec  `json:"spec"`
 	Cause update.Cause `json:"cause"`
 }
 
-// AutoReleaseEventMetadata is for when service(s) are released
+// AutoReleaseEventMetadata is for when workloads(s) are released
 // automatically because there's a new image or images
 type AutoReleaseEventMetadata struct {
 	ReleaseEventCommon

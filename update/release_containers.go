@@ -25,14 +25,14 @@ type ReleaseContainersSpec struct {
 
 // CalculateRelease computes required controller updates to satisfy this specification.
 // It returns an error if any spec calculation fails unless `SkipMismatches` is true.
-func (s ReleaseContainersSpec) CalculateRelease(rc ReleaseContext, logger log.Logger) ([]*ControllerUpdate, Result, error) {
+func (s ReleaseContainersSpec) CalculateRelease(rc ReleaseContext, logger log.Logger) ([]*WorkloadUpdate, Result, error) {
 	results := Result{}
 	prefilter, postfilter := s.filters()
-	all, err := rc.SelectServices(results, prefilter, postfilter)
+	all, err := rc.SelectWorkloads(results, prefilter, postfilter)
 	if err != nil {
 		return nil, results, err
 	}
-	updates := s.controllerUpdates(results, all)
+	updates := s.workloadUpdates(results, all)
 	return updates, results, s.resultsError(results)
 }
 
@@ -56,25 +56,25 @@ func (s ReleaseContainersSpec) resultsError(results Result) error {
 	return nil
 }
 
-func (s ReleaseContainersSpec) filters() ([]ControllerFilter, []ControllerFilter) {
+func (s ReleaseContainersSpec) filters() ([]WorkloadFilter, []WorkloadFilter) {
 	var rids []flux.ResourceID
 	for rid := range s.ContainerSpecs {
 		rids = append(rids, rid)
 	}
-	pre := []ControllerFilter{&IncludeFilter{IDs: rids}}
+	pre := []WorkloadFilter{&IncludeFilter{IDs: rids}}
 
 	if !s.Force {
-		return pre, []ControllerFilter{&LockedFilter{}, &IgnoreFilter{}}
+		return pre, []WorkloadFilter{&LockedFilter{}, &IgnoreFilter{}}
 	}
-	return pre, []ControllerFilter{}
+	return pre, []WorkloadFilter{}
 }
 
-func (s ReleaseContainersSpec) controllerUpdates(results Result, all []*ControllerUpdate) []*ControllerUpdate {
-	var updates []*ControllerUpdate
+func (s ReleaseContainersSpec) workloadUpdates(results Result, all []*WorkloadUpdate) []*WorkloadUpdate {
+	var updates []*WorkloadUpdate
 	for _, u := range all {
-		cs, err := u.Controller.ContainersOrError()
+		cs, err := u.Workload.ContainersOrError()
 		if err != nil {
-			results[u.ResourceID] = ControllerResult{
+			results[u.ResourceID] = WorkloadResult{
 				Status: ReleaseStatusFailed,
 				Error:  err.Error(),
 			}
@@ -116,7 +116,7 @@ func (s ReleaseContainersSpec) controllerUpdates(results Result, all []*Controll
 		switch {
 		case len(notfound) > 0:
 			// Always fail if container disappeared or was misspelled
-			results[u.ResourceID] = ControllerResult{
+			results[u.ResourceID] = WorkloadResult{
 				Status: ReleaseStatusFailed,
 				Error:  fmt.Sprintf(ContainerNotFound, strings.Join(notfound, ", ")),
 			}
@@ -124,7 +124,7 @@ func (s ReleaseContainersSpec) controllerUpdates(results Result, all []*Controll
 			// Only fail if we do not skip for mismatches. Otherwise we either succeed
 			// with partial updates or then mark it as skipped because no precondition
 			// fulfilled.
-			results[u.ResourceID] = ControllerResult{
+			results[u.ResourceID] = WorkloadResult{
 				Status: ReleaseStatusFailed,
 				Error:  mismatchError,
 			}
@@ -133,7 +133,7 @@ func (s ReleaseContainersSpec) controllerUpdates(results Result, all []*Controll
 			if skippedMismatches {
 				rerr = mismatchError
 			}
-			results[u.ResourceID] = ControllerResult{
+			results[u.ResourceID] = WorkloadResult{
 				Status: ReleaseStatusSkipped,
 				Error:  rerr,
 			}
@@ -146,7 +146,7 @@ func (s ReleaseContainersSpec) controllerUpdates(results Result, all []*Controll
 			}
 			u.Updates = containerUpdates
 			updates = append(updates, u)
-			results[u.ResourceID] = ControllerResult{
+			results[u.ResourceID] = WorkloadResult{
 				Status:       ReleaseStatusSuccess,
 				Error:        rerr,
 				PerContainer: u.Updates,

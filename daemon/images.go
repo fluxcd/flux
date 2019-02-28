@@ -18,40 +18,40 @@ func (d *Daemon) pollForNewImages(logger log.Logger) {
 
 	ctx := context.Background()
 
-	candidateServices, err := d.getAllowedAutomatedResources(ctx)
+	candidateWorkloads, err := d.getAllowedAutomatedResources(ctx)
 	if err != nil {
 		logger.Log("error", errors.Wrap(err, "getting unlocked automated resources"))
 		return
 	}
-	if len(candidateServices) == 0 {
-		logger.Log("msg", "no automated services")
+	if len(candidateWorkloads) == 0 {
+		logger.Log("msg", "no automated workloads")
 		return
 	}
 	// Find images to check
-	services, err := d.Cluster.SomeControllers(candidateServices.IDs())
+	workloads, err := d.Cluster.SomeWorkloads(candidateWorkloads.IDs())
 	if err != nil {
-		logger.Log("error", errors.Wrap(err, "checking services for new images"))
+		logger.Log("error", errors.Wrap(err, "checking workloads for new images"))
 		return
 	}
-	// Check the latest available image(s) for each service
-	imageRepos, err := update.FetchImageRepos(d.Registry, clusterContainers(services), logger)
+	// Check the latest available image(s) for each workload
+	imageRepos, err := update.FetchImageRepos(d.Registry, clusterContainers(workloads), logger)
 	if err != nil {
 		logger.Log("error", errors.Wrap(err, "fetching image updates"))
 		return
 	}
 
 	changes := &update.Automated{}
-	for _, service := range services {
+	for _, workload := range workloads {
 		var p policy.Set
-		if resource, ok := candidateServices[service.ID]; ok {
+		if resource, ok := candidateWorkloads[workload.ID]; ok {
 			p = resource.Policies()
 		}
 	containers:
-		for _, container := range service.ContainersOrNil() {
+		for _, container := range workload.ContainersOrNil() {
 			currentImageID := container.Image
 			pattern := policy.GetTagPattern(p, container.Name)
 			repo := currentImageID.Name
-			logger := log.With(logger, "service", service.ID, "container", container.Name, "repo", repo, "pattern", pattern, "current", currentImageID)
+			logger := log.With(logger, "workload", workload.ID, "container", container.Name, "repo", repo, "pattern", pattern, "current", currentImageID)
 
 			filteredImages := imageRepos.GetRepoImages(repo).FilterAndSort(pattern)
 
@@ -75,7 +75,7 @@ func (d *Daemon) pollForNewImages(logger log.Logger) {
 					logger.Log("warning", "current image not in filtered images", "action", "proceed anyway")
 				}
 				newImage := currentImageID.WithNewTag(latest.ID.Tag)
-				changes.Add(service.ID, container, newImage)
+				changes.Add(workload.ID, container, newImage)
 				logger.Log("info", "added update to automation run", "new", newImage, "reason", fmt.Sprintf("latest %s (%s) > current %s (%s)", latest.ID.Tag, latest.CreatedAt, currentImageID.Tag, currentCreatedAt))
 			}
 		}
