@@ -136,7 +136,9 @@ applying the command. This is done to ensure that git remains the single source 
 
 For example, if you use the following `fluxctl` command:
 
-    fluxctl release --controller=deployment/foo --update-image=bar:v2
+```sh
+fluxctl release --controller=deployment/foo --update-image=bar:v2
+```
 
 The image tag will be updated in the git repository upon applying the command.
 

@@ -93,7 +93,7 @@ weaveworks/flux
 
 > **Note:** In this tutorial we keep things simple, so we deploy Flux into
 the `default` namespace. Normally you would pick a separate namespace for
-it. `fluxctl` has the `--k8s-fwd-ns <NAMESPACE>` option for specifying the right
+it. `fluxctl` has the [`--k8s-fwd-ns <NAMESPACE>` option](fluxctl.md#Connectingfluxctltothedaemon) for specifying the right
 namespace.
 
 ### Connecting to your git config
