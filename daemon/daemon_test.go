@@ -50,10 +50,9 @@ const (
 	testVersion = "test"
 )
 
-var (
-	testBytes = []byte(`{}`)
-	timeout   = 5 * time.Second
-)
+var testBytes = []byte(`{}`)
+
+const timeout = 10 * time.Second
 
 // When I ping, I should get a response
 func TestDaemon_Ping(t *testing.T) {
@@ -743,7 +742,7 @@ func mockDaemon(t *testing.T) (*Daemon, func(), func(), *cluster.Mock, *mockEven
 		JobStatusCache: &job.StatusCache{Size: 100},
 		EventWriter:    events,
 		Logger:         logger,
-		LoopVars:       &LoopVars{GitOpTimeout: 5 * time.Second},
+		LoopVars:       &LoopVars{GitOpTimeout: timeout},
 	}
 
 	start := func() {
