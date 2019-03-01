@@ -27,7 +27,7 @@ The CircleCI script runs builds for tags, which push Docker images and upload bi
 
 1. If the release is a new minor version, create a "release series" branch and push it to GitHub.
 
-    Depending on what is to be includeed in the release, you may need to pick a point from which branch that is not HEAD of master. But usually, it will be HEAD of master.
+    Depending on what is to be included in the release, you may need to pick a point from which branch that is not HEAD of master. But usually, it will be HEAD of master.
 
 2. From the release series branch, create _another_ branch for the particular release. This will be what you submit as a PR.
 
