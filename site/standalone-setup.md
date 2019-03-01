@@ -107,7 +107,7 @@ by removing the deploy key.
 
 If you're using your own git host -- e.g., your own installation of
 gitlab, or bitbucket server -- you will need to add its host key to
-`~/.ssh/known_hosts` in the flux daemon container.
+`~/.ssh/known_hosts` in the Flux daemon container.
 
 First, run a check that you can clone the repo. The following assumes
 that your git server's hostname (e.g., `githost`) is in `$GITHOST` and

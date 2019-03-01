@@ -19,7 +19,7 @@ var (
 
 It takes time to initially cache all the images. Please wait.
 
-If you have waited for a long time, check the flux logs. Potential
+If you have waited for a long time, check the Flux logs. Potential
 reasons for the error are: no internet, no cache, error with the remote
 repository.
 `,

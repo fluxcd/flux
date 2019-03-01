@@ -83,7 +83,7 @@ make sure you replace `YOURUSER` with your GitHub username in the command
 below:
 
 ```sh
-helm upgrade -i flux \
+helm upgrade -i Flux \
 --set helmOperator.create=true \
 --set helmOperator.createCRD=false \
 --set git.url=git@github.com:YOURUSER/flux-get-started \

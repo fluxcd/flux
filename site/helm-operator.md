@@ -166,7 +166,7 @@ helm --tls --tls-verify \
   ls
 ```
 
-### deploy weave flux helm-operator
+### deploy weave Flux helm-operator
 
 First create a new Kubernetes TLS secret for the client certs;
 
@@ -225,7 +225,7 @@ metadata:
 
 ## Installing Weave Flux helm-operator for Weave Cloud
 
-In order to use the Helm operator with Weave Cloud you have to apply the `HelmRelease` CRD definition and the operator 
+In order to use the Helm operator with Weave Cloud you have to apply the `HelmRelease` CRD definition and the operator
 deployment in the `weave` namespace:
 
 ```bash

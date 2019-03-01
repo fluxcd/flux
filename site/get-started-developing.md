@@ -1,6 +1,6 @@
 # Get Started Developing Flux
 
-This tutorial is going to walk you through one possible workflow for making a small (actually, tiny) change to flux and building and testing that change locally.
+This tutorial is going to walk you through one possible workflow for making a small (actually, tiny) change to Flux and building and testing that change locally.
 
 > ### TL;DR
 >
@@ -17,7 +17,7 @@ This tutorial is going to walk you through one possible workflow for making a sm
 >    1. make a change to the code
 >    1. see your code changes have been deployed
 >    1. repeat
-> 1. Use `helm` and `skaffold` together to deploy changes to the flux helm chart.
+> 1. Use `helm` and `skaffold` together to deploy changes to the Flux helm chart.
 >    1. `make`
 >    1. make a change to the code
 >    1. see your code changes have been deployed
@@ -64,7 +64,7 @@ Now that we know everything is working with `flux-getting-started`, we're going 
     eval $(minikube docker-env)
     ```
 
-    Now, be warned. These are local variables.  This means that if you run this `eval` in one terminal and then switch to another for later when we build the flux project, you're gonna hit some issues.  For one, you'll know it isn't working because Kubernetes will tell you that it can't pull the image when you run `kubectl get pods`:
+    Now, be warned. These are local variables.  This means that if you run this `eval` in one terminal and then switch to another for later when we build the Flux project, you're gonna hit some issues.  For one, you'll know it isn't working because Kubernetes will tell you that it can't pull the image when you run `kubectl get pods`:
 
     ```
     NAME                        READY   STATUS         RESTARTS   AGE
@@ -77,7 +77,7 @@ Now that we know everything is working with `flux-getting-started`, we're going 
 
 1. Clone `git@github.com:<YOUR-GITHUB-USERNAME>/flux.git` replacing `<YOUR-GITHUB-USERNAME>` with your GitHub username.
 
-    In the same terminal you ran `eval $(minikube docker-env)`, run `dep ensure` followed by `make` from the root directory of the flux repo.  You'll see docker's usual output as it builds the image layers.  Once it's done, you should see something like this in the middle of the output:
+    In the same terminal you ran `eval $(minikube docker-env)`, run `dep ensure` followed by `make` from the root directory of the Flux repo.  You'll see docker's usual output as it builds the image layers.  Once it's done, you should see something like this in the middle of the output:
     ```
     Successfully built 606610e0f4ef
     Successfully tagged quay.io/weaveworks/flux:latest
@@ -118,7 +118,7 @@ Now that we know everything is working with `flux-getting-started`, we're going 
     secret/flux-git-deploy configured
     ```
 
-    Congrats you just deployed your local flux to your default namespace.  Check that everything is running:
+    Congrats you just deployed your local Flux to your default namespace.  Check that everything is running:
 
     ```sh
     kubectl get pods --selector=name=flux
@@ -132,7 +132,7 @@ Now that we know everything is working with `flux-getting-started`, we're going 
 
     If (instead) you see that Ready is showing `0/1` and/or the status is `ErrImagePull` double back on the instructions and make sure you did everything correctly and in order.
 
-1. Pull the logs for your "fresh off of master" copy of flux that you just deployed locally to Minikube:
+1. Pull the logs for your "fresh off of master" copy of Flux that you just deployed locally to Minikube:
     ```sh
     kubectl logs --selector=name=flux
     ```
@@ -178,4 +178,4 @@ Now that we know everything is working with `flux-getting-started`, we're going 
 
 ## Congratulations!
 
-You have now modified Flux and deployed that change locally.  From here on out, you simply need to run `make` after you save your changes and wait a few seconds for your new pod to be deployed to minikube.  Keep in mind, that (as in the situation where you run `make` without saving any changes) if the docker image you pointed to in the Kubernetes deployment for flux is not Successfully tagged, `freshpod` won't have anything new to deploy.  Other than that, you should be good to go!
+You have now modified Flux and deployed that change locally.  From here on out, you simply need to run `make` after you save your changes and wait a few seconds for your new pod to be deployed to minikube.  Keep in mind, that (as in the situation where you run `make` without saving any changes) if the docker image you pointed to in the Kubernetes deployment for Flux is not Successfully tagged, `freshpod` won't have anything new to deploy.  Other than that, you should be good to go!

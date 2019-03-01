@@ -333,7 +333,7 @@ places (the `volume`, `volumeMount`, and `env` entries).
 The easiest way to create a suitable "kubeconfig" will be to adapt the
 [file that is baked into the image](../docker/kubeconfig). Save that
 locally as `my-kubeconfig`, edit it to change the default namespace,
-then create the configmap, in the same namespace you run flux in, with
+then create the configmap, in the same namespace you run Flux in, with
 something like:
 
     kubectl create configmap flux-kubeconfig --from-file=config=./my-kubeconfig

@@ -36,7 +36,7 @@ spec:
   selector:
     name: memcached
 ---
-# Expose flux to fluxctl
+# Expose Flux to fluxctl
 apiVersion: v1
 kind: Service
 metadata:

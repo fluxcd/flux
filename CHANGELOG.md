@@ -3,8 +3,8 @@ operator is in [./CHANGELOG-helmop.md](./CHANGELOG-helmop.md).
 
 ## 1.10.1 (2019-02-13)
 
-This release provides a deeper integration with Azure (DevOps Git hosts 
-and ACR) and allows configuring how `fluxctl` finds `fluxd` (useful for 
+This release provides a deeper integration with Azure (DevOps Git hosts
+and ACR) and allows configuring how `fluxctl` finds `fluxd` (useful for
 clusters with multiple fluxd installations).
 
 ### Improvements
@@ -19,7 +19,7 @@ clusters with multiple fluxd installations).
 
 ### Thanks
 
-Lots of thanks to @alanjcastonguay, @hiddeco, and @sarath-p for their 
+Lots of thanks to @alanjcastonguay, @hiddeco, and @sarath-p for their
 contributions to this release.
 
 [#1694]: https://github.com/weaveworks/flux/pull/1694
@@ -324,7 +324,7 @@ because it introduces a new flag, `--listen-metrics`.
 ### Improvements
 
 - Prometheus metrics can be exposed on a port different from that of
-  the flux API, using the flag `--listen-metrics`
+  the Flux API, using the flag `--listen-metrics`
   [weaveworks/flux#1325](https://github.com/weaveworks/flux/pull/1325)
 
 ### Thanks
@@ -555,7 +555,7 @@ reindent blocks the first time it changes a file.
 
 ### Improvements
 
-- Let the flux daemon operate without a git repo, and report cluster resources as read-only when there is no corresponding manifest [weaveworks/flux#962](https://github.com/weaveworks/flux/pull/962)
+- Let the Flux daemon operate without a git repo, and report cluster resources as read-only when there is no corresponding manifest [weaveworks/flux#962](https://github.com/weaveworks/flux/pull/962)
 - Reinstate command-line arg for setting the git polling interval `--git-poll-interval` [weaveworks/flux#1030](https://github.com/weaveworks/flux/pull/1030)
 - Add `--git-ci-skip` (and for more fine control, `--git-ci-skip-message`) for customising flux's commit messages such that CI systems ignore the commits [weaveworks/flux#1011](https://github.com/weaveworks/flux/pull/1011)
 - Log the daemon version on startup [weaveworks/flux#1017](https://github.com/weaveworks/flux/pull/1017)
@@ -661,7 +661,7 @@ registry.
 
 - Flux daemon can be configured to populate the git commit author with
   the name of the requesting user
-- When multiple flux daemons share the same configuration repository,
+- When multiple Flux daemons share the same configuration repository,
   each fluxd only sends Slack notifications for commits that affect
   its branch/path
 - When a resource is locked the invoking user is recorded, along with
@@ -676,7 +676,7 @@ registry.
 
 ## 1.0.0 (2017-08-22)
 
-This release introduces significant changes to the way flux works:
+This release introduces significant changes to the way Flux works:
 
 - The git repository is now the system of record for your cluster
   state. Flux continually works to synchronise your cluster with the
@@ -723,7 +723,7 @@ More informative and helpful UI.
 
 -   Slack notifications are tidier
 -   Support for releasing to >1 service at a time
--   Better behaviour when flux deploys itself
+-   Better behaviour when Flux deploys itself
 -   More help given for commonly encountered errors
 -   Filter out Kubernetes add-ons from consideration
 -   More consistent Prometheus metric labeling

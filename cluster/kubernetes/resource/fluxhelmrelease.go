@@ -8,7 +8,7 @@ import (
 	"github.com/weaveworks/flux/resource"
 )
 
-// ReleaseContainerName is the name used when flux interprets a
+// ReleaseContainerName is the name used when Flux interprets a
 // FluxHelmRelease as having a container with an image, by virtue of
 // having a `values` stanza with an image field:
 //

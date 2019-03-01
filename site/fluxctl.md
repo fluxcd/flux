@@ -11,7 +11,7 @@ menu_order: 40
 - [Connecting fluxctl to the daemon](#connecting-fluxctl-to-the-daemon)
   * [Flux API service](#flux-api-service)
   * [Add an SSH deploy key to the repository](#add-an-ssh-deploy-key-to-the-repository)
-    + [1. Allow flux to generate a key for you](#1-allow-flux-to-generate-a-key-for-you)
+    + [1. Allow Flux to generate a key for you](#1-allow-flux-to-generate-a-key-for-you)
     + [2. Specify a key to use](#2-specify-a-key-to-use)
 - [Controllers](#controllers)
   * [What is a Controller?](#what-is-a-controller)
@@ -115,7 +115,7 @@ fluxctl list-controllers --all-namespaces
 Flux connects to the repository using an SSH key. You have two
 options:
 
-### 1. Allow flux to generate a key for you
+### 1. Allow Flux to generate a key for you
 
 If you don't specify a key to use, Flux will create one for you. Obtain
 the public key through fluxctl:
@@ -231,7 +231,7 @@ Flags:
       --k8s-fwd-labels stringToString   Labels used to select the fluxd pod a port forward should be created for. You can also set the environment variable FLUX_FORWARD_LABELS (default [app=flux])
       --k8s-fwd-ns string               Namespace in which fluxd is running, for creating a port forward to access the API. No port forward will be created if a URL or token is given. You can also set the environment variable FLUX_FORWARD_NAMESPACE (default "default")
   -t, --token string                    Weave Cloud authentication token; you can also set the environment variable WEAVE_CLOUD_TOKEN or FLUX_SERVICE_TOKEN
-  -u, --url string                      Base URL of the flux API (defaults to "https://cloud.weave.works/api/flux" if a token is provided); you can also set the environment variable FLUX_URL
+  -u, --url string                      Base URL of the Flux API (defaults to "https://cloud.weave.works/api/flux" if a token is provided); you can also set the environment variable FLUX_URL
 
 Use "fluxctl [command] --help" for more information about a command.
 ```
@@ -455,7 +455,7 @@ quay.io/weaveworks/helloworld:master-9a16ff945b9e
 Indicates that the `helloworld` image was built against master
 commit `9a16ff945b9e`.
 
-When automation is turned on flux will, by default, use whatever
+When automation is turned on Flux will, by default, use whatever
 is the latest image on a given repository. If you want to only
 auto-update your image against a certain subset of tags then you
 can do that using tag filtering.
@@ -525,7 +525,7 @@ or only release images that have a stable semantic version tag (X.Y.Z):
 fluxctl policy --controller=default:deployment/helloworld --tag-all='semver:*'
 ```
 
-Using a semver filter will also affect how flux sorts images, so
+Using a semver filter will also affect how Flux sorts images, so
 that the higher versions will be considered newer.
 
 ## Regexp

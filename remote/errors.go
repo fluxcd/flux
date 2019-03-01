@@ -7,7 +7,7 @@ import (
 func UnavailableError(err error) error {
 	return &fluxerr.Error{
 		Type: fluxerr.User,
-		Help: `Cannot contact flux daemon
+		Help: `Cannot contact Flux daemon
 
 To service this request, we need to ask the agent running in your
 cluster (fluxd) for some information. But we can't connect to it at
@@ -16,7 +16,7 @@ present.
 This may be because it's not running at all, is temporarily
 disconnected or has been firewalled.
 
-If you are sure flux is running, you can simply wait a few seconds
+If you are sure Flux is running, you can simply wait a few seconds
 and try the operation again.
 
 Otherwise, please consult the installation instructions in our
@@ -36,7 +36,7 @@ If you are still stuck, please log an issue:
 func UpgradeNeededError(err error) error {
 	return &fluxerr.Error{
 		Type: fluxerr.User,
-		Help: `Your flux daemon needs to be upgraded
+		Help: `Your Flux daemon needs to be upgraded
 
     ` + err.Error() + `
 
@@ -44,7 +44,7 @@ To service this request, we need to ask the agent running in your
 cluster (fluxd) to perform an operation on our behalf, but the
 version you have running is too old to understand the request.
 
-Please install the latest version of flux and try again.
+Please install the latest version of Flux and try again.
 
 `,
 		Err: err,
@@ -59,7 +59,7 @@ func UnsupportedResourceKind(err error) error {
 The version of the agent running in your cluster (fluxd) can release updates to
 the following kinds of pod controller: Deployments, DaemonSets, StatefulSets
 and CronJobs. When new kinds are added to Kubernetes, we try to support them as
-quickly as possible - check here to see if a new version of flux is available:
+quickly as possible - check here to see if a new version of Flux is available:
 
 	https://github.com/weaveworks/flux/releases
 
@@ -74,7 +74,7 @@ that matches your agent.
 func ClusterError(err error) error {
 	return &fluxerr.Error{
 		Type: fluxerr.User,
-		Help: `Error from flux daemon
+		Help: `Error from Flux daemon
 
 The Flux daemon (fluxd) reported this error:
 

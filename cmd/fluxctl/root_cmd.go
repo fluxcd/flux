@@ -72,7 +72,7 @@ func (opts *rootOpts) Command() *cobra.Command {
 	cmd.PersistentFlags().StringToStringVar(&opts.Labels, "k8s-fwd-labels", map[string]string{"app": "flux"},
 		fmt.Sprintf("Labels used to select the fluxd pod a port forward should be created for. You can also set the environment variable %s", envVariableLabels))
 	cmd.PersistentFlags().StringVarP(&opts.URL, "url", "u", "",
-		fmt.Sprintf("Base URL of the flux API (defaults to %q if a token is provided); you can also set the environment variable %s", defaultURLGivenToken, envVariableURL))
+		fmt.Sprintf("Base URL of the Flux API (defaults to %q if a token is provided); you can also set the environment variable %s", defaultURLGivenToken, envVariableURL))
 	cmd.PersistentFlags().StringVarP(&opts.Token, "token", "t", "",
 		fmt.Sprintf("Weave Cloud authentication token; you can also set the environment variable %s or %s", envVariableCloudToken, envVariableToken))
 

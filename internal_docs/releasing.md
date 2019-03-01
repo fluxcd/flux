@@ -92,7 +92,7 @@ Get the PR reviewed, and merge it.
 
 6. [Create a release in GitHub](https://github.com/weaveworks/flux/releases/new)
 
-Use a tag name as explained above; semver for the flux daemon, `helm-`
+Use a tag name as explained above; semver for the Flux daemon, `helm-`
 then the semver for the Helm operator.
 
 Copy and paste the changelog entry. You may need to remove newlines

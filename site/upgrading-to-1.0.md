@@ -80,7 +80,7 @@ git (and GitHub) workflows to manage your cluster.
 In summary, you will need to:
 
  1. Remove the old Flux resources from your cluster
- 2. Delete any deployment keys 
+ 2. Delete any deployment keys
  3. Run the new Flux resources
  4. Install a new deploy key
 
@@ -151,7 +151,7 @@ key used by Flux with
 > other words, it tries to keep the cluster running whatever is
 > represented in the repo. (Though it doesn’t delete things, yet.)
 
-To run the new Flux with Weave Cloud: 
+To run the new Flux with Weave Cloud:
 
  * Go to your instance settings (the cog icon) and click the “Config”
    then “Deploy” menu items
@@ -185,8 +185,8 @@ Before making any changes, get the config so that it can be consulted later:
 > *Important! If you have Flux resources committed to git*
 >
 > The first thing to do here is to remove any manifests for running
-> flux you have stored in git, before deleting them in the cluster
-> (below). If you don’t remove these, running the new flux daemon will
+> Flux you have stored in git, before deleting them in the cluster
+> (below). If you don’t remove these, running the new Flux daemon will
 > restore the old configuration.
 
 You can delete the Flux resources by referring to the manifest files

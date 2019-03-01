@@ -5,7 +5,7 @@ menu_order: 90
 
 # Summary
 
-Flux daemon (fluxd, aka flux agent) allows automation of application deployments and version control of cluster configuration.
+Flux daemon (fluxd, aka Flux agent) allows automation of application deployments and version control of cluster configuration.
 Version controlling of cluster manifests provides reproducibility and a historical trail of events.
 
 ## Flux daemon responsibilities

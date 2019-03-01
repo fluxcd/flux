@@ -92,9 +92,9 @@ weaveworks/flux
 
 #### To install Flux with a private git host:
 
-When using a private git host, setting the `ssh.known_hosts` variable 
-is required for enabling successful key matches because `StrictHostKeyChecking` 
-is enabled during flux git daemon operations.
+When using a private git host, setting the `ssh.known_hosts` variable
+is required for enabling successful key matches because `StrictHostKeyChecking`
+is enabled during Flux git daemon operations.
 
 By setting the `ssh.known_hosts` variable, a configmap will be created
 called `flux-ssh-config` which in turn will be mounted into a volume named
@@ -110,7 +110,7 @@ To prevent a potential man-in-the-middle attack, one should
 verify the ssh keys acquired through the `ssh-keyscan` match expectations
 using an alternate mechanism.
 
-* Start flux and flux helm operator:
+* Start Flux and Flux helm operator:
 
   - Using a string for setting `known_hosts`
 
@@ -185,17 +185,17 @@ The following tables lists the configurable parameters of the Weave Flux chart a
 | ------------------------------- | ------------------------------------------ | ---------------------------------------------------------- |
 | `image.repository` | Image repository | `quay.io/weaveworks/flux`
 | `image.tag` | Image tag | `<VERSION>`
-| `replicaCount` | Number of flux pods to deploy, more than one is not desirable. | `1`
+| `replicaCount` | Number of Flux pods to deploy, more than one is not desirable. | `1`
 | `image.pullPolicy` | Image pull policy | `IfNotPresent`
 | `image.pullSecret` | Image pull secret | `None`
-| `resources.requests.cpu` | CPU resource requests for the flux deployment | `50m`
-| `resources.requests.memory` | Memory resource requests for the flux deployment | `64Mi`
-| `resources.limits` | CPU/memory resource limits for the flux deployment | `None`
-| `nodeSelector` | Node Selector properties for the flux deployment | `{}`
-| `tolerations` | Tolerations properties for the flux deployment | `[]`
-| `affinity` | Affinity properties for the flux deployment | `{}`
+| `resources.requests.cpu` | CPU resource requests for the Flux deployment | `50m`
+| `resources.requests.memory` | Memory resource requests for the Flux deployment | `64Mi`
+| `resources.limits` | CPU/memory resource limits for the Flux deployment | `None`
+| `nodeSelector` | Node Selector properties for the Flux deployment | `{}`
+| `tolerations` | Tolerations properties for the Flux deployment | `[]`
+| `affinity` | Affinity properties for the Flux deployment | `{}`
 | `token` | Weave Cloud service token | `None`
-| `extraEnvs` | Extra environment variables for the flux pod(s) | `[]`
+| `extraEnvs` | Extra environment variables for the Flux pod(s) | `[]`
 | `rbac.create` | If `true`, create and use RBAC resources | `true`
 | `serviceAccount.create` | If `true`, create a new service account | `true`
 | `serviceAccount.name` | Service account to be used | `flux`
@@ -234,7 +234,7 @@ The following tables lists the configurable parameters of the Weave Flux chart a
 | `memcached.repository` | Image repository | `memcached`
 | `memcached.resources` | CPU/memory resource requests/limits for memcached | `None`
 | `helmOperator.create` | If `true`, install the Helm operator | `false`
-| `helmOperator.createCRD` | Create the `v1beta1` and `v1alpha2` flux CRDs. Dependent on `helmOperator.create=true` | `true`
+| `helmOperator.createCRD` | Create the `v1beta1` and `v1alpha2` Flux CRDs. Dependent on `helmOperator.create=true` | `true`
 | `helmOperator.repository` | Helm operator image repository | `quay.io/weaveworks/helm-operator`
 | `helmOperator.tag` | Helm operator image tag | `<VERSION>`
 | `helmOperator.replicaCount` | Number of helm operator pods to deploy, more than one is not desirable. | `1`
@@ -266,8 +266,8 @@ The following tables lists the configurable parameters of the Weave Flux chart a
 | `helmOperator.nodeSelector` | Node Selector properties for the helmOperator deployment | `{}`
 | `helmOperator.tolerations` | Tolerations properties for the helmOperator deployment | `[]`
 | `helmOperator.affinity` | Affinity properties for the helmOperator deployment | `{}`
-| `kube.config` | Override for kubectl default config in the flux pod(s). | [See values.yaml](https://github.com/weaveworks/flux/blob/master/chart/flux/values.yaml#L151-L165)
-| `prometheus.enabled` | If enbaled, adds prometheus annotations to flux and helmOperator pod(s) | `false`
+| `kube.config` | Override for kubectl default config in the Flux pod(s). | [See values.yaml](https://github.com/weaveworks/flux/blob/master/chart/flux/values.yaml#L151-L165)
+| `prometheus.enabled` | If enbaled, adds prometheus annotations to Flux and helmOperator pod(s) | `false`
 
 Specify each parameter using the `--set key=value[,key=value]` argument to `helm install`. For example:
 
