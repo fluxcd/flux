@@ -96,10 +96,7 @@ func init() {
 	logReleaseDiffs = fs.Bool("log-release-diffs", false, "log the diff when a chart release diverges; potentially insecure")
 	updateDependencies = fs.Bool("update-chart-deps", true, "update chart dependencies before installing/upgrading a release")
 
-	_ = fs.Duration("git-poll-interval", 0, "")
 	gitTimeout = fs.Duration("git-timeout", 20*time.Second, "duration after which git operations time out")
-
-	fs.MarkDeprecated("git-poll-interval", "no longer used; has been replaced by charts-sync-interval")
 }
 
 func main() {
