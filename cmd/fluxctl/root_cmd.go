@@ -78,7 +78,6 @@ func (opts *rootOpts) Command() *cobra.Command {
 
 	cmd.AddCommand(
 		newVersionCommand(),
-		newServiceList(opts).Command(),
 		newImageList(opts).Command(),
 		newWorkloadList(opts).Command(),
 		newWorkloadRelease(opts).Command(),

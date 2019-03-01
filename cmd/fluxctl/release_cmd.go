@@ -32,8 +32,6 @@ type workloadReleaseOpts struct {
 	cause update.Cause
 
 	// Deprecated
-	services []string
-	// Deprecated
 	controllers []string
 }
 
@@ -68,9 +66,6 @@ func (opts *workloadReleaseOpts) Command() *cobra.Command {
 	cmd.Flags().BoolVarP(&opts.watch, "watch", "w", false, "Watch rollout progress during release")
 
 	// Deprecated
-	cmd.Flags().StringSliceVarP(&opts.services, "service", "s", []string{}, "Service to release")
-	cmd.Flags().MarkHidden("service")
-	// Deprecated
 	cmd.Flags().StringSliceVarP(&opts.controllers, "controller", "c", []string{}, "List of controllers to release <namespace>:<kind>/<name>")
 	cmd.Flags().MarkDeprecated("controller", "changed to --workspace, use that instead")
 
@@ -78,10 +73,6 @@ func (opts *workloadReleaseOpts) Command() *cobra.Command {
 }
 
 func (opts *workloadReleaseOpts) RunE(cmd *cobra.Command, args []string) error {
-	if len(opts.services) > 0 {
-		return errorServiceFlagDeprecated
-	}
-
 	if len(args) != 0 {
 		return errorWantedNoArgs
 	}

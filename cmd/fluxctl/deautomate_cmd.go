@@ -14,8 +14,6 @@ type workloadDeautomateOpts struct {
 	cause update.Cause
 
 	// Deprecated
-	service string
-	// Deprecated
 	controller string
 }
 
@@ -38,9 +36,6 @@ func (opts *workloadDeautomateOpts) Command() *cobra.Command {
 	cmd.Flags().StringVarP(&opts.workload, "workload", "w", "", "Workload to deautomate")
 
 	// Deprecated
-	cmd.Flags().StringVarP(&opts.service, "service", "s", "", "Service to deautomate")
-	cmd.Flags().MarkHidden("service")
-	// Deprecated
 	cmd.Flags().StringVarP(&opts.controller, "controller", "c", "", "Controller to deautomate")
 	cmd.Flags().MarkDeprecated("controller", "changed to --workspace, use that instead")
 
@@ -48,9 +43,6 @@ func (opts *workloadDeautomateOpts) Command() *cobra.Command {
 }
 
 func (opts *workloadDeautomateOpts) RunE(cmd *cobra.Command, args []string) error {
-	if len(opts.service) > 0 {
-		return errorServiceFlagDeprecated
-	}
 	// Backwards compatibility with --controller until we remove it
 	switch {
 	case opts.workload != "" && opts.controller != "":

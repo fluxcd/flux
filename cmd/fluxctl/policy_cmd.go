@@ -26,8 +26,6 @@ type workloadPolicyOpts struct {
 	cause update.Cause
 
 	// Deprecated
-	service string
-	// Deprecated
 	controller string
 }
 
@@ -71,9 +69,6 @@ containers which aren't explicitly named.
 	flags.BoolVar(&opts.unlock, "unlock", false, "Unlock workload")
 
 	// Deprecated
-	flags.StringVarP(&opts.service, "service", "s", "", "Service to modify")
-	flags.MarkHidden("service")
-	// Deprecated
 	flags.StringVarP(&opts.controller, "controller", "c", "", "Controller to modify")
 	flags.MarkDeprecated("controller", "changed to --workspace, use that instead")
 
@@ -81,9 +76,6 @@ containers which aren't explicitly named.
 }
 
 func (opts *workloadPolicyOpts) RunE(cmd *cobra.Command, args []string) error {
-	if len(opts.service) > 0 {
-		return errorServiceFlagDeprecated
-	}
 	if len(args) > 0 {
 		return errorWantedNoArgs
 	}

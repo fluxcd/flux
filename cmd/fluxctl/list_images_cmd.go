@@ -22,8 +22,6 @@ type imageListOpts struct {
 	limit     int
 
 	// Deprecated
-	service string
-	// Deprecated
 	controller string
 }
 
@@ -43,9 +41,6 @@ func (opts *imageListOpts) Command() *cobra.Command {
 	cmd.Flags().IntVarP(&opts.limit, "limit", "l", 10, "Number of images to show (0 for all)")
 
 	// Deprecated
-	cmd.Flags().StringVarP(&opts.service, "service", "s", "", "Show images for this service")
-	cmd.Flags().MarkHidden("service")
-	// Deprecated
 	cmd.Flags().StringVarP(&opts.controller, "controller", "c", "", "Show images for this controller")
 	cmd.Flags().MarkDeprecated("controller", "changed to --workspace, use that instead")
 
@@ -53,9 +48,6 @@ func (opts *imageListOpts) Command() *cobra.Command {
 }
 
 func (opts *imageListOpts) RunE(cmd *cobra.Command, args []string) error {
-	if len(opts.service) > 0 {
-		return errorServiceFlagDeprecated
-	}
 	if len(args) != 0 {
 		return errorWantedNoArgs
 	}
