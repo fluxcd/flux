@@ -23,7 +23,6 @@ type Config struct {
 	SigningKey  string
 	SetAuthor   bool
 	SkipMessage string
-	GPGHomeDir  string
 }
 
 // Checkout is a local working clone of the remote repo. It is
@@ -137,7 +136,7 @@ func (c *Checkout) CommitAndPush(ctx context.Context, commitAction CommitAction,
 		commitAction.SigningKey = c.config.SigningKey
 	}
 
-	if err := commit(ctx, c.dir, c.config.GPGHomeDir, commitAction); err != nil {
+	if err := commit(ctx, c.dir, commitAction); err != nil {
 		return err
 	}
 
@@ -182,11 +181,11 @@ func (c *Checkout) MoveSyncTagAndPush(ctx context.Context, tagAction TagAction) 
 	if tagAction.SigningKey == "" {
 		tagAction.SigningKey = c.config.SigningKey
 	}
-	return moveTagAndPush(ctx, c.dir, c.config.SyncTag, c.upstream.URL, c.config.GPGHomeDir, tagAction)
+	return moveTagAndPush(ctx, c.dir, c.config.SyncTag, c.upstream.URL, tagAction)
 }
 
 func (c *Checkout) VerifySyncTag(ctx context.Context) error {
-	return verifyTag(ctx, c.dir, c.config.SyncTag, c.config.GPGHomeDir)
+	return verifyTag(ctx, c.dir, c.config.SyncTag)
 }
 
 // ChangedFiles does a git diff listing changed files

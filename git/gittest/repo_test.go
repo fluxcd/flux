@@ -2,6 +2,7 @@ package gittest
 
 import (
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"reflect"
 	"sync"
@@ -73,7 +74,10 @@ func TestSignedCommit(t *testing.T) {
 
 	config := TestConfig
 	config.SigningKey = signingKey
-	config.GPGHomeDir = gpgHome
+
+	os.Setenv("GNUPGHOME", gpgHome)
+	defer os.Unsetenv("GNUPGHOME")
+
 	checkout, repo, cleanup := CheckoutWithConfig(t, config)
 	defer cleanup()
 
@@ -125,7 +129,10 @@ func TestSignedTag(t *testing.T) {
 
 	config := TestConfig
 	config.SigningKey = signingKey
-	config.GPGHomeDir = gpgHome
+
+	os.Setenv("GNUPGHOME", gpgHome)
+	defer os.Unsetenv("GNUPGHOME")
+
 	checkout, _, cleanup := CheckoutWithConfig(t, config)
 	defer cleanup()
 
