@@ -29,7 +29,7 @@ helm-operator requires setup and offers customization though a multitude of flag
 | --log-release-diffs       | `false`                       | Log the diff when a chart release diverges. **Potentially insecure.**
 | --update-chart-deps       | `true`                        | Update chart dependencies before installing or upgrading a release.
 
-## Installing Weave Flux helm-operator and Helm with TLS enabled
+## Installing Weave Flux Helm Operator and Helm with TLS enabled
 
 ### Installing Helm / Tiller
 
@@ -166,7 +166,7 @@ helm --tls --tls-verify \
   ls
 ```
 
-### deploy weave Flux helm-operator
+### Deploy Weave Flux Helm Operator
 
 First create a new Kubernetes TLS secret for the client certs;
 
@@ -197,7 +197,7 @@ helm upgrade --install \
 
 #### Check if it worked
 
-Use `kubectl logs` on the helm-operator and observe the helm client being created.
+Use `kubectl logs` on the Helm Operator and observe the helm client being created.
 
 #### Debugging
 
@@ -223,7 +223,7 @@ metadata:
   uid: c106f866-7f9e-11e8-904a-025000000001
 ```
 
-## Installing Weave Flux helm-operator for Weave Cloud
+## Installing Weave Flux Helm Operator for Weave Cloud
 
 In order to use the Helm operator with Weave Cloud you have to apply the `HelmRelease` CRD definition and the operator
 deployment in the `weave` namespace:

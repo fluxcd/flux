@@ -6,6 +6,7 @@ menu_order: 90
 - [Using Flux with Helm](#using-flux-with-helm)
   * [The `HelmRelease` custom resource](#the-helmrelease-custom-resource)
     + [Using a chart from a Git repo instead of a Helm repo](#using-a-chart-from-a-git-repo-instead-of-a-helm-repo)
+      - [Notifying Helm Operator about Git changes](#notifying-helm-operator-about-git-changes)
     + [What the Helm Operator does](#what-the-helm-operator-does)
   * [Supplying values to the chart](#supplying-values-to-the-chart)
     + [`.spec.values`](#specvalues)
@@ -95,6 +96,25 @@ to the git repository. The example deployment shows how to mount a
 secret at the expected location of the key (`/etc/fluxd/ssh/`). If you
 need more than one SSH key, you'll need to also mount an adapted
 ssh_config; this is also demonstrated in the example deployment.
+
+#### Notifying Helm Operator about Git changes
+
+The Helm Operator fetches the upstream of mirrored Git repositories
+with a 5 minute interval. In some scenarios (think CI/CD), you may not
+want to wait for this interval to occur.
+
+To help you with this the Helm Operator serves a HTTP API endpoint to
+instruct it to immediately refresh all Git mirrors.
+
+```sh
+$ kubectl -n flux port-forward deployment/flux-helm-operator 3030:3030 &
+$ curl -XPOST http://localhost:3030/api/v1/sync-git
+OK
+```
+
+> **Note:** the HTTP API has no built-in authentication, this means you
+> either need to port forward before making the request or put something
+> in front of it to serve as a gatekeeper.
 
 ### What the Helm Operator does
 

@@ -73,7 +73,7 @@ type APIServer struct {
 // has been started.
 // TODO(hidde): in the future we may want to give users the option to
 // request the status after it has been started. The Flux (daemon) API
-// archives this by working with jobs whos IDs can be tracked.
+// achieves this by working with jobs whos IDs can be tracked.
 func (s APIServer) SyncGit(w http.ResponseWriter, r *http.Request) {
 	go s.server.SyncMirrors()
 
