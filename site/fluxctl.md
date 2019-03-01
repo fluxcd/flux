@@ -433,11 +433,11 @@ Issuing a deployment change results in a version control change/git
 commit, keeping the history of the actions. The Flux daemon can be
 started with several flags that impact the commit information:
 
-| flag              | purpose                       | default |
-|-------------------|-------------------------------|------------|
-| git-user          | committer name                | Weave Flux |
-| git-email         | committer name                | support@weave.works |
-| git-set-author    | override the commit author    | false |
+| flag           | purpose                    | default
+| -------------- | -------------------------- | ---
+| git-user       | committer name             | `Weave Flux`
+| git-email      | committer email            | `support@weave.works`
+| git-set-author | override the commit author | false
 
 Actions triggered by a user through the Weave Cloud UI or the CLI `fluxctl`
 tool, can have the commit author information customized. This is handy for providing extra context in the

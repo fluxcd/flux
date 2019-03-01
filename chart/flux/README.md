@@ -181,93 +181,93 @@ You should also remove the deploy key from your GitHub repository.
 
 The following tables lists the configurable parameters of the Weave Flux chart and their default values.
 
-| Parameter                       | Description                                | Default                                                    |
-| ------------------------------- | ------------------------------------------ | ---------------------------------------------------------- |
-| `image.repository` | Image repository | `quay.io/weaveworks/flux`
-| `image.tag` | Image tag | `<VERSION>`
-| `replicaCount` | Number of Flux pods to deploy, more than one is not desirable. | `1`
-| `image.pullPolicy` | Image pull policy | `IfNotPresent`
-| `image.pullSecret` | Image pull secret | `None`
-| `resources.requests.cpu` | CPU resource requests for the Flux deployment | `50m`
-| `resources.requests.memory` | Memory resource requests for the Flux deployment | `64Mi`
-| `resources.limits` | CPU/memory resource limits for the Flux deployment | `None`
-| `nodeSelector` | Node Selector properties for the Flux deployment | `{}`
-| `tolerations` | Tolerations properties for the Flux deployment | `[]`
-| `affinity` | Affinity properties for the Flux deployment | `{}`
-| `token` | Weave Cloud service token | `None`
-| `extraEnvs` | Extra environment variables for the Flux pod(s) | `[]`
-| `rbac.create` | If `true`, create and use RBAC resources | `true`
-| `serviceAccount.create` | If `true`, create a new service account | `true`
-| `serviceAccount.name` | Service account to be used | `flux`
-| `service.type` | Service type to be used (exposing the Flux API outside of the cluster is not advised) | `ClusterIP`
-| `service.port` | Service port to be used | `3030`
-| `git.url` | URL of git repo with Kubernetes manifests | `None`
-| `git.branch` | Branch of git repo to use for Kubernetes manifests | `master`
-| `git.path` | Path within git repo to locate Kubernetes manifests (relative path) | `None`
-| `git.user` | Username to use as git committer | `Weave Flux`
-| `git.email` | Email to use as git committer | `support@weave.works`
-| `git.setAuthor` | If set, the author of git commits will reflect the user who initiated the commit and will differ from the git committer. | `false`
-| `git.label` | Label to keep track of sync progress, used to tag the Git branch | `flux-sync`
-| `git.ciSkip` | Append "[ci skip]" to commit messages so that CI will skip builds | `false`
-| `git.pollInterval` | Period at which to poll git repo for new commits | `5m`
-| `git.timeout` | Duration after which git operations time out | `20s`
-| `git.secretName` | Kubernetes secret with the SSH private key. Superceded by `helmOperator.git.secretName` if set. | `None`
-| `ssh.known_hosts`  | The contents of an SSH `known_hosts` file, if you need to supply host key(s) | `None`
-| `registry.pollInterval` | Period at which to check for updated images | `5m`
-| `registry.rps` | Maximum registry requests per second per host | `200`
-| `registry.burst` | Maximum number of warmer connections to remote and memcache | `125`
-| `registry.trace` |  Output trace of image registry requests to log | `false`
-| `registry.insecureHosts` | Use HTTP rather than HTTPS for the image registry domains | `None`
-| `registry.cacheExpiry` | Duration to keep cached image info (deprecated) | `None`
-| `registry.excludeImage` | Do not scan images that match these glob expressions; if empty, 'k8s.gcr.io/*' images are excluded | `None`
-| `registry.ecr.region` | Restrict ECR scanning to these AWS regions; if empty, only the cluster's region will be scanned | `None`
-| `registry.ecr.includeId` | Restrict ECR scanning to these AWS account IDs; if empty, all account IDs that aren't excluded may be scanned | `None`
-| `registry.ecr.excludeId` | Do not scan ECR for images in these AWS account IDs; the default is to exclude the EKS system account | `602401143452`
-| `registry.acr.enabled` | Mount `azure.json` via HostPath into the Flux Pod, enabling Flux to use AKS's service principal for ACR authentication | `false`
-| `registry.acr.hostPath` | Alternative location of `azure.json` on the host | `/etc/kubernetes/azure.json`
-| `registry.dockercfg.enabled` | Mount `config.json` via Secret into the Flux Pod, enabling Flux to use a custom docker config file | `false`
-| `registry.dockercfg.secretName` | Kubernetes secret with the docker config.json | `None`
-| `memcached.verbose` | Enable request logging in memcached | `false`
-| `memcached.maxItemSize` | Maximum size for one item | `5m`
-| `memcached.maxMemory` | Maximum memory to use, in megabytes | `128`
-| `memcached.pullSecret` | Image pull secret | `None`
-| `memcached.repository` | Image repository | `memcached`
-| `memcached.resources` | CPU/memory resource requests/limits for memcached | `None`
-| `helmOperator.create` | If `true`, install the Helm operator | `false`
-| `helmOperator.createCRD` | Create the `v1beta1` and `v1alpha2` Flux CRDs. Dependent on `helmOperator.create=true` | `true`
-| `helmOperator.repository` | Helm operator image repository | `quay.io/weaveworks/helm-operator`
-| `helmOperator.tag` | Helm operator image tag | `<VERSION>`
-| `helmOperator.replicaCount` | Number of helm operator pods to deploy, more than one is not desirable. | `1`
-| `helmOperator.pullPolicy` | Helm operator image pull policy | `IfNotPresent`
-| `helmOperator.pullSecret` | Image pull secret | `None`
-| `helmOperator.updateChartDeps` | Update dependencies for charts | `true`
-| `helmOperator.git.pollInterval` | Period at which to poll git repo for new commits | `git.pollInterval`
-| `helmOperator.git.timeout` | Duration after which git operations time out | `git.timeout`
-| `helmOperator.git.secretName` | The name of the kubernetes secret with the SSH private key, supercedes `git.secretName` | `None`
-| `helmOperator.chartsSyncInterval` | Interval at which to check for changed charts | `3m`
-| `helmOperator.extraEnvs` | Extra environment variables for the Helm operator pod | `[]`
-| `helmOperator.logReleaseDiffs` | Helm operator should log the diff when a chart release diverges (possibly insecure) | `false`
-| `helmOperator.allowNamespace` | If set, this limits the scope to a single namespace. If not specified, all namespaces will be watched | `None`
-| `helmOperator.tillerNamespace` | Namespace in which the Tiller server can be found | `kube-system`
-| `helmOperator.tls.enable` | Enable TLS for communicating with Tiller | `false`
-| `helmOperator.tls.verify` | Verify the Tiller certificate, also enables TLS when set to true | `false`
-| `helmOperator.tls.secretName` | Name of the secret containing the TLS client certificates for communicating with Tiller | `helm-client-certs`
-| `helmOperator.tls.keyFile` | Name of the key file within the k8s secret | `tls.key`
-| `helmOperator.tls.certFile` | Name of the certificate file within the k8s secret | `tls.crt`
-| `helmOperator.tls.caContent` | Certificate Authority content used to validate the Tiller server certificate | `None`
-| `helmOperator.tls.hostname` | The server name used to verify the hostname on the returned certificates from the Tiller server | `None`
-| `helmOperator.configureRepositories.enable` | Enable volume mount for a `repositories.yaml` configuration file and respository cache | `false`
-| `helmOperator.configureRepositories.volumeName` | Name of the volume for the `repositories.yaml` file | `repositories-yaml`
-| `helmOperator.configureRepositories.secretName` | Name of the secret containing the contents of the `repositories.yaml` file | `flux-helm-repositories`
-| `helmOperator.configureRepositories.cacheName` | Name for the repository cache volume | `repositories-cache`
-| `helmOperator.resources.requests.cpu` | CPU resource requests for the helmOperator deployment | `50m`
-| `helmOperator.resources.requests.memory` | Memory resource requests for the helmOperator deployment | `64Mi`
-| `helmOperator.resources.limits` | CPU/memory resource limits for the helmOperator deployment | `None`
-| `helmOperator.nodeSelector` | Node Selector properties for the helmOperator deployment | `{}`
-| `helmOperator.tolerations` | Tolerations properties for the helmOperator deployment | `[]`
-| `helmOperator.affinity` | Affinity properties for the helmOperator deployment | `{}`
-| `kube.config` | Override for kubectl default config in the Flux pod(s). | [See values.yaml](https://github.com/weaveworks/flux/blob/master/chart/flux/values.yaml#L151-L165)
-| `prometheus.enabled` | If enbaled, adds prometheus annotations to Flux and helmOperator pod(s) | `false`
+| Parameter                                       | Default                                              | Description
+| ----------------------------------------------- | ---------------------------------------------------- | ---
+| `image.repository`                              | `quay.io/weaveworks/flux`                            | Image repository
+| `image.tag`                                     | `<VERSION>`                                          | Image tag
+| `replicaCount`                                  | `1`                                                  | Number of Flux pods to deploy, more than one is not desirable.
+| `image.pullPolicy`                              | `IfNotPresent`                                       | Image pull policy
+| `image.pullSecret`                              | `None`                                               | Image pull secret
+| `resources.requests.cpu`                        | `50m`                                                | CPU resource requests for the Flux deployment
+| `resources.requests.memory`                     | `64Mi`                                               | Memory resource requests for the Flux deployment
+| `resources.limits`                              | `None`                                               | CPU/memory resource limits for the Flux deployment
+| `nodeSelector`                                  | `{}`                                                 | Node Selector properties for the Flux deployment
+| `tolerations`                                   | `[]`                                                 | Tolerations properties for the Flux deployment
+| `affinity`                                      | `{}`                                                 | Affinity properties for the Flux deployment
+| `token`                                         | `None`                                               | Weave Cloud service token
+| `extraEnvs`                                     | `[]`                                                 | Extra environment variables for the Flux pod(s)
+| `rbac.create`                                   | `true`                                               | If `true`, create and use RBAC resources
+| `serviceAccount.create`                         | `true`                                               | If `true`, create a new service account
+| `serviceAccount.name`                           | `flux`                                               | Service account to be used
+| `service.type`                                  | `ClusterIP`                                          | Service type to be used (exposing the Flux API outside of the cluster is not advised)
+| `service.port`                                  | `3030`                                               | Service port to be used
+| `git.url`                                       | `None`                                               | URL of git repo with Kubernetes manifests
+| `git.branch`                                    | `master`                                             | Branch of git repo to use for Kubernetes manifests
+| `git.path`                                      | `None`                                               | Path within git repo to locate Kubernetes manifests (relative path)
+| `git.user`                                      | `Weave Flux`                                         | Username to use as git committer
+| `git.email`                                     | `support@weave.works`                                | Email to use as git committer
+| `git.setAuthor`                                 | `false`                                              | If set, the author of git commits will reflect the user who initiated the commit and will differ from the git committer.
+| `git.label`                                     | `flux-sync`                                          | Label to keep track of sync progress, used to tag the Git branch
+| `git.ciSkip`                                    | `false`                                              | Append "[ci skip]" to commit messages so that CI will skip builds
+| `git.pollInterval`                              | `5m`                                                 | Period at which to poll git repo for new commits
+| `git.timeout`                                   | `20s`                                                | Duration after which git operations time out
+| `git.secretName`                                | `None`                                               | Kubernetes secret with the SSH private key. Superceded by `helmOperator.git.secretName` if set.
+| `ssh.known_hosts`                               | `None`                                               | The contents of an SSH `known_hosts` file, if you need to supply host key(s)
+| `registry.pollInterval`                         | `5m`                                                 | Period at which to check for updated images
+| `registry.rps`                                  | `200`                                                | Maximum registry requests per second per host
+| `registry.burst`                                | `125`                                                | Maximum number of warmer connections to remote and memcache
+| `registry.trace`                                | `false`                                              |  Output trace of image registry requests to log
+| `registry.insecureHosts`                        | `None`                                               | Use HTTP rather than HTTPS for the image registry domains
+| `registry.cacheExpiry`                          | `None`                                               | Duration to keep cached image info (deprecated)
+| `registry.excludeImage`                         | `None`                                               | Do not scan images that match these glob expressions; if empty, 'k8s.gcr.io/*' images are excluded
+| `registry.ecr.region`                           | `None`                                               | Restrict ECR scanning to these AWS regions; if empty, only the cluster's region will be scanned
+| `registry.ecr.includeId`                        | `None`                                               | Restrict ECR scanning to these AWS account IDs; if empty, all account IDs that aren't excluded may be scanned
+| `registry.ecr.excludeId`                        | `602401143452`                                       | Do not scan ECR for images in these AWS account IDs; the default is to exclude the EKS system account
+| `registry.acr.enabled`                          | `false`                                              | Mount `azure.json` via HostPath into the Flux Pod, enabling Flux to use AKS's service principal for ACR authentication
+| `registry.acr.hostPath`                         | `/etc/kubernetes/azure.json`                         | Alternative location of `azure.json` on the host
+| `registry.dockercfg.enabled`                    | `false`                                              | Mount `config.json` via Secret into the Flux Pod, enabling Flux to use a custom docker config file
+| `registry.dockercfg.secretName`                 | `None`                                               | Kubernetes secret with the docker config.json
+| `memcached.verbose`                             | `false`                                              | Enable request logging in memcached
+| `memcached.maxItemSize`                         | `5m`                                                 | Maximum size for one item
+| `memcached.maxMemory`                           | `128`                                                | Maximum memory to use, in megabytes
+| `memcached.pullSecret`                          | `None`                                               | Image pull secret
+| `memcached.repository`                          | `memcached`                                          | Image repository
+| `memcached.resources`                           | `None`                                               | CPU/memory resource requests/limits for memcached
+| `helmOperator.create`                           | `false`                                              | If `true`, install the Helm operator
+| `helmOperator.createCRD`                        | `true`                                               | Create the `v1beta1` and `v1alpha2` Flux CRDs. Dependent on `helmOperator.create=true`
+| `helmOperator.repository`                       | `quay.io/weaveworks/helm-operator`                   | Helm operator image repository
+| `helmOperator.tag`                              | `<VERSION>`                                          | Helm operator image tag
+| `helmOperator.replicaCount`                     | `1`                                                  | Number of helm operator pods to deploy, more than one is not desirable.
+| `helmOperator.pullPolicy`                       | `IfNotPresent`                                       | Helm operator image pull policy
+| `helmOperator.pullSecret`                       | `None`                                               | Image pull secret
+| `helmOperator.updateChartDeps`                  | `true`                                               | Update dependencies for charts
+| `helmOperator.git.pollInterval`                 | `git.pollInterval`                                   | Period at which to poll git repo for new commits
+| `helmOperator.git.timeout`                      | `git.timeout`                                        | Duration after which git operations time out
+| `helmOperator.git.secretName`                   | `None`                                               | The name of the kubernetes secret with the SSH private key, supercedes `git.secretName`
+| `helmOperator.chartsSyncInterval`               | `3m`                                                 | Interval at which to check for changed charts
+| `helmOperator.extraEnvs`                        | `[]`                                                 | Extra environment variables for the Helm operator pod
+| `helmOperator.logReleaseDiffs`                  | `false`                                              | Helm operator should log the diff when a chart release diverges (possibly insecure)
+| `helmOperator.allowNamespace`                   | `None`                                               | If set, this limits the scope to a single namespace. If not specified, all namespaces will be watched
+| `helmOperator.tillerNamespace`                  | `kube-system`                                        | Namespace in which the Tiller server can be found
+| `helmOperator.tls.enable`                       | `false`                                              | Enable TLS for communicating with Tiller
+| `helmOperator.tls.verify`                       | `false`                                              | Verify the Tiller certificate, also enables TLS when set to true
+| `helmOperator.tls.secretName`                   | `helm-client-certs`                                  | Name of the secret containing the TLS client certificates for communicating with Tiller
+| `helmOperator.tls.keyFile`                      | `tls.key`                                            | Name of the key file within the k8s secret
+| `helmOperator.tls.certFile`                     | `tls.crt`                                            | Name of the certificate file within the k8s secret
+| `helmOperator.tls.caContent`                    | `None`                                               | Certificate Authority content used to validate the Tiller server certificate
+| `helmOperator.tls.hostname`                     | `None`                                               | The server name used to verify the hostname on the returned certificates from the Tiller server
+| `helmOperator.configureRepositories.enable`     | `false`                                              | Enable volume mount for a `repositories.yaml` configuration file and respository cache
+| `helmOperator.configureRepositories.volumeName` | `repositories-yaml`                                  | Name of the volume for the `repositories.yaml` file
+| `helmOperator.configureRepositories.secretName` | `flux-helm-repositories`                             | Name of the secret containing the contents of the `repositories.yaml` file
+| `helmOperator.configureRepositories.cacheName`  | `repositories-cache`                                 | Name for the repository cache volume
+| `helmOperator.resources.requests.cpu`           | `50m`                                                | CPU resource requests for the helmOperator deployment
+| `helmOperator.resources.requests.memory`        | `64Mi`                                               | Memory resource requests for the helmOperator deployment
+| `helmOperator.resources.limits`                 | `None`                                               | CPU/memory resource limits for the helmOperator deployment
+| `helmOperator.nodeSelector`                     | `{}`                                                 | Node Selector properties for the helmOperator deployment
+| `helmOperator.tolerations`                      | `[]`                                                 | Tolerations properties for the helmOperator deployment
+| `helmOperator.affinity`                         | `{}`                                                 | Affinity properties for the helmOperator deployment
+| `kube.config`                                   | [See values.yaml](/chart/flux/values.yaml#L151-L165) | Override for kubectl default config in the Flux pod(s).
+| `prometheus.enabled`                            | `false`                                              | If enabled, adds prometheus annotations to Flux and helmOperator pod(s)
 
 Specify each parameter using the `--set key=value[,key=value]` argument to `helm install`. For example:
 
