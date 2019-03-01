@@ -62,7 +62,19 @@ fluxctl identity
 Create a Kubernetes Secret from a private key:
 
 ```sh
-kubectl create secret generic flux-git-deploy --from-file=identity=/path/to/private_key
+kubectl create secret generic flux-git-deploy --from-file=identity=/full/path/to/private_key
+```
+
+this will result in a secret that has the structure:
+
+```yaml
+  apiVersion: v1
+  data:
+    identity: <base64 encoded RSA PRIVATE KEY>
+  kind: Secret
+  type: Opaque
+  metadata:
+    ...
 ```
 
 The Kubernetes deployment configuration file
@@ -95,7 +107,7 @@ by removing the deploy key.
 
 If you're using your own git host -- e.g., your own installation of
 gitlab, or bitbucket server -- you will need to add its host key to
-`~/.ssh/known_hosts` in the flux daemon container.
+`~/.ssh/known_hosts` in the Flux daemon container.
 
 First, run a check that you can clone the repo. The following assumes
 that your git server's hostname (e.g., `githost`) is in `$GITHOST` and

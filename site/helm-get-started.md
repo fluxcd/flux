@@ -72,7 +72,7 @@ kubectl apply -f https://raw.githubusercontent.com/weaveworks/flux/master/deploy
 In this next step you install Weave Flux using `helm`. Simply
 
  1. Fork [flux-get-started](https://github.com/weaveworks/flux-get-started)
-    on Github and replace the `weaveworks` with your GitHub username in 
+    on GitHub and replace the `weaveworks` with your GitHub username in
     [here](https://github.com/weaveworks/flux-get-started/blob/master/releases/ghost.yaml#L13)
  1. Install Weave Flux and its Helm Operator by specifying your fork URL:
 
@@ -131,13 +131,14 @@ Open GitHub, navigate to your fork, go to **Setting > Deploy keys**,
 click on **Add deploy key**, give it a `Title`, check **Allow write
 access**, paste the Flux public key and click **Add key**.
 
-(Or replace `YOURUSER` with your Github ID in this url:
+(Or replace `YOURUSER` with your GitHub ID in this url:
 `https://github.com/YOURUSER/flux-get-started/settings/keys/new` and
 paste the key there.)
 
 Once Flux has confirmed access to the repository, it will start
 deploying the workloads of `flux-get-started`. After a while you
-will be able to see the Helm releases listed like so:
+will be able to see the Helm releases deployed by Flux (which are
+deployed into the `demo` namespace) listed like so:
 
 ```sh
 helm list --namespace demo
@@ -154,7 +155,7 @@ The easiest way is to update your fork of `flux-get-started` and
 change the `image` argument.
 
 Replace `YOURUSER` in `https://github.com/YOURUSER/flux-get-started/edit/master/releases/mongodb.yaml`
-with your Github ID, open the URL in your browser, edit the file,
+with your GitHub ID, open the URL in your browser, edit the file,
 change the `tag:` line to the following:
 
 ```yaml
@@ -177,7 +178,8 @@ The default sync frequency for Flux using the Helm chart is
 five minutes. This can be tweaked easily. By observing the logs
 you can see when the change landed in the cluster.
 
-Confirm the change landed with:
+Confirm the change landed by checking the `demo` namespace that
+Flux is deploying to:
 
 ```sh
 kubectl describe -n demo deployment/mongodb | grep Image

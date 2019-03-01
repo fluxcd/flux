@@ -39,9 +39,9 @@
 
 ## 0.6.0 (2019-01-14)
 
-**Note** To fix the connectivity problems between Flux and memcached we've changed the 
-memcached service from headless to ClusterIP. This change will make the Helm upgrade fail 
-with `ClusterIP field is immutable`. 
+**Note** To fix the connectivity problems between Flux and memcached we've changed the
+memcached service from headless to ClusterIP. This change will make the Helm upgrade fail
+with `ClusterIP field is immutable`.
 
 Before upgrading to 0.6.0 you have to delete the memcached headless service:
 
@@ -61,16 +61,16 @@ kubectl -n flux delete svc flux-memcached
    [weaveworks/flux#1626](https://github.com/weaveworks/flux/pull/1626)
     - Rectify error where `resources` are not `None` by default in `chart/flux/values.yaml`
     - Add more fields that are actually in `chart/flux/values.yaml`
-    - Separate `replicaCount` into a flux one and `helmOperator.replicaCount` one
+    - Separate `replicaCount` into a Flux one and `helmOperator.replicaCount` one
   - Only create the `flux-helm-tls-ca-config` file if `.Values.helmOperator.tls.caContent` exists.
-    Useful when doing flux upgrades but do not happen to know or want to specify
+    Useful when doing Flux upgrades but do not happen to know or want to specify
     the `caContent` in `values.yaml`. Otherwise, the existing caContent will be overriden with an
     empty value.
     [weaveworks/flux#1649](https://github.com/weaveworks/flux/pull/1649)
   - Add Flux AWS ECR flags
     [weaveworks/flux#1655](https://github.com/weaveworks/flux/pull/1655)
 
-   
+
 ## 0.5.2 (2018-12-20)
 
 ### Improvements
@@ -123,7 +123,7 @@ Thanks to @davidkarlsen, @stephenmoloney, @batpok, @squaremo,
 ### Improvements
 
  - Updated Helm operator to `v0.4.0`
-   [weaveworks/flux#1487](https://github.com/weaveworks/flux/pull/1487)    
+   [weaveworks/flux#1487](https://github.com/weaveworks/flux/pull/1487)
  - Added `--tiller-tls-hostname` Helm operator config flag to the chart
    [weaveworks/flux#1484](https://github.com/weaveworks/flux/pull/1484)
  - Include `valueFileSecrets` property in `helm-operator-crd.yaml`

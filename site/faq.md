@@ -136,7 +136,9 @@ applying the command. This is done to ensure that git remains the single source 
 
 For example, if you use the following `fluxctl` command:
 
-    fluxctl release --controller=deployment/foo --update-image=bar:v2
+```sh
+fluxctl release --controller=deployment/foo --update-image=bar:v2
+```
 
 The image tag will be updated in the git repository upon applying the command.
 
@@ -241,9 +243,9 @@ First delete the secret (if it exists):
 
 `kubectl delete secret flux-git-deploy`
 
-Then create a new secret named `flux-git-deploy`, using your key as the content of the secret:
+Then create a new secret named `flux-git-deploy`, using your private key as the content of the secret:
 
-`kubectl create secret generic flux-git-deploy --from-file=identity=/full/path/to/key`
+`kubectl create secret generic flux-git-deploy --from-file=identity=/full/path/to/private_key`
 
 Now restart fluxd to re-read the k8s secret (if it is running):
 
@@ -331,7 +333,7 @@ places (the `volume`, `volumeMount`, and `env` entries).
 The easiest way to create a suitable "kubeconfig" will be to adapt the
 [file that is baked into the image](../docker/kubeconfig). Save that
 locally as `my-kubeconfig`, edit it to change the default namespace,
-then create the configmap, in the same namespace you run flux in, with
+then create the configmap, in the same namespace you run Flux in, with
 something like:
 
     kubectl create configmap flux-kubeconfig --from-file=config=./my-kubeconfig
@@ -445,11 +447,11 @@ For each cluster create a directory in your config repo.
 When installing Flux Helm chart set the Git path using `--set git.path=k8s/cluster-name`
 and set a unique label for each cluster `--set git.label=cluster-name`.
 
-You can have one or more shared dirs between clusters. Assuming your shared dir is located 
-at `k8s/common` set the Git path as `--set git.path="k8s/common\,k8s/cluster-name"`. 
+You can have one or more shared dirs between clusters. Assuming your shared dir is located
+at `k8s/common` set the Git path as `--set git.path="k8s/common\,k8s/cluster-name"`.
 
 *Option 2*
-For each cluster create a Git branch in your config repo. 
+For each cluster create a Git branch in your config repo.
 When installing Flux Helm chart set the Git branch using `--set git.branch=cluster-name`
 and set a unique label for each cluster `--set git.label=cluster-name`.
 

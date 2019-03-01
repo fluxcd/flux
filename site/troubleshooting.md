@@ -31,7 +31,7 @@ This is also documented in the
 
 ### `fluxctl` returns a 500 Internal Server Error
 
-This usually indicates there's a bug in the flux daemon somewhere -- in which case please [tell us about it](https://github.com/weaveworks/flux/issues/new)!
+This usually indicates there's a bug in the Flux daemon somewhere -- in which case please [tell us about it](https://github.com/weaveworks/flux/issues/new)!
 
 ### Flux answers everything with `git repo is not configured`
 

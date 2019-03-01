@@ -25,7 +25,7 @@ Here are some things to know:
 
 The safest way to upgrade is to avoid deletions and fights by stopping
 the old operator. Replacing it with the new one (e.g., by changing the
-deployment, or re-releasing the flux chart with the new version) will
+deployment, or re-releasing the Flux chart with the new version) will
 have that effect.
 
 Once the old operator is not running, it is safe to deploy the new
@@ -35,7 +35,7 @@ since the new operator will ignore them.
 
 ## Upgrading the operator deployment
 
-### Using the flux chart
+### Using the Flux chart
 
 The chart (from v0.5.0, or from this git repo) provides the
 correct arguments to the operator; to upgrade, do

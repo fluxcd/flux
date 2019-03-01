@@ -30,7 +30,7 @@ And update the following line
     --git-url=git@github.com:weaveworks/flux-get-started
 ```
 
-to point to your fork, e.g. if your Github Login is `baloothebear`, the line
+to point to your fork, e.g. if your GitHub Login is `baloothebear`, the line
 above should be
 
 ```yaml
@@ -83,7 +83,7 @@ make sure you replace `YOURUSER` with your GitHub username in the command
 below:
 
 ```sh
-helm upgrade -i flux \
+helm upgrade -i Flux \
 --set helmOperator.create=true \
 --set helmOperator.createCRD=false \
 --set git.url=git@github.com:YOURUSER/flux-get-started \
@@ -93,7 +93,7 @@ weaveworks/flux
 
 > **Note:** In this tutorial we keep things simple, so we deploy Flux into
 the `default` namespace. Normally you would pick a separate namespace for
-it. `fluxctl` has the `--k8s-fwd-ns <NAMESPACE>` option for specifying the right
+it. `fluxctl` has the [`--k8s-fwd-ns <NAMESPACE>` option](fluxctl.md#Connectingfluxctltothedaemon) for specifying the right
 namespace.
 
 ### Connecting to your git config

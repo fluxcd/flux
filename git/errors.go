@@ -48,7 +48,7 @@ cross-check with the fingerprint given by
 func ErrUpstreamNotWritable(url string, actual error) error {
 	help := `Could not write to upstream repository
 
-To keep track of synchronisation, the flux daemon must be able to
+To keep track of synchronisation, the Flux daemon must be able to
 write to the upstream git repository.
 `
 	if strings.HasPrefix(url, "http://") ||

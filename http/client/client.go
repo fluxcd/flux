@@ -178,7 +178,7 @@ func (c *Client) methodWithResp(ctx context.Context, method string, dest interfa
 	return nil
 }
 
-// get executes a get request against the flux server. it unmarshals the response into dest.
+// get executes a get request against the Flux server. it unmarshals the response into dest.
 func (c *Client) Get(ctx context.Context, dest interface{}, route string, queryParams ...string) error {
 	u, err := transport.MakeURL(c.endpoint, c.router, route, queryParams...)
 	if err != nil {
