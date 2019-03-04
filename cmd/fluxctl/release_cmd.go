@@ -196,7 +196,7 @@ func (opts *workloadReleaseOpts) RunE(cmd *cobra.Command, args []string) error {
 	fmt.Fprintf(cmd.OutOrStderr(), "Monitoring rollout ...\n")
 	for {
 		completed := 0
-		workloads, err := opts.API.ListWorkloadsWithOptions(ctx, v11.ListWorkloadsOptions{Workloads: result.Result.AffectedResources()})
+		workloads, err := opts.API.ListServicesWithOptions(ctx, v11.ListServicesOptions{Services: result.Result.AffectedResources()})
 		if err != nil {
 			return err
 		}
@@ -226,7 +226,7 @@ func (opts *workloadReleaseOpts) RunE(cmd *cobra.Command, args []string) error {
 	}
 }
 
-func writeRolloutStatus(workload v6.WorkloadStatus, verbosity int) {
+func writeRolloutStatus(workload v6.ControllerStatus, verbosity int) {
 	w := newTabwriter()
 	fmt.Fprintf(w, "WORKLOAD\tCONTAINER\tIMAGE\tRELEASE\tREPLICAS\n")
 

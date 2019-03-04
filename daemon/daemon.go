@@ -98,19 +98,19 @@ func (d *Daemon) getResources(ctx context.Context) (map[string]resource.Resource
 	return resources, globalReadOnly, nil
 }
 
-func (d *Daemon) ListWorkloads(ctx context.Context, namespace string) ([]v6.WorkloadStatus, error) {
-	return d.ListWorkloadsWithOptions(ctx, v11.ListWorkloadsOptions{Namespace: namespace})
+func (d *Daemon) ListServices(ctx context.Context, namespace string) ([]v6.ControllerStatus, error) {
+	return d.ListServicesWithOptions(ctx, v11.ListServicesOptions{Namespace: namespace})
 }
 
-func (d *Daemon) ListWorkloadsWithOptions(ctx context.Context, opts v11.ListWorkloadsOptions) ([]v6.WorkloadStatus, error) {
-	if opts.Namespace != "" && len(opts.Workloads) > 0 {
+func (d *Daemon) ListServicesWithOptions(ctx context.Context, opts v11.ListServicesOptions) ([]v6.ControllerStatus, error) {
+	if opts.Namespace != "" && len(opts.Services) > 0 {
 		return nil, errors.New("cannot filter by 'namespace' and 'workloads' at the same time")
 	}
 
 	var clusterWorkloads []cluster.Workload
 	var err error
-	if len(opts.Workloads) > 0 {
-		clusterWorkloads, err = d.Cluster.SomeWorkloads(opts.Workloads)
+	if len(opts.Services) > 0 {
+		clusterWorkloads, err = d.Cluster.SomeWorkloads(opts.Services)
 	} else {
 		clusterWorkloads, err = d.Cluster.AllWorkloads(opts.Namespace)
 	}
@@ -123,7 +123,7 @@ func (d *Daemon) ListWorkloadsWithOptions(ctx context.Context, opts v11.ListWork
 		return nil, err
 	}
 
-	var res []v6.WorkloadStatus
+	var res []v6.ControllerStatus
 	for _, workload := range clusterWorkloads {
 		readOnly := v6.ReadOnlyOK
 		var policies policy.Set
@@ -140,7 +140,7 @@ func (d *Daemon) ListWorkloadsWithOptions(ctx context.Context, opts v11.ListWork
 		if workload.SyncError != nil {
 			syncError = workload.SyncError.Error()
 		}
-		res = append(res, v6.WorkloadStatus{
+		res = append(res, v6.ControllerStatus{
 			ID:         workload.ID,
 			Containers: containers2containers(workload.ContainersOrNil()),
 			ReadOnly:   readOnly,

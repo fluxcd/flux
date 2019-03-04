@@ -107,7 +107,7 @@ func TestDaemon_ListWorkloads(t *testing.T) {
 	ctx := context.Background()
 
 	// No namespace
-	s, err := d.ListWorkloads(ctx, "")
+	s, err := d.ListServices(ctx, "")
 	if err != nil {
 		t.Fatalf("Error: %s", err.Error())
 	}
@@ -116,7 +116,7 @@ func TestDaemon_ListWorkloads(t *testing.T) {
 	}
 
 	// Just namespace
-	s, err = d.ListWorkloads(ctx, ns)
+	s, err = d.ListServices(ctx, ns)
 	if err != nil {
 		t.Fatalf("Error: %s", err.Error())
 	}
@@ -125,7 +125,7 @@ func TestDaemon_ListWorkloads(t *testing.T) {
 	}
 
 	// Invalid NS
-	s, err = d.ListWorkloads(ctx, invalidNS)
+	s, err = d.ListServices(ctx, invalidNS)
 	if err != nil {
 		t.Fatalf("Error: %s", err.Error())
 	}
@@ -143,7 +143,7 @@ func TestDaemon_ListWorkloadsWithOptions(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("no filter", func(t *testing.T) {
-		s, err := d.ListWorkloadsWithOptions(ctx, v11.ListWorkloadsOptions{})
+		s, err := d.ListServicesWithOptions(ctx, v11.ListServicesOptions{})
 		if err != nil {
 			t.Fatalf("Error: %s", err.Error())
 		}
@@ -152,7 +152,7 @@ func TestDaemon_ListWorkloadsWithOptions(t *testing.T) {
 		}
 	})
 	t.Run("filter id", func(t *testing.T) {
-		s, err := d.ListWorkloadsWithOptions(ctx, v11.ListWorkloadsOptions{
+		s, err := d.ListServicesWithOptions(ctx, v11.ListServicesOptions{
 			Namespace: "",
 			Services:  []flux.ResourceID{flux.MustParseResourceID(wl)}})
 		if err != nil {
@@ -164,7 +164,7 @@ func TestDaemon_ListWorkloadsWithOptions(t *testing.T) {
 	})
 
 	t.Run("filter id and namespace", func(t *testing.T) {
-		_, err := d.ListWorkloadsWithOptions(ctx, v11.ListWorkloadsOptions{
+		_, err := d.ListServicesWithOptions(ctx, v11.ListServicesOptions{
 			Namespace: "foo",
 			Services:  []flux.ResourceID{flux.MustParseResourceID(wl)}})
 		if err == nil {
@@ -173,7 +173,7 @@ func TestDaemon_ListWorkloadsWithOptions(t *testing.T) {
 	})
 
 	t.Run("filter unsupported id kind", func(t *testing.T) {
-		_, err := d.ListWorkloadsWithOptions(ctx, v11.ListWorkloadsOptions{
+		_, err := d.ListServicesWithOptions(ctx, v11.ListServicesOptions{
 			Namespace: "foo",
 			Services:  []flux.ResourceID{flux.MustParseResourceID("default:unsupportedkind/goodbyeworld")}})
 		if err == nil {

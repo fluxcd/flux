@@ -46,7 +46,7 @@ func (opts *workloadListOpts) RunE(cmd *cobra.Command, args []string) error {
 
 	ctx := context.Background()
 
-	workloads, err := opts.API.ListWorkloads(ctx, opts.namespace)
+	workloads, err := opts.API.ListServices(ctx, opts.namespace)
 	if err != nil {
 		return err
 	}
@@ -70,7 +70,7 @@ func (opts *workloadListOpts) RunE(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-type workloadStatusByName []v6.WorkloadStatus
+type workloadStatusByName []v6.ControllerStatus
 
 func (s workloadStatusByName) Len() int {
 	return len(s)
@@ -84,7 +84,7 @@ func (s workloadStatusByName) Swap(a, b int) {
 	s[a], s[b] = s[b], s[a]
 }
 
-func policies(s v6.WorkloadStatus) string {
+func policies(s v6.ControllerStatus) string {
 	var ps []string
 	if s.Automated {
 		ps = append(ps, string(policy.Automated))

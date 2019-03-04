@@ -16,7 +16,7 @@ type ImageStatus struct {
 	Containers []Container
 }
 
-// ReadOnlyReason enumerates the reasons that a workload is
+// ReadOnlyReason enumerates the reasons that a controller is
 // considered read-only. The zero value is considered "OK", since the
 // zero value is what prior versions of the daemon will effectively
 // send.
@@ -30,7 +30,7 @@ const (
 	ReadOnlyNotReady ReadOnlyReason = "NotReady"
 )
 
-type WorkloadStatus struct {
+type ControllerStatus struct {
 	ID         flux.ResourceID
 	Containers []Container
 	ReadOnly   ReadOnlyReason
@@ -68,7 +68,7 @@ type NotDeprecated interface {
 	Export(context.Context) ([]byte, error)
 
 	// v6
-	ListWorkloads(ctx context.Context, namespace string) ([]WorkloadStatus, error)
+	ListServices(ctx context.Context, namespace string) ([]ControllerStatus, error)
 	ListImages(ctx context.Context, spec update.ResourceSpec) ([]ImageStatus, error)
 	UpdateManifests(context.Context, update.Spec) (job.ID, error)
 	SyncStatus(ctx context.Context, ref string) ([]string, error)
