@@ -9,6 +9,7 @@ import (
 	"github.com/weaveworks/flux/integrations/helm/api"
 	transport "github.com/weaveworks/flux/integrations/helm/http"
 	"net/http"
+	"sync/atomic"
 	"time"
 )
 
@@ -59,23 +60,30 @@ func ListenAndServe(listenAddr string, apiServer api.Server, logger log.Logger, 
 
 // NewHandler registers handlers on the given router.
 func NewHandler(s api.Server, r *mux.Router) http.Handler {
-	handle := APIServer{s}
+	handle := &APIServer{server: s}
 	r.Get(transport.SyncGit).HandlerFunc(handle.SyncGit)
 	return r
 }
 
 type APIServer struct {
-	server api.Server
+	server     api.Server
+	syncingGit uint32
 }
 
 // SyncGit starts a goroutine in the background to sync all git mirrors
-// and writes back a HTTP 200 status header and 'OK' body to inform it
-// has been started.
+// _if there is not one running at time of request_. It writes back a
+// HTTP 200 status header and 'OK' body to inform the request was
+// successful.
 // TODO(hidde): in the future we may want to give users the option to
 // request the status after it has been started. The Flux (daemon) API
 // achieves this by working with jobs whos IDs can be tracked.
-func (s APIServer) SyncGit(w http.ResponseWriter, r *http.Request) {
-	go s.server.SyncMirrors()
+func (s *APIServer) SyncGit(w http.ResponseWriter, r *http.Request) {
+	if atomic.CompareAndSwapUint32(&s.syncingGit, 0, 1) {
+		go func() {
+			s.server.SyncMirrors()
+			atomic.StoreUint32(&s.syncingGit, 0)
+		}()
+	}
 
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("OK"))
