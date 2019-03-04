@@ -422,7 +422,10 @@ func (d *Daemon) updatePolicy(spec update.Spec, updates policy.Updates) updateFu
 		if d.GitConfig.SetAuthor {
 			commitAuthor = spec.Cause.User
 		}
-		commitAction := git.CommitAction{Author: commitAuthor, Message: policyCommitMessage(updates, spec.Cause)}
+		commitAction := git.CommitAction{
+			Author:  commitAuthor,
+			Message: policyCommitMessage(updates, spec.Cause),
+		}
 		if err := working.CommitAndPush(ctx, commitAction, &note{JobID: jobID, Spec: spec}); err != nil {
 			// On the chance pushing failed because it was not
 			// possible to fast-forward, ask for a sync so the
@@ -464,7 +467,10 @@ func (d *Daemon) release(spec update.Spec, c release.Changes) updateFunc {
 			if d.GitConfig.SetAuthor {
 				commitAuthor = spec.Cause.User
 			}
-			commitAction := git.CommitAction{Author: commitAuthor, Message: commitMsg}
+			commitAction := git.CommitAction{
+				Author:  commitAuthor,
+				Message: commitMsg,
+			}
 			if err := working.CommitAndPush(ctx, commitAction, &note{JobID: jobID, Spec: spec, Result: result}); err != nil {
 				// On the chance pushing failed because it was not
 				// possible to fast-forward, ask the repo to fetch

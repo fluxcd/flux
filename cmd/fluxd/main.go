@@ -28,6 +28,7 @@ import (
 	"github.com/weaveworks/flux/cluster/kubernetes"
 	"github.com/weaveworks/flux/daemon"
 	"github.com/weaveworks/flux/git"
+	"github.com/weaveworks/flux/gpg"
 	transport "github.com/weaveworks/flux/http"
 	"github.com/weaveworks/flux/http/client"
 	daemonhttp "github.com/weaveworks/flux/http/daemon"
@@ -96,6 +97,10 @@ func main() {
 
 		gitPollInterval = fs.Duration("git-poll-interval", 5*time.Minute, "period at which to poll git repo for new commits")
 		gitTimeout      = fs.Duration("git-timeout", 20*time.Second, "duration after which git operations time out")
+
+		// GPG commit signing
+		gitImportGPG  = fs.String("git-gpg-key-import", "", "keys at the path given (either a file or a directory) will be imported for use in signing commits")
+		gitSigningKey = fs.String("git-signing-key", "", "if set, commits will be signed with this GPG key")
 
 		// syncing
 		syncInterval = fs.Duration("sync-interval", 5*time.Minute, "apply config in git to cluster at least this often, even if there are no new commits")
@@ -188,6 +193,17 @@ func main() {
 	if *sshKeygenDir == "" {
 		logger.Log("info", fmt.Sprintf("SSH keygen dir (--ssh-keygen-dir) not provided, so using the deploy key volume (--k8s-secret-volume-mount-path=%s); this may cause problems if the deploy key volume is mounted read-only", *k8sSecretVolumeMountPath))
 		*sshKeygenDir = *k8sSecretVolumeMountPath
+	}
+
+	// Import GPG keys, if we've been told where to look for them
+	if *gitImportGPG != "" {
+		keyfiles, err := gpg.ImportKeys(*gitImportGPG)
+		if err != nil {
+			logger.Log("error", "failed to import GPG keys", "err", err.Error())
+		}
+		if keyfiles != nil {
+			logger.Log("info", "imported GPG keys", "files", fmt.Sprintf("%v", keyfiles))
+		}
 	}
 
 	// Mechanical components.
@@ -423,6 +439,7 @@ func main() {
 		NotesRef:    *gitNotesRef,
 		UserName:    *gitUser,
 		UserEmail:   *gitEmail,
+		SigningKey:  *gitSigningKey,
 		SetAuthor:   *gitSetAuthor,
 		SkipMessage: *gitSkipMessage,
 	}
@@ -442,6 +459,7 @@ func main() {
 		"url", *gitURL,
 		"user", *gitUser,
 		"email", *gitEmail,
+		"signing-key", *gitSigningKey,
 		"sync-tag", *gitSyncTag,
 		"notes-ref", *gitNotesRef,
 		"set-author", *gitSetAuthor,

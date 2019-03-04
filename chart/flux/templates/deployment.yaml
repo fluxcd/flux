@@ -62,6 +62,11 @@ spec:
       - name: docker-credentials
         secret:
           secretName: "{{ .Values.registry.dockercfg.secretName }}"
+      {{- end }}
+      {{- if .Values.gpgKeys.secretName }}
+      - name: gpg-keys
+        secret:
+          secretName: {{ .Values.gpgKeys.secretName }}
           defaultMode: 0400
       {{- end }}
       containers:
@@ -95,6 +100,11 @@ spec:
             mountPath: /dockercfg/
             readOnly: true
           {{- end }}
+          {{- if .Values.gpgKeys.secretName }}
+          - name: gpg-keys
+            mountPath: /root/gpg-import
+            readOnly: true
+          {{- end }}
           env:
           - name: KUBECONFIG
             value: /root/.kubectl/config
@@ -113,6 +123,12 @@ spec:
           - --git-path={{ .Values.git.path }}
           - --git-user={{ .Values.git.user }}
           - --git-email={{ .Values.git.email }}
+          {{- if .Values.gpgKeys.secretName }}
+          - --git-gpg-key-import=/root/gpg-import
+          {{- end }}
+          {{- if .Values.git.signingKey }}
+          - --git-signing-key={{ .Values.git.signingKey }}
+          {{- end }}
           - --git-set-author={{ .Values.git.setAuthor }}
           - --git-poll-interval={{ .Values.git.pollInterval }}
           - --git-timeout={{ .Values.git.timeout }}

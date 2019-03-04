@@ -2,6 +2,7 @@ package gittest
 
 import (
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"reflect"
 	"sync"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/weaveworks/flux/cluster/kubernetes/testfiles"
 	"github.com/weaveworks/flux/git"
+	"github.com/weaveworks/flux/gpg/gpgtest"
 )
 
 type Note struct {
@@ -63,6 +65,88 @@ func TestCommit(t *testing.T) {
 
 %s
 `, commitAction.Message+config.SkipMessage, msg)
+	}
+}
+
+func TestSignedCommit(t *testing.T) {
+	gpgHome, signingKey, gpgCleanup := gpgtest.GPGKey(t)
+	defer gpgCleanup()
+
+	config := TestConfig
+	config.SigningKey = signingKey
+
+	os.Setenv("GNUPGHOME", gpgHome)
+	defer os.Unsetenv("GNUPGHOME")
+
+	checkout, repo, cleanup := CheckoutWithConfig(t, config)
+	defer cleanup()
+
+	for file, _ := range testfiles.Files {
+		dirs := checkout.ManifestDirs()
+		path := filepath.Join(dirs[0], file)
+		if err := ioutil.WriteFile(path, []byte("FIRST CHANGE"), 0666); err != nil {
+			t.Fatal(err)
+		}
+		break
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	commitAction := git.CommitAction{Message: "Changed file"}
+	if err := checkout.CommitAndPush(ctx, commitAction, nil); err != nil {
+		t.Fatal(err)
+	}
+
+	err := repo.Refresh(ctx)
+	if err != nil {
+		t.Error(err)
+	}
+
+	commits, err := repo.CommitsBefore(ctx, "HEAD")
+
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(commits) < 1 {
+		t.Fatal("expected at least one commit")
+	}
+	expectedKey := signingKey[len(signingKey)-16:]
+	foundKey := commits[0].SigningKey[len(commits[0].SigningKey)-16:]
+	if expectedKey != foundKey {
+		t.Errorf(`expected commit signing key to be:
+%s
+
+    but it was
+
+%s
+`, expectedKey, foundKey)
+	}
+}
+func TestSignedTag(t *testing.T) {
+	gpgHome, signingKey, gpgCleanup := gpgtest.GPGKey(t)
+	defer gpgCleanup()
+
+	config := TestConfig
+	config.SigningKey = signingKey
+
+	os.Setenv("GNUPGHOME", gpgHome)
+	defer os.Unsetenv("GNUPGHOME")
+
+	checkout, _, cleanup := CheckoutWithConfig(t, config)
+	defer cleanup()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	tagAction := git.TagAction{Revision: "HEAD", Message: "Sync pointer"}
+	if err := checkout.MoveSyncTagAndPush(ctx, tagAction); err != nil {
+		t.Fatal(err)
+	}
+
+	err := checkout.VerifySyncTag(ctx)
+	if err != nil {
+		t.Fatal(err)
 	}
 }
 

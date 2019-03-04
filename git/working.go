@@ -20,6 +20,7 @@ type Config struct {
 	NotesRef    string
 	UserName    string
 	UserEmail   string
+	SigningKey  string
 	SetAuthor   bool
 	SkipMessage string
 }
@@ -35,14 +36,23 @@ type Checkout struct {
 }
 
 type Commit struct {
-	Revision string
-	Message  string
+	SigningKey string
+	Revision   string
+	Message    string
 }
 
 // CommitAction - struct holding commit information
 type CommitAction struct {
-	Author  string
-	Message string
+	Author     string
+	Message    string
+	SigningKey string
+}
+
+// TagAction - struct holding tag information
+type TagAction struct {
+	Revision   string
+	Message    string
+	SigningKey string
 }
 
 // Clone returns a local working clone of the sync'ed `*Repo`, using
@@ -122,6 +132,9 @@ func (c *Checkout) CommitAndPush(ctx context.Context, commitAction CommitAction,
 	}
 
 	commitAction.Message += c.config.SkipMessage
+	if commitAction.SigningKey == "" {
+		commitAction.SigningKey = c.config.SigningKey
+	}
 
 	if err := commit(ctx, c.dir, commitAction); err != nil {
 		return err
@@ -164,8 +177,15 @@ func (c *Checkout) SyncRevision(ctx context.Context) (string, error) {
 	return refRevision(ctx, c.dir, c.config.SyncTag)
 }
 
-func (c *Checkout) MoveSyncTagAndPush(ctx context.Context, ref, msg string) error {
-	return moveTagAndPush(ctx, c.dir, c.config.SyncTag, ref, msg, c.upstream.URL)
+func (c *Checkout) MoveSyncTagAndPush(ctx context.Context, tagAction TagAction) error {
+	if tagAction.SigningKey == "" {
+		tagAction.SigningKey = c.config.SigningKey
+	}
+	return moveTagAndPush(ctx, c.dir, c.config.SyncTag, c.upstream.URL, tagAction)
+}
+
+func (c *Checkout) VerifySyncTag(ctx context.Context) error {
+	return verifyTag(ctx, c.dir, c.config.SyncTag)
 }
 
 // ChangedFiles does a git diff listing changed files

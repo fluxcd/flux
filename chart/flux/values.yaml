@@ -95,6 +95,10 @@ tolerations: []
 
 affinity: {}
 
+gpgKeys:
+  # These keys will be imported into GPG in the Flux container.
+  secretName: ""
+
 git:
   # URL of git repo with Kubernetes manifests; e.g. git.url=ssh://git@github.com/weaveworks/flux-get-started
   url: ""
@@ -106,6 +110,8 @@ git:
   user: "Weave Flux"
   # Email to use as git committer
   email: "support@weave.works"
+  # If set, commits will be signed with this GPG key.
+  signingKey: ""
   # If set, the author of git commits will reflect the user who initiated the commit and will differ from the git committer.
   setAuthor: false
   # Label to keep track of sync progress

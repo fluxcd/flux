@@ -427,7 +427,11 @@ func (d *Daemon) doSync(logger log.Logger, lastKnownSyncTagRev *string, warnedAb
 	if oldTagRev != newTagRev {
 		{
 			ctx, cancel := context.WithTimeout(ctx, d.GitOpTimeout)
-			err := working.MoveSyncTagAndPush(ctx, newTagRev, "Sync pointer")
+			tagAction := git.TagAction{
+				Revision: newTagRev,
+				Message:  "Sync pointer",
+			}
+			err := working.MoveSyncTagAndPush(ctx, tagAction)
 			cancel()
 			if err != nil {
 				return err
