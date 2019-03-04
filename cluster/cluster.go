@@ -97,16 +97,3 @@ func (s Workload) ContainersOrError() ([]resource.Container, error) {
 	}
 	return s.Containers.Containers, err
 }
-
-// These errors all represent logical problems with cluster
-// configuration, and may be recoverable; e.g., it might be fine if a
-// workload does not have a matching RC/deployment.
-var (
-	ErrEmptySelector         = errors.New("empty selector")
-	ErrWrongResourceKind     = errors.New("new definition does not match existing resource")
-	ErrNoMatchingWorkload    = errors.New("no matching workload")
-	ErrWorkloadHasNoSelector = errors.New("workload has no selector")
-	ErrNoMatching            = errors.New("no matching replication workloads or deployments")
-	ErrMultipleMatching      = errors.New("multiple matching replication workloads or deployments")
-	ErrNoMatchingImages      = errors.New("no matching images")
-)
