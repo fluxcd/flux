@@ -222,15 +222,6 @@ func main() {
 		errc <- fmt.Errorf("%s", <-c)
 	}()
 
-	// This means we can return, and it will use the shutdown
-	// protocol.
-	defer func() {
-		// wait here until stopping.
-		logger.Log("exiting", <-errc)
-		close(shutdown)
-		shutdownWg.Wait()
-	}()
-
 	// Cluster component.
 	var clusterVersion string
 	var sshKeyRing ssh.KeyRing
@@ -546,5 +537,8 @@ func main() {
 		}()
 	}
 
-	// Fall off the end, into the waiting procedure.
+	// wait here until stopping.
+	logger.Log("exiting", <-errc)
+	close(shutdown)
+	shutdownWg.Wait()
 }
