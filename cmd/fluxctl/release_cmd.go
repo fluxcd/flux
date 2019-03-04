@@ -147,11 +147,11 @@ func (opts *workloadReleaseOpts) RunE(cmd *cobra.Command, args []string) error {
 
 	ctx := context.Background()
 	spec := update.ReleaseImageSpec{
-		WorkloadSpecs: workloads,
-		ImageSpec:     image,
-		Kind:          kind,
-		Excludes:      excludes,
-		Force:         opts.force,
+		ServiceSpecs: workloads,
+		ImageSpec:    image,
+		Kind:         kind,
+		Excludes:     excludes,
+		Force:        opts.force,
 	}
 	jobID, err := opts.API.UpdateManifests(ctx, update.Spec{
 		Type:  update.Images,

@@ -52,11 +52,11 @@ type ReleaseContext interface {
 // NB: these get sent from fluxctl, so we have to maintain the json format of
 // this. Eugh.
 type ReleaseImageSpec struct {
-	WorkloadSpecs []ResourceSpec `json:"serviceSpecs"`
-	ImageSpec     ImageSpec
-	Kind          ReleaseKind
-	Excludes      []flux.ResourceID
-	Force         bool
+	ServiceSpecs []ResourceSpec // TODO: rename to WorkloadSpecs after adding versioning
+	ImageSpec    ImageSpec
+	Kind         ReleaseKind
+	Excludes     []flux.ResourceID
+	Force        bool
 }
 
 // ReleaseType gives a one-word description of the release, mainly
@@ -96,7 +96,7 @@ func (s ReleaseImageSpec) ReleaseKind() ReleaseKind {
 func (s ReleaseImageSpec) CommitMessage(result Result) string {
 	image := strings.Trim(s.ImageSpec.String(), "<>")
 	var workloads []string
-	for _, spec := range s.WorkloadSpecs {
+	for _, spec := range s.ServiceSpecs {
 		workloads = append(workloads, strings.Trim(spec.String(), "<>"))
 	}
 	return fmt.Sprintf("Release %s to %s", image, strings.Join(workloads, ", "))
@@ -119,7 +119,7 @@ func (s ReleaseImageSpec) filters(rc ReleaseContext) ([]WorkloadFilter, []Worklo
 	var prefilters, postfilters []WorkloadFilter
 
 	ids := []flux.ResourceID{}
-	for _, ss := range s.WorkloadSpecs {
+	for _, ss := range s.ServiceSpecs {
 		if ss == ResourceSpecAll {
 			// "<all>" Overrides any other filters
 			ids = []flux.ResourceID{}
@@ -158,7 +158,7 @@ func (s ReleaseImageSpec) filters(rc ReleaseContext) ([]WorkloadFilter, []Worklo
 }
 
 func (s ReleaseImageSpec) markSkipped(results Result) {
-	for _, v := range s.WorkloadSpecs {
+	for _, v := range s.ServiceSpecs {
 		if v == ResourceSpecAll {
 			continue
 		}

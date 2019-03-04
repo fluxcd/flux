@@ -234,10 +234,10 @@ func (s HTTPServer) UpdateImages(w http.ResponseWriter, r *http.Request) {
 	}
 
 	spec := update.ReleaseImageSpec{
-		WorkloadSpecs: serviceSpecs,
-		ImageSpec:     imageSpec,
-		Kind:          releaseKind,
-		Excludes:      excludes,
+		ServiceSpecs: serviceSpecs,
+		ImageSpec:    imageSpec,
+		Kind:         releaseKind,
+		Excludes:     excludes,
 	}
 	cause := update.Cause{
 		User:    r.FormValue("user"),

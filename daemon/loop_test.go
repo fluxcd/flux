@@ -123,7 +123,7 @@ func TestPullAndSync_InitialSync(t *testing.T) {
 	} else if es[0].Type != event.EventSync {
 		t.Errorf("Unexpected event type: %#v", es[0])
 	} else {
-		gotResourceIDs := es[0].WorkloadIDs
+		gotResourceIDs := es[0].ServiceIDs
 		flux.ResourceIDs(gotResourceIDs).Sort()
 		if !reflect.DeepEqual(gotResourceIDs, []flux.ResourceID(expectedResourceIDs)) {
 			t.Errorf("Unexpected event workload ids: %#v, expected: %#v", gotResourceIDs, expectedResourceIDs)
@@ -298,7 +298,7 @@ func TestDoSync_WithNewCommit(t *testing.T) {
 	} else if es[0].Type != event.EventSync {
 		t.Errorf("Unexpected event type: %#v", es[0])
 	} else {
-		gotResourceIDs := es[0].WorkloadIDs
+		gotResourceIDs := es[0].ServiceIDs
 		flux.ResourceIDs(gotResourceIDs).Sort()
 		// Event should only have changed workload ids
 		if !reflect.DeepEqual(gotResourceIDs, []flux.ResourceID{flux.MustParseResourceID("default:deployment/helloworld")}) {

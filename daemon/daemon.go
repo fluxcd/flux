@@ -289,12 +289,12 @@ func (d *Daemon) makeLoggingJobFunc(f jobFunc) jobFunc {
 			}
 
 			return result, d.LogEvent(event.Event{
-				WorkloadIDs: workloadIDs,
-				Type:        event.EventCommit,
-				StartedAt:   started,
-				EndedAt:     started,
-				LogLevel:    event.LogLevelInfo,
-				Metadata:    metadata,
+				ServiceIDs: workloadIDs,
+				Type:       event.EventCommit,
+				StartedAt:  started,
+				EndedAt:    started,
+				LogLevel:   event.LogLevelInfo,
+				Metadata:   metadata,
 			})
 		}
 		return result, nil
@@ -690,14 +690,14 @@ func policyEvents(us policy.Updates, now time.Time) map[string]event.Event {
 			e, ok := eventsByType[eventType]
 			if !ok {
 				e = event.Event{
-					WorkloadIDs: []flux.ResourceID{},
-					Type:        eventType,
-					StartedAt:   now,
-					EndedAt:     now,
-					LogLevel:    event.LogLevelInfo,
+					ServiceIDs: []flux.ResourceID{},
+					Type:       eventType,
+					StartedAt:  now,
+					EndedAt:    now,
+					LogLevel:   event.LogLevelInfo,
 				}
 			}
-			e.WorkloadIDs = append(e.WorkloadIDs, workloadID)
+			e.ServiceIDs = append(e.ServiceIDs, workloadID)
 			eventsByType[eventType] = e
 		}
 	}

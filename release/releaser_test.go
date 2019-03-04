@@ -251,9 +251,9 @@ func Test_InitContainer(t *testing.T) {
 
 	initSpec, _ := update.ParseResourceSpec(initWorkloadID.String())
 	spec := update.ReleaseImageSpec{
-		WorkloadSpecs: []update.ResourceSpec{initSpec},
-		ImageSpec:     update.ImageSpecLatest,
-		Kind:          update.ReleaseKindExecute,
+		ServiceSpecs: []update.ResourceSpec{initSpec},
+		ImageSpec:    update.ImageSpecLatest,
+		Kind:         update.ReleaseKindExecute,
 	}
 
 	checkout, clean := setup(t)
@@ -282,10 +282,10 @@ func Test_FilterLogic(t *testing.T) {
 		{
 			Name: "include specific service",
 			Spec: update.ReleaseImageSpec{
-				WorkloadSpecs: []update.ResourceSpec{hwSvcSpec},
-				ImageSpec:     update.ImageSpecLatest,
-				Kind:          update.ReleaseKindExecute,
-				Excludes:      []flux.ResourceID{},
+				ServiceSpecs: []update.ResourceSpec{hwSvcSpec},
+				ImageSpec:    update.ImageSpecLatest,
+				Kind:         update.ReleaseKindExecute,
+				Excludes:     []flux.ResourceID{},
 			},
 			Expected: expected{
 				Specific: update.Result{
@@ -310,10 +310,10 @@ func Test_FilterLogic(t *testing.T) {
 		}, {
 			Name: "exclude specific service",
 			Spec: update.ReleaseImageSpec{
-				WorkloadSpecs: []update.ResourceSpec{update.ResourceSpecAll},
-				ImageSpec:     update.ImageSpecLatest,
-				Kind:          update.ReleaseKindExecute,
-				Excludes:      []flux.ResourceID{lockedSvcID},
+				ServiceSpecs: []update.ResourceSpec{update.ResourceSpecAll},
+				ImageSpec:    update.ImageSpecLatest,
+				Kind:         update.ReleaseKindExecute,
+				Excludes:     []flux.ResourceID{lockedSvcID},
 			},
 			Expected: expected{
 				Specific: update.Result{
@@ -342,10 +342,10 @@ func Test_FilterLogic(t *testing.T) {
 		}, {
 			Name: "update specific image",
 			Spec: update.ReleaseImageSpec{
-				WorkloadSpecs: []update.ResourceSpec{update.ResourceSpecAll},
-				ImageSpec:     update.ImageSpecFromRef(newHwRef),
-				Kind:          update.ReleaseKindExecute,
-				Excludes:      []flux.ResourceID{},
+				ServiceSpecs: []update.ResourceSpec{update.ResourceSpecAll},
+				ImageSpec:    update.ImageSpecFromRef(newHwRef),
+				Kind:         update.ReleaseKindExecute,
+				Excludes:     []flux.ResourceID{},
 			},
 			Expected: expected{
 				Specific: update.Result{
@@ -371,10 +371,10 @@ func Test_FilterLogic(t *testing.T) {
 			// else: service is pending.
 			Name: "skipped & service is pending",
 			Spec: update.ReleaseImageSpec{
-				WorkloadSpecs: []update.ResourceSpec{update.ResourceSpecAll},
-				ImageSpec:     update.ImageSpecLatest,
-				Kind:          update.ReleaseKindExecute,
-				Excludes:      []flux.ResourceID{},
+				ServiceSpecs: []update.ResourceSpec{update.ResourceSpecAll},
+				ImageSpec:    update.ImageSpecLatest,
+				Kind:         update.ReleaseKindExecute,
+				Excludes:     []flux.ResourceID{},
 			},
 			Expected: expected{
 				Specific: update.Result{
@@ -403,10 +403,10 @@ func Test_FilterLogic(t *testing.T) {
 		}, {
 			Name: "all overrides spec",
 			Spec: update.ReleaseImageSpec{
-				WorkloadSpecs: []update.ResourceSpec{hwSvcSpec, update.ResourceSpecAll},
-				ImageSpec:     update.ImageSpecLatest,
-				Kind:          update.ReleaseKindExecute,
-				Excludes:      []flux.ResourceID{},
+				ServiceSpecs: []update.ResourceSpec{hwSvcSpec, update.ResourceSpecAll},
+				ImageSpec:    update.ImageSpecLatest,
+				Kind:         update.ReleaseKindExecute,
+				Excludes:     []flux.ResourceID{},
 			},
 			Expected: expected{
 				Specific: update.Result{
@@ -435,10 +435,10 @@ func Test_FilterLogic(t *testing.T) {
 		}, {
 			Name: "service not in repo",
 			Spec: update.ReleaseImageSpec{
-				WorkloadSpecs: []update.ResourceSpec{notInRepoSpec},
-				ImageSpec:     update.ImageSpecLatest,
-				Kind:          update.ReleaseKindExecute,
-				Excludes:      []flux.ResourceID{},
+				ServiceSpecs: []update.ResourceSpec{notInRepoSpec},
+				ImageSpec:    update.ImageSpecLatest,
+				Kind:         update.ReleaseKindExecute,
+				Excludes:     []flux.ResourceID{},
 			},
 			Expected: expected{
 				Specific: update.Result{
@@ -481,11 +481,11 @@ func Test_Force_lockedWorkload(t *testing.T) {
 		{
 			Name: "force ignores service lock (--workload --update-image)",
 			Spec: update.ReleaseImageSpec{
-				WorkloadSpecs: []update.ResourceSpec{lockedSvcSpec},
-				ImageSpec:     update.ImageSpecFromRef(newLockedRef),
-				Kind:          update.ReleaseKindExecute,
-				Excludes:      []flux.ResourceID{},
-				Force:         true,
+				ServiceSpecs: []update.ResourceSpec{lockedSvcSpec},
+				ImageSpec:    update.ImageSpecFromRef(newLockedRef),
+				Kind:         update.ReleaseKindExecute,
+				Excludes:     []flux.ResourceID{},
+				Force:        true,
 			},
 			Expected: expected{
 				Specific: update.Result{
@@ -496,11 +496,11 @@ func Test_Force_lockedWorkload(t *testing.T) {
 		}, {
 			Name: "force does not ignore lock if updating all workloads (--all --update-image)",
 			Spec: update.ReleaseImageSpec{
-				WorkloadSpecs: []update.ResourceSpec{update.ResourceSpecAll},
-				ImageSpec:     update.ImageSpecFromRef(newLockedRef),
-				Kind:          update.ReleaseKindExecute,
-				Excludes:      []flux.ResourceID{},
-				Force:         true,
+				ServiceSpecs: []update.ResourceSpec{update.ResourceSpecAll},
+				ImageSpec:    update.ImageSpecFromRef(newLockedRef),
+				Kind:         update.ReleaseKindExecute,
+				Excludes:     []flux.ResourceID{},
+				Force:        true,
 			},
 			Expected: expected{
 				Specific: update.Result{
@@ -512,11 +512,11 @@ func Test_Force_lockedWorkload(t *testing.T) {
 		{
 			Name: "force ignores service lock (--workload --update-all-images)",
 			Spec: update.ReleaseImageSpec{
-				WorkloadSpecs: []update.ResourceSpec{lockedSvcSpec},
-				ImageSpec:     update.ImageSpecLatest,
-				Kind:          update.ReleaseKindExecute,
-				Excludes:      []flux.ResourceID{},
-				Force:         true,
+				ServiceSpecs: []update.ResourceSpec{lockedSvcSpec},
+				ImageSpec:    update.ImageSpecLatest,
+				Kind:         update.ReleaseKindExecute,
+				Excludes:     []flux.ResourceID{},
+				Force:        true,
 			},
 			Expected: expected{
 				Specific: update.Result{
@@ -527,11 +527,11 @@ func Test_Force_lockedWorkload(t *testing.T) {
 		}, {
 			Name: "force does not ignore lock if updating all workloads (--all --update-all-images)",
 			Spec: update.ReleaseImageSpec{
-				WorkloadSpecs: []update.ResourceSpec{update.ResourceSpecAll},
-				ImageSpec:     update.ImageSpecLatest,
-				Kind:          update.ReleaseKindExecute,
-				Excludes:      []flux.ResourceID{},
-				Force:         true,
+				ServiceSpecs: []update.ResourceSpec{update.ResourceSpecAll},
+				ImageSpec:    update.ImageSpecLatest,
+				Kind:         update.ReleaseKindExecute,
+				Excludes:     []flux.ResourceID{},
+				Force:        true,
 			},
 			Expected: expected{
 				Specific: update.Result{
@@ -584,11 +584,11 @@ func Test_Force_filteredContainer(t *testing.T) {
 		{
 			Name: "force ignores container tag pattern (--workload --update-image)",
 			Spec: update.ReleaseImageSpec{
-				WorkloadSpecs: []update.ResourceSpec{semverSvcSpec},
-				ImageSpec:     update.ImageSpecFromRef(newHwRef), // does not match filter
-				Kind:          update.ReleaseKindExecute,
-				Excludes:      []flux.ResourceID{},
-				Force:         true,
+				ServiceSpecs: []update.ResourceSpec{semverSvcSpec},
+				ImageSpec:    update.ImageSpecFromRef(newHwRef), // does not match filter
+				Kind:         update.ReleaseKindExecute,
+				Excludes:     []flux.ResourceID{},
+				Force:        true,
 			},
 			Expected: expected{
 				Specific: update.Result{
@@ -600,11 +600,11 @@ func Test_Force_filteredContainer(t *testing.T) {
 		{
 			Name: "force ignores container tag pattern (--all --update-image)",
 			Spec: update.ReleaseImageSpec{
-				WorkloadSpecs: []update.ResourceSpec{update.ResourceSpecAll},
-				ImageSpec:     update.ImageSpecFromRef(newHwRef), // does not match filter
-				Kind:          update.ReleaseKindExecute,
-				Excludes:      []flux.ResourceID{},
-				Force:         true,
+				ServiceSpecs: []update.ResourceSpec{update.ResourceSpecAll},
+				ImageSpec:    update.ImageSpecFromRef(newHwRef), // does not match filter
+				Kind:         update.ReleaseKindExecute,
+				Excludes:     []flux.ResourceID{},
+				Force:        true,
 			},
 			Expected: expected{
 				Specific: update.Result{
@@ -616,11 +616,11 @@ func Test_Force_filteredContainer(t *testing.T) {
 		{
 			Name: "force complies with semver when updating all images (--workload --update-all-image)",
 			Spec: update.ReleaseImageSpec{
-				WorkloadSpecs: []update.ResourceSpec{semverSvcSpec},
-				ImageSpec:     update.ImageSpecLatest, // will filter images by semver and pick newest version
-				Kind:          update.ReleaseKindExecute,
-				Excludes:      []flux.ResourceID{},
-				Force:         true,
+				ServiceSpecs: []update.ResourceSpec{semverSvcSpec},
+				ImageSpec:    update.ImageSpecLatest, // will filter images by semver and pick newest version
+				Kind:         update.ReleaseKindExecute,
+				Excludes:     []flux.ResourceID{},
+				Force:        true,
 			},
 			Expected: expected{
 				Specific: update.Result{
@@ -632,11 +632,11 @@ func Test_Force_filteredContainer(t *testing.T) {
 		{
 			Name: "force complies with semver when updating all images (--all --update-all-image)",
 			Spec: update.ReleaseImageSpec{
-				WorkloadSpecs: []update.ResourceSpec{update.ResourceSpecAll},
-				ImageSpec:     update.ImageSpecLatest,
-				Kind:          update.ReleaseKindExecute,
-				Excludes:      []flux.ResourceID{},
-				Force:         true,
+				ServiceSpecs: []update.ResourceSpec{update.ResourceSpecAll},
+				ImageSpec:    update.ImageSpecLatest,
+				Kind:         update.ReleaseKindExecute,
+				Excludes:     []flux.ResourceID{},
+				Force:        true,
 			},
 			Expected: expected{
 				Specific: update.Result{
@@ -683,10 +683,10 @@ func Test_ImageStatus(t *testing.T) {
 		{
 			Name: "image not found",
 			Spec: update.ReleaseImageSpec{
-				WorkloadSpecs: []update.ResourceSpec{testSvcSpec},
-				ImageSpec:     update.ImageSpecLatest,
-				Kind:          update.ReleaseKindExecute,
-				Excludes:      []flux.ResourceID{},
+				ServiceSpecs: []update.ResourceSpec{testSvcSpec},
+				ImageSpec:    update.ImageSpecLatest,
+				Kind:         update.ReleaseKindExecute,
+				Excludes:     []flux.ResourceID{},
 			},
 			Expected: expected{
 				Specific: update.Result{
@@ -700,10 +700,10 @@ func Test_ImageStatus(t *testing.T) {
 		}, {
 			Name: "image up to date",
 			Spec: update.ReleaseImageSpec{
-				WorkloadSpecs: []update.ResourceSpec{hwSvcSpec},
-				ImageSpec:     update.ImageSpecLatest,
-				Kind:          update.ReleaseKindExecute,
-				Excludes:      []flux.ResourceID{},
+				ServiceSpecs: []update.ResourceSpec{hwSvcSpec},
+				ImageSpec:    update.ImageSpecLatest,
+				Kind:         update.ReleaseKindExecute,
+				Excludes:     []flux.ResourceID{},
 			},
 			Expected: expected{
 				Specific: update.Result{
@@ -754,9 +754,9 @@ func Test_UpdateMultidoc(t *testing.T) {
 		registry:  mockRegistry,
 	}
 	spec := update.ReleaseImageSpec{
-		WorkloadSpecs: []update.ResourceSpec{"default:deployment/multi-deploy"},
-		ImageSpec:     update.ImageSpecLatest,
-		Kind:          update.ReleaseKindExecute,
+		ServiceSpecs: []update.ResourceSpec{"default:deployment/multi-deploy"},
+		ImageSpec:    update.ImageSpecLatest,
+		Kind:         update.ReleaseKindExecute,
 	}
 	results, err := Release(ctx, spec, log.NewNopLogger())
 	if err != nil {
@@ -802,9 +802,9 @@ func Test_UpdateList(t *testing.T) {
 		registry:  mockRegistry,
 	}
 	spec := update.ReleaseImageSpec{
-		WorkloadSpecs: []update.ResourceSpec{"default:deployment/list-deploy"},
-		ImageSpec:     update.ImageSpecLatest,
-		Kind:          update.ReleaseKindExecute,
+		ServiceSpecs: []update.ResourceSpec{"default:deployment/list-deploy"},
+		ImageSpec:    update.ImageSpecLatest,
+		Kind:         update.ReleaseKindExecute,
 	}
 	results, err := Release(ctx, spec, log.NewNopLogger())
 	if err != nil {
@@ -1067,10 +1067,10 @@ func (m *badManifests) UpdateImage(def []byte, resourceID flux.ResourceID, conta
 func Test_BadRelease(t *testing.T) {
 	cluster := mockCluster(hwSvc)
 	spec := update.ReleaseImageSpec{
-		WorkloadSpecs: []update.ResourceSpec{update.ResourceSpecAll},
-		ImageSpec:     update.ImageSpecFromRef(newHwRef),
-		Kind:          update.ReleaseKindExecute,
-		Excludes:      []flux.ResourceID{},
+		ServiceSpecs: []update.ResourceSpec{update.ResourceSpecAll},
+		ImageSpec:    update.ImageSpecFromRef(newHwRef),
+		Kind:         update.ReleaseKindExecute,
+		Excludes:     []flux.ResourceID{},
 	}
 	checkout1, cleanup1 := setup(t)
 	defer cleanup1()

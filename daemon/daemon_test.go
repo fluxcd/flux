@@ -883,9 +883,9 @@ func updateImage(ctx context.Context, d *Daemon, t *testing.T) job.ID {
 	return updateManifest(ctx, t, d, update.Spec{
 		Type: update.Images,
 		Spec: update.ReleaseImageSpec{
-			Kind:          update.ReleaseKindExecute,
-			WorkloadSpecs: []update.ResourceSpec{update.ResourceSpecAll},
-			ImageSpec:     newHelloImage,
+			Kind:         update.ReleaseKindExecute,
+			ServiceSpecs: []update.ResourceSpec{update.ResourceSpecAll},
+			ImageSpec:    newHelloImage,
 		},
 	})
 }

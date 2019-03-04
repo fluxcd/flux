@@ -15,29 +15,29 @@ func TestReleaseCommand_CLIConversion(t *testing.T) {
 		expectedSpec update.ReleaseImageSpec
 	}{
 		{[]string{"--update-all-images", "--all"}, update.ReleaseImageSpec{
-			WorkloadSpecs: []update.ResourceSpec{update.ResourceSpecAll},
-			ImageSpec:     update.ImageSpecLatest,
-			Kind:          update.ReleaseKindExecute,
+			ServiceSpecs: []update.ResourceSpec{update.ResourceSpecAll},
+			ImageSpec:    update.ImageSpecLatest,
+			Kind:         update.ReleaseKindExecute,
 		}},
 		{[]string{"--update-all-images", "--all", "--dry-run"}, update.ReleaseImageSpec{
-			WorkloadSpecs: []update.ResourceSpec{update.ResourceSpecAll},
-			ImageSpec:     update.ImageSpecLatest,
-			Kind:          update.ReleaseKindPlan,
+			ServiceSpecs: []update.ResourceSpec{update.ResourceSpecAll},
+			ImageSpec:    update.ImageSpecLatest,
+			Kind:         update.ReleaseKindPlan,
 		}},
 		{[]string{"--update-image=alpine:latest", "--all"}, update.ReleaseImageSpec{
-			WorkloadSpecs: []update.ResourceSpec{update.ResourceSpecAll},
-			ImageSpec:     "alpine:latest",
-			Kind:          update.ReleaseKindExecute,
+			ServiceSpecs: []update.ResourceSpec{update.ResourceSpecAll},
+			ImageSpec:    "alpine:latest",
+			Kind:         update.ReleaseKindExecute,
 		}},
 		{[]string{"--update-all-images", "--workload=deployment/flux"}, update.ReleaseImageSpec{
-			WorkloadSpecs: []update.ResourceSpec{"default:deployment/flux"},
-			ImageSpec:     update.ImageSpecLatest,
-			Kind:          update.ReleaseKindExecute,
+			ServiceSpecs: []update.ResourceSpec{"default:deployment/flux"},
+			ImageSpec:    update.ImageSpecLatest,
+			Kind:         update.ReleaseKindExecute,
 		}},
 		{[]string{"--update-all-images", "--all", "--exclude=deployment/test,deployment/yeah"}, update.ReleaseImageSpec{
-			WorkloadSpecs: []update.ResourceSpec{update.ResourceSpecAll},
-			ImageSpec:     update.ImageSpecLatest,
-			Kind:          update.ReleaseKindExecute,
+			ServiceSpecs: []update.ResourceSpec{update.ResourceSpecAll},
+			ImageSpec:    update.ImageSpecLatest,
+			Kind:         update.ReleaseKindExecute,
 			Excludes: []flux.ResourceID{
 				flux.MustParseResourceID("default:deployment/test"),
 				flux.MustParseResourceID("default:deployment/yeah"),

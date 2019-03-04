@@ -322,11 +322,11 @@ func (d *Daemon) doSync(logger log.Logger, lastKnownSyncTagRev *string, warnedAb
 			case update.Containers:
 				spec := n.Spec.Spec.(update.ReleaseContainersSpec)
 				noteEvents = append(noteEvents, event.Event{
-					WorkloadIDs: n.Result.AffectedResources(),
-					Type:        event.EventRelease,
-					StartedAt:   started,
-					EndedAt:     time.Now().UTC(),
-					LogLevel:    event.LogLevelInfo,
+					ServiceIDs: n.Result.AffectedResources(),
+					Type:       event.EventRelease,
+					StartedAt:  started,
+					EndedAt:    time.Now().UTC(),
+					LogLevel:   event.LogLevelInfo,
 					Metadata: &event.ReleaseEventMetadata{
 						ReleaseEventCommon: event.ReleaseEventCommon{
 							Revision: commits[i].Revision,
@@ -344,11 +344,11 @@ func (d *Daemon) doSync(logger log.Logger, lastKnownSyncTagRev *string, warnedAb
 			case update.Images:
 				spec := n.Spec.Spec.(update.ReleaseImageSpec)
 				noteEvents = append(noteEvents, event.Event{
-					WorkloadIDs: n.Result.AffectedResources(),
-					Type:        event.EventRelease,
-					StartedAt:   started,
-					EndedAt:     time.Now().UTC(),
-					LogLevel:    event.LogLevelInfo,
+					ServiceIDs: n.Result.AffectedResources(),
+					Type:       event.EventRelease,
+					StartedAt:  started,
+					EndedAt:    time.Now().UTC(),
+					LogLevel:   event.LogLevelInfo,
 					Metadata: &event.ReleaseEventMetadata{
 						ReleaseEventCommon: event.ReleaseEventCommon{
 							Revision: commits[i].Revision,
@@ -366,11 +366,11 @@ func (d *Daemon) doSync(logger log.Logger, lastKnownSyncTagRev *string, warnedAb
 			case update.Auto:
 				spec := n.Spec.Spec.(update.Automated)
 				noteEvents = append(noteEvents, event.Event{
-					WorkloadIDs: n.Result.AffectedResources(),
-					Type:        event.EventAutoRelease,
-					StartedAt:   started,
-					EndedAt:     time.Now().UTC(),
-					LogLevel:    event.LogLevelInfo,
+					ServiceIDs: n.Result.AffectedResources(),
+					Type:       event.EventAutoRelease,
+					StartedAt:  started,
+					EndedAt:    time.Now().UTC(),
+					LogLevel:   event.LogLevelInfo,
 					Metadata: &event.AutoReleaseEventMetadata{
 						ReleaseEventCommon: event.ReleaseEventCommon{
 							Revision: commits[i].Revision,
@@ -397,11 +397,11 @@ func (d *Daemon) doSync(logger log.Logger, lastKnownSyncTagRev *string, warnedAb
 			cs[i].Message = c.Message
 		}
 		if err = d.LogEvent(event.Event{
-			WorkloadIDs: workloadIDs.ToSlice(),
-			Type:        event.EventSync,
-			StartedAt:   started,
-			EndedAt:     started,
-			LogLevel:    event.LogLevelInfo,
+			ServiceIDs: workloadIDs.ToSlice(),
+			Type:       event.EventSync,
+			StartedAt:  started,
+			EndedAt:    started,
+			LogLevel:   event.LogLevelInfo,
 			Metadata: &event.SyncEventMetadata{
 				Commits:     cs,
 				InitialSync: initialSync,

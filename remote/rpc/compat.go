@@ -48,7 +48,7 @@ func requireSpecKinds(s update.Spec, kinds []string) error {
 			}
 		}
 	case update.ReleaseImageSpec:
-		for _, ss := range s.WorkloadSpecs {
+		for _, ss := range s.ServiceSpecs {
 			if err := requireWorkloadSpecKinds(ss, kinds); err != nil {
 				return err
 			}

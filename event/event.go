@@ -40,8 +40,9 @@ type Event struct {
 	// ID is a UUID for this event. Will be auto-set when saving if blank.
 	ID EventID `json:"id"`
 
-	// WorkloadIDs affected by this event.
-	WorkloadIDs []flux.ResourceID `json:"serviceIDs"`
+	// Identifiers of workloads affected by this event.
+	// TODO: rename to WorkloadIDs after adding versioning.
+	ServiceIDs []flux.ResourceID `json:"serviceIDs"`
 
 	// Type is the type of event, usually "release" for now, but could be other
 	// things later
@@ -75,7 +76,7 @@ type EventWriter interface {
 
 func (e Event) WorkloadIDStrings() []string {
 	var strWorkloadIDs []string
-	for _, workloadID := range e.WorkloadIDs {
+	for _, workloadID := range e.ServiceIDs {
 		strWorkloadIDs = append(strWorkloadIDs, workloadID.String())
 	}
 	sort.Strings(strWorkloadIDs)
@@ -96,7 +97,7 @@ func (e Event) String() string {
 			strImageIDs = []string{"no image changes"}
 		}
 		if metadata.Spec.Type == "" || metadata.Spec.Type == ReleaseImageSpecType {
-			for _, spec := range metadata.Spec.ReleaseImageSpec.WorkloadSpecs {
+			for _, spec := range metadata.Spec.ReleaseImageSpec.ServiceSpecs {
 				if spec == update.ResourceSpecAll {
 					strWorkloadIDs = []string{"all workloads"}
 					break
