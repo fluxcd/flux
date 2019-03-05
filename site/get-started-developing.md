@@ -1,6 +1,6 @@
 # Get Started Developing Flux
 
-This tutorial is going to walk you through one possible workflow for making a small (actually, tiny) change to Flux and building and testing that change locally.
+This guide shows a workflow for making a small (actually, tiny) change to Flux, building and testing that change locally.
 
 > ### TL;DR
 >
@@ -38,6 +38,11 @@ Now that we know everything is working with `flux-getting-started`, we're going 
     - [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
     - [Docker](https://docs.docker.com/install/)
     - [Go](https://golang.org/doc/install)
+
+1. Configure your enviroment so you can run tests.  Run:
+    ```sh
+    make test
+    ```
 
 1. We want to make sure we're starting fresh.  Tell Minikube to clear any previously running clusters.
     ```sh
