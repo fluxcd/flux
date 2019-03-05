@@ -58,7 +58,7 @@ This is a rough outline of how to prepare a contribution:
 Refer to the [building doc](site/building.md) to find out how to build from
 source.
 
-Refer to the [up-and-running with Flux Development](site/get-started-developing.md) doc for a walkthrough on developing Flux locally.
+Refer to the [Get Started Developing](site/get-started-developing.md) guide for a walkthrough on developing Flux locally.
 
 ### How to run the test suite
 
