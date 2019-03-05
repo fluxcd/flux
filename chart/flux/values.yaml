@@ -175,6 +175,28 @@ ssh:
   # Overrides for git over SSH. If you use your own git server, you
   # will likely need to provide a host key for it in this field.
   known_hosts: ""
+  # Override for default ssh config
+  config: |
+    Host *
+      Port 22
+      StrictHostKeyChecking yes
+      IdentityFile /etc/fluxd/ssh/identity
+      IdentityFile /var/fluxd/keygen/identity
+      LogLevel error
+
+    # Host github.com
+      # Port 22
+      # StrictHostKeyChecking yes
+      # IdentityFile /etc/fluxd/ssh/identity
+      # IdentityFile /var/fluxd/keygen/identity
+      # LogLevel error
+
+    # Host some.private.git.com
+      # Port 7999
+      # StrictHostKeyChecking yes
+      # IdentityFile /etc/fluxd/ssh/identity
+      # IdentityFile /var/fluxd/keygen/identity
+      # LogLevel error
 
 kube:
   # Override for kubectl default config

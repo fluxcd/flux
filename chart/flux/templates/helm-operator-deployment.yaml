@@ -37,6 +37,12 @@ spec:
       {{- if .Values.ssh.known_hosts }}
       - name: sshdir
         configMap:
+          name: {{ template "flux.fullname" . }}-known-hosts
+          defaultMode: 0600
+      {{- end }}
+      {{- if .Values.ssh.config }}
+      - name: sshconfigdir
+        configMap:
           name: {{ template "flux.fullname" . }}-ssh-config
           defaultMode: 0600
       {{- end }}
@@ -81,6 +87,11 @@ spec:
         - name: sshdir
           mountPath: /root/.ssh/known_hosts
           subPath: known_hosts
+          readOnly: true
+        {{- end }}
+        {{- if .Values.ssh.config }}
+        - name: sshconfigdir
+          mountPath: /etc/ssh
           readOnly: true
         {{- end }}
         - name: git-key
