@@ -291,7 +291,7 @@ metadata:
 		}
 
 		// Now check that the resources were created
-		actual, err := kube.getResourcesInSyncSet("testset")
+		actual, err := kube.getGCMarkedResourcesInSyncSet("testset")
 		if err != nil {
 			t.Fatal(err)
 		}

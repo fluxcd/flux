@@ -3,6 +3,8 @@ package kubernetes
 import (
 	"bytes"
 	"crypto/sha1"
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"fmt"
 	"io"
@@ -28,7 +30,12 @@ import (
 )
 
 const (
-	syncSetLabel       = kresource.PolicyPrefix + "sync-set"
+	// We use mark-and-sweep garbage collection to delete cluster objects.
+	// Marking is done by adding a label when creating and updating the objects.
+	// Sweeping is done by comparing Marked cluster objects with the manifests in Git.
+	gcMarkLabel = kresource.PolicyPrefix + "sync-gc-mark"
+	// We want to prevent garbage-collecting cluster objects which haven't been updated.
+	// We annotate objects with the checksum of their Git manifest to verify this.
 	checksumAnnotation = kresource.PolicyPrefix + "sync-checksum"
 )
 
@@ -37,7 +44,7 @@ const (
 // necessarily indicate complete failure; some resources may succeed
 // in being synced, and some may fail (for example, they may be
 // malformed).
-func (c *Cluster) Sync(spec cluster.SyncSet) error {
+func (c *Cluster) Sync(syncSet cluster.SyncSet) error {
 	logger := log.With(c.logger, "method", "Sync")
 
 	// Keep track of the checksum of each resource, so we can compare
@@ -53,7 +60,7 @@ func (c *Cluster) Sync(spec cluster.SyncSet) error {
 
 	cs := makeChangeSet()
 	var errs cluster.SyncError
-	for _, res := range spec.Resources {
+	for _, res := range syncSet.Resources {
 		id := res.ResourceID().String()
 		// make a record of the checksum, whether we stage it to
 		// be applied or not, so that we don't delete it later.
@@ -67,11 +74,11 @@ func (c *Cluster) Sync(spec cluster.SyncSet) error {
 		// It's possible to give a cluster resource the "ignore"
 		// annotation directly -- e.g., with `kubectl annotate` -- so
 		// we need to examine the cluster resource here too.
-		if cres, ok := clusterResources[id]; ok && cres.Policy().Has(policy.Ignore) {
+		if cres, ok := clusterResources[id]; ok && cres.Policies().Has(policy.Ignore) {
 			logger.Log("info", "not applying resource; ignore annotation in cluster resource", "resource", cres.ResourceID())
 			continue
 		}
-		resBytes, err := applyMetadata(res, spec.Name, checkHex)
+		resBytes, err := applyMetadata(res, syncSet.Name, checkHex)
 		if err == nil {
 			cs.stage("apply", res.ResourceID(), res.Source(), resBytes)
 		} else {
@@ -89,7 +96,7 @@ func (c *Cluster) Sync(spec cluster.SyncSet) error {
 	c.muSyncErrors.RUnlock()
 
 	if c.GC {
-		deleteErrs, gcFailure := c.collectGarbage(spec, checksums, logger)
+		deleteErrs, gcFailure := c.collectGarbage(syncSet, checksums, logger)
 		if gcFailure != nil {
 			return gcFailure
 		}
@@ -108,13 +115,13 @@ func (c *Cluster) Sync(spec cluster.SyncSet) error {
 }
 
 func (c *Cluster) collectGarbage(
-	spec cluster.SyncSet,
+	syncSet cluster.SyncSet,
 	checksums map[string]string,
 	logger log.Logger) (cluster.SyncError, error) {
 
 	orphanedResources := makeChangeSet()
 
-	clusterResources, err := c.getResourcesInSyncSet(spec.Name)
+	clusterResources, err := c.getGCMarkedResourcesInSyncSet(syncSet.Name)
 	if err != nil {
 		return nil, errors.Wrap(err, "collating resources in cluster for calculating garbage collection")
 	}
@@ -168,14 +175,16 @@ metadata:
 `, r.obj.GetAPIVersion(), r.obj.GetKind(), r.obj.GetNamespace(), r.obj.GetName()))
 }
 
-func (r *kuberesource) Policy() policy.Set {
-	return kresource.PolicyFromAnnotations(r.obj.GetAnnotations())
+func (r *kuberesource) Policies() policy.Set {
+	return kresource.PoliciesFromAnnotations(r.obj.GetAnnotations())
 }
 
-// GetChecksum returns the checksum recorded on the resource from
-// Kubernetes, or an empty string if it's not present.
 func (r *kuberesource) GetChecksum() string {
 	return r.obj.GetAnnotations()[checksumAnnotation]
+}
+
+func (r *kuberesource) GetGCMark() string {
+	return r.obj.GetLabels()[gcMarkLabel]
 }
 
 func (c *Cluster) getResourcesBySelector(selector string) (map[string]*kuberesource, error) {
@@ -238,13 +247,21 @@ func (c *Cluster) getResourcesBySelector(selector string) (map[string]*kuberesou
 	return result, nil
 }
 
-// exportResourcesInStack collates all the resources that belong to a
-// stack, i.e., were applied by flux.
-func (c *Cluster) getResourcesInSyncSet(name string) (map[string]*kuberesource, error) {
-	return c.getResourcesBySelector(fmt.Sprintf("%s=%s", syncSetLabel, name)) // means "has label <<stackLabel>>"
+func (c *Cluster) getGCMarkedResourcesInSyncSet(syncSetName string) (map[string]*kuberesource, error) {
+	allGCMarkedResources, err := c.getResourcesBySelector(gcMarkLabel) // means "gcMarkLabel exists"
+	if err != nil {
+		return nil, err
+	}
+	syncSetGCMarkedResources := map[string]*kuberesource{}
+	for resID, kres := range allGCMarkedResources {
+		if kres.GetGCMark() == makeGCMark(syncSetName, resID) {
+			syncSetGCMarkedResources[resID] = kres
+		}
+	}
+	return syncSetGCMarkedResources, nil
 }
 
-func applyMetadata(res resource.Resource, set, checksum string) ([]byte, error) {
+func applyMetadata(res resource.Resource, syncSetName, checksum string) ([]byte, error) {
 	definition := map[interface{}]interface{}{}
 	if err := yaml.Unmarshal(res.Bytes(), &definition); err != nil {
 		return nil, errors.Wrap(err, fmt.Sprintf("failed to parse yaml from %s", res.Source()))
@@ -252,9 +269,9 @@ func applyMetadata(res resource.Resource, set, checksum string) ([]byte, error) 
 
 	mixin := map[string]interface{}{}
 
-	if set != "" {
+	if syncSetName != "" {
 		mixinLabels := map[string]string{}
-		mixinLabels[syncSetLabel] = set
+		mixinLabels[gcMarkLabel] = makeGCMark(syncSetName, res.ResourceID().String())
 		mixin["labels"] = mixinLabels
 	}
 
@@ -273,6 +290,15 @@ func applyMetadata(res resource.Resource, set, checksum string) ([]byte, error) 
 		return nil, errors.Wrap(err, "failed to serialize yaml after applying metadata")
 	}
 	return bytes, nil
+}
+
+func makeGCMark(syncSetName, resourceID string) string {
+	hasher := sha256.New()
+	hasher.Write([]byte(syncSetName))
+	// To prevent deleting objects with copied labels
+	// an object-specific mark is created (by including its identifier).
+	hasher.Write([]byte(resourceID))
+	return "sha256:" + base64.RawURLEncoding.EncodeToString(hasher.Sum(nil))
 }
 
 // --- internal types for keeping track of syncing
