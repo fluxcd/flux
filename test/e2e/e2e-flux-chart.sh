@@ -35,6 +35,37 @@ until ${ok}; do
     fi
 done
 
+echo '>>> Waiting for workload podinfo'
+retries=12
+count=0
+ok=false
+until ${ok}; do
+    kubectl -n demo describe deployment/podinfo && ok=true || ok=false
+    sleep 10
+    count=$(($count + 1))
+    if [[ ${count} -eq ${retries} ]]; then
+        kubectl -n flux logs deployment/flux
+        echo "No more retries left"
+        exit 1
+    fi
+done
+
+echo '>>> Waiting for Helm release mongodb'
+retries=12
+count=0
+ok=false
+until ${ok}; do
+    kubectl -n demo describe deployment/mongodb && ok=true || ok=false
+    sleep 10
+    count=$(($count + 1))
+    if [[ ${count} -eq ${retries} ]]; then
+        kubectl -n flux logs deployment/flux
+        kubectl -n flux logs deployment/flux-helm-operator
+        echo "No more retries left"
+        exit 1
+    fi
+done
+
 echo ">>> Flux logs"
 kubectl -n flux logs deployment/flux
 
