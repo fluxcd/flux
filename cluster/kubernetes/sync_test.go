@@ -290,7 +290,7 @@ metadata:
 			panic(err)
 		}
 
-		// Now check that the resources were created
+		// Now check what resources remain in the sync set
 		actual, err := kube.getGCMarkedResourcesInSyncSet("testset")
 		if err != nil {
 			t.Fatal(err)
@@ -368,6 +368,53 @@ metadata:
   namespace: ` + defaultTestNamespace + `
 `
 		test(t, kube, withoutNS, withNS, false)
+	})
+
+	t.Run("sync won't delete resources whose garbage collection mark was copied to", func(t *testing.T) {
+		kube, _ := setup(t)
+		kube.GC = true
+
+		depName := "dep"
+		depNS := "foobar"
+		dep := fmt.Sprintf(`---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: %s
+  namespace: %s
+`, depName, depNS)
+
+		// Add dep to the cluster through syncing
+		test(t, kube, dep, dep, false)
+
+		// Add a copy of dep (including the GCmark label) with different name directly to the cluster
+		gvr := schema.GroupVersionResource{
+			Group:    "apps",
+			Version:  "v1",
+			Resource: "deployments",
+		}
+		client := kube.client.dynamicClient.Resource(gvr).Namespace(depNS)
+		depActual, err := client.Get(depName, metav1.GetOptions{})
+		assert.NoError(t, err)
+		depCopy := depActual.DeepCopy()
+		depCopyName := depName + "copy"
+		depCopy.SetName(depCopyName)
+		depCopyActual, err := client.Create(depCopy)
+		assert.NoError(t, err)
+
+		// Check that both dep and its copy have the same GCmark label
+		assert.Equal(t, depActual.GetName()+"copy", depCopyActual.GetName())
+		assert.NotEmpty(t, depActual.GetLabels()[gcMarkLabel])
+		assert.Equal(t, depActual.GetLabels()[gcMarkLabel], depCopyActual.GetLabels()[gcMarkLabel])
+
+		// Remove defs1  from the cluster through syncing
+		test(t, kube, "", "", false)
+
+		// Check that defs1 is removed from the cluster but its copy isn't, due to having a different name
+		_, err = client.Get(depName, metav1.GetOptions{})
+		assert.Error(t, err)
+		_, err = client.Get(depCopyName, metav1.GetOptions{})
+		assert.NoError(t, err)
 	})
 
 	t.Run("sync won't delete if apply failed", func(t *testing.T) {
