@@ -53,11 +53,7 @@ workflows:
   version: 2
   build-and-push:
     jobs:
-      - build:
-          filters:
-            tags:
-              only: /(helm-)?[0-9]+(\.[0-9]+)*(-[a-z]+)?/
+      - build
       - e2e-testing:
-          filters:
-            tags:
-              only: /(helm-)?[0-9]+(\.[0-9]+)*(-[a-z]+)?/
+          requires:
+            - build
