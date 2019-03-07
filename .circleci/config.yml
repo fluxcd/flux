@@ -41,7 +41,7 @@ jobs:
             fi
   e2e-testing:
     machine: true
-    working_directory: /go/src/github.com/weaveworks/flux
+    working_directory: ~/go/src/github.com/weaveworks/flux
     steps:
       - checkout
       - run: test/e2e/e2e-kind.sh
