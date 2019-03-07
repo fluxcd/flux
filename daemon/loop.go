@@ -160,7 +160,7 @@ func (d *Daemon) doSync(logger log.Logger, lastKnownSyncTagRev *string, warnedAb
 		).Observe(time.Since(started).Seconds())
 	}()
 
-	syncSetName := makeSyncLabel(d.Repo.Origin(), d.GitConfig)
+	syncSetName := makeGitConfigHash(d.Repo.Origin(), d.GitConfig)
 
 	// We don't care how long this takes overall, only about not
 	// getting bogged down in certain operations, so use an
@@ -455,7 +455,7 @@ func isUnknownRevision(err error) bool {
 			strings.Contains(err.Error(), "bad revision"))
 }
 
-func makeSyncLabel(remote git.Remote, conf git.Config) string {
+func makeGitConfigHash(remote git.Remote, conf git.Config) string {
 	urlbit := remote.SafeURL()
 	pathshash := sha256.New()
 	pathshash.Write([]byte(urlbit))
@@ -463,7 +463,5 @@ func makeSyncLabel(remote git.Remote, conf git.Config) string {
 	for _, path := range conf.Paths {
 		pathshash.Write([]byte(path))
 	}
-	// the prefix is in part to make sure it's a valid (Kubernetes)
-	// label value -- a modest abstraction leak
-	return "git-" + base64.RawURLEncoding.EncodeToString(pathshash.Sum(nil))
+	return base64.RawURLEncoding.EncodeToString(pathshash.Sum(nil))
 }
