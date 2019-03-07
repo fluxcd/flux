@@ -44,6 +44,7 @@ jobs:
     working_directory: ~/go/src/github.com/weaveworks/flux
     steps:
       - checkout
+      - run: test/e2e/e2e-golang.sh
       - run: test/e2e/e2e-kind.sh
       - run: test/e2e/e2e-helm.sh
       - run: test/e2e/e2e-git.sh
