@@ -12,6 +12,9 @@ export PATH=$PATH:/usr/local/go/bin:$GOPATH/bin
 
 go version
 
+mkdir -p $HOME/go/bin
+mkdir -p $HOME/go/src
+
 curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
 dep ensure -vendor-only
 
