@@ -2,11 +2,11 @@
 
 set -o errexit
 
-REPO_ROOT=$(git rev-parse --show-toplevel)
 export KUBECONFIG="$(kind get kubeconfig-path --name="kind")"
-
+REPO_ROOT=$(git rev-parse --show-toplevel)
 KNOWN_HOSTS=$(cat ${REPO_ROOT}/test/e2e/known_hosts)
 
+echo ">>> Loading $(docker/image-tag) into the cluster"
 kind load docker-image "quay.io/weaveworks/flux:$(docker/image-tag)"
 
 echo ">>> Installing Flux with Helm"

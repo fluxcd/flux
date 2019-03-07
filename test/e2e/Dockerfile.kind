@@ -1,4 +1,0 @@
-FROM golang:1.11
-
-RUN go get -u sigs.k8s.io/kind
-
