@@ -298,7 +298,8 @@ func makeGCMark(syncSetName, resourceID string) string {
 	// To prevent deleting objects with copied labels
 	// an object-specific mark is created (by including its identifier).
 	hasher.Write([]byte(resourceID))
-	return "sha256:" + base64.RawURLEncoding.EncodeToString(hasher.Sum(nil))
+	// The prefix is to make sure it's a valid (Kubernetes) label value.
+	return "sha256." + base64.RawURLEncoding.EncodeToString(hasher.Sum(nil))
 }
 
 // --- internal types for keeping track of syncing
