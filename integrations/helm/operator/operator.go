@@ -109,7 +109,7 @@ func New(
 			}
 		},
 		UpdateFunc: func(old, new interface{}) {
-			controller.enqueueUpateJob(old, new)
+			controller.enqueueUpdateJob(old, new)
 		},
 		DeleteFunc: func(old interface{}) {
 			fhr, ok := checkCustomResourceType(controller.logger, old)
@@ -287,7 +287,7 @@ func (c *Controller) enqueueJob(obj interface{}) {
 }
 
 // enqueueUpdateJob decides if there is a genuine resource update
-func (c *Controller) enqueueUpateJob(old, new interface{}) {
+func (c *Controller) enqueueUpdateJob(old, new interface{}) {
 	oldFhr, ok := checkCustomResourceType(c.logger, old)
 	if !ok {
 		return

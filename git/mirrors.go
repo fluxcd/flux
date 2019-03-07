@@ -1,7 +1,9 @@
 package git
 
 import (
+	"context"
 	"sync"
+	"time"
 )
 
 // Maintains several git mirrors as a set, with a mechanism for
@@ -95,7 +97,7 @@ func (m *Mirrors) Get(name string) (*Repo, bool) {
 	return nil, false
 }
 
-// stopAllAndWait stops all the repos refreshing, and waits for them
+// StopAllAndWait stops all the repos refreshing, and waits for them
 // to indicate they've done so.
 func (m *Mirrors) StopAllAndWait() {
 	m.reposMu.Lock()
@@ -108,7 +110,7 @@ func (m *Mirrors) StopAllAndWait() {
 	m.wg.Wait()
 }
 
-// stopAndRemove stops the repo given by `remote`, and cleans up after
+// StopOne stops the repo given by `remote`, and cleans up after
 // it (i.e., removes filesystem traces), if it is being tracked.
 func (m *Mirrors) StopOne(name string) {
 	m.reposMu.Lock()
@@ -118,6 +120,26 @@ func (m *Mirrors) StopOne(name string) {
 		delete(m.repos, name)
 	}
 	m.reposMu.Unlock()
+}
+
+// RefreshAll instructs all the repos to refresh, this means
+// fetching updated refs, and associated objects. The given
+// timeout is the timeout per mirror and _not_ the timeout
+// for the whole operation. It returns a collection of
+// eventual errors it encountered.
+func (m *Mirrors) RefreshAll(timeout time.Duration) []error {
+	m.reposMu.Lock()
+	defer m.reposMu.Unlock()
+
+	var errs []error
+	for _, state := range m.repos {
+		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+		if err := state.repo.Refresh(ctx); err != nil {
+			errs = append(errs, err)
+		}
+		cancel()
+	}
+	return errs
 }
 
 // ---

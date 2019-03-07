@@ -402,6 +402,15 @@ func (chs *ChartChangeSync) DeleteRelease(fhr fluxv1beta1.HelmRelease) {
 	}
 }
 
+// SyncMirrors instructs all mirrors to refresh from their upstream.
+func (chs *ChartChangeSync) SyncMirrors() {
+	chs.logger.Log("info", "Starting mirror sync")
+	for _, err := range chs.mirrors.RefreshAll(chs.config.GitTimeout) {
+		chs.logger.Log("error", fmt.Sprintf("Failure while syncing mirror: %s", err))
+	}
+	chs.logger.Log("info", "Finished syncing mirrors")
+}
+
 // getCustomResources assembles all custom resources in all namespaces
 // or in the allowed namespace if specified
 func (chs *ChartChangeSync) getCustomResources() ([]fluxv1beta1.HelmRelease, error) {

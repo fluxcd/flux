@@ -186,7 +186,7 @@ func main() {
 	checkpoint.CheckForUpdates(product, version, nil, log.With(logger, "component", "checkpoint"))
 
 	// start HTTP server
-	go daemonhttp.ListenAndServe(*listenAddr, log.With(logger, "component", "daemonhttp"), shutdown)
+	go daemonhttp.ListenAndServe(*listenAddr, chartSync, log.With(logger, "component", "daemonhttp"), shutdown)
 
 	// start operator
 	go func() {
