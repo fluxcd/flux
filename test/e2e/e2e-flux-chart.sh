@@ -13,9 +13,13 @@ helm install --name flux --wait \
 --set helmOperator.create=true \
 --set helmOperator.createCRD=true \
 --set helmOperator.git.secretName=ssh-git \
+--set registry.excludeImage=* \
 ${REPO_ROOT}/chart/flux
 
-sleep 30
+sleep 60
 
+echo ">>> Flux logs"
 kubectl -n flux logs deployment/flux
+
+echo ">>> Helm Operator logs"
 kubectl -n flux logs deployment/flux-helm-operator
