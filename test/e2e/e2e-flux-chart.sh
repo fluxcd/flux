@@ -7,9 +7,12 @@ export KUBECONFIG="$(kind get kubeconfig-path --name="kind")"
 
 KNOWN_HOSTS=$(cat ${REPO_ROOT}/test/e2e/known_hosts)
 
+kind load docker-image "quay.io/weaveworks/flux:$(docker/image-tag)"
+
 echo ">>> Installing Flux with Helm"
 helm install --name flux --wait \
 --namespace flux \
+--set image.tag=$(docker/image-tag) \
 --set git.url=ssh://git@gitsrv/git-server/repos/cluster.git \
 --set git.secretName=ssh-git \
 --set git.pollInterval=30s \
