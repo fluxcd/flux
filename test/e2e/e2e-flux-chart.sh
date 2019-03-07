@@ -20,6 +20,7 @@ helm install --name flux --wait \
 --set-string ssh.known_hosts="${KNOWN_HOSTS}" \
 ${REPO_ROOT}/chart/flux
 
+#TODO: replace this will long pooling
 sleep 120
 
 echo ">>> Flux logs"
@@ -27,3 +28,12 @@ kubectl -n flux logs deployment/flux
 
 echo ">>> Helm Operator logs"
 kubectl -n flux logs deployment/flux-helm-operator
+
+echo ">>> List pods"
+kubectl -n test get pods
+
+echo ">>> Check workload"
+kubectl -n test rollout status deployment/podinfo
+
+echo ">>> Check Helm release"
+kubectl -n test rollout status deployment/mongodb
