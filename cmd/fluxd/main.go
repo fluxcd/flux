@@ -334,23 +334,37 @@ func main() {
 
 	// Wrap the procedure for collecting images to scan
 	{
-		awsConf := registry.AWSRegistryConfig{
-			Regions:    *registryAWSRegions,
-			AccountIDs: *registryAWSAccountIDs,
-			BlockIDs:   *registryAWSBlockAccountIDs,
+		awsOptions := []string{
+			"registry-ecr-region",
+			"registry-ecr-include-id",
+			"registry-ecr-exclude-id",
 		}
-		credsWithAWSAuth, err := registry.ImageCredsWithAWSAuth(imageCreds, log.With(logger, "component", "aws"), awsConf)
-		if err != nil {
-			logger.Log("warning", "AWS authorization not used; pre-flight check failed")
-		} else {
-			imageCreds = credsWithAWSAuth
+		usingAWS := false
+		for _, awsOption := range awsOptions {
+			if fs.Changed(awsOption) {
+				usingAWS = true
+				break
+			}
 		}
-		if *dockerConfig != "" {
-			credsWithDefaults, err := registry.ImageCredsWithDefaults(imageCreds, *dockerConfig)
+		if usingAWS {
+			awsConf := registry.AWSRegistryConfig{
+				Regions:    *registryAWSRegions,
+				AccountIDs: *registryAWSAccountIDs,
+				BlockIDs:   *registryAWSBlockAccountIDs,
+			}
+			credsWithAWSAuth, err := registry.ImageCredsWithAWSAuth(imageCreds, log.With(logger, "component", "aws"), awsConf)
 			if err != nil {
-				logger.Log("warning", "--docker-config not used; pre-flight check failed", "err", err)
+				logger.Log("warning", "AWS authorization not used; pre-flight check failed")
 			} else {
-				imageCreds = credsWithDefaults
+				imageCreds = credsWithAWSAuth
+			}
+			if *dockerConfig != "" {
+				credsWithDefaults, err := registry.ImageCredsWithDefaults(imageCreds, *dockerConfig)
+				if err != nil {
+					logger.Log("warning", "--docker-config not used; pre-flight check failed", "err", err)
+				} else {
+					imageCreds = credsWithDefaults
+				}
 			}
 		}
 	}
