@@ -120,9 +120,7 @@ func UpdateReleaseStatus(client v1beta1client.HelmReleaseInterface, fhr v1beta1.
 	return err
 }
 
-func (a *Updater) UpdateReleaseRevision(fhr v1beta1.HelmRelease, revision string) error {
-	client := a.fluxhelm.FluxV1beta1().HelmReleases(fhr.Namespace)
-
+func UpdateReleaseRevision(client v1beta1client.HelmReleaseInterface, fhr v1beta1.HelmRelease, revision string) error {
 	patchBytes, err := json.Marshal(map[string]interface{}{
 		"status": map[string]interface{}{
 			"revision": revision,
