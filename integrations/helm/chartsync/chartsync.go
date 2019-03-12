@@ -121,7 +121,7 @@ type ChartChangeSync struct {
 	namespace string
 }
 
-func New(logger log.Logger, polling Polling, clients Clients, release *release.Release, config Config, namespace string) *ChartChangeSync {
+func New(logger log.Logger, polling Polling, clients Clients, release *release.Release, config Config, namespace string, statusUpdater *status.Updater) *ChartChangeSync {
 	return &ChartChangeSync{
 		logger:     logger,
 		Polling:    polling,
@@ -296,6 +296,7 @@ func (chs *ChartChangeSync) reconcileReleaseDef(fhr fluxv1beta1.HelmRelease) {
 	opts := release.InstallOptions{DryRun: false}
 
 	chartPath := ""
+	chartRevision := ""
 	if fhr.Spec.ChartSource.GitChartSource != nil {
 		chartSource := fhr.Spec.ChartSource.GitChartSource
 		// We need to hold the lock until after we're done releasing
@@ -326,6 +327,7 @@ func (chs *ChartChangeSync) reconcileReleaseDef(fhr fluxv1beta1.HelmRelease) {
 		}
 		chs.setCondition(&fhr, fluxv1beta1.HelmReleaseChartFetched, v1.ConditionTrue, ReasonCloned, "successfully cloned git repo")
 		chartPath = filepath.Join(chartClone.export.Dir(), chartSource.Path)
+		chartRevision = chartClone.head
 
 		if chs.config.UpdateDeps && !fhr.Spec.SkipDepUpdate {
 			if err := updateDependencies(chartPath, ""); err != nil {
@@ -334,7 +336,6 @@ func (chs *ChartChangeSync) reconcileReleaseDef(fhr fluxv1beta1.HelmRelease) {
 				return
 			}
 		}
-
 	} else if fhr.Spec.ChartSource.RepoChartSource != nil { // TODO(michael): make this dispatch more natural, or factor it out
 		chartSource := fhr.Spec.ChartSource.RepoChartSource
 		path, err := ensureChartFetched(chs.config.ChartCache, chartSource)
@@ -345,6 +346,7 @@ func (chs *ChartChangeSync) reconcileReleaseDef(fhr fluxv1beta1.HelmRelease) {
 		}
 		chs.setCondition(&fhr, fluxv1beta1.HelmReleaseChartFetched, v1.ConditionTrue, ReasonDownloaded, "chart fetched: "+filepath.Base(path))
 		chartPath = path
+		chartRevision = chartSource.Version
 	}
 
 	if rel == nil {
@@ -355,6 +357,9 @@ func (chs *ChartChangeSync) reconcileReleaseDef(fhr fluxv1beta1.HelmRelease) {
 			return
 		}
 		chs.setCondition(&fhr, fluxv1beta1.HelmReleaseReleased, v1.ConditionTrue, ReasonSuccess, "helm install succeeded")
+		if err = status.UpdateReleaseRevision(chs.ifClient.FluxV1beta1().HelmReleases(fhr.Namespace), fhr, chartRevision); err != nil {
+			chs.logger.Log("warning", "could not update the release revision", "namespace", fhr.Namespace, "resource", fhr.Name, "err", err)
+		}
 		return
 	}
 
@@ -371,6 +376,10 @@ func (chs *ChartChangeSync) reconcileReleaseDef(fhr fluxv1beta1.HelmRelease) {
 			return
 		}
 		chs.setCondition(&fhr, fluxv1beta1.HelmReleaseReleased, v1.ConditionTrue, ReasonSuccess, "helm upgrade succeeded")
+		if err = status.UpdateReleaseRevision(chs.ifClient.FluxV1beta1().HelmReleases(fhr.Namespace), fhr, chartRevision); err != nil {
+			chs.logger.Log("warning", "could not update the release revision", "namespace", fhr.Namespace, "resource", fhr.Name, "err", err)
+		}
+		return
 	}
 }
 

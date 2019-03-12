@@ -169,10 +169,15 @@ func main() {
 
 	// release instance is needed during the sync of Charts changes and during the sync of HelmRelease changes
 	rel := release.New(log.With(logger, "component", "release"), helmClient)
-	chartSync := chartsync.New(log.With(logger, "component", "chartsync"),
+	chartSync := chartsync.New(
+		log.With(logger, "component", "chartsync"),
 		chartsync.Polling{Interval: *chartsSyncInterval},
 		chartsync.Clients{KubeClient: *kubeClient, IfClient: *ifClient},
-		rel, chartsync.Config{LogDiffs: *logReleaseDiffs, UpdateDeps: *updateDependencies, GitTimeout: *gitTimeout}, *namespace)
+		rel,
+		chartsync.Config{LogDiffs: *logReleaseDiffs, UpdateDeps: *updateDependencies, GitTimeout: *gitTimeout},
+		*namespace,
+		statusUpdater,
+	)
 	chartSync.Run(shutdown, errc, shutdownWg)
 
 	nsOpt := ifinformers.WithNamespace(*namespace)

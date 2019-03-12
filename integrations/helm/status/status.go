@@ -119,3 +119,19 @@ func UpdateReleaseStatus(client v1beta1client.HelmReleaseInterface, fhr v1beta1.
 	}
 	return err
 }
+
+func UpdateReleaseRevision(client v1beta1client.HelmReleaseInterface, fhr v1beta1.HelmRelease, revision string) error {
+	patchBytes, err := json.Marshal(map[string]interface{}{
+		"status": map[string]interface{}{
+			"revision": revision,
+		},
+	})
+	if err == nil {
+		// CustomResources don't get
+		// StrategicMergePatch, for now, but since we
+		// want to unconditionally set the value, this
+		// is OK.
+		_, err = client.Patch(fhr.Name, types.MergePatchType, patchBytes)
+	}
+	return err
+}
