@@ -1,6 +1,99 @@
 This is the changelog for the Flux daemon; the changelog for the Helm
 operator is in [./CHANGELOG-helmop.md](./CHANGELOG-helmop.md).
 
+## 1.11.0 (2019-03-13)
+
+This release comes with experimental garbage collection and Git commit signing:
+
+1. Experimental garbage collection of cluster resources. When providing the
+   `--sync-garbage-collection` flag, namespace-scoped cluster resources no
+   longer existing in Git will be removed. Read the
+   [garbage collection documentation](site/garbagecollection.md) for further
+   details.
+
+2. [GPG](https://en.wikipedia.org/wiki/GNU_Privacy_Guard)
+   [Git commit signing](https://git-scm.com/docs/git-commit#Documentation/git-commit.txt--Sltkeyidgt),
+   when providing `--git-signing-key` flag. GPG keys can be imported with
+   `--git-gpg-key-import`. By default Flux will import to and use the keys
+   in `~/.gnupg`. This path can be overridden by setting the `GNUPGHOME` environment
+   variable.
+
+   Commit signature verification is in the works and will be released shortly.
+
+### Fixes
+
+- Wait for shutdown before returning from `main()`
+  [weaveworks/flux#1789][#1789]
+- Make `fluxctl list-images` adhere to namespace filter
+  [weaveworks/flux#1763][#1763]
+- Take ignore policy into account when working with automated resources
+  [weaveworks/flux#1749][#1749]
+
+### Improvements
+
+- Delete resources no longer in git
+  [weaveworks/flux#1442][#1442]
+  [weaveworks/flux#1798][#1798]
+  [weaveworks/flux#1806][#1806]
+- Git commit signing
+  [weaveworks/flux#1394][#1394]
+- Apply user defined Git timeout on all operations
+  [weaveworks/flux#1767][#1767]
+
+### Maintenance and documentation
+
+- Bump Alpine version from v3.6 to v3.9
+  [weaveworks/flux#1801][#1801]
+- Increase memcached memory defaults
+  [weaveworks/flux#1780][#1780]
+- Update developing docs to remind to `make test`
+  [weaveworks/flux#1796][#1796]
+- Fix Github link
+  [weaveworks/flux#1795][#1795]
+- Improve Docs (focusing on local development)
+  [weaveworks/flux#1771][#1771]
+- Increase timeouts in daemon_test.go
+  [weaveworks/flux#1779][#1779]
+- Rename resource method `Policy()` to `Policies()`
+  [weaveworks/flux#1775][#1775]
+- Improve testing in local environments other than linux-amd64
+  [weaveworks/flux#1765][#1765]
+- Re-flow sections to order by importance
+  [weaveworks/flux#1754][#1754]
+- Document flux-dev mailing list
+  [weaveworks/flux#1755][#1755]
+- Updates Docs (wording, typos, formatting)
+  [weaveworks/flux#1753][#1753]
+- Document source of Azure SSH host key
+  [weaveworks/flux#1751][#1751]
+
+### Thanks
+
+Lots of thanks to @2opremio, @Timer, @bboreham, @dholbach, @dimitropoulos,
+@hiddeco, @scjudd, @squaremo and @stefanprodan  for their contributions to
+this release.
+
+[#1394]: https://github.com/weaveworks/flux/pull/1394
+[#1442]: https://github.com/weaveworks/flux/pull/1442
+[#1749]: https://github.com/weaveworks/flux/pull/1749
+[#1751]: https://github.com/weaveworks/flux/pull/1751
+[#1753]: https://github.com/weaveworks/flux/pull/1753
+[#1754]: https://github.com/weaveworks/flux/pull/1754
+[#1755]: https://github.com/weaveworks/flux/pull/1755
+[#1763]: https://github.com/weaveworks/flux/pull/1763
+[#1765]: https://github.com/weaveworks/flux/pull/1765
+[#1767]: https://github.com/weaveworks/flux/pull/1767
+[#1771]: https://github.com/weaveworks/flux/pull/1771
+[#1775]: https://github.com/weaveworks/flux/pull/1775
+[#1779]: https://github.com/weaveworks/flux/pull/1779
+[#1780]: https://github.com/weaveworks/flux/pull/1780
+[#1789]: https://github.com/weaveworks/flux/pull/1789
+[#1795]: https://github.com/weaveworks/flux/pull/1795
+[#1796]: https://github.com/weaveworks/flux/pull/1796
+[#1798]: https://github.com/weaveworks/flux/pull/1798
+[#1801]: https://github.com/weaveworks/flux/pull/1801
+[#1806]: https://github.com/weaveworks/flux/pull/1806
+
 ## 1.10.1 (2019-02-13)
 
 This release provides a deeper integration with Azure (DevOps Git hosts
