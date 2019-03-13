@@ -9,19 +9,19 @@ import (
 	"github.com/weaveworks/flux/image"
 )
 
-type ControllerUpdateStatus string
+type WorkloadUpdateStatus string
 
 const (
-	ReleaseStatusSuccess ControllerUpdateStatus = "success"
-	ReleaseStatusFailed  ControllerUpdateStatus = "failed"
-	ReleaseStatusSkipped ControllerUpdateStatus = "skipped"
-	ReleaseStatusIgnored ControllerUpdateStatus = "ignored"
-	ReleaseStatusUnknown ControllerUpdateStatus = "unknown"
+	ReleaseStatusSuccess WorkloadUpdateStatus = "success"
+	ReleaseStatusFailed  WorkloadUpdateStatus = "failed"
+	ReleaseStatusSkipped WorkloadUpdateStatus = "skipped"
+	ReleaseStatusIgnored WorkloadUpdateStatus = "ignored"
+	ReleaseStatusUnknown WorkloadUpdateStatus = "unknown"
 )
 
-type Result map[flux.ResourceID]ControllerResult
+type Result map[flux.ResourceID]WorkloadResult
 
-func (r Result) ServiceIDs() []string {
+func (r Result) WorkloadIDs() []string {
 	var result []string
 	for id := range r {
 		result = append(result, id.String())
@@ -42,11 +42,11 @@ func (r Result) AffectedResources() flux.ResourceIDs {
 
 func (r Result) ChangedImages() []string {
 	images := map[image.Ref]struct{}{}
-	for _, serviceResult := range r {
-		if serviceResult.Status != ReleaseStatusSuccess {
+	for _, workloadResult := range r {
+		if workloadResult.Status != ReleaseStatusSuccess {
 			continue
 		}
-		for _, containerResult := range serviceResult.PerContainer {
+		for _, containerResult := range workloadResult.PerContainer {
 			images[containerResult.Target] = struct{}{}
 		}
 	}
@@ -62,10 +62,10 @@ func (r Result) ChangedImages() []string {
 func (r Result) Error() string {
 	var errIds []string
 	var errStr string
-	for id, serviceResult := range r {
-		if serviceResult.Status == ReleaseStatusFailed {
+	for id, workloadResult := range r {
+		if workloadResult.Status == ReleaseStatusFailed {
 			errIds = append(errIds, id.String())
-			errStr = serviceResult.Error
+			errStr = workloadResult.Error
 		}
 	}
 	switch {
@@ -74,14 +74,14 @@ func (r Result) Error() string {
 	case len(errIds) == 1:
 		return fmt.Sprintf("%s failed: %s", errIds[0], errStr)
 	default:
-		return fmt.Sprintf("Multiple services failed: %s", strings.Join(errIds, ", "))
+		return fmt.Sprintf("Multiple workloads failed: %s", strings.Join(errIds, ", "))
 	}
 }
 
-type ControllerResult struct {
-	Status       ControllerUpdateStatus // summary of what happened, e.g., "incomplete", "ignored", "success"
-	Error        string                 `json:",omitempty"` // error if there was one finding the service (e.g., it doesn't exist in repo)
-	PerContainer []ContainerUpdate      // what happened with each container
+type WorkloadResult struct {
+	Status       WorkloadUpdateStatus // summary of what happened, e.g., "incomplete", "ignored", "success"
+	Error        string               `json:",omitempty"` // error if there was one finding the service (e.g., it doesn't exist in repo)
+	PerContainer []ContainerUpdate    // what happened with each container
 }
 
 type ContainerUpdate struct {

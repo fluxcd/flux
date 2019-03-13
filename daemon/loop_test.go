@@ -114,7 +114,7 @@ func TestPullAndSync_InitialSync(t *testing.T) {
 		t.Errorf("Sync was called with a nil syncDef")
 	}
 
-	// The emitted event has all service ids
+	// The emitted event has all workload ids
 	es, err := events.AllEvents(time.Time{}, -1, time.Time{})
 	if err != nil {
 		t.Error(err)
@@ -126,7 +126,7 @@ func TestPullAndSync_InitialSync(t *testing.T) {
 		gotResourceIDs := es[0].ServiceIDs
 		flux.ResourceIDs(gotResourceIDs).Sort()
 		if !reflect.DeepEqual(gotResourceIDs, []flux.ResourceID(expectedResourceIDs)) {
-			t.Errorf("Unexpected event service ids: %#v, expected: %#v", gotResourceIDs, expectedResourceIDs)
+			t.Errorf("Unexpected event workload ids: %#v, expected: %#v", gotResourceIDs, expectedResourceIDs)
 		}
 	}
 	// It creates the tag at HEAD
@@ -191,7 +191,7 @@ func TestDoSync_NoNewCommits(t *testing.T) {
 		t.Errorf("Sync was called with a nil syncDef")
 	}
 
-	// The emitted event has no service ids
+	// The emitted event has no workload ids
 	es, err := events.AllEvents(time.Time{}, -1, time.Time{})
 	if err != nil {
 		t.Error(err)
@@ -289,7 +289,7 @@ func TestDoSync_WithNewCommit(t *testing.T) {
 		t.Errorf("Sync was called with a nil syncDef")
 	}
 
-	// The emitted event has no service ids
+	// The emitted event has no workload ids
 	es, err := events.AllEvents(time.Time{}, -1, time.Time{})
 	if err != nil {
 		t.Error(err)
@@ -300,9 +300,9 @@ func TestDoSync_WithNewCommit(t *testing.T) {
 	} else {
 		gotResourceIDs := es[0].ServiceIDs
 		flux.ResourceIDs(gotResourceIDs).Sort()
-		// Event should only have changed service ids
+		// Event should only have changed workload ids
 		if !reflect.DeepEqual(gotResourceIDs, []flux.ResourceID{flux.MustParseResourceID("default:deployment/helloworld")}) {
-			t.Errorf("Unexpected event service ids: %#v, expected: %#v", gotResourceIDs, []flux.ResourceID{flux.MustParseResourceID("default:deployment/helloworld")})
+			t.Errorf("Unexpected event workload ids: %#v, expected: %#v", gotResourceIDs, []flux.ResourceID{flux.MustParseResourceID("default:deployment/helloworld")})
 		}
 	}
 	// It moves the tag

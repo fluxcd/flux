@@ -86,16 +86,16 @@ wait_for_upstream_commits() {
     fail
 }
 
-services() {
+workloads() {
     curl -s "http://$MINIKUBE_IP:30080/api/flux/v6/services?namespace=$1"
 }
 
-controller_container() {
+workload_container() {
     jq --raw-output ".[]|select(.ID==\"$1\")|.Containers[]|select(.Name==\"$2\")|.Current.ID"
 }
 
-assert_controller_container() {
-    if [ "$(services $1|controller_container $2 $3)" != "$4" ]; then
+assert_workload_container() {
+    if [ "$(workloads $1|workload_container $2 $3)" != "$4" ]; then
         fail
     fi
 }
@@ -113,18 +113,18 @@ git -C "$CONFIG_REPO" push -u origin master
 # Wait two minutes for flux-sync tag to point to local HEAD
 wait_for_sync 120
 
-# Examine services via Flux API an assert container versions are correct
-assert_controller_container default default:deployment/helloworld helloworld quay.io/weaveworks/helloworld:master-a000001
-assert_controller_container default default:deployment/helloworld sidecar quay.io/weaveworks/sidecar:master-a000001
+# Examine workloads via Flux API an assert container versions are correct
+assert_workload_container default default:deployment/helloworld helloworld quay.io/weaveworks/helloworld:master-a000001
+assert_workload_container default default:deployment/helloworld sidecar quay.io/weaveworks/sidecar:master-a000001
 
 # Now enable automation
-fluxctl --url http://$(minikube -p flux-test ip):30080/api/flux automate --controller=default:deployment/helloworld
+fluxctl --url http://$(minikube -p flux-test ip):30080/api/flux automate --workload=default:deployment/helloworld
 
 # Wait two minutes for two (automation and release) commits to appear
 wait_for_upstream_commits 120 2
 
-# Examine services via Flux API an assert container versions are updated
-assert_controller_container default default:deployment/helloworld helloworld quay.io/weaveworks/helloworld:master-9a16ff945b9e
-assert_controller_container default default:deployment/helloworld sidecar quay.io/weaveworks/sidecar:master-a000002
+# Examine workload via Flux API an assert container versions are updated
+assert_workload_container default default:deployment/helloworld helloworld quay.io/weaveworks/helloworld:master-9a16ff945b9e
+assert_workload_container default default:deployment/helloworld sidecar quay.io/weaveworks/sidecar:master-a000002
 
 success

@@ -56,10 +56,10 @@ var ResourceMap = map[flux.ResourceID]string{
 	flux.MustParseResourceID("default:daemonset/init"):            "init.yaml",
 }
 
-// ServiceMap ... given a base path, construct the map representing
+// WorkloadMap ... given a base path, construct the map representing
 // the services given in the test data. Must be kept in sync with
 // `Files` below. TODO(michael): derive from ResourceMap, or similar.
-func ServiceMap(dir string) map[flux.ResourceID][]string {
+func WorkloadMap(dir string) map[flux.ResourceID][]string {
 	return map[flux.ResourceID][]string{
 		flux.MustParseResourceID("default:deployment/helloworld"):     []string{filepath.Join(dir, "helloworld-deploy.yaml")},
 		flux.MustParseResourceID("default:deployment/locked-service"): []string{filepath.Join(dir, "locked-service-deploy.yaml")},

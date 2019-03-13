@@ -104,18 +104,18 @@ func (d *Daemon) ListServices(ctx context.Context, namespace string) ([]v6.Contr
 
 func (d *Daemon) ListServicesWithOptions(ctx context.Context, opts v11.ListServicesOptions) ([]v6.ControllerStatus, error) {
 	if opts.Namespace != "" && len(opts.Services) > 0 {
-		return nil, errors.New("cannot filter by 'namespace' and 'services' at the same time")
+		return nil, errors.New("cannot filter by 'namespace' and 'workloads' at the same time")
 	}
 
-	var clusterServices []cluster.Controller
+	var clusterWorkloads []cluster.Workload
 	var err error
 	if len(opts.Services) > 0 {
-		clusterServices, err = d.Cluster.SomeControllers(opts.Services)
+		clusterWorkloads, err = d.Cluster.SomeWorkloads(opts.Services)
 	} else {
-		clusterServices, err = d.Cluster.AllControllers(opts.Namespace)
+		clusterWorkloads, err = d.Cluster.AllWorkloads(opts.Namespace)
 	}
 	if err != nil {
-		return nil, errors.Wrap(err, "getting services from cluster")
+		return nil, errors.Wrap(err, "getting workloads from cluster")
 	}
 
 	resources, missingReason, err := d.getResources(ctx)
@@ -124,31 +124,31 @@ func (d *Daemon) ListServicesWithOptions(ctx context.Context, opts v11.ListServi
 	}
 
 	var res []v6.ControllerStatus
-	for _, service := range clusterServices {
+	for _, workload := range clusterWorkloads {
 		readOnly := v6.ReadOnlyOK
 		var policies policy.Set
-		if resource, ok := resources[service.ID.String()]; ok {
+		if resource, ok := resources[workload.ID.String()]; ok {
 			policies = resource.Policies()
 		}
 		switch {
 		case policies == nil:
 			readOnly = missingReason
-		case service.IsSystem:
+		case workload.IsSystem:
 			readOnly = v6.ReadOnlySystem
 		}
 		var syncError string
-		if service.SyncError != nil {
-			syncError = service.SyncError.Error()
+		if workload.SyncError != nil {
+			syncError = workload.SyncError.Error()
 		}
 		res = append(res, v6.ControllerStatus{
-			ID:         service.ID,
-			Containers: containers2containers(service.ContainersOrNil()),
+			ID:         workload.ID,
+			Containers: containers2containers(workload.ContainersOrNil()),
 			ReadOnly:   readOnly,
-			Status:     service.Status,
-			Rollout:    service.Rollout,
+			Status:     workload.Status,
+			Rollout:    workload.Rollout,
 			SyncError:  syncError,
-			Antecedent: service.Antecedent,
-			Labels:     service.Labels,
+			Antecedent: workload.Antecedent,
+			Labels:     workload.Labels,
 			Automated:  policies.Has(policy.Automated),
 			Locked:     policies.Has(policy.Locked),
 			Ignore:     policies.Has(policy.Ignore),
@@ -159,7 +159,7 @@ func (d *Daemon) ListServicesWithOptions(ctx context.Context, opts v11.ListServi
 	return res, nil
 }
 
-type clusterContainers []cluster.Controller
+type clusterContainers []cluster.Workload
 
 func (cs clusterContainers) Len() int {
 	return len(cs)
@@ -169,32 +169,32 @@ func (cs clusterContainers) Containers(i int) []resource.Container {
 	return cs[i].ContainersOrNil()
 }
 
-// ListImages - deprecated from v10, lists the images available for set of services
+// ListImages - deprecated from v10, lists the images available for set of workloads
 func (d *Daemon) ListImages(ctx context.Context, spec update.ResourceSpec) ([]v6.ImageStatus, error) {
 	return d.ListImagesWithOptions(ctx, v10.ListImagesOptions{Spec: spec})
 }
 
-// ListImagesWithOptions lists the images available for set of services
+// ListImagesWithOptions lists the images available for set of workloads
 func (d *Daemon) ListImagesWithOptions(ctx context.Context, opts v10.ListImagesOptions) ([]v6.ImageStatus, error) {
 	if opts.Namespace != "" && opts.Spec != update.ResourceSpecAll {
-		return nil, errors.New("cannot filter by 'namespace' and 'controller' at the same time")
+		return nil, errors.New("cannot filter by 'namespace' and 'workload' at the same time")
 	}
 
-	var services []cluster.Controller
+	var workloads []cluster.Workload
 	var err error
 	if opts.Spec != update.ResourceSpecAll {
 		id, err := opts.Spec.AsID()
 		if err != nil {
-			return nil, errors.Wrap(err, "treating service spec as ID")
+			return nil, errors.Wrap(err, "treating workload spec as ID")
 		}
-		services, err = d.Cluster.SomeControllers([]flux.ResourceID{id})
+		workloads, err = d.Cluster.SomeWorkloads([]flux.ResourceID{id})
 		if err != nil {
-			return nil, errors.Wrap(err, "getting some controllers")
+			return nil, errors.Wrap(err, "getting some workloads")
 		}
 	} else {
-		services, err = d.Cluster.AllControllers(opts.Namespace)
+		workloads, err = d.Cluster.AllWorkloads(opts.Namespace)
 		if err != nil {
-			return nil, errors.Wrap(err, "getting all controllers")
+			return nil, errors.Wrap(err, "getting all workloads")
 		}
 	}
 
@@ -203,20 +203,20 @@ func (d *Daemon) ListImagesWithOptions(ctx context.Context, opts v10.ListImagesO
 		return nil, err
 	}
 
-	imageRepos, err := update.FetchImageRepos(d.Registry, clusterContainers(services), d.Logger)
+	imageRepos, err := update.FetchImageRepos(d.Registry, clusterContainers(workloads), d.Logger)
 	if err != nil {
-		return nil, errors.Wrap(err, "getting images for services")
+		return nil, errors.Wrap(err, "getting images for workloads")
 	}
 
 	var res []v6.ImageStatus
-	for _, service := range services {
-		serviceContainers, err := getServiceContainers(service, imageRepos, resources[service.ID.String()], opts.OverrideContainerFields)
+	for _, workload := range workloads {
+		workloadContainers, err := getWorkloadContainers(workload, imageRepos, resources[workload.ID.String()], opts.OverrideContainerFields)
 		if err != nil {
 			return nil, err
 		}
 		res = append(res, v6.ImageStatus{
-			ID:         service.ID,
-			Containers: serviceContainers,
+			ID:         workload.ID,
+			Containers: workloadContainers,
 		})
 	}
 
@@ -275,10 +275,10 @@ func (d *Daemon) makeLoggingJobFunc(f jobFunc) jobFunc {
 		}
 		logger.Log("revision", result.Revision)
 		if result.Revision != "" {
-			var serviceIDs []flux.ResourceID
+			var workloadIDs []flux.ResourceID
 			for id, result := range result.Result {
 				if result.Status == update.ReleaseStatusSuccess {
-					serviceIDs = append(serviceIDs, id)
+					workloadIDs = append(workloadIDs, id)
 				}
 			}
 
@@ -289,7 +289,7 @@ func (d *Daemon) makeLoggingJobFunc(f jobFunc) jobFunc {
 			}
 
 			return result, d.LogEvent(event.Event{
-				ServiceIDs: serviceIDs,
+				ServiceIDs: workloadIDs,
 				Type:       event.EventCommit,
 				StartedAt:  started,
 				EndedAt:    started,
@@ -365,7 +365,7 @@ func (d *Daemon) sync() jobFunc {
 func (d *Daemon) updatePolicy(spec update.Spec, updates policy.Updates) updateFunc {
 	return func(ctx context.Context, jobID job.ID, working *git.Checkout, logger log.Logger) (job.Result, error) {
 		// For each update
-		var serviceIDs []flux.ResourceID
+		var workloadIDs []flux.ResourceID
 		result := job.Result{
 			Spec:   &spec,
 			Result: update.Result{},
@@ -376,27 +376,27 @@ func (d *Daemon) updatePolicy(spec update.Spec, updates policy.Updates) updateFu
 		// automation run straight ASAP.
 		var anythingAutomated bool
 
-		for serviceID, u := range updates {
+		for workloadID, u := range updates {
 			if policy.Set(u.Add).Has(policy.Automated) {
 				anythingAutomated = true
 			}
-			// find the service manifest
-			err := cluster.UpdateManifest(d.Manifests, working.Dir(), working.ManifestDirs(), serviceID, func(def []byte) ([]byte, error) {
-				newDef, err := d.Manifests.UpdatePolicies(def, serviceID, u)
+			// find the workload manifest
+			err := cluster.UpdateManifest(d.Manifests, working.Dir(), working.ManifestDirs(), workloadID, func(def []byte) ([]byte, error) {
+				newDef, err := d.Manifests.UpdatePolicies(def, workloadID, u)
 				if err != nil {
-					result.Result[serviceID] = update.ControllerResult{
+					result.Result[workloadID] = update.WorkloadResult{
 						Status: update.ReleaseStatusFailed,
 						Error:  err.Error(),
 					}
 					return nil, err
 				}
 				if string(newDef) == string(def) {
-					result.Result[serviceID] = update.ControllerResult{
+					result.Result[workloadID] = update.WorkloadResult{
 						Status: update.ReleaseStatusSkipped,
 					}
 				} else {
-					serviceIDs = append(serviceIDs, serviceID)
-					result.Result[serviceID] = update.ControllerResult{
+					workloadIDs = append(workloadIDs, workloadID)
+					result.Result[workloadID] = update.WorkloadResult{
 						Status: update.ReleaseStatusSuccess,
 					}
 				}
@@ -405,7 +405,7 @@ func (d *Daemon) updatePolicy(spec update.Spec, updates policy.Updates) updateFu
 			if err != nil {
 				switch err := err.(type) {
 				case cluster.ManifestError:
-					result.Result[serviceID] = update.ControllerResult{
+					result.Result[workloadID] = update.WorkloadResult{
 						Status: update.ReleaseStatusFailed,
 						Error:  err.Error(),
 					}
@@ -414,7 +414,7 @@ func (d *Daemon) updatePolicy(spec update.Spec, updates policy.Updates) updateFu
 				}
 			}
 		}
-		if len(serviceIDs) == 0 {
+		if len(workloadIDs) == 0 {
 			return result, nil
 		}
 
@@ -638,8 +638,8 @@ func containers2containers(cs []resource.Container) []v6.Container {
 	return res
 }
 
-func getServiceContainers(service cluster.Controller, imageRepos update.ImageRepos, resource resource.Resource, fields []string) (res []v6.Container, err error) {
-	for _, c := range service.ContainersOrNil() {
+func getWorkloadContainers(workload cluster.Workload, imageRepos update.ImageRepos, resource resource.Resource, fields []string) (res []v6.Container, err error) {
+	for _, c := range workload.ContainersOrNil() {
 		imageRepo := c.Image.Name
 		var policies policy.Set
 		if resource != nil {
@@ -669,7 +669,7 @@ func policyCommitMessage(us policy.Updates, cause update.Cause) string {
 	case cause.Message != "":
 		fmt.Fprintf(commitMsg, "%s\n\n", cause.Message)
 	case len(events) > 1:
-		fmt.Fprintf(commitMsg, "Updated service policies\n\n")
+		fmt.Fprintf(commitMsg, "Updated workload policies\n\n")
 	default:
 		prefix = ""
 	}
@@ -681,11 +681,11 @@ func policyCommitMessage(us policy.Updates, cause update.Cause) string {
 }
 
 // policyEvents builds a map of events (by type), for all the events in this set of
-// updates. There will be one event per type, containing all service ids
-// affected by that event. e.g. all automated services will share an event.
+// updates. There will be one event per type, containing all workload ids
+// affected by that event. e.g. all automated workload will share an event.
 func policyEvents(us policy.Updates, now time.Time) map[string]event.Event {
 	eventsByType := map[string]event.Event{}
-	for serviceID, update := range us {
+	for workloadID, update := range us {
 		for _, eventType := range policyEventTypes(update) {
 			e, ok := eventsByType[eventType]
 			if !ok {
@@ -697,7 +697,7 @@ func policyEvents(us policy.Updates, now time.Time) map[string]event.Event {
 					LogLevel:   event.LogLevelInfo,
 				}
 			}
-			e.ServiceIDs = append(e.ServiceIDs, serviceID)
+			e.ServiceIDs = append(e.ServiceIDs, workloadID)
 			eventsByType[eventType] = e
 		}
 	}

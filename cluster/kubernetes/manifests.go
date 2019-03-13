@@ -50,7 +50,7 @@ func (c *Manifests) LoadManifests(base string, paths []string) (map[string]resou
 }
 
 func (c *Manifests) UpdateImage(def []byte, id flux.ResourceID, container string, image image.Ref) ([]byte, error) {
-	return updatePodController(def, id, container, image)
+	return updateWorkload(def, id, container, image)
 }
 
 // UpdatePolicies and ServicesWithPolicies in policies.go

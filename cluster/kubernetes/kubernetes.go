@@ -119,11 +119,11 @@ func NewCluster(client ExtendedClient, applier Applier, sshKeyRing ssh.KeyRing, 
 
 // --- cluster.Cluster
 
-// SomeControllers returns the controllers named, missing out any that don't
+// SomeWorkloads returns the workloads named, missing out any that don't
 // exist in the cluster. They do not necessarily have to be returned
 // in the order requested.
-func (c *Cluster) SomeControllers(ids []flux.ResourceID) (res []cluster.Controller, err error) {
-	var controllers []cluster.Controller
+func (c *Cluster) SomeWorkloads(ids []flux.ResourceID) (res []cluster.Workload, err error) {
+	var workloads []cluster.Workload
 	for _, id := range ids {
 		ns, kind, name := id.Components()
 
@@ -132,37 +132,37 @@ func (c *Cluster) SomeControllers(ids []flux.ResourceID) (res []cluster.Controll
 			return nil, fmt.Errorf("Unsupported kind %v", kind)
 		}
 
-		podController, err := resourceKind.getPodController(c, ns, name)
+		workload, err := resourceKind.getWorkload(c, ns, name)
 		if err != nil {
 			return nil, err
 		}
 
-		if !isAddon(podController) {
+		if !isAddon(workload) {
 			c.muSyncErrors.RLock()
-			podController.syncError = c.syncErrors[id]
+			workload.syncError = c.syncErrors[id]
 			c.muSyncErrors.RUnlock()
-			controllers = append(controllers, podController.toClusterController(id))
+			workloads = append(workloads, workload.toClusterWorkload(id))
 		}
 	}
-	return controllers, nil
+	return workloads, nil
 }
 
-// AllControllers returns all controllers matching the criteria; that is, in
+// AllWorkloads returns all workloads matching the criteria; that is, in
 // the namespace (or any namespace if that argument is empty)
-func (c *Cluster) AllControllers(namespace string) (res []cluster.Controller, err error) {
+func (c *Cluster) AllWorkloads(namespace string) (res []cluster.Workload, err error) {
 	namespaces, err := c.getAllowedNamespaces()
 	if err != nil {
 		return nil, errors.Wrap(err, "getting namespaces")
 	}
 
-	var allControllers []cluster.Controller
+	var allworkloads []cluster.Workload
 	for _, ns := range namespaces {
 		if namespace != "" && ns.Name != namespace {
 			continue
 		}
 
 		for kind, resourceKind := range resourceKinds {
-			podControllers, err := resourceKind.getPodControllers(c, ns.Name)
+			workloads, err := resourceKind.getWorkloads(c, ns.Name)
 			if err != nil {
 				if se, ok := err.(*apierrors.StatusError); ok {
 					switch se.ErrStatus.Reason {
@@ -181,19 +181,19 @@ func (c *Cluster) AllControllers(namespace string) (res []cluster.Controller, er
 				}
 			}
 
-			for _, podController := range podControllers {
-				if !isAddon(podController) {
-					id := flux.MakeResourceID(ns.Name, kind, podController.name)
+			for _, workload := range workloads {
+				if !isAddon(workload) {
+					id := flux.MakeResourceID(ns.Name, kind, workload.name)
 					c.muSyncErrors.RLock()
-					podController.syncError = c.syncErrors[id]
+					workload.syncError = c.syncErrors[id]
 					c.muSyncErrors.RUnlock()
-					allControllers = append(allControllers, podController.toClusterController(id))
+					allworkloads = append(allworkloads, workload.toClusterWorkload(id))
 				}
 			}
 		}
 	}
 
-	return allControllers, nil
+	return allworkloads, nil
 }
 
 func (c *Cluster) setSyncErrors(errs cluster.SyncError) {
@@ -226,7 +226,7 @@ func (c *Cluster) Export() ([]byte, error) {
 		}
 
 		for _, resourceKind := range resourceKinds {
-			podControllers, err := resourceKind.getPodControllers(c, ns.Name)
+			workloads, err := resourceKind.getWorkloads(c, ns.Name)
 			if err != nil {
 				if se, ok := err.(*apierrors.StatusError); ok {
 					switch se.ErrStatus.Reason {
@@ -245,7 +245,7 @@ func (c *Cluster) Export() ([]byte, error) {
 				}
 			}
 
-			for _, pc := range podControllers {
+			for _, pc := range workloads {
 				if !isAddon(pc) {
 					if err := appendYAML(&config, pc.apiVersion, pc.kind, pc.k8sObject); err != nil {
 						return nil, err

@@ -15,7 +15,7 @@ type outputOpts struct {
 }
 
 func AddOutputFlags(cmd *cobra.Command, opts *outputOpts) {
-	cmd.Flags().CountVarP(&opts.verbosity, "verbose", "v", "include skipped (and ignored, with -vv) controllers in output")
+	cmd.Flags().CountVarP(&opts.verbosity, "verbose", "v", "include skipped (and ignored, with -vv) workloads in output")
 }
 
 func newTabwriter() *tabwriter.Writer {

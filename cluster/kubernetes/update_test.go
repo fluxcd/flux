@@ -25,7 +25,7 @@ func testUpdate(t *testing.T, u update) {
 	for _, container := range u.containers {
 		var out []byte
 		var err error
-		if out, err = updatePodController([]byte(manifest), flux.MustParseResourceID(u.resourceID), container, id); err != nil {
+		if out, err = updateWorkload([]byte(manifest), flux.MustParseResourceID(u.resourceID), container, id); err != nil {
 			t.Errorf("Failed: %s", err.Error())
 			return
 		}

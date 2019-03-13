@@ -241,7 +241,7 @@ func (d *Daemon) doSync(logger log.Logger, lastKnownSyncTagRev *string, warnedAb
 		}
 	}
 
-	// Figure out which service IDs changed in this release
+	// Figure out which workload IDs changed in this release
 	changedResources := map[string]resource.Resource{}
 
 	if initialSync {
@@ -261,9 +261,9 @@ func (d *Daemon) doSync(logger log.Logger, lastKnownSyncTagRev *string, warnedAb
 		}
 	}
 
-	serviceIDs := flux.ResourceIDSet{}
+	workloadIDs := flux.ResourceIDSet{}
 	for _, r := range changedResources {
-		serviceIDs.Add([]flux.ResourceID{r.ResourceID()})
+		workloadIDs.Add([]flux.ResourceID{r.ResourceID()})
 	}
 
 	var notes map[string]struct{}
@@ -397,7 +397,7 @@ func (d *Daemon) doSync(logger log.Logger, lastKnownSyncTagRev *string, warnedAb
 			cs[i].Message = c.Message
 		}
 		if err = d.LogEvent(event.Event{
-			ServiceIDs: serviceIDs.ToSlice(),
+			ServiceIDs: workloadIDs.ToSlice(),
 			Type:       event.EventSync,
 			StartedAt:  started,
 			EndedAt:    started,

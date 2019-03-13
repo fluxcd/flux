@@ -26,7 +26,7 @@ func TestPrintResults(t *testing.T) {
 		{
 			name: "basic, just results",
 			result: Result{
-				flux.MustParseResourceID("default/helloworld"): ControllerResult{
+				flux.MustParseResourceID("default/helloworld"): WorkloadResult{
 					Status: ReleaseStatusSuccess,
 					Error:  "",
 					PerContainer: []ContainerUpdate{
@@ -39,7 +39,7 @@ func TestPrintResults(t *testing.T) {
 				},
 			},
 			expected: `
-CONTROLLER          STATUS   UPDATES
+WORKLOAD            STATUS   UPDATES
 default/helloworld  success  helloworld: quay.io/weaveworks/helloworld:master-a000002 -> master-a000001
 `,
 		},
@@ -47,7 +47,7 @@ default/helloworld  success  helloworld: quay.io/weaveworks/helloworld:master-a0
 		{
 			name: "With an error, *and* results",
 			result: Result{
-				flux.MustParseResourceID("default/helloworld"): ControllerResult{
+				flux.MustParseResourceID("default/helloworld"): WorkloadResult{
 					Status: ReleaseStatusSuccess,
 					Error:  "test error",
 					PerContainer: []ContainerUpdate{
@@ -60,7 +60,7 @@ default/helloworld  success  helloworld: quay.io/weaveworks/helloworld:master-a0
 				},
 			},
 			expected: `
-CONTROLLER          STATUS   UPDATES
+WORKLOAD            STATUS   UPDATES
 default/helloworld  success  test error
                              helloworld: quay.io/weaveworks/helloworld:master-a000002 -> master-a000001
 `,
@@ -69,17 +69,17 @@ default/helloworld  success  test error
 		{
 			name: "Service results should be sorted",
 			result: Result{
-				flux.MustParseResourceID("default/d"): ControllerResult{Status: ReleaseStatusSuccess},
-				flux.MustParseResourceID("default/c"): ControllerResult{Status: ReleaseStatusSuccess},
-				flux.MustParseResourceID("default/b"): ControllerResult{Status: ReleaseStatusSuccess},
-				flux.MustParseResourceID("default/a"): ControllerResult{Status: ReleaseStatusSuccess},
+				flux.MustParseResourceID("default/d"): WorkloadResult{Status: ReleaseStatusSuccess},
+				flux.MustParseResourceID("default/c"): WorkloadResult{Status: ReleaseStatusSuccess},
+				flux.MustParseResourceID("default/b"): WorkloadResult{Status: ReleaseStatusSuccess},
+				flux.MustParseResourceID("default/a"): WorkloadResult{Status: ReleaseStatusSuccess},
 			},
 			expected: `
-CONTROLLER   STATUS   UPDATES
-default/a    success  
-default/b    success  
-default/c    success  
-default/d    success  
+WORKLOAD   STATUS   UPDATES
+default/a  success  
+default/b  success  
+default/c  success  
+default/d  success  
 `,
 		},
 	} {

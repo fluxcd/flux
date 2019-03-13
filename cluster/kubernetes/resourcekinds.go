@@ -30,8 +30,8 @@ const AntecedentAnnotation = "flux.weave.works/antecedent"
 // Kind registry
 
 type resourceKind interface {
-	getPodController(c *Cluster, namespace, name string) (podController, error)
-	getPodControllers(c *Cluster, namespace string) ([]podController, error)
+	getWorkload(c *Cluster, namespace, name string) (workload, error)
+	getWorkloads(c *Cluster, namespace string) ([]workload, error)
 }
 
 var (
@@ -47,7 +47,7 @@ func init() {
 	resourceKinds["fluxhelmrelease"] = &fluxHelmReleaseKind{}
 }
 
-type podController struct {
+type workload struct {
 	k8sObject
 	apiVersion  string
 	kind        string
@@ -58,10 +58,10 @@ type podController struct {
 	podTemplate apiv1.PodTemplateSpec
 }
 
-func (pc podController) toClusterController(resourceID flux.ResourceID) cluster.Controller {
+func (w workload) toClusterWorkload(resourceID flux.ResourceID) cluster.Workload {
 	var clusterContainers []resource.Container
 	var excuse string
-	for _, container := range pc.podTemplate.Spec.Containers {
+	for _, container := range w.podTemplate.Spec.Containers {
 		ref, err := image.ParseRef(container.Image)
 		if err != nil {
 			clusterContainers = nil
@@ -70,7 +70,7 @@ func (pc podController) toClusterController(resourceID flux.ResourceID) cluster.
 		}
 		clusterContainers = append(clusterContainers, resource.Container{Name: container.Name, Image: ref})
 	}
-	for _, container := range pc.podTemplate.Spec.InitContainers {
+	for _, container := range w.podTemplate.Spec.InitContainers {
 		ref, err := image.ParseRef(container.Image)
 		if err != nil {
 			clusterContainers = nil
@@ -81,7 +81,7 @@ func (pc podController) toClusterController(resourceID flux.ResourceID) cluster.
 	}
 
 	var antecedent flux.ResourceID
-	if ante, ok := pc.GetAnnotations()[AntecedentAnnotation]; ok {
+	if ante, ok := w.GetAnnotations()[AntecedentAnnotation]; ok {
 		id, err := flux.ParseResourceID(ante)
 		if err == nil {
 			antecedent = id
@@ -89,7 +89,7 @@ func (pc podController) toClusterController(resourceID flux.ResourceID) cluster.
 	}
 
 	var policies policy.Set
-	for k, v := range pc.GetAnnotations() {
+	for k, v := range w.GetAnnotations() {
 		if strings.HasPrefix(k, kresource.PolicyPrefix) {
 			p := strings.TrimPrefix(k, kresource.PolicyPrefix)
 			if v == "true" {
@@ -100,13 +100,13 @@ func (pc podController) toClusterController(resourceID flux.ResourceID) cluster.
 		}
 	}
 
-	return cluster.Controller{
+	return cluster.Workload{
 		ID:         resourceID,
-		Status:     pc.status,
-		Rollout:    pc.rollout,
-		SyncError:  pc.syncError,
+		Status:     w.status,
+		Rollout:    w.rollout,
+		SyncError:  w.syncError,
 		Antecedent: antecedent,
-		Labels:     pc.GetLabels(),
+		Labels:     w.GetLabels(),
 		Policies:   policies,
 		Containers: cluster.ContainersOrExcuse{Containers: clusterContainers, Excuse: excuse},
 	}
@@ -117,27 +117,27 @@ func (pc podController) toClusterController(resourceID flux.ResourceID) cluster.
 
 type deploymentKind struct{}
 
-func (dk *deploymentKind) getPodController(c *Cluster, namespace, name string) (podController, error) {
+func (dk *deploymentKind) getWorkload(c *Cluster, namespace, name string) (workload, error) {
 	deployment, err := c.client.AppsV1().Deployments(namespace).Get(name, meta_v1.GetOptions{})
 	if err != nil {
-		return podController{}, err
+		return workload{}, err
 	}
 
-	return makeDeploymentPodController(deployment), nil
+	return makeDeploymentWorkload(deployment), nil
 }
 
-func (dk *deploymentKind) getPodControllers(c *Cluster, namespace string) ([]podController, error) {
+func (dk *deploymentKind) getWorkloads(c *Cluster, namespace string) ([]workload, error) {
 	deployments, err := c.client.AppsV1().Deployments(namespace).List(meta_v1.ListOptions{})
 	if err != nil {
 		return nil, err
 	}
 
-	var podControllers []podController
+	var workloads []workload
 	for i := range deployments.Items {
-		podControllers = append(podControllers, makeDeploymentPodController(&deployments.Items[i]))
+		workloads = append(workloads, makeDeploymentWorkload(&deployments.Items[i]))
 	}
 
-	return podControllers, nil
+	return workloads, nil
 }
 
 // Deployment may get stuck trying to deploy its newest ReplicaSet without ever completing.
@@ -155,7 +155,7 @@ func deploymentErrors(d *apiapps.Deployment) []string {
 	return errs
 }
 
-func makeDeploymentPodController(deployment *apiapps.Deployment) podController {
+func makeDeploymentWorkload(deployment *apiapps.Deployment) workload {
 	var status string
 	objectMeta, deploymentStatus := deployment.ObjectMeta, deployment.Status
 
@@ -180,7 +180,7 @@ func makeDeploymentPodController(deployment *apiapps.Deployment) podController {
 		}
 	}
 
-	return podController{
+	return workload{
 		apiVersion:  "apps/v1",
 		kind:        "Deployment",
 		name:        deployment.ObjectMeta.Name,
@@ -195,30 +195,30 @@ func makeDeploymentPodController(deployment *apiapps.Deployment) podController {
 
 type daemonSetKind struct{}
 
-func (dk *daemonSetKind) getPodController(c *Cluster, namespace, name string) (podController, error) {
+func (dk *daemonSetKind) getWorkload(c *Cluster, namespace, name string) (workload, error) {
 	daemonSet, err := c.client.AppsV1().DaemonSets(namespace).Get(name, meta_v1.GetOptions{})
 	if err != nil {
-		return podController{}, err
+		return workload{}, err
 	}
 
-	return makeDaemonSetPodController(daemonSet), nil
+	return makeDaemonSetWorkload(daemonSet), nil
 }
 
-func (dk *daemonSetKind) getPodControllers(c *Cluster, namespace string) ([]podController, error) {
+func (dk *daemonSetKind) getWorkloads(c *Cluster, namespace string) ([]workload, error) {
 	daemonSets, err := c.client.AppsV1().DaemonSets(namespace).List(meta_v1.ListOptions{})
 	if err != nil {
 		return nil, err
 	}
 
-	var podControllers []podController
+	var workloads []workload
 	for i := range daemonSets.Items {
-		podControllers = append(podControllers, makeDaemonSetPodController(&daemonSets.Items[i]))
+		workloads = append(workloads, makeDaemonSetWorkload(&daemonSets.Items[i]))
 	}
 
-	return podControllers, nil
+	return workloads, nil
 }
 
-func makeDaemonSetPodController(daemonSet *apiapps.DaemonSet) podController {
+func makeDaemonSetWorkload(daemonSet *apiapps.DaemonSet) workload {
 	var status string
 	objectMeta, daemonSetStatus := daemonSet.ObjectMeta, daemonSet.Status
 
@@ -241,7 +241,7 @@ func makeDaemonSetPodController(daemonSet *apiapps.DaemonSet) podController {
 		}
 	}
 
-	return podController{
+	return workload{
 		apiVersion:  "apps/v1",
 		kind:        "DaemonSet",
 		name:        daemonSet.ObjectMeta.Name,
@@ -256,30 +256,30 @@ func makeDaemonSetPodController(daemonSet *apiapps.DaemonSet) podController {
 
 type statefulSetKind struct{}
 
-func (dk *statefulSetKind) getPodController(c *Cluster, namespace, name string) (podController, error) {
+func (dk *statefulSetKind) getWorkload(c *Cluster, namespace, name string) (workload, error) {
 	statefulSet, err := c.client.AppsV1().StatefulSets(namespace).Get(name, meta_v1.GetOptions{})
 	if err != nil {
-		return podController{}, err
+		return workload{}, err
 	}
 
-	return makeStatefulSetPodController(statefulSet), nil
+	return makeStatefulSetWorkload(statefulSet), nil
 }
 
-func (dk *statefulSetKind) getPodControllers(c *Cluster, namespace string) ([]podController, error) {
+func (dk *statefulSetKind) getWorkloads(c *Cluster, namespace string) ([]workload, error) {
 	statefulSets, err := c.client.AppsV1().StatefulSets(namespace).List(meta_v1.ListOptions{})
 	if err != nil {
 		return nil, err
 	}
 
-	var podControllers []podController
+	var workloads []workload
 	for i := range statefulSets.Items {
-		podControllers = append(podControllers, makeStatefulSetPodController(&statefulSets.Items[i]))
+		workloads = append(workloads, makeStatefulSetWorkload(&statefulSets.Items[i]))
 	}
 
-	return podControllers, nil
+	return workloads, nil
 }
 
-func makeStatefulSetPodController(statefulSet *apiapps.StatefulSet) podController {
+func makeStatefulSetWorkload(statefulSet *apiapps.StatefulSet) workload {
 	var status string
 	objectMeta, statefulSetStatus := statefulSet.ObjectMeta, statefulSet.Status
 
@@ -334,7 +334,7 @@ func makeStatefulSetPodController(statefulSet *apiapps.StatefulSet) podControlle
 		}
 	}
 
-	return podController{
+	return workload{
 		apiVersion:  "apps/v1",
 		kind:        "StatefulSet",
 		name:        statefulSet.ObjectMeta.Name,
@@ -349,31 +349,31 @@ func makeStatefulSetPodController(statefulSet *apiapps.StatefulSet) podControlle
 
 type cronJobKind struct{}
 
-func (dk *cronJobKind) getPodController(c *Cluster, namespace, name string) (podController, error) {
+func (dk *cronJobKind) getWorkload(c *Cluster, namespace, name string) (workload, error) {
 	cronJob, err := c.client.BatchV1beta1().CronJobs(namespace).Get(name, meta_v1.GetOptions{})
 	if err != nil {
-		return podController{}, err
+		return workload{}, err
 	}
 
-	return makeCronJobPodController(cronJob), nil
+	return makeCronJobWorkload(cronJob), nil
 }
 
-func (dk *cronJobKind) getPodControllers(c *Cluster, namespace string) ([]podController, error) {
+func (dk *cronJobKind) getWorkloads(c *Cluster, namespace string) ([]workload, error) {
 	cronJobs, err := c.client.BatchV1beta1().CronJobs(namespace).List(meta_v1.ListOptions{})
 	if err != nil {
 		return nil, err
 	}
 
-	var podControllers []podController
+	var workloads []workload
 	for i, _ := range cronJobs.Items {
-		podControllers = append(podControllers, makeCronJobPodController(&cronJobs.Items[i]))
+		workloads = append(workloads, makeCronJobWorkload(&cronJobs.Items[i]))
 	}
 
-	return podControllers, nil
+	return workloads, nil
 }
 
-func makeCronJobPodController(cronJob *apibatch.CronJob) podController {
-	return podController{
+func makeCronJobWorkload(cronJob *apibatch.CronJob) workload {
+	return workload{
 		apiVersion:  "batch/v1beta1",
 		kind:        "CronJob",
 		name:        cronJob.ObjectMeta.Name,
@@ -387,29 +387,29 @@ func makeCronJobPodController(cronJob *apibatch.CronJob) podController {
 
 type fluxHelmReleaseKind struct{}
 
-func (fhr *fluxHelmReleaseKind) getPodController(c *Cluster, namespace, name string) (podController, error) {
+func (fhr *fluxHelmReleaseKind) getWorkload(c *Cluster, namespace, name string) (workload, error) {
 	fluxHelmRelease, err := c.client.HelmV1alpha2().FluxHelmReleases(namespace).Get(name, meta_v1.GetOptions{})
 	if err != nil {
-		return podController{}, err
+		return workload{}, err
 	}
-	return makeFluxHelmReleasePodController(fluxHelmRelease), nil
+	return makeFluxHelmReleaseWorkload(fluxHelmRelease), nil
 }
 
-func (fhr *fluxHelmReleaseKind) getPodControllers(c *Cluster, namespace string) ([]podController, error) {
+func (fhr *fluxHelmReleaseKind) getWorkloads(c *Cluster, namespace string) ([]workload, error) {
 	fluxHelmReleases, err := c.client.HelmV1alpha2().FluxHelmReleases(namespace).List(meta_v1.ListOptions{})
 	if err != nil {
 		return nil, err
 	}
 
-	var podControllers []podController
+	var workloads []workload
 	for _, f := range fluxHelmReleases.Items {
-		podControllers = append(podControllers, makeFluxHelmReleasePodController(&f))
+		workloads = append(workloads, makeFluxHelmReleaseWorkload(&f))
 	}
 
-	return podControllers, nil
+	return workloads, nil
 }
 
-func makeFluxHelmReleasePodController(fluxHelmRelease *fhr_v1alpha2.FluxHelmRelease) podController {
+func makeFluxHelmReleaseWorkload(fluxHelmRelease *fhr_v1alpha2.FluxHelmRelease) workload {
 	containers := createK8sFHRContainers(fluxHelmRelease.Spec.Values)
 
 	podTemplate := apiv1.PodTemplateSpec{
@@ -420,7 +420,7 @@ func makeFluxHelmReleasePodController(fluxHelmRelease *fhr_v1alpha2.FluxHelmRele
 		},
 	}
 
-	return podController{
+	return workload{
 		apiVersion:  "helm.integrations.flux.weave.works/v1alpha2",
 		kind:        "FluxHelmRelease",
 		name:        fluxHelmRelease.ObjectMeta.Name,
@@ -450,29 +450,29 @@ func createK8sFHRContainers(values map[string]interface{}) []apiv1.Container {
 
 type helmReleaseKind struct{}
 
-func (hr *helmReleaseKind) getPodController(c *Cluster, namespace, name string) (podController, error) {
+func (hr *helmReleaseKind) getWorkload(c *Cluster, namespace, name string) (workload, error) {
 	helmRelease, err := c.client.FluxV1beta1().HelmReleases(namespace).Get(name, meta_v1.GetOptions{})
 	if err != nil {
-		return podController{}, err
+		return workload{}, err
 	}
-	return makeHelmReleasePodController(helmRelease), nil
+	return makeHelmReleaseWorkload(helmRelease), nil
 }
 
-func (hr *helmReleaseKind) getPodControllers(c *Cluster, namespace string) ([]podController, error) {
+func (hr *helmReleaseKind) getWorkloads(c *Cluster, namespace string) ([]workload, error) {
 	helmReleases, err := c.client.FluxV1beta1().HelmReleases(namespace).List(meta_v1.ListOptions{})
 	if err != nil {
 		return nil, err
 	}
 
-	var podControllers []podController
+	var workloads []workload
 	for _, f := range helmReleases.Items {
-		podControllers = append(podControllers, makeHelmReleasePodController(&f))
+		workloads = append(workloads, makeHelmReleaseWorkload(&f))
 	}
 
-	return podControllers, nil
+	return workloads, nil
 }
 
-func makeHelmReleasePodController(helmRelease *fhr_v1beta1.HelmRelease) podController {
+func makeHelmReleaseWorkload(helmRelease *fhr_v1beta1.HelmRelease) workload {
 	containers := createK8sFHRContainers(helmRelease.Spec.Values)
 
 	podTemplate := apiv1.PodTemplateSpec{
@@ -483,7 +483,7 @@ func makeHelmReleasePodController(helmRelease *fhr_v1beta1.HelmRelease) podContr
 		},
 	}
 
-	return podController{
+	return workload{
 		apiVersion:  "flux.weave.works/v1beta1",
 		kind:        "HelmRelease",
 		name:        helmRelease.ObjectMeta.Name,

@@ -156,7 +156,7 @@ fluxctl policy -c demo:deployment/podinfo --tag-all='1.4.*'
 On the command-line you should see a message just like this one:
 
 ```sh
-CONTROLLER               STATUS   UPDATES
+WORKLOAD                 STATUS   UPDATES
 demo:deployment/podinfo  success
 Commit pushed:  4755a3b
 ```
