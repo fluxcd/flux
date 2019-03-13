@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/pkg/errors"
+
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster"
 	"github.com/weaveworks/flux/git"
@@ -48,11 +50,11 @@ func (rc *ReleaseContext) WriteUpdates(updates []*update.ControllerUpdate) error
 			for _, container := range update.Updates {
 				manifestBytes, err = rc.manifests.UpdateImage(manifestBytes, update.ResourceID, container.Container, container.Target)
 				if err != nil {
-					return err
+					return errors.Wrapf(err, "updating resource %s in %s", update.ResourceID.String(), update.Resource.Source())
 				}
 			}
 			if err = ioutil.WriteFile(update.ManifestPath, manifestBytes, os.FileMode(0600)); err != nil {
-				return err
+				return errors.Wrapf(err, "writing updated file %s", update.Resource.Source())
 			}
 		}
 		return nil
