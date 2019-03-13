@@ -31,13 +31,19 @@ We're going to make some changes soon enough, but just to get a good baseline pl
 
 Now that we know everything is working with `flux-getting-started`, we're going to try and do nearly the same thing as `flux-getting-started`, except instead of using official releases of flux, we're going to build and run what we have locally.
 
+## Prepare your Mind
+
+Even if you've been using git for a long time in your day-to-day, there are features of git that Flux utilizes (e.g. `notes`, `refs`) that you may have never been forced to think very deeply about during daily usage.  The document on [Git Internals -Git References](https://git-scm.com/book/en/v2/Git-Internals-Git-References) is a good jumping-off point.
+
+The Helm Operator is likely something you'll encounter when developing Flux.  While it isn't required for the most minimal changes, over time you're going to want to familiarize yourself.  The [Kubernetes Operators](https://coreos.com/operators/) document by CoreOS serves as a table of contents for getting started.
+
 ## Prepare your Environment
 
 1. Install the prerequisites.  This guide is written from running Linux, but the same instructions will generally apply to OSX.  Although everything you need has been known to work independently in Windows from time to time, results may vary.
-    - [Minikube](https://kubernetes.io/docs/tasks/tools/install-minikube/)
-    - [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
-    - [Docker](https://docs.docker.com/install/)
-    - [Go](https://golang.org/doc/install)
+  - [Minikube](https://kubernetes.io/docs/tasks/tools/install-minikube/)
+  - [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
+  - [Docker](https://docs.docker.com/install/)
+  - [Go](https://golang.org/doc/install)
 
 1. Configure your enviroment so you can run tests.  Run:
     ```sh
