@@ -329,7 +329,7 @@ func (chs *ChartChangeSync) reconcileReleaseDef(fhr fluxv1beta1.HelmRelease) {
 		chartPath = filepath.Join(chartClone.export.Dir(), chartSource.Path)
 		chartRevision = chartClone.head
 
-		if chs.config.UpdateDeps && !fhr.Spec.SkipDepUpdate {
+		if chs.config.UpdateDeps && !fhr.Spec.ChartSource.GitChartSource.SkipDepUpdate {
 			if err := updateDependencies(chartPath, ""); err != nil {
 				chs.setCondition(&fhr, fluxv1beta1.HelmReleaseReleased, v1.ConditionFalse, ReasonDependencyFailed, err.Error())
 				chs.logger.Log("warning", "Failed to update chart dependencies", "namespace", fhr.Namespace, "name", fhr.Name, "error", err)
