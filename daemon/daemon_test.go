@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"fmt"
 	"os"
@@ -618,6 +619,62 @@ func TestDaemon_Automated_semver(t *testing.T) {
 
 	// helloworld:3 is older than helloworld:2 but semver orders by version
 	w.ForImageTag(t, d, resid.String(), container, "3")
+}
+
+func TestDaemon_Automated_no_metadata(t *testing.T) {
+	d, start, clean, k8s, _, _ := mockDaemon(t)
+	var imageRegistry registry.Registry
+	{
+		imageRegistry = &registryMock.Registry{
+			Images: []image.Info{
+				image.Info{ID: mustParseImageRef(currentHelloImage)},
+				makeImageInfo(newHelloImage, time.Now()),
+			},
+		}
+	}
+	d.Registry = imageRegistry
+	start()
+	defer clean()
+
+	workload := cluster.Workload{
+		ID: flux.MakeResourceID(ns, "deployment", "helloworld"),
+		Containers: cluster.ContainersOrExcuse{
+			Containers: []resource.Container{
+				{
+					Name:  container,
+					Image: mustParseImageRef(currentHelloImage),
+				},
+			},
+		},
+	}
+	k8s.SomeWorkloadsFunc = func([]flux.ResourceID) ([]cluster.Workload, error) {
+		return []cluster.Workload{workload}, nil
+	}
+
+	b := &bytes.Buffer{}
+	d.pollForNewImages(log.NewLogfmtLogger(b))
+
+	sc := bufio.NewScanner(b)
+	var msg, current, new bool
+	for sc.Scan() {
+		if strings.Contains(sc.Text(), "image with zero created timestamp") {
+			msg = true
+		}
+		if strings.Contains(sc.Text(), "quay.io/weaveworks/helloworld:master-a000001 (0001-01-01 00:00:00 +0000 UTC)") {
+			current = true
+		}
+		if strings.Contains(sc.Text(), "quay.io/weaveworks/helloworld:2") {
+			new = true
+		}
+	}
+
+	if !msg {
+		t.Error("expected zero created timestamp warning")
+	} else if !current {
+		t.Error("expected current image with zero timestamp")
+	} else if !new {
+		t.Error("expected new image")
+	}
 }
 
 func makeImageInfo(ref string, t time.Time) image.Info {

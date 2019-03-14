@@ -53,30 +53,22 @@ func (d *Daemon) pollForNewImages(logger log.Logger) {
 			repo := currentImageID.Name
 			logger := log.With(logger, "workload", workload.ID, "container", container.Name, "repo", repo, "pattern", pattern, "current", currentImageID)
 
-			filteredImages := imageRepos.GetRepoImages(repo).FilterAndSort(pattern)
+			images := imageRepos.GetRepoImages(repo)
+			filteredImages := images.FilterAndSort(pattern)
 
 			if latest, ok := filteredImages.Latest(); ok && latest.ID != currentImageID {
 				if latest.ID.Tag == "" {
 					logger.Log("warning", "untagged image in available images", "action", "skip container")
 					continue containers
 				}
-				currentCreatedAt := ""
-				for _, info := range filteredImages {
-					if info.CreatedAt.IsZero() {
-						logger.Log("warning", "image with zero created timestamp", "image", info.ID, "action", "skip container")
-						continue containers
-					}
-					if info.ID == currentImageID {
-						currentCreatedAt = info.CreatedAt.String()
-					}
-				}
-				if currentCreatedAt == "" {
-					currentCreatedAt = "filtered out or missing"
-					logger.Log("warning", "current image not in filtered images", "action", "proceed anyway")
+				current := images.FindWithRef(currentImageID)
+				if current.CreatedAt.IsZero() || latest.CreatedAt.IsZero() {
+					logger.Log("warning", "image with zero created timestamp", "current", fmt.Sprintf("%s (%s)", current.ID, current.CreatedAt), "latest", fmt.Sprintf("%s (%s)", latest.ID, latest.CreatedAt), "action", "skip container")
+					continue containers
 				}
 				newImage := currentImageID.WithNewTag(latest.ID.Tag)
 				changes.Add(workload.ID, container, newImage)
-				logger.Log("info", "added update to automation run", "new", newImage, "reason", fmt.Sprintf("latest %s (%s) > current %s (%s)", latest.ID.Tag, latest.CreatedAt, currentImageID.Tag, currentCreatedAt))
+				logger.Log("info", "added update to automation run", "new", newImage, "reason", fmt.Sprintf("latest %s (%s) > current %s (%s)", latest.ID.Tag, latest.CreatedAt, currentImageID.Tag, current.CreatedAt))
 			}
 		}
 	}
