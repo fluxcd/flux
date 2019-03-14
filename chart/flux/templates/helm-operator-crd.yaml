@@ -30,7 +30,7 @@ spec:
     openAPIV3Schema:
       properties:
         spec:
-          required: ['values', 'chart']
+          required: ['chart']
           properties:
             releaseName:
               type: string
