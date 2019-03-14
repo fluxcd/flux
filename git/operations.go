@@ -65,7 +65,7 @@ func mirror(ctx context.Context, workingDir, repoURL string) (path string, err e
 }
 
 func checkout(ctx context.Context, workingDir, ref string) error {
-	args := []string{"checkout", ref}
+	args := []string{"checkout", ref, "--"}
 	return execGitCmd(ctx, args, gitCmdConfig{dir: workingDir})
 }
 
@@ -95,6 +95,7 @@ func commit(ctx context.Context, workingDir string, commitAction CommitAction) e
 	if commitAction.SigningKey != "" {
 		args = append(args, fmt.Sprintf("--gpg-sign=%s", commitAction.SigningKey))
 	}
+	args = append(args, "--")
 	if err := execGitCmd(ctx, args, gitCmdConfig{dir: workingDir, env: env}); err != nil {
 		return errors.Wrap(err, "git commit")
 	}
@@ -121,9 +122,9 @@ func fetch(ctx context.Context, workingDir, upstream string, refspec ...string) 
 }
 
 func refExists(ctx context.Context, workingDir, ref string) (bool, error) {
-	args := []string{"rev-list", ref}
+	args := []string{"rev-list", ref, "--"}
 	if err := execGitCmd(ctx, args, gitCmdConfig{dir: workingDir}); err != nil {
-		if strings.Contains(err.Error(), "unknown revision") {
+		if strings.Contains(err.Error(), "bad revision") {
 			return false, nil
 		}
 		return false, err
@@ -188,28 +189,19 @@ func noteRevList(ctx context.Context, workingDir, notesRef string) (map[string]s
 // Get the commit hash for a reference
 func refRevision(ctx context.Context, workingDir, ref string) (string, error) {
 	out := &bytes.Buffer{}
-	args := []string{"rev-list", "--max-count", "1", ref}
+	args := []string{"rev-list", "--max-count", "1", ref, "--"}
 	if err := execGitCmd(ctx, args, gitCmdConfig{dir: workingDir, out: out}); err != nil {
 		return "", err
 	}
 	return strings.TrimSpace(out.String()), nil
 }
 
-func revlist(ctx context.Context, workingDir, ref string) ([]string, error) {
-	out := &bytes.Buffer{}
-	args := []string{"rev-list", ref}
-	if err := execGitCmd(ctx, args, gitCmdConfig{dir: workingDir, out: out}); err != nil {
-		return nil, err
-	}
-	return splitList(out.String()), nil
-}
-
 // Return the revisions and one-line log commit messages
 func onelinelog(ctx context.Context, workingDir, refspec string, subdirs []string) ([]Commit, error) {
 	out := &bytes.Buffer{}
 	args := []string{"log", "--pretty=format:%GK|%H|%s", refspec}
+	args = append(args, "--")
 	if len(subdirs) > 0 {
-		args = append(args, "--")
 		args = append(args, subdirs...)
 	}
 
@@ -273,8 +265,8 @@ func changed(ctx context.Context, workingDir, ref string, subPaths []string) ([]
 	// the working dir_; i.e, we do not report on things that no
 	// longer appear.
 	args := []string{"diff", "--name-only", "--diff-filter=ACMRT", ref}
+	args = append(args, "--")
 	if len(subPaths) > 0 {
-		args = append(args, "--")
 		args = append(args, subPaths...)
 	}
 
@@ -292,6 +284,7 @@ func execGitCmd(ctx context.Context, args []string, config gitCmdConfig) error {
 		}
 		println()
 	}
+
 	c := exec.CommandContext(ctx, "git", args...)
 
 	if config.dir != "" {
@@ -337,8 +330,8 @@ func env() []string {
 func check(ctx context.Context, workingDir string, subdirs []string) bool {
 	// `--quiet` means "exit with 1 if there are changes"
 	args := []string{"diff", "--quiet"}
+	args = append(args, "--")
 	if len(subdirs) > 0 {
-		args = append(args, "--")
 		args = append(args, subdirs...)
 	}
 	return execGitCmd(ctx, args, gitCmdConfig{dir: workingDir}) != nil
