@@ -119,8 +119,8 @@ func NewCluster(client ExtendedClient, applier Applier, sshKeyRing ssh.KeyRing, 
 
 // --- cluster.Cluster
 
-// SomeWorkloads returns the workloads named, missing out any that don't
-// exist in the cluster. They do not necessarily have to be returned
+// SomeWorkloads returns the workloads named, missing out any that aren't
+// accessible in the cluster. They do not necessarily have to be returned
 // in the order requested.
 func (c *Cluster) SomeWorkloads(ids []flux.ResourceID) (res []cluster.Workload, err error) {
 	var workloads []cluster.Workload
@@ -134,6 +134,9 @@ func (c *Cluster) SomeWorkloads(ids []flux.ResourceID) (res []cluster.Workload, 
 
 		workload, err := resourceKind.getWorkload(c, ns, name)
 		if err != nil {
+			if apierrors.IsForbidden(err) || apierrors.IsNotFound(err) {
+				continue
+			}
 			return nil, err
 		}
 
@@ -164,19 +167,15 @@ func (c *Cluster) AllWorkloads(namespace string) (res []cluster.Workload, err er
 		for kind, resourceKind := range resourceKinds {
 			workloads, err := resourceKind.getWorkloads(c, ns.Name)
 			if err != nil {
-				if se, ok := err.(*apierrors.StatusError); ok {
-					switch se.ErrStatus.Reason {
-					case meta_v1.StatusReasonNotFound:
-						// Kind not supported by API server, skip
-						continue
-					case meta_v1.StatusReasonForbidden:
-						// K8s can return forbidden instead of not found for non super admins
-						c.logger.Log("warning", "not allowed to list resources", "err", err)
-						continue
-					default:
-						return nil, err
-					}
-				} else {
+				switch {
+				case apierrors.IsNotFound(err):
+					// Kind not supported by API server, skip
+					continue
+				case apierrors.IsForbidden(err):
+					// K8s can return forbidden instead of not found for non super admins
+					c.logger.Log("warning", "not allowed to list resources", "err", err)
+					continue
+				default:
 					return nil, err
 				}
 			}
@@ -228,19 +227,15 @@ func (c *Cluster) Export() ([]byte, error) {
 		for _, resourceKind := range resourceKinds {
 			workloads, err := resourceKind.getWorkloads(c, ns.Name)
 			if err != nil {
-				if se, ok := err.(*apierrors.StatusError); ok {
-					switch se.ErrStatus.Reason {
-					case meta_v1.StatusReasonNotFound:
-						// Kind not supported by API server, skip
-						continue
-					case meta_v1.StatusReasonForbidden:
-						// K8s can return forbidden instead of not found for non super admins
-						c.logger.Log("warning", "not allowed to list resources", "err", err)
-						continue
-					default:
-						return nil, err
-					}
-				} else {
+				switch {
+				case apierrors.IsNotFound(err):
+					// Kind not supported by API server, skip
+					continue
+				case apierrors.IsForbidden(err):
+					// K8s can return forbidden instead of not found for non super admins
+					c.logger.Log("warning", "not allowed to list resources", "err", err)
+					continue
+				default:
 					return nil, err
 				}
 			}
