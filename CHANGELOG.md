@@ -6,10 +6,9 @@ operator is in [./CHANGELOG-helmop.md](./CHANGELOG-helmop.md).
 This release comes with experimental garbage collection and Git commit signing:
 
 1. Experimental garbage collection of cluster resources. When providing the
-   `--sync-garbage-collection` flag, namespace-scoped cluster resources no
-   longer existing in Git will be removed. Read the
-   [garbage collection documentation](site/garbagecollection.md) for further
-   details.
+   `--sync-garbage-collection` flag, cluster resources no longer existing in Git 
+   will be removed. Read the [garbage collection documentation](site/garbagecollection.md) 
+   for further details.
 
 2. [GPG](https://en.wikipedia.org/wiki/GNU_Privacy_Guard)
    [Git commit signing](https://git-scm.com/docs/git-commit#Documentation/git-commit.txt--Sltkeyidgt),
