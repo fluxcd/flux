@@ -332,7 +332,7 @@ metadata:
 		test(t, kube, "", "", false)
 	})
 
-	t.Run("sync won't delete non-namespaced resources", func(t *testing.T) {
+	t.Run("sync won't incorrectly delete non-namespaced resources", func(t *testing.T) {
 		kube, _ := setup(t)
 		kube.GC = true
 
