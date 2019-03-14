@@ -43,6 +43,9 @@ type GitChartSource struct {
 	GitURL string `json:"git"`
 	Ref    string `json:"ref"`
 	Path   string `json:"path"`
+	// Do not run 'dep' update (assume requirements.yaml is already fulfilled)
+	// +optional
+	SkipDepUpdate bool `json:"skipDepUpdate,omitempty"`
 }
 
 // DefaultGitRef is the ref assumed if the Ref field is not given in a GitChartSource
@@ -83,9 +86,6 @@ type HelmReleaseSpec struct {
 	// Reset values on helm upgrade
 	// +optional
 	ResetValues bool `json:"resetValues,omitempty"`
-	// Do not run 'dep' update (assume requirements.yaml is already fulfilled)
-	// +optional
-	SkipDepUpdate bool `json:"skipDepUpdate,omitempty"`
 	// Force resource update through delete/recreate, allows recovery from a failed state
 	// +optional
 	ForceUpgrade bool `json:"forceUpgrade,omitempty"`

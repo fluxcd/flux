@@ -40,8 +40,6 @@ spec:
               format: int64
             resetValues:
               type: boolean
-            skipDepUpdate:
-              type: boolean
             forceUpgrade:
               type: boolean
             valueFileSecrets:
@@ -66,6 +64,8 @@ spec:
                     type: string
                   ref:
                     type: string
+                  skipDepUpdate:
+                    type: boolean
               - required: ['repository', 'name', 'version']
                 properties:
                   repository:
