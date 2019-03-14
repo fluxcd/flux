@@ -33,12 +33,28 @@
   version = "v0.3.1"
 
 [[projects]]
+  digest = "1:debe400440582cfe5580591afd0f7fdef5b17a25945f06bd3087bc67b4b8fd03"
+  name = "github.com/Masterminds/goutils"
+  packages = ["."]
+  pruneopts = ""
+  revision = "41ac8693c5c10a92ea1ff5ac3a7f95646f6123b0"
+  version = "v1.1.0"
+
+[[projects]]
   digest = "1:1355ed70fb12d3ae86828e65c35748269d1c8a20ab8c6c2f03107279c1e0bd90"
   name = "github.com/Masterminds/semver"
   packages = ["."]
   pruneopts = ""
   revision = "15d8430ab86497c5c0da827b748823945e1cf1e1"
   version = "v1.4.0"
+
+[[projects]]
+  digest = "1:844a29d20675e6187639c578b6c690d198aac895ede377ebcb5545405d0ef80d"
+  name = "github.com/Masterminds/sprig"
+  packages = ["."]
+  pruneopts = ""
+  revision = "9f8fceff796fb9f4e992cd2bece016be0121ab74"
+  version = "2.19.0"
 
 [[projects]]
   digest = "1:81f300bb8c779b70cdae0285c220ceb21d09b282eb7d1a07a28078dadd305f1a"
@@ -96,6 +112,14 @@
   packages = ["memcache"]
   pruneopts = ""
   revision = "1952afaa557dc08e8e0d89eafab110fb501c1a2b"
+
+[[projects]]
+  digest = "1:a9854984bc40330dde2125537b7f46d0a8d7860b3750de2e7cd0a6f904506212"
+  name = "github.com/cyphar/filepath-securejoin"
+  packages = ["."]
+  pruneopts = ""
+  revision = "a261ee33d7a517f054effbf451841abaafe3e0fd"
+  version = "v0.2.2"
 
 [[projects]]
   digest = "1:56c130d885a4aacae1dd9c7b71cfe39912c7ebc1ff7d2b46083c8812996dc43b"
@@ -298,6 +322,14 @@
   revision = "24818f796faf91cd76ec7bddd72458fbced7a6c1"
 
 [[projects]]
+  digest = "1:ad92aa49f34cbc3546063c7eb2cabb55ee2278b72842eda80e2a20a8a06a8d73"
+  name = "github.com/google/uuid"
+  packages = ["."]
+  pruneopts = ""
+  revision = "0cd6bf5da1e1c83f8b45653022c74f71af0538a4"
+  version = "v1.1.1"
+
+[[projects]]
   digest = "1:2a131706ff80636629ab6373f2944569b8252ecc018cda8040931b05d32e3c16"
   name = "github.com/googleapis/gnostic"
   packages = [
@@ -378,6 +410,14 @@
   ]
   pruneopts = ""
   revision = "0fb14efe8c47ae851c0034ed7a448854d3d34cf3"
+
+[[projects]]
+  digest = "1:35979179658d20a73693589e67bdc3baf4dc0ef9f524b1dfd3cc55fb5f6ae384"
+  name = "github.com/huandu/xstrings"
+  packages = ["."]
+  pruneopts = ""
+  revision = "f02667b379e2fb5916c3cda2cf31e0eb885d79f8"
+  version = "v1.2.0"
 
 [[projects]]
   digest = "1:23bc0b496ba341c6e3ba24d6358ff4a40a704d9eb5f9a3bd8e8fbd57ad869013"
@@ -848,7 +888,6 @@
     "pkg/client/clientset/clientset/scheme",
     "pkg/client/clientset/clientset/typed/apiextensions/v1beta1",
     "pkg/client/clientset/clientset/typed/apiextensions/v1beta1/fake",
-    "pkg/features",
   ]
   pruneopts = ""
   revision = "3de98c57bc05a81cf463e0ad7a0af4cec8a5b510"
@@ -906,17 +945,6 @@
   pruneopts = ""
   revision = "103fd098999dc9c0c88536f5c9ad2e5da39373ae"
   version = "kubernetes-1.11.0"
-
-[[projects]]
-  branch = "master"
-  digest = "1:307114f0d43e1f0b8ce6fba0ca3369b7270504e99fd9125a698b4ef0b6f686c6"
-  name = "k8s.io/apiserver"
-  packages = [
-    "pkg/features",
-    "pkg/util/feature",
-  ]
-  pruneopts = ""
-  revision = "f2e7e4864e403362f09eded9fb122b0f0b622c7c"
 
 [[projects]]
   digest = "1:d04779a8de7d5465e0463bd986506348de5e89677c74777f695d3145a7a8d15e"
@@ -1060,31 +1088,35 @@
   revision = "b58fc7edb82e0c6ffc9b8aef61813c7261b785d4"
 
 [[projects]]
-  digest = "1:ec6534bd79f79351514d62ff48f4f547aeb53ea0c9ee45ca5594fbdfbd2fc258"
+  digest = "1:0fc09b410fc592b90c0ccee14190c127cc94566bfd3a3ebed5e03c5574c0a7de"
   name = "k8s.io/helm"
   packages = [
     "pkg/chartutil",
+    "pkg/engine",
     "pkg/getter",
     "pkg/helm",
     "pkg/helm/environment",
     "pkg/helm/helmpath",
     "pkg/ignore",
+    "pkg/manifest",
     "pkg/plugin",
     "pkg/proto/hapi/chart",
     "pkg/proto/hapi/release",
     "pkg/proto/hapi/services",
     "pkg/proto/hapi/version",
     "pkg/provenance",
+    "pkg/releaseutil",
+    "pkg/renderutil",
     "pkg/repo",
-    "pkg/storage/driver",
+    "pkg/storage/errors",
     "pkg/sympath",
     "pkg/tlsutil",
     "pkg/urlutil",
     "pkg/version",
   ]
   pruneopts = ""
-  revision = "9ad53aac42165a5fadc6c87be0dea6b115f93090"
-  version = "v2.10.0"
+  revision = "79d07943b03aea2b76c12644b4b54733bc5958d6"
+  version = "v2.13.0"
 
 [[projects]]
   branch = "master"
@@ -1093,88 +1125,6 @@
   packages = ["pkg/util/proto"]
   pruneopts = ""
   revision = "50ae88d24ede7b8bad68e23c805b5d3da5c8abaf"
-
-[[projects]]
-  digest = "1:89eef4670d767c8f3e520d71509f40e77698b4bc898305b6ee0220300840b788"
-  name = "k8s.io/kubernetes"
-  packages = [
-    "pkg/api/legacyscheme",
-    "pkg/api/ref",
-    "pkg/apis/admissionregistration",
-    "pkg/apis/admissionregistration/install",
-    "pkg/apis/admissionregistration/v1alpha1",
-    "pkg/apis/admissionregistration/v1beta1",
-    "pkg/apis/apps",
-    "pkg/apis/apps/install",
-    "pkg/apis/apps/v1",
-    "pkg/apis/apps/v1beta1",
-    "pkg/apis/apps/v1beta2",
-    "pkg/apis/authentication",
-    "pkg/apis/authentication/install",
-    "pkg/apis/authentication/v1",
-    "pkg/apis/authentication/v1beta1",
-    "pkg/apis/authorization",
-    "pkg/apis/authorization/install",
-    "pkg/apis/authorization/v1",
-    "pkg/apis/authorization/v1beta1",
-    "pkg/apis/autoscaling",
-    "pkg/apis/autoscaling/install",
-    "pkg/apis/autoscaling/v1",
-    "pkg/apis/autoscaling/v2beta1",
-    "pkg/apis/batch",
-    "pkg/apis/batch/install",
-    "pkg/apis/batch/v1",
-    "pkg/apis/batch/v1beta1",
-    "pkg/apis/batch/v2alpha1",
-    "pkg/apis/certificates",
-    "pkg/apis/certificates/install",
-    "pkg/apis/certificates/v1beta1",
-    "pkg/apis/componentconfig",
-    "pkg/apis/componentconfig/install",
-    "pkg/apis/componentconfig/v1alpha1",
-    "pkg/apis/core",
-    "pkg/apis/core/install",
-    "pkg/apis/core/v1",
-    "pkg/apis/events",
-    "pkg/apis/events/install",
-    "pkg/apis/events/v1beta1",
-    "pkg/apis/extensions",
-    "pkg/apis/extensions/install",
-    "pkg/apis/extensions/v1beta1",
-    "pkg/apis/networking",
-    "pkg/apis/networking/install",
-    "pkg/apis/networking/v1",
-    "pkg/apis/policy",
-    "pkg/apis/policy/install",
-    "pkg/apis/policy/v1beta1",
-    "pkg/apis/rbac",
-    "pkg/apis/rbac/install",
-    "pkg/apis/rbac/v1",
-    "pkg/apis/rbac/v1alpha1",
-    "pkg/apis/rbac/v1beta1",
-    "pkg/apis/scheduling",
-    "pkg/apis/scheduling/install",
-    "pkg/apis/scheduling/v1alpha1",
-    "pkg/apis/scheduling/v1beta1",
-    "pkg/apis/settings",
-    "pkg/apis/settings/install",
-    "pkg/apis/settings/v1alpha1",
-    "pkg/apis/storage",
-    "pkg/apis/storage/install",
-    "pkg/apis/storage/v1",
-    "pkg/apis/storage/v1alpha1",
-    "pkg/apis/storage/v1beta1",
-    "pkg/client/clientset_generated/internalclientset/scheme",
-    "pkg/client/clientset_generated/internalclientset/typed/core/internalversion",
-    "pkg/features",
-    "pkg/kubelet/apis",
-    "pkg/master/ports",
-    "pkg/util/parsers",
-    "pkg/util/pointer",
-  ]
-  pruneopts = ""
-  revision = "bf9a868e8ea3d3a8fa53cbb22f566771b3f8068b"
-  version = "v1.11.4"
 
 [solve-meta]
   analyzer-name = "dep"
@@ -1263,6 +1213,7 @@
     "k8s.io/helm/pkg/proto/hapi/chart",
     "k8s.io/helm/pkg/proto/hapi/release",
     "k8s.io/helm/pkg/proto/hapi/services",
+    "k8s.io/helm/pkg/releaseutil",
     "k8s.io/helm/pkg/repo",
     "k8s.io/helm/pkg/tlsutil",
   ]

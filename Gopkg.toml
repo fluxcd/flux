@@ -44,7 +44,7 @@ required = ["k8s.io/code-generator/cmd/client-gen"]
 
 [[constraint]]
   name = "k8s.io/helm"
-  version = "~v2.10.0"
+  version = "~v2.13.0"
 
 [[constraint]]
   name = "github.com/justinbarrick/go-k8s-portforward"
