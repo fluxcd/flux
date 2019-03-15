@@ -287,7 +287,7 @@ At present, per-resource authentication is not implemented. The
 attaching a `repositories.yaml` file, but this is ignored for now.
 
 Instead, you need to provide the operator with credentials and keys (see the
-following [Authentication for Heml repos](#authentication-for-helm-repos)
+following [Authentication for Helm repos](#authentication-for-helm-repos)
 section for how to do this).
 
 ### Authentication for Helm repos
