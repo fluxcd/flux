@@ -134,12 +134,11 @@ func (c *Cluster) ImagesToFetch() registry.ImageCreds {
 		for kind, resourceKind := range resourceKinds {
 			workloads, err := resourceKind.getWorkloads(c, ns.Name)
 			if err != nil {
-				if se, ok := err.(*apierrors.StatusError); ok && se.ErrStatus.Reason == meta_v1.StatusReasonNotFound {
-					// Kind not supported by API server, skip
-				} else {
-					c.logger.Log("err", errors.Wrapf(err, "getting kind %s for namespace %s", kind, ns.Name))
+				if apierrors.IsNotFound(err) || apierrors.IsForbidden(err) {
+					// Skip unsupported or forbidden resource kinds
+					continue
 				}
-				continue
+				c.logger.Log("err", errors.Wrapf(err, "getting kind %s for namespace %s", kind, ns.Name))
 			}
 
 			imageCreds := make(registry.ImageCreds)

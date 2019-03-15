@@ -17,6 +17,7 @@ import (
 	"github.com/imdario/mergo"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -224,6 +225,11 @@ func (c *Cluster) getResourcesBySelector(selector string) (map[string]*kuberesou
 			resourceClient := c.client.dynamicClient.Resource(groupVersion.WithResource(apiResource.Name))
 			data, err := resourceClient.List(listOptions)
 			if err != nil {
+				if apierrors.IsForbidden(err) {
+					// we are not allowed to list this resource but
+					// shouldn't prevent us from listing the rest
+					continue
+				}
 				return nil, err
 			}
 
