@@ -12,7 +12,9 @@ func TestSafeURL(t *testing.T) {
 		"https://user@example.com:5050/repo.git",
 		"https://user:" + password + "@example.com:5050/repo.git",
 	} {
-		u := Remote{url}
+		u := Remote{
+			URL: url,
+		}
 		if strings.Contains(u.SafeURL(), password) {
 			t.Errorf("Safe URL for %s contains password %q", url, password)
 		}

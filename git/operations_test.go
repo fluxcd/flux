@@ -17,7 +17,7 @@ const (
 )
 
 var (
-	noteIdCounter = 1
+	noteIDCounter = 1
 )
 
 type Note struct {
@@ -86,8 +86,8 @@ func TestListNotes_0Notes(t *testing.T) {
 }
 
 func testNote(dir, rev string) (string, error) {
-	id := fmt.Sprintf("%v", noteIdCounter)
-	noteIdCounter += 1
+	id := fmt.Sprintf("%v", noteIDCounter)
+	noteIDCounter += 1
 	err := addNote(context.Background(), dir, rev, testNoteRef, &Note{ID: id})
 	return id, err
 }

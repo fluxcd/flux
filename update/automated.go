@@ -148,7 +148,7 @@ func (a *Automated) workloadMap() map[flux.ResourceID][]Change {
 
 func (a *Automated) workloadIDs() []flux.ResourceID {
 	slice := []flux.ResourceID{}
-	for workload, _ := range a.workloadMap() {
+	for workload := range a.workloadMap() {
 		slice = append(slice, flux.MustParseResourceID(workload.String()))
 	}
 	return slice

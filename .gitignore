@@ -40,3 +40,4 @@ docker/fluxy-dumbconf.priv
 test/profiles
 test/bin/kubectl
 test/bin/helm
+test/deploy
