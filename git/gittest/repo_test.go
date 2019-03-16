@@ -162,14 +162,14 @@ func TestCheckout(t *testing.T) {
 
 	ctx := context.Background()
 
-	params := git.Config{
+	gitConfig := git.Config{
 		Branch:    "master",
 		UserName:  "example",
 		UserEmail: "example@example.com",
 		SyncTag:   "flux-test",
 		NotesRef:  "fluxtest",
 	}
-	checkout, err := repo.Clone(ctx, params)
+	checkout, err := repo.Clone(ctx, gitConfig)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -251,7 +251,7 @@ func TestCheckout(t *testing.T) {
 		t.Error(err)
 	}
 
-	another, err := repo.Clone(ctx, params)
+	another, err := repo.Clone(ctx, gitConfig)
 	if err != nil {
 		t.Fatal(err)
 	}

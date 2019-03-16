@@ -245,11 +245,11 @@ func createRepo(dir string, subdirs []string) error {
 		if err = execCommand("git", "-C", dir, "add", "--all"); err != nil {
 			return err
 		}
-		if err = execCommand("git", "-C", dir, "commit", "-m", "'Initial revision'"); err != nil {
+		if err = execCommand("git", "-C", dir, "commit", "--message", "'Initial revision'"); err != nil {
 			return err
 		}
 	}
-	if err = execCommand("git", "-C", dir, "commit", "--allow-empty", "-m", "'Second revision'"); err != nil {
+	if err = execCommand("git", "-C", dir, "commit", "--allow-empty", "--message", "'Second revision'"); err != nil {
 		return err
 	}
 
@@ -282,7 +282,7 @@ func updateDirAndCommit(dir, subdir string, filesUpdated map[string]string) erro
 	if err := execCommand("git", "-C", path, "add", "--all"); err != nil {
 		return err
 	}
-	if err := execCommand("git", "-C", path, "commit", "-m", "'Update 1'"); err != nil {
+	if err := execCommand("git", "-C", path, "commit", "--message", "'Update 1'"); err != nil {
 		return err
 	}
 	return nil

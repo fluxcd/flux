@@ -88,7 +88,7 @@ var ReadOnly optionFunc = func(r *Repo) {
 }
 
 // NewRepo constructs a repo mirror which will sync itself.
-func NewRepo(origin Remote, opts ...Option) *Repo {
+func NewRepo(origin Remote, options ...Option) *Repo {
 	status := RepoNew
 	if origin.URL == "" {
 		status = RepoNoConfig
@@ -102,8 +102,8 @@ func NewRepo(origin Remote, opts ...Option) *Repo {
 		notify:   make(chan struct{}, 1), // `1` so that Notify doesn't block
 		C:        make(chan struct{}, 1), // `1` so we don't block on completing a refresh
 	}
-	for _, opt := range opts {
-		opt.apply(r)
+	for _, option := range options {
+		option.apply(r)
 	}
 	return r
 }

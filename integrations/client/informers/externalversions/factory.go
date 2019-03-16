@@ -97,8 +97,8 @@ func NewSharedInformerFactoryWithOptions(client versioned.Interface, defaultResy
 	}
 
 	// Apply all options
-	for _, opt := range options {
-		factory = opt(factory)
+	for _, option := range options {
+		factory = option(factory)
 	}
 
 	return factory
