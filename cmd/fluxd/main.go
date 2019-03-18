@@ -17,11 +17,12 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/pflag"
-	integrations "github.com/weaveworks/flux/integrations/client/clientset/versioned"
 	crd "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
+	k8sruntime "k8s.io/apimachinery/pkg/util/runtime"
 	k8sclientdynamic "k8s.io/client-go/dynamic"
 	k8sclient "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	k8serrors "k8s.io/kubernetes/staging/src/k8s.io/apimachinery/pkg/api/errors"
 
 	"github.com/weaveworks/flux/checkpoint"
 	"github.com/weaveworks/flux/cluster"
@@ -33,6 +34,7 @@ import (
 	"github.com/weaveworks/flux/http/client"
 	daemonhttp "github.com/weaveworks/flux/http/daemon"
 	"github.com/weaveworks/flux/image"
+	integrations "github.com/weaveworks/flux/integrations/client/clientset/versioned"
 	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/registry"
 	"github.com/weaveworks/flux/registry/cache"
@@ -163,6 +165,16 @@ func main() {
 		logger = log.With(logger, "caller", log.DefaultCaller)
 	}
 	logger.Log("version", version)
+
+	// Silence access errors logged internally by client-go
+	klog := log.With(logger, "type", "internal kubernetes error")
+	logErrorUnlessAccessRelated := func(err error) {
+		if k8serrors.IsForbidden(err) || k8serrors.IsNotFound(err) {
+			return
+		}
+		klog.Log("err", err)
+	}
+	k8sruntime.ErrorHandlers = []func(error){logErrorUnlessAccessRelated}
 
 	// Argument validation
 
