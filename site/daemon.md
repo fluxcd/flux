@@ -57,7 +57,7 @@ fluxd requires setup and offers customization though a multitude of flags.
 | --git-user                                       | `Weave Flux`             | username to use as git committer
 | --git-email                                      | `support@weave.works`    | email to use as git committer
 | --git-set-author                                 | false                    | if set, the author of git commits will reflect the user who initiated the commit and will differ from the git committer
-| --git-gpg-key-import                             |                          | if set, fluxd will attempt to import the GPG key(s) found on the given path
+| --git-gpg-key-import                             |                          | if set, fluxd will attempt to import the gpg key(s) found on the given path
 | --git-signing-key                                |                          | if set, commits made by fluxd to the user git repo will be signed with the provided GPG key. See [Git commit signing](git-commit-signing.md) to learn how to use this feature
 | --git-label                                      |                          | label to keep track of sync progress; overrides both --git-sync-tag and --git-notes-ref
 | --git-sync-tag                                   | `flux-sync`              | tag to use to mark sync progress for this cluster (old config, still used if --git-label is not supplied)

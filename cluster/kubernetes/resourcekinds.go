@@ -365,7 +365,7 @@ func (dk *cronJobKind) getWorkloads(c *Cluster, namespace string) ([]workload, e
 	}
 
 	var workloads []workload
-	for i := range cronJobs.Items {
+	for i, _ := range cronJobs.Items {
 		workloads = append(workloads, makeCronJobWorkload(&cronJobs.Items[i]))
 	}
 

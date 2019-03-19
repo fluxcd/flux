@@ -44,7 +44,7 @@ func Repo(t *testing.T) (*git.Repo, func()) {
 		cleanup()
 		t.Fatal(err)
 	}
-	if err = execCommand("git", "-C", filesDir, "commit", "--message", "'Initial revision'"); err != nil {
+	if err = execCommand("git", "-C", filesDir, "commit", "-m", "'Initial revision'"); err != nil {
 		cleanup()
 		t.Fatal(err)
 	}
@@ -66,7 +66,7 @@ func Repo(t *testing.T) (*git.Repo, func()) {
 // not all resources, just the workloads) represented in the test
 // files.
 func Workloads() (res []flux.ResourceID) {
-	for k := range testfiles.WorkloadMap("") {
+	for k, _ := range testfiles.WorkloadMap("") {
 		res = append(res, k)
 	}
 	return res
@@ -74,18 +74,18 @@ func Workloads() (res []flux.ResourceID) {
 
 // CheckoutWithConfig makes a standard repo, clones it, and returns
 // the clone, the original repo, and a cleanup function.
-func CheckoutWithConfig(t *testing.T, gitConfig git.Config) (*git.Checkout, *git.Repo, func()) {
+func CheckoutWithConfig(t *testing.T, config git.Config) (*git.Checkout, *git.Repo, func()) {
 	// Add files to the repo with the same name as the git branch and the sync tag.
 	// This is to make sure that git commands don't have ambiguity problems between revisions and files.
-	testfiles.Files[gitConfig.Branch] = "Filename doctored to create a conflict with the git branch name"
-	testfiles.Files[gitConfig.SyncTag] = "Filename doctored to create a conflict with the git sync tag"
+	testfiles.Files[config.Branch] = "Filename doctored to create a conflict with the git branch name"
+	testfiles.Files[config.SyncTag] = "Filename doctored to create a conflict with the git sync tag"
 	repo, cleanup := Repo(t)
 	if err := repo.Ready(context.Background()); err != nil {
 		cleanup()
 		t.Fatal(err)
 	}
 
-	co, err := repo.Clone(context.Background(), gitConfig)
+	co, err := repo.Clone(context.Background(), config)
 	if err != nil {
 		cleanup()
 		t.Fatal(err)
@@ -93,8 +93,8 @@ func CheckoutWithConfig(t *testing.T, gitConfig git.Config) (*git.Checkout, *git
 	return co, repo, func() {
 		co.Clean()
 		cleanup()
-		delete(testfiles.Files, gitConfig.Branch)
-		delete(testfiles.Files, gitConfig.SyncTag)
+		delete(testfiles.Files, config.Branch)
+		delete(testfiles.Files, config.SyncTag)
 	}
 }
 

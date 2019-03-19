@@ -87,7 +87,7 @@ func checkPush(ctx context.Context, workingDir, upstream string) error {
 }
 
 func commit(ctx context.Context, workingDir string, commitAction CommitAction) error {
-	args := []string{"commit", "--no-verify", "--all", "--message", commitAction.Message}
+	args := []string{"commit", "--no-verify", "-a", "-m", commitAction.Message}
 	var env []string
 	if commitAction.Author != "" {
 		args = append(args, "--author", commitAction.Author)
@@ -147,7 +147,7 @@ func addNote(ctx context.Context, workingDir, rev, notesRef string, note interfa
 	if err != nil {
 		return err
 	}
-	args := []string{"notes", "--ref", notesRef, "add", "--message", string(b), rev}
+	args := []string{"notes", "--ref", notesRef, "add", "-m", string(b), rev}
 	return execGitCmd(ctx, args, gitCmdConfig{dir: workingDir})
 }
 
@@ -251,8 +251,9 @@ func moveTagAndPush(ctx context.Context, workingDir, tag, upstream string, tagAc
 }
 
 func verifyTag(ctx context.Context, workingDir, tag string) error {
+	var env []string
 	args := []string{"verify-tag", tag}
-	if err := execGitCmd(ctx, args, gitCmdConfig{dir: workingDir}); err != nil {
+	if err := execGitCmd(ctx, args, gitCmdConfig{dir: workingDir, env: env}); err != nil {
 		return errors.Wrap(err, "verifying tag "+tag)
 	}
 	return nil

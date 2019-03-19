@@ -91,7 +91,7 @@ func TestPullAndSync_InitialSync(t *testing.T) {
 	syncCalled := 0
 	var syncDef *cluster.SyncSet
 	expectedResourceIDs := flux.ResourceIDs{}
-	for id := range testfiles.ResourceMap {
+	for id, _ := range testfiles.ResourceMap {
 		expectedResourceIDs = append(expectedResourceIDs, id)
 	}
 	expectedResourceIDs.Sort()
@@ -166,7 +166,7 @@ func TestDoSync_NoNewCommits(t *testing.T) {
 	syncCalled := 0
 	var syncDef *cluster.SyncSet
 	expectedResourceIDs := flux.ResourceIDs{}
-	for id := range testfiles.ResourceMap {
+	for id, _ := range testfiles.ResourceMap {
 		expectedResourceIDs = append(expectedResourceIDs, id)
 	}
 	expectedResourceIDs.Sort()
@@ -266,7 +266,7 @@ func TestDoSync_WithNewCommit(t *testing.T) {
 	syncCalled := 0
 	var syncDef *cluster.SyncSet
 	expectedResourceIDs := flux.ResourceIDs{}
-	for id := range testfiles.ResourceMap {
+	for id, _ := range testfiles.ResourceMap {
 		expectedResourceIDs = append(expectedResourceIDs, id)
 	}
 	expectedResourceIDs.Sort()

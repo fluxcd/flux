@@ -141,7 +141,7 @@ func (c *Checkout) CommitAndPush(ctx context.Context, commitAction CommitAction,
 	}
 
 	if note != nil {
-		rev, err := c.HeadRevision(ctx)
+		rev, err := refRevision(ctx, c.dir, "HEAD")
 		if err != nil {
 			return err
 		}

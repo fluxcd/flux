@@ -26,7 +26,7 @@ func TestCommit(t *testing.T) {
 	checkout, repo, cleanup := CheckoutWithConfig(t, config)
 	defer cleanup()
 
-	for file := range testfiles.Files {
+	for file, _ := range testfiles.Files {
 		dirs := checkout.ManifestDirs()
 		path := filepath.Join(dirs[0], file)
 		if err := ioutil.WriteFile(path, []byte("FIRST CHANGE"), 0666); err != nil {
@@ -81,7 +81,7 @@ func TestSignedCommit(t *testing.T) {
 	checkout, repo, cleanup := CheckoutWithConfig(t, config)
 	defer cleanup()
 
-	for file := range testfiles.Files {
+	for file, _ := range testfiles.Files {
 		dirs := checkout.ManifestDirs()
 		path := filepath.Join(dirs[0], file)
 		if err := ioutil.WriteFile(path, []byte("FIRST CHANGE"), 0666); err != nil {
@@ -162,14 +162,14 @@ func TestCheckout(t *testing.T) {
 
 	ctx := context.Background()
 
-	gitConfig := git.Config{
+	params := git.Config{
 		Branch:    "master",
 		UserName:  "example",
 		UserEmail: "example@example.com",
 		SyncTag:   "flux-test",
 		NotesRef:  "fluxtest",
 	}
-	checkout, err := repo.Clone(ctx, gitConfig)
+	checkout, err := repo.Clone(ctx, params)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -193,7 +193,7 @@ func TestCheckout(t *testing.T) {
 
 	changedFile := ""
 	dirs := checkout.ManifestDirs()
-	for file := range testfiles.Files {
+	for file, _ := range testfiles.Files {
 		path := filepath.Join(dirs[0], file)
 		if err := ioutil.WriteFile(path, []byte("FIRST CHANGE"), 0666); err != nil {
 			t.Fatal(err)
@@ -251,7 +251,7 @@ func TestCheckout(t *testing.T) {
 		t.Error(err)
 	}
 
-	another, err := repo.Clone(ctx, gitConfig)
+	another, err := repo.Clone(ctx, params)
 	if err != nil {
 		t.Fatal(err)
 	}

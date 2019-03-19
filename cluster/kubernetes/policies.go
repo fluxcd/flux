@@ -42,7 +42,7 @@ func (m *Manifests) UpdatePolicies(def []byte, id flux.ResourceID, update policy
 		}
 		args = append(args, fmt.Sprintf("%s%s=%s", kresource.PolicyPrefix, pol, val))
 	}
-	for pol := range del {
+	for pol, _ := range del {
 		args = append(args, fmt.Sprintf("%s%s=", kresource.PolicyPrefix, pol))
 	}
 

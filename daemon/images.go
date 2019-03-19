@@ -89,7 +89,7 @@ func (d *Daemon) pollForNewImages(logger log.Logger) {
 type resources map[flux.ResourceID]resource.Resource
 
 func (r resources) IDs() (ids []flux.ResourceID) {
-	for k := range r {
+	for k, _ := range r {
 		ids = append(ids, k)
 	}
 	return ids

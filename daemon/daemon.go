@@ -707,7 +707,7 @@ func policyEvents(us policy.Updates, now time.Time) map[string]event.Event {
 // policyEventTypes is a deduped list of all event types this update contains
 func policyEventTypes(u policy.Update) []string {
 	types := map[string]struct{}{}
-	for p := range u.Add {
+	for p, _ := range u.Add {
 		switch {
 		case p == policy.Automated:
 			types[event.EventAutomate] = struct{}{}
@@ -718,7 +718,7 @@ func policyEventTypes(u policy.Update) []string {
 		}
 	}
 
-	for p := range u.Remove {
+	for p, _ := range u.Remove {
 		switch {
 		case p == policy.Automated:
 			types[event.EventDeautomate] = struct{}{}
