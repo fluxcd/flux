@@ -18,11 +18,11 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/pflag"
 	crd "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	k8sruntime "k8s.io/apimachinery/pkg/util/runtime"
 	k8sclientdynamic "k8s.io/client-go/dynamic"
 	k8sclient "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
-	k8serrors "k8s.io/kubernetes/staging/src/k8s.io/apimachinery/pkg/api/errors"
 
 	"github.com/weaveworks/flux/checkpoint"
 	"github.com/weaveworks/flux/cluster"
@@ -169,7 +169,10 @@ func main() {
 	// Silence access errors logged internally by client-go
 	klog := log.With(logger, "type", "internal kubernetes error")
 	logErrorUnlessAccessRelated := func(err error) {
-		if k8serrors.IsForbidden(err) || k8serrors.IsNotFound(err) {
+		errLower := strings.ToLower(err.Error())
+		if k8serrors.IsForbidden(err) || k8serrors.IsNotFound(err) ||
+			strings.Contains(errLower, "forbidden") ||
+			strings.Contains(errLower, "not found") {
 			return
 		}
 		klog.Log("err", err)
