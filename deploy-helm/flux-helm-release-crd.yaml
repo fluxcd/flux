@@ -35,13 +35,49 @@ spec:
               type: boolean
             valueFileSecrets:
               type: array
-              properties:
-                items:
-                  type: object
-                  required: ['name']
-                  properties:
-                    name:
-                      type: string
+              items:
+                type: object
+                required: ['name']
+                properties:
+                  name:
+                    type: string
+            valuesFrom:
+              type: array
+              items:
+                type: object
+                properties:
+                  configMapKeyRef:
+                    type: object
+                    required: ['name']
+                    properties:
+                      name:
+                        type: string
+                      key:
+                        type: string
+                      optional:
+                        type: boolean
+                  secretKeyRef:
+                    type: object
+                    required: ['name']
+                    properties:
+                      name:
+                        type: string
+                      key:
+                        type: string
+                      optional:
+                        type: boolean
+                  externalSourceRef:
+                    type: object
+                    required: ['url']
+                    properties:
+                      url:
+                        type: string
+                      optional:
+                        type: boolean
+                oneOf:
+                - required: ['configMapKeyRef']
+                - required: ['secretKeyRef']
+                - required: ['externalSourceRef']
             values:
               type: object
             chart:

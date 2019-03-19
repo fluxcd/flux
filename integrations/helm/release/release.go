@@ -3,17 +3,24 @@ package release
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"os"
 	"os/exec"
 	"time"
 
 	"github.com/ghodss/yaml"
 	"github.com/go-kit/kit/log"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"github.com/spf13/pflag"
+	"k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/kubernetes"
+	k8sclientv1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/helm/pkg/chartutil"
+	"k8s.io/helm/pkg/getter"
 	k8shelm "k8s.io/helm/pkg/helm"
+	helmenv "k8s.io/helm/pkg/helm/environment"
 	hapi_release "k8s.io/helm/pkg/proto/hapi/release"
 
 	"github.com/weaveworks/flux"
@@ -142,31 +149,25 @@ func (r *Release) Install(chartPath, releaseName string, fhr flux_v1beta1.HelmRe
 		"options", fmt.Sprintf("%+v", opts),
 		"timeout", fmt.Sprintf("%vs", fhr.GetTimeout()))
 
-	// Read values from given valueFile paths (configmaps, etc.)
-	mergedValues := chartutil.Values{}
-	for _, valueFileSecret := range fhr.Spec.ValueFileSecrets {
-		// Read the contents of the secret
-		secret, err := kubeClient.CoreV1().Secrets(fhr.Namespace).Get(valueFileSecret.Name, v1.GetOptions{})
-		if err != nil {
-			r.logger.Log("error", fmt.Sprintf("Cannot get secret %s for Chart release [%s]: %#v", valueFileSecret.Name, fhr.Spec.ReleaseName, err))
-			return nil, err
+	valuesFrom := fhr.Spec.ValuesFrom
+	// Maintain backwards compatibility with ValueFileSecrets
+	if fhr.Spec.ValueFileSecrets != nil {
+		var secretKeyRefs []flux_v1beta1.ValuesFromSource
+		for _, ref := range fhr.Spec.ValueFileSecrets {
+			s := &v1.SecretKeySelector{LocalObjectReference: ref}
+			secretKeyRefs = append(secretKeyRefs, flux_v1beta1.ValuesFromSource{SecretKeyRef: s})
 		}
-
-		// Load values.yaml file and merge
-		var values chartutil.Values
-		err = yaml.Unmarshal(secret.Data["values.yaml"], &values)
-		if err != nil {
-			r.logger.Log("error", fmt.Sprintf("Cannot yaml.Unmashal values.yaml in secret %s for Chart release [%s]: %#v", valueFileSecret.Name, fhr.Spec.ReleaseName, err))
-			return nil, err
-		}
-		mergedValues = mergeValues(mergedValues, values)
+		valuesFrom = append(secretKeyRefs, valuesFrom...)
 	}
-	// Merge in values after valueFiles
-	mergedValues = mergeValues(mergedValues, fhr.Spec.Values)
-
-	strVals, err := mergedValues.YAML()
+	vals, err := values(kubeClient.CoreV1(), fhr.Namespace, valuesFrom, fhr.Spec.Values)
 	if err != nil {
-		r.logger.Log("error", fmt.Sprintf("Problem with supplied customizations for Chart release [%s]: %#v", fhr.Spec.ReleaseName, err))
+		r.logger.Log("error", fmt.Sprintf("Failed to compose values for Chart release [%s]: %v", fhr.Spec.ReleaseName, err))
+		return nil, err
+	}
+
+	strVals, err := vals.YAML()
+	if err != nil {
+		r.logger.Log("error", fmt.Sprintf("Problem with supplied customizations for Chart release [%s]: %v", fhr.Spec.ReleaseName, err))
 		return nil, err
 	}
 	rawVals := []byte(strVals)
@@ -272,8 +273,97 @@ func fhrResourceID(fhr flux_v1beta1.HelmRelease) flux.ResourceID {
 	return flux.MakeResourceID(fhr.Namespace, "HelmRelease", fhr.Name)
 }
 
+// values tries to resolve all given value file sources and merges
+// them into one Values struct. It returns the merged Values.
+func values(corev1 k8sclientv1.CoreV1Interface, ns string, valuesFromSource []flux_v1beta1.ValuesFromSource, values chartutil.Values) (chartutil.Values, error) {
+	var result chartutil.Values
+
+	for _, v := range valuesFromSource {
+		var valueFile chartutil.Values
+
+		switch {
+		case v.ConfigMapKeyRef != nil:
+			cm := v.ConfigMapKeyRef
+			name := cm.Name
+			key := cm.Key
+			if key == "" {
+				key = "values.yaml"
+			}
+			optional := cm.Optional != nil && *cm.Optional
+			configMap, err := corev1.ConfigMaps(ns).Get(name, metav1.GetOptions{})
+			if err != nil {
+				if errors.IsNotFound(err) && optional {
+					continue
+				}
+				return result, err
+			}
+			d, ok := configMap.Data[key]
+			if !ok {
+				if optional {
+					continue
+				}
+				return result, fmt.Errorf("could not find key %v in ConfigMap %s/%s", key, ns, name)
+			}
+			if err := yaml.Unmarshal([]byte(d), &valueFile); err != nil {
+				if optional {
+					continue
+				}
+				return result, fmt.Errorf("unable to yaml.Unmarshal %v from %s in ConfigMap %s/%s", d, key, ns, name)
+			}
+		case v.SecretKeyRef != nil:
+			s := v.SecretKeyRef
+			name := s.Name
+			key := s.Key
+			if key == "" {
+				key = "values.yaml"
+			}
+			optional := s.Optional != nil && *s.Optional
+			secret, err := corev1.Secrets(ns).Get(name, metav1.GetOptions{})
+			if err != nil {
+				if errors.IsNotFound(err) && optional {
+					continue
+				}
+				return result, err
+			}
+			d, ok := secret.Data[key]
+			if !ok {
+				if optional {
+					continue
+				}
+				return result, fmt.Errorf("could not find key %s in Secret %s/%s", key, ns, name)
+			}
+			if err := yaml.Unmarshal(d, &valueFile); err != nil {
+				return result, fmt.Errorf("unable to yaml.Unmarshal %v from %s in Secret %s/%s", d, key, ns, name)
+			}
+		case v.ExternalSourceRef != nil:
+			es := v.ExternalSourceRef
+			url := es.URL
+			optional := es.Optional != nil && *es.Optional
+			b, err := readURL(url)
+			if err != nil {
+				if optional {
+					continue
+				}
+				return result, fmt.Errorf("unable to read value file from URL %s", url)
+			}
+			if err := yaml.Unmarshal(b, &valueFile); err != nil {
+				if optional {
+					continue
+				}
+				return result, fmt.Errorf("unable to yaml.Unmarshal %v from URL %s", b, url)
+			}
+		}
+
+		result = mergeValues(result, valueFile)
+	}
+
+	result = mergeValues(result, values)
+
+	return result, nil
+}
+
 // Merges source and destination `chartutils.Values`, preferring values from the source Values
-// This is slightly adapted from https://github.com/helm/helm/blob/master/cmd/helm/install.go#L329
+// This is slightly adapted from https://github.com/helm/helm/blob/2332b480c9cb70a0d8a85247992d6155fbe82416/cmd/helm/install.go#L359
 func mergeValues(dest, src chartutil.Values) chartutil.Values {
 	for k, v := range src {
 		// If the key doesn't exist already, then just set the key to that value
@@ -298,6 +388,31 @@ func mergeValues(dest, src chartutil.Values) chartutil.Values {
 		dest[k] = mergeValues(destMap, nextMap)
 	}
 	return dest
+}
+
+// readURL attempts to read a file from an url.
+// This is slightly adapted from https://github.com/helm/helm/blob/2332b480c9cb70a0d8a85247992d6155fbe82416/cmd/helm/install.go#L552
+func readURL(URL string) ([]byte, error) {
+	var settings helmenv.EnvSettings
+	flags := pflag.NewFlagSet("helm-env", pflag.ContinueOnError)
+	settings.AddFlags(flags)
+	settings.Init(flags)
+
+	u, _ := url.Parse(URL)
+	p := getter.All(settings)
+
+	getterConstructor, err := p.ByScheme(u.Scheme)
+
+	if err != nil {
+		return []byte{}, err
+	}
+
+	getter, err := getterConstructor(URL, "", "", "")
+	if err != nil {
+		return []byte{}, err
+	}
+	data, err := getter.Get(URL)
+	return data.Bytes(), err
 }
 
 // releaseManifestToUnstructured turns a string containing YAML
