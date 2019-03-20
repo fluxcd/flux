@@ -7,11 +7,10 @@ import (
 )
 
 type WorkloadUpdate struct {
-	ResourceID   flux.ResourceID
-	Workload     cluster.Workload
-	Resource     resource.Workload
-	ManifestPath string
-	Updates      []ContainerUpdate
+	ResourceID flux.ResourceID
+	Workload   cluster.Workload
+	Resource   resource.Workload
+	Updates    []ContainerUpdate
 }
 
 type WorkloadFilter interface {

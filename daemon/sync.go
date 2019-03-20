@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
+	"path/filepath"
 	"time"
 
 	"github.com/weaveworks/flux"
@@ -13,6 +14,7 @@ import (
 	"github.com/weaveworks/flux/event"
 	"github.com/weaveworks/flux/git"
 	"github.com/weaveworks/flux/resource"
+	"github.com/weaveworks/flux/resourcestore"
 	fluxsync "github.com/weaveworks/flux/sync"
 	"github.com/weaveworks/flux/update"
 )
@@ -56,13 +58,18 @@ func (d *Daemon) Sync(ctx context.Context, started time.Time, revision string, s
 
 	// Run actual sync of resources on cluster
 	syncSetName := makeGitConfigHash(d.Repo.Origin(), d.GitConfig)
-	resources, resourceErrors, err := doSync(d.Manifests, working, d.Cluster, syncSetName, d.Logger)
+	resourceStore, err := resourcestore.NewCheckoutManager(ctx, d.ManifestGenerationEnabled,
+		d.Manifests, d.PolicyTranslator, working)
+	if err != nil {
+		return errors.Wrap(err, "reading the respository checkout")
+	}
+	resources, resourceErrors, err := doSync(resourceStore, d.Cluster, syncSetName, d.Logger)
 	if err != nil {
 		return err
 	}
 
 	// Determine what resources changed during the sync
-	changedResources, err := getChangedResources(ctx, c, d.GitTimeout, working, d.Manifests, resources)
+	changedResources, err := getChangedResources(ctx, c, d.GitTimeout, working, resourceStore, resources)
 	serviceIDs := flux.ResourceIDSet{}
 	for _, r := range changedResources {
 		serviceIDs.Add([]flux.ResourceID{r.ResourceID()})
@@ -133,9 +140,9 @@ func getChangeSet(ctx context.Context, working *git.Checkout, repo *git.Repo, ti
 
 // doSync runs the actual sync of workloads on the cluster. It returns
 // a map with all resources it applied and sync errors it encountered.
-func doSync(manifests cluster.Manifests, working *git.Checkout, clus cluster.Cluster, syncSetName string,
+func doSync(resourceStore resourcestore.ResourceStore, clus cluster.Cluster, syncSetName string,
 	logger log.Logger) (map[string]resource.Resource, []event.ResourceError, error) {
-	resources, err := manifests.LoadManifests(working.Dir(), working.ManifestDirs())
+	resources, err := resourceStore.GetAllResourcesByID()
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "loading resources from repo")
 	}
@@ -162,23 +169,43 @@ func doSync(manifests cluster.Manifests, working *git.Checkout, clus cluster.Clu
 // getChangedResources calculates what resources are modified during
 // this sync.
 func getChangedResources(ctx context.Context, c changeSet, timeout time.Duration, working *git.Checkout,
-	manifests cluster.Manifests, resources map[string]resource.Resource) (map[string]resource.Resource, error) {
+	resourceStore resourcestore.ResourceStore, resources map[string]resource.Resource) (map[string]resource.Resource, error) {
 	if c.initialSync {
 		return resources, nil
 	}
 
+	errorf := func(err error) error { return errors.Wrap(err, "loading resources from repo") }
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	changedFiles, err := working.ChangedFiles(ctx, c.oldTagRev)
-	if err == nil && len(changedFiles) > 0 {
-		// We had some changed files, we're syncing a diff
-		// FIXME(michael): this won't be accurate when a file can have more than one resource
-		resources, err = manifests.LoadManifests(working.Dir(), changedFiles)
+	if err != nil {
+		return nil, errorf(err)
 	}
 	cancel()
+	resourcesBySource, err := resourceStore.GetAllResourcesBySource()
 	if err != nil {
-		return nil, errors.Wrap(err, "loading resources from repo")
+		return nil, errorf(err)
 	}
-	return resources, nil
+	changedResources := map[string]resource.Resource{}
+	// FIXME(michael): this won't be accurate when a file can have more than one resource
+	for _, absolutePath := range changedFiles {
+		relPath, err := filepath.Rel(working.Dir(), absolutePath)
+		if err != nil {
+			return nil, errorf(err)
+		}
+		if r, ok := resourcesBySource[relPath]; ok {
+			changedResources[r.ResourceID().String()] = r
+		}
+	}
+	// All resources generated from .flux.yaml files need to be considered as changed
+	// (even if the .flux.yaml file itself didn't) since external dependencies of the file
+	// (e.g. scripts invoked), which we cannot track, may have changed
+	for sourcePath, r := range resourcesBySource {
+		_, sourceFilename := filepath.Split(sourcePath)
+		if sourceFilename == resourcestore.ConfigFilename {
+			changedResources[r.ResourceID().String()] = r
+		}
+	}
+	return changedResources, nil
 }
 
 // getNotes retrieves the git notes from the working clone.

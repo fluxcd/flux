@@ -13,6 +13,7 @@ import (
 
 	"github.com/go-kit/kit/log"
 	"github.com/stretchr/testify/assert"
+
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/api/v10"
 	"github.com/weaveworks/flux/api/v11"
@@ -30,6 +31,7 @@ import (
 	"github.com/weaveworks/flux/registry"
 	registryMock "github.com/weaveworks/flux/registry/mock"
 	"github.com/weaveworks/flux/resource"
+	"github.com/weaveworks/flux/resourcestore"
 	"github.com/weaveworks/flux/update"
 )
 
@@ -514,8 +516,11 @@ func TestDaemon_PolicyUpdate(t *testing.T) {
 			return false
 		}
 		defer co.Clean()
-		dirs := co.ManifestDirs()
-		m, err := d.Manifests.LoadManifests(co.Dir(), dirs)
+		cm, err := resourcestore.NewCheckoutManager(ctx, false, d.Manifests, d.PolicyTranslator, co)
+		if err != nil {
+			t.Fatal(err)
+		}
+		m, err := cm.GetAllResourcesByID()
 		if err != nil {
 			t.Fatalf("Error: %s", err.Error())
 		}
@@ -735,17 +740,18 @@ func mockDaemon(t *testing.T) (*Daemon, func(), func(), *cluster.Mock, *mockEven
 
 	// Finally, the daemon
 	d := &Daemon{
-		Repo:           repo,
-		GitConfig:      params,
-		Cluster:        k8s,
-		Manifests:      manifests,
-		Registry:       imageRegistry,
-		V:              testVersion,
-		Jobs:           jobs,
-		JobStatusCache: &job.StatusCache{Size: 100},
-		EventWriter:    events,
-		Logger:         logger,
-		LoopVars:       &LoopVars{GitTimeout: timeout},
+		Repo:             repo,
+		GitConfig:        params,
+		Cluster:          k8s,
+		Manifests:        manifests,
+		PolicyTranslator: &kubernetes.PolicyTranslator{},
+		Registry:         imageRegistry,
+		V:                testVersion,
+		Jobs:             jobs,
+		JobStatusCache:   &job.StatusCache{Size: 100},
+		EventWriter:      events,
+		Logger:           logger,
+		LoopVars:         &LoopVars{GitTimeout: timeout},
 	}
 
 	start := func() {
@@ -865,9 +871,11 @@ func (w *wait) ForImageTag(t *testing.T, d *Daemon, workload, container, tag str
 			return false
 		}
 		defer co.Clean()
-
-		dirs := co.ManifestDirs()
-		resources, err := d.Manifests.LoadManifests(co.Dir(), dirs)
+		cm, err := resourcestore.NewCheckoutManager(context.TODO(), false, d.Manifests, d.PolicyTranslator, co)
+		if err != nil {
+			return false
+		}
+		resources, err := cm.GetAllResourcesByID()
 		assert.NoError(t, err)
 
 		workload, ok := resources[workload].(resource.Workload)

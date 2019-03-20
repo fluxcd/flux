@@ -39,5 +39,6 @@ testdata/sidecar/.sidecar
 docker/fluxy-dumbconf.priv
 test/profiles
 test/bin/kubectl
+test/bin/kustomize
 test/bin/helm
 test/bin/kind
