@@ -236,6 +236,9 @@ func (d *Daemon) makeJobFromUpdate(update updateFunc) jobFunc {
 		var result job.Result
 		err := d.WithClone(ctx, func(working *git.Checkout) error {
 			var err error
+			if err = verifyWorkingRepo(ctx, d.Repo, working, d.GitConfig); d.GitVerifySignatures && err != nil {
+				return err
+			}
 			result, err = update(ctx, jobID, working, logger)
 			if err != nil {
 				return err
@@ -257,7 +260,7 @@ func (d *Daemon) executeJob(id job.ID, do jobFunc, logger log.Logger) (job.Resul
 	d.JobStatusCache.SetStatus(id, job.Status{StatusString: job.StatusRunning})
 	result, err := do(ctx, id, logger)
 	if err != nil {
-		d.JobStatusCache.SetStatus(id, job.Status{StatusString: job.StatusFailed, Err: err.Error()})
+		d.JobStatusCache.SetStatus(id, job.Status{StatusString: job.StatusFailed, Err: err.Error(), Result: result})
 		return result, err
 	}
 	d.JobStatusCache.SetStatus(id, job.Status{StatusString: job.StatusSucceeded, Result: result})
@@ -353,12 +356,25 @@ func (d *Daemon) sync() jobFunc {
 		if err != nil {
 			return result, err
 		}
-		head, err := d.Repo.Revision(ctx, d.GitConfig.Branch)
+		head, err := d.Repo.BranchHead(ctx)
 		if err != nil {
 			return result, err
 		}
+		if d.GitVerifySignatures {
+			var latestValidRev string
+			if latestValidRev, _, err = latestValidRevision(ctx, d.Repo, d.GitConfig); err != nil {
+				return result, err
+			} else if head != latestValidRev {
+				result.Revision = latestValidRev
+				return result, fmt.Errorf(
+					"The branch HEAD in the git repo is not verified, and fluxd is unable to sync to it. The last verified commit was %.8s. HEAD is %.8s.",
+					latestValidRev,
+					head,
+				)
+			}
+		}
 		result.Revision = head
-		return result, nil
+		return result, err
 	}
 }
 
@@ -750,4 +766,77 @@ func policyEventTypes(u policy.Update) []string {
 	}
 	sort.Strings(result)
 	return result
+}
+
+// latestValidRevision returns the HEAD of the configured branch if it
+// has a valid signature, or the SHA of the latest valid commit it
+// could find plus the invalid commit thereafter.
+//
+// Signature validation happens for commits between the revision of the
+// sync tag and the HEAD, after the signature of the sync tag itself
+// has been validated, as the branch can not be trusted when the tag
+// originates from an unknown source.
+//
+// In case the signature of the tag can not be verified, or it points
+// towards a revision we can not get a commit range for, it returns an
+// error.
+func latestValidRevision(ctx context.Context, repo *git.Repo, gitConfig git.Config) (string, git.Commit, error) {
+	var invalidCommit = git.Commit{}
+	newRevision, err := repo.BranchHead(ctx)
+	if err != nil {
+		return "", invalidCommit, err
+	}
+
+	// Validate tag and retrieve the revision it points to
+	tagRevision, err := repo.VerifyTag(ctx, gitConfig.SyncTag)
+	if err != nil && !strings.Contains(err.Error(), "not found.") {
+		return "", invalidCommit, errors.Wrap(err, "failed to verify signature of sync tag")
+	}
+
+	var commits []git.Commit
+	if tagRevision == "" {
+		commits, err = repo.CommitsBefore(ctx, newRevision)
+	} else {
+		// Assure the revision from the tag is a signed and valid commit
+		if err = repo.VerifyCommit(ctx, tagRevision); err != nil {
+			return "", invalidCommit, errors.Wrap(err, "failed to verify signature of sync tag revision")
+		}
+		commits, err = repo.CommitsBetween(ctx, tagRevision, newRevision)
+	}
+
+	if err != nil {
+		return tagRevision, invalidCommit, err
+	}
+
+	// Loop through commits in ascending order, validating the
+	// signature of each commit. In case we hit an invalid commit, we
+	// return the revision of the commit before that, as that one is
+	// valid.
+	for i := len(commits) - 1; i >= 0; i-- {
+		if !commits[i].Signature.Valid() {
+			if i+1 < len(commits) {
+				return commits[i+1].Revision, commits[i], nil
+			}
+			return tagRevision, commits[i], nil
+		}
+	}
+
+	return newRevision, invalidCommit, nil
+}
+
+func verifyWorkingRepo(ctx context.Context, repo *git.Repo, working *git.Checkout, gitConfig git.Config) error {
+	if latestVerifiedRev, _, err := latestValidRevision(ctx, repo, gitConfig); err != nil {
+		return err
+	} else if headRev, err := working.HeadRevision(ctx); err != nil {
+		return err
+	} else if headRev != latestVerifiedRev {
+		return unsignedHeadRevisionError(latestVerifiedRev, headRev)
+	}
+	return nil
+}
+
+func isUnknownRevision(err error) bool {
+	return err != nil &&
+		(strings.Contains(err.Error(), "unknown revision or path not in the working tree.") ||
+			strings.Contains(err.Error(), "bad revision"))
 }

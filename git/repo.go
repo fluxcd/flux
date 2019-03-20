@@ -208,6 +208,16 @@ func (r *Repo) Revision(ctx context.Context, ref string) (string, error) {
 	return refRevision(ctx, r.dir, ref)
 }
 
+// BranchHead returns the HEAD revision (SHA1) of the configured branch
+func (r *Repo) BranchHead(ctx context.Context) (string, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	if err := r.errorIfNotReady(); err != nil {
+		return "", err
+	}
+	return refRevision(ctx, r.dir, "heads/"+r.branch)
+}
+
 func (r *Repo) CommitsBefore(ctx context.Context, ref string, paths ...string) ([]Commit, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -224,6 +234,24 @@ func (r *Repo) CommitsBetween(ctx context.Context, ref1, ref2 string, paths ...s
 		return nil, err
 	}
 	return onelinelog(ctx, r.dir, ref1+".."+ref2, paths)
+}
+
+func (r *Repo) VerifyTag(ctx context.Context, tag string) (string, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	if err := r.errorIfNotReady(); err != nil {
+		return "", err
+	}
+	return verifyTag(ctx, r.dir, tag)
+}
+
+func (r *Repo) VerifyCommit(ctx context.Context, commit string) error {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	if err := r.errorIfNotReady(); err != nil {
+		return err
+	}
+	return verifyCommit(ctx, r.dir, commit)
 }
 
 // step attempts to advance the repo state machine, and returns `true`

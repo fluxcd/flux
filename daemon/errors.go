@@ -67,3 +67,21 @@ daemon if possible:
 `,
 	}
 }
+
+func unsignedHeadRevisionError(latestValidRevision, headRevision string) error {
+	return &fluxerr.Error{
+		Type: fluxerr.User,
+		Err:  fmt.Errorf("HEAD revision is unsigned"),
+		Help: `HEAD is not a verified commit.
+
+The branch HEAD in the git repo is not verified, and fluxd is unable to
+make a change on top of it. The last verified commit was
+
+    ` + latestValidRevision + `
+
+HEAD is 
+
+    ` + headRevision + `.
+`,
+	}
+}

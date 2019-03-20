@@ -14,15 +14,15 @@ var (
 // Config holds some values we use when working in the working clone of
 // a repo.
 type Config struct {
-	Branch      string   // branch we're syncing to
-	Paths       []string // paths within the repo containing files we care about
-	SyncTag     string
-	NotesRef    string
-	UserName    string
-	UserEmail   string
-	SigningKey  string
-	SetAuthor   bool
-	SkipMessage string
+	Branch           string   // branch we're syncing to
+	Paths            []string // paths within the repo containing files we care about
+	SyncTag          string
+	NotesRef         string
+	UserName         string
+	UserEmail        string
+	SigningKey       string
+	SetAuthor        bool
+	SkipMessage      string
 }
 
 // Checkout is a local working clone of the remote repo. It is
@@ -36,9 +36,9 @@ type Checkout struct {
 }
 
 type Commit struct {
-	SigningKey string
-	Revision   string
-	Message    string
+	Signature Signature
+	Revision  string
+	Message   string
 }
 
 // CommitAction - struct holding commit information
@@ -184,7 +184,7 @@ func (c *Checkout) MoveSyncTagAndPush(ctx context.Context, tagAction TagAction) 
 	return moveTagAndPush(ctx, c.dir, c.config.SyncTag, c.upstream.URL, tagAction)
 }
 
-func (c *Checkout) VerifySyncTag(ctx context.Context) error {
+func (c *Checkout) VerifySyncTag(ctx context.Context) (string, error) {
 	return verifyTag(ctx, c.dir, c.config.SyncTag)
 }
 
@@ -201,4 +201,8 @@ func (c *Checkout) ChangedFiles(ctx context.Context, ref string) ([]string, erro
 
 func (c *Checkout) NoteRevList(ctx context.Context) (map[string]struct{}, error) {
 	return noteRevList(ctx, c.dir, c.realNotesRef)
+}
+
+func (c *Checkout) Checkout(ctx context.Context, rev string) error {
+	return checkout(ctx, c.dir, rev)
 }
