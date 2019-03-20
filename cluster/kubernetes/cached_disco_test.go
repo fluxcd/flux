@@ -65,7 +65,7 @@ func TestCachedDiscovery(t *testing.T) {
 		},
 	}
 	makeHandler := func(d discovery.CachedDiscoveryInterface) toolscache.ResourceEventHandler {
-		return chainHandler{first: addHandler, next: makeInvalidatingHandler(d)}
+		return chainHandler{first: makeInvalidatingHandler(d), next: addHandler}
 	}
 
 	cachedDisco, store, _ := makeCachedDiscovery(coreClient.Discovery(), crdClient, shutdown, makeHandler)
