@@ -1,6 +1,7 @@
 package release
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -11,6 +12,7 @@ import (
 	"github.com/go-kit/kit/log"
 
 	"github.com/stretchr/testify/assert"
+
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster"
 	"github.com/weaveworks/flux/cluster/kubernetes"
@@ -19,6 +21,7 @@ import (
 	"github.com/weaveworks/flux/image"
 	registryMock "github.com/weaveworks/flux/registry/mock"
 	"github.com/weaveworks/flux/resource"
+	"github.com/weaveworks/flux/resourcestore"
 	"github.com/weaveworks/flux/update"
 )
 
@@ -158,6 +161,14 @@ func mockCluster(running ...cluster.Workload) *cluster.Mock {
 	}
 }
 
+func NewCheckoutManagerOrFail(t *testing.T, manifests cluster.Manifests, checkout *git.Checkout) resourcestore.ResourceStore {
+	cm, err := resourcestore.NewCheckoutManager(context.TODO(), false, manifests, &kubernetes.PolicyTranslator{}, checkout)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return cm
+}
+
 func setup(t *testing.T) (*git.Checkout, func()) {
 	return gittest.Checkout(t)
 }
@@ -225,7 +236,7 @@ func Test_InitContainer(t *testing.T) {
 		},
 	}
 
-	cluster := mockCluster(hwSvc, lockedSvc, initSvc)
+	mCluster := mockCluster(hwSvc, lockedSvc, initSvc)
 
 	expect := expected{
 		Specific: update.Result{
@@ -254,16 +265,15 @@ func Test_InitContainer(t *testing.T) {
 	defer clean()
 
 	testRelease(t, &ReleaseContext{
-		cluster:   cluster,
-		manifests: mockManifests,
-		registry:  mockRegistry,
-		repo:      checkout,
+		cluster:       mCluster,
+		resourceStore: NewCheckoutManagerOrFail(t, mockManifests, checkout),
+		registry:      mockRegistry,
 	}, spec, expect.Result())
 
 }
 
 func Test_FilterLogic(t *testing.T) {
-	cluster := mockCluster(hwSvc, lockedSvc) // no testsvc in cluster, but it _is_ in repo
+	mCluster := mockCluster(hwSvc, lockedSvc) // no testsvc in cluster, but it _is_ in repo
 
 	notInRepoService := "default:deployment/notInRepo"
 	notInRepoSpec, _ := update.ParseResourceSpec(notInRepoService)
@@ -446,17 +456,16 @@ func Test_FilterLogic(t *testing.T) {
 			checkout, cleanup := setup(t)
 			defer cleanup()
 			testRelease(t, &ReleaseContext{
-				cluster:   cluster,
-				manifests: mockManifests,
-				registry:  mockRegistry,
-				repo:      checkout,
+				cluster:       mCluster,
+				resourceStore: NewCheckoutManagerOrFail(t, mockManifests, checkout),
+				registry:      mockRegistry,
 			}, tst.Spec, tst.Expected.Result())
 		})
 	}
 }
 
 func Test_Force_lockedWorkload(t *testing.T) {
-	cluster := mockCluster(lockedSvc)
+	mCluster := mockCluster(lockedSvc)
 	success := update.WorkloadResult{
 		Status: update.ReleaseStatusSuccess,
 		PerContainer: []update.ContainerUpdate{
@@ -539,17 +548,16 @@ func Test_Force_lockedWorkload(t *testing.T) {
 			checkout, cleanup := setup(t)
 			defer cleanup()
 			testRelease(t, &ReleaseContext{
-				cluster:   cluster,
-				manifests: mockManifests,
-				registry:  mockRegistry,
-				repo:      checkout,
+				cluster:       mCluster,
+				resourceStore: NewCheckoutManagerOrFail(t, mockManifests, checkout),
+				registry:      mockRegistry,
 			}, tst.Spec, tst.Expected.Result())
 		})
 	}
 }
 
 func Test_Force_filteredContainer(t *testing.T) {
-	cluster := mockCluster(semverSvc)
+	mCluster := mockCluster(semverSvc)
 	successNew := update.WorkloadResult{
 		Status: update.ReleaseStatusSuccess,
 		PerContainer: []update.ContainerUpdate{
@@ -644,17 +652,16 @@ func Test_Force_filteredContainer(t *testing.T) {
 			checkout, cleanup := setup(t)
 			defer cleanup()
 			testRelease(t, &ReleaseContext{
-				cluster:   cluster,
-				manifests: mockManifests,
-				registry:  mockRegistry,
-				repo:      checkout,
+				cluster:       mCluster,
+				resourceStore: NewCheckoutManagerOrFail(t, mockManifests, checkout),
+				registry:      mockRegistry,
 			}, tst.Spec, tst.Expected.Result())
 		})
 	}
 }
 
 func Test_ImageStatus(t *testing.T) {
-	cluster := mockCluster(hwSvc, lockedSvc, testSvc)
+	mCluster := mockCluster(hwSvc, lockedSvc, testSvc)
 	upToDateRegistry := &registryMock.Registry{
 		Images: []image.Info{
 			{
@@ -714,10 +721,9 @@ func Test_ImageStatus(t *testing.T) {
 			checkout, cleanup := setup(t)
 			defer cleanup()
 			ctx := &ReleaseContext{
-				cluster:   cluster,
-				manifests: mockManifests,
-				repo:      checkout,
-				registry:  upToDateRegistry,
+				cluster:       mCluster,
+				resourceStore: NewCheckoutManagerOrFail(t, mockManifests, checkout),
+				registry:      upToDateRegistry,
 			}
 			testRelease(t, ctx, tst.Spec, tst.Expected.Result())
 		})
@@ -738,14 +744,13 @@ func Test_UpdateMultidoc(t *testing.T) {
 		},
 	}
 
-	cluster := mockCluster(hwSvc, lockedSvc, egSvc) // no testsvc in cluster, but it _is_ in repo
+	mCluster := mockCluster(hwSvc, lockedSvc, egSvc) // no testsvc in cluster, but it _is_ in repo
 	checkout, cleanup := setup(t)
 	defer cleanup()
 	ctx := &ReleaseContext{
-		cluster:   cluster,
-		manifests: mockManifests,
-		repo:      checkout,
-		registry:  mockRegistry,
+		cluster:       mCluster,
+		resourceStore: NewCheckoutManagerOrFail(t, mockManifests, checkout),
+		registry:      mockRegistry,
 	}
 	spec := update.ReleaseImageSpec{
 		ServiceSpecs: []update.ResourceSpec{"default:deployment/multi-deploy"},
@@ -786,14 +791,13 @@ func Test_UpdateList(t *testing.T) {
 		},
 	}
 
-	cluster := mockCluster(hwSvc, lockedSvc, egSvc) // no testsvc in cluster, but it _is_ in repo
+	mCluster := mockCluster(hwSvc, lockedSvc, egSvc) // no testsvc in cluster, but it _is_ in repo
 	checkout, cleanup := setup(t)
 	defer cleanup()
 	ctx := &ReleaseContext{
-		cluster:   cluster,
-		manifests: mockManifests,
-		repo:      checkout,
-		registry:  mockRegistry,
+		cluster:       mCluster,
+		resourceStore: NewCheckoutManagerOrFail(t, mockManifests, checkout),
+		registry:      mockRegistry,
 	}
 	spec := update.ReleaseImageSpec{
 		ServiceSpecs: []update.ResourceSpec{"default:deployment/list-deploy"},
@@ -821,14 +825,13 @@ func Test_UpdateList(t *testing.T) {
 }
 
 func Test_UpdateContainers(t *testing.T) {
-	cluster := mockCluster(hwSvc, lockedSvc)
+	mCluster := mockCluster(hwSvc, lockedSvc)
 	checkout, cleanup := setup(t)
 	defer cleanup()
 	ctx := &ReleaseContext{
-		cluster:   cluster,
-		manifests: mockManifests,
-		repo:      checkout,
-		registry:  mockRegistry,
+		cluster:       mCluster,
+		resourceStore: NewCheckoutManagerOrFail(t, mockManifests, checkout),
+		registry:      mockRegistry,
 	}
 	type expected struct {
 		Err    error
@@ -1054,12 +1057,12 @@ type badManifests struct {
 	cluster.Manifests
 }
 
-func (m *badManifests) UpdateImage(def []byte, resourceID flux.ResourceID, container string, newImageID image.Ref) ([]byte, error) {
+func (m *badManifests) SetWorkloadContainerImage(def []byte, id flux.ResourceID, container string, image image.Ref) ([]byte, error) {
 	return def, nil
 }
 
 func Test_BadRelease(t *testing.T) {
-	cluster := mockCluster(hwSvc)
+	mCluster := mockCluster(hwSvc)
 	spec := update.ReleaseImageSpec{
 		ServiceSpecs: []update.ResourceSpec{update.ResourceSpecAll},
 		ImageSpec:    update.ImageSpecFromRef(newHwRef),
@@ -1071,10 +1074,9 @@ func Test_BadRelease(t *testing.T) {
 
 	manifests := kubernetes.NewManifests(kubernetes.ConstNamespacer("default"), log.NewLogfmtLogger(os.Stdout))
 	ctx := &ReleaseContext{
-		cluster:   cluster,
-		manifests: manifests,
-		repo:      checkout1,
-		registry:  mockRegistry,
+		cluster:       mCluster,
+		resourceStore: NewCheckoutManagerOrFail(t, manifests, checkout1),
+		registry:      mockRegistry,
 	}
 	_, err := Release(ctx, spec, log.NewNopLogger())
 	if err != nil {
@@ -1085,10 +1087,9 @@ func Test_BadRelease(t *testing.T) {
 	defer cleanup2()
 
 	ctx = &ReleaseContext{
-		cluster:   cluster,
-		manifests: &badManifests{manifests},
-		repo:      checkout2,
-		registry:  mockRegistry,
+		cluster:       mCluster,
+		resourceStore: NewCheckoutManagerOrFail(t, &badManifests{manifests}, checkout2),
+		registry:      mockRegistry,
 	}
 	_, err = Release(ctx, spec, log.NewNopLogger())
 	if err == nil {

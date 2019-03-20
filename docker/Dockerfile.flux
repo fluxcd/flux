@@ -14,6 +14,7 @@ RUN sh /home/flux/known_hosts.sh /etc/ssh/ssh_known_hosts && \
 COPY ./ssh_config /etc/ssh/ssh_config
 
 COPY ./kubectl /usr/local/bin/
+COPY ./kustomize /usr/local/bin
 
 # These are pretty static
 LABEL maintainer="Weaveworks <help@weave.works>" \

@@ -1,10 +1,8 @@
 package release
 
 import (
+	"context"
 	"fmt"
-	"io/ioutil"
-	"os"
-	"path/filepath"
 
 	"github.com/pkg/errors"
 
@@ -13,48 +11,47 @@ import (
 	"github.com/weaveworks/flux/git"
 	"github.com/weaveworks/flux/registry"
 	"github.com/weaveworks/flux/resource"
+	"github.com/weaveworks/flux/resourcestore"
 	"github.com/weaveworks/flux/update"
 )
 
 type ReleaseContext struct {
-	cluster   cluster.Cluster
-	manifests cluster.Manifests
-	repo      *git.Checkout
-	registry  registry.Registry
+	cluster       cluster.Cluster
+	resourceStore resourcestore.ResourceStore
+	registry      registry.Registry
 }
 
-func NewReleaseContext(c cluster.Cluster, m cluster.Manifests, reg registry.Registry, repo *git.Checkout) *ReleaseContext {
-	return &ReleaseContext{
-		cluster:   c,
-		manifests: m,
-		repo:      repo,
-		registry:  reg,
+func NewReleaseContext(ctx context.Context, enableManifestGeneration bool,
+	c cluster.Cluster, m cluster.Manifests, pt cluster.PolicyTranslator, reg registry.Registry, repo *git.Checkout) (*ReleaseContext, error) {
+	rs, err := resourcestore.NewCheckoutManager(ctx, enableManifestGeneration, m, pt, repo)
+	if err != nil {
+		return nil, err
 	}
+	result := &ReleaseContext{
+		cluster:       c,
+		resourceStore: rs,
+		registry:      reg,
+	}
+	return result, nil
 }
 
 func (rc *ReleaseContext) Registry() registry.Registry {
 	return rc.registry
 }
 
-func (rc *ReleaseContext) LoadManifests() (map[string]resource.Resource, error) {
-	return rc.manifests.LoadManifests(rc.repo.Dir(), rc.repo.ManifestDirs())
+func (rc *ReleaseContext) GetAllResources() (map[string]resource.Resource, error) {
+	return rc.resourceStore.GetAllResourcesByID()
 }
 
 func (rc *ReleaseContext) WriteUpdates(updates []*update.WorkloadUpdate) error {
+
 	err := func() error {
 		for _, update := range updates {
-			manifestBytes, err := ioutil.ReadFile(update.ManifestPath)
-			if err != nil {
-				return err
-			}
 			for _, container := range update.Updates {
-				manifestBytes, err = rc.manifests.UpdateImage(manifestBytes, update.ResourceID, container.Container, container.Target)
+				err := rc.resourceStore.SetWorkloadContainerImage(update.ResourceID, container.Container, container.Target)
 				if err != nil {
 					return errors.Wrapf(err, "updating resource %s in %s", update.ResourceID.String(), update.Resource.Source())
 				}
-			}
-			if err = ioutil.WriteFile(update.ManifestPath, manifestBytes, os.FileMode(0600)); err != nil {
-				return errors.Wrapf(err, "writing updated file %s", update.Resource.Source())
 			}
 		}
 		return nil
@@ -106,9 +103,9 @@ func (rc *ReleaseContext) SelectWorkloads(results update.Result, prefilters, pos
 		update, ok := allDefined[s.ID]
 		if !ok {
 			// A contradiction: we asked only about defined
-			// controllers, and got a controller that is not
+			// workloads, and got a workload that is not
 			// defined.
-			return nil, fmt.Errorf("controller %s was requested and is running, but is not defined", s.ID)
+			return nil, fmt.Errorf("workload %s was requested and is running, but is not defined", s.ID)
 		}
 		update.Workload = s
 		forPostFiltering = append(forPostFiltering, update)
@@ -127,9 +124,9 @@ func (rc *ReleaseContext) SelectWorkloads(results update.Result, prefilters, pos
 }
 
 // WorkloadsForUpdate collects all workloads defined in manifests and prepares a list of
-// controller updates for each of them.  It does not consider updatability.
+// workload updates for each of them.  It does not consider updatability.
 func (rc *ReleaseContext) WorkloadsForUpdate() (map[flux.ResourceID]*update.WorkloadUpdate, error) {
-	resources, err := rc.LoadManifests()
+	resources, err := rc.GetAllResources()
 	if err != nil {
 		return nil, err
 	}
@@ -138,9 +135,8 @@ func (rc *ReleaseContext) WorkloadsForUpdate() (map[flux.ResourceID]*update.Work
 	for _, res := range resources {
 		if wl, ok := res.(resource.Workload); ok {
 			defined[res.ResourceID()] = &update.WorkloadUpdate{
-				ResourceID:   res.ResourceID(),
-				Resource:     wl,
-				ManifestPath: filepath.Join(rc.repo.Dir(), res.Source()),
+				ResourceID: res.ResourceID(),
+				Resource:   wl,
 			}
 		}
 	}

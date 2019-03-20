@@ -32,6 +32,7 @@ import (
 	"github.com/weaveworks/flux/cluster"
 	kresource "github.com/weaveworks/flux/cluster/kubernetes/resource"
 	fluxfake "github.com/weaveworks/flux/integrations/client/clientset/versioned/fake"
+	"github.com/weaveworks/flux/resource"
 	"github.com/weaveworks/flux/sync"
 )
 
@@ -383,8 +384,11 @@ metadata:
 		if err != nil {
 			t.Fatal(err)
 		}
-
-		err = sync.Sync("testset", resources, kube)
+		resourcesByID := map[string]resource.Resource{}
+		for _, r := range resources {
+			resourcesByID[r.ResourceID().String()] = r
+		}
+		err = sync.Sync("testset", resourcesByID, kube)
 		if !expectErrors && err != nil {
 			t.Error(err)
 		}

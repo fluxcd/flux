@@ -31,7 +31,7 @@ func Release(rc *ReleaseContext, changes Changes, logger log.Logger) (results up
 
 	logger = log.With(logger, "type", "release")
 
-	before, err := rc.LoadManifests()
+	before, err := rc.GetAllResources()
 	updates, results, err := changes.CalculateRelease(rc, logger)
 	if err != nil {
 		return nil, err
@@ -42,7 +42,7 @@ func Release(rc *ReleaseContext, changes Changes, logger log.Logger) (results up
 		return nil, MakeReleaseError(errors.Wrap(err, "applying changes"))
 	}
 
-	after, err := rc.LoadManifests()
+	after, err := rc.GetAllResources()
 	if err != nil {
 		return nil, MakeReleaseError(errors.Wrap(err, "loading resources after updates"))
 	}

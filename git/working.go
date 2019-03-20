@@ -111,7 +111,7 @@ func (c *Checkout) Dir() string {
 
 // ManifestDirs returns the paths to the manifests files. It ensures
 // that at least one path is returned, so that it can be used with
-// `Manifest.LoadManifests`.
+// `Manifest.GetAllResourcesByID`.
 func (c *Checkout) ManifestDirs() []string {
 	if len(c.config.Paths) == 0 {
 		return []string{c.dir}

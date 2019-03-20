@@ -27,6 +27,7 @@ import (
 	"github.com/weaveworks/flux/registry"
 	"github.com/weaveworks/flux/release"
 	"github.com/weaveworks/flux/resource"
+	"github.com/weaveworks/flux/resourcestore"
 	"github.com/weaveworks/flux/update"
 )
 
@@ -42,17 +43,19 @@ const (
 // Daemon is the fully-functional state of a daemon (compare to
 // `NotReadyDaemon`).
 type Daemon struct {
-	V              string
-	Cluster        cluster.Cluster
-	Manifests      cluster.Manifests
-	Registry       registry.Registry
-	ImageRefresh   chan image.Name
-	Repo           *git.Repo
-	GitConfig      git.Config
-	Jobs           *job.Queue
-	JobStatusCache *job.StatusCache
-	EventWriter    event.EventWriter
-	Logger         log.Logger
+	V                         string
+	Cluster                   cluster.Cluster
+	Manifests                 cluster.Manifests
+	PolicyTranslator          cluster.PolicyTranslator
+	Registry                  registry.Registry
+	ImageRefresh              chan image.Name
+	Repo                      *git.Repo
+	GitConfig                 git.Config
+	Jobs                      *job.Queue
+	JobStatusCache            *job.StatusCache
+	EventWriter               event.EventWriter
+	Logger                    log.Logger
+	ManifestGenerationEnabled bool
 	// bookkeeping
 	*LoopVars
 }
@@ -76,8 +79,11 @@ func (d *Daemon) getResources(ctx context.Context) (map[string]resource.Resource
 	var resources map[string]resource.Resource
 	var globalReadOnly v6.ReadOnlyReason
 	err := d.WithClone(ctx, func(checkout *git.Checkout) error {
-		var err error
-		resources, err = d.Manifests.LoadManifests(checkout.Dir(), checkout.ManifestDirs())
+		cm, err := resourcestore.NewCheckoutManager(ctx, d.ManifestGenerationEnabled, d.Manifests, d.PolicyTranslator, checkout)
+		if err != nil {
+			return err
+		}
+		resources, err = cm.GetAllResourcesByID()
 		return err
 	})
 
@@ -339,7 +345,7 @@ func (d *Daemon) UpdateManifests(ctx context.Context, spec update.Spec) (job.ID,
 		}
 		return d.queueJob(d.makeLoggingJobFunc(d.makeJobFromUpdate(d.release(spec, s)))), nil
 	case policy.Updates:
-		return d.queueJob(d.makeLoggingJobFunc(d.makeJobFromUpdate(d.updatePolicy(spec, s)))), nil
+		return d.queueJob(d.makeLoggingJobFunc(d.makeJobFromUpdate(d.updatePolicies(spec, s)))), nil
 	case update.ManualSync:
 		return d.queueJob(d.sync()), nil
 	default:
@@ -378,7 +384,7 @@ func (d *Daemon) sync() jobFunc {
 	}
 }
 
-func (d *Daemon) updatePolicy(spec update.Spec, updates policy.Updates) updateFunc {
+func (d *Daemon) updatePolicies(spec update.Spec, updates policy.Updates) updateFunc {
 	return func(ctx context.Context, jobID job.ID, working *git.Checkout, logger log.Logger) (job.Result, error) {
 		// For each update
 		var workloadIDs []flux.ResourceID
@@ -401,37 +407,35 @@ func (d *Daemon) updatePolicy(spec update.Spec, updates policy.Updates) updateFu
 			if policy.Set(u.Add).Has(policy.Automated) {
 				anythingAutomated = true
 			}
-			// find the workload manifest
-			err := cluster.UpdateManifest(d.Manifests, working.Dir(), working.ManifestDirs(), workloadID, func(def []byte) ([]byte, error) {
-				newDef, err := d.Manifests.UpdatePolicies(def, workloadID, u)
-				if err != nil {
-					result.Result[workloadID] = update.WorkloadResult{
-						Status: update.ReleaseStatusFailed,
-						Error:  err.Error(),
-					}
-					return nil, err
-				}
-				if string(newDef) == string(def) {
-					result.Result[workloadID] = update.WorkloadResult{
-						Status: update.ReleaseStatusSkipped,
-					}
-				} else {
-					workloadIDs = append(workloadIDs, workloadID)
-					result.Result[workloadID] = update.WorkloadResult{
-						Status: update.ReleaseStatusSuccess,
-					}
-				}
-				return newDef, nil
-			})
+			cm, err := resourcestore.NewCheckoutManager(ctx, d.ManifestGenerationEnabled,
+				d.Manifests, d.PolicyTranslator, working)
 			if err != nil {
+				return result, err
+			}
+			updated, err := cm.UpdateWorkloadPolicies(workloadID, u)
+			if err != nil {
+				result.Result[workloadID] = update.WorkloadResult{
+					Status: update.ReleaseStatusFailed,
+					Error:  err.Error(),
+				}
 				switch err := err.(type) {
-				case cluster.ManifestError:
+				case resourcestore.ResourceStoreError:
 					result.Result[workloadID] = update.WorkloadResult{
 						Status: update.ReleaseStatusFailed,
 						Error:  err.Error(),
 					}
 				default:
 					return result, err
+				}
+			}
+			if !updated {
+				result.Result[workloadID] = update.WorkloadResult{
+					Status: update.ReleaseStatusSkipped,
+				}
+			} else {
+				workloadIDs = append(workloadIDs, workloadID)
+				result.Result[workloadID] = update.WorkloadResult{
+					Status: update.ReleaseStatusSuccess,
 				}
 			}
 		}
@@ -469,10 +473,13 @@ func (d *Daemon) updatePolicy(spec update.Spec, updates policy.Updates) updateFu
 
 func (d *Daemon) release(spec update.Spec, c release.Changes) updateFunc {
 	return func(ctx context.Context, jobID job.ID, working *git.Checkout, logger log.Logger) (job.Result, error) {
-		rc := release.NewReleaseContext(d.Cluster, d.Manifests, d.Registry, working)
-		result, err := release.Release(rc, c, logger)
-
 		var zero job.Result
+		rc, err := release.NewReleaseContext(ctx, d.ManifestGenerationEnabled,
+			d.Cluster, d.Manifests, d.PolicyTranslator, d.Registry, working)
+		if err != nil {
+			return zero, err
+		}
+		result, err := release.Release(rc, c, logger)
 		if err != nil {
 			return zero, err
 		}

@@ -6,26 +6,22 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/cluster"
 	kresource "github.com/weaveworks/flux/cluster/kubernetes/resource"
 	"github.com/weaveworks/flux/policy"
 	"github.com/weaveworks/flux/resource"
 )
 
-func (m *manifests) UpdatePolicies(def []byte, id flux.ResourceID, update policy.Update) ([]byte, error) {
-	ns, kind, name := id.Components()
-	add, del := update.Add, update.Remove
+type PolicyTranslator struct{}
 
+func (pt *PolicyTranslator) GetAnnotationChangesForPolicyUpdate(workload resource.Workload, update policy.Update) ([]cluster.AnnotationChange, error) {
+	add, del := update.Add, update.Remove
 	// We may be sent the pseudo-policy `policy.TagAll`, which means
 	// apply this filter to all containers. To do so, we need to know
 	// what all the containers are.
 	if tagAll, ok := update.Add.Get(policy.TagAll); ok {
 		add = add.Without(policy.TagAll)
-		containers, err := m.extractWorkloadContainers(def, id)
-		if err != nil {
-			return nil, err
-		}
-
-		for _, container := range containers {
+		for _, container := range workload.Containers() {
 			if tagAll == policy.PatternAll.String() {
 				del = del.Add(policy.TagPrefix(container.Name))
 			} else {
@@ -34,31 +30,22 @@ func (m *manifests) UpdatePolicies(def []byte, id flux.ResourceID, update policy
 		}
 	}
 
-	var args []string
+	result := []cluster.AnnotationChange{}
 	for pol, val := range add {
 		if policy.Tag(pol) && !policy.NewPattern(val).Valid() {
 			return nil, fmt.Errorf("invalid tag pattern: %q", val)
 		}
-		args = append(args, fmt.Sprintf("%s%s=%s", kresource.PolicyPrefix, pol, val))
+		valCopy := val
+		result = append(result, cluster.AnnotationChange{kresource.PolicyPrefix + string(pol), &valCopy})
 	}
 	for pol, _ := range del {
-		args = append(args, fmt.Sprintf("%s%s=", kresource.PolicyPrefix, pol))
+		result = append(result, cluster.AnnotationChange{kresource.PolicyPrefix + string(pol), nil})
 	}
-
-	return (KubeYAML{}).Annotate(def, ns, kind, name, args...)
+	return result, nil
 }
 
-func (m *manifests) extractWorkloadContainers(def []byte, id flux.ResourceID) ([]resource.Container, error) {
-	kresources, err := kresource.ParseMultidoc(def, "stdin")
-	if err != nil {
-		return nil, err
-	}
-	// Note: setEffectiveNamespaces() won't work for CRD instances whose CRD is yet to be created
-	// (due to the CRD not being present in kresources).
-	// We could get out of our way to fix this (or give a better error) but:
-	// 1. With the exception of HelmReleases CRD instances are not workloads anyways.
-	// 2. The problem is eventually fixed by the first successful sync.
-	resources, err := m.setEffectiveNamespaces(kresources)
+func (m *manifests) UpdateWorkloadPolicies(def []byte, id flux.ResourceID, update policy.Update) ([]byte, error) {
+	resources, err := m.ParseManifest(def, "stdin")
 	if err != nil {
 		return nil, err
 	}
@@ -70,5 +57,18 @@ func (m *manifests) extractWorkloadContainers(def []byte, id flux.ResourceID) ([
 	if !ok {
 		return nil, errors.New("resource " + id.String() + " does not have containers")
 	}
-	return workload.Containers(), nil
+	if err != nil {
+		return nil, err
+	}
+	changes, err := (&PolicyTranslator{}).GetAnnotationChangesForPolicyUpdate(workload, update)
+	var args []string
+	for _, change := range changes {
+		value := ""
+		if change.AnnotationValue != nil {
+			value = *change.AnnotationValue
+		}
+		args = append(args, fmt.Sprintf("%s=%s", change.AnnotationKey, value))
+	}
+	ns, kind, name := id.Components()
+	return (KubeYAML{}).Annotate(def, ns, kind, name, args...)
 }

@@ -1,16 +1,18 @@
 package daemon
 
 import (
+	"bytes"
+	"context"
+	"fmt"
+	"io/ioutil"
 	"os"
+	"path"
 	"reflect"
-	"strings"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/go-kit/kit/log"
-
-	"context"
 
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster"
@@ -21,6 +23,7 @@ import (
 	"github.com/weaveworks/flux/git/gittest"
 	"github.com/weaveworks/flux/job"
 	registryMock "github.com/weaveworks/flux/registry/mock"
+	"github.com/weaveworks/flux/resourcestore"
 )
 
 const (
@@ -244,12 +247,27 @@ func TestDoSync_WithNewCommit(t *testing.T) {
 			return err
 		}
 		// Push some new changes
-		dirs := checkout.ManifestDirs()
-		err = cluster.UpdateManifest(d.Manifests, checkout.Dir(), dirs, flux.MustParseResourceID("default:deployment/helloworld"), func(def []byte) ([]byte, error) {
-			// A simple modification so we have changes to push
-			return []byte(strings.Replace(string(def), "replicas: 5", "replicas: 4", -1)), nil
-		})
+		cm, err := resourcestore.NewCheckoutManager(ctx, false, d.Manifests, d.PolicyTranslator, checkout)
 		if err != nil {
+			return err
+		}
+		resourcesByID, err := cm.GetAllResourcesByID()
+		if err != nil {
+			return err
+		}
+		targetResource := "default:deployment/helloworld"
+		res, ok := resourcesByID[targetResource]
+		if !ok {
+			return fmt.Errorf("resource not found: %q", targetResource)
+
+		}
+		absolutePath := path.Join(checkout.Dir(), res.Source())
+		def, err := ioutil.ReadFile(absolutePath)
+		if err != nil {
+			return err
+		}
+		newDef := bytes.Replace(def, []byte("replicas: 5"), []byte("replicas: 4"), -1)
+		if err := ioutil.WriteFile(absolutePath, newDef, 0600); err != nil {
 			return err
 		}
 

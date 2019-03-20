@@ -1,6 +1,7 @@
 package sync
 
 import (
+	"context"
 	"os"
 	"testing"
 
@@ -12,6 +13,7 @@ import (
 	"github.com/weaveworks/flux/git"
 	"github.com/weaveworks/flux/git/gittest"
 	"github.com/weaveworks/flux/resource"
+	"github.com/weaveworks/flux/resourcestore"
 )
 
 // Test that cluster.Sync gets called with the appropriate things when
@@ -22,10 +24,15 @@ func TestSync(t *testing.T) {
 
 	// Start with nothing running. We should be told to apply all the things.
 	manifests := kubernetes.NewManifests(kubernetes.ConstNamespacer("default"), log.NewLogfmtLogger(os.Stdout))
+	policyTranslator := &kubernetes.PolicyTranslator{}
 	clus := &syncCluster{map[string]string{}}
 
 	dirs := checkout.ManifestDirs()
-	resources, err := manifests.LoadManifests(checkout.Dir(), dirs)
+	rs, err := resourcestore.NewCheckoutManager(context.TODO(), false, manifests, policyTranslator, checkout)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resources, err := rs.GetAllResourcesByID()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -33,7 +40,7 @@ func TestSync(t *testing.T) {
 	if err := Sync("synctest", resources, clus); err != nil {
 		t.Fatal(err)
 	}
-	checkClusterMatchesFiles(t, manifests, clus.resources, checkout.Dir(), dirs)
+	checkClusterMatchesFiles(t, rs, clus.resources, checkout.Dir(), dirs)
 }
 
 // ---
@@ -75,8 +82,8 @@ func resourcesToStrings(resources map[string]resource.Resource) map[string]strin
 
 // Our invariant is that the model we can export from the cluster
 // should always reflect what's in git. So, let's check that.
-func checkClusterMatchesFiles(t *testing.T, m cluster.Manifests, resources map[string]string, base string, dirs []string) {
-	files, err := m.LoadManifests(base, dirs)
+func checkClusterMatchesFiles(t *testing.T, rs resourcestore.ResourceStore, resources map[string]string, base string, dirs []string) {
+	files, err := rs.GetAllResourcesByID()
 	if err != nil {
 		t.Fatal(err)
 	}

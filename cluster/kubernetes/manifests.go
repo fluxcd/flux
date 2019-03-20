@@ -10,6 +10,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/cluster"
 	kresource "github.com/weaveworks/flux/cluster/kubernetes/resource"
 	"github.com/weaveworks/flux/image"
 	"github.com/weaveworks/flux/resource"
@@ -46,6 +47,8 @@ func NewManifests(ns namespacer, logger log.Logger) *manifests {
 		resourceWarnings: map[string]struct{}{},
 	}
 }
+
+var _ cluster.Manifests = &manifests{}
 
 func getCRDScopes(manifests map[string]kresource.KubeManifest) ResourceScopes {
 	result := ResourceScopes{}
@@ -107,16 +110,33 @@ func (m *manifests) setEffectiveNamespaces(manifests map[string]kresource.KubeMa
 	return result, nil
 }
 
-func (m *manifests) LoadManifests(base string, paths []string) (map[string]resource.Resource, error) {
-	manifests, err := kresource.Load(base, paths)
+func (m *manifests) LoadManifests(baseDir string, paths []string) (map[string]resource.Resource, error) {
+	manifests, err := kresource.Load(baseDir, paths)
 	if err != nil {
 		return nil, err
 	}
 	return m.setEffectiveNamespaces(manifests)
 }
 
-func (m *manifests) UpdateImage(def []byte, id flux.ResourceID, container string, image image.Ref) ([]byte, error) {
+func (m *manifests) ParseManifest(def []byte, source string) (map[string]resource.Resource, error) {
+	resources, err := kresource.ParseMultidoc(def, source)
+	if err != nil {
+		return nil, err
+	}
+	// Note: setEffectiveNamespaces() won't work for CRD instances whose CRD is yet to be created
+	// (due to the CRD not being present in kresources).
+	// We could get out of our way to fix this (or give a better error) but:
+	// 1. With the exception of HelmReleases CRD instances are not workloads anyways.
+	// 2. The problem is eventually fixed by the first successful sync.
+	result, err := m.setEffectiveNamespaces(resources)
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+func (m *manifests) SetWorkloadContainerImage(def []byte, id flux.ResourceID, container string, image image.Ref) ([]byte, error) {
 	return updateWorkload(def, id, container, image)
 }
 
-// UpdatePolicies and ServicesWithPolicies in policies.go
+// UpdateWorkloadPolicies in policies.go

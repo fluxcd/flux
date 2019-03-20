@@ -94,3 +94,5 @@ fluxd requires setup and offers customization though a multitude of flags.
 | **SSH key generation**
 | --ssh-keygen-bits                                |                          | -b argument to ssh-keygen (default unspecified)
 | --ssh-keygen-type                                |                          | -t argument to ssh-keygen (default unspecified)
+| **manifest generation**, see [Generalizing Manifest Factorization in Weave Flux](https://docs.google.com/document/d/1ebAjaZF84G3RINYvw8ii6dO4-_zO645j8Hb7mvrPKPY)
+| --manifest-generation                               |                          | experimental; search for .flux.yaml files for manifest generation
