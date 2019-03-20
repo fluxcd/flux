@@ -244,7 +244,7 @@ func main() {
 
 	// Import GPG keys, if we've been told where to look for them
 	if *gitImportGPG != "" {
-		keyfiles, err := gpg.ImportKeys(*gitImportGPG)
+		keyfiles, err := gpg.ImportKeys(*gitImportGPG, *gitVerifySignatures)
 		if err != nil {
 			logger.Log("error", "failed to import GPG keys", "err", err.Error())
 		}
