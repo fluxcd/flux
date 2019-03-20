@@ -10,8 +10,10 @@ menu_order: 90
     + [What the Helm Operator does](#what-the-helm-operator-does)
   * [Supplying values to the chart](#supplying-values-to-the-chart)
     + [`.spec.values`](#specvalues)
-    + [`.spec.valueFileSecrets`](#specvaluefilesecrets)
-      - [Example of `spec.valueFileSecrets`](#example-of-specvaluefilesecrets)
+    + [`.spec.valuesFrom`](#specvaluesfrom)
+      * [Config maps](#config-maps)
+      * [Secrets](#secrets)
+      * [External sources](#external-sources)
   * [Upgrading images in a `HelmRelease` using Flux](#upgrading-images-in-a-helmrelease-using-flux)
     + [Using annotations to control updates to HelmRelease resources](#using-annotations-to-control-updates-to-helmrelease-resources)
   * [Authentication](#authentication)
@@ -151,63 +153,65 @@ spec:
     - item2
 ```
 
-### `.spec.valueFileSecrets`
+### `.spec.valuesFrom`
 
-This is a list of secrets (in the same namespace as the
-`HelmRelease`) from which to take values. The secrets must each
-contain an entry for `values.yaml`.
+This is a list of secrets, config maps (in the same namespace as the
+`HelmRelease`) or external sources (URLs) from which to take values.
 
 The values are merged in the order given, with later values
-overwriting earlier. These values always have a lower priority that
+overwriting earlier. These values always have a lower priority than
 those passed via the `.spec.values` parameter.
 
 This is useful if you want to have defaults such as the `region`,
 `clustername`, `environment`, a local docker registry URL, etc., or if
 you simply want to have values not checked into git as plaintext.
 
-#### Example of `spec.valueFileSecrets`
-
-Say you have a values.yaml that looks like this:
+#### Config maps
 
 ```yaml
-# values.yaml
-clusterName: "my-cluster"
-dockerRegistry: "registry.local"
-mySecretValue: "foo"
-```
-
-You would create a secret in the cluster by doing this:
-
-```sh
-kubectl -n dev create secret generic default-values --from-file=values.yaml
-```
-
-If you did `kubectl get -n dev secret default-values` you would get:
-
-```yaml
-apiVersion: v1
-kind: Secret
-type: Opaque
-metadata:
-  name: default-values
-  namespace: dev
-data:
-  values.yaml: <base64 encoded values.yaml>
-```
-
-Then, you could refer to the secret in a `HelmRelease`, and the
-values would be used when the chart was installed:
-
-```yaml
-apiVersion: flux.weave.works/v1beta1
-kind: HelmRelease
-metadata:
-  name: uses-secret
-  namespace: dev
 spec:
   # chart: ...
-  valueFileSecrets:
-  - name: default-values
+  valuesFrom:
+  - configMapKeyRef:
+      # Name of the config map, must be in the same namespace as the
+      # HelmRelease
+      name: default-values  # mandatory
+      # Key in the config map to get the values from
+      key: values.yaml      # optional; defaults to values.yaml
+      # If set to true successful retrieval of the values file is no
+      # longer mandatory
+      optional: false       # optional; defaults to false
+```
+
+#### Secrets
+
+```yaml
+spec:
+  # chart: ...
+  valuesFrom:
+  - secretKeyRef:
+      # Name of the secret, must be in the same namespace as the
+      # HelmRelease
+      name: default-values # mandatory
+      # Key in the secret to get thre values from
+      key: values.yaml     # optional; defaults to values.yaml
+      # If set to true successful retrieval of the values file is no
+      # longer mandatory
+      optional: true       # optional; defaults to false
+```
+
+#### External sources
+
+```yaml
+spec:
+  # chart: ...
+  valuesFrom:
+  - externalSourceRef:
+      # URL of the values.yaml
+      url: https://example.com/static/raw/values.yaml # mandatory
+      # If set to true successful retrieval of the values file is no
+      # longer mandatory
+      optional: true                                       # optional; defaults to false
 ```
 
 ## Upgrading images in a `HelmRelease` using Flux

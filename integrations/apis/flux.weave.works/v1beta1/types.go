@@ -31,6 +31,27 @@ func (fhr HelmRelease) ResourceID() flux.ResourceID {
 	return flux.MakeResourceID(fhr.Namespace, "HelmRelease", fhr.Name)
 }
 
+// ValuesFromSource represents a source of values.
+// Only one of its fields may be set.
+type ValuesFromSource struct {
+	// Selects a key of a ConfigMap.
+	// +optional
+	ConfigMapKeyRef *v1.ConfigMapKeySelector `json:"configMapKeyRef,omitempty"`
+	// Selects a key of a Secret.
+	// +optional
+	SecretKeyRef *v1.SecretKeySelector `json:"secretKeyRef,omitempty"`
+	// Selects an URL.
+	// +optional
+	ExternalSourceRef *ExternalSourceSelector `json:"externalSourceRef,omitempty"`
+}
+
+type ExternalSourceSelector struct {
+	URL string `json:"url"`
+	// Do not fail if external source could not be retrieved
+	// +optional
+	Optional *bool `json:"optional,omitempty"`
+}
+
 type ChartSource struct {
 	// one of the following...
 	// +optional
@@ -73,12 +94,12 @@ func (s RepoChartSource) CleanRepoURL() string {
 	return cleanURL + "/"
 }
 
-// FluxHelmReleaseSpec is the spec for a FluxHelmRelease resource
-// FluxHelmReleaseSpec
+// HelmReleaseSpec is the spec for a HelmRelease resource
 type HelmReleaseSpec struct {
 	ChartSource      `json:"chart"`
 	ReleaseName      string                    `json:"releaseName,omitempty"`
 	ValueFileSecrets []v1.LocalObjectReference `json:"valueFileSecrets,omitempty"`
+	ValuesFrom       []ValuesFromSource        `json:"valuesFrom,omitempty"`
 	HelmValues       `json:",inline"`
 	// Install or upgrade timeout in seconds
 	// +optional
