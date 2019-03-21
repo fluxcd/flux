@@ -14,6 +14,7 @@ func TestResourceIDParsing(t *testing.T) {
 		{"dots", "namespace:kind/name.with.dots"},
 		{"colons", "namespace:kind/name:with:colons"},
 		{"punctuation in general", "name-space:ki_nd/punc_tu:a.tion-rules"},
+		{"cluster-scope resource", "<cluster>:namespace/foo"},
 	}
 	invalid := []test{
 		{"unqualified", "justname"},
