@@ -1,3 +1,43 @@
+## 0.7.0 (2019-03-05)
+
+### Bug fixes
+
+ - Run signal listener in a goroutine instead of deferring
+   [weaveworks/flux#1680](https://github.com/weaveworks/flux/pull/1680)
+ - Make chart operations insensitive to (missing) slashes in Helm
+   repository URLs
+   [weaveworks/flux#1735](https://github.com/weaveworks/flux/pull/1735)
+ - Annotating resources outside of the `HelmRelease` namespace
+   [weaveworks/flux#1757](https://github.com/weaveworks/flux/pull/1757)
+
+### Improvements
+
+ - The `HelmRelease` CRD now supports a `skipDepUpdate` to instruct the
+   operator to not update dependencies for charts from a git source
+   [weaveworks/flux#1712](https://github.com/weaveworks/flux/pull/1712)
+   [weaveworks/flux#1823](https://github.com/weaveworks/flux/pull/1823)
+ - Azure DevOps Git host support
+   [weaveworks/flux#1729](https://github.com/weaveworks/flux/pull/1729)
+ - The UID of the `HelmRelease` is now used as dry run release name
+   [weaveworks/flux#1745](https://github.com/weaveworks/flux/pull/1745)
+ - Removed deprecated `--git-poll-interval` flag
+   [weaveworks/flux#1757](https://github.com/weaveworks/flux/pull/1757)
+ - Sync hook to instruct the operator to refresh Git mirrors
+   [weaveworks/flux#1776](https://github.com/weaveworks/flux/pull/1776)
+ - Docker image is now based on Alpine `3.9`
+   [weaveworks/flux#1801](https://github.com/weaveworks/flux/pull/1801)
+ - `.spec.values` in the `HelmRelease` CRD is no longer mandatory
+   [weaveworks/flux#1824](https://github.com/weaveworks/flux/pull/1824)
+ - With `valuesFrom` it is now possible to load values from secrets,
+   config maps and URLs
+   [weaveworks/flux#1836](https://github.com/weaveworks/flux/pull/1836)
+
+### Thanks
+
+Thanks to @captncraig, @2opremio, @squaremo, @hiddeco, @endrec, @ahmadiq,
+@nmaupu, @samisq, @yinzara, @stefanprodan, and @sarath-p for their
+contributions.
+
 ## 0.6.0 (2019-02-07)
 
 ### Improvements
