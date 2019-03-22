@@ -257,8 +257,8 @@ func (c *Cluster) getAllowedResourcesBySelector(selector string) (map[string]*ku
 
 func (c *Cluster) listAllowedResources(
 	namespaced bool, gvr schema.GroupVersionResource, options meta_v1.ListOptions) ([]unstructured.Unstructured, error) {
-	if !namespaced || len(c.allowedNamespaces) == 0 {
-		// The resource is not namespaced or all the namespaces are allowed
+	if !namespaced {
+		// The resource is not namespaced
 		resourceClient := c.client.dynamicClient.Resource(gvr)
 		data, err := resourceClient.List(options)
 		if err != nil {
@@ -268,9 +268,13 @@ func (c *Cluster) listAllowedResources(
 	}
 
 	// List resources only from the allowed namespaces
+	namespaces, err := c.getAllowedAndExistingNamespaces()
+	if err != nil {
+		return nil, err
+	}
 	var result []unstructured.Unstructured
-	for _, ns := range c.allowedNamespaces {
-		data, err := c.client.dynamicClient.Resource(gvr).Namespace(ns).List(options)
+	for _, ns := range namespaces {
+		data, err := c.client.dynamicClient.Resource(gvr).Namespace(ns.Name).List(options)
 		if err != nil {
 			return result, err
 		}
@@ -286,11 +290,7 @@ func (c *Cluster) getAllowedGCMarkedResourcesInSyncSet(syncSetName string) (map[
 	}
 	allowedSyncSetGCMarkedResources := map[string]*kuberesource{}
 	for resID, kres := range allGCMarkedResources {
-		// Discard disallowed resources
-		if !c.IsAllowedResource(kres.ResourceID()) {
-			continue
-		}
-		// Discard resources out of the Sync Set
+		// Discard resources whose mark doesn't match their resource ID
 		if kres.GetGCMark() != makeGCMark(syncSetName, resID) {
 			continue
 		}

@@ -157,7 +157,7 @@ func (c *Cluster) SomeWorkloads(ids []flux.ResourceID) (res []cluster.Workload, 
 // AllWorkloads returns all workloads in allowed namespaces matching the criteria; that is, in
 // the namespace (or any namespace if that argument is empty)
 func (c *Cluster) AllWorkloads(namespace string) (res []cluster.Workload, err error) {
-	namespaces, err := c.getAllowedNamespaces()
+	namespaces, err := c.getAllowedAndExistingNamespaces()
 	if err != nil {
 		return nil, errors.Wrap(err, "getting namespaces")
 	}
@@ -217,7 +217,7 @@ func (c *Cluster) Ping() error {
 func (c *Cluster) Export() ([]byte, error) {
 	var config bytes.Buffer
 
-	namespaces, err := c.getAllowedNamespaces()
+	namespaces, err := c.getAllowedAndExistingNamespaces()
 	if err != nil {
 		return nil, errors.Wrap(err, "getting namespaces")
 	}
@@ -266,11 +266,11 @@ func (c *Cluster) PublicSSHKey(regenerate bool) (ssh.PublicKey, error) {
 	return publicKey, nil
 }
 
-// getAllowedNamespaces returns a list of namespaces that the Flux instance is expected
-// to have access to and can look for resources inside of.
+// getAllowedAndExistingNamespaces returns a list of existing namespaces that
+// the Flux instance is expected to have access to and can look for resources inside of.
 // It returns a list of all namespaces unless an explicit list of allowed namespaces
 // has been set on the Cluster instance.
-func (c *Cluster) getAllowedNamespaces() ([]apiv1.Namespace, error) {
+func (c *Cluster) getAllowedAndExistingNamespaces() ([]apiv1.Namespace, error) {
 	if len(c.allowedNamespaces) > 0 {
 		nsList := []apiv1.Namespace{}
 		for _, name := range c.allowedNamespaces {
