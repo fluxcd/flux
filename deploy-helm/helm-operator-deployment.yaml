@@ -62,7 +62,7 @@ spec:
         # There are no ":latest" images for helm-operator. Find the most recent
         # release or image version at https://quay.io/weaveworks/helm-operator
         # and replace the tag here.
-        image: quay.io/weaveworks/helm-operator:0.6.0
+        image: quay.io/weaveworks/helm-operator:0.7.0
         imagePullPolicy: IfNotPresent
         ports:
         - name: http
