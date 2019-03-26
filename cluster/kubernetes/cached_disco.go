@@ -108,19 +108,14 @@ func (d *cachedDiscovery) invalidatePeriodically(shutdown <-chan struct{}) {
 	// complete/stable yet.
 	initialPeriodDuration := 1 * time.Minute
 	subsequentPeriodsDuration := 5 * initialPeriodDuration
-	isInitialPeriod := true
-	ticker := time.NewTicker(initialPeriodDuration)
+	timer := time.NewTimer(initialPeriodDuration)
 	for {
 		select {
-		case <-ticker.C:
-			if isInitialPeriod {
-				ticker.Stop()
-				ticker = time.NewTicker(subsequentPeriodsDuration)
-			}
-			isInitialPeriod = false
+		case <-timer.C:
+			timer.Reset(subsequentPeriodsDuration)
 			d.Invalidate()
 		case <-shutdown:
-			ticker.Stop()
+			timer.Stop()
 			return
 		}
 	}
