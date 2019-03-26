@@ -16,8 +16,14 @@ import (
 	"github.com/pkg/errors"
 )
 
-// If true, every git invocation will be echoed to stdout
+// If true, every git invocation will be echoed to stdout (with the exception of those added to `exemptedTraceCommands`)
 const trace = false
+
+// Whilst debugging or developing, you may wish to filter certain git commands out of the logs when tracing is on.
+var exemptedTraceCommands = []string{
+	// To filter out a certain git subcommand add it here, e.g.:
+	// "config",
+}
 
 // Env vars that are allowed to be inherited from the os
 var allowedEnvVars = []string{"http_proxy", "https_proxy", "no_proxy", "HOME", "GNUPGHOME"}
@@ -276,15 +282,37 @@ func changed(ctx context.Context, workingDir, ref string, subPaths []string) ([]
 	return splitList(out.String()), nil
 }
 
-func execGitCmd(ctx context.Context, args []string, config gitCmdConfig) error {
-	if trace {
-		print("TRACE: git")
-		for _, arg := range args {
-			print(` "`, arg, `"`)
+// traceGitCommand returns a log line that can be useful when debugging and developing git activity
+func traceGitCommand(args []string, config gitCmdConfig, stdout string, stderr string) string {
+	for _, exemptedCommand := range exemptedTraceCommands {
+		if exemptedCommand == args[0] {
+			return ""
 		}
-		println()
 	}
 
+	prepare := func(input string) string {
+		output := strings.Trim(input, "\x00")
+		output = strings.TrimSuffix(output, "\n")
+		output = strings.Replace(output, "\n", "\\n", -1)
+		return output
+	}
+
+	command := `git ` + strings.Join(args, " ")
+	out := prepare(stdout)
+	err := prepare(stderr)
+
+	return fmt.Sprintf(
+		"TRACE: command=%q out=%q err=%q dir=%q env=%q",
+		command,
+		out,
+		err,
+		config.dir,
+		strings.Join(config.env, ","),
+	)
+}
+
+// execGitCmd runs a `git` command with the supplied arguments.
+func execGitCmd(ctx context.Context, args []string, config gitCmdConfig) error {
 	c := exec.CommandContext(ctx, "git", args...)
 
 	if config.dir != "" {
@@ -298,6 +326,13 @@ func execGitCmd(ctx context.Context, args []string, config gitCmdConfig) error {
 	errOut := &bytes.Buffer{}
 	c.Stderr = errOut
 
+	traceStdout := &bytes.Buffer{}
+	traceStderr := &bytes.Buffer{}
+	if trace {
+		c.Stdout = io.MultiWriter(c.Stdout, traceStdout)
+		c.Stderr = io.MultiWriter(c.Stderr, traceStderr)
+	}
+
 	err := c.Run()
 	if err != nil {
 		msg := findErrorMessage(errOut)
@@ -305,6 +340,13 @@ func execGitCmd(ctx context.Context, args []string, config gitCmdConfig) error {
 			err = errors.New(msg)
 		}
 	}
+
+	if trace {
+		if traceCommand := traceGitCommand(args, config, traceStdout.String(), traceStderr.String()); traceCommand != "" {
+			println(traceCommand)
+		}
+	}
+
 	if ctx.Err() == context.DeadlineExceeded {
 		return errors.Wrap(ctx.Err(), fmt.Sprintf("running git command: %s %v", "git", args))
 	} else if ctx.Err() == context.Canceled {
