@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/weaveworks/flux/cluster/kubernetes/testfiles"
 )
 
@@ -286,4 +287,92 @@ func updateDirAndCommit(dir, subdir string, filesUpdated map[string]string) erro
 		return err
 	}
 	return nil
+}
+
+func TestTraceGitCommand(t *testing.T) {
+	type input struct {
+		args   []string
+		config gitCmdConfig
+		out    string
+		err    string
+	}
+	examples := []struct {
+		name     string
+		input    input
+		expected string
+		actual   string
+	}{
+		{
+			name: "git clone",
+			input: input{
+				args: []string{
+					"clone",
+					"--branch",
+					"master",
+					"/tmp/flux-gitclone239583443",
+					"/tmp/flux-working628880789",
+				},
+				config: gitCmdConfig{
+					dir: "/tmp/flux-working628880789",
+				},
+			},
+			expected: `TRACE: command="git clone --branch master /tmp/flux-gitclone239583443 /tmp/flux-working628880789" out="" err="" dir="/tmp/flux-working628880789" env=""`,
+		},
+		{
+			name: "git rev-list",
+			input: input{
+				args: []string{
+					"rev-list",
+					"--max-count",
+					"1",
+					"flux-sync",
+					"--",
+				},
+				out: "b9d6a543acf8085ff6bed23fac17f8dc71bfcb66",
+				config: gitCmdConfig{
+					dir: "/tmp/flux-gitclone239583443",
+				},
+			},
+			expected: `TRACE: command="git rev-list --max-count 1 flux-sync --" out="b9d6a543acf8085ff6bed23fac17f8dc71bfcb66" err="" dir="/tmp/flux-gitclone239583443" env=""`,
+		},
+		{
+			name: "git config email",
+			input: input{
+				args: []string{
+					"config",
+					"user.email",
+					"support@weave.works",
+				},
+				config: gitCmdConfig{
+					dir: "/tmp/flux-working056923691",
+				},
+			},
+			expected: `TRACE: command="git config user.email support@weave.works" out="" err="" dir="/tmp/flux-working056923691" env=""`,
+		},
+		{
+			name: "git notes",
+			input: input{
+				args: []string{
+					"notes",
+					"--ref",
+					"flux",
+					"get-ref",
+				},
+				config: gitCmdConfig{
+					dir: "/tmp/flux-working647148942",
+				},
+				out: "refs/notes/flux",
+			},
+			expected: `TRACE: command="git notes --ref flux get-ref" out="refs/notes/flux" err="" dir="/tmp/flux-working647148942" env=""`,
+		},
+	}
+	for _, example := range examples {
+		actual := traceGitCommand(
+			example.input.args,
+			example.input.config,
+			example.input.out,
+			example.input.err,
+		)
+		assert.Equal(t, example.expected, actual)
+	}
 }
