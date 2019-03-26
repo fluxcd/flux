@@ -159,6 +159,9 @@ spec:
           {{- if .Values.registry.ecr.excludeId }}
           - --registry-ecr-exclude-id={{ .Values.registry.ecr.excludeId }}
           {{- end }}
+          {{- if .Values.registry.ecr.require }}
+          - --registry-require=ecr
+          {{- end }}
           {{- if .Values.registry.dockercfg.enabled }}
           - --docker-config=/dockercfg/config.json
           {{- end }}

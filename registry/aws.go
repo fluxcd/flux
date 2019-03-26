@@ -55,23 +55,28 @@ func contains(strs []string, str string) bool {
 func ImageCredsWithAWSAuth(lookup func() ImageCreds, logger log.Logger, config AWSRegistryConfig) (func() ImageCreds, error) {
 	awsCreds := NoCredentials()
 
+	// This forces the AWS SDK to load config, so we can get the
+	// default region if it's there
+	sess := session.Must(session.NewSessionWithOptions(session.Options{
+		SharedConfigState: session.SharedConfigEnable,
+	}))
+	// Always try to connect to the metadata service, so we can fail
+	// fast if it's not available.
+	ec2 := ec2metadata.New(sess)
+	metadataRegion, err := ec2.Region()
+	if err != nil {
+		return nil, err
+	}
+
 	if len(config.Regions) == 0 {
-		// this forces the AWS SDK to load config, so we can get the default region
-		sess := session.Must(session.NewSessionWithOptions(session.Options{
-			SharedConfigState: session.SharedConfigEnable,
-		}))
 		clusterRegion := *sess.Config.Region
+		regionSource := "local config"
 		if clusterRegion == "" {
-			// no region set in config; in that case, use the EC2 metadata service to find where we are running.
-			ec2 := ec2metadata.New(sess)
-			instanceRegion, err := ec2.Region()
-			if err != nil {
-				logger.Log("warn", "no AWS region configured, or detected as cluster region", "err", err)
-				return nil, err
-			}
-			clusterRegion = instanceRegion
+			// no region set in config; in that case, use what we got from the EC2 metadata service
+			clusterRegion = metadataRegion
+			regionSource = "EC2 metadata service"
 		}
-		logger.Log("info", "detected cluster region", "region", clusterRegion)
+		logger.Log("info", "detected cluster region", "source", regionSource, "region", clusterRegion)
 		config.Regions = []string{clusterRegion}
 	}
 
