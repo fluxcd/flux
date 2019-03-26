@@ -258,7 +258,7 @@ func (c *Cluster) getAllowedResourcesBySelector(selector string) (map[string]*ku
 func (c *Cluster) listAllowedResources(
 	namespaced bool, gvr schema.GroupVersionResource, options meta_v1.ListOptions) ([]unstructured.Unstructured, error) {
 	if !namespaced {
-		// The resource is not namespaced
+		// The resource is not namespaced, everything is allowed
 		resourceClient := c.client.dynamicClient.Resource(gvr)
 		data, err := resourceClient.List(options)
 		if err != nil {
