@@ -1,4 +1,12 @@
-## 0.7.0 (2019-03-05)
+## 0.7.1 (2019-03-27)
+
+### Bug fixes
+
+ - Prevent panic on `.spec.values` in `HelmRelease` due to merge
+   attempt on uninitialized value
+   [weaveworks/flux#1867](https://github.com/weaveworks/flux/pull/1867)
+
+## 0.7.0 (2019-03-25)
 
 ### Bug fixes
 
