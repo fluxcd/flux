@@ -21,7 +21,7 @@ menu_order: 60
   * [How often does Flux check for new images?](#how-often-does-flux-check-for-new-images)
   * [How often does Flux check for new git commits (and can I make it sync faster)?](#how-often-does-flux-check-for-new-git-commits-and-can-i-make-it-sync-faster)
   * [How do I use my own deploy key?](#how-do-i-use-my-own-deploy-key)
-  * [How do I use a private git host (or one that's not github.com, gitlab.com, bitbucket.org, or dev.azure.com)?](#how-do-i-use-a-private-git-host-or-one-thats-not-githubcom-gitlabcom-bitbucketorg-or-devazurecom)
+  * [How do I use a private git host (or one that's not github.com, gitlab.com, bitbucket.org, dev.azure.com, or vs-ssh.visualstudio.com)?](#how-do-i-use-a-private-git-host-or-one-thats-not-githubcom-gitlabcom-bitbucketorg-devazurecom-or-vs-sshvisualstudiocom)
   * [Will Flux delete resources that are no longer in the git repository?](#will-flux-delete-resources-that-are-no-longer-in-the-git-repository)
   * [Why does my CI pipeline keep getting triggered?](#why-does-my-ci-pipeline-keep-getting-triggered)
   * [Can I restrict the namespaces that Flux can see or operate on?](#can-i-restrict-the-namespaces-that-flux-can-see-or-operate-on)
@@ -251,14 +251,14 @@ Now restart fluxd to re-read the k8s secret (if it is running):
 
 `kubectl delete $(kubectl get pod -o name -l name=flux)`
 
-### How do I use a private git host (or one that's not github.com, gitlab.com, bitbucket.org, or dev.azure.com)?
+### How do I use a private git host (or one that's not github.com, gitlab.com, bitbucket.org, dev.azure.com, or vs-ssh.visualstudio.com)?
 
 As part of using git+ssh securely from the Flux daemon, we make sure
 `StrictHostKeyChecking` is on in the
 [SSH config](http://man7.org/linux/man-pages/man5/ssh_config.5.html). This
 mitigates against man-in-the-middle attacks.
 
-We bake host keys for `github.com`, `gitlab.com`, `bitbucket.org`, and `dev.azure.com`
+We bake host keys for `github.com`, `gitlab.com`, `bitbucket.org`, `dev.azure.com`, and `vs-ssh.visualstudio.com`
 into the image to cover some common cases. If you're using another
 service, or running your own git host, you need to supply your own
 host key(s).

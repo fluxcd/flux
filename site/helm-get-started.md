@@ -79,7 +79,7 @@ In this next step you install Weave Flux using `helm`. Simply
       *Just make sure you replace `YOURUSER` with your GitHub username
       in the command below:*
 
-    - Using a public git server from `bitbucket.com`, `github.com`, `gitlab.com` or `dev.azure.com`:
+    - Using a public git server from `bitbucket.com`, `github.com`, `gitlab.com`, `dev.azure.com`, or `vs-ssh.visualstudio.com`:
 
       ```sh
       helm upgrade -i flux \
