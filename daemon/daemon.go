@@ -377,6 +377,11 @@ func (d *Daemon) updatePolicy(spec update.Spec, updates policy.Updates) updateFu
 		var anythingAutomated bool
 
 		for workloadID, u := range updates {
+			if d.Cluster.IsAllowedResource(workloadID) {
+				result.Result[workloadID] = update.WorkloadResult{
+					Status: update.ReleaseStatusSkipped,
+				}
+			}
 			if policy.Set(u.Add).Has(policy.Automated) {
 				anythingAutomated = true
 			}
@@ -707,7 +712,7 @@ func policyEvents(us policy.Updates, now time.Time) map[string]event.Event {
 // policyEventTypes is a deduped list of all event types this update contains
 func policyEventTypes(u policy.Update) []string {
 	types := map[string]struct{}{}
-	for p, _ := range u.Add {
+	for p := range u.Add {
 		switch {
 		case p == policy.Automated:
 			types[event.EventAutomate] = struct{}{}
@@ -718,7 +723,7 @@ func policyEventTypes(u policy.Update) []string {
 		}
 	}
 
-	for p, _ := range u.Remove {
+	for p := range u.Remove {
 		switch {
 		case p == policy.Automated:
 			types[event.EventDeautomate] = struct{}{}

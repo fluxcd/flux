@@ -129,7 +129,8 @@ func main() {
 		k8sSecretName            = fs.String("k8s-secret-name", "flux-git-deploy", "name of the k8s secret used to store the private SSH key")
 		k8sSecretVolumeMountPath = fs.String("k8s-secret-volume-mount-path", "/etc/fluxd/ssh", "mount location of the k8s secret storing the private SSH key")
 		k8sSecretDataKey         = fs.String("k8s-secret-data-key", "identity", "data key holding the private SSH key within the k8s secret")
-		k8sNamespaceWhitelist    = fs.StringSlice("k8s-namespace-whitelist", []string{}, "experimental, optional: restrict the view of the cluster to the namespaces listed. All namespaces are included if this is not set.")
+		k8sNamespaceWhitelist    = fs.StringSlice("k8s-namespace-whitelist", []string{}, "experimental, optional: restrict the view of the cluster to the namespaces listed. All namespaces are included if this is not set")
+		k8sAllowNamespace        = fs.StringSlice("k8s-allow-namespace", []string{}, "experimental: restrict all operations to the provided namespaces")
 		// SSH key generation
 		sshKeyBits   = optionalVar(fs, &ssh.KeyBitsValue{}, "ssh-keygen-bits", "-b argument to ssh-keygen (default unspecified)")
 		sshKeyType   = optionalVar(fs, &ssh.KeyTypeValue{}, "ssh-keygen-type", "-t argument to ssh-keygen (default unspecified)")
@@ -143,6 +144,7 @@ func main() {
 		_ = fs.Duration("registry-cache-expiry", 0, "")
 	)
 	fs.MarkDeprecated("registry-cache-expiry", "no longer used; cache entries are expired adaptively according to how often they change")
+	fs.MarkDeprecated("k8s-namespace-whitelist", "changed to --k8s-allow-namespace, use that instead")
 
 	err := fs.Parse(os.Args[1:])
 	switch {
@@ -323,9 +325,10 @@ func main() {
 		}
 		logger.Log("kubectl", kubectl)
 
-		kubectlApplier := kubernetes.NewKubectl(kubectl, restClientConfig)
 		client := kubernetes.MakeClusterClientset(clientset, dynamicClientset, integrationsClientset, discoClientset)
-		k8sInst := kubernetes.NewCluster(client, kubectlApplier, sshKeyRing, logger, *k8sNamespaceWhitelist, *registryExcludeImage)
+		kubectlApplier := kubernetes.NewKubectl(kubectl, restClientConfig)
+		allowedNamespaces := append(*k8sNamespaceWhitelist, *k8sAllowNamespace...)
+		k8sInst := kubernetes.NewCluster(client, kubectlApplier, sshKeyRing, logger, allowedNamespaces, *registryExcludeImage)
 		k8sInst.GC = *syncGC
 
 		if err := k8sInst.Ping(); err != nil {

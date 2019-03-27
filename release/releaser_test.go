@@ -180,7 +180,7 @@ var ignoredNotInRepo = update.WorkloadResult{
 
 var ignoredNotInCluster = update.WorkloadResult{
 	Status: update.ReleaseStatusIgnored,
-	Error:  update.NotInCluster,
+	Error:  update.NotAccessibleInCluster,
 }
 
 var skippedLocked = update.WorkloadResult{
@@ -190,7 +190,7 @@ var skippedLocked = update.WorkloadResult{
 
 var skippedNotInCluster = update.WorkloadResult{
 	Status: update.ReleaseStatusSkipped,
-	Error:  update.NotInCluster,
+	Error:  update.NotAccessibleInCluster,
 }
 
 var skippedNotInRepo = update.WorkloadResult{
@@ -238,7 +238,7 @@ func Test_InitContainer(t *testing.T) {
 			initWorkloadID: update.WorkloadResult{
 				Status: update.ReleaseStatusSuccess,
 				PerContainer: []update.ContainerUpdate{
-					update.ContainerUpdate{
+					{
 						Container: helloContainer,
 						Current:   oldRef,
 						Target:    newHwRef,
@@ -292,12 +292,12 @@ func Test_FilterLogic(t *testing.T) {
 					flux.MustParseResourceID("default:deployment/helloworld"): update.WorkloadResult{
 						Status: update.ReleaseStatusSuccess,
 						PerContainer: []update.ContainerUpdate{
-							update.ContainerUpdate{
+							{
 								Container: helloContainer,
 								Current:   oldRef,
 								Target:    newHwRef,
 							},
-							update.ContainerUpdate{
+							{
 								Container: sidecarContainer,
 								Current:   sidecarRef,
 								Target:    newSidecarRef,
@@ -320,12 +320,12 @@ func Test_FilterLogic(t *testing.T) {
 					flux.MustParseResourceID("default:deployment/helloworld"): update.WorkloadResult{
 						Status: update.ReleaseStatusSuccess,
 						PerContainer: []update.ContainerUpdate{
-							update.ContainerUpdate{
+							{
 								Container: helloContainer,
 								Current:   oldRef,
 								Target:    newHwRef,
 							},
-							update.ContainerUpdate{
+							{
 								Container: sidecarContainer,
 								Current:   sidecarRef,
 								Target:    newSidecarRef,
@@ -352,7 +352,7 @@ func Test_FilterLogic(t *testing.T) {
 					flux.MustParseResourceID("default:deployment/helloworld"): update.WorkloadResult{
 						Status: update.ReleaseStatusSuccess,
 						PerContainer: []update.ContainerUpdate{
-							update.ContainerUpdate{
+							{
 								Container: helloContainer,
 								Current:   oldRef,
 								Target:    newHwRef,
@@ -381,12 +381,12 @@ func Test_FilterLogic(t *testing.T) {
 					flux.MustParseResourceID("default:deployment/helloworld"): update.WorkloadResult{
 						Status: update.ReleaseStatusSuccess,
 						PerContainer: []update.ContainerUpdate{
-							update.ContainerUpdate{
+							{
 								Container: helloContainer,
 								Current:   oldRef,
 								Target:    newHwRef,
 							},
-							update.ContainerUpdate{
+							{
 								Container: sidecarContainer,
 								Current:   sidecarRef,
 								Target:    newSidecarRef,
@@ -413,12 +413,12 @@ func Test_FilterLogic(t *testing.T) {
 					flux.MustParseResourceID("default:deployment/helloworld"): update.WorkloadResult{
 						Status: update.ReleaseStatusSuccess,
 						PerContainer: []update.ContainerUpdate{
-							update.ContainerUpdate{
+							{
 								Container: helloContainer,
 								Current:   oldRef,
 								Target:    newHwRef,
 							},
-							update.ContainerUpdate{
+							{
 								Container: sidecarContainer,
 								Current:   sidecarRef,
 								Target:    newSidecarRef,

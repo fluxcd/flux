@@ -27,6 +27,7 @@ type Cluster interface {
 	// Get all of the services (optionally, from a specific namespace), excluding those
 	AllWorkloads(maybeNamespace string) ([]Workload, error)
 	SomeWorkloads([]flux.ResourceID) ([]Workload, error)
+	IsAllowedResource(flux.ResourceID) bool
 	Ping() error
 	Export() ([]byte, error)
 	Sync(SyncSet) error

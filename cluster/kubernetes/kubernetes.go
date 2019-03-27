@@ -17,6 +17,7 @@ import (
 
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster"
+	"github.com/weaveworks/flux/cluster/kubernetes/resource"
 	fhrclient "github.com/weaveworks/flux/integrations/client/clientset/versioned"
 	"github.com/weaveworks/flux/ssh"
 )
@@ -95,22 +96,22 @@ type Cluster struct {
 	syncErrors   map[flux.ResourceID]error
 	muSyncErrors sync.RWMutex
 
-	nsWhitelist       []string
-	nsWhitelistLogged map[string]bool // to keep track of whether we've logged a problem with seeing a whitelisted ns
+	allowedNamespaces []string
+	loggedAllowedNS   map[string]bool // to keep track of whether we've logged a problem with seeing an allowed namespace
 
 	imageExcludeList []string
 	mu               sync.Mutex
 }
 
 // NewCluster returns a usable cluster.
-func NewCluster(client ExtendedClient, applier Applier, sshKeyRing ssh.KeyRing, logger log.Logger, nsWhitelist []string, imageExcludeList []string) *Cluster {
+func NewCluster(client ExtendedClient, applier Applier, sshKeyRing ssh.KeyRing, logger log.Logger, allowedNamespaces []string, imageExcludeList []string) *Cluster {
 	c := &Cluster{
 		client:            client,
 		applier:           applier,
 		logger:            logger,
 		sshKeyRing:        sshKeyRing,
-		nsWhitelist:       nsWhitelist,
-		nsWhitelistLogged: map[string]bool{},
+		allowedNamespaces: allowedNamespaces,
+		loggedAllowedNS:   map[string]bool{},
 		imageExcludeList:  imageExcludeList,
 	}
 
@@ -119,12 +120,15 @@ func NewCluster(client ExtendedClient, applier Applier, sshKeyRing ssh.KeyRing, 
 
 // --- cluster.Cluster
 
-// SomeWorkloads returns the workloads named, missing out any that aren't
-// accessible in the cluster. They do not necessarily have to be returned
-// in the order requested.
+// SomeWorkloads returns the workloads named, missing out any that don't
+// exist in the cluster or aren't in an allowed namespace.
+// They do not necessarily have to be returned in the order requested.
 func (c *Cluster) SomeWorkloads(ids []flux.ResourceID) (res []cluster.Workload, err error) {
 	var workloads []cluster.Workload
 	for _, id := range ids {
+		if !c.IsAllowedResource(id) {
+			continue
+		}
 		ns, kind, name := id.Components()
 
 		resourceKind, ok := resourceKinds[kind]
@@ -150,10 +154,10 @@ func (c *Cluster) SomeWorkloads(ids []flux.ResourceID) (res []cluster.Workload, 
 	return workloads, nil
 }
 
-// AllWorkloads returns all workloads matching the criteria; that is, in
+// AllWorkloads returns all workloads in allowed namespaces matching the criteria; that is, in
 // the namespace (or any namespace if that argument is empty)
 func (c *Cluster) AllWorkloads(namespace string) (res []cluster.Workload, err error) {
-	namespaces, err := c.getAllowedNamespaces()
+	namespaces, err := c.getAllowedAndExistingNamespaces()
 	if err != nil {
 		return nil, errors.Wrap(err, "getting namespaces")
 	}
@@ -213,7 +217,7 @@ func (c *Cluster) Ping() error {
 func (c *Cluster) Export() ([]byte, error) {
 	var config bytes.Buffer
 
-	namespaces, err := c.getAllowedNamespaces()
+	namespaces, err := c.getAllowedAndExistingNamespaces()
 	if err != nil {
 		return nil, errors.Wrap(err, "getting namespaces")
 	}
@@ -262,24 +266,24 @@ func (c *Cluster) PublicSSHKey(regenerate bool) (ssh.PublicKey, error) {
 	return publicKey, nil
 }
 
-// getAllowedNamespaces returns a list of namespaces that the Flux instance is expected
-// to have access to and can look for resources inside of.
-// It returns a list of all namespaces unless a namespace whitelist has been set on the Cluster
-// instance, in which case it returns a list containing the namespaces from the whitelist
-// that exist in the cluster.
-func (c *Cluster) getAllowedNamespaces() ([]apiv1.Namespace, error) {
-	if len(c.nsWhitelist) > 0 {
+// getAllowedAndExistingNamespaces returns a list of existing namespaces that
+// the Flux instance is expected to have access to and can look for resources inside of.
+// It returns a list of all namespaces unless an explicit list of allowed namespaces
+// has been set on the Cluster instance.
+func (c *Cluster) getAllowedAndExistingNamespaces() ([]apiv1.Namespace, error) {
+	if len(c.allowedNamespaces) > 0 {
 		nsList := []apiv1.Namespace{}
-		for _, name := range c.nsWhitelist {
+		for _, name := range c.allowedNamespaces {
 			ns, err := c.client.CoreV1().Namespaces().Get(name, meta_v1.GetOptions{})
 			switch {
 			case err == nil:
-				c.nsWhitelistLogged[name] = false // reset, so if the namespace goes away we'll log it again
+				c.loggedAllowedNS[name] = false // reset, so if the namespace goes away we'll log it again
 				nsList = append(nsList, *ns)
 			case apierrors.IsUnauthorized(err) || apierrors.IsForbidden(err) || apierrors.IsNotFound(err):
-				if !c.nsWhitelistLogged[name] {
-					c.logger.Log("warning", "whitelisted namespace inaccessible", "namespace", name, "err", err)
-					c.nsWhitelistLogged[name] = true
+				if !c.loggedAllowedNS[name] {
+					c.logger.Log("warning", "cannot access allowed namespace",
+						"namespace", name, "err", err)
+					c.loggedAllowedNS[name] = true
 				}
 			default:
 				return nil, err
@@ -293,6 +297,32 @@ func (c *Cluster) getAllowedNamespaces() ([]apiv1.Namespace, error) {
 		return nil, err
 	}
 	return namespaces.Items, nil
+}
+
+func (c *Cluster) IsAllowedResource(id flux.ResourceID) bool {
+	if len(c.allowedNamespaces) == 0 {
+		// All resources are allowed when all namespaces are allowed
+		return true
+	}
+
+	namespace, kind, name := id.Components()
+	namespaceToCheck := namespace
+
+	if namespace == resource.ClusterScope {
+		// All cluster-scoped resources (not namespaced) are allowed ...
+		if kind != "namespace" {
+			return true
+		}
+		// ... except namespaces themselves, whose name needs to be explicitly allowed
+		namespaceToCheck = name
+	}
+
+	for _, allowedNS := range c.allowedNamespaces {
+		if namespaceToCheck == allowedNS {
+			return true
+		}
+	}
+	return false
 }
 
 // kind & apiVersion must be passed separately as the object's TypeMeta is not populated

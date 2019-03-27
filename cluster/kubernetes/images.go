@@ -123,7 +123,7 @@ func mergeCredentials(log func(...interface{}) error,
 func (c *Cluster) ImagesToFetch() registry.ImageCreds {
 	allImageCreds := make(registry.ImageCreds)
 
-	namespaces, err := c.getAllowedNamespaces()
+	namespaces, err := c.getAllowedAndExistingNamespaces()
 	if err != nil {
 		c.logger.Log("err", errors.Wrap(err, "getting namespaces"))
 		return allImageCreds
