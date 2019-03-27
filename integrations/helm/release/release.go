@@ -276,7 +276,7 @@ func fhrResourceID(fhr flux_v1beta1.HelmRelease) flux.ResourceID {
 // values tries to resolve all given value file sources and merges
 // them into one Values struct. It returns the merged Values.
 func values(corev1 k8sclientv1.CoreV1Interface, ns string, valuesFromSource []flux_v1beta1.ValuesFromSource, values chartutil.Values) (chartutil.Values, error) {
-	var result chartutil.Values
+	result := chartutil.Values{}
 
 	for _, v := range valuesFromSource {
 		var valueFile chartutil.Values
