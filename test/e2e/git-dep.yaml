@@ -1,0 +1,58 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    name: gitsrv
+  name: gitsrv
+  namespace: flux
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: gitsrv
+  template:
+    metadata:
+      labels:
+        name: gitsrv
+    spec:
+      containers:
+      - image: stefanprodan/gitsrv:0.0.5
+        name: git
+        env:
+        - name: REPO
+          value: "cluster.git"
+        - name: TAR_URL
+          value: "https://github.com/weaveworks/flux-get-started/archive/master.tar.gz"
+        ports:
+        - containerPort: 22
+          name: ssh
+          protocol: TCP
+        volumeMounts:
+        - mountPath: /git-server/repos
+          name: git-server-data
+        - mountPath: /git-server/keys
+          name: ssh-git
+      volumes:
+      - name: ssh-git
+        secret:
+          secretName: ssh-git
+      - name: git-server-data
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    name: gitsrv
+  name: gitsrv
+  namespace: flux
+spec:
+  ports:
+    - name: ssh
+      port: 22
+      protocol: TCP
+      targetPort: ssh
+  selector:
+    name: gitsrv
+  type: ClusterIP

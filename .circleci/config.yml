@@ -39,6 +39,17 @@ jobs:
               RELEASE_TAG=$(echo "$CIRCLE_TAG" | cut -c 6-)
               docker push "quay.io/weaveworks/helm-operator:${RELEASE_TAG}"
             fi
+  e2e-testing:
+    machine: true
+    working_directory: ~/go/src/github.com/weaveworks/flux
+    steps:
+      - checkout
+      - run: test/e2e/e2e-golang.sh
+      - run: test/e2e/e2e-flux-build.sh
+      - run: test/e2e/e2e-kind.sh
+      - run: test/e2e/e2e-helm.sh
+      - run: test/e2e/e2e-git.sh
+      - run: test/e2e/e2e-flux-chart.sh
 
 workflows:
   version: 2
@@ -48,3 +59,6 @@ workflows:
           filters:
             tags:
               only: /(helm-)?[0-9]+(\.[0-9]+)*(-[a-z]+)?/
+      - e2e-testing:
+          requires:
+            - build
