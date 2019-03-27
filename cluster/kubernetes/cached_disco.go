@@ -96,7 +96,27 @@ func makeCachedDiscovery(d discovery.DiscoveryInterface, c crd.Interface, shutdo
 	}
 
 	handler := handlerFn(cachedDisco)
-	store, controller := toolscache.NewInformer(lw, &crdv1beta1.CustomResourceDefinition{}, 5*time.Minute, handler)
+	store, controller := toolscache.NewInformer(lw, &crdv1beta1.CustomResourceDefinition{}, 0, handler)
+	go cachedDisco.invalidatePeriodically(shutdown)
 	go controller.Run(shutdown)
 	return cachedDisco, store, controller
+}
+
+func (d *cachedDiscovery) invalidatePeriodically(shutdown <-chan struct{}) {
+	// Make the first period shorter since we may be bootstrapping a
+	// newly-created cluster and the resource definitions may not be
+	// complete/stable yet.
+	initialPeriodDuration := 1 * time.Minute
+	subsequentPeriodsDuration := 5 * initialPeriodDuration
+	timer := time.NewTimer(initialPeriodDuration)
+	for {
+		select {
+		case <-timer.C:
+			timer.Reset(subsequentPeriodsDuration)
+			d.Invalidate()
+		case <-shutdown:
+			timer.Stop()
+			return
+		}
+	}
 }
