@@ -141,7 +141,7 @@ func (c *Checkout) CommitAndPush(ctx context.Context, commitAction CommitAction,
 	}
 
 	if note != nil {
-		rev, err := refRevision(ctx, c.dir, "HEAD")
+		rev, err := c.HeadRevision(ctx)
 		if err != nil {
 			return err
 		}
@@ -174,7 +174,7 @@ func (c *Checkout) HeadRevision(ctx context.Context) (string, error) {
 }
 
 func (c *Checkout) SyncRevision(ctx context.Context) (string, error) {
-	return refRevision(ctx, c.dir, c.config.SyncTag)
+	return refRevision(ctx, c.dir, "tags/"+c.config.SyncTag)
 }
 
 func (c *Checkout) MoveSyncTagAndPush(ctx context.Context, tagAction TagAction) error {
