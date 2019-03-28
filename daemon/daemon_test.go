@@ -634,7 +634,7 @@ func mustParseImageRef(ref string) image.Ref {
 
 type anonNamespacer func(kresource.KubeManifest) string
 
-func (fn anonNamespacer) EffectiveNamespace(m kresource.KubeManifest) (string, error) {
+func (fn anonNamespacer) EffectiveNamespace(m kresource.KubeManifest, _ kubernetes.ResourceScopes) (string, error) {
 	return fn(m), nil
 }
 

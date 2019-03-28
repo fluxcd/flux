@@ -78,7 +78,7 @@ func TestCachedDiscovery(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	namespaced, err := namespacer.lookupNamespaced("foo/v1", "Custom")
+	namespaced, err := namespacer.lookupNamespaced("foo/v1", "Custom", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -124,7 +124,7 @@ func TestCachedDiscovery(t *testing.T) {
 		t.Error("does not exist")
 	}
 
-	namespaced, err = namespacer.lookupNamespaced("foo/v1", "Custom")
+	namespaced, err = namespacer.lookupNamespaced("foo/v1", "Custom", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
