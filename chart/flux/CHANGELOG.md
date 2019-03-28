@@ -6,10 +6,10 @@
    [weaveworks/flux#1871](https://github.com/weaveworks/flux/pull/1871)
  - Allow mounting of docker credentials file
    [weaveworks/flux#1762](https://github.com/weaveworks/flux/pull/1762)
-  - Increase memcached memory defaults
-    [weaveworks/flux#1780](https://github.com/weaveworks/flux/pull/1780)
-  - GPG Git commit signing
-    [weaveworks/flux#1394](https://github.com/weaveworks/flux/pull/1394)
+ - Increase memcached memory defaults
+   [weaveworks/flux#1780](https://github.com/weaveworks/flux/pull/1780)
+ - GPG Git commit signing
+   [weaveworks/flux#1394](https://github.com/weaveworks/flux/pull/1394)
 
 ## 0.6.3 (2019-02-14)
 
