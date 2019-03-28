@@ -27,6 +27,12 @@ func makeFakeClient() *corefake.Clientset {
 				{Name: "namespaces", SingularName: "namespace", Namespaced: false, Kind: "Namespace", Verbs: getAndList},
 			},
 		},
+		{
+			GroupVersion: "apiextensions.k8s.io/v1beta1",
+			APIResources: []metav1.APIResource{
+				{Name: "customresourcedefinitions", SingularName: "customresourcedefinition", Namespaced: false, Kind: "CustomResourceDefinition", Verbs: getAndList},
+			},
+		},
 	}
 
 	coreClient := corefake.NewSimpleClientset()
@@ -101,7 +107,7 @@ metadata:
 			t.Errorf("manifest for %q not found", id)
 			return
 		}
-		got, err := nser.EffectiveNamespace(res)
+		got, err := nser.EffectiveNamespace(res, nil)
 		if err != nil {
 			t.Errorf("error getting effective namespace for %q: %s", id, err.Error())
 			return
