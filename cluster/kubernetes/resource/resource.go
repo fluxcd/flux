@@ -119,38 +119,38 @@ func unmarshalObject(source string, bytes []byte) (KubeManifest, error) {
 }
 
 func unmarshalKind(base baseObject, bytes []byte) (KubeManifest, error) {
-	switch base.Kind {
-	case "CronJob":
+	switch {
+	case base.Kind == "CronJob":
 		var cj = CronJob{baseObject: base}
 		if err := yaml.Unmarshal(bytes, &cj); err != nil {
 			return nil, err
 		}
 		return &cj, nil
-	case "DaemonSet":
+	case base.Kind == "DaemonSet":
 		var ds = DaemonSet{baseObject: base}
 		if err := yaml.Unmarshal(bytes, &ds); err != nil {
 			return nil, err
 		}
 		return &ds, nil
-	case "Deployment":
+	case base.Kind == "Deployment":
 		var dep = Deployment{baseObject: base}
 		if err := yaml.Unmarshal(bytes, &dep); err != nil {
 			return nil, err
 		}
 		return &dep, nil
-	case "Namespace":
+	case base.Kind == "Namespace":
 		var ns = Namespace{baseObject: base}
 		if err := yaml.Unmarshal(bytes, &ns); err != nil {
 			return nil, err
 		}
 		return &ns, nil
-	case "StatefulSet":
+	case base.Kind == "StatefulSet":
 		var ss = StatefulSet{baseObject: base}
 		if err := yaml.Unmarshal(bytes, &ss); err != nil {
 			return nil, err
 		}
 		return &ss, nil
-	case "List":
+	case strings.HasSuffix(base.Kind, "List"):
 		var raw rawList
 		if err := yaml.Unmarshal(bytes, &raw); err != nil {
 			return nil, err
@@ -158,13 +158,13 @@ func unmarshalKind(base baseObject, bytes []byte) (KubeManifest, error) {
 		var list List
 		unmarshalList(base, &raw, &list)
 		return &list, nil
-	case "FluxHelmRelease", "HelmRelease":
+	case base.Kind == "FluxHelmRelease" || base.Kind == "HelmRelease":
 		var fhr = FluxHelmRelease{baseObject: base}
 		if err := yaml.Unmarshal(bytes, &fhr); err != nil {
 			return nil, err
 		}
 		return &fhr, nil
-	case "":
+	case base.Kind == "":
 		// If there is an empty resource (due to eg an introduced comment),
 		// we are returning nil for the resource and nil for an error
 		// (as not really an error). We are not, at least at the moment,

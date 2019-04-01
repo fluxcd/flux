@@ -187,6 +187,41 @@ items:
 	}
 }
 
+func TestUnmarshalDeploymentList(t *testing.T) {
+	doc := `---
+kind: DeploymentList
+metadata:
+  name: list
+items:
+- kind: Deployment
+  metadata:
+    name: foo
+    namespace: ns
+- kind: Deployment
+  metadata:
+    name: bar
+    namespace: ns
+`
+	res, err := unmarshalObject("", []byte(doc))
+	if err != nil {
+		t.Fatal(err)
+	}
+	list, ok := res.(*List)
+	if !ok {
+		t.Fatal("did not parse as a list")
+	}
+	if len(list.Items) != 2 {
+		t.Fatalf("expected two items, got %+v", list.Items)
+	}
+	for i, id := range []flux.ResourceID{
+		flux.MustParseResourceID("ns:deployment/foo"),
+		flux.MustParseResourceID("ns:deployment/bar")} {
+		if list.Items[i].ResourceID() != id {
+			t.Errorf("At %d, expected %q, got %q", i, id, list.Items[i].ResourceID())
+		}
+	}
+}
+
 func debyte(r resource.Resource) resource.Resource {
 	if res, ok := r.(interface {
 		debyte()
