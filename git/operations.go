@@ -120,8 +120,12 @@ func push(ctx context.Context, workingDir, upstream string, refs []string) error
 // fetch updates refs from the upstream.
 func fetch(ctx context.Context, workingDir, upstream string, refspec ...string) error {
 	args := append([]string{"fetch", "--tags", upstream}, refspec...)
+	// In git <=2.20 the error started with an uppercase, in 2.21 this
+	// was changed to be consistent with all other die() and error()
+	// messages, cast to lowercase to support both versions.
+	// Ref: https://github.com/git/git/commit/0b9c3afdbfb62936337efc52b4007a446939b96b
 	if err := execGitCmd(ctx, args, gitCmdConfig{dir: workingDir}); err != nil &&
-		!strings.Contains(err.Error(), "Couldn't find remote ref") {
+		!strings.Contains(strings.ToLower(err.Error()), "couldn't find remote ref") {
 		return errors.Wrap(err, fmt.Sprintf("git fetch --tags %s %s", upstream, refspec))
 	}
 	return nil
