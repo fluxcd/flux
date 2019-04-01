@@ -1,6 +1,18 @@
 This is the changelog for the Flux daemon; the changelog for the Helm
 operator is in [./CHANGELOG-helmop.md](./CHANGELOG-helmop.md).
 
+## 1.11.1 (2019-04-01)
+
+This is a bugfix release, fixing a regression introduced in 1.11.0 which caused 
+syncs to fail when adding a CRD and instance(s) from that CRD at the same time.  
+
+### Fixes
+
+- Obtain scope of CRD instances from its manifest as a fallback
+  [weaveworks/flux#1876][#1876]
+  
+[#1876]: https://github.com/weaveworks/flux/pull/1876
+
 ## 1.11.0 (2019-03-13)
 
 This release comes with experimental garbage collection and Git commit signing:
