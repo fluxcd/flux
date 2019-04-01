@@ -332,7 +332,7 @@ func (chs *ChartChangeSync) reconcileReleaseDef(fhr fluxv1beta1.HelmRelease) {
 		if chs.config.UpdateDeps && !fhr.Spec.ChartSource.GitChartSource.SkipDepUpdate {
 			if err := updateDependencies(chartPath, ""); err != nil {
 				chs.setCondition(&fhr, fluxv1beta1.HelmReleaseReleased, v1.ConditionFalse, ReasonDependencyFailed, err.Error())
-				chs.logger.Log("warning", "Failed to update chart dependencies", "namespace", fhr.Namespace, "name", fhr.Name, "error", err)
+				chs.logger.Log("warning", "failed to update chart dependencies", "namespace", fhr.Namespace, "name", fhr.Name, "error", err)
 				return
 			}
 		}
@@ -353,7 +353,7 @@ func (chs *ChartChangeSync) reconcileReleaseDef(fhr fluxv1beta1.HelmRelease) {
 		_, err := chs.release.Install(chartPath, releaseName, fhr, release.InstallAction, opts, &chs.kubeClient)
 		if err != nil {
 			chs.setCondition(&fhr, fluxv1beta1.HelmReleaseReleased, v1.ConditionFalse, ReasonInstallFailed, err.Error())
-			chs.logger.Log("warning", "Failed to install chart", "namespace", fhr.Namespace, "name", fhr.Name, "error", err)
+			chs.logger.Log("warning", "failed to install chart", "namespace", fhr.Namespace, "name", fhr.Name, "error", err)
 			return
 		}
 		chs.setCondition(&fhr, fluxv1beta1.HelmReleaseReleased, v1.ConditionTrue, ReasonSuccess, "helm install succeeded")
@@ -365,14 +365,27 @@ func (chs *ChartChangeSync) reconcileReleaseDef(fhr fluxv1beta1.HelmRelease) {
 
 	changed, err := chs.shouldUpgrade(chartPath, rel, fhr)
 	if err != nil {
-		chs.logger.Log("warning", "Unable to determine if release has changed", "namespace", fhr.Namespace, "name", fhr.Name, "error", err)
+		chs.logger.Log("warning", "unable to determine if release has changed", "namespace", fhr.Namespace, "name", fhr.Name, "error", err)
 		return
 	}
 	if changed {
+		// It is possible the release has vanished or has been
+		// modified between the time we started working with it and
+		// now. Ensure the release is still there and has the same
+		// version as when we started.
+		cRel, _ := chs.release.GetDeployedRelease(releaseName)
+		switch {
+		case cRel == nil:
+			chs.logger.Log("warning", "release does no longer exist", "namespace", fhr.Namespace, "name", fhr.Name)
+			return
+		case cRel.Version != rel.Version:
+			chs.logger.Log("warning", "release version was changed after upgrade operation started", releaseName, "namespace", fhr.Namespace, "name", fhr.Name)
+			return
+		}
 		_, err := chs.release.Install(chartPath, releaseName, fhr, release.UpgradeAction, opts, &chs.kubeClient)
 		if err != nil {
 			chs.setCondition(&fhr, fluxv1beta1.HelmReleaseReleased, v1.ConditionFalse, ReasonUpgradeFailed, err.Error())
-			chs.logger.Log("warning", "Failed to upgrade chart", "namespace", fhr.Namespace, "name", fhr.Name, "error", err)
+			chs.logger.Log("warning", "failed to upgrade chart", "namespace", fhr.Namespace, "name", fhr.Name, "error", err)
 			return
 		}
 		chs.setCondition(&fhr, fluxv1beta1.HelmReleaseReleased, v1.ConditionTrue, ReasonSuccess, "helm upgrade succeeded")
