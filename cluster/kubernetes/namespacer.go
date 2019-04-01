@@ -3,6 +3,8 @@ package kubernetes
 import (
 	"fmt"
 
+	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/tools/clientcmd"
 
@@ -55,8 +57,8 @@ var getDefaultNamespace = func() (string, error) {
 // effectiveNamespace yields the namespace that would be used for this
 // resource were it applied, taking into account the kind of the
 // resource, and local configuration.
-func (n *namespaceViaDiscovery) EffectiveNamespace(m kresource.KubeManifest) (string, error) {
-	namespaced, err := n.lookupNamespaced(m.GroupVersion(), m.GetKind())
+func (n *namespaceViaDiscovery) EffectiveNamespace(m kresource.KubeManifest, knownScopes ResourceScopes) (string, error) {
+	namespaced, err := n.lookupNamespaced(m.GroupVersion(), m.GetKind(), knownScopes)
 	switch {
 	case err != nil:
 		return "", err
@@ -68,7 +70,24 @@ func (n *namespaceViaDiscovery) EffectiveNamespace(m kresource.KubeManifest) (st
 	return m.GetNamespace(), nil
 }
 
-func (n *namespaceViaDiscovery) lookupNamespaced(groupVersion, kind string) (bool, error) {
+func (n *namespaceViaDiscovery) lookupNamespaced(groupVersion string, kind string, knownScopes ResourceScopes) (bool, error) {
+	namespaced, clusterErr := n.lookupNamespacedInCluster(groupVersion, kind)
+	if clusterErr == nil || knownScopes == nil {
+		return namespaced, nil
+	}
+	// Not found in the cluster, let's try the known scopes
+	gv, err := schema.ParseGroupVersion(groupVersion)
+	if err != nil {
+		return false, clusterErr
+	}
+	scope, found := knownScopes[gv.WithKind(kind)]
+	if !found {
+		return false, clusterErr
+	}
+	return scope == v1beta1.NamespaceScoped, nil
+}
+
+func (n *namespaceViaDiscovery) lookupNamespacedInCluster(groupVersion, kind string) (bool, error) {
 	resourceList, err := n.disco.ServerResourcesForGroupVersion(groupVersion)
 	if err != nil {
 		return false, fmt.Errorf("error looking up API resources for %s.%s: %s", kind, groupVersion, err.Error())
