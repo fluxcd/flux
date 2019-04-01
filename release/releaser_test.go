@@ -24,7 +24,7 @@ import (
 
 type constNamespacer string
 
-func (ns constNamespacer) EffectiveNamespace(kresource.KubeManifest) (string, error) {
+func (ns constNamespacer) EffectiveNamespace(manifest kresource.KubeManifest, _ kubernetes.ResourceScopes) (string, error) {
 	return string(ns), nil
 }
 
