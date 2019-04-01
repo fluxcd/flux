@@ -151,6 +151,12 @@ func unmarshalKind(base baseObject, bytes []byte) (KubeManifest, error) {
 		}
 		return &ss, nil
 	case strings.HasSuffix(base.Kind, "List"):
+		// All resource kinds ending with `List` are understood as
+		// a list of resources. This is not bullet proof since
+		// CustomResourceDefinitions can define a custom ListKind
+		// (see CustomResourceDefinition.Spec.Names.ListKind) but
+		// we cannot do better without involving API discovery during
+		// parsing.
 		var raw rawList
 		if err := yaml.Unmarshal(bytes, &raw); err != nil {
 			return nil, err
