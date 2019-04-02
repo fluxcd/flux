@@ -10,6 +10,8 @@ syncs to fail when adding a CRD and instance(s) from that CRD at the same time.
 
 - Obtain scope of CRD instances from its manifest as a fallback
   [weaveworks/flux#1876][#1876]
+- Updated tag in helm chart to 1.11.1 to match static manifests
+  [weaveworks/flux#1892][#1892]
   
 [#1876]: https://github.com/weaveworks/flux/pull/1876
 
