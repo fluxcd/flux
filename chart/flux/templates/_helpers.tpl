@@ -41,3 +41,22 @@ Create the name of the service account to use
     {{ default "default" .Values.serviceAccount.name }}
 {{- end -}}
 {{- end -}}
+
+{{/*
+Create a custom repositories.yaml for Helm
+*/}}
+{{- define "flux.customRepositories" -}}
+apiVersion: v1
+generated: 0001-01-01T00:00:00Z
+repositories:
+{{- range .Values.helmOperator.configureRepositories.repositories }}
+- name: {{ required "Please specify a name for the Helm repo" .name }}
+  url: {{ required "Please specify a URL for the Helm repo" .url }}
+  cache: /var/fluxd/helm/repository/cache/{{ .name }}-index.yaml
+  caFile: ""
+  certFile: ""
+  keyFile: ""
+  password: "{{ .password | default "" }}"
+  username: "{{ .username | default "" }}"
+{{- end }}
+{{- end -}}

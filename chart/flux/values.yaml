@@ -47,6 +47,11 @@ helmOperator:
     volumeName: repositories-yaml
     secretName: flux-helm-repositories
     cacheVolumeName: repositories-cache
+    repositories:
+      # - name: bitnami
+      #   url: https://charts.bitnami.com
+      #   username:
+      #   password:
   # Override Flux git settings
   git:
     pollInterval: ""
