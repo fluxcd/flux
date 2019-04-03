@@ -46,8 +46,11 @@ jobs:
   e2e-testing:
     machine: true
     working_directory: ~/go/src/github.com/weaveworks/flux
+    environment:
+      GOPATH: /home/circleci/go
     steps:
       - checkout
+      - run: test/e2e/e2e-echo.sh
       - run: test/e2e/e2e-golang.sh
       - run: test/e2e/e2e-flux-build.sh
       - run: test/e2e/e2e-kind.sh

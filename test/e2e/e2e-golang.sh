@@ -2,18 +2,17 @@
 
 set -o errexit
 
+source $(dirname $0)/e2e-paths.env
+
 GO_VERSION=1.11.4
 
-echo ">>> Installing go ${GO_VERSION}"
-curl -O https://storage.googleapis.com/golang/go${GO_VERSION}.linux-amd64.tar.gz
+echo ">>> Installing go ${GO_VERSION} to $GOBASE/go"
+if ! [ -f "go${GO_VERSION}.linux-amd64.tar.gz" ]; then
+    curl -O https://storage.googleapis.com/golang/go${GO_VERSION}.linux-amd64.tar.gz
+fi
 tar -xf go1.11.4.linux-amd64.tar.gz
-sudo rm -rf /usr/local/go
-sudo mv go /usr/local
-
-export GOPATH=$HOME/go
-export PATH=$PATH:/usr/local/go/bin:$GOPATH/bin
-
-mkdir -p $HOME/go/bin
-mkdir -p $HOME/go/src
+rm -rf $GOBASE/go
+mkdir -p $GOBASE
+mv go $GOBASE/
 
 go version

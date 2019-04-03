@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
 
+# Install a git server into the cluster.
+
 set -o errexit
 
-REPO_ROOT=$(git rev-parse --show-toplevel)
-SCRIPT_DIR="${REPO_ROOT}/test/e2e"
-export KUBECONFIG="$(kind get kubeconfig-path --name="kind")"
+source $(dirname $0)/e2e-paths.env
+source $(dirname $0)/e2e-kube.env
+
+SCRIPT_DIR=$REPO_ROOT/test/e2e
 
 echo ">>> Installing git"
 kubectl create namespace flux
@@ -14,4 +17,3 @@ rm "${SCRIPT_DIR}/id_rsa" "${SCRIPT_DIR}/id_rsa.pub"
 kubectl apply -f "${SCRIPT_DIR}/git-dep.yaml"
 
 kubectl -n flux rollout status deployment/gitsrv
-

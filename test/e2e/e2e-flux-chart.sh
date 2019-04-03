@@ -1,9 +1,14 @@
 #!/usr/bin/env bash
 
+# Install flux, using the flux chart, with the image built from the
+# current state of the repo. Sync with the git server set up in
+# `e2e-git.sh`, and wait until the expected resources are present.
+
 set -o errexit
 
-export KUBECONFIG="$(kind get kubeconfig-path --name="kind")"
-REPO_ROOT=$(git rev-parse --show-toplevel)
+source $(dirname $0)/e2e-paths.env
+source $(dirname $0)/e2e-kube.env
+
 KNOWN_HOSTS=$(cat ${REPO_ROOT}/test/e2e/known_hosts)
 GITCONFIG=$(cat ${REPO_ROOT}/test/e2e/gitconfig)
 
