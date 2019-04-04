@@ -9,6 +9,13 @@ jobs:
       - checkout
       - setup_remote_docker
 
+      - run:
+          # Ensure latest version of git
+          command: |
+            echo "deb http://deb.debian.org/debian stretch-backports main" | sudo tee -a /etc/apt/sources.list.d/stretch-backports.list
+            sudo apt-get update
+            sudo apt-get install -t stretch-backports -y --only-upgrade git
+            git version
       - run: curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
       - run: dep ensure -vendor-only
       - run: make check-generated

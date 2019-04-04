@@ -2,7 +2,7 @@ FROM alpine:3.9
 
 WORKDIR /home/flux
 
-RUN apk add --no-cache openssh ca-certificates tini 'git>=2.3.0'
+RUN apk add --no-cache openssh ca-certificates tini 'git>=2.12.0'
 
 # Add git hosts to known hosts file so we can use
 # StrickHostKeyChecking with git+ssh
