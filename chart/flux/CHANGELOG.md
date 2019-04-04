@@ -1,3 +1,14 @@
+## 0.8.0 (2019-04-04)
+
+### Improvements
+
+ - Updated Flux to `1.11.1`
+   [weaveworks/flux#1892](https://github.com/weaveworks/flux/pull/1892)
+ - Define custom Helm repositories in the Helm chart
+   [weaveworks/flux#1893](https://github.com/weaveworks/flux/pull/1893)
+ - Increase memcached max memory to 512MB
+   [weaveworks/flux#1900](https://github.com/weaveworks/flux/pull/1900)
+
 ## 0.7.0 (2019-03-27)
 
 ### Improvements
