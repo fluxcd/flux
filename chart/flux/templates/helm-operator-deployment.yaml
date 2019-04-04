@@ -68,6 +68,11 @@ spec:
           secretName: {{ .Values.helmOperator.configureRepositories.secretName | quote }}
       - name: {{ .Values.helmOperator.configureRepositories.cacheVolumeName | quote }}
         emptyDir: {}
+      {{- if .Values.helmOperator.configureRepositories.certs.secretName }}
+      - name: repositories-certs
+        secret:
+          secretName: {{ .Values.helmOperator.configureRepositories.certs.secretName | quote }}
+      {{- end }}
       {{- end }}
       containers:
       - name: flux-helm-operator
@@ -101,6 +106,10 @@ spec:
           mountPath: /var/fluxd/helm/repository
         - name: {{ .Values.helmOperator.configureRepositories.cacheVolumeName | quote }}
           mountPath: /var/fluxd/helm/repository/cache
+        {{- if .Values.helmOperator.configureRepositories.certs.secretName }}
+        - name: repositories-certs
+          mountPath: {{ .Values.helmOperator.configureRepositories.certs.mountPath }}
+        {{- end }}
         {{- end }}
         args:
         - --git-timeout={{ $gitTimeout }}

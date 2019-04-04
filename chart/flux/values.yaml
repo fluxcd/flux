@@ -47,6 +47,9 @@ helmOperator:
     volumeName: repositories-yaml
     secretName: flux-helm-repositories
     cacheVolumeName: repositories-cache
+    certs: # supply a secret name here, and it will be mounted so you can refer to files within
+      secretName: ""
+      mountPath: /var/fluxd/helm/certs
   # Override Flux git settings
   git:
     pollInterval: ""

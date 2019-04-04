@@ -261,7 +261,8 @@ The following tables lists the configurable parameters of the Weave Flux chart a
 | `helmOperator.configureRepositories.enable`     | `false`                                              | Enable volume mount for a `repositories.yaml` configuration file and respository cache
 | `helmOperator.configureRepositories.volumeName` | `repositories-yaml`                                  | Name of the volume for the `repositories.yaml` file
 | `helmOperator.configureRepositories.secretName` | `flux-helm-repositories`                             | Name of the secret containing the contents of the `repositories.yaml` file
-| `helmOperator.configureRepositories.cacheName`  | `repositories-cache`                                 | Name for the repository cache volume
+| `helmOperator.configureRepositories.certs.secretName`  | ``                                            | If supplied, this secret will be mounted into the Helm operator container
+| `helmOperator.configureRepositories.certs.mountPath`  | `/var/fluxd/helm/certs`                        | Path at which to mount the certs secret
 | `helmOperator.resources.requests.cpu`           | `50m`                                                | CPU resource requests for the helmOperator deployment
 | `helmOperator.resources.requests.memory`        | `64Mi`                                               | Memory resource requests for the helmOperator deployment
 | `helmOperator.resources.limits`                 | `None`                                               | CPU/memory resource limits for the helmOperator deployment
