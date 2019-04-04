@@ -16,10 +16,14 @@ if ! [ -f "$TOOLBIN/kubectl" ]; then
 fi
 
 echo ">>> Building sigs.k8s.io/kind into $GOBIN/"
-go get sigs.k8s.io/kind
+if ! [ -f "$GOBIN/kind" ]; then
+    go get sigs.k8s.io/kind
+fi
 
 echo ">>> Creating kind cluster"
-kind create cluster --wait 5m
+if [ "$(kind get cluster | grep kind)" == "kind" ]; then
+    kind create cluster --wait 5m
+fi
 
 export KUBECONFIG="$(kind get kubeconfig-path --name="kind")"
 kubectl get pods --all-namespaces
