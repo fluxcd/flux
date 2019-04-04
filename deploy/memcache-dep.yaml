@@ -20,7 +20,7 @@ spec:
         image: memcached:1.4.25
         imagePullPolicy: IfNotPresent
         args:
-        - -m 128   # Maximum memory to use, in megabytes
+        - -m 512   # Maximum memory to use, in megabytes
         - -I 5m    # Maximum size for one item
         - -p 11211 # Default port
         # - -vv    # Uncomment to get logs of each request and response.
