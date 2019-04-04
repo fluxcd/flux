@@ -60,7 +60,7 @@ func getCRDScopes(manifests map[string]kresource.KubeManifest) ResourceScopes {
 	return result
 }
 
-func postProcess(manifests map[string]kresource.KubeManifest, nser namespacer) (map[string]resource.Resource, error) {
+func setEffectiveNamespaces(manifests map[string]kresource.KubeManifest, nser namespacer) (map[string]resource.Resource, error) {
 	knownScopes := getCRDScopes(manifests)
 	result := map[string]resource.Resource{}
 	for _, km := range manifests {
@@ -76,15 +76,15 @@ func postProcess(manifests map[string]kresource.KubeManifest, nser namespacer) (
 	return result, nil
 }
 
-func (c *Manifests) LoadManifests(base string, paths []string) (map[string]resource.Resource, error) {
+func (m *Manifests) LoadManifests(base string, paths []string) (map[string]resource.Resource, error) {
 	manifests, err := kresource.Load(base, paths)
 	if err != nil {
 		return nil, err
 	}
-	return postProcess(manifests, c.Namespacer)
+	return setEffectiveNamespaces(manifests, m.Namespacer)
 }
 
-func (c *Manifests) UpdateImage(def []byte, id flux.ResourceID, container string, image image.Ref) ([]byte, error) {
+func (m *Manifests) UpdateImage(def []byte, id flux.ResourceID, container string, image image.Ref) ([]byte, error) {
 	return updateWorkload(def, id, container, image)
 }
 

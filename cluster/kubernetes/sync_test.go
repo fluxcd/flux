@@ -319,7 +319,7 @@ metadata:
 		}
 
 		// Needed to get from KubeManifest to resource.Resource
-		resources, err := postProcess(resources0, namespacer)
+		resources, err := setEffectiveNamespaces(resources0, namespacer)
 		if err != nil {
 			t.Fatal(err)
 		}

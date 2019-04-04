@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/pkg/errors"
-	"gopkg.in/yaml.v2"
 
 	"github.com/weaveworks/flux"
 	kresource "github.com/weaveworks/flux/cluster/kubernetes/resource"
@@ -21,7 +20,7 @@ func (m *Manifests) UpdatePolicies(def []byte, id flux.ResourceID, update policy
 	// what all the containers are.
 	if tagAll, ok := update.Add.Get(policy.TagAll); ok {
 		add = add.Without(policy.TagAll)
-		containers, err := extractContainers(def, id)
+		containers, err := m.extractWorkloadContainers(def, id)
 		if err != nil {
 			return nil, err
 		}
@@ -49,25 +48,17 @@ func (m *Manifests) UpdatePolicies(def []byte, id flux.ResourceID, update policy
 	return (KubeYAML{}).Annotate(def, ns, kind, name, args...)
 }
 
-type manifest struct {
-	Metadata struct {
-		Annotations map[string]string `yaml:"annotations"`
-	} `yaml:"metadata"`
-}
-
-func extractAnnotations(def []byte) (map[string]string, error) {
-	var m manifest
-	if err := yaml.Unmarshal(def, &m); err != nil {
-		return nil, errors.Wrap(err, "decoding manifest for annotations")
+func (m *Manifests) extractWorkloadContainers(def []byte, id flux.ResourceID) ([]resource.Container, error) {
+	kresources, err := kresource.ParseMultidoc(def, "stdin")
+	if err != nil {
+		return nil, err
 	}
-	if m.Metadata.Annotations == nil {
-		return map[string]string{}, nil
-	}
-	return m.Metadata.Annotations, nil
-}
-
-func extractContainers(def []byte, id flux.ResourceID) ([]resource.Container, error) {
-	resources, err := kresource.ParseMultidoc(def, "stdin")
+	// Note: setEffectiveNamespaces() won't work for CRD instances whose CRD is yet to be created
+	// (due to the CRD not being present in kresources).
+	// We could get out of our way to fix this (or give a better error) but:
+	// 1. With the exception of HelmReleases CRD instances are not workloads anyways.
+	// 2. The problem is eventually fixed by the first successful sync.
+	resources, err := setEffectiveNamespaces(kresources, m.Namespacer)
 	if err != nil {
 		return nil, err
 	}
