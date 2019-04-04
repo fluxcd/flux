@@ -168,7 +168,7 @@ memcached:
   createClusterIP: true
   verbose: false
   maxItemSize: 5m
-  maxMemory: 128
+  maxMemory: 512
   nodeSelector: {}
   tolerations: []
   affinity: {}
@@ -177,10 +177,10 @@ memcached:
     # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
     # limits:
     #  cpu: 100m
-    #  memory: 256Mi
+    #  memory: 628Mi
     # requests:
     #  cpu: 50m
-    #  memory: 128Mi
+    #  memory: 512Mi
 
 ssh:
   # Overrides for git over SSH. If you use your own git server, you
