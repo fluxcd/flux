@@ -297,15 +297,13 @@ func (c *Controller) enqueueUpdateJob(old, new interface{}) {
 		return
 	}
 
-	if diff := cmp.Diff(oldFhr.Spec, newFhr.Spec); diff != "" {
-		c.logger.Log("info", "UPGRADING release")
-		if c.logDiffs {
-			c.logger.Log("info", "Custom Resource driven release upgrade", "diff", diff)
-		} else {
-			c.logger.Log("info", "Custom Resource driven release upgrade")
-		}
-		c.enqueueJob(new)
+	c.logger.Log("info", "UPGRADING release")
+	if diff := cmp.Diff(oldFhr.Spec, newFhr.Spec); diff != "" && c.logDiffs {
+		c.logger.Log("info", "Custom Resource driven release upgrade", "diff", diff)
+	} else {
+		c.logger.Log("info", "Custom Resource driven release upgrade")
 	}
+	c.enqueueJob(new)
 }
 
 func (c *Controller) deleteRelease(fhr flux_v1beta1.HelmRelease) {
