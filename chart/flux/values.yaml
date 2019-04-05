@@ -100,6 +100,10 @@ tolerations: []
 
 affinity: {}
 
+extraVolumeMounts: []
+
+extraVolumes: []
+
 gpgKeys:
   # These keys will be imported into GPG in the Flux container.
   secretName: ""
@@ -161,6 +165,7 @@ registry:
   dockercfg:
     enabled: false
     secretName: ""
+
 memcached:
   repository: memcached
   tag: 1.4.25
@@ -214,3 +219,14 @@ extraEnvs: []
 
 prometheus:
   enabled: false
+
+# Add your own init container or uncomment and modify the given example.
+initContainers: {}
+  # flux-init:  # <- will be used as container name
+  #   image: "busybox:1.30.1"
+  #   imagePullPolicy: "IfNotPresent"
+  #   command: ['sh', '-c', 'counter=0; until [ "$counter" -ge 30 ]; do if [ -f /tmp/flux-deploy-key/xyz.key ]; then exit 0; else echo waiting for flux deploy key && sleep 1 && counter=$((counter+1)); fi; done; exit 1;']
+  #   imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+  #   volumeMounts:
+  #     - mountPath: /tmp/flux-deploy-key
+  #       name: flux-deploy-key
