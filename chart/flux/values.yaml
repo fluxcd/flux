@@ -202,8 +202,8 @@ kube:
     kind: Config
     preferences: {}
     users: []
-#for https://github.com/justinbarrick/fluxcloud/
-#additionalArgs:
+# for https://github.com/justinbarrick/fluxcloud/
+# additionalArgs:
 # - --connect=ws://fluxcloud
 
 # Additional environment variables to set
