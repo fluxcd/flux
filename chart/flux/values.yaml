@@ -202,7 +202,7 @@ kube:
     kind: Config
     preferences: {}
     users: []
-# for https://github.com/justinbarrick/fluxcloud/
+# For https://github.com/justinbarrick/fluxcloud/
 # additionalArgs:
 # - --connect=ws://fluxcloud
 
