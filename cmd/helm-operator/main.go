@@ -171,7 +171,6 @@ func main() {
 	rel := release.New(log.With(logger, "component", "release"), helmClient)
 	chartSync := chartsync.New(
 		log.With(logger, "component", "chartsync"),
-		chartsync.Polling{Interval: *chartsSyncInterval},
 		chartsync.Clients{KubeClient: *kubeClient, IfClient: *ifClient},
 		rel,
 		chartsync.Config{LogDiffs: *logReleaseDiffs, UpdateDeps: *updateDependencies, GitTimeout: *gitTimeout},
@@ -181,7 +180,7 @@ func main() {
 	chartSync.Run(shutdown, errc, shutdownWg)
 
 	nsOpt := ifinformers.WithNamespace(*namespace)
-	ifInformerFactory := ifinformers.NewSharedInformerFactoryWithOptions(ifClient, 30*time.Second, nsOpt)
+	ifInformerFactory := ifinformers.NewSharedInformerFactoryWithOptions(ifClient, *chartsSyncInterval, nsOpt)
 	fhrInformer := ifInformerFactory.Flux().V1beta1().HelmReleases()
 
 	// start FluxRelease informer

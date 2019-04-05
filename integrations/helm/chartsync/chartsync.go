@@ -75,10 +75,6 @@ const (
 	ReasonSuccess          = "HelmSuccess"
 )
 
-type Polling struct {
-	Interval time.Duration
-}
-
 type Clients struct {
 	KubeClient kubernetes.Clientset
 	IfClient   ifclientset.Clientset
@@ -106,7 +102,6 @@ type clone struct {
 }
 
 type ChartChangeSync struct {
-	Polling
 	logger     log.Logger
 	kubeClient kubernetes.Clientset
 	ifClient   ifclientset.Clientset
@@ -121,10 +116,9 @@ type ChartChangeSync struct {
 	namespace string
 }
 
-func New(logger log.Logger, polling Polling, clients Clients, release *release.Release, config Config, namespace string, statusUpdater *status.Updater) *ChartChangeSync {
+func New(logger log.Logger, clients Clients, release *release.Release, config Config, namespace string, statusUpdater *status.Updater) *ChartChangeSync {
 	return &ChartChangeSync{
 		logger:     logger,
-		Polling:    polling,
 		kubeClient: clients.KubeClient,
 		ifClient:   clients.IfClient,
 		release:    release,
@@ -147,9 +141,6 @@ func (chs *ChartChangeSync) Run(stopCh <-chan struct{}, errc chan error, wg *syn
 			chs.mirrors.StopAllAndWait()
 			wg.Done()
 		}()
-
-		ticker := time.NewTicker(chs.Polling.Interval)
-		defer ticker.Stop()
 
 		for {
 			select {
@@ -241,16 +232,6 @@ func (chs *ChartChangeSync) Run(stopCh <-chan struct{}, errc chan error, wg *syn
 
 					chs.reconcileReleaseDef(fhr)
 				}
-			case <-ticker.C:
-				// Re-release any chart releases that have apparently
-				// changed in the cluster.
-				chs.logger.Log("info", fmt.Sprint("Start of releasesync"))
-				err := chs.reapplyReleaseDefs()
-				if err != nil {
-					chs.logger.Log("error", fmt.Sprintf("Failure to do manual release sync: %s", err))
-				}
-				chs.logger.Log("info", fmt.Sprint("End of releasesync"))
-
 			case <-stopCh:
 				chs.logger.Log("stopping", "true")
 				return
@@ -394,22 +375,6 @@ func (chs *ChartChangeSync) reconcileReleaseDef(fhr fluxv1beta1.HelmRelease) {
 		}
 		return
 	}
-}
-
-// reapplyReleaseDefs goes through the resource definitions and
-// reconciles them with Helm releases. This is a "backstop" for the
-// other sync processes, to cover the case of a release being changed
-// out-of-band (e.g., by someone using `helm upgrade`).
-func (chs *ChartChangeSync) reapplyReleaseDefs() error {
-	resources, err := chs.getCustomResources()
-	if err != nil {
-		return fmt.Errorf("failed to get HelmRelease resources from the API server: %s", err.Error())
-	}
-
-	for _, fhr := range resources {
-		chs.reconcileReleaseDef(fhr)
-	}
-	return nil
 }
 
 // DeleteRelease deletes the helm release associated with a
