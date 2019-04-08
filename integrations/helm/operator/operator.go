@@ -76,6 +76,7 @@ func New(
 	logReleaseDiffs bool,
 	kubeclientset kubernetes.Interface,
 	fhrInformer fhrv1.HelmReleaseInformer,
+	releaseWorkqueue workqueue.RateLimitingInterface,
 	sync *chartsync.ChartChangeSync) *Controller {
 
 	// Add helm-operator types to the default Kubernetes Scheme so Events can be
@@ -91,7 +92,7 @@ func New(
 		logDiffs:         logReleaseDiffs,
 		fhrLister:        fhrInformer.Lister(),
 		fhrSynced:        fhrInformer.Informer().HasSynced,
-		releaseWorkqueue: workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "ChartRelease"),
+		releaseWorkqueue: releaseWorkqueue,
 		recorder:         recorder,
 		sync:             sync,
 	}
