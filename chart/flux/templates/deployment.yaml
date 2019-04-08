@@ -69,13 +69,13 @@ spec:
           secretName: {{ .Values.gpgKeys.secretName }}
           defaultMode: 0400
       {{- end }}
-{{- if .Values.extraVolumes }}
+      {{- if .Values.extraVolumes }}
 {{ toYaml .Values.extraVolumes | indent 8 }}
-{{- end }}
+      {{- end }}
 {{- if .Values.initContainers }}
       initContainers:
 {{- range $key, $value := .Values.initContainers }}
-        - name: "{{ $key }}"
+        - name: {{ $key }}
 {{ toYaml $value | indent 10 }}
 {{- end }}
       containers:
