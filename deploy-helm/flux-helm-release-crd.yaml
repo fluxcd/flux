@@ -12,6 +12,8 @@ spec:
     shortNames:
     - hr
   scope: Namespaced
+  subresources:
+    status: {}
   version: v1beta1
   versions:
     - name: v1beta1
