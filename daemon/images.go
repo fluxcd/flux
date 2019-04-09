@@ -90,16 +90,19 @@ func calculateChanges(logger log.Logger, candidateWorkloads resources, workloads
 			pattern := policy.GetTagPattern(p, container.Name)
 			repo := currentImageID.Name
 			logger := log.With(logger, "workload", workload.ID, "container", container.Name, "repo", repo, "pattern", pattern, "current", currentImageID)
+			repoMetadata := imageRepos.GetRepositoryMetadata(repo)
+			images, err := update.FilterAndSortRepositoryMetadata(repoMetadata, pattern)
+			if err != nil {
+				logger.Log("warning", fmt.Sprintf("inconsistent repository metadata: %s", err), "action", "skip container")
+				continue containers
+			}
 
-			images := imageRepos.GetRepoImages(repo)
-			filteredImages := images.FilterAndSort(pattern)
-
-			if latest, ok := filteredImages.Latest(); ok && latest.ID != currentImageID {
+			if latest, ok := images.Latest(); ok && latest.ID != currentImageID {
 				if latest.ID.Tag == "" {
 					logger.Log("warning", "untagged image in available images", "action", "skip container")
 					continue containers
 				}
-				current := images.FindWithRef(currentImageID)
+				current := repoMetadata.FindImageWithRef(currentImageID)
 				if current.CreatedAt.IsZero() || latest.CreatedAt.IsZero() {
 					logger.Log("warning", "image with zero created timestamp", "current", fmt.Sprintf("%s (%s)", current.ID, current.CreatedAt), "latest", fmt.Sprintf("%s (%s)", latest.ID, latest.CreatedAt), "action", "skip container")
 					continue containers

@@ -177,7 +177,7 @@ func listImagesWithOptions(ctx context.Context, client listImagesWithoutOptionsC
 			}
 			tagPattern := policy.GetTagPattern(p, container.Name)
 			// Create a new container using the same function used in v10
-			newContainer, err := v6.NewContainer(container.Name, update.ImageInfos(container.Available), container.Current, tagPattern, opts.OverrideContainerFields)
+			newContainer, err := v6.NewContainer(container.Name, container.Available, container.Current, tagPattern, opts.OverrideContainerFields)
 			if err != nil {
 				return statuses, err
 			}

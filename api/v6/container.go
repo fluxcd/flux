@@ -27,8 +27,8 @@ type Container struct {
 }
 
 // NewContainer creates a Container given a list of images and the current image
-func NewContainer(name string, images update.ImageInfos, currentImage image.Info, tagPattern policy.Pattern, fields []string) (Container, error) {
-	sorted := images.Sort(tagPattern)
+func NewContainer(name string, images []image.Info, currentImage image.Info, tagPattern policy.Pattern, fields []string) (Container, error) {
+	sorted := update.SortImages(images, tagPattern)
 
 	// All images
 	imagesCount := len(sorted)
@@ -44,8 +44,8 @@ func NewContainer(name string, images update.ImageInfos, currentImage image.Info
 	}
 	newImagesCount := len(newImages)
 
-	// Filtered images
-	filteredImages := sorted.Filter(tagPattern)
+	// Filtered images (which respects sorting)
+	filteredImages := update.SortedImageInfos(update.FilterImages(sorted, tagPattern))
 	filteredImagesCount := len(filteredImages)
 	var newFilteredImages update.SortedImageInfos
 	for _, img := range filteredImages {

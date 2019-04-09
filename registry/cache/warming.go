@@ -3,6 +3,7 @@ package cache
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net"
 	"strings"
 	"sync"
@@ -263,6 +264,7 @@ func (w *Warmer) warm(ctx context.Context, now time.Time, logger log.Logger, id 
 
 	var fetchMx sync.Mutex // also guards access to newImages
 	var successCount int
+	var manifestUnknownCount int
 
 	if len(toUpdate) > 0 {
 		logger.Log("info", "refreshing image", "image", id, "tag_count", len(tags), "to_update", len(toUpdate), "of_which_refresh", refresh, "of_which_missing", missing)
@@ -303,13 +305,21 @@ func (w *Warmer) warm(ctx context.Context, now time.Time, logger log.Logger, id 
 						return
 					}
 
-					// abort the image tags fetching if we've been rate limited
-					if strings.Contains(err.Error(), "429") {
+					switch {
+					case strings.Contains(err.Error(), "429"):
+						// abort the image tags fetching if we've been rate limited
 						once.Do(func() {
 							errorLogger.Log("warn", "aborting image tag fetching due to rate limiting, will try again later")
 							cancel()
 						})
-					} else {
+					case strings.Contains(err.Error(), "manifest unknown"):
+						// Registry is corrupted, keep going, this manifest may not be relevant for automatic updates
+						fetchMx.Lock()
+						manifestUnknownCount++
+						fetchMx.Unlock()
+						errorLogger.Log("warn", fmt.Sprintf("manifest for tag %s missing in registry %s", imageID.Tag, imageID.Name),
+							"impact", "flux will fail to auto-release workloads with matching images, ask the respository administrator to fix the inconsistency")
+					default:
 						errorLogger.Log("err", err, "ref", imageID)
 					}
 					return
@@ -364,12 +374,15 @@ func (w *Warmer) warm(ctx context.Context, now time.Time, logger log.Logger, id 
 		logger.Log("updated", id.String(), "successful", successCount, "attempted", len(toUpdate))
 	}
 
-	// We managed to fetch new metadata for everything we were missing
-	// (if anything). Ratchet the result forward.
-	if successCount == len(toUpdate) {
+	// We managed to fetch new metadata for everything we needed.
+	// Ratchet the result forward.
+	if successCount+manifestUnknownCount == len(toUpdate) {
 		repo = ImageRepository{
 			LastUpdate: time.Now(),
-			Images:     newImages,
+			RepositoryMetadata: image.RepositoryMetadata{
+				Images: newImages,
+				Tags:   tags,
+			},
 		}
 		// If we got through all that without bumping into `HTTP 429
 		// Too Many Requests` (or other problems), we can potentially
