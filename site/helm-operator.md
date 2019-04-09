@@ -26,6 +26,7 @@ helm-operator requires setup and offers customization though a multitude of flag
 | **repo chart changes** (none of these need overriding, usually)
 | --charts-sync-interval    | `3m`                          | Interval at which to check for changed charts.
 | --git-timeout             | `20s`                         | Duration after which git operations time out.
+| --git-poll-interval       | `5m`                          | Period on which to poll git chart sources for changes.
 | --log-release-diffs       | `false`                       | Log the diff when a chart release diverges. **Potentially insecure.**
 | --update-chart-deps       | `true`                        | Update chart dependencies before installing or upgrading a release.
 

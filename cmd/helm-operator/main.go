@@ -50,7 +50,8 @@ var (
 	logReleaseDiffs    *bool
 	updateDependencies *bool
 
-	gitTimeout *time.Duration
+	gitTimeout      *time.Duration
+	gitPollInterval *time.Duration
 
 	listenAddr *string
 )
@@ -97,6 +98,7 @@ func init() {
 	updateDependencies = fs.Bool("update-chart-deps", true, "update chart dependencies before installing/upgrading a release")
 
 	gitTimeout = fs.Duration("git-timeout", 20*time.Second, "duration after which git operations time out")
+	gitPollInterval = fs.Duration("git-poll-interval", 5*time.Minute, "period on which to poll git chart sources for changes")
 }
 
 func main() {
@@ -174,7 +176,7 @@ func main() {
 		chartsync.Polling{Interval: *chartsSyncInterval},
 		chartsync.Clients{KubeClient: *kubeClient, IfClient: *ifClient},
 		rel,
-		chartsync.Config{LogDiffs: *logReleaseDiffs, UpdateDeps: *updateDependencies, GitTimeout: *gitTimeout},
+		chartsync.Config{LogDiffs: *logReleaseDiffs, UpdateDeps: *updateDependencies, GitTimeout: *gitTimeout, GitPollInterval: *gitPollInterval},
 		*namespace,
 		statusUpdater,
 	)
