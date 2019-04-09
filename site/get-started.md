@@ -133,9 +133,10 @@ run:
 
 ```sh
 kubectl -n demo port-forward deployment/podinfo 9898:9898 &
+curl localhost:9898
 ```
 
-Open your browser and navigate to `http://localhost:9898`.
+Notice the updated `color` value in the JSON reply.
 
 ## Conclusion
 
