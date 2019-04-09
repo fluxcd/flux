@@ -83,10 +83,19 @@ spec:
                         type: string
                       optional:
                         type: boolean
+                  chartFileRef:
+                    type: object
+                    required: ['path']
+                    properties:
+                      path:
+                        type: string
+                      optional:
+                        type: boolean
                 oneOf:
                 - required: ['configMapKeyRef']
                 - required: ['secretKeyRef']
                 - required: ['externalSourceRef']
+                - required: ['chartFileRef']
             values:
               type: object
             chart:

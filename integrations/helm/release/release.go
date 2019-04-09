@@ -3,9 +3,11 @@ package release
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	"net/url"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"time"
 
 	"github.com/ghodss/yaml"
@@ -159,7 +161,7 @@ func (r *Release) Install(chartPath, releaseName string, fhr flux_v1beta1.HelmRe
 		}
 		valuesFrom = append(secretKeyRefs, valuesFrom...)
 	}
-	vals, err := values(kubeClient.CoreV1(), fhr.Namespace, valuesFrom, fhr.Spec.Values)
+	vals, err := values(kubeClient.CoreV1(), fhr.Namespace, chartPath, valuesFrom, fhr.Spec.Values)
 	if err != nil {
 		r.logger.Log("error", fmt.Sprintf("Failed to compose values for Chart release [%s]: %v", fhr.Spec.ReleaseName, err))
 		return nil, err
@@ -275,7 +277,7 @@ func fhrResourceID(fhr flux_v1beta1.HelmRelease) flux.ResourceID {
 
 // values tries to resolve all given value file sources and merges
 // them into one Values struct. It returns the merged Values.
-func values(corev1 k8sclientv1.CoreV1Interface, ns string, valuesFromSource []flux_v1beta1.ValuesFromSource, values chartutil.Values) (chartutil.Values, error) {
+func values(corev1 k8sclientv1.CoreV1Interface, ns string, chartPath string, valuesFromSource []flux_v1beta1.ValuesFromSource, values chartutil.Values) (chartutil.Values, error) {
 	result := chartutil.Values{}
 
 	for _, v := range valuesFromSource {
@@ -352,6 +354,23 @@ func values(corev1 k8sclientv1.CoreV1Interface, ns string, valuesFromSource []fl
 				}
 				return result, fmt.Errorf("unable to yaml.Unmarshal %v from URL %s", b, url)
 			}
+		case v.ChartFileRef != nil:
+			cf := v.ChartFileRef
+			filePath := cf.Path
+			optional := cf.Optional != nil && *cf.Optional
+			f, err := readLocalChartFile(filepath.Join(chartPath, filePath))
+			if err != nil {
+				if optional {
+					continue
+				}
+				return result, fmt.Errorf("unable to read value file from path %s", filePath)
+			}
+			if err := yaml.Unmarshal(f, &valueFile); err != nil {
+				if optional {
+					continue
+				}
+				return result, fmt.Errorf("unable to yaml.Unmarshal %v from URL %s", f, filePath)
+			}
 		}
 
 		result = mergeValues(result, valueFile)
@@ -413,6 +432,16 @@ func readURL(URL string) ([]byte, error) {
 	}
 	data, err := getter.Get(URL)
 	return data.Bytes(), err
+}
+
+// readLocalChartFile attempts to read a file from the chart path.
+func readLocalChartFile(filePath string) ([]byte, error) {
+	f, err := ioutil.ReadFile(filePath)
+	if err != nil {
+		return []byte{}, err
+	}
+
+	return f, nil
 }
 
 // releaseManifestToUnstructured turns a string containing YAML

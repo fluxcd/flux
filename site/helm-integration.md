@@ -14,6 +14,7 @@ menu_order: 90
       * [Config maps](#config-maps)
       * [Secrets](#secrets)
       * [External sources](#external-sources)
+      * [Chart files](#chart-files)
   * [Upgrading images in a `HelmRelease` using Flux](#upgrading-images-in-a-helmrelease-using-flux)
     + [Using annotations to control updates to HelmRelease resources](#using-annotations-to-control-updates-to-helmrelease-resources)
   * [Authentication](#authentication)
@@ -209,6 +210,20 @@ spec:
   - externalSourceRef:
       # URL of the values.yaml
       url: https://example.com/static/raw/values.yaml # mandatory
+      # If set to true successful retrieval of the values file is no
+      # longer mandatory
+      optional: true                                       # optional; defaults to false
+```
+
+#### Chart files
+
+```yaml
+spec:
+  # chart: ...
+  valuesFrom:
+  - chartFileRef:
+      # path within the helm chart (from git repo) where environment-prod.yaml is located
+      path: overrides/environment-prod.yaml # mandatory
       # If set to true successful retrieval of the values file is no
       # longer mandatory
       optional: true                                       # optional; defaults to false

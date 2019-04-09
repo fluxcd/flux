@@ -43,6 +43,16 @@ type ValuesFromSource struct {
 	// Selects an URL.
 	// +optional
 	ExternalSourceRef *ExternalSourceSelector `json:"externalSourceRef,omitempty"`
+	// Selects a file from git source helm chart.
+	// +optional
+	ChartFileRef *ChartFileSelector `json:"chartFileRef,omitempty"`
+}
+
+type ChartFileSelector struct {
+	Path string `json:"path"`
+	// Do not fail if chart file could not be retrieved
+	// +optional
+	Optional *bool `json:"optional,omitempty"`
 }
 
 type ExternalSourceSelector struct {
