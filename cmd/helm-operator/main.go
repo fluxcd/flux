@@ -137,19 +137,19 @@ func main() {
 
 	cfg, err := clientcmd.BuildConfigFromFlags(*master, *kubeconfig)
 	if err != nil {
-		mainLogger.Log("error", fmt.Sprintf("Error building kubeconfig: %v", err))
+		mainLogger.Log("error", fmt.Sprintf("error building kubeconfig: %v", err))
 		os.Exit(1)
 	}
 
 	kubeClient, err := kubernetes.NewForConfig(cfg)
 	if err != nil {
-		mainLogger.Log("error", fmt.Sprintf("Error building kubernetes clientset: %v", err))
+		mainLogger.Log("error", fmt.Sprintf("error building kubernetes clientset: %v", err))
 		os.Exit(1)
 	}
 
 	ifClient, err := clientset.NewForConfig(cfg)
 	if err != nil {
-		mainLogger.Log("error", fmt.Sprintf("Error building integrations clientset: %v", err))
+		mainLogger.Log("error", fmt.Sprintf("error building integrations clientset: %v", err))
 		os.Exit(1)
 	}
 

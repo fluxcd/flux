@@ -3,14 +3,15 @@ package daemon
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"sync/atomic"
+	"time"
+
 	"github.com/go-kit/kit/log"
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/weaveworks/flux/integrations/helm/api"
 	transport "github.com/weaveworks/flux/integrations/helm/http"
-	"net/http"
-	"sync/atomic"
-	"time"
 )
 
 // ListenAndServe starts a HTTP server instrumented with Prometheus metrics,
@@ -37,7 +38,7 @@ func ListenAndServe(listenAddr string, apiServer api.Server, logger log.Logger, 
 		IdleTimeout:  15 * time.Second,
 	}
 
-	logger.Log("info", fmt.Sprintf("Starting HTTP server on %s", listenAddr))
+	logger.Log("info", fmt.Sprintf("starting HTTP server on %s", listenAddr))
 
 	// run server in background
 	go func() {
