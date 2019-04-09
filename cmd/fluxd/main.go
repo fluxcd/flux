@@ -60,11 +60,28 @@ const (
 	defaultGitSyncTag     = "flux-sync"
 	defaultGitNotesRef    = "flux"
 	defaultGitSkipMessage = "\n\n[ci skip]"
+
+	RequireECR = "ecr"
+)
+
+var (
+	RequireValues = []string{RequireECR}
 )
 
 func optionalVar(fs *pflag.FlagSet, value ssh.OptionalValue, name, usage string) ssh.OptionalValue {
 	fs.Var(value, name, usage)
 	return value
+}
+
+type stringset []string
+
+func (set stringset) has(possible string) bool {
+	for _, s := range set {
+		if s == possible {
+			return true
+		}
+	}
+	return false
 }
 
 func main() {
@@ -121,9 +138,11 @@ func main() {
 		registryExcludeImage = fs.StringSlice("registry-exclude-image", []string{"k8s.gcr.io/*"}, "do not scan images that match these glob expressions; the default is to exclude the 'k8s.gcr.io/*' images")
 
 		// AWS authentication
-		registryAWSRegions         = fs.StringSlice("registry-ecr-region", nil, "restrict ECR scanning to these AWS regions; if empty, only the cluster's region will be scanned")
-		registryAWSAccountIDs      = fs.StringSlice("registry-ecr-include-id", nil, "restrict ECR scanning to these AWS account IDs; if empty, all account IDs that aren't excluded may be scanned")
+		registryAWSRegions         = fs.StringSlice("registry-ecr-region", nil, "include just these AWS regions when scanning images in ECR; when not supplied, the cluster's region will included if it can be detected through the AWS API")
+		registryAWSAccountIDs      = fs.StringSlice("registry-ecr-include-id", nil, "restrict ECR scanning to these AWS account IDs; if not supplied, all account IDs that aren't excluded may be scanned")
 		registryAWSBlockAccountIDs = fs.StringSlice("registry-ecr-exclude-id", []string{registry.EKS_SYSTEM_ACCOUNT}, "do not scan ECR for images in these AWS account IDs; the default is to exclude the EKS system account")
+
+		registryRequire = fs.StringSlice("registry-require", nil, fmt.Sprintf(`exit with an error if auto-authentication with any of the given registries is not possible (possible values: {%s})`, strings.Join(RequireValues, ",")))
 
 		// k8s-secret backed ssh keyring configuration
 		k8sSecretName            = fs.String("k8s-secret-name", "flux-git-deploy", "name of the k8s secret used to store the private SSH key")
@@ -222,6 +241,15 @@ func main() {
 			logger.Log("info", "imported GPG keys", "files", fmt.Sprintf("%v", keyfiles))
 		}
 	}
+
+	possiblyRequired := stringset(RequireValues)
+	for _, r := range *registryRequire {
+		if !possiblyRequired.has(r) {
+			logger.Log("err", fmt.Sprintf("--registry-required value %q is not in possible values {%s}", r, strings.Join(RequireValues, ",")))
+			os.Exit(1)
+		}
+	}
+	mandatoryRegistry := stringset(*registryRequire)
 
 	// Mechanical components.
 
@@ -357,12 +385,16 @@ func main() {
 			AccountIDs: *registryAWSAccountIDs,
 			BlockIDs:   *registryAWSBlockAccountIDs,
 		}
-		credsWithAWSAuth, err := registry.ImageCredsWithAWSAuth(imageCreds, log.With(logger, "component", "aws"), awsConf)
-		if err != nil {
-			logger.Log("warning", "AWS authorization not used; pre-flight check failed")
-		} else {
-			imageCreds = credsWithAWSAuth
+
+		awsPreflight, credsWithAWSAuth := registry.ImageCredsWithAWSAuth(imageCreds, log.With(logger, "component", "aws"), awsConf)
+		if mandatoryRegistry.has(RequireECR) {
+			if err := awsPreflight(); err != nil {
+				logger.Log("error", "AWS API required (due to --registry-required=ecr), but not available", "err", err)
+				os.Exit(1)
+			}
 		}
+		imageCreds = credsWithAWSAuth
+
 		if *dockerConfig != "" {
 			credsWithDefaults, err := registry.ImageCredsWithDefaults(imageCreds, *dockerConfig)
 			if err != nil {
