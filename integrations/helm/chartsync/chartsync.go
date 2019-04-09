@@ -102,6 +102,8 @@ func (c Config) WithDefaults() Config {
 // revision), so we can keep track of when it needs to be updated.
 type clone struct {
 	export *git.Export
+	remote string
+	ref    string
 	head   string
 }
 
@@ -230,7 +232,7 @@ func (chs *ChartChangeSync) Run(stopCh <-chan struct{}, errc chan error, wg *syn
 							chs.logger.Log("warning", "could not clone from mirror while checking for changes", "repo", repoURL, "ref", ref, "err", err)
 							continue
 						}
-						newCloneForChart := clone{head: refHead, export: newClone}
+						newCloneForChart := clone{remote: repoURL, ref: ref, head: refHead, export: newClone}
 						chs.clonesMu.Lock()
 						chs.clones[releaseName] = newCloneForChart
 						chs.clonesMu.Unlock()
@@ -305,6 +307,17 @@ func (chs *ChartChangeSync) reconcileReleaseDef(fhr fluxv1beta1.HelmRelease) {
 		chs.clonesMu.Lock()
 		defer chs.clonesMu.Unlock()
 		chartClone, ok := chs.clones[releaseName]
+		// Validate the clone we have for the release is the same as
+		// is being referenced in the chart source.
+		if ok {
+			ok = chartClone.remote == chartSource.GitURL && chartClone.ref == chartSource.RefOrDefault()
+			if !ok  {
+				if chartClone.export != nil {
+					chartClone.export.Clean()
+				}
+				delete(chs.clones, releaseName)
+			}
+		}
 		// FIXME(michael): if it's not cloned, and it's not going to
 		// be, we might not want to wait around until the next tick
 		// before reporting what's wrong with it. But if we just use
@@ -409,6 +422,17 @@ func (chs *ChartChangeSync) DeleteRelease(fhr fluxv1beta1.HelmRelease) {
 	if err != nil {
 		chs.logger.Log("warning", "Chart release not deleted", "release", name, "error", err)
 	}
+
+	// Remove the clone we may have for this HelmRelease
+	chs.clonesMu.Lock()
+	cloneForChart, ok := chs.clones[name]
+	if ok {
+		if cloneForChart.export != nil {
+			cloneForChart.export.Clean()
+		}
+		delete(chs.clones, name)
+	}
+	chs.clonesMu.Unlock()
 }
 
 // SyncMirrors instructs all mirrors to refresh from their upstream.
