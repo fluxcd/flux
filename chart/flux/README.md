@@ -243,7 +243,7 @@ The following tables lists the configurable parameters of the Weave Flux chart a
 | `helmOperator.pullPolicy`                         | `IfNotPresent`                                       | Helm operator image pull policy
 | `helmOperator.pullSecret`                         | `None`                                               | Image pull secret
 | `helmOperator.updateChartDeps`                    | `true`                                               | Update dependencies for charts
-| `helmOperator.git.pollInterval`                   | `git.pollInterval`                                   | Period at which to poll git repo for new commits
+| `helmOperator.git.pollInterval`                   | `git.pollInterval`                                   | Period on which to poll git chart sources for changes
 | `helmOperator.git.timeout`                        | `git.timeout`                                        | Duration after which git operations time out
 | `helmOperator.git.secretName`                     | `None`                                               | The name of the kubernetes secret with the SSH private key, supercedes `git.secretName`
 | `helmOperator.chartsSyncInterval`                 | `3m`                                                 | Interval at which to check for changed charts

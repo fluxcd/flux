@@ -8,6 +8,7 @@ KNOWN_HOSTS=$(cat ${REPO_ROOT}/test/e2e/known_hosts)
 
 echo ">>> Loading $(docker/image-tag) into the cluster"
 kind load docker-image "quay.io/weaveworks/flux:$(docker/image-tag)"
+kind load docker-image "quay.io/weaveworks/helm-operator:$(docker/image-tag)"
 
 echo ">>> Installing Flux with Helm"
 helm install --name flux --wait \
@@ -16,6 +17,7 @@ helm install --name flux --wait \
 --set git.url=ssh://git@gitsrv/git-server/repos/cluster.git \
 --set git.secretName=ssh-git \
 --set git.pollInterval=30s \
+--set helmOperator.tag=$(docker/image-tag) \
 --set helmOperator.create=true \
 --set helmOperator.createCRD=true \
 --set helmOperator.git.secretName=ssh-git \

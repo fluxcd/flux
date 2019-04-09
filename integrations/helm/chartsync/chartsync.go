@@ -85,10 +85,11 @@ type Clients struct {
 }
 
 type Config struct {
-	ChartCache string
-	LogDiffs   bool
-	UpdateDeps bool
-	GitTimeout time.Duration
+	ChartCache      string
+	LogDiffs        bool
+	UpdateDeps      bool
+	GitTimeout      time.Duration
+	GitPollInterval time.Duration
 }
 
 func (c Config) WithDefaults() Config {
@@ -270,7 +271,10 @@ func mirrorName(chartSource *fluxv1beta1.GitChartSource) string {
 func (chs *ChartChangeSync) maybeMirror(fhr fluxv1beta1.HelmRelease) {
 	chartSource := fhr.Spec.ChartSource.GitChartSource
 	if chartSource != nil {
-		if ok := chs.mirrors.Mirror(mirrorName(chartSource), git.Remote{chartSource.GitURL}, git.Timeout(chs.config.GitTimeout), git.ReadOnly); !ok {
+		if ok := chs.mirrors.Mirror(
+			mirrorName(chartSource),
+			git.Remote{chartSource.GitURL}, git.Timeout(chs.config.GitTimeout), git.PollInterval(chs.config.GitPollInterval), git.ReadOnly,
+		); !ok {
 			chs.logger.Log("info", "started mirroring repo", "repo", chartSource.GitURL)
 		}
 	}
