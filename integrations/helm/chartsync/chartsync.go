@@ -379,7 +379,16 @@ func (chs *ChartChangeSync) reconcileReleaseDef(fhr fluxv1beta1.HelmRelease) {
 		return
 	}
 	if changed {
-		_, err := chs.release.Install(chartPath, releaseName, fhr, release.UpgradeAction, opts, &chs.kubeClient)
+		cFhr, err := chs.ifClient.FluxV1beta1().HelmReleases(fhr.Namespace).Get(fhr.Name, metav1.GetOptions{})
+		if err != nil {
+			chs.logger.Log("warning", "Failed to retrieve HelmRelease scheduled for upgrade", "namespace", fhr.Namespace, "name", fhr.Name, "error", err)
+			return
+		}
+		if diff := cmp.Diff(fhr.Spec, cFhr.Spec); diff != "" {
+			chs.logger.Log("warning", "HelmRelease spec has diverged since we calculated if we should upgrade, skipping upgrade", "namespace", fhr.Namespace, "name", fhr.Name)
+			return
+		}
+		_, err = chs.release.Install(chartPath, releaseName, fhr, release.UpgradeAction, opts, &chs.kubeClient)
 		if err != nil {
 			chs.setCondition(&fhr, fluxv1beta1.HelmReleaseReleased, v1.ConditionFalse, ReasonUpgradeFailed, err.Error())
 			chs.logger.Log("warning", "Failed to upgrade chart", "namespace", fhr.Namespace, "name", fhr.Name, "error", err)
