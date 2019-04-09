@@ -63,7 +63,10 @@ $EDITOR deploy/flux-deployment.yaml
 In our example we are going to use
 [flux-get-started](https://github.com/weaveworks/flux-get-started). If you
 want to use that too, be sure to create a fork of it on GitHub and
-add the git URL to the config file above.
+add the git URL to the config file above. After that, set the `--git-path` 
+flag to `--git-path=namespaces,workloads`, this is meant to exclude Helm 
+manifests. Again, if you want to get started with Helm, please refer to the 
+[Helm section](./helm-get-started.md).
 
 ## Deploying Flux to the cluster
 
@@ -146,4 +149,5 @@ very straight-forward and are a quite natural work-flow.
 As a next step, you might want to dive deeper into [how to
 control Flux](./fluxctl.md), check out [more sophisticated
 setups](./standalone-setup.md) or go through our hands-on
-tutorial about driving Flux, e.g. [automations, annotations and locks](annotations-tutorial.md).
+tutorial about driving Flux, e.g. 
+[automations, annotations and locks](annotations-tutorial.md).
