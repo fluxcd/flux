@@ -69,13 +69,13 @@ func NewMemcacheClient(config MemcacheConfig) *MemcacheClient {
 		quit:       make(chan struct{}),
 	}
 
-	err := newClient.updateMemcacheServers()
+	err := newClient.updateFromSRVRecords()
 	if err != nil {
 		config.Logger.Log("err", errors.Wrapf(err, "Error setting memcache servers to '%v'", config.Host))
 	}
 
 	newClient.wait.Add(1)
-	go newClient.updateLoop(config.UpdateInterval)
+	go newClient.updateLoop(config.UpdateInterval, newClient.updateFromSRVRecords)
 	return newClient
 }
 
@@ -95,6 +95,9 @@ func NewFixedServerMemcacheClient(config MemcacheConfig, addresses ...string) *M
 		quit:       make(chan struct{}),
 	}
 
+	go newClient.updateLoop(config.UpdateInterval, func() error {
+		return servers.SetServers(addresses...)
+	})
 	return newClient
 }
 
@@ -142,14 +145,14 @@ func (c *MemcacheClient) Stop() {
 	c.wait.Wait()
 }
 
-func (c *MemcacheClient) updateLoop(updateInterval time.Duration) {
+func (c *MemcacheClient) updateLoop(updateInterval time.Duration, update func() error) {
 	defer c.wait.Done()
 	ticker := time.NewTicker(updateInterval)
 	defer ticker.Stop()
 	for {
 		select {
 		case <-ticker.C:
-			if err := c.updateMemcacheServers(); err != nil {
+			if err := update(); err != nil {
 				c.logger.Log("err", errors.Wrap(err, "error updating memcache servers"))
 			}
 		case <-c.quit:
@@ -160,7 +163,7 @@ func (c *MemcacheClient) updateLoop(updateInterval time.Duration) {
 
 // updateMemcacheServers sets a memcache server list from SRV records. SRV
 // priority & weight are ignored.
-func (c *MemcacheClient) updateMemcacheServers() error {
+func (c *MemcacheClient) updateFromSRVRecords() error {
 	_, addrs, err := net.LookupSRV(c.service, "tcp", c.hostname)
 	if err != nil {
 		return err
