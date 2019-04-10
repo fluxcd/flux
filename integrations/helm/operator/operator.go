@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/go-kit/kit/log"
-	"github.com/golang/glog"
 	"github.com/google/go-cmp/cmp"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -40,12 +39,9 @@ const (
 	// a HelmRelease fails to be released/updated
 	ErrChartSync = "ErrChartSync"
 
-	// MessageChartSynced - the message used for Events when a resource
-	// fails to sync due to failing to release the Chart
-	MessageChartSynced = "Chart managed by HelmRelease processed successfully"
-	// MessageErrChartSync - the message used for an Event fired when a HelmRelease
-	// is synced successfully
-	MessageErrChartSync = "Chart %s managed by HelmRelease failed to be processed"
+	// MessageChartSynced - the message used for an Event fired when a HelmRelease
+	// is synced.
+	MessageChartSynced = "Chart managed by HelmRelease processed"
 )
 
 // Controller is the operator implementation for HelmRelease resources
@@ -83,7 +79,6 @@ func New(
 	// logged for helm-operator types.
 	ifscheme.AddToScheme(scheme.Scheme)
 	eventBroadcaster := record.NewBroadcaster()
-	eventBroadcaster.StartLogging(glog.Infof)
 	eventBroadcaster.StartRecordingToSink(&typedcorev1.EventSinkImpl{Interface: kubeclientset.CoreV1().Events("")})
 	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: controllerAgentName})
 
