@@ -536,6 +536,7 @@ If your images have complex tags you can filter by regular expression:
 fluxctl policy --workload=default:deployment/helloworld --tag-all='regexp:^([a-zA-Z]+)$'
 ```
 
+Instead of `regexp` it is also possible to use its alias `regex`.
 Please bear in mind that if you want to match the whole tag,
 you must bookend your pattern with `^` and `$`.
 

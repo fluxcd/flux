@@ -1,9 +1,9 @@
 package policy
 
 import (
+	"fmt"
 	"testing"
 
-	"fmt"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -105,6 +105,12 @@ func TestRegexpPattern_Matches(t *testing.T) {
 			pattern: "regexp:^([a-zA-Z]+)$",
 			true:    []string{"foo", "BAR", "fooBAR"},
 			false:   []string{"1", "foo-1"},
+		},
+		{
+			name:    "regex",
+			pattern: `regex:^\w{7}(?:\w)?$`,
+			true:    []string{"af14eb2", "bb73ed94", "946427ff"},
+			false:   []string{"1", "foo", "946427ff-foo"},
 		},
 	} {
 		pattern := NewPattern(tt.pattern)
