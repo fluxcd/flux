@@ -24,9 +24,9 @@ the cluster.
 
 The signing of commits (and the sync tag) requires two flags to be set:
 
-1. `--git-gpg-key-import` should be set to the path Flux should look
-   for GPG key(s) to import, this can be a direct path to a key or the
-   path to a folder Flux should scan for files. 
+1. `--git-gpg-key-import` should be set to the path(s) Flux should look
+   for GPG key(s) to import, this can be direct paths to keys and/or
+   the paths to folders Flux should scan for files. 
 2. `--git-signing-key` should be set to the ID of the key Flux should
    use to sign commits, this can be the full fingerprint or the long
    ID, for example: `700D397C988079BFF0DDAFED6A7436E8790F8689` (or
@@ -103,7 +103,7 @@ installed on your system.
 
 ## Importing a GPG signing key
 
-Any file found in the configured `--git-gpg-key-import` path will be
+Any file found in the configured `--git-gpg-key-import` path(s) will be
 imported into GPG; therefore, by volume-mounting a key into that
 directory it will be made available for use by Flux.
 
@@ -122,14 +122,15 @@ directory it will be made available for use by Flux.
 
    ```sh
    $ gpg --export-secret-keys 700D397C988079BFF0DDAFED6A7436E8790F8689 |
-     kubectl create secret generic flux-gpg-keys --from-file=flux.asc=/dev/stdin --dry-run -o yaml
+     kubectl create secret generic flux-gpg-signing-key --from-file=flux.asc=/dev/stdin --dry-run -o yaml
    apiVersion: v1
    data:
      flux.asc: <base64 string>
    kind: Secret
    metadata:
      creationTimestamp: null
-     name: flux-gpg-keys
+     name: flux-gpg-signing-key
+  ```
 
 3. Adapt your Flux deployment to mount the secret and enable the
    signing of commits:
@@ -139,18 +140,18 @@ directory it will be made available for use by Flux.
      template:
         spec:
           volumes:
-          - name: gpg-keys
-              secret:
-                secretName: flux-gpg-keys
-                defaultMode: 0400
+          - name: gpg-signing-key
+            secret:
+              secretName: flux-gpg-signing-key
+              defaultMode: 0400
           containers:
           - name: flux
             volumeMounts:
-            - name: gpg-keys
-              mountPath: /root/gpg-import
+            - name: gpg-signing-key
+              mountPath: /root/gpg-signing-key/
               readOnly: true
             args:
-            - --git-gpg-key-import=/root/gpg-import
+            - --git-gpg-key-import=/root/gpg-signing-key
             - --git-signing-key=700D397C988079BFF0DDAFED6A7436E8790F8689 # key id
    ```
 
@@ -178,10 +179,10 @@ understand symbolic links to files.
 # Signature verification
 
 The verification of commit signatures is enabled by importing all
-trusted public keys (`--git-gpg-key-import=<path>`), and by setting the
-`--gpg-verify-signatures` flag. Once enabled Flux will verify all
-commit signatures, and the signature from the sync tag it is comparing
-revisions with.
+trusted public keys (`--git-gpg-key-import=<path>,<path2>`), and by
+setting the `--gpg-verify-signatures` flag. Once enabled Flux will
+verify all commit signatures, and the signature from the sync tag it is
+comparing revisions with.
 
 In case a signature can not be verified, Flux will sync state up to the
 last valid revision it can find _before_ the unverified commit was
@@ -191,36 +192,41 @@ made, and lock on this revision.
 
 1. Collect the public keys from all trusted git authors.
 
-2. Add the collected keys to your secret with GPG keys.
+2. Create a `ConfigMap` with all trusted public keys:
 
-   ```yaml
-   apiVersion: v1
-   kind: Secret
-   metadata:
-     name: flux-gpg-keys
-   data:
-     # ...
-     author.asc: <base64 string>
+   ```sh
+   $ kubectl create configmap generic flux-gpg-public-keys \
+     --from-file=author.asc --from-file=author2.asc --dry-run -o yaml
+    apiVersion: v1
+    data:
+      author.asc: <base64 string>
+      author2.asc: <base64 string>
+    kind: ConfigMap
+    metadata:
+      creationTimestamp: null
+      name: flux-gpg-public-keys
    ```
 
-3. Adapt your Flux deployment to enable the verification of commits:
+3. Mount the config map in your Flux deployment, add the mount path to
+   `--git-gpg-key-import`, and enable the verification of commits:
 
    ```yaml
    spec:
      template:
         spec:
           volumes:
-          - name: gpg-keys
-              secret:
-                secretName: flux-gpg-keys
-                defaultMode: 0400
+          - name: gpg-public-keys
+            configMap:
+              name: flux-gpg-public-keys
+              defaultMode: 0400
           containers:
           - name: flux
             volumeMounts:
-            - name: gpg-keys
-              mountPath: /root/gpg-import
+            - name: gpg-public-keys
+              mountPath: /root/gpg-public-keys
               readOnly: true
             args:
+            - --git-gpg-key-import=/root/gpg-public-keys
             - --git-verify-signatures
    ```
 
