@@ -1,17 +1,19 @@
 package policy
 
 import (
+	"regexp"
+	"strings"
+
 	"github.com/Masterminds/semver"
 	"github.com/ryanuber/go-glob"
 	"github.com/weaveworks/flux/image"
-	"strings"
-	"regexp"
 )
 
 const (
-	globPrefix   = "glob:"
-	semverPrefix = "semver:"
-	regexpPrefix = "regexp:"
+	globPrefix      = "glob:"
+	semverPrefix    = "semver:"
+	regexpPrefix    = "regexp:"
+	regexpAltPrefix = "regex:"
 )
 
 var (
@@ -43,8 +45,8 @@ type SemverPattern struct {
 
 // RegexpPattern matches by regular expression.
 type RegexpPattern struct {
-	pattern	string // pattern without prefix
-	regexp	*regexp.Regexp
+	pattern string // pattern without prefix
+	regexp  *regexp.Regexp
 }
 
 // NewPattern instantiates a Pattern according to the prefix
@@ -58,6 +60,10 @@ func NewPattern(pattern string) Pattern {
 		return SemverPattern{pattern, c}
 	case strings.HasPrefix(pattern, regexpPrefix):
 		pattern = strings.TrimPrefix(pattern, regexpPrefix)
+		r, _ := regexp.Compile(pattern)
+		return RegexpPattern{pattern, r}
+	case strings.HasPrefix(pattern, regexpAltPrefix):
+		pattern = strings.TrimPrefix(pattern, regexpAltPrefix)
 		r, _ := regexp.Compile(pattern)
 		return RegexpPattern{pattern, r}
 	default:
