@@ -1,17 +1,121 @@
 This is the changelog for the Flux daemon; the changelog for the Helm
 operator is in [./CHANGELOG-helmop.md](./CHANGELOG-helmop.md).
 
+## 1.12.0 (2019-04-11)
+
+This release renames some fluxctl commands and arguments while
+deprecating others, to better follow Kubernetes terminology. In
+particular, it drops the term "controller" in favour of "workload";
+e.g., instead of
+
+    fluxctl list-controllers --controller=...
+
+there is now
+
+    fluxctl list-workloads --workload=...
+
+The old commands are deprecated but still available for now.
+
+It also extends the namespace restriction flag
+(`--k8s-allow-namespace`, with a deprecated alias
+`--k8s-namespace-whitelist`) to cover all operations, including
+syncing; previously, it covered only query operations e.g.,
+`list-images` etc..
+
+### Fixes
+
+- Periodically refresh memcached addresses, to recover from DNS
+  outages [weaveworks/flux#1913][]
+- Properly apply `fluxctl policy --tag-all` when a manifest does not
+  have a namespace [weaveworks/flux#1901][]
+- Support newer git versions (>=2.21) [weaveworks/flux#1884][]
+- Avoid errors arising from ambiguous git refs
+  [weaveworks/flux#1875][] and [weaveworks/flux#1829][]
+- Reload the API definitions periodically, to account for the API
+  server being unavailable when starting [weaveworks/flux#1859][]
+- Admit `<cluster>` when parsing resource IDs, since it's now used to
+  mark cluster-scoped resources [weaveworks/flux#1851][]
+- Better recognise and tolerate when Kubernetes API errors mean "not
+  accessible" [weaveworks/flux#1840][] and [weaveworks/flux#1832][],
+  and stop the Kubernetes client from needlessly logging them
+  [weaveworks/flux#1837][]
+
+### Improvements
+
+- Use "workload" as the term for resources that specify pods to run,
+  in `fluxctl` commands and wherever else it is needed
+  [weaveworks/flux#1777][]
+- Make `regex` an alias for `regexp` in tag filters
+  [weaveworks/flux#1915][]
+- Be more sparing when logging AWS detection failures; add flag for
+  requiring AWS authentication; observe ECR restrictions on region and
+  account regardless of AWS detection [weaveworks/flux#1863][]
+- Treat all `*List` (e.g., `DeploymentList`) resources as lists
+  [weaveworks/flux#1883][]
+- Add host key for legacy VSTS (now Azure DevOps)
+  [weaveworks/flux#1870][]
+- Extend namespace restriction to all operations, and change the name
+  of the flag to `--k8s-allow-namespace` [weaveworks/flux#1668][]
+- Avoid updating images when there is no record for the current image
+  [weaveworks/flux#1831][]
+- Include the file name in the error when kubeyaml fails to update a
+  manifest [weaveworks/flux#1815][]
+
+### Maintenance and documentation
+
+- Avoid creating a cached image when host key verification fails while
+  building [weaveworks/flux#1908][]
+- Separate "Get started" instructions for fluxd vs. fluxd with the
+  Helm operator [weaveworks/flux#1902][], [weaveworks/flux#1912][]
+- Add an end-to-end smoke test to run in CI [weaveworks/flux#1800][]
+- Make git tracing report more output [weaveworks/flux#1844][]
+- Fix flaky API discovery test [weaveworks/flux#1849][]
+
+### Thanks
+
+Many thanks to @2opremio, @AmberAttebery, @alanjcastonguay,
+@alexanderbuhler, @arturo-c, @benhartley, @cruisehall, @dholbach,
+@dimitropoulos, @hiddeco, @hlascelles, @ipedrazas, @jrryjcksn,
+@marchmallow, @mazzy89, @mulcahys, @nabadger, @pmquang,
+@southbanksoftwaredeveloper, @squaremo, @srueg, @stefanprodan,
+@stevenpall, @stillinbeta, @swade1987, @timfpark, @vanderstack for
+contributions.
+
+[weaveworks/flux#1913]: https://github.com/weaveworks/flux/pull/1913
+[weaveworks/flux#1912]: https://github.com/weaveworks/flux/pull/1912
+[weaveworks/flux#1901]: https://github.com/weaveworks/flux/pull/1901
+[weaveworks/flux#1884]: https://github.com/weaveworks/flux/pull/1884
+[weaveworks/flux#1875]: https://github.com/weaveworks/flux/pull/1875
+[weaveworks/flux#1829]: https://github.com/weaveworks/flux/pull/1829
+[weaveworks/flux#1859]: https://github.com/weaveworks/flux/pull/1859
+[weaveworks/flux#1851]: https://github.com/weaveworks/flux/pull/1851
+[weaveworks/flux#1840]: https://github.com/weaveworks/flux/pull/1840
+[weaveworks/flux#1832]: https://github.com/weaveworks/flux/pull/1832
+[weaveworks/flux#1837]: https://github.com/weaveworks/flux/pull/1837
+[weaveworks/flux#1777]: https://github.com/weaveworks/flux/pull/1777
+[weaveworks/flux#1915]: https://github.com/weaveworks/flux/pull/1915
+[weaveworks/flux#1863]: https://github.com/weaveworks/flux/pull/1863
+[weaveworks/flux#1883]: https://github.com/weaveworks/flux/pull/1883
+[weaveworks/flux#1870]: https://github.com/weaveworks/flux/pull/1870
+[weaveworks/flux#1668]: https://github.com/weaveworks/flux/pull/1668
+[weaveworks/flux#1831]: https://github.com/weaveworks/flux/pull/1831
+[weaveworks/flux#1815]: https://github.com/weaveworks/flux/pull/1815
+[weaveworks/flux#1908]: https://github.com/weaveworks/flux/pull/1908
+[weaveworks/flux#1902]: https://github.com/weaveworks/flux/pull/1902
+[weaveworks/flux#1912]: https://github.com/weaveworks/flux/pull/1912
+[weaveworks/flux#1800]: https://github.com/weaveworks/flux/pull/1800
+[weaveworks/flux#1844]: https://github.com/weaveworks/flux/pull/1844
+[weaveworks/flux#1849]: https://github.com/weaveworks/flux/pull/1849
+
 ## 1.11.1 (2019-04-01)
 
 This is a bugfix release, fixing a regression introduced in 1.11.0 which caused 
-syncs to fail when adding a CRD and instance(s) from that CRD at the same time.  
+syncs to fail when adding a CRD and instance(s) from that CRD at the same time.
 
 ### Fixes
 
 - Obtain scope of CRD instances from its manifest as a fallback
   [weaveworks/flux#1876][#1876]
-- Updated tag in helm chart to 1.11.1 to match static manifests
-  [weaveworks/flux#1892][#1892]
   
 [#1876]: https://github.com/weaveworks/flux/pull/1876
 
