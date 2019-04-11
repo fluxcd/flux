@@ -69,6 +69,16 @@ spec:
           secretName: {{ .Values.gpgKeys.secretName }}
           defaultMode: 0400
       {{- end }}
+      {{- if .Values.extraVolumes }}
+{{ toYaml .Values.extraVolumes | indent 8 }}
+      {{- end }}
+{{- if .Values.initContainers }}
+      initContainers:
+{{- range $key, $value := .Values.initContainers }}
+        - name: {{ $key }}
+{{ toYaml $value | indent 10 }}
+{{- end }}
+{{- end }}
       containers:
         - name: {{ .Chart.Name }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
@@ -104,6 +114,9 @@ spec:
           - name: gpg-keys
             mountPath: /root/gpg-import
             readOnly: true
+          {{- end }}
+          {{- if .Values.extraVolumeMounts }}
+{{ toYaml .Values.extraVolumeMounts | indent 10 }}
           {{- end }}
           env:
           - name: KUBECONFIG
@@ -158,9 +171,6 @@ spec:
           {{- end }}
           {{- if .Values.registry.ecr.excludeId }}
           - --registry-ecr-exclude-id={{ .Values.registry.ecr.excludeId }}
-          {{- end }}
-          {{- if .Values.registry.ecr.require }}
-          - --registry-require=ecr
           {{- end }}
           {{- if .Values.registry.dockercfg.enabled }}
           - --docker-config=/dockercfg/config.json
