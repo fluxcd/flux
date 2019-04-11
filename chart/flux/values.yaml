@@ -162,6 +162,7 @@ registry:
   dockercfg:
     enabled: false
     secretName: ""
+    configFileName: /dockercfg/config.json
 memcached:
   repository: memcached
   tag: 1.4.25

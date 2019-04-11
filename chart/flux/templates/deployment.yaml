@@ -163,7 +163,7 @@ spec:
           - --registry-require=ecr
           {{- end }}
           {{- if .Values.registry.dockercfg.enabled }}
-          - --docker-config=/dockercfg/config.json
+          - --docker-config={{ .Values.registry.dockercfg.configFileName }}
           {{- end }}
           {{- if .Values.token }}
           - --connect=wss://cloud.weave.works/api/flux
