@@ -8,7 +8,6 @@ import (
 
 	"github.com/weaveworks/flux/image"
 	"github.com/weaveworks/flux/policy"
-	"github.com/weaveworks/flux/update"
 )
 
 func TestNewContainer(t *testing.T) {
@@ -21,7 +20,7 @@ func TestNewContainer(t *testing.T) {
 
 	type args struct {
 		name         string
-		images       update.ImageInfos
+		images       []image.Info
 		currentImage image.Info
 		tagPattern   policy.Pattern
 		fields       []string
@@ -36,7 +35,7 @@ func TestNewContainer(t *testing.T) {
 			name: "Simple",
 			args: args{
 				name:         "container1",
-				images:       update.ImageInfos{testImage},
+				images:       []image.Info{testImage},
 				currentImage: testImage,
 				tagPattern:   policy.PatternAll,
 			},
@@ -56,7 +55,7 @@ func TestNewContainer(t *testing.T) {
 			name: "Semver filtering and sorting",
 			args: args{
 				name:         "container-semver",
-				images:       update.ImageInfos{currentSemver, newSemver, oldSemver, testImage},
+				images:       []image.Info{currentSemver, newSemver, oldSemver, testImage},
 				currentImage: currentSemver,
 				tagPattern:   policy.NewPattern("semver:*"),
 			},
@@ -114,7 +113,7 @@ func TestFilterContainerFields(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "Filter",
+			name: "FilterImages",
 			args: args{
 				container: testContainer,
 				fields:    []string{"Name", "Available", "NewAvailableImagesCount", "NewFilteredImagesCount"},

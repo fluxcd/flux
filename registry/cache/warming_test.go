@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/docker/distribution/registry/api/errcode"
 	"github.com/go-kit/kit/log"
 	"github.com/stretchr/testify/assert"
 
@@ -73,12 +74,52 @@ func TestWarmThenQuery(t *testing.T) {
 	warmer.warm(context.TODO(), now, logger, repo, registry.NoCredentials())
 
 	registry := &Cache{Reader: cache}
-	repoInfo, err := registry.GetRepositoryImages(ref.Name)
+	repoInfo, err := registry.GetImageRepositoryMetadata(ref.Name)
 	assert.NoError(t, err)
 
 	// Otherwise, we should get what we put in ...
-	assert.Len(t, repoInfo, 1)
-	assert.Equal(t, ref.String(), repoInfo[0].ID.String())
+	assert.Len(t, repoInfo.Tags, 1)
+	assert.Equal(t, ref.String(), repoInfo.Images[repoInfo.Tags[0]].ID.String())
+}
+
+func TestWarmManifestUnknown(t *testing.T) {
+	tagWithMissingMetadata := "4.0.8-r3"
+	client := &mock.Client{
+		TagsFn: func() ([]string, error) {
+			println("asked for tags")
+			return []string{tagWithMissingMetadata}, nil
+		},
+		ManifestFn: func(tag string) (registry.ImageEntry, error) {
+			println("asked for manifest", tag)
+			err := errcode.Errors{
+				errcode.Error{Code: 1012,
+					Message: "manifest unknown",
+					Detail: map[string]interface{}{
+						"Name":     "bitnami/redis",
+						"Revision": "sha256:9c7f4a0958280a55a4337d74c22260bc338c26a0a2de493a8ad69dd73fd5c290",
+					},
+				},
+			}
+			return registry.ImageEntry{}, err
+		},
+	}
+	factory := &mock.ClientFactory{Client: client}
+	cache := &mem{}
+	warmer := &Warmer{clientFactory: factory, cache: cache, burst: 10}
+
+	logger := log.NewNopLogger()
+
+	now := time.Now()
+	redisRef, _ := image.ParseRef("bitnami/redis:5.0.2")
+	repo := redisRef.Name
+	warmer.warm(context.TODO(), now, logger, repo, registry.NoCredentials())
+
+	registry := &Cache{Reader: cache}
+	repoInfo, err := registry.GetImageRepositoryMetadata(repo)
+	assert.NoError(t, err)
+
+	assert.Len(t, repoInfo.Tags, 1)
+	assert.Equal(t, tagWithMissingMetadata, repoInfo.Tags[0])
 }
 
 func TestRefreshDeadline(t *testing.T) {

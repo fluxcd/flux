@@ -652,8 +652,19 @@ func getWorkloadContainers(workload cluster.Workload, imageRepos update.ImageRep
 		}
 		tagPattern := policy.GetTagPattern(policies, c.Name)
 
-		images := imageRepos.GetRepoImages(imageRepo)
-		currentImage := images.FindWithRef(c.Image)
+		repoMetadata := imageRepos.GetRepositoryMetadata(imageRepo)
+		var images []image.Info
+		// Build images, tolerating tags with missing metadata
+		for _, tag := range repoMetadata.Tags {
+			info, ok := repoMetadata.Images[tag]
+			if !ok {
+				info = image.Info{
+					ID: image.Ref{Tag: tag},
+				}
+			}
+			images = append(images, info)
+		}
+		currentImage := repoMetadata.FindImageWithRef(c.Image)
 
 		container, err := v6.NewContainer(c.Name, images, currentImage, tagPattern, fields)
 		if err != nil {

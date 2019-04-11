@@ -44,15 +44,19 @@ type Registry struct {
 	Err    error
 }
 
-func (m *Registry) GetRepositoryImages(id image.Name) ([]image.Info, error) {
-	var imgs []image.Info
+func (m *Registry) GetImageRepositoryMetadata(id image.Name) (image.RepositoryMetadata, error) {
+	result := image.RepositoryMetadata{
+		Images: map[string]image.Info{},
+	}
 	for _, i := range m.Images {
 		// include only if it's the same repository in the same place
 		if i.ID.Image == id.Image {
-			imgs = append(imgs, i)
+			tag := i.ID.Tag
+			result.Tags = append(result.Tags, tag)
+			result.Images[tag] = i
 		}
 	}
-	return imgs, m.Err
+	return result, m.Err
 }
 
 func (m *Registry) GetImage(id image.Ref) (image.Info, error) {

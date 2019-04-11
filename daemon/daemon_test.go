@@ -571,7 +571,6 @@ func TestDaemon_JobStatusWithNoCache(t *testing.T) {
 
 func TestDaemon_Automated(t *testing.T) {
 	d, start, clean, k8s, _, _ := mockDaemon(t)
-	start()
 	defer clean()
 	w := newWait(t)
 
@@ -589,6 +588,7 @@ func TestDaemon_Automated(t *testing.T) {
 	k8s.SomeWorkloadsFunc = func([]flux.ResourceID) ([]cluster.Workload, error) {
 		return []cluster.Workload{workload}, nil
 	}
+	start()
 
 	// updates from helloworld:master-xxx to helloworld:2
 	w.ForImageTag(t, d, wl, container, "2")
@@ -596,12 +596,11 @@ func TestDaemon_Automated(t *testing.T) {
 
 func TestDaemon_Automated_semver(t *testing.T) {
 	d, start, clean, k8s, _, _ := mockDaemon(t)
-	start()
 	defer clean()
 	w := newWait(t)
 
 	resid := flux.MustParseResourceID("default:deployment/semver")
-	service := cluster.Workload{
+	workload := cluster.Workload{
 		ID: resid,
 		Containers: cluster.ContainersOrExcuse{
 			Containers: []resource.Container{
@@ -613,8 +612,9 @@ func TestDaemon_Automated_semver(t *testing.T) {
 		},
 	}
 	k8s.SomeWorkloadsFunc = func([]flux.ResourceID) ([]cluster.Workload, error) {
-		return []cluster.Workload{service}, nil
+		return []cluster.Workload{workload}, nil
 	}
+	start()
 
 	// helloworld:3 is older than helloworld:2 but semver orders by version
 	w.ForImageTag(t, d, resid.String(), container, "3")
