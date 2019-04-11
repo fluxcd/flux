@@ -165,6 +165,7 @@ registry:
   dockercfg:
     enabled: false
     secretName: ""
+    configFileName: /dockercfg/config.json
 
 memcached:
   repository: memcached
