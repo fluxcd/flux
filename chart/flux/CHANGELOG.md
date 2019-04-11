@@ -10,6 +10,10 @@
    [weaveworks/flux#1909](https://github.com/weaveworks/flux/pull/1909)
  - Add Git poll interval option
    [weaveworks/flux#1910](https://github.com/weaveworks/flux/pull/1910)
+ - Add init container, extra volumes and volume mounts
+   [weaveworks/flux#1918](https://github.com/weaveworks/flux/pull/1918)
+ - Add docker config file path option
+   [weaveworks/flux#1919](https://github.com/weaveworks/flux/pull/1919)
 
 ## 0.8.0 (2019-04-04)
 
