@@ -1,3 +1,16 @@
+## 0.9.0 (2019-04-11)
+
+### Improvements
+
+ - Updated Flux to `1.12.0` and Helm operator to `0.8.0`
+   [weaveworks/flux#1924](https://github.com/weaveworks/flux/pull/1924)
+ - Add ECR require option
+   [weaveworks/flux#1863](https://github.com/weaveworks/flux/pull/1863)
+ - Support loading values from alternative files in chart 
+   [weaveworks/flux#1909](https://github.com/weaveworks/flux/pull/1909)
+ - Add Git poll interval option
+   [weaveworks/flux#1910](https://github.com/weaveworks/flux/pull/1910)
+
 ## 0.8.0 (2019-04-04)
 
 ### Improvements
