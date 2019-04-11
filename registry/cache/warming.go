@@ -317,8 +317,8 @@ func (w *Warmer) warm(ctx context.Context, now time.Time, logger log.Logger, id 
 						fetchMx.Lock()
 						manifestUnknownCount++
 						fetchMx.Unlock()
-						errorLogger.Log("warn", fmt.Sprintf("manifest for tag %s missing in registry %s", imageID.Tag, imageID.Name),
-							"impact", "flux will fail to auto-release workloads with matching images, ask the respository administrator to fix the inconsistency")
+						errorLogger.Log("warn", fmt.Sprintf("manifest for tag %s missing in repository %s", imageID.Tag, imageID.Name),
+							"impact", "flux will fail to auto-release workloads with matching images, ask the repository administrator to fix the inconsistency")
 					default:
 						errorLogger.Log("err", err, "ref", imageID)
 					}

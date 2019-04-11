@@ -31,9 +31,9 @@ type Cache struct {
 	Reader Reader
 }
 
-// GetImageRespositoryMetadata returns the metadata from an image
+// GetImageRepositoryMetadata returns the metadata from an image
 // repository (e.g,. at "quay.io/weaveworks/flux")
-func (c *Cache) GetImageRespositoryMetadata(id image.Name) (image.RepositoryMetadata, error) {
+func (c *Cache) GetImageRepositoryMetadata(id image.Name) (image.RepositoryMetadata, error) {
 	repoKey := NewRepositoryKey(id.CanonicalName())
 	bytes, _, err := c.Reader.GetKey(repoKey)
 	if err != nil {

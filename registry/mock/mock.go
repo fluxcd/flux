@@ -44,7 +44,7 @@ type Registry struct {
 	Err    error
 }
 
-func (m *Registry) GetImageRespositoryMetadata(id image.Name) (image.RepositoryMetadata, error) {
+func (m *Registry) GetImageRepositoryMetadata(id image.Name) (image.RepositoryMetadata, error) {
 	result := image.RepositoryMetadata{
 		Images: map[string]image.Info{},
 	}

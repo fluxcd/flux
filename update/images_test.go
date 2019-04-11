@@ -21,7 +21,7 @@ var (
 
 func buildImageRepos(t *testing.T) ImageRepos {
 	registry := mock.Registry{Images: infos}
-	repoMetadata, err := registry.GetImageRespositoryMetadata(name.Name)
+	repoMetadata, err := registry.GetImageRepositoryMetadata(name.Name)
 	assert.NoError(t, err)
 	return ImageRepos{
 		imageRepos: imageReposMap{name.Name.CanonicalName(): repoMetadata},

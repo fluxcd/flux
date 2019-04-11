@@ -74,7 +74,7 @@ func TestWarmThenQuery(t *testing.T) {
 	warmer.warm(context.TODO(), now, logger, repo, registry.NoCredentials())
 
 	registry := &Cache{Reader: cache}
-	repoInfo, err := registry.GetImageRespositoryMetadata(ref.Name)
+	repoInfo, err := registry.GetImageRepositoryMetadata(ref.Name)
 	assert.NoError(t, err)
 
 	// Otherwise, we should get what we put in ...
@@ -115,7 +115,7 @@ func TestWarmManifestUnknown(t *testing.T) {
 	warmer.warm(context.TODO(), now, logger, repo, registry.NoCredentials())
 
 	registry := &Cache{Reader: cache}
-	repoInfo, err := registry.GetImageRespositoryMetadata(repo)
+	repoInfo, err := registry.GetImageRepositoryMetadata(repo)
 	assert.NoError(t, err)
 
 	assert.Len(t, repoInfo.Tags, 1)

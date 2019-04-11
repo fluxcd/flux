@@ -70,14 +70,14 @@ Loop:
 		case <-timeout.C:
 			t.Fatal("Cache timeout")
 		case <-tick.C:
-			_, err := r.GetImageRespositoryMetadata(id.Name)
+			_, err := r.GetImageRepositoryMetadata(id.Name)
 			if err == nil {
 				break Loop
 			}
 		}
 	}
 
-	repoMetadata, err := r.GetImageRespositoryMetadata(id.Name)
+	repoMetadata, err := r.GetImageRepositoryMetadata(id.Name)
 	assert.NoError(t, err)
 	assert.True(t, len(repoMetadata.Images) > 0, "Length of returned images should be > 0")
 	assert.Equal(t, len(repoMetadata.Images), len(repoMetadata.Tags), "the length of tags and images should match")

@@ -152,7 +152,7 @@ func FetchImageRepos(reg registry.Registry, cs containers, logger log.Logger) (I
 		}
 	}
 	for repo := range imageRepos {
-		images, err := reg.GetImageRespositoryMetadata(repo.Name)
+		images, err := reg.GetImageRepositoryMetadata(repo.Name)
 		if err != nil {
 			// Not an error if missing. Use empty images.
 			if !fluxerr.IsMissing(err) {
