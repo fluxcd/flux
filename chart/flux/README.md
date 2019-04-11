@@ -230,6 +230,7 @@ The following tables lists the configurable parameters of the Weave Flux chart a
 | `registry.acr.hostPath`                           | `/etc/kubernetes/azure.json`                         | Alternative location of `azure.json` on the host
 | `registry.dockercfg.enabled`                      | `false`                                              | Mount `config.json` via Secret into the Flux Pod, enabling Flux to use a custom docker config file
 | `registry.dockercfg.secretName`                   | `None`                                               | Kubernetes secret with the docker config.json
+| `registry.dockercfg.configFileName`               | `/dockercfg/config.json`                             | Alternative path/name of the docker config.json
 | `memcached.verbose`                               | `false`                                              | Enable request logging in memcached
 | `memcached.maxItemSize`                           | `5m`                                                 | Maximum size for one item
 | `memcached.maxMemory`                             | `128`                                                | Maximum memory to use, in megabytes
