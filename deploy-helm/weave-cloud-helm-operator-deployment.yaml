@@ -27,7 +27,7 @@ spec:
             secretName: flux-git-deploy
       containers:
         - name: flux-helm-operator
-          image: quay.io/weaveworks/helm-operator:0.7.1
+          image: quay.io/weaveworks/helm-operator:0.8.0
           imagePullPolicy: IfNotPresent
           args:
             - --git-timeout=20s
