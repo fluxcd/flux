@@ -107,7 +107,7 @@ spec:
         - --git-branch=master
         # include this if you want to restrict the manifests considered by flux
         # to those under the following relative paths in the git repository
-        # - --git-paths=subdir1,subdir2
+        # - --git-path=subdir1,subdir2
 
         # include these next two to connect to an "upstream" service
         # (e.g., Weave Cloud). The token is particular to the service.
