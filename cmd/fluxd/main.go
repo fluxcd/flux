@@ -321,7 +321,7 @@ func main() {
 		}
 
 		sshKeyRing, err = kubernetes.NewSSHKeyRing(kubernetes.SSHKeyRingConfig{
-			SecretAPI:             clientset.Core().Secrets(string(namespace)),
+			SecretAPI:             clientset.CoreV1().Secrets(string(namespace)),
 			SecretName:            *k8sSecretName,
 			SecretVolumeMountPath: *k8sSecretVolumeMountPath,
 			SecretDataKey:         *k8sSecretDataKey,

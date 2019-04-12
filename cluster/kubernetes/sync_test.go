@@ -21,6 +21,7 @@ import (
 	//	k8sclient "k8s.io/client-go/kubernetes"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/client-go/discovery"
+	dynamicfake "k8s.io/client-go/dynamic/fake"
 	k8sclient "k8s.io/client-go/kubernetes"
 	corefake "k8s.io/client-go/kubernetes/fake"
 	k8s_testing "k8s.io/client-go/testing"
@@ -64,7 +65,7 @@ func fakeClients() ExtendedClient {
 
 	coreClient := corefake.NewSimpleClientset(&corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: defaultTestNamespace}})
 	fluxClient := fluxfake.NewSimpleClientset()
-	dynamicClient := NewSimpleDynamicClient(scheme) // NB from this package, rather than the official one, since we needed a patched version
+	dynamicClient := dynamicfake.NewSimpleDynamicClient(scheme)
 
 	// Assigned here, since this is _also_ used by the (fake)
 	// discovery client therein, and ultimately by
@@ -152,9 +153,9 @@ func (a fakeApplier) apply(_ log.Logger, cs changeSet, errored map[flux.Resource
 			_, err := dc.Get(name, metav1.GetOptions{})
 			switch {
 			case errors.IsNotFound(err):
-				_, err = dc.Create(res) //, &metav1.CreateOptions{})
+				_, err = dc.Create(res, metav1.CreateOptions{})
 			case err == nil:
-				_, err = dc.Update(res) //, &metav1.UpdateOptions{})
+				_, err = dc.Update(res, metav1.UpdateOptions{})
 			}
 			if err != nil {
 				errs = append(errs, cluster.ResourceError{obj.ResourceID, obj.Source, err})
@@ -442,7 +443,7 @@ metadata:
 		depCopy := depActual.DeepCopy()
 		depCopyName := depName + "copy"
 		depCopy.SetName(depCopyName)
-		depCopyActual, err := client.Create(depCopy)
+		depCopyActual, err := client.Create(depCopy, metav1.CreateOptions{})
 		assert.NoError(t, err)
 
 		// Check that both dep and its copy have the same GCmark label
@@ -551,7 +552,7 @@ spec:
 		annots := res.GetAnnotations()
 		annots["flux.weave.works/ignore"] = "true"
 		res.SetAnnotations(annots)
-		if _, err = rc.Namespace("foobar").Update(res); err != nil {
+		if _, err = rc.Namespace("foobar").Update(res, metav1.UpdateOptions{}); err != nil {
 			t.Fatal(err)
 		}
 
@@ -597,7 +598,7 @@ spec:
 		_, err = kube.client.coreClient.CoreV1().Namespaces().Create(&ns1obj)
 		assert.NoError(t, err)
 		dc := kube.client.dynamicClient.Resource(gvr).Namespace(dep1res.GetNamespace())
-		_, err = dc.Create(dep1res)
+		_, err = dc.Create(dep1res, metav1.CreateOptions{})
 		assert.NoError(t, err)
 
 		// Check that our resource-getting also sees the pre-existing resource
