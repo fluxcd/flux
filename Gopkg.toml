@@ -20,23 +20,23 @@ required = ["k8s.io/code-generator/cmd/client-gen"]
 
 [[constraint]]
   name = "k8s.io/api"
-  version = "kubernetes-1.11.0"
+  version = "kubernetes-1.14.0"
 
 [[constraint]]
   name = "k8s.io/apimachinery"
-  version = "kubernetes-1.11.0"
+  version = "kubernetes-1.14.0"
 
 [[constraint]]
   name = "k8s.io/apiextensions-apiserver"
-  version = "kubernetes-1.11.0"
+  version = "kubernetes-1.14.0"
 
 [[constraint]]
   name = "k8s.io/client-go"
-  version = "8.0.0"
+  version = "11.0.0"
 
 [[constraint]]
   name = "k8s.io/code-generator"
-  branch = "release-1.11"
+  branch = "release-1.14"
 
 [[override]]
   name = "github.com/json-iterator/go"
@@ -47,8 +47,8 @@ required = ["k8s.io/code-generator/cmd/client-gen"]
   version = "~v2.13.0"
 
 [[constraint]]
-  name = "github.com/justinbarrick/go-k8s-portforward"
-  version = "v1.0.2"
+  name = "github.com/2opremio/go-k8s-portforward"
+  branch = "master"
 
 [[constraint]]
   branch = "master"
