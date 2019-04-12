@@ -87,6 +87,10 @@ serviceAccount:
   # If not set and create is true, a name is generated using the fullname template
   name:
 
+# If `false`, will only create rbac resources for the namespace where flux is deployed to and
+# will set k8s-allow-namespace and allow-namespace arg in flux and helm operator to that namespace
+clusterScope: true
+
 resources:
   requests:
     cpu: 50m

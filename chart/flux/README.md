@@ -197,6 +197,7 @@ The following tables lists the configurable parameters of the Weave Flux chart a
 | `token`                                           | `None`                                               | Weave Cloud service token
 | `extraEnvs`                                       | `[]`                                                 | Extra environment variables for the Flux pod(s)
 | `rbac.create`                                     | `true`                                               | If `true`, create and use RBAC resources
+| `clusterScope`                                    | `true`                                               | If `false`, will only create rbac resources for the namespace where flux is deployed to and will set k8s-allow-namespace and allow-namespace arg in flux and helm operator to that namespace
 | `serviceAccount.create`                           | `true`                                               | If `true`, create a new service account
 | `serviceAccount.name`                             | `flux`                                               | Service account to be used
 | `service.type`                                    | `ClusterIP`                                          | Service type to be used (exposing the Flux API outside of the cluster is not advised)

@@ -1,8 +1,18 @@
+{{- $kind := "Role" -}}
+{{- $bind := "RoleBinding" -}}
+{{- if .Values.clusterScope -}}
+{{ $kind = "ClusterRole" }}
+{{ $bind = "ClusterRoleBinding" }}
+{{- end -}}
+
 {{- if .Values.rbac.create -}}
 apiVersion: rbac.authorization.k8s.io/v1beta1
-kind: ClusterRole
+kind: {{ $kind }}
 metadata:
   name: {{ template "flux.fullname" . }}
+  {{- if not .Values.clusterScope }}
+  namespace: {{ .Release.Namespace }}
+  {{- end }}
   labels:
     app: {{ template "flux.name" . }}
     chart: {{ template "flux.chart" . }}
@@ -21,7 +31,7 @@ rules:
       - '*'
 ---
 apiVersion: rbac.authorization.k8s.io/v1beta1
-kind: ClusterRoleBinding
+kind: {{ $bind }}
 metadata:
   name: {{ template "flux.fullname" . }}
   labels:
@@ -31,10 +41,50 @@ metadata:
     heritage: {{ .Release.Service }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
+  kind: {{ $kind }}
   name: {{ template "flux.fullname" . }}
 subjects:
   - name: {{ template "flux.serviceAccountName" . }}
     namespace: {{ .Release.Namespace | quote }}
     kind: ServiceAccount
-{{- end -}}
+{{- if not .Values.clusterScope }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ template "flux.fullname" . }}
+  labels:
+    app: {{ template "flux.name" . }}
+    chart: {{ template "flux.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+rules:
+  # CRDs are defined at the cluster scope and Flux will complain if it cannot list or watch these
+  - apiGroups:
+      - apiextensions.k8s.io
+    resources:
+      - customresourcedefinitions
+    verbs:
+      - list
+      - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: flux
+  namespace: flux-system
+  labels:
+    app: {{ template "flux.name" . }}
+    chart: {{ template "flux.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ template "flux.fullname" . }}
+subjects:
+  - name: {{ template "flux.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace | quote }}
+    kind: ServiceAccount
+{{- end }}
+{{- end }}

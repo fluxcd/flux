@@ -109,8 +109,11 @@ spec:
         - --charts-sync-interval={{ .Values.helmOperator.chartsSyncInterval }}
         - --update-chart-deps={{ .Values.helmOperator.updateChartDeps }}
         - --log-release-diffs={{ .Values.helmOperator.logReleaseDiffs }}
-        {{- if .Values.helmOperator.allowNamespace }}
+        {{- if and .Values.helmOperator.allowNamespace .Values.clusterScope }}
         - --allow-namespace={{ .Values.helmOperator.allowNamespace }}
+        {{- end }}
+        {{- if not .Values.clusterScope }}
+        - --allow-namespace={{ .Release.Namespace }}
         {{- end }}
         - --tiller-namespace={{ .Values.helmOperator.tillerNamespace }}
         {{- if .Values.helmOperator.tls.enable }}

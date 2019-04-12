@@ -131,6 +131,9 @@ spec:
           {{- if .Values.memcached.createClusterIP }}
           - --memcached-service=
           {{- end }}
+          {{- if not .Values.clusterScope }}
+          - --k8s-allow-namespace={{ .Release.Namespace }}
+          {{- end }}
           - --git-url={{ .Values.git.url }}
           - --git-branch={{ .Values.git.branch }}
           - --git-path={{ .Values.git.path }}
