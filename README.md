@@ -55,6 +55,11 @@ Its major features are:
 - Observability: git commits are an audit trail, and you can record events that
   occured, for example: why a given deployment was locked.
 
+### Who is using Flux in production
+
+- [Under Armour](https://www.underarmour.com)  <!--- Kyle Rockman Lead Infrastructure Engineer @ Under Armour https://weave-community.slack.com/archives/C4U5ATZ9S/p1555098153055600?thread_ts=1555097895.054700&cid=C4U5ATZ9S -->
+
+
 ### Relation to Weave Cloud
 
 Weave Cloud is a SaaS product by Weaveworks that includes Flux, as well
