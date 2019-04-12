@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/justinbarrick/go-k8s-portforward"
+	"github.com/2opremio/go-k8s-portforward"
 	"github.com/pkg/errors"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -21,7 +21,7 @@ func tryPortforwards(ns string, selectors ...metav1.LabelSelector) (p *portforwa
 			return
 		}
 
-		if ! strings.Contains(err.Error(), "Could not find pod for selector") {
+		if !strings.Contains(err.Error(), "Could not find pod for selector") {
 			return
 		} else {
 			message = fmt.Sprintf("%s\n  %s", message, metav1.FormatLabelSelector(&selector))
