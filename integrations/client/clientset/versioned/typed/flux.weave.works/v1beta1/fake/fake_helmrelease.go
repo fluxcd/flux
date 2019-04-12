@@ -116,7 +116,7 @@ func (c *FakeHelmReleases) DeleteCollection(options *v1.DeleteOptions, listOptio
 // Patch applies the patch and returns the patched helmRelease.
 func (c *FakeHelmReleases) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1beta1.HelmRelease, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceAction(helmreleasesResource, c.ns, name, data, subresources...), &v1beta1.HelmRelease{})
+		Invokes(testing.NewPatchSubresourceAction(helmreleasesResource, c.ns, name, types.ApplyPatchType, data, subresources...), &v1beta1.HelmRelease{})
 
 	if obj == nil {
 		return nil, err
