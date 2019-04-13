@@ -137,6 +137,8 @@ func ParseMultidoc(multidoc []byte, source string) (map[string]KubeManifest, err
 		// from the stream, we decode generically and encode again.
 		// The result is the raw document from the stream
 		// (pretty-printed and without comments)
+		// NOTE: gopkg.in/yaml.v3 supports round tripping comments
+		//       by using `gopkg.in/yaml.v3.Node`.
 		var val interface{}
 		if err := decoder.Decode(&val); err != nil {
 			break
