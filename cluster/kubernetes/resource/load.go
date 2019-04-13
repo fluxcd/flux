@@ -134,9 +134,9 @@ func ParseMultidoc(multidoc []byte, source string) (map[string]KubeManifest, err
 	var err error
 	for {
 		// In order to use the decoder to extract raw documents
-		// from the stream, we decode generically and encode again
-		// The result it the raw document (pretty-printed and
-		// without comments though)
+		// from the stream, we decode generically and encode again.
+		// The result is the raw document from the stream
+		// (pretty-printed and without comments)
 		var val interface{}
 		if err := decoder.Decode(&val); err != nil {
 			break
