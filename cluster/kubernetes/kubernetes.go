@@ -2,12 +2,13 @@ package kubernetes
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"sync"
 
-	k8syaml "github.com/ghodss/yaml"
 	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
+	"gopkg.in/yaml.v2"
 	apiv1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -58,6 +59,7 @@ func MakeClusterClientset(core coreClient, dyn dynamicClient, fluxhelm fluxHelmC
 // Kubernetes metadata. These methods are implemented by the
 // Kubernetes API resource types.
 type k8sObject interface {
+	GetName() string
 	GetNamespace() string
 	GetLabels() map[string]string
 	GetAnnotations() map[string]string
@@ -186,7 +188,7 @@ func (c *Cluster) AllWorkloads(namespace string) (res []cluster.Workload, err er
 
 			for _, workload := range workloads {
 				if !isAddon(workload) {
-					id := flux.MakeResourceID(ns.Name, kind, workload.name)
+					id := flux.MakeResourceID(ns.Name, kind, workload.GetName())
 					c.muSyncErrors.RLock()
 					workload.syncError = c.syncErrors[id]
 					c.muSyncErrors.RUnlock()
@@ -222,8 +224,14 @@ func (c *Cluster) Export() ([]byte, error) {
 		return nil, errors.Wrap(err, "getting namespaces")
 	}
 
+	encoder := yaml.NewEncoder(&config)
+	defer encoder.Close()
+
 	for _, ns := range namespaces {
-		err := appendYAML(&config, "v1", "Namespace", ns)
+		// kind & apiVersion must be set, since TypeMeta is not populated
+		ns.Kind = "Namespace"
+		ns.APIVersion = "v1"
+		err := encoder.Encode(yamlThroughJSON{ns})
 		if err != nil {
 			return nil, errors.Wrap(err, "marshalling namespace to YAML")
 		}
@@ -246,7 +254,7 @@ func (c *Cluster) Export() ([]byte, error) {
 
 			for _, pc := range workloads {
 				if !isAddon(pc) {
-					if err := appendYAML(&config, pc.apiVersion, pc.kind, pc.k8sObject); err != nil {
+					if err := encoder.Encode(yamlThroughJSON{pc.k8sObject}); err != nil {
 						return nil, err
 					}
 				}
@@ -325,18 +333,18 @@ func (c *Cluster) IsAllowedResource(id flux.ResourceID) bool {
 	return false
 }
 
-// kind & apiVersion must be passed separately as the object's TypeMeta is not populated
-func appendYAML(buffer *bytes.Buffer, apiVersion, kind string, object interface{}) error {
-	yamlBytes, err := k8syaml.Marshal(object)
+type yamlThroughJSON struct {
+	toMarshal interface{}
+}
+
+func (y yamlThroughJSON) MarshalYAML() (interface{}, error) {
+	rawJSON, err := json.Marshal(y.toMarshal)
 	if err != nil {
-		return err
+		return nil, fmt.Errorf("error marshaling into JSON: %s", err)
 	}
-	buffer.WriteString("---\n")
-	buffer.WriteString("apiVersion: ")
-	buffer.WriteString(apiVersion)
-	buffer.WriteString("\nkind: ")
-	buffer.WriteString(kind)
-	buffer.WriteString("\n")
-	buffer.Write(yamlBytes)
-	return nil
+	var jsonObj interface{}
+	if err = yaml.Unmarshal(rawJSON, &jsonObj); err != nil {
+		return nil, fmt.Errorf("error unmarshaling from JSON: %s", err)
+	}
+	return jsonObj, nil
 }

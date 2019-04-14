@@ -143,7 +143,7 @@ func (c *Cluster) ImagesToFetch() registry.ImageCreds {
 
 			imageCreds := make(registry.ImageCreds)
 			for _, workload := range workloads {
-				logger := log.With(c.logger, "resource", flux.MakeResourceID(ns.Name, kind, workload.name))
+				logger := log.With(c.logger, "resource", flux.MakeResourceID(ns.Name, kind, workload.GetName()))
 				mergeCredentials(logger.Log, c.includeImage, c.client, ns.Name, workload.podTemplate, imageCreds, seenCreds)
 			}
 
