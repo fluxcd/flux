@@ -57,8 +57,14 @@ Its major features are:
 
 ### Who is using Flux in production
 
-- [Under Armour](https://www.underarmour.com)  <!--- Kyle Rockman Lead Infrastructure Engineer @ Under Armour https://weave-community.slack.com/archives/C4U5ATZ9S/p1555098153055600?thread_ts=1555097895.054700&cid=C4U5ATZ9S -->
+- [Crowd Riff](https://crowdriff.com) 
+- [Gini](https://gini.net)
+- [iQmetrix](https://www.iqmetrix.com/)
+- [Payout](https://payout.one)
+- [Under Armour](https://www.underarmour.com)
 - [Weave Cloud](https://cloud.weave.works)  
+
+If you too are using Flux in production; please submit a PR to add your organization to the list!
 
 ### Relation to Weave Cloud
 
