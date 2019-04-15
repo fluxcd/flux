@@ -213,7 +213,7 @@ func TestCheckPush(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = checkPush(context.Background(), working, upstreamDir)
+	err = checkPush(context.Background(), working, upstreamDir, "")
 	if err != nil {
 		t.Fatal(err)
 	}
