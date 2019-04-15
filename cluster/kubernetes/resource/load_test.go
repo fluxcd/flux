@@ -121,6 +121,27 @@ data:
 	}
 }
 
+func TestParseBoundaryMarkers(t *testing.T) {
+	doc := `---
+kind: ConfigMap
+metadata:
+  name: bigmap
+---
+...
+---
+...
+---
+...
+---
+...
+`
+	buffer := bytes.NewBufferString(doc)
+
+	resources, err := ParseMultidoc(buffer.Bytes(), "test")
+	assert.NoError(t, err)
+	assert.Len(t, resources, 1)
+}
+
 func TestParseCronJob(t *testing.T) {
 	doc := `---
 apiVersion: batch/v1beta1
