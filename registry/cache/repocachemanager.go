@@ -22,7 +22,7 @@ type imageToUpdate struct {
 	previousRefresh time.Duration
 }
 
-// repoCacheManager handles cache operations for a repository
+// repoCacheManager handles cache operations for a container image repository
 type repoCacheManager struct {
 	now         time.Time
 	repoID      image.Name
