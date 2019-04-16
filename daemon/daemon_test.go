@@ -731,12 +731,14 @@ func mockDaemon(t *testing.T) (*Daemon, func(), func(), *cluster.Mock, *mockEven
 	// Jobs queue (starts itself)
 	jobs := job.NewQueue(jshutdown, jwg)
 
+	manifests := kubernetes.NewManifests(alwaysDefault, log.NewLogfmtLogger(os.Stdout))
+
 	// Finally, the daemon
 	d := &Daemon{
 		Repo:           repo,
 		GitConfig:      params,
 		Cluster:        k8s,
-		Manifests:      &kubernetes.Manifests{Namespacer: alwaysDefault},
+		Manifests:      manifests,
 		Registry:       imageRegistry,
 		V:              testVersion,
 		Jobs:           jobs,

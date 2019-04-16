@@ -3,6 +3,7 @@ package release
 import (
 	"errors"
 	"fmt"
+	"os"
 	"reflect"
 	"testing"
 	"time"
@@ -13,7 +14,6 @@ import (
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster"
 	"github.com/weaveworks/flux/cluster/kubernetes"
-	kresource "github.com/weaveworks/flux/cluster/kubernetes/resource"
 	"github.com/weaveworks/flux/git"
 	"github.com/weaveworks/flux/git/gittest"
 	"github.com/weaveworks/flux/image"
@@ -21,12 +21,6 @@ import (
 	"github.com/weaveworks/flux/resource"
 	"github.com/weaveworks/flux/update"
 )
-
-type constNamespacer string
-
-func (ns constNamespacer) EffectiveNamespace(manifest kresource.KubeManifest, _ kubernetes.ResourceScopes) (string, error) {
-	return string(ns), nil
-}
 
 var (
 	// This must match the value in cluster/kubernetes/testfiles/data.go
@@ -142,7 +136,7 @@ var (
 			},
 		},
 	}
-	mockManifests = &kubernetes.Manifests{Namespacer: constNamespacer("default")}
+	mockManifests = kubernetes.NewManifests(kubernetes.ConstNamespacer("default"), log.NewLogfmtLogger(os.Stdout))
 )
 
 func mockCluster(running ...cluster.Workload) *cluster.Mock {
@@ -1055,9 +1049,9 @@ func testRelease(t *testing.T, ctx *ReleaseContext, spec update.ReleaseImageSpec
 
 // --- test verification
 
-// A Manifests implementation that does updates incorrectly, so they should fail verification.
+// A manifests implementation that does updates incorrectly, so they should fail verification.
 type badManifests struct {
-	kubernetes.Manifests
+	cluster.Manifests
 }
 
 func (m *badManifests) UpdateImage(def []byte, resourceID flux.ResourceID, container string, newImageID image.Ref) ([]byte, error) {
@@ -1075,15 +1069,16 @@ func Test_BadRelease(t *testing.T) {
 	checkout1, cleanup1 := setup(t)
 	defer cleanup1()
 
+	manifests := kubernetes.NewManifests(kubernetes.ConstNamespacer("default"), log.NewLogfmtLogger(os.Stdout))
 	ctx := &ReleaseContext{
 		cluster:   cluster,
-		manifests: &kubernetes.Manifests{},
+		manifests: manifests,
 		repo:      checkout1,
 		registry:  mockRegistry,
 	}
 	_, err := Release(ctx, spec, log.NewNopLogger())
 	if err != nil {
-		t.Fatal("release with 'good' Manifests should succeed, but errored:", err)
+		t.Fatal("release with 'good' manifests should succeed, but errored:", err)
 	}
 
 	checkout2, cleanup2 := setup(t)
@@ -1091,7 +1086,7 @@ func Test_BadRelease(t *testing.T) {
 
 	ctx = &ReleaseContext{
 		cluster:   cluster,
-		manifests: &badManifests{Manifests: kubernetes.Manifests{constNamespacer("default")}},
+		manifests: &badManifests{manifests},
 		repo:      checkout2,
 		registry:  mockRegistry,
 	}

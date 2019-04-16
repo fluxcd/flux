@@ -1,8 +1,10 @@
 package sync
 
 import (
+	"os"
 	"testing"
 
+	"github.com/go-kit/kit/log"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/weaveworks/flux/cluster"
@@ -19,7 +21,7 @@ func TestSync(t *testing.T) {
 	defer cleanup()
 
 	// Start with nothing running. We should be told to apply all the things.
-	manifests := &kubernetes.Manifests{}
+	manifests := kubernetes.NewManifests(kubernetes.ConstNamespacer("default"), log.NewLogfmtLogger(os.Stdout))
 	clus := &syncCluster{map[string]string{}}
 
 	dirs := checkout.ManifestDirs()
