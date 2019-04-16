@@ -1,4 +1,5 @@
 version: 2
+
 jobs:
   build:
     working_directory: /go/src/github.com/weaveworks/flux
@@ -7,6 +8,10 @@ jobs:
       - image: memcached
     steps:
       - checkout
+      # Rebase on target branch after checkout, so we test the result of a
+      # merge, and not just what is in the proposed change.
+      # Ref: https://discuss.circleci.com/t/1662
+      - run: git pull --ff-only origin "refs/pull/${CI_PULL_REQUEST//*pull\//}/merge"
       - setup_remote_docker
 
       - run: curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
@@ -44,6 +49,11 @@ jobs:
     working_directory: ~/go/src/github.com/weaveworks/flux
     steps:
       - checkout
+      # Rebase on target branch after checkout, so we test the result of a
+      # merge, and not just what is in the proposed change.
+      # Ref: https://discuss.circleci.com/t/1662
+      - run: git pull --ff-only origin "refs/pull/${CI_PULL_REQUEST//*pull\//}/merge"
+
       - run: test/e2e/e2e-golang.sh
       - run: test/e2e/e2e-flux-build.sh
       - run: test/e2e/e2e-kind.sh
