@@ -97,5 +97,6 @@ func (n *namespaceViaDiscovery) lookupNamespacedInCluster(groupVersion, kind str
 			return resource.Namespaced, nil
 		}
 	}
+
 	return false, fmt.Errorf("resource not found for API %s, kind %s", groupVersion, kind)
 }

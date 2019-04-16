@@ -11,7 +11,7 @@ import (
 	"github.com/weaveworks/flux/resource"
 )
 
-func (m *Manifests) UpdatePolicies(def []byte, id flux.ResourceID, update policy.Update) ([]byte, error) {
+func (m *manifests) UpdatePolicies(def []byte, id flux.ResourceID, update policy.Update) ([]byte, error) {
 	ns, kind, name := id.Components()
 	add, del := update.Add, update.Remove
 
@@ -48,7 +48,7 @@ func (m *Manifests) UpdatePolicies(def []byte, id flux.ResourceID, update policy
 	return (KubeYAML{}).Annotate(def, ns, kind, name, args...)
 }
 
-func (m *Manifests) extractWorkloadContainers(def []byte, id flux.ResourceID) ([]resource.Container, error) {
+func (m *manifests) extractWorkloadContainers(def []byte, id flux.ResourceID) ([]resource.Container, error) {
 	kresources, err := kresource.ParseMultidoc(def, "stdin")
 	if err != nil {
 		return nil, err
@@ -58,7 +58,7 @@ func (m *Manifests) extractWorkloadContainers(def []byte, id flux.ResourceID) ([
 	// We could get out of our way to fix this (or give a better error) but:
 	// 1. With the exception of HelmReleases CRD instances are not workloads anyways.
 	// 2. The problem is eventually fixed by the first successful sync.
-	resources, err := setEffectiveNamespaces(kresources, m.Namespacer)
+	resources, err := m.setEffectiveNamespaces(kresources)
 	if err != nil {
 		return nil, err
 	}

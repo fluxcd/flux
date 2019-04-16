@@ -2,6 +2,7 @@ package kubernetes
 
 import (
 	"fmt"
+	"os"
 	"sort"
 	"strings"
 	"testing"
@@ -313,6 +314,7 @@ metadata:
 		if err != nil {
 			t.Fatal(err)
 		}
+		manifests := NewManifests(namespacer, log.NewLogfmtLogger(os.Stdout))
 
 		resources0, err := kresource.ParseMultidoc([]byte(defs), "before")
 		if err != nil {
@@ -320,7 +322,7 @@ metadata:
 		}
 
 		// Needed to get from KubeManifest to resource.Resource
-		resources, err := setEffectiveNamespaces(resources0, namespacer)
+		resources, err := manifests.setEffectiveNamespaces(resources0)
 		if err != nil {
 			t.Fatal(err)
 		}

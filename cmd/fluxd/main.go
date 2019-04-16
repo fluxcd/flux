@@ -271,7 +271,7 @@ func main() {
 	var clusterVersion string
 	var sshKeyRing ssh.KeyRing
 	var k8s cluster.Cluster
-	var k8sManifests *kubernetes.Manifests
+	var k8sManifests cluster.Manifests
 	var imageCreds func() registry.ImageCreds
 	{
 		restClientConfig, err := rest.InClusterConfig()
@@ -369,13 +369,12 @@ func main() {
 		imageCreds = k8sInst.ImagesToFetch
 		// There is only one way we currently interpret a repo of
 		// files as manifests, and that's as Kubernetes yamels.
-		k8sManifests = &kubernetes.Manifests{}
-		k8sManifests.Namespacer, err = kubernetes.NewNamespacer(discoClientset)
-
+		namespacer, err := kubernetes.NewNamespacer(discoClientset)
 		if err != nil {
 			logger.Log("err", err)
 			os.Exit(1)
 		}
+		k8sManifests = kubernetes.NewManifests(namespacer, logger)
 	}
 
 	// Wrap the procedure for collecting images to scan

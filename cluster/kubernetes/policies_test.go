@@ -2,21 +2,16 @@ package kubernetes
 
 import (
 	"bytes"
+	"os"
 	"testing"
 	"text/template"
 
+	"github.com/go-kit/kit/log"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/weaveworks/flux"
-	kresource "github.com/weaveworks/flux/cluster/kubernetes/resource"
 	"github.com/weaveworks/flux/policy"
 )
-
-type constNamespacer string
-
-func (ns constNamespacer) EffectiveNamespace(manifest kresource.KubeManifest, _ ResourceScopes) (string, error) {
-	return string(ns), nil
-}
 
 func TestUpdatePolicies(t *testing.T) {
 	for _, c := range []struct {
@@ -186,7 +181,8 @@ func TestUpdatePolicies(t *testing.T) {
 			caseIn := templToString(t, annotationsTemplate, c.in)
 			caseOut := templToString(t, annotationsTemplate, c.out)
 			resourceID := flux.MustParseResourceID("default:deployment/nginx")
-			out, err := (&Manifests{constNamespacer("default")}).UpdatePolicies([]byte(caseIn), resourceID, c.update)
+			manifests := NewManifests(ConstNamespacer("default"), log.NewLogfmtLogger(os.Stdout))
+			out, err := manifests.UpdatePolicies([]byte(caseIn), resourceID, c.update)
 			assert.Equal(t, c.wantErr, err != nil, "unexpected error value: %s", err)
 			if !c.wantErr {
 				assert.Equal(t, string(out), caseOut)
@@ -200,7 +196,7 @@ func TestUpdatePolicies_invalidTagPattern(t *testing.T) {
 	update := policy.Update{
 		Add: policy.Set{policy.TagPrefix("nginx"): "semver:invalid"},
 	}
-	_, err := (&Manifests{}).UpdatePolicies(nil, resourceID, update)
+	_, err := (&manifests{}).UpdatePolicies(nil, resourceID, update)
 	assert.Error(t, err)
 }
 
