@@ -13,6 +13,7 @@ import (
 	"github.com/spf13/pflag"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/client-go/util/workqueue"
 
 	"github.com/weaveworks/flux/checkpoint"
 	clientset "github.com/weaveworks/flux/integrations/client/clientset/versioned"
@@ -136,19 +137,19 @@ func main() {
 
 	cfg, err := clientcmd.BuildConfigFromFlags(*master, *kubeconfig)
 	if err != nil {
-		mainLogger.Log("error", fmt.Sprintf("Error building kubeconfig: %v", err))
+		mainLogger.Log("error", fmt.Sprintf("error building kubeconfig: %v", err))
 		os.Exit(1)
 	}
 
 	kubeClient, err := kubernetes.NewForConfig(cfg)
 	if err != nil {
-		mainLogger.Log("error", fmt.Sprintf("Error building kubernetes clientset: %v", err))
+		mainLogger.Log("error", fmt.Sprintf("error building kubernetes clientset: %v", err))
 		os.Exit(1)
 	}
 
 	ifClient, err := clientset.NewForConfig(cfg)
 	if err != nil {
-		mainLogger.Log("error", fmt.Sprintf("Error building integrations clientset: %v", err))
+		mainLogger.Log("error", fmt.Sprintf("error building integrations clientset: %v", err))
 		os.Exit(1)
 	}
 
@@ -169,27 +170,27 @@ func main() {
 	statusUpdater := status.New(ifClient, kubeClient, helmClient, *namespace)
 	go statusUpdater.Loop(shutdown, log.With(logger, "component", "annotator"))
 
-	// release instance is needed during the sync of Charts changes and during the sync of HelmRelease changes
+	nsOpt := ifinformers.WithNamespace(*namespace)
+	ifInformerFactory := ifinformers.NewSharedInformerFactoryWithOptions(ifClient, *chartsSyncInterval, nsOpt)
+	fhrInformer := ifInformerFactory.Flux().V1beta1().HelmReleases()
+	go ifInformerFactory.Start(shutdown)
+
+	queue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "ChartRelease")
+
+	// release instance is needed during the sync of git chart changes and during the sync of HelmRelease changes
 	rel := release.New(log.With(logger, "component", "release"), helmClient)
 	chartSync := chartsync.New(
 		log.With(logger, "component", "chartsync"),
-		chartsync.Polling{Interval: *chartsSyncInterval},
-		chartsync.Clients{KubeClient: *kubeClient, IfClient: *ifClient},
+		chartsync.Clients{KubeClient: *kubeClient, IfClient: *ifClient, FhrLister: fhrInformer.Lister()},
 		rel,
+		queue,
 		chartsync.Config{LogDiffs: *logReleaseDiffs, UpdateDeps: *updateDependencies, GitTimeout: *gitTimeout, GitPollInterval: *gitPollInterval},
 		*namespace,
-		statusUpdater,
 	)
 	chartSync.Run(shutdown, errc, shutdownWg)
 
-	nsOpt := ifinformers.WithNamespace(*namespace)
-	ifInformerFactory := ifinformers.NewSharedInformerFactoryWithOptions(ifClient, 30*time.Second, nsOpt)
-	fhrInformer := ifInformerFactory.Flux().V1beta1().HelmReleases()
-
 	// start FluxRelease informer
-	opr := operator.New(log.With(logger, "component", "operator"), *logReleaseDiffs, kubeClient, fhrInformer, chartSync)
-	go ifInformerFactory.Start(shutdown)
-
+	opr := operator.New(log.With(logger, "component", "operator"), *logReleaseDiffs, kubeClient, fhrInformer, queue, chartSync)
 	checkpoint.CheckForUpdates(product, version, nil, log.With(logger, "component", "checkpoint"))
 
 	// start HTTP server

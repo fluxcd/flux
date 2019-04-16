@@ -39,6 +39,7 @@ type HelmReleasesGetter interface {
 type HelmReleaseInterface interface {
 	Create(*v1beta1.HelmRelease) (*v1beta1.HelmRelease, error)
 	Update(*v1beta1.HelmRelease) (*v1beta1.HelmRelease, error)
+	UpdateStatus(*v1beta1.HelmRelease) (*v1beta1.HelmRelease, error)
 	Delete(name string, options *v1.DeleteOptions) error
 	DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error
 	Get(name string, options v1.GetOptions) (*v1beta1.HelmRelease, error)
@@ -126,6 +127,22 @@ func (c *helmReleases) Update(helmRelease *v1beta1.HelmRelease) (result *v1beta1
 		Namespace(c.ns).
 		Resource("helmreleases").
 		Name(helmRelease.Name).
+		Body(helmRelease).
+		Do().
+		Into(result)
+	return
+}
+
+// UpdateStatus was generated because the type contains a Status member.
+// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
+
+func (c *helmReleases) UpdateStatus(helmRelease *v1beta1.HelmRelease) (result *v1beta1.HelmRelease, err error) {
+	result = &v1beta1.HelmRelease{}
+	err = c.client.Put().
+		Namespace(c.ns).
+		Resource("helmreleases").
+		Name(helmRelease.Name).
+		SubResource("status").
 		Body(helmRelease).
 		Do().
 		Into(result)

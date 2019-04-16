@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/go-kit/kit/log"
-	"github.com/golang/glog"
 	"github.com/google/go-cmp/cmp"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -40,12 +39,9 @@ const (
 	// a HelmRelease fails to be released/updated
 	ErrChartSync = "ErrChartSync"
 
-	// MessageChartSynced - the message used for Events when a resource
-	// fails to sync due to failing to release the Chart
-	MessageChartSynced = "Chart managed by HelmRelease processed successfully"
-	// MessageErrChartSync - the message used for an Event fired when a HelmRelease
-	// is synced successfully
-	MessageErrChartSync = "Chart %s managed by HelmRelease failed to be processed"
+	// MessageChartSynced - the message used for an Event fired when a HelmRelease
+	// is synced.
+	MessageChartSynced = "Chart managed by HelmRelease processed"
 )
 
 // Controller is the operator implementation for HelmRelease resources
@@ -76,13 +72,13 @@ func New(
 	logReleaseDiffs bool,
 	kubeclientset kubernetes.Interface,
 	fhrInformer fhrv1.HelmReleaseInformer,
+	releaseWorkqueue workqueue.RateLimitingInterface,
 	sync *chartsync.ChartChangeSync) *Controller {
 
 	// Add helm-operator types to the default Kubernetes Scheme so Events can be
 	// logged for helm-operator types.
 	ifscheme.AddToScheme(scheme.Scheme)
 	eventBroadcaster := record.NewBroadcaster()
-	eventBroadcaster.StartLogging(glog.Infof)
 	eventBroadcaster.StartRecordingToSink(&typedcorev1.EventSinkImpl{Interface: kubeclientset.CoreV1().Events("")})
 	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: controllerAgentName})
 
@@ -91,18 +87,16 @@ func New(
 		logDiffs:         logReleaseDiffs,
 		fhrLister:        fhrInformer.Lister(),
 		fhrSynced:        fhrInformer.Informer().HasSynced,
-		releaseWorkqueue: workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "ChartRelease"),
+		releaseWorkqueue: releaseWorkqueue,
 		recorder:         recorder,
 		sync:             sync,
 	}
 
-	controller.logger.Log("info", "Setting up event handlers")
+	controller.logger.Log("info", "setting up event handlers")
 
 	// ----- EVENT HANDLERS for HelmRelease resources change ---------
 	fhrInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(new interface{}) {
-			controller.logger.Log("info", "CREATING release")
-			controller.logger.Log("info", "Custom Resource driven release install")
 			_, ok := checkCustomResourceType(controller.logger, new)
 			if ok {
 				controller.enqueueJob(new)
@@ -118,7 +112,7 @@ func New(
 			}
 		},
 	})
-	controller.logger.Log("info", "Event handlers set up")
+	controller.logger.Log("info", "event handlers set up")
 
 	return controller
 }
@@ -131,16 +125,16 @@ func (c *Controller) Run(threadiness int, stopCh <-chan struct{}, wg *sync.WaitG
 	defer runtime.HandleCrash()
 	defer c.releaseWorkqueue.ShutDown()
 
-	c.logger.Log("info", "Starting operator")
+	c.logger.Log("info", "starting operator")
 	// Wait for the caches to be synced before starting workers
-	c.logger.Log("info", "Waiting for informer caches to sync")
+	c.logger.Log("info", "waiting for informer caches to sync")
 
 	if ok := cache.WaitForCacheSync(stopCh, c.fhrSynced); !ok {
 		return errors.New("failed to wait for caches to sync")
 	}
-	c.logger.Log("info", "Informer caches synced")
+	c.logger.Log("info", "unformer caches synced")
 
-	c.logger.Log("info", "Starting workers")
+	c.logger.Log("info", "starting workers")
 	for i := 0; i < threadiness; i++ {
 		wg.Add(1)
 		go wait.Until(c.runWorker, time.Second, stopCh)
@@ -150,7 +144,7 @@ func (c *Controller) Run(threadiness int, stopCh <-chan struct{}, wg *sync.WaitG
 	for i := 0; i < threadiness; i++ {
 		wg.Done()
 	}
-	c.logger.Log("info", "Stopping workers")
+	c.logger.Log("info", "stopping workers")
 
 	return nil
 }
@@ -166,11 +160,7 @@ func (c *Controller) runWorker() {
 // processNextWorkItem will read a single work item off the workqueue and
 // attempt to process it, by calling the syncHandler.
 func (c *Controller) processNextWorkItem() bool {
-	c.logger.Log("debug", "Processing next work queue job ...")
-
 	obj, shutdown := c.releaseWorkqueue.Get()
-	c.logger.Log("debug", fmt.Sprintf("PROCESSING item [%#v]", obj))
-
 	if shutdown {
 		return false
 	}
@@ -197,7 +187,7 @@ func (c *Controller) processNextWorkItem() bool {
 			// Forget not to get into a loop of attempting to
 			// process a work item that is invalid.
 			c.releaseWorkqueue.Forget(obj)
-			runtime.HandleError(fmt.Errorf("Expected string in workqueue but got %#v", obj))
+			runtime.HandleError(fmt.Errorf("expected string in workqueue but got %#v", obj))
 
 			return nil
 		}
@@ -205,14 +195,11 @@ func (c *Controller) processNextWorkItem() bool {
 		// HelmRelease resource to sync the corresponding Chart release.
 		// If the sync failed, then we return while the item will get requeued
 		if err := c.syncHandler(key); err != nil {
-			return fmt.Errorf("error syncing '%s': %s", key, err.Error())
+			return fmt.Errorf("errored syncing HelmRelease '%s': %s", key, err.Error())
 		}
 		// If no error occurs we Forget this item so it does not
 		// get queued again until another change happens.
 		c.releaseWorkqueue.Forget(obj)
-
-		c.logger.Log("info", fmt.Sprintf("Successfully synced '%s'", key))
-
 		return nil
 	}(obj)
 
@@ -226,13 +213,11 @@ func (c *Controller) processNextWorkItem() bool {
 // syncHandler acts according to the action
 // 		Deletes/creates or updates a Chart release
 func (c *Controller) syncHandler(key string) error {
-	c.logger.Log("debug", fmt.Sprintf("Starting to sync cache key %s", key))
-
 	// Retrieve namespace and Custom Resource name from the key
 	namespace, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
-		c.logger.Log("info", fmt.Sprintf("Invalid cache key: %v", err))
-		runtime.HandleError(fmt.Errorf("Invalid cache key: %s", key))
+		c.logger.Log("error", fmt.Sprintf("key '%s' is invalid: %v", key, err))
+		runtime.HandleError(fmt.Errorf("key '%s' is invalid", key))
 		return nil
 	}
 
@@ -297,19 +282,23 @@ func (c *Controller) enqueueUpdateJob(old, new interface{}) {
 		return
 	}
 
-	if diff := cmp.Diff(oldFhr.Spec, newFhr.Spec); diff != "" {
-		c.logger.Log("info", "UPGRADING release")
-		if c.logDiffs {
-			c.logger.Log("info", "Custom Resource driven release upgrade", "diff", diff)
-		} else {
-			c.logger.Log("info", "Custom Resource driven release upgrade")
-		}
-		c.enqueueJob(new)
+	log := []string{"info", "enqueuing release upgrade"}
+	if diff := cmp.Diff(oldFhr.Spec, newFhr.Spec); diff != "" && c.logDiffs {
+		log = append(log, "diff", diff)
 	}
+	log = append(log, "resource", newFhr.ResourceID().String())
+
+	l := make([]interface{}, len(log))
+	for i, v := range log {
+		l[i] = v
+	}
+
+	c.logger.Log(l...)
+
+	c.enqueueJob(new)
 }
 
 func (c *Controller) deleteRelease(fhr flux_v1beta1.HelmRelease) {
-	c.logger.Log("info", "DELETING release")
-	c.logger.Log("info", "Custom Resource driven release deletion")
+	c.logger.Log("info", "deleting release", "resource", fhr.ResourceID().String())
 	c.sync.DeleteRelease(fhr)
 }
