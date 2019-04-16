@@ -1,7 +1,6 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"os"
 	"os/signal"
@@ -14,6 +13,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/workqueue"
+	"k8s.io/klog"
 
 	"github.com/weaveworks/flux/checkpoint"
 	clientset "github.com/weaveworks/flux/integrations/client/clientset/versioned"
@@ -103,8 +103,9 @@ func init() {
 }
 
 func main() {
-	// set glog output to stderr
-	flag.CommandLine.Parse([]string{"-logtostderr"})
+	// Explicitly initialize klog to enable stderr logging,
+	// and parse our own flags.
+	klog.InitFlags(nil)
 	fs.Parse(os.Args)
 
 	if *versionFlag {

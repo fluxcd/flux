@@ -23,6 +23,7 @@ import (
 	k8sclientdynamic "k8s.io/client-go/dynamic"
 	k8sclient "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"k8s.io/klog"
 
 	"github.com/weaveworks/flux/checkpoint"
 	"github.com/weaveworks/flux/cluster"
@@ -165,6 +166,9 @@ func main() {
 	fs.MarkDeprecated("registry-cache-expiry", "no longer used; cache entries are expired adaptively according to how often they change")
 	fs.MarkDeprecated("k8s-namespace-whitelist", "changed to --k8s-allow-namespace, use that instead")
 
+	// Explicitly initialize klog to enable stderr logging,
+	// and parse our own flags.
+	klog.InitFlags(nil)
 	err := fs.Parse(os.Args[1:])
 	switch {
 	case err == pflag.ErrHelp:
@@ -188,7 +192,7 @@ func main() {
 	logger.Log("version", version)
 
 	// Silence access errors logged internally by client-go
-	klog := log.With(logger, "type", "internal kubernetes error")
+	k8slog := log.With(logger, "type", "internal kubernetes error")
 	logErrorUnlessAccessRelated := func(err error) {
 		errLower := strings.ToLower(err.Error())
 		if k8serrors.IsForbidden(err) || k8serrors.IsNotFound(err) ||
@@ -196,7 +200,7 @@ func main() {
 			strings.Contains(errLower, "not found") {
 			return
 		}
-		klog.Log("err", err)
+		k8slog.Log("err", err)
 	}
 	k8sruntime.ErrorHandlers = []func(error){logErrorUnlessAccessRelated}
 
