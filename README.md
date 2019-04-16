@@ -57,13 +57,14 @@ Its major features are:
 
 ### Who is using Flux in production
 
-- [controlplane](https://control-plane.io)
+- [Control Plane](https://control-plane.io)
 - [Crowd Riff](https://crowdriff.com) 
 - [College of William & Mary](https://www.wm.edu)
 - [Gini](https://gini.net)
 - [iQmetrix](https://www.iqmetrix.com)
 - [Mettle](https://mettle.co.uk)
 - [Payout](https://payout.one)
+- [Qordoba](https://qordoba.com)
 - [Under Armour](https://www.underarmour.com)
 - [Weave Cloud](https://cloud.weave.works)  
 
