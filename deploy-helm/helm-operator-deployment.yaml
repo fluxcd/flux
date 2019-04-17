@@ -60,9 +60,9 @@ spec:
       containers:
       - name: flux-helm-operator
         # There are no ":latest" images for helm-operator. Find the most recent
-        # release or image version at https://quay.io/weaveworks/helm-operator
+        # release or image version at https://hub.docker.com/r/weaveworks/helm-operator/tags
         # and replace the tag here.
-        image: quay.io/weaveworks/helm-operator:0.8.0
+        image: docker.io/weaveworks/helm-operator:0.8.0
         imagePullPolicy: IfNotPresent
         ports:
         - name: http

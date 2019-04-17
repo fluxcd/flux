@@ -7,8 +7,8 @@ REPO_ROOT=$(git rev-parse --show-toplevel)
 KNOWN_HOSTS=$(cat ${REPO_ROOT}/test/e2e/known_hosts)
 
 echo ">>> Loading $(docker/image-tag) into the cluster"
-kind load docker-image "quay.io/weaveworks/flux:$(docker/image-tag)"
-kind load docker-image "quay.io/weaveworks/helm-operator:$(docker/image-tag)"
+kind load docker-image "docker.io/weaveworks/flux:$(docker/image-tag)"
+kind load docker-image "docker.io/weaveworks/helm-operator:$(docker/image-tag)"
 
 echo ">>> Installing Flux with Helm"
 helm install --name flux --wait \

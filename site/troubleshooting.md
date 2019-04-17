@@ -111,7 +111,7 @@ happen:
    ```yaml
     spec:
       containers:
-        image: quay.io/weaveworks/flux
+        image: docker.io/weaveworks/flux
         ...
         volumeMounts:
         - name: acr-credentials
