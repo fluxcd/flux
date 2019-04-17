@@ -1,3 +1,12 @@
+## 0.9.1 (2019-04-17)
+
+### Improvements
+
+ - Add the `status` subresource to HelmRelease CRD
+   [weaveworks/flux#1906](https://github.com/weaveworks/flux/pull/1906)
+ - Switch image registry from Quay to Docker Hub
+   [weaveworks/flux#1949](https://github.com/weaveworks/flux/pull/1949)
+
 ## 0.9.0 (2019-04-11)
 
 ### Improvements
