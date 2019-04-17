@@ -1,3 +1,10 @@
+## 0.9.1 (2019-04-17)
+
+### Improvements
+
+ - Switch image registry from Quay to Docker Hub
+   [weaveworks/flux#1952](https://github.com/weaveworks/flux/pull/1952)
+
 ## 0.9.0 (2019-04-11)
 
 ### Improvements
