@@ -84,9 +84,9 @@ example. We may return to the matter of staged deployments.
 ### Are there nightly builds I can run?
 
 There are builds from CI for each merge to master branch. See
-[quay.io/weaveworks/flux](https://quay.io/repository/weaveworks/flux?tab=tags)
+[weaveworks/flux](https://hub.docker.com/r/weaveworks/flux/tags)
 and
-[quay.io/weaveworks/helm-operator](https://quay.io/repository/weaveworks/helm-operator?tag=latest&tab=tags).
+[weaveworks/helm-operator](https://hub.docker.com/r/weaveworks/helm-operator/tags).
 
 ## Technical questions
 

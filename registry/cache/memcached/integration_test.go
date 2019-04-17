@@ -34,7 +34,11 @@ func TestWarming_WarmerWriteCacheRead(t *testing.T) {
 	// This repo has a stable number of images in the low tens (just
 	// <20); more than `burst` below, but not so many that timing out
 	// is likely.
-	id, _ := image.ParseRef("quay.io/weaveworks/kured")
+	// TODO(hidde): I temporary switched this to one of our images on
+	// Docker Hub due to Quay.io outage. It is however not guaranteed
+	// the amount of tags for this image stays stable and in the low
+	// tens.
+	id, _ := image.ParseRef("docker.io/weaveworks/flagger-loadtester")
 
 	logger := log.NewLogfmtLogger(os.Stderr)
 

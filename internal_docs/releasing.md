@@ -3,7 +3,7 @@
 The release process needs to do these things:
 
  - create a new release on GitHub, with a tag
- - push Docker image(s) to quay.io
+ - push Docker image(s) to Docker Hub
  - possibly upload the [`fluxctl` binaries](/site/fluxctl.md#binary-releases) to the GitHub release
  - make sure the version is entered into the checkpoint database so that up-to-date checks report back accurate information
 
