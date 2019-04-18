@@ -199,7 +199,7 @@ func (c *Cluster) getAllowedResourcesBySelector(selector string) (map[string]*ku
 		listOptions.LabelSelector = selector
 	}
 
-	resources, err := c.client.discoveryClient.ServerResources()
+	_, resources, err := c.client.discoveryClient.ServerGroupsAndResources()
 	if err != nil {
 		discErr, ok := err.(*discovery.ErrGroupDiscoveryFailed)
 		if !ok {
@@ -212,7 +212,7 @@ func (c *Cluster) getAllowedResourcesBySelector(selector string) (map[string]*ku
 			}
 		}
 		c.logger.Log("warn", err,
-			"impact", "ignoring error, please check your cluster configuration, no GroupVersion should be empty")
+			"impact", "ignoring error, please check your cluster configuration, GroupVersions should not be empty")
 	}
 
 	result := map[string]*kuberesource{}
