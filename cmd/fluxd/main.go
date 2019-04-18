@@ -192,7 +192,10 @@ func main() {
 	logger.Log("version", version)
 
 	// Silence access errors logged internally by client-go
-	k8slog := log.With(logger, "type", "internal kubernetes error")
+	k8slog := log.With(logger,
+		"type", "internal kubernetes error",
+		"ts", log.DefaultTimestampUTC,
+		"caller", log.Caller(5)) // we want to log one level deeper than k8sruntime.HandleError
 	logErrorUnlessAccessRelated := func(err error) {
 		errLower := strings.ToLower(err.Error())
 		if k8serrors.IsForbidden(err) || k8serrors.IsNotFound(err) ||
@@ -203,7 +206,6 @@ func main() {
 		k8slog.Log("err", err)
 	}
 	k8sruntime.ErrorHandlers = []func(error){logErrorUnlessAccessRelated}
-
 	// Argument validation
 
 	// Sort out values for the git tag and notes ref. There are

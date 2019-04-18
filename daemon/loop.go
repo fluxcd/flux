@@ -207,9 +207,9 @@ func (d *Daemon) doSync(logger log.Logger, lastKnownSyncTagRev *string, warnedAb
 
 	var resourceErrors []event.ResourceError
 	if err := fluxsync.Sync(syncSetName, allResources, d.Cluster); err != nil {
-		logger.Log("err", err)
 		switch syncerr := err.(type) {
 		case cluster.SyncError:
+			logger.Log("err", err)
 			for _, e := range syncerr {
 				resourceErrors = append(resourceErrors, event.ResourceError{
 					ID:    e.ResourceID,
