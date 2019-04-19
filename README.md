@@ -65,6 +65,7 @@ Its major features are:
 - [Mettle](https://mettle.co.uk)
 - [Payout](https://payout.one)
 - [Qordoba](https://qordoba.com)
+- [Troii](https://troii.com/)
 - [Under Armour](https://www.underarmour.com)
 - [Weave Cloud](https://cloud.weave.works)  
 
