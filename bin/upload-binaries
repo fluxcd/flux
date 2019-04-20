@@ -8,15 +8,26 @@ GITHUB_USER=${GITHUB_USER:-"${CIRCLE_PROJECT_USERNAME}"}
 GITHUB_REPO=${GITHUB_REPO:-"${CIRCLE_PROJECT_REPONAME}"}
 GITHUB_TAG=${GITHUB_TAG:-"${CIRCLE_TAG}"}
 
-for arch in amd64; do
-	for os in linux darwin windows; do
-		echo "= Uploading fluxctl_${os}_${arch} to GH release ${GITHUB_TAG}"
-		github-release upload \
-			--user ${GITHUB_USER} \
-			--repo ${GITHUB_REPO} \
-			--tag ${GITHUB_TAG} \
-			--name "fluxctl_${os}_${arch}" \
-			--file "build/fluxctl_${os}_${arch}"
-		echo "* Finished pushing fluxctl_${os}_${arch} for ${GITHUB_TAG}"
-	done
+function do_publish() {
+	os=$1
+	arch=$2
+	echo "= Uploading fluxctl_${os}_${arch} to GH release ${GITHUB_TAG}"
+	github-release upload \
+		--user ${GITHUB_USER} \
+		--repo ${GITHUB_REPO} \
+		--tag ${GITHUB_TAG} \
+		--name "fluxctl_${os}_${arch}" \
+		--file "build/fluxctl_${os}_${arch}"
+	echo "* Finished pushing fluxctl_${os}_${arch} for ${GITHUB_TAG}"
+}
+
+#amd64
+for os in linux darwin windows; do
+	do_publish $os amd64
 done
+
+#arm
+for arch in arm arm64; do
+	do_publish linux $arch
+done
+
