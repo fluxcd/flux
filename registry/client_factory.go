@@ -3,6 +3,7 @@ package registry
 import (
 	"context"
 	"crypto/tls"
+	"net"
 	"net/http"
 	"net/url"
 	"sync"
@@ -92,9 +93,13 @@ attemptChallenge:
 }
 
 func (f *RemoteClientFactory) ClientFor(repo image.CanonicalName, creds Credentials) (Client, error) {
+	repoHost, _, err := net.SplitHostPort(repo.Domain)
+	if err != nil {
+		return nil, err
+	}
 	insecure := false
 	for _, h := range f.InsecureHosts {
-		if repo.Domain == h {
+		if repoHost == h {
 			insecure = true
 			break
 		}
