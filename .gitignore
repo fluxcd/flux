@@ -27,6 +27,14 @@ _testmain.go
 .ackrc
 .envrc
 
+### Package builds (e.g. snap of fluxctl)
+fluxctl_*_*.snap
+parts
+snap
+prime
+stage
+
+
 # Specific to this project
 vendor/*
 !vendor/manifest
