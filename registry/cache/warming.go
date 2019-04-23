@@ -149,13 +149,11 @@ func imageCredsToBacklog(imageCreds registry.ImageCreds) []backlogItem {
 func (w *Warmer) warm(ctx context.Context, now time.Time, logger log.Logger, id image.Name, creds registry.Credentials) {
 	errorLogger := log.With(logger, "canonical_name", id.CanonicalName(), "auth", creds)
 
-	client, err := w.clientFactory.ClientFor(id.CanonicalName(), creds)
+	cacheManager, err := newRepoCacheManager(now, id, w.clientFactory, creds, time.Minute, w.burst, w.Trace, errorLogger, w.cache)
 	if err != nil {
 		errorLogger.Log("err", err.Error())
 		return
 	}
-
-	cacheManager := newRepoCacheManager(now, id, w.burst, w.Trace, errorLogger, w.cache)
 
 	// This is what we're going to write back to the cache
 	var repo ImageRepository
@@ -176,7 +174,7 @@ func (w *Warmer) warm(ctx context.Context, now time.Time, logger log.Logger, id 
 		}
 	}()
 
-	tags, err := client.Tags(ctx)
+	tags, err := cacheManager.getTags(ctx)
 	if err != nil {
 		if !strings.Contains(err.Error(), context.DeadlineExceeded.Error()) && !strings.Contains(err.Error(), "net/http: request canceled") {
 			errorLogger.Log("err", errors.Wrap(err, "requesting tags"))
@@ -201,7 +199,7 @@ func (w *Warmer) warm(ctx context.Context, now time.Time, logger log.Logger, id 
 			"to_update", len(fetchResult.imagesToUpdate),
 			"of_which_refresh", fetchResult.imagesToUpdateRefreshCount, "of_which_missing", fetchResult.imagesToUpdateMissingCount)
 		var images map[string]image.Info
-		images, successCount, manifestUnknownCount = cacheManager.updateImages(ctx, client, fetchResult.imagesToUpdate)
+		images, successCount, manifestUnknownCount = cacheManager.updateImages(ctx, fetchResult.imagesToUpdate)
 		for k, v := range images {
 			newImages[k] = v
 		}
