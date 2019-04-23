@@ -137,6 +137,11 @@ git:
   # add ./identity.pub as a deployment key with write access in your Git repo
   # set the secret name (flux-ssh) below
   secretName: ""
+  # Global Git configuration See https://git-scm.com/docs/git-config for more details.
+  config: ""
+  # config: |
+  #   [credential "https://github.com"]
+  #           username = foo
 
 registry:
   # Period at which to check for updated images

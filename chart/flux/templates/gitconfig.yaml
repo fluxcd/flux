@@ -1,0 +1,15 @@
+{{- if .Values.git.config -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ template "flux.fullname" . }}-gitconfig
+data:
+  .gitconfig: |
+    {{- if contains "\n" .Values.git.config }}
+      {{- range $value := .Values.git.config | splitList "\n" }}
+        {{ print $value }}
+      {{- end }}
+    {{- else }}
+      {{ .Values.git.config }}
+    {{- end }}
+{{- end -}}
