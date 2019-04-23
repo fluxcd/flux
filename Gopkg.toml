@@ -11,6 +11,7 @@ required = ["k8s.io/code-generator/cmd/client-gen"]
 [[constraint]]
   name = "github.com/docker/distribution"
   branch = "master"
+  source = "github.com/2opremio/distribution"
 
 # Pin to master branch until there is a more recent stable release:
 #   https://github.com/prometheus/client_golang/issues/375
