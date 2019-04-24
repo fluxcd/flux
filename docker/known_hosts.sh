@@ -61,9 +61,4 @@ until ${ok}; do
         exit 1
     fi
     sleep ${wait}
-    count=$(($count + 1))
-    if [[ ${count} -eq ${retries} ]]; then
-        echo "ssh-keyscan failed, no more retries left"
-        exit 1
-    fi
 done
