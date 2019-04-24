@@ -99,8 +99,8 @@ func (f *RemoteClientFactory) ClientFor(repo image.CanonicalName, creds Credenti
 	}
 	insecure := false
 	for _, h := range f.InsecureHosts {
+		// allow the insecure hosts list to contain hosts with or without the port
 		if repoHost == h || repo.Domain == h {
-			// allow host with out without the port in the insecure hosts list
 			insecure = true
 			break
 		}
