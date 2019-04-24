@@ -2,7 +2,7 @@
 name: Bug report
 about: Create a report to help us improve Weave Flux
 title: ''
-labels: blocked-needs-validation
+labels: [blocked-needs-validation, bug]
 assignees: ''
 
 ---
