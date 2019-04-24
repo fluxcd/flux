@@ -1,6 +1,7 @@
 package kubernetes
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
@@ -10,7 +11,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/discovery"
-	discocache "k8s.io/client-go/discovery/cached"
+	"k8s.io/client-go/discovery/cached/memory"
 	toolscache "k8s.io/client-go/tools/cache"
 )
 
@@ -46,7 +47,12 @@ func (d *cachedDiscovery) ServerResourcesForGroupVersion(groupVersion string) (*
 	if invalid {
 		d.CachedDiscoveryInterface.Invalidate()
 	}
-	return d.CachedDiscoveryInterface.ServerResourcesForGroupVersion(groupVersion)
+	result, err := d.CachedDiscoveryInterface.ServerResourcesForGroupVersion(groupVersion)
+	if err == memory.ErrCacheNotFound {
+		// improve the error returned from memcacheclient
+		err = fmt.Errorf("server resources for %s not found in cache; cache refreshes every 5 minutes", groupVersion)
+	}
+	return result, err
 }
 
 // MakeCachedDiscovery constructs a CachedDicoveryInterface that will
@@ -81,7 +87,7 @@ type makeHandle func(discovery.CachedDiscoveryInterface) toolscache.ResourceEven
 // flexibility than MakeCachedDiscovery; e.g., with extra handlers for
 // testing.
 func makeCachedDiscovery(d discovery.DiscoveryInterface, c crd.Interface, shutdown <-chan struct{}, handlerFn makeHandle) (*cachedDiscovery, toolscache.Store, toolscache.Controller) {
-	cachedDisco := &cachedDiscovery{CachedDiscoveryInterface: discocache.NewMemCacheClient(d)}
+	cachedDisco := &cachedDiscovery{CachedDiscoveryInterface: memory.NewMemCacheClient(d)}
 	// We have an empty cache, so it's _a priori_ invalid. (Yes, that's the zero value, but better safe than sorry)
 	cachedDisco.Invalidate()
 

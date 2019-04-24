@@ -21,6 +21,7 @@ import (
 	//	dynamicfake "k8s.io/client-go/dynamic/fake"
 	//	k8sclient "k8s.io/client-go/kubernetes"
 	"github.com/stretchr/testify/assert"
+	crdfake "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/fake"
 	"k8s.io/client-go/discovery"
 	dynamicfake "k8s.io/client-go/dynamic/fake"
 	k8sclient "k8s.io/client-go/kubernetes"
@@ -38,7 +39,7 @@ const (
 	defaultTestNamespace = "unusual-default"
 )
 
-func fakeClients() ExtendedClient {
+func fakeClients() (ExtendedClient, func()) {
 	scheme := runtime.NewScheme()
 
 	// Set this to `true` to output a trace of the API actions called
@@ -67,6 +68,9 @@ func fakeClients() ExtendedClient {
 	coreClient := corefake.NewSimpleClientset(&corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: defaultTestNamespace}})
 	fluxClient := fluxfake.NewSimpleClientset()
 	dynamicClient := dynamicfake.NewSimpleDynamicClient(scheme)
+	crdClient := crdfake.NewSimpleClientset()
+	shutdown := make(chan struct{})
+	discoveryClient := MakeCachedDiscovery(coreClient.Discovery(), crdClient, shutdown)
 
 	// Assigned here, since this is _also_ used by the (fake)
 	// discovery client therein, and ultimately by
@@ -84,12 +88,14 @@ func fakeClients() ExtendedClient {
 		}
 	}
 
-	return ExtendedClient{
+	ec := ExtendedClient{
 		coreClient:      coreClient,
 		fluxHelmClient:  fluxClient,
 		dynamicClient:   dynamicClient,
-		discoveryClient: coreClient.Discovery(),
+		discoveryClient: discoveryClient,
 	}
+
+	return ec, func() { close(shutdown) }
 }
 
 // fakeApplier is an Applier that just forwards changeset operations
@@ -232,25 +238,44 @@ func findAPIResource(gvr schema.GroupVersionResource, disco discovery.DiscoveryI
 
 // ---
 
-func setup(t *testing.T) (*Cluster, *fakeApplier) {
-	clients := fakeClients()
+func setup(t *testing.T) (*Cluster, *fakeApplier, func()) {
+	clients, cancel := fakeClients()
 	applier := &fakeApplier{dynamicClient: clients.dynamicClient, coreClient: clients.coreClient, defaultNS: defaultTestNamespace}
 	kube := &Cluster{
 		applier: applier,
 		client:  clients,
-		logger:  log.NewNopLogger(),
+		logger:  log.NewLogfmtLogger(os.Stdout),
 	}
-	return kube, applier
+	return kube, applier, cancel
 }
 
 func TestSyncNop(t *testing.T) {
-	kube, mock := setup(t)
+	kube, mock, cancel := setup(t)
+	defer cancel()
 	if err := kube.Sync(cluster.SyncSet{}); err != nil {
 		t.Errorf("%#v", err)
 	}
 	if mock.commandRun {
 		t.Error("expected no commands run")
 	}
+}
+
+func TestSyncTolerateEmptyGroupVersion(t *testing.T) {
+	kube, _, cancel := setup(t)
+	defer cancel()
+
+	// Add a GroupVersion without API Resources
+	fakeClient := kube.client.coreClient.(*corefake.Clientset)
+	fakeClient.Resources = append(fakeClient.Resources, &metav1.APIResourceList{GroupVersion: "custom.metrics.k8s.io/v1beta1"})
+
+	// We should tolerate the error caused in the cache due to the
+	// GroupVersion being empty
+	err := kube.Sync(cluster.SyncSet{})
+	assert.NoError(t, err)
+
+	// No errors the second time either
+	err = kube.Sync(cluster.SyncSet{})
+	assert.NoError(t, err)
 }
 
 func TestSync(t *testing.T) {
@@ -362,7 +387,8 @@ metadata:
 	}
 
 	t.Run("sync adds and GCs resources", func(t *testing.T) {
-		kube, _ := setup(t)
+		kube, _, cancel := setup(t)
+		defer cancel()
 
 		// without GC on, resources persist if they are not mentioned in subsequent syncs.
 		test(t, kube, "", "", false)
@@ -379,7 +405,8 @@ metadata:
 	})
 
 	t.Run("sync won't incorrectly delete non-namespaced resources", func(t *testing.T) {
-		kube, _ := setup(t)
+		kube, _, cancel := setup(t)
+		defer cancel()
 		kube.GC = true
 
 		const nsDef = `
@@ -398,7 +425,8 @@ metadata:
 		// fallback (this would come from kubeconfig usually); and,
 		// for things that _don't_ have a namespace to have it
 		// stripped out.
-		kube, _ := setup(t)
+		kube, _, cancel := setup(t)
+		defer cancel()
 		kube.GC = true
 		const withoutNS = `
 apiVersion: apps/v1
@@ -417,7 +445,8 @@ metadata:
 	})
 
 	t.Run("sync won't delete resources whose garbage collection mark was copied to", func(t *testing.T) {
-		kube, _ := setup(t)
+		kube, _, cancel := setup(t)
+		defer cancel()
 		kube.GC = true
 
 		depName := "dep"
@@ -464,7 +493,8 @@ metadata:
 	})
 
 	t.Run("sync won't delete if apply failed", func(t *testing.T) {
-		kube, _ := setup(t)
+		kube, _, cancel := setup(t)
+		defer cancel()
 		kube.GC = true
 
 		const defs1invalid = `---
@@ -481,7 +511,8 @@ metadata:
 	})
 
 	t.Run("sync doesn't apply or delete manifests marked with ignore", func(t *testing.T) {
-		kube, _ := setup(t)
+		kube, _, cancel := setup(t)
+		defer cancel()
 		kube.GC = true
 
 		const dep1 = `---
@@ -535,7 +566,8 @@ spec:
     labels:
       app: original
 `
-		kube, _ := setup(t)
+		kube, _, cancel := setup(t)
+		defer cancel()
 		// This just checks the starting assumption: dep1 exists in the cluster
 		test(t, kube, ns1+dep1, ns1+dep1, false)
 
@@ -575,7 +607,8 @@ spec:
 	})
 
 	t.Run("sync doesn't update or delete a pre-existing resource marked with ignore", func(t *testing.T) {
-		kube, _ := setup(t)
+		kube, _, cancel := setup(t)
+		defer cancel()
 
 		const existing = `---
 apiVersion: apps/v1
