@@ -6,10 +6,8 @@ RUN apk add --no-cache openssh ca-certificates tini 'git>=2.3.0' gnupg
 
 # Add git hosts to known hosts file so we can use
 # StrickHostKeyChecking with git+ssh
-ADD ./verify_known_hosts.sh /home/flux/verify_known_hosts.sh
 ADD ./known_hosts.sh /home/flux/known_hosts.sh
 RUN sh /home/flux/known_hosts.sh /etc/ssh/ssh_known_hosts && \
-    rm /home/flux/verify_known_hosts.sh && \
     rm /home/flux/known_hosts.sh
 
 # Add default SSH config, which points at the private key we'll mount
