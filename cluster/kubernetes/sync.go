@@ -211,8 +211,6 @@ func (c *Cluster) getAllowedResourcesBySelector(selector string) (map[string]*ku
 				return nil, err
 			}
 		}
-		c.logger.Log("warn", err,
-			"impact", "ignoring error, please check your cluster configuration, GroupVersions should not be empty")
 	}
 
 	result := map[string]*kuberesource{}
