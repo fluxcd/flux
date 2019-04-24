@@ -170,7 +170,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:ce6b49c97a4d3d6f401b956c32bceab12c96a6cd724512fa21774fedc8876d1d"
+  digest = "1:44fa5dc9f471d5285648d966808fe191cde2c80d337683886d9b7aa5091b39dc"
   name = "github.com/docker/distribution"
   packages = [
     ".",
@@ -191,7 +191,8 @@
     "registry/storage/cache/memory",
   ]
   pruneopts = ""
-  revision = "6d62eb1d4a3515399431b713fde3ce5a9b40e8d5"
+  revision = "6c9727e5e5ded4589f2d653a2e523b41619af05c"
+  source = "github.com/2opremio/distribution"
 
 [[projects]]
   branch = "master"
@@ -310,14 +311,6 @@
   packages = ["httputil/header"]
   pruneopts = ""
   revision = "5a2505f3dbf049b47a091040906b7b2856339099"
-
-[[projects]]
-  branch = "master"
-  digest = "1:107b233e45174dbab5b1324201d092ea9448e58243ab9f039e4c0f332e121e3a"
-  name = "github.com/golang/glog"
-  packages = ["."]
-  pruneopts = ""
-  revision = "23def4e6c14b4da8ac2ed8007337bc5eb5007998"
 
 [[projects]]
   branch = "master"
@@ -1361,7 +1354,6 @@
     "github.com/go-kit/kit/metrics",
     "github.com/go-kit/kit/metrics/prometheus",
     "github.com/golang/gddo/httputil/header",
-    "github.com/golang/glog",
     "github.com/golang/protobuf/ptypes/any",
     "github.com/google/go-cmp/cmp",
     "github.com/gorilla/mux",
@@ -1427,6 +1419,7 @@
     "k8s.io/helm/pkg/releaseutil",
     "k8s.io/helm/pkg/repo",
     "k8s.io/helm/pkg/tlsutil",
+    "k8s.io/klog",
   ]
   solver-name = "gps-cdcl"
   solver-version = 1

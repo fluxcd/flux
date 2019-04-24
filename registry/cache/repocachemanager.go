@@ -24,25 +24,35 @@ type imageToUpdate struct {
 
 // repoCacheManager handles cache operations for a container image repository
 type repoCacheManager struct {
-	now         time.Time
-	repoID      image.Name
-	burst       int
-	trace       bool
-	logger      log.Logger
-	cacheClient Client
+	now           time.Time
+	repoID        image.Name
+	client        registry.Client
+	clientTimeout time.Duration
+	burst         int
+	trace         bool
+	logger        log.Logger
+	cacheClient   Client
 	sync.Mutex
 }
 
-func newRepoCacheManager(now time.Time, repoId image.Name, burst int, trace bool, logger log.Logger,
-	cacheClient Client) *repoCacheManager {
-	return &repoCacheManager{
-		now:         now,
-		repoID:      repoId,
-		burst:       burst,
-		trace:       trace,
-		logger:      logger,
-		cacheClient: cacheClient,
+func newRepoCacheManager(now time.Time,
+	repoID image.Name, clientFactory registry.ClientFactory, creds registry.Credentials, repoClientTimeout time.Duration,
+	burst int, trace bool, logger log.Logger, cacheClient Client) (*repoCacheManager, error) {
+	client, err := clientFactory.ClientFor(repoID.CanonicalName(), creds)
+	if err != nil {
+		return nil, err
 	}
+	manager := &repoCacheManager{
+		now:           now,
+		repoID:        repoID,
+		client:        client,
+		clientTimeout: repoClientTimeout,
+		burst:         burst,
+		trace:         trace,
+		logger:        logger,
+		cacheClient:   cacheClient,
+	}
+	return manager, nil
 }
 
 // fetchRepository fetches the repository from the cache
@@ -57,6 +67,17 @@ func (c *repoCacheManager) fetchRepository() (ImageRepository, error) {
 		return ImageRepository{}, err
 	}
 	return result, nil
+}
+
+// getTags gets the tags from the repository
+func (c *repoCacheManager) getTags(ctx context.Context) ([]string, error) {
+	ctx, cancel := context.WithTimeout(ctx, c.clientTimeout)
+	defer cancel()
+	tags, err := c.client.Tags(ctx)
+	if ctx.Err() == context.DeadlineExceeded {
+		return nil, c.clientTimeoutError()
+	}
+	return tags, err
 }
 
 // storeRepository stores the repository from the cache
@@ -154,7 +175,7 @@ func (c *repoCacheManager) fetchImages(tags []string) (fetchImagesResult, error)
 // updateImages, refreshes the cache entries for the images passed. It may not succeed for all images.
 // It returns the values stored in cache, the number of images it succeeded for and the number
 // of images whose manifest wasn't found in the registry.
-func (c *repoCacheManager) updateImages(ctx context.Context, registryClient registry.Client, images []imageToUpdate) (map[string]image.Info, int, int) {
+func (c *repoCacheManager) updateImages(ctx context.Context, images []imageToUpdate) (map[string]image.Info, int, int) {
 	// The upper bound for concurrent fetches against a single host is
 	// w.Burst, so limit the number of fetching goroutines to that.
 	fetchers := make(chan struct{}, c.burst)
@@ -179,9 +200,11 @@ updates:
 		awaitFetchers.Add(1)
 		go func() {
 			defer func() { awaitFetchers.Done(); <-fetchers }()
-			entry, err := c.updateImage(ctxc, registryClient, upCopy)
+			ctxcc, cancel := context.WithTimeout(ctxc, c.clientTimeout)
+			defer cancel()
+			entry, err := c.updateImage(ctxcc, upCopy)
 			if err != nil {
-				if err, ok := errors.Cause(err).(net.Error); ok && err.Timeout() {
+				if err, ok := errors.Cause(err).(net.Error); (ok && err.Timeout()) || ctxcc.Err() == context.DeadlineExceeded {
 					// This was due to a context timeout, don't bother logging
 					return
 				}
@@ -216,16 +239,21 @@ updates:
 	return result, successCount, manifestUnknownCount
 }
 
-func (c *repoCacheManager) updateImage(ctx context.Context, registryClient registry.Client, update imageToUpdate) (registry.ImageEntry, error) {
+func (c *repoCacheManager) updateImage(ctx context.Context, update imageToUpdate) (registry.ImageEntry, error) {
 	imageID := update.ref
 
 	if c.trace {
 		c.logger.Log("trace", "refreshing manifest", "ref", imageID, "previous_refresh", update.previousRefresh.String())
 	}
 
+	ctx, cancel := context.WithTimeout(ctx, c.clientTimeout)
+	defer cancel()
 	// Get the image from the remote
-	entry, err := registryClient.Manifest(ctx, imageID.Tag)
+	entry, err := c.client.Manifest(ctx, imageID.Tag)
 	if err != nil {
+		if ctx.Err() == context.DeadlineExceeded {
+			return registry.ImageEntry{}, c.clientTimeoutError()
+		}
 		return registry.ImageEntry{}, err
 	}
 
@@ -265,4 +293,8 @@ func (c *repoCacheManager) updateImage(ctx context.Context, registryClient regis
 		return registry.ImageEntry{}, err
 	}
 	return entry, nil
+}
+
+func (r *repoCacheManager) clientTimeoutError() error {
+	return fmt.Errorf("client timeout (%s) exceeded", r.clientTimeout)
 }
