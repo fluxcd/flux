@@ -93,16 +93,21 @@ attemptChallenge:
 }
 
 func (f *RemoteClientFactory) ClientFor(repo image.CanonicalName, creds Credentials) (Client, error) {
-	repoHost, _, err := net.SplitHostPort(repo.Domain)
-	if err != nil {
-		return nil, err
+	repoHosts := []string{repo.Domain}
+	// allow the insecure hosts list to contain hosts with or without the port
+	repoHostWithoutPort, _, err := net.SplitHostPort(repo.Domain)
+	if err == nil {
+		// parsing fails if no port is present
+		repoHosts = append(repoHosts, repoHostWithoutPort)
 	}
 	insecure := false
+insecureCheckLoop:
 	for _, h := range f.InsecureHosts {
-		// allow the insecure hosts list to contain hosts with or without the port
-		if repoHost == h || repo.Domain == h {
-			insecure = true
-			break
+		for _, repoHost := range repoHosts {
+			if h == repoHost {
+				insecure = true
+				break insecureCheckLoop
+			}
 		}
 	}
 
