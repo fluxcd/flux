@@ -33,7 +33,7 @@ LABEL maintainer="Weaveworks <help@weave.works>" \
 ENTRYPOINT [ "/sbin/tini", "--", "fluxd" ]
 
 # Get the kubeyaml binary (files) and put them on the path
-COPY --from=quay.io/squaremo/kubeyaml:0.5.1 /usr/lib/kubeyaml /usr/lib/kubeyaml/
+COPY --from=quay.io/squaremo/kubeyaml:0.5.2 /usr/lib/kubeyaml /usr/lib/kubeyaml/
 ENV PATH=/bin:/usr/bin:/usr/local/bin:/usr/lib/kubeyaml
 
 # Create minimal nsswitch.conf file to prioritize the usage of /etc/hosts over DNS queries.
