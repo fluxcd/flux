@@ -60,10 +60,12 @@ func daemon(t *testing.T) (*Daemon, func()) {
 		UserEmail: gitEmail,
 	}
 
+	manifests := kubernetes.NewManifests(alwaysDefault, log.NewLogfmtLogger(os.Stdout))
+
 	jobs := job.NewQueue(shutdown, wg)
 	d := &Daemon{
 		Cluster:        k8s,
-		Manifests:      &kubernetes.Manifests{Namespacer: alwaysDefault},
+		Manifests:      manifests,
 		Registry:       &registryMock.Registry{},
 		Repo:           repo,
 		GitConfig:      gitConfig,

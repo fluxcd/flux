@@ -52,9 +52,9 @@ spec:
       containers:
       - name: flux
         # There are no ":latest" images for flux. Find the most recent
-        # release or image version at https://quay.io/weaveworks/flux
+        # release or image version at https://hub.docker.com/r/weaveworks/flux/tags
         # and replace the tag here.
-        image: quay.io/weaveworks/flux:1.12.0
+        image: docker.io/weaveworks/flux:1.12.1
         imagePullPolicy: IfNotPresent
         resources:
           requests:
@@ -107,7 +107,7 @@ spec:
         - --git-branch=master
         # include this if you want to restrict the manifests considered by flux
         # to those under the following relative paths in the git repository
-        # - --git-paths=subdir1,subdir2
+        # - --git-path=subdir1,subdir2
 
         # include these next two to connect to an "upstream" service
         # (e.g., Weave Cloud). The token is particular to the service.

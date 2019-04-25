@@ -2,14 +2,13 @@ package cache
 
 import (
 	"context"
-	"encoding/json"
-	"net"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
+
 	"github.com/weaveworks/flux/image"
 	"github.com/weaveworks/flux/registry"
 )
@@ -150,7 +149,7 @@ func imageCredsToBacklog(imageCreds registry.ImageCreds) []backlogItem {
 func (w *Warmer) warm(ctx context.Context, now time.Time, logger log.Logger, id image.Name, creds registry.Credentials) {
 	errorLogger := log.With(logger, "canonical_name", id.CanonicalName(), "auth", creds)
 
-	client, err := w.clientFactory.ClientFor(id.CanonicalName(), creds)
+	cacheManager, err := newRepoCacheManager(now, id, w.clientFactory, creds, time.Minute, w.burst, w.Trace, errorLogger, w.cache)
 	if err != nil {
 		errorLogger.Log("err", err.Error())
 		return
@@ -158,15 +157,8 @@ func (w *Warmer) warm(ctx context.Context, now time.Time, logger log.Logger, id 
 
 	// This is what we're going to write back to the cache
 	var repo ImageRepository
-	repoKey := NewRepositoryKey(id.CanonicalName())
-	bytes, _, err := w.cache.GetKey(repoKey)
-	if err == nil {
-		err = json.Unmarshal(bytes, &repo)
-	} else if err == ErrNotCached {
-		err = nil
-	}
-
-	if err != nil {
+	repo, err = cacheManager.fetchRepository()
+	if err != nil && err != ErrNotCached {
 		errorLogger.Log("err", errors.Wrap(err, "fetching previous result from cache"))
 		return
 	}
@@ -177,16 +169,12 @@ func (w *Warmer) warm(ctx context.Context, now time.Time, logger log.Logger, id 
 	// attempting to refresh that value. Whatever happens, at the end
 	// we'll write something back.
 	defer func() {
-		bytes, err := json.Marshal(repo)
-		if err == nil {
-			err = w.cache.SetKey(repoKey, now.Add(repoRefresh), bytes)
-		}
-		if err != nil {
+		if err := cacheManager.storeRepository(repo); err != nil {
 			errorLogger.Log("err", errors.Wrap(err, "writing result to cache"))
 		}
 	}()
 
-	tags, err := client.Tags(ctx)
+	tags, err := cacheManager.getTags(ctx)
 	if err != nil {
 		if !strings.Contains(err.Error(), context.DeadlineExceeded.Error()) && !strings.Contains(err.Error(), "net/http: request canceled") {
 			errorLogger.Log("err", errors.Wrap(err, "requesting tags"))
@@ -195,181 +183,38 @@ func (w *Warmer) warm(ctx context.Context, now time.Time, logger log.Logger, id 
 		return
 	}
 
-	newImages := map[string]image.Info{}
-
-	// Create a list of images that need updating
-	type update struct {
-		ref             image.Ref
-		previousDigest  string
-		previousRefresh time.Duration
+	fetchResult, err := cacheManager.fetchImages(tags)
+	if err != nil {
+		logger.Log("err", err, "tags", tags)
+		repo.LastError = err.Error()
+		return // abort and let the error be written
 	}
-	var toUpdate []update
+	newImages := fetchResult.imagesFound
 
-	// Counters for reporting what happened
-	var missing, refresh int
-	for _, tag := range tags {
-		if tag == "" {
-			errorLogger.Log("err", "empty tag in fetched tags", "tags", tags)
-			repo.LastError = "empty tag in fetched tags"
-			return // abort and let the error be written
-		}
-
-		// See if we have the manifest already cached
-		newID := id.ToRef(tag)
-		key := NewManifestKey(newID.CanonicalRef())
-		bytes, deadline, err := w.cache.GetKey(key)
-		// If err, then we don't have it yet. Update.
-		switch {
-		case err != nil: // by and large these are cache misses, but any error shall count as "not found"
-			if err != ErrNotCached {
-				errorLogger.Log("warning", "error from cache", "err", err, "ref", newID)
-			}
-			missing++
-			toUpdate = append(toUpdate, update{ref: newID, previousRefresh: initialRefresh})
-		case len(bytes) == 0:
-			errorLogger.Log("warning", "empty result from cache", "ref", newID)
-			missing++
-			toUpdate = append(toUpdate, update{ref: newID, previousRefresh: initialRefresh})
-		default:
-			var entry registry.ImageEntry
-			if err := json.Unmarshal(bytes, &entry); err == nil {
-				if w.Trace {
-					errorLogger.Log("trace", "found cached manifest", "ref", newID, "last_fetched", entry.LastFetched.Format(time.RFC3339), "deadline", deadline.Format(time.RFC3339))
-				}
-
-				if entry.ExcludedReason == "" {
-					newImages[tag] = entry.Info
-					if now.After(deadline) {
-						previousRefresh := minRefresh
-						lastFetched := entry.Info.LastFetched
-						if !lastFetched.IsZero() {
-							previousRefresh = deadline.Sub(lastFetched)
-						}
-						toUpdate = append(toUpdate, update{ref: newID, previousRefresh: previousRefresh, previousDigest: entry.Info.Digest})
-						refresh++
-					}
-				} else {
-					if w.Trace {
-						logger.Log("trace", "excluded in cache", "ref", newID, "reason", entry.ExcludedReason)
-					}
-					if now.After(deadline) {
-						toUpdate = append(toUpdate, update{ref: newID, previousRefresh: excludedRefresh})
-						refresh++
-					}
-				}
-			}
-		}
-	}
-
-	var fetchMx sync.Mutex // also guards access to newImages
 	var successCount int
+	var manifestUnknownCount int
 
-	if len(toUpdate) > 0 {
-		logger.Log("info", "refreshing image", "image", id, "tag_count", len(tags), "to_update", len(toUpdate), "of_which_refresh", refresh, "of_which_missing", missing)
-
-		// The upper bound for concurrent fetches against a single host is
-		// w.Burst, so limit the number of fetching goroutines to that.
-		fetchers := make(chan struct{}, w.burst)
-		awaitFetchers := &sync.WaitGroup{}
-
-		ctxc, cancel := context.WithCancel(ctx)
-		var once sync.Once
-		defer cancel()
-
-	updates:
-		for _, up := range toUpdate {
-			select {
-			case <-ctxc.Done():
-				break updates
-			case fetchers <- struct{}{}:
-			}
-
-			awaitFetchers.Add(1)
-
-			go func(update update) {
-				defer func() { awaitFetchers.Done(); <-fetchers }()
-
-				imageID := update.ref
-
-				if w.Trace {
-					errorLogger.Log("trace", "refreshing manifest", "ref", imageID, "previous_refresh", update.previousRefresh.String())
-				}
-
-				// Get the image from the remote
-				entry, err := client.Manifest(ctxc, imageID.Tag)
-				if err != nil {
-					if err, ok := errors.Cause(err).(net.Error); ok && err.Timeout() {
-						// This was due to a context timeout, don't bother logging
-						return
-					}
-
-					// abort the image tags fetching if we've been rate limited
-					if strings.Contains(err.Error(), "429") {
-						once.Do(func() {
-							errorLogger.Log("warn", "aborting image tag fetching due to rate limiting, will try again later")
-							cancel()
-						})
-					} else {
-						errorLogger.Log("err", err, "ref", imageID)
-					}
-					return
-				}
-
-				refresh := update.previousRefresh
-				reason := ""
-				switch {
-				case entry.ExcludedReason != "":
-					errorLogger.Log("excluded", entry.ExcludedReason, "ref", imageID)
-					refresh = excludedRefresh
-					reason = "image is excluded"
-				case update.previousDigest == "":
-					entry.Info.LastFetched = now
-					refresh = update.previousRefresh
-					reason = "no prior cache entry for image"
-				case entry.Info.Digest == update.previousDigest:
-					entry.Info.LastFetched = now
-					refresh = clipRefresh(refresh * 2)
-					reason = "image digest is same"
-				default: // i.e., not excluded, but the digests differ -> the tag was moved
-					entry.Info.LastFetched = now
-					refresh = clipRefresh(refresh / 2)
-					reason = "image digest is different"
-				}
-
-				if w.Trace {
-					errorLogger.Log("trace", "caching manifest", "ref", imageID, "last_fetched", now.Format(time.RFC3339), "refresh", refresh.String(), "reason", reason)
-				}
-
-				key := NewManifestKey(imageID.CanonicalRef())
-				// Write back to memcached
-				val, err := json.Marshal(entry)
-				if err != nil {
-					errorLogger.Log("err", err, "ref", imageID)
-					return
-				}
-				err = w.cache.SetKey(key, now.Add(refresh), val)
-				if err != nil {
-					errorLogger.Log("err", err, "ref", imageID)
-					return
-				}
-				fetchMx.Lock()
-				successCount++
-				if entry.ExcludedReason == "" {
-					newImages[imageID.Tag] = entry.Info
-				}
-				fetchMx.Unlock()
-			}(up)
+	if len(fetchResult.imagesToUpdate) > 0 {
+		logger.Log("info", "refreshing image", "image", id, "tag_count", len(tags),
+			"to_update", len(fetchResult.imagesToUpdate),
+			"of_which_refresh", fetchResult.imagesToUpdateRefreshCount, "of_which_missing", fetchResult.imagesToUpdateMissingCount)
+		var images map[string]image.Info
+		images, successCount, manifestUnknownCount = cacheManager.updateImages(ctx, fetchResult.imagesToUpdate)
+		for k, v := range images {
+			newImages[k] = v
 		}
-		awaitFetchers.Wait()
-		logger.Log("updated", id.String(), "successful", successCount, "attempted", len(toUpdate))
+		logger.Log("updated", id.String(), "successful", successCount, "attempted", len(fetchResult.imagesToUpdate))
 	}
 
-	// We managed to fetch new metadata for everything we were missing
-	// (if anything). Ratchet the result forward.
-	if successCount == len(toUpdate) {
+	// We managed to fetch new metadata for everything we needed.
+	// Ratchet the result forward.
+	if successCount+manifestUnknownCount == len(fetchResult.imagesToUpdate) {
 		repo = ImageRepository{
 			LastUpdate: time.Now(),
-			Images:     newImages,
+			RepositoryMetadata: image.RepositoryMetadata{
+				Images: newImages,
+				Tags:   tags,
+			},
 		}
 		// If we got through all that without bumping into `HTTP 429
 		// Too Many Requests` (or other problems), we can potentially

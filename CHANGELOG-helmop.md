@@ -1,3 +1,43 @@
+## 0.8.0 (2019-04-11)
+
+This release bumps the Helm API package and binary to `v2.13.0`;
+although we have tested and found it to be backwards compatible, we
+recommend running Tiller `>=2.13.0` from now on.
+
+### Improvements
+
+ - Detect changes made to git chart source in `HelmRelease`
+   [weaveworks/flux#1865][#1865]
+ - Cleanup git chart source clone on `HelmRelease` removal
+   [weaveworks/flux#1865][#1865]
+ - Add `chartFileRef` option to `valuesFrom` to support using a
+   non-default values yamel from a git-sourced Helm chart
+   [weaveworks#1909][#1909]
+ - Reimplement `--git-poll-interval` to control polling interval of
+   git mirrors for chart sources
+   [weaveworks/flux#1910][#1910]
+
+### Maintenance and documentation
+
+ - Bump Helm API package and binary to `v2.13.0`
+   [weaveworks/flux#1828][#1828]
+ - Verify scanned keys in same build step as scan
+   [weaveworks/flux#1908][#1908]
+ - Use Helm operator image from build in e2e tests
+   [weaveworks/flux#1910][#1910]
+
+[#1828]: https://github.com/weaveworks/flux/pull/1828
+[#1865]: https://github.com/weaveworks/flux/pull/1865
+[#1908]: https://github.com/weaveworks/flux/pull/1908
+[#1909]: https://github.com/weaveworks/flux/pull/1909
+[#1910]: https://github.com/weaveworks/flux/pull/1910
+
+### Thanks
+
+Thanks to @hpurmann, @2opremio, @arturo-c, @squaremo, @stefanprodan,
+@hiddeco, and others for their contributions to this release, feedback,
+and bringing us one step closer to a GA-release.
+
 ## 0.7.1 (2019-03-27)
 
 ### Bug fixes

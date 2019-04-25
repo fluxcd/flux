@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/go-kit/kit/log"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/weaveworks/flux/image"
 	"github.com/weaveworks/flux/registry"
@@ -33,7 +34,11 @@ func TestWarming_WarmerWriteCacheRead(t *testing.T) {
 	// This repo has a stable number of images in the low tens (just
 	// <20); more than `burst` below, but not so many that timing out
 	// is likely.
-	id, _ := image.ParseRef("quay.io/weaveworks/kured")
+	// TODO(hidde): I temporary switched this to one of our images on
+	// Docker Hub due to Quay.io outage. It is however not guaranteed
+	// the amount of tags for this image stays stable and in the low
+	// tens.
+	id, _ := image.ParseRef("docker.io/weaveworks/flagger-loadtester")
 
 	logger := log.NewLogfmtLogger(os.Stderr)
 
@@ -69,27 +74,23 @@ Loop:
 		case <-timeout.C:
 			t.Fatal("Cache timeout")
 		case <-tick.C:
-			_, err := r.GetRepositoryImages(id.Name)
+			_, err := r.GetImageRepositoryMetadata(id.Name)
 			if err == nil {
 				break Loop
 			}
 		}
 	}
 
-	img, err := r.GetRepositoryImages(id.Name)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(img) == 0 {
-		t.Fatal("Length of returned images should be > 0")
-	}
-	// None of the images should have an empty ID or a creation time of zero
-	for _, i := range img {
-		if i.ID.String() == "" || i.ID.Tag == "" {
-			t.Fatalf("Image should not have empty name or tag. Got: %q", i.ID.String())
-		}
-		if i.CreatedAt.IsZero() {
-			t.Fatalf("Created time should not be zero for image %q", i.ID.String())
-		}
+	repoMetadata, err := r.GetImageRepositoryMetadata(id.Name)
+	assert.NoError(t, err)
+	assert.True(t, len(repoMetadata.Images) > 0, "Length of returned images should be > 0")
+	assert.Equal(t, len(repoMetadata.Images), len(repoMetadata.Tags), "the length of tags and images should match")
+
+	for _, tag := range repoMetadata.Tags {
+		i, ok := repoMetadata.Images[tag]
+		assert.True(t, ok, "tag doesn't have image information %s", tag)
+		// None of the images should have an empty ID or a creation time of zero
+		assert.True(t, i.ID.String() != "" && i.ID.Tag != "", "Image should not have empty name or tag. Got: %q", i.ID.String())
+		assert.NotZero(t, i.CreatedAt, "Created time should not be zero for image %q", i.ID.String())
 	}
 }

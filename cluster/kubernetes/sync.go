@@ -21,7 +21,8 @@ import (
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	rest "k8s.io/client-go/rest"
+	"k8s.io/client-go/discovery"
+	"k8s.io/client-go/rest"
 
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster"
@@ -198,9 +199,18 @@ func (c *Cluster) getAllowedResourcesBySelector(selector string) (map[string]*ku
 		listOptions.LabelSelector = selector
 	}
 
-	resources, err := c.client.discoveryClient.ServerResources()
+	_, resources, err := c.client.discoveryClient.ServerGroupsAndResources()
 	if err != nil {
-		return nil, err
+		discErr, ok := err.(*discovery.ErrGroupDiscoveryFailed)
+		if !ok {
+			return nil, err
+		}
+		for gv, e := range discErr.Groups {
+			// Tolerate empty GroupVersions due to e.g. misconfigured custom metrics
+			if e.Error() != fmt.Sprintf("Got empty response for: %v", gv) {
+				return nil, err
+			}
+		}
 	}
 
 	result := map[string]*kuberesource{}

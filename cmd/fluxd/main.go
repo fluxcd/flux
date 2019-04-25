@@ -23,6 +23,7 @@ import (
 	k8sclientdynamic "k8s.io/client-go/dynamic"
 	k8sclient "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"k8s.io/klog"
 
 	"github.com/weaveworks/flux/checkpoint"
 	"github.com/weaveworks/flux/cluster"
@@ -165,6 +166,9 @@ func main() {
 	fs.MarkDeprecated("registry-cache-expiry", "no longer used; cache entries are expired adaptively according to how often they change")
 	fs.MarkDeprecated("k8s-namespace-whitelist", "changed to --k8s-allow-namespace, use that instead")
 
+	// Explicitly initialize klog to enable stderr logging,
+	// and parse our own flags.
+	klog.InitFlags(nil)
 	err := fs.Parse(os.Args[1:])
 	switch {
 	case err == pflag.ErrHelp:
@@ -188,7 +192,10 @@ func main() {
 	logger.Log("version", version)
 
 	// Silence access errors logged internally by client-go
-	klog := log.With(logger, "type", "internal kubernetes error")
+	k8slog := log.With(logger,
+		"type", "internal kubernetes error",
+		"ts", log.DefaultTimestampUTC,
+		"caller", log.Caller(5)) // we want to log one level deeper than k8sruntime.HandleError
 	logErrorUnlessAccessRelated := func(err error) {
 		errLower := strings.ToLower(err.Error())
 		if k8serrors.IsForbidden(err) || k8serrors.IsNotFound(err) ||
@@ -196,10 +203,9 @@ func main() {
 			strings.Contains(errLower, "not found") {
 			return
 		}
-		klog.Log("err", err)
+		k8slog.Log("err", err)
 	}
 	k8sruntime.ErrorHandlers = []func(error){logErrorUnlessAccessRelated}
-
 	// Argument validation
 
 	// Sort out values for the git tag and notes ref. There are
@@ -271,7 +277,7 @@ func main() {
 	var clusterVersion string
 	var sshKeyRing ssh.KeyRing
 	var k8s cluster.Cluster
-	var k8sManifests *kubernetes.Manifests
+	var k8sManifests cluster.Manifests
 	var imageCreds func() registry.ImageCreds
 	{
 		restClientConfig, err := rest.InClusterConfig()
@@ -321,7 +327,7 @@ func main() {
 		}
 
 		sshKeyRing, err = kubernetes.NewSSHKeyRing(kubernetes.SSHKeyRingConfig{
-			SecretAPI:             clientset.Core().Secrets(string(namespace)),
+			SecretAPI:             clientset.CoreV1().Secrets(string(namespace)),
 			SecretName:            *k8sSecretName,
 			SecretVolumeMountPath: *k8sSecretVolumeMountPath,
 			SecretDataKey:         *k8sSecretDataKey,
@@ -369,13 +375,12 @@ func main() {
 		imageCreds = k8sInst.ImagesToFetch
 		// There is only one way we currently interpret a repo of
 		// files as manifests, and that's as Kubernetes yamels.
-		k8sManifests = &kubernetes.Manifests{}
-		k8sManifests.Namespacer, err = kubernetes.NewNamespacer(discoClientset)
-
+		namespacer, err := kubernetes.NewNamespacer(discoClientset)
 		if err != nil {
 			logger.Log("err", err)
 			os.Exit(1)
 		}
+		k8sManifests = kubernetes.NewManifests(namespacer, logger)
 	}
 
 	// Wrap the procedure for collecting images to scan
@@ -485,7 +490,7 @@ func main() {
 		SkipMessage: *gitSkipMessage,
 	}
 
-	repo := git.NewRepo(gitRemote, git.PollInterval(*gitPollInterval), git.Timeout(*gitTimeout))
+	repo := git.NewRepo(gitRemote, git.PollInterval(*gitPollInterval), git.Timeout(*gitTimeout), git.Branch(*gitBranch))
 	{
 		shutdownWg.Add(1)
 		go func() {

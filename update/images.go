@@ -14,81 +14,72 @@ import (
 	"github.com/weaveworks/flux/resource"
 )
 
-type imageReposMap map[image.CanonicalName]ImageInfos
+type imageReposMap map[image.CanonicalName]image.RepositoryMetadata
 
-// ImageRepos contains a map of image repositories to their images
+// ImageRepos contains a map of image repositories to their metadata
 type ImageRepos struct {
 	imageRepos imageReposMap
 }
 
-// GetRepoImages returns image.Info entries for all the images in the
+// GetRepositoryMetadata returns the metadata for all the images in the
 // named image repository.
-func (r ImageRepos) GetRepoImages(repo image.Name) ImageInfos {
-	if canon, ok := r.imageRepos[repo.CanonicalName()]; ok {
-		infos := make([]image.Info, len(canon))
-		for i := range canon {
-			infos[i] = canon[i]
-			infos[i].ID = repo.ToRef(infos[i].ID.Tag)
+func (r ImageRepos) GetRepositoryMetadata(repo image.Name) image.RepositoryMetadata {
+	if metadata, ok := r.imageRepos[repo.CanonicalName()]; ok {
+		// copy tags
+		tagsCopy := make([]string, len(metadata.Tags))
+		copy(tagsCopy, metadata.Tags)
+		// copy images
+		imagesCopy := make(map[string]image.Info, len(metadata.Images))
+		for tag, info := range metadata.Images {
+			// The registry (cache) stores metadata with canonical image
+			// names (e.g., `index.docker.io/library/alpine`). We rewrite the
+			// names based on how we were queried (repo), which could
+			// be non-canonical representation (e.g. `alpine`).
+			info.ID = repo.ToRef(info.ID.Tag)
+			imagesCopy[tag] = info
 		}
-		return infos
+		return image.RepositoryMetadata{tagsCopy, imagesCopy}
 	}
-	return nil
+	return image.RepositoryMetadata{}
 }
-
-// ImageInfos is a list of image.Info which can be filtered.
-type ImageInfos []image.Info
 
 // SortedImageInfos is a list of sorted image.Info
 type SortedImageInfos []image.Info
 
-// Filter returns only the images that match the pattern, in a new list.
-func (ii ImageInfos) Filter(pattern policy.Pattern) ImageInfos {
-	return filterImages(ii, pattern)
+// FilterImages returns only the images that match the pattern, in a new list.
+func FilterImages(images []image.Info, pattern policy.Pattern) []image.Info {
+	return filterImages(images, pattern)
 }
 
-// Sort orders the images according to the pattern order in a new list.
-func (ii ImageInfos) Sort(pattern policy.Pattern) SortedImageInfos {
-	return sortImages(ii, pattern)
+// SortImages orders the images according to the pattern order in a new list.
+func SortImages(images []image.Info, pattern policy.Pattern) SortedImageInfos {
+	return sortImages(images, pattern)
 }
 
-// FilterAndSort is an optimized helper function to compose filtering and sorting.
-func (ii ImageInfos) FilterAndSort(pattern policy.Pattern) SortedImageInfos {
-	filtered := ii.Filter(pattern)
-	// Do not call sortImages() here which will clone the list that we already
-	// cloned in ImageInfos.Filter()
-	image.Sort(filtered, pattern.Newer)
-	return SortedImageInfos(filtered)
-}
-
-// FindWithRef returns image.Info given an image ref. If the image cannot be
-// found, it returns the image.Info with the ID provided.
-func (ii ImageInfos) FindWithRef(ref image.Ref) image.Info {
-	for _, img := range ii {
-		if img.ID == ref {
-			return img
-		}
+// FilterAndSortRepositoryMetadata obtains all the image information from the metadata
+// after filtering and sorting. Filtering happens in the metadata directly to minimize
+// problems with tag inconsistencies (i.e. tags without matching image information)
+func FilterAndSortRepositoryMetadata(rm image.RepositoryMetadata, pattern policy.Pattern) (SortedImageInfos, error) {
+	// Do the filtering
+	filteredMetadata := image.RepositoryMetadata{
+		Tags:   filterTags(rm.Tags, pattern),
+		Images: rm.Images,
 	}
-	return image.Info{ID: ref}
+	filteredImages, err := filteredMetadata.GetImageTagInfo()
+	if err != nil {
+		return nil, err
+	}
+	return SortImages(filteredImages, pattern), nil
 }
 
 // Latest returns the latest image from SortedImageInfos. If no such image exists,
 // returns a zero value and `false`, and the caller can decide whether
 // that's an error or not.
-func (is SortedImageInfos) Latest() (image.Info, bool) {
-	if len(is) > 0 {
-		return is[0], true
+func (sii SortedImageInfos) Latest() (image.Info, bool) {
+	if len(sii) > 0 {
+		return sii[0], true
 	}
 	return image.Info{}, false
-}
-
-// Filter returns only the images that match the pattern, in a new list.
-func (is SortedImageInfos) Filter(pattern policy.Pattern) SortedImageInfos {
-	return SortedImageInfos(filterImages(is, pattern))
-}
-
-// Sort orders the images according to the pattern order in a new list.
-func (is SortedImageInfos) Sort(pattern policy.Pattern) SortedImageInfos {
-	return sortImages(is, pattern)
 }
 
 func sortImages(images []image.Info, pattern policy.Pattern) SortedImageInfos {
@@ -100,16 +91,29 @@ func sortImages(images []image.Info, pattern policy.Pattern) SortedImageInfos {
 	return sorted
 }
 
-// filterImages keeps the sort order pristine.
-func filterImages(images []image.Info, pattern policy.Pattern) ImageInfos {
-	var filtered ImageInfos
+func matchWithLatest(pattern policy.Pattern, tag string) bool {
+	// Ignore latest if and only if it's not what the user wants.
+	if pattern != policy.PatternLatest && strings.EqualFold(tag, "latest") {
+		return false
+	}
+	return pattern.Matches(tag)
+}
+
+func filterTags(tags []string, pattern policy.Pattern) []string {
+	var filtered []string
+	for _, tag := range tags {
+		if matchWithLatest(pattern, tag) {
+			filtered = append(filtered, tag)
+		}
+	}
+	return filtered
+}
+
+func filterImages(images []image.Info, pattern policy.Pattern) []image.Info {
+	var filtered []image.Info
 	for _, i := range images {
 		tag := i.ID.Tag
-		// Ignore latest if and only if it's not what the user wants.
-		if pattern != policy.PatternLatest && strings.EqualFold(tag, "latest") {
-			continue
-		}
-		if pattern.Matches(tag) {
+		if matchWithLatest(pattern, tag) {
 			filtered = append(filtered, i)
 		}
 	}
@@ -144,11 +148,11 @@ func FetchImageRepos(reg registry.Registry, cs containers, logger log.Logger) (I
 	imageRepos := imageReposMap{}
 	for i := 0; i < cs.Len(); i++ {
 		for _, container := range cs.Containers(i) {
-			imageRepos[container.Image.CanonicalName()] = nil
+			imageRepos[container.Image.CanonicalName()] = image.RepositoryMetadata{}
 		}
 	}
 	for repo := range imageRepos {
-		images, err := reg.GetRepositoryImages(repo.Name)
+		images, err := reg.GetImageRepositoryMetadata(repo.Name)
 		if err != nil {
 			// Not an error if missing. Use empty images.
 			if !fluxerr.IsMissing(err) {
@@ -173,7 +177,12 @@ func exactImageRepos(reg registry.Registry, images []image.Ref) (ImageRepos, err
 		if !exist {
 			return ImageRepos{}, errors.Wrap(image.ErrInvalidImageID, fmt.Sprintf("image %q does not exist", id))
 		}
-		m[id.CanonicalName()] = []image.Info{{ID: id}}
+		m[id.CanonicalName()] = image.RepositoryMetadata{
+			Tags: []string{id.Tag},
+			Images: map[string]image.Info{
+				id.Tag: {ID: id},
+			},
+		}
 	}
 	return ImageRepos{m}, nil
 }

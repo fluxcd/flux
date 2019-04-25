@@ -78,9 +78,12 @@ func checkout(ctx context.Context, workingDir, ref string) error {
 // checkPush sanity-checks that we can write to the upstream repo
 // (being able to `clone` is an adequate check that we can read the
 // upstream).
-func checkPush(ctx context.Context, workingDir, upstream string) error {
+func checkPush(ctx context.Context, workingDir, upstream, branch string) error {
 	// --force just in case we fetched the tag from upstream when cloning
 	args := []string{"tag", "--force", CheckPushTag}
+	if branch != "" {
+		args = append(args, branch)
+	}
 	if err := execGitCmd(ctx, args, gitCmdConfig{dir: workingDir}); err != nil {
 		return errors.Wrap(err, "tag for write check")
 	}

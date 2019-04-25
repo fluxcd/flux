@@ -9,7 +9,7 @@ menu_order: 60
   * [How is that different from a bash script?](#how-is-that-different-from-a-bash-script)
   * [Why should I automate deployment?](#why-should-i-automate-deployment)
   * [I thought Flux was about service routing?](#i-thought-flux-was-about-service-routing)
-  * [Are there nightly builds I can run?](#are-there-nightly-builds-i-can-run)
+  * [Are there prerelease builds I can run?](#are-there-prerelease-builds-i-can-run)
 - [Technical questions](#technical-questions)
   * [Does it work only with one git repository?](#does-it-work-only-with-one-git-repository)
   * [Do I have to put my application code and config in the same git repo?](#do-i-have-to-put-my-application-code-and-config-in-the-same-git-repo)
@@ -81,12 +81,12 @@ There are some pretty good solutions for service routing:
 [Envoy](https://www.envoyproxy.io/), [Istio](https://istio.io) for
 example. We may return to the matter of staged deployments.
 
-### Are there nightly builds I can run?
+### Are there prerelease builds I can run?
 
 There are builds from CI for each merge to master branch. See
-[quay.io/weaveworks/flux](https://quay.io/repository/weaveworks/flux?tab=tags)
+[weaveworks/flux-prerelease](https://hub.docker.com/r/weaveworks/flux-prerelease/tags)
 and
-[quay.io/weaveworks/helm-operator](https://quay.io/repository/weaveworks/helm-operator?tag=latest&tab=tags).
+[weaveworks/helm-operator-prerelease](https://hub.docker.com/r/weaveworks/helm-operator-prerelease/tags).
 
 ## Technical questions
 

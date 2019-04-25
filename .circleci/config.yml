@@ -16,12 +16,16 @@ jobs:
       - run: make all
 
       - deploy:
-          name: Maybe push master image
+          name: Maybe push prerelease images
           command: |
             if [ -z "${CIRCLE_TAG}" -a "${CIRCLE_BRANCH}" == "master" ]; then
-              docker login -u "$DOCKER_REGISTRY_USER" -p "$DOCKER_REGISTRY_PASSWORD" quay.io
-              docker push "quay.io/weaveworks/flux:$(docker/image-tag)"
-              docker push "quay.io/weaveworks/helm-operator:$(docker/image-tag)"
+              echo "$DOCKER_REGISTRY_PASSWORD" | docker login --username "$DOCKER_REGISTRY_USER" --password-stdin
+
+              docker tag "docker.io/weaveworks/flux:$(docker/image-tag)" "docker.io/weaveworks/flux-prerelease:$(docker/image-tag)"
+              docker push "docker.io/weaveworks/flux-prerelease:$(docker/image-tag)"
+
+              docker tag "docker.io/weaveworks/helm-operator:$(docker/image-tag)" "docker.io/weaveworks/helm-operator-prerelease:$(docker/image-tag)"
+              docker push "docker.io/weaveworks/helm-operator-prerelease:$(docker/image-tag)"
             fi
 
       - deploy:
@@ -31,13 +35,13 @@ jobs:
               go get github.com/weaveworks/github-release
               make release-bins
               bin/upload-binaries
-              docker login -u "$DOCKER_REGISTRY_USER" -p "$DOCKER_REGISTRY_PASSWORD" quay.io
-              docker push "quay.io/weaveworks/flux:${CIRCLE_TAG}"
+              echo "$DOCKER_REGISTRY_PASSWORD" | docker login --username "$DOCKER_REGISTRY_USER" --password-stdin
+              docker push "docker.io/weaveworks/flux:${CIRCLE_TAG}"
             fi
             if echo "${CIRCLE_TAG}" | grep -Eq "helm-[0-9]+(\.[0-9]+)*(-[a-z]+)?$"; then
-              docker login -u "$DOCKER_REGISTRY_USER" -p "$DOCKER_REGISTRY_PASSWORD" quay.io
+              echo "$DOCKER_REGISTRY_PASSWORD" | docker login --username "$DOCKER_REGISTRY_USER" --password-stdin
               RELEASE_TAG=$(echo "$CIRCLE_TAG" | cut -c 6-)
-              docker push "quay.io/weaveworks/helm-operator:${RELEASE_TAG}"
+              docker push "docker.io/weaveworks/helm-operator:${RELEASE_TAG}"
             fi
   e2e-testing:
     machine: true

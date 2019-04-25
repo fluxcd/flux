@@ -234,8 +234,14 @@ func (s ReleaseImageSpec) calculateImageUpdates(rc ReleaseContext, candidates []
 				}
 			}
 
-			filteredImages := imageRepos.GetRepoImages(currentImageID.Name).FilterAndSort(tagPattern)
-			latestImage, ok := filteredImages.Latest()
+			metadata := imageRepos.GetRepositoryMetadata(currentImageID.Name)
+			sortedImages, err := FilterAndSortRepositoryMetadata(metadata, tagPattern)
+			if err != nil {
+				// missing image repository metadata
+				ignoredOrSkipped = ReleaseStatusUnknown
+				continue
+			}
+			latestImage, ok := sortedImages.Latest()
 			if !ok {
 				if currentImageID.CanonicalName() != singleRepo {
 					ignoredOrSkipped = ReleaseStatusIgnored

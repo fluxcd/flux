@@ -2,6 +2,7 @@ package git
 
 import (
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"sync"
@@ -47,6 +48,7 @@ const (
 type Repo struct {
 	// As supplied to constructor
 	origin   Remote
+	branch   string
 	interval time.Duration
 	timeout  time.Duration
 	readonly bool
@@ -81,6 +83,12 @@ type Timeout time.Duration
 
 func (t Timeout) apply(r *Repo) {
 	r.timeout = time.Duration(t)
+}
+
+type Branch string
+
+func (b Branch) apply(r *Repo) {
+	r.branch = string(b)
 }
 
 var ReadOnly optionFunc = func(r *Repo) {
@@ -261,10 +269,23 @@ func (r *Repo) step(bg context.Context) bool {
 		return false
 
 	case RepoCloned:
+		ctx, cancel := context.WithTimeout(bg, r.timeout)
+		defer cancel()
+
+		if r.branch != "" {
+			ok, err := refExists(ctx, dir, "refs/heads/"+r.branch)
+			if err != nil {
+				r.setUnready(RepoCloned, err)
+				return false
+			}
+			if !ok {
+				r.setUnready(RepoCloned, fmt.Errorf("configured branch '%s' does not exist", r.branch))
+				return false
+			}
+		}
+
 		if !r.readonly {
-			ctx, cancel := context.WithTimeout(bg, r.timeout)
-			err := checkPush(ctx, dir, url)
-			cancel()
+			err := checkPush(ctx, dir, url, r.branch)
 			if err != nil {
 				r.setUnready(RepoCloned, err)
 				return false

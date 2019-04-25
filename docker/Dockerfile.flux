@@ -6,10 +6,9 @@ RUN apk add --no-cache openssh ca-certificates tini 'git>=2.3.0' gnupg
 
 # Add git hosts to known hosts file so we can use
 # StrickHostKeyChecking with git+ssh
-ADD ./verify_known_hosts.sh /home/flux/verify_known_hosts.sh
-RUN ssh-keyscan github.com gitlab.com bitbucket.org ssh.dev.azure.com vs-ssh.visualstudio.com >> /etc/ssh/ssh_known_hosts && \
-    sh /home/flux/verify_known_hosts.sh /etc/ssh/ssh_known_hosts && \
-    rm /home/flux/verify_known_hosts.sh
+ADD ./known_hosts.sh /home/flux/known_hosts.sh
+RUN sh /home/flux/known_hosts.sh /etc/ssh/ssh_known_hosts && \
+    rm /home/flux/known_hosts.sh
 
 # Add default SSH config, which points at the private key we'll mount
 COPY ./ssh_config /etc/ssh/ssh_config
@@ -33,7 +32,7 @@ LABEL maintainer="Weaveworks <help@weave.works>" \
 ENTRYPOINT [ "/sbin/tini", "--", "fluxd" ]
 
 # Get the kubeyaml binary (files) and put them on the path
-COPY --from=quay.io/squaremo/kubeyaml:0.5.1 /usr/lib/kubeyaml /usr/lib/kubeyaml/
+COPY --from=quay.io/squaremo/kubeyaml:0.5.2 /usr/lib/kubeyaml /usr/lib/kubeyaml/
 ENV PATH=/bin:/usr/bin:/usr/local/bin:/usr/lib/kubeyaml
 
 # Create minimal nsswitch.conf file to prioritize the usage of /etc/hosts over DNS queries.

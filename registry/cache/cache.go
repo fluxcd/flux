@@ -39,14 +39,10 @@ func NewManifestKey(image image.CanonicalRef) Keyer {
 
 func (k *manifestKey) Key() string {
 	return strings.Join([]string{
-		"registryhistoryv3", // Just to version in case we need to change format later.
+		"registryhistoryv3", // Bump the version number if the cache format changes
 		k.fullRepositoryPath,
 		k.reference,
 	}, "|")
-}
-
-type tagKey struct {
-	fullRepositoryPath string
 }
 
 type repoKey struct {
@@ -59,7 +55,7 @@ func NewRepositoryKey(repo image.CanonicalName) Keyer {
 
 func (k *repoKey) Key() string {
 	return strings.Join([]string{
-		"registryrepov3",
+		"registryrepov4", // Bump the version number if the cache format changes
 		k.fullRepositoryPath,
 	}, "|")
 }

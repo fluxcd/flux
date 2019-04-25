@@ -1,6 +1,10 @@
 package kubernetes
 
 import (
+	"fmt"
+	"strings"
+
+	"github.com/go-kit/kit/log"
 	"gopkg.in/yaml.v2"
 	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -24,13 +28,23 @@ type namespacer interface {
 	EffectiveNamespace(manifest kresource.KubeManifest, knownScopes ResourceScopes) (string, error)
 }
 
-// Manifests is an implementation of cluster.Manifests, particular to
+// manifests is an implementation of cluster.Manifests, particular to
 // Kubernetes. Aside from loading manifests from files, it does some
 // "post-processsing" to make sure the view of the manifests is what
 // would be applied; in particular, it fills in the namespace of
 // manifests that would be given a default namespace when applied.
-type Manifests struct {
-	Namespacer namespacer
+type manifests struct {
+	namespacer       namespacer
+	logger           log.Logger
+	resourceWarnings map[string]struct{}
+}
+
+func NewManifests(ns namespacer, logger log.Logger) *manifests {
+	return &manifests{
+		namespacer:       ns,
+		logger:           logger,
+		resourceWarnings: map[string]struct{}{},
+	}
 }
 
 func getCRDScopes(manifests map[string]kresource.KubeManifest) ResourceScopes {
@@ -60,31 +74,48 @@ func getCRDScopes(manifests map[string]kresource.KubeManifest) ResourceScopes {
 	return result
 }
 
-func setEffectiveNamespaces(manifests map[string]kresource.KubeManifest, nser namespacer) (map[string]resource.Resource, error) {
+func (m *manifests) setEffectiveNamespaces(manifests map[string]kresource.KubeManifest) (map[string]resource.Resource, error) {
 	knownScopes := getCRDScopes(manifests)
 	result := map[string]resource.Resource{}
 	for _, km := range manifests {
-		if nser != nil {
-			ns, err := nser.EffectiveNamespace(km, knownScopes)
-			if err != nil {
-				return nil, err
+		resID := km.ResourceID()
+		resIDStr := resID.String()
+		ns, err := m.namespacer.EffectiveNamespace(km, knownScopes)
+		if err != nil {
+			if strings.Contains(err.Error(), "not found") {
+				// discard the resource and keep going after making sure we logged about it
+				if _, warningLogged := m.resourceWarnings[resIDStr]; !warningLogged {
+					_, kind, name := resID.Components()
+					partialResIDStr := kind + "/" + name
+					m.logger.Log(
+						"warn", fmt.Sprintf("cannot find scope of resource %s: %s", partialResIDStr, err),
+						"impact", fmt.Sprintf("resource %s will be excluded until its scope is available", partialResIDStr))
+					m.resourceWarnings[resIDStr] = struct{}{}
+				}
+				continue
 			}
-			km.SetNamespace(ns)
+			return nil, err
+		}
+		km.SetNamespace(ns)
+		if _, warningLogged := m.resourceWarnings[resIDStr]; warningLogged {
+			// indicate that we found the resource's scope and allow logging a warning again
+			m.logger.Log("info", fmt.Sprintf("found scope of resource %s, back in bussiness!", km.ResourceID().String()))
+			delete(m.resourceWarnings, resIDStr)
 		}
 		result[km.ResourceID().String()] = km
 	}
 	return result, nil
 }
 
-func (m *Manifests) LoadManifests(base string, paths []string) (map[string]resource.Resource, error) {
+func (m *manifests) LoadManifests(base string, paths []string) (map[string]resource.Resource, error) {
 	manifests, err := kresource.Load(base, paths)
 	if err != nil {
 		return nil, err
 	}
-	return setEffectiveNamespaces(manifests, m.Namespacer)
+	return m.setEffectiveNamespaces(manifests)
 }
 
-func (m *Manifests) UpdateImage(def []byte, id flux.ResourceID, container string, image image.Ref) ([]byte, error) {
+func (m *manifests) UpdateImage(def []byte, id flux.ResourceID, container string, image image.Ref) ([]byte, error) {
 	return updateWorkload(def, id, container, image)
 }
 

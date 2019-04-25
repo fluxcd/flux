@@ -183,7 +183,7 @@ The following tables lists the configurable parameters of the Weave Flux chart a
 
 | Parameter                                         | Default                                              | Description
 | -----------------------------------------------   | ---------------------------------------------------- | ---
-| `image.repository`                                | `quay.io/weaveworks/flux`                            | Image repository
+| `image.repository`                                | `docker.io/weaveworks/flux`                          | Image repository
 | `image.tag`                                       | `<VERSION>`                                          | Image tag
 | `replicaCount`                                    | `1`                                                  | Number of Flux pods to deploy, more than one is not desirable.
 | `image.pullPolicy`                                | `IfNotPresent`                                       | Image pull policy
@@ -230,6 +230,7 @@ The following tables lists the configurable parameters of the Weave Flux chart a
 | `registry.acr.hostPath`                           | `/etc/kubernetes/azure.json`                         | Alternative location of `azure.json` on the host
 | `registry.dockercfg.enabled`                      | `false`                                              | Mount `config.json` via Secret into the Flux Pod, enabling Flux to use a custom docker config file
 | `registry.dockercfg.secretName`                   | `None`                                               | Kubernetes secret with the docker config.json
+| `registry.dockercfg.configFileName`               | `/dockercfg/config.json`                             | Alternative path/name of the docker config.json
 | `memcached.verbose`                               | `false`                                              | Enable request logging in memcached
 | `memcached.maxItemSize`                           | `5m`                                                 | Maximum size for one item
 | `memcached.maxMemory`                             | `128`                                                | Maximum memory to use, in megabytes
@@ -238,7 +239,7 @@ The following tables lists the configurable parameters of the Weave Flux chart a
 | `memcached.resources`                             | `None`                                               | CPU/memory resource requests/limits for memcached
 | `helmOperator.create`                             | `false`                                              | If `true`, install the Helm operator
 | `helmOperator.createCRD`                          | `true`                                               | Create the `v1beta1` and `v1alpha2` Flux CRDs. Dependent on `helmOperator.create=true`
-| `helmOperator.repository`                         | `quay.io/weaveworks/helm-operator`                   | Helm operator image repository
+| `helmOperator.repository`                         | `docker.io/weaveworks/helm-operator`                 | Helm operator image repository
 | `helmOperator.tag`                                | `<VERSION>`                                          | Helm operator image tag
 | `helmOperator.replicaCount`                       | `1`                                                  | Number of helm operator pods to deploy, more than one is not desirable.
 | `helmOperator.pullPolicy`                         | `IfNotPresent`                                       | Helm operator image pull policy

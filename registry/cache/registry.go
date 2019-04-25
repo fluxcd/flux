@@ -31,35 +31,29 @@ type Cache struct {
 	Reader Reader
 }
 
-// GetRepositoryImages returns the list of image manifests in an image
-// repository (e.g,. at "quay.io/weaveworks/flux")
-func (c *Cache) GetRepositoryImages(id image.Name) ([]image.Info, error) {
+// GetImageRepositoryMetadata returns the metadata from an image
+// repository (e.g,. at "docker.io/weaveworks/flux")
+func (c *Cache) GetImageRepositoryMetadata(id image.Name) (image.RepositoryMetadata, error) {
 	repoKey := NewRepositoryKey(id.CanonicalName())
 	bytes, _, err := c.Reader.GetKey(repoKey)
 	if err != nil {
-		return nil, err
+		return image.RepositoryMetadata{}, err
 	}
 	var repo ImageRepository
 	if err = json.Unmarshal(bytes, &repo); err != nil {
-		return nil, err
+		return image.RepositoryMetadata{}, err
 	}
 
 	// We only care about the error if we've never successfully
 	// updated the result.
 	if repo.LastUpdate.IsZero() {
 		if repo.LastError != "" {
-			return nil, errors.New(repo.LastError)
+			return image.RepositoryMetadata{}, errors.New(repo.LastError)
 		}
-		return nil, ErrNotCached
+		return image.RepositoryMetadata{}, ErrNotCached
 	}
 
-	images := make([]image.Info, len(repo.Images))
-	var i int
-	for _, im := range repo.Images {
-		images[i] = im
-		i++
-	}
-	return images, nil
+	return repo.RepositoryMetadata, nil
 }
 
 // GetImage gets the manifest of a specific image ref, from its
@@ -85,11 +79,11 @@ func (c *Cache) GetImage(id image.Ref) (image.Info, error) {
 // ImageRepository holds the last good information on an image
 // repository.
 //
-// Whenever we successfully fetch a full set of image info,
-// `LastUpdate` and `Images` shall each be assigned a value, and
+// Whenever we successfully fetch a set (partial or full) of image metadata,
+// `LastUpdate`, `Tags` and `Images` shall each be assigned a value, and
 // `LastError` will be cleared.
 //
-// If we cannot for any reason obtain a full set of image info,
+// If we cannot for any reason obtain the set of image metadata,
 // `LastError` shall be assigned a value, and the other fields left
 // alone.
 //
@@ -99,7 +93,7 @@ func (c *Cache) GetImage(id image.Ref) (image.Info, error) {
 // value (show the images, but also indicate there's a problem, for
 // example).
 type ImageRepository struct {
+	image.RepositoryMetadata
 	LastError  string
 	LastUpdate time.Time
-	Images     map[string]image.Info
 }

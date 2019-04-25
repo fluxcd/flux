@@ -33,7 +33,7 @@ var (
 // Examples (stringified):
 //   * alpine
 //   * library/alpine
-//   * quay.io/weaveworks/flux
+//   * docker.io/weaveworks/flux
 //   * localhost:5000/arbitrary/path/to/repo
 type Name struct {
 	Domain, Image string
@@ -107,7 +107,7 @@ func (i Name) ToRef(tag string) Ref {
 // Examples (stringified):
 //  * alpine:3.5
 //  * library/alpine:3.5
-//  * quay.io/weaveworks/flux:1.1.0
+//  * docker.io/weaveworks/flux:1.1.0
 //  * localhost:5000/arbitrary/path/to/repo:revision-sha1
 type Ref struct {
 	Name
@@ -279,6 +279,43 @@ func (im *Info) UnmarshalJSON(b []byte) error {
 		err = decodeTime(unencode.LastFetched, &im.LastFetched)
 	}
 	return err
+}
+
+// RepositoryMetadata contains the image metadata information found in an
+// image repository.
+//
+// `Images` is indexed by `Tags`. Note that `Images` may be partial/incomplete,
+// (i.e. entries from `Tags` may not have a corresponding key in `Images`),
+// this indicates that the tag manifest was missing or corrupted in the
+// repository.
+type RepositoryMetadata struct {
+	Tags   []string        // all the tags found in the repository
+	Images map[string]Info // indexed by `Tags`, but may not include keys for all entries in `Tags`
+}
+
+// FindImageWithRef returns image.Info given an image ref. If the image cannot be
+// found, it returns the image.Info with the ID provided.
+func (rm RepositoryMetadata) FindImageWithRef(ref Ref) Info {
+	for _, img := range rm.Images {
+		if img.ID == ref {
+			return img
+		}
+	}
+	return Info{ID: ref}
+}
+
+// GetImageTagInfo gets the information of all image tags.
+// If there are tags missing information, an error is returned
+func (rm RepositoryMetadata) GetImageTagInfo() ([]Info, error) {
+	result := make([]Info, len(rm.Tags), len(rm.Tags))
+	for i, tag := range rm.Tags {
+		info, ok := rm.Images[tag]
+		if !ok {
+			return nil, fmt.Errorf("missing metadata for image tag %q", tag)
+		}
+		result[i] = info
+	}
+	return result, nil
 }
 
 func decodeTime(s string, t *time.Time) error {

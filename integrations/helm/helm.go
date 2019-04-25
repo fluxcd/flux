@@ -75,7 +75,7 @@ func ClientSetup(logger log.Logger, kubeClient *kubernetes.Clientset, tillerOpts
 	for {
 		helmClient, host, err = newClient(kubeClient, tillerOpts)
 		if err != nil {
-			logger.Log("error", fmt.Sprintf("Error creating helm client: %s", err.Error()))
+			logger.Log("error", fmt.Sprintf("error creating helm client: %s", err.Error()))
 			time.Sleep(20 * time.Second)
 			continue
 		}

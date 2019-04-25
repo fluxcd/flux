@@ -14,12 +14,10 @@ correspond. Specifically,
 package status
 
 import (
-	"encoding/json"
 	"time"
 
 	"github.com/go-kit/kit/log"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 	kube "k8s.io/client-go/kubernetes"
 	"k8s.io/helm/pkg/helm"
 
@@ -104,34 +102,18 @@ bail:
 }
 
 func UpdateReleaseStatus(client v1beta1client.HelmReleaseInterface, fhr v1beta1.HelmRelease, releaseName, releaseStatus string) error {
-	patchBytes, err := json.Marshal(map[string]interface{}{
-		"status": map[string]interface{}{
-			"releaseName":   releaseName,
-			"releaseStatus": releaseStatus,
-		},
-	})
-	if err == nil {
-		// CustomResources don't get
-		// StrategicMergePatch, for now, but since we
-		// want to unconditionally set the value, this
-		// is OK.
-		_, err = client.Patch(fhr.Name, types.MergePatchType, patchBytes)
-	}
+	fhr.Status.ReleaseName = releaseName
+	fhr.Status.ReleaseStatus = releaseStatus
+
+	_, err := client.UpdateStatus(&fhr)
+
 	return err
 }
 
 func UpdateReleaseRevision(client v1beta1client.HelmReleaseInterface, fhr v1beta1.HelmRelease, revision string) error {
-	patchBytes, err := json.Marshal(map[string]interface{}{
-		"status": map[string]interface{}{
-			"revision": revision,
-		},
-	})
-	if err == nil {
-		// CustomResources don't get
-		// StrategicMergePatch, for now, but since we
-		// want to unconditionally set the value, this
-		// is OK.
-		_, err = client.Patch(fhr.Name, types.MergePatchType, patchBytes)
-	}
+	fhr.Status.Revision = revision
+
+	_, err := client.UpdateStatus(&fhr)
+
 	return err
 }

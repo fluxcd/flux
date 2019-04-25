@@ -1,3 +1,29 @@
+## 0.9.1 (2019-04-17)
+
+### Improvements
+
+ - Add the `status` subresource to HelmRelease CRD
+   [weaveworks/flux#1906](https://github.com/weaveworks/flux/pull/1906)
+ - Switch image registry from Quay to Docker Hub
+   [weaveworks/flux#1949](https://github.com/weaveworks/flux/pull/1949)
+
+## 0.9.0 (2019-04-11)
+
+### Improvements
+
+ - Updated Flux to `1.12.0` and Helm operator to `0.8.0`
+   [weaveworks/flux#1924](https://github.com/weaveworks/flux/pull/1924)
+ - Add ECR require option
+   [weaveworks/flux#1863](https://github.com/weaveworks/flux/pull/1863)
+ - Support loading values from alternative files in chart 
+   [weaveworks/flux#1909](https://github.com/weaveworks/flux/pull/1909)
+ - Add Git poll interval option
+   [weaveworks/flux#1910](https://github.com/weaveworks/flux/pull/1910)
+ - Add init container, extra volumes and volume mounts
+   [weaveworks/flux#1918](https://github.com/weaveworks/flux/pull/1918)
+ - Add docker config file path option
+   [weaveworks/flux#1919](https://github.com/weaveworks/flux/pull/1919)
+
 ## 0.8.0 (2019-04-04)
 
 ### Improvements

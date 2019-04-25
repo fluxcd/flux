@@ -7,7 +7,7 @@ This guide shows a workflow for making a small (actually, tiny) change to Flux, 
 > From a very high level, there are at least 3 ways you can develop on Flux once you have your environment set up:
 > 1. The "minimalist" approach (only requires and `kubectl`):
 >    1. `make`
->    1. copy the specific image tag (e.g. `quay.io/weaveworks/flux:master-a86167e4`) for what you just built and paste it into `/deploy/flux-deployment.yaml` as the image you're targeting to deploy
+>    1. copy the specific image tag (e.g. `docker.io/weaveworks/flux:master-a86167e4`) for what you just built and paste it into `/deploy/flux-deployment.yaml` as the image you're targeting to deploy
 >    1. deploy the resources in `/develop/*.yaml` manually with `kubectl apply`
 >    1. make a change to the code
 >    1. see your code changes have been deployed
@@ -85,19 +85,19 @@ Now that we know everything is working with `flux-getting-started`, we're going 
     In the same terminal you ran `eval $(minikube docker-env)`, run `dep ensure` followed by `make` from the root directory of the Flux repo.  You'll see docker's usual output as it builds the image layers.  Once it's done, you should see something like this in the middle of the output:
     ```
     Successfully built 606610e0f4ef
-    Successfully tagged quay.io/weaveworks/flux:latest
-    Successfully tagged quay.io/weaveworks/flux:master-a86167e4
+    Successfully tagged docker.io/weaveworks/flux:latest
+    Successfully tagged docker.io/weaveworks/flux:master-a86167e4
     ```
     This confirms that a new docker image was tagged for your image.
 
-1. Open up [`deploy/flux-deployment.yaml`](deploy/flux-deployment.yaml) and update the image at `spec.template.spec.containers[0].image` to be simply `quay.io/weaveworks/flux`.  While we're here, also change the `git-url` to point towards your fork.  It will look something like this in the yaml:
+1. Open up [`deploy/flux-deployment.yaml`](deploy/flux-deployment.yaml) and update the image at `spec.template.spec.containers[0].image` to be simply `docker.io/weaveworks/flux`.  While we're here, also change the `git-url` to point towards your fork.  It will look something like this in the yaml:
     ```yaml
     spec:
       template:
         spec:
           containers:
           - name: flux
-            image: quay.io/weaveworks/flux
+            image: docker.io/weaveworks/flux
             imagePullPolicy: IfNotPresent
             args:
               - --git-url=git@github.com:<YOUR-GITHUB-USERNAME>/flux-getting-started
@@ -144,8 +144,8 @@ Now that we know everything is working with `flux-getting-started`, we're going 
 
     You should see an output that looks something like this:
     ```
-    ts=2019-02-28T18:58:45.091531939Z caller=warming.go:268 component=warmer info="refreshing image" image=quay.io/ weaveworks/flux tag_count=60 to_update=60 of_which_refresh=0 of_which_missing=60
-    ts=2019-02-28T18:58:46.233723421Z caller=warming.go:364 component=warmer updated=quay.io/weaveworks/flux    successful=60 attempted=60
+    ts=2019-02-28T18:58:45.091531939Z caller=warming.go:268 component=warmer info="refreshing image" image=docker.io/weaveworks/flux tag_count=60 to_update=60 of_which_refresh=0 of_which_missing=60
+    ts=2019-02-28T18:58:46.233723421Z caller=warming.go:364 component=warmer updated=docker.io/weaveworks/flux    successful=60 attempted=60
     ts=2019-02-28T18:58:46.234086642Z caller=images.go:17 component=sync-loop msg="polling images"
     ts=2019-02-28T18:58:46.234125646Z caller=images.go:27 component=sync-loop msg="no automated services"
     ts=2019-02-28T18:58:46.749598558Z caller=warming.go:268 component=warmer info="refreshing image" image=memcached    tag_count=66 to_update=66 of_which_refresh=0 of_which_missing=66
@@ -173,9 +173,9 @@ Now that we know everything is working with `flux-getting-started`, we're going 
     flux-6f7fd5bbc-6j9d5   1/1     Running   0          10s
     ```
 
-    This pod was deployed even though we didn't run any `kubectl` commands or interact with Kubernetes directly because of the `freshpod` Minikube addon that we enabled earlier.  Freshpod saw that a new Docker image was tagged for `quay.io/weaveworks/flux:latest` and it went ahead and redeployed that pod for us.
+    This pod was deployed even though we didn't run any `kubectl` commands or interact with Kubernetes directly because of the `freshpod` Minikube addon that we enabled earlier.  Freshpod saw that a new Docker image was tagged for `docker.io/weaveworks/flux:latest` and it went ahead and redeployed that pod for us.
 
-    Consider that simply applying the `flux-deployment.yaml` file again wouldn't do anything since the actual image we're targeting (which is actually `quay.io/weaveworks/flux` with no `:latest` tag, but it's the same difference) hasn't changed.  The Kubernetes api server will get that JSON request from kubectl and go: "right... so nothing has changed in the file so I have nothing to do... IGNORE!".
+    Consider that simply applying the `flux-deployment.yaml` file again wouldn't do anything since the actual image we're targeting (which is actually `docker.io/weaveworks/flux` with no `:latest` tag, but it's the same difference) hasn't changed.  The Kubernetes api server will get that JSON request from kubectl and go: "right... so nothing has changed in the file so I have nothing to do... IGNORE!".
 
     There is another way to do this, of course.  Remember that before when we ran `make` that we did _also_ get an image tagged with the `:<branch>-<commit hash>` syntax (in our specific example above it was `:master-a86167e4`).  We could, in theory, grab that tag every time we `make`, and then paste it into `spec.template.spec.containers[0].image` of our deployment.  That's tedious and error prone.  Instead, `freshpod` cuts this step out for us and accomplishes the same end goal.
 

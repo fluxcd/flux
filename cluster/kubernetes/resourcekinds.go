@@ -49,9 +49,6 @@ func init() {
 
 type workload struct {
 	k8sObject
-	apiVersion  string
-	kind        string
-	name        string
 	status      string
 	rollout     cluster.RolloutStatus
 	syncError   error
@@ -179,11 +176,10 @@ func makeDeploymentWorkload(deployment *apiapps.Deployment) workload {
 			status = cluster.StatusError
 		}
 	}
-
+	// apiVersion & kind must be set, since TypeMeta is not populated
+	deployment.APIVersion = "apps/v1"
+	deployment.Kind = "Deployment"
 	return workload{
-		apiVersion:  "apps/v1",
-		kind:        "Deployment",
-		name:        deployment.ObjectMeta.Name,
 		status:      status,
 		rollout:     rollout,
 		podTemplate: deployment.Spec.Template,
@@ -241,10 +237,10 @@ func makeDaemonSetWorkload(daemonSet *apiapps.DaemonSet) workload {
 		}
 	}
 
+	// apiVersion & kind must be set, since TypeMeta is not populated
+	daemonSet.APIVersion = "apps/v1"
+	daemonSet.Kind = "DaemonSet"
 	return workload{
-		apiVersion:  "apps/v1",
-		kind:        "DaemonSet",
-		name:        daemonSet.ObjectMeta.Name,
 		status:      status,
 		rollout:     rollout,
 		podTemplate: daemonSet.Spec.Template,
@@ -334,10 +330,10 @@ func makeStatefulSetWorkload(statefulSet *apiapps.StatefulSet) workload {
 		}
 	}
 
+	// apiVersion & kind must be set, since TypeMeta is not populated
+	statefulSet.APIVersion = "apps/v1"
+	statefulSet.Kind = "StatefulSet"
 	return workload{
-		apiVersion:  "apps/v1",
-		kind:        "StatefulSet",
-		name:        statefulSet.ObjectMeta.Name,
 		status:      status,
 		rollout:     rollout,
 		podTemplate: statefulSet.Spec.Template,
@@ -373,10 +369,9 @@ func (dk *cronJobKind) getWorkloads(c *Cluster, namespace string) ([]workload, e
 }
 
 func makeCronJobWorkload(cronJob *apibatch.CronJob) workload {
+	cronJob.APIVersion = "batch/v1beta1"
+	cronJob.Kind = "CronJob"
 	return workload{
-		apiVersion:  "batch/v1beta1",
-		kind:        "CronJob",
-		name:        cronJob.ObjectMeta.Name,
 		status:      cluster.StatusReady,
 		podTemplate: cronJob.Spec.JobTemplate.Spec.Template,
 		k8sObject:   cronJob}
@@ -419,11 +414,10 @@ func makeFluxHelmReleaseWorkload(fluxHelmRelease *fhr_v1alpha2.FluxHelmRelease) 
 			ImagePullSecrets: []apiv1.LocalObjectReference{},
 		},
 	}
-
+	// apiVersion & kind must be set, since TypeMeta is not populated
+	fluxHelmRelease.APIVersion = "helm.integrations.flux.weave.works/v1alpha2"
+	fluxHelmRelease.Kind = "FluxHelmRelease"
 	return workload{
-		apiVersion:  "helm.integrations.flux.weave.works/v1alpha2",
-		kind:        "FluxHelmRelease",
-		name:        fluxHelmRelease.ObjectMeta.Name,
 		status:      fluxHelmRelease.Status.ReleaseStatus,
 		podTemplate: podTemplate,
 		k8sObject:   fluxHelmRelease,
@@ -482,11 +476,10 @@ func makeHelmReleaseWorkload(helmRelease *fhr_v1beta1.HelmRelease) workload {
 			ImagePullSecrets: []apiv1.LocalObjectReference{},
 		},
 	}
-
+	// apiVersion & kind must be set, since TypeMeta is not populated
+	helmRelease.APIVersion = "flux.weave.works/v1beta1"
+	helmRelease.Kind = "HelmRelease"
 	return workload{
-		apiVersion:  "flux.weave.works/v1beta1",
-		kind:        "HelmRelease",
-		name:        helmRelease.ObjectMeta.Name,
 		status:      helmRelease.Status.ReleaseStatus,
 		podTemplate: podTemplate,
 		k8sObject:   helmRelease,
