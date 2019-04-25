@@ -18,5 +18,7 @@ How would the new interaction with Flux look like?
 3. Scroll down to '....'
 4. See error
 
+Feel free to add a diagram if that helps explaining things.
+
 **Expected behavior**
 A clear and concise description of what you expect to happen.
