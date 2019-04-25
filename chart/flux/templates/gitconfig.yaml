@@ -1,15 +1,9 @@
-{{- if .Values.git.config -}}
+{{- if .Values.git.config.enabled -}}
 apiVersion: v1
-kind: ConfigMap
+kind: Secret
 metadata:
-  name: {{ template "flux.fullname" . }}-gitconfig
+  name: {{ include "git.config.secretName" . }}
+type: Opaque
 data:
-  .gitconfig: |
-    {{- if contains "\n" .Values.git.config }}
-      {{- range $value := .Values.git.config | splitList "\n" }}
-        {{ print $value }}
-      {{- end }}
-    {{- else }}
-      {{ .Values.git.config }}
-    {{- end }}
+  gitconfig: {{ .Values.git.config.data | b64enc }}
 {{- end -}}
