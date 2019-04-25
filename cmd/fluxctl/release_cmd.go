@@ -54,8 +54,7 @@ func (opts *workloadReleaseOpts) Command() *cobra.Command {
 	AddOutputFlags(cmd, &opts.outputOpts)
 	AddCauseFlags(cmd, &opts.cause)
 	cmd.Flags().StringVarP(&opts.namespace, "namespace", "n", "default", "Workload namespace")
-	// Note: we cannot define a shorthand for --workload since it clashes with the shorthand of --watch
-	cmd.Flags().StringSliceVarP(&opts.workloads, "workload", "", []string{}, "List of workloads to release <namespace>:<kind>/<name>")
+	cmd.Flags().StringSliceVarP(&opts.workloads, "workload", "w", []string{}, "List of workloads to release <namespace>:<kind>/<name>")
 	cmd.Flags().BoolVar(&opts.allWorkloads, "all", false, "Release all controllers")
 	cmd.Flags().StringVarP(&opts.image, "update-image", "i", "", "Update a specific image")
 	cmd.Flags().BoolVar(&opts.allImages, "update-all-images", false, "Update all images to latest versions")
@@ -63,11 +62,12 @@ func (opts *workloadReleaseOpts) Command() *cobra.Command {
 	cmd.Flags().BoolVar(&opts.dryRun, "dry-run", false, "Do not release anything; just report back what would have been done")
 	cmd.Flags().BoolVar(&opts.interactive, "interactive", false, "Select interactively which containers to update")
 	cmd.Flags().BoolVarP(&opts.force, "force", "f", false, "Disregard locks and container image filters (has no effect when used with --all or --update-all-images)")
-	cmd.Flags().BoolVarP(&opts.watch, "watch", "w", false, "Watch rollout progress during release")
+	// Note: we cannot define a shorthand for --watch since it clashes with the shorthand of --workload
+	cmd.Flags().BoolVarP(&opts.watch, "watch", "", false, "Watch rollout progress during release")
 
 	// Deprecated
 	cmd.Flags().StringSliceVarP(&opts.controllers, "controller", "c", []string{}, "List of controllers to release <namespace>:<kind>/<name>")
-	cmd.Flags().MarkDeprecated("controller", "changed to --workspace, use that instead")
+	cmd.Flags().MarkDeprecated("controller", "changed to --workload, use that instead")
 
 	return cmd
 }
