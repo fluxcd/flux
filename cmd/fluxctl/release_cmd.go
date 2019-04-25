@@ -67,7 +67,7 @@ func (opts *workloadReleaseOpts) Command() *cobra.Command {
 
 	// Deprecated
 	cmd.Flags().StringSliceVarP(&opts.controllers, "controller", "c", []string{}, "List of controllers to release <namespace>:<kind>/<name>")
-	cmd.Flags().MarkDeprecated("controller", "changed to --workspace, use that instead")
+	cmd.Flags().MarkDeprecated("controller", "changed to --workload, use that instead")
 
 	return cmd
 }
