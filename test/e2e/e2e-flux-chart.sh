@@ -5,6 +5,7 @@ set -o errexit
 export KUBECONFIG="$(kind get kubeconfig-path --name="kind")"
 REPO_ROOT=$(git rev-parse --show-toplevel)
 KNOWN_HOSTS=$(cat ${REPO_ROOT}/test/e2e/known_hosts)
+GITCONFIG=$(cat ${REPO_ROOT}/test/e2e/gitconfig)
 
 echo ">>> Loading $(docker/image-tag) into the cluster"
 kind load docker-image "docker.io/weaveworks/flux:$(docker/image-tag)"
@@ -17,6 +18,9 @@ helm install --name flux --wait \
 --set git.url=ssh://git@gitsrv/git-server/repos/cluster.git \
 --set git.secretName=ssh-git \
 --set git.pollInterval=30s \
+--set git.config.secretName=gitconfig \
+--set git.config.enabled=true \
+--set-string git.config.data="${GITCONFIG}" \
 --set helmOperator.tag=$(docker/image-tag) \
 --set helmOperator.create=true \
 --set helmOperator.createCRD=true \
@@ -25,9 +29,31 @@ helm install --name flux --wait \
 --set-string ssh.known_hosts="${KNOWN_HOSTS}" \
 ${REPO_ROOT}/chart/flux
 
-echo '>>> Waiting for namespace demo'
+echo '>>> Waiting for gitconfig secret'
 retries=12
 count=0
+ok=false
+until ${ok}; do
+    actual=$(kubectl get secrets -n flux gitconfig -ojsonpath={..data.gitconfig} | base64 -d)
+    if [ "${actual}" == "${GITCONFIG}" ]; then
+        echo -e "Expected Git configuration deployed\n"
+        kubectl get secrets -n flux gitconfig && echo
+        ok=true
+    else
+        ok=false
+        sleep 10
+    fi
+    count=$(($count + 1))
+    if [[ ${count} -eq ${retries} ]]; then
+        kubectl -n flux get secrets
+        echo "No more retries left"
+        exit 1
+    fi
+done
+
+echo '>>> Waiting for namespace demo'
+retries=12
+count=1
 ok=false
 until ${ok}; do
     kubectl describe ns/demo && ok=true || ok=false

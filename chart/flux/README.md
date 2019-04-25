@@ -213,6 +213,9 @@ The following tables lists the configurable parameters of the Weave Flux chart a
 | `git.pollInterval`                                | `5m`                                                 | Period at which to poll git repo for new commits
 | `git.timeout`                                     | `20s`                                                | Duration after which git operations time out
 | `git.secretName`                                  | `None`                                               | Kubernetes secret with the SSH private key. Superceded by `helmOperator.git.secretName` if set.
+| `git.config.enabled`                              | `false`                                              | Mount `$HOME/.gitconfig` via Secret into the Flux and HelmOperator Pods, allowing for custom global Git configuration
+| `git.config.secretName`                           | `Computed`                                           | Kubernetes secret with the global Git configuration
+| `git.config.data`                                 | `None`                                               | Global Git configuration per [git-config](https://git-scm.com/docs/git-config)
 | `gpgKeys.secretName`                              | `None`                                               | Kubernetes secret with GPG keys the Flux daemon should import
 | `ssh.known_hosts`                                 | `None`                                               | The contents of an SSH `known_hosts` file, if you need to supply host key(s)
 | `registry.pollInterval`                           | `5m`                                                 | Period at which to check for updated images

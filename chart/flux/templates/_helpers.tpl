@@ -60,3 +60,16 @@ repositories:
   username: "{{ .username | default "" }}"
 {{- end }}
 {{- end -}}
+
+{{/*
+Create the name of the Git config Secret.
+*/}}
+{{- define "git.config.secretName" -}}
+{{- if .Values.git.config.enabled }}
+    {{- if .Values.git.config.secretName -}}
+        {{ default "default" .Values.git.config.secretName }}
+    {{- else -}}
+        {{ default (printf "%s-git-config" (include "flux.fullname" .)) }}
+{{- end -}}
+{{- end }}
+{{- end }}

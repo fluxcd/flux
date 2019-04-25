@@ -1,0 +1,9 @@
+{{- if .Values.git.config.enabled -}}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ include "git.config.secretName" . }}
+type: Opaque
+data:
+  gitconfig: {{ .Values.git.config.data | b64enc }}
+{{- end -}}

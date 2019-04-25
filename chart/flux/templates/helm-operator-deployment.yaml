@@ -41,6 +41,12 @@ spec:
           name: {{ template "flux.fullname" . }}-ssh-config
           defaultMode: 0600
       {{- end }}
+      {{- if .Values.git.config.enabled }}
+      - name: git-config
+        secret:
+          secretName: {{ include "git.config.secretName" . }}
+          defaultMode: 0400
+      {{- end }}
       - name: git-key
         secret:
           {{- if .Values.helmOperator.git.secretName }}
@@ -82,6 +88,12 @@ spec:
         - name: sshdir
           mountPath: /root/.ssh/known_hosts
           subPath: known_hosts
+          readOnly: true
+        {{- end }}
+        {{- if .Values.git.config.enabled }}
+        - name: git-config
+          mountPath: /root/.gitconfig
+          subPath: gitconfig
           readOnly: true
         {{- end }}
         - name: git-key
