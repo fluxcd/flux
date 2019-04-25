@@ -57,6 +57,7 @@ Its major features are:
 
 ### Who is using Flux in production
 
+- [APPUiO](https://appuio.ch)
 - [Control Plane](https://control-plane.io)
 - [Crowd Riff](https://crowdriff.com) 
 - [College of William & Mary](https://www.wm.edu)
@@ -67,7 +68,8 @@ Its major features are:
 - [Qordoba](https://qordoba.com)
 - [Troii](https://troii.com/)
 - [Under Armour](https://www.underarmour.com)
-- [Weave Cloud](https://cloud.weave.works)  
+- [VSHN](https://vshn.ch)
+- [Weave Cloud](https://cloud.weave.works)
 
 If you too are using Flux in production; please submit a PR to add your organization to the list!
 
