@@ -140,7 +140,7 @@ func ParseMultidoc(multidoc []byte, source string) (map[string]KubeManifest, err
 		// NOTE: gopkg.in/yaml.v3 supports round tripping comments
 		//       by using `gopkg.in/yaml.v3.Node`.
 		var val interface{}
-		if err := decoder.Decode(&val); err != nil {
+		if err = decoder.Decode(&val); err != nil {
 			break
 		}
 		bytes, err := yaml.Marshal(val)
