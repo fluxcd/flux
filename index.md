@@ -5,7 +5,7 @@ It uses an operator in the cluster to trigger deployments inside Kubernetes, whi
 It monitors all relevant image repositories, detects new images, triggers deployments and updates the desired running
 configuration based on that (and a configurable policy).
 
-Flux Helm chart version: 0.9.1
+Flux Helm chart version: 0.9.2
 
 ## Usage
 
