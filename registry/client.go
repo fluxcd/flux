@@ -133,6 +133,9 @@ interpret:
 			Created time.Time `json:"created"`
 			OS      string    `json:"os"`
 			Arch    string    `json:"architecture"`
+			Config  struct {
+				Labels image.Labels `json:"labels"`
+			} `json:"config"`
 		}
 
 		if err = json.Unmarshal([]byte(man.History[0].V1Compatibility), &v1); err != nil {
@@ -142,6 +145,7 @@ interpret:
 		// identify the image as it's the topmost layer.
 		info.ImageID = v1.ID
 		info.CreatedAt = v1.Created
+		info.Labels = v1.Config.Labels
 	case *schema2.DeserializedManifest:
 		var man schema2.Manifest = deserialised.Manifest
 		configBytes, err := repository.Blobs(ctx).Get(ctx, man.Config.Digest)
@@ -153,6 +157,9 @@ interpret:
 			Arch    string    `json:"architecture"`
 			Created time.Time `json:"created"`
 			OS      string    `json:"os"`
+			ContainerConfig struct {
+				Labels image.Labels `json:"labels"`
+			} `json:"container_config"`
 		}
 		if err = json.Unmarshal(configBytes, &config); err != nil {
 			return ImageEntry{}, err
@@ -160,6 +167,7 @@ interpret:
 		// This _is_ what Docker uses as its Image ID.
 		info.ImageID = man.Config.Digest.String()
 		info.CreatedAt = config.Created
+		info.Labels = config.ContainerConfig.Labels
 	case *manifestlist.DeserializedManifestList:
 		var list manifestlist.ManifestList = deserialised.ManifestList
 		// TODO(michael): is it valid to just pick the first one that matches?

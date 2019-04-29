@@ -103,13 +103,13 @@ func calculateChanges(logger log.Logger, candidateWorkloads resources, workloads
 					continue containers
 				}
 				current := repoMetadata.FindImageWithRef(currentImageID)
-				if current.CreatedAt.IsZero() || latest.CreatedAt.IsZero() {
-					logger.Log("warning", "image with zero created timestamp", "current", fmt.Sprintf("%s (%s)", current.ID, current.CreatedAt), "latest", fmt.Sprintf("%s (%s)", latest.ID, latest.CreatedAt), "action", "skip container")
+				if current.CreatedTS().IsZero() || latest.CreatedTS().IsZero() {
+					logger.Log("warning", "image with zero created timestamp", "current", fmt.Sprintf("%s (%s)", current.ID, current.CreatedTS()), "latest", fmt.Sprintf("%s (%s)", latest.ID, latest.CreatedTS()), "action", "skip container")
 					continue containers
 				}
 				newImage := currentImageID.WithNewTag(latest.ID.Tag)
 				changes.Add(workload.ID, container, newImage)
-				logger.Log("info", "added update to automation run", "new", newImage, "reason", fmt.Sprintf("latest %s (%s) > current %s (%s)", latest.ID.Tag, latest.CreatedAt, currentImageID.Tag, current.CreatedAt))
+				logger.Log("info", "added update to automation run", "new", newImage, "reason", fmt.Sprintf("latest %s (%s) > current %s (%s)", latest.ID.Tag, latest.CreatedTS(), currentImageID.Tag, current.CreatedTS()))
 			}
 		}
 	}
