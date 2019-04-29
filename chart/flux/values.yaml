@@ -7,7 +7,7 @@ replicaCount: 1
 
 image:
   repository: docker.io/weaveworks/flux
-  tag: 1.12.0
+  tag: 1.12.1
   pullPolicy: IfNotPresent
   pullSecret:
 
