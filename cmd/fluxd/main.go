@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -194,8 +195,11 @@ func main() {
 	// Silence access errors logged internally by client-go
 	k8slog := log.With(logger,
 		"type", "internal kubernetes error",
-		"ts", log.DefaultTimestampUTC,
-		"caller", log.Caller(5)) // we want to log one level deeper than k8sruntime.HandleError
+		"kubernetes_caller", log.Valuer(func() interface{} {
+			_, file, line, _ := runtime.Caller(5) // we want to log one level deeper than k8sruntime.HandleError
+			idx := strings.Index(file, "/vendor/")
+			return file[idx+1:] + ":" + strconv.Itoa(line)
+		}))
 	logErrorUnlessAccessRelated := func(err error) {
 		errLower := strings.ToLower(err.Error())
 		if k8serrors.IsForbidden(err) || k8serrors.IsNotFound(err) ||
