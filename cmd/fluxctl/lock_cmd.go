@@ -37,7 +37,7 @@ func (opts *workloadLockOpts) Command() *cobra.Command {
 
 	// Deprecated
 	cmd.Flags().StringVarP(&opts.workload, "controller", "c", "", "Controller to lock")
-	cmd.Flags().MarkDeprecated("controller", "changed to --workspace, use that instead")
+	cmd.Flags().MarkDeprecated("controller", "changed to --workload, use that instead")
 
 	return cmd
 }

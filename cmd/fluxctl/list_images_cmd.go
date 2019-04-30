@@ -42,7 +42,7 @@ func (opts *imageListOpts) Command() *cobra.Command {
 
 	// Deprecated
 	cmd.Flags().StringVarP(&opts.controller, "controller", "c", "", "Show images for this controller")
-	cmd.Flags().MarkDeprecated("controller", "changed to --workspace, use that instead")
+	cmd.Flags().MarkDeprecated("controller", "changed to --workload, use that instead")
 
 	return cmd
 }
