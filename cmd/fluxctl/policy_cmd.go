@@ -70,7 +70,7 @@ containers which aren't explicitly named.
 
 	// Deprecated
 	flags.StringVarP(&opts.controller, "controller", "c", "", "Controller to modify")
-	flags.MarkDeprecated("controller", "changed to --workspace, use that instead")
+	flags.MarkDeprecated("controller", "changed to --workload, use that instead")
 
 	return cmd
 }

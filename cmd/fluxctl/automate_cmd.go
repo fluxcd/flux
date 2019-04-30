@@ -37,7 +37,7 @@ func (opts *workloadAutomateOpts) Command() *cobra.Command {
 
 	// Deprecated
 	cmd.Flags().StringVarP(&opts.controller, "controller", "c", "", "Controller to automate")
-	cmd.Flags().MarkDeprecated("controller", "changed to --workspace, use that instead")
+	cmd.Flags().MarkDeprecated("controller", "changed to --workload, use that instead")
 
 	return cmd
 }
