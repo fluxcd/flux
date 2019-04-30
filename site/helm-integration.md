@@ -120,7 +120,7 @@ OK
 > either need to port forward before making the request or put something
 > in front of it to serve as a gatekeeper.
 
-#### Reinstalling a Helm release
+### Reinstalling a Helm release
 
 If a Helm release upgrade fails due to incompatible changes like modifying
 an immutable field (e.g. headless svc to ClusterIP)  
