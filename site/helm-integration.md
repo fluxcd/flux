@@ -7,6 +7,7 @@ menu_order: 90
   * [The `HelmRelease` custom resource](#the-helmrelease-custom-resource)
     + [Using a chart from a Git repo instead of a Helm repo](#using-a-chart-from-a-git-repo-instead-of-a-helm-repo)
       - [Notifying Helm Operator about Git changes](#notifying-helm-operator-about-git-changes)
+    + [Reinstalling a Helm release](#reinstalling-a-helm-release)
     + [What the Helm Operator does](#what-the-helm-operator-does)
   * [Supplying values to the chart](#supplying-values-to-the-chart)
     + [`.spec.values`](#specvalues)
@@ -118,6 +119,20 @@ OK
 > **Note:** the HTTP API has no built-in authentication, this means you
 > either need to port forward before making the request or put something
 > in front of it to serve as a gatekeeper.
+
+#### Reinstalling a Helm release
+
+If a Helm release upgrade fails due to incompatible changes like modifying
+an immutable field (e.g. headless svc to ClusterIP)  
+you can reinstall it using the following command:
+
+```sh
+$ kubectl delete hr/my-release
+```
+
+When the Helm Operator receives a delete event from Kubernetes API it will 
+call Tiller and purge the Helm release. On the next Flux sync, the Helm Release 
+object will be created and the Helm Operator will install it.
 
 ### What the Helm Operator does
 
