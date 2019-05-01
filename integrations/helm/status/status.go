@@ -102,18 +102,24 @@ bail:
 }
 
 func UpdateReleaseStatus(client v1beta1client.HelmReleaseInterface, fhr v1beta1.HelmRelease, releaseName, releaseStatus string) error {
-	fhr.Status.ReleaseName = releaseName
-	fhr.Status.ReleaseStatus = releaseStatus
+	cFhr, err := client.Get(fhr.Name, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
 
-	_, err := client.UpdateStatus(&fhr)
-
+	cFhr.Status.ReleaseName = releaseName
+	cFhr.Status.ReleaseStatus = releaseStatus
+	_, err = client.UpdateStatus(cFhr)
 	return err
 }
 
 func UpdateReleaseRevision(client v1beta1client.HelmReleaseInterface, fhr v1beta1.HelmRelease, revision string) error {
-	fhr.Status.Revision = revision
+	cFhr, err := client.Get(fhr.Name, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
 
-	_, err := client.UpdateStatus(&fhr)
-
+	cFhr.Status.Revision = revision
+	_, err = client.UpdateStatus(cFhr)
 	return err
 }
