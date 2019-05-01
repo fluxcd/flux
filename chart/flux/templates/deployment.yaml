@@ -191,6 +191,9 @@ spec:
           - --connect=wss://cloud.weave.works/api/flux
           - --token={{ .Values.token }}
           {{- end }}
+          {{- if .Values.syncGarbageCollection.enabled }}
+          - --sync-garbage-collection={{ .Values.syncGarbageCollection.enabled }}
+          {{- end }}
           {{- if .Values.additionalArgs }}
 {{ toYaml .Values.additionalArgs | indent 10 }}
           {{- end }}
