@@ -229,6 +229,9 @@ extraEnvs: []
 prometheus:
   enabled: false
 
+syncGarbageCollection:
+  enabled: false
+
 # Add your own init container or uncomment and modify the given example.
 initContainers: {}
 #   flux-init:  # <- will be used as container name

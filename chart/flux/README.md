@@ -276,6 +276,7 @@ The following tables lists the configurable parameters of the Weave Flux chart a
 | `helmOperator.affinity`                           | `{}`                                                 | Affinity properties for the helmOperator deployment
 | `kube.config`                                     | [See values.yaml](/chart/flux/values.yaml#L151-L165) | Override for kubectl default config in the Flux pod(s).
 | `prometheus.enabled`                              | `false`                                              | If enabled, adds prometheus annotations to Flux and helmOperator pod(s)
+| `syncGarbageCollection.enabled`                   | `false`                                              | If enabled, fluxd will delete resources that it created, but are no longer present in git (experimental, see [garbage collection](/site/garbagecollection.md))
 
 Specify each parameter using the `--set key=value[,key=value]` argument to `helm install`. For example:
 
