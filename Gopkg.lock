@@ -1108,7 +1108,6 @@
   name = "k8s.io/client-go"
   packages = [
     "discovery",
-    "discovery/cached",
     "discovery/cached/memory",
     "discovery/fake",
     "dynamic",
@@ -1349,6 +1348,7 @@
     "github.com/docker/distribution/registry/client/auth",
     "github.com/docker/distribution/registry/client/auth/challenge",
     "github.com/docker/distribution/registry/client/transport",
+    "github.com/evanphx/json-patch",
     "github.com/ghodss/yaml",
     "github.com/go-kit/kit/log",
     "github.com/go-kit/kit/metrics",
@@ -1390,10 +1390,11 @@
     "k8s.io/apimachinery/pkg/runtime/serializer",
     "k8s.io/apimachinery/pkg/types",
     "k8s.io/apimachinery/pkg/util/runtime",
+    "k8s.io/apimachinery/pkg/util/strategicpatch",
     "k8s.io/apimachinery/pkg/util/wait",
     "k8s.io/apimachinery/pkg/watch",
     "k8s.io/client-go/discovery",
-    "k8s.io/client-go/discovery/cached",
+    "k8s.io/client-go/discovery/cached/memory",
     "k8s.io/client-go/discovery/fake",
     "k8s.io/client-go/dynamic",
     "k8s.io/client-go/dynamic/fake",

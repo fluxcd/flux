@@ -26,12 +26,13 @@ godeps=$(shell go list -f '{{join .Deps "\n"}}' $1 | grep -v /vendor/ | xargs go
 FLUXD_DEPS:=$(call godeps,./cmd/fluxd)
 FLUXCTL_DEPS:=$(call godeps,./cmd/fluxctl)
 HELM_OPERATOR_DEPS:=$(call godeps,./cmd/helm-operator)
+KUBEDELTA_DEPS:=$(call godeps,./cmd/kubedelta)
 
 IMAGE_TAG:=$(shell ./docker/image-tag)
 VCS_REF:=$(shell git rev-parse HEAD)
 BUILD_DATE:=$(shell date -u +'%Y-%m-%dT%H:%M:%SZ')
 
-all: $(GOPATH)/bin/fluxctl $(GOPATH)/bin/fluxd $(GOPATH)/bin/helm-operator build/.flux.done build/.helm-operator.done
+all: $(GOPATH)/bin/fluxctl $(GOPATH)/bin/fluxd $(GOPATH)/bin/helm-operator $(GOPATH)/bin/kubedelta build/.flux.done build/.helm-operator.done
 
 release-bins:
 	for arch in amd64; do \
@@ -68,7 +69,7 @@ build/.%.done: docker/Dockerfile.%
 		-f build/docker/$*/Dockerfile.$* ./build/docker/$*
 	touch $@
 
-build/.flux.done: build/fluxd build/kubectl build/kustomize docker/ssh_config docker/kubeconfig docker/known_hosts.sh
+build/.flux.done: build/fluxd build/kubedelta build/kubectl build/kustomize docker/ssh_config docker/kubeconfig docker/known_hosts.sh
 build/.helm-operator.done: build/helm-operator build/kubectl build/helm docker/ssh_config docker/known_hosts.sh docker/helm-repositories.yaml
 
 build/fluxd: $(FLUXD_DEPS)
@@ -78,6 +79,10 @@ build/fluxd: cmd/fluxd/*.go
 build/helm-operator: $(HELM_OPERATOR_DEPS)
 build/helm-operator: cmd/helm-operator/*.go
 	CGO_ENABLED=0 GOOS=linux GOARCH=${ARCH} go build -o $@ $(LDFLAGS) -ldflags "-X main.version=$(shell ./docker/image-tag)" ./cmd/helm-operator
+
+build/kubedelta: $(KUBEDELTA_DEPS)
+build/kubedelta: cmd/kubedelta
+	CGO_ENABLED=0 GOOS=linux GOARCH=${ARCH} go build -o $@ $(LDFLAGS) -ldflags "-X main.version=$(shell ./docker/image-tag)" ./cmd/kubedelta
 
 build/kubectl: cache/linux-$(ARCH)/kubectl-$(KUBECTL_VERSION)
 test/bin/kubectl: cache/$(CURRENT_OS_ARCH)/kubectl-$(KUBECTL_VERSION)
@@ -122,6 +127,10 @@ $(GOPATH)/bin/fluxd: cmd/fluxd/*.go
 $(GOPATH)/bin/helm-operator: $(HELM_OPERATOR_DEPS)
 $(GOPATH)/bin/help-operator: cmd/helm-operator/*.go
 	go install ./cmd/helm-operator
+	
+$(GOPATH)/bin/kubedelta: $(KUBEDELTA_DEPS)
+$(GOPATH)/bin/kubedelta: cmd/kubedelta
+	go install ./cmd/kubedelta
 
 integration-test: all
 	test/bin/test-flux
