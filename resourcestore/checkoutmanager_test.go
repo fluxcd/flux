@@ -69,8 +69,9 @@ func TestSplitConfigFilesAndRawManifestPaths(t *testing.T) {
 	// create common config file for the environments
 	configFile := `---
 version: 1
-generators: 
-  - command: echo g1
+commandUpdated:
+  generators: 
+    - command: echo g1
 `
 	err := ioutil.WriteFile(filepath.Join(baseDir, "envs", ConfigFilename), []byte(configFile), 0700)
 	assert.NoError(t, err)
@@ -85,7 +86,9 @@ generators:
 	// We assume config files are processed in order to simplify the checks
 	assert.Equal(t, filepath.Join(baseDir, "envs/staging"), configFiles[0].WorkingDir)
 	assert.Equal(t, filepath.Join(baseDir, "envs/production"), configFiles[1].WorkingDir)
-	assert.Len(t, configFiles[0].Generators, 1)
-	assert.Equal(t, "echo g1", configFiles[0].Generators[0].Command)
-	assert.Equal(t, configFiles[0].Generators, configFiles[1].Generators)
+	assert.NotNil(t, configFiles[0].CommandUpdated)
+	assert.Len(t, configFiles[0].CommandUpdated.Generators, 1)
+	assert.Equal(t, "echo g1", configFiles[0].CommandUpdated.Generators[0].Command)
+	assert.NotNil(t, configFiles[1].CommandUpdated)
+	assert.Equal(t, configFiles[0].CommandUpdated.Generators, configFiles[0].CommandUpdated.Generators)
 }

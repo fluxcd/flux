@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 
 	"github.com/weaveworks/flux"
@@ -60,12 +61,17 @@ func NewCheckoutManager(ctx context.Context, enableManifestGeneration bool,
 		result.resourceStores = append(result.resourceStores, mfm)
 	}
 	for _, cf := range configFiles {
+		relConfigFilePath, err := filepath.Rel(checkout.Dir(), cf.Path)
+		if err != nil {
+			return nil, err
+		}
 		cfm := &configFileManager{
-			ctx:              ctx,
-			checkoutDir:      checkout.Dir(),
-			configFile:       cf,
-			manifests:        manifests,
-			policyTranslator: policyTranslator,
+			ctx:                  ctx,
+			checkout:             checkout,
+			configFile:           cf,
+			publicConfigFilePath: relConfigFilePath,
+			manifests:            manifests,
+			policyTranslator:     policyTranslator,
 		}
 		result.resourceStores = append(result.resourceStores, cfm)
 	}
@@ -123,26 +129,16 @@ func findConfigFilePaths(baseDir string, initialPath string) (string, string, er
 	}
 
 	// Make paths canonical and remove potential ending slash,
-	// for filepath.Dir() to work as we expect
-	baseDir, err = filepath.Abs(baseDir)
-	if err != nil {
-		return "", "", err
-	}
-	initialPath, err = filepath.Abs(initialPath)
-	if err != nil {
-		return "", "", err
-	}
-	baseDir = filepath.Clean(baseDir)
-	initialPath = filepath.Clean(initialPath)
-
-	// The initial path must be relative relative to baseDir
+	// for filepath.Dir() to work as we expect.
+	// Also, the initial path must be contained in baseDir
 	// (to make sure we don't escape the git checkout when
 	// moving upwards in the directory hierarchy)
-	if _, err := filepath.Rel(baseDir, initialPath); err != nil {
+	_, cleanInitialPath, err := cleanAndEnsurePaternity(baseDir, initialPath)
+	if err != nil {
 		return "", "", err
 	}
 
-	for path := initialPath; ; {
+	for path := cleanInitialPath; ; {
 		potentialConfigFilePath := filepath.Join(path, ConfigFilename)
 		if _, err := os.Stat(potentialConfigFilePath); err == nil {
 			return potentialConfigFilePath, initialPath, nil
@@ -252,4 +248,27 @@ func (cm *checkoutManager) resetCache() {
 	cm.Lock()
 	cm.cache = nil
 	cm.Unlock()
+}
+
+func cleanAndEnsurePaternity(basePath string, childPath string) (string, string, error) {
+	// Make paths canonical and remove potential ending slash,
+	// for filepath.Dir() to work as we expect
+	cleanBasePath, err := filepath.Abs(basePath)
+	if err != nil {
+		return "", "", err
+	}
+	cleanChildPath, err := filepath.Abs(childPath)
+	if err != nil {
+		return "", "", err
+	}
+	cleanBasePath = filepath.Clean(cleanBasePath)
+	cleanChildPath = filepath.Clean(cleanChildPath)
+
+	// The initial path must be relative to baseDir
+	// (to make sure we don't escape the git checkout when
+	// moving upwards in the directory hierarchy)
+	if !strings.HasPrefix(cleanChildPath, cleanBasePath) {
+		return "", "", fmt.Errorf("path %q is outside of base directory %s", childPath, basePath)
+	}
+	return cleanBasePath, cleanChildPath, nil
 }

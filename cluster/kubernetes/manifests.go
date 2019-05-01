@@ -139,4 +139,12 @@ func (m *manifests) SetWorkloadContainerImage(def []byte, id flux.ResourceID, co
 	return updateWorkload(def, id, container, image)
 }
 
+func (m *manifests) CreateManifestPatch(originalManifests, modifiedManifests []byte, originalSource, modifiedSource string) ([]byte, error) {
+	return CreateManifestPatch(originalManifests, modifiedManifests, originalSource, modifiedSource)
+}
+
+func (m *manifests) ApplyManifestPatch(originalManifests, patchManifests []byte, originalSource, patchSource string) ([]byte, error) {
+	return ApplyManifestPatch(originalManifests, patchManifests, originalSource, patchSource)
+}
+
 // UpdateWorkloadPolicies in policies.go

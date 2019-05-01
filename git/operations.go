@@ -74,6 +74,11 @@ func checkout(ctx context.Context, workingDir, ref string) error {
 	return execGitCmd(ctx, args, gitCmdConfig{dir: workingDir})
 }
 
+func add(ctx context.Context, workingDir, path string) error {
+	args := []string{"add", "--", path}
+	return execGitCmd(ctx, args, gitCmdConfig{dir: workingDir})
+}
+
 // checkPush sanity-checks that we can write to the upstream repo
 // (being able to `clone` is an adequate check that we can read the
 // upstream).
@@ -410,14 +415,10 @@ func env() []string {
 	return env
 }
 
-// check returns true if there are changes locally.
-func check(ctx context.Context, workingDir string, subdirs []string) bool {
+// check returns true if there are any local changes.
+func check(ctx context.Context, workingDir string) bool {
 	// `--quiet` means "exit with 1 if there are changes"
-	args := []string{"diff", "--quiet"}
-	args = append(args, "--")
-	if len(subdirs) > 0 {
-		args = append(args, subdirs...)
-	}
+	args := []string{"diff", "--quiet", "HEAD", "--"}
 	return execGitCmd(ctx, args, gitCmdConfig{dir: workingDir}) != nil
 }
 

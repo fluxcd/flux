@@ -22,8 +22,15 @@ const (
 )
 
 type ConfigFile struct {
+	Path       string
 	WorkingDir string
-	Version    string
+	Version    string `yaml:"version"`
+	// Only one of the following should be set simultaneously
+	CommandUpdated *CommandUpdated `yaml:"commandUpdated"`
+	PatchUpdated   *PatchUpdated   `yaml:"patchUpdated"`
+}
+
+type CommandUpdated struct {
 	Generators []Generator
 	Updaters   []Updater
 }
@@ -45,6 +52,11 @@ type AnnotationUpdater struct {
 	Command string
 }
 
+type PatchUpdated struct {
+	Generators []Generator
+	PatchFile  string `yaml:"patchFile"`
+}
+
 func NewConfigFile(path, workingDir string) (*ConfigFile, error) {
 	var result ConfigFile
 	fileBytes, err := ioutil.ReadFile(path)
@@ -54,7 +66,14 @@ func NewConfigFile(path, workingDir string) (*ConfigFile, error) {
 	if err := yaml.Unmarshal(fileBytes, &result); err != nil {
 		return nil, fmt.Errorf("cannot parse: %s", err)
 	}
+	result.Path = path
 	result.WorkingDir = workingDir
+	switch {
+	case result.CommandUpdated != nil && result.PatchUpdated != nil:
+		return nil, errors.New("either commandUpdated or patchUpdated should be defined")
+	case result.PatchUpdated != nil && result.PatchUpdated.PatchFile == "":
+		return nil, errors.New("patchUpdated's patchFile cannot be empty")
+	}
 	return &result, nil
 }
 
@@ -69,9 +88,9 @@ type ConfigFileCombinedExecResult struct {
 	Output []byte
 }
 
-func (cf *ConfigFile) ExecGenerators(ctx context.Context) []ConfigFileExecResult {
+func (cf *ConfigFile) ExecGenerators(ctx context.Context, generators []Generator) []ConfigFileExecResult {
 	result := []ConfigFileExecResult{}
-	for _, g := range cf.Generators {
+	for _, g := range generators {
 		stdErr := bytes.NewBuffer(nil)
 		stdOut := bytes.NewBuffer(nil)
 		err := cf.execCommand(ctx, nil, stdOut, stdErr, g.Command)
@@ -100,7 +119,11 @@ func (cf *ConfigFile) ExecContainerImageUpdaters(ctx context.Context,
 		"FLUX_TAG="+imageTag,
 	)
 	commands := []string{}
-	for _, u := range cf.Updaters {
+	var updaters []Updater
+	if cf.CommandUpdated != nil {
+		updaters = cf.CommandUpdated.Updaters
+	}
+	for _, u := range updaters {
 		commands = append(commands, u.ContainerImage.Command)
 	}
 	return cf.execCommandsWithCombinedOutput(ctx, env, commands)
@@ -116,7 +139,11 @@ func (cf *ConfigFile) ExecAnnotationUpdaters(ctx context.Context,
 		env = append(env, "FLUX_ANNOTATION_VALUE="+*annotationValue)
 	}
 	commands := []string{}
-	for _, u := range cf.Updaters {
+	var updaters []Updater
+	if cf.CommandUpdated != nil {
+		updaters = cf.CommandUpdated.Updaters
+	}
+	for _, u := range updaters {
 		commands = append(commands, u.Annotation.Command)
 	}
 	return cf.execCommandsWithCombinedOutput(ctx, env, commands)
