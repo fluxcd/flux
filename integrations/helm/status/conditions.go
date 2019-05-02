@@ -3,6 +3,7 @@ package status
 import (
 	"github.com/weaveworks/flux/integrations/apis/flux.weave.works/v1beta1"
 	v1beta1client "github.com/weaveworks/flux/integrations/client/clientset/versioned/typed/flux.weave.works/v1beta1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // We can't rely on having UpdateStatus, or strategic merge patching
@@ -27,13 +28,16 @@ updates:
 	status.Conditions = newConditions
 }
 
-// UpdateConditions applies the updates to the HelmRelease given, and
-// updates the resource in the cluster.
-func UpdateConditions(client v1beta1client.HelmReleaseInterface, fhr *v1beta1.HelmRelease, updates ...v1beta1.HelmReleaseCondition) error {
-	fhrCopy := fhr.DeepCopy()
+// UpdateConditions retrieves a new copy of the HelmRelease given,
+// applies the updates to this copy, and updates the resource in the
+// cluster.
+func UpdateConditions(client v1beta1client.HelmReleaseInterface, fhr v1beta1.HelmRelease, updates ...v1beta1.HelmReleaseCondition) error {
+	cFhr, err := client.Get(fhr.Name, v1.GetOptions{})
+	if err != nil {
+		return err
+	}
 
-	UpdateConditionsPatch(&fhrCopy.Status, updates...)
-	_, err := client.UpdateStatus(fhrCopy)
-
+	UpdateConditionsPatch(&cFhr.Status, updates...)
+	_, err = client.UpdateStatus(cFhr)
 	return err
 }

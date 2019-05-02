@@ -282,8 +282,19 @@ func (c *Controller) enqueueUpdateJob(old, new interface{}) {
 		return
 	}
 
-	log := []string{"info", "enqueuing release upgrade"}
-	if diff := cmp.Diff(oldFhr.Spec, newFhr.Spec); diff != "" && c.logDiffs {
+	diff := cmp.Diff(oldFhr.Spec, newFhr.Spec)
+
+	// Filter out any update notifications that are due to status
+	// updates, as the dry-run that determines if we should upgrade
+	// is expensive, but _without_ filtering out updates that are
+	// from the periodic refresh, as we still want to detect (and
+	// undo) mutations to Helm charts.
+	if sDiff := cmp.Diff(oldFhr.Status, newFhr.Status); diff == "" && sDiff != "" {
+		return
+	}
+
+	log := []string{"info", "enqueuing release"}
+	if diff != "" && c.logDiffs {
 		log = append(log, "diff", diff)
 	}
 	log = append(log, "resource", newFhr.ResourceID().String())
