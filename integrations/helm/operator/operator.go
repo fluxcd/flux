@@ -23,6 +23,7 @@ import (
 	fhrv1 "github.com/weaveworks/flux/integrations/client/informers/externalversions/flux.weave.works/v1beta1"
 	iflister "github.com/weaveworks/flux/integrations/client/listers/flux.weave.works/v1beta1"
 	"github.com/weaveworks/flux/integrations/helm/chartsync"
+	"github.com/weaveworks/flux/integrations/helm/status"
 )
 
 const (
@@ -96,8 +97,8 @@ func New(
 	// ----- EVENT HANDLERS for HelmRelease resources change ---------
 	fhrInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(new interface{}) {
-			_, ok := checkCustomResourceType(controller.logger, new)
-			if ok {
+			fhr, ok := checkCustomResourceType(controller.logger, new)
+			if ok && !status.HasRolledBack(fhr) {
 				controller.enqueueJob(new)
 			}
 		},
@@ -224,6 +225,12 @@ func (c *Controller) syncHandler(key string) error {
 		return err
 	}
 
+	// (Maybe) attempt a rollback if the release has failed.
+	if status.ReleaseFailed(*fhr) {
+		c.sync.RollbackRelease(*fhr)
+		return nil
+	}
+
 	c.sync.ReconcileReleaseDef(*fhr)
 	c.recorder.Event(fhr, corev1.EventTypeNormal, ChartSynced, MessageChartSynced)
 	return nil
@@ -274,6 +281,16 @@ func (c *Controller) enqueueUpdateJob(old, new interface{}) {
 		return
 	}
 
+	// Enqueue rollback if the roll-out of the release failed and
+	// rollbacks are enabled.
+	if oldFhr.Status.ReleaseStatus != newFhr.Status.ReleaseStatus {
+		if newFhr.Spec.Rollback.Enable && status.ReleaseFailed(newFhr) {
+			c.logger.Log("info", "enqueing rollback", "resource", newFhr.ResourceID().String())
+			c.enqueueJob(new)
+			return
+		}
+	}
+
 	diff := cmp.Diff(oldFhr.Spec, newFhr.Spec)
 
 	// Filter out any update notifications that are due to status
@@ -282,6 +299,13 @@ func (c *Controller) enqueueUpdateJob(old, new interface{}) {
 	// from the periodic refresh, as we still want to detect (and
 	// undo) mutations to Helm charts.
 	if sDiff := cmp.Diff(oldFhr.Status, newFhr.Status); diff == "" && sDiff != "" {
+		return
+	}
+
+	// Skip if the current HelmRelease generation has been rolled
+	// back, as otherwise we will end up in a loop of failure.
+	if status.HasRolledBack(newFhr) {
+		c.logger.Log("warning", "release has been rolled back, skipping", "resource", newFhr.ResourceID().String())
 		return
 	}
 

@@ -97,11 +97,31 @@ func (r *Release) GetUpgradableRelease(name string) (*hapi_release.Release, erro
 	}
 }
 
+// shouldRollback determines if a release should be rolled back
+// based on the status of the Helm release.
+func (r *Release) shouldRollback(name string) (bool, error) {
+	rls, err := r.HelmClient.ReleaseStatus(name)
+	if err != nil {
+		return false, err
+	}
+
+	status := rls.GetInfo().GetStatus()
+	switch status.Code {
+	case hapi_release.Status_FAILED:
+		r.logger.Log("info", "rolling back release", "release", name)
+		return true, nil
+	case hapi_release.Status_PENDING_ROLLBACK:
+		r.logger.Log("info", "release already has a rollback pending", "release", name)
+		return false, nil
+	default:
+		return false, fmt.Errorf("release with status %s cannot be rolled back", status.Code.String())
+	}
+}
+
 func (r *Release) canDelete(name string) (bool, error) {
 	rls, err := r.HelmClient.ReleaseStatus(name)
 
 	if err != nil {
-		r.logger.Log("error", fmt.Sprintf("Error finding status for release (%s): %#v", name, err))
 		return false, err
 	}
 	/*
@@ -124,7 +144,6 @@ func (r *Release) canDelete(name string) (bool, error) {
 		r.logger.Log("info", fmt.Sprintf("Release %s already deleted", name))
 		return false, nil
 	default:
-		r.logger.Log("info", fmt.Sprintf("Release %s with status %s cannot be deleted", name, status.Code.String()))
 		return false, fmt.Errorf("release %s with status %s cannot be deleted", name, status.Code.String())
 	}
 }
@@ -242,6 +261,43 @@ func (r *Release) Install(chartPath, releaseName string, fhr flux_v1beta1.HelmRe
 		r.logger.Log("error", err.Error())
 		return nil, err
 	}
+}
+
+// Rollback rolls back a Chart release if required
+func (r *Release) Rollback(name string, timeout int64, force, recreate, disableHooks, wait bool) error {
+	ok, err := r.shouldRollback(name)
+	if !ok {
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+
+	history, err := r.HelmClient.ReleaseHistory(name, k8shelm.WithMaxHistory(5))
+	if err != nil {
+		return err
+	}
+
+	var version int32
+	for _, rls := range history.GetReleases() {
+		if rls.Info.Status.Code == hapi_release.Status_DEPLOYED {
+			version = rls.Version
+			break
+		}
+	}
+
+	if version == 0 {
+		return fmt.Errorf("failed to determine what version to rollback to")
+	}
+
+	_, err = r.HelmClient.RollbackRelease(name, k8shelm.RollbackVersion(version), k8shelm.RollbackTimeout(timeout),
+		k8shelm.RollbackForce(force), k8shelm.RollbackRecreate(recreate), k8shelm.RollbackDisableHooks(disableHooks),
+		k8shelm.RollbackWait(wait), k8shelm.RollbackDescription("Automated rollback by Helm operator"))
+	if err != nil {
+		return err
+	}
+	r.logger.Log("info", "rolled back release", "release", name, "version", version)
+	return err
 }
 
 // Delete purges a Chart release

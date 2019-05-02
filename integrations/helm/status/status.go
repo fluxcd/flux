@@ -17,34 +17,38 @@ import (
 	"time"
 
 	"github.com/go-kit/kit/log"
+	"k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kube "k8s.io/client-go/kubernetes"
 	"k8s.io/helm/pkg/helm"
+	helmrelease "k8s.io/helm/pkg/proto/hapi/release"
 
 	"github.com/weaveworks/flux/integrations/apis/flux.weave.works/v1beta1"
-	fluxclientset "github.com/weaveworks/flux/integrations/client/clientset/versioned"
+	ifclientset "github.com/weaveworks/flux/integrations/client/clientset/versioned"
+	iflister "github.com/weaveworks/flux/integrations/client/listers/flux.weave.works/v1beta1"
 	v1beta1client "github.com/weaveworks/flux/integrations/client/clientset/versioned/typed/flux.weave.works/v1beta1"
 )
 
 const period = 10 * time.Second
 
 type Updater struct {
-	fluxhelm   fluxclientset.Interface
+	hrClient   ifclientset.Interface
+	hrLister   iflister.HelmReleaseLister
 	kube       kube.Interface
 	helmClient *helm.Client
 	namespace  string
 }
 
-func New(fhrClient fluxclientset.Interface, kubeClient kube.Interface, helmClient *helm.Client, namespace string) *Updater {
+func New(hrClient ifclientset.Interface, hrLister iflister.HelmReleaseLister, helmClient *helm.Client) *Updater {
 	return &Updater{
-		fluxhelm:   fhrClient,
-		kube:       kubeClient,
+		hrClient:   hrClient,
+		hrLister:   hrLister,
 		helmClient: helmClient,
-		namespace:  namespace,
 	}
 }
 
-func (a *Updater) Loop(stop <-chan struct{}, logger log.Logger) {
+func (u *Updater) Loop(stop <-chan struct{}, logger log.Logger) {
 	ticker := time.NewTicker(period)
 	var logErr error
 
@@ -55,43 +59,23 @@ bail:
 			break bail
 		case <-ticker.C:
 		}
-		var namespaces []string
-		if a.namespace != "" {
-			namespaces = append(namespaces, a.namespace)
-		} else {
-			all, err := a.kube.CoreV1().Namespaces().List(metav1.ListOptions{})
-			if err != nil {
-				logErr = err
-				break bail
-			}
-			for _, ns := range all.Items {
-				namespaces = append(namespaces, ns.Name)
-			}
+		list, err := u.hrLister.List(labels.Everything())
+		if err != nil {
+			logErr = err
+			break bail
 		}
-
-		// Look up HelmReleases
-		for _, ns := range namespaces {
-			fhrClient := a.fluxhelm.FluxV1beta1().HelmReleases(ns)
-			fhrs, err := fhrClient.List(metav1.ListOptions{})
-			if err != nil {
-				logErr = err
-				break bail
+		for _, hr := range list {
+			nsHrClient :=  u.hrClient.FluxV1beta1().HelmReleases(hr.Namespace)
+			releaseName := hr.ReleaseName()
+			releaseStatus, _ := u.helmClient.ReleaseStatus(releaseName)
+			// If we are unable to get the status, we do not care why
+			if releaseStatus == nil {
+				continue
 			}
-			for _, fhr := range fhrs.Items {
-				releaseName := fhr.ReleaseName()
-				// If we don't get the content, we don't care why
-				content, _ := a.helmClient.ReleaseContent(releaseName)
-				if content == nil {
-					continue
-				}
-				status := content.GetRelease().GetInfo().GetStatus()
-				if status.GetCode().String() != fhr.Status.ReleaseStatus {
-					err := UpdateReleaseStatus(fhrClient, fhr, releaseName, status.GetCode().String())
-					if err != nil {
-						logger.Log("namespace", ns, "resource", fhr.Name, "err", err)
-						continue
-					}
-				}
+			statusStr := releaseStatus.Info.Status.Code.String()
+			if err := SetReleaseStatus(nsHrClient, *hr, releaseName, statusStr); err != nil {
+				logger.Log("namespace", hr.Namespace, "resource", hr.Name, "err", err)
+				continue
 			}
 		}
 	}
@@ -100,25 +84,91 @@ bail:
 	logger.Log("loop", "stopping", "err", logErr)
 }
 
-func UpdateReleaseStatus(client v1beta1client.HelmReleaseInterface, fhr v1beta1.HelmRelease, releaseName, releaseStatus string) error {
-	cFhr, err := client.Get(fhr.Name, metav1.GetOptions{})
+
+// SetReleaseStatus updates the status of the HelmRelease to the given
+// release name and/or release status.
+func SetReleaseStatus(client v1beta1client.HelmReleaseInterface, hr v1beta1.HelmRelease, releaseName, releaseStatus string) error {
+	cHr, err := client.Get(hr.Name, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
 
-	cFhr.Status.ReleaseName = releaseName
-	cFhr.Status.ReleaseStatus = releaseStatus
-	_, err = client.UpdateStatus(cFhr)
+	if cHr.Status.ReleaseName == releaseName && cHr.Status.ReleaseStatus == releaseStatus {
+		return nil
+	}
+
+	cHr.Status.ReleaseName = releaseName
+	cHr.Status.ReleaseStatus = releaseStatus
+
+	_, err = client.UpdateStatus(cHr)
 	return err
 }
 
-func UpdateReleaseRevision(client v1beta1client.HelmReleaseInterface, fhr v1beta1.HelmRelease, revision string) error {
-	cFhr, err := client.Get(fhr.Name, metav1.GetOptions{})
+
+// SetReleaseRevision updates the status of the HelmRelease to the
+// given revision.
+func SetReleaseRevision(client v1beta1client.HelmReleaseInterface, hr v1beta1.HelmRelease, revision string) error {
+	cHr, err := client.Get(hr.Name, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
 
-	cFhr.Status.Revision = revision
-	_, err = client.UpdateStatus(cFhr)
+	if cHr.Status.Revision == revision {
+		return nil
+	}
+
+	cHr.Status.Revision = revision
+
+	_, err = client.UpdateStatus(cHr)
 	return err
+}
+
+// SetObservedGeneration updates the observed generation status of the
+// HelmRelease to the given generation.
+func SetObservedGeneration(client v1beta1client.HelmReleaseInterface, hr v1beta1.HelmRelease, generation int64) error {
+	cHr, err := client.Get(hr.Name, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+
+	if cHr.Status.ObservedGeneration >= generation {
+		return nil
+	}
+
+	cHr.Status.ObservedGeneration = generation
+
+	_, err = client.UpdateStatus(cHr)
+	return err
+}
+
+// ReleaseFailed returns if the roll-out of the HelmRelease failed.
+func ReleaseFailed(hr v1beta1.HelmRelease) bool {
+	return hr.Status.ReleaseStatus == helmrelease.Status_FAILED.String()
+}
+
+
+// HasSynced returns if the HelmRelease has been processed by the
+// controller.
+func HasSynced(hr v1beta1.HelmRelease) bool {
+	return hr.Status.ObservedGeneration >= hr.Generation
+}
+
+// HasRolledBack returns if the current generation of the HelmRelease
+// has been rolled back.
+func HasRolledBack(hr v1beta1.HelmRelease) bool {
+	if !HasSynced(hr) {
+		return false
+	}
+
+	rolledBack := GetCondition(hr.Status, v1beta1.HelmReleaseRolledBack)
+	if rolledBack == nil {
+		return false
+	}
+
+	chartFetched := GetCondition(hr.Status, v1beta1.HelmReleaseChartFetched)
+	if chartFetched != nil {
+		return !(chartFetched.Status == v1.ConditionTrue && rolledBack.LastUpdateTime.Before(&chartFetched.LastUpdateTime))
+	}
+
+	return rolledBack.Status == v1.ConditionTrue
 }

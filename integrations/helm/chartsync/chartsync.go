@@ -42,14 +42,13 @@ import (
 	"sync"
 	"time"
 
-	"k8s.io/apimachinery/pkg/labels"
-
 	"github.com/go-kit/kit/log"
 	google_protobuf "github.com/golang/protobuf/ptypes/any"
 	"github.com/google/go-cmp/cmp"
 	"github.com/ncabatoff/go-seq/seq"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
@@ -74,6 +73,7 @@ const (
 	ReasonInstallFailed    = "HelmInstallFailed"
 	ReasonDependencyFailed = "UpdateDependencyFailed"
 	ReasonUpgradeFailed    = "HelmUgradeFailed"
+	ReasonRollbackFailed   = "HelmRollbackFailed"
 	ReasonCloned           = "GitRepoCloned"
 	ReasonSuccess          = "HelmSuccess"
 )
@@ -291,6 +291,8 @@ func (chs *ChartChangeSync) ReconcileReleaseDef(fhr fluxv1beta1.HelmRelease) {
 // HelmRelease resource, and either installs, upgrades, or does
 // nothing, depending on the state (or absence) of the release.
 func (chs *ChartChangeSync) reconcileReleaseDef(fhr fluxv1beta1.HelmRelease) {
+	defer chs.updateObservedGeneration(fhr)
+
 	releaseName := fhr.ReleaseName()
 
 	// Attempt to retrieve an upgradable release, in case no release
@@ -376,7 +378,7 @@ func (chs *ChartChangeSync) reconcileReleaseDef(fhr fluxv1beta1.HelmRelease) {
 			return
 		}
 		chs.setCondition(fhr, fluxv1beta1.HelmReleaseReleased, v1.ConditionTrue, ReasonSuccess, "helm install succeeded")
-		if err = status.UpdateReleaseRevision(chs.ifClient.FluxV1beta1().HelmReleases(fhr.Namespace), fhr, chartRevision); err != nil {
+		if err = status.SetReleaseRevision(chs.ifClient.FluxV1beta1().HelmReleases(fhr.Namespace), fhr, chartRevision); err != nil {
 			chs.logger.Log("warning", "could not update the release revision", "resource", fhr.ResourceID().String(), "err", err)
 		}
 		return
@@ -411,11 +413,29 @@ func (chs *ChartChangeSync) reconcileReleaseDef(fhr fluxv1beta1.HelmRelease) {
 			return
 		}
 		chs.setCondition(fhr, fluxv1beta1.HelmReleaseReleased, v1.ConditionTrue, ReasonSuccess, "helm upgrade succeeded")
-		if err = status.UpdateReleaseRevision(chs.ifClient.FluxV1beta1().HelmReleases(fhr.Namespace), fhr, chartRevision); err != nil {
+		if err = status.SetReleaseRevision(chs.ifClient.FluxV1beta1().HelmReleases(fhr.Namespace), fhr, chartRevision); err != nil {
 			chs.logger.Log("warning", "could not update the release revision", "resource", fhr.ResourceID().String(), "err", err)
 		}
 		return
 	}
+}
+
+// RollbackRelease rolls back a helm release
+func (chs *ChartChangeSync) RollbackRelease(fhr fluxv1beta1.HelmRelease) {
+	defer chs.updateObservedGeneration(fhr)
+
+	if !fhr.Spec.Rollback.Enable {
+		return
+	}
+
+	name := fhr.ReleaseName()
+	err := chs.release.Rollback(name, fhr.Spec.Rollback.GetTimeout(), fhr.Spec.Rollback.Force,
+		fhr.Spec.Rollback.Recreate, fhr.Spec.Rollback.DisableHooks, fhr.Spec.Rollback.Wait)
+	if err != nil {
+		chs.logger.Log("warning", "unable to rollback chart release", "resource", fhr.ResourceID().String(), "release", name, "err", err)
+		chs.setCondition(fhr, fluxv1beta1.HelmReleaseRolledBack, v1.ConditionFalse, ReasonRollbackFailed, err.Error())
+	}
+	chs.setCondition(fhr, fluxv1beta1.HelmReleaseRolledBack, v1.ConditionTrue, ReasonSuccess, "helm rollback succeeded")
 }
 
 // DeleteRelease deletes the helm release associated with a
@@ -471,26 +491,19 @@ func (chs *ChartChangeSync) getCustomResourcesForMirror(mirror string) ([]fluxv1
 	return fhrs, nil
 }
 
-// setCondition saves the status of a condition, if it's new
-// information. New information is something that adds or changes the
-// status, reason or message (i.e., anything but the transition time)
-// for one of the types of condition.
-func (chs *ChartChangeSync) setCondition(fhr fluxv1beta1.HelmRelease, typ fluxv1beta1.HelmReleaseConditionType, st v1.ConditionStatus, reason, message string) error {
-	for _, c := range fhr.Status.Conditions {
-		if c.Type == typ && c.Status == st && c.Message == message && c.Reason == reason {
-			return nil
-		}
-	}
+// setCondition saves the status of a condition.
+func (chs *ChartChangeSync) setCondition(hr fluxv1beta1.HelmRelease, typ fluxv1beta1.HelmReleaseConditionType, st v1.ConditionStatus, reason, message string) error {
+	hrClient := chs.ifClient.FluxV1beta1().HelmReleases(hr.Namespace)
+	condition := status.NewCondition(typ, st, reason, message)
+	return status.SetCondition(hrClient, hr, condition)
+}
 
-	fhrClient := chs.ifClient.FluxV1beta1().HelmReleases(fhr.Namespace)
-	cond := fluxv1beta1.HelmReleaseCondition{
-		Type:               typ,
-		Status:             st,
-		LastTransitionTime: metav1.Now(),
-		Reason:             reason,
-		Message:            message,
-	}
-	return status.UpdateConditions(fhrClient, fhr, cond)
+// updateObservedGeneration updates the observed generation of the
+// given HelmRelease to the generation.
+func (chs *ChartChangeSync) updateObservedGeneration(hr fluxv1beta1.HelmRelease) error {
+	hrClient := chs.ifClient.FluxV1beta1().HelmReleases(hr.Namespace)
+
+	return status.SetObservedGeneration(hrClient, hr, hr.Generation)
 }
 
 func sortStrings(ss []string) []string {
