@@ -17,7 +17,6 @@ menu_order: 90
       * [External sources](#external-sources)
       * [Chart files](#chart-files)
   * [Upgrading images in a `HelmRelease` using Flux](#upgrading-images-in-a-helmrelease-using-flux)
-    + [Using annotations to control updates to HelmRelease resources](#using-annotations-to-control-updates-to-helmrelease-resources)
   * [Authentication](#authentication)
     + [Authentication for Helm repos](#authentication-for-helm-repos)
       - [Azure ACR repositories](#azure-acr-repositories)
@@ -293,14 +292,49 @@ values:
     port: 4040
 ```
 
-### Using annotations to control updates to `HelmRelease` resources
-
 You can use the [same annotations](./fluxctl.md#using-annotations) in
 the `HelmRelease` as you would for a Deployment or other workload,
 to control updates and automation. For the purpose of specifying
 filters, the container name is either `chart-image` (if at the top
 level), or the key under which the image is given (e.g., `"subsystem"`
 from the example above).
+
+Top level image example:
+
+```yaml
+kind: HelmRelease
+metadata:
+  annotations:
+    flux.weave.works/automated: "true"
+    flux.weave.works/tag.chart-image: semver:~4.0
+spec:
+  values:
+    image:
+      repository: bitnami/mongodb
+      tag: 4.0.3
+```
+
+Sub-section images example:
+
+```yaml
+kind: HelmRelease
+metadata:
+  annotations:
+    flux.weave.works/automated: "true"
+    flux.weave.works/tag.prometheus: semver:~2.3
+    flux.weave.works/tag.alertmanager: glob:v0.15.*
+    flux.weave.works/tag.nats: regex:^0.6.*
+spec:
+  values:
+    prometheus:
+      image: prom/prometheus:v2.3.1
+    alertmanager:
+      image: prom/alertmanager:v0.15.0
+    nats:
+      image:
+        repository: nats-streaming
+        tag: 0.6.0
+```
 
 -------------
 
