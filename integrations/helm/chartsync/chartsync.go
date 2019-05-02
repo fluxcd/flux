@@ -293,11 +293,13 @@ func (chs *ChartChangeSync) ReconcileReleaseDef(fhr fluxv1beta1.HelmRelease) {
 func (chs *ChartChangeSync) reconcileReleaseDef(fhr fluxv1beta1.HelmRelease) {
 	releaseName := release.GetReleaseName(fhr)
 
-	// There's no exact way in the Helm API to test whether a release
-	// exists or not. Instead, try to fetch it, and treat an error as
-	// not existing (and possibly fail further below, if it meant
-	// something else).
-	rel, _ := chs.release.GetDeployedRelease(releaseName)
+	// Attempt to retrieve an upgradable release, in case no release
+	// or error is returned, install it.
+	rel, err := chs.release.GetUpgradableRelease(releaseName)
+	if err != nil {
+		chs.logger.Log("warning", "unable to proceed with release", "resource", fhr.ResourceID().String(), "release", releaseName, "err", err)
+		return
+	}
 
 	opts := release.InstallOptions{DryRun: false}
 
