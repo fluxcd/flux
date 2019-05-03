@@ -120,7 +120,7 @@ built).
 ### Is there any special directory layout I need in my git repo?
 
 Nope. Flux doesn't place any significance on the directory structure,
-and will descend into subdirectories in search of YAMLs. It avoids
+and will descend into subdirectories in search of YAMLs. Although [kubectl works with JSON files](https://kubernetes.io/docs/concepts/configuration/overview/#using-kubectl), Flux will ignore JSON. It avoids
 directories that look like Helm charts.
 
 If you have YAML files in the repo that _aren't_ for applying to
