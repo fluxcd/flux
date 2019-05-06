@@ -266,7 +266,7 @@ func TestSyncTolerateEmptyGroupVersion(t *testing.T) {
 
 	// Add a GroupVersion without API Resources
 	fakeClient := kube.client.coreClient.(*corefake.Clientset)
-	fakeClient.Resources = append(fakeClient.Resources, &metav1.APIResourceList{GroupVersion: "custom.metrics.k8s.io/v1beta1"})
+	fakeClient.Resources = append(fakeClient.Resources, &metav1.APIResourceList{GroupVersion: "foo.bar/v1"})
 
 	// We should tolerate the error caused in the cache due to the
 	// GroupVersion being empty
@@ -274,6 +274,38 @@ func TestSyncTolerateEmptyGroupVersion(t *testing.T) {
 	assert.NoError(t, err)
 
 	// No errors the second time either
+	err = kube.Sync(cluster.SyncSet{})
+	assert.NoError(t, err)
+}
+
+type failingDiscoveryClient struct {
+	discovery.DiscoveryInterface
+}
+
+func (d *failingDiscoveryClient) ServerResourcesForGroupVersion(groupVersion string) (*metav1.APIResourceList, error) {
+	return nil, errors.NewServiceUnavailable("")
+}
+
+func TestSyncTolerateMetricsErrors(t *testing.T) {
+	kube, _, cancel := setup(t)
+
+	// Replace the discovery client by one returning errors when asking for resources
+	cancel()
+	crdClient := crdfake.NewSimpleClientset()
+	shutdown := make(chan struct{})
+	defer close(shutdown)
+	newDiscoveryClient := &failingDiscoveryClient{kube.client.coreClient.Discovery()}
+	kube.client.discoveryClient = MakeCachedDiscovery(newDiscoveryClient, crdClient, shutdown)
+
+	// Check that syncing results in an error for groups other than metrics
+	fakeClient := kube.client.coreClient.(*corefake.Clientset)
+	fakeClient.Resources = []*metav1.APIResourceList{{GroupVersion: "foo.bar/v1"}}
+	err := kube.Sync(cluster.SyncSet{})
+	assert.Error(t, err)
+
+	// Check that syncing doesn't result in an error for a metrics group
+	kube.client.discoveryClient.(*cachedDiscovery).CachedDiscoveryInterface.Invalidate()
+	fakeClient.Resources = []*metav1.APIResourceList{{GroupVersion: "custom.metrics.k8s.io/v1"}}
 	err = kube.Sync(cluster.SyncSet{})
 	assert.NoError(t, err)
 }
