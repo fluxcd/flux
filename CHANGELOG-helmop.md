@@ -1,3 +1,56 @@
+## 0.9.0 (2019-05-08)
+
+### Bug fixes
+
+ - Make sure client-go logs to stderr
+   [weaveworks/flux#1945][#1945]
+ - Prevent garbage collected `HelmRelease`s from getting upgraded
+   [weaveworks/flux#1906][#1906]
+
+### Improvements
+
+ - Enqueue release update on git chart source changes and improve
+   mirror change calculations
+   [weaveworks/flux#1906][#1906], [weaveworks/flux#2005][#2005]
+ - The operator now checks if the `HelmRelease` spec has changed after
+   it performed a dry-run, this prevents scenarios where it could
+   enroll an older revision of a `HelmRelease` while a newer version
+   was already known
+   [weaveworks/flux#1906][#1906]
+ - Stop logging broadcasted Kubernetes events
+   [weaveworks/flux#1906][#1906]
+ - Log and return early if release is not upgradable
+   [weaveworks/flux#2008][#2008]
+
+### Maintenance and documentation
+
+ - Update client-go to `v1.11`
+   [weaveworks/flux#1929][#1929]
+ - Move images to DockerHub and have a separate pre-releases image repo
+   [weaveworks/flux#1949][#1949], [weaveworks/flux#1956][#1956]
+ - Support `arm` and `arm64` builds
+   [weaveworks/flux#1950][#1950]
+ - Retry keyscan when building images, to mitigate for occasional
+   timeouts
+   [weaveworks/flux#1971][#1971]
+
+### Thanks
+
+Thanks @brezerk, @jpds, @stefanprodan, @2opremio, @hiddeco, @squaremo,
+@dholbach, @bboreham, @bricef and @stevenpall for their contributions
+to this release, and anyone who I have missed during this manual
+labour.
+
+[#1906]: https://github.com/weaveworks/flux/pull/1906
+[#1929]: https://github.com/weaveworks/flux/pull/1929
+[#1945]: https://github.com/weaveworks/flux/pull/1945
+[#1949]: https://github.com/weaveworks/flux/pull/1949
+[#1950]: https://github.com/weaveworks/flux/pull/1950
+[#1956]: https://github.com/weaveworks/flux/pull/1956
+[#1971]: https://github.com/weaveworks/flux/pull/1971
+[#2005]: https://github.com/weaveworks/flux/pull/2005
+[#2008]: https://github.com/weaveworks/flux/pull/2008
+
 ## 0.8.0 (2019-04-11)
 
 This release bumps the Helm API package and binary to `v2.13.0`;
@@ -26,17 +79,17 @@ recommend running Tiller `>=2.13.0` from now on.
  - Use Helm operator image from build in e2e tests
    [weaveworks/flux#1910][#1910]
 
-[#1828]: https://github.com/weaveworks/flux/pull/1828
-[#1865]: https://github.com/weaveworks/flux/pull/1865
-[#1908]: https://github.com/weaveworks/flux/pull/1908
-[#1909]: https://github.com/weaveworks/flux/pull/1909
-[#1910]: https://github.com/weaveworks/flux/pull/1910
-
 ### Thanks
 
 Thanks to @hpurmann, @2opremio, @arturo-c, @squaremo, @stefanprodan,
 @hiddeco, and others for their contributions to this release, feedback,
 and bringing us one step closer to a GA-release.
+
+[#1828]: https://github.com/weaveworks/flux/pull/1828
+[#1865]: https://github.com/weaveworks/flux/pull/1865
+[#1908]: https://github.com/weaveworks/flux/pull/1908
+[#1909]: https://github.com/weaveworks/flux/pull/1909
+[#1910]: https://github.com/weaveworks/flux/pull/1910
 
 ## 0.7.1 (2019-03-27)
 
