@@ -18,10 +18,12 @@ confinement: strict
 base: core18
 
 plugs:
-  system-files:
-    read: [/etc/kube/config]
   personal-files:
-    read: [$HOME/.kube/config]
+    read:
+      - $HOME/.kube/config
+      - $HOME/.minikube/client.key
+      - $HOME/.minikube/client.crt
+      - $HOME/.minikube/ca.crt
 
 parts:
   fluxctl:
