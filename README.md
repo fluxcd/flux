@@ -70,6 +70,7 @@ Its major features are:
 - [Under Armour](https://www.underarmour.com)
 - [VSHN](https://vshn.ch)
 - [Weave Cloud](https://cloud.weave.works)
+- [Babylon Health](https://www.babylonhealth.com/)
 
 If you too are using Flux in production; please submit a PR to add your organization to the list!
 
