@@ -14,8 +14,14 @@ description: |
   fluxctl talks to your Weave Flux instance and exposes all its
   functionality to an easy to use command line interface.
 grade: devel # must be 'stable' to release into candidate/stable channels
-confinement: classic
+confinement: strict
 base: core18
+
+plugs:
+  system-files:
+    read: [/etc/kube/config]
+  personal-files:
+    read: [$HOME/.kube/config]
 
 parts:
   fluxctl:
