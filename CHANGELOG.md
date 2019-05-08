@@ -1,6 +1,55 @@
 This is the changelog for the Flux daemon; the changelog for the Helm
 operator is in [./CHANGELOG-helmop.md](./CHANGELOG-helmop.md).
 
+## 1.12.2 (2019-05-08)
+
+This is a patch release.
+
+### Fixes
+
+- Fix error shadowing when parsing YAML manifests
+  [weaveworks/flux#1994][]
+- Fix 'workspace' -> 'workload' typo in deprecated controller flag
+  [weaveworks/flux#1987][] [weaveworks/flux#1996][]
+- Improve internal Kubernetes error logging, by removing the duplicate
+  timestamp and providing a full path to the Kubernetes file emitting
+  the error
+  [weaveworks/flux#2000][]
+- Improve `fluxctl` auto portforward connection error, by better
+  guiding the user about what could be wrong
+  [weaveworks/flux#2001][]
+- Ignore discovery errors for metrics resources, to prevent syncs from
+  failing when the metrics API is misconfigured
+  [weaveworks/flux#2009][]
+- Fix `(Flux)HelmRelease` cluster lookups, before this change, the
+  same resource ID would be reported for all `HelmRelease`s with e.g.
+  `fluctl list-workloads`
+  [weaveworks/flux#2018][]
+  
+
+### Maintenance and documentation
+
+- Replace deprecated `--controller` flag in documentation with
+  `--workload`
+  [weaveworks/flux#1985][]
+- Update `MAINTAINERS` and include email addresses
+  [weaveworks/flux#1995][]
+
+### Thanks
+
+Thanks to @2opremio, @cdenneen, @hiddeco, @jan-schumacher, @squaremo,
+@stefanprodan for contributions.
+
+[weaveworks/flux#1985]: https://github.com/weaveworks/flux/pull/1985
+[weaveworks/flux#1987]: https://github.com/weaveworks/flux/pull/1987
+[weaveworks/flux#1994]: https://github.com/weaveworks/flux/pull/1994
+[weaveworks/flux#1995]: https://github.com/weaveworks/flux/pull/1995
+[weaveworks/flux#1996]: https://github.com/weaveworks/flux/pull/1996
+[weaveworks/flux#2000]: https://github.com/weaveworks/flux/pull/2000
+[weaveworks/flux#2001]: https://github.com/weaveworks/flux/pull/2001
+[weaveworks/flux#2009]: https://github.com/weaveworks/flux/pull/2009
+[weaveworks/flux#2018]: https://github.com/weaveworks/flux/pull/2018
+
 ## 1.12.1 (2019-04-25)
 
 This is a patch release.
@@ -29,7 +78,7 @@ This is a patch release.
   [weaveworks/flux#1932][]
 - Move images to DockerHub and have a separate pre-releases image repo
   [weaveworks/flux#1949][], [weaveworks/flux#1956][]
-- Suppoort `arm` and `arm64` builds [weaveworks/flux#1950][]
+- Support `arm` and `arm64` builds [weaveworks/flux#1950][]
 - Refactor the core image metadata fetching func
   [weaveworks/flux#1935][]
 - Update client-go to v1.11 [weaveworks/flux#1929][]
