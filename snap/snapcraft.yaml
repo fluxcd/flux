@@ -52,8 +52,13 @@ parts:
     stage:
       - -bin/fluxd
       - -bin/helm-operator
+    organize:
+      bin/fluxctl: bin/fluxctl.real
     after: [launcher]
 
 apps:
   fluxctl:
     command: bin/fluxctl-launch
+    plugs:
+      - personal-files
+      - network
