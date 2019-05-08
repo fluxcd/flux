@@ -136,6 +136,14 @@ func (opts *imageListOpts) RunE(cmd *cobra.Command, args []string) error {
 					fmt.Fprintf(out, "\t\t%s %s\t%s\n", running, tag, createdAt)
 				}
 			}
+			if !foundRunning {
+				running := "'->"
+				if currentTag == "" {
+					currentTag = "(untagged)"
+				}
+				fmt.Fprintf(out, "\t\t%s %s\t%s\n", running, currentTag, "?")
+
+			}
 			workloadName = ""
 		}
 	}
