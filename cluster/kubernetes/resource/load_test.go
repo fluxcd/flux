@@ -142,6 +142,18 @@ metadata:
 	assert.Len(t, resources, 1)
 }
 
+func TestParseError(t *testing.T) {
+	doc := `---
+kind: ConfigMap
+metadata:
+	name: bigmap # contains a tab at the beginning
+`
+	buffer := bytes.NewBufferString(doc)
+
+	_, err := ParseMultidoc(buffer.Bytes(), "test")
+	assert.Error(t, err)
+}
+
 func TestParseCronJob(t *testing.T) {
 	doc := `---
 apiVersion: batch/v1beta1

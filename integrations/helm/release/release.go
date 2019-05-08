@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/ghodss/yaml"
@@ -45,7 +46,7 @@ type Release struct {
 }
 
 type Releaser interface {
-	GetDeployedRelease(name string) (*hapi_release.Release, error)
+	GetUpgradableRelease(name string) (*hapi_release.Release, error)
 	Install(dir string, releaseName string, fhr flux_v1beta1.HelmRelease, action Action, opts InstallOptions) (*hapi_release.Release, error)
 }
 
@@ -82,16 +83,33 @@ func GetReleaseName(fhr flux_v1beta1.HelmRelease) string {
 	return releaseName
 }
 
-// GetDeployedRelease returns a release with Deployed status
-func (r *Release) GetDeployedRelease(name string) (*hapi_release.Release, error) {
+// GetUpgradableRelease returns a release if the current state of it
+// allows an upgrade, a descriptive error if it is not allowed, or
+// nil if the release does not exist.
+func (r *Release) GetUpgradableRelease(name string) (*hapi_release.Release, error) {
 	rls, err := r.HelmClient.ReleaseContent(name)
 	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			return nil, nil
+		}
 		return nil, err
 	}
-	if rls.Release.Info.Status.GetCode() == hapi_release.Status_DEPLOYED {
-		return rls.GetRelease(), nil
+
+	release := rls.GetRelease()
+	status := release.GetInfo().GetStatus()
+
+	switch status.GetCode() {
+	case hapi_release.Status_DEPLOYED:
+		return release, nil
+	case hapi_release.Status_FAILED:
+		return nil, fmt.Errorf("release requires a rollback before it can be upgraded (%s)", status.GetCode().String())
+	case hapi_release.Status_PENDING_INSTALL,
+	     hapi_release.Status_PENDING_UPGRADE,
+	     hapi_release.Status_PENDING_ROLLBACK:
+		return nil, fmt.Errorf("operation pending for release (%s)", status.GetCode().String())
+	default:
+		return nil, fmt.Errorf("current state prevents it from being upgraded (%s)", status.GetCode().String())
 	}
-	return nil, nil
 }
 
 func (r *Release) canDelete(name string) (bool, error) {

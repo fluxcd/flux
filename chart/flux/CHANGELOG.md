@@ -1,3 +1,10 @@
+## 0.9.1 (2019-04-29)
+
+### Improvements
+
+ - Updated Flux to `1.12.1`
+   [weaveworks/flux#1993](https://github.com/weaveworks/flux/pull/1993)
+
 ## 0.9.1 (2019-04-17)
 
 ### Improvements

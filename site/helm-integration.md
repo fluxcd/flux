@@ -7,6 +7,7 @@ menu_order: 90
   * [The `HelmRelease` custom resource](#the-helmrelease-custom-resource)
     + [Using a chart from a Git repo instead of a Helm repo](#using-a-chart-from-a-git-repo-instead-of-a-helm-repo)
       - [Notifying Helm Operator about Git changes](#notifying-helm-operator-about-git-changes)
+    + [Reinstalling a Helm release](#reinstalling-a-helm-release)
     + [What the Helm Operator does](#what-the-helm-operator-does)
   * [Supplying values to the chart](#supplying-values-to-the-chart)
     + [`.spec.values`](#specvalues)
@@ -16,7 +17,6 @@ menu_order: 90
       * [External sources](#external-sources)
       * [Chart files](#chart-files)
   * [Upgrading images in a `HelmRelease` using Flux](#upgrading-images-in-a-helmrelease-using-flux)
-    + [Using annotations to control updates to HelmRelease resources](#using-annotations-to-control-updates-to-helmrelease-resources)
   * [Authentication](#authentication)
     + [Authentication for Helm repos](#authentication-for-helm-repos)
       - [Azure ACR repositories](#azure-acr-repositories)
@@ -118,6 +118,20 @@ OK
 > **Note:** the HTTP API has no built-in authentication, this means you
 > either need to port forward before making the request or put something
 > in front of it to serve as a gatekeeper.
+
+### Reinstalling a Helm release
+
+If a Helm release upgrade fails due to incompatible changes like modifying
+an immutable field (e.g. headless svc to ClusterIP)  
+you can reinstall it using the following command:
+
+```sh
+$ kubectl delete hr/my-release
+```
+
+When the Helm Operator receives a delete event from Kubernetes API it will 
+call Tiller and purge the Helm release. On the next Flux sync, the Helm Release 
+object will be created and the Helm Operator will install it.
 
 ### What the Helm Operator does
 
@@ -278,14 +292,49 @@ values:
     port: 4040
 ```
 
-### Using annotations to control updates to `HelmRelease` resources
-
 You can use the [same annotations](./fluxctl.md#using-annotations) in
 the `HelmRelease` as you would for a Deployment or other workload,
 to control updates and automation. For the purpose of specifying
 filters, the container name is either `chart-image` (if at the top
 level), or the key under which the image is given (e.g., `"subsystem"`
 from the example above).
+
+Top level image example:
+
+```yaml
+kind: HelmRelease
+metadata:
+  annotations:
+    flux.weave.works/automated: "true"
+    flux.weave.works/tag.chart-image: semver:~4.0
+spec:
+  values:
+    image:
+      repository: bitnami/mongodb
+      tag: 4.0.3
+```
+
+Sub-section images example:
+
+```yaml
+kind: HelmRelease
+metadata:
+  annotations:
+    flux.weave.works/automated: "true"
+    flux.weave.works/tag.prometheus: semver:~2.3
+    flux.weave.works/tag.alertmanager: glob:v0.15.*
+    flux.weave.works/tag.nats: regex:^0.6.*
+spec:
+  values:
+    prometheus:
+      image: prom/prometheus:v2.3.1
+    alertmanager:
+      image: prom/alertmanager:v0.15.0
+    nats:
+      image:
+        repository: nats-streaming
+        tag: 0.6.0
+```
 
 -------------
 

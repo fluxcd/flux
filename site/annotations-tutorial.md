@@ -144,13 +144,13 @@ Notice that `podinfo` is on `v1.3.2` and in state `automated`.
 To check which images are avaible for podinfo run
 
 ```sh
-fluxctl list-images -c demo:deployment/podinfo
+fluxctl list-images -w demo:deployment/podinfo
 ```
 
 Now let's change the policy for `podinfo` to target `1.4.*` releases:
 
 ```sh
-fluxctl policy -c demo:deployment/podinfo --tag-all='1.4.*'
+fluxctl policy -w demo:deployment/podinfo --tag-all='1.4.*'
 ```
 
 On the command-line you should see a message just like this one:
@@ -197,7 +197,7 @@ fluxctl sync
 To check which image is current, run
 
 ```sh
-fluxctl list-images -c demo:deployment/podinfo
+fluxctl list-images -w demo:deployment/podinfo
 ```
 
 In our case this is `1.4.2` (it could be a later image too). Let's say an
@@ -207,7 +207,7 @@ That's easy.
 Rollback to `1.4.1`:
 
 ```sh
-fluxctl release -c demo:deployment/podinfo -i stefanprodan/podinfo:1.4.1
+fluxctl release --workload demo:deployment/podinfo -i stefanprodan/podinfo:1.4.1
 ```
 
 The response should be
@@ -239,7 +239,7 @@ and the diff for this is going to look like this:
 Lock to `1.4.1` with a message describing why:
 
 ```sh
-fluxctl lock -c demo:deployment/podinfo -m "1.4.2 does not work for us"
+fluxctl lock -w demo:deployment/podinfo -m "1.4.2 does not work for us"
 ```
 
 The resulting diff should look like this

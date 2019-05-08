@@ -397,8 +397,8 @@ func (fhr *fluxHelmReleaseKind) getWorkloads(c *Cluster, namespace string) ([]wo
 	}
 
 	var workloads []workload
-	for _, f := range fluxHelmReleases.Items {
-		workloads = append(workloads, makeFluxHelmReleaseWorkload(&f))
+	for i, _ := range fluxHelmReleases.Items {
+		workloads = append(workloads, makeFluxHelmReleaseWorkload(&fluxHelmReleases.Items[i]))
 	}
 
 	return workloads, nil
@@ -459,8 +459,8 @@ func (hr *helmReleaseKind) getWorkloads(c *Cluster, namespace string) ([]workloa
 	}
 
 	var workloads []workload
-	for _, f := range helmReleases.Items {
-		workloads = append(workloads, makeHelmReleaseWorkload(&f))
+	for i, _ := range helmReleases.Items {
+		workloads = append(workloads, makeHelmReleaseWorkload(&helmReleases.Items[i]))
 	}
 
 	return workloads, nil

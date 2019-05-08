@@ -7,7 +7,7 @@ replicaCount: 1
 
 image:
   repository: docker.io/weaveworks/flux
-  tag: 1.12.0
+  tag: 1.12.1
   pullPolicy: IfNotPresent
   pullSecret:
 
@@ -137,6 +137,14 @@ git:
   # add ./identity.pub as a deployment key with write access in your Git repo
   # set the secret name (flux-ssh) below
   secretName: ""
+  # Global Git configuration See https://git-scm.com/docs/git-config for more details.
+  config:
+    enabled: false
+    secretName: ""
+    data: ""
+    # data: |
+    #   [credential "https://github.com"]
+    #           username = foo
 
 registry:
   # Period at which to check for updated images
@@ -219,6 +227,9 @@ extraEnvs: []
 #     value: bar
 
 prometheus:
+  enabled: false
+
+syncGarbageCollection:
   enabled: false
 
 # Add your own init container or uncomment and modify the given example.
