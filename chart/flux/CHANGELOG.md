@@ -1,4 +1,15 @@
-## 0.9.1 (2019-04-29)
+## 0.9.3 (2019-05-08)
+
+### Improvements
+
+ - Updated Flux to `1.12.2` and Helm operator to `0.9.0`
+   [weaveworks/flux#2025](https://github.com/weaveworks/flux/pull/2025)
+ - Mount sub path of repositories secret
+   [weaveworks/flux#2014](https://github.com/weaveworks/flux/pull/2014)
+ - Toggle garbage collection
+   [weaveworks/flux#2004](https://github.com/weaveworks/flux/pull/2004)
+
+## 0.9.2 (2019-04-29)
 
 ### Improvements
 
