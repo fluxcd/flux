@@ -26,6 +26,16 @@ plugs:
       - $HOME/.minikube/ca.crt
 
 parts:
+  launcher:
+    source: snap/local
+    source-type: local
+    plugin: dump
+    organize:
+      '*': bin/
+    override-stage: |
+      cd $SNAPCRAFT_PART_INSTALL
+      chmod +x bin/fluxctl-launch
+      snapcraftctl stage
   fluxctl:
     source: .
     plugin: go
@@ -39,9 +49,11 @@ parts:
     build-packages:
       - gcc
       - go-dep
-    prime:
-      - bin/fluxctl
+    stage:
+      - -bin/fluxd
+      - -bin/helm-operator
+    after: [launcher]
 
 apps:
   fluxctl:
-    command: bin/fluxctl
+    command: bin/fluxctl-launch
