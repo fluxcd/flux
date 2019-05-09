@@ -546,8 +546,7 @@ func (c *Kubectl) doCommand(logger log.Logger, r io.Reader, args ...string) erro
 func makeMultidoc(objs []applyObject) *bytes.Buffer {
 	buf := &bytes.Buffer{}
 	for _, obj := range objs {
-		buf.WriteString("\n---\n")
-		buf.Write(obj.Payload)
+		cluster.AppendManifestToBuffer(obj.Payload, buf)
 	}
 	return buf
 }

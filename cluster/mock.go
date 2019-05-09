@@ -21,6 +21,8 @@ type Mock struct {
 	LoadManifestsFunc             func(base string, paths []string) (map[string]resource.Resource, error)
 	ParseManifestFunc             func(def []byte, source string) (map[string]resource.Resource, error)
 	UpdateWorkloadPoliciesFunc    func([]byte, flux.ResourceID, policy.Update) ([]byte, error)
+	CreateManifestPatchFunc       func(originalManifests, modifiedManifests []byte, originalSource, modifiedSource string) ([]byte, error)
+	ApplyManifestPatchFunc        func(originalManifests, patch []byte, originalSource, patchSource string) ([]byte, error)
 }
 
 var _ Cluster = &Mock{}
@@ -68,4 +70,12 @@ func (m *Mock) ParseManifest(def []byte, source string) (map[string]resource.Res
 
 func (m *Mock) UpdateWorkloadPolicies(def []byte, id flux.ResourceID, p policy.Update) ([]byte, error) {
 	return m.UpdateWorkloadPoliciesFunc(def, id, p)
+}
+
+func (m *Mock) CreateManifestPatch(originalManifests, modifiedManifests []byte, originalSource, modifiedSource string) ([]byte, error) {
+	return m.CreateManifestPatchFunc(originalManifests, modifiedManifests, originalSource, modifiedSource)
+}
+
+func (m *Mock) ApplyManifestPatch(originalManifests, patch []byte, originalSource, patchSource string) ([]byte, error) {
+	return m.ApplyManifestPatch(originalManifests, patch, originalSource, patchSource)
 }

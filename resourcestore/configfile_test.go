@@ -10,45 +10,70 @@ import (
 	"github.com/weaveworks/flux"
 )
 
-const echoConfigFile = `---
+const patchUpdatedConfigFile = `---
 version: 1
-generators: 
-  - command: echo g1
-  - command: echo g2
-updaters:
-  - containerImage:
-      command: echo uci1 $FLUX_WORKLOAD $FLUX_WL_NS $FLUX_WL_KIND $FLUX_WL_NAME $FLUX_CONTAINER $FLUX_IMG $FLUX_TAG
-    annotation:
-      command: echo ua1 $FLUX_WORKLOAD $FLUX_WL_NS $FLUX_WL_KIND $FLUX_WL_NAME $FLUX_ANNOTATION_KEY ${FLUX_ANNOTATION_VALUE:-delete}
-  - containerImage:
-      command: echo uci2 $FLUX_WORKLOAD $FLUX_WL_NS $FLUX_WL_KIND $FLUX_WL_NAME $FLUX_CONTAINER $FLUX_IMG $FLUX_TAG
-    annotation:
-      command: echo ua2 $FLUX_WORKLOAD $FLUX_WL_NS $FLUX_WL_KIND $FLUX_WL_NAME $FLUX_ANNOTATION_KEY ${FLUX_ANNOTATION_VALUE:-delete}
+patchUpdated:
+  generators: 
+    - command: foo
+    - command: bar
+  patchFile: baz.yaml
 `
 
-func TestParseConfigFile(t *testing.T) {
+func TestParsePatchUpdatedConfigFile(t *testing.T) {
 	var cf ConfigFile
-	if err := yaml.Unmarshal([]byte(echoConfigFile), &cf); err != nil {
+	if err := yaml.Unmarshal([]byte(patchUpdatedConfigFile), &cf); err != nil {
 		t.Fatal(err)
 	}
+	assert.NotNil(t, cf.PatchUpdated)
+	assert.Nil(t, cf.CommandUpdated)
 	assert.Equal(t, "1", cf.Version)
-	assert.Equal(t, 2, len(cf.Generators))
-	assert.Equal(t, 2, len(cf.Updaters))
+	assert.Equal(t, 2, len(cf.PatchUpdated.Generators))
+	assert.Equal(t, "bar", cf.PatchUpdated.Generators[1].Command)
+	assert.Equal(t, "baz.yaml", cf.PatchUpdated.PatchFile)
+}
+
+const echoCmdUpdatedConfigFile = `---
+version: 1
+commandUpdated:
+  generators: 
+    - command: echo g1
+    - command: echo g2
+  updaters:
+    - containerImage:
+        command: echo uci1 $FLUX_WORKLOAD $FLUX_WL_NS $FLUX_WL_KIND $FLUX_WL_NAME $FLUX_CONTAINER $FLUX_IMG $FLUX_TAG
+      annotation:
+        command: echo ua1 $FLUX_WORKLOAD $FLUX_WL_NS $FLUX_WL_KIND $FLUX_WL_NAME $FLUX_ANNOTATION_KEY ${FLUX_ANNOTATION_VALUE:-delete}
+    - containerImage:
+        command: echo uci2 $FLUX_WORKLOAD $FLUX_WL_NS $FLUX_WL_KIND $FLUX_WL_NAME $FLUX_CONTAINER $FLUX_IMG $FLUX_TAG
+      annotation:
+        command: echo ua2 $FLUX_WORKLOAD $FLUX_WL_NS $FLUX_WL_KIND $FLUX_WL_NAME $FLUX_ANNOTATION_KEY ${FLUX_ANNOTATION_VALUE:-delete}
+`
+
+func TestParseCmdUpdatedConfigFile(t *testing.T) {
+	var cf ConfigFile
+	if err := yaml.Unmarshal([]byte(echoCmdUpdatedConfigFile), &cf); err != nil {
+		t.Fatal(err)
+	}
+	assert.NotNil(t, cf.CommandUpdated)
+	assert.Nil(t, cf.PatchUpdated)
+	assert.Equal(t, "1", cf.Version)
+	assert.Equal(t, 2, len(cf.CommandUpdated.Generators))
+	assert.Equal(t, 2, len(cf.CommandUpdated.Updaters))
 	assert.Equal(t,
 		"echo uci1 $FLUX_WORKLOAD $FLUX_WL_NS $FLUX_WL_KIND $FLUX_WL_NAME $FLUX_CONTAINER $FLUX_IMG $FLUX_TAG",
-		cf.Updaters[0].ContainerImage.Command,
+		cf.CommandUpdated.Updaters[0].ContainerImage.Command,
 	)
 	assert.Equal(t,
 		"echo ua2 $FLUX_WORKLOAD $FLUX_WL_NS $FLUX_WL_KIND $FLUX_WL_NAME $FLUX_ANNOTATION_KEY ${FLUX_ANNOTATION_VALUE:-delete}",
-		cf.Updaters[1].Annotation.Command,
+		cf.CommandUpdated.Updaters[1].Annotation.Command,
 	)
 }
 
 func TestExecGenerators(t *testing.T) {
 	var cf ConfigFile
-	err := yaml.Unmarshal([]byte(echoConfigFile), &cf)
+	err := yaml.Unmarshal([]byte(echoCmdUpdatedConfigFile), &cf)
 	assert.NoError(t, err)
-	result := cf.ExecGenerators(context.Background())
+	result := cf.ExecGenerators(context.Background(), cf.CommandUpdated.Generators)
 	assert.Equal(t, 2, len(result), "result: %s", result)
 	assert.Equal(t, "g1\n", string(result[0].Stdout))
 	assert.Equal(t, "g2\n", string(result[1].Stdout))
@@ -56,7 +81,7 @@ func TestExecGenerators(t *testing.T) {
 
 func TestExecContainerImageUpdaters(t *testing.T) {
 	var cf ConfigFile
-	err := yaml.Unmarshal([]byte(echoConfigFile), &cf)
+	err := yaml.Unmarshal([]byte(echoCmdUpdatedConfigFile), &cf)
 	assert.NoError(t, err)
 	resourceID := flux.MustParseResourceID("default:deployment/foo")
 	result := cf.ExecContainerImageUpdaters(context.Background(), resourceID, "bar", "repo/image", "latest")
@@ -71,7 +96,7 @@ func TestExecContainerImageUpdaters(t *testing.T) {
 
 func TestExecAnnotationUpdaters(t *testing.T) {
 	var cf ConfigFile
-	err := yaml.Unmarshal([]byte(echoConfigFile), &cf)
+	err := yaml.Unmarshal([]byte(echoCmdUpdatedConfigFile), &cf)
 	assert.NoError(t, err)
 	resourceID := flux.MustParseResourceID("default:deployment/foo")
 

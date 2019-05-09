@@ -47,7 +47,6 @@ ENV PATH=/bin:/usr/bin:/usr/local/bin:/usr/lib/kubeyaml
 RUN [ ! -e /etc/nsswitch.conf ] && echo 'hosts: files dns' > /etc/nsswitch.conf
 COPY ./kubeconfig /root/.kube/config
 COPY ./fluxd /usr/local/bin/
-COPY ./kubedelta /usr/local/bin/
 
 ARG BUILD_DATE
 ARG VCS_REF

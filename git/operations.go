@@ -74,6 +74,11 @@ func checkout(ctx context.Context, workingDir, ref string) error {
 	return execGitCmd(ctx, args, gitCmdConfig{dir: workingDir})
 }
 
+func add(ctx context.Context, workingDir, path string) error {
+	args := []string{"add", "--", path}
+	return execGitCmd(ctx, args, gitCmdConfig{dir: workingDir})
+}
+
 // checkPush sanity-checks that we can write to the upstream repo
 // (being able to `clone` is an adequate check that we can read the
 // upstream).
