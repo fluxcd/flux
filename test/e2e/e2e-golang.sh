@@ -2,11 +2,11 @@
 
 set -o errexit
 
-GO_VERSION=1.11.4
+GO_VERSION=1.12.5
 
 echo ">>> Installing go ${GO_VERSION}"
 curl -O https://storage.googleapis.com/golang/go${GO_VERSION}.linux-amd64.tar.gz
-tar -xf go1.11.4.linux-amd64.tar.gz
+tar -xf go${GO_VERSION}.linux-amd64.tar.gz
 sudo rm -rf /usr/local/go
 sudo mv go /usr/local
 
