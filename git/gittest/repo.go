@@ -55,7 +55,7 @@ func Repo(t *testing.T) (*git.Repo, func()) {
 
 	mirror := git.NewRepo(git.Remote{
 		URL: "file://" + gitDir,
-	})
+	}, git.Branch("master"))
 	return mirror, func() {
 		mirror.Clean()
 		cleanup()

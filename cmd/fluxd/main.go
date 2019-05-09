@@ -120,8 +120,9 @@ func main() {
 		gitTimeout      = fs.Duration("git-timeout", 20*time.Second, "duration after which git operations time out")
 
 		// GPG commit signing
-		gitImportGPG  = fs.String("git-gpg-key-import", "", "keys at the path given (either a file or a directory) will be imported for use in signing commits")
-		gitSigningKey = fs.String("git-signing-key", "", "if set, commits will be signed with this GPG key")
+		gitImportGPG        = fs.StringSlice("git-gpg-key-import", []string{}, "keys at the paths given will be imported for use of signing and verifying commits")
+		gitSigningKey       = fs.String("git-signing-key", "", "if set, commits Flux makes will be signed with this GPG key")
+		gitVerifySignatures = fs.Bool("git-verify-signatures", false, "if set, the signature of commits will be verified before Flux applies them")
 
 		// syncing
 		syncInterval = fs.Duration("sync-interval", 5*time.Minute, "apply config in git to cluster at least this often, even if there are no new commits")
@@ -152,6 +153,7 @@ func main() {
 		k8sSecretDataKey         = fs.String("k8s-secret-data-key", "identity", "data key holding the private SSH key within the k8s secret")
 		k8sNamespaceWhitelist    = fs.StringSlice("k8s-namespace-whitelist", []string{}, "experimental, optional: restrict the view of the cluster to the namespaces listed. All namespaces are included if this is not set")
 		k8sAllowNamespace        = fs.StringSlice("k8s-allow-namespace", []string{}, "experimental: restrict all operations to the provided namespaces")
+
 		// SSH key generation
 		sshKeyBits   = optionalVar(fs, &ssh.KeyBitsValue{}, "ssh-keygen-bits", "-b argument to ssh-keygen (default unspecified)")
 		sshKeyType   = optionalVar(fs, &ssh.KeyTypeValue{}, "ssh-keygen-type", "-t argument to ssh-keygen (default unspecified)")
@@ -242,13 +244,13 @@ func main() {
 	}
 
 	// Import GPG keys, if we've been told where to look for them
-	if *gitImportGPG != "" {
-		keyfiles, err := gpg.ImportKeys(*gitImportGPG)
+	for _, p := range *gitImportGPG {
+		keyfiles, err := gpg.ImportKeys(p, *gitVerifySignatures)
 		if err != nil {
-			logger.Log("error", "failed to import GPG keys", "err", err.Error())
+			logger.Log("error", fmt.Sprintf("failed to import GPG key(s) from %s", p), "err", err.Error())
 		}
 		if keyfiles != nil {
-			logger.Log("info", "imported GPG keys", "files", fmt.Sprintf("%v", keyfiles))
+			logger.Log("info", fmt.Sprintf("imported GPG key(s) from %s", p), "files", fmt.Sprintf("%v", keyfiles))
 		}
 	}
 
@@ -483,15 +485,15 @@ func main() {
 
 	gitRemote := git.Remote{URL: *gitURL}
 	gitConfig := git.Config{
-		Paths:       *gitPath,
-		Branch:      *gitBranch,
-		SyncTag:     *gitSyncTag,
-		NotesRef:    *gitNotesRef,
-		UserName:    *gitUser,
-		UserEmail:   *gitEmail,
-		SigningKey:  *gitSigningKey,
-		SetAuthor:   *gitSetAuthor,
-		SkipMessage: *gitSkipMessage,
+		Paths:            *gitPath,
+		Branch:           *gitBranch,
+		SyncTag:          *gitSyncTag,
+		NotesRef:         *gitNotesRef,
+		UserName:         *gitUser,
+		UserEmail:        *gitEmail,
+		SigningKey:       *gitSigningKey,
+		SetAuthor:        *gitSetAuthor,
+		SkipMessage:      *gitSkipMessage,
 	}
 
 	repo := git.NewRepo(gitRemote, git.PollInterval(*gitPollInterval), git.Timeout(*gitTimeout), git.Branch(*gitBranch))
@@ -510,6 +512,7 @@ func main() {
 		"user", *gitUser,
 		"email", *gitEmail,
 		"signing-key", *gitSigningKey,
+		"verify-signatures", *gitVerifySignatures,
 		"sync-tag", *gitSyncTag,
 		"notes-ref", *gitNotesRef,
 		"set-author", *gitSetAuthor,
@@ -534,7 +537,8 @@ func main() {
 		LoopVars: &daemon.LoopVars{
 			SyncInterval:         *syncInterval,
 			RegistryPollInterval: *registryPollInterval,
-			GitOpTimeout:         *gitTimeout,
+			GitTimeout:           *gitTimeout,
+			GitVerifySignatures:  *gitVerifySignatures,
 		},
 	}
 

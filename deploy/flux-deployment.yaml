@@ -49,6 +49,15 @@ spec:
       #   configMap:
       #     name: flux-kubeconfig
 
+      # The following volume is used to import GPG keys (for signing
+      # and verification purposes). You will also need to provide the
+      # secret with the keys, and uncomment the volumeMount and args
+      # below.
+      # - name: gpg-keys
+      #   secret:
+      #     secretName: flux-gpg-keys
+      #     defaultMode: 0400
+
       containers:
       - name: flux
         # There are no ":latest" images for flux. Find the most recent
@@ -87,33 +96,46 @@ spec:
         # - name: KUBECONFIG
         #   value: /etc/fluxd/kube/config
 
+        # Include this and the volume "gpg-keys" above, and the
+        # args below.
+        # - name: gpg-keys
+        #   mountPath: /root/gpg-import
+        #   readOnly: true
+
         args:
 
-        # if you deployed memcached in a different namespace to flux,
+        # If you deployed memcached in a different namespace to flux,
         # or with a different service name, you can supply these
         # following two arguments to tell fluxd how to connect to it.
         # - --memcached-hostname=memcached.default.svc.cluster.local
 
-        # use the memcached ClusterIP service name by setting the
+        # Use the memcached ClusterIP service name by setting the
         # memcached-service to string empty
         - --memcached-service=
 
-        # this must be supplied, and be in the tmpfs (emptyDir)
+        # This must be supplied, and be in the tmpfs (emptyDir)
         # mounted above, for K8s >= 1.10
         - --ssh-keygen-dir=/var/fluxd/keygen
 
-        # replace or remove the following URL
+        # Replace or remove the following URL.
         - --git-url=git@github.com:weaveworks/flux-get-started
         - --git-branch=master
         # include this if you want to restrict the manifests considered by flux
         # to those under the following relative paths in the git repository
         # - --git-path=subdir1,subdir2
 
-        # include these next two to connect to an "upstream" service
+        # Include these two to enable git commit signing
+        # - --git-gpg-key-import=/root/gpg-import
+        # - --git-signing-key=<key id>
+        
+        # Include this to enable git signature verification
+        # - --git-verify-signatures
+
+        # Include these next two to connect to an "upstream" service
         # (e.g., Weave Cloud). The token is particular to the service.
         # - --connect=wss://cloud.weave.works/api/flux
         # - --token=abc123abc123abc123abc123
 
-        # serve /metrics endpoint at different port.
+        # Serve /metrics endpoint at different port;
         # make sure to set prometheus' annotation to scrape the port value.
         - --listen-metrics=:3031

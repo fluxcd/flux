@@ -70,6 +70,7 @@ func awaitJob(ctx context.Context, client api.Server, jobID job.ID) (job.Result,
 		}
 		switch j.StatusString {
 		case job.StatusFailed:
+			result = j.Result
 			return false, j
 		case job.StatusSucceeded:
 			if j.Err != "" {
