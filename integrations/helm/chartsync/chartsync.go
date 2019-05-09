@@ -453,6 +453,9 @@ func (chs *ChartChangeSync) getCustomResourcesForMirror(mirror string) ([]fluxv1
 	}
 
 	for _, fhr := range list {
+		if fhr.Spec.GitChartSource == nil {
+			continue
+		}
 		if mirror != mirrorName(fhr.Spec.GitChartSource) {
 			continue
 		}
