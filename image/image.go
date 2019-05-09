@@ -223,6 +223,52 @@ func (i Ref) WithNewTag(t string) Ref {
 	return img
 }
 
+// Labels has all the image labels we are interested in for an image
+// ref, the JSON struct tag keys should be equal to the label.
+type Labels struct {
+	// BuildDate holds the Label Schema spec 'build date' label
+	// Ref: http://label-schema.org/rc1/#build-time-labels
+	BuildDate time.Time `json:"org.label-schema.build-date,omitempty"`
+	// Created holds the Open Container Image spec 'created' label
+	// Ref: https://github.com/opencontainers/image-spec/blob/master/annotations.md#pre-defined-annotation-keys
+	Created   time.Time `json:"org.opencontainers.image.created,omitempty"`
+}
+
+// MarshalJSON returns the Labels value in JSON (as bytes). It is
+// implemented so that we can omit the time values when they are
+// zero, which would otherwise be tricky for e.g., JavaScript to
+// detect.
+func (l Labels) MarshalJSON() ([]byte, error) {
+	var bd, c string
+	if !l.BuildDate.IsZero() {
+		bd = l.BuildDate.UTC().Format(time.RFC3339Nano)
+	}
+	if !l.Created.IsZero() {
+		c = l.Created.UTC().Format(time.RFC3339Nano)
+	}
+	encode := struct {
+		BuildDate string `json:"org.label-schema.build-date,omitempty"`
+		Created   string `json:"org.opencontainers.image.created,omitempty"`
+	}{BuildDate: bd, Created: c}
+	return json.Marshal(encode)
+}
+
+// UnmarshalJSON populates Labels from JSON (as bytes). It's the
+// companion to MarshalJSON above.
+func (l *Labels) UnmarshalJSON(b []byte) error {
+	unencode := struct {
+		BuildDate string `json:"org.label-schema.build-date,omitempty"`
+		Created   string `json:"org.opencontainers.image.created,omitempty"`
+	}{}
+	json.Unmarshal(b, &unencode)
+
+	var err error
+	if err = decodeTime(unencode.BuildDate, &l.BuildDate); err == nil {
+		err = decodeTime(unencode.Created, &l.Created)
+	}
+	return err
+}
+
 // Info has the metadata we are able to determine about an image ref,
 // from its registry.
 type Info struct {
@@ -235,6 +281,8 @@ type Info struct {
 	// will be the same for references that point at the same image
 	// (but does not necessarily equal Docker's image ID)
 	ImageID string `json:",omitempty"`
+	// all labels we are interested in and could find for the image ref
+	Labels Labels `json:",omitempty"`
 	// the time at which the image pointed at was created
 	CreatedAt time.Time `json:",omitempty"`
 	// the last time this image manifest was fetched
@@ -279,6 +327,27 @@ func (im *Info) UnmarshalJSON(b []byte) error {
 		err = decodeTime(unencode.LastFetched, &im.LastFetched)
 	}
 	return err
+}
+
+// CreatedTS returns the created at timestamp for an image,
+// prioritizing user defined timestamps from labels over the ones we
+// receive from a Docker registry API.
+//
+// The reason for this is registry vendors have different
+// interpretations of what a creation  date is, and we want the user to
+// be in control when required.
+//
+// In addition we prioritize the `Created` label over the `BuildDate`,
+// as the Label Schema Spec has been deprecated in favour of the OCI
+// Spec (but is still well known and widely used).
+func (im Info) CreatedTS() time.Time {
+	if !im.Labels.Created.IsZero() {
+		return im.Labels.Created
+	}
+	if !im.Labels.BuildDate.IsZero() {
+		return im.Labels.BuildDate
+	}
+	return im.CreatedAt
 }
 
 // RepositoryMetadata contains the image metadata information found in an
@@ -334,10 +403,10 @@ func decodeTime(s string, t *time.Time) error {
 // NewerByCreated returns true if lhs image should be sorted
 // before rhs with regard to their creation date descending.
 func NewerByCreated(lhs, rhs *Info) bool {
-	if lhs.CreatedAt.Equal(rhs.CreatedAt) {
+	if lhs.CreatedTS().Equal(rhs.CreatedTS()) {
 		return lhs.ID.String() < rhs.ID.String()
 	}
-	return lhs.CreatedAt.After(rhs.CreatedAt)
+	return lhs.CreatedTS().After(rhs.CreatedTS())
 }
 
 // NewerBySemver returns true if lhs image should be sorted
