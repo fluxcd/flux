@@ -111,7 +111,9 @@ spec:
         {{- end }}
         {{- if .Values.helmOperator.configureRepositories.enable }}
         - name: {{ .Values.helmOperator.configureRepositories.volumeName | quote }}
-          mountPath: /var/fluxd/helm/repository
+          mountPath: /var/fluxd/helm/repository/repositories.yaml
+          subPath: repositories.yaml
+          readOnly: true
         - name: {{ .Values.helmOperator.configureRepositories.cacheVolumeName | quote }}
           mountPath: /var/fluxd/helm/repository/cache
         {{- end }}

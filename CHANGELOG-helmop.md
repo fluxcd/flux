@@ -1,3 +1,18 @@
+## 0.9.1 (2019-05-09)
+
+### Bug fixes
+
+ - During the lookup of `HelmRelease`s for a mirror, ensure the
+   resource has a git chart source before comparing the mirror name
+   [weaveworks/flux#2027][#2027]
+
+### Thanks
+
+Thanks to @puzza007, @squaremo, @2opremio, @stefanprodan, @hiddeco
+for reporting the issue, patching and reviewing it.
+
+[#2027]: https://github.com/weaveworks/flux/pull/2027
+
 ## 0.9.0 (2019-05-08)
 
 ### Bug fixes

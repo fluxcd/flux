@@ -7,7 +7,7 @@ replicaCount: 1
 
 image:
   repository: docker.io/weaveworks/flux
-  tag: 1.12.1
+  tag: 1.12.2
   pullPolicy: IfNotPresent
   pullSecret:
 
@@ -20,7 +20,7 @@ helmOperator:
   create: false
   createCRD: true
   repository: docker.io/weaveworks/helm-operator
-  tag: 0.8.0
+  tag: 0.9.0
   pullPolicy: IfNotPresent
   pullSecret:
   # Limit the operator scope to a single namespace

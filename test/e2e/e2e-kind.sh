@@ -12,7 +12,9 @@ chmod +x kubectl && \
 sudo mv kubectl /usr/local/bin/
 
 echo ">>> Building sigs.k8s.io/kind"
-go get -u sigs.k8s.io/kind
+cd $HOME
+GO111MODULE="on" go get -u sigs.k8s.io/kind@master
+cd $REPO_ROOT
 
 echo ">>> Installing kind"
 sudo cp $GOPATH/bin/kind /usr/local/bin/
