@@ -381,7 +381,7 @@ the filename.
 
 ```
 cp ~/.helm/repository/repositories.yaml .
-sed -i -e 's/^\( *cache: \).*\/\(.*\.yaml\)/\1\2/g'
+sed -i -e 's/^\( *cache: \).*\/\(.*\.yaml\)/\1\2/g' repositories.yaml 
 ```
 
 Now you can create a secret in the same namespace as you're running
