@@ -212,9 +212,8 @@ func (pur *patchUpdatedResource) UpdateWorkloadPolicies(update policy.Update) (b
 	err := pur.updatePatchFile(func(previousManifests []byte) ([]byte, error) {
 		return pur.cfm.manifests.UpdateWorkloadPolicies(previousManifests, pur.Resource.ResourceID(), update)
 	})
-	// We assume that the update changed the resource. Alternatively, we could generate the resources
-	// again and compare the output, but that's expensive.
-	return false, err
+	// We assume that the update changed the patch file. Alternatively, we could compare the patch files.
+	return true, err
 }
 
 func (pur *patchUpdatedResource) updatePatchFile(updateF func(previousManifests []byte) ([]byte, error)) error {
