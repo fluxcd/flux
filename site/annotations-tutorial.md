@@ -204,10 +204,33 @@ In our case this is `1.4.2` (it could be a later image too). Let's say an
 engineer found that `1.4.2` was faulty and we have to go back to `1.4.1`.
 That's easy.
 
-Rollback to `1.4.1`:
+Lock deployment with a message describing why:
 
 ```sh
-fluxctl release --workload demo:deployment/podinfo -i stefanprodan/podinfo:1.4.1
+fluxctl lock -w demo:deployment/podinfo -m "1.4.2 does not work for us"
+```
+
+The resulting diff should look like this
+
+```diff
+--- a/workloads/podinfo-dep.yaml
++++ b/workloads/podinfo-dep.yaml
+@@ -10,6 +10,7 @@ metadata:
+     app: podinfo
+   annotations:
+     flux.weave.works/automated: "true"
+     flux.weave.works/tag.init: glob:1.4.*
+     flux.weave.works/tag.podinfod: glob:1.4.*
++    flux.weave.works/locked: 'true'
+ spec:
+   strategy:
+     rollingUpdate:
+```
+
+Rollback to `1.4.1`. Flag `--force` is needed because the workload is locked:
+
+```sh
+fluxctl release --force --workload demo:deployment/podinfo -i stefanprodan/podinfo:1.4.1
 ```
 
 The response should be
@@ -234,29 +257,6 @@ and the diff for this is going to look like this:
          imagePullPolicy: IfNotPresent
          ports:
          - containerPort: 9898
-```
-
-Lock to `1.4.1` with a message describing why:
-
-```sh
-fluxctl lock -w demo:deployment/podinfo -m "1.4.2 does not work for us"
-```
-
-The resulting diff should look like this
-
-```diff
---- a/workloads/podinfo-dep.yaml
-+++ b/workloads/podinfo-dep.yaml
-@@ -10,6 +10,7 @@ metadata:
-     app: podinfo
-   annotations:
-     flux.weave.works/automated: "true"
-     flux.weave.works/tag.init: glob:1.4.*
-     flux.weave.works/tag.podinfod: glob:1.4.*
-+    flux.weave.works/locked: 'true'
- spec:
-   strategy:
-     rollingUpdate:
 ```
 
 And that's it. At the end of this tutorial, you have automated, locked and
