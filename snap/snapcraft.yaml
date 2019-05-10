@@ -21,9 +21,6 @@ plugs:
   personal-files:
     read:
       - $HOME/.kube/config
-      - $HOME/.minikube/client.key
-      - $HOME/.minikube/client.crt
-      - $HOME/.minikube/ca.crt
 
 parts:
   launcher:
