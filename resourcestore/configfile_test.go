@@ -26,7 +26,7 @@ func TestParsePatchUpdatedConfigFile(t *testing.T) {
 	}
 	assert.NotNil(t, cf.PatchUpdated)
 	assert.Nil(t, cf.CommandUpdated)
-	assert.Equal(t, "1", cf.Version)
+	assert.Equal(t, 1, cf.Version)
 	assert.Equal(t, 2, len(cf.PatchUpdated.Generators))
 	assert.Equal(t, "bar", cf.PatchUpdated.Generators[1].Command)
 	assert.Equal(t, "baz.yaml", cf.PatchUpdated.PatchFile)
@@ -56,7 +56,7 @@ func TestParseCmdUpdatedConfigFile(t *testing.T) {
 	}
 	assert.NotNil(t, cf.CommandUpdated)
 	assert.Nil(t, cf.PatchUpdated)
-	assert.Equal(t, "1", cf.Version)
+	assert.Equal(t, 1, cf.Version)
 	assert.Equal(t, 2, len(cf.CommandUpdated.Generators))
 	assert.Equal(t, 2, len(cf.CommandUpdated.Updaters))
 	assert.Equal(t,
