@@ -24,7 +24,7 @@ const (
 type ConfigFile struct {
 	Path       string
 	WorkingDir string
-	Version    string `yaml:"version"`
+	Version    int
 	// Only one of the following should be set simultaneously
 	CommandUpdated *CommandUpdated `yaml:"commandUpdated"`
 	PatchUpdated   *PatchUpdated   `yaml:"patchUpdated"`
@@ -73,6 +73,8 @@ func NewConfigFile(path, workingDir string) (*ConfigFile, error) {
 		return nil, errors.New("either commandUpdated or patchUpdated should be defined")
 	case result.PatchUpdated != nil && result.PatchUpdated.PatchFile == "":
 		return nil, errors.New("patchUpdated's patchFile cannot be empty")
+	case result.Version != 1:
+		return nil, errors.New("incorrect version, only version 1 is supported for now")
 	}
 	return &result, nil
 }
