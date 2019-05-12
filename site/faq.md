@@ -22,7 +22,6 @@ menu_order: 60
   * [How often does Flux check for new git commits (and can I make it sync faster)?](#how-often-does-flux-check-for-new-git-commits-and-can-i-make-it-sync-faster)
   * [How do I use my own deploy key?](#how-do-i-use-my-own-deploy-key)
   * [How do I use a private git host (or one that's not github.com, gitlab.com, bitbucket.org, dev.azure.com, or vs-ssh.visualstudio.com)?](#how-do-i-use-a-private-git-host-or-one-thats-not-githubcom-gitlabcom-bitbucketorg-devazurecom-or-vs-sshvisualstudiocom)
-  * [Will Flux delete resources that are no longer in the git repository?](#will-flux-delete-resources-that-are-no-longer-in-the-git-repository)
   * [Why does my CI pipeline keep getting triggered?](#why-does-my-ci-pipeline-keep-getting-triggered)
   * [Can I restrict the namespaces that Flux can see or operate on?](#can-i-restrict-the-namespaces-that-flux-can-see-or-operate-on)
   * [Can I change the namespace Flux puts things in by default?](#can-i-change-the-namespace-flux-puts-things-in-by-default)
@@ -265,12 +264,6 @@ host key(s).
 
 How to do this is documented in
 [standalone-setup.md](/site/standalone-setup.md#using-a-private-git-host).
-
-### Will Flux delete resources that are no longer in the git repository?
-
-Not at present. It's tricky to come up with a safe and unsurprising
-way for this to work. There's discussion of some possibilities in
-[weaveworks/flux#738](https://github.com/weaveworks/flux/issues/738).
 
 ### Why does my CI pipeline keep getting triggered?
 
