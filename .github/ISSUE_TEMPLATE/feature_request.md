@@ -2,7 +2,7 @@
 name: Feature request
 about: Suggest a new feature for Weave Flux
 title: ''
-labels: [blocked-needs-validation, enhancement]
+labels: blocked-needs-validation, enhancement
 assignees: ''
 
 ---
