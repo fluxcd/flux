@@ -105,7 +105,13 @@ func checkPush(ctx context.Context, workingDir, upstream, branch string) error {
 	if err := execGitCmd(ctx, args, gitCmdConfig{dir: workingDir}); err != nil {
 		return errors.Wrap(err, "attempt to push tag")
 	}
-	args = []string{"push", "--delete", upstream, "tag", CheckPushTag}
+	return deleteTag(ctx, workingDir, CheckPushTag, upstream)
+}
+
+// deleteTag deletes the given git tag
+// See https://git-scm.com/docs/git-tag and https://git-scm.com/docs/git-push for more info.
+func deleteTag(ctx context.Context, workingDir, tag, upstream string) error {
+	args := []string{"push", "--delete", upstream, "tag", tag}
 	return execGitCmd(ctx, args, gitCmdConfig{dir: workingDir})
 }
 
@@ -271,17 +277,17 @@ func splitList(s string) []string {
 }
 
 // Move the tag to the ref given and push that tag upstream
-func moveTagAndPush(ctx context.Context, workingDir, tag, upstream string, tagAction TagAction) error {
-	args := []string{"tag", "--force", "-a", "-m", tagAction.Message}
+func moveTagAndPush(ctx context.Context, workingDir, upstream string, action TagAction) error {
+	args := []string{"tag", "--force", "-a", "-m", action.Message}
 	var env []string
-	if tagAction.SigningKey != "" {
-		args = append(args, fmt.Sprintf("--local-user=%s", tagAction.SigningKey))
+	if action.SigningKey != "" {
+		args = append(args, fmt.Sprintf("--local-user=%s", action.SigningKey))
 	}
-	args = append(args, tag, tagAction.Revision)
+	args = append(args, action.Tag, action.Revision)
 	if err := execGitCmd(ctx, args, gitCmdConfig{dir: workingDir, env: env}); err != nil {
-		return errors.Wrap(err, "moving tag "+tag)
+		return errors.Wrap(err, "moving tag "+action.Tag)
 	}
-	args = []string{"push", "--force", upstream, "tag", tag}
+	args = []string{"push", "--force", upstream, "tag", action.Tag}
 	if err := execGitCmd(ctx, args, gitCmdConfig{dir: workingDir}); err != nil {
 		return errors.Wrap(err, "pushing tag to origin")
 	}

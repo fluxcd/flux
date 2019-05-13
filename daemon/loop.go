@@ -3,12 +3,14 @@ package daemon
 import (
 	"context"
 	"fmt"
-	"github.com/weaveworks/flux/git"
 	"sync"
 	"time"
 
 	"github.com/go-kit/kit/log"
+
+	"github.com/weaveworks/flux/git"
 	fluxmetrics "github.com/weaveworks/flux/metrics"
+	fluxsync "github.com/weaveworks/flux/sync"
 )
 
 type LoopVars struct {
@@ -16,6 +18,7 @@ type LoopVars struct {
 	AutomationInterval  time.Duration
 	GitTimeout          time.Duration
 	GitVerifySignatures bool
+	SyncState           fluxsync.State
 
 	initOnce               sync.Once
 	syncSoon               chan struct{}
@@ -47,7 +50,7 @@ func (d *Daemon) Loop(stop chan struct{}, wg *sync.WaitGroup, logger log.Logger)
 	syncHead := ""
 
 	// In-memory sync tag state
-	lastKnownSyncTag := &lastKnownSyncTag{logger: logger, syncTag: d.GitConfig.SyncTag}
+	ratchet := &lastKnownSyncState{logger: logger, state: d.SyncState}
 
 	// Ask for a sync, and to check
 	d.AskForSync()
@@ -77,7 +80,7 @@ func (d *Daemon) Loop(stop chan struct{}, wg *sync.WaitGroup, logger log.Logger)
 				}
 			}
 			started := time.Now().UTC()
-			err := d.Sync(context.Background(), started, syncHead, lastKnownSyncTag)
+			err := d.Sync(context.Background(), started, syncHead, ratchet)
 			syncDuration.With(
 				fluxmetrics.LabelSuccess, fmt.Sprint(err == nil),
 			).Observe(time.Since(started).Seconds())
@@ -94,7 +97,7 @@ func (d *Daemon) Loop(stop chan struct{}, wg *sync.WaitGroup, logger log.Logger)
 
 			ctx, cancel := context.WithTimeout(context.Background(), d.GitTimeout)
 			if d.GitVerifySignatures {
-				newSyncHead, invalidCommit, err = latestValidRevision(ctx, d.Repo, d.GitConfig)
+				newSyncHead, invalidCommit, err = latestValidRevision(ctx, d.Repo, d.SyncState)
 			} else {
 				newSyncHead, err = d.Repo.BranchHead(ctx)
 			}
@@ -159,28 +162,33 @@ func (d *LoopVars) AskForAutomatedWorkloadImageUpdates() {
 }
 
 // -- internals to keep track of sync tag state
-type lastKnownSyncTag struct {
-	logger            log.Logger
-	syncTag           string
+type lastKnownSyncState struct {
+	logger log.Logger
+	state  fluxsync.State
+
+	// bookkeeping
 	revision          string
 	warnedAboutChange bool
 }
 
-// SetRevision updates the sync tag revision in git _and_ the
-// in-memory revision, if it has changed. In addition, it validates
-// if the in-memory revision matches the old revision from git before
-// making the update, to notify a user about multiple Flux daemons
-// using the same tag.
-func (s *lastKnownSyncTag) SetRevision(ctx context.Context, working *git.Checkout, timeout time.Duration,
-	oldRev, newRev string) (bool, error) {
+// Current returns the revision from the state
+func (s *lastKnownSyncState) Current(ctx context.Context) (string, error) {
+	return s.state.GetRevision(ctx)
+}
+
+// Update records the synced revision in persistent storage (the
+// sync.State). In addition, it checks that the old revision matches
+// the last sync revision before making the update; mismatches suggest
+// multiple Flux daemons are using the same state, so we log these.
+func (s *lastKnownSyncState) Update(ctx context.Context, oldRev, newRev string) (bool, error) {
 	// Check if something other than the current instance of fluxd
 	// changed the sync tag. This is likely caused by another instance
 	// using the same tag. Having multiple instances fight for the same
 	// tag can lead to fluxd missing manifest changes.
 	if s.revision != "" && oldRev != s.revision && !s.warnedAboutChange {
 		s.logger.Log("warning",
-			"detected external change in git sync tag; the sync tag should not be shared by fluxd instances",
-			"tag", s.syncTag)
+			"detected external change in sync state; the sync state should not be shared by fluxd instances",
+			"state", s.state.String())
 		s.warnedAboutChange = true
 	}
 
@@ -189,20 +197,13 @@ func (s *lastKnownSyncTag) SetRevision(ctx context.Context, working *git.Checkou
 		return false, nil
 	}
 
-	// Update the sync tag revision in git
-	tagAction := git.TagAction{
-		Revision: newRev,
-		Message:  "Sync pointer",
-	}
-	ctx, cancel := context.WithTimeout(ctx, timeout)
-	if err := working.MoveSyncTagAndPush(ctx, tagAction); err != nil {
+	if err := s.state.UpdateMarker(ctx, newRev); err != nil {
 		return false, err
 	}
-	cancel()
 
 	// Update in-memory revision
 	s.revision = newRev
 
-	s.logger.Log("tag", s.syncTag, "old", oldRev, "new", newRev)
+	s.logger.Log("state", s.state.String(), "old", oldRev, "new", newRev)
 	return true, nil
 }

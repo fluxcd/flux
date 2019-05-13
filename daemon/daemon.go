@@ -27,6 +27,7 @@ import (
 	"github.com/weaveworks/flux/registry"
 	"github.com/weaveworks/flux/release"
 	"github.com/weaveworks/flux/resource"
+	"github.com/weaveworks/flux/sync"
 	"github.com/weaveworks/flux/update"
 )
 
@@ -247,7 +248,7 @@ func (d *Daemon) makeJobFromUpdate(update updateFunc) jobFunc {
 		var result job.Result
 		err := d.WithClone(ctx, func(working *git.Checkout) error {
 			var err error
-			if err = verifyWorkingRepo(ctx, d.Repo, working, d.GitConfig); d.GitVerifySignatures && err != nil {
+			if err = verifyWorkingRepo(ctx, d.Repo, working, d.SyncState); d.GitVerifySignatures && err != nil {
 				return err
 			}
 			result, err = update(ctx, jobID, working, logger)
@@ -373,7 +374,7 @@ func (d *Daemon) sync() jobFunc {
 		}
 		if d.GitVerifySignatures {
 			var latestValidRev string
-			if latestValidRev, _, err = latestValidRevision(ctx, d.Repo, d.GitConfig); err != nil {
+			if latestValidRev, _, err = latestValidRevision(ctx, d.Repo, d.SyncState); err != nil {
 				return result, err
 			} else if head != latestValidRev {
 				result.Revision = latestValidRev
@@ -599,7 +600,12 @@ func (d *Daemon) JobStatus(ctx context.Context, jobID job.ID) (job.Status, error
 // you'll get all the commits yet to be applied. If you send a hash
 // and it's applied at or _past_ it, you'll get an empty list.
 func (d *Daemon) SyncStatus(ctx context.Context, commitRef string) ([]string, error) {
-	commits, err := d.Repo.CommitsBetween(ctx, d.GitConfig.SyncTag, commitRef, d.GitConfig.Paths...)
+	syncMarkerRevision, err := d.SyncState.GetRevision(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	commits, err := d.Repo.CommitsBetween(ctx, syncMarkerRevision, commitRef, d.GitConfig.Paths...)
 	if err != nil {
 		return nil, err
 	}
@@ -830,26 +836,26 @@ func policyEventTypes(u resource.PolicyUpdate) []string {
 // In case the signature of the tag can not be verified, or it points
 // towards a revision we can not get a commit range for, it returns an
 // error.
-func latestValidRevision(ctx context.Context, repo *git.Repo, gitConfig git.Config) (string, git.Commit, error) {
+func latestValidRevision(ctx context.Context, repo *git.Repo, syncState sync.State) (string, git.Commit, error) {
 	var invalidCommit = git.Commit{}
 	newRevision, err := repo.BranchHead(ctx)
 	if err != nil {
 		return "", invalidCommit, err
 	}
 
-	// Validate tag and retrieve the revision it points to
-	tagRevision, err := repo.VerifyTag(ctx, gitConfig.SyncTag)
-	if err != nil && !strings.Contains(err.Error(), "not found.") {
-		return "", invalidCommit, errors.Wrap(err, "failed to verify signature of sync tag")
+	// Validate sync state and retrieve the revision it points to
+	tagRevision, err := syncState.GetRevision(ctx)
+	if err != nil {
+		return "", invalidCommit, err
 	}
 
 	var commits []git.Commit
 	if tagRevision == "" {
 		commits, err = repo.CommitsBefore(ctx, newRevision)
 	} else {
-		// Assure the revision from the tag is a signed and valid commit
+		// Assure the commit _at_ the high water mark is a signed and valid commit
 		if err = repo.VerifyCommit(ctx, tagRevision); err != nil {
-			return "", invalidCommit, errors.Wrap(err, "failed to verify signature of sync tag revision")
+			return "", invalidCommit, errors.Wrap(err, "failed to verify signature of last sync'ed revision")
 		}
 		commits, err = repo.CommitsBetween(ctx, tagRevision, newRevision)
 	}
@@ -874,8 +880,9 @@ func latestValidRevision(ctx context.Context, repo *git.Repo, gitConfig git.Conf
 	return newRevision, invalidCommit, nil
 }
 
-func verifyWorkingRepo(ctx context.Context, repo *git.Repo, working *git.Checkout, gitConfig git.Config) error {
-	if latestVerifiedRev, _, err := latestValidRevision(ctx, repo, gitConfig); err != nil {
+// verifyWorkingRepo checks that a working clone is safe to be used for a write operation
+func verifyWorkingRepo(ctx context.Context, repo *git.Repo, working *git.Checkout, syncState sync.State) error {
+	if latestVerifiedRev, _, err := latestValidRevision(ctx, repo, syncState); err != nil {
 		return err
 	} else if headRev, err := working.HeadRevision(ctx); err != nil {
 		return err
@@ -883,10 +890,4 @@ func verifyWorkingRepo(ctx context.Context, repo *git.Repo, working *git.Checkou
 		return unsignedHeadRevisionError(latestVerifiedRev, headRev)
 	}
 	return nil
-}
-
-func isUnknownRevision(err error) bool {
-	return err != nil &&
-		(strings.Contains(err.Error(), "unknown revision or path not in the working tree.") ||
-			strings.Contains(err.Error(), "bad revision"))
 }

@@ -254,6 +254,15 @@ func (r *Repo) VerifyCommit(ctx context.Context, commit string) error {
 	return verifyCommit(ctx, r.dir, commit)
 }
 
+func (r *Repo) DeleteTag(ctx context.Context, tag string) error {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	if err := r.errorIfNotReady(); err != nil {
+		return err
+	}
+	return deleteTag(ctx, r.dir, tag, r.origin.URL)
+}
+
 // step attempts to advance the repo state machine, and returns `true`
 // if it has made progress, `false` otherwise.
 func (r *Repo) step(bg context.Context) bool {

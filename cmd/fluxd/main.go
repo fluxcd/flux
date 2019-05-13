@@ -48,6 +48,7 @@ import (
 	registryMiddleware "github.com/weaveworks/flux/registry/middleware"
 	"github.com/weaveworks/flux/remote"
 	"github.com/weaveworks/flux/ssh"
+	fluxsync "github.com/weaveworks/flux/sync"
 )
 
 var version = "unversioned"
@@ -134,6 +135,7 @@ func main() {
 		syncInterval = fs.Duration("sync-interval", 5*time.Minute, "apply config in git to cluster at least this often, even if there are no new commits")
 		syncGC       = fs.Bool("sync-garbage-collection", false, "experimental; delete resources that were created by fluxd, but are no longer in the git repo")
 		dryGC        = fs.Bool("sync-garbage-collection-dry", false, "experimental; only log what would be garbage collected, rather than deleting. Implies --sync-garbage-collection")
+		syncState    = fs.String("sync-state", fluxsync.GitTagStateMode, fmt.Sprintf("method used by flux for storing state (one of {%s})", strings.Join([]string{fluxsync.GitTagStateMode, fluxsync.NativeStateMode}, ",")))
 
 		// registry
 		memcachedHostname = fs.String("memcached-hostname", "memcached", "hostname for memcached service.")
@@ -560,7 +562,6 @@ func main() {
 	gitConfig := git.Config{
 		Paths:       *gitPath,
 		Branch:      *gitBranch,
-		SyncTag:     *gitSyncTag,
 		NotesRef:    *gitNotesRef,
 		UserName:    *gitUser,
 		UserEmail:   *gitEmail,
@@ -598,6 +599,38 @@ func main() {
 		jobs = job.NewQueue(shutdown, shutdownWg)
 	}
 
+	var syncProvider fluxsync.State
+	switch *syncState {
+	case fluxsync.NativeStateMode:
+		namespace, err := ioutil.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
+		if err != nil {
+			logger.Log("err", err)
+			os.Exit(1)
+		}
+
+		syncProvider, err = fluxsync.NewNativeSyncProvider(
+			string(namespace),
+			*k8sSecretName,
+		)
+		if err != nil {
+			logger.Log("err", err)
+			os.Exit(1)
+		}
+
+	case fluxsync.GitTagStateMode:
+		syncProvider, err = fluxsync.NewGitTagSyncProvider(
+			repo,
+			*gitSyncTag,
+			*gitSigningKey,
+			*gitVerifySignatures,
+			gitConfig,
+		)
+		if err != nil {
+			logger.Log("err", err)
+			os.Exit(1)
+		}
+	}
+
 	daemon := &daemon.Daemon{
 		V:                         version,
 		Cluster:                   k8s,
@@ -612,6 +645,7 @@ func main() {
 		ManifestGenerationEnabled: *manifestGeneration,
 		LoopVars: &daemon.LoopVars{
 			SyncInterval:        *syncInterval,
+			SyncState:           syncProvider,
 			AutomationInterval:  *automationInterval,
 			GitTimeout:          *gitTimeout,
 			GitVerifySignatures: *gitVerifySignatures,

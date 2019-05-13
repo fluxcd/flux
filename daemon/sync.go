@@ -18,8 +18,13 @@ import (
 	"github.com/weaveworks/flux/update"
 )
 
-type syncTag interface {
-	SetRevision(ctx context.Context, working *git.Checkout, timeout time.Duration, oldRev, newRev string) (bool, error)
+// revisionRatchet is for keeping track of transitions between
+// revisions. This is slightly more complicated than just setting the
+// state, since we want to notice unexpected transitions (e.g., when
+// the apparent current state is not what we'd recorded).
+type revisionRatchet interface {
+	Current(ctx context.Context) (string, error)
+	Update(ctx context.Context, oldRev, newRev string) (bool, error)
 }
 
 type eventLogger interface {
@@ -34,7 +39,7 @@ type changeSet struct {
 }
 
 // Sync starts the synchronization of the cluster with git.
-func (d *Daemon) Sync(ctx context.Context, started time.Time, revision string, syncTag syncTag) error {
+func (d *Daemon) Sync(ctx context.Context, started time.Time, newRevision string, ratchet revisionRatchet) error {
 	// Checkout a working clone used for this sync
 	ctxt, cancel := context.WithTimeout(ctx, d.GitTimeout)
 	working, err := d.Repo.Clone(ctxt, d.GitConfig)
@@ -45,12 +50,12 @@ func (d *Daemon) Sync(ctx context.Context, started time.Time, revision string, s
 	defer working.Clean()
 
 	// Ensure we are syncing the given revision
-	if err := working.Checkout(ctx, revision); err != nil {
+	if err := working.Checkout(ctx, newRevision); err != nil {
 		return err
 	}
 
 	// Retrieve change set of commits we need to sync
-	c, err := getChangeSet(ctx, working, d.Repo, d.GitTimeout, d.GitConfig.Paths)
+	c, err := getChangeSet(ctx, ratchet, newRevision, d.Repo, d.GitTimeout, d.GitConfig.Paths)
 	if err != nil {
 		return err
 	}
@@ -97,8 +102,8 @@ func (d *Daemon) Sync(ctx context.Context, started time.Time, revision string, s
 		}
 	}
 
-	// Move sync tag
-	if ok, err := syncTag.SetRevision(ctx, working, d.GitTimeout, c.oldTagRev, c.newTagRev); err != nil {
+	// Move the revision the sync state points to
+	if ok, err := ratchet.Update(ctx, c.oldTagRev, c.newTagRev); err != nil {
 		return err
 	} else if !ok {
 		return nil
@@ -110,19 +115,17 @@ func (d *Daemon) Sync(ctx context.Context, started time.Time, revision string, s
 
 // getChangeSet returns the change set of commits for this sync,
 // including the revision range and if it is an initial sync.
-func getChangeSet(ctx context.Context, working *git.Checkout, repo *git.Repo, timeout time.Duration,
-	paths []string) (changeSet, error) {
+func getChangeSet(ctx context.Context, state revisionRatchet, headRev string, repo *git.Repo, timeout time.Duration, paths []string) (changeSet, error) {
 	var c changeSet
 	var err error
 
-	c.oldTagRev, err = working.SyncRevision(ctx)
-	if err != nil && !isUnknownRevision(err) {
-		return c, err
-	}
-	c.newTagRev, err = working.HeadRevision(ctx)
+	currentRev, err := state.Current(ctx)
 	if err != nil {
 		return c, err
 	}
+
+	c.oldTagRev = currentRev
+	c.newTagRev = headRev
 
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	if c.oldTagRev != "" {

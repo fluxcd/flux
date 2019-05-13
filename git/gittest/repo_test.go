@@ -23,7 +23,8 @@ type Note struct {
 func TestCommit(t *testing.T) {
 	config := TestConfig
 	config.SkipMessage = " **SKIP**"
-	checkout, repo, cleanup := CheckoutWithConfig(t, config)
+	syncTag := "syncity"
+	checkout, repo, cleanup := CheckoutWithConfig(t, config, syncTag)
 	defer cleanup()
 
 	for file, _ := range testfiles.Files {
@@ -74,11 +75,12 @@ func TestSignedCommit(t *testing.T) {
 
 	config := TestConfig
 	config.SigningKey = signingKey
+	syncTag := "syncsync"
 
 	os.Setenv("GNUPGHOME", gpgHome)
 	defer os.Unsetenv("GNUPGHOME")
 
-	checkout, repo, cleanup := CheckoutWithConfig(t, config)
+	checkout, repo, cleanup := CheckoutWithConfig(t, config, syncTag)
 	defer cleanup()
 
 	for file, _ := range testfiles.Files {
@@ -123,28 +125,34 @@ func TestSignedCommit(t *testing.T) {
 `, expectedKey, foundKey)
 	}
 }
+
 func TestSignedTag(t *testing.T) {
 	gpgHome, signingKey, gpgCleanup := gpgtest.GPGKey(t)
 	defer gpgCleanup()
 
 	config := TestConfig
 	config.SigningKey = signingKey
+	syncTag := "sync-test"
 
 	os.Setenv("GNUPGHOME", gpgHome)
 	defer os.Unsetenv("GNUPGHOME")
 
-	checkout, _, cleanup := CheckoutWithConfig(t, config)
+	checkout, repo, cleanup := CheckoutWithConfig(t, config, syncTag)
 	defer cleanup()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	tagAction := git.TagAction{Revision: "HEAD", Message: "Sync pointer"}
-	if err := checkout.MoveSyncTagAndPush(ctx, tagAction); err != nil {
+	tagAction := git.TagAction{Revision: "HEAD", Message: "Sync pointer", Tag: syncTag}
+	if err := checkout.MoveTagAndPush(ctx, tagAction); err != nil {
 		t.Fatal(err)
 	}
 
-	_, err := checkout.VerifySyncTag(ctx)
+	if err := repo.Refresh(ctx); err != nil {
+		t.Error(err)
+	}
+
+	_, err := repo.VerifyTag(ctx, syncTag)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -166,7 +174,6 @@ func TestCheckout(t *testing.T) {
 		Branch:    "master",
 		UserName:  "example",
 		UserEmail: "example@example.com",
-		SyncTag:   "flux-test",
 		NotesRef:  "fluxtest",
 	}
 	checkout, err := repo.Clone(ctx, params)

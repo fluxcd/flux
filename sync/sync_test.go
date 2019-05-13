@@ -42,7 +42,6 @@ func TestSync(t *testing.T) {
 // ---
 
 var gitconf = git.Config{
-	SyncTag:   "test-sync",
 	NotesRef:  "test-notes",
 	UserName:  "testuser",
 	UserEmail: "test@example.com",

@@ -74,11 +74,11 @@ func Workloads() (res []resource.ID) {
 
 // CheckoutWithConfig makes a standard repo, clones it, and returns
 // the clone, the original repo, and a cleanup function.
-func CheckoutWithConfig(t *testing.T, config git.Config) (*git.Checkout, *git.Repo, func()) {
+func CheckoutWithConfig(t *testing.T, config git.Config, syncTag string) (*git.Checkout, *git.Repo, func()) {
 	// Add files to the repo with the same name as the git branch and the sync tag.
 	// This is to make sure that git commands don't have ambiguity problems between revisions and files.
 	testfiles.Files[config.Branch] = "Filename doctored to create a conflict with the git branch name"
-	testfiles.Files[config.SyncTag] = "Filename doctored to create a conflict with the git sync tag"
+	testfiles.Files[syncTag] = "Filename doctored to create a conflict with the git sync tag"
 	repo, cleanup := Repo(t)
 	if err := repo.Ready(context.Background()); err != nil {
 		cleanup()
@@ -94,7 +94,7 @@ func CheckoutWithConfig(t *testing.T, config git.Config) (*git.Checkout, *git.Re
 		co.Clean()
 		cleanup()
 		delete(testfiles.Files, config.Branch)
-		delete(testfiles.Files, config.SyncTag)
+		delete(testfiles.Files, syncTag)
 	}
 }
 
@@ -102,14 +102,15 @@ var TestConfig git.Config = git.Config{
 	Branch:    "master",
 	UserName:  "example",
 	UserEmail: "example@example.com",
-	SyncTag:   "flux-test",
 	NotesRef:  "fluxtest",
 }
+
+var testSyncTag = "sync"
 
 // Checkout makes a standard repo, clones it, and returns the clone
 // with a cleanup function.
 func Checkout(t *testing.T) (*git.Checkout, func()) {
-	checkout, _, cleanup := CheckoutWithConfig(t, TestConfig)
+	checkout, _, cleanup := CheckoutWithConfig(t, TestConfig, testSyncTag)
 	return checkout, cleanup
 }
 

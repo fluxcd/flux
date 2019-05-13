@@ -16,7 +16,6 @@ var (
 type Config struct {
 	Branch      string   // branch we're syncing to
 	Paths       []string // paths within the repo containing files we care about
-	SyncTag     string
 	NotesRef    string
 	UserName    string
 	UserEmail   string
@@ -42,15 +41,16 @@ type Commit struct {
 	Message   string
 }
 
-// CommitAction - struct holding commit information
+// CommitAction is a struct holding commit information
 type CommitAction struct {
 	Author     string
 	Message    string
 	SigningKey string
 }
 
-// TagAction - struct holding tag information
+// TagAction is a struct holding tag parameters
 type TagAction struct {
+	Tag        string
 	Revision   string
 	Message    string
 	SigningKey string
@@ -198,19 +198,11 @@ func (c *Checkout) HeadRevision(ctx context.Context) (string, error) {
 	return refRevision(ctx, c.dir, "HEAD")
 }
 
-func (c *Checkout) SyncRevision(ctx context.Context) (string, error) {
-	return refRevision(ctx, c.dir, "tags/"+c.config.SyncTag)
-}
-
-func (c *Checkout) MoveSyncTagAndPush(ctx context.Context, tagAction TagAction) error {
+func (c *Checkout) MoveTagAndPush(ctx context.Context, tagAction TagAction) error {
 	if tagAction.SigningKey == "" {
 		tagAction.SigningKey = c.config.SigningKey
 	}
-	return moveTagAndPush(ctx, c.dir, c.config.SyncTag, c.upstream.URL, tagAction)
-}
-
-func (c *Checkout) VerifySyncTag(ctx context.Context) (string, error) {
-	return verifyTag(ctx, c.dir, c.config.SyncTag)
+	return moveTagAndPush(ctx, c.dir, c.upstream.URL, tagAction)
 }
 
 // ChangedFiles does a git diff listing changed files
