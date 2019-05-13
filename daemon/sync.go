@@ -58,8 +58,8 @@ func (d *Daemon) Sync(ctx context.Context, started time.Time, revision string, s
 
 	// Run actual sync of resources on cluster
 	syncSetName := makeGitConfigHash(d.Repo.Origin(), d.GitConfig)
-	resourceStore, err := resourcestore.NewCheckoutManager(ctx, d.ManifestGenerationEnabled,
-		d.Manifests, d.PolicyTranslator, working)
+	resourceStore, err := resourcestore.NewFileResourceStore(ctx, working.Dir(), working.ManifestDirs(),
+		d.ManifestGenerationEnabled, d.Manifests, d.PolicyTranslator)
 	if err != nil {
 		return errors.Wrap(err, "reading the respository checkout")
 	}
@@ -181,10 +181,16 @@ func getChangedResources(ctx context.Context, c changeSet, timeout time.Duration
 		return nil, errorf(err)
 	}
 	cancel()
-	resourcesBySource, err := resourceStore.GetAllResourcesBySource()
+	// Get the resources by source
+	resourcesByID, err := resourceStore.GetAllResourcesByID()
 	if err != nil {
 		return nil, errorf(err)
 	}
+	resourcesBySource := make(map[string]resource.Resource, len(resourcesByID))
+	for _, r := range resourcesByID {
+		resourcesBySource[r.Source()] = r
+	}
+
 	changedResources := map[string]resource.Resource{}
 	// FIXME(michael): this won't be accurate when a file can have more than one resource
 	for _, absolutePath := range changedFiles {

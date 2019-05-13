@@ -79,7 +79,8 @@ func (d *Daemon) getResources(ctx context.Context) (map[string]resource.Resource
 	var resources map[string]resource.Resource
 	var globalReadOnly v6.ReadOnlyReason
 	err := d.WithClone(ctx, func(checkout *git.Checkout) error {
-		cm, err := resourcestore.NewCheckoutManager(ctx, d.ManifestGenerationEnabled, d.Manifests, d.PolicyTranslator, checkout)
+		cm, err := resourcestore.NewFileResourceStore(ctx, checkout.Dir(), checkout.ManifestDirs(),
+			d.ManifestGenerationEnabled, d.Manifests, d.PolicyTranslator)
 		if err != nil {
 			return err
 		}
@@ -407,8 +408,8 @@ func (d *Daemon) updatePolicies(spec update.Spec, updates policy.Updates) update
 			if policy.Set(u.Add).Has(policy.Automated) {
 				anythingAutomated = true
 			}
-			cm, err := resourcestore.NewCheckoutManager(ctx, d.ManifestGenerationEnabled,
-				d.Manifests, d.PolicyTranslator, working)
+			cm, err := resourcestore.NewFileResourceStore(ctx, working.Dir(), working.ManifestDirs(),
+				d.ManifestGenerationEnabled, d.Manifests, d.PolicyTranslator)
 			if err != nil {
 				return result, err
 			}
@@ -451,7 +452,7 @@ func (d *Daemon) updatePolicies(spec update.Spec, updates policy.Updates) update
 			Author:  commitAuthor,
 			Message: policyCommitMessage(updates, spec.Cause),
 		}
-		if err := working.CommitAndPush(ctx, commitAction, &note{JobID: jobID, Spec: spec}); err != nil {
+		if err := working.AddCommitAndPush(ctx, commitAction, &note{JobID: jobID, Spec: spec}); err != nil {
 			// On the chance pushing failed because it was not
 			// possible to fast-forward, ask for a sync so the
 			// next attempt is more likely to succeed.
@@ -499,7 +500,7 @@ func (d *Daemon) release(spec update.Spec, c release.Changes) updateFunc {
 				Author:  commitAuthor,
 				Message: commitMsg,
 			}
-			if err := working.CommitAndPush(ctx, commitAction, &note{JobID: jobID, Spec: spec, Result: result}); err != nil {
+			if err := working.AddCommitAndPush(ctx, commitAction, &note{JobID: jobID, Spec: spec, Result: result}); err != nil {
 				// On the chance pushing failed because it was not
 				// possible to fast-forward, ask the repo to fetch
 				// from upstream ASAP, so the next attempt is more

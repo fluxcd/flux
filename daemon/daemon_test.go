@@ -515,7 +515,7 @@ func TestDaemon_PolicyUpdate(t *testing.T) {
 			return false
 		}
 		defer co.Clean()
-		cm, err := resourcestore.NewCheckoutManager(ctx, false, d.Manifests, d.PolicyTranslator, co)
+		cm, err := resourcestore.NewFileResourceStore(ctx, co.Dir(), co.ManifestDirs(), false, d.Manifests, d.PolicyTranslator)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -860,7 +860,8 @@ func (w *wait) ForImageTag(t *testing.T, d *Daemon, workload, container, tag str
 			return false
 		}
 		defer co.Clean()
-		cm, err := resourcestore.NewCheckoutManager(context.TODO(), false, d.Manifests, d.PolicyTranslator, co)
+		cm, err := resourcestore.NewFileResourceStore(context.TODO(), co.Dir(), co.ManifestDirs(), false,
+			d.Manifests, d.PolicyTranslator)
 		if err != nil {
 			return false
 		}

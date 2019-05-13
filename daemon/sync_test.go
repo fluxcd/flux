@@ -247,7 +247,8 @@ func TestDoSync_WithNewCommit(t *testing.T) {
 			return err
 		}
 		// Push some new changes
-		cm, err := resourcestore.NewCheckoutManager(ctx, false, d.Manifests, d.PolicyTranslator, checkout)
+		cm, err := resourcestore.NewFileResourceStore(ctx, checkout.Dir(), checkout.ManifestDirs(), false,
+			d.Manifests, d.PolicyTranslator)
 		if err != nil {
 			return err
 		}
@@ -272,7 +273,7 @@ func TestDoSync_WithNewCommit(t *testing.T) {
 		}
 
 		commitAction := git.CommitAction{Author: "", Message: "test commit"}
-		err = checkout.CommitAndPush(ctx, commitAction, nil)
+		err = checkout.AddCommitAndPush(ctx, commitAction, nil)
 		if err != nil {
 			return err
 		}
