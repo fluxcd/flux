@@ -62,11 +62,12 @@ func (c *Cluster) Sync(syncSet cluster.SyncSet) error {
 
 	cs := makeChangeSet()
 	var errs cluster.SyncError
+	var excluded []string
 	for _, res := range syncSet.Resources {
 		resID := res.ResourceID()
 		id := resID.String()
 		if !c.IsAllowedResource(resID) {
-			logger.Log("warning", "not applying resource; excluded by namespace constraints", "resource", id, "source", res.Source())
+			excluded = append(excluded, id)
 			continue
 		}
 		// make a record of the checksum, whether we stage it to
@@ -92,6 +93,10 @@ func (c *Cluster) Sync(syncSet cluster.SyncSet) error {
 			errs = append(errs, cluster.ResourceError{ResourceID: res.ResourceID(), Source: res.Source(), Error: err})
 			break
 		}
+	}
+
+	if len(excluded) > 0 {
+		logger.Log("warning", "not applying resources; excluded by namespace constraints", "resources", strings.Join(excluded, ","))
 	}
 
 	c.mu.Lock()
