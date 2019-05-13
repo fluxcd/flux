@@ -124,11 +124,15 @@ func (c *Checkout) ManifestDirs() []string {
 	return paths
 }
 
-// CommitAndPush commits changes made in this checkout, along with any
+// AddCommitAndPush adds and commits changes made in this checkout, along with any
 // extra data as a note, and pushes the commit and note to the remote repo.
-func (c *Checkout) CommitAndPush(ctx context.Context, commitAction CommitAction, note interface{}) error {
+func (c *Checkout) AddCommitAndPush(ctx context.Context, commitAction CommitAction, note interface{}) error {
 	if !check(ctx, c.dir) {
 		return ErrNoChanges
+	}
+
+	if err := add(ctx, c.dir, "."); err != nil {
+		return err
 	}
 
 	commitAction.Message += c.config.SkipMessage

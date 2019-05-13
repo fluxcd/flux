@@ -27,18 +27,4 @@ type ResourceStore interface {
 	UpdateWorkloadPolicies(flux.ResourceID, policy.Update) (bool, error)
 	// Load all the resources in the store. The returned map is indexed by the resource IDs
 	GetAllResourcesByID() (map[string]resource.Resource, error)
-	// Load all the resources in the store. The returned map is indexed by the file which defines de resource
-	GetAllResourcesBySource() (map[string]resource.Resource, error)
-}
-
-// updatableResource is a Resource whose container images and policies can be updated
-type updatableResource interface {
-	GetResource() resource.Resource
-	SetWorkloadContainerImage(container string, newImageID image.Ref) error
-	UpdateWorkloadPolicies(policy.Update) (bool, error)
-}
-
-// updatableResourceStore is a package-internal version of ResourceStore, abstracting out update operations
-type updatableResourceStore interface {
-	GetAllResources() ([]updatableResource, error)
 }

@@ -39,7 +39,7 @@ func TestCommit(t *testing.T) {
 	defer cancel()
 
 	commitAction := git.CommitAction{Message: "Changed file"}
-	if err := checkout.CommitAndPush(ctx, commitAction, nil); err != nil {
+	if err := checkout.AddCommitAndPush(ctx, commitAction, nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -94,7 +94,7 @@ func TestSignedCommit(t *testing.T) {
 	defer cancel()
 
 	commitAction := git.CommitAction{Message: "Changed file"}
-	if err := checkout.CommitAndPush(ctx, commitAction, nil); err != nil {
+	if err := checkout.AddCommitAndPush(ctx, commitAction, nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -202,7 +202,7 @@ func TestCheckout(t *testing.T) {
 		break
 	}
 	commitAction := git.CommitAction{Author: "", Message: "Changed file"}
-	if err := checkout.CommitAndPush(ctx, commitAction, nil); err != nil {
+	if err := checkout.AddCommitAndPush(ctx, commitAction, nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -216,7 +216,7 @@ func TestCheckout(t *testing.T) {
 		Comment: "Expected comment",
 	}
 	commitAction = git.CommitAction{Author: "", Message: "Changed file again"}
-	if err := checkout.CommitAndPush(ctx, commitAction, &expectedNote); err != nil {
+	if err := checkout.AddCommitAndPush(ctx, commitAction, &expectedNote); err != nil {
 		t.Fatal(err)
 	}
 

@@ -162,7 +162,8 @@ func mockCluster(running ...cluster.Workload) *cluster.Mock {
 }
 
 func NewCheckoutManagerOrFail(t *testing.T, manifests cluster.Manifests, checkout *git.Checkout) resourcestore.ResourceStore {
-	cm, err := resourcestore.NewCheckoutManager(context.TODO(), false, manifests, &kubernetes.PolicyTranslator{}, checkout)
+	cm, err := resourcestore.NewFileResourceStore(context.TODO(), checkout.Dir(), checkout.ManifestDirs(), false,
+		manifests, &kubernetes.PolicyTranslator{})
 	if err != nil {
 		t.Fatal(err)
 	}

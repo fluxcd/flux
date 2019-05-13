@@ -23,7 +23,7 @@ type ReleaseContext struct {
 
 func NewReleaseContext(ctx context.Context, enableManifestGeneration bool,
 	c cluster.Cluster, m cluster.Manifests, pt cluster.PolicyTranslator, reg registry.Registry, repo *git.Checkout) (*ReleaseContext, error) {
-	rs, err := resourcestore.NewCheckoutManager(ctx, enableManifestGeneration, m, pt, repo)
+	rs, err := resourcestore.NewFileResourceStore(ctx, repo.Dir(), repo.ManifestDirs(), enableManifestGeneration, m, pt)
 	if err != nil {
 		return nil, err
 	}
