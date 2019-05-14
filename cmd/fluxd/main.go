@@ -112,13 +112,14 @@ func main() {
 		gitURL       = fs.String("git-url", "", "URL of git repo with Kubernetes manifests; e.g., git@github.com:weaveworks/flux-get-started")
 		gitBranch    = fs.String("git-branch", "master", "branch of git repo to use for Kubernetes manifests")
 		gitPath      = fs.StringSlice("git-path", []string{}, "relative paths within the git repo to locate Kubernetes manifests")
+		gitReadonly  = fs.Bool("git-readonly", false, fmt.Sprintf("use to prevent Flux from pushing changes to git; implies --sync-state=%s", fluxsync.NativeStateMode))
 		gitUser      = fs.String("git-user", "Weave Flux", "username to use as git committer")
 		gitEmail     = fs.String("git-email", "support@weave.works", "email to use as git committer")
 		gitSetAuthor = fs.Bool("git-set-author", false, "if set, the author of git commits will reflect the user who initiated the commit and will differ from the git committer.")
 		gitLabel     = fs.String("git-label", "", "label to keep track of sync progress; overrides both --git-sync-tag and --git-notes-ref")
 		gitSecret    = fs.Bool("git-secret", false, `if set, git-secret will be run on every git checkout. A gpg key must be imported using  --git-gpg-key-import or by mounting a keyring containing it directly`)
 		// Old git config; still used if --git-label is not supplied, but --git-label is preferred.
-		gitSyncTag     = fs.String("git-sync-tag", defaultGitSyncTag, "tag to use to mark sync progress for this cluster")
+		gitSyncTag     = fs.String("git-sync-tag", defaultGitSyncTag, fmt.Sprintf("tag to use to mark sync progress for this cluster (only relevant when --sync-state=%s)", fluxsync.GitTagStateMode))
 		gitNotesRef    = fs.String("git-notes-ref", defaultGitNotesRef, "ref to use for keeping commit annotations in git notes")
 		gitSkip        = fs.Bool("git-ci-skip", false, `append "[ci skip]" to commit messages so that CI will skip builds`)
 		gitSkipMessage = fs.String("git-ci-skip-message", "", "additional text for commit messages, useful for skipping builds in CI. Use this to supply specific text, or set --git-ci-skip")
@@ -248,7 +249,33 @@ func main() {
 		k8slog.Log("err", err)
 	}
 	k8sruntime.ErrorHandlers = []func(error){logErrorUnlessAccessRelated}
+
 	// Argument validation
+
+	if *gitReadonly {
+		if *syncState == fluxsync.GitTagStateMode {
+			logger.Log("warning", fmt.Sprintf("--git-readonly prevents use of --sync-state=%s. Forcing to --sync-state=%s", fluxsync.GitTagStateMode, fluxsync.NativeStateMode))
+			*syncState = fluxsync.NativeStateMode
+		}
+
+		gitRelatedFlags := []string{
+			"git-user",
+			"git-email",
+			"git-sync-tag",
+			"git-set-author",
+			"git-ci-skip",
+			"git-ci-skip-message",
+		}
+		var changedGitRelatedFlags []string
+		for _, gitRelatedFlag := range gitRelatedFlags {
+			if fs.Changed(gitRelatedFlag) {
+				changedGitRelatedFlags = append(changedGitRelatedFlags, gitRelatedFlag)
+			}
+		}
+		if len(changedGitRelatedFlags) > 0 {
+			logger.Log("warning", fmt.Sprintf("configuring any of {%s} has no effect when --git-readonly is set", strings.Join(changedGitRelatedFlags, ", ")))
+		}
+	}
 
 	// Maintain backwards compatibility with the --registry-poll-interval
 	// flag, but only if the --automation-interval is not set to a custom
@@ -571,7 +598,7 @@ func main() {
 		GitSecret:   *gitSecret,
 	}
 
-	repo := git.NewRepo(gitRemote, git.PollInterval(*gitPollInterval), git.Timeout(*gitTimeout), git.Branch(*gitBranch))
+	repo := git.NewRepo(gitRemote, git.PollInterval(*gitPollInterval), git.Timeout(*gitTimeout), git.Branch(*gitBranch), git.IsReadOnly(*gitReadonly))
 	{
 		shutdownWg.Add(1)
 		go func() {
@@ -589,6 +616,8 @@ func main() {
 		"signing-key", *gitSigningKey,
 		"verify-signatures", *gitVerifySignatures,
 		"sync-tag", *gitSyncTag,
+		"state", *syncState,
+		"readonly", *gitReadonly,
 		"notes-ref", *gitNotesRef,
 		"set-author", *gitSetAuthor,
 		"git-secret", *gitSecret,
@@ -629,6 +658,10 @@ func main() {
 			logger.Log("err", err)
 			os.Exit(1)
 		}
+
+	default:
+		logger.Log("error", "unknown sync state mode", "mode", *syncState)
+		os.Exit(1)
 	}
 
 	daemon := &daemon.Daemon{

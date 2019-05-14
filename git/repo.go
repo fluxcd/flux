@@ -91,9 +91,13 @@ func (b Branch) apply(r *Repo) {
 	r.branch = string(b)
 }
 
-var ReadOnly optionFunc = func(r *Repo) {
-	r.readonly = true
+type IsReadOnly bool
+
+func (ro IsReadOnly) apply(r *Repo) {
+	r.readonly = bool(ro)
 }
+
+var ReadOnly IsReadOnly = true
 
 // NewRepo constructs a repo mirror which will sync itself.
 func NewRepo(origin Remote, opts ...Option) *Repo {

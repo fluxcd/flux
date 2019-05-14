@@ -59,10 +59,6 @@ type TagAction struct {
 // Clone returns a local working clone of the sync'ed `*Repo`, using
 // the config given.
 func (r *Repo) Clone(ctx context.Context, conf Config) (*Checkout, error) {
-	if r.readonly {
-		return nil, ErrReadOnly
-	}
-
 	upstream := r.Origin()
 	repoDir, err := r.workingClone(ctx, conf.Branch)
 	if err != nil {
