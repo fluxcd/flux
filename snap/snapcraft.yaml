@@ -17,11 +17,6 @@ grade: devel # must be 'stable' to release into candidate/stable channels
 confinement: strict
 base: core18
 
-plugs:
-  personal-files:
-    read:
-      - $HOME/.kube/config
-
 parts:
   launcher:
     source: snap/local
@@ -53,10 +48,19 @@ parts:
       bin/fluxctl: bin/fluxctl.real
     after: [launcher]
 
+plugs:
+  kube-config:
+    interface: personal-files
+    read:
+    - $HOME/.kube/config
+    - $HOME/.minikube/client.key
+    - $HOME/.minikube/client.crt
+    - $HOME/.minikube/ca.crt
+
 apps:
   fluxctl:
     command: bin/fluxctl-launch
     plugs:
-      - personal-files
-      - network
-      - network-bind
+    - kube-config
+    - network
+    - network-bind
