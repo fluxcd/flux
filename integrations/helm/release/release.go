@@ -164,7 +164,7 @@ func (r *Release) Install(chartPath, releaseName string, fhr flux_v1beta1.HelmRe
 		return nil, fmt.Errorf("error statting path given for chart %s: %s", chartPath, err.Error())
 	}
 
-	r.logger.Log("info", fmt.Sprintf("processing release %s (as %s)", fhr.Spec.ReleaseName, releaseName),
+	r.logger.Log("info", fmt.Sprintf("processing release %s (as %s)", GetReleaseName(fhr), releaseName),
 		"action", fmt.Sprintf("%v", action),
 		"options", fmt.Sprintf("%+v", opts),
 		"timeout", fmt.Sprintf("%vs", fhr.GetTimeout()))
