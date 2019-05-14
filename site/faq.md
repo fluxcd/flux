@@ -242,13 +242,16 @@ First delete the secret (if it exists):
 
 `kubectl delete secret flux-git-deploy`
 
-Then create a new secret named `flux-git-deploy`, using your private key as the content of the secret:
+Then create a new secret named `flux-git-deploy`, using your private key as the content of the secret (you can generate the key with `ssh-keygen -q -N "" -f /full/path/to/private_key`):
 
 `kubectl create secret generic flux-git-deploy --from-file=identity=/full/path/to/private_key`
 
 Now restart fluxd to re-read the k8s secret (if it is running):
 
 `kubectl delete $(kubectl get pod -o name -l name=flux)`
+
+If you have installed flux through Helm, make sure to pass 
+`--set git.secretName=flux-git-deploy` when installing/upgrading the chart.
 
 ### How do I use a private git host (or one that's not github.com, gitlab.com, bitbucket.org, dev.azure.com, or vs-ssh.visualstudio.com)?
 
@@ -306,7 +309,7 @@ to experiment to find the most restrictive permissions that work for
 your case.
 
 You will need to use the (experimental) command-line flag
-`--k8s-namespace-whitelist` to enumerate the namespaces that Flux
+`--k8s-allow-namespace` to enumerate the namespaces that Flux
 attempts to scan for workloads.
 
 ### Can I change the namespace Flux puts things in by default?
