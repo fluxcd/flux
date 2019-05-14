@@ -161,10 +161,12 @@ running:
 fluxctl identity
 ```
 
-In order to sync your cluster state with GitHub you need to copy the public key and
-create a deploy key with write access on your GitHub repository.
-Go to _Settings > Deploy keys_ click on _Add deploy key_, check
-_Allow write access_, paste the Flux public key and click _Add key_.
+In order to sync your cluster state with GitHub you need to copy the
+public key and create a deploy key with access on your GitHub
+repository.  Go to _Settings > Deploy keys_ click on _Add deploy key_,
+paste the Flux public key and click _Add key_. If you want Flux to
+have write access to your repo, check _Allow write access_; if you
+have set `git.readonly=true`, you can leave this box unchecked.
 
 ### Uninstalling the Chart
 
@@ -208,7 +210,9 @@ The following tables lists the configurable parameters of the Flux chart and the
 | `clusterRole.create`                              | `true`                                               | If `false`, Flux and the Helm Operator will be restricted to the namespace where they are deployed
 | `service.type`                                    | `ClusterIP`                                          | Service type to be used (exposing the Flux API outside of the cluster is not advised)
 | `service.port`                                    | `3030`                                               | Service port to be used
+| `sync.state`                                      | `git`                                                | Where to keep sync state; either a tag in the upstream repo (`git`), or as an annotation on the SSH secret (`secret`)
 | `git.url`                                         | `None`                                               | URL of git repo with Kubernetes manifests
+| `git.readonly`                                    | `false`                                              | If `true`, the git repo will be considered read-only, and Flux will not attempt to write to it
 | `git.branch`                                      | `master`                                             | Branch of git repo to use for Kubernetes manifests
 | `git.path`                                        | `None`                                               | Path within git repo to locate Kubernetes manifests (relative path)
 | `git.user`                                        | `Weave Flux`                                         | Username to use as git committer
