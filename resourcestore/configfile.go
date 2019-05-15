@@ -69,8 +69,9 @@ func NewConfigFile(path, workingDir string) (*ConfigFile, error) {
 	result.Path = path
 	result.WorkingDir = workingDir
 	switch {
-	case result.CommandUpdated != nil && result.PatchUpdated != nil:
-		return nil, errors.New("either commandUpdated or patchUpdated should be defined")
+	case (result.CommandUpdated != nil && result.PatchUpdated != nil) ||
+		(result.CommandUpdated == nil && result.PatchUpdated == nil):
+		return nil, errors.New("a single commandUpdated or patchUpdated entry must be defined")
 	case result.PatchUpdated != nil && result.PatchUpdated.PatchFile == "":
 		return nil, errors.New("patchUpdated's patchFile cannot be empty")
 	case result.Version != 1:
