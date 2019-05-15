@@ -58,10 +58,12 @@ Its major features are:
 ### Who is using Flux in production
 
 - [APPUiO](https://appuio.ch)
+- [Babylon Health](https://www.babylonhealth.com/)
+- [College of William & Mary](https://www.wm.edu)
 - [Control Plane](https://control-plane.io)
 - [Crowd Riff](https://crowdriff.com) 
-- [College of William & Mary](https://www.wm.edu)
 - [Gini](https://gini.net)
+- [Improwised Technologies](https://www.improwised.com/)
 - [iQmetrix](https://www.iqmetrix.com)
 - [Mettle](https://mettle.co.uk)
 - [Payout](https://payout.one)
@@ -70,7 +72,6 @@ Its major features are:
 - [Under Armour](https://www.underarmour.com)
 - [VSHN](https://vshn.ch)
 - [Weave Cloud](https://cloud.weave.works)
-- [Babylon Health](https://www.babylonhealth.com/)
 
 If you too are using Flux in production; please submit a PR to add your organization to the list!
 
