@@ -1,8 +1,13 @@
-FROM alpine:3.9
+FROM bitnami/minideb:stretch
 
 WORKDIR /home/flux
 
-RUN apk add --no-cache openssh ca-certificates tini 'git>=2.12.0'
+RUN install_packages \
+  openssh-client \
+  ca-certificates \
+  git
+
+COPY --from=bitnami/minideb-extras:stretch /usr/local/bin/tini /usr/local/bin/
 
 # Add git hosts to known hosts file so we can use
 # StrickHostKeyChecking with git+ssh
@@ -31,7 +36,7 @@ LABEL maintainer="Weaveworks <help@weave.works>" \
       org.label-schema.vcs-url="git@github.com:weaveworks/flux" \
       org.label-schema.vendor="Weaveworks"
 
-ENTRYPOINT [ "/sbin/tini", "--", "helm-operator" ]
+ENTRYPOINT [ "/usr/local/bin/tini", "--", "helm-operator" ]
 
 ENV HELM_HOME=/var/fluxd/helm
 COPY ./helm-repositories.yaml /var/fluxd/helm/repository/repositories.yaml

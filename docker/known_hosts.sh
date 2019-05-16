@@ -56,7 +56,7 @@ wait=2
 until ${ok}; do
     generate && validate && ok=true || ok=false
     count=$(($count + 1))
-    if [[ ${count} -eq ${retries} ]]; then
+    if [ ${count} -eq ${retries} ]; then
         echo "ssh-keyscan failed, no more retries left"
         exit 1
     fi
