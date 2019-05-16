@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"sync"
 
 	"github.com/pkg/errors"
 )
@@ -327,6 +328,23 @@ func traceGitCommand(args []string, config gitCmdConfig, stdOutAndStdErr string)
 	)
 }
 
+type threadSafeBuffer struct {
+	bytes.Buffer
+	sync.Mutex
+}
+
+func (b *threadSafeBuffer) Write(p []byte) (n int, err error) {
+	b.Lock()
+	defer b.Unlock()
+	return b.Buffer.Write(p)
+}
+
+func (b *threadSafeBuffer) ReadFrom(r io.Reader) (n int64, err error) {
+	b.Lock()
+	defer b.Unlock()
+	return b.Buffer.ReadFrom(r)
+}
+
 // execGitCmd runs a `git` command with the supplied arguments.
 func execGitCmd(ctx context.Context, args []string, config gitCmdConfig) error {
 	c := exec.CommandContext(ctx, "git", args...)
@@ -335,8 +353,7 @@ func execGitCmd(ctx context.Context, args []string, config gitCmdConfig) error {
 		c.Dir = config.dir
 	}
 	c.Env = append(env(), config.env...)
-
-	stdOutAndStdErr := &bytes.Buffer{}
+	stdOutAndStdErr := &threadSafeBuffer{}
 	c.Stdout = stdOutAndStdErr
 	c.Stderr = stdOutAndStdErr
 	if config.out != nil {
