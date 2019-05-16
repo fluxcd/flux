@@ -316,7 +316,7 @@ func TestTraceGitCommand(t *testing.T) {
 					dir: "/tmp/flux-working628880789",
 				},
 			},
-			expected: `TRACE: command="git clone --branch master /tmp/flux-gitclone239583443 /tmp/flux-working628880789" out="" err="" dir="/tmp/flux-working628880789" env=""`,
+			expected: `TRACE: command="git clone --branch master /tmp/flux-gitclone239583443 /tmp/flux-working628880789" out="" dir="/tmp/flux-working628880789" env=""`,
 		},
 		{
 			name: "git rev-list",
@@ -333,7 +333,7 @@ func TestTraceGitCommand(t *testing.T) {
 					dir: "/tmp/flux-gitclone239583443",
 				},
 			},
-			expected: `TRACE: command="git rev-list --max-count 1 flux-sync --" out="b9d6a543acf8085ff6bed23fac17f8dc71bfcb66" err="" dir="/tmp/flux-gitclone239583443" env=""`,
+			expected: `TRACE: command="git rev-list --max-count 1 flux-sync --" out="b9d6a543acf8085ff6bed23fac17f8dc71bfcb66" dir="/tmp/flux-gitclone239583443" env=""`,
 		},
 		{
 			name: "git config email",
@@ -347,7 +347,7 @@ func TestTraceGitCommand(t *testing.T) {
 					dir: "/tmp/flux-working056923691",
 				},
 			},
-			expected: `TRACE: command="git config user.email support@weave.works" out="" err="" dir="/tmp/flux-working056923691" env=""`,
+			expected: `TRACE: command="git config user.email support@weave.works" out="" dir="/tmp/flux-working056923691" env=""`,
 		},
 		{
 			name: "git notes",
@@ -363,7 +363,7 @@ func TestTraceGitCommand(t *testing.T) {
 				},
 				out: "refs/notes/flux",
 			},
-			expected: `TRACE: command="git notes --ref flux get-ref" out="refs/notes/flux" err="" dir="/tmp/flux-working647148942" env=""`,
+			expected: `TRACE: command="git notes --ref flux get-ref" out="refs/notes/flux" dir="/tmp/flux-working647148942" env=""`,
 		},
 	}
 	for _, example := range examples {
@@ -371,7 +371,6 @@ func TestTraceGitCommand(t *testing.T) {
 			example.input.args,
 			example.input.config,
 			example.input.out,
-			example.input.err,
 		)
 		assert.Equal(t, example.expected, actual)
 	}
