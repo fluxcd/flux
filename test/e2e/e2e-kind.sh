@@ -12,9 +12,11 @@ chmod +x kubectl && \
 sudo mv kubectl /usr/local/bin/
 
 echo ">>> Building sigs.k8s.io/kind"
-cd $HOME
-GO111MODULE="on" go get -u sigs.k8s.io/kind@master
-cd $REPO_ROOT
+# Hairy way to clone and build version 0.2.1 of Kind since it doesn't support Go Modules:
+mkdir -p $GOPATH/src/sigs.k8s.io
+git clone https://github.com/kubernetes-sigs/kind.git $GOPATH/src/sigs.k8s.io/kind
+git -C $GOPATH/src/sigs.k8s.io/kind checkout tags/0.2.1
+go install sigs.k8s.io/kind
 
 echo ">>> Installing kind"
 sudo cp $GOPATH/bin/kind /usr/local/bin/
