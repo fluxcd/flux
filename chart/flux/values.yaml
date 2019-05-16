@@ -107,6 +107,10 @@ extraVolumes: []
 gpgKeys:
   # These keys will be imported into GPG in the Flux container.
   secretName: ""
+  # These keys will be imported into GPG in the Flux container.
+  # NB: should only be used for public keys used to verify the
+  # signatures of commits.
+  configMapName: ""
 
 git:
   # URL of git repo with Kubernetes manifests; e.g. git.url=ssh://git@github.com/weaveworks/flux-get-started
@@ -121,6 +125,8 @@ git:
   email: "support@weave.works"
   # If set, commits will be signed with this GPG key.
   signingKey: ""
+  # If set, the signatures of the sync tag and commits will be verified.
+  verifySignatures: false
   # If set, the author of git commits will reflect the user who initiated the commit and will differ from the git committer.
   setAuthor: false
   # Label to keep track of sync progress
