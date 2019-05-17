@@ -68,6 +68,7 @@ Its major features are:
 - [Mettle](https://mettle.co.uk)
 - [Payout](https://payout.one)
 - [Qordoba](https://qordoba.com)
+- [Rungway](https://rungway.com)
 - [Troii](https://troii.com/)
 - [Under Armour](https://www.underarmour.com)
 - [VSHN](https://vshn.ch)
