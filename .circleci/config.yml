@@ -1,27 +1,41 @@
 version: 2
 jobs:
   build:
-    working_directory: /go/src/github.com/weaveworks/flux
-    docker:
-      - image: circleci/golang:1.10
-      - image: memcached
+    working_directory: ~/go/src/github.com/weaveworks/flux
+    machine: true
+    environment:
+      GO_VERSION: 1.12.5
+      GOPATH: /home/circleci/go
+      PATH: /bin:/usr/bin:/usr/local/go/bin:/home/circleci/go/bin
     steps:
       - checkout
-      - setup_remote_docker
-
       - run:
-          # Ensure latest version of git
+          name: Install Golang
           command: |
-            echo "deb http://deb.debian.org/debian stretch-backports main" | sudo tee -a /etc/apt/sources.list.d/stretch-backports.list
+            curl -OL https://storage.googleapis.com/golang/go${GO_VERSION}.linux-amd64.tar.gz
+            tar -xf go${GO_VERSION}.linux-amd64.tar.gz
+            sudo rm -rf /usr/local/go
+            sudo mv go /usr/local
+            mkdir -p "$HOME/go/bin"
+            go version
+      - run:
+          name: Update packages and Start Memcached
+          command: |
+            # These repos fail and we don't need them:
+            sudo rm /etc/apt/sources.list.d/circleci_trusty.list /etc/apt/sources.list.d/google-chrome.list
             sudo apt-get update
-            sudo apt-get install -t stretch-backports -y --only-upgrade git
+            sudo apt-get install -y git rng-tools docker-ce memcached
             git version
-      - run: curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
+            docker version
+      - run: 
+          name: Install Dep
+          command: curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
       - run: dep ensure -vendor-only
       - run: make check-generated
       - run: make test TEST_FLAGS="-race -tags integration -timeout 60s"
       - run: make all
       - run: make e2e
+      
       - deploy:
           name: Maybe push prerelease images
           command: |
