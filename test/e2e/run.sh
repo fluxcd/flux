@@ -45,8 +45,8 @@ if ! kubectl version > /dev/null 2>&1 ; then
     echo '>>> Creating Kind Kubernetes cluster'
     cp "${KIND_CACHE_PATH}" "${REPO_ROOT}/test/bin/kind"
     chmod +x "${REPO_ROOT}/test/bin/kind"
+    defer kind --name "${KIND_CLUSTER}" delete cluster > /dev/null 2>&1
     kind create cluster --name "${KIND_CLUSTER}" --wait 5m
-    defer kind --name "${KIND_CLUSTER}" delete cluster
     export KUBECONFIG="$(kind --name="${KIND_CLUSTER}" get kubeconfig-path)"
     USING_KIND=true
     kubectl get pods --all-namespaces
@@ -82,8 +82,21 @@ fi
 
 echo '>>> Installing Flux with Helm'
 
+CREATE_CRDS='true'
+if kubectl get crd fluxhelmreleases.helm.integrations.flux.weave.works helmreleases.flux.weave.works > /dev/null 2>&1; then
+  # CRDs existed, don't try to create them
+  echo 'CRDs existed, setting helmOperator.createCRD=false'
+  CREATE_CRDS='false'
+else
+  # Schedule CRD deletion before calling helm, since it may fail and create them anyways
+  defer kubectl delete crd fluxhelmreleases.helm.integrations.flux.weave.works helmreleases.flux.weave.works > /dev/null 2>&1
+fi
+
 KNOWN_HOSTS=$(cat "${REPO_ROOT}/test/e2e/known_hosts")
 GITCONFIG=$(cat "${REPO_ROOT}/test/e2e/gitconfig")
+
+
+defer helm delete --purge flux > /dev/null 2>&1
 
 helm install --name flux --wait \
 --namespace "${FLUX_NAMESPACE}" \
@@ -93,18 +106,18 @@ helm install --name flux --wait \
 --set git.pollInterval=30s \
 --set git.config.secretName=gitconfig \
 --set git.config.enabled=true \
---set-string git.config.data="$GITCONFIG" \
+--set-string git.config.data="${GITCONFIG}" \
 --set helmOperator.tag=latest \
 --set helmOperator.create=true \
 --set helmOperator.createCRD=true \
 --set helmOperator.git.secretName=ssh-git \
 --set registry.excludeImage=* \
---set-string ssh.known_hosts="$KNOWN_HOSTS" \
+--set-string ssh.known_hosts="${KNOWN_HOSTS}" \
+--set helmOperator.createCRD="${CREATE_CRDS}" \
 "${REPO_ROOT}/chart/flux"
 
-defer helm delete --purge flux
-# These CRDs are have a keep policy and need to be deleted manually
-defer kubectl delete crd fluxhelmreleases.helm.integrations.flux.weave.works helmreleases.flux.weave.works
+
+
 
 echo -n '>>> Waiting for gitconfig secret '
 retries=24
