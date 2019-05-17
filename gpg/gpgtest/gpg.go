@@ -39,7 +39,7 @@ func GPGKey(t *testing.T) (string, string, func()) {
 		t.Fatal(err)
 	}
 
-	gpgCmd := exec.Command("gpg", "--homedir", newDir, "--list-keys", "--with-colons")
+	gpgCmd := exec.Command("gpg", "--homedir", newDir, "--list-keys", "--with-colons", "--with-fingerprint")
 	grepCmd := exec.Command("grep", "^fpr")
 	cutCmd := exec.Command("cut", "-d:", "-f10")
 
