@@ -1,8 +1,18 @@
-FROM alpine:3.9
+FROM debian:stable-slim
 
 WORKDIR /home/flux
 
-RUN apk add --no-cache openssh ca-certificates tini 'git>=2.12.0' 'gnutls>=3.6.7' gnupg
+RUN echo "deb http://deb.debian.org/debian stretch-backports main" | tee -a /etc/apt/sources.list.d/stretch-backports.list && \
+  echo "deb http://deb.debian.org/debian testing main" | tee -a /etc/apt/sources.list.d/testing.list && \
+  apt-get update && \
+  apt-get install -t stable -y --no-install-recommends \
+    openssh-client \
+    ca-certificates \
+    dirmngr \
+    gnupg && \
+  apt-get install -t stretch-backports -y --no-install-recommends git && \
+  apt-get install -t testing -y --no-install-recommends tini && \
+  rm -rf /var/lib/apt/lists/*
 
 # Add git hosts to known hosts file so we can use
 # StrickHostKeyChecking with git+ssh
@@ -29,21 +39,12 @@ LABEL maintainer="Weaveworks <help@weave.works>" \
       org.label-schema.vcs-url="git@github.com:weaveworks/flux" \
       org.label-schema.vendor="Weaveworks"
 
-ENTRYPOINT [ "/sbin/tini", "--", "fluxd" ]
+ENTRYPOINT [ "tini", "--", "fluxd" ]
 
 # Get the kubeyaml binary (files) and put them on the path
 COPY --from=quay.io/squaremo/kubeyaml:0.5.2 /usr/lib/kubeyaml /usr/lib/kubeyaml/
 ENV PATH=/bin:/usr/bin:/usr/local/bin:/usr/lib/kubeyaml
 
-# Create minimal nsswitch.conf file to prioritize the usage of /etc/hosts over DNS queries.
-# This resolves the conflict between:
-# * fluxd using netgo for static compilation. netgo reads nsswitch.conf to mimic glibc,
-#   defaulting to prioritize DNS queries over /etc/hosts if nsswitch.conf is missing:
-#   https://github.com/golang/go/issues/22846
-# * Alpine not including a nsswitch.conf file. Since Alpine doesn't use glibc
-#   (it uses musl), maintainers argue that the need of nsswitch.conf is a Go bug:
-#   https://github.com/gliderlabs/docker-alpine/issues/367#issuecomment-354316460
-RUN [ ! -e /etc/nsswitch.conf ] && echo 'hosts: files dns' > /etc/nsswitch.conf
 COPY ./kubeconfig /root/.kube/config
 COPY ./fluxd /usr/local/bin/
 

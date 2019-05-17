@@ -1,8 +1,16 @@
-FROM alpine:3.9
+FROM debian:stable-slim
 
 WORKDIR /home/flux
 
-RUN apk add --no-cache openssh ca-certificates tini 'git>=2.12.0'
+RUN echo "deb http://deb.debian.org/debian stretch-backports main" | tee -a /etc/apt/sources.list.d/stretch-backports.list && \
+  echo "deb http://deb.debian.org/debian testing main" | tee -a /etc/apt/sources.list.d/testing.list && \
+  apt-get update && \
+  apt-get install -t stable -y --no-install-recommends \
+    openssh-client \
+    ca-certificates && \
+  apt-get install -t stretch-backports -y --no-install-recommends git && \
+  apt-get install -t testing -y --no-install-recommends tini && \
+  rm -rf /var/lib/apt/lists/*
 
 # Add git hosts to known hosts file so we can use
 # StrickHostKeyChecking with git+ssh
@@ -31,7 +39,7 @@ LABEL maintainer="Weaveworks <help@weave.works>" \
       org.label-schema.vcs-url="git@github.com:weaveworks/flux" \
       org.label-schema.vendor="Weaveworks"
 
-ENTRYPOINT [ "/sbin/tini", "--", "helm-operator" ]
+ENTRYPOINT [ "tini", "--", "helm-operator" ]
 
 ENV HELM_HOME=/var/fluxd/helm
 COPY ./helm-repositories.yaml /var/fluxd/helm/repository/repositories.yaml
