@@ -231,6 +231,7 @@ prometheus:
 
 syncGarbageCollection:
   enabled: false
+  dry: false
 
 # Add your own init container or uncomment and modify the given example.
 initContainers: {}

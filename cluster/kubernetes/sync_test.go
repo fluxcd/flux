@@ -436,6 +436,23 @@ metadata:
 		test(t, kube, "", "", false)
 	})
 
+	t.Run("sync adds and GCs dry run", func(t *testing.T) {
+		kube, _, cancel := setup(t)
+		defer cancel()
+
+		// without GC on, resources persist if they are not mentioned in subsequent syncs.
+		test(t, kube, "", "", false)
+		test(t, kube, ns1+defs1, ns1+defs1, false)
+		test(t, kube, ns1+defs1+defs2, ns1+defs1+defs2, false)
+		test(t, kube, ns3+defs3, ns1+defs1+defs2+ns3+defs3, false)
+
+		// with GC dry run the collect garbage routine is running but only logging results with out collecting any resources
+		kube.DryGC = true
+		test(t, kube, ns1+defs2+ns3+defs3, ns1+defs1+defs2+ns3+defs3, false)
+		test(t, kube, ns1+defs1+defs2, ns1+defs1+defs2+ns3+defs3, false)
+		test(t, kube, "", ns1+defs1+defs2+ns3+defs3, false)
+	})
+
 	t.Run("sync won't incorrectly delete non-namespaced resources", func(t *testing.T) {
 		kube, _, cancel := setup(t)
 		defer cancel()
