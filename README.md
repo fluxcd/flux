@@ -58,6 +58,7 @@ Its major features are:
 ### Who is using Flux in production
 
 - [APPUiO](https://appuio.ch)
+- [Avisi](https://avisi.nl)
 - [Babylon Health](https://www.babylonhealth.com/)
 - [College of William & Mary](https://www.wm.edu)
 - [Control Plane](https://control-plane.io)
