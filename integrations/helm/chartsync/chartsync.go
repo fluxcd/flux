@@ -305,69 +305,22 @@ func (chs *ChartChangeSync) reconcileReleaseDef(fhr fluxv1beta1.HelmRelease) {
 
 	opts := release.InstallOptions{DryRun: false}
 
-	chartPath := ""
-	chartRevision := ""
+	chartPath, chartRevision, ok := "", "", false
 	if fhr.Spec.ChartSource.GitChartSource != nil {
-		chartSource := fhr.Spec.ChartSource.GitChartSource
 		// We need to hold the lock until after we're done releasing
 		// the chart, so that the clone doesn't get swapped out from
 		// under us. TODO(michael) consider having a lock per clone.
 		chs.clonesMu.Lock()
 		defer chs.clonesMu.Unlock()
-		chartClone, ok := chs.clones[releaseName]
-		// Validate the clone we have for the release is the same as
-		// is being referenced in the chart source.
-		if ok {
-			ok = chartClone.remote == chartSource.GitURL && chartClone.ref == chartSource.RefOrDefault()
-			if !ok {
-				if chartClone.export != nil {
-					chartClone.export.Clean()
-				}
-				delete(chs.clones, releaseName)
-			}
-		}
-		// FIXME(michael): if it's not cloned, and it's not going to
-		// be, we might not want to wait around until the next tick
-		// before reporting what's wrong with it. But if we just use
-		// repo.Ready(), we'll force all charts through that blocking
-		// code, rather than waiting for things to sync in good time.
+		chartPath, chartRevision, ok = chs.getGitChartSource(fhr)
 		if !ok {
-			repo, ok := chs.mirrors.Get(mirrorName(chartSource))
-			if !ok {
-				chs.maybeMirror(fhr)
-				chs.setCondition(fhr, fluxv1beta1.HelmReleaseChartFetched, v1.ConditionUnknown, ReasonGitNotReady, "git repo "+chartSource.GitURL+" not mirrored yet")
-				chs.logger.Log("info", "chart repo not cloned yet", "resource", fhr.ResourceID().String())
-			} else {
-				status, err := repo.Status()
-				if status != git.RepoReady {
-					chs.setCondition(fhr, fluxv1beta1.HelmReleaseChartFetched, v1.ConditionUnknown, ReasonGitNotReady, "git repo not mirrored yet: "+err.Error())
-					chs.logger.Log("info", "chart repo not ready yet", "resource", fhr.ResourceID().String(), "status", string(status), "err", err)
-				}
-			}
 			return
-		}
-		chs.setCondition(fhr, fluxv1beta1.HelmReleaseChartFetched, v1.ConditionTrue, ReasonCloned, "successfully cloned git repo")
-		chartPath = filepath.Join(chartClone.export.Dir(), chartSource.Path)
-		chartRevision = chartClone.head
-
-		if chs.config.UpdateDeps && !fhr.Spec.ChartSource.GitChartSource.SkipDepUpdate {
-			if err := updateDependencies(chartPath, ""); err != nil {
-				chs.setCondition(fhr, fluxv1beta1.HelmReleaseReleased, v1.ConditionFalse, ReasonDependencyFailed, err.Error())
-				chs.logger.Log("warning", "failed to update chart dependencies", "resource", fhr.ResourceID().String(), "err", err)
-				return
-			}
 		}
 	} else if fhr.Spec.ChartSource.RepoChartSource != nil { // TODO(michael): make this dispatch more natural, or factor it out
-		chartSource := fhr.Spec.ChartSource.RepoChartSource
-		path, err := ensureChartFetched(chs.config.ChartCache, chartSource)
-		if err != nil {
-			chs.setCondition(fhr, fluxv1beta1.HelmReleaseChartFetched, v1.ConditionFalse, ReasonDownloadFailed, "chart download failed: "+err.Error())
-			chs.logger.Log("info", "chart download failed", "resource", fhr.ResourceID().String(), "err", err)
+		chartPath, chartRevision, ok = chs.getRepoChartSource(fhr)
+		if !ok {
 			return
 		}
-		chs.setCondition(fhr, fluxv1beta1.HelmReleaseChartFetched, v1.ConditionTrue, ReasonDownloaded, "chart fetched: "+filepath.Base(path))
-		chartPath = path
-		chartRevision = chartSource.Version
 	}
 
 	if rel == nil {
@@ -504,6 +457,83 @@ func (chs *ChartChangeSync) updateObservedGeneration(hr fluxv1beta1.HelmRelease)
 	hrClient := chs.ifClient.FluxV1beta1().HelmReleases(hr.Namespace)
 
 	return status.SetObservedGeneration(hrClient, hr, hr.Generation)
+}
+
+func (chs *ChartChangeSync) getGitChartSource(fhr v1beta1.HelmRelease) (string, string, bool) {
+	chartPath, chartRevision := "", ""
+	chartSource := fhr.Spec.GitChartSource
+	if chartSource == nil {
+		return chartPath, chartRevision, false
+	}
+
+	releaseName := release.GetReleaseName(fhr)
+	chartClone, ok := chs.clones[releaseName]
+	// Validate the clone we have for the release is the same as
+	// is being referenced in the chart source.
+	if ok {
+		ok = chartClone.remote == chartSource.GitURL && chartClone.ref == chartSource.RefOrDefault()
+		if !ok {
+			if chartClone.export != nil {
+				chartClone.export.Clean()
+			}
+			delete(chs.clones, releaseName)
+		}
+	}
+
+	// FIXME(michael): if it's not cloned, and it's not going to
+	// be, we might not want to wait around until the next tick
+	// before reporting what's wrong with it. But if we just use
+	// repo.Ready(), we'll force all charts through that blocking
+	// code, rather than waiting for things to sync in good time.
+	if !ok {
+		repo, ok := chs.mirrors.Get(mirrorName(chartSource))
+		if !ok {
+			chs.maybeMirror(fhr)
+			chs.setCondition(fhr, fluxv1beta1.HelmReleaseChartFetched, v1.ConditionUnknown, ReasonGitNotReady, "git repo "+chartSource.GitURL+" not mirrored yet")
+			chs.logger.Log("info", "chart repo not cloned yet", "resource", fhr.ResourceID().String())
+		} else {
+			status, err := repo.Status()
+			if status != git.RepoReady {
+				chs.setCondition(fhr, fluxv1beta1.HelmReleaseChartFetched, v1.ConditionUnknown, ReasonGitNotReady, "git repo not mirrored yet: "+err.Error())
+				chs.logger.Log("info", "chart repo not ready yet", "resource", fhr.ResourceID().String(), "status", string(status), "err", err)
+			}
+		}
+		return chartPath, chartRevision, false
+	}
+	chs.setCondition(fhr, fluxv1beta1.HelmReleaseChartFetched, v1.ConditionTrue, ReasonCloned, "successfully cloned git repo")
+	chartPath = filepath.Join(chartClone.export.Dir(), chartSource.Path)
+	chartRevision = chartClone.head
+
+	if chs.config.UpdateDeps && !fhr.Spec.ChartSource.GitChartSource.SkipDepUpdate {
+		if err := updateDependencies(chartPath, ""); err != nil {
+			chs.setCondition(fhr, fluxv1beta1.HelmReleaseReleased, v1.ConditionFalse, ReasonDependencyFailed, err.Error())
+			chs.logger.Log("warning", "failed to update chart dependencies", "resource", fhr.ResourceID().String(), "err", err)
+			return chartPath, chartRevision, false
+		}
+	}
+
+	return chartPath, chartRevision, true
+}
+
+func (chs *ChartChangeSync) getRepoChartSource(fhr v1beta1.HelmRelease) (string, string, bool) {
+	chartPath, chartRevision := "", ""
+	chartSource := fhr.Spec.ChartSource.RepoChartSource
+	if chartSource == nil {
+		return chartPath, chartRevision, false
+	}
+
+	path, err := ensureChartFetched(chs.config.ChartCache, chartSource)
+	if err != nil {
+		chs.setCondition(fhr, fluxv1beta1.HelmReleaseChartFetched, v1.ConditionFalse, ReasonDownloadFailed, "chart download failed: "+err.Error())
+		chs.logger.Log("info", "chart download failed", "resource", fhr.ResourceID().String(), "err", err)
+		return chartPath, chartRevision, false
+	}
+
+	chs.setCondition(fhr, fluxv1beta1.HelmReleaseChartFetched, v1.ConditionTrue, ReasonDownloaded, "chart fetched: "+filepath.Base(path))
+	chartPath = path
+	chartRevision = chartSource.Version
+
+	return chartPath, chartRevision, true
 }
 
 func sortStrings(ss []string) []string {
