@@ -123,6 +123,24 @@ func SetReleaseRevision(client v1beta1client.HelmReleaseInterface, hr v1beta1.He
 	return err
 }
 
+// SetValuesChecksum updates the values checksum of the HelmRelease to
+// the given checksum.
+func SetValuesChecksum(client v1beta1client.HelmReleaseInterface, hr v1beta1.HelmRelease, valuesChecksum string) error {
+	cHr, err := client.Get(hr.Name, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+
+	if valuesChecksum == "" || cHr.Status.ValuesChecksum == valuesChecksum {
+		return nil
+	}
+
+	cHr.Status.ValuesChecksum = valuesChecksum
+
+	_, err = client.UpdateStatus(cHr)
+	return err
+}
+
 // SetObservedGeneration updates the observed generation status of the
 // HelmRelease to the given generation.
 func SetObservedGeneration(client v1beta1client.HelmReleaseInterface, hr v1beta1.HelmRelease, generation int64) error {

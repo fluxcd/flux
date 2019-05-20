@@ -303,8 +303,10 @@ func (c *Controller) enqueueUpdateJob(old, new interface{}) {
 	}
 
 	// Skip if the current HelmRelease generation has been rolled
-	// back, as otherwise we will end up in a loop of failure.
-	if status.HasRolledBack(newFhr) {
+	// back, as otherwise we will end up in a loop of failure, but
+	// continue if the checksum of the values differs, as the failure
+	// may have been the result of the values contents.
+	if newFhr.Spec.Rollback.Enable && status.HasRolledBack(newFhr) && c.sync.CompareValuesChecksum(newFhr) {
 		c.logger.Log("warning", "release has been rolled back, skipping", "resource", newFhr.ResourceID().String())
 		return
 	}

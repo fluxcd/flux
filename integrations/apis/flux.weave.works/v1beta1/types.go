@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/ghodss/yaml"
-	v1 "k8s.io/api/core/v1"
+	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/helm/pkg/chartutil"
 
@@ -165,6 +165,22 @@ func (r HelmRelease) GetTimeout() int64 {
 	return *r.Spec.Timeout
 }
 
+// GetValuesFromSource maintains backwards compatibility with
+// ValueFileSecrets by merging them into the ValuesFrom array.
+func (r HelmRelease) GetValuesFromSource() []ValuesFromSource {
+	valuesFrom := r.Spec.ValuesFrom
+	// Maintain backwards compatibility with ValueFileSecrets
+	if r.Spec.ValueFileSecrets != nil {
+		var secretKeyRefs []ValuesFromSource
+		for _, ref := range r.Spec.ValueFileSecrets {
+			s := &v1.SecretKeySelector{LocalObjectReference: ref}
+			secretKeyRefs = append(secretKeyRefs, ValuesFromSource{SecretKeyRef: s})
+		}
+		valuesFrom = append(secretKeyRefs, valuesFrom...)
+	}
+	return valuesFrom
+}
+
 type HelmReleaseStatus struct {
 	// ReleaseName is the name as either supplied or generated.
 	// +optional
@@ -177,6 +193,10 @@ type HelmReleaseStatus struct {
 	// ObservedGeneration is the most recent generation observed by
 	// the controller.
 	ObservedGeneration int64 `json:"observedGeneration"`
+
+	// ValuesChecksum holds the SHA256 checksum of the last applied
+	// values.
+	ValuesChecksum string `json:"valuesChecksum"`
 
 	// Revision would define what Git hash or Chart version has currently
 	// been deployed.

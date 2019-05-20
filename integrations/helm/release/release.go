@@ -2,6 +2,8 @@ package release
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"io/ioutil"
 	"net/url"
@@ -14,7 +16,6 @@ import (
 	"github.com/ghodss/yaml"
 	"github.com/go-kit/kit/log"
 	"github.com/spf13/pflag"
-	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -156,7 +157,7 @@ func (r *Release) canDelete(name string) (bool, error) {
 // TODO(michael): cloneDir is only relevant if installing from git;
 // either split this procedure into two varieties, or make it more
 // general and calculate the path to the chart in the caller.
-func (r *Release) Install(chartPath, releaseName string, fhr flux_v1beta1.HelmRelease, action Action, opts InstallOptions, kubeClient *kubernetes.Clientset) (release *hapi_release.Release, err error) {
+func (r *Release) Install(chartPath, releaseName string, fhr flux_v1beta1.HelmRelease, action Action, opts InstallOptions, kubeClient *kubernetes.Clientset) (release *hapi_release.Release, checksum string, err error) {
 	defer func(start time.Time) {
 		ObserveRelease(
 			start,
@@ -169,14 +170,14 @@ func (r *Release) Install(chartPath, releaseName string, fhr flux_v1beta1.HelmRe
 	}(time.Now())
 
 	if chartPath == "" {
-		return nil, fmt.Errorf("empty path to chart supplied for resource %q", fhr.ResourceID().String())
+		return nil, "", fmt.Errorf("empty path to chart supplied for resource %q", fhr.ResourceID().String())
 	}
 	_, err = os.Stat(chartPath)
 	switch {
 	case os.IsNotExist(err):
-		return nil, fmt.Errorf("no file or dir at path to chart: %s", chartPath)
+		return nil, "", fmt.Errorf("no file or dir at path to chart: %s", chartPath)
 	case err != nil:
-		return nil, fmt.Errorf("error statting path given for chart %s: %s", chartPath, err.Error())
+		return nil, "", fmt.Errorf("error statting path given for chart %s: %s", chartPath, err.Error())
 	}
 
 	r.logger.Log("info", fmt.Sprintf("processing release %s (as %s)", fhr.ReleaseName(), releaseName),
@@ -184,28 +185,19 @@ func (r *Release) Install(chartPath, releaseName string, fhr flux_v1beta1.HelmRe
 		"options", fmt.Sprintf("%+v", opts),
 		"timeout", fmt.Sprintf("%vs", fhr.GetTimeout()))
 
-	valuesFrom := fhr.Spec.ValuesFrom
-	// Maintain backwards compatibility with ValueFileSecrets
-	if fhr.Spec.ValueFileSecrets != nil {
-		var secretKeyRefs []flux_v1beta1.ValuesFromSource
-		for _, ref := range fhr.Spec.ValueFileSecrets {
-			s := &v1.SecretKeySelector{LocalObjectReference: ref}
-			secretKeyRefs = append(secretKeyRefs, flux_v1beta1.ValuesFromSource{SecretKeyRef: s})
-		}
-		valuesFrom = append(secretKeyRefs, valuesFrom...)
-	}
-	vals, err := values(kubeClient.CoreV1(), fhr.Namespace, chartPath, valuesFrom, fhr.Spec.Values)
+	vals, err := Values(kubeClient.CoreV1(), fhr.Namespace, chartPath, fhr.GetValuesFromSource(), fhr.Spec.Values)
 	if err != nil {
 		r.logger.Log("error", fmt.Sprintf("Failed to compose values for Chart release [%s]: %v", fhr.Spec.ReleaseName, err))
-		return nil, err
+		return nil, "", err
 	}
 
 	strVals, err := vals.YAML()
 	if err != nil {
 		r.logger.Log("error", fmt.Sprintf("Problem with supplied customizations for Chart release [%s]: %v", fhr.Spec.ReleaseName, err))
-		return nil, err
+		return nil, "", err
 	}
 	rawVals := []byte(strVals)
+	checksum = ValuesChecksum(rawVals)
 
 	switch action {
 	case InstallAction:
@@ -228,15 +220,15 @@ func (r *Release) Install(chartPath, releaseName string, fhr flux_v1beta1.HelmRe
 				_, err = r.HelmClient.DeleteRelease(releaseName, k8shelm.DeletePurge(true))
 				if err != nil {
 					r.logger.Log("error", fmt.Sprintf("Release deletion error: %#v", err))
-					return nil, err
+					return nil, "", err
 				}
 			}
-			return nil, err
+			return nil, checksum, err
 		}
 		if !opts.DryRun {
 			r.annotateResources(res.Release, fhr)
 		}
-		return res.Release, err
+		return res.Release, checksum, err
 	case UpgradeAction:
 		res, err := r.HelmClient.UpdateRelease(
 			releaseName,
@@ -250,16 +242,16 @@ func (r *Release) Install(chartPath, releaseName string, fhr flux_v1beta1.HelmRe
 
 		if err != nil {
 			r.logger.Log("error", fmt.Sprintf("Chart upgrade release failed: %s: %#v", fhr.Spec.ReleaseName, err))
-			return nil, err
+			return nil, checksum, err
 		}
 		if !opts.DryRun {
 			r.annotateResources(res.Release, fhr)
 		}
-		return res.Release, err
+		return res.Release, checksum, err
 	default:
 		err = fmt.Errorf("Valid install options: CREATE, UPDATE. Provided: %s", action)
 		r.logger.Log("error", err.Error())
-		return nil, err
+		return nil, "", err
 	}
 }
 
@@ -382,14 +374,9 @@ func (r *Release) annotateResources(release *hapi_release.Release, fhr flux_v1be
 	}
 }
 
-// fhrResourceID constructs a resource.ID for a HelmRelease resource.
-func fhrResourceID(fhr flux_v1beta1.HelmRelease) resource.ID {
-	return resource.MakeID(fhr.Namespace, "HelmRelease", fhr.Name)
-}
-
-// values tries to resolve all given value file sources and merges
+// Values tries to resolve all given value file sources and merges
 // them into one Values struct. It returns the merged Values.
-func values(corev1 k8sclientv1.CoreV1Interface, ns string, chartPath string, valuesFromSource []flux_v1beta1.ValuesFromSource, values chartutil.Values) (chartutil.Values, error) {
+func Values(corev1 k8sclientv1.CoreV1Interface, ns string, chartPath string, valuesFromSource []flux_v1beta1.ValuesFromSource, values chartutil.Values) (chartutil.Values, error) {
 	result := chartutil.Values{}
 
 	for _, v := range valuesFromSource {
@@ -491,6 +478,19 @@ func values(corev1 k8sclientv1.CoreV1Interface, ns string, chartPath string, val
 	result = mergeValues(result, values)
 
 	return result, nil
+}
+
+// ValuesChecksum calculates the SHA256 checksum of the given raw
+// values.
+func ValuesChecksum(rawValues []byte) string {
+	hasher := sha256.New()
+	hasher.Write(rawValues)
+	return hex.EncodeToString(hasher.Sum(nil))
+}
+
+// fhrResourceID constructs a resource.ID for a HelmRelease resource.
+func fhrResourceID(fhr flux_v1beta1.HelmRelease) resource.ID {
+	return resource.MakeID(fhr.Namespace, "HelmRelease", fhr.Name)
 }
 
 // Merges source and destination `chartutils.Values`, preferring values from the source Values

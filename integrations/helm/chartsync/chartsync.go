@@ -280,17 +280,43 @@ func (chs *ChartChangeSync) maybeMirror(fhr fluxv1beta1.HelmRelease) {
 	}
 }
 
+// CompareValuesChecksum recalculates the checksum of the values
+// and compares it to the last recorded checksum.
+func (chs *ChartChangeSync) CompareValuesChecksum(fhr fluxv1beta1.HelmRelease) bool {
+	chartPath, ok := "", false
+	if fhr.Spec.ChartSource.GitChartSource != nil {
+		// We need to hold the lock until have compared the values,
+		// so that the clone doesn't get swapped out from under us.
+		chs.clonesMu.Lock()
+		defer chs.clonesMu.Unlock()
+		chartPath, _, ok = chs.getGitChartSource(fhr)
+		if !ok {
+			return false
+		}
+	} else if fhr.Spec.ChartSource.RepoChartSource != nil {
+		chartPath, _, ok = chs.getRepoChartSource(fhr)
+		if !ok {
+			return false
+		}
+	}
+
+	values, err := release.Values(chs.kubeClient.CoreV1(), fhr.Namespace, chartPath, fhr.GetValuesFromSource(), fhr.Spec.Values)
+	if err != nil {
+		return false
+	}
+
+	strValues, err := values.YAML()
+	if err != nil {
+		return false
+	}
+
+	return fhr.Status.ValuesChecksum == release.ValuesChecksum([]byte(strValues))
+}
+
 // ReconcileReleaseDef asks the ChartChangeSync to examine the release
 // associated with a HelmRelease, and install or upgrade the
 // release if the chart it refers to has changed.
 func (chs *ChartChangeSync) ReconcileReleaseDef(fhr fluxv1beta1.HelmRelease) {
-	chs.reconcileReleaseDef(fhr)
-}
-
-// reconcileReleaseDef looks up the helm release associated with a
-// HelmRelease resource, and either installs, upgrades, or does
-// nothing, depending on the state (or absence) of the release.
-func (chs *ChartChangeSync) reconcileReleaseDef(fhr fluxv1beta1.HelmRelease) {
 	defer chs.updateObservedGeneration(fhr)
 
 	releaseName := fhr.ReleaseName()
@@ -316,7 +342,7 @@ func (chs *ChartChangeSync) reconcileReleaseDef(fhr fluxv1beta1.HelmRelease) {
 		if !ok {
 			return
 		}
-	} else if fhr.Spec.ChartSource.RepoChartSource != nil { // TODO(michael): make this dispatch more natural, or factor it out
+	} else if fhr.Spec.ChartSource.RepoChartSource != nil {
 		chartPath, chartRevision, ok = chs.getRepoChartSource(fhr)
 		if !ok {
 			return
@@ -324,7 +350,7 @@ func (chs *ChartChangeSync) reconcileReleaseDef(fhr fluxv1beta1.HelmRelease) {
 	}
 
 	if rel == nil {
-		_, err := chs.release.Install(chartPath, releaseName, fhr, release.InstallAction, opts, &chs.kubeClient)
+		_, checksum, err := chs.release.Install(chartPath, releaseName, fhr, release.InstallAction, opts, &chs.kubeClient)
 		if err != nil {
 			chs.setCondition(fhr, fluxv1beta1.HelmReleaseReleased, v1.ConditionFalse, ReasonInstallFailed, err.Error())
 			chs.logger.Log("warning", "failed to install chart", "resource", fhr.ResourceID().String(), "err", err)
@@ -333,6 +359,9 @@ func (chs *ChartChangeSync) reconcileReleaseDef(fhr fluxv1beta1.HelmRelease) {
 		chs.setCondition(fhr, fluxv1beta1.HelmReleaseReleased, v1.ConditionTrue, ReasonSuccess, "helm install succeeded")
 		if err = status.SetReleaseRevision(chs.ifClient.FluxV1beta1().HelmReleases(fhr.Namespace), fhr, chartRevision); err != nil {
 			chs.logger.Log("warning", "could not update the release revision", "resource", fhr.ResourceID().String(), "err", err)
+		}
+		if err = status.SetValuesChecksum(chs.ifClient.FluxV1beta1().HelmReleases(fhr.Namespace), fhr, checksum); err != nil {
+			chs.logger.Log("warning", "could not update the values checksum", "namespace", fhr.Namespace, "resource", fhr.Name, "err", err)
 		}
 		return
 	}
@@ -359,15 +388,21 @@ func (chs *ChartChangeSync) reconcileReleaseDef(fhr fluxv1beta1.HelmRelease) {
 			chs.logger.Log("warning", "HelmRelease spec has diverged since we calculated if we should upgrade, skipping upgrade", "resource", fhr.ResourceID().String())
 			return
 		}
-		_, err = chs.release.Install(chartPath, releaseName, fhr, release.UpgradeAction, opts, &chs.kubeClient)
+		_, checksum, err := chs.release.Install(chartPath, releaseName, fhr, release.UpgradeAction, opts, &chs.kubeClient)
 		if err != nil {
 			chs.setCondition(fhr, fluxv1beta1.HelmReleaseReleased, v1.ConditionFalse, ReasonUpgradeFailed, err.Error())
+			if err = status.SetValuesChecksum(chs.ifClient.FluxV1beta1().HelmReleases(fhr.Namespace), fhr, checksum); err != nil {
+				chs.logger.Log("warning", "could not update the values checksum", "namespace", fhr.Namespace, "resource", fhr.Name, "err", err)
+			}
 			chs.logger.Log("warning", "failed to upgrade chart", "resource", fhr.ResourceID().String(), "err", err)
 			return
 		}
 		chs.setCondition(fhr, fluxv1beta1.HelmReleaseReleased, v1.ConditionTrue, ReasonSuccess, "helm upgrade succeeded")
 		if err = status.SetReleaseRevision(chs.ifClient.FluxV1beta1().HelmReleases(fhr.Namespace), fhr, chartRevision); err != nil {
 			chs.logger.Log("warning", "could not update the release revision", "resource", fhr.ResourceID().String(), "err", err)
+		}
+		if err = status.SetValuesChecksum(chs.ifClient.FluxV1beta1().HelmReleases(fhr.Namespace), fhr, checksum); err != nil {
+			chs.logger.Log("warning", "could not update the values checksum", "namespace", fhr.Namespace, "resource", fhr.Name, "err", err)
 		}
 		return
 	}
@@ -592,7 +627,7 @@ func (chs *ChartChangeSync) shouldUpgrade(chartsRepo string, currRel *hapi_relea
 	// Get the desired release state
 	opts := release.InstallOptions{DryRun: true}
 	tempRelName := string(fhr.UID)
-	desRel, err := chs.release.Install(chartsRepo, tempRelName, fhr, release.InstallAction, opts, &chs.kubeClient)
+	desRel, _, err := chs.release.Install(chartsRepo, tempRelName, fhr, release.InstallAction, opts, &chs.kubeClient)
 	if err != nil {
 		return false, err
 	}
