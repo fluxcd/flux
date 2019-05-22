@@ -41,12 +41,12 @@ commandUpdated:
   updaters:
     - containerImage:
         command: echo uci1 $FLUX_WORKLOAD $FLUX_WL_NS $FLUX_WL_KIND $FLUX_WL_NAME $FLUX_CONTAINER $FLUX_IMG $FLUX_TAG
-      annotation:
-        command: echo ua1 $FLUX_WORKLOAD $FLUX_WL_NS $FLUX_WL_KIND $FLUX_WL_NAME $FLUX_ANNOTATION_KEY ${FLUX_ANNOTATION_VALUE:-delete}
+      policy:
+        command: echo ua1 $FLUX_WORKLOAD $FLUX_WL_NS $FLUX_WL_KIND $FLUX_WL_NAME $FLUX_POLICY ${FLUX_POLICY_VALUE:-delete}
     - containerImage:
         command: echo uci2 $FLUX_WORKLOAD $FLUX_WL_NS $FLUX_WL_KIND $FLUX_WL_NAME $FLUX_CONTAINER $FLUX_IMG $FLUX_TAG
-      annotation:
-        command: echo ua2 $FLUX_WORKLOAD $FLUX_WL_NS $FLUX_WL_KIND $FLUX_WL_NAME $FLUX_ANNOTATION_KEY ${FLUX_ANNOTATION_VALUE:-delete}
+      policy:
+        command: echo ua2 $FLUX_WORKLOAD $FLUX_WL_NS $FLUX_WL_KIND $FLUX_WL_NAME $FLUX_POLICY ${FLUX_POLICY_VALUE:-delete}
 `
 
 func TestParseCmdUpdatedConfigFile(t *testing.T) {
@@ -64,8 +64,8 @@ func TestParseCmdUpdatedConfigFile(t *testing.T) {
 		cf.CommandUpdated.Updaters[0].ContainerImage.Command,
 	)
 	assert.Equal(t,
-		"echo ua2 $FLUX_WORKLOAD $FLUX_WL_NS $FLUX_WL_KIND $FLUX_WL_NAME $FLUX_ANNOTATION_KEY ${FLUX_ANNOTATION_VALUE:-delete}",
-		cf.CommandUpdated.Updaters[1].Annotation.Command,
+		"echo ua2 $FLUX_WORKLOAD $FLUX_WL_NS $FLUX_WL_KIND $FLUX_WL_NAME $FLUX_POLICY ${FLUX_POLICY_VALUE:-delete}",
+		cf.CommandUpdated.Updaters[1].Policy.Command,
 	)
 }
 
@@ -102,7 +102,7 @@ func TestExecAnnotationUpdaters(t *testing.T) {
 
 	// Test the update/addition of annotations
 	annotationValue := "value"
-	result := cf.ExecAnnotationUpdaters(context.Background(), resourceID, "key", &annotationValue)
+	result := cf.ExecPolicyUpdaters(context.Background(), resourceID, "key", annotationValue)
 	assert.Equal(t, 2, len(result), "result: %s", result)
 	assert.Equal(t,
 		"ua1 default:deployment/foo default deployment foo key value\n",
@@ -112,7 +112,7 @@ func TestExecAnnotationUpdaters(t *testing.T) {
 		string(result[1].Output))
 
 	// Test the deletion of annotations "
-	result = cf.ExecAnnotationUpdaters(context.Background(), resourceID, "key", nil)
+	result = cf.ExecPolicyUpdaters(context.Background(), resourceID, "key", "")
 	assert.Equal(t, 2, len(result), "result: %s", result)
 	assert.Equal(t,
 		"ua1 default:deployment/foo default deployment foo key delete\n",

@@ -247,8 +247,7 @@ func TestDoSync_WithNewCommit(t *testing.T) {
 			return err
 		}
 		// Push some new changes
-		cm, err := resourcestore.NewFileResourceStore(ctx, checkout.Dir(), checkout.ManifestDirs(), false,
-			d.Manifests, d.PolicyTranslator)
+		cm, err := resourcestore.NewFileResourceStore(ctx, checkout.Dir(), checkout.ManifestDirs(), false, d.Manifests)
 		if err != nil {
 			return err
 		}

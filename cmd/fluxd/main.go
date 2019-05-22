@@ -533,7 +533,6 @@ func main() {
 		V:                         version,
 		Cluster:                   k8s,
 		Manifests:                 k8sManifests,
-		PolicyTranslator:          &kubernetes.PolicyTranslator{},
 		Registry:                  cacheRegistry,
 		ImageRefresh:              make(chan image.Name, 100), // size chosen by fair dice roll
 		Repo:                      repo,
