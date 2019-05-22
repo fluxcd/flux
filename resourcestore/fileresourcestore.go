@@ -333,7 +333,7 @@ func (frs *fileResourceStore) updateConfigFileWorkloadPolicies(cf *ConfigFile, r
 		var changed bool
 		err := frs.updatePatchFile(cf, func(previousManifests []byte) ([]byte, error) {
 			updatedManifests, err := frs.manifests.UpdateWorkloadPolicies(previousManifests, r.ResourceID(), update)
-			if err != nil {
+			if err == nil {
 				changed = bytes.Compare(previousManifests, updatedManifests) != 0
 			}
 			return updatedManifests, err
