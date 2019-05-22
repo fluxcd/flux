@@ -212,6 +212,9 @@ func (frs *fileResourceStore) updatePatchFile(cf *ConfigFile, updateF func(previ
 		return fmt.Errorf("error parsing generated, patched output from file %s: %s", relConfigFilePath, err)
 	}
 	finalManifests, err := updateF(patchedManifests)
+	if err != nil {
+		return err
+	}
 	newPatch, err := frs.manifests.CreateManifestPatch(generatedManifests, finalManifests,
 		"generated manifests", "patched and updated manifests")
 	if err != nil {
