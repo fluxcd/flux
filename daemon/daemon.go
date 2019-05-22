@@ -46,7 +46,6 @@ type Daemon struct {
 	V                         string
 	Cluster                   cluster.Cluster
 	Manifests                 cluster.Manifests
-	PolicyTranslator          cluster.PolicyTranslator
 	Registry                  registry.Registry
 	ImageRefresh              chan image.Name
 	Repo                      *git.Repo
@@ -80,7 +79,7 @@ func (d *Daemon) getResources(ctx context.Context) (map[string]resource.Resource
 	var globalReadOnly v6.ReadOnlyReason
 	err := d.WithClone(ctx, func(checkout *git.Checkout) error {
 		cm, err := resourcestore.NewFileResourceStore(ctx, checkout.Dir(), checkout.ManifestDirs(),
-			d.ManifestGenerationEnabled, d.Manifests, d.PolicyTranslator)
+			d.ManifestGenerationEnabled, d.Manifests)
 		if err != nil {
 			return err
 		}
@@ -409,7 +408,7 @@ func (d *Daemon) updatePolicies(spec update.Spec, updates policy.Updates) update
 				anythingAutomated = true
 			}
 			cm, err := resourcestore.NewFileResourceStore(ctx, working.Dir(), working.ManifestDirs(),
-				d.ManifestGenerationEnabled, d.Manifests, d.PolicyTranslator)
+				d.ManifestGenerationEnabled, d.Manifests)
 			if err != nil {
 				return result, err
 			}
@@ -475,8 +474,7 @@ func (d *Daemon) updatePolicies(spec update.Spec, updates policy.Updates) update
 func (d *Daemon) release(spec update.Spec, c release.Changes) updateFunc {
 	return func(ctx context.Context, jobID job.ID, working *git.Checkout, logger log.Logger) (job.Result, error) {
 		var zero job.Result
-		rc, err := release.NewReleaseContext(ctx, d.ManifestGenerationEnabled,
-			d.Cluster, d.Manifests, d.PolicyTranslator, d.Registry, working)
+		rc, err := release.NewReleaseContext(ctx, d.ManifestGenerationEnabled, d.Cluster, d.Manifests, d.Registry, working)
 		if err != nil {
 			return zero, err
 		}

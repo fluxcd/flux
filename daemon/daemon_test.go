@@ -516,7 +516,7 @@ func TestDaemon_PolicyUpdate(t *testing.T) {
 			return false
 		}
 		defer co.Clean()
-		cm, err := resourcestore.NewFileResourceStore(ctx, co.Dir(), co.ManifestDirs(), false, d.Manifests, d.PolicyTranslator)
+		cm, err := resourcestore.NewFileResourceStore(ctx, co.Dir(), co.ManifestDirs(), false, d.Manifests)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -740,18 +740,17 @@ func mockDaemon(t *testing.T) (*Daemon, func(), func(), *cluster.Mock, *mockEven
 
 	// Finally, the daemon
 	d := &Daemon{
-		Repo:             repo,
-		GitConfig:        params,
-		Cluster:          k8s,
-		Manifests:        manifests,
-		PolicyTranslator: &kubernetes.PolicyTranslator{},
-		Registry:         imageRegistry,
-		V:                testVersion,
-		Jobs:             jobs,
-		JobStatusCache:   &job.StatusCache{Size: 100},
-		EventWriter:      events,
-		Logger:           logger,
-		LoopVars:         &LoopVars{GitTimeout: timeout},
+		Repo:           repo,
+		GitConfig:      params,
+		Cluster:        k8s,
+		Manifests:      manifests,
+		Registry:       imageRegistry,
+		V:              testVersion,
+		Jobs:           jobs,
+		JobStatusCache: &job.StatusCache{Size: 100},
+		EventWriter:    events,
+		Logger:         logger,
+		LoopVars:       &LoopVars{GitTimeout: timeout},
 	}
 
 	start := func() {
@@ -871,8 +870,7 @@ func (w *wait) ForImageTag(t *testing.T, d *Daemon, workload, container, tag str
 			return false
 		}
 		defer co.Clean()
-		cm, err := resourcestore.NewFileResourceStore(context.TODO(), co.Dir(), co.ManifestDirs(), false,
-			d.Manifests, d.PolicyTranslator)
+		cm, err := resourcestore.NewFileResourceStore(context.TODO(), co.Dir(), co.ManifestDirs(), false, d.Manifests)
 		if err != nil {
 			return false
 		}

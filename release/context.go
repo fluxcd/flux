@@ -22,8 +22,8 @@ type ReleaseContext struct {
 }
 
 func NewReleaseContext(ctx context.Context, enableManifestGeneration bool,
-	c cluster.Cluster, m cluster.Manifests, pt cluster.PolicyTranslator, reg registry.Registry, repo *git.Checkout) (*ReleaseContext, error) {
-	rs, err := resourcestore.NewFileResourceStore(ctx, repo.Dir(), repo.ManifestDirs(), enableManifestGeneration, m, pt)
+	c cluster.Cluster, m cluster.Manifests, reg registry.Registry, repo *git.Checkout) (*ReleaseContext, error) {
+	rs, err := resourcestore.NewFileResourceStore(ctx, repo.Dir(), repo.ManifestDirs(), enableManifestGeneration, m)
 	if err != nil {
 		return nil, err
 	}
@@ -44,7 +44,6 @@ func (rc *ReleaseContext) GetAllResources() (map[string]resource.Resource, error
 }
 
 func (rc *ReleaseContext) WriteUpdates(updates []*update.WorkloadUpdate) error {
-
 	err := func() error {
 		for _, update := range updates {
 			for _, container := range update.Updates {

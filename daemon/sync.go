@@ -58,8 +58,7 @@ func (d *Daemon) Sync(ctx context.Context, started time.Time, revision string, s
 
 	// Run actual sync of resources on cluster
 	syncSetName := makeGitConfigHash(d.Repo.Origin(), d.GitConfig)
-	resourceStore, err := resourcestore.NewFileResourceStore(ctx, working.Dir(), working.ManifestDirs(),
-		d.ManifestGenerationEnabled, d.Manifests, d.PolicyTranslator)
+	resourceStore, err := resourcestore.NewFileResourceStore(ctx, working.Dir(), working.ManifestDirs(), d.ManifestGenerationEnabled, d.Manifests)
 	if err != nil {
 		return errors.Wrap(err, "reading the respository checkout")
 	}

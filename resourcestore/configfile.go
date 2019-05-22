@@ -41,14 +41,14 @@ type Generator struct {
 
 type Updater struct {
 	ContainerImage ContainerImageUpdater `yaml:"containerImage"`
-	Annotation     AnnotationUpdater
+	Policy         PolicyUpdater
 }
 
 type ContainerImageUpdater struct {
 	Command string
 }
 
-type AnnotationUpdater struct {
+type PolicyUpdater struct {
 	Command string
 }
 
@@ -132,14 +132,16 @@ func (cf *ConfigFile) ExecContainerImageUpdaters(ctx context.Context,
 	return cf.execCommandsWithCombinedOutput(ctx, env, commands)
 }
 
-// ExecAnnotationUpdaters executes all the annotation updates in the configuration file.
-// It will stop at the first error, in which case the returned error will be non-nil
-func (cf *ConfigFile) ExecAnnotationUpdaters(ctx context.Context,
-	workload flux.ResourceID, annotationKey string, annotationValue *string) []ConfigFileCombinedExecResult {
+// ExecPolicyUpdaters executes all the policy update commands given in
+// the configuration file. An empty policyValue means remove the
+// policy. It will stop at the first error, in which case the returned
+// error will be non-nil
+func (cf *ConfigFile) ExecPolicyUpdaters(ctx context.Context,
+	workload flux.ResourceID, policyName, policyValue string) []ConfigFileCombinedExecResult {
 	env := makeEnvFromResourceID(workload)
-	env = append(env, "FLUX_ANNOTATION_KEY="+annotationKey)
-	if annotationValue != nil {
-		env = append(env, "FLUX_ANNOTATION_VALUE="+*annotationValue)
+	env = append(env, "FLUX_POLICY="+policyName)
+	if policyValue != "" {
+		env = append(env, "FLUX_POLICY_VALUE="+policyValue)
 	}
 	commands := []string{}
 	var updaters []Updater
@@ -147,7 +149,7 @@ func (cf *ConfigFile) ExecAnnotationUpdaters(ctx context.Context,
 		updaters = cf.CommandUpdated.Updaters
 	}
 	for _, u := range updaters {
-		commands = append(commands, u.Annotation.Command)
+		commands = append(commands, u.Policy.Command)
 	}
 	return cf.execCommandsWithCombinedOutput(ctx, env, commands)
 }

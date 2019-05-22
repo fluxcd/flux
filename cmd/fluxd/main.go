@@ -489,15 +489,15 @@ func main() {
 
 	gitRemote := git.Remote{URL: *gitURL}
 	gitConfig := git.Config{
-		Paths:            *gitPath,
-		Branch:           *gitBranch,
-		SyncTag:          *gitSyncTag,
-		NotesRef:         *gitNotesRef,
-		UserName:         *gitUser,
-		UserEmail:        *gitEmail,
-		SigningKey:       *gitSigningKey,
-		SetAuthor:        *gitSetAuthor,
-		SkipMessage:      *gitSkipMessage,
+		Paths:       *gitPath,
+		Branch:      *gitBranch,
+		SyncTag:     *gitSyncTag,
+		NotesRef:    *gitNotesRef,
+		UserName:    *gitUser,
+		UserEmail:   *gitEmail,
+		SigningKey:  *gitSigningKey,
+		SetAuthor:   *gitSetAuthor,
+		SkipMessage: *gitSkipMessage,
 	}
 
 	repo := git.NewRepo(gitRemote, git.PollInterval(*gitPollInterval), git.Timeout(*gitTimeout), git.Branch(*gitBranch))
@@ -531,7 +531,6 @@ func main() {
 		V:                         version,
 		Cluster:                   k8s,
 		Manifests:                 k8sManifests,
-		PolicyTranslator:          &kubernetes.PolicyTranslator{},
 		Registry:                  cacheRegistry,
 		ImageRefresh:              make(chan image.Name, 100), // size chosen by fair dice roll
 		Repo:                      repo,

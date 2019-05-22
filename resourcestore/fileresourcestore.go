@@ -24,20 +24,19 @@ type resourceWithOrigin struct {
 }
 
 type fileResourceStore struct {
-	ctx              context.Context
-	manifests        cluster.Manifests
-	policyTranslator cluster.PolicyTranslator
-	baseDir          string
-	rawManifestDirs  []string
-	configFiles      []*ConfigFile
-	resourcesByID    map[string]resourceWithOrigin
+	ctx             context.Context
+	manifests       cluster.Manifests
+	baseDir         string
+	rawManifestDirs []string
+	configFiles     []*ConfigFile
+	resourcesByID   map[string]resourceWithOrigin
 	sync.RWMutex
 }
 
 var _ ResourceStore = &fileResourceStore{}
 
 func NewFileResourceStore(ctx context.Context, baseDir string, targetPaths []string, enableManifestGeneration bool,
-	manifests cluster.Manifests, policyTranslator cluster.PolicyTranslator) (*fileResourceStore, error) {
+	manifests cluster.Manifests) (*fileResourceStore, error) {
 	var (
 		err             error
 		configFiles     []*ConfigFile
@@ -53,12 +52,11 @@ func NewFileResourceStore(ctx context.Context, baseDir string, targetPaths []str
 	}
 
 	result := &fileResourceStore{
-		ctx:              ctx,
-		manifests:        manifests,
-		policyTranslator: policyTranslator,
-		baseDir:          baseDir,
-		rawManifestDirs:  rawManifestDirs,
-		configFiles:      configFiles,
+		ctx:             ctx,
+		manifests:       manifests,
+		baseDir:         baseDir,
+		rawManifestDirs: rawManifestDirs,
+		configFiles:     configFiles,
 	}
 	return result, nil
 }
@@ -346,20 +344,17 @@ func (frs *fileResourceStore) updateConfigFileWorkloadPolicies(cf *ConfigFile, r
 	if !ok {
 		return false, errors.New("resource " + r.ResourceID().String() + " does not have containers")
 	}
-	changes, err := frs.policyTranslator.GetAnnotationChangesForPolicyUpdate(workload, update)
+	changes, err := resource.ChangesForPolicyUpdate(workload, update)
 	if err != nil {
 		return false, err
 	}
-	for _, change := range changes {
-		result := cf.ExecAnnotationUpdaters(frs.ctx,
-			r.ResourceID(),
-			change.AnnotationKey,
-			change.AnnotationValue,
-		)
+
+	for key, value := range changes {
+		result := cf.ExecPolicyUpdaters(frs.ctx, r.ResourceID(), key, value)
 		if len(result) > 0 && result[len(result)-1].Error != nil {
 			updaters := cf.CommandUpdated.Updaters
 			err := fmt.Errorf("error executing annotation updater command %q from file %q: %s\noutput:\n%s",
-				updaters[len(result)-1].Annotation.Command,
+				updaters[len(result)-1].Policy.Command,
 				result[len(result)-1].Error,
 				r.Source(),
 				result[len(result)-1].Output,

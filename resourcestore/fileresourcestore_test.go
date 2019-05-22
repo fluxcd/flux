@@ -106,7 +106,7 @@ func setup(t *testing.T, configFileBody string) (*fileResourceStore, func()) {
 	if len(configFileBody) > 0 {
 		ioutil.WriteFile(filepath.Join(baseDir, ConfigFilename), []byte(configFileBody), 0600)
 	}
-	frs, err := NewFileResourceStore(context.Background(), baseDir, []string{baseDir}, true, manifests, &kubernetes.PolicyTranslator{})
+	frs, err := NewFileResourceStore(context.Background(), baseDir, []string{baseDir}, true, manifests)
 	assert.NoError(t, err)
 	return frs, cleanup
 }

@@ -24,12 +24,10 @@ func TestSync(t *testing.T) {
 
 	// Start with nothing running. We should be told to apply all the things.
 	manifests := kubernetes.NewManifests(kubernetes.ConstNamespacer("default"), log.NewLogfmtLogger(os.Stdout))
-	policyTranslator := &kubernetes.PolicyTranslator{}
 	clus := &syncCluster{map[string]string{}}
 
 	dirs := checkout.ManifestDirs()
-	rs, err := resourcestore.NewFileResourceStore(context.TODO(), checkout.Dir(), checkout.ManifestDirs(), false,
-		manifests, policyTranslator)
+	rs, err := resourcestore.NewFileResourceStore(context.TODO(), checkout.Dir(), checkout.ManifestDirs(), false, manifests)
 	if err != nil {
 		t.Fatal(err)
 	}
