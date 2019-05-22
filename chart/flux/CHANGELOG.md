@@ -1,3 +1,8 @@
+## 0.9.5 (2019-05-22)
+
+ - Updated Flux to `1.12.3`
+   [weaveworks/flux#2076](https://github.com/weaveworks/flux/pull/2076)
+
 ## 0.9.4 (2019-05-09)
 
  - Updated Helm operator to `0.9.1`
