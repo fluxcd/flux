@@ -14,7 +14,7 @@ This is a patch release.
 - Always list the status of a workload in `fluxctl`
   [weaveworks/flux#2035][]
 - Ensure Flux installs gnutls >=3.6.7, to resolve security scan issues
-  [weaveworks/flux#2001][]
+  [weaveworks/flux#2044][]
 - Rename controller to workload in `fluxctl release`
   [weaveworks/flux#2048][]
 - Give full output of git command on errors
