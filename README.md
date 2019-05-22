@@ -67,6 +67,7 @@ Its major features are:
 - [Gini](https://gini.net)
 - [Improwised Technologies](https://www.improwised.com/)
 - [iQmetrix](https://www.iqmetrix.com)
+- [karriere tutor GmbH](https://www.karrieretutor.de)
 - [Mettle](https://mettle.co.uk)
 - [Payout](https://payout.one)
 - [Qordoba](https://qordoba.com)
