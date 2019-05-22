@@ -3,15 +3,14 @@ package git
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"strings"
-
-	"context"
+	"sync"
 
 	"github.com/pkg/errors"
 )
@@ -290,7 +289,7 @@ func changed(ctx context.Context, workingDir, ref string, subPaths []string) ([]
 }
 
 // traceGitCommand returns a log line that can be useful when debugging and developing git activity
-func traceGitCommand(args []string, config gitCmdConfig, stdout string, stderr string) string {
+func traceGitCommand(args []string, config gitCmdConfig, stdOutAndStdErr string) string {
 	for _, exemptedCommand := range exemptedTraceCommands {
 		if exemptedCommand == args[0] {
 			return ""
@@ -305,17 +304,32 @@ func traceGitCommand(args []string, config gitCmdConfig, stdout string, stderr s
 	}
 
 	command := `git ` + strings.Join(args, " ")
-	out := prepare(stdout)
-	err := prepare(stderr)
+	out := prepare(stdOutAndStdErr)
 
 	return fmt.Sprintf(
-		"TRACE: command=%q out=%q err=%q dir=%q env=%q",
+		"TRACE: command=%q out=%q dir=%q env=%q",
 		command,
 		out,
-		err,
 		config.dir,
 		strings.Join(config.env, ","),
 	)
+}
+
+type threadSafeBuffer struct {
+	bytes.Buffer
+	sync.Mutex
+}
+
+func (b *threadSafeBuffer) Write(p []byte) (n int, err error) {
+	b.Lock()
+	defer b.Unlock()
+	return b.Buffer.Write(p)
+}
+
+func (b *threadSafeBuffer) ReadFrom(r io.Reader) (n int64, err error) {
+	b.Lock()
+	defer b.Unlock()
+	return b.Buffer.ReadFrom(r)
 }
 
 // execGitCmd runs a `git` command with the supplied arguments.
@@ -326,30 +340,26 @@ func execGitCmd(ctx context.Context, args []string, config gitCmdConfig) error {
 		c.Dir = config.dir
 	}
 	c.Env = append(env(), config.env...)
-	c.Stdout = ioutil.Discard
+	stdOutAndStdErr := &threadSafeBuffer{}
+	c.Stdout = stdOutAndStdErr
+	c.Stderr = stdOutAndStdErr
 	if config.out != nil {
-		c.Stdout = config.out
-	}
-	errOut := &bytes.Buffer{}
-	c.Stderr = errOut
-
-	traceStdout := &bytes.Buffer{}
-	traceStderr := &bytes.Buffer{}
-	if trace {
-		c.Stdout = io.MultiWriter(c.Stdout, traceStdout)
-		c.Stderr = io.MultiWriter(c.Stderr, traceStderr)
+		c.Stdout = io.MultiWriter(c.Stdout, config.out)
 	}
 
 	err := c.Run()
 	if err != nil {
-		msg := findErrorMessage(errOut)
-		if msg != "" {
-			err = errors.New(msg)
+		if len(stdOutAndStdErr.Bytes()) > 0 {
+			err = errors.New(stdOutAndStdErr.String())
+			msg := findErrorMessage(stdOutAndStdErr)
+			if msg != "" {
+				err = fmt.Errorf("%s, full output:\n %s", msg, err.Error())
+			}
 		}
 	}
 
 	if trace {
-		if traceCommand := traceGitCommand(args, config, traceStdout.String(), traceStderr.String()); traceCommand != "" {
+		if traceCommand := traceGitCommand(args, config, stdOutAndStdErr.String()); traceCommand != "" {
 			println(traceCommand)
 		}
 	}

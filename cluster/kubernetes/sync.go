@@ -62,12 +62,14 @@ func (c *Cluster) Sync(syncSet cluster.SyncSet) error {
 
 	cs := makeChangeSet()
 	var errs cluster.SyncError
+	var excluded []string
 	for _, res := range syncSet.Resources {
 		resID := res.ResourceID()
+		id := resID.String()
 		if !c.IsAllowedResource(resID) {
+			excluded = append(excluded, id)
 			continue
 		}
-		id := resID.String()
 		// make a record of the checksum, whether we stage it to
 		// be applied or not, so that we don't delete it later.
 		csum := sha1.Sum(res.Bytes())
@@ -91,6 +93,10 @@ func (c *Cluster) Sync(syncSet cluster.SyncSet) error {
 			errs = append(errs, cluster.ResourceError{ResourceID: res.ResourceID(), Source: res.Source(), Error: err})
 			break
 		}
+	}
+
+	if len(excluded) > 0 {
+		logger.Log("warning", "not applying resources; excluded by namespace constraints", "resources", strings.Join(excluded, ","))
 	}
 
 	c.mu.Lock()

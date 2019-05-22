@@ -1,6 +1,46 @@
 This is the changelog for the Flux daemon; the changelog for the Helm
 operator is in [./CHANGELOG-helmop.md](./CHANGELOG-helmop.md).
 
+## 1.12.3 (2019-05-22)
+
+This is a patch release.
+
+### Fixes
+
+- Show tag image for workload in list-images
+  [weaveworks/flux#2024][]
+- Log warning when not applying resource by namespace
+  [weaveworks/flux#2034][]
+- Always list the status of a workload in `fluxctl`
+  [weaveworks/flux#2035][]
+- Ensure Flux installs gnutls >=3.6.7, to resolve security scan issues
+  [weaveworks/flux#2001][]
+- Rename controller to workload in `fluxctl release`
+  [weaveworks/flux#2048][]
+- Give full output of git command on errors
+  [weaveworks/flux#2054][]
+
+### Maintenance and documentation
+
+- Warn about Flux only supporting YAML and not JSON
+  [weaveworks/flux#2010][]
+- Fix and refactor end-to-end tests
+  [weaveworks/flux#2050][] [weaveworks/flux#2058][]
+
+### Thanks
+
+Thanks to @2opremio, @hiddeco, @squaremo and @xtellurian for contributions.
+
+[weaveworks/flux#2010]: https://github.com/weaveworks/flux/pull/2010
+[weaveworks/flux#2024]: https://github.com/weaveworks/flux/pull/2024
+[weaveworks/flux#2034]: https://github.com/weaveworks/flux/pull/2034
+[weaveworks/flux#2035]: https://github.com/weaveworks/flux/pull/2035
+[weaveworks/flux#2044]: https://github.com/weaveworks/flux/pull/2044
+[weaveworks/flux#2048]: https://github.com/weaveworks/flux/pull/2048
+[weaveworks/flux#2050]: https://github.com/weaveworks/flux/pull/2050
+[weaveworks/flux#2054]: https://github.com/weaveworks/flux/pull/2054
+[weaveworks/flux#2058]: https://github.com/weaveworks/flux/pull/2058
+
 ## 1.12.2 (2019-05-08)
 
 This is a patch release.
