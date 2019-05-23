@@ -34,9 +34,13 @@ jobs:
             - cache-
       - restore_cache:
           keys:
-            - go-cache-{{ .Branch }}-{{ .Revision }}
-            - go-cache-{{ .Branch }}-
-            - go-cache-
+            - go-build-{{ .Branch }}-{{ .Revision }}
+            - go-build-{{ .Branch }}-
+            - go-build-
+      - restore_cache:
+          keys:
+            - go-mod-{{ checksum "go.mod" }}
+            - go-mod-
       - run: 
           name: Install Dep
           command: curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
@@ -50,9 +54,13 @@ jobs:
           paths:
             - "cache"
       - save_cache:
-          key: go-cache-{{ .Branch }}-{{ .Revision }}
+          key: go-build-{{ .Branch }}-{{ .Revision }}
           paths:
             - "~/.cache/go-build/"
+      - save_cache:
+          key: go-mod-{{ .Branch }}-{{ .Revision }}
+          paths:
+            - "~/go/pkg/mod/"
       - deploy:
           name: Maybe push prerelease images
           command: |
