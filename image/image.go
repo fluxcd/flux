@@ -223,6 +223,17 @@ func (i Ref) WithNewTag(t string) Ref {
 	return img
 }
 
+type LabelTimestampFormatError struct {
+	Labels []string
+}
+
+func (e *LabelTimestampFormatError) Error() string {
+	return fmt.Sprintf(
+		"failed to parse %d timestamp label(s) as RFC3339 (%s); ask the repository administrator to correct this as it conflicts with the spec",
+		len(e.Labels),
+		strings.Join(e.Labels, ","))
+}
+
 // Labels has all the image labels we are interested in for an image
 // ref, the JSON struct tag keys should be equal to the label.
 type Labels struct {
@@ -261,12 +272,23 @@ func (l *Labels) UnmarshalJSON(b []byte) error {
 		Created   string `json:"org.opencontainers.image.created,omitempty"`
 	}{}
 	json.Unmarshal(b, &unencode)
-
-	var err error
-	if err = decodeTime(unencode.BuildDate, &l.BuildDate); err == nil {
-		err = decodeTime(unencode.Created, &l.Created)
+	labelErr := LabelTimestampFormatError{}
+	if err := decodeTime(unencode.BuildDate, &l.BuildDate); err != nil {
+		if _, ok := err.(*time.ParseError); !ok {
+			return err
+		}
+		labelErr.Labels = append(labelErr.Labels, "org.label-schema.build-date")
 	}
-	return err
+	if err := decodeTime(unencode.Created, &l.Created); err != nil {
+		if _, ok := err.(*time.ParseError); !ok {
+			return err
+		}
+		labelErr.Labels = append(labelErr.Labels, "org.opencontainers.image.created")
+	}
+	if len(labelErr.Labels) >= 1 {
+		return &labelErr
+	}
+	return nil
 }
 
 // Info has the metadata we are able to determine about an image ref,

@@ -254,7 +254,10 @@ func (c *repoCacheManager) updateImage(ctx context.Context, update imageToUpdate
 		if ctx.Err() == context.DeadlineExceeded {
 			return registry.ImageEntry{}, c.clientTimeoutError()
 		}
-		return registry.ImageEntry{}, err
+		if _, ok := err.(*image.LabelTimestampFormatError); !ok {
+			return registry.ImageEntry{}, err
+		}
+		c.logger.Log("err", err, "ref", imageID)
 	}
 
 	refresh := update.previousRefresh

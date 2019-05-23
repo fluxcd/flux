@@ -153,6 +153,23 @@ func TestImageLabelsSerialisation(t *testing.T) {
 	assert.Equal(t, labels, labels1)
 }
 
+func TestNonRFC3339ImageLabelsUnmarshal(t *testing.T) {
+	str := `{
+	"org.label-schema.build-date": "20190523",
+	"org.opencontainers.image.created": "20190523"
+}`
+
+	var labels Labels
+	err := json.Unmarshal([]byte(str), &labels)
+	lpe, ok := err.(*LabelTimestampFormatError)
+	if !ok {
+		t.Fatalf("Got %v, but expected LabelTimestampFormatError", err)
+	}
+	if lc := len(lpe.Labels); lc != 2 {
+		t.Errorf("Got error for %v labels, expected 2", lc)
+	}
+}
+
 func TestImageLabelsZeroTime(t *testing.T) {
 	labels := Labels{}
 	bytes, err := json.Marshal(labels)
