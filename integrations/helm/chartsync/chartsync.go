@@ -243,15 +243,15 @@ func (chs *ChartChangeSync) Run(stopCh <-chan struct{}, errc chan error, wg *syn
 							if cloneForChart.export != nil {
 								cloneForChart.export.Clean()
 							}
-						}
 
-						// Enqueue release
-						cacheKey, err := cache.MetaNamespaceKeyFunc(fhr.GetObjectMeta())
-						if err != nil {
-							continue
+							// we have a (new) clone, enqueue a release
+							cacheKey, err := cache.MetaNamespaceKeyFunc(fhr.GetObjectMeta())
+							if err != nil {
+								continue
+							}
+							chs.logger.Log("info", "enqueing release upgrade due to change in git chart source", "resource", fhr.ResourceID().String())
+							chs.releaseQueue.AddRateLimited(cacheKey)
 						}
-						chs.logger.Log("info", "enqueing release upgrade due to change in git chart source", "resource", fhr.ResourceID().String())
-						chs.releaseQueue.AddRateLimited(cacheKey)
 					}
 				}
 			case <-stopCh:
