@@ -160,9 +160,7 @@ change the `tag:` line to the following:
 
 ```yaml
   values:
-    image:
-      repository: bitnami/mongodb
-      tag: 4.0.6
+    image: bitnami/mongodb:4.0.6
 ```
 
 Commit the change to your `master` branch. It will now get
