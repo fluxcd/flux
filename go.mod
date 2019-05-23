@@ -73,6 +73,7 @@ require (
 	k8s.io/apiextensions-apiserver v0.0.0-20190315093550-53c4693659ed
 	k8s.io/apimachinery v0.0.0-20190404173353-6a84e37a896d
 	k8s.io/client-go v11.0.0+incompatible
+	k8s.io/code-generator v0.0.0-20190511023357-639c964206c2
 	k8s.io/helm v2.13.1+incompatible
 	k8s.io/klog v0.3.0
 	k8s.io/kube-openapi v0.0.0-20190401085232-94e1e7b7574c // indirect
