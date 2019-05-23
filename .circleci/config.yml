@@ -27,6 +27,15 @@ jobs:
             sudo apt-get install -y git rng-tools docker-ce memcached
             git version
             docker version
+      - restore_cache:
+          keys:
+            - cache-{{ checksum "Makefile" }}
+            - cache-
+      - restore_cache:
+          keys:
+            - go-cache-{{ .Branch }}-{{ .Revision }}
+            - go-cache-{{ .Branch }}-
+            - go-cache-
       - run: 
           name: Install Dep
           command: curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
@@ -35,7 +44,14 @@ jobs:
       - run: make test TEST_FLAGS="-race -tags integration -timeout 60s"
       - run: make all
       - run: make e2e
-      
+      - save_cache:
+          key: cache-{{ checksum "Makefile" }}
+          paths:
+            - "cache"
+      - save_cache:
+          key: go-cache-{{ .Branch }}-{{ .Revision }}
+          paths:
+            - "~/.cache/go-build/"
       - deploy:
           name: Maybe push prerelease images
           command: |
