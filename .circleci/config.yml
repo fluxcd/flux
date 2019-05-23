@@ -41,10 +41,6 @@ jobs:
           keys:
             - go-mod-{{ checksum "go.mod" }}
             - go-mod-
-      - run: 
-          name: Install Dep
-          command: curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
-      - run: dep ensure -vendor-only
       - run: make check-generated
       - run: make test TEST_FLAGS="-race -tags integration -timeout 60s"
       - run: make all
