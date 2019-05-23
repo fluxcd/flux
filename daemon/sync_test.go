@@ -59,7 +59,7 @@ func daemon(t *testing.T) (*Daemon, func()) {
 		UserEmail: gitEmail,
 	}
 
-	manifests := kubernetes.NewManifests(alwaysDefault, log.NewLogfmtLogger(os.Stdout))
+	manifests := kubernetes.NewManifests(kubernetes.ConstNamespacer("default"), log.NewLogfmtLogger(os.Stdout))
 
 	jobs := job.NewQueue(shutdown, wg)
 	d := &Daemon{
@@ -101,7 +101,7 @@ func TestPullAndSync_InitialSync(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	head, err :=  d.Repo.BranchHead(ctx)
+	head, err := d.Repo.BranchHead(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -181,7 +181,7 @@ func TestDoSync_NoNewCommits(t *testing.T) {
 		return nil
 	}
 
-	head, err :=  d.Repo.BranchHead(ctx)
+	head, err := d.Repo.BranchHead(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -283,7 +283,7 @@ func TestDoSync_WithNewCommit(t *testing.T) {
 		return nil
 	}
 
-	head, err :=  d.Repo.BranchHead(ctx)
+	head, err := d.Repo.BranchHead(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}

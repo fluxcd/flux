@@ -13,6 +13,7 @@ import (
 
 	"github.com/go-kit/kit/log"
 	"github.com/stretchr/testify/assert"
+
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/api/v10"
 	"github.com/weaveworks/flux/api/v11"
@@ -20,7 +21,6 @@ import (
 	"github.com/weaveworks/flux/api/v9"
 	"github.com/weaveworks/flux/cluster"
 	"github.com/weaveworks/flux/cluster/kubernetes"
-	kresource "github.com/weaveworks/flux/cluster/kubernetes/resource"
 	"github.com/weaveworks/flux/event"
 	"github.com/weaveworks/flux/git"
 	"github.com/weaveworks/flux/git/gittest"
@@ -632,16 +632,6 @@ func mustParseImageRef(ref string) image.Ref {
 	return r
 }
 
-type anonNamespacer func(kresource.KubeManifest) string
-
-func (fn anonNamespacer) EffectiveNamespace(m kresource.KubeManifest, _ kubernetes.ResourceScopes) (string, error) {
-	return fn(m), nil
-}
-
-var alwaysDefault anonNamespacer = func(kresource.KubeManifest) string {
-	return "default"
-}
-
 func mockDaemon(t *testing.T) (*Daemon, func(), func(), *cluster.Mock, *mockEventWriter, func(func())) {
 	logger := log.NewNopLogger()
 
@@ -731,7 +721,7 @@ func mockDaemon(t *testing.T) (*Daemon, func(), func(), *cluster.Mock, *mockEven
 	// Jobs queue (starts itself)
 	jobs := job.NewQueue(jshutdown, jwg)
 
-	manifests := kubernetes.NewManifests(alwaysDefault, log.NewLogfmtLogger(os.Stdout))
+	manifests := kubernetes.NewManifests(kubernetes.ConstNamespacer("default"), log.NewLogfmtLogger(os.Stdout))
 
 	// Finally, the daemon
 	d := &Daemon{
