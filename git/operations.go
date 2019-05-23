@@ -329,20 +329,32 @@ func traceGitCommand(args []string, config gitCmdConfig, stdOutAndStdErr string)
 }
 
 type threadSafeBuffer struct {
-	bytes.Buffer
-	sync.Mutex
+	buf bytes.Buffer
+	mu  sync.Mutex
 }
 
 func (b *threadSafeBuffer) Write(p []byte) (n int, err error) {
-	b.Lock()
-	defer b.Unlock()
-	return b.Buffer.Write(p)
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.Write(p)
 }
 
-func (b *threadSafeBuffer) ReadFrom(r io.Reader) (n int64, err error) {
-	b.Lock()
-	defer b.Unlock()
-	return b.Buffer.ReadFrom(r)
+func (b *threadSafeBuffer) Read(p []byte) (n int, err error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.Read(p)
+}
+
+func (b *threadSafeBuffer) Bytes() []byte {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.Bytes()
+}
+
+func (b *threadSafeBuffer) String() string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.String()
 }
 
 // execGitCmd runs a `git` command with the supplied arguments.
