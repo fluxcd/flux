@@ -15,6 +15,7 @@ ifeq ($(ARCH),)
 	ARCH=amd64
 endif
 CURRENT_OS_ARCH=$(shell echo `go env GOOS`-`go env GOARCH`)
+GO_BIN=$(shell if goecho `go env GOOS`-`go env GOARCH`)
 
 # NB because this outputs absolute file names, you have to be careful
 # if you're testing out the Makefile with `-W` (pretend a file is
