@@ -27,6 +27,11 @@ jobs:
             sudo apt-get install -y git rng-tools docker-ce memcached
             git version
             docker version
+      - run:
+          name: Create tmpfs volumes to speed things up
+          command: |
+            mkdir -p ~/.cache/go-build/
+            sudo mount -t tmpfs -o size=500M tmpfs ~/.cache/go-build/ && sudo chown circleci ~/.cache/go-build/
       - restore_cache:
           keys:
             - cache-{{ checksum "Makefile" }}
@@ -52,6 +57,7 @@ jobs:
           key: go-cache-{{ .Branch }}-{{ .Revision }}
           paths:
             - "~/.cache/go-build/"
+
       - deploy:
           name: Maybe push prerelease images
           command: |
