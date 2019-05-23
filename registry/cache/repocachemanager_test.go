@@ -30,8 +30,8 @@ func Test_ClientTimeouts(t *testing.T) {
 	cf := &registry.RemoteClientFactory{
 		Logger: log.NewLogfmtLogger(os.Stdout),
 		Limiters: &middleware.RateLimiters{
-			RPS:    100,
-			Burst:  100,
+			RPS:    1000,
+			Burst:  1,
 			Logger: logger,
 		},
 		Trace:         false,
