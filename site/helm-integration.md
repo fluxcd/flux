@@ -249,6 +249,10 @@ If the chart you're using in a `HelmRelease` lets you specify the
 particular images to run, you will usually be able to update them with
 Flux, the same way you can with Deployments and so on.
 
+> **Note:** for automation to work, the repository _and_ tag should be
+> defined, as Flux determines image updates based on what it reads in
+> the `.spec.values` of the `HelmRelease`.
+
 Flux interprets certain commonly used structures in the `values`
 section of a `HelmRelease` as referring to images. The following
 are understood (showing just the `values` section):
