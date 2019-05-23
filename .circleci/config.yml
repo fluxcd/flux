@@ -54,7 +54,7 @@ jobs:
           paths:
             - "~/.cache/go-build/"
       - save_cache:
-          key: go-mod-{{ .Branch }}-{{ .Revision }}
+          key: go-mod-{{ checksum "go.mod" }}
           paths:
             - "~/go/pkg/mod/"
       - deploy:
