@@ -215,7 +215,7 @@ func (c *Cluster) getAllowedResourcesBySelector(selector string) (map[string]*ku
 			return nil, err
 		}
 		for gv, e := range discErr.Groups {
-			if strings.HasSuffix(gv.Group, "metrics.k8s.io") {
+			if gv.Group == "metrics" || strings.HasSuffix(gv.Group, "metrics.k8s.io") {
 				// The Metrics API tends to be misconfigured, causing errors.
 				// We just ignore them, since it doesn't make sense to sync metrics anyways.
 				continue
