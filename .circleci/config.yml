@@ -1,10 +1,11 @@
 version: 2
 jobs:
   build:
-    working_directory: ~/go/src/github.com/weaveworks/flux
+    working_directory: ~/flux
     machine: true
     environment:
       GO_VERSION: 1.12.5
+      # We don't need a GOPATH but CircleCI defines it, so we override it
       GOPATH: /home/circleci/go
       PATH: /bin:/usr/bin:/usr/local/go/bin:/home/circleci/go/bin
     steps:
@@ -33,13 +34,13 @@ jobs:
             - cache-
       - restore_cache:
           keys:
-            - go-cache-{{ .Branch }}-{{ .Revision }}
-            - go-cache-{{ .Branch }}-
-            - go-cache-
-      - run: 
-          name: Install Dep
-          command: curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
-      - run: dep ensure -vendor-only
+            - go-build-{{ .Branch }}-{{ .Revision }}
+            - go-build-{{ .Branch }}-
+            - go-build-
+      - restore_cache:
+          keys:
+            - go-mod-{{ checksum "go.mod" }}
+            - go-mod-
       - run: make check-generated
       - run: make test TEST_FLAGS="-race -tags integration -timeout 60s"
       - run: make all
@@ -49,9 +50,13 @@ jobs:
           paths:
             - "cache"
       - save_cache:
-          key: go-cache-{{ .Branch }}-{{ .Revision }}
+          key: go-build-{{ .Branch }}-{{ .Revision }}
           paths:
             - "~/.cache/go-build/"
+      - save_cache:
+          key: go-mod-{{ checksum "go.mod" }}
+          paths:
+            - "~/go/pkg/mod/"
       - deploy:
           name: Maybe push prerelease images
           command: |
