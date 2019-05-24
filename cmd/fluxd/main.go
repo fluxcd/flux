@@ -200,7 +200,7 @@ func main() {
 		"type", "internal kubernetes error",
 		"kubernetes_caller", log.Valuer(func() interface{} {
 			_, file, line, _ := runtime.Caller(5) // we want to log one level deeper than k8sruntime.HandleError
-			idx := strings.Index(file, "/vendor/")
+			idx := strings.Index(file, "/k8s.io/")
 			return file[idx+1:] + ":" + strconv.Itoa(line)
 		}))
 	logErrorUnlessAccessRelated := func(err error) {
