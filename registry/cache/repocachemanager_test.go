@@ -47,7 +47,7 @@ func Test_ClientTimeouts(t *testing.T) {
 		cf,
 		registry.NoCredentials(),
 		timeout,
-		100,
+		1,
 		false,
 		logger,
 		nil,
