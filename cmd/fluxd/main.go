@@ -127,6 +127,7 @@ func main() {
 		// syncing
 		syncInterval = fs.Duration("sync-interval", 5*time.Minute, "apply config in git to cluster at least this often, even if there are no new commits")
 		syncGC       = fs.Bool("sync-garbage-collection", false, "experimental; delete resources that were created by fluxd, but are no longer in the git repo")
+		dryGC        = fs.Bool("sync-garbage-collection-dry", false, "experimental; only log what would be garbage collected, rather than deleting. Implies --sync-garbage-collection")
 
 		// registry
 		memcachedHostname = fs.String("memcached-hostname", "memcached", "hostname for memcached service.")
@@ -370,6 +371,7 @@ func main() {
 		allowedNamespaces := append(*k8sNamespaceWhitelist, *k8sAllowNamespace...)
 		k8sInst := kubernetes.NewCluster(client, kubectlApplier, sshKeyRing, logger, allowedNamespaces, *registryExcludeImage)
 		k8sInst.GC = *syncGC
+		k8sInst.DryGC = *dryGC
 
 		if err := k8sInst.Ping(); err != nil {
 			logger.Log("ping", err)
@@ -485,15 +487,15 @@ func main() {
 
 	gitRemote := git.Remote{URL: *gitURL}
 	gitConfig := git.Config{
-		Paths:            *gitPath,
-		Branch:           *gitBranch,
-		SyncTag:          *gitSyncTag,
-		NotesRef:         *gitNotesRef,
-		UserName:         *gitUser,
-		UserEmail:        *gitEmail,
-		SigningKey:       *gitSigningKey,
-		SetAuthor:        *gitSetAuthor,
-		SkipMessage:      *gitSkipMessage,
+		Paths:       *gitPath,
+		Branch:      *gitBranch,
+		SyncTag:     *gitSyncTag,
+		NotesRef:    *gitNotesRef,
+		UserName:    *gitUser,
+		UserEmail:   *gitEmail,
+		SigningKey:  *gitSigningKey,
+		SetAuthor:   *gitSetAuthor,
+		SkipMessage: *gitSkipMessage,
 	}
 
 	repo := git.NewRepo(gitRemote, git.PollInterval(*gitPollInterval), git.Timeout(*gitTimeout), git.Branch(*gitBranch))

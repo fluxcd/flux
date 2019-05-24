@@ -85,6 +85,8 @@ func isAddon(obj k8sObject) bool {
 type Cluster struct {
 	// Do garbage collection when syncing resources
 	GC bool
+	// dry run garbage collection without syncing
+	DryGC bool
 
 	client  ExtendedClient
 	applier Applier

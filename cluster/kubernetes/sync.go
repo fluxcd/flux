@@ -107,8 +107,8 @@ func (c *Cluster) Sync(syncSet cluster.SyncSet) error {
 	}
 	c.muSyncErrors.RUnlock()
 
-	if c.GC {
-		deleteErrs, gcFailure := c.collectGarbage(syncSet, checksums, logger)
+	if c.GC || c.DryGC {
+		deleteErrs, gcFailure := c.collectGarbage(syncSet, checksums, logger, c.DryGC)
 		if gcFailure != nil {
 			return gcFailure
 		}
@@ -129,7 +129,8 @@ func (c *Cluster) Sync(syncSet cluster.SyncSet) error {
 func (c *Cluster) collectGarbage(
 	syncSet cluster.SyncSet,
 	checksums map[string]string,
-	logger log.Logger) (cluster.SyncError, error) {
+	logger log.Logger,
+	dryRun bool) (cluster.SyncError, error) {
 
 	orphanedResources := makeChangeSet()
 
@@ -144,10 +145,12 @@ func (c *Cluster) collectGarbage(
 
 		switch {
 		case !ok: // was not recorded as having been staged for application
-			c.logger.Log("info", "cluster resource not in resources to be synced; deleting", "resource", resourceID)
-			orphanedResources.stage("delete", res.ResourceID(), "<cluster>", res.IdentifyingBytes())
+			c.logger.Log("info", "cluster resource not in resources to be synced; deleting", "dry-run", dryRun, "resource", resourceID)
+			if !dryRun {
+				orphanedResources.stage("delete", res.ResourceID(), "<cluster>", res.IdentifyingBytes())
+			}
 		case actual != expected:
-			c.logger.Log("warning", "resource to be synced has not been updated; skipping", "resource", resourceID)
+			c.logger.Log("warning", "resource to be synced has not been updated; skipping", "dry-run", dryRun, "resource", resourceID)
 			continue
 		default:
 			// The checksum is the same, indicating that it was
