@@ -75,6 +75,12 @@ spec:
           secretName: {{ .Values.gpgKeys.secretName }}
           defaultMode: 0400
       {{- end }}
+      {{- if .Values.gpgKeys.configMapName }}
+      - name: gpg-public-keys
+        configMap:
+          name: {{ .Values.gpgKeys.configMapName }}
+          defaultMode: 0400
+      {{- end }}
       {{- if .Values.extraVolumes }}
 {{ toYaml .Values.extraVolumes | indent 8 }}
       {{- end }}
@@ -124,7 +130,12 @@ spec:
           {{- end }}
           {{- if .Values.gpgKeys.secretName }}
           - name: gpg-keys
-            mountPath: /root/gpg-import
+            mountPath: /root/gpg-import/private
+            readOnly: true
+          {{- end }}
+          {{- if .Values.gpgKeys.configMapName }}
+          - name: gpg-public-keys
+            mountPath: /root/gpg-import/public
             readOnly: true
           {{- end }}
           {{- if .Values.extraVolumeMounts }}
@@ -148,11 +159,18 @@ spec:
           - --git-path={{ .Values.git.path }}
           - --git-user={{ .Values.git.user }}
           - --git-email={{ .Values.git.email }}
-          {{- if .Values.gpgKeys.secretName }}
-          - --git-gpg-key-import=/root/gpg-import
-          {{- end }}
+          {{- if (and .Values.gpgKeys.secretName .Values.gpgKeys.configMapName) }}
+          - --git-gpg-key-import=/root/gpg-import/private,/root/gpg-import/public
+          {{- else if .Values.gpgKeys.secretName }}
+          - --git-gpg-key-import=/root/gpg-import/private
+          {{- else if .Values.gpgKeys.configMapName }}
+          - --git-gpg-key-import=/root/gpg-import/public
+          {{- end -}}
           {{- if .Values.git.signingKey }}
           - --git-signing-key={{ .Values.git.signingKey }}
+          {{- end }}
+          {{- if .Values.git.verifySignatures }}
+          - --git-verify-signatures
           {{- end }}
           - --git-set-author={{ .Values.git.setAuthor }}
           - --git-poll-interval={{ .Values.git.pollInterval }}

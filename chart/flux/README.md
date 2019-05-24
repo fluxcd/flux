@@ -208,15 +208,17 @@ The following tables lists the configurable parameters of the Weave Flux chart a
 | `git.email`                                       | `support@weave.works`                                | Email to use as git committer
 | `git.setAuthor`                                   | `false`                                              | If set, the author of git commits will reflect the user who initiated the commit and will differ from the git committer.
 | `git.signingKey`                                  | `None`                                               | If set, commits will be signed with this GPG key
+| `git.verifySignatures`                            | `false`                                              | If set, the signatures of the sync tag and commits will be verified
 | `git.label`                                       | `flux-sync`                                          | Label to keep track of sync progress, used to tag the Git branch
 | `git.ciSkip`                                      | `false`                                              | Append "[ci skip]" to commit messages so that CI will skip builds
 | `git.pollInterval`                                | `5m`                                                 | Period at which to poll git repo for new commits
 | `git.timeout`                                     | `20s`                                                | Duration after which git operations time out
-| `git.secretName`                                  | `None`                                               | Kubernetes secret with the SSH private key. Superceded by `helmOperator.git.secretName` if set.
+| `git.secretName`                                  | `None`                                               | Kubernetes secret with the SSH private key. Superseded by `helmOperator.git.secretName` if set.
 | `git.config.enabled`                              | `false`                                              | Mount `$HOME/.gitconfig` via Secret into the Flux and HelmOperator Pods, allowing for custom global Git configuration
 | `git.config.secretName`                           | `Computed`                                           | Kubernetes secret with the global Git configuration
 | `git.config.data`                                 | `None`                                               | Global Git configuration per [git-config](https://git-scm.com/docs/git-config)
 | `gpgKeys.secretName`                              | `None`                                               | Kubernetes secret with GPG keys the Flux daemon should import
+| `gpgKeys.configMapName`                           | `None`                                               | Kubernetes config map with public GPG keys the Flux daemon should import
 | `ssh.known_hosts`                                 | `None`                                               | The contents of an SSH `known_hosts` file, if you need to supply host key(s)
 | `registry.pollInterval`                           | `5m`                                                 | Period at which to check for updated images
 | `registry.rps`                                    | `200`                                                | Maximum registry requests per second per host
