@@ -137,7 +137,8 @@ func (c *Cluster) SomeWorkloads(ids []flux.ResourceID) (res []cluster.Workload, 
 
 		resourceKind, ok := resourceKinds[kind]
 		if !ok {
-			return nil, fmt.Errorf("Unsupported kind %v", kind)
+			c.logger.Log("warning", "unsupported kind", "resource", id)
+			continue
 		}
 
 		workload, err := resourceKind.getWorkload(c, ns, name)
