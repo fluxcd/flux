@@ -32,15 +32,8 @@ parts:
     source: .
     plugin: go
     go-importpath: github.com/weaveworks/flux
-    override-pull: |
-      snapcraftctl pull
-      export GOPATH=$(dirname $SNAPCRAFT_PART_INSTALL)/go
-      export PATH=$GOPATH/bin:$PATH
-      cd $GOPATH/src/github.com/weaveworks/flux
-      dep ensure
     build-packages:
       - gcc
-      - go-dep
     stage:
       - -bin/fluxd
       - -bin/helm-operator
