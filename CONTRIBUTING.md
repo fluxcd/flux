@@ -24,7 +24,8 @@ The project uses Slack: To join the conversation, simply join the
 The Flux developers use a mailing list to discuss development as well.
 Simply subscribe to [flux-dev on Google
 Groups](https://groups.google.com/forum/#!forum/flux-dev) to join the
-conversation.
+conversation (this will also add an invitation to your Google calendar
+for our [Flux meeting](https://github.com/weaveworks/flux/wiki/Meeting)).
 
 ## Getting Started
 
