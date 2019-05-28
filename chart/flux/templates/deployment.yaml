@@ -82,7 +82,7 @@ spec:
           defaultMode: 0400
       {{- end }}
       {{- if .Values.extraVolumes }}
-{{ toYaml .Values.extraVolumes | indent 8 }}
+{{ toYaml .Values.extraVolumes | indent 6 }}
       {{- end }}
 {{- if .Values.initContainers }}
       initContainers:
