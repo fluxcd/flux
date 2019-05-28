@@ -28,6 +28,7 @@ menu_order: 60
   * [Can I temporarily make Flux ignore a deployment?](#can-i-temporarily-make-flux-ignore-a-deployment)
   * [How can I prevent Flux overriding the replicas when using HPA?](#how-can-i-prevent-flux-overriding-the-replicas-when-using-hpa)
   * [Can I disable Flux registry scanning?](#can-i-disable-flux-registry-scanning)
+  * [Does Flux support Kustomize/My favorite manifest factorization technology?](#does-flux-support-kustomizemy-favorite-manifest-factorization-technology)
 - [Flux Helm Operator questions](#flux-helm-operator-questions)
   * [I'm using SSL between Helm and Tiller. How can I configure Flux to use the certificate?](#im-using-ssl-between-helm-and-tiller-how-can-i-configure-flux-to-use-the-certificate)
   * [I've deleted a HelmRelease file from Git. Why is the Helm release still running on my cluster?](#ive-deleted-a-helmrelease-file-from-git-why-is-the-helm-release-still-running-on-my-cluster)
@@ -412,6 +413,17 @@ Disable image scanning for all images:
 ```
 --registry-exclude-image=*
 ```
+
+### Does Flux support Kustomize/My favorite manifest factorization technology?
+
+Yes!
+
+Flux experimentally supports technology-agnostic manifest factorization through
+`.flux.yaml` configuration files placed in the Git repository. To enable this
+feature please supply `fluxd` with flag `--manifest-generation=true`.
+
+See [`.flux.yaml` configuration files documentation](site/fluxyaml-config-files.md) for
+further details.
 
 ## Flux Helm Operator questions
 
