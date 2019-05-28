@@ -12,7 +12,7 @@ We gratefully welcome improvements to issues and documentation as well as to cod
 If you like Flux and want to get involved in the project, a great way to get started
 is reviewing our [blocked-needs-validation](https://github.com/weaveworks/flux/issues?q=is%3Aissue+is%3Aopen+label%3Ablocked-needs-validation) issues.
 
-The idea here is that new issues are first confirmed by somebody in the team,
+The idea here is that new issues are confirmed,
 which might require asking for more information, testing with a fresh Flux
 environment and once confirmed (and more information added to the issue), removing
 the `blocked-needs-validation` label. Afterwards the issue can be worked on and
