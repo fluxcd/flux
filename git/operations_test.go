@@ -1,6 +1,7 @@
 package git
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io/ioutil"
@@ -8,6 +9,7 @@ import (
 	"path"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/weaveworks/flux/cluster/kubernetes/testfiles"
@@ -373,5 +375,21 @@ func TestTraceGitCommand(t *testing.T) {
 			example.input.out,
 		)
 		assert.Equal(t, example.expected, actual)
+	}
+}
+
+// TestMutexBuffer tests that the threadsafe buffer used to capture
+// stdout and stderr does not give rise to races or deadlocks. In
+// particular, this test guards against reverting to a situation in
+// which copying into the buffer from two goroutines can deadlock it,
+// if one of them uses `ReadFrom`.
+func TestMutexBuffer(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	out := &bytes.Buffer{}
+	err := execGitCmd(ctx, []string{"log", "--oneline"}, gitCmdConfig{out: out})
+	if err != nil {
+		t.Fatal(err)
 	}
 }
