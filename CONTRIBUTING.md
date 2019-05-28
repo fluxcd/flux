@@ -9,7 +9,7 @@ We gratefully welcome improvements to issues and documentation as well as to cod
 
 ## Working on issues
 
-If you like Flux and want to get involved in the team, a great way to get started
+If you like Flux and want to get involved in the project, a great way to get started
 is reviewing our [blocked-needs-validation](https://github.com/weaveworks/flux/issues?q=is%3Aissue+is%3Aopen+label%3Ablocked-needs-validation) issues.
 
 The idea here is that new issues are first confirmed by somebody in the team,
@@ -22,7 +22,7 @@ To set up Flux to test things, there's the [standalone install](site/get-started
 and the [Helm install](site/helm-get-started.md), which might be helpful.
 
 Please talk to us on Slack, if you should get stuck anywhere. We appreciate
-any help and look forward welcoming you to the team!
+any help and look forward talking to you soon!
 
 ## Certificate of Origin
 
