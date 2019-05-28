@@ -68,6 +68,7 @@ Its major features are:
 - [Improwised Technologies](https://www.improwised.com/)
 - [iQmetrix](https://www.iqmetrix.com)
 - [karriere tutor GmbH](https://www.karrieretutor.de)
+- [loveholidays](https://www.loveholidays.com/)
 - [Mettle](https://mettle.co.uk)
 - [Payout](https://payout.one)
 - [Qordoba](https://qordoba.com)
