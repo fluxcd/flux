@@ -4,32 +4,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	crdv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	crdfake "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/fake"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/discovery"
-	toolscache "k8s.io/client-go/tools/cache"
 )
-
-type chainHandler struct {
-	first toolscache.ResourceEventHandler
-	next  toolscache.ResourceEventHandler
-}
-
-func (h chainHandler) OnAdd(obj interface{}) {
-	h.first.OnAdd(obj)
-	h.next.OnAdd(obj)
-}
-
-func (h chainHandler) OnUpdate(old, new interface{}) {
-	h.first.OnUpdate(old, new)
-	h.next.OnUpdate(old, new)
-}
-
-func (h chainHandler) OnDelete(old interface{}) {
-	h.first.OnDelete(old)
-	h.next.OnDelete(old)
-}
 
 func TestCachedDiscovery(t *testing.T) {
 	coreClient := makeFakeClient()
@@ -55,20 +34,7 @@ func TestCachedDiscovery(t *testing.T) {
 	shutdown := make(chan struct{})
 	defer close(shutdown)
 
-	// this extra handler means we can synchronise on the add later
-	// being processed
-	allowAdd := make(chan interface{})
-
-	addHandler := toolscache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
-			allowAdd <- obj
-		},
-	}
-	makeHandler := func(d discovery.CachedDiscoveryInterface) toolscache.ResourceEventHandler {
-		return chainHandler{first: makeInvalidatingHandler(d), next: addHandler}
-	}
-
-	cachedDisco, store, _ := makeCachedDiscovery(coreClient.Discovery(), crdClient, shutdown, makeHandler)
+	cachedDisco := MakeCachedDiscovery(coreClient.Discovery(), crdClient, shutdown)
 
 	saved := getDefaultNamespace
 	getDefaultNamespace = func() (string, error) { return "bar-ns", nil }
@@ -109,26 +75,19 @@ func TestCachedDiscovery(t *testing.T) {
 	}
 
 	// Wait for the update to "go through"
-	select {
-	case <-allowAdd:
-		break
-	case <-time.After(time.Second):
-		t.Fatal("timed out waiting for Add to happen")
-	}
-
-	_, exists, err := store.Get(myCRD)
-	if err != nil {
-		t.Error(err)
-	}
-	if !exists {
-		t.Error("does not exist")
-	}
-
-	namespaced, err = namespacer.lookupNamespaced("foo/v1", "Custom", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if namespaced {
-		t.Error("got true from lookupNamespaced, expecting false (after changing it)")
+	c := time.After(time.Second)
+loop:
+	for {
+		select {
+		default:
+			namespaced, err = namespacer.lookupNamespaced("foo/v1", "Custom", nil)
+			assert.NoError(t, err)
+			if !namespaced {
+				break loop
+			}
+			time.Sleep(10 * time.Millisecond)
+		case <-c:
+			t.Fatal("timed out waiting for Update to happen")
+		}
 	}
 }
