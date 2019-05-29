@@ -116,13 +116,15 @@ insecureCheckLoop:
 	}
 	// Since we construct one of these per scan, be fairly ruthless
 	// about throttling the number, and closing of, idle connections.
-	baseTx := &http.Transport{
+	var tx http.RoundTripper = &http.Transport{
 		TLSClientConfig: tlsConfig,
 		MaxIdleConns:    10,
 		IdleConnTimeout: 10 * time.Second,
 		Proxy:           http.ProxyFromEnvironment,
 	}
-	tx := f.Limiters.RoundTripper(baseTx, repo.Domain)
+	if f.Limiters != nil {
+		tx = f.Limiters.RoundTripper(tx, repo.Domain)
+	}
 	if f.Trace {
 		tx = &logging{f.Logger, tx}
 	}
@@ -160,7 +162,9 @@ insecureCheckLoop:
 // bump rate limits up if a repo's metadata has successfully been
 // fetched.
 func (f *RemoteClientFactory) Succeed(repo image.CanonicalName) {
-	f.Limiters.Recover(repo.Domain)
+	if f.Limiters != nil {
+		f.Limiters.Recover(repo.Domain)
+	}
 }
 
 // store adapts a set of pre-selected creds to be an
