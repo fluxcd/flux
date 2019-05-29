@@ -160,9 +160,8 @@ func main() {
 		sshKeyType   = optionalVar(fs, &ssh.KeyTypeValue{}, "ssh-keygen-type", "-t argument to ssh-keygen (default unspecified)")
 		sshKeygenDir = fs.String("ssh-keygen-dir", "", "directory, ideally on a tmpfs volume, in which to generate new SSH keys when necessary")
 
-		// manifest regeration
-		// TODO(fons): make false by default before merging
-		manifestGeneration = fs.Bool("manifest-generation", true, "experimental; search for .flux.yaml files for manifest generation")
+		// manifest generation
+		manifestGeneration = fs.Bool("manifest-generation", false, "experimental; search for .flux.yaml files to generate manifests")
 
 		upstreamURL = fs.String("connect", "", "connect to an upstream service e.g., Weave Cloud, at this base address")
 		token       = fs.String("token", "", "authentication token for upstream service")
