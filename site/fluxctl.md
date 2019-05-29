@@ -56,6 +56,26 @@ brew install fluxctl
 
 ## Linux
 
+### Ubuntu (and others): snaps
+
+[Many Linux distributions](https://docs.snapcraft.io/installing-snapd) support
+snaps these days, which makes it very easy to install `fluxctl` and stay up to
+date.
+
+To install it, simply run:
+
+```sh
+sudo snap install fluxctl
+```
+
+If you would prefer to track builds from master, run
+
+```sh
+sudo snap install fluxctl --edge
+```
+
+instead.
+
 ### Arch Linux
 
 Install the `fluxctl-bin` package [from the
@@ -634,7 +654,7 @@ configured using fluxctl.
 
 Here's a simple but complete deployment file with annotations:
 
-```
+```yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
