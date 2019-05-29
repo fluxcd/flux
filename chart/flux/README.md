@@ -242,6 +242,7 @@ The following tables lists the configurable parameters of the Weave Flux chart a
 | `memcached.pullSecret`                            | `None`                                               | Image pull secret
 | `memcached.repository`                            | `memcached`                                          | Image repository
 | `memcached.resources`                             | `None`                                               | CPU/memory resource requests/limits for memcached
+| `memcached.securityContext`                       | [See values.yaml](/chart/flux/values.yaml#L192-L195) | Container security context for memcached
 | `helmOperator.create`                             | `false`                                              | If `true`, install the Helm operator
 | `helmOperator.createCRD`                          | `true`                                               | Create the `v1beta1` and `v1alpha2` Flux CRDs. Dependent on `helmOperator.create=true`
 | `helmOperator.repository`                         | `docker.io/weaveworks/helm-operator`                 | Helm operator image repository
