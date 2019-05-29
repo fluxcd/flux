@@ -5,7 +5,23 @@ pull requests. This document outlines some of the conventions on development
 workflow, commit message formatting, contact points and other resources to make
 it easier to get your contribution accepted.
 
-We gratefully welcome improvements to documentation as well as to code.
+We gratefully welcome improvements to issues and documentation as well as to code.
+
+## Working on issues
+
+If you like Flux and want to get involved in the project, a great way to get started
+is reviewing our [blocked-needs-validation](https://github.com/weaveworks/flux/issues?q=is%3Aissue+is%3Aopen+label%3Ablocked-needs-validation) issues.
+
+The idea here is that new issues are confirmed, which might require asking
+for more information, testing with a fresh Flux environment. Once confirmed,
+the `blocked-needs-validation` label is removed, and the issue can be worked
+on.
+
+To set up Flux to test things, there's the [standalone install](site/get-started.md)
+and the [Helm install](site/helm-get-started.md), which might be helpful.
+
+Please talk to us on Slack, if you should get stuck anywhere. We appreciate
+any help and look forward to talking to you soon!
 
 ## Certificate of Origin
 
@@ -24,7 +40,8 @@ The project uses Slack: To join the conversation, simply join the
 The Flux developers use a mailing list to discuss development as well.
 Simply subscribe to [flux-dev on Google
 Groups](https://groups.google.com/forum/#!forum/flux-dev) to join the
-conversation.
+conversation (this will also add an invitation to your Google calendar
+for our [Flux meeting](https://github.com/weaveworks/flux/wiki/Meeting)).
 
 ## Getting Started
 
