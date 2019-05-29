@@ -46,11 +46,11 @@ func (limiters *RateLimiters) clip(limit float64) float64 {
 	return limit
 }
 
-// BackOff can be called to explicitly reduce the limit for a
+// backOff can be called to explicitly reduce the limit for a
 // particular host. Usually this isn't necessary since a RoundTripper
 // obtained for a host will respond to `HTTP 429` by doing this for
 // you.
-func (limiters *RateLimiters) BackOff(host string) {
+func (limiters *RateLimiters) backOff(host string) {
 	limiters.mu.Lock()
 	defer limiters.mu.Unlock()
 
@@ -105,22 +105,22 @@ func (limiters *RateLimiters) RoundTripper(rt http.RoundTripper, host string) ht
 		limiters.perHost[host] = rl
 	}
 	var reduceOnce sync.Once
-	return &RoundTripRateLimiter{
+	return &roundTripRateLimiter{
 		rl: limiters.perHost[host],
 		tx: rt,
 		slowDown: func() {
-			reduceOnce.Do(func() { limiters.BackOff(host) })
+			reduceOnce.Do(func() { limiters.backOff(host) })
 		},
 	}
 }
 
-type RoundTripRateLimiter struct {
+type roundTripRateLimiter struct {
 	rl       *rate.Limiter
 	tx       http.RoundTripper
 	slowDown func()
 }
 
-func (t *RoundTripRateLimiter) RoundTrip(r *http.Request) (*http.Response, error) {
+func (t *roundTripRateLimiter) RoundTrip(r *http.Request) (*http.Response, error) {
 	// Wait errors out if the request cannot be processed within
 	// the deadline. This is pre-emptive, instead of waiting the
 	// entire duration.
