@@ -17,8 +17,9 @@ for more information, testing with a fresh Flux environment. Once confirmed,
 the `blocked-needs-validation` label is removed, and the issue can be worked
 on.
 
-To set up Flux to test things, there's the [standalone install](site/get-started.md)
-and the [Helm install](site/helm-get-started.md), which might be helpful.
+To set up Flux to test things, there's documentation about setting up a
+[standalone install](site/get-started.md) and a [Helm
+install](site/helm-get-started.md), which might be helpful.
 
 Please talk to us on Slack, if you should get stuck anywhere. We appreciate
 any help and look forward to talking to you soon!

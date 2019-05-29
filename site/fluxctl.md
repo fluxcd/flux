@@ -6,6 +6,7 @@ menu_order: 40
 - [Installing fluxctl](#installing-fluxctl)
   * [Mac OS](#mac-os)
   * [Linux](#linux)
+    + [Ubuntu (and others): snaps](#ubuntu-and-others-snaps)
     + [Arch Linux](#arch-linux)
   * [Binary releases](#binary-releases)
 - [Connecting fluxctl to the daemon](#connecting-fluxctl-to-the-daemon)
@@ -95,7 +96,7 @@ page](https://github.com/weaveworks/flux/releases).
 
 # Connecting fluxctl to the daemon
 
-By default, fluxctl will attempt to port-forward to your Flux
+By default, `fluxctl` will attempt to port-forward to your Flux
 instance, assuming it runs in the `"default"` namespace. You can
 specify a different namespace with the `--k8s-fwd-ns` flag:
 
@@ -140,7 +141,7 @@ options:
 ### 1. Allow Flux to generate a key for you
 
 If you don't specify a key to use, Flux will create one for you. Obtain
-the public key through fluxctl:
+the public key through `fluxctl`:
 
 ```sh
 $ fluxctl identity
