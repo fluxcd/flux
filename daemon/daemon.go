@@ -78,12 +78,11 @@ func (d *Daemon) getResources(ctx context.Context) (map[string]resource.Resource
 	var resources map[string]resource.Resource
 	var globalReadOnly v6.ReadOnlyReason
 	err := d.WithClone(ctx, func(checkout *git.Checkout) error {
-		cm, err := resourcestore.NewFileResourceStore(ctx, checkout.Dir(), checkout.ManifestDirs(),
-			d.ManifestGenerationEnabled, d.Manifests)
+		cm, err := resourcestore.NewFileResourceStore(checkout.Dir(), checkout.ManifestDirs(), d.ManifestGenerationEnabled, d.Manifests)
 		if err != nil {
 			return err
 		}
-		resources, err = cm.GetAllResourcesByID()
+		resources, err = cm.GetAllResourcesByID(ctx)
 		return err
 	})
 
@@ -407,12 +406,11 @@ func (d *Daemon) updatePolicies(spec update.Spec, updates policy.Updates) update
 			if policy.Set(u.Add).Has(policy.Automated) {
 				anythingAutomated = true
 			}
-			cm, err := resourcestore.NewFileResourceStore(ctx, working.Dir(), working.ManifestDirs(),
-				d.ManifestGenerationEnabled, d.Manifests)
+			cm, err := resourcestore.NewFileResourceStore(working.Dir(), working.ManifestDirs(), d.ManifestGenerationEnabled, d.Manifests)
 			if err != nil {
 				return result, err
 			}
-			updated, err := cm.UpdateWorkloadPolicies(workloadID, u)
+			updated, err := cm.UpdateWorkloadPolicies(ctx, workloadID, u)
 			if err != nil {
 				result.Result[workloadID] = update.WorkloadResult{
 					Status: update.ReleaseStatusFailed,
@@ -451,7 +449,7 @@ func (d *Daemon) updatePolicies(spec update.Spec, updates policy.Updates) update
 			Author:  commitAuthor,
 			Message: policyCommitMessage(updates, spec.Cause),
 		}
-		if err := working.AddCommitAndPush(ctx, commitAction, &note{JobID: jobID, Spec: spec}); err != nil {
+		if err := working.CommitAndPush(ctx, commitAction, &note{JobID: jobID, Spec: spec}, d.ManifestGenerationEnabled); err != nil {
 			// On the chance pushing failed because it was not
 			// possible to fast-forward, ask for a sync so the
 			// next attempt is more likely to succeed.
@@ -474,11 +472,12 @@ func (d *Daemon) updatePolicies(spec update.Spec, updates policy.Updates) update
 func (d *Daemon) release(spec update.Spec, c release.Changes) updateFunc {
 	return func(ctx context.Context, jobID job.ID, working *git.Checkout, logger log.Logger) (job.Result, error) {
 		var zero job.Result
-		rc, err := release.NewReleaseContext(ctx, d.ManifestGenerationEnabled, d.Cluster, d.Manifests, d.Registry, working)
+		rs, err := resourcestore.NewFileResourceStore(working.Dir(), working.ManifestDirs(), d.ManifestGenerationEnabled, d.Manifests)
 		if err != nil {
 			return zero, err
 		}
-		result, err := release.Release(rc, c, logger)
+		rc := release.NewReleaseContext(d.Cluster, rs, d.Registry)
+		result, err := release.Release(ctx, rc, c, logger)
 		if err != nil {
 			return zero, err
 		}
@@ -498,7 +497,7 @@ func (d *Daemon) release(spec update.Spec, c release.Changes) updateFunc {
 				Author:  commitAuthor,
 				Message: commitMsg,
 			}
-			if err := working.AddCommitAndPush(ctx, commitAction, &note{JobID: jobID, Spec: spec, Result: result}); err != nil {
+			if err := working.CommitAndPush(ctx, commitAction, &note{JobID: jobID, Spec: spec, Result: result}, d.ManifestGenerationEnabled); err != nil {
 				// On the chance pushing failed because it was not
 				// possible to fast-forward, ask the repo to fetch
 				// from upstream ASAP, so the next attempt is more

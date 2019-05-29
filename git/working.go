@@ -111,7 +111,7 @@ func (c *Checkout) Dir() string {
 
 // ManifestDirs returns the paths to the manifests files. It ensures
 // that at least one path is returned, so that it can be used with
-// `Manifest.GetAllResourcesByID`.
+// `Manifest.LoadManifests`.
 func (c *Checkout) ManifestDirs() []string {
 	if len(c.config.Paths) == 0 {
 		return []string{c.dir}
@@ -124,15 +124,17 @@ func (c *Checkout) ManifestDirs() []string {
 	return paths
 }
 
-// AddCommitAndPush adds and commits changes made in this checkout, along with any
+// CommitAndPush commits changes made in this checkout, along with any
 // extra data as a note, and pushes the commit and note to the remote repo.
-func (c *Checkout) AddCommitAndPush(ctx context.Context, commitAction CommitAction, note interface{}) error {
-	if !check(ctx, c.dir) {
-		return ErrNoChanges
+func (c *Checkout) CommitAndPush(ctx context.Context, commitAction CommitAction, note interface{}, addUntracked bool) error {
+	if addUntracked {
+		if err := add(ctx, c.dir, "."); err != nil {
+			return err
+		}
 	}
 
-	if err := add(ctx, c.dir, "."); err != nil {
-		return err
+	if !check(ctx, c.dir, c.config.Paths, addUntracked) {
+		return ErrNoChanges
 	}
 
 	commitAction.Message += c.config.SkipMessage

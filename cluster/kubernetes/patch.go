@@ -20,7 +20,7 @@ import (
 	"github.com/weaveworks/flux/cluster/kubernetes/resource"
 )
 
-func CreateManifestPatch(originalManifests, modifiedManifests []byte, originalSource, modifiedSource string) ([]byte, error) {
+func createManifestPatch(originalManifests, modifiedManifests []byte, originalSource, modifiedSource string) ([]byte, error) {
 	originalResources, err := resource.ParseMultidoc(originalManifests, originalSource)
 	if err != nil {
 		fmt.Errorf("cannot parse %s: %s", originalSource, err)
@@ -61,7 +61,7 @@ func CreateManifestPatch(originalManifests, modifiedManifests []byte, originalSo
 	return buf.Bytes(), nil
 }
 
-func ApplyManifestPatch(originalManifests, patchManifests []byte, originalSource, patchSource string) ([]byte, error) {
+func applyManifestPatch(originalManifests, patchManifests []byte, originalSource, patchSource string) ([]byte, error) {
 	originalResources, err := resource.ParseMultidoc(originalManifests, originalSource)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse %s: %s", originalSource, err)

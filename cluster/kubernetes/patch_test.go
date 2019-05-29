@@ -235,11 +235,11 @@ spec:
 		},
 	} {
 		// Make sure creating the patch works
-		patch, err := CreateManifestPatch([]byte(entry.original), []byte(entry.modified), "original", "updated")
+		patch, err := createManifestPatch([]byte(entry.original), []byte(entry.modified), "original", "updated")
 		assert.NoError(t, err, "original:\n%s\n\nupdated:\n%s", entry.original, entry.modified)
 
 		// Make sure that when applying the patch to the original manifest, we obtain the updated manifest
-		patched, err := ApplyManifestPatch([]byte(entry.original), patch, "original", "patch")
+		patched, err := applyManifestPatch([]byte(entry.original), patch, "original", "patch")
 		assert.NoError(t, err)
 		expected, err := resource.ParseMultidoc([]byte(entry.modified), "updated")
 		assert.NoError(t, err)

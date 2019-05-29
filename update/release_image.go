@@ -1,6 +1,7 @@
 package update
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -45,7 +46,7 @@ func ParseReleaseKind(s string) (ReleaseKind, error) {
 const UserAutomated = "<automated>"
 
 type ReleaseContext interface {
-	SelectWorkloads(Result, []WorkloadFilter, []WorkloadFilter) ([]*WorkloadUpdate, error)
+	SelectWorkloads(context.Context, Result, []WorkloadFilter, []WorkloadFilter) ([]*WorkloadUpdate, error)
 	Registry() registry.Registry
 }
 
@@ -70,10 +71,10 @@ func (s ReleaseImageSpec) ReleaseType() ReleaseType {
 	}
 }
 
-func (s ReleaseImageSpec) CalculateRelease(rc ReleaseContext, logger log.Logger) ([]*WorkloadUpdate, Result, error) {
+func (s ReleaseImageSpec) CalculateRelease(ctx context.Context, rc ReleaseContext, logger log.Logger) ([]*WorkloadUpdate, Result, error) {
 	results := Result{}
 	timer := NewStageTimer("select_workloads")
-	updates, err := s.selectWorkloads(rc, results)
+	updates, err := s.selectWorkloads(ctx, rc, results)
 	timer.ObserveDuration()
 	if err != nil {
 		return nil, nil, err
@@ -105,14 +106,14 @@ func (s ReleaseImageSpec) CommitMessage(result Result) string {
 // Take the spec given in the job, and figure out which workloads are
 // in question based on the running workloads and those defined in the
 // repo. Fill in the release results along the way.
-func (s ReleaseImageSpec) selectWorkloads(rc ReleaseContext, results Result) ([]*WorkloadUpdate, error) {
+func (s ReleaseImageSpec) selectWorkloads(ctx context.Context, rc ReleaseContext, results Result) ([]*WorkloadUpdate, error) {
 	// Build list of filters
 	prefilters, postfilters, err := s.filters(rc)
 	if err != nil {
 		return nil, err
 	}
 	// Find and filter workloads
-	return rc.SelectWorkloads(results, prefilters, postfilters)
+	return rc.SelectWorkloads(ctx, results, prefilters, postfilters)
 }
 
 func (s ReleaseImageSpec) filters(rc ReleaseContext) ([]WorkloadFilter, []WorkloadFilter, error) {

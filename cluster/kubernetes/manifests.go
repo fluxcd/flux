@@ -10,7 +10,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/weaveworks/flux"
-	"github.com/weaveworks/flux/cluster"
 	kresource "github.com/weaveworks/flux/cluster/kubernetes/resource"
 	"github.com/weaveworks/flux/image"
 	"github.com/weaveworks/flux/resource"
@@ -47,8 +46,6 @@ func NewManifests(ns namespacer, logger log.Logger) *manifests {
 		resourceWarnings: map[string]struct{}{},
 	}
 }
-
-var _ cluster.Manifests = &manifests{}
 
 func getCRDScopes(manifests map[string]kresource.KubeManifest) ResourceScopes {
 	result := ResourceScopes{}
@@ -140,11 +137,11 @@ func (m *manifests) SetWorkloadContainerImage(def []byte, id flux.ResourceID, co
 }
 
 func (m *manifests) CreateManifestPatch(originalManifests, modifiedManifests []byte, originalSource, modifiedSource string) ([]byte, error) {
-	return CreateManifestPatch(originalManifests, modifiedManifests, originalSource, modifiedSource)
+	return createManifestPatch(originalManifests, modifiedManifests, originalSource, modifiedSource)
 }
 
 func (m *manifests) ApplyManifestPatch(originalManifests, patchManifests []byte, originalSource, patchSource string) ([]byte, error) {
-	return ApplyManifestPatch(originalManifests, patchManifests, originalSource, patchSource)
+	return applyManifestPatch(originalManifests, patchManifests, originalSource, patchSource)
 }
 
 // UpdateWorkloadPolicies in policies.go

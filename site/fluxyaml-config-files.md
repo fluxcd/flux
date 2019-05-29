@@ -104,7 +104,7 @@ commandUpdated:
           kubeyaml image --namespace $FLUX_WL_NS --kind $FLUX_WL_KIND --name $FLUX_WL_NAME --container $FLUX_CONTAINER --image "$FLUX_IMG:$FLUX_TAG"
           > new-flux-patch.yaml && 
           mv new-flux-patch.yaml flux-patch.yaml
-      annotation:
+      policy:
         command: >-
           cat flux-patch.yaml | 
           kubeyaml annotate --namespace $FLUX_WL_NS --kind $FLUX_WL_KIND --name $FLUX_WL_NAME "flux.weave.works/$FLUX_POLICY=$FLUX_POLICY_VALUE"

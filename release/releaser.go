@@ -1,6 +1,7 @@
 package release
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"time"
@@ -13,13 +14,13 @@ import (
 )
 
 type Changes interface {
-	CalculateRelease(update.ReleaseContext, log.Logger) ([]*update.WorkloadUpdate, update.Result, error)
+	CalculateRelease(context.Context, update.ReleaseContext, log.Logger) ([]*update.WorkloadUpdate, update.Result, error)
 	ReleaseKind() update.ReleaseKind
 	ReleaseType() update.ReleaseType
 	CommitMessage(update.Result) string
 }
 
-func Release(rc *ReleaseContext, changes Changes, logger log.Logger) (results update.Result, err error) {
+func Release(ctx context.Context, rc *ReleaseContext, changes Changes, logger log.Logger) (results update.Result, err error) {
 	defer func(start time.Time) {
 		update.ObserveRelease(
 			start,
@@ -31,18 +32,18 @@ func Release(rc *ReleaseContext, changes Changes, logger log.Logger) (results up
 
 	logger = log.With(logger, "type", "release")
 
-	before, err := rc.GetAllResources()
-	updates, results, err := changes.CalculateRelease(rc, logger)
+	before, err := rc.GetAllResources(ctx)
+	updates, results, err := changes.CalculateRelease(ctx, rc, logger)
 	if err != nil {
 		return nil, err
 	}
 
-	err = ApplyChanges(rc, updates, logger)
+	err = ApplyChanges(ctx, rc, updates, logger)
 	if err != nil {
 		return nil, MakeReleaseError(errors.Wrap(err, "applying changes"))
 	}
 
-	after, err := rc.GetAllResources()
+	after, err := rc.GetAllResources(ctx)
 	if err != nil {
 		return nil, MakeReleaseError(errors.Wrap(err, "loading resources after updates"))
 	}
@@ -54,7 +55,7 @@ func Release(rc *ReleaseContext, changes Changes, logger log.Logger) (results up
 	return results, nil
 }
 
-func ApplyChanges(rc *ReleaseContext, updates []*update.WorkloadUpdate, logger log.Logger) error {
+func ApplyChanges(ctx context.Context, rc *ReleaseContext, updates []*update.WorkloadUpdate, logger log.Logger) error {
 	logger.Log("updates", len(updates))
 	if len(updates) == 0 {
 		logger.Log("exit", "no images to update for services given")
@@ -62,7 +63,7 @@ func ApplyChanges(rc *ReleaseContext, updates []*update.WorkloadUpdate, logger l
 	}
 
 	timer := update.NewStageTimer("write_changes")
-	err := rc.WriteUpdates(updates)
+	err := rc.WriteUpdates(ctx, updates)
 	timer.ObserveDuration()
 	return err
 }

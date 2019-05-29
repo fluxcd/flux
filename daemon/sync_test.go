@@ -247,11 +247,11 @@ func TestDoSync_WithNewCommit(t *testing.T) {
 			return err
 		}
 		// Push some new changes
-		cm, err := resourcestore.NewFileResourceStore(ctx, checkout.Dir(), checkout.ManifestDirs(), false, d.Manifests)
+		cm, err := resourcestore.NewFileResourceStore(checkout.Dir(), checkout.ManifestDirs(), false, d.Manifests)
 		if err != nil {
 			return err
 		}
-		resourcesByID, err := cm.GetAllResourcesByID()
+		resourcesByID, err := cm.GetAllResourcesByID(context.TODO())
 		if err != nil {
 			return err
 		}
@@ -272,7 +272,7 @@ func TestDoSync_WithNewCommit(t *testing.T) {
 		}
 
 		commitAction := git.CommitAction{Author: "", Message: "test commit"}
-		err = checkout.AddCommitAndPush(ctx, commitAction, nil)
+		err = checkout.CommitAndPush(ctx, commitAction, nil, false)
 		if err != nil {
 			return err
 		}

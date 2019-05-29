@@ -58,11 +58,11 @@ func (d *Daemon) Sync(ctx context.Context, started time.Time, revision string, s
 
 	// Run actual sync of resources on cluster
 	syncSetName := makeGitConfigHash(d.Repo.Origin(), d.GitConfig)
-	resourceStore, err := resourcestore.NewFileResourceStore(ctx, working.Dir(), working.ManifestDirs(), d.ManifestGenerationEnabled, d.Manifests)
+	resourceStore, err := resourcestore.NewFileResourceStore(working.Dir(), working.ManifestDirs(), d.ManifestGenerationEnabled, d.Manifests)
 	if err != nil {
 		return errors.Wrap(err, "reading the respository checkout")
 	}
-	resources, resourceErrors, err := doSync(resourceStore, d.Cluster, syncSetName, d.Logger)
+	resources, resourceErrors, err := doSync(ctx, resourceStore, d.Cluster, syncSetName, d.Logger)
 	if err != nil {
 		return err
 	}
@@ -139,9 +139,9 @@ func getChangeSet(ctx context.Context, working *git.Checkout, repo *git.Repo, ti
 
 // doSync runs the actual sync of workloads on the cluster. It returns
 // a map with all resources it applied and sync errors it encountered.
-func doSync(resourceStore resourcestore.ResourceStore, clus cluster.Cluster, syncSetName string,
+func doSync(ctx context.Context, resourceStore resourcestore.ResourceStore, clus cluster.Cluster, syncSetName string,
 	logger log.Logger) (map[string]resource.Resource, []event.ResourceError, error) {
-	resources, err := resourceStore.GetAllResourcesByID()
+	resources, err := resourceStore.GetAllResourcesByID(ctx)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "loading resources from repo")
 	}
@@ -181,7 +181,7 @@ func getChangedResources(ctx context.Context, c changeSet, timeout time.Duration
 	}
 	cancel()
 	// Get the resources by source
-	resourcesByID, err := resourceStore.GetAllResourcesByID()
+	resourcesByID, err := resourceStore.GetAllResourcesByID(ctx)
 	if err != nil {
 		return nil, errorf(err)
 	}

@@ -106,7 +106,7 @@ func setup(t *testing.T, configFileBody string) (*fileResourceStore, func()) {
 	if len(configFileBody) > 0 {
 		ioutil.WriteFile(filepath.Join(baseDir, ConfigFilename), []byte(configFileBody), 0600)
 	}
-	frs, err := NewFileResourceStore(context.Background(), baseDir, []string{baseDir}, true, manifests)
+	frs, err := NewFileResourceStore(baseDir, []string{baseDir}, true, manifests)
 	assert.NoError(t, err)
 	return frs, cleanup
 }
@@ -132,27 +132,26 @@ commandUpdated:
   updaters:
     - containerImage:
         command: echo uci $FLUX_WORKLOAD
-      annotation:
+      policy:
         command: echo ua $FLUX_WORKLOAD
 `
 
 func TestCommandUpdatedConfigFile(t *testing.T) {
 	frs, cleanup := setup(t, commandUpdatedEchoConfigFile)
 	defer cleanup()
-	resources, err := frs.GetAllResourcesByID()
+	ctx := context.Background()
+	resources, err := frs.GetAllResourcesByID(ctx)
 	assert.NoError(t, err)
 	assert.Equal(t, 1, len(resources))
 	deploymentID := flux.MustParseResourceID("default:deployment/helloworld")
 	assert.Contains(t, resources, deploymentID.String())
 	ref, err := image.ParseRef("repo/image:tag")
 	assert.NoError(t, err)
-	err = frs.SetWorkloadContainerImage(deploymentID, "greeter", ref)
+	err = frs.SetWorkloadContainerImage(ctx, deploymentID, "greeter", ref)
 	assert.NoError(t, err)
-	_, err = frs.UpdateWorkloadPolicies(
-		deploymentID,
-		policy.Update{
-			Add: policy.Set{policy.TagPrefix("greeter"): "glob:master-*"},
-		})
+	_, err = frs.UpdateWorkloadPolicies(ctx, deploymentID, policy.Update{
+		Add: policy.Set{policy.TagPrefix("greeter"): "glob:master-*"},
+	})
 	assert.NoError(t, err)
 }
 
@@ -185,7 +184,8 @@ patchUpdated:
 func TestPatchUpdatedConfigFile(t *testing.T) {
 	frs, cleanup := setup(t, patchUpdatedEchoConfigFile)
 	defer cleanup()
-	resources, err := frs.GetAllResourcesByID()
+	ctx := context.Background()
+	resources, err := frs.GetAllResourcesByID(ctx)
 	assert.NoError(t, err)
 	assert.Equal(t, 2, len(resources))
 	var deployment resource.Resource
@@ -198,13 +198,11 @@ func TestPatchUpdatedConfigFile(t *testing.T) {
 	assert.NotNil(t, deployment)
 	ref, err := image.ParseRef("repo/image:tag")
 	assert.NoError(t, err)
-	err = frs.SetWorkloadContainerImage(deploymentID, "greeter", ref)
+	err = frs.SetWorkloadContainerImage(ctx, deploymentID, "greeter", ref)
 	assert.NoError(t, err)
-	_, err = frs.UpdateWorkloadPolicies(
-		deploymentID,
-		policy.Update{
-			Add: policy.Set{policy.TagPrefix("greeter"): "glob:master-*"},
-		})
+	_, err = frs.UpdateWorkloadPolicies(ctx, deploymentID, policy.Update{
+		Add: policy.Set{policy.TagPrefix("greeter"): "glob:master-*"},
+	})
 	expectedPatch := `---
 apiVersion: extensions/v1beta1
 kind: Deployment

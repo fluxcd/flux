@@ -8,7 +8,6 @@ import (
 
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster"
-	"github.com/weaveworks/flux/git"
 	"github.com/weaveworks/flux/registry"
 	"github.com/weaveworks/flux/resource"
 	"github.com/weaveworks/flux/resourcestore"
@@ -21,33 +20,27 @@ type ReleaseContext struct {
 	registry      registry.Registry
 }
 
-func NewReleaseContext(ctx context.Context, enableManifestGeneration bool,
-	c cluster.Cluster, m cluster.Manifests, reg registry.Registry, repo *git.Checkout) (*ReleaseContext, error) {
-	rs, err := resourcestore.NewFileResourceStore(ctx, repo.Dir(), repo.ManifestDirs(), enableManifestGeneration, m)
-	if err != nil {
-		return nil, err
+func NewReleaseContext(cluster cluster.Cluster, resourceStore resourcestore.ResourceStore, registry registry.Registry) *ReleaseContext {
+	return &ReleaseContext{
+		cluster:       cluster,
+		resourceStore: resourceStore,
+		registry:      registry,
 	}
-	result := &ReleaseContext{
-		cluster:       c,
-		resourceStore: rs,
-		registry:      reg,
-	}
-	return result, nil
 }
 
 func (rc *ReleaseContext) Registry() registry.Registry {
 	return rc.registry
 }
 
-func (rc *ReleaseContext) GetAllResources() (map[string]resource.Resource, error) {
-	return rc.resourceStore.GetAllResourcesByID()
+func (rc *ReleaseContext) GetAllResources(ctx context.Context) (map[string]resource.Resource, error) {
+	return rc.resourceStore.GetAllResourcesByID(ctx)
 }
 
-func (rc *ReleaseContext) WriteUpdates(updates []*update.WorkloadUpdate) error {
+func (rc *ReleaseContext) WriteUpdates(ctx context.Context, updates []*update.WorkloadUpdate) error {
 	err := func() error {
 		for _, update := range updates {
 			for _, container := range update.Updates {
-				err := rc.resourceStore.SetWorkloadContainerImage(update.ResourceID, container.Container, container.Target)
+				err := rc.resourceStore.SetWorkloadContainerImage(ctx, update.ResourceID, container.Container, container.Target)
 				if err != nil {
 					return errors.Wrapf(err, "updating resource %s in %s", update.ResourceID.String(), update.Resource.Source())
 				}
@@ -64,10 +57,11 @@ func (rc *ReleaseContext) WriteUpdates(updates []*update.WorkloadUpdate) error {
 // files and the running cluster. `WorkloadFilter`s can be provided
 // to filter the controllers so found, either before (`prefilters`) or
 // after (`postfilters`) consulting the cluster.
-func (rc *ReleaseContext) SelectWorkloads(results update.Result, prefilters, postfilters []update.WorkloadFilter) ([]*update.WorkloadUpdate, error) {
+func (rc *ReleaseContext) SelectWorkloads(ctx context.Context, results update.Result, prefilters,
+	postfilters []update.WorkloadFilter) ([]*update.WorkloadUpdate, error) {
 
 	// Start with all the workloads that are defined in the repo.
-	allDefined, err := rc.WorkloadsForUpdate()
+	allDefined, err := rc.WorkloadsForUpdate(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -124,8 +118,8 @@ func (rc *ReleaseContext) SelectWorkloads(results update.Result, prefilters, pos
 
 // WorkloadsForUpdate collects all workloads defined in manifests and prepares a list of
 // workload updates for each of them.  It does not consider updatability.
-func (rc *ReleaseContext) WorkloadsForUpdate() (map[flux.ResourceID]*update.WorkloadUpdate, error) {
-	resources, err := rc.GetAllResources()
+func (rc *ReleaseContext) WorkloadsForUpdate(ctx context.Context) (map[flux.ResourceID]*update.WorkloadUpdate, error) {
+	resources, err := rc.GetAllResources(ctx)
 	if err != nil {
 		return nil, err
 	}
