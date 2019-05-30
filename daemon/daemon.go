@@ -23,11 +23,11 @@ import (
 	"github.com/weaveworks/flux/guid"
 	"github.com/weaveworks/flux/image"
 	"github.com/weaveworks/flux/job"
+	"github.com/weaveworks/flux/manifests"
 	"github.com/weaveworks/flux/policy"
 	"github.com/weaveworks/flux/registry"
 	"github.com/weaveworks/flux/release"
 	"github.com/weaveworks/flux/resource"
-	"github.com/weaveworks/flux/resourcestore"
 	"github.com/weaveworks/flux/update"
 )
 
@@ -74,18 +74,18 @@ func (d *Daemon) Export(ctx context.Context) ([]byte, error) {
 	return d.Cluster.Export()
 }
 
-func (d *Daemon) getResourceStore(checkout *git.Checkout) (resourcestore.ResourceStore, error) {
+func (d *Daemon) getManifestStore(checkout *git.Checkout) (manifests.Store, error) {
 	if d.ManifestGenerationEnabled {
-		return resourcestore.NewFileResourceStore(checkout.Dir(), checkout.ManifestDirs(), d.Manifests)
+		return manifests.NewConfigAware(checkout.Dir(), checkout.ManifestDirs(), d.Manifests)
 	}
-	return resourcestore.NewFiles(checkout.Dir(), checkout.ManifestDirs(), d.Manifests), nil
+	return manifests.NewRawFiles(checkout.Dir(), checkout.ManifestDirs(), d.Manifests), nil
 }
 
 func (d *Daemon) getResources(ctx context.Context) (map[string]resource.Resource, v6.ReadOnlyReason, error) {
 	var resources map[string]resource.Resource
 	var globalReadOnly v6.ReadOnlyReason
 	err := d.WithClone(ctx, func(checkout *git.Checkout) error {
-		cm, err := d.getResourceStore(checkout)
+		cm, err := d.getManifestStore(checkout)
 		if err != nil {
 			return err
 		}
@@ -413,7 +413,7 @@ func (d *Daemon) updatePolicies(spec update.Spec, updates policy.Updates) update
 			if policy.Set(u.Add).Has(policy.Automated) {
 				anythingAutomated = true
 			}
-			cm, err := d.getResourceStore(working)
+			cm, err := d.getManifestStore(working)
 			if err != nil {
 				return result, err
 			}
@@ -424,7 +424,7 @@ func (d *Daemon) updatePolicies(spec update.Spec, updates policy.Updates) update
 					Error:  err.Error(),
 				}
 				switch err := err.(type) {
-				case resourcestore.ResourceStoreError:
+				case manifests.StoreError:
 					result.Result[workloadID] = update.WorkloadResult{
 						Status: update.ReleaseStatusFailed,
 						Error:  err.Error(),
@@ -479,7 +479,7 @@ func (d *Daemon) updatePolicies(spec update.Spec, updates policy.Updates) update
 func (d *Daemon) release(spec update.Spec, c release.Changes) updateFunc {
 	return func(ctx context.Context, jobID job.ID, working *git.Checkout, logger log.Logger) (job.Result, error) {
 		var zero job.Result
-		rs, err := d.getResourceStore(working)
+		rs, err := d.getManifestStore(working)
 		if err != nil {
 			return zero, err
 		}

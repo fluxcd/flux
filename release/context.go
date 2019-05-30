@@ -8,19 +8,19 @@ import (
 
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster"
+	"github.com/weaveworks/flux/manifests"
 	"github.com/weaveworks/flux/registry"
 	"github.com/weaveworks/flux/resource"
-	"github.com/weaveworks/flux/resourcestore"
 	"github.com/weaveworks/flux/update"
 )
 
 type ReleaseContext struct {
 	cluster       cluster.Cluster
-	resourceStore resourcestore.ResourceStore
+	resourceStore manifests.Store
 	registry      registry.Registry
 }
 
-func NewReleaseContext(cluster cluster.Cluster, resourceStore resourcestore.ResourceStore, registry registry.Registry) *ReleaseContext {
+func NewReleaseContext(cluster cluster.Cluster, resourceStore manifests.Store, registry registry.Registry) *ReleaseContext {
 	return &ReleaseContext{
 		cluster:       cluster,
 		resourceStore: resourceStore,

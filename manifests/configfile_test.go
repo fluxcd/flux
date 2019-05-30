@@ -1,4 +1,4 @@
-package resourcestore
+package manifests
 
 import (
 	"context"

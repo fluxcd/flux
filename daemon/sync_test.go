@@ -22,8 +22,8 @@ import (
 	"github.com/weaveworks/flux/git"
 	"github.com/weaveworks/flux/git/gittest"
 	"github.com/weaveworks/flux/job"
+	"github.com/weaveworks/flux/manifests"
 	registryMock "github.com/weaveworks/flux/registry/mock"
-	"github.com/weaveworks/flux/resourcestore"
 )
 
 const (
@@ -247,7 +247,7 @@ func TestDoSync_WithNewCommit(t *testing.T) {
 			return err
 		}
 		// Push some new changes
-		cm := resourcestore.NewFiles(checkout.Dir(), checkout.ManifestDirs(), d.Manifests)
+		cm := manifests.NewRawFiles(checkout.Dir(), checkout.ManifestDirs(), d.Manifests)
 		resourcesByID, err := cm.GetAllResourcesByID(context.TODO())
 		if err != nil {
 			return err

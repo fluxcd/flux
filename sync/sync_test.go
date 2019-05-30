@@ -12,8 +12,8 @@ import (
 	"github.com/weaveworks/flux/cluster/kubernetes"
 	"github.com/weaveworks/flux/git"
 	"github.com/weaveworks/flux/git/gittest"
+	"github.com/weaveworks/flux/manifests"
 	"github.com/weaveworks/flux/resource"
-	"github.com/weaveworks/flux/resourcestore"
 )
 
 // Test that cluster.Sync gets called with the appropriate things when
@@ -23,11 +23,11 @@ func TestSync(t *testing.T) {
 	defer cleanup()
 
 	// Start with nothing running. We should be told to apply all the things.
-	manifests := kubernetes.NewManifests(kubernetes.ConstNamespacer("default"), log.NewLogfmtLogger(os.Stdout))
+	parser := kubernetes.NewManifests(kubernetes.ConstNamespacer("default"), log.NewLogfmtLogger(os.Stdout))
 	clus := &syncCluster{map[string]string{}}
 
 	dirs := checkout.ManifestDirs()
-	rs := resourcestore.NewFiles(checkout.Dir(), checkout.ManifestDirs(), manifests)
+	rs := manifests.NewRawFiles(checkout.Dir(), checkout.ManifestDirs(), parser)
 	resources, err := rs.GetAllResourcesByID(context.TODO())
 	if err != nil {
 		t.Fatal(err)
@@ -78,8 +78,8 @@ func resourcesToStrings(resources map[string]resource.Resource) map[string]strin
 
 // Our invariant is that the model we can export from the cluster
 // should always reflect what's in git. So, let's check that.
-func checkClusterMatchesFiles(t *testing.T, rs resourcestore.ResourceStore, resources map[string]string, base string, dirs []string) {
-	files, err := rs.GetAllResourcesByID(context.Background())
+func checkClusterMatchesFiles(t *testing.T, ms manifests.Store, resources map[string]string, base string, dirs []string) {
+	files, err := ms.GetAllResourcesByID(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -26,11 +26,11 @@ import (
 	"github.com/weaveworks/flux/git/gittest"
 	"github.com/weaveworks/flux/image"
 	"github.com/weaveworks/flux/job"
+	"github.com/weaveworks/flux/manifests"
 	"github.com/weaveworks/flux/policy"
 	"github.com/weaveworks/flux/registry"
 	registryMock "github.com/weaveworks/flux/registry/mock"
 	"github.com/weaveworks/flux/resource"
-	"github.com/weaveworks/flux/resourcestore"
 	"github.com/weaveworks/flux/update"
 )
 
@@ -515,7 +515,7 @@ func TestDaemon_PolicyUpdate(t *testing.T) {
 			return false
 		}
 		defer co.Clean()
-		cm := resourcestore.NewFiles(co.Dir(), co.ManifestDirs(), d.Manifests)
+		cm := manifests.NewRawFiles(co.Dir(), co.ManifestDirs(), d.Manifests)
 		m, err := cm.GetAllResourcesByID(context.TODO())
 		if err != nil {
 			t.Fatalf("Error: %s", err.Error())
@@ -856,7 +856,7 @@ func (w *wait) ForImageTag(t *testing.T, d *Daemon, workload, container, tag str
 			return false
 		}
 		defer co.Clean()
-		cm := resourcestore.NewFiles(co.Dir(), co.ManifestDirs(), d.Manifests)
+		cm := manifests.NewRawFiles(co.Dir(), co.ManifestDirs(), d.Manifests)
 		resources, err := cm.GetAllResourcesByID(context.TODO())
 		assert.NoError(t, err)
 

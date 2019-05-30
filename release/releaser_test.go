@@ -19,9 +19,9 @@ import (
 	"github.com/weaveworks/flux/git"
 	"github.com/weaveworks/flux/git/gittest"
 	"github.com/weaveworks/flux/image"
+	"github.com/weaveworks/flux/manifests"
 	registryMock "github.com/weaveworks/flux/registry/mock"
 	"github.com/weaveworks/flux/resource"
-	"github.com/weaveworks/flux/resourcestore"
 	"github.com/weaveworks/flux/update"
 )
 
@@ -161,8 +161,8 @@ func mockCluster(running ...cluster.Workload) *cluster.Mock {
 	}
 }
 
-func NewFileResourceStoreOrFail(t *testing.T, manifests cluster.Manifests, checkout *git.Checkout) resourcestore.ResourceStore {
-	cm := resourcestore.NewFiles(checkout.Dir(), checkout.ManifestDirs(), manifests)
+func NewManifestStoreOrFail(t *testing.T, parser cluster.Manifests, checkout *git.Checkout) manifests.Store {
+	cm := manifests.NewRawFiles(checkout.Dir(), checkout.ManifestDirs(), parser)
 	return cm
 }
 
@@ -263,7 +263,7 @@ func Test_InitContainer(t *testing.T) {
 
 	testRelease(t, &ReleaseContext{
 		cluster:       mCluster,
-		resourceStore: NewFileResourceStoreOrFail(t, mockManifests, checkout),
+		resourceStore: NewManifestStoreOrFail(t, mockManifests, checkout),
 		registry:      mockRegistry,
 	}, spec, expect.Result())
 
@@ -454,7 +454,7 @@ func Test_FilterLogic(t *testing.T) {
 			defer cleanup()
 			testRelease(t, &ReleaseContext{
 				cluster:       mCluster,
-				resourceStore: NewFileResourceStoreOrFail(t, mockManifests, checkout),
+				resourceStore: NewManifestStoreOrFail(t, mockManifests, checkout),
 				registry:      mockRegistry,
 			}, tst.Spec, tst.Expected.Result())
 		})
@@ -546,7 +546,7 @@ func Test_Force_lockedWorkload(t *testing.T) {
 			defer cleanup()
 			testRelease(t, &ReleaseContext{
 				cluster:       mCluster,
-				resourceStore: NewFileResourceStoreOrFail(t, mockManifests, checkout),
+				resourceStore: NewManifestStoreOrFail(t, mockManifests, checkout),
 				registry:      mockRegistry,
 			}, tst.Spec, tst.Expected.Result())
 		})
@@ -650,7 +650,7 @@ func Test_Force_filteredContainer(t *testing.T) {
 			defer cleanup()
 			testRelease(t, &ReleaseContext{
 				cluster:       mCluster,
-				resourceStore: NewFileResourceStoreOrFail(t, mockManifests, checkout),
+				resourceStore: NewManifestStoreOrFail(t, mockManifests, checkout),
 				registry:      mockRegistry,
 			}, tst.Spec, tst.Expected.Result())
 		})
@@ -719,7 +719,7 @@ func Test_ImageStatus(t *testing.T) {
 			defer cleanup()
 			rc := &ReleaseContext{
 				cluster:       mCluster,
-				resourceStore: NewFileResourceStoreOrFail(t, mockManifests, checkout),
+				resourceStore: NewManifestStoreOrFail(t, mockManifests, checkout),
 				registry:      upToDateRegistry,
 			}
 			testRelease(t, rc, tst.Spec, tst.Expected.Result())
@@ -746,7 +746,7 @@ func Test_UpdateMultidoc(t *testing.T) {
 	defer cleanup()
 	rc := &ReleaseContext{
 		cluster:       mCluster,
-		resourceStore: NewFileResourceStoreOrFail(t, mockManifests, checkout),
+		resourceStore: NewManifestStoreOrFail(t, mockManifests, checkout),
 		registry:      mockRegistry,
 	}
 	spec := update.ReleaseImageSpec{
@@ -793,7 +793,7 @@ func Test_UpdateList(t *testing.T) {
 	defer cleanup()
 	rc := &ReleaseContext{
 		cluster:       mCluster,
-		resourceStore: NewFileResourceStoreOrFail(t, mockManifests, checkout),
+		resourceStore: NewManifestStoreOrFail(t, mockManifests, checkout),
 		registry:      mockRegistry,
 	}
 	spec := update.ReleaseImageSpec{
@@ -828,7 +828,7 @@ func Test_UpdateContainers(t *testing.T) {
 	ctx := context.Background()
 	rc := &ReleaseContext{
 		cluster:       mCluster,
-		resourceStore: NewFileResourceStoreOrFail(t, mockManifests, checkout),
+		resourceStore: NewManifestStoreOrFail(t, mockManifests, checkout),
 		registry:      mockRegistry,
 	}
 	type expected struct {
@@ -1074,7 +1074,7 @@ func Test_BadRelease(t *testing.T) {
 	ctx := context.Background()
 	rc := &ReleaseContext{
 		cluster:       mCluster,
-		resourceStore: NewFileResourceStoreOrFail(t, manifests, checkout1),
+		resourceStore: NewManifestStoreOrFail(t, manifests, checkout1),
 		registry:      mockRegistry,
 	}
 	_, err := Release(ctx, rc, spec, log.NewNopLogger())
@@ -1087,7 +1087,7 @@ func Test_BadRelease(t *testing.T) {
 
 	rc = &ReleaseContext{
 		cluster:       mCluster,
-		resourceStore: NewFileResourceStoreOrFail(t, &badManifests{manifests}, checkout2),
+		resourceStore: NewManifestStoreOrFail(t, &badManifests{manifests}, checkout2),
 		registry:      mockRegistry,
 	}
 	_, err = Release(ctx, rc, spec, log.NewNopLogger())
