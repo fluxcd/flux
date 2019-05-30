@@ -2,6 +2,7 @@ package update
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -25,10 +26,11 @@ type ReleaseContainersSpec struct {
 
 // CalculateRelease computes required controller updates to satisfy this specification.
 // It returns an error if any spec calculation fails unless `SkipMismatches` is true.
-func (s ReleaseContainersSpec) CalculateRelease(rc ReleaseContext, logger log.Logger) ([]*WorkloadUpdate, Result, error) {
+func (s ReleaseContainersSpec) CalculateRelease(ctx context.Context, rc ReleaseContext,
+	logger log.Logger) ([]*WorkloadUpdate, Result, error) {
 	results := Result{}
 	prefilter, postfilter := s.filters()
-	all, err := rc.SelectWorkloads(results, prefilter, postfilter)
+	all, err := rc.SelectWorkloads(ctx, results, prefilter, postfilter)
 	if err != nil {
 		return nil, results, err
 	}

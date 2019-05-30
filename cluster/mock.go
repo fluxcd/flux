@@ -10,17 +10,23 @@ import (
 
 // Doubles as a cluster.Cluster and cluster.Manifests implementation
 type Mock struct {
-	AllWorkloadsFunc      func(maybeNamespace string) ([]Workload, error)
-	SomeWorkloadsFunc     func([]flux.ResourceID) ([]Workload, error)
-	IsAllowedResourceFunc func(flux.ResourceID) bool
-	PingFunc              func() error
-	ExportFunc            func() ([]byte, error)
-	SyncFunc              func(SyncSet) error
-	PublicSSHKeyFunc      func(regenerate bool) (ssh.PublicKey, error)
-	UpdateImageFunc       func(def []byte, id flux.ResourceID, container string, newImageID image.Ref) ([]byte, error)
-	LoadManifestsFunc     func(base string, paths []string) (map[string]resource.Resource, error)
-	UpdatePoliciesFunc    func([]byte, flux.ResourceID, policy.Update) ([]byte, error)
+	AllWorkloadsFunc              func(maybeNamespace string) ([]Workload, error)
+	SomeWorkloadsFunc             func([]flux.ResourceID) ([]Workload, error)
+	IsAllowedResourceFunc         func(flux.ResourceID) bool
+	PingFunc                      func() error
+	ExportFunc                    func() ([]byte, error)
+	SyncFunc                      func(SyncSet) error
+	PublicSSHKeyFunc              func(regenerate bool) (ssh.PublicKey, error)
+	SetWorkloadContainerImageFunc func(def []byte, id flux.ResourceID, container string, newImageID image.Ref) ([]byte, error)
+	LoadManifestsFunc             func(base string, paths []string) (map[string]resource.Resource, error)
+	ParseManifestFunc             func(def []byte, source string) (map[string]resource.Resource, error)
+	UpdateWorkloadPoliciesFunc    func([]byte, flux.ResourceID, policy.Update) ([]byte, error)
+	CreateManifestPatchFunc       func(originalManifests, modifiedManifests []byte, originalSource, modifiedSource string) ([]byte, error)
+	ApplyManifestPatchFunc        func(originalManifests, patch []byte, originalSource, patchSource string) ([]byte, error)
 }
+
+var _ Cluster = &Mock{}
+var _ Manifests = &Mock{}
 
 func (m *Mock) AllWorkloads(maybeNamespace string) ([]Workload, error) {
 	return m.AllWorkloadsFunc(maybeNamespace)
@@ -50,14 +56,26 @@ func (m *Mock) PublicSSHKey(regenerate bool) (ssh.PublicKey, error) {
 	return m.PublicSSHKeyFunc(regenerate)
 }
 
-func (m *Mock) UpdateImage(def []byte, id flux.ResourceID, container string, newImageID image.Ref) ([]byte, error) {
-	return m.UpdateImageFunc(def, id, container, newImageID)
+func (m *Mock) SetWorkloadContainerImage(def []byte, id flux.ResourceID, container string, newImageID image.Ref) ([]byte, error) {
+	return m.SetWorkloadContainerImageFunc(def, id, container, newImageID)
 }
 
-func (m *Mock) LoadManifests(base string, paths []string) (map[string]resource.Resource, error) {
-	return m.LoadManifestsFunc(base, paths)
+func (m *Mock) LoadManifests(baseDir string, paths []string) (map[string]resource.Resource, error) {
+	return m.LoadManifestsFunc(baseDir, paths)
 }
 
-func (m *Mock) UpdatePolicies(def []byte, id flux.ResourceID, p policy.Update) ([]byte, error) {
-	return m.UpdatePoliciesFunc(def, id, p)
+func (m *Mock) ParseManifest(def []byte, source string) (map[string]resource.Resource, error) {
+	return m.ParseManifestFunc(def, source)
+}
+
+func (m *Mock) UpdateWorkloadPolicies(def []byte, id flux.ResourceID, p policy.Update) ([]byte, error) {
+	return m.UpdateWorkloadPoliciesFunc(def, id, p)
+}
+
+func (m *Mock) CreateManifestPatch(originalManifests, modifiedManifests []byte, originalSource, modifiedSource string) ([]byte, error) {
+	return m.CreateManifestPatchFunc(originalManifests, modifiedManifests, originalSource, modifiedSource)
+}
+
+func (m *Mock) ApplyManifestPatch(originalManifests, patch []byte, originalSource, patchSource string) ([]byte, error) {
+	return m.ApplyManifestPatch(originalManifests, patch, originalSource, patchSource)
 }

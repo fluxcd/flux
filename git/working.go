@@ -14,15 +14,15 @@ var (
 // Config holds some values we use when working in the working clone of
 // a repo.
 type Config struct {
-	Branch           string   // branch we're syncing to
-	Paths            []string // paths within the repo containing files we care about
-	SyncTag          string
-	NotesRef         string
-	UserName         string
-	UserEmail        string
-	SigningKey       string
-	SetAuthor        bool
-	SkipMessage      string
+	Branch      string   // branch we're syncing to
+	Paths       []string // paths within the repo containing files we care about
+	SyncTag     string
+	NotesRef    string
+	UserName    string
+	UserEmail   string
+	SigningKey  string
+	SetAuthor   bool
+	SkipMessage string
 }
 
 // Checkout is a local working clone of the remote repo. It is
@@ -126,8 +126,14 @@ func (c *Checkout) ManifestDirs() []string {
 
 // CommitAndPush commits changes made in this checkout, along with any
 // extra data as a note, and pushes the commit and note to the remote repo.
-func (c *Checkout) CommitAndPush(ctx context.Context, commitAction CommitAction, note interface{}) error {
-	if !check(ctx, c.dir, c.config.Paths) {
+func (c *Checkout) CommitAndPush(ctx context.Context, commitAction CommitAction, note interface{}, addUntracked bool) error {
+	if addUntracked {
+		if err := add(ctx, c.dir, "."); err != nil {
+			return err
+		}
+	}
+
+	if !check(ctx, c.dir, c.config.Paths, addUntracked) {
 		return ErrNoChanges
 	}
 
@@ -205,4 +211,8 @@ func (c *Checkout) NoteRevList(ctx context.Context) (map[string]struct{}, error)
 
 func (c *Checkout) Checkout(ctx context.Context, rev string) error {
 	return checkout(ctx, c.dir, rev)
+}
+
+func (c *Checkout) Add(ctx context.Context, path string) error {
+	return add(ctx, c.dir, path)
 }

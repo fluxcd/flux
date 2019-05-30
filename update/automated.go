@@ -2,6 +2,7 @@ package update
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 
 	"github.com/go-kit/kit/log"
@@ -24,7 +25,7 @@ func (a *Automated) Add(service flux.ResourceID, container resource.Container, i
 	a.Changes = append(a.Changes, Change{service, container, image})
 }
 
-func (a *Automated) CalculateRelease(rc ReleaseContext, logger log.Logger) ([]*WorkloadUpdate, Result, error) {
+func (a *Automated) CalculateRelease(ctx context.Context, rc ReleaseContext, logger log.Logger) ([]*WorkloadUpdate, Result, error) {
 	prefilters := []WorkloadFilter{
 		&IncludeFilter{a.workloadIDs()},
 	}
@@ -34,7 +35,7 @@ func (a *Automated) CalculateRelease(rc ReleaseContext, logger log.Logger) ([]*W
 	}
 
 	result := Result{}
-	updates, err := rc.SelectWorkloads(result, prefilters, postfilters)
+	updates, err := rc.SelectWorkloads(ctx, result, prefilters, postfilters)
 	if err != nil {
 		return nil, nil, err
 	}

@@ -182,7 +182,7 @@ func TestUpdatePolicies(t *testing.T) {
 			caseOut := templToString(t, annotationsTemplate, c.out)
 			resourceID := flux.MustParseResourceID("default:deployment/nginx")
 			manifests := NewManifests(ConstNamespacer("default"), log.NewLogfmtLogger(os.Stdout))
-			out, err := manifests.UpdatePolicies([]byte(caseIn), resourceID, c.update)
+			out, err := manifests.UpdateWorkloadPolicies([]byte(caseIn), resourceID, c.update)
 			assert.Equal(t, c.wantErr, err != nil, "unexpected error value: %s", err)
 			if !c.wantErr {
 				assert.Equal(t, string(out), caseOut)
@@ -196,7 +196,7 @@ func TestUpdatePolicies_invalidTagPattern(t *testing.T) {
 	update := policy.Update{
 		Add: policy.Set{policy.TagPrefix("nginx"): "semver:invalid"},
 	}
-	_, err := (&manifests{}).UpdatePolicies(nil, resourceID, update)
+	_, err := (&manifests{}).UpdateWorkloadPolicies(nil, resourceID, update)
 	assert.Error(t, err)
 }
 

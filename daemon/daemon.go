@@ -27,6 +27,7 @@ import (
 	"github.com/weaveworks/flux/registry"
 	"github.com/weaveworks/flux/release"
 	"github.com/weaveworks/flux/resource"
+	"github.com/weaveworks/flux/resourcestore"
 	"github.com/weaveworks/flux/update"
 )
 
@@ -42,17 +43,18 @@ const (
 // Daemon is the fully-functional state of a daemon (compare to
 // `NotReadyDaemon`).
 type Daemon struct {
-	V              string
-	Cluster        cluster.Cluster
-	Manifests      cluster.Manifests
-	Registry       registry.Registry
-	ImageRefresh   chan image.Name
-	Repo           *git.Repo
-	GitConfig      git.Config
-	Jobs           *job.Queue
-	JobStatusCache *job.StatusCache
-	EventWriter    event.EventWriter
-	Logger         log.Logger
+	V                         string
+	Cluster                   cluster.Cluster
+	Manifests                 cluster.Manifests
+	Registry                  registry.Registry
+	ImageRefresh              chan image.Name
+	Repo                      *git.Repo
+	GitConfig                 git.Config
+	Jobs                      *job.Queue
+	JobStatusCache            *job.StatusCache
+	EventWriter               event.EventWriter
+	Logger                    log.Logger
+	ManifestGenerationEnabled bool
 	// bookkeeping
 	*LoopVars
 }
@@ -76,8 +78,11 @@ func (d *Daemon) getResources(ctx context.Context) (map[string]resource.Resource
 	var resources map[string]resource.Resource
 	var globalReadOnly v6.ReadOnlyReason
 	err := d.WithClone(ctx, func(checkout *git.Checkout) error {
-		var err error
-		resources, err = d.Manifests.LoadManifests(checkout.Dir(), checkout.ManifestDirs())
+		cm, err := resourcestore.NewFileResourceStore(checkout.Dir(), checkout.ManifestDirs(), d.ManifestGenerationEnabled, d.Manifests)
+		if err != nil {
+			return err
+		}
+		resources, err = cm.GetAllResourcesByID(ctx)
 		return err
 	})
 
@@ -339,7 +344,7 @@ func (d *Daemon) UpdateManifests(ctx context.Context, spec update.Spec) (job.ID,
 		}
 		return d.queueJob(d.makeLoggingJobFunc(d.makeJobFromUpdate(d.release(spec, s)))), nil
 	case policy.Updates:
-		return d.queueJob(d.makeLoggingJobFunc(d.makeJobFromUpdate(d.updatePolicy(spec, s)))), nil
+		return d.queueJob(d.makeLoggingJobFunc(d.makeJobFromUpdate(d.updatePolicies(spec, s)))), nil
 	case update.ManualSync:
 		return d.queueJob(d.sync()), nil
 	default:
@@ -378,7 +383,7 @@ func (d *Daemon) sync() jobFunc {
 	}
 }
 
-func (d *Daemon) updatePolicy(spec update.Spec, updates policy.Updates) updateFunc {
+func (d *Daemon) updatePolicies(spec update.Spec, updates policy.Updates) updateFunc {
 	return func(ctx context.Context, jobID job.ID, working *git.Checkout, logger log.Logger) (job.Result, error) {
 		// For each update
 		var workloadIDs []flux.ResourceID
@@ -401,37 +406,34 @@ func (d *Daemon) updatePolicy(spec update.Spec, updates policy.Updates) updateFu
 			if policy.Set(u.Add).Has(policy.Automated) {
 				anythingAutomated = true
 			}
-			// find the workload manifest
-			err := cluster.UpdateManifest(d.Manifests, working.Dir(), working.ManifestDirs(), workloadID, func(def []byte) ([]byte, error) {
-				newDef, err := d.Manifests.UpdatePolicies(def, workloadID, u)
-				if err != nil {
-					result.Result[workloadID] = update.WorkloadResult{
-						Status: update.ReleaseStatusFailed,
-						Error:  err.Error(),
-					}
-					return nil, err
-				}
-				if string(newDef) == string(def) {
-					result.Result[workloadID] = update.WorkloadResult{
-						Status: update.ReleaseStatusSkipped,
-					}
-				} else {
-					workloadIDs = append(workloadIDs, workloadID)
-					result.Result[workloadID] = update.WorkloadResult{
-						Status: update.ReleaseStatusSuccess,
-					}
-				}
-				return newDef, nil
-			})
+			cm, err := resourcestore.NewFileResourceStore(working.Dir(), working.ManifestDirs(), d.ManifestGenerationEnabled, d.Manifests)
 			if err != nil {
+				return result, err
+			}
+			updated, err := cm.UpdateWorkloadPolicies(ctx, workloadID, u)
+			if err != nil {
+				result.Result[workloadID] = update.WorkloadResult{
+					Status: update.ReleaseStatusFailed,
+					Error:  err.Error(),
+				}
 				switch err := err.(type) {
-				case cluster.ManifestError:
+				case resourcestore.ResourceStoreError:
 					result.Result[workloadID] = update.WorkloadResult{
 						Status: update.ReleaseStatusFailed,
 						Error:  err.Error(),
 					}
 				default:
 					return result, err
+				}
+			}
+			if !updated {
+				result.Result[workloadID] = update.WorkloadResult{
+					Status: update.ReleaseStatusSkipped,
+				}
+			} else {
+				workloadIDs = append(workloadIDs, workloadID)
+				result.Result[workloadID] = update.WorkloadResult{
+					Status: update.ReleaseStatusSuccess,
 				}
 			}
 		}
@@ -447,7 +449,7 @@ func (d *Daemon) updatePolicy(spec update.Spec, updates policy.Updates) updateFu
 			Author:  commitAuthor,
 			Message: policyCommitMessage(updates, spec.Cause),
 		}
-		if err := working.CommitAndPush(ctx, commitAction, &note{JobID: jobID, Spec: spec}); err != nil {
+		if err := working.CommitAndPush(ctx, commitAction, &note{JobID: jobID, Spec: spec}, d.ManifestGenerationEnabled); err != nil {
 			// On the chance pushing failed because it was not
 			// possible to fast-forward, ask for a sync so the
 			// next attempt is more likely to succeed.
@@ -469,10 +471,13 @@ func (d *Daemon) updatePolicy(spec update.Spec, updates policy.Updates) updateFu
 
 func (d *Daemon) release(spec update.Spec, c release.Changes) updateFunc {
 	return func(ctx context.Context, jobID job.ID, working *git.Checkout, logger log.Logger) (job.Result, error) {
-		rc := release.NewReleaseContext(d.Cluster, d.Manifests, d.Registry, working)
-		result, err := release.Release(rc, c, logger)
-
 		var zero job.Result
+		rs, err := resourcestore.NewFileResourceStore(working.Dir(), working.ManifestDirs(), d.ManifestGenerationEnabled, d.Manifests)
+		if err != nil {
+			return zero, err
+		}
+		rc := release.NewReleaseContext(d.Cluster, rs, d.Registry)
+		result, err := release.Release(ctx, rc, c, logger)
 		if err != nil {
 			return zero, err
 		}
@@ -492,7 +497,7 @@ func (d *Daemon) release(spec update.Spec, c release.Changes) updateFunc {
 				Author:  commitAuthor,
 				Message: commitMsg,
 			}
-			if err := working.CommitAndPush(ctx, commitAction, &note{JobID: jobID, Spec: spec, Result: result}); err != nil {
+			if err := working.CommitAndPush(ctx, commitAction, &note{JobID: jobID, Spec: spec, Result: result}, d.ManifestGenerationEnabled); err != nil {
 				// On the chance pushing failed because it was not
 				// possible to fast-forward, ask the repo to fetch
 				// from upstream ASAP, so the next attempt is more

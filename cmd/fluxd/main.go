@@ -160,6 +160,9 @@ func main() {
 		sshKeyType   = optionalVar(fs, &ssh.KeyTypeValue{}, "ssh-keygen-type", "-t argument to ssh-keygen (default unspecified)")
 		sshKeygenDir = fs.String("ssh-keygen-dir", "", "directory, ideally on a tmpfs volume, in which to generate new SSH keys when necessary")
 
+		// manifest generation
+		manifestGeneration = fs.Bool("manifest-generation", false, "experimental; search for .flux.yaml files to generate manifests")
+
 		upstreamURL = fs.String("connect", "", "connect to an upstream service e.g., Weave Cloud, at this base address")
 		token       = fs.String("token", "", "authentication token for upstream service")
 
@@ -526,16 +529,17 @@ func main() {
 	}
 
 	daemon := &daemon.Daemon{
-		V:              version,
-		Cluster:        k8s,
-		Manifests:      k8sManifests,
-		Registry:       cacheRegistry,
-		ImageRefresh:   make(chan image.Name, 100), // size chosen by fair dice roll
-		Repo:           repo,
-		GitConfig:      gitConfig,
-		Jobs:           jobs,
-		JobStatusCache: &job.StatusCache{Size: 100},
-		Logger:         log.With(logger, "component", "daemon"),
+		V:                         version,
+		Cluster:                   k8s,
+		Manifests:                 k8sManifests,
+		Registry:                  cacheRegistry,
+		ImageRefresh:              make(chan image.Name, 100), // size chosen by fair dice roll
+		Repo:                      repo,
+		GitConfig:                 gitConfig,
+		Jobs:                      jobs,
+		JobStatusCache:            &job.StatusCache{Size: 100},
+		Logger:                    log.With(logger, "component", "daemon"),
+		ManifestGenerationEnabled: *manifestGeneration,
 		LoopVars: &daemon.LoopVars{
 			SyncInterval:         *syncInterval,
 			RegistryPollInterval: *registryPollInterval,
