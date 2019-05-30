@@ -247,10 +247,7 @@ func TestDoSync_WithNewCommit(t *testing.T) {
 			return err
 		}
 		// Push some new changes
-		cm, err := resourcestore.NewFileResourceStore(checkout.Dir(), checkout.ManifestDirs(), false, d.Manifests)
-		if err != nil {
-			return err
-		}
+		cm := resourcestore.NewFiles(checkout.Dir(), checkout.ManifestDirs(), d.Manifests)
 		resourcesByID, err := cm.GetAllResourcesByID(context.TODO())
 		if err != nil {
 			return err

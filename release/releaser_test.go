@@ -162,10 +162,7 @@ func mockCluster(running ...cluster.Workload) *cluster.Mock {
 }
 
 func NewFileResourceStoreOrFail(t *testing.T, manifests cluster.Manifests, checkout *git.Checkout) resourcestore.ResourceStore {
-	cm, err := resourcestore.NewFileResourceStore(checkout.Dir(), checkout.ManifestDirs(), false, manifests)
-	if err != nil {
-		t.Fatal(err)
-	}
+	cm := resourcestore.NewFiles(checkout.Dir(), checkout.ManifestDirs(), manifests)
 	return cm
 }
 

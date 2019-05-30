@@ -74,11 +74,18 @@ func (d *Daemon) Export(ctx context.Context) ([]byte, error) {
 	return d.Cluster.Export()
 }
 
+func (d *Daemon) getResourceStore(checkout *git.Checkout) (resourcestore.ResourceStore, error) {
+	if d.ManifestGenerationEnabled {
+		return resourcestore.NewFileResourceStore(checkout.Dir(), checkout.ManifestDirs(), d.Manifests)
+	}
+	return resourcestore.NewFiles(checkout.Dir(), checkout.ManifestDirs(), d.Manifests), nil
+}
+
 func (d *Daemon) getResources(ctx context.Context) (map[string]resource.Resource, v6.ReadOnlyReason, error) {
 	var resources map[string]resource.Resource
 	var globalReadOnly v6.ReadOnlyReason
 	err := d.WithClone(ctx, func(checkout *git.Checkout) error {
-		cm, err := resourcestore.NewFileResourceStore(checkout.Dir(), checkout.ManifestDirs(), d.ManifestGenerationEnabled, d.Manifests)
+		cm, err := d.getResourceStore(checkout)
 		if err != nil {
 			return err
 		}
@@ -406,7 +413,7 @@ func (d *Daemon) updatePolicies(spec update.Spec, updates policy.Updates) update
 			if policy.Set(u.Add).Has(policy.Automated) {
 				anythingAutomated = true
 			}
-			cm, err := resourcestore.NewFileResourceStore(working.Dir(), working.ManifestDirs(), d.ManifestGenerationEnabled, d.Manifests)
+			cm, err := d.getResourceStore(working)
 			if err != nil {
 				return result, err
 			}
@@ -472,7 +479,7 @@ func (d *Daemon) updatePolicies(spec update.Spec, updates policy.Updates) update
 func (d *Daemon) release(spec update.Spec, c release.Changes) updateFunc {
 	return func(ctx context.Context, jobID job.ID, working *git.Checkout, logger log.Logger) (job.Result, error) {
 		var zero job.Result
-		rs, err := resourcestore.NewFileResourceStore(working.Dir(), working.ManifestDirs(), d.ManifestGenerationEnabled, d.Manifests)
+		rs, err := d.getResourceStore(working)
 		if err != nil {
 			return zero, err
 		}

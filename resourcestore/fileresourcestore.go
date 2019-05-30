@@ -23,35 +23,109 @@ type resourceWithOrigin struct {
 	configFile *ConfigFile // only set if the resource came from a configuration file
 }
 
+type files struct {
+	baseDir   string
+	paths     []string
+	manifests cluster.Manifests
+}
+
+func NewFiles(baseDir string, paths []string, manifests cluster.Manifests) *files {
+	return &files{
+		baseDir:   baseDir,
+		paths:     paths,
+		manifests: manifests,
+	}
+}
+
+// Set the container image of a resource in the store
+func (f *files) SetWorkloadContainerImage(ctx context.Context, id flux.ResourceID, container string, newImageID image.Ref) error {
+	resourcesByID, err := f.GetAllResourcesByID(ctx)
+	if err != nil {
+		return err
+	}
+	r, ok := resourcesByID[id.String()]
+	if !ok {
+		return ErrResourceNotFound(id.String())
+	}
+	return f.setManifestWorkloadContainerImage(r, container, newImageID)
+}
+
+func (f *files) setManifestWorkloadContainerImage(r resource.Resource, container string, newImageID image.Ref) error {
+	fullFilePath := filepath.Join(f.baseDir, r.Source())
+	def, err := ioutil.ReadFile(fullFilePath)
+	if err != nil {
+		return err
+	}
+	newDef, err := f.manifests.SetWorkloadContainerImage(def, r.ResourceID(), container, newImageID)
+	if err != nil {
+		return err
+	}
+	fi, err := os.Stat(fullFilePath)
+	if err != nil {
+		return err
+	}
+	return ioutil.WriteFile(fullFilePath, newDef, fi.Mode())
+}
+
+// UpdateWorkloadPolicies modifies a resource in the store to apply the policy-update specified.
+// It returns whether a change in the resource was actually made as a result of the change
+func (f *files) UpdateWorkloadPolicies(ctx context.Context, id flux.ResourceID, update policy.Update) (bool, error) {
+	resourcesByID, err := f.GetAllResourcesByID(ctx)
+	if err != nil {
+		return false, err
+	}
+	r, ok := resourcesByID[id.String()]
+	if !ok {
+		return false, ErrResourceNotFound(id.String())
+	}
+	return f.updateManifestWorkloadPolicies(r, update)
+}
+
+func (f *files) updateManifestWorkloadPolicies(r resource.Resource, update policy.Update) (bool, error) {
+	fullFilePath := filepath.Join(f.baseDir, r.Source())
+	def, err := ioutil.ReadFile(fullFilePath)
+	if err != nil {
+		return false, err
+	}
+	newDef, err := f.manifests.UpdateWorkloadPolicies(def, r.ResourceID(), update)
+	if err != nil {
+		return false, err
+	}
+	fi, err := os.Stat(fullFilePath)
+	if err != nil {
+		return false, err
+	}
+	if err := ioutil.WriteFile(fullFilePath, newDef, fi.Mode()); err != nil {
+		return false, err
+	}
+	return bytes.Compare(def, newDef) != 0, nil
+}
+
+// Load all the resources in the store. The returned map is indexed by the resource IDs
+func (f *files) GetAllResourcesByID(_ context.Context) (map[string]resource.Resource, error) {
+	return f.manifests.LoadManifests(f.baseDir, f.paths)
+}
+
 type fileResourceStore struct {
-	manifests       cluster.Manifests
-	baseDir         string
-	rawManifestDirs []string
-	configFiles     []*ConfigFile
-	resourcesByID   map[string]resourceWithOrigin
+	*files
+	configFiles   []*ConfigFile
+	resourcesByID map[string]resourceWithOrigin
 	sync.RWMutex
 }
 
-func NewFileResourceStore(baseDir string, targetPaths []string, enableManifestGeneration bool, manifests cluster.Manifests) (*fileResourceStore, error) {
-	var (
-		err             error
-		configFiles     []*ConfigFile
-		rawManifestDirs []string
-	)
-
-	rawManifestDirs = targetPaths
-	if enableManifestGeneration {
-		configFiles, rawManifestDirs, err = splitConfigFilesAndRawManifestPaths(baseDir, targetPaths)
-		if err != nil {
-			return nil, err
-		}
+func NewFileResourceStore(baseDir string, targetPaths []string, manifests cluster.Manifests) (*fileResourceStore, error) {
+	configFiles, rawManifestDirs, err := splitConfigFilesAndRawManifestPaths(baseDir, targetPaths)
+	if err != nil {
+		return nil, err
 	}
 
 	result := &fileResourceStore{
-		manifests:       manifests,
-		baseDir:         baseDir,
-		rawManifestDirs: rawManifestDirs,
-		configFiles:     configFiles,
+		files: &files{
+			manifests: manifests,
+			baseDir:   baseDir,
+			paths:     rawManifestDirs,
+		},
+		configFiles: configFiles,
 	}
 	return result, nil
 }
@@ -150,23 +224,6 @@ func (frs *fileResourceStore) SetWorkloadContainerImage(ctx context.Context, res
 	// Reset resources, since we have modified one
 	frs.resetResources()
 	return nil
-}
-
-func (frs *fileResourceStore) setManifestWorkloadContainerImage(r resource.Resource, container string, newImageID image.Ref) error {
-	fullFilePath := filepath.Join(frs.baseDir, r.Source())
-	def, err := ioutil.ReadFile(fullFilePath)
-	if err != nil {
-		return err
-	}
-	newDef, err := frs.manifests.SetWorkloadContainerImage(def, r.ResourceID(), container, newImageID)
-	if err != nil {
-		return err
-	}
-	fi, err := os.Stat(fullFilePath)
-	if err != nil {
-		return err
-	}
-	return ioutil.WriteFile(fullFilePath, newDef, fi.Mode())
 }
 
 func (frs *fileResourceStore) setConfigFileWorkloadContainerImage(ctx context.Context, cf *ConfigFile, r resource.Resource,
@@ -308,26 +365,6 @@ func (frs *fileResourceStore) UpdateWorkloadPolicies(ctx context.Context, resour
 	return changed, nil
 }
 
-func (frs *fileResourceStore) updateManifestWorkloadPolicies(r resource.Resource, update policy.Update) (bool, error) {
-	fullFilePath := filepath.Join(frs.baseDir, r.Source())
-	def, err := ioutil.ReadFile(fullFilePath)
-	if err != nil {
-		return false, err
-	}
-	newDef, err := frs.manifests.UpdateWorkloadPolicies(def, r.ResourceID(), update)
-	if err != nil {
-		return false, err
-	}
-	fi, err := os.Stat(fullFilePath)
-	if err != nil {
-		return false, err
-	}
-	if err := ioutil.WriteFile(fullFilePath, newDef, fi.Mode()); err != nil {
-		return false, err
-	}
-	return bytes.Compare(def, newDef) != 0, nil
-}
-
 func (frs *fileResourceStore) updateConfigFileWorkloadPolicies(ctx context.Context, cf *ConfigFile, r resource.Resource,
 	update policy.Update) (bool, error) {
 	if cf.PatchUpdated != nil {
@@ -390,16 +427,17 @@ func (frs *fileResourceStore) getResourcesByID(ctx context.Context) (map[string]
 		return toReturn, nil
 	}
 	frs.RUnlock()
+
 	resourcesByID := map[string]resourceWithOrigin{}
-	if len(frs.rawManifestDirs) > 0 {
-		resources, err := frs.manifests.LoadManifests(frs.baseDir, frs.rawManifestDirs)
-		if err != nil {
-			return nil, err
-		}
-		for id, r := range resources {
-			resourcesByID[id] = resourceWithOrigin{resource: r, configFile: nil}
-		}
+
+	rawResourcesByID, err := frs.files.GetAllResourcesByID(ctx)
+	if err != nil {
+		return nil, err
 	}
+	for id, res := range rawResourcesByID {
+		resourcesByID[id] = resourceWithOrigin{resource: res}
+	}
+
 	for _, cf := range frs.configFiles {
 		var (
 			resourceManifests []byte

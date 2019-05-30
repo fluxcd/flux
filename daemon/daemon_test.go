@@ -515,10 +515,7 @@ func TestDaemon_PolicyUpdate(t *testing.T) {
 			return false
 		}
 		defer co.Clean()
-		cm, err := resourcestore.NewFileResourceStore(co.Dir(), co.ManifestDirs(), false, d.Manifests)
-		if err != nil {
-			t.Fatal(err)
-		}
+		cm := resourcestore.NewFiles(co.Dir(), co.ManifestDirs(), d.Manifests)
 		m, err := cm.GetAllResourcesByID(context.TODO())
 		if err != nil {
 			t.Fatalf("Error: %s", err.Error())
@@ -859,10 +856,7 @@ func (w *wait) ForImageTag(t *testing.T, d *Daemon, workload, container, tag str
 			return false
 		}
 		defer co.Clean()
-		cm, err := resourcestore.NewFileResourceStore(co.Dir(), co.ManifestDirs(), false, d.Manifests)
-		if err != nil {
-			return false
-		}
+		cm := resourcestore.NewFiles(co.Dir(), co.ManifestDirs(), d.Manifests)
 		resources, err := cm.GetAllResourcesByID(context.TODO())
 		assert.NoError(t, err)
 

@@ -27,10 +27,7 @@ func TestSync(t *testing.T) {
 	clus := &syncCluster{map[string]string{}}
 
 	dirs := checkout.ManifestDirs()
-	rs, err := resourcestore.NewFileResourceStore(checkout.Dir(), checkout.ManifestDirs(), false, manifests)
-	if err != nil {
-		t.Fatal(err)
-	}
+	rs := resourcestore.NewFiles(checkout.Dir(), checkout.ManifestDirs(), manifests)
 	resources, err := rs.GetAllResourcesByID(context.TODO())
 	if err != nil {
 		t.Fatal(err)
