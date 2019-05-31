@@ -395,6 +395,7 @@ func (chs *ChartChangeSync) ReconcileReleaseDef(fhr fluxv1beta1.HelmRelease) {
 				chs.logger.Log("warning", "could not update the values checksum", "namespace", fhr.Namespace, "resource", fhr.Name, "err", err)
 			}
 			chs.logger.Log("warning", "failed to upgrade chart", "resource", fhr.ResourceID().String(), "err", err)
+			chs.RollbackRelease(fhr)
 			return
 		}
 		chs.setCondition(fhr, fluxv1beta1.HelmReleaseReleased, v1.ConditionTrue, ReasonSuccess, "helm upgrade succeeded")
@@ -416,11 +417,10 @@ func (chs *ChartChangeSync) RollbackRelease(fhr fluxv1beta1.HelmRelease) {
 		return
 	}
 
-	name := fhr.ReleaseName()
-	err := chs.release.Rollback(name, fhr.Spec.Rollback.GetTimeout(), fhr.Spec.Rollback.Force,
-		fhr.Spec.Rollback.Recreate, fhr.Spec.Rollback.DisableHooks, fhr.Spec.Rollback.Wait)
+	releaseName := fhr.ReleaseName()
+	_, err := chs.release.Rollback(releaseName, fhr)
 	if err != nil {
-		chs.logger.Log("warning", "unable to rollback chart release", "resource", fhr.ResourceID().String(), "release", name, "err", err)
+		chs.logger.Log("warning", "unable to rollback chart release", "resource", fhr.ResourceID().String(), "release", releaseName, "err", err)
 		chs.setCondition(fhr, fluxv1beta1.HelmReleaseRolledBack, v1.ConditionFalse, ReasonRollbackFailed, err.Error())
 	}
 	chs.setCondition(fhr, fluxv1beta1.HelmReleaseRolledBack, v1.ConditionTrue, ReasonSuccess, "helm rollback succeeded")
@@ -501,7 +501,7 @@ func (chs *ChartChangeSync) getGitChartSource(fhr v1beta1.HelmRelease) (string, 
 		return chartPath, chartRevision, false
 	}
 
-	releaseName := release.GetReleaseName(fhr)
+	releaseName := fhr.ReleaseName()
 	chartClone, ok := chs.clones[releaseName]
 	// Validate the clone we have for the release is the same as
 	// is being referenced in the chart source.

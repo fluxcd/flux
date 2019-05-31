@@ -238,6 +238,7 @@ func (r *Release) Install(chartPath, releaseName string, fhr flux_v1beta1.HelmRe
 			k8shelm.UpgradeTimeout(fhr.GetTimeout()),
 			k8shelm.ResetValues(fhr.Spec.ResetValues),
 			k8shelm.UpgradeForce(fhr.Spec.ForceUpgrade),
+			k8shelm.UpgradeWait(fhr.Spec.Rollback.Enable),
 		)
 
 		if err != nil {
@@ -256,40 +257,34 @@ func (r *Release) Install(chartPath, releaseName string, fhr flux_v1beta1.HelmRe
 }
 
 // Rollback rolls back a Chart release if required
-func (r *Release) Rollback(name string, timeout int64, force, recreate, disableHooks, wait bool) error {
-	ok, err := r.shouldRollback(name)
+func (r *Release) Rollback(releaseName string, fhr flux_v1beta1.HelmRelease) (*hapi_release.Release, error) {
+	ok, err := r.shouldRollback(releaseName)
 	if !ok {
 		if err != nil {
-			return err
+			return nil, err
 		}
-		return nil
+		return nil, nil
 	}
 
-	history, err := r.HelmClient.ReleaseHistory(name, k8shelm.WithMaxHistory(5))
+	res, err := r.HelmClient.RollbackRelease(
+		releaseName,
+		k8shelm.RollbackVersion(0), // '0' makes Helm fetch the latest deployed release
+		k8shelm.RollbackTimeout(fhr.Spec.Rollback.GetTimeout()),
+		k8shelm.RollbackForce(fhr.Spec.Rollback.Force),
+		k8shelm.RollbackRecreate(fhr.Spec.Rollback.Recreate),
+		k8shelm.RollbackDisableHooks(fhr.Spec.Rollback.DisableHooks),
+		k8shelm.RollbackWait(fhr.Spec.Rollback.Wait),
+		k8shelm.RollbackDescription("Automated rollback by Helm operator"),
+	)
 	if err != nil {
-		return err
+		r.logger.Log("error", fmt.Sprintf("failed to rollback release: %#v", err))
+		return nil, err
 	}
 
-	var version int32
-	for _, rls := range history.GetReleases() {
-		if rls.Info.Status.Code == hapi_release.Status_DEPLOYED {
-			version = rls.Version
-			break
-		}
-	}
+	r.annotateResources(res.Release, fhr)
+	r.logger.Log("info", "rolled back release", "release", releaseName)
 
-	if version == 0 {
-		return fmt.Errorf("failed to determine what version to rollback to")
-	}
-
-	_, err = r.HelmClient.RollbackRelease(name, k8shelm.RollbackVersion(version), k8shelm.RollbackTimeout(timeout),
-		k8shelm.RollbackForce(force), k8shelm.RollbackRecreate(recreate), k8shelm.RollbackDisableHooks(disableHooks),
-		k8shelm.RollbackWait(wait), k8shelm.RollbackDescription("Automated rollback by Helm operator"))
-	if err != nil {
-		return err
-	}
-	r.logger.Log("info", "rolled back release", "release", name, "version", version)
-	return err
+	return res.Release, err
 }
 
 // Delete purges a Chart release

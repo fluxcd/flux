@@ -225,12 +225,6 @@ func (c *Controller) syncHandler(key string) error {
 		return err
 	}
 
-	// (Maybe) attempt a rollback if the release has failed.
-	if status.ReleaseFailed(*fhr) {
-		c.sync.RollbackRelease(*fhr)
-		return nil
-	}
-
 	c.sync.ReconcileReleaseDef(*fhr)
 	c.recorder.Event(fhr, corev1.EventTypeNormal, ChartSynced, MessageChartSynced)
 	return nil
@@ -279,16 +273,6 @@ func (c *Controller) enqueueUpdateJob(old, new interface{}) {
 	newFhr, ok := checkCustomResourceType(c.logger, new)
 	if !ok {
 		return
-	}
-
-	// Enqueue rollback if the roll-out of the release failed and
-	// rollbacks are enabled.
-	if oldFhr.Status.ReleaseStatus != newFhr.Status.ReleaseStatus {
-		if newFhr.Spec.Rollback.Enable && status.ReleaseFailed(newFhr) {
-			c.logger.Log("info", "enqueing rollback", "resource", newFhr.ResourceID().String())
-			c.enqueueJob(new)
-			return
-		}
 	}
 
 	diff := cmp.Diff(oldFhr.Spec, newFhr.Spec)
