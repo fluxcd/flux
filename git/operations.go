@@ -245,10 +245,10 @@ func splitLog(s string) ([]Commit, error) {
 }
 
 func splitList(s string) []string {
-	outStr := strings.TrimSpace(s)
-	if outStr == "" {
+	if strings.TrimSpace(s) == "" {
 		return []string{}
 	}
+	outStr := strings.TrimSuffix(s, "\n")
 	return strings.Split(outStr, "\n")
 }
 
