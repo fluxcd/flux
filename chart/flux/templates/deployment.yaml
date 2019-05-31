@@ -218,6 +218,13 @@ spec:
 {{ toYaml .Values.additionalArgs | indent 10 }}
           {{- end }}
           resources:
+{{- if .Values.dnsPolicy }}
+      dnsPolicy: {{ .Values.dnsPolicy }}
+{{- end }}
+{{- if .Values.dnsConfig }}
+      dnsConfig:
+{{ toYaml .Values.dnsConfig | indent 8 }}
+{{- end }}
 {{ toYaml .Values.resources | indent 12 }}
     {{- with .Values.nodeSelector }}
       nodeSelector:
