@@ -104,6 +104,14 @@ extraVolumeMounts: []
 
 extraVolumes: []
 
+# Optional DNS settings, configuring the ndots option may resolve
+# nslookup issues on some Kubernetes setups.
+# dnsPolicy: "None"
+# dnsConfig:
+#   options:
+#     - name: ndots
+#       value: "1"
+
 gpgKeys:
   # These keys will be imported into GPG in the Flux container.
   secretName: ""
