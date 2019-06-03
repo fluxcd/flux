@@ -41,6 +41,8 @@ spec:
           containerPort: 11211
         resources:
 {{ toYaml .Values.memcached.resources | indent 10 }}
+        securityContext:
+{{ toYaml .Values.memcached.securityContext | indent 10 }}
     {{- with .Values.memcached.nodeSelector }}
       nodeSelector:
 {{ toYaml . | indent 8 }}

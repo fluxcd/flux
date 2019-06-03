@@ -183,12 +183,16 @@ registry:
 
 memcached:
   repository: memcached
-  tag: 1.4.25
+  tag: 1.5.15
   pullSecret:
   createClusterIP: true
   verbose: false
   maxItemSize: 5m
   maxMemory: 512
+  securityContext:
+    runAsUser: 11211
+    runAsGroup: 11211
+    allowPrivilegeEscalation: false
   nodeSelector: {}
   tolerations: []
   affinity: {}
