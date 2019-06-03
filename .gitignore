@@ -29,6 +29,7 @@ _testmain.go
 
 ### Package builds (e.g. snap of fluxctl)
 fluxctl_*_*.snap
+fluxctl_*_*.snap.xdelta3
 parts
 prime
 stage
