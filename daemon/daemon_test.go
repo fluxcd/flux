@@ -21,6 +21,7 @@ import (
 	"github.com/weaveworks/flux/api/v9"
 	"github.com/weaveworks/flux/cluster"
 	"github.com/weaveworks/flux/cluster/kubernetes"
+	"github.com/weaveworks/flux/cluster/mock"
 	"github.com/weaveworks/flux/event"
 	"github.com/weaveworks/flux/git"
 	"github.com/weaveworks/flux/git/gittest"
@@ -633,7 +634,7 @@ func mustParseImageRef(ref string) image.Ref {
 	return r
 }
 
-func mockDaemon(t *testing.T) (*Daemon, func(), func(), *cluster.Mock, *mockEventWriter, func(func())) {
+func mockDaemon(t *testing.T) (*Daemon, func(), func(), *mock.Mock, *mockEventWriter, func(func())) {
 	logger := log.NewNopLogger()
 
 	singleService := cluster.Workload{
@@ -671,9 +672,9 @@ func mockDaemon(t *testing.T) (*Daemon, func(), func(), *cluster.Mock, *mockEven
 		NotesRef:  "fluxtest",
 	}
 
-	var k8s *cluster.Mock
+	var k8s *mock.Mock
 	{
-		k8s = &cluster.Mock{}
+		k8s = &mock.Mock{}
 		k8s.AllWorkloadsFunc = func(maybeNamespace string) ([]cluster.Workload, error) {
 			if maybeNamespace == ns {
 				return []cluster.Workload{

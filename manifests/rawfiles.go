@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 
 	"github.com/weaveworks/flux"
-	"github.com/weaveworks/flux/cluster"
 	"github.com/weaveworks/flux/image"
 	"github.com/weaveworks/flux/policy"
 	"github.com/weaveworks/flux/resource"
@@ -17,10 +16,10 @@ import (
 type rawFiles struct {
 	baseDir   string
 	paths     []string
-	manifests cluster.Manifests
+	manifests Manifests
 }
 
-func NewRawFiles(baseDir string, paths []string, manifests cluster.Manifests) *rawFiles {
+func NewRawFiles(baseDir string, paths []string, manifests Manifests) *rawFiles {
 	return &rawFiles{
 		baseDir:   baseDir,
 		paths:     paths,

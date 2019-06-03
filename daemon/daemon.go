@@ -45,7 +45,7 @@ const (
 type Daemon struct {
 	V                         string
 	Cluster                   cluster.Cluster
-	Manifests                 cluster.Manifests
+	Manifests                 manifests.Manifests
 	Registry                  registry.Registry
 	ImageRefresh              chan image.Name
 	Repo                      *git.Repo

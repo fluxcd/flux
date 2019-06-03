@@ -12,7 +12,6 @@ import (
 	"sync"
 
 	"github.com/weaveworks/flux"
-	"github.com/weaveworks/flux/cluster"
 	"github.com/weaveworks/flux/image"
 	"github.com/weaveworks/flux/policy"
 	"github.com/weaveworks/flux/resource"
@@ -34,7 +33,7 @@ type configAware struct {
 	resourcesByID map[string]resourceWithOrigin
 }
 
-func NewConfigAware(baseDir string, targetPaths []string, manifests cluster.Manifests) (*configAware, error) {
+func NewConfigAware(baseDir string, targetPaths []string, manifests Manifests) (*configAware, error) {
 	configFiles, rawManifestDirs, err := splitConfigFilesAndRawManifestPaths(baseDir, targetPaths)
 	if err != nil {
 		return nil, err
@@ -255,7 +254,7 @@ func (ca *configAware) getGeneratedManifests(ctx context.Context, cf *ConfigFile
 			)
 			return nil, err
 		}
-		if err := cluster.AppendManifestToBuffer(cmdResult.Stdout, buf); err != nil {
+		if err := ca.rawfiles.manifests.AppendManifestToBuffer(cmdResult.Stdout, buf); err != nil {
 			return nil, err
 		}
 	}

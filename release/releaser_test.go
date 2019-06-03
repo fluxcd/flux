@@ -16,6 +16,7 @@ import (
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster"
 	"github.com/weaveworks/flux/cluster/kubernetes"
+	"github.com/weaveworks/flux/cluster/mock"
 	"github.com/weaveworks/flux/git"
 	"github.com/weaveworks/flux/git/gittest"
 	"github.com/weaveworks/flux/image"
@@ -142,8 +143,8 @@ var (
 	mockManifests = kubernetes.NewManifests(kubernetes.ConstNamespacer("default"), log.NewLogfmtLogger(os.Stdout))
 )
 
-func mockCluster(running ...cluster.Workload) *cluster.Mock {
-	return &cluster.Mock{
+func mockCluster(running ...cluster.Workload) *mock.Mock {
+	return &mock.Mock{
 		AllWorkloadsFunc: func(string) ([]cluster.Workload, error) {
 			return running, nil
 		},
@@ -161,7 +162,7 @@ func mockCluster(running ...cluster.Workload) *cluster.Mock {
 	}
 }
 
-func NewManifestStoreOrFail(t *testing.T, parser cluster.Manifests, checkout *git.Checkout) manifests.Store {
+func NewManifestStoreOrFail(t *testing.T, parser manifests.Manifests, checkout *git.Checkout) manifests.Store {
 	cm := manifests.NewRawFiles(checkout.Dir(), checkout.ManifestDirs(), parser)
 	return cm
 }
@@ -1052,7 +1053,7 @@ func testRelease(t *testing.T, rc *ReleaseContext, spec update.ReleaseImageSpec,
 
 // A manifests implementation that does updates incorrectly, so they should fail verification.
 type badManifests struct {
-	cluster.Manifests
+	manifests.Manifests
 }
 
 func (m *badManifests) SetWorkloadContainerImage(def []byte, id flux.ResourceID, container string, image image.Ref) ([]byte, error) {

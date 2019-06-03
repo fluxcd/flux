@@ -1,6 +1,7 @@
 package kubernetes
 
 import (
+	"bytes"
 	"fmt"
 	"strings"
 
@@ -142,6 +143,25 @@ func (m *manifests) CreateManifestPatch(originalManifests, modifiedManifests []b
 
 func (m *manifests) ApplyManifestPatch(originalManifests, patchManifests []byte, originalSource, patchSource string) ([]byte, error) {
 	return applyManifestPatch(originalManifests, patchManifests, originalSource, patchSource)
+}
+
+func (m *manifests) AppendManifestToBuffer(manifest []byte, buffer *bytes.Buffer) error {
+	return appendYAMLToBuffer(manifest, buffer)
+}
+
+func appendYAMLToBuffer(manifest []byte, buffer *bytes.Buffer) error {
+	separator := "---\n"
+	bytes := buffer.Bytes()
+	if len(bytes) > 0 && bytes[len(bytes)-1] != '\n' {
+		separator = "\n---\n"
+	}
+	if _, err := buffer.WriteString(separator); err != nil {
+		return fmt.Errorf("cannot write to internal buffer: %s", err)
+	}
+	if _, err := buffer.Write(manifest); err != nil {
+		return fmt.Errorf("cannot write to internal buffer: %s", err)
+	}
+	return nil
 }
 
 // UpdateWorkloadPolicies in policies.go
