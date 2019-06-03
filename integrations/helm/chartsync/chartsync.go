@@ -377,8 +377,15 @@ func (chs *ChartChangeSync) reconcileReleaseDef(fhr fluxv1beta1.HelmRelease) {
 		}
 		chs.setCondition(fhr, fluxv1beta1.HelmReleaseReleased, v1.ConditionTrue, ReasonSuccess, "helm install succeeded")
 		if err = status.UpdateReleaseRevision(chs.ifClient.FluxV1beta1().HelmReleases(fhr.Namespace), fhr, chartRevision); err != nil {
-			chs.logger.Log("warning", "could not update the release revision", "namespace", fhr.Namespace, "resource", fhr.Name, "err", err)
+			chs.logger.Log("warning", "could not update the release revision", "resource", fhr.ResourceID().String(), "err", err)
 		}
+		return
+	}
+
+	if !chs.release.OwnedByHelmRelease(rel, fhr) {
+		msg := fmt.Sprintf("release '%s' does not belong to HelmRelease", releaseName)
+		chs.setCondition(fhr, fluxv1beta1.HelmReleaseReleased, v1.ConditionFalse, ReasonUpgradeFailed, msg)
+		chs.logger.Log("warning", msg + ", this may be an indication that multiple HelmReleases with the same release name exist", "resource", fhr.ResourceID().String())
 		return
 	}
 

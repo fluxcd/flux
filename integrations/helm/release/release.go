@@ -202,6 +202,7 @@ func (r *Release) Install(chartPath, releaseName string, fhr flux_v1beta1.HelmRe
 			k8shelm.InstallDryRun(opts.DryRun),
 			k8shelm.InstallReuseName(opts.ReuseName),
 			k8shelm.InstallTimeout(fhr.GetTimeout()),
+			k8shelm.InstallDescription(fhrResourceID(fhr).String()),
 		)
 
 		if err != nil {
@@ -231,6 +232,7 @@ func (r *Release) Install(chartPath, releaseName string, fhr flux_v1beta1.HelmRe
 			k8shelm.UpgradeTimeout(fhr.GetTimeout()),
 			k8shelm.ResetValues(fhr.Spec.ResetValues),
 			k8shelm.UpgradeForce(fhr.Spec.ForceUpgrade),
+			k8shelm.UpgradeDescription(fhrResourceID(fhr).String()),
 		)
 
 		if err != nil {
@@ -265,6 +267,23 @@ func (r *Release) Delete(name string) error {
 	}
 	r.logger.Log("info", fmt.Sprintf("Release deleted: [%s]", name))
 	return nil
+}
+
+// OwnedByHelmRelease validates the release is managed by the given
+// HelmRelease, by looking for the resource ID in the release
+// description. This validation is necessary because we can not
+// validate the uniqueness of a release name on the creation of a
+// HelmRelease, which would result in the operator attempting to
+// upgrade a release indefinitely when multiple HelmReleases with the
+// same release name exist.
+//
+// For backwards compatibility, and to be able to migrate existing
+// releases to a HelmRelease, we define empty descriptions as a
+// positive.
+func (r *Release) OwnedByHelmRelease(release *hapi_release.Release, fhr flux_v1beta1.HelmRelease) bool {
+	description := release.Info.Description
+
+	return description == "" || description == fhrResourceID(fhr).String()
 }
 
 // annotateResources annotates each of the resources created (or updated)
