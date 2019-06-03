@@ -146,6 +146,35 @@ func TestChangedFiles_NoPath(t *testing.T) {
 	}
 }
 
+func TestChangedFiles_LeadingSpace(t *testing.T) {
+	newDir, cleanup := testfiles.TempDir(t)
+	defer cleanup()
+
+	err := createRepo(newDir, []string{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	filename := " space.yaml"
+
+	if err = updateDirAndCommit(newDir, "", map[string]string{filename: "foo"}); err != nil {
+		t.Fatal(err)
+	}
+
+	files, err := changed(context.Background(), newDir, "HEAD~1", []string{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(files) != 1 {
+		t.Fatal("expected 1 changed file")
+	}
+
+	if actualFilename := files[0]; actualFilename != filename {
+		t.Fatalf("expected changed filename to equal: '%s', got '%s'", filename, actualFilename)
+	}
+}
+
 func TestOnelinelog_NoGitpath(t *testing.T) {
 	newDir, cleanup := testfiles.TempDir(t)
 	defer cleanup()
