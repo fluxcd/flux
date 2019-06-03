@@ -194,6 +194,10 @@ The following tables lists the configurable parameters of the Weave Flux chart a
 | `nodeSelector`                                    | `{}`                                                 | Node Selector properties for the Flux deployment
 | `tolerations`                                     | `[]`                                                 | Tolerations properties for the Flux deployment
 | `affinity`                                        | `{}`                                                 | Affinity properties for the Flux deployment
+| `extraVolumeMounts`                               | `[]`                                                 | Extra volumes mounts
+| `extraVolumes`                                    | `[]`                                                 | Extra volumes
+| `dnsPolicy`                                       | ``                                                   | Pod DNS policy
+| `dnsConfig`                                       | ``                                                   | Pod DNS config
 | `token`                                           | `None`                                               | Weave Cloud service token
 | `extraEnvs`                                       | `[]`                                                 | Extra environment variables for the Flux pod(s)
 | `rbac.create`                                     | `true`                                               | If `true`, create and use RBAC resources
