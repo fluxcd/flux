@@ -102,7 +102,7 @@ The first step is done. Flux is now and up running (you can confirm by
 running `kubectl get pods --all-namespaces`).
 
 In the second step we will use fluxctl to talk to Flux in the cluster and
-interact with the deployments. First, please [install fluxctl](https://github.com/weaveworks/flux/blob/master/site/fluxctl.md#installing-fluxctl).
+interact with the deployments. First, please [install fluxctl](fluxctl.md#installing-fluxctl).
 (It enables you to drive all of Weave Flux, so have a look at the output of
 `fluxctl -h` to get a better idea.)
 

@@ -183,8 +183,7 @@ There are exceptions:
 
 To work around exceptional cases, you can mount a docker config into
 the Flux container. See the argument `--docker-config` in [the daemon
-arguments
-reference](https://github.com/weaveworks/flux/blob/master/site/daemon.md#flags).
+arguments reference](daemon.md#flags).
 
 See also
 [Why are my images not showing up in the list of images?](#why-are-my-images-not-showing-up-in-the-list-of-images)
