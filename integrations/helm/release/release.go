@@ -202,7 +202,6 @@ func (r *Release) Install(chartPath, releaseName string, fhr flux_v1beta1.HelmRe
 			k8shelm.InstallDryRun(opts.DryRun),
 			k8shelm.InstallReuseName(opts.ReuseName),
 			k8shelm.InstallTimeout(fhr.GetTimeout()),
-			k8shelm.InstallDescription(fhrResourceID(fhr).String()),
 		)
 
 		if err != nil {
@@ -232,7 +231,6 @@ func (r *Release) Install(chartPath, releaseName string, fhr flux_v1beta1.HelmRe
 			k8shelm.UpgradeTimeout(fhr.GetTimeout()),
 			k8shelm.ResetValues(fhr.Spec.ResetValues),
 			k8shelm.UpgradeForce(fhr.Spec.ForceUpgrade),
-			k8shelm.UpgradeDescription(fhrResourceID(fhr).String()),
 		)
 
 		if err != nil {
@@ -270,20 +268,43 @@ func (r *Release) Delete(name string) error {
 }
 
 // OwnedByHelmRelease validates the release is managed by the given
-// HelmRelease, by looking for the resource ID in the release
-// description. This validation is necessary because we can not
+// HelmRelease, by looking for the resource ID in the antecedent
+// annotation. This validation is necessary because we can not
 // validate the uniqueness of a release name on the creation of a
 // HelmRelease, which would result in the operator attempting to
 // upgrade a release indefinitely when multiple HelmReleases with the
 // same release name exist.
 //
-// For backwards compatibility, and to be able to migrate existing
-// releases to a HelmRelease, we define empty descriptions as a
-// positive.
+// To be able to migrate existing releases to a HelmRelease, empty
+// (missing) annotations are handled as true / owned by.
 func (r *Release) OwnedByHelmRelease(release *hapi_release.Release, fhr flux_v1beta1.HelmRelease) bool {
-	description := release.Info.Description
+	objs := releaseManifestToUnstructured(release.Manifest, log.NewNopLogger())
 
-	return description == "" || description == fhrResourceID(fhr).String()
+	escapedAnnotation := strings.ReplaceAll(fluxk8s.AntecedentAnnotation, ".", `\.`)
+	args := []string{"-o", "jsonpath={.metadata.annotations."+escapedAnnotation+"}", "get"}
+
+	for ns, res := range namespacedResourceMap(objs, release.Namespace) {
+		for _, r := range res {
+			a := append(args, "--namespace", ns, r)
+
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+
+			cmd := exec.CommandContext(ctx, "kubectl", a...)
+			out, err := cmd.Output()
+			if err != nil {
+				continue
+			}
+
+			v := strings.TrimSpace(string(out))
+			if v == "" {
+				return true
+			}
+			return v == fhr.ResourceID().String()
+		}
+	}
+
+	return false
 }
 
 // annotateResources annotates each of the resources created (or updated)
@@ -296,7 +317,9 @@ func (r *Release) annotateResources(release *hapi_release.Release, fhr flux_v1be
 		args = append(args, res...)
 		args = append(args, fluxk8s.AntecedentAnnotation+"="+fhrResourceID(fhr).String())
 
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		// The timeout is set to a high value as it may take some time
+		// to annotate large umbrella charts.
+		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 		defer cancel()
 
 		cmd := exec.CommandContext(ctx, "kubectl", args...)
