@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: memcached
-        image: memcached:1.4.25
+        image: memcached:1.5.15
         imagePullPolicy: IfNotPresent
         args:
         - -m 512   # Maximum memory to use, in megabytes
@@ -27,3 +27,7 @@ spec:
         ports:
         - name: clients
           containerPort: 11211
+        securityContext:
+          runAsUser: 11211
+          runAsGroup: 11211
+          allowPrivilegeEscalation: false
