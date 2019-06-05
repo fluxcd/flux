@@ -16,7 +16,7 @@ ifeq ($(ARCH),)
 	ARCH=amd64
 endif
 CURRENT_OS_ARCH=$(shell echo `go env GOOS`-`go env GOARCH`)
-GO_BIN=$(shell if [ "$GOBIN" != "" ]; then echo "$GOBIN"; else echo `go env GOPATH`/bin; fi)
+GOBIN?=$(shell echo `go env GOPATH`/bin)
 
 # NB because this outputs absolute file names, you have to be careful
 # if you're testing out the Makefile with `-W` (pretend a file is
@@ -32,7 +32,7 @@ IMAGE_TAG:=$(shell ./docker/image-tag)
 VCS_REF:=$(shell git rev-parse HEAD)
 BUILD_DATE:=$(shell date -u +'%Y-%m-%dT%H:%M:%SZ')
 
-all: $(GO_BIN)/bin/fluxctl $(GO_BIN)/bin/fluxd $(GO_BIN)/bin/helm-operator build/.flux.done build/.helm-operator.done
+all: $(GOBIN)/fluxctl $(GOBIN)/fluxd $(GOBIN)/helm-operator build/.flux.done build/.helm-operator.done
 
 release-bins:
 	for arch in amd64; do \
@@ -112,16 +112,16 @@ cache/%/helm-$(HELM_VERSION): docker/helm.version
 	tar -m -C ./cache -xzf cache/$*/helm-$(HELM_VERSION).tar.gz $*/helm
 	mv cache/$*/helm $@
 
-$(GO_BIN)/bin/fluxctl: $(FLUXCTL_DEPS)
-$(GO_BIN)/bin/fluxctl: ./cmd/fluxctl/*.go
+$(GOBIN)/fluxctl: $(FLUXCTL_DEPS)
+$(GOBIN)/fluxctl: ./cmd/fluxctl/*.go
 	go install ./cmd/fluxctl
 
-$(GO_BIN)/bin/fluxd: $(FLUXD_DEPS)
-$(GO_BIN)/bin/fluxd: cmd/fluxd/*.go
+$(GOBIN)/fluxd: $(FLUXD_DEPS)
+$(GOBIN)/fluxd: cmd/fluxd/*.go
 	go install ./cmd/fluxd
 
-$(GO_BIN)/bin/helm-operator: $(HELM_OPERATOR_DEPS)
-$(GO_BIN)/bin/help-operator: cmd/helm-operator/*.go
+$(GOBIN)/helm-operator: $(HELM_OPERATOR_DEPS)
+$(GOBIN)/help-operator: cmd/helm-operator/*.go
 	go install ./cmd/helm-operator
 
 integration-test: all
