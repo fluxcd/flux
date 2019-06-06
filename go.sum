@@ -6,8 +6,6 @@ contrib.go.opencensus.io/exporter/ocagent v0.4.12 h1:jGFvw3l57ViIVEPKKEUXPcLYIXJ
 contrib.go.opencensus.io/exporter/ocagent v0.4.12/go.mod h1:450APlNTSR6FrvC3CTRqYosuDstRB9un7SOx2k/9ckA=
 github.com/2opremio/distribution v0.0.0-20190419185413-6c9727e5e5de h1:BNSXHiWNaMNhx2g1bbIubySvhdKyNF+0bepwZVa1Q6k=
 github.com/2opremio/distribution v0.0.0-20190419185413-6c9727e5e5de/go.mod h1:QHT6cqKT8fLkQMioAxx43yuZxuzwV655sKt60H8N17Q=
-github.com/2opremio/go-k8s-portforward v1.0.3-0.20190523130731-8523ced1251f h1:i3Zs8ikVgMG5T0OCQiVNREBCT8nbKq/Td1RADI1I0dc=
-github.com/2opremio/go-k8s-portforward v1.0.3-0.20190523130731-8523ced1251f/go.mod h1:qNmFCFjJ/Uu03GElg3BM4q2+4AhGSuH/7XemGTWsm18=
 github.com/Azure/go-autorest v11.7.1+incompatible h1:M2YZIajBBVekV86x0rr1443Lc1F/Ylxb9w+5EtSyX3Q=
 github.com/Azure/go-autorest v11.7.1+incompatible/go.mod h1:r+4oMnoxhatjLLJ6zxSWATqVooLgysK6ZNox3g/xq24=
 github.com/BurntSushi/toml v0.3.1 h1:WXkYYl6Yr3qBf1K79EBnL4mak0OimBfB0XUf9Vl28OQ=
@@ -142,6 +140,8 @@ github.com/json-iterator/go v0.0.0-20180701071628-ab8a2e0c74be/go.mod h1:+SdeFBv
 github.com/jstemmer/go-junit-report v0.0.0-20190106144839-af01ea7f8024/go.mod h1:6v2b51hI/fHJwM22ozAgKL4VKDeJcHhJFhtBdhmNjmU=
 github.com/julienschmidt/httprouter v1.2.0/go.mod h1:SYymIcj16QtmaHHD7aYtjjsJG7VTCxuUUipMqKk8s4w=
 github.com/justinbarrick/go-k8s-portforward v1.0.2/go.mod h1:klMOboLnC1/UlkyJnYFjcMcbOtwAcKop+LkIZ4r428o=
+github.com/justinbarrick/go-k8s-portforward v1.0.3 h1:FPvJqHjIKb0xlA8FuFYSzlsyQWeqNzXbCDQMyfbmCpI=
+github.com/justinbarrick/go-k8s-portforward v1.0.3/go.mod h1:GkvGI25j2iHpJVINl/hZC+sbf9IJ1XkY1MtjSh3Usuk=
 github.com/kisielk/errcheck v1.1.0/go.mod h1:EZBBE59ingxPouuu3KfxchcWSUPOHkagtvWXihfKN4Q=
 github.com/kisielk/gotool v1.0.0/go.mod h1:XhKaO+MFFWcvkIS/tQcRk01m1F5IRFswLeQ+oQHNcck=
 github.com/konsorten/go-windows-terminal-sequences v1.0.1/go.mod h1:T0+1ngSBFLxvqU3pZ+m/2kptfBszLMUkC4ZK/EgS/cQ=
