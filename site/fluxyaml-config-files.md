@@ -199,7 +199,7 @@ Flux supports both generated manifests and raw manifests tracked in the same rep
 configuration file associated to a target directory, Flux will inspect it in search for raw YAML manifest files.
 
 
-#### The `patchUpdated` configuration variant
+### The `patchUpdated` configuration variant
 
 We mentioned before that, while it is simple for users to provide generator commands, matching updater commands are
 harder to construct. To improve the situation, Flux provides a different configuration variant: `patchUpdated`.
