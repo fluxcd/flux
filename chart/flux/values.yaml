@@ -262,3 +262,6 @@ initContainers: {}
 #     volumeMounts:
 #       - mountPath: /tmp/flux-deploy-key
 #         name: flux-deploy-key
+
+# Additional containers to be added to the flux pod.
+extraContainers: []
