@@ -4,7 +4,6 @@ go 1.12
 
 require (
 	cloud.google.com/go v0.37.4 // indirect
-	github.com/2opremio/go-k8s-portforward v1.0.3-0.20190523130731-8523ced1251f
 	github.com/Masterminds/goutils v1.1.0 // indirect
 	github.com/Masterminds/semver v1.4.2
 	github.com/Masterminds/sprig v0.0.0-20190301161902-9f8fceff796f // indirect
@@ -38,6 +37,7 @@ require (
 	github.com/huandu/xstrings v1.2.0 // indirect
 	github.com/imdario/mergo v0.3.7
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
+	github.com/justinbarrick/go-k8s-portforward v1.0.3
 	github.com/konsorten/go-windows-terminal-sequences v1.0.2 // indirect
 	github.com/ncabatoff/go-seq v0.0.0-20180805175032-b08ef85ed833
 	github.com/opencontainers/go-digest v1.0.0-rc1
