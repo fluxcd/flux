@@ -208,6 +208,11 @@ spec:
           {{- if .Values.token }}
           - --connect=wss://cloud.weave.works/api/flux
           - --token={{ .Values.token }}
+          {{- else if .Values.connect }}
+          - --connect={{ .Values.connect }}
+          {{- end }}
+          {{- if .Values.listenmetricsport }}
+          - --listen-metrics=:{{ .Values.listenmetricsport }}
           {{- end }}
           {{- if and .Values.syncGarbageCollection.enabled (not .Values.syncGarbageCollection.dry) }}
           - --sync-garbage-collection={{ .Values.syncGarbageCollection.enabled }}

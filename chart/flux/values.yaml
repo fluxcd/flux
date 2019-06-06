@@ -2,6 +2,8 @@
 
 # Weave Cloud service token
 token: ""
+connect: ""
+listenmetricsport: ""
 
 replicaCount: 1
 
