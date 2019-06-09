@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -24,6 +25,7 @@ import (
 	k8sclientdynamic "k8s.io/client-go/dynamic"
 	k8sclient "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog"
 
 	"github.com/weaveworks/flux/checkpoint"
@@ -132,6 +134,7 @@ func main() {
 
 		// registry
 		memcachedHostname = fs.String("memcached-hostname", "memcached", "hostname for memcached service.")
+		memcachedPort     = fs.Int("memcached-port", 11211, "memcached service port.")
 		memcachedTimeout  = fs.Duration("memcached-timeout", time.Second, "maximum time to wait before giving up on memcached requests.")
 		memcachedService  = fs.String("memcached-service", "memcached", "SRV service used to discover memcache servers.")
 
@@ -150,6 +153,7 @@ func main() {
 		registryRequire = fs.StringSlice("registry-require", nil, fmt.Sprintf(`exit with an error if auto-authentication with any of the given registries is not possible (possible values: {%s})`, strings.Join(RequireValues, ",")))
 
 		// k8s-secret backed ssh keyring configuration
+		k8sInCluster             = fs.Bool("k8s-in-cluster", true, "set this to true if fluxd is deployed as a container inside Kubernetes")
 		k8sSecretName            = fs.String("k8s-secret-name", "flux-git-deploy", "name of the k8s secret used to store the private SSH key")
 		k8sSecretVolumeMountPath = fs.String("k8s-secret-volume-mount-path", "/etc/fluxd/ssh", "mount location of the k8s secret storing the private SSH key")
 		k8sSecretDataKey         = fs.String("k8s-secret-data-key", "identity", "data key holding the private SSH key within the k8s secret")
@@ -173,6 +177,16 @@ func main() {
 	)
 	fs.MarkDeprecated("registry-cache-expiry", "no longer used; cache entries are expired adaptively according to how often they change")
 	fs.MarkDeprecated("k8s-namespace-whitelist", "changed to --k8s-allow-namespace, use that instead")
+
+	var kubeConfig *string
+	{
+		// Set the default kube config
+		if home := homeDir(); home != "" {
+			kubeConfig = fs.String("kube-config", filepath.Join(home, ".kube", "config"), "the absolute path of the k8s config file.")
+		} else {
+			kubeConfig = fs.String("kube-config", "", "the absolute path of the k8s config file.")
+		}
+	}
 
 	// Explicitly initialize klog to enable stderr logging,
 	// and parse our own flags.
@@ -292,21 +306,34 @@ func main() {
 	}()
 
 	// Cluster component.
+
+	var restClientConfig *rest.Config
+	{
+		if *k8sInCluster {
+			logger.Log("msg", "using in cluster config to connect to the cluster")
+			restClientConfig, err = rest.InClusterConfig()
+			if err != nil {
+				logger.Log("err", err)
+				os.Exit(1)
+			}
+		} else {
+			logger.Log("msg", fmt.Sprintf("using kube config: %q to connect to the cluster", *kubeConfig))
+			restClientConfig, err = clientcmd.BuildConfigFromFlags("", *kubeConfig)
+			if err != nil {
+				logger.Log("err", err)
+				os.Exit(1)
+			}
+		}
+		restClientConfig.QPS = 50.0
+		restClientConfig.Burst = 100
+	}
+
 	var clusterVersion string
 	var sshKeyRing ssh.KeyRing
 	var k8s cluster.Cluster
 	var k8sManifests cluster.Manifests
 	var imageCreds func() registry.ImageCreds
 	{
-		restClientConfig, err := rest.InClusterConfig()
-		if err != nil {
-			logger.Log("err", err)
-			os.Exit(1)
-		}
-
-		restClientConfig.QPS = 50.0
-		restClientConfig.Burst = 100
-
 		clientset, err := k8sclient.NewForConfig(restClientConfig)
 		if err != nil {
 			logger.Log("err", err)
@@ -338,31 +365,36 @@ func main() {
 		}
 		clusterVersion = "kubernetes-" + serverVersion.GitVersion
 
-		namespace, err := ioutil.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
-		if err != nil {
-			logger.Log("err", err)
-			os.Exit(1)
+		if *k8sInCluster {
+			namespace, err := ioutil.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
+			if err != nil {
+				logger.Log("err", err)
+				os.Exit(1)
+			}
+
+			sshKeyRing, err = kubernetes.NewSSHKeyRing(kubernetes.SSHKeyRingConfig{
+				SecretAPI:             clientset.CoreV1().Secrets(string(namespace)),
+				SecretName:            *k8sSecretName,
+				SecretVolumeMountPath: *k8sSecretVolumeMountPath,
+				SecretDataKey:         *k8sSecretDataKey,
+				KeyBits:               sshKeyBits,
+				KeyType:               sshKeyType,
+				KeyGenDir:             *sshKeygenDir,
+			})
+			if err != nil {
+				logger.Log("err", err)
+				os.Exit(1)
+			}
+
+			publicKey, privateKeyPath := sshKeyRing.KeyPair()
+
+			logger := log.With(logger, "component", "cluster")
+			logger.Log("identity", privateKeyPath)
+			logger.Log("identity.pub", strings.TrimSpace(publicKey.Key))
+		} else {
+			sshKeyRing = ssh.NewNopSSHKeyRing()
 		}
 
-		sshKeyRing, err = kubernetes.NewSSHKeyRing(kubernetes.SSHKeyRingConfig{
-			SecretAPI:             clientset.CoreV1().Secrets(string(namespace)),
-			SecretName:            *k8sSecretName,
-			SecretVolumeMountPath: *k8sSecretVolumeMountPath,
-			SecretDataKey:         *k8sSecretDataKey,
-			KeyBits:               sshKeyBits,
-			KeyType:               sshKeyType,
-			KeyGenDir:             *sshKeygenDir,
-		})
-		if err != nil {
-			logger.Log("err", err)
-			os.Exit(1)
-		}
-
-		publicKey, privateKeyPath := sshKeyRing.KeyPair()
-
-		logger := log.With(logger, "component", "cluster")
-		logger.Log("identity", privateKeyPath)
-		logger.Log("identity.pub", strings.TrimSpace(publicKey.Key))
 		logger.Log("host", restClientConfig.Host, "version", clusterVersion)
 
 		kubectl := *kubernetesKubectl
@@ -448,7 +480,7 @@ func main() {
 		// if no memcached service is specified use the ClusterIP name instead of SRV records
 		if *memcachedService == "" {
 			memcacheClient = registryMemcache.NewFixedServerMemcacheClient(memcacheConfig,
-				fmt.Sprintf("%s:11211", *memcachedHostname))
+				fmt.Sprintf("%s:%d", *memcachedHostname, *memcachedPort))
 		} else {
 			memcacheClient = registryMemcache.NewMemcacheClient(memcacheConfig)
 		}
@@ -618,4 +650,16 @@ func main() {
 	logger.Log("exiting", <-errc)
 	close(shutdown)
 	shutdownWg.Wait()
+}
+
+func homeDir() string {
+	// nix
+	if h := os.Getenv("HOME"); h != "" {
+		return h
+	}
+	// windows
+	if h := os.Getenv("USERPROFILE"); h != "" {
+		return h
+	}
+	return ""
 }

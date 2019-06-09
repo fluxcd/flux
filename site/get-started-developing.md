@@ -22,10 +22,12 @@ This guide shows a workflow for making a small (actually, tiny) change to Flux, 
 >    1. have an available local memcached instance.
 >    1. make a change to the code
 >    1. ```bash
->          go run cmd/fluxd/main.go --memcached-hostname localhost  \
->          --memcached-port 11211 \
->          --git-url git@github.com:bzon/flux-get-started \
->          --memcached-service ""
+>          go run cmd/fluxd/main.go \
+>           --memcached-hostname localhost  \
+>           --memcached-port 11211 \
+>           --memcached-service "" \
+>           --git-url git@github.com:weaveworks/flux-get-started \
+>           --k8s-in-cluster=false
 >       ```
 >    1. repeat
 > 1. Use `helm` and `skaffold` together to deploy changes to the Flux helm chart.
