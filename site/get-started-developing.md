@@ -17,6 +17,17 @@ This guide shows a workflow for making a small (actually, tiny) change to Flux, 
 >    1. make a change to the code
 >    1. see your code changes have been deployed
 >    1. repeat
+> 1. Remote cluster development approach:
+>    1. ensure local kubectl access to a remote kubernetes cluster.
+>    1. have an available local memcached instance.
+>    1. make a change to the code
+>    1. ```bash
+>          go run cmd/fluxd/main.go --memcached-hostname localhost  \
+>          --memcached-port 11211 \
+>          --git-url git@github.com:bzon/flux-get-started \
+>          --memcached-service ""
+>       ```
+>    1. repeat
 > 1. Use `helm` and `skaffold` together to deploy changes to the Flux helm chart.
 >    1. `make`
 >    1. make a change to the code
@@ -82,7 +93,7 @@ Now that we know everything is working with `flux-getting-started`, we're going 
 
 1. Clone `git@github.com:<YOUR-GITHUB-USERNAME>/flux.git` replacing `<YOUR-GITHUB-USERNAME>` with your GitHub username.
 
-    In the same terminal you ran `eval $(minikube docker-env)`, run `dep ensure` followed by `make` from the root directory of the Flux repo.  You'll see docker's usual output as it builds the image layers.  Once it's done, you should see something like this in the middle of the output:
+    In the same terminal you ran `eval $(minikube docker-env)`, run `GO111MODULE=on go mod download` followed by `make` from the root directory of the Flux repo.  You'll see docker's usual output as it builds the image layers.  Once it's done, you should see something like this in the middle of the output:
     ```
     Successfully built 606610e0f4ef
     Successfully tagged docker.io/weaveworks/flux:latest
