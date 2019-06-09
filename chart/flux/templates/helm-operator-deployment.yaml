@@ -118,6 +118,9 @@ spec:
           mountPath: /var/fluxd/helm/repository/cache
         {{- end }}
         args:
+        {{- if .Values.logFormat }}
+        - --log-format={{ .Values.logFormat }}
+        {{end}}
         - --git-timeout={{ $gitTimeout }}
         - --git-poll-interval={{ $gitPollInterval }}
         - --charts-sync-interval={{ .Values.helmOperator.chartsSyncInterval }}

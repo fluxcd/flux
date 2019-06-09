@@ -98,6 +98,7 @@ func main() {
 	}
 	// This mirrors how kubectl extracts information from the environment.
 	var (
+		logFormat         = fs.String("log-format", "fmt", "change the log format.")
 		listenAddr        = fs.StringP("listen", "l", ":3030", "listen address where /metrics and API will be served")
 		listenMetricsAddr = fs.String("listen-metrics", "", "listen address for /metrics endpoint")
 		kubernetesKubectl = fs.String("kubernetes-kubectl", "", "optional, explicit path to kubectl tool")
@@ -192,7 +193,14 @@ func main() {
 	// Logger component.
 	var logger log.Logger
 	{
-		logger = log.NewLogfmtLogger(os.Stderr)
+		switch *logFormat {
+		case "json":
+			logger = log.NewJSONLogger(log.NewSyncWriter(os.Stderr))
+		case "fmt":
+			logger = log.NewLogfmtLogger(log.NewSyncWriter(os.Stderr))
+		default:
+			logger = log.NewLogfmtLogger(log.NewSyncWriter(os.Stderr))
+		}
 		logger = log.With(logger, "ts", log.DefaultTimestampUTC)
 		logger = log.With(logger, "caller", log.DefaultCaller)
 	}

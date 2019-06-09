@@ -5,6 +5,8 @@ token: ""
 
 replicaCount: 1
 
+logFormat: fmt
+
 image:
   repository: docker.io/weaveworks/flux
   tag: 1.12.3
