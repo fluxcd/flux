@@ -23,7 +23,12 @@ type resourceWithOrigin struct {
 }
 
 type configAware struct {
-	rawFiles    *rawFiles
+	// rawFiles will do everything for the paths that have no config file
+	rawFiles *rawFiles
+
+	// to maintain encapsulation, we don't rely on the rawFiles values
+	baseDir     string
+	manifests   Manifests
 	configFiles []*ConfigFile
 
 	// a cache of the loaded resources, since the pattern is to update
@@ -40,11 +45,13 @@ func NewConfigAware(baseDir string, targetPaths []string, manifests Manifests) (
 	}
 
 	result := &configAware{
-		rawfiles: &rawFiles{
+		rawFiles: &rawFiles{
 			manifests: manifests,
 			baseDir:   baseDir,
 			paths:     rawManifestDirs,
 		},
+		manifests:   manifests,
+		baseDir:     baseDir,
 		configFiles: configFiles,
 	}
 	return result, nil
@@ -135,7 +142,7 @@ func (ca *configAware) SetWorkloadContainerImage(ctx context.Context, resourceID
 		return ErrResourceNotFound(resourceID.String())
 	}
 	if resWithOrigin.configFile == nil {
-		if err := ca.rawfiles.setManifestWorkloadContainerImage(resWithOrigin.resource, container, newImageID); err != nil {
+		if err := ca.rawFiles.setManifestWorkloadContainerImage(resWithOrigin.resource, container, newImageID); err != nil {
 			return err
 		}
 	} else if err := ca.setConfigFileWorkloadContainerImage(ctx, resWithOrigin.configFile, resWithOrigin.resource, container, newImageID); err != nil {
@@ -150,7 +157,7 @@ func (ca *configAware) setConfigFileWorkloadContainerImage(ctx context.Context, 
 	container string, newImageID image.Ref) error {
 	if cf.PatchUpdated != nil {
 		return ca.updatePatchFile(ctx, cf, func(previousManifests []byte) ([]byte, error) {
-			return ca.rawfiles.manifests.SetWorkloadContainerImage(previousManifests, r.ResourceID(), container, newImageID)
+			return ca.manifests.SetWorkloadContainerImage(previousManifests, r.ResourceID(), container, newImageID)
 		})
 	}
 
@@ -178,7 +185,7 @@ func (ca *configAware) updatePatchFile(ctx context.Context, cf *ConfigFile,
 	patchUpdated := *cf.PatchUpdated
 	generatedManifests, patchedManifests, patchFilePath, err := ca.getGeneratedAndPatchedManifests(ctx, cf, patchUpdated)
 	if err != nil {
-		relConfigFilePath, err := filepath.Rel(ca.rawfiles.baseDir, cf.Path)
+		relConfigFilePath, err := filepath.Rel(ca.baseDir, cf.Path)
 		if err != nil {
 			return err
 		}
@@ -188,7 +195,7 @@ func (ca *configAware) updatePatchFile(ctx context.Context, cf *ConfigFile,
 	if err != nil {
 		return err
 	}
-	newPatch, err := ca.rawfiles.manifests.CreateManifestPatch(generatedManifests, finalManifests,
+	newPatch, err := ca.manifests.CreateManifestPatch(generatedManifests, finalManifests,
 		"generated manifests", "patched and updated manifests")
 	if err != nil {
 		return err
@@ -207,7 +214,7 @@ func (ca *configAware) getGeneratedAndPatchedManifests(ctx context.Context, cf *
 	patchFilePath := filepath.Join(cf.WorkingDir, explicitPatchFilePath)
 
 	// Make sure that the patch file doesn't fall out of the Git repository checkout
-	_, _, err = cleanAndEnsureParentPath(ca.rawfiles.baseDir, patchFilePath)
+	_, _, err = cleanAndEnsureParentPath(ca.baseDir, patchFilePath)
 	if err != nil {
 		return nil, nil, "", err
 	}
@@ -226,11 +233,11 @@ func (ca *configAware) getGeneratedAndPatchedManifests(ctx context.Context, cf *
 		}
 		patch = nil
 	}
-	relConfigFilePath, err := filepath.Rel(ca.rawfiles.baseDir, cf.Path)
+	relConfigFilePath, err := filepath.Rel(ca.baseDir, cf.Path)
 	if err != nil {
 		return nil, nil, "", err
 	}
-	patchedManifests, err := ca.rawfiles.manifests.ApplyManifestPatch(generatedManifests, patch, relConfigFilePath, explicitPatchFilePath)
+	patchedManifests, err := ca.manifests.ApplyManifestPatch(generatedManifests, patch, relConfigFilePath, explicitPatchFilePath)
 	if err != nil {
 		return nil, nil, "", fmt.Errorf("cannot patch generated resources: %s", err)
 	}
@@ -240,7 +247,7 @@ func (ca *configAware) getGeneratedAndPatchedManifests(ctx context.Context, cf *
 func (ca *configAware) getGeneratedManifests(ctx context.Context, cf *ConfigFile, generators []Generator) ([]byte, error) {
 	buf := bytes.NewBuffer(nil)
 	for i, cmdResult := range cf.ExecGenerators(ctx, generators) {
-		relConfigFilePath, err := filepath.Rel(ca.rawfiles.baseDir, cf.Path)
+		relConfigFilePath, err := filepath.Rel(ca.baseDir, cf.Path)
 		if err != nil {
 			return nil, err
 		}
@@ -254,7 +261,7 @@ func (ca *configAware) getGeneratedManifests(ctx context.Context, cf *ConfigFile
 			)
 			return nil, err
 		}
-		if err := ca.rawfiles.manifests.AppendManifestToBuffer(cmdResult.Stdout, buf); err != nil {
+		if err := ca.manifests.AppendManifestToBuffer(cmdResult.Stdout, buf); err != nil {
 			return nil, err
 		}
 	}
@@ -273,7 +280,7 @@ func (ca *configAware) UpdateWorkloadPolicies(ctx context.Context, resourceID fl
 	}
 	var changed bool
 	if resWithOrigin.configFile == nil {
-		changed, err = ca.rawfiles.updateManifestWorkloadPolicies(resWithOrigin.resource, update)
+		changed, err = ca.rawFiles.updateManifestWorkloadPolicies(resWithOrigin.resource, update)
 	} else {
 		changed, err = ca.updateConfigFileWorkloadPolicies(ctx, resWithOrigin.configFile, resWithOrigin.resource, update)
 	}
@@ -290,7 +297,7 @@ func (ca *configAware) updateConfigFileWorkloadPolicies(ctx context.Context, cf 
 	if cf.PatchUpdated != nil {
 		var changed bool
 		err := ca.updatePatchFile(ctx, cf, func(previousManifests []byte) ([]byte, error) {
-			updatedManifests, err := ca.rawfiles.manifests.UpdateWorkloadPolicies(previousManifests, r.ResourceID(), update)
+			updatedManifests, err := ca.manifests.UpdateWorkloadPolicies(previousManifests, r.ResourceID(), update)
 			if err == nil {
 				changed = bytes.Compare(previousManifests, updatedManifests) != 0
 			}
@@ -350,7 +357,7 @@ func (ca *configAware) getResourcesByID(ctx context.Context) (map[string]resourc
 
 	resourcesByID := map[string]resourceWithOrigin{}
 
-	rawResourcesByID, err := ca.rawfiles.GetAllResourcesByID(ctx)
+	rawResourcesByID, err := ca.rawFiles.GetAllResourcesByID(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -375,11 +382,11 @@ func (ca *configAware) getResourcesByID(ctx context.Context) (map[string]resourc
 		if err != nil {
 			return nil, err
 		}
-		relConfigFilePath, err := filepath.Rel(ca.rawfiles.baseDir, cf.Path)
+		relConfigFilePath, err := filepath.Rel(ca.baseDir, cf.Path)
 		if err != nil {
 			return nil, err
 		}
-		resources, err := ca.rawfiles.manifests.ParseManifest(resourceManifests, relConfigFilePath)
+		resources, err := ca.manifests.ParseManifest(resourceManifests, relConfigFilePath)
 		if err != nil {
 			return nil, err
 		}
