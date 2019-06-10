@@ -33,6 +33,8 @@ var (
 
 	versionFlag *bool
 
+	logFormat *string
+
 	kubeconfig *string
 	master     *string
 	namespace  *string
@@ -78,6 +80,8 @@ func init() {
 
 	versionFlag = fs.Bool("version", false, "print version and exit")
 
+	logFormat = fs.String("log-format", "fmt", "change the log format.")
+
 	kubeconfig = fs.String("kubeconfig", "", "path to a kubeconfig; required if out-of-cluster")
 	master = fs.String("master", "", "address of the Kubernetes API server; overrides any value in kubeconfig; required if out-of-cluster")
 	namespace = fs.String("allow-namespace", "", "if set, this limits the scope to a single namespace; if not specified, all namespaces will be watched")
@@ -116,7 +120,14 @@ func main() {
 
 	// init go-kit log
 	{
-		logger = log.NewLogfmtLogger(os.Stderr)
+		switch *logFormat {
+		case "json":
+			logger = log.NewJSONLogger(log.NewSyncWriter(os.Stderr))
+		case "fmt":
+			logger = log.NewLogfmtLogger(log.NewSyncWriter(os.Stderr))
+		default:
+			logger = log.NewLogfmtLogger(log.NewSyncWriter(os.Stderr))
+		}
 		logger = log.With(logger, "ts", log.DefaultTimestampUTC)
 		logger = log.With(logger, "caller", log.DefaultCaller)
 	}

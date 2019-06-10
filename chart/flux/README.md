@@ -188,6 +188,7 @@ The following tables lists the configurable parameters of the Weave Flux chart a
 | `replicaCount`                                    | `1`                                                  | Number of Flux pods to deploy, more than one is not desirable.
 | `image.pullPolicy`                                | `IfNotPresent`                                       | Image pull policy
 | `image.pullSecret`                                | `None`                                               | Image pull secret
+| `logFormat`                                       | `fmt`                                                | Log format (fmt or json)
 | `resources.requests.cpu`                          | `50m`                                                | CPU resource requests for the Flux deployment
 | `resources.requests.memory`                       | `64Mi`                                               | Memory resource requests for the Flux deployment
 | `resources.limits`                                | `None`                                               | CPU/memory resource limits for the Flux deployment
@@ -227,7 +228,7 @@ The following tables lists the configurable parameters of the Weave Flux chart a
 | `registry.pollInterval`                           | `5m`                                                 | Period at which to check for updated images
 | `registry.rps`                                    | `200`                                                | Maximum registry requests per second per host
 | `registry.burst`                                  | `125`                                                | Maximum number of warmer connections to remote and memcache
-| `registry.trace`                                  | `false`                                              |  Output trace of image registry requests to log
+| `registry.trace`                                  | `false`                                              | Output trace of image registry requests to log
 | `registry.insecureHosts`                          | `None`                                               | Use HTTP rather than HTTPS for the image registry domains
 | `registry.cacheExpiry`                            | `None`                                               | Duration to keep cached image info (deprecated)
 | `registry.excludeImage`                           | `None`                                               | Do not scan images that match these glob expressions; if empty, 'k8s.gcr.io/*' images are excluded
