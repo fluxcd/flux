@@ -138,8 +138,12 @@ Deploy Tiller:
 ```bash
 kubectl apply -f helm-rbac.yaml
 
-# Deploy helm with mutual TLS enabled
-helm init --upgrade --service-account tiller \
+# Deploy helm with mutual TLS enabled.
+# --history-max limits the maximum number of revisions Tiller stores;
+# leaving it to the default (0) may result in request timeouts after N
+# releases, due to the excessive amount of ConfigMaps Tiller will
+# attempt to retrieve.
+helm init --upgrade --service-account tiller --history-max 10 \
     --override 'spec.template.spec.containers[0].command'='{/tiller,--storage=secret}' \
     --tiller-tls \
     --tiller-tls-cert ./tls/server.pem \

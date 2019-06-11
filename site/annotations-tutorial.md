@@ -62,8 +62,13 @@ If you have never used Helm, you first need to
   Deploy Tiller in the `kube-system` namespace:
 
   ```sh
-  helm init --skip-refresh --upgrade --service-account tiller
+  helm init --skip-refresh --upgrade --service-account tiller --history-max 10
   ```
+
+  > **Note:** This is a quick guide and by no means a production ready
+  > Tiller setup, please look into ['Securing your Helm installation'](https://helm.sh/docs/using_helm/#securing-your-helm-installation)
+  > and be aware of the `--history-max` flag before promoting to
+  > production.
 
 Now you can take care of the actual installation. First add the Flux
 repository of Weaveworks:
