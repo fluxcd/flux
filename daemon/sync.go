@@ -13,8 +13,8 @@ import (
 	"github.com/weaveworks/flux/cluster"
 	"github.com/weaveworks/flux/event"
 	"github.com/weaveworks/flux/git"
+	"github.com/weaveworks/flux/manifests"
 	"github.com/weaveworks/flux/resource"
-	"github.com/weaveworks/flux/resourcestore"
 	fluxsync "github.com/weaveworks/flux/sync"
 	"github.com/weaveworks/flux/update"
 )
@@ -58,7 +58,7 @@ func (d *Daemon) Sync(ctx context.Context, started time.Time, revision string, s
 
 	// Run actual sync of resources on cluster
 	syncSetName := makeGitConfigHash(d.Repo.Origin(), d.GitConfig)
-	resourceStore, err := resourcestore.NewFileResourceStore(working.Dir(), working.ManifestDirs(), d.ManifestGenerationEnabled, d.Manifests)
+	resourceStore, err := d.getManifestStore(working)
 	if err != nil {
 		return errors.Wrap(err, "reading the respository checkout")
 	}
@@ -139,9 +139,9 @@ func getChangeSet(ctx context.Context, working *git.Checkout, repo *git.Repo, ti
 
 // doSync runs the actual sync of workloads on the cluster. It returns
 // a map with all resources it applied and sync errors it encountered.
-func doSync(ctx context.Context, resourceStore resourcestore.ResourceStore, clus cluster.Cluster, syncSetName string,
+func doSync(ctx context.Context, manifestsStore manifests.Store, clus cluster.Cluster, syncSetName string,
 	logger log.Logger) (map[string]resource.Resource, []event.ResourceError, error) {
-	resources, err := resourceStore.GetAllResourcesByID(ctx)
+	resources, err := manifestsStore.GetAllResourcesByID(ctx)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "loading resources from repo")
 	}
@@ -168,7 +168,7 @@ func doSync(ctx context.Context, resourceStore resourcestore.ResourceStore, clus
 // getChangedResources calculates what resources are modified during
 // this sync.
 func getChangedResources(ctx context.Context, c changeSet, timeout time.Duration, working *git.Checkout,
-	resourceStore resourcestore.ResourceStore, resources map[string]resource.Resource) (map[string]resource.Resource, error) {
+	manifestsStore manifests.Store, resources map[string]resource.Resource) (map[string]resource.Resource, error) {
 	if c.initialSync {
 		return resources, nil
 	}
@@ -181,7 +181,7 @@ func getChangedResources(ctx context.Context, c changeSet, timeout time.Duration
 	}
 	cancel()
 	// Get the resources by source
-	resourcesByID, err := resourceStore.GetAllResourcesByID(ctx)
+	resourcesByID, err := manifestsStore.GetAllResourcesByID(ctx)
 	if err != nil {
 		return nil, errorf(err)
 	}
@@ -206,7 +206,7 @@ func getChangedResources(ctx context.Context, c changeSet, timeout time.Duration
 	// (e.g. scripts invoked), which we cannot track, may have changed
 	for sourcePath, r := range resourcesBySource {
 		_, sourceFilename := filepath.Split(sourcePath)
-		if sourceFilename == resourcestore.ConfigFilename {
+		if sourceFilename == manifests.ConfigFilename {
 			changedResources[r.ResourceID().String()] = r
 		}
 	}

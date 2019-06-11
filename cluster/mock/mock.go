@@ -1,8 +1,12 @@
-package cluster
+package mock
 
 import (
+	"bytes"
+
 	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/cluster"
 	"github.com/weaveworks/flux/image"
+	"github.com/weaveworks/flux/manifests"
 	"github.com/weaveworks/flux/policy"
 	"github.com/weaveworks/flux/resource"
 	"github.com/weaveworks/flux/ssh"
@@ -10,12 +14,12 @@ import (
 
 // Doubles as a cluster.Cluster and cluster.Manifests implementation
 type Mock struct {
-	AllWorkloadsFunc              func(maybeNamespace string) ([]Workload, error)
-	SomeWorkloadsFunc             func([]flux.ResourceID) ([]Workload, error)
+	AllWorkloadsFunc              func(maybeNamespace string) ([]cluster.Workload, error)
+	SomeWorkloadsFunc             func([]flux.ResourceID) ([]cluster.Workload, error)
 	IsAllowedResourceFunc         func(flux.ResourceID) bool
 	PingFunc                      func() error
 	ExportFunc                    func() ([]byte, error)
-	SyncFunc                      func(SyncSet) error
+	SyncFunc                      func(cluster.SyncSet) error
 	PublicSSHKeyFunc              func(regenerate bool) (ssh.PublicKey, error)
 	SetWorkloadContainerImageFunc func(def []byte, id flux.ResourceID, container string, newImageID image.Ref) ([]byte, error)
 	LoadManifestsFunc             func(base string, paths []string) (map[string]resource.Resource, error)
@@ -23,16 +27,17 @@ type Mock struct {
 	UpdateWorkloadPoliciesFunc    func([]byte, flux.ResourceID, policy.Update) ([]byte, error)
 	CreateManifestPatchFunc       func(originalManifests, modifiedManifests []byte, originalSource, modifiedSource string) ([]byte, error)
 	ApplyManifestPatchFunc        func(originalManifests, patch []byte, originalSource, patchSource string) ([]byte, error)
+	AppendManifestToBufferFunc    func([]byte, *bytes.Buffer) error
 }
 
-var _ Cluster = &Mock{}
-var _ Manifests = &Mock{}
+var _ cluster.Cluster = &Mock{}
+var _ manifests.Manifests = &Mock{}
 
-func (m *Mock) AllWorkloads(maybeNamespace string) ([]Workload, error) {
+func (m *Mock) AllWorkloads(maybeNamespace string) ([]cluster.Workload, error) {
 	return m.AllWorkloadsFunc(maybeNamespace)
 }
 
-func (m *Mock) SomeWorkloads(s []flux.ResourceID) ([]Workload, error) {
+func (m *Mock) SomeWorkloads(s []flux.ResourceID) ([]cluster.Workload, error) {
 	return m.SomeWorkloadsFunc(s)
 }
 
@@ -48,7 +53,7 @@ func (m *Mock) Export() ([]byte, error) {
 	return m.ExportFunc()
 }
 
-func (m *Mock) Sync(c SyncSet) error {
+func (m *Mock) Sync(c cluster.SyncSet) error {
 	return m.SyncFunc(c)
 }
 
@@ -78,4 +83,8 @@ func (m *Mock) CreateManifestPatch(originalManifests, modifiedManifests []byte, 
 
 func (m *Mock) ApplyManifestPatch(originalManifests, patch []byte, originalSource, patchSource string) ([]byte, error) {
 	return m.ApplyManifestPatch(originalManifests, patch, originalSource, patchSource)
+}
+
+func (m *Mock) AppendManifestToBuffer(b []byte, buf *bytes.Buffer) error {
+	return m.AppendManifestToBuffer(b, buf)
 }

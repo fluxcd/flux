@@ -16,7 +16,6 @@ import (
 	k8sscheme "k8s.io/client-go/kubernetes/scheme"
 
 	"github.com/weaveworks/flux"
-	"github.com/weaveworks/flux/cluster"
 	"github.com/weaveworks/flux/cluster/kubernetes/resource"
 )
 
@@ -54,7 +53,7 @@ func createManifestPatch(originalManifests, modifiedManifests []byte, originalSo
 			// Avoid outputting empty patches
 			continue
 		}
-		if err := cluster.AppendManifestToBuffer(patch, buf); err != nil {
+		if err := appendYAMLToBuffer(patch, buf); err != nil {
 			return nil, err
 		}
 	}
@@ -99,7 +98,7 @@ func applyManifestPatch(originalManifests, patchManifests []byte, originalSource
 			}
 			resourceBytes = patched
 		}
-		if err := cluster.AppendManifestToBuffer(resourceBytes, buf); err != nil {
+		if err := appendYAMLToBuffer(resourceBytes, buf); err != nil {
 			return nil, err
 		}
 	}

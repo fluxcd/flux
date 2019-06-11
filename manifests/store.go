@@ -1,4 +1,4 @@
-package resourcestore
+package manifests
 
 import (
 	"context"
@@ -10,17 +10,17 @@ import (
 	"github.com/weaveworks/flux/resource"
 )
 
-type ResourceStoreError struct {
+type StoreError struct {
 	error
 }
 
 func ErrResourceNotFound(name string) error {
-	return ResourceStoreError{fmt.Errorf("resource %s not found", name)}
+	return StoreError{fmt.Errorf("resource %s not found", name)}
 }
 
-// ResourceStore manages all the cluster resources defined in a checked out repository, explicitly declared
+// Store manages all the cluster resources defined in a checked out repository, explicitly declared
 // in a file or not e.g., generated and updated by a .flux.yaml file, explicit Kubernetes .yaml manifests files ...
-type ResourceStore interface {
+type Store interface {
 	// Set the container image of a resource in the store
 	SetWorkloadContainerImage(ctx context.Context, resourceID flux.ResourceID, container string, newImageID image.Ref) error
 	// UpdateWorkloadPolicies modifies a resource in the store to apply the policy-update specified.

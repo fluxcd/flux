@@ -40,6 +40,7 @@ import (
 	"github.com/weaveworks/flux/image"
 	integrations "github.com/weaveworks/flux/integrations/client/clientset/versioned"
 	"github.com/weaveworks/flux/job"
+	"github.com/weaveworks/flux/manifests"
 	"github.com/weaveworks/flux/registry"
 	"github.com/weaveworks/flux/registry/cache"
 	registryMemcache "github.com/weaveworks/flux/registry/cache/memcached"
@@ -331,7 +332,7 @@ func main() {
 	var clusterVersion string
 	var sshKeyRing ssh.KeyRing
 	var k8s cluster.Cluster
-	var k8sManifests cluster.Manifests
+	var k8sManifests manifests.Manifests
 	var imageCreds func() registry.ImageCreds
 	{
 		clientset, err := k8sclient.NewForConfig(restClientConfig)

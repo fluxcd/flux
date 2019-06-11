@@ -18,12 +18,13 @@ import (
 	"github.com/weaveworks/flux/cluster"
 	"github.com/weaveworks/flux/cluster/kubernetes"
 	"github.com/weaveworks/flux/cluster/kubernetes/testfiles"
+	"github.com/weaveworks/flux/cluster/mock"
 	"github.com/weaveworks/flux/event"
 	"github.com/weaveworks/flux/git"
 	"github.com/weaveworks/flux/git/gittest"
 	"github.com/weaveworks/flux/job"
+	"github.com/weaveworks/flux/manifests"
 	registryMock "github.com/weaveworks/flux/registry/mock"
-	"github.com/weaveworks/flux/resourcestore"
 )
 
 const (
@@ -35,14 +36,14 @@ const (
 )
 
 var (
-	k8s    *cluster.Mock
+	k8s    *mock.Mock
 	events *mockEventWriter
 )
 
 func daemon(t *testing.T) (*Daemon, func()) {
 	repo, repoCleanup := gittest.Repo(t)
 
-	k8s = &cluster.Mock{}
+	k8s = &mock.Mock{}
 	k8s.ExportFunc = func() ([]byte, error) { return nil, nil }
 
 	events = &mockEventWriter{}
@@ -247,10 +248,7 @@ func TestDoSync_WithNewCommit(t *testing.T) {
 			return err
 		}
 		// Push some new changes
-		cm, err := resourcestore.NewFileResourceStore(checkout.Dir(), checkout.ManifestDirs(), false, d.Manifests)
-		if err != nil {
-			return err
-		}
+		cm := manifests.NewRawFiles(checkout.Dir(), checkout.ManifestDirs(), d.Manifests)
 		resourcesByID, err := cm.GetAllResourcesByID(context.TODO())
 		if err != nil {
 			return err

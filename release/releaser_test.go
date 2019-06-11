@@ -16,12 +16,13 @@ import (
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster"
 	"github.com/weaveworks/flux/cluster/kubernetes"
+	"github.com/weaveworks/flux/cluster/mock"
 	"github.com/weaveworks/flux/git"
 	"github.com/weaveworks/flux/git/gittest"
 	"github.com/weaveworks/flux/image"
+	"github.com/weaveworks/flux/manifests"
 	registryMock "github.com/weaveworks/flux/registry/mock"
 	"github.com/weaveworks/flux/resource"
-	"github.com/weaveworks/flux/resourcestore"
 	"github.com/weaveworks/flux/update"
 )
 
@@ -142,8 +143,8 @@ var (
 	mockManifests = kubernetes.NewManifests(kubernetes.ConstNamespacer("default"), log.NewLogfmtLogger(os.Stdout))
 )
 
-func mockCluster(running ...cluster.Workload) *cluster.Mock {
-	return &cluster.Mock{
+func mockCluster(running ...cluster.Workload) *mock.Mock {
+	return &mock.Mock{
 		AllWorkloadsFunc: func(string) ([]cluster.Workload, error) {
 			return running, nil
 		},
@@ -161,11 +162,8 @@ func mockCluster(running ...cluster.Workload) *cluster.Mock {
 	}
 }
 
-func NewFileResourceStoreOrFail(t *testing.T, manifests cluster.Manifests, checkout *git.Checkout) resourcestore.ResourceStore {
-	cm, err := resourcestore.NewFileResourceStore(checkout.Dir(), checkout.ManifestDirs(), false, manifests)
-	if err != nil {
-		t.Fatal(err)
-	}
+func NewManifestStoreOrFail(t *testing.T, parser manifests.Manifests, checkout *git.Checkout) manifests.Store {
+	cm := manifests.NewRawFiles(checkout.Dir(), checkout.ManifestDirs(), parser)
 	return cm
 }
 
@@ -266,7 +264,7 @@ func Test_InitContainer(t *testing.T) {
 
 	testRelease(t, &ReleaseContext{
 		cluster:       mCluster,
-		resourceStore: NewFileResourceStoreOrFail(t, mockManifests, checkout),
+		resourceStore: NewManifestStoreOrFail(t, mockManifests, checkout),
 		registry:      mockRegistry,
 	}, spec, expect.Result())
 
@@ -457,7 +455,7 @@ func Test_FilterLogic(t *testing.T) {
 			defer cleanup()
 			testRelease(t, &ReleaseContext{
 				cluster:       mCluster,
-				resourceStore: NewFileResourceStoreOrFail(t, mockManifests, checkout),
+				resourceStore: NewManifestStoreOrFail(t, mockManifests, checkout),
 				registry:      mockRegistry,
 			}, tst.Spec, tst.Expected.Result())
 		})
@@ -549,7 +547,7 @@ func Test_Force_lockedWorkload(t *testing.T) {
 			defer cleanup()
 			testRelease(t, &ReleaseContext{
 				cluster:       mCluster,
-				resourceStore: NewFileResourceStoreOrFail(t, mockManifests, checkout),
+				resourceStore: NewManifestStoreOrFail(t, mockManifests, checkout),
 				registry:      mockRegistry,
 			}, tst.Spec, tst.Expected.Result())
 		})
@@ -653,7 +651,7 @@ func Test_Force_filteredContainer(t *testing.T) {
 			defer cleanup()
 			testRelease(t, &ReleaseContext{
 				cluster:       mCluster,
-				resourceStore: NewFileResourceStoreOrFail(t, mockManifests, checkout),
+				resourceStore: NewManifestStoreOrFail(t, mockManifests, checkout),
 				registry:      mockRegistry,
 			}, tst.Spec, tst.Expected.Result())
 		})
@@ -722,7 +720,7 @@ func Test_ImageStatus(t *testing.T) {
 			defer cleanup()
 			rc := &ReleaseContext{
 				cluster:       mCluster,
-				resourceStore: NewFileResourceStoreOrFail(t, mockManifests, checkout),
+				resourceStore: NewManifestStoreOrFail(t, mockManifests, checkout),
 				registry:      upToDateRegistry,
 			}
 			testRelease(t, rc, tst.Spec, tst.Expected.Result())
@@ -749,7 +747,7 @@ func Test_UpdateMultidoc(t *testing.T) {
 	defer cleanup()
 	rc := &ReleaseContext{
 		cluster:       mCluster,
-		resourceStore: NewFileResourceStoreOrFail(t, mockManifests, checkout),
+		resourceStore: NewManifestStoreOrFail(t, mockManifests, checkout),
 		registry:      mockRegistry,
 	}
 	spec := update.ReleaseImageSpec{
@@ -796,7 +794,7 @@ func Test_UpdateList(t *testing.T) {
 	defer cleanup()
 	rc := &ReleaseContext{
 		cluster:       mCluster,
-		resourceStore: NewFileResourceStoreOrFail(t, mockManifests, checkout),
+		resourceStore: NewManifestStoreOrFail(t, mockManifests, checkout),
 		registry:      mockRegistry,
 	}
 	spec := update.ReleaseImageSpec{
@@ -831,7 +829,7 @@ func Test_UpdateContainers(t *testing.T) {
 	ctx := context.Background()
 	rc := &ReleaseContext{
 		cluster:       mCluster,
-		resourceStore: NewFileResourceStoreOrFail(t, mockManifests, checkout),
+		resourceStore: NewManifestStoreOrFail(t, mockManifests, checkout),
 		registry:      mockRegistry,
 	}
 	type expected struct {
@@ -1055,7 +1053,7 @@ func testRelease(t *testing.T, rc *ReleaseContext, spec update.ReleaseImageSpec,
 
 // A manifests implementation that does updates incorrectly, so they should fail verification.
 type badManifests struct {
-	cluster.Manifests
+	manifests.Manifests
 }
 
 func (m *badManifests) SetWorkloadContainerImage(def []byte, id flux.ResourceID, container string, image image.Ref) ([]byte, error) {
@@ -1077,7 +1075,7 @@ func Test_BadRelease(t *testing.T) {
 	ctx := context.Background()
 	rc := &ReleaseContext{
 		cluster:       mCluster,
-		resourceStore: NewFileResourceStoreOrFail(t, manifests, checkout1),
+		resourceStore: NewManifestStoreOrFail(t, manifests, checkout1),
 		registry:      mockRegistry,
 	}
 	_, err := Release(ctx, rc, spec, log.NewNopLogger())
@@ -1090,7 +1088,7 @@ func Test_BadRelease(t *testing.T) {
 
 	rc = &ReleaseContext{
 		cluster:       mCluster,
-		resourceStore: NewFileResourceStoreOrFail(t, &badManifests{manifests}, checkout2),
+		resourceStore: NewManifestStoreOrFail(t, &badManifests{manifests}, checkout2),
 		registry:      mockRegistry,
 	}
 	_, err = Release(ctx, rc, spec, log.NewNopLogger())
