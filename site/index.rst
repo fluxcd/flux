@@ -10,6 +10,29 @@ Welcome to Flux documentation's documentation!
    :maxdepth: 2
    :caption: Contents:
 
+   annotations-tutorial
+   building
+   daemon
+   faq
+   fluxctl
+   fluxyaml-config-files
+   garbagecollection
+   get-started-developing
+   get-started
+   git-gpg
+   helm-get-started
+   helm-integration
+   helm-operator
+   helm-upgrading-to-beta
+   how-it-works
+   installing
+   introduction
+   monitoring
+   requirements
+   standalone-setup
+   troubleshooting
+   upgrading-to-1.0
+
 
 
 Indices and tables
