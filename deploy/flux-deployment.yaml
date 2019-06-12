@@ -63,7 +63,7 @@ spec:
         # There are no ":latest" images for flux. Find the most recent
         # release or image version at https://hub.docker.com/r/weaveworks/flux/tags
         # and replace the tag here.
-        image: docker.io/weaveworks/flux:1.12.3
+        image: docker.io/weaveworks/flux:1.13.0
         imagePullPolicy: IfNotPresent
         resources:
           requests:
