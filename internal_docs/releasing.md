@@ -55,17 +55,23 @@ change.
 
     To compile a list of people (GitHub usernames) to thank, you can use a script (if you have access to weaveworks/dx) or peruse the commits/PRs merged/issues since the last release. There's no exact way to do it. Be generous.
 
-5. Post the branch as a PR to the release series
+5. Consider updating the deploy manifest examples and the Helm chart.
+
+    The example manifests are in [deploy](./deploy/) and [deploy-helm](./deploy-helm/). Check the changes included in the release, to see if arguments, volume mounts, etc., have changed.
+
+    Read on, for how to publish a new Helm chart version.
+
+6. Post the branch as a PR to the release series
 
     Push the patch release branch -- e.g., `release/1.8.1` -- to GitHub, and create a PR from it.
 
     > **Note:** You will need to change the branch the PR targets, from `master` to the release series, e.g., `release/1.8.x`, while creating the PR.
 
-6. Get the PR reviewed, and merge it.
+7. Get the PR reviewed, and merge it.
 
 **Creating the release**
 
-7. [Create a release in GitHub](https://github.com/weaveworks/flux/releases/new)
+8. [Create a release in GitHub](https://github.com/weaveworks/flux/releases/new)
 
     Use a tag name as explained above; semver for the Flux daemon, `helm-` then the semver for the Helm operator.
 
@@ -75,23 +81,19 @@ change.
 
 **After publishing the release**
 
-8. Put an entry in the checkpoint database
+9. Put an entry in the checkpoint database
 
     Add a row to the [checkpoint database](https://checkpoint-api.weave.works/admin) (or ask someone at Weaveworks to do so). This is so that the up-to-date check will report the latest available version correctly.
 
-9. Merge the release series branch back into master, so it has the changelog entry.
+10. Merge the release series branch back into master, so it has the changelog entry and the updated manifests.
 
     You can do this by creating a new PR in GitHub -- you don't need to create any new branches, since you want to merge a branch that already exists.
-
-10. Consider updating the deploy manifest examples and the Helm chart.
-
-    The example manifests are in [deploy](./deploy/) and [deploy-helm](./deploy-helm/). Check the changes included in the release, to see if arguments, volume mounts, etc., have changed.
-
-    You can do these as additional PRs. Read on, for how to publish a new Helm chart version.
+    
+11. Consider releasing a new version of the Helm chart, the process for this is described below.
 
 **Bookkeeping**
 
-11. Close the GitHub milestone relating to the release. If there are open issues or unmerged PRs in the milestone, they will need to be either reassigned to the next milestone, or (if unclear where they belong), unassigned.
+12. Close the GitHub milestone relating to the release. If there are open issues or unmerged PRs in the milestone, they will need to be either reassigned to the next milestone, or (if unclear where they belong), unassigned.
 
 ## Helm chart release process
 
