@@ -119,23 +119,42 @@ func interpretAsContainer(m mapper) (image.Ref, ImageSetter, bool) {
 		// ```
 		imageRef, err := image.ParseRef(img)
 		if err == nil {
+			var reggy bool
+			if registry, ok := m.get("registry"); ok {
+				// container:
+				//   registry: registry.com
+				//	 image: repo/foo
+				if registryStr, ok := registry.(string); ok {
+					reggy = true
+					imageRef.Domain = registryStr
+				}
+			}
 			var taggy bool
 			if tag, ok := m.get("tag"); ok {
-				//   container:
-				//     image: repo/foo
-				//     tag: v1
+				// container:
+				//   image: repo/foo
+				//   tag: v1
 				if tagStr, ok := tag.(string); ok {
 					taggy = true
 					imageRef.Tag = tagStr
 				}
 			}
 			return imageRef, func(ref image.Ref) {
-				if taggy {
-					m.set("image", ref.Name.String())
+				switch {
+				case (reggy && taggy):
+					m.set("registry", ref.Domain)
+					m.set("image", ref.Image)
 					m.set("tag", ref.Tag)
 					return
+				case reggy:
+					m.set("registry", ref.Domain)
+					m.set("image", ref.Name.Image + ":" + ref.Tag)
+				case taggy:
+					m.set("image", ref.Name.String())
+					m.set("tag", ref.Tag)
+				default:
+					m.set("image", ref.String())
 				}
-				m.set("image", ref.String())
 			}, true
 		}
 	case map[string]interface{}:
@@ -161,14 +180,29 @@ func interpretAsImage(m mapper) (image.Ref, ImageSetter, bool) {
 
 	if imgStr, ok := imgRepo.(string); ok {
 		if tagStr, ok := imgTag.(string); ok {
-			//    container:
-			//      image:
-			//        repository: repo/bar
-			//        tag: v1
+			// container:
+			//   image:
+			//     repository: repo/bar
+			//     tag: v1
 			imgRef, err := image.ParseRef(imgStr + ":" + tagStr)
 			if err == nil {
+				var reggy bool
+				if registry, ok := m.get("registry"); ok {
+					// container:
+					//   registry: registry.com
+					//	 image: repo/foo
+					if registryStr, ok := registry.(string); ok {
+						reggy = true
+						imgRef.Domain = registryStr
+					}
+				}
 				return imgRef, func(ref image.Ref) {
-					m.set("repository", ref.Name.String())
+					if reggy {
+						m.set("registry", ref.Domain)
+						m.set("image", ref.Name.Image)
+					} else {
+						m.set("repository", ref.Name.String())
+					}
 					m.set("tag", ref.Tag)
 				}, true
 			}
