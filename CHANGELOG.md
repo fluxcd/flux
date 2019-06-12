@@ -1,7 +1,7 @@
 This is the changelog for the Flux daemon; the changelog for the Helm
 operator is in [./CHANGELOG-helmop.md](./CHANGELOG-helmop.md).
 
-## 1.13.0 (2019-06-12)
+## 1.13.0 (2019-06-13)
 
 This feature release contains an experimental feature for [generating
 manifests from the sources in git][manifest-generation-docs] and
