@@ -1,7 +1,4 @@
----
-title: Installing Flux Manually
-menu_order: 10
----
+# Installing Flux Manually
 
 - [Get started with Flux](#get-started-with-flux)
   * [Prerequisites](#prerequisites)
@@ -13,7 +10,7 @@ menu_order: 10
   * [Confirm the change landed](#confirm-the-change-landed)
   * [Conclusion](#conclusion)
 
-# Get started with Flux
+## Get started with Flux
 
 This short guide shows a self-contained example of Flux and just
 takes a couple of minutes to get set up. By the end you will
@@ -23,7 +20,7 @@ code changes for you.
 > **Note:** If you would like to install Flux using Helm, refer to the
 [Helm section](./helm-get-started.md).
 
-## Prerequisites
+### Prerequisites
 
 You will need to have Kubernetes set up. For a quick local test,
 you can use `minikube` or `kubeadm`. Any other Kubernetes setup
@@ -43,7 +40,7 @@ will work as well though.
 > clusterroles.rbac.authorization.k8s.io "flux" is forbidden: attempt to grant
 > extra privileges:`
 
-## Set up Flux
+### Set up Flux
 
 Get Flux:
 
@@ -69,7 +66,7 @@ flag to `--git-path=namespaces,workloads`, this is meant to exclude Helm
 manifests. Again, if you want to get started with Helm, please refer to the
 [Helm section](./helm-get-started.md).
 
-## Deploying Flux to the cluster
+### Deploying Flux to the cluster
 
 In the next step, deploy Flux to the cluster:
 
@@ -85,7 +82,7 @@ process.
 watch kubectl get pods --all-namespaces
 ```
 
-## Giving write access
+### Giving write access
 
 At startup Flux generates a SSH key and logs the public key. Find
 the SSH public key by installing [fluxctl](./fluxctl.md) and
@@ -109,7 +106,7 @@ for more info on how to manage deploy keys.
 `https://github.com/YOURUSER/flux-get-started/settings/keys/new` and
 paste the key there.)
 
-## Committing a small change
+### Committing a small change
 
 In this example we are using a simple example of a webservice and
 change its configuration to use a different message. The easiest
@@ -130,7 +127,7 @@ The default sync frequency is 5 minutes. This can be tweaked easily.
 By observing the logs you can see when the change landed in in the
 cluster.
 
-## Confirm the change landed
+### Confirm the change landed
 
 To access our webservice and check out its welcome message, simply
 run:
@@ -142,7 +139,7 @@ curl localhost:9898
 
 Notice the updated `color` value in the JSON reply.
 
-## Conclusion
+### Conclusion
 
 As you can see, the actual steps to set up Flux, get our app
 deployed, give Flux access to it and see modifications land are

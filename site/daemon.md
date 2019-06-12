@@ -1,14 +1,11 @@
----
-title: Flux Daemon
-menu_order: 90
----
+# Flux Daemon
 
-# Summary
+## Summary
 
 Flux daemon (fluxd, aka Flux agent) allows automation of application deployments and version control of cluster configuration.
 Version controlling of cluster manifests provides reproducibility and a historical trail of events.
 
-## Flux daemon responsibilities
+### Flux daemon responsibilities
 
     A) Continuous Deployment
 	    1.
@@ -33,12 +30,12 @@ Version controlling of cluster manifests provides reproducibility and a historic
             Deployment is pinned to a particular image tag. New deployment will not
             proceed upon triggered release.
 
-# More information
+## More information
 
 Setting up and configuring fluxd is discussed in our [standalone setup](./standalone-setup.md)
 document.
 
-# Flags
+## Flags
 
 fluxd requires setup and offers customization though a multitude of flags.
 

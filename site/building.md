@@ -1,9 +1,4 @@
----
-title: Building Flux
-menu_order: 80
----
-
-# Build
+# Building Weave Flux
 
 You'll need a working `go` environment version >= 1.11 (official releases are built against `1.12`).
 It's also expected that you have a Docker daemon for building images.
@@ -26,7 +21,7 @@ and binaries for a different architecture you will have to set ARCH variable,
 $ make ARCH=<target_arch>
 ```
 
-# Test
+## Running tests
 
 ```sh
 $ make test

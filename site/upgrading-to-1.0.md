@@ -1,8 +1,3 @@
----
-title: Upgrading to Flux v1
-menu_order: 100
----
-
 # Upgrading to Flux v1
 
 Flux v1 is a major improvement over the previous versions, and is

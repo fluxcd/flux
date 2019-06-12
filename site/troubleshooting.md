@@ -1,7 +1,4 @@
----
-title: Troubleshooting Flux
-menu_order: 50
----
+# Troubleshooting Weave Flux
 
 Also see the [issues labeled with
 `FAQ`](https://github.com/weaveworks/flux/labels/FAQ), which often

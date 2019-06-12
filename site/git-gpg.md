@@ -1,7 +1,4 @@
----
-title: Git commit signing and verification
-menu_order: 90
----
+# Git commit signing and verification
 
 - [Summary](#summary)
 - [Commit signing](#commit-signing)
@@ -11,7 +8,7 @@ menu_order: 90
   * [Importing trusted GPG keys and enabling verification](#importing-trusted-gpg-keys-and-enabling-verification)
   * [Enabling verification for existing repositories, disaster recovery, and deleted sync tags](#enabling-verification-for-existing-repositories-disaster-recovery-and-deleted-sync-tags)
 
-# Summary
+## Summary
 
 Flux can be configured to sign commits that it makes to the user git
 repo when, for example, it detects an updated Docker image is available
@@ -20,7 +17,7 @@ functionality it is also able to verify signatures of commits (and the
 sync tag in git) to prevent Flux from applying unauthorized changes on
 the cluster.
 
-# Commit signing
+## Commit signing
 
 The signing of commits (and the sync tag) requires two flags to be set:
 
@@ -35,7 +32,7 @@ The signing of commits (and the sync tag) requires two flags to be set:
 Once enabled Flux will sign both commits and the sync tag with given
 `--git-signing-key`.
 
-## Creating a GPG signing key
+### Creating a GPG signing key
 
 > **Note:** This requires [gnupg](https://www.gnupg.org) to be
 installed on your system.
@@ -101,7 +98,7 @@ installed on your system.
    ssb   rsa2048/ECA4FF5BD988B8E9 2019-03-28 [E]
    ```
 
-## Importing a GPG signing key
+### Importing a GPG signing key
 
 Any file found in the configured `--git-gpg-key-import` path(s) will be
 imported into GPG; therefore, by volume-mounting a key into that
@@ -176,7 +173,7 @@ understand symbolic links to files.
   trustdb. This is required as git will otherwise not trust signatures
   made with the imported keys.
 
-# Signature verification
+## Signature verification
 
 The verification of commit signatures is enabled by importing all
 trusted public keys (`--git-gpg-key-import=<path>,<path2>`), and by
@@ -188,7 +185,7 @@ In case a signature can not be verified, Flux will sync state up to the
 last valid revision it can find _before_ the unverified commit was
 made, and lock on this revision.
 
-## Importing trusted GPG keys and enabling verification
+### Importing trusted GPG keys and enabling verification
 
 1. Collect the public keys from all trusted git authors.
 
@@ -233,7 +230,7 @@ made, and lock on this revision.
 > **Note:** Flux *does not* recursively scan a given directory but does
 understand symbolic links to files.
 
-## Enabling verification for existing repositories, disaster recovery, and deleted sync tags
+### Enabling verification for existing repositories, disaster recovery, and deleted sync tags
 
 In case you have existing commits in your repository without a
 signature you may want to:

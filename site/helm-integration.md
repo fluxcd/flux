@@ -1,7 +1,4 @@
----
-title: Using Flux with Helm
-menu_order: 90
----
+# Using Flux with Helm
 
 - [Using Flux with Helm](#using-flux-with-helm)
   * [The `HelmRelease` custom resource](#the-helmrelease-custom-resource)
@@ -23,8 +20,6 @@ menu_order: 90
     + [Authentication for Helm repos](#authentication-for-helm-repos)
       - [Azure ACR repositories](#azure-acr-repositories)
     + [Authentication for Git repos](#authentication-for-git-repos)
-
-# Using Flux with Helm
 
 You can release charts to your cluster via "GitOps", by combining Flux
 and the Flux Helm Operator (also in

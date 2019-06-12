@@ -1,7 +1,4 @@
----
-title: Customising the deployment
-menu_order: 20
----
+# Customising the deployment
 
 - [Customising the daemon configuration](#customising-the-daemon-configuration)
   * [Connect Flux to a repository](#connect-flux-to-a-repository)
@@ -13,19 +10,19 @@ menu_order: 20
   * [Using a private git host](#using-a-private-git-host)
   * [Memcache](#memcache)
 
-# Customising the daemon configuration
+## Customising the daemon configuration
 
 The deployment installs Flux and its dependencies. First, change to
 the directory with the examples configuration.
 
-## Connect Flux to a repository
+### Connect Flux to a repository
 
 First, you need to connect Flux to the repository with Kubernetes
 manifests. This is achieved by setting the `--git-url` and
 `--git-branch` arguments in the
 [`flux-deployment.yaml`](../deploy/flux-deployment.yaml) manifest.
 
-## Flux deployment
+### Flux deployment
 
 You will need to create a secret in which Flux will store its SSH
 key. The daemon won't start without this present.
@@ -36,7 +33,7 @@ repository and synchronised the cluster.
 When using Kubernetes, this key is stored as a Kubernetes secret. You
 can restart `flux` and it will continue to use the same key.
 
-## Add an SSH deploy key to the repository
+### Add an SSH deploy key to the repository
 
 Flux connects to the repository using an SSH key.
 
@@ -48,7 +45,7 @@ permissions. The `Developer` permission can create tags, but not update them.
 
 You have two options:
 
-### 1. Allow Flux to generate a key for you.
+#### 1. Allow Flux to generate a key for you.
 
 If you don't specify a key to use, Flux will create one for you. Obtain
 the public key through [fluxctl](./fluxctl.md):
@@ -57,7 +54,7 @@ the public key through [fluxctl](./fluxctl.md):
 fluxctl identity
 ```
 
-### 2. Specify a key to use
+#### 2. Specify a key to use
 
 Create a Kubernetes Secret from a private key:
 
@@ -87,7 +84,7 @@ $EDITOR flux-deployment.yaml
 kubectl create -f flux-deployment.yaml
 ```
 
-### Note for Kubernetes >=1.6 with role-based access control (RBAC)
+#### Note for Kubernetes >=1.6 with role-based access control (RBAC)
 
 You will need to provide fluxd with a service account which can access
 the namespaces you want to use Flux with. To do this, consult the
@@ -103,7 +100,7 @@ Using an SSH key allows you to maintain control of the repository. You
 can revoke permission for `flux` to access the repository at any time
 by removing the deploy key.
 
-## Using a private git host
+### Using a private git host
 
 If you're using your own git host -- e.g., your own installation of
 gitlab, or bitbucket server -- you will need to add its host key to
@@ -191,7 +188,7 @@ You will need to explicitly tell fluxd to use that service account by
 uncommenting and possible adapting the line `# serviceAccountName:
 flux` in the file `fluxd-deployment.yaml` before applying it.
 
-## Memcache
+### Memcache
 
 Flux uses memcache to cache docker registry requests.
 
