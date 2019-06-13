@@ -48,7 +48,7 @@ completes the support for [GPG signatures][gpg-docs].
   [weaveworks/flux#2127][], [weaveworks/flux#2094][]
 - Give an example of DNS settings in the example deployment
   [weaveworks/flux#2116][]
-- Document how to get the fluxctl `snap` [weaveworks/flux#1996][],
+- Document how to get the fluxctl `snap` [weaveworks/flux#1966][],
   [weaveworks/flux#2108][]
 - Give more guidance on how to contribute to Flux
   [weaveworks/flux#2104][]
