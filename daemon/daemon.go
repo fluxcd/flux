@@ -74,11 +74,16 @@ func (d *Daemon) Export(ctx context.Context) ([]byte, error) {
 	return d.Cluster.Export(ctx)
 }
 
-func (d *Daemon) getManifestStore(checkout *git.Checkout) (manifests.Store, error) {
+type repo interface {
+	Dir() string
+	AbsolutePaths() []string
+}
+
+func (d *Daemon) getManifestStore(r repo) (manifests.Store, error) {
 	if d.ManifestGenerationEnabled {
-		return manifests.NewConfigAware(checkout.Dir(), checkout.ManifestDirs(), d.Manifests)
+		return manifests.NewConfigAware(r.Dir(), r.AbsolutePaths(), d.Manifests)
 	}
-	return manifests.NewRawFiles(checkout.Dir(), checkout.ManifestDirs(), d.Manifests), nil
+	return manifests.NewRawFiles(r.Dir(), r.AbsolutePaths(), d.Manifests), nil
 }
 
 func (d *Daemon) getResources(ctx context.Context) (map[string]resource.Resource, v6.ReadOnlyReason, error) {
@@ -680,13 +685,13 @@ func containers2containers(cs []resource.Container) []v6.Container {
 // cost, we cache the result of sorting, so that other uses of the
 // image can reuse it (if they are also sorted by timestamp).
 
-type repo struct {
+type sortedImageRepo struct {
 	images                []image.Info
 	imagesByTag           map[string]image.Info
 	imagesSortedByCreated update.SortedImageInfos
 }
 
-func (r *repo) SortedImages(p policy.Pattern) update.SortedImageInfos {
+func (r *sortedImageRepo) SortedImages(p policy.Pattern) update.SortedImageInfos {
 	// RequiresTimestamp means "ordered by timestamp" (it's required
 	// because no comparison to see which image is newer can be made
 	// if a timestamp is missing)
@@ -699,16 +704,16 @@ func (r *repo) SortedImages(p policy.Pattern) update.SortedImageInfos {
 	return update.SortImages(r.images, p)
 }
 
-func (r *repo) Images() []image.Info {
+func (r *sortedImageRepo) Images() []image.Info {
 	return r.images
 }
 
-func (r *repo) ImageByTag(tag string) image.Info {
+func (r *sortedImageRepo) ImageByTag(tag string) image.Info {
 	return r.imagesByTag[tag]
 }
 
 func getWorkloadContainers(workload cluster.Workload, imageRepos update.ImageRepos, resource resource.Resource, fields []string) (res []v6.Container, err error) {
-	repos := map[image.Name]*repo{}
+	repos := map[image.Name]*sortedImageRepo{}
 
 	for _, c := range workload.ContainersOrNil() {
 		imageName := c.Image.Name
@@ -732,7 +737,7 @@ func getWorkloadContainers(workload cluster.Workload, imageRepos update.ImageRep
 				}
 				images = append(images, info)
 			}
-			imageRepo = &repo{images: images, imagesByTag: repoMetadata.Images}
+			imageRepo = &sortedImageRepo{images: images, imagesByTag: repoMetadata.Images}
 			repos[imageName] = imageRepo
 		}
 

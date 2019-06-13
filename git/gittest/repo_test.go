@@ -28,7 +28,7 @@ func TestCommit(t *testing.T) {
 	defer cleanup()
 
 	for file, _ := range testfiles.Files {
-		dirs := checkout.ManifestDirs()
+		dirs := checkout.AbsolutePaths()
 		path := filepath.Join(dirs[0], file)
 		if err := ioutil.WriteFile(path, []byte("FIRST CHANGE"), 0666); err != nil {
 			t.Fatal(err)
@@ -84,7 +84,7 @@ func TestSignedCommit(t *testing.T) {
 	defer cleanup()
 
 	for file, _ := range testfiles.Files {
-		dirs := checkout.ManifestDirs()
+		dirs := checkout.AbsolutePaths()
 		path := filepath.Join(dirs[0], file)
 		if err := ioutil.WriteFile(path, []byte("FIRST CHANGE"), 0666); err != nil {
 			t.Fatal(err)
@@ -199,7 +199,7 @@ func TestCheckout(t *testing.T) {
 	}
 
 	changedFile := ""
-	dirs := checkout.ManifestDirs()
+	dirs := checkout.AbsolutePaths()
 	for file, _ := range testfiles.Files {
 		path := filepath.Join(dirs[0], file)
 		if err := ioutil.WriteFile(path, []byte("FIRST CHANGE"), 0666); err != nil {

@@ -29,7 +29,7 @@ type Config struct {
 // intended to be used for one-off "transactions", e.g,. committing
 // changes then pushing upstream. It has no locking.
 type Checkout struct {
-	dir          string
+	*Export
 	config       Config
 	upstream     Remote
 	realNotesRef string // cache the notes ref, since we use it to push as well
@@ -105,36 +105,24 @@ func (r *Repo) Clone(ctx context.Context, conf Config) (*Checkout, error) {
 	}
 
 	return &Checkout{
-		dir:          repoDir,
+		Export:       &Export{dir: repoDir},
 		upstream:     upstream,
 		realNotesRef: realNotesRef,
 		config:       conf,
 	}, nil
 }
 
-// Clean a Checkout up (remove the clone)
-func (c *Checkout) Clean() {
-	if c.dir != "" {
-		os.RemoveAll(c.dir)
-	}
-}
-
-// Dir returns the path to the repo
-func (c *Checkout) Dir() string {
-	return c.dir
-}
-
-// ManifestDirs returns the paths to the manifests files. It ensures
+// AbsolutePaths returns the absolute paths as configured. It ensures
 // that at least one path is returned, so that it can be used with
 // `Manifest.LoadManifests`.
-func (c *Checkout) ManifestDirs() []string {
+func (c *Checkout) AbsolutePaths() []string {
 	if len(c.config.Paths) == 0 {
-		return []string{c.dir}
+		return []string{c.Dir()}
 	}
 
 	paths := make([]string, len(c.config.Paths), len(c.config.Paths))
 	for i, p := range c.config.Paths {
-		paths[i] = filepath.Join(c.dir, p)
+		paths[i] = filepath.Join(c.Dir(), p)
 	}
 	return paths
 }
@@ -143,12 +131,12 @@ func (c *Checkout) ManifestDirs() []string {
 // extra data as a note, and pushes the commit and note to the remote repo.
 func (c *Checkout) CommitAndPush(ctx context.Context, commitAction CommitAction, note interface{}, addUntracked bool) error {
 	if addUntracked {
-		if err := add(ctx, c.dir, "."); err != nil {
+		if err := add(ctx, c.Dir(), "."); err != nil {
 			return err
 		}
 	}
 
-	if !check(ctx, c.dir, c.config.Paths, addUntracked) {
+	if !check(ctx, c.Dir(), c.config.Paths, addUntracked) {
 		return ErrNoChanges
 	}
 
@@ -157,7 +145,7 @@ func (c *Checkout) CommitAndPush(ctx context.Context, commitAction CommitAction,
 		commitAction.SigningKey = c.config.SigningKey
 	}
 
-	if err := commit(ctx, c.dir, commitAction); err != nil {
+	if err := commit(ctx, c.Dir(), commitAction); err != nil {
 		return err
 	}
 
@@ -166,20 +154,20 @@ func (c *Checkout) CommitAndPush(ctx context.Context, commitAction CommitAction,
 		if err != nil {
 			return err
 		}
-		if err := addNote(ctx, c.dir, rev, c.config.NotesRef, note); err != nil {
+		if err := addNote(ctx, c.Dir(), rev, c.config.NotesRef, note); err != nil {
 			return err
 		}
 	}
 
 	refs := []string{c.config.Branch}
-	ok, err := refExists(ctx, c.dir, c.realNotesRef)
+	ok, err := refExists(ctx, c.Dir(), c.realNotesRef)
 	if ok {
 		refs = append(refs, c.realNotesRef)
 	} else if err != nil {
 		return err
 	}
 
-	if err := push(ctx, c.dir, c.upstream.URL, refs); err != nil {
+	if err := push(ctx, c.Dir(), c.upstream.URL, refs); err != nil {
 		return PushError(c.upstream.URL, err)
 	}
 	return nil
@@ -187,39 +175,39 @@ func (c *Checkout) CommitAndPush(ctx context.Context, commitAction CommitAction,
 
 // GetNote gets a note for the revision specified, or nil if there is no such note.
 func (c *Checkout) GetNote(ctx context.Context, rev string, note interface{}) (bool, error) {
-	return getNote(ctx, c.dir, c.realNotesRef, rev, note)
+	return getNote(ctx, c.Dir(), c.realNotesRef, rev, note)
 }
 
 func (c *Checkout) HeadRevision(ctx context.Context) (string, error) {
-	return refRevision(ctx, c.dir, "HEAD")
+	return refRevision(ctx, c.Dir(), "HEAD")
 }
 
 func (c *Checkout) MoveTagAndPush(ctx context.Context, tagAction TagAction) error {
 	if tagAction.SigningKey == "" {
 		tagAction.SigningKey = c.config.SigningKey
 	}
-	return moveTagAndPush(ctx, c.dir, c.upstream.URL, tagAction)
+	return moveTagAndPush(ctx, c.Dir(), c.upstream.URL, tagAction)
 }
 
 // ChangedFiles does a git diff listing changed files
 func (c *Checkout) ChangedFiles(ctx context.Context, ref string) ([]string, error) {
-	list, err := changed(ctx, c.dir, ref, c.config.Paths)
+	list, err := changed(ctx, c.Dir(), ref, c.config.Paths)
 	if err == nil {
 		for i, file := range list {
-			list[i] = filepath.Join(c.dir, file)
+			list[i] = filepath.Join(c.Dir(), file)
 		}
 	}
 	return list, err
 }
 
 func (c *Checkout) NoteRevList(ctx context.Context) (map[string]struct{}, error) {
-	return noteRevList(ctx, c.dir, c.realNotesRef)
+	return noteRevList(ctx, c.Dir(), c.realNotesRef)
 }
 
 func (c *Checkout) Checkout(ctx context.Context, rev string) error {
-	return checkout(ctx, c.dir, rev)
+	return checkout(ctx, c.Dir(), rev)
 }
 
 func (c *Checkout) Add(ctx context.Context, path string) error {
-	return add(ctx, c.dir, path)
+	return add(ctx, c.Dir(), path)
 }
