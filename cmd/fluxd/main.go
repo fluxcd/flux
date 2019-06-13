@@ -114,6 +114,7 @@ func main() {
 		gitEmail     = fs.String("git-email", "support@weave.works", "email to use as git committer")
 		gitSetAuthor = fs.Bool("git-set-author", false, "if set, the author of git commits will reflect the user who initiated the commit and will differ from the git committer.")
 		gitLabel     = fs.String("git-label", "", "label to keep track of sync progress; overrides both --git-sync-tag and --git-notes-ref")
+		gitSecret    = fs.Bool("git-secret", false, `if set, git-secret will be run on every git checkout. A gpg key must be imported using  --git-gpg-key-import or by mounting a keyring containing it directly`)
 		// Old git config; still used if --git-label is not supplied, but --git-label is preferred.
 		gitSyncTag     = fs.String("git-sync-tag", defaultGitSyncTag, "tag to use to mark sync progress for this cluster")
 		gitNotesRef    = fs.String("git-notes-ref", defaultGitNotesRef, "ref to use for keeping commit annotations in git notes")
@@ -289,6 +290,10 @@ func main() {
 		}
 	}
 	mandatoryRegistry := stringset(*registryRequire)
+
+	if *gitSecret && len(*gitImportGPG) == 0  {
+		logger.Log("warning", fmt.Sprintf("--git-secret is enabled but there is no GPG key(s) provided using --git-gpg-key-import, we assume you mounted the keyring directly and continue"))
+	}
 
 	// Mechanical components.
 
@@ -540,6 +545,7 @@ func main() {
 		SigningKey:  *gitSigningKey,
 		SetAuthor:   *gitSetAuthor,
 		SkipMessage: *gitSkipMessage,
+		GitSecret:   *gitSecret,
 	}
 
 	repo := git.NewRepo(gitRemote, git.PollInterval(*gitPollInterval), git.Timeout(*gitTimeout), git.Branch(*gitBranch))
@@ -562,6 +568,7 @@ func main() {
 		"sync-tag", *gitSyncTag,
 		"notes-ref", *gitNotesRef,
 		"set-author", *gitSetAuthor,
+		"git-secret", *gitSecret,
 	)
 
 	var jobs *job.Queue
