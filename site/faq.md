@@ -22,13 +22,13 @@ menu_order: 60
   * [How often does Flux check for new git commits (and can I make it sync faster)?](#how-often-does-flux-check-for-new-git-commits-and-can-i-make-it-sync-faster)
   * [How do I use my own deploy key?](#how-do-i-use-my-own-deploy-key)
   * [How do I use a private git host (or one that's not github.com, gitlab.com, bitbucket.org, dev.azure.com, or vs-ssh.visualstudio.com)?](#how-do-i-use-a-private-git-host-or-one-thats-not-githubcom-gitlabcom-bitbucketorg-devazurecom-or-vs-sshvisualstudiocom)
-  * [Will Flux delete resources that are no longer in the git repository?](#will-flux-delete-resources-that-are-no-longer-in-the-git-repository)
   * [Why does my CI pipeline keep getting triggered?](#why-does-my-ci-pipeline-keep-getting-triggered)
   * [Can I restrict the namespaces that Flux can see or operate on?](#can-i-restrict-the-namespaces-that-flux-can-see-or-operate-on)
   * [Can I change the namespace Flux puts things in by default?](#can-i-change-the-namespace-flux-puts-things-in-by-default)
   * [Can I temporarily make Flux ignore a deployment?](#can-i-temporarily-make-flux-ignore-a-deployment)
   * [How can I prevent Flux overriding the replicas when using HPA?](#how-can-i-prevent-flux-overriding-the-replicas-when-using-hpa)
   * [Can I disable Flux registry scanning?](#can-i-disable-flux-registry-scanning)
+  * [Does Flux support Kustomize/My favorite manifest factorization technology?](#does-flux-support-kustomizetemplatingmy-favorite-manifest-factorization-technology)
 - [Flux Helm Operator questions](#flux-helm-operator-questions)
   * [I'm using SSL between Helm and Tiller. How can I configure Flux to use the certificate?](#im-using-ssl-between-helm-and-tiller-how-can-i-configure-flux-to-use-the-certificate)
   * [I've deleted a HelmRelease file from Git. Why is the Helm release still running on my cluster?](#ive-deleted-a-helmrelease-file-from-git-why-is-the-helm-release-still-running-on-my-cluster)
@@ -183,8 +183,7 @@ There are exceptions:
 
 To work around exceptional cases, you can mount a docker config into
 the Flux container. See the argument `--docker-config` in [the daemon
-arguments
-reference](https://github.com/weaveworks/flux/blob/master/site/daemon.md#flags).
+arguments reference](daemon.md#flags).
 
 See also
 [Why are my images not showing up in the list of images?](#why-are-my-images-not-showing-up-in-the-list-of-images)
@@ -243,13 +242,16 @@ First delete the secret (if it exists):
 
 `kubectl delete secret flux-git-deploy`
 
-Then create a new secret named `flux-git-deploy`, using your private key as the content of the secret:
+Then create a new secret named `flux-git-deploy`, using your private key as the content of the secret (you can generate the key with `ssh-keygen -q -N "" -f /full/path/to/private_key`):
 
 `kubectl create secret generic flux-git-deploy --from-file=identity=/full/path/to/private_key`
 
 Now restart fluxd to re-read the k8s secret (if it is running):
 
 `kubectl delete $(kubectl get pod -o name -l name=flux)`
+
+If you have installed flux through Helm, make sure to pass 
+`--set git.secretName=flux-git-deploy` when installing/upgrading the chart.
 
 ### How do I use a private git host (or one that's not github.com, gitlab.com, bitbucket.org, dev.azure.com, or vs-ssh.visualstudio.com)?
 
@@ -265,12 +267,6 @@ host key(s).
 
 How to do this is documented in
 [standalone-setup.md](/site/standalone-setup.md#using-a-private-git-host).
-
-### Will Flux delete resources that are no longer in the git repository?
-
-Not at present. It's tricky to come up with a safe and unsurprising
-way for this to work. There's discussion of some possibilities in
-[weaveworks/flux#738](https://github.com/weaveworks/flux/issues/738).
 
 ### Why does my CI pipeline keep getting triggered?
 
@@ -313,7 +309,7 @@ to experiment to find the most restrictive permissions that work for
 your case.
 
 You will need to use the (experimental) command-line flag
-`--k8s-namespace-whitelist` to enumerate the namespaces that Flux
+`--k8s-allow-namespace` to enumerate the namespaces that Flux
 attempts to scan for workloads.
 
 ### Can I change the namespace Flux puts things in by default?
@@ -416,6 +412,17 @@ Disable image scanning for all images:
 ```
 --registry-exclude-image=*
 ```
+
+### Does Flux support Kustomize/Templating/My favorite manifest factorization technology?
+
+Yes!
+
+Flux experimentally supports technology-agnostic manifest factorization through
+`.flux.yaml` configuration files placed in the Git repository. To enable this
+feature please supply `fluxd` with flag `--manifest-generation=true`.
+
+See [`.flux.yaml` configuration files documentation](/site/fluxyaml-config-files.md) for
+further details.
 
 ## Flux Helm Operator questions
 

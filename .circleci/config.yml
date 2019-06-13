@@ -1,20 +1,62 @@
 version: 2
 jobs:
   build:
-    working_directory: /go/src/github.com/weaveworks/flux
-    docker:
-      - image: circleci/golang:1.10
-      - image: memcached
+    working_directory: ~/flux
+    machine: true
+    environment:
+      GO_VERSION: 1.12.5
+      # We don't need a GOPATH but CircleCI defines it, so we override it
+      GOPATH: /home/circleci/go
+      PATH: /bin:/usr/bin:/usr/local/go/bin:/home/circleci/go/bin
     steps:
       - checkout
-      - setup_remote_docker
-
-      - run: curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
-      - run: dep ensure -vendor-only
+      - run:
+          name: Install Golang
+          command: |
+            curl -OL https://storage.googleapis.com/golang/go${GO_VERSION}.linux-amd64.tar.gz
+            tar -xf go${GO_VERSION}.linux-amd64.tar.gz
+            sudo rm -rf /usr/local/go
+            sudo mv go /usr/local
+            mkdir -p "$HOME/go/bin"
+            go version
+      - run:
+          name: Update packages and Start Memcached
+          command: |
+            # These repos fail and we don't need them:
+            sudo rm /etc/apt/sources.list.d/circleci_trusty.list /etc/apt/sources.list.d/google-chrome.list
+            sudo apt-get update
+            sudo apt-get install -y git rng-tools docker-ce memcached
+            git version
+            docker version
+      - restore_cache:
+          keys:
+            - cache-{{ checksum "Makefile" }}
+            - cache-
+      - restore_cache:
+          keys:
+            - go-build-{{ .Branch }}-{{ .Revision }}
+            - go-build-{{ .Branch }}-
+            - go-build-
+      - restore_cache:
+          keys:
+            - go-mod-{{ checksum "go.mod" }}
+            - go-mod-
       - run: make check-generated
       - run: make test TEST_FLAGS="-race -tags integration -timeout 60s"
       - run: make all
-
+      - run: make e2e
+      - save_cache:
+          key: cache-{{ checksum "Makefile" }}
+          paths:
+            - "cache"
+      - save_cache:
+          key: go-build-{{ .Branch }}-{{ .Revision }}
+          paths:
+            - "~/.cache/go-build/"
+      - save_cache:
+          key: go-mod-{{ checksum "go.mod" }}
+          paths:
+            - "~/go/pkg/mod/"
       - deploy:
           name: Maybe push prerelease images
           command: |
@@ -27,7 +69,6 @@ jobs:
               docker tag "docker.io/weaveworks/helm-operator:$(docker/image-tag)" "docker.io/weaveworks/helm-operator-prerelease:$(docker/image-tag)"
               docker push "docker.io/weaveworks/helm-operator-prerelease:$(docker/image-tag)"
             fi
-
       - deploy:
           name: Maybe push release image and upload binaries
           command: |
@@ -43,17 +84,6 @@ jobs:
               RELEASE_TAG=$(echo "$CIRCLE_TAG" | cut -c 6-)
               docker push "docker.io/weaveworks/helm-operator:${RELEASE_TAG}"
             fi
-  e2e-testing:
-    machine: true
-    working_directory: ~/go/src/github.com/weaveworks/flux
-    steps:
-      - checkout
-      - run: test/e2e/e2e-golang.sh
-      - run: test/e2e/e2e-flux-build.sh
-      - run: test/e2e/e2e-kind.sh
-      - run: test/e2e/e2e-helm.sh
-      - run: test/e2e/e2e-git.sh
-      - run: test/e2e/e2e-flux-chart.sh
 
 workflows:
   version: 2
@@ -63,6 +93,4 @@ workflows:
           filters:
             tags:
               only: /(helm-)?[0-9]+(\.[0-9]+)*(-[a-z]+)?/
-      - e2e-testing:
-          requires:
-            - build
+

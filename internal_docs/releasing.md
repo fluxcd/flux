@@ -6,6 +6,7 @@ The release process needs to do these things:
  - push Docker image(s) to Docker Hub
  - possibly upload the [`fluxctl` binaries](/site/fluxctl.md#binary-releases) to the GitHub release
  - make sure the version is entered into the checkpoint database so that up-to-date checks report back accurate information
+ - close out the GitHub milestone that was used to track the release
 
 Much of this is automated, but it needs a human to turn the wheel.
 
@@ -87,6 +88,10 @@ change.
     The example manifests are in [deploy](./deploy/) and [deploy-helm](./deploy-helm/). Check the changes included in the release, to see if arguments, volume mounts, etc., have changed.
 
     You can do these as additional PRs. Read on, for how to publish a new Helm chart version.
+
+**Bookkeeping**
+
+11. Close the GitHub milestone relating to the release. If there are open issues or unmerged PRs in the milestone, they will need to be either reassigned to the next milestone, or (if unclear where they belong), unassigned.
 
 ## Helm chart release process
 

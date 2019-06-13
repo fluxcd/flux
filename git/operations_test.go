@@ -1,6 +1,7 @@
 package git
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io/ioutil"
@@ -8,6 +9,7 @@ import (
 	"path"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/weaveworks/flux/cluster/kubernetes/testfiles"
@@ -141,6 +143,35 @@ func TestChangedFiles_NoPath(t *testing.T) {
 	_, err = changed(context.Background(), newDir, "HEAD", nil)
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestChangedFiles_LeadingSpace(t *testing.T) {
+	newDir, cleanup := testfiles.TempDir(t)
+	defer cleanup()
+
+	err := createRepo(newDir, []string{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	filename := " space.yaml"
+
+	if err = updateDirAndCommit(newDir, "", map[string]string{filename: "foo"}); err != nil {
+		t.Fatal(err)
+	}
+
+	files, err := changed(context.Background(), newDir, "HEAD~1", []string{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(files) != 1 {
+		t.Fatal("expected 1 changed file")
+	}
+
+	if actualFilename := files[0]; actualFilename != filename {
+		t.Fatalf("expected changed filename to equal: '%s', got '%s'", filename, actualFilename)
 	}
 }
 
@@ -316,7 +347,7 @@ func TestTraceGitCommand(t *testing.T) {
 					dir: "/tmp/flux-working628880789",
 				},
 			},
-			expected: `TRACE: command="git clone --branch master /tmp/flux-gitclone239583443 /tmp/flux-working628880789" out="" err="" dir="/tmp/flux-working628880789" env=""`,
+			expected: `TRACE: command="git clone --branch master /tmp/flux-gitclone239583443 /tmp/flux-working628880789" out="" dir="/tmp/flux-working628880789" env=""`,
 		},
 		{
 			name: "git rev-list",
@@ -333,7 +364,7 @@ func TestTraceGitCommand(t *testing.T) {
 					dir: "/tmp/flux-gitclone239583443",
 				},
 			},
-			expected: `TRACE: command="git rev-list --max-count 1 flux-sync --" out="b9d6a543acf8085ff6bed23fac17f8dc71bfcb66" err="" dir="/tmp/flux-gitclone239583443" env=""`,
+			expected: `TRACE: command="git rev-list --max-count 1 flux-sync --" out="b9d6a543acf8085ff6bed23fac17f8dc71bfcb66" dir="/tmp/flux-gitclone239583443" env=""`,
 		},
 		{
 			name: "git config email",
@@ -347,7 +378,7 @@ func TestTraceGitCommand(t *testing.T) {
 					dir: "/tmp/flux-working056923691",
 				},
 			},
-			expected: `TRACE: command="git config user.email support@weave.works" out="" err="" dir="/tmp/flux-working056923691" env=""`,
+			expected: `TRACE: command="git config user.email support@weave.works" out="" dir="/tmp/flux-working056923691" env=""`,
 		},
 		{
 			name: "git notes",
@@ -363,7 +394,7 @@ func TestTraceGitCommand(t *testing.T) {
 				},
 				out: "refs/notes/flux",
 			},
-			expected: `TRACE: command="git notes --ref flux get-ref" out="refs/notes/flux" err="" dir="/tmp/flux-working647148942" env=""`,
+			expected: `TRACE: command="git notes --ref flux get-ref" out="refs/notes/flux" dir="/tmp/flux-working647148942" env=""`,
 		},
 	}
 	for _, example := range examples {
@@ -371,8 +402,23 @@ func TestTraceGitCommand(t *testing.T) {
 			example.input.args,
 			example.input.config,
 			example.input.out,
-			example.input.err,
 		)
 		assert.Equal(t, example.expected, actual)
+	}
+}
+
+// TestMutexBuffer tests that the threadsafe buffer used to capture
+// stdout and stderr does not give rise to races or deadlocks. In
+// particular, this test guards against reverting to a situation in
+// which copying into the buffer from two goroutines can deadlock it,
+// if one of them uses `ReadFrom`.
+func TestMutexBuffer(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	out := &bytes.Buffer{}
+	err := execGitCmd(ctx, []string{"log", "--oneline"}, gitCmdConfig{out: out})
+	if err != nil {
+		t.Fatal(err)
 	}
 }

@@ -2,7 +2,7 @@ FROM alpine:3.9
 
 WORKDIR /home/flux
 
-RUN apk add --no-cache openssh ca-certificates tini 'git>=2.3.0' gnupg
+RUN apk add --no-cache openssh-client ca-certificates tini 'git>=2.12.0' 'gnutls>=3.6.7' gnupg
 
 # Add git hosts to known hosts file so we can use
 # StrickHostKeyChecking with git+ssh
@@ -14,6 +14,7 @@ RUN sh /home/flux/known_hosts.sh /etc/ssh/ssh_known_hosts && \
 COPY ./ssh_config /etc/ssh/ssh_config
 
 COPY ./kubectl /usr/local/bin/
+COPY ./kustomize /usr/local/bin
 
 # These are pretty static
 LABEL maintainer="Weaveworks <help@weave.works>" \

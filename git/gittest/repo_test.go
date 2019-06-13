@@ -39,7 +39,7 @@ func TestCommit(t *testing.T) {
 	defer cancel()
 
 	commitAction := git.CommitAction{Message: "Changed file"}
-	if err := checkout.CommitAndPush(ctx, commitAction, nil); err != nil {
+	if err := checkout.CommitAndPush(ctx, commitAction, nil, false); err != nil {
 		t.Fatal(err)
 	}
 
@@ -94,7 +94,7 @@ func TestSignedCommit(t *testing.T) {
 	defer cancel()
 
 	commitAction := git.CommitAction{Message: "Changed file"}
-	if err := checkout.CommitAndPush(ctx, commitAction, nil); err != nil {
+	if err := checkout.CommitAndPush(ctx, commitAction, nil, false); err != nil {
 		t.Fatal(err)
 	}
 
@@ -112,7 +112,7 @@ func TestSignedCommit(t *testing.T) {
 		t.Fatal("expected at least one commit")
 	}
 	expectedKey := signingKey[len(signingKey)-16:]
-	foundKey := commits[0].SigningKey[len(commits[0].SigningKey)-16:]
+	foundKey := commits[0].Signature.Key[len(commits[0].Signature.Key)-16:]
 	if expectedKey != foundKey {
 		t.Errorf(`expected commit signing key to be:
 %s
@@ -144,7 +144,7 @@ func TestSignedTag(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err := checkout.VerifySyncTag(ctx)
+	_, err := checkout.VerifySyncTag(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -202,7 +202,7 @@ func TestCheckout(t *testing.T) {
 		break
 	}
 	commitAction := git.CommitAction{Author: "", Message: "Changed file"}
-	if err := checkout.CommitAndPush(ctx, commitAction, nil); err != nil {
+	if err := checkout.CommitAndPush(ctx, commitAction, nil, false); err != nil {
 		t.Fatal(err)
 	}
 
@@ -216,7 +216,7 @@ func TestCheckout(t *testing.T) {
 		Comment: "Expected comment",
 	}
 	commitAction = git.CommitAction{Author: "", Message: "Changed file again"}
-	if err := checkout.CommitAndPush(ctx, commitAction, &expectedNote); err != nil {
+	if err := checkout.CommitAndPush(ctx, commitAction, &expectedNote, false); err != nil {
 		t.Fatal(err)
 	}
 

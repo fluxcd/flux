@@ -6,6 +6,7 @@ menu_order: 40
 - [Installing fluxctl](#installing-fluxctl)
   * [Mac OS](#mac-os)
   * [Linux](#linux)
+    + [Ubuntu (and others): snaps](#ubuntu-and-others-snaps)
     + [Arch Linux](#arch-linux)
   * [Binary releases](#binary-releases)
 - [Connecting fluxctl to the daemon](#connecting-fluxctl-to-the-daemon)
@@ -15,7 +16,7 @@ menu_order: 40
     + [2. Specify a key to use](#2-specify-a-key-to-use)
 - [Workloads](#workloads)
   * [What is a Workload?](#what-is-a-workload)
-  *  [Viewing Workloads](#viewing-workloads)
+  * [Viewing Workloads](#viewing-workloads)
   * [Inspecting the Version of a Container](#inspecting-the-version-of-a-container)
   * [Releasing a Workload](#releasing-a-workload)
   * [Turning on Automation](#turning-on-automation)
@@ -27,9 +28,11 @@ menu_order: 40
   * [Recording user and message with the triggered action](#recording-user-and-message-with-the-triggered-action)
 - [Image Tag Filtering](#image-tag-filtering)
   * [Filter pattern types](#filter-pattern-types)
-  * [Glob](#glob)
-  * [Semver](#semver)
-  *  [Regexp](#regexp)
+    + [Glob](#glob)
+    + [Semver](#semver)
+    + [Regexp](#regexp)
+  * [Controlling image timestamps with labels](#controlling-image-timestamps-with-labels)
+    + [Supported label formats](#supported-label-formats)
 - [Actions triggered through `fluxctl`](#actions-triggered-through-fluxctl)
   * [Errors due to author customization](#errors-due-to-author-customization)
 - [Using Annotations](#using-annotations)
@@ -54,6 +57,26 @@ brew install fluxctl
 
 ## Linux
 
+### Ubuntu (and others): snaps
+
+[Many Linux distributions](https://docs.snapcraft.io/installing-snapd) support
+snaps these days, which makes it very easy to install `fluxctl` and stay up to
+date.
+
+To install it, simply run:
+
+```sh
+sudo snap install fluxctl
+```
+
+If you would prefer to track builds from master, run
+
+```sh
+sudo snap install fluxctl --edge
+```
+
+instead.
+
 ### Arch Linux
 
 Install the `fluxctl-bin` package [from the
@@ -73,7 +96,7 @@ page](https://github.com/weaveworks/flux/releases).
 
 # Connecting fluxctl to the daemon
 
-By default, fluxctl will attempt to port-forward to your Flux
+By default, `fluxctl` will attempt to port-forward to your Flux
 instance, assuming it runs in the `"default"` namespace. You can
 specify a different namespace with the `--k8s-fwd-ns` flag:
 
@@ -118,7 +141,7 @@ options:
 ### 1. Allow Flux to generate a key for you
 
 If you don't specify a key to use, Flux will create one for you. Obtain
-the public key through fluxctl:
+the public key through `fluxctl`:
 
 ```sh
 $ fluxctl identity
@@ -497,11 +520,11 @@ fluxctl release --workload=default:deployment/helloworld --update-all-images --f
 
 Please note that automation might immediately undo this.
 
-# Filter pattern types
+## Filter pattern types
 
 Flux currently offers support for `glob`, `semver` and `regexp` based filtering.
 
-## Glob
+### Glob
 
 The glob (`*`) filter is the simplest filter Flux supports, a filter can contain
 multiple globs:
@@ -510,7 +533,7 @@ multiple globs:
 fluxctl policy --workload=default:deployment/helloworld --tag-all='glob:master-v1.*.*'
 ```
 
-## Semver
+### Semver
 
 If your images use [semantic versioning](https://semver.org) you can filter by image tags
 that adhere to certain constraints:
@@ -528,7 +551,7 @@ fluxctl policy --workload=default:deployment/helloworld --tag-all='semver:*'
 Using a semver filter will also affect how Flux sorts images, so
 that the higher versions will be considered newer.
 
-## Regexp
+### Regexp
 
 If your images have complex tags you can filter by regular expression:
 
@@ -539,6 +562,23 @@ fluxctl policy --workload=default:deployment/helloworld --tag-all='regexp:^([a-z
 Instead of `regexp` it is also possible to use its alias `regex`.
 Please bear in mind that if you want to match the whole tag,
 you must bookend your pattern with `^` and `$`.
+
+## Controlling image timestamps with labels
+
+Some image registries do not expose a reliable creation timestamp for
+image tags, which could pose a problem for the automated roll-out of
+images.
+
+To overcome this problem you can define one of the supported labels in
+your `Dockerfile`. Flux will prioritize labels over the timestamp it
+retrieves from the registry.
+
+### Supported label formats
+
+- [`org.opencontainers.image.created`](https://github.com/opencontainers/image-spec/blob/master/annotations.md#pre-defined-annotation-keys)
+  date and time on which the image was built (string, date-time as defined by RFC 3339).
+- [`org.label-schema.build-date`](http://label-schema.org/rc1/#build-time-labels)
+  date and time on which the image was built (string, date-time as defined by RFC 3339).
 
 # Actions triggered through `fluxctl`
 
@@ -615,7 +655,7 @@ configured using fluxctl.
 
 Here's a simple but complete deployment file with annotations:
 
-```
+```yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:

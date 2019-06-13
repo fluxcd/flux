@@ -138,12 +138,64 @@ func TestRefSerialization(t *testing.T) {
 	}
 }
 
+func TestImageLabelsSerialisation(t *testing.T) {
+	t0 := time.Now().UTC() // UTC so it has nil location, otherwise it won't compare
+	t1 := time.Now().Add(5 * time.Minute).UTC()
+	labels := Labels{Created: t0, BuildDate: t1}
+	bytes, err := json.Marshal(labels)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var labels1 Labels
+	if err = json.Unmarshal(bytes, &labels1); err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, labels, labels1)
+}
+
+func TestNonRFC3339ImageLabelsUnmarshal(t *testing.T) {
+	str := `{
+	"org.label-schema.build-date": "20190523",
+	"org.opencontainers.image.created": "20190523"
+}`
+
+	var labels Labels
+	err := json.Unmarshal([]byte(str), &labels)
+	lpe, ok := err.(*LabelTimestampFormatError)
+	if !ok {
+		t.Fatalf("Got %v, but expected LabelTimestampFormatError", err)
+	}
+	if lc := len(lpe.Labels); lc != 2 {
+		t.Errorf("Got error for %v labels, expected 2", lc)
+	}
+}
+
+func TestImageLabelsZeroTime(t *testing.T) {
+	labels := Labels{}
+	bytes, err := json.Marshal(labels)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var labels1 map[string]interface{}
+	if err = json.Unmarshal(bytes, &labels1); err != nil {
+		t.Fatal(err)
+	}
+	if lc := len(labels1); lc >= 1 {
+		t.Errorf("serialised Labels contains %v fields; expected it to contain none\n%v", lc, labels1)
+	}
+}
+
 func mustMakeInfo(ref string, created time.Time) Info {
 	r, err := ParseRef(ref)
 	if err != nil {
 		panic(err)
 	}
 	return Info{ID: r, CreatedAt: created}
+}
+
+func (im Info) setLabels(labels Labels) Info {
+	im.Labels = labels
+	return im
 }
 
 func TestImageInfoSerialisation(t *testing.T) {
@@ -184,10 +236,10 @@ func TestImage_OrderByCreationDate(t *testing.T) {
 	time0 := testTime.Add(time.Second)
 	time2 := testTime.Add(-time.Second)
 	imA := mustMakeInfo("my/Image:2", testTime)
-	imB := mustMakeInfo("my/Image:0", time0)
-	imC := mustMakeInfo("my/Image:3", time2)
+	imB := mustMakeInfo("my/Image:0", time.Time{}).setLabels(Labels{Created: time0})
+	imC := mustMakeInfo("my/Image:3", time.Time{}).setLabels(Labels{BuildDate: time2})
 	imD := mustMakeInfo("my/Image:4", time.Time{}) // test nil
-	imE := mustMakeInfo("my/Image:1", testTime)    // test equal
+	imE := mustMakeInfo("my/Image:1", time.Time{}).setLabels(Labels{Created: testTime}) // test equal
 	imF := mustMakeInfo("my/Image:5", time.Time{}) // test nil equal
 	imgs := []Info{imA, imB, imC, imD, imE, imF}
 	Sort(imgs, NewerByCreated)
@@ -204,7 +256,7 @@ func checkSorted(t *testing.T, imgs []Info) {
 	for i, im := range imgs {
 		if strconv.Itoa(i) != im.ID.Tag {
 			for j, jim := range imgs {
-				t.Logf("%v: %v %s", j, jim.ID.String(), jim.CreatedAt)
+				t.Logf("%v: %v %s", j, jim.ID.String(), jim.CreatedTS())
 			}
 			t.Fatalf("Not sorted in expected order: %#v", imgs)
 		}

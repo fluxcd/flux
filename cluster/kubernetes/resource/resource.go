@@ -23,6 +23,7 @@ type KubeManifest interface {
 	resource.Resource
 	GroupVersion() string
 	GetKind() string
+	GetName() string
 	GetNamespace() string
 	SetNamespace(string)
 }
@@ -57,6 +58,11 @@ func (o baseObject) GetNamespace() string {
 // GetKind implements KubeManifest.GetKind
 func (o baseObject) GetKind() string {
 	return o.Kind
+}
+
+// GetName implements KubeManifest.GetName
+func (o baseObject) GetName() string {
+	return o.Meta.Name
 }
 
 func (o baseObject) ResourceID() flux.ResourceID {

@@ -1,26 +1,29 @@
 package daemon
 
 import (
+	"bytes"
+	"context"
+	"fmt"
 	"io/ioutil"
 	"os"
+	"path"
 	"reflect"
-	"strings"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/go-kit/kit/log"
 
-	"context"
-
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster"
 	"github.com/weaveworks/flux/cluster/kubernetes"
 	"github.com/weaveworks/flux/cluster/kubernetes/testfiles"
+	"github.com/weaveworks/flux/cluster/mock"
 	"github.com/weaveworks/flux/event"
 	"github.com/weaveworks/flux/git"
 	"github.com/weaveworks/flux/git/gittest"
 	"github.com/weaveworks/flux/job"
+	"github.com/weaveworks/flux/manifests"
 	registryMock "github.com/weaveworks/flux/registry/mock"
 )
 
@@ -33,14 +36,14 @@ const (
 )
 
 var (
-	k8s    *cluster.Mock
+	k8s    *mock.Mock
 	events *mockEventWriter
 )
 
 func daemon(t *testing.T) (*Daemon, func()) {
 	repo, repoCleanup := gittest.Repo(t)
 
-	k8s = &cluster.Mock{}
+	k8s = &mock.Mock{}
 	k8s.ExportFunc = func() ([]byte, error) { return nil, nil }
 
 	events = &mockEventWriter{}
@@ -60,7 +63,7 @@ func daemon(t *testing.T) (*Daemon, func()) {
 		UserEmail: gitEmail,
 	}
 
-	manifests := kubernetes.NewManifests(alwaysDefault, log.NewLogfmtLogger(os.Stdout))
+	manifests := kubernetes.NewManifests(kubernetes.ConstNamespacer("default"), log.NewLogfmtLogger(os.Stdout))
 
 	jobs := job.NewQueue(shutdown, wg)
 	d := &Daemon{
@@ -73,7 +76,7 @@ func daemon(t *testing.T) (*Daemon, func()) {
 		JobStatusCache: &job.StatusCache{Size: 100},
 		EventWriter:    events,
 		Logger:         log.NewLogfmtLogger(os.Stdout),
-		LoopVars:       &LoopVars{GitOpTimeout: 5 * time.Second},
+		LoopVars:       &LoopVars{GitTimeout: timeout},
 	}
 	return d, func() {
 		close(shutdown)
@@ -85,8 +88,6 @@ func daemon(t *testing.T) (*Daemon, func()) {
 }
 
 func TestPullAndSync_InitialSync(t *testing.T) {
-	// No tag
-	// No notes
 	d, cleanup := daemon(t)
 	defer cleanup()
 
@@ -102,12 +103,17 @@ func TestPullAndSync_InitialSync(t *testing.T) {
 		syncDef = &def
 		return nil
 	}
-	var (
-		logger                   = log.NewLogfmtLogger(ioutil.Discard)
-		lastKnownSyncTagRev      string
-		warnedAboutSyncTagChange bool
-	)
-	d.doSync(logger, &lastKnownSyncTagRev, &warnedAboutSyncTagChange)
+
+	ctx := context.Background()
+	head, err := d.Repo.BranchHead(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	syncTag := lastKnownSyncTag{logger: d.Logger, syncTag: d.GitConfig.SyncTag}
+
+	if err := d.Sync(ctx, time.Now().UTC(), head, &syncTag); err != nil {
+		t.Error(err)
+	}
 
 	// It applies everything
 	if syncCalled != 1 {
@@ -131,6 +137,7 @@ func TestPullAndSync_InitialSync(t *testing.T) {
 			t.Errorf("Unexpected event workload ids: %#v, expected: %#v", gotResourceIDs, expectedResourceIDs)
 		}
 	}
+
 	// It creates the tag at HEAD
 	if err := d.Repo.Refresh(context.Background()); err != nil {
 		t.Errorf("pulling sync tag: %v", err)
@@ -177,12 +184,14 @@ func TestDoSync_NoNewCommits(t *testing.T) {
 		syncDef = &def
 		return nil
 	}
-	var (
-		logger                   = log.NewLogfmtLogger(ioutil.Discard)
-		lastKnownSyncTagRev      string
-		warnedAboutSyncTagChange bool
-	)
-	if err := d.doSync(logger, &lastKnownSyncTagRev, &warnedAboutSyncTagChange); err != nil {
+
+	head, err := d.Repo.BranchHead(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	syncTag := lastKnownSyncTag{logger: d.Logger, syncTag: d.GitConfig.SyncTag}
+
+	if err := d.Sync(ctx, time.Now().UTC(), head, &syncTag); err != nil {
 		t.Error(err)
 	}
 
@@ -239,17 +248,29 @@ func TestDoSync_WithNewCommit(t *testing.T) {
 			return err
 		}
 		// Push some new changes
-		dirs := checkout.ManifestDirs()
-		err = cluster.UpdateManifest(d.Manifests, checkout.Dir(), dirs, flux.MustParseResourceID("default:deployment/helloworld"), func(def []byte) ([]byte, error) {
-			// A simple modification so we have changes to push
-			return []byte(strings.Replace(string(def), "replicas: 5", "replicas: 4", -1)), nil
-		})
+		cm := manifests.NewRawFiles(checkout.Dir(), checkout.ManifestDirs(), d.Manifests)
+		resourcesByID, err := cm.GetAllResourcesByID(context.TODO())
 		if err != nil {
+			return err
+		}
+		targetResource := "default:deployment/helloworld"
+		res, ok := resourcesByID[targetResource]
+		if !ok {
+			return fmt.Errorf("resource not found: %q", targetResource)
+
+		}
+		absolutePath := path.Join(checkout.Dir(), res.Source())
+		def, err := ioutil.ReadFile(absolutePath)
+		if err != nil {
+			return err
+		}
+		newDef := bytes.Replace(def, []byte("replicas: 5"), []byte("replicas: 4"), -1)
+		if err := ioutil.WriteFile(absolutePath, newDef, 0600); err != nil {
 			return err
 		}
 
 		commitAction := git.CommitAction{Author: "", Message: "test commit"}
-		err = checkout.CommitAndPush(ctx, commitAction, nil)
+		err = checkout.CommitAndPush(ctx, commitAction, nil, false)
 		if err != nil {
 			return err
 		}
@@ -277,12 +298,16 @@ func TestDoSync_WithNewCommit(t *testing.T) {
 		syncDef = &def
 		return nil
 	}
-	var (
-		logger                   = log.NewLogfmtLogger(ioutil.Discard)
-		lastKnownSyncTagRev      string
-		warnedAboutSyncTagChange bool
-	)
-	d.doSync(logger, &lastKnownSyncTagRev, &warnedAboutSyncTagChange)
+
+	head, err := d.Repo.BranchHead(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	syncTag := lastKnownSyncTag{logger: d.Logger, syncTag: d.GitConfig.SyncTag}
+
+	if err := d.Sync(ctx, time.Now().UTC(), head, &syncTag); err != nil {
+		t.Error(err)
+	}
 
 	// It applies everything
 	if syncCalled != 1 {

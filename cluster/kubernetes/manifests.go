@@ -1,6 +1,7 @@
 package kubernetes
 
 import (
+	"bytes"
 	"fmt"
 	"strings"
 
@@ -107,16 +108,60 @@ func (m *manifests) setEffectiveNamespaces(manifests map[string]kresource.KubeMa
 	return result, nil
 }
 
-func (m *manifests) LoadManifests(base string, paths []string) (map[string]resource.Resource, error) {
-	manifests, err := kresource.Load(base, paths)
+func (m *manifests) LoadManifests(baseDir string, paths []string) (map[string]resource.Resource, error) {
+	manifests, err := kresource.Load(baseDir, paths)
 	if err != nil {
 		return nil, err
 	}
 	return m.setEffectiveNamespaces(manifests)
 }
 
-func (m *manifests) UpdateImage(def []byte, id flux.ResourceID, container string, image image.Ref) ([]byte, error) {
+func (m *manifests) ParseManifest(def []byte, source string) (map[string]resource.Resource, error) {
+	resources, err := kresource.ParseMultidoc(def, source)
+	if err != nil {
+		return nil, err
+	}
+	// Note: setEffectiveNamespaces() won't work for CRD instances whose CRD is yet to be created
+	// (due to the CRD not being present in kresources).
+	// We could get out of our way to fix this (or give a better error) but:
+	// 1. With the exception of HelmReleases CRD instances are not workloads anyways.
+	// 2. The problem is eventually fixed by the first successful sync.
+	result, err := m.setEffectiveNamespaces(resources)
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+func (m *manifests) SetWorkloadContainerImage(def []byte, id flux.ResourceID, container string, image image.Ref) ([]byte, error) {
 	return updateWorkload(def, id, container, image)
 }
 
-// UpdatePolicies and ServicesWithPolicies in policies.go
+func (m *manifests) CreateManifestPatch(originalManifests, modifiedManifests []byte, originalSource, modifiedSource string) ([]byte, error) {
+	return createManifestPatch(originalManifests, modifiedManifests, originalSource, modifiedSource)
+}
+
+func (m *manifests) ApplyManifestPatch(originalManifests, patchManifests []byte, originalSource, patchSource string) ([]byte, error) {
+	return applyManifestPatch(originalManifests, patchManifests, originalSource, patchSource)
+}
+
+func (m *manifests) AppendManifestToBuffer(manifest []byte, buffer *bytes.Buffer) error {
+	return appendYAMLToBuffer(manifest, buffer)
+}
+
+func appendYAMLToBuffer(manifest []byte, buffer *bytes.Buffer) error {
+	separator := "---\n"
+	bytes := buffer.Bytes()
+	if len(bytes) > 0 && bytes[len(bytes)-1] != '\n' {
+		separator = "\n---\n"
+	}
+	if _, err := buffer.WriteString(separator); err != nil {
+		return fmt.Errorf("cannot write to internal buffer: %s", err)
+	}
+	if _, err := buffer.Write(manifest); err != nil {
+		return fmt.Errorf("cannot write to internal buffer: %s", err)
+	}
+	return nil
+}
+
+// UpdateWorkloadPolicies in policies.go

@@ -75,8 +75,14 @@ spec:
           secretName: {{ .Values.gpgKeys.secretName }}
           defaultMode: 0400
       {{- end }}
+      {{- if .Values.gpgKeys.configMapName }}
+      - name: gpg-public-keys
+        configMap:
+          name: {{ .Values.gpgKeys.configMapName }}
+          defaultMode: 0400
+      {{- end }}
       {{- if .Values.extraVolumes }}
-{{ toYaml .Values.extraVolumes | indent 8 }}
+{{ toYaml .Values.extraVolumes | indent 6 }}
       {{- end }}
 {{- if .Values.initContainers }}
       initContainers:
@@ -124,7 +130,12 @@ spec:
           {{- end }}
           {{- if .Values.gpgKeys.secretName }}
           - name: gpg-keys
-            mountPath: /root/gpg-import
+            mountPath: /root/gpg-import/private
+            readOnly: true
+          {{- end }}
+          {{- if .Values.gpgKeys.configMapName }}
+          - name: gpg-public-keys
+            mountPath: /root/gpg-import/public
             readOnly: true
           {{- end }}
           {{- if .Values.extraVolumeMounts }}
@@ -137,6 +148,9 @@ spec:
 {{ toYaml .Values.extraEnvs | indent 10 }}
           {{- end }}
           args:
+          {{- if .Values.logFormat }}
+          - --log-format={{ .Values.logFormat }}
+          {{end}}
           - --ssh-keygen-dir=/var/fluxd/keygen
           - --k8s-secret-name={{ .Values.git.secretName | default (printf "%s-git-deploy" (include "flux.fullname" .)) }}
           - --memcached-hostname={{ template "flux.fullname" . }}-memcached
@@ -148,11 +162,18 @@ spec:
           - --git-path={{ .Values.git.path }}
           - --git-user={{ .Values.git.user }}
           - --git-email={{ .Values.git.email }}
-          {{- if .Values.gpgKeys.secretName }}
-          - --git-gpg-key-import=/root/gpg-import
-          {{- end }}
+          {{- if (and .Values.gpgKeys.secretName .Values.gpgKeys.configMapName) }}
+          - --git-gpg-key-import=/root/gpg-import/private,/root/gpg-import/public
+          {{- else if .Values.gpgKeys.secretName }}
+          - --git-gpg-key-import=/root/gpg-import/private
+          {{- else if .Values.gpgKeys.configMapName }}
+          - --git-gpg-key-import=/root/gpg-import/public
+          {{- end -}}
           {{- if .Values.git.signingKey }}
           - --git-signing-key={{ .Values.git.signingKey }}
+          {{- end }}
+          {{- if .Values.git.verifySignatures }}
+          - --git-verify-signatures
           {{- end }}
           - --git-set-author={{ .Values.git.setAuthor }}
           - --git-poll-interval={{ .Values.git.pollInterval }}
@@ -191,14 +212,26 @@ spec:
           - --connect=wss://cloud.weave.works/api/flux
           - --token={{ .Values.token }}
           {{- end }}
-          {{- if .Values.syncGarbageCollection.enabled }}
+          {{- if and .Values.syncGarbageCollection.enabled (not .Values.syncGarbageCollection.dry) }}
           - --sync-garbage-collection={{ .Values.syncGarbageCollection.enabled }}
+          {{- else if .Values.syncGarbageCollection.dry }}
+          - --sync-garbage-collection-dry={{ .Values.syncGarbageCollection.dry }}
           {{- end }}
           {{- if .Values.additionalArgs }}
 {{ toYaml .Values.additionalArgs | indent 10 }}
           {{- end }}
           resources:
 {{ toYaml .Values.resources | indent 12 }}
+{{- if .Values.extraContainers }}
+{{ toYaml .Values.extraContainers | indent 8}}
+{{- end }}
+{{- if .Values.dnsPolicy }}
+      dnsPolicy: {{ .Values.dnsPolicy }}
+{{- end }}
+{{- if .Values.dnsConfig }}
+      dnsConfig:
+{{ toYaml .Values.dnsConfig | indent 8 }}
+{{- end }}
     {{- with .Values.nodeSelector }}
       nodeSelector:
 {{ toYaml . | indent 8 }}

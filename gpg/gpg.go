@@ -16,7 +16,7 @@ import (
 // directory will be imported, but not subdirectories (i.e., no
 // recursion). It returns the basenames of the succesfully imported
 // keys.
-func ImportKeys(src string) ([]string, error) {
+func ImportKeys(src string, trustImportedKeys bool) ([]string, error) {
 	info, err := os.Stat(src)
 	var files []string
 	switch {
@@ -54,6 +54,12 @@ func ImportKeys(src string) ([]string, error) {
 		return imported, fmt.Errorf("errored importing keys: %v", failed)
 	}
 
+	if trustImportedKeys {
+		if err = gpgTrustImportedKeys(); err != nil {
+			return imported, err
+		}
+	}
+
 	return imported, nil
 }
 
@@ -62,6 +68,19 @@ func gpgImport(path string) error {
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("error importing key: %s", string(out))
+	}
+	return nil
+}
+
+func gpgTrustImportedKeys() error {
+	// List imported keys and their fingerprints, grep the fingerprints,
+	// transform them into a format gpg understands, and pipe the output
+	// into --import-ownertrust.
+	arg := `gpg --list-keys --fingerprint | grep pub -A 1 | egrep -Ev "pub|--"|tr -d ' ' | awk 'BEGIN { FS = "\n" } ; { print $1":6:" }' | gpg --import-ownertrust`
+	cmd := exec.Command("sh", "-c", arg)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("error trusting imported keys: %s", string(out))
 	}
 	return nil
 }

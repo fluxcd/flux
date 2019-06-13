@@ -1,0 +1,59 @@
+name: fluxctl
+version-script: |
+  FLUX_TAG="$(git tag -l | egrep -v '^(chart-|helm-|master-|pre-split)' | sort --version-sort | tail -n1)"
+  if [ "$SNAPCRAFT_PROJECT_GRADE" = "stable" ]
+  then
+    echo "$FLUX_TAG"
+  else
+    GIT_REV="$(git rev-parse --short HEAD)"
+    echo "$FLUX_TAG+$GIT_REV"
+  fi
+version: git
+summary: fluxctl talks to Weave Flux and helps you deploy your code
+description: |
+  fluxctl talks to your Weave Flux instance and exposes all its
+  functionality to an easy to use command line interface.
+grade: devel # must be 'stable' to release into candidate/stable channels
+confinement: strict
+base: core18
+
+parts:
+  launcher:
+    source: snap/local
+    source-type: local
+    plugin: dump
+    organize:
+      '*': bin/
+    override-stage: |
+      cd $SNAPCRAFT_PART_INSTALL
+      chmod +x bin/fluxctl-launch
+      snapcraftctl stage
+  fluxctl:
+    source: .
+    plugin: go
+    go-importpath: github.com/weaveworks/flux
+    build-packages:
+      - gcc
+    stage:
+      - -bin/fluxd
+      - -bin/helm-operator
+    organize:
+      bin/fluxctl: bin/fluxctl.real
+    after: [launcher]
+
+plugs:
+  kube-config:
+    interface: personal-files
+    read:
+    - $HOME/.kube/config
+    - $HOME/.minikube/client.key
+    - $HOME/.minikube/client.crt
+    - $HOME/.minikube/ca.crt
+
+apps:
+  fluxctl:
+    command: bin/fluxctl-launch
+    plugs:
+    - kube-config
+    - network
+    - network-bind

@@ -36,9 +36,9 @@ type Checkout struct {
 }
 
 type Commit struct {
-	SigningKey string
-	Revision   string
-	Message    string
+	Signature Signature
+	Revision  string
+	Message   string
 }
 
 // CommitAction - struct holding commit information
@@ -126,8 +126,14 @@ func (c *Checkout) ManifestDirs() []string {
 
 // CommitAndPush commits changes made in this checkout, along with any
 // extra data as a note, and pushes the commit and note to the remote repo.
-func (c *Checkout) CommitAndPush(ctx context.Context, commitAction CommitAction, note interface{}) error {
-	if !check(ctx, c.dir, c.config.Paths) {
+func (c *Checkout) CommitAndPush(ctx context.Context, commitAction CommitAction, note interface{}, addUntracked bool) error {
+	if addUntracked {
+		if err := add(ctx, c.dir, "."); err != nil {
+			return err
+		}
+	}
+
+	if !check(ctx, c.dir, c.config.Paths, addUntracked) {
 		return ErrNoChanges
 	}
 
@@ -184,7 +190,7 @@ func (c *Checkout) MoveSyncTagAndPush(ctx context.Context, tagAction TagAction) 
 	return moveTagAndPush(ctx, c.dir, c.config.SyncTag, c.upstream.URL, tagAction)
 }
 
-func (c *Checkout) VerifySyncTag(ctx context.Context) error {
+func (c *Checkout) VerifySyncTag(ctx context.Context) (string, error) {
 	return verifyTag(ctx, c.dir, c.config.SyncTag)
 }
 
@@ -201,4 +207,12 @@ func (c *Checkout) ChangedFiles(ctx context.Context, ref string) ([]string, erro
 
 func (c *Checkout) NoteRevList(ctx context.Context) (map[string]struct{}, error) {
 	return noteRevList(ctx, c.dir, c.realNotesRef)
+}
+
+func (c *Checkout) Checkout(ctx context.Context, rev string) error {
+	return checkout(ctx, c.dir, rev)
+}
+
+func (c *Checkout) Add(ctx context.Context, path string) error {
+	return add(ctx, c.dir, path)
 }

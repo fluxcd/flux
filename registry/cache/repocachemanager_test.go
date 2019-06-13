@@ -14,11 +14,10 @@ import (
 
 	"github.com/weaveworks/flux/image"
 	"github.com/weaveworks/flux/registry"
-	"github.com/weaveworks/flux/registry/middleware"
 )
 
 func Test_ClientTimeouts(t *testing.T) {
-	timeout := 2 * time.Millisecond
+	timeout := 1 * time.Millisecond
 	server := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
 		// make sure we exceed the timeout
 		time.Sleep(timeout * 10)
@@ -28,12 +27,8 @@ func Test_ClientTimeouts(t *testing.T) {
 	assert.NoError(t, err)
 	logger := log.NewLogfmtLogger(os.Stdout)
 	cf := &registry.RemoteClientFactory{
-		Logger: log.NewLogfmtLogger(os.Stdout),
-		Limiters: &middleware.RateLimiters{
-			RPS:    100,
-			Burst:  100,
-			Logger: logger,
-		},
+		Logger:        log.NewLogfmtLogger(os.Stdout),
+		Limiters:      nil,
 		Trace:         false,
 		InsecureHosts: []string{url.Host},
 	}
@@ -47,7 +42,7 @@ func Test_ClientTimeouts(t *testing.T) {
 		cf,
 		registry.NoCredentials(),
 		timeout,
-		100,
+		1,
 		false,
 		logger,
 		nil,
@@ -55,5 +50,5 @@ func Test_ClientTimeouts(t *testing.T) {
 	assert.NoError(t, err)
 	_, err = rcm.getTags(context.Background())
 	assert.Error(t, err)
-	assert.Equal(t, "client timeout (2ms) exceeded", err.Error())
+	assert.Equal(t, "client timeout (1ms) exceeded", err.Error())
 }

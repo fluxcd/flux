@@ -62,12 +62,14 @@ func (c *Cluster) Sync(syncSet cluster.SyncSet) error {
 
 	cs := makeChangeSet()
 	var errs cluster.SyncError
+	var excluded []string
 	for _, res := range syncSet.Resources {
 		resID := res.ResourceID()
+		id := resID.String()
 		if !c.IsAllowedResource(resID) {
+			excluded = append(excluded, id)
 			continue
 		}
-		id := resID.String()
 		// make a record of the checksum, whether we stage it to
 		// be applied or not, so that we don't delete it later.
 		csum := sha1.Sum(res.Bytes())
@@ -93,6 +95,10 @@ func (c *Cluster) Sync(syncSet cluster.SyncSet) error {
 		}
 	}
 
+	if len(excluded) > 0 {
+		logger.Log("warning", "not applying resources; excluded by namespace constraints", "resources", strings.Join(excluded, ","))
+	}
+
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.muSyncErrors.RLock()
@@ -101,8 +107,8 @@ func (c *Cluster) Sync(syncSet cluster.SyncSet) error {
 	}
 	c.muSyncErrors.RUnlock()
 
-	if c.GC {
-		deleteErrs, gcFailure := c.collectGarbage(syncSet, checksums, logger)
+	if c.GC || c.DryGC {
+		deleteErrs, gcFailure := c.collectGarbage(syncSet, checksums, logger, c.DryGC)
 		if gcFailure != nil {
 			return gcFailure
 		}
@@ -123,7 +129,8 @@ func (c *Cluster) Sync(syncSet cluster.SyncSet) error {
 func (c *Cluster) collectGarbage(
 	syncSet cluster.SyncSet,
 	checksums map[string]string,
-	logger log.Logger) (cluster.SyncError, error) {
+	logger log.Logger,
+	dryRun bool) (cluster.SyncError, error) {
 
 	orphanedResources := makeChangeSet()
 
@@ -138,10 +145,12 @@ func (c *Cluster) collectGarbage(
 
 		switch {
 		case !ok: // was not recorded as having been staged for application
-			c.logger.Log("info", "cluster resource not in resources to be synced; deleting", "resource", resourceID)
-			orphanedResources.stage("delete", res.ResourceID(), "<cluster>", res.IdentifyingBytes())
+			c.logger.Log("info", "cluster resource not in resources to be synced; deleting", "dry-run", dryRun, "resource", resourceID)
+			if !dryRun {
+				orphanedResources.stage("delete", res.ResourceID(), "<cluster>", res.IdentifyingBytes())
+			}
 		case actual != expected:
-			c.logger.Log("warning", "resource to be synced has not been updated; skipping", "resource", resourceID)
+			c.logger.Log("warning", "resource to be synced has not been updated; skipping", "dry-run", dryRun, "resource", resourceID)
 			continue
 		default:
 			// The checksum is the same, indicating that it was
@@ -206,7 +215,7 @@ func (c *Cluster) getAllowedResourcesBySelector(selector string) (map[string]*ku
 			return nil, err
 		}
 		for gv, e := range discErr.Groups {
-			if strings.HasSuffix(gv.Group, "metrics.k8s.io") {
+			if gv.Group == "metrics" || strings.HasSuffix(gv.Group, "metrics.k8s.io") {
 				// The Metrics API tends to be misconfigured, causing errors.
 				// We just ignore them, since it doesn't make sense to sync metrics anyways.
 				continue
@@ -540,8 +549,7 @@ func (c *Kubectl) doCommand(logger log.Logger, r io.Reader, args ...string) erro
 func makeMultidoc(objs []applyObject) *bytes.Buffer {
 	buf := &bytes.Buffer{}
 	for _, obj := range objs {
-		buf.WriteString("\n---\n")
-		buf.Write(obj.Payload)
+		appendYAMLToBuffer(obj.Payload, buf)
 	}
 	return buf
 }

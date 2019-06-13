@@ -13,6 +13,7 @@ import (
 
 	"github.com/go-kit/kit/log"
 	"github.com/stretchr/testify/assert"
+
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/api/v10"
 	"github.com/weaveworks/flux/api/v11"
@@ -20,12 +21,13 @@ import (
 	"github.com/weaveworks/flux/api/v9"
 	"github.com/weaveworks/flux/cluster"
 	"github.com/weaveworks/flux/cluster/kubernetes"
-	kresource "github.com/weaveworks/flux/cluster/kubernetes/resource"
+	"github.com/weaveworks/flux/cluster/mock"
 	"github.com/weaveworks/flux/event"
 	"github.com/weaveworks/flux/git"
 	"github.com/weaveworks/flux/git/gittest"
 	"github.com/weaveworks/flux/image"
 	"github.com/weaveworks/flux/job"
+	"github.com/weaveworks/flux/manifests"
 	"github.com/weaveworks/flux/policy"
 	"github.com/weaveworks/flux/registry"
 	registryMock "github.com/weaveworks/flux/registry/mock"
@@ -514,8 +516,8 @@ func TestDaemon_PolicyUpdate(t *testing.T) {
 			return false
 		}
 		defer co.Clean()
-		dirs := co.ManifestDirs()
-		m, err := d.Manifests.LoadManifests(co.Dir(), dirs)
+		cm := manifests.NewRawFiles(co.Dir(), co.ManifestDirs(), d.Manifests)
+		m, err := cm.GetAllResourcesByID(context.TODO())
 		if err != nil {
 			t.Fatalf("Error: %s", err.Error())
 		}
@@ -632,17 +634,7 @@ func mustParseImageRef(ref string) image.Ref {
 	return r
 }
 
-type anonNamespacer func(kresource.KubeManifest) string
-
-func (fn anonNamespacer) EffectiveNamespace(m kresource.KubeManifest, _ kubernetes.ResourceScopes) (string, error) {
-	return fn(m), nil
-}
-
-var alwaysDefault anonNamespacer = func(kresource.KubeManifest) string {
-	return "default"
-}
-
-func mockDaemon(t *testing.T) (*Daemon, func(), func(), *cluster.Mock, *mockEventWriter, func(func())) {
+func mockDaemon(t *testing.T) (*Daemon, func(), func(), *mock.Mock, *mockEventWriter, func(func())) {
 	logger := log.NewNopLogger()
 
 	singleService := cluster.Workload{
@@ -680,9 +672,9 @@ func mockDaemon(t *testing.T) (*Daemon, func(), func(), *cluster.Mock, *mockEven
 		NotesRef:  "fluxtest",
 	}
 
-	var k8s *cluster.Mock
+	var k8s *mock.Mock
 	{
-		k8s = &cluster.Mock{}
+		k8s = &mock.Mock{}
 		k8s.AllWorkloadsFunc = func(maybeNamespace string) ([]cluster.Workload, error) {
 			if maybeNamespace == ns {
 				return []cluster.Workload{
@@ -731,7 +723,7 @@ func mockDaemon(t *testing.T) (*Daemon, func(), func(), *cluster.Mock, *mockEven
 	// Jobs queue (starts itself)
 	jobs := job.NewQueue(jshutdown, jwg)
 
-	manifests := kubernetes.NewManifests(alwaysDefault, log.NewLogfmtLogger(os.Stdout))
+	manifests := kubernetes.NewManifests(kubernetes.ConstNamespacer("default"), log.NewLogfmtLogger(os.Stdout))
 
 	// Finally, the daemon
 	d := &Daemon{
@@ -745,7 +737,7 @@ func mockDaemon(t *testing.T) (*Daemon, func(), func(), *cluster.Mock, *mockEven
 		JobStatusCache: &job.StatusCache{Size: 100},
 		EventWriter:    events,
 		Logger:         logger,
-		LoopVars:       &LoopVars{GitOpTimeout: timeout},
+		LoopVars:       &LoopVars{GitTimeout: timeout},
 	}
 
 	start := func() {
@@ -865,9 +857,8 @@ func (w *wait) ForImageTag(t *testing.T, d *Daemon, workload, container, tag str
 			return false
 		}
 		defer co.Clean()
-
-		dirs := co.ManifestDirs()
-		resources, err := d.Manifests.LoadManifests(co.Dir(), dirs)
+		cm := manifests.NewRawFiles(co.Dir(), co.ManifestDirs(), d.Manifests)
+		resources, err := cm.GetAllResourcesByID(context.TODO())
 		assert.NoError(t, err)
 
 		workload, ok := resources[workload].(resource.Workload)

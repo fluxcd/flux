@@ -62,8 +62,13 @@ If you have never used Helm, you first need to
   Deploy Tiller in the `kube-system` namespace:
 
   ```sh
-  helm init --skip-refresh --upgrade --service-account tiller
+  helm init --skip-refresh --upgrade --service-account tiller --history-max 10
   ```
+
+  > **Note:** This is a quick guide and by no means a production ready
+  > Tiller setup, please look into ['Securing your Helm installation'](https://helm.sh/docs/using_helm/#securing-your-helm-installation)
+  > and be aware of the `--history-max` flag before promoting to
+  > production.
 
 Now you can take care of the actual installation. First add the Flux
 repository of Weaveworks:
@@ -102,7 +107,7 @@ The first step is done. Flux is now and up running (you can confirm by
 running `kubectl get pods --all-namespaces`).
 
 In the second step we will use fluxctl to talk to Flux in the cluster and
-interact with the deployments. First, please [install fluxctl](https://github.com/weaveworks/flux/blob/master/site/fluxctl.md#installing-fluxctl).
+interact with the deployments. First, please [install fluxctl](fluxctl.md#installing-fluxctl).
 (It enables you to drive all of Weave Flux, so have a look at the output of
 `fluxctl -h` to get a better idea.)
 
@@ -204,10 +209,33 @@ In our case this is `1.4.2` (it could be a later image too). Let's say an
 engineer found that `1.4.2` was faulty and we have to go back to `1.4.1`.
 That's easy.
 
-Rollback to `1.4.1`:
+Lock deployment with a message describing why:
 
 ```sh
-fluxctl release --workload demo:deployment/podinfo -i stefanprodan/podinfo:1.4.1
+fluxctl lock -w demo:deployment/podinfo -m "1.4.2 does not work for us"
+```
+
+The resulting diff should look like this
+
+```diff
+--- a/workloads/podinfo-dep.yaml
++++ b/workloads/podinfo-dep.yaml
+@@ -10,6 +10,7 @@ metadata:
+     app: podinfo
+   annotations:
+     flux.weave.works/automated: "true"
+     flux.weave.works/tag.init: glob:1.4.*
+     flux.weave.works/tag.podinfod: glob:1.4.*
++    flux.weave.works/locked: 'true'
+ spec:
+   strategy:
+     rollingUpdate:
+```
+
+Rollback to `1.4.1`. Flag `--force` is needed because the workload is locked:
+
+```sh
+fluxctl release --force --workload demo:deployment/podinfo -i stefanprodan/podinfo:1.4.1
 ```
 
 The response should be
@@ -234,29 +262,6 @@ and the diff for this is going to look like this:
          imagePullPolicy: IfNotPresent
          ports:
          - containerPort: 9898
-```
-
-Lock to `1.4.1` with a message describing why:
-
-```sh
-fluxctl lock -w demo:deployment/podinfo -m "1.4.2 does not work for us"
-```
-
-The resulting diff should look like this
-
-```diff
---- a/workloads/podinfo-dep.yaml
-+++ b/workloads/podinfo-dep.yaml
-@@ -10,6 +10,7 @@ metadata:
-     app: podinfo
-   annotations:
-     flux.weave.works/automated: "true"
-     flux.weave.works/tag.init: glob:1.4.*
-     flux.weave.works/tag.podinfod: glob:1.4.*
-+    flux.weave.works/locked: 'true'
- spec:
-   strategy:
-     rollingUpdate:
 ```
 
 And that's it. At the end of this tutorial, you have automated, locked and

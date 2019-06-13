@@ -5,9 +5,11 @@ token: ""
 
 replicaCount: 1
 
+logFormat: fmt
+
 image:
   repository: docker.io/weaveworks/flux
-  tag: 1.12.2
+  tag: 1.12.3
   pullPolicy: IfNotPresent
   pullSecret:
 
@@ -20,7 +22,7 @@ helmOperator:
   create: false
   createCRD: true
   repository: docker.io/weaveworks/helm-operator
-  tag: 0.9.0
+  tag: 0.9.2
   pullPolicy: IfNotPresent
   pullSecret:
   # Limit the operator scope to a single namespace
@@ -104,9 +106,21 @@ extraVolumeMounts: []
 
 extraVolumes: []
 
+# Optional DNS settings, configuring the ndots option may resolve
+# nslookup issues on some Kubernetes setups.
+# dnsPolicy: "None"
+# dnsConfig:
+#   options:
+#     - name: ndots
+#       value: "1"
+
 gpgKeys:
   # These keys will be imported into GPG in the Flux container.
   secretName: ""
+  # These keys will be imported into GPG in the Flux container.
+  # NB: should only be used for public keys used to verify the
+  # signatures of commits.
+  configMapName: ""
 
 git:
   # URL of git repo with Kubernetes manifests; e.g. git.url=ssh://git@github.com/weaveworks/flux-get-started
@@ -121,6 +135,8 @@ git:
   email: "support@weave.works"
   # If set, commits will be signed with this GPG key.
   signingKey: ""
+  # If set, the signatures of the sync tag and commits will be verified.
+  verifySignatures: false
   # If set, the author of git commits will reflect the user who initiated the commit and will differ from the git committer.
   setAuthor: false
   # Label to keep track of sync progress
@@ -177,12 +193,16 @@ registry:
 
 memcached:
   repository: memcached
-  tag: 1.4.25
+  tag: 1.5.15
   pullSecret:
   createClusterIP: true
   verbose: false
   maxItemSize: 5m
   maxMemory: 512
+  securityContext:
+    runAsUser: 11211
+    runAsGroup: 11211
+    allowPrivilegeEscalation: false
   nodeSelector: {}
   tolerations: []
   affinity: {}
@@ -231,6 +251,7 @@ prometheus:
 
 syncGarbageCollection:
   enabled: false
+  dry: false
 
 # Add your own init container or uncomment and modify the given example.
 initContainers: {}
@@ -241,3 +262,6 @@ initContainers: {}
 #     volumeMounts:
 #       - mountPath: /tmp/flux-deploy-key
 #         name: flux-deploy-key
+
+# Additional containers to be added to the flux pod.
+extraContainers: []

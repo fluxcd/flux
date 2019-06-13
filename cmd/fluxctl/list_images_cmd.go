@@ -130,11 +130,19 @@ func (opts *imageListOpts) RunE(cmd *cobra.Command, args []string) error {
 				}
 				if printLine {
 					createdAt := ""
-					if !available.CreatedAt.IsZero() {
-						createdAt = available.CreatedAt.Format(time.RFC822)
+					if !available.CreatedTS().IsZero() {
+						createdAt = available.CreatedTS().Format(time.RFC822)
 					}
 					fmt.Fprintf(out, "\t\t%s %s\t%s\n", running, tag, createdAt)
 				}
+			}
+			if !foundRunning {
+				running := "'->"
+				if currentTag == "" {
+					currentTag = "(untagged)"
+				}
+				fmt.Fprintf(out, "\t\t%s %s\t%s\n", running, currentTag, "?")
+
 			}
 			workloadName = ""
 		}

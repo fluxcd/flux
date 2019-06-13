@@ -188,12 +188,17 @@ The following tables lists the configurable parameters of the Weave Flux chart a
 | `replicaCount`                                    | `1`                                                  | Number of Flux pods to deploy, more than one is not desirable.
 | `image.pullPolicy`                                | `IfNotPresent`                                       | Image pull policy
 | `image.pullSecret`                                | `None`                                               | Image pull secret
+| `logFormat`                                       | `fmt`                                                | Log format (fmt or json)
 | `resources.requests.cpu`                          | `50m`                                                | CPU resource requests for the Flux deployment
 | `resources.requests.memory`                       | `64Mi`                                               | Memory resource requests for the Flux deployment
 | `resources.limits`                                | `None`                                               | CPU/memory resource limits for the Flux deployment
 | `nodeSelector`                                    | `{}`                                                 | Node Selector properties for the Flux deployment
 | `tolerations`                                     | `[]`                                                 | Tolerations properties for the Flux deployment
 | `affinity`                                        | `{}`                                                 | Affinity properties for the Flux deployment
+| `extraVolumeMounts`                               | `[]`                                                 | Extra volumes mounts
+| `extraVolumes`                                    | `[]`                                                 | Extra volumes
+| `dnsPolicy`                                       | ``                                                   | Pod DNS policy
+| `dnsConfig`                                       | ``                                                   | Pod DNS config
 | `token`                                           | `None`                                               | Weave Cloud service token
 | `extraEnvs`                                       | `[]`                                                 | Extra environment variables for the Flux pod(s)
 | `rbac.create`                                     | `true`                                               | If `true`, create and use RBAC resources
@@ -208,20 +213,22 @@ The following tables lists the configurable parameters of the Weave Flux chart a
 | `git.email`                                       | `support@weave.works`                                | Email to use as git committer
 | `git.setAuthor`                                   | `false`                                              | If set, the author of git commits will reflect the user who initiated the commit and will differ from the git committer.
 | `git.signingKey`                                  | `None`                                               | If set, commits will be signed with this GPG key
+| `git.verifySignatures`                            | `false`                                              | If set, the signatures of the sync tag and commits will be verified
 | `git.label`                                       | `flux-sync`                                          | Label to keep track of sync progress, used to tag the Git branch
 | `git.ciSkip`                                      | `false`                                              | Append "[ci skip]" to commit messages so that CI will skip builds
 | `git.pollInterval`                                | `5m`                                                 | Period at which to poll git repo for new commits
 | `git.timeout`                                     | `20s`                                                | Duration after which git operations time out
-| `git.secretName`                                  | `None`                                               | Kubernetes secret with the SSH private key. Superceded by `helmOperator.git.secretName` if set.
+| `git.secretName`                                  | `None`                                               | Kubernetes secret with the SSH private key. Superseded by `helmOperator.git.secretName` if set.
 | `git.config.enabled`                              | `false`                                              | Mount `$HOME/.gitconfig` via Secret into the Flux and HelmOperator Pods, allowing for custom global Git configuration
 | `git.config.secretName`                           | `Computed`                                           | Kubernetes secret with the global Git configuration
 | `git.config.data`                                 | `None`                                               | Global Git configuration per [git-config](https://git-scm.com/docs/git-config)
 | `gpgKeys.secretName`                              | `None`                                               | Kubernetes secret with GPG keys the Flux daemon should import
+| `gpgKeys.configMapName`                           | `None`                                               | Kubernetes config map with public GPG keys the Flux daemon should import
 | `ssh.known_hosts`                                 | `None`                                               | The contents of an SSH `known_hosts` file, if you need to supply host key(s)
 | `registry.pollInterval`                           | `5m`                                                 | Period at which to check for updated images
 | `registry.rps`                                    | `200`                                                | Maximum registry requests per second per host
 | `registry.burst`                                  | `125`                                                | Maximum number of warmer connections to remote and memcache
-| `registry.trace`                                  | `false`                                              |  Output trace of image registry requests to log
+| `registry.trace`                                  | `false`                                              | Output trace of image registry requests to log
 | `registry.insecureHosts`                          | `None`                                               | Use HTTP rather than HTTPS for the image registry domains
 | `registry.cacheExpiry`                            | `None`                                               | Duration to keep cached image info (deprecated)
 | `registry.excludeImage`                           | `None`                                               | Do not scan images that match these glob expressions; if empty, 'k8s.gcr.io/*' images are excluded
@@ -240,6 +247,7 @@ The following tables lists the configurable parameters of the Weave Flux chart a
 | `memcached.pullSecret`                            | `None`                                               | Image pull secret
 | `memcached.repository`                            | `memcached`                                          | Image repository
 | `memcached.resources`                             | `None`                                               | CPU/memory resource requests/limits for memcached
+| `memcached.securityContext`                       | [See values.yaml](/chart/flux/values.yaml#L192-L195) | Container security context for memcached
 | `helmOperator.create`                             | `false`                                              | If `true`, install the Helm operator
 | `helmOperator.createCRD`                          | `true`                                               | Create the `v1beta1` and `v1alpha2` Flux CRDs. Dependent on `helmOperator.create=true`
 | `helmOperator.repository`                         | `docker.io/weaveworks/helm-operator`                 | Helm operator image repository
@@ -277,6 +285,7 @@ The following tables lists the configurable parameters of the Weave Flux chart a
 | `kube.config`                                     | [See values.yaml](/chart/flux/values.yaml#L151-L165) | Override for kubectl default config in the Flux pod(s).
 | `prometheus.enabled`                              | `false`                                              | If enabled, adds prometheus annotations to Flux and helmOperator pod(s)
 | `syncGarbageCollection.enabled`                   | `false`                                              | If enabled, fluxd will delete resources that it created, but are no longer present in git (experimental, see [garbage collection](/site/garbagecollection.md))
+| `syncGarbageCollection.dry`                       | `false`                                              | If enabled, fluxd won't delete any resources, but log the garbage collection output (experimental, see [garbage collection](/site/garbagecollection.md))
 
 Specify each parameter using the `--set key=value[,key=value]` argument to `helm install`. For example:
 

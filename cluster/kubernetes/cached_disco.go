@@ -60,33 +60,6 @@ func (d *cachedDiscovery) ServerResourcesForGroupVersion(groupVersion string) (*
 // the only avenue of a change to the API resources in a running
 // system is CRDs being added, updated or deleted.
 func MakeCachedDiscovery(d discovery.DiscoveryInterface, c crd.Interface, shutdown <-chan struct{}) discovery.CachedDiscoveryInterface {
-	result, _, _ := makeCachedDiscovery(d, c, shutdown, makeInvalidatingHandler)
-	return result
-}
-
-// ---
-
-func makeInvalidatingHandler(cached discovery.CachedDiscoveryInterface) toolscache.ResourceEventHandler {
-	var handler toolscache.ResourceEventHandler = toolscache.ResourceEventHandlerFuncs{
-		AddFunc: func(_ interface{}) {
-			cached.Invalidate()
-		},
-		UpdateFunc: func(_, _ interface{}) {
-			cached.Invalidate()
-		},
-		DeleteFunc: func(_ interface{}) {
-			cached.Invalidate()
-		},
-	}
-	return handler
-}
-
-type makeHandle func(discovery.CachedDiscoveryInterface) toolscache.ResourceEventHandler
-
-// makeCachedDiscovery constructs a cached discovery client, with more
-// flexibility than MakeCachedDiscovery; e.g., with extra handlers for
-// testing.
-func makeCachedDiscovery(d discovery.DiscoveryInterface, c crd.Interface, shutdown <-chan struct{}, handlerFn makeHandle) (*cachedDiscovery, toolscache.Store, toolscache.Controller) {
 	cachedDisco := &cachedDiscovery{CachedDiscoveryInterface: memory.NewMemCacheClient(d)}
 	// We have an empty cache, so it's _a priori_ invalid. (Yes, that's the zero value, but better safe than sorry)
 	cachedDisco.Invalidate()
@@ -100,12 +73,21 @@ func makeCachedDiscovery(d discovery.DiscoveryInterface, c crd.Interface, shutdo
 			return crdClient.Watch(options)
 		},
 	}
-
-	handler := handlerFn(cachedDisco)
-	store, controller := toolscache.NewInformer(lw, &crdv1beta1.CustomResourceDefinition{}, 0, handler)
+	handle := toolscache.ResourceEventHandlerFuncs{
+		AddFunc: func(_ interface{}) {
+			cachedDisco.Invalidate()
+		},
+		UpdateFunc: func(_, _ interface{}) {
+			cachedDisco.Invalidate()
+		},
+		DeleteFunc: func(_ interface{}) {
+			cachedDisco.Invalidate()
+		},
+	}
+	_, controller := toolscache.NewInformer(lw, &crdv1beta1.CustomResourceDefinition{}, 0, handle)
 	go cachedDisco.invalidatePeriodically(shutdown)
 	go controller.Run(shutdown)
-	return cachedDisco, store, controller
+	return cachedDisco
 }
 
 func (d *cachedDiscovery) invalidatePeriodically(shutdown <-chan struct{}) {

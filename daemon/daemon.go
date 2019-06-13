@@ -23,6 +23,7 @@ import (
 	"github.com/weaveworks/flux/guid"
 	"github.com/weaveworks/flux/image"
 	"github.com/weaveworks/flux/job"
+	"github.com/weaveworks/flux/manifests"
 	"github.com/weaveworks/flux/policy"
 	"github.com/weaveworks/flux/registry"
 	"github.com/weaveworks/flux/release"
@@ -42,17 +43,18 @@ const (
 // Daemon is the fully-functional state of a daemon (compare to
 // `NotReadyDaemon`).
 type Daemon struct {
-	V              string
-	Cluster        cluster.Cluster
-	Manifests      cluster.Manifests
-	Registry       registry.Registry
-	ImageRefresh   chan image.Name
-	Repo           *git.Repo
-	GitConfig      git.Config
-	Jobs           *job.Queue
-	JobStatusCache *job.StatusCache
-	EventWriter    event.EventWriter
-	Logger         log.Logger
+	V                         string
+	Cluster                   cluster.Cluster
+	Manifests                 manifests.Manifests
+	Registry                  registry.Registry
+	ImageRefresh              chan image.Name
+	Repo                      *git.Repo
+	GitConfig                 git.Config
+	Jobs                      *job.Queue
+	JobStatusCache            *job.StatusCache
+	EventWriter               event.EventWriter
+	Logger                    log.Logger
+	ManifestGenerationEnabled bool
 	// bookkeeping
 	*LoopVars
 }
@@ -72,12 +74,22 @@ func (d *Daemon) Export(ctx context.Context) ([]byte, error) {
 	return d.Cluster.Export()
 }
 
+func (d *Daemon) getManifestStore(checkout *git.Checkout) (manifests.Store, error) {
+	if d.ManifestGenerationEnabled {
+		return manifests.NewConfigAware(checkout.Dir(), checkout.ManifestDirs(), d.Manifests)
+	}
+	return manifests.NewRawFiles(checkout.Dir(), checkout.ManifestDirs(), d.Manifests), nil
+}
+
 func (d *Daemon) getResources(ctx context.Context) (map[string]resource.Resource, v6.ReadOnlyReason, error) {
 	var resources map[string]resource.Resource
 	var globalReadOnly v6.ReadOnlyReason
 	err := d.WithClone(ctx, func(checkout *git.Checkout) error {
-		var err error
-		resources, err = d.Manifests.LoadManifests(checkout.Dir(), checkout.ManifestDirs())
+		cm, err := d.getManifestStore(checkout)
+		if err != nil {
+			return err
+		}
+		resources, err = cm.GetAllResourcesByID(ctx)
 		return err
 	})
 
@@ -236,6 +248,9 @@ func (d *Daemon) makeJobFromUpdate(update updateFunc) jobFunc {
 		var result job.Result
 		err := d.WithClone(ctx, func(working *git.Checkout) error {
 			var err error
+			if err = verifyWorkingRepo(ctx, d.Repo, working, d.GitConfig); d.GitVerifySignatures && err != nil {
+				return err
+			}
 			result, err = update(ctx, jobID, working, logger)
 			if err != nil {
 				return err
@@ -257,7 +272,7 @@ func (d *Daemon) executeJob(id job.ID, do jobFunc, logger log.Logger) (job.Resul
 	d.JobStatusCache.SetStatus(id, job.Status{StatusString: job.StatusRunning})
 	result, err := do(ctx, id, logger)
 	if err != nil {
-		d.JobStatusCache.SetStatus(id, job.Status{StatusString: job.StatusFailed, Err: err.Error()})
+		d.JobStatusCache.SetStatus(id, job.Status{StatusString: job.StatusFailed, Err: err.Error(), Result: result})
 		return result, err
 	}
 	d.JobStatusCache.SetStatus(id, job.Status{StatusString: job.StatusSucceeded, Result: result})
@@ -336,7 +351,7 @@ func (d *Daemon) UpdateManifests(ctx context.Context, spec update.Spec) (job.ID,
 		}
 		return d.queueJob(d.makeLoggingJobFunc(d.makeJobFromUpdate(d.release(spec, s)))), nil
 	case policy.Updates:
-		return d.queueJob(d.makeLoggingJobFunc(d.makeJobFromUpdate(d.updatePolicy(spec, s)))), nil
+		return d.queueJob(d.makeLoggingJobFunc(d.makeJobFromUpdate(d.updatePolicies(spec, s)))), nil
 	case update.ManualSync:
 		return d.queueJob(d.sync()), nil
 	default:
@@ -353,16 +368,29 @@ func (d *Daemon) sync() jobFunc {
 		if err != nil {
 			return result, err
 		}
-		head, err := d.Repo.Revision(ctx, d.GitConfig.Branch)
+		head, err := d.Repo.BranchHead(ctx)
 		if err != nil {
 			return result, err
 		}
+		if d.GitVerifySignatures {
+			var latestValidRev string
+			if latestValidRev, _, err = latestValidRevision(ctx, d.Repo, d.GitConfig); err != nil {
+				return result, err
+			} else if head != latestValidRev {
+				result.Revision = latestValidRev
+				return result, fmt.Errorf(
+					"The branch HEAD in the git repo is not verified, and fluxd is unable to sync to it. The last verified commit was %.8s. HEAD is %.8s.",
+					latestValidRev,
+					head,
+				)
+			}
+		}
 		result.Revision = head
-		return result, nil
+		return result, err
 	}
 }
 
-func (d *Daemon) updatePolicy(spec update.Spec, updates policy.Updates) updateFunc {
+func (d *Daemon) updatePolicies(spec update.Spec, updates policy.Updates) updateFunc {
 	return func(ctx context.Context, jobID job.ID, working *git.Checkout, logger log.Logger) (job.Result, error) {
 		// For each update
 		var workloadIDs []flux.ResourceID
@@ -385,37 +413,34 @@ func (d *Daemon) updatePolicy(spec update.Spec, updates policy.Updates) updateFu
 			if policy.Set(u.Add).Has(policy.Automated) {
 				anythingAutomated = true
 			}
-			// find the workload manifest
-			err := cluster.UpdateManifest(d.Manifests, working.Dir(), working.ManifestDirs(), workloadID, func(def []byte) ([]byte, error) {
-				newDef, err := d.Manifests.UpdatePolicies(def, workloadID, u)
-				if err != nil {
-					result.Result[workloadID] = update.WorkloadResult{
-						Status: update.ReleaseStatusFailed,
-						Error:  err.Error(),
-					}
-					return nil, err
-				}
-				if string(newDef) == string(def) {
-					result.Result[workloadID] = update.WorkloadResult{
-						Status: update.ReleaseStatusSkipped,
-					}
-				} else {
-					workloadIDs = append(workloadIDs, workloadID)
-					result.Result[workloadID] = update.WorkloadResult{
-						Status: update.ReleaseStatusSuccess,
-					}
-				}
-				return newDef, nil
-			})
+			cm, err := d.getManifestStore(working)
 			if err != nil {
+				return result, err
+			}
+			updated, err := cm.UpdateWorkloadPolicies(ctx, workloadID, u)
+			if err != nil {
+				result.Result[workloadID] = update.WorkloadResult{
+					Status: update.ReleaseStatusFailed,
+					Error:  err.Error(),
+				}
 				switch err := err.(type) {
-				case cluster.ManifestError:
+				case manifests.StoreError:
 					result.Result[workloadID] = update.WorkloadResult{
 						Status: update.ReleaseStatusFailed,
 						Error:  err.Error(),
 					}
 				default:
 					return result, err
+				}
+			}
+			if !updated {
+				result.Result[workloadID] = update.WorkloadResult{
+					Status: update.ReleaseStatusSkipped,
+				}
+			} else {
+				workloadIDs = append(workloadIDs, workloadID)
+				result.Result[workloadID] = update.WorkloadResult{
+					Status: update.ReleaseStatusSuccess,
 				}
 			}
 		}
@@ -431,7 +456,7 @@ func (d *Daemon) updatePolicy(spec update.Spec, updates policy.Updates) updateFu
 			Author:  commitAuthor,
 			Message: policyCommitMessage(updates, spec.Cause),
 		}
-		if err := working.CommitAndPush(ctx, commitAction, &note{JobID: jobID, Spec: spec}); err != nil {
+		if err := working.CommitAndPush(ctx, commitAction, &note{JobID: jobID, Spec: spec}, d.ManifestGenerationEnabled); err != nil {
 			// On the chance pushing failed because it was not
 			// possible to fast-forward, ask for a sync so the
 			// next attempt is more likely to succeed.
@@ -453,10 +478,13 @@ func (d *Daemon) updatePolicy(spec update.Spec, updates policy.Updates) updateFu
 
 func (d *Daemon) release(spec update.Spec, c release.Changes) updateFunc {
 	return func(ctx context.Context, jobID job.ID, working *git.Checkout, logger log.Logger) (job.Result, error) {
-		rc := release.NewReleaseContext(d.Cluster, d.Manifests, d.Registry, working)
-		result, err := release.Release(rc, c, logger)
-
 		var zero job.Result
+		rs, err := d.getManifestStore(working)
+		if err != nil {
+			return zero, err
+		}
+		rc := release.NewReleaseContext(d.Cluster, rs, d.Registry)
+		result, err := release.Release(ctx, rc, c, logger)
 		if err != nil {
 			return zero, err
 		}
@@ -476,7 +504,7 @@ func (d *Daemon) release(spec update.Spec, c release.Changes) updateFunc {
 				Author:  commitAuthor,
 				Message: commitMsg,
 			}
-			if err := working.CommitAndPush(ctx, commitAction, &note{JobID: jobID, Spec: spec, Result: result}); err != nil {
+			if err := working.CommitAndPush(ctx, commitAction, &note{JobID: jobID, Spec: spec, Result: result}, d.ManifestGenerationEnabled); err != nil {
 				// On the chance pushing failed because it was not
 				// possible to fast-forward, ask the repo to fetch
 				// from upstream ASAP, so the next attempt is more
@@ -750,4 +778,77 @@ func policyEventTypes(u policy.Update) []string {
 	}
 	sort.Strings(result)
 	return result
+}
+
+// latestValidRevision returns the HEAD of the configured branch if it
+// has a valid signature, or the SHA of the latest valid commit it
+// could find plus the invalid commit thereafter.
+//
+// Signature validation happens for commits between the revision of the
+// sync tag and the HEAD, after the signature of the sync tag itself
+// has been validated, as the branch can not be trusted when the tag
+// originates from an unknown source.
+//
+// In case the signature of the tag can not be verified, or it points
+// towards a revision we can not get a commit range for, it returns an
+// error.
+func latestValidRevision(ctx context.Context, repo *git.Repo, gitConfig git.Config) (string, git.Commit, error) {
+	var invalidCommit = git.Commit{}
+	newRevision, err := repo.BranchHead(ctx)
+	if err != nil {
+		return "", invalidCommit, err
+	}
+
+	// Validate tag and retrieve the revision it points to
+	tagRevision, err := repo.VerifyTag(ctx, gitConfig.SyncTag)
+	if err != nil && !strings.Contains(err.Error(), "not found.") {
+		return "", invalidCommit, errors.Wrap(err, "failed to verify signature of sync tag")
+	}
+
+	var commits []git.Commit
+	if tagRevision == "" {
+		commits, err = repo.CommitsBefore(ctx, newRevision)
+	} else {
+		// Assure the revision from the tag is a signed and valid commit
+		if err = repo.VerifyCommit(ctx, tagRevision); err != nil {
+			return "", invalidCommit, errors.Wrap(err, "failed to verify signature of sync tag revision")
+		}
+		commits, err = repo.CommitsBetween(ctx, tagRevision, newRevision)
+	}
+
+	if err != nil {
+		return tagRevision, invalidCommit, err
+	}
+
+	// Loop through commits in ascending order, validating the
+	// signature of each commit. In case we hit an invalid commit, we
+	// return the revision of the commit before that, as that one is
+	// valid.
+	for i := len(commits) - 1; i >= 0; i-- {
+		if !commits[i].Signature.Valid() {
+			if i+1 < len(commits) {
+				return commits[i+1].Revision, commits[i], nil
+			}
+			return tagRevision, commits[i], nil
+		}
+	}
+
+	return newRevision, invalidCommit, nil
+}
+
+func verifyWorkingRepo(ctx context.Context, repo *git.Repo, working *git.Checkout, gitConfig git.Config) error {
+	if latestVerifiedRev, _, err := latestValidRevision(ctx, repo, gitConfig); err != nil {
+		return err
+	} else if headRev, err := working.HeadRevision(ctx); err != nil {
+		return err
+	} else if headRev != latestVerifiedRev {
+		return unsignedHeadRevisionError(latestVerifiedRev, headRev)
+	}
+	return nil
+}
+
+func isUnknownRevision(err error) bool {
+	return err != nil &&
+		(strings.Contains(err.Error(), "unknown revision or path not in the working tree.") ||
+			strings.Contains(err.Error(), "bad revision"))
 }

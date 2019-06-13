@@ -94,3 +94,5 @@ fluxd requires setup and offers customization though a multitude of flags.
 | **SSH key generation**
 | --ssh-keygen-bits                                |                          | -b argument to ssh-keygen (default unspecified)
 | --ssh-keygen-type                                |                          | -t argument to ssh-keygen (default unspecified)
+| **manifest generation**
+| --manifest-generation                            | false                    | experimental; search for .flux.yaml files to generate manifests

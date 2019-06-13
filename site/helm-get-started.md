@@ -52,8 +52,13 @@ kubectl create clusterrolebinding tiller-cluster-rule \
 Deploy Tiller in `kube-system` namespace:
 
 ```sh
-helm init --skip-refresh --upgrade --service-account tiller
+helm init --skip-refresh --upgrade --service-account tiller --history-max 10
 ```
+
+> **Note:** This is a quick guide and by no means a production ready
+> Tiller setup, please look into ['Securing your Helm installation'](https://helm.sh/docs/using_helm/#securing-your-helm-installation)
+> and be aware of the `--history-max` flag before promoting to
+> production.
 
 ## Install Weave Flux
 

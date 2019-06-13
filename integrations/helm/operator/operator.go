@@ -1,7 +1,6 @@
 package operator
 
 import (
-	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -117,22 +116,14 @@ func New(
 	return controller
 }
 
-// Run sets up the event handlers for our Custom Resource, as well
-// as syncing informer caches and starting workers. It will block until stopCh
-// is closed, at which point it will shutdown the workqueue and wait for
-// workers to finish processing their current work items.
-func (c *Controller) Run(threadiness int, stopCh <-chan struct{}, wg *sync.WaitGroup) error {
+// Run starts workers handling the enqueued events. It will block until
+// stopCh is closed, at which point it will shutdown the workqueue and
+// wait for workers to finish processing their current work items.
+func (c *Controller) Run(threadiness int, stopCh <-chan struct{}, wg *sync.WaitGroup) {
 	defer runtime.HandleCrash()
 	defer c.releaseWorkqueue.ShutDown()
 
 	c.logger.Log("info", "starting operator")
-	// Wait for the caches to be synced before starting workers
-	c.logger.Log("info", "waiting for informer caches to sync")
-
-	if ok := cache.WaitForCacheSync(stopCh, c.fhrSynced); !ok {
-		return errors.New("failed to wait for caches to sync")
-	}
-	c.logger.Log("info", "unformer caches synced")
 
 	c.logger.Log("info", "starting workers")
 	for i := 0; i < threadiness; i++ {
@@ -145,8 +136,6 @@ func (c *Controller) Run(threadiness int, stopCh <-chan struct{}, wg *sync.WaitG
 		wg.Done()
 	}
 	c.logger.Log("info", "stopping workers")
-
-	return nil
 }
 
 // runWorker is a long-running function calling the

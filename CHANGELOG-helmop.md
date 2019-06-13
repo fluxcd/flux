@@ -1,3 +1,36 @@
+## 0.9.2 (2019-06-13)
+
+### Bug fixes
+
+ - Ensure releases are enqueued on clone change only
+   [weaveworks/flux#2081][#2081]
+ - Reorder start of processes on boot and verify informer cache sync
+   early, to prevent the operator from hanging on boot
+   [weaveworks/flux#2103][#2103]
+ - Use openssh-client rather than openssh in container image
+   [weaveworks/flux#2142][#2142]
+
+### Improvements
+
+ - Enable pprof to ease profiling
+   [weaveworks/flux#2095][#2095]
+
+### Maintenance and documentation
+
+ - Add notes about production setup Tiller
+   [weaveworks/flux#2146][#2146]
+   
+### Thanks
+
+Thanks @2opremio, @willholley ,@runningman84, @stefanprodan, @squaremo,
+@rossf7, @hiddeco for contributing.
+
+[#2081]: https://github.com/weaveworks/flux/pull/2081
+[#2095]: https://github.com/weaveworks/flux/pull/2095
+[#2103]: https://github.com/weaveworks/flux/pull/2103
+[#2142]: https://github.com/weaveworks/flux/pull/2142
+[#2146]: https://github.com/weaveworks/flux/pull/2146
+
 ## 0.9.1 (2019-05-09)
 
 ### Bug fixes
