@@ -1,6 +1,101 @@
 This is the changelog for the Flux daemon; the changelog for the Helm
 operator is in [./CHANGELOG-helmop.md](./CHANGELOG-helmop.md).
 
+## 1.13.0 (2019-06-13)
+
+This feature release contains an experimental feature for [generating
+manifests from the sources in git][manifest-generation-docs] and
+completes the support for [GPG signatures][gpg-docs].
+
+### Fixes
+
+- Use openssh-client rather than openssh in container image
+  [weaveworks/flux#2142][]
+- Cope when filenames from git start or end with spaces
+  [weaveworks/flux#2117][]
+- Ignore `metrics` API group, known to be problematic
+  [weaveworks/flux#2096][]
+- Remove a possible deadlock from code calling `git`
+  [weaveworks/flux#2086][]
+
+### Enhancements
+
+- When `--manifest-generation` is set, look for `.flux.yaml` files in
+  the git repo and generate manifests according to the instructions
+  therein (see [the docs][manifest-generation-docs])
+  [weaveworks/flux#1848][]
+- Verify GPG signatures on commits (when `--git-verify-signatures` is
+  set; see [the docs][gpg-docs]) [weaveworks/flux#1791][]
+- Make the log format configurable (specifically to admit JSON
+  logging) [weaveworks/flux#2138][]
+- Log when a requested workload is not of a kind known to fluxd
+  [weaveworks/flux#2097][]
+- Get image build time from OCI labels, if present
+  [weaveworks/flux#1992][], [weaveworks/flux#2084][]
+- A new flag `--garbage-collection-dry-run` will report what _would_
+  be deleted by garbage collection in the log, without deleting it
+  [weaveworks/flux#2063][]
+
+### Maintenance and documentation
+
+- Let fluxd be run outside a cluster, for development convenience
+  [weaveworks/flux#2140][]
+- Documentation edits [weaveworks/flux#2134][], [weaveworks/flux#2109][]
+- Improve some tests [weaveworks/flux#2111][], [weaveworks/flux#2110][],
+  [weaveworks/flux#2085][], [weaveworks/flux#2090][]
+- Give the memcached pod a security context [weaveworks/flux#2125][]
+- Move to `go mod`ules and abandon `go dep` [weaveworks/flux#2083][],
+  [weaveworks/flux#2127][], [weaveworks/flux#2094][]
+- Give an example of DNS settings in the example deployment
+  [weaveworks/flux#2116][]
+- Document how to get the fluxctl `snap` [weaveworks/flux#1966][],
+  [weaveworks/flux#2108][]
+- Give more guidance on how to contribute to Flux
+  [weaveworks/flux#2104][]
+- Speed CI builds up by using CircleCI caching [weaveworks/flux#2078][]
+
+### Thanks
+
+Many thanks for contributions from @2opremio, @AndriiOmelianenko,
+@ArchiFleKs, @RGPosadas, @RoryShively, @alanjcastonguay, @amstee,
+@arturo-c, @azazel75, @billimek, @brezerk, @bzon, @derrickburns,
+@dholbach, @dminca, @dmitri-lerko, @guzmo, @hiddeco, @imrtfm,
+@jan-schumacher, @jp83, @jpds, @kennethredler, @leoblanc,
+@marcelonaso, @marcossv9, @marklcg, @michaelgeorgeattard, @mr-karan,
+@nabadger, @ncabatoff, @primeroz, @rdubya16, @rjanovski,
+@rkouyoumjian, @rndstr, @runningman84, @squaremo, @stefanprodan,
+@stefansedich, @suvl, @tckb, @timja, @vovkanaz, @willholley.
+
+[weaveworks/flux#1791]: https://github.com/weaveworks/flux/pulls/1791
+[weaveworks/flux#1848]: https://github.com/weaveworks/flux/pulls/1848
+[weaveworks/flux#1966]: https://github.com/weaveworks/flux/pulls/1966
+[weaveworks/flux#1992]: https://github.com/weaveworks/flux/pulls/1992
+[weaveworks/flux#2063]: https://github.com/weaveworks/flux/pulls/2063
+[weaveworks/flux#2078]: https://github.com/weaveworks/flux/pulls/2078
+[weaveworks/flux#2083]: https://github.com/weaveworks/flux/pulls/2083
+[weaveworks/flux#2084]: https://github.com/weaveworks/flux/pulls/2084
+[weaveworks/flux#2085]: https://github.com/weaveworks/flux/pulls/2085
+[weaveworks/flux#2086]: https://github.com/weaveworks/flux/pulls/2086
+[weaveworks/flux#2090]: https://github.com/weaveworks/flux/pulls/2090
+[weaveworks/flux#2094]: https://github.com/weaveworks/flux/pulls/2094
+[weaveworks/flux#2096]: https://github.com/weaveworks/flux/pulls/2096
+[weaveworks/flux#2097]: https://github.com/weaveworks/flux/pulls/2097
+[weaveworks/flux#2104]: https://github.com/weaveworks/flux/pulls/2104
+[weaveworks/flux#2108]: https://github.com/weaveworks/flux/pulls/2108
+[weaveworks/flux#2109]: https://github.com/weaveworks/flux/pulls/2109
+[weaveworks/flux#2110]: https://github.com/weaveworks/flux/pulls/2110
+[weaveworks/flux#2111]: https://github.com/weaveworks/flux/pulls/2111
+[weaveworks/flux#2116]: https://github.com/weaveworks/flux/pulls/2116
+[weaveworks/flux#2117]: https://github.com/weaveworks/flux/pulls/2117
+[weaveworks/flux#2125]: https://github.com/weaveworks/flux/pulls/2125
+[weaveworks/flux#2127]: https://github.com/weaveworks/flux/pulls/2127
+[weaveworks/flux#2134]: https://github.com/weaveworks/flux/pulls/2134
+[weaveworks/flux#2138]: https://github.com/weaveworks/flux/pulls/2138
+[weaveworks/flux#2140]: https://github.com/weaveworks/flux/pulls/2140
+[weaveworks/flux#2142]: https://github.com/weaveworks/flux/pulls/2142
+[manifest-generation-docs]: https://github.com/weaveworks/flux/blob/master/site/fluxyaml-config-files.md
+[gpg-docs]: https://github.com/weaveworks/flux/blob/master/site/git-gpg.md
+
 ## 1.12.3 (2019-05-22)
 
 This is a patch release.
