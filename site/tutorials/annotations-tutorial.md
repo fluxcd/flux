@@ -98,7 +98,7 @@ fluxcd/flux
 
 > **Note:** In this tutorial we keep things simple, so we deploy Flux into
 the `default` namespace. Normally you would pick a separate namespace for
-it. `fluxctl` has the [`--k8s-fwd-ns <NAMESPACE>` option](fluxctl.md#Connectingfluxctltothedaemon) for specifying the right
+it. `fluxctl` has the [`--k8s-fwd-ns <NAMESPACE>` option](../fluxctl.md#Connectingfluxctltothedaemon) for specifying the right
 namespace.
 
 ### Connecting to your git config
@@ -107,8 +107,8 @@ The first step is done. Flux is now and up running (you can confirm by
 running `kubectl get pods --all-namespaces`).
 
 In the second step we will use fluxctl to talk to Flux in the cluster and
-interact with the deployments. First, please [install fluxctl](fluxctl.md#installing-fluxctl).
-(It enables you to drive all of Flux, so have a look at the output of
+interact with the deployments. First, please [install fluxctl](../fluxctl.md#installing-fluxctl).
+(It enables you to drive all of Weave Flux, so have a look at the output of
 `fluxctl -h` to get a better idea.)
 
 > **Note:** Another option (without installing `fluxctl` is to take a look

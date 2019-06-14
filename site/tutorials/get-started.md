@@ -85,7 +85,7 @@ watch kubectl get pods --all-namespaces
 ### Giving write access
 
 At startup Flux generates a SSH key and logs the public key. Find
-the SSH public key by installing [fluxctl](./fluxctl.md) and
+the SSH public key by installing [fluxctl](../fluxctl.md) and
 runnning:
 
 ```sh
@@ -146,7 +146,7 @@ deployed, give Flux access to it and see modifications land are
 very straight-forward and are a quite natural work-flow.
 
 As a next step, you might want to dive deeper into [how to
-control Flux](./fluxctl.md), check out [more sophisticated
-setups](./standalone-setup.md) or go through our hands-on
+control Flux](../fluxctl.md), check out [more sophisticated
+setups](../standalone-setup.md) or go through our hands-on
 tutorial about driving Flux, e.g.
 [automations, annotations and locks](annotations-tutorial.md).
