@@ -52,6 +52,9 @@ func TestParseRef(t *testing.T) {
 		{"quay.io/library/alpine:latest", "quay.io", "library/alpine", "quay.io/library/alpine:latest"},
 		{"quay.io/library/alpine:mytag", "quay.io", "library/alpine", "quay.io/library/alpine:mytag"},
 		{"localhost:5000/path/to/repo/alpine:mytag", "localhost:5000", "path/to/repo/alpine", "localhost:5000/path/to/repo/alpine:mytag"},
+		// Images with digest
+		{"docker.io/weaveworks/flux@sha256:e5ac3944b44556916df9b97d78c28cf8e6b6ef419614a70e87b39f84c17428dd", "index.docker.io", "weaveworks/flux", "index.docker.io/weaveworks/flux@sha256:e5ac3944b44556916df9b97d78c28cf8e6b6ef419614a70e87b39f84c17428dd"},
+		{"localhost:5005/python:3.7@sha256:284a4057aac706aaafe50c5c0090d6d311f5d8d72014f0cd69f880a54e9df6fe", "localhost:5005", "python", "localhost:5005/python:3.7@sha256:284a4057aac706aaafe50c5c0090d6d311f5d8d72014f0cd69f880a54e9df6fe"},
 	} {
 		i, err := ParseRef(x.test)
 		if err != nil {
@@ -238,9 +241,9 @@ func TestImage_OrderByCreationDate(t *testing.T) {
 	imA := mustMakeInfo("my/Image:2", testTime)
 	imB := mustMakeInfo("my/Image:0", time.Time{}).setLabels(Labels{Created: time0})
 	imC := mustMakeInfo("my/Image:3", time.Time{}).setLabels(Labels{BuildDate: time2})
-	imD := mustMakeInfo("my/Image:4", time.Time{}) // test nil
+	imD := mustMakeInfo("my/Image:4", time.Time{})                                      // test nil
 	imE := mustMakeInfo("my/Image:1", time.Time{}).setLabels(Labels{Created: testTime}) // test equal
-	imF := mustMakeInfo("my/Image:5", time.Time{}) // test nil equal
+	imF := mustMakeInfo("my/Image:5", time.Time{})                                      // test nil equal
 	imgs := []Info{imA, imB, imC, imD, imE, imF}
 	Sort(imgs, NewerByCreated)
 	checkSorted(t, imgs)

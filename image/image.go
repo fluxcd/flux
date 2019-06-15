@@ -108,10 +108,12 @@ func (i Name) ToRef(tag string) Ref {
 //  * alpine:3.5
 //  * library/alpine:3.5
 //  * docker.io/weaveworks/flux:1.1.0
-//  * localhost:5000/arbitrary/path/to/repo:revision-sha1
+//  * docker.io/weaveworks/flux@sha256:e5ac3944b44556916df9b97d78c28cf8e6b6ef419614a70e87b39f84c17428dd
+//  * docker.io/python:3.7@sha256:284a4057aac706aaafe50c5c0090d6d311f5d8d72014f0cd69f880a54e9df6fe
 type Ref struct {
 	Name
-	Tag string
+	Tag    string
+	Digest string
 }
 
 // CanonicalRef is an image ref with none of the fields left to be
@@ -122,11 +124,14 @@ type CanonicalRef struct {
 
 // String returns the Ref as a string (i.e., unparsed) without canonicalising it.
 func (i Ref) String() string {
-	var tag string
+	var tag, digest string
 	if i.Tag != "" {
 		tag = ":" + i.Tag
 	}
-	return fmt.Sprintf("%s%s", i.Name.String(), tag)
+	if i.Digest != "" {
+		digest = "@" + i.Digest
+	}
+	return fmt.Sprintf("%s%s%s", i.Name.String(), tag, digest)
 }
 
 // ParseRef parses a string representation of an image id into an
@@ -142,7 +147,13 @@ func ParseRef(s string) (Ref, error) {
 		return id, errors.Wrapf(ErrMalformedImageID, "parsing %q", s)
 	}
 
-	elements := strings.Split(s, "/")
+	repoWithDigest := strings.Split(s, "@")
+
+	if len(repoWithDigest) == 2 {
+		id.Digest = repoWithDigest[1]
+	}
+
+	elements := strings.Split(repoWithDigest[0], "/")
 	switch len(elements) {
 	case 0: // NB strings.Split will never return []
 		return id, errors.Wrapf(ErrMalformedImageID, "parsing %q", s)
@@ -169,6 +180,7 @@ func ParseRef(s string) (Ref, error) {
 		if imageParts[0] == "" || imageParts[1] == "" {
 			return id, errors.Wrapf(ErrMalformedImageID, "parsing %q", s)
 		}
+
 		id.Image = imageParts[0]
 		id.Tag = imageParts[1]
 	default:
@@ -205,8 +217,9 @@ func (i Ref) CanonicalRef() CanonicalRef {
 	name := i.CanonicalName()
 	return CanonicalRef{
 		Ref: Ref{
-			Name: name.Name,
-			Tag:  i.Tag,
+			Name:   name.Name,
+			Tag:    i.Tag,
+			Digest: i.Digest,
 		},
 	}
 }
@@ -242,7 +255,7 @@ type Labels struct {
 	BuildDate time.Time `json:"org.label-schema.build-date,omitempty"`
 	// Created holds the Open Container Image spec 'created' label
 	// Ref: https://github.com/opencontainers/image-spec/blob/master/annotations.md#pre-defined-annotation-keys
-	Created   time.Time `json:"org.opencontainers.image.created,omitempty"`
+	Created time.Time `json:"org.opencontainers.image.created,omitempty"`
 }
 
 // MarshalJSON returns the Labels value in JSON (as bytes). It is
