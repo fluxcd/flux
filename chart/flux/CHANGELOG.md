@@ -1,3 +1,10 @@
+## 0.10.1 (2019-06-16)
+
+### Bug fixes
+
+ - Fix memcached security context
+   [weaveworks/flux#2163](https://github.com/weaveworks/flux/pull/2163)
+
 ## 0.10.0 (2019-06-14)
 
 ### Improvements
