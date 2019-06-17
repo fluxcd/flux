@@ -185,7 +185,7 @@ func (r *Release) Install(chartPath, releaseName string, fhr flux_v1beta1.HelmRe
 		"options", fmt.Sprintf("%+v", opts),
 		"timeout", fmt.Sprintf("%vs", fhr.GetTimeout()))
 
-	vals, err := Values(kubeClient.CoreV1(), fhr.Namespace, chartPath, fhr.GetValuesFromSource(), fhr.Spec.Values)
+	vals, err := Values(kubeClient.CoreV1(), fhr.Namespace, chartPath, fhr.GetValuesFromSources(), fhr.Spec.Values)
 	if err != nil {
 		r.logger.Log("error", fmt.Sprintf("Failed to compose values for Chart release [%s]: %v", fhr.Spec.ReleaseName, err))
 		return nil, "", err

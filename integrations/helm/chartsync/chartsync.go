@@ -300,7 +300,7 @@ func (chs *ChartChangeSync) CompareValuesChecksum(fhr fluxv1beta1.HelmRelease) b
 		}
 	}
 
-	values, err := release.Values(chs.kubeClient.CoreV1(), fhr.Namespace, chartPath, fhr.GetValuesFromSource(), fhr.Spec.Values)
+	values, err := release.Values(chs.kubeClient.CoreV1(), fhr.Namespace, chartPath, fhr.GetValuesFromSources(), fhr.Spec.Values)
 	if err != nil {
 		return false
 	}

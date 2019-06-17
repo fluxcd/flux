@@ -121,12 +121,12 @@ func (s RepoChartSource) CleanRepoURL() string {
 }
 
 type Rollback struct {
-	Enable 		 bool 	`json:"enable,omitempty"`
-	Force  		 bool 	`json:"force,omitempty"`
-	Recreate 	 bool 	`json:"recreate,omitempty"`
-	DisableHooks bool 	`json:"disableHooks,omitempty"`
+	Enable 		 bool `json:"enable,omitempty"`
+	Force  		 bool `json:"force,omitempty"`
+	Recreate 	 bool `json:"recreate,omitempty"`
+	DisableHooks bool `json:"disableHooks,omitempty"`
 	Timeout 	 *int64 `json:"timeout,omitempty"`
-	Wait 		 bool   `json:"wait,omitempty"`
+	Wait 		 bool `json:"wait,omitempty"`
 }
 
 func (r Rollback) GetTimeout() int64 {
@@ -165,9 +165,9 @@ func (r HelmRelease) GetTimeout() int64 {
 	return *r.Spec.Timeout
 }
 
-// GetValuesFromSource maintains backwards compatibility with
+// GetValuesFromSources maintains backwards compatibility with
 // ValueFileSecrets by merging them into the ValuesFrom array.
-func (r HelmRelease) GetValuesFromSource() []ValuesFromSource {
+func (r HelmRelease) GetValuesFromSources() []ValuesFromSource {
 	valuesFrom := r.Spec.ValuesFrom
 	// Maintain backwards compatibility with ValueFileSecrets
 	if r.Spec.ValueFileSecrets != nil {
