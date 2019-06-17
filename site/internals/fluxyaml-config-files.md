@@ -138,11 +138,12 @@ a separate configuration file variant (`patchedUpdated`) is provided, which will
 ### Execution context of commands
 
 `generators` and `updaters` are run in a POSIX shell inside the Flux container. This means that the `command`s supplied
-should be available in the [Flux container image](../docker/Dockerfile.flux). Flux currently includes `Kustomize` and
-basic Unix shell tools. If the tools in the Flux image are not sufficient for your use case, you can include new tools
-in your own Flux-based image or, if the tools are popular enough, Flux maintainers can add them to the Flux image
-(please create an issue). In the future (once [Ephemeral containers](https://github.com/kubernetes/kubernetes/pull/59416)
-are available), you will be able to specify an container image for each command.
+should be available in the [Flux container image](https://github.com/weaveworks/flux/blob/master/docker/Dockerfile.flux).
+Flux currently includes `Kustomize` and basic Unix shell tools. If the tools in the Flux image are not sufficient for
+your use case, you can include new tools in your own Flux-based image or, if the tools are popular enough, Flux
+maintainers can add them to the Flux image (please create an issue). In the future (once [Ephemeral
+containers](https://github.com/kubernetes/kubernetes/pull/59416) are available), you will be able to specify an container
+image for each command.
 
 The working directory (also known as CWD) of the `command`s executed from a `.flux.yaml` file will be set to the
 target path (`--git-path` entry) used when finding that `.flux.yaml` file.

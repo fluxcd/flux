@@ -287,12 +287,12 @@ namespace `"default"` when applied to the cluster.
 You can override this by mounting your own "kubeconfig" file into the
 container from a configmap, and using the `KUBECONFIG` environment
 entry to point to it. The [example
-deployment](../deploy/flux-deployment.yaml) shows how to do this, in
+deployment](https://github.com/weaveworks/flux/blob/master/deploy/flux-deployment.yaml) shows how to do this, in
 commented out sections -- it needs extra bits of config in three
 places (the `volume`, `volumeMount`, and `env` entries).
 
 The easiest way to create a suitable "kubeconfig" will be to adapt the
-[file that is baked into the image](../docker/kubeconfig). Save that
+[file that is baked into the image](https://github.com/weaveworks/flux/blob/master/docker/kubeconfig). Save that
 locally as `my-kubeconfig`, edit it to change the default namespace,
 then create the configmap, in the same namespace you run Flux in, with
 something like:

@@ -89,8 +89,8 @@ reasons this can happen:
    both make sure this is the case.
  - When using images from ACR in AKS, the HostPath `/etc/kubernetes/azure.json`
    should be [mounted](https://kubernetes.io/docs/concepts/storage/volumes/) into the Flux Pod.
-   Set `registry.acr.enabled=True` in the [helm chart](../chart/flux/README.md)
-   or alter the [Deployment](../deploy/flux-deployment.yaml):
+   Set `registry.acr.enabled=True` in the [helm chart](https://github.com/weaveworks/flux/blob/master/chart/flux/README.md)
+   or alter the [Deployment](https://github.com/weaveworks/flux/blob/master/deploy/flux-deployment.yaml):
    ```yaml
     spec:
       containers:

@@ -73,8 +73,8 @@ Once you want to use the new capabilities of the operator -- e.g.,
 releasing charts from Helm repos -- you will probably need to adapt
 the manifest further. The [Helm operator set-up
 guide](./helm-integration.md) and [example
-deployment](../deploy-helm/helm-operator-deployment.yaml) explain all
-the details.
+deployment](https://github.com/weaveworks/flux/blob/master/deploy-helm/helm-operator-deployment.yaml)
+explain all the details.
 
 ## Updating custom resources
 

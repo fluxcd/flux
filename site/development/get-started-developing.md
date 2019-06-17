@@ -103,7 +103,7 @@ Now that we know everything is working with `flux-getting-started`, we're going 
     ```
     This confirms that a new docker image was tagged for your image.
 
-1. Open up [`deploy/flux-deployment.yaml`](deploy/flux-deployment.yaml) and update the image at `spec.template.spec.containers[0].image` to be simply `docker.io/fluxcd/flux`.  While we're here, also change the `git-url` to point towards your fork.  It will look something like this in the yaml:
+1. Open up [`deploy/flux-deployment.yaml`](https://github.com/weaveworks/flux/blob/master/deploy/flux-deployment.yaml) and update the image at `spec.template.spec.containers[0].image` to be simply `docker.io/weaveworks/flux`.  While we're here, also change the `git-url` to point towards your fork.  It will look something like this in the yaml:
     ```yaml
     spec:
       template:
@@ -169,7 +169,7 @@ Now that we know everything is working with `flux-getting-started`, we're going 
 
 ## Make Some Changes
 
-1. Now for the part you've been waiting for!  We're going to make a cosmetic change to our local copy of Flux.  Navigate to [git/operations.go](git/operations.go).  In it, you will find a private function to this package that goes by the name `execGitCmd`.  Paste the following as the (new) first line of the function:
+1. Now for the part you've been waiting for!  We're going to make a cosmetic change to our local copy of Flux.  Navigate to [git/operations.go](https://github.com/weaveworks/flux/blob/master/git/operations.go).  In it, you will find a private function to this package that goes by the name `execGitCmd`.  Paste the following as the (new) first line of the function:
     ```go
     fmt.Println("executing git command ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ")
     ```
