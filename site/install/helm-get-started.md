@@ -1,13 +1,5 @@
 # Installing Flux using Helm
 
-- [Get started with Flux using Helm](#get-started-with-flux-using-helm)
-  * [Prerequisites](#prerequisites)
-  * [Install Flux](#install-flux)
-  * [Giving write access](#giving-write-access)
-  * [Committing a small change](#committing-a-small-change)
-  * [Conclusion](#conclusion)
-- [Next](#next)
-
 ## Get started with Flux using Helm
 
 If you are using Helm already, this guide is for you. By the end
@@ -119,7 +111,7 @@ repository.
 
 This is pretty straight-forward as Flux generates a SSH key and
 logs the public key at startup. Find the SSH public key by
-installing [fluxctl](../fluxctl.md) and running:
+installing [fluxctl](../using/fluxctl.md) and running:
 
 ```sh
 fluxctl identity --k8s-fwd-ns flux
@@ -196,8 +188,9 @@ very straight-forward and are a quite natural workflow.
 ## Next
 
 As a next step, you might want to dive deeper into [how to control
-Flux](../fluxctl.md) or go through our hands-on tutorial about driving Flux,
-e.g. [automations, annotations and locks](annotations-tutorial.md).
+Flux](../using/fluxctl.md) or go through our hands-on tutorial about
+driving Flux, e.g. [automations, annotations and
+locks](../using/annotations-tutorial.md).
 
 For a more advanced Helm setup, take a look at the [gitops-helm
 repository](https://github.com/stefanprodan/gitops-helm).

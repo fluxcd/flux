@@ -52,4 +52,5 @@ changes by observing a predictable series of deployment events.
 
 _Find out more about [Flux's features](./how-it-works.md)._
 
-_Get started immediately by [installing Flux](./installing.md)._
+_Get started immediately by [installing Flux](../install/installing.md)._
+

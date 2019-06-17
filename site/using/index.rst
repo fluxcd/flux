@@ -3,16 +3,15 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Flux Tutorials - step by step guides
+Using Flux
 ==============================================
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
    :caption: Contents:
 
-
-   get-started
-   helm-get-started
    annotations-tutorial
-
-
+   fluxctl
+   git-gpg
+   monitoring
+   upgrading-to-1.0

@@ -3,25 +3,13 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to Flux's documentation!
+Using Flux with Helm
 ==============================================
 
 .. toctree::
-   :maxdepth: 1
+   :maxdepth: 2
    :caption: Contents:
 
-
-   introduction
-   requirements
-
-   install/index
-   using/index
-   helm/index
-   
-   how-it-works
-   
-   internals/index
-   development/index
-
-   faq
-   troubleshooting
+   helm-integration
+   helm-operator
+   helm-upgrading-to-beta

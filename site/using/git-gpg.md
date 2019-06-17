@@ -1,13 +1,5 @@
 # Git commit signing and verification
 
-- [Summary](#summary)
-- [Commit signing](#commit-signing)
-  * [Creating a GPG signing key](#creating-a-gpg-signing-key)
-  * [Importing a GPG signing key](#importing-a-gpg-signing-key)
-- [Signature verification](#signature-verification)
-  * [Importing trusted GPG keys and enabling verification](#importing-trusted-gpg-keys-and-enabling-verification)
-  * [Enabling verification for existing repositories, disaster recovery, and deleted sync tags](#enabling-verification-for-existing-repositories-disaster-recovery-and-deleted-sync-tags)
-
 ## Summary
 
 Flux can be configured to sign commits that it makes to the user git

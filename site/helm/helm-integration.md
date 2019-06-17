@@ -1,26 +1,5 @@
 # Using Flux with Helm
 
-- [Using Flux with Helm](#using-flux-with-helm)
-  * [The `HelmRelease` custom resource](#the-helmrelease-custom-resource)
-    + [Using a chart from a Git repo instead of a Helm repo](#using-a-chart-from-a-git-repo-instead-of-a-helm-repo)
-      - [Notifying Helm Operator about Git changes](#notifying-helm-operator-about-git-changes)
-    + [Reinstalling a Helm release](#reinstalling-a-helm-release)
-    + [What the Helm Operator does](#what-the-helm-operator-does)
-  * [Supplying values to the chart](#supplying-values-to-the-chart)
-    + [`.spec.values`](#specvalues)
-    + [`.spec.valuesFrom`](#specvaluesfrom)
-      * [Config maps](#config-maps)
-      * [Secrets](#secrets)
-      * [External sources](#external-sources)
-      * [Chart files](#chart-files)
-  * [Upgrading images in a `HelmRelease` using Flux](#upgrading-images-in-a-helmrelease-using-flux)
-  * [Rollbacks](#rollbacks)
-    + [Configuration](#configuration)
-  * [Authentication](#authentication)
-    + [Authentication for Helm repos](#authentication-for-helm-repos)
-      - [Azure ACR repositories](#azure-acr-repositories)
-    + [Authentication for Git repos](#authentication-for-git-repos)
-
 You can release charts to your cluster via "GitOps", by combining Flux
 and the Flux Helm Operator (also in
 [weaveworks/flux](https://github.com/weaveworks/flux)).

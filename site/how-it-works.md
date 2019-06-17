@@ -20,9 +20,9 @@ with an orchestrator (which is a common source of accidental failure) or
 with the systems that ensure that the orchestrator is in a working
 state.
 
-Flux provides a CLI ([`fluxctl`](fluxctl.md)) to perform these
-operations manually. Flux is flexible enough to fit into any
-development process.
+Flux provides a CLI ([`fluxctl`](./using/fluxctl.md)) and a UI (as a component of Weave Cloud)
+to perform these operations manually. Flux is flexible enough to fit
+into any development process.
 
 ## Implementation Overview
 

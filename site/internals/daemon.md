@@ -32,7 +32,7 @@ Version controlling of cluster manifests provides reproducibility and a historic
 
 ## More information
 
-Setting up and configuring fluxd is discussed in our [standalone setup](./standalone-setup.md)
+Setting up and configuring fluxd is discussed in our [standalone setup](../install/standalone-setup.md)
 document.
 
 ## Flags

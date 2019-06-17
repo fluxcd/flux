@@ -40,7 +40,7 @@ This guide shows a workflow for making a small (actually, tiny) change to Flux, 
 
 ## Run `flux-getting-started`
 
-We're going to make some changes soon enough, but just to get a good baseline please follow the [Getting Started](../tutorials/get-started.md) guide and run the `flux-getting-started` repo through its normal paces.
+We're going to make some changes soon enough, but just to get a good baseline please follow the [Getting Started](../install/get-started.md) guide and run the `flux-getting-started` repo through its normal paces.
 
 Now that we know everything is working with `flux-getting-started`, we're going to try and do nearly the same thing as `flux-getting-started`, except instead of using official releases of flux, we're going to build and run what we have locally.
 

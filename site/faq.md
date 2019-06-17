@@ -107,7 +107,7 @@ fluxctl release --controller=deployment/foo --update-image=bar:v2
 
 The image tag will be updated in the git repository upon applying the command.
 
-For more information about Flux commands see [the fluxctl docs](./fluxctl.md).
+For more information about Flux commands see [the fluxctl docs](./using/fluxctl.md).
 
 ### Does Flux automatically sync changes back to git?
 
@@ -123,7 +123,7 @@ The garbage collection is conservative: it is designed to not delete
 resources that were not created by fluxd. This means it will sometimes
 _not_ delete resources that _were_ created by fluxd, when
 reconfigured. Read more about garbage collection
-[here](./garbagecollection.md).
+[here](./internals/garbagecollection.md).
 
 ### How do I give Flux access to an image registry?
 
@@ -386,7 +386,7 @@ Flux experimentally supports technology-agnostic manifest factorization through
 `.flux.yaml` configuration files placed in the Git repository. To enable this
 feature please supply `fluxd` with flag `--manifest-generation=true`.
 
-See [`.flux.yaml` configuration files documentation](./fluxyaml-config-files.md) for
+See [`.flux.yaml` configuration files documentation](./internals/fluxyaml-config-files.md) for
 further details.
 
 ## Flux Helm Operator questions
