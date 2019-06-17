@@ -4,8 +4,8 @@
 
 Also see
 
-- [the introduction](/site/introduction.md) for Flux's design principles
-- [the troubleshooting section](/site/troubleshooting.md)
+- [the introduction](./introduction.md) for Flux's design principles
+- [the troubleshooting section](./troubleshooting.md)
 
 ### What does Flux do?
 
@@ -231,7 +231,7 @@ service, or running your own git host, you need to supply your own
 host key(s).
 
 How to do this is documented in
-[standalone-setup.md](/site/standalone-setup.md#using-a-private-git-host).
+[standalone-setup.md](./standalone-setup.md#using-a-private-git-host).
 
 ### Why does my CI pipeline keep getting triggered?
 
@@ -386,7 +386,7 @@ Flux experimentally supports technology-agnostic manifest factorization through
 `.flux.yaml` configuration files placed in the Git repository. To enable this
 feature please supply `fluxd` with flag `--manifest-generation=true`.
 
-See [`.flux.yaml` configuration files documentation](/site/fluxyaml-config-files.md) for
+See [`.flux.yaml` configuration files documentation](./fluxyaml-config-files.md) for
 further details.
 
 ## Flux Helm Operator questions

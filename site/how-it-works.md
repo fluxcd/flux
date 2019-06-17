@@ -75,3 +75,4 @@ configuration of the cluster to deploy the new images.
 
 Images can be "locked" to a specific version. "locked" images won't be
 updated by automated or manual means.
+

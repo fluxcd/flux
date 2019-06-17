@@ -3,7 +3,7 @@
 All you need is a Kubernetes cluster and a git repo. The git repo
 contains [manifests][k8s-manifests] (as YAML files) describing what
 should run in the cluster. Flux imposes
-[some requirements](/site/requirements.md) on these files.
+[some requirements](./requirements.md) on these files.
 
 Here are the instructions to [install Flux on your own
 cluster](./tutorials/get-started.md).
