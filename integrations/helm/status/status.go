@@ -189,7 +189,9 @@ func HasRolledBack(hr v1beta1.HelmRelease) bool {
 		// each other, on which we both want to act, we _must_ compare
 		// the update timestamps as the transition timestamp will only
 		// change on a status shift.
-		return !(chartFetched.Status == v1.ConditionTrue && rolledBack.LastUpdateTime.Before(&chartFetched.LastUpdateTime))
+		if chartFetched.Status == v1.ConditionTrue && rolledBack.LastUpdateTime.Before(&chartFetched.LastUpdateTime) {
+			return false
+		}
 	}
 
 	return rolledBack.Status == v1.ConditionTrue
