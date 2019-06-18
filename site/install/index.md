@@ -11,6 +11,9 @@ cluster](./get-started.md).
 If you are using Helm, we have a [separate section about
 this](./helm-get-started.md).
 
+You can also configure a more advanced, [standalone
+setup](./standalone-setup.md).
+
 ## Next
 
 [Setup fluxctl and run the daemon](../using/fluxctl.md)
