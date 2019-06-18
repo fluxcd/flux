@@ -123,7 +123,7 @@ The garbage collection is conservative: it is designed to not delete
 resources that were not created by fluxd. This means it will sometimes
 _not_ delete resources that _were_ created by fluxd, when
 reconfigured. Read more about garbage collection
-[here](./internals/garbagecollection.md).
+[here](./features/garbagecollection.md).
 
 ### How do I give Flux access to an image registry?
 
@@ -386,7 +386,7 @@ Flux experimentally supports technology-agnostic manifest factorization through
 `.flux.yaml` configuration files placed in the Git repository. To enable this
 feature please supply `fluxd` with flag `--manifest-generation=true`.
 
-See [`.flux.yaml` configuration files documentation](./internals/fluxyaml-config-files.md) for
+See [`.flux.yaml` configuration files documentation](./features/fluxyaml-config-files.md) for
 further details.
 
 ## Flux Helm Operator questions

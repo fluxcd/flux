@@ -20,7 +20,7 @@ Welcome to Flux's documentation!
    
    how-it-works
    
-   internals/index
+   features/index
    development/index
 
    faq
