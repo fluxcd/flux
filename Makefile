@@ -134,7 +134,12 @@ check-generated: generate-deploy install/generated_templates.gogen.go
 	./bin/helm/update_codegen.sh
 	git diff --exit-code -- integrations/apis intergrations/client install/generated_templates.gogen.go
 
-run-docs:
+build-docs:
 	@cd site && docker build -t flux-docs .
+
+test-docs: build-docs
+	@docker run -it flux-docs /usr/bin/linkchecker _build/html/index.html
+
+serve-docs: build-docs
 	@echo Stating docs website on http://localhost:${DOCS_PORT}/_build/html/index.html
 	@docker run -i -p ${DOCS_PORT}:8000 -e USER_ID=$$UID flux-docs
