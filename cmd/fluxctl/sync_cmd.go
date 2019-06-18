@@ -59,7 +59,7 @@ func (opts *syncOpts) RunE(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	result, err := awaitJob(ctx, opts.API, jobID)
+	result, err := awaitJob(ctx, opts.API, jobID, opts.Timeout)
 	if isUnverifiedHead(err) {
 		fmt.Fprintf(cmd.OutOrStderr(), "Warning: %s\n", err)
 	} else if err != nil {
@@ -70,7 +70,7 @@ func (opts *syncOpts) RunE(cmd *cobra.Command, args []string) error {
 	rev := result.Revision[:7]
 	fmt.Fprintf(cmd.OutOrStderr(), "Revision of %s to apply is %s\n", gitConfig.Remote.Branch, rev)
 	fmt.Fprintf(cmd.OutOrStderr(), "Waiting for %s to be applied ...\n", rev)
-	err = awaitSync(ctx, opts.API, rev)
+	err = awaitSync(ctx, opts.API, rev, opts.Timeout)
 	if err != nil {
 		return err
 	}
