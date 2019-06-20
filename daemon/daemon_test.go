@@ -587,7 +587,7 @@ func TestDaemon_Automated(t *testing.T) {
 			},
 		},
 	}
-	k8s.SomeWorkloadsFunc = func([]flux.ResourceID) ([]cluster.Workload, error) {
+	k8s.SomeWorkloadsFunc = func(ctx context.Context, ids []flux.ResourceID) ([]cluster.Workload, error) {
 		return []cluster.Workload{workload}, nil
 	}
 	start()
@@ -613,7 +613,7 @@ func TestDaemon_Automated_semver(t *testing.T) {
 			},
 		},
 	}
-	k8s.SomeWorkloadsFunc = func([]flux.ResourceID) ([]cluster.Workload, error) {
+	k8s.SomeWorkloadsFunc = func(ctx context.Context, ids []flux.ResourceID) ([]cluster.Workload, error) {
 		return []cluster.Workload{workload}, nil
 	}
 	start()
@@ -675,7 +675,7 @@ func mockDaemon(t *testing.T) (*Daemon, func(), func(), *mock.Mock, *mockEventWr
 	var k8s *mock.Mock
 	{
 		k8s = &mock.Mock{}
-		k8s.AllWorkloadsFunc = func(maybeNamespace string) ([]cluster.Workload, error) {
+		k8s.AllWorkloadsFunc = func(ctx context.Context, maybeNamespace string) ([]cluster.Workload, error) {
 			if maybeNamespace == ns {
 				return []cluster.Workload{
 					singleService,
@@ -686,9 +686,9 @@ func mockDaemon(t *testing.T) (*Daemon, func(), func(), *mock.Mock, *mockEventWr
 			return []cluster.Workload{}, nil
 		}
 		k8s.IsAllowedResourceFunc = func(flux.ResourceID) bool { return true }
-		k8s.ExportFunc = func() ([]byte, error) { return testBytes, nil }
+		k8s.ExportFunc = func(ctx context.Context) ([]byte, error) { return testBytes, nil }
 		k8s.PingFunc = func() error { return nil }
-		k8s.SomeWorkloadsFunc = func([]flux.ResourceID) ([]cluster.Workload, error) {
+		k8s.SomeWorkloadsFunc = func(ctx context.Context, ids []flux.ResourceID) ([]cluster.Workload, error) {
 			return []cluster.Workload{
 				singleService,
 			}, nil

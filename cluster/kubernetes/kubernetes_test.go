@@ -1,6 +1,7 @@
 package kubernetes
 
 import (
+	"context"
 	"reflect"
 	"testing"
 
@@ -28,7 +29,7 @@ func testGetAllowedNamespaces(t *testing.T, namespace []string, expected []strin
 	client := ExtendedClient{coreClient: clientset}
 	c := NewCluster(client, nil, nil, log.NewNopLogger(), namespace, []string{})
 
-	namespaces, err := c.getAllowedAndExistingNamespaces()
+	namespaces, err := c.getAllowedAndExistingNamespaces(context.Background())
 	if err != nil {
 		t.Errorf("The error should be nil, not: %s", err)
 	}
