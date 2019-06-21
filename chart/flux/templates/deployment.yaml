@@ -199,6 +199,9 @@ spec:
           {{- if .Values.registry.excludeImage }}
           - --registry-exclude-image={{ .Values.registry.excludeImage }}
           {{- end }}
+          {{- if .Values.registry.useTimestampLabels }}
+          - --registry-use-labels={{ .Values.registry.useTimestampLabels }}
+          {{- end }}
           {{- if .Values.registry.ecr.region }}
           - --registry-ecr-region={{ .Values.registry.ecr.region }}
           {{- end }}
