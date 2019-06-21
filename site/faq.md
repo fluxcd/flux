@@ -148,7 +148,7 @@ There are exceptions:
 
 To work around exceptional cases, you can mount a docker config into
 the Flux container. See the argument `--docker-config` in [the daemon
-arguments reference](daemon.md#flags).
+arguments reference](./features/daemon.md).
 
 See also
 [Why are my images not showing up in the list of images?](#why-are-my-images-not-showing-up-in-the-list-of-images)
@@ -231,7 +231,7 @@ service, or running your own git host, you need to supply your own
 host key(s).
 
 How to do this is documented in
-[standalone-setup.md](./standalone-setup.md#using-a-private-git-host).
+[the standalone setup doc](./install/standalone-setup.md).
 
 ### Why does my CI pipeline keep getting triggered?
 

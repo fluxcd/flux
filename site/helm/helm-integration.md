@@ -287,7 +287,7 @@ values:
     port: 4040
 ```
 
-You can use the [same annotations](./fluxctl.md#using-annotations) in
+You can use the [same annotations](../using/fluxctl.md) in
 the `HelmRelease` as you would for a Deployment or other workload,
 to control updates and automation. For the purpose of specifying
 filters, the container name is either `chart-image` (if at the top
