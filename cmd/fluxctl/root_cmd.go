@@ -37,12 +37,12 @@ Connecting:
   # To a fluxd running in namespace "default" in your current kubectl context
   fluxctl list-workloads
 
-  # To a fluxd running in namespace "weave" in your current kubectl context
-  fluxctl --k8s-fwd-ns=weave list-workloads
+  # To a fluxd running in namespace "flux" in your current kubectl context
+  fluxctl --k8s-fwd-ns=flux list-workloads
 
-  # To a Weave Cloud instance, with your instance token in $TOKEN
-  fluxctl --token $TOKEN list-workloads
-
+  # To an upstream service, with a bearer token in $TOKEN
+  fluxctl --url https://example.com/upstream/flux --token $TOKEN list-workload
+s
 Workflow:
   fluxctl list-workloads                                                   # Which workloads are running?
   fluxctl list-images --workload=default:deployment/foo                    # Which images are running/available?
@@ -50,12 +50,10 @@ Workflow:
 `)
 
 const (
-	envVariableURL        = "FLUX_URL"
-	envVariableNamespace  = "FLUX_FORWARD_NAMESPACE"
-	envVariableLabels     = "FLUX_FORWARD_LABELS"
-	envVariableToken      = "FLUX_SERVICE_TOKEN"
-	envVariableCloudToken = "WEAVE_CLOUD_TOKEN"
-	defaultURLGivenToken  = "https://cloud.weave.works/api/flux"
+	envVariableURL       = "FLUX_URL"
+	envVariableNamespace = "FLUX_FORWARD_NAMESPACE"
+	envVariableLabels    = "FLUX_FORWARD_LABELS"
+	envVariableToken     = "FLUX_SERVICE_TOKEN"
 )
 
 func (opts *rootOpts) Command() *cobra.Command {
@@ -72,9 +70,9 @@ func (opts *rootOpts) Command() *cobra.Command {
 	cmd.PersistentFlags().StringToStringVar(&opts.Labels, "k8s-fwd-labels", map[string]string{"app": "flux"},
 		fmt.Sprintf("Labels used to select the fluxd pod a port forward should be created for. You can also set the environment variable %s", envVariableLabels))
 	cmd.PersistentFlags().StringVarP(&opts.URL, "url", "u", "",
-		fmt.Sprintf("Base URL of the Flux API (defaults to %q if a token is provided); you can also set the environment variable %s", defaultURLGivenToken, envVariableURL))
+		fmt.Sprintf("Use this for the base URL of the Flux API, rather than port forwarding; you can also set the environment variable %s", envVariableURL))
 	cmd.PersistentFlags().StringVarP(&opts.Token, "token", "t", "",
-		fmt.Sprintf("Weave Cloud authentication token; you can also set the environment variable %s or %s", envVariableCloudToken, envVariableToken))
+		fmt.Sprintf("Bearer token for authorization, when setting --url; you can also set the environment variable %s", envVariableToken))
 
 	cmd.AddCommand(
 		newVersionCommand(),
@@ -103,11 +101,12 @@ func (opts *rootOpts) PersistentPreRunE(cmd *cobra.Command, _ []string) error {
 
 	setFromEnvIfNotSet(cmd.Flags(), "k8s-fwd-ns", envVariableNamespace)
 	setFromEnvIfNotSet(cmd.Flags(), "k8s-fwd-labels", envVariableLabels)
-	setFromEnvIfNotSet(cmd.Flags(), "token", envVariableToken, envVariableCloudToken)
+	setFromEnvIfNotSet(cmd.Flags(), "token", envVariableToken)
 	setFromEnvIfNotSet(cmd.Flags(), "url", envVariableURL)
 
 	if opts.Token != "" && opts.URL == "" {
-		opts.URL = defaultURLGivenToken
+		fmt.Fprintln(cmd.OutOrStderr(), "Warning: bearer token set without also setting API base URL. Ignoring token and using port-forwarding.")
+		opts.Token = ""
 	}
 
 	if opts.URL == "" {
@@ -118,7 +117,7 @@ func (opts *rootOpts) PersistentPreRunE(cmd *cobra.Command, _ []string) error {
 				metav1.LabelSelectorRequirement{
 					Key:      "name",
 					Operator: metav1.LabelSelectorOpIn,
-					Values:   []string{"flux", "fluxd", "weave-flux-agent"},
+					Values:   []string{"flux", "fluxd", "weave-flux-agent"}, // left in for backward-compatibility
 				},
 			},
 		})
