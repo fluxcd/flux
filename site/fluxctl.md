@@ -1,5 +1,5 @@
 ---
-title: Using Weave Flux
+title: Using Flux
 menu_order: 40
 ---
 

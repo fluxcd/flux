@@ -1,5 +1,5 @@
 ---
-title: Introducing Weave Flux
+title: Introducing Flux
 menu_order: 10
 ---
 

@@ -1,5 +1,5 @@
 ---
-title: Troubleshooting Weave Flux
+title: Troubleshooting Flux
 menu_order: 50
 ---
 

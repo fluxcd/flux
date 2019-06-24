@@ -1,5 +1,5 @@
 ---
-title: How Weave Flux Works
+title: How Flux Works
 menu_order: 20
 ---
 

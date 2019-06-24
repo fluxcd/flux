@@ -30,11 +30,11 @@ helm-operator requires setup and offers customization though a multitude of flag
 | --log-release-diffs       | `false`                       | Log the diff when a chart release diverges. **Potentially insecure.**
 | --update-chart-deps       | `true`                        | Update chart dependencies before installing or upgrading a release.
 
-## Installing Weave Flux Helm Operator and Helm with TLS enabled
+## Installing Flux Helm Operator and Helm with TLS enabled
 
 ### Installing Helm / Tiller
 
-Generate certificates for Tiller and Flux. This will provide a CA, servercerts for Tiller and client certs for Helm / Weave Flux.
+Generate certificates for Tiller and Flux. This will provide a CA, servercerts for Tiller and client certs for Helm / Flux.
 
 > **Note:** When creating the certificate for Tiller the Common Name should match the hostname you are connecting to from the Helm operator.
 
@@ -171,7 +171,7 @@ helm --tls --tls-verify \
   ls
 ```
 
-### Deploy Weave Flux Helm Operator
+### Deploy Flux Helm Operator
 
 First create a new Kubernetes TLS secret for the client certs;
 
