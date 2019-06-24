@@ -8,7 +8,7 @@ that surround building, deploying and monitoring applications. The
 goal is to provide a sustainable model for maintaining and improving 
 an application.
 
-Weave Flux is a tool that automates the deployment of containers to 
+Flux is a tool that automates the deployment of containers to 
 Kubernetes. It fills the automation void that exists between building
 and monitoring.
 
