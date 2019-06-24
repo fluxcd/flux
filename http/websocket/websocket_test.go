@@ -16,7 +16,7 @@ func TestToken(t *testing.T) {
 	token := "toooookkkkkeeeeennnnnn"
 	upgrade := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		tok := r.Header.Get("Authorization")
-		if tok != "Scope-Probe token="+token {
+		if tok != "Bearer "+token {
 			t.Fatal("Did not get authorisation header, got: " + tok)
 		}
 		_, err := Upgrade(w, r, nil)
