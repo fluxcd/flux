@@ -31,7 +31,7 @@ type Token string
 
 func (t Token) Set(req *http.Request) {
 	if string(t) != "" {
-		req.Header.Set("Authorization", fmt.Sprintf("Scope-Probe token=%s", t))
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", t))
 	}
 }
 
