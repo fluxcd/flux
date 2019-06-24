@@ -37,10 +37,7 @@ menu_order: 40
   * [Errors due to author customization](#errors-due-to-author-customization)
 - [Using Annotations](#using-annotations)
 
-All of the features of Flux are accessible from within
-[Weave Cloud](https://cloud.weave.works).
-
-However, `fluxctl` provides an equivalent API that can be used from
+`fluxctl` provides an equivalent API that can be used from
 the command line.
 
 The `--help` for `fluxctl` is described below.
@@ -223,9 +220,6 @@ Connecting:
   # To a fluxd running in namespace "weave" in your current kubectl context
   fluxctl --k8s-fwd-ns=weave list-workloads
 
-  # To a Weave Cloud instance, with your instance token in $TOKEN
-  fluxctl --token $TOKEN list-workloads
-
 Workflow:
   fluxctl list-workloads                                                   # Which workloads are running?
   fluxctl list-images --workload=default:deployment/foo                    # Which images are running/available?
@@ -330,9 +324,7 @@ default:deployment/helloworld  helloworld  quay.io/weaveworks/helloworld
 
 ## Turning on Automation
 
-Automation can be easily controlled from within
-[Weave Cloud](https://cloud.weave.works) by selecting the "Automate"
-button when inspecting a workload. But we can also do this from `fluxctl`
+Automation can be easily controlled from `fluxctl`
 with the `automate` subcommand.
 
 ```sh
@@ -462,7 +454,7 @@ started with several flags that impact the commit information:
 | git-email      | committer email            | `support@weave.works`
 | git-set-author | override the commit author | false
 
-Actions triggered by a user through the Weave Cloud UI or the CLI `fluxctl`
+Actions triggered by a user through the CLI `fluxctl`
 tool, can have the commit author information customized. This is handy for providing extra context in the
 notifications and history. Whether the customization is possible, depends on the Flux daemon (fluxd)
 `git-set-author` flag. If set, the commit author will be customized in the following way:
