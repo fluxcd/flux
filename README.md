@@ -84,7 +84,7 @@ If you too are using Flux in production; please submit a PR to add your organiza
 ### History
 
 In the first years of its existence, the development of Flux was very
-closely couple to the one of [Weave
+closely coupled to that of [Weave
 Cloud](https://www.weave.works/product/cloud/). Over the years the community
 around Flux grew, the numbers of [integrations](#integrations) grew and
 the team started the process of generalising the code, so that more projects
