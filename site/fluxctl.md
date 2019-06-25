@@ -37,8 +37,7 @@ menu_order: 40
   * [Errors due to author customization](#errors-due-to-author-customization)
 - [Using Annotations](#using-annotations)
 
-`fluxctl` provides an equivalent API that can be used from
-the command line.
+`fluxctl` provides an API that can be used from the command line.
 
 The `--help` for `fluxctl` is described below.
 
