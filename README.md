@@ -81,19 +81,14 @@ Its major features are:
 
 If you too are using Flux in production; please submit a PR to add your organization to the list!
 
-### Relation to Weave Cloud
+### History
 
-Weave Cloud is a SaaS product by Weaveworks that includes Flux, as well
-as:
-
-- a UI and alerts for deployments: nicely integrated overview, all Flux
-  operations just a click away.
-- full observability and insights into your cluster: Instantly start using
-  monitoring dashboards for your cluster, hosted 13 months of history, use
-  a realtime map of your cluster to debug and analyse its state.
-
-If you want to learn more about Weave Cloud, you can see it in action on
-[its homepage](https://www.weave.works/product/cloud/).
+In the first years of its existence, the development of Flux was very
+closely coupled to that of [Weave
+Cloud](https://www.weave.works/product/cloud/). Over the years the community
+around Flux grew, the numbers of [integrations](#integrations) grew and
+the team started the process of generalising the code, so that more projects
+could easily integrate.
 
 ## Get started with Flux
 
@@ -147,7 +142,7 @@ be interested in the following:
 
 If you have any questions about Flux and continuous delivery:
 
-- Read [the Weave Flux docs](https://github.com/weaveworks/flux/tree/master/site).
+- Read [the Flux docs](https://github.com/weaveworks/flux/tree/master/site).
 - Invite yourself to the <a href="https://slack.weave.works/" target="_blank">Weave community</a>
   slack and ask a question on the [#flux](https://weave-community.slack.com/messages/flux/)
   channel.

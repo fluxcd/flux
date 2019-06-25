@@ -1,5 +1,5 @@
 ---
-title: Building Weave Flux
+title: Building Flux
 menu_order: 80
 ---
 

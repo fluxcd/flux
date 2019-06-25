@@ -1,5 +1,5 @@
 ---
-title: Weave Flux FAQ
+title: Flux FAQ
 menu_order: 60
 ---
 

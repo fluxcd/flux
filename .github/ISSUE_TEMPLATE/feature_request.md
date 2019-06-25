@@ -1,6 +1,6 @@
 ---
 name: Feature request
-about: Suggest a new feature for Weave Flux
+about: Suggest a new feature for Flux
 title: ''
 labels: blocked-needs-validation, enhancement
 assignees: ''

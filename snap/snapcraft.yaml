@@ -9,9 +9,9 @@ version-script: |
     echo "$FLUX_TAG+$GIT_REV"
   fi
 version: git
-summary: fluxctl talks to Weave Flux and helps you deploy your code
+summary: fluxctl talks to Flux and helps you deploy your code
 description: |
-  fluxctl talks to your Weave Flux instance and exposes all its
+  fluxctl talks to your Flux instance and exposes all its
   functionality to an easy to use command line interface.
 grade: devel # must be 'stable' to release into candidate/stable channels
 confinement: strict

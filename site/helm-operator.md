@@ -30,11 +30,11 @@ helm-operator requires setup and offers customization though a multitude of flag
 | --log-release-diffs       | `false`                       | Log the diff when a chart release diverges. **Potentially insecure.**
 | --update-chart-deps       | `true`                        | Update chart dependencies before installing or upgrading a release.
 
-## Installing Weave Flux Helm Operator and Helm with TLS enabled
+## Installing Flux Helm Operator and Helm with TLS enabled
 
 ### Installing Helm / Tiller
 
-Generate certificates for Tiller and Flux. This will provide a CA, servercerts for Tiller and client certs for Helm / Weave Flux.
+Generate certificates for Tiller and Flux. This will provide a CA, servercerts for Tiller and client certs for Helm / Flux.
 
 > **Note:** When creating the certificate for Tiller the Common Name should match the hostname you are connecting to from the Helm operator.
 
@@ -171,7 +171,7 @@ helm --tls --tls-verify \
   ls
 ```
 
-### Deploy Weave Flux Helm Operator
+### Deploy Flux Helm Operator
 
 First create a new Kubernetes TLS secret for the client certs;
 
@@ -227,23 +227,3 @@ metadata:
   selfLink: /api/v1/namespaces/helm-system/configmaps/flux-helm-tls-ca-config
   uid: c106f866-7f9e-11e8-904a-025000000001
 ```
-
-## Installing Weave Flux Helm Operator for Weave Cloud
-
-In order to use the Helm operator with Weave Cloud you have to apply the `HelmRelease` CRD definition and the operator
-deployment in the `weave` namespace:
-
-```bash
-export REPO=https://raw.githubusercontent.com/weaveworks/flux/master
-
-kubectl apply -f ${REPO}/deploy-helm/flux-helm-release-crd.yaml
-kubectl apply -f ${REPO}/deploy-helm/weave-cloud-helm-operator-deployment.yaml
-```
-
-Check the operator logs with:
-
-```bash
-kubectl -n weave logs deployment/flux-helm-operator -f
-```
-
-> **Note:** The above instructions are assuming that Tiller is deployed in the `kube-system` namespace without TLS.

@@ -1,6 +1,6 @@
-# Driving Weave Flux - automations, locks and annotations
+# Driving Flux - automations, locks and annotations
 
-In this tutorial we want to get a better feel for what we can do with Weave
+In this tutorial we want to get a better feel for what we can do with 
 Flux. We won't spend too much time with getting it up and running, so let's
 get that out of the way first.
 
@@ -11,7 +11,7 @@ deployment](https://github.com/weaveworks/flux-get-started) and click on the
 
 ## Setup
 
-Get the source code of Weave Flux:
+Get the source code of Flux:
 
 ```sh
 git clone https://github.com/weaveworks/flux
@@ -83,7 +83,7 @@ Apply the Helm Release CRD:
 kubectl apply -f https://raw.githubusercontent.com/weaveworks/flux/master/deploy-helm/flux-helm-release-crd.yaml
 ```
 
-Install Weave Flux and its Helm Operator by specifying your fork URL. Just
+Install Flux and its Helm Operator by specifying your fork URL. Just
 make sure you replace `YOURUSER` with your GitHub username in the command
 below:
 
@@ -108,14 +108,14 @@ running `kubectl get pods --all-namespaces`).
 
 In the second step we will use fluxctl to talk to Flux in the cluster and
 interact with the deployments. First, please [install fluxctl](fluxctl.md#installing-fluxctl).
-(It enables you to drive all of Weave Flux, so have a look at the output of
+(It enables you to drive all of Flux, so have a look at the output of
 `fluxctl -h` to get a better idea.)
 
 > **Note:** Another option (without installing `fluxctl` is to take a look
 at the resulting annotation changes and make the changes in Git. This is
 GitOps after all. :-)
 
-To enable Weave Flux to sync your config, you need to add the deployment key
+To enable Flux to sync your config, you need to add the deployment key
 to your fork.
 
 Get your Flux deployment key by running
@@ -134,11 +134,11 @@ Wait for sync to happen or run
 fluxctl sync
 ```
 
-## Driving Weave Flux
+## Driving Flux
 
-After syncing, Weave Flux will find out which workloads there are, which
+After syncing, Flux will find out which workloads there are, which
 images are available and what needs doing. To find out which workloads are
-managed by Weave Flux, run
+managed by Flux, run
 
 ```sh
 fluxctl list-workloads -a
@@ -167,7 +167,7 @@ Commit pushed:  4755a3b
 ```
 
 If you now go back to `https://github.com/YOUR-USER-ID/flux-get-started` in
-your browser, you will notice that Weave Flux has made a commit on your
+your browser, you will notice that Flux has made a commit on your
 behalf. The policy change is now in Git, which is great for transparency and
 for defining expected state.
 
@@ -265,7 +265,7 @@ and the diff for this is going to look like this:
 ```
 
 And that's it. At the end of this tutorial, you have automated, locked and
-annotated deployments with Weave Flux.
+annotated deployments with Flux.
 
 Another tip, if you should get stuck anywhere: check what Flux is doing. You
 can do that by simply running
