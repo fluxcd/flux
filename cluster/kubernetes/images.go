@@ -1,6 +1,7 @@
 package kubernetes
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/go-kit/kit/log"
@@ -122,8 +123,9 @@ func mergeCredentials(log func(...interface{}) error,
 // ImagesToFetch is a k8s specific method to get a list of images to update along with their credentials
 func (c *Cluster) ImagesToFetch() registry.ImageCreds {
 	allImageCreds := make(registry.ImageCreds)
+	ctx := context.Background()
 
-	namespaces, err := c.getAllowedAndExistingNamespaces()
+	namespaces, err := c.getAllowedAndExistingNamespaces(ctx)
 	if err != nil {
 		c.logger.Log("err", errors.Wrap(err, "getting namespaces"))
 		return allImageCreds
@@ -132,7 +134,7 @@ func (c *Cluster) ImagesToFetch() registry.ImageCreds {
 	for _, ns := range namespaces {
 		seenCreds := make(map[string]registry.Credentials)
 		for kind, resourceKind := range resourceKinds {
-			workloads, err := resourceKind.getWorkloads(c, ns.Name)
+			workloads, err := resourceKind.getWorkloads(ctx, c, ns.Name)
 			if err != nil {
 				if apierrors.IsNotFound(err) || apierrors.IsForbidden(err) {
 					// Skip unsupported or forbidden resource kinds

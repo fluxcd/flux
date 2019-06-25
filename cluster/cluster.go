@@ -1,6 +1,7 @@
 package cluster
 
 import (
+	"context"
 	"errors"
 
 	"github.com/weaveworks/flux"
@@ -25,11 +26,11 @@ const (
 // are distinct interfaces.
 type Cluster interface {
 	// Get all of the services (optionally, from a specific namespace), excluding those
-	AllWorkloads(maybeNamespace string) ([]Workload, error)
-	SomeWorkloads([]flux.ResourceID) ([]Workload, error)
+	AllWorkloads(ctx context.Context, maybeNamespace string) ([]Workload, error)
+	SomeWorkloads(ctx context.Context, ids []flux.ResourceID) ([]Workload, error)
 	IsAllowedResource(flux.ResourceID) bool
 	Ping() error
-	Export() ([]byte, error)
+	Export(ctx context.Context) ([]byte, error)
 	Sync(SyncSet) error
 	PublicSSHKey(regenerate bool) (ssh.PublicKey, error)
 }
