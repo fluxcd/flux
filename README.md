@@ -59,6 +59,7 @@ Its major features are:
 
 - [ABA English](https://www.abaenglish.com)
 - [APPUiO](https://appuio.ch)
+- [ArangoDB Oasis](https://arangodb.com/managed-service)
 - [Avisi](https://avisi.nl)
 - [Babylon Health](https://www.babylonhealth.com/)
 - [College of William & Mary](https://www.wm.edu)
