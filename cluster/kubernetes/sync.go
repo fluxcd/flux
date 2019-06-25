@@ -2,6 +2,7 @@ package kubernetes
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha1"
 	"crypto/sha256"
 	"encoding/base64"
@@ -292,7 +293,7 @@ func (c *Cluster) listAllowedResources(
 	}
 
 	// List resources only from the allowed namespaces
-	namespaces, err := c.getAllowedAndExistingNamespaces()
+	namespaces, err := c.getAllowedAndExistingNamespaces(context.Background())
 	if err != nil {
 		return nil, err
 	}

@@ -71,7 +71,7 @@ func (d *Daemon) Ping(ctx context.Context) error {
 }
 
 func (d *Daemon) Export(ctx context.Context) ([]byte, error) {
-	return d.Cluster.Export()
+	return d.Cluster.Export(ctx)
 }
 
 func (d *Daemon) getManifestStore(checkout *git.Checkout) (manifests.Store, error) {
@@ -122,9 +122,9 @@ func (d *Daemon) ListServicesWithOptions(ctx context.Context, opts v11.ListServi
 	var clusterWorkloads []cluster.Workload
 	var err error
 	if len(opts.Services) > 0 {
-		clusterWorkloads, err = d.Cluster.SomeWorkloads(opts.Services)
+		clusterWorkloads, err = d.Cluster.SomeWorkloads(ctx, opts.Services)
 	} else {
-		clusterWorkloads, err = d.Cluster.AllWorkloads(opts.Namespace)
+		clusterWorkloads, err = d.Cluster.AllWorkloads(ctx, opts.Namespace)
 	}
 	if err != nil {
 		return nil, errors.Wrap(err, "getting workloads from cluster")
@@ -199,12 +199,12 @@ func (d *Daemon) ListImagesWithOptions(ctx context.Context, opts v10.ListImagesO
 		if err != nil {
 			return nil, errors.Wrap(err, "treating workload spec as ID")
 		}
-		workloads, err = d.Cluster.SomeWorkloads([]flux.ResourceID{id})
+		workloads, err = d.Cluster.SomeWorkloads(ctx, []flux.ResourceID{id})
 		if err != nil {
 			return nil, errors.Wrap(err, "getting some workloads")
 		}
 	} else {
-		workloads, err = d.Cluster.AllWorkloads(opts.Namespace)
+		workloads, err = d.Cluster.AllWorkloads(ctx, opts.Namespace)
 		if err != nil {
 			return nil, errors.Wrap(err, "getting all workloads")
 		}

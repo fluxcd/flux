@@ -29,7 +29,7 @@ func (d *Daemon) pollForNewImages(logger log.Logger) {
 		return
 	}
 	// Find images to check
-	workloads, err := d.Cluster.SomeWorkloads(candidateWorkloads.IDs())
+	workloads, err := d.Cluster.SomeWorkloads(ctx, candidateWorkloads.IDs())
 	if err != nil {
 		logger.Log("error", errors.Wrap(err, "checking workloads for new images"))
 		return

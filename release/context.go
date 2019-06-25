@@ -85,7 +85,7 @@ func (rc *ReleaseContext) SelectWorkloads(ctx context.Context, results update.Re
 	}
 
 	// Ask the cluster about those that we're still interested in
-	definedAndRunning, err := rc.cluster.SomeWorkloads(toAskClusterAbout)
+	definedAndRunning, err := rc.cluster.SomeWorkloads(ctx, toAskClusterAbout)
 	if err != nil {
 		return nil, err
 	}
