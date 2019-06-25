@@ -29,7 +29,7 @@ func GPGKey(t *testing.T) (string, string, func()) {
 	io.WriteString(stdin, "Key-Type: DSA\n")
 	io.WriteString(stdin, "Key-Length: 1024\n")
 	io.WriteString(stdin, "Key-Usage: sign\n")
-	io.WriteString(stdin, "Name-Real: Weave Flux\n")
+	io.WriteString(stdin, "Name-Real: Flux\n")
 	io.WriteString(stdin, "Name-Email: flux@weave.works\n")
 	io.WriteString(stdin, "%no-protection\n")
 	stdin.Close()

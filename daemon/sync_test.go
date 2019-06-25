@@ -31,7 +31,7 @@ const (
 	gitPath     = ""
 	gitSyncTag  = "flux-sync"
 	gitNotesRef = "flux"
-	gitUser     = "Weave Flux"
+	gitUser     = "Flux"
 	gitEmail    = "support@weave.works"
 )
 
