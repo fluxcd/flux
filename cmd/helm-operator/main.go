@@ -39,6 +39,8 @@ var (
 	master     *string
 	namespace  *string
 
+	workers *int
+
 	tillerIP        *string
 	tillerPort      *string
 	tillerNamespace *string
@@ -85,6 +87,8 @@ func init() {
 	kubeconfig = fs.String("kubeconfig", "", "path to a kubeconfig; required if out-of-cluster")
 	master = fs.String("master", "", "address of the Kubernetes API server; overrides any value in kubeconfig; required if out-of-cluster")
 	namespace = fs.String("allow-namespace", "", "if set, this limits the scope to a single namespace; if not specified, all namespaces will be watched")
+
+	workers = fs.Int("workers", 1, "amount of workers processing releases (experimental)")
 
 	listenAddr = fs.StringP("listen", "l", ":3030", "Listen address where /metrics and API will be served")
 
@@ -214,7 +218,7 @@ func main() {
 	mainLogger.Log("info", "informer caches synced")
 
 	// start operator
-	go opr.Run(1, shutdown, shutdownWg)
+	go opr.Run(*workers, shutdown, shutdownWg)
 
 	// start git sync loop
 	go chartSync.Run(shutdown, errc, shutdownWg)
