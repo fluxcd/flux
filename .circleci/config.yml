@@ -2,7 +2,8 @@ version: 2
 jobs:
   build:
     working_directory: ~/flux
-    machine: true
+    machine:
+      image: ubuntu-1604:201903-01
     environment:
       GO_VERSION: 1.12.5
       # We don't need a GOPATH but CircleCI defines it, so we override it
@@ -22,10 +23,8 @@ jobs:
       - run:
           name: Update packages and Start Memcached
           command: |
-            # These repos fail and we don't need them:
-            sudo rm /etc/apt/sources.list.d/circleci_trusty.list /etc/apt/sources.list.d/google-chrome.list
             sudo apt-get update
-            sudo apt-get install -y git rng-tools docker-ce memcached
+            sudo apt-get install -y git rng-tools memcached
             git version
             docker version
       - restore_cache:
