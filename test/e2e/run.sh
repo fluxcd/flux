@@ -26,7 +26,7 @@ function defer() {
 
 REPO_ROOT=$(git rev-parse --show-toplevel)
 SCRIPT_DIR="${REPO_ROOT}/test/e2e"
-KIND_VERSION=0.2.1
+KIND_VERSION="v0.4.0"
 CACHE_DIR="${REPO_ROOT}/cache/$CURRENT_OS_ARCH"
 KIND_CACHE_PATH="${CACHE_DIR}/kind-$KIND_VERSION"
 KIND_CLUSTER=flux-e2e
