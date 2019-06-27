@@ -149,6 +149,8 @@ func (c *Controller) runWorker() {
 // processNextWorkItem will read a single work item off the workqueue and
 // attempt to process it, by calling the syncHandler.
 func (c *Controller) processNextWorkItem() bool {
+	releaseQueueLength.Set(float64(c.releaseWorkqueue.Len()))
+
 	obj, shutdown := c.releaseWorkqueue.Get()
 	if shutdown {
 		return false
@@ -258,6 +260,7 @@ func (c *Controller) enqueueJob(obj interface{}) {
 		return
 	}
 	c.releaseWorkqueue.AddRateLimited(key)
+	releaseQueueLength.Set(float64(c.releaseWorkqueue.Len()))
 }
 
 // enqueueUpdateJob decides if there is a genuine resource update

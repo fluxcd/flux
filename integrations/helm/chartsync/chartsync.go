@@ -198,7 +198,7 @@ func (chs *ChartChangeSync) Run(stopCh <-chan struct{}, errc chan error, wg *syn
 					for _, fhr := range resources {
 						ref := fhr.Spec.ChartSource.GitChartSource.RefOrDefault()
 						path := fhr.Spec.ChartSource.GitChartSource.Path
-						releaseName := release.GetReleaseName(fhr)
+						releaseName := fhr.ReleaseName()
 
 						ctx, cancel := context.WithTimeout(context.Background(), helmop.GitOperationTimeout)
 						refHead, err := repo.Revision(ctx, ref)
@@ -291,7 +291,7 @@ func (chs *ChartChangeSync) ReconcileReleaseDef(fhr fluxv1beta1.HelmRelease) {
 // HelmRelease resource, and either installs, upgrades, or does
 // nothing, depending on the state (or absence) of the release.
 func (chs *ChartChangeSync) reconcileReleaseDef(fhr fluxv1beta1.HelmRelease) {
-	releaseName := release.GetReleaseName(fhr)
+	releaseName := fhr.ReleaseName()
 
 	// Attempt to retrieve an upgradable release, in case no release
 	// or error is returned, install it.
@@ -423,7 +423,7 @@ func (chs *ChartChangeSync) reconcileReleaseDef(fhr fluxv1beta1.HelmRelease) {
 // call it when it is handling a resource deletion.
 func (chs *ChartChangeSync) DeleteRelease(fhr fluxv1beta1.HelmRelease) {
 	// FIXME(michael): these may need to stop mirroring a repo.
-	name := release.GetReleaseName(fhr)
+	name := fhr.ReleaseName()
 	err := chs.release.Delete(name)
 	if err != nil {
 		chs.logger.Log("warning", "chart release not deleted", "resource", fhr.ResourceID().String(), "release", name, "err", err)
