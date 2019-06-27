@@ -46,14 +46,14 @@ func (d *Daemon) Loop(stop chan struct{}, wg *sync.WaitGroup, logger log.Logger)
 	// every timer tick as well as every mirror refresh.
 	syncHead := ""
 
+	// In-memory sync tag state
+	lastKnownSyncTag := &lastKnownSyncTag{logger: logger, syncTag: d.GitConfig.SyncTag}
+
 	// Ask for a sync, and to poll images, straight away
 	d.AskForSync()
 	d.AskForImagePoll()
 
 	for {
-		var (
-			lastKnownSyncTag = &lastKnownSyncTag{logger: logger, syncTag: d.GitConfig.SyncTag}
-		)
 		select {
 		case <-stop:
 			logger.Log("stopping", "true")

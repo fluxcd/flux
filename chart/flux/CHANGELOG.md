@@ -1,3 +1,35 @@
+## 0.10.1 (2019-06-16)
+
+### Bug fixes
+
+ - Fix memcached security context
+   [weaveworks/flux#2163](https://github.com/weaveworks/flux/pull/2163)
+
+## 0.10.0 (2019-06-14)
+
+### Improvements
+
+ - Updated Flux to `1.13.0` and Helm operator to `0.9.2`
+   [weaveworks/flux#2150](https://github.com/weaveworks/flux/pull/2150)
+   [weaveworks/flux#2153](https://github.com/weaveworks/flux/pull/2153)
+ - Updated memcached to `1.5.15` and configured default security context
+   [weaveworks/flux#2107](https://github.com/weaveworks/flux/pull/2107)
+ - Toggle garbage collection dry-run
+   [weaveworks/flux#2063](https://github.com/weaveworks/flux/pull/2063)
+ - Toggle git signature verification
+   [weaveworks/flux#2053](https://github.com/weaveworks/flux/pull/2053)
+ - Support `dnsPolicy` and `dnsConfig` in Flux daemon deployment
+   [weaveworks/flux#2116](https://github.com/weaveworks/flux/pull/2116)
+ - Support configurable log format
+   [weaveworks/flux#2138](https://github.com/weaveworks/flux/pull/2138)
+ - Support additional sidecar containers
+   [weaveworks/flux#2130](https://github.com/weaveworks/flux/pull/2130)
+
+### Bug fixes
+
+ - Fix `extraVolumes` indentation
+   [weaveworks/flux#2102](https://github.com/weaveworks/flux/pull/2102)
+
 ## 0.9.5 (2019-05-22)
 
  - Updated Flux to `1.12.3`

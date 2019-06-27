@@ -1,5 +1,5 @@
 ---
-title: Introducing Weave Flux
+title: Introducing Flux
 menu_order: 10
 ---
 
@@ -8,13 +8,7 @@ that surround building, deploying and monitoring applications. The
 goal is to provide a sustainable model for maintaining and improving 
 an application.
 
-The promise of continuous delivery relies upon automation and in recent 
-years the automation of building and testing software has become 
-commonplace. But it is comparatively difficult to automate the 
-deployment and monitoring of an application.
-[Weave Cloud](https://cloud.weave.works) fixes this problem.
-
-Weave Flux is a tool that automates the deployment of containers to 
+Flux is a tool that automates the deployment of containers to 
 Kubernetes. It fills the automation void that exists between building
 and monitoring.
 
@@ -56,10 +50,6 @@ One final high-level feature is that Flux increases visibility of your
 application. Clear visibility of the state of a cluster is key for
 maintaining operational systems. Developers can be confident in their
 changes by observing a predictable series of deployment events.
-
-Flux can send notifications to a service (e.g., [Weave
-Cloud](https://cloud.weave.works/)) to provide integrations with Slack
-and other such media.
 
 ## Next
 

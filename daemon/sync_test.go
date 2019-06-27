@@ -31,7 +31,7 @@ const (
 	gitPath     = ""
 	gitSyncTag  = "flux-sync"
 	gitNotesRef = "flux"
-	gitUser     = "Weave Flux"
+	gitUser     = "Flux"
 	gitEmail    = "support@weave.works"
 )
 
@@ -44,7 +44,7 @@ func daemon(t *testing.T) (*Daemon, func()) {
 	repo, repoCleanup := gittest.Repo(t)
 
 	k8s = &mock.Mock{}
-	k8s.ExportFunc = func() ([]byte, error) { return nil, nil }
+	k8s.ExportFunc = func(ctx context.Context) ([]byte, error) { return nil, nil }
 
 	events = &mockEventWriter{}
 

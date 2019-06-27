@@ -1,5 +1,5 @@
 ---
-title: Monitoring Weave Flux
+title: Monitoring Flux
 menu_order: 70
 ---
 

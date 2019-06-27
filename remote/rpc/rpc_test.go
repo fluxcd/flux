@@ -6,6 +6,7 @@ import (
 	"io"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/weaveworks/flux/api"
 	"github.com/weaveworks/flux/remote"
@@ -26,7 +27,7 @@ func TestRPC(t *testing.T) {
 	wrap := func(mock api.UpstreamServer) api.UpstreamServer {
 		clientConn, serverConn := pipes()
 
-		server, err := NewServer(mock)
+		server, err := NewServer(mock, 10*time.Second)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -61,7 +62,7 @@ func TestBadRPC(t *testing.T) {
 	ctx := context.Background()
 	mock := &remote.MockServer{}
 	clientConn, serverConn := faultyPipes()
-	server, err := NewServer(mock)
+	server, err := NewServer(mock, 10*time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}

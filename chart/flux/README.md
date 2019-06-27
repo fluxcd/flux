@@ -179,7 +179,7 @@ You should also remove the deploy key from your GitHub repository.
 
 ### Configuration
 
-The following tables lists the configurable parameters of the Weave Flux chart and their default values.
+The following tables lists the configurable parameters of the Flux chart and their default values.
 
 | Parameter                                         | Default                                              | Description
 | -----------------------------------------------   | ---------------------------------------------------- | ---
@@ -299,7 +299,7 @@ weaveworks/flux
 
 ### Upgrade
 
-Update Weave Flux version with:
+Update Flux version with:
 
 ```sh
 helm upgrade --reuse-values flux \

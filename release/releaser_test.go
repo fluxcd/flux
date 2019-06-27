@@ -145,10 +145,10 @@ var (
 
 func mockCluster(running ...cluster.Workload) *mock.Mock {
 	return &mock.Mock{
-		AllWorkloadsFunc: func(string) ([]cluster.Workload, error) {
+		AllWorkloadsFunc: func(ctx context.Context, maybeNamespace string) ([]cluster.Workload, error) {
 			return running, nil
 		},
-		SomeWorkloadsFunc: func(ids []flux.ResourceID) ([]cluster.Workload, error) {
+		SomeWorkloadsFunc: func(ctx context.Context, ids []flux.ResourceID) ([]cluster.Workload, error) {
 			var res []cluster.Workload
 			for _, id := range ids {
 				for _, svc := range running {

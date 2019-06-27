@@ -30,6 +30,7 @@ type Upstream struct {
 	endpoint  string
 	apiClient *fluxclient.Client
 	server    api.UpstreamServer
+	timeout   time.Duration
 	logger    log.Logger
 	quit      chan struct{}
 
@@ -46,7 +47,7 @@ var (
 	}, []string{"target"})
 )
 
-func NewUpstream(client *http.Client, ua string, t fluxclient.Token, router *mux.Router, endpoint string, s api.UpstreamServer, logger log.Logger) (*Upstream, error) {
+func NewUpstream(client *http.Client, ua string, t fluxclient.Token, router *mux.Router, endpoint string, s api.UpstreamServer, timeout time.Duration, logger log.Logger) (*Upstream, error) {
 	httpEndpoint, wsEndpoint, err := inferEndpoints(endpoint)
 	if err != nil {
 		return nil, errors.Wrap(err, "inferring WS/HTTP endpoints")
@@ -65,6 +66,7 @@ func NewUpstream(client *http.Client, ua string, t fluxclient.Token, router *mux
 		endpoint:  wsEndpoint,
 		apiClient: fluxclient.New(client, router, httpEndpoint, t),
 		server:    s,
+		timeout:   timeout,
 		logger:    logger,
 		quit:      make(chan struct{}),
 	}
@@ -161,7 +163,7 @@ func (a *Upstream) connect() error {
 
 	// Hook up the rpc server. We are a websocket _client_, but an RPC
 	// _server_.
-	rpcserver, err := rpc.NewServer(a.server)
+	rpcserver, err := rpc.NewServer(a.server, a.timeout)
 	if err != nil {
 		return errors.Wrap(err, "initializing rpc server")
 	}
