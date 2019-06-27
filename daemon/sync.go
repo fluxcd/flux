@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster"
 	"github.com/weaveworks/flux/event"
 	"github.com/weaveworks/flux/git"
@@ -69,9 +68,9 @@ func (d *Daemon) Sync(ctx context.Context, started time.Time, revision string, s
 
 	// Determine what resources changed during the sync
 	changedResources, err := getChangedResources(ctx, c, d.GitTimeout, working, resourceStore, resources)
-	serviceIDs := flux.ResourceIDSet{}
+	serviceIDs := resource.IDSet{}
 	for _, r := range changedResources {
-		serviceIDs.Add([]flux.ResourceID{r.ResourceID()})
+		serviceIDs.Add([]resource.ID{r.ResourceID()})
 	}
 
 	// Retrieve git notes and collect events from them
@@ -347,7 +346,7 @@ func collectNoteEvents(ctx context.Context, c changeSet, notes map[string]struct
 }
 
 // logCommitEvent reports all synced commits to the upstream.
-func logCommitEvent(el eventLogger, c changeSet, serviceIDs flux.ResourceIDSet, started time.Time,
+func logCommitEvent(el eventLogger, c changeSet, serviceIDs resource.IDSet, started time.Time,
 	includesEvents map[string]bool, resourceErrors []event.ResourceError, logger log.Logger) error {
 	if len(c.commits) == 0 {
 		return nil

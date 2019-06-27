@@ -4,9 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/image"
-	"github.com/weaveworks/flux/policy"
 	"github.com/weaveworks/flux/resource"
 )
 
@@ -22,10 +20,10 @@ func ErrResourceNotFound(name string) error {
 // in a file or not e.g., generated and updated by a .flux.yaml file, explicit Kubernetes .yaml manifests files ...
 type Store interface {
 	// Set the container image of a resource in the store
-	SetWorkloadContainerImage(ctx context.Context, resourceID flux.ResourceID, container string, newImageID image.Ref) error
+	SetWorkloadContainerImage(ctx context.Context, resourceID resource.ID, container string, newImageID image.Ref) error
 	// UpdateWorkloadPolicies modifies a resource in the store to apply the policy-update specified.
 	// It returns whether a change in the resource was actually made as a result of the change
-	UpdateWorkloadPolicies(ctx context.Context, resourceID flux.ResourceID, update policy.Update) (bool, error)
+	UpdateWorkloadPolicies(ctx context.Context, resourceID resource.ID, update resource.PolicyUpdate) (bool, error)
 	// Load all the resources in the store. The returned map is indexed by the resource IDs
 	GetAllResourcesByID(ctx context.Context) (map[string]resource.Resource, error)
 }

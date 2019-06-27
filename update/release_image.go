@@ -8,10 +8,10 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/go-kit/kit/log"
-	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/image"
 	"github.com/weaveworks/flux/policy"
 	"github.com/weaveworks/flux/registry"
+	"github.com/weaveworks/flux/resource"
 )
 
 const (
@@ -56,7 +56,7 @@ type ReleaseImageSpec struct {
 	ServiceSpecs []ResourceSpec // TODO: rename to WorkloadSpecs after adding versioning
 	ImageSpec    ImageSpec
 	Kind         ReleaseKind
-	Excludes     []flux.ResourceID
+	Excludes     []resource.ID
 	Force        bool
 }
 
@@ -119,14 +119,14 @@ func (s ReleaseImageSpec) selectWorkloads(ctx context.Context, rc ReleaseContext
 func (s ReleaseImageSpec) filters(rc ReleaseContext) ([]WorkloadFilter, []WorkloadFilter, error) {
 	var prefilters, postfilters []WorkloadFilter
 
-	ids := []flux.ResourceID{}
+	ids := []resource.ID{}
 	for _, ss := range s.ServiceSpecs {
 		if ss == ResourceSpecAll {
 			// "<all>" Overrides any other filters
-			ids = []flux.ResourceID{}
+			ids = []resource.ID{}
 			break
 		}
-		id, err := flux.ParseResourceID(string(ss))
+		id, err := resource.ParseID(string(ss))
 		if err != nil {
 			return nil, nil, err
 		}
@@ -297,25 +297,25 @@ func (s ReleaseImageSpec) calculateImageUpdates(rc ReleaseContext, candidates []
 	return updates, nil
 }
 
-type ResourceSpec string // ResourceID or "<all>"
+type ResourceSpec string // ID or "<all>"
 
 func ParseResourceSpec(s string) (ResourceSpec, error) {
 	if s == string(ResourceSpecAll) {
 		return ResourceSpecAll, nil
 	}
-	id, err := flux.ParseResourceID(s)
+	id, err := resource.ParseID(s)
 	if err != nil {
 		return "", errors.Wrap(err, "invalid workload spec")
 	}
 	return ResourceSpec(id.String()), nil
 }
 
-func MakeResourceSpec(id flux.ResourceID) ResourceSpec {
+func MakeResourceSpec(id resource.ID) ResourceSpec {
 	return ResourceSpec(id.String())
 }
 
-func (s ResourceSpec) AsID() (flux.ResourceID, error) {
-	return flux.ParseResourceID(string(s))
+func (s ResourceSpec) AsID() (resource.ID, error) {
+	return resource.ParseID(string(s))
 }
 
 func (s ResourceSpec) String() string {

@@ -1,9 +1,9 @@
 package update
 
 import (
-	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/image"
 	"github.com/weaveworks/flux/policy"
+	"github.com/weaveworks/flux/resource"
 )
 
 const (
@@ -47,7 +47,7 @@ func (f *SpecificImageFilter) Filter(u WorkloadUpdate) WorkloadResult {
 }
 
 type ExcludeFilter struct {
-	IDs []flux.ResourceID
+	IDs []resource.ID
 }
 
 func (f *ExcludeFilter) Filter(u WorkloadUpdate) WorkloadResult {
@@ -63,7 +63,7 @@ func (f *ExcludeFilter) Filter(u WorkloadUpdate) WorkloadResult {
 }
 
 type IncludeFilter struct {
-	IDs []flux.ResourceID
+	IDs []resource.ID
 }
 
 func (f *IncludeFilter) Filter(u WorkloadUpdate) WorkloadResult {

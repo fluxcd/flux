@@ -7,9 +7,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster/kubernetes/testfiles"
 	"github.com/weaveworks/flux/git"
+	"github.com/weaveworks/flux/resource"
 )
 
 // Repo creates a new clone-able git repo, pre-populated with some kubernetes
@@ -65,7 +65,7 @@ func Repo(t *testing.T) (*git.Repo, func()) {
 // Workloads is a shortcut to getting the names of the workloads (NB
 // not all resources, just the workloads) represented in the test
 // files.
-func Workloads() (res []flux.ResourceID) {
+func Workloads() (res []resource.ID) {
 	for k, _ := range testfiles.WorkloadMap("") {
 		res = append(res, k)
 	}

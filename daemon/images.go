@@ -7,7 +7,6 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
 
-	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster"
 	"github.com/weaveworks/flux/policy"
 	"github.com/weaveworks/flux/resource"
@@ -48,9 +47,9 @@ func (d *Daemon) pollForNewImages(logger log.Logger) {
 	}
 }
 
-type resources map[flux.ResourceID]resource.Resource
+type resources map[resource.ID]resource.Resource
 
-func (r resources) IDs() (ids []flux.ResourceID) {
+func (r resources) IDs() (ids []resource.ID) {
 	for k, _ := range r {
 		ids = append(ids, k)
 	}
@@ -66,7 +65,7 @@ func (d *Daemon) getAllowedAutomatedResources(ctx context.Context) (resources, e
 		return nil, err
 	}
 
-	result := map[flux.ResourceID]resource.Resource{}
+	result := map[resource.ID]resource.Resource{}
 	for _, resource := range resources {
 		policies := resource.Policies()
 		if policies.Has(policy.Automated) && !policies.Has(policy.Locked) && !policies.Has(policy.Ignore) {

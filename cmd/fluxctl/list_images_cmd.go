@@ -8,10 +8,10 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/api/v10"
 	"github.com/weaveworks/flux/api/v6"
 	"github.com/weaveworks/flux/registry"
+	"github.com/weaveworks/flux/resource"
 	"github.com/weaveworks/flux/update"
 )
 
@@ -64,7 +64,7 @@ func (opts *imageListOpts) RunE(cmd *cobra.Command, args []string) error {
 		opts.workload = opts.controller
 	}
 	if len(opts.workload) > 0 {
-		id, err := flux.ParseResourceIDOptionalNamespace(opts.namespace, opts.workload)
+		id, err := resource.ParseIDOptionalNamespace(opts.namespace, opts.workload)
 		if err != nil {
 			return err
 		}

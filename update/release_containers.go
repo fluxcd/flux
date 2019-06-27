@@ -9,7 +9,6 @@ import (
 
 	"github.com/go-kit/kit/log"
 
-	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/image"
 	"github.com/weaveworks/flux/resource"
 )
@@ -19,7 +18,7 @@ var zeroImageRef = image.Ref{}
 // ReleaseContainersSpec defines the spec for a `containers` manifest update.
 type ReleaseContainersSpec struct {
 	Kind           ReleaseKind
-	ContainerSpecs map[flux.ResourceID][]ContainerUpdate
+	ContainerSpecs map[resource.ID][]ContainerUpdate
 	SkipMismatches bool
 	Force          bool
 }
@@ -59,7 +58,7 @@ func (s ReleaseContainersSpec) resultsError(results Result) error {
 }
 
 func (s ReleaseContainersSpec) filters() ([]WorkloadFilter, []WorkloadFilter) {
-	var rids []flux.ResourceID
+	var rids []resource.ID
 	for rid := range s.ContainerSpecs {
 		rids = append(rids, rid)
 	}

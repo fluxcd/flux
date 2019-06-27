@@ -3,9 +3,7 @@ package manifests
 import (
 	"bytes"
 
-	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/image"
-	"github.com/weaveworks/flux/policy"
 	"github.com/weaveworks/flux/resource"
 )
 
@@ -21,9 +19,9 @@ type Manifests interface {
 	// ParseManifest parses the content of a collection of manifests, into resources
 	ParseManifest(def []byte, source string) (map[string]resource.Resource, error)
 	// Set the image of a container in a manifest's bytes to that given
-	SetWorkloadContainerImage(def []byte, resourceID flux.ResourceID, container string, newImageID image.Ref) ([]byte, error)
+	SetWorkloadContainerImage(def []byte, resourceID resource.ID, container string, newImageID image.Ref) ([]byte, error)
 	// UpdateWorkloadPolicies modifies a manifest to apply the policy update specified
-	UpdateWorkloadPolicies(def []byte, id flux.ResourceID, update policy.Update) ([]byte, error)
+	UpdateWorkloadPolicies(def []byte, id resource.ID, update resource.PolicyUpdate) ([]byte, error)
 	// CreateManifestPatch obtains a patch between the original and modified manifests
 	CreateManifestPatch(originalManifests, modifiedManifests []byte, originalSource, modifiedSource string) ([]byte, error)
 	// ApplyManifestPatch applies a manifest patch (obtained with CreateManifestDiff) returned the patched manifests

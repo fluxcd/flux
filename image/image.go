@@ -242,7 +242,7 @@ type Labels struct {
 	BuildDate time.Time `json:"org.label-schema.build-date,omitempty"`
 	// Created holds the Open Container Image spec 'created' label
 	// Ref: https://github.com/opencontainers/image-spec/blob/master/annotations.md#pre-defined-annotation-keys
-	Created   time.Time `json:"org.opencontainers.image.created,omitempty"`
+	Created time.Time `json:"org.opencontainers.image.created,omitempty"`
 }
 
 // MarshalJSON returns the Labels value in JSON (as bytes). It is

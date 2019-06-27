@@ -8,11 +8,11 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/api/v11"
 	"github.com/weaveworks/flux/api/v6"
 	"github.com/weaveworks/flux/cluster"
 	"github.com/weaveworks/flux/job"
+	"github.com/weaveworks/flux/resource"
 	"github.com/weaveworks/flux/update"
 )
 
@@ -103,7 +103,7 @@ func (opts *workloadReleaseOpts) RunE(cmd *cobra.Command, args []string) error {
 		workloads = []update.ResourceSpec{update.ResourceSpecAll}
 	} else {
 		for _, workload := range opts.workloads {
-			id, err := flux.ParseResourceIDOptionalNamespace(opts.namespace, workload)
+			id, err := resource.ParseIDOptionalNamespace(opts.namespace, workload)
 			if err != nil {
 				return err
 			}
@@ -130,9 +130,9 @@ func (opts *workloadReleaseOpts) RunE(cmd *cobra.Command, args []string) error {
 		kind = update.ReleaseKindPlan
 	}
 
-	var excludes []flux.ResourceID
+	var excludes []resource.ID
 	for _, exclude := range opts.exclude {
-		s, err := flux.ParseResourceIDOptionalNamespace(opts.namespace, exclude)
+		s, err := resource.ParseIDOptionalNamespace(opts.namespace, exclude)
 		if err != nil {
 			return err
 		}

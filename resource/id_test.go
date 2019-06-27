@@ -1,4 +1,4 @@
-package flux
+package resource
 
 import (
 	"testing"
@@ -24,14 +24,14 @@ func TestResourceIDParsing(t *testing.T) {
 
 	for _, tc := range valid {
 		t.Run(tc.name, func(t *testing.T) {
-			if _, err := ParseResourceID(tc.id); err != nil {
+			if _, err := ParseID(tc.id); err != nil {
 				t.Error(err)
 			}
 		})
 	}
 	for _, tc := range invalid {
 		t.Run(tc.name, func(t *testing.T) {
-			if _, err := ParseResourceID(tc.id); err == nil {
+			if _, err := ParseID(tc.id); err == nil {
 				t.Errorf("expected %q to be considered invalid", tc.id)
 			}
 		})

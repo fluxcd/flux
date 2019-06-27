@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/resource"
 )
 
 func TempDir(t *testing.T) (string, func()) {
@@ -44,30 +44,30 @@ func WriteTestFiles(dir string) error {
 
 // ResourceMap is the map of resource names to relative paths, which
 // must correspond with `Files` below.
-var ResourceMap = map[flux.ResourceID]string{
-	flux.MustParseResourceID("default:deployment/helloworld"):     "helloworld-deploy.yaml",
-	flux.MustParseResourceID("default:deployment/locked-service"): "locked-service-deploy.yaml",
-	flux.MustParseResourceID("default:deployment/test-service"):   "test/test-service-deploy.yaml",
-	flux.MustParseResourceID("default:deployment/multi-deploy"):   "multi.yaml",
-	flux.MustParseResourceID("default:service/multi-service"):     "multi.yaml",
-	flux.MustParseResourceID("default:deployment/list-deploy"):    "list.yaml",
-	flux.MustParseResourceID("default:service/list-service"):      "list.yaml",
-	flux.MustParseResourceID("default:deployment/semver"):         "semver-deploy.yaml",
-	flux.MustParseResourceID("default:daemonset/init"):            "init.yaml",
+var ResourceMap = map[resource.ID]string{
+	resource.MustParseID("default:deployment/helloworld"):     "helloworld-deploy.yaml",
+	resource.MustParseID("default:deployment/locked-service"): "locked-service-deploy.yaml",
+	resource.MustParseID("default:deployment/test-service"):   "test/test-service-deploy.yaml",
+	resource.MustParseID("default:deployment/multi-deploy"):   "multi.yaml",
+	resource.MustParseID("default:service/multi-service"):     "multi.yaml",
+	resource.MustParseID("default:deployment/list-deploy"):    "list.yaml",
+	resource.MustParseID("default:service/list-service"):      "list.yaml",
+	resource.MustParseID("default:deployment/semver"):         "semver-deploy.yaml",
+	resource.MustParseID("default:daemonset/init"):            "init.yaml",
 }
 
 // WorkloadMap ... given a base path, construct the map representing
 // the services given in the test data. Must be kept in sync with
 // `Files` below. TODO(michael): derive from ResourceMap, or similar.
-func WorkloadMap(dir string) map[flux.ResourceID][]string {
-	return map[flux.ResourceID][]string{
-		flux.MustParseResourceID("default:deployment/helloworld"):     []string{filepath.Join(dir, "helloworld-deploy.yaml")},
-		flux.MustParseResourceID("default:deployment/locked-service"): []string{filepath.Join(dir, "locked-service-deploy.yaml")},
-		flux.MustParseResourceID("default:deployment/test-service"):   []string{filepath.Join(dir, "test/test-service-deploy.yaml")},
-		flux.MustParseResourceID("default:deployment/multi-deploy"):   []string{filepath.Join(dir, "multi.yaml")},
-		flux.MustParseResourceID("default:deployment/list-deploy"):    []string{filepath.Join(dir, "list.yaml")},
-		flux.MustParseResourceID("default:deployment/semver"):         []string{filepath.Join(dir, "semver-deploy.yaml")},
-		flux.MustParseResourceID("default:daemonset/init"):            []string{filepath.Join(dir, "init.yaml")},
+func WorkloadMap(dir string) map[resource.ID][]string {
+	return map[resource.ID][]string{
+		resource.MustParseID("default:deployment/helloworld"):     []string{filepath.Join(dir, "helloworld-deploy.yaml")},
+		resource.MustParseID("default:deployment/locked-service"): []string{filepath.Join(dir, "locked-service-deploy.yaml")},
+		resource.MustParseID("default:deployment/test-service"):   []string{filepath.Join(dir, "test/test-service-deploy.yaml")},
+		resource.MustParseID("default:deployment/multi-deploy"):   []string{filepath.Join(dir, "multi.yaml")},
+		resource.MustParseID("default:deployment/list-deploy"):    []string{filepath.Join(dir, "list.yaml")},
+		resource.MustParseID("default:deployment/semver"):         []string{filepath.Join(dir, "semver-deploy.yaml")},
+		resource.MustParseID("default:daemonset/init"):            []string{filepath.Join(dir, "init.yaml")},
 	}
 }
 
