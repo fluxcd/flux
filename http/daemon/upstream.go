@@ -1,5 +1,8 @@
 package daemon
 
+// This file can be removed from the package once `--connect` is
+// removed from fluxd. Until then, it will be imported from here.
+
 import (
 	"context"
 	"net/http"

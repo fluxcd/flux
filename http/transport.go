@@ -50,6 +50,8 @@ func NewAPIRouter() *mux.Router {
 	return r // TODO 404 though?
 }
 
+// These (routes, and constructor following) should move to
+// weaveworks/flux-adapter when `--connect` is removed from fluxd.
 func UpstreamRoutes(r *mux.Router) {
 	r.NewRoute().Name(RegisterDaemonV6).Methods("GET").Path("/v6/daemon")
 	r.NewRoute().Name(RegisterDaemonV7).Methods("GET").Path("/v7/daemon")
