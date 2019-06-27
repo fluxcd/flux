@@ -1,14 +1,14 @@
 package daemon
 
 import (
-	"github.com/weaveworks/flux/policy"
 	"testing"
 	"time"
 
 	"github.com/go-kit/kit/log"
-	"github.com/weaveworks/flux"
+
 	"github.com/weaveworks/flux/cluster"
 	"github.com/weaveworks/flux/image"
+	"github.com/weaveworks/flux/policy"
 	"github.com/weaveworks/flux/registry"
 	registryMock "github.com/weaveworks/flux/registry/mock"
 	"github.com/weaveworks/flux/resource"
@@ -32,11 +32,11 @@ const (
 )
 
 type candidate struct {
-	resourceID flux.ResourceID
+	resourceID resource.ID
 	policies   policy.Set
 }
 
-func (c candidate) ResourceID() flux.ResourceID {
+func (c candidate) ResourceID() resource.ID {
 	return c.resourceID
 }
 
@@ -54,7 +54,7 @@ func (candidate) Bytes() []byte {
 
 func TestCalculateChanges_Automated(t *testing.T) {
 	logger := log.NewNopLogger()
-	resourceID := flux.MakeResourceID(ns, "deployment", "application")
+	resourceID := resource.MakeID(ns, "deployment", "application")
 	candidateWorkloads := resources{
 		resourceID: candidate{
 			resourceID: resourceID,
@@ -102,7 +102,7 @@ func TestCalculateChanges_Automated(t *testing.T) {
 }
 func TestCalculateChanges_UntaggedImage(t *testing.T) {
 	logger := log.NewNopLogger()
-	resourceID := flux.MakeResourceID(ns, "deployment", "application")
+	resourceID := resource.MakeID(ns, "deployment", "application")
 	candidateWorkloads := resources{
 		resourceID: candidate{
 			resourceID: resourceID,
@@ -159,7 +159,7 @@ func TestCalculateChanges_UntaggedImage(t *testing.T) {
 
 func TestCalculateChanges_ZeroTimestamp(t *testing.T) {
 	logger := log.NewNopLogger()
-	resourceID := flux.MakeResourceID(ns, "deployment", "application")
+	resourceID := resource.MakeID(ns, "deployment", "application")
 	candidateWorkloads := resources{
 		resourceID: candidate{
 			resourceID: resourceID,

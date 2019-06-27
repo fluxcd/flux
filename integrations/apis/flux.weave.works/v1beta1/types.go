@@ -8,7 +8,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/helm/pkg/chartutil"
 
-	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/resource"
 )
 
 // +genclient
@@ -26,8 +26,8 @@ type HelmRelease struct {
 // ResourceID returns an ID made from the identifying parts of the
 // resource, as a convenience for Flux, which uses them
 // everywhere.
-func (fhr HelmRelease) ResourceID() flux.ResourceID {
-	return flux.MakeResourceID(fhr.Namespace, "HelmRelease", fhr.Name)
+func (fhr HelmRelease) ResourceID() resource.ID {
+	return resource.MakeID(fhr.Namespace, "HelmRelease", fhr.Name)
 }
 
 // ValuesFromSource represents a source of values.

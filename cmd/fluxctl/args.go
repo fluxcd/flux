@@ -3,9 +3,9 @@ package main
 import (
 	"bytes"
 	"fmt"
-        "io/ioutil"
+	"io/ioutil"
 	"os/exec"
-        "strings"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -35,6 +35,7 @@ func getCommitAuthor() string {
 }
 
 var execCommand = exec.Command
+
 func getUserGitConfigValue(arg string) string {
 	var out bytes.Buffer
 	cmd := execCommand("git", "config", "--get", "--null", arg)

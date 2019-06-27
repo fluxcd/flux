@@ -11,9 +11,9 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/image"
 	"github.com/weaveworks/flux/registry"
+	"github.com/weaveworks/flux/resource"
 )
 
 func mergeCredentials(log func(...interface{}) error,
@@ -145,7 +145,7 @@ func (c *Cluster) ImagesToFetch() registry.ImageCreds {
 
 			imageCreds := make(registry.ImageCreds)
 			for _, workload := range workloads {
-				logger := log.With(c.logger, "resource", flux.MakeResourceID(ns.Name, kind, workload.GetName()))
+				logger := log.With(c.logger, "resource", resource.MakeID(ns.Name, kind, workload.GetName()))
 				mergeCredentials(logger.Log, c.includeImage, c.client, ns.Name, workload.podTemplate, imageCreds, seenCreds)
 			}
 

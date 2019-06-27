@@ -25,11 +25,11 @@ import (
 	k8shelm "k8s.io/helm/pkg/helm"
 	helmenv "k8s.io/helm/pkg/helm/environment"
 	hapi_release "k8s.io/helm/pkg/proto/hapi/release"
+	helmutil "k8s.io/helm/pkg/releaseutil"
 
-	"github.com/weaveworks/flux"
 	fluxk8s "github.com/weaveworks/flux/cluster/kubernetes"
 	flux_v1beta1 "github.com/weaveworks/flux/integrations/apis/flux.weave.works/v1beta1"
-	helmutil "k8s.io/helm/pkg/releaseutil"
+	"github.com/weaveworks/flux/resource"
 )
 
 type Action string
@@ -104,8 +104,8 @@ func (r *Release) GetUpgradableRelease(name string) (*hapi_release.Release, erro
 	case hapi_release.Status_FAILED:
 		return nil, fmt.Errorf("release requires a rollback before it can be upgraded (%s)", status.GetCode().String())
 	case hapi_release.Status_PENDING_INSTALL,
-	     hapi_release.Status_PENDING_UPGRADE,
-	     hapi_release.Status_PENDING_ROLLBACK:
+		hapi_release.Status_PENDING_UPGRADE,
+		hapi_release.Status_PENDING_ROLLBACK:
 		return nil, fmt.Errorf("operation pending for release (%s)", status.GetCode().String())
 	default:
 		return nil, fmt.Errorf("current state prevents it from being upgraded (%s)", status.GetCode().String())
@@ -288,9 +288,9 @@ func (r *Release) annotateResources(release *hapi_release.Release, fhr flux_v1be
 	}
 }
 
-// fhrResourceID constructs a flux.ResourceID for a HelmRelease resource.
-func fhrResourceID(fhr flux_v1beta1.HelmRelease) flux.ResourceID {
-	return flux.MakeResourceID(fhr.Namespace, "HelmRelease", fhr.Name)
+// fhrResourceID constructs a resource.ID for a HelmRelease resource.
+func fhrResourceID(fhr flux_v1beta1.HelmRelease) resource.ID {
+	return resource.MakeID(fhr.Namespace, "HelmRelease", fhr.Name)
 }
 
 // values tries to resolve all given value file sources and merges

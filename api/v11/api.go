@@ -4,14 +4,14 @@ package v11
 import (
 	"context"
 
-	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/api/v10"
 	"github.com/weaveworks/flux/api/v6"
+	"github.com/weaveworks/flux/resource"
 )
 
 type ListServicesOptions struct {
 	Namespace string
-	Services  []flux.ResourceID
+	Services  []resource.ID
 }
 
 type Server interface {

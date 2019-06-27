@@ -17,7 +17,7 @@ import (
 // variables. When represented in manifests, policies are expected to
 // have a non-empty value when present, even if it's `"true"`; so an
 // empty value can safely denote deletion.
-func ChangesForPolicyUpdate(workload Workload, update policy.Update) (map[string]string, error) {
+func ChangesForPolicyUpdate(workload Workload, update PolicyUpdate) (map[string]string, error) {
 	add, del := update.Add, update.Remove
 	// We may be sent the pseudo-policy `policy.TagAll`, which means
 	// apply this filter to all containers. To do so, we need to know
@@ -45,3 +45,11 @@ func ChangesForPolicyUpdate(workload Workload, update policy.Update) (map[string
 	}
 	return result, nil
 }
+
+type PolicyUpdates map[ID]PolicyUpdate
+
+type PolicyUpdate struct {
+	Add    policy.Set `json:"add"`
+	Remove policy.Set `json:"remove"`
+}
+

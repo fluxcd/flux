@@ -5,8 +5,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/image"
+	"github.com/weaveworks/flux/resource"
 )
 
 type WorkloadUpdateStatus string
@@ -19,7 +19,7 @@ const (
 	ReleaseStatusUnknown WorkloadUpdateStatus = "unknown"
 )
 
-type Result map[flux.ResourceID]WorkloadResult
+type Result map[resource.ID]WorkloadResult
 
 func (r Result) WorkloadIDs() []string {
 	var result []string
@@ -30,8 +30,8 @@ func (r Result) WorkloadIDs() []string {
 	return result
 }
 
-func (r Result) AffectedResources() flux.ResourceIDs {
-	ids := flux.ResourceIDs{}
+func (r Result) AffectedResources() resource.IDs {
+	ids := resource.IDs{}
 	for id, result := range r {
 		if result.Status == ReleaseStatusSuccess {
 			ids = append(ids, id)

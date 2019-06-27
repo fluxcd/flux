@@ -13,7 +13,7 @@ import (
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 
-	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/resource"
 )
 
 const (
@@ -114,7 +114,7 @@ func (cf *ConfigFile) ExecGenerators(ctx context.Context, generators []Generator
 // ExecContainerImageUpdaters executes all the image updates in the configuration file.
 // It will stop at the first error, in which case the returned error will be non-nil
 func (cf *ConfigFile) ExecContainerImageUpdaters(ctx context.Context,
-	workload flux.ResourceID, container string, image, imageTag string) []ConfigFileCombinedExecResult {
+	workload resource.ID, container string, image, imageTag string) []ConfigFileCombinedExecResult {
 	env := makeEnvFromResourceID(workload)
 	env = append(env,
 		"FLUX_CONTAINER="+container,
@@ -137,7 +137,7 @@ func (cf *ConfigFile) ExecContainerImageUpdaters(ctx context.Context,
 // policy. It will stop at the first error, in which case the returned
 // error will be non-nil
 func (cf *ConfigFile) ExecPolicyUpdaters(ctx context.Context,
-	workload flux.ResourceID, policyName, policyValue string) []ConfigFileCombinedExecResult {
+	workload resource.ID, policyName, policyValue string) []ConfigFileCombinedExecResult {
 	env := makeEnvFromResourceID(workload)
 	env = append(env, "FLUX_POLICY="+policyName)
 	if policyValue != "" {
@@ -190,7 +190,7 @@ func (cf *ConfigFile) execCommand(ctx context.Context, env []string, stdOut, std
 	return err
 }
 
-func makeEnvFromResourceID(id flux.ResourceID) []string {
+func makeEnvFromResourceID(id resource.ID) []string {
 	ns, kind, name := id.Components()
 	return []string{
 		"FLUX_WORKLOAD=" + id.String(),

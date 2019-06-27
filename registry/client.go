@@ -158,9 +158,9 @@ interpret:
 		}
 
 		var config struct {
-			Arch    string    `json:"architecture"`
-			Created time.Time `json:"created"`
-			OS      string    `json:"os"`
+			Arch            string    `json:"architecture"`
+			Created         time.Time `json:"created"`
+			OS              string    `json:"os"`
 			ContainerConfig struct {
 				Labels image.Labels `json:"labels"`
 			} `json:"container_config"`

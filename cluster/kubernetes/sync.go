@@ -25,7 +25,6 @@ import (
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/rest"
 
-	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster"
 	kresource "github.com/weaveworks/flux/cluster/kubernetes/resource"
 	"github.com/weaveworks/flux/policy"
@@ -169,14 +168,14 @@ type kuberesource struct {
 	namespaced bool
 }
 
-// ResourceID returns the ResourceID for this resource loaded from the
+// ResourceID returns the ID for this resource loaded from the
 // cluster.
-func (r *kuberesource) ResourceID() flux.ResourceID {
+func (r *kuberesource) ResourceID() resource.ID {
 	ns, kind, name := r.obj.GetNamespace(), r.obj.GetKind(), r.obj.GetName()
 	if !r.namespaced {
 		ns = kresource.ClusterScope
 	}
-	return flux.MakeResourceID(ns, kind, name)
+	return resource.MakeID(ns, kind, name)
 }
 
 // Bytes returns a byte slice description, including enough info to
@@ -368,7 +367,7 @@ func makeGCMark(syncSetName, resourceID string) string {
 // --- internal types for keeping track of syncing
 
 type applyObject struct {
-	ResourceID flux.ResourceID
+	ResourceID resource.ID
 	Source     string
 	Payload    []byte
 }
@@ -381,13 +380,13 @@ func makeChangeSet() changeSet {
 	return changeSet{objs: make(map[string][]applyObject)}
 }
 
-func (c *changeSet) stage(cmd string, id flux.ResourceID, source string, bytes []byte) {
+func (c *changeSet) stage(cmd string, id resource.ID, source string, bytes []byte) {
 	c.objs[cmd] = append(c.objs[cmd], applyObject{id, source, bytes})
 }
 
 // Applier is something that will apply a changeset to the cluster.
 type Applier interface {
-	apply(log.Logger, changeSet, map[flux.ResourceID]error) cluster.SyncError
+	apply(log.Logger, changeSet, map[resource.ID]error) cluster.SyncError
 }
 
 type Kubectl struct {
@@ -472,7 +471,7 @@ func (objs applyOrder) Less(i, j int) bool {
 	return ranki < rankj
 }
 
-func (c *Kubectl) apply(logger log.Logger, cs changeSet, errored map[flux.ResourceID]error) (errs cluster.SyncError) {
+func (c *Kubectl) apply(logger log.Logger, cs changeSet, errored map[resource.ID]error) (errs cluster.SyncError) {
 	f := func(objs []applyObject, cmd string, args ...string) {
 		if len(objs) == 0 {
 			return
