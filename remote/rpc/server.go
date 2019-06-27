@@ -21,7 +21,7 @@ import (
 
 // Server takes an api.Server and makes it available over RPC.
 type Server struct {
-	server  *rpc.Server
+	server *rpc.Server
 }
 
 // NewServer instantiates a new RPC server, handling requests on the

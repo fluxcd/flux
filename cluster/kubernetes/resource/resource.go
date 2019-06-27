@@ -3,9 +3,8 @@ package resource
 import (
 	"strings"
 
-	yaml "gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v2"
 
-	"github.com/weaveworks/flux"
 	fluxerr "github.com/weaveworks/flux/errors"
 	"github.com/weaveworks/flux/policy"
 	"github.com/weaveworks/flux/resource"
@@ -65,12 +64,12 @@ func (o baseObject) GetName() string {
 	return o.Meta.Name
 }
 
-func (o baseObject) ResourceID() flux.ResourceID {
+func (o baseObject) ResourceID() resource.ID {
 	ns := o.Meta.Namespace
 	if ns == "" {
 		ns = ClusterScope
 	}
-	return flux.MakeResourceID(ns, o.Kind, o.Meta.Name)
+	return resource.MakeID(ns, o.Kind, o.Meta.Name)
 }
 
 // SetNamespace implements KubeManifest.SetNamespace, so things with

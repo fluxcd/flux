@@ -3,16 +3,16 @@ package v6
 import (
 	"context"
 
-	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster"
 	"github.com/weaveworks/flux/git"
 	"github.com/weaveworks/flux/job"
+	"github.com/weaveworks/flux/resource"
 	"github.com/weaveworks/flux/ssh"
 	"github.com/weaveworks/flux/update"
 )
 
 type ImageStatus struct {
-	ID         flux.ResourceID
+	ID         resource.ID
 	Containers []Container
 }
 
@@ -31,13 +31,13 @@ const (
 )
 
 type ControllerStatus struct {
-	ID         flux.ResourceID
+	ID         resource.ID
 	Containers []Container
 	ReadOnly   ReadOnlyReason
 	Status     string
 	Rollout    cluster.RolloutStatus
 	SyncError  string
-	Antecedent flux.ResourceID
+	Antecedent resource.ID
 	Labels     map[string]string
 	Automated  bool
 	Locked     bool

@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/image"
+	"github.com/weaveworks/flux/resource"
 )
 
 func mustParseRef(s string) image.Ref {
@@ -26,7 +26,7 @@ func TestPrintResults(t *testing.T) {
 		{
 			name: "basic, just results",
 			result: Result{
-				flux.MustParseResourceID("default/helloworld"): WorkloadResult{
+				resource.MustParseID("default/helloworld"): WorkloadResult{
 					Status: ReleaseStatusSuccess,
 					Error:  "",
 					PerContainer: []ContainerUpdate{
@@ -47,7 +47,7 @@ default/helloworld  success  helloworld: quay.io/weaveworks/helloworld:master-a0
 		{
 			name: "With an error, *and* results",
 			result: Result{
-				flux.MustParseResourceID("default/helloworld"): WorkloadResult{
+				resource.MustParseID("default/helloworld"): WorkloadResult{
 					Status: ReleaseStatusSuccess,
 					Error:  "test error",
 					PerContainer: []ContainerUpdate{
@@ -69,10 +69,10 @@ default/helloworld  success  test error
 		{
 			name: "Service results should be sorted",
 			result: Result{
-				flux.MustParseResourceID("default/d"): WorkloadResult{Status: ReleaseStatusSuccess},
-				flux.MustParseResourceID("default/c"): WorkloadResult{Status: ReleaseStatusSuccess},
-				flux.MustParseResourceID("default/b"): WorkloadResult{Status: ReleaseStatusSuccess},
-				flux.MustParseResourceID("default/a"): WorkloadResult{Status: ReleaseStatusSuccess},
+				resource.MustParseID("default/d"): WorkloadResult{Status: ReleaseStatusSuccess},
+				resource.MustParseID("default/c"): WorkloadResult{Status: ReleaseStatusSuccess},
+				resource.MustParseID("default/b"): WorkloadResult{Status: ReleaseStatusSuccess},
+				resource.MustParseID("default/a"): WorkloadResult{Status: ReleaseStatusSuccess},
 			},
 			expected: `
 WORKLOAD   STATUS   UPDATES

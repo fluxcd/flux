@@ -293,7 +293,7 @@ func main() {
 	}
 	mandatoryRegistry := stringset(*registryRequire)
 
-	if *gitSecret && len(*gitImportGPG) == 0  {
+	if *gitSecret && len(*gitImportGPG) == 0 {
 		logger.Log("warning", fmt.Sprintf("--git-secret is enabled but there is no GPG key(s) provided using --git-gpg-key-import, we assume you mounted the keyring directly and continue"))
 	}
 

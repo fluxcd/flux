@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/resource"
 	"github.com/weaveworks/flux/update"
 )
 
@@ -38,9 +38,9 @@ func TestReleaseCommand_CLIConversion(t *testing.T) {
 			ServiceSpecs: []update.ResourceSpec{update.ResourceSpecAll},
 			ImageSpec:    update.ImageSpecLatest,
 			Kind:         update.ReleaseKindExecute,
-			Excludes: []flux.ResourceID{
-				flux.MustParseResourceID("default:deployment/test"),
-				flux.MustParseResourceID("default:deployment/yeah"),
+			Excludes: []resource.ID{
+				resource.MustParseID("default:deployment/test"),
+				resource.MustParseID("default:deployment/yeah"),
 			},
 		}},
 	} {

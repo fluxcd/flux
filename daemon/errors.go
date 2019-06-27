@@ -4,13 +4,13 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/weaveworks/flux"
 	fluxerr "github.com/weaveworks/flux/errors"
 	"github.com/weaveworks/flux/job"
+	"github.com/weaveworks/flux/resource"
 )
 
 type SyncErrors struct {
-	errs map[flux.ResourceID]error
+	errs map[resource.ID]error
 	mu   sync.Mutex
 }
 

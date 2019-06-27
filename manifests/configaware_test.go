@@ -10,7 +10,6 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster/kubernetes"
 	"github.com/weaveworks/flux/cluster/kubernetes/testfiles"
 	"github.com/weaveworks/flux/image"
@@ -143,13 +142,13 @@ func TestCommandUpdatedConfigFile(t *testing.T) {
 	resources, err := frs.GetAllResourcesByID(ctx)
 	assert.NoError(t, err)
 	assert.Equal(t, 1, len(resources))
-	deploymentID := flux.MustParseResourceID("default:deployment/helloworld")
+	deploymentID := resource.MustParseID("default:deployment/helloworld")
 	assert.Contains(t, resources, deploymentID.String())
 	ref, err := image.ParseRef("repo/image:tag")
 	assert.NoError(t, err)
 	err = frs.SetWorkloadContainerImage(ctx, deploymentID, "greeter", ref)
 	assert.NoError(t, err)
-	_, err = frs.UpdateWorkloadPolicies(ctx, deploymentID, policy.Update{
+	_, err = frs.UpdateWorkloadPolicies(ctx, deploymentID, resource.PolicyUpdate{
 		Add: policy.Set{policy.TagPrefix("greeter"): "glob:master-*"},
 	})
 	assert.NoError(t, err)
@@ -189,7 +188,7 @@ func TestPatchUpdatedConfigFile(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 2, len(resources))
 	var deployment resource.Resource
-	deploymentID := flux.MustParseResourceID("default:deployment/helloworld")
+	deploymentID := resource.MustParseID("default:deployment/helloworld")
 	for id, res := range resources {
 		if id == deploymentID.String() {
 			deployment = res
@@ -200,7 +199,7 @@ func TestPatchUpdatedConfigFile(t *testing.T) {
 	assert.NoError(t, err)
 	err = frs.SetWorkloadContainerImage(ctx, deploymentID, "greeter", ref)
 	assert.NoError(t, err)
-	_, err = frs.UpdateWorkloadPolicies(ctx, deploymentID, policy.Update{
+	_, err = frs.UpdateWorkloadPolicies(ctx, deploymentID, resource.PolicyUpdate{
 		Add: policy.Set{policy.TagPrefix("greeter"): "glob:master-*"},
 	})
 	expectedPatch := `---

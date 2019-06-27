@@ -8,7 +8,7 @@ import (
 	"github.com/weaveworks/flux/api/v11"
 	"github.com/weaveworks/flux/api/v6"
 	"github.com/weaveworks/flux/remote"
-	)
+)
 
 // RPCClientV11 is the rpc-backed implementation of a server, for
 // talking to remote daemons. This version introduces methods which accept an

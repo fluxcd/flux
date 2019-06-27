@@ -9,7 +9,6 @@ import (
 	apiv1 "k8s.io/api/core/v1"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster"
 	kresource "github.com/weaveworks/flux/cluster/kubernetes/resource"
 	"github.com/weaveworks/flux/image"
@@ -24,7 +23,7 @@ import (
 // FluxHelmRelease. We use this rather than the `OwnerReference` type
 // built into Kubernetes so that there are no garbage-collection
 // implications. The value is expected to be a serialised
-// `flux.ResourceID`.
+// `resource.ID`.
 const AntecedentAnnotation = "flux.weave.works/antecedent"
 
 /////////////////////////////////////////////////////////////////////////////
@@ -56,7 +55,7 @@ type workload struct {
 	podTemplate apiv1.PodTemplateSpec
 }
 
-func (w workload) toClusterWorkload(resourceID flux.ResourceID) cluster.Workload {
+func (w workload) toClusterWorkload(resourceID resource.ID) cluster.Workload {
 	var clusterContainers []resource.Container
 	var excuse string
 	for _, container := range w.podTemplate.Spec.Containers {
@@ -78,9 +77,9 @@ func (w workload) toClusterWorkload(resourceID flux.ResourceID) cluster.Workload
 		clusterContainers = append(clusterContainers, resource.Container{Name: container.Name, Image: ref})
 	}
 
-	var antecedent flux.ResourceID
+	var antecedent resource.ID
 	if ante, ok := w.GetAnnotations()[AntecedentAnnotation]; ok {
-		id, err := flux.ParseResourceID(ante)
+		id, err := resource.ParseID(ante)
 		if err == nil {
 			antecedent = id
 		}

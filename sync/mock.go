@@ -1,8 +1,8 @@
 package sync
 
 import (
-	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/policy"
+	"github.com/weaveworks/flux/resource"
 )
 
 type rsc struct {
@@ -26,8 +26,8 @@ func (rs rsc) Bytes() []byte {
 	return []byte{}
 }
 
-func (rs rsc) ResourceID() flux.ResourceID {
-	return flux.MakeResourceID(rs.Meta.Namespace, rs.Kind, rs.Meta.Name)
+func (rs rsc) ResourceID() resource.ID {
+	return resource.MakeID(rs.Meta.Namespace, rs.Kind, rs.Meta.Name)
 }
 
 func (rs rsc) Policy() policy.Set {
