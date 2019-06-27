@@ -23,6 +23,7 @@ type Config struct {
 	SigningKey  string
 	SetAuthor   bool
 	SkipMessage string
+	GitSecret   bool
 }
 
 // Checkout is a local working clone of the remote repo. It is
@@ -100,6 +101,12 @@ func (r *Repo) Clone(ctx context.Context, conf Config) (*Checkout, error) {
 		return nil, err
 	}
 	r.mu.RUnlock()
+
+	if conf.GitSecret {
+		if err := secretUnseal(ctx, repoDir); err != nil {
+			return nil, err
+		}
+	}
 
 	return &Checkout{
 		dir:          repoDir,

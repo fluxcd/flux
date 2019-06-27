@@ -64,6 +64,7 @@ fluxd requires setup and offers customization though a multitude of flags.
 | --git-notes-ref                                  | `flux`                   | ref to use for keeping commit annotations in git notes
 | --git-poll-interval                              | `5m`                     | period at which to fetch any new commits from the git repo
 | --git-timeout                                    | `20s`                    | duration after which git operations time out
+| --git-secret                                     | false                    | if set, git-secret will be run on every git checkout. A gpg key must be imported using  --git-gpg-key-import or by mounting a keyring containing it directly
 | **syncing:** control over how config is applied to the cluster
 | --sync-interval                                  | `5m`                     | apply the git config to the cluster at least this often. New commits may provoke more frequent syncs
 | --sync-garbage-collection                        | `false`                  | experimental: when set, fluxd will delete resources that it created, but are no longer present in git (see [garbage collection](./garbagecollection.md))

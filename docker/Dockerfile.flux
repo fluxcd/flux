@@ -2,7 +2,8 @@ FROM alpine:3.9
 
 WORKDIR /home/flux
 
-RUN apk add --no-cache openssh-client ca-certificates tini 'git>=2.12.0' 'gnutls>=3.6.7' gnupg
+RUN apk add --no-cache openssh-client ca-certificates tini 'git>=2.12.0' 'gnutls>=3.6.7' gnupg gawk
+RUN apk add --no-cache -X http://dl-cdn.alpinelinux.org/alpine/edge/testing git-secret
 
 # Add git hosts to known hosts file so we can use
 # StrickHostKeyChecking with git+ssh

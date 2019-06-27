@@ -25,7 +25,7 @@ var exemptedTraceCommands = []string{
 }
 
 // Env vars that are allowed to be inherited from the os
-var allowedEnvVars = []string{"http_proxy", "https_proxy", "no_proxy", "HOME", "GNUPGHOME"}
+var allowedEnvVars = []string{"http_proxy", "https_proxy", "no_proxy", "HOME", "GNUPGHOME", "SECRETS_DIR", "SECRETS_EXTENSION"}
 
 type gitCmdConfig struct {
 	dir string
@@ -97,6 +97,14 @@ func checkPush(ctx context.Context, workingDir, upstream, branch string) error {
 	}
 	args = []string{"push", "--delete", upstream, "tag", CheckPushTag}
 	return execGitCmd(ctx, args, gitCmdConfig{dir: workingDir})
+}
+
+func secretUnseal(ctx context.Context, workingDir string) error {
+	args := []string{"secret", "reveal", "-f"}
+	if err := execGitCmd(ctx, args, gitCmdConfig{dir: workingDir}); err != nil {
+		return errors.Wrap(err, "git secret reveal -f")
+	}
+	return nil
 }
 
 func commit(ctx context.Context, workingDir string, commitAction CommitAction) error {
