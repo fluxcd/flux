@@ -2,6 +2,7 @@ package mock
 
 import (
 	"bytes"
+	"context"
 
 	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster"
@@ -14,11 +15,11 @@ import (
 
 // Doubles as a cluster.Cluster and cluster.Manifests implementation
 type Mock struct {
-	AllWorkloadsFunc              func(maybeNamespace string) ([]cluster.Workload, error)
-	SomeWorkloadsFunc             func([]flux.ResourceID) ([]cluster.Workload, error)
+	AllWorkloadsFunc              func(ctx context.Context, maybeNamespace string) ([]cluster.Workload, error)
+	SomeWorkloadsFunc             func(ctx context.Context, ids []flux.ResourceID) ([]cluster.Workload, error)
 	IsAllowedResourceFunc         func(flux.ResourceID) bool
 	PingFunc                      func() error
-	ExportFunc                    func() ([]byte, error)
+	ExportFunc                    func(ctx context.Context) ([]byte, error)
 	SyncFunc                      func(cluster.SyncSet) error
 	PublicSSHKeyFunc              func(regenerate bool) (ssh.PublicKey, error)
 	SetWorkloadContainerImageFunc func(def []byte, id flux.ResourceID, container string, newImageID image.Ref) ([]byte, error)
@@ -33,12 +34,12 @@ type Mock struct {
 var _ cluster.Cluster = &Mock{}
 var _ manifests.Manifests = &Mock{}
 
-func (m *Mock) AllWorkloads(maybeNamespace string) ([]cluster.Workload, error) {
-	return m.AllWorkloadsFunc(maybeNamespace)
+func (m *Mock) AllWorkloads(ctx context.Context, maybeNamespace string) ([]cluster.Workload, error) {
+	return m.AllWorkloadsFunc(ctx, maybeNamespace)
 }
 
-func (m *Mock) SomeWorkloads(s []flux.ResourceID) ([]cluster.Workload, error) {
-	return m.SomeWorkloadsFunc(s)
+func (m *Mock) SomeWorkloads(ctx context.Context, ids []flux.ResourceID) ([]cluster.Workload, error) {
+	return m.SomeWorkloadsFunc(ctx, ids)
 }
 
 func (m *Mock) IsAllowedResource(id flux.ResourceID) bool {
@@ -49,8 +50,8 @@ func (m *Mock) Ping() error {
 	return m.PingFunc()
 }
 
-func (m *Mock) Export() ([]byte, error) {
-	return m.ExportFunc()
+func (m *Mock) Export(ctx context.Context) ([]byte, error) {
+	return m.ExportFunc(ctx)
 }
 
 func (m *Mock) Sync(c cluster.SyncSet) error {

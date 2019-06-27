@@ -169,8 +169,10 @@ func main() {
 		// manifest generation
 		manifestGeneration = fs.Bool("manifest-generation", false, "experimental; search for .flux.yaml files to generate manifests")
 
+		// upstream connection settings
 		upstreamURL = fs.String("connect", "", "connect to an upstream service e.g., Weave Cloud, at this base address")
 		token       = fs.String("token", "", "authentication token for upstream service")
+		rpcTimeout  = fs.Duration("rpc-timeout", 10*time.Second, "maximum time an operation requested by the upstream may take")
 
 		dockerConfig = fs.String("docker-config", "", "path to a docker config to use for image registry credentials")
 
@@ -601,6 +603,7 @@ func main() {
 				transport.NewUpstreamRouter(),
 				*upstreamURL,
 				remote.NewErrorLoggingUpstreamServer(daemon, upstreamLogger),
+				*rpcTimeout,
 				upstreamLogger,
 			)
 			if err != nil {

@@ -82,6 +82,18 @@ func (r *Repo) Clone(ctx context.Context, conf Config) (*Checkout, error) {
 	}
 
 	r.mu.RLock()
+	// Here is where we mimic `git fetch --tags --force`, but
+	// _without_ overwriting head refs. This is only required for a
+	// `Checkout` and _not_ for `Repo` as (bare) mirrors will happily
+	// accept any ref changes to tags.
+	//
+	// NB: do this before any other fetch actions, as otherwise we may
+	// get an 'existing tag clobber' error back.
+	if err := fetch(ctx, repoDir, r.dir, `'+refs/tags/*:refs/tags/*'`); err != nil {
+		os.RemoveAll(repoDir)
+		r.mu.RUnlock()
+		return nil, err
+	}
 	if err := fetch(ctx, repoDir, r.dir, realNotesRef+":"+realNotesRef); err != nil {
 		os.RemoveAll(repoDir)
 		r.mu.RUnlock()
