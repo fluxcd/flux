@@ -1,6 +1,33 @@
 This is the changelog for the Flux daemon; the changelog for the Helm
 operator is in [./CHANGELOG-helmop.md](./CHANGELOG-helmop.md).
 
+## 1.13.1 (2019-06-27)
+
+This is a patch release.
+
+### Fixes
+
+- Use a context with a timeout for every request that comes through
+  the upstream connection, so they may be abandoned if taking too long [weaveworks/flux#2171][]
+- Initialise the high-water mark once, so it doesn't get continually
+  reset and cause notification noise [weaveworks/flux#2177][]
+- Force tag updates when making local clones, to account for changes
+  in git 2.20 [weaveworks/flux#2184][]
+
+### Thanks
+
+Cheers to the following people for their contributions: @2opremio,
+@J-Lou, @aarnaud, @adrian, @airmap-madison, @alanjcastonguay,
+@arsiesys, @atbe-crowe, @azazel75, @bia, @carlosjgp, @chriscorn-takt,
+@cristian-radu, @davidkarlsen, @derrickburns, @dholbach, @dlespiau,
+@errordeveloper, @ewoutp, @hiddeco, @humayunjamal, @isen-ng,
+@judewin-alef, @kevinm444, @muhlba91, @roaddemon, @runningman84,
+@squaremo, @starkers, @stefanprodan, @sukrit007, @willholley.
+
+[weaveworks/flux#2171]: https://github.com/weaveworks/flux/pull/2171
+[weaveworks/flux#2177]: https://github.com/weaveworks/flux/pull/2177
+[weaveworks/flux#2184]: https://github.com/weaveworks/flux/pull/2184
+
 ## 1.13.0 (2019-06-13)
 
 This feature release contains an experimental feature for [generating

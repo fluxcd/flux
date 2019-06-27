@@ -9,7 +9,7 @@ logFormat: fmt
 
 image:
   repository: docker.io/weaveworks/flux
-  tag: 1.13.0
+  tag: 1.13.1
   pullPolicy: IfNotPresent
   pullSecret:
 
