@@ -68,21 +68,6 @@ func New(logger log.Logger, helmClient *k8shelm.Client) *Release {
 	return r
 }
 
-// GetReleaseName either retrieves the release name from the Custom Resource or constructs a new one
-// in the form : $Namespace-$CustomResourceName
-func GetReleaseName(fhr flux_v1beta1.HelmRelease) string {
-	namespace := fhr.Namespace
-	if namespace == "" {
-		namespace = "default"
-	}
-	releaseName := fhr.Spec.ReleaseName
-	if releaseName == "" {
-		releaseName = fmt.Sprintf("%s-%s", namespace, fhr.Name)
-	}
-
-	return releaseName
-}
-
 // GetUpgradableRelease returns a release if the current state of it
 // allows an upgrade, a descriptive error if it is not allowed, or
 // nil if the release does not exist.
@@ -152,11 +137,22 @@ func (r *Release) canDelete(name string) (bool, error) {
 // TODO(michael): cloneDir is only relevant if installing from git;
 // either split this procedure into two varieties, or make it more
 // general and calculate the path to the chart in the caller.
-func (r *Release) Install(chartPath, releaseName string, fhr flux_v1beta1.HelmRelease, action Action, opts InstallOptions, kubeClient *kubernetes.Clientset) (*hapi_release.Release, error) {
+func (r *Release) Install(chartPath, releaseName string, fhr flux_v1beta1.HelmRelease, action Action, opts InstallOptions, kubeClient *kubernetes.Clientset) (release *hapi_release.Release, err error) {
+	defer func(start time.Time) {
+		ObserveRelease(
+			start,
+			action,
+			opts.DryRun,
+			err == nil,
+			fhr.Namespace,
+			fhr.ReleaseName(),
+		)
+	}(time.Now())
+
 	if chartPath == "" {
 		return nil, fmt.Errorf("empty path to chart supplied for resource %q", fhr.ResourceID().String())
 	}
-	_, err := os.Stat(chartPath)
+	_, err = os.Stat(chartPath)
 	switch {
 	case os.IsNotExist(err):
 		return nil, fmt.Errorf("no file or dir at path to chart: %s", chartPath)
@@ -164,7 +160,7 @@ func (r *Release) Install(chartPath, releaseName string, fhr flux_v1beta1.HelmRe
 		return nil, fmt.Errorf("error statting path given for chart %s: %s", chartPath, err.Error())
 	}
 
-	r.logger.Log("info", fmt.Sprintf("processing release %s (as %s)", GetReleaseName(fhr), releaseName),
+	r.logger.Log("info", fmt.Sprintf("processing release %s (as %s)", fhr.ReleaseName(), releaseName),
 		"action", fmt.Sprintf("%v", action),
 		"options", fmt.Sprintf("%+v", opts),
 		"timeout", fmt.Sprintf("%vs", fhr.GetTimeout()))

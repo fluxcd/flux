@@ -24,7 +24,6 @@ import (
 	"github.com/weaveworks/flux/integrations/apis/flux.weave.works/v1beta1"
 	fluxclientset "github.com/weaveworks/flux/integrations/client/clientset/versioned"
 	v1beta1client "github.com/weaveworks/flux/integrations/client/clientset/versioned/typed/flux.weave.works/v1beta1"
-	"github.com/weaveworks/flux/integrations/helm/release"
 )
 
 const period = 10 * time.Second
@@ -79,7 +78,7 @@ bail:
 				break bail
 			}
 			for _, fhr := range fhrs.Items {
-				releaseName := release.GetReleaseName(fhr)
+				releaseName := fhr.ReleaseName()
 				// If we don't get the content, we don't care why
 				content, _ := a.helmClient.ReleaseContent(releaseName)
 				if content == nil {
