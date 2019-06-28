@@ -20,7 +20,7 @@ service:
 helmOperator:
   replicaCount: 1
   create: false
-  createCRD: true
+  createCRD: false
   repository: docker.io/weaveworks/helm-operator
   tag: 0.9.2
   pullPolicy: IfNotPresent
