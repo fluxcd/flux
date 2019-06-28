@@ -148,6 +148,9 @@ spec:
 {{ toYaml .Values.extraEnvs | indent 10 }}
           {{- end }}
           args:
+          {{- if not .Values.clusterRole }}
+          - --k8s-allow-namespace={{ .Release.Namespace }}
+          {{end}}
           {{- if .Values.logFormat }}
           - --log-format={{ .Values.logFormat }}
           {{end}}

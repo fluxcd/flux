@@ -204,6 +204,7 @@ The following tables lists the configurable parameters of the Flux chart and the
 | `rbac.create`                                     | `true`                                               | If `true`, create and use RBAC resources
 | `serviceAccount.create`                           | `true`                                               | If `true`, create a new service account
 | `serviceAccount.name`                             | `flux`                                               | Service account to be used
+| `clusterRole.create`                              | `true`                                               | If `false`, Flux and the Helm Operator will be restricted to the namespace where they are deployed
 | `service.type`                                    | `ClusterIP`                                          | Service type to be used (exposing the Flux API outside of the cluster is not advised)
 | `service.port`                                    | `3030`                                               | Service port to be used
 | `git.url`                                         | `None`                                               | URL of git repo with Kubernetes manifests
