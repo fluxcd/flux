@@ -23,6 +23,7 @@ import (
 	fhrv1 "github.com/weaveworks/flux/integrations/client/informers/externalversions/flux.weave.works/v1beta1"
 	iflister "github.com/weaveworks/flux/integrations/client/listers/flux.weave.works/v1beta1"
 	"github.com/weaveworks/flux/integrations/helm/chartsync"
+	"github.com/weaveworks/flux/integrations/helm/status"
 )
 
 const (
@@ -96,8 +97,8 @@ func New(
 	// ----- EVENT HANDLERS for HelmRelease resources change ---------
 	fhrInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(new interface{}) {
-			_, ok := checkCustomResourceType(controller.logger, new)
-			if ok {
+			fhr, ok := checkCustomResourceType(controller.logger, new)
+			if ok && !status.HasRolledBack(fhr) {
 				controller.enqueueJob(new)
 			}
 		},
@@ -282,6 +283,15 @@ func (c *Controller) enqueueUpdateJob(old, new interface{}) {
 	// from the periodic refresh, as we still want to detect (and
 	// undo) mutations to Helm charts.
 	if sDiff := cmp.Diff(oldFhr.Status, newFhr.Status); diff == "" && sDiff != "" {
+		return
+	}
+
+	// Skip if the current HelmRelease generation has been rolled
+	// back, as otherwise we will end up in a loop of failure, but
+	// continue if the checksum of the values differs, as the failure
+	// may have been the result of the values contents.
+	if newFhr.Spec.Rollback.Enable && status.HasRolledBack(newFhr) && c.sync.CompareValuesChecksum(newFhr) {
+		c.logger.Log("warning", "release has been rolled back, skipping", "resource", newFhr.ResourceID().String())
 		return
 	}
 

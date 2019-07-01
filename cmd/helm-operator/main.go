@@ -225,8 +225,8 @@ func main() {
 
 	// the status updater, to keep track of the release status for
 	// every HelmRelease
-	statusUpdater := status.New(ifClient, kubeClient, helmClient, *namespace)
-	go statusUpdater.Loop(shutdown, log.With(logger, "component", "annotator"))
+	statusUpdater := status.New(ifClient, fhrInformer.Lister(), helmClient)
+	go statusUpdater.Loop(shutdown, log.With(logger, "component", "statusupdater"))
 
 	// start HTTP server
 	go daemonhttp.ListenAndServe(*listenAddr, chartSync, log.With(logger, "component", "daemonhttp"), shutdown)

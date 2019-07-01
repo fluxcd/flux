@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/ghodss/yaml"
-	v1 "k8s.io/api/core/v1"
+	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/helm/pkg/chartutil"
 
@@ -94,7 +94,8 @@ type GitChartSource struct {
 	SkipDepUpdate bool `json:"skipDepUpdate,omitempty"`
 }
 
-// DefaultGitRef is the ref assumed if the Ref field is not given in a GitChartSource
+// DefaultGitRef is the ref assumed if the Ref field is not given in
+// a GitChartSource
 const DefaultGitRef = "master"
 
 func (s GitChartSource) RefOrDefault() string {
@@ -119,6 +120,22 @@ func (s RepoChartSource) CleanRepoURL() string {
 	return cleanURL + "/"
 }
 
+type Rollback struct {
+	Enable 		 bool `json:"enable,omitempty"`
+	Force  		 bool `json:"force,omitempty"`
+	Recreate 	 bool `json:"recreate,omitempty"`
+	DisableHooks bool `json:"disableHooks,omitempty"`
+	Timeout 	 *int64 `json:"timeout,omitempty"`
+	Wait 		 bool `json:"wait,omitempty"`
+}
+
+func (r Rollback) GetTimeout() int64 {
+	if r.Timeout == nil {
+		return 300
+	}
+	return *r.Timeout
+}
+
 // HelmReleaseSpec is the spec for a HelmRelease resource
 type HelmReleaseSpec struct {
 	ChartSource      `json:"chart"`
@@ -135,6 +152,9 @@ type HelmReleaseSpec struct {
 	// Force resource update through delete/recreate, allows recovery from a failed state
 	// +optional
 	ForceUpgrade bool `json:"forceUpgrade,omitempty"`
+	// Enable rollback and configure options
+	// +optional
+	Rollback Rollback `json:"rollback,omitempty"`
 }
 
 // GetTimeout returns the install or upgrade timeout (defaults to 300s)
@@ -145,6 +165,22 @@ func (r HelmRelease) GetTimeout() int64 {
 	return *r.Spec.Timeout
 }
 
+// GetValuesFromSources maintains backwards compatibility with
+// ValueFileSecrets by merging them into the ValuesFrom array.
+func (r HelmRelease) GetValuesFromSources() []ValuesFromSource {
+	valuesFrom := r.Spec.ValuesFrom
+	// Maintain backwards compatibility with ValueFileSecrets
+	if r.Spec.ValueFileSecrets != nil {
+		var secretKeyRefs []ValuesFromSource
+		for _, ref := range r.Spec.ValueFileSecrets {
+			s := &v1.SecretKeySelector{LocalObjectReference: ref}
+			secretKeyRefs = append(secretKeyRefs, ValuesFromSource{SecretKeyRef: s})
+		}
+		valuesFrom = append(secretKeyRefs, valuesFrom...)
+	}
+	return valuesFrom
+}
+
 type HelmReleaseStatus struct {
 	// ReleaseName is the name as either supplied or generated.
 	// +optional
@@ -153,6 +189,14 @@ type HelmReleaseStatus struct {
 	// ReleaseStatus is the status as given by Helm for the release
 	// managed by this resource.
 	ReleaseStatus string `json:"releaseStatus"`
+
+	// ObservedGeneration is the most recent generation observed by
+	// the controller.
+	ObservedGeneration int64 `json:"observedGeneration"`
+
+	// ValuesChecksum holds the SHA256 checksum of the last applied
+	// values.
+	ValuesChecksum string `json:"valuesChecksum"`
 
 	// Revision would define what Git hash or Chart version has currently
 	// been deployed.
@@ -171,6 +215,8 @@ type HelmReleaseCondition struct {
 	Type   HelmReleaseConditionType `json:"type"`
 	Status v1.ConditionStatus       `json:"status"`
 	// +optional
+	LastUpdateTime metav1.Time `json:"lastUpdateTime,omitempty"`
+	// +optional
 	LastTransitionTime metav1.Time `json:"lastTransitionTime,omitempty"`
 	// +optional
 	Reason string `json:"reason,omitempty"`
@@ -187,6 +233,9 @@ const (
 	// Released means the chart release, as specified in this
 	// HelmRelease, has been processed by Helm.
 	HelmReleaseReleased HelmReleaseConditionType = "Released"
+	// RolledBack means the chart to which the HelmRelease refers
+	// has been rolled back
+	HelmReleaseRolledBack HelmReleaseConditionType = "RolledBack"
 )
 
 // FluxHelmValues embeds chartutil.Values so we can implement deepcopy on map[string]interface{}
