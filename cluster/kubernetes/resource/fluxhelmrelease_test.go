@@ -659,6 +659,78 @@ spec:
 	}
 }
 
+func TestParseNamedImageObjectFormatWithRegistryWitoutTag(t *testing.T) {
+	expectedContainer := "db"
+	expectedRegistry := "registry.com"
+	expectedImageName := "bitnami/mariadb:10.1.30-r1"
+	expectedImage := expectedRegistry + "/" + expectedImageName
+
+	doc := `---
+apiVersion: helm.integrations.flux.weave.works/v1alpha2
+kind: FluxHelmRelease
+metadata:
+  name: mariadb
+  namespace: maria
+  labels:
+    chart: mariadb
+spec:
+  chartGitPath: mariadb
+  values:
+    other:
+      not: "containing image"
+    ` + expectedContainer + `:
+      first: post
+      image:
+        registry: ` + expectedRegistry + `
+        repository: ` + expectedImageName + `
+      persistence:
+        enabled: false
+`
+
+	resources, err := ParseMultidoc([]byte(doc), "test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, ok := resources["maria:fluxhelmrelease/mariadb"]
+	if !ok {
+		t.Fatalf("expected resource not found; instead got %#v", resources)
+	}
+	fhr, ok := res.(resource.Workload)
+	if !ok {
+		t.Fatalf("expected resource to be a Workload, instead got %#v", res)
+	}
+
+	containers := fhr.Containers()
+	if len(containers) != 1 {
+		t.Fatalf("expected 1 container; got %#v", containers)
+	}
+	image := containers[0].Image.String()
+	if image != expectedImage {
+		t.Errorf("expected container image %q, got %q", expectedImage, image)
+	}
+	if containers[0].Name != expectedContainer {
+		t.Errorf("expected container name %q, got %q", expectedContainer, containers[0].Name)
+	}
+
+	newImage := containers[0].Image.WithNewTag("some-other-tag")
+	newImage.Domain = "someotherregistry.com"
+	if err := fhr.SetContainerImage(expectedContainer, newImage); err != nil {
+		t.Error(err)
+	}
+
+	containers = fhr.Containers()
+	if len(containers) != 1 {
+		t.Fatalf("expected 1 container; got %#v", containers)
+	}
+	image = containers[0].Image.String()
+	if image != newImage.String() {
+		t.Errorf("expected container image %q, got %q", newImage.String(), image)
+	}
+	if containers[0].Name != expectedContainer {
+		t.Errorf("expected container name %q, got %q", expectedContainer, containers[0].Name)
+	}
+}
+
 func TestParseAllFormatsInOne(t *testing.T) {
 
 	type container struct {
@@ -676,7 +748,8 @@ func TestParseAllFormatsInOne(t *testing.T) {
 		{"AAA", "", "repo/imageTwo", "tagTwo"},
 		{"DDD", "", "repo/imageThree", "tagThree"},
 		{"HHH", "registry.com", "repo/imageFour", "tagFour"},
-		{"ZZZ", "registry.com", "repo/imageFive", "tagFive"},
+		{"NNN", "registry.com", "repo/imageFive", "tagFive"},
+		{"ZZZ", "registry.com", "repo/imageSix", "tagSix"},
 	}
 
 	doc := `---
@@ -710,12 +783,19 @@ spec:
       image: ` + expected[3].image + `
       tag: ` + expected[3].tag + `
 
-    # under .container.image, with a separate registry entry
+    # under .container.image with a separate registry entry,
+    # but without a tag
     ` + expected[4].name + `:
       image:
         registry: ` + expected[4].registry + `
-        repository: ` + expected[4].image + `
-        tag: ` + expected[4].tag + `
+        repository: ` + expected[4].image + ":" + expected[4].tag + `
+
+    # under .container.image with a separate registry entry
+    ` + expected[5].name + `:
+      image:
+        registry: ` + expected[5].registry + `
+        repository: ` + expected[5].image + `
+        tag: ` + expected[5].tag + `
 `
 
 	resources, err := ParseMultidoc([]byte(doc), "test")
