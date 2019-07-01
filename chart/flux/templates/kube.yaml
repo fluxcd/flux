@@ -10,7 +10,7 @@ data:
     contexts:
     - context:
         cluster: ""
-        namespace: {{ .Release.Name }}
+        namespace: {{ .Release.Namespace }}
         user: ""
       name: default
     current-context: default
