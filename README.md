@@ -29,7 +29,7 @@ change is atomic and transactional, git has your audit log. Each transaction
 either fails or succeeds cleanly. You're entirely code centric and don't need
 new infrastructure.
 
-![Deployment Pipeline](site/images/deployment-pipeline.png)
+![Deployment Pipeline](site/images/flux-cd-diagram.png)
 
 [![CircleCI](https://circleci.com/gh/weaveworks/flux.svg?style=svg)](https://circleci.com/gh/weaveworks/flux)
 [![GoDoc](https://godoc.org/github.com/weaveworks/flux?status.svg)](https://godoc.org/github.com/weaveworks/flux)
