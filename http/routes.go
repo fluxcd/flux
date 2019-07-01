@@ -1,6 +1,11 @@
 package http
 
 const (
+	// Formerly Upstream methods, now (in v11) included in server API
+	Ping    = "Ping"
+	Version = "Version"
+	Notify  = "Notify"
+
 	ListServices            = "ListServices"
 	ListServicesWithOptions = "ListServicesWithOptions"
 	ListImages              = "ListImages"

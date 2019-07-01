@@ -104,13 +104,13 @@ func (p *MockServer) GitRepoConfig(ctx context.Context, regenerate bool) (v6.Git
 	return p.GitRepoConfigAnswer, p.GitRepoConfigError
 }
 
-var _ api.UpstreamServer = &MockServer{}
+var _ api.Server = &MockServer{}
 
 // -- Battery of tests for an api.Server implementation. Since these
 // essentially wrap the server in various transports, we expect
 // arguments and answers to be preserved.
 
-func ServerTestBattery(t *testing.T, wrap func(mock api.UpstreamServer) api.UpstreamServer) {
+func ServerTestBattery(t *testing.T, wrap func(mock api.Server) api.Server) {
 	// set up
 	namespace := "the-space-of-names"
 	serviceID := resource.MustParseID(namespace + "/service")

@@ -128,21 +128,7 @@ func (i *instrumentedServer) GitRepoConfig(ctx context.Context, regenerate bool)
 	return i.s.GitRepoConfig(ctx, regenerate)
 }
 
-var _ api.UpstreamServer = &instrumentedUpstreamServer{}
-
-type instrumentedUpstreamServer struct {
-	*instrumentedServer
-	s api.UpstreamServer
-}
-
-func InstrumentUpstream(s api.UpstreamServer) *instrumentedUpstreamServer {
-	return &instrumentedUpstreamServer{
-		Instrument(s),
-		s,
-	}
-}
-
-func (i *instrumentedUpstreamServer) Ping(ctx context.Context) (err error) {
+func (i *instrumentedServer) Ping(ctx context.Context) (err error) {
 	defer func(begin time.Time) {
 		requestDuration.With(
 			fluxmetrics.LabelMethod, "Ping",
@@ -152,7 +138,7 @@ func (i *instrumentedUpstreamServer) Ping(ctx context.Context) (err error) {
 	return i.s.Ping(ctx)
 }
 
-func (i *instrumentedUpstreamServer) Version(ctx context.Context) (v string, err error) {
+func (i *instrumentedServer) Version(ctx context.Context) (v string, err error) {
 	defer func(begin time.Time) {
 		requestDuration.With(
 			fluxmetrics.LabelMethod, "Version",
@@ -162,7 +148,7 @@ func (i *instrumentedUpstreamServer) Version(ctx context.Context) (v string, err
 	return i.s.Version(ctx)
 }
 
-func (i *instrumentedUpstreamServer) NotifyChange(ctx context.Context, change v9.Change) (err error) {
+func (i *instrumentedServer) NotifyChange(ctx context.Context, change v9.Change) (err error) {
 	defer func(begin time.Time) {
 		requestDuration.With(
 			fluxmetrics.LabelMethod, "NotifyChange",

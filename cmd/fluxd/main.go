@@ -609,7 +609,7 @@ func main() {
 				client.Token(*token),
 				transport.NewUpstreamRouter(),
 				*upstreamURL,
-				remote.NewErrorLoggingUpstreamServer(daemon, upstreamLogger),
+				remote.NewErrorLoggingServer(daemon, upstreamLogger),
 				*rpcTimeout,
 				upstreamLogger,
 			)

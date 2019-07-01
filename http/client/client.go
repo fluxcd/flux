@@ -16,6 +16,7 @@ import (
 	"github.com/weaveworks/flux/api/v10"
 	"github.com/weaveworks/flux/api/v11"
 	"github.com/weaveworks/flux/api/v6"
+	"github.com/weaveworks/flux/api/v9"
 	fluxerr "github.com/weaveworks/flux/errors"
 	"github.com/weaveworks/flux/event"
 	transport "github.com/weaveworks/flux/http"
@@ -51,6 +52,20 @@ func New(c *http.Client, router *mux.Router, endpoint string, t Token) *Client {
 		router:   router,
 		endpoint: endpoint,
 	}
+}
+
+func (c *Client) Ping(ctx context.Context) error {
+	return c.Get(ctx, nil, transport.Ping)
+}
+
+func (c *Client) Version(ctx context.Context) (string, error) {
+	var v string
+	err := c.Get(ctx, &v, transport.Version)
+	return v, err
+}
+
+func (c *Client) NotifyChange(ctx context.Context, change v9.Change) error {
+	return c.PostWithBody(ctx, transport.Notify, change)
 }
 
 func (c *Client) ListServices(ctx context.Context, namespace string) ([]v6.ControllerStatus, error) {
@@ -117,7 +132,7 @@ func (c *Client) GitRepoConfig(ctx context.Context, regenerate bool) (v6.GitConf
 
 // --- Request helpers
 
-// post is a simple query-param only post request
+// Post is a simple query-param only post request
 func (c *Client) Post(ctx context.Context, route string, queryParams ...string) error {
 	return c.PostWithBody(ctx, route, nil, queryParams...)
 }
@@ -178,7 +193,7 @@ func (c *Client) methodWithResp(ctx context.Context, method string, dest interfa
 	return nil
 }
 
-// get executes a get request against the Flux server. it unmarshals the response into dest.
+// Get executes a get request against the Flux server. it unmarshals the response into dest, if not nil.
 func (c *Client) Get(ctx context.Context, dest interface{}, route string, queryParams ...string) error {
 	u, err := transport.MakeURL(c.endpoint, c.router, route, queryParams...)
 	if err != nil {
@@ -200,8 +215,10 @@ func (c *Client) Get(ctx context.Context, dest interface{}, route string, queryP
 	}
 	defer resp.Body.Close()
 
-	if err := json.NewDecoder(resp.Body).Decode(dest); err != nil {
-		return errors.Wrap(err, "decoding response from server")
+	if dest != nil {
+		if err := json.NewDecoder(resp.Body).Decode(dest); err != nil {
+			return errors.Wrap(err, "decoding response from server")
+		}
 	}
 	return nil
 }
@@ -212,7 +229,7 @@ func (c *Client) executeRequest(req *http.Request) (*http.Response, error) {
 		return nil, errors.Wrap(err, "executing HTTP request")
 	}
 	switch resp.StatusCode {
-	case http.StatusOK, http.StatusCreated, http.StatusNoContent:
+	case http.StatusOK, http.StatusCreated, http.StatusNoContent, http.StatusAccepted:
 		return resp, nil
 	case http.StatusUnauthorized:
 		return resp, transport.ErrorUnauthorized

@@ -15,7 +15,6 @@ import (
 )
 
 var _ api.Server = &ErrorLoggingServer{}
-var _ api.UpstreamServer = &ErrorLoggingUpstreamServer{}
 
 type ErrorLoggingServer struct {
 	server api.Server
@@ -108,19 +107,7 @@ func (p *ErrorLoggingServer) GitRepoConfig(ctx context.Context, regenerate bool)
 	return p.server.GitRepoConfig(ctx, regenerate)
 }
 
-type ErrorLoggingUpstreamServer struct {
-	*ErrorLoggingServer
-	server api.UpstreamServer
-}
-
-func NewErrorLoggingUpstreamServer(s api.UpstreamServer, l log.Logger) *ErrorLoggingUpstreamServer {
-	return &ErrorLoggingUpstreamServer{
-		NewErrorLoggingServer(s, l),
-		s,
-	}
-}
-
-func (p *ErrorLoggingUpstreamServer) Ping(ctx context.Context) (err error) {
+func (p *ErrorLoggingServer) Ping(ctx context.Context) (err error) {
 	defer func() {
 		if err != nil {
 			p.logger.Log("method", "Ping", "error", err)
@@ -129,7 +116,7 @@ func (p *ErrorLoggingUpstreamServer) Ping(ctx context.Context) (err error) {
 	return p.server.Ping(ctx)
 }
 
-func (p *ErrorLoggingUpstreamServer) Version(ctx context.Context) (v string, err error) {
+func (p *ErrorLoggingServer) Version(ctx context.Context) (v string, err error) {
 	defer func() {
 		if err != nil {
 			p.logger.Log("method", "Version", "error", err, "version", v)
@@ -138,7 +125,7 @@ func (p *ErrorLoggingUpstreamServer) Version(ctx context.Context) (v string, err
 	return p.server.Version(ctx)
 }
 
-func (p *ErrorLoggingUpstreamServer) NotifyChange(ctx context.Context, change v9.Change) (err error) {
+func (p *ErrorLoggingServer) NotifyChange(ctx context.Context, change v9.Change) (err error) {
 	defer func() {
 		if err != nil {
 			p.logger.Log("method", "NotifyChange", "error", err)
