@@ -103,7 +103,7 @@ func calculateChanges(logger log.Logger, candidateWorkloads resources, workloads
 					continue containers
 				}
 				current := repoMetadata.FindImageWithRef(currentImageID)
-				if current.CreatedTS().IsZero() || latest.CreatedTS().IsZero() {
+				if pattern.RequiresTimestamp() && (current.CreatedTS().IsZero() || latest.CreatedTS().IsZero()) {
 					logger.Log("warning", "image with zero created timestamp", "current", fmt.Sprintf("%s (%s)", current.ID, current.CreatedTS()), "latest", fmt.Sprintf("%s (%s)", latest.ID, latest.CreatedTS()), "action", "skip container")
 					continue containers
 				}
