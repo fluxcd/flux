@@ -22,7 +22,7 @@ minikube start --profile "$PROFILE" --keep-context
 MINIKUBE_IP=$(minikube --profile "$PROFILE" ip)
 
 # Copy the latest Flux image into the minikube VM
-docker save "docker.io/weaveworks/flux:latest" | (eval $(minikube --profile "$PROFILE" docker-env) && docker load)
+docker save "docker.io/fluxcd/flux:latest" | (eval $(minikube --profile "$PROFILE" docker-env) && docker load)
 
 # Create a central git repo inside the minikube VM and get the host key for ssh access
 minikube --profile "$PROFILE" ssh -- git init --bare /home/docker/flux.git
