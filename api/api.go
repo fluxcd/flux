@@ -8,10 +8,3 @@ import "github.com/weaveworks/flux/api/v11"
 type Server interface {
 	v11.Server
 }
-
-// UpstreamServer is the interface a Flux must satisfy in order to communicate with
-// Weave Cloud.
-type UpstreamServer interface {
-	v11.Server
-	v11.Upstream
-}

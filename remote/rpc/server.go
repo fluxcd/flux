@@ -26,7 +26,7 @@ type Server struct {
 
 // NewServer instantiates a new RPC server, handling requests on the
 // conn by invoking methods on the underlying (assumed local) server.
-func NewServer(s api.UpstreamServer, t time.Duration) (*Server, error) {
+func NewServer(s api.Server, t time.Duration) (*Server, error) {
 	server := rpc.NewServer()
 	if err := server.Register(&RPCServer{s, t}); err != nil {
 		return nil, err
@@ -39,7 +39,7 @@ func (c *Server) ServeConn(conn io.ReadWriteCloser) {
 }
 
 type RPCServer struct {
-	s       api.UpstreamServer
+	s       api.Server
 	timeout time.Duration
 }
 

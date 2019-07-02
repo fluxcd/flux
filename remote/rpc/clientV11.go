@@ -19,7 +19,6 @@ type RPCClientV11 struct {
 
 type clientV11 interface {
 	v11.Server
-	v11.Upstream
 }
 
 var _ clientV11 = &RPCClientV11{}

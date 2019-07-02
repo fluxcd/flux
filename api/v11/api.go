@@ -18,8 +18,8 @@ type Server interface {
 	v10.Server
 
 	ListServicesWithOptions(ctx context.Context, opts ListServicesOptions) ([]v6.ControllerStatus, error)
-}
 
-type Upstream interface {
+	// NB Upstream methods move into the public API, since
+	// weaveworks/flux-adapter now relies on the public API
 	v10.Upstream
 }

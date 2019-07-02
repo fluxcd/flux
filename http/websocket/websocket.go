@@ -1,5 +1,10 @@
 package websocket
 
+// This package can be moved to weaveworks/flux-adapter once
+// `--connect` is removed, since it is particular to making an RPC
+// relay connection, and that function will be supplied by
+// flux-adapter.
+
 import (
 	"io"
 

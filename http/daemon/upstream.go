@@ -1,5 +1,8 @@
 package daemon
 
+// This file can be removed from the package once `--connect` is
+// removed from fluxd. Until then, it will be imported from here.
+
 import (
 	"context"
 	"net/http"
@@ -29,7 +32,7 @@ type Upstream struct {
 	url       *url.URL
 	endpoint  string
 	apiClient *fluxclient.Client
-	server    api.UpstreamServer
+	server    api.Server
 	timeout   time.Duration
 	logger    log.Logger
 	quit      chan struct{}
@@ -47,13 +50,13 @@ var (
 	}, []string{"target"})
 )
 
-func NewUpstream(client *http.Client, ua string, t fluxclient.Token, router *mux.Router, endpoint string, s api.UpstreamServer, timeout time.Duration, logger log.Logger) (*Upstream, error) {
+func NewUpstream(client *http.Client, ua string, t fluxclient.Token, router *mux.Router, endpoint string, s api.Server, timeout time.Duration, logger log.Logger) (*Upstream, error) {
 	httpEndpoint, wsEndpoint, err := inferEndpoints(endpoint)
 	if err != nil {
 		return nil, errors.Wrap(err, "inferring WS/HTTP endpoints")
 	}
 
-	u, err := transport.MakeURL(wsEndpoint, router, transport.RegisterDaemonV10)
+	u, err := transport.MakeURL(wsEndpoint, router, transport.RegisterDaemonV11)
 	if err != nil {
 		return nil, errors.Wrap(err, "constructing URL")
 	}
