@@ -1,11 +1,11 @@
 # Introducing Flux
 
-Continuous delivery is a term that encapsulates a set of best practices 
-that surround building, deploying and monitoring applications. The 
-goal is to provide a sustainable model for maintaining and improving 
+Continuous delivery is a term that encapsulates a set of best practices
+that surround building, deploying and monitoring applications. The
+goal is to provide a sustainable model for maintaining and improving
 an application.
 
-Flux is a tool that automates the deployment of containers to 
+Flux is a tool that automates the deployment of containers to
 Kubernetes. It fills the automation void that exists between building
 and monitoring.
 
@@ -47,10 +47,3 @@ One final high-level feature is that Flux increases visibility of your
 application. Clear visibility of the state of a cluster is key for
 maintaining operational systems. Developers can be confident in their
 changes by observing a predictable series of deployment events.
-
-## Next
-
-_Find out more about [Flux's features](./how-it-works.md)._
-
-_Get started immediately by [installing Flux](../install/index.md)._
-

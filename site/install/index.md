@@ -14,8 +14,4 @@ this](./helm-get-started.md).
 You can also configure a more advanced, [standalone
 setup](./standalone-setup.md).
 
-## Next
-
-[Setup fluxctl and run the daemon](../using/fluxctl.md)
-
 [k8s-manifests]: https://kubernetes.io/docs/concepts/configuration/overview/
