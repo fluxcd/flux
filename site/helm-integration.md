@@ -270,7 +270,22 @@ values:
 
 ```yaml
 values:
+  registry: docker.io
+  image: repo/image
+  tag: version
+```
+
+```yaml
+values:
   image:
+    repository: repo/image
+    tag: version
+```
+
+```yaml
+values:
+  image:
+    registry: docker.io
     repository: repo/image
     tag: version
 ```
