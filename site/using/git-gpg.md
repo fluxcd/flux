@@ -15,7 +15,7 @@ The signing of commits (and the sync tag) requires two flags to be set:
 
 1. `--git-gpg-key-import` should be set to the path(s) Flux should look
    for GPG key(s) to import, this can be direct paths to keys and/or
-   the paths to folders Flux should scan for files. 
+   the paths to folders Flux should scan for files.
 2. `--git-signing-key` should be set to the ID of the key Flux should
    use to sign commits, this can be the full fingerprint or the long
    ID, for example: `700D397C988079BFF0DDAFED6A7436E8790F8689` (or
@@ -119,7 +119,7 @@ directory it will be made available for use by Flux.
    metadata:
      creationTimestamp: null
      name: flux-gpg-signing-key
-  ```
+   ```
 
 3. Adapt your Flux deployment to mount the secret and enable the
    signing of commits:
@@ -162,8 +162,8 @@ directory it will be made available for use by Flux.
 understand symbolic links to files.
 
 > **Note:** Flux will automatically add any imported key to the GnuPG
-  trustdb. This is required as git will otherwise not trust signatures
-  made with the imported keys.
+> trustdb. This is required as git will otherwise not trust signatures
+> made with the imported keys.
 
 ## Signature verification
 

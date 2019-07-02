@@ -97,7 +97,7 @@ to expose the Flux service.
 
 Before making any changes, get the config so that it can be consulted later:
 
-```
+```sh
 ./fluxctl_030 get-config --fingerprint=md5 | tee old-config.yaml
 ```
 

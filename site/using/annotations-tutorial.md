@@ -1,6 +1,6 @@
 # Driving Flux - automations, locks and annotations
 
-In this tutorial we want to get a better feel for what we can do with 
+In this tutorial we want to get a better feel for what we can do with
 Flux. We won't spend too much time with getting it up and running, so let's
 get that out of the way first.
 

@@ -53,11 +53,13 @@ Now that we know everything is working with `flux-getting-started`, we're going 
     - [Go](https://golang.org/doc/install)
 
 1. Configure your enviroment so you can run tests.  Run:
+
     ```sh
     make test
     ```
 
 1. We want to make sure we're starting fresh.  Tell Minikube to clear any previously running clusters.
+
     ```sh
     minikube delete
     ```
@@ -68,7 +70,8 @@ Now that we know everything is working with `flux-getting-started`, we're going 
     ```
 
 1. This part is really important.  You're going to set some environment variables which will intercept any images pulled by docker.  Run `minikube docker-env` to see what we're talking about.  You'll get an output that shows you what the script is doing.  Thankfully, it's not terribly complicated - it just sets some environment variables which will allow Minikube to man-in-the-middle the requests Kubernetes makes to pull images.  It will look something like this:
-    ```
+
+    ```sh
     export DOCKER_TLS_VERIFY="1"
     export DOCKER_HOST="tcp://192.168.99.128:2376"
     export DOCKER_CERT_PATH="/home/fluxrulez/.minikube/certs"
@@ -78,13 +81,14 @@ Now that we know everything is working with `flux-getting-started`, we're going 
     ```
 
     So, as the script suggests, run the following command:
+
     ```sh
     eval $(minikube docker-env)
     ```
 
     Now, be warned. These are local variables.  This means that if you run this `eval` in one terminal and then switch to another for later when we build the Flux project, you're gonna hit some issues.  For one, you'll know it isn't working because Kubernetes will tell you that it can't pull the image when you run `kubectl get pods`:
 
-    ```
+    ```sh
     NAME                        READY   STATUS         RESTARTS   AGE
     flux-7f6bd57699-shx9v       0/1     ErrImagePull   0          35s
     ```
@@ -96,14 +100,17 @@ Now that we know everything is working with `flux-getting-started`, we're going 
 1. Clone `git@github.com:<YOUR-GITHUB-USERNAME>/flux.git` replacing `<YOUR-GITHUB-USERNAME>` with your GitHub username.
 
     In the same terminal you ran `eval $(minikube docker-env)`, run `GO111MODULE=on go mod download` followed by `make` from the root directory of the Flux repo.  You'll see docker's usual output as it builds the image layers.  Once it's done, you should see something like this in the middle of the output:
-    ```
+
+    ```sh
     Successfully built 606610e0f4ef
     Successfully tagged docker.io/fluxcd/flux:latest
     Successfully tagged docker.io/fluxcd/flux:master-a86167e4
     ```
+
     This confirms that a new docker image was tagged for your image.
 
 1. Open up [`deploy/flux-deployment.yaml`](https://github.com/weaveworks/flux/blob/master/deploy/flux-deployment.yaml) and update the image at `spec.template.spec.containers[0].image` to be simply `docker.io/weaveworks/flux`.  While we're here, also change the `git-url` to point towards your fork.  It will look something like this in the yaml:
+
     ```yaml
     spec:
       template:
@@ -125,7 +132,7 @@ Now that we know everything is working with `flux-getting-started`, we're going 
 
     You should see an output similar to:
 
-    ```
+    ```sh
     serviceaccount/flux created
     clusterrole.rbac.authorization.k8s.io/flux created
     clusterrolebinding.rbac.authorization.k8s.io/flux created
@@ -143,6 +150,7 @@ Now that we know everything is working with `flux-getting-started`, we're going 
     ```
 
     You should get an output that looks like:
+
     ```sh
     NAME                   READY   STATUS    RESTARTS   AGE
     flux-6f7fd5bbc-hpq85   1/1     Running   0          38s
@@ -151,14 +159,16 @@ Now that we know everything is working with `flux-getting-started`, we're going 
     If (instead) you see that Ready is showing `0/1` and/or the status is `ErrImagePull` double back on the instructions and make sure you did everything correctly and in order.
 
 1. Pull the logs for your "fresh off of master" copy of Flux that you just deployed locally to Minikube:
+
     ```sh
     kubectl logs --selector=name=flux
     ```
 
     You should see an output that looks something like this:
-    ```
-    ts=2019-02-28T18:58:45.091531939Z caller=warming.go:268 component=warmer info="refreshing image" image=docker.io/fluxcd/flux tag_count=60 to_update=60 of_which_refresh=0 of_which_missing=60
-    ts=2019-02-28T18:58:46.233723421Z caller=warming.go:364 component=warmer updated=docker.io/fluxcd/flux    successful=60 attempted=60
+
+    ```sh
+    ts=2019-02-28T18:58:45.091531939Z caller=warming.go:268 component=warmer info="refreshing image" image=docker.io/weaveworks/flux tag_count=60 to_update=60 of_which_refresh=0 of_which_missing=60
+    ts=2019-02-28T18:58:46.233723421Z caller=warming.go:364 component=warmer updated=docker.io/weaveworks/flux    successful=60 attempted=60
     ts=2019-02-28T18:58:46.234086642Z caller=images.go:17 component=sync-loop msg="polling images"
     ts=2019-02-28T18:58:46.234125646Z caller=images.go:27 component=sync-loop msg="no automated services"
     ts=2019-02-28T18:58:46.749598558Z caller=warming.go:268 component=warmer info="refreshing image" image=memcached    tag_count=66 to_update=66 of_which_refresh=0 of_which_missing=66
@@ -170,11 +180,13 @@ Now that we know everything is working with `flux-getting-started`, we're going 
 ## Make Some Changes
 
 1. Now for the part you've been waiting for!  We're going to make a cosmetic change to our local copy of Flux.  Navigate to [git/operations.go](https://github.com/weaveworks/flux/blob/master/git/operations.go).  In it, you will find a private function to this package that goes by the name `execGitCmd`.  Paste the following as the (new) first line of the function:
+
     ```go
     fmt.Println("executing git command ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ")
     ```
 
 1. Run `make` again.  Once this finishes you can check on your running pods with
+
     ```sh
     kubectl get pods --selector=name=flux
     ```

@@ -141,13 +141,13 @@ To use the ConfigMap every time the Flux daemon restarts, you'll need
 to mount it into the container. The example deployment manifest
 includes an example of doing this, commented out. Uncomment those two blocks:
 
-```
+```yaml
       - name: ssh-config
         configMap:
           name: flux-ssh-config
 ```
 
-```
+```yaml
         - name: ssh-config
           mountPath: /root/.ssh
 ```
@@ -158,7 +158,7 @@ manifest.
 Another alternative is to create the configmap from a template. This could be
 something like:
 
-```
+```yaml
 apiVersion: v1
 data:
   known_hosts: |

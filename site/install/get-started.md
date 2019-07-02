@@ -26,7 +26,7 @@ will work as well though.
 >
 > to avoid an error along the lines of
 >
-> ```
+> ```sh
 > Error from server (Forbidden): error when creating "deploy/flux-account.yaml":
 > clusterroles.rbac.authorization.k8s.io "flux" is forbidden: attempt to grant
 > extra privileges:

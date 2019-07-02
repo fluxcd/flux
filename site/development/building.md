@@ -26,4 +26,3 @@ $ make ARCH=<target_arch>
 ```sh
 $ make test
 ```
-

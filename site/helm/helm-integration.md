@@ -105,8 +105,8 @@ you can reinstall it using the following command:
 $ kubectl delete hr/my-release
 ```
 
-When the Helm Operator receives a delete event from Kubernetes API it will 
-call Tiller and purge the Helm release. On the next Flux sync, the Helm Release 
+When the Helm Operator receives a delete event from Kubernetes API it will
+call Tiller and purge the Helm release. On the next Flux sync, the Helm Release
 object will be created and the Helm Operator will install it.
 
 ### What the Helm Operator does
@@ -407,7 +407,7 @@ your `repositories.yaml` file.
 
 To prepare a file, add the repo _locally_ as you would normally:
 
-```
+```sh
 helm repo add <URL> --username <username> --password <password>
 ```
 
@@ -416,15 +416,15 @@ absolute paths that will be wrong when mounted inside the
 container. Copy the file and replace all the `cache` entries with just
 the filename.
 
-```
+```sh
 cp ~/.helm/repository/repositories.yaml .
-sed -i -e 's/^\( *cache: \).*\/\(.*\.yaml\)/\1\2/g' repositories.yaml 
+sed -i -e 's/^\( *cache: \).*\/\(.*\.yaml\)/\1\2/g' repositories.yaml
 ```
 
 Now you can create a secret in the same namespace as you're running
 the Helm operator, from the repositories file:
 
-```
+```sh
 kubectl create secret generic flux-helm-repositories --from-file=./repositories.yaml
 ```
 

@@ -171,7 +171,7 @@ Using an SSH key allows you to maintain control of the repository. You
 can revoke permission for `flux` to access the repository at any time
 by removing the deploy key.
 
-```
+```sh
 fluxctl helps you deploy your code.
 
 Connecting:
@@ -425,7 +425,7 @@ notifications and history. Whether the customization is possible, depends on the
 
 When building images it is often useful to tag build images by the branch that they were built against for example:
 
-```
+```sh
 quay.io/weaveworks/helloworld:master-9a16ff945b9e
 ```
 
@@ -538,7 +538,7 @@ retrieves from the registry.
 
 `fluxctl` provides the following flags for the message and author customization:
 
-```
+```sh
   -m, --message string      attach a message to the update
       --user    string      override the user reported as initiating the update
 ```

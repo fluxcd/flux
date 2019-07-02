@@ -8,12 +8,12 @@ Version controlling of cluster manifests provides reproducibility and a historic
 ### Flux daemon responsibilities
 
     A) Continuous Deployment
-	    1.
+        1.
         Flux daemon monitors user git repo Kubernetes manifests for changes, which it
         then deploys to the cluster.
 
-	    2.
-	    Flux daemon monitors container registry for running container image updates.
+        2.
+        Flux daemon monitors container registry for running container image updates.
         Detection of an image change (running container image tag vs container
         registry image tag) triggers k8s manifest update, which is committed to the
         user git repository, then deployed to the Kubernetes cluster.
