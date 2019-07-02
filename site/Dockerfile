@@ -1,7 +1,7 @@
 FROM ddidier/sphinx-doc
 
 RUN apt update && apt install -y linkchecker && \
-    pip install 'sphinx                 == 2.1.1' \
+    pip install 'sphinx                 == 2.1.2' \
                 'sphinx_markdown_tables == 0.0.9' \
                 'recommonmark           == 0.5.0'
 
