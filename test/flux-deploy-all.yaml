@@ -76,7 +76,7 @@ spec:
       containers:
       - name: flux
         # Require locally built image
-        image: docker.io/weaveworks/flux:latest
+        image: docker.io/fluxcd/flux:latest
         imagePullPolicy: Never
         ports:
         - containerPort: 3030 # informational
