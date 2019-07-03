@@ -61,13 +61,22 @@ jobs:
           name: Maybe push prerelease images
           command: |
             if [ -z "${CIRCLE_TAG}" -a "${CIRCLE_BRANCH}" == "master" ]; then
+              # Push to weaveworks org
               echo "$DOCKER_REGISTRY_PASSWORD" | docker login --username "$DOCKER_REGISTRY_USER" --password-stdin
 
-              docker tag "docker.io/weaveworks/flux:$(docker/image-tag)" "docker.io/weaveworks/flux-prerelease:$(docker/image-tag)"
+              docker tag "docker.io/fluxcd/flux:$(docker/image-tag)" "docker.io/weaveworks/flux-prerelease:$(docker/image-tag)"
               docker push "docker.io/weaveworks/flux-prerelease:$(docker/image-tag)"
 
-              docker tag "docker.io/weaveworks/helm-operator:$(docker/image-tag)" "docker.io/weaveworks/helm-operator-prerelease:$(docker/image-tag)"
+              docker tag "docker.io/fluxcd/helm-operator:$(docker/image-tag)" "docker.io/weaveworks/helm-operator-prerelease:$(docker/image-tag)"
               docker push "docker.io/weaveworks/helm-operator-prerelease:$(docker/image-tag)"
+
+              # Push to fluxcd org
+              echo "$DOCKER_FLUXCD_PASSWORD" | docker login --username "$DOCKER_FLUXCD_USER" --password-stdin
+              docker tag "docker.io/fluxcd/flux:$(docker/image-tag)" "docker.io/fluxcd/flux-prerelease:$(docker/image-tag)"
+              docker push "docker.io/fluxcd/flux-prerelease:$(docker/image-tag)"
+
+              docker tag "docker.io/fluxcd/helm-operator:$(docker/image-tag)" "docker.io/fluxcd/helm-operator-prerelease:$(docker/image-tag)"
+              docker push "docker.io/fluxcd/helm-operator-prerelease:$(docker/image-tag)"
             fi
       - deploy:
           name: Maybe push release image and upload binaries
@@ -76,13 +85,26 @@ jobs:
               go get github.com/weaveworks/github-release
               make release-bins
               bin/upload-binaries
+              # Push to weaveworks org
               echo "$DOCKER_REGISTRY_PASSWORD" | docker login --username "$DOCKER_REGISTRY_USER" --password-stdin
+              docker tag "docker.io/fluxcd/flux:${CIRCLE_TAG}" "docker.io/weaveworks/flux:${CIRCLE_TAG}"
               docker push "docker.io/weaveworks/flux:${CIRCLE_TAG}"
+
+              # Push to fluxcd org
+              echo "$DOCKER_FLUXCD_PASSWORD" | docker login --username "$DOCKER_FLUXCD_USER" --password-stdin
+              docker push "docker.io/fluxcd/flux:${CIRCLE_TAG}"
             fi
             if echo "${CIRCLE_TAG}" | grep -Eq "helm-[0-9]+(\.[0-9]+)*(-[a-z]+)?$"; then
-              echo "$DOCKER_REGISTRY_PASSWORD" | docker login --username "$DOCKER_REGISTRY_USER" --password-stdin
               RELEASE_TAG=$(echo "$CIRCLE_TAG" | cut -c 6-)
+
+              # Push to weaveworks org
+              echo "$DOCKER_REGISTRY_PASSWORD" | docker login --username "$DOCKER_REGISTRY_USER" --password-stdin
+              docker tag "docker.io/fluxcd/helm-operator:${RELEASE_TAG}" "docker.io/weaveworks/helm-operator:${RELEASE_TAG}"
               docker push "docker.io/weaveworks/helm-operator:${RELEASE_TAG}"
+
+              # Push to fluxcd org
+              echo "$DOCKER_FLUXCD_PASSWORD" | docker login --username "$DOCKER_FLUXCD_USER" --password-stdin
+              docker push "docker.io/fluxcd/helm-operator:${RELEASE_TAG}"
             fi
 
 workflows:

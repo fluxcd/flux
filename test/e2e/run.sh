@@ -76,8 +76,8 @@ kubectl -n "${FLUX_NAMESPACE}" rollout status deployment/gitsrv
 
 if [ "${USING_KIND}" = 'true' ]; then
     echo '>>> Loading images into the Kind cluster'
-    kind --name "${KIND_CLUSTER}" load docker-image 'docker.io/weaveworks/flux:latest'
-    kind --name "${KIND_CLUSTER}" load docker-image 'docker.io/weaveworks/helm-operator:latest'
+    kind --name "${KIND_CLUSTER}" load docker-image 'docker.io/fluxcd/flux:latest'
+    kind --name "${KIND_CLUSTER}" load docker-image 'docker.io/fluxcd/helm-operator:latest'
 fi
 
 echo '>>> Installing Flux with Helm'
@@ -100,6 +100,7 @@ defer helm delete --purge flux > /dev/null 2>&1
 
 helm install --name flux --wait \
 --namespace "${FLUX_NAMESPACE}" \
+--set image.repository=docker.io/fluxcd/flux \
 --set image.tag=latest \
 --set git.url=ssh://git@gitsrv/git-server/repos/cluster.git \
 --set git.secretName=ssh-git \
@@ -107,6 +108,7 @@ helm install --name flux --wait \
 --set git.config.secretName=gitconfig \
 --set git.config.enabled=true \
 --set-string git.config.data="${GITCONFIG}" \
+--set helmOperator.repository=docker.io/fluxcd/helm-operator \
 --set helmOperator.tag=latest \
 --set helmOperator.create=true \
 --set helmOperator.createCRD=true \
