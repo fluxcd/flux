@@ -392,9 +392,10 @@ apiVersion: flux.weave.works/v1beta1
 kind: HelmRelease
 # metadata: ...
 spec:
+  # Listed values are the defaults.
   rollback:
     # If set, will perform rollbacks for this release.
-    enable: true
+    enable: false
     # If set, will force resource update through delete/recreate if
     # needed.
     force: false
