@@ -202,6 +202,7 @@ The following tables lists the configurable parameters of the Flux chart and the
 | `token`                                           | `None`                                               | Weave Cloud service token
 | `extraEnvs`                                       | `[]`                                                 | Extra environment variables for the Flux pod(s)
 | `rbac.create`                                     | `true`                                               | If `true`, create and use RBAC resources
+| `rbac.pspEnabled`                                 | `false`                                              | If `true`, create and use a restricted pod security policy for Flux pod(s)
 | `serviceAccount.create`                           | `true`                                               | If `true`, create a new service account
 | `serviceAccount.name`                             | `flux`                                               | Service account to be used
 | `clusterRole.create`                              | `true`                                               | If `false`, Flux and the Helm Operator will be restricted to the namespace where they are deployed
