@@ -8,12 +8,19 @@ metadata:
     chart: {{ include "flux.chart" . }}
     release: {{ .Release.Name }}
     heritage: {{ .Release.Service }}
+  annotations:
+    seccomp.security.alpha.kubernetes.io/allowedProfileNames: '*'
 spec:
+  privileged: false
+  hostIPC: false
+  hostNetwork: false
+  hostPID: false
+  readOnlyRootFilesystem: false
+  allowPrivilegeEscalation: true
   allowedCapabilities:
-  - '*'
+    - '*'
   fsGroup:
     rule: RunAsAny
-  privileged: true
   runAsUser:
     rule: RunAsAny
   seLinux:
@@ -21,11 +28,5 @@ spec:
   supplementalGroups:
     rule: RunAsAny
   volumes:
-  - '*'
-  hostPID: true
-  hostIPC: true
-  hostNetwork: true
-  hostPorts:
-  - min: 1
-    max: 65536
+    - '*'
 {{- end }}
