@@ -24,8 +24,18 @@ var exemptedTraceCommands = []string{
 	// "config",
 }
 
-// Env vars that are allowed to be inherited from the os
-var allowedEnvVars = []string{"http_proxy", "https_proxy", "no_proxy", "HOME", "GNUPGHOME", "SECRETS_DIR", "SECRETS_EXTENSION"}
+// Env vars that are allowed to be inherited from the OS
+var allowedEnvVars = []string{
+	// these are for people using (no) proxies
+	"http_proxy", "https_proxy", "no_proxy",
+	// these are needed for GPG to find its files
+	"HOME", "GNUPGHOME",
+	// these for the git-secrets helper
+	"SECRETS_DIR", "SECRETS_EXTENSION",
+	// these are for Google Cloud SDK to find its files (which will
+	// have to be mounted, if running in a container)
+	"CLOUDSDK_CONFIG", "CLOUDSDK_PYTHON",
+}
 
 type gitCmdConfig struct {
 	dir string
