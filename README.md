@@ -1,5 +1,7 @@
 # Flux
 
+> **Notice** Flux is moving house! Please see https://github.com/weaveworks/flux/wiki/MoveToFluxCD
+
 We believe in GitOps:
 
 - **You declaratively describe the entire desired state of your
