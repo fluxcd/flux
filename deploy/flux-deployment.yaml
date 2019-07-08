@@ -85,7 +85,7 @@ spec:
 
         # Include this and the volume "kubeconfig" above, and the
         # environment entry "KUBECONFIG" below, to override the config
-        # used by kuebctl.
+        # used by kubectl.
         # - name: kubeconfig
         #   mountPath: /etc/fluxd/kube
 
