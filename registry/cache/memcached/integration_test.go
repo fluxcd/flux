@@ -48,7 +48,7 @@ func TestWarming_WarmerWriteCacheRead(t *testing.T) {
 		Trace:    true,
 	}
 
-	r := &cache.Cache{mc}
+	r := &cache.Cache{Reader: mc}
 
 	w, _ := cache.NewWarmer(remote, mc, 125)
 	shutdown := make(chan struct{})

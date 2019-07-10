@@ -238,9 +238,9 @@ func TestImage_OrderByCreationDate(t *testing.T) {
 	imA := mustMakeInfo("my/Image:2", testTime)
 	imB := mustMakeInfo("my/Image:0", time.Time{}).setLabels(Labels{Created: time0})
 	imC := mustMakeInfo("my/Image:3", time.Time{}).setLabels(Labels{BuildDate: time2})
-	imD := mustMakeInfo("my/Image:4", time.Time{}) // test nil
+	imD := mustMakeInfo("my/Image:4", time.Time{})                                      // test nil
 	imE := mustMakeInfo("my/Image:1", time.Time{}).setLabels(Labels{Created: testTime}) // test equal
-	imF := mustMakeInfo("my/Image:5", time.Time{}) // test nil equal
+	imF := mustMakeInfo("my/Image:5", time.Time{})                                      // test nil equal
 	imgs := []Info{imA, imB, imC, imD, imE, imF}
 	Sort(imgs, NewerByCreated)
 	checkSorted(t, imgs)

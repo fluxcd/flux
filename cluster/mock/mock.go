@@ -4,11 +4,9 @@ import (
 	"bytes"
 	"context"
 
-	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster"
 	"github.com/weaveworks/flux/image"
 	"github.com/weaveworks/flux/manifests"
-	"github.com/weaveworks/flux/policy"
 	"github.com/weaveworks/flux/resource"
 	"github.com/weaveworks/flux/ssh"
 )
@@ -16,16 +14,16 @@ import (
 // Doubles as a cluster.Cluster and cluster.Manifests implementation
 type Mock struct {
 	AllWorkloadsFunc              func(ctx context.Context, maybeNamespace string) ([]cluster.Workload, error)
-	SomeWorkloadsFunc             func(ctx context.Context, ids []flux.ResourceID) ([]cluster.Workload, error)
-	IsAllowedResourceFunc         func(flux.ResourceID) bool
+	SomeWorkloadsFunc             func(ctx context.Context, ids []resource.ID) ([]cluster.Workload, error)
+	IsAllowedResourceFunc         func(resource.ID) bool
 	PingFunc                      func() error
 	ExportFunc                    func(ctx context.Context) ([]byte, error)
 	SyncFunc                      func(cluster.SyncSet) error
 	PublicSSHKeyFunc              func(regenerate bool) (ssh.PublicKey, error)
-	SetWorkloadContainerImageFunc func(def []byte, id flux.ResourceID, container string, newImageID image.Ref) ([]byte, error)
+	SetWorkloadContainerImageFunc func(def []byte, id resource.ID, container string, newImageID image.Ref) ([]byte, error)
 	LoadManifestsFunc             func(base string, paths []string) (map[string]resource.Resource, error)
 	ParseManifestFunc             func(def []byte, source string) (map[string]resource.Resource, error)
-	UpdateWorkloadPoliciesFunc    func([]byte, flux.ResourceID, policy.Update) ([]byte, error)
+	UpdateWorkloadPoliciesFunc    func([]byte, resource.ID, resource.PolicyUpdate) ([]byte, error)
 	CreateManifestPatchFunc       func(originalManifests, modifiedManifests []byte, originalSource, modifiedSource string) ([]byte, error)
 	ApplyManifestPatchFunc        func(originalManifests, patch []byte, originalSource, patchSource string) ([]byte, error)
 	AppendManifestToBufferFunc    func([]byte, *bytes.Buffer) error
@@ -38,11 +36,11 @@ func (m *Mock) AllWorkloads(ctx context.Context, maybeNamespace string) ([]clust
 	return m.AllWorkloadsFunc(ctx, maybeNamespace)
 }
 
-func (m *Mock) SomeWorkloads(ctx context.Context, ids []flux.ResourceID) ([]cluster.Workload, error) {
+func (m *Mock) SomeWorkloads(ctx context.Context, ids []resource.ID) ([]cluster.Workload, error) {
 	return m.SomeWorkloadsFunc(ctx, ids)
 }
 
-func (m *Mock) IsAllowedResource(id flux.ResourceID) bool {
+func (m *Mock) IsAllowedResource(id resource.ID) bool {
 	return m.IsAllowedResourceFunc(id)
 }
 
@@ -62,7 +60,7 @@ func (m *Mock) PublicSSHKey(regenerate bool) (ssh.PublicKey, error) {
 	return m.PublicSSHKeyFunc(regenerate)
 }
 
-func (m *Mock) SetWorkloadContainerImage(def []byte, id flux.ResourceID, container string, newImageID image.Ref) ([]byte, error) {
+func (m *Mock) SetWorkloadContainerImage(def []byte, id resource.ID, container string, newImageID image.Ref) ([]byte, error) {
 	return m.SetWorkloadContainerImageFunc(def, id, container, newImageID)
 }
 
@@ -74,7 +72,7 @@ func (m *Mock) ParseManifest(def []byte, source string) (map[string]resource.Res
 	return m.ParseManifestFunc(def, source)
 }
 
-func (m *Mock) UpdateWorkloadPolicies(def []byte, id flux.ResourceID, p policy.Update) ([]byte, error) {
+func (m *Mock) UpdateWorkloadPolicies(def []byte, id resource.ID, p resource.PolicyUpdate) ([]byte, error) {
 	return m.UpdateWorkloadPoliciesFunc(def, id, p)
 }
 

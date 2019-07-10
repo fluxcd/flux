@@ -8,16 +8,15 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
-	"github.com/weaveworks/common/middleware"
-	"github.com/weaveworks/flux"
 
+	"github.com/weaveworks/common/middleware"
 	"github.com/weaveworks/flux/api"
 	"github.com/weaveworks/flux/api/v10"
 	"github.com/weaveworks/flux/api/v11"
 	transport "github.com/weaveworks/flux/http"
 	"github.com/weaveworks/flux/job"
 	fluxmetrics "github.com/weaveworks/flux/metrics"
-	"github.com/weaveworks/flux/policy"
+	"github.com/weaveworks/flux/resource"
 	"github.com/weaveworks/flux/update"
 )
 
@@ -152,7 +151,7 @@ func (s HTTPServer) ListServicesWithOptions(w http.ResponseWriter, r *http.Reque
 	services := r.URL.Query().Get("services")
 	if services != "" {
 		for _, svc := range strings.Split(services, ",") {
-			id, err := flux.ParseResourceID(svc)
+			id, err := resource.ParseID(svc)
 			if err != nil {
 				transport.WriteError(w, r, http.StatusBadRequest, errors.Wrapf(err, "parsing service spec %q", svc))
 				return
@@ -223,9 +222,9 @@ func (s HTTPServer) UpdateImages(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var excludes []flux.ResourceID
+	var excludes []resource.ID
 	for _, ex := range r.URL.Query()["exclude"] {
-		s, err := flux.ParseResourceID(ex)
+		s, err := resource.ParseID(ex)
 		if err != nil {
 			transport.WriteError(w, r, http.StatusBadRequest, errors.Wrapf(err, "parsing excluded service %q", ex))
 			return
@@ -252,7 +251,7 @@ func (s HTTPServer) UpdateImages(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s HTTPServer) UpdatePolicies(w http.ResponseWriter, r *http.Request) {
-	var updates policy.Updates
+	var updates resource.PolicyUpdates
 	if err := json.NewDecoder(r.Body).Decode(&updates); err != nil {
 		transport.WriteError(w, r, http.StatusBadRequest, err)
 		return

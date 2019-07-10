@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v2"
 
-	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/resource"
 )
 
 const patchUpdatedConfigFile = `---
@@ -83,7 +83,7 @@ func TestExecContainerImageUpdaters(t *testing.T) {
 	var cf ConfigFile
 	err := yaml.Unmarshal([]byte(echoCmdUpdatedConfigFile), &cf)
 	assert.NoError(t, err)
-	resourceID := flux.MustParseResourceID("default:deployment/foo")
+	resourceID := resource.MustParseID("default:deployment/foo")
 	result := cf.ExecContainerImageUpdaters(context.Background(), resourceID, "bar", "repo/image", "latest")
 	assert.Equal(t, 2, len(result), "result: %s", result)
 	assert.Equal(t,
@@ -98,7 +98,7 @@ func TestExecAnnotationUpdaters(t *testing.T) {
 	var cf ConfigFile
 	err := yaml.Unmarshal([]byte(echoCmdUpdatedConfigFile), &cf)
 	assert.NoError(t, err)
-	resourceID := flux.MustParseResourceID("default:deployment/foo")
+	resourceID := resource.MustParseID("default:deployment/foo")
 
 	// Test the update/addition of annotations
 	annotationValue := "value"

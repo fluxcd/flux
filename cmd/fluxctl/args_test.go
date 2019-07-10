@@ -1,10 +1,10 @@
 package main
 
 import (
-        "fmt"
-	"testing"
+	"fmt"
 	"os"
 	"os/exec"
+	"testing"
 )
 
 func helperCommand(command string, s ...string) (cmd *exec.Cmd) {
@@ -21,7 +21,6 @@ func TestHelperProcess(t *testing.T) {
 	}
 	defer os.Exit(0)
 
-
 	args := os.Args
 	for len(args) > 0 {
 		if args[0] == "--" {
@@ -35,18 +34,18 @@ func TestHelperProcess(t *testing.T) {
 	}
 
 	_, args = args[0], args[1:]
-        for _, a := range args {
-            if a == "user.name" {
-    		fmt.Fprintf(os.Stdout, "Jane Doe")
-            } else if a == "user.email" {
-    		fmt.Fprintf(os.Stdout, "jd@j.d")
-            }
-        }
+	for _, a := range args {
+		if a == "user.name" {
+			fmt.Fprintf(os.Stdout, "Jane Doe")
+		} else if a == "user.email" {
+			fmt.Fprintf(os.Stdout, "jd@j.d")
+		}
+	}
 }
 
 func checkAuthor(t *testing.T, input string, expected string) {
-    	execCommand = helperCommand
-    	defer func(){ execCommand = exec.Command }()
+	execCommand = helperCommand
+	defer func() { execCommand = exec.Command }()
 	author := getUserGitConfigValue(input)
 	if author != expected {
 		t.Fatalf("author %q does not match expected value %q", author, expected)

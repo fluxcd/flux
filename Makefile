@@ -22,11 +22,11 @@ GOBIN?=$(shell echo `go env GOPATH`/bin)
 # if you're testing out the Makefile with `-W` (pretend a file is
 # new); use the full path to the pretend-new file, e.g.,
 #  `make -W $PWD/registry/registry.go`
-godeps=$(shell go list -f '{{join .Deps "\n"}}' $1 | grep -v /vendor/ | xargs go list -f '{{if not .Standard}}{{ $$dep := . }}{{range .GoFiles}}{{$$dep.Dir}}/{{.}} {{end}}{{end}}')
+godeps=$(shell go list -deps -f '{{if not .Standard}}{{ $$dep := . }}{{range .GoFiles}}{{$$dep.Dir}}/{{.}} {{end}}{{end}}' $(1))
 
-FLUXD_DEPS:=$(call godeps,./cmd/fluxd)
-FLUXCTL_DEPS:=$(call godeps,./cmd/fluxctl)
-HELM_OPERATOR_DEPS:=$(call godeps,./cmd/helm-operator)
+FLUXD_DEPS:=$(call godeps,./cmd/fluxd/...)
+FLUXCTL_DEPS:=$(call godeps,./cmd/fluxctl/...)
+HELM_OPERATOR_DEPS:=$(call godeps,./cmd/helm-operator/...)
 
 IMAGE_TAG:=$(shell ./docker/image-tag)
 VCS_REF:=$(shell git rev-parse HEAD)
@@ -63,7 +63,7 @@ e2e: test/bin/helm test/bin/kubectl build/.flux.done build/.helm-operator.done
 build/.%.done: docker/Dockerfile.%
 	mkdir -p ./build/docker/$*
 	cp $^ ./build/docker/$*/
-	$(SUDO) docker build -t docker.io/weaveworks/$* -t docker.io/weaveworks/$*:$(IMAGE_TAG) \
+	$(SUDO) docker build -t docker.io/fluxcd/$* -t docker.io/fluxcd/$*:$(IMAGE_TAG) \
 		--build-arg VCS_REF="$(VCS_REF)" \
 		--build-arg BUILD_DATE="$(BUILD_DATE)" \
 		-f build/docker/$*/Dockerfile.$* ./build/docker/$*
@@ -113,15 +113,12 @@ cache/%/helm-$(HELM_VERSION): docker/helm.version
 	mv cache/$*/helm $@
 
 $(GOBIN)/fluxctl: $(FLUXCTL_DEPS)
-$(GOBIN)/fluxctl: ./cmd/fluxctl/*.go
 	go install ./cmd/fluxctl
 
 $(GOBIN)/fluxd: $(FLUXD_DEPS)
-$(GOBIN)/fluxd: cmd/fluxd/*.go
 	go install ./cmd/fluxd
 
 $(GOBIN)/helm-operator: $(HELM_OPERATOR_DEPS)
-$(GOBIN)/help-operator: cmd/helm-operator/*.go
 	go install ./cmd/helm-operator
 
 integration-test: all

@@ -9,26 +9,21 @@ import (
 
 	"github.com/ghodss/yaml"
 	"github.com/go-kit/kit/log"
+	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
+	crdfake "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/fake"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	//	"k8s.io/apimachinery/pkg/runtime/serializer"
-	//	"k8s.io/apimachinery/pkg/watch"
-	"k8s.io/client-go/dynamic"
-	//	dynamicfake "k8s.io/client-go/dynamic/fake"
-	//	k8sclient "k8s.io/client-go/kubernetes"
-	"github.com/stretchr/testify/assert"
-	crdfake "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/fake"
 	"k8s.io/client-go/discovery"
+	"k8s.io/client-go/dynamic"
 	dynamicfake "k8s.io/client-go/dynamic/fake"
 	k8sclient "k8s.io/client-go/kubernetes"
 	corefake "k8s.io/client-go/kubernetes/fake"
 	k8s_testing "k8s.io/client-go/testing"
 
-	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster"
 	kresource "github.com/weaveworks/flux/cluster/kubernetes/resource"
 	fluxfake "github.com/weaveworks/flux/integrations/client/clientset/versioned/fake"
@@ -116,7 +111,7 @@ func groupVersionResource(res *unstructured.Unstructured) schema.GroupVersionRes
 	return schema.GroupVersionResource{Group: gvk.Group, Version: gvk.Version, Resource: strings.ToLower(gvk.Kind) + "s"}
 }
 
-func (a fakeApplier) apply(_ log.Logger, cs changeSet, errored map[flux.ResourceID]error) cluster.SyncError {
+func (a fakeApplier) apply(_ log.Logger, cs changeSet, errored map[resource.ID]error) cluster.SyncError {
 	var errs []cluster.ResourceError
 
 	operate := func(obj applyObject, cmd string) {
@@ -730,9 +725,9 @@ spec:
 // TestApplyOrder checks that applyOrder works as expected.
 func TestApplyOrder(t *testing.T) {
 	objs := []applyObject{
-		{ResourceID: flux.MakeResourceID("test", "Deployment", "deploy")},
-		{ResourceID: flux.MakeResourceID("test", "Secret", "secret")},
-		{ResourceID: flux.MakeResourceID("", "Namespace", "namespace")},
+		{ResourceID: resource.MakeID("test", "Deployment", "deploy")},
+		{ResourceID: resource.MakeID("test", "Secret", "secret")},
+		{ResourceID: resource.MakeID("", "Namespace", "namespace")},
 	}
 	sort.Sort(applyOrder(objs))
 	for i, name := range []string{"namespace", "secret", "deploy"} {

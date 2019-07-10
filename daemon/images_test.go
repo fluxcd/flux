@@ -1,14 +1,14 @@
 package daemon
 
 import (
-	"github.com/weaveworks/flux/policy"
 	"testing"
 	"time"
 
 	"github.com/go-kit/kit/log"
-	"github.com/weaveworks/flux"
+
 	"github.com/weaveworks/flux/cluster"
 	"github.com/weaveworks/flux/image"
+	"github.com/weaveworks/flux/policy"
 	"github.com/weaveworks/flux/registry"
 	registryMock "github.com/weaveworks/flux/registry/mock"
 	"github.com/weaveworks/flux/resource"
@@ -18,6 +18,7 @@ import (
 const (
 	container1 = "container1"
 	container2 = "container2"
+	container3 = "container3"
 
 	currentContainer1Image = "container1/application:current"
 	newContainer1Image     = "container1/application:new"
@@ -25,14 +26,17 @@ const (
 	currentContainer2Image = "container2/application:current"
 	newContainer2Image     = "container2/application:new"
 	noTagContainer2Image   = "container2/application"
+
+	currentContainer3Image = "container3/application:1.0.0"
+	newContainer3Image     = "container3/application:1.1.0"
 )
 
 type candidate struct {
-	resourceID flux.ResourceID
+	resourceID resource.ID
 	policies   policy.Set
 }
 
-func (c candidate) ResourceID() flux.ResourceID {
+func (c candidate) ResourceID() resource.ID {
 	return c.resourceID
 }
 
@@ -50,7 +54,7 @@ func (candidate) Bytes() []byte {
 
 func TestCalculateChanges_Automated(t *testing.T) {
 	logger := log.NewNopLogger()
-	resourceID := flux.MakeResourceID(ns, "deployment", "application")
+	resourceID := resource.MakeID(ns, "deployment", "application")
 	candidateWorkloads := resources{
 		resourceID: candidate{
 			resourceID: resourceID,
@@ -98,7 +102,7 @@ func TestCalculateChanges_Automated(t *testing.T) {
 }
 func TestCalculateChanges_UntaggedImage(t *testing.T) {
 	logger := log.NewNopLogger()
-	resourceID := flux.MakeResourceID(ns, "deployment", "application")
+	resourceID := resource.MakeID(ns, "deployment", "application")
 	candidateWorkloads := resources{
 		resourceID: candidate{
 			resourceID: resourceID,
@@ -152,14 +156,16 @@ func TestCalculateChanges_UntaggedImage(t *testing.T) {
 		t.Errorf("Expected changed image to be %s, got %s", newContainer1Image, newImage)
 	}
 }
+
 func TestCalculateChanges_ZeroTimestamp(t *testing.T) {
 	logger := log.NewNopLogger()
-	resourceID := flux.MakeResourceID(ns, "deployment", "application")
+	resourceID := resource.MakeID(ns, "deployment", "application")
 	candidateWorkloads := resources{
 		resourceID: candidate{
 			resourceID: resourceID,
 			policies: policy.Set{
-				policy.Automated: "true",
+				policy.Automated:             "true",
+				policy.TagPrefix(container3): "semver:^1.0",
 			},
 		},
 	}
@@ -176,6 +182,10 @@ func TestCalculateChanges_ZeroTimestamp(t *testing.T) {
 						Name:  container2,
 						Image: mustParseImageRef(currentContainer2Image),
 					},
+					{
+						Name:  container3,
+						Image: mustParseImageRef(currentContainer3Image),
+					},
 				},
 			},
 		},
@@ -184,14 +194,21 @@ func TestCalculateChanges_ZeroTimestamp(t *testing.T) {
 	{
 		current1 := makeImageInfo(currentContainer1Image, time.Now())
 		new1 := makeImageInfo(newContainer1Image, time.Now().Add(1*time.Second))
+
 		zeroTimestampCurrent2 := image.Info{ID: mustParseImageRef(currentContainer2Image)}
 		new2 := makeImageInfo(newContainer2Image, time.Now().Add(1*time.Second))
+
+		current3 := makeImageInfo(currentContainer3Image, time.Now())
+		zeroTimestampNew3 := image.Info{ID: mustParseImageRef(newContainer3Image)}
+
 		imageRegistry = &registryMock.Registry{
 			Images: []image.Info{
 				current1,
 				new1,
 				zeroTimestampCurrent2,
 				new2,
+				current3,
+				zeroTimestampNew3,
 			},
 		}
 	}
@@ -202,9 +219,13 @@ func TestCalculateChanges_ZeroTimestamp(t *testing.T) {
 
 	changes := calculateChanges(logger, candidateWorkloads, workloads, imageRepos)
 
-	if len := len(changes.Changes); len != 1 {
-		t.Errorf("Expected exactly 1 change, got %d changes", len)
-	} else if newImage := changes.Changes[0].ImageID.String(); newImage != newContainer1Image {
+	if len := len(changes.Changes); len != 2 {
+		t.Fatalf("Expected exactly 2 changes, got %d changes: %v", len, changes.Changes)
+	}
+	if newImage := changes.Changes[0].ImageID.String(); newImage != newContainer1Image {
 		t.Errorf("Expected changed image to be %s, got %s", newContainer1Image, newImage)
+	}
+	if newImage := changes.Changes[1].ImageID.String(); newImage != newContainer3Image {
+		t.Errorf("Expected changed image to be %s, got %s", newContainer3Image, newImage)
 	}
 }

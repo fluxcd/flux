@@ -3,8 +3,6 @@ package policy
 import (
 	"encoding/json"
 	"strings"
-
-	"github.com/weaveworks/flux"
 )
 
 const (
@@ -45,13 +43,6 @@ func GetTagPattern(policies Set, container string) Pattern {
 		return PatternAll
 	}
 	return NewPattern(pattern)
-}
-
-type Updates map[flux.ResourceID]Update
-
-type Update struct {
-	Add    Set `json:"add"`
-	Remove Set `json:"remove"`
 }
 
 type Set map[Policy]string

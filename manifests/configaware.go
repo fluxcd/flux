@@ -11,9 +11,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/image"
-	"github.com/weaveworks/flux/policy"
 	"github.com/weaveworks/flux/resource"
 )
 
@@ -131,7 +129,7 @@ func findConfigFilePaths(baseDir string, initialPath string) (string, string, er
 	return "", "", configFileNotFoundErr
 }
 
-func (ca *configAware) SetWorkloadContainerImage(ctx context.Context, resourceID flux.ResourceID, container string,
+func (ca *configAware) SetWorkloadContainerImage(ctx context.Context, resourceID resource.ID, container string,
 	newImageID image.Ref) error {
 	resourcesByID, err := ca.getResourcesByID(ctx)
 	if err != nil {
@@ -268,8 +266,8 @@ func (ca *configAware) getGeneratedManifests(ctx context.Context, cf *ConfigFile
 	return buf.Bytes(), nil
 }
 
-func (ca *configAware) UpdateWorkloadPolicies(ctx context.Context, resourceID flux.ResourceID,
-	update policy.Update) (bool, error) {
+func (ca *configAware) UpdateWorkloadPolicies(ctx context.Context, resourceID resource.ID,
+	update resource.PolicyUpdate) (bool, error) {
 	resourcesByID, err := ca.getResourcesByID(ctx)
 	if err != nil {
 		return false, err
@@ -293,7 +291,7 @@ func (ca *configAware) UpdateWorkloadPolicies(ctx context.Context, resourceID fl
 }
 
 func (ca *configAware) updateConfigFileWorkloadPolicies(ctx context.Context, cf *ConfigFile, r resource.Resource,
-	update policy.Update) (bool, error) {
+	update resource.PolicyUpdate) (bool, error) {
 	if cf.PatchUpdated != nil {
 		var changed bool
 		err := ca.updatePatchFile(ctx, cf, func(previousManifests []byte) ([]byte, error) {

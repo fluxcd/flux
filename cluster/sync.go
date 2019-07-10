@@ -3,7 +3,6 @@ package cluster
 import (
 	"strings"
 
-	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/resource"
 )
 
@@ -22,7 +21,7 @@ type SyncSet struct {
 }
 
 type ResourceError struct {
-	ResourceID flux.ResourceID
+	ResourceID resource.ID
 	Source     string
 	Error      error
 }

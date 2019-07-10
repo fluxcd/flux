@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 
-	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/policy"
 	"github.com/weaveworks/flux/resource"
 	"github.com/weaveworks/flux/ssh"
@@ -27,8 +26,8 @@ const (
 type Cluster interface {
 	// Get all of the services (optionally, from a specific namespace), excluding those
 	AllWorkloads(ctx context.Context, maybeNamespace string) ([]Workload, error)
-	SomeWorkloads(ctx context.Context, ids []flux.ResourceID) ([]Workload, error)
-	IsAllowedResource(flux.ResourceID) bool
+	SomeWorkloads(ctx context.Context, ids []resource.ID) ([]Workload, error)
+	IsAllowedResource(resource.ID) bool
 	Ping() error
 	Export(ctx context.Context) ([]byte, error)
 	Sync(SyncSet) error
@@ -60,7 +59,7 @@ type RolloutStatus struct {
 
 // Workload describes a cluster resource that declares versioned images.
 type Workload struct {
-	ID     flux.ResourceID
+	ID     resource.ID
 	Status string // A status summary for display
 	// Is the controller considered read-only because it's under the
 	// control of the platform. In the case of Kubernetes, we simply
@@ -70,7 +69,7 @@ type Workload struct {
 	// resource through some mechanism (like an operator, or custom
 	// resource controller), we try to record the ID of that resource
 	// in this field.
-	Antecedent flux.ResourceID
+	Antecedent resource.ID
 	Labels     map[string]string
 	Policies   policy.Set
 	Rollout    RolloutStatus

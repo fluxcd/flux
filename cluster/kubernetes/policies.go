@@ -5,13 +5,11 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/weaveworks/flux"
 	kresource "github.com/weaveworks/flux/cluster/kubernetes/resource"
-	"github.com/weaveworks/flux/policy"
 	"github.com/weaveworks/flux/resource"
 )
 
-func (m *manifests) UpdateWorkloadPolicies(def []byte, id flux.ResourceID, update policy.Update) ([]byte, error) {
+func (m *manifests) UpdateWorkloadPolicies(def []byte, id resource.ID, update resource.PolicyUpdate) ([]byte, error) {
 	resources, err := m.ParseManifest(def, "stdin")
 	if err != nil {
 		return nil, err

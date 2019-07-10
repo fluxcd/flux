@@ -1,13 +1,12 @@
 package update
 
 import (
-	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster"
 	"github.com/weaveworks/flux/resource"
 )
 
 type WorkloadUpdate struct {
-	ResourceID flux.ResourceID
+	ResourceID resource.ID
 	Workload   cluster.Workload
 	Resource   resource.Workload
 	Updates    []ContainerUpdate

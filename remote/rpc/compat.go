@@ -5,13 +5,13 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/api/v10"
 	"github.com/weaveworks/flux/api/v11"
 	"github.com/weaveworks/flux/api/v6"
 	"github.com/weaveworks/flux/cluster"
 	"github.com/weaveworks/flux/policy"
 	"github.com/weaveworks/flux/remote"
+	"github.com/weaveworks/flux/resource"
 	"github.com/weaveworks/flux/update"
 )
 
@@ -29,7 +29,7 @@ func requireServiceSpecKinds(ss update.ResourceSpec, kinds []string) error {
 	return nil
 }
 
-func requireServiceIDKinds(id flux.ResourceID, kinds []string) error {
+func requireServiceIDKinds(id resource.ID, kinds []string) error {
 	_, kind, _ := id.Components()
 	if !contains(kinds, kind) {
 		return fmt.Errorf("Unsupported resource kind: %s", kind)
@@ -40,7 +40,7 @@ func requireServiceIDKinds(id flux.ResourceID, kinds []string) error {
 
 func requireSpecKinds(s update.Spec, kinds []string) error {
 	switch s := s.Spec.(type) {
-	case policy.Updates:
+	case resource.PolicyUpdates:
 		for id, _ := range s {
 			_, kind, _ := id.Components()
 			if !contains(kinds, kind) {
@@ -120,7 +120,7 @@ func listServicesWithOptions(ctx context.Context, p listServicesWithoutOptionsCl
 	}
 
 	// Polyfill the service IDs filter
-	want := map[flux.ResourceID]struct{}{}
+	want := map[resource.ID]struct{}{}
 	for _, svc := range opts.Services {
 		want[svc] = struct{}{}
 	}
@@ -160,7 +160,7 @@ func listImagesWithOptions(ctx context.Context, client listImagesWithoutOptionsC
 		return statuses, err
 	}
 
-	policyMap := map[flux.ResourceID]map[string]string{}
+	policyMap := map[resource.ID]map[string]string{}
 	for _, service := range services {
 		policyMap[service.ID] = service.Policies
 	}
