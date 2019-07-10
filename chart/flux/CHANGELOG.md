@@ -1,4 +1,29 @@
-## 0.11.0 (2019-06-27)
+## 0.11.0 (2019-07-10)
+
+### Improvements
+
+ - Updated Flux to `1.13.2` and the Helm operator to `0.10.0`
+   [fluxcd/flux#2235](https://github.com/fluxcd/flux/pull/2235)
+   [fluxcd/flux#2237](https://github.com/fluxcd/flux/pull/2237)
+ - Changed from DockerHub organization `weaveworks` -> `fluxcd`
+   [fluxcd/flux#2224](https://github.com/fluxcd/flux/pull/2224)
+ - Updated `HelmRelease` CRD to support rollbacks
+   [fluxcd/flux#2006](https://github.com/fluxcd/flux/pull/2006)
+ - Allow namespace scoping for both Flux and the Helm operator
+   [fluxcd/flux#2206](https://github.com/fluxcd/flux/pull/2206)
+   [fluxcd/flux#2209](https://github.com/fluxcd/flux/pull/2209)
+ - Removed long deprecated `FluxHelmRelease` CRD and disabled CRD
+   creation as the default to follow our own best practices
+   [fluxcd/flux#2190](https://github.com/fluxcd/flux/pull/2190)
+ - Enable `PodSecurityPolicy`
+   [fluxcd/flux#2223](https://github.com/fluxcd/flux/pull/2223)
+   [fluxcd/flux#2225](https://github.com/fluxcd/flux/pull/2225)
+ - Support new Flux `--registry-use-labels` flag (`registry.useTimestampLabels`)
+   [fluxcd/flux#2176](https://github.com/fluxcd/flux/pull/2176)
+ - Support new Helm operator `--workers` flag (`helmOperator.workers`)
+   [fluxcd/flux#2236](https://github.com/fluxcd/flux/pull/2236)
+
+## 0.10.2 (2019-06-27)
 
 ### Improvements
 
