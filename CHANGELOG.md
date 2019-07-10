@@ -40,7 +40,7 @@ Thanks go to the following for contributions: @2opremio, @4c74356b41,
 @squaremo, @stefanprodan, @tegamckinney, @ysaakpr.
 
 [weaveworks/flux#2175]: https://github.com/weaveworks/flux/pull/2175
-[weaveworks/flux#2176]: https://github.com/weaveworks/flux/pull/2171
+[weaveworks/flux#2176]: https://github.com/weaveworks/flux/pull/2176
 [weaveworks/flux#2195]: https://github.com/weaveworks/flux/pull/2195
 [weaveworks/flux#2201]: https://github.com/weaveworks/flux/pull/2201
 [weaveworks/flux#2202]: https://github.com/weaveworks/flux/pull/2202
