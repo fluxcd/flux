@@ -22,7 +22,7 @@ helmOperator:
   create: false
   createCRD: false
   repository: docker.io/weaveworks/helm-operator
-  tag: 0.9.2
+  tag: 0.10.0
   pullPolicy: IfNotPresent
   pullSecret:
   # Limit the operator scope to a single namespace
