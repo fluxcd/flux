@@ -22,7 +22,7 @@ func TestImageEntryRoundtrip(t *testing.T) {
 		assert.Equal(t, entry, entry2)
 	}
 
-	ref, err := image.ParseRef("docker.io/weaveworks/flux:1.0.0")
+	ref, err := image.ParseRef("docker.io/fluxcd/flux:1.0.0")
 	assert.NoError(t, err)
 
 	info := image.Info{
@@ -44,7 +44,7 @@ func TestImageEntryRoundtrip(t *testing.T) {
 // Check that existing entries, which are image.Info, will parse into
 // the ImageEntry struct.
 func TestImageInfoParsesAsEntry(t *testing.T) {
-	ref, err := image.ParseRef("docker.io/weaveworks/flux:1.0.0")
+	ref, err := image.ParseRef("docker.io/fluxcd/flux:1.0.0")
 	assert.NoError(t, err)
 	info := image.Info{
 		ID:        ref,

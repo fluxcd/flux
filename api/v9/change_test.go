@@ -9,7 +9,7 @@ import (
 )
 
 func TestChangeEncoding(t *testing.T) {
-	ref, _ := image.ParseRef("docker.io/weaveworks/flux")
+	ref, _ := image.ParseRef("docker.io/fluxcd/flux")
 	name := ref.Name
 
 	for _, update := range []Change{
