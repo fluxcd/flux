@@ -1,3 +1,67 @@
+## 0.10.0 (2019-07-10)
+
+This release brings you [opt-in automated rollback support][rollback docs],
+new Prometheus metrics, and _experimental_ support of spawning
+multiple workers with the `--workers=<num>` flag to speed up the
+processing of releases.
+
+This will likely also be the last _minor_ beta release before we
+promote the Helm operator to its first GA `1.0.0` release.
+
+> **Notice:** the Helm operator relies on changes in the `HelmRelease`
+> [Custom Resource Definition][helm 0.10.0 crd]. Please make sure you patch the
+> CRD in your cluster _before_ upgrading the Helm operator.
+
+### Bug fixes
+
+ - Prevent an infinite release loop when multiple `HelmRelease`
+   resources with the same release name configuration coexist,
+   by looking at the antecedent annotation set on release resources
+   and confirming ownership
+   [weaveworks/flux#2123][#2123]
+
+### Improvements
+
+ - Opt-in automated rollback support; when enabled, a failed release
+   will be rolled back automatically and the operator will not attempt
+   a new release until it detects a change in the chart and/or the
+   configured values
+   [weaveworks/flux#2006][#2006]
+ - Increase timeout for annotating resources from a Helm release, to
+   cope with large umbrella charts
+   [weaveworks/flux#2123][#2123]
+ - New Prometheus metrics
+
+   + `release_queue_length_count`
+   + `release_duration_seconds{action=['INSTALL','UPGRADE'], dry-run=['true', 'false'], success=['true','false'], namespace, releasename}`
+   
+   [weaveworks/flux#2191][#2191]
+ - Experimental support of spawning multiple queue workers processing
+   releases by configuring the `--workers=<num>` flag
+   [weaveworks/flux#2194][#2194]
+
+### Maintenance and documentation
+
+ - Publish images to [fluxcd DockerHub][] organization
+   [weaveworks/flux#2213][#2213]
+ - Document opt-in rollback feature
+   [weaveworks/flux#2220][#2220]
+
+### Thanks
+
+Many thanks to @adrian, @2opremio, @semyonslepov, @gtseres, @squaremo, @stefanprodan, @kingdonb, @ncabatoff,
+@dholbach, @cristian-radu, @simonmacklin, @hiddeco for contributing to this release.
+
+[#2006]: https://github.com/weaveworks/flux/pull/2006
+[#2123]: https://github.com/weaveworks/flux/pull/2123
+[#2191]: https://github.com/weaveworks/flux/pull/2191
+[#2194]: https://github.com/weaveworks/flux/pull/2194
+[#2213]: https://github.com/weaveworks/flux/pull/2213
+[#2220]: https://github.com/weaveworks/flux/pull/2220
+[helm 0.10.0 crd]: https://github.com/weaveworks/flux/blob/release/helm-0.10.x/deploy-helm/flux-helm-release-crd.yaml
+[rollback docs]: https://github.com/weaveworks/flux/blob/release/helm-0.10.x/site/helm-integration.md#rollbacks
+[fluxcd DockerHub]: https://hub.docker.com/r/weaveworks/helm-operator/
+
 ## 0.9.2 (2019-06-13)
 
 ### Bug fixes
