@@ -33,6 +33,8 @@ helmOperator:
   logReleaseDiffs: false
   # Interval at which to check for changed charts
   chartsSyncInterval: "3m"
+  # (Experimental) amount of workers processing releases
+  workers:
   # Tiller settings
   tillerNamespace: kube-system
   tls:

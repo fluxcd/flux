@@ -126,6 +126,9 @@ spec:
         - --charts-sync-interval={{ .Values.helmOperator.chartsSyncInterval }}
         - --update-chart-deps={{ .Values.helmOperator.updateChartDeps }}
         - --log-release-diffs={{ .Values.helmOperator.logReleaseDiffs }}
+        {{- if .Values.helmOperator.workers }}
+        - --workers={{ .Values.helmOperator.workers }}
+        {{- end }}
         {{- if not .Values.clusterRole.create }}
         - --allow-namespace={{ .Release.Namespace }}
         {{- else if .Values.helmOperator.allowNamespace }}
