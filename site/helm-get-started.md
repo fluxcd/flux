@@ -62,16 +62,16 @@ helm init --skip-refresh --upgrade --service-account tiller --history-max 10
 
 ## Install Flux
 
-Add the Flux repository of Weaveworks:
+Add the Flux repository:
 
 ```sh
-helm repo add weaveworks https://weaveworks.github.io/flux
+helm repo add fluxcd https://fluxcd.github.io/flux
 ```
 
 Apply the Helm Release CRD:
 
 ```sh
-kubectl apply -f https://raw.githubusercontent.com/weaveworks/flux/master/deploy-helm/flux-helm-release-crd.yaml
+kubectl apply -f https://raw.githubusercontent.com/fluxcd/flux/master/deploy-helm/flux-helm-release-crd.yaml
 ```
 
 In this next step you install Flux using `helm`. Simply
@@ -92,7 +92,7 @@ In this next step you install Flux using `helm`. Simply
       --set helmOperator.createCRD=false \
       --set git.url=git@github.com:YOURUSER/flux-get-started \
       --namespace flux \
-      weaveworks/flux
+      fluxcd/flux
       ```
 
     - Using a private git server:
