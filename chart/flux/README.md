@@ -263,6 +263,7 @@ The following tables lists the configurable parameters of the Flux chart and the
 | `helmOperator.git.timeout`                        | `git.timeout`                                        | Duration after which git operations time out
 | `helmOperator.git.secretName`                     | `None`                                               | The name of the kubernetes secret with the SSH private key, supercedes `git.secretName`
 | `helmOperator.chartsSyncInterval`                 | `3m`                                                 | Interval at which to check for changed charts
+| `helmOperator.workers`                            | `None`                                               | (Experimental) amount of workers processing releases
 | `helmOperator.extraEnvs`                          | `[]`                                                 | Extra environment variables for the Helm operator pod
 | `helmOperator.logReleaseDiffs`                    | `false`                                              | Helm operator should log the diff when a chart release diverges (possibly insecure)
 | `helmOperator.allowNamespace`                     | `None`                                               | If set, this limits the scope to a single namespace. If not specified, all namespaces will be watched
