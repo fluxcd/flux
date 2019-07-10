@@ -121,12 +121,12 @@ func (s RepoChartSource) CleanRepoURL() string {
 }
 
 type Rollback struct {
-	Enable 		 bool `json:"enable,omitempty"`
-	Force  		 bool `json:"force,omitempty"`
-	Recreate 	 bool `json:"recreate,omitempty"`
-	DisableHooks bool `json:"disableHooks,omitempty"`
-	Timeout 	 *int64 `json:"timeout,omitempty"`
-	Wait 		 bool `json:"wait,omitempty"`
+	Enable       bool   `json:"enable,omitempty"`
+	Force        bool   `json:"force,omitempty"`
+	Recreate     bool   `json:"recreate,omitempty"`
+	DisableHooks bool   `json:"disableHooks,omitempty"`
+	Timeout      *int64 `json:"timeout,omitempty"`
+	Wait         bool   `json:"wait,omitempty"`
 }
 
 func (r Rollback) GetTimeout() int64 {

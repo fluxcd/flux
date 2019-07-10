@@ -78,7 +78,7 @@ fluxd requires setup and offers customization though a multitude of flags.
 | --registry-burst                                 | `125`                              | maximum number of warmer connections to remote and memcache
 | --registry-insecure-host                         | []                                 | registry hosts to use HTTP for (instead of HTTPS)
 | --registry-exclude-image                         | `["k8s.gcr.io/*"]`                 | do not scan images that match these glob expressions
-| --registry-use-labels                            | `["index.docker.io/weaveworks/*"]` | use the timestamp (RFC3339) from labels for (canonical) image refs that match these glob expressions
+| --registry-use-labels                            | `["index.docker.io/weaveworks/*", "index.docker.io/fluxcd/*"]` | use the timestamp (RFC3339) from labels for (canonical) image refs that match these glob expressions
 | --docker-config                                  | `""`                               | path to a Docker config file with default image registry credentials
 | --registry-ecr-region                            | `[]`                               | allow these AWS regions when scanning images from ECR (multiple values allowed); defaults to the detected cluster region
 | --registry-ecr-include-id                        | `[]`                               | include these AWS account ID(s) when scanning images in ECR (multiple values allowed); empty means allow all, unless excluded
