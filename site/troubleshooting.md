@@ -97,7 +97,7 @@ reasons this can happen:
    ```yaml
     spec:
       containers:
-        image: docker.io/weaveworks/flux
+        image: docker.io/fluxcd/flux
         ...
         volumeMounts:
         - name: acr-credentials

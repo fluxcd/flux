@@ -74,7 +74,7 @@ func (l TimestampLabelWhitelist) apply(r *ImageRepository) {
 }
 
 // GetImageRepositoryMetadata returns the metadata from an image
-// repository (e.g,. at "docker.io/weaveworks/flux")
+// repository (e.g,. at "docker.io/fluxcd/flux")
 func (c *Cache) GetImageRepositoryMetadata(id image.Name) (image.RepositoryMetadata, error) {
 	repoKey := NewRepositoryKey(id.CanonicalName())
 	bytes, _, err := c.Reader.GetKey(repoKey)

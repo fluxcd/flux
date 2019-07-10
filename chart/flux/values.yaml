@@ -8,7 +8,7 @@ replicaCount: 1
 logFormat: fmt
 
 image:
-  repository: docker.io/weaveworks/flux
+  repository: docker.io/fluxcd/flux
   tag: 1.13.2
   pullPolicy: IfNotPresent
   pullSecret:
@@ -21,7 +21,7 @@ helmOperator:
   replicaCount: 1
   create: false
   createCRD: false
-  repository: docker.io/weaveworks/helm-operator
+  repository: docker.io/fluxcd/helm-operator
   tag: 0.10.0
   pullPolicy: IfNotPresent
   pullSecret:
