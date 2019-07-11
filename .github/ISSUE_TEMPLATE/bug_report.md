@@ -1,6 +1,6 @@
 ---
 name: Bug report
-about: Create a report to help us improve Weave Flux
+about: Create a report to help us improve Flux
 title: ''
 labels: blocked-needs-validation, bug
 assignees: ''

@@ -1,6 +1,7 @@
 package kubernetes
 
 import (
+	"context"
 	"strings"
 
 	apiapps "k8s.io/api/apps/v1"
@@ -8,7 +9,6 @@ import (
 	apiv1 "k8s.io/api/core/v1"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster"
 	kresource "github.com/weaveworks/flux/cluster/kubernetes/resource"
 	"github.com/weaveworks/flux/image"
@@ -23,15 +23,15 @@ import (
 // FluxHelmRelease. We use this rather than the `OwnerReference` type
 // built into Kubernetes so that there are no garbage-collection
 // implications. The value is expected to be a serialised
-// `flux.ResourceID`.
+// `resource.ID`.
 const AntecedentAnnotation = "flux.weave.works/antecedent"
 
 /////////////////////////////////////////////////////////////////////////////
 // Kind registry
 
 type resourceKind interface {
-	getWorkload(c *Cluster, namespace, name string) (workload, error)
-	getWorkloads(c *Cluster, namespace string) ([]workload, error)
+	getWorkload(ctx context.Context, c *Cluster, namespace, name string) (workload, error)
+	getWorkloads(ctx context.Context, c *Cluster, namespace string) ([]workload, error)
 }
 
 var (
@@ -55,7 +55,7 @@ type workload struct {
 	podTemplate apiv1.PodTemplateSpec
 }
 
-func (w workload) toClusterWorkload(resourceID flux.ResourceID) cluster.Workload {
+func (w workload) toClusterWorkload(resourceID resource.ID) cluster.Workload {
 	var clusterContainers []resource.Container
 	var excuse string
 	for _, container := range w.podTemplate.Spec.Containers {
@@ -77,9 +77,9 @@ func (w workload) toClusterWorkload(resourceID flux.ResourceID) cluster.Workload
 		clusterContainers = append(clusterContainers, resource.Container{Name: container.Name, Image: ref})
 	}
 
-	var antecedent flux.ResourceID
+	var antecedent resource.ID
 	if ante, ok := w.GetAnnotations()[AntecedentAnnotation]; ok {
-		id, err := flux.ParseResourceID(ante)
+		id, err := resource.ParseID(ante)
 		if err == nil {
 			antecedent = id
 		}
@@ -114,7 +114,10 @@ func (w workload) toClusterWorkload(resourceID flux.ResourceID) cluster.Workload
 
 type deploymentKind struct{}
 
-func (dk *deploymentKind) getWorkload(c *Cluster, namespace, name string) (workload, error) {
+func (dk *deploymentKind) getWorkload(ctx context.Context, c *Cluster, namespace, name string) (workload, error) {
+	if err := ctx.Err(); err != nil {
+		return workload{}, err
+	}
 	deployment, err := c.client.AppsV1().Deployments(namespace).Get(name, meta_v1.GetOptions{})
 	if err != nil {
 		return workload{}, err
@@ -123,7 +126,10 @@ func (dk *deploymentKind) getWorkload(c *Cluster, namespace, name string) (workl
 	return makeDeploymentWorkload(deployment), nil
 }
 
-func (dk *deploymentKind) getWorkloads(c *Cluster, namespace string) ([]workload, error) {
+func (dk *deploymentKind) getWorkloads(ctx context.Context, c *Cluster, namespace string) ([]workload, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	deployments, err := c.client.AppsV1().Deployments(namespace).List(meta_v1.ListOptions{})
 	if err != nil {
 		return nil, err
@@ -191,7 +197,10 @@ func makeDeploymentWorkload(deployment *apiapps.Deployment) workload {
 
 type daemonSetKind struct{}
 
-func (dk *daemonSetKind) getWorkload(c *Cluster, namespace, name string) (workload, error) {
+func (dk *daemonSetKind) getWorkload(ctx context.Context, c *Cluster, namespace, name string) (workload, error) {
+	if err := ctx.Err(); err != nil {
+		return workload{}, err
+	}
 	daemonSet, err := c.client.AppsV1().DaemonSets(namespace).Get(name, meta_v1.GetOptions{})
 	if err != nil {
 		return workload{}, err
@@ -200,7 +209,10 @@ func (dk *daemonSetKind) getWorkload(c *Cluster, namespace, name string) (worklo
 	return makeDaemonSetWorkload(daemonSet), nil
 }
 
-func (dk *daemonSetKind) getWorkloads(c *Cluster, namespace string) ([]workload, error) {
+func (dk *daemonSetKind) getWorkloads(ctx context.Context, c *Cluster, namespace string) ([]workload, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	daemonSets, err := c.client.AppsV1().DaemonSets(namespace).List(meta_v1.ListOptions{})
 	if err != nil {
 		return nil, err
@@ -252,7 +264,10 @@ func makeDaemonSetWorkload(daemonSet *apiapps.DaemonSet) workload {
 
 type statefulSetKind struct{}
 
-func (dk *statefulSetKind) getWorkload(c *Cluster, namespace, name string) (workload, error) {
+func (dk *statefulSetKind) getWorkload(ctx context.Context, c *Cluster, namespace, name string) (workload, error) {
+	if err := ctx.Err(); err != nil {
+		return workload{}, err
+	}
 	statefulSet, err := c.client.AppsV1().StatefulSets(namespace).Get(name, meta_v1.GetOptions{})
 	if err != nil {
 		return workload{}, err
@@ -261,7 +276,10 @@ func (dk *statefulSetKind) getWorkload(c *Cluster, namespace, name string) (work
 	return makeStatefulSetWorkload(statefulSet), nil
 }
 
-func (dk *statefulSetKind) getWorkloads(c *Cluster, namespace string) ([]workload, error) {
+func (dk *statefulSetKind) getWorkloads(ctx context.Context, c *Cluster, namespace string) ([]workload, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	statefulSets, err := c.client.AppsV1().StatefulSets(namespace).List(meta_v1.ListOptions{})
 	if err != nil {
 		return nil, err
@@ -345,7 +363,10 @@ func makeStatefulSetWorkload(statefulSet *apiapps.StatefulSet) workload {
 
 type cronJobKind struct{}
 
-func (dk *cronJobKind) getWorkload(c *Cluster, namespace, name string) (workload, error) {
+func (dk *cronJobKind) getWorkload(ctx context.Context, c *Cluster, namespace, name string) (workload, error) {
+	if err := ctx.Err(); err != nil {
+		return workload{}, err
+	}
 	cronJob, err := c.client.BatchV1beta1().CronJobs(namespace).Get(name, meta_v1.GetOptions{})
 	if err != nil {
 		return workload{}, err
@@ -354,7 +375,10 @@ func (dk *cronJobKind) getWorkload(c *Cluster, namespace, name string) (workload
 	return makeCronJobWorkload(cronJob), nil
 }
 
-func (dk *cronJobKind) getWorkloads(c *Cluster, namespace string) ([]workload, error) {
+func (dk *cronJobKind) getWorkloads(ctx context.Context, c *Cluster, namespace string) ([]workload, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	cronJobs, err := c.client.BatchV1beta1().CronJobs(namespace).List(meta_v1.ListOptions{})
 	if err != nil {
 		return nil, err
@@ -382,7 +406,10 @@ func makeCronJobWorkload(cronJob *apibatch.CronJob) workload {
 
 type fluxHelmReleaseKind struct{}
 
-func (fhr *fluxHelmReleaseKind) getWorkload(c *Cluster, namespace, name string) (workload, error) {
+func (fhr *fluxHelmReleaseKind) getWorkload(ctx context.Context, c *Cluster, namespace, name string) (workload, error) {
+	if err := ctx.Err(); err != nil {
+		return workload{}, err
+	}
 	fluxHelmRelease, err := c.client.HelmV1alpha2().FluxHelmReleases(namespace).Get(name, meta_v1.GetOptions{})
 	if err != nil {
 		return workload{}, err
@@ -390,7 +417,10 @@ func (fhr *fluxHelmReleaseKind) getWorkload(c *Cluster, namespace, name string) 
 	return makeFluxHelmReleaseWorkload(fluxHelmRelease), nil
 }
 
-func (fhr *fluxHelmReleaseKind) getWorkloads(c *Cluster, namespace string) ([]workload, error) {
+func (fhr *fluxHelmReleaseKind) getWorkloads(ctx context.Context, c *Cluster, namespace string) ([]workload, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	fluxHelmReleases, err := c.client.HelmV1alpha2().FluxHelmReleases(namespace).List(meta_v1.ListOptions{})
 	if err != nil {
 		return nil, err
@@ -444,7 +474,10 @@ func createK8sFHRContainers(values map[string]interface{}) []apiv1.Container {
 
 type helmReleaseKind struct{}
 
-func (hr *helmReleaseKind) getWorkload(c *Cluster, namespace, name string) (workload, error) {
+func (hr *helmReleaseKind) getWorkload(ctx context.Context, c *Cluster, namespace, name string) (workload, error) {
+	if err := ctx.Err(); err != nil {
+		return workload{}, err
+	}
 	helmRelease, err := c.client.FluxV1beta1().HelmReleases(namespace).Get(name, meta_v1.GetOptions{})
 	if err != nil {
 		return workload{}, err
@@ -452,7 +485,10 @@ func (hr *helmReleaseKind) getWorkload(c *Cluster, namespace, name string) (work
 	return makeHelmReleaseWorkload(helmRelease), nil
 }
 
-func (hr *helmReleaseKind) getWorkloads(c *Cluster, namespace string) ([]workload, error) {
+func (hr *helmReleaseKind) getWorkloads(ctx context.Context, c *Cluster, namespace string) ([]workload, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	helmReleases, err := c.client.FluxV1beta1().HelmReleases(namespace).List(meta_v1.ListOptions{})
 	if err != nil {
 		return nil, err

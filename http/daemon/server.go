@@ -8,16 +8,16 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
-	"github.com/weaveworks/common/middleware"
-	"github.com/weaveworks/flux"
 
+	"github.com/weaveworks/common/middleware"
 	"github.com/weaveworks/flux/api"
 	"github.com/weaveworks/flux/api/v10"
 	"github.com/weaveworks/flux/api/v11"
+	"github.com/weaveworks/flux/api/v9"
 	transport "github.com/weaveworks/flux/http"
 	"github.com/weaveworks/flux/job"
 	fluxmetrics "github.com/weaveworks/flux/metrics"
-	"github.com/weaveworks/flux/policy"
+	"github.com/weaveworks/flux/resource"
 	"github.com/weaveworks/flux/update"
 )
 
@@ -48,6 +48,13 @@ func NewRouter() *mux.Router {
 
 func NewHandler(s api.Server, r *mux.Router) http.Handler {
 	handle := HTTPServer{s}
+
+	// Erstwhile Upstream(Server) methods, now part of v11
+	r.Get(transport.Ping).HandlerFunc(handle.Ping)
+	r.Get(transport.Version).HandlerFunc(handle.Version)
+	r.Get(transport.Notify).HandlerFunc(handle.Notify)
+
+	// v6-v11 handlers
 	r.Get(transport.ListServices).HandlerFunc(handle.ListServicesWithOptions)
 	r.Get(transport.ListServicesWithOptions).HandlerFunc(handle.ListServicesWithOptions)
 	r.Get(transport.ListImages).HandlerFunc(handle.ListImagesWithOptions)
@@ -73,6 +80,39 @@ func NewHandler(s api.Server, r *mux.Router) http.Handler {
 
 type HTTPServer struct {
 	server api.Server
+}
+
+func (s HTTPServer) Ping(w http.ResponseWriter, r *http.Request) {
+	if err := s.server.Ping(r.Context()); err != nil {
+		transport.ErrorResponse(w, r, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+	return
+}
+
+func (s HTTPServer) Version(w http.ResponseWriter, r *http.Request) {
+	version, err := s.server.Version(r.Context())
+	if err != nil {
+		transport.ErrorResponse(w, r, err)
+		return
+	}
+	transport.JSONResponse(w, r, version)
+}
+
+func (s HTTPServer) Notify(w http.ResponseWriter, r *http.Request) {
+	var change v9.Change
+	defer r.Body.Close()
+
+	if err := json.NewDecoder(r.Body).Decode(&change); err != nil {
+		transport.WriteError(w, r, http.StatusBadRequest, err)
+		return
+	}
+	if err := s.server.NotifyChange(r.Context(), change); err != nil {
+		transport.ErrorResponse(w, r, err)
+		return
+	}
+	w.WriteHeader(http.StatusAccepted)
 }
 
 func (s HTTPServer) JobStatus(w http.ResponseWriter, r *http.Request) {
@@ -152,7 +192,7 @@ func (s HTTPServer) ListServicesWithOptions(w http.ResponseWriter, r *http.Reque
 	services := r.URL.Query().Get("services")
 	if services != "" {
 		for _, svc := range strings.Split(services, ",") {
-			id, err := flux.ParseResourceID(svc)
+			id, err := resource.ParseID(svc)
 			if err != nil {
 				transport.WriteError(w, r, http.StatusBadRequest, errors.Wrapf(err, "parsing service spec %q", svc))
 				return
@@ -223,9 +263,9 @@ func (s HTTPServer) UpdateImages(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var excludes []flux.ResourceID
+	var excludes []resource.ID
 	for _, ex := range r.URL.Query()["exclude"] {
-		s, err := flux.ParseResourceID(ex)
+		s, err := resource.ParseID(ex)
 		if err != nil {
 			transport.WriteError(w, r, http.StatusBadRequest, errors.Wrapf(err, "parsing excluded service %q", ex))
 			return
@@ -252,7 +292,7 @@ func (s HTTPServer) UpdateImages(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s HTTPServer) UpdatePolicies(w http.ResponseWriter, r *http.Request) {
-	var updates policy.Updates
+	var updates resource.PolicyUpdates
 	if err := json.NewDecoder(r.Body).Decode(&updates); err != nil {
 		transport.WriteError(w, r, http.StatusBadRequest, err)
 		return

@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 
-	"github.com/weaveworks/flux/policy"
+	"github.com/weaveworks/flux/resource"
 )
 
 const (
@@ -43,7 +43,7 @@ func (spec *Spec) UnmarshalJSON(in []byte) error {
 	spec.Cause = wire.Cause
 	switch wire.Type {
 	case Policy:
-		var update policy.Updates
+		var update resource.PolicyUpdates
 		if err := json.Unmarshal(wire.SpecBytes, &update); err != nil {
 			return err
 		}

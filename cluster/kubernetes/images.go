@@ -1,6 +1,7 @@
 package kubernetes
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/go-kit/kit/log"
@@ -10,9 +11,9 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/image"
 	"github.com/weaveworks/flux/registry"
+	"github.com/weaveworks/flux/resource"
 )
 
 func mergeCredentials(log func(...interface{}) error,
@@ -122,8 +123,9 @@ func mergeCredentials(log func(...interface{}) error,
 // ImagesToFetch is a k8s specific method to get a list of images to update along with their credentials
 func (c *Cluster) ImagesToFetch() registry.ImageCreds {
 	allImageCreds := make(registry.ImageCreds)
+	ctx := context.Background()
 
-	namespaces, err := c.getAllowedAndExistingNamespaces()
+	namespaces, err := c.getAllowedAndExistingNamespaces(ctx)
 	if err != nil {
 		c.logger.Log("err", errors.Wrap(err, "getting namespaces"))
 		return allImageCreds
@@ -132,7 +134,7 @@ func (c *Cluster) ImagesToFetch() registry.ImageCreds {
 	for _, ns := range namespaces {
 		seenCreds := make(map[string]registry.Credentials)
 		for kind, resourceKind := range resourceKinds {
-			workloads, err := resourceKind.getWorkloads(c, ns.Name)
+			workloads, err := resourceKind.getWorkloads(ctx, c, ns.Name)
 			if err != nil {
 				if apierrors.IsNotFound(err) || apierrors.IsForbidden(err) {
 					// Skip unsupported or forbidden resource kinds
@@ -143,7 +145,7 @@ func (c *Cluster) ImagesToFetch() registry.ImageCreds {
 
 			imageCreds := make(registry.ImageCreds)
 			for _, workload := range workloads {
-				logger := log.With(c.logger, "resource", flux.MakeResourceID(ns.Name, kind, workload.GetName()))
+				logger := log.With(c.logger, "resource", resource.MakeID(ns.Name, kind, workload.GetName()))
 				mergeCredentials(logger.Log, c.includeImage, c.client, ns.Name, workload.podTemplate, imageCreds, seenCreds)
 			}
 

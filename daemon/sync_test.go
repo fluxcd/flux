@@ -14,7 +14,6 @@ import (
 
 	"github.com/go-kit/kit/log"
 
-	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster"
 	"github.com/weaveworks/flux/cluster/kubernetes"
 	"github.com/weaveworks/flux/cluster/kubernetes/testfiles"
@@ -25,13 +24,14 @@ import (
 	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/manifests"
 	registryMock "github.com/weaveworks/flux/registry/mock"
+	"github.com/weaveworks/flux/resource"
 )
 
 const (
 	gitPath     = ""
 	gitSyncTag  = "flux-sync"
 	gitNotesRef = "flux"
-	gitUser     = "Weave Flux"
+	gitUser     = "Flux"
 	gitEmail    = "support@weave.works"
 )
 
@@ -44,7 +44,7 @@ func daemon(t *testing.T) (*Daemon, func()) {
 	repo, repoCleanup := gittest.Repo(t)
 
 	k8s = &mock.Mock{}
-	k8s.ExportFunc = func() ([]byte, error) { return nil, nil }
+	k8s.ExportFunc = func(ctx context.Context) ([]byte, error) { return nil, nil }
 
 	events = &mockEventWriter{}
 
@@ -93,7 +93,7 @@ func TestPullAndSync_InitialSync(t *testing.T) {
 
 	syncCalled := 0
 	var syncDef *cluster.SyncSet
-	expectedResourceIDs := flux.ResourceIDs{}
+	expectedResourceIDs := resource.IDs{}
 	for id, _ := range testfiles.ResourceMap {
 		expectedResourceIDs = append(expectedResourceIDs, id)
 	}
@@ -132,8 +132,8 @@ func TestPullAndSync_InitialSync(t *testing.T) {
 		t.Errorf("Unexpected event type: %#v", es[0])
 	} else {
 		gotResourceIDs := es[0].ServiceIDs
-		flux.ResourceIDs(gotResourceIDs).Sort()
-		if !reflect.DeepEqual(gotResourceIDs, []flux.ResourceID(expectedResourceIDs)) {
+		resource.IDs(gotResourceIDs).Sort()
+		if !reflect.DeepEqual(gotResourceIDs, []resource.ID(expectedResourceIDs)) {
 			t.Errorf("Unexpected event workload ids: %#v, expected: %#v", gotResourceIDs, expectedResourceIDs)
 		}
 	}
@@ -174,7 +174,7 @@ func TestDoSync_NoNewCommits(t *testing.T) {
 
 	syncCalled := 0
 	var syncDef *cluster.SyncSet
-	expectedResourceIDs := flux.ResourceIDs{}
+	expectedResourceIDs := resource.IDs{}
 	for id, _ := range testfiles.ResourceMap {
 		expectedResourceIDs = append(expectedResourceIDs, id)
 	}
@@ -288,7 +288,7 @@ func TestDoSync_WithNewCommit(t *testing.T) {
 
 	syncCalled := 0
 	var syncDef *cluster.SyncSet
-	expectedResourceIDs := flux.ResourceIDs{}
+	expectedResourceIDs := resource.IDs{}
 	for id, _ := range testfiles.ResourceMap {
 		expectedResourceIDs = append(expectedResourceIDs, id)
 	}
@@ -326,10 +326,10 @@ func TestDoSync_WithNewCommit(t *testing.T) {
 		t.Errorf("Unexpected event type: %#v", es[0])
 	} else {
 		gotResourceIDs := es[0].ServiceIDs
-		flux.ResourceIDs(gotResourceIDs).Sort()
+		resource.IDs(gotResourceIDs).Sort()
 		// Event should only have changed workload ids
-		if !reflect.DeepEqual(gotResourceIDs, []flux.ResourceID{flux.MustParseResourceID("default:deployment/helloworld")}) {
-			t.Errorf("Unexpected event workload ids: %#v, expected: %#v", gotResourceIDs, []flux.ResourceID{flux.MustParseResourceID("default:deployment/helloworld")})
+		if !reflect.DeepEqual(gotResourceIDs, []resource.ID{resource.MustParseID("default:deployment/helloworld")}) {
+			t.Errorf("Unexpected event workload ids: %#v, expected: %#v", gotResourceIDs, []resource.ID{resource.MustParseID("default:deployment/helloworld")})
 		}
 	}
 	// It moves the tag

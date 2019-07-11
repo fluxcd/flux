@@ -32,6 +32,8 @@ type Pattern interface {
 	Newer(a, b *image.Info) bool
 	// Valid returns true if the pattern is considered valid.
 	Valid() bool
+	// RequiresTimestamp returns true if the pattern orders based on timestamp data.
+	RequiresTimestamp() bool
 }
 
 type GlobPattern string
@@ -87,6 +89,10 @@ func (g GlobPattern) Valid() bool {
 	return true
 }
 
+func (g GlobPattern) RequiresTimestamp() bool {
+	return true
+}
+
 func (s SemverPattern) Matches(tag string) bool {
 	v, err := semver.NewVersion(tag)
 	if err != nil {
@@ -111,6 +117,10 @@ func (s SemverPattern) Valid() bool {
 	return s.constraints != nil
 }
 
+func (s SemverPattern) RequiresTimestamp() bool {
+	return false
+}
+
 func (r RegexpPattern) Matches(tag string) bool {
 	if r.regexp == nil {
 		// Invalid regexp match anything
@@ -129,4 +139,8 @@ func (r RegexpPattern) Newer(a, b *image.Info) bool {
 
 func (r RegexpPattern) Valid() bool {
 	return r.regexp != nil
+}
+
+func (r RegexpPattern) RequiresTimestamp() bool {
+	return true
 }

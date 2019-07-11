@@ -8,7 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/api"
 	"github.com/weaveworks/flux/api/v10"
 	"github.com/weaveworks/flux/api/v11"
@@ -17,6 +16,7 @@ import (
 	"github.com/weaveworks/flux/guid"
 	"github.com/weaveworks/flux/image"
 	"github.com/weaveworks/flux/job"
+	"github.com/weaveworks/flux/resource"
 	"github.com/weaveworks/flux/update"
 )
 
@@ -104,18 +104,18 @@ func (p *MockServer) GitRepoConfig(ctx context.Context, regenerate bool) (v6.Git
 	return p.GitRepoConfigAnswer, p.GitRepoConfigError
 }
 
-var _ api.UpstreamServer = &MockServer{}
+var _ api.Server = &MockServer{}
 
 // -- Battery of tests for an api.Server implementation. Since these
 // essentially wrap the server in various transports, we expect
 // arguments and answers to be preserved.
 
-func ServerTestBattery(t *testing.T, wrap func(mock api.UpstreamServer) api.UpstreamServer) {
+func ServerTestBattery(t *testing.T, wrap func(mock api.Server) api.Server) {
 	// set up
 	namespace := "the-space-of-names"
-	serviceID := flux.MustParseResourceID(namespace + "/service")
-	serviceList := []flux.ResourceID{serviceID}
-	services := flux.ResourceIDSet{}
+	serviceID := resource.MustParseID(namespace + "/service")
+	serviceList := []resource.ID{serviceID}
+	services := resource.IDSet{}
 	services.Add(serviceList)
 
 	now := time.Now().UTC()
@@ -123,7 +123,7 @@ func ServerTestBattery(t *testing.T, wrap func(mock api.UpstreamServer) api.Upst
 	imageID, _ := image.ParseRef("quay.io/example.com/frob:v0.4.5")
 	serviceAnswer := []v6.ControllerStatus{
 		v6.ControllerStatus{
-			ID:     flux.MustParseResourceID("foobar/hello"),
+			ID:     resource.MustParseID("foobar/hello"),
 			Status: "ok",
 			Containers: []v6.Container{
 				v6.Container{
@@ -140,7 +140,7 @@ func ServerTestBattery(t *testing.T, wrap func(mock api.UpstreamServer) api.Upst
 
 	imagesAnswer := []v6.ImageStatus{
 		v6.ImageStatus{
-			ID: flux.MustParseResourceID("barfoo/yello"),
+			ID: resource.MustParseID("barfoo/yello"),
 			Containers: []v6.Container{
 				{
 					Name: "flubnicator",

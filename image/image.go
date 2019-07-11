@@ -33,7 +33,7 @@ var (
 // Examples (stringified):
 //   * alpine
 //   * library/alpine
-//   * docker.io/weaveworks/flux
+//   * docker.io/fluxcd/flux
 //   * localhost:5000/arbitrary/path/to/repo
 type Name struct {
 	Domain, Image string
@@ -107,7 +107,8 @@ func (i Name) ToRef(tag string) Ref {
 // Examples (stringified):
 //  * alpine:3.5
 //  * library/alpine:3.5
-//  * docker.io/weaveworks/flux:1.1.0
+//  * docker.io/fluxcd/flux:1.1.0
+//  * localhost:5000/arbitrary/path/to/repo:revision-sha1
 //  * docker.io/weaveworks/flux@sha256:e5ac3944b44556916df9b97d78c28cf8e6b6ef419614a70e87b39f84c17428dd
 //  * docker.io/python:3.7@sha256:284a4057aac706aaafe50c5c0090d6d311f5d8d72014f0cd69f880a54e9df6fe
 type Ref struct {

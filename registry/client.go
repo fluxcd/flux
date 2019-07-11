@@ -56,7 +56,7 @@ func (entry *ImageEntry) UnmarshalJSON(bytes []byte) error {
 }
 
 // Client is a remote registry client for a particular image
-// repository (e.g., for docker.io/weaveworks/flux). It is an interface
+// repository (e.g., for docker.io/fluxcd/flux). It is an interface
 // so we can wrap it in instrumentation, write fake implementations,
 // and so on.
 type Client interface {
@@ -158,9 +158,9 @@ interpret:
 		}
 
 		var config struct {
-			Arch    string    `json:"architecture"`
-			Created time.Time `json:"created"`
-			OS      string    `json:"os"`
+			Arch            string    `json:"architecture"`
+			Created         time.Time `json:"created"`
+			OS              string    `json:"os"`
 			ContainerConfig struct {
 				Labels image.Labels `json:"labels"`
 			} `json:"container_config"`

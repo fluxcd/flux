@@ -29,6 +29,10 @@ func DeprecateVersions(r *mux.Router, versions ...string) {
 func NewAPIRouter() *mux.Router {
 	r := mux.NewRouter()
 
+	r.NewRoute().Name(Ping).Methods("GET").Path("/v11/ping")
+	r.NewRoute().Name(Version).Methods("GET").Path("/v11/version")
+	r.NewRoute().Name(Notify).Methods("POST").Path("/v11/notify")
+
 	r.NewRoute().Name(ListServices).Methods("GET").Path("/v6/services")
 	r.NewRoute().Name(ListServicesWithOptions).Methods("GET").Path("/v11/services")
 	r.NewRoute().Name(ListImages).Methods("GET").Path("/v6/images")
@@ -50,6 +54,8 @@ func NewAPIRouter() *mux.Router {
 	return r // TODO 404 though?
 }
 
+// These (routes, and constructor following) should move to
+// weaveworks/flux-adapter when `--connect` is removed from fluxd.
 func UpstreamRoutes(r *mux.Router) {
 	r.NewRoute().Name(RegisterDaemonV6).Methods("GET").Path("/v6/daemon")
 	r.NewRoute().Name(RegisterDaemonV7).Methods("GET").Path("/v7/daemon")

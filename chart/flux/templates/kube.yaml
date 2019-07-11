@@ -4,7 +4,20 @@ metadata:
   name: {{ template "flux.fullname" . }}-kube-config
 data:
   config: |
-    {{- if .Values.kube.config }}
+    {{- if not .Values.clusterRole.create }}
+    apiVersion: v1
+    clusters: []
+    contexts:
+    - context:
+        cluster: ""
+        namespace: {{ .Release.Namespace }}
+        user: ""
+      name: default
+    current-context: default
+    kind: Config
+    preferences: {}
+    users: []
+    {{- else if .Values.kube.config }}
       {{- if contains "\n" .Values.kube.config }}
         {{- range $value := .Values.kube.config | splitList "\n" }}
     {{ print $value }}

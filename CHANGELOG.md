@@ -1,6 +1,80 @@
 This is the changelog for the Flux daemon; the changelog for the Helm
 operator is in [./CHANGELOG-helmop.md](./CHANGELOG-helmop.md).
 
+## 1.13.2 (2019-07-10)
+
+This is a patch release, including a fix for [problems with using image
+labels as timestamps][weaveworks/flux#2176].
+
+### Fixes
+
+- Because image labels are inherited from base images, fluxd cannot
+  indiscriminately use labels to determine the image created date. You
+  must now explicitly allow that behaviour with the argument
+  `--registry-use-labels` [weaveworks/flux#2176][]
+- Image timestamps can be missing (or zero) if ordering them by semver
+  version rather than timestamp [weaveworks/flux#2175][]
+- Environment variables needed by the Google Cloud SDK helper are now
+  propagated to git [weaveworks/flux#2222][]
+
+### Maintenance and documentation
+
+- Image builds are pushed to both weaveworks/ and fluxcd/ orgs on
+  DockerHub, in preparation for the project moving organisations
+  [weaveworks/flux#2213][]
+- Calculate Go dependencies more efficiently during the build
+  [weaveworks/flux#2207][]
+- Refactor to remove a spurious top-level package
+  [weaveworks/flux#2201][]
+- Update the version of Kubernetes-in-Docker used in end-to-end test,
+  to v0.4.0 [weaveworks/flux#2202][]
+- Bump the Ubuntu version used in CI [weaveworks/flux#2195][]
+
+### Thanks
+
+Thanks go to the following for contributions: @2opremio, @4c74356b41,
+@ArchiFleKs, @adrian, @alanjcastonguay, @alexanderbuhler,
+@alexhumphreys, @bobbytables, @derrickburns, @dholbach, @dlespiau,
+@gaffneyd4, @hiddeco, @hkalsi, @hlascelles, @jaksonwkr, @jblunck,
+@jwenz723, @linuxbsdfreak, @luxas, @mpashka, @nlamot, @semyonslepov,
+@squaremo, @stefanprodan, @tegamckinney, @ysaakpr.
+
+[weaveworks/flux#2175]: https://github.com/weaveworks/flux/pull/2175
+[weaveworks/flux#2176]: https://github.com/weaveworks/flux/pull/2176
+[weaveworks/flux#2195]: https://github.com/weaveworks/flux/pull/2195
+[weaveworks/flux#2201]: https://github.com/weaveworks/flux/pull/2201
+[weaveworks/flux#2202]: https://github.com/weaveworks/flux/pull/2202
+[weaveworks/flux#2207]: https://github.com/weaveworks/flux/pull/2207
+[weaveworks/flux#2213]: https://github.com/weaveworks/flux/pull/2213
+[weaveworks/flux#2222]: https://github.com/weaveworks/flux/pull/2222
+
+## 1.13.1 (2019-06-27)
+
+This is a patch release.
+
+### Fixes
+
+- Use a context with a timeout for every request that comes through
+  the upstream connection, so they may be abandoned if taking too long [weaveworks/flux#2171][]
+- Initialise the high-water mark once, so it doesn't get continually
+  reset and cause notification noise [weaveworks/flux#2177][]
+- Force tag updates when making local clones, to account for changes
+  in git 2.20 [weaveworks/flux#2184][]
+
+### Thanks
+
+Cheers to the following people for their contributions: @2opremio,
+@J-Lou, @aarnaud, @adrian, @airmap-madison, @alanjcastonguay,
+@arsiesys, @atbe-crowe, @azazel75, @bia, @carlosjgp, @chriscorn-takt,
+@cristian-radu, @davidkarlsen, @derrickburns, @dholbach, @dlespiau,
+@errordeveloper, @ewoutp, @hiddeco, @humayunjamal, @isen-ng,
+@judewin-alef, @kevinm444, @muhlba91, @roaddemon, @runningman84,
+@squaremo, @starkers, @stefanprodan, @sukrit007, @willholley.
+
+[weaveworks/flux#2171]: https://github.com/weaveworks/flux/pull/2171
+[weaveworks/flux#2177]: https://github.com/weaveworks/flux/pull/2177
+[weaveworks/flux#2184]: https://github.com/weaveworks/flux/pull/2184
+
 ## 1.13.0 (2019-06-13)
 
 This feature release contains an experimental feature for [generating

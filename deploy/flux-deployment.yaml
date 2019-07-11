@@ -63,7 +63,7 @@ spec:
         # There are no ":latest" images for flux. Find the most recent
         # release or image version at https://hub.docker.com/r/weaveworks/flux/tags
         # and replace the tag here.
-        image: docker.io/weaveworks/flux:1.13.0
+        image: docker.io/fluxcd/flux:1.13.2
         imagePullPolicy: IfNotPresent
         resources:
           requests:
@@ -85,7 +85,7 @@ spec:
 
         # Include this and the volume "kubeconfig" above, and the
         # environment entry "KUBECONFIG" below, to override the config
-        # used by kuebctl.
+        # used by kubectl.
         # - name: kubeconfig
         #   mountPath: /etc/fluxd/kube
 

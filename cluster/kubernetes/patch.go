@@ -15,17 +15,17 @@ import (
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	k8sscheme "k8s.io/client-go/kubernetes/scheme"
 
-	"github.com/weaveworks/flux"
-	"github.com/weaveworks/flux/cluster/kubernetes/resource"
+	kresource "github.com/weaveworks/flux/cluster/kubernetes/resource"
+	"github.com/weaveworks/flux/resource"
 )
 
 func createManifestPatch(originalManifests, modifiedManifests []byte, originalSource, modifiedSource string) ([]byte, error) {
-	originalResources, err := resource.ParseMultidoc(originalManifests, originalSource)
+	originalResources, err := kresource.ParseMultidoc(originalManifests, originalSource)
 	if err != nil {
 		fmt.Errorf("cannot parse %s: %s", originalSource, err)
 	}
 
-	modifiedResources, err := resource.ParseMultidoc(modifiedManifests, modifiedSource)
+	modifiedResources, err := kresource.ParseMultidoc(modifiedManifests, modifiedSource)
 	if err != nil {
 		fmt.Errorf("cannot parse %s: %s", modifiedSource, err)
 	}
@@ -61,12 +61,12 @@ func createManifestPatch(originalManifests, modifiedManifests []byte, originalSo
 }
 
 func applyManifestPatch(originalManifests, patchManifests []byte, originalSource, patchSource string) ([]byte, error) {
-	originalResources, err := resource.ParseMultidoc(originalManifests, originalSource)
+	originalResources, err := kresource.ParseMultidoc(originalManifests, originalSource)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse %s: %s", originalSource, err)
 	}
 
-	patchResources, err := resource.ParseMultidoc(patchManifests, patchSource)
+	patchResources, err := kresource.ParseMultidoc(patchManifests, patchSource)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse %s: %s", patchSource, err)
 	}
@@ -120,7 +120,7 @@ func getFullScheme() *runtime.Scheme {
 	return fullScheme
 }
 
-func getPatch(originalManifest resource.KubeManifest, modifiedManifest resource.KubeManifest, scheme *runtime.Scheme) ([]byte, error) {
+func getPatch(originalManifest kresource.KubeManifest, modifiedManifest kresource.KubeManifest, scheme *runtime.Scheme) ([]byte, error) {
 	groupVersion, err := schema.ParseGroupVersion(originalManifest.GroupVersion())
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse groupVersion %q: %s", originalManifest.GroupVersion(), err)
@@ -192,7 +192,7 @@ func addIdentifyingData(apiVersion string, kind string, name string, namespace s
 	return obj, err
 }
 
-func applyPatch(originalManifest, patchManifest resource.KubeManifest, scheme *runtime.Scheme) ([]byte, error) {
+func applyPatch(originalManifest, patchManifest kresource.KubeManifest, scheme *runtime.Scheme) ([]byte, error) {
 	groupVersion, err := schema.ParseGroupVersion(originalManifest.GroupVersion())
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse groupVersion %q: %s", originalManifest.GroupVersion(), err)
@@ -227,8 +227,8 @@ func applyPatch(originalManifest, patchManifest resource.KubeManifest, scheme *r
 	return patched, nil
 }
 
-// resourceID works like Resource.ResourceID() but avoids <cluster> namespaces,
+// resourceID works like Resource.ID() but avoids <cluster> namespaces,
 // since they may be incorrect
-func resourceID(manifest resource.KubeManifest) flux.ResourceID {
-	return flux.MakeResourceID(manifest.GetNamespace(), manifest.GetKind(), manifest.GetKind())
+func resourceID(manifest kresource.KubeManifest) resource.ID {
+	return resource.MakeID(manifest.GetNamespace(), manifest.GetKind(), manifest.GetKind())
 }

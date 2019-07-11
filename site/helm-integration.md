@@ -17,6 +17,8 @@ menu_order: 90
       * [External sources](#external-sources)
       * [Chart files](#chart-files)
   * [Upgrading images in a `HelmRelease` using Flux](#upgrading-images-in-a-helmrelease-using-flux)
+  * [Rollbacks](#rollbacks)
+    + [Configuration](#configuration)
   * [Authentication](#authentication)
     + [Authentication for Helm repos](#authentication-for-helm-repos)
       - [Azure ACR repositories](#azure-acr-repositories)
@@ -270,7 +272,22 @@ values:
 
 ```yaml
 values:
+  registry: docker.io
+  image: repo/image
+  tag: version
+```
+
+```yaml
+values:
   image:
+    repository: repo/image
+    tag: version
+```
+
+```yaml
+values:
+  image:
+    registry: docker.io
     repository: repo/image
     tag: version
 ```
@@ -351,6 +368,47 @@ change the meaning of a `HelmRelease` without altering it. This is
 undesirable because it makes it hard to specify exactly what you want,
 in the one place; or to read exactly what is being specified, in the
 one place. In other words, it's better to be explicit.
+
+## Rollbacks
+
+From time to time a release made by the Helm operator may fail, it is
+possible to automate the rollback of a failed release by setting
+`.spec.rollback.enable` to `true` on the `HelmRelease` resource.
+
+> **Note:** a successful rollback of a Helm chart containing a 
+> `StatefulSet` resource is known to be tricky, and one of the main
+> reasons automated rollbacks are not enabled by default for all
+> `HelmRelease`s. Verify a manual rollback of your Helm chart does
+> not cause any problems before enabling it.
+
+When enabled, the Helm operator will detect a faulty upgrade and
+perform a rollback, it will not attempt a new upgrade unless it
+detects a change in values and/or the chart.
+
+### Configuration
+
+```yaml
+apiVersion: flux.weave.works/v1beta1
+kind: HelmRelease
+# metadata: ...
+spec:
+  # Listed values are the defaults.
+  rollback:
+    # If set, will perform rollbacks for this release.
+    enable: false
+    # If set, will force resource update through delete/recreate if
+    # needed.
+    force: false
+    # Prevent hooks from running during rollback.
+    disableHooks: false
+    # Time in seconds to wait for any individual Kubernetes operation.
+    timeout: 300
+    # If set, will wait until all Pods, PVCs, Services, and minimum
+    # number of Pods of a Deployment are in a ready state before
+    # marking the release as successful. It will wait for as long
+    # as the set timeout.
+    wait: false
+```
 
 ## Authentication
 

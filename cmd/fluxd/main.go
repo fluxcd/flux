@@ -114,6 +114,7 @@ func main() {
 		gitEmail     = fs.String("git-email", "support@weave.works", "email to use as git committer")
 		gitSetAuthor = fs.Bool("git-set-author", false, "if set, the author of git commits will reflect the user who initiated the commit and will differ from the git committer.")
 		gitLabel     = fs.String("git-label", "", "label to keep track of sync progress; overrides both --git-sync-tag and --git-notes-ref")
+		gitSecret    = fs.Bool("git-secret", false, `if set, git-secret will be run on every git checkout. A gpg key must be imported using  --git-gpg-key-import or by mounting a keyring containing it directly`)
 		// Old git config; still used if --git-label is not supplied, but --git-label is preferred.
 		gitSyncTag     = fs.String("git-sync-tag", defaultGitSyncTag, "tag to use to mark sync progress for this cluster")
 		gitNotesRef    = fs.String("git-notes-ref", defaultGitNotesRef, "ref to use for keeping commit annotations in git notes")
@@ -145,6 +146,7 @@ func main() {
 		registryTrace        = fs.Bool("registry-trace", false, "output trace of image registry requests to log")
 		registryInsecure     = fs.StringSlice("registry-insecure-host", []string{}, "let these registry hosts skip TLS host verification and fall back to using HTTP instead of HTTPS; this allows man-in-the-middle attacks, so use with extreme caution")
 		registryExcludeImage = fs.StringSlice("registry-exclude-image", []string{"k8s.gcr.io/*"}, "do not scan images that match these glob expressions; the default is to exclude the 'k8s.gcr.io/*' images")
+		registryUseLabels    = fs.StringSlice("registry-use-labels", []string{"index.docker.io/weaveworks/*", "index.docker.io/fluxcd/*"}, "use the timestamp (RFC3339) from labels for (canonical) image refs that match these glob expression")
 
 		// AWS authentication
 		registryAWSRegions         = fs.StringSlice("registry-ecr-region", nil, "include just these AWS regions when scanning images in ECR; when not supplied, the cluster's region will included if it can be detected through the AWS API")
@@ -169,8 +171,10 @@ func main() {
 		// manifest generation
 		manifestGeneration = fs.Bool("manifest-generation", false, "experimental; search for .flux.yaml files to generate manifests")
 
+		// upstream connection settings
 		upstreamURL = fs.String("connect", "", "connect to an upstream service e.g., Weave Cloud, at this base address")
 		token       = fs.String("token", "", "authentication token for upstream service")
+		rpcTimeout  = fs.Duration("rpc-timeout", 10*time.Second, "maximum time an operation requested by the upstream may take")
 
 		dockerConfig = fs.String("docker-config", "", "path to a docker config to use for image registry credentials")
 
@@ -289,6 +293,10 @@ func main() {
 		}
 	}
 	mandatoryRegistry := stringset(*registryRequire)
+
+	if *gitSecret && len(*gitImportGPG) == 0 {
+		logger.Log("warning", fmt.Sprintf("--git-secret is enabled but there is no GPG key(s) provided using --git-gpg-key-import, we assume you mounted the keyring directly and continue"))
+	}
 
 	// Mechanical components.
 
@@ -491,6 +499,9 @@ func main() {
 
 		cacheRegistry = &cache.Cache{
 			Reader: cacheClient,
+			Decorators: []cache.Decorator{
+				cache.TimestampLabelWhitelist(*registryUseLabels),
+			},
 		}
 		cacheRegistry = registry.NewInstrumentedRegistry(cacheRegistry)
 
@@ -540,6 +551,7 @@ func main() {
 		SigningKey:  *gitSigningKey,
 		SetAuthor:   *gitSetAuthor,
 		SkipMessage: *gitSkipMessage,
+		GitSecret:   *gitSecret,
 	}
 
 	repo := git.NewRepo(gitRemote, git.PollInterval(*gitPollInterval), git.Timeout(*gitTimeout), git.Branch(*gitBranch))
@@ -562,6 +574,7 @@ func main() {
 		"sync-tag", *gitSyncTag,
 		"notes-ref", *gitNotesRef,
 		"set-author", *gitSetAuthor,
+		"git-secret", *gitSecret,
 	)
 
 	var jobs *job.Queue
@@ -600,7 +613,8 @@ func main() {
 				client.Token(*token),
 				transport.NewUpstreamRouter(),
 				*upstreamURL,
-				remote.NewErrorLoggingUpstreamServer(daemon, upstreamLogger),
+				remote.NewErrorLoggingServer(daemon, upstreamLogger),
+				*rpcTimeout,
 				upstreamLogger,
 			)
 			if err != nil {

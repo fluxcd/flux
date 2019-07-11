@@ -1,5 +1,5 @@
 ---
-title: Installing Weave Flux Manually
+title: Installing Flux Manually
 menu_order: 10
 ---
 

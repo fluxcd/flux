@@ -6,7 +6,6 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster"
 	"github.com/weaveworks/flux/manifests"
 	"github.com/weaveworks/flux/registry"
@@ -68,7 +67,7 @@ func (rc *ReleaseContext) SelectWorkloads(ctx context.Context, results update.Re
 
 	// Apply prefilters to select the controllers that we'll ask the
 	// cluster about.
-	var toAskClusterAbout []flux.ResourceID
+	var toAskClusterAbout []resource.ID
 	for _, s := range allDefined {
 		res := s.Filter(prefilters...)
 		if res.Error == "" {
@@ -85,7 +84,7 @@ func (rc *ReleaseContext) SelectWorkloads(ctx context.Context, results update.Re
 	}
 
 	// Ask the cluster about those that we're still interested in
-	definedAndRunning, err := rc.cluster.SomeWorkloads(toAskClusterAbout)
+	definedAndRunning, err := rc.cluster.SomeWorkloads(ctx, toAskClusterAbout)
 	if err != nil {
 		return nil, err
 	}
@@ -118,13 +117,13 @@ func (rc *ReleaseContext) SelectWorkloads(ctx context.Context, results update.Re
 
 // WorkloadsForUpdate collects all workloads defined in manifests and prepares a list of
 // workload updates for each of them.  It does not consider updatability.
-func (rc *ReleaseContext) WorkloadsForUpdate(ctx context.Context) (map[flux.ResourceID]*update.WorkloadUpdate, error) {
+func (rc *ReleaseContext) WorkloadsForUpdate(ctx context.Context) (map[resource.ID]*update.WorkloadUpdate, error) {
 	resources, err := rc.GetAllResources(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	var defined = map[flux.ResourceID]*update.WorkloadUpdate{}
+	var defined = map[resource.ID]*update.WorkloadUpdate{}
 	for _, res := range resources {
 		if wl, ok := res.(resource.Workload); ok {
 			defined[res.ResourceID()] = &update.WorkloadUpdate{

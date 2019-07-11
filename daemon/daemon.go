@@ -11,7 +11,6 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
 
-	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/api"
 	"github.com/weaveworks/flux/api/v10"
 	"github.com/weaveworks/flux/api/v11"
@@ -71,7 +70,7 @@ func (d *Daemon) Ping(ctx context.Context) error {
 }
 
 func (d *Daemon) Export(ctx context.Context) ([]byte, error) {
-	return d.Cluster.Export()
+	return d.Cluster.Export(ctx)
 }
 
 func (d *Daemon) getManifestStore(checkout *git.Checkout) (manifests.Store, error) {
@@ -122,9 +121,9 @@ func (d *Daemon) ListServicesWithOptions(ctx context.Context, opts v11.ListServi
 	var clusterWorkloads []cluster.Workload
 	var err error
 	if len(opts.Services) > 0 {
-		clusterWorkloads, err = d.Cluster.SomeWorkloads(opts.Services)
+		clusterWorkloads, err = d.Cluster.SomeWorkloads(ctx, opts.Services)
 	} else {
-		clusterWorkloads, err = d.Cluster.AllWorkloads(opts.Namespace)
+		clusterWorkloads, err = d.Cluster.AllWorkloads(ctx, opts.Namespace)
 	}
 	if err != nil {
 		return nil, errors.Wrap(err, "getting workloads from cluster")
@@ -199,12 +198,12 @@ func (d *Daemon) ListImagesWithOptions(ctx context.Context, opts v10.ListImagesO
 		if err != nil {
 			return nil, errors.Wrap(err, "treating workload spec as ID")
 		}
-		workloads, err = d.Cluster.SomeWorkloads([]flux.ResourceID{id})
+		workloads, err = d.Cluster.SomeWorkloads(ctx, []resource.ID{id})
 		if err != nil {
 			return nil, errors.Wrap(err, "getting some workloads")
 		}
 	} else {
-		workloads, err = d.Cluster.AllWorkloads(opts.Namespace)
+		workloads, err = d.Cluster.AllWorkloads(ctx, opts.Namespace)
 		if err != nil {
 			return nil, errors.Wrap(err, "getting all workloads")
 		}
@@ -290,7 +289,7 @@ func (d *Daemon) makeLoggingJobFunc(f jobFunc) jobFunc {
 		}
 		logger.Log("revision", result.Revision)
 		if result.Revision != "" {
-			var workloadIDs []flux.ResourceID
+			var workloadIDs []resource.ID
 			for id, result := range result.Result {
 				if result.Status == update.ReleaseStatusSuccess {
 					workloadIDs = append(workloadIDs, id)
@@ -350,7 +349,7 @@ func (d *Daemon) UpdateManifests(ctx context.Context, spec update.Spec) (job.ID,
 			return id, err
 		}
 		return d.queueJob(d.makeLoggingJobFunc(d.makeJobFromUpdate(d.release(spec, s)))), nil
-	case policy.Updates:
+	case resource.PolicyUpdates:
 		return d.queueJob(d.makeLoggingJobFunc(d.makeJobFromUpdate(d.updatePolicies(spec, s)))), nil
 	case update.ManualSync:
 		return d.queueJob(d.sync()), nil
@@ -390,10 +389,10 @@ func (d *Daemon) sync() jobFunc {
 	}
 }
 
-func (d *Daemon) updatePolicies(spec update.Spec, updates policy.Updates) updateFunc {
+func (d *Daemon) updatePolicies(spec update.Spec, updates resource.PolicyUpdates) updateFunc {
 	return func(ctx context.Context, jobID job.ID, working *git.Checkout, logger log.Logger) (job.Result, error) {
 		// For each update
-		var workloadIDs []flux.ResourceID
+		var workloadIDs []resource.ID
 		result := job.Result{
 			Spec:   &spec,
 			Result: update.Result{},
@@ -704,7 +703,7 @@ func getWorkloadContainers(workload cluster.Workload, imageRepos update.ImageRep
 	return res, nil
 }
 
-func policyCommitMessage(us policy.Updates, cause update.Cause) string {
+func policyCommitMessage(us resource.PolicyUpdates, cause update.Cause) string {
 	// shortcut, since we want roughly the same information
 	events := policyEvents(us, time.Now())
 	commitMsg := &bytes.Buffer{}
@@ -727,14 +726,14 @@ func policyCommitMessage(us policy.Updates, cause update.Cause) string {
 // policyEvents builds a map of events (by type), for all the events in this set of
 // updates. There will be one event per type, containing all workload ids
 // affected by that event. e.g. all automated workload will share an event.
-func policyEvents(us policy.Updates, now time.Time) map[string]event.Event {
+func policyEvents(us resource.PolicyUpdates, now time.Time) map[string]event.Event {
 	eventsByType := map[string]event.Event{}
 	for workloadID, update := range us {
 		for _, eventType := range policyEventTypes(update) {
 			e, ok := eventsByType[eventType]
 			if !ok {
 				e = event.Event{
-					ServiceIDs: []flux.ResourceID{},
+					ServiceIDs: []resource.ID{},
 					Type:       eventType,
 					StartedAt:  now,
 					EndedAt:    now,
@@ -749,7 +748,7 @@ func policyEvents(us policy.Updates, now time.Time) map[string]event.Event {
 }
 
 // policyEventTypes is a deduped list of all event types this update contains
-func policyEventTypes(u policy.Update) []string {
+func policyEventTypes(u resource.PolicyUpdate) []string {
 	types := map[string]struct{}{}
 	for p := range u.Add {
 		switch {

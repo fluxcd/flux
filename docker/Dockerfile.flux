@@ -2,7 +2,8 @@ FROM alpine:3.9
 
 WORKDIR /home/flux
 
-RUN apk add --no-cache openssh-client ca-certificates tini 'git>=2.12.0' 'gnutls>=3.6.7' gnupg
+RUN apk add --no-cache openssh-client ca-certificates tini 'git>=2.12.0' 'gnutls>=3.6.7' gnupg gawk
+RUN apk add --no-cache -X http://dl-cdn.alpinelinux.org/alpine/edge/testing git-secret
 
 # Add git hosts to known hosts file so we can use
 # StrickHostKeyChecking with git+ssh
@@ -17,23 +18,23 @@ COPY ./kubectl /usr/local/bin/
 COPY ./kustomize /usr/local/bin
 
 # These are pretty static
-LABEL maintainer="Weaveworks <help@weave.works>" \
+LABEL maintainer="Flux CD <https://github.com/fluxcd/flux/issues>" \
       org.opencontainers.image.title="flux" \
-      org.opencontainers.image.description="The Flux daemon, for synchronising your cluster with a git repo, and deploying new images" \
-      org.opencontainers.image.url="https://github.com/weaveworks/flux" \
-      org.opencontainers.image.source="git@github.com:weaveworks/flux" \
-      org.opencontainers.image.vendor="Weaveworks" \
+      org.opencontainers.image.description="The GitOps operator for Kubernetes" \
+      org.opencontainers.image.url="https://github.com/fluxcd/flux" \
+      org.opencontainers.image.source="git@github.com:fluxcd/flux" \
+      org.opencontainers.image.vendor="Flux CD" \
       org.label-schema.schema-version="1.0" \
       org.label-schema.name="flux" \
-      org.label-schema.description="The Flux daemon, for synchronising your cluster with a git repo, and deploying new images" \
-      org.label-schema.url="https://github.com/weaveworks/flux" \
-      org.label-schema.vcs-url="git@github.com:weaveworks/flux" \
-      org.label-schema.vendor="Weaveworks"
+      org.label-schema.description="The GitOps operator for Kubernetes" \
+      org.label-schema.url="https://github.com/fluxcd/flux" \
+      org.label-schema.vcs-url="git@github.com:fluxcd/flux" \
+      org.label-schema.vendor="Flux CD"
 
 ENTRYPOINT [ "/sbin/tini", "--", "fluxd" ]
 
 # Get the kubeyaml binary (files) and put them on the path
-COPY --from=quay.io/squaremo/kubeyaml:0.5.2 /usr/lib/kubeyaml /usr/lib/kubeyaml/
+COPY --from=quay.io/squaremo/kubeyaml:0.6.1 /usr/lib/kubeyaml /usr/lib/kubeyaml/
 ENV PATH=/bin:/usr/bin:/usr/local/bin:/usr/lib/kubeyaml
 
 # Create minimal nsswitch.conf file to prioritize the usage of /etc/hosts over DNS queries.

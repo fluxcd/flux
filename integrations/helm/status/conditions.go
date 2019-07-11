@@ -1,43 +1,66 @@
 package status
 
 import (
+	"k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"github.com/weaveworks/flux/integrations/apis/flux.weave.works/v1beta1"
 	v1beta1client "github.com/weaveworks/flux/integrations/client/clientset/versioned/typed/flux.weave.works/v1beta1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// We can't rely on having UpdateStatus, or strategic merge patching
-// for custom resources. So we have to create an object which
-// represents the merge path or JSON patch to apply.
-func UpdateConditionsPatch(status *v1beta1.HelmReleaseStatus, updates ...v1beta1.HelmReleaseCondition) {
-	newConditions := make([]v1beta1.HelmReleaseCondition, len(status.Conditions))
-	oldConditions := status.Conditions
-	for i, c := range oldConditions {
-		newConditions[i] = c
+
+// NewCondition creates a new HelmReleaseCondition.
+func NewCondition(conditionType v1beta1.HelmReleaseConditionType, status v1.ConditionStatus, reason, message string) v1beta1.HelmReleaseCondition {
+	return v1beta1.HelmReleaseCondition{
+		Type: conditionType,
+		Status: status,
+		LastUpdateTime: metav1.Now(),
+		LastTransitionTime: metav1.Now(),
+		Reason: reason,
+		Message: message,
 	}
-updates:
-	for _, up := range updates {
-		for i, c := range oldConditions {
-			if c.Type == up.Type {
-				newConditions[i] = up
-				continue updates
-			}
-		}
-		newConditions = append(newConditions, up)
-	}
-	status.Conditions = newConditions
 }
 
-// UpdateConditions retrieves a new copy of the HelmRelease given,
-// applies the updates to this copy, and updates the resource in the
-// cluster.
-func UpdateConditions(client v1beta1client.HelmReleaseInterface, fhr v1beta1.HelmRelease, updates ...v1beta1.HelmReleaseCondition) error {
-	cFhr, err := client.Get(fhr.Name, v1.GetOptions{})
+// SetCondition updates the HelmRelease to include the given condition.
+func SetCondition(client v1beta1client.HelmReleaseInterface, hr v1beta1.HelmRelease,
+	condition v1beta1.HelmReleaseCondition) error {
+
+	cHr, err := client.Get(hr.Name, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
 
-	UpdateConditionsPatch(&cFhr.Status, updates...)
-	_, err = client.UpdateStatus(cFhr)
+	currCondition := GetCondition(cHr.Status, condition.Type)
+	if currCondition != nil && currCondition.Status == condition.Status {
+		condition.LastTransitionTime = currCondition.LastTransitionTime
+	}
+
+	newConditions := filterOutCondition(cHr.Status.Conditions, condition.Type)
+	cHr.Status.Conditions = append(newConditions, condition)
+
+	_, err = client.UpdateStatus(cHr)
 	return err
+}
+
+// GetCondition returns the condition with the given type.
+func GetCondition(status v1beta1.HelmReleaseStatus, conditionType v1beta1.HelmReleaseConditionType) *v1beta1.HelmReleaseCondition {
+	for i := range status.Conditions {
+		c := status.Conditions[i]
+		if c.Type == conditionType {
+			return &c
+		}
+	}
+	return nil
+}
+
+// filterOutCondition returns a new slice of conditions without the
+// conditions of the given type.
+func filterOutCondition(conditions []v1beta1.HelmReleaseCondition, conditionType v1beta1.HelmReleaseConditionType) []v1beta1.HelmReleaseCondition {
+	var newConditions []v1beta1.HelmReleaseCondition
+	for _, c := range conditions {
+		if c.Type == conditionType {
+			continue
+		}
+		newConditions = append(newConditions, c)
+	}
+	return newConditions
 }

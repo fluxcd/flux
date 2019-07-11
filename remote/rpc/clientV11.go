@@ -8,7 +8,7 @@ import (
 	"github.com/weaveworks/flux/api/v11"
 	"github.com/weaveworks/flux/api/v6"
 	"github.com/weaveworks/flux/remote"
-	)
+)
 
 // RPCClientV11 is the rpc-backed implementation of a server, for
 // talking to remote daemons. This version introduces methods which accept an
@@ -19,7 +19,6 @@ type RPCClientV11 struct {
 
 type clientV11 interface {
 	v11.Server
-	v11.Upstream
 }
 
 var _ clientV11 = &RPCClientV11{}

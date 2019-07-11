@@ -1,15 +1,14 @@
 package event
 
 import (
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
 	"time"
 
-	"encoding/json"
-
 	"github.com/pkg/errors"
-	"github.com/weaveworks/flux"
+	"github.com/weaveworks/flux/resource"
 	"github.com/weaveworks/flux/update"
 )
 
@@ -42,7 +41,7 @@ type Event struct {
 
 	// Identifiers of workloads affected by this event.
 	// TODO: rename to WorkloadIDs after adding versioning.
-	ServiceIDs []flux.ResourceID `json:"serviceIDs"`
+	ServiceIDs []resource.ID `json:"serviceIDs"`
 
 	// Type is the type of event, usually "release" for now, but could be other
 	// things later
@@ -199,7 +198,7 @@ type Commit struct {
 }
 
 type ResourceError struct {
-	ID    flux.ResourceID
+	ID    resource.ID
 	Path  string
 	Error string
 }

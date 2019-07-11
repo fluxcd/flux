@@ -62,7 +62,7 @@ spec:
         # There are no ":latest" images for helm-operator. Find the most recent
         # release or image version at https://hub.docker.com/r/weaveworks/helm-operator/tags
         # and replace the tag here.
-        image: docker.io/weaveworks/helm-operator:0.9.2
+        image: docker.io/fluxcd/helm-operator:0.10.0
         imagePullPolicy: IfNotPresent
         ports:
         - name: http

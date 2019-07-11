@@ -13,7 +13,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster"
 	"github.com/weaveworks/flux/cluster/kubernetes"
 	"github.com/weaveworks/flux/cluster/mock"
@@ -37,7 +36,7 @@ var (
 	oldRef, _     = image.ParseRef(oldImage)
 	sidecarImage  = "weaveworks/sidecar:master-a000001"
 	sidecarRef, _ = image.ParseRef(sidecarImage)
-	hwSvcID, _    = flux.ParseResourceID("default:deployment/helloworld")
+	hwSvcID, _    = resource.ParseID("default:deployment/helloworld")
 	hwSvcSpec, _  = update.ParseResourceSpec(hwSvcID.String())
 	hwSvc         = cluster.Workload{
 		ID: hwSvcID,
@@ -62,7 +61,7 @@ var (
 
 	newLockedImg     = "quay.io/weaveworks/locked-service:2"
 	newLockedRef, _  = image.ParseRef(newLockedImg)
-	lockedSvcID, _   = flux.ParseResourceID("default:deployment/locked-service")
+	lockedSvcID, _   = resource.ParseID("default:deployment/locked-service")
 	lockedSvcSpec, _ = update.ParseResourceSpec(lockedSvcID.String())
 	lockedSvc        = cluster.Workload{
 		ID: lockedSvcID,
@@ -78,7 +77,7 @@ var (
 
 	semverHwImg    = "quay.io/weaveworks/helloworld:3.0.0"
 	semverHwRef, _ = image.ParseRef(semverHwImg)
-	semverSvcID    = flux.MustParseResourceID("default:deployment/semver")
+	semverSvcID    = resource.MustParseID("default:deployment/semver")
 	semverSvc      = cluster.Workload{
 		ID: semverSvcID,
 		Containers: cluster.ContainersOrExcuse{
@@ -92,7 +91,7 @@ var (
 	}
 	semverSvcSpec, _ = update.ParseResourceSpec(semverSvc.ID.String())
 
-	testSvcID = flux.MustParseResourceID("default:deployment/test-service")
+	testSvcID = resource.MustParseID("default:deployment/test-service")
 	testSvc   = cluster.Workload{
 		ID: testSvcID,
 		Containers: cluster.ContainersOrExcuse{
@@ -145,10 +144,10 @@ var (
 
 func mockCluster(running ...cluster.Workload) *mock.Mock {
 	return &mock.Mock{
-		AllWorkloadsFunc: func(string) ([]cluster.Workload, error) {
+		AllWorkloadsFunc: func(ctx context.Context, maybeNamespace string) ([]cluster.Workload, error) {
 			return running, nil
 		},
-		SomeWorkloadsFunc: func(ids []flux.ResourceID) ([]cluster.Workload, error) {
+		SomeWorkloadsFunc: func(ctx context.Context, ids []resource.ID) ([]cluster.Workload, error) {
 			var res []cluster.Workload
 			for _, id := range ids {
 				for _, svc := range running {
@@ -221,7 +220,7 @@ func (x expected) Result() update.Result {
 }
 
 func Test_InitContainer(t *testing.T) {
-	initWorkloadID := flux.MustParseResourceID("default:daemonset/init")
+	initWorkloadID := resource.MustParseID("default:daemonset/init")
 	initSvc := cluster.Workload{
 		ID: initWorkloadID,
 		Containers: cluster.ContainersOrExcuse{
@@ -287,11 +286,11 @@ func Test_FilterLogic(t *testing.T) {
 				ServiceSpecs: []update.ResourceSpec{hwSvcSpec},
 				ImageSpec:    update.ImageSpecLatest,
 				Kind:         update.ReleaseKindExecute,
-				Excludes:     []flux.ResourceID{},
+				Excludes:     []resource.ID{},
 			},
 			Expected: expected{
 				Specific: update.Result{
-					flux.MustParseResourceID("default:deployment/helloworld"): update.WorkloadResult{
+					resource.MustParseID("default:deployment/helloworld"): update.WorkloadResult{
 						Status: update.ReleaseStatusSuccess,
 						PerContainer: []update.ContainerUpdate{
 							{
@@ -315,11 +314,11 @@ func Test_FilterLogic(t *testing.T) {
 				ServiceSpecs: []update.ResourceSpec{update.ResourceSpecAll},
 				ImageSpec:    update.ImageSpecLatest,
 				Kind:         update.ReleaseKindExecute,
-				Excludes:     []flux.ResourceID{lockedSvcID},
+				Excludes:     []resource.ID{lockedSvcID},
 			},
 			Expected: expected{
 				Specific: update.Result{
-					flux.MustParseResourceID("default:deployment/helloworld"): update.WorkloadResult{
+					resource.MustParseID("default:deployment/helloworld"): update.WorkloadResult{
 						Status: update.ReleaseStatusSuccess,
 						PerContainer: []update.ContainerUpdate{
 							{
@@ -334,7 +333,7 @@ func Test_FilterLogic(t *testing.T) {
 							},
 						},
 					},
-					flux.MustParseResourceID("default:deployment/locked-service"): update.WorkloadResult{
+					resource.MustParseID("default:deployment/locked-service"): update.WorkloadResult{
 						Status: update.ReleaseStatusIgnored,
 						Error:  update.Excluded,
 					},
@@ -347,11 +346,11 @@ func Test_FilterLogic(t *testing.T) {
 				ServiceSpecs: []update.ResourceSpec{update.ResourceSpecAll},
 				ImageSpec:    update.ImageSpecFromRef(newHwRef),
 				Kind:         update.ReleaseKindExecute,
-				Excludes:     []flux.ResourceID{},
+				Excludes:     []resource.ID{},
 			},
 			Expected: expected{
 				Specific: update.Result{
-					flux.MustParseResourceID("default:deployment/helloworld"): update.WorkloadResult{
+					resource.MustParseID("default:deployment/helloworld"): update.WorkloadResult{
 						Status: update.ReleaseStatusSuccess,
 						PerContainer: []update.ContainerUpdate{
 							{
@@ -361,7 +360,7 @@ func Test_FilterLogic(t *testing.T) {
 							},
 						},
 					},
-					flux.MustParseResourceID("default:deployment/locked-service"): update.WorkloadResult{
+					resource.MustParseID("default:deployment/locked-service"): update.WorkloadResult{
 						Status: update.ReleaseStatusIgnored,
 						Error:  update.DifferentImage,
 					},
@@ -376,11 +375,11 @@ func Test_FilterLogic(t *testing.T) {
 				ServiceSpecs: []update.ResourceSpec{update.ResourceSpecAll},
 				ImageSpec:    update.ImageSpecLatest,
 				Kind:         update.ReleaseKindExecute,
-				Excludes:     []flux.ResourceID{},
+				Excludes:     []resource.ID{},
 			},
 			Expected: expected{
 				Specific: update.Result{
-					flux.MustParseResourceID("default:deployment/helloworld"): update.WorkloadResult{
+					resource.MustParseID("default:deployment/helloworld"): update.WorkloadResult{
 						Status: update.ReleaseStatusSuccess,
 						PerContainer: []update.ContainerUpdate{
 							{
@@ -395,7 +394,7 @@ func Test_FilterLogic(t *testing.T) {
 							},
 						},
 					},
-					flux.MustParseResourceID("default:deployment/locked-service"): update.WorkloadResult{
+					resource.MustParseID("default:deployment/locked-service"): update.WorkloadResult{
 						Status: update.ReleaseStatusSkipped,
 						Error:  update.Locked,
 					},
@@ -408,11 +407,11 @@ func Test_FilterLogic(t *testing.T) {
 				ServiceSpecs: []update.ResourceSpec{hwSvcSpec, update.ResourceSpecAll},
 				ImageSpec:    update.ImageSpecLatest,
 				Kind:         update.ReleaseKindExecute,
-				Excludes:     []flux.ResourceID{},
+				Excludes:     []resource.ID{},
 			},
 			Expected: expected{
 				Specific: update.Result{
-					flux.MustParseResourceID("default:deployment/helloworld"): update.WorkloadResult{
+					resource.MustParseID("default:deployment/helloworld"): update.WorkloadResult{
 						Status: update.ReleaseStatusSuccess,
 						PerContainer: []update.ContainerUpdate{
 							{
@@ -427,7 +426,7 @@ func Test_FilterLogic(t *testing.T) {
 							},
 						},
 					},
-					flux.MustParseResourceID("default:deployment/locked-service"): update.WorkloadResult{
+					resource.MustParseID("default:deployment/locked-service"): update.WorkloadResult{
 						Status: update.ReleaseStatusSkipped,
 						Error:  update.Locked,
 					},
@@ -440,11 +439,11 @@ func Test_FilterLogic(t *testing.T) {
 				ServiceSpecs: []update.ResourceSpec{notInRepoSpec},
 				ImageSpec:    update.ImageSpecLatest,
 				Kind:         update.ReleaseKindExecute,
-				Excludes:     []flux.ResourceID{},
+				Excludes:     []resource.ID{},
 			},
 			Expected: expected{
 				Specific: update.Result{
-					flux.MustParseResourceID(notInRepoService): skippedNotInRepo,
+					resource.MustParseID(notInRepoService): skippedNotInRepo,
 				},
 				Else: ignoredNotIncluded,
 			},
@@ -485,12 +484,12 @@ func Test_Force_lockedWorkload(t *testing.T) {
 				ServiceSpecs: []update.ResourceSpec{lockedSvcSpec},
 				ImageSpec:    update.ImageSpecFromRef(newLockedRef),
 				Kind:         update.ReleaseKindExecute,
-				Excludes:     []flux.ResourceID{},
+				Excludes:     []resource.ID{},
 				Force:        true,
 			},
 			Expected: expected{
 				Specific: update.Result{
-					flux.MustParseResourceID("default:deployment/locked-service"): success,
+					resource.MustParseID("default:deployment/locked-service"): success,
 				},
 				Else: ignoredNotIncluded,
 			},
@@ -500,12 +499,12 @@ func Test_Force_lockedWorkload(t *testing.T) {
 				ServiceSpecs: []update.ResourceSpec{update.ResourceSpecAll},
 				ImageSpec:    update.ImageSpecFromRef(newLockedRef),
 				Kind:         update.ReleaseKindExecute,
-				Excludes:     []flux.ResourceID{},
+				Excludes:     []resource.ID{},
 				Force:        true,
 			},
 			Expected: expected{
 				Specific: update.Result{
-					flux.MustParseResourceID("default:deployment/locked-service"): skippedLocked,
+					resource.MustParseID("default:deployment/locked-service"): skippedLocked,
 				},
 				Else: skippedNotInCluster,
 			},
@@ -516,12 +515,12 @@ func Test_Force_lockedWorkload(t *testing.T) {
 				ServiceSpecs: []update.ResourceSpec{lockedSvcSpec},
 				ImageSpec:    update.ImageSpecLatest,
 				Kind:         update.ReleaseKindExecute,
-				Excludes:     []flux.ResourceID{},
+				Excludes:     []resource.ID{},
 				Force:        true,
 			},
 			Expected: expected{
 				Specific: update.Result{
-					flux.MustParseResourceID("default:deployment/locked-service"): success,
+					resource.MustParseID("default:deployment/locked-service"): success,
 				},
 				Else: ignoredNotIncluded,
 			},
@@ -531,12 +530,12 @@ func Test_Force_lockedWorkload(t *testing.T) {
 				ServiceSpecs: []update.ResourceSpec{update.ResourceSpecAll},
 				ImageSpec:    update.ImageSpecLatest,
 				Kind:         update.ReleaseKindExecute,
-				Excludes:     []flux.ResourceID{},
+				Excludes:     []resource.ID{},
 				Force:        true,
 			},
 			Expected: expected{
 				Specific: update.Result{
-					flux.MustParseResourceID("default:deployment/locked-service"): skippedLocked,
+					resource.MustParseID("default:deployment/locked-service"): skippedLocked,
 				},
 				Else: skippedNotInCluster,
 			},
@@ -587,12 +586,12 @@ func Test_Force_filteredContainer(t *testing.T) {
 				ServiceSpecs: []update.ResourceSpec{semverSvcSpec},
 				ImageSpec:    update.ImageSpecFromRef(newHwRef), // does not match filter
 				Kind:         update.ReleaseKindExecute,
-				Excludes:     []flux.ResourceID{},
+				Excludes:     []resource.ID{},
 				Force:        true,
 			},
 			Expected: expected{
 				Specific: update.Result{
-					flux.MustParseResourceID("default:deployment/semver"): successNew,
+					resource.MustParseID("default:deployment/semver"): successNew,
 				},
 				Else: ignoredNotIncluded,
 			},
@@ -603,12 +602,12 @@ func Test_Force_filteredContainer(t *testing.T) {
 				ServiceSpecs: []update.ResourceSpec{update.ResourceSpecAll},
 				ImageSpec:    update.ImageSpecFromRef(newHwRef), // does not match filter
 				Kind:         update.ReleaseKindExecute,
-				Excludes:     []flux.ResourceID{},
+				Excludes:     []resource.ID{},
 				Force:        true,
 			},
 			Expected: expected{
 				Specific: update.Result{
-					flux.MustParseResourceID("default:deployment/semver"): successNew,
+					resource.MustParseID("default:deployment/semver"): successNew,
 				},
 				Else: skippedNotInCluster,
 			},
@@ -619,12 +618,12 @@ func Test_Force_filteredContainer(t *testing.T) {
 				ServiceSpecs: []update.ResourceSpec{semverSvcSpec},
 				ImageSpec:    update.ImageSpecLatest, // will filter images by semver and pick newest version
 				Kind:         update.ReleaseKindExecute,
-				Excludes:     []flux.ResourceID{},
+				Excludes:     []resource.ID{},
 				Force:        true,
 			},
 			Expected: expected{
 				Specific: update.Result{
-					flux.MustParseResourceID("default:deployment/semver"): successSemver,
+					resource.MustParseID("default:deployment/semver"): successSemver,
 				},
 				Else: ignoredNotIncluded,
 			},
@@ -635,12 +634,12 @@ func Test_Force_filteredContainer(t *testing.T) {
 				ServiceSpecs: []update.ResourceSpec{update.ResourceSpecAll},
 				ImageSpec:    update.ImageSpecLatest,
 				Kind:         update.ReleaseKindExecute,
-				Excludes:     []flux.ResourceID{},
+				Excludes:     []resource.ID{},
 				Force:        true,
 			},
 			Expected: expected{
 				Specific: update.Result{
-					flux.MustParseResourceID("default:deployment/semver"): successSemver,
+					resource.MustParseID("default:deployment/semver"): successSemver,
 				},
 				Else: skippedNotInCluster,
 			},
@@ -685,11 +684,11 @@ func Test_ImageStatus(t *testing.T) {
 				ServiceSpecs: []update.ResourceSpec{testSvcSpec},
 				ImageSpec:    update.ImageSpecLatest,
 				Kind:         update.ReleaseKindExecute,
-				Excludes:     []flux.ResourceID{},
+				Excludes:     []resource.ID{},
 			},
 			Expected: expected{
 				Specific: update.Result{
-					flux.MustParseResourceID("default:deployment/test-service"): update.WorkloadResult{
+					resource.MustParseID("default:deployment/test-service"): update.WorkloadResult{
 						Status: update.ReleaseStatusIgnored,
 						Error:  update.DoesNotUseImage,
 					},
@@ -702,11 +701,11 @@ func Test_ImageStatus(t *testing.T) {
 				ServiceSpecs: []update.ResourceSpec{hwSvcSpec},
 				ImageSpec:    update.ImageSpecLatest,
 				Kind:         update.ReleaseKindExecute,
-				Excludes:     []flux.ResourceID{},
+				Excludes:     []resource.ID{},
 			},
 			Expected: expected{
 				Specific: update.Result{
-					flux.MustParseResourceID("default:deployment/helloworld"): update.WorkloadResult{
+					resource.MustParseID("default:deployment/helloworld"): update.WorkloadResult{
 						Status: update.ReleaseStatusSkipped,
 						Error:  update.ImageUpToDate,
 					},
@@ -729,7 +728,7 @@ func Test_ImageStatus(t *testing.T) {
 }
 
 func Test_UpdateMultidoc(t *testing.T) {
-	egID := flux.MustParseResourceID("default:deployment/multi-deploy")
+	egID := resource.MustParseID("default:deployment/multi-deploy")
 	egSvc := cluster.Workload{
 		ID: egID,
 		Containers: cluster.ContainersOrExcuse{
@@ -776,7 +775,7 @@ func Test_UpdateMultidoc(t *testing.T) {
 }
 
 func Test_UpdateList(t *testing.T) {
-	egID := flux.MustParseResourceID("default:deployment/list-deploy")
+	egID := resource.MustParseID("default:deployment/list-deploy")
 	egSvc := cluster.Workload{
 		ID: egID,
 		Containers: cluster.ContainersOrExcuse{
@@ -839,7 +838,7 @@ func Test_UpdateContainers(t *testing.T) {
 	}
 	for _, tst := range []struct {
 		Name       string
-		WorkloadID flux.ResourceID
+		WorkloadID resource.ID
 		Spec       []update.ContainerUpdate
 		Force      bool
 
@@ -1018,7 +1017,7 @@ func Test_UpdateContainers(t *testing.T) {
 		},
 	} {
 		specs := update.ReleaseContainersSpec{
-			ContainerSpecs: map[flux.ResourceID][]update.ContainerUpdate{tst.WorkloadID: tst.Spec},
+			ContainerSpecs: map[resource.ID][]update.ContainerUpdate{tst.WorkloadID: tst.Spec},
 			Kind:           update.ReleaseKindExecute,
 		}
 
@@ -1056,7 +1055,7 @@ type badManifests struct {
 	manifests.Manifests
 }
 
-func (m *badManifests) SetWorkloadContainerImage(def []byte, id flux.ResourceID, container string, image image.Ref) ([]byte, error) {
+func (m *badManifests) SetWorkloadContainerImage(def []byte, id resource.ID, container string, image image.Ref) ([]byte, error) {
 	return def, nil
 }
 
@@ -1066,7 +1065,7 @@ func Test_BadRelease(t *testing.T) {
 		ServiceSpecs: []update.ResourceSpec{update.ResourceSpecAll},
 		ImageSpec:    update.ImageSpecFromRef(newHwRef),
 		Kind:         update.ReleaseKindExecute,
-		Excludes:     []flux.ResourceID{},
+		Excludes:     []resource.ID{},
 	}
 	checkout1, cleanup1 := setup(t)
 	defer cleanup1()

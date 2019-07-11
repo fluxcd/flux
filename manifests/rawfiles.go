@@ -7,9 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/image"
-	"github.com/weaveworks/flux/policy"
 	"github.com/weaveworks/flux/resource"
 )
 
@@ -28,7 +26,7 @@ func NewRawFiles(baseDir string, paths []string, manifests Manifests) *rawFiles 
 }
 
 // Set the container image of a resource in the store
-func (f *rawFiles) SetWorkloadContainerImage(ctx context.Context, id flux.ResourceID, container string, newImageID image.Ref) error {
+func (f *rawFiles) SetWorkloadContainerImage(ctx context.Context, id resource.ID, container string, newImageID image.Ref) error {
 	resourcesByID, err := f.GetAllResourcesByID(ctx)
 	if err != nil {
 		return err
@@ -59,7 +57,7 @@ func (f *rawFiles) setManifestWorkloadContainerImage(r resource.Resource, contai
 
 // UpdateWorkloadPolicies modifies a resource in the store to apply the policy-update specified.
 // It returns whether a change in the resource was actually made as a result of the change
-func (f *rawFiles) UpdateWorkloadPolicies(ctx context.Context, id flux.ResourceID, update policy.Update) (bool, error) {
+func (f *rawFiles) UpdateWorkloadPolicies(ctx context.Context, id resource.ID, update resource.PolicyUpdate) (bool, error) {
 	resourcesByID, err := f.GetAllResourcesByID(ctx)
 	if err != nil {
 		return false, err
@@ -71,7 +69,7 @@ func (f *rawFiles) UpdateWorkloadPolicies(ctx context.Context, id flux.ResourceI
 	return f.updateManifestWorkloadPolicies(r, update)
 }
 
-func (f *rawFiles) updateManifestWorkloadPolicies(r resource.Resource, update policy.Update) (bool, error) {
+func (f *rawFiles) updateManifestWorkloadPolicies(r resource.Resource, update resource.PolicyUpdate) (bool, error) {
 	fullFilePath := filepath.Join(f.baseDir, r.Source())
 	def, err := ioutil.ReadFile(fullFilePath)
 	if err != nil {

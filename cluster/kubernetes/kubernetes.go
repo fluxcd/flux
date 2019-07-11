@@ -2,6 +2,7 @@ package kubernetes
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"sync"
@@ -16,11 +17,11 @@ import (
 	k8sclientdynamic "k8s.io/client-go/dynamic"
 	k8sclient "k8s.io/client-go/kubernetes"
 
-	"github.com/weaveworks/flux"
 	"github.com/weaveworks/flux/cluster"
-	"github.com/weaveworks/flux/cluster/kubernetes/resource"
+	kresource "github.com/weaveworks/flux/cluster/kubernetes/resource"
 	fhrclient "github.com/weaveworks/flux/integrations/client/clientset/versioned"
 	"github.com/weaveworks/flux/ssh"
+	"github.com/weaveworks/flux/resource"
 )
 
 type coreClient k8sclient.Interface
@@ -97,7 +98,7 @@ type Cluster struct {
 
 	// syncErrors keeps a record of all per-resource errors during
 	// the sync from Git repo to the cluster.
-	syncErrors   map[flux.ResourceID]error
+	syncErrors   map[resource.ID]error
 	muSyncErrors sync.RWMutex
 
 	allowedNamespaces []string
@@ -127,7 +128,7 @@ func NewCluster(client ExtendedClient, applier Applier, sshKeyRing ssh.KeyRing, 
 // SomeWorkloads returns the workloads named, missing out any that don't
 // exist in the cluster or aren't in an allowed namespace.
 // They do not necessarily have to be returned in the order requested.
-func (c *Cluster) SomeWorkloads(ids []flux.ResourceID) (res []cluster.Workload, err error) {
+func (c *Cluster) SomeWorkloads(ctx context.Context, ids []resource.ID) (res []cluster.Workload, err error) {
 	var workloads []cluster.Workload
 	for _, id := range ids {
 		if !c.IsAllowedResource(id) {
@@ -141,7 +142,7 @@ func (c *Cluster) SomeWorkloads(ids []flux.ResourceID) (res []cluster.Workload, 
 			continue
 		}
 
-		workload, err := resourceKind.getWorkload(c, ns, name)
+		workload, err := resourceKind.getWorkload(ctx, c, ns, name)
 		if err != nil {
 			if apierrors.IsForbidden(err) || apierrors.IsNotFound(err) {
 				continue
@@ -161,8 +162,8 @@ func (c *Cluster) SomeWorkloads(ids []flux.ResourceID) (res []cluster.Workload, 
 
 // AllWorkloads returns all workloads in allowed namespaces matching the criteria; that is, in
 // the namespace (or any namespace if that argument is empty)
-func (c *Cluster) AllWorkloads(namespace string) (res []cluster.Workload, err error) {
-	namespaces, err := c.getAllowedAndExistingNamespaces()
+func (c *Cluster) AllWorkloads(ctx context.Context, namespace string) (res []cluster.Workload, err error) {
+	namespaces, err := c.getAllowedAndExistingNamespaces(ctx)
 	if err != nil {
 		return nil, errors.Wrap(err, "getting namespaces")
 	}
@@ -174,7 +175,7 @@ func (c *Cluster) AllWorkloads(namespace string) (res []cluster.Workload, err er
 		}
 
 		for kind, resourceKind := range resourceKinds {
-			workloads, err := resourceKind.getWorkloads(c, ns.Name)
+			workloads, err := resourceKind.getWorkloads(ctx, c, ns.Name)
 			if err != nil {
 				switch {
 				case apierrors.IsNotFound(err):
@@ -191,7 +192,7 @@ func (c *Cluster) AllWorkloads(namespace string) (res []cluster.Workload, err er
 
 			for _, workload := range workloads {
 				if !isAddon(workload) {
-					id := flux.MakeResourceID(ns.Name, kind, workload.GetName())
+					id := resource.MakeID(ns.Name, kind, workload.GetName())
 					c.muSyncErrors.RLock()
 					workload.syncError = c.syncErrors[id]
 					c.muSyncErrors.RUnlock()
@@ -207,7 +208,7 @@ func (c *Cluster) AllWorkloads(namespace string) (res []cluster.Workload, err er
 func (c *Cluster) setSyncErrors(errs cluster.SyncError) {
 	c.muSyncErrors.Lock()
 	defer c.muSyncErrors.Unlock()
-	c.syncErrors = make(map[flux.ResourceID]error)
+	c.syncErrors = make(map[resource.ID]error)
 	for _, e := range errs {
 		c.syncErrors[e.ResourceID] = e.Error
 	}
@@ -219,10 +220,10 @@ func (c *Cluster) Ping() error {
 }
 
 // Export exports cluster resources
-func (c *Cluster) Export() ([]byte, error) {
+func (c *Cluster) Export(ctx context.Context) ([]byte, error) {
 	var config bytes.Buffer
 
-	namespaces, err := c.getAllowedAndExistingNamespaces()
+	namespaces, err := c.getAllowedAndExistingNamespaces(ctx)
 	if err != nil {
 		return nil, errors.Wrap(err, "getting namespaces")
 	}
@@ -240,7 +241,7 @@ func (c *Cluster) Export() ([]byte, error) {
 		}
 
 		for _, resourceKind := range resourceKinds {
-			workloads, err := resourceKind.getWorkloads(c, ns.Name)
+			workloads, err := resourceKind.getWorkloads(ctx, c, ns.Name)
 			if err != nil {
 				switch {
 				case apierrors.IsNotFound(err):
@@ -281,10 +282,13 @@ func (c *Cluster) PublicSSHKey(regenerate bool) (ssh.PublicKey, error) {
 // the Flux instance is expected to have access to and can look for resources inside of.
 // It returns a list of all namespaces unless an explicit list of allowed namespaces
 // has been set on the Cluster instance.
-func (c *Cluster) getAllowedAndExistingNamespaces() ([]apiv1.Namespace, error) {
+func (c *Cluster) getAllowedAndExistingNamespaces(ctx context.Context) ([]apiv1.Namespace, error) {
 	if len(c.allowedNamespaces) > 0 {
 		nsList := []apiv1.Namespace{}
 		for _, name := range c.allowedNamespaces {
+			if err := ctx.Err(); err != nil {
+				return nil, err
+			}
 			ns, err := c.client.CoreV1().Namespaces().Get(name, meta_v1.GetOptions{})
 			switch {
 			case err == nil:
@@ -303,6 +307,9 @@ func (c *Cluster) getAllowedAndExistingNamespaces() ([]apiv1.Namespace, error) {
 		return nsList, nil
 	}
 
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	namespaces, err := c.client.CoreV1().Namespaces().List(meta_v1.ListOptions{})
 	if err != nil {
 		return nil, err
@@ -310,7 +317,7 @@ func (c *Cluster) getAllowedAndExistingNamespaces() ([]apiv1.Namespace, error) {
 	return namespaces.Items, nil
 }
 
-func (c *Cluster) IsAllowedResource(id flux.ResourceID) bool {
+func (c *Cluster) IsAllowedResource(id resource.ID) bool {
 	if len(c.allowedNamespaces) == 0 {
 		// All resources are allowed when all namespaces are allowed
 		return true
@@ -319,7 +326,7 @@ func (c *Cluster) IsAllowedResource(id flux.ResourceID) bool {
 	namespace, kind, name := id.Components()
 	namespaceToCheck := namespace
 
-	if namespace == resource.ClusterScope {
+	if namespace == kresource.ClusterScope {
 		// All cluster-scoped resources (not namespaced) are allowed ...
 		if kind != "namespace" {
 			return true

@@ -179,11 +179,11 @@ You should also remove the deploy key from your GitHub repository.
 
 ### Configuration
 
-The following tables lists the configurable parameters of the Weave Flux chart and their default values.
+The following tables lists the configurable parameters of the Flux chart and their default values.
 
 | Parameter                                         | Default                                              | Description
 | -----------------------------------------------   | ---------------------------------------------------- | ---
-| `image.repository`                                | `docker.io/weaveworks/flux`                          | Image repository
+| `image.repository`                                | `docker.io/fluxcd/flux`                              | Image repository
 | `image.tag`                                       | `<VERSION>`                                          | Image tag
 | `replicaCount`                                    | `1`                                                  | Number of Flux pods to deploy, more than one is not desirable.
 | `image.pullPolicy`                                | `IfNotPresent`                                       | Image pull policy
@@ -202,8 +202,10 @@ The following tables lists the configurable parameters of the Weave Flux chart a
 | `token`                                           | `None`                                               | Weave Cloud service token
 | `extraEnvs`                                       | `[]`                                                 | Extra environment variables for the Flux pod(s)
 | `rbac.create`                                     | `true`                                               | If `true`, create and use RBAC resources
+| `rbac.pspEnabled`                                 | `false`                                              | If `true`, create and use a restricted pod security policy for Flux pod(s)
 | `serviceAccount.create`                           | `true`                                               | If `true`, create a new service account
 | `serviceAccount.name`                             | `flux`                                               | Service account to be used
+| `clusterRole.create`                              | `true`                                               | If `false`, Flux and the Helm Operator will be restricted to the namespace where they are deployed
 | `service.type`                                    | `ClusterIP`                                          | Service type to be used (exposing the Flux API outside of the cluster is not advised)
 | `service.port`                                    | `3030`                                               | Service port to be used
 | `git.url`                                         | `None`                                               | URL of git repo with Kubernetes manifests
@@ -232,6 +234,7 @@ The following tables lists the configurable parameters of the Weave Flux chart a
 | `registry.insecureHosts`                          | `None`                                               | Use HTTP rather than HTTPS for the image registry domains
 | `registry.cacheExpiry`                            | `None`                                               | Duration to keep cached image info (deprecated)
 | `registry.excludeImage`                           | `None`                                               | Do not scan images that match these glob expressions; if empty, 'k8s.gcr.io/*' images are excluded
+| `registry.useTimestampLabels`                     | `None`                                               | Allow usage of (RFC3339) timestamp labels from (canonical) image refs that match these glob expressions; if empty, 'index.docker.io/weaveworks/*' images are allowed
 | `registry.ecr.region`                             | `None`                                               | Restrict ECR scanning to these AWS regions; if empty, only the cluster's region will be scanned
 | `registry.ecr.includeId`                          | `None`                                               | Restrict ECR scanning to these AWS account IDs; if empty, all account IDs that aren't excluded may be scanned
 | `registry.ecr.excludeId`                          | `602401143452`                                       | Do not scan ECR for images in these AWS account IDs; the default is to exclude the EKS system account
@@ -250,7 +253,7 @@ The following tables lists the configurable parameters of the Weave Flux chart a
 | `memcached.securityContext`                       | [See values.yaml](/chart/flux/values.yaml#L192-L195) | Container security context for memcached
 | `helmOperator.create`                             | `false`                                              | If `true`, install the Helm operator
 | `helmOperator.createCRD`                          | `true`                                               | Create the `v1beta1` and `v1alpha2` Flux CRDs. Dependent on `helmOperator.create=true`
-| `helmOperator.repository`                         | `docker.io/weaveworks/helm-operator`                 | Helm operator image repository
+| `helmOperator.repository`                         | `docker.io/fluxcd/helm-operator`                     | Helm operator image repository
 | `helmOperator.tag`                                | `<VERSION>`                                          | Helm operator image tag
 | `helmOperator.replicaCount`                       | `1`                                                  | Number of helm operator pods to deploy, more than one is not desirable.
 | `helmOperator.pullPolicy`                         | `IfNotPresent`                                       | Helm operator image pull policy
@@ -260,6 +263,7 @@ The following tables lists the configurable parameters of the Weave Flux chart a
 | `helmOperator.git.timeout`                        | `git.timeout`                                        | Duration after which git operations time out
 | `helmOperator.git.secretName`                     | `None`                                               | The name of the kubernetes secret with the SSH private key, supercedes `git.secretName`
 | `helmOperator.chartsSyncInterval`                 | `3m`                                                 | Interval at which to check for changed charts
+| `helmOperator.workers`                            | `None`                                               | (Experimental) amount of workers processing releases
 | `helmOperator.extraEnvs`                          | `[]`                                                 | Extra environment variables for the Helm operator pod
 | `helmOperator.logReleaseDiffs`                    | `false`                                              | Helm operator should log the diff when a chart release diverges (possibly insecure)
 | `helmOperator.allowNamespace`                     | `None`                                               | If set, this limits the scope to a single namespace. If not specified, all namespaces will be watched
@@ -299,7 +303,7 @@ weaveworks/flux
 
 ### Upgrade
 
-Update Weave Flux version with:
+Update Flux version with:
 
 ```sh
 helm upgrade --reuse-values flux \

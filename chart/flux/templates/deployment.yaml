@@ -148,6 +148,9 @@ spec:
 {{ toYaml .Values.extraEnvs | indent 10 }}
           {{- end }}
           args:
+          {{- if not .Values.clusterRole.create }}
+          - --k8s-allow-namespace={{ .Release.Namespace }}
+          {{- end}}
           {{- if .Values.logFormat }}
           - --log-format={{ .Values.logFormat }}
           {{end}}
@@ -195,6 +198,9 @@ spec:
           {{- end }}
           {{- if .Values.registry.excludeImage }}
           - --registry-exclude-image={{ .Values.registry.excludeImage }}
+          {{- end }}
+          {{- if .Values.registry.useTimestampLabels }}
+          - --registry-use-labels={{ .Values.registry.useTimestampLabels }}
           {{- end }}
           {{- if .Values.registry.ecr.region }}
           - --registry-ecr-region={{ .Values.registry.ecr.region }}

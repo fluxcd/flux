@@ -10,7 +10,6 @@ import (
 	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	"github.com/weaveworks/flux"
 	kresource "github.com/weaveworks/flux/cluster/kubernetes/resource"
 	"github.com/weaveworks/flux/image"
 	"github.com/weaveworks/flux/resource"
@@ -133,7 +132,7 @@ func (m *manifests) ParseManifest(def []byte, source string) (map[string]resourc
 	return result, nil
 }
 
-func (m *manifests) SetWorkloadContainerImage(def []byte, id flux.ResourceID, container string, image image.Ref) ([]byte, error) {
+func (m *manifests) SetWorkloadContainerImage(def []byte, id resource.ID, container string, image image.Ref) ([]byte, error) {
 	return updateWorkload(def, id, container, image)
 }
 
