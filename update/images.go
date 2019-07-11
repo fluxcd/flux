@@ -148,6 +148,10 @@ func FetchImageRepos(reg registry.Registry, cs containers, logger log.Logger) (I
 	imageRepos := imageReposMap{}
 	for i := 0; i < cs.Len(); i++ {
 		for _, container := range cs.Containers(i) {
+			// Do not try to update and image using digest
+			if container.Image.Digest != "" {
+				continue
+			}
 			imageRepos[container.Image.CanonicalName()] = image.RepositoryMetadata{}
 		}
 	}

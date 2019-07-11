@@ -4,11 +4,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-kit/kit/log"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/weaveworks/flux/cluster"
 	"github.com/weaveworks/flux/image"
 	"github.com/weaveworks/flux/policy"
 	"github.com/weaveworks/flux/registry/mock"
+	"github.com/weaveworks/flux/resource"
 )
 
 var (
@@ -122,6 +125,70 @@ func TestAvail(t *testing.T) {
 	if len(avail) > 0 {
 		t.Errorf("did not expect available images, but got %#v", avail)
 	}
+}
+
+func TestFetchImagesReposWithDigest(t *testing.T) {
+	registry := &mock.Registry{Images: infos}
+	updateable := []*WorkloadUpdate{}
+	logger := log.NewNopLogger()
+
+	ImageRepos, err := fetchUpdatableImageRepos(registry, updateable, logger)
+
+	assert.Nil(t, err)
+	assert.Equal(t, len(ImageRepos.imageRepos), 0)
+}
+
+func TestFetchImagesReposWithDigestFromContainers(t *testing.T) {
+	moonImage := image.Ref{
+		Name: image.Name{
+			Image: "moon",
+		},
+		Tag: "0.0.1",
+	}
+	wc := []resource.Container{
+		resource.Container{
+			Name: "my-container",
+			Image: image.Ref{
+				Name: image.Name{
+					Image: "earth",
+				},
+				Tag:    "1.0.0",
+				Digest: "aaa",
+			},
+		},
+		resource.Container{
+			Name:  "my-side-car",
+			Image: moonImage,
+		},
+		resource.Container{
+			Name: "my-exporter",
+			Image: image.Ref{
+				Name: image.Name{
+					Image: "satelite",
+				},
+				Digest: "bbb",
+			},
+		},
+	}
+
+	registry := &mock.Registry{Images: infos}
+	containers := workloadContainers{
+		&WorkloadUpdate{
+			Workload: cluster.Workload{
+				Containers: cluster.ContainersOrExcuse{
+					Excuse:     "oops",
+					Containers: wc,
+				},
+			},
+		},
+	}
+	logger := log.NewNopLogger()
+
+	ImageRepos, err := fetchUpdatableImageRepos(registry, containers, logger)
+
+	assert.Nil(t, err)
+	assert.Equal(t, 1, len(ImageRepos.imageRepos))
+	assert.NotNil(t, ImageRepos.imageRepos[moonImage.CanonicalName()])
 }
 
 func mustParseName(im string) image.Name {
