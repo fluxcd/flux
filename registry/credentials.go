@@ -74,28 +74,29 @@ func ParseCredentials(from string, b []byte) (Credentials, error) {
 			return Credentials{}, err
 		}
 
+		if host == "http://" || host == "https://" {
+			return Credentials{}, errors.New("Empty registry auth url")
+		}
+
 		// Some users were passing in credentials in the form of
 		// http://docker.io and http://docker.io/v1/, etc.
 		// So strip everything down to the host.
 		// Also, the registry might be local and on a different port.
 		// So we need to check for that because url.Parse won't parse the ip:port format very well.
 		u, err := url.Parse(host)
-		if err != nil {
-			return Credentials{}, err
-		}
-		if u.Host == "" && u.Path == "" && !strings.Contains(host, ":") || host == "http://" || host == "https://" {
-			return Credentials{}, errors.New("Empty registry auth url")
-		}
-		if u.Host == "" { // If there's no https:// prefix, it won't parse the host.
+
+		// if anything went wrong try to prepend https://
+		if err != nil || u.Host == "" {
 			u, err = url.Parse(fmt.Sprintf("https://%s/", host))
 			if err != nil {
 				return Credentials{}, err
 			}
-			// If the host is still empty, then there's probably a rogue /
-			if u.Host == "" {
-				return Credentials{}, errors.New("Invalid registry auth url. Must be a valid http address (e.g. https://gcr.io/v1/)")
-			}
 		}
+
+		if u.Host == "" { // If host is still empty the url must be broken.
+			return Credentials{}, errors.New("Invalid registry auth url. Must be a valid http address (e.g. https://gcr.io/v1/)")
+		}
+
 		host = u.Host
 
 		creds.registry = host
