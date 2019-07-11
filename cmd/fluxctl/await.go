@@ -16,7 +16,7 @@ var ErrTimeout = errors.New("timeout")
 
 // await polls for a job to complete, then for the resulting commit to
 // be applied
-func await(ctx context.Context, stdout, stderr io.Writer, client api.Server, jobID job.ID, apply bool, verbosity int, timeout int) error {
+func await(ctx context.Context, stdout, stderr io.Writer, client api.Server, jobID job.ID, apply bool, verbosity int, timeout time.Duration) error {
 	result, err := awaitJob(ctx, client, jobID, timeout)
 	if err != nil {
 		if err == ErrTimeout {
@@ -61,9 +61,9 @@ to run a sync interactively.`)
 }
 
 // await polls for a job to have been completed, with exponential backoff.
-func awaitJob(ctx context.Context, client api.Server, jobID job.ID, timeout int) (job.Result, error) {
+func awaitJob(ctx context.Context, client api.Server, jobID job.ID, timeout time.Duration) (job.Result, error) {
 	var result job.Result
-	err := backoff(100*time.Millisecond, 2, 50, time.Duration(timeout)*time.Second, func() (bool, error) {
+	err := backoff(100*time.Millisecond, 2, 50, timeout, func() (bool, error) {
 		j, err := client.JobStatus(ctx, jobID)
 		if err != nil {
 			return false, err
@@ -86,8 +86,8 @@ func awaitJob(ctx context.Context, client api.Server, jobID job.ID, timeout int)
 }
 
 // await polls for a commit to have been applied, with exponential backoff.
-func awaitSync(ctx context.Context, client api.Server, revision string, timeout int) error {
-	return backoff(1*time.Second, 2, 10, time.Duration(timeout)*time.Second, func() (bool, error) {
+func awaitSync(ctx context.Context, client api.Server, revision string, timeout time.Duration) error {
+	return backoff(1*time.Second, 2, 10, timeout, func() (bool, error) {
 		refs, err := client.SyncStatus(ctx, revision)
 		return err == nil && len(refs) == 0, err
 	})

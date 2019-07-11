@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -23,7 +24,7 @@ type rootOpts struct {
 	Namespace string
 	Labels    map[string]string
 	API       api.Server
-	Timeout   int
+	Timeout   time.Duration
 }
 
 func newRoot() *rootOpts {
@@ -77,9 +78,8 @@ func (opts *rootOpts) Command() *cobra.Command {
 		fmt.Sprintf("Base URL of the Flux API (defaults to %q if a token is provided); you can also set the environment variable %s", defaultURLGivenToken, envVariableURL))
 	cmd.PersistentFlags().StringVarP(&opts.Token, "token", "t", "",
 		fmt.Sprintf("Weave Cloud authentication token; you can also set the environment variable %s or %s", envVariableCloudToken, envVariableToken))
-	cmd.PersistentFlags().IntVar(&opts.Timeout, "timeout", 60,
-		fmt.Sprintf("Global command timeout, in seconds; you can also set the environment variable %s", envVariableTimeout))
-
+	cmd.PersistentFlags().DurationVar(&opts.Timeout, "timeout", 60*time.Second,
+		fmt.Sprintf("Global command timeout; you can also set the environment variable %s", envVariableTimeout))
 	cmd.AddCommand(
 		newVersionCommand(),
 		newImageList(opts).Command(),
