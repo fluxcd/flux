@@ -436,7 +436,7 @@ func (fhr *fluxHelmReleaseKind) getWorkloads(ctx context.Context, c *Cluster, na
 }
 
 func makeFluxHelmReleaseWorkload(fluxHelmRelease *fhr_v1alpha2.FluxHelmRelease) workload {
-	containers := createK8sHRContainers(fluxHelmRelease.Spec.Values)
+	containers := createK8sHRContainers(fluxHelmRelease.ObjectMeta.Annotations, fluxHelmRelease.Spec.Values)
 
 	podTemplate := apiv1.PodTemplateSpec{
 		ObjectMeta: fluxHelmRelease.ObjectMeta,
@@ -447,7 +447,7 @@ func makeFluxHelmReleaseWorkload(fluxHelmRelease *fhr_v1alpha2.FluxHelmRelease) 
 	}
 	// apiVersion & kind must be set, since TypeMeta is not populated
 	fluxHelmRelease.APIVersion = "helm.integrations.flux.weave.works/v1alpha2"
-	fluxHelmRelease.Kind = "HelmRelease"
+	fluxHelmRelease.Kind = "FluxHelmRelease"
 	return workload{
 		status:      fluxHelmRelease.Status.ReleaseStatus,
 		podTemplate: podTemplate,
@@ -458,9 +458,9 @@ func makeFluxHelmReleaseWorkload(fluxHelmRelease *fhr_v1alpha2.FluxHelmRelease) 
 // createK8sContainers creates a list of k8s containers by
 // interpreting the HelmRelease resource. The interpretation is
 // analogous to that in cluster/kubernetes/resource/fluxhelmrelease.go
-func createK8sHRContainers(values map[string]interface{}) []apiv1.Container {
+func createK8sHRContainers(annotations map[string]string, values map[string]interface{}) []apiv1.Container {
 	var containers []apiv1.Container
-	_ = kresource.FindHelmReleaseContainers(values, func(name string, image image.Ref, _ kresource.ImageSetter) error {
+	kresource.FindHelmReleaseContainers(annotations, values, func(name string, image image.Ref, _ kresource.ImageSetter) error {
 		containers = append(containers, apiv1.Container{
 			Name:  name,
 			Image: image.String(),
@@ -531,7 +531,7 @@ func (hr *helmReleaseKind) getWorkloads(ctx context.Context, c *Cluster, namespa
 }
 
 func makeHelmReleaseBetaWorkload(helmRelease *hr_v1beta1.HelmRelease) workload {
-	containers := createK8sHRContainers(helmRelease.Spec.Values)
+	containers := createK8sHRContainers(helmRelease.ObjectMeta.Annotations, helmRelease.Spec.Values)
 
 	podTemplate := apiv1.PodTemplateSpec{
 		ObjectMeta: helmRelease.ObjectMeta,
@@ -551,7 +551,7 @@ func makeHelmReleaseBetaWorkload(helmRelease *hr_v1beta1.HelmRelease) workload {
 }
 
 func makeHelmReleaseStableWorkload(helmRelease *hr_v1.HelmRelease) workload {
-	containers := createK8sHRContainers(helmRelease.Spec.Values)
+	containers := createK8sHRContainers(helmRelease.ObjectMeta.Annotations, helmRelease.Spec.Values)
 
 	podTemplate := apiv1.PodTemplateSpec{
 		ObjectMeta: helmRelease.ObjectMeta,
