@@ -40,6 +40,10 @@ func TestRemoteFactory_ParseHost(t *testing.T) {
 			imagePrefix: "localhost:5000",
 		},
 		{
+			host:        "192.168.99.100:5000",
+			imagePrefix: "192.168.99.100:5000",
+		},
+		{
 			host:        "https://192.168.99.100:5000/v2",
 			imagePrefix: "192.168.99.100:5000",
 		},
