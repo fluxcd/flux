@@ -184,7 +184,7 @@ kubectl create secret tls helm-client --cert=tls/flux-helm-operator.pem --key=./
 Deploy Flux with Helm;
 
 ```bash
-helm repo add weaveworks https://weaveworks.github.io/flux
+helm repo add fluxcd https://fluxcd.github.io/flux
 
 helm upgrade --install \
     --set helmOperator.create=true \
@@ -194,7 +194,7 @@ helm upgrade --install \
     --set helmOperator.tls.secretName=helm-client \
     --set helmOperator.tls.caContent="$(cat ./tls/ca.pem)" \
     flux \
-    weaveworks/flux
+    fluxcd/flux
 ```
 > **Note:**
 > - include --tls flags for `helm` as in the `helm ls` example, if talking to a tiller with TLS
