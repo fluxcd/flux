@@ -1,6 +1,0 @@
-resources:
-- ../deploy/flux-account.yaml
-- ../deploy/flux-deployment.yaml
-- ../deploy/flux-secret.yaml
-- ../deploy/memcache-dep.yaml
-- ../deploy/memcache-svc.yaml
