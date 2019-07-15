@@ -190,6 +190,9 @@ spec:
           - --registry-rps={{ .Values.registry.rps }}
           - --registry-burst={{ .Values.registry.burst }}
           - --registry-trace={{ .Values.registry.trace }}
+          {{- if .Values.registry.ecr.require }}
+          - --registry-require=ecr
+          {{- end }}
           {{- if .Values.registry.insecureHosts }}
           - --registry-insecure-host={{ .Values.registry.insecureHosts }}
           {{- end }}
