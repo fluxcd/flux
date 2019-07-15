@@ -47,7 +47,7 @@ You will have a fully working Flux installation deploying workloads to your clus
 Add the weaveworks repo:
 
 ```sh
-helm repo add weaveworks https://weaveworks.github.io/flux
+helm repo add fluxcd https://fluxcd.github.io/flux
 ```
 
 #### To install the chart with the release name `flux`
@@ -58,7 +58,7 @@ Replace `weaveworks/flux-get-started` with your own git repository and run helm 
 $ helm install --name flux \
 --set git.url=git@github.com:weaveworks/flux-get-started \
 --namespace flux \
-weaveworks/flux
+fluxcd/flux
 ```
 
 #### To connect Flux to a Weave Cloud instance:
@@ -68,7 +68,7 @@ helm install --name flux \
 --set git.url=git@github.com:weaveworks/flux-get-started \
 --set token=YOUR_WEAVE_CLOUD_SERVICE_TOKEN \
 --namespace flux \
-weaveworks/flux
+fluxcd/flux
 ```
 
 #### To install Flux with the Helm operator:
@@ -87,7 +87,7 @@ $ helm install --name flux \
 --set helmOperator.create=true \
 --set helmOperator.createCRD=false \
 --namespace flux \
-weaveworks/flux
+fluxcd/flux
 ```
 
 #### To install Flux with a private git host:

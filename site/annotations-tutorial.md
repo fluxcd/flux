@@ -74,13 +74,13 @@ Now you can take care of the actual installation. First add the Flux
 repository of Weaveworks:
 
 ```sh
-helm repo add weaveworks https://weaveworks.github.io/flux
+helm repo add fluxcd https://fluxcd.github.io/flux
 ```
 
 Apply the Helm Release CRD:
 
 ```sh
-kubectl apply -f https://raw.githubusercontent.com/weaveworks/flux/master/deploy-helm/flux-helm-release-crd.yaml
+kubectl apply -f https://raw.githubusercontent.com/fluxcd/flux/master/deploy-helm/flux-helm-release-crd.yaml
 ```
 
 Install Flux and its Helm Operator by specifying your fork URL. Just
@@ -93,7 +93,7 @@ helm upgrade -i Flux \
 --set helmOperator.createCRD=false \
 --set git.url=git@github.com:YOURUSER/flux-get-started \
 --namespace default \
-weaveworks/flux
+fluxcd/flux
 ```
 
 > **Note:** In this tutorial we keep things simple, so we deploy Flux into
