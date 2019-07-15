@@ -32,7 +32,7 @@ func (opts *workloadAutomateOpts) Command() *cobra.Command {
 	}
 	AddOutputFlags(cmd, &opts.outputOpts)
 	AddCauseFlags(cmd, &opts.cause)
-	cmd.Flags().StringVarP(&opts.namespace, "namespace", "n", "default", "Workload namespace")
+	cmd.Flags().StringVarP(&opts.namespace, "namespace", "n", getKubeConfigContextNamespace("default"), "Workload namespace")
 	cmd.Flags().StringVarP(&opts.workload, "workload", "w", "", "Workload to automate")
 
 	// Deprecated
