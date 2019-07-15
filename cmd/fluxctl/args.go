@@ -7,6 +7,8 @@ import (
 	"os/exec"
 	"strings"
 
+	"k8s.io/client-go/tools/clientcmd"
+
 	"github.com/spf13/cobra"
 
 	"github.com/weaveworks/flux/update"
@@ -48,4 +50,21 @@ func getUserGitConfigValue(arg string) string {
 	}
 	res := out.String()
 	return strings.Trim(res, "\x00")
+}
+
+var getKubeConfigContextNamespace = func(defaultNamespace string) string {
+	config, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
+		clientcmd.NewDefaultClientConfigLoadingRules(),
+		&clientcmd.ConfigOverrides{},
+	).RawConfig()
+	if err != nil {
+		return defaultNamespace
+	}
+
+	cc := config.CurrentContext
+	if c, ok := config.Contexts[cc]; ok && c.Namespace != "" {
+		return c.Namespace
+	}
+
+	return defaultNamespace
 }

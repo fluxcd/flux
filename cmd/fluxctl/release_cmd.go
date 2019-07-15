@@ -53,7 +53,7 @@ func (opts *workloadReleaseOpts) Command() *cobra.Command {
 
 	AddOutputFlags(cmd, &opts.outputOpts)
 	AddCauseFlags(cmd, &opts.cause)
-	cmd.Flags().StringVarP(&opts.namespace, "namespace", "n", "default", "Workload namespace")
+	cmd.Flags().StringVarP(&opts.namespace, "namespace", "n", getKubeConfigContextNamespace("default"), "Workload namespace")
 	// Note: we cannot define a shorthand for --workload since it clashes with the shorthand of --watch
 	cmd.Flags().StringSliceVarP(&opts.workloads, "workload", "", []string{}, "List of workloads to release <namespace>:<kind>/<name>")
 	cmd.Flags().BoolVar(&opts.allWorkloads, "all", false, "Release all workloads")

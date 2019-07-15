@@ -30,7 +30,7 @@ func (opts *workloadListOpts) Command() *cobra.Command {
 		Example: makeExample("fluxctl list-workloads"),
 		RunE:    opts.RunE,
 	}
-	cmd.Flags().StringVarP(&opts.namespace, "namespace", "n", "default", "Confine query to namespace")
+	cmd.Flags().StringVarP(&opts.namespace, "namespace", "n", getKubeConfigContextNamespace("default"), "Confine query to namespace")
 	cmd.Flags().BoolVarP(&opts.allNamespaces, "all-namespaces", "a", false, "Query across all namespaces")
 	return cmd
 }

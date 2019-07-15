@@ -32,7 +32,7 @@ func (opts *workloadLockOpts) Command() *cobra.Command {
 	}
 	AddOutputFlags(cmd, &opts.outputOpts)
 	AddCauseFlags(cmd, &opts.cause)
-	cmd.Flags().StringVarP(&opts.namespace, "namespace", "n", "default", "Controller namespace")
+	cmd.Flags().StringVarP(&opts.namespace, "namespace", "n", getKubeConfigContextNamespace("default"), "Controller namespace")
 	cmd.Flags().StringVarP(&opts.workload, "workload", "w", "", "Workload to lock")
 
 	// Deprecated
