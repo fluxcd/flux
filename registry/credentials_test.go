@@ -4,7 +4,6 @@ import (
 	"encoding/base64"
 	"fmt"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -88,19 +87,20 @@ func TestRemoteFactory_ParseHost(t *testing.T) {
 			error: true,
 		},
 	} {
-		stringCreds := fmt.Sprintf(tmpl, v.host, okCreds)
-		creds, err := ParseCredentials("test", []byte(stringCreds))
-		time.Sleep(100 * time.Millisecond)
-		if (err != nil) != v.error {
-			t.Fatalf("For test %q, expected error = %v but got %v", v.host, v.error, err != nil)
-		}
-		if v.error {
-			continue
-		}
-		actualUser := creds.credsFor(v.imagePrefix).username
-		assert.Equal(t, user, actualUser, "For test %q, expected %q but got %v", v.host, user, actualUser)
-		actualPass := creds.credsFor(v.imagePrefix).password
-		assert.Equal(t, pass, actualPass, "For test %q, expected %q but got %v", v.host, user, actualPass)
+		t.Run(v.host, func(t *testing.T) {
+			stringCreds := fmt.Sprintf(tmpl, v.host, okCreds)
+			creds, err := ParseCredentials("test", []byte(stringCreds))
+			if (err != nil) != v.error {
+				t.Fatalf("For test %q, expected error = %v but got %v", v.host, v.error, err != nil)
+			}
+			if v.error {
+				return
+			}
+			actualUser := creds.credsFor(v.imagePrefix).username
+			assert.Equal(t, user, actualUser, "For test %q, expected %q but got %v", v.host, user, actualUser)
+			actualPass := creds.credsFor(v.imagePrefix).password
+			assert.Equal(t, pass, actualPass, "For test %q, expected %q but got %v", v.host, user, actualPass)
+		})
 	}
 }
 
