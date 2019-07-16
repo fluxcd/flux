@@ -42,7 +42,7 @@ The Flux developers use a mailing list to discuss development as well.
 Simply subscribe to [flux-dev on Google
 Groups](https://groups.google.com/forum/#!forum/flux-dev) to join the
 conversation (this will also add an invitation to your Google calendar
-for our [Flux meeting](https://github.com/weaveworks/flux/wiki/Meeting)).
+for our [Flux meeting](https://docs.google.com/document/d/1l_M0om0qUEN_NNiGgpqJ2tvsF2iioHkaARDeh6b70B0/edit#)).
 
 ## Getting Started
 
