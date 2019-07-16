@@ -193,9 +193,3 @@ create those as resources.
 
 If that’s the case, you will need to remove the manifests from git
 before running Flux v1.
-
-### Something else went wrong
-
-You can reach Weaveworks developers in our community Slack --
-https://weaveworks.github.io/community-slack/ -- where we will be able
-to help.
