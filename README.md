@@ -129,10 +129,12 @@ a few popular ones you might want to check out:
 We welcome all kinds of contributions to Flux, be it code, issues you found,
 documentation, external tools, help and support or anything else really.
 
+The Flux project adheres to the [CNCF Code of
+Conduct](https://github.com/cncf/foundation/blob/master/code-of-conduct.md).
+
 Instances of abusive, harassing, or otherwise unacceptable behavior
-may be reported by contacting a *Flux* project maintainer, or Alexis
-Richardson `<alexis@weave.works>`. Please refer to our [code of
-conduct](CODE_OF_CONDUCT.md) as well.
+may be reported by contacting a *Flux* project maintainer, or the CNCF
+mediator, Mishi Choudhary <mishi@linux.com>.
 
 To familiarise yourself with the project and how things work, you might
 be interested in the following:
