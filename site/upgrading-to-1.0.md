@@ -266,11 +266,4 @@ and if there are manifests for the old Flux still in git, it will
 create those as resources.
 
 If that’s the case, you will need to remove the manifests from git
-before running Flux v1. You can download manifests from Weave Cloud,
-or adapt those given in the repo, if you want to check them back in.
-
-### Something else went wrong
-
-You can reach Weaveworks developers in our community Slack --
-https://weaveworks.github.io/community-slack/ -- where we will be able
-to help.
+before running Flux v1.
