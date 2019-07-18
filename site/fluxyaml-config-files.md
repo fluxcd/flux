@@ -144,8 +144,8 @@ in your own Flux-based image or, if the tools are popular enough, Flux maintaine
 (please create an issue). In the future (once [Ephemeral containers](https://github.com/kubernetes/kubernetes/pull/59416)
 are available), you will be able to specify an container image for each command.
 
-The working directory (also known as CWD) of the `command`s executed from a `.fluxctl.yaml` file will be set to the
-target path (`--git-path` entry) used when finding that `.fluxctl.yaml` file.
+The working directory (also known as CWD) of the `command`s executed from a `.flux.yaml` file will be set to the
+target path (`--git-path` entry) used when finding that `.flux.yaml` file.
 
 For example, when using flux with `--git-path=staging` on a git repository with this structure:
 
