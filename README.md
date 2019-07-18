@@ -80,6 +80,7 @@ Its major features are:
 - [Troii](https://troii.com/)
 - [Under Armour](https://www.underarmour.com)
 - [VSHN](https://vshn.ch)
+- [Walmart Chile](https://www.walmartchile.cl)
 - [Weave Cloud](https://cloud.weave.works)
 
 If you too are using Flux in production; please submit a PR to add your organization to the list!
