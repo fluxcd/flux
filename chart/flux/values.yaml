@@ -35,7 +35,15 @@ helmOperator:
   chartsSyncInterval: "3m"
   # (Experimental) amount of workers processing releases
   workers:
+
   # Tiller settings
+
+  # If a hostname or IP is given here, that will be combined with the
+  # tillerPort and used for connecting to Tiller. Otherwise, the
+  # cluster-ip of the `tiller-deploy` service in .tillerNamespace is
+  # looked up.
+  tillerHost:
+  tillerPort: 44134
   tillerNamespace: kube-system
   tls:
     secretName: "helm-client-certs"

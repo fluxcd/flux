@@ -134,7 +134,12 @@ spec:
         {{- else if .Values.helmOperator.allowNamespace }}
         - --allow-namespace={{ .Values.helmOperator.allowNamespace }}
         {{- end }}
+        {{- if .Values.helmOperator.tillerHost }}
+        - --tiller-ip={{ .Values.helmOperator.tillerHost }}
+        - --tiller-port={{ .Values.helmOperator.tillerPort }}
+        {{- else }}
         - --tiller-namespace={{ .Values.helmOperator.tillerNamespace }}
+        {{- end }}
         {{- if .Values.helmOperator.tls.enable }}
         - --tiller-tls-enable={{ .Values.helmOperator.tls.enable }}
         - --tiller-tls-key-path=/etc/fluxd/helm/{{ .Values.helmOperator.tls.keyFile }}
