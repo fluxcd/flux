@@ -22,17 +22,100 @@ const (
 	//
 	// The name refers to the source of the image value.
 	ReleaseContainerName  = "chart-image"
+
+	// ImageBasePath is the default base path for image path mappings
+	// in a HelmRelease resource.
+	ImageBasePath = "spec.values."
+	// ImageRegistryPrefix is the annotation key prefix for image
+	// registry path mappings.
 	ImageRegistryPrefix   = "registry.flux.weave.works/"
+	// ImageRepositoryPrefix is the annotation key prefix for image
+	// repository path mappings.
 	ImageRepositoryPrefix = "repository.flux.weave.works/"
+	// ImageRepositoryPrefix is the annotation key prefix for image
+	// tag path mappings.
 	ImageTagPrefix        = "tag.flux.weave.works/"
 )
 
-// ContainerImageMap holds the yaml dot notation paths to a
+// ContainerImageMap holds the YAML dot notation paths to a
 // container image.
 type ContainerImageMap struct {
-	RegistryPath string
-	ImagePath    string
-	TagPath      string
+	BasePath   string
+	Registry   string
+	Repository string
+	Tag        string
+}
+
+// RepositoryOnly returns if only the repository is defined.
+func (c ContainerImageMap) RepositoryOnly() bool {
+	return c.Repository != "" && c.Registry == "" && c.Tag == ""
+}
+
+// RegistryRepository returns if the repository and tag are
+// defined, but the registry is not.
+func (c ContainerImageMap) RepositoryTag() bool {
+	return c.Repository != "" && c.Tag != "" && c.Registry == ""
+}
+
+// RegistryRepository returns if the registry and repository are
+// defined, but the tag is not.
+func (c ContainerImageMap) RegistryRepository() bool {
+	return c.Registry != "" && c.Repository != "" && c.Tag == ""
+}
+
+// AllDefined returns if all image elements are defined.
+func (c ContainerImageMap) AllDefined() bool {
+	return c.Registry != "" && c.Repository != "" && c.Tag != ""
+}
+
+// GetRegistry returns the full registry path (with base path).
+func (c ContainerImageMap) GetRegistry() string {
+	if c.Registry == "" {
+		return c.Registry
+	}
+	return fmt.Sprintf("%s%s", c.BasePath, c.Registry)
+}
+
+// GetRepository returns the full repository path (with base path).
+func (c ContainerImageMap) GetRepository() string {
+	if c.Repository == "" {
+		return c.Repository
+	}
+	return fmt.Sprintf("%s%s", c.BasePath, c.Repository)
+}
+
+// GetTag returns the full tag path (with base path).
+func (c ContainerImageMap) GetTag() string {
+	if c.Tag == "" {
+		return c.Tag
+	}
+	return fmt.Sprintf("%s%s", c.BasePath, c.Tag)
+}
+
+// MapImageRef maps the given imageRef to the dot notation paths
+// ContainerImageMap holds. It needs at least an Repository to be able
+// to compose the map, and takes the absence of the registry and/or tag
+// paths into account to ensure all image elements (registry,
+// repository, tag) are present in the returned map.
+func (c ContainerImageMap) MapImageRef(image image.Ref) (map[string]string, bool) {
+	m := make(map[string]string)
+	switch {
+	case c.AllDefined():
+		m[c.GetRegistry()] = image.Domain
+		m[c.GetRepository()] = image.Image
+		m[c.GetTag()] = image.Tag
+	case c.RegistryRepository():
+		m[c.GetRegistry()] = image.Domain
+		m[c.GetRepository()] = image.Image + ":" + image.Tag
+	case c.RepositoryTag():
+		m[c.GetRepository()] = image.Name.String()
+		m[c.GetTag()] = image.Tag
+	case c.RepositoryOnly():
+		m[c.GetRepository()] = image.String()
+	default:
+		return m, false
+	}
+	return m, true
 }
 
 // HelmRelease echoes the generated type for the custom resource
@@ -271,71 +354,80 @@ func containerImageMappingsFromAnnotations(annotations map[string]string) map[st
 		case strings.HasPrefix(k, ImageRegistryPrefix):
 			container := strings.TrimPrefix(k, ImageRegistryPrefix)
 			i, _ := cim[container]
-			i.RegistryPath = v
+			i.Registry = v
 			cim[container] = i
 		case strings.HasPrefix(k, ImageRepositoryPrefix):
 			container := strings.TrimPrefix(k, ImageRepositoryPrefix)
 			i, _ := cim[container]
-			i.ImagePath = v
+			i.Repository = v
 			cim[container] = i
 		case strings.HasPrefix(k, ImageTagPrefix):
 			container := strings.TrimPrefix(k, ImageTagPrefix)
 			i, _ := cim[container]
-			i.TagPath = v
+			i.Tag = v
 			cim[container] = i
 		}
+	}
+	for k, _ := range cim {
+		i, _ := cim[k]
+		i.BasePath = ImageBasePath
+		cim[k] = i
 	}
 	return cim
 }
 
+// interpretMappedContainerImage attempt to resolve the paths in the
+// `ContainerImageMap` from the given values and tries to parse the
+// resolved values into a valid `image.Ref`. It returns the
+// `image.Ref`, an `ImageSetter` that is able to modify the image in
+// the supplied values map, and a boolean that reflects if the
+// interpretation was successful.
 func interpretMappedContainerImage(values map[string]interface{}, cim ContainerImageMap) (image.Ref, ImageSetter, bool) {
 	v, err := gabs.Consume(values)
 	if err != nil {
 		return image.Ref{}, nil, false
 	}
 
-	imageValue := v.Path(cim.ImagePath).Data()
+	imageValue := v.Path(cim.Repository).Data()
 	if img, ok := imageValue.(string); ok {
-		if cim.RegistryPath == "" && cim.TagPath == "" {
+		switch {
+		case cim.RepositoryOnly():
 			if imgRef, err := image.ParseRef(img); err == nil {
 				return imgRef, func(ref image.Ref) {
-					v.SetP(ref.String(), cim.ImagePath)
+					v.SetP(ref.String(), cim.Repository)
 				}, true
 			}
-		}
-
-		switch {
-		case cim.RegistryPath != "" && cim.TagPath != "":
-			registryValue := v.Path(cim.RegistryPath).Data()
+		case cim.AllDefined():
+			registryValue := v.Path(cim.Registry).Data()
 			if reg, ok := registryValue.(string); ok {
-				tagValue := v.Path(cim.TagPath).Data()
+				tagValue := v.Path(cim.Tag).Data()
 				if tag, ok := tagValue.(string); ok {
 					if imgRef, err := image.ParseRef(reg + "/" + img + ":" + tag); err == nil {
 						return imgRef, func(ref image.Ref) {
-							v.SetP(ref.Domain, cim.RegistryPath)
-							v.SetP(ref.Image, cim.ImagePath)
-							v.SetP(ref.Tag, cim.TagPath)
+							v.SetP(ref.Domain, cim.Registry)
+							v.SetP(ref.Image, cim.Repository)
+							v.SetP(ref.Tag, cim.Tag)
 						}, true
 					}
 				}
 			}
-		case cim.RegistryPath != "":
-			registryValue := v.Path(cim.RegistryPath).Data()
+		case cim.RegistryRepository():
+			registryValue := v.Path(cim.Registry).Data()
 			if reg, ok := registryValue.(string); ok {
 				if imgRef, err := image.ParseRef(reg + "/" + img); err == nil {
 					return imgRef, func(ref image.Ref) {
-						v.SetP(ref.Domain, cim.RegistryPath)
-						v.SetP(ref.Name.Image+":"+ref.Tag, cim.ImagePath)
+						v.SetP(ref.Domain, cim.Registry)
+						v.SetP(ref.Name.Image+":"+ref.Tag, cim.Repository)
 					}, true
 				}
 			}
-		case cim.TagPath != "":
-			tagValue := v.Path(cim.TagPath).Data()
+		case cim.RepositoryTag():
+			tagValue := v.Path(cim.Tag).Data()
 			if tag, ok := tagValue.(string); ok {
 				if imgRef, err := image.ParseRef(img + ":" + tag); err == nil {
 					return imgRef, func(ref image.Ref) {
-						v.SetP(ref.Name.String(), cim.ImagePath)
-						v.SetP(ref.Tag, cim.TagPath)
+						v.SetP(ref.Name.String(), cim.Repository)
+						v.SetP(ref.Tag, cim.Tag)
 					}, true
 				}
 			}
@@ -349,17 +441,14 @@ func interpretMappedContainerImage(values map[string]interface{}, cim ContainerI
 // HelmRelease.
 func (hr HelmRelease) Containers() []resource.Container {
 	var containers []resource.Container
-
-	containerSetter := func(container string, image image.Ref, _ ImageSetter) error {
+	addContainer := func(container string, image image.Ref, _ ImageSetter) error {
 		containers = append(containers, resource.Container{
 			Name:  container,
 			Image: image,
 		})
 		return nil
 	}
-
-	FindHelmReleaseContainers(hr.Meta.Annotations, hr.Spec.Values, containerSetter)
-
+	FindHelmReleaseContainers(hr.Meta.Annotations, hr.Spec.Values, addContainer)
 	return containers
 }
 
@@ -381,4 +470,17 @@ func (hr HelmRelease) SetContainerImage(container string, ref image.Ref) error {
 		return fmt.Errorf("did not find container %s in HelmRelease", container)
 	}
 	return nil
+}
+
+// GetContainerImageMap returns the ContainerImageMap for a container,
+// or an error if we were unable to interpret the mapping, or no mapping
+// was found.
+func (hr HelmRelease) GetContainerImageMap(container string) (ContainerImageMap, error) {
+	cim := containerImageMappingsFromAnnotations(hr.Meta.Annotations)
+	if c, ok := cim[container]; ok {
+		if _, _, ok = interpretMappedContainerImage(hr.Spec.Values, c); ok {
+			return c, nil
+		}
+	}
+	return ContainerImageMap{}, fmt.Errorf("did not find image map for container %s in HelmRelease", container)
 }
