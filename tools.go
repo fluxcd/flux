@@ -7,4 +7,5 @@ package flux
 
 import (
 	_ "k8s.io/code-generator"
+	_ "github.com/jteeuwen/go-bindata"
 )
