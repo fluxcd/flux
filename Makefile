@@ -18,11 +18,7 @@ endif
 CURRENT_OS_ARCH=$(shell echo `go env GOOS`-`go env GOARCH`)
 GOBIN?=$(shell echo `go env GOPATH`/bin)
 
-# NB because this outputs absolute file names, you have to be careful
-# if you're testing out the Makefile with `-W` (pretend a file is
-# new); use the full path to the pretend-new file, e.g.,
-#  `make -W $PWD/registry/registry.go`
-godeps=$(shell go list -deps -f '{{if not .Standard}}{{ $$dep := . }}{{range .GoFiles}}{{$$dep.Dir}}/{{.}} {{end}}{{end}}' $(1))
+godeps=$(shell go list -deps -f '{{if not .Standard}}{{ $$dep := . }}{{range .GoFiles}}{{$$dep.Dir}}/{{.}} {{end}}{{end}}' $(1) | sed "s%${PWD}/%%g")
 
 FLUXD_DEPS:=$(call godeps,./cmd/fluxd/...)
 FLUXCTL_DEPS:=$(call godeps,./cmd/fluxctl/...)
