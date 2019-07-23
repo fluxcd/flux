@@ -196,7 +196,7 @@ See also
    by default.
 
 The latter default is quite conservative, so you can try lowering it
-(it's set with the flag `--registry-poll-interval`).
+(it's set with the flag `--automation-interval`).
 
 Please don't _increase_ the rate limiting numbers (`--registry-rps`
 and `--registry-burst`) -- it's possible to get blacklisted by image
