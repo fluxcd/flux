@@ -14,7 +14,7 @@ func main() {
 	err := vfsgen.Generate(fs, vfsgen.Options{
 		Filename:     "generated_templates.gogen.go",
 		PackageName:  "install",
-		VariableName: "Templates",
+		VariableName: "templates",
 	})
 	if err != nil {
 		log.Fatalln(err)

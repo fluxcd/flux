@@ -14,8 +14,8 @@ import (
 	"time"
 )
 
-// Templates statically implements the virtual filesystem provided to vfsgen.
-var Templates = func() http.FileSystem {
+// templates statically implements the virtual filesystem provided to vfsgen.
+var templates = func() http.FileSystem {
 	fs := vfsgen۰FS{
 		"/": &vfsgen۰DirInfo{
 			name:    "/",
