@@ -6,6 +6,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"strings"
 	"text/template"
 
 	"github.com/shurcooL/httpfs/vfsutil"
@@ -22,7 +23,7 @@ type TemplateParameters struct {
 	AdditionalFluxArgs []string
 }
 
-func FillInInstallTemplates(opts TemplateParameters) (io.Reader, error) {
+func FillInInstallTemplates(params TemplateParameters) (io.Reader, error) {
 	result := bytes.NewBuffer(nil)
 	err := vfsutil.WalkFiles(templates, "/", func(path string, info os.FileInfo, rs io.ReadSeeker, err error) error {
 		if err != nil {
@@ -31,15 +32,17 @@ func FillInInstallTemplates(opts TemplateParameters) (io.Reader, error) {
 		if info.IsDir() {
 			return nil
 		}
-		templateBytes, err := ioutil.ReadAll(rs)
+		manifestTemplateBytes, err := ioutil.ReadAll(rs)
 		if err != nil {
 			return fmt.Errorf("cannot read embedded file %q: %s", info.Name(), err)
 		}
-		template, err := template.New(info.Name()).Parse(string(templateBytes))
+		manifestTemplate, err := template.New(info.Name()).
+			Funcs(template.FuncMap{"StringsJoin": strings.Join}).
+			Parse(string(manifestTemplateBytes))
 		if err != nil {
 			return fmt.Errorf("cannot parse embedded file %q: %s", info.Name(), err)
 		}
-		if err := template.Execute(result, opts); err != nil {
+		if err := manifestTemplate.Execute(result, params); err != nil {
 			return fmt.Errorf("cannot execute template for embedded file %q: %s", info.Name(), err)
 		}
 		return nil

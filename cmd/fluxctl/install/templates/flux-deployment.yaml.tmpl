@@ -3,6 +3,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: flux
+  namespace: {{ .Namespace }}
 spec:
   replicas: 1
   selector:
@@ -117,13 +118,13 @@ spec:
         # mounted above, for K8s >= 1.10
         - --ssh-keygen-dir=/var/fluxd/keygen
 
-        # Replace or remove the following URL.
-        - --git-url=git@github.com:weaveworks/flux-get-started
-        - --git-branch=master
-        # include this if you want to restrict the manifests considered by flux
-        # to those under the following relative paths in the git repository
-        # - --git-path=subdir1,subdir2
-
+        - --git-url={{ .GitURL }}
+        - --git-branch={{ .GitBranch }}
+        - --git-path={{ StringsJoin .GitPaths "," }}
+        - --git-label={{ .GitLabel }}
+        - --git-user={{ .GitUser }}
+        - --git-email={{ .GitEmail }}
+        
         # Include these two to enable git commit signing
         # - --git-gpg-key-import=/root/gpg-import
         # - --git-signing-key=<key id>
@@ -139,6 +140,9 @@ spec:
         # Serve /metrics endpoint at different port;
         # make sure to set prometheus' annotation to scrape the port value.
         - --listen-metrics=:3031
+
+{{range .AdditionalFluxArgs }}        - {{ . }}
+{{end}}
 
       # Optional DNS settings, configuring the ndots option may resolve
       # nslookup issues on some Kubernetes setups.
