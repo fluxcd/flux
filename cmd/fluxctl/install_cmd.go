@@ -10,7 +10,7 @@ import (
 	"github.com/weaveworks/flux/git"
 )
 
-type setupOpts struct {
+type installOpts struct {
 	gitURL             string
 	gitBranch          string
 	gitFluxPath        string
@@ -21,13 +21,13 @@ type setupOpts struct {
 	amend              bool
 }
 
-func newSetup() *setupOpts {
-	return &setupOpts{}
+func newInstall() *installOpts {
+	return &installOpts{}
 }
 
-func (opts *setupOpts) Command() *cobra.Command {
+func (opts *installOpts) Command() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "setup",
+		Use:   "install",
 		Short: "Bootstrap Flux, installing it in the cluster and initializing its manifests in the Git repository",
 		RunE:  opts.RunE,
 	}
@@ -50,7 +50,7 @@ func (opts *setupOpts) Command() *cobra.Command {
 	return cmd
 }
 
-func (opts *setupOpts) RunE(cmd *cobra.Command, args []string) error {
+func (opts *installOpts) RunE(cmd *cobra.Command, args []string) error {
 	//0. Read and patch embedded deploy/* manifests with what was passed to ops
 
 	// TODO. BTW, it's probably easier to embed chart/flux/* and use `helm template` as a library instead

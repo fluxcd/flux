@@ -89,7 +89,7 @@ func (opts *rootOpts) Command() *cobra.Command {
 		newSave(opts).Command(),
 		newIdentity(opts).Command(),
 		newSync(opts).Command(),
-		newSetup().Command(),
+		newInstall().Command(),
 	)
 
 	return cmd
@@ -100,7 +100,7 @@ func (opts *rootOpts) PersistentPreRunE(cmd *cobra.Command, _ []string) error {
 	switch cmd.Use {
 	case "version":
 		fallthrough
-	case "setup":
+	case "install":
 		return nil
 	}
 
