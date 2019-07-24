@@ -488,9 +488,9 @@ func fhrResourceID(fhr flux_v1beta1.HelmRelease) resource.ID {
 	return resource.MakeID(fhr.Namespace, "HelmRelease", fhr.Name)
 }
 
-// Merges source and destination `chartutils.Values`, preferring values from the source Values
+// Merges source and destination map, preferring values from the source Values
 // This is slightly adapted from https://github.com/helm/helm/blob/2332b480c9cb70a0d8a85247992d6155fbe82416/cmd/helm/install.go#L359
-func mergeValues(dest, src chartutil.Values) chartutil.Values {
+func mergeValues(dest, src map[string]interface{}) map[string]interface{} {
 	for k, v := range src {
 		// If the key doesn't exist already, then just set the key to that value
 		if _, exists := dest[k]; !exists {
