@@ -120,10 +120,10 @@ $(GOBIN)/helm-operator: $(HELM_OPERATOR_DEPS)
 integration-test: all
 	test/bin/test-flux
 
-cmd/fluxctl/install-assets/bindata.go: cmd/fluxctl/install-assets/*.tmpl
-	go run github.com/jteeuwen/go-bindata/go-bindata -mode 0600 -modtime 1 -pkg install-assets -o $@ $^
+cmd/fluxctl/install/generated_templates.gogen.go: cmd/fluxctl/install/templates/*
+	cd cmd/fluxctl/install && go run generate.go
 
-check-generated: cmd/fluxctl/install-assets/bindata.go
+check-generated: cmd/fluxctl/install/generated_templates.gogen.go
 	./bin/helm/update_codegen.sh
-	git diff --exit-code -- integrations/apis intergrations/client cmd/fluxctl/deploy-bindata.go
+	git diff --exit-code -- integrations/apis intergrations/client cmd/fluxctl/install/generated_templates.gogen.go
 

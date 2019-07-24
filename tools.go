@@ -6,6 +6,6 @@
 package flux
 
 import (
-	_ "github.com/jteeuwen/go-bindata"
+	_ "github.com/shurcooL/vfsgen"
 	_ "k8s.io/code-generator"
 )
