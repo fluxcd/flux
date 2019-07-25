@@ -23,8 +23,8 @@ type TemplateParameters struct {
 	AdditionalFluxArgs []string
 }
 
-func FillInInstallTemplates(params TemplateParameters) (io.Reader, error) {
-	result := bytes.NewBuffer(nil)
+func FillInInstallTemplates(params TemplateParameters) (map[string][]byte, error) {
+	result := map[string][]byte{}
 	err := vfsutil.WalkFiles(templates, "/", func(path string, info os.FileInfo, rs io.ReadSeeker, err error) error {
 		if err != nil {
 			return fmt.Errorf("cannot walk embedded files: %s", err)
@@ -42,9 +42,11 @@ func FillInInstallTemplates(params TemplateParameters) (io.Reader, error) {
 		if err != nil {
 			return fmt.Errorf("cannot parse embedded file %q: %s", info.Name(), err)
 		}
-		if err := manifestTemplate.Execute(result, params); err != nil {
+		out := bytes.NewBuffer(nil)
+		if err := manifestTemplate.Execute(out, params); err != nil {
 			return fmt.Errorf("cannot execute template for embedded file %q: %s", info.Name(), err)
 		}
+		result[strings.TrimSuffix(info.Name(), ".tmpl")] = out.Bytes()
 		return nil
 	})
 	if err != nil {

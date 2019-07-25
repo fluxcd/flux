@@ -4,8 +4,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: memcached{{ if .Namespace }}
-  namespace: {{ .Namespace }}{{ end }}
+  name: memcached
 spec:
   replicas: 1
   selector:

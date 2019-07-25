@@ -1,15 +1,34 @@
 package install
 
 import (
-	"io/ioutil"
 	"testing"
 
 	"github.com/instrumenta/kubeval/kubeval"
 	"github.com/stretchr/testify/assert"
 )
 
-func TestFillInInstallTemplates(t *testing.T) {
-	params := TemplateParameters{
+func testFillInInstallTemplates(t *testing.T, params TemplateParameters) {
+	manifests, err := FillInInstallTemplates(params)
+	assert.NoError(t, err)
+	assert.Len(t, manifests, 5)
+	for fileName, contents := range manifests {
+		validationResults, err := kubeval.Validate(contents, fileName)
+		assert.NoError(t, err)
+		assert.Len(t, validationResults, 1)
+		for _, result := range validationResults {
+			if len(result.Errors) > 0 {
+				t.Errorf("found problems with manifest %s (Kind %s):\ncontent:\n%s\nerrors: %s",
+					fileName,
+					result.Kind,
+					string(contents),
+					result.Errors)
+			}
+		}
+	}
+}
+
+func TestFillInInstallTemplatesAllParameters(t *testing.T) {
+	testFillInInstallTemplates(t, TemplateParameters{
 		GitURL:             "git@github.com:fluxcd/flux-get-started",
 		GitBranch:          "branch",
 		GitPaths:           []string{"dir1", "dir2"},
@@ -18,17 +37,15 @@ func TestFillInInstallTemplates(t *testing.T) {
 		GitEmail:           "this.is@anemail.com",
 		Namespace:          "flux",
 		AdditionalFluxArgs: []string{"arg1=foo", "arg2=bar"},
-	}
-	reader, err := FillInInstallTemplates(params)
-	assert.NoError(t, err)
-	output, err := ioutil.ReadAll(reader)
-	assert.NoError(t, err)
-	validationResults, err := kubeval.Validate(output, "output")
-	assert.NoError(t, err)
-	assert.Len(t, validationResults, 7)
-	for _, result := range validationResults {
-		if len(result.Errors) > 0 {
-			t.Errorf("found problems with resource resource %s: %s", result.Kind, result.Errors)
-		}
-	}
+	})
+
+}
+
+func TestFillInInstallTemplatesMissingValues(t *testing.T) {
+	testFillInInstallTemplates(t, TemplateParameters{
+		GitURL:    "git@github.com:fluxcd/flux-get-started",
+		GitBranch: "branch",
+		GitPaths:  []string{},
+		GitLabel:  "label",
+	})
 }

@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"io"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -28,7 +27,7 @@ fluxctl install --git-url 'git@github.com:<your username>/flux-get-started' | ku
 		"URL of the Git repository to be used by Flux, e.g. git@github.com:<your username>/flux-get-started")
 	cmd.Flags().StringVarP(&opts.GitBranch, "git-branch", "", "master",
 		"Git branch to be used by Flux")
-	cmd.Flags().StringSliceVarP(&opts.GitPaths, "git-paths", "", []string{"/"},
+	cmd.Flags().StringSliceVarP(&opts.GitPaths, "git-paths", "", []string{},
 		"Relative paths within the Git repo for Flux to locate Kubernetes manifests")
 	cmd.Flags().StringVarP(&opts.GitLabel, "git-label", "", "flux",
 		"Git label to keep track of Flux's sync progress; overrides both --git-sync-tag and --git-notes-ref")
@@ -47,12 +46,16 @@ func (opts *installOpts) RunE(cmd *cobra.Command, args []string) error {
 	if opts.GitURL == "" {
 		fmt.Errorf("please supply a valid --git-url argument")
 	}
-	templates, err := install.FillInInstallTemplates(install.TemplateParameters(*opts))
+	manifests, err := install.FillInInstallTemplates(install.TemplateParameters(*opts))
 	if err != nil {
 		return err
 	}
-	_, err = io.Copy(os.Stdout, templates)
-	return err
+	for fileName, content := range manifests {
+		if _, err := os.Stdout.Write(content); err != nil {
+			fmt.Errorf("cannot output manifest file %s: %s", fileName, err)
+		}
+
+	}
 
 	return nil
 }

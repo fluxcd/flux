@@ -1,5 +1,5 @@
 .DEFAULT: all
-.PHONY: all release-bins clean realclean test integration-test check-generated
+.PHONY: all release-bins clean realclean test integration-test generate-deploy check-generated
 
 SUDO := $(shell docker info > /dev/null 2> /dev/null || echo "sudo")
 
@@ -120,10 +120,15 @@ $(GOBIN)/helm-operator: $(HELM_OPERATOR_DEPS)
 integration-test: all
 	test/bin/test-flux
 
-install/generated_templates.gogen.go: install/templates/*
-	cd install && go run generate.go
 
-check-generated: install/generated_templates.gogen.go
+
+generate-deploy: install/generated_templates.gogen.go
+	cd deploy && go run ../install/generate.go deploy
+
+install/generated_templates.gogen.go: install/templates/*
+	cd install && go run generate.go embedded-templates
+
+check-generated: generate-deploy install/generated_templates.gogen.go
 	./bin/helm/update_codegen.sh
 	git diff --exit-code -- integrations/apis intergrations/client install/generated_templates.gogen.go
 

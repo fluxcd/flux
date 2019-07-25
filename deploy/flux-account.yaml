@@ -6,8 +6,7 @@ kind: ServiceAccount
 metadata:
   labels:
     name: flux
-  name: flux{{ if .Namespace }}
-  namespace: {{ .Namespace }}{{ end}}
+  name: flux
 ---
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRole
@@ -35,4 +34,4 @@ roleRef:
 subjects:
   - kind: ServiceAccount
     name: flux
-    namespace: {{ if .Namespace }}{{ .Namespace }}{{ else }}default{{ end }}
+    namespace: default
