@@ -15,7 +15,7 @@ spec:
   template:
     metadata:
       annotations:
-        prometheus.io.scrape: "false"
+        prometheus.io/scrape: "false"
       labels:
         app: flux-helm-operator
     spec:

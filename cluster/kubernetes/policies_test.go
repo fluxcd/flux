@@ -22,8 +22,8 @@ func TestUpdatePolicies(t *testing.T) {
 	}{
 		{
 			name: "adding annotation with others existing",
-			in:   []string{"prometheus.io.scrape", "'false'"},
-			out:  []string{"prometheus.io.scrape", "'false'", "flux.weave.works/automated", "'true'"},
+			in:   []string{"prometheus.io/scrape", "'false'"},
+			out:  []string{"prometheus.io/scrape", "'false'", "flux.weave.works/automated", "'true'"},
 			update: resource.PolicyUpdate{
 				Add: policy.Set{policy.Automated: "true"},
 			},
@@ -38,8 +38,8 @@ func TestUpdatePolicies(t *testing.T) {
 		},
 		{
 			name: "adding annotation when already has annotation and others",
-			in:   []string{"flux.weave.works/automated", "'true'", "prometheus.io.scrape", "'false'"},
-			out:  []string{"flux.weave.works/automated", "'true'", "prometheus.io.scrape", "'false'"},
+			in:   []string{"flux.weave.works/automated", "'true'", "prometheus.io/scrape", "'false'"},
+			out:  []string{"flux.weave.works/automated", "'true'", "prometheus.io/scrape", "'false'"},
 			update: resource.PolicyUpdate{
 				Add: policy.Set{policy.Automated: "true"},
 			},
@@ -54,8 +54,8 @@ func TestUpdatePolicies(t *testing.T) {
 		},
 		{
 			name: "add and remove different annotations at the same time",
-			in:   []string{"flux.weave.works/automated", "'true'", "prometheus.io.scrape", "'false'"},
-			out:  []string{"prometheus.io.scrape", "'false'", "flux.weave.works/locked", "'true'"},
+			in:   []string{"flux.weave.works/automated", "'true'", "prometheus.io/scrape", "'false'"},
+			out:  []string{"prometheus.io/scrape", "'false'", "flux.weave.works/locked", "'true'"},
 			update: resource.PolicyUpdate{
 				Add:    policy.Set{policy.Locked: "true"},
 				Remove: policy.Set{policy.Automated: "true"},
@@ -72,8 +72,8 @@ func TestUpdatePolicies(t *testing.T) {
 		},
 		{
 			name: "remove annotation with others existing",
-			in:   []string{"flux.weave.works/automated", "true", "prometheus.io.scrape", "false"},
-			out:  []string{"prometheus.io.scrape", "false"},
+			in:   []string{"flux.weave.works/automated", "true", "prometheus.io/scrape", "false"},
+			out:  []string{"prometheus.io/scrape", "false"},
 			update: resource.PolicyUpdate{
 				Remove: policy.Set{policy.Automated: "true"},
 			},
@@ -96,8 +96,8 @@ func TestUpdatePolicies(t *testing.T) {
 		},
 		{
 			name: "remove annotation with only others",
-			in:   []string{"prometheus.io.scrape", "false"},
-			out:  []string{"prometheus.io.scrape", "false"},
+			in:   []string{"prometheus.io/scrape", "false"},
+			out:  []string{"prometheus.io/scrape", "false"},
 			update: resource.PolicyUpdate{
 				Remove: policy.Set{policy.Automated: "true"},
 			},
