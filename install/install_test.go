@@ -7,8 +7,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func testFillInInstallTemplates(t *testing.T, params TemplateParameters) {
-	manifests, err := FillInInstallTemplates(params)
+func testFillInTemplates(t *testing.T, params TemplateParameters) {
+	manifests, err := FillInTemplates(params)
 	assert.NoError(t, err)
 	assert.Len(t, manifests, 5)
 	for fileName, contents := range manifests {
@@ -27,8 +27,8 @@ func testFillInInstallTemplates(t *testing.T, params TemplateParameters) {
 	}
 }
 
-func TestFillInInstallTemplatesAllParameters(t *testing.T) {
-	testFillInInstallTemplates(t, TemplateParameters{
+func TestFillInTemplatesAllParameters(t *testing.T) {
+	testFillInTemplates(t, TemplateParameters{
 		GitURL:             "git@github.com:fluxcd/flux-get-started",
 		GitBranch:          "branch",
 		GitPaths:           []string{"dir1", "dir2"},
@@ -41,8 +41,8 @@ func TestFillInInstallTemplatesAllParameters(t *testing.T) {
 
 }
 
-func TestFillInInstallTemplatesMissingValues(t *testing.T) {
-	testFillInInstallTemplates(t, TemplateParameters{
+func TestFillInTemplatesMissingValues(t *testing.T) {
+	testFillInTemplates(t, TemplateParameters{
 		GitURL:    "git@github.com:fluxcd/flux-get-started",
 		GitBranch: "branch",
 		GitPaths:  []string{},

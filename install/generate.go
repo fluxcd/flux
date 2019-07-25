@@ -38,7 +38,7 @@ func main() {
 			GitURL:    "git@github.com:weaveworks/flux-get-started",
 			GitBranch: "master",
 		}
-		manifests, err := install.FillInInstallTemplates(params)
+		manifests, err := install.FillInTemplates(params)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "error: failed to fill in templates: %s\n", err)
 			os.Exit(1)

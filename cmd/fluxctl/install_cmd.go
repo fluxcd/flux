@@ -47,7 +47,7 @@ func (opts *installOpts) RunE(cmd *cobra.Command, args []string) error {
 	if opts.GitEmail == "" {
 		return fmt.Errorf("please supply a valid --git-email argument")
 	}
-	manifests, err := install.FillInInstallTemplates(install.TemplateParameters(*opts))
+	manifests, err := install.FillInTemplates(install.TemplateParameters(*opts))
 	if err != nil {
 		return err
 	}

@@ -23,7 +23,7 @@ type TemplateParameters struct {
 	AdditionalFluxArgs []string
 }
 
-func FillInInstallTemplates(params TemplateParameters) (map[string][]byte, error) {
+func FillInTemplates(params TemplateParameters) (map[string][]byte, error) {
 	result := map[string][]byte{}
 	err := vfsutil.WalkFiles(templates, "/", func(path string, info os.FileInfo, rs io.ReadSeeker, err error) error {
 		if err != nil {
