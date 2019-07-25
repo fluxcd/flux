@@ -8,8 +8,8 @@ replicaCount: 1
 logFormat: fmt
 
 image:
-  repository: docker.io/weaveworks/flux
-  tag: 1.13.2
+  repository: docker.io/fluxcd/flux
+  tag: 1.13.3
   pullPolicy: IfNotPresent
   pullSecret:
 
@@ -21,8 +21,8 @@ helmOperator:
   replicaCount: 1
   create: false
   createCRD: true
-  repository: docker.io/weaveworks/helm-operator
-  tag: 0.9.1
+  repository: docker.io/fluxcd/helm-operator
+  tag: 0.10.0
   pullPolicy: IfNotPresent
   pullSecret:
   # Limit the operator scope to a single namespace

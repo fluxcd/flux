@@ -287,7 +287,7 @@ func main() {
 	possiblyRequired := stringset(RequireValues)
 	for _, r := range *registryRequire {
 		if !possiblyRequired.has(r) {
-			logger.Log("err", fmt.Sprintf("--registry-required value %q is not in possible values {%s}", r, strings.Join(RequireValues, ",")))
+			logger.Log("err", fmt.Sprintf("--registry-require value %q is not in possible values {%s}", r, strings.Join(RequireValues, ",")))
 			os.Exit(1)
 		}
 	}
@@ -449,7 +449,7 @@ func main() {
 		awsPreflight, credsWithAWSAuth := registry.ImageCredsWithAWSAuth(imageCreds, log.With(logger, "component", "aws"), awsConf)
 		if mandatoryRegistry.has(RequireECR) {
 			if err := awsPreflight(); err != nil {
-				logger.Log("error", "AWS API required (due to --registry-required=ecr), but not available", "err", err)
+				logger.Log("error", "AWS API required (due to --registry-require=ecr), but not available", "err", err)
 				os.Exit(1)
 			}
 		}

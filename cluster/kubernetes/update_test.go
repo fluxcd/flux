@@ -471,7 +471,7 @@ spec:
       labels:
         name: authfe
       annotations:
-        prometheus.io.port: "8080"
+        prometheus.io/port: "8080"
     spec:
       # blank comment spacers in the following
       containers:
@@ -522,7 +522,7 @@ spec:
       labels:
         name: authfe
       annotations:
-        prometheus.io.port: "8080"
+        prometheus.io/port: "8080"
     spec:
       # blank comment spacers in the following
       containers:

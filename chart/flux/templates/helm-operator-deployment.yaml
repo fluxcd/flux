@@ -20,7 +20,7 @@ spec:
     metadata:
       annotations:
       {{- if .Values.prometheus.enabled }}
-        prometheus.io.scrape: "true"
+        prometheus.io/scrape: "true"
       {{- end }}
       {{- if .Values.helmOperator.annotations }}
       {{- .Values.helmOperator.annotations | toYaml | trimSuffix "\n" | nindent 8 }}

@@ -17,7 +17,7 @@ spec:
     metadata:
       annotations:
       {{- if .Values.prometheus.enabled }}
-        prometheus.io.scrape: "true"
+        prometheus.io/scrape: "true"
       {{- end }}
       {{- if .Values.annotations }}
       {{- .Values.annotations | toYaml | trimSuffix "\n" | nindent 8 }}

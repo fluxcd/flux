@@ -1,7 +1,7 @@
 <!--
 # General contribution criteria
 
-Please have a look at our contribution guidelines: https://github.com/weaveworks/flux/blob/master/CONTRIBUTING.md
+Please have a look at our contribution guidelines: https://github.com/fluxcd/flux/blob/master/CONTRIBUTING.md
 Particularly the sections about the:
 
  - DCO;
