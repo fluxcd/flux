@@ -37,8 +37,6 @@ fluxctl install --git-url 'git@github.com:<your username>/flux-get-started' | ku
 		"Email to use as git committer")
 	cmd.Flags().StringVarP(&opts.Namespace, "namespace", "", getKubeConfigContextNamespace("default"),
 		"Cluster namespace where to install flux")
-	cmd.Flags().StringSliceVarP(&opts.AdditionalFluxArgs, "extra-flux-args", "", []string{},
-		"Additional arguments for Flux as CSVs, e.g. --extra-flux-args='--manifest-generation=true,--sync-garbage-collection=true'")
 	return cmd
 }
 
