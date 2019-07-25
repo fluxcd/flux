@@ -99,7 +99,7 @@ func (m *manifests) setEffectiveNamespaces(manifests map[string]kresource.KubeMa
 		km.SetNamespace(ns)
 		if _, warningLogged := m.resourceWarnings[resIDStr]; warningLogged {
 			// indicate that we found the resource's scope and allow logging a warning again
-			m.logger.Log("info", fmt.Sprintf("found scope of resource %s, back in bussiness!", km.ResourceID().String()))
+			m.logger.Log("info", fmt.Sprintf("found scope of resource %s, back in business!", km.ResourceID().String()))
 			delete(m.resourceWarnings, resIDStr)
 		}
 		result[km.ResourceID().String()] = km
