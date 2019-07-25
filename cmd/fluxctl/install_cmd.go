@@ -33,7 +33,7 @@ fluxctl install --git-url 'git@github.com:<your username>/flux-get-started' | ku
 		"Git label to keep track of Flux's sync progress; overrides both --git-sync-tag and --git-notes-ref")
 	cmd.Flags().StringVarP(&opts.GitUser, "git-user", "", "Flux",
 		"Username to use as git committer")
-	cmd.Flags().StringVarP(&opts.GitEmail, "git-email", "", "flux-dev@googlegroups.com",
+	cmd.Flags().StringVarP(&opts.GitEmail, "git-email", "", "",
 		"Email to use as git committer")
 	cmd.Flags().StringVarP(&opts.Namespace, "namespace", "", getKubeConfigContextNamespace("default"),
 		"Cluster namespace where to install flux")
@@ -45,6 +45,9 @@ fluxctl install --git-url 'git@github.com:<your username>/flux-get-started' | ku
 func (opts *installOpts) RunE(cmd *cobra.Command, args []string) error {
 	if opts.GitURL == "" {
 		fmt.Errorf("please supply a valid --git-url argument")
+	}
+	if opts.GitEmail == "" {
+		fmt.Errorf("please supply a valid --git-email argument")
 	}
 	manifests, err := install.FillInInstallTemplates(install.TemplateParameters(*opts))
 	if err != nil {
