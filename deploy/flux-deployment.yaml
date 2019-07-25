@@ -13,7 +13,7 @@ spec:
   template:
     metadata:
       annotations:
-        prometheus.io.port: "3031" # tell prometheus to scrape /metrics endpoint's port.
+        prometheus.io/port: "3031" # tell prometheus to scrape /metrics endpoint's port.
       labels:
         name: flux
     spec:
