@@ -42,10 +42,10 @@ fluxctl install --git-url 'git@github.com:<your username>/flux-get-started' | ku
 
 func (opts *installOpts) RunE(cmd *cobra.Command, args []string) error {
 	if opts.GitURL == "" {
-		fmt.Errorf("please supply a valid --git-url argument")
+		return fmt.Errorf("please supply a valid --git-url argument")
 	}
 	if opts.GitEmail == "" {
-		fmt.Errorf("please supply a valid --git-email argument")
+		return fmt.Errorf("please supply a valid --git-email argument")
 	}
 	manifests, err := install.FillInInstallTemplates(install.TemplateParameters(*opts))
 	if err != nil {
@@ -53,7 +53,7 @@ func (opts *installOpts) RunE(cmd *cobra.Command, args []string) error {
 	}
 	for fileName, content := range manifests {
 		if _, err := os.Stdout.Write(content); err != nil {
-			fmt.Errorf("cannot output manifest file %s: %s", fileName, err)
+			return fmt.Errorf("cannot output manifest file %s: %s", fileName, err)
 		}
 
 	}
