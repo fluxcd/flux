@@ -120,10 +120,10 @@ $(GOBIN)/helm-operator: $(HELM_OPERATOR_DEPS)
 integration-test: all
 	test/bin/test-flux
 
-cmd/fluxctl/install/generated_templates.gogen.go: cmd/fluxctl/install/templates/* cmd/fluxctl/install/generate.go
-	cd cmd/fluxctl/install && go run generate.go
+install/generated_templates.gogen.go: install/templates/*
+	cd install && go run generate.go
 
-check-generated: cmd/fluxctl/install/generated_templates.gogen.go
+check-generated: install/generated_templates.gogen.go
 	./bin/helm/update_codegen.sh
-	git diff --exit-code -- integrations/apis intergrations/client cmd/fluxctl/install/generated_templates.gogen.go
+	git diff --exit-code -- integrations/apis intergrations/client install/generated_templates.gogen.go
 

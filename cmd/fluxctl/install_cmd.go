@@ -7,7 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/weaveworks/flux/cmd/fluxctl/install"
+	"github.com/weaveworks/flux/install"
 )
 
 type installOpts install.TemplateParameters
