@@ -140,8 +140,8 @@ github.com/json-iterator/go v0.0.0-20180701071628-ab8a2e0c74be/go.mod h1:+SdeFBv
 github.com/jstemmer/go-junit-report v0.0.0-20190106144839-af01ea7f8024/go.mod h1:6v2b51hI/fHJwM22ozAgKL4VKDeJcHhJFhtBdhmNjmU=
 github.com/julienschmidt/httprouter v1.2.0/go.mod h1:SYymIcj16QtmaHHD7aYtjjsJG7VTCxuUUipMqKk8s4w=
 github.com/justinbarrick/go-k8s-portforward v1.0.2/go.mod h1:klMOboLnC1/UlkyJnYFjcMcbOtwAcKop+LkIZ4r428o=
-github.com/justinbarrick/go-k8s-portforward v1.0.3 h1:FPvJqHjIKb0xlA8FuFYSzlsyQWeqNzXbCDQMyfbmCpI=
-github.com/justinbarrick/go-k8s-portforward v1.0.3/go.mod h1:GkvGI25j2iHpJVINl/hZC+sbf9IJ1XkY1MtjSh3Usuk=
+github.com/justinbarrick/go-k8s-portforward v1.0.4-0.20190722134107-d79fe1b9d79d h1:xQ/ZtcWCKzWg5QbOhq6RFPvevl+IE580Vm0Vgxuw3xs=
+github.com/justinbarrick/go-k8s-portforward v1.0.4-0.20190722134107-d79fe1b9d79d/go.mod h1:GkvGI25j2iHpJVINl/hZC+sbf9IJ1XkY1MtjSh3Usuk=
 github.com/kisielk/errcheck v1.1.0/go.mod h1:EZBBE59ingxPouuu3KfxchcWSUPOHkagtvWXihfKN4Q=
 github.com/kisielk/gotool v1.0.0/go.mod h1:XhKaO+MFFWcvkIS/tQcRk01m1F5IRFswLeQ+oQHNcck=
 github.com/konsorten/go-windows-terminal-sequences v1.0.1/go.mod h1:T0+1ngSBFLxvqU3pZ+m/2kptfBszLMUkC4ZK/EgS/cQ=
