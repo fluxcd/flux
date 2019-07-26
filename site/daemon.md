@@ -68,12 +68,13 @@ fluxd requires setup and offers customization though a multitude of flags.
 | **syncing:** control over how config is applied to the cluster
 | --sync-interval                                  | `5m`                               | apply the git config to the cluster at least this often. New commits may provoke more frequent syncs
 | --sync-garbage-collection                        | `false`                            | experimental: when set, fluxd will delete resources that it created, but are no longer present in git (see [garbage collection](./garbagecollection.md))
+| **automation (of image updates):**
+| --automation-interval                            | `5m`                               | period at which to check for image updates for automated workloads
 | **registry cache:** (none of these need overriding, usually)
 | --memcached-hostname                             | `memcached`                        | hostname for memcached service to use for caching image metadata
 | --memcached-timeout                              | `1s`                               | maximum time to wait before giving up on memcached requests
 | --memcached-service                              | `memcached`                        | SRV service used to discover memcache servers
 | --registry-cache-expiry                          | `1h`                               | Duration to keep cached registry tag info. Must be < 1 month.
-| --registry-poll-interval                         | `5m`                               | period at which to poll registry for new images
 | --registry-rps                                   | `200`                              | maximum registry requests per second per host
 | --registry-burst                                 | `125`                              | maximum number of warmer connections to remote and memcache
 | --registry-insecure-host                         | []                                 | registry hosts to use HTTP for (instead of HTTPS)

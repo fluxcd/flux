@@ -13,8 +13,8 @@ import (
 	"github.com/weaveworks/flux/update"
 )
 
-func (d *Daemon) pollForNewImages(logger log.Logger) {
-	logger.Log("msg", "polling images")
+func (d *Daemon) pollForNewAutomatedWorkloadImages(logger log.Logger) {
+	logger.Log("msg", "polling for new images for automated workloads")
 
 	ctx := context.Background()
 

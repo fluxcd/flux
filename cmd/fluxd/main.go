@@ -140,6 +140,7 @@ func main() {
 		memcachedTimeout  = fs.Duration("memcached-timeout", time.Second, "maximum time to wait before giving up on memcached requests.")
 		memcachedService  = fs.String("memcached-service", "memcached", "SRV service used to discover memcache servers.")
 
+		automationInterval   = fs.Duration("automation-interval", 5*time.Minute, "period at which to check for image updates for automated workloads")
 		registryPollInterval = fs.Duration("registry-poll-interval", 5*time.Minute, "period at which to check for updated images")
 		registryRPS          = fs.Float64("registry-rps", 50, "maximum registry requests per second per host")
 		registryBurst        = fs.Int("registry-burst", defaultRemoteConnections, "maximum number of warmer connections to remote and memcache")
@@ -182,6 +183,7 @@ func main() {
 	)
 	fs.MarkDeprecated("registry-cache-expiry", "no longer used; cache entries are expired adaptively according to how often they change")
 	fs.MarkDeprecated("k8s-namespace-whitelist", "changed to --k8s-allow-namespace, use that instead")
+	fs.MarkDeprecated("registry-poll-interval", "changed to --automation-interval, use that instead")
 
 	var kubeConfig *string
 	{
@@ -244,6 +246,13 @@ func main() {
 	}
 	k8sruntime.ErrorHandlers = []func(error){logErrorUnlessAccessRelated}
 	// Argument validation
+
+	// Maintain backwards compatibility with the --registry-poll-interval
+	// flag, but only if the --automation-interval is not set to a custom
+	// (non default) value.
+	if fs.Changed("registry-poll-interval") && !fs.Changed("automation-interval") {
+		*automationInterval = *registryPollInterval
+	}
 
 	// Sort out values for the git tag and notes ref. There are
 	// running deployments that assume the defaults as given, so don't
@@ -595,10 +604,10 @@ func main() {
 		Logger:                    log.With(logger, "component", "daemon"),
 		ManifestGenerationEnabled: *manifestGeneration,
 		LoopVars: &daemon.LoopVars{
-			SyncInterval:         *syncInterval,
-			RegistryPollInterval: *registryPollInterval,
-			GitTimeout:           *gitTimeout,
-			GitVerifySignatures:  *gitVerifySignatures,
+			SyncInterval:        *syncInterval,
+			AutomationInterval:  *automationInterval,
+			GitTimeout:          *gitTimeout,
+			GitVerifySignatures: *gitVerifySignatures,
 		},
 	}
 
@@ -634,7 +643,7 @@ func main() {
 	shutdownWg.Add(1)
 	go daemon.Loop(shutdown, shutdownWg, log.With(logger, "component", "sync-loop"))
 
-	cacheWarmer.Notify = daemon.AskForImagePoll
+	cacheWarmer.Notify = daemon.AskForAutomatedWorkloadImageUpdates
 	cacheWarmer.Priority = daemon.ImageRefresh
 	cacheWarmer.Trace = *registryTrace
 	shutdownWg.Add(1)
