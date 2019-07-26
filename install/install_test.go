@@ -14,7 +14,6 @@ func testFillInTemplates(t *testing.T, params TemplateParameters) {
 	for fileName, contents := range manifests {
 		validationResults, err := kubeval.Validate(contents, fileName)
 		assert.NoError(t, err)
-		assert.Len(t, validationResults, 1)
 		for _, result := range validationResults {
 			if len(result.Errors) > 0 {
 				t.Errorf("found problems with manifest %s (Kind %s):\ncontent:\n%s\nerrors: %s",
