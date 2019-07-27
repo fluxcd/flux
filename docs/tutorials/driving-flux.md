@@ -11,37 +11,12 @@ deployment](https://github.com/fluxcd/flux-get-started) and click on the
 
 ## Setup
 
-Get the source code of Flux:
+First, please [install `fluxctl`](../references/fluxctl.md).
+
+Then, run
 
 ```sh
-git clone https://github.com/fluxcd/flux
-cd flux
-```
-
-In the next step, let's change the Git URL of Flux to point to our fork:
-
-```sh
-EDITOR deploy/flux-deployment.yaml
-```
-
-And update the following line
-
-```yaml
-    --git-url=git@github.com:fluxcd/flux-get-started
-```
-
-to point to your fork, e.g. if your GitHub Login is `baloothebear`, the line
-above should be
-
-```yaml
-    --git-url=git@github.com:baloothebear/flux-get-started
-```
-
-Save the file. For our simple case, that's all the configuration we need. Now
-it's time to deploy Flux. Simply run
-
-```sh
-kubectl apply -f deploy
+fluxctl install --git-url=git@github.com/<your-user>/flux-get-started --git-email=someone@domain.com | kubectl apply -f -
 ```
 
 ### Alternative: Using Helm for the setup
@@ -106,9 +81,8 @@ namespace.
 The first step is done. Flux is now and up running (you can confirm by
 running `kubectl get pods --all-namespaces`).
 
-In the second step we will use fluxctl to talk to Flux in the cluster and
-interact with the deployments. First, please [install fluxctl](../references/fluxctl.md).
-(It enables you to drive all of Weave Flux, so have a look at the output of
+In the second step we will use `fluxctl` to talk to Flux in the cluster and
+interact with the deployments. (It enables you to drive all of Flux, so have a look at the output of
 `fluxctl -h` to get a better idea.)
 
 > **Note:** Another option (without installing `fluxctl` is to take a look
