@@ -154,7 +154,7 @@ The [configuration](#configuration) section lists all the parameters that can be
 #### Setup Git deploy
 
 At startup Flux generates a SSH key and logs the public key.
-Find the SSH public key by installing [fluxctl](../../docs/fluxctl.md) and
+Find the SSH public key by installing [fluxctl](../../docs/using/fluxctl.md) and
 running:
 
 ```sh

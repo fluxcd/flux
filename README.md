@@ -109,7 +109,7 @@ Get started by browsing through the documentation below:
   - [Flux using Helm](/docs/install/helm-get-started.md)
   - [Automation: annotations and locks](/docs/using/annotations-tutorial.md)
 - Operating Flux
-  - [Using fluxctl to control Flux](/docs/fluxctl.md)
+  - [Using fluxctl to control Flux](/docs/using/fluxctl.md)
   - [Helm Operator](/docs/helm/helm-operator.md)
   - [Troubleshooting](/docs/troubleshooting.md)
   - [Frequently encountered issues](https://github.com/fluxcd/flux/labels/FAQ)
