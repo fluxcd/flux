@@ -1,5 +1,5 @@
 .DEFAULT: all
-.PHONY: all release-bins clean realclean test integration-test check-generated
+.PHONY: all release-bins clean realclean test integration-test generate-deploy check-generated
 
 SUDO := $(shell docker info > /dev/null 2> /dev/null || echo "sudo")
 
@@ -18,11 +18,7 @@ endif
 CURRENT_OS_ARCH=$(shell echo `go env GOOS`-`go env GOARCH`)
 GOBIN?=$(shell echo `go env GOPATH`/bin)
 
-# NB because this outputs absolute file names, you have to be careful
-# if you're testing out the Makefile with `-W` (pretend a file is
-# new); use the full path to the pretend-new file, e.g.,
-#  `make -W $PWD/registry/registry.go`
-godeps=$(shell go list -deps -f '{{if not .Standard}}{{ $$dep := . }}{{range .GoFiles}}{{$$dep.Dir}}/{{.}} {{end}}{{end}}' $(1))
+godeps=$(shell go list -deps -f '{{if not .Standard}}{{ $$dep := . }}{{range .GoFiles}}{{$$dep.Dir}}/{{.}} {{end}}{{end}}' $(1) | sed "s%${PWD}/%%g")
 
 FLUXD_DEPS:=$(call godeps,./cmd/fluxd/...)
 FLUXCTL_DEPS:=$(call godeps,./cmd/fluxctl/...)
@@ -124,7 +120,15 @@ $(GOBIN)/helm-operator: $(HELM_OPERATOR_DEPS)
 integration-test: all
 	test/bin/test-flux
 
-check-generated:
+
+
+generate-deploy: install/generated_templates.gogen.go
+	cd deploy && go run ../install/generate.go deploy
+
+install/generated_templates.gogen.go: install/templates/*
+	cd install && go run generate.go embedded-templates
+
+check-generated: generate-deploy install/generated_templates.gogen.go
 	./bin/helm/update_codegen.sh
-	git diff --exit-code -- integrations/apis intergrations/client
+	git diff --exit-code -- integrations/apis intergrations/client install/generated_templates.gogen.go
 
