@@ -105,7 +105,7 @@ Get started by browsing through the documentation below:
   - [Considerations regarding installing Flux](/docs/install/index.md)
   - [Flux <-> Helm integration](/docs/helm-integration.md)
 - Get Started with Flux
-  - [Standalone Flux](/docs/get-started.md)
+  - [Standalone Flux](/docs/install/get-started.md)
   - [Flux using Helm](/docs/install/helm-get-started.md)
   - [Automation: annotations and locks](/docs/annotations-tutorial.md)
 - Operating Flux
