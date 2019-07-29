@@ -73,7 +73,7 @@ This is a rough outline of how to prepare a contribution:
 
 ### How to build and run the project
 
-Refer to the [building doc](docs/building.md) to find out how to build from
+Refer to the [building doc](docs/development/building.md) to find out how to build from
 source.
 
 Refer to the [Get Started Developing](docs/get-started-developing.md) guide for a walkthrough on developing Flux locally.

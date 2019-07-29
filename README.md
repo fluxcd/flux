@@ -142,7 +142,7 @@ To familiarise yourself with the project and how things work, you might
 be interested in the following:
 
 - [Our contributions guidelines](CONTRIBUTING.md)
-- [Build documentation](/docs/building.md)
+- [Build documentation](/docs/development/building.md)
 - [Release documentation](/internal_docs/releasing.md)
 
 ## <a name="help"></a>Getting Help
