@@ -107,7 +107,7 @@ Get started by browsing through the documentation below:
 - Get Started with Flux
   - [Standalone Flux](/docs/install/get-started.md)
   - [Flux using Helm](/docs/install/helm-get-started.md)
-  - [Automation: annotations and locks](/docs/annotations-tutorial.md)
+  - [Automation: annotations and locks](/docs/using/annotations-tutorial.md)
 - Operating Flux
   - [Using fluxctl to control Flux](/docs/fluxctl.md)
   - [Helm Operator](/docs/helm/helm-operator.md)
