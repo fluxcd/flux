@@ -28,7 +28,7 @@ jobs:
             # networking related issues, and thus holding on to
             # `/var/lib/apt/lists/lock`.
             # https://support.circleci.com/hc/en-us/articles/360021256633-Apt-Get-Update-Is-Slow-Or-Locked
-            sudo killall apt-get
+            sudo killall apt-get || true
 
             sudo apt-get update
             sudo apt-get install -y git rng-tools memcached
