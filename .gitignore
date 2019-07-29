@@ -52,4 +52,4 @@ test/bin/helm
 test/bin/kind
 
 # Docs
-site/_build
+docs/_build

@@ -135,7 +135,7 @@ check-generated: generate-deploy install/generated_templates.gogen.go
 	git diff --exit-code -- integrations/apis intergrations/client install/generated_templates.gogen.go
 
 build-docs:
-	@cd site && docker build -t flux-docs .
+	@cd docs && docker build -t flux-docs .
 
 test-docs: build-docs
 	@docker run -it flux-docs /usr/bin/linkchecker _build/html/index.html

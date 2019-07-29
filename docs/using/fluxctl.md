@@ -556,7 +556,7 @@ Commit customization
         --git-user
         --git-email
 
-        See [site/daemon.md] for more information.
+        See [docs/daemon.md] for more information.
 
     3. Commit author
 
