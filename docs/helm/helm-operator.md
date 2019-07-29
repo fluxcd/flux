@@ -196,7 +196,9 @@ helm upgrade --install \
     flux \
     fluxcd/flux
 ```
+
 > **Note:**
+>
 > - include --tls flags for `helm` as in the `helm ls` example, if talking to a tiller with TLS
 > - optionally specify target --namespace
 

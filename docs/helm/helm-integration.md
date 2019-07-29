@@ -1,29 +1,3 @@
----
-title: Using Flux with Helm
-menu_order: 90
----
-
-- [Using Flux with Helm](#using-flux-with-helm)
-  * [The `HelmRelease` custom resource](#the-helmrelease-custom-resource)
-    + [Using a chart from a Git repo instead of a Helm repo](#using-a-chart-from-a-git-repo-instead-of-a-helm-repo)
-      - [Notifying Helm Operator about Git changes](#notifying-helm-operator-about-git-changes)
-    + [Reinstalling a Helm release](#reinstalling-a-helm-release)
-    + [What the Helm Operator does](#what-the-helm-operator-does)
-  * [Supplying values to the chart](#supplying-values-to-the-chart)
-    + [`.spec.values`](#specvalues)
-    + [`.spec.valuesFrom`](#specvaluesfrom)
-      * [Config maps](#config-maps)
-      * [Secrets](#secrets)
-      * [External sources](#external-sources)
-      * [Chart files](#chart-files)
-  * [Upgrading images in a `HelmRelease` using Flux](#upgrading-images-in-a-helmrelease-using-flux)
-  * [Rollbacks](#rollbacks)
-    + [Configuration](#configuration)
-  * [Authentication](#authentication)
-    + [Authentication for Helm repos](#authentication-for-helm-repos)
-      - [Azure ACR repositories](#azure-acr-repositories)
-    + [Authentication for Git repos](#authentication-for-git-repos)
-
 # Using Flux with Helm
 
 You can release charts to your cluster via "GitOps", by combining Flux
@@ -41,7 +15,7 @@ it.
 
 Each release of a chart is declared by a `HelmRelease`
 resource. The schema for these resources is given in [the custom
-resource definition](../deploy-helm/flux-helm-release-crd.yaml). They
+resource definition](https://github.com/weaveworks/flux/blob/master/deploy-helm/flux-helm-release-crd.yaml). They
 look like this:
 
 ```yaml
@@ -131,8 +105,8 @@ you can reinstall it using the following command:
 $ kubectl delete hr/my-release
 ```
 
-When the Helm Operator receives a delete event from Kubernetes API it will 
-call Tiller and purge the Helm release. On the next Flux sync, the Helm Release 
+When the Helm Operator receives a delete event from Kubernetes API it will
+call Tiller and purge the Helm release. On the next Flux sync, the Helm Release
 object will be created and the Helm Operator will install it.
 
 ### What the Helm Operator does
@@ -313,7 +287,7 @@ values:
     port: 4040
 ```
 
-You can use the [same annotations](./fluxctl.md#using-annotations) in
+You can use the [same annotations](../using/fluxctl.md) in
 the `HelmRelease` as you would for a Deployment or other workload,
 to control updates and automation. For the purpose of specifying
 filters, the container name is either `chart-image` (if at the top
@@ -425,14 +399,15 @@ section for how to do this).
 As a workaround, you can mount a `repositories.yaml` file with
 authentication already configured, into the operator container.
 
-> **Note:** When using a custom `repositories.yaml` the [default](../docker/helm-repositories.yaml)
+> **Note:** When using a custom `repositories.yaml` the
+[default](https://github.com/weaveworks/flux/blob/master/docker/helm-repositories.yaml)
 that ships with the operator is overwritten. This means that for any
 repository you want to make use of you should manually add an entry to
 your `repositories.yaml` file.
 
 To prepare a file, add the repo _locally_ as you would normally:
 
-```
+```sh
 helm repo add <URL> --username <username> --password <password>
 ```
 
@@ -441,22 +416,22 @@ absolute paths that will be wrong when mounted inside the
 container. Copy the file and replace all the `cache` entries with just
 the filename.
 
-```
+```sh
 cp ~/.helm/repository/repositories.yaml .
-sed -i -e 's/^\( *cache: \).*\/\(.*\.yaml\)/\1\2/g' repositories.yaml 
+sed -i -e 's/^\( *cache: \).*\/\(.*\.yaml\)/\1\2/g' repositories.yaml
 ```
 
 Now you can create a secret in the same namespace as you're running
 the Helm operator, from the repositories file:
 
-```
+```sh
 kubectl create secret generic flux-helm-repositories --from-file=./repositories.yaml
 ```
 
 Lastly, mount that secret into the container. This can be done by
 setting `helmOperator.configureRepositories.enable` to `true` for the
 flux Helm release, or as shown in the commented-out sections of the
-[example deployment](../deploy-helm/helm-operator-deployment.yaml).
+[example deployment](https://github.com/weaveworks/flux/blob/master/deploy-helm/helm-operator-deployment.yaml).
 
 #### Azure ACR repositories
 
@@ -485,7 +460,7 @@ access.
 
 To provide an SSH key, put the key in a secret under the entry
 `identity`, and mount it into the operator container as shown in the
-[example deployment](../deploy-helm/helm-operator-deployment.yaml).
+[example deployment](https://github.com/weaveworks/flux/blob/master/deploy-helm/helm-operator-deployment.yaml).
 The default ssh_config expects an identity file at
 `/etc/fluxd/ssh/identity`, which is where it'll be if you just
 uncomment the blocks from the example.

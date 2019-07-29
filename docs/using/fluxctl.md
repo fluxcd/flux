@@ -1,49 +1,12 @@
----
-title: Using Flux
-menu_order: 40
----
-
-- [Installing fluxctl](#installing-fluxctl)
-  * [Mac OS](#mac-os)
-  * [Linux](#linux)
-    + [Ubuntu (and others): snaps](#ubuntu-and-others-snaps)
-    + [Arch Linux](#arch-linux)
-  * [Binary releases](#binary-releases)
-- [Connecting fluxctl to the daemon](#connecting-fluxctl-to-the-daemon)
-  * [Flux API service](#flux-api-service)
-  * [Add an SSH deploy key to the repository](#add-an-ssh-deploy-key-to-the-repository)
-    + [1. Allow Flux to generate a key for you](#1-allow-flux-to-generate-a-key-for-you)
-    + [2. Specify a key to use](#2-specify-a-key-to-use)
-- [Workloads](#workloads)
-  * [What is a Workload?](#what-is-a-workload)
-  * [Viewing Workloads](#viewing-workloads)
-  * [Inspecting the Version of a Container](#inspecting-the-version-of-a-container)
-  * [Releasing a Workload](#releasing-a-workload)
-  * [Turning on Automation](#turning-on-automation)
-  * [Turning off Automation](#turning-off-automation)
-  * [Rolling back a Workload](#rolling-back-a-workload)
-  * [Locking a Workload](#locking-a-workload)
-  * [Releasing an image to a locked workload](#releasing-an-image-to-a-locked-workload)
-  * [Unlocking a Workload](#unlocking-a-workload)
-  * [Recording user and message with the triggered action](#recording-user-and-message-with-the-triggered-action)
-- [Image Tag Filtering](#image-tag-filtering)
-  * [Filter pattern types](#filter-pattern-types)
-    + [Glob](#glob)
-    + [Semver](#semver)
-    + [Regexp](#regexp)
-  * [Controlling image timestamps with labels](#controlling-image-timestamps-with-labels)
-    + [Supported label formats](#supported-label-formats)
-- [Actions triggered through `fluxctl`](#actions-triggered-through-fluxctl)
-  * [Errors due to author customization](#errors-due-to-author-customization)
-- [Using Annotations](#using-annotations)
+# Using Flux
 
 `fluxctl` provides an API that can be used from the command line.
 
 The `--help` for `fluxctl` is described below.
 
-# Installing fluxctl
+## Installing fluxctl
 
-## Mac OS
+### Mac OS
 
 If you are using a Mac and use Homebrew, you can simply run:
 
@@ -51,9 +14,9 @@ If you are using a Mac and use Homebrew, you can simply run:
 brew install fluxctl
 ```
 
-## Linux
+### Linux
 
-### Ubuntu (and others): snaps
+#### Ubuntu (and others): snaps
 
 [Many Linux distributions](https://docs.snapcraft.io/installing-snapd) support
 snaps these days, which makes it very easy to install `fluxctl` and stay up to
@@ -73,7 +36,7 @@ sudo snap install fluxctl --edge
 
 instead.
 
-### Arch Linux
+#### Arch Linux
 
 Install the `fluxctl-bin` package [from the
 AUR](https://aur.archlinux.org/packages/fluxctl-bin/):
@@ -84,13 +47,13 @@ cd fluxctl-bin
 makepkg -si
 ```
 
-## Binary releases
+### Binary releases
 
 With every release of Flux, we release binaries of `fluxctl` for Mac, Linux
 and Windows. Download them from the [Flux release
 page](https://github.com/weaveworks/flux/releases).
 
-# Connecting fluxctl to the daemon
+## Connecting fluxctl to the daemon
 
 By default, `fluxctl` will attempt to port-forward to your Flux
 instance, assuming it runs in the `"default"` namespace. You can
@@ -121,7 +84,7 @@ environment variable `FLUX_URL`:
 fluxctl --url http://127.0.0.1:3030/api/flux list-workloads
 ```
 
-## Flux API service
+### Flux API service
 
 Now you can easily query the Flux API:
 
@@ -129,12 +92,12 @@ Now you can easily query the Flux API:
 fluxctl list-workloads --all-namespaces
 ```
 
-## Add an SSH deploy key to the repository
+### Add an SSH deploy key to the repository
 
 Flux connects to the repository using an SSH key. You have two
 options:
 
-### 1. Allow Flux to generate a key for you
+#### 1. Allow Flux to generate a key for you
 
 If you don't specify a key to use, Flux will create one for you. Obtain
 the public key through `fluxctl`:
@@ -156,7 +119,7 @@ repository and synchronised the cluster.
 When using Kubernetes, this key is stored as a Kubernetes secret. You
 can restart `flux` and it will continue to use the same key.
 
-### 2. Specify a key to use
+#### 2. Specify a key to use
 
 Create a Kubernetes Secret from a private key:
 
@@ -208,7 +171,7 @@ Using an SSH key allows you to maintain control of the repository. You
 can revoke permission for `flux` to access the repository at any time
 by removing the deploy key.
 
-```
+```sh
 fluxctl helps you deploy your code.
 
 Connecting:
@@ -252,15 +215,15 @@ Flags:
 Use "fluxctl [command] --help" for more information about a command.
 ```
 
-# Workloads
+## Workloads
 
-## What is a Workload?
+### What is a Workload?
 
 This term refers to any cluster resource responsible for the creation of
 containers from versioned images - in Kubernetes these are objects such as
 Deployments, DaemonSets, StatefulSets and CronJobs.
 
-## Viewing Workloads
+### Viewing Workloads
 
 The first thing to do is to check whether Flux can see any running
 workloads. To do this, use the `list-workloads` subcommand:
@@ -274,7 +237,7 @@ default:deployment/helloworld  helloworld  quay.io/weaveworks/helloworld:master-
 
 Note that the actual images running will depend on your cluster.
 
-## Inspecting the Version of a Container
+### Inspecting the Version of a Container
 
 Once we have a list of workloads, we can begin to inspect which versions
 of the image are running.
@@ -295,7 +258,7 @@ default:deployment/helloworld  helloworld  quay.io/weaveworks/helloworld
 The arrows will point to the version that is currently running
 alongside a list of other versions and their timestamps.
 
-## Releasing a Workload
+### Releasing a Workload
 
 We can now go ahead and update a workload with the `release` subcommand.
 This will check whether each workload needs to be updated, and if so,
@@ -321,7 +284,7 @@ default:deployment/helloworld  helloworld  quay.io/weaveworks/helloworld
                                                master-a000001             23 Aug 16 09:53 UTC
 ```
 
-## Turning on Automation
+### Turning on Automation
 
 Automation can be easily controlled from `fluxctl`
 with the `automate` subcommand.
@@ -346,7 +309,7 @@ helloworld application is automated. Flux will now automatically
 deploy a new version of a workload whenever one is available and commit
 the new configuration to the version control system.
 
-## Turning off Automation
+### Turning off Automation
 
 Turning off automation is performed with the `deautomate` command:
 
@@ -364,7 +327,7 @@ default:deployment/helloworld  helloworld  quay.io/weaveworks/helloworld:master-
 
 We can see that the workload is no longer automated.
 
-## Rolling back a Workload
+### Rolling back a Workload
 
 Rolling back can be achieved by combining:
 
@@ -407,7 +370,7 @@ default:deployment/helloworld  helloworld  quay.io/weaveworks/helloworld
                                                master-a000001             23 Aug 16 09:53 UTC
 ```
 
-## Locking a Workload
+### Locking a Workload
 
 Locking a workload will stop manual or automated releases to that
 workload. Changes made in the file will still be synced.
@@ -419,7 +382,7 @@ WORKLOAD                       STATUS   UPDATES
 default:deployment/helloworld  success
 ```
 
-## Releasing an image to a locked workload
+### Releasing an image to a locked workload
 
 It may be desirable to release an image to a locked workload while
 maintaining the lock afterwards. In order to not having to modify the
@@ -429,7 +392,7 @@ lock policy (which includes author and reason), one may use `--force`:
 fluxctl release --workload=default:deployment/helloworld --update-all-images --force
 ```
 
-## Unlocking a Workload
+### Unlocking a Workload
 
 Unlocking a workload allows it to have manual or automated releases
 (again).
@@ -441,7 +404,7 @@ WORKLOAD                       STATUS   UPDATES
 default:deployment/helloworld  success
 ```
 
-## Recording user and message with the triggered action
+### Recording user and message with the triggered action
 
 Issuing a deployment change results in a version control change/git
 commit, keeping the history of the actions. The Flux daemon can be
@@ -458,11 +421,11 @@ tool, can have the commit author information customized. This is handy for provi
 notifications and history. Whether the customization is possible, depends on the Flux daemon (fluxd)
 `git-set-author` flag. If set, the commit author will be customized in the following way:
 
-# Image Tag Filtering
+## Image Tag Filtering
 
 When building images it is often useful to tag build images by the branch that they were built against for example:
 
-```
+```sh
 quay.io/weaveworks/helloworld:master-9a16ff945b9e
 ```
 
@@ -511,11 +474,11 @@ fluxctl release --workload=default:deployment/helloworld --update-all-images --f
 
 Please note that automation might immediately undo this.
 
-## Filter pattern types
+### Filter pattern types
 
 Flux currently offers support for `glob`, `semver` and `regexp` based filtering.
 
-### Glob
+#### Glob
 
 The glob (`*`) filter is the simplest filter Flux supports, a filter can contain
 multiple globs:
@@ -524,7 +487,7 @@ multiple globs:
 fluxctl policy --workload=default:deployment/helloworld --tag-all='glob:master-v1.*.*'
 ```
 
-### Semver
+#### Semver
 
 If your images use [semantic versioning](https://semver.org) you can filter by image tags
 that adhere to certain constraints:
@@ -542,7 +505,7 @@ fluxctl policy --workload=default:deployment/helloworld --tag-all='semver:*'
 Using a semver filter will also affect how Flux sorts images, so
 that the higher versions will be considered newer.
 
-### Regexp
+#### Regexp
 
 If your images have complex tags you can filter by regular expression:
 
@@ -554,7 +517,7 @@ Instead of `regexp` it is also possible to use its alias `regex`.
 Please bear in mind that if you want to match the whole tag,
 you must bookend your pattern with `^` and `$`.
 
-## Controlling image timestamps with labels
+### Controlling image timestamps with labels
 
 Some image registries do not expose a reliable creation timestamp for
 image tags, which could pose a problem for the automated roll-out of
@@ -564,18 +527,18 @@ To overcome this problem you can define one of the supported labels in
 your `Dockerfile`. Flux will prioritize labels over the timestamp it
 retrieves from the registry.
 
-### Supported label formats
+#### Supported label formats
 
 - [`org.opencontainers.image.created`](https://github.com/opencontainers/image-spec/blob/master/annotations.md#pre-defined-annotation-keys)
   date and time on which the image was built (string, date-time as defined by RFC 3339).
 - [`org.label-schema.build-date`](http://label-schema.org/rc1/#build-time-labels)
   date and time on which the image was built (string, date-time as defined by RFC 3339).
 
-# Actions triggered through `fluxctl`
+## Actions triggered through `fluxctl`
 
 `fluxctl` provides the following flags for the message and author customization:
 
-```
+```sh
   -m, --message string      attach a message to the update
       --user    string      override the user reported as initiating the update
 ```
@@ -593,7 +556,7 @@ Commit customization
         --git-user
         --git-email
 
-        See [site/daemon.md] for more information.
+        See [docs/daemon.md] for more information.
 
     3. Commit author
 
@@ -622,7 +585,7 @@ Commit customization
             This form will succeed if there is already a repo commit, done by
             jane@doe.com.
 
-## Errors due to author customization
+### Errors due to author customization
 
 In case of no prior commit by the specified author, an error will be reported
 for b) and c):
@@ -632,7 +595,7 @@ git commit: fatal: --author 'unknown' is not 'Name <email>' and matches
 no existing author
 ```
 
-# Using Annotations
+## Using Annotations
 
 Automation and image tag filtering can also be managed using annotations
 (fluxctl is using the same mechanism).
@@ -684,4 +647,4 @@ Things to notice:
 3. The value for the `flux.weave.works/tag.`... annotation should includes the filter pattern type, in this case `semver`.
 
 Annotations can also be used to tell Flux to temporarily ignore certain manifests
-using `flux.weave.works/ignore: "true"`. Read more about this in the [FAQ](faq.md#can-i-temporarily-make-flux-ignore-a-deployment).
+using `flux.weave.works/ignore: "true"`. Read more about this in the [FAQ](../faq.md).

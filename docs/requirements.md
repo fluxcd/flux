@@ -1,7 +1,4 @@
----
-title: Requirements and limitations
-menu_order: 60
----
+# Requirements and limitations
 
 Flux has some requirements of the files it finds in your git repo.
 

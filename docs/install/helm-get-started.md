@@ -1,17 +1,6 @@
----
-title: Installing Flux using Helm
-menu_order: 20
----
+# Installing Flux using Helm
 
-- [Get started with Flux using Helm](#get-started-with-flux-using-helm)
-  * [Prerequisites](#prerequisites)
-  * [Install Flux](#install-flux)
-  * [Giving write access](#giving-write-access)
-  * [Committing a small change](#committing-a-small-change)
-  * [Conclusion](#conclusion)
-- [Next](#next)
-
-# Get started with Flux using Helm
+## Get started with Flux using Helm
 
 If you are using Helm already, this guide is for you. By the end
 you will have Helm installing Flux in the cluster and deploying
@@ -19,9 +8,9 @@ any code changes for you.
 
 If you are looking for more generic notes for how to install Flux
 using Helm, we collected them [in the chart's
-README](../chart/flux/README.md).
+README](https://github.com/weaveworks/flux/blob/master/chart/flux/README.md).
 
-## Prerequisites
+### Prerequisites
 
 You will need to have Kubernetes set up. To get up and running fast,
 you might want to use `minikube` or `kubeadm`. Any other Kubernetes
@@ -60,7 +49,7 @@ helm init --skip-refresh --upgrade --service-account tiller --history-max 10
 > and be aware of the `--history-max` flag before promoting to
 > production.
 
-## Install Flux
+### Install Flux
 
 Add the Flux repository:
 
@@ -113,7 +102,7 @@ watch kubectl -n flux get pods
 You will notice that `flux` and `flux-helm-operator` will start
 turning up in the `flux` namespace.
 
-## Giving write access
+### Giving write access
 
 For the real benefits of GitOps, Flux will need access to your
 git repository to update configuration if necessary. To facilitate
@@ -122,7 +111,7 @@ repository.
 
 This is pretty straight-forward as Flux generates a SSH key and
 logs the public key at startup. Find the SSH public key by
-installing [fluxctl](./fluxctl.md) and running:
+installing [fluxctl](../using/fluxctl.md) and running:
 
 ```sh
 fluxctl identity --k8s-fwd-ns flux
@@ -149,7 +138,7 @@ deployed into the `demo` namespace) listed like so:
 helm list --namespace demo
 ```
 
-## Committing a small change
+### Committing a small change
 
 `flux-get-started` is a simple example in which three services
 (mongodb, redis and ghost) are deployed. Here we will simply update the
@@ -190,17 +179,13 @@ Flux is deploying to:
 kubectl describe -n demo deployment/mongodb | grep Image
 ```
 
-## Conclusion
+### Conclusion
 
 As you can see, the actual steps to set up Flux, get our app
 deployed, give Flux access to it and see modifications land are
 very straight-forward and are a quite natural workflow.
 
-# Next
-
-As a next step, you might want to dive deeper into [how to control
-Flux](fluxctl.md) or go through our hands-on tutorial about driving Flux,
-e.g. [automations, annotations and locks](annotations-tutorial.md).
+## A more advanced setup
 
 For a more advanced Helm setup, take a look at the [gitops-helm
 repository](https://github.com/stefanprodan/gitops-helm).

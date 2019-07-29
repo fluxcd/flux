@@ -22,7 +22,7 @@ and try the operation again.
 Otherwise, please consult the installation instructions in our
 documentation:
 
-    https://github.com/weaveworks/flux/blob/master/site/installing.md
+    https://github.com/weaveworks/flux/blob/master/docs/installing.md
 
 If you are still stuck, please log an issue:
 
@@ -89,7 +89,7 @@ Otherwise, it is likely to be an ongoing problem until fluxd is
 updated and/or redeployed. For help, please consult the installation
 instructions:
 
-    https://github.com/weaveworks/flux/blob/master/site/installing.md
+    https://github.com/weaveworks/flux/blob/master/docs/installing.md
 
 If you are still stuck, please log an issue:
 

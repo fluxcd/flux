@@ -1,8 +1,4 @@
----
-title: Upgrading from Helm operator alpha (<=0.4.0) to beta
----
-
-# Upgrading from Helm operator v0.4.0 to the beta
+# Upgrading from Helm operator alpha (<=0.4.0) to beta
 
 The Helm operator has undergone changes that necessitate some changes
 to custom resources, and the deployment of the operator itself.
@@ -14,14 +10,14 @@ custom resources used by the old Helm operator (`FluxHelmRelease`).
 
 Here are some things to know:
 
- - The new operator will ignore the old custom resources (and the old
-   operator will ignore the new resources).
- - Deleting a resource while the corresponding operator is running
-   will result in the Helm release also being deleted
- - Deleting a `CustomResourceDefinition` will also delete all
-   custom resources of that kind.
- - If both operators are running and both new and old custom resources
-   defining a release, the operators will fight over the release.
+- The new operator will ignore the old custom resources (and the old
+  operator will ignore the new resources).
+- Deleting a resource while the corresponding operator is running
+  will result in the Helm release also being deleted
+- Deleting a `CustomResourceDefinition` will also delete all
+  custom resources of that kind.
+- If both operators are running and both new and old custom resources
+  defining a release, the operators will fight over the release.
 
 The safest way to upgrade is to avoid deletions and fights by stopping
 the old operator. Replacing it with the new one (e.g., by changing the
@@ -61,12 +57,12 @@ Helm operator. The arguments to the operator executable have changed,
 since it no longer needs the git repo to be specified (and in some
 cases, just to tidy up):
 
- - the new operator does not use the `--git-url`, `--git-charts-path`,
-   or `--git-branch` arguments, since the git repo and so on are
-   provided in each custom resource.
- - the `--queue-worker-count` argument has been removed
- - the `--chart-sync-timeout` argument has been removed
- - other arguments stay the same
+- the new operator does not use the `--git-url`, `--git-charts-path`,
+  or `--git-branch` arguments, since the git repo and so on are
+  provided in each custom resource.
+- the `--queue-worker-count` argument has been removed
+- the `--chart-sync-timeout` argument has been removed
+- other arguments stay the same
 
 It is entirely valid to run the operator with no arguments, which you
 may end up with after removing those mentioned above. It will work
@@ -77,34 +73,34 @@ Once you want to use the new capabilities of the operator -- e.g.,
 releasing charts from Helm repos -- you will probably need to adapt
 the manifest further. The [Helm operator set-up
 guide](./helm-integration.md) and [example
-deployment](../deploy-helm/helm-operator-deployment.yaml) explain all
-the details.
+deployment](https://github.com/weaveworks/flux/blob/master/deploy-helm/helm-operator-deployment.yaml)
+explain all the details.
 
 ## Updating custom resources
 
 The main differences between the old resource format and the new are:
 
- - the API version and kind have changed
- - you can now specify a chart to release either as a path in a git
-   repo, or a named, versioned chart from a Helm repo
+- the API version and kind have changed
+- you can now specify a chart to release either as a path in a git
+  repo, or a named, versioned chart from a Helm repo
 
 Here is how to change an old resource to a new resource:
 
- - change the `apiVersion` field to `flux.weave.works/v1beta1`
- - change the `kind` field to `HelmRelease`
- - you can remove the label `chart:` from the labels, if it's still
-   there, just to tidy up (it doesn't matter if it's there or not)
- - replace the field `chartGitPath`, with the structure:
+- change the `apiVersion` field to `flux.weave.works/v1beta1`
+- change the `kind` field to `HelmRelease`
+- you can remove the label `chart:` from the labels, if it's still
+  there, just to tidy up (it doesn't matter if it's there or not)
+- replace the field `chartGitPath`, with the structure:
 
-```
+```yaml
 chart:
   git: <URL to git repo>
   ref: <optional branch name>
   path: <path from top directory of git repo to chart directory>
 ```
 
- - the `values`, `releaseName`, and `valueFileSecrets` can stay as
-   they are.
+- the `values`, `releaseName`, and `valueFileSecrets` can stay as
+  they are.
 
 Note that you now give the git repo URL and branch and full path in
 each custom resource, rather than supplying arguments to the Helm
@@ -114,7 +110,7 @@ charts!)
 
 As a full example, this is an old resource:
 
-```
+```yaml
 ---
 apiVersion: helm.integrations.flux.weave.works/v1alpha2
 kind: FluxHelmRelease
@@ -131,7 +127,7 @@ spec:
 
 Say the arguments given to the old Helm operator were
 
-```
+```yaml
 args:
   - --git-url=git@example.com:user/repo
   - --git-charts-path=charts
@@ -140,7 +136,7 @@ args:
 
 Then the new custom resource would be:
 
-```
+```yaml
 ---
 apiVersion: flux.weave.works/v1beta1 # <- change API version
 kind: HelmRelease                    # <- change kind

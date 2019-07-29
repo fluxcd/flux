@@ -1,8 +1,3 @@
----
-title: Upgrading to Flux v1
-menu_order: 100
----
-
 # Upgrading to Flux v1
 
 Flux v1 is a major improvement over the previous versions, and is
@@ -102,7 +97,7 @@ to expose the Flux service.
 
 Before making any changes, get the config so that it can be consulted later:
 
-```
+```sh
 ./fluxctl_030 get-config --fingerprint=md5 | tee old-config.yaml
 ```
 

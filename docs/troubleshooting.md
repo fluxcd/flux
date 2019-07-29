@@ -1,7 +1,4 @@
----
-title: Troubleshooting Flux
-menu_order: 50
----
+# Troubleshooting Weave Flux
 
 Also see the [issues labeled with
 `FAQ`](https://github.com/weaveworks/flux/labels/FAQ), which often
@@ -27,7 +24,7 @@ filesystem, and use the environment entry `KUBECONFIG` to point
 may be as easy as reapplying the chart if that's what you're using.
 
 This is also documented in the
-[FAQ](./faq.md#can-i-change-the-namespace-flux-puts-things-in-by-default).
+[FAQ](./faq.md).
 
 ### `fluxctl` returns a 500 Internal Server Error
 
@@ -49,8 +46,7 @@ This means Flux can't read from and write to the git repo. Check that
  - ... that the host where your git repo lives is in
    `~/.ssh/known_hosts` in the fluxd container. We prime the container
    _image_ with host keys for `github.com`, `gitlab.com`, `bitbucket.org`, `dev.azure.com`, and `vs-ssh.visualstudio.com`, but if you're using your own git server, you'll
-   need to add its host key. See
-   [./standalone-setup.md](./standalone-setup.md#using-a-private-git-host).
+   need to add its host key. See [./standalone-setup.md](./install/standalone-setup.md).
 
 ### I'm using GCR/GKE and I keep seeing "Quota exceeded" in logs
 
@@ -82,7 +78,7 @@ reasons this can happen:
    present, it looks at `imagePullSecret`s attached to workloads,
    service accounts, platform-provided credentials on GCP, AWS or Azure, and
    a Docker config file if you mount one into the fluxd container (see
-   the [command-line usage](./daemon.md)).
+   the [command-line usage](./features/daemon.md)).
  - When using images in ECR, from EC2, the `NodeInstanceRole` for the
    worker node running fluxd must have permissions to query the ECR
    registry (or registries) in
@@ -92,8 +88,8 @@ reasons this can happen:
    both make sure this is the case.
  - When using images from ACR in AKS, the HostPath `/etc/kubernetes/azure.json`
    should be [mounted](https://kubernetes.io/docs/concepts/storage/volumes/) into the Flux Pod.
-   Set `registry.acr.enabled=True` in the [helm chart](../chart/flux/README.md)
-   or alter the [Deployment](../deploy/flux-deployment.yaml):
+   Set `registry.acr.enabled=True` in the [helm chart](https://github.com/weaveworks/flux/blob/master/chart/flux/README.md)
+   or alter the [Deployment](https://github.com/weaveworks/flux/blob/master/deploy/flux-deployment.yaml):
    ```yaml
     spec:
       containers:
@@ -135,7 +131,7 @@ to an existing image.
 If this appears to be a problem for you, one way to ensure each image
 build has its own creation time is to label it with a build time;
 e.g., using
-[OpenContainers pre-defined annotations](https://github.com/opencontainers/image-spec/blob/master/annotations.md#pre-defined-annotation-keys).
+[OpenContainers pre-defined annotations](https://github.com/opencontainers/image-spec/blob/master/annotations.md).
 
 ### What is the "sync tag"; or, why do I see a `flux-sync` tag in my git repo?
 

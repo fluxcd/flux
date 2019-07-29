@@ -1,13 +1,10 @@
----
-title: How Flux Works
-menu_order: 20
----
+# How Flux Works
 
 This page describes the goals of flux, how it achieves them and
 significant architectural decisions. It is intentionally high level
 to prevent it from being out of date too quickly.
 
-# Goals
+## Goals
 
 The overall goal of Flux is to automate the deployment of services.
 A typical use case would be:
@@ -23,15 +20,15 @@ with an orchestrator (which is a common source of accidental failure) or
 with the systems that ensure that the orchestrator is in a working
 state.
 
-Flux provides a CLI ([`fluxctl`](fluxctl.md)) to perform these
-operations manually. Flux is flexible enough to fit into any
-development process.
+Flux provides a CLI ([`fluxctl`](./using/fluxctl.md)) and a UI (as a component of Weave Cloud)
+to perform these operations manually. Flux is flexible enough to fit
+into any development process.
 
-# Implementation Overview
+## Implementation Overview
 
 The following describes how Flux achieves the goals.
 
-## Synchronisation of cluster state
+### Synchronisation of cluster state
 
 The Flux team firmly believe that cluster state should be version
 controlled. This allows users to record the history of the cluster,
@@ -51,7 +48,7 @@ cluster to match the code representing the cluster in the repository.
 This simple idea then allows for a whole range of tools that can react
 to changes and simply write to a repository.
 
-## Monitoring For New Images
+### Monitoring For New Images
 
 Flux reads a list of running containers from the user git repository.
 For each image, it will query the container registry to obtain the most
@@ -68,7 +65,7 @@ When automation is disabled, images are not checked.
 
 In order to access private registries, credentials may be required.
 
-## Deployment of Images
+### Deployment of Images
 
 Flux will only deploy different images. It will not re-deploy images
 with the same tag.
@@ -78,7 +75,3 @@ configuration of the cluster to deploy the new images.
 
 Images can be "locked" to a specific version. "locked" images won't be
 updated by automated or manual means.
-
-## Next
-
-_Get started by [installing Flux](/site/installing.md)._
