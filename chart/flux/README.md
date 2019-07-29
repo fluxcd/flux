@@ -37,7 +37,7 @@ until it can find one.
 ## Installation
 
 We put together a simple [Get Started
-guide](../../docs/helm-get-started.md) which takes about 5-10 minutes to follow.
+guide](../../docs/install/helm-get-started.md) which takes about 5-10 minutes to follow.
 You will have a fully working Flux installation deploying workloads to your cluster.
 
 ## Installing Flux using Helm

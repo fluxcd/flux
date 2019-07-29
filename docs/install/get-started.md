@@ -8,7 +8,7 @@ have Flux running in your cluster and it will be deploying any
 code changes for you.
 
 > **Note:** If you would like to install Flux using Helm, refer to the
-[Helm section](./helm-get-started.md).
+[Helm section](./install/helm-get-started.md).
 
 ### Prerequisites
 
@@ -56,7 +56,7 @@ want to use that too, be sure to create a fork of it on GitHub and
 add the git URL to the config file above. After that, set the `--git-path`
 flag to `--git-path=namespaces,workloads`, this is meant to exclude Helm
 manifests. Again, if you want to get started with Helm, please refer to the
-[Helm section](./helm-get-started.md).
+[Helm section](./install/helm-get-started.md).
 
 ### Deploying Flux to the cluster
 

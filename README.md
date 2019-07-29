@@ -106,7 +106,7 @@ Get started by browsing through the documentation below:
   - [Flux <-> Helm integration](/docs/helm-integration.md)
 - Get Started with Flux
   - [Standalone Flux](/docs/get-started.md)
-  - [Flux using Helm](/docs/helm-get-started.md)
+  - [Flux using Helm](/docs/install/helm-get-started.md)
   - [Automation: annotations and locks](/docs/annotations-tutorial.md)
 - Operating Flux
   - [Using fluxctl to control Flux](/docs/fluxctl.md)
@@ -135,7 +135,7 @@ The Flux project adheres to the [CNCF Code of
 Conduct](https://github.com/cncf/foundation/blob/master/code-of-conduct.md).
 
 Instances of abusive, harassing, or otherwise unacceptable behavior
-may be reported by contacting a *Flux* project maintainer, or the CNCF
+may be reported by contacting a _Flux_ project maintainer, or the CNCF
 mediator, Mishi Choudhary <mishi@linux.com>.
 
 To familiarise yourself with the project and how things work, you might

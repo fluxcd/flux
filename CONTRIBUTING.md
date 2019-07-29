@@ -19,7 +19,7 @@ on.
 
 To set up Flux to test things, there's documentation about setting up a
 [standalone install](docs/get-started.md) and a [Helm
-install](docs/helm-get-started.md), which might be helpful.
+install](docs/install/helm-get-started.md), which might be helpful.
 
 Please talk to us on Slack, if you should get stuck anywhere. We appreciate
 any help and look forward to talking to you soon!

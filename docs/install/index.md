@@ -9,7 +9,7 @@ Here are the instructions to [install Flux on your own
 cluster](./get-started.md).
 
 If you are using Helm, we have a [separate section about
-this](./helm-get-started.md).
+this](./install/helm-get-started.md).
 
 You can also configure a more advanced, [standalone
 setup](./standalone-setup.md).
