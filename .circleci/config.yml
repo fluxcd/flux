@@ -21,8 +21,15 @@ jobs:
             mkdir -p "$HOME/go/bin"
             go version
       - run:
-          name: Update packages and Start Memcached
+          name: Update packages and start Memcached
+          no_output_timeout: 10m
           command: |
+            # Kill any apt-get processes that may be hanging due to
+            # networking related issues, and thus holding on to
+            # `/var/lib/apt/lists/lock`.
+            # https://support.circleci.com/hc/en-us/articles/360021256633-Apt-Get-Update-Is-Slow-Or-Locked
+            sudo killall apt-get
+
             sudo apt-get update
             sudo apt-get install -y git rng-tools memcached
             git version
