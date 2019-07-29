@@ -110,7 +110,7 @@ Get started by browsing through the documentation below:
   - [Automation: annotations and locks](/docs/annotations-tutorial.md)
 - Operating Flux
   - [Using fluxctl to control Flux](/docs/fluxctl.md)
-  - [Helm Operator](/docs/helm-operator.md)
+  - [Helm Operator](/docs/helm/helm-operator.md)
   - [Troubleshooting](/docs/troubleshooting.md)
   - [Frequently encountered issues](https://github.com/fluxcd/flux/labels/FAQ)
   - [Upgrading to Flux v1](/docs/upgrading-to-1.0.md)

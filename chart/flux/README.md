@@ -22,7 +22,7 @@ This means fluxd can fail to apply changes to HelmRelease resources.
 ### Helm
 
 Tiller should be running in the cluster, though
-[helm-operator](../../docs/helm-operator.md) will wait
+[helm-operator](../../docs/helm/helm-operator.md) will wait
 until it can find one.
 
 # Git repo
