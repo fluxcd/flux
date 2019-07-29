@@ -6,7 +6,7 @@ import (
 
 	"github.com/Masterminds/semver"
 	"github.com/ryanuber/go-glob"
-	"github.com/weaveworks/flux/image"
+	"github.com/fluxcd/flux/image"
 )
 
 const (

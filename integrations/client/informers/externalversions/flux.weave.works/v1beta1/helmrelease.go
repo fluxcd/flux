@@ -21,10 +21,10 @@ package v1beta1
 import (
 	time "time"
 
-	fluxweaveworksv1beta1 "github.com/weaveworks/flux/integrations/apis/flux.weave.works/v1beta1"
-	versioned "github.com/weaveworks/flux/integrations/client/clientset/versioned"
-	internalinterfaces "github.com/weaveworks/flux/integrations/client/informers/externalversions/internalinterfaces"
-	v1beta1 "github.com/weaveworks/flux/integrations/client/listers/flux.weave.works/v1beta1"
+	fluxweaveworksv1beta1 "github.com/fluxcd/flux/integrations/apis/flux.weave.works/v1beta1"
+	versioned "github.com/fluxcd/flux/integrations/client/clientset/versioned"
+	internalinterfaces "github.com/fluxcd/flux/integrations/client/informers/externalversions/internalinterfaces"
+	v1beta1 "github.com/fluxcd/flux/integrations/client/listers/flux.weave.works/v1beta1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"

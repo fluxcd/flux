@@ -25,10 +25,10 @@ import (
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/rest"
 
-	"github.com/weaveworks/flux/cluster"
-	kresource "github.com/weaveworks/flux/cluster/kubernetes/resource"
-	"github.com/weaveworks/flux/policy"
-	"github.com/weaveworks/flux/resource"
+	"github.com/fluxcd/flux/cluster"
+	kresource "github.com/fluxcd/flux/cluster/kubernetes/resource"
+	"github.com/fluxcd/flux/policy"
+	"github.com/fluxcd/flux/resource"
 )
 
 const (

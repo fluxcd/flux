@@ -52,7 +52,7 @@ realclean: clean
 	rm -rf ./cache
 
 test: test/bin/helm test/bin/kubectl test/bin/kustomize
-	PATH="${PWD}/bin:${PWD}/test/bin:${PATH}" go test ${TEST_FLAGS} $(shell go list ./... | grep -v "^github.com/weaveworks/flux/vendor" | sort -u)
+	PATH="${PWD}/bin:${PWD}/test/bin:${PATH}" go test ${TEST_FLAGS} $(shell go list ./... | grep -v "^github.com/fluxcd/flux/vendor" | sort -u)
 
 e2e: test/bin/helm test/bin/kubectl build/.flux.done
 	PATH="${PWD}/test/bin:${PATH}" CURRENT_OS_ARCH=$(CURRENT_OS_ARCH) test/e2e/run.sh
@@ -112,8 +112,6 @@ $(GOBIN)/fluxd: $(FLUXD_DEPS)
 
 integration-test: all
 	test/bin/test-flux
-
-
 
 generate-deploy: install/generated_templates.gogen.go
 	cd deploy && go run ../install/generate.go deploy

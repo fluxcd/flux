@@ -9,13 +9,13 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/weaveworks/flux/cluster"
-	"github.com/weaveworks/flux/event"
-	"github.com/weaveworks/flux/git"
-	"github.com/weaveworks/flux/manifests"
-	"github.com/weaveworks/flux/resource"
-	fluxsync "github.com/weaveworks/flux/sync"
-	"github.com/weaveworks/flux/update"
+	"github.com/fluxcd/flux/cluster"
+	"github.com/fluxcd/flux/event"
+	"github.com/fluxcd/flux/git"
+	"github.com/fluxcd/flux/manifests"
+	"github.com/fluxcd/flux/resource"
+	fluxsync "github.com/fluxcd/flux/sync"
+	"github.com/fluxcd/flux/update"
 )
 
 // revisionRatchet is for keeping track of transitions between

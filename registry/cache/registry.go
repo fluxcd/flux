@@ -7,9 +7,9 @@ import (
 	"github.com/pkg/errors"
 	"github.com/ryanuber/go-glob"
 
-	fluxerr "github.com/weaveworks/flux/errors"
-	"github.com/weaveworks/flux/image"
-	"github.com/weaveworks/flux/registry"
+	fluxerr "github.com/fluxcd/flux/errors"
+	"github.com/fluxcd/flux/image"
+	"github.com/fluxcd/flux/registry"
 )
 
 var (

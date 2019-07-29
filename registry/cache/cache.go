@@ -4,7 +4,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/weaveworks/flux/image"
+	"github.com/fluxcd/flux/image"
 )
 
 type Reader interface {

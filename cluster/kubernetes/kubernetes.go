@@ -18,11 +18,11 @@ import (
 	k8sclientdynamic "k8s.io/client-go/dynamic"
 	k8sclient "k8s.io/client-go/kubernetes"
 
-	"github.com/weaveworks/flux/cluster"
-	kresource "github.com/weaveworks/flux/cluster/kubernetes/resource"
-	fhrclient "github.com/weaveworks/flux/integrations/client/clientset/versioned"
-	"github.com/weaveworks/flux/resource"
-	"github.com/weaveworks/flux/ssh"
+	"github.com/fluxcd/flux/cluster"
+	kresource "github.com/fluxcd/flux/cluster/kubernetes/resource"
+	fhrclient "github.com/fluxcd/flux/integrations/client/clientset/versioned"
+	"github.com/fluxcd/flux/resource"
+	"github.com/fluxcd/flux/ssh"
 )
 
 type coreClient k8sclient.Interface

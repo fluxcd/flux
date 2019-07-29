@@ -10,11 +10,11 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/weaveworks/flux/cluster/kubernetes"
-	"github.com/weaveworks/flux/cluster/kubernetes/testfiles"
-	"github.com/weaveworks/flux/image"
-	"github.com/weaveworks/flux/policy"
-	"github.com/weaveworks/flux/resource"
+	"github.com/fluxcd/flux/cluster/kubernetes"
+	"github.com/fluxcd/flux/cluster/kubernetes/testfiles"
+	"github.com/fluxcd/flux/image"
+	"github.com/fluxcd/flux/policy"
+	"github.com/fluxcd/flux/resource"
 )
 
 func TestFindConfigFilePaths(t *testing.T) {

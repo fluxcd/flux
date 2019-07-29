@@ -3,12 +3,12 @@ package v6
 import (
 	"context"
 
-	"github.com/weaveworks/flux/cluster"
-	"github.com/weaveworks/flux/git"
-	"github.com/weaveworks/flux/job"
-	"github.com/weaveworks/flux/resource"
-	"github.com/weaveworks/flux/ssh"
-	"github.com/weaveworks/flux/update"
+	"github.com/fluxcd/flux/cluster"
+	"github.com/fluxcd/flux/git"
+	"github.com/fluxcd/flux/job"
+	"github.com/fluxcd/flux/resource"
+	"github.com/fluxcd/flux/ssh"
+	"github.com/fluxcd/flux/update"
 )
 
 type ImageStatus struct {

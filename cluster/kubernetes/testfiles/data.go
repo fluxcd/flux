@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/weaveworks/flux/resource"
+	"github.com/fluxcd/flux/resource"
 )
 
 func TempDir(t *testing.T) (string, func()) {

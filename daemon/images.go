@@ -7,10 +7,10 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
 
-	"github.com/weaveworks/flux/cluster"
-	"github.com/weaveworks/flux/policy"
-	"github.com/weaveworks/flux/resource"
-	"github.com/weaveworks/flux/update"
+	"github.com/fluxcd/flux/cluster"
+	"github.com/fluxcd/flux/policy"
+	"github.com/fluxcd/flux/resource"
+	"github.com/fluxcd/flux/update"
 )
 
 func (d *Daemon) pollForNewAutomatedWorkloadImages(logger log.Logger) {

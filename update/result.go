@@ -5,8 +5,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/weaveworks/flux/image"
-	"github.com/weaveworks/flux/resource"
+	"github.com/fluxcd/flux/image"
+	"github.com/fluxcd/flux/resource"
 )
 
 type WorkloadUpdateStatus string

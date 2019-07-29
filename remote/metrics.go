@@ -8,14 +8,14 @@ import (
 	"github.com/go-kit/kit/metrics/prometheus"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 
-	"github.com/weaveworks/flux/api"
-	"github.com/weaveworks/flux/api/v10"
-	"github.com/weaveworks/flux/api/v11"
-	"github.com/weaveworks/flux/api/v6"
-	"github.com/weaveworks/flux/api/v9"
-	"github.com/weaveworks/flux/job"
-	fluxmetrics "github.com/weaveworks/flux/metrics"
-	"github.com/weaveworks/flux/update"
+	"github.com/fluxcd/flux/api"
+	"github.com/fluxcd/flux/api/v10"
+	"github.com/fluxcd/flux/api/v11"
+	"github.com/fluxcd/flux/api/v6"
+	"github.com/fluxcd/flux/api/v9"
+	"github.com/fluxcd/flux/job"
+	fluxmetrics "github.com/fluxcd/flux/metrics"
+	"github.com/fluxcd/flux/update"
 )
 
 var (

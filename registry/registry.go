@@ -3,7 +3,7 @@ package registry
 import (
 	"errors"
 
-	"github.com/weaveworks/flux/image"
+	"github.com/fluxcd/flux/image"
 )
 
 var (

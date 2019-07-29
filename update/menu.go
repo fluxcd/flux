@@ -7,7 +7,7 @@ import (
 	"io"
 	"text/tabwriter"
 
-	"github.com/weaveworks/flux/resource"
+	"github.com/fluxcd/flux/resource"
 )
 
 const (

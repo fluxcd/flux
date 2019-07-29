@@ -1,8 +1,8 @@
 package resource
 
 import (
-	"github.com/weaveworks/flux/image"
-	"github.com/weaveworks/flux/policy"
+	"github.com/fluxcd/flux/image"
+	"github.com/fluxcd/flux/policy"
 )
 
 // For the minute we just care about

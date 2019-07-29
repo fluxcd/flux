@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/weaveworks/flux/image"
+	"github.com/fluxcd/flux/image"
 )
 
 // mockStorage holds a fixed ImageRepository item.

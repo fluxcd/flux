@@ -1,6 +1,6 @@
 package api
 
-import "github.com/weaveworks/flux/api/v11"
+import "github.com/fluxcd/flux/api/v11"
 
 // Server defines the minimal interface a Flux must satisfy to adequately serve a
 // connecting fluxctl. This interface specifically does not facilitate connecting

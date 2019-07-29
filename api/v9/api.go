@@ -4,7 +4,7 @@ package v9
 import (
 	"context"
 
-	"github.com/weaveworks/flux/api/v6"
+	"github.com/fluxcd/flux/api/v6"
 )
 
 type Server interface {

@@ -3,7 +3,7 @@ package daemon
 import (
 	"testing"
 
-	"github.com/weaveworks/flux/http"
+	"github.com/fluxcd/flux/http"
 )
 
 func TestRouterImplementsServer(t *testing.T) {

@@ -9,7 +9,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/pkg/errors"
 
-	"github.com/weaveworks/flux/http/client"
+	"github.com/fluxcd/flux/http/client"
 )
 
 type DialErr struct {

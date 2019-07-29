@@ -3,7 +3,7 @@ package cluster
 import (
 	"strings"
 
-	"github.com/weaveworks/flux/resource"
+	"github.com/fluxcd/flux/resource"
 )
 
 // Definitions for use in synchronising a cluster with a git repo.

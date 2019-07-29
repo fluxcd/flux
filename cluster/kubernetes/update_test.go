@@ -3,9 +3,9 @@ package kubernetes
 import (
 	"testing"
 
-	kresource "github.com/weaveworks/flux/cluster/kubernetes/resource"
-	"github.com/weaveworks/flux/image"
-	"github.com/weaveworks/flux/resource"
+	kresource "github.com/fluxcd/flux/cluster/kubernetes/resource"
+	"github.com/fluxcd/flux/image"
+	"github.com/fluxcd/flux/resource"
 )
 
 type update struct {

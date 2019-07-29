@@ -5,14 +5,14 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/weaveworks/flux/api"
-	"github.com/weaveworks/flux/api/v10"
-	"github.com/weaveworks/flux/api/v11"
-	"github.com/weaveworks/flux/api/v6"
-	"github.com/weaveworks/flux/api/v9"
-	"github.com/weaveworks/flux/job"
-	"github.com/weaveworks/flux/remote"
-	"github.com/weaveworks/flux/update"
+	"github.com/fluxcd/flux/api"
+	"github.com/fluxcd/flux/api/v10"
+	"github.com/fluxcd/flux/api/v11"
+	"github.com/fluxcd/flux/api/v6"
+	"github.com/fluxcd/flux/api/v9"
+	"github.com/fluxcd/flux/job"
+	"github.com/fluxcd/flux/remote"
+	"github.com/fluxcd/flux/update"
 )
 
 type baseClient struct{}

@@ -3,8 +3,8 @@ package manifests
 import (
 	"bytes"
 
-	"github.com/weaveworks/flux/image"
-	"github.com/weaveworks/flux/resource"
+	"github.com/fluxcd/flux/image"
+	"github.com/fluxcd/flux/resource"
 )
 
 // Manifests represents a format for files or chunks of bytes

@@ -10,15 +10,15 @@ import (
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 
 	"github.com/weaveworks/common/middleware"
-	"github.com/weaveworks/flux/api"
-	"github.com/weaveworks/flux/api/v10"
-	"github.com/weaveworks/flux/api/v11"
-	"github.com/weaveworks/flux/api/v9"
-	transport "github.com/weaveworks/flux/http"
-	"github.com/weaveworks/flux/job"
-	fluxmetrics "github.com/weaveworks/flux/metrics"
-	"github.com/weaveworks/flux/resource"
-	"github.com/weaveworks/flux/update"
+	"github.com/fluxcd/flux/api"
+	"github.com/fluxcd/flux/api/v10"
+	"github.com/fluxcd/flux/api/v11"
+	"github.com/fluxcd/flux/api/v9"
+	transport "github.com/fluxcd/flux/http"
+	"github.com/fluxcd/flux/job"
+	fluxmetrics "github.com/fluxcd/flux/metrics"
+	"github.com/fluxcd/flux/resource"
+	"github.com/fluxcd/flux/update"
 )
 
 var (

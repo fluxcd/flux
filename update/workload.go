@@ -1,8 +1,8 @@
 package update
 
 import (
-	"github.com/weaveworks/flux/cluster"
-	"github.com/weaveworks/flux/resource"
+	"github.com/fluxcd/flux/cluster"
+	"github.com/fluxcd/flux/resource"
 )
 
 type WorkloadUpdate struct {

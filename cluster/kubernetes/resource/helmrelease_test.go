@@ -5,7 +5,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"testing"
 
-	"github.com/weaveworks/flux/resource"
+	"github.com/fluxcd/flux/resource"
 )
 
 func TestSortedContainers(t *testing.T) {

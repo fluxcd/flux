@@ -8,8 +8,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/weaveworks/flux/api/v6"
-	"github.com/weaveworks/flux/policy"
+	"github.com/fluxcd/flux/api/v6"
+	"github.com/fluxcd/flux/policy"
 )
 
 type workloadListOpts struct {

@@ -19,8 +19,8 @@ limitations under the License.
 package flux
 
 import (
-	v1beta1 "github.com/weaveworks/flux/integrations/client/informers/externalversions/flux.weave.works/v1beta1"
-	internalinterfaces "github.com/weaveworks/flux/integrations/client/informers/externalversions/internalinterfaces"
+	v1beta1 "github.com/fluxcd/flux/integrations/client/informers/externalversions/flux.weave.works/v1beta1"
+	internalinterfaces "github.com/fluxcd/flux/integrations/client/informers/externalversions/internalinterfaces"
 )
 
 // Interface provides access to each of this group's versions.
