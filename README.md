@@ -113,7 +113,7 @@ Get started by browsing through the documentation below:
   - [Helm Operator](/docs/helm/helm-operator.md)
   - [Troubleshooting](/docs/troubleshooting.md)
   - [Frequently encountered issues](https://github.com/fluxcd/flux/labels/FAQ)
-  - [Upgrading to Flux v1](/docs/upgrading-to-1.0.md)
+  - [Upgrading to Flux v1](/docs/using/upgrading-to-1.0.md)
 
 ### Integrations
 
