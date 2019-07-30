@@ -18,8 +18,8 @@ the `blocked-needs-validation` label is removed, and the issue can be worked
 on.
 
 To set up Flux to test things, there's documentation about setting up a
-[standalone install](docs/install/get-started.md) and a [Helm
-install](docs/install/helm-get-started.md), which might be helpful.
+[standalone install](docs/tutorials/get-started.md) and a [Helm
+install](docs/tutorials/get-started-helm.md), which might be helpful.
 
 Please talk to us on Slack, if you should get stuck anywhere. We appreciate
 any help and look forward to talking to you soon!
@@ -73,10 +73,10 @@ This is a rough outline of how to prepare a contribution:
 
 ### How to build and run the project
 
-Refer to the [building doc](docs/development/building.md) to find out how to build from
+Refer to the [building doc](docs/contributing/building.md) to find out how to build from
 source.
 
-Refer to the [Get Started Developing](docs/development/get-started-developing.md) guide for a walkthrough on developing Flux locally.
+Refer to the [Get Started Developing](docs/contributing/get-started-developing.md) guide for a walkthrough on developing Flux locally.
 
 ### How to run the test suite
 

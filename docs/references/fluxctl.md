@@ -1,10 +1,10 @@
-# Using Flux
+# `fluxctl`
 
 `fluxctl` provides an API that can be used from the command line.
 
 The `--help` for `fluxctl` is described below.
 
-## Installing fluxctl
+## Installing `fluxctl`
 
 ### Mac OS
 
@@ -51,9 +51,9 @@ makepkg -si
 
 With every release of Flux, we release binaries of `fluxctl` for Mac, Linux
 and Windows. Download them from the [Flux release
-page](https://github.com/weaveworks/flux/releases).
+page](https://github.com/fluxcd/flux/releases).
 
-## Connecting fluxctl to the daemon
+## Connecting `fluxctl` to the daemon
 
 By default, `fluxctl` will attempt to port-forward to your Flux
 instance, assuming it runs in the `"default"` namespace. You can
@@ -418,7 +418,7 @@ started with several flags that impact the commit information:
 
 Actions triggered by a user through the CLI `fluxctl`
 tool, can have the commit author information customized. This is handy for providing extra context in the
-notifications and history. Whether the customization is possible, depends on the Flux daemon (fluxd)
+notifications and history. Whether the customization is possible, depends on the Flux daemon (`fluxd`)
 `git-set-author` flag. If set, the commit author will be customized in the following way:
 
 ## Image Tag Filtering
@@ -598,14 +598,14 @@ no existing author
 ## Using Annotations
 
 Automation and image tag filtering can also be managed using annotations
-(fluxctl is using the same mechanism).
+(`fluxctl` is using the same mechanism).
 
 Automation can be enabled with `flux.weave.works/automated: "true"`. Image
 filtering annotations take the form
 `flux.weave.works/tag.container-name: filter-type:filter-value`. Values of
 `filter-type` can be [`glob`](#glob), [`semver`](#semver), and
 [`regexp`](#regexp). Filter values use the same syntax as when the filter is
-configured using fluxctl.
+configured using `fluxctl`.
 
 Here's a simple but complete deployment file with annotations:
 

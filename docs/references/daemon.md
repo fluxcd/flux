@@ -1,45 +1,39 @@
-# Flux Daemon
+# Daemon (`fluxd`)
 
 ## Summary
 
-Flux daemon (fluxd, aka Flux agent) allows automation of application deployments and version control of cluster configuration.
+Flux daemon (`fluxd`, aka Flux agent) allows automation of application deployments and version control of cluster configuration.
 Version controlling of cluster manifests provides reproducibility and a historical trail of events.
 
-### Flux daemon responsibilities
+### Responsibilities
 
-    A) Continuous Deployment
-        1.
-        Flux daemon monitors user git repo Kubernetes manifests for changes, which it
-        then deploys to the cluster.
+#### Continuous Deployment
 
-        2.
-        Flux daemon monitors container registry for running container image updates.
-        Detection of an image change (running container image tag vs container
-        registry image tag) triggers k8s manifest update, which is committed to the
-        user git repository, then deployed to the Kubernetes cluster.
+1. Flux daemon monitors user git repo Kubernetes manifests for
+   changes, which it then deploys to the cluster.
 
-    B) Deployment approaches
-        1.
-        Automate vs Deautomate
-            Deployment happens automatically when a new image tag is detected.
-            Deautomated deployment will not proceed until manually released (through
-            the UI or the CLI tool fluxctl).
+2. Flux daemon monitors container registry for running container image
+   updates. Detection of an image change (running container image tag
+   vs container registry image tag) triggers k8s manifest update, which
+   is committed to the user git repository, then deployed to the
+   Kubernetes cluster.
 
-        2.
-        Lock vs Unlock
-            Deployment is pinned to a particular image tag. New deployment will not
-            proceed upon triggered release.
+#### Deployment approaches
+        
+1. Automate vs Deautomate
 
-## More information
+   Deployment happens automatically when a new image tag is
+   detected. Deautomated deployment will not proceed until
+   manually released (through the CLI tool `fluxctl`).
 
-Setting up and configuring fluxd is discussed in our [standalone setup](../install/standalone-setup.md)
-document.
+2. Lock vs Unlock
 
-There is also more information on [garbage collection](./garbagecollection.md) and [Git commit signing](../using/git-gpg.md).
+   Deployment is pinned to a particular image tag.
+   New deployment will not proceed upon triggered release.
 
-## Flags
+## Setup and configuration
 
-fluxd requires setup and offers customization though a multitude of flags.
+`fluxd` requires setup and offers customization though a multitude of flags.
 
 | Flag                                             | Default                            | Purpose
 | ------------------------------------------------ | ---------------------------------- | ---
@@ -48,7 +42,7 @@ fluxd requires setup and offers customization though a multitude of flags.
 | --kubernetes-kubectl                             |                                    | optional, explicit path to kubectl tool
 | --version                                        | false                              | output the version number and exit
 | **Git repo & key etc.**
-| --git-url                                        |                          | URL of git repo with Kubernetes manifests; e.g., `git@github.com:weaveworks/flux-get-started`
+| --git-url                                        |                          | URL of git repo with Kubernetes manifests; e.g., `git@github.com:fluxcd/flux-get-started`
 | --git-branch                                     | `master`                 | branch of git repo to use for Kubernetes manifests
 | --git-ci-skip                                    | false                    | when set, fluxd will append `\n\n[ci skip]` to its commit messages
 | --git-ci-skip-message                            | `""`                     | if provided, fluxd will append this to commit messages (overrides --git-ci-skip`)
@@ -95,3 +89,11 @@ fluxd requires setup and offers customization though a multitude of flags.
 | --ssh-keygen-type                                |                                    | -t argument to ssh-keygen (default unspecified)
 | **manifest generation**
 | --manifest-generation                            | false                              | experimental; search for .flux.yaml files to generate manifests
+
+## More information
+
+Setting up and configuring `fluxd` is discussed in
+["Get started with Flux"](../tutorials/get-started.md).
+
+There is also more information on [garbage collection](garbagecollection.md),
+[Git commit signing](git-gpg.md), and other elements in [references](./).

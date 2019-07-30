@@ -8,7 +8,7 @@ service. This meant that to get a useful system, you had to run both
 the daemon and the service in your cluster. In version 1, the daemon
 does all of the mechanical work by itself.
 
-## Differences between Old Flux and Flux v1
+## Differences between old Flux and Flux v1
 
 In version 1 the daemon is more self-sufficient and easier to set
 up. It is also more capable, and in particular, it now synchronises
@@ -81,9 +81,9 @@ First, it will help in a few places to have an old fluxctl
 around. Download it from GitHub:
 
 ```sh
-curl -o fluxctl_030 https://github.com/weaveworks/flux/releases/download/0.3.0/fluxctl_linux_amd64
+curl -o fluxctl_030 https://github.com/fluxcd/flux/releases/download/0.3.0/fluxctl_linux_amd64
 # or if using macOS,
-# curl -o fluxctl_030 https://github.com/weaveworks/flux/releases/download/0.3.0/fluxctl_darwin_amd64
+# curl -o fluxctl_030 https://github.com/fluxcd/flux/releases/download/0.3.0/fluxctl_darwin_amd64
 chmod a+x ./fluxctl_030
 ```
 
@@ -91,7 +91,7 @@ chmod a+x ./fluxctl_030
 
 Set the environment variable FLUX_URL to point to the Flux service you
 are running, as described in
-[the old deployment docs](https://github.com/weaveworks/flux/blob/0.3.0/site/using.md#fluxctl-setup). The
+[the old deployment docs](https://github.com/fluxcd/flux/blob/0.3.0/site/using.md#fluxctl-setup). The
 particular URL will differ, depending on how you have told Kubernetes
 to expose the Flux service.
 
@@ -115,7 +115,7 @@ used to create them. If you don’t have the files on hand, you can try
 using the example deployment as a stand-in:
 
 ```sh
-git clone --branch 0.3.0 git@github.com:weaveworks/flux flux-0.3.0
+git clone --branch 0.3.0 git@github.com:fluxcd/flux flux-0.3.0
 kubectl delete --ignore-not-found -R -f ./flux-0.3.0/deploy
 ```
 
@@ -139,7 +139,7 @@ by Flux in the file `old-config.yaml` that was created earlier.
 
 To run Flux without connecting to Weave Cloud, adapt the manifests
 provided in the
-[Flux repo](https://github.com/weaveworks/flux/tree/master/deploy)
+[Flux repo](https://github.com/fluxcd/flux/tree/master/deploy)
 with the git parameters (URL, path, and branch) from
 `old-config.yaml`, and then apply them with `kubectl`. Consider adding
 these adapted manifests to your own config repo.
@@ -150,11 +150,11 @@ just that).
 
 You may find that you need to set FLUX_URL again, to take account of
 the new deployment. See the
-[setup instructions](https://github.com/weaveworks/flux/blob/1.0.1/site/standalone/setup.md#connecting-fluxctl-to-the-daemon)
+[setup instructions](https://github.com/fluxcd/flux/blob/1.0.1/site/standalone/setup.md#connecting-fluxctl-to-the-daemon)
 for guidance.
 
 To see the SSH key created by Flux, download the latest fluxctl from
-[the release page](https://github.com/weaveworks/flux/releases/tag/1.0.1)
+[the release page](https://github.com/fluxcd/flux/releases/tag/1.0.1)
 and run:
 
 ```sh

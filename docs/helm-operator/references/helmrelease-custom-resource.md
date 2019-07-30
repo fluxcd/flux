@@ -1,25 +1,11 @@
-# Using Flux with Helm
-
-You can release charts to your cluster via "GitOps", by combining Flux
-and the Flux Helm Operator (also in
-[weaveworks/flux](https://github.com/weaveworks/flux)).
-
-The essential mechanism is this: the declaration of a Helm release is
-represented by a custom resource, specifying the chart and its
-values. If you put such a resource in your git repo as a file, Flux
-will apply it to the cluster, and once it's in the cluster, the Helm
-Operator will make sure the release exists by installing or upgrading
-it.
-
-## The `HelmRelease` custom resource
+# `HelmRelease` Custom Resource
 
 Each release of a chart is declared by a `HelmRelease`
 resource. The schema for these resources is given in [the custom
-resource definition](https://github.com/weaveworks/flux/blob/master/deploy-helm/flux-helm-release-crd.yaml). They
+resource definition](https://github.com/fluxcd/flux/blob/master/deploy-helm/flux-helm-release-crd.yaml). They
 look like this:
 
 ```yaml
----
 apiVersion: flux.weave.works/v1beta1
 kind: HelmRelease
 metadata:
@@ -52,7 +38,17 @@ The `values` section is where you provide the value overrides for the
 chart. This is as you would put in a `values.yaml` file, but inlined
 into the structure of the resource. See below for examples.
 
-### Using a chart from a Git repo instead of a Helm repo
+<a name="why-repo-urls">**Why use URLs to refer to repositories, rather than names?**</a> [^](#cite-why-repo-urls)
+
+A `HelmRelease` must be able to stand on its own. If we used names
+in the spec, which were resolved to URLs elsewhere (e.g., in a
+`repositories.yaml` supplied to the operator), it would be possible to
+change the meaning of a `HelmRelease` without altering it. This is
+undesirable because it makes it hard to specify exactly what you want,
+in the one place; or to read exactly what is being specified, in the
+one place. In other words, it's better to be explicit.
+
+## Using a chart from a Git repo instead of a Helm repo
 
 You can refer to a chart from a _git_ repo, rather than a chart repo,
 with a `chart:` section like this:
@@ -60,7 +56,7 @@ with a `chart:` section like this:
 ```yaml
 spec:
   chart:
-    git: git@github.com:weaveworks/flux-get-started
+    git: git@github.com:fluxcd/flux-get-started
     ref: master
     path: charts/ghost
 ```
@@ -76,7 +72,7 @@ secret at the expected location of the key (`/etc/fluxd/ssh/`). If you
 need more than one SSH key, you'll need to also mount an adapted
 ssh_config; this is also demonstrated in the example deployment.
 
-#### Notifying Helm Operator about Git changes
+### Notifying Helm Operator about Git changes
 
 The Helm Operator fetches the upstream of mirrored Git repositories
 with a 5 minute interval. In some scenarios (think CI/CD), you may not
@@ -94,29 +90,6 @@ OK
 > **Note:** the HTTP API has no built-in authentication, this means you
 > either need to port forward before making the request or put something
 > in front of it to serve as a gatekeeper.
-
-### Reinstalling a Helm release
-
-If a Helm release upgrade fails due to incompatible changes like modifying
-an immutable field (e.g. headless svc to ClusterIP)  
-you can reinstall it using the following command:
-
-```sh
-$ kubectl delete hr/my-release
-```
-
-When the Helm Operator receives a delete event from Kubernetes API it will
-call Tiller and purge the Helm release. On the next Flux sync, the Helm Release
-object will be created and the Helm Operator will install it.
-
-### What the Helm Operator does
-
-When the Helm Operator sees a `HelmRelease` resource in the
-cluster, it either installs or upgrades the named Helm release so that
-the chart is released as specified.
-
-It will also notice when a `HelmRelease` resource is updated, and
-take action accordingly.
 
 ## Supplying values to the chart
 
@@ -219,130 +192,6 @@ spec:
       optional: true                                       # optional; defaults to false
 ```
 
-## Upgrading images in a `HelmRelease` using Flux
-
-If the chart you're using in a `HelmRelease` lets you specify the
-particular images to run, you will usually be able to update them with
-Flux, the same way you can with Deployments and so on.
-
-> **Note:** for automation to work, the repository _and_ tag should be
-> defined, as Flux determines image updates based on what it reads in
-> the `.spec.values` of the `HelmRelease`.
-
-Flux interprets certain commonly used structures in the `values`
-section of a `HelmRelease` as referring to images. The following
-are understood (showing just the `values` section):
-
-```yaml
-values:
-  image: repo/image:version
-```
-
-```yaml
-values:
-  image: repo/image
-  tag: version
-```
-
-```yaml
-values:
-  registry: docker.io
-  image: repo/image
-  tag: version
-```
-
-```yaml
-values:
-  image:
-    repository: repo/image
-    tag: version
-```
-
-```yaml
-values:
-  image:
-    registry: docker.io
-    repository: repo/image
-    tag: version
-```
-
-These can appear at the top level (immediately under `values:`), or in
-a subsection (under a key, itself under `values:`). Other values
-may be mixed in arbitrarily. Here's an example of a values section
-that specifies two images, along with some other configuration:
-
-```yaml
-values:
-  persistent: true
-
-  # image that will be labeled "chart-image"
-  image: repo/image1:version
-
-  subsystem:
-    # image that will be labeled "subsystem"
-    image:
-      repository: repo/image2
-      tag: version
-      imagePullPolicy: IfNotPresent
-    port: 4040
-```
-
-You can use the [same annotations](../using/fluxctl.md) in
-the `HelmRelease` as you would for a Deployment or other workload,
-to control updates and automation. For the purpose of specifying
-filters, the container name is either `chart-image` (if at the top
-level), or the key under which the image is given (e.g., `"subsystem"`
-from the example above).
-
-Top level image example:
-
-```yaml
-kind: HelmRelease
-metadata:
-  annotations:
-    flux.weave.works/automated: "true"
-    flux.weave.works/tag.chart-image: semver:~4.0
-spec:
-  values:
-    image:
-      repository: bitnami/mongodb
-      tag: 4.0.3
-```
-
-Sub-section images example:
-
-```yaml
-kind: HelmRelease
-metadata:
-  annotations:
-    flux.weave.works/automated: "true"
-    flux.weave.works/tag.prometheus: semver:~2.3
-    flux.weave.works/tag.alertmanager: glob:v0.15.*
-    flux.weave.works/tag.nats: regex:^0.6.*
-spec:
-  values:
-    prometheus:
-      image: prom/prometheus:v2.3.1
-    alertmanager:
-      image: prom/alertmanager:v0.15.0
-    nats:
-      image:
-        repository: nats-streaming
-        tag: 0.6.0
-```
-
--------------
-
-<a name="why-repo-urls">**Why use URLs to refer to repositories, rather than names?**</a> [^](#cite-why-repo-urls)
-
-A `HelmRelease` must be able to stand on its own. If we used names
-in the spec, which were resolved to URLs elsewhere (e.g., in a
-`repositories.yaml` supplied to the operator), it would be possible to
-change the meaning of a `HelmRelease` without altering it. This is
-undesirable because it makes it hard to specify exactly what you want,
-in the one place; or to read exactly what is being specified, in the
-one place. In other words, it's better to be explicit.
-
 ## Rollbacks
 
 From time to time a release made by the Helm operator may fail, it is
@@ -384,6 +233,20 @@ spec:
     wait: false
 ```
 
+## Reinstalling a Helm release
+
+If a Helm release upgrade fails due to incompatible changes like modifying
+an immutable field (e.g. headless svc to ClusterIP)  
+you can reinstall it using the following command:
+
+```sh
+$ kubectl delete hr/my-release
+```
+
+When the Helm Operator receives a delete event from Kubernetes API it will
+call Tiller and purge the Helm release. On the next Flux sync, the Helm Release
+object will be created and the Helm Operator will install it.
+
 ## Authentication
 
 At present, per-resource authentication is not implemented. The
@@ -400,7 +263,7 @@ As a workaround, you can mount a `repositories.yaml` file with
 authentication already configured, into the operator container.
 
 > **Note:** When using a custom `repositories.yaml` the
-[default](https://github.com/weaveworks/flux/blob/master/docker/helm-repositories.yaml)
+[default](https://github.com/fluxcd/flux/blob/master/docker/helm-repositories.yaml)
 that ships with the operator is overwritten. This means that for any
 repository you want to make use of you should manually add an entry to
 your `repositories.yaml` file.
@@ -431,7 +294,7 @@ kubectl create secret generic flux-helm-repositories --from-file=./repositories.
 Lastly, mount that secret into the container. This can be done by
 setting `helmOperator.configureRepositories.enable` to `true` for the
 flux Helm release, or as shown in the commented-out sections of the
-[example deployment](https://github.com/weaveworks/flux/blob/master/deploy-helm/helm-operator-deployment.yaml).
+[example deployment](https://github.com/fluxcd/flux/blob/master/deploy-helm/helm-operator-deployment.yaml).
 
 #### Azure ACR repositories
 
@@ -460,7 +323,7 @@ access.
 
 To provide an SSH key, put the key in a secret under the entry
 `identity`, and mount it into the operator container as shown in the
-[example deployment](https://github.com/weaveworks/flux/blob/master/deploy-helm/helm-operator-deployment.yaml).
+[example deployment](https://github.com/fluxcd/flux/blob/master/deploy-helm/helm-operator-deployment.yaml).
 The default ssh_config expects an identity file at
 `/etc/fluxd/ssh/identity`, which is where it'll be if you just
 uncomment the blocks from the example.

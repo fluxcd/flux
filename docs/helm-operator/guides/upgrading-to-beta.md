@@ -43,7 +43,7 @@ helm upgrade flux --reuse-values \
 --set image.tag=1.8.1 \
 --set helmOperator.tag=0.5.1 \
 --namespace=flux \
-weaveworks/flux --version 0.5.1
+fluxcd/flux --version 0.5.1
 ```
 
 The chart will leave the old custom resource definition and custom
@@ -72,8 +72,8 @@ since it expects the SSH key for the git repo to be in the same place.
 Once you want to use the new capabilities of the operator -- e.g.,
 releasing charts from Helm repos -- you will probably need to adapt
 the manifest further. The [Helm operator set-up
-guide](./helm-integration.md) and [example
-deployment](https://github.com/weaveworks/flux/blob/master/deploy-helm/helm-operator-deployment.yaml)
+guide](../../references/helm-operator-integration.md) and [example
+deployment](https://github.com/fluxcd/flux/blob/master/deploy-helm/helm-operator-deployment.yaml)
 explain all the details.
 
 ## Updating custom resources
