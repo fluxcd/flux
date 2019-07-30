@@ -1,4 +1,4 @@
-module github.com/fluxcd/flux
+module github.com/weaveworks/flux
 
 go 1.12
 
