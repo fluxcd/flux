@@ -22,7 +22,7 @@ This means fluxd can fail to apply changes to HelmRelease resources.
 ### Helm
 
 Tiller should be running in the cluster, though
-[helm-operator](../../docs/helm-operator.md) will wait
+[helm-operator](../../docs/helm/helm-operator.md) will wait
 until it can find one.
 
 # Git repo
@@ -37,7 +37,7 @@ until it can find one.
 ## Installation
 
 We put together a simple [Get Started
-guide](../../docs/helm-get-started.md) which takes about 5-10 minutes to follow.
+guide](../../docs/install/helm-get-started.md) which takes about 5-10 minutes to follow.
 You will have a fully working Flux installation deploying workloads to your cluster.
 
 ## Installing Flux using Helm
@@ -154,7 +154,7 @@ The [configuration](#configuration) section lists all the parameters that can be
 #### Setup Git deploy
 
 At startup Flux generates a SSH key and logs the public key.
-Find the SSH public key by installing [fluxctl](../../docs/fluxctl.md) and
+Find the SSH public key by installing [fluxctl](../../docs/using/fluxctl.md) and
 running:
 
 ```sh
@@ -288,8 +288,8 @@ The following tables lists the configurable parameters of the Flux chart and the
 | `helmOperator.affinity`                           | `{}`                                                 | Affinity properties for the helmOperator deployment
 | `kube.config`                                     | [See values.yaml](/chart/flux/values.yaml#L151-L165) | Override for kubectl default config in the Flux pod(s).
 | `prometheus.enabled`                              | `false`                                              | If enabled, adds prometheus annotations to Flux and helmOperator pod(s)
-| `syncGarbageCollection.enabled`                   | `false`                                              | If enabled, fluxd will delete resources that it created, but are no longer present in git (experimental, see [garbage collection](/docs/garbagecollection.md))
-| `syncGarbageCollection.dry`                       | `false`                                              | If enabled, fluxd won't delete any resources, but log the garbage collection output (experimental, see [garbage collection](/docs/garbagecollection.md))
+| `syncGarbageCollection.enabled`                   | `false`                                              | If enabled, fluxd will delete resources that it created, but are no longer present in git (experimental, see [garbage collection](/docs/features/garbagecollection.md))
+| `syncGarbageCollection.dry`                       | `false`                                              | If enabled, fluxd won't delete any resources, but log the garbage collection output (experimental, see [garbage collection](/docs/features/garbagecollection.md))
 
 Specify each parameter using the `--set key=value[,key=value]` argument to `helm install`. For example:
 
