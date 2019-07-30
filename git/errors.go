@@ -16,7 +16,7 @@ We need to clone a git repo to proceed, and you haven't supplied
 one. Please upload a config file, including a git repository URL, as
 described in
 
-    https://github.com/weaveworks/flux/blob/master/docs/using/fluxctl.md
+    https://github.com/weaveworks/flux/blob/master/docs/references/fluxctl.md
 
 `,
 }

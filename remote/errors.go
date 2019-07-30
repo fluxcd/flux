@@ -22,7 +22,7 @@ and try the operation again.
 Otherwise, please consult the installation instructions in our
 documentation:
 
-    https://github.com/weaveworks/flux/blob/master/docs/install/index.md
+    https://github.com/weaveworks/flux/blob/master/docs/get-started/index.rst
 
 If you are still stuck, please log an issue:
 
