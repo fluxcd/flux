@@ -48,7 +48,7 @@ Its major features are:
 
 - [Automated git → cluster synchronisation](/docs/introduction.md#automated-git-cluster-synchronisation)
 - [Automated deployment of new container images](/docs/introduction.md#automated-deployment-of-new-container-images)
-- [Integrations with other devops tools](/docs/introduction.md#integrations-with-other-devops-tools) ([Helm](/docs/helm-integration.md) and more)
+- [Integrations with other devops tools](/docs/introduction.md#integrations-with-other-devops-tools) ([Helm](/docs/helm/helm-integration.md) and more)
 - No additional service or infrastructure needed - Flux lives inside your
   cluster
 - Straight-forward control over the state of deployments in the
@@ -102,18 +102,18 @@ Get started by browsing through the documentation below:
   - [Introduction to Flux](/docs/introduction.md)
   - [FAQ](/docs/faq.md) and [frequently encountered issues](https://github.com/fluxcd/flux/labels/FAQ)
   - [How it works](/docs/how-it-works.md)
-  - [Considerations regarding installing Flux](/docs/installing.md)
-  - [Flux <-> Helm integration](/docs/helm-integration.md)
+  - [Considerations regarding installing Flux](/docs/install/)
+  - [Flux <-> Helm integration](/docs/helm/helm-integration.md)
 - Get Started with Flux
-  - [Standalone Flux](/docs/get-started.md)
-  - [Flux using Helm](/docs/helm-get-started.md)
-  - [Automation: annotations and locks](/docs/annotations-tutorial.md)
+  - [Standalone Flux](/docs/install/get-started.md)
+  - [Flux using Helm](/docs/install/helm-get-started.md)
+  - [Automation: annotations and locks](/docs/using/annotations-tutorial.md)
 - Operating Flux
-  - [Using fluxctl to control Flux](/docs/fluxctl.md)
-  - [Helm Operator](/docs/helm-operator.md)
+  - [Using fluxctl to control Flux](/docs/using/fluxctl.md)
+  - [Helm Operator](/docs/helm/helm-operator.md)
   - [Troubleshooting](/docs/troubleshooting.md)
   - [Frequently encountered issues](https://github.com/fluxcd/flux/labels/FAQ)
-  - [Upgrading to Flux v1](/docs/upgrading-to-1.0.md)
+  - [Upgrading to Flux v1](/docs/using/upgrading-to-1.0.md)
 
 ### Integrations
 
@@ -142,7 +142,7 @@ To familiarise yourself with the project and how things work, you might
 be interested in the following:
 
 - [Our contributions guidelines](CONTRIBUTING.md)
-- [Build documentation](/docs/building.md)
+- [Build documentation](/docs/development/building.md)
 - [Release documentation](/internal_docs/releasing.md)
 
 ## <a name="help"></a>Getting Help
