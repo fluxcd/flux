@@ -1,13 +1,14 @@
 version: 2
 jobs:
   build:
-    working_directory: ~/flux
+    working_directory: /home/circleci/go/src/github.com/weaveworks/flux
     machine:
       image: ubuntu-1604:201903-01
     environment:
       GO_VERSION: 1.12.5
       # We don't need a GOPATH but CircleCI defines it, so we override it
       GOPATH: /home/circleci/go
+      GO111MODULE: 'on'
       PATH: /bin:/usr/bin:/usr/local/go/bin:/home/circleci/go/bin
     steps:
       - checkout
