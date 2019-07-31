@@ -132,7 +132,7 @@ install/generated_templates.gogen.go: install/templates/*
 
 check-generated: generate-deploy install/generated_templates.gogen.go
 	./bin/helm/update_codegen.sh
-	git diff --exit-code -- integrations/apis intergrations/client install/generated_templates.gogen.go
+	git diff --exit-code -- integrations/apis integrations/client install/generated_templates.gogen.go
 
 build-docs:
 	@cd docs && docker build -t flux-docs .

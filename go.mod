@@ -63,10 +63,8 @@ require (
 	github.com/weaveworks/go-checkpoint v0.0.0-20170503165305-ebbb8b0518ab
 	github.com/weaveworks/promrus v1.2.0 // indirect
 	github.com/whilp/git-urls v0.0.0-20160530060445-31bac0d230fa
-	golang.org/x/crypto v0.0.0-20190411191339-88737f569e3a // indirect
-	golang.org/x/net v0.0.0-20190404232315-eb5bcb51f2a3 // indirect
 	golang.org/x/oauth2 v0.0.0-20190402181905-9f3314589c9a // indirect
-	golang.org/x/sys v0.0.0-20190411185658-b44545bcd369
+	golang.org/x/sys v0.0.0-20190616124812-15dcb6c0061f
 	golang.org/x/time v0.0.0-20190308202827-9d24e82272b4
 	google.golang.org/api v0.3.2 // indirect
 	google.golang.org/appengine v1.5.0 // indirect
@@ -76,10 +74,25 @@ require (
 	k8s.io/apiextensions-apiserver v0.0.0-20190315093550-53c4693659ed
 	k8s.io/apimachinery v0.0.0-20190404173353-6a84e37a896d
 	k8s.io/client-go v11.0.0+incompatible
-	k8s.io/code-generator v0.0.0-20190511023357-639c964206c2
+	k8s.io/code-generator v0.0.0-00010101000000-000000000000
+	k8s.io/gengo v0.0.0-20190327210449-e17681d19d3a
 	k8s.io/helm v2.13.1+incompatible
-	k8s.io/klog v0.3.0
-	k8s.io/kube-openapi v0.0.0-20190401085232-94e1e7b7574c // indirect
+	k8s.io/klog v0.3.1
 )
 
 replace github.com/docker/distribution => github.com/2opremio/distribution v0.0.0-20190419185413-6c9727e5e5de
+
+// The following pin these libs to `kubernetes-1.14.4` (by initially
+// giving the version as that tag, and letting go mod fill in its idea of
+// the version).
+// The libs are thereby kept compatible with client-go v11, which is
+// itself compatible with Kubernetes 1.14.
+
+replace (
+	k8s.io/api => k8s.io/api v0.0.0-20190708174958-539a33f6e817
+	k8s.io/apimachinery => k8s.io/apimachinery v0.0.0-20190404173353-6a84e37a896d
+	k8s.io/apiserver => k8s.io/apiserver v0.0.0-20190708180123-608cd7da68f7
+	k8s.io/client-go => k8s.io/client-go v11.0.0+incompatible
+	k8s.io/code-generator => k8s.io/code-generator v0.0.0-20190311093542-50b561225d70
+	k8s.io/component-base => k8s.io/component-base v0.0.0-20190708175518-244289f83105
+)
