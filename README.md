@@ -102,7 +102,7 @@ Get started by browsing through the documentation below:
   - [Introduction to Flux](/docs/introduction.md)
   - [FAQ](/docs/faq.md) and [frequently encountered issues](https://github.com/fluxcd/flux/labels/FAQ)
   - [How it works](/docs/references/blueprint.md)
-  - [Considerations regarding installing Flux](/docs/install/index.md)
+  - [Considerations regarding installing Flux](/docs/get-started/index.rst)
   - [Flux <-> Helm integration](/docs/references/helm-operator-integration.md)
 - Get Started with Flux
   - [Standalone Flux](/docs/tutorials/get-started.md)
