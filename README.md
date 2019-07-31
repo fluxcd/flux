@@ -35,27 +35,13 @@ new infrastructure.
 
 [![CircleCI](https://circleci.com/gh/fluxcd/flux.svg?style=svg)](https://circleci.com/gh/fluxcd/flux)
 [![GoDoc](https://godoc.org/github.com/fluxcd/flux?status.svg)](https://godoc.org/github.com/fluxcd/flux)
+[![Documentation](https://img.shields.io/badge/latest-documentation-informational)](https://docs.fluxcd.io/en/latest/)
 
 ## What Flux does
 
 Flux is most useful when used as a deployment tool at the end of a
 Continuous Delivery pipeline. Flux will make sure that your new
 container images and config changes are propagated to the cluster.
-
-### Features
-
-Its major features are:
-
-- [Automated git → cluster synchronisation](/docs/introduction.md#automated-git-cluster-synchronisation)
-- [Automated deployment of new container images](/docs/introduction.md#automated-deployment-of-new-container-images)
-- [Integrations with other devops tools](/docs/introduction.md#integrations-with-other-devops-tools) ([Helm](/docs/references/helm-operator-integration.md) and more)
-- No additional service or infrastructure needed - Flux lives inside your
-  cluster
-- Straight-forward control over the state of deployments in the
-  cluster (rollbacks, lock a specific version of a workload, manual
-  deployments)
-- Observability: git commits are an audit trail, and you can record events that
-  occured, for example: why a given deployment was locked.
 
 ### Who is using Flux in production
 
@@ -96,24 +82,8 @@ could easily integrate.
 
 ## Get started with Flux
 
-Get started by browsing through the documentation below:
-
-- Background about Flux
-  - [Introduction to Flux](/docs/introduction.md)
-  - [FAQ](/docs/faq.md) and [frequently encountered issues](https://github.com/fluxcd/flux/labels/FAQ)
-  - [How it works](/docs/references/blueprint.md)
-  - [Considerations regarding installing Flux](/docs/get-started/index.rst)
-  - [Flux <-> Helm integration](/docs/references/helm-operator-integration.md)
-- Get Started with Flux
-  - [Standalone Flux](/docs/tutorials/get-started.md)
-  - [Flux using Helm](/docs/tutorials/get-started-helm.md)
-  - [Automation: annotations and locks](/docs/tutorials/driving-flux.md)
-- Operating Flux
-  - [Using fluxctl to control Flux](/docs/references/fluxctl.md)
-  - [Helm Operator](/docs/helm-operator/)
-  - [Troubleshooting](/docs/troubleshooting.md)
-  - [Frequently encountered issues](https://github.com/fluxcd/flux/labels/FAQ)
-  - [Upgrading to Flux v1](/docs/guides/upgrading-to-1.0.md)
+Get started [installing Flux](https://docs.fluxcd.io/en/latest/get-started/)
+or just [browse through the documentation](https://docs.fluxcd.io).
 
 ### Integrations
 
@@ -125,6 +95,11 @@ a few popular ones you might want to check out:
 - [OpenFaaS GitOps workflow with Flux](https://github.com/stefanprodan/openfaas-flux)
 - [GitOps for Istio Canary deployments](https://github.com/stefanprodan/gitops-istio)
 - [Fluxcloud to receive events from Flux](https://github.com/justinbarrick/fluxcloud)
+
+## Get started with the Helm operator
+
+Get started [installing the Helm operator](https://docs.fluxcd.io/en/latest/helm-operator/tutorials/get-started.html)
+or just [browse through the documentation](https://docs.fluxcd.io/en/latest/helm-operator/).
 
 ## Community & Developer information
 
@@ -142,7 +117,7 @@ To familiarise yourself with the project and how things work, you might
 be interested in the following:
 
 - [Our contributions guidelines](CONTRIBUTING.md)
-- [Build documentation](/docs/contributing/building.md)
+- [Build documentation](https://docs.fluxcd.io/en/latest/contributing/building.html)
 - [Release documentation](/internal_docs/releasing.md)
 
 ## <a name="help"></a>Getting Help
