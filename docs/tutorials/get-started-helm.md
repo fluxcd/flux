@@ -185,5 +185,5 @@ very straight-forward and are a quite natural workflow.
 
 ## A more advanced setup
 
-For a more advanced Helm setup, take a look at the [gitops-helm
-repository](https://github.com/stefanprodan/gitops-helm).
+For a more advanced Helm setup, take a look at the
+[`fluxcd/helm-operator-get-started` repository](https://github.com/fluxcd/helm-operator-get-started).
