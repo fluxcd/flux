@@ -96,6 +96,11 @@ a few popular ones you might want to check out:
 - [GitOps for Istio Canary deployments](https://github.com/stefanprodan/gitops-istio)
 - [Fluxcloud to receive events from Flux](https://github.com/justinbarrick/fluxcloud)
 
+## Get started with the Helm operator
+
+Get started [installing the Helm operator](https://docs.fluxcd.io/en/latest/helm-operator/tutorials/get-started.html)
+or just [browse through the documentation](https://docs.fluxcd.io/en/latest/helm-operator/).
+
 ## Community & Developer information
 
 We welcome all kinds of contributions to Flux, be it code, issues you found,
