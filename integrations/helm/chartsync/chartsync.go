@@ -342,11 +342,13 @@ func (chs *ChartChangeSync) ReconcileReleaseDef(fhr fluxv1beta1.HelmRelease) {
 		if !ok {
 			return
 		}
+		chs.setCondition(fhr, fluxv1beta1.HelmReleaseChartFetched, v1.ConditionTrue, ReasonCloned, "successfully cloned git repo")
 	} else if fhr.Spec.ChartSource.RepoChartSource != nil {
 		chartPath, chartRevision, ok = chs.getRepoChartSource(fhr)
 		if !ok {
 			return
 		}
+		chs.setCondition(fhr, fluxv1beta1.HelmReleaseChartFetched, v1.ConditionTrue, ReasonDownloaded, "chart fetched: "+filepath.Base(chartPath))
 	}
 
 	if rel == nil {
@@ -535,7 +537,6 @@ func (chs *ChartChangeSync) getGitChartSource(fhr v1beta1.HelmRelease) (string, 
 		}
 		return chartPath, chartRevision, false
 	}
-	chs.setCondition(fhr, fluxv1beta1.HelmReleaseChartFetched, v1.ConditionTrue, ReasonCloned, "successfully cloned git repo")
 	chartPath = filepath.Join(chartClone.export.Dir(), chartSource.Path)
 	chartRevision = chartClone.head
 
@@ -564,7 +565,6 @@ func (chs *ChartChangeSync) getRepoChartSource(fhr v1beta1.HelmRelease) (string,
 		return chartPath, chartRevision, false
 	}
 
-	chs.setCondition(fhr, fluxv1beta1.HelmReleaseChartFetched, v1.ConditionTrue, ReasonDownloaded, "chart fetched: "+filepath.Base(path))
 	chartPath = path
 	chartRevision = chartSource.Version
 
