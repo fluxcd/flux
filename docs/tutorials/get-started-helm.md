@@ -1,6 +1,4 @@
-# Installing Flux using Helm
-
-## Get started with Flux using Helm
+# Get started with Flux using Helm
 
 If you are using Helm already, this guide is for you. By the end
 you will have Helm installing Flux in the cluster and deploying
@@ -8,9 +6,9 @@ any code changes for you.
 
 If you are looking for more generic notes for how to install Flux
 using Helm, we collected them [in the chart's
-README](https://github.com/weaveworks/flux/blob/master/chart/flux/README.md).
+README](https://github.com/fluxcd/flux/blob/master/chart/flux/README.md).
 
-### Prerequisites
+## Prerequisites
 
 You will need to have Kubernetes set up. To get up and running fast,
 you might want to use `minikube` or `kubeadm`. Any other Kubernetes
@@ -49,7 +47,7 @@ helm init --skip-refresh --upgrade --service-account tiller --history-max 10
 > and be aware of the `--history-max` flag before promoting to
 > production.
 
-### Install Flux
+## Install Flux
 
 Add the Flux repository:
 
@@ -65,10 +63,10 @@ kubectl apply -f https://raw.githubusercontent.com/fluxcd/flux/master/deploy-hel
 
 In this next step you install Flux using `helm`. Simply
 
- 1. Fork [flux-get-started](https://github.com/weaveworks/flux-get-started)
-    on GitHub and replace the `weaveworks` with your GitHub username in
-    [here](https://github.com/weaveworks/flux-get-started/blob/master/releases/ghost.yaml#L13)
- 1. Install Flux and its Helm Operator by specifying your fork URL:
+ 1. Fork [`fluxcd/flux-get-started`](https://github.com/fluxcd/flux-get-started)
+    on GitHub and replace the `fluxcd` with your GitHub username in
+    [here](https://github.com/fluxcd/flux-get-started/blob/master/releases/ghost.yaml#L13)
+ 1. Install Flux and the Helm operator by specifying your fork URL:
 
       *Just make sure you replace `YOURUSER` with your GitHub username
       in the command below:*
@@ -88,7 +86,7 @@ In this next step you install Flux using `helm`. Simply
 
       When deploying from a private repo, the known_hosts of the git server needs
       to be configured into a kubernetes configmap so that `StrictHostKeyChecking` is respected.
-      See [chart/flux/README.md](https://github.com/weaveworks/flux/blob/master/chart/flux/README.md#to-install-flux-with-the-helm-operator-and-a-private-git-repository)
+      See the [README of the chart](https://fluxcd/flux/blob/master/chart/flux/README.md#to-install-flux-with-the-helm-operator-and-a-private-git-repository)
       for further installation instructions in this case.
 
 Allow some time for all containers to get up and running. If you're
@@ -102,7 +100,7 @@ watch kubectl -n flux get pods
 You will notice that `flux` and `flux-helm-operator` will start
 turning up in the `flux` namespace.
 
-### Giving write access
+## Giving write access
 
 For the real benefits of GitOps, Flux will need access to your
 git repository to update configuration if necessary. To facilitate
@@ -111,7 +109,7 @@ repository.
 
 This is pretty straight-forward as Flux generates a SSH key and
 logs the public key at startup. Find the SSH public key by
-installing [fluxctl](../using/fluxctl.md) and running:
+installing [`fluxctl`](../references/fluxctl.md) and running:
 
 ```sh
 fluxctl identity --k8s-fwd-ns flux
@@ -138,7 +136,7 @@ deployed into the `demo` namespace) listed like so:
 helm list --namespace demo
 ```
 
-### Committing a small change
+## Committing a small change
 
 `flux-get-started` is a simple example in which three services
 (mongodb, redis and ghost) are deployed. Here we will simply update the
@@ -179,7 +177,7 @@ Flux is deploying to:
 kubectl describe -n demo deployment/mongodb | grep Image
 ```
 
-### Conclusion
+## Conclusion
 
 As you can see, the actual steps to set up Flux, get our app
 deployed, give Flux access to it and see modifications land are
@@ -187,5 +185,5 @@ very straight-forward and are a quite natural workflow.
 
 ## A more advanced setup
 
-For a more advanced Helm setup, take a look at the [gitops-helm
-repository](https://github.com/stefanprodan/gitops-helm).
+For a more advanced Helm setup, take a look at the
+[`fluxcd/helm-operator-get-started` repository](https://github.com/fluxcd/helm-operator-get-started).

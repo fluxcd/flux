@@ -1,22 +1,22 @@
-# Troubleshooting Weave Flux
+# Troubleshooting
 
 Also see the [issues labeled with
-`FAQ`](https://github.com/weaveworks/flux/labels/FAQ), which often
+`FAQ`](https://github.com/fluxcd/flux/labels/FAQ), which often
 explain workarounds.
 
-### Flux is taking a long time to apply manifests when it syncs
+## Flux is taking a long time to apply manifests when it syncs
 
 If you notice that Flux takes tens of seconds or minutes to get
 through each sync, while you can apply the same manifests very quickly
 by hand, you may be running into this issue:
-https://github.com/weaveworks/flux/issues/1422
+https://github.com/fluxcd/flux/issues/1422
 
 Briefly, the problem is that mounting a volume into `$HOME/.kube`
 effectively disables `kubectl`'s caching, which makes it much much
 slower. You may have used such a volume mount to override
 `$HOME/.kube/config`, possibly unknowingly -- the Helm chart did this
 for you, prior to
-[weaveworks/flux#1435](https://github.com/weaveworks/flux/pull/1435).
+[fluxcd/flux#1435](https://github.com/fluxcd/flux/pull/1435).
 
 The remedy is to mount the override to some other place in the
 filesystem, and use the environment entry `KUBECONFIG` to point
@@ -26,11 +26,11 @@ may be as easy as reapplying the chart if that's what you're using.
 This is also documented in the
 [FAQ](./faq.md).
 
-### `fluxctl` returns a 500 Internal Server Error
+## `fluxctl` returns a 500 Internal Server Error
 
-This usually indicates there's a bug in the Flux daemon somewhere -- in which case please [tell us about it](https://github.com/weaveworks/flux/issues/new)!
+This usually indicates there's a bug in the Flux daemon somewhere -- in which case please [tell us about it](https://github.com/fluxcd/flux/issues/new)!
 
-### Flux answers everything with `git repo is not configured`
+## Flux answers everything with `git repo is not configured`
 
 This means Flux can't read from and write to the git repo. Check that
 
@@ -46,19 +46,19 @@ This means Flux can't read from and write to the git repo. Check that
  - ... that the host where your git repo lives is in
    `~/.ssh/known_hosts` in the fluxd container. We prime the container
    _image_ with host keys for `github.com`, `gitlab.com`, `bitbucket.org`, `dev.azure.com`, and `vs-ssh.visualstudio.com`, but if you're using your own git server, you'll
-   need to add its host key. See [./standalone-setup.md](./install/standalone-setup.md).
+   need to add its host key. See ["Using a private Git host"](./guides/use-private-git-host.md).
 
-### I'm using GCR/GKE and I keep seeing "Quota exceeded" in logs
+## I'm using GCR/GKE and I keep seeing "Quota exceeded" in logs
 
 GCP (in general) has quite conservative API rate limiting, and Flux's
 default settings can bump API usage over the limits. See
-[weaveworks/flux#1016](https://github.com/weaveworks/flux/issues/1016)
+[fluxcd/flux#1016](https://github.com/fluxcd/flux/issues/1016)
 for advice.
 
-### Flux doesn't seem to be able to use my imagePullSecrets
+## Flux doesn't seem to be able to use my imagePullSecrets
 
 If you're using `kubectl` v1.13.x to create them, then it may be due
-to [this problem](https://github.com/weaveworks/flux/issues/1596). In
+to [this problem](https://github.com/fluxcd/flux/issues/1596). In
 short, there was a breaking change to how `kubectl` creates secrets,
 that found its way into the Kubernetes 1.13.0 release. It has been
 corrected in [kubectl
@@ -66,7 +66,7 @@ v1.13.2](https://github.com/kubernetes/kubernetes/blob/master/CHANGELOG-1.13.md#
 so using that version or newer to create secrets should fix the
 problem.
 
-### Why are my images not showing up in the list of images?
+## Why are my images not showing up in the list of images?
 
 Sometimes, instead of seeing the various images and their tags, the
 output of `fluxctl list-images` shows nothing. There's a number of
@@ -77,10 +77,10 @@ reasons this can happen:
  - Flux can't get suitable credentials for the image repository. At
    present, it looks at `imagePullSecret`s attached to workloads,
    service accounts, platform-provided credentials on GCP, AWS or Azure, and
-   a Docker config file if you mount one into the fluxd container (see
-   the [command-line usage](./features/daemon.md)).
+   a Docker config file if you mount one into the `fluxd` container (see
+   the [command-line usage](references/daemon.md)).
  - When using images in ECR, from EC2, the `NodeInstanceRole` for the
-   worker node running fluxd must have permissions to query the ECR
+   worker node running `fluxd` must have permissions to query the ECR
    registry (or registries) in
    question. [`eksctl`](https://github.com/weaveworks/eksctl) and
    [`kops`](https://github.com/kubernetes/kops) (with
@@ -88,8 +88,8 @@ reasons this can happen:
    both make sure this is the case.
  - When using images from ACR in AKS, the HostPath `/etc/kubernetes/azure.json`
    should be [mounted](https://kubernetes.io/docs/concepts/storage/volumes/) into the Flux Pod.
-   Set `registry.acr.enabled=True` in the [helm chart](https://github.com/weaveworks/flux/blob/master/chart/flux/README.md)
-   or alter the [Deployment](https://github.com/weaveworks/flux/blob/master/deploy/flux-deployment.yaml):
+   Set `registry.acr.enabled=True` in the [helm chart](https://github.com/fluxcd/flux/blob/master/chart/flux/README.md)
+   or alter the [Deployment](https://github.com/fluxcd/flux/blob/master/deploy/flux-deployment.yaml):
    ```yaml
     spec:
       containers:
@@ -108,12 +108,12 @@ reasons this can happen:
  - Flux excludes images with no suitable manifest (linux amd64) in manifestlist
  - Flux doesn't yet understand image refs that use digests instead of
    tags; see
-   [weaveworks/flux#885](https://github.com/weaveworks/flux/issues/885).
+   [fluxcd/flux#885](https://github.com/fluxcd/flux/issues/885).
 
 If none of these explanations seem to apply, please
-[file an issue](https://github.com/weaveworks/flux/issues/new).
+[file an issue](https://github.com/fluxcd/flux/issues/new).
 
-### Why do my image tags appear out of order?
+## Why do my image tags appear out of order?
 
 You may notice that the ordering given to image tags does not always
 correspond with the order in which you pushed the images. That's
@@ -133,7 +133,7 @@ build has its own creation time is to label it with a build time;
 e.g., using
 [OpenContainers pre-defined annotations](https://github.com/opencontainers/image-spec/blob/master/annotations.md).
 
-### What is the "sync tag"; or, why do I see a `flux-sync` tag in my git repo?
+## What is the "sync tag"; or, why do I see a `flux-sync` tag in my git repo?
 
 Flux keeps track of the last commit that it's applied to the cluster,
 by pushing a tag (controlled by the command-line flags

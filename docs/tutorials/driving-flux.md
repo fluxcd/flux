@@ -1,4 +1,4 @@
-# Driving Flux - automations, locks and annotations
+# Automations, locks and annotations
 
 In this tutorial we want to get a better feel for what we can do with
 Flux. We won't spend too much time with getting it up and running, so let's
@@ -6,7 +6,7 @@ get that out of the way first.
 
 In our example we are going to use the `flux-get-started` example deployment.
 So as your first step, please head to [our example
-deployment](https://github.com/weaveworks/flux-get-started) and click on the
+deployment](https://github.com/fluxcd/flux-get-started) and click on the
 "Fork" button.
 
 ## Setup
@@ -14,7 +14,7 @@ deployment](https://github.com/weaveworks/flux-get-started) and click on the
 Get the source code of Flux:
 
 ```sh
-git clone https://github.com/weaveworks/flux
+git clone https://github.com/fluxcd/flux
 cd flux
 ```
 
@@ -27,7 +27,7 @@ EDITOR deploy/flux-deployment.yaml
 And update the following line
 
 ```yaml
-    --git-url=git@github.com:weaveworks/flux-get-started
+    --git-url=git@github.com:fluxcd/flux-get-started
 ```
 
 to point to your fork, e.g. if your GitHub Login is `baloothebear`, the line
@@ -98,7 +98,7 @@ fluxcd/flux
 
 > **Note:** In this tutorial we keep things simple, so we deploy Flux into
 the `default` namespace. Normally you would pick a separate namespace for
-it. `fluxctl` has the [`--k8s-fwd-ns <NAMESPACE>` option](./fluxctl.md) for specifying the right
+it. `fluxctl` has the [`--k8s-fwd-ns <NAMESPACE>` option](../references/fluxctl.md) for specifying the right
 namespace.
 
 ### Connecting to your git config
@@ -107,7 +107,7 @@ The first step is done. Flux is now and up running (you can confirm by
 running `kubectl get pods --all-namespaces`).
 
 In the second step we will use fluxctl to talk to Flux in the cluster and
-interact with the deployments. First, please [install fluxctl](./fluxctl.md).
+interact with the deployments. First, please [install fluxctl](../references/fluxctl.md).
 (It enables you to drive all of Weave Flux, so have a look at the output of
 `fluxctl -h` to get a better idea.)
 

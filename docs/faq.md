@@ -1,4 +1,4 @@
-# Flux FAQ
+# Frequently asked questions
 
 ## General questions
 
@@ -49,9 +49,7 @@ example. We may return to the matter of staged deployments.
 ### Are there prerelease builds I can run?
 
 There are builds from CI for each merge to master branch. See
-[weaveworks/flux-prerelease](https://hub.docker.com/r/weaveworks/flux-prerelease/tags)
-and
-[weaveworks/helm-operator-prerelease](https://hub.docker.com/r/weaveworks/helm-operator-prerelease/tags).
+[fluxcd/flux-prerelease](https://hub.docker.com/r/fluxcd/flux-prerelease/tags).
 
 ## Technical questions
 
@@ -65,7 +63,7 @@ application code as you like, to be clear -- see
 There's no principled reason for this, it's just
 a consequence of time and effort being in finite supply. If you have a
 use for multiple git repo support, please comment in
-https://github.com/weaveworks/flux/issues/1164.
+https://github.com/fluxcd/flux/issues/1164.
 
 In the meantime, for some use cases you can run more than one Flux
 daemon and point them at different repos. If you do this, consider
@@ -107,7 +105,7 @@ fluxctl release --controller=deployment/foo --update-image=bar:v2
 
 The image tag will be updated in the git repository upon applying the command.
 
-For more information about Flux commands see [the fluxctl docs](./using/fluxctl.md).
+For more information about Flux commands see [the `fluxctl` docs](references/fluxctl.md).
 
 ### Does Flux automatically sync changes back to git?
 
@@ -117,13 +115,13 @@ No. It applies changes to git only when a Flux command or API call makes them.
 
 Flux has an experimental (for now) garbage collection feature,
 enabled by passing the command-line flag `--sync-garbage-collection`
-to fluxd.
+to `fluxd`.
 
 The garbage collection is conservative: it is designed to not delete
-resources that were not created by fluxd. This means it will sometimes
-_not_ delete resources that _were_ created by fluxd, when
+resources that were not created by `fluxd`. This means it will sometimes
+_not_ delete resources that _were_ created by `fluxd`, when
 reconfigured. Read more about garbage collection
-[here](./features/garbagecollection.md).
+[here](references/garbagecollection.md).
 
 ### How do I give Flux access to an image registry?
 
@@ -148,7 +146,7 @@ There are exceptions:
 
 To work around exceptional cases, you can mount a docker config into
 the Flux container. See the argument `--docker-config` in [the daemon
-arguments reference](./features/daemon.md).
+arguments reference](references/daemon.md).
 
 See also
 [Why are my images not showing up in the list of images?](#why-are-my-images-not-showing-up-in-the-list-of-images)
@@ -169,7 +167,7 @@ registries if you spam them with requests.
 
 If you are using GCP/GKE/GCR, you will likely want much lower rate
 limits. Please see
-[weaveworks/flux#1016](https://github.com/weaveworks/flux/issues/1016)
+[fluxcd/flux#1016](https://github.com/fluxcd/flux/issues/1016)
 for specific advice.
 
 ### How often does Flux check for new git commits (and can I make it sync faster)?
@@ -211,7 +209,7 @@ Then create a new secret named `flux-git-deploy`, using your private key as the 
 
 `kubectl create secret generic flux-git-deploy --from-file=identity=/full/path/to/private_key`
 
-Now restart fluxd to re-read the k8s secret (if it is running):
+Now restart `fluxd` to re-read the k8s secret (if it is running):
 
 `kubectl delete $(kubectl get pod -o name -l name=flux)`
 
@@ -231,7 +229,7 @@ service, or running your own git host, you need to supply your own
 host key(s).
 
 How to do this is documented in
-[the standalone setup doc](./install/standalone-setup.md).
+["Using a private Git host"](./guides/use-private-git-host.md).
 
 ### Why does my CI pipeline keep getting triggered?
 
@@ -279,7 +277,7 @@ attempts to scan for workloads.
 
 ### Can I change the namespace Flux puts things in by default?
 
-Yes. The fluxd image has a "kubeconfig" file baked in, which specifies
+Yes. The `fluxd` image has a "kubeconfig" file baked in, which specifies
 a default namespace of `"default"`. That means any manifest not
 specifying a namespace (in `.metadata.namespace`) will be given the
 namespace `"default"` when applied to the cluster.
@@ -287,12 +285,12 @@ namespace `"default"` when applied to the cluster.
 You can override this by mounting your own "kubeconfig" file into the
 container from a configmap, and using the `KUBECONFIG` environment
 entry to point to it. The [example
-deployment](https://github.com/weaveworks/flux/blob/master/deploy/flux-deployment.yaml) shows how to do this, in
+deployment](https://github.com/fluxcd/flux/blob/master/deploy/flux-deployment.yaml) shows how to do this, in
 commented out sections -- it needs extra bits of config in three
 places (the `volume`, `volumeMount`, and `env` entries).
 
 The easiest way to create a suitable "kubeconfig" will be to adapt the
-[file that is baked into the image](https://github.com/weaveworks/flux/blob/master/docker/kubeconfig). Save that
+[file that is baked into the image](https://github.com/fluxcd/flux/blob/master/docker/kubeconfig). Save that
 locally as `my-kubeconfig`, edit it to change the default namespace,
 then create the configmap, in the same namespace you run Flux in, with
 something like:
@@ -323,7 +321,7 @@ Sometimes it might be easier to annotate a *running resource in
 the cluster* as opposed to committing a change to git. Please note
 that this will only work with resources of the type `namespace`
 and the set of controllers in
-[resourcekinds.go](https://github.com/weaveworks/flux/blob/master/cluster/kubernetes/resourcekinds.go),
+[resourcekinds.go](https://github.com/fluxcd/flux/blob/master/cluster/kubernetes/resourcekinds.go),
 namely `deployment`, `daemonset`, `cronjob`, `statefulset` and
 `fluxhelmrelease`).
 
@@ -336,7 +334,7 @@ kubectl annotate <resource> "flux.weave.works/ignore"-
 
 Mixing both kinds of annotations (in-git and in-cluster), can make
 it a bit hard to figure out how/where to undo the change (cf
-[flux#1211](https://github.com/weaveworks/flux/issues/1211)).
+[flux#1211](https://github.com/fluxcd/flux/issues/1211)).
 
 The full story is this: Flux looks at the files and the running
 resources when deciding whether what to apply. But it gets the
@@ -386,44 +384,5 @@ Flux experimentally supports technology-agnostic manifest factorization through
 `.flux.yaml` configuration files placed in the Git repository. To enable this
 feature please supply `fluxd` with flag `--manifest-generation=true`.
 
-See [`.flux.yaml` configuration files documentation](./features/fluxyaml-config-files.md) for
+See [`.flux.yaml` configuration files documentation](references/fluxyaml-config-files.md) for
 further details.
-
-## Flux Helm Operator questions
-
-### I'm using SSL between Helm and Tiller. How can I configure Flux to use the certificate?
-
-When installing Flux, you can supply the CA and client-side certificate using the `helmOperator.tls` options,
-more details [here](https://github.com/weaveworks/flux/blob/master/chart/flux/README.md#installing-weave-flux-helm-operator-and-helm-with-tls-enabled).
-
-### I've deleted a HelmRelease file from Git. Why is the Helm release still running on my cluster?
-
-Flux doesn't delete resources, there is an [issue](https://github.com/weaveworks/flux/issues/738) opened about this topic on GitHub.
-In order to delete a Helm release first remove the file from Git and afterwards run:
-
-```yaml
-kubectl delete helmrelease/my-release
-```
-
-The Flux Helm operator will receive the delete event and will purge the Helm release.
-
-### I've manually deleted a Helm release. Why is Flux not able to restore it?
-
-If you delete a Helm release with `helm delete my-release`, the release name can't be reused.
-You need to use the `helm delete --purge` option only then Flux will be able reinstall a release.
-
-### I have a dedicated Kubernetes cluster per environment and I want to use the same Git repo for all. How can I do that?
-
-*Option 1*
-For each cluster create a directory in your config repo.
-When installing Flux Helm chart set the Git path using `--set git.path=k8s/cluster-name`
-and set a unique label for each cluster `--set git.label=cluster-name`.
-
-You can have one or more shared dirs between clusters. Assuming your shared dir is located
-at `k8s/common` set the Git path as `--set git.path="k8s/common\,k8s/cluster-name"`.
-
-*Option 2*
-For each cluster create a Git branch in your config repo.
-When installing Flux Helm chart set the Git branch using `--set git.branch=cluster-name`
-and set a unique label for each cluster `--set git.label=cluster-name`.
-

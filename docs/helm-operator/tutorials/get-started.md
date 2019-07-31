@@ -1,38 +1,6 @@
-# Flux Helm Operator
+# Get started with the Helm operator
 
-The Helm operator deals with Helm Chart releases. The operator watches for
-changes of Custom Resources of kind HelmRelease. It receives Kubernetes
-Events and acts accordingly, installing, upgrading or deleting a Chart release.
-
-## Setup and configuration
-
-helm-operator requires setup and offers customization though a multitude of flags.
-
-| flag                      | default                       | purpose
-| ------------------------  | ----------------------------- | ---
-| --kubeconfig              |                               | Path to a kubeconfig. Only required if out-of-cluster.
-| --master                  |                               | The address of the Kubernetes API server. Overrides any value in kubeconfig. Only required if out-of-cluster.
-| --allow-namespace         |                               | If set, this limits the scope to a single namespace. if not specified, all namespaces will be watched.
-| **Tiller options**
-| --tiller-ip               |                               | Tiller IP address. Only required if out-of-cluster.
-| --tiller-port             |                               | Tiller port.
-| --tiller-namespace        |                               | Tiller namespace. If not provided, the default is kube-system.
-| --tiller-tls-enable       | `false`                       | Enable TLS communication with Tiller. If provided, requires TLSKey and TLSCert to be provided as well.
-| --tiller-tls-verify       | `false`                       | Verify TLS certificate from Tiller. Will enable TLS communication when provided.
-| --tiller-tls-key-path     | `/etc/fluxd/helm/tls.key`     | Path to private key file used to communicate with the Tiller server.
-| --tiller-tls-cert-path    | `/etc/fluxd/helm/tls.crt`     | Path to certificate file used to communicate with the Tiller server.
-| --tiller-tls-ca-cert-path |                               | Path to CA certificate file used to validate the Tiller server. Required if tiller-tls-verify is enabled.
-| --tiller-tls-hostname     |                               | The server name used to verify the hostname on the returned certificates from the Tiller server.
-| **repo chart changes** (none of these need overriding, usually)
-| --charts-sync-interval    | `3m`                          | Interval at which to check for changed charts.
-| --git-timeout             | `20s`                         | Duration after which git operations time out.
-| --git-poll-interval       | `5m`                          | Period on which to poll git chart sources for changes.
-| --log-release-diffs       | `false`                       | Log the diff when a chart release diverges. **Potentially insecure.**
-| --update-chart-deps       | `true`                        | Update chart dependencies before installing or upgrading a release.
-
-## Installing Flux Helm Operator and Helm with TLS enabled
-
-### Installing Helm / Tiller
+## Installing Helm / Tiller
 
 Generate certificates for Tiller and Flux. This will provide a CA, servercerts for Tiller and client certs for Helm / Flux.
 
@@ -171,7 +139,7 @@ helm --tls --tls-verify \
   ls
 ```
 
-### Deploy Flux Helm Operator
+## Deploy the Helm Operator
 
 First create a new Kubernetes TLS secret for the client certs;
 
@@ -202,30 +170,6 @@ helm upgrade --install \
 > - include --tls flags for `helm` as in the `helm ls` example, if talking to a tiller with TLS
 > - optionally specify target --namespace
 
-#### Check if it worked
+## Check if it worked
 
 Use `kubectl logs` on the Helm Operator and observe the helm client being created.
-
-#### Debugging
-
-##### Error creating helm client: failed to append certificates from file: /etc/fluxd/helm-ca/ca.crt
-
-Your CA certificate content is not set correctly, check if your configMap contains the correct values. Example:
-
-```bash
-$ kubectl get configmaps flux-helm-tls-ca-config -o yaml
-apiVersion: v1
-data:
-  ca.crt: |
-    -----BEGIN CERTIFICATE-----
-    ....
-    -----END CERTIFICATE-----
-kind: ConfigMap
-metadata:
-  creationTimestamp: 2018-07-04T15:27:25Z
-  name: flux-helm-tls-ca-config
-  namespace: helm-system
-  resourceVersion: "1267257"
-  selfLink: /api/v1/namespaces/helm-system/configmaps/flux-helm-tls-ca-config
-  uid: c106f866-7f9e-11e8-904a-025000000001
-```

@@ -26,7 +26,7 @@ Flux performs two types of actions on raw manifest files from the Git repository
 
 1. Read manifest files when performing a sync operation (i.e making sure that the status of the cluster reflects what's
    in the manifest files, adjusting it if necessary)
-2. Update the manifest files of [workload](https://github.com/weaveworks/flux/blob/master/docs/using/fluxctl.md#what-is-a-workload).
+2. Update the manifest files of [workload](https://github.com/fluxcd/flux/blob/master/docs/using/fluxctl.md#what-is-a-workload).
    Specifically, flux can update:
     * container images, when releasing a new image version. A release can happen manually or automatically, when a new
       container image is pushed to a repository.
@@ -82,7 +82,7 @@ command and a `policy` command, covering the corresponding two types of workload
 > * Some configurations (even those for Kubernetes clusters) may encode policies symbolically.
 
 Here is a specific `.flux.yaml` example, declaring a generator and an updater using [Kustomize](https://github.com/kubernetes-sigs/kustomize)
-(see [https://github.com/weaveworks/flux-kustomize-example](https://github.com/weaveworks/flux-kustomize-example)
+(see [https://github.com/fluxcd/flux-kustomize-example](https://github.com/fluxcd/flux-kustomize-example)
 for a complete example).
 
 ```yaml
@@ -130,7 +130,7 @@ a separate configuration file variant (`patchedUpdated`) is provided, which will
 ### Execution context of commands
 
 `generators` and `updaters` are run in a POSIX shell inside the Flux container. This means that the `command`s supplied
-should be available in the [Flux container image](https://github.com/weaveworks/flux/blob/master/docker/Dockerfile.flux).
+should be available in the [Flux container image](https://github.com/fluxcd/flux/blob/master/docker/Dockerfile.flux).
 Flux currently includes `Kustomize` and basic Unix shell tools. If the tools in the Flux image are not sufficient for
 your use case, you can include new tools in your own Flux-based image or, if the tools are popular enough, Flux
 maintainers can add them to the Flux image (please create an issue). In the future (once [Ephemeral

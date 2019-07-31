@@ -2,7 +2,7 @@
 
 Part of syncing a cluster with a git repository is getting rid of
 resources in the cluster that have been removed in the repository. You
-can tell fluxd to do this "garbage collection" using the command-line
+can tell `fluxd` to do this "garbage collection" using the command-line
 flag `--sync-garbage-collection`. It's important to know how it
 operates, and appreciate its limitations, before enabling it.
 
@@ -18,18 +18,18 @@ When garbage collection is enabled, syncing is done in two phases:
     source, and delete those that were not applied in step 1.
 
 In the above, "source" refers to the particular combination of git
-repo URL, branch, and paths that this fluxd has been configured to
-use, which is taken as identifying the resources under _this_ fluxd's
-control.
+repo URL, branch, and paths that this `fluxd` has been configured to
+use, which is taken as identifying the resources under _this_
+`fluxd`'s control.
 
 We need to be careful about identifying these accurately, since
 getting it wrong could mean _not_ deleting resources that should be
 deleted; or (much worse), deleting resources that are under another
-fluxd's control.
+`fluxd`'s control.
 
 The definition of "source" affects how garbage collection behaves when
-you reconfigure fluxd. It is intended to be conservative: it ensures
-that fluxd will not delete resources that it did not create.
+you reconfigure `fluxd`. It is intended to be conservative: it ensures
+that `fluxd` will not delete resources that it did not create.
 
 ## Limitations of this approach
 
