@@ -72,7 +72,7 @@ const (
 	ReasonDownloaded       = "RepoChartInCache"
 	ReasonInstallFailed    = "HelmInstallFailed"
 	ReasonDependencyFailed = "UpdateDependencyFailed"
-	ReasonUpgradeFailed    = "HelmUgradeFailed"
+	ReasonUpgradeFailed    = "HelmUpgradeFailed"
 	ReasonRollbackFailed   = "HelmRollbackFailed"
 	ReasonCloned           = "GitRepoCloned"
 	ReasonSuccess          = "HelmSuccess"
