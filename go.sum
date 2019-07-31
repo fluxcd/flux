@@ -383,6 +383,9 @@ k8s.io/apimachinery v0.0.0-20190404173353-6a84e37a896d/go.mod h1:ccL7Eh7zubPUSh9
 k8s.io/client-go v11.0.0+incompatible h1:LBbX2+lOwY9flffWlJM7f1Ct8V2SRNiMRDFeiwnJo9o=
 k8s.io/client-go v11.0.0+incompatible/go.mod h1:7vJpHMYJwNQCWgzmNV+VYUl1zCObLyodBc8nIyt8L5s=
 k8s.io/code-generator v0.0.0-20190311093542-50b561225d70 h1:lgPp615xLHxN84RBd+viA/oHzJfI0miFYFH4T9wpPQ4=
+k8s.io/code-generator v0.0.0-20190311093542-50b561225d70/go.mod h1:MYiN+ZJZ9HkETbgVZdWw2AsuAi9PZ4V80cwfuf2axe8=
+k8s.io/gengo v0.0.0-20190327210449-e17681d19d3a h1:QoHVuRquf80YZ+/bovwxoMO3Q/A3nt3yTgS0/0nejuk=
+k8s.io/gengo v0.0.0-20190327210449-e17681d19d3a/go.mod h1:ezvh/TsK7cY6rbqRK0oQQ8IAqLxYwwyPxAX1Pzy0ii0=
 k8s.io/helm v2.13.1+incompatible h1:qt0LBsHQ7uxCtS3F2r3XI0DNm8ml0xQeSJixUorDyn0=
 k8s.io/helm v2.13.1+incompatible/go.mod h1:LZzlS4LQBHfciFOurYBFkCMTaZ0D1l+p0teMg7TSULI=
 k8s.io/klog v0.3.0 h1:0VPpR+sizsiivjIfIAQH/rl8tan6jvWkS7lU+0di3lE=
