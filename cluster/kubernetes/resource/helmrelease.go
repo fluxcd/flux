@@ -28,13 +28,13 @@ const (
 	ImageBasePath = "spec.values."
 	// ImageRegistryPrefix is the annotation key prefix for image
 	// registry path mappings.
-	ImageRegistryPrefix   = "registry.flux.weave.works/"
+	ImageRegistryPrefix   = "registry.fluxcd.io/"
 	// ImageRepositoryPrefix is the annotation key prefix for image
 	// repository path mappings.
-	ImageRepositoryPrefix = "repository.flux.weave.works/"
+	ImageRepositoryPrefix = "repository.fluxcd.io/"
 	// ImageRepositoryPrefix is the annotation key prefix for image
 	// tag path mappings.
-	ImageTagPrefix        = "tag.flux.weave.works/"
+	ImageTagPrefix        = "tag.fluxcd.io/"
 )
 
 // ContainerImageMap holds the YAML dot notation paths to a

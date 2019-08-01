@@ -956,8 +956,8 @@ metadata:
   name: mariadb
   namespace: maria
   annotations:
-    repository.flux.weave.works/custom: mariadb.customImage
-    tag.flux.weave.works/custom: mariadb.customTag
+    repository.fluxcd.io/custom: mariadb.customImage
+    tag.fluxcd.io/custom: mariadb.customTag
 spec:
   chart:
     repository: https://example.com/charts
@@ -990,8 +990,8 @@ metadata:
   name: mariadb
   namespace: maria
   annotations:
-    repository.flux.weave.works/custom: mariadb.customImage
-    tag.flux.weave.works/custom: mariadb.customTag
+    repository.fluxcd.io/custom: mariadb.customImage
+    tag.fluxcd.io/custom: mariadb.customTag
 spec:
   chart:
     repository: https://example.com/charts

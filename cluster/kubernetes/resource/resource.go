@@ -13,7 +13,7 @@ import (
 
 const (
 	PolicyPrefix       = "fluxcd.io/"
-	FilterPolicyPrefix = "filter.flux.weave.works/"
+	FilterPolicyPrefix = "filter.fluxcd.io/"
 	// This is the previously-used prefix for annotations; many
 	// manifests in the wild will still be using it, so it's included
 	// here for backward-compatibility.
@@ -125,8 +125,11 @@ func (o baseObject) Policies() policy.Set {
 // than one way of using annotations for policy. If the policy is not
 // present, returns `"", false`.
 func (o baseObject) PolicyAnnotationKey(p string) (string, bool) {
-	for _, prefix := range []string{PolicyPrefix, AlternatePolicyPrefix} {
+	for _, prefix := range []string{PolicyPrefix, AlternatePolicyPrefix, FilterPolicyPrefix} {
 		key := prefix + p
+		if prefix == FilterPolicyPrefix {
+			key = prefix + strings.TrimPrefix(p, "tag.")
+		}
 		if _, ok := o.Meta.Annotations[key]; ok {
 			return key, true
 		}

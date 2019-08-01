@@ -169,6 +169,14 @@ func TestUpdatePolicies(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			name: "add tag policy with alternative prefix does not change existing prefix",
+			in: []string{"filter.fluxcd.io/nginx", "glob:*"},
+			out: []string{"filter.fluxcd.io/nginx", "glob:*"},
+			update: resource.PolicyUpdate{
+				Add: policy.Set{policy.TagPrefix("nginx"): "glob:*"},
+			},
+		},
+		{
 			name: "set tag to all containers",
 			in:   nil,
 			out:  []string{"fluxcd.io/tag.nginx", "semver:*"},
