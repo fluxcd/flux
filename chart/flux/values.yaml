@@ -22,7 +22,7 @@ helmOperator:
   create: false
   createCRD: false
   repository: docker.io/fluxcd/helm-operator
-  tag: 0.10.0
+  tag: 0.10.1
   pullPolicy: IfNotPresent
   pullSecret:
   # Limit the operator scope to a single namespace
