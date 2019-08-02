@@ -26,11 +26,7 @@ jobs:
       - run:
           name: Publish chart
           command: |
-            if [[ -z $CIRCLE_TAG ]]; then
-              echo "Not a release! Skip chart publish"
-              exit
-            fi
-            if echo "${CIRCLE_TAG}" | grep -Eq "^[0-9]+(\.[0-9]+)*(-[a-z]+)?$"; then
+            if echo "${CIRCLE_TAG}" | grep -Eq "chart-[0-9]+(\.[0-9]+)*(-[a-z]+)?$"; then
               REPOSITORY="https://fluxcdbot:${GITHUB_TOKEN}@github.com/fluxcd/flux.git"
               git config user.email fluxcdbot@users.noreply.github.com
               git config user.name fluxcdbot
@@ -41,6 +37,8 @@ jobs:
               git add .
               git commit -m "Publish Helm chart"
               git push origin gh-pages
+            else
+              echo "Not a chart release! Skip chart publish"
             fi
   build:
     working_directory: /home/circleci/go/src/github.com/weaveworks/flux
