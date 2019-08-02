@@ -18,6 +18,16 @@ jobs:
           name: Lint chart
           command: |
             helm lint ./chart/flux
+      - run:
+          name: Lint chart
+          command: |
+            helm lint ./chart/flux
+      - run:
+          name: Package chart
+          command: |
+            mkdir $HOME/chart
+            helm package ./chart/flux --destination $HOME/chart
+            ls $HOME/chart
   build:
     working_directory: /home/circleci/go/src/github.com/weaveworks/flux
     machine:
