@@ -1,5 +1,23 @@
 version: 2
 jobs:
+  helm:
+    docker:
+      - image: circleci/golang:1.12
+    steps:
+      - checkout
+      - run:
+          name: Install kubectl
+          command: sudo curl -L https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl -o /usr/local/bin/kubectl && sudo chmod +x /usr/local/bin/kubectl
+      - run:
+          name: Install helm
+          command: sudo curl -L https://storage.googleapis.com/kubernetes-helm/helm-v2.14.2-linux-amd64.tar.gz | tar xz && sudo mv linux-amd64/helm /bin/helm && sudo rm -rf linux-amd64
+      - run:
+          name: Initialize helm
+          command:  helm init --client-only --kubeconfig=$HOME/.kube/kubeconfig
+      - run:
+          name: Lint chart
+          command: |
+            helm lint ./chart/flux
   build:
     working_directory: /home/circleci/go/src/github.com/weaveworks/flux
     machine:
@@ -119,6 +137,7 @@ workflows:
   version: 2
   build-and-push:
     jobs:
+      - helm
       - build:
           filters:
             tags:
