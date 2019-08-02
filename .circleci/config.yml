@@ -19,15 +19,23 @@ jobs:
           command: |
             helm lint ./chart/flux
       - run:
-          name: Lint chart
-          command: |
-            helm lint ./chart/flux
-      - run:
           name: Package chart
           command: |
             mkdir $HOME/chart
             helm package ./chart/flux --destination $HOME/chart
-            ls $HOME/chart
+      - run:
+          name: Publish chart
+          command: |
+            REPOSITORY="https://fluxcdbot:${GITHUB_TOKEN}@github.com/fluxcd/flux.git"
+            git config user.email fluxcdbot@users.noreply.github.com
+            git config user.name fluxcdbot
+            git remote set-url origin ${REPOSITORY}
+            git checkout gh-pages-test
+            mv $HOME/chart/*.tgz .
+            helm repo index . --url https://fluxcd.github.io/flux
+            git add .
+            git commit -m "Publish Helm chart"
+            git push origin gh-pages-test
   build:
     working_directory: /home/circleci/go/src/github.com/weaveworks/flux
     machine:
