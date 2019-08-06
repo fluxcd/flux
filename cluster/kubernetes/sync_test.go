@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	crdfake "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/fake"
+	fluxfake "github.com/fluxcd/helm-operator/pkg/client/clientset/versioned/fake"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -26,7 +27,6 @@ import (
 
 	"github.com/weaveworks/flux/cluster"
 	kresource "github.com/weaveworks/flux/cluster/kubernetes/resource"
-	fluxfake "github.com/weaveworks/flux/integrations/client/clientset/versioned/fake"
 	"github.com/weaveworks/flux/resource"
 	"github.com/weaveworks/flux/sync"
 )
