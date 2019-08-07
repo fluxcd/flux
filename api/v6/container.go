@@ -28,52 +28,6 @@ type Container struct {
 
 // NewContainer creates a Container given a list of images and the current image
 func NewContainer(name string, images []image.Info, currentImage image.Info, tagPattern policy.Pattern, fields []string) (Container, error) {
-	sorted := update.SortImages(images, tagPattern)
-
-	// All images
-	imagesCount := len(sorted)
-	imagesErr := ""
-	if sorted == nil {
-		imagesErr = registry.ErrNoImageData.Error()
-	}
-	var newImages update.SortedImageInfos
-	for _, img := range sorted {
-		if tagPattern.Newer(&img, &currentImage) {
-			newImages = append(newImages, img)
-		}
-	}
-	newImagesCount := len(newImages)
-
-	// Filtered images (which respects sorting)
-	filteredImages := update.SortedImageInfos(update.FilterImages(sorted, tagPattern))
-	filteredImagesCount := len(filteredImages)
-	var newFilteredImages update.SortedImageInfos
-	for _, img := range filteredImages {
-		if tagPattern.Newer(&img, &currentImage) {
-			newFilteredImages = append(newFilteredImages, img)
-		}
-	}
-	newFilteredImagesCount := len(newFilteredImages)
-	latestFiltered, _ := filteredImages.Latest()
-
-	container := Container{
-		Name:           name,
-		Current:        currentImage,
-		LatestFiltered: latestFiltered,
-
-		Available:               sorted,
-		AvailableError:          imagesErr,
-		AvailableImagesCount:    imagesCount,
-		NewAvailableImagesCount: newImagesCount,
-		FilteredImagesCount:     filteredImagesCount,
-		NewFilteredImagesCount:  newFilteredImagesCount,
-	}
-	return filterContainerFields(container, fields)
-}
-
-// filterContainerFields returns a new container with only the fields specified. If not fields are specified,
-// a list of default fields is used.
-func filterContainerFields(container Container, fields []string) (Container, error) {
 	// Default fields
 	if len(fields) == 0 {
 		fields = []string{
@@ -90,29 +44,111 @@ func filterContainerFields(container Container, fields []string) (Container, err
 	}
 
 	var c Container
+
+	// The following machinery attempts to minimise the number of
+	// filters (`O(n)`) and sorts (`O(n log n)`), by memoising and
+	// sharing intermediate results.
+
+	var (
+		sortedImages         update.SortedImageInfos
+		filteredImages       []image.Info
+		sortedFilteredImages update.SortedImageInfos
+	)
+
+	getFilteredImages := func() []image.Info {
+		if filteredImages == nil {
+			filteredImages = update.FilterImages(images, tagPattern)
+		}
+		return filteredImages
+	}
+
+	getSortedFilteredImages := func() update.SortedImageInfos {
+		if sortedFilteredImages == nil {
+			sortedFilteredImages = update.SortImages(getFilteredImages(), tagPattern)
+		}
+		return sortedFilteredImages
+	}
+
+	getSortedImages := func() update.SortedImageInfos {
+		if sortedImages == nil {
+			sortedImages = update.SortImages(images, tagPattern)
+			// now that we have the sorted images anyway, the fastest
+			// way to get sorted, filtered images will be to filter
+			// the already sorted images
+			getSortedFilteredImages = func() update.SortedImageInfos {
+				if sortedFilteredImages == nil {
+					sortedFilteredImages = update.FilterImages(sortedImages, tagPattern)
+				}
+				return sortedFilteredImages
+			}
+			getFilteredImages = func() []image.Info {
+				return []image.Info(getSortedFilteredImages())
+			}
+		}
+		return sortedImages
+	}
+
+	// do these after we've gone through all the field names, since
+	// they depend on what else is happening
+	assignFields := []func(){}
+
 	for _, field := range fields {
 		switch field {
+		// these first few rely only on the inputs
 		case "Name":
-			c.Name = container.Name
+			c.Name = name
 		case "Current":
-			c.Current = container.Current
-		case "LatestFiltered":
-			c.LatestFiltered = container.LatestFiltered
-		case "Available":
-			c.Available = container.Available
+			c.Current = currentImage
 		case "AvailableError":
-			c.AvailableError = container.AvailableError
+			if images == nil {
+				c.AvailableError = registry.ErrNoImageData.Error()
+			}
 		case "AvailableImagesCount":
-			c.AvailableImagesCount = container.AvailableImagesCount
+			c.AvailableImagesCount = len(images)
+
+		// these required the sorted images, which we can get
+		// straight away
+		case "Available":
+			c.Available = getSortedImages()
 		case "NewAvailableImagesCount":
-			c.NewAvailableImagesCount = container.NewAvailableImagesCount
-		case "FilteredImagesCount":
-			c.FilteredImagesCount = container.FilteredImagesCount
-		case "NewFilteredImagesCount":
-			c.NewFilteredImagesCount = container.NewFilteredImagesCount
+			newImagesCount := 0
+			for _, img := range getSortedImages() {
+				if !tagPattern.Newer(&img, &currentImage) {
+					break
+				}
+				newImagesCount++
+			}
+			c.NewAvailableImagesCount = newImagesCount
+
+		// these depend on what else gets calculated, so do them afterwards
+		case "LatestFiltered": // needs sorted, filtered images
+			assignFields = append(assignFields, func() {
+				latest, _ := getSortedFilteredImages().Latest()
+				c.LatestFiltered = latest
+			})
+		case "FilteredImagesCount": // needs filtered tags
+			assignFields = append(assignFields, func() {
+				c.FilteredImagesCount = len(getFilteredImages())
+			})
+		case "NewFilteredImagesCount": // needs filtered images
+			assignFields = append(assignFields, func() {
+				newFilteredImagesCount := 0
+				for _, img := range getSortedFilteredImages() {
+					if !tagPattern.Newer(&img, &currentImage) {
+						break
+					}
+					newFilteredImagesCount++
+				}
+				c.NewFilteredImagesCount = newFilteredImagesCount
+			})
 		default:
 			return c, errors.Errorf("%s is an invalid field", field)
 		}
 	}
+
+	for _, fn := range assignFields {
+		fn()
+	}
+
 	return c, nil
 }
