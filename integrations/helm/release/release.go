@@ -30,7 +30,6 @@ import (
 
 	fluxk8s "github.com/weaveworks/flux/cluster/kubernetes"
 	flux_v1beta1 "github.com/weaveworks/flux/integrations/apis/flux.weave.works/v1beta1"
-	"github.com/weaveworks/flux/resource"
 )
 
 type Action string
@@ -203,7 +202,7 @@ func (r *Release) Install(chartPath, releaseName string, fhr flux_v1beta1.HelmRe
 	case InstallAction:
 		res, err := r.HelmClient.InstallRelease(
 			chartPath,
-			fhr.GetNamespace(),
+			fhr.GetTargetNamespace(),
 			k8shelm.ValueOverrides(rawVals),
 			k8shelm.ReleaseName(releaseName),
 			k8shelm.InstallDryRun(opts.DryRun),
@@ -354,7 +353,7 @@ func (r *Release) annotateResources(release *hapi_release.Release, fhr flux_v1be
 		args := []string{"annotate", "--overwrite"}
 		args = append(args, "--namespace", namespace)
 		args = append(args, res...)
-		args = append(args, fluxk8s.AntecedentAnnotation+"="+fhrResourceID(fhr).String())
+		args = append(args, fluxk8s.AntecedentAnnotation+"="+fhr.ResourceID().String())
 
 		// The timeout is set to a high value as it may take some time
 		// to annotate large umbrella charts.
@@ -481,11 +480,6 @@ func ValuesChecksum(rawValues []byte) string {
 	hasher := sha256.New()
 	hasher.Write(rawValues)
 	return hex.EncodeToString(hasher.Sum(nil))
-}
-
-// fhrResourceID constructs a resource.ID for a HelmRelease resource.
-func fhrResourceID(fhr flux_v1beta1.HelmRelease) resource.ID {
-	return resource.MakeID(fhr.Namespace, "HelmRelease", fhr.Name)
 }
 
 // Merges source and destination map, preferring values from the source Values
