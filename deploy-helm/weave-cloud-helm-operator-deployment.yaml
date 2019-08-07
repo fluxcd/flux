@@ -27,7 +27,7 @@ spec:
             secretName: flux-git-deploy
       containers:
         - name: flux-helm-operator
-          image: docker.io/fluxcd/helm-operator:0.10.0
+          image: docker.io/fluxcd/helm-operator:0.10.1
           imagePullPolicy: IfNotPresent
           args:
             - --git-timeout=20s
