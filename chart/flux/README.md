@@ -22,7 +22,7 @@ This means fluxd can fail to apply changes to HelmRelease resources.
 ### Helm
 
 Tiller should be running in the cluster, though
-[helm-operator](../../site/helm-operator.md) will wait
+[helm-operator](../../docs/helm-operator/references/operator.md) will wait
 until it can find one.
 
 # Git repo
@@ -37,7 +37,7 @@ until it can find one.
 ## Installation
 
 We put together a simple [Get Started
-guide](../../site/helm-get-started.md) which takes about 5-10 minutes to follow.
+guide](../../docs/tutorials/get-started-helm.md) which takes about 5-10 minutes to follow.
 You will have a fully working Flux installation deploying workloads to your cluster.
 
 ## Installing Flux using Helm
@@ -47,7 +47,7 @@ You will have a fully working Flux installation deploying workloads to your clus
 Add the weaveworks repo:
 
 ```sh
-helm repo add weaveworks https://weaveworks.github.io/flux
+helm repo add fluxcd https://fluxcd.github.io/flux
 ```
 
 #### To install the chart with the release name `flux`
@@ -58,7 +58,7 @@ Replace `weaveworks/flux-get-started` with your own git repository and run helm 
 $ helm install --name flux \
 --set git.url=git@github.com:weaveworks/flux-get-started \
 --namespace flux \
-weaveworks/flux
+fluxcd/flux
 ```
 
 #### To connect Flux to a Weave Cloud instance:
@@ -68,7 +68,7 @@ helm install --name flux \
 --set git.url=git@github.com:weaveworks/flux-get-started \
 --set token=YOUR_WEAVE_CLOUD_SERVICE_TOKEN \
 --namespace flux \
-weaveworks/flux
+fluxcd/flux
 ```
 
 #### To install Flux with the Helm operator:
@@ -87,7 +87,7 @@ $ helm install --name flux \
 --set helmOperator.create=true \
 --set helmOperator.createCRD=false \
 --namespace flux \
-weaveworks/flux
+fluxcd/flux
 ```
 
 #### To install Flux with a private git host:
@@ -154,7 +154,7 @@ The [configuration](#configuration) section lists all the parameters that can be
 #### Setup Git deploy
 
 At startup Flux generates a SSH key and logs the public key.
-Find the SSH public key by installing [fluxctl](../../site/fluxctl.md) and
+Find the SSH public key by installing [fluxctl](../../docs/references/fluxctl.md) and
 running:
 
 ```sh
@@ -183,7 +183,7 @@ The following tables lists the configurable parameters of the Flux chart and the
 
 | Parameter                                         | Default                                              | Description
 | -----------------------------------------------   | ---------------------------------------------------- | ---
-| `image.repository`                                | `docker.io/weaveworks/flux`                          | Image repository
+| `image.repository`                                | `docker.io/fluxcd/flux`                              | Image repository
 | `image.tag`                                       | `<VERSION>`                                          | Image tag
 | `replicaCount`                                    | `1`                                                  | Number of Flux pods to deploy, more than one is not desirable.
 | `image.pullPolicy`                                | `IfNotPresent`                                       | Image pull policy
@@ -234,6 +234,7 @@ The following tables lists the configurable parameters of the Flux chart and the
 | `registry.insecureHosts`                          | `None`                                               | Use HTTP rather than HTTPS for the image registry domains
 | `registry.cacheExpiry`                            | `None`                                               | Duration to keep cached image info (deprecated)
 | `registry.excludeImage`                           | `None`                                               | Do not scan images that match these glob expressions; if empty, 'k8s.gcr.io/*' images are excluded
+| `registry.useTimestampLabels`                     | `None`                                               | Allow usage of (RFC3339) timestamp labels from (canonical) image refs that match these glob expressions; if empty, 'index.docker.io/weaveworks/*' images are allowed
 | `registry.ecr.region`                             | `None`                                               | Restrict ECR scanning to these AWS regions; if empty, only the cluster's region will be scanned
 | `registry.ecr.includeId`                          | `None`                                               | Restrict ECR scanning to these AWS account IDs; if empty, all account IDs that aren't excluded may be scanned
 | `registry.ecr.excludeId`                          | `602401143452`                                       | Do not scan ECR for images in these AWS account IDs; the default is to exclude the EKS system account
@@ -252,7 +253,7 @@ The following tables lists the configurable parameters of the Flux chart and the
 | `memcached.securityContext`                       | [See values.yaml](/chart/flux/values.yaml#L192-L195) | Container security context for memcached
 | `helmOperator.create`                             | `false`                                              | If `true`, install the Helm operator
 | `helmOperator.createCRD`                          | `true`                                               | Create the `v1beta1` and `v1alpha2` Flux CRDs. Dependent on `helmOperator.create=true`
-| `helmOperator.repository`                         | `docker.io/weaveworks/helm-operator`                 | Helm operator image repository
+| `helmOperator.repository`                         | `docker.io/fluxcd/helm-operator`                     | Helm operator image repository
 | `helmOperator.tag`                                | `<VERSION>`                                          | Helm operator image tag
 | `helmOperator.replicaCount`                       | `1`                                                  | Number of helm operator pods to deploy, more than one is not desirable.
 | `helmOperator.pullPolicy`                         | `IfNotPresent`                                       | Helm operator image pull policy
@@ -262,6 +263,7 @@ The following tables lists the configurable parameters of the Flux chart and the
 | `helmOperator.git.timeout`                        | `git.timeout`                                        | Duration after which git operations time out
 | `helmOperator.git.secretName`                     | `None`                                               | The name of the kubernetes secret with the SSH private key, supercedes `git.secretName`
 | `helmOperator.chartsSyncInterval`                 | `3m`                                                 | Interval at which to check for changed charts
+| `helmOperator.workers`                            | `None`                                               | (Experimental) amount of workers processing releases
 | `helmOperator.extraEnvs`                          | `[]`                                                 | Extra environment variables for the Helm operator pod
 | `helmOperator.logReleaseDiffs`                    | `false`                                              | Helm operator should log the diff when a chart release diverges (possibly insecure)
 | `helmOperator.allowNamespace`                     | `None`                                               | If set, this limits the scope to a single namespace. If not specified, all namespaces will be watched
@@ -286,8 +288,8 @@ The following tables lists the configurable parameters of the Flux chart and the
 | `helmOperator.affinity`                           | `{}`                                                 | Affinity properties for the helmOperator deployment
 | `kube.config`                                     | [See values.yaml](/chart/flux/values.yaml#L151-L165) | Override for kubectl default config in the Flux pod(s).
 | `prometheus.enabled`                              | `false`                                              | If enabled, adds prometheus annotations to Flux and helmOperator pod(s)
-| `syncGarbageCollection.enabled`                   | `false`                                              | If enabled, fluxd will delete resources that it created, but are no longer present in git (experimental, see [garbage collection](/site/garbagecollection.md))
-| `syncGarbageCollection.dry`                       | `false`                                              | If enabled, fluxd won't delete any resources, but log the garbage collection output (experimental, see [garbage collection](/site/garbagecollection.md))
+| `syncGarbageCollection.enabled`                   | `false`                                              | If enabled, fluxd will delete resources that it created, but are no longer present in git (experimental, see [garbage collection](/docs/references/garbagecollection.md))
+| `syncGarbageCollection.dry`                       | `false`                                              | If enabled, fluxd won't delete any resources, but log the garbage collection output (experimental, see [garbage collection](/docs/references/garbagecollection.md))
 
 Specify each parameter using the `--set key=value[,key=value]` argument to `helm install`. For example:
 

@@ -60,7 +60,7 @@ containers which aren't explicitly named.
 	AddOutputFlags(cmd, &opts.outputOpts)
 	AddCauseFlags(cmd, &opts.cause)
 	flags := cmd.Flags()
-	flags.StringVarP(&opts.namespace, "namespace", "n", "default", "Workload namespace")
+	flags.StringVarP(&opts.namespace, "namespace", "n", getKubeConfigContextNamespace("default"), "Workload namespace")
 	flags.StringVarP(&opts.workload, "workload", "w", "", "Workload to modify")
 	flags.StringVar(&opts.tagAll, "tag-all", "", "Tag filter pattern to apply to all containers")
 	flags.StringSliceVar(&opts.tags, "tag", nil, "Tag filter container/pattern pairs")

@@ -28,7 +28,7 @@ giving this error:
 Check that any files mentioned are well-formed, and resources are not
 defined more than once. It's also worth reviewing
 
-    https://github.com/weaveworks/flux/blob/master/site/requirements.md
+    https://github.com/weaveworks/flux/blob/master/docs/requirements.md
 
 to make sure you're not running into any corner cases.
 

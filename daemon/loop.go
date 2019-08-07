@@ -12,20 +12,20 @@ import (
 )
 
 type LoopVars struct {
-	SyncInterval         time.Duration
-	RegistryPollInterval time.Duration
-	GitTimeout           time.Duration
-	GitVerifySignatures  bool
+	SyncInterval        time.Duration
+	AutomationInterval  time.Duration
+	GitTimeout          time.Duration
+	GitVerifySignatures bool
 
-	initOnce       sync.Once
-	syncSoon       chan struct{}
-	pollImagesSoon chan struct{}
+	initOnce               sync.Once
+	syncSoon               chan struct{}
+	automatedWorkloadsSoon chan struct{}
 }
 
 func (loop *LoopVars) ensureInit() {
 	loop.initOnce.Do(func() {
 		loop.syncSoon = make(chan struct{}, 1)
-		loop.pollImagesSoon = make(chan struct{}, 1)
+		loop.automatedWorkloadsSoon = make(chan struct{}, 1)
 	})
 }
 
@@ -38,7 +38,7 @@ func (d *Daemon) Loop(stop chan struct{}, wg *sync.WaitGroup, logger log.Logger)
 	syncTimer := time.NewTimer(d.SyncInterval)
 	// Similarly checking to see if any controllers have new images
 	// available.
-	imagePollTimer := time.NewTimer(d.RegistryPollInterval)
+	automatedWorkloadTimer := time.NewTimer(d.AutomationInterval)
 
 	// Keep track of current, verified (if signature verification is
 	// enabled), HEAD, so we can know when to treat a repo
@@ -49,26 +49,26 @@ func (d *Daemon) Loop(stop chan struct{}, wg *sync.WaitGroup, logger log.Logger)
 	// In-memory sync tag state
 	lastKnownSyncTag := &lastKnownSyncTag{logger: logger, syncTag: d.GitConfig.SyncTag}
 
-	// Ask for a sync, and to poll images, straight away
+	// Ask for a sync, and to check
 	d.AskForSync()
-	d.AskForImagePoll()
+	d.AskForAutomatedWorkloadImageUpdates()
 
 	for {
 		select {
 		case <-stop:
 			logger.Log("stopping", "true")
 			return
-		case <-d.pollImagesSoon:
-			if !imagePollTimer.Stop() {
+		case <-d.automatedWorkloadsSoon:
+			if !automatedWorkloadTimer.Stop() {
 				select {
-				case <-imagePollTimer.C:
+				case <-automatedWorkloadTimer.C:
 				default:
 				}
 			}
-			d.pollForNewImages(logger)
-			imagePollTimer.Reset(d.RegistryPollInterval)
-		case <-imagePollTimer.C:
-			d.AskForImagePoll()
+			d.pollForNewAutomatedWorkloadImages(logger)
+			automatedWorkloadTimer.Reset(d.AutomationInterval)
+		case <-automatedWorkloadTimer.C:
+			d.AskForAutomatedWorkloadImageUpdates()
 		case <-d.syncSoon:
 			if !syncTimer.Stop() {
 				select {
@@ -150,10 +150,10 @@ func (d *LoopVars) AskForSync() {
 }
 
 // Ask for an image poll, or if there's one waiting, let that happen.
-func (d *LoopVars) AskForImagePoll() {
+func (d *LoopVars) AskForAutomatedWorkloadImageUpdates() {
 	d.ensureInit()
 	select {
-	case d.pollImagesSoon <- struct{}{}:
+	case d.automatedWorkloadsSoon <- struct{}{}:
 	default:
 	}
 }

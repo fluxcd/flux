@@ -463,7 +463,7 @@ func (d *Daemon) updatePolicies(spec update.Spec, updates resource.PolicyUpdates
 			return result, err
 		}
 		if anythingAutomated {
-			d.AskForImagePoll()
+			d.AskForAutomatedWorkloadImageUpdates()
 		}
 
 		var err error

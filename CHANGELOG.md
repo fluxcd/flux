@@ -1,6 +1,103 @@
 This is the changelog for the Flux daemon; the changelog for the Helm
 operator is in [./CHANGELOG-helmop.md](./CHANGELOG-helmop.md).
 
+## 1.13.3 (2019-07-25)
+
+This is a patch release, mostly concerned with adapting documentation
+to Flux's new home in https://github.com/fluxcd/ and the [CNCF
+sandbox](https://www.cncf.io/sandbox-projects/).
+
+### Fixes
+
+- Correct the name of the `--registry-require` argument mentioned in a
+  log message [fluxcd/flux#2256][]
+- Parse Docker credentials that have a host and port, but not a scheme
+  [fluxcd/flux#2248][]
+
+### Maintenance and documentation
+
+- Change references to weaveworks/flux to fluxcd/flux
+  [fluxcd/flux#2240][], [fluxcd/flux#2244][], [fluxcd/flux#2257][],
+  [fluxcd/flux#2271][]
+- Add Walmart to production users (:tada:!) [fluxcd/flux#2268][]
+- Mention the multi-tenancy tutorial in the README
+  [fluxcd/flux#2286][]
+- Fix the filename given in the `.flux.yaml` (manifest generation)
+  docs [fluxcd/flux#2270][]
+- Run credentials tests in parallel, without sleeping
+  [fluxcd/flux#2254][]
+- Correct the Prometheus annotations given in examples
+  [fluxcd/flux#2278][]
+
+### Thanks
+
+Thanks to the following for contributions since the last release:
+@2opremio, @aaron-trout, @adusumillipraveen, @alexhumphreys,
+@aliartiza75, @ariep, @binjheBenjamin, @bricef, @caniszczyk,
+@carlosjgp, @carlpett, @chriscorn-takt, @cloudoutloud, @derrickburns,
+@dholbach, @fnmeissner, @gled4er, @hiddeco, @jmtrusona, @jowparks,
+@jpellizzari, @ksaritek, @ktsakalozos, @mar1n3r0, @mzachh, @primeroz,
+@squaremo, @stefanprodan, @sureshamk, @vyckou, @ybaruchel, @zoni.
+
+[fluxcd/flux#2240]: https://github.com/fluxcd/flux/pull/2240
+[fluxcd/flux#2244]: https://github.com/fluxcd/flux/pull/2244
+[fluxcd/flux#2248]: https://github.com/fluxcd/flux/pull/2248
+[fluxcd/flux#2254]: https://github.com/fluxcd/flux/pull/2254
+[fluxcd/flux#2256]: https://github.com/fluxcd/flux/pull/2256
+[fluxcd/flux#2257]: https://github.com/fluxcd/flux/pull/2257
+[fluxcd/flux#2268]: https://github.com/fluxcd/flux/pull/2268
+[fluxcd/flux#2270]: https://github.com/fluxcd/flux/pull/2270
+[fluxcd/flux#2271]: https://github.com/fluxcd/flux/pull/2271
+[fluxcd/flux#2278]: https://github.com/fluxcd/flux/pull/2278
+[fluxcd/flux#2286]: https://github.com/fluxcd/flux/pull/2286
+
+## 1.13.2 (2019-07-10)
+
+This is a patch release, including a fix for [problems with using image
+labels as timestamps][weaveworks/flux#2176].
+
+### Fixes
+
+- Because image labels are inherited from base images, fluxd cannot
+  indiscriminately use labels to determine the image created date. You
+  must now explicitly allow that behaviour with the argument
+  `--registry-use-labels` [weaveworks/flux#2176][]
+- Image timestamps can be missing (or zero) if ordering them by semver
+  version rather than timestamp [weaveworks/flux#2175][]
+- Environment variables needed by the Google Cloud SDK helper are now
+  propagated to git [weaveworks/flux#2222][]
+
+### Maintenance and documentation
+
+- Image builds are pushed to both weaveworks/ and fluxcd/ orgs on
+  DockerHub, in preparation for the project moving organisations
+  [weaveworks/flux#2213][]
+- Calculate Go dependencies more efficiently during the build
+  [weaveworks/flux#2207][]
+- Refactor to remove a spurious top-level package
+  [weaveworks/flux#2201][]
+- Update the version of Kubernetes-in-Docker used in end-to-end test,
+  to v0.4.0 [weaveworks/flux#2202][]
+- Bump the Ubuntu version used in CI [weaveworks/flux#2195][]
+
+### Thanks
+
+Thanks go to the following for contributions: @2opremio, @4c74356b41,
+@ArchiFleKs, @adrian, @alanjcastonguay, @alexanderbuhler,
+@alexhumphreys, @bobbytables, @derrickburns, @dholbach, @dlespiau,
+@gaffneyd4, @hiddeco, @hkalsi, @hlascelles, @jaksonwkr, @jblunck,
+@jwenz723, @linuxbsdfreak, @luxas, @mpashka, @nlamot, @semyonslepov,
+@squaremo, @stefanprodan, @tegamckinney, @ysaakpr.
+
+[weaveworks/flux#2175]: https://github.com/weaveworks/flux/pull/2175
+[weaveworks/flux#2176]: https://github.com/weaveworks/flux/pull/2176
+[weaveworks/flux#2195]: https://github.com/weaveworks/flux/pull/2195
+[weaveworks/flux#2201]: https://github.com/weaveworks/flux/pull/2201
+[weaveworks/flux#2202]: https://github.com/weaveworks/flux/pull/2202
+[weaveworks/flux#2207]: https://github.com/weaveworks/flux/pull/2207
+[weaveworks/flux#2213]: https://github.com/weaveworks/flux/pull/2213
+[weaveworks/flux#2222]: https://github.com/weaveworks/flux/pull/2222
+
 ## 1.13.1 (2019-06-27)
 
 This is a patch release.

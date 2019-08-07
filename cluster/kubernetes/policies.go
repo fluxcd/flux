@@ -3,8 +3,6 @@ package kubernetes
 import (
 	"fmt"
 
-	"github.com/pkg/errors"
-
 	kresource "github.com/weaveworks/flux/cluster/kubernetes/resource"
 	"github.com/weaveworks/flux/resource"
 )
@@ -16,11 +14,16 @@ func (m *manifests) UpdateWorkloadPolicies(def []byte, id resource.ID, update re
 	}
 	res, ok := resources[id.String()]
 	if !ok {
-		return nil, errors.New("resource " + id.String() + " not found")
+		return nil, fmt.Errorf("resource %s not found", id.String())
 	}
+
+	// This is the Kubernetes manifests implementation; panic if it's
+	// not returning `KubeManifest`s.
+	kres := res.(kresource.KubeManifest)
+
 	workload, ok := res.(resource.Workload)
 	if !ok {
-		return nil, errors.New("resource " + id.String() + " does not have containers")
+		return nil, fmt.Errorf("resource %s does not have containers", id.String())
 	}
 	if err != nil {
 		return nil, err
@@ -33,7 +36,11 @@ func (m *manifests) UpdateWorkloadPolicies(def []byte, id resource.ID, update re
 
 	var args []string
 	for k, v := range changes {
-		args = append(args, fmt.Sprintf("%s%s=%s", kresource.PolicyPrefix, k, v))
+		annotation, ok := kres.PolicyAnnotationKey(k)
+		if !ok {
+			annotation = fmt.Sprintf("%s%s", kresource.PolicyPrefix, k)
+		}
+		args = append(args, fmt.Sprintf("%s=%s", annotation, v))
 	}
 
 	ns, kind, name := id.Components()

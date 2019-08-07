@@ -22,14 +22,14 @@ func TestUpdatePolicies(t *testing.T) {
 	}{
 		{
 			name: "adding annotation with others existing",
-			in:   []string{"prometheus.io.scrape", "'false'"},
-			out:  []string{"prometheus.io.scrape", "'false'", "flux.weave.works/automated", "'true'"},
+			in:   []string{"prometheus.io/scrape", "'false'"},
+			out:  []string{"prometheus.io/scrape", "'false'", "fluxcd.io/automated", "'true'"},
 			update: resource.PolicyUpdate{
 				Add: policy.Set{policy.Automated: "true"},
 			},
 		},
 		{
-			name: "adding annotation when already has annotation",
+			name: "adding annotation when already has annotation does not change prefix",
 			in:   []string{"flux.weave.works/automated", "'true'"},
 			out:  []string{"flux.weave.works/automated", "'true'"},
 			update: resource.PolicyUpdate{
@@ -38,24 +38,24 @@ func TestUpdatePolicies(t *testing.T) {
 		},
 		{
 			name: "adding annotation when already has annotation and others",
-			in:   []string{"flux.weave.works/automated", "'true'", "prometheus.io.scrape", "'false'"},
-			out:  []string{"flux.weave.works/automated", "'true'", "prometheus.io.scrape", "'false'"},
+			in:   []string{"flux.weave.works/automated", "'true'", "prometheus.io/scrape", "'false'"},
+			out:  []string{"flux.weave.works/automated", "'true'", "prometheus.io/scrape", "'false'"},
 			update: resource.PolicyUpdate{
 				Add: policy.Set{policy.Automated: "true"},
 			},
 		},
 		{
-			name: "adding first annotation",
+			name: "adding first annotation (uses new prefix)",
 			in:   nil,
-			out:  []string{"flux.weave.works/automated", "'true'"},
+			out:  []string{"fluxcd.io/automated", "'true'"},
 			update: resource.PolicyUpdate{
 				Add: policy.Set{policy.Automated: "true"},
 			},
 		},
 		{
 			name: "add and remove different annotations at the same time",
-			in:   []string{"flux.weave.works/automated", "'true'", "prometheus.io.scrape", "'false'"},
-			out:  []string{"prometheus.io.scrape", "'false'", "flux.weave.works/locked", "'true'"},
+			in:   []string{"flux.weave.works/automated", "'true'", "prometheus.io/scrape", "'false'"},
+			out:  []string{"prometheus.io/scrape", "'false'", "fluxcd.io/locked", "'true'"},
 			update: resource.PolicyUpdate{
 				Add:    policy.Set{policy.Locked: "true"},
 				Remove: policy.Set{policy.Automated: "true"},
@@ -72,15 +72,15 @@ func TestUpdatePolicies(t *testing.T) {
 		},
 		{
 			name: "remove annotation with others existing",
-			in:   []string{"flux.weave.works/automated", "true", "prometheus.io.scrape", "false"},
-			out:  []string{"prometheus.io.scrape", "false"},
+			in:   []string{"fluxcd.io/automated", "true", "prometheus.io/scrape", "false"},
+			out:  []string{"prometheus.io/scrape", "false"},
 			update: resource.PolicyUpdate{
 				Remove: policy.Set{policy.Automated: "true"},
 			},
 		},
 		{
 			name: "remove last annotation",
-			in:   []string{"flux.weave.works/automated", "true"},
+			in:   []string{"fluxcd.io/automated", "true"},
 			out:  nil,
 			update: resource.PolicyUpdate{
 				Remove: policy.Set{policy.Automated: "true"},
@@ -96,15 +96,15 @@ func TestUpdatePolicies(t *testing.T) {
 		},
 		{
 			name: "remove annotation with only others",
-			in:   []string{"prometheus.io.scrape", "false"},
-			out:  []string{"prometheus.io.scrape", "false"},
+			in:   []string{"prometheus.io/scrape", "false"},
+			out:  []string{"prometheus.io/scrape", "false"},
 			update: resource.PolicyUpdate{
 				Remove: policy.Set{policy.Automated: "true"},
 			},
 		},
 		{
 			name: "multiline",
-			in:   []string{"flux.weave.works/locked_msg", "|-\n      first\n      second"},
+			in:   []string{"fluxcd.io/locked_msg", "|-\n      first\n      second"},
 			out:  nil,
 			update: resource.PolicyUpdate{
 				Remove: policy.Set{policy.LockedMsg: "foo"},
@@ -112,7 +112,7 @@ func TestUpdatePolicies(t *testing.T) {
 		},
 		{
 			name: "multiline with empty line",
-			in:   []string{"flux.weave.works/locked_msg", "|-\n      first\n\n      third"},
+			in:   []string{"fluxcd.io/locked_msg", "|-\n      first\n\n      third"},
 			out:  nil,
 			update: resource.PolicyUpdate{
 				Remove: policy.Set{policy.LockedMsg: "foo"},
@@ -121,7 +121,7 @@ func TestUpdatePolicies(t *testing.T) {
 		{
 			name: "add tag policy",
 			in:   nil,
-			out:  []string{"flux.weave.works/tag.nginx", "glob:*"},
+			out:  []string{"fluxcd.io/tag.nginx", "glob:*"},
 			update: resource.PolicyUpdate{
 				Add: policy.Set{policy.TagPrefix("nginx"): "glob:*"},
 			},
@@ -129,7 +129,7 @@ func TestUpdatePolicies(t *testing.T) {
 		{
 			name: "add non-glob tag policy",
 			in:   nil,
-			out:  []string{"flux.weave.works/tag.nginx", "foo"},
+			out:  []string{"fluxcd.io/tag.nginx", "foo"},
 			update: resource.PolicyUpdate{
 				Add: policy.Set{policy.TagPrefix("nginx"): "foo"},
 			},
@@ -137,7 +137,7 @@ func TestUpdatePolicies(t *testing.T) {
 		{
 			name: "add semver tag policy",
 			in:   nil,
-			out:  []string{"flux.weave.works/tag.nginx", "semver:*"},
+			out:  []string{"fluxcd.io/tag.nginx", "semver:*"},
 			update: resource.PolicyUpdate{
 				Add: policy.Set{policy.TagPrefix("nginx"): "semver:*"},
 			},
@@ -145,7 +145,7 @@ func TestUpdatePolicies(t *testing.T) {
 		{
 			name: "add invalid semver tag policy",
 			in:   nil,
-			out:  []string{"flux.weave.works/tag.nginx", "semver:*"},
+			out:  []string{"fluxcd.io/tag.nginx", "semver:*"},
 			update: resource.PolicyUpdate{
 				Add: policy.Set{policy.TagPrefix("nginx"): "semver:invalid"},
 			},
@@ -154,7 +154,7 @@ func TestUpdatePolicies(t *testing.T) {
 		{
 			name: "add regexp tag policy",
 			in:   nil,
-			out:  []string{"flux.weave.works/tag.nginx", "regexp:(.*?)"},
+			out:  []string{"fluxcd.io/tag.nginx", "regexp:(.*?)"},
 			update: resource.PolicyUpdate{
 				Add: policy.Set{policy.TagPrefix("nginx"): "regexp:(.*?)"},
 			},
@@ -162,7 +162,7 @@ func TestUpdatePolicies(t *testing.T) {
 		{
 			name: "add invalid regexp tag policy",
 			in:   nil,
-			out:  []string{"flux.weave.works/tag.nginx", "regexp:(.*?)"},
+			out:  []string{"fluxcd.io/tag.nginx", "regexp:(.*?)"},
 			update: resource.PolicyUpdate{
 				Add: policy.Set{policy.TagPrefix("nginx"): "regexp:*"},
 			},
@@ -171,7 +171,7 @@ func TestUpdatePolicies(t *testing.T) {
 		{
 			name: "set tag to all containers",
 			in:   nil,
-			out:  []string{"flux.weave.works/tag.nginx", "semver:*"},
+			out:  []string{"fluxcd.io/tag.nginx", "semver:*"},
 			update: resource.PolicyUpdate{
 				Add: policy.Set{policy.TagAll: "semver:*"},
 			},

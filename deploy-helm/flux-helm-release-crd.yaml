@@ -47,7 +47,8 @@ spec:
                 disableHooks:
                   type: boolean
                 timeout:
-                  type: int64
+                  type: integer
+                  format: int64
                 wait:
                   type: boolean
             valueFileSecrets:

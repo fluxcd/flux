@@ -20,7 +20,7 @@ spec:
     metadata:
       annotations:
       {{- if .Values.prometheus.enabled }}
-        prometheus.io.scrape: "true"
+        prometheus.io/scrape: "true"
       {{- end }}
       {{- if .Values.helmOperator.annotations }}
       {{- .Values.helmOperator.annotations | toYaml | trimSuffix "\n" | nindent 8 }}
@@ -126,12 +126,20 @@ spec:
         - --charts-sync-interval={{ .Values.helmOperator.chartsSyncInterval }}
         - --update-chart-deps={{ .Values.helmOperator.updateChartDeps }}
         - --log-release-diffs={{ .Values.helmOperator.logReleaseDiffs }}
+        {{- if .Values.helmOperator.workers }}
+        - --workers={{ .Values.helmOperator.workers }}
+        {{- end }}
         {{- if not .Values.clusterRole.create }}
         - --allow-namespace={{ .Release.Namespace }}
         {{- else if .Values.helmOperator.allowNamespace }}
         - --allow-namespace={{ .Values.helmOperator.allowNamespace }}
         {{- end }}
+        {{- if .Values.helmOperator.tillerHost }}
+        - --tiller-ip={{ .Values.helmOperator.tillerHost }}
+        - --tiller-port={{ .Values.helmOperator.tillerPort }}
+        {{- else }}
         - --tiller-namespace={{ .Values.helmOperator.tillerNamespace }}
+        {{- end }}
         {{- if .Values.helmOperator.tls.enable }}
         - --tiller-tls-enable={{ .Values.helmOperator.tls.enable }}
         - --tiller-tls-key-path=/etc/fluxd/helm/{{ .Values.helmOperator.tls.keyFile }}

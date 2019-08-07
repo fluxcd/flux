@@ -50,3 +50,6 @@ test/bin/kubectl
 test/bin/kustomize
 test/bin/helm
 test/bin/kind
+
+# Docs
+docs/_build

@@ -1,13 +1,54 @@
 version: 2
 jobs:
+  helm:
+    docker:
+      - image: circleci/golang:1.12
+    steps:
+      - checkout
+      - run:
+          name: Install kubectl
+          command: sudo curl -L https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl -o /usr/local/bin/kubectl && sudo chmod +x /usr/local/bin/kubectl
+      - run:
+          name: Install helm
+          command: sudo curl -L https://storage.googleapis.com/kubernetes-helm/helm-v2.14.2-linux-amd64.tar.gz | tar xz && sudo mv linux-amd64/helm /bin/helm && sudo rm -rf linux-amd64
+      - run:
+          name: Initialize helm
+          command:  helm init --client-only --kubeconfig=$HOME/.kube/kubeconfig
+      - run:
+          name: Lint chart
+          command: |
+            helm lint ./chart/flux
+      - run:
+          name: Package chart
+          command: |
+            mkdir $HOME/chart
+            helm package ./chart/flux --destination $HOME/chart
+      - run:
+          name: Publish chart
+          command: |
+            if echo "${CIRCLE_TAG}" | grep -Eq "chart-[0-9]+(\.[0-9]+)*(-[a-z]+)?$"; then
+              REPOSITORY="https://fluxcdbot:${GITHUB_TOKEN}@github.com/fluxcd/flux.git"
+              git config user.email fluxcdbot@users.noreply.github.com
+              git config user.name fluxcdbot
+              git remote set-url origin ${REPOSITORY}
+              git checkout gh-pages
+              mv $HOME/chart/*.tgz .
+              helm repo index . --url https://fluxcd.github.io/flux
+              git add .
+              git commit -m "Publish Helm chart"
+              git push origin gh-pages
+            else
+              echo "Not a chart release! Skip chart publish"
+            fi
   build:
-    working_directory: ~/flux
+    working_directory: /home/circleci/go/src/github.com/weaveworks/flux
     machine:
       image: ubuntu-1604:201903-01
     environment:
       GO_VERSION: 1.12.5
       # We don't need a GOPATH but CircleCI defines it, so we override it
       GOPATH: /home/circleci/go
+      GO111MODULE: 'on'
       PATH: /bin:/usr/bin:/usr/local/go/bin:/home/circleci/go/bin
     steps:
       - checkout
@@ -21,8 +62,15 @@ jobs:
             mkdir -p "$HOME/go/bin"
             go version
       - run:
-          name: Update packages and Start Memcached
+          name: Update packages and start Memcached
+          no_output_timeout: 10m
           command: |
+            # Kill any apt-get processes that may be hanging due to
+            # networking related issues, and thus holding on to
+            # `/var/lib/apt/lists/lock`.
+            # https://support.circleci.com/hc/en-us/articles/360021256633-Apt-Get-Update-Is-Slow-Or-Locked
+            sudo killall apt-get || true
+
             sudo apt-get update
             sudo apt-get install -y git rng-tools memcached
             git version
@@ -44,6 +92,7 @@ jobs:
       - run: make test TEST_FLAGS="-race -tags integration -timeout 60s"
       - run: make all
       - run: make e2e
+      - run: make test-docs
       - save_cache:
           key: cache-{{ checksum "Makefile" }}
           paths:
@@ -110,6 +159,7 @@ workflows:
   version: 2
   build-and-push:
     jobs:
+      - helm
       - build:
           filters:
             tags:

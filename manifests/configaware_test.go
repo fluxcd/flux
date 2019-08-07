@@ -207,7 +207,7 @@ apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
   annotations:
-    flux.weave.works/tag.greeter: glob:master-*
+    fluxcd.io/tag.greeter: glob:master-*
   name: helloworld
 spec:
   template:

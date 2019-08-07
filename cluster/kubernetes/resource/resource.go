@@ -11,8 +11,12 @@ import (
 )
 
 const (
-	PolicyPrefix = "flux.weave.works/"
-	ClusterScope = "<cluster>"
+	PolicyPrefix = "fluxcd.io/"
+	// This is the previously-used prefix for annotations; many
+	// manifests in the wild will still be using it, so it's included
+	// here for backward-compatibility.
+	AlternatePolicyPrefix = "flux.weave.works/"
+	ClusterScope          = "<cluster>"
 )
 
 // KubeManifest represents a manifest for a Kubernetes resource. For
@@ -25,6 +29,8 @@ type KubeManifest interface {
 	GetName() string
 	GetNamespace() string
 	SetNamespace(string)
+
+	PolicyAnnotationKey(string) (string, bool)
 }
 
 // -- unmarshaling code for specific object and field types
@@ -87,13 +93,20 @@ func (o *baseObject) debyte() {
 func PoliciesFromAnnotations(annotations map[string]string) policy.Set {
 	set := policy.Set{}
 	for k, v := range annotations {
-		if strings.HasPrefix(k, PolicyPrefix) {
-			p := strings.TrimPrefix(k, PolicyPrefix)
-			if v == "true" {
-				set = set.Add(policy.Policy(p))
-			} else {
-				set = set.Set(policy.Policy(p), v)
-			}
+		var p string
+		switch {
+		case strings.HasPrefix(k, PolicyPrefix):
+			p = strings.TrimPrefix(k, PolicyPrefix)
+		case strings.HasPrefix(k, AlternatePolicyPrefix):
+			p = strings.TrimPrefix(k, AlternatePolicyPrefix)
+		default:
+			continue
+		}
+
+		if v == "true" {
+			set = set.Add(policy.Policy(p))
+		} else {
+			set = set.Set(policy.Policy(p), v)
 		}
 	}
 	return set
@@ -101,6 +114,20 @@ func PoliciesFromAnnotations(annotations map[string]string) policy.Set {
 
 func (o baseObject) Policies() policy.Set {
 	return PoliciesFromAnnotations(o.Meta.Annotations)
+}
+
+// PolicyAnnotationKey returns the key used in this resource to
+// indicate a particular policy; this is to aid in supporting more
+// than one way of using annotations for policy. If the policy is not
+// present, returns `"", false`.
+func (o baseObject) PolicyAnnotationKey(p string) (string, bool) {
+	for _, prefix := range []string{PolicyPrefix, AlternatePolicyPrefix} {
+		key := prefix + p
+		if _, ok := o.Meta.Annotations[key]; ok {
+			return key, true
+		}
+	}
+	return "", false
 }
 
 func (o baseObject) Source() string {

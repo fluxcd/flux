@@ -14,7 +14,7 @@ func MakeReleaseError(err error) *fluxerr.Error {
 This may be because of a limitation in the formats of file Flux can
 deal with. See
 
-    https://github.com/weaveworks/flux/blob/master/site/requirements.md
+    https://github.com/weaveworks/flux/blob/master/docs/requirements.md
 
 for those limitations.
 

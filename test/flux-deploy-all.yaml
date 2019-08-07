@@ -94,5 +94,5 @@ spec:
         - --git-url=ssh://docker@MINIKUBE_IP:/home/docker/flux.git
         - --git-branch=master
         # Tune up to make tests run quicker
-        - --registry-poll-interval=60s
+        - --automation-interval=60s
         - --git-poll-interval=60s

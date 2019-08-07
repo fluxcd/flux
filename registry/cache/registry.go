@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	"github.com/ryanuber/go-glob"
 
 	fluxerr "github.com/weaveworks/flux/errors"
 	"github.com/weaveworks/flux/image"
@@ -28,11 +29,52 @@ repository.
 
 // Cache is a local cache of image metadata.
 type Cache struct {
-	Reader Reader
+	Reader     Reader
+	Decorators []Decorator
+}
+
+// Decorator is for decorating an ImageRepository before it is returned.
+type Decorator interface {
+	apply(*ImageRepository)
+}
+
+// TimestampLabelWhitelist contains a string slice of glob patterns. Any
+// canonical image reference that matches one of the glob patterns will
+// prefer creation timestamps from labels over the one it received from
+// the registry.
+type TimestampLabelWhitelist []string
+
+// apply checks if any of the canonical image references from the
+// repository matches a glob pattern from the list. If it does, and the
+// image record has a valid timestamp label, it will replace the Created
+// field with the value from the label for all images in the repository.
+func (l TimestampLabelWhitelist) apply(r *ImageRepository) {
+	var match bool
+	for k, i := range r.Images {
+		if !match {
+			for _, exp := range l {
+				if glob.Glob(exp, i.ID.CanonicalName().String()) {
+					match = true
+					break
+				}
+			}
+			if !match {
+				return
+			}
+		}
+
+		switch {
+		case !i.Labels.Created.IsZero():
+			i.CreatedAt = i.Labels.Created
+		case !i.Labels.BuildDate.IsZero():
+			i.CreatedAt = i.Labels.BuildDate
+		}
+		r.Images[k] = i
+	}
 }
 
 // GetImageRepositoryMetadata returns the metadata from an image
-// repository (e.g,. at "docker.io/weaveworks/flux")
+// repository (e.g,. at "docker.io/fluxcd/flux")
 func (c *Cache) GetImageRepositoryMetadata(id image.Name) (image.RepositoryMetadata, error) {
 	repoKey := NewRepositoryKey(id.CanonicalName())
 	bytes, _, err := c.Reader.GetKey(repoKey)
@@ -51,6 +93,11 @@ func (c *Cache) GetImageRepositoryMetadata(id image.Name) (image.RepositoryMetad
 			return image.RepositoryMetadata{}, errors.New(repo.LastError)
 		}
 		return image.RepositoryMetadata{}, ErrNotCached
+	}
+
+	// (Maybe) decorate the image repository.
+	for _, d := range c.Decorators {
+		d.apply(&repo)
 	}
 
 	return repo.RepositoryMetadata, nil
