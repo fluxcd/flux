@@ -178,6 +178,8 @@ git:
     # data: |
     #   [credential "https://github.com"]
     #           username = foo
+  # Enables manifest generation. For an example see: https://github.com/weaveworks/flux-kustomize-example
+  manifestGeneration: false
 
 registry:
   # Period at which to check for updated images

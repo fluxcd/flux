@@ -186,6 +186,9 @@ spec:
           {{- if .Values.git.label }}
           - --git-label={{ .Values.git.label }}
           {{- end }}
+          {{- if .Values.git.manifestGeneration }}
+          - --manifest-generation=true
+          {{- end }}
           - --registry-poll-interval={{ .Values.registry.pollInterval }}
           - --registry-rps={{ .Values.registry.rps }}
           - --registry-burst={{ .Values.registry.burst }}
