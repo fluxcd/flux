@@ -7,5 +7,4 @@ package flux
 
 import (
 	_ "github.com/shurcooL/vfsgen"
-	_ "k8s.io/code-generator"
 )
