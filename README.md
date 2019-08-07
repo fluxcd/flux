@@ -85,8 +85,15 @@ could easily integrate.
 
 ## Get started with Flux
 
-Get started [installing Flux](https://docs.fluxcd.io/en/latest/get-started/)
+With the following tutorials:
+
+- [Get started with Flux](https://docs.fluxcd.io/en/latest/tutorials/get-started.html)
+- [Get started with Flux using Helm](https://docs.fluxcd.io/en/latest/tutorials/get-started-helm.html)
+
 or just [browse through the documentation](https://docs.fluxcd.io).
+
+Do you want to release your Helm charts in a declarative way?
+Take a look at the [`fluxcd/helm-operator`](https://github.com/fluxcd/helm-operator).
 
 ### Integrations
 
@@ -98,11 +105,6 @@ a few popular ones you might want to check out:
 - [OpenFaaS GitOps workflow with Flux](https://github.com/stefanprodan/openfaas-flux)
 - [GitOps for Istio Canary deployments](https://github.com/stefanprodan/gitops-istio)
 - [Fluxcloud to receive events from Flux](https://github.com/justinbarrick/fluxcloud)
-
-## Get started with the Helm operator
-
-Get started [installing the Helm operator](https://docs.fluxcd.io/en/latest/helm-operator/tutorials/get-started.html)
-or just [browse through the documentation](https://docs.fluxcd.io/en/latest/helm-operator/).
 
 ## Community & Developer information
 
