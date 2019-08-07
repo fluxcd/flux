@@ -131,7 +131,6 @@ install/generated_templates.gogen.go: install/templates/*
 	cd install && go run generate.go embedded-templates
 
 check-generated: generate-deploy install/generated_templates.gogen.go
-	./bin/helm/update_codegen.sh
 	git diff --exit-code -- integrations/apis integrations/client install/generated_templates.gogen.go
 
 build-docs:
