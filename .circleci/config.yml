@@ -26,6 +26,7 @@ jobs:
       - run:
           name: Publish chart
           command: |
+            # Push to fluxcd/flux gh-pages branch
             if echo "${CIRCLE_TAG}" | grep -Eq "chart-[0-9]+(\.[0-9]+)*(-[a-z]+)?$"; then
               REPOSITORY="https://fluxcdbot:${GITHUB_TOKEN}@github.com/fluxcd/flux.git"
               git config user.email fluxcdbot@users.noreply.github.com
@@ -36,6 +37,23 @@ jobs:
               helm repo index . --url https://fluxcd.github.io/flux
               git add .
               git commit -m "Publish Helm chart"
+              git push origin gh-pages
+            else
+              echo "Not a chart release! Skip chart publish"
+            fi
+            # Push to fluxcd/charts gh-pages branch
+            if echo "${CIRCLE_TAG}" | grep -Eq "chart-[0-9]+(\.[0-9]+)*(-[a-z]+)?$"; then
+              REPOSITORY="https://fluxcdbot:${GITHUB_TOKEN}@github.com/fluxcd/charts.git"
+              git config user.email fluxcdbot@users.noreply.github.com
+              git config user.name fluxcdbot
+              mkdir $HOME/fluxcd-charts
+              cd $HOME/fluxcd-charts && git clone ${REPOSITORY}
+              cd $HOME/fluxcd-charts/charts
+              git checkout gh-pages
+              mv $HOME/chart/*.tgz .
+              helm repo index . --url https://charts.fluxcd.io
+              git add .
+              git commit -m "Publish chart to fluxcd/charts"
               git push origin gh-pages
             else
               echo "Not a chart release! Skip chart publish"
