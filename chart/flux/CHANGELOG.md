@@ -1,3 +1,16 @@
+## 0.11.1 (2019-08-08)
+
+### Improvements
+
+ - Updated Flux to `1.13.3` and the Helm operator to `0.10.1`
+   [fluxcd/flux#2296](https://github.com/fluxcd/flux/pull/2296)
+   [fluxcd/flux#2318](https://github.com/fluxcd/flux/pull/2318)
+ - Add manifest generation to helm chart
+   [fluxcd/flux#2332](https://github.com/fluxcd/flux/pull/2332)
+   [fluxcd/flux#2335](https://github.com/fluxcd/flux/pull/2335)
+ - Let a named cluster role be used in chart
+   [fluxcd/flux#2266](https://github.com/fluxcd/flux/pull/2266)
+
 ## 0.11.0 (2019-07-10)
 
 ### Improvements
