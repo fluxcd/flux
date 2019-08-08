@@ -22,12 +22,6 @@ Welcome to the Flux documentation!
    troubleshooting
 
 .. toctree::
-   :maxdepth: 3
-   :caption: Helm operator
-
-   helm-operator/index
-
-.. toctree::
    :maxdepth: 2
    :caption: Contributing
 
