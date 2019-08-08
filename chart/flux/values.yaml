@@ -183,8 +183,6 @@ git:
     # data: |
     #   [credential "https://github.com"]
     #           username = foo
-  # Enables manifest generation. For an example see: https://github.com/weaveworks/flux-kustomize-example
-  manifestGeneration: false
 
 registry:
   # Period at which to check for updated images
@@ -279,6 +277,9 @@ prometheus:
 syncGarbageCollection:
   enabled: false
   dry: false
+
+# Enables manifest generation
+manifestGeneration: false
 
 # Add your own init container or uncomment and modify the given example.
 initContainers: {}
