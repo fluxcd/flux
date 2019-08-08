@@ -26,11 +26,12 @@ jobs:
       - run:
           name: Publish chart
           command: |
+            git config --global user.email fluxcdbot@users.noreply.github.com
+            git config --global user.name fluxcdbot
+
             # Push to fluxcd/flux gh-pages branch
             if echo "${CIRCLE_TAG}" | grep -Eq "chart-[0-9]+(\.[0-9]+)*(-[a-z]+)?$"; then
               REPOSITORY="https://fluxcdbot:${GITHUB_TOKEN}@github.com/fluxcd/flux.git"
-              git config user.email fluxcdbot@users.noreply.github.com
-              git config user.name fluxcdbot
               git remote set-url origin ${REPOSITORY}
               git checkout gh-pages
               cp $HOME/chart/*.tgz .
@@ -44,8 +45,6 @@ jobs:
             # Push to fluxcd/charts gh-pages branch
             if echo "${CIRCLE_TAG}" | grep -Eq "chart-[0-9]+(\.[0-9]+)*(-[a-z]+)?$"; then
               REPOSITORY="https://fluxcdbot:${GITHUB_TOKEN}@github.com/fluxcd/charts.git"
-              git config user.email fluxcdbot@users.noreply.github.com
-              git config user.name fluxcdbot
               mkdir $HOME/fluxcd-charts
               cd $HOME/fluxcd-charts && git clone ${REPOSITORY}
               cd $HOME/fluxcd-charts/charts
