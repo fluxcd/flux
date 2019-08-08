@@ -165,3 +165,11 @@ workflows:
             tags:
               only: /(helm-)?[0-9]+(\.[0-9]+)*(-[a-z]+)?/
 
+  release-helm:
+    jobs:
+      - helm:
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only: /^chart.*/
