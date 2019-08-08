@@ -52,7 +52,7 @@ helm init --skip-refresh --upgrade --service-account tiller --history-max 10
 Add the Flux repository:
 
 ```sh
-helm repo add fluxcd https://fluxcd.github.io/flux
+helm repo add fluxcd https://charts.fluxcd.io
 ```
 
 Apply the Helm Release CRD:
