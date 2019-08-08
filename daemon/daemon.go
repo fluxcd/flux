@@ -670,30 +670,69 @@ func containers2containers(cs []resource.Container) []v6.Container {
 	return res
 }
 
+// Much of the time, images will be sorted by timestamp. At marginal
+// cost, we cache the result of sorting, so that other uses of the
+// image can reuse it (if they are also sorted by timestamp).
+
+type repo struct {
+	images                []image.Info
+	imagesByTag           map[string]image.Info
+	imagesSortedByCreated update.SortedImageInfos
+}
+
+func (r *repo) SortedImages(p policy.Pattern) update.SortedImageInfos {
+	// RequiresTimestamp means "ordered by timestamp" (it's required
+	// because no comparison to see which image is newer can be made
+	// if a timestamp is missing)
+	if p.RequiresTimestamp() {
+		if r.imagesSortedByCreated == nil {
+			r.imagesSortedByCreated = update.SortImages(r.images, p)
+		}
+		return r.imagesSortedByCreated
+	}
+	return update.SortImages(r.images, p)
+}
+
+func (r *repo) Images() []image.Info {
+	return r.images
+}
+
+func (r *repo) ImageByTag(tag string) image.Info {
+	return r.imagesByTag[tag]
+}
+
 func getWorkloadContainers(workload cluster.Workload, imageRepos update.ImageRepos, resource resource.Resource, fields []string) (res []v6.Container, err error) {
+	repos := map[image.Name]*repo{}
+
 	for _, c := range workload.ContainersOrNil() {
-		imageRepo := c.Image.Name
+		imageName := c.Image.Name
 		var policies policy.Set
 		if resource != nil {
 			policies = resource.Policies()
 		}
 		tagPattern := policy.GetTagPattern(policies, c.Name)
 
-		repoMetadata := imageRepos.GetRepositoryMetadata(imageRepo)
-		var images []image.Info
-		// Build images, tolerating tags with missing metadata
-		for _, tag := range repoMetadata.Tags {
-			info, ok := repoMetadata.Images[tag]
-			if !ok {
-				info = image.Info{
-					ID: image.Ref{Tag: tag},
+		imageRepo, ok := repos[imageName]
+		if !ok {
+			repoMetadata := imageRepos.GetRepositoryMetadata(imageName)
+			var images []image.Info
+			// Build images, tolerating tags with missing metadata
+			for _, tag := range repoMetadata.Tags {
+				info, ok := repoMetadata.Images[tag]
+				if !ok {
+					info = image.Info{
+						ID: image.Ref{Tag: tag},
+					}
 				}
+				images = append(images, info)
 			}
-			images = append(images, info)
+			imageRepo = &repo{images: images, imagesByTag: repoMetadata.Images}
+			repos[imageName] = imageRepo
 		}
-		currentImage := repoMetadata.FindImageWithRef(c.Image)
 
-		container, err := v6.NewContainer(c.Name, images, currentImage, tagPattern, fields)
+		currentImage := imageRepo.ImageByTag(c.Image.Tag)
+
+		container, err := v6.NewContainer(c.Name, imageRepo, currentImage, tagPattern, fields)
 		if err != nil {
 			return res, err
 		}

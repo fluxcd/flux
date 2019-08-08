@@ -26,8 +26,16 @@ type Container struct {
 	NewFilteredImagesCount int `json:",omitempty"`
 }
 
+type imageSorter interface {
+	// SortedImages returns the known images, sorted according to the
+	// pattern given
+	SortedImages(policy.Pattern) update.SortedImageInfos
+	// Images returns the images in no defined order
+	Images() []image.Info
+}
+
 // NewContainer creates a Container given a list of images and the current image
-func NewContainer(name string, images []image.Info, currentImage image.Info, tagPattern policy.Pattern, fields []string) (Container, error) {
+func NewContainer(name string, images imageSorter, currentImage image.Info, tagPattern policy.Pattern, fields []string) (Container, error) {
 	// Default fields
 	if len(fields) == 0 {
 		fields = []string{
@@ -57,7 +65,7 @@ func NewContainer(name string, images []image.Info, currentImage image.Info, tag
 
 	getFilteredImages := func() []image.Info {
 		if filteredImages == nil {
-			filteredImages = update.FilterImages(images, tagPattern)
+			filteredImages = update.FilterImages(images.Images(), tagPattern)
 		}
 		return filteredImages
 	}
@@ -71,7 +79,7 @@ func NewContainer(name string, images []image.Info, currentImage image.Info, tag
 
 	getSortedImages := func() update.SortedImageInfos {
 		if sortedImages == nil {
-			sortedImages = update.SortImages(images, tagPattern)
+			sortedImages = images.SortedImages(tagPattern)
 			// now that we have the sorted images anyway, the fastest
 			// way to get sorted, filtered images will be to filter
 			// the already sorted images
@@ -104,7 +112,7 @@ func NewContainer(name string, images []image.Info, currentImage image.Info, tag
 				c.AvailableError = registry.ErrNoImageData.Error()
 			}
 		case "AvailableImagesCount":
-			c.AvailableImagesCount = len(images)
+			c.AvailableImagesCount = len(images.Images())
 
 		// these required the sorted images, which we can get
 		// straight away

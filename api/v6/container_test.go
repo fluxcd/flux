@@ -7,7 +7,18 @@ import (
 
 	"github.com/weaveworks/flux/image"
 	"github.com/weaveworks/flux/policy"
+	"github.com/weaveworks/flux/update"
 )
+
+type justSlice []image.Info
+
+func (j justSlice) Images() []image.Info {
+	return []image.Info(j)
+}
+
+func (j justSlice) SortedImages(p policy.Pattern) update.SortedImageInfos {
+	return update.SortImages(j.Images(), p)
+}
 
 func TestNewContainer(t *testing.T) {
 
@@ -127,7 +138,7 @@ func TestNewContainer(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := NewContainer(tt.args.name, tt.args.images, tt.args.currentImage, tt.args.tagPattern, tt.args.fields)
+			got, err := NewContainer(tt.args.name, justSlice(tt.args.images), tt.args.currentImage, tt.args.tagPattern, tt.args.fields)
 			assert.Equal(t, tt.wantErr, err != nil)
 			assert.Equal(t, tt.want, got)
 		})

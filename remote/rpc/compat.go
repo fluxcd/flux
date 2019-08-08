@@ -9,6 +9,7 @@ import (
 	"github.com/weaveworks/flux/api/v11"
 	"github.com/weaveworks/flux/api/v6"
 	"github.com/weaveworks/flux/cluster"
+	"github.com/weaveworks/flux/image"
 	"github.com/weaveworks/flux/policy"
 	"github.com/weaveworks/flux/remote"
 	"github.com/weaveworks/flux/resource"
@@ -138,6 +139,16 @@ type listImagesWithoutOptionsClient interface {
 	ListImages(ctx context.Context, spec update.ResourceSpec) ([]v6.ImageStatus, error)
 }
 
+type alreadySorted update.SortedImageInfos
+
+func (infos alreadySorted) Images() []image.Info {
+	return []image.Info(infos)
+}
+
+func (infos alreadySorted) SortedImages(_ policy.Pattern) update.SortedImageInfos {
+	return update.SortedImageInfos(infos)
+}
+
 // listImagesWithOptions is called by ListImagesWithOptions so we can use an
 // interface to dispatch .ListImages() and .ListServices() to the correct
 // API version.
@@ -177,7 +188,7 @@ func listImagesWithOptions(ctx context.Context, client listImagesWithoutOptionsC
 			}
 			tagPattern := policy.GetTagPattern(p, container.Name)
 			// Create a new container using the same function used in v10
-			newContainer, err := v6.NewContainer(container.Name, container.Available, container.Current, tagPattern, opts.OverrideContainerFields)
+			newContainer, err := v6.NewContainer(container.Name, alreadySorted(container.Available), container.Current, tagPattern, opts.OverrideContainerFields)
 			if err != nil {
 				return statuses, err
 			}
