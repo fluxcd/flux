@@ -290,6 +290,7 @@ The following tables lists the configurable parameters of the Flux chart and the
 | `prometheus.enabled`                              | `false`                                              | If enabled, adds prometheus annotations to Flux and helmOperator pod(s)
 | `syncGarbageCollection.enabled`                   | `false`                                              | If enabled, fluxd will delete resources that it created, but are no longer present in git (experimental, see [garbage collection](/docs/references/garbagecollection.md))
 | `syncGarbageCollection.dry`                       | `false`                                              | If enabled, fluxd won't delete any resources, but log the garbage collection output (experimental, see [garbage collection](/docs/references/garbagecollection.md))
+| `manifestGeneration`                              | `false`                                              | If enabled, fluxd will look for `.flux.yaml` and run Kustomize or other manifest generators
 
 Specify each parameter using the `--set key=value[,key=value]` argument to `helm install`. For example:
 
