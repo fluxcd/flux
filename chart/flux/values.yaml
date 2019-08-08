@@ -101,10 +101,15 @@ serviceAccount:
   # If not set and create is true, a name is generated using the fullname template
   name:
 
-# If `false`, Flux and the Helm Operator will be restricted to the namespace where they are deployed
-# and the kubeconfig default context will be set to that namespace
+# If create is `false` and no name is given, Flux and the Helm
+# Operator will be restricted to the namespace where they are
+# deployed, and the kubeconfig default context will be set to that
+# namespace.
 clusterRole:
   create: true
+  # The name of a cluster role to bind to; if not set and create is
+  # true, a name based on fullname is generated
+  name:
 
 resources:
   requests:

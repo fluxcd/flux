@@ -43,6 +43,17 @@ Create the name of the service account to use
 {{- end -}}
 
 {{/*
+Create the name of the cluster role to use
+*/}}
+{{- define "flux.clusterRoleName" -}}
+{{- if .Values.clusterRole.create -}}
+    {{ default (include "flux.fullname" .) .Values.clusterRole.name }}
+{{- else -}}
+    {{ default "default" .Values.clusterRole.name }}
+{{- end -}}
+{{- end -}}
+
+{{/*
 Create a custom repositories.yaml for Helm
 */}}
 {{- define "flux.customRepositories" -}}
