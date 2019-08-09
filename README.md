@@ -60,6 +60,7 @@ container images and config changes are propagated to the cluster.
 - [karriere tutor GmbH](https://www.karrieretutor.de)
 - [loveholidays](https://www.loveholidays.com/)
 - [Mettle](https://mettle.co.uk)
+- [Omise](https://www.omise.co)
 - [Payout](https://payout.one)
 - [Qordoba](https://qordoba.com)
 - [Rungway](https://rungway.com)
@@ -69,7 +70,6 @@ container images and config changes are propagated to the cluster.
 - [Walmart Chile](https://www.walmartchile.cl)
 - [Weave Cloud](https://cloud.weave.works)
 - [Yusofleet](https://yusofleet.com)
-- [Omise](https://www.omise.co)
 
 If you too are using Flux in production; please submit a PR to add your organization to the list!
 
