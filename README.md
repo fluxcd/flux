@@ -60,6 +60,7 @@ container images and config changes are propagated to the cluster.
 - [karriere tutor GmbH](https://www.karrieretutor.de)
 - [loveholidays](https://www.loveholidays.com/)
 - [Mettle](https://mettle.co.uk)
+- [Omise](https://www.omise.co)
 - [Payout](https://payout.one)
 - [Qordoba](https://qordoba.com)
 - [Rungway](https://rungway.com)
