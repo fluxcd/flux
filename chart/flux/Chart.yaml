@@ -11,6 +11,6 @@ maintainers:
   - name: stefanprodan
     email: stefan@weave.works
 engine: gotpl
-icon: https://raw.githubusercontent.com/fluxcd/flux/master/docs/_files/flux.png
+icon: https://raw.githubusercontent.com/fluxcd/flux/master/docs/_files/flux.svg
 keywords:
   - gitops
