@@ -47,7 +47,7 @@ You will have a fully working Flux installation deploying workloads to your clus
 Add the weaveworks repo:
 
 ```sh
-helm repo add fluxcd https://fluxcd.github.io/flux
+helm repo add fluxcd https://charts.fluxcd.io
 ```
 
 #### To install the chart with the release name `flux`

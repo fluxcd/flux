@@ -74,7 +74,7 @@ Now you can take care of the actual installation. First add the Flux
 repository of Weaveworks:
 
 ```sh
-helm repo add fluxcd https://fluxcd.github.io/flux
+helm repo add fluxcd https://charts.fluxcd.io
 ```
 
 Apply the Helm Release CRD:

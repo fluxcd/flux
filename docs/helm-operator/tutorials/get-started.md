@@ -152,7 +152,7 @@ kubectl create secret tls helm-client --cert=tls/flux-helm-operator.pem --key=./
 Deploy Flux with Helm;
 
 ```bash
-helm repo add fluxcd https://fluxcd.github.io/flux
+helm repo add fluxcd https://charts.fluxcd.io
 
 helm upgrade --install \
     --set helmOperator.create=true \
