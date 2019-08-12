@@ -1,8 +1,8 @@
 .. You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to Flux's documentation!
-================================
+Welcome to the Flux documentation!
+==================================
 
 .. image:: _files/flux.svg
 
