@@ -4,7 +4,7 @@
 Welcome to the Flux documentation!
 ==================================
 
-.. image:: _files/flux.svg
+.. image:: _files/flux-logo-vertical@2x.png
 
 .. toctree::
    :maxdepth: 2
