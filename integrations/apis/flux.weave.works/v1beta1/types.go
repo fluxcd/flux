@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/ghodss/yaml"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/helm/pkg/chartutil"
 
@@ -33,17 +33,40 @@ func (fhr HelmRelease) ResourceID() resource.ID {
 
 // ReleaseName returns the configured release name, or constructs and
 // returns one based on the namespace and name of the HelmRelease.
+// When the HelmRelease's metadata.namespace and spec.targetNamespace
+// differ, both are used in the generated name.
+// This name is used for naming and operating on the release in Helm.
 func (fhr HelmRelease) ReleaseName() string {
-	namespace := fhr.Namespace
-	if namespace == "" {
-		namespace = "default"
-	}
-	releaseName := fhr.Spec.ReleaseName
-	if releaseName == "" {
-		releaseName = fmt.Sprintf("%s-%s", namespace, fhr.Name)
+	if fhr.Spec.ReleaseName == "" {
+		namespace := fhr.GetDefaultedNamespace()
+		targetNamespace := fhr.GetTargetNamespace()
+
+		if namespace != targetNamespace {
+			// prefix the releaseName with the administering HelmRelease namespace as well
+			return fmt.Sprintf("%s-%s-%s", namespace, targetNamespace, fhr.Name)
+		}
+		return fmt.Sprintf("%s-%s", targetNamespace, fhr.Name)
 	}
 
-	return releaseName
+	return fhr.Spec.ReleaseName
+}
+
+// GetDefaultedNamespace returns the HelmRelease's namespace
+// defaulting to the "default" if not set.
+func (fhr HelmRelease) GetDefaultedNamespace() string {
+	if fhr.GetNamespace() == "" {
+		return "default"
+	}
+	return fhr.Namespace
+}
+
+// GetTargetNamespace returns the configured release targetNamespace
+// defaulting to the namespace of the HelmRelease if not set.
+func (fhr HelmRelease) GetTargetNamespace() string {
+	if fhr.Spec.TargetNamespace == "" {
+		return fhr.GetDefaultedNamespace()
+	}
+	return fhr.Spec.TargetNamespace
 }
 
 // ValuesFromSource represents a source of values.
@@ -143,6 +166,9 @@ type HelmReleaseSpec struct {
 	ValueFileSecrets []v1.LocalObjectReference `json:"valueFileSecrets,omitempty"`
 	ValuesFrom       []ValuesFromSource        `json:"valuesFrom,omitempty"`
 	HelmValues       `json:",inline"`
+	// Override the target namespace, defaults to metadata.namespace
+	// +optional
+	TargetNamespace string `json:"targetNamespace,omitempty"`
 	// Install or upgrade timeout in seconds
 	// +optional
 	Timeout *int64 `json:"timeout,omitempty"`
