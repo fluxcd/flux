@@ -1,11 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg width="140px" height="180px" viewBox="0 0 140 180" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+<svg width="100px" height="160px" viewBox="0 0 100 160" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
     <!-- Generator: Sketch 56.3 (81716) - https://sketch.com -->
     <title>flux-logo</title>
     <desc>Created with Sketch.</desc>
     <g id="flux-logo" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
-        <rect fill="#FFFFFF" x="0" y="0" width="140" height="180"></rect>
-        <g id="Group" transform="translate(21.000000, 11.000000)">
+        <g id="Group" transform="translate(1.000000, 1.000000)">
             <path d="M13.3921,27.3505 C11.5731,26.1675 11.5731,23.5045 13.3921,22.3225 L46.9821,0.4845 C47.9761,-0.1615 49.2571,-0.1615 50.2511,0.4845 L83.8421,22.3225 C85.6611,23.5045 85.6611,26.1675 83.8421,27.3505 L50.2511,49.1885 C49.2571,49.8345 47.9761,49.8345 46.9821,49.1885 L13.3921,27.3505 Z" id="Fill-1" fill="#326CE5"></path>
             <path d="M53.9209,31.204 L56.2509,31.204 C57.6119,31.204 58.4629,29.731 57.7819,28.553 L50.1479,15.33 C49.4679,14.152 47.7669,14.152 47.0859,15.33 L39.4519,28.553 C38.7719,29.731 39.6219,31.204 40.9829,31.204 L43.3139,31.204 C44.2899,31.204 45.0809,31.996 45.0809,32.972 L45.0809,48.065 L46.6449,49.082 C47.8439,49.862 49.3899,49.862 50.5889,49.082 L52.1529,48.065 L52.1529,32.972 C52.1529,31.996 52.9439,31.204 53.9209,31.204" id="Fill-3" fill="#C1D2F7"></path>
             <path d="M60.2544,60.3851 L52.1524,55.1181 L52.1524,57.6141 C54.7964,58.7461 57.5154,59.6281 60.2544,60.3851" id="Fill-5" fill="#326CE5"></path>
