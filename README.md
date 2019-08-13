@@ -126,7 +126,7 @@ be interested in the following:
 
 If you have any questions about Flux and continuous delivery:
 
-- Read [the Flux docs](https://github.com/fluxcd/flux/tree/master/docs).
+- Read [the Flux docs](https://docs.fluxcd.io).
 - Invite yourself to the <a href="https://slack.cncf.io" target="_blank">CNCF community</a>
   slack and ask a question on the [#flux](https://cloud-native.slack.com/messages/flux/)
   channel.

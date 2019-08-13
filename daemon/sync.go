@@ -59,7 +59,7 @@ func (d *Daemon) Sync(ctx context.Context, started time.Time, revision string, s
 	syncSetName := makeGitConfigHash(d.Repo.Origin(), d.GitConfig)
 	resourceStore, err := d.getManifestStore(working)
 	if err != nil {
-		return errors.Wrap(err, "reading the respository checkout")
+		return errors.Wrap(err, "reading the repository checkout")
 	}
 	resources, resourceErrors, err := doSync(ctx, resourceStore, d.Cluster, syncSetName, d.Logger)
 	if err != nil {

@@ -4,7 +4,7 @@ import (
 	"github.com/gorilla/mux"
 )
 
-// NewRouter creates a new routeri nstance, registers all API routes
+// NewRouter creates a new router instance, registers all API routes
 // and returns it.
 func NewRouter() *mux.Router {
 	r := mux.NewRouter()
