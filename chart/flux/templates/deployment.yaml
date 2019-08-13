@@ -99,6 +99,18 @@ spec:
           - name: http
             containerPort: 3030
             protocol: TCP
+          livenessProbe:
+            httpGet:
+              port: 3030
+              path: /api/flux/v6/identity.pub
+            initialDelaySeconds: 5
+            timeoutSeconds: 5
+          readinessProbe:
+            httpGet:
+              port: 3030
+              path: /api/flux/v6/identity.pub
+            initialDelaySeconds: 5
+            timeoutSeconds: 5
           volumeMounts:
           - name: kubedir
             mountPath: /root/.kubectl
