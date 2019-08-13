@@ -71,6 +71,18 @@ spec:
             memory: 64Mi
         ports:
         - containerPort: 3030 # informational
+        livenessProbe:
+          httpGet:
+            port: 3030
+            path: /api/flux/v6/identity.pub
+          initialDelaySeconds: 5
+          timeoutSeconds: 5
+        readinessProbe:
+          httpGet:
+            port: 3030
+            path: /api/flux/v6/identity.pub
+          initialDelaySeconds: 5
+          timeoutSeconds: 5
         volumeMounts:
         - name: git-key
           mountPath: /etc/fluxd/ssh # to match location given in image's /etc/ssh/config
