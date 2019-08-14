@@ -1,7 +1,7 @@
 # Integration with the Helm operator
 
 You can release charts to your cluster via "GitOps", by combining Flux
-and the Helm operator (also in [fluxcd/flux](https://github.com/fluxcd/flux)).
+and the [Helm operator](https://github.com/fluxcd/helm-operator).
 
 The essential mechanism is this: the declaration of a Helm release is
 represented by a custom resource, specifying the chart and its
