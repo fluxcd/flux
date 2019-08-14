@@ -55,6 +55,7 @@ container images and config changes are propagated to the cluster.
 - [Crowd Riff](https://crowdriff.com)
 - [FireHydrant](https://firehydrant.io)
 - [Gini](https://gini.net)
+- [IBM Cloudant](https://www.ibm.com/cloud/cloudant)
 - [Improwised Technologies](https://www.improwised.com/)
 - [iQmetrix](https://www.iqmetrix.com)
 - [karriere tutor GmbH](https://www.karrieretutor.de)
