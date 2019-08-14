@@ -273,6 +273,15 @@ func (r *Repo) DeleteTag(ctx context.Context, tag string) error {
 	return deleteTag(ctx, r.dir, tag, r.origin.URL)
 }
 
+func (r *Repo) NoteRevList(ctx context.Context, notesRef string) (map[string]struct{}, error) {
+	return noteRevList(ctx, r.Dir(), notesRef)
+}
+
+// GetNote gets a note for the revision specified, or nil if there is no such note.
+func (r *Repo) GetNote(ctx context.Context, rev, notesRef string, note interface{}) (bool, error) {
+	return getNote(ctx, r.Dir(), notesRef, rev, note)
+}
+
 // step attempts to advance the repo state machine, and returns `true`
 // if it has made progress, `false` otherwise.
 func (r *Repo) step(bg context.Context) bool {

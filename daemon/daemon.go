@@ -76,31 +76,21 @@ func (d *Daemon) Export(ctx context.Context) ([]byte, error) {
 
 type repo interface {
 	Dir() string
-	AbsolutePaths() []string
-}
-
-type exportRepo struct {
-	*git.Export
-	paths []string
-}
-
-func (r exportRepo) AbsolutePaths() []string {
-	return git.MakeAbsolutePaths(r, r.paths)
 }
 
 func (d *Daemon) getManifestStore(r repo) (manifests.Store, error) {
+	absPaths := git.MakeAbsolutePaths(r, d.GitConfig.Paths)
 	if d.ManifestGenerationEnabled {
-		return manifests.NewConfigAware(r.Dir(), r.AbsolutePaths(), d.Manifests)
+		return manifests.NewConfigAware(r.Dir(), absPaths, d.Manifests)
 	}
-	return manifests.NewRawFiles(r.Dir(), r.AbsolutePaths(), d.Manifests), nil
+	return manifests.NewRawFiles(r.Dir(), absPaths, d.Manifests), nil
 }
 
 func (d *Daemon) getResources(ctx context.Context) (map[string]resource.Resource, v6.ReadOnlyReason, error) {
 	var resources map[string]resource.Resource
 	var globalReadOnly v6.ReadOnlyReason
 	err := d.WithReadonlyClone(ctx, func(checkout *git.Export) error {
-		r := exportRepo{checkout, d.GitConfig.Paths}
-		cm, err := d.getManifestStore(r)
+		cm, err := d.getManifestStore(checkout)
 		if err != nil {
 			return err
 		}
@@ -580,37 +570,33 @@ func (d *Daemon) JobStatus(ctx context.Context, jobID job.ID) (job.Status, error
 	// Look through the commits for a note referencing this job.  This
 	// means that even if fluxd restarts, we will at least remember
 	// jobs which have pushed a commit.
-	// FIXME(michael): consider looking at the repo for this, since read op
-	err := d.WithWorkingClone(ctx, func(working *git.Checkout) error {
-		notes, err := working.NoteRevList(ctx)
-		if err != nil {
-			return errors.Wrap(err, "enumerating commit notes")
-		}
-		commits, err := d.Repo.CommitsBefore(ctx, "HEAD", d.GitConfig.Paths...)
-		if err != nil {
-			return errors.Wrap(err, "checking revisions for status")
-		}
+	notes, err := d.Repo.NoteRevList(ctx, d.GitConfig.NotesRef)
+	if err != nil {
+		return status, errors.Wrap(err, "enumerating commit notes")
+	}
+	commits, err := d.Repo.CommitsBefore(ctx, "HEAD", d.GitConfig.Paths...)
+	if err != nil {
+		return status, errors.Wrap(err, "checking revisions for status")
+	}
 
-		for _, commit := range commits {
-			if _, ok := notes[commit.Revision]; ok {
-				var n note
-				ok, err := working.GetNote(ctx, commit.Revision, &n)
-				if ok && err == nil && n.JobID == jobID {
-					status = job.Status{
-						StatusString: job.StatusSucceeded,
-						Result: job.Result{
-							Revision: commit.Revision,
-							Spec:     &n.Spec,
-							Result:   n.Result,
-						},
-					}
-					return nil
+	for _, commit := range commits {
+		if _, ok := notes[commit.Revision]; ok {
+			var n note
+			ok, err := d.Repo.GetNote(ctx, commit.Revision, d.GitConfig.NotesRef, &n)
+			if ok && err == nil && n.JobID == jobID {
+				status = job.Status{
+					StatusString: job.StatusSucceeded,
+					Result: job.Result{
+						Revision: commit.Revision,
+						Spec:     &n.Spec,
+						Result:   n.Result,
+					},
 				}
+				return status, nil
 			}
 		}
-		return unknownJobError(jobID)
-	})
-	return status, err
+	}
+	return status, unknownJobError(jobID)
 }
 
 // Ask the daemon how far it's got applying things; in particular, is it

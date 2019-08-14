@@ -164,7 +164,7 @@ func (c *Checkout) CommitAndPush(ctx context.Context, commitAction CommitAction,
 		if err != nil {
 			return err
 		}
-		if err := addNote(ctx, c.Dir(), rev, c.config.NotesRef, note); err != nil {
+		if err := addNote(ctx, c.Dir(), rev, c.realNotesRef, note); err != nil {
 			return err
 		}
 	}
@@ -183,11 +183,6 @@ func (c *Checkout) CommitAndPush(ctx context.Context, commitAction CommitAction,
 	return nil
 }
 
-// GetNote gets a note for the revision specified, or nil if there is no such note.
-func (c *Checkout) GetNote(ctx context.Context, rev string, note interface{}) (bool, error) {
-	return getNote(ctx, c.Dir(), c.realNotesRef, rev, note)
-}
-
 func (c *Checkout) HeadRevision(ctx context.Context) (string, error) {
 	return refRevision(ctx, c.Dir(), "HEAD")
 }
@@ -197,21 +192,6 @@ func (c *Checkout) MoveTagAndPush(ctx context.Context, tagAction TagAction) erro
 		tagAction.SigningKey = c.config.SigningKey
 	}
 	return moveTagAndPush(ctx, c.Dir(), c.upstream.URL, tagAction)
-}
-
-// ChangedFiles does a git diff listing changed files
-func (c *Checkout) ChangedFiles(ctx context.Context, ref string) ([]string, error) {
-	list, err := changed(ctx, c.Dir(), ref, c.config.Paths)
-	if err == nil {
-		for i, file := range list {
-			list[i] = filepath.Join(c.Dir(), file)
-		}
-	}
-	return list, err
-}
-
-func (c *Checkout) NoteRevList(ctx context.Context) (map[string]struct{}, error) {
-	return noteRevList(ctx, c.Dir(), c.realNotesRef)
 }
 
 func (c *Checkout) Checkout(ctx context.Context, rev string) error {

@@ -190,7 +190,7 @@ func TestCheckout(t *testing.T) {
 	}
 
 	var note Note
-	ok, err := checkout.GetNote(ctx, head, &note)
+	ok, err := repo.GetNote(ctx, head, params.NotesRef, &note)
 	if err != nil {
 		t.Error(err)
 	}
@@ -241,7 +241,7 @@ func TestCheckout(t *testing.T) {
 		}
 
 		var note Note
-		ok, err := c.GetNote(ctx, rev, &note)
+		ok, err := repo.GetNote(ctx, rev, params.NotesRef, &note)
 		if !ok {
 			t.Error("note not found")
 		}
