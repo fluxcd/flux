@@ -157,7 +157,7 @@ func TestDoSync_NoNewCommits(t *testing.T) {
 	var syncTag = "syncity"
 
 	ctx := context.Background()
-	err := d.WithClone(ctx, func(co *git.Checkout) error {
+	err := d.WithWorkingClone(ctx, func(co *git.Checkout) error {
 		ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 		defer cancel()
 		tagAction := git.TagAction{
@@ -239,7 +239,7 @@ func TestDoSync_WithNewCommit(t *testing.T) {
 	var syncTag = "syncy-mcsyncface"
 	// Set the sync tag to head
 	var oldRevision, newRevision string
-	err := d.WithClone(ctx, func(checkout *git.Checkout) error {
+	err := d.WithWorkingClone(ctx, func(checkout *git.Checkout) error {
 		ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 		defer cancel()
 

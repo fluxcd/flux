@@ -59,6 +59,9 @@ type TagAction struct {
 // Clone returns a local working clone of the sync'ed `*Repo`, using
 // the config given.
 func (r *Repo) Clone(ctx context.Context, conf Config) (*Checkout, error) {
+	if r.readonly {
+		return nil, ErrReadOnly
+	}
 	upstream := r.Origin()
 	repoDir, err := r.workingClone(ctx, conf.Branch)
 	if err != nil {
@@ -112,19 +115,26 @@ func (r *Repo) Clone(ctx context.Context, conf Config) (*Checkout, error) {
 	}, nil
 }
 
+// MakeAbsolutePaths returns the absolute path for each of the
+// relativePaths given, taking the repo's location as the base.
+func MakeAbsolutePaths(r interface{ Dir() string }, relativePaths []string) []string {
+	if len(relativePaths) == 0 {
+		return []string{r.Dir()}
+	}
+
+	base := r.Dir()
+	paths := make([]string, len(relativePaths), len(relativePaths))
+	for i, p := range relativePaths {
+		paths[i] = filepath.Join(base, p)
+	}
+	return paths
+}
+
 // AbsolutePaths returns the absolute paths as configured. It ensures
 // that at least one path is returned, so that it can be used with
 // `Manifest.LoadManifests`.
 func (c *Checkout) AbsolutePaths() []string {
-	if len(c.config.Paths) == 0 {
-		return []string{c.Dir()}
-	}
-
-	paths := make([]string, len(c.config.Paths), len(c.config.Paths))
-	for i, p := range c.config.Paths {
-		paths[i] = filepath.Join(c.Dir(), p)
-	}
-	return paths
+	return MakeAbsolutePaths(c, c.config.Paths)
 }
 
 // CommitAndPush commits changes made in this checkout, along with any

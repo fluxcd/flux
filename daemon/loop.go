@@ -52,6 +52,13 @@ func (d *Daemon) Loop(stop chan struct{}, wg *sync.WaitGroup, logger log.Logger)
 	// In-memory sync tag state
 	ratchet := &lastKnownSyncState{logger: logger, state: d.SyncState}
 
+	// If the git repo is read-only, the image update will fail; to
+	// avoid repeated failures in the log, mention it here and
+	// otherwise skip it when it comes around.
+	if d.Repo.Readonly() {
+		logger.Log("info", "Repo is read-only; no image updates will be attempted")
+	}
+
 	// Ask for a sync, and to check
 	d.AskForSync()
 	d.AskForAutomatedWorkloadImageUpdates()
@@ -67,6 +74,11 @@ func (d *Daemon) Loop(stop chan struct{}, wg *sync.WaitGroup, logger log.Logger)
 				case <-automatedWorkloadTimer.C:
 				default:
 				}
+			}
+			if d.Repo.Readonly() {
+				// don't bother trying to update images, and don't
+				// bother setting the timer again
+				continue
 			}
 			d.pollForNewAutomatedWorkloadImages(logger)
 			automatedWorkloadTimer.Reset(d.AutomationInterval)

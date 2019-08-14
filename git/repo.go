@@ -127,6 +127,12 @@ func (r *Repo) Origin() Remote {
 	return r.origin
 }
 
+// Readonly returns `true` if the repo was marked as readonly, `false`
+// otherwise
+func (r *Repo) Readonly() bool {
+	return r.readonly
+}
+
 // Dir returns the local directory into which the repo has been
 // cloned, if it has been cloned.
 func (r *Repo) Dir() string {

@@ -79,6 +79,15 @@ type repo interface {
 	AbsolutePaths() []string
 }
 
+type exportRepo struct {
+	*git.Export
+	paths []string
+}
+
+func (r exportRepo) AbsolutePaths() []string {
+	return git.MakeAbsolutePaths(r, r.paths)
+}
+
 func (d *Daemon) getManifestStore(r repo) (manifests.Store, error) {
 	if d.ManifestGenerationEnabled {
 		return manifests.NewConfigAware(r.Dir(), r.AbsolutePaths(), d.Manifests)
@@ -89,8 +98,9 @@ func (d *Daemon) getManifestStore(r repo) (manifests.Store, error) {
 func (d *Daemon) getResources(ctx context.Context) (map[string]resource.Resource, v6.ReadOnlyReason, error) {
 	var resources map[string]resource.Resource
 	var globalReadOnly v6.ReadOnlyReason
-	err := d.WithClone(ctx, func(checkout *git.Checkout) error {
-		cm, err := d.getManifestStore(checkout)
+	err := d.WithReadonlyClone(ctx, func(checkout *git.Export) error {
+		r := exportRepo{checkout, d.GitConfig.Paths}
+		cm, err := d.getManifestStore(r)
 		if err != nil {
 			return err
 		}
@@ -143,6 +153,8 @@ func (d *Daemon) ListServicesWithOptions(ctx context.Context, opts v11.ListServi
 	var res []v6.ControllerStatus
 	for _, workload := range clusterWorkloads {
 		readOnly := v6.ReadOnlyOK
+		repoIsReadonly := d.Repo.Readonly()
+
 		var policies policy.Set
 		if resource, ok := resources[workload.ID.String()]; ok {
 			policies = resource.Policies()
@@ -150,6 +162,8 @@ func (d *Daemon) ListServicesWithOptions(ctx context.Context, opts v11.ListServi
 		switch {
 		case policies == nil:
 			readOnly = missingReason
+		case repoIsReadonly:
+			readOnly = v6.ReadOnlyROMode
 		case workload.IsSystem:
 			readOnly = v6.ReadOnlySystem
 		}
@@ -251,7 +265,7 @@ type updateFunc func(ctx context.Context, jobID job.ID, working *git.Checkout, l
 func (d *Daemon) makeJobFromUpdate(update updateFunc) jobFunc {
 	return func(ctx context.Context, jobID job.ID, logger log.Logger) (job.Result, error) {
 		var result job.Result
-		err := d.WithClone(ctx, func(working *git.Checkout) error {
+		err := d.WithWorkingClone(ctx, func(working *git.Checkout) error {
 			var err error
 			if err = verifyWorkingRepo(ctx, d.Repo, working, d.SyncState); d.GitVerifySignatures && err != nil {
 				return err
@@ -567,7 +581,7 @@ func (d *Daemon) JobStatus(ctx context.Context, jobID job.ID) (job.Status, error
 	// means that even if fluxd restarts, we will at least remember
 	// jobs which have pushed a commit.
 	// FIXME(michael): consider looking at the repo for this, since read op
-	err := d.WithClone(ctx, func(working *git.Checkout) error {
+	err := d.WithWorkingClone(ctx, func(working *git.Checkout) error {
 		notes, err := working.NoteRevList(ctx)
 		if err != nil {
 			return errors.Wrap(err, "enumerating commit notes")
@@ -648,8 +662,29 @@ func (d *Daemon) GitRepoConfig(ctx context.Context, regenerate bool) (v6.GitConf
 
 // Non-api.Server methods
 
-func (d *Daemon) WithClone(ctx context.Context, fn func(*git.Checkout) error) error {
+// WithWorkingClone applies the given func to a fresh, writable clone
+// of the git repo, and cleans it up afterwards. This may return an
+// error in the case that the repo is read-only; use
+// `WithReadonlyClone` if you only need to read the files in the git
+// repo.
+func (d *Daemon) WithWorkingClone(ctx context.Context, fn func(*git.Checkout) error) error {
 	co, err := d.Repo.Clone(ctx, d.GitConfig)
+	if err != nil {
+		return err
+	}
+	defer co.Clean()
+	return fn(co)
+}
+
+// WithReadonlyClone applies the given func to an export of the
+// current revision of the git repo. Use this if you just need to
+// consult the files.
+func (d *Daemon) WithReadonlyClone(ctx context.Context, fn func(*git.Export) error) error {
+	head, err := d.Repo.BranchHead(ctx)
+	if err != nil {
+		return err
+	}
+	co, err := d.Repo.Export(ctx, head)
 	if err != nil {
 		return err
 	}
