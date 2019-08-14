@@ -43,7 +43,8 @@ version.
 
 ## Integrations with other devops tools
 
-One final high-level feature is that Flux increases visibility of your
-application. Clear visibility of the state of a cluster is key for
-maintaining operational systems. Developers can be confident in their
-changes by observing a predictable series of deployment events.
+For configuration customization across environments and clusters, Flux comes with builtin support 
+for [Kustomize](references/fluxyaml-config-files.md) and [Helm](references/helm-operator-integration.md).
+
+For advanced deployment patterns like Canary releases, A/B testing and Blue/Green deployments,
+Flux can be used together with [Flagger](https://github.com/weaveworks/flagger).
