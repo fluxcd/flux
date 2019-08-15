@@ -26,6 +26,13 @@ func (k KubeYAML) Annotate(in []byte, ns, kind, name string, policies ...string)
 	return execKubeyaml(in, args)
 }
 
+// Set calls the kubeyaml subcommand `set` with the arguments given.
+func (k KubeYAML) Set(in []byte, ns, kind, name string, values ...string) ([]byte, error) {
+	args := []string{"set", "--namespace", ns, "--kind", kind, "--name", name}
+	args = append(args, values...)
+	return execKubeyaml(in, args)
+}
+
 func execKubeyaml(in []byte, args []string) ([]byte, error) {
 	cmd := exec.Command("kubeyaml", args...)
 	out := &bytes.Buffer{}

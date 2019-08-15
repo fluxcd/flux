@@ -3,6 +3,7 @@ module github.com/weaveworks/flux
 go 1.12
 
 require (
+	github.com/Jeffail/gabs v1.4.0
 	github.com/Masterminds/semver v1.4.2
 	github.com/aws/aws-sdk-go v1.19.11
 	github.com/bradfitz/gomemcache v0.0.0-20190329173943-551aad21a668
