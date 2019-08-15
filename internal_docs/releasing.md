@@ -71,7 +71,7 @@ change.
 
 **Creating the release**
 
-8. [Create a release in GitHub](https://github.com/weaveworks/flux/releases/new)
+8. [Create a release in GitHub](https://github.com/fluxcd/flux/releases/new)
 
     Use a tag name as explained above; semver for the Flux daemon, `helm-` then the semver for the Helm operator.
 

@@ -26,7 +26,7 @@ Flux performs two types of actions on raw manifest files from the Git repository
 
 1. Read manifest files when performing a sync operation (i.e making sure that the status of the cluster reflects what's
    in the manifest files, adjusting it if necessary)
-2. Update the manifest files of [workload](https://github.com/fluxcd/flux/blob/master/docs/using/fluxctl.md#what-is-a-workload).
+2. Update the manifest files of [workload](fluxctl.html#workloads).
    Specifically, flux can update:
     * container images, when releasing a new image version. A release can happen manually or automatically, when a new
       container image is pushed to a repository.
