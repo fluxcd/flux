@@ -1,6 +1,6 @@
 # Flux
 
-> **Notice** Flux has moved house! Please see https://github.com/weaveworks/flux/wiki/MoveToFluxCD
+> **Announcement** [Flux has joined CNCF as a sandbox project](https://www.weave.works/blog/flux-joins-the-cncf-sandbox)
 
 We believe in GitOps:
 
