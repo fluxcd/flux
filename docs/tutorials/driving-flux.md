@@ -179,11 +179,11 @@ It should look a little something like this:
 @@ -8,8 +8,8 @@ metadata:
      app: podinfo
    annotations:
-     flux.weave.works/automated: "true"
--    flux.weave.works/tag.init: regexp:^3.*
--    flux.weave.works/tag.podinfod: semver:~1.3
-+    flux.weave.works/tag.init: glob:1.4.*
-+    flux.weave.works/tag.podinfod: glob:1.4.*
+     fluxcd.io/automated: "true"
+-    fluxcd.io/tag.init: regexp:^3.*
+-    fluxcd.io/tag.podinfod: semver:~1.3
++    fluxcd.io/tag.init: glob:1.4.*
++    fluxcd.io/tag.podinfod: glob:1.4.*
  spec:
    strategy:
      rollingUpdate:
@@ -223,10 +223,10 @@ The resulting diff should look like this
 @@ -10,6 +10,7 @@ metadata:
      app: podinfo
    annotations:
-     flux.weave.works/automated: "true"
-     flux.weave.works/tag.init: glob:1.4.*
-     flux.weave.works/tag.podinfod: glob:1.4.*
-+    flux.weave.works/locked: 'true'
+     fluxcd.io/automated: "true"
+     fluxcd.io/tag.init: glob:1.4.*
+     fluxcd.io/tag.podinfod: glob:1.4.*
++    fluxcd.io/locked: 'true'
  spec:
    strategy:
      rollingUpdate:
@@ -275,5 +275,5 @@ kubectl logs -n default deploy/flux -f
 ```
 
 If you should have any questions, find us on Slack in the [#flux
-channel](https://weave-community.slack.com/messages/flux/), get
-an invite to it [here](https://slack.weave.works/).
+channel](https://cncf.slack.com/messages/flux/), get
+an invite to it [here](https://slack.cncf.io).

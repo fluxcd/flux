@@ -141,8 +141,8 @@ Top level image example:
 kind: HelmRelease
 metadata:
   annotations:
-    flux.weave.works/automated: "true"
-    flux.weave.works/tag.chart-image: semver:~4.0
+    fluxcd.io/automated: "true"
+    fluxcd.io/tag.chart-image: semver:~4.0
 spec:
   values:
     image:
@@ -156,9 +156,9 @@ Sub-section images example:
 kind: HelmRelease
 metadata:
   annotations:
-    flux.weave.works/automated: "true"
-    flux.weave.works/tag.prometheus: semver:~2.3
-    flux.weave.works/tag.alertmanager: glob:v0.15.*
+    fluxcd.io/automated: "true"
+    fluxcd.io/tag.prometheus: semver:~2.3
+    fluxcd.io/tag.alertmanager: glob:v0.15.*
     filter.fluxcd.io/nats: regex:^0.6.*
 spec:
   values:

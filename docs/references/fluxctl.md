@@ -302,7 +302,7 @@ default:deployment/helloworld  helloworld  quay.io/weaveworks/helloworld:master-
 ```
 
 Automation can also be enabled by adding the annotation
-`flux.weave.works/automated: "true"` to the deployment.
+`fluxcd.io/automated: "true"` to the deployment.
 
 We can see that the `list-workloads` subcommand reports that the
 helloworld application is automated. Flux will now automatically
@@ -600,9 +600,9 @@ no existing author
 Automation and image tag filtering can also be managed using annotations
 (`fluxctl` is using the same mechanism).
 
-Automation can be enabled with `flux.weave.works/automated: "true"`. Image
+Automation can be enabled with `fluxcd.io/automated: "true"`. Image
 filtering annotations take the form
-`flux.weave.works/tag.<container-name>: <filter-type>:<filter-value>` or 
+`fluxcd.io/tag.<container-name>: <filter-type>:<filter-value>` or 
 `filter.fluxcd.io/<container-name>: <filter-type>:<filter-value>`. Values of
 `filter-type` can be [`glob`](#glob), [`semver`](#semver), and
 [`regexp`](#regexp). Filter values use the same syntax as when the filter is
@@ -619,8 +619,8 @@ metadata:
   labels:
     app: podinfo
   annotations:
-    flux.weave.works/automated: "true"
-    flux.weave.works/tag.podinfod: semver:~1.3
+    fluxcd.io/automated: "true"
+    fluxcd.io/tag.podinfod: semver:~1.3
 spec:
   selector:
     matchLabels:
@@ -644,8 +644,8 @@ spec:
 Things to notice:
 
 1. The annotations are made in `metadata.annotations`, not in `spec.template.metadata`.
-2. The `flux.weave.works/tag.`... references the container name `podinfod`, this will change based on your container name. If you have multiple containers you would have multiple lines like that.
-3. The value for the `flux.weave.works/tag.`... annotation should includes the filter pattern type, in this case `semver`.
+2. The `fluxcd.io/tag.`... references the container name `podinfod`, this will change based on your container name. If you have multiple containers you would have multiple lines like that.
+3. The value for the `fluxcd.io/tag.`... annotation should includes the filter pattern type, in this case `semver`.
 
 Annotations can also be used to tell Flux to temporarily ignore certain manifests
-using `flux.weave.works/ignore: "true"`. Read more about this in the [FAQ](../faq.md).
+using `fluxcd.io/ignore: "true"`. Read more about this in the [FAQ](../faq.md).
