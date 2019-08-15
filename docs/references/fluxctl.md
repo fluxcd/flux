@@ -602,7 +602,8 @@ Automation and image tag filtering can also be managed using annotations
 
 Automation can be enabled with `flux.weave.works/automated: "true"`. Image
 filtering annotations take the form
-`flux.weave.works/tag.container-name: filter-type:filter-value`. Values of
+`flux.weave.works/tag.<container-name>: <filter-type>:<filter-value>` or 
+`filter.fluxcd.io/<container-name>: <filter-type>:<filter-value>`. Values of
 `filter-type` can be [`glob`](#glob), [`semver`](#semver), and
 [`regexp`](#regexp). Filter values use the same syntax as when the filter is
 configured using `fluxctl`.
