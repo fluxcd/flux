@@ -7,7 +7,7 @@ configuration based on that (and a configurable policy).
 
 ## Introduction
 
-This chart bootstraps a [Flux](https://github.com/weaveworks/flux) deployment on
+This chart bootstraps a [Flux](https://github.com/fluxcd/flux) deployment on
 a [Kubernetes](http://kubernetes.io) cluster using the [Helm](https://helm.sh) package manager.
 
 ## Prerequisites
@@ -22,7 +22,7 @@ This means fluxd can fail to apply changes to HelmRelease resources.
 ### Helm
 
 Tiller should be running in the cluster, though
-[helm-operator](../../docs/helm-operator/references/operator.md) will wait
+[helm-operator](https://github.com/fluxcd/helm-operator) will wait
 until it can find one.
 
 # Git repo
@@ -32,12 +32,12 @@ until it can find one.
  - Custom Resource namespace reflects where the release should be done.
    Both the Helm release and its corresponding Custom Resource will
    live in this namespace.
- - Example of a test repo: https://github.com/weaveworks/flux-get-started
+ - Example of a test repo: https://github.com/fluxcd/flux-get-started
 
 ## Installation
 
 We put together a simple [Get Started
-guide](../../docs/tutorials/get-started-helm.md) which takes about 5-10 minutes to follow.
+tutorial](https://docs.fluxcd.io/en/latest/tutorials/get-started-helm.html) which takes about 5-10 minutes to follow.
 You will have a fully working Flux installation deploying workloads to your cluster.
 
 ## Installing Flux using Helm
@@ -52,11 +52,11 @@ helm repo add fluxcd https://charts.fluxcd.io
 
 #### To install the chart with the release name `flux`
 
-Replace `weaveworks/flux-get-started` with your own git repository and run helm install:
+Replace `fluxcd/flux-get-started` with your own git repository and run helm install:
 
 ```sh
 $ helm install --name flux \
---set git.url=git@github.com:weaveworks/flux-get-started \
+--set git.url=git@github.com:fluxcd/flux-get-started \
 --namespace flux \
 fluxcd/flux
 ```
@@ -65,7 +65,7 @@ fluxcd/flux
 
 ```sh
 helm install --name flux \
---set git.url=git@github.com:weaveworks/flux-get-started \
+--set git.url=git@github.com:fluxcd/flux-get-started \
 --set token=YOUR_WEAVE_CLOUD_SERVICE_TOKEN \
 --namespace flux \
 fluxcd/flux
@@ -76,14 +76,14 @@ fluxcd/flux
 Apply the Helm Release CRD:
 
 ```sh
-kubectl apply -f https://raw.githubusercontent.com/weaveworks/flux/master/deploy-helm/flux-helm-release-crd.yaml
+kubectl apply -f https://raw.githubusercontent.com/fluxcd/flux/helm-0.10.1/deploy-helm/flux-helm-release-crd.yaml
 ```
 
 Install Flux with Helm:
 
 ```sh
 $ helm install --name flux \
---set git.url=git@github.com:weaveworks/flux-get-started \
+--set git.url=git@github.com:fluxcd/flux-get-started \
 --set helmOperator.create=true \
 --set helmOperator.createCRD=false \
 --namespace flux \
@@ -154,7 +154,7 @@ The [configuration](#configuration) section lists all the parameters that can be
 #### Setup Git deploy
 
 At startup Flux generates a SSH key and logs the public key.
-Find the SSH public key by installing [fluxctl](../../docs/references/fluxctl.md) and
+Find the SSH public key by installing [fluxctl](https://docs.fluxcd.io/en/latest/references/fluxctl.html) and
 running:
 
 ```sh

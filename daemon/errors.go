@@ -28,14 +28,14 @@ giving this error:
 Check that any files mentioned are well-formed, and resources are not
 defined more than once. It's also worth reviewing
 
-    https://github.com/weaveworks/flux/blob/master/docs/requirements.md
+    https://docs.fluxcd.io/en/latest/requirements.html
 
 to make sure you're not running into any corner cases.
 
 If you think your files are all OK and you are still getting this
 message, please log an issue at
 
-    https://github.com/weaveworks/flux/issues
+    https://github.com/fluxcd/flux/issues
 
 and include the problematic file, if possible.
 `,
