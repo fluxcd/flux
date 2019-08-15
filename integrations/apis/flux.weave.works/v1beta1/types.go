@@ -15,7 +15,7 @@ import (
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// FluxHelmRelease represents custom resource associated with a Helm Chart
+// HelmRelease represents custom resource associated with a Helm Chart
 type HelmRelease struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata"`
@@ -27,8 +27,8 @@ type HelmRelease struct {
 // ResourceID returns an ID made from the identifying parts of the
 // resource, as a convenience for Flux, which uses them
 // everywhere.
-func (fhr HelmRelease) ResourceID() resource.ID {
-	return resource.MakeID(fhr.Namespace, "HelmRelease", fhr.Name)
+func (hr HelmRelease) ResourceID() resource.ID {
+	return resource.MakeID(hr.Namespace, "HelmRelease", hr.Name)
 }
 
 // ReleaseName returns the configured release name, or constructs and
@@ -36,37 +36,37 @@ func (fhr HelmRelease) ResourceID() resource.ID {
 // When the HelmRelease's metadata.namespace and spec.targetNamespace
 // differ, both are used in the generated name.
 // This name is used for naming and operating on the release in Helm.
-func (fhr HelmRelease) ReleaseName() string {
-	if fhr.Spec.ReleaseName == "" {
-		namespace := fhr.GetDefaultedNamespace()
-		targetNamespace := fhr.GetTargetNamespace()
+func (hr HelmRelease) ReleaseName() string {
+	if hr.Spec.ReleaseName == "" {
+		namespace := hr.GetDefaultedNamespace()
+		targetNamespace := hr.GetTargetNamespace()
 
 		if namespace != targetNamespace {
 			// prefix the releaseName with the administering HelmRelease namespace as well
-			return fmt.Sprintf("%s-%s-%s", namespace, targetNamespace, fhr.Name)
+			return fmt.Sprintf("%s-%s-%s", namespace, targetNamespace, hr.Name)
 		}
-		return fmt.Sprintf("%s-%s", targetNamespace, fhr.Name)
+		return fmt.Sprintf("%s-%s", targetNamespace, hr.Name)
 	}
 
-	return fhr.Spec.ReleaseName
+	return hr.Spec.ReleaseName
 }
 
 // GetDefaultedNamespace returns the HelmRelease's namespace
 // defaulting to the "default" if not set.
-func (fhr HelmRelease) GetDefaultedNamespace() string {
-	if fhr.GetNamespace() == "" {
+func (hr HelmRelease) GetDefaultedNamespace() string {
+	if hr.GetNamespace() == "" {
 		return "default"
 	}
-	return fhr.Namespace
+	return hr.Namespace
 }
 
 // GetTargetNamespace returns the configured release targetNamespace
 // defaulting to the namespace of the HelmRelease if not set.
-func (fhr HelmRelease) GetTargetNamespace() string {
-	if fhr.Spec.TargetNamespace == "" {
-		return fhr.GetDefaultedNamespace()
+func (hr HelmRelease) GetTargetNamespace() string {
+	if hr.Spec.TargetNamespace == "" {
+		return hr.GetDefaultedNamespace()
 	}
-	return fhr.Spec.TargetNamespace
+	return hr.Spec.TargetNamespace
 }
 
 // ValuesFromSource represents a source of values.
@@ -290,7 +290,7 @@ func (in *HelmValues) DeepCopyInto(out *HelmValues) {
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// HelmReleaseList is a list of FluxHelmRelease resources
+// HelmReleaseList is a list of HelmRelease resources
 type HelmReleaseList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata"`

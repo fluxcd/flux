@@ -22,7 +22,6 @@ godeps=$(shell go list -deps -f '{{if not .Standard}}{{ $$dep := . }}{{range .Go
 
 FLUXD_DEPS:=$(call godeps,./cmd/fluxd/...)
 FLUXCTL_DEPS:=$(call godeps,./cmd/fluxctl/...)
-HELM_OPERATOR_DEPS:=$(call godeps,./cmd/helm-operator/...)
 
 IMAGE_TAG:=$(shell ./docker/image-tag)
 VCS_REF:=$(shell git rev-parse HEAD)
@@ -30,7 +29,7 @@ BUILD_DATE:=$(shell date -u +'%Y-%m-%dT%H:%M:%SZ')
 
 DOCS_PORT:=8000
 
-all: $(GOBIN)/fluxctl $(GOBIN)/fluxd $(GOBIN)/helm-operator build/.flux.done build/.helm-operator.done
+all: $(GOBIN)/fluxctl $(GOBIN)/fluxd build/.flux.done
 
 release-bins:
 	for arch in amd64; do \
@@ -55,7 +54,7 @@ realclean: clean
 test: test/bin/helm test/bin/kubectl test/bin/kustomize
 	PATH="${PWD}/bin:${PWD}/test/bin:${PATH}" go test ${TEST_FLAGS} $(shell go list ./... | grep -v "^github.com/weaveworks/flux/vendor" | sort -u)
 
-e2e: test/bin/helm test/bin/kubectl build/.flux.done build/.helm-operator.done
+e2e: test/bin/helm test/bin/kubectl build/.flux.done
 	PATH="${PWD}/test/bin:${PATH}" CURRENT_OS_ARCH=$(CURRENT_OS_ARCH) test/e2e/run.sh
 
 build/.%.done: docker/Dockerfile.%
@@ -68,15 +67,10 @@ build/.%.done: docker/Dockerfile.%
 	touch $@
 
 build/.flux.done: build/fluxd build/kubectl build/kustomize docker/ssh_config docker/kubeconfig docker/known_hosts.sh
-build/.helm-operator.done: build/helm-operator build/kubectl build/helm docker/ssh_config docker/known_hosts.sh docker/helm-repositories.yaml
 
 build/fluxd: $(FLUXD_DEPS)
 build/fluxd: cmd/fluxd/*.go
 	CGO_ENABLED=0 GOOS=linux GOARCH=${ARCH} go build -o $@ $(LDFLAGS) -ldflags "-X main.version=$(shell ./docker/image-tag)" ./cmd/fluxd
-
-build/helm-operator: $(HELM_OPERATOR_DEPS)
-build/helm-operator: cmd/helm-operator/*.go
-	CGO_ENABLED=0 GOOS=linux GOARCH=${ARCH} go build -o $@ $(LDFLAGS) -ldflags "-X main.version=$(shell ./docker/image-tag)" ./cmd/helm-operator
 
 build/kubectl: cache/linux-$(ARCH)/kubectl-$(KUBECTL_VERSION)
 test/bin/kubectl: cache/$(CURRENT_OS_ARCH)/kubectl-$(KUBECTL_VERSION)
@@ -116,9 +110,6 @@ $(GOBIN)/fluxctl: $(FLUXCTL_DEPS)
 $(GOBIN)/fluxd: $(FLUXD_DEPS)
 	go install ./cmd/fluxd
 
-$(GOBIN)/helm-operator: $(HELM_OPERATOR_DEPS)
-	go install ./cmd/helm-operator
-
 integration-test: all
 	test/bin/test-flux
 
@@ -131,7 +122,6 @@ install/generated_templates.gogen.go: install/templates/*
 	cd install && go run generate.go embedded-templates
 
 check-generated: generate-deploy install/generated_templates.gogen.go
-	./bin/helm/update_codegen.sh
 	git diff --exit-code -- integrations/apis integrations/client install/generated_templates.gogen.go
 
 build-docs:

@@ -77,7 +77,6 @@ kubectl -n "${FLUX_NAMESPACE}" rollout status deployment/gitsrv
 if [ "${USING_KIND}" = 'true' ]; then
     echo '>>> Loading images into the Kind cluster'
     kind --name "${KIND_CLUSTER}" load docker-image 'docker.io/fluxcd/flux:latest'
-    kind --name "${KIND_CLUSTER}" load docker-image 'docker.io/fluxcd/helm-operator:latest'
 fi
 
 echo '>>> Installing Flux with Helm'
@@ -108,8 +107,6 @@ helm install --name flux --wait \
 --set git.config.secretName=gitconfig \
 --set git.config.enabled=true \
 --set-string git.config.data="${GITCONFIG}" \
---set helmOperator.repository=docker.io/fluxcd/helm-operator \
---set helmOperator.tag=latest \
 --set helmOperator.create=true \
 --set helmOperator.createCRD=true \
 --set helmOperator.git.secretName=ssh-git \
@@ -144,7 +141,7 @@ until ${ok}; do
     fi
 done
 
-echo -n ">>> Waiting for namespace ${DEMO_NAMESPACE} "
+echo -n ">>> Waiting for namespace ${DEMO_NAMESPACE}"
 retries=24
 count=1
 ok=false
@@ -178,7 +175,7 @@ until ${ok}; do
 done
 echo ' done'
 
-echo -n '>>> Waiting for Helm release mongodb '
+echo -n '>>> Waiting for Helm release mongodb'
 retries=24
 count=0
 ok=false
@@ -189,7 +186,6 @@ until ${ok}; do
     count=$(($count + 1))
     if [[ ${count} -eq ${retries} ]]; then
         kubectl -n "${FLUX_NAMESPACE}" logs deployment/flux
-        kubectl -n "${FLUX_NAMESPACE}" logs deployment/flux-helm-operator
         echo ' No more retries left'
         exit 1
     fi
@@ -198,9 +194,6 @@ echo ' done'
 
 echo '>>> Flux logs'
 kubectl -n "${FLUX_NAMESPACE}" logs deployment/flux
-
-echo '>>> Helm Operator logs'
-kubectl -n "${FLUX_NAMESPACE}" logs deployment/flux-helm-operator
 
 echo '>>> List pods'
 kubectl -n "${DEMO_NAMESPACE}" get pods

@@ -9,7 +9,7 @@ import (
 )
 
 // ReleaseContainerName is the name used when Flux interprets a
-// FluxHelmRelease as having a container with an image, by virtue of
+// HelmRelease as having a container with an image, by virtue of
 // having a `values` stanza with an image field:
 //
 // spec:
@@ -20,11 +20,11 @@ import (
 // The name refers to the source of the image value.
 const ReleaseContainerName = "chart-image"
 
-// FluxHelmRelease echoes the generated type for the custom resource
+// HelmRelease echoes the generated type for the custom resource
 // definition. It's here so we can 1. get `baseObject` in there, and
 // 3. control the YAML serialisation of fields, which we can't do
 // (easily?) with the generated type.
-type FluxHelmRelease struct {
+type HelmRelease struct {
 	baseObject
 	Spec struct {
 		Values map[string]interface{}
@@ -47,13 +47,13 @@ func sorted_keys(values map[string]interface{}) []string {
 	return keys
 }
 
-// FindFluxHelmReleaseContainers examines the Values from a
-// FluxHelmRelease (manifest, or cluster resource, or otherwise) and
+// FindHelmReleaseContainers examines the Values from a
+// HelmRelease (manifest, or cluster resource, or otherwise) and
 // calls visit with each container name and image it finds, as well as
 // procedure for changing the image value. It will return an error if
 // it cannot interpret the values as specifying images, or if the
 // `visit` function itself returns an error.
-func FindFluxHelmReleaseContainers(values map[string]interface{}, visit func(string, image.Ref, ImageSetter) error) error {
+func FindHelmReleaseContainers(values map[string]interface{}, visit func(string, image.Ref, ImageSetter) error) error {
 	// an image defined at the top-level is given a standard container name:
 	if image, setter, ok := interpretAsContainer(stringMap(values)); ok {
 		visit(ReleaseContainerName, image, setter)
@@ -70,7 +70,7 @@ func FindFluxHelmReleaseContainers(values map[string]interface{}, visit func(str
 }
 
 // The following is some machinery for interpreting a
-// FluxHelmRelease's `values` field as defining images to be
+// HelmRelease's `values` field as defining images to be
 // interpolated into the chart templates.
 //
 // The top-level value is a map[string]interface{}, but beneath that,
@@ -221,11 +221,11 @@ func interpretAsImage(m mapper) (image.Ref, ImageSetter, bool) {
 }
 
 // Containers returns the containers that are defined in the
-// FluxHelmRelease.
-func (fhr FluxHelmRelease) Containers() []resource.Container {
+// HelmRelease.
+func (hr HelmRelease) Containers() []resource.Container {
 	var containers []resource.Container
 	// If there's an error in interpreting, return what we have.
-	_ = FindFluxHelmReleaseContainers(fhr.Spec.Values, func(container string, image image.Ref, _ ImageSetter) error {
+	_ = FindHelmReleaseContainers(hr.Spec.Values, func(container string, image image.Ref, _ ImageSetter) error {
 		containers = append(containers, resource.Container{
 			Name:  container,
 			Image: image,
@@ -237,11 +237,11 @@ func (fhr FluxHelmRelease) Containers() []resource.Container {
 
 // SetContainerImage mutates this resource by setting the `image`
 // field of `values`, or a subvalue therein, per one of the
-// interpretations in `FindFluxHelmReleaseContainers` above. NB we can
+// interpretations in `FindHelmReleaseContainers` above. NB we can
 // get away with a value-typed receiver because we set a map entry.
-func (fhr FluxHelmRelease) SetContainerImage(container string, ref image.Ref) error {
+func (hr HelmRelease) SetContainerImage(container string, ref image.Ref) error {
 	found := false
-	if err := FindFluxHelmReleaseContainers(fhr.Spec.Values, func(name string, image image.Ref, setter ImageSetter) error {
+	if err := FindHelmReleaseContainers(hr.Spec.Values, func(name string, image image.Ref, setter ImageSetter) error {
 		if container == name {
 			setter(ref)
 			found = true
@@ -251,7 +251,7 @@ func (fhr FluxHelmRelease) SetContainerImage(container string, ref image.Ref) er
 		return err
 	}
 	if !found {
-		return fmt.Errorf("did not find container %s in FluxHelmRelease", container)
+		return fmt.Errorf("did not find container %s in HelmRelease", container)
 	}
 	return nil
 }

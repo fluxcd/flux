@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	helmopfake "github.com/fluxcd/helm-operator/pkg/client/clientset/versioned/fake"
 	"github.com/ghodss/yaml"
 	"github.com/go-kit/kit/log"
 	"github.com/stretchr/testify/assert"
@@ -26,7 +27,7 @@ import (
 
 	"github.com/weaveworks/flux/cluster"
 	kresource "github.com/weaveworks/flux/cluster/kubernetes/resource"
-	fluxfake "github.com/weaveworks/flux/integrations/client/clientset/versioned/fake"
+	fhrfake "github.com/weaveworks/flux/integrations/client/clientset/versioned/fake"
 	"github.com/weaveworks/flux/resource"
 	"github.com/weaveworks/flux/sync"
 )
@@ -62,7 +63,8 @@ func fakeClients() (ExtendedClient, func()) {
 	}
 
 	coreClient := corefake.NewSimpleClientset(&corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: defaultTestNamespace}})
-	fluxClient := fluxfake.NewSimpleClientset()
+	fhrClient := fhrfake.NewSimpleClientset()
+	hrClient := helmopfake.NewSimpleClientset()
 	dynamicClient := dynamicfake.NewSimpleDynamicClient(scheme)
 	crdClient := crdfake.NewSimpleClientset()
 	shutdown := make(chan struct{})
@@ -75,7 +77,7 @@ func fakeClients() (ExtendedClient, func()) {
 	coreClient.Fake.Resources = apiResources
 
 	if debug {
-		for _, fake := range []*k8s_testing.Fake{&coreClient.Fake, &fluxClient.Fake, &dynamicClient.Fake} {
+		for _, fake := range []*k8s_testing.Fake{&coreClient.Fake, &fhrClient.Fake, &hrClient.Fake, &dynamicClient.Fake} {
 			fake.PrependReactor("*", "*", func(action k8s_testing.Action) (bool, runtime.Object, error) {
 				gvr := action.GetResource()
 				fmt.Printf("[DEBUG] action: %s ns:%s %s/%s %s\n", action.GetVerb(), action.GetNamespace(), gvr.Group, gvr.Version, gvr.Resource)
@@ -85,10 +87,11 @@ func fakeClients() (ExtendedClient, func()) {
 	}
 
 	ec := ExtendedClient{
-		coreClient:      coreClient,
-		fluxHelmClient:  fluxClient,
-		dynamicClient:   dynamicClient,
-		discoveryClient: discoveryClient,
+		coreClient:         coreClient,
+		fluxHelmClient:     fhrClient,
+		helmOperatorClient: hrClient,
+		dynamicClient:      dynamicClient,
+		discoveryClient:    discoveryClient,
 	}
 
 	return ec, func() { close(shutdown) }

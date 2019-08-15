@@ -8,17 +8,20 @@ import (
 )
 
 func TestParseImageOnlyFormat(t *testing.T) {
-	expectedImage := "bitnami/mariadb:10.1.30-r1"
+	expectedImage := "bitnami/ghost:1.21.5-r0"
 	doc := `---
-apiVersion: helm.integrations.flux.weave.works/v1alpha2
-kind: FluxHelmRelease
+apiVersion: helm.fluxcd.io/v1
+kind: HelmRelease
 metadata:
-  name: mariadb
-  namespace: maria
+  name: ghost
+  namespace: ghost
   labels:
-    chart: mariadb
+    chart: ghost
 spec:
-  chartGitPath: mariadb
+  chart:
+    git: git@github.com:fluxcd/flux-get-started
+    ref: master
+    path: charts/ghost
   values:
     first: post
     image: ` + expectedImage + `
@@ -30,16 +33,16 @@ spec:
 	if err != nil {
 		t.Fatal(err)
 	}
-	res, ok := resources["maria:fluxhelmrelease/mariadb"]
+	res, ok := resources["ghost:helmrelease/ghost"]
 	if !ok {
 		t.Fatalf("expected resource not found; instead got %#v", resources)
 	}
-	fhr, ok := res.(resource.Workload)
+	hr, ok := res.(resource.Workload)
 	if !ok {
 		t.Fatalf("expected resource to be a Workload, instead got %#v", res)
 	}
 
-	containers := fhr.Containers()
+	containers := hr.Containers()
 	if len(containers) != 1 {
 		t.Errorf("expected 1 container; got %#v", containers)
 	}
@@ -50,20 +53,23 @@ spec:
 }
 
 func TestParseImageTagFormat(t *testing.T) {
-	expectedImageName := "bitnami/mariadb"
-	expectedImageTag := "10.1.30-r1"
+	expectedImageName := "bitnami/ghost"
+	expectedImageTag := "1.21.5-r0"
 	expectedImage := expectedImageName + ":" + expectedImageTag
 
 	doc := `---
-apiVersion: helm.integrations.flux.weave.works/v1alpha2
-kind: FluxHelmRelease
+apiVersion: helm.fluxcd.io/v1
+kind: HelmRelease
 metadata:
-  name: mariadb
-  namespace: maria
+  name: ghost
+  namespace: ghost
   labels:
-    chart: mariadb
+    chart: ghost
 spec:
-  chartGitPath: mariadb
+  chart:
+    git: git@github.com:fluxcd/flux-get-started
+    ref: master
+    path: charts/ghostb
   values:
     first: post
     image: ` + expectedImageName + `
@@ -76,16 +82,16 @@ spec:
 	if err != nil {
 		t.Fatal(err)
 	}
-	res, ok := resources["maria:fluxhelmrelease/mariadb"]
+	res, ok := resources["ghost:helmrelease/ghost"]
 	if !ok {
 		t.Fatalf("expected resource not found; instead got %#v", resources)
 	}
-	fhr, ok := res.(resource.Workload)
+	hr, ok := res.(resource.Workload)
 	if !ok {
 		t.Fatalf("expected resource to be a Workload, instead got %#v", res)
 	}
 
-	containers := fhr.Containers()
+	containers := hr.Containers()
 	if len(containers) != 1 {
 		t.Errorf("expected 1 container; got %#v", containers)
 	}
@@ -97,18 +103,23 @@ spec:
 
 func TestParseRegistryImageTagFormat(t *testing.T) {
 	expectedRegistry := "registry.com"
-	expectedImageName := "bitnami/mariadb"
-	expectedImageTag := "10.1.30-r1"
+	expectedImageName := "bitnami/ghost"
+	expectedImageTag := "1.21.5-r0"
 	expectedImage := expectedRegistry + "/" + expectedImageName + ":" + expectedImageTag
 
 	doc := `---
-apiVersion: helm.integrations.flux.weave.works/v1alpha2
-kind: FluxHelmRelease
+apiVersion: helm.fluxcd.io/v1
+kind: HelmRelease
 metadata:
-  name: mariadb
-  namespace: maria
+  name: ghost
+  namespace: ghost
   labels:
-    chart: mariadb
+    chart: ghost
+spec:
+  chart:
+    git: git@github.com:fluxcd/flux-get-started
+    ref: master
+    path: charts/ghost
 spec:
   chartGitPath: mariadb
   values:
@@ -124,16 +135,16 @@ spec:
 	if err != nil {
 		t.Fatal(err)
 	}
-	res, ok := resources["maria:fluxhelmrelease/mariadb"]
+	res, ok := resources["ghost:helmrelease/ghost"]
 	if !ok {
 		t.Fatalf("expected resource not found; instead got %#v", resources)
 	}
-	fhr, ok := res.(resource.Workload)
+	hr, ok := res.(resource.Workload)
 	if !ok {
 		t.Fatalf("expected resource to be a Workload, instead got %#v", res)
 	}
 
-	containers := fhr.Containers()
+	containers := hr.Containers()
 	if len(containers) != 1 {
 		t.Errorf("expected 1 container; got %#v", containers)
 	}
@@ -145,17 +156,22 @@ spec:
 
 func TestParseRegistryImageFormat(t *testing.T) {
 	expectedRegistry := "registry.com"
-	expectedImageName := "bitnami/mariadb:10.1.30-r1"
+	expectedImageName := "bitnami/ghost:1.21.5-r0"
 	expectedImage := expectedRegistry + "/" + expectedImageName
 
 	doc := `---
-apiVersion: helm.integrations.flux.weave.works/v1alpha2
-kind: FluxHelmRelease
+apiVersion: helm.fluxcd.io/v1
+kind: HelmRelease
 metadata:
-  name: mariadb
-  namespace: maria
+  name: ghost
+  namespace: ghost
   labels:
-    chart: mariadb
+    chart: ghost
+spec:
+  chart:
+    git: git@github.com:fluxcd/flux-get-started
+    ref: master
+    path: charts/ghost
 spec:
   chartGitPath: mariadb
   values:
@@ -170,16 +186,16 @@ spec:
 	if err != nil {
 		t.Fatal(err)
 	}
-	res, ok := resources["maria:fluxhelmrelease/mariadb"]
+	res, ok := resources["ghost:helmrelease/ghost"]
 	if !ok {
 		t.Fatalf("expected resource not found; instead got %#v", resources)
 	}
-	fhr, ok := res.(resource.Workload)
+	hr, ok := res.(resource.Workload)
 	if !ok {
 		t.Fatalf("expected resource to be a Workload, instead got %#v", res)
 	}
 
-	containers := fhr.Containers()
+	containers := hr.Containers()
 	if len(containers) != 1 {
 		t.Errorf("expected 1 container; got %#v", containers)
 	}
@@ -191,15 +207,20 @@ spec:
 
 func TestParseNamedImageFormat(t *testing.T) {
 	expectedContainer := "db"
-	expectedImage := "bitnami/mariadb:10.1.30-r1"
+	expectedImage := "bitnami/ghost:1.21.5-r0"
 	doc := `---
-apiVersion: helm.integrations.flux.weave.works/v1alpha2
-kind: FluxHelmRelease
+apiVersion: helm.fluxcd.io/v1
+kind: HelmRelease
 metadata:
-  name: mariadb
-  namespace: maria
+  name: ghost
+  namespace: ghost
   labels:
-    chart: mariadb
+    chart: ghost
+spec:
+  chart:
+    git: git@github.com:fluxcd/flux-get-started
+    ref: master
+    path: charts/ghost
 spec:
   chartGitPath: mariadb
   values:
@@ -214,16 +235,16 @@ spec:
 	if err != nil {
 		t.Fatal(err)
 	}
-	res, ok := resources["maria:fluxhelmrelease/mariadb"]
+	res, ok := resources["ghost:helmrelease/ghost"]
 	if !ok {
 		t.Fatalf("expected resource not found; instead got %#v", resources)
 	}
-	fhr, ok := res.(resource.Workload)
+	hr, ok := res.(resource.Workload)
 	if !ok {
 		t.Fatalf("expected resource to be a Workload, instead got %#v", res)
 	}
 
-	containers := fhr.Containers()
+	containers := hr.Containers()
 	if len(containers) != 1 {
 		t.Fatalf("expected 1 container; got %#v", containers)
 	}
@@ -236,11 +257,11 @@ spec:
 	}
 
 	newImage := containers[0].Image.WithNewTag("some-other-tag")
-	if err := fhr.SetContainerImage(expectedContainer, newImage); err != nil {
+	if err := hr.SetContainerImage(expectedContainer, newImage); err != nil {
 		t.Error(err)
 	}
 
-	containers = fhr.Containers()
+	containers = hr.Containers()
 	if len(containers) != 1 {
 		t.Fatalf("expected 1 container; got %#v", containers)
 	}
@@ -255,18 +276,23 @@ spec:
 
 func TestParseNamedImageTagFormat(t *testing.T) {
 	expectedContainer := "db"
-	expectedImageName := "bitnami/mariadb"
-	expectedImageTag := "10.1.30-r1"
+	expectedImageName := "bitnami/ghost"
+	expectedImageTag := "1.21.5-r0"
 	expectedImage := expectedImageName + ":" + expectedImageTag
 
 	doc := `---
-apiVersion: helm.integrations.flux.weave.works/v1alpha2
-kind: FluxHelmRelease
+apiVersion: helm.fluxcd.io/v1
+kind: HelmRelease
 metadata:
-  name: mariadb
-  namespace: maria
+  name: ghost
+  namespace: ghost
   labels:
-    chart: mariadb
+    chart: ghost
+spec:
+  chart:
+    git: git@github.com:fluxcd/flux-get-started
+    ref: master
+    path: charts/ghost
 spec:
   chartGitPath: mariadb
   values:
@@ -284,16 +310,16 @@ spec:
 	if err != nil {
 		t.Fatal(err)
 	}
-	res, ok := resources["maria:fluxhelmrelease/mariadb"]
+	res, ok := resources["ghost:helmrelease/ghost"]
 	if !ok {
 		t.Fatalf("expected resource not found; instead got %#v", resources)
 	}
-	fhr, ok := res.(resource.Workload)
+	hr, ok := res.(resource.Workload)
 	if !ok {
 		t.Fatalf("expected resource to be a Workload, instead got %#v", res)
 	}
 
-	containers := fhr.Containers()
+	containers := hr.Containers()
 	if len(containers) != 1 {
 		t.Fatalf("expected 1 container; got %#v", containers)
 	}
@@ -306,11 +332,11 @@ spec:
 	}
 
 	newImage := containers[0].Image.WithNewTag("some-other-tag")
-	if err := fhr.SetContainerImage(expectedContainer, newImage); err != nil {
+	if err := hr.SetContainerImage(expectedContainer, newImage); err != nil {
 		t.Error(err)
 	}
 
-	containers = fhr.Containers()
+	containers = hr.Containers()
 	if len(containers) != 1 {
 		t.Fatalf("expected 1 container; got %#v", containers)
 	}
@@ -326,18 +352,23 @@ spec:
 func TestParseNamedRegistryImageTagFormat(t *testing.T) {
 	expectedContainer := "db"
 	expectedRegistry := "registry.com"
-	expectedImageName := "bitnami/mariadb"
-	expectedImageTag := "10.1.30-r1"
+	expectedImageName := "bitnami/ghost"
+	expectedImageTag := "1.21.5-r0"
 	expectedImage := expectedRegistry + "/" + expectedImageName + ":" + expectedImageTag
 
 	doc := `---
-apiVersion: helm.integrations.flux.weave.works/v1alpha2
-kind: FluxHelmRelease
+apiVersion: helm.fluxcd.io/v1
+kind: HelmRelease
 metadata:
-  name: mariadb
-  namespace: maria
+  name: ghost
+  namespace: ghost
   labels:
-    chart: mariadb
+    chart: ghost
+spec:
+  chart:
+    git: git@github.com:fluxcd/flux-get-started
+    ref: master
+    path: charts/ghost
 spec:
   chartGitPath: mariadb
   values:
@@ -356,16 +387,16 @@ spec:
 	if err != nil {
 		t.Fatal(err)
 	}
-	res, ok := resources["maria:fluxhelmrelease/mariadb"]
+	res, ok := resources["ghost:helmrelease/ghost"]
 	if !ok {
 		t.Fatalf("expected resource not found; instead got %#v", resources)
 	}
-	fhr, ok := res.(resource.Workload)
+	hr, ok := res.(resource.Workload)
 	if !ok {
 		t.Fatalf("expected resource to be a Workload, instead got %#v", res)
 	}
 
-	containers := fhr.Containers()
+	containers := hr.Containers()
 	if len(containers) != 1 {
 		t.Fatalf("expected 1 container; got %#v", containers)
 	}
@@ -379,11 +410,11 @@ spec:
 
 	newImage := containers[0].Image.WithNewTag("some-other-tag")
 	newImage.Domain = "someotherregistry.com"
-	if err := fhr.SetContainerImage(expectedContainer, newImage); err != nil {
+	if err := hr.SetContainerImage(expectedContainer, newImage); err != nil {
 		t.Error(err)
 	}
 
-	containers = fhr.Containers()
+	containers = hr.Containers()
 	if len(containers) != 1 {
 		t.Fatalf("expected 1 container; got %#v", containers)
 	}
@@ -399,19 +430,22 @@ spec:
 func TestParseNamedRegistryImageFormat(t *testing.T) {
 	expectedContainer := "db"
 	expectedRegistry := "registry.com"
-	expectedImageName := "bitnami/mariadb:10.1.30-r1"
+	expectedImageName := "bitnami/ghost:1.21.5-r0"
 	expectedImage := expectedRegistry + "/" + expectedImageName
 
 	doc := `---
-apiVersion: helm.integrations.flux.weave.works/v1alpha2
-kind: FluxHelmRelease
+apiVersion: helm.fluxcd.io/v1
+kind: HelmRelease
 metadata:
-  name: mariadb
-  namespace: maria
+  name: ghost
+  namespace: ghost
   labels:
-    chart: mariadb
+    chart: ghost
 spec:
-  chartGitPath: mariadb
+  chart:
+    git: git@github.com:fluxcd/flux-get-started
+    ref: master
+    path: charts/ghost
   values:
     other:
       not: "containing image"
@@ -427,16 +461,16 @@ spec:
 	if err != nil {
 		t.Fatal(err)
 	}
-	res, ok := resources["maria:fluxhelmrelease/mariadb"]
+	res, ok := resources["ghost:helmrelease/ghost"]
 	if !ok {
 		t.Fatalf("expected resource not found; instead got %#v", resources)
 	}
-	fhr, ok := res.(resource.Workload)
+	hr, ok := res.(resource.Workload)
 	if !ok {
 		t.Fatalf("expected resource to be a Workload, instead got %#v", res)
 	}
 
-	containers := fhr.Containers()
+	containers := hr.Containers()
 	if len(containers) != 1 {
 		t.Fatalf("expected 1 container; got %#v", containers)
 	}
@@ -450,11 +484,11 @@ spec:
 
 	newImage := containers[0].Image.WithNewTag("some-other-tag")
 	newImage.Domain = "someotherregistry.com"
-	if err := fhr.SetContainerImage(expectedContainer, newImage); err != nil {
+	if err := hr.SetContainerImage(expectedContainer, newImage); err != nil {
 		t.Error(err)
 	}
 
-	containers = fhr.Containers()
+	containers = hr.Containers()
 	if len(containers) != 1 {
 		t.Fatalf("expected 1 container; got %#v", containers)
 	}
@@ -468,20 +502,23 @@ spec:
 }
 
 func TestParseImageObjectFormat(t *testing.T) {
-	expectedImageName := "bitnami/mariadb"
-	expectedImageTag := "10.1.30-r1"
+	expectedImageName := "bitnami/ghost"
+	expectedImageTag := "1.21.5-r0"
 	expectedImage := expectedImageName + ":" + expectedImageTag
 
 	doc := `---
-apiVersion: helm.integrations.flux.weave.works/v1alpha2
-kind: FluxHelmRelease
+apiVersion: helm.fluxcd.io/v1
+kind: HelmRelease
 metadata:
-  name: mariadb
-  namespace: maria
+  name: ghost
+  namespace: ghost
   labels:
-    chart: mariadb
+    chart: ghost
 spec:
-  chartGitPath: mariadb
+  chart:
+    git: git@github.com:fluxcd/flux-get-started
+    ref: master
+    path: charts/ghost
   values:
     first: post
     image:
@@ -495,16 +532,16 @@ spec:
 	if err != nil {
 		t.Fatal(err)
 	}
-	res, ok := resources["maria:fluxhelmrelease/mariadb"]
+	res, ok := resources["ghost:helmrelease/ghost"]
 	if !ok {
 		t.Fatalf("expected resource not found; instead got %#v", resources)
 	}
-	fhr, ok := res.(resource.Workload)
+	hr, ok := res.(resource.Workload)
 	if !ok {
 		t.Fatalf("expected resource to be a Workload, instead got %#v", res)
 	}
 
-	containers := fhr.Containers()
+	containers := hr.Containers()
 	if len(containers) != 1 {
 		t.Errorf("expected 1 container; got %#v", containers)
 	}
@@ -516,20 +553,23 @@ spec:
 
 func TestParseNamedImageObjectFormat(t *testing.T) {
 	expectedContainer := "db"
-	expectedImageName := "bitnami/mariadb"
-	expectedImageTag := "10.1.30-r1"
+	expectedImageName := "bitnami/ghost"
+	expectedImageTag := "1.21.5-r0"
 	expectedImage := expectedImageName + ":" + expectedImageTag
 
 	doc := `---
-apiVersion: helm.integrations.flux.weave.works/v1alpha2
-kind: FluxHelmRelease
+apiVersion: helm.fluxcd.io/v1
+kind: HelmRelease
 metadata:
-  name: mariadb
-  namespace: maria
+  name: ghost
+  namespace: ghost
   labels:
-    chart: mariadb
+    chart: ghost
 spec:
-  chartGitPath: mariadb
+  chart:
+    git: git@github.com:fluxcd/flux-get-started
+    ref: master
+    path: charts/ghost
   values:
     other:
       not: "containing image"
@@ -546,16 +586,16 @@ spec:
 	if err != nil {
 		t.Fatal(err)
 	}
-	res, ok := resources["maria:fluxhelmrelease/mariadb"]
+	res, ok := resources["ghost:helmrelease/ghost"]
 	if !ok {
 		t.Fatalf("expected resource not found; instead got %#v", resources)
 	}
-	fhr, ok := res.(resource.Workload)
+	hr, ok := res.(resource.Workload)
 	if !ok {
 		t.Fatalf("expected resource to be a Workload, instead got %#v", res)
 	}
 
-	containers := fhr.Containers()
+	containers := hr.Containers()
 	if len(containers) != 1 {
 		t.Fatalf("expected 1 container; got %#v", containers)
 	}
@@ -568,11 +608,11 @@ spec:
 	}
 
 	newImage := containers[0].Image.WithNewTag("some-other-tag")
-	if err := fhr.SetContainerImage(expectedContainer, newImage); err != nil {
+	if err := hr.SetContainerImage(expectedContainer, newImage); err != nil {
 		t.Error(err)
 	}
 
-	containers = fhr.Containers()
+	containers = hr.Containers()
 	if len(containers) != 1 {
 		t.Fatalf("expected 1 container; got %#v", containers)
 	}
@@ -588,20 +628,23 @@ spec:
 func TestParseNamedImageObjectFormatWithRegistry(t *testing.T) {
 	expectedContainer := "db"
 	expectedRegistry := "registry.com"
-	expectedImageName := "bitnami/mariadb"
-	expectedImageTag := "10.1.30-r1"
+	expectedImageName := "bitnami/ghost"
+	expectedImageTag := "1.21.5-r0"
 	expectedImage := expectedRegistry + "/" + expectedImageName + ":" + expectedImageTag
 
 	doc := `---
-apiVersion: helm.integrations.flux.weave.works/v1alpha2
-kind: FluxHelmRelease
+apiVersion: helm.fluxcd.io/v1
+kind: HelmRelease
 metadata:
-  name: mariadb
-  namespace: maria
+  name: ghost
+  namespace: ghost
   labels:
-    chart: mariadb
+    chart: ghost
 spec:
-  chartGitPath: mariadb
+  chart:
+    git: git@github.com:fluxcd/flux-get-started
+    ref: master
+    path: charts/ghost
   values:
     other:
       not: "containing image"
@@ -619,16 +662,16 @@ spec:
 	if err != nil {
 		t.Fatal(err)
 	}
-	res, ok := resources["maria:fluxhelmrelease/mariadb"]
+	res, ok := resources["ghost:helmrelease/ghost"]
 	if !ok {
 		t.Fatalf("expected resource not found; instead got %#v", resources)
 	}
-	fhr, ok := res.(resource.Workload)
+	hr, ok := res.(resource.Workload)
 	if !ok {
 		t.Fatalf("expected resource to be a Workload, instead got %#v", res)
 	}
 
-	containers := fhr.Containers()
+	containers := hr.Containers()
 	if len(containers) != 1 {
 		t.Fatalf("expected 1 container; got %#v", containers)
 	}
@@ -642,11 +685,11 @@ spec:
 
 	newImage := containers[0].Image.WithNewTag("some-other-tag")
 	newImage.Domain = "someotherregistry.com"
-	if err := fhr.SetContainerImage(expectedContainer, newImage); err != nil {
+	if err := hr.SetContainerImage(expectedContainer, newImage); err != nil {
 		t.Error(err)
 	}
 
-	containers = fhr.Containers()
+	containers = hr.Containers()
 	if len(containers) != 1 {
 		t.Fatalf("expected 1 container; got %#v", containers)
 	}
@@ -662,19 +705,22 @@ spec:
 func TestParseNamedImageObjectFormatWithRegistryWitoutTag(t *testing.T) {
 	expectedContainer := "db"
 	expectedRegistry := "registry.com"
-	expectedImageName := "bitnami/mariadb:10.1.30-r1"
+	expectedImageName := "bitnami/ghost:1.21.5-r0"
 	expectedImage := expectedRegistry + "/" + expectedImageName
 
 	doc := `---
-apiVersion: helm.integrations.flux.weave.works/v1alpha2
-kind: FluxHelmRelease
+apiVersion: helm.fluxcd.io/v1
+kind: HelmRelease
 metadata:
-  name: mariadb
-  namespace: maria
+  name: ghost
+  namespace: ghost
   labels:
-    chart: mariadb
+    chart: ghost
 spec:
-  chartGitPath: mariadb
+  chart:
+    git: git@github.com:fluxcd/flux-get-started
+    ref: master
+    path: charts/ghost
   values:
     other:
       not: "containing image"
@@ -691,16 +737,16 @@ spec:
 	if err != nil {
 		t.Fatal(err)
 	}
-	res, ok := resources["maria:fluxhelmrelease/mariadb"]
+	res, ok := resources["ghost:helmrelease/ghost"]
 	if !ok {
 		t.Fatalf("expected resource not found; instead got %#v", resources)
 	}
-	fhr, ok := res.(resource.Workload)
+	hr, ok := res.(resource.Workload)
 	if !ok {
 		t.Fatalf("expected resource to be a Workload, instead got %#v", res)
 	}
 
-	containers := fhr.Containers()
+	containers := hr.Containers()
 	if len(containers) != 1 {
 		t.Fatalf("expected 1 container; got %#v", containers)
 	}
@@ -714,11 +760,11 @@ spec:
 
 	newImage := containers[0].Image.WithNewTag("some-other-tag")
 	newImage.Domain = "someotherregistry.com"
-	if err := fhr.SetContainerImage(expectedContainer, newImage); err != nil {
+	if err := hr.SetContainerImage(expectedContainer, newImage); err != nil {
 		t.Error(err)
 	}
 
-	containers = fhr.Containers()
+	containers = hr.Containers()
 	if len(containers) != 1 {
 		t.Fatalf("expected 1 container; got %#v", containers)
 	}
@@ -753,13 +799,16 @@ func TestParseAllFormatsInOne(t *testing.T) {
 	}
 
 	doc := `---
-apiVersion: helm.integrations.flux.weave.works/v1alpha2
-kind: FluxHelmRelease
+apiVersion: helm.fluxcd.io/v1
+kind: HelmRelease
 metadata:
   name: test
   namespace: test
 spec:
-  chartGitPath: test
+  chart:
+    git: git@github.com:fluxcd/flux-get-started
+    ref: master
+    path: charts/ghost
   values:
     # top-level image
     image: ` + expected[0].image + ":" + expected[0].tag + `
@@ -802,16 +851,16 @@ spec:
 	if err != nil {
 		t.Fatal(err)
 	}
-	res, ok := resources["test:fluxhelmrelease/test"]
+	res, ok := resources["test:helmrelease/test"]
 	if !ok {
 		t.Fatalf("expected resource not found; instead got %#v", resources)
 	}
-	fhr, ok := res.(resource.Workload)
+	hr, ok := res.(resource.Workload)
 	if !ok {
 		t.Fatalf("expected resource to be a Workload, instead got %#v", res)
 	}
 
-	containers := fhr.Containers()
+	containers := hr.Containers()
 	if len(containers) != len(expected) {
 		t.Fatalf("expected %d containers, got %d", len(expected), len(containers))
 	}

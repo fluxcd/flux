@@ -52,7 +52,8 @@ func TestUpdates(t *testing.T) {
 		{"FluxHelmRelease (v1alpha2; simple image encoding)", case11resource, case11containers, case11image, case11, case11out},
 		{"FluxHelmRelease (v1alpha2; multi image encoding)", case12resource, case12containers, case12image, case12, case12out},
 		{"HelmRelease (v1beta1; image with port number)", case13resource, case13containers, case13image, case13, case13out},
-		{"initContainer", case14resource, case14containers, case14image, case14, case14out},
+		{"HelmRelease (v1)", case14resource, case14containers, case14image, case14, case14out},
+		{"initContainer", case15resource, case15containers, case15image, case15, case15out},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			testUpdate(t, c)
@@ -922,6 +923,55 @@ spec:
 `
 
 const case14 = `---
+apiVersion: helm.fluxcd.io/v1
+kind: HelmRelease
+metadata:
+  name: mariadb
+  namespace: maria
+spec:
+  chart:
+    repository: https://example.com/charts
+    name: mariadb
+    version: 1.1.2
+  values:
+    mariadb:
+      image: localhost/mariadb
+      tag: 10.1.30-r1
+      persistence:
+        enabled: false
+    workProperly: true
+    sidecar:
+      image: sidecar:v1
+`
+
+const case14resource = "maria:helmrelease/mariadb"
+const case14image = "localhost/mariadb:10.1.33"
+
+var case14containers = []string{"mariadb"}
+
+const case14out = `---
+apiVersion: helm.fluxcd.io/v1
+kind: HelmRelease
+metadata:
+  name: mariadb
+  namespace: maria
+spec:
+  chart:
+    repository: https://example.com/charts
+    name: mariadb
+    version: 1.1.2
+  values:
+    mariadb:
+      image: localhost/mariadb
+      tag: 10.1.33
+      persistence:
+        enabled: false
+    workProperly: true
+    sidecar:
+      image: sidecar:v1
+`
+
+const case15 = `---
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
@@ -938,12 +988,12 @@ spec:
         image: 'weaveworks/weave-kube:2.2.0'
 `
 
-const case14resource = "default:deployment/weave"
-const case14image = "weaveworks/weave-kube:2.2.1"
+const case15resource = "default:deployment/weave"
+const case15image = "weaveworks/weave-kube:2.2.1"
 
-var case14containers = []string{"weave"}
+var case15containers = []string{"weave"}
 
-const case14out = `---
+const case15out = `---
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:

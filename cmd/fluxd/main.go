@@ -16,6 +16,7 @@ import (
 	"syscall"
 	"time"
 
+	helmopclient "github.com/fluxcd/helm-operator/pkg/client/clientset/versioned"
 	"github.com/go-kit/kit/log"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/pflag"
@@ -38,7 +39,7 @@ import (
 	"github.com/weaveworks/flux/http/client"
 	daemonhttp "github.com/weaveworks/flux/http/daemon"
 	"github.com/weaveworks/flux/image"
-	integrations "github.com/weaveworks/flux/integrations/client/clientset/versioned"
+	hrclient "github.com/weaveworks/flux/integrations/client/clientset/versioned"
 	"github.com/weaveworks/flux/job"
 	"github.com/weaveworks/flux/manifests"
 	"github.com/weaveworks/flux/registry"
@@ -363,9 +364,15 @@ func main() {
 			os.Exit(1)
 		}
 
-		integrationsClientset, err := integrations.NewForConfig(restClientConfig)
+		fhrClientset, err := hrclient.NewForConfig(restClientConfig)
 		if err != nil {
-			logger.Log("error", fmt.Sprintf("Error building integrations clientset: %v", err))
+			logger.Log("error", fmt.Sprintf("Error building hrclient clientset: %v", err))
+			os.Exit(1)
+		}
+
+		hrClientset, err := helmopclient.NewForConfig(restClientConfig)
+		if err != nil {
+			logger.Log("error", fmt.Sprintf("Error building helm operator clientset: %v", err))
 			os.Exit(1)
 		}
 
@@ -427,7 +434,7 @@ func main() {
 		}
 		logger.Log("kubectl", kubectl)
 
-		client := kubernetes.MakeClusterClientset(clientset, dynamicClientset, integrationsClientset, discoClientset)
+		client := kubernetes.MakeClusterClientset(clientset, dynamicClientset, fhrClientset, hrClientset, discoClientset)
 		kubectlApplier := kubernetes.NewKubectl(kubectl, restClientConfig)
 		allowedNamespaces := append(*k8sNamespaceWhitelist, *k8sAllowNamespace...)
 		k8sInst := kubernetes.NewCluster(client, kubectlApplier, sshKeyRing, logger, allowedNamespaces, *registryExcludeImage)
