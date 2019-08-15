@@ -96,4 +96,4 @@ Setting up and configuring `fluxd` is discussed in
 ["Get started with Flux"](../tutorials/get-started.md).
 
 There is also more information on [garbage collection](garbagecollection.md),
-[Git commit signing](git-gpg.md), and other elements in [references](./).
+[Git commit signing](git-gpg.md), and other elements in [references](./index).
