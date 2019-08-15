@@ -1,14 +1,24 @@
 package v6
 
 import (
-	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 
 	"github.com/weaveworks/flux/image"
 	"github.com/weaveworks/flux/policy"
+	"github.com/weaveworks/flux/update"
 )
+
+type justSlice []image.Info
+
+func (j justSlice) Images() []image.Info {
+	return []image.Info(j)
+}
+
+func (j justSlice) SortedImages(p policy.Pattern) update.SortedImageInfos {
+	return update.SortImages(j.Images(), p)
+}
 
 func TestNewContainer(t *testing.T) {
 
@@ -71,81 +81,66 @@ func TestNewContainer(t *testing.T) {
 			},
 			wantErr: false,
 		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := NewContainer(tt.args.name, tt.args.images, tt.args.currentImage, tt.args.tagPattern, tt.args.fields)
-			assert.Equal(t, tt.wantErr, err != nil)
-			assert.Equal(t, tt.want, got)
-		})
-	}
-}
-
-func TestFilterContainerFields(t *testing.T) {
-	testContainer := Container{
-		Name:                    "test",
-		Current:                 image.Info{ImageID: "123"},
-		LatestFiltered:          image.Info{ImageID: "123"},
-		Available:               []image.Info{{ImageID: "123"}},
-		AvailableError:          "test",
-		AvailableImagesCount:    1,
-		NewAvailableImagesCount: 2,
-		FilteredImagesCount:     3,
-		NewFilteredImagesCount:  4,
-	}
-
-	type args struct {
-		container Container
-		fields    []string
-	}
-	tests := []struct {
-		name    string
-		args    args
-		want    Container
-		wantErr bool
-	}{
 		{
-			name: "Default fields",
+			name: "Require only some calculations",
 			args: args{
-				container: testContainer,
-			},
-			want:    testContainer,
-			wantErr: false,
-		},
-		{
-			name: "FilterImages",
-			args: args{
-				container: testContainer,
-				fields:    []string{"Name", "Available", "NewAvailableImagesCount", "NewFilteredImagesCount"},
+				name:         "container-some",
+				images:       []image.Info{currentSemver, newSemver, oldSemver, testImage},
+				currentImage: currentSemver,
+				tagPattern:   policy.NewPattern("semver:*"),
+				fields:       []string{"Name", "NewFilteredImagesCount"}, // but not, e.g., "FilteredImagesCount"
 			},
 			want: Container{
-				Name:                    "test",
-				Available:               []image.Info{{ImageID: "123"}},
-				NewAvailableImagesCount: 2,
-				NewFilteredImagesCount:  4,
+				Name:                   "container-some",
+				NewFilteredImagesCount: 1,
 			},
-			wantErr: false,
 		},
 		{
-			name: "Invalid field",
+			name: "Fields in one order",
 			args: args{
-				container: testContainer,
-				fields:    []string{"Invalid"},
+				name:         "container-ordered1",
+				images:       []image.Info{currentSemver, newSemver, oldSemver, testImage},
+				currentImage: currentSemver,
+				tagPattern:   policy.NewPattern("semver:*"),
+				fields: []string{"Name",
+					"AvailableImagesCount", "Available", // these two both depend on the same intermediate result
+					"LatestFiltered", "FilteredImagesCount", // these two both depend on another intermediate result
+				},
 			},
-			want:    Container{},
-			wantErr: true,
+			want: Container{
+				Name:                 "container-ordered1",
+				Available:            []image.Info{newSemver, currentSemver, oldSemver, testImage},
+				AvailableImagesCount: 4,
+				LatestFiltered:       newSemver,
+				FilteredImagesCount:  3,
+			},
+		},
+		{
+			name: "Fields in another order",
+			args: args{
+				name:         "container-ordered2",
+				images:       []image.Info{currentSemver, newSemver, oldSemver, testImage},
+				currentImage: currentSemver,
+				tagPattern:   policy.NewPattern("semver:*"),
+				fields: []string{"Name",
+					"Available", "AvailableImagesCount", // these two latter depend on the same intermediate result, as above
+					"FilteredImagesCount", "LatestFiltered", // as above, similarly
+				},
+			},
+			want: Container{
+				Name:                 "container-ordered2",
+				Available:            []image.Info{newSemver, currentSemver, oldSemver, testImage},
+				AvailableImagesCount: 4,
+				LatestFiltered:       newSemver,
+				FilteredImagesCount:  3,
+			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := filterContainerFields(tt.args.container, tt.args.fields)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("FilterContainerFields() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("FilterContainerFields() = %v, want %v", got, tt.want)
-			}
+			got, err := NewContainer(tt.args.name, justSlice(tt.args.images), tt.args.currentImage, tt.args.tagPattern, tt.args.fields)
+			assert.Equal(t, tt.wantErr, err != nil)
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }
