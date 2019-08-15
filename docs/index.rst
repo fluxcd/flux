@@ -22,6 +22,11 @@ Welcome to the Flux documentation!
    troubleshooting
 
 .. toctree::
+   :caption: Helm Operator
+
+   Documentation <https://docs.fluxcd.io/projects/helm-operator>
+
+.. toctree::
    :maxdepth: 2
    :caption: Contributing
 
