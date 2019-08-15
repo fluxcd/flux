@@ -141,7 +141,7 @@ jobs:
       - deploy:
           name: Maybe push release image and upload binaries
           command: |
-            if echo "${CIRCLE_TAG}" | grep -Eq "^[0-9]+(\.[0-9]+)*(-[a-z]+)?$"; then
+            if echo "${CIRCLE_TAG}" | grep -Eq "^[0-9]+(\.[0-9]+)*(-[a-z0-9]+)?$"; then
               go get github.com/weaveworks/github-release
               make release-bins
               bin/upload-binaries
@@ -163,7 +163,7 @@ workflows:
       - build:
           filters:
             tags:
-              only: /(helm-)?[0-9]+(\.[0-9]+)*(-[a-z]+)?/
+              only: /(helm-)?[0-9]+(\.[0-9]+)*(-[a-z0-9]+)?/
 
   release-helm:
     jobs:
