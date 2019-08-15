@@ -197,11 +197,11 @@ func unmarshalKind(base baseObject, bytes []byte) (KubeManifest, error) {
 		unmarshalList(base, &raw, &list)
 		return &list, nil
 	case base.Kind == "FluxHelmRelease" || base.Kind == "HelmRelease":
-		var fhr = FluxHelmRelease{baseObject: base}
-		if err := yaml.Unmarshal(bytes, &fhr); err != nil {
+		var hr = HelmRelease{baseObject: base}
+		if err := yaml.Unmarshal(bytes, &hr); err != nil {
 			return nil, err
 		}
-		return &fhr, nil
+		return &hr, nil
 	case base.Kind == "":
 		// If there is an empty resource (due to eg an introduced comment),
 		// we are returning nil for the resource and nil for an error

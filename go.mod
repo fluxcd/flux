@@ -8,7 +8,7 @@ require (
 	github.com/bradfitz/gomemcache v0.0.0-20190329173943-551aad21a668
 	github.com/docker/distribution v0.0.0-00010101000000-000000000000
 	github.com/evanphx/json-patch v4.1.0+incompatible
-	github.com/fluxcd/helm-operator v0.0.0-20190806135400-402019a4607f
+	github.com/fluxcd/helm-operator v1.0.0-rc1
 	github.com/ghodss/yaml v1.0.0
 	github.com/go-kit/kit v0.9.0
 	github.com/golang/gddo v0.0.0-20190312205958-5a2505f3dbf0
@@ -16,7 +16,7 @@ require (
 	github.com/gorilla/mux v1.7.1
 	github.com/gorilla/websocket v1.4.0
 	github.com/imdario/mergo v0.3.7
-	github.com/instrumenta/kubeval v0.0.0-20190720105720-70e32d660927
+	github.com/instrumenta/kubeval v0.0.0-20190804145309-805845b47dfc
 	github.com/justinbarrick/go-k8s-portforward v1.0.4-0.20190722134107-d79fe1b9d79d
 	github.com/opencontainers/go-digest v1.0.0-rc1
 	github.com/opentracing-contrib/go-stdlib v0.0.0-20190519235532-cf7a6c988dc9 // indirect
@@ -39,6 +39,7 @@ require (
 	k8s.io/apiextensions-apiserver v0.0.0-20190315093550-53c4693659ed
 	k8s.io/apimachinery v0.0.0-20190404173353-6a84e37a896d
 	k8s.io/client-go v11.0.0+incompatible
+	k8s.io/helm v2.13.1+incompatible
 	k8s.io/klog v0.3.3
 )
 

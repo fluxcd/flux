@@ -7,12 +7,12 @@ import (
 	"fmt"
 	"sync"
 
+	hrclient "github.com/fluxcd/helm-operator/pkg/client/clientset/versioned"
 	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 	apiv1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	fhrclient "github.com/fluxcd/helm-operator/pkg/client/clientset/versioned"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/discovery"
 	k8sclientdynamic "k8s.io/client-go/dynamic"
@@ -20,28 +20,34 @@ import (
 
 	"github.com/weaveworks/flux/cluster"
 	kresource "github.com/weaveworks/flux/cluster/kubernetes/resource"
-	"github.com/weaveworks/flux/ssh"
+	fhrclient "github.com/weaveworks/flux/integrations/client/clientset/versioned"
 	"github.com/weaveworks/flux/resource"
+	"github.com/weaveworks/flux/ssh"
 )
 
 type coreClient k8sclient.Interface
 type dynamicClient k8sclientdynamic.Interface
 type fluxHelmClient fhrclient.Interface
+type helmOperatorClient hrclient.Interface
 type discoveryClient discovery.DiscoveryInterface
 
 type ExtendedClient struct {
 	coreClient
 	dynamicClient
 	fluxHelmClient
+	helmOperatorClient
 	discoveryClient
 }
 
-func MakeClusterClientset(core coreClient, dyn dynamicClient, fluxhelm fluxHelmClient, disco discoveryClient) ExtendedClient {
+func MakeClusterClientset(core coreClient, dyn dynamicClient, fluxhelm fluxHelmClient,
+	helmop helmOperatorClient, disco discoveryClient) ExtendedClient {
+
 	return ExtendedClient{
-		coreClient:      core,
-		dynamicClient:   dyn,
-		fluxHelmClient:  fluxhelm,
-		discoveryClient: disco,
+		coreClient:      	core,
+		dynamicClient:   	dyn,
+		fluxHelmClient:  	fluxhelm,
+		helmOperatorClient: helmop,
+		discoveryClient:    disco,
 	}
 }
 
