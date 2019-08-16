@@ -80,7 +80,7 @@ helm repo add fluxcd https://charts.fluxcd.io
 Apply the Helm Release CRD:
 
 ```sh
-kubectl apply -f https://raw.githubusercontent.com/fluxcd/flux/master/deploy-helm/flux-helm-release-crd.yaml
+kubectl apply -f https://raw.githubusercontent.com/fluxcd/helm-operator/master/deploy/flux-helm-release-crd.yaml
 ```
 
 Install Flux and its Helm Operator by specifying your fork URL. Just
