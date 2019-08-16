@@ -13,5 +13,6 @@ References
    fluxyaml-config-files
    garbagecollection
    git-gpg
+   automated-image-update
    helm-operator-integration
    monitoring
