@@ -301,6 +301,17 @@ func (r *Repo) step(bg context.Context) bool {
 		defer cancel()
 
 		if r.branch != "" {
+			r.mu.Lock()
+			// The remote may have changed between `RepoNew` and this
+			// iteration of `RepoCloned`. Fetch again to pick-up any
+			// changes that may have been made.
+			err := r.fetch(ctx)
+			r.mu.Unlock()
+			if err != nil {
+				r.setUnready(RepoCloned, err)
+				return false
+			}
+
 			ok, err := refExists(ctx, dir, "refs/heads/"+r.branch)
 			if err != nil {
 				r.setUnready(RepoCloned, err)
