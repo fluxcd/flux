@@ -6,7 +6,7 @@ any code changes for you.
 
 If you are looking for more generic notes for how to install Flux
 using Helm, we collected them [in the chart's
-README](https://github.com/fluxcd/flux/blob/master/chart/flux/README.md).
+README](https://github.com/fluxcd/flux/blob/master/chart/flux/README.md#).
 
 ## Prerequisites
 
