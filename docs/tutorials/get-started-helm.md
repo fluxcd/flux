@@ -86,7 +86,7 @@ In this next step you install Flux using `helm`. Simply
 
       When deploying from a private repo, the known_hosts of the git server needs
       to be configured into a kubernetes configmap so that `StrictHostKeyChecking` is respected.
-      See the [README of the chart](https://fluxcd/flux/blob/master/chart/flux/README.md#to-install-flux-with-the-helm-operator-and-a-private-git-repository)
+      See the [README of the chart](https://github.com/fluxcd/flux/blob/master/chart/flux/README.md#to-install-flux-with-the-helm-operator-and-a-private-git-repository)
       for further installation instructions in this case.
 
 Allow some time for all containers to get up and running. If you're
