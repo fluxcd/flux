@@ -27,6 +27,7 @@ import (
 	"github.com/weaveworks/flux/registry"
 	"github.com/weaveworks/flux/release"
 	"github.com/weaveworks/flux/resource"
+	"github.com/weaveworks/flux/sync"
 	"github.com/weaveworks/flux/update"
 )
 
@@ -73,17 +74,22 @@ func (d *Daemon) Export(ctx context.Context) ([]byte, error) {
 	return d.Cluster.Export(ctx)
 }
 
-func (d *Daemon) getManifestStore(checkout *git.Checkout) (manifests.Store, error) {
+type repo interface {
+	Dir() string
+}
+
+func (d *Daemon) getManifestStore(r repo) (manifests.Store, error) {
+	absPaths := git.MakeAbsolutePaths(r, d.GitConfig.Paths)
 	if d.ManifestGenerationEnabled {
-		return manifests.NewConfigAware(checkout.Dir(), checkout.ManifestDirs(), d.Manifests)
+		return manifests.NewConfigAware(r.Dir(), absPaths, d.Manifests)
 	}
-	return manifests.NewRawFiles(checkout.Dir(), checkout.ManifestDirs(), d.Manifests), nil
+	return manifests.NewRawFiles(r.Dir(), absPaths, d.Manifests), nil
 }
 
 func (d *Daemon) getResources(ctx context.Context) (map[string]resource.Resource, v6.ReadOnlyReason, error) {
 	var resources map[string]resource.Resource
 	var globalReadOnly v6.ReadOnlyReason
-	err := d.WithClone(ctx, func(checkout *git.Checkout) error {
+	err := d.WithReadonlyClone(ctx, func(checkout *git.Export) error {
 		cm, err := d.getManifestStore(checkout)
 		if err != nil {
 			return err
@@ -137,6 +143,8 @@ func (d *Daemon) ListServicesWithOptions(ctx context.Context, opts v11.ListServi
 	var res []v6.ControllerStatus
 	for _, workload := range clusterWorkloads {
 		readOnly := v6.ReadOnlyOK
+		repoIsReadonly := d.Repo.Readonly()
+
 		var policies policy.Set
 		if resource, ok := resources[workload.ID.String()]; ok {
 			policies = resource.Policies()
@@ -144,6 +152,8 @@ func (d *Daemon) ListServicesWithOptions(ctx context.Context, opts v11.ListServi
 		switch {
 		case policies == nil:
 			readOnly = missingReason
+		case repoIsReadonly:
+			readOnly = v6.ReadOnlyROMode
 		case workload.IsSystem:
 			readOnly = v6.ReadOnlySystem
 		}
@@ -245,9 +255,9 @@ type updateFunc func(ctx context.Context, jobID job.ID, working *git.Checkout, l
 func (d *Daemon) makeJobFromUpdate(update updateFunc) jobFunc {
 	return func(ctx context.Context, jobID job.ID, logger log.Logger) (job.Result, error) {
 		var result job.Result
-		err := d.WithClone(ctx, func(working *git.Checkout) error {
+		err := d.WithWorkingClone(ctx, func(working *git.Checkout) error {
 			var err error
-			if err = verifyWorkingRepo(ctx, d.Repo, working, d.GitConfig); d.GitVerifySignatures && err != nil {
+			if err = verifyWorkingRepo(ctx, d.Repo, working, d.SyncState); d.GitVerifySignatures && err != nil {
 				return err
 			}
 			result, err = update(ctx, jobID, working, logger)
@@ -373,7 +383,7 @@ func (d *Daemon) sync() jobFunc {
 		}
 		if d.GitVerifySignatures {
 			var latestValidRev string
-			if latestValidRev, _, err = latestValidRevision(ctx, d.Repo, d.GitConfig); err != nil {
+			if latestValidRev, _, err = latestValidRevision(ctx, d.Repo, d.SyncState); err != nil {
 				return result, err
 			} else if head != latestValidRev {
 				result.Revision = latestValidRev
@@ -560,37 +570,33 @@ func (d *Daemon) JobStatus(ctx context.Context, jobID job.ID) (job.Status, error
 	// Look through the commits for a note referencing this job.  This
 	// means that even if fluxd restarts, we will at least remember
 	// jobs which have pushed a commit.
-	// FIXME(michael): consider looking at the repo for this, since read op
-	err := d.WithClone(ctx, func(working *git.Checkout) error {
-		notes, err := working.NoteRevList(ctx)
-		if err != nil {
-			return errors.Wrap(err, "enumerating commit notes")
-		}
-		commits, err := d.Repo.CommitsBefore(ctx, "HEAD", d.GitConfig.Paths...)
-		if err != nil {
-			return errors.Wrap(err, "checking revisions for status")
-		}
+	notes, err := d.Repo.NoteRevList(ctx, d.GitConfig.NotesRef)
+	if err != nil {
+		return status, errors.Wrap(err, "enumerating commit notes")
+	}
+	commits, err := d.Repo.CommitsBefore(ctx, "HEAD", d.GitConfig.Paths...)
+	if err != nil {
+		return status, errors.Wrap(err, "checking revisions for status")
+	}
 
-		for _, commit := range commits {
-			if _, ok := notes[commit.Revision]; ok {
-				var n note
-				ok, err := working.GetNote(ctx, commit.Revision, &n)
-				if ok && err == nil && n.JobID == jobID {
-					status = job.Status{
-						StatusString: job.StatusSucceeded,
-						Result: job.Result{
-							Revision: commit.Revision,
-							Spec:     &n.Spec,
-							Result:   n.Result,
-						},
-					}
-					return nil
+	for _, commit := range commits {
+		if _, ok := notes[commit.Revision]; ok {
+			var n note
+			ok, err := d.Repo.GetNote(ctx, commit.Revision, d.GitConfig.NotesRef, &n)
+			if ok && err == nil && n.JobID == jobID {
+				status = job.Status{
+					StatusString: job.StatusSucceeded,
+					Result: job.Result{
+						Revision: commit.Revision,
+						Spec:     &n.Spec,
+						Result:   n.Result,
+					},
 				}
+				return status, nil
 			}
 		}
-		return unknownJobError(jobID)
-	})
-	return status, err
+	}
+	return status, unknownJobError(jobID)
 }
 
 // Ask the daemon how far it's got applying things; in particular, is it
@@ -599,7 +605,12 @@ func (d *Daemon) JobStatus(ctx context.Context, jobID job.ID) (job.Status, error
 // you'll get all the commits yet to be applied. If you send a hash
 // and it's applied at or _past_ it, you'll get an empty list.
 func (d *Daemon) SyncStatus(ctx context.Context, commitRef string) ([]string, error) {
-	commits, err := d.Repo.CommitsBetween(ctx, d.GitConfig.SyncTag, commitRef, d.GitConfig.Paths...)
+	syncMarkerRevision, err := d.SyncState.GetRevision(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	commits, err := d.Repo.CommitsBetween(ctx, syncMarkerRevision, commitRef, d.GitConfig.Paths...)
 	if err != nil {
 		return nil, err
 	}
@@ -637,8 +648,29 @@ func (d *Daemon) GitRepoConfig(ctx context.Context, regenerate bool) (v6.GitConf
 
 // Non-api.Server methods
 
-func (d *Daemon) WithClone(ctx context.Context, fn func(*git.Checkout) error) error {
+// WithWorkingClone applies the given func to a fresh, writable clone
+// of the git repo, and cleans it up afterwards. This may return an
+// error in the case that the repo is read-only; use
+// `WithReadonlyClone` if you only need to read the files in the git
+// repo.
+func (d *Daemon) WithWorkingClone(ctx context.Context, fn func(*git.Checkout) error) error {
 	co, err := d.Repo.Clone(ctx, d.GitConfig)
+	if err != nil {
+		return err
+	}
+	defer co.Clean()
+	return fn(co)
+}
+
+// WithReadonlyClone applies the given func to an export of the
+// current revision of the git repo. Use this if you just need to
+// consult the files.
+func (d *Daemon) WithReadonlyClone(ctx context.Context, fn func(*git.Export) error) error {
+	head, err := d.Repo.BranchHead(ctx)
+	if err != nil {
+		return err
+	}
+	co, err := d.Repo.Export(ctx, head)
 	if err != nil {
 		return err
 	}
@@ -674,13 +706,13 @@ func containers2containers(cs []resource.Container) []v6.Container {
 // cost, we cache the result of sorting, so that other uses of the
 // image can reuse it (if they are also sorted by timestamp).
 
-type repo struct {
+type sortedImageRepo struct {
 	images                []image.Info
 	imagesByTag           map[string]image.Info
 	imagesSortedByCreated update.SortedImageInfos
 }
 
-func (r *repo) SortedImages(p policy.Pattern) update.SortedImageInfos {
+func (r *sortedImageRepo) SortedImages(p policy.Pattern) update.SortedImageInfos {
 	// RequiresTimestamp means "ordered by timestamp" (it's required
 	// because no comparison to see which image is newer can be made
 	// if a timestamp is missing)
@@ -693,16 +725,16 @@ func (r *repo) SortedImages(p policy.Pattern) update.SortedImageInfos {
 	return update.SortImages(r.images, p)
 }
 
-func (r *repo) Images() []image.Info {
+func (r *sortedImageRepo) Images() []image.Info {
 	return r.images
 }
 
-func (r *repo) ImageByTag(tag string) image.Info {
+func (r *sortedImageRepo) ImageByTag(tag string) image.Info {
 	return r.imagesByTag[tag]
 }
 
 func getWorkloadContainers(workload cluster.Workload, imageRepos update.ImageRepos, resource resource.Resource, fields []string) (res []v6.Container, err error) {
-	repos := map[image.Name]*repo{}
+	repos := map[image.Name]*sortedImageRepo{}
 
 	for _, c := range workload.ContainersOrNil() {
 		imageName := c.Image.Name
@@ -726,7 +758,7 @@ func getWorkloadContainers(workload cluster.Workload, imageRepos update.ImageRep
 				}
 				images = append(images, info)
 			}
-			imageRepo = &repo{images: images, imagesByTag: repoMetadata.Images}
+			imageRepo = &sortedImageRepo{images: images, imagesByTag: repoMetadata.Images}
 			repos[imageName] = imageRepo
 		}
 
@@ -830,26 +862,26 @@ func policyEventTypes(u resource.PolicyUpdate) []string {
 // In case the signature of the tag can not be verified, or it points
 // towards a revision we can not get a commit range for, it returns an
 // error.
-func latestValidRevision(ctx context.Context, repo *git.Repo, gitConfig git.Config) (string, git.Commit, error) {
+func latestValidRevision(ctx context.Context, repo *git.Repo, syncState sync.State) (string, git.Commit, error) {
 	var invalidCommit = git.Commit{}
 	newRevision, err := repo.BranchHead(ctx)
 	if err != nil {
 		return "", invalidCommit, err
 	}
 
-	// Validate tag and retrieve the revision it points to
-	tagRevision, err := repo.VerifyTag(ctx, gitConfig.SyncTag)
-	if err != nil && !strings.Contains(err.Error(), "not found.") {
-		return "", invalidCommit, errors.Wrap(err, "failed to verify signature of sync tag")
+	// Validate sync state and retrieve the revision it points to
+	tagRevision, err := syncState.GetRevision(ctx)
+	if err != nil {
+		return "", invalidCommit, err
 	}
 
 	var commits []git.Commit
 	if tagRevision == "" {
 		commits, err = repo.CommitsBefore(ctx, newRevision)
 	} else {
-		// Assure the revision from the tag is a signed and valid commit
+		// Assure the commit _at_ the high water mark is a signed and valid commit
 		if err = repo.VerifyCommit(ctx, tagRevision); err != nil {
-			return "", invalidCommit, errors.Wrap(err, "failed to verify signature of sync tag revision")
+			return "", invalidCommit, errors.Wrap(err, "failed to verify signature of last sync'ed revision")
 		}
 		commits, err = repo.CommitsBetween(ctx, tagRevision, newRevision)
 	}
@@ -874,8 +906,9 @@ func latestValidRevision(ctx context.Context, repo *git.Repo, gitConfig git.Conf
 	return newRevision, invalidCommit, nil
 }
 
-func verifyWorkingRepo(ctx context.Context, repo *git.Repo, working *git.Checkout, gitConfig git.Config) error {
-	if latestVerifiedRev, _, err := latestValidRevision(ctx, repo, gitConfig); err != nil {
+// verifyWorkingRepo checks that a working clone is safe to be used for a write operation
+func verifyWorkingRepo(ctx context.Context, repo *git.Repo, working *git.Checkout, syncState sync.State) error {
+	if latestVerifiedRev, _, err := latestValidRevision(ctx, repo, syncState); err != nil {
 		return err
 	} else if headRev, err := working.HeadRevision(ctx); err != nil {
 		return err
@@ -883,10 +916,4 @@ func verifyWorkingRepo(ctx context.Context, repo *git.Repo, working *git.Checkou
 		return unsignedHeadRevisionError(latestVerifiedRev, headRev)
 	}
 	return nil
-}
-
-func isUnknownRevision(err error) bool {
-	return err != nil &&
-		(strings.Contains(err.Error(), "unknown revision or path not in the working tree.") ||
-			strings.Contains(err.Error(), "bad revision"))
 }

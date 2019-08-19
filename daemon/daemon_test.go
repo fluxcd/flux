@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/go-kit/kit/log"
+
 	"github.com/stretchr/testify/assert"
 
 	"github.com/weaveworks/flux/api/v10"
@@ -31,6 +32,7 @@ import (
 	"github.com/weaveworks/flux/registry"
 	registryMock "github.com/weaveworks/flux/registry/mock"
 	"github.com/weaveworks/flux/resource"
+	fluxsync "github.com/weaveworks/flux/sync"
 	"github.com/weaveworks/flux/update"
 )
 
@@ -470,7 +472,7 @@ func TestDaemon_Release(t *testing.T) {
 		}
 		defer co.Clean()
 		// open a file
-		dirs := co.ManifestDirs()
+		dirs := co.AbsolutePaths()
 		if file, err := os.Open(filepath.Join(dirs[0], "helloworld-deploy.yaml")); err == nil {
 
 			// make sure it gets closed
@@ -515,7 +517,7 @@ func TestDaemon_PolicyUpdate(t *testing.T) {
 			return false
 		}
 		defer co.Clean()
-		cm := manifests.NewRawFiles(co.Dir(), co.ManifestDirs(), d.Manifests)
+		cm := manifests.NewRawFiles(co.Dir(), co.AbsolutePaths(), d.Manifests)
 		m, err := cm.GetAllResourcesByID(context.TODO())
 		if err != nil {
 			t.Fatalf("Error: %s", err.Error())
@@ -663,11 +665,12 @@ func mockDaemon(t *testing.T) (*Daemon, func(), func(), *mock.Mock, *mockEventWr
 	}
 
 	repo, repoCleanup := gittest.Repo(t)
+
+	syncTag := "flux-test"
 	params := git.Config{
 		Branch:    "master",
 		UserName:  "example",
 		UserEmail: "example@example.com",
-		SyncTag:   "flux-test",
 		NotesRef:  "fluxtest",
 	}
 
@@ -724,6 +727,8 @@ func mockDaemon(t *testing.T) (*Daemon, func(), func(), *mock.Mock, *mockEventWr
 
 	manifests := kubernetes.NewManifests(kubernetes.ConstNamespacer("default"), log.NewLogfmtLogger(os.Stdout))
 
+	gitSync, _ := fluxsync.NewGitTagSyncProvider(repo, syncTag, "", false, params)
+
 	// Finally, the daemon
 	d := &Daemon{
 		Repo:           repo,
@@ -736,7 +741,7 @@ func mockDaemon(t *testing.T) (*Daemon, func(), func(), *mock.Mock, *mockEventWr
 		JobStatusCache: &job.StatusCache{Size: 100},
 		EventWriter:    events,
 		Logger:         logger,
-		LoopVars:       &LoopVars{GitTimeout: timeout},
+		LoopVars:       &LoopVars{GitTimeout: timeout, SyncState: gitSync},
 	}
 
 	start := func() {
@@ -856,7 +861,7 @@ func (w *wait) ForImageTag(t *testing.T, d *Daemon, workload, container, tag str
 			return false
 		}
 		defer co.Clean()
-		cm := manifests.NewRawFiles(co.Dir(), co.ManifestDirs(), d.Manifests)
+		cm := manifests.NewRawFiles(co.Dir(), co.AbsolutePaths(), d.Manifests)
 		resources, err := cm.GetAllResourcesByID(context.TODO())
 		assert.NoError(t, err)
 

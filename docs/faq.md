@@ -107,6 +107,15 @@ The image tag will be updated in the git repository upon applying the command.
 
 For more information about Flux commands see [the `fluxctl` docs](references/fluxctl.md).
 
+### Can I run Flux with readonly Git access?
+
+Yes. You can use the `--git-readonly` command line argument.  The Helm
+chart exposes this as `git.readonly`.
+
+This will prevent Flux from trying to write to your repository. You
+should also provide a readonly SSH key; e.g., on GitHub, leave the
+`Allow write access` box unchecked when you add the deploy key.
+
 ### Does Flux automatically sync changes back to git?
 
 No. It applies changes to git only when a Flux command or API call makes them.

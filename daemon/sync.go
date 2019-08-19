@@ -18,8 +18,13 @@ import (
 	"github.com/weaveworks/flux/update"
 )
 
-type syncTag interface {
-	SetRevision(ctx context.Context, working *git.Checkout, timeout time.Duration, oldRev, newRev string) (bool, error)
+// revisionRatchet is for keeping track of transitions between
+// revisions. This is slightly more complicated than just setting the
+// state, since we want to notice unexpected transitions (e.g., when
+// the apparent current state is not what we'd recorded).
+type revisionRatchet interface {
+	Current(ctx context.Context) (string, error)
+	Update(ctx context.Context, oldRev, newRev string) (bool, error)
 }
 
 type eventLogger interface {
@@ -34,23 +39,18 @@ type changeSet struct {
 }
 
 // Sync starts the synchronization of the cluster with git.
-func (d *Daemon) Sync(ctx context.Context, started time.Time, revision string, syncTag syncTag) error {
-	// Checkout a working clone used for this sync
+func (d *Daemon) Sync(ctx context.Context, started time.Time, newRevision string, ratchet revisionRatchet) error {
+	// Make a read-only clone used for this sync
 	ctxt, cancel := context.WithTimeout(ctx, d.GitTimeout)
-	working, err := d.Repo.Clone(ctxt, d.GitConfig)
+	working, err := d.Repo.Export(ctxt, newRevision)
 	if err != nil {
 		return err
 	}
 	cancel()
 	defer working.Clean()
 
-	// Ensure we are syncing the given revision
-	if err := working.Checkout(ctx, revision); err != nil {
-		return err
-	}
-
 	// Retrieve change set of commits we need to sync
-	c, err := getChangeSet(ctx, working, d.Repo, d.GitTimeout, d.GitConfig.Paths)
+	c, err := getChangeSet(ctx, ratchet, newRevision, d.Repo, d.GitTimeout, d.GitConfig.Paths)
 	if err != nil {
 		return err
 	}
@@ -67,18 +67,18 @@ func (d *Daemon) Sync(ctx context.Context, started time.Time, revision string, s
 	}
 
 	// Determine what resources changed during the sync
-	changedResources, err := getChangedResources(ctx, c, d.GitTimeout, working, resourceStore, resources)
+	changedResources, err := d.getChangedResources(ctx, c, d.GitTimeout, working, resourceStore, resources)
 	serviceIDs := resource.IDSet{}
 	for _, r := range changedResources {
 		serviceIDs.Add([]resource.ID{r.ResourceID()})
 	}
 
 	// Retrieve git notes and collect events from them
-	notes, err := getNotes(ctx, d.GitTimeout, working)
+	notes, err := d.getNotes(ctx, d.GitTimeout)
 	if err != nil {
 		return err
 	}
-	noteEvents, includesEvents, err := collectNoteEvents(ctx, c, notes, d.GitTimeout, working, started, d.Logger)
+	noteEvents, includesEvents, err := d.collectNoteEvents(ctx, c, notes, d.GitTimeout, started, d.Logger)
 	if err != nil {
 		return err
 	}
@@ -97,8 +97,8 @@ func (d *Daemon) Sync(ctx context.Context, started time.Time, revision string, s
 		}
 	}
 
-	// Move sync tag
-	if ok, err := syncTag.SetRevision(ctx, working, d.GitTimeout, c.oldTagRev, c.newTagRev); err != nil {
+	// Move the revision the sync state points to
+	if ok, err := ratchet.Update(ctx, c.oldTagRev, c.newTagRev); err != nil {
 		return err
 	} else if !ok {
 		return nil
@@ -110,19 +110,17 @@ func (d *Daemon) Sync(ctx context.Context, started time.Time, revision string, s
 
 // getChangeSet returns the change set of commits for this sync,
 // including the revision range and if it is an initial sync.
-func getChangeSet(ctx context.Context, working *git.Checkout, repo *git.Repo, timeout time.Duration,
-	paths []string) (changeSet, error) {
+func getChangeSet(ctx context.Context, state revisionRatchet, headRev string, repo *git.Repo, timeout time.Duration, paths []string) (changeSet, error) {
 	var c changeSet
 	var err error
 
-	c.oldTagRev, err = working.SyncRevision(ctx)
-	if err != nil && !isUnknownRevision(err) {
-		return c, err
-	}
-	c.newTagRev, err = working.HeadRevision(ctx)
+	currentRev, err := state.Current(ctx)
 	if err != nil {
 		return c, err
 	}
+
+	c.oldTagRev = currentRev
+	c.newTagRev = headRev
 
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	if c.oldTagRev != "" {
@@ -166,7 +164,7 @@ func doSync(ctx context.Context, manifestsStore manifests.Store, clus cluster.Cl
 
 // getChangedResources calculates what resources are modified during
 // this sync.
-func getChangedResources(ctx context.Context, c changeSet, timeout time.Duration, working *git.Checkout,
+func (d *Daemon) getChangedResources(ctx context.Context, c changeSet, timeout time.Duration, working *git.Export,
 	manifestsStore manifests.Store, resources map[string]resource.Resource) (map[string]resource.Resource, error) {
 	if c.initialSync {
 		return resources, nil
@@ -174,7 +172,7 @@ func getChangedResources(ctx context.Context, c changeSet, timeout time.Duration
 
 	errorf := func(err error) error { return errors.Wrap(err, "loading resources from repo") }
 	ctx, cancel := context.WithTimeout(ctx, timeout)
-	changedFiles, err := working.ChangedFiles(ctx, c.oldTagRev)
+	changedFiles, err := working.ChangedFiles(ctx, c.oldTagRev, d.GitConfig.Paths)
 	if err != nil {
 		return nil, errorf(err)
 	}
@@ -213,9 +211,9 @@ func getChangedResources(ctx context.Context, c changeSet, timeout time.Duration
 }
 
 // getNotes retrieves the git notes from the working clone.
-func getNotes(ctx context.Context, timeout time.Duration, working *git.Checkout) (map[string]struct{}, error) {
+func (d *Daemon) getNotes(ctx context.Context, timeout time.Duration) (map[string]struct{}, error) {
 	ctx, cancel := context.WithTimeout(ctx, timeout)
-	notes, err := working.NoteRevList(ctx)
+	notes, err := d.Repo.NoteRevList(ctx, d.GitConfig.NotesRef)
 	cancel()
 	if err != nil {
 		return nil, errors.Wrap(err, "loading notes from repo")
@@ -228,8 +226,8 @@ func getNotes(ctx context.Context, timeout time.Duration, working *git.Checkout)
 // of what other things this sync includes e.g., releases and
 // autoreleases, that we're already posting as events, so upstream
 // can skip the sync event if it wants to.
-func collectNoteEvents(ctx context.Context, c changeSet, notes map[string]struct{}, timeout time.Duration,
-	working *git.Checkout, started time.Time, logger log.Logger) ([]event.Event, map[string]bool, error) {
+func (d *Daemon) collectNoteEvents(ctx context.Context, c changeSet, notes map[string]struct{}, timeout time.Duration,
+	started time.Time, logger log.Logger) ([]event.Event, map[string]bool, error) {
 	if len(c.commits) == 0 {
 		return nil, nil, nil
 	}
@@ -245,7 +243,7 @@ func collectNoteEvents(ctx context.Context, c changeSet, notes map[string]struct
 		}
 		var n note
 		ctx, cancel := context.WithTimeout(ctx, timeout)
-		ok, err := working.GetNote(ctx, c.commits[i].Revision, &n)
+		ok, err := d.Repo.GetNote(ctx, c.commits[i].Revision, d.GitConfig.NotesRef, &n)
 		cancel()
 		if err != nil {
 			return nil, nil, errors.Wrap(err, "loading notes from repo")

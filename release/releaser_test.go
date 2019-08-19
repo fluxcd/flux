@@ -162,7 +162,7 @@ func mockCluster(running ...cluster.Workload) *mock.Mock {
 }
 
 func NewManifestStoreOrFail(t *testing.T, parser manifests.Manifests, checkout *git.Checkout) manifests.Store {
-	cm := manifests.NewRawFiles(checkout.Dir(), checkout.ManifestDirs(), parser)
+	cm := manifests.NewRawFiles(checkout.Dir(), checkout.AbsolutePaths(), parser)
 	return cm
 }
 

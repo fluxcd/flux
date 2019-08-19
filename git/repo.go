@@ -91,9 +91,13 @@ func (b Branch) apply(r *Repo) {
 	r.branch = string(b)
 }
 
-var ReadOnly optionFunc = func(r *Repo) {
-	r.readonly = true
+type IsReadOnly bool
+
+func (ro IsReadOnly) apply(r *Repo) {
+	r.readonly = bool(ro)
 }
+
+var ReadOnly IsReadOnly = true
 
 // NewRepo constructs a repo mirror which will sync itself.
 func NewRepo(origin Remote, opts ...Option) *Repo {
@@ -121,6 +125,12 @@ func (r *Repo) Origin() Remote {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	return r.origin
+}
+
+// Readonly returns `true` if the repo was marked as readonly, `false`
+// otherwise
+func (r *Repo) Readonly() bool {
+	return r.readonly
 }
 
 // Dir returns the local directory into which the repo has been
@@ -252,6 +262,24 @@ func (r *Repo) VerifyCommit(ctx context.Context, commit string) error {
 		return err
 	}
 	return verifyCommit(ctx, r.dir, commit)
+}
+
+func (r *Repo) DeleteTag(ctx context.Context, tag string) error {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	if err := r.errorIfNotReady(); err != nil {
+		return err
+	}
+	return deleteTag(ctx, r.dir, tag, r.origin.URL)
+}
+
+func (r *Repo) NoteRevList(ctx context.Context, notesRef string) (map[string]struct{}, error) {
+	return noteRevList(ctx, r.Dir(), notesRef)
+}
+
+// GetNote gets a note for the revision specified, or nil if there is no such note.
+func (r *Repo) GetNote(ctx context.Context, rev, notesRef string, note interface{}) (bool, error) {
+	return getNote(ctx, r.Dir(), notesRef, rev, note)
 }
 
 // step attempts to advance the repo state machine, and returns `true`

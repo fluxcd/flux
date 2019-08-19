@@ -16,7 +16,6 @@ var (
 type Config struct {
 	Branch      string   // branch we're syncing to
 	Paths       []string // paths within the repo containing files we care about
-	SyncTag     string
 	NotesRef    string
 	UserName    string
 	UserEmail   string
@@ -30,7 +29,7 @@ type Config struct {
 // intended to be used for one-off "transactions", e.g,. committing
 // changes then pushing upstream. It has no locking.
 type Checkout struct {
-	dir          string
+	*Export
 	config       Config
 	upstream     Remote
 	realNotesRef string // cache the notes ref, since we use it to push as well
@@ -42,15 +41,16 @@ type Commit struct {
 	Message   string
 }
 
-// CommitAction - struct holding commit information
+// CommitAction is a struct holding commit information
 type CommitAction struct {
 	Author     string
 	Message    string
 	SigningKey string
 }
 
-// TagAction - struct holding tag information
+// TagAction is a struct holding tag parameters
 type TagAction struct {
+	Tag        string
 	Revision   string
 	Message    string
 	SigningKey string
@@ -62,7 +62,6 @@ func (r *Repo) Clone(ctx context.Context, conf Config) (*Checkout, error) {
 	if r.readonly {
 		return nil, ErrReadOnly
 	}
-
 	upstream := r.Origin()
 	repoDir, err := r.workingClone(ctx, conf.Branch)
 	if err != nil {
@@ -109,50 +108,45 @@ func (r *Repo) Clone(ctx context.Context, conf Config) (*Checkout, error) {
 	}
 
 	return &Checkout{
-		dir:          repoDir,
+		Export:       &Export{dir: repoDir},
 		upstream:     upstream,
 		realNotesRef: realNotesRef,
 		config:       conf,
 	}, nil
 }
 
-// Clean a Checkout up (remove the clone)
-func (c *Checkout) Clean() {
-	if c.dir != "" {
-		os.RemoveAll(c.dir)
-	}
-}
-
-// Dir returns the path to the repo
-func (c *Checkout) Dir() string {
-	return c.dir
-}
-
-// ManifestDirs returns the paths to the manifests files. It ensures
-// that at least one path is returned, so that it can be used with
-// `Manifest.LoadManifests`.
-func (c *Checkout) ManifestDirs() []string {
-	if len(c.config.Paths) == 0 {
-		return []string{c.dir}
+// MakeAbsolutePaths returns the absolute path for each of the
+// relativePaths given, taking the repo's location as the base.
+func MakeAbsolutePaths(r interface{ Dir() string }, relativePaths []string) []string {
+	if len(relativePaths) == 0 {
+		return []string{r.Dir()}
 	}
 
-	paths := make([]string, len(c.config.Paths), len(c.config.Paths))
-	for i, p := range c.config.Paths {
-		paths[i] = filepath.Join(c.dir, p)
+	base := r.Dir()
+	paths := make([]string, len(relativePaths), len(relativePaths))
+	for i, p := range relativePaths {
+		paths[i] = filepath.Join(base, p)
 	}
 	return paths
+}
+
+// AbsolutePaths returns the absolute paths as configured. It ensures
+// that at least one path is returned, so that it can be used with
+// `Manifest.LoadManifests`.
+func (c *Checkout) AbsolutePaths() []string {
+	return MakeAbsolutePaths(c, c.config.Paths)
 }
 
 // CommitAndPush commits changes made in this checkout, along with any
 // extra data as a note, and pushes the commit and note to the remote repo.
 func (c *Checkout) CommitAndPush(ctx context.Context, commitAction CommitAction, note interface{}, addUntracked bool) error {
 	if addUntracked {
-		if err := add(ctx, c.dir, "."); err != nil {
+		if err := add(ctx, c.Dir(), "."); err != nil {
 			return err
 		}
 	}
 
-	if !check(ctx, c.dir, c.config.Paths, addUntracked) {
+	if !check(ctx, c.Dir(), c.config.Paths, addUntracked) {
 		return ErrNoChanges
 	}
 
@@ -161,7 +155,7 @@ func (c *Checkout) CommitAndPush(ctx context.Context, commitAction CommitAction,
 		commitAction.SigningKey = c.config.SigningKey
 	}
 
-	if err := commit(ctx, c.dir, commitAction); err != nil {
+	if err := commit(ctx, c.Dir(), commitAction); err != nil {
 		return err
 	}
 
@@ -170,68 +164,40 @@ func (c *Checkout) CommitAndPush(ctx context.Context, commitAction CommitAction,
 		if err != nil {
 			return err
 		}
-		if err := addNote(ctx, c.dir, rev, c.config.NotesRef, note); err != nil {
+		if err := addNote(ctx, c.Dir(), rev, c.realNotesRef, note); err != nil {
 			return err
 		}
 	}
 
 	refs := []string{c.config.Branch}
-	ok, err := refExists(ctx, c.dir, c.realNotesRef)
+	ok, err := refExists(ctx, c.Dir(), c.realNotesRef)
 	if ok {
 		refs = append(refs, c.realNotesRef)
 	} else if err != nil {
 		return err
 	}
 
-	if err := push(ctx, c.dir, c.upstream.URL, refs); err != nil {
+	if err := push(ctx, c.Dir(), c.upstream.URL, refs); err != nil {
 		return PushError(c.upstream.URL, err)
 	}
 	return nil
 }
 
-// GetNote gets a note for the revision specified, or nil if there is no such note.
-func (c *Checkout) GetNote(ctx context.Context, rev string, note interface{}) (bool, error) {
-	return getNote(ctx, c.dir, c.realNotesRef, rev, note)
-}
-
 func (c *Checkout) HeadRevision(ctx context.Context) (string, error) {
-	return refRevision(ctx, c.dir, "HEAD")
+	return refRevision(ctx, c.Dir(), "HEAD")
 }
 
-func (c *Checkout) SyncRevision(ctx context.Context) (string, error) {
-	return refRevision(ctx, c.dir, "tags/"+c.config.SyncTag)
-}
-
-func (c *Checkout) MoveSyncTagAndPush(ctx context.Context, tagAction TagAction) error {
+func (c *Checkout) MoveTagAndPush(ctx context.Context, tagAction TagAction) error {
 	if tagAction.SigningKey == "" {
 		tagAction.SigningKey = c.config.SigningKey
 	}
-	return moveTagAndPush(ctx, c.dir, c.config.SyncTag, c.upstream.URL, tagAction)
-}
-
-func (c *Checkout) VerifySyncTag(ctx context.Context) (string, error) {
-	return verifyTag(ctx, c.dir, c.config.SyncTag)
-}
-
-// ChangedFiles does a git diff listing changed files
-func (c *Checkout) ChangedFiles(ctx context.Context, ref string) ([]string, error) {
-	list, err := changed(ctx, c.dir, ref, c.config.Paths)
-	if err == nil {
-		for i, file := range list {
-			list[i] = filepath.Join(c.dir, file)
-		}
-	}
-	return list, err
-}
-
-func (c *Checkout) NoteRevList(ctx context.Context) (map[string]struct{}, error) {
-	return noteRevList(ctx, c.dir, c.realNotesRef)
+	return moveTagAndPush(ctx, c.Dir(), c.upstream.URL, tagAction)
 }
 
 func (c *Checkout) Checkout(ctx context.Context, rev string) error {
-	return checkout(ctx, c.dir, rev)
+	return checkout(ctx, c.Dir(), rev)
 }
 
 func (c *Checkout) Add(ctx context.Context, path string) error {
-	return add(ctx, c.dir, path)
+	return add(ctx, c.Dir(), path)
 }

@@ -25,11 +25,11 @@ import (
 	"github.com/weaveworks/flux/manifests"
 	registryMock "github.com/weaveworks/flux/registry/mock"
 	"github.com/weaveworks/flux/resource"
+	fluxsync "github.com/weaveworks/flux/sync"
 )
 
 const (
 	gitPath     = ""
-	gitSyncTag  = "flux-sync"
 	gitNotesRef = "flux"
 	gitUser     = "Flux"
 	gitEmail    = "support@weave.works"
@@ -57,7 +57,6 @@ func daemon(t *testing.T) (*Daemon, func()) {
 
 	gitConfig := git.Config{
 		Branch:    "master",
-		SyncTag:   gitSyncTag,
 		NotesRef:  gitNotesRef,
 		UserName:  gitUser,
 		UserEmail: gitEmail,
@@ -109,9 +108,12 @@ func TestPullAndSync_InitialSync(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	syncTag := lastKnownSyncTag{logger: d.Logger, syncTag: d.GitConfig.SyncTag}
 
-	if err := d.Sync(ctx, time.Now().UTC(), head, &syncTag); err != nil {
+	syncTag := "sync"
+	gitSync, _ := fluxsync.NewGitTagSyncProvider(d.Repo, syncTag, "", false, d.GitConfig)
+	syncState := &lastKnownSyncState{logger: d.Logger, state: gitSync}
+
+	if err := d.Sync(ctx, time.Now().UTC(), head, syncState); err != nil {
 		t.Error(err)
 	}
 
@@ -141,7 +143,7 @@ func TestPullAndSync_InitialSync(t *testing.T) {
 	// It creates the tag at HEAD
 	if err := d.Repo.Refresh(context.Background()); err != nil {
 		t.Errorf("pulling sync tag: %v", err)
-	} else if revs, err := d.Repo.CommitsBefore(context.Background(), gitSyncTag); err != nil {
+	} else if revs, err := d.Repo.CommitsBefore(context.Background(), syncTag); err != nil {
 		t.Errorf("finding revisions before sync tag: %v", err)
 	} else if len(revs) <= 0 {
 		t.Errorf("Found no revisions before the sync tag")
@@ -152,15 +154,18 @@ func TestDoSync_NoNewCommits(t *testing.T) {
 	d, cleanup := daemon(t)
 	defer cleanup()
 
+	var syncTag = "syncity"
+
 	ctx := context.Background()
-	err := d.WithClone(ctx, func(co *git.Checkout) error {
+	err := d.WithWorkingClone(ctx, func(co *git.Checkout) error {
 		ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 		defer cancel()
 		tagAction := git.TagAction{
-			Revision: "HEAD",
+			Tag:      syncTag,
+			Revision: "master",
 			Message:  "Sync pointer",
 		}
-		return co.MoveSyncTagAndPush(ctx, tagAction)
+		return co.MoveTagAndPush(ctx, tagAction)
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -189,9 +194,11 @@ func TestDoSync_NoNewCommits(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	syncTag := lastKnownSyncTag{logger: d.Logger, syncTag: d.GitConfig.SyncTag}
 
-	if err := d.Sync(ctx, time.Now().UTC(), head, &syncTag); err != nil {
+	gitSync, _ := fluxsync.NewGitTagSyncProvider(d.Repo, syncTag, "", false, d.GitConfig)
+	syncState := &lastKnownSyncState{logger: d.Logger, state: gitSync}
+
+	if err := d.Sync(ctx, time.Now().UTC(), head, syncState); err != nil {
 		t.Error(err)
 	}
 
@@ -211,12 +218,12 @@ func TestDoSync_NoNewCommits(t *testing.T) {
 	}
 
 	// It doesn't move the tag
-	oldRevs, err := d.Repo.CommitsBefore(ctx, gitSyncTag)
+	oldRevs, err := d.Repo.CommitsBefore(ctx, syncTag)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if revs, err := d.Repo.CommitsBefore(ctx, gitSyncTag); err != nil {
+	if revs, err := d.Repo.CommitsBefore(ctx, syncTag); err != nil {
 		t.Errorf("finding revisions before sync tag: %v", err)
 	} else if !reflect.DeepEqual(revs, oldRevs) {
 		t.Errorf("Should have kept the sync tag at HEAD")
@@ -228,18 +235,21 @@ func TestDoSync_WithNewCommit(t *testing.T) {
 	defer cleanup()
 
 	ctx := context.Background()
+
+	var syncTag = "syncy-mcsyncface"
 	// Set the sync tag to head
 	var oldRevision, newRevision string
-	err := d.WithClone(ctx, func(checkout *git.Checkout) error {
+	err := d.WithWorkingClone(ctx, func(checkout *git.Checkout) error {
 		ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 		defer cancel()
 
 		var err error
 		tagAction := git.TagAction{
-			Revision: "HEAD",
+			Tag:      syncTag,
+			Revision: "master",
 			Message:  "Sync pointer",
 		}
-		err = checkout.MoveSyncTagAndPush(ctx, tagAction)
+		err = checkout.MoveTagAndPush(ctx, tagAction)
 		if err != nil {
 			return err
 		}
@@ -248,7 +258,7 @@ func TestDoSync_WithNewCommit(t *testing.T) {
 			return err
 		}
 		// Push some new changes
-		cm := manifests.NewRawFiles(checkout.Dir(), checkout.ManifestDirs(), d.Manifests)
+		cm := manifests.NewRawFiles(checkout.Dir(), checkout.AbsolutePaths(), d.Manifests)
 		resourcesByID, err := cm.GetAllResourcesByID(context.TODO())
 		if err != nil {
 			return err
@@ -303,9 +313,11 @@ func TestDoSync_WithNewCommit(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	syncTag := lastKnownSyncTag{logger: d.Logger, syncTag: d.GitConfig.SyncTag}
 
-	if err := d.Sync(ctx, time.Now().UTC(), head, &syncTag); err != nil {
+	gitSync, _ := fluxsync.NewGitTagSyncProvider(d.Repo, syncTag, "", false, d.GitConfig)
+	syncState := &lastKnownSyncState{logger: d.Logger, state: gitSync}
+
+	if err := d.Sync(ctx, time.Now().UTC(), head, syncState); err != nil {
 		t.Error(err)
 	}
 
@@ -337,7 +349,7 @@ func TestDoSync_WithNewCommit(t *testing.T) {
 	defer cancel()
 	if err := d.Repo.Refresh(ctx); err != nil {
 		t.Errorf("pulling sync tag: %v", err)
-	} else if revs, err := d.Repo.CommitsBetween(ctx, oldRevision, gitSyncTag); err != nil {
+	} else if revs, err := d.Repo.CommitsBetween(ctx, oldRevision, syncTag); err != nil {
 		t.Errorf("finding revisions before sync tag: %v", err)
 	} else if len(revs) <= 0 {
 		t.Errorf("Should have moved sync tag forward")

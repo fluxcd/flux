@@ -28,6 +28,7 @@ const (
 	ReadOnlySystem   ReadOnlyReason = "System"
 	ReadOnlyNoRepo   ReadOnlyReason = "NoRepo"
 	ReadOnlyNotReady ReadOnlyReason = "NotReady"
+	ReadOnlyROMode   ReadOnlyReason = "ReadOnlyMode"
 )
 
 type ControllerStatus struct {

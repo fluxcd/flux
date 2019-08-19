@@ -26,8 +26,8 @@ func TestSync(t *testing.T) {
 	parser := kubernetes.NewManifests(kubernetes.ConstNamespacer("default"), log.NewLogfmtLogger(os.Stdout))
 	clus := &syncCluster{map[string]string{}}
 
-	dirs := checkout.ManifestDirs()
-	rs := manifests.NewRawFiles(checkout.Dir(), checkout.ManifestDirs(), parser)
+	dirs := checkout.AbsolutePaths()
+	rs := manifests.NewRawFiles(checkout.Dir(), dirs, parser)
 	resources, err := rs.GetAllResourcesByID(context.TODO())
 	if err != nil {
 		t.Fatal(err)
@@ -42,7 +42,6 @@ func TestSync(t *testing.T) {
 // ---
 
 var gitconf = git.Config{
-	SyncTag:   "test-sync",
 	NotesRef:  "test-notes",
 	UserName:  "testuser",
 	UserEmail: "test@example.com",

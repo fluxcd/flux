@@ -114,7 +114,8 @@ create a new deploy key. To create a new one, use
     fluxctl identity --regenerate
 
 The public key this outputs can then be given to GitHub; make sure you
-check the box to allow write access.
+check the box to allow write access unless you're using the
+--git-readonly=true option.
 
 `,
 	}
