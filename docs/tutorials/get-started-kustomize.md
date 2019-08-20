@@ -149,13 +149,11 @@ curl localhost:9898
 
 Notice the updated `message` value in the JSON reply.
 
-## Conclusion
+## Next steps
 
-As you can see, the actual steps to set up Flux, get our app
-deployed, give Flux access to it and see modifications land are
-very straight-forward and are a quite natural work-flow.
+Try out [flux-kustomize-example](https://github.com/weaveworks/flux-kustomize-example)
+for using Flux with Kustomize to manage
+a staging and production clusters while minimizing duplicated declarations.
 
-As a next step, you might want to dive deeper into [how to
-control Flux](../references/fluxctl.md), or go through our
-hands-on tutorial about driving Flux, e.g.
-[automations, annotations and locks](driving-flux.md).
+Try out [fluxcd/multi-tenancy](https://github.com/fluxcd/multi-tenancy)
+for using Flux with Kustomize to manage a multi-tenant cluster.

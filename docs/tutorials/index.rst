@@ -9,5 +9,5 @@ Tutorials
 
    get-started
    get-started-helm
-   driving-flux
    get-started-kustomize
+   driving-flux
