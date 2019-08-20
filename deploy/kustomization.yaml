@@ -1,0 +1,6 @@
+resources:
+  - memcache-svc.yaml
+  - memcache-dep.yaml
+  - flux-account.yaml
+  - flux-secret.yaml
+  - flux-deployment.yaml
