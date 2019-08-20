@@ -70,6 +70,7 @@ parameter to point to the config repository
 (replace `YOURUSER` with your GitHub username):
 
 ```sh
+export GHUSER="YOURUSER"
 cat > fluxcd/patch.yaml <<EOF
 apiVersion: apps/v1
 kind: Deployment
@@ -84,12 +85,12 @@ spec:
             - --manifest-generation=true
             - --memcached-hostname=memcached.fluxcd
             - --memcached-service=
-            - --git-poll-interval=5m
-            - --sync-interval=5m
             - --ssh-keygen-dir=/var/fluxd/keygen
             - --git-branch=master
             - --git-path=namespaces,workloads
-            - --git-url=git@github.com:YOURUSER/flux-get-started
+            - --git-user=${GHUSER}
+            - --git-email=${GHUSER}@users.noreply.github.com
+            - --git-url=git@github.com:${GHUSER}/flux-get-started
 EOF
 ```
 
