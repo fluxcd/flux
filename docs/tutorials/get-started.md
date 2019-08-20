@@ -32,44 +32,83 @@ extra privileges:
 
 ## Set up Flux
 
-Get Flux:
-
-```sh
-git clone https://github.com/fluxcd/flux
-cd flux
-```
-
-Now you can go ahead and edit Flux's deployment manifest. At the very
-least you will have to change the `--git-url` parameter to point to
-the config repository for the workloads you want Flux to deploy for
-you. You are going to need access to this repository.
-
-```sh
-$EDITOR deploy/flux-deployment.yaml
-```
-
+First you'll need a git repository to store your cluster desired state.
 In our example we are going to use [`fluxcd/flux-get-started`](https://github.com/fluxcd/flux-get-started).
-If you want to use that too, be sure to create a fork of it on GitHub
-and add the git URL to the config file above. After that, set the
-`--git-path` flag to `--git-path=namespaces,workloads`, this is meant
-to exclude Helm manifests. Again, if you want to get started with Helm,
-please refer to the ["Get started with Flux using Helm"](get-started-helm.md)
-tutorial.
+If you want to use that too, be sure to create a fork of it on GitHub.
+
+Create a directory and add the `fluxcd` namespace definition to it:
+
+```sh
+mkdir fluxcd
+
+cat > fluxcd/namespace.yaml <<EOF
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: fluxcd
+EOF
+```
+
+Create a kustomization file and use the Flux deploy YAMLs as base:
+
+```sh
+cat > fluxcd/kustomization.yaml <<EOF
+namespace: fluxcd
+bases:
+ - github.com/fluxcd/flux//deploy
+patchesStrategicMerge:
+  - patch.yaml
+EOF
+```
+
+> **Note:** If you want to install a specific Flux release,
+> add the version number to the base URL:
+> `github.com/fluxcd/flux//deploy?ref=v1.14.0`
+
+Create a patch file for Flux deployment and set the `--git-url`
+parameter to point to the config repository
+(replace `YOURUSER` with your GitHub username):
+
+```sh
+cat > fluxcd/patch.yaml <<EOF
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: flux
+spec:
+  template:
+    spec:
+      containers:
+        - name: flux
+          args:
+            - --manifest-generation=true
+            - --memcached-hostname=memcached.fluxcd
+            - --memcached-service=
+            - --git-poll-interval=5m
+            - --sync-interval=5m
+            - --ssh-keygen-dir=/var/fluxd/keygen
+            - --git-branch=master
+            - --git-path=namespaces,workloads
+            - --git-url=git@github.com:YOURUSER/flux-get-started
+EOF
+```
+
+We set `--git-path=namespaces,workloads` to exclude Helm manifests.
+If you want to get started with Helm, please refer to the
+["Get started with Flux using Helm"](get-started-helm.md) tutorial.
 
 ## Deploying Flux to the cluster
 
-In the next step, deploy Flux to the cluster:
+In the next step, deploy Flux to the cluster (you'll need kubectl **1.14** or newer):
 
 ```sh
-kubectl apply -f deploy
+kubectl apply -k fluxcd
 ```
 
-Allow some time for all containers to get up and running. If you're
-impatient, run the following command and see the pod creation
-process.
+Wait for Flux to start:
 
 ```sh
-watch kubectl get pods --all-namespaces
+kubectl -n fluxcd rollout status deployment/flux
 ```
 
 ## Giving write access
@@ -79,7 +118,7 @@ the SSH public key by installing [fluxctl](../references/fluxctl.md) and
 running:
 
 ```sh
-fluxctl identity
+fluxctl --k8s-fwd-ns=fluxcd identity
 ```
 
 In order to sync your cluster state with git you need to copy the
@@ -106,22 +145,20 @@ paste the key there.)
 
 In this example we are using a simple example of a webservice and
 change its configuration to use a different message. The easiest
-way is to edit your fork of `flux-get-started` and change the `PODINFO_UI_COLOR` env var to `blue`.
+way is to edit your fork of `flux-get-started` and change the
+`PODINFO_UI_MESSAGE` env var to `Welcome to Flux`.
 
 Replace `YOURUSER` in
 `https://github.com/YOURUSER/flux-get-started/blob/master/workloads/podinfo-dep.yaml`
 with your GitHub ID), open the URL in your browser, edit the file,
 change the env var value and commit the file.
 
-You can check out the Flux logs with:
+By default, Flux git pull frequency is set to 5 minutes.
+You can tell Flux to sync the changes immediately with:
 
 ```sh
-kubectl -n default logs deployment/flux -f
+fluxctl --k8s-fwd-ns=fluxcd sync
 ```
-
-The default sync frequency is 5 minutes. This can be tweaked easily.
-By observing the logs you can see when the change landed in in the
-cluster.
 
 ## Confirm the change landed
 
@@ -133,7 +170,7 @@ kubectl -n demo port-forward deployment/podinfo 9898:9898 &
 curl localhost:9898
 ```
 
-Notice the updated `color` value in the JSON reply.
+Notice the updated `message` value in the JSON reply.
 
 ## Conclusion
 
