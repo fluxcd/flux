@@ -162,7 +162,7 @@ func (opts *workloadReleaseOpts) RunE(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	result, err := awaitJob(ctx, opts.API, jobID)
+	result, err := awaitJob(ctx, opts.API, jobID, opts.Timeout)
 	if err != nil {
 		return err
 	}
@@ -188,7 +188,7 @@ func (opts *workloadReleaseOpts) RunE(cmd *cobra.Command, args []string) error {
 		opts.dryRun = false
 	}
 
-	err = await(ctx, cmd.OutOrStdout(), cmd.OutOrStderr(), opts.API, jobID, !opts.dryRun, opts.verbosity)
+	err = await(ctx, cmd.OutOrStdout(), cmd.OutOrStderr(), opts.API, jobID, !opts.dryRun, opts.verbosity, opts.Timeout)
 	if !opts.watch || err != nil {
 		return err
 	}

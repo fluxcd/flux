@@ -120,7 +120,7 @@ func (opts *workloadPolicyOpts) RunE(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	return await(ctx, cmd.OutOrStdout(), cmd.OutOrStderr(), opts.API, jobID, false, opts.verbosity)
+	return await(ctx, cmd.OutOrStdout(), cmd.OutOrStderr(), opts.API, jobID, false, opts.verbosity, opts.Timeout)
 }
 
 func calculatePolicyChanges(opts *workloadPolicyOpts) (resource.PolicyUpdate, error) {

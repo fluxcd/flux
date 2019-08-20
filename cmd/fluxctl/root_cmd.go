@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -23,6 +24,7 @@ type rootOpts struct {
 	Namespace string
 	Labels    map[string]string
 	API       api.Server
+	Timeout   time.Duration
 }
 
 func newRoot() *rootOpts {
@@ -50,12 +52,13 @@ Workflow:
 `)
 
 const (
+	defaultURLGivenToken  = "https://cloud.weave.works/api/flux"
 	envVariableURL        = "FLUX_URL"
 	envVariableNamespace  = "FLUX_FORWARD_NAMESPACE"
 	envVariableLabels     = "FLUX_FORWARD_LABELS"
 	envVariableToken      = "FLUX_SERVICE_TOKEN"
 	envVariableCloudToken = "WEAVE_CLOUD_TOKEN"
-	defaultURLGivenToken  = "https://cloud.weave.works/api/flux"
+	envVariableTimeout    = "FLUX_TIMEOUT"
 )
 
 func (opts *rootOpts) Command() *cobra.Command {
@@ -75,7 +78,8 @@ func (opts *rootOpts) Command() *cobra.Command {
 		fmt.Sprintf("Base URL of the Flux API (defaults to %q if a token is provided); you can also set the environment variable %s", defaultURLGivenToken, envVariableURL))
 	cmd.PersistentFlags().StringVarP(&opts.Token, "token", "t", "",
 		fmt.Sprintf("Weave Cloud authentication token; you can also set the environment variable %s or %s", envVariableCloudToken, envVariableToken))
-
+	cmd.PersistentFlags().DurationVar(&opts.Timeout, "timeout", 60*time.Second,
+		fmt.Sprintf("Global command timeout; you can also set the environment variable %s", envVariableTimeout))
 	cmd.AddCommand(
 		newVersionCommand(),
 		newImageList(opts).Command(),
@@ -108,6 +112,7 @@ func (opts *rootOpts) PersistentPreRunE(cmd *cobra.Command, _ []string) error {
 	setFromEnvIfNotSet(cmd.Flags(), "k8s-fwd-labels", envVariableLabels)
 	setFromEnvIfNotSet(cmd.Flags(), "token", envVariableToken, envVariableCloudToken)
 	setFromEnvIfNotSet(cmd.Flags(), "url", envVariableURL)
+	setFromEnvIfNotSet(cmd.Flags(), "timeout", envVariableTimeout)
 
 	if opts.Token != "" && opts.URL == "" {
 		opts.URL = defaultURLGivenToken

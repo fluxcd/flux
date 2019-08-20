@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/weaveworks/flux/http/client"
@@ -24,6 +25,7 @@ func mockServiceOpts(trip *genericMockRoundTripper) *rootOpts {
 	mockAPI := client.New(&c, transport.NewAPIRouter(), "", "")
 	return &rootOpts{
 		API: mockAPI,
+		Timeout: 10*time.Second,
 	}
 }
 
@@ -73,9 +75,9 @@ func testArgs(t *testing.T, args []string, shouldErr bool, errMsg string) *gener
 	cmd.SetArgs(args)
 	if err := cmd.Execute(); (err == nil) == shouldErr {
 		if errMsg != "" {
-			t.Fatal(errMsg)
+			t.Fatalf("%s: %s", args, errMsg)
 		} else {
-			t.Fatal(err)
+			t.Fatalf("%s: %v", args, err)
 		}
 	}
 	return svc
