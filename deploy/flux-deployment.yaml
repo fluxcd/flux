@@ -7,7 +7,7 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      name: flux
+      app: flux
   strategy:
     type: Recreate
   template:
@@ -15,7 +15,7 @@ spec:
       annotations:
         prometheus.io/port: "3031" # tell prometheus to scrape /metrics endpoint's port.
       labels:
-        name: flux
+        app: flux
     spec:
       serviceAccountName: flux
       volumes:
