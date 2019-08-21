@@ -1,3 +1,16 @@
+## 0.13.0 (2019-08-21)
+
+### Improvements
+
+**Note** The Flux chart is now hosted at `https://charts.fluxcd.io`
+
+ - Updated Flux to `1.14.0`
+   [fluxcd/flux#2380](https://github.com/fluxcd/flux/pull/2380)
+ - Add `git.readonly` option to chart
+   [fluxcd/flux#1807](https://github.com/fluxcd/flux/pull/1807)
+ - Helm chart repository has been changed to `charts.fluxcd.io`
+   [fluxcd/flux#2341](https://github.com/fluxcd/flux/pull/2341)
+
 ## 0.12.0 (2019-08-08)
 
 ### Improvements
