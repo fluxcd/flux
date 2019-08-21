@@ -65,7 +65,10 @@ the SSH public key by installing [`fluxctl`](../references/fluxctl.md) and
 running:
 
 ```sh
-fluxctl identity
+fluxctl \
+--k8s-fwd-ns=flux \
+--k8s-fwd-labels=name=flux \
+identity
 ```
 
 In order to sync your cluster state with git you need to copy the
@@ -103,7 +106,10 @@ By default, Flux git pull frequency is set to 5 minutes.
 You can tell Flux to sync the changes immediately with:
 
 ```sh
-fluxctl sync
+fluxctl \
+--k8s-fwd-ns=flux \
+--k8s-fwd-labels=name=flux \
+sync
 ```
 
 ## Confirm the change landed
