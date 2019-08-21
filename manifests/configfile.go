@@ -103,7 +103,7 @@ func (cf *ConfigFile) ExecGenerators(ctx context.Context, generators []Generator
 			Error:  err,
 		}
 		result = append(result, r)
-		// Stop exectuing on the first command error
+		// Stop executing on the first command error
 		if err != nil {
 			break
 		}
