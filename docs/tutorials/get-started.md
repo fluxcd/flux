@@ -16,7 +16,7 @@ will work as well though.
 
 ### A note on GKE with RBAC enabled
 
-If working on e.g. GKE with RBAC enabled, you will need to add a clusterrolebinding:
+If working on e.g. GKE with RBAC enabled, you will need to add a `ClusterRoleBinding`:
 
 ```sh
 kubectl create clusterrolebinding "cluster-admin-$(whoami)" --clusterrole=cluster-admin --user="$(gcloud config get-value core/account)"
@@ -32,37 +32,21 @@ extra privileges:
 
 ## Set up Flux
 
-Get Flux:
+In our example we are going to use
+[flux-get-started](https://github.com/fluxcd/flux-get-started). If you
+want to use that too, be sure to create a fork of it on GitHub.
+
+First, please [install `fluxctl`](../references/fluxctl.md).
+
+Then, install flux in your Cluster:
 
 ```sh
-git clone https://github.com/fluxcd/flux
-cd flux
+fluxctl install --git-url=git@github.com/<your-user>/flux-get-started --git-path=namespaces,workloads --git-email=someone@domain.com | kubectl apply -f -
 ```
 
-Now you can go ahead and edit Flux's deployment manifest. At the very
-least you will have to change the `--git-url` parameter to point to
-the config repository for the workloads you want Flux to deploy for
-you. You are going to need access to this repository.
-
-```sh
-$EDITOR deploy/flux-deployment.yaml
-```
-
-In our example we are going to use [`fluxcd/flux-get-started`](https://github.com/fluxcd/flux-get-started).
-If you want to use that too, be sure to create a fork of it on GitHub
-and add the git URL to the config file above. After that, set the
-`--git-path` flag to `--git-path=namespaces,workloads`, this is meant
-to exclude Helm manifests. Again, if you want to get started with Helm,
-please refer to the ["Get started with Flux using Helm"](get-started-helm.md)
-tutorial.
-
-## Deploying Flux to the cluster
-
-In the next step, deploy Flux to the cluster:
-
-```sh
-kubectl apply -f deploy
-```
+`--git-path=namespaces,workloads`, is meant to exclude Helm
+manifests. Again, if you want to get started with Helm, please refer to the
+[Helm section](get-started-helm.md).
 
 Allow some time for all containers to get up and running. If you're
 impatient, run the following command and see the pod creation
@@ -75,7 +59,7 @@ watch kubectl get pods --all-namespaces
 ## Giving write access
 
 At startup Flux generates a SSH key and logs the public key. Find
-the SSH public key by installing [fluxctl](../references/fluxctl.md) and
+the SSH public key by installing [`fluxctl`](../references/fluxctl.md) and
 running:
 
 ```sh
