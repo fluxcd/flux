@@ -42,6 +42,8 @@ Create a kustomization file and use the Flux deploy YAMLs as base:
 ```sh
 cat > fluxcd/kustomization.yaml <<EOF
 namespace: flux
+resources:
+  - namespace.yaml
 bases:
  - github.com/fluxcd/flux//deploy
 patchesStrategicMerge:
