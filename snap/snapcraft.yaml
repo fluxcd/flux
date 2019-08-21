@@ -38,7 +38,7 @@ parts:
     plugin: nil
     override-build: |
       export GOBIN=$SNAPCRAFT_PART_INSTALL/bin
-      go build ./cmd/fluxctl
+      go build -o $GOBIN/fluxctl ./cmd/fluxctl
     build-environment:
       - GO111MODULE: 'on'
       - CGO_ENABLED: '0'
