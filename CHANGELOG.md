@@ -1,3 +1,150 @@
+## 1.14.0 (2019-08-21)
+
+This feature release adds a read-only mode to the Flux daemon, adds
+support for mapping images in `HelmRelease` resources using YAML dot
+notation annotations, eases the deployment of Flux with a new `fluxctl
+install` command which generates the required YAML manifests, lots of
+documentation improvements, and many more.
+
+### Fixes
+
+- Fetch before branch check to detect upstream changes made after the
+  initial clone
+  [fluxcd/flux#2371][]
+
+### Enhancements
+
+- With `--git-readonly`, `fluxd` can now sync a git repo without having
+  write access to it. In this mode, `fluxd` will not make any commits
+  to the repo.
+  [fluxcd/flux#1807][]
+- Mapping images in `HelmRelease resources` using YAML dot notation
+  annotations is now supported
+  [fluxcd/flux#2249][]
+- `fluxctl` has a new `install` command to ease generating the YAML
+  manifests required to deploy Flux
+  [fluxcd/flux#2287][]
+- Kubectl and Kustomize have been upgraded
+  - `kubectl` -> `1.13.8` [fluxcd/flux#2327][]
+  - `kustomize` -> `3.1.0` [fluxcd/flux#2299][]
+- The annotation domain has been changed to `fluxcd.io`, but backwards
+  compatibility with the old (`flux.weave.works`) domain is maintained
+  [fluxcd/flux#2219][]
+- The number of sorts done by `ListImagesWithOptions` has been reduced
+  [fluxcd/flux#2338][]
+- `fluxctl` will only look for running `fluxcd` pods while attempting
+  to setup a port forward
+  [fluxcd/flux#2283][]
+- `--registry-poll-interval` has been renamed to `--automation-interval`
+  to better reflect what it controls; the interval at which automated
+  workloads are checked for updates, and updated.
+  [fluxcd/flux#2284][]
+- `fluxctl` now has a global `--timeout` flag, which controls how long
+  it waits for jobs sent to `fluxd` to complete
+  [fluxcd/flux#2056][]
+
+### Maintenance and documentation
+
+- Documentation is now hosted on ReadTheDocs
+  [fluxcd/flux#2152][]
+- Helm Operator has been removed from the codebase, as it has been moved
+  to a dedicated repository (`fluxcd/helm-operator`)
+  fluxcd/flux{[#2329][fluxcd/flux#2329], [#2356][fluxcd/flux#2356]}
+- Documentation on how to use `fluxctl install` has been added
+  [fluxcd/flux#2298][]
+- Reference about automated image updates has been added to the
+  documentation
+  [fluxcd/flux#2369][]
+- Documentation has been added on how to deploy Flux with Kustomize
+  [fluxcd/flux#2375][]
+- CLVR, IBM Cloudant, Omise, Replicated, and Yusofleet are now listed as
+  production users (:tada:!)
+  fluxcd/flux{[#2331][fluxcd/flux#2331], [#2343][fluxcd/flux#2342], [#2360][fluxcd/flux#2360], [#2373][fluxcd/flux#2373], [#2378][fluxcd/flux#2378]}
+- Various changes to the documentation
+  fluxcd/flux{[#2306][fluxcd/flux#2306], [#2311][fluxcd/flux#2311], [#2313][fluxcd/flux#2313], [#2314][fluxcd/flux#2314],
+    [#2315][fluxcd/flux#2315], [#2332][fluxcd/flux#2332], [#2351][fluxcd/flux#2351], [#2353][fluxcd/flux#2353],
+    [#2358][fluxcd/flux#2358], [#2363][fluxcd/flux#2363], [#2364][fluxcd/flux#2364], [#2365][fluxcd/flux#2365],
+    [#2367][fluxcd/flux#2367], [#2368][fluxcd/flux#2368], [#2372][fluxcd/flux#2372]}
+- Soon-to-be deprecated version script has been removed from the Snapcraft
+  build configuration
+  [fluxcd/flux#2350][]
+- Various typos have been fixed
+  fluxcd/flux{[#2348][fluxcd/flux#2348], [#2352][fluxcd/flux#2352], [#2295][fluxcd/flux#2295]}
+- Various CI build tweaks (i.a. support preleases containing numbers, Go
+  tarball cleanup after installation, Helm chart release changes)
+  fluxcd/flux{[#2301][fluxcd/flux#2301], [#2302][fluxcd/flux#2302], [#2312][fluxcd/flux#2312], [#2320][fluxcd/flux#2320], 
+    [#2336][fluxcd/flux#2336], [#2349][fluxcd/flux#2349], [#2361][fluxcd/flux#2361]}
+- Helm chart repository has been changed to `charts.fluxcd.io`
+  fluxcd/flux{[#2337][fluxcd/flux#2337], [#2339][fluxcd/flux#2339], [#2341][fluxcd/flux#2341]}
+  
+### Thanks
+
+Many thanks for contributions from @2opremio, @AndriiOmelianenko,
+@GODBS, @JDavis10213, @MehrCurry, @Sleepy-GH, @adusumillipraveen,
+@ainmosni, @alanjcastonguay, @aliartiza75, @autarchprinceps,
+@benmathews, @blancsys, @carlosjgp, @cristian-radu, @cristian04,
+@davidkarlsen, @dcherman, @demisx, @derrickburns, @dholbach,
+@ethan-daocloud, @fred, @gldraphael, @hiddeco, @hlascelles, @ianmiell,
+@ilya-spv, @jacobsin, @judewin-alef, @jwenz723, @kaspernissen,
+@knackaron, @ksaritek, @larhauga, @laverya, @linuxbsdfreak,
+@luxas, @matthewbednarski, @mhumeSF, @mzachh, @nabadger, @obiesmans,
+@ogerbron, @onedr0p, @paulmil1, @primeroz, @rhockenbury, @runningman84,
+@rytswd, @semyonslepov, @squaremo, @stealthybox, @stefanprodan,
+@stefansedich, @suvl, @tjanson, @tomaszkiewicz, @tomcheah, @tschonnie,
+@ttarczynski, @willholley, @yellowmegaman, @zcourt.
+  
+[fluxcd/flux#1807]: https://github.com/fluxcd/flux/pull/1807
+[fluxcd/flux#2056]: https://github.com/fluxcd/flux/pull/2056
+[fluxcd/flux#2152]: https://github.com/fluxcd/flux/pull/2152
+[fluxcd/flux#2219]: https://github.com/fluxcd/flux/pull/2219
+[fluxcd/flux#2249]: https://github.com/fluxcd/flux/pull/2249
+[fluxcd/flux#2283]: https://github.com/fluxcd/flux/pull/2283
+[fluxcd/flux#2284]: https://github.com/fluxcd/flux/pull/2284
+[fluxcd/flux#2287]: https://github.com/fluxcd/flux/pull/2287
+[fluxcd/flux#2295]: https://github.com/fluxcd/flux/pull/2295
+[fluxcd/flux#2298]: https://github.com/fluxcd/flux/pull/2298
+[fluxcd/flux#2299]: https://github.com/fluxcd/flux/pull/2299
+[fluxcd/flux#2301]: https://github.com/fluxcd/flux/pull/2301
+[fluxcd/flux#2302]: https://github.com/fluxcd/flux/pull/2302
+[fluxcd/flux#2306]: https://github.com/fluxcd/flux/pull/2306
+[fluxcd/flux#2311]: https://github.com/fluxcd/flux/pull/2311
+[fluxcd/flux#2312]: https://github.com/fluxcd/flux/pull/2312
+[fluxcd/flux#2313]: https://github.com/fluxcd/flux/pull/2313
+[fluxcd/flux#2314]: https://github.com/fluxcd/flux/pull/2314
+[fluxcd/flux#2315]: https://github.com/fluxcd/flux/pull/2315
+[fluxcd/flux#2320]: https://github.com/fluxcd/flux/pull/2320
+[fluxcd/flux#2327]: https://github.com/fluxcd/flux/pull/2327
+[fluxcd/flux#2329]: https://github.com/fluxcd/flux/pull/2329
+[fluxcd/flux#2331]: https://github.com/fluxcd/flux/pull/2331
+[fluxcd/flux#2332]: https://github.com/fluxcd/flux/pull/2332
+[fluxcd/flux#2336]: https://github.com/fluxcd/flux/pull/2336
+[fluxcd/flux#2337]: https://github.com/fluxcd/flux/pull/2337
+[fluxcd/flux#2338]: https://github.com/fluxcd/flux/pull/2338
+[fluxcd/flux#2339]: https://github.com/fluxcd/flux/pull/2339
+[fluxcd/flux#2341]: https://github.com/fluxcd/flux/pull/2341
+[fluxcd/flux#2342]: https://github.com/fluxcd/flux/pull/2342
+[fluxcd/flux#2348]: https://github.com/fluxcd/flux/pull/2348
+[fluxcd/flux#2349]: https://github.com/fluxcd/flux/pull/2349
+[fluxcd/flux#2350]: https://github.com/fluxcd/flux/pull/2350
+[fluxcd/flux#2351]: https://github.com/fluxcd/flux/pull/2351
+[fluxcd/flux#2352]: https://github.com/fluxcd/flux/pull/2352
+[fluxcd/flux#2353]: https://github.com/fluxcd/flux/pull/2353
+[fluxcd/flux#2356]: https://github.com/fluxcd/flux/pull/2356
+[fluxcd/flux#2358]: https://github.com/fluxcd/flux/pull/2358
+[fluxcd/flux#2360]: https://github.com/fluxcd/flux/pull/2360
+[fluxcd/flux#2361]: https://github.com/fluxcd/flux/pull/2361
+[fluxcd/flux#2363]: https://github.com/fluxcd/flux/pull/2363
+[fluxcd/flux#2364]: https://github.com/fluxcd/flux/pull/2364
+[fluxcd/flux#2365]: https://github.com/fluxcd/flux/pull/2365
+[fluxcd/flux#2367]: https://github.com/fluxcd/flux/pull/2367
+[fluxcd/flux#2368]: https://github.com/fluxcd/flux/pull/2368
+[fluxcd/flux#2369]: https://github.com/fluxcd/flux/pull/2369
+[fluxcd/flux#2371]: https://github.com/fluxcd/flux/pull/2371
+[fluxcd/flux#2372]: https://github.com/fluxcd/flux/pull/2372
+[fluxcd/flux#2373]: https://github.com/fluxcd/flux/pull/2373
+[fluxcd/flux#2375]: https://github.com/fluxcd/flux/pull/2375
+[fluxcd/flux#2378]: https://github.com/fluxcd/flux/pull/2378
+
 ## 1.13.3 (2019-07-25)
 
 This is a patch release, mostly concerned with adapting documentation

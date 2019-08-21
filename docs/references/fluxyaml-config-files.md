@@ -101,7 +101,7 @@ commandUpdated:
       policy:
         command: >-
           cat flux-patch.yaml |
-          kubeyaml annotate --namespace $FLUX_WL_NS --kind $FLUX_WL_KIND --name $FLUX_WL_NAME "flux.weave.works/$FLUX_POLICY=$FLUX_POLICY_VALUE"
+          kubeyaml annotate --namespace $FLUX_WL_NS --kind $FLUX_WL_KIND --name $FLUX_WL_NAME "fluxcd.io/$FLUX_POLICY=$FLUX_POLICY_VALUE"
           > new-flux-patch.yaml &&
           mv new-flux-patch.yaml flux-patch.yaml
 ```
@@ -164,7 +164,7 @@ In addition, `updaters` are provided with some environment variables:
   * `FLUX_IMG`: Image name which the container needs to be updated to (e.g. `nginx`).
   * `FLUX_TAG`: Image tag which the container needs to be updated to (e.g. `1.15`).
 * `policy` updaters are provided with:
-  * `FLUX_POLICY`: the name of the policy to be added or updated in the workload. To make into an annotation name, prefix with `flux.weave.works/`
+  * `FLUX_POLICY`: the name of the policy to be added or updated in the workload. To make into an annotation name, prefix with `fluxcd.io/`
   * `FLUX_POLICY_VALUE`: value of the policy to be added or updated in the controller. If the `FLUX_POLICY_VALUE`
   environment variable is not set, it means the policy should be removed.
 

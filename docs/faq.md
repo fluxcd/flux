@@ -318,7 +318,7 @@ Yes. The easiest way to do that is to use the following annotation
 *in the manifest files*:
 
 ```yaml
-    flux.weave.works/ignore: true
+    fluxcd.io/ignore: true
 ```
 
 To stop ignoring these annotated resources, you simply remove the
@@ -338,7 +338,7 @@ If the annotation is just carried in the cluster, the easiest way
 to remove it is to run:
 
 ```sh
-kubectl annotate <resource> "flux.weave.works/ignore"-
+kubectl annotate <resource> "fluxcd.io/ignore"-
 ```
 
 Mixing both kinds of annotations (in-git and in-cluster), can make
