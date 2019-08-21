@@ -67,6 +67,7 @@ container images and config changes are propagated to the cluster.
 - [Qordoba](https://qordoba.com)
 - [Replicated](https://replicated.com)
 - [Rungway](https://rungway.com)
+- [Starbucks](https://www.starbucks.com/)
 - [Troii](https://troii.com/)
 - [Under Armour](https://www.underarmour.com)
 - [VSHN](https://vshn.ch)
