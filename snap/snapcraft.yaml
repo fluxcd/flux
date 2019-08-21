@@ -35,11 +35,18 @@ parts:
         snapcraftctl set-version "$FLUX_TAG+$GIT_REV"
         snapcraftctl set-grade devel
       fi
-    plugin: go
-    go-importpath: github.com/weaveworks/flux
+    plugin: nil
+    override-build: |
+      export GOBIN=$SNAPCRAFT_PART_INSTALL/bin
+      go build ./cmd/fluxctl
+    build-environment:
+      - GO111MODULE: 'on'
+      - CGO_ENABLED: '0'
     build-packages:
       - gcc
       - git
+    build-snaps:
+      - go/1.12/stable
     stage:
       - -bin/fluxd
       - -bin/helm-operator
