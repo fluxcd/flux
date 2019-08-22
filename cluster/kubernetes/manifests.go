@@ -30,7 +30,7 @@ type namespacer interface {
 
 // manifests is an implementation of cluster.Manifests, particular to
 // Kubernetes. Aside from loading manifests from files, it does some
-// "post-processsing" to make sure the view of the manifests is what
+// "post-processing" to make sure the view of the manifests is what
 // would be applied; in particular, it fills in the namespace of
 // manifests that would be given a default namespace when applied.
 type manifests struct {

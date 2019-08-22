@@ -26,7 +26,7 @@ type Manifests interface {
 	CreateManifestPatch(originalManifests, modifiedManifests []byte, originalSource, modifiedSource string) ([]byte, error)
 	// ApplyManifestPatch applies a manifest patch (obtained with CreateManifestDiff) returned the patched manifests
 	ApplyManifestPatch(originalManifests, patchManifests []byte, originalSource, patchSource string) ([]byte, error)
-	// AppendManifestToBuffer concatentates manifest bytes to a
+	// AppendManifestToBuffer concatenates manifest bytes to a
 	// (possibly empty) buffer of manifest bytes; the resulting bytes
 	// should be parsable by `ParseManifest`.
 	// TODO(michael) should really be an interface rather than `*bytes.Buffer`.
