@@ -29,6 +29,8 @@ fluxctl install --git-url 'git@github.com:<your username>/flux-get-started' | ku
 		"Git branch to be used by Flux")
 	cmd.Flags().StringSliceVarP(&opts.GitPaths, "git-paths", "", []string{},
 		"Relative paths within the Git repo for Flux to locate Kubernetes manifests")
+	cmd.Flags().StringSliceVarP(&opts.GitPaths, "git-path", "", []string{},
+		"Relative paths within the Git repo for Flux to locate Kubernetes manifests")
 	cmd.Flags().StringVarP(&opts.GitLabel, "git-label", "", "flux",
 		"Git label to keep track of Flux's sync progress; overrides both --git-sync-tag and --git-notes-ref")
 	cmd.Flags().StringVarP(&opts.GitUser, "git-user", "", "Flux",
@@ -37,6 +39,11 @@ fluxctl install --git-url 'git@github.com:<your username>/flux-get-started' | ku
 		"Email to use as git committer")
 	cmd.Flags().StringVarP(&opts.Namespace, "namespace", "", getKubeConfigContextNamespace("default"),
 		"Cluster namespace where to install flux")
+
+	// Hide and deprecate "git-paths", which was wrongly introduced since its inconsistent with fluxd's git-path flag
+	cmd.Flags().MarkHidden("git-paths")
+	cmd.Flags().MarkDeprecated("git-paths", "please use --git-path (no ending s) instead")
+
 	return cmd
 }
 
