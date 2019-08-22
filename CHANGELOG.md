@@ -1,3 +1,46 @@
+## 1.14.1 (2019-08-22)
+
+This is a patch release.
+
+### Fixes
+
+- Automated updates of auto detected images in `HelmRelease`
+  resources has been fixed
+  [fluxcd/flux#2400][]
+- `fluxctl install` `--git-paths` option has been replaced by
+  `--git-path`, to match the `fluxd` option, the `--git-paths` has
+  been deprecated but still works
+  [fluxcd/flux#2392][]
+- `fluxctl` port forward looks for a pod with one of the labels again,
+  instead of stopping when the first label did not return a result
+  [fluxcd/flux#2394][]  
+
+### Maintenance and documentation
+
+- Starbucks is now listed as production user (:tada:!)
+  [fluxcd/flux#2389][]
+- Various fixes to the installation documentation
+  fluxcd/flux{[#2384][fluxcd/flux#2384], [#2395][fluxcd/flux#2395]}
+- Snap build has been updated to work with Go Modules and Go `1.12.x`
+  [fluxcd/flux#2385][]
+- Typo fixes in code comments
+  [fluxcd/flux#2381][]
+  
+### Thanks
+
+Thanks @aliartiza75, @ethan-daocloud, @HighwayOfLife, @stefanprodan,
+@2opremio, @dhbolach, @mbridgen, @hiddeco for contributing to this
+release.
+ 
+[fluxcd/flux#2381]: https://github.com/fluxcd/flux/pull/2381
+[fluxcd/flux#2384]: https://github.com/fluxcd/flux/pull/2384
+[fluxcd/flux#2385]: https://github.com/fluxcd/flux/pull/2385
+[fluxcd/flux#2389]: https://github.com/fluxcd/flux/pull/2389
+[fluxcd/flux#2392]: https://github.com/fluxcd/flux/pull/2392
+[fluxcd/flux#2394]: https://github.com/fluxcd/flux/pull/2394
+[fluxcd/flux#2395]: https://github.com/fluxcd/flux/pull/2395
+[fluxcd/flux#2400]: https://github.com/fluxcd/flux/pull/2400
+
 ## 1.14.0 (2019-08-21)
 
 This feature release adds a read-only mode to the Flux daemon, adds
