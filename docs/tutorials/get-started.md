@@ -65,7 +65,7 @@ the SSH public key by installing [`fluxctl`](../references/fluxctl.md) and
 running:
 
 ```sh
-fluxctl identity
+fluxctl identity --k8s-fwd-ns flux
 ```
 
 In order to sync your cluster state with git you need to copy the
@@ -91,8 +91,7 @@ paste the key there.)
 ## Committing a small change
 
 In this example we are using a simple example of a webservice and
-change its configuration to use a different message. The easiest
-way is to edit your fork of `flux-get-started` and change the `PODINFO_UI_COLOR` env var to `blue`.
+change its configuration to use a different message.
 
 Replace `YOURUSER` in
 `https://github.com/YOURUSER/flux-get-started/blob/master/workloads/podinfo-dep.yaml`
@@ -103,7 +102,7 @@ By default, Flux git pull frequency is set to 5 minutes.
 You can tell Flux to sync the changes immediately with:
 
 ```sh
-fluxctl sync
+fluxctl sync --k8s-fwd-ns flux
 ```
 
 ## Confirm the change landed
