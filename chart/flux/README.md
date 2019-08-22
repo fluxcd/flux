@@ -158,7 +158,7 @@ Find the SSH public key by installing [fluxctl](https://docs.fluxcd.io/en/latest
 running:
 
 ```sh
-fluxctl identity
+fluxctl identity --k8s-fwd-ns flux
 ```
 
 In order to sync your cluster state with GitHub you need to copy the

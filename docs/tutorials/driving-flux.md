@@ -13,10 +13,16 @@ deployment](https://github.com/fluxcd/flux-get-started) and click on the
 
 First, please [install `fluxctl`](../references/fluxctl.md).
 
-Then, run
+Then, run (replace `YOURUSER` with your GitHub username):
 
 ```sh
-fluxctl install --git-url=git@github.com/<your-user>/flux-get-started --git-email=someone@domain.com | kubectl apply -f -
+export GHUSER="YOURUSER"
+fluxctl install \
+--git-user=${GHUSER} \
+--git-email=${GHUSER}@users.noreply.github.com \
+--git-url=git@github.com:${GHUSER}/flux-get-started \
+--git-paths=namespaces,workloads \
+--namespace=flux | kubectl apply -f -
 ```
 
 ### Alternative: Using Helm for the setup
@@ -89,6 +95,12 @@ interact with the deployments. (It enables you to drive all of Flux, so have a l
 at the resulting annotation changes and make the changes in Git. This is
 GitOps after all. :-)
 
+Tell fluxctl in which namespace is Flux installed
+
+```sh
+export FLUX_FORWARD_NAMESPACE=flux
+```
+
 To enable Flux to sync your config, you need to add the deployment key
 to your fork.
 
@@ -115,7 +127,7 @@ images are available and what needs doing. To find out which workloads are
 managed by Flux, run
 
 ```sh
-fluxctl list-workloads -a
+fluxctl list-workloads -a 
 ```
 
 Notice that `podinfo` is on `v1.3.2` and in state `automated`.
