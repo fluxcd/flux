@@ -224,6 +224,8 @@ registry:
     configFileName: /dockercfg/config.json
 
 memcached:
+  enabled: true
+  hostnameOverride:
   repository: memcached
   tag: 1.5.15
   pullSecret:
