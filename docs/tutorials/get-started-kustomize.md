@@ -42,6 +42,8 @@ Create a kustomization file and use the Flux deploy YAMLs as base:
 ```sh
 cat > fluxcd/kustomization.yaml <<EOF
 namespace: flux
+resources:
+  - namespace.yaml
 bases:
  - github.com/fluxcd/flux//deploy
 patchesStrategicMerge:
@@ -51,7 +53,7 @@ EOF
 
 > **Note:** If you want to install a specific Flux release,
 > add the version number to the base URL:
-> `github.com/fluxcd/flux//deploy?ref=v1.14.0`
+> `github.com/fluxcd/flux//deploy?ref=v1.14.1`
 
 Create a patch file for Flux deployment and set the `--git-url`
 parameter to point to the config repository
@@ -107,7 +109,7 @@ the SSH public key by installing [fluxctl](../references/fluxctl.md) and
 running:
 
 ```sh
-fluxctl identity
+fluxctl identity --k8s-fwd-ns flux
 ```
 
 In order to sync your cluster state with git you need to copy the
@@ -134,7 +136,7 @@ By default, Flux git pull frequency is set to 5 minutes.
 You can tell Flux to sync the changes immediately with:
 
 ```sh
-fluxctl sync
+fluxctl sync --k8s-fwd-ns flux
 ```
 
 ## Confirm the change landed

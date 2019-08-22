@@ -11,23 +11,15 @@ code changes for you.
 ## Prerequisites
 
 You will need to have Kubernetes set up. For a quick local test,
-you can use `minikube` or `kubeadm`. Any other Kubernetes setup
+you can use `minikube`, `kubeadm` or `kind`. Any other Kubernetes setup
 will work as well though.
-
-### A note on GKE with RBAC enabled
 
 If working on e.g. GKE with RBAC enabled, you will need to add a `ClusterRoleBinding`:
 
 ```sh
-kubectl create clusterrolebinding "cluster-admin-$(whoami)" --clusterrole=cluster-admin --user="$(gcloud config get-value core/account)"
-```
-
-to avoid an error along the lines of:
-
-```sh
-Error from server (Forbidden): error when creating "deploy/flux-account.yaml":
-clusterroles.rbac.authorization.k8s.io "flux" is forbidden: attempt to grant
-extra privileges:
+kubectl create clusterrolebinding "cluster-admin-$(whoami)" \
+--clusterrole=cluster-admin \
+--user="$(gcloud config get-value core/account)"
 ```
 
 ## Set up Flux
@@ -38,22 +30,32 @@ want to use that too, be sure to create a fork of it on GitHub.
 
 First, please [install `fluxctl`](../references/fluxctl.md).
 
-Then, install flux in your Cluster:
+Create the `flux` namespace:
 
 ```sh
-fluxctl install --git-url=git@github.com/<your-user>/flux-get-started --git-path=namespaces,workloads --git-email=someone@domain.com | kubectl apply -f -
+kubectl create ns flux
+```
+
+Then, install Flux in your cluster (replace `YOURUSER` with your GitHub username):
+
+```sh
+export GHUSER="YOURUSER"
+fluxctl install \
+--git-user=${GHUSER} \
+--git-email=${GHUSER}@users.noreply.github.com \
+--git-url=git@github.com:${GHUSER}/flux-get-started \
+--git-paths=namespaces,workloads \
+--namespace=flux | kubectl apply -f -
 ```
 
 `--git-path=namespaces,workloads`, is meant to exclude Helm
 manifests. Again, if you want to get started with Helm, please refer to the
 [Helm section](get-started-helm.md).
 
-Allow some time for all containers to get up and running. If you're
-impatient, run the following command and see the pod creation
-process.
+Wait for Flux to start:
 
 ```sh
-watch kubectl get pods --all-namespaces
+kubectl -n flux rollout status deployment/flux
 ```
 
 ## Giving write access
@@ -63,7 +65,7 @@ the SSH public key by installing [`fluxctl`](../references/fluxctl.md) and
 running:
 
 ```sh
-fluxctl identity
+fluxctl identity --k8s-fwd-ns flux
 ```
 
 In order to sync your cluster state with git you need to copy the
@@ -89,23 +91,19 @@ paste the key there.)
 ## Committing a small change
 
 In this example we are using a simple example of a webservice and
-change its configuration to use a different message. The easiest
-way is to edit your fork of `flux-get-started` and change the `PODINFO_UI_COLOR` env var to `blue`.
+change its configuration to use a different message.
 
 Replace `YOURUSER` in
 `https://github.com/YOURUSER/flux-get-started/blob/master/workloads/podinfo-dep.yaml`
 with your GitHub ID), open the URL in your browser, edit the file,
-change the env var value and commit the file.
+change the `PODINFO_UI_MESSAGE` env var to `Welcome to Flux` and commit the file.
 
-You can check out the Flux logs with:
+By default, Flux git pull frequency is set to 5 minutes.
+You can tell Flux to sync the changes immediately with:
 
 ```sh
-kubectl -n default logs deployment/flux -f
+fluxctl sync --k8s-fwd-ns flux
 ```
-
-The default sync frequency is 5 minutes. This can be tweaked easily.
-By observing the logs you can see when the change landed in in the
-cluster.
 
 ## Confirm the change landed
 
@@ -117,7 +115,7 @@ kubectl -n demo port-forward deployment/podinfo 9898:9898 &
 curl localhost:9898
 ```
 
-Notice the updated `color` value in the JSON reply.
+Notice the updated `message` value in the JSON reply.
 
 ## Conclusion
 
