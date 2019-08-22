@@ -168,7 +168,7 @@ spec:
           {{end}}
           - --ssh-keygen-dir=/var/fluxd/keygen
           - --k8s-secret-name={{ .Values.git.secretName | default (printf "%s-git-deploy" (include "flux.fullname" .)) }}
-          - --memcached-hostname={{ template "flux.fullname" . }}-memcached
+          - --memcached-hostname={{ .Values.memcached.hostnameOverride | default (printf "%s-memcached" (include "flux.fullname" .)) }}
           - --sync-state={{ .Values.sync.state }}
           {{- if .Values.memcached.createClusterIP }}
           - --memcached-service=
