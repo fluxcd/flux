@@ -1,3 +1,12 @@
+## 0.14.0 (2019-08-22)
+
+### Improvements
+
+ - Updated Flux to `1.14.1`
+   [fluxcd/flux#2401](https://github.com/fluxcd/flux/pull/2401)
+ - Add the ability to disable memcached and set an external memcached service
+   [fluxcd/flux#2393](https://github.com/fluxcd/flux/pull/2393)
+
 ## 0.13.0 (2019-08-21)
 
 ### Improvements
