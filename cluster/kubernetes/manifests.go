@@ -145,18 +145,18 @@ func (m *manifests) SetWorkloadContainerImage(def []byte, id resource.ID, contai
 	// map for the given container to perform an update based on mapped YAML
 	// dot notation paths. If resolving the map fails (either because there
 	// is no map for the given container, or the mapping does not resolve
-	// in to a valid image ref), it returns the error.
+	// in to a valid image ref), it falls through and attempts to update
+	// using just the container name (as it must origin from an automated
+	// detection).
 	//
 	// NB: we do this here and not in e.g. the `resource` package, to ensure
 	// everything _outside_ this package only knows about Kubernetes native
 	// containers, and not the dot notation YAML paths we invented for custom
 	// Helm value structures.
 	if hr, ok := res.(*kresource.HelmRelease); ok {
-		paths, err := hr.GetContainerImageMap(container)
-		if err != nil {
-			return nil, err
+		if paths, err := hr.GetContainerImageMap(container); err == nil {
+			return updateWorkloadImagePaths(def, id, paths, image)
 		}
-		return updateWorkloadImagePaths(def, id, paths, image)
 	}
 	return updateWorkloadContainer(def, id, container, image)
 }
