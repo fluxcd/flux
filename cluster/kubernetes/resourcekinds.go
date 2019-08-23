@@ -509,7 +509,7 @@ func (hr *helmReleaseKind) getWorkloads(ctx context.Context, c *Cluster, namespa
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	names := make(map[string]bool, 0)
+	names := make(map[string]bool)
 	workloads := make([]workload, 0)
 	if helmReleases, err := c.client.HelmV1().HelmReleases(namespace).List(meta_v1.ListOptions{}); err == nil {
 		for i, _ := range helmReleases.Items {
