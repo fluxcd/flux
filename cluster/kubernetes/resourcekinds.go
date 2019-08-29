@@ -488,7 +488,7 @@ func (hr *helmReleaseKind) getWorkload(ctx context.Context, c *Cluster, namespac
 	if err := ctx.Err(); err != nil {
 		return workload{}, err
 	}
-	if helmRelease, err := c.client.HelmV1().HelmReleases(name).Get(name, meta_v1.GetOptions{}); err == nil {
+	if helmRelease, err := c.client.HelmV1().HelmReleases(namespace).Get(name, meta_v1.GetOptions{}); err == nil {
 		return makeHelmReleaseStableWorkload(helmRelease), err
 	}
 	helmRelease, err := c.client.FluxV1beta1().HelmReleases(namespace).Get(name, meta_v1.GetOptions{})
