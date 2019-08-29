@@ -8,6 +8,7 @@ require (
 	github.com/aws/aws-sdk-go v1.19.11
 	github.com/bradfitz/gomemcache v0.0.0-20190329173943-551aad21a668
 	github.com/docker/distribution v0.0.0-00010101000000-000000000000
+	github.com/docker/go-metrics v0.0.1 // indirect
 	github.com/evanphx/json-patch v4.1.0+incompatible
 	github.com/fluxcd/helm-operator v1.0.0-rc1
 	github.com/ghodss/yaml v1.0.0
@@ -19,11 +20,12 @@ require (
 	github.com/imdario/mergo v0.3.7
 	github.com/instrumenta/kubeval v0.0.0-20190804145309-805845b47dfc
 	github.com/justinbarrick/go-k8s-portforward v1.0.4-0.20190722134107-d79fe1b9d79d
+	github.com/modern-go/reflect2 v1.0.1 // indirect
 	github.com/opencontainers/go-digest v1.0.0-rc1
 	github.com/opentracing-contrib/go-stdlib v0.0.0-20190519235532-cf7a6c988dc9 // indirect
 	github.com/pkg/errors v0.8.1
 	github.com/pkg/term v0.0.0-20190109203006-aa71e9d9e942
-	github.com/prometheus/client_golang v0.9.3-0.20190127221311-3c4408c8b829
+	github.com/prometheus/client_golang v1.1.0
 	github.com/ryanuber/go-glob v1.0.0
 	github.com/shurcooL/httpfs v0.0.0-20190707220628-8d4bc4ba7749
 	github.com/shurcooL/vfsgen v0.0.0-20181202132449-6a9ea43bcacd
@@ -33,7 +35,7 @@ require (
 	github.com/weaveworks/common v0.0.0-20190410110702-87611edc252e
 	github.com/weaveworks/go-checkpoint v0.0.0-20170503165305-ebbb8b0518ab
 	github.com/whilp/git-urls v0.0.0-20160530060445-31bac0d230fa
-	golang.org/x/sys v0.0.0-20190616124812-15dcb6c0061f
+	golang.org/x/sys v0.0.0-20190801041406-cbf593c0f2f3
 	golang.org/x/time v0.0.0-20190308202827-9d24e82272b4
 	gopkg.in/yaml.v2 v2.2.2
 	k8s.io/api v0.0.0-20190313235455-40a48860b5ab

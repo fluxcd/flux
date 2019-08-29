@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -167,6 +168,7 @@ func main() {
 		k8sSecretDataKey         = fs.String("k8s-secret-data-key", "identity", "data key holding the private SSH key within the k8s secret")
 		k8sNamespaceWhitelist    = fs.StringSlice("k8s-namespace-whitelist", []string{}, "experimental, optional: restrict the view of the cluster to the namespaces listed. All namespaces are included if this is not set")
 		k8sAllowNamespace        = fs.StringSlice("k8s-allow-namespace", []string{}, "experimental: restrict all operations to the provided namespaces")
+		k8sVerbosity             = fs.Int("k8s-verbosity", 0, "klog verbosity level")
 
 		// SSH key generation
 		sshKeyBits   = optionalVar(fs, &ssh.KeyBitsValue{}, "ssh-keygen-bits", "-b argument to ssh-keygen (default unspecified)")
@@ -201,7 +203,9 @@ func main() {
 
 	// Explicitly initialize klog to enable stderr logging,
 	// and parse our own flags.
-	klog.InitFlags(nil)
+	klogFlags := flag.NewFlagSet("klog", flag.ExitOnError)
+	klog.InitFlags(klogFlags)
+
 	err := fs.Parse(os.Args[1:])
 	switch {
 	case err == pflag.ErrHelp:
@@ -213,6 +217,13 @@ func main() {
 	case *versionFlag:
 		fmt.Println(version)
 		os.Exit(0)
+	}
+
+	// set klog verbosity level
+	if *k8sVerbosity > 0 {
+		verbosity := klogFlags.Lookup("v")
+		verbosity.Value.Set(strconv.Itoa(*k8sVerbosity))
+		klog.V(4).Infof("Kubernetes client verbosity level set to %v", klogFlags.Lookup("v").Value)
 	}
 
 	// Logger component.
