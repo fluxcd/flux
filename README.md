@@ -65,6 +65,7 @@ container images and config changes are propagated to the cluster.
 - [Omise](https://www.omise.co)
 - [Payout](https://payout.one)
 - [Qordoba](https://qordoba.com)
+- [Rakuten](https://rakuten.com)
 - [Replicated](https://replicated.com)
 - [Rungway](https://rungway.com)
 - [Starbucks](https://www.starbucks.com/)
