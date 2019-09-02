@@ -1,3 +1,39 @@
+## 1.14.2 (2019-09-02)
+
+This is a patch release, with some important fixes to the handling of
+HelmRelease resources.
+
+### Fixes
+
+- Correct a problem that prevented automated HelmRelease updates
+  [fluxcd/flux#2412][]
+- Fix a crash triggered when `helm.fluxcd.io/v1` resources are present
+  in the cluster [fluxcd/flux#2404][]
+
+### Enhancements
+
+- Add a flag `--k8s-verbosity`, for controlling Kubernetes client
+  logging (formerly, this was left disabled) [fluxcd/flux#2410][]
+
+### Maintenance and documentation
+
+- Rakuten is now listed as a production user [fluxcd/flux#2413][]
+
+### Thanks
+
+Bouquets to @HighwayofLife, @IsNull, @adeleglise, @aliartiza75,
+@antonosmond, @bforchhammer, @brunowego, @cartyc, @chainlink,
+@cristian-radu, @dholbach, @dranner-bgt, @fshot, @hiddeco, @isen-ng,
+@jonohill, @kingdonb, @mflendrich, @mfrister, @mgenov, @raravena80,
+@rndstr, @robertgates55, @sklemmer, @smartpcr, @squaremo,
+@stefanprodan, @stefansedich, @yellowmegaman, @ysaakpr for
+contributions to this release.
+
+[fluxcd/flux#2404]: https://github.com/fluxcd/flux/pull/2404
+[fluxcd/flux#2410]: https://github.com/fluxcd/flux/pull/2410
+[fluxcd/flux#2412]: https://github.com/fluxcd/flux/pull/2412
+[fluxcd/flux#2413]: https://github.com/fluxcd/flux/pull/2413
+
 ## 1.14.1 (2019-08-22)
 
 This is a patch release.
