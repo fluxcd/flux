@@ -58,10 +58,8 @@ plugs:
   kube-config:
     interface: personal-files
     read:
-    - $HOME/.kube/config
-    - $HOME/.minikube/client.key
-    - $HOME/.minikube/client.crt
-    - $HOME/.minikube/ca.crt
+    - $HOME/.kube
+    - $HOME/.minikube
 
 apps:
   fluxctl:
