@@ -42,7 +42,7 @@ type changeSet struct {
 func (d *Daemon) Sync(ctx context.Context, started time.Time, newRevision string, ratchet revisionRatchet) error {
 	// Make a read-only clone used for this sync
 	ctxt, cancel := context.WithTimeout(ctx, d.GitTimeout)
-	working, err := d.Repo.Export(ctxt, newRevision)
+	working, err := d.Repo.Export(ctxt, newRevision, d.GitSecretEnabled)
 	if err != nil {
 		return err
 	}

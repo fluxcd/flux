@@ -101,12 +101,6 @@ func (r *Repo) Clone(ctx context.Context, conf Config) (*Checkout, error) {
 	}
 	r.mu.RUnlock()
 
-	if conf.GitSecret {
-		if err := secretUnseal(ctx, repoDir); err != nil {
-			return nil, err
-		}
-	}
-
 	return &Checkout{
 		Export:       &Export{dir: repoDir},
 		upstream:     upstream,
@@ -195,7 +189,7 @@ func (c *Checkout) MoveTagAndPush(ctx context.Context, tagAction TagAction) erro
 }
 
 func (c *Checkout) Checkout(ctx context.Context, rev string) error {
-	return checkout(ctx, c.Dir(), rev)
+	return checkout(ctx, c.Dir(), rev, false)
 }
 
 func (c *Checkout) Add(ctx context.Context, path string) error {

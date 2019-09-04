@@ -21,12 +21,12 @@ func (e *Export) Clean() {
 }
 
 // Export creates a minimal clone of the repo, at the ref given.
-func (r *Repo) Export(ctx context.Context, ref string) (*Export, error) {
+func (r *Repo) Export(ctx context.Context, ref string, gitSecretEnabled bool) (*Export, error) {
 	dir, err := r.workingClone(ctx, "")
 	if err != nil {
 		return nil, err
 	}
-	if err = checkout(ctx, dir, ref); err != nil {
+	if err = checkout(ctx, dir, ref, gitSecretEnabled); err != nil {
 		return nil, err
 	}
 	return &Export{dir}, nil

@@ -55,6 +55,7 @@ type Daemon struct {
 	EventWriter               event.EventWriter
 	Logger                    log.Logger
 	ManifestGenerationEnabled bool
+	GitSecretEnabled          bool
 	// bookkeeping
 	*LoopVars
 }
@@ -670,7 +671,7 @@ func (d *Daemon) WithReadonlyClone(ctx context.Context, fn func(*git.Export) err
 	if err != nil {
 		return err
 	}
-	co, err := d.Repo.Export(ctx, head)
+	co, err := d.Repo.Export(ctx, head, d.GitSecretEnabled)
 	if err != nil {
 		return err
 	}
